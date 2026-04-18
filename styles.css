@@ -744,3 +744,49 @@ body {
 .sub-color-ciencias   { background: #0891b2; }
 .sub-color-historia   { background: #b45309; }
 .sub-color-geografia  { background: #7c3aed; }
+
+/* ===== Exercícios complexos (passage / table / svg) ===== */
+.ex-passage {
+    background: #f0f9ff;
+    border-left: 4px solid #0284c7;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #0c4a6e;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+}
+.ex-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+.ex-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.ex-table-wrap th {
+    background: #6d28d9;
+    color: #fff;
+    padding: 8px 10px;
+    text-align: left;
+}
+.ex-table-wrap td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e5e7eb;
+}
+.ex-table-wrap tr:nth-child(even) td { background: #f9fafb; }
+.ex-svg-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+}
+.ex-svg-wrap svg { max-width: 100%; height: auto; }
+.ex-q-text { display: block; font-weight: 700; font-size: 1rem; }

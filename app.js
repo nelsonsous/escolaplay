@@ -17,13 +17,18 @@ const DAILY_QUESTIONS = 5;      // 1 por disciplina (temos 5)
 const PRACTICE_QUESTIONS = 6;
 
 const DEFAULT_REWARDS = [
-    { id: 'r1', name: 'Escolher a sobremesa', cost: 300, claimed: false },
-    { id: 'r2', name: '30 min extra de ecrã', cost: 800, claimed: false },
-    { id: 'r3', name: 'Ir comer um gelado', cost: 1500, claimed: false },
-    { id: 'r4', name: 'Passeio ao parque com os pais', cost: 2500, claimed: false },
-    { id: 'r5', name: 'Ver um filme em família', cost: 4000, claimed: false },
-    { id: 'r6', name: 'Escolher o próximo passeio de fim de semana', cost: 6000, claimed: false }
+    { id: 'r1', name: 'Escolher a sobremesa', cost: 2000, claimed: false },
+    { id: 'r2', name: '30 min extra de ecrã', cost: 5000, claimed: false },
+    { id: 'r3', name: 'Ir comer um gelado', cost: 10000, claimed: false },
+    { id: 'r4', name: 'Passeio ao parque com os pais', cost: 16000, claimed: false },
+    { id: 'r5', name: 'Ver um filme em família', cost: 24000, claimed: false },
+    { id: 'r6', name: 'Escolher o próximo passeio de fim de semana', cost: 35000, claimed: false }
 ];
+const REWARD_PRESETS = {
+    facil:   [1000,  2500,  5000,  8000,  12000, 18000],
+    normal:  [2000,  5000,  10000, 16000, 24000, 35000],
+    dificil: [4000,  10000, 20000, 32000, 48000, 70000]
+};
 
 const BADGES = [
     { id:'first',       icon:'\u{1F331}', name:'Primeiros Passos',  desc:'1 resposta certa',      check:(s)=> totalCorrect(s) >= 1 },
@@ -621,6 +626,18 @@ function resetRewards() {
     renderProgress();
     renderHome();
 }
+function applyRewardPreset(preset) {
+    const costs = REWARD_PRESETS[preset];
+    if (!costs) return;
+    const labels = { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil' };
+    if (!confirm(`Aplicar preset "${labels[preset]}"? Os custos actuais serão substituídos.`)) return;
+    state.rewards.forEach((r, i) => { if (costs[i]) r.cost = costs[i]; });
+    saveState();
+    renderProfile();
+    renderProgress();
+    renderHome();
+    showToast(`Preset ${labels[preset]} aplicado`);
+}
 function toggleMax() {
     state.max.enabled = document.getElementById('max-enabled').checked;
     saveState();
@@ -678,25 +695,33 @@ async function generateMaxExercises(subjectKey, topics, count = 12) {
     const sub = SUBJECTS[subjectKey];
     const subName = sub.fullName || sub.name;
     const topicsStr = topics.join(', ');
-    const prompt = `És um professor que cria exercícios para o 5.º ano (curriculum português).
+    const prompt = `És um professor que cria exercícios variados e desafiantes para o 5.º ano (curriculum português).
 
 Gera ${count} exercícios de ${subName} cobrindo os tópicos: ${topicsStr}.
 
-REGRAS:
-- Usa Português Europeu com Acordo Ortográfico de 1990 (ex: "correto", "exceção", "ótimo").
-- Acentos obrigatórios. Dificuldade 1-3.
-- Mistura tipos: escolha múltipla, preencher, verdadeiro/falso e problemas contextualizados (estes últimos devem ser pelo menos metade para Matemática).
-- Cada "problem" tem enunciado com contexto real, campo "material" (regra em 1-2 linhas) e "solution" (resolução passo-a-passo).
-- Respostas curtas e sem ambiguidade.
-- Para cada tópico inclui uma mini-lição de 2-3 frases no campo "lessons".
+REGRAS GERAIS:
+- Português Europeu, Acordo Ortográfico 1990. Acentos obrigatórios.
+- Dificuldade 1-3. Inclui pelo menos 3 exercícios de dificuldade 3.
+- Mistura tipos: mc, tf, fill, problem, passage.
+- Para Matemática, pelo menos metade devem ser "problem" ou "passage" com cálculo real.
 
-Responde APENAS com um objecto JSON válido no formato exacto (sem markdown, sem comentários):
+TIPOS DE EXERCÍCIOS:
+1. "mc" - escolha múltipla com 4 opções
+2. "tf" - verdadeiro ou falso
+3. "fill" - preencher lacuna
+4. "problem" - problema com contexto real (campo "material" com regra, "solution" com resolução passo-a-passo)
+5. "passage" - texto de contexto longo (2-4 frases) seguido de pergunta; usa campo "passage" com o texto e "q" com a pergunta. Pode incluir "table" com tabela HTML simples (<table>) ou "svg" com SVG simples para figuras geométricas/gráficos.
 
-{"lessons":{"<tópico>":"<explicação do tópico em 2-3 frases>"},"exercises":[
-  {"t":"<tópico>","type":"mc","diff":2,"q":"<pergunta>","opts":["A","B","C","D"],"ans_mc":0,"exp":"<explicação curta>"},
+Para cada tópico inclui mini-lição de 2-3 frases no campo "lessons".
+
+Responde APENAS com JSON válido (sem markdown):
+
+{"lessons":{"<tópico>":"<explicação 2-3 frases>"},"exercises":[
+  {"t":"<tópico>","type":"mc","diff":2,"q":"<pergunta>","opts":["A","B","C","D"],"ans_mc":0,"exp":"<explicação>"},
   {"t":"<tópico>","type":"tf","diff":1,"q":"<afirmação>","ans_tf":true,"exp":"<explicação>"},
-  {"t":"<tópico>","type":"fill","diff":2,"q":"<pergunta>","ans_fill":["resposta","variante"],"exp":"<explicação>"},
-  {"t":"<tópico>","type":"problem","diff":3,"q":"<enunciado>","ans_fill":["valor"],"material":"<regra>","solution":"<passos>","exp":"<nota final>"}
+  {"t":"<tópico>","type":"fill","diff":2,"q":"<frase com ___>","ans_fill":["resposta","variante"],"exp":"<explicação>"},
+  {"t":"<tópico>","type":"problem","diff":3,"q":"<enunciado>","ans_fill":["valor"],"material":"<regra>","solution":"<passos>","exp":"<nota>"},
+  {"t":"<tópico>","type":"passage","diff":3,"passage":"<texto contexto longo>","q":"<pergunta sobre o texto>","ans_fill":["resposta"],"table":"<tabela HTML opcional>","svg":"<SVG simples opcional>","exp":"<explicação>"}
 ]}`;
 
     const { text, usage } = await callClaudeAPI(prompt, 4000);
@@ -725,6 +750,12 @@ Responde APENAS com um objecto JSON válido no formato exacto (sem markdown, sem
         else if (raw.type === 'tf') { ex.ans = raw.ans_tf; }
         else if (raw.type === 'fill' || raw.type === 'problem') {
             ex.ans = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill)];
+        }
+        if (raw.type === 'passage') {
+            ex.passage = raw.passage || '';
+            ex.ans = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill || '')];
+            if (raw.table) ex.table = raw.table;
+            if (raw.svg)   ex.svg   = raw.svg;
         }
         if (raw.material) ex.material = raw.material;
         if (raw.solution) ex.solution = raw.solution;
@@ -925,7 +956,14 @@ function renderQuestion() {
     tag.textContent = sub.name;
     tag.style.background = sub.color;
     document.getElementById('ex-topic').textContent = e.t;
-    document.getElementById('ex-question').textContent = e.q;
+    // Suporte a passagem de texto / tabela / SVG acima da pergunta
+    const qEl = document.getElementById('ex-question');
+    let qHtml = '';
+    if (e.passage) qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
+    if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
+    if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
+    qHtml += `<span class="ex-q-text">${escapeHtml(e.q)}</span>`;
+    qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
     selectedAnswer = null;
     matchSelection = { left: null };
@@ -972,7 +1010,7 @@ function selectTF(v) {
 function renderFill(e) {
     return `
         <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="off" autocorrect="off" autocapitalize="off">
-        <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
+        <button class="btn btn-primary-solid btn-block" id="submit-btn" onclick="submitAnswer()">Responder</button>
     `;
 }
 
@@ -1027,8 +1065,23 @@ function matchPickRight(j) {
     redrawMatch();
 }
 
+// ========== VALIDAÇÃO IA ==========
+async function aiValidateAnswer(exercise, studentAnswer) {
+    const cacheKey = `aival_${exercise.id}_${normalize(studentAnswer).slice(0, 40)}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached !== null) return cached === '1';
+    const correctAnswers = (exercise.ans || []).join(' ou ');
+    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas e formas equivalentes. Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 30);
+        const correct = /"ok"\s*:\s*true/.test(text);
+        sessionStorage.setItem(cacheKey, correct ? '1' : '0');
+        return correct;
+    } catch(e) { return false; }
+}
+
 // ========== SUBMIT ==========
-function submitAnswer() {
+async function submitAnswer() {
     const e = currentSession.items[currentSession.idx];
     let isCorrect = false;
     if (e.type === 'mc') {
@@ -1043,10 +1096,17 @@ function submitAnswer() {
         if (selectedAnswer === null) { showToast('Escolhe Verdadeiro ou Falso'); return; }
         isCorrect = selectedAnswer === e.ans;
     } else if (e.type === 'fill' || e.type === 'problem') {
-        const val = document.getElementById('fill-input').value;
+        const val = document.getElementById('fill-input')?.value || '';
         if (!val.trim()) { showToast('Escreve uma resposta'); return; }
         const n = normalize(val);
         isCorrect = (e.ans || []).some(a => normalize(a) === n);
+        // Validação IA como fallback — só se não acertou no matching e há chave API
+        if (!isCorrect && state.max?.apiKey) {
+            const btn = document.getElementById('submit-btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
+            isCorrect = await aiValidateAnswer(e, val);
+            if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
+        }
     } else if (e.type === 'order') {
         isCorrect = orderState.every((it, i) => it === e.items[i]);
     } else if (e.type === 'match') {

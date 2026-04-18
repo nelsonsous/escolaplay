@@ -161,6 +161,11 @@
         <div class="section-title"><i class="fas fa-gift"></i> Gerir prémios</div>
         <div class="form-card">
             <p class="muted" style="margin-bottom:8px">Os pais podem editar os prémios que podem dar a cada meta.</p>
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+                <button class="btn btn-secondary" style="flex:1;font-size:0.8rem" onclick="applyRewardPreset('facil')">😊 Fácil</button>
+                <button class="btn btn-secondary" style="flex:1;font-size:0.8rem" onclick="applyRewardPreset('normal')">⚖️ Normal</button>
+                <button class="btn btn-secondary" style="flex:1;font-size:0.8rem" onclick="applyRewardPreset('dificil')">🏆 Difícil</button>
+            </div>
             <div id="rewards-editor"></div>
             <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="addReward()"><i class="fas fa-plus"></i> Novo prémio</button>
             <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="resetRewards()"><i class="fas fa-rotate"></i> Repor prémios padrão</button>
