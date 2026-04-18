@@ -139,9 +139,7 @@ function loadState() {
         // Estado novo já tem profiles[] (pode estar vazio até o utilizador criar o primeiro perfil)
         const s = {
             profiles: parsed.profiles.map(p => {
-                // Migração: o conteúdo antes rotulado como 6.º ano é, na realidade, 5.º ano
-                let pyear = p.year === 6 ? 5 : p.year;
-                const yr = SUBJECTS_BY_YEAR[pyear] ? pyear : (parseInt(Object.keys(SUBJECTS_BY_YEAR)[0]) || 2);
+                const yr = SUBJECTS_BY_YEAR[p.year] ? p.year : (parseInt(Object.keys(SUBJECTS_BY_YEAR)[0]) || 2);
                 return { ...newProfile({ year: yr }), ...p, year: yr };
             }),
             activeProfileId: parsed.activeProfileId,

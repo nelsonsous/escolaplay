@@ -8,20 +8,23 @@
 const SUBJECTS_2 = {
     portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
     matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
-    estudo_meio:  { name: 'Estudo do Meio', icon: 'fa-globe',        color: '#16a34a' }
+    estudo_meio:  { name: 'Estudo do Meio', icon: 'fa-globe',        color: '#16a34a' },
+    ingles:       { name: 'Inglês',         icon: 'fa-language',     color: '#7c3aed' }
 };
 
 const CURRICULUM_2 = {
     portugues: ['Vogais e consoantes','Sílabas','Ditongos','Sinónimos','Antónimos','Família de palavras','Tipos de frase','Singular e plural','Verbos no presente'],
     matematica: ['Números até 100','Dezenas e unidades','Adição até 100','Subtração até 100','Tabuada do 2','Tabuada do 5','Tabuada do 10','Sólidos geométricos','Figuras planas','Medir tempo','Dinheiro (€)'],
-    estudo_meio: ['O meu corpo','A minha família','A escola','Animais','Plantas','Estações do ano','Os sentidos','Profissões','Portugal']
+    estudo_meio: ['O meu corpo','A minha família','A escola','Animais','Plantas','Estações do ano','Os sentidos','Profissões','Portugal'],
+    ingles: ['Greetings','Numbers 1-10','Colors','Animals','Family','Body parts','School things','Food']
 };
 
 // Períodos por tópico (1, 2 ou 3) — ano lectivo dividido em 3 períodos
 const PERIODS_2 = {
     portugues:   { 'Vogais e consoantes':1, 'Sílabas':1, 'Ditongos':1, 'Sinónimos':2, 'Antónimos':2, 'Família de palavras':2, 'Tipos de frase':3, 'Singular e plural':3, 'Verbos no presente':3 },
     matematica:  { 'Números até 100':1, 'Dezenas e unidades':1, 'Adição até 100':1, 'Subtração até 100':2, 'Tabuada do 2':2, 'Tabuada do 5':2, 'Tabuada do 10':2, 'Sólidos geométricos':3, 'Figuras planas':3, 'Medir tempo':3, 'Dinheiro (€)':3 },
-    estudo_meio: { 'O meu corpo':1, 'A minha família':1, 'A escola':1, 'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Os sentidos':3, 'Profissões':3, 'Portugal':3 }
+    estudo_meio: { 'O meu corpo':1, 'A minha família':1, 'A escola':1, 'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Os sentidos':3, 'Profissões':3, 'Portugal':3 },
+    ingles:      { 'Greetings':1, 'Numbers 1-10':1, 'Colors':1, 'Animals':2, 'Family':2, 'Body parts':2, 'School things':3, 'Food':3 }
 };
 
 const LESSONS_2 = {
@@ -53,7 +56,15 @@ const LESSONS_2 = {
     'estudo_meio/Estações do ano': { title:'Estações do ano', body:'**Primavera** (flores), **Verão** (calor), **Outono** (folhas caem) e **Inverno** (frio).' },
     'estudo_meio/Os sentidos': { title:'Os 5 sentidos', body:'**Visão** (olhos), **audição** (ouvidos), **olfato** (nariz), **paladar** (boca/língua) e **tato** (pele).' },
     'estudo_meio/Profissões': { title:'Profissões', body:'Cada profissão ajuda a comunidade: **médico** trata doentes, **professor** ensina, **bombeiro** apaga fogos, **padeiro** faz pão, **agricultor** cultiva alimentos.' },
-    'estudo_meio/Portugal': { title:'Portugal', body:'Portugal fica na Europa, na **Península Ibérica**. A capital é **Lisboa**. A bandeira tem **verde** e **vermelho** com o brasão. A língua oficial é o **português**.' }
+    'estudo_meio/Portugal': { title:'Portugal', body:'Portugal fica na Europa, na **Península Ibérica**. A capital é **Lisboa**. A bandeira tem **verde** e **vermelho** com o brasão. A língua oficial é o **português**.' },
+    'ingles/Greetings': { title:'Greetings (Cumprimentos)', body:'**Hello** = Olá 👋\n**Hi** = Oi\n**Good morning** = Bom dia ☀️\n**Good afternoon** = Boa tarde\n**Good night** = Boa noite 🌙\n**Goodbye** / **Bye** = Adeus\n**Thank you** = Obrigado(a) 🙏\n**Please** = Por favor\n**How are you?** = Como estás?\n**I\'m fine** = Estou bem 😊' },
+    'ingles/Numbers 1-10': { title:'Numbers 1-10', body:'**1 one** · **2 two** · **3 three** · **4 four** · **5 five**\n**6 six** · **7 seven** · **8 eight** · **9 nine** · **10 ten**\n\n🔢 Pratica em voz alta: one, two, three…' },
+    'ingles/Colors': { title:'Colors', body:'🔴 **red** = vermelho\n🔵 **blue** = azul\n🟡 **yellow** = amarelo\n🟢 **green** = verde\n🟠 **orange** = laranja\n🟣 **purple** = roxo\n⚫ **black** = preto\n⚪ **white** = branco\n🟤 **brown** = castanho\n💗 **pink** = rosa' },
+    'ingles/Animals': { title:'Animals', body:'🐶 **dog** = cão\n🐱 **cat** = gato\n🐦 **bird** = pássaro\n🐟 **fish** = peixe\n🐮 **cow** = vaca\n🐴 **horse** = cavalo\n🐷 **pig** = porco\n🐰 **rabbit** = coelho\n🐘 **elephant** = elefante\n🦁 **lion** = leão' },
+    'ingles/Family': { title:'Family', body:'👨 **father / dad** = pai\n👩 **mother / mom** = mãe\n👦 **brother** = irmão\n👧 **sister** = irmã\n👴 **grandfather / grandpa** = avô\n👵 **grandmother / grandma** = avó\n👶 **baby** = bebé\n👨‍👩‍👧‍👦 **family** = família' },
+    'ingles/Body parts': { title:'Body parts', body:'👁️ **eye** = olho\n👂 **ear** = orelha\n👃 **nose** = nariz\n👄 **mouth** = boca\n🖐️ **hand** = mão\n🦶 **foot** = pé (plural: **feet** = pés)\n💪 **arm** = braço\n🦵 **leg** = perna\n🧠 **head** = cabeça\n💇 **hair** = cabelo' },
+    'ingles/School things': { title:'School things', body:'📚 **book** = livro\n✏️ **pencil** = lápis\n🖊️ **pen** = caneta\n🎒 **bag** = mochila\n📓 **notebook** = caderno\n🪑 **chair** = cadeira\n🪟 **window** = janela\n🚪 **door** = porta\n👨‍🏫 **teacher** = professor(a)\n🏫 **school** = escola' },
+    'ingles/Food': { title:'Food', body:'🍎 **apple** = maçã\n🍌 **banana** = banana\n🥛 **milk** = leite\n🍞 **bread** = pão\n🧀 **cheese** = queijo\n🥚 **egg** = ovo\n🍕 **pizza** = pizza\n🍫 **chocolate** = chocolate\n💧 **water** = água\n🍪 **cookie** = bolacha' }
 };
 
 const EXERCISES_2 = [
@@ -936,6 +947,402 @@ const CURRICULUM_5 = {
 };
 
 // ============================================================
+// ===================== 6.º ANO ==============================
+// ============================================================
+const SUBJECTS_6 = {
+    portugues:  { name: 'Português',  icon: 'fa-book',         color: '#e11d48' },
+    matematica: { name: 'Matemática', icon: 'fa-calculator',   color: '#2563eb' },
+    ingles:     { name: 'Inglês',     icon: 'fa-language',     color: '#16a34a' },
+    ciencias:   { name: 'Ciências',   icon: 'fa-leaf',         color: '#0891b2' },
+    hgp:        { name: 'HGP',        icon: 'fa-landmark',     color: '#b45309', fullName: 'História e Geografia de Portugal' }
+};
+
+const LESSONS_6 = {
+    // ----- Português -----
+    'portugues/Texto narrativo': {
+        title: 'Texto narrativo',
+        body: `O **texto narrativo** conta uma história. Tem cinco elementos essenciais:\n\n• **Narrador** — quem conta (1.ª pessoa = participa; 3.ª pessoa = observa).\n• **Personagens** — principais, secundárias, figurantes.\n• **Espaço** — onde decorre a ação (físico, social, psicológico).\n• **Tempo** — quando decorre (cronológico, histórico).\n• **Ação** — sequência: introdução → desenvolvimento → conclusão (ou desenlace).`
+    },
+    'portugues/Texto poético': {
+        title: 'Texto poético',
+        body: `Um **poema** organiza-se em **versos** (cada linha) e **estrofes** (conjuntos de versos).\n\n• **Rima** — som igual no fim dos versos (rima cruzada ABAB, emparelhada AABB, interpolada ABBA).\n• **Métrica** — número de sílabas métricas em cada verso.\n• **Estrofes**: dístico (2), terceto (3), quadra (4), quintilha (5), sextilha (6).\n• Versos sem rima chamam-se **versos brancos**.`
+    },
+    'portugues/Texto dramático': {
+        title: 'Texto dramático',
+        body: `O **texto dramático** é escrito para ser representado em palco (teatro).\n\n• **Falas** — cada personagem fala (precedidas pelo nome).\n• **Didascálias** — indicações ao encenador/atores (em itálico ou parênteses): cenário, gestos, entoação.\n• **Estrutura**: dividido em **atos** (grandes blocos) e **cenas** (mudança de personagens em palco).\n• Não tem narrador — a ação avança pelo diálogo.`
+    },
+    'portugues/Funções sintáticas': {
+        title: 'Funções sintáticas',
+        body: `Numa frase, cada grupo desempenha uma função:\n\n• **Sujeito** — quem pratica a ação (*A Maria* leu o livro).\n• **Predicado** — o que se diz do sujeito (contém o verbo).\n• **Complemento direto (CD)** — responde a "o quê?" (leu *o livro*).\n• **Complemento indireto (CI)** — responde a "a quem?" (deu o livro *à Ana*).\n• **Modificador** — info extra removível (leu *na biblioteca*).\n• **Predicativo do sujeito** — qualifica o sujeito após verbo copulativo ser/estar/parecer/ficar (*A casa está limpa*).`
+    },
+    'portugues/Modos verbais': {
+        title: 'Modos verbais',
+        body: `Os verbos variam em **modo** consoante a atitude do falante:\n\n• **Indicativo** — afirma um facto: *eu canto, eu cantei, eu cantarei*.\n• **Conjuntivo** — exprime dúvida, desejo, hipótese: *talvez eu cante; espero que eu cante*.\n• **Imperativo** — dá ordens, conselhos, pedidos: *canta!, cantem!*.\n\nO **infinitivo**, **gerúndio** e **particípio** são formas nominais (não exprimem modo nem tempo de forma autónoma).`
+    },
+    'portugues/Tempos compostos': {
+        title: 'Tempos compostos',
+        body: `Os **tempos compostos** formam-se com o verbo auxiliar **ter** (ou haver) + **particípio passado** do verbo principal.\n\n• **Pretérito perfeito composto**: *eu tenho cantado* (ação que se repete até ao presente).\n• **Pretérito mais-que-perfeito composto**: *eu tinha cantado* (ação anterior a outra passada).\n• **Futuro composto**: *eu terei cantado* (ação concluída antes de outra futura).\n\nO particípio é invariável quando vem depois de "ter": *tenho lido, temos visto*.`
+    },
+    'portugues/Discurso direto e indireto': {
+        title: 'Discurso direto e indireto',
+        body: `• **Discurso direto** — reproduz exatamente as palavras (com travessão ou aspas):\n  — *Disse o João: "Estou cansado."*\n\n• **Discurso indireto** — relata o que foi dito (sem aspas, com verbo declarativo + "que"):\n  — *O João disse que estava cansado.*\n\n**Mudanças** ao passar de direto para indireto:\n• 1.ª pessoa → 3.ª pessoa (eu → ele)\n• Presente → imperfeito (estou → estava)\n• "hoje" → "nesse dia"; "aqui" → "ali"; "amanhã" → "no dia seguinte".`
+    },
+    'portugues/Recursos expressivos': {
+        title: 'Recursos expressivos',
+        body: `Técnicas que dão beleza e força ao texto:\n\n• **Comparação** — usa "como": *forte como um touro*.\n• **Metáfora** — comparação implícita: *és um touro*.\n• **Personificação** — atribui qualidades humanas: *o vento gemia*.\n• **Enumeração** — sequência de elementos: *trouxe pão, leite, fruta e mel*.\n• **Hipérbole** — exagero: *morro de fome*.\n• **Anáfora** — repetição no início de versos/frases.\n• **Aliteração** — repetição de consoantes: *o rato roeu a rolha*.`
+    },
+    'portugues/Acentuação gráfica': {
+        title: 'Acentuação gráfica',
+        body: `Quanto à sílaba tónica, as palavras classificam-se em:\n\n• **Agudas** — tónica na **última** sílaba: café, avó, jardim.\n• **Graves (paroxítonas)** — tónica na **penúltima**: mesa, lápis, fácil.\n• **Esdrúxulas (proparoxítonas)** — tónica na **antepenúltima**: árvore, médico, sílaba — **acentuam-se sempre**.\n\nAcentos: **agudo (´)**, **grave (\`)**, **circunflexo (^)**, **til (~)**.`
+    },
+    'portugues/Orações coordenadas e subordinadas': {
+        title: 'Orações coordenadas e subordinadas',
+        body: `Uma frase complexa tem mais do que uma oração.\n\n• **Coordenadas** — orações com sentido independente, ligadas por conjunções coordenativas (e, mas, ou, porém, logo). Ex.: *Estudei muito **e** passei no teste.*\n\n• **Subordinadas** — uma oração depende da outra. Conjunções: porque, quando, se, embora, que. Ex.: *Não fui à praia **porque** estava a chover.*\n\nA oração principal sustenta o sentido; a subordinada acrescenta uma informação dependente.`
+    },
+
+    // ----- Matemática -----
+    'matematica/Números racionais não negativos': {
+        title: 'Números racionais não negativos',
+        body: `Um **número racional** pode escrever-se como **fração** a/b (com b ≠ 0). Inclui:\n\n• **Frações**: 1/2, 3/4, 7/5.\n• **Decimais**: 0,5; 0,75; 1,4.\n• **Percentagens**: 25%, 50%, 100%.\n\n**Conversões úteis**:\n• Fração → decimal: dividir o numerador pelo denominador. 3/4 = 3 ÷ 4 = 0,75.\n• Decimal → percentagem: multiplicar por 100. 0,75 = 75%.\n• Percentagem → fração: pôr sobre 100 e simplificar. 25% = 25/100 = 1/4.`
+    },
+    'matematica/Operações com frações': {
+        title: 'Operações com frações',
+        body: `• **Adição/subtração**: reduzir ao mesmo denominador, depois somar/subtrair os numeradores.\n  1/2 + 1/3 = 3/6 + 2/6 = **5/6**.\n\n• **Multiplicação**: numerador × numerador e denominador × denominador.\n  2/3 × 4/5 = **8/15**.\n\n• **Divisão**: multiplicar pelo inverso da segunda fração.\n  2/3 ÷ 4/5 = 2/3 × 5/4 = **10/12 = 5/6**.\n\nNo final, **simplificar** sempre que possível.`
+    },
+    'matematica/Potências de expoente natural': {
+        title: 'Potências de expoente natural',
+        body: `Uma **potência** representa multiplicações de fatores iguais: a^n = a × a × … × a (n vezes).\n\n• **Base** = a; **expoente** = n.\n• 2³ = 2 × 2 × 2 = **8**.\n• a¹ = a; a⁰ = 1 (a ≠ 0).\n\n**Regras**:\n• Mesma base, multiplicar: a^m × a^n = a^(m+n). Ex.: 2² × 2³ = 2⁵.\n• Mesma base, dividir: a^m ÷ a^n = a^(m−n). Ex.: 3⁵ ÷ 3² = 3³.\n• Potência de potência: (a^m)^n = a^(m×n). Ex.: (2²)³ = 2⁶.`
+    },
+    'matematica/Sequências e regularidades': {
+        title: 'Sequências e regularidades',
+        body: `Uma **sequência** é uma lista ordenada de termos com uma regra.\n\n• 2, 4, 6, 8, … → **termo geral** 2n (múltiplos de 2).\n• 1, 4, 9, 16, … → n² (quadrados).\n• 5, 8, 11, 14, … → 3n + 2 (soma 3).\n\n**Como descobrir o termo geral**:\n1) Vê a diferença entre termos consecutivos.\n2) Se for constante k, o termo geral é k·n + (algo).\n3) Testa com n = 1, 2, 3 para confirmar.`
+    },
+    'matematica/Razões e proporções': {
+        title: 'Razões e proporções',
+        body: `• **Razão** entre a e b é o quociente a/b (com b ≠ 0). Ex.: razão entre 6 rapazes e 9 raparigas = 6/9 = 2/3.\n\n• **Proporção** é a igualdade entre duas razões: a/b = c/d.\n\n**Propriedade fundamental**: o produto dos meios é igual ao produto dos extremos.\n  Se a/b = c/d, então **a × d = b × c**.\n\nÚtil para descobrir um termo desconhecido:\n  3/4 = x/12 → 3 × 12 = 4 × x → x = 36/4 = **9**.`
+    },
+    'matematica/Proporcionalidade direta': {
+        title: 'Proporcionalidade direta',
+        body: `Duas grandezas estão em **proporcionalidade direta** quando o quociente entre os valores correspondentes é **constante** (a constante de proporcionalidade, k).\n\nSe y = k × x, então y/x = k.\n\n**Exemplo**: 1 kg de maçãs custa 2 €.\n• 2 kg → 4 € · 3 kg → 6 € · 5 kg → 10 €.\n• Constante: k = 2 (€/kg).\n\nQuando uma duplica, a outra também duplica. O gráfico é uma reta que passa pela origem.`
+    },
+    'matematica/Áreas de polígonos': {
+        title: 'Áreas de polígonos',
+        body: `**Fórmulas** (com b = base, h = altura):\n\n• **Paralelogramo**: A = b × h.\n• **Triângulo**: A = (b × h) ÷ 2.\n• **Trapézio**: A = (B + b) × h ÷ 2 (B = base maior, b = base menor).\n• **Retângulo**: A = comprimento × largura.\n• **Quadrado**: A = lado².\n\nA área mede-se em unidades quadradas: cm², m², km².\n• 1 m² = 10 000 cm².`
+    },
+    'matematica/Áreas e perímetros do círculo': {
+        title: 'Áreas e perímetros do círculo',
+        body: `Um **círculo** tem raio (r) e diâmetro (d = 2r).\n\n• **Perímetro (comprimento da circunferência)**: P = 2 × π × r = π × d.\n• **Área**: A = π × r².\n\nO valor de **π** é aproximadamente **3,14**.\n\nExemplo: círculo com r = 5 cm.\n• P = 2 × 3,14 × 5 = **31,4 cm**.\n• A = 3,14 × 5² = 3,14 × 25 = **78,5 cm²**.`
+    },
+    'matematica/Volumes de prismas e cilindros': {
+        title: 'Volumes de prismas e cilindros',
+        body: `O **volume** de um prisma ou cilindro = **área da base × altura**.\n\n• **Cubo**: V = aresta³.\n• **Paralelepípedo**: V = c × l × h.\n• **Prisma triangular**: V = (área do triângulo) × altura.\n• **Cilindro**: V = π × r² × h.\n\n**Unidades**: cm³, dm³, m³.\n• 1 dm³ = 1 litro.\n• 1 m³ = 1000 litros.`
+    },
+    'matematica/Estatística': {
+        title: 'Estatística: média, mediana, moda',
+        body: `Para um conjunto de dados numéricos:\n\n• **Média** = (soma de todos os valores) ÷ (n.º de valores). Ex.: 4,6,8 → (4+6+8)/3 = **6**.\n• **Mediana** = valor do meio depois de ordenar. Se houver dois centrais, a média deles. Ex.: 2,3,**5**,7,9 → mediana = 5.\n• **Moda** = valor que se repete mais vezes. Ex.: 1,2,**3**,**3**,4 → moda = 3.\n\n**Gráficos**: barras, pictogramas, circular (de setores), linhas.`
+    },
+    'matematica/Isometrias': {
+        title: 'Isometrias',
+        body: `Uma **isometria** é uma transformação que preserva distâncias e ângulos — a figura imagem é congruente com a original.\n\n• **Reflexão** — espelho num eixo (eixo de simetria).\n• **Rotação** — gira em torno de um ponto (centro), com um certo ângulo.\n• **Translação** — desliza segundo um vetor (direção, sentido e comprimento), sem rodar nem virar.\n\nA composição de isometrias dá outra isometria. Estas operações estão na base dos frisos e dos padrões geométricos.`
+    },
+    'matematica/Ângulos internos de polígonos': {
+        title: 'Ângulos internos de polígonos',
+        body: `A **soma dos ângulos internos** de um polígono com n lados é:\n\n  S = (n − 2) × 180°.\n\n• Triângulo (n=3): 1 × 180° = **180°**.\n• Quadrilátero (n=4): 2 × 180° = **360°**.\n• Pentágono (n=5): 3 × 180° = **540°**.\n• Hexágono (n=6): 4 × 180° = **720°**.\n\nNum **polígono regular** (todos os lados e ângulos iguais), cada ângulo interno = S ÷ n.\nEx.: hexágono regular → 720° ÷ 6 = **120°** por ângulo.`
+    },
+
+    // ----- Inglês -----
+    'ingles/Past simple': {
+        title: 'Past simple',
+        body: `Used for finished actions in the past.\n\n• **Regular verbs**: add **-ed** → played, watched, lived.\n• **Irregular verbs**: must be memorised → go/went, eat/ate, see/saw, have/had, do/did.\n\n**Negative**: didn't + base verb → *I didn't play.*\n**Question**: Did + subject + base verb → *Did you play?*\n\nTime markers: yesterday, last week, two days ago, in 2010.`
+    },
+    'ingles/Present continuous': {
+        title: 'Present continuous',
+        body: `Used for actions happening **now** or around now.\n\n**Form**: subject + **am/is/are** + verb-**ing**.\n• I am eating · She is reading · They are playing.\n\n**Negative**: am not / isn't / aren't + verb-ing.\n**Question**: Am/Is/Are + subject + verb-ing? → *Are you listening?*\n\nTime markers: now, right now, at the moment, today, this week.`
+    },
+    'ingles/Future': {
+        title: 'Future: going to / will',
+        body: `• **going to** — for plans and intentions, or predictions based on evidence.\n  *I am going to study tonight. Look at those clouds — it's going to rain.*\n\n• **will** — for spontaneous decisions, promises, predictions/opinions.\n  *I'll help you. It will probably rain tomorrow.*\n\n**Form**:\n• going to: am/is/are + going to + base verb.\n• will: will + base verb (same for all persons).`
+    },
+    'ingles/Comparatives & superlatives': {
+        title: 'Comparatives and superlatives',
+        body: `**Short adjectives** (1 syllable): add **-er / -est**.\n• tall → taller → the tallest\n• big → bigger → the biggest (double consonant)\n\n**Long adjectives** (2+ syllables): use **more / the most**.\n• beautiful → more beautiful → the most beautiful\n\n**Irregulars**:\n• good → better → the best\n• bad → worse → the worst\n• far → farther → the farthest\n\nUse **than** with comparatives: *She is taller than me.*`
+    },
+    'ingles/Daily routines': {
+        title: 'Daily routines',
+        body: `Common verbs and times of day:\n\n• I **wake up** at 7 a.m.\n• I **have breakfast** at 7:30.\n• I **go to school** at 8.\n• I **have lunch** at 1 p.m.\n• I **do my homework** in the afternoon.\n• I **have dinner** at 8 p.m.\n• I **go to bed** at 10.\n\nUse the **present simple** for routines: *I get up early every day.*`
+    },
+    'ingles/Health & body': {
+        title: 'Health and body',
+        body: `**Body parts**: head, hair, eyes, nose, mouth, ears, neck, shoulders, arms, hands, fingers, chest, stomach, back, legs, knees, feet, toes.\n\n**Common health problems**:\n• I have a **headache** / **stomachache** / **toothache** / **backache**.\n• I have a **cold** / a **fever** / a **sore throat** / a **cough**.\n\n**Advice**: You should **rest**, **drink water**, **see a doctor**, **take medicine**.`
+    },
+    'ingles/Quantifiers': {
+        title: 'Quantifiers',
+        body: `Used to talk about quantity. Choice depends on **countable** vs **uncountable** nouns.\n\n• **some** — affirmative (countable & uncountable): *I have some apples / some milk.*\n• **any** — negative & questions: *I don't have any sugar. Is there any bread?*\n• **much** — uncountable, mostly negatives/questions: *not much time, how much money?*\n• **many** — countable: *not many friends, how many books?*\n• **a lot of / lots of** — both, in affirmative: *a lot of people, a lot of water.*`
+    },
+    'ingles/Adverbs of frequency': {
+        title: 'Adverbs of frequency',
+        body: `Tell us **how often** something happens.\n\n• **always** (100%) · usually · often · sometimes · rarely / seldom · **never** (0%)\n\n**Position**:\n• **Before** the main verb: *I always eat breakfast.*\n• **After** the verb to be: *She is never late.*\n\nQuestion: *How often do you…?* → *I go to the gym **twice a week**.*`
+    },
+
+    // ----- Ciências -----
+    'ciencias/Sistema digestivo': {
+        title: 'Sistema digestivo',
+        body: `O sistema digestivo transforma os alimentos em nutrientes que o corpo absorve.\n\n**Trajeto dos alimentos**:\nboca → faringe → esófago → **estômago** → intestino delgado → intestino grosso → ânus.\n\n**Glândulas anexas**: glândulas salivares, **fígado** (produz a bílis), **pâncreas** (produz suco pancreático).\n\n• **Digestão** — alimentos são partidos por enzimas.\n• **Absorção** — nutrientes passam para o sangue (sobretudo no intestino delgado).\n• **Defecação** — eliminação dos resíduos.`
+    },
+    'ciencias/Sistema circulatório': {
+        title: 'Sistema circulatório',
+        body: `Transporta sangue, nutrientes, oxigénio e hormonas.\n\n**Constituição**:\n• **Coração** — órgão muscular com 4 cavidades (2 aurículas + 2 ventrículos).\n• **Vasos sanguíneos**: **artérias** (saem do coração), **veias** (entram no coração) e **capilares** (trocas com as células).\n• **Sangue** — glóbulos vermelhos, glóbulos brancos, plaquetas, plasma.\n\n**Circulação dupla**:\n• **Pequena circulação** — coração ↔ pulmões (oxigenação).\n• **Grande circulação** — coração ↔ resto do corpo (distribuição).`
+    },
+    'ciencias/Sistema respiratório': {
+        title: 'Sistema respiratório',
+        body: `Permite as trocas gasosas: o corpo recebe **oxigénio (O₂)** e liberta **dióxido de carbono (CO₂)**.\n\n**Trajeto do ar**: fossas nasais → faringe → laringe → **traqueia** → brônquios → bronquíolos → **alvéolos pulmonares**.\n\n**Movimentos respiratórios**:\n• **Inspiração** — diafragma desce, ar entra nos pulmões.\n• **Expiração** — diafragma sobe, ar sai.\n\nNos alvéolos faz-se a **hematose**: o O₂ passa para o sangue e o CO₂ sai.`
+    },
+    'ciencias/Sistema excretor': {
+        title: 'Sistema excretor',
+        body: `Elimina os resíduos do organismo.\n\n**Sistema urinário**:\n• **Rins** (2) — filtram o sangue e produzem **urina**.\n• **Ureteres** — levam a urina dos rins à bexiga.\n• **Bexiga** — armazena a urina.\n• **Uretra** — conduz a urina para o exterior.\n\nOutros órgãos excretores:\n• **Pele** — elimina suor (água + sais minerais).\n• **Pulmões** — eliminam CO₂ e vapor de água.`
+    },
+    'ciencias/Sistema reprodutor': {
+        title: 'Sistema reprodutor',
+        body: `Permite a reprodução humana.\n\n**Sistema reprodutor masculino**: testículos (produzem espermatozoides), epidídimo, canal deferente, próstata, pénis.\n\n**Sistema reprodutor feminino**: ovários (produzem óvulos), trompas de Falópio, útero, vagina.\n\n**Fecundação**: união de um espermatozoide com um óvulo, normalmente nas trompas. Resulta o **ovo (zigoto)**, que se implanta no útero e se desenvolve durante 9 meses.\n\nNa **puberdade**, o corpo prepara-se para a reprodução (caracteres sexuais secundários).`
+    },
+    'ciencias/Sistema nervoso': {
+        title: 'Sistema nervoso',
+        body: `Coordena todas as funções do organismo e permite-nos sentir e reagir.\n\n**Sistema nervoso central (SNC)**:\n• **Encéfalo** — cérebro, cerebelo e bolbo raquidiano (no crânio).\n• **Medula espinal** — dentro da coluna vertebral.\n\n**Sistema nervoso periférico (SNP)**:\n• Nervos que ligam o SNC ao resto do corpo.\n\n**Funções**:\n• Cérebro — pensamento, memória, sentidos.\n• Cerebelo — equilíbrio, coordenação.\n• Bolbo raquidiano — funções vitais (batimento cardíaco, respiração).`
+    },
+    'ciencias/Microrganismos': {
+        title: 'Microrganismos',
+        body: `Seres vivos muito pequenos, só visíveis ao **microscópio**.\n\n**Tipos**:\n• **Bactérias** — unicelulares; algumas úteis (iogurte, queijo), outras patogénicas (causam doenças como amigdalite).\n• **Vírus** — não têm células; só se reproduzem dentro de células vivas. Causam gripe, COVID-19, sarampo.\n• **Fungos** — bolores e leveduras; usados no pão e cerveja, mas também causam doenças (pé-de-atleta).\n• **Protozoários** — unicelulares; alguns causam doenças (malária).`
+    },
+    'ciencias/Saúde e prevenção': {
+        title: 'Saúde e prevenção',
+        body: `Para mantermos o organismo equilibrado, devemos:\n\n• **Alimentação saudável** — variada, segundo a Roda dos Alimentos; muita água; pouco sal, açúcar e gorduras.\n• **Exercício físico** regular.\n• **Higiene** — lavar as mãos, escovar os dentes, banho diário.\n• **Sono** — 9 a 11 horas para crianças.\n• **Vacinação** — protege contra doenças graves (sarampo, tétano, poliomielite).\n• **Não fumar, não consumir álcool nem drogas**.`
+    },
+
+    // ----- HGP -----
+    'hgp/Expansão Marítima': {
+        title: 'Expansão Marítima',
+        body: `Iniciada no séc. XV com a conquista de **Ceuta (1415)**.\n\n**Figuras-chave**:\n• **Infante D. Henrique** — o "Navegador"; impulsionou as viagens da Escola de Sagres.\n• **Bartolomeu Dias** (1488) — dobrou o **Cabo da Boa Esperança** (sul de África).\n• **Vasco da Gama** (1498) — chegou à **Índia** (Calecute) pela via marítima.\n• **Pedro Álvares Cabral** (1500) — chegou ao **Brasil**.\n\nPortugal tornou-se um império marítimo. Trazia especiarias, ouro, escravos. **Tratado de Tordesilhas (1494)** dividiu o mundo entre Portugal e Espanha.`
+    },
+    'hgp/União Ibérica': {
+        title: 'União Ibérica (1580–1640)',
+        body: `Em **1578**, **D. Sebastião** desaparece na **Batalha de Alcácer-Quibir** (Marrocos). Sem herdeiro direto.\n\nEm **1580**, **Filipe II de Espanha** (neto de D. Manuel I) reclama o trono, derrota os opositores em **Alcântara** e torna-se **Filipe I de Portugal**.\n\nDurante 60 anos, os reis espanhóis (Filipe I, II e III) reinaram Portugal — **Dinastia Filipina**.\n\nPortugal mantinha as suas leis, moeda e administração, mas era arrastado para guerras de Espanha (perdeu praças em África, Brasil e Oriente).`
+    },
+    'hgp/Restauração da Independência': {
+        title: 'Restauração da Independência (1640)',
+        body: `O descontentamento crescia: impostos espanhóis, guerras, perda de territórios.\n\nA **1 de dezembro de 1640**, um grupo de nobres conjurados invade o Paço da Ribeira, em Lisboa. Aclamam o **Duque de Bragança** como rei → **D. João IV**.\n\nInicia-se a **Dinastia de Bragança** (1640–1910).\n\nSeguiu-se a **Guerra da Restauração** (1640–1668): Portugal venceu batalhas como **Montijo (1644)**, **Ameixial (1663)** e **Montes Claros (1665)**. Em **1668**, Espanha reconheceu a independência pelo **Tratado de Lisboa**.`
+    },
+    'hgp/Iluminismo e Marquês de Pombal': {
+        title: 'Iluminismo e Marquês de Pombal',
+        body: `O **Iluminismo** (séc. XVIII) defendeu a **razão**, a **ciência** e a **educação** contra o absolutismo cego.\n\nEm Portugal, no reinado de **D. José I** (1750–1777), **Sebastião José de Carvalho e Melo** — o **Marquês de Pombal** — foi primeiro-ministro com poder quase total.\n\n**Reformas**:\n• Reconstruiu **Lisboa após o terramoto de 1755** (Baixa Pombalina).\n• Reformou o ensino e a Universidade de Coimbra.\n• Expulsou os Jesuítas (1759).\n• Criou a Companhia dos Vinhos do Alto Douro (demarcou a primeira região vinícola do mundo).\n• Aboliu a escravatura em Portugal continental (1761).`
+    },
+    'hgp/Liberalismo': {
+        title: 'Liberalismo (1820)',
+        body: `Em **24 de agosto de 1820**, no Porto, deu-se a **Revolução Liberal**. Os revolucionários (burguesia, militares) queriam:\n\n• Acabar com o **absolutismo** do rei.\n• Uma **Constituição** que limitasse o poder real.\n• O regresso do rei (D. João VI estava no Brasil desde 1807, com as invasões francesas).\n\nReuniram-se as **Cortes Gerais** que aprovaram a **Constituição de 1822**, a primeira de Portugal. Princípios: separação de poderes, igualdade perante a lei, soberania da Nação.`
+    },
+    'hgp/Monarquia Constitucional': {
+        title: 'Monarquia Constitucional',
+        body: `O regime que vigorou de **1820 a 1910**: o rei reinava mas com poderes limitados por uma **Constituição** e por um **parlamento**.\n\n**Marcos**:\n• **Carta Constitucional de 1826** (D. Pedro IV) — substituiu a Constituição de 1822.\n• **Guerras Liberais (1828–1834)** — entre liberais (D. Pedro) e absolutistas (D. Miguel). Vitória dos liberais (Convenção de Évora-Monte, 1834).\n• Reis principais: D. Maria II, D. Pedro V, D. Luís I, D. Carlos I, D. Manuel II.\n• **Regicídio (1908)** — D. Carlos I e o príncipe herdeiro são assassinados em Lisboa.`
+    },
+    'hgp/1.ª República': {
+        title: '1.ª República',
+        body: `**Implantação**: a **5 de outubro de 1910**, uma revolução em Lisboa derruba a Monarquia. **D. Manuel II** parte para o exílio. É proclamada a **República**.\n\n**Mudanças**:\n• Nova bandeira (verde e vermelha).\n• Novo hino (A Portuguesa).\n• Separação Igreja/Estado.\n• Voto para os homens alfabetizados.\n\nA 1.ª República (1910–1926) foi muito instável: 8 presidentes, 45 governos, participação na 1.ª Guerra Mundial (1916–18), graves problemas económicos. Terminou com o **Golpe Militar de 28 de maio de 1926**.`
+    },
+    'hgp/Estado Novo': {
+        title: 'Estado Novo (1933–1974)',
+        body: `Após o golpe de 1926, vem a Ditadura Militar. Em **1928**, **António de Oliveira Salazar** torna-se ministro das Finanças.\n\nEm **1933** é aprovada a Constituição do **Estado Novo**, com Salazar como Presidente do Conselho. Foi um regime **autoritário**:\n\n• **Censura** prévia à imprensa, livros, filmes.\n• **PIDE** — polícia política que perseguia opositores.\n• **Partido único** (União Nacional).\n• **Mocidade Portuguesa**, **Legião Portuguesa**.\n• **Guerra Colonial (1961–1974)** em Angola, Moçambique e Guiné.\n\nSalazar governou até 1968; sucedeu-lhe **Marcelo Caetano**.`
+    },
+    'hgp/25 de Abril': {
+        title: '25 de Abril de 1974',
+        body: `A **Revolução dos Cravos** começou na madrugada de **25 de abril de 1974**. O **Movimento das Forças Armadas (MFA)**, liderado por jovens capitães, derrubou o regime do Estado Novo de forma quase pacífica.\n\n**Senhas**: "E Depois do Adeus" (Paulo de Carvalho) e "Grândola, Vila Morena" (Zeca Afonso).\n\n**Resultado**:\n• Fim da ditadura, fim da censura, fim da PIDE.\n• Fim da Guerra Colonial — independência das colónias africanas (1975).\n• Liberdade de expressão, partidos legalizados, eleições livres.\n\nO **cravo vermelho** tornou-se símbolo da revolução. O **25 de Abril** é feriado nacional (Dia da Liberdade).`
+    },
+    'hgp/Portugal democrático': {
+        title: 'Portugal democrático e a UE',
+        body: `Após o 25 de Abril, Portugal tornou-se uma **democracia**.\n\n**Marcos**:\n• **25 de abril de 1975** — primeiras eleições livres (Assembleia Constituinte).\n• **2 de abril de 1976** — entra em vigor a nova **Constituição da República Portuguesa**.\n• **1986** — Portugal **adere à CEE** (atual União Europeia).\n• **1999** — adesão ao **Euro** (entrou em circulação em 2002).\n\nHoje, Portugal é uma **república semipresidencial**: há um **Presidente da República** (chefe de Estado) e um **Primeiro-Ministro** (chefe de governo). O parlamento chama-se **Assembleia da República**.`
+    }
+};
+
+const EXERCISES_6 = [
+    // ========== PORTUGUÊS (25) ==========
+    { id:'p6_001', s:'portugues', t:'Texto narrativo', type:'mc', diff:1, q:'Quem conta a história num texto narrativo chama-se:', opts:['personagem','narrador','autor','protagonista'], ans:1, exp:'O narrador é a voz que conta a história, podendo ou não participar nela.' },
+    { id:'p6_002', s:'portugues', t:'Texto narrativo', type:'mc', diff:2, q:'Um narrador que participa na ação como personagem está a narrar na...', opts:['1.ª pessoa','2.ª pessoa','3.ª pessoa','pessoa neutra'], ans:0, exp:'Quando o narrador diz "eu" e participa, é narrador na 1.ª pessoa (autodiegético/participante).' },
+    { id:'p6_003', s:'portugues', t:'Texto narrativo', type:'tf', diff:1, q:'Numa narrativa, o espaço corresponde ao local onde decorre a ação.', ans:true, exp:'Correto. O espaço é o "onde" da ação (físico, social ou psicológico).' },
+    { id:'p6_004', s:'portugues', t:'Texto poético', type:'mc', diff:1, q:'Cada linha de um poema chama-se:', opts:['estrofe','verso','rima','métrica'], ans:1, exp:'Verso = cada linha. Estrofe = conjunto de versos.' },
+    { id:'p6_005', s:'portugues', t:'Texto poético', type:'mc', diff:2, q:'Uma estrofe de 4 versos chama-se:', opts:['terceto','quadra','quintilha','sextilha'], ans:1, exp:'Quadra = 4 versos. Terceto = 3, quintilha = 5, sextilha = 6.' },
+    { id:'p6_006', s:'portugues', t:'Texto poético', type:'fill', diff:2, q:'Como se chama a estrofe formada por 3 versos? ___', ans:['terceto'], exp:'Terceto = estrofe de 3 versos.' },
+    { id:'p6_007', s:'portugues', t:'Texto dramático', type:'mc', diff:2, q:'As indicações ao encenador e aos atores num texto dramático chamam-se:', opts:['falas','didascálias','versos','rubricas musicais'], ans:1, exp:'Didascálias (ou indicações cénicas) descrevem cenário, gestos e entoação.' },
+    { id:'p6_008', s:'portugues', t:'Texto dramático', type:'tf', diff:1, q:'O texto dramático é escrito para ser representado em palco.', ans:true, exp:'Correto. O texto dramático destina-se à representação teatral.' },
+    { id:'p6_009', s:'portugues', t:'Funções sintáticas', type:'mc', diff:2, q:'Em "A Maria ofereceu um livro ao João", qual é o complemento indireto?', opts:['A Maria','um livro','ao João','ofereceu'], ans:2, exp:'Complemento indireto responde a "a quem?" → "ao João".' },
+    { id:'p6_010', s:'portugues', t:'Funções sintáticas', type:'mc', diff:2, q:'Em "O bolo está delicioso", "delicioso" desempenha a função de:', opts:['complemento direto','sujeito','predicativo do sujeito','modificador'], ans:2, exp:'Após o verbo copulativo "estar", o adjetivo é predicativo do sujeito (qualifica "o bolo").' },
+    { id:'p6_011', s:'portugues', t:'Funções sintáticas', type:'mc', diff:3, q:'Em "Ontem, o Pedro comprou pão na padaria", "Ontem" e "na padaria" são:', opts:['complementos diretos','complementos indiretos','modificadores','predicativos'], ans:2, exp:'Indicam tempo e lugar e podem ser retirados sem alterar o sentido essencial → modificadores.' },
+    { id:'p6_012', s:'portugues', t:'Modos verbais', type:'mc', diff:2, q:'A forma "estuda!" (ordem) está no modo:', opts:['indicativo','conjuntivo','imperativo','infinitivo'], ans:2, exp:'O imperativo dá ordens, conselhos ou pedidos.' },
+    { id:'p6_013', s:'portugues', t:'Modos verbais', type:'mc', diff:2, q:'Em "Talvez ele venha amanhã", o verbo "venha" está no modo:', opts:['indicativo','conjuntivo','imperativo','condicional'], ans:1, exp:'O conjuntivo exprime dúvida, possibilidade ou desejo. "Talvez" pede conjuntivo.' },
+    { id:'p6_014', s:'portugues', t:'Tempos compostos', type:'mc', diff:2, q:'A forma "tinha estudado" é um tempo composto chamado:', opts:['pretérito perfeito composto','pretérito mais-que-perfeito composto','futuro composto','condicional composto'], ans:1, exp:'"Tinha" + particípio = pretérito mais-que-perfeito composto (ação anterior a outra passada).' },
+    { id:'p6_015', s:'portugues', t:'Tempos compostos', type:'fill', diff:2, q:'Forma o pretérito perfeito composto de "ler" na 1.ª pessoa do singular: "Eu ___ ___."', ans:['tenho lido'], exp:'Tempo composto = ter (presente) + particípio. Eu tenho lido.' },
+    { id:'p6_016', s:'portugues', t:'Discurso direto e indireto', type:'mc', diff:2, q:'Passa para discurso indireto: O João disse: "Estou cansado."', opts:['O João disse que está cansado.','O João disse que estava cansado.','O João dizia: estou cansado.','O João disse para estar cansado.'], ans:1, exp:'No indireto, o presente passa a imperfeito: "estou" → "estava".' },
+    { id:'p6_017', s:'portugues', t:'Discurso direto e indireto', type:'tf', diff:1, q:'No discurso direto, as falas das personagens são introduzidas por travessão ou aspas.', ans:true, exp:'Correto. Travessão (—) ou aspas ("...") introduzem as falas no discurso direto.' },
+    { id:'p6_018', s:'portugues', t:'Recursos expressivos', type:'mc', diff:2, q:'"Os seus olhos são duas estrelas" é um exemplo de:', opts:['comparação','metáfora','personificação','hipérbole'], ans:1, exp:'Identificação direta sem "como" → metáfora.' },
+    { id:'p6_019', s:'portugues', t:'Recursos expressivos', type:'mc', diff:2, q:'"Já te disse mil vezes!" é um exemplo de:', opts:['metáfora','hipérbole','anáfora','aliteração'], ans:1, exp:'Hipérbole = exagero intencional para reforçar uma ideia.' },
+    { id:'p6_020', s:'portugues', t:'Recursos expressivos', type:'mc', diff:3, q:'"O rato roeu a rolha do rei da Rússia" é um exemplo de:', opts:['anáfora','aliteração','enumeração','personificação'], ans:1, exp:'Aliteração = repetição do mesmo som consonântico (aqui, o "r").' },
+    { id:'p6_021', s:'portugues', t:'Acentuação gráfica', type:'mc', diff:2, q:'A palavra "médico" é:', opts:['aguda','grave','esdrúxula','átona'], ans:2, exp:'Tónica na antepenúltima sílaba (MÉ-di-co) → esdrúxula. Acentuam-se sempre.' },
+    { id:'p6_022', s:'portugues', t:'Acentuação gráfica', type:'mc', diff:2, q:'A palavra "café" é:', opts:['aguda','grave','esdrúxula','sobresdrúxula'], ans:0, exp:'Tónica na última sílaba (ca-FÉ) → aguda.' },
+    { id:'p6_023', s:'portugues', t:'Acentuação gráfica', type:'tf', diff:2, q:'Todas as palavras esdrúxulas levam acento gráfico.', ans:true, exp:'Correto. Por regra, todas as proparoxítonas (esdrúxulas) são acentuadas (árvore, sílaba, médico).' },
+    { id:'p6_024', s:'portugues', t:'Orações coordenadas e subordinadas', type:'mc', diff:2, q:'Em "Estudei muito, mas não passei no teste", as orações são:', opts:['coordenadas','subordinadas','simples','reduzidas'], ans:0, exp:'"Mas" é uma conjunção coordenativa adversativa → orações coordenadas.' },
+    { id:'p6_025', s:'portugues', t:'Orações coordenadas e subordinadas', type:'mc', diff:3, q:'Em "Não fui à praia porque estava a chover", a oração "porque estava a chover" é:', opts:['coordenada','subordinada','principal','independente'], ans:1, exp:'"Porque" introduz uma oração subordinada (causal) que depende da principal.' },
+
+    // ========== MATEMÁTICA (25) ==========
+    { id:'m6_001', s:'matematica', t:'Números racionais não negativos', type:'fill', diff:1, q:'Escreve 3/4 na forma decimal: ___', ans:['0,75','0.75'], exp:'3 ÷ 4 = 0,75.' },
+    { id:'m6_002', s:'matematica', t:'Números racionais não negativos', type:'mc', diff:1, q:'A que percentagem corresponde a fração 1/4?', opts:['10%','25%','40%','75%'], ans:1, exp:'1/4 = 0,25 = 25%.' },
+    { id:'m6_003', s:'matematica', t:'Números racionais não negativos', type:'fill', diff:2, q:'Escreve 0,6 na forma de fração irredutível: ___', ans:['3/5'], exp:'0,6 = 6/10 = 3/5 (dividindo por 2).' },
+    { id:'m6_004', s:'matematica', t:'Operações com frações', type:'fill', diff:2, q:'1/2 + 1/3 = ___ (fração irredutível)', ans:['5/6'], exp:'Reduz ao mesmo denominador: 3/6 + 2/6 = 5/6.' },
+    { id:'m6_005', s:'matematica', t:'Operações com frações', type:'fill', diff:2, q:'2/3 × 3/4 = ___ (irredutível)', ans:['1/2'], exp:'2×3/(3×4) = 6/12 = 1/2.' },
+    { id:'m6_006', s:'matematica', t:'Operações com frações', type:'mc', diff:3, q:'Quanto é 3/4 ÷ 1/2?', opts:['3/8','1/2','3/2','6/4'], ans:2, exp:'Dividir é multiplicar pelo inverso: 3/4 × 2/1 = 6/4 = 3/2.' },
+    { id:'m6_007', s:'matematica', t:'Potências de expoente natural', type:'fill', diff:1, q:'Calcula 2⁴ = ___', ans:['16'], exp:'2 × 2 × 2 × 2 = 16.' },
+    { id:'m6_008', s:'matematica', t:'Potências de expoente natural', type:'mc', diff:2, q:'Quanto é 5⁰?', opts:['0','1','5','indefinido'], ans:1, exp:'Qualquer número (≠ 0) elevado a 0 é igual a 1.' },
+    { id:'m6_009', s:'matematica', t:'Potências de expoente natural', type:'fill', diff:2, q:'Simplifica e calcula: 2² × 2³ = ___', ans:['32'], exp:'Mesma base: somam-se expoentes. 2^(2+3) = 2⁵ = 32.' },
+    { id:'m6_010', s:'matematica', t:'Sequências e regularidades', type:'fill', diff:2, q:'Sequência 3, 6, 9, 12, ... Qual é o 6.º termo?', ans:['18'], exp:'Múltiplos de 3: termo n é 3n. 6.º termo = 3 × 6 = 18.' },
+    { id:'m6_011', s:'matematica', t:'Sequências e regularidades', type:'mc', diff:3, q:'Qual é o termo geral da sequência 5, 8, 11, 14, ...?', opts:['n + 5','3n','3n + 2','5n'], ans:2, exp:'Diferença constante 3 → 3n + algo. Para n=1: 3+2=5. Para n=2: 6+2=8. Confirma.' },
+    { id:'m6_012', s:'matematica', t:'Razões e proporções', type:'fill', diff:2, q:'Resolve a proporção: 3/4 = x/12. x = ___', ans:['9'], exp:'Produto cruzado: 3×12 = 4x → 36 = 4x → x = 9.' },
+    { id:'m6_013', s:'matematica', t:'Razões e proporções', type:'mc', diff:2, q:'Numa turma há 10 rapazes e 15 raparigas. Qual é a razão de rapazes para raparigas?', opts:['1/2','2/3','3/2','2/5'], ans:1, exp:'10/15 = 2/3 (simplificando por 5).' },
+    { id:'m6_014', s:'matematica', t:'Proporcionalidade direta', type:'fill', diff:2, q:'Se 1 kg de maçãs custa 2€, quanto custam 4,5 kg? ___ €', ans:['9','9€','9 euros'], exp:'Constante k = 2 €/kg. 4,5 × 2 = 9 €.' },
+    { id:'m6_015', s:'matematica', t:'Proporcionalidade direta', type:'tf', diff:2, q:'Se duas grandezas são diretamente proporcionais, quando uma duplica, a outra também duplica.', ans:true, exp:'Correto. y = k·x: se x duplicar, y também duplica.' },
+    { id:'m6_016', s:'matematica', t:'Áreas de polígonos', type:'fill', diff:2, q:'Área de um triângulo com base 8 cm e altura 5 cm: ___ cm²', ans:['20'], exp:'A = (b × h) ÷ 2 = (8 × 5) ÷ 2 = 40 ÷ 2 = 20 cm².' },
+    { id:'m6_017', s:'matematica', t:'Áreas de polígonos', type:'fill', diff:2, q:'Área de um trapézio com base maior 10 cm, base menor 6 cm e altura 4 cm: ___ cm²', ans:['32'], exp:'A = (B + b) × h ÷ 2 = (10 + 6) × 4 ÷ 2 = 64 ÷ 2 = 32 cm².' },
+    { id:'m6_018', s:'matematica', t:'Áreas e perímetros do círculo', type:'fill', diff:2, q:'Perímetro de um círculo com raio 5 cm (π = 3,14): ___ cm', ans:['31,4','31.4'], exp:'P = 2 × π × r = 2 × 3,14 × 5 = 31,4 cm.' },
+    { id:'m6_019', s:'matematica', t:'Áreas e perímetros do círculo', type:'fill', diff:3, q:'Área de um círculo com raio 10 cm (π = 3,14): ___ cm²', ans:['314'], exp:'A = π × r² = 3,14 × 100 = 314 cm².' },
+    { id:'m6_020', s:'matematica', t:'Volumes de prismas e cilindros', type:'fill', diff:2, q:'Volume de um paralelepípedo de 4 cm × 3 cm × 5 cm: ___ cm³', ans:['60'], exp:'V = c × l × h = 4 × 3 × 5 = 60 cm³.' },
+    { id:'m6_021', s:'matematica', t:'Volumes de prismas e cilindros', type:'mc', diff:3, q:'Quantos litros tem 1 m³?', opts:['10','100','1000','10000'], ans:2, exp:'1 m³ = 1000 dm³ = 1000 litros.' },
+    { id:'m6_022', s:'matematica', t:'Estatística', type:'fill', diff:2, q:'Calcula a média de: 4, 6, 8, 10, 12. Média = ___', ans:['8'], exp:'(4+6+8+10+12) ÷ 5 = 40 ÷ 5 = 8.' },
+    { id:'m6_023', s:'matematica', t:'Estatística', type:'fill', diff:2, q:'Qual é a moda do conjunto: 2, 3, 5, 5, 7, 8? Moda = ___', ans:['5'], exp:'A moda é o valor mais frequente. O 5 aparece 2 vezes.' },
+    { id:'m6_024', s:'matematica', t:'Isometrias', type:'mc', diff:2, q:'A isometria que desliza uma figura segundo uma direção, sem rodar nem virar, chama-se:', opts:['reflexão','rotação','translação','homotetia'], ans:2, exp:'Translação = movimento segundo um vetor (direção, sentido e comprimento).' },
+    { id:'m6_025', s:'matematica', t:'Ângulos internos de polígonos', type:'fill', diff:2, q:'Soma dos ângulos internos de um pentágono: ___°', ans:['540'], exp:'S = (n−2) × 180° = (5−2) × 180° = 540°.' },
+
+    // ========== INGLÊS (15) ==========
+    { id:'i6_001', s:'ingles', t:'Past simple', type:'mc', diff:1, q:'What is the past simple of "go"?', opts:['goed','went','gone','going'], ans:1, exp:'"Go" is irregular: go → went → gone.' },
+    { id:'i6_002', s:'ingles', t:'Past simple', type:'fill', diff:2, q:'Complete: "Yesterday, I ___ (watch) a film."', ans:['watched'], exp:'Regular verb + -ed: watched.' },
+    { id:'i6_003', s:'ingles', t:'Past simple', type:'mc', diff:2, q:'Choose the correct sentence:', opts:['She didn\'t went home.','She didn\'t go home.','She not went home.','She no go home.'], ans:1, exp:'After "didn\'t" the verb stays in the base form: didn\'t go.' },
+    { id:'i6_004', s:'ingles', t:'Present continuous', type:'fill', diff:1, q:'Complete: "Look! It ___ (rain)."', ans:['is raining'], exp:'Action happening now → present continuous: is + raining.' },
+    { id:'i6_005', s:'ingles', t:'Present continuous', type:'mc', diff:2, q:'Which sentence is correct?', opts:['They are play football now.','They playing football now.','They are playing football now.','They plays football now.'], ans:2, exp:'Present continuous: are + verb-ing.' },
+    { id:'i6_006', s:'ingles', t:'Future', type:'mc', diff:2, q:'Choose the best option: "Look at those clouds! It ___ rain."', opts:['will','is going to','goes to','rains'], ans:1, exp:'Prediction with visible evidence → "is going to".' },
+    { id:'i6_007', s:'ingles', t:'Future', type:'fill', diff:2, q:'Complete with "will": "Don\'t worry, I ___ help you."', ans:['will'], exp:'Spontaneous decision/offer → "will".' },
+    { id:'i6_008', s:'ingles', t:'Comparatives & superlatives', type:'mc', diff:1, q:'What is the comparative of "tall"?', opts:['more tall','taller','tallest','tallier'], ans:1, exp:'Short adjective: add -er → taller.' },
+    { id:'i6_009', s:'ingles', t:'Comparatives & superlatives', type:'fill', diff:2, q:'Complete with the superlative: "Mount Everest is the ___ (high) mountain in the world."', ans:['highest'], exp:'Short adjective: the + adjective + -est → the highest.' },
+    { id:'i6_010', s:'ingles', t:'Comparatives & superlatives', type:'mc', diff:2, q:'What is the comparative of "good"?', opts:['gooder','more good','better','best'], ans:2, exp:'Irregular: good → better → the best.' },
+    { id:'i6_011', s:'ingles', t:'Daily routines', type:'mc', diff:1, q:'Which verb completes the sentence? "I ___ breakfast at 8 a.m."', opts:['do','have','make','take'], ans:1, exp:'"Have breakfast/lunch/dinner" is the standard collocation.' },
+    { id:'i6_012', s:'ingles', t:'Health & body', type:'mc', diff:1, q:'If your head hurts, you have a:', opts:['stomachache','toothache','headache','backache'], ans:2, exp:'Headache = pain in the head.' },
+    { id:'i6_013', s:'ingles', t:'Quantifiers', type:'mc', diff:2, q:'Choose the correct quantifier: "How ___ apples do you want?"', opts:['much','many','any','a lot'], ans:1, exp:'"Apples" is countable → "how many".' },
+    { id:'i6_014', s:'ingles', t:'Quantifiers', type:'mc', diff:2, q:'Complete: "There isn\'t ___ milk in the fridge."', opts:['some','many','any','a lot'], ans:2, exp:'Negative sentence + uncountable → "any".' },
+    { id:'i6_015', s:'ingles', t:'Adverbs of frequency', type:'mc', diff:2, q:'Where does the adverb go? "She ___ late." (never)', opts:['She never is late.','She is never late.','Never she is late.','She is late never.'], ans:1, exp:'Adverbs of frequency go AFTER the verb to be: She is never late.' },
+
+    // ========== CIÊNCIAS (15) ==========
+    { id:'c6_001', s:'ciencias', t:'Sistema digestivo', type:'mc', diff:1, q:'Onde se inicia a digestão dos alimentos?', opts:['no estômago','na boca','no intestino delgado','no esófago'], ans:1, exp:'Na boca, com a mastigação e a saliva (digestão mecânica e química).' },
+    { id:'c6_002', s:'ciencias', t:'Sistema digestivo', type:'mc', diff:2, q:'Em que órgão se faz a maior parte da absorção dos nutrientes?', opts:['estômago','intestino delgado','intestino grosso','fígado'], ans:1, exp:'O intestino delgado tem vilosidades que absorvem os nutrientes para o sangue.' },
+    { id:'c6_003', s:'ciencias', t:'Sistema circulatório', type:'mc', diff:1, q:'Quantas cavidades tem o coração humano?', opts:['2','3','4','5'], ans:2, exp:'O coração tem 4 cavidades: 2 aurículas (em cima) e 2 ventrículos (em baixo).' },
+    { id:'c6_004', s:'ciencias', t:'Sistema circulatório', type:'mc', diff:2, q:'Os vasos sanguíneos que saem do coração chamam-se:', opts:['veias','artérias','capilares','nervos'], ans:1, exp:'Artérias levam sangue para fora do coração; veias trazem-no de volta.' },
+    { id:'c6_005', s:'ciencias', t:'Sistema respiratório', type:'mc', diff:2, q:'As trocas gasosas (hematose) acontecem nos:', opts:['brônquios','alvéolos pulmonares','traqueia','fossas nasais'], ans:1, exp:'Nos alvéolos, o O₂ passa para o sangue e o CO₂ sai do sangue para o ar.' },
+    { id:'c6_006', s:'ciencias', t:'Sistema respiratório', type:'tf', diff:1, q:'Na inspiração, o diafragma desce e o ar entra nos pulmões.', ans:true, exp:'Correto. O diafragma desce, aumenta o volume da caixa torácica e o ar entra.' },
+    { id:'c6_007', s:'ciencias', t:'Sistema excretor', type:'mc', diff:1, q:'Os órgãos que filtram o sangue e produzem urina chamam-se:', opts:['fígado','rins','baço','pâncreas'], ans:1, exp:'Os rins filtram o sangue e produzem urina, que é eliminada pela uretra.' },
+    { id:'c6_008', s:'ciencias', t:'Sistema reprodutor', type:'mc', diff:2, q:'A união do espermatozoide com o óvulo chama-se:', opts:['ovulação','menstruação','fecundação','nidação'], ans:2, exp:'Fecundação = união das células sexuais. Forma o ovo (zigoto).' },
+    { id:'c6_009', s:'ciencias', t:'Sistema reprodutor', type:'fill', diff:2, q:'Quanto tempo dura aproximadamente a gravidez humana? ___ meses', ans:['9','nove'], exp:'A gestação humana dura cerca de 9 meses (40 semanas).' },
+    { id:'c6_010', s:'ciencias', t:'Sistema nervoso', type:'mc', diff:2, q:'Que parte do encéfalo é responsável pelo equilíbrio e coordenação dos movimentos?', opts:['cérebro','cerebelo','bolbo raquidiano','medula espinal'], ans:1, exp:'O cerebelo coordena os movimentos e mantém o equilíbrio.' },
+    { id:'c6_011', s:'ciencias', t:'Sistema nervoso', type:'tf', diff:2, q:'A medula espinal faz parte do sistema nervoso central.', ans:true, exp:'Correto. O SNC é constituído pelo encéfalo (cérebro, cerebelo, bolbo) e pela medula espinal.' },
+    { id:'c6_012', s:'ciencias', t:'Microrganismos', type:'mc', diff:2, q:'Qual destes microrganismos NÃO tem células?', opts:['bactéria','vírus','fungo','protozoário'], ans:1, exp:'Os vírus não têm células — só se reproduzem dentro de células vivas.' },
+    { id:'c6_013', s:'ciencias', t:'Microrganismos', type:'mc', diff:1, q:'Que microrganismos são usados para fazer iogurte?', opts:['vírus','bactérias','fungos venenosos','algas'], ans:1, exp:'O iogurte é produzido por bactérias (lactobacilos) que fermentam o leite.' },
+    { id:'c6_014', s:'ciencias', t:'Saúde e prevenção', type:'tf', diff:1, q:'A vacinação ajuda a proteger contra doenças graves.', ans:true, exp:'Correto. As vacinas estimulam o sistema imunitário a produzir defesas.' },
+    { id:'c6_015', s:'ciencias', t:'Saúde e prevenção', type:'mc', diff:2, q:'Qual destes hábitos NÃO faz parte de uma vida saudável?', opts:['dormir 9 horas','fazer exercício','beber muita água','fumar tabaco'], ans:3, exp:'Fumar prejudica gravemente os pulmões, o coração e muitos outros órgãos.' },
+
+    // ========== HGP (20) ==========
+    { id:'h6_001', s:'hgp', t:'Expansão Marítima', type:'mc', diff:1, q:'Em que ano os portugueses conquistaram Ceuta, dando início à Expansão?', opts:['1385','1415','1488','1500'], ans:1, exp:'A conquista de Ceuta em 1415 marca o início da Expansão Marítima portuguesa.' },
+    { id:'h6_002', s:'hgp', t:'Expansão Marítima', type:'mc', diff:1, q:'Quem dobrou o Cabo da Boa Esperança em 1488?', opts:['Vasco da Gama','Bartolomeu Dias','Pedro Álvares Cabral','Fernão de Magalhães'], ans:1, exp:'Bartolomeu Dias dobrou o Cabo da Boa Esperança em 1488, abrindo caminho para a Índia.' },
+    { id:'h6_003', s:'hgp', t:'Expansão Marítima', type:'fill', diff:2, q:'Em que ano Vasco da Gama chegou à Índia? ___', ans:['1498'], exp:'Vasco da Gama chegou a Calecute, na Índia, em maio de 1498.' },
+    { id:'h6_004', s:'hgp', t:'Expansão Marítima', type:'mc', diff:1, q:'Quem chegou ao Brasil em 1500?', opts:['Vasco da Gama','Bartolomeu Dias','Pedro Álvares Cabral','D. Henrique'], ans:2, exp:'Pedro Álvares Cabral chegou ao Brasil a 22 de abril de 1500.' },
+    { id:'h6_005', s:'hgp', t:'União Ibérica', type:'mc', diff:2, q:'A União Ibérica começou em 1580 e terminou em:', opts:['1620','1640','1668','1700'], ans:1, exp:'A Restauração da Independência ocorreu a 1 de dezembro de 1640, terminando a União Ibérica.' },
+    { id:'h6_006', s:'hgp', t:'União Ibérica', type:'mc', diff:2, q:'O primeiro rei espanhol de Portugal, em 1580, foi:', opts:['Filipe I (II de Espanha)','Filipe II (III de Espanha)','Carlos V','D. Sebastião'], ans:0, exp:'Filipe II de Espanha tornou-se Filipe I de Portugal em 1580.' },
+    { id:'h6_007', s:'hgp', t:'Restauração da Independência', type:'fill', diff:1, q:'Em que ano se deu a Restauração da Independência? ___', ans:['1640'], exp:'A 1 de dezembro de 1640, Portugal restaurou a sua independência.' },
+    { id:'h6_008', s:'hgp', t:'Restauração da Independência', type:'mc', diff:2, q:'Quem foi aclamado rei na Restauração de 1640?', opts:['D. João III','D. João IV','D. José I','D. Pedro II'], ans:1, exp:'O Duque de Bragança foi aclamado como D. João IV, iniciando a Dinastia de Bragança.' },
+    { id:'h6_009', s:'hgp', t:'Iluminismo e Marquês de Pombal', type:'mc', diff:2, q:'O Marquês de Pombal foi primeiro-ministro no reinado de:', opts:['D. João V','D. José I','D. Maria I','D. João VI'], ans:1, exp:'O Marquês de Pombal governou no reinado de D. José I (1750–1777).' },
+    { id:'h6_010', s:'hgp', t:'Iluminismo e Marquês de Pombal', type:'mc', diff:2, q:'O Marquês de Pombal ficou famoso por reconstruir Lisboa após o terramoto de:', opts:['1640','1755','1820','1910'], ans:1, exp:'O grande terramoto de Lisboa foi a 1 de novembro de 1755. A Baixa Pombalina é o resultado da reconstrução.' },
+    { id:'h6_011', s:'hgp', t:'Liberalismo', type:'mc', diff:2, q:'A Revolução Liberal de 1820 começou em que cidade?', opts:['Lisboa','Porto','Coimbra','Braga'], ans:1, exp:'A Revolução Liberal começou no Porto a 24 de agosto de 1820.' },
+    { id:'h6_012', s:'hgp', t:'Liberalismo', type:'fill', diff:2, q:'Em que ano foi aprovada a primeira Constituição portuguesa? ___', ans:['1822'], exp:'A primeira Constituição portuguesa foi aprovada em 1822, depois da Revolução Liberal de 1820.' },
+    { id:'h6_013', s:'hgp', t:'Monarquia Constitucional', type:'tf', diff:2, q:'Na Monarquia Constitucional, o poder do rei era limitado por uma Constituição.', ans:true, exp:'Correto. Ao contrário do absolutismo, a Constituição limitava o poder real e existia um parlamento.' },
+    { id:'h6_014', s:'hgp', t:'1.ª República', type:'fill', diff:1, q:'Em que data foi proclamada a 1.ª República? (dia/mês/ano)', ans:['5 de outubro de 1910','5/10/1910','05/10/1910','5-10-1910'], exp:'A 1.ª República foi proclamada a 5 de outubro de 1910, em Lisboa.' },
+    { id:'h6_015', s:'hgp', t:'1.ª República', type:'mc', diff:2, q:'Qual foi o último rei de Portugal, exilado em 1910?', opts:['D. Carlos I','D. Manuel II','D. Luís I','D. Pedro V'], ans:1, exp:'D. Manuel II foi o último rei; partiu para o exílio em 1910 após a implantação da República.' },
+    { id:'h6_016', s:'hgp', t:'Estado Novo', type:'mc', diff:2, q:'Quem foi o líder do Estado Novo de 1933 até 1968?', opts:['Marcelo Caetano','Óscar Carmona','António de Oliveira Salazar','Humberto Delgado'], ans:2, exp:'Salazar liderou o Estado Novo desde 1933 até 1968 (sucedeu-lhe Marcelo Caetano).' },
+    { id:'h6_017', s:'hgp', t:'Estado Novo', type:'tf', diff:2, q:'Durante o Estado Novo havia censura à imprensa e uma polícia política chamada PIDE.', ans:true, exp:'Correto. O Estado Novo era um regime autoritário com censura e perseguição política através da PIDE.' },
+    { id:'h6_018', s:'hgp', t:'25 de Abril', type:'fill', diff:1, q:'Em que ano ocorreu a Revolução dos Cravos? ___', ans:['1974'], exp:'A 25 de abril de 1974 o MFA derrubou o Estado Novo, na chamada Revolução dos Cravos.' },
+    { id:'h6_019', s:'hgp', t:'25 de Abril', type:'mc', diff:2, q:'Que canção foi a senha da revolução, na madrugada de 25 de abril?', opts:['A Portuguesa','Grândola, Vila Morena','Uma Casa Portuguesa','Verdes Anos'], ans:1, exp:'"Grândola, Vila Morena", de Zeca Afonso, foi a segunda senha que confirmou o início da revolução.' },
+    { id:'h6_020', s:'hgp', t:'Portugal democrático', type:'fill', diff:2, q:'Em que ano Portugal aderiu à CEE (atual União Europeia)? ___', ans:['1986'], exp:'Portugal aderiu à CEE a 1 de janeiro de 1986.' }
+];
+
+const CURRICULUM_6 = {
+    portugues: [
+        'Texto narrativo',
+        'Texto poético',
+        'Texto dramático',
+        'Funções sintáticas',
+        'Modos verbais',
+        'Tempos compostos',
+        'Discurso direto e indireto',
+        'Recursos expressivos',
+        'Acentuação gráfica',
+        'Orações coordenadas e subordinadas'
+    ],
+    matematica: [
+        'Números racionais não negativos',
+        'Operações com frações',
+        'Potências de expoente natural',
+        'Sequências e regularidades',
+        'Razões e proporções',
+        'Proporcionalidade direta',
+        'Áreas de polígonos',
+        'Áreas e perímetros do círculo',
+        'Volumes de prismas e cilindros',
+        'Estatística',
+        'Isometrias',
+        'Ângulos internos de polígonos'
+    ],
+    ingles: [
+        'Past simple',
+        'Present continuous',
+        'Future',
+        'Comparatives & superlatives',
+        'Daily routines',
+        'Health & body',
+        'Quantifiers',
+        'Adverbs of frequency'
+    ],
+    ciencias: [
+        'Sistema digestivo',
+        'Sistema circulatório',
+        'Sistema respiratório',
+        'Sistema excretor',
+        'Sistema reprodutor',
+        'Sistema nervoso',
+        'Microrganismos',
+        'Saúde e prevenção'
+    ],
+    hgp: [
+        'Expansão Marítima',
+        'União Ibérica',
+        'Restauração da Independência',
+        'Iluminismo e Marquês de Pombal',
+        'Liberalismo',
+        'Monarquia Constitucional',
+        '1.ª República',
+        'Estado Novo',
+        '25 de Abril',
+        'Portugal democrático'
+    ]
+};
+
+const PERIODS_6 = {
+    portugues:  { 'Texto narrativo':1, 'Texto poético':1, 'Texto dramático':1, 'Funções sintáticas':2, 'Modos verbais':2, 'Tempos compostos':2, 'Discurso direto e indireto':2, 'Recursos expressivos':3, 'Acentuação gráfica':3, 'Orações coordenadas e subordinadas':3 },
+    matematica: { 'Números racionais não negativos':1, 'Operações com frações':1, 'Potências de expoente natural':1, 'Sequências e regularidades':1, 'Razões e proporções':2, 'Proporcionalidade direta':2, 'Áreas de polígonos':2, 'Áreas e perímetros do círculo':2, 'Volumes de prismas e cilindros':3, 'Estatística':3, 'Isometrias':3, 'Ângulos internos de polígonos':3 },
+    ingles:     { 'Past simple':1, 'Present continuous':1, 'Future':2, 'Comparatives & superlatives':2, 'Daily routines':2, 'Health & body':3, 'Quantifiers':3, 'Adverbs of frequency':3 },
+    ciencias:   { 'Sistema digestivo':1, 'Sistema circulatório':1, 'Sistema respiratório':1, 'Sistema excretor':2, 'Sistema reprodutor':2, 'Sistema nervoso':2, 'Microrganismos':3, 'Saúde e prevenção':3 },
+    hgp:        { 'Expansão Marítima':1, 'União Ibérica':1, 'Restauração da Independência':1, 'Iluminismo e Marquês de Pombal':2, 'Liberalismo':2, 'Monarquia Constitucional':2, '1.ª República':2, 'Estado Novo':3, '25 de Abril':3, 'Portugal democrático':3 }
+};
+
+// ============================================================
 // =============== EXPORTS / SELECTOR DE ANO ==================
 // ============================================================
 const PERIODS_5 = {
@@ -948,14 +1355,15 @@ const PERIODS_5 = {
 
 const YEARS_AVAILABLE = [
     { year: 2, label: '2.º ano', cycle: '1.º ciclo' },
-    { year: 5, label: '5.º ano', cycle: '2.º ciclo' }
+    { year: 5, label: '5.º ano', cycle: '2.º ciclo' },
+    { year: 6, label: '6.º ano', cycle: '2.º ciclo' }
 ];
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   5: SUBJECTS_5 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 5: CURRICULUM_5 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  5: EXERCISES_5 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    5: LESSONS_5 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    5: PERIODS_5 };
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   5: SUBJECTS_5,   6: SUBJECTS_6 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 5: CURRICULUM_5, 6: CURRICULUM_6 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  5: EXERCISES_5,  6: EXERCISES_6 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    5: LESSONS_5,    6: LESSONS_6 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    5: PERIODS_5,    6: PERIODS_6 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
