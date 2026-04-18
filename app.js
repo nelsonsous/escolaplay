@@ -424,17 +424,28 @@ function openSubjectDetail(key) {
                     </div>
                 </div>
 
-                <div class="section-title" style="margin-top:8px"><i class="fas fa-list-ol"></i> Tópicos</div>
+                <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <i class="fas fa-list-ol"></i> <span style="flex:1">Tópicos</span>
+                    <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="selectAllTopics()"><i class="fas fa-check-double"></i> Todos</button>
+                    <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="clearTopicSelection()"><i class="fas fa-xmark"></i> Limpar</button>
+                </div>
                 <div id="topic-list"></div>
 
+                <div id="topic-sel-actions" style="display:none;margin-top:12px;background:#f5f3ff;border:2px solid #c4b5fd;border-radius:12px;padding:12px">
+                    <div style="font-size:0.78rem;font-weight:700;color:#5b21b6;margin-bottom:8px"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
+                    <button class="btn btn-primary-solid btn-block" onclick="startSubjectSession('${key}', { useSelection: true })">
+                        <i class="fas fa-play"></i> Treinar tópicos selecionados
+                    </button>
+                </div>
+
                 <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="startSubjectSession('${key}')">
-                    <i class="fas fa-play"></i> Começar treino
+                    <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
                 </button>
 
                 <!-- ===== BLOCO MAX ===== -->
                 <div style="margin-top:16px;background:linear-gradient(135deg,#4c1d95,#6d28d9);border-radius:16px;padding:14px;box-shadow:0 4px 16px rgba(109,40,217,0.35)">
                     <div style="color:#fff;font-weight:800;font-size:1rem;margin-bottom:4px"><i class="fas fa-wand-magic-sparkles"></i> MAX — Exercícios com IA</div>
-                    <div style="color:#ddd6fe;font-size:0.78rem;margin-bottom:12px">Selecciona tópicos abaixo ou gera para todos</div>
+                    <div style="color:#ddd6fe;font-size:0.78rem;margin-bottom:12px">Selecciona tópicos acima ou gera para todos</div>
 
                     <div id="max-topic-sel-bar" style="display:none;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;margin-bottom:10px">
                         <div style="color:#e9d5ff;font-size:0.78rem;font-weight:700;margin-bottom:8px"><i class="fas fa-check-square"></i> <span id="max-sel-count">0</span> tópico(s) selecionado(s)</div>
@@ -443,9 +454,6 @@ function openSubjectDetail(key) {
                         </button>
                         <button class="btn btn-block" style="margin-bottom:6px;background:#fbbf24;color:#78350f;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="startMaxForSelected('${key}', true)">
                             <i class="fas fa-graduation-cap"></i> Preparação para teste
-                        </button>
-                        <button class="btn btn-block" style="background:rgba(255,255,255,0.15);color:#e9d5ff;border-radius:10px;padding:8px;font-size:0.78rem" onclick="clearTopicSelection()">
-                            <i class="fas fa-times"></i> Limpar seleção
                         </button>
                     </div>
 
@@ -508,12 +516,24 @@ function clearTopicSelection() {
 }
 
 function updateTopicSelBar() {
-    const bar = document.getElementById('max-topic-sel-bar');
-    const cnt = document.getElementById('max-sel-count');
-    if (!bar) return;
     const n = selectedTopicsForMax.size;
-    bar.style.display = n > 0 ? 'block' : 'none';
-    if (cnt) cnt.textContent = n;
+    const maxBar = document.getElementById('max-topic-sel-bar');
+    const maxCnt = document.getElementById('max-sel-count');
+    if (maxBar) maxBar.style.display = n > 0 ? 'block' : 'none';
+    if (maxCnt) maxCnt.textContent = n;
+    const selBar = document.getElementById('topic-sel-actions');
+    const selCnt = document.getElementById('sel-count');
+    if (selBar) selBar.style.display = n > 0 ? 'block' : 'none';
+    if (selCnt) selCnt.textContent = n;
+}
+
+function selectAllTopics() {
+    const key = currentSubjectView;
+    if (!key) return;
+    const topics = CURRICULUM[key] || [];
+    const toIndex = state.progress[key]?.toIndex ?? topics.length;
+    topics.slice(0, toIndex).forEach(t => selectedTopicsForMax.add(t));
+    renderTopicList();
 }
 
 function startMaxForSelected(key, isTestPrep = false) {
@@ -1295,6 +1315,135 @@ function resetStats() {
     showToast('Progresso reiniciado.');
 }
 
+// ========== EXPORT / IMPORT PERGUNTAS ==========
+function _groupExercisesBySubjectTopic(list, subjectsMap) {
+    const bySubject = {};
+    list.forEach(ex => {
+        if (!ex || !ex.s || !ex.t) return;
+        if (!bySubject[ex.s]) bySubject[ex.s] = {};
+        if (!bySubject[ex.s][ex.t]) bySubject[ex.s][ex.t] = [];
+        bySubject[ex.s][ex.t].push(ex);
+    });
+    return Object.keys(bySubject).sort().map(sk => ({
+        subject: sk,
+        name: (subjectsMap && subjectsMap[sk] && subjectsMap[sk].name) || sk,
+        topics: Object.keys(bySubject[sk]).sort().map(tk => ({
+            topic: tk,
+            exercises: bySubject[sk][tk]
+        }))
+    }));
+}
+
+function exportQuestions() {
+    const p = activeProfile();
+    if (!p) { showToast('Cria primeiro um perfil.'); return; }
+    const yr = p.year;
+    const subsMap = SUBJECTS_BY_YEAR[yr] || {};
+    const staticRaw = EXERCISES_BY_YEAR[yr] || [];
+    const staticAll = Array.isArray(staticRaw)
+        ? staticRaw.slice()
+        : Object.values(staticRaw).flat();
+    const aiAll = (p.maxExercises || []).slice();
+    const payload = {
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        year: yr,
+        profileName: p.name,
+        counts: { static: staticAll.length, ai: aiAll.length, total: staticAll.length + aiAll.length },
+        sections: {
+            static: _groupExercisesBySubjectTopic(staticAll, subsMap),
+            ai: _groupExercisesBySubjectTopic(aiAll, subsMap)
+        }
+    };
+    try {
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeName = (p.name || 'aluno').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'aluno';
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `escolaplay-${safeName}-${yr}ano-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(`Exportadas ${payload.counts.total} perguntas.`);
+    } catch (err) {
+        console.error('exportQuestions', err);
+        showToast('Erro a exportar: ' + (err.message || 'desconhecido'));
+    }
+}
+
+function importQuestionsClick() {
+    const input = document.getElementById('import-questions-input');
+    if (input) { input.value = ''; input.click(); }
+}
+
+function _flattenSections(sections) {
+    const out = [];
+    if (!sections) return out;
+    const groups = Array.isArray(sections) ? sections : [].concat(sections.static || [], sections.ai || []);
+    groups.forEach(sec => {
+        (sec.topics || []).forEach(tp => {
+            (tp.exercises || []).forEach(ex => {
+                if (!ex || !ex.q) return;
+                out.push({
+                    ...ex,
+                    s: ex.s || sec.subject,
+                    t: ex.t || tp.topic
+                });
+            });
+        });
+    });
+    return out;
+}
+
+async function importQuestionsFile(input) {
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+    const p = activeProfile();
+    if (!p) { showToast('Cria primeiro um perfil.'); return; }
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data || data.v !== 1 || !data.sections) {
+            alert('Ficheiro inválido. Esperava formato EscolaPlay v1.');
+            return;
+        }
+        if (data.year && data.year !== p.year) {
+            if (!confirm(`O ficheiro é do ${data.year}.º ano e o perfil activo é do ${p.year}.º ano. Importar mesmo assim?`)) return;
+        }
+        const incoming = _flattenSections(data.sections);
+        if (incoming.length === 0) { showToast('Sem perguntas no ficheiro.'); return; }
+        const yr = p.year;
+        const staticIds = new Set();
+        const staticRaw = EXERCISES_BY_YEAR[yr] || [];
+        const staticList = Array.isArray(staticRaw) ? staticRaw : Object.values(staticRaw).flat();
+        staticList.forEach(ex => { if (ex && ex.id) staticIds.add(ex.id); });
+        const existing = p.maxExercises || [];
+        const existingIds = new Set(existing.map(e => e.id));
+        const toAdd = [];
+        incoming.forEach(ex => {
+            let id = ex.id || ('imp_' + Math.random().toString(36).slice(2, 9));
+            if (staticIds.has(id) || existingIds.has(id)) {
+                id = 'imp_' + Math.random().toString(36).slice(2, 9);
+            }
+            existingIds.add(id);
+            toAdd.push({ ...ex, id });
+        });
+        if (!confirm(`Vais importar ${toAdd.length} perguntas para o perfil "${p.name}". Continuar?`)) return;
+        p.maxExercises = [...existing, ...toAdd].slice(-1000);
+        saveState();
+        updateAll();
+        showToast(`Importadas ${toAdd.length} perguntas.`);
+    } catch (err) {
+        console.error('importQuestionsFile', err);
+        alert('Erro a importar: ' + (err.message || 'desconhecido'));
+    } finally {
+        input.value = '';
+    }
+}
+
 // ========== TABS ==========
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -1346,10 +1495,20 @@ function startDailyChallenge() {
     renderQuestion();
 }
 
-function startSubjectSession(key) {
-    const active = activeTopicsFor(key);
-    const pool = allExercisesFor(key, active);
-    if (pool.length === 0) { showToast('Sem exercícios. Aumenta o teu progresso para incluir mais tópicos.'); return; }
+function startSubjectSession(key, opts = {}) {
+    let topicSet;
+    if (opts.useSelection && selectedTopicsForMax.size > 0) {
+        topicSet = new Set(selectedTopicsForMax);
+    } else {
+        topicSet = activeTopicsFor(key);
+    }
+    const pool = allExercisesFor(key, topicSet);
+    if (pool.length === 0) {
+        showToast(opts.useSelection
+            ? 'Sem exercícios para os tópicos selecionados.'
+            : 'Sem exercícios. Aumenta o teu progresso para incluir mais tópicos.');
+        return;
+    }
     const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key };
     closeSubjectDetail();

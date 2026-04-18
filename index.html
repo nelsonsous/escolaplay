@@ -184,6 +184,15 @@
             <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="resetRewards()"><i class="fas fa-rotate"></i> Repor prémios padrão</button>
         </div>
 
+        <div class="section-title"><i class="fas fa-file-export"></i> Banco de perguntas</div>
+        <div class="form-card">
+            <p class="muted" style="margin-bottom:8px">Exporta as perguntas do ano (estáticas + geradas pela IA) num ficheiro JSON, organizadas por <strong>ano &gt; disciplina &gt; tópico</strong>. Útil para cópia de segurança ou partilhar.</p>
+            <button class="btn btn-secondary btn-block" onclick="exportQuestions()"><i class="fas fa-download"></i> Exportar perguntas</button>
+            <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="importQuestionsClick()"><i class="fas fa-upload"></i> Importar perguntas</button>
+            <input type="file" id="import-questions-input" accept="application/json,.json" style="display:none" onchange="importQuestionsFile(this)">
+            <p class="muted" style="margin-top:6px">As perguntas importadas são adicionadas ao banco IA do perfil activo (sem substituir as estáticas).</p>
+        </div>
+
         <div class="section-title"><i class="fas fa-gear"></i> Dados</div>
         <div class="form-card">
             <button class="btn btn-secondary btn-block" onclick="resetStats()"><i class="fas fa-rotate"></i> Reiniciar progresso</button>
