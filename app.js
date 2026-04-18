@@ -746,10 +746,12 @@ Responde APENAS com JSON válido (sem markdown):
     try { parsed = JSON.parse(jsonStr); }
     catch (e) { throw new Error('JSON inválido: ' + e.message); }
     const items = (parsed.exercises || []).map((raw, i) => {
+        const rawTopic = (raw.t || '').toLowerCase();
+        const matchedTopic = topics.find(t => t.toLowerCase() === rawTopic) || topics[0];
         const ex = {
             id: `max_${Date.now()}_${i}`,
             s: subjectKey,
-            t: raw.t || topics[0],
+            t: matchedTopic,
             type: raw.type,
             diff: Math.max(1, Math.min(3, raw.diff || 2)),
             q: raw.q,
