@@ -669,10 +669,14 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
                 'authorization': `Bearer ${key}`
             },
             body: JSON.stringify({
-                model: 'llama-3.1-8b-instant',
+                model: 'gemma2-9b-it',
                 max_tokens: maxTokens,
                 temperature: 0.7,
-                messages: [{ role: 'user', content: prompt }]
+                messages: [
+                    { role: 'user', content: 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON.' },
+                    { role: 'model', content: 'Understood. I will respond only with valid JSON.' },
+                    { role: 'user', content: prompt }
+                ]
             })
         });
     } catch(e) {
@@ -733,6 +737,7 @@ Responde APENAS com JSON válido (sem markdown):
     const end = jsonStr.lastIndexOf('}');
     if (start < 0 || end < 0) throw new Error('Resposta não contém JSON');
     jsonStr = jsonStr.slice(start, end + 1);
+    jsonStr = jsonStr.replace(/\*\*/g, '').replace(/\*/g, '');
     let parsed;
     try { parsed = JSON.parse(jsonStr); }
     catch (e) { throw new Error('JSON inválido: ' + e.message); }
