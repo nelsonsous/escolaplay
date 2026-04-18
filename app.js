@@ -438,13 +438,28 @@ function startTestPrep(testId) {
     if (!t) return;
     const key = t.subject;
     const active = activeTopicsFor(key);
-    let pool = EXERCISES.filter(e => e.s === key && active.has(e.t));
-    if (t.topics && t.topics.length > 0) {
-        const allowed = new Set(t.topics);
-        pool = pool.filter(e => allowed.has(e.t));
-    }
-    if (pool.length === 0) { showToast('Sem exercícios para estes tópicos. Ajusta o progresso da disciplina.'); return; }
-    const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
+    const orderArr = CURRICULUM[key] || [];
+    // Tópicos do teste (por ordem curricular); se vazio, todos os activos
+    const rawTopics = (t.topics && t.topics.length > 0) ? t.topics : Array.from(active);
+    const topicsOrdered = rawTopics
+        .filter(tp => active.has(tp))
+        .sort((a, b) => orderArr.indexOf(a) - orderArr.indexOf(b));
+    if (topicsOrdered.length === 0) { showToast('Sem tópicos activos para este teste.'); return; }
+    // Para cada tópico, recolher até 3 exercícios (evitando recentes quando possível)
+    const recent = new Set(state.recentIds || []);
+    const target = Math.max(PRACTICE_QUESTIONS, topicsOrdered.length * 2);
+    const perTopic = Math.max(2, Math.ceil(target / topicsOrdered.length));
+    const items = [];
+    topicsOrdered.forEach(topic => {
+        const pool = EXERCISES.filter(e => e.s === key && e.t === topic);
+        const fresh = pool.filter(e => !recent.has(e.id));
+        const chosen = (fresh.length >= perTopic ? fresh : pool)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, perTopic);
+        items.push(...chosen);
+    });
+    if (items.length === 0) { showToast('Sem exercícios para estes tópicos. Ajusta o progresso da disciplina.'); return; }
+    // Manter ordem curricular: itens já estão por ordem dos tópicos
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, testId };
     openExerciseScreen();
     renderQuestion();
@@ -684,10 +699,10 @@ function renderQuestion() {
     const area = document.getElementById('ex-answer-area');
     if (e.type === 'mc') area.innerHTML = renderMC(e);
     else if (e.type === 'tf') area.innerHTML = renderTF(e);
-    else if (e.type === 'fill') area.innerHTML = renderFill(e);
+    else if (e.type === 'fill' || e.type === 'problem') area.innerHTML = renderFill(e);
     else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; setTimeout(redrawMatch, 0); }
-    if (e.type === 'fill') setTimeout(() => document.getElementById('fill-input')?.focus(), 80);
+    if (e.type === 'fill' || e.type === 'problem') setTimeout(() => document.getElementById('fill-input')?.focus(), 80);
 }
 
 function renderMC(e) {
@@ -794,7 +809,7 @@ function submitAnswer() {
     } else if (e.type === 'tf') {
         if (selectedAnswer === null) { showToast('Escolhe Verdadeiro ou Falso'); return; }
         isCorrect = selectedAnswer === e.ans;
-    } else if (e.type === 'fill') {
+    } else if (e.type === 'fill' || e.type === 'problem') {
         const val = document.getElementById('fill-input').value;
         if (!val.trim()) { showToast('Escreve uma resposta'); return; }
         const n = normalize(val);
@@ -849,14 +864,19 @@ function showFeedback(e, isCorrect) {
     const txt = document.getElementById('feedback-text');
     txt.textContent = isCorrect ? 'Certo!' : 'Ainda não';
     txt.className = 'feedback-text ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
-    let exp = e.exp || '';
+    let expParts = [];
     if (!isCorrect) {
-        if (e.type === 'mc') exp = `Resposta certa: ${e.opts[e.ans]}. ` + exp;
-        else if (e.type === 'tf') exp = `Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}. ` + exp;
-        else if (e.type === 'fill') exp = `Resposta certa: ${e.ans[0]}. ` + exp;
-        else if (e.type === 'order') exp = `Ordem certa: ${e.items.join(' > ')}. ` + exp;
+        if (e.type === 'mc') expParts.push(`Resposta certa: ${e.opts[e.ans]}.`);
+        else if (e.type === 'tf') expParts.push(`Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}.`);
+        else if (e.type === 'fill' || e.type === 'problem') expParts.push(`Resposta certa: ${e.ans[0]}.`);
+        else if (e.type === 'order') expParts.push(`Ordem certa: ${e.items.join(' > ')}.`);
     }
-    document.getElementById('feedback-exp').textContent = exp;
+    if (e.material)  expParts.push(`📘 ${e.material}`);
+    if (e.solution)  expParts.push(`📐 Resolução: ${e.solution}`);
+    if (e.exp)       expParts.push(e.exp);
+    document.getElementById('feedback-exp').textContent = expParts.join('\n\n');
+    document.getElementById('feedback-exp').style.whiteSpace = 'pre-wrap';
+    document.getElementById('feedback-exp').style.textAlign = 'left';
     const nextLbl = (currentSession.idx + 1 >= currentSession.items.length) ? 'Ver resultado' : 'Continuar';
     document.getElementById('feedback-next').textContent = nextLbl;
     document.getElementById('session-xp').textContent = currentSession.xp;

@@ -539,6 +539,96 @@ const EXERCISES = [
     { id:'m179', s:'matematica', t:'Estatística', type:'fill', diff:3, q:'Numa turma, as notas foram 3,4,4,5,5,5,6. Qual a moda?', ans:['5'], exp:'5 aparece 3 vezes — moda.' },
     { id:'m180', s:'matematica', t:'Estatística', type:'tf', diff:2, q:'A média pode ser um número que não existe na lista.', ans:true, exp:'Ex: média de 3 e 4 é 3,5 — não está na lista.' },
 
+    // ===== PROBLEMAS DE MATEMÁTICA =====
+    // Tipo 'problem' = enunciado contextualizado + material (regra aplicada) + solution (resolução passo-a-passo).
+
+    // --- Números naturais ---
+    { id:'m200', s:'matematica', t:'Números naturais', type:'problem', diff:2, q:'Um comboio transporta 248 passageiros. Numa paragem entram 176. Com quantos passageiros segue viagem?', ans:['424'], material:'Para juntar quantidades, usamos a adição. Em colunas: alinhar unidades, dezenas, centenas.', solution:'248 + 176 = 424. Segue com 424 passageiros.' },
+    { id:'m201', s:'matematica', t:'Números naturais', type:'problem', diff:2, q:'Uma escola tem 4 turmas de 25 alunos e 3 turmas de 22. Quantos alunos ao todo?', ans:['166'], material:'Multiplicação repetida + adição.', solution:'4 × 25 = 100. 3 × 22 = 66. 100 + 66 = 166 alunos.' },
+    { id:'m202', s:'matematica', t:'Números naturais', type:'problem', diff:2, q:'Um livro tem 328 páginas. O João leu 145. Quantas páginas faltam ler?', ans:['183'], material:'Para saber quanto falta, subtrai o lido do total.', solution:'328 − 145 = 183 páginas.' },
+
+    // --- Divisibilidade ---
+    { id:'m203', s:'matematica', t:'Divisibilidade', type:'problem', diff:2, q:'Um professor quer dividir 24 alunos em grupos iguais de 6. Quantos grupos consegue formar?', ans:['4'], material:'Dividir = distribuir em partes iguais. Se divisão é exata, não sobra.', solution:'24 ÷ 6 = 4 grupos.' },
+    { id:'m204', s:'matematica', t:'Divisibilidade', type:'problem', diff:3, q:'Tens 36 rebuçados. De quantas formas os podes distribuir em partes iguais entre mais do que uma pessoa (sem sobrar e sem contar o próprio 36)? (indica o número de formas)', ans:['7'], material:'Divisores de n: números que dividem n sem resto. Excluindo 1 e n contam-se os restantes.', solution:'Divisores de 36: 1, 2, 3, 4, 6, 9, 12, 18, 36. Excluindo 1 e 36 temos 7: 2, 3, 4, 6, 9, 12, 18.' },
+    { id:'m205', s:'matematica', t:'Divisibilidade', type:'problem', diff:3, q:'Um autocarro passa de 5 em 5 minutos e outro de 8 em 8. Daqui a quantos minutos passam os dois ao mesmo tempo (a primeira vez)?', ans:['40'], material:'Quando dois eventos se repetem a intervalos fixos, coincidem no MMC desses intervalos.', solution:'MMC(5,8): múltiplos de 5: 5,10,15,20,25,30,35,40... múltiplos de 8: 8,16,24,32,40... Primeiro comum = 40 min.' },
+
+    // --- Números primos ---
+    { id:'m206', s:'matematica', t:'Números primos', type:'problem', diff:3, q:'Decompõe 48 em fatores primos (usa "x" como sinal, ex: 2x2x3).', ans:['2x2x2x2x3','2×2×2×2×3','2*2*2*2*3','2^4x3','2⁴×3'], material:'Decompor em fatores primos: dividir sucessivamente pelos primos até chegar a 1.', solution:'48÷2=24, 24÷2=12, 12÷2=6, 6÷2=3, 3÷3=1. Logo 48 = 2×2×2×2×3 = 2⁴×3.' },
+    { id:'m207', s:'matematica', t:'Números primos', type:'problem', diff:2, q:'Indica dois números primos cuja soma seja 10. (ex: "3 e 7")', ans:['3 e 7','7 e 3','3,7','7,3','5 e 5','5,5'], material:'Primos até 10: 2, 3, 5, 7. Procurar pares que somem 10.', solution:'3 + 7 = 10 (ambos primos). Também 5 + 5 = 10.' },
+
+    // --- MMC / MDC ---
+    { id:'m208', s:'matematica', t:'MMC/MDC', type:'problem', diff:3, q:'Duas campainhas tocam: uma de 6 em 6 minutos, outra de 10 em 10. Começaram a tocar juntas às 8h. A que horas voltam a tocar em simultâneo?', ans:['8h30','8:30','8h30min','8 e 30','08:30'], material:'Eventos periódicos coincidem no MMC dos seus intervalos.', solution:'MMC(6,10)=30. Passam 30 min desde 8h00 → voltam a tocar juntas às 8h30.' },
+    { id:'m209', s:'matematica', t:'MMC/MDC', type:'problem', diff:3, q:'Queres cortar duas fitas de 12 cm e 18 cm em pedaços iguais do maior tamanho possível, sem sobras. Que comprimento tem cada pedaço? (só o número em cm)', ans:['6'], material:'Para partir em pedaços iguais máximos sem sobra → usar o MDC.', solution:'MDC(12,18) = 6. Cada pedaço tem 6 cm. A primeira fita dá 2 pedaços, a segunda 3.' },
+    { id:'m210', s:'matematica', t:'MMC/MDC', type:'problem', diff:3, q:'Três amigos vão à biblioteca: um de 2 em 2 dias, outro de 3 em 3 e outro de 4 em 4. Daqui a quantos dias se encontram todos juntos?', ans:['12'], material:'Encontro de eventos periódicos = MMC de todos os intervalos.', solution:'MMC(2,3,4) = 12 dias.' },
+
+    // --- Potências ---
+    { id:'m211', s:'matematica', t:'Potências', type:'problem', diff:2, q:'Uma célula divide-se em 2 a cada hora. Se começares com 1 célula, quantas tens ao fim de 4 horas?', ans:['16'], material:'Duplicação sucessiva = potência de 2. Ao fim de n horas → 2ⁿ células.', solution:'1 → 2 → 4 → 8 → 16. Ao fim de 4h: 2⁴ = 16 células.' },
+    { id:'m212', s:'matematica', t:'Potências', type:'problem', diff:2, q:'Um quadrado tem 8 cm de lado. Qual a sua área em cm²? (só o número)', ans:['64'], material:'Área do quadrado = lado² (lado ao quadrado).', solution:'8² = 8 × 8 = 64 cm².' },
+    { id:'m213', s:'matematica', t:'Potências', type:'problem', diff:3, q:'A distância Terra-Lua é cerca de 4 × 10⁵ km. Escreve essa distância por extenso (só o número).', ans:['400000','400 000'], material:'Potências de 10 encurtam números grandes. 10⁵ = 100 000.', solution:'4 × 10⁵ = 4 × 100 000 = 400 000 km.' },
+
+    // --- Operações ---
+    { id:'m214', s:'matematica', t:'Operações', type:'problem', diff:2, q:'A Ana comprou 3 livros a 8€ cada e um caderno a 5€. Quanto pagou ao todo? (só o número)', ans:['29'], material:'Juntar produtos e somas respeitando a ordem das operações.', solution:'3 × 8 = 24. 24 + 5 = 29€.' },
+    { id:'m215', s:'matematica', t:'Operações', type:'problem', diff:2, q:'Uma caixa com 144 bolachas é dividida igualmente por 12 pacotes. Quantas bolachas tem cada pacote?', ans:['12'], material:'Para distribuir em partes iguais → divisão.', solution:'144 ÷ 12 = 12 bolachas por pacote.' },
+    { id:'m216', s:'matematica', t:'Operações', type:'problem', diff:3, q:'O Pedro tinha 50€. Gastou 3 × 12€ em livros. Com quanto ficou?', ans:['14','14€'], material:'Primeiro multiplicar, depois subtrair ao que tinha.', solution:'3 × 12 = 36€ gastos. 50 − 36 = 14€ restantes.' },
+
+    // --- Frações ---
+    { id:'m217', s:'matematica', t:'Frações', type:'problem', diff:2, q:'A Ana comeu 1/4 de uma piza e o João comeu 2/4. Que fração da piza comeram juntos?', ans:['3/4'], material:'Soma de frações com o mesmo denominador: soma os numeradores, mantém o denominador.', solution:'1/4 + 2/4 = 3/4 da piza.' },
+    { id:'m218', s:'matematica', t:'Frações', type:'problem', diff:2, q:'Uma garrafa tem 3/4 de litro. Bebi 1/4. Quanto resta? (forma a/b simplificada)', ans:['2/4','1/2','1/2 L','1/2L','0,5 L'], material:'Subtração de frações com mesmo denominador: subtrai numeradores.', solution:'3/4 − 1/4 = 2/4 = 1/2 litro.' },
+    { id:'m219', s:'matematica', t:'Frações', type:'problem', diff:3, q:'2/3 da turma são 24 alunos. Quantos alunos tem a turma toda?', ans:['36'], material:'Para encontrar o todo a partir de uma fração: divide pela fração (ou regra de 3).', solution:'Se 2/3 = 24, então 1/3 = 12. Turma inteira = 3/3 = 3 × 12 = 36 alunos.' },
+    { id:'m220', s:'matematica', t:'Frações', type:'problem', diff:2, q:'Calcula 1/4 de 20.', ans:['5'], material:'Calcular uma fração de um número: divide pelo denominador, multiplica pelo numerador.', solution:'20 ÷ 4 × 1 = 5.' },
+
+    // --- Dízimas ---
+    { id:'m221', s:'matematica', t:'Dízimas', type:'problem', diff:2, q:'Converte 0,8 em fração simplificada.', ans:['4/5','8/10'], material:'0,8 = 8/10. Simplifica dividindo pelo MDC.', solution:'0,8 = 8/10. MDC(8,10)=2 → 4/5.' },
+    { id:'m222', s:'matematica', t:'Dízimas', type:'problem', diff:2, q:'Quanto é 0,25 + 0,5? (em dízima)', ans:['0,75','0.75'], material:'Alinhar vírgulas e somar como inteiros.', solution:'0,25 + 0,50 = 0,75.' },
+    { id:'m223', s:'matematica', t:'Dízimas', type:'problem', diff:3, q:'Escreve 0,125 como fração simplificada.', ans:['1/8','125/1000'], material:'Dízima = fração com potência de 10 no denominador, depois simplifica.', solution:'0,125 = 125/1000. MDC(125,1000)=125 → 1/8.' },
+
+    // --- Percentagens ---
+    { id:'m224', s:'matematica', t:'Percentagens', type:'problem', diff:2, q:'Uma camisola custa 40€ e tem 15% de desconto. Quanto poupas? (só o número)', ans:['6'], material:'Percentagem: X% de Y = (X/100) × Y.', solution:'15% × 40 = 0,15 × 40 = 6€ de desconto.' },
+    { id:'m225', s:'matematica', t:'Percentagens', type:'problem', diff:3, q:'Seguindo o problema anterior: qual o preço final da camisola? (só o número)', ans:['34','34€'], material:'Preço final = preço inicial − desconto.', solution:'40 − 6 = 34€.' },
+    { id:'m226', s:'matematica', t:'Percentagens', type:'problem', diff:2, q:'No cinema, 30 dos 40 lugares estão ocupados. Qual a percentagem de ocupação?', ans:['75%','75'], material:'Percentagem = (parte ÷ total) × 100.', solution:'30 ÷ 40 = 0,75 = 75%.' },
+    { id:'m227', s:'matematica', t:'Percentagens', type:'problem', diff:3, q:'Um telemóvel subiu de 200€ para 250€. Qual a percentagem de aumento?', ans:['25%','25'], material:'Aumento percentual = (aumento ÷ valor inicial) × 100.', solution:'Aumento = 50€. 50/200 = 0,25 = 25%.' },
+
+    // --- Sequências ---
+    { id:'m228', s:'matematica', t:'Sequências', type:'problem', diff:2, q:'Numa sequência, cada termo soma 7 ao anterior. Se o 1.º termo é 3, qual é o 5.º?', ans:['31'], material:'Sequência aritmética: termoₙ = termo₁ + (n−1) × razão.', solution:'Termos: 3, 10, 17, 24, 31. Ou 3 + 4×7 = 31.' },
+    { id:'m229', s:'matematica', t:'Sequências', type:'problem', diff:3, q:'A quadra de Fibonacci começa 1, 1, 2, 3, 5, 8. Qual o 8.º termo?', ans:['21'], material:'Fibonacci: cada termo = soma dos 2 anteriores.', solution:'1,1,2,3,5,8,13,21 → 8.º = 21.' },
+
+    // --- Ângulos ---
+    { id:'m230', s:'matematica', t:'Ângulos', type:'problem', diff:2, q:'Dois ângulos são complementares. Um mede 35°. Quanto mede o outro? (só o número)', ans:['55'], material:'Ângulos complementares: soma = 90°.', solution:'90° − 35° = 55°.' },
+    { id:'m231', s:'matematica', t:'Ângulos', type:'problem', diff:2, q:'Um ângulo mede 110°. Qual a amplitude do seu suplementar? (só o número)', ans:['70'], material:'Ângulos suplementares: soma = 180°.', solution:'180° − 110° = 70°.' },
+    { id:'m232', s:'matematica', t:'Ângulos', type:'problem', diff:3, q:'Num relógio, às 3 horas, qual o ângulo entre os ponteiros das horas e dos minutos? (só o número)', ans:['90'], material:'O mostrador do relógio divide-se em 12 partes iguais (30° cada). Às 3h, a diferença são 3 "horas" = 3 × 30°.', solution:'3 × 30° = 90°. Ângulo reto.' },
+
+    // --- Retas ---
+    { id:'m233', s:'matematica', t:'Retas', type:'problem', diff:2, q:'Duas retas formam um ângulo de 90°. Como se chamam?', ans:['perpendiculares'], material:'Perpendiculares = formam 4 ângulos de 90°.', solution:'Rectas perpendiculares.' },
+
+    // --- Triângulos ---
+    { id:'m234', s:'matematica', t:'Triângulos', type:'problem', diff:2, q:'Num triângulo, dois ângulos medem 50° e 60°. Quanto mede o terceiro? (só o número)', ans:['70'], material:'Soma dos ângulos internos do triângulo = 180°.', solution:'180° − 50° − 60° = 70°.' },
+    { id:'m235', s:'matematica', t:'Triângulos', type:'problem', diff:3, q:'Num triângulo isósceles, o ângulo diferente mede 40°. Quanto medem cada um dos outros dois? (só o número)', ans:['70'], material:'Isósceles: dois ângulos iguais. Soma interna = 180°.', solution:'180° − 40° = 140°. 140° ÷ 2 = 70° cada.' },
+    { id:'m236', s:'matematica', t:'Triângulos', type:'problem', diff:2, q:'Um triângulo retângulo tem um ângulo de 35° (além do reto). Qual é o terceiro ângulo? (só o número)', ans:['55'], material:'Retângulo: um ângulo de 90°. Os outros dois somam 90°.', solution:'90° − 35° = 55°.' },
+
+    // --- Quadriláteros ---
+    { id:'m237', s:'matematica', t:'Quadriláteros', type:'problem', diff:2, q:'Num quadrilátero, três ângulos medem 90°, 100° e 80°. Quanto mede o quarto ângulo? (só o número)', ans:['90'], material:'Soma dos ângulos internos de qualquer quadrilátero = 360°.', solution:'360° − 90° − 100° − 80° = 90°.' },
+
+    // --- Perímetros ---
+    { id:'m238', s:'matematica', t:'Perímetros', type:'problem', diff:2, q:'Um jardim retangular tem 12 m de comprimento e 8 m de largura. Quantos metros de vedação precisamos?', ans:['40','40 m','40m'], material:'Perímetro do retângulo = 2 × (comprimento + largura).', solution:'2 × (12 + 8) = 2 × 20 = 40 m.' },
+    { id:'m239', s:'matematica', t:'Perímetros', type:'problem', diff:2, q:'Uma piscina quadrada tem 6 m de lado. Quantos metros tem à volta?', ans:['24','24 m'], material:'Perímetro do quadrado = 4 × lado.', solution:'4 × 6 = 24 m.' },
+    { id:'m240', s:'matematica', t:'Perímetros', type:'problem', diff:3, q:'Um polígono irregular tem lados de 5, 7, 3, 8 e 4 cm. Qual o perímetro? (só o número)', ans:['27'], material:'Perímetro de polígono irregular = soma de todos os lados.', solution:'5 + 7 + 3 + 8 + 4 = 27 cm.' },
+
+    // --- Áreas ---
+    { id:'m241', s:'matematica', t:'Áreas', type:'problem', diff:2, q:'Um campo de futebol tem 100 m × 70 m. Qual a área em m²? (só o número)', ans:['7000','7 000'], material:'Área do retângulo = comprimento × largura.', solution:'100 × 70 = 7 000 m².' },
+    { id:'m242', s:'matematica', t:'Áreas', type:'problem', diff:2, q:'Uma sala de aula tem 8 m × 6 m. Vamos pôr ladrilhos de 1 m². Quantos precisamos?', ans:['48'], material:'Quantidade de ladrilhos = área / área do ladrilho.', solution:'Área = 8 × 6 = 48 m². 48 ladrilhos de 1 m².' },
+    { id:'m243', s:'matematica', t:'Áreas', type:'problem', diff:3, q:'Um triângulo tem base 12 cm e altura 5 cm. Qual a sua área em cm²? (só o número)', ans:['30'], material:'Área do triângulo = (base × altura) ÷ 2.', solution:'(12 × 5) ÷ 2 = 60 ÷ 2 = 30 cm².' },
+    { id:'m244', s:'matematica', t:'Áreas', type:'problem', diff:3, q:'Um trapézio tem bases de 10 cm e 6 cm e altura 4 cm. Qual a sua área? (só o número em cm²)', ans:['32'], material:'Área do trapézio = (B + b) × h ÷ 2.', solution:'(10 + 6) × 4 ÷ 2 = 16 × 4 ÷ 2 = 32 cm².' },
+
+    // --- Volume ---
+    { id:'m245', s:'matematica', t:'Volume', type:'problem', diff:2, q:'Uma caixa mede 10 cm × 8 cm × 5 cm. Qual o seu volume em cm³? (só o número)', ans:['400'], material:'Volume do paralelepípedo = c × l × a.', solution:'10 × 8 × 5 = 400 cm³.' },
+    { id:'m246', s:'matematica', t:'Volume', type:'problem', diff:3, q:'Um aquário tem 40 cm × 25 cm × 20 cm. Quantos litros de água cabem? (só o número)', ans:['20'], material:'1 dm³ = 1 L. Converter cm³ para dm³: dividir por 1000.', solution:'V = 40 × 25 × 20 = 20 000 cm³ = 20 dm³ = 20 L.' },
+    { id:'m247', s:'matematica', t:'Volume', type:'problem', diff:2, q:'Um cubo tem 5 cm de aresta. Qual o seu volume em cm³? (só o número)', ans:['125'], material:'Volume do cubo = aresta³.', solution:'5³ = 5 × 5 × 5 = 125 cm³.' },
+
+    // --- Estatística ---
+    { id:'m248', s:'matematica', t:'Estatística', type:'problem', diff:2, q:'As notas do Tomás foram: 3, 5, 7, 9. Qual a sua nota média?', ans:['6'], material:'Média = soma dos valores ÷ número de valores.', solution:'(3+5+7+9) ÷ 4 = 24 ÷ 4 = 6.' },
+    { id:'m249', s:'matematica', t:'Estatística', type:'problem', diff:2, q:'Numa turma, as notas em matemática foram: 4, 4, 5, 5, 5, 5, 6. Qual é a moda?', ans:['5'], material:'Moda = valor mais frequente.', solution:'O 5 aparece 4 vezes → moda = 5.' },
+    { id:'m250', s:'matematica', t:'Estatística', type:'problem', diff:3, q:'Um grupo de 5 alunos tem alturas (cm): 140, 142, 145, 148, 150. Qual a altura média? (só o número)', ans:['145'], material:'Média de dados contínuos: soma tudo e divide pelo número de valores.', solution:'(140+142+145+148+150) ÷ 5 = 725 ÷ 5 = 145 cm.' },
+
     // ========== INGLÊS (20) ==========
     { id:'i1', s:'ingles', t:'Greetings', type:'mc', diff:1, q:'How do you say "Bom dia" in English?', opts:['Good night','Good morning','Good afternoon','Good evening'], ans:1, exp:'"Good morning" = bom dia.' },
     { id:'i2', s:'ingles', t:'Greetings', type:'mc', diff:1, q:'How do you say "Adeus" in English?', opts:['Hello','Goodbye','Please','Thanks'], ans:1, exp:'"Goodbye" = adeus.' },
