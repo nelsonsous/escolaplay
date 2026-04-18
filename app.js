@@ -242,6 +242,12 @@ function _loadExtraScript(file) {
 // order sem items, etc.). Sem isto, submitAnswer/renderQuestion crasham.
 function _sanitizeExercise(e) {
     if (!e || !e.type) return null;
+    // Alguns geradores marcaram exercícios mc como 'problem' (têm opts + ans numérico).
+    // Converter para mc, senão submitAnswer trata o índice como texto e falha sempre.
+    if (e.type === 'problem' && Array.isArray(e.opts) && typeof e.ans === 'number'
+        && e.ans >= 0 && e.ans < e.opts.length) {
+        e.type = 'mc';
+    }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         if (typeof e.ans === 'string' || typeof e.ans === 'number') e.ans = [String(e.ans)];
         else if (!Array.isArray(e.ans)) e.ans = [];
