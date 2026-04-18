@@ -633,22 +633,33 @@ function saveMaxConfig() {
 async function callClaudeAPI(prompt, maxTokens = 3500) {
     const key = state.max?.apiKey;
     if (!key) throw new Error('Sem chave API');
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            'authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
-            max_tokens: maxTokens,
-            temperature: 0.7,
-            messages: [{ role: 'user', content: prompt }]
-        })
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    let res;
+    try {
+        res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'content-type': 'application/json',
+                'authorization': `Bearer ${key}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.1-8b-instant',
+                max_tokens: maxTokens,
+                temperature: 0.7,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+    } catch(e) {
+        if (e.name === 'AbortError') throw new Error('Tempo esgotado (30s). Verifica a ligação.');
+        throw new Error('Erro de rede: ' + e.message);
+    } finally {
+        clearTimeout(timeout);
+    }
     if (!res.ok) {
         const errText = await res.text();
-        throw new Error(`API ${res.status}: ${errText.slice(0, 200)}`);
+        throw new Error(`Groq ${res.status}: ${errText.slice(0, 300)}`);
     }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content || '';
