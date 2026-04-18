@@ -679,7 +679,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
                 max_tokens: maxTokens,
                 temperature: 0.7,
                 messages: [
-                    { role: 'system', content: 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON.' },
+                    { role: 'system', content: 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.' },
                     { role: 'user', content: prompt }
                 ]
             })
@@ -1098,7 +1098,7 @@ async function aiValidateAnswer(exercise, studentAnswer) {
     const langNote = exercise.s === 'ingles'
         ? ' The answer must be in English — Portuguese words are NOT accepted as correct even if they mean the same thing.'
         : '';
-    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas e formas equivalentes.${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
+    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas e formas equivalentes. Usa Português de Portugal (não brasileiro).${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
     try {
         const { text } = await callClaudeAPI(prompt, 30);
         const correct = /"ok"\s*:\s*true/.test(text);
@@ -1225,7 +1225,7 @@ async function loadDetailedExplanation() {
     btn.textContent = '⏳ A carregar…'; btn.disabled = true;
     const correctAns = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
     const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
-    const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Usa Português simples. Sem markdown.`;
+    const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Usa Português de Portugal (não brasileiro), simples. Sem markdown.`;
     try {
         const { text } = await callClaudeAPI(prompt, 250);
         const html = text.trim().replace(/\n/g, '<br>');
