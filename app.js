@@ -991,7 +991,10 @@ function renderQuestion() {
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; setTimeout(redrawMatch, 0); }
     if (e.type === 'fill' || e.type === 'problem') {
         const inp = document.getElementById('fill-input');
-        if (inp) { inp.value = ''; if (state.max?.enabled && state.max?.apiKey) inp.focus(); }
+        if (inp) {
+            inp.value = '';
+            setTimeout(() => { inp.value = ''; if (state.max?.enabled && state.max?.apiKey) inp.focus(); }, 50);
+        }
     }
 }
 
@@ -1028,7 +1031,7 @@ function selectTF(v) {
 
 function renderFill(e) {
     return `
-        <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="off" autocorrect="off" autocapitalize="off" value="">
+        <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="">
         <button class="btn btn-primary-solid btn-block" id="submit-btn" onclick="submitAnswer()">Responder</button>
     `;
 }
