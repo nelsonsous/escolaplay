@@ -622,24 +622,28 @@ function saveMaxConfig() {
     const key = document.getElementById('max-apikey').value.trim();
     const enabled = document.getElementById('max-enabled').checked;
     if (enabled && !key) { showToast('Precisas de uma chave API para activar MAX'); return; }
-    if (enabled && !/^AIza/.test(key)) { showToast('Chave inválida — deve começar por AIza'); return; }
+    if (enabled && !/^gsk_/.test(key)) { showToast('Chave inválida — deve começar por gsk_'); return; }
     state.max.apiKey = key;
     state.max.enabled = enabled;
     saveState();
     showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
 }
 
-// ========== MAX: chamada à Google Gemini API ==========
+// ========== MAX: chamada à Groq API ==========
 async function callClaudeAPI(prompt, maxTokens = 3500) {
     const key = state.max?.apiKey;
     if (!key) throw new Error('Sem chave API');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
-    const res = await fetch(url, {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+            'content-type': 'application/json',
+            'authorization': `Bearer ${key}`
+        },
         body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 }
+            model: 'llama-3.1-8b-instant',
+            max_tokens: maxTokens,
+            temperature: 0.7,
+            messages: [{ role: 'user', content: prompt }]
         })
     });
     if (!res.ok) {
@@ -647,9 +651,9 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
         throw new Error(`API ${res.status}: ${errText.slice(0, 200)}`);
     }
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!text) throw new Error('Resposta vazia do Gemini');
-    return { text, usage: data.usageMetadata };
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text) throw new Error('Resposta vazia do Groq');
+    return { text, usage: data.usage };
 }
 
 async function generateMaxExercises(subjectKey, topics, count = 6) {
