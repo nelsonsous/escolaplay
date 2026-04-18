@@ -1,46 +1,59 @@
 // ========== EscolaPlay ==========
-// State + gamification + exercises
+// State + gamificação + exercícios + testes + prémios
 
-const STORAGE_KEY = 'escolaplay_v1';
-const AVATARS = ['\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}','\u{1F43A}','\u{1F98A}','\u{1F427}','\u{1F989}','\u{1F984}','\u{1F409}'];
+const STORAGE_KEY = 'escolaplay_v2';
+const AVATARS = ['\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}','\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F984}','\u{1F409}'];
 const LEVELS = [
     { min:    0, name: 'Aprendiz' },
     { min:  500, name: 'Aventureiro' },
     { min: 1500, name: 'Explorador' },
     { min: 3000, name: 'Cavaleiro' },
     { min: 5000, name: 'Mestre' },
-    { min: 8000, name: 'Sabio' },
+    { min: 8000, name: 'Sábio' },
     { min:12000, name: 'Lenda' }
 ];
 const XP_BY_DIFF = { 1: 10, 2: 20, 3: 30 };
-const DAILY_QUESTIONS = 6;
+const DAILY_QUESTIONS = 5;      // 1 por disciplina (temos 5)
 const PRACTICE_QUESTIONS = 6;
 
-// Badges definition
+const DEFAULT_REWARDS = [
+    { id: 'r1', name: 'Escolher a sobremesa', cost: 300, claimed: false },
+    { id: 'r2', name: '30 min extra de ecrã', cost: 800, claimed: false },
+    { id: 'r3', name: 'Ir comer um gelado', cost: 1500, claimed: false },
+    { id: 'r4', name: 'Passeio ao parque com os pais', cost: 2500, claimed: false },
+    { id: 'r5', name: 'Ver um filme em família', cost: 4000, claimed: false },
+    { id: 'r6', name: 'Escolher o próximo passeio de fim de semana', cost: 6000, claimed: false }
+];
+
 const BADGES = [
-    { id:'first',        icon:'\u{1F331}',  name:'Primeiros Passos',   desc:'1 resposta certa',        check:(s)=> totalCorrect(s) >= 1 },
-    { id:'daily_first',  icon:'\u26A1',     name:'Primeiro Desafio',   desc:'1 desafio diario feito',  check:(s)=> s.totalDailies >= 1 },
-    { id:'streak3',      icon:'\u{1F525}',  name:'Em Chamas',          desc:'3 dias seguidos',         check:(s)=> s.streak.days >= 3 },
-    { id:'streak7',      icon:'\u{1F3C6}',  name:'Semana Perfeita',    desc:'7 dias seguidos',         check:(s)=> s.streak.days >= 7 },
-    { id:'correct50',    icon:'\u{1F3AF}',  name:'Bom de Mira',         desc:'50 respostas certas',    check:(s)=> totalCorrect(s) >= 50 },
-    { id:'correct200',   icon:'\u{1F31F}',  name:'Super Estrela',       desc:'200 respostas certas',   check:(s)=> totalCorrect(s) >= 200 },
-    { id:'xp1000',       icon:'\u26A1',     name:'1000 XP',             desc:'1000 XP acumulado',      check:(s)=> s.xp >= 1000 },
-    { id:'xp5000',       icon:'\u{1F4AB}',  name:'5000 XP',             desc:'5000 XP acumulado',      check:(s)=> s.xp >= 5000 },
-    { id:'allsubjects',  icon:'\u{1F393}',  name:'Versatil',            desc:'1+ em todas as disciplinas', check:(s)=> Object.keys(SUBJECTS).every(k => (s.subjects[k]?.correct||0) >= 1) },
-    { id:'perfect',      icon:'\u{1F4AF}',  name:'Perfeitinho',         desc:'Desafio diario 6/6',     check:(s)=> s.perfectDailies >= 1 },
-    { id:'subject_5_por',icon:'\u{1F4D6}',  name:'Letrado',             desc:'20 certas em Portugues', check:(s)=> (s.subjects.portugues?.correct||0) >= 20 },
-    { id:'subject_5_mat',icon:'\u{1F9EE}',  name:'Calculista',          desc:'20 certas em Matematica',check:(s)=> (s.subjects.matematica?.correct||0) >= 20 }
+    { id:'first',       icon:'\u{1F331}', name:'Primeiros Passos',  desc:'1 resposta certa',      check:(s)=> totalCorrect(s) >= 1 },
+    { id:'daily_first', icon:'\u26A1',    name:'Primeiro Desafio',  desc:'1 desafio diário feito',check:(s)=> s.totalDailies >= 1 },
+    { id:'streak3',     icon:'\u{1F525}', name:'Em Chamas',         desc:'3 dias seguidos',       check:(s)=> s.streak.days >= 3 },
+    { id:'streak7',     icon:'\u{1F3C6}', name:'Semana Perfeita',   desc:'7 dias seguidos',       check:(s)=> s.streak.days >= 7 },
+    { id:'correct50',   icon:'\u{1F3AF}', name:'Bom de Mira',       desc:'50 respostas certas',   check:(s)=> totalCorrect(s) >= 50 },
+    { id:'correct200',  icon:'\u{1F31F}', name:'Super Estrela',     desc:'200 respostas certas',  check:(s)=> totalCorrect(s) >= 200 },
+    { id:'xp1000',      icon:'\u26A1',    name:'1000 XP',           desc:'1000 XP acumulados',    check:(s)=> s.xp >= 1000 },
+    { id:'xp5000',      icon:'\u{1F4AB}', name:'5000 XP',           desc:'5000 XP acumulados',    check:(s)=> s.xp >= 5000 },
+    { id:'allsubjects', icon:'\u{1F393}', name:'Versátil',          desc:'1+ em todas as disciplinas', check:(s)=> Object.keys(SUBJECTS).every(k => (s.subjects[k]?.correct||0) >= 1) },
+    { id:'perfect',     icon:'\u{1F4AF}', name:'Perfeitinho',       desc:'Desafio diário 5/5',    check:(s)=> s.perfectDailies >= 1 },
+    { id:'sub_por',     icon:'\u{1F4D6}', name:'Letrado',           desc:'20 certas em Português',check:(s)=> (s.subjects.portugues?.correct||0) >= 20 },
+    { id:'sub_mat',     icon:'\u{1F9EE}', name:'Calculista',        desc:'20 certas em Matemática',check:(s)=> (s.subjects.matematica?.correct||0) >= 20 }
 ];
 
 // ========== STATE ==========
 let state = loadState();
-let currentSession = null; // { items, idx, correct, wrong, xp, streak, isDaily, subject }
+let currentSession = null;
 let selectedAnswer = null;
 let matchSelection = { left: null };
+let pendingTestId = null;      // teste a editar
+let pendingRewardId = null;    // prémio desbloqueado a mostrar
+let currentSubjectView = null; // disciplina visível no modal de detalhes
 
 function defaultState() {
     const subs = {};
     Object.keys(SUBJECTS).forEach(k => { subs[k] = { answered: 0, correct: 0, xp: 0 }; });
+    const prog = {};
+    Object.keys(CURRICULUM).forEach(k => { prog[k] = { toIndex: CURRICULUM[k].length }; });
     return {
         profile: { name: 'Aluno(a)', avatar: AVATARS[0] },
         xp: 0,
@@ -51,7 +64,10 @@ function defaultState() {
         history: [],
         totalDailies: 0,
         perfectDailies: 0,
-        recentIds: []
+        recentIds: [],
+        tests: [],
+        rewards: JSON.parse(JSON.stringify(DEFAULT_REWARDS)),
+        progress: prog
     };
 }
 function loadState() {
@@ -60,7 +76,19 @@ function loadState() {
         if (!raw) return defaultState();
         const parsed = JSON.parse(raw);
         const base = defaultState();
-        return { ...base, ...parsed, profile: { ...base.profile, ...(parsed.profile||{}) }, subjects: { ...base.subjects, ...(parsed.subjects||{}) }, streak: { ...base.streak, ...(parsed.streak||{}) }, daily: { ...base.daily, ...(parsed.daily||{}) } };
+        const merged = { ...base, ...parsed };
+        merged.profile  = { ...base.profile, ...(parsed.profile || {}) };
+        merged.subjects = { ...base.subjects, ...(parsed.subjects || {}) };
+        merged.streak   = { ...base.streak, ...(parsed.streak || {}) };
+        merged.daily    = { ...base.daily, ...(parsed.daily || {}) };
+        merged.progress = { ...base.progress, ...(parsed.progress || {}) };
+        if (!Array.isArray(merged.tests)) merged.tests = [];
+        if (!Array.isArray(merged.rewards) || merged.rewards.length === 0) merged.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+        // Garante que cada disciplina tem toIndex
+        Object.keys(CURRICULUM).forEach(k => {
+            if (!merged.progress[k]) merged.progress[k] = { toIndex: CURRICULUM[k].length };
+        });
+        return merged;
     } catch(e) {
         console.error('loadState', e);
         return defaultState();
@@ -69,9 +97,35 @@ function loadState() {
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function totalCorrect(s) { return Object.values(s.subjects).reduce((a,b)=>a+(b.correct||0),0); }
-function totalAnswered(s) { return Object.values(s.subjects).reduce((a,b)=>a+(b.answered||0),0); }
 
-// ========== LEVELS ==========
+// ========== UTILIDADES ==========
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function daysBetween(a, b) {
+    if (!a || !b) return 999;
+    const da = new Date(a + 'T00:00:00');
+    const db = new Date(b + 'T00:00:00');
+    return Math.round((db - da) / 86400000);
+}
+function formatDatePT(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+}
+function normalize(s) {
+    return String(s).trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ');
+}
+function activeTopicsFor(subjectKey) {
+    const to = state.progress[subjectKey]?.toIndex ?? CURRICULUM[subjectKey].length;
+    return new Set(CURRICULUM[subjectKey].slice(0, to));
+}
+
+// ========== LEVEL/XP ==========
 function levelInfo(xp) {
     let idx = 0;
     for (let i = LEVELS.length - 1; i >= 0; i--) { if (xp >= LEVELS[i].min) { idx = i; break; } }
@@ -79,21 +133,10 @@ function levelInfo(xp) {
     const next = LEVELS[idx+1];
     const base = current.min;
     const nextMin = next ? next.min : base + 5000;
-    const into = xp - base;
-    const span = nextMin - base;
-    return { idx, name: current.name, number: idx+1, into, span, next: next?.name || null };
+    return { idx, name: current.name, number: idx+1, into: xp - base, span: nextMin - base, next: next?.name || null };
 }
 
-// ========== UI: HEADER & HOME ==========
-function todayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function daysBetween(a, b) {
-    if (!a || !b) return 999;
-    return Math.round((new Date(b) - new Date(a)) / 86400000);
-}
-
+// ========== HEADER ==========
 function updateHeader() {
     const lvl = levelInfo(state.xp);
     document.getElementById('avatar').textContent = state.profile.avatar;
@@ -108,30 +151,62 @@ function updateHeader() {
     document.getElementById('xp-bar-fill').style.width = pct + '%';
 }
 
+// ========== HOME ==========
 function renderHome() {
     document.getElementById('mini-streak').textContent = state.streak.days;
     document.getElementById('mini-xp').textContent = state.xp;
     document.getElementById('mini-correct').textContent = totalCorrect(state);
     document.getElementById('mini-badges').textContent = state.badges.length;
-    // Daily status
+
     const dailyDone = state.daily.date === todayStr() && state.daily.completed;
-    const lbl = document.getElementById('daily-status');
-    const btnLbl = document.getElementById('btn-start-daily-label');
-    if (dailyDone) {
-        lbl.textContent = `Concluido hoje (${state.daily.correct}/${DAILY_QUESTIONS})`;
-        btnLbl.textContent = 'Repetir desafio';
-    } else {
-        lbl.textContent = `${DAILY_QUESTIONS} perguntas das tuas disciplinas`;
-        btnLbl.textContent = 'Comecar desafio';
-    }
-    // Quick subjects (3 random)
+    document.getElementById('daily-status').textContent = dailyDone
+        ? `Concluído hoje (${state.daily.correct}/${DAILY_QUESTIONS})`
+        : `${DAILY_QUESTIONS} perguntas, 1 de cada disciplina`;
+    document.getElementById('btn-start-daily-label').textContent = dailyDone ? 'Repetir desafio' : 'Começar desafio';
+
+    // Próximo teste
+    renderNextTestCard();
+    // Próximo prémio
+    renderNextRewardCard();
+
+    // Treino rápido
     const container = document.getElementById('quick-subjects');
     container.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => `
-        <div class="quick-subject" onclick="startSubjectSession('${key}')">
+        <div class="quick-subject" onclick="openSubjectDetail('${key}')">
             <i class="fas ${sub.icon}" style="color:${sub.color}"></i>
             <div class="qs-name">${sub.name}</div>
         </div>
     `).join('');
+}
+
+function renderNextTestCard() {
+    const card = document.getElementById('next-test-card');
+    const today = todayStr();
+    const upcoming = state.tests
+        .filter(t => !t.done && t.date >= today)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    if (upcoming.length === 0) { card.style.display = 'none'; return; }
+    const t = upcoming[0];
+    const days = daysBetween(today, t.date);
+    const sub = SUBJECTS[t.subject];
+    document.getElementById('next-test-title').textContent = `Teste de ${sub?.name || t.subject}`;
+    document.getElementById('next-test-sub').textContent = days === 0 ? 'É hoje!' : days === 1 ? 'É amanhã' : `Faltam ${days} dias`;
+    document.getElementById('next-test-days').textContent = days;
+    card.classList.remove('urgent', 'soon');
+    if (days <= 2) card.classList.add('urgent');
+    else if (days <= 5) card.classList.add('soon');
+    card.style.display = 'flex';
+}
+
+function renderNextRewardCard() {
+    const card = document.getElementById('next-reward-card');
+    const next = (state.rewards || []).filter(r => !r.claimed).sort((a, b) => a.cost - b.cost).find(r => r.cost > state.xp);
+    if (!next) { card.style.display = 'none'; return; }
+    const pct = Math.min(100, Math.round(state.xp / next.cost * 100));
+    document.getElementById('next-reward-name').textContent = `Próximo prémio: ${next.name}`;
+    document.getElementById('next-reward-fill').style.width = pct + '%';
+    document.getElementById('next-reward-meta').textContent = `${state.xp} / ${next.cost} XP (faltam ${next.cost - state.xp})`;
+    card.style.display = 'flex';
 }
 
 // ========== SUBJECTS TAB ==========
@@ -140,19 +215,242 @@ function renderSubjects() {
     grid.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
         const stats = state.subjects[key] || { answered: 0, correct: 0, xp: 0 };
         const pct = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : 0;
-        const totalEx = EXERCISES.filter(e => e.s === key).length;
+        const totalActive = EXERCISES.filter(e => e.s === key && activeTopicsFor(key).has(e.t)).length;
+        const totalAll = EXERCISES.filter(e => e.s === key).length;
         return `
-            <div class="subject-card" onclick="startSubjectSession('${key}')">
+            <div class="subject-card" onclick="openSubjectDetail('${key}')">
                 <div class="subject-card-icon" style="background:${sub.color}"><i class="fas ${sub.icon}"></i></div>
                 <h3>${sub.name}</h3>
-                <div class="subject-card-meta">${stats.correct}/${stats.answered} certas &middot; ${totalEx} exercicios</div>
+                <div class="subject-card-meta">${stats.correct}/${stats.answered} certas · ${totalActive}/${totalAll} activos</div>
                 <div class="subject-card-bar"><div class="subject-card-bar-fill" style="width:${pct}%;background:${sub.color}"></div></div>
             </div>
         `;
     }).join('');
 }
 
-// ========== PROGRESS TAB ==========
+// ========== SUBJECT DETAIL (modal fullscreen) ==========
+function openSubjectDetail(key) {
+    currentSubjectView = key;
+    const sub = SUBJECTS[key];
+    const topics = CURRICULUM[key] || [];
+    const toIndex = state.progress[key]?.toIndex ?? topics.length;
+    const stats = state.subjects[key] || { answered: 0, correct: 0, xp: 0 };
+
+    const html = `
+        <div class="fullscreen" id="subject-detail-screen">
+            <div class="exercise-header">
+                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
+                    <span style="width:32px;height:32px;border-radius:8px;background:${sub.color};color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas ${sub.icon}"></i></span>
+                    ${sub.fullName || sub.name}
+                </div>
+            </div>
+            <div class="exercise-body">
+                <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
+                    <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:4px">Respostas certas</div>
+                    <div style="font-size:1.3rem;font-weight:800">${stats.correct}/${stats.answered} &middot; ${stats.xp} XP</div>
+                </div>
+
+                <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
+                    <label style="display:block;font-weight:700;margin-bottom:6px">Até onde já estudaste?</label>
+                    <p class="muted" style="margin-bottom:10px">Selecciona o último tópico que deste. Só aparecem exercícios até esse ponto.</p>
+                    <input type="range" id="progress-slider" min="0" max="${topics.length}" value="${toIndex}" style="width:100%" oninput="onProgressSlider(this.value)">
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-light);margin-top:4px">
+                        <span>0</span><span id="progress-current">${toIndex}</span><span>${topics.length}</span>
+                    </div>
+                </div>
+
+                <div class="section-title" style="margin-top:8px"><i class="fas fa-list-ol"></i> Tópicos</div>
+                <div id="topic-list"></div>
+
+                <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="startSubjectSession('${key}')">
+                    <i class="fas fa-play"></i> Começar treino
+                </button>
+            </div>
+        </div>
+    `;
+    const container = document.createElement('div');
+    container.id = 'subject-detail-container';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    renderTopicList();
+}
+
+function renderTopicList() {
+    const key = currentSubjectView;
+    const topics = CURRICULUM[key] || [];
+    const toIndex = state.progress[key]?.toIndex ?? topics.length;
+    const active = new Set(topics.slice(0, toIndex));
+    const container = document.getElementById('topic-list');
+    if (!container) return;
+    container.innerHTML = topics.map((t, i) => {
+        const isActive = active.has(t);
+        const count = EXERCISES.filter(e => e.s === key && e.t === t).length;
+        return `
+            <div style="background:#fff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:6px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'}">
+                <span style="width:24px;height:24px;border-radius:50%;background:${isActive ? SUBJECTS[key].color : '#e5e7eb'};color:#fff;font-size:0.72rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;font-size:0.9rem">${t}</div>
+                    <div style="font-size:0.7rem;color:var(--text-light)">${count} exercícios · ${LESSONS[`${key}/${t}`] ? 'tem explicação' : ''}</div>
+                </div>
+                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="openLessonByKey('${key}/${t.replace(/'/g, "\\'")}')" title="Ver explicação"><i class="fas fa-lightbulb"></i></button>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function onProgressSlider(val) {
+    const key = currentSubjectView;
+    state.progress[key] = { toIndex: parseInt(val) };
+    saveState();
+    document.getElementById('progress-current').textContent = val;
+    renderTopicList();
+}
+
+function closeSubjectDetail() {
+    const el = document.getElementById('subject-detail-container');
+    if (el) el.remove();
+    currentSubjectView = null;
+    renderSubjects();
+    renderHome();
+}
+
+// ========== TESTS ==========
+function renderTests() {
+    const list = document.getElementById('tests-list');
+    const today = todayStr();
+    const sorted = [...state.tests].sort((a, b) => a.date.localeCompare(b.date));
+    if (sorted.length === 0) {
+        list.innerHTML = `<p class="muted" style="text-align:center;padding:20px">Sem testes agendados. Adiciona um para começares a receber lembretes.</p>`;
+        return;
+    }
+    list.innerHTML = sorted.map(t => {
+        const sub = SUBJECTS[t.subject];
+        const days = daysBetween(today, t.date);
+        const past = days < 0;
+        let cls = 'future';
+        if (t.done) cls = 'done';
+        else if (past) cls = 'done';
+        else if (days <= 2) cls = 'urgent';
+        else if (days <= 5) cls = 'soon';
+        const daysLabel = t.done ? 'Feito' : past ? `${-days}d atrás` : days === 0 ? 'Hoje!' : days === 1 ? 'Amanhã' : `em ${days}d`;
+        const topicsLabel = (t.topics && t.topics.length) ? `${t.topics.length} tópicos: ${t.topics.slice(0, 3).join(', ')}${t.topics.length > 3 ? '…' : ''}` : 'todos os tópicos activos';
+        return `
+            <div class="test-item ${cls}">
+                <div class="test-item-icon" style="background:${sub?.color || '#6b7280'}"><i class="fas ${sub?.icon || 'fa-book'}"></i></div>
+                <div class="test-item-body">
+                    <div class="test-item-subject">${sub?.name || t.subject}</div>
+                    <div class="test-item-date">${formatDatePT(t.date)} · ${daysLabel}</div>
+                    <div class="test-item-note">${topicsLabel}${t.note ? ` · ${t.note}` : ''}</div>
+                </div>
+                <div class="test-item-actions">
+                    ${!t.done ? `<button class="practice" title="Treinar para este teste" onclick="startTestPrep('${t.id}')"><i class="fas fa-dumbbell"></i></button>` : ''}
+                    <button onclick="editTest('${t.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                    <button class="del" onclick="deleteTest('${t.id}')" title="Apagar"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function openAddTestModal(testId = null) {
+    pendingTestId = testId;
+    document.getElementById('test-modal-title').textContent = testId ? 'Editar teste' : 'Adicionar teste';
+    const sel = document.getElementById('test-subject');
+    sel.innerHTML = Object.entries(SUBJECTS).map(([k, s]) => `<option value="${k}">${s.fullName || s.name}</option>`).join('');
+    const today = new Date();
+    today.setDate(today.getDate() + 7);
+    const defaultDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    if (testId) {
+        const t = state.tests.find(x => x.id === testId);
+        if (t) {
+            sel.value = t.subject;
+            document.getElementById('test-date').value = t.date;
+            document.getElementById('test-note').value = t.note || '';
+        }
+    } else {
+        sel.value = Object.keys(SUBJECTS)[0];
+        document.getElementById('test-date').value = defaultDate;
+        document.getElementById('test-note').value = '';
+    }
+    renderTestTopicsPicker();
+    sel.onchange = renderTestTopicsPicker;
+    document.getElementById('test-modal').style.display = 'flex';
+}
+
+function renderTestTopicsPicker() {
+    const subKey = document.getElementById('test-subject').value;
+    const topics = CURRICULUM[subKey] || [];
+    const active = activeTopicsFor(subKey);
+    const existing = pendingTestId ? state.tests.find(t => t.id === pendingTestId) : null;
+    const selectedSet = new Set((existing?.topics) || []);
+    const list = topics.map(t => {
+        const isActive = active.has(t);
+        const isChecked = selectedSet.has(t);
+        return `
+            <label style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:8px;${isActive ? '' : 'opacity:0.45'}">
+                <input type="checkbox" value="${t.replace(/"/g, '&quot;')}" ${isChecked ? 'checked' : ''} ${isActive ? '' : 'disabled'}>
+                <span style="font-size:0.9rem">${t}${!isActive ? ' <span style="color:var(--text-muted);font-size:0.72rem">(ainda não estudado)</span>' : ''}</span>
+            </label>
+        `;
+    }).join('');
+    const wrap = document.getElementById('test-topics-picker');
+    if (wrap) wrap.innerHTML = `<p class="muted" style="margin:6px 0">Marca os tópicos que saem neste teste (se não marcares nenhum, treinamos com todos os activos).</p>${list}`;
+}
+
+function saveTest() {
+    const subject = document.getElementById('test-subject').value;
+    const date = document.getElementById('test-date').value;
+    const note = document.getElementById('test-note').value.trim();
+    if (!date) { showToast('Escolhe uma data'); return; }
+    const topics = Array.from(document.querySelectorAll('#test-topics-picker input[type="checkbox"]:checked')).map(cb => cb.value);
+    if (pendingTestId) {
+        const t = state.tests.find(x => x.id === pendingTestId);
+        if (t) { t.subject = subject; t.date = date; t.note = note; t.topics = topics; }
+    } else {
+        state.tests.push({ id: uid(), subject, date, note, topics, done: false });
+    }
+    saveState();
+    closeAddTestModal();
+    renderTests();
+    renderHome();
+    showToast(pendingTestId ? 'Teste actualizado' : 'Teste adicionado');
+    pendingTestId = null;
+}
+
+function closeAddTestModal() {
+    document.getElementById('test-modal').style.display = 'none';
+    pendingTestId = null;
+}
+
+function editTest(id) { openAddTestModal(id); }
+
+function deleteTest(id) {
+    if (!confirm('Apagar este teste?')) return;
+    state.tests = state.tests.filter(t => t.id !== id);
+    saveState();
+    renderTests();
+    renderHome();
+}
+
+function startTestPrep(testId) {
+    const t = state.tests.find(x => x.id === testId);
+    if (!t) return;
+    const key = t.subject;
+    const active = activeTopicsFor(key);
+    let pool = EXERCISES.filter(e => e.s === key && active.has(e.t));
+    if (t.topics && t.topics.length > 0) {
+        const allowed = new Set(t.topics);
+        pool = pool.filter(e => allowed.has(e.t));
+    }
+    if (pool.length === 0) { showToast('Sem exercícios para estes tópicos. Ajusta o progresso da disciplina.'); return; }
+    const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, testId };
+    openExerciseScreen();
+    renderQuestion();
+}
+
+// ========== PROGRESS ==========
 function renderProgress() {
     const list = document.getElementById('progress-list');
     list.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
@@ -165,14 +463,39 @@ function renderProgress() {
                         <span class="progress-row-dot" style="background:${sub.color}"></span>
                         ${sub.name}
                     </div>
-                    <div class="progress-row-meta">${stats.correct}/${stats.answered} &middot; ${stats.xp} XP</div>
+                    <div class="progress-row-meta">${stats.correct}/${stats.answered} · ${stats.xp} XP</div>
                 </div>
                 <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%;background:${sub.color}"></div></div>
             </div>
         `;
     }).join('');
 
-    // Badges
+    // Prémios (visão geral)
+    const rewardList = document.getElementById('rewards-list');
+    rewardList.innerHTML = (state.rewards || []).sort((a,b) => a.cost - b.cost).map(r => {
+        const unlocked = state.xp >= r.cost;
+        const cls = r.claimed ? 'claimed' : unlocked ? 'unlocked' : '';
+        const icon = r.claimed ? '\u2705' : unlocked ? '\u{1F381}' : '\u{1F512}';
+        const barPct = Math.min(100, Math.round(state.xp / r.cost * 100));
+        const button = r.claimed
+            ? `<button disabled>Resgatado</button>`
+            : unlocked
+                ? `<button onclick="claimReward('${r.id}')">Resgatar</button>`
+                : `<button disabled style="background:#e5e7eb;color:var(--text-light)">${r.cost} XP</button>`;
+        return `
+            <div class="reward-item ${cls}">
+                <div class="reward-item-icon">${icon}</div>
+                <div class="reward-item-body">
+                    <div class="reward-item-name">${r.name}</div>
+                    <div class="reward-item-meta">${r.cost} XP · ${r.claimed ? 'Já resgatado' : unlocked ? 'Pronto a resgatar!' : `${state.xp}/${r.cost}`}</div>
+                    ${!r.claimed && !unlocked ? `<div class="reward-item-bar"><div class="reward-item-bar-fill" style="width:${barPct}%"></div></div>` : ''}
+                </div>
+                ${button}
+            </div>
+        `;
+    }).join('');
+
+    // Medalhas
     const badgeGrid = document.getElementById('badges-grid');
     badgeGrid.innerHTML = BADGES.map(b => {
         const earned = state.badges.includes(b.id);
@@ -186,12 +509,32 @@ function renderProgress() {
     }).join('');
 }
 
-// ========== PROFILE TAB ==========
+function claimReward(id) {
+    const r = (state.rewards || []).find(x => x.id === id);
+    if (!r) return;
+    r.claimed = true;
+    r.claimedAt = todayStr();
+    saveState();
+    renderProgress();
+    renderHome();
+    showToast(`Prémio resgatado: ${r.name}!`);
+}
+
+// ========== PROFILE (+ rewards editor) ==========
 function renderProfile() {
     document.getElementById('input-name').value = state.profile.name;
     const grid = document.getElementById('avatar-grid');
     grid.innerHTML = AVATARS.map(a => `
         <div class="avatar-option ${a === state.profile.avatar ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
+    `).join('');
+
+    const ed = document.getElementById('rewards-editor');
+    ed.innerHTML = (state.rewards || []).map((r, i) => `
+        <div class="reward-edit-row">
+            <input type="text" value="${r.name.replace(/"/g, '&quot;')}" placeholder="Nome do prémio" oninput="updateRewardName('${r.id}', this.value)">
+            <input type="number" min="50" step="50" value="${r.cost}" oninput="updateRewardCost('${r.id}', this.value)">
+            <button onclick="removeReward('${r.id}')" title="Remover"><i class="fas fa-trash"></i></button>
+        </div>
     `).join('');
 }
 function selectAvatar(a) {
@@ -206,8 +549,38 @@ function saveProfile() {
     updateHeader();
     showToast('Perfil guardado!');
 }
+function updateRewardName(id, val) {
+    const r = state.rewards.find(x => x.id === id);
+    if (r) { r.name = val; saveState(); }
+}
+function updateRewardCost(id, val) {
+    const r = state.rewards.find(x => x.id === id);
+    if (r) { r.cost = Math.max(50, parseInt(val) || 50); saveState(); }
+}
+function addReward() {
+    state.rewards.push({ id: uid(), name: 'Novo prémio', cost: 500, claimed: false });
+    saveState();
+    renderProfile();
+    renderProgress();
+}
+function removeReward(id) {
+    if (!confirm('Remover este prémio?')) return;
+    state.rewards = state.rewards.filter(r => r.id !== id);
+    saveState();
+    renderProfile();
+    renderProgress();
+    renderHome();
+}
+function resetRewards() {
+    if (!confirm('Voltar aos prémios padrão? Os actuais serão substituídos.')) return;
+    state.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+    saveState();
+    renderProfile();
+    renderProgress();
+    renderHome();
+}
 function resetStats() {
-    if (!confirm('Tens a certeza? Vais perder XP, streak e historial.')) return;
+    if (!confirm('Tens a certeza? Vais perder XP, streak, testes, prémios e histórico.')) return;
     const profile = state.profile;
     state = defaultState();
     state.profile = profile;
@@ -222,6 +595,7 @@ function switchTab(name) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
     if (name === 'home') renderHome();
     if (name === 'subjects') renderSubjects();
+    if (name === 'tests') renderTests();
     if (name === 'progress') renderProgress();
     if (name === 'profile') renderProfile();
 }
@@ -233,12 +607,11 @@ function showToast(msg) {
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 // ========== SESSION ==========
 function pickExercises(pool, n) {
-    // Avoid recent IDs if possible
     const recent = new Set(state.recentIds || []);
     const fresh = pool.filter(e => !recent.has(e.id));
     const usable = fresh.length >= n ? fresh : pool;
@@ -247,13 +620,14 @@ function pickExercises(pool, n) {
 }
 
 function startDailyChallenge() {
-    // 1 per subject; order shuffled
     const items = [];
     Object.keys(SUBJECTS).forEach(key => {
-        const pool = EXERCISES.filter(e => e.s === key);
+        const active = activeTopicsFor(key);
+        const pool = EXERCISES.filter(e => e.s === key && active.has(e.t));
         if (pool.length === 0) return;
         items.push(pool[Math.floor(Math.random() * pool.length)]);
     });
+    if (items.length === 0) { showToast('Activa alguns tópicos primeiro nas disciplinas.'); return; }
     const shuffled = items.sort(() => Math.random() - 0.5).slice(0, DAILY_QUESTIONS);
     currentSession = { items: shuffled, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: true };
     openExerciseScreen();
@@ -261,10 +635,12 @@ function startDailyChallenge() {
 }
 
 function startSubjectSession(key) {
-    const pool = EXERCISES.filter(e => e.s === key);
-    if (pool.length === 0) { showToast('Sem exercicios.'); return; }
+    const active = activeTopicsFor(key);
+    const pool = EXERCISES.filter(e => e.s === key && active.has(e.t));
+    if (pool.length === 0) { showToast('Sem exercícios. Aumenta o teu progresso para incluir mais tópicos.'); return; }
     const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key };
+    closeSubjectDetail();
     openExerciseScreen();
     renderQuestion();
 }
@@ -288,7 +664,6 @@ function exitSession() {
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
-    // Progress dots
     const dots = s.items.map((_, i) => {
         let cls = '';
         if (i < s.idx) cls = (s.results && s.results[i]) ? 'done' : 'wrong';
@@ -297,29 +672,24 @@ function renderQuestion() {
     }).join('');
     document.getElementById('progress-dots').innerHTML = dots;
     document.getElementById('session-xp').textContent = s.xp;
-    // Subject tag
     const sub = SUBJECTS[e.s];
     const tag = document.getElementById('ex-subject-tag');
     tag.textContent = sub.name;
     tag.style.background = sub.color;
     document.getElementById('ex-topic').textContent = e.t;
     document.getElementById('ex-question').textContent = e.q;
-    // Feedback hidden
     document.getElementById('ex-feedback').style.display = 'none';
-    // Render answer area by type
     selectedAnswer = null;
     matchSelection = { left: null };
     const area = document.getElementById('ex-answer-area');
     if (e.type === 'mc') area.innerHTML = renderMC(e);
     else if (e.type === 'tf') area.innerHTML = renderTF(e);
     else if (e.type === 'fill') area.innerHTML = renderFill(e);
-    else if (e.type === 'order') area.innerHTML = renderOrder(e);
-    else if (e.type === 'match') area.innerHTML = renderMatch(e);
-    // Auto-focus fill
+    else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
+    else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; setTimeout(redrawMatch, 0); }
     if (e.type === 'fill') setTimeout(() => document.getElementById('fill-input')?.focus(), 80);
 }
 
-// ----- MC -----
 function renderMC(e) {
     return `
         ${e.opts.map((o, i) => `
@@ -328,7 +698,7 @@ function renderMC(e) {
                 <span>${o}</span>
             </button>
         `).join('')}
-        <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()" id="btn-submit">Responder</button>
+        <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
     `;
 }
 function selectMC(i) {
@@ -336,7 +706,6 @@ function selectMC(i) {
     document.querySelectorAll('#ex-answer-area .btn-option').forEach((el, idx) => el.classList.toggle('selected', idx === i));
 }
 
-// ----- TF -----
 function renderTF(e) {
     return `
         <div class="tf-buttons">
@@ -352,28 +721,14 @@ function selectTF(v) {
     document.getElementById('tf-false').classList.toggle('selected', v === false);
 }
 
-// ----- FILL -----
 function renderFill(e) {
     return `
         <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="off" autocorrect="off" autocapitalize="off">
         <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
     `;
 }
-function normalize(s) {
-    return String(s).trim().toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
-        .replace(/\s+/g, ' ');
-}
 
-// ----- ORDER -----
 let orderState = [];
-function renderOrder(e) {
-    orderState = [...e.items].sort(() => Math.random() - 0.5);
-    return `
-        <ul class="order-list" id="order-list"></ul>
-        <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
-    ` + `<script>window.__redrawOrder=true;<\/script>`;
-}
 function redrawOrder() {
     const list = document.getElementById('order-list');
     if (!list) return;
@@ -395,17 +750,7 @@ function moveOrder(i, dir) {
     redrawOrder();
 }
 
-// ----- MATCH -----
 let matchState = { leftItems: [], rightItems: [], matched: {} };
-function renderMatch(e) {
-    const left = e.pairs.map(p => p[0]);
-    const right = [...e.pairs.map(p => p[1])].sort(() => Math.random() - 0.5);
-    matchState = { leftItems: left, rightItems: right, pairs: e.pairs, matched: {} };
-    return `
-        <div class="match-area" id="match-area"></div>
-        <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
-    `;
-}
 function redrawMatch() {
     const area = document.getElementById('match-area');
     if (!area) return;
@@ -428,7 +773,6 @@ function matchPickLeft(i) {
 }
 function matchPickRight(j) {
     if (matchSelection.left === null) { showToast('Escolhe primeiro a esquerda'); return; }
-    // Already matched on right?
     if (Object.values(matchState.matched).includes(j)) return;
     matchState.matched[matchSelection.left] = j;
     matchSelection.left = null;
@@ -439,12 +783,9 @@ function matchPickRight(j) {
 function submitAnswer() {
     const e = currentSession.items[currentSession.idx];
     let isCorrect = false;
-    let userAnsLabel = '';
     if (e.type === 'mc') {
-        if (selectedAnswer === null) { showToast('Escolhe uma opcao'); return; }
+        if (selectedAnswer === null) { showToast('Escolhe uma opção'); return; }
         isCorrect = selectedAnswer === e.ans;
-        userAnsLabel = e.opts[selectedAnswer];
-        // Highlight
         document.querySelectorAll('#ex-answer-area .btn-option').forEach((el, idx) => {
             el.disabled = true;
             if (idx === e.ans) el.classList.add('correct');
@@ -458,12 +799,11 @@ function submitAnswer() {
         if (!val.trim()) { showToast('Escreve uma resposta'); return; }
         const n = normalize(val);
         isCorrect = (e.ans || []).some(a => normalize(a) === n);
-        userAnsLabel = val;
     } else if (e.type === 'order') {
         isCorrect = orderState.every((it, i) => it === e.items[i]);
     } else if (e.type === 'match') {
-        const allMatched = Object.keys(matchState.matched).length === matchState.leftItems.length;
-        if (!allMatched) { showToast('Completa todas as associacoes'); return; }
+        const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
+        if (!all) { showToast('Completa todas as associações'); return; }
         isCorrect = Object.entries(matchState.matched).every(([li, ri]) => {
             const left = matchState.leftItems[li];
             const right = matchState.rightItems[ri];
@@ -478,19 +818,17 @@ function recordAnswer(e, isCorrect) {
     const s = currentSession;
     s.results = s.results || [];
     s.results[s.idx] = isCorrect;
-    // XP
     let gained = 0;
     if (isCorrect) {
         gained = XP_BY_DIFF[e.diff] || 10;
         s.streak += 1;
-        if (s.streak >= 3) gained += 5; // streak bonus
+        if (s.streak >= 3) gained += 5;
         s.correct++;
     } else {
         s.streak = 0;
         s.wrong++;
     }
     s.xp += gained;
-    // Persist subject stats
     const sub = state.subjects[e.s] || { answered: 0, correct: 0, xp: 0 };
     sub.answered += 1;
     if (isCorrect) { sub.correct += 1; sub.xp += gained; }
@@ -498,7 +836,6 @@ function recordAnswer(e, isCorrect) {
     state.xp += gained;
     state.history.push({ id: e.id, s: e.s, c: isCorrect, d: todayStr() });
     if (state.history.length > 500) state.history.shift();
-    // Recent IDs (last 30)
     state.recentIds = state.recentIds || [];
     state.recentIds.push(e.id);
     if (state.recentIds.length > 30) state.recentIds.shift();
@@ -510,9 +847,8 @@ function showFeedback(e, isCorrect) {
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : '\u{1F914}';
     const txt = document.getElementById('feedback-text');
-    txt.textContent = isCorrect ? 'Certo!' : 'Ainda nao';
+    txt.textContent = isCorrect ? 'Certo!' : 'Ainda não';
     txt.className = 'feedback-text ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
-    // Explanation + correct answer if wrong
     let exp = e.exp || '';
     if (!isCorrect) {
         if (e.type === 'mc') exp = `Resposta certa: ${e.opts[e.ans]}. ` + exp;
@@ -528,16 +864,12 @@ function showFeedback(e, isCorrect) {
 
 function nextQuestion() {
     currentSession.idx += 1;
-    if (currentSession.idx >= currentSession.items.length) {
-        finishSession();
-    } else {
-        renderQuestion();
-    }
+    if (currentSession.idx >= currentSession.items.length) finishSession();
+    else renderQuestion();
 }
 
 function finishSession() {
     const s = currentSession;
-    // Daily streak update
     let newBadges = [];
     if (s.isDaily) {
         const today = todayStr();
@@ -545,7 +877,7 @@ function finishSession() {
         if (lastDate !== today) {
             const gap = daysBetween(lastDate, today);
             if (gap === 1) state.streak.days += 1;
-            else if (gap > 1 || !lastDate) state.streak.days = 1;
+            else state.streak.days = 1;
             state.streak.lastDate = today;
             if (state.streak.days > state.streak.best) state.streak.best = state.streak.days;
         }
@@ -553,40 +885,50 @@ function finishSession() {
         state.totalDailies = (state.totalDailies || 0) + 1;
         if (s.correct === s.items.length) state.perfectDailies = (state.perfectDailies || 0) + 1;
     }
-    // Badge check
     BADGES.forEach(b => {
         if (!state.badges.includes(b.id) && b.check(state)) {
             state.badges.push(b.id);
             newBadges.push(b);
         }
     });
+    // Verificar prémios desbloqueados (ainda não reclamados e sem unlockedAt)
+    const newlyUnlocked = (state.rewards || []).filter(r => !r.claimed && !r.unlockedAt && state.xp >= r.cost);
+    newlyUnlocked.forEach(r => { r.unlockedAt = todayStr(); });
     saveState();
-    // Summary
-    showSummary(s, newBadges);
+    showSummary(s, newBadges, newlyUnlocked);
 }
 
-function showSummary(s, newBadges) {
+function showSummary(s, newBadges, newRewards) {
     document.getElementById('exercise-screen').style.display = 'none';
     document.getElementById('summary-screen').style.display = 'flex';
     const total = s.items.length;
     const acc = total ? Math.round(s.correct / total * 100) : 0;
-    let title = 'Bom trabalho!';
-    let emoji = '\u{1F389}';
+    let title = 'Bom trabalho!', emoji = '\u{1F389}';
     if (acc === 100) { title = 'Perfeito!'; emoji = '\u{1F3C6}'; }
     else if (acc >= 80) { title = 'Excelente!'; emoji = '\u{1F31F}'; }
-    else if (acc >= 50) { title = 'Quase la!'; emoji = '\u{1F4AA}'; }
+    else if (acc >= 50) { title = 'Quase lá!'; emoji = '\u{1F4AA}'; }
     else { title = 'Treina mais!'; emoji = '\u{1F331}'; }
     document.getElementById('summary-emoji').textContent = emoji;
     document.getElementById('summary-title').textContent = title;
-    document.getElementById('summary-sub').textContent = s.isDaily ? 'Desafio diario concluido' : 'Sessao de treino concluida';
+    document.getElementById('summary-sub').textContent = s.isDaily ? 'Desafio diário concluído' : s.testId ? 'Treino para teste concluído' : 'Sessão de treino concluída';
     document.getElementById('sum-correct').textContent = `${s.correct}/${total}`;
     document.getElementById('sum-xp').textContent = '+' + s.xp;
     document.getElementById('sum-accuracy').textContent = acc + '%';
     const bdg = document.getElementById('summary-badges');
-    bdg.innerHTML = newBadges.length
-        ? newBadges.map(b => `<div class="summary-badge-chip">${b.icon} ${b.name}</div>`).join('')
-        : '';
+    const badgeChips = newBadges.map(b => `<div class="summary-badge-chip">${b.icon} ${b.name}</div>`).join('');
+    const rewardChips = (newRewards || []).map(r => `<div class="summary-badge-chip" style="background:linear-gradient(135deg,#fef9c3,#fde047);border-color:#eab308">\u{1F381} ${r.name}</div>`).join('');
+    bdg.innerHTML = badgeChips + rewardChips;
+
+    // Se desbloqueou prémio, mostrar modal depois do summary
+    if (newRewards && newRewards.length > 0) {
+        pendingRewardId = newRewards[0].id;
+        setTimeout(() => {
+            document.getElementById('reward-unlocked-name').textContent = newRewards[0].name;
+            document.getElementById('reward-modal').style.display = 'flex';
+        }, 800);
+    }
 }
+
 function closeSummary() {
     document.getElementById('summary-screen').style.display = 'none';
     currentSession = null;
@@ -594,29 +936,70 @@ function closeSummary() {
     switchTab('home');
 }
 
+function claimCurrentReward() {
+    if (pendingRewardId) claimReward(pendingRewardId);
+    closeRewardModal();
+}
+function closeRewardModal() {
+    document.getElementById('reward-modal').style.display = 'none';
+    pendingRewardId = null;
+}
+
+// ========== LESSON MODAL ==========
+function openLessonModal() {
+    if (!currentSession) return;
+    const e = currentSession.items[currentSession.idx];
+    openLessonByKey(`${e.s}/${e.t}`);
+}
+function openLessonByKey(key) {
+    const lesson = LESSONS[key];
+    const [subKey, topic] = key.split('/');
+    const subName = SUBJECTS[subKey]?.name || subKey;
+    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-lightbulb"></i> ${subName} · ${topic}`;
+    const body = document.getElementById('lesson-body');
+    if (!lesson) {
+        body.innerHTML = `<p style="color:var(--text-light)">Ainda não há uma explicação detalhada para este tópico. Tenta resolver o exercício — a explicação aparece depois de responderes.</p>`;
+    } else {
+        // Markdown-lite: **bold** -> <strong>; linebreaks preserved
+        let html = lesson.body
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        body.innerHTML = `<div class="lesson-body"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${lesson.title}</h3>${html}</div>`;
+    }
+    document.getElementById('lesson-modal').style.display = 'flex';
+}
+function closeLessonModal() {
+    document.getElementById('lesson-modal').style.display = 'none';
+}
+
 // ========== BOOT ==========
 function updateAll() {
     updateHeader();
     renderHome();
     renderSubjects();
+    renderTests();
     renderProgress();
     renderProfile();
 }
 
-// Lightweight re-draw hooks for dynamic content (order/match)
-document.addEventListener('click', (ev) => {
-    if (window.__redrawOrder && document.getElementById('order-list')) { redrawOrder(); window.__redrawOrder = false; }
-    if (document.getElementById('match-area') && document.getElementById('match-area').children.length === 0) redrawMatch();
-});
-
-// First paint
 window.addEventListener('DOMContentLoaded', () => {
+    // Injectar container dos tópicos do teste no modal (se não existir)
+    const modalBody = document.querySelector('#test-modal .modal-body');
+    if (modalBody && !document.getElementById('test-topics-picker')) {
+        const div = document.createElement('div');
+        div.id = 'test-topics-picker';
+        div.style.maxHeight = '220px';
+        div.style.overflowY = 'auto';
+        div.style.border = '1px solid var(--border)';
+        div.style.borderRadius = '10px';
+        div.style.padding = '6px';
+        div.style.margin = '8px 0 4px';
+        // Inserir antes do botão de guardar
+        const saveBtn = modalBody.querySelector('button');
+        modalBody.insertBefore(div, saveBtn);
+        const label = document.createElement('label');
+        label.textContent = 'Tópicos que saem no teste';
+        modalBody.insertBefore(label, div);
+    }
     updateAll();
-    // Observer to draw order/match when injected
-    const obs = new MutationObserver(() => {
-        if (document.getElementById('order-list') && document.getElementById('order-list').children.length === 0) redrawOrder();
-        const m = document.getElementById('match-area');
-        if (m && m.children.length === 0) redrawMatch();
-    });
-    obs.observe(document.getElementById('ex-answer-area') || document.body, { childList: true, subtree: true });
 });

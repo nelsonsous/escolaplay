@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -14,35 +14,34 @@
 <body>
 <div id="app">
 
-    <!-- Top header (XP / level / streak) -->
+    <!-- Top header -->
     <header class="app-header">
         <div class="header-left">
             <div class="avatar" id="avatar">&#128060;</div>
             <div class="header-user">
                 <div class="header-name" id="user-name">Aluno(a)</div>
-                <div class="header-level"><span id="level-name">Aprendiz</span> &middot; Nivel <span id="level-num">1</span></div>
+                <div class="header-level"><span id="level-name">Aprendiz</span> &middot; Nível <span id="level-num">1</span></div>
             </div>
         </div>
         <div class="header-right">
-            <div class="chip chip-streak" title="Streak diario">
+            <div class="chip chip-streak" title="Dias seguidos">
                 <i class="fas fa-fire"></i> <span id="streak-days">0</span>
             </div>
-            <div class="chip chip-xp" title="Experiencia">
+            <div class="chip chip-xp" title="Experiência">
                 <i class="fas fa-star"></i> <span id="xp-total">0</span>
             </div>
         </div>
     </header>
 
-    <!-- XP progress bar -->
     <div class="xp-bar-wrap">
         <div class="xp-bar"><div class="xp-bar-fill" id="xp-bar-fill"></div></div>
-        <div class="xp-bar-label"><span id="xp-into-level">0</span> / <span id="xp-next-level">500</span> XP para o proximo nivel</div>
+        <div class="xp-bar-label"><span id="xp-into-level">0</span> / <span id="xp-next-level">500</span> XP para o próximo nível</div>
     </div>
 
-    <!-- Tabs -->
     <nav class="tabs">
-        <button class="tab active" data-tab="home" onclick="switchTab('home')"><i class="fas fa-house"></i><span>Inicio</span></button>
+        <button class="tab active" data-tab="home" onclick="switchTab('home')"><i class="fas fa-house"></i><span>Início</span></button>
         <button class="tab" data-tab="subjects" onclick="switchTab('subjects')"><i class="fas fa-book-open"></i><span>Disciplinas</span></button>
+        <button class="tab" data-tab="tests" onclick="switchTab('tests')"><i class="fas fa-calendar-check"></i><span>Testes</span></button>
         <button class="tab" data-tab="progress" onclick="switchTab('progress')"><i class="fas fa-chart-line"></i><span>Progresso</span></button>
         <button class="tab" data-tab="profile" onclick="switchTab('profile')"><i class="fas fa-user-gear"></i><span>Perfil</span></button>
     </nav>
@@ -53,13 +52,33 @@
             <div class="hero-card-header">
                 <div class="hero-icon"><i class="fas fa-bolt"></i></div>
                 <div style="flex:1">
-                    <h2>Desafio Diario</h2>
+                    <h2>Desafio Diário</h2>
                     <p id="daily-status">6 perguntas das tuas disciplinas</p>
                 </div>
             </div>
             <button class="btn btn-primary btn-block" id="btn-start-daily" onclick="startDailyChallenge()">
-                <i class="fas fa-play"></i> <span id="btn-start-daily-label">Comecar desafio</span>
+                <i class="fas fa-play"></i> <span id="btn-start-daily-label">Começar desafio</span>
             </button>
+        </div>
+
+        <!-- Upcoming test countdown -->
+        <div id="next-test-card" style="display:none" class="test-countdown-card" onclick="switchTab('tests')">
+            <div class="test-countdown-icon"><i class="fas fa-calendar-day"></i></div>
+            <div class="test-countdown-body">
+                <div class="test-countdown-title" id="next-test-title">Teste de Matemática</div>
+                <div class="test-countdown-sub" id="next-test-sub">Faltam 3 dias</div>
+            </div>
+            <div class="test-countdown-days" id="next-test-days">3</div>
+        </div>
+
+        <!-- Next reward -->
+        <div id="next-reward-card" class="reward-progress-card" style="display:none">
+            <div class="reward-progress-icon"><i class="fas fa-gift"></i></div>
+            <div class="reward-progress-body">
+                <div class="reward-progress-name" id="next-reward-name">Próximo prémio</div>
+                <div class="reward-progress-bar"><div class="reward-progress-bar-fill" id="next-reward-fill"></div></div>
+                <div class="reward-progress-meta" id="next-reward-meta">0 / 500 XP</div>
+            </div>
         </div>
 
         <div class="grid-2">
@@ -85,7 +104,7 @@
             </div>
         </div>
 
-        <div class="section-title"><i class="fas fa-dumbbell"></i> Treino rapido</div>
+        <div class="section-title"><i class="fas fa-dumbbell"></i> Treino rápido</div>
         <div class="quick-subjects" id="quick-subjects"></div>
     </section>
 
@@ -95,10 +114,20 @@
         <div class="subjects-grid" id="subjects-grid"></div>
     </section>
 
+    <!-- ===== TESTS TAB ===== -->
+    <section class="tab-content" id="tab-tests">
+        <div class="section-title"><i class="fas fa-calendar-check"></i> Os meus testes</div>
+        <button class="btn btn-primary-solid btn-block" onclick="openAddTestModal()"><i class="fas fa-plus"></i> Adicionar teste</button>
+        <div id="tests-list" style="margin-top:14px"></div>
+    </section>
+
     <!-- ===== PROGRESS TAB ===== -->
     <section class="tab-content" id="tab-progress">
-        <div class="section-title"><i class="fas fa-chart-line"></i> Evolucao por disciplina</div>
+        <div class="section-title"><i class="fas fa-chart-line"></i> Evolução por disciplina</div>
         <div id="progress-list"></div>
+
+        <div class="section-title"><i class="fas fa-gift"></i> Prémios</div>
+        <div id="rewards-list"></div>
 
         <div class="section-title"><i class="fas fa-medal"></i> Medalhas</div>
         <div class="badges-grid" id="badges-grid"></div>
@@ -112,21 +141,30 @@
             <input type="text" id="input-name" placeholder="O teu nome" maxlength="24">
             <label>Escolhe um avatar</label>
             <div class="avatar-grid" id="avatar-grid"></div>
-            <button class="btn btn-primary btn-block" onclick="saveProfile()"><i class="fas fa-floppy-disk"></i> Guardar</button>
+            <button class="btn btn-primary-solid btn-block" onclick="saveProfile()"><i class="fas fa-floppy-disk"></i> Guardar</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-gift"></i> Gerir prémios</div>
+        <div class="form-card">
+            <p class="muted" style="margin-bottom:8px">Os pais podem editar os prémios que podem dar a cada meta.</p>
+            <div id="rewards-editor"></div>
+            <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="addReward()"><i class="fas fa-plus"></i> Novo prémio</button>
+            <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="resetRewards()"><i class="fas fa-rotate"></i> Repor prémios padrão</button>
         </div>
 
         <div class="section-title"><i class="fas fa-gear"></i> Dados</div>
         <div class="form-card">
             <button class="btn btn-secondary btn-block" onclick="resetStats()"><i class="fas fa-rotate"></i> Reiniciar progresso</button>
-            <p class="muted">Apaga XP, streak e historial (mantem o teu nome e avatar).</p>
+            <p class="muted">Apaga XP, streak, testes, prémios e histórico (mantém nome e avatar).</p>
         </div>
     </section>
 
-    <!-- ===== EXERCISE MODAL ===== -->
+    <!-- ===== EXERCISE FULLSCREEN ===== -->
     <div id="exercise-screen" class="fullscreen" style="display:none">
         <div class="exercise-header">
-            <button class="icon-btn" onclick="exitSession()"><i class="fas fa-xmark"></i></button>
+            <button class="icon-btn" onclick="exitSession()" title="Sair"><i class="fas fa-xmark"></i></button>
             <div class="progress-dots" id="progress-dots"></div>
+            <button class="icon-btn help-btn" onclick="openLessonModal()" title="Ver explicação"><i class="fas fa-lightbulb"></i></button>
             <div class="session-xp"><i class="fas fa-star"></i> <span id="session-xp">0</span></div>
         </div>
         <div class="exercise-body">
@@ -139,7 +177,51 @@
             <div class="feedback-icon" id="feedback-icon"></div>
             <div class="feedback-text" id="feedback-text"></div>
             <div class="feedback-exp" id="feedback-exp"></div>
-            <button class="btn btn-primary btn-block" onclick="nextQuestion()"><span id="feedback-next">Continuar</span> <i class="fas fa-arrow-right"></i></button>
+            <button class="btn btn-primary-solid btn-block" onclick="nextQuestion()"><span id="feedback-next">Continuar</span> <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>
+
+    <!-- ===== LESSON MODAL ===== -->
+    <div id="lesson-modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="lesson-title"><i class="fas fa-lightbulb"></i> Explicação</h2>
+                <button class="icon-btn" onclick="closeLessonModal()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="lesson-body"></div>
+        </div>
+    </div>
+
+    <!-- ===== ADD TEST MODAL ===== -->
+    <div id="test-modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-calendar-plus"></i> <span id="test-modal-title">Adicionar teste</span></h2>
+                <button class="icon-btn" onclick="closeAddTestModal()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <label>Disciplina</label>
+                <select id="test-subject"></select>
+                <label>Data do teste</label>
+                <input type="date" id="test-date">
+                <label>Notas (opcional)</label>
+                <input type="text" id="test-note" placeholder="Ex: matéria do capítulo 3" maxlength="60">
+                <button class="btn btn-primary-solid btn-block" style="margin-top:12px" onclick="saveTest()"><i class="fas fa-floppy-disk"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== REWARD UNLOCKED MODAL ===== -->
+    <div id="reward-modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-body" style="text-align:center;padding:26px 20px">
+                <div style="font-size:3.6rem;margin-bottom:6px">&#127873;</div>
+                <h2 style="color:var(--primary);margin-bottom:6px">Prémio desbloqueado!</h2>
+                <p style="font-size:1.05rem;font-weight:700;color:var(--text)" id="reward-unlocked-name"></p>
+                <p class="muted" style="margin:8px 0 14px">Fala com os teus pais para combinar quando.</p>
+                <button class="btn btn-primary-solid btn-block" onclick="claimCurrentReward()"><i class="fas fa-check"></i> Resgatar</button>
+                <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="closeRewardModal()">Mais tarde</button>
+            </div>
         </div>
     </div>
 
@@ -160,15 +242,14 @@
                 </div>
                 <div class="summary-stat">
                     <div class="summary-stat-value" id="sum-accuracy">0%</div>
-                    <div class="summary-stat-label">precisao</div>
+                    <div class="summary-stat-label">precisão</div>
                 </div>
             </div>
             <div id="summary-badges" class="summary-badges"></div>
-            <button class="btn btn-primary btn-block" onclick="closeSummary()"><i class="fas fa-house"></i> Voltar ao inicio</button>
+            <button class="btn btn-primary-solid btn-block" onclick="closeSummary()"><i class="fas fa-house"></i> Voltar ao início</button>
         </div>
     </div>
 
-    <!-- Toast -->
     <div id="toast" class="toast"></div>
 
 </div>
