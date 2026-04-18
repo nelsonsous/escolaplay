@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v36';
+const CACHE_NAME = 'escolaplay-v37';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -14,22 +14,25 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then(keys =>
-            Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-        )
-    );
-    self.clients.claim();
+    event.waitUntil((async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+        await self.clients.claim();
+        const wins = await self.clients.matchAll({ type: 'window' });
+        wins.forEach(c => { try { c.navigate(c.url); } catch {} });
+    })());
 });
 
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                const clone = response.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-                return response;
-            })
-            .catch(() => caches.match(event.request))
-    );
+    if (event.request.method !== 'GET') return;
+    event.respondWith((async () => {
+        try {
+            const fresh = await fetch(event.request, { cache: 'no-store' });
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(event.request, fresh.clone()).catch(() => {});
+            return fresh;
+        } catch {
+            return (await caches.match(event.request)) || new Response('Offline', { status: 503 });
+        }
+    })());
 });
