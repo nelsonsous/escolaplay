@@ -699,12 +699,16 @@ async function generateMaxExercises(subjectKey, topics, count = 12) {
     const sub = SUBJECTS[subjectKey];
     const subName = sub.fullName || sub.name;
     const topicsStr = topics.join(', ');
+    const isEnglish = subjectKey === 'ingles';
+    const langRule = isEnglish
+        ? '- IMPORTANT: All exercise content (passage, question, options, answers, explanations) must be written in ENGLISH. The topic names in "lessons" keys stay as-is.'
+        : '- Português Europeu, Acordo Ortográfico 1990. Acentos obrigatórios.';
     const prompt = `És um professor que cria exercícios variados e desafiantes para o 5.º ano (curriculum português).
 
 Gera ${count} exercícios de ${subName} cobrindo os tópicos: ${topicsStr}.
 
 REGRAS GERAIS:
-- Português Europeu, Acordo Ortográfico 1990. Acentos obrigatórios.
+${langRule}
 - Dificuldade 1-3. Inclui pelo menos 3 exercícios de dificuldade 3.
 - Mistura tipos: mc, tf, fill, problem, passage.
 - Para Matemática, pelo menos metade devem ser "problem" ou "passage" com cálculo real.
@@ -1075,7 +1079,9 @@ function matchPickRight(j) {
 
 // ========== VALIDAÇÃO IA ==========
 async function aiValidateAnswer(exercise, studentAnswer) {
-    const cacheKey = `aival_${exercise.id}_${normalize(studentAnswer).slice(0, 40)}`;
+    const n = normalize(studentAnswer);
+    if ((exercise.ans || []).some(a => normalize(a) === n)) return true;
+    const cacheKey = `aival_${exercise.id}_${n.slice(0, 40)}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached !== null) return cached === '1';
     const correctAnswers = (exercise.ans || []).join(' ou ');
