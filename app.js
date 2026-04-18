@@ -269,7 +269,10 @@ function openSubjectDetail(key) {
                     <i class="fas fa-play"></i> Começar treino
                 </button>
                 <button class="btn btn-max btn-block" style="margin-top:8px" onclick="startMaxSession('${key}')">
-                    <i class="fas fa-wand-magic-sparkles"></i> Treino MAX (perguntas novas com IA)
+                    <i class="fas fa-wand-magic-sparkles"></i> Treino MAX
+                </button>
+                <button class="btn btn-secondary btn-block" style="margin-top:6px;font-size:0.85rem" onclick="startMaxSession('${key}', {forceNew:true})">
+                    <i class="fas fa-rotate"></i> Gerar perguntas novas (usa API)
                 </button>
             </div>
         </div>
@@ -735,6 +738,25 @@ function hideMaxLoader() {
     document.getElementById('max-loader').style.display = 'none';
 }
 
+function maxCacheKey(subjectKey, topics) {
+    return 'max_cache_' + subjectKey + '_' + topics.slice().sort().join('|');
+}
+function getMaxCache(subjectKey, topics) {
+    try {
+        const raw = localStorage.getItem(maxCacheKey(subjectKey, topics));
+        if (!raw) return null;
+        const { items, ts } = JSON.parse(raw);
+        // Cache válido por 7 dias
+        if (Date.now() - ts > 7 * 24 * 3600 * 1000) return null;
+        return items;
+    } catch(e) { return null; }
+}
+function setMaxCache(subjectKey, topics, items) {
+    try {
+        localStorage.setItem(maxCacheKey(subjectKey, topics), JSON.stringify({ items, ts: Date.now() }));
+    } catch(e) {}
+}
+
 async function startMaxSession(subjectKey, opts = {}) {
     if (!state.max.enabled || !state.max.apiKey) {
         showToast('Activa o MAX no Perfil primeiro');
@@ -745,13 +767,25 @@ async function startMaxSession(subjectKey, opts = {}) {
     let topics = opts.topics && opts.topics.length > 0 ? opts.topics : Array.from(active);
     topics = topics.filter(t => active.has(t));
     if (topics.length === 0) { showToast('Sem tópicos activos. Ajusta o progresso da disciplina.'); return; }
-    // Ordenar por curriculum e limitar a 6 tópicos para poupar tokens
     const order = CURRICULUM[subjectKey] || [];
     topics = topics.sort((a, b) => order.indexOf(a) - order.indexOf(b)).slice(0, 6);
-    showMaxLoader();
     if (currentSubjectView) closeSubjectDetail();
+
+    // Usar cache se existir (evita chamadas à API desnecessárias)
+    const forceNew = opts.forceNew || false;
+    const cached = !forceNew && getMaxCache(subjectKey, topics);
+    if (cached) {
+        const shuffled = [...cached].sort(() => Math.random() - 0.5);
+        currentSession = { items: shuffled, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: subjectKey, isMax: true };
+        openExerciseScreen();
+        renderQuestion();
+        return;
+    }
+
+    showMaxLoader('A gerar exercícios novos com IA…');
     try {
-        const { items, usage } = await generateMaxExercises(subjectKey, topics, 6);
+        const { items } = await generateMaxExercises(subjectKey, topics, 6);
+        setMaxCache(subjectKey, topics, items);
         state.max.totalGenerated = (state.max.totalGenerated || 0) + items.length;
         state.max.totalRequests = (state.max.totalRequests || 0) + 1;
         saveState();
