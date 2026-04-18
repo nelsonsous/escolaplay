@@ -73,7 +73,7 @@ function defaultState() {
         tests: [],
         rewards: JSON.parse(JSON.stringify(DEFAULT_REWARDS)),
         progress: prog,
-        max: { enabled: false, apiKey: '', totalGenerated: 0, totalRequests: 0 },
+        max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0 },
         maxExercises: [],
         maxLessons: {}
     };
@@ -91,6 +91,7 @@ function loadState() {
         merged.daily    = { ...base.daily, ...(parsed.daily || {}) };
         merged.progress = { ...base.progress, ...(parsed.progress || {}) };
         merged.max = { ...base.max, ...(parsed.max || {}) };
+        if (!merged.max.enabled) merged.max.enabled = true;
         merged.maxExercises = Array.isArray(parsed.maxExercises) ? parsed.maxExercises : [];
         merged.maxLessons = (parsed.maxLessons && typeof parsed.maxLessons === 'object') ? parsed.maxLessons : {};
         if (!Array.isArray(merged.tests)) merged.tests = [];
