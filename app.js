@@ -1591,7 +1591,79 @@ function recordAnswer(e, isCorrect) {
     saveState();
 }
 
+// Áudio: gera tons curtos sem assets (Web Audio API). Silencioso se o browser bloquear.
+let _audioCtx = null;
+function getAudioCtx() {
+    if (_audioCtx) return _audioCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    try { _audioCtx = new Ctx(); } catch (_) { return null; }
+    return _audioCtx;
+}
+function playTone(freq, durationMs, type, gainPeak) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    const now = ctx.currentTime;
+    const peak = gainPeak == null ? 0.18 : gainPeak;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(peak, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + durationMs / 1000 + 0.02);
+}
+function playCorrectSound() {
+    // Estilo "plim" (Duolingo): duas notas ascendentes curtas
+    playTone(880, 90, 'sine');
+    setTimeout(() => playTone(1320, 140, 'sine'), 80);
+}
+function playWrongSound() {
+    playTone(220, 180, 'square', 0.10);
+}
+
+const ENCOURAGE_MSGS = [
+    { icon: '⭐', text: 'Estás a ir muito bem!' },
+    { icon: '💪', text: 'Continua assim!' },
+    { icon: '🌟', text: 'Boa! Estás no caminho certo!' },
+    { icon: '🎉', text: 'Já levas mais de metade!' },
+    { icon: '🚀', text: 'Quase a chegar ao fim!' },
+    { icon: '👏', text: 'Excelente! Não pares!' }
+];
+function showEncouragement() {
+    const s = currentSession;
+    if (!s) return;
+    // Mostra a meio (~50%) e a 75% se tiver pelo menos 4 perguntas, e só se acertou maioria até aqui
+    const total = s.items.length;
+    if (total < 4) return;
+    const idx = s.idx + 1; // já respondida
+    const half = Math.floor(total / 2);
+    const threeQ = Math.floor(total * 0.75);
+    const fireAt = (idx === half) || (idx === threeQ);
+    if (!fireAt) return;
+    const ratio = s.correct / Math.max(1, idx);
+    if (ratio < 0.5) return; // só encorajar se está a conseguir
+    let msg;
+    if (idx === half)         msg = ENCOURAGE_MSGS[3]; // metade
+    else if (ratio === 1)     msg = ENCOURAGE_MSGS[2]; // perfeito
+    else                      msg = ENCOURAGE_MSGS[Math.floor(Math.random() * 3)];
+    const banner = document.createElement('div');
+    banner.className = 'ep-encourage';
+    banner.innerHTML = `<span class="ep-encourage-icon">${msg.icon}</span><span class="ep-encourage-text">${msg.text}</span>`;
+    document.body.appendChild(banner);
+    // som suave de subida
+    playTone(660, 100, 'triangle');
+    setTimeout(() => playTone(990, 140, 'triangle'), 90);
+    requestAnimationFrame(() => banner.classList.add('show'));
+    setTimeout(() => { banner.classList.remove('show'); setTimeout(() => banner.remove(), 400); }, 1800);
+}
+
 function showFeedback(e, isCorrect) {
+    if (isCorrect) playCorrectSound(); else playWrongSound();
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : '\u{1F914}';
@@ -1661,6 +1733,7 @@ async function loadDetailedExplanation() {
 }
 
 function nextQuestion() {
+    showEncouragement();
     currentSession.idx += 1;
     if (currentSession.idx >= currentSession.items.length) finishSession();
     else renderQuestion();

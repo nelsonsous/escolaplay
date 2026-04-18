@@ -16,7 +16,7 @@ const CURRICULUM_2 = {
     portugues: ['Vogais e consoantes','Sílabas','Ditongos','Sinónimos','Antónimos','Família de palavras','Tipos de frase','Singular e plural','Verbos no presente'],
     matematica: ['Números até 100','Dezenas e unidades','Adição até 100','Subtração até 100','Tabuada do 2','Tabuada do 5','Tabuada do 10','Sólidos geométricos','Figuras planas','Medir tempo','Dinheiro (€)'],
     estudo_meio: ['O meu corpo','A minha família','A escola','Animais','Plantas','Estações do ano','Os sentidos','Profissões','Portugal'],
-    ingles: ['Greetings','Numbers 1-10','Colors','Animals','Family','Body parts','School things','Food']
+    ingles: ['Cores','Números','Animais','Família','Cumprimentos']
 };
 
 // Períodos por tópico (1, 2 ou 3) — ano lectivo dividido em 3 períodos
@@ -24,7 +24,7 @@ const PERIODS_2 = {
     portugues:   { 'Vogais e consoantes':1, 'Sílabas':1, 'Ditongos':1, 'Sinónimos':2, 'Antónimos':2, 'Família de palavras':2, 'Tipos de frase':3, 'Singular e plural':3, 'Verbos no presente':3 },
     matematica:  { 'Números até 100':1, 'Dezenas e unidades':1, 'Adição até 100':1, 'Subtração até 100':2, 'Tabuada do 2':2, 'Tabuada do 5':2, 'Tabuada do 10':2, 'Sólidos geométricos':3, 'Figuras planas':3, 'Medir tempo':3, 'Dinheiro (€)':3 },
     estudo_meio: { 'O meu corpo':1, 'A minha família':1, 'A escola':1, 'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Os sentidos':3, 'Profissões':3, 'Portugal':3 },
-    ingles:      { 'Greetings':1, 'Numbers 1-10':1, 'Colors':1, 'Animals':2, 'Family':2, 'Body parts':2, 'School things':3, 'Food':3 }
+    ingles:      { 'Cores':1, 'Números':1, 'Animais':2, 'Família':2, 'Cumprimentos':3 }
 };
 
 const LESSONS_2 = {
@@ -57,14 +57,11 @@ const LESSONS_2 = {
     'estudo_meio/Os sentidos': { title:'Os 5 sentidos', body:'**Visão** (olhos), **audição** (ouvidos), **olfato** (nariz), **paladar** (boca/língua) e **tato** (pele).' },
     'estudo_meio/Profissões': { title:'Profissões', body:'Cada profissão ajuda a comunidade: **médico** trata doentes, **professor** ensina, **bombeiro** apaga fogos, **padeiro** faz pão, **agricultor** cultiva alimentos.' },
     'estudo_meio/Portugal': { title:'Portugal', body:'Portugal fica na Europa, na **Península Ibérica**. A capital é **Lisboa**. A bandeira tem **verde** e **vermelho** com o brasão. A língua oficial é o **português**.' },
-    'ingles/Greetings': { title:'Greetings (Cumprimentos)', body:'**Hello** = Olá 👋\n**Hi** = Oi\n**Good morning** = Bom dia ☀️\n**Good afternoon** = Boa tarde\n**Good night** = Boa noite 🌙\n**Goodbye** / **Bye** = Adeus\n**Thank you** = Obrigado(a) 🙏\n**Please** = Por favor\n**How are you?** = Como estás?\n**I\'m fine** = Estou bem 😊' },
-    'ingles/Numbers 1-10': { title:'Numbers 1-10', body:'**1 one** · **2 two** · **3 three** · **4 four** · **5 five**\n**6 six** · **7 seven** · **8 eight** · **9 nine** · **10 ten**\n\n🔢 Pratica em voz alta: one, two, three…' },
-    'ingles/Colors': { title:'Colors', body:'🔴 **red** = vermelho\n🔵 **blue** = azul\n🟡 **yellow** = amarelo\n🟢 **green** = verde\n🟠 **orange** = laranja\n🟣 **purple** = roxo\n⚫ **black** = preto\n⚪ **white** = branco\n🟤 **brown** = castanho\n💗 **pink** = rosa' },
-    'ingles/Animals': { title:'Animals', body:'🐶 **dog** = cão\n🐱 **cat** = gato\n🐦 **bird** = pássaro\n🐟 **fish** = peixe\n🐮 **cow** = vaca\n🐴 **horse** = cavalo\n🐷 **pig** = porco\n🐰 **rabbit** = coelho\n🐘 **elephant** = elefante\n🦁 **lion** = leão' },
-    'ingles/Family': { title:'Family', body:'👨 **father / dad** = pai\n👩 **mother / mom** = mãe\n👦 **brother** = irmão\n👧 **sister** = irmã\n👴 **grandfather / grandpa** = avô\n👵 **grandmother / grandma** = avó\n👶 **baby** = bebé\n👨‍👩‍👧‍👦 **family** = família' },
-    'ingles/Body parts': { title:'Body parts', body:'👁️ **eye** = olho\n👂 **ear** = orelha\n👃 **nose** = nariz\n👄 **mouth** = boca\n🖐️ **hand** = mão\n🦶 **foot** = pé (plural: **feet** = pés)\n💪 **arm** = braço\n🦵 **leg** = perna\n🧠 **head** = cabeça\n💇 **hair** = cabelo' },
-    'ingles/School things': { title:'School things', body:'📚 **book** = livro\n✏️ **pencil** = lápis\n🖊️ **pen** = caneta\n🎒 **bag** = mochila\n📓 **notebook** = caderno\n🪑 **chair** = cadeira\n🪟 **window** = janela\n🚪 **door** = porta\n👨‍🏫 **teacher** = professor(a)\n🏫 **school** = escola' },
-    'ingles/Food': { title:'Food', body:'🍎 **apple** = maçã\n🍌 **banana** = banana\n🥛 **milk** = leite\n🍞 **bread** = pão\n🧀 **cheese** = queijo\n🥚 **egg** = ovo\n🍕 **pizza** = pizza\n🍫 **chocolate** = chocolate\n💧 **water** = água\n🍪 **cookie** = bolacha' }
+    'ingles/Cores': { title:'As cores em inglês', body:'🔴 **red** = vermelho\n🔵 **blue** = azul\n🟡 **yellow** = amarelo\n🟢 **green** = verde\n💗 **pink** = rosa\n⚫ **black** = preto\n⚪ **white** = branco\n\nVê os bonecos coloridos e diz a cor em inglês!' },
+    'ingles/Números': { title:'Os números 1 a 5', body:'**1** = **one** ☝️\n**2** = **two** ✌️\n**3** = **three** 🤟\n**4** = **four** ✋\n**5** = **five** 🖐️\n\nConta os dedos em inglês: one, two, three, four, five!' },
+    'ingles/Animais': { title:'Os animais', body:'🐶 **dog** = cão\n🐱 **cat** = gato\n🐦 **bird** = passarinho\n🐟 **fish** = peixe\n🐰 **rabbit** = coelho\n🐴 **horse** = cavalo\n\nOlha para o desenho — qual é o animal em inglês?' },
+    'ingles/Família': { title:'A família', body:'👩 **mum** = mãe\n👨 **dad** = pai\n👧 **sister** = irmã\n👦 **brother** = irmão\n👵 **grandma** = avó\n👴 **grandpa** = avô\n\nQuem é quem na tua família?' },
+    'ingles/Cumprimentos': { title:'Olá em inglês!', body:'👋 **Hello!** = Olá!\n🌅 **Good morning!** = Bom dia!\n🌙 **Good night!** = Boa noite!\n👋 **Bye!** = Adeus!\n🙏 **Thank you!** = Obrigada!\n😊 **I am fine** = Estou bem' }
 };
 
 const EXERCISES_2 = [
@@ -120,7 +117,27 @@ const EXERCISES_2 = [
     { id:'2e11', s:'estudo_meio', t:'Profissões', type:'mc', diff:1, q:'Quem cuida dos doentes no hospital?', opts:['professor','médico','padeiro','jardineiro'], ans:1, exp:'O médico (com a ajuda dos enfermeiros) cuida dos doentes.' },
     { id:'2e12', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Qual é a capital de Portugal?', opts:['Porto','Coimbra','Lisboa','Faro'], ans:2, exp:'A capital de Portugal é Lisboa.' },
     { id:'2e13', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Quais são as cores da bandeira de Portugal?', opts:['azul e branco','verde e vermelho','vermelho e amarelo','verde e branco'], ans:1, exp:'A bandeira portuguesa é verde e vermelha, com o brasão.' },
-    { id:'2e14', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'Um animal que põe ovos chama-se:', opts:['vivíparo','ovíparo','mamífero','herbívoro'], ans:1, exp:'Ovíparo: nasce de um ovo.' }
+    { id:'2e14', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'Um animal que põe ovos chama-se:', opts:['vivíparo','ovíparo','mamífero','herbívoro'], ans:1, exp:'Ovíparo: nasce de um ovo.' },
+
+    // Inglês — visual-first, sem escrever em inglês, opções com 3 alternativas
+    { id:'2i1',  s:'ingles', t:'Cores',        type:'mc', diff:1, q:'🔴 Que cor é esta em inglês?',                     opts:['red','blue','yellow'],     ans:0, exp:'🔴 = red (vermelho).' },
+    { id:'2i2',  s:'ingles', t:'Cores',        type:'mc', diff:1, q:'🔵 Que cor é esta em inglês?',                     opts:['green','blue','pink'],     ans:1, exp:'🔵 = blue (azul).' },
+    { id:'2i3',  s:'ingles', t:'Cores',        type:'mc', diff:1, q:'💗 Que cor é esta em inglês?',                     opts:['pink','black','white'],    ans:0, exp:'💗 = pink (rosa).' },
+    { id:'2i4',  s:'ingles', t:'Cores',        type:'mc', diff:1, q:'🟢 Que cor é esta em inglês?',                     opts:['yellow','red','green'],    ans:2, exp:'🟢 = green (verde).' },
+    { id:'2i5',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'☝️ Quantos dedos? Em inglês:',                       opts:['one','two','three'],       ans:0, exp:'☝️ = 1 = one.' },
+    { id:'2i6',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'✌️ Quantos dedos? Em inglês:',                       opts:['four','two','three'],      ans:1, exp:'✌️ = 2 = two.' },
+    { id:'2i7',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'🖐️ Quantos dedos? Em inglês:',                       opts:['three','four','five'],     ans:2, exp:'🖐️ = 5 = five.' },
+    { id:'2i8',  s:'ingles', t:'Números',      type:'mc', diff:2, q:'Quantas estrelas? ⭐⭐⭐ Em inglês:',                  opts:['two','three','four'],      ans:1, exp:'⭐⭐⭐ = 3 = three.' },
+    { id:'2i9',  s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐶 Que animal é em inglês?',                       opts:['cat','dog','bird'],        ans:1, exp:'🐶 = dog (cão).' },
+    { id:'2i10', s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐱 Que animal é em inglês?',                       opts:['cat','fish','rabbit'],     ans:0, exp:'🐱 = cat (gato).' },
+    { id:'2i11', s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐟 Que animal é em inglês?',                       opts:['bird','fish','horse'],     ans:1, exp:'🐟 = fish (peixe).' },
+    { id:'2i12', s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐰 Que animal é em inglês?',                       opts:['rabbit','dog','cat'],      ans:0, exp:'🐰 = rabbit (coelho).' },
+    { id:'2i13', s:'ingles', t:'Família',      type:'mc', diff:1, q:'A tua mãe em inglês é:',                            opts:['dad','mum','sister'],      ans:1, exp:'mãe = mum (também se diz "mother").' },
+    { id:'2i14', s:'ingles', t:'Família',      type:'mc', diff:1, q:'O teu pai em inglês é:',                            opts:['dad','brother','grandpa'], ans:0, exp:'pai = dad (também se diz "father").' },
+    { id:'2i15', s:'ingles', t:'Família',      type:'mc', diff:1, q:'A tua irmã em inglês é:',                           opts:['mum','sister','grandma'],  ans:1, exp:'irmã = sister.' },
+    { id:'2i16', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'👋 De manhã dizes:',                                opts:['Good night','Good morning','Bye'], ans:1, exp:'De manhã: Good morning! 🌅' },
+    { id:'2i17', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'🌙 Antes de dormir dizes:',                          opts:['Hello','Good night','Thank you'], ans:1, exp:'Antes de dormir: Good night! 🌙' },
+    { id:'2i18', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'Para agradecer dizes:',                              opts:['Hello','Bye','Thank you'], ans:2, exp:'Obrigada = Thank you! 🙏' }
 ];
 
 

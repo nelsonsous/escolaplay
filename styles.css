@@ -799,3 +799,31 @@ body {
 }
 .ex-svg-wrap svg { max-width: 100%; height: auto; }
 .ex-q-text { display: block; font-weight: 700; font-size: 1rem; }
+
+/* Banner de encorajamento mid-sessão */
+.ep-encourage {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    background: linear-gradient(135deg, #6d28d9, #ec4899);
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.2rem;
+    padding: 18px 28px;
+    border-radius: 999px;
+    box-shadow: 0 12px 40px rgba(109, 40, 217, 0.45);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.35s cubic-bezier(.34,1.56,.64,1);
+    pointer-events: none;
+}
+.ep-encourage.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+.ep-encourage-icon { font-size: 1.6rem; line-height: 1; }
+.ep-encourage-text { white-space: nowrap; }
