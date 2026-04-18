@@ -67,7 +67,8 @@ function defaultState() {
         recentIds: [],
         tests: [],
         rewards: JSON.parse(JSON.stringify(DEFAULT_REWARDS)),
-        progress: prog
+        progress: prog,
+        max: { enabled: false, apiKey: '', totalGenerated: 0, totalRequests: 0 }
     };
 }
 function loadState() {
@@ -82,6 +83,7 @@ function loadState() {
         merged.streak   = { ...base.streak, ...(parsed.streak || {}) };
         merged.daily    = { ...base.daily, ...(parsed.daily || {}) };
         merged.progress = { ...base.progress, ...(parsed.progress || {}) };
+        merged.max = { ...base.max, ...(parsed.max || {}) };
         if (!Array.isArray(merged.tests)) merged.tests = [];
         if (!Array.isArray(merged.rewards) || merged.rewards.length === 0) merged.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
         // Garante que cada disciplina tem toIndex
@@ -266,6 +268,9 @@ function openSubjectDetail(key) {
                 <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino
                 </button>
+                <button class="btn btn-max btn-block" style="margin-top:8px" onclick="startMaxSession('${key}')">
+                    <i class="fas fa-wand-magic-sparkles"></i> Treino MAX (perguntas novas com IA)
+                </button>
             </div>
         </div>
     `;
@@ -345,6 +350,7 @@ function renderTests() {
                 </div>
                 <div class="test-item-actions">
                     ${!t.done ? `<button class="practice" title="Treinar para este teste" onclick="startTestPrep('${t.id}')"><i class="fas fa-dumbbell"></i></button>` : ''}
+                    ${!t.done ? `<button class="practice" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff" title="Treino MAX (IA) para este teste" onclick="startMaxForTest('${t.id}')"><i class="fas fa-wand-magic-sparkles"></i></button>` : ''}
                     <button onclick="editTest('${t.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                     <button class="del" onclick="deleteTest('${t.id}')" title="Apagar"><i class="fas fa-trash"></i></button>
                 </div>
@@ -543,6 +549,20 @@ function renderProfile() {
         <div class="avatar-option ${a === state.profile.avatar ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
     `).join('');
 
+    // MAX config
+    const maxEnabled = document.getElementById('max-enabled');
+    const maxKey = document.getElementById('max-apikey');
+    if (maxEnabled) maxEnabled.checked = !!state.max.enabled;
+    if (maxKey) maxKey.value = state.max.apiKey || '';
+    const stats = document.getElementById('max-stats');
+    if (stats) {
+        if (state.max.totalRequests > 0) {
+            stats.innerHTML = `<i class="fas fa-chart-simple"></i> ${state.max.totalRequests} sessões geradas · ${state.max.totalGenerated} exercícios criados`;
+        } else {
+            stats.textContent = '';
+        }
+    }
+
     const ed = document.getElementById('rewards-editor');
     ed.innerHTML = (state.rewards || []).map((r, i) => `
         <div class="reward-edit-row">
@@ -594,6 +614,154 @@ function resetRewards() {
     renderProgress();
     renderHome();
 }
+function toggleMax() {
+    state.max.enabled = document.getElementById('max-enabled').checked;
+    saveState();
+}
+function saveMaxConfig() {
+    const key = document.getElementById('max-apikey').value.trim();
+    const enabled = document.getElementById('max-enabled').checked;
+    if (enabled && !key) { showToast('Precisas de uma chave API para activar MAX'); return; }
+    if (enabled && !/^sk-ant-/.test(key)) { showToast('Chave inválida — deve começar por sk-ant-'); return; }
+    state.max.apiKey = key;
+    state.max.enabled = enabled;
+    saveState();
+    showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
+}
+
+// ========== MAX: chamada directa à Claude API ==========
+async function callClaudeAPI(prompt, maxTokens = 3500) {
+    const key = state.max?.apiKey;
+    if (!key) throw new Error('Sem chave API');
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+            model: 'claude-haiku-4-5',
+            max_tokens: maxTokens,
+            messages: [{ role: 'user', content: prompt }]
+        })
+    });
+    if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`API ${res.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    return { text, usage: data.usage };
+}
+
+async function generateMaxExercises(subjectKey, topics, count = 6) {
+    const sub = SUBJECTS[subjectKey];
+    const subName = sub.fullName || sub.name;
+    const topicsStr = topics.join(', ');
+    const prompt = `És um professor que cria exercícios para o 5.º ano (curriculum português).
+
+Gera ${count} exercícios de ${subName} cobrindo os tópicos: ${topicsStr}.
+
+REGRAS:
+- Usa Português Europeu com Acordo Ortográfico de 1990 (ex: "correto", "exceção", "ótimo").
+- Acentos obrigatórios. Dificuldade 1-3.
+- Mistura tipos: escolha múltipla, preencher, verdadeiro/falso e problemas contextualizados (estes últimos devem ser pelo menos metade para Matemática).
+- Cada "problem" tem enunciado com contexto real, campo "material" (regra em 1-2 linhas) e "solution" (resolução passo-a-passo).
+- Respostas curtas e sem ambiguidade.
+
+Responde APENAS com um objecto JSON válido no formato exacto (sem markdown, sem comentários):
+
+{"exercises":[
+  {"t":"<tópico>","type":"mc","diff":2,"q":"<pergunta>","opts":["A","B","C","D"],"ans_mc":0,"exp":"<explicação curta>"},
+  {"t":"<tópico>","type":"tf","diff":1,"q":"<afirmação>","ans_tf":true,"exp":"<explicação>"},
+  {"t":"<tópico>","type":"fill","diff":2,"q":"<pergunta>","ans_fill":["resposta","variante"],"exp":"<explicação>"},
+  {"t":"<tópico>","type":"problem","diff":3,"q":"<enunciado>","ans_fill":["valor"],"material":"<regra>","solution":"<passos>","exp":"<nota final>"}
+]}`;
+
+    const { text, usage } = await callClaudeAPI(prompt, 4000);
+    // Extrair o JSON (o modelo pode envolver em markdown apesar da instrução)
+    let jsonStr = text.trim();
+    const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fence) jsonStr = fence[1].trim();
+    const start = jsonStr.indexOf('{');
+    const end = jsonStr.lastIndexOf('}');
+    if (start < 0 || end < 0) throw new Error('Resposta não contém JSON');
+    jsonStr = jsonStr.slice(start, end + 1);
+    let parsed;
+    try { parsed = JSON.parse(jsonStr); }
+    catch (e) { throw new Error('JSON inválido: ' + e.message); }
+    const items = (parsed.exercises || []).map((raw, i) => {
+        const ex = {
+            id: `max_${Date.now()}_${i}`,
+            s: subjectKey,
+            t: raw.t || topics[0],
+            type: raw.type,
+            diff: Math.max(1, Math.min(3, raw.diff || 2)),
+            q: raw.q,
+            exp: raw.exp || ''
+        };
+        if (raw.type === 'mc') { ex.opts = raw.opts; ex.ans = raw.ans_mc; }
+        else if (raw.type === 'tf') { ex.ans = raw.ans_tf; }
+        else if (raw.type === 'fill' || raw.type === 'problem') {
+            ex.ans = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill)];
+        }
+        if (raw.material) ex.material = raw.material;
+        if (raw.solution) ex.solution = raw.solution;
+        return ex;
+    }).filter(e => e.q && e.type && (e.type === 'tf' ? typeof e.ans === 'boolean' : e.ans !== undefined));
+    if (items.length === 0) throw new Error('Nenhum exercício válido na resposta');
+    return { items, usage };
+}
+
+function showMaxLoader(msg) {
+    const el = document.getElementById('max-loader');
+    if (msg) document.getElementById('max-loader-msg').textContent = msg;
+    el.style.display = 'flex';
+}
+function hideMaxLoader() {
+    document.getElementById('max-loader').style.display = 'none';
+}
+
+async function startMaxSession(subjectKey, opts = {}) {
+    if (!state.max.enabled || !state.max.apiKey) {
+        showToast('Activa o MAX no Perfil primeiro');
+        switchTab('profile');
+        return;
+    }
+    const active = activeTopicsFor(subjectKey);
+    let topics = opts.topics && opts.topics.length > 0 ? opts.topics : Array.from(active);
+    topics = topics.filter(t => active.has(t));
+    if (topics.length === 0) { showToast('Sem tópicos activos. Ajusta o progresso da disciplina.'); return; }
+    // Ordenar por curriculum e limitar a 6 tópicos para poupar tokens
+    const order = CURRICULUM[subjectKey] || [];
+    topics = topics.sort((a, b) => order.indexOf(a) - order.indexOf(b)).slice(0, 6);
+    showMaxLoader();
+    if (currentSubjectView) closeSubjectDetail();
+    try {
+        const { items, usage } = await generateMaxExercises(subjectKey, topics, 6);
+        state.max.totalGenerated = (state.max.totalGenerated || 0) + items.length;
+        state.max.totalRequests = (state.max.totalRequests || 0) + 1;
+        saveState();
+        currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: subjectKey, isMax: true };
+        hideMaxLoader();
+        openExerciseScreen();
+        renderQuestion();
+    } catch (err) {
+        hideMaxLoader();
+        console.error('MAX error:', err);
+        showToast('Erro MAX: ' + (err.message || 'desconhecido'));
+    }
+}
+
+async function startMaxForTest(testId) {
+    const t = state.tests.find(x => x.id === testId);
+    if (!t) return;
+    const topics = (t.topics && t.topics.length > 0) ? t.topics : Array.from(activeTopicsFor(t.subject));
+    return startMaxSession(t.subject, { topics });
+}
+
 function resetStats() {
     if (!confirm('Tens a certeza? Vais perder XP, streak, testes, prémios e histórico.')) return;
     const profile = state.profile;
