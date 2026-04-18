@@ -622,29 +622,24 @@ function saveMaxConfig() {
     const key = document.getElementById('max-apikey').value.trim();
     const enabled = document.getElementById('max-enabled').checked;
     if (enabled && !key) { showToast('Precisas de uma chave API para activar MAX'); return; }
-    if (enabled && !/^sk-ant-/.test(key)) { showToast('Chave inválida — deve começar por sk-ant-'); return; }
+    if (enabled && !/^AIza/.test(key)) { showToast('Chave inválida — deve começar por AIza'); return; }
     state.max.apiKey = key;
     state.max.enabled = enabled;
     saveState();
     showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
 }
 
-// ========== MAX: chamada directa à Claude API ==========
+// ========== MAX: chamada à Google Gemini API ==========
 async function callClaudeAPI(prompt, maxTokens = 3500) {
     const key = state.max?.apiKey;
     if (!key) throw new Error('Sem chave API');
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const res = await fetch(url, {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            'x-api-key': key,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-        },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-            model: 'claude-haiku-4-5',
-            max_tokens: maxTokens,
-            messages: [{ role: 'user', content: prompt }]
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 }
         })
     });
     if (!res.ok) {
@@ -652,8 +647,9 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
         throw new Error(`API ${res.status}: ${errText.slice(0, 200)}`);
     }
     const data = await res.json();
-    const text = data.content?.[0]?.text || '';
-    return { text, usage: data.usage };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!text) throw new Error('Resposta vazia do Gemini');
+    return { text, usage: data.usageMetadata };
 }
 
 async function generateMaxExercises(subjectKey, topics, count = 6) {
