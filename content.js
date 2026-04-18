@@ -114,9 +114,9 @@ const EXERCISES_2 = [
 
 
 // ============================================================
-// ===================== 6.º ANO ==============================
+// ===================== 5.º ANO ==============================
 // ============================================================
-const SUBJECTS_6 = {
+const SUBJECTS_5 = {
     portugues:  { name: 'Português',  icon: 'fa-book',         color: '#e11d48' },
     matematica: { name: 'Matemática', icon: 'fa-calculator',   color: '#2563eb' },
     ingles:     { name: 'Inglês',     icon: 'fa-language',     color: '#16a34a' },
@@ -126,7 +126,7 @@ const SUBJECTS_6 = {
 
 // ========== LIÇÕES (mini-explicações por tópico) ==========
 // Chave: `${subject}/${topic}` (o tópico corresponde ao campo t do exercício)
-const LESSONS_6 = {
+const LESSONS_5 = {
     // ----- Português -----
     'portugues/Classes de palavras': {
         title: 'Classes de palavras',
@@ -478,7 +478,7 @@ const LESSONS_6 = {
 
 // ========== EXERCÍCIOS ==========
 // Total: ~160 exercícios, ~20-30 por disciplina (Matemática enriquecida ao estilo MX 5)
-const EXERCISES_6 = [
+const EXERCISES_5 = [
     // ========== PORTUGUÊS (22) ==========
     { id:'p1', s:'portugues', t:'Classes de palavras', type:'mc', diff:1, q:'Qual destas palavras é um nome?', opts:['correr','bonito','cão','rapidamente'], ans:2, exp:'"Cão" é um nome (substantivo). "Correr" é verbo, "bonito" é adjetivo, "rapidamente" é advérbio.' },
     { id:'p2', s:'portugues', t:'Classes de palavras', type:'mc', diff:1, q:'Na frase "A menina está feliz", a palavra "feliz" é um...', opts:['nome','adjetivo','verbo','advérbio'], ans:1, exp:'Adjetivo qualifica o nome ("menina feliz").' },
@@ -839,7 +839,7 @@ const EXERCISES_6 = [
 
 // ========== CURRICULUM (ordem dos tópicos do livro / programa) ==========
 // Ordem aproximada dos manuais do 5.º ano (Porto Editora MX 5 para Matemática).
-const CURRICULUM_6 = {
+const CURRICULUM_5 = {
     matematica: [
         'Números naturais',
         'Divisibilidade',
@@ -938,7 +938,7 @@ const CURRICULUM_6 = {
 // ============================================================
 // =============== EXPORTS / SELECTOR DE ANO ==================
 // ============================================================
-const PERIODS_6 = {
+const PERIODS_5 = {
     matematica:  { 'Números naturais':1, 'Divisibilidade':1, 'Números primos':1, 'MMC/MDC':1, 'Potências':1, 'Operações':1, 'Frações':2, 'Dízimas':2, 'Percentagens':2, 'Sequências':2, 'Ângulos':2, 'Retas':2, 'Triângulos':3, 'Quadriláteros':3, 'Perímetros':3, 'Áreas':3, 'Volume':3, 'Estatística':3 },
     portugues:   { 'Ortografia':1, 'Classes de palavras':1, 'Determinantes':1, 'Pronomes':2, 'Verbos':2, 'Funções sintáticas':2, 'Pontuação':2, 'Plurais':3, 'Recursos expressivos':3, 'Tipos de texto':3 },
     ingles:      { 'Greetings':1, 'Numbers':1, 'Days':1, 'Months':1, 'Family':1, 'School':2, 'Colors':2, 'Articles':2, 'Verb to be':2, 'Plurals':3, 'Present simple':3, 'Prepositions':3, 'Questions':3 },
@@ -948,14 +948,14 @@ const PERIODS_6 = {
 
 const YEARS_AVAILABLE = [
     { year: 2, label: '2.º ano', cycle: '1.º ciclo' },
-    { year: 6, label: '6.º ano', cycle: '2.º ciclo' }
+    { year: 5, label: '5.º ano', cycle: '2.º ciclo' }
 ];
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   6: SUBJECTS_6 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 6: CURRICULUM_6 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  6: EXERCISES_6 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    6: LESSONS_6 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    6: PERIODS_6 };
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   5: SUBJECTS_5 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 5: CURRICULUM_5 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  5: EXERCISES_5 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    5: LESSONS_5 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    5: PERIODS_5 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.

@@ -106,12 +106,13 @@ function loadState() {
         if (!raw) return installStateProxy(defaultState());
         const parsed = JSON.parse(raw);
 
-        // Migração: estado antigo (single-profile) → embrulhar como perfil único
+        // Migração: estado antigo (single-profile) → embrulhar como perfil único.
+        // O ano antes rotulado como 6.º era, na verdade, conteúdo de 5.º ano.
         if (!Array.isArray(parsed.profiles)) {
             const oldP = newProfile({
                 name: parsed.profile?.name || 'Carolina',
                 avatar: parsed.profile?.avatar || AVATARS[0],
-                year: 6
+                year: 5
             });
             // copiar campos do estado antigo
             ['xp','totalDailies','perfectDailies'].forEach(k => { if (parsed[k] != null) oldP[k] = parsed[k]; });
@@ -138,7 +139,9 @@ function loadState() {
         // Estado novo já tem profiles[] (pode estar vazio até o utilizador criar o primeiro perfil)
         const s = {
             profiles: parsed.profiles.map(p => {
-                const yr = SUBJECTS_BY_YEAR[p.year] ? p.year : (Object.keys(SUBJECTS_BY_YEAR)[0] | 0);
+                // Migração: o conteúdo antes rotulado como 6.º ano é, na realidade, 5.º ano
+                let pyear = p.year === 6 ? 5 : p.year;
+                const yr = SUBJECTS_BY_YEAR[pyear] ? pyear : (parseInt(Object.keys(SUBJECTS_BY_YEAR)[0]) || 2);
                 return { ...newProfile({ year: yr }), ...p, year: yr };
             }),
             activeProfileId: parsed.activeProfileId,
