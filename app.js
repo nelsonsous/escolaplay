@@ -1041,9 +1041,23 @@ async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = f
         ageRule = `IDADE adequada ao ${yr}.º ano. Estritamente conteúdos desse ano segundo as AE.`;
     }
 
-    const langRule = isEnglish
-        ? `LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at ${yr === 2 ? 'A1 (very beginner — single words, basic greetings, numbers, colors, animals)' : 'A2/B1'} level for a Portuguese student.`
-        : 'LANGUAGE: Português Europeu (Portugal), Acordo Ortográfico 1990. Vocabulário e expressões de Portugal, nunca do Brasil.';
+    let langRule;
+    if (isEnglish && yr === 2) {
+        langRule = `LANGUAGE — INGLÊS 2.º ANO (REGRA ESTRITA):
+- A criança tem 7-8 anos e ainda não lê inglês fluentemente.
+- A pergunta "q" e a explicação "exp" devem estar em PORTUGUÊS EUROPEU.
+- APENAS as palavras inglesas a aprender aparecem em inglês (nas opções "opts" e citadas dentro da pergunta entre aspas).
+- Inclui SEMPRE um emoji visual na pergunta (🐶, 🔴, 🖐️, 👋, 🌙, etc.) que dá a pista do conteúdo.
+- Tipo: usar APENAS "mc" com 3 opções (todas palavras inglesas reais e curtas, ex: ['cat','dog','bird']).
+- PROIBIDO: "tf", "fill", "problem". PROIBIDO frases inglesas longas.
+- Tópicos do 2.º: Cores (red/blue/yellow/green/pink/black/white), Números 1-5 (one/two/three/four/five), Animais (dog/cat/fish/bird/rabbit/horse), Família (mum/dad/sister/brother/grandma/grandpa), Cumprimentos (Hello/Good morning/Good night/Bye/Thank you).
+EXEMPLO BOM: { "type":"mc", "q":"🐶 Que animal é em inglês?", "opts":["cat","dog","bird"], "ans":1, "exp":"🐶 = dog (cão)." }
+EXEMPLO PROIBIDO: { "q":"What color is the apple?", "opts":[...] } — pergunta em inglês não!`;
+    } else if (isEnglish) {
+        langRule = `LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at A2/B1 level for a Portuguese student.`;
+    } else {
+        langRule = 'LANGUAGE: Português Europeu (Portugal), Acordo Ortográfico 1990. Vocabulário e expressões de Portugal, nunca do Brasil.';
+    }
 
     let mathNote = '';
     if (subjectKey === 'matematica') {
@@ -1591,7 +1605,7 @@ function recordAnswer(e, isCorrect) {
     saveState();
 }
 
-// Áudio: gera tons curtos sem assets (Web Audio API). Silencioso se o browser bloquear.
+// Áudio: gera tons sintetizados sem assets (Web Audio API). Silencioso se o browser bloquear.
 let _audioCtx = null;
 function getAudioCtx() {
     if (_audioCtx) return _audioCtx;
@@ -1600,30 +1614,65 @@ function getAudioCtx() {
     try { _audioCtx = new Ctx(); } catch (_) { return null; }
     return _audioCtx;
 }
-function playTone(freq, durationMs, type, gainPeak) {
+
+// Nota tipo "sino" — fundamental + harmónica oitava + ataque rápido + decay lento exponencial
+function playBellNote(freq, startOffsetMs, durationMs, peakGain) {
     const ctx = getAudioCtx();
     if (!ctx) return;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    const t0 = ctx.currentTime + (startOffsetMs / 1000);
+    const dur = durationMs / 1000;
+    const peak = peakGain == null ? 0.22 : peakGain;
+
+    // Fundamental — triangle dá calor, pouco harmónico desagradável
+    const oscF = ctx.createOscillator();
+    const gainF = ctx.createGain();
+    oscF.type = 'triangle';
+    oscF.frequency.value = freq;
+    gainF.gain.setValueAtTime(0.0001, t0);
+    gainF.gain.exponentialRampToValueAtTime(peak, t0 + 0.005);
+    gainF.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    oscF.connect(gainF).connect(ctx.destination);
+    oscF.start(t0);
+    oscF.stop(t0 + dur + 0.05);
+
+    // Harmónica oitava acima — sine, mais discreta, dá brilho de sino
+    const oscH = ctx.createOscillator();
+    const gainH = ctx.createGain();
+    oscH.type = 'sine';
+    oscH.frequency.value = freq * 2;
+    gainH.gain.setValueAtTime(0.0001, t0);
+    gainH.gain.exponentialRampToValueAtTime(peak * 0.35, t0 + 0.005);
+    gainH.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.75);
+    oscH.connect(gainH).connect(ctx.destination);
+    oscH.start(t0);
+    oscH.stop(t0 + dur + 0.05);
+}
+
+function playCorrectSound() {
+    // Estilo Duolingo: duas notas ascendentes em harmonia (G5 → C6, intervalo de 4ª justa).
+    // Decay longo (~450ms) com brilho da harmónica oitava acima — soa a sino/marimba.
+    playBellNote(784, 0,   450, 0.22); // G5
+    playBellNote(1047, 70, 550, 0.22); // C6 — entra ligeiramente sobreposto
+}
+
+function playWrongSound() {
+    // Som suave, não punitivo — tom grave curto sem decay exponencial agressivo
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    const t0 = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.value = freq;
-    const now = ctx.currentTime;
-    const peak = gainPeak == null ? 0.18 : gainPeak;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(peak, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(330, t0);
+    osc.frequency.exponentialRampToValueAtTime(220, t0 + 0.18);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
     osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + durationMs / 1000 + 0.02);
-}
-function playCorrectSound() {
-    // Estilo "plim" (Duolingo): duas notas ascendentes curtas
-    playTone(880, 90, 'sine');
-    setTimeout(() => playTone(1320, 140, 'sine'), 80);
-}
-function playWrongSound() {
-    playTone(220, 180, 'square', 0.10);
+    osc.start(t0);
+    osc.stop(t0 + 0.25);
 }
 
 const ENCOURAGE_MSGS = [
@@ -1700,24 +1749,38 @@ async function loadDetailedExplanation() {
     const cacheKey = `detail_${e.id}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) { wrap.innerHTML = cached; wrap.style.display = 'block'; btn.style.display = 'none'; return; }
-    // Verifica lição estática
+
+    // Lição estática (1.ª escolha sempre que existe — instantânea, sem custo, em PT)
     const lessonKey = `${e.s}/${e.t}`;
     const lesson = LESSONS[lessonKey] || state.maxLessons?.[lessonKey];
-    if (lesson && !state.max?.apiKey) {
+    const showLesson = () => {
         const html = `<strong>${lesson.title}</strong><br><br>${lesson.body.replace(/\n/g,'<br>')}`;
-        wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none'; return;
+        sessionStorage.setItem(cacheKey, html);
+        wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
+    };
+
+    // Sem API key → tenta lição estática; se não houver, mostra a explicação curta do exercício
+    if (!state.max?.apiKey) {
+        if (lesson) return showLesson();
+        const fallback = e.exp || 'Não há explicação detalhada disponível para esta pergunta.';
+        wrap.innerHTML = fallback.replace(/\n/g, '<br>');
+        wrap.style.display = 'block'; btn.style.display = 'none';
+        return;
     }
-    if (!state.max?.apiKey) { btn.style.display = 'none'; return; }
+
+    // Com API key → tenta IA; em caso de erro, faz fallback para lição estática ou e.exp
     btn.textContent = '⏳ A carregar…'; btn.disabled = true;
     const correctAns = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
     const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
     const yr = activeProfile()?.year || 6;
-    const audience = yr === 2 ? 'um aluno do 2.º ano (7-8 anos), com frases muito curtas e vocabulário simples' : `um aluno do ${yr}.º ano`;
-    const prompt = `Explica de forma clara e simples para ${audience}:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em ${yr === 2 ? '2-3' : '3-5'} frases. Português Europeu (Portugal). Escreve APENAS texto corrido simples. Sem JSON, sem chavetas, sem markdown, sem listas com chaves.`;
+    const audience = yr === 2 ? 'uma criança do 2.º ano (7-8 anos), com frases muito curtas e vocabulário simples e carinhoso' : `um aluno do ${yr}.º ano`;
+    const subjectHint = e.s === 'ingles' && yr === 2
+        ? '\nÉ uma pergunta de Inglês para 2.º ano: a explicação deve ser em PORTUGUÊS, dizendo o significado da palavra inglesa e dando uma dica para memorizar.'
+        : '';
+    const prompt = `Explica de forma clara e simples para ${audience}:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}${subjectHint}\nDá uma explicação passo a passo em ${yr === 2 ? '2-3' : '3-5'} frases. Português Europeu (Portugal). Escreve APENAS texto corrido simples. Sem JSON, sem chavetas, sem markdown, sem listas com chaves.`;
     try {
         const { text } = await callClaudeAPI(prompt, 250, false);
         let clean = text.trim();
-        // Se o modelo ainda devolveu JSON, extrai os valores de texto
         if (clean.startsWith('{')) {
             try {
                 const obj = JSON.parse(clean);
@@ -1729,7 +1792,15 @@ async function loadDetailedExplanation() {
         const html = clean.replace(/\n/g, '<br>');
         sessionStorage.setItem(cacheKey, html);
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
-    } catch(err) { btn.textContent = '💡 Explicar passo a passo'; btn.disabled = false; }
+    } catch(err) {
+        // Fallback: lição estática se existir, senão e.exp, senão mensagem de erro
+        if (lesson) return showLesson();
+        const fallback = e.exp
+            ? `${e.exp}<br><br><em style="color:#9ca3af">(IA indisponível: ${String(err.message || err).slice(0, 100)})</em>`
+            : `<em style="color:#dc2626">Erro: ${String(err.message || err).slice(0, 200)}</em>`;
+        wrap.innerHTML = fallback;
+        wrap.style.display = 'block'; btn.style.display = 'none';
+    }
 }
 
 function nextQuestion() {
