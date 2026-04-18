@@ -227,8 +227,12 @@ function renderSubjects() {
     grid.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
         const stats = state.subjects[key] || { answered: 0, correct: 0, xp: 0 };
         const pct = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : 0;
-        const totalActive = EXERCISES.filter(e => e.s === key && activeTopicsFor(key).has(e.t)).length;
-        const totalAll = EXERCISES.filter(e => e.s === key).length;
+        const active = activeTopicsFor(key);
+        const maxEx = state.maxExercises || [];
+        const totalActive = EXERCISES.filter(e => e.s === key && active.has(e.t)).length
+                          + maxEx.filter(e => e.s === key && active.has(e.t)).length;
+        const totalAll = EXERCISES.filter(e => e.s === key).length
+                       + maxEx.filter(e => e.s === key).length;
         return `
             <div class="subject-card" onclick="openSubjectDetail('${key}')">
                 <div class="subject-card-icon" style="background:${sub.color}"><i class="fas ${sub.icon}"></i></div>
@@ -303,7 +307,8 @@ function renderTopicList() {
     if (!container) return;
     container.innerHTML = topics.map((t, i) => {
         const isActive = active.has(t);
-        const count = EXERCISES.filter(e => e.s === key && e.t === t).length;
+        const count = EXERCISES.filter(e => e.s === key && e.t === t).length
+                    + (state.maxExercises || []).filter(e => e.s === key && e.t === t).length;
         return `
             <div style="background:#fff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:6px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'}">
                 <span style="width:24px;height:24px;border-radius:50%;background:${isActive ? SUBJECTS[key].color : '#e5e7eb'};color:#fff;font-size:0.72rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
