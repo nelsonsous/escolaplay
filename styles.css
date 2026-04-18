@@ -1,4 +1,13 @@
 /* EscolaPlay - Mobile-first gamified UI */
+
+/* ===== Helpers leitura confortável (aplicados no 2.º ano matemática) ===== */
+/* Espaçamento maior, line-height generoso e algarismos tabulares — ajuda
+   crianças com dificuldades visuais sem destacar nada na UI. */
+.reader-friendly { letter-spacing: 0.04em; line-height: 1.7; word-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+.reader-friendly .exercise-question, .reader-friendly h2 { font-size: 1.18rem; }
+.reader-friendly .btn-option, .reader-friendly input[type="text"], .reader-friendly input[type="number"] { font-size: 1.05rem; letter-spacing: 0.05em; padding-top: 14px; padding-bottom: 14px; }
+.reader-friendly .exercise-passage { background: #fffaf0; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }
 body {

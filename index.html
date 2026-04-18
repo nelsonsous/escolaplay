@@ -8,6 +8,10 @@
     <meta name="theme-color" content="#6d28d9">
     <title>EscolaPlay</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -16,11 +20,11 @@
 
     <!-- Top header -->
     <header class="app-header">
-        <div class="header-left">
+        <div class="header-left" onclick="openProfileSwitcher()" style="cursor:pointer">
             <div class="avatar" id="avatar">&#128060;</div>
             <div class="header-user">
                 <div class="header-name" id="user-name">Aluno(a)</div>
-                <div class="header-level"><span id="level-name">Aprendiz</span> &middot; Nível <span id="level-num">1</span></div>
+                <div class="header-level"><span id="header-year">6.º ano</span> &middot; <span id="level-name">Aprendiz</span></div>
             </div>
         </div>
         <div class="header-right">
@@ -135,11 +139,20 @@
 
     <!-- ===== PROFILE TAB ===== -->
     <section class="tab-content" id="tab-profile">
-        <div class="section-title"><i class="fas fa-user"></i> O teu perfil</div>
+        <div class="section-title"><i class="fas fa-users"></i> Perfis</div>
         <div class="form-card">
-            <label>Como te chamas?</label>
+            <p class="muted" style="margin-bottom:8px">Cada aluno(a) tem o seu próprio progresso e exercícios adequados ao ano de escolaridade.</p>
+            <div id="profiles-list"></div>
+            <button class="btn btn-primary-solid btn-block" style="margin-top:8px" onclick="openAddProfileModal()">
+                <i class="fas fa-user-plus"></i> Adicionar novo perfil
+            </button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-user"></i> Editar perfil activo</div>
+        <div class="form-card">
+            <label>Nome</label>
             <input type="text" id="input-name" placeholder="O teu nome" maxlength="24">
-            <label>Escolhe um avatar</label>
+            <label>Avatar</label>
             <div class="avatar-grid" id="avatar-grid"></div>
             <button class="btn btn-primary-solid btn-block" onclick="saveProfile()"><i class="fas fa-floppy-disk"></i> Guardar</button>
         </div>

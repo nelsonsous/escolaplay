@@ -54,17 +54,27 @@ let pendingTestId = null;      // teste a editar
 let pendingRewardId = null;    // prémio desbloqueado a mostrar
 let currentSubjectView = null; // disciplina visível no modal de detalhes
 
-function defaultState() {
-    const subs = {};
-    Object.keys(SUBJECTS).forEach(k => { subs[k] = { answered: 0, correct: 0, xp: 0 }; });
+// ----- Perfis multi-aluno -----
+// Estrutura nova:
+// state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
+// Cada profile tem o seu xp, streak, subjects, badges, etc.
+// Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','tests','rewards','progress','maxExercises','maxLessons'];
+
+function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year = 6 } = {}) {
+    const subs = SUBJECTS_BY_YEAR[year] || SUBJECTS_BY_YEAR[6];
+    const curr = CURRICULUM_BY_YEAR[year] || CURRICULUM_BY_YEAR[6];
+    const subStats = {};
+    Object.keys(subs).forEach(k => { subStats[k] = { answered: 0, correct: 0, xp: 0 }; });
     const prog = {};
-    Object.keys(CURRICULUM).forEach(k => { prog[k] = { toIndex: CURRICULUM[k].length }; });
+    Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
-        profile: { name: 'Aluno(a)', avatar: AVATARS[0] },
+        id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+        name, avatar, year, currentPeriod: 1,
         xp: 0,
         streak: { days: 0, lastDate: null, best: 0 },
         daily: { date: null, completed: false, correct: 0 },
-        subjects: subs,
+        subjects: subStats,
         badges: [],
         history: [],
         totalDailies: 0,
@@ -73,40 +83,159 @@ function defaultState() {
         tests: [],
         rewards: JSON.parse(JSON.stringify(DEFAULT_REWARDS)),
         progress: prog,
-        max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0 },
         maxExercises: [],
         maxLessons: {}
     };
 }
+
+function defaultState() {
+    const p = newProfile({ name: 'Aluno(a)', avatar: AVATARS[0], year: 6 });
+    return {
+        profiles: [p],
+        activeProfileId: p.id,
+        max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0 }
+    };
+}
+
 function loadState() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return defaultState();
+        if (!raw) return installStateProxy(defaultState());
         const parsed = JSON.parse(raw);
-        const base = defaultState();
-        const merged = { ...base, ...parsed };
-        merged.profile  = { ...base.profile, ...(parsed.profile || {}) };
-        merged.subjects = { ...base.subjects, ...(parsed.subjects || {}) };
-        merged.streak   = { ...base.streak, ...(parsed.streak || {}) };
-        merged.daily    = { ...base.daily, ...(parsed.daily || {}) };
-        merged.progress = { ...base.progress, ...(parsed.progress || {}) };
-        merged.max = { ...base.max, ...(parsed.max || {}) };
-        if (!merged.max.enabled) merged.max.enabled = true;
-        merged.maxExercises = Array.isArray(parsed.maxExercises) ? parsed.maxExercises : [];
-        merged.maxLessons = (parsed.maxLessons && typeof parsed.maxLessons === 'object') ? parsed.maxLessons : {};
-        if (!Array.isArray(merged.tests)) merged.tests = [];
-        if (!Array.isArray(merged.rewards) || merged.rewards.length === 0) merged.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
-        // Garante que cada disciplina tem toIndex
-        Object.keys(CURRICULUM).forEach(k => {
-            if (!merged.progress[k]) merged.progress[k] = { toIndex: CURRICULUM[k].length };
+
+        // Migração: estado antigo (single-profile) → embrulhar como perfil único
+        if (!Array.isArray(parsed.profiles)) {
+            const oldP = newProfile({
+                name: parsed.profile?.name || 'Carolina',
+                avatar: parsed.profile?.avatar || AVATARS[0],
+                year: 6
+            });
+            // copiar campos do estado antigo
+            ['xp','totalDailies','perfectDailies'].forEach(k => { if (parsed[k] != null) oldP[k] = parsed[k]; });
+            if (parsed.streak)   oldP.streak   = { ...oldP.streak, ...parsed.streak };
+            if (parsed.daily)    oldP.daily    = { ...oldP.daily, ...parsed.daily };
+            if (parsed.subjects) oldP.subjects = { ...oldP.subjects, ...parsed.subjects };
+            if (parsed.progress) oldP.progress = { ...oldP.progress, ...parsed.progress };
+            if (Array.isArray(parsed.badges))       oldP.badges = parsed.badges;
+            if (Array.isArray(parsed.history))      oldP.history = parsed.history;
+            if (Array.isArray(parsed.recentIds))    oldP.recentIds = parsed.recentIds;
+            if (Array.isArray(parsed.tests))        oldP.tests = parsed.tests;
+            if (Array.isArray(parsed.rewards) && parsed.rewards.length) oldP.rewards = parsed.rewards;
+            if (Array.isArray(parsed.maxExercises)) oldP.maxExercises = parsed.maxExercises;
+            if (parsed.maxLessons && typeof parsed.maxLessons === 'object') oldP.maxLessons = parsed.maxLessons;
+            const s = {
+                profiles: [oldP],
+                activeProfileId: oldP.id,
+                max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+            };
+            if (!s.max.enabled) s.max.enabled = true;
+            return installStateProxy(s);
+        }
+
+        // Estado novo já tem profiles[]
+        const s = {
+            profiles: parsed.profiles.map(p => ({ ...newProfile({ year: p.year || 6 }), ...p })),
+            activeProfileId: parsed.activeProfileId,
+            max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+        };
+        if (!s.max.enabled) s.max.enabled = true;
+        // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
+        s.profiles.forEach(p => {
+            const curr = CURRICULUM_BY_YEAR[p.year] || CURRICULUM_BY_YEAR[6];
+            Object.keys(curr).forEach(k => {
+                if (!p.progress[k]) p.progress[k] = { toIndex: curr[k].length };
+            });
+            const subs = SUBJECTS_BY_YEAR[p.year] || SUBJECTS_BY_YEAR[6];
+            Object.keys(subs).forEach(k => {
+                if (!p.subjects[k]) p.subjects[k] = { answered: 0, correct: 0, xp: 0 };
+            });
+            if (p.currentPeriod == null) p.currentPeriod = 1;
         });
-        return merged;
+        if (!s.profiles.find(p => p.id === s.activeProfileId)) s.activeProfileId = s.profiles[0].id;
+        return installStateProxy(s);
     } catch(e) {
         console.error('loadState', e);
-        return defaultState();
+        return installStateProxy(defaultState());
     }
 }
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function installStateProxy(s) {
+    PROFILE_FIELDS.forEach(prop => {
+        Object.defineProperty(s, prop, {
+            configurable: true,
+            enumerable: false,
+            get() {
+                const p = s.profiles.find(x => x.id === s.activeProfileId);
+                if (!p) return undefined;
+                return prop === 'profile' ? p : p[prop];
+            },
+            set(v) {
+                const p = s.profiles.find(x => x.id === s.activeProfileId);
+                if (!p) return;
+                if (prop === 'profile') Object.assign(p, v);
+                else p[prop] = v;
+            }
+        });
+    });
+    return s;
+}
+
+function activeProfile() {
+    return state.profiles.find(p => p.id === state.activeProfileId) || state.profiles[0];
+}
+
+function saveState() {
+    // Serializar apenas { profiles, activeProfileId, max } — os getters não são enumeráveis
+    const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+
+function switchProfile(id) {
+    const p = state.profiles.find(x => x.id === id);
+    if (!p) return;
+    state.activeProfileId = id;
+    setActiveYear(p.year);
+    selectedTopicsForMax.clear();
+    saveState();
+    closeProfileSwitcher();
+    updateAll();
+    switchTab('home');
+}
+
+function addProfileFromForm() {
+    const nameEl = document.getElementById('new-profile-name');
+    const yearEl = document.querySelector('input[name="new-profile-year"]:checked');
+    const avEl   = document.querySelector('#new-profile-avatars .avatar-option.selected');
+    const name = (nameEl?.value || '').trim();
+    if (!name) { showToast('Escreve um nome'); return; }
+    const year = parseInt(yearEl?.value || '6');
+    const avatar = avEl?.dataset.avatar || AVATARS[Math.floor(Math.random()*AVATARS.length)];
+    const p = newProfile({ name, avatar, year });
+    state.profiles.push(p);
+    state.activeProfileId = p.id;
+    setActiveYear(p.year);
+    selectedTopicsForMax.clear();
+    saveState();
+    closeAddProfileModal();
+    updateAll();
+    switchTab('home');
+    showToast(`Perfil ${name} criado!`);
+}
+
+function removeProfile(id) {
+    if (state.profiles.length <= 1) { showToast('Tem de existir pelo menos um perfil'); return; }
+    const p = state.profiles.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`Apagar o perfil de ${p.name}? Todo o progresso será perdido.`)) return;
+    state.profiles = state.profiles.filter(x => x.id !== id);
+    if (state.activeProfileId === id) {
+        state.activeProfileId = state.profiles[0].id;
+        setActiveYear(state.profiles[0].year);
+    }
+    saveState();
+    renderProfile();
+    updateAll();
+}
 
 function totalCorrect(s) { return Object.values(s.subjects).reduce((a,b)=>a+(b.correct||0),0); }
 
@@ -151,6 +280,7 @@ function levelInfo(xp) {
 // ========== HEADER ==========
 function updateHeader() {
     const lvl = levelInfo(state.xp);
+    const p = activeProfile();
     document.getElementById('avatar').textContent = state.profile.avatar;
     document.getElementById('user-name').textContent = state.profile.name;
     document.getElementById('level-name').textContent = lvl.name;
@@ -161,6 +291,12 @@ function updateHeader() {
     document.getElementById('xp-next-level').textContent = lvl.span;
     const pct = Math.min(100, Math.round(lvl.into / lvl.span * 100));
     document.getElementById('xp-bar-fill').style.width = pct + '%';
+    // Ano + indicador de troca
+    const yearEl = document.getElementById('header-year');
+    if (yearEl && p) {
+        const cnt = state.profiles.length;
+        yearEl.innerHTML = `${p.year}.º ano${cnt > 1 ? ' <i class="fas fa-chevron-down" style="font-size:0.6rem;opacity:0.6"></i>' : ''}`;
+    }
 }
 
 // ========== HOME ==========
@@ -612,8 +748,115 @@ function claimReward(id) {
     showToast(`Prémio resgatado: ${r.name}!`);
 }
 
+// ========== PROFILE SWITCHER (header) ==========
+function openProfileSwitcher() {
+    let modal = document.getElementById('profile-switcher-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'profile-switcher-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-users"></i> Perfis</h2>
+                    <button class="icon-btn" onclick="closeProfileSwitcher()"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" id="profile-switcher-body"></div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+    const body = document.getElementById('profile-switcher-body');
+    body.innerHTML = state.profiles.map(p => {
+        const active = p.id === state.activeProfileId;
+        return `
+            <div onclick="switchProfile('${p.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:${active ? '#ede9fe' : '#fff'};border:2px solid ${active ? '#7c3aed' : 'var(--border)'};margin-bottom:8px;cursor:pointer">
+                <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;font-size:1.4rem;display:flex;align-items:center;justify-content:center">${p.avatar}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:700">${p.name}</div>
+                    <div style="font-size:0.78rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP</div>
+                </div>
+                ${active ? '<i class="fas fa-check" style="color:#7c3aed"></i>' : ''}
+            </div>`;
+    }).join('') + `
+        <button class="btn btn-primary-solid btn-block" style="margin-top:6px" onclick="openAddProfileModal()">
+            <i class="fas fa-plus"></i> Adicionar perfil
+        </button>`;
+    modal.style.display = 'flex';
+}
+function closeProfileSwitcher() {
+    const m = document.getElementById('profile-switcher-modal');
+    if (m) m.style.display = 'none';
+}
+function openAddProfileModal() {
+    closeProfileSwitcher();
+    let modal = document.getElementById('add-profile-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'add-profile-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-user-plus"></i> Novo perfil</h2>
+                    <button class="icon-btn" onclick="closeAddProfileModal()"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <label>Nome</label>
+                    <input type="text" id="new-profile-name" placeholder="Ex: Eduarda" maxlength="24">
+                    <label>Ano de escolaridade</label>
+                    <div id="new-profile-years" style="display:flex;gap:8px;margin-bottom:10px"></div>
+                    <label>Avatar</label>
+                    <div id="new-profile-avatars" class="avatar-grid"></div>
+                    <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="addProfileFromForm()">
+                        <i class="fas fa-floppy-disk"></i> Criar perfil
+                    </button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('new-profile-name').value = '';
+    const yearsHtml = YEARS_AVAILABLE.map((y, i) => `
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--border);border-radius:10px;cursor:pointer">
+            <input type="radio" name="new-profile-year" value="${y.year}" ${i===0?'checked':''}>
+            <div><div style="font-weight:700">${y.label}</div><div style="font-size:0.7rem;color:var(--text-light)">${y.cycle}</div></div>
+        </label>
+    `).join('');
+    document.getElementById('new-profile-years').innerHTML = yearsHtml;
+    const avGrid = document.getElementById('new-profile-avatars');
+    avGrid.innerHTML = AVATARS.map((a, i) => `
+        <div class="avatar-option ${i===0?'selected':''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
+    `).join('');
+    modal.style.display = 'flex';
+}
+function selectNewProfileAvatar(el) {
+    document.querySelectorAll('#new-profile-avatars .avatar-option').forEach(x => x.classList.remove('selected'));
+    el.classList.add('selected');
+}
+function closeAddProfileModal() {
+    const m = document.getElementById('add-profile-modal');
+    if (m) m.style.display = 'none';
+}
+
 // ========== PROFILE (+ rewards editor) ==========
 function renderProfile() {
+    // Listagem de perfis (gestão)
+    const pList = document.getElementById('profiles-list');
+    if (pList) {
+        pList.innerHTML = state.profiles.map(p => {
+            const active = p.id === state.activeProfileId;
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#ede9fe' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
+                    <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">${p.avatar}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#7c3aed;font-size:0.7rem">(activo)</span>' : ''}</div>
+                        <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
+                    </div>
+                    ${!active ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem" onclick="switchProfile('${p.id}')">Usar</button>` : ''}
+                    <button class="icon-btn" onclick="removeProfile('${p.id}')" title="Apagar perfil"><i class="fas fa-trash" style="color:#dc2626"></i></button>
+                </div>`;
+        }).join('');
+    }
+
     document.getElementById('input-name').value = state.profile.name;
     const grid = document.getElementById('avatar-grid');
     grid.innerHTML = AVATARS.map(a => `
@@ -758,27 +1001,56 @@ async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = f
     const subName = sub.fullName || sub.name;
     const topicsStr = topics.join(', ');
     const isEnglish = subjectKey === 'ingles';
+    const yr = activeProfile()?.year || 6;
+
+    // Persona e regras por ano
+    const persona = yr === 2
+        ? `És uma professora especializada do 2.º ano do 1.º ciclo do Ensino Básico português, com formação em métodos pedagógicos para crianças de 7-8 anos. Crias exercícios curtos, claros, com vocabulário simples e situações do dia-a-dia da criança (família, escola, brinquedos, fruta, animais). Usas SEMPRE Português Europeu (Portugal).`
+        : `És uma professora experiente do 2.º ciclo do Ensino Básico português a criar exercícios de avaliação para uma aluna do ${yr}.º ano (${yr === 6 ? '11-12' : '10-11'} anos).`;
+
+    const ageRule = yr === 2
+        ? 'IDADE: 7-8 anos. Frases curtas (máx. 15 palavras). Vocabulário simples. Em matemática: números até 100, adição/subtração, tabuada do 2/5/10, sólidos básicos, dinheiro até 20€, tempo. PROIBIDO: frações, percentagens, decimais, potências, números negativos, equações.'
+        : `IDADE: ${yr === 6 ? '11-12' : '10-11'} anos. Conceitos do ${yr}.º ano — não conteúdos de anos anteriores.`;
+
     const langRule = isEnglish
-        ? 'LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at A2/B1 level appropriate for a Portuguese 5th grader learning English.'
+        ? 'LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at A2/B1 level for a Portuguese student.'
         : 'LANGUAGE: Português Europeu (Portugal), Acordo Ortográfico 1990. Vocabulário e expressões de Portugal, nunca do Brasil.';
-    const mathNote = subjectKey === 'matematica'
-        ? '\nMATEMÁTICA: Usa frações, potências, prioridade de operações, mmc/mdc, áreas, perímetros, volumes, proporções, percentagens, números negativos. PROIBIDO: adição/subtração simples sem contexto complexo.'
-        : '';
-    const prompt = `És uma professora experiente do ensino básico português a criar exercícios de avaliação para uma aluna do 5.º ano (10-11 anos).
+
+    let mathNote = '';
+    if (subjectKey === 'matematica') {
+        if (yr === 2) {
+            mathNote = '\nMATEMÁTICA 2.º ano: Apenas conceitos do 2.º ano. Em problemas, usa contextos concretos (cromos, chocolates, berlindes, brinquedos, dinheiro pequeno). Apresenta números bem espaçados. EVITA filas longas de algarismos sem espaços.';
+        } else if (yr === 6) {
+            mathNote = '\nMATEMÁTICA 6.º ano: Frações, potências, prioridade de operações, mmc/mdc, áreas, perímetros, volumes, proporções, percentagens, números negativos. PROIBIDO: adição/subtração simples sem contexto complexo.';
+        }
+    }
+
+    // Variedade: lista perguntas existentes para o GROQ evitar repetir
+    const existingForTopics = (state.maxExercises || [])
+        .filter(e => e.s === subjectKey && topics.includes(e.t))
+        .slice(-30)
+        .map(e => `- ${(e.q || '').slice(0, 90)}`)
+        .join('\n');
+    const avoidBlock = existingForTopics
+        ? `\n\nPERGUNTAS JÁ FEITAS NO PASSADO (NÃO REPITAS, nem variações superficiais):\n${existingForTopics}\n\nVARIA o início das perguntas — NÃO comeces sempre por "Qual" ou "O que". Usa também: "Calcula...", "Indica...", "Considera...", "Numa frase como...", "Imagina que...", "Resolve...", "Compara...", "Quantos...", "Em que...", "Como classificas...", "Que valor...".`
+        : '\n\nVARIA o início das perguntas: usa "Qual", "Calcula", "Indica", "Considera", "Imagina que", "Resolve", "Compara", "Quantos", "Em que", "Como", "Que valor".';
+
+    const prompt = `${persona}
 
 DISCIPLINA: ${subName}
 TÓPICOS: ${topicsStr}
 QUANTIDADE: ${count} exercícios
-MODO: ${testPrep ? 'PREPARAÇÃO PARA TESTE — simula perguntas de exame com diferentes graus de dificuldade, cobrindo os tópicos em profundidade. Pelo menos 6 exercícios de dificuldade 3. Inclui sempre "solution" detalhada.' : 'TREINO — variedade de tipos e dificuldades para praticar'}
-${langRule}${mathNote}
+MODO: ${testPrep ? `PREPARAÇÃO PARA TESTE — simula perguntas de exame${yr === 2 ? ' adequadas ao 2.º ano' : ''}, cobrindo os tópicos em profundidade. ${yr === 2 ? 'Pelo menos 4 exercícios de dificuldade 2.' : 'Pelo menos 6 exercícios de dificuldade 3.'} Inclui sempre "solution" detalhada.` : 'TREINO — variedade de tipos e dificuldades'}
+${ageRule}
+${langRule}${mathNote}${avoidBlock}
 
 CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
-1. Cada exercício deve testar um conceito específico do 5.º ano — não anos anteriores.
-2. As perguntas devem ser claras, sem ambiguidade, com uma única resposta correcta.
-3. Nas opções múltiplas, os distratores devem ser plausíveis mas claramente errados para quem sabe a matéria.
-4. Os problemas devem ter contexto real e relevante para uma criança de 10-11 anos (escola, desporto, família, natureza, tecnologia).
-5. A explicação "exp" deve ensinar o raciocínio, não apenas confirmar a resposta.
-6. Pelo menos 4 exercícios de dificuldade 3 (desafiantes mas acessíveis com estudo).
+1. Cada exercício testa um conceito específico do ${yr}.º ano — não anos anteriores nem posteriores.
+2. Perguntas claras, sem ambiguidade, uma única resposta correcta.
+3. Nas opções múltiplas, distratores plausíveis mas claramente errados para quem sabe.
+4. Problemas com contexto real adequado à idade (${yr === 2 ? 'casa, escola, animais, fruta, brinquedos, dinheiro' : 'escola, desporto, família, natureza, tecnologia'}).
+5. A explicação "exp" ensina o raciocínio, não apenas confirma a resposta.
+6. ${yr === 2 ? '2-3' : 'Pelo menos 4'} exercícios de dificuldade ${yr === 2 ? '2' : '3'}.
 7. NUNCA repitas perguntas óbvias ou triviais que qualquer criança saberia sem estudar.
 
 TIPOS DISPONÍVEIS:
@@ -1023,6 +1295,11 @@ function exitSession() {
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
+    // Conforto de leitura: aluno do 2.º ano em matemática (e estudo do meio) → mais espaçamento
+    const yr = activeProfile()?.year;
+    const screenEl = document.getElementById('exercise-screen');
+    const friendly = yr === 2 && (e.s === 'matematica' || e.s === 'estudo_meio');
+    if (screenEl) screenEl.classList.toggle('reader-friendly', !!friendly);
     const dots = s.items.map((_, i) => {
         let cls = '';
         if (i < s.idx) cls = (s.results && s.results[i]) ? 'done' : 'wrong';
@@ -1189,11 +1466,14 @@ async function submitAnswer() {
     } else if (e.type === 'tf') {
         if (selectedAnswer === null) { showToast('Escolhe Verdadeiro ou Falso'); return; }
         isCorrect = selectedAnswer === e.ans;
-    } else if (e.type === 'fill' || e.type === 'problem') {
+    } else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const val = document.getElementById('fill-input')?.value || '';
         if (!val.trim()) { showToast('Escreve uma resposta'); return; }
         const n = normalize(val);
-        isCorrect = (e.ans || []).some(a => normalize(a) === n);
+        isCorrect = (e.ans || []).some(a => {
+            const na = normalize(a);
+            return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
+        });
         // Validação IA como fallback — só se não acertou no matching e há chave API
         if (!isCorrect && state.max?.apiKey) {
             const btn = document.getElementById('submit-btn');
@@ -1292,7 +1572,9 @@ async function loadDetailedExplanation() {
     btn.textContent = '⏳ A carregar…'; btn.disabled = true;
     const correctAns = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
     const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
-    const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Escreve APENAS texto corrido simples. Sem JSON, sem chavetas, sem markdown, sem listas com chaves.`;
+    const yr = activeProfile()?.year || 6;
+    const audience = yr === 2 ? 'um aluno do 2.º ano (7-8 anos), com frases muito curtas e vocabulário simples' : `um aluno do ${yr}.º ano`;
+    const prompt = `Explica de forma clara e simples para ${audience}:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em ${yr === 2 ? '2-3' : '3-5'} frases. Português Europeu (Portugal). Escreve APENAS texto corrido simples. Sem JSON, sem chavetas, sem markdown, sem listas com chaves.`;
     try {
         const { text } = await callClaudeAPI(prompt, 250, false);
         let clean = text.trim();
@@ -1464,6 +1746,11 @@ function updateAll() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Activar o ano do perfil activo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS)
+    if (typeof setActiveYear === 'function') {
+        const p = activeProfile();
+        if (p) setActiveYear(p.year);
+    }
     // Injectar container dos tópicos do teste no modal (se não existir)
     const modalBody = document.querySelector('#test-modal .modal-body');
     if (modalBody && !document.getElementById('test-topics-picker')) {

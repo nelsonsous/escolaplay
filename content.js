@@ -1,8 +1,122 @@
-// EscolaPlay - Banco de exercícios 5.º ano (PT-PT, Acordo Ortográfico)
+// EscolaPlay - Banco de exercícios multi-ano (PT-PT, Acordo Ortográfico)
 // Tipos: mc (escolha múltipla), tf (v/f), fill (preencher), order (ordenar), match (associar)
 // Estrutura: { id, s (disciplina), t (tópico), type, diff (1-3), q (pergunta), ..., exp }
 
-const SUBJECTS = {
+// ============================================================
+// ===================== 2.º ANO ==============================
+// ============================================================
+const SUBJECTS_2 = {
+    portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
+    matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
+    estudo_meio:  { name: 'Estudo do Meio', icon: 'fa-globe',        color: '#16a34a' }
+};
+
+const CURRICULUM_2 = {
+    portugues: ['Vogais e consoantes','Sílabas','Ditongos','Sinónimos','Antónimos','Família de palavras','Tipos de frase','Singular e plural','Verbos no presente'],
+    matematica: ['Números até 100','Dezenas e unidades','Adição até 100','Subtração até 100','Tabuada do 2','Tabuada do 5','Tabuada do 10','Sólidos geométricos','Figuras planas','Medir tempo','Dinheiro (€)'],
+    estudo_meio: ['O meu corpo','A minha família','A escola','Animais','Plantas','Estações do ano','Os sentidos','Profissões','Portugal']
+};
+
+// Períodos por tópico (1, 2 ou 3) — ano lectivo dividido em 3 períodos
+const PERIODS_2 = {
+    portugues:   { 'Vogais e consoantes':1, 'Sílabas':1, 'Ditongos':1, 'Sinónimos':2, 'Antónimos':2, 'Família de palavras':2, 'Tipos de frase':3, 'Singular e plural':3, 'Verbos no presente':3 },
+    matematica:  { 'Números até 100':1, 'Dezenas e unidades':1, 'Adição até 100':1, 'Subtração até 100':2, 'Tabuada do 2':2, 'Tabuada do 5':2, 'Tabuada do 10':2, 'Sólidos geométricos':3, 'Figuras planas':3, 'Medir tempo':3, 'Dinheiro (€)':3 },
+    estudo_meio: { 'O meu corpo':1, 'A minha família':1, 'A escola':1, 'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Os sentidos':3, 'Profissões':3, 'Portugal':3 }
+};
+
+const LESSONS_2 = {
+    'matematica/Números até 100': { title:'Números até 100', body:'Os números até 100 organizam-se por dezenas: 10, 20, 30… Cada número de dois algarismos tem uma dezena (à esquerda) e uma unidade (à direita).\n\nExemplo: **47** = 4 dezenas + 7 unidades.' },
+    'matematica/Dezenas e unidades': { title:'Dezenas e unidades', body:'Cada algarismo num número de 2 algarismos tem um valor diferente conforme a sua posição.\n\nNo número **63**: o 6 vale 60 (6 dezenas) e o 3 vale 3 (3 unidades).' },
+    'matematica/Adição até 100': { title:'Adição', body:'Para somar 23 + 14:\n1) Soma as **unidades**: 3 + 4 = 7.\n2) Soma as **dezenas**: 2 + 1 = 3.\n3) Resultado: **37**.\n\nQuando as unidades passam de 9, "transportamos" 1 dezena.' },
+    'matematica/Subtração até 100': { title:'Subtração', body:'Para subtrair 48 − 15:\n1) Subtrai **unidades**: 8 − 5 = 3.\n2) Subtrai **dezenas**: 4 − 1 = 3.\n3) Resultado: **33**.' },
+    'matematica/Tabuada do 2': { title:'Tabuada do 2', body:'2×1=2, 2×2=4, 2×3=6, 2×4=8, 2×5=10, 2×6=12, 2×7=14, 2×8=16, 2×9=18, 2×10=20.\n\nMultiplicar por 2 é o mesmo que somar o número a si próprio.' },
+    'matematica/Tabuada do 5': { title:'Tabuada do 5', body:'5×1=5, 5×2=10, 5×3=15, 5×4=20, 5×5=25, 5×6=30, 5×7=35, 5×8=40, 5×9=45, 5×10=50.\n\nOs múltiplos de 5 acabam sempre em **0** ou **5**.' },
+    'matematica/Tabuada do 10': { title:'Tabuada do 10', body:'Multiplicar por 10 é fácil: junta-se **um zero** ao número. 3×10=30, 7×10=70.' },
+    'matematica/Sólidos geométricos': { title:'Sólidos geométricos', body:'Os sólidos têm volume. Os mais comuns: **cubo** (dado), **esfera** (bola), **cilindro** (lata), **cone** (gelado), **pirâmide** (pirâmide do Egipto), **paralelepípedo** (caixa de sapatos).' },
+    'matematica/Figuras planas': { title:'Figuras planas', body:'Figuras planas têm 2 dimensões. **Triângulo** (3 lados), **Quadrado** (4 lados iguais), **Retângulo** (4 lados, 2 a 2), **Círculo** (sem lados rectos).' },
+    'matematica/Medir tempo': { title:'Medir tempo', body:'**1 hora = 60 minutos. 1 minuto = 60 segundos. 1 dia = 24 horas. 1 semana = 7 dias. 1 mês ≈ 30 dias. 1 ano = 12 meses = 365 dias.**' },
+    'matematica/Dinheiro (€)': { title:'Dinheiro', body:'A moeda em Portugal é o **euro (€)**. Há moedas (1c, 2c, 5c, 10c, 20c, 50c, 1€, 2€) e notas (5€, 10€, 20€, 50€, 100€, 200€, 500€).\n\n100 cêntimos = 1 euro.' },
+    'portugues/Vogais e consoantes': { title:'Vogais e consoantes', body:'As **5 vogais** são: **a, e, i, o, u**.\n\nTodas as outras letras do alfabeto são **consoantes**.' },
+    'portugues/Sílabas': { title:'Sílabas', body:'Cada palavra divide-se em **sílabas** — pedacinhos que dizemos numa única emissão de voz.\n\nEx.: ca-sa (2 sílabas), bo-la (2), pa-pa-gai-o (4).' },
+    'portugues/Ditongos': { title:'Ditongos', body:'**Ditongo** = duas vogais juntas na mesma sílaba.\n\nEx.: pai (a+i), céu (e+u), mãe (ã+e).' },
+    'portugues/Sinónimos': { title:'Sinónimos', body:'**Sinónimos** são palavras com significado parecido.\n\nEx.: bonito = belo; rápido = veloz; alegre = contente.' },
+    'portugues/Antónimos': { title:'Antónimos', body:'**Antónimos** são palavras com significado oposto.\n\nEx.: alto ≠ baixo; quente ≠ frio; alegre ≠ triste.' },
+    'portugues/Família de palavras': { title:'Família de palavras', body:'Palavras da mesma **família** partilham parte do nome (a "raiz") e ideias próximas.\n\nEx.: **flor** → florista, florido, florescer, floricultura.' },
+    'portugues/Tipos de frase': { title:'Tipos de frase', body:'**Declarativa** (afirma): "O céu está azul."\n**Interrogativa** (pergunta): "O céu está azul?"\n**Exclamativa** (emoção!): "Que céu lindo!"\n**Imperativa** (ordem/pedido): "Olha para o céu."' },
+    'portugues/Singular e plural': { title:'Singular e plural', body:'**Singular** = um. **Plural** = mais do que um.\n\nRegra geral: junta "s" no fim → casa/casas. Em "-al" ou "-ol" muda para "-ais"/"-óis": animal/animais; lençol/lençóis.' },
+    'portugues/Verbos no presente': { title:'Verbos no presente', body:'O **presente** é o tempo de agora. Verbo **correr**:\nEu corro · Tu corres · Ele corre · Nós corremos · Vós correis · Eles correm.' },
+    'estudo_meio/O meu corpo': { title:'O corpo humano', body:'O corpo humano divide-se em três partes: **cabeça**, **tronco** e **membros**. Os membros superiores são os braços; os inferiores são as pernas.' },
+    'estudo_meio/A minha família': { title:'A família', body:'A família mais próxima é a **família nuclear**: pais e irmãos. A **família alargada** inclui avós, tios, primos, padrinhos.' },
+    'estudo_meio/A escola': { title:'A escola', body:'Na escola aprendemos, brincamos e fazemos amigos. Devemos **respeitar** colegas, professores e funcionários, e cuidar dos materiais.' },
+    'estudo_meio/Animais': { title:'Animais', body:'Os animais classificam-se de muitas formas. Quanto à reprodução: **ovíparos** (põem ovos — galinha, peixe) e **vivíparos** (nascem da mãe — gato, cão, humano). Os peixes respiram por **guelras**; os mamíferos por **pulmões**.' },
+    'estudo_meio/Plantas': { title:'Plantas', body:'Uma planta tem geralmente **raiz** (debaixo da terra), **caule**, **folhas**, **flor** e **fruto**. As plantas precisam de **água**, **luz** e **ar** para viver.' },
+    'estudo_meio/Estações do ano': { title:'Estações do ano', body:'**Primavera** (flores), **Verão** (calor), **Outono** (folhas caem) e **Inverno** (frio).' },
+    'estudo_meio/Os sentidos': { title:'Os 5 sentidos', body:'**Visão** (olhos), **audição** (ouvidos), **olfato** (nariz), **paladar** (boca/língua) e **tato** (pele).' },
+    'estudo_meio/Profissões': { title:'Profissões', body:'Cada profissão ajuda a comunidade: **médico** trata doentes, **professor** ensina, **bombeiro** apaga fogos, **padeiro** faz pão, **agricultor** cultiva alimentos.' },
+    'estudo_meio/Portugal': { title:'Portugal', body:'Portugal fica na Europa, na **Península Ibérica**. A capital é **Lisboa**. A bandeira tem **verde** e **vermelho** com o brasão. A língua oficial é o **português**.' }
+};
+
+const EXERCISES_2 = [
+    // Português
+    { id:'2p1', s:'portugues', t:'Vogais e consoantes', type:'mc', diff:1, q:'Quais são as vogais?', opts:['a, e, i, o, u','a, b, c, d, e','b, c, d, f, g','i, j, k, l, m'], ans:0, exp:'As vogais são 5: a, e, i, o, u.' },
+    { id:'2p2', s:'portugues', t:'Sílabas', type:'fill', diff:1, q:'Quantas sílabas tem a palavra "menina"?', ans:['3','três'], exp:'Me-ni-na = 3 sílabas.' },
+    { id:'2p3', s:'portugues', t:'Sílabas', type:'mc', diff:1, q:'Como se divide a palavra "escola"?', opts:['esc-ola','es-co-la','e-sco-la','esco-la'], ans:1, exp:'es-co-la = 3 sílabas.' },
+    { id:'2p4', s:'portugues', t:'Sinónimos', type:'mc', diff:1, q:'Qual é o sinónimo de "bonito"?', opts:['feio','belo','triste','rápido'], ans:1, exp:'Bonito e belo significam o mesmo.' },
+    { id:'2p5', s:'portugues', t:'Antónimos', type:'mc', diff:1, q:'Qual é o antónimo de "alto"?', opts:['grande','baixo','forte','rápido'], ans:1, exp:'Alto ≠ baixo.' },
+    { id:'2p6', s:'portugues', t:'Antónimos', type:'fill', diff:1, q:'O antónimo de "quente" é ___.', ans:['frio'], exp:'Quente ≠ frio.' },
+    { id:'2p7', s:'portugues', t:'Singular e plural', type:'fill', diff:1, q:'Qual é o plural de "casa"?', ans:['casas'], exp:'Acrescenta-se "s" no final.' },
+    { id:'2p8', s:'portugues', t:'Singular e plural', type:'fill', diff:2, q:'Qual é o plural de "papel"?', ans:['papéis','papeis'], exp:'Palavras em "-el" fazem plural em "-éis".' },
+    { id:'2p9', s:'portugues', t:'Tipos de frase', type:'mc', diff:1, q:'"Que dia bonito!" é uma frase:', opts:['interrogativa','exclamativa','declarativa','imperativa'], ans:1, exp:'Termina com "!" → exclamativa.' },
+    { id:'2p10', s:'portugues', t:'Verbos no presente', type:'fill', diff:1, q:'Eu ___ (correr) no parque. (presente)', ans:['corro'], exp:'Eu corro, tu corres, ele corre.' },
+    { id:'2p11', s:'portugues', t:'Família de palavras', type:'mc', diff:2, q:'Qual destas palavras NÃO pertence à família de "flor"?', opts:['florista','florido','florescer','feliz'], ans:3, exp:'Florista, florido e florescer vêm de flor. Feliz não.' },
+    { id:'2p12', s:'portugues', t:'Ditongos', type:'mc', diff:1, q:'Qual destas palavras tem um ditongo?', opts:['casa','pai','sol','livro'], ans:1, exp:'Em "pai", "ai" é um ditongo (duas vogais juntas).' },
+    { id:'2p13', s:'portugues', t:'Vogais e consoantes', type:'fill', diff:1, q:'Quantas vogais existem? ___', ans:['5','cinco'], exp:'a, e, i, o, u → 5 vogais.' },
+    { id:'2p14', s:'portugues', t:'Sinónimos', type:'fill', diff:2, q:'Sinónimo de "alegre": ___', ans:['contente','feliz'], exp:'Alegre = contente = feliz.' },
+
+    // Matemática
+    { id:'2m1', s:'matematica', t:'Números até 100', type:'mc', diff:1, q:'Quantas dezenas tem o número 47?', opts:['4','7','47','40'], ans:0, exp:'47 = 4 dezenas + 7 unidades.' },
+    { id:'2m2', s:'matematica', t:'Dezenas e unidades', type:'fill', diff:1, q:'O número que tem 6 dezenas e 3 unidades é ___.', ans:['63'], exp:'6 dezenas = 60. 60 + 3 = 63.' },
+    { id:'2m3', s:'matematica', t:'Adição até 100', type:'fill', diff:1, q:'25 + 13 = ___', ans:['38'], exp:'5+3=8 (unidades). 2+1=3 (dezenas). Resultado: 38.' },
+    { id:'2m4', s:'matematica', t:'Adição até 100', type:'problem', diff:2, q:'A Eduarda tem 27 cromos e a Joana tem 15. Quantos cromos têm ao todo?', ans:['42'], material:'Soma os dois números: 27 + 15.', solution:'Unidades: 7+5=12 (escrevo 2 e transporto 1). Dezenas: 2+1+1=4. Resultado: 42 cromos.', exp:'Soma com transporte.' },
+    { id:'2m5', s:'matematica', t:'Subtração até 100', type:'fill', diff:1, q:'48 − 15 = ___', ans:['33'], exp:'8−5=3 (unidades). 4−1=3 (dezenas). Resultado: 33.' },
+    { id:'2m6', s:'matematica', t:'Subtração até 100', type:'problem', diff:2, q:'Tinha 50 berlindes e perdi 18. Com quantos fiquei?', ans:['32'], material:'Subtração: 50 − 18.', solution:'50 − 10 = 40. 40 − 8 = 32. Fiquei com 32 berlindes.', exp:'Subtração com empréstimo.' },
+    { id:'2m7', s:'matematica', t:'Tabuada do 2', type:'fill', diff:1, q:'2 × 7 = ___', ans:['14'], exp:'2 × 7 = 7 + 7 = 14.' },
+    { id:'2m8', s:'matematica', t:'Tabuada do 2', type:'mc', diff:1, q:'Quanto é 2 × 6?', opts:['10','12','14','8'], ans:1, exp:'2 × 6 = 12.' },
+    { id:'2m9', s:'matematica', t:'Tabuada do 5', type:'fill', diff:1, q:'5 × 4 = ___', ans:['20'], exp:'5 × 4 = 20.' },
+    { id:'2m10', s:'matematica', t:'Tabuada do 5', type:'problem', diff:2, q:'A Eduarda tem 5 sacos com 3 chocolates em cada. Quantos chocolates tem?', ans:['15'], material:'Multiplica: 5 × 3.', solution:'5 + 5 + 5 = 15. Ou 5 × 3 = 15.', exp:'Multiplicação como soma repetida.' },
+    { id:'2m11', s:'matematica', t:'Tabuada do 10', type:'fill', diff:1, q:'10 × 8 = ___', ans:['80'], exp:'Multiplicar por 10: junta um zero. 8 → 80.' },
+    { id:'2m12', s:'matematica', t:'Sólidos geométricos', type:'mc', diff:1, q:'Qual destes objetos tem a forma de uma esfera?', opts:['caixa de sapatos','bola de futebol','livro','pirâmide'], ans:1, exp:'A bola é uma esfera.' },
+    { id:'2m13', s:'matematica', t:'Figuras planas', type:'mc', diff:1, q:'Quantos lados tem um triângulo?', opts:['2','3','4','5'], ans:1, exp:'Triângulo = 3 lados.' },
+    { id:'2m14', s:'matematica', t:'Figuras planas', type:'mc', diff:1, q:'Uma figura com 4 lados iguais é um:', opts:['triângulo','quadrado','círculo','retângulo'], ans:1, exp:'Quadrado: 4 lados iguais.' },
+    { id:'2m15', s:'matematica', t:'Medir tempo', type:'fill', diff:1, q:'Quantos minutos tem 1 hora? ___', ans:['60'], exp:'1 hora = 60 minutos.' },
+    { id:'2m16', s:'matematica', t:'Medir tempo', type:'mc', diff:1, q:'Quantos dias tem uma semana?', opts:['5','6','7','30'], ans:2, exp:'Uma semana = 7 dias.' },
+    { id:'2m17', s:'matematica', t:'Dinheiro (€)', type:'problem', diff:2, q:'Uma sandes custa 2€ e um sumo custa 1€. Quanto custa o lanche?', ans:['3','3€','3 euros'], material:'Soma: 2 + 1.', solution:'2 + 1 = 3. O lanche custa 3€.', exp:'Adição simples.' },
+    { id:'2m18', s:'matematica', t:'Dinheiro (€)', type:'problem', diff:2, q:'A Eduarda tinha 10€ e comprou um livro de 6€. Quanto dinheiro lhe ficou?', ans:['4','4€','4 euros'], material:'Subtração: 10 − 6.', solution:'10 − 6 = 4. Ficou com 4€.', exp:'Subtração com dinheiro.' },
+    { id:'2m19', s:'matematica', t:'Números até 100', type:'order', diff:2, q:'Ordena do menor para o maior: 27, 7, 72, 17', items:['7','17','27','72'], exp:'Comparam-se as dezenas primeiro.' },
+    { id:'2m20', s:'matematica', t:'Tabuada do 5', type:'mc', diff:1, q:'Qual é o resultado de 5 × 9?', opts:['40','45','50','55'], ans:1, exp:'5 × 9 = 45.' },
+
+    // Estudo do Meio
+    { id:'2e1', s:'estudo_meio', t:'O meu corpo', type:'mc', diff:1, q:'Quais são as 3 grandes partes do corpo humano?', opts:['cabeça, tronco, membros','braços, pernas, mãos','olhos, nariz, boca','músculos, ossos, pele'], ans:0, exp:'Cabeça, tronco e membros (braços e pernas).' },
+    { id:'2e2', s:'estudo_meio', t:'Os sentidos', type:'mc', diff:1, q:'Com que sentido ouvimos os sons?', opts:['visão','audição','olfato','tato'], ans:1, exp:'Audição = ouvir, com os ouvidos.' },
+    { id:'2e3', s:'estudo_meio', t:'Os sentidos', type:'fill', diff:1, q:'Quantos sentidos temos? ___', ans:['5','cinco'], exp:'Visão, audição, olfato, paladar e tato.' },
+    { id:'2e4', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'Os peixes respiram com:', opts:['pulmões','guelras','traqueia','pele'], ans:1, exp:'Os peixes têm guelras (brânquias).' },
+    { id:'2e5', s:'estudo_meio', t:'Animais', type:'tf', diff:1, q:'O pinguim é uma ave.', ans:true, exp:'O pinguim é uma ave (tem penas e bico) que não voa mas nada muito bem.' },
+    { id:'2e6', s:'estudo_meio', t:'Plantas', type:'mc', diff:1, q:'A parte da planta que está debaixo da terra chama-se:', opts:['caule','folha','raiz','flor'], ans:2, exp:'A raiz fica debaixo da terra e absorve a água.' },
+    { id:'2e7', s:'estudo_meio', t:'Estações do ano', type:'mc', diff:1, q:'Em que estação caem as folhas das árvores?', opts:['Primavera','Verão','Outono','Inverno'], ans:2, exp:'No Outono, as folhas mudam de cor e caem.' },
+    { id:'2e8', s:'estudo_meio', t:'Estações do ano', type:'fill', diff:1, q:'A estação mais quente do ano é o ___.', ans:['verão','Verão','verao'], exp:'Verão = calor.' },
+    { id:'2e9', s:'estudo_meio', t:'A minha família', type:'mc', diff:1, q:'O irmão do meu pai é o meu:', opts:['avô','tio','primo','padrinho'], ans:1, exp:'Irmão do pai/mãe = tio.' },
+    { id:'2e10', s:'estudo_meio', t:'A escola', type:'tf', diff:1, q:'Na escola devemos respeitar os colegas e os professores.', ans:true, exp:'O respeito é uma regra básica na escola.' },
+    { id:'2e11', s:'estudo_meio', t:'Profissões', type:'mc', diff:1, q:'Quem cuida dos doentes no hospital?', opts:['professor','médico','padeiro','jardineiro'], ans:1, exp:'O médico (com a ajuda dos enfermeiros) cuida dos doentes.' },
+    { id:'2e12', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Qual é a capital de Portugal?', opts:['Porto','Coimbra','Lisboa','Faro'], ans:2, exp:'A capital de Portugal é Lisboa.' },
+    { id:'2e13', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Quais são as cores da bandeira de Portugal?', opts:['azul e branco','verde e vermelho','vermelho e amarelo','verde e branco'], ans:1, exp:'A bandeira portuguesa é verde e vermelha, com o brasão.' },
+    { id:'2e14', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'Um animal que põe ovos chama-se:', opts:['vivíparo','ovíparo','mamífero','herbívoro'], ans:1, exp:'Ovíparo: nasce de um ovo.' }
+];
+
+
+// ============================================================
+// ===================== 6.º ANO ==============================
+// ============================================================
+const SUBJECTS_6 = {
     portugues:  { name: 'Português',  icon: 'fa-book',         color: '#e11d48' },
     matematica: { name: 'Matemática', icon: 'fa-calculator',   color: '#2563eb' },
     ingles:     { name: 'Inglês',     icon: 'fa-language',     color: '#16a34a' },
@@ -12,7 +126,7 @@ const SUBJECTS = {
 
 // ========== LIÇÕES (mini-explicações por tópico) ==========
 // Chave: `${subject}/${topic}` (o tópico corresponde ao campo t do exercício)
-const LESSONS = {
+const LESSONS_6 = {
     // ----- Português -----
     'portugues/Classes de palavras': {
         title: 'Classes de palavras',
@@ -364,7 +478,7 @@ const LESSONS = {
 
 // ========== EXERCÍCIOS ==========
 // Total: ~160 exercícios, ~20-30 por disciplina (Matemática enriquecida ao estilo MX 5)
-const EXERCISES = [
+const EXERCISES_6 = [
     // ========== PORTUGUÊS (22) ==========
     { id:'p1', s:'portugues', t:'Classes de palavras', type:'mc', diff:1, q:'Qual destas palavras é um nome?', opts:['correr','bonito','cão','rapidamente'], ans:2, exp:'"Cão" é um nome (substantivo). "Correr" é verbo, "bonito" é adjetivo, "rapidamente" é advérbio.' },
     { id:'p2', s:'portugues', t:'Classes de palavras', type:'mc', diff:1, q:'Na frase "A menina está feliz", a palavra "feliz" é um...', opts:['nome','adjetivo','verbo','advérbio'], ans:1, exp:'Adjetivo qualifica o nome ("menina feliz").' },
@@ -725,7 +839,7 @@ const EXERCISES = [
 
 // ========== CURRICULUM (ordem dos tópicos do livro / programa) ==========
 // Ordem aproximada dos manuais do 5.º ano (Porto Editora MX 5 para Matemática).
-const CURRICULUM = {
+const CURRICULUM_6 = {
     matematica: [
         'Números naturais',
         'Divisibilidade',
@@ -821,8 +935,61 @@ const CURRICULUM = {
     ]
 };
 
-// Expor globalmente
-window.SUBJECTS = SUBJECTS;
-window.EXERCISES = EXERCISES;
-window.LESSONS = LESSONS;
+// ============================================================
+// =============== EXPORTS / SELECTOR DE ANO ==================
+// ============================================================
+const PERIODS_6 = {
+    matematica:  { 'Números naturais':1, 'Divisibilidade':1, 'Números primos':1, 'MMC/MDC':1, 'Potências':1, 'Operações':1, 'Frações':2, 'Dízimas':2, 'Percentagens':2, 'Sequências':2, 'Ângulos':2, 'Retas':2, 'Triângulos':3, 'Quadriláteros':3, 'Perímetros':3, 'Áreas':3, 'Volume':3, 'Estatística':3 },
+    portugues:   { 'Ortografia':1, 'Classes de palavras':1, 'Determinantes':1, 'Pronomes':2, 'Verbos':2, 'Funções sintáticas':2, 'Pontuação':2, 'Plurais':3, 'Recursos expressivos':3, 'Tipos de texto':3 },
+    ingles:      { 'Greetings':1, 'Numbers':1, 'Days':1, 'Months':1, 'Family':1, 'School':2, 'Colors':2, 'Articles':2, 'Verb to be':2, 'Plurals':3, 'Present simple':3, 'Prepositions':3, 'Questions':3 },
+    ciencias:    { 'Seres vivos':1, 'Classificação':1, 'Vertebrados':1, 'Anfíbios':1, 'Aves':1, 'Invertebrados':1, 'Revestimento':2, 'Alimentação':2, 'Reprodução':2, 'Cadeia alimentar':2, 'Ecossistema':2, 'Habitat':2, 'Plantas':3, 'Água':3, 'Solo':3, 'Rochas':3 },
+    hgp:         { 'Localização':1, 'Fronteiras':1, 'Continentes':1, 'Oceanos':1, 'Europa':1, 'Pontos cardeais':1, 'Distritos':1, 'Capitais':1, 'Rios':2, 'Relevo':2, 'Montanha':2, 'Ilhas':2, 'Clima':2, 'Pré-história':2, 'Romanos':2, 'Bárbaros':2, 'Muçulmanos':3, 'Reconquista':3, 'Fundação':3, 'Lisboa':3, 'Batalhas':3, 'Reis':3, 'Cultura':3, 'Símbolos':3, 'Dinastias':3, 'Ordem cronológica':3 }
+};
+
+const YEARS_AVAILABLE = [
+    { year: 2, label: '2.º ano', cycle: '1.º ciclo' },
+    { year: 6, label: '6.º ano', cycle: '2.º ciclo' }
+];
+
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   6: SUBJECTS_6 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 6: CURRICULUM_6 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  6: EXERCISES_6 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    6: LESSONS_6 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    6: PERIODS_6 };
+
+// Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
+// directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
+let SUBJECTS   = SUBJECTS_6;
+let CURRICULUM = CURRICULUM_6;
+let EXERCISES  = EXERCISES_6;
+let LESSONS    = LESSONS_6;
+let PERIODS    = PERIODS_6;
+
+function setActiveYear(year) {
+    const y = SUBJECTS_BY_YEAR[year] ? year : 6;
+    SUBJECTS   = SUBJECTS_BY_YEAR[y];
+    CURRICULUM = CURRICULUM_BY_YEAR[y];
+    EXERCISES  = EXERCISES_BY_YEAR[y];
+    LESSONS    = LESSONS_BY_YEAR[y];
+    PERIODS    = PERIODS_BY_YEAR[y];
+    window.SUBJECTS   = SUBJECTS;
+    window.CURRICULUM = CURRICULUM;
+    window.EXERCISES  = EXERCISES;
+    window.LESSONS    = LESSONS;
+    window.PERIODS    = PERIODS;
+    window.activeYear = y;
+}
+
+window.YEARS_AVAILABLE     = YEARS_AVAILABLE;
+window.SUBJECTS_BY_YEAR    = SUBJECTS_BY_YEAR;
+window.CURRICULUM_BY_YEAR  = CURRICULUM_BY_YEAR;
+window.EXERCISES_BY_YEAR   = EXERCISES_BY_YEAR;
+window.LESSONS_BY_YEAR     = LESSONS_BY_YEAR;
+window.PERIODS_BY_YEAR     = PERIODS_BY_YEAR;
+window.setActiveYear       = setActiveYear;
+window.SUBJECTS   = SUBJECTS;
 window.CURRICULUM = CURRICULUM;
+window.EXERCISES  = EXERCISES;
+window.LESSONS    = LESSONS;
+window.PERIODS    = PERIODS;
+window.activeYear = 6;
