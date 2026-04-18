@@ -1087,7 +1087,10 @@ async function aiValidateAnswer(exercise, studentAnswer) {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached !== null) return cached === '1';
     const correctAnswers = (exercise.ans || []).join(' ou ');
-    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas e formas equivalentes. Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
+    const langNote = exercise.s === 'ingles'
+        ? ' The answer must be in English — Portuguese words are NOT accepted as correct even if they mean the same thing.'
+        : '';
+    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas e formas equivalentes.${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
     try {
         const { text } = await callClaudeAPI(prompt, 30);
         const correct = /"ok"\s*:\s*true/.test(text);
