@@ -284,7 +284,6 @@ function updateHeader() {
     document.getElementById('avatar').textContent = state.profile.avatar;
     document.getElementById('user-name').textContent = state.profile.name;
     document.getElementById('level-name').textContent = lvl.name;
-    document.getElementById('level-num').textContent = lvl.number;
     document.getElementById('streak-days').textContent = state.streak.days;
     document.getElementById('xp-total').textContent = state.xp;
     document.getElementById('xp-into-level').textContent = lvl.into;
