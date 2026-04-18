@@ -660,7 +660,7 @@ function saveMaxConfig() {
 }
 
 // ========== MAX: chamada à Groq API ==========
-async function callClaudeAPI(prompt, maxTokens = 3500) {
+async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
     const key = state.max?.apiKey;
     if (!key) throw new Error('Sem chave API');
     const controller = new AbortController();
@@ -679,7 +679,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
                 max_tokens: maxTokens,
                 temperature: 0.7,
                 messages: [
-                    { role: 'system', content: 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.' },
+                    { role: 'system', content: wantJson ? 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.' : 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.' },
                     { role: 'user', content: prompt }
                 ]
             })
@@ -1090,7 +1090,10 @@ function matchPickRight(j) {
 // ========== VALIDAÇÃO IA ==========
 async function aiValidateAnswer(exercise, studentAnswer) {
     const n = normalize(studentAnswer);
-    if ((exercise.ans || []).some(a => normalize(a) === n)) return true;
+    if ((exercise.ans || []).some(a => {
+        const na = normalize(a);
+        return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
+    })) return true;
     const cacheKey = `aival_${exercise.id}_${n.slice(0, 40)}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached !== null) return cached === '1';
@@ -1098,7 +1101,7 @@ async function aiValidateAnswer(exercise, studentAnswer) {
     const langNote = exercise.s === 'ingles'
         ? ' The answer must be in English — Portuguese words are NOT accepted as correct even if they mean the same thing.'
         : '';
-    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas e formas equivalentes. Usa Português de Portugal (não brasileiro).${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
+    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas, formas equivalentes e respostas parciais onde a palavra-chave está correcta (ex: "atlântico" é válido para "Oceano Atlântico"). Usa Português de Portugal (não brasileiro).${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
     try {
         const { text } = await callClaudeAPI(prompt, 30);
         const correct = /"ok"\s*:\s*true/.test(text);
@@ -1227,7 +1230,7 @@ async function loadDetailedExplanation() {
     const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
     const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Usa Português de Portugal (não brasileiro), simples. Sem markdown.`;
     try {
-        const { text } = await callClaudeAPI(prompt, 250);
+        const { text } = await callClaudeAPI(prompt, 250, false);
         const html = text.trim().replace(/\n/g, '<br>');
         sessionStorage.setItem(cacheKey, html);
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
