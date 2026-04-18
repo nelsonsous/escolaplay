@@ -283,8 +283,18 @@ function openSubjectDetail(key) {
                     <i class="fas fa-play"></i> Começar treino
                 </button>
                 <button class="btn btn-max btn-block" style="margin-top:8px" onclick="startMaxSession('${key}')">
-                    <i class="fas fa-wand-magic-sparkles"></i> Treino MAX
+                    <i class="fas fa-wand-magic-sparkles"></i> Treino MAX (todos os tópicos)
                 </button>
+                <div id="max-topic-sel-bar" style="display:none;margin-top:8px;background:#f5f3ff;border-radius:12px;padding:10px 12px">
+                    <div style="font-size:0.8rem;font-weight:700;color:#6d28d9;margin-bottom:6px"><i class="fas fa-check-square"></i> Tópicos selecionados: <span id="max-sel-count">0</span></div>
+                    <button class="btn btn-max btn-block" style="margin-bottom:6px" onclick="startMaxForSelected('${key}', false)">
+                        <i class="fas fa-wand-magic-sparkles"></i> Gerar MAX para estes tópicos
+                    </button>
+                    <button class="btn btn-block" style="margin-bottom:6px;background:#dc2626;color:#fff;border-radius:12px;padding:12px;font-weight:700;font-size:0.95rem" onclick="startMaxForSelected('${key}', true)">
+                        <i class="fas fa-graduation-cap"></i> Preparação para teste
+                    </button>
+                    <button class="btn btn-secondary btn-block" style="font-size:0.8rem" onclick="clearTopicSelection()">Limpar seleção</button>
+                </div>
                 <button class="btn btn-secondary btn-block" style="margin-top:6px;font-size:0.85rem" onclick="startMaxSession('${key}', {forceNew:true})">
                     <i class="fas fa-rotate"></i> Gerar perguntas novas (usa API)
                 </button>
@@ -298,6 +308,8 @@ function openSubjectDetail(key) {
     renderTopicList();
 }
 
+let selectedTopicsForMax = new Set();
+
 function renderTopicList() {
     const key = currentSubjectView;
     const topics = CURRICULUM[key] || [];
@@ -309,17 +321,47 @@ function renderTopicList() {
         const isActive = active.has(t);
         const count = EXERCISES.filter(e => e.s === key && e.t === t).length
                     + (state.maxExercises || []).filter(e => e.s === key && e.t === t).length;
+        const sel = selectedTopicsForMax.has(t);
+        const tEsc = t.replace(/'/g, "\\'");
         return `
-            <div style="background:#fff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:6px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'}">
-                <span style="width:24px;height:24px;border-radius:50%;background:${isActive ? SUBJECTS[key].color : '#e5e7eb'};color:#fff;font-size:0.72rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:6px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
+                ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
+                <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? SUBJECTS[key].color : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:600;font-size:0.9rem">${t}</div>
-                    <div style="font-size:0.7rem;color:var(--text-light)">${count} exercícios · ${LESSONS[`${key}/${t}`] ? 'tem explicação' : ''}</div>
+                    <div style="font-size:0.7rem;color:var(--text-light)">${count} exercícios${LESSONS[`${key}/${t}`] ? ' · tem explicação' : ''}</div>
                 </div>
-                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="openLessonByKey('${key}/${t.replace(/'/g, "\\'")}')" title="Ver explicação"><i class="fas fa-lightbulb"></i></button>` : ''}
+                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Ver explicação"><i class="fas fa-lightbulb"></i></button>` : ''}
             </div>
         `;
     }).join('');
+    updateTopicSelBar();
+}
+
+function toggleTopicSelection(topic) {
+    if (selectedTopicsForMax.has(topic)) selectedTopicsForMax.delete(topic);
+    else selectedTopicsForMax.add(topic);
+    renderTopicList();
+}
+
+function clearTopicSelection() {
+    selectedTopicsForMax.clear();
+    renderTopicList();
+}
+
+function updateTopicSelBar() {
+    const bar = document.getElementById('max-topic-sel-bar');
+    const cnt = document.getElementById('max-sel-count');
+    if (!bar) return;
+    const n = selectedTopicsForMax.size;
+    bar.style.display = n > 0 ? 'block' : 'none';
+    if (cnt) cnt.textContent = n;
+}
+
+function startMaxForSelected(key, isTestPrep = false) {
+    const topics = [...selectedTopicsForMax];
+    selectedTopicsForMax.clear();
+    startMaxSession(key, { topics, forceNew: true, testPrep: isTestPrep });
 }
 
 function onProgressSlider(val) {
@@ -331,6 +373,7 @@ function onProgressSlider(val) {
 }
 
 function closeSubjectDetail() {
+    selectedTopicsForMax.clear();
     const el = document.getElementById('subject-detail-container');
     if (el) el.remove();
     currentSubjectView = null;
@@ -700,7 +743,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
     return { text, usage: data.usage };
 }
 
-async function generateMaxExercises(subjectKey, topics, count = 12) {
+async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = false) {
     const sub = SUBJECTS[subjectKey];
     const subName = sub.fullName || sub.name;
     const topicsStr = topics.join(', ');
@@ -716,6 +759,7 @@ async function generateMaxExercises(subjectKey, topics, count = 12) {
 DISCIPLINA: ${subName}
 TÓPICOS: ${topicsStr}
 QUANTIDADE: ${count} exercícios
+MODO: ${testPrep ? 'PREPARAÇÃO PARA TESTE — simula perguntas de exame com diferentes graus de dificuldade, cobrindo os tópicos em profundidade. Pelo menos 6 exercícios de dificuldade 3. Inclui sempre "solution" detalhada.' : 'TREINO — variedade de tipos e dificuldades para praticar'}
 ${langRule}${mathNote}
 
 CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
@@ -844,9 +888,10 @@ async function startMaxSession(subjectKey, opts = {}) {
         return;
     }
 
-    showMaxLoader('A gerar exercícios novos com IA…');
+    const isTestPrep = opts.testPrep || false;
+    showMaxLoader(isTestPrep ? 'A preparar simulação de teste…' : 'A gerar exercícios novos com IA…');
     try {
-        const { items, lessons } = await generateMaxExercises(subjectKey, topics, 12);
+        const { items, lessons } = await generateMaxExercises(subjectKey, topics, 12, isTestPrep);
         setMaxCache(subjectKey, topics, items);
         // Guardar no pool offline permanente
         const existingIds = new Set((state.maxExercises || []).map(e => e.id));
