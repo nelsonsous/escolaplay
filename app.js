@@ -986,10 +986,10 @@ function renderQuestion() {
     const area = document.getElementById('ex-answer-area');
     if (e.type === 'mc') area.innerHTML = renderMC(e);
     else if (e.type === 'tf') area.innerHTML = renderTF(e);
-    else if (e.type === 'fill' || e.type === 'problem') area.innerHTML = renderFill(e);
+    else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') area.innerHTML = renderFill(e);
     else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; setTimeout(redrawMatch, 0); }
-    if (e.type === 'fill' || e.type === 'problem') {
+    if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
             inp.value = '';
