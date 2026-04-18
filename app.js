@@ -1229,10 +1229,20 @@ async function loadDetailedExplanation() {
     btn.textContent = '⏳ A carregar…'; btn.disabled = true;
     const correctAns = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
     const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
-    const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Usa Português de Portugal (não brasileiro), simples. Sem markdown.`;
+    const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Escreve APENAS texto corrido simples. Sem JSON, sem chavetas, sem markdown, sem listas com chaves.`;
     try {
         const { text } = await callClaudeAPI(prompt, 250, false);
-        const html = text.trim().replace(/\n/g, '<br>');
+        let clean = text.trim();
+        // Se o modelo ainda devolveu JSON, extrai os valores de texto
+        if (clean.startsWith('{')) {
+            try {
+                const obj = JSON.parse(clean);
+                clean = Object.values(obj).filter(v => typeof v === 'string').join(' ');
+            } catch(_) {
+                clean = clean.replace(/[{}"]/g, '').replace(/\w+:/g, '').trim();
+            }
+        }
+        const html = clean.replace(/\n/g, '<br>');
         sessionStorage.setItem(cacheKey, html);
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
     } catch(err) { btn.textContent = '💡 Explicar passo a passo'; btn.disabled = false; }
