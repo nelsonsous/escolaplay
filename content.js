@@ -959,25 +959,33 @@ const PERIODS_BY_YEAR    = { 2: PERIODS_2,    6: PERIODS_6 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
-let SUBJECTS   = SUBJECTS_6;
-let CURRICULUM = CURRICULUM_6;
-let EXERCISES  = EXERCISES_6;
-let LESSONS    = LESSONS_6;
-let PERIODS    = PERIODS_6;
+// Iniciam vazios — só são preenchidos quando existe um perfil activo (regra: nada é
+// carregado por defeito; só os anos dos perfis criados é que ficam disponíveis).
+let SUBJECTS   = {};
+let CURRICULUM = {};
+let EXERCISES  = {};
+let LESSONS    = {};
+let PERIODS    = [];
 
 function setActiveYear(year) {
-    const y = SUBJECTS_BY_YEAR[year] ? year : 6;
-    SUBJECTS   = SUBJECTS_BY_YEAR[y];
-    CURRICULUM = CURRICULUM_BY_YEAR[y];
-    EXERCISES  = EXERCISES_BY_YEAR[y];
-    LESSONS    = LESSONS_BY_YEAR[y];
-    PERIODS    = PERIODS_BY_YEAR[y];
+    if (!SUBJECTS_BY_YEAR[year]) {
+        SUBJECTS = {}; CURRICULUM = {}; EXERCISES = {}; LESSONS = {}; PERIODS = [];
+        window.SUBJECTS = SUBJECTS; window.CURRICULUM = CURRICULUM;
+        window.EXERCISES = EXERCISES; window.LESSONS = LESSONS; window.PERIODS = PERIODS;
+        window.activeYear = null;
+        return;
+    }
+    SUBJECTS   = SUBJECTS_BY_YEAR[year];
+    CURRICULUM = CURRICULUM_BY_YEAR[year];
+    EXERCISES  = EXERCISES_BY_YEAR[year];
+    LESSONS    = LESSONS_BY_YEAR[year];
+    PERIODS    = PERIODS_BY_YEAR[year];
     window.SUBJECTS   = SUBJECTS;
     window.CURRICULUM = CURRICULUM;
     window.EXERCISES  = EXERCISES;
     window.LESSONS    = LESSONS;
     window.PERIODS    = PERIODS;
-    window.activeYear = y;
+    window.activeYear = year;
 }
 
 window.YEARS_AVAILABLE     = YEARS_AVAILABLE;
@@ -992,4 +1000,4 @@ window.CURRICULUM = CURRICULUM;
 window.EXERCISES  = EXERCISES;
 window.LESSONS    = LESSONS;
 window.PERIODS    = PERIODS;
-window.activeYear = 6;
+window.activeYear = null;

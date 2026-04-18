@@ -46,7 +46,8 @@ const BADGES = [
 ];
 
 // ========== STATE ==========
-let state = loadState();
+// Inicializado no DOMContentLoaded (depois de PROFILE_FIELDS, AVATARS, etc. estarem prontos).
+let state;
 let currentSession = null;
 let selectedAnswer = null;
 let matchSelection = { left: null };
@@ -61,9 +62,12 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
 const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','tests','rewards','progress','maxExercises','maxLessons'];
 
-function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year = 6 } = {}) {
-    const subs = SUBJECTS_BY_YEAR[year] || SUBJECTS_BY_YEAR[6];
-    const curr = CURRICULUM_BY_YEAR[year] || CURRICULUM_BY_YEAR[6];
+function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
+    if (!year || !SUBJECTS_BY_YEAR[year]) {
+        year = parseInt(Object.keys(SUBJECTS_BY_YEAR)[0]);
+    }
+    const subs = SUBJECTS_BY_YEAR[year];
+    const curr = CURRICULUM_BY_YEAR[year];
     const subStats = {};
     Object.keys(subs).forEach(k => { subStats[k] = { answered: 0, correct: 0, xp: 0 }; });
     const prog = {};
@@ -89,10 +93,9 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year = 6 } = {}) {
 }
 
 function defaultState() {
-    const p = newProfile({ name: 'Aluno(a)', avatar: AVATARS[0], year: 6 });
     return {
-        profiles: [p],
-        activeProfileId: p.id,
+        profiles: [],
+        activeProfileId: null,
         max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0 }
     };
 }
@@ -132,26 +135,33 @@ function loadState() {
             return installStateProxy(s);
         }
 
-        // Estado novo já tem profiles[]
+        // Estado novo já tem profiles[] (pode estar vazio até o utilizador criar o primeiro perfil)
         const s = {
-            profiles: parsed.profiles.map(p => ({ ...newProfile({ year: p.year || 6 }), ...p })),
+            profiles: parsed.profiles.map(p => {
+                const yr = SUBJECTS_BY_YEAR[p.year] ? p.year : (Object.keys(SUBJECTS_BY_YEAR)[0] | 0);
+                return { ...newProfile({ year: yr }), ...p, year: yr };
+            }),
             activeProfileId: parsed.activeProfileId,
             max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
         };
         if (!s.max.enabled) s.max.enabled = true;
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
         s.profiles.forEach(p => {
-            const curr = CURRICULUM_BY_YEAR[p.year] || CURRICULUM_BY_YEAR[6];
-            Object.keys(curr).forEach(k => {
+            const curr = CURRICULUM_BY_YEAR[p.year];
+            if (curr) Object.keys(curr).forEach(k => {
                 if (!p.progress[k]) p.progress[k] = { toIndex: curr[k].length };
             });
-            const subs = SUBJECTS_BY_YEAR[p.year] || SUBJECTS_BY_YEAR[6];
-            Object.keys(subs).forEach(k => {
+            const subs = SUBJECTS_BY_YEAR[p.year];
+            if (subs) Object.keys(subs).forEach(k => {
                 if (!p.subjects[k]) p.subjects[k] = { answered: 0, correct: 0, xp: 0 };
             });
             if (p.currentPeriod == null) p.currentPeriod = 1;
         });
-        if (!s.profiles.find(p => p.id === s.activeProfileId)) s.activeProfileId = s.profiles[0].id;
+        if (s.profiles.length === 0) {
+            s.activeProfileId = null;
+        } else if (!s.profiles.find(p => p.id === s.activeProfileId)) {
+            s.activeProfileId = s.profiles[0].id;
+        }
         return installStateProxy(s);
     } catch(e) {
         console.error('loadState', e);
@@ -208,7 +218,8 @@ function addProfileFromForm() {
     const avEl   = document.querySelector('#new-profile-avatars .avatar-option.selected');
     const name = (nameEl?.value || '').trim();
     if (!name) { showToast('Escreve um nome'); return; }
-    const year = parseInt(yearEl?.value || '6');
+    const fallbackYear = (window.YEARS_AVAILABLE && window.YEARS_AVAILABLE[0]?.year) || 2;
+    const year = parseInt(yearEl?.value || String(fallbackYear));
     const avatar = avEl?.dataset.avatar || AVATARS[Math.floor(Math.random()*AVATARS.length)];
     const p = newProfile({ name, avatar, year });
     state.profiles.push(p);
@@ -223,12 +234,13 @@ function addProfileFromForm() {
 }
 
 function removeProfile(id) {
-    if (state.profiles.length <= 1) { showToast('Tem de existir pelo menos um perfil'); return; }
     const p = state.profiles.find(x => x.id === id);
     if (!p) return;
     if (!confirm(`Apagar o perfil de ${p.name}? Todo o progresso será perdido.`)) return;
     state.profiles = state.profiles.filter(x => x.id !== id);
-    if (state.activeProfileId === id) {
+    if (state.profiles.length === 0) {
+        state.activeProfileId = null;
+    } else if (state.activeProfileId === id) {
         state.activeProfileId = state.profiles[0].id;
         setActiveYear(state.profiles[0].year);
     }
@@ -797,7 +809,7 @@ function openAddProfileModal() {
             <div class="modal-content">
                 <div class="modal-header">
                     <h2><i class="fas fa-user-plus"></i> Novo perfil</h2>
-                    <button class="icon-btn" onclick="closeAddProfileModal()"><i class="fas fa-xmark"></i></button>
+                    <button class="icon-btn" id="add-profile-close" onclick="closeAddProfileModal()"><i class="fas fa-xmark"></i></button>
                 </div>
                 <div class="modal-body">
                     <label>Nome</label>
@@ -813,6 +825,9 @@ function openAddProfileModal() {
             </div>`;
         document.body.appendChild(modal);
     }
+    // Se ainda não há nenhum perfil, esconde o X (não pode fechar sem criar)
+    const closeBtn = document.getElementById('add-profile-close');
+    if (closeBtn) closeBtn.style.display = hasAnyProfile() ? '' : 'none';
     document.getElementById('new-profile-name').value = '';
     const yearsHtml = YEARS_AVAILABLE.map((y, i) => `
         <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--border);border-radius:10px;cursor:pointer">
@@ -1735,7 +1750,50 @@ function closeLessonModal() {
 }
 
 // ========== BOOT ==========
+function hasAnyProfile() { return state && Array.isArray(state.profiles) && state.profiles.length > 0; }
+
+function showFirstRunGate() {
+    // Esconde o avatar/nome/header data e abre o modal de criar perfil sem botão de fechar.
+    const av = document.getElementById('avatar');           if (av) av.textContent = '\uD83C\uDF93';
+    const nm = document.getElementById('user-name');        if (nm) nm.textContent = 'Bem-vindo!';
+    const yr = document.getElementById('header-year');      if (yr) yr.textContent = '—';
+    const lv = document.getElementById('level-name');       if (lv) lv.textContent = 'Cria o teu perfil';
+    ['streak-days','xp-total','xp-into-level'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '0'; });
+    const xp = document.getElementById('xp-bar-fill');      if (xp) xp.style.width = '0%';
+    // Substituir o conteúdo do tab activo por uma chamada à acção
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    let gate = document.getElementById('first-run-gate');
+    if (!gate) {
+        gate = document.createElement('section');
+        gate.id = 'first-run-gate';
+        gate.className = 'tab-content';
+        gate.innerHTML = `
+            <div class="hero-card" style="text-align:center">
+                <div class="hero-icon" style="margin:0 auto 10px"><i class="fas fa-user-plus"></i></div>
+                <h2>Vamos começar!</h2>
+                <p style="margin:8px 0 14px;color:var(--text-light)">Cria o primeiro perfil para escolheres o ano de escolaridade.</p>
+                <button class="btn btn-primary btn-block" onclick="openAddProfileModal()">
+                    <i class="fas fa-plus"></i> Criar perfil
+                </button>
+            </div>`;
+        document.querySelector('#app').appendChild(gate);
+    }
+    gate.classList.add('active');
+    openAddProfileModal();
+}
+
+function hideFirstRunGate() {
+    const gate = document.getElementById('first-run-gate');
+    if (gate) gate.classList.remove('active');
+    // restaurar tab activo se nenhum estiver visível
+    if (!document.querySelector('.tab-content.active')) {
+        document.getElementById('tab-home')?.classList.add('active');
+    }
+}
+
 function updateAll() {
+    if (!hasAnyProfile()) { showFirstRunGate(); return; }
+    hideFirstRunGate();
     updateHeader();
     renderHome();
     renderSubjects();
@@ -1745,7 +1803,10 @@ function updateAll() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Activar o ano do perfil activo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS)
+    // Inicializar estado agora — neste ponto PROFILE_FIELDS, AVATARS, defaultState etc. já existem.
+    state = loadState();
+    // Activar o ano do perfil activo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS).
+    // Se não existir perfil, não carrega nada (regra: nenhum ano por defeito).
     if (typeof setActiveYear === 'function') {
         const p = activeProfile();
         if (p) setActiveYear(p.year);
