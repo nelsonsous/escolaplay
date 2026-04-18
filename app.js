@@ -68,7 +68,9 @@ function defaultState() {
         tests: [],
         rewards: JSON.parse(JSON.stringify(DEFAULT_REWARDS)),
         progress: prog,
-        max: { enabled: false, apiKey: '', totalGenerated: 0, totalRequests: 0 }
+        max: { enabled: false, apiKey: '', totalGenerated: 0, totalRequests: 0 },
+        maxExercises: [],
+        maxLessons: {}
     };
 }
 function loadState() {
@@ -84,6 +86,8 @@ function loadState() {
         merged.daily    = { ...base.daily, ...(parsed.daily || {}) };
         merged.progress = { ...base.progress, ...(parsed.progress || {}) };
         merged.max = { ...base.max, ...(parsed.max || {}) };
+        merged.maxExercises = Array.isArray(parsed.maxExercises) ? parsed.maxExercises : [];
+        merged.maxLessons = (parsed.maxLessons && typeof parsed.maxLessons === 'object') ? parsed.maxLessons : {};
         if (!Array.isArray(merged.tests)) merged.tests = [];
         if (!Array.isArray(merged.rewards) || merged.rewards.length === 0) merged.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
         // Garante que cada disciplina tem toIndex
@@ -460,7 +464,7 @@ function startTestPrep(testId) {
     const perTopic = Math.max(2, Math.ceil(target / topicsOrdered.length));
     const items = [];
     topicsOrdered.forEach(topic => {
-        const pool = EXERCISES.filter(e => e.s === key && e.t === topic);
+        const pool = allExercisesFor(key, new Set([topic]));
         const fresh = pool.filter(e => !recent.has(e.id));
         const chosen = (fresh.length >= perTopic ? fresh : pool)
             .sort(() => Math.random() - 0.5)
@@ -670,7 +674,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
     return { text, usage: data.usage };
 }
 
-async function generateMaxExercises(subjectKey, topics, count = 6) {
+async function generateMaxExercises(subjectKey, topics, count = 12) {
     const sub = SUBJECTS[subjectKey];
     const subName = sub.fullName || sub.name;
     const topicsStr = topics.join(', ');
@@ -684,10 +688,11 @@ REGRAS:
 - Mistura tipos: escolha múltipla, preencher, verdadeiro/falso e problemas contextualizados (estes últimos devem ser pelo menos metade para Matemática).
 - Cada "problem" tem enunciado com contexto real, campo "material" (regra em 1-2 linhas) e "solution" (resolução passo-a-passo).
 - Respostas curtas e sem ambiguidade.
+- Para cada tópico inclui uma mini-lição de 2-3 frases no campo "lessons".
 
 Responde APENAS com um objecto JSON válido no formato exacto (sem markdown, sem comentários):
 
-{"exercises":[
+{"lessons":{"<tópico>":"<explicação do tópico em 2-3 frases>"},"exercises":[
   {"t":"<tópico>","type":"mc","diff":2,"q":"<pergunta>","opts":["A","B","C","D"],"ans_mc":0,"exp":"<explicação curta>"},
   {"t":"<tópico>","type":"tf","diff":1,"q":"<afirmação>","ans_tf":true,"exp":"<explicação>"},
   {"t":"<tópico>","type":"fill","diff":2,"q":"<pergunta>","ans_fill":["resposta","variante"],"exp":"<explicação>"},
@@ -726,7 +731,8 @@ Responde APENAS com um objecto JSON válido no formato exacto (sem markdown, sem
         return ex;
     }).filter(e => e.q && e.type && (e.type === 'tf' ? typeof e.ans === 'boolean' : e.ans !== undefined));
     if (items.length === 0) throw new Error('Nenhum exercício válido na resposta');
-    return { items, usage };
+    const lessons = parsed.lessons || {};
+    return { items, lessons, usage };
 }
 
 function showMaxLoader(msg) {
@@ -746,8 +752,8 @@ function getMaxCache(subjectKey, topics) {
         const raw = localStorage.getItem(maxCacheKey(subjectKey, topics));
         if (!raw) return null;
         const { items, ts } = JSON.parse(raw);
-        // Cache válido por 7 dias
-        if (Date.now() - ts > 7 * 24 * 3600 * 1000) return null;
+        // Cache válido por 30 dias
+        if (Date.now() - ts > 30 * 24 * 3600 * 1000) return null;
         return items;
     } catch(e) { return null; }
 }
@@ -784,8 +790,16 @@ async function startMaxSession(subjectKey, opts = {}) {
 
     showMaxLoader('A gerar exercícios novos com IA…');
     try {
-        const { items } = await generateMaxExercises(subjectKey, topics, 6);
+        const { items, lessons } = await generateMaxExercises(subjectKey, topics, 12);
         setMaxCache(subjectKey, topics, items);
+        // Guardar no pool offline permanente
+        const existingIds = new Set((state.maxExercises || []).map(e => e.id));
+        const newExs = items.filter(e => !existingIds.has(e.id));
+        state.maxExercises = [...(state.maxExercises || []), ...newExs].slice(-500);
+        // Guardar mini-lições
+        Object.entries(lessons).forEach(([topic, text]) => {
+            state.maxLessons[`${subjectKey}/${topic}`] = { title: topic, body: text };
+        });
         state.max.totalGenerated = (state.max.totalGenerated || 0) + items.length;
         state.max.totalRequests = (state.max.totalRequests || 0) + 1;
         saveState();
@@ -847,11 +861,17 @@ function pickExercises(pool, n) {
     return shuffled.slice(0, n);
 }
 
+function allExercisesFor(subjectKey, activeTopics) {
+    const base = EXERCISES.filter(e => e.s === subjectKey && activeTopics.has(e.t));
+    const maxEx = (state.maxExercises || []).filter(e => e.s === subjectKey && activeTopics.has(e.t));
+    return [...base, ...maxEx];
+}
+
 function startDailyChallenge() {
     const items = [];
     Object.keys(SUBJECTS).forEach(key => {
         const active = activeTopicsFor(key);
-        const pool = EXERCISES.filter(e => e.s === key && active.has(e.t));
+        const pool = allExercisesFor(key, active);
         if (pool.length === 0) return;
         items.push(pool[Math.floor(Math.random() * pool.length)]);
     });
@@ -864,7 +884,7 @@ function startDailyChallenge() {
 
 function startSubjectSession(key) {
     const active = activeTopicsFor(key);
-    const pool = EXERCISES.filter(e => e.s === key && active.has(e.t));
+    const pool = allExercisesFor(key, active);
     if (pool.length === 0) { showToast('Sem exercícios. Aumenta o teu progresso para incluir mais tópicos.'); return; }
     const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key };
@@ -1217,7 +1237,7 @@ function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function openLessonByKey(key) {
-    const lesson = LESSONS[key];
+    const lesson = LESSONS[key] || state.maxLessons?.[key];
     const [subKey, topic] = key.split('/');
     const subName = SUBJECTS[subKey]?.name || subKey;
     document.getElementById('lesson-title').innerHTML = `<i class="fas fa-lightbulb"></i> ${subName} · ${topic}`;
