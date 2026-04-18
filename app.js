@@ -237,6 +237,30 @@ function _loadExtraScript(file) {
     });
 }
 
+// Normaliza exercícios para garantir que o schema é consistente, mesmo
+// quando os ficheiros gerados têm pequenos desvios (ans:string em problem,
+// order sem items, etc.). Sem isto, submitAnswer/renderQuestion crasham.
+function _sanitizeExercise(e) {
+    if (!e || !e.type) return null;
+    if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
+        if (typeof e.ans === 'string' || typeof e.ans === 'number') e.ans = [String(e.ans)];
+        else if (!Array.isArray(e.ans)) e.ans = [];
+    }
+    if (e.type === 'order') {
+        if (!Array.isArray(e.items)) {
+            if (Array.isArray(e.opts)) e.items = e.opts.slice();
+            else return null;
+        }
+    }
+    if (e.type === 'match' && !Array.isArray(e.pairs)) return null;
+    if (e.type === 'mc') {
+        if (!Array.isArray(e.opts) || e.opts.length < 2) return null;
+        if (typeof e.ans !== 'number' || e.ans < 0 || e.ans >= e.opts.length) return null;
+    }
+    if (e.type === 'tf' && typeof e.ans !== 'boolean') return null;
+    return e;
+}
+
 function loadYearExtras(year) {
     if (!year) return Promise.resolve(0);
     if (_yearExtrasLoaded[year]) return _yearExtrasLoaded[year];
@@ -252,7 +276,8 @@ function loadYearExtras(year) {
         let added = 0;
         arrays.forEach(arr => {
             if (!Array.isArray(arr)) return;
-            arr.forEach(e => {
+            arr.forEach(raw => {
+                const e = _sanitizeExercise(raw);
                 if (e && e.id && !existing.has(e.id)) {
                     base.push(e);
                     existing.add(e.id);
