@@ -195,6 +195,80 @@ function activeProfile() {
     return state.profiles.find(p => p.id === state.activeProfileId) || state.profiles[0];
 }
 
+// ========== Lazy-load do banco extra por ano ==========
+// Os ficheiros content_<year>_*.js só são descarregados quando o utilizador
+// activa um perfil desse ano. Cada ano tem múltiplos ficheiros (um por
+// disciplina) carregados em paralelo. Cache por ano: cada conjunto carrega
+// no máximo uma vez por sessão.
+const YEAR_EXTRA_FILES = {
+    2: [
+        { src: 'content_2_extra.js',    varName: 'EXERCISES_2_EXTRA' },
+        { src: 'content_2_p_extra2.js', varName: 'EXERCISES_2_P_EXTRA2' },
+        { src: 'content_2_m_extra2.js', varName: 'EXERCISES_2_M_EXTRA2' },
+        { src: 'content_2_e_extra2.js', varName: 'EXERCISES_2_E_EXTRA2' },
+        { src: 'content_2_i_extra2.js', varName: 'EXERCISES_2_I_EXTRA2' }
+    ],
+    5: [
+        { src: 'content_5_p_extra.js', varName: 'EXERCISES_5_P_EXTRA' },
+        { src: 'content_5_m_extra.js', varName: 'EXERCISES_5_M_EXTRA' },
+        { src: 'content_5_i_extra.js', varName: 'EXERCISES_5_I_EXTRA' },
+        { src: 'content_5_c_extra.js', varName: 'EXERCISES_5_C_EXTRA' },
+        { src: 'content_5_h_extra.js', varName: 'EXERCISES_5_H_EXTRA' }
+    ],
+    6: [
+        { src: 'content_6_p_extra.js', varName: 'EXERCISES_6_P_EXTRA' },
+        { src: 'content_6_m_extra.js', varName: 'EXERCISES_6_M_EXTRA' },
+        { src: 'content_6_i_extra.js', varName: 'EXERCISES_6_I_EXTRA' },
+        { src: 'content_6_c_extra.js', varName: 'EXERCISES_6_C_EXTRA' },
+        { src: 'content_6_h_extra.js', varName: 'EXERCISES_6_H_EXTRA' }
+    ]
+};
+
+const _yearExtrasLoaded = {};
+
+function _loadExtraScript(file) {
+    return new Promise(resolve => {
+        const s = document.createElement('script');
+        s.src = `${file.src}?v=${Date.now()}`;
+        s.async = true;
+        s.onload = () => resolve(window[file.varName] || []);
+        s.onerror = () => resolve([]);
+        document.head.appendChild(s);
+    });
+}
+
+function loadYearExtras(year) {
+    if (!year) return Promise.resolve(0);
+    if (_yearExtrasLoaded[year]) return _yearExtrasLoaded[year];
+    const files = YEAR_EXTRA_FILES[year] || [];
+    if (!files.length) {
+        _yearExtrasLoaded[year] = Promise.resolve(0);
+        return _yearExtrasLoaded[year];
+    }
+    _yearExtrasLoaded[year] = Promise.all(files.map(_loadExtraScript)).then(arrays => {
+        const base = window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[year];
+        if (!Array.isArray(base)) return 0;
+        const existing = new Set(base.map(e => e && e.id));
+        let added = 0;
+        arrays.forEach(arr => {
+            if (!Array.isArray(arr)) return;
+            arr.forEach(e => {
+                if (e && e.id && !existing.has(e.id)) {
+                    base.push(e);
+                    existing.add(e.id);
+                    added++;
+                }
+            });
+        });
+        if (window.activeYear === year) window.EXERCISES = base;
+        if (added > 0 && typeof updateAll === 'function') {
+            try { updateAll(); } catch {}
+        }
+        return added;
+    });
+    return _yearExtrasLoaded[year];
+}
+
 function saveState() {
     // Serializar apenas { profiles, activeProfileId, max } — os getters não são enumeráveis
     const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max };
@@ -206,6 +280,7 @@ function switchProfile(id) {
     if (!p) return;
     state.activeProfileId = id;
     setActiveYear(p.year);
+    loadYearExtras(p.year);
     selectedTopicsForMax.clear();
     saveState();
     closeProfileSwitcher();
@@ -226,6 +301,7 @@ function addProfileFromForm() {
     state.profiles.push(p);
     state.activeProfileId = p.id;
     setActiveYear(p.year);
+    loadYearExtras(p.year);
     selectedTopicsForMax.clear();
     saveState();
     closeAddProfileModal();
@@ -244,6 +320,7 @@ function removeProfile(id) {
     } else if (state.activeProfileId === id) {
         state.activeProfileId = state.profiles[0].id;
         setActiveYear(state.profiles[0].year);
+        loadYearExtras(state.profiles[0].year);
     }
     saveState();
     renderProfile();
@@ -991,44 +1068,54 @@ function saveMaxConfig() {
 }
 
 // ========== MAX: chamada à Groq API ==========
-async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
-    const key = state.max?.apiKey;
-    if (!key) throw new Error('Sem chave API');
+const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+
+async function _callGroq(model, prompt, maxTokens, wantJson, key) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    let res;
     try {
-        res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             signal: controller.signal,
-            headers: {
-                'content-type': 'application/json',
-                'authorization': `Bearer ${key}`
-            },
+            headers: { 'content-type': 'application/json', 'authorization': `Bearer ${key}` },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                max_tokens: maxTokens,
-                temperature: 0.7,
+                model, max_tokens: maxTokens, temperature: 0.7,
                 messages: [
                     { role: 'system', content: wantJson ? 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.' : 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.' },
                     { role: 'user', content: prompt }
                 ]
             })
         });
-    } catch(e) {
-        if (e.name === 'AbortError') throw new Error('Tempo esgotado (30s). Verifica a ligação.');
-        throw new Error('Erro de rede: ' + e.message);
-    } finally {
-        clearTimeout(timeout);
-    }
-    if (!res.ok) {
+        return res;
+    } finally { clearTimeout(timeout); }
+}
+
+async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
+    const key = state.max?.apiKey;
+    if (!key) throw new Error('Sem chave API');
+    let lastErr = '';
+    for (let i = 0; i < GROQ_MODELS.length; i++) {
+        const model = GROQ_MODELS[i];
+        let res;
+        try {
+            res = await _callGroq(model, prompt, maxTokens, wantJson, key);
+        } catch (e) {
+            if (e.name === 'AbortError') throw new Error('Tempo esgotado (30s). Verifica a ligação.');
+            throw new Error('Erro de rede: ' + e.message);
+        }
+        if (res.ok) {
+            const data = await res.json();
+            const text = data.choices?.[0]?.message?.content || '';
+            if (!text) throw new Error('Resposta vazia do Groq');
+            if (i > 0) console.warn(`MAX: usado modelo de fallback ${model}`);
+            return { text, usage: data.usage, model };
+        }
         const errText = await res.text();
-        throw new Error(`Groq ${res.status}: ${errText.slice(0, 300)}`);
+        lastErr = `Groq ${res.status}: ${errText.slice(0, 300)}`;
+        // 429 (rate limit) ou 503 (capacidade): tenta o próximo modelo
+        if (res.status !== 429 && res.status !== 503) break;
     }
-    const data = await res.json();
-    const text = data.choices?.[0]?.message?.content || '';
-    if (!text) throw new Error('Resposta vazia do Groq');
-    return { text, usage: data.usage };
+    throw new Error(lastErr || 'Erro desconhecido Groq');
 }
 
 async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = false) {
@@ -2165,7 +2252,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Se não existir perfil, não carrega nada (regra: nenhum ano por defeito).
     if (typeof setActiveYear === 'function') {
         const p = activeProfile();
-        if (p) setActiveYear(p.year);
+        if (p) { setActiveYear(p.year); loadYearExtras(p.year); }
     }
     // Injectar container dos tópicos do teste no modal (se não existir)
     const modalBody = document.querySelector('#test-modal .modal-body');
