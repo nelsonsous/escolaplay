@@ -1020,26 +1020,48 @@ async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = f
     const isEnglish = subjectKey === 'ingles';
     const yr = activeProfile()?.year || 6;
 
-    // Persona e regras por ano
-    const persona = yr === 2
-        ? `És uma professora especializada do 2.º ano do 1.º ciclo do Ensino Básico português, com formação em métodos pedagógicos para crianças de 7-8 anos. Crias exercícios curtos, claros, com vocabulário simples e situações do dia-a-dia da criança (família, escola, brinquedos, fruta, animais). Usas SEMPRE Português Europeu (Portugal).`
-        : `És uma professora experiente do 2.º ciclo do Ensino Básico português a criar exercícios de avaliação para uma aluna do ${yr}.º ano (${yr === 6 ? '11-12' : '10-11'} anos).`;
+    // Persona e regras por ano (aderente ao Programa e Aprendizagens Essenciais — AE 2018 — DGE/ME Portugal)
+    let persona;
+    if (yr === 2) {
+        persona = `És uma professora titular do 2.º ano do 1.º ciclo do Ensino Básico português, com 15+ anos de experiência e formação em métodos pedagógicos para crianças de 7-8 anos. Crias exercícios EXACTAMENTE de acordo com as Aprendizagens Essenciais (AE 2018, DGE/ME) e com os manuais escolares de referência usados em Portugal (Texto "Pasta Mágica", Porto Editora "Alfa", Leya "Top!", Santillana "A Grande Aventura"). Usas vocabulário simples, frases curtas e contextos concretos do dia-a-dia da criança (família, escola, brinquedos, fruta, animais, dinheiro pequeno). Português Europeu, sempre.`;
+    } else if (yr === 5) {
+        persona = `És um professor titular do 5.º ano do 2.º ciclo do Ensino Básico português, com 15+ anos de experiência. Crias exercícios EXACTAMENTE de acordo com as Aprendizagens Essenciais (AE 2018, DGE/ME) e com os manuais escolares de referência usados em Portugal (Porto Editora "Diálogos"/"Numa Aventura"/"Páginas"; Texto "Mensagens"/"Asa"; Leya "Novo Plural"; Santillana). O 5.º ano é o início do 2.º ciclo: foca conceitos novos sem assumir tudo do 1.º ciclo. Português Europeu, sempre.`;
+    } else if (yr === 6) {
+        persona = `És uma professora titular do 6.º ano do 2.º ciclo do Ensino Básico português, com 15+ anos de experiência. Crias exercícios EXACTAMENTE de acordo com as Aprendizagens Essenciais (AE 2018, DGE/ME) e com os manuais escolares de referência usados em Portugal (Porto Editora "Diálogos 6"/"Eureka 6"/"MSI 6"; Texto "Mensagens 6"; Leya "(MAT) Pi 6"). O 6.º ano consolida e aprofunda — exige raciocínio mais elaborado que o 5.º (frações operatórias, potências, funções sintáticas, modos verbais avançados). Português Europeu, sempre.`;
+    } else {
+        persona = `És um(a) professor(a) titular do ${yr}.º ano do Ensino Básico português, com 15+ anos de experiência, aderente às AE 2018 da DGE/ME e aos manuais escolares de referência (Porto Editora, Texto, Leya, Santillana). Português Europeu, sempre.`;
+    }
 
-    const ageRule = yr === 2
-        ? 'IDADE: 7-8 anos. Frases curtas (máx. 15 palavras). Vocabulário simples. Em matemática: números até 100, adição/subtração, tabuada do 2/5/10, sólidos básicos, dinheiro até 20€, tempo. PROIBIDO: frações, percentagens, decimais, potências, números negativos, equações.'
-        : `IDADE: ${yr === 6 ? '11-12' : '10-11'} anos. Conceitos do ${yr}.º ano — não conteúdos de anos anteriores.`;
+    let ageRule;
+    if (yr === 2) {
+        ageRule = 'IDADE: 7-8 anos. Frases curtas (máx. 15 palavras). Vocabulário simples e familiar. Em Matemática (AE 2.º ano): contar/ler/escrever até 1000, valor posicional (centenas/dezenas/unidades), adição e subtração com transporte/empréstimo até 100 (até 1000 sem), tabuada do 2/3/4/5/6/10, sequências, sólidos geométricos básicos, simetria, dinheiro até 20€, leitura de horas certas e meias. PROIBIDO: frações com denominador ≠ 2, 3 ou 4; percentagens; decimais; potências; números negativos; equações; divisões longas.';
+    } else if (yr === 5) {
+        ageRule = 'IDADE: 10-11 anos. Estritamente conteúdos do 5.º ano segundo as AE: números naturais, divisibilidade básica, frações iniciais, perímetros, áreas elementares, ângulos, retas, classes de palavras, funções sintáticas básicas (sujeito, predicado), seres vivos, classificação animal, geografia de Portugal, pré-história/romanos/muçulmanos/fundação. NÃO entres em conteúdos do 6.º ano (operações com frações, potências, sistema digestivo/circulatório, séc. XV em diante).';
+    } else if (yr === 6) {
+        ageRule = 'IDADE: 11-12 anos. Estritamente conteúdos do 6.º ano segundo as AE: números racionais e operações com frações, potências de expoente natural, sequências, proporcionalidade direta, áreas/volumes, isometrias, estatística (média/mediana/moda); funções sintáticas avançadas (CD, CI, modificador, predicativo do sujeito), modos verbais (incl. conjuntivo), tempos compostos, discurso direto/indireto; sistemas do organismo humano; História de Portugal séc. XV-XX (Expansão, União Ibérica, Restauração, Iluminismo, Liberalismo, 1.ª República, Estado Novo, 25 de Abril). NÃO recuar para conteúdos do 5.º.';
+    } else {
+        ageRule = `IDADE adequada ao ${yr}.º ano. Estritamente conteúdos desse ano segundo as AE.`;
+    }
 
     const langRule = isEnglish
-        ? 'LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at A2/B1 level for a Portuguese student.'
+        ? `LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at ${yr === 2 ? 'A1 (very beginner — single words, basic greetings, numbers, colors, animals)' : 'A2/B1'} level for a Portuguese student.`
         : 'LANGUAGE: Português Europeu (Portugal), Acordo Ortográfico 1990. Vocabulário e expressões de Portugal, nunca do Brasil.';
 
     let mathNote = '';
     if (subjectKey === 'matematica') {
         if (yr === 2) {
             mathNote = '\nMATEMÁTICA 2.º ano: Apenas conceitos do 2.º ano. Em problemas, usa contextos concretos (cromos, chocolates, berlindes, brinquedos, dinheiro pequeno). Apresenta números bem espaçados. EVITA filas longas de algarismos sem espaços.';
+        } else if (yr === 5) {
+            mathNote = '\nMATEMÁTICA 5.º ano: Números naturais, MDC/MMC, divisibilidade, frações simples (introdução), percentagens elementares, ângulos, perímetros, áreas de quadriláteros simples. EVITAR: operações complexas com frações, potências, volumes, isometrias (são do 6.º).';
         } else if (yr === 6) {
-            mathNote = '\nMATEMÁTICA 6.º ano: Frações, potências, prioridade de operações, mmc/mdc, áreas, perímetros, volumes, proporções, percentagens, números negativos. PROIBIDO: adição/subtração simples sem contexto complexo.';
+            mathNote = '\nMATEMÁTICA 6.º ano: Operações com frações, potências de expoente natural, prioridade de operações, mmc/mdc avançado, áreas (paralelogramo, triângulo, trapézio, círculo), volumes (prismas, cilindros), proporções, percentagens avançadas, sequências, estatística (média/mediana/moda), isometrias. PROIBIDO: adição/subtração simples sem contexto, ou conteúdos do 5.º isolados.';
         }
+    }
+
+    // Regras anti-erro para tipo 'tf' — historicamente o modelo gera tf com ans incorrecto
+    let tfRule = '\nREGRA TF: Para cada exercício "tf", verifica MATEMATICAMENTE/FACTUALMENTE a afirmação ANTES de definir ans_tf. Se houver QUALQUER ambiguidade, NÃO uses tf — usa mc ou fill. Exemplos PROIBIDOS de tf: "O número X é composto por Y dezenas e Z unidades" (ambíguo se X = Y×10+Z é Verdadeiro mas pode ser interpretado de outra forma).';
+    if (yr === 2 && subjectKey === 'matematica') {
+        tfRule = '\nREGRA TF: PROIBIDO usar tipo "tf" em Matemática do 2.º ano (crianças de 7 anos confundem-se com afirmações). Usa apenas mc, fill ou problem.';
     }
 
     // Variedade: lista perguntas existentes para o GROQ evitar repetir
@@ -1059,7 +1081,7 @@ TÓPICOS: ${topicsStr}
 QUANTIDADE: ${count} exercícios
 MODO: ${testPrep ? `PREPARAÇÃO PARA TESTE — simula perguntas de exame${yr === 2 ? ' adequadas ao 2.º ano' : ''}, cobrindo os tópicos em profundidade. ${yr === 2 ? 'Pelo menos 4 exercícios de dificuldade 2.' : 'Pelo menos 6 exercícios de dificuldade 3.'} Inclui sempre "solution" detalhada.` : 'TREINO — variedade de tipos e dificuldades'}
 ${ageRule}
-${langRule}${mathNote}${avoidBlock}
+${langRule}${mathNote}${tfRule}${avoidBlock}
 
 CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
 1. Cada exercício testa um conceito específico do ${yr}.º ano — não anos anteriores nem posteriores.
