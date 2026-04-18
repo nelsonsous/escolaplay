@@ -715,8 +715,9 @@ Gera ${count} exercícios de ${subName} cobrindo os tópicos: ${topicsStr}.
 REGRAS GERAIS:
 ${langRule}
 - Dificuldade 1-3. Inclui pelo menos 3 exercícios de dificuldade 3.
+- OBRIGATÓRIO: todos os exercícios devem exigir conhecimentos do 5.º ano. NUNCA geres exercícios que um aluno do 1.º ao 4.º ano consiga resolver facilmente (ex: "3+2=?", "qual a capital?", sílabas simples).
 - Mistura tipos: mc, tf, fill, problem, passage.
-- Para Matemática, pelo menos metade devem ser "problem" ou "passage" com cálculo real.
+- Para Matemática: usa frações, potências, prioridade de operações, mmc/mdc, áreas, volumes, proporções. NUNCA adição/subtração simples.
 
 TIPOS DE EXERCÍCIOS:
 1. "mc" - escolha múltipla com 4 opções
