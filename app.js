@@ -723,7 +723,7 @@ TIPOS DE EXERCÍCIOS:
 2. "tf" - verdadeiro ou falso
 3. "fill" - preencher lacuna
 4. "problem" - problema com contexto real (campo "material" com regra, "solution" com resolução passo-a-passo)
-5. "passage" - texto de contexto longo (2-4 frases) seguido de pergunta; usa campo "passage" com o texto e "q" com a pergunta. Pode incluir "table" com tabela HTML simples (<table>) ou "svg" com SVG simples para figuras geométricas/gráficos.
+5. "passage" - texto de contexto longo (2-4 frases) seguido de pergunta; usa campo "passage" com o texto e "q" com a pergunta. Inclui sempre "table" (tabela HTML com <table><tr><th>/<td>) OU "svg" (SVG 200×150 com figuras geométricas, gráficos de barras simples, ou diagramas). Para Matemática e Ciências é OBRIGATÓRIO incluir svg ou table.
 
 Para cada tópico inclui mini-lição de 2-3 frases no campo "lessons".
 
@@ -1197,9 +1197,41 @@ function showFeedback(e, isCorrect) {
     document.getElementById('feedback-exp').textContent = expParts.join('\n\n');
     document.getElementById('feedback-exp').style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
+    // Botão explicação detalhada
+    const detailBtn = document.getElementById('feedback-detail-btn');
+    const detailWrap = document.getElementById('feedback-detail-wrap');
+    if (detailWrap) { detailWrap.style.display = 'none'; detailWrap.innerHTML = ''; }
+    if (detailBtn) { detailBtn.style.display = 'block'; detailBtn.textContent = '💡 Explicar passo a passo'; detailBtn.disabled = false; }
     const nextLbl = (currentSession.idx + 1 >= currentSession.items.length) ? 'Ver resultado' : 'Continuar';
     document.getElementById('feedback-next').textContent = nextLbl;
     document.getElementById('session-xp').textContent = currentSession.xp;
+}
+
+async function loadDetailedExplanation() {
+    const e = currentSession.items[currentSession.idx];
+    const btn = document.getElementById('feedback-detail-btn');
+    const wrap = document.getElementById('feedback-detail-wrap');
+    const cacheKey = `detail_${e.id}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) { wrap.innerHTML = cached; wrap.style.display = 'block'; btn.style.display = 'none'; return; }
+    // Verifica lição estática
+    const lessonKey = `${e.s}/${e.t}`;
+    const lesson = LESSONS[lessonKey] || state.maxLessons?.[lessonKey];
+    if (lesson && !state.max?.apiKey) {
+        const html = `<strong>${lesson.title}</strong><br><br>${lesson.body.replace(/\n/g,'<br>')}`;
+        wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none'; return;
+    }
+    if (!state.max?.apiKey) { btn.style.display = 'none'; return; }
+    btn.textContent = '⏳ A carregar…'; btn.disabled = true;
+    const correctAns = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
+    const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
+    const prompt = `Explica de forma clara e simples para um aluno do 5.º ano:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}\nDá uma explicação passo a passo em 3-5 frases. Usa Português simples. Sem markdown.`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 250);
+        const html = text.trim().replace(/\n/g, '<br>');
+        sessionStorage.setItem(cacheKey, html);
+        wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
+    } catch(err) { btn.textContent = '💡 Explicar passo a passo'; btn.disabled = false; }
 }
 
 function nextQuestion() {
