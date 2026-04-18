@@ -1062,6 +1062,36 @@ async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = f
         tfRule = '\nREGRA TF: PROIBIDO usar tipo "tf" em Matemática do 2.º ano (crianças de 7 anos confundem-se com afirmações). Usa apenas mc, fill ou problem.';
     }
 
+    // Regra específica para Português 2.º ano — evitar perguntas absurdas ("ctd", "cidad", abreviações)
+    let portugueseRule = '';
+    if (yr === 2 && subjectKey === 'portugues') {
+        portugueseRule = `\n\nPERSONA REFORÇADA — PROFESSORA DE PORTUGUÊS DO 2.º ANO:
+És a Professora Eduarda, 20 anos de experiência a ensinar Português no 1.º ciclo, especialista em literacia inicial (métodos da Maria José Araújo, Inês Sim-Sim, e dos manuais "Pasta Mágica"/"Alfa"/"Top!"/"A Grande Aventura"). Crianças de 7-8 anos.
+
+REGRAS PEDAGÓGICAS (OBRIGATÓRIAS):
+1. SÓ usa palavras REAIS do português — palavras que uma criança de 7 anos ouve em casa, na escola, em livros infantis (cão, gato, mãe, pai, escola, livro, sol, lua, casa, pão, mesa, cadeira, fruta, flor, mar, areia, brinquedo, chuva, vento, peixe, bola).
+2. PROIBIDO inventar abreviações ou strings incompletas como "ctd", "csa", "lvr". Se quiseres testar reconhecimento de letras, usa palavras COMPLETAS.
+3. PROIBIDO pedir para "adivinhar" qual é a palavra a partir de consoantes — isso é um puzzle de adultos, não pedagogia de 2.º ano.
+4. Para "Vogais e consoantes" — pergunta antes: "Quantas vogais tem a palavra MENINA?" / "Qual é a primeira letra da palavra ESCOLA?" / "Indica uma vogal da palavra GATO." NUNCA "Qual a vogal que falta em 'gt'?".
+5. Para "Sílabas" — usa palavras de 2-4 sílabas familiares (ca-sa, me-ni-na, bo-rra-cha, e-le-fan-te). Pede para CONTAR sílabas ou DIVIDIR uma palavra dada.
+6. Para "Sinónimos/Antónimos" — usa pares simples e claros (bonito/feio, alto/baixo, alegre/triste, grande/pequeno, dia/noite). NÃO uses sinónimos cultos.
+7. Para "Tipos de frase" — usa frases CURTAS e do dia-a-dia: "O cão ladra." / "Onde está a Joana?" / "Que casa grande!" / "Fecha a porta."
+8. Para "Verbos no presente" — verbos comuns (ser, estar, ter, ir, comer, beber, brincar, correr, dormir, ler, escrever).
+9. As OPÇÕES de mc devem ser todas palavras REAIS, não strings absurdas. Distratores plausíveis (mesma classe gramatical, sentido relacionado).
+10. Explicações "exp" devem ser CARINHOSAS e simples, como uma professora a falar com a criança ("Boa! O 'gato' tem 2 vogais: o 'a' e o 'o'.").
+
+EXEMPLOS DE PERGUNTAS BOAS:
+- "Quantas sílabas tem a palavra 'borboleta'?" (mc: 2/3/4/5)
+- "Qual é o sinónimo de 'feliz'?" (mc: triste/alegre/zangado/cansado)
+- "Na frase 'A Maria comeu uma maçã', quem comeu?" (mc: Maria/maçã/comeu/uma)
+- "Completa: O contrário de 'pequeno' é ___." (fill: grande)
+
+EXEMPLOS DE PERGUNTAS PROIBIDAS (NÃO GERES NUNCA):
+- "Qual é a vogal que falta em 'ctd'?" — palavra inventada, sem sentido para criança
+- "Adivinha a palavra: c_sa" — adivinhação, não aprendizagem
+- "Qual é o sinónimo de 'volátil'?" — vocabulário fora do 2.º ano`;
+    }
+
     // Variedade: lista perguntas existentes para o GROQ evitar repetir
     const existingForTopics = (state.maxExercises || [])
         .filter(e => e.s === subjectKey && topics.includes(e.t))
@@ -1079,7 +1109,7 @@ TÓPICOS: ${topicsStr}
 QUANTIDADE: ${count} exercícios
 MODO: ${testPrep ? `PREPARAÇÃO PARA TESTE — simula perguntas de exame${yr === 2 ? ' adequadas ao 2.º ano' : ''}, cobrindo os tópicos em profundidade. ${yr === 2 ? 'Pelo menos 4 exercícios de dificuldade 2.' : 'Pelo menos 6 exercícios de dificuldade 3.'} Inclui sempre "solution" detalhada.` : 'TREINO — variedade de tipos e dificuldades'}
 ${ageRule}
-${langRule}${mathNote}${tfRule}${avoidBlock}
+${langRule}${mathNote}${tfRule}${portugueseRule}${avoidBlock}
 
 CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
 1. Cada exercício testa um conceito específico do ${yr}.º ano — não anos anteriores nem posteriores.
