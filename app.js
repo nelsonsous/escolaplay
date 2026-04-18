@@ -633,7 +633,7 @@ function saveMaxConfig() {
 async function callClaudeAPI(prompt, maxTokens = 3500) {
     const key = state.max?.apiKey;
     if (!key) throw new Error('Sem chave API');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
