@@ -1975,9 +1975,9 @@ function showEncouragement() {
     banner.className = 'ep-encourage';
     banner.innerHTML = `<span class="ep-encourage-icon">${msg.icon}</span><span class="ep-encourage-text">${msg.text}</span>`;
     document.body.appendChild(banner);
-    // som suave de subida
-    playTone(660, 100, 'triangle');
-    setTimeout(() => playTone(990, 140, 'triangle'), 90);
+    // som suave de subida (2 notas)
+    playBellNote(660, 0, 200, 0.18);
+    playBellNote(990, 90, 240, 0.18);
     requestAnimationFrame(() => banner.classList.add('show'));
     setTimeout(() => { banner.classList.remove('show'); setTimeout(() => banner.remove(), 400); }, 1800);
 }
