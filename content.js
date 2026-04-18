@@ -56,6 +56,30 @@ const LESSONS = {
     },
 
     // ----- Matemática -----
+    'matematica/Números naturais': {
+        title: 'Números naturais e sistema decimal',
+        body: `Os **números naturais** são 0, 1, 2, 3, 4, ...\n\n**Sistema de numeração decimal**: usa 10 algarismos (0-9) e posição (unidades, dezenas, centenas, milhares, ...).\n\nO valor de cada algarismo depende da posição. No número **47 932**:\n• 4 → 4 dezenas de milhar = 40 000\n• 7 → 7 unidades de milhar = 7 000\n• 9 → 9 centenas = 900\n• 3 → 3 dezenas = 30\n• 2 → 2 unidades = 2\n\n**Comparar e ordenar**: comparamos da ordem mais alta para a mais baixa. Mais algarismos → maior (se for natural).\n\n**Sucessor** de n = n + 1. **Antecessor** = n − 1.`
+    },
+    'matematica/Ângulos': {
+        title: 'Ângulos',
+        body: `Um **ângulo** é a amplitude entre duas semirretas com origem comum (vértice).\n\n**Classificação** pela amplitude:\n• **Nulo**: 0°\n• **Agudo**: > 0° e < 90°\n• **Reto**: 90°\n• **Obtuso**: > 90° e < 180°\n• **Raso**: 180°\n• **Giro**: 360°\n\n**Pares de ângulos**:\n• **Complementares**: soma = 90°. Ex: 30° + 60°.\n• **Suplementares**: soma = 180°. Ex: 110° + 70°.\n• **Verticalmente opostos**: têm a mesma amplitude.\n\nInstrumento de medida: transferidor (graus).`
+    },
+    'matematica/Retas': {
+        title: 'Retas, semirretas e segmentos',
+        body: `• **Reta**: não tem fim nos dois lados (infinita). Notação: AB com setas.\n• **Semirreta**: tem um ponto de origem e segue infinitamente num sentido.\n• **Segmento de reta**: tem início e fim (dois pontos). Tem comprimento.\n\n**Posições relativas de duas retas**:\n• **Paralelas** — nunca se cruzam. Mantêm a mesma distância.\n• **Concorrentes** — cruzam-se num ponto. Se formam 90° → **perpendiculares**.\n• **Coincidentes** — são a mesma reta.`
+    },
+    'matematica/Triângulos': {
+        title: 'Triângulos',
+        body: `**Classificação quanto aos lados**:\n• **Equilátero** — 3 lados iguais (e 3 ângulos de 60°).\n• **Isósceles** — 2 lados iguais.\n• **Escaleno** — todos os lados diferentes.\n\n**Classificação quanto aos ângulos**:\n• **Acutângulo** — 3 ângulos agudos.\n• **Retângulo** — 1 ângulo reto (90°).\n• **Obtusângulo** — 1 ângulo obtuso (> 90°).\n\n**Regra importante**: a soma dos ângulos internos de qualquer triângulo é **180°**.\n\nSe souberes dois ângulos, descobres o terceiro: 180° − (a + b).`
+    },
+    'matematica/Quadriláteros': {
+        title: 'Quadriláteros',
+        body: `Um **quadrilátero** é um polígono com 4 lados.\n\n**Soma dos ângulos internos**: 360°.\n\n**Família dos paralelogramos** (lados opostos paralelos):\n• **Paralelogramo** — lados opostos paralelos e iguais.\n• **Retângulo** — paralelogramo com 4 ângulos retos.\n• **Losango** — paralelogramo com 4 lados iguais.\n• **Quadrado** — retângulo E losango (4 lados iguais + 4 ângulos retos).\n\n**Trapézio** — só tem **um par** de lados paralelos. Pode ser isósceles (lados não paralelos iguais) ou retângulo (2 ângulos retos).`
+    },
+    'matematica/Perímetros': {
+        title: 'Perímetro',
+        body: `O **perímetro** é a soma de todos os lados de um polígono — mede-se em unidades lineares (cm, m).\n\n**Fórmulas úteis**:\n• **Quadrado**: P = 4 × lado\n• **Retângulo**: P = 2 × (base + altura)\n• **Triângulo equilátero**: P = 3 × lado\n• **Polígono regular** (n lados iguais): P = n × lado\n• **Polígono irregular**: somar todos os lados\n\nUsa-se para saber, por exemplo, quanto arame é preciso para vedar um campo.`
+    },
     'matematica/Divisibilidade': {
         title: 'Múltiplos, divisores e divisibilidade',
         body: `• **Múltiplos de n** — números obtidos multiplicando n por naturais: múltiplos de 3 → 0, 3, 6, 9, 12, ...\n• **Divisores de n** — números que dividem n sem resto. Divisores de 12 → 1, 2, 3, 4, 6, 12.\n\n**Critérios de divisibilidade**:\n• por 2 → termina em 0, 2, 4, 6, 8\n• por 3 → soma dos algarismos é múltiplo de 3\n• por 5 → termina em 0 ou 5\n• por 9 → soma dos algarismos é múltiplo de 9\n• por 10 → termina em 0`
@@ -365,41 +389,155 @@ const EXERCISES = [
     { id:'p21', s:'portugues', t:'Classes de palavras', type:'mc', diff:2, q:'Em "Gosto de chocolate", a palavra "de" é...', opts:['nome','preposição','pronome','conjunção'], ans:1, exp:'"De" liga "gosto" a "chocolate" → preposição.' },
     { id:'p22', s:'portugues', t:'Verbos', type:'fill', diff:2, q:'Conjuga o verbo "ter" na 3.ª pessoa do singular do pretérito perfeito: "ele ___".', ans:['teve'], exp:'Pretérito perfeito: eu tive, tu tiveste, ele teve.' },
 
-    // ========== MATEMÁTICA (32) — ao estilo MX 5 ==========
-    { id:'m1', s:'matematica', t:'Divisibilidade', type:'mc', diff:1, q:'Qual destes números é múltiplo de 7?', opts:['15','21','25','30'], ans:1, exp:'21 = 7 × 3. Os outros não são divisíveis por 7.' },
-    { id:'m2', s:'matematica', t:'Divisibilidade', type:'mc', diff:2, q:'Quais são os divisores de 12?', opts:['1, 2, 3, 4, 6, 12','1, 2, 4, 6, 12','1, 3, 4, 12','2, 3, 4, 6'], ans:0, exp:'Divisores: 1, 2, 3, 4, 6, 12 (números que dividem 12 sem resto).' },
-    { id:'m3', s:'matematica', t:'Divisibilidade', type:'tf', diff:2, q:'O número 132 é divisível por 3.', ans:true, exp:'Soma dos algarismos: 1+3+2 = 6. 6 é múltiplo de 3, logo 132 é divisível por 3.' },
-    { id:'m4', s:'matematica', t:'Divisibilidade', type:'mc', diff:2, q:'Qual é o critério de divisibilidade por 5?', opts:['soma dos algarismos é 5','termina em 0 ou 5','número par','termina em 5'], ans:1, exp:'Um número é divisível por 5 se terminar em 0 ou 5.' },
-    { id:'m5', s:'matematica', t:'Números primos', type:'tf', diff:2, q:'O número 9 é um número primo.', ans:false, exp:'9 = 3 × 3, tem mais divisores além de 1 e 9, logo não é primo.' },
-    { id:'m6', s:'matematica', t:'Números primos', type:'mc', diff:2, q:'Qual destes é um número primo?', opts:['15','21','17','25'], ans:2, exp:'17 só é divisível por 1 e por 17.' },
-    { id:'m7', s:'matematica', t:'Números primos', type:'fill', diff:2, q:'Qual é o único número primo par?', ans:['2'], exp:'Todos os outros pares são divisíveis por 2, logo não são primos. Só o 2 é primo e par.' },
-    { id:'m8', s:'matematica', t:'MMC/MDC', type:'mc', diff:3, q:'Qual é o MDC de 12 e 18?', opts:['2','3','6','12'], ans:2, exp:'Divisores comuns: 1, 2, 3, 6. Maior = 6.' },
-    { id:'m9', s:'matematica', t:'MMC/MDC', type:'fill', diff:3, q:'Qual é o MMC de 4 e 6?', ans:['12'], exp:'Múltiplos de 4: 4, 8, 12, 16... Múltiplos de 6: 6, 12, 18... Menor comum = 12.' },
+    // ========== MATEMÁTICA — ao estilo MX 5 Porto Editora ==========
+    // --- Números naturais ---
+    { id:'m101', s:'matematica', t:'Números naturais', type:'fill', diff:1, q:'Qual é o valor do algarismo 7 no número 47 932?', ans:['7000','7 000'], exp:'O 7 está na ordem dos milhares: vale 7 000.' },
+    { id:'m102', s:'matematica', t:'Números naturais', type:'mc', diff:1, q:'Qual é o maior destes números?', opts:['9 876','10 234','9 999','8 990'], ans:1, exp:'10 234 tem 5 algarismos, os outros só têm 4.' },
+    { id:'m103', s:'matematica', t:'Números naturais', type:'fill', diff:2, q:'Lê e escreve por extenso: 2 045. (ex: "dois mil e ...")', ans:['dois mil e quarenta e cinco'], exp:'2 045 = dois mil e quarenta e cinco.' },
+    { id:'m104', s:'matematica', t:'Números naturais', type:'mc', diff:2, q:'Ordena de forma crescente: 54, 45, 504, 405.', opts:['45, 54, 405, 504','45, 54, 504, 405','54, 45, 405, 504','405, 504, 45, 54'], ans:0, exp:'Ordem crescente (do menor para o maior): 45 < 54 < 405 < 504.' },
+    { id:'m105', s:'matematica', t:'Números naturais', type:'fill', diff:2, q:'Qual é o sucessor de 9 999?', ans:['10000','10 000'], exp:'Sucessor = número seguinte. 9 999 + 1 = 10 000.' },
+
+    // --- Divisibilidade ---
+    { id:'m1',  s:'matematica', t:'Divisibilidade', type:'mc',   diff:1, q:'Qual destes números é múltiplo de 7?', opts:['15','21','25','30'], ans:1, exp:'21 = 7 × 3. Os outros não são divisíveis por 7.' },
+    { id:'m2',  s:'matematica', t:'Divisibilidade', type:'mc',   diff:2, q:'Quais são os divisores de 12?', opts:['1, 2, 3, 4, 6, 12','1, 2, 4, 6, 12','1, 3, 4, 12','2, 3, 4, 6'], ans:0, exp:'Divisores: 1, 2, 3, 4, 6, 12.' },
+    { id:'m3',  s:'matematica', t:'Divisibilidade', type:'tf',   diff:2, q:'O número 132 é divisível por 3.', ans:true, exp:'Soma 1+3+2 = 6, múltiplo de 3, logo 132 é divisível por 3.' },
+    { id:'m4',  s:'matematica', t:'Divisibilidade', type:'mc',   diff:2, q:'Qual é o critério de divisibilidade por 5?', opts:['soma dos algarismos é 5','termina em 0 ou 5','número par','termina em 5'], ans:1, exp:'Divisível por 5 se terminar em 0 ou 5.' },
+    { id:'m106', s:'matematica', t:'Divisibilidade', type:'mc',   diff:2, q:'Qual destes números é divisível por 9?', opts:['234','287','432','541'], ans:2, exp:'Soma dos algarismos de 432 = 9, múltiplo de 9.' },
+    { id:'m107', s:'matematica', t:'Divisibilidade', type:'fill', diff:2, q:'Escreve os 5 primeiros múltiplos de 6 (começando em 6).', ans:['6, 12, 18, 24, 30','6,12,18,24,30'], exp:'6 × 1, 6 × 2, 6 × 3, 6 × 4, 6 × 5 = 6, 12, 18, 24, 30.' },
+    { id:'m108', s:'matematica', t:'Divisibilidade', type:'tf',   diff:2, q:'Todos os números pares são divisíveis por 2.', ans:true, exp:'Por definição, um número par é divisível por 2.' },
+
+    // --- Números primos ---
+    { id:'m5',  s:'matematica', t:'Números primos', type:'tf',   diff:2, q:'O número 9 é um número primo.', ans:false, exp:'9 = 3 × 3. Tem mais divisores além de 1 e 9.' },
+    { id:'m6',  s:'matematica', t:'Números primos', type:'mc',   diff:2, q:'Qual destes é um número primo?', opts:['15','21','17','25'], ans:2, exp:'17 só é divisível por 1 e por 17.' },
+    { id:'m7',  s:'matematica', t:'Números primos', type:'fill', diff:2, q:'Qual é o único número primo par?', ans:['2'], exp:'Todos os outros pares são divisíveis por 2.' },
+    { id:'m109', s:'matematica', t:'Números primos', type:'mc',   diff:2, q:'Quantos primos existem até 10?', opts:['3','4','5','6'], ans:1, exp:'2, 3, 5, 7 → 4 primos.' },
+    { id:'m110', s:'matematica', t:'Números primos', type:'fill', diff:3, q:'Decompõe 24 em fatores primos. (ex: 2×2×...)', ans:['2x2x2x3','2×2×2×3','2*2*2*3','2^3x3','2³×3'], exp:'24 = 2 × 12 = 2 × 2 × 6 = 2 × 2 × 2 × 3 = 2³ × 3.' },
+    { id:'m111', s:'matematica', t:'Números primos', type:'tf',   diff:2, q:'O número 1 é um número primo.', ans:false, exp:'1 só tem 1 divisor. Primos têm exatamente 2.' },
+    { id:'m112', s:'matematica', t:'Números primos', type:'mc',   diff:3, q:'Qual é a decomposição em fatores primos de 30?', opts:['2 × 15','2 × 3 × 5','3 × 10','6 × 5'], ans:1, exp:'30 = 2 × 3 × 5 (só primos).' },
+
+    // --- MMC/MDC ---
+    { id:'m8',  s:'matematica', t:'MMC/MDC', type:'mc',   diff:3, q:'Qual é o MDC de 12 e 18?', opts:['2','3','6','12'], ans:2, exp:'Divisores comuns: 1, 2, 3, 6. Maior = 6.' },
+    { id:'m9',  s:'matematica', t:'MMC/MDC', type:'fill', diff:3, q:'Qual é o MMC de 4 e 6?', ans:['12'], exp:'Múltiplos de 4: 4, 8, 12... Múltiplos de 6: 6, 12... Menor comum = 12.' },
+    { id:'m113', s:'matematica', t:'MMC/MDC', type:'fill', diff:3, q:'Qual é o MDC de 8 e 20?', ans:['4'], exp:'Divisores comuns de 8 e 20: 1, 2, 4. Maior = 4.' },
+    { id:'m114', s:'matematica', t:'MMC/MDC', type:'fill', diff:3, q:'Qual é o MMC de 3 e 5?', ans:['15'], exp:'Primos entre si: MMC = 3 × 5 = 15.' },
+    { id:'m115', s:'matematica', t:'MMC/MDC', type:'mc',   diff:3, q:'Qual é o MMC de 6 e 9?', opts:['3','15','18','54'], ans:2, exp:'Múltiplos de 6: 6,12,18... de 9: 9,18... MMC = 18.' },
+
+    // --- Potências ---
     { id:'m10', s:'matematica', t:'Potências', type:'fill', diff:2, q:'Quanto é 2³?', ans:['8'], exp:'2³ = 2 × 2 × 2 = 8.' },
-    { id:'m11', s:'matematica', t:'Potências', type:'mc', diff:2, q:'Quanto é 5²?', opts:['10','15','20','25'], ans:3, exp:'5² = 5 × 5 = 25.' },
+    { id:'m11', s:'matematica', t:'Potências', type:'mc',   diff:2, q:'Quanto é 5²?', opts:['10','15','20','25'], ans:3, exp:'5² = 5 × 5 = 25.' },
     { id:'m12', s:'matematica', t:'Potências', type:'fill', diff:3, q:'Quanto é 10⁴?', ans:['10000','10 000'], exp:'10⁴ = 10 × 10 × 10 × 10 = 10 000.' },
-    { id:'m13', s:'matematica', t:'Operações', type:'fill', diff:2, q:'Calcula: 2 + 3 × 4 = ?', ans:['14'], exp:'Primeiro multiplica (3 × 4 = 12), depois soma: 2 + 12 = 14.' },
-    { id:'m14', s:'matematica', t:'Operações', type:'fill', diff:2, q:'Calcula: (5 + 3) × 2 = ?', ans:['16'], exp:'Primeiro parênteses: 5 + 3 = 8. Depois 8 × 2 = 16.' },
-    { id:'m15', s:'matematica', t:'Frações', type:'fill', diff:2, q:'1/2 + 1/4 = ?/4', ans:['3','3/4'], exp:'1/2 = 2/4. Logo 2/4 + 1/4 = 3/4.' },
-    { id:'m16', s:'matematica', t:'Frações', type:'mc', diff:2, q:'Qual fração é equivalente a 2/3?', opts:['4/6','3/4','2/6','4/9'], ans:0, exp:'2/3 = 4/6 (multiplicar cima e baixo por 2).' },
-    { id:'m17', s:'matematica', t:'Frações', type:'mc', diff:2, q:'Qual destas frações é maior?', opts:['1/2','1/3','1/4','1/5'], ans:0, exp:'Numeradores iguais: quanto menor o denominador, maior a fração. 1/2 > 1/3 > 1/4 > 1/5.' },
-    { id:'m18', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Simplifica a fração 8/12.', ans:['2/3'], exp:'MDC(8,12) = 4. 8 ÷ 4 = 2, 12 ÷ 4 = 3. Logo 8/12 = 2/3.' },
-    { id:'m19', s:'matematica', t:'Percentagens', type:'fill', diff:2, q:'Quanto é 25% de 80?', ans:['20'], exp:'25% = 1/4. 80 ÷ 4 = 20.' },
-    { id:'m20', s:'matematica', t:'Percentagens', type:'mc', diff:2, q:'Quanto é 50% de 120?', opts:['30','50','60','120'], ans:2, exp:'50% = metade → 120 ÷ 2 = 60.' },
-    { id:'m21', s:'matematica', t:'Percentagens', type:'fill', diff:2, q:'Num teste, acertaste 15 perguntas em 20. Qual a tua percentagem?', ans:['75%','75'], exp:'15 ÷ 20 = 0,75 = 75%.' },
-    { id:'m22', s:'matematica', t:'Dízimas', type:'mc', diff:2, q:'Qual é a fração equivalente a 0,5?', opts:['1/5','1/2','1/10','5/10'], ans:1, exp:'0,5 = 1/2 (também 5/10, mas 1/2 é a forma simplificada).' },
+    { id:'m116', s:'matematica', t:'Potências', type:'fill', diff:2, q:'Quanto é 3²?', ans:['9'], exp:'3² = 3 × 3 = 9.' },
+    { id:'m117', s:'matematica', t:'Potências', type:'fill', diff:2, q:'Quanto é 4³?', ans:['64'], exp:'4³ = 4 × 4 × 4 = 64.' },
+    { id:'m118', s:'matematica', t:'Potências', type:'mc',   diff:2, q:'Como se lê 7²?', opts:['sete vezes dois','sete ao quadrado','dois ao sete','sete meios'], ans:1, exp:'aⁿ com n=2 lê-se "ao quadrado".' },
+    { id:'m119', s:'matematica', t:'Potências', type:'tf',   diff:2, q:'2⁵ = 32.', ans:true, exp:'2 × 2 × 2 × 2 × 2 = 32.' },
+    { id:'m120', s:'matematica', t:'Potências', type:'fill', diff:3, q:'Quanto é 1⁹?', ans:['1'], exp:'Qualquer potência de base 1 é igual a 1.' },
+
+    // --- Operações / Expressões numéricas ---
+    { id:'m13', s:'matematica', t:'Operações', type:'fill', diff:2, q:'Calcula: 2 + 3 × 4 = ?', ans:['14'], exp:'Multiplica primeiro (3×4=12), depois soma: 2+12 = 14.' },
+    { id:'m14', s:'matematica', t:'Operações', type:'fill', diff:2, q:'Calcula: (5 + 3) × 2 = ?', ans:['16'], exp:'Parênteses primeiro: 5+3=8. Depois 8×2=16.' },
+    { id:'m121', s:'matematica', t:'Operações', type:'fill', diff:2, q:'Calcula: 20 − 4 × 3 = ?', ans:['8'], exp:'4 × 3 = 12. Depois 20 − 12 = 8.' },
+    { id:'m122', s:'matematica', t:'Operações', type:'fill', diff:2, q:'Calcula: 100 ÷ 5 + 2 = ?', ans:['22'], exp:'Divide primeiro: 100 ÷ 5 = 20. Depois 20 + 2 = 22.' },
+    { id:'m123', s:'matematica', t:'Operações', type:'fill', diff:3, q:'Calcula: 3 × (8 − 2) ÷ 2 = ?', ans:['9'], exp:'(8−2)=6; 3×6=18; 18÷2=9.' },
+    { id:'m124', s:'matematica', t:'Operações', type:'fill', diff:3, q:'Calcula: 2² + 3² = ?', ans:['13'], exp:'2²=4, 3²=9, 4+9=13.' },
+    { id:'m125', s:'matematica', t:'Operações', type:'mc',   diff:2, q:'Qual a ordem correta de operações?', opts:['+, −, ×, ÷','parênteses, ×/÷, +/−','+/−, ×/÷','× primeiro sempre'], ans:1, exp:'Parênteses → potências → ×÷ → +−.' },
+
+    // --- Frações ---
+    { id:'m15', s:'matematica', t:'Frações', type:'fill', diff:2, q:'1/2 + 1/4 = ?/4', ans:['3','3/4'], exp:'1/2 = 2/4. 2/4 + 1/4 = 3/4.' },
+    { id:'m16', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'Qual fração é equivalente a 2/3?', opts:['4/6','3/4','2/6','4/9'], ans:0, exp:'2/3 = 4/6 (× 2 em cima e em baixo).' },
+    { id:'m17', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'Qual destas frações é maior?', opts:['1/2','1/3','1/4','1/5'], ans:0, exp:'Numeradores iguais: menor denominador → maior fração.' },
+    { id:'m18', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Simplifica a fração 8/12.', ans:['2/3'], exp:'MDC(8,12)=4. 8/12 = 2/3.' },
+    { id:'m126', s:'matematica', t:'Frações', type:'fill', diff:2, q:'Simplifica 6/9.', ans:['2/3'], exp:'MDC(6,9)=3. 6/9 = 2/3.' },
+    { id:'m127', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'2/3 + 1/3 = ?', opts:['3/6','1','3/3','2/6'], ans:1, exp:'Mesmo denominador: soma numeradores. 2/3+1/3 = 3/3 = 1.' },
+    { id:'m128', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Calcula: 2/5 × 3/4 = (forma a/b)', ans:['6/20','3/10'], exp:'Numerador × numerador, denominador × denominador: 6/20 = 3/10.' },
+    { id:'m129', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'Qual destas é uma fração imprópria?', opts:['3/4','1/2','7/3','2/5'], ans:2, exp:'Imprópria = numerador ≥ denominador. 7/3 > 1.' },
+    { id:'m130', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Escreve 7/3 como número misto.', ans:['2 1/3','2+1/3','2 e 1/3'], exp:'7 ÷ 3 = 2 resto 1. Logo 7/3 = 2 + 1/3.' },
+    { id:'m131', s:'matematica', t:'Frações', type:'fill', diff:2, q:'Calcula: 3/4 − 1/4 = ?', ans:['2/4','1/2'], exp:'3/4 − 1/4 = 2/4 = 1/2.' },
+    { id:'m132', s:'matematica', t:'Frações', type:'mc',   diff:3, q:'Qual é maior: 2/5 ou 3/7?', opts:['2/5','3/7','são iguais','não é possível comparar'], ans:1, exp:'Denominador comum 35: 2/5=14/35; 3/7=15/35. 3/7 é maior.' },
+
+    // --- Dízimas ---
+    { id:'m22', s:'matematica', t:'Dízimas', type:'mc',   diff:2, q:'Qual é a fração equivalente a 0,5?', opts:['1/5','1/2','1/10','5/10'], ans:1, exp:'0,5 = 1/2 (forma simplificada de 5/10).' },
     { id:'m23', s:'matematica', t:'Dízimas', type:'fill', diff:2, q:'Escreve 3/4 como dízima.', ans:['0,75','0.75'], exp:'3 ÷ 4 = 0,75.' },
-    { id:'m24', s:'matematica', t:'Áreas', type:'fill', diff:2, q:'Qual a área de um retângulo com 6 cm × 4 cm? (só o número)', ans:['24','24 cm2','24cm2','24 cm²'], exp:'Área do retângulo = base × altura = 6 × 4 = 24 cm².' },
-    { id:'m25', s:'matematica', t:'Áreas', type:'mc', diff:2, q:'Área de um triângulo com base 10 e altura 6:', opts:['16','30','60','36'], ans:1, exp:'Área do triângulo = (base × altura) ÷ 2 = (10 × 6)/2 = 30.' },
-    { id:'m26', s:'matematica', t:'Áreas', type:'fill', diff:3, q:'Área de um quadrado com 7 cm de lado. (só o número)', ans:['49'], exp:'Área do quadrado = lado² = 7 × 7 = 49 cm².' },
-    { id:'m27', s:'matematica', t:'Volume', type:'mc', diff:2, q:'Volume de um cubo com aresta 3 cm:', opts:['9 cm³','18 cm³','27 cm³','36 cm³'], ans:2, exp:'Volume cubo = aresta³ = 3³ = 27 cm³.' },
-    { id:'m28', s:'matematica', t:'Volume', type:'fill', diff:2, q:'Volume de um paralelepípedo 5×3×2 cm. (só o número)', ans:['30'], exp:'V = c × l × a = 5 × 3 × 2 = 30 cm³.' },
-    { id:'m29', s:'matematica', t:'Sequências', type:'fill', diff:2, q:'Próximo número da sequência 2, 4, 8, 16, ___', ans:['32'], exp:'Cada termo é o dobro do anterior: 16 × 2 = 32.' },
-    { id:'m30', s:'matematica', t:'Sequências', type:'fill', diff:2, q:'Próximo número: 1, 4, 9, 16, ___', ans:['25'], exp:'São os quadrados: 1², 2², 3², 4², 5² = 25.' },
-    { id:'m31', s:'matematica', t:'Estatística', type:'fill', diff:2, q:'Qual a média de 4, 6, 8, 10?', ans:['7'], exp:'(4+6+8+10)/4 = 28/4 = 7.' },
-    { id:'m32', s:'matematica', t:'Estatística', type:'mc', diff:2, q:'Qual a moda em: 3, 5, 7, 5, 2, 5, 8?', opts:['3','5','7','8'], ans:1, exp:'O 5 aparece 3 vezes → moda = 5.' },
-    { id:'m33', s:'matematica', t:'Geometria', type:'mc', diff:2, q:'Um ângulo de 90° chama-se:', opts:['agudo','reto','obtuso','raso'], ans:1, exp:'Ângulo reto = 90°. Agudo < 90°, obtuso > 90°, raso = 180°.' },
-    { id:'m34', s:'matematica', t:'Geometria', type:'mc', diff:2, q:'Um triângulo com os 3 lados iguais chama-se:', opts:['escaleno','isósceles','equilátero','retângulo'], ans:2, exp:'Equilátero = 3 lados iguais. Isósceles = 2 iguais. Escaleno = todos diferentes.' },
+    { id:'m133', s:'matematica', t:'Dízimas', type:'fill', diff:2, q:'Escreve 1/5 como dízima.', ans:['0,2','0.2'], exp:'1 ÷ 5 = 0,2.' },
+    { id:'m134', s:'matematica', t:'Dízimas', type:'mc',   diff:2, q:'A fração 1/4 em percentagem é:', opts:['14%','25%','40%','250%'], ans:1, exp:'1/4 = 0,25 = 25%.' },
+    { id:'m135', s:'matematica', t:'Dízimas', type:'fill', diff:3, q:'Escreve 0,125 como fração simplificada.', ans:['1/8','125/1000'], exp:'0,125 = 125/1000 = 1/8.' },
+    { id:'m136', s:'matematica', t:'Dízimas', type:'tf',   diff:2, q:'2,5 é o mesmo que 2 + 1/2.', ans:true, exp:'2,5 = 2 + 0,5 = 2 + 1/2.' },
+
+    // --- Percentagens ---
+    { id:'m19', s:'matematica', t:'Percentagens', type:'fill', diff:2, q:'Quanto é 25% de 80?', ans:['20'], exp:'25% = 1/4. 80 ÷ 4 = 20.' },
+    { id:'m20', s:'matematica', t:'Percentagens', type:'mc',   diff:2, q:'Quanto é 50% de 120?', opts:['30','50','60','120'], ans:2, exp:'50% = metade → 60.' },
+    { id:'m21', s:'matematica', t:'Percentagens', type:'fill', diff:2, q:'Num teste, acertaste 15 em 20. Qual a percentagem?', ans:['75%','75'], exp:'15/20 = 0,75 = 75%.' },
+    { id:'m137', s:'matematica', t:'Percentagens', type:'fill', diff:2, q:'Quanto é 10% de 200?', ans:['20'], exp:'10% = 1/10. 200 ÷ 10 = 20.' },
+    { id:'m138', s:'matematica', t:'Percentagens', type:'mc',   diff:2, q:'Um casaco de 80€ com desconto de 25%. Quanto poupas?', opts:['5€','10€','20€','40€'], ans:2, exp:'25% de 80 = 20€.' },
+    { id:'m139', s:'matematica', t:'Percentagens', type:'fill', diff:3, q:'Uma turma tem 25 alunos, 20% faltaram hoje. Quantos faltaram?', ans:['5'], exp:'20% de 25 = 0,20 × 25 = 5.' },
+    { id:'m140', s:'matematica', t:'Percentagens', type:'fill', diff:2, q:'Qual é 100% de 45?', ans:['45'], exp:'100% = o total.' },
+
+    // --- Sequências ---
+    { id:'m29', s:'matematica', t:'Sequências', type:'fill', diff:2, q:'Próximo número: 2, 4, 8, 16, ___', ans:['32'], exp:'Cada termo é o dobro do anterior: 32.' },
+    { id:'m30', s:'matematica', t:'Sequências', type:'fill', diff:2, q:'Próximo número: 1, 4, 9, 16, ___', ans:['25'], exp:'Quadrados: 5² = 25.' },
+    { id:'m141', s:'matematica', t:'Sequências', type:'fill', diff:2, q:'Próximo número: 3, 6, 9, 12, ___', ans:['15'], exp:'Soma 3 a cada termo.' },
+    { id:'m142', s:'matematica', t:'Sequências', type:'fill', diff:3, q:'Sequência 1, 1, 2, 3, 5, 8, ___. Qual é o próximo? (Fibonacci)', ans:['13'], exp:'Cada termo = soma dos 2 anteriores: 5+8 = 13.' },
+    { id:'m143', s:'matematica', t:'Sequências', type:'mc',   diff:2, q:'Qual é o 10.º termo da sequência dos números pares (começando em 2)?', opts:['10','18','20','22'], ans:2, exp:'2, 4, 6, ..., 20. Termo n = 2n → 2×10 = 20.' },
+
+    // --- Ângulos ---
+    { id:'m144', s:'matematica', t:'Ângulos', type:'mc',   diff:2, q:'Um ângulo de 90° chama-se:', opts:['agudo','reto','obtuso','raso'], ans:1, exp:'Reto = 90°.' },
+    { id:'m145', s:'matematica', t:'Ângulos', type:'mc',   diff:2, q:'Um ângulo de 45° é:', opts:['agudo','reto','obtuso','raso'], ans:0, exp:'Agudo < 90°.' },
+    { id:'m146', s:'matematica', t:'Ângulos', type:'mc',   diff:2, q:'Um ângulo de 135° é:', opts:['agudo','reto','obtuso','raso'], ans:2, exp:'Obtuso: maior que 90° e menor que 180°.' },
+    { id:'m147', s:'matematica', t:'Ângulos', type:'fill', diff:2, q:'Qual é a amplitude de um ângulo raso? (só o número)', ans:['180','180°'], exp:'Raso = meia volta = 180°.' },
+    { id:'m148', s:'matematica', t:'Ângulos', type:'fill', diff:2, q:'Qual é a amplitude de um ângulo giro? (só o número)', ans:['360','360°'], exp:'Giro = volta completa = 360°.' },
+    { id:'m149', s:'matematica', t:'Ângulos', type:'fill', diff:3, q:'Um ângulo mede 35° e outro 55°. Qual a soma dos dois? (só o número)', ans:['90','90°'], exp:'35° + 55° = 90°. Formam um ângulo reto.' },
+    { id:'m150', s:'matematica', t:'Ângulos', type:'tf',   diff:2, q:'Dois ângulos são complementares se a sua soma for 90°.', ans:true, exp:'Complementares → soma 90°. Suplementares → soma 180°.' },
+
+    // --- Retas ---
+    { id:'m151', s:'matematica', t:'Retas', type:'mc',   diff:2, q:'Duas retas que formam um ângulo de 90° são:', opts:['paralelas','perpendiculares','concorrentes oblíquas','iguais'], ans:1, exp:'Perpendiculares: formam ângulo reto.' },
+    { id:'m152', s:'matematica', t:'Retas', type:'tf',   diff:2, q:'Duas retas paralelas nunca se cruzam.', ans:true, exp:'Paralelas → nunca se intersetam.' },
+    { id:'m153', s:'matematica', t:'Retas', type:'mc',   diff:2, q:'Duas retas que se cruzam num ponto (sem ser 90°) dizem-se:', opts:['paralelas','perpendiculares','concorrentes','coincidentes'], ans:2, exp:'Concorrentes (oblíquas) cruzam-se mas não formam 90°.' },
+    { id:'m154', s:'matematica', t:'Retas', type:'tf',   diff:1, q:'Uma reta pode ter várias perpendiculares.', ans:true, exp:'Pode ter infinitas perpendiculares em pontos diferentes.' },
+
+    // --- Triângulos ---
+    { id:'m34', s:'matematica', t:'Triângulos', type:'mc', diff:2, q:'Um triângulo com 3 lados iguais chama-se:', opts:['escaleno','isósceles','equilátero','retângulo'], ans:2, exp:'Equilátero: 3 lados iguais.' },
+    { id:'m155', s:'matematica', t:'Triângulos', type:'mc', diff:2, q:'Um triângulo com 2 lados iguais é:', opts:['escaleno','isósceles','equilátero','retângulo'], ans:1, exp:'Isósceles: 2 lados iguais.' },
+    { id:'m156', s:'matematica', t:'Triângulos', type:'mc', diff:2, q:'Um triângulo com os 3 lados diferentes é:', opts:['escaleno','isósceles','equilátero','retângulo'], ans:0, exp:'Escaleno: todos os lados diferentes.' },
+    { id:'m157', s:'matematica', t:'Triângulos', type:'fill', diff:3, q:'A soma dos ângulos internos de um triângulo é ___ graus.', ans:['180','180°'], exp:'Regra: soma dos ângulos internos = 180°.' },
+    { id:'m158', s:'matematica', t:'Triângulos', type:'fill', diff:3, q:'Um triângulo tem ângulos de 50° e 60°. Qual o 3.º ângulo? (só o número)', ans:['70','70°'], exp:'180° − 50° − 60° = 70°.' },
+    { id:'m159', s:'matematica', t:'Triângulos', type:'mc', diff:2, q:'Um triângulo retângulo tem um ângulo de:', opts:['60°','90°','100°','180°'], ans:1, exp:'Retângulo → tem um ângulo reto (90°).' },
+    { id:'m160', s:'matematica', t:'Triângulos', type:'tf', diff:3, q:'Um triângulo pode ter dois ângulos de 90°.', ans:false, exp:'Se tivesse 2 de 90°, a soma já seria 180° e o 3.º teria de ser 0°. Impossível.' },
+
+    // --- Quadriláteros ---
+    { id:'m161', s:'matematica', t:'Quadriláteros', type:'mc', diff:2, q:'Um quadrilátero com 4 lados iguais e 4 ângulos retos é um:', opts:['retângulo','quadrado','losango','trapézio'], ans:1, exp:'Quadrado = 4 lados iguais + 4 ângulos retos.' },
+    { id:'m162', s:'matematica', t:'Quadriláteros', type:'mc', diff:2, q:'Um quadrilátero com 4 ângulos retos (mas lados não iguais) é um:', opts:['quadrado','retângulo','losango','trapézio'], ans:1, exp:'Retângulo: 4 ângulos retos, lados opostos iguais.' },
+    { id:'m163', s:'matematica', t:'Quadriláteros', type:'mc', diff:3, q:'Um paralelogramo tem os lados opostos:', opts:['iguais e paralelos','perpendiculares','todos iguais','com tamanhos crescentes'], ans:0, exp:'Paralelogramo: lados opostos paralelos e iguais.' },
+    { id:'m164', s:'matematica', t:'Quadriláteros', type:'fill', diff:3, q:'A soma dos ângulos internos de um quadrilátero é ___ graus.', ans:['360','360°'], exp:'Qualquer quadrilátero → soma 360° (2 triângulos × 180°).' },
+    { id:'m165', s:'matematica', t:'Quadriláteros', type:'mc', diff:2, q:'Um trapézio tem:', opts:['4 lados iguais','apenas 1 par de lados paralelos','4 ângulos retos','todos os lados diferentes'], ans:1, exp:'Trapézio: pelo menos um par de lados paralelos.' },
+
+    // --- Perímetros ---
+    { id:'m166', s:'matematica', t:'Perímetros', type:'fill', diff:1, q:'Perímetro de um quadrado com 5 cm de lado. (só o número)', ans:['20'], exp:'P = 4 × lado = 4 × 5 = 20 cm.' },
+    { id:'m167', s:'matematica', t:'Perímetros', type:'fill', diff:2, q:'Perímetro de um retângulo 8 cm × 3 cm. (só o número)', ans:['22'], exp:'P = 2 × (8+3) = 2 × 11 = 22 cm.' },
+    { id:'m168', s:'matematica', t:'Perímetros', type:'fill', diff:2, q:'Perímetro de um triângulo equilátero com 6 cm de lado. (só o número)', ans:['18'], exp:'P = 3 × 6 = 18 cm.' },
+    { id:'m169', s:'matematica', t:'Perímetros', type:'mc', diff:2, q:'Um pentágono regular com 4 cm de lado tem perímetro:', opts:['16 cm','20 cm','24 cm','40 cm'], ans:1, exp:'Pentágono regular = 5 lados iguais. P = 5 × 4 = 20 cm.' },
+    { id:'m170', s:'matematica', t:'Perímetros', type:'fill', diff:3, q:'Um triângulo tem lados 5 cm, 7 cm e 9 cm. Perímetro? (só o número)', ans:['21'], exp:'Soma dos lados: 5+7+9 = 21 cm.' },
+
+    // --- Áreas ---
+    { id:'m24', s:'matematica', t:'Áreas', type:'fill', diff:2, q:'Área de um retângulo 6 cm × 4 cm. (só o número)', ans:['24','24 cm2','24cm2','24 cm²'], exp:'A = base × altura = 6 × 4 = 24 cm².' },
+    { id:'m25', s:'matematica', t:'Áreas', type:'mc',   diff:2, q:'Área de um triângulo com base 10 e altura 6:', opts:['16','30','60','36'], ans:1, exp:'A = (base × altura)/2 = 60/2 = 30.' },
+    { id:'m26', s:'matematica', t:'Áreas', type:'fill', diff:3, q:'Área de um quadrado com 7 cm de lado. (só o número)', ans:['49'], exp:'A = lado² = 49 cm².' },
+    { id:'m171', s:'matematica', t:'Áreas', type:'fill', diff:2, q:'Área de um paralelogramo com base 8 e altura 5. (só o número)', ans:['40'], exp:'A = base × altura = 8 × 5 = 40.' },
+    { id:'m172', s:'matematica', t:'Áreas', type:'fill', diff:3, q:'Área de um trapézio com bases 6 e 10 e altura 4. (só o número)', ans:['32'], exp:'A = (B+b) × h / 2 = (10+6) × 4 / 2 = 32.' },
+    { id:'m173', s:'matematica', t:'Áreas', type:'mc', diff:3, q:'Um quadrado tem 36 cm² de área. Qual o lado?', opts:['4 cm','5 cm','6 cm','9 cm'], ans:2, exp:'lado² = 36 → lado = 6 cm.' },
+
+    // --- Volume ---
+    { id:'m27', s:'matematica', t:'Volume', type:'mc',   diff:2, q:'Volume de um cubo com aresta 3 cm:', opts:['9 cm³','18 cm³','27 cm³','36 cm³'], ans:2, exp:'V = a³ = 27 cm³.' },
+    { id:'m28', s:'matematica', t:'Volume', type:'fill', diff:2, q:'Volume de um paralelepípedo 5×3×2 cm. (só o número)', ans:['30'], exp:'V = 5 × 3 × 2 = 30 cm³.' },
+    { id:'m174', s:'matematica', t:'Volume', type:'fill', diff:3, q:'Volume de um cubo com 4 cm de aresta. (só o número)', ans:['64'], exp:'V = 4³ = 64 cm³.' },
+    { id:'m175', s:'matematica', t:'Volume', type:'mc', diff:2, q:'1 dm³ corresponde a:', opts:['1 mL','1 L','10 L','1000 L'], ans:1, exp:'1 dm³ = 1 litro.' },
+    { id:'m176', s:'matematica', t:'Volume', type:'fill', diff:2, q:'Um aquário tem 30 cm × 20 cm × 15 cm. Volume em cm³? (só o número)', ans:['9000','9 000'], exp:'V = 30 × 20 × 15 = 9 000 cm³ (= 9 L).' },
+
+    // --- Estatística ---
+    { id:'m31', s:'matematica', t:'Estatística', type:'fill', diff:2, q:'Qual a média de 4, 6, 8, 10?', ans:['7'], exp:'(4+6+8+10)/4 = 7.' },
+    { id:'m32', s:'matematica', t:'Estatística', type:'mc',   diff:2, q:'Moda de: 3, 5, 7, 5, 2, 5, 8?', opts:['3','5','7','8'], ans:1, exp:'5 aparece 3 vezes.' },
+    { id:'m177', s:'matematica', t:'Estatística', type:'fill', diff:2, q:'Média de 10, 20, 30.', ans:['20'], exp:'(10+20+30)/3 = 60/3 = 20.' },
+    { id:'m178', s:'matematica', t:'Estatística', type:'mc', diff:2, q:'Moda de: 1, 2, 2, 3, 4, 5?', opts:['1','2','3','4'], ans:1, exp:'O 2 é o mais frequente.' },
+    { id:'m179', s:'matematica', t:'Estatística', type:'fill', diff:3, q:'Numa turma, as notas foram 3,4,4,5,5,5,6. Qual a moda?', ans:['5'], exp:'5 aparece 3 vezes — moda.' },
+    { id:'m180', s:'matematica', t:'Estatística', type:'tf', diff:2, q:'A média pode ser um número que não existe na lista.', ans:true, exp:'Ex: média de 3 e 4 é 3,5 — não está na lista.' },
 
     // ========== INGLÊS (20) ==========
     { id:'i1', s:'ingles', t:'Greetings', type:'mc', diff:1, q:'How do you say "Bom dia" in English?', opts:['Good night','Good morning','Good afternoon','Good evening'], ans:1, exp:'"Good morning" = bom dia.' },
@@ -499,6 +637,7 @@ const EXERCISES = [
 // Ordem aproximada dos manuais do 5.º ano (Porto Editora MX 5 para Matemática).
 const CURRICULUM = {
     matematica: [
+        'Números naturais',
         'Divisibilidade',
         'Números primos',
         'MMC/MDC',
@@ -508,7 +647,11 @@ const CURRICULUM = {
         'Dízimas',
         'Percentagens',
         'Sequências',
-        'Geometria',
+        'Ângulos',
+        'Retas',
+        'Triângulos',
+        'Quadriláteros',
+        'Perímetros',
         'Áreas',
         'Volume',
         'Estatística'
