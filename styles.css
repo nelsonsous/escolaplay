@@ -510,6 +510,7 @@ body {
     display: flex; align-items: center; justify-content: center;
 }
 .help-btn { background: #fef3c7; color: #d97706; }
+.hint-btn { background: #dbeafe; color: #2563eb; }
 .progress-dots { flex: 1; display: flex; gap: 4px; }
 .progress-dot {
     flex: 1;

@@ -965,11 +965,43 @@ function closeRewardModal() {
     pendingRewardId = null;
 }
 
-// ========== LESSON MODAL ==========
+// ========== LESSON + HINT MODAL ==========
 function openLessonModal() {
     if (!currentSession) return;
     const e = currentSession.items[currentSession.idx];
     openLessonByKey(`${e.s}/${e.t}`);
+}
+
+function openHintModal() {
+    if (!currentSession) return;
+    const e = currentSession.items[currentSession.idx];
+    const sub = SUBJECTS[e.s];
+    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-comment-dots" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
+    const body = document.getElementById('lesson-body');
+    const parts = [];
+    if (e.hint) {
+        parts.push(`<p style="background:#dbeafe;border-left:4px solid #2563eb;padding:10px 12px;border-radius:8px;margin-bottom:10px"><strong>💬 Pista:</strong> ${escapeHtml(e.hint)}</p>`);
+    }
+    if (e.material) {
+        parts.push(`<p style="background:#f0fdf4;border-left:4px solid #16a34a;padding:10px 12px;border-radius:8px;margin-bottom:10px"><strong>📘 Regra a aplicar:</strong> ${escapeHtml(e.material)}</p>`);
+    }
+    // Extrair um excerto curto da lição do tópico (se existir)
+    const lesson = LESSONS[`${e.s}/${e.t}`];
+    if (lesson) {
+        const snippet = lesson.body.split('\n').filter(l => l.trim()).slice(0, 4).join('\n');
+        const formatted = escapeHtml(snippet).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        parts.push(`<p style="font-size:0.82rem;color:var(--text-light);margin-top:8px;white-space:pre-wrap">${formatted}</p>`);
+        parts.push(`<p style="margin-top:10px"><button class="btn btn-secondary btn-block" onclick="closeLessonModal();setTimeout(openLessonModal,50)">Ver explicação completa do tópico</button></p>`);
+    }
+    if (parts.length === 0) {
+        parts.push(`<p style="color:var(--text-light)">Lê a pergunta com atenção. Pensa em que operação ou regra precisas de aplicar.</p>`);
+    }
+    body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
+    document.getElementById('lesson-modal').style.display = 'flex';
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function openLessonByKey(key) {
     const lesson = LESSONS[key];
