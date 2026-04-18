@@ -673,8 +673,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
                 max_tokens: maxTokens,
                 temperature: 0.7,
                 messages: [
-                    { role: 'user', content: 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON.' },
-                    { role: 'model', content: 'Understood. I will respond only with valid JSON.' },
+                    { role: 'system', content: 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON.' },
                     { role: 'user', content: prompt }
                 ]
             })
