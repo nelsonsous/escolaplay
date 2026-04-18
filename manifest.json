@@ -1,0 +1,15 @@
+{
+  "name": "EscolaPlay",
+  "short_name": "EscolaPlay",
+  "description": "Treino diario para o 5.º ano: Portugues, Matematica, Ingles, Ciencias, Historia, Geografia",
+  "start_url": "/escolaplay/",
+  "scope": "/escolaplay/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e1b4b",
+  "theme_color": "#6d28d9",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

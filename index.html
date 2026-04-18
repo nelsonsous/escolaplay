@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#6d28d9">
+    <title>EscolaPlay</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div id="app">
+
+    <!-- Top header (XP / level / streak) -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="avatar" id="avatar">&#128060;</div>
+            <div class="header-user">
+                <div class="header-name" id="user-name">Aluno(a)</div>
+                <div class="header-level"><span id="level-name">Aprendiz</span> &middot; Nivel <span id="level-num">1</span></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="chip chip-streak" title="Streak diario">
+                <i class="fas fa-fire"></i> <span id="streak-days">0</span>
+            </div>
+            <div class="chip chip-xp" title="Experiencia">
+                <i class="fas fa-star"></i> <span id="xp-total">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- XP progress bar -->
+    <div class="xp-bar-wrap">
+        <div class="xp-bar"><div class="xp-bar-fill" id="xp-bar-fill"></div></div>
+        <div class="xp-bar-label"><span id="xp-into-level">0</span> / <span id="xp-next-level">500</span> XP para o proximo nivel</div>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+        <button class="tab active" data-tab="home" onclick="switchTab('home')"><i class="fas fa-house"></i><span>Inicio</span></button>
+        <button class="tab" data-tab="subjects" onclick="switchTab('subjects')"><i class="fas fa-book-open"></i><span>Disciplinas</span></button>
+        <button class="tab" data-tab="progress" onclick="switchTab('progress')"><i class="fas fa-chart-line"></i><span>Progresso</span></button>
+        <button class="tab" data-tab="profile" onclick="switchTab('profile')"><i class="fas fa-user-gear"></i><span>Perfil</span></button>
+    </nav>
+
+    <!-- ===== HOME TAB ===== -->
+    <section class="tab-content active" id="tab-home">
+        <div class="hero-card" id="daily-card">
+            <div class="hero-card-header">
+                <div class="hero-icon"><i class="fas fa-bolt"></i></div>
+                <div style="flex:1">
+                    <h2>Desafio Diario</h2>
+                    <p id="daily-status">6 perguntas das tuas disciplinas</p>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-start-daily" onclick="startDailyChallenge()">
+                <i class="fas fa-play"></i> <span id="btn-start-daily-label">Comecar desafio</span>
+            </button>
+        </div>
+
+        <div class="grid-2">
+            <div class="mini-card">
+                <div class="mini-card-icon" style="background:#fef2f2;color:#dc2626"><i class="fas fa-fire"></i></div>
+                <div class="mini-card-value" id="mini-streak">0</div>
+                <div class="mini-card-label">dias seguidos</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-card-icon" style="background:#fef3c7;color:#d97706"><i class="fas fa-star"></i></div>
+                <div class="mini-card-value" id="mini-xp">0</div>
+                <div class="mini-card-label">XP total</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-card-icon" style="background:#dcfce7;color:#16a34a"><i class="fas fa-circle-check"></i></div>
+                <div class="mini-card-value" id="mini-correct">0</div>
+                <div class="mini-card-label">respostas certas</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-card-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-medal"></i></div>
+                <div class="mini-card-value" id="mini-badges">0</div>
+                <div class="mini-card-label">medalhas</div>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-dumbbell"></i> Treino rapido</div>
+        <div class="quick-subjects" id="quick-subjects"></div>
+    </section>
+
+    <!-- ===== SUBJECTS TAB ===== -->
+    <section class="tab-content" id="tab-subjects">
+        <div class="section-title"><i class="fas fa-book-open"></i> Escolhe uma disciplina</div>
+        <div class="subjects-grid" id="subjects-grid"></div>
+    </section>
+
+    <!-- ===== PROGRESS TAB ===== -->
+    <section class="tab-content" id="tab-progress">
+        <div class="section-title"><i class="fas fa-chart-line"></i> Evolucao por disciplina</div>
+        <div id="progress-list"></div>
+
+        <div class="section-title"><i class="fas fa-medal"></i> Medalhas</div>
+        <div class="badges-grid" id="badges-grid"></div>
+    </section>
+
+    <!-- ===== PROFILE TAB ===== -->
+    <section class="tab-content" id="tab-profile">
+        <div class="section-title"><i class="fas fa-user"></i> O teu perfil</div>
+        <div class="form-card">
+            <label>Como te chamas?</label>
+            <input type="text" id="input-name" placeholder="O teu nome" maxlength="24">
+            <label>Escolhe um avatar</label>
+            <div class="avatar-grid" id="avatar-grid"></div>
+            <button class="btn btn-primary btn-block" onclick="saveProfile()"><i class="fas fa-floppy-disk"></i> Guardar</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-gear"></i> Dados</div>
+        <div class="form-card">
+            <button class="btn btn-secondary btn-block" onclick="resetStats()"><i class="fas fa-rotate"></i> Reiniciar progresso</button>
+            <p class="muted">Apaga XP, streak e historial (mantem o teu nome e avatar).</p>
+        </div>
+    </section>
+
+    <!-- ===== EXERCISE MODAL ===== -->
+    <div id="exercise-screen" class="fullscreen" style="display:none">
+        <div class="exercise-header">
+            <button class="icon-btn" onclick="exitSession()"><i class="fas fa-xmark"></i></button>
+            <div class="progress-dots" id="progress-dots"></div>
+            <div class="session-xp"><i class="fas fa-star"></i> <span id="session-xp">0</span></div>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-subject-tag" id="ex-subject-tag"></div>
+            <div class="exercise-topic" id="ex-topic"></div>
+            <h2 class="exercise-question" id="ex-question"></h2>
+            <div class="exercise-answer-area" id="ex-answer-area"></div>
+        </div>
+        <div class="exercise-feedback" id="ex-feedback" style="display:none">
+            <div class="feedback-icon" id="feedback-icon"></div>
+            <div class="feedback-text" id="feedback-text"></div>
+            <div class="feedback-exp" id="feedback-exp"></div>
+            <button class="btn btn-primary btn-block" onclick="nextQuestion()"><span id="feedback-next">Continuar</span> <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>
+
+    <!-- ===== SUMMARY SCREEN ===== -->
+    <div id="summary-screen" class="fullscreen" style="display:none">
+        <div class="summary-body">
+            <div class="summary-emoji" id="summary-emoji">&#127881;</div>
+            <h1 id="summary-title">Excelente!</h1>
+            <p id="summary-sub"></p>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="sum-correct">0</div>
+                    <div class="summary-stat-label">certas</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="sum-xp">+0</div>
+                    <div class="summary-stat-label">XP ganho</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="sum-accuracy">0%</div>
+                    <div class="summary-stat-label">precisao</div>
+                </div>
+            </div>
+            <div id="summary-badges" class="summary-badges"></div>
+            <button class="btn btn-primary btn-block" onclick="closeSummary()"><i class="fas fa-house"></i> Voltar ao inicio</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+</div>
+
+<script src="content.js"></script>
+<script src="app.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+</script>
+</body>
+</html>
