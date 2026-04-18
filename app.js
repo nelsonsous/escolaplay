@@ -669,7 +669,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500) {
                 'authorization': `Bearer ${key}`
             },
             body: JSON.stringify({
-                model: 'gemma2-9b-it',
+                model: 'llama-3.3-70b-versatile',
                 max_tokens: maxTokens,
                 temperature: 0.7,
                 messages: [
