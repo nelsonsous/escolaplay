@@ -706,36 +706,44 @@ async function generateMaxExercises(subjectKey, topics, count = 12) {
     const topicsStr = topics.join(', ');
     const isEnglish = subjectKey === 'ingles';
     const langRule = isEnglish
-        ? '- IMPORTANT: All exercise content (passage, question, options, answers, explanations) must be written in ENGLISH. The topic names in "lessons" keys stay as-is.'
-        : '- Português Europeu, Acordo Ortográfico 1990. Acentos obrigatórios.';
-    const prompt = `És um professor que cria exercícios variados e desafiantes para o 5.º ano (curriculum português).
+        ? 'LANGUAGE: All content (passages, questions, options, answers, explanations) must be in ENGLISH at A2/B1 level appropriate for a Portuguese 5th grader learning English.'
+        : 'LANGUAGE: Português Europeu (Portugal), Acordo Ortográfico 1990. Vocabulário e expressões de Portugal, nunca do Brasil.';
+    const mathNote = subjectKey === 'matematica'
+        ? '\nMATEMÁTICA: Usa frações, potências, prioridade de operações, mmc/mdc, áreas, perímetros, volumes, proporções, percentagens, números negativos. PROIBIDO: adição/subtração simples sem contexto complexo.'
+        : '';
+    const prompt = `És uma professora experiente do ensino básico português a criar exercícios de avaliação para uma aluna do 5.º ano (10-11 anos).
 
-Gera ${count} exercícios de ${subName} cobrindo os tópicos: ${topicsStr}.
+DISCIPLINA: ${subName}
+TÓPICOS: ${topicsStr}
+QUANTIDADE: ${count} exercícios
+${langRule}${mathNote}
 
-REGRAS GERAIS:
-${langRule}
-- Dificuldade 1-3. Inclui pelo menos 3 exercícios de dificuldade 3.
-- OBRIGATÓRIO: todos os exercícios devem exigir conhecimentos do 5.º ano. NUNCA geres exercícios que um aluno do 1.º ao 4.º ano consiga resolver facilmente (ex: "3+2=?", "qual a capital?", sílabas simples).
-- Mistura tipos: mc, tf, fill, problem, passage.
-- Para Matemática: usa frações, potências, prioridade de operações, mmc/mdc, áreas, volumes, proporções. NUNCA adição/subtração simples.
+CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
+1. Cada exercício deve testar um conceito específico do 5.º ano — não anos anteriores.
+2. As perguntas devem ser claras, sem ambiguidade, com uma única resposta correcta.
+3. Nas opções múltiplas, os distratores devem ser plausíveis mas claramente errados para quem sabe a matéria.
+4. Os problemas devem ter contexto real e relevante para uma criança de 10-11 anos (escola, desporto, família, natureza, tecnologia).
+5. A explicação "exp" deve ensinar o raciocínio, não apenas confirmar a resposta.
+6. Pelo menos 4 exercícios de dificuldade 3 (desafiantes mas acessíveis com estudo).
+7. NUNCA repitas perguntas óbvias ou triviais que qualquer criança saberia sem estudar.
 
-TIPOS DE EXERCÍCIOS:
-1. "mc" - escolha múltipla com 4 opções
-2. "tf" - verdadeiro ou falso
-3. "fill" - preencher lacuna
-4. "problem" - problema com contexto real (campo "material" com regra, "solution" com resolução passo-a-passo)
-5. "passage" - texto de contexto longo (2-4 frases) seguido de pergunta; usa campo "passage" com o texto e "q" com a pergunta. Inclui sempre "table" (tabela HTML com <table><tr><th>/<td>) OU "svg" (SVG 200×150 com figuras geométricas, gráficos de barras simples, ou diagramas). Para Matemática e Ciências é OBRIGATÓRIO incluir svg ou table.
+TIPOS DISPONÍVEIS:
+- "mc": escolha múltipla, 4 opções (1 correcta, 3 distratores plausíveis)
+- "tf": verdadeiro ou falso (afirmação completa e precisa)
+- "fill": completar frase com lacuna ___ (aceita variantes ortográficas em ans_fill)
+- "problem": problema com contexto real; "material" = fórmula/regra; "solution" = resolução passo a passo numerada
+- "passage": texto informativo de 3-5 frases + pergunta de compreensão/aplicação; para Matemática e Ciências incluir obrigatoriamente "svg" (SVG 220x160, viewBox="0 0 220 160", com figuras geométricas, gráficos ou diagramas) ou "table" (HTML <table> com cabeçalhos)
 
-Para cada tópico inclui mini-lição de 2-3 frases no campo "lessons".
+LIÇÕES: para cada tópico, escreve uma mini-lição de 2-3 frases no campo "lessons" que explique o conceito principal de forma simples.
 
-Responde APENAS com JSON válido (sem markdown):
+Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
 
-{"lessons":{"<tópico>":"<explicação 2-3 frases>"},"exercises":[
-  {"t":"<tópico>","type":"mc","diff":2,"q":"<pergunta>","opts":["A","B","C","D"],"ans_mc":0,"exp":"<explicação>"},
-  {"t":"<tópico>","type":"tf","diff":1,"q":"<afirmação>","ans_tf":true,"exp":"<explicação>"},
-  {"t":"<tópico>","type":"fill","diff":2,"q":"<frase com ___>","ans_fill":["resposta","variante"],"exp":"<explicação>"},
-  {"t":"<tópico>","type":"problem","diff":3,"q":"<enunciado>","ans_fill":["valor"],"material":"<regra>","solution":"<passos>","exp":"<nota>"},
-  {"t":"<tópico>","type":"passage","diff":3,"passage":"<texto contexto longo>","q":"<pergunta sobre o texto>","ans_fill":["resposta"],"table":"<tabela HTML opcional>","svg":"<SVG simples opcional>","exp":"<explicação>"}
+{"lessons":{"<tópico>":"<mini-lição 2-3 frases>"},"exercises":[
+  {"t":"<tópico>","type":"mc","diff":2,"q":"<pergunta>","opts":["<A>","<B>","<C>","<D>"],"ans_mc":<0-3>,"exp":"<explicação pedagógica>"},
+  {"t":"<tópico>","type":"tf","diff":1,"q":"<afirmação completa>","ans_tf":<true|false>,"exp":"<explicação>"},
+  {"t":"<tópico>","type":"fill","diff":2,"q":"<frase com ___ no meio>","ans_fill":["<resposta>","<variante>"],"exp":"<explicação>"},
+  {"t":"<tópico>","type":"problem","diff":3,"q":"<enunciado com dados concretos>","ans_fill":["<valor>"],"material":"<regra ou fórmula>","solution":"<passo 1. passo 2. resultado>","exp":"<dica>"},
+  {"t":"<tópico>","type":"passage","diff":3,"passage":"<texto 3-5 frases>","q":"<pergunta>","ans_fill":["<resposta>"],"svg":"<SVG>","exp":"<explicação>"}
 ]}`;
 
     const { text, usage } = await callClaudeAPI(prompt, 4000);
