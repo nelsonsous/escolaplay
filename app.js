@@ -282,22 +282,32 @@ function openSubjectDetail(key) {
                 <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino
                 </button>
-                <button class="btn btn-max btn-block" style="margin-top:8px" onclick="startMaxSession('${key}')">
-                    <i class="fas fa-wand-magic-sparkles"></i> Treino MAX (todos os tópicos)
-                </button>
-                <div id="max-topic-sel-bar" style="display:none;margin-top:8px;background:#f5f3ff;border-radius:12px;padding:10px 12px">
-                    <div style="font-size:0.8rem;font-weight:700;color:#6d28d9;margin-bottom:6px"><i class="fas fa-check-square"></i> Tópicos selecionados: <span id="max-sel-count">0</span></div>
-                    <button class="btn btn-max btn-block" style="margin-bottom:6px" onclick="startMaxForSelected('${key}', false)">
-                        <i class="fas fa-wand-magic-sparkles"></i> Gerar MAX para estes tópicos
+
+                <!-- ===== BLOCO MAX ===== -->
+                <div style="margin-top:16px;background:linear-gradient(135deg,#4c1d95,#6d28d9);border-radius:16px;padding:14px;box-shadow:0 4px 16px rgba(109,40,217,0.35)">
+                    <div style="color:#fff;font-weight:800;font-size:1rem;margin-bottom:4px"><i class="fas fa-wand-magic-sparkles"></i> MAX — Exercícios com IA</div>
+                    <div style="color:#ddd6fe;font-size:0.78rem;margin-bottom:12px">Selecciona tópicos abaixo ou gera para todos</div>
+
+                    <div id="max-topic-sel-bar" style="display:none;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;margin-bottom:10px">
+                        <div style="color:#e9d5ff;font-size:0.78rem;font-weight:700;margin-bottom:8px"><i class="fas fa-check-square"></i> <span id="max-sel-count">0</span> tópico(s) selecionado(s)</div>
+                        <button class="btn btn-block" style="margin-bottom:6px;background:#fff;color:#6d28d9;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="startMaxForSelected('${key}', false)">
+                            <i class="fas fa-wand-magic-sparkles"></i> Gerar exercícios MAX
+                        </button>
+                        <button class="btn btn-block" style="margin-bottom:6px;background:#fbbf24;color:#78350f;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="startMaxForSelected('${key}', true)">
+                            <i class="fas fa-graduation-cap"></i> Preparação para teste
+                        </button>
+                        <button class="btn btn-block" style="background:rgba(255,255,255,0.15);color:#e9d5ff;border-radius:10px;padding:8px;font-size:0.78rem" onclick="clearTopicSelection()">
+                            <i class="fas fa-times"></i> Limpar seleção
+                        </button>
+                    </div>
+
+                    <button class="btn btn-block" style="background:rgba(255,255,255,0.18);color:#fff;border-radius:10px;padding:10px;font-weight:600;font-size:0.88rem;margin-bottom:6px" onclick="startMaxSession('${key}')">
+                        <i class="fas fa-shuffle"></i> Treino MAX (todos os tópicos activos)
                     </button>
-                    <button class="btn btn-block" style="margin-bottom:6px;background:#dc2626;color:#fff;border-radius:12px;padding:12px;font-weight:700;font-size:0.95rem" onclick="startMaxForSelected('${key}', true)">
-                        <i class="fas fa-graduation-cap"></i> Preparação para teste
+                    <button class="btn btn-block" style="background:rgba(255,255,255,0.1);color:#ddd6fe;border-radius:10px;padding:8px;font-size:0.78rem" onclick="startMaxSession('${key}', {forceNew:true})">
+                        <i class="fas fa-rotate"></i> Forçar novos exercícios (consome API)
                     </button>
-                    <button class="btn btn-secondary btn-block" style="font-size:0.8rem" onclick="clearTopicSelection()">Limpar seleção</button>
                 </div>
-                <button class="btn btn-secondary btn-block" style="margin-top:6px;font-size:0.85rem" onclick="startMaxSession('${key}', {forceNew:true})">
-                    <i class="fas fa-rotate"></i> Gerar perguntas novas (usa API)
-                </button>
             </div>
         </div>
     `;
