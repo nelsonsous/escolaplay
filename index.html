@@ -216,11 +216,33 @@
             <div class="exercise-topic" id="ex-topic"></div>
             <h2 class="exercise-question" id="ex-question"></h2>
             <div class="exercise-answer-area" id="ex-answer-area"></div>
+            <!-- Professor IA inline — visível durante a pergunta -->
+            <div id="ex-prof-ia-wrap" style="display:none;margin-top:14px">
+                <button id="ex-prof-ia-btn" onclick="toggleInlineHint()"
+                    style="width:100%;padding:10px 14px;border:2px dashed #a78bfa;border-radius:14px;background:transparent;color:#7c3aed;font-size:0.88rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:background .15s">
+                    <i class="fas fa-robot"></i> Professor IA — pedir pista
+                </button>
+                <div id="ex-prof-ia-box" style="display:none;margin-top:8px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:12px;padding:14px 16px;font-size:0.88rem;line-height:1.6;color:#1e1b4b">
+                    <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.04em">🎓 PROFESSOR IA</div>
+                    <div id="ex-prof-ia-text">A pensar…</div>
+                </div>
+            </div>
         </div>
         <div class="exercise-feedback" id="ex-feedback" style="display:none">
             <div class="feedback-icon" id="feedback-icon"></div>
             <div class="feedback-text" id="feedback-text"></div>
             <div class="feedback-exp" id="feedback-exp"></div>
+            <!-- Professor IA no painel de feedback (quando errado) -->
+            <div id="feedback-prof-ia-wrap" style="display:none;margin-bottom:8px">
+                <button id="feedback-prof-ia-btn" onclick="toggleFeedbackHint()"
+                    style="width:100%;padding:9px 14px;border:none;border-radius:12px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;font-size:0.86rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center">
+                    <i class="fas fa-robot"></i> Professor IA — pedir pista
+                </button>
+                <div id="feedback-prof-ia-box" style="display:none;margin-top:8px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:12px;padding:14px 16px;font-size:0.88rem;line-height:1.6;color:#1e1b4b">
+                    <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.04em">🎓 PROFESSOR IA</div>
+                    <div id="feedback-prof-ia-text">A pensar…</div>
+                </div>
+            </div>
             <button id="feedback-detail-btn" class="btn btn-secondary btn-block" onclick="loadDetailedExplanation()" style="display:none;margin-bottom:8px">💡 Explicar passo a passo</button>
             <div id="feedback-detail-wrap" style="display:none;background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:8px;text-align:left;font-size:0.88rem;line-height:1.5;color:#1e3a5f;max-height:35vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
             <button class="btn btn-primary-solid btn-block" id="feedback-next-btn" onclick="feedbackNext()"><span id="feedback-next">Continuar</span> <i id="feedback-next-icon" class="fas fa-arrow-right"></i></button>

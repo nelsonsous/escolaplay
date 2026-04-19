@@ -1792,6 +1792,18 @@ function renderQuestion() {
     qHtml += `<span class="ex-q-text">${escapeHtml(e.q)}</span>`;
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
+    // Mostrar botão Professor IA inline; resetar estado
+    const profWrap = document.getElementById('ex-prof-ia-wrap');
+    const profBox  = document.getElementById('ex-prof-ia-box');
+    const profBtn  = document.getElementById('ex-prof-ia-btn');
+    const profTxt  = document.getElementById('ex-prof-ia-text');
+    if (profWrap) profWrap.style.display = 'block';
+    if (profBox)  profBox.style.display = 'none';
+    if (profTxt)  profTxt.textContent = 'A pensar…';
+    if (profBtn)  { profBtn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista'; profBtn.disabled = false; }
+    // Esconder painel de pista do feedback (será de novo configurado em showFeedback)
+    const fbWrap = document.getElementById('feedback-prof-ia-wrap');
+    if (fbWrap) fbWrap.style.display = 'none';
     selectedAnswer = null;
     matchSelection = { left: null };
     const area = document.getElementById('ex-answer-area');
@@ -2225,6 +2237,18 @@ function showEncouragement() {
 function showFeedback(e, isCorrect) {
     if (isCorrect) playCorrectSound(); else playWrongSound();
     currentSession._lastWasWrong = !isCorrect;
+    // Esconder botão IA inline durante o feedback (evita sobreposição)
+    const profWrap = document.getElementById('ex-prof-ia-wrap');
+    if (profWrap) profWrap.style.display = 'none';
+    // Mostrar botão IA no painel de feedback só quando errado
+    const fbWrap = document.getElementById('feedback-prof-ia-wrap');
+    const fbBox  = document.getElementById('feedback-prof-ia-box');
+    const fbBtn  = document.getElementById('feedback-prof-ia-btn');
+    const fbTxt  = document.getElementById('feedback-prof-ia-text');
+    if (fbWrap) fbWrap.style.display = isCorrect ? 'none' : 'block';
+    if (fbBox && !isCorrect) { fbBox.style.display = 'none'; }
+    if (fbTxt) fbTxt.textContent = 'A pensar…';
+    if (fbBtn) { fbBtn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista'; fbBtn.disabled = false; }
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : '\u{1F914}';
@@ -2498,6 +2522,81 @@ function openHintModal() {
 
     body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
     document.getElementById('lesson-modal').style.display = 'flex';
+}
+
+// ===== Professor IA inline (durante a pergunta e no feedback) =====
+async function _loadAndShowHint(textEl, btnEl, boxEl) {
+    if (!currentSession) return;
+    const e = currentSession.items[currentSession.idx];
+    const cacheKey = `ai_hint_${e.id}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+        textEl.innerHTML = escapeHtml(cached).replace(/\n/g, '<br>');
+        boxEl.style.display = 'block';
+        btnEl.innerHTML = '<i class="fas fa-robot"></i> Professor IA — esconder pista';
+        return;
+    }
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…';
+    textEl.textContent = 'A pensar…';
+    boxEl.style.display = 'block';
+
+    const yr = activeProfile()?.year || 6;
+    const subName = SUBJECTS[e.s]?.name || e.s;
+    let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"`;
+    if (e.type === 'mc' && e.opts) qContext += `\nOpções: ${e.opts.map((o,i)=>`${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
+    if (e.passage) qContext += `\nTexto: "${e.passage.slice(0,200)}"`;
+    if (e.material) qContext += `\nRegra: "${e.material}"`;
+    const treatment = yr === 2
+        ? 'fala com uma criança de 7-8 anos (2.º ano). Usa frases muito curtas, palavras simples e um tom carinhoso'
+        : `fala com um aluno do ${yr}.º ano. Tom de professor/a directo e encorajador`;
+    const prompt = `És um professor/professora do ${yr}.º ano do Ensino Básico português. ${treatment}.
+
+${qContext}
+
+Dá uma PISTA PEDAGÓGICA em Português Europeu (Portugal):
+- NÃO reveles a resposta certa nem nenhuma opção
+- Guia o aluno a pensar no conceito certo
+- Máximo 2-3 frases curtas
+- Tom: professor/a paciente e encorajador/a`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 180, false);
+        const clean = text.trim().replace(/^["']|["']$/g, '');
+        sessionStorage.setItem(cacheKey, clean);
+        textEl.innerHTML = escapeHtml(clean).replace(/\n/g, '<br>');
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<i class="fas fa-robot"></i> Professor IA — esconder pista';
+    } catch(_) {
+        textEl.textContent = 'Não foi possível carregar a pista. Tenta de novo.';
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<i class="fas fa-robot"></i> Professor IA — tentar novamente';
+    }
+}
+
+function toggleInlineHint() {
+    const box = document.getElementById('ex-prof-ia-box');
+    const btn = document.getElementById('ex-prof-ia-btn');
+    const txt = document.getElementById('ex-prof-ia-text');
+    if (!box || !btn || !txt) return;
+    if (box.style.display === 'block') {
+        box.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista';
+    } else {
+        _loadAndShowHint(txt, btn, box);
+    }
+}
+
+function toggleFeedbackHint() {
+    const box = document.getElementById('feedback-prof-ia-box');
+    const btn = document.getElementById('feedback-prof-ia-btn');
+    const txt = document.getElementById('feedback-prof-ia-text');
+    if (!box || !btn || !txt) return;
+    if (box.style.display === 'block') {
+        box.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista';
+    } else {
+        _loadAndShowHint(txt, btn, box);
+    }
 }
 
 function _hintAiBox(text) {
