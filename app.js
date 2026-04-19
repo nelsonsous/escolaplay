@@ -969,11 +969,12 @@ function deleteTest(id) {
     renderHome();
 }
 
-function startTestPrep(testId) {
+function startTestPrep(testId, opts = {}) {
     const t = state.tests.find(x => x.id === testId);
     if (!t) return;
     t.seenEx = t.seenEx || [];
-    const seenSet = new Set(t.seenEx);
+    // Se bypass, ignora o seenEx e considera todas as perguntas como disponíveis
+    const seenSet = opts.bypassSeenCheck ? new Set() : new Set(t.seenEx);
 
     const key = t.subject;
     const active = activeTopicsFor(key);
@@ -986,13 +987,11 @@ function startTestPrep(testId) {
     if (topicsOrdered.length === 0) { showToast('Sem tópicos activos para este teste.'); return; }
 
     // Construir pool por tópico, excluindo TUDO o que já foi visto neste teste
-    const fullPoolSize = {};
     const availableByTopic = {};
     let totalAvailable = 0;
     let totalPool = 0;
     topicsOrdered.forEach(topic => {
         const pool = allExercisesFor(key, new Set([topic]));
-        fullPoolSize[topic] = pool.length;
         totalPool += pool.length;
         const av = pool.filter(e => !seenSet.has(e.id));
         availableByTopic[topic] = av;
@@ -1004,7 +1003,7 @@ function startTestPrep(testId) {
         return;
     }
 
-    // Já respondeu a TODAS — abrir modal a propor recomeçar ou IA MAX
+    // Já respondeu a TODAS — abrir modal com opções
     if (totalAvailable === 0) {
         showAllAnsweredTestModal(testId, totalPool);
         return;
@@ -1026,8 +1025,8 @@ function startTestPrep(testId) {
         return;
     }
 
-    // Aviso se restam poucas perguntas
-    if (totalAvailable < target) {
+    // Aviso se restam poucas perguntas (só na sessão normal, não no bypass)
+    if (!opts.bypassSeenCheck && totalAvailable < target) {
         showToast(`📚 Só restam ${totalAvailable} perguntas novas — vamos a essas!`);
     }
 
@@ -1053,10 +1052,10 @@ function showAllAnsweredTestModal(testId, totalCount) {
                 </div>
                 <div class="modal-body" style="text-align:center">
                     <div style="font-size:3.4rem;margin-bottom:10px">📚</div>
-                    <p style="margin-bottom:6px;font-size:1rem"><strong>Já respondeste a todas as ${totalCount} perguntas deste teste de ${subName}!</strong></p>
+                    <p style="margin-bottom:6px;font-size:1rem"><strong>Já respondeste a todas as ${totalCount} perguntas deste teste de ${escapeHtml(subName)}!</strong></p>
                     <p class="muted" style="font-size:0.88rem;margin-bottom:20px">Excelente trabalho. O que queres fazer?</p>
-                    <button class="btn btn-block" onclick="restartTestPrep('${testId}')" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
-                        <i class="fas fa-rotate-left"></i> Recomeçar (repor perguntas)
+                    <button class="btn btn-block" onclick="continueTestAnyway('${testId}')" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                        <i class="fas fa-rotate-left"></i> Responder de novo (mesmas perguntas)
                     </button>
                     <button class="btn btn-block" onclick="closeAllAnsweredModal();startMaxForTest('${testId}')" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
                         <i class="fas fa-wand-magic-sparkles"></i> Carregar novas com IA MAX
@@ -1075,14 +1074,10 @@ function closeAllAnsweredModal() {
     document.getElementById('all-answered-modal-temp')?.remove();
 }
 
-function restartTestPrep(testId) {
-    const t = state.tests.find(x => x.id === testId);
-    if (!t) return;
-    t.seenEx = [];
-    saveState();
+// Continua o teste com as mesmas perguntas (ignora seenEx para esta sessão)
+function continueTestAnyway(testId) {
     closeAllAnsweredModal();
-    showToast('Perguntas repostas. Bom treino!');
-    setTimeout(() => startTestPrep(testId), 400);
+    startTestPrep(testId, { bypassSeenCheck: true });
 }
 
 // ========== PROGRESS ==========
@@ -1987,11 +1982,84 @@ function startSubjectSession(key, opts = {}) {
             : 'Sem exercícios. Aumenta o teu progresso para incluir mais tópicos.');
         return;
     }
+    // Detectar "tudo já respondido" — só se o utilizador não pediu explicitamente para ignorar
+    if (!opts.bypassSeenCheck) {
+        const seen = state.exerciseSeen || {};
+        const allSeen = pool.every(e => seen[e.id]);
+        if (allSeen) {
+            showAllAnsweredSubjectModal(key, topicSet, pool.length, opts);
+            return;
+        }
+    }
     const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key };
     closeSubjectDetail();
     openExerciseScreen();
     renderQuestion();
+}
+
+// Modal: já respondeu a todas as perguntas dos tópicos selecionados (treino de disciplina)
+let _pendingSubjectRetry = null;
+function showAllAnsweredSubjectModal(subjectKey, topicSet, totalCount, originalOpts = {}) {
+    const topicsArr = Array.from(topicSet);
+    const topicsLabel = topicsArr.length === 1
+        ? `do tópico "${topicsArr[0]}"`
+        : (topicsArr.length <= 3 ? `dos tópicos: ${topicsArr.join(', ')}` : `dos ${topicsArr.length} tópicos seleccionados`);
+    const sub = SUBJECTS[subjectKey];
+    const subName = sub?.name || subjectKey;
+
+    _pendingSubjectRetry = { subjectKey, opts: { ...originalOpts } };
+    document.getElementById('all-answered-subject-modal-temp')?.remove();
+    const html = `
+        <div id="all-answered-subject-modal-temp" class="modal" style="display:flex;align-items:center;justify-content:center;padding:20px">
+            <div class="modal-content" style="max-width:480px;border-radius:18px;max-height:90vh">
+                <div class="modal-header">
+                    <h2>🎉 Já respondeste a todas!</h2>
+                    <button class="icon-btn" onclick="closeAllAnsweredSubjectModal()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body" style="text-align:center">
+                    <div style="font-size:3.4rem;margin-bottom:10px">📚</div>
+                    <p style="margin-bottom:6px;font-size:1rem"><strong>Já respondeste às ${totalCount} perguntas ${escapeHtml(topicsLabel)} de ${escapeHtml(subName)}!</strong></p>
+                    <p class="muted" style="font-size:0.88rem;margin-bottom:20px">O que queres fazer?</p>
+                    <button class="btn btn-block" onclick="continueSubjectAnyway()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                        <i class="fas fa-rotate-left"></i> Responder de novo (mesmas perguntas)
+                    </button>
+                    <button class="btn btn-block" onclick="generateMaxForSubjectAnswered()" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                        <i class="fas fa-wand-magic-sparkles"></i> Carregar novas com IA MAX
+                    </button>
+                    <button class="btn btn-block btn-secondary" onclick="closeAllAnsweredSubjectModal()" style="padding:12px">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeAllAnsweredSubjectModal() {
+    document.getElementById('all-answered-subject-modal-temp')?.remove();
+    _pendingSubjectRetry = null;
+}
+
+function continueSubjectAnyway() {
+    if (!_pendingSubjectRetry) { closeAllAnsweredSubjectModal(); return; }
+    const { subjectKey, opts } = _pendingSubjectRetry;
+    _pendingSubjectRetry = null;
+    document.getElementById('all-answered-subject-modal-temp')?.remove();
+    startSubjectSession(subjectKey, { ...opts, bypassSeenCheck: true });
+}
+
+function generateMaxForSubjectAnswered() {
+    if (!_pendingSubjectRetry) { closeAllAnsweredSubjectModal(); return; }
+    const { subjectKey, opts } = _pendingSubjectRetry;
+    _pendingSubjectRetry = null;
+    document.getElementById('all-answered-subject-modal-temp')?.remove();
+    if (opts.useSelection && selectedTopicsForMax.size > 0) {
+        startMaxForSelected(subjectKey, false);
+    } else {
+        startMaxSession(subjectKey);
+    }
 }
 
 function openExerciseScreen() {
