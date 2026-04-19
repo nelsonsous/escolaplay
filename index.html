@@ -232,18 +232,7 @@
             <div class="feedback-icon" id="feedback-icon"></div>
             <div class="feedback-text" id="feedback-text"></div>
             <div class="feedback-exp" id="feedback-exp"></div>
-            <!-- Professor IA no painel de feedback (quando errado) -->
-            <div id="feedback-prof-ia-wrap" style="display:none;margin-bottom:8px">
-                <button id="feedback-prof-ia-btn" onclick="toggleFeedbackHint()"
-                    style="width:100%;padding:9px 14px;border:none;border-radius:12px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;font-size:0.86rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center">
-                    <i class="fas fa-robot"></i> Professor IA — pedir pista
-                </button>
-                <div id="feedback-prof-ia-box" style="display:none;margin-top:8px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:12px;padding:14px 16px;font-size:0.88rem;line-height:1.6;color:#1e1b4b">
-                    <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.04em">🎓 PROFESSOR IA</div>
-                    <div id="feedback-prof-ia-text">A pensar…</div>
-                </div>
-            </div>
-            <button id="feedback-detail-btn" class="btn btn-secondary btn-block" onclick="loadDetailedExplanation()" style="display:none;margin-bottom:8px">💡 Explicar passo a passo</button>
+            <button id="feedback-detail-btn" class="btn btn-block" onclick="loadDetailedExplanation()" style="display:none;margin-bottom:10px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;border:none;font-weight:700;padding:13px"><i class="fas fa-graduation-cap"></i> Explicar passo a passo com o Professor IA</button>
             <div id="feedback-detail-wrap" style="display:none;background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:8px;text-align:left;font-size:0.88rem;line-height:1.5;color:#1e3a5f;max-height:35vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
             <button class="btn btn-primary-solid btn-block" id="feedback-next-btn" onclick="feedbackNext()"><span id="feedback-next">Continuar</span> <i id="feedback-next-icon" class="fas fa-arrow-right"></i></button>
         </div>

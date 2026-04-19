@@ -2218,18 +2218,9 @@ function showEncouragement() {
 
 function showFeedback(e, isCorrect) {
     if (isCorrect) playCorrectSound(); else playWrongSound();
-    // Esconder botão IA inline durante o feedback (evita sobreposição)
+    // Esconder botão IA inline (a pista só faz sentido ANTES de responder)
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     if (profWrap) profWrap.style.display = 'none';
-    // Mostrar botão IA no painel de feedback só quando errado
-    const fbWrap = document.getElementById('feedback-prof-ia-wrap');
-    const fbBox  = document.getElementById('feedback-prof-ia-box');
-    const fbBtn  = document.getElementById('feedback-prof-ia-btn');
-    const fbTxt  = document.getElementById('feedback-prof-ia-text');
-    if (fbWrap) fbWrap.style.display = isCorrect ? 'none' : 'block';
-    if (fbBox && !isCorrect) { fbBox.style.display = 'none'; }
-    if (fbTxt) fbTxt.textContent = 'A pensar…';
-    if (fbBtn) { fbBtn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista'; fbBtn.disabled = false; }
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : '\u{1F914}';
@@ -2275,61 +2266,171 @@ function feedbackNext() {
     nextQuestion();
 }
 
+// Constrói o prompt detalhado do Professor IA — explicação pós-resposta com passos
+function _buildDetailedExplanationPrompt(e, yr) {
+    const subName = SUBJECTS[e.s]?.name || e.s;
+
+    // Resposta certa em texto legível por tipo
+    let correctAns;
+    if (e.type === 'mc') correctAns = e.opts[e.ans];
+    else if (e.type === 'tf') correctAns = e.ans ? 'Verdadeiro' : 'Falso';
+    else if (e.type === 'order') correctAns = (e.items || []).join(' > ');
+    else if (e.type === 'match' && e.pairs) correctAns = e.pairs.map(p => `${p[0]} ↔ ${p[1]}`).join('; ');
+    else correctAns = Array.isArray(e.ans) ? e.ans[0] : String(e.ans);
+
+    let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"\nResposta CERTA: ${correctAns}`;
+    if (e.type === 'mc' && e.opts) qContext += `\nOpções apresentadas: ${e.opts.map((o,i)=>`${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
+    if (e.passage) qContext += `\nTexto de apoio: "${e.passage.slice(0, 400)}"`;
+    if (e.material) qContext += `\nRegra do tópico: "${e.material}"`;
+    if (e.exp) qContext += `\nNota curta do exercício: "${e.exp}"`;
+    if (e.solution) qContext += `\nResolução resumida: "${e.solution}"`;
+
+    // Lição estática para fundamentar
+    const lesson = LESSONS[`${e.s}/${e.t}`] || state.maxLessons?.[`${e.s}/${e.t}`];
+    if (lesson) {
+        const lessonSnippet = lesson.body.replace(/\*\*/g, '').slice(0, 800);
+        qContext += `\n\n--- Conteúdo do tópico (currículo, usa-o como base) ---\n${lessonSnippet}\n--- fim ---`;
+    }
+
+    // Estilo por faixa etária + tamanho
+    let ageStyle, length;
+    if (yr <= 2) {
+        ageStyle = 'Estás a falar com uma criança de 7-8 anos. Frases CURTAS, palavras simples, exemplos do dia-a-dia (animais, comida, brincadeiras). Tom carinhoso. 1-2 emojis ajudam.';
+        length = '3-4 frases muito curtas';
+    } else if (yr <= 4) {
+        ageStyle = `Estás a falar com uma criança do ${yr}.º ano (8-10 anos). Frases simples, com 1 exemplo concreto. Tom amigável, sem infantilizar.`;
+        length = '4-6 frases claras';
+    } else {
+        ageStyle = `Estás a falar com um aluno do ${yr}.º ano (10-12 anos). Tom de professor/a, vocabulário próprio mas explicado. Sem rodeios.`;
+        length = '5-8 frases ou 4-6 passos';
+    }
+
+    const isMath = e.s === 'matematica';
+    const isEnglishY2 = e.s === 'ingles' && yr <= 2;
+
+    return `És um professor/professora do ${yr}.º ano do Ensino Básico português, em Portugal. O aluno acabou de responder à pergunta abaixo (terá acertado ou errado — não interessa). Vais explicar-lhe DETALHADAMENTE, em Português Europeu (Portugal), como se chega à resposta certa, para ele perceber bem o assunto.
+
+${qContext}
+
+${ageStyle}
+
+Estrutura da tua resposta (segue EXACTAMENTE este formato):
+
+📚 O que está em causa
+[Explica em 1-2 frases o conceito/regra envolvido nesta pergunta, ligado ao tópico "${e.t}".]
+
+🪜 Passo a passo
+${isMath ? `1. [Identifica o que a pergunta pede]
+2. [Mostra o cálculo ou raciocínio passo a passo, com os números/operações concretos desta pergunta]
+3. [Chega à resposta: ${correctAns}]
+${yr >= 5 ? '4. [Confirma o resultado ou mostra como verificar]' : ''}` : `1. [Primeiro passo do raciocínio para esta pergunta concreta]
+2. [Segundo passo, aplicando a regra ao caso]
+3. [Conclusão: porquê a resposta é "${correctAns}"]
+${yr >= 5 ? '4. [Reforço ou exemplo análogo]' : ''}`}
+
+✅ Resposta: ${correctAns}
+[Frase curta a justificar porquê esta é a resposta — sem repetir os passos.]
+
+${isEnglishY2 ? '🇬🇧 Em Inglês: [palavra/frase inglesa] → 🇵🇹 Em Português: [tradução]\n[Dica de memorização para a criança.]' : ''}
+
+Regras OBRIGATÓRIAS:
+- Português EUROPEU (Portugal): "estás", "tu", "comboio", "autocarro", "rapariga"/"rapaz", "ecrã", "pequeno-almoço" — NUNCA "você", "trem", "ônibus", "garota"/"garoto", "tela", "café da manhã"
+- ${length} no total (não escrevas demasiado)
+- NÃO comentes a tua explicação ("vou explicar...", "espero ter ajudado", "como podes ver")
+- NÃO digas coisas como "a resposta dada está correcta" ou "depende da interpretação"
+- Vai DIRECTO ao conteúdo
+- Sem markdown (**negrito**, # títulos), sem JSON, sem chavetas
+- Usa SEMPRE as 3 secções acima com os emojis 📚 🪜 ✅ no início`;
+}
+
+// Renderiza a explicação detalhada em HTML rico
+function _renderDetailedExplanationHtml(rawText) {
+    const text = String(rawText || '').trim();
+    const causaMatch = text.match(/📚\s*O que está em causa[:\s]*\n?([\s\S]*?)(?=\n*🪜|\n*✅|\n*🇬🇧|$)/);
+    const passosMatch = text.match(/🪜\s*Passo a passo[:\s]*\n?([\s\S]*?)(?=\n*✅|\n*🇬🇧|\n*📚|$)/);
+    const respMatch = text.match(/✅\s*Resposta[:\s]*([\s\S]*?)(?=\n*🇬🇧|\n*📚|\n*🪜|$)/);
+    const engMatch = text.match(/🇬🇧[\s\S]*$/);
+
+    let html = '';
+    if (causaMatch) {
+        const body = escapeHtml(causaMatch[1].trim()).replace(/\n+/g, '<br>');
+        html += `<div style="margin-bottom:14px"><div style="font-weight:700;color:#1d4ed8;margin-bottom:4px;font-size:0.88rem">📚 O que está em causa</div><div>${body}</div></div>`;
+    }
+    if (passosMatch) {
+        const passosRaw = passosMatch[1].trim();
+        const lines = passosRaw.split('\n').map(l => l.trim()).filter(Boolean);
+        const numbered = lines.filter(l => /^\d+\.?\s/.test(l));
+        let passosHtml;
+        if (numbered.length >= 2) {
+            passosHtml = '<ol style="margin:0;padding-left:22px">' +
+                numbered.map(l => `<li style="margin-bottom:6px">${escapeHtml(l.replace(/^\d+\.?\s*/, ''))}</li>`).join('') +
+                '</ol>';
+        } else {
+            passosHtml = `<div>${escapeHtml(passosRaw).replace(/\n+/g, '<br>')}</div>`;
+        }
+        html += `<div style="margin-bottom:14px"><div style="font-weight:700;color:#1d4ed8;margin-bottom:6px;font-size:0.88rem">🪜 Passo a passo</div><div>${passosHtml}</div></div>`;
+    }
+    if (respMatch) {
+        const body = escapeHtml(respMatch[1].trim()).replace(/\n+/g, '<br>');
+        html += `<div style="margin-bottom:10px;padding:10px 12px;background:#dcfce7;border-left:4px solid #16a34a;border-radius:8px"><div style="font-weight:700;color:#166534;margin-bottom:2px;font-size:0.88rem">✅ Resposta</div><div style="color:#14532d">${body}</div></div>`;
+    }
+    if (engMatch) {
+        const body = escapeHtml(engMatch[0].trim()).replace(/\n+/g, '<br>');
+        html += `<div style="margin-top:8px;padding:10px 12px;background:#fef9c3;border-left:4px solid #eab308;border-radius:8px;font-size:0.88rem">${body}</div>`;
+    }
+
+    if (!html) html = `<div>${escapeHtml(text).replace(/\n+/g, '<br>')}</div>`;
+    return html;
+}
+
 async function loadDetailedExplanation() {
     const e = currentSession.items[currentSession.idx];
     const btn = document.getElementById('feedback-detail-btn');
     const wrap = document.getElementById('feedback-detail-wrap');
-    const cacheKey = `detail_${e.id}`;
+    const cacheKey = `detail_v2_${e.id}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) { wrap.innerHTML = cached; wrap.style.display = 'block'; btn.style.display = 'none'; return; }
 
-    // Lição estática (1.ª escolha sempre que existe — instantânea, sem custo, em PT)
+    // Lição estática (fallback se IA falhar ou não houver chave — currículo completo)
     const lessonKey = `${e.s}/${e.t}`;
     const lesson = LESSONS[lessonKey] || state.maxLessons?.[lessonKey];
     const showLesson = () => {
-        const html = `<strong>${lesson.title}</strong><br><br>${lesson.body.replace(/\n/g,'<br>')}`;
+        const html = `<strong>${lesson.title}</strong><br><br>${escapeHtml(lesson.body).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}`;
         sessionStorage.setItem(cacheKey, html);
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
     };
 
-    // Sem API key → tenta lição estática; se não houver, mostra a explicação curta do exercício
+    // Sem API key → lição estática se existir, senão e.exp
     if (!state.max?.apiKey) {
         if (lesson) return showLesson();
         const fallback = e.exp || 'Não há explicação detalhada disponível para esta pergunta.';
-        wrap.innerHTML = fallback.replace(/\n/g, '<br>');
+        wrap.innerHTML = escapeHtml(fallback).replace(/\n/g, '<br>');
         wrap.style.display = 'block'; btn.style.display = 'none';
         return;
     }
 
-    // Com API key → tenta IA; em caso de erro, faz fallback para lição estática ou e.exp
-    btn.textContent = '⏳ A carregar…'; btn.disabled = true;
-    const correctAns = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
-    const context = [e.passage && `Texto: "${e.passage}"`, e.material && `Regra: "${e.material}"`].filter(Boolean).join('\n');
+    // Com API key → IA detalhada
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…'; btn.disabled = true;
     const yr = activeProfile()?.year || 6;
-    const audience = yr === 2 ? 'uma criança do 2.º ano (7-8 anos), com frases muito curtas e vocabulário simples e carinhoso' : `um aluno do ${yr}.º ano`;
-    const subjectHint = e.s === 'ingles' && yr === 2
-        ? '\nÉ uma pergunta de Inglês para 2.º ano: a explicação deve ser em PORTUGUÊS, dizendo o significado da palavra inglesa e dando uma dica para memorizar.'
-        : '';
-    const prompt = `Explica de forma clara e simples para ${audience}:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}${subjectHint}\nDá uma explicação passo a passo em ${yr === 2 ? '2-3' : '3-4'} frases CURTAS. Português Europeu (Portugal). Sê DIRECTO — não comentes a tua explicação, não digas "pode haver interpretação diferente", não digas "a resposta correta dada é X". Apenas explica o raciocínio para chegar à resposta. Texto corrido simples. Sem JSON, sem chavetas, sem markdown.`;
+    const prompt = _buildDetailedExplanationPrompt(e, yr);
     try {
-        const { text } = await callClaudeAPI(prompt, 400, false);
+        const { text } = await callClaudeAPI(prompt, 700, false);
         let clean = text.trim();
         if (clean.startsWith('{')) {
             try {
                 const obj = JSON.parse(clean);
-                clean = Object.values(obj).filter(v => typeof v === 'string').join(' ');
+                clean = Object.values(obj).filter(v => typeof v === 'string').join('\n');
             } catch(_) {
-                clean = clean.replace(/[{}"]/g, '').replace(/\w+:/g, '').trim();
+                clean = clean.replace(/[{}"]/g, '').replace(/\b\w+:/g, '').trim();
             }
         }
-        const html = clean.replace(/\n/g, '<br>');
+        const html = _renderDetailedExplanationHtml(clean);
         sessionStorage.setItem(cacheKey, html);
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
     } catch(err) {
-        // Fallback: lição estática se existir, senão e.exp, senão mensagem de erro
         if (lesson) return showLesson();
         const fallback = e.exp
-            ? `${e.exp}<br><br><em style="color:#9ca3af">(IA indisponível: ${String(err.message || err).slice(0, 100)})</em>`
+            ? `${escapeHtml(e.exp).replace(/\n/g,'<br>')}<br><br><em style="color:#9ca3af">(IA indisponível: ${String(err.message || err).slice(0, 100)})</em>`
             : `<em style="color:#dc2626">Erro: ${String(err.message || err).slice(0, 200)}</em>`;
         wrap.innerHTML = fallback;
         wrap.style.display = 'block'; btn.style.display = 'none';
@@ -2661,19 +2762,6 @@ function toggleInlineHint() {
     const box = document.getElementById('ex-prof-ia-box');
     const btn = document.getElementById('ex-prof-ia-btn');
     const txt = document.getElementById('ex-prof-ia-text');
-    if (!box || !btn || !txt) return;
-    if (box.style.display === 'block') {
-        box.style.display = 'none';
-        btn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista';
-    } else {
-        _loadAndShowHint(txt, btn, box);
-    }
-}
-
-function toggleFeedbackHint() {
-    const box = document.getElementById('feedback-prof-ia-box');
-    const btn = document.getElementById('feedback-prof-ia-btn');
-    const txt = document.getElementById('feedback-prof-ia-text');
     if (!box || !btn || !txt) return;
     if (box.style.display === 'block') {
         box.style.display = 'none';
