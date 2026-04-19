@@ -2097,6 +2097,79 @@ function playWrongSound() {
     _duoWrong(ctx, 233, 170, 300, 0.20); // Bb3
 }
 
+function playPerfectSound() {
+    // Sessão 100% — fanfare ascendente C5→E5→G5→C6 (arpejo de Dó maior)
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    _duoNote(ctx, 523,   0, 260, 0.24); // C5
+    _duoNote(ctx, 659,  80, 260, 0.24); // E5
+    _duoNote(ctx, 784, 160, 260, 0.24); // G5
+    _duoNote(ctx, 1047,240, 550, 0.28); // C6 — nota longa final
+}
+
+function playVictorySound() {
+    // ≥80% — G5→B5→D6 arpejo de Sol maior, alegre mas mais curto
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    _duoNote(ctx, 784,   0, 250, 0.22); // G5
+    _duoNote(ctx, 988,  75, 250, 0.22); // B5
+    _duoNote(ctx, 1175,150, 400, 0.24); // D6
+}
+
+function playBadgeSound() {
+    // Badge desbloqueado — sparkle: 3 notas agudas ascendentes rápidas
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    _duoNote(ctx, 880,   0, 180, 0.18); // A5
+    _duoNote(ctx, 1175,  55, 180, 0.17); // D6
+    _duoNote(ctx, 1568, 110, 320, 0.16); // G6
+}
+
+function playRewardSound() {
+    // Prémio desbloqueado — "chest open": arpejo mais lento e encorpado
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    _duoNote(ctx, 392,   0, 200, 0.20); // G4
+    _duoNote(ctx, 523,  80, 200, 0.20); // C5
+    _duoNote(ctx, 659, 160, 200, 0.22); // E5
+    _duoNote(ctx, 784, 240, 200, 0.22); // G5
+    _duoNote(ctx, 1047,320, 550, 0.26); // C6 — nota de chegada longa
+}
+
+function playStreakSound() {
+    // Streak novo — whoosh ascendente + ding final
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    const t0 = ctx.currentTime;
+    // Sweep de frequência ascendente (o "whoosh")
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(280, t0);
+    osc.frequency.exponentialRampToValueAtTime(840, t0 + 0.22);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.16, t0 + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + 0.32);
+    // Ding de confirmação no fim do sweep
+    _duoNote(ctx, 1047, 220, 350, 0.20); // C6
+}
+
+function playEncouragementSound() {
+    // Meio da sessão — dois "dings" alegres mas discretos
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    _duoNote(ctx, 659,  0, 200, 0.16); // E5
+    _duoNote(ctx, 880, 70, 260, 0.15); // A5
+}
+
 const ENCOURAGE_MSGS = [
     { icon: '⭐', text: 'Estás a ir muito bem!' },
     { icon: '💪', text: 'Continua assim!' },
@@ -2126,9 +2199,7 @@ function showEncouragement() {
     banner.className = 'ep-encourage';
     banner.innerHTML = `<span class="ep-encourage-icon">${msg.icon}</span><span class="ep-encourage-text">${msg.text}</span>`;
     document.body.appendChild(banner);
-    // som suave de subida (2 notas)
-    playBellNote(660, 0, 200, 0.18);
-    playBellNote(990, 90, 240, 0.18);
+    playEncouragementSound();
     requestAnimationFrame(() => banner.classList.add('show'));
     setTimeout(() => { banner.classList.remove('show'); setTimeout(() => banner.remove(), 400); }, 1800);
 }
@@ -2249,6 +2320,11 @@ function finishSession() {
         state.totalDailies = (state.totalDailies || 0) + 1;
         if (s.correct === s.items.length) state.perfectDailies = (state.perfectDailies || 0) + 1;
     }
+    // Streak: se acabou desafio diário e streak subiu, tocar som
+    let streakJustIncreased = false;
+    if (s.isDaily && state.streak.lastDate === todayStr()) {
+        streakJustIncreased = state.streak.days >= 3;
+    }
     BADGES.forEach(b => {
         if (!state.badges.includes(b.id) && b.check(state)) {
             state.badges.push(b.id);
@@ -2259,10 +2335,10 @@ function finishSession() {
     const newlyUnlocked = (state.rewards || []).filter(r => !r.claimed && !r.unlockedAt && state.xp >= r.cost);
     newlyUnlocked.forEach(r => { r.unlockedAt = todayStr(); });
     saveState();
-    showSummary(s, newBadges, newlyUnlocked);
+    showSummary(s, newBadges, newlyUnlocked, streakJustIncreased);
 }
 
-function showSummary(s, newBadges, newRewards) {
+function showSummary(s, newBadges, newRewards, streakIncreased) {
     document.getElementById('exercise-screen').style.display = 'none';
     document.getElementById('summary-screen').style.display = 'flex';
     const total = s.items.length;
@@ -2272,6 +2348,15 @@ function showSummary(s, newBadges, newRewards) {
     else if (acc >= 80) { title = 'Excelente!'; emoji = '\u{1F31F}'; }
     else if (acc >= 50) { title = 'Quase lá!'; emoji = '\u{1F4AA}'; }
     else { title = 'Treina mais!'; emoji = '\u{1F331}'; }
+    // Sons de resultado
+    if (acc === 100) playPerfectSound();
+    else if (acc >= 80) playVictorySound();
+    // Streak sound
+    if (streakIncreased) setTimeout(playStreakSound, 600);
+    // Badge sound
+    if (newBadges && newBadges.length > 0) setTimeout(playBadgeSound, acc === 100 ? 900 : 500);
+    // Reward sound
+    if (newRewards && newRewards.length > 0) setTimeout(playRewardSound, 1400);
     document.getElementById('summary-emoji').textContent = emoji;
     document.getElementById('summary-title').textContent = title;
     document.getElementById('summary-sub').textContent = s.isDaily ? 'Desafio diário concluído' : s.testId ? 'Treino para teste concluído' : 'Sessão de treino concluída';
@@ -2420,6 +2505,19 @@ function updateAll() {
     renderProgress();
     renderProfile();
 }
+
+// Desbloquear AudioContext no primeiro toque (iOS exige gesto do utilizador).
+// Cria o contexto silenciosamente para que esteja pronto quando o primeiro som for chamado.
+function _unlockAudio() {
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+    }
+    document.removeEventListener('touchstart', _unlockAudio, true);
+    document.removeEventListener('click',      _unlockAudio, true);
+}
+document.addEventListener('touchstart', _unlockAudio, { once: true, capture: true, passive: true });
+document.addEventListener('click',      _unlockAudio, { once: true, capture: true });
 
 window.addEventListener('DOMContentLoaded', () => {
     // Inicializar estado agora — neste ponto PROFILE_FIELDS, AVATARS, defaultState etc. já existem.
