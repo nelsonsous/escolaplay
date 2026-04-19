@@ -945,23 +945,20 @@ body {
     .ex-table-wrap th, .ex-table-wrap td { padding: 10px 14px; }
 }
 
-/* ---------- TABLET LANDSCAPE & SMALL DESKTOP (≥ 900px) ---------- */
+/* ---------- TABLET LANDSCAPE & iPad (≥ 900px) ---------- */
 @media (min-width: 900px) {
-    #app { max-width: 860px; padding-bottom: 100px; }
-    .tabs { max-width: 860px; }
-    .modal-content { max-width: 720px; }
+    #app { max-width: 1100px; padding-bottom: 100px; }
+    .tabs { max-width: 1100px; }
+    .modal-content { max-width: 760px; }
 
-    .tab-content { padding: 26px 28px; }
-
-    /* Home: hero + grid lado a lado em 2 colunas */
-    /* Mantemos uma só coluna para coerência da experiência sequencial */
+    .tab-content { padding: 28px 36px; }
 
     /* Stats em 4 colunas em vez de 2 */
     .grid-2 { grid-template-columns: repeat(4, 1fr); }
 
-    /* Exercise body mais largo ainda */
-    .exercise-body { max-width: 820px; padding: 32px 40px; }
-    .exercise-feedback { max-width: 820px; padding: 24px 40px 32px; }
+    /* Exercise body mais largo */
+    .exercise-body { max-width: 920px; padding: 36px 48px; }
+    .exercise-feedback { max-width: 920px; padding: 26px 48px 32px; }
     .exercise-question { font-size: 1.5rem; }
 
     /* Summary stats maiores */
@@ -974,12 +971,25 @@ body {
     .btn-option { font-size: 1.05rem !important; padding: 16px 18px !important; }
 }
 
-/* ---------- DESKTOP GRANDE (≥ 1200px) ---------- */
+/* ---------- iPad PRO LANDSCAPE & DESKTOP (≥ 1200px) ---------- */
 @media (min-width: 1200px) {
-    #app { max-width: 960px; }
-    .tabs { max-width: 960px; }
-    .exercise-body { max-width: 880px; }
-    .exercise-feedback { max-width: 880px; }
+    #app { max-width: 1240px; }
+    .tabs { max-width: 1240px; }
+    .tab-content { padding: 32px 48px; }
+    .exercise-body { max-width: 1000px; padding: 40px 56px; }
+    .exercise-feedback { max-width: 1000px; padding: 28px 56px 36px; }
+
+    /* Disciplinas em 6 colunas no espaço extra (Português, Matemática,
+       Inglês, Ciências, História, Geografia — todas numa linha) */
+    .quick-subjects { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* ---------- DESKTOP GRANDE (≥ 1500px) ---------- */
+@media (min-width: 1500px) {
+    #app { max-width: 1400px; }
+    .tabs { max-width: 1400px; }
+    .exercise-body { max-width: 1100px; }
+    .exercise-feedback { max-width: 1100px; }
 }
 
 /* ---------- SUMMARY centrado em ecrãs largos ---------- */
@@ -987,7 +997,18 @@ body {
     .summary-body { max-width: 640px; margin: 0 auto; width: 100%; }
 }
 @media (min-width: 900px) {
-    .summary-body { max-width: 720px; }
+    .summary-body { max-width: 760px; }
+}
+@media (min-width: 1200px) {
+    .summary-body { max-width: 820px; }
+}
+
+/* ---------- SAFE AREA (notch / barra status iPad) ---------- */
+@supports (padding: env(safe-area-inset-top)) {
+    .app-header { padding-top: calc(12px + env(safe-area-inset-top)); }
+    .fullscreen { padding-top: env(safe-area-inset-top); }
+    .tabs { padding-bottom: env(safe-area-inset-bottom); }
+    #app { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
 
 /* ---------- DARK MODE básico — respeita preferência do sistema ---------- */
