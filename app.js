@@ -1963,7 +1963,25 @@ async function submitAnswer() {
             return e.pairs.some(p => p[0] === left && p[1] === right);
         });
     }
-    recordAnswer(e, isCorrect);
+    // ---- Retry logic ----
+    const s = currentSession;
+    s.retries = s.retries || {};
+    if (isCorrect) {
+        if (s.retries[s.idx]) {
+            // Acertou após retry: marca resultado como correto, conta no placar, sem XP extra
+            s.results = s.results || [];
+            s.results[s.idx] = true;
+            s.correct++;
+            saveState();
+        } else {
+            recordAnswer(e, true);
+        }
+    } else {
+        if (!s.retries[s.idx]) {
+            recordAnswer(e, false); // regista errado só na 1ª tentativa
+        }
+        s.retries[s.idx] = (s.retries[s.idx] || 0) + 1;
+    }
     showFeedback(e, isCorrect);
 }
 
@@ -2206,33 +2224,68 @@ function showEncouragement() {
 
 function showFeedback(e, isCorrect) {
     if (isCorrect) playCorrectSound(); else playWrongSound();
+    currentSession._lastWasWrong = !isCorrect;
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : '\u{1F914}';
     const txt = document.getElementById('feedback-text');
-    txt.textContent = isCorrect ? 'Certo!' : 'Ainda não';
+    txt.textContent = isCorrect ? 'Certo!' : 'Ainda não…';
     txt.className = 'feedback-text ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
     let expParts = [];
     if (!isCorrect) {
-        if (e.type === 'mc') expParts.push(`Resposta certa: ${e.opts[e.ans]}.`);
-        else if (e.type === 'tf') expParts.push(`Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}.`);
-        else if (e.type === 'fill' || e.type === 'problem') expParts.push(`Resposta certa: ${e.ans[0]}.`);
-        else if (e.type === 'order') expParts.push(`Ordem certa: ${e.items.join(' > ')}.`);
+        // Em modo retry: mostra pista/resposta só depois da 2ª tentativa
+        const tries = (currentSession.retries && currentSession.retries[currentSession.idx]) || 1;
+        if (tries >= 2) {
+            if (e.type === 'mc') expParts.push(`Resposta certa: ${e.opts[e.ans]}.`);
+            else if (e.type === 'tf') expParts.push(`Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}.`);
+            else if (e.type === 'fill' || e.type === 'problem') expParts.push(`Resposta certa: ${e.ans[0]}.`);
+            else if (e.type === 'order') expParts.push(`Ordem certa: ${e.items.join(' > ')}.`);
+        } else {
+            expParts.push('Pensa bem e tenta outra vez! 💪');
+        }
     }
     if (e.material)  expParts.push(`📘 ${e.material}`);
     if (e.solution)  expParts.push(`📐 Resolução: ${e.solution}`);
-    if (e.exp)       expParts.push(e.exp);
+    if (e.exp && isCorrect) expParts.push(e.exp);
     document.getElementById('feedback-exp').textContent = expParts.join('\n\n');
     document.getElementById('feedback-exp').style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
-    // Botão explicação detalhada
+    // Botão explicação detalhada: só mostra se acertou ou se já tentou 2+ vezes
     const detailBtn = document.getElementById('feedback-detail-btn');
     const detailWrap = document.getElementById('feedback-detail-wrap');
     if (detailWrap) { detailWrap.style.display = 'none'; detailWrap.innerHTML = ''; }
-    if (detailBtn) { detailBtn.style.display = 'block'; detailBtn.textContent = '💡 Explicar passo a passo'; detailBtn.disabled = false; }
-    const nextLbl = (currentSession.idx + 1 >= currentSession.items.length) ? 'Ver resultado' : 'Continuar';
-    document.getElementById('feedback-next').textContent = nextLbl;
+    const tries2 = (currentSession.retries && currentSession.retries[currentSession.idx]) || 0;
+    if (detailBtn) {
+        detailBtn.style.display = (isCorrect || tries2 >= 2) ? 'block' : 'none';
+        detailBtn.textContent = '💡 Explicar passo a passo';
+        detailBtn.disabled = false;
+    }
+    // Botão de avanço: "Tentar novamente" se errou, "Continuar"/"Ver resultado" se acertou
+    const nextSpan = document.getElementById('feedback-next');
+    const nextIcon = document.getElementById('feedback-next-icon');
+    if (!isCorrect) {
+        nextSpan.textContent = 'Tentar novamente';
+        if (nextIcon) nextIcon.className = 'fas fa-rotate-left';
+    } else {
+        const isLast = currentSession.idx + 1 >= currentSession.items.length;
+        nextSpan.textContent = isLast ? 'Ver resultado' : 'Continuar';
+        if (nextIcon) nextIcon.className = 'fas fa-arrow-right';
+    }
     document.getElementById('session-xp').textContent = currentSession.xp;
+}
+
+// Dispatcher do botão de feedback: retry ou avançar
+function feedbackNext() {
+    if (!currentSession) return;
+    if (currentSession._lastWasWrong) retryQuestion();
+    else nextQuestion();
+}
+
+// Volta à mesma pergunta sem avançar o índice
+function retryQuestion() {
+    if (!currentSession) return;
+    currentSession._lastWasWrong = false;
+    renderQuestion(); // re-renderiza a mesma questão (idx não muda)
 }
 
 async function loadDetailedExplanation() {
