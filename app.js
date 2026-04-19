@@ -658,25 +658,114 @@ function renderTopicList() {
     const active = new Set(topics.slice(0, toIndex));
     const container = document.getElementById('topic-list');
     if (!container) return;
+    const seen = state.exerciseSeen || {};
+    const subColor = SUBJECTS[key]?.color || '#7c3aed';
     container.innerHTML = topics.map((t, i) => {
         const isActive = active.has(t);
-        const count = EXERCISES.filter(e => e.s === key && e.t === t).length
-                    + (state.maxExercises || []).filter(e => e.s === key && e.t === t).length;
+        // Pool deste tópico (estático + IA)
+        const pool = [
+            ...EXERCISES.filter(e => e.s === key && e.t === t),
+            ...(state.maxExercises || []).filter(e => e.s === key && e.t === t)
+        ];
+        const count = pool.length;
+        // Quantos respondidos correctamente / errados
+        const seenIds = pool.filter(e => seen[e.id]).map(e => e.id);
+        const seenCount = seenIds.length;
+        // Calcular acertos a partir do history (mais recente vence por id)
+        const lastResultById = {};
+        (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
+        const correctCount = seenIds.filter(id => lastResultById[id] === true).length;
+        const wrongCount = seenIds.filter(id => lastResultById[id] === false).length;
+        const pct = count > 0 ? Math.round((seenCount / count) * 100) : 0;
         const sel = selectedTopicsForMax.has(t);
         const tEsc = t.replace(/'/g, "\\'");
+        // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
+        const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
         return `
-            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:6px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
+            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
                 ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
-                <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? SUBJECTS[key].color : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+                <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:600;font-size:0.9rem">${t}</div>
-                    <div style="font-size:0.7rem;color:var(--text-light)">${count} exercícios${LESSONS[`${key}/${t}`] ? ' · tem explicação' : ''}</div>
+                    <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
+                        <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
+                        ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
+                        ${wrongCount > 0 ? ` · <span style="color:#dc2626">✗ ${wrongCount}</span>` : ''}
+                        ${LESSONS[`${key}/${t}`] ? ' · 💡 explicação' : ''}
+                    </div>
+                    ${count > 0 ? `<div style="margin-top:5px;height:4px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${progBarColor};border-radius:999px;transition:width 0.3s"></div></div>` : ''}
                 </div>
+                <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Ver perguntas respondidas" style="background:#ede9fe;color:#7c3aed;flex-shrink:0"><i class="fas fa-list-check"></i></button>
                 ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Ver explicação"><i class="fas fa-lightbulb"></i></button>` : ''}
             </div>
         `;
     }).join('');
     updateTopicSelBar();
+}
+
+// Modal: lista de perguntas respondidas para um tópico
+function openTopicAnsweredModal(subjectKey, topic) {
+    const sub = SUBJECTS[subjectKey];
+    const seen = state.exerciseSeen || {};
+    const lastResultById = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
+    const pool = [
+        ...EXERCISES.filter(e => e.s === subjectKey && e.t === topic),
+        ...(state.maxExercises || []).filter(e => e.s === subjectKey && e.t === topic)
+    ];
+    const seenItems = pool
+        .filter(e => seen[e.id])
+        .sort((a, b) => (seen[b.id] || 0) - (seen[a.id] || 0)); // mais recentes primeiro
+    const unseenCount = pool.length - seenItems.length;
+
+    document.getElementById('topic-answered-modal-temp')?.remove();
+    let listHtml;
+    if (seenItems.length === 0) {
+        listHtml = `<p style="text-align:center;color:var(--text-light);padding:20px">Ainda não respondeste a nenhuma pergunta deste tópico.</p>`;
+    } else {
+        listHtml = seenItems.map(e => {
+            const result = lastResultById[e.id];
+            const icon = result === true ? '✓' : result === false ? '✗' : '•';
+            const color = result === true ? '#16a34a' : result === false ? '#dc2626' : '#9ca3af';
+            const bg    = result === true ? '#f0fdf4' : result === false ? '#fef2f2' : '#f9fafb';
+            const ts = seen[e.id];
+            const date = ts ? new Date(ts).toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric' }) : '';
+            const qPreview = String(e.q || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim().slice(0, 100);
+            return `
+                <div style="background:${bg};padding:10px 12px;border-radius:8px;margin-bottom:6px;display:flex;align-items:flex-start;gap:10px;border-left:3px solid ${color}">
+                    <div style="font-size:1.2rem;font-weight:700;color:${color};line-height:1;width:18px;flex-shrink:0;text-align:center">${icon}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:0.85rem;color:var(--text);line-height:1.35">${escapeHtml(qPreview)}${qPreview.length >= 100 ? '…' : ''}</div>
+                        <div style="font-size:0.7rem;color:var(--text-light);margin-top:3px">${date}${e.diff ? ` · dif. ${e.diff}` : ''}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    const html = `
+        <div id="topic-answered-modal-temp" class="modal" style="display:flex;align-items:center;justify-content:center;padding:20px">
+            <div class="modal-content" style="max-width:560px;max-height:90vh;border-radius:18px;display:flex;flex-direction:column">
+                <div class="modal-header">
+                    <h2 style="font-size:1rem">📚 ${escapeHtml(topic)}</h2>
+                    <button class="icon-btn" onclick="closeTopicAnsweredModal()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body" style="flex:1;overflow-y:auto">
+                    <div style="display:flex;gap:8px;margin-bottom:14px;font-size:0.78rem;flex-wrap:wrap">
+                        <span style="background:#ede9fe;color:#7c3aed;padding:4px 10px;border-radius:999px;font-weight:700">📖 ${pool.length} no total</span>
+                        <span style="background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:999px;font-weight:700">${seenItems.length} respondidas</span>
+                        ${unseenCount > 0 ? `<span style="background:#f3f4f6;color:#6b7280;padding:4px 10px;border-radius:999px;font-weight:700">${unseenCount} novas</span>` : ''}
+                    </div>
+                    ${listHtml}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeTopicAnsweredModal() {
+    document.getElementById('topic-answered-modal-temp')?.remove();
 }
 
 function toggleTopicSelection(topic) {
