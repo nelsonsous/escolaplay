@@ -716,7 +716,6 @@ function renderTopicList() {
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
                         ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
                         ${wrongCount > 0 ? ` · <span style="color:#dc2626">✗ ${wrongCount}</span>` : ''}
-                        ${LESSONS[`${key}/${t}`] ? ' · 💡 explicação' : ''}
                     </div>
                     ${count > 0 ? `<div style="margin-top:5px;height:4px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${progBarColor};border-radius:999px;transition:width 0.3s"></div></div>` : ''}
                 </div>

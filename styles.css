@@ -1004,9 +1004,11 @@ body {
 }
 
 /* ---------- SAFE AREA (notch / barra status iPad) ---------- */
+/* Aplicamos a safe-area no PRÓPRIO header (não no contentor) para que
+   position:sticky continue a funcionar correctamente ao fazer scroll. */
 @supports (padding: env(safe-area-inset-top)) {
     .app-header { padding-top: calc(12px + env(safe-area-inset-top)); }
-    .fullscreen { padding-top: env(safe-area-inset-top); }
+    .exercise-header { padding-top: calc(12px + env(safe-area-inset-top)); }
     .tabs { padding-bottom: env(safe-area-inset-bottom); }
     #app { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
