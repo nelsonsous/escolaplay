@@ -2509,11 +2509,13 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     const rewardChips = (newRewards || []).map(r => `<div class="summary-badge-chip" style="background:linear-gradient(135deg,#fef9c3,#fde047);border-color:#eab308">\u{1F381} ${r.name}</div>`).join('');
     bdg.innerHTML = badgeChips + rewardChips;
 
-    // Botão para repetir as perguntas erradas (só se houver erros)
+    // Botão para repetir as perguntas erradas — usa s.results como fonte da verdade
+    // (s.wrong pode ficar dessincronizado em sessões cached antigas)
+    const wrongCount = (s.results || []).filter(r => r === false).length;
     const retryWrap = document.getElementById('summary-retry-wrap');
     if (retryWrap) {
-        if (s.wrong > 0) {
-            retryWrap.innerHTML = `<button class="btn btn-block" onclick="retryWrongSession()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;margin-bottom:12px;border:none;padding:14px"><i class="fas fa-rotate-left"></i> Repetir perguntas erradas (${s.wrong})</button>`;
+        if (wrongCount > 0) {
+            retryWrap.innerHTML = `<button class="btn btn-block" onclick="retryWrongSession()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;margin-bottom:12px;border:none;padding:14px"><i class="fas fa-rotate-left"></i> Repetir perguntas erradas (${wrongCount})</button>`;
         } else {
             retryWrap.innerHTML = '';
         }
@@ -2540,7 +2542,12 @@ function retryWrongSession() {
     const s = currentSession;
     if (!s) return;
     const wrongItems = s.items.filter((_, i) => s.results && s.results[i] === false);
-    if (!wrongItems.length) { closeSummary(); return; }
+    if (!wrongItems.length) {
+        // Não há erros reais em s.results — botão não devia aparecer; volta ao início
+        showToast('Afinal não há perguntas erradas! 🎉');
+        setTimeout(closeSummary, 1200);
+        return;
+    }
     document.getElementById('summary-screen').style.display = 'none';
     currentSession = {
         items:   wrongItems,
