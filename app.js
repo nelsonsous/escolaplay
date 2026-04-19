@@ -736,6 +736,8 @@ function renderTests() {
         else if (days <= 5) cls = 'soon';
         const daysLabel = t.done ? 'Feito' : past ? `${-days}d atrás` : days === 0 ? 'Hoje!' : days === 1 ? 'Amanhã' : `em ${days}d`;
         const topicsLabel = (t.topics && t.topics.length) ? `${t.topics.length} tópicos: ${t.topics.slice(0, 3).join(', ')}${t.topics.length > 3 ? '…' : ''}` : 'todos os tópicos activos';
+        const seenCount = (t.seenEx || []).length;
+        const seenLabel = seenCount > 0 ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;margin-top:3px">📚 ${seenCount} pergunta${seenCount === 1 ? '' : 's'} vista${seenCount === 1 ? '' : 's'}</div>` : '';
         return `
             <div class="test-item ${cls}">
                 <div class="test-item-icon" style="background:${sub?.color || '#6b7280'}"><i class="fas ${sub?.icon || 'fa-book'}"></i></div>
@@ -743,6 +745,7 @@ function renderTests() {
                     <div class="test-item-subject">${sub?.name || t.subject}</div>
                     <div class="test-item-date">${formatDatePT(t.date)} · ${daysLabel}</div>
                     <div class="test-item-note">${topicsLabel}${t.note ? ` · ${t.note}` : ''}</div>
+                    ${seenLabel}
                 </div>
                 <div class="test-item-actions">
                     ${!t.done ? `<button class="practice" title="Treinar para este teste" onclick="startTestPrep('${t.id}')"><i class="fas fa-dumbbell"></i></button>` : ''}
@@ -838,6 +841,9 @@ function deleteTest(id) {
 function startTestPrep(testId) {
     const t = state.tests.find(x => x.id === testId);
     if (!t) return;
+    t.seenEx = t.seenEx || [];
+    const seenSet = new Set(t.seenEx);
+
     const key = t.subject;
     const active = activeTopicsFor(key);
     const orderArr = CURRICULUM[key] || [];
@@ -847,24 +853,105 @@ function startTestPrep(testId) {
         .filter(tp => active.has(tp))
         .sort((a, b) => orderArr.indexOf(a) - orderArr.indexOf(b));
     if (topicsOrdered.length === 0) { showToast('Sem tópicos activos para este teste.'); return; }
-    // Para cada tópico, recolher até 3 exercícios (evitando recentes quando possível)
-    const recent = new Set(state.recentIds || []);
+
+    // Construir pool por tópico, excluindo TUDO o que já foi visto neste teste
+    const fullPoolSize = {};
+    const availableByTopic = {};
+    let totalAvailable = 0;
+    let totalPool = 0;
+    topicsOrdered.forEach(topic => {
+        const pool = allExercisesFor(key, new Set([topic]));
+        fullPoolSize[topic] = pool.length;
+        totalPool += pool.length;
+        const av = pool.filter(e => !seenSet.has(e.id));
+        availableByTopic[topic] = av;
+        totalAvailable += av.length;
+    });
+
+    if (totalPool === 0) {
+        showToast('Sem exercícios para estes tópicos. Ajusta o progresso da disciplina.');
+        return;
+    }
+
+    // Já respondeu a TODAS — abrir modal a propor recomeçar ou IA MAX
+    if (totalAvailable === 0) {
+        showAllAnsweredTestModal(testId, totalPool);
+        return;
+    }
+
+    // Distribuir por tópicos
     const target = Math.max(PRACTICE_QUESTIONS, topicsOrdered.length * 2);
     const perTopic = Math.max(2, Math.ceil(target / topicsOrdered.length));
     const items = [];
     topicsOrdered.forEach(topic => {
-        const pool = allExercisesFor(key, new Set([topic]));
-        const fresh = pool.filter(e => !recent.has(e.id));
-        const chosen = (fresh.length >= perTopic ? fresh : pool)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, perTopic);
+        const av = availableByTopic[topic];
+        if (av.length === 0) return; // tópico já totalmente respondido — salta
+        const chosen = av.sort(() => Math.random() - 0.5).slice(0, perTopic);
         items.push(...chosen);
     });
-    if (items.length === 0) { showToast('Sem exercícios para estes tópicos. Ajusta o progresso da disciplina.'); return; }
-    // Manter ordem curricular: itens já estão por ordem dos tópicos
-    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, testId };
+
+    if (items.length === 0) {
+        showAllAnsweredTestModal(testId, totalPool);
+        return;
+    }
+
+    // Aviso se restam poucas perguntas
+    if (totalAvailable < target) {
+        showToast(`📚 Só restam ${totalAvailable} perguntas novas — vamos a essas!`);
+    }
+
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, results: [], isDaily: false, subject: key, testId };
     openExerciseScreen();
     renderQuestion();
+}
+
+// Modal: já respondeu a todas as perguntas deste teste
+function showAllAnsweredTestModal(testId, totalCount) {
+    const t = state.tests.find(x => x.id === testId);
+    if (!t) return;
+    const sub = SUBJECTS[t.subject];
+    const subName = sub?.name || t.subject;
+
+    document.getElementById('all-answered-modal-temp')?.remove();
+    const html = `
+        <div id="all-answered-modal-temp" class="modal" style="display:flex;align-items:center;justify-content:center;padding:20px">
+            <div class="modal-content" style="max-width:480px;border-radius:18px;max-height:90vh">
+                <div class="modal-header">
+                    <h2>🎉 Treino completo!</h2>
+                    <button class="icon-btn" onclick="closeAllAnsweredModal()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body" style="text-align:center">
+                    <div style="font-size:3.4rem;margin-bottom:10px">📚</div>
+                    <p style="margin-bottom:6px;font-size:1rem"><strong>Já respondeste a todas as ${totalCount} perguntas deste teste de ${subName}!</strong></p>
+                    <p class="muted" style="font-size:0.88rem;margin-bottom:20px">Excelente trabalho. O que queres fazer?</p>
+                    <button class="btn btn-block" onclick="restartTestPrep('${testId}')" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                        <i class="fas fa-rotate-left"></i> Recomeçar (repor perguntas)
+                    </button>
+                    <button class="btn btn-block" onclick="closeAllAnsweredModal();startMaxForTest('${testId}')" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                        <i class="fas fa-wand-magic-sparkles"></i> Carregar novas com IA MAX
+                    </button>
+                    <button class="btn btn-block btn-secondary" onclick="closeAllAnsweredModal()" style="padding:12px">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeAllAnsweredModal() {
+    document.getElementById('all-answered-modal-temp')?.remove();
+}
+
+function restartTestPrep(testId) {
+    const t = state.tests.find(x => x.id === testId);
+    if (!t) return;
+    t.seenEx = [];
+    saveState();
+    closeAllAnsweredModal();
+    showToast('Perguntas repostas. Bom treino!');
+    setTimeout(() => startTestPrep(testId), 400);
 }
 
 // ========== PROGRESS ==========
@@ -2004,6 +2091,14 @@ function recordAnswer(e, isCorrect) {
     state.recentIds = state.recentIds || [];
     state.recentIds.push(e.id);
     if (state.recentIds.length > 30) state.recentIds.shift();
+    // Marca pergunta como vista no teste activo (para evitar repetir em sessões futuras)
+    if (s.testId) {
+        const t = (state.tests || []).find(x => x.id === s.testId);
+        if (t) {
+            t.seenEx = t.seenEx || [];
+            if (!t.seenEx.includes(e.id)) t.seenEx.push(e.id);
+        }
+    }
     saveState();
 }
 
