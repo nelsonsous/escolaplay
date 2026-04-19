@@ -582,7 +582,7 @@ const EXERCISES_2_E_EXTRA2 = [
       exp:'O gato é mamífero (dá de mamar).' },
     { id:'2ee142', s:'estudo_meio', t:'Animais', type:'match', diff:2,
       q:'Associa cada animal à sua casa:',
-      pairs:[['🐝 abelha','colmeia'],['🕊️ pomba','ninho'],['🐶 cão','canil'],['🐝 formiga','formigueiro']],
+      pairs:[['🐝 abelha','colmeia'],['🕊️ pomba','ninho'],['🐶 cão','canil'],['🐜 formiga','formigueiro']],
       exp:'Cada animal tem o seu abrigo.' },
     { id:'2ee143', s:'estudo_meio', t:'Animais', type:'mc', diff:2,
       q:'🐦 Quantas patas tem uma ave?',

@@ -216,7 +216,7 @@ const _BR_TO_PT_MAP = [
     [/\bcelular\b/g, 'telemóvel'], [/\bgeladeira\b/g, 'frigorífico'],
     [/\babacaxi\b/g, 'ananás'], [/\bsorvete\b/g, 'gelado'],
     [/\besporte\b/g, 'desporto'], [/\besportiv/g, 'desportiv'],
-    [/\bgarot[oa]\b/g, 'rapaz'], [/\bmamãe\b/g, 'mãe'], [/\bpapai\b/g, 'pai'],
+    [/\bgaroto\b/g, 'rapaz'], [/\bgarota\b/g, 'rapariga'], [/\bmamãe\b/g, 'mãe'], [/\bpapai\b/g, 'pai'],
     [/\bcafé da manhã\b/g, 'pequeno-almoço']
 ];
 function brToPt(s) {
@@ -431,8 +431,9 @@ function normalize(s) {
         .replace(/\s+/g, ' ');
 }
 function activeTopicsFor(subjectKey) {
-    const to = state.progress[subjectKey]?.toIndex ?? CURRICULUM[subjectKey].length;
-    return new Set(CURRICULUM[subjectKey].slice(0, to));
+    const topics = CURRICULUM[subjectKey] || [];
+    const to = state.progress[subjectKey]?.toIndex ?? topics.length;
+    return new Set(topics.slice(0, to));
 }
 
 // ========== LEVEL/XP ==========
@@ -812,11 +813,11 @@ function saveTest() {
         state.tests.push({ id: uid(), subject, date, note, topics, done: false });
     }
     saveState();
+    const wasEditing = !!pendingTestId;
     closeAddTestModal();
     renderTests();
     renderHome();
-    showToast(pendingTestId ? 'Teste actualizado' : 'Teste adicionado');
-    pendingTestId = null;
+    showToast(wasEditing ? 'Teste actualizado' : 'Teste adicionado');
 }
 
 function closeAddTestModal() {
@@ -1503,10 +1504,30 @@ async function startMaxForTest(testId) {
 }
 
 function resetStats() {
-    if (!confirm('Tens a certeza? Vais perder XP, streak, testes, prémios e histórico.')) return;
-    const profile = state.profile;
-    state = defaultState();
-    state.profile = profile;
+    if (!confirm('Tens a certeza? Vais perder XP, streak, testes, prémios e histórico deste perfil.')) return;
+    const p = activeProfile();
+    if (!p) return;
+    const year = p.year;
+    const subs = SUBJECTS_BY_YEAR[year];
+    const curr = CURRICULUM_BY_YEAR[year];
+    const subStats = {};
+    Object.keys(subs).forEach(k => { subStats[k] = { answered: 0, correct: 0, xp: 0 }; });
+    const prog = {};
+    Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
+    p.xp = 0;
+    p.streak = { days: 0, lastDate: null, best: 0 };
+    p.daily = { date: null, completed: false, correct: 0 };
+    p.subjects = subStats;
+    p.badges = [];
+    p.history = [];
+    p.totalDailies = 0;
+    p.perfectDailies = 0;
+    p.recentIds = [];
+    p.tests = [];
+    p.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+    p.progress = prog;
+    p.maxExercises = [];
+    p.maxLessons = {};
     saveState();
     updateAll();
     showToast('Progresso reiniciado.');
@@ -1783,7 +1804,7 @@ function renderQuestion() {
         const inp = document.getElementById('fill-input');
         if (inp) {
             inp.value = '';
-            setTimeout(() => { inp.value = ''; if (state.max?.enabled && state.max?.apiKey) inp.focus(); }, 50);
+            setTimeout(() => { inp.value = ''; inp.focus(); }, 50);
         }
     }
 }
@@ -1893,7 +1914,7 @@ async function aiValidateAnswer(exercise, studentAnswer) {
         : '';
     const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas, formas equivalentes e respostas parciais onde a palavra-chave está correcta (ex: "atlântico" é válido para "Oceano Atlântico"). Usa Português de Portugal (não brasileiro).${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
     try {
-        const { text } = await callClaudeAPI(prompt, 30);
+        const { text } = await callClaudeAPI(prompt, 80);
         const correct = /"ok"\s*:\s*true/.test(text);
         sessionStorage.setItem(cacheKey, correct ? '1' : '0');
         return correct;
@@ -1902,6 +1923,7 @@ async function aiValidateAnswer(exercise, studentAnswer) {
 
 // ========== SUBMIT ==========
 async function submitAnswer() {
+    if (!currentSession) return;
     const e = currentSession.items[currentSession.idx];
     let isCorrect = false;
     if (e.type === 'mc') {

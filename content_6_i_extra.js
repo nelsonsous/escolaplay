@@ -791,7 +791,7 @@ const EXERCISES_6_I_EXTRA = [
       ans:[[0,0],[1,1],[2,2],[3,3]],
       exp:'Superlativos irregulares.' },
     { id:'6ie194', s:'ingles', t:'Comparatives & superlatives', type:'mc', diff:1,
-      q:'🌍 An A2 cheetah runs ___ than a man.',
+      q:'🌍 A cheetah runs ___ than a man.',
       opts:['fast','faster','fastest','more fast'], ans:1,
       exp:'fast (curto) → faster.' },
     { id:'6ie195', s:'ingles', t:'Comparatives & superlatives', type:'mc', diff:2,

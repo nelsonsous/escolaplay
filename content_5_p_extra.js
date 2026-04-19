@@ -480,7 +480,7 @@ const EXERCISES_5_P_EXTRA = [
     { id:'5pe117', s:'portugues', t:'Determinantes', type:'mc', diff:2,
       q:'Quantos determinantes há em "O meu primeiro livro"?',
       opts:['1','2','3','4'], ans:2,
-      exp:'"O" (artigo) + "meu" (possessivo) → 2 determinantes.' },
+      exp:'"O" (artigo definido) + "meu" (possessivo) + "primeiro" (numeral ordinal) → 3 determinantes.' },
     { id:'5pe118', s:'portugues', t:'Determinantes', type:'mc', diff:1,
       q:'Em "As minhas amigas", "As" é:',
       opts:['artigo definido','artigo indefinido','possessivo','demonstrativo'], ans:0,
