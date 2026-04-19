@@ -1975,25 +1975,7 @@ async function submitAnswer() {
             return e.pairs.some(p => p[0] === left && p[1] === right);
         });
     }
-    // ---- Retry logic ----
-    const s = currentSession;
-    s.retries = s.retries || {};
-    if (isCorrect) {
-        if (s.retries[s.idx]) {
-            // Acertou após retry: marca resultado como correto, conta no placar, sem XP extra
-            s.results = s.results || [];
-            s.results[s.idx] = true;
-            s.correct++;
-            saveState();
-        } else {
-            recordAnswer(e, true);
-        }
-    } else {
-        if (!s.retries[s.idx]) {
-            recordAnswer(e, false); // regista errado só na 1ª tentativa
-        }
-        s.retries[s.idx] = (s.retries[s.idx] || 0) + 1;
-    }
+    recordAnswer(e, isCorrect);
     showFeedback(e, isCorrect);
 }
 
@@ -2236,7 +2218,6 @@ function showEncouragement() {
 
 function showFeedback(e, isCorrect) {
     if (isCorrect) playCorrectSound(); else playWrongSound();
-    currentSession._lastWasWrong = !isCorrect;
     // Esconder botão IA inline durante o feedback (evita sobreposição)
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     if (profWrap) profWrap.style.display = 'none';
@@ -2257,16 +2238,12 @@ function showFeedback(e, isCorrect) {
     txt.className = 'feedback-text ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
     let expParts = [];
     if (!isCorrect) {
-        // Em modo retry: mostra pista/resposta só depois da 2ª tentativa
-        const tries = (currentSession.retries && currentSession.retries[currentSession.idx]) || 1;
-        if (tries >= 2) {
-            if (e.type === 'mc') expParts.push(`Resposta certa: ${e.opts[e.ans]}.`);
-            else if (e.type === 'tf') expParts.push(`Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}.`);
-            else if (e.type === 'fill' || e.type === 'problem') expParts.push(`Resposta certa: ${e.ans[0]}.`);
-            else if (e.type === 'order') expParts.push(`Ordem certa: ${e.items.join(' > ')}.`);
-        } else {
-            expParts.push('Pensa bem e tenta outra vez! 💪');
-        }
+        // Mostra sempre a resposta certa — pode repetir no final da sessão
+        if (e.type === 'mc') expParts.push(`Resposta certa: ${e.opts[e.ans]}.`);
+        else if (e.type === 'tf') expParts.push(`Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}.`);
+        else if (e.type === 'fill' || e.type === 'problem') expParts.push(`Resposta certa: ${e.ans[0]}.`);
+        else if (e.type === 'order') expParts.push(`Ordem certa: ${e.items.join(' > ')}.`);
+        if (e.exp) expParts.push(e.exp);
     }
     if (e.material)  expParts.push(`📘 ${e.material}`);
     if (e.solution)  expParts.push(`📐 Resolução: ${e.solution}`);
@@ -2274,42 +2251,28 @@ function showFeedback(e, isCorrect) {
     document.getElementById('feedback-exp').textContent = expParts.join('\n\n');
     document.getElementById('feedback-exp').style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
-    // Botão explicação detalhada: só mostra se acertou ou se já tentou 2+ vezes
+    // Botão explicação detalhada: sempre visível
     const detailBtn = document.getElementById('feedback-detail-btn');
     const detailWrap = document.getElementById('feedback-detail-wrap');
     if (detailWrap) { detailWrap.style.display = 'none'; detailWrap.innerHTML = ''; }
-    const tries2 = (currentSession.retries && currentSession.retries[currentSession.idx]) || 0;
     if (detailBtn) {
-        detailBtn.style.display = (isCorrect || tries2 >= 2) ? 'block' : 'none';
+        detailBtn.style.display = 'block';
         detailBtn.textContent = '💡 Explicar passo a passo';
         detailBtn.disabled = false;
     }
-    // Botão de avanço: "Tentar novamente" se errou, "Continuar"/"Ver resultado" se acertou
+    // Botão de avanço: sempre "Continuar" ou "Ver resultado"
     const nextSpan = document.getElementById('feedback-next');
     const nextIcon = document.getElementById('feedback-next-icon');
-    if (!isCorrect) {
-        nextSpan.textContent = 'Tentar novamente';
-        if (nextIcon) nextIcon.className = 'fas fa-rotate-left';
-    } else {
-        const isLast = currentSession.idx + 1 >= currentSession.items.length;
-        nextSpan.textContent = isLast ? 'Ver resultado' : 'Continuar';
-        if (nextIcon) nextIcon.className = 'fas fa-arrow-right';
-    }
+    const isLast = currentSession.idx + 1 >= currentSession.items.length;
+    nextSpan.textContent = isLast ? 'Ver resultado' : 'Continuar';
+    if (nextIcon) nextIcon.className = 'fas fa-arrow-right';
     document.getElementById('session-xp').textContent = currentSession.xp;
 }
 
-// Dispatcher do botão de feedback: retry ou avançar
+// Avança para a próxima pergunta (ou termina a sessão)
 function feedbackNext() {
     if (!currentSession) return;
-    if (currentSession._lastWasWrong) retryQuestion();
-    else nextQuestion();
-}
-
-// Volta à mesma pergunta sem avançar o índice
-function retryQuestion() {
-    if (!currentSession) return;
-    currentSession._lastWasWrong = false;
-    renderQuestion(); // re-renderiza a mesma questão (idx não muda)
+    nextQuestion();
 }
 
 async function loadDetailedExplanation() {
@@ -2445,6 +2408,15 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     const rewardChips = (newRewards || []).map(r => `<div class="summary-badge-chip" style="background:linear-gradient(135deg,#fef9c3,#fde047);border-color:#eab308">\u{1F381} ${r.name}</div>`).join('');
     bdg.innerHTML = badgeChips + rewardChips;
 
+    // Botão para repetir as perguntas erradas (só se houver erros)
+    const retryWrap = document.getElementById('summary-retry-wrap');
+    if (retryWrap) {
+        if (s.wrong > 0) {
+            retryWrap.innerHTML = `<button class="btn btn-block" onclick="retryWrongSession()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;margin-bottom:12px;border:none;padding:14px"><i class="fas fa-rotate-left"></i> Repetir perguntas erradas (${s.wrong})</button>`;
+        } else {
+            retryWrap.innerHTML = '';
+        }
+    }
     // Se desbloqueou prémio, mostrar modal depois do summary
     if (newRewards && newRewards.length > 0) {
         pendingRewardId = newRewards[0].id;
@@ -2460,6 +2432,29 @@ function closeSummary() {
     currentSession = null;
     updateAll();
     switchTab('home');
+}
+
+// Inicia uma mini-sessão só com as perguntas que o aluno errou
+function retryWrongSession() {
+    const s = currentSession;
+    if (!s) return;
+    const wrongItems = s.items.filter((_, i) => s.results && s.results[i] === false);
+    if (!wrongItems.length) { closeSummary(); return; }
+    document.getElementById('summary-screen').style.display = 'none';
+    currentSession = {
+        items:   wrongItems,
+        idx:     0,
+        correct: 0,
+        wrong:   0,
+        xp:      0,
+        streak:  0,
+        results: [],
+        isDaily: false,
+        testId:  null,
+        _isRetry: true
+    };
+    document.getElementById('exercise-screen').style.display = 'flex';
+    renderQuestion();
 }
 
 function claimCurrentReward() {
