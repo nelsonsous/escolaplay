@@ -574,6 +574,17 @@ function openSubjectDetail(key) {
     const topics = CURRICULUM[key] || [];
     const toIndex = state.progress[key]?.toIndex ?? topics.length;
     const stats = state.subjects[key] || { answered: 0, correct: 0, xp: 0 };
+    // Cálculo do banco total e perguntas respondidas/restantes nesta disciplina
+    const seen = state.exerciseSeen || {};
+    const allSubjectEx = [
+        ...EXERCISES.filter(e => e.s === key),
+        ...(state.maxExercises || []).filter(e => e.s === key)
+    ];
+    const totalEx = allSubjectEx.length;
+    const seenEx = allSubjectEx.filter(e => seen[e.id]).length;
+    const remainingEx = totalEx - seenEx;
+    const seenPct = totalEx > 0 ? Math.round((seenEx / totalEx) * 100) : 0;
+    const accPct = stats.answered > 0 ? Math.round((stats.correct / stats.answered) * 100) : 0;
 
     const html = `
         <div class="fullscreen" id="subject-detail-screen">
@@ -586,8 +597,22 @@ function openSubjectDetail(key) {
             </div>
             <div class="exercise-body">
                 <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
-                    <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:4px">Respostas certas</div>
-                    <div style="font-size:1.3rem;font-weight:800">${stats.correct}/${stats.answered} &middot; ${stats.xp} XP</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                        <div>
+                            <div style="font-size:0.72rem;color:var(--text-light);font-weight:600">RESPOSTAS CERTAS</div>
+                            <div style="font-size:1.3rem;font-weight:800;color:${sub.color}">${stats.correct}/${stats.answered}${stats.answered > 0 ? ` <span style="font-size:0.85rem;color:var(--text-light);font-weight:700">(${accPct}%)</span>` : ''}</div>
+                            <div style="font-size:0.78rem;color:#f59e0b;font-weight:700;margin-top:2px">⭐ ${stats.xp} XP</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.72rem;color:var(--text-light);font-weight:600">EXERCÍCIOS DO BANCO</div>
+                            <div style="font-size:1.3rem;font-weight:800;color:${sub.color}">${seenEx}/${totalEx}</div>
+                            <div style="font-size:0.78rem;color:var(--text-light);font-weight:600;margin-top:2px">${remainingEx > 0 ? `🆕 ${remainingEx} por responder` : '🎉 Banco completo!'}</div>
+                        </div>
+                    </div>
+                    <div style="height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden">
+                        <div style="height:100%;width:${seenPct}%;background:linear-gradient(90deg,${sub.color},${sub.color}cc);border-radius:999px;transition:width 0.4s"></div>
+                    </div>
+                    <div style="font-size:0.7rem;color:var(--text-light);text-align:right;margin-top:3px">${seenPct}% do banco visto</div>
                 </div>
 
                 <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
