@@ -2145,9 +2145,9 @@ async function loadDetailedExplanation() {
     const subjectHint = e.s === 'ingles' && yr === 2
         ? '\nÉ uma pergunta de Inglês para 2.º ano: a explicação deve ser em PORTUGUÊS, dizendo o significado da palavra inglesa e dando uma dica para memorizar.'
         : '';
-    const prompt = `Explica de forma clara e simples para ${audience}:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}${subjectHint}\nDá uma explicação passo a passo em ${yr === 2 ? '2-3' : '3-5'} frases. Português Europeu (Portugal). Escreve APENAS texto corrido simples. Sem JSON, sem chavetas, sem markdown, sem listas com chaves.`;
+    const prompt = `Explica de forma clara e simples para ${audience}:\nPergunta: "${e.q}"\nResposta correta: "${correctAns}"\n${context}${subjectHint}\nDá uma explicação passo a passo em ${yr === 2 ? '2-3' : '3-4'} frases CURTAS. Português Europeu (Portugal). Sê DIRECTO — não comentes a tua explicação, não digas "pode haver interpretação diferente", não digas "a resposta correta dada é X". Apenas explica o raciocínio para chegar à resposta. Texto corrido simples. Sem JSON, sem chavetas, sem markdown.`;
     try {
-        const { text } = await callClaudeAPI(prompt, 250, false);
+        const { text } = await callClaudeAPI(prompt, 400, false);
         let clean = text.trim();
         if (clean.startsWith('{')) {
             try {
