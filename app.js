@@ -2499,7 +2499,7 @@ function openHintModal() {
     }
 
     // 3) Pista IA — sempre disponível (com ou sem chave, usa Groq interno se possível)
-    const cacheKey = `ai_hint_${e.id}`;
+    const cacheKey = `ai_hint_v2_${e.id}`;
     const cachedHint = sessionStorage.getItem(cacheKey);
     if (cachedHint) {
         parts.push(_hintAiBox(cachedHint));
@@ -2520,49 +2520,138 @@ function openHintModal() {
 }
 
 // ===== Professor IA inline (durante a pergunta e no feedback) =====
+// Constrói o prompt do Professor IA — pista pedagógica focada na pergunta
+function _buildProfessorIAPrompt(e, yr) {
+    const subName = SUBJECTS[e.s]?.name || e.s;
+
+    // Contexto rico da pergunta
+    let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta apresentada ao aluno: "${e.q}"`;
+    if (e.type === 'mc' && e.opts) {
+        qContext += `\nOpções de resposta visíveis ao aluno: ${e.opts.map((o,i)=>`${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
+    }
+    if (e.type === 'tf') qContext += `\nTipo: Verdadeiro ou Falso`;
+    if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') qContext += `\nTipo: o aluno tem de escrever a resposta`;
+    if (e.type === 'order') qContext += `\nTipo: ordenar elementos\nElementos a ordenar (baralhados): ${(e.items||[]).join(', ')}`;
+    if (e.type === 'match' && e.pairs) qContext += `\nTipo: associar pares de elementos`;
+    if (e.passage) qContext += `\nTexto de apoio: "${e.passage.slice(0, 300)}"`;
+    if (e.material) qContext += `\nRegra/conteúdo do tópico: "${e.material}"`;
+    if (e.hint) qContext += `\nPista do exercício (podes inspirar-te nela mas reformula): "${e.hint}"`;
+
+    // Lição estática de fundo (se existir) — dá ao IA contexto pedagógico verdadeiro do currículo
+    const lesson = LESSONS[`${e.s}/${e.t}`] || state.maxLessons?.[`${e.s}/${e.t}`];
+    if (lesson) {
+        const lessonSnippet = lesson.body.replace(/\*\*/g, '').slice(0, 600);
+        qContext += `\n\n--- Resumo do tópico (curriculum oficial, usa-o para fundamentar a tua explicação) ---\n${lessonSnippet}\n--- fim do resumo ---`;
+    }
+
+    // Estilo por faixa etária
+    let ageStyle, conceitoLen, dicasLen;
+    if (yr <= 2) {
+        ageStyle = 'Estás a falar com uma criança de 7-8 anos. Usa FRASES MUITO CURTAS, palavras simples, exemplos do dia-a-dia (animais, comida, brincadeiras, família). Tom carinhoso e encorajador. Podes usar 1-2 emojis para tornar amigável.';
+        conceitoLen = '1-2 frases muito curtas';
+        dicasLen = '2 dicas curtinhas';
+    } else if (yr <= 4) {
+        ageStyle = `Estás a falar com uma criança do ${yr}.º ano (8-10 anos). Frases simples e directas, vocabulário acessível, com 1 exemplo concreto. Tom amigável e encorajador, sem infantilizar.`;
+        conceitoLen = '2 frases claras';
+        dicasLen = '2-3 dicas';
+    } else {
+        ageStyle = `Estás a falar com um aluno do ${yr}.º ano (10-12 anos). Tom de professor/a directo e claro, vocabulário próprio da disciplina mas explicado quando necessário. Não infantilizes.`;
+        conceitoLen = '2-3 frases';
+        dicasLen = '3 dicas';
+    }
+
+    return `És um professor/professora do ${yr}.º ano do Ensino Básico português, em Portugal. Um aluno está a tentar resolver a pergunta abaixo e pediu-te ajuda. NÃO podes dar a resposta — tens de o levar a chegar lá sozinho.
+
+${qContext}
+
+${ageStyle}
+
+OBJECTIVO: ajudar o aluno a CHEGAR à resposta sozinho — NUNCA reveles a resposta nem digas qual a opção certa, nem dês a solução directa.
+
+Responde SEMPRE com esta estrutura EXACTA (em Português Europeu de Portugal, NUNCA português do Brasil):
+
+📚 Conceito
+[Resume o conceito/regra que esta pergunta envolve, ligado ao tópico "${e.t}". ${conceitoLen}.]
+
+💡 Como pensar
+• [primeira dica de raciocínio, focada nesta pergunta concreta]
+• [segunda dica que aponta o caminho sem dar a resposta]
+${yr >= 5 ? '• [terceira dica, com exemplo análogo se ajudar]' : ''}
+[${dicasLen} no total. Dá pistas para abordar ESTA pergunta específica — não respostas genéricas.]
+
+✨ [Uma frase curta de encorajamento personalizada à pergunta — não genérica.]
+
+Regras OBRIGATÓRIAS:
+- Português EUROPEU (Portugal): usa "estás", "tu", "comboio", "autocarro", "rapariga"/"rapaz", "ecrã", "pequeno-almoço", "sumo" — NUNCA "você", "trem", "ônibus", "garota"/"garoto", "tela", "café da manhã", "suco"
+- NÃO reveles a resposta nem nenhuma opção específica (ex: não digas "a resposta é B" nem "é o autocarro")
+- Vai DIRECTO ao conteúdo, sem introduções tipo "Olá!", "Vou ajudar-te" ou "Boa pergunta!"
+- Usa as 3 secções acima EXACTAMENTE como indicado, com os emojis 📚 💡 ✨ no início de cada secção
+- Bullets em "Como pensar" começam com "• " (bullet + espaço)
+- Sem markdown (**negrito**, _itálico_, # títulos), sem JSON, texto corrido simples`;
+}
+
+// Renderiza a resposta estruturada do Professor IA em HTML bonito
+function _renderHintHtml(rawText) {
+    const text = String(rawText || '').trim();
+    const conceitoMatch = text.match(/📚\s*Conceito[:\s]*\n?([\s\S]*?)(?=\n*💡|\n*✨|$)/);
+    const dicasMatch    = text.match(/💡\s*Como pensar[:\s]*\n?([\s\S]*?)(?=\n*✨|\n*📚|$)/);
+    const encMatch      = text.match(/✨\s*([\s\S]*?)$/);
+
+    let html = '';
+    if (conceitoMatch) {
+        const body = escapeHtml(conceitoMatch[1].trim()).replace(/\n+/g, '<br>');
+        html += `<div style="margin-bottom:12px"><div style="font-weight:700;color:#7c3aed;margin-bottom:4px;font-size:0.85rem">📚 Conceito</div><div style="color:#1e1b4b">${body}</div></div>`;
+    }
+    if (dicasMatch) {
+        const dicas = dicasMatch[1].trim();
+        const lines = dicas.split('\n').map(l => l.trim()).filter(Boolean);
+        const bullets = lines.filter(l => /^[•\-*]\s/.test(l));
+        let dicasHtml;
+        if (bullets.length >= 2) {
+            dicasHtml = '<ul style="margin:0;padding-left:20px;list-style:none">' +
+                bullets.map(l => `<li style="margin-bottom:6px;position:relative;padding-left:4px"><span style="position:absolute;left:-16px;color:#7c3aed">•</span>${escapeHtml(l.replace(/^[•\-*]\s*/, ''))}</li>`).join('') +
+                '</ul>';
+        } else {
+            dicasHtml = `<div>${escapeHtml(dicas).replace(/\n+/g, '<br>')}</div>`;
+        }
+        html += `<div style="margin-bottom:12px"><div style="font-weight:700;color:#7c3aed;margin-bottom:6px;font-size:0.85rem">💡 Como pensar</div><div style="color:#1e1b4b">${dicasHtml}</div></div>`;
+    }
+    if (encMatch) {
+        html += `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #c4b5fd;color:#6d28d9;font-style:italic;font-size:0.88rem">✨ ${escapeHtml(encMatch[1].trim())}</div>`;
+    }
+
+    // Fallback: se a IA não respeitou o formato, mostra o texto puro
+    if (!html) html = `<div>${escapeHtml(text).replace(/\n+/g, '<br>')}</div>`;
+    return html;
+}
+
 async function _loadAndShowHint(textEl, btnEl, boxEl) {
     if (!currentSession) return;
     const e = currentSession.items[currentSession.idx];
-    const cacheKey = `ai_hint_${e.id}`;
+    const cacheKey = `ai_hint_v2_${e.id}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
-        textEl.innerHTML = escapeHtml(cached).replace(/\n/g, '<br>');
+        textEl.innerHTML = _renderHintHtml(cached);
         boxEl.style.display = 'block';
         btnEl.innerHTML = '<i class="fas fa-robot"></i> Professor IA — esconder pista';
         return;
     }
     btnEl.disabled = true;
     btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…';
-    textEl.textContent = 'A pensar…';
+    textEl.innerHTML = '<div style="color:#7c3aed">A preparar a pista…</div>';
     boxEl.style.display = 'block';
 
     const yr = activeProfile()?.year || 6;
-    const subName = SUBJECTS[e.s]?.name || e.s;
-    let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"`;
-    if (e.type === 'mc' && e.opts) qContext += `\nOpções: ${e.opts.map((o,i)=>`${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
-    if (e.passage) qContext += `\nTexto: "${e.passage.slice(0,200)}"`;
-    if (e.material) qContext += `\nRegra: "${e.material}"`;
-    const treatment = yr === 2
-        ? 'fala com uma criança de 7-8 anos (2.º ano). Usa frases muito curtas, palavras simples e um tom carinhoso'
-        : `fala com um aluno do ${yr}.º ano. Tom de professor/a directo e encorajador`;
-    const prompt = `És um professor/professora do ${yr}.º ano do Ensino Básico português. ${treatment}.
-
-${qContext}
-
-Dá uma PISTA PEDAGÓGICA em Português Europeu (Portugal):
-- NÃO reveles a resposta certa nem nenhuma opção
-- Guia o aluno a pensar no conceito certo
-- Máximo 2-3 frases curtas
-- Tom: professor/a paciente e encorajador/a`;
+    const prompt = _buildProfessorIAPrompt(e, yr);
     try {
-        const { text } = await callClaudeAPI(prompt, 180, false);
+        const { text } = await callClaudeAPI(prompt, 450, false);
         const clean = text.trim().replace(/^["']|["']$/g, '');
         sessionStorage.setItem(cacheKey, clean);
-        textEl.innerHTML = escapeHtml(clean).replace(/\n/g, '<br>');
+        textEl.innerHTML = _renderHintHtml(clean);
         btnEl.disabled = false;
         btnEl.innerHTML = '<i class="fas fa-robot"></i> Professor IA — esconder pista';
     } catch(_) {
-        textEl.textContent = 'Não foi possível carregar a pista. Tenta de novo.';
+        textEl.innerHTML = '<div style="color:#dc2626">Não foi possível carregar a pista. Toca de novo no botão para tentar outra vez.</div>';
         btnEl.disabled = false;
         btnEl.innerHTML = '<i class="fas fa-robot"></i> Professor IA — tentar novamente';
     }
@@ -2595,9 +2684,9 @@ function toggleFeedbackHint() {
 }
 
 function _hintAiBox(text) {
-    return `<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:10px;padding:12px 14px;margin-top:4px">
-        <div style="font-size:0.78rem;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.03em">🎓 PROFESSOR IA</div>
-        <div style="font-size:0.9rem;line-height:1.6;color:#1e1b4b">${escapeHtml(text).replace(/\n/g,'<br>')}</div>
+    return `<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:10px;padding:14px 16px;margin-top:4px">
+        <div style="font-size:0.78rem;font-weight:700;color:#7c3aed;margin-bottom:8px;letter-spacing:.03em">🎓 PROFESSOR IA</div>
+        <div style="font-size:0.9rem;line-height:1.6;color:#1e1b4b">${_renderHintHtml(text)}</div>
     </div>`;
 }
 
@@ -2610,39 +2699,17 @@ async function loadAIHint(exerciseId) {
     const area = document.getElementById('hint-ai-area');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…'; }
 
+    const cacheKey = `ai_hint_v2_${e.id}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) { if (area) area.outerHTML = _hintAiBox(cached); return; }
+
     const yr = activeProfile()?.year || 6;
-    const subName = SUBJECTS[e.s]?.name || e.s;
-
-    // Contexto da pergunta
-    let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"`;
-    if (e.type === 'mc' && e.opts) {
-        qContext += `\nOpções: ${e.opts.map((o, i) => `${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
-    }
-    if (e.passage) qContext += `\nTexto de apoio: "${e.passage.slice(0, 200)}"`;
-    if (e.material) qContext += `\nRegra do tópico: "${e.material}"`;
-
-    // Estilo de tratamento por ano
-    const treatment = yr === 2
-        ? 'fala com uma criança de 7-8 anos (2.º ano). Usa frases muito curtas, palavras simples e um tom carinhoso e animador'
-        : yr <= 4
-        ? `fala com uma criança do ${yr}.º ano. Tom amigável, frases simples e directas`
-        : `fala com um aluno do ${yr}.º ano. Tom de professor/a, directo e claro`;
-
-    const prompt = `És um professor/professora do ${yr}.º ano do Ensino Básico português. Um aluno está com dificuldade e pediu uma pista. ${treatment}.
-
-${qContext}
-
-Dá uma PISTA PEDAGÓGICA em Português Europeu (Portugal). Regras obrigatórias:
-- NÃO reveles a resposta certa nem nenhuma opção específica
-- Guia o aluno a pensar no conceito necessário para resolver
-- Máximo 2-3 frases curtas
-- Tom: professor/a encorajador/a e paciente
-- Sem comentários sobre a pergunta — vai directo à pista`;
+    const prompt = _buildProfessorIAPrompt(e, yr);
 
     try {
-        const { text } = await callClaudeAPI(prompt, 180, false);
+        const { text } = await callClaudeAPI(prompt, 450, false);
         const clean = text.trim().replace(/^["']|["']$/g, '');
-        sessionStorage.setItem(`ai_hint_${e.id}`, clean);
+        sessionStorage.setItem(cacheKey, clean);
         if (area) area.outerHTML = _hintAiBox(clean);
     } catch (err) {
         if (btn) {
