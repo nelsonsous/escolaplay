@@ -2039,30 +2039,62 @@ function playBellNote(freq, startOffsetMs, durationMs, peakGain) {
     oscH.stop(t0 + dur + 0.05);
 }
 
-function playCorrectSound() {
-    // Estilo Duolingo: duas notas ascendentes em harmonia (G5 → C6, intervalo de 4ª justa).
-    // Decay longo (~450ms) com brilho da harmónica oitava acima — soa a sino/marimba.
-    playBellNote(784, 0,   450, 0.22); // G5
-    playBellNote(1047, 70, 550, 0.22); // C6 — entra ligeiramente sobreposto
+// ---- sons estilo Duolingo ----
+function _duoNote(ctx, freq, delayMs, durMs, peak) {
+    const t0 = ctx.currentTime + delayMs / 1000;
+    const dur = durMs / 1000;
+    // Fundamental sine puro — brilhante e limpo como xilofone
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
+    // Harmónica oitava — dá corpo de sino, decay mais rápido
+    const oscH = ctx.createOscillator();
+    const gH = ctx.createGain();
+    oscH.type = 'sine';
+    oscH.frequency.value = freq * 2;
+    gH.gain.setValueAtTime(0.0001, t0);
+    gH.gain.linearRampToValueAtTime(peak * 0.28, t0 + 0.003);
+    gH.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.5);
+    oscH.connect(gH).connect(ctx.destination);
+    oscH.start(t0); oscH.stop(t0 + dur + 0.05);
+}
+function _duoWrong(ctx, freq, delayMs, durMs, peak) {
+    const t0 = ctx.currentTime + delayMs / 1000;
+    const dur = durMs / 1000;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.87, t0 + dur); // glide para baixo
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
 }
 
-function playWrongSound() {
-    // Som suave, não punitivo — tom grave curto sem decay exponencial agressivo
+function playCorrectSound() {
+    // Duolingo: "ding ding" — dois sinos ascendentes D5 → A5
     const ctx = getAudioCtx();
     if (!ctx) return;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
-    const t0 = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(330, t0);
-    osc.frequency.exponentialRampToValueAtTime(220, t0 + 0.18);
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(t0 + 0.25);
+    _duoNote(ctx, 587,  0,  280, 0.28); // D5
+    _duoNote(ctx, 880, 85,  380, 0.25); // A5
+}
+
+function playWrongSound() {
+    // Duolingo: "dun dun" — dois tons descendentes Eb4 → Bb3
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
+    _duoWrong(ctx, 311,   0, 250, 0.22); // Eb4
+    _duoWrong(ctx, 233, 170, 300, 0.20); // Bb3
 }
 
 const ENCOURAGE_MSGS = [
