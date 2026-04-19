@@ -2461,25 +2461,101 @@ function openHintModal() {
     document.getElementById('lesson-title').innerHTML = `<i class="fas fa-comment-dots" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
     const body = document.getElementById('lesson-body');
     const parts = [];
+
+    // 1) Pista estática do exercício (e.hint) ou regra (e.material)
     if (e.hint) {
         parts.push(`<p style="background:#dbeafe;border-left:4px solid #2563eb;padding:10px 12px;border-radius:8px;margin-bottom:10px"><strong>💬 Pista:</strong> ${escapeHtml(e.hint)}</p>`);
     }
     if (e.material) {
-        parts.push(`<p style="background:#f0fdf4;border-left:4px solid #16a34a;padding:10px 12px;border-radius:8px;margin-bottom:10px"><strong>📘 Regra a aplicar:</strong> ${escapeHtml(e.material)}</p>`);
+        parts.push(`<p style="background:#f0fdf4;border-left:4px solid #16a34a;padding:10px 12px;border-radius:8px;margin-bottom:10px"><strong>📘 Regra:</strong> ${escapeHtml(e.material)}</p>`);
     }
-    // Extrair um excerto curto da lição do tópico (se existir)
+
+    // 2) Excerto do resumo do tópico (se existir)
     const lesson = LESSONS[`${e.s}/${e.t}`];
     if (lesson) {
-        const snippet = lesson.body.split('\n').filter(l => l.trim()).slice(0, 4).join('\n');
+        const snippet = lesson.body.split('\n').filter(l => l.trim()).slice(0, 3).join('\n');
         const formatted = escapeHtml(snippet).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        parts.push(`<p style="font-size:0.82rem;color:var(--text-light);margin-top:8px;white-space:pre-wrap">${formatted}</p>`);
-        parts.push(`<p style="margin-top:10px"><button class="btn btn-secondary btn-block" onclick="closeLessonModal();setTimeout(openLessonModal,50)">Ver explicação completa do tópico</button></p>`);
+        parts.push(`<div style="font-size:0.82rem;color:var(--text-light);margin-bottom:8px;white-space:pre-wrap;line-height:1.5">${formatted}</div>`);
+        parts.push(`<button class="btn btn-secondary btn-block" style="margin-bottom:10px" onclick="closeLessonModal();setTimeout(openLessonModal,50)">📖 Ver resumo completo do tópico</button>`);
     }
-    if (parts.length === 0) {
-        parts.push(`<p style="color:var(--text-light)">Lê a pergunta com atenção. Pensa em que operação ou regra precisas de aplicar.</p>`);
+
+    // 3) Pista IA — sempre disponível (com ou sem chave, usa Groq interno se possível)
+    const cacheKey = `ai_hint_${e.id}`;
+    const cachedHint = sessionStorage.getItem(cacheKey);
+    if (cachedHint) {
+        parts.push(_hintAiBox(cachedHint));
+    } else {
+        parts.push(`<div id="hint-ai-area">
+            <button class="btn btn-primary btn-block" id="hint-ai-btn" onclick="loadAIHint('${e.id}')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff">
+                <i class="fas fa-robot"></i> Pedir ajuda ao Professor IA
+            </button>
+        </div>`);
     }
+
+    if (parts.length === 0 || (parts.length === 1 && parts[0].includes('hint-ai-area'))) {
+        parts.unshift(`<p style="color:var(--text-light);margin-bottom:10px">Lê a pergunta com atenção e pensa no conceito do tópico.</p>`);
+    }
+
     body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
     document.getElementById('lesson-modal').style.display = 'flex';
+}
+
+function _hintAiBox(text) {
+    return `<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:10px;padding:12px 14px;margin-top:4px">
+        <div style="font-size:0.78rem;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.03em">🎓 PROFESSOR IA</div>
+        <div style="font-size:0.9rem;line-height:1.6;color:#1e1b4b">${escapeHtml(text).replace(/\n/g,'<br>')}</div>
+    </div>`;
+}
+
+async function loadAIHint(exerciseId) {
+    if (!currentSession) return;
+    const e = currentSession.items[currentSession.idx];
+    if (e.id !== exerciseId) return; // exercício já mudou
+
+    const btn = document.getElementById('hint-ai-btn');
+    const area = document.getElementById('hint-ai-area');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…'; }
+
+    const yr = activeProfile()?.year || 6;
+    const subName = SUBJECTS[e.s]?.name || e.s;
+
+    // Contexto da pergunta
+    let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"`;
+    if (e.type === 'mc' && e.opts) {
+        qContext += `\nOpções: ${e.opts.map((o, i) => `${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
+    }
+    if (e.passage) qContext += `\nTexto de apoio: "${e.passage.slice(0, 200)}"`;
+    if (e.material) qContext += `\nRegra do tópico: "${e.material}"`;
+
+    // Estilo de tratamento por ano
+    const treatment = yr === 2
+        ? 'fala com uma criança de 7-8 anos (2.º ano). Usa frases muito curtas, palavras simples e um tom carinhoso e animador'
+        : yr <= 4
+        ? `fala com uma criança do ${yr}.º ano. Tom amigável, frases simples e directas`
+        : `fala com um aluno do ${yr}.º ano. Tom de professor/a, directo e claro`;
+
+    const prompt = `És um professor/professora do ${yr}.º ano do Ensino Básico português. Um aluno está com dificuldade e pediu uma pista. ${treatment}.
+
+${qContext}
+
+Dá uma PISTA PEDAGÓGICA em Português Europeu (Portugal). Regras obrigatórias:
+- NÃO reveles a resposta certa nem nenhuma opção específica
+- Guia o aluno a pensar no conceito necessário para resolver
+- Máximo 2-3 frases curtas
+- Tom: professor/a encorajador/a e paciente
+- Sem comentários sobre a pergunta — vai directo à pista`;
+
+    try {
+        const { text } = await callClaudeAPI(prompt, 180, false);
+        const clean = text.trim().replace(/^["']|["']$/g, '');
+        sessionStorage.setItem(`ai_hint_${e.id}`, clean);
+        if (area) area.outerHTML = _hintAiBox(clean);
+    } catch (err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-robot"></i> Tentar novamente';
+        }
+    }
 }
 
 function escapeHtml(s) {
