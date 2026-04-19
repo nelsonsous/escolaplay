@@ -60,7 +60,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','tests','rewards','progress','maxExercises','maxLessons'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -84,6 +84,7 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
         totalDailies: 0,
         perfectDailies: 0,
         recentIds: [],
+        exerciseSeen: {},
         tests: [],
         rewards: JSON.parse(JSON.stringify(DEFAULT_REWARDS)),
         progress: prog,
@@ -160,6 +161,23 @@ function loadState() {
             // Migração: limpar BR-PT e SVGs triviais nos exercícios MAX já guardados
             if (Array.isArray(p.maxExercises)) {
                 p.maxExercises.forEach(migrateMaxExercise);
+            }
+            // Migração: garantir exerciseSeen e popular a partir do history (uma vez)
+            if (!p.exerciseSeen || typeof p.exerciseSeen !== 'object') {
+                p.exerciseSeen = {};
+            }
+            if (Object.keys(p.exerciseSeen).length === 0 && Array.isArray(p.history) && p.history.length > 0) {
+                // Reconstrói timestamps a partir do histórico (data → ms)
+                p.history.forEach((h, idx) => {
+                    if (h && h.id && h.d) {
+                        const ts = new Date(h.d).getTime();
+                        if (Number.isFinite(ts)) {
+                            // Spread fictício de timestamps para preservar ordem dentro do mesmo dia
+                            const t = ts + idx;
+                            p.exerciseSeen[h.id] = Math.max(p.exerciseSeen[h.id] || 0, t);
+                        }
+                    }
+                });
             }
         });
         if (s.profiles.length === 0) {
@@ -1610,6 +1628,7 @@ function resetStats() {
     p.totalDailies = 0;
     p.perfectDailies = 0;
     p.recentIds = [];
+    p.exerciseSeen = {};
     p.tests = [];
     p.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
     p.progress = prog;
@@ -1783,12 +1802,30 @@ function showToast(msg) {
 }
 
 // ========== SESSION ==========
+// Escolhe N exercícios com rotação inteligente:
+// - Nunca-vistos têm prioridade absoluta
+// - Depois, os mais antigos (menor timestamp) ganham
+// - Empates resolvidos com aleatoriedade
+// - Resultado final é baralhado para não dar sempre a mesma ordem
 function pickExercises(pool, n) {
-    const recent = new Set(state.recentIds || []);
-    const fresh = pool.filter(e => !recent.has(e.id));
-    const usable = fresh.length >= n ? fresh : pool;
-    const shuffled = [...usable].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, n);
+    const seen = state.exerciseSeen || {};
+    const annotated = pool.map(e => ({
+        e,
+        lastSeen: seen[e.id] || 0,
+        rand: Math.random()
+    }));
+    annotated.sort((a, b) => {
+        // Nunca vistos primeiro
+        if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
+        if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
+        // Entre vistos, mais antigos primeiro
+        if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
+        // Empate → random
+        return a.rand - b.rand;
+    });
+    const top = annotated.slice(0, n).map(x => x.e);
+    // Baralha o subset escolhido para não ser sempre na mesma ordem
+    return top.sort(() => Math.random() - 0.5);
 }
 
 function allExercisesFor(subjectKey, activeTopics) {
@@ -1799,11 +1836,22 @@ function allExercisesFor(subjectKey, activeTopics) {
 
 function startDailyChallenge() {
     const items = [];
+    const seen = state.exerciseSeen || {};
     Object.keys(SUBJECTS).forEach(key => {
         const active = activeTopicsFor(key);
         const pool = allExercisesFor(key, active);
         if (pool.length === 0) return;
-        items.push(pool[Math.floor(Math.random() * pool.length)]);
+        // Ordena por: nunca vistos primeiro, depois mais antigos
+        const sorted = [...pool].sort((a, b) => {
+            const sa = seen[a.id] || 0;
+            const sb = seen[b.id] || 0;
+            if (sa === 0 && sb !== 0) return -1;
+            if (sb === 0 && sa !== 0) return 1;
+            return sa - sb;
+        });
+        // Escolhe 1 ao acaso entre os 5 mais "frescos" para variedade
+        const top = sorted.slice(0, Math.min(5, sorted.length));
+        items.push(top[Math.floor(Math.random() * top.length)]);
     });
     if (items.length === 0) { showToast('Activa alguns tópicos primeiro nas disciplinas.'); return; }
     const shuffled = items.sort(() => Math.random() - 0.5).slice(0, DAILY_QUESTIONS);
@@ -2091,6 +2139,9 @@ function recordAnswer(e, isCorrect) {
     state.recentIds = state.recentIds || [];
     state.recentIds.push(e.id);
     if (state.recentIds.length > 30) state.recentIds.shift();
+    // Regista timestamp da última vez que foi vista (para rotação inteligente)
+    state.exerciseSeen = state.exerciseSeen || {};
+    state.exerciseSeen[e.id] = Date.now();
     // Marca pergunta como vista no teste activo (para evitar repetir em sessões futuras)
     if (s.testId) {
         const t = (state.tests || []).find(x => x.id === s.testId);
