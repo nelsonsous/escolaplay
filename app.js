@@ -157,6 +157,10 @@ function loadState() {
                 if (!p.subjects[k]) p.subjects[k] = { answered: 0, correct: 0, xp: 0 };
             });
             if (p.currentPeriod == null) p.currentPeriod = 1;
+            // Migração: limpar BR-PT e SVGs triviais nos exercícios MAX já guardados
+            if (Array.isArray(p.maxExercises)) {
+                p.maxExercises.forEach(migrateMaxExercise);
+            }
         });
         if (s.profiles.length === 0) {
             s.activeProfileId = null;
@@ -193,6 +197,50 @@ function installStateProxy(s) {
 
 function activeProfile() {
     return state.profiles.find(p => p.id === state.activeProfileId) || state.profiles[0];
+}
+
+// ========== Normalização BR-PT → PT-PT ==========
+// Aplica-se a strings em q/exp/opts/passage de exercícios MAX gerados pela IA
+// (Groq llama às vezes introduz palavras brasileiras apesar da instrução).
+const _BR_TO_PT_MAP = [
+    [/\bgols\b/g, 'golos'], [/\bgol\b/g, 'golo'],
+    [/\bUm time\b/g, 'Uma equipa'], [/\bum time\b/g, 'uma equipa'],
+    [/\bO time\b/g, 'A equipa'], [/\bo time\b/g, 'a equipa'],
+    [/\btime de futebol\b/g, 'equipa de futebol'], [/\btimes de futebol\b/g, 'equipas de futebol'],
+    [/\beconomizando\b/g, 'a poupar'], [/\beconomizar\b/g, 'poupar'],
+    [/\beconomiza\b/g, 'poupa'], [/\beconomizou\b/g, 'poupou'],
+    [/\bestá ([a-záéíóúâêôãõç]+)ndo\b/g, (m, v) => `está a ${v}r`],
+    [/\bestão ([a-záéíóúâêôãõç]+)ndo\b/g, (m, v) => `estão a ${v}r`],
+    [/\bestava ([a-záéíóúâêôãõç]+)ndo\b/g, (m, v) => `estava a ${v}r`],
+    [/\btrem\b/g, 'comboio'], [/\bônibus\b/g, 'autocarro'],
+    [/\bcelular\b/g, 'telemóvel'], [/\bgeladeira\b/g, 'frigorífico'],
+    [/\babacaxi\b/g, 'ananás'], [/\bsorvete\b/g, 'gelado'],
+    [/\besporte\b/g, 'desporto'], [/\besportiv/g, 'desportiv'],
+    [/\bgarot[oa]\b/g, 'rapaz'], [/\bmamãe\b/g, 'mãe'], [/\bpapai\b/g, 'pai'],
+    [/\bcafé da manhã\b/g, 'pequeno-almoço']
+];
+function brToPt(s) {
+    if (typeof s !== 'string') return s;
+    let out = s;
+    _BR_TO_PT_MAP.forEach(([re, rep]) => { out = out.replace(re, rep); });
+    return out;
+}
+function _isTrivialSvg(svg) {
+    if (typeof svg !== 'string' || svg.length < 30) return true;
+    const tags = (svg.match(/<(rect|circle|line|polygon|polyline|path|text|g)\b/gi) || []).length;
+    return tags < 2;
+}
+function migrateMaxExercise(e) {
+    if (!e) return e;
+    if (typeof e.q === 'string') e.q = brToPt(e.q);
+    if (typeof e.exp === 'string') e.exp = brToPt(e.exp);
+    if (typeof e.passage === 'string') e.passage = brToPt(e.passage);
+    if (typeof e.material === 'string') e.material = brToPt(e.material);
+    if (typeof e.solution === 'string') e.solution = brToPt(e.solution);
+    if (Array.isArray(e.opts)) e.opts = e.opts.map(o => typeof o === 'string' ? brToPt(o) : o);
+    if (Array.isArray(e.ans)) e.ans = e.ans.map(a => typeof a === 'string' ? brToPt(a) : a);
+    if (e.svg && _isTrivialSvg(e.svg)) delete e.svg;
+    return e;
 }
 
 // ========== Lazy-load do banco extra por ano ==========
@@ -1180,6 +1228,28 @@ async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = f
     }
 
     let langRule;
+    // Reforço anti-BR-PT que se aplica sempre (excepto inglês)
+    const ptStrict = isEnglish ? '' : `
+
+PORTUGUÊS DE PORTUGAL — REGRA OBRIGATÓRIA. NÃO uses NENHUMA destas palavras/expressões brasileiras:
+- "gols" → escreve "golos"
+- "time" (de futebol) → escreve "equipa"
+- "estar economizando" → escreve "estar a poupar"
+- "estar estudando/comendo/jogando/correndo" → escreve "estar a estudar/comer/jogar/correr"
+- "trem" → escreve "comboio"
+- "ônibus" → escreve "autocarro"
+- "celular" → escreve "telemóvel"
+- "geladeira" → escreve "frigorífico"
+- "abacaxi" → escreve "ananás"
+- "sorvete" → escreve "gelado"
+- "esporte" → escreve "desporto"
+- "garoto/garota" → escreve "rapaz/rapariga"
+- "mamãe/papai" → escreve "mãe/pai"
+- "café da manhã" → escreve "pequeno-almoço"
+- "geladeira/legal/maneiro" → não usar
+- "você" → escreve "tu" (excepto em contexto formal escolar)
+
+Verifica TODAS as perguntas e explicações antes de devolver. Se encontrares qualquer palavra brasileira, reescreve em português europeu.`;
     if (isEnglish && yr === 2) {
         langRule = `LANGUAGE — INGLÊS 2.º ANO (REGRA ESTRITA):
 - A criança tem 7-8 anos e ainda não lê inglês fluentemente.
@@ -1261,7 +1331,7 @@ TÓPICOS: ${topicsStr}
 QUANTIDADE: ${count} exercícios
 MODO: ${testPrep ? `PREPARAÇÃO PARA TESTE — simula perguntas de exame${yr === 2 ? ' adequadas ao 2.º ano' : ''}, cobrindo os tópicos em profundidade. ${yr === 2 ? 'Pelo menos 4 exercícios de dificuldade 2.' : 'Pelo menos 6 exercícios de dificuldade 3.'} Inclui sempre "solution" detalhada.` : 'TREINO — variedade de tipos e dificuldades'}
 ${ageRule}
-${langRule}${mathNote}${tfRule}${portugueseRule}${avoidBlock}
+${langRule}${ptStrict}${mathNote}${tfRule}${portugueseRule}${avoidBlock}
 
 CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
 1. Cada exercício testa um conceito específico do ${yr}.º ano — não anos anteriores nem posteriores.
@@ -1304,6 +1374,9 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
     let parsed;
     try { parsed = JSON.parse(jsonStr); }
     catch (e) { throw new Error('JSON inválido: ' + e.message); }
+    // Pós-processamento: limpa termos BR-PT (brToPt) e SVGs triviais
+    // (_isTrivialSvg). Helpers globais definidos perto de loadState.
+    const _toPT = (s) => isEnglish ? s : brToPt(s);
     const items = (parsed.exercises || []).map((raw, i) => {
         const rawTopic = (raw.t || '').toLowerCase();
         const matchedTopic = topics.find(t => t.toLowerCase() === rawTopic) || topics[0];
@@ -1313,22 +1386,28 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
             t: matchedTopic,
             type: raw.type,
             diff: Math.max(1, Math.min(3, raw.diff || 2)),
-            q: raw.q,
-            exp: raw.exp || ''
+            q: isEnglish ? raw.q : _toPT(raw.q),
+            exp: isEnglish ? (raw.exp || '') : _toPT(raw.exp || '')
         };
-        if (raw.type === 'mc') { ex.opts = raw.opts; ex.ans = raw.ans_mc; }
+        if (raw.type === 'mc') {
+            ex.opts = (raw.opts || []).map(o => isEnglish ? o : _toPT(o));
+            ex.ans = raw.ans_mc;
+        }
         else if (raw.type === 'tf') { ex.ans = raw.ans_tf; }
         else if (raw.type === 'fill' || raw.type === 'problem') {
-            ex.ans = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill)];
+            const ansArr = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill)];
+            ex.ans = isEnglish ? ansArr : ansArr.map(a => _toPT(String(a)));
         }
         if (raw.type === 'passage') {
-            ex.passage = raw.passage || '';
-            ex.ans = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill || '')];
+            ex.passage = isEnglish ? (raw.passage || '') : _toPT(raw.passage || '');
+            const ansArr = Array.isArray(raw.ans_fill) ? raw.ans_fill : [String(raw.ans_fill || '')];
+            ex.ans = isEnglish ? ansArr : ansArr.map(a => _toPT(String(a)));
             if (raw.table) ex.table = raw.table;
-            if (raw.svg)   ex.svg   = raw.svg;
+            // Descartar SVGs triviais (apenas um quadrado colorido sem geometria real)
+            if (raw.svg && !_isTrivialSvg(raw.svg)) ex.svg = raw.svg;
         }
-        if (raw.material) ex.material = raw.material;
-        if (raw.solution) ex.solution = raw.solution;
+        if (raw.material) ex.material = isEnglish ? raw.material : _toPT(raw.material);
+        if (raw.solution) ex.solution = isEnglish ? raw.solution : _toPT(raw.solution);
         return ex;
     }).filter(e => e.q && e.type && (e.type === 'tf' ? typeof e.ans === 'boolean' : e.ans !== undefined));
     if (items.length === 0) throw new Error('Nenhum exercício válido na resposta');
@@ -1431,6 +1510,18 @@ function resetStats() {
     saveState();
     updateAll();
     showToast('Progresso reiniciado.');
+}
+
+function clearMaxCache() {
+    const p = activeProfile();
+    if (!p) return;
+    if (!confirm('Apagar todas as perguntas geradas pela IA (MAX) deste perfil? Vão ser geradas novas perguntas mais limpas no próximo treino.')) return;
+    p.maxExercises = [];
+    p.maxLessons = {};
+    // limpar cache localStorage do MAX
+    Object.keys(localStorage).filter(k => k.startsWith('max_cache_')).forEach(k => localStorage.removeItem(k));
+    saveState();
+    showToast('Perguntas IA apagadas. Vão ser geradas novas no próximo treino.');
 }
 
 // ========== EXPORT / IMPORT PERGUNTAS ==========
