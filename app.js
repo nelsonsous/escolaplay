@@ -2904,6 +2904,152 @@ function closeRewardModal() {
     pendingRewardId = null;
 }
 
+// ========== PARTILHAR PERGUNTA ==========
+// Constrói texto com pergunta + dica + sugestão + pista do Professor IA
+// (quando disponíveis). Tenta navigator.share() primeiro (iOS/Android),
+// fallback para mailto:.
+function _buildShareText(e) {
+    const sub = SUBJECTS[e.s];
+    const subName = sub?.fullName || sub?.name || e.s;
+    const lines = [];
+    lines.push(`📚 ${subName} — ${e.t}`);
+    lines.push('');
+    lines.push(`PERGUNTA:`);
+    lines.push(String(e.q || ''));
+    lines.push('');
+
+    // Opções (se MC)
+    if (e.type === 'mc' && Array.isArray(e.opts)) {
+        lines.push('OPÇÕES:');
+        e.opts.forEach((o, i) => lines.push(`  ${String.fromCharCode(65+i)}) ${o}`));
+        lines.push('');
+    } else if (e.type === 'tf') {
+        lines.push('OPÇÕES: Verdadeiro / Falso');
+        lines.push('');
+    } else if (e.type === 'order' && Array.isArray(e.items)) {
+        lines.push('ELEMENTOS A ORDENAR (apresentados baralhados):');
+        // Mostra os items sem revelar a ordem certa
+        const shuffled = [...e.items].sort(() => Math.random() - 0.5);
+        shuffled.forEach((it, i) => lines.push(`  ${i+1}. ${it}`));
+        lines.push('');
+    }
+
+    // Texto de apoio / passage
+    if (e.passage) {
+        lines.push('TEXTO DE APOIO:');
+        lines.push(String(e.passage));
+        lines.push('');
+    }
+
+    // Dica estática do exercício
+    if (e.hint) {
+        lines.push('💡 DICA:');
+        lines.push(String(e.hint));
+        lines.push('');
+    }
+
+    // Regra/material do tópico (sugestão de estudo)
+    if (e.material) {
+        lines.push('📘 SUGESTÃO (regra do tópico):');
+        lines.push(String(e.material));
+        lines.push('');
+    }
+
+    // Pista do Professor IA (se já foi pedida nesta sessão — cache)
+    const aiHint = sessionStorage.getItem(`ai_hint_v2_${e.id}`);
+    if (aiHint) {
+        lines.push('🎓 PROFESSOR IA — pista pedagógica:');
+        // Remove markdown/emoji headers para texto plano legível
+        const clean = aiHint.replace(/[📚💡✨]\s*/g, '').trim();
+        lines.push(clean);
+        lines.push('');
+    } else {
+        lines.push('🎓 PROFESSOR IA: (não foi pedida pista nesta sessão)');
+        lines.push('');
+    }
+
+    // Resposta certa (no fim, para quem quiser estudar depois)
+    lines.push('✅ RESPOSTA CERTA:');
+    if (e.type === 'mc') lines.push(`${String.fromCharCode(65 + e.ans)}) ${e.opts[e.ans]}`);
+    else if (e.type === 'tf') lines.push(e.ans ? 'Verdadeiro' : 'Falso');
+    else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') lines.push(Array.isArray(e.ans) ? e.ans.join(' ou ') : String(e.ans));
+    else if (e.type === 'order') lines.push(`Ordem certa: ${(e.items || []).join(' > ')}`);
+    else if (e.type === 'match' && Array.isArray(e.pairs)) lines.push(e.pairs.map(p => `  ${p[0]} ↔ ${p[1]}`).join('\n'));
+    lines.push('');
+
+    // Explicação curta
+    if (e.exp) {
+        lines.push('📝 EXPLICAÇÃO:');
+        lines.push(String(e.exp));
+        lines.push('');
+    }
+
+    // Resolução passo a passo (se existir)
+    if (e.solution) {
+        lines.push('📐 RESOLUÇÃO:');
+        lines.push(String(e.solution));
+        lines.push('');
+    }
+
+    // Explicação detalhada do Professor IA (se já gerada nesta sessão)
+    const aiDetail = sessionStorage.getItem(`detail_v2_${e.id}`);
+    if (aiDetail) {
+        lines.push('🪜 PROFESSOR IA — Explicação passo a passo:');
+        // aiDetail está em HTML — converter para texto
+        const div = document.createElement('div');
+        div.innerHTML = aiDetail;
+        lines.push((div.textContent || div.innerText || '').replace(/\n{3,}/g, '\n\n').trim());
+        lines.push('');
+    }
+
+    lines.push('—');
+    lines.push(`Partilhado a partir de EscolaPlay · ${e.id}`);
+    return lines.join('\n');
+}
+
+async function shareCurrentQuestion() {
+    if (!currentSession) { showToast('Não há pergunta activa.'); return; }
+    const e = currentSession.items[currentSession.idx];
+    if (!e) return;
+
+    const sub = SUBJECTS[e.s];
+    const subName = sub?.name || e.s;
+    const subject = `EscolaPlay — ${subName} · ${e.t}`;
+    const body = _buildShareText(e);
+
+    // 1) Tentar Web Share API (nativo no iOS/Android — abre Mail, WhatsApp, etc.)
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: subject, text: body });
+            return;
+        } catch (err) {
+            // Utilizador cancelou — sem toast nem fallback
+            if (err && err.name === 'AbortError') return;
+            // Outro erro — cai para mailto
+        }
+    }
+
+    // 2) Fallback: mailto:
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    // Em PWAs (sobretudo iOS standalone) window.location.href com mailto pode falhar silenciosamente
+    try {
+        const a = document.createElement('a');
+        a.href = mailto;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } catch (_) {
+        // 3) Último recurso: copiar para clipboard
+        try {
+            await navigator.clipboard.writeText(body);
+            showToast('📋 Pergunta copiada para a área de transferência');
+        } catch {
+            showToast('Não foi possível partilhar. Tenta outro browser.');
+        }
+    }
+}
+
 // ========== LESSON + HINT MODAL ==========
 function openLessonModal() {
     if (!currentSession) return;
