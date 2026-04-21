@@ -287,6 +287,9 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_6_i_extra.js', varName: 'EXERCISES_6_I_EXTRA' },
         { src: 'content_6_c_extra.js', varName: 'EXERCISES_6_C_EXTRA' },
         { src: 'content_6_h_extra.js', varName: 'EXERCISES_6_H_EXTRA' }
+    ],
+    11: [
+        { src: 'content_11_q_extra.js', varName: 'EXERCISES_11_Q_EXTRA' }
     ]
 };
 

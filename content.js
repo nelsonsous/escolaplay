@@ -1370,17 +1370,91 @@ const PERIODS_5 = {
     hgp:         { 'Localização':1, 'Fronteiras':1, 'Continentes':1, 'Oceanos':1, 'Europa':1, 'Pontos cardeais':1, 'Distritos':1, 'Capitais':1, 'Rios':2, 'Relevo':2, 'Montanha':2, 'Ilhas':2, 'Clima':2, 'Pré-história':2, 'Romanos':2, 'Bárbaros':2, 'Muçulmanos':3, 'Reconquista':3, 'Fundação':3, 'Lisboa':3, 'Batalhas':3, 'Reis':3, 'Cultura':3, 'Símbolos':3, 'Dinastias':3, 'Ordem cronológica':3 }
 };
 
+// ============================================================
+// =============== 11.º ANO — FÍSICO-QUÍMICA A ================
+// ============================================================
+// Apenas Química (a Física fica para futura adição). Conteúdos
+// alinhados com as Aprendizagens Essenciais (DGE).
+const SUBJECTS_11 = {
+    quimica: { name: 'Química', icon: 'fa-flask', color: '#0891b2', fullName: 'Físico-Química A — Química' }
+};
+
+const CURRICULUM_11 = {
+    quimica: [
+        'Equilíbrio químico — conceito e Kc',
+        'Quociente de reacção e princípio de Le Châtelier',
+        'Equilíbrio ácido-base — pH e Kw',
+        'Ácidos e bases fortes e fracos — Ka e Kb',
+        'Soluções tampão e titulações ácido-base',
+        'Solubilidade e produto de solubilidade (Ks)',
+        'Equilíbrio de oxidação-redução',
+        'Pilhas e potenciais de eléctrodo'
+    ]
+};
+
+const PERIODS_11 = {
+    quimica: {
+        'Equilíbrio químico — conceito e Kc': 1,
+        'Quociente de reacção e princípio de Le Châtelier': 1,
+        'Equilíbrio ácido-base — pH e Kw': 2,
+        'Ácidos e bases fortes e fracos — Ka e Kb': 2,
+        'Soluções tampão e titulações ácido-base': 2,
+        'Solubilidade e produto de solubilidade (Ks)': 3,
+        'Equilíbrio de oxidação-redução': 3,
+        'Pilhas e potenciais de eléctrodo': 3
+    }
+};
+
+const LESSONS_11 = {
+    'quimica/Equilíbrio químico — conceito e Kc': {
+        title: 'Equilíbrio químico e constante Kc',
+        body: `Numa **reacção reversível** aA + bB ⇌ cC + dD, atingido o equilíbrio, as concentrações deixam de variar.\n\n**Constante de equilíbrio Kc** (em termos de concentração):\n   Kc = [C]^c · [D]^d / ([A]^a · [B]^b)\n\n**Notas importantes:**\n• Sólidos puros e líquidos puros NÃO entram na expressão de Kc.\n• Kc depende apenas da TEMPERATURA.\n• Kc grande (>>1) → equilíbrio favorece produtos.\n• Kc pequeno (<<1) → equilíbrio favorece reagentes.\n• A constante da reacção inversa é 1/Kc.\n• Se a equação for multiplicada por n, Kc passa a Kc^n.`
+    },
+    'quimica/Quociente de reacção e princípio de Le Châtelier': {
+        title: 'Quociente Qc e princípio de Le Châtelier',
+        body: `**Quociente de reacção Qc**: tem a mesma forma de Kc mas com concentrações em qualquer instante (não necessariamente em equilíbrio).\n\n**Comparação Qc vs Kc:**\n• Qc < Kc → reacção evolui no sentido directo (forma mais produtos)\n• Qc > Kc → reacção evolui no sentido inverso (forma mais reagentes)\n• Qc = Kc → sistema em equilíbrio\n\n**Princípio de Le Châtelier**: quando uma perturbação é imposta a um sistema em equilíbrio, este evolui no sentido que CONTRARIA essa perturbação.\n\n**Efeitos:**\n• Aumentar [reagente] → desloca para produtos\n• Aumentar T (reacção exotérmica) → desloca para reagentes (Kc diminui)\n• Aumentar T (reacção endotérmica) → desloca para produtos (Kc aumenta)\n• Aumentar pressão (gás) → desloca para o lado com MENOR número de moles gasosas\n• Adicionar catalisador → NÃO desloca o equilíbrio (só acelera)`
+    },
+    'quimica/Equilíbrio ácido-base — pH e Kw': {
+        title: 'pH, pOH e produto iónico da água',
+        body: `**Auto-ionização da água**: 2 H₂O(l) ⇌ H₃O⁺(aq) + OH⁻(aq)\n\n**Produto iónico da água a 25 °C:**\n   Kw = [H₃O⁺] · [OH⁻] = 1,0 × 10⁻¹⁴\n\n**pH e pOH:**\n• pH = −log[H₃O⁺]\n• pOH = −log[OH⁻]\n• pH + pOH = 14 (a 25 °C)\n\n**Escala (a 25 °C):**\n• pH < 7 → solução ácida\n• pH = 7 → neutra\n• pH > 7 → básica\n\n**Notas:**\n• Kw aumenta com a temperatura → o pH neutro deixa de ser exactamente 7 a temperaturas diferentes de 25 °C.\n• Diluir um ácido aproxima o pH de 7 (mas nunca passa de 7).\n• [H₃O⁺] = 10^(−pH)`
+    },
+    'quimica/Ácidos e bases fortes e fracos — Ka e Kb': {
+        title: 'Ka, Kb e força de ácidos/bases',
+        body: `**Ácido forte**: ioniza-se quase totalmente (HCl, HNO₃, H₂SO₄, HBr, HI, HClO₄). Ka muito grande.\n**Ácido fraco**: ioniza-se parcialmente. Tem Ka definido.\n\n**Constante de acidez Ka** para HA + H₂O ⇌ A⁻ + H₃O⁺:\n   Ka = [A⁻]·[H₃O⁺] / [HA]\n\n**Constante de basicidade Kb** para B + H₂O ⇌ BH⁺ + OH⁻:\n   Kb = [BH⁺]·[OH⁻] / [B]\n\n**Relação entre par ácido-base conjugado:**\n   Ka · Kb = Kw = 1,0 × 10⁻¹⁴ (a 25 °C)\n\n**pKa = −log(Ka)**: pKa pequeno → ácido forte; pKa grande → ácido fraco.\n\n**Comparar dois ácidos**: o de maior Ka (menor pKa) é o mais forte → forma uma base conjugada MAIS fraca.`
+    },
+    'quimica/Soluções tampão e titulações ácido-base': {
+        title: 'Soluções tampão e titulações',
+        body: `**Solução tampão**: mistura de ácido fraco + sua base conjugada (ou base fraca + seu ácido conjugado). Resiste a variações de pH quando se adiciona pequena quantidade de ácido ou base.\n\n**Equação de Henderson-Hasselbalch:**\n   pH = pKa + log([A⁻]/[HA])\n\n**Titulação ácido-base:**\n• **Ponto de equivalência**: nº moles ácido = nº moles base.\n• Ácido forte + base forte → pH = 7 no ponto de equivalência.\n• Ácido fraco + base forte → pH > 7 no ponto de equivalência.\n• Ácido forte + base fraca → pH < 7 no ponto de equivalência.\n\n**Indicadores**: corantes que mudam de cor numa zona de pH (ex: tornesol, fenolftaleína 8,3-10,0; tinta azul de bromotimol 6,0-7,6).\n\nA **curva de titulação** tem um salto abrupto perto do ponto de equivalência.`
+    },
+    'quimica/Solubilidade e produto de solubilidade (Ks)': {
+        title: 'Solubilidade e Ks',
+        body: `Para um sal pouco solúvel AₐBᵦ(s) ⇌ aA^n+(aq) + bB^m−(aq):\n\n**Produto de solubilidade Ks:**\n   Ks = [A^n+]^a · [B^m−]^b\n\n(o sólido NÃO entra na expressão).\n\n**Solubilidade s** (mol/dm³) é a concentração máxima dissolvida.\nPara AB (1:1): Ks = s²; s = √Ks.\nPara AB₂ (1:2): Ks = 4s³; s = ∛(Ks/4).\n\n**Comparar Q vs Ks:**\n• Q < Ks → solução não saturada (mais sal pode dissolver)\n• Q = Ks → saturada (em equilíbrio)\n• Q > Ks → forma-se PRECIPITADO\n\n**Efeito do ião comum**: adicionar um ião que já existe no equilíbrio DIMINUI a solubilidade do sal (Le Châtelier).\n\n**Efeito do pH**: sais de ácidos fracos (CaCO₃, Mg(OH)₂…) ficam mais solúveis em meio ácido.`
+    },
+    'quimica/Equilíbrio de oxidação-redução': {
+        title: 'Oxidação-redução',
+        body: `**Oxidação**: perda de electrões (nº de oxidação aumenta).\n**Redução**: ganho de electrões (nº de oxidação diminui).\n\nNuma reacção redox há sempre oxidação E redução em simultâneo (transferência de electrões).\n\n**Agente oxidante**: aceita electrões → é REDUZIDO.\n**Agente redutor**: cede electrões → é OXIDADO.\n\n**Números de oxidação — regras úteis:**\n• Elemento puro: 0 (ex: O₂, Cu, Fe)\n• Iões monoatómicos: igual à carga (Na⁺=+1, Cl⁻=−1)\n• O em compostos: −2 (excepto peróxidos: −1; OF₂: +2)\n• H em compostos: +1 (excepto hidretos metálicos NaH: −1)\n• Soma dos n.o. = carga total da espécie\n\n**Acerto de equações redox**: balancear electrões cedidos = electrões ganhos.`
+    },
+    'quimica/Pilhas e potenciais de eléctrodo': {
+        title: 'Pilhas e potencial de eléctrodo',
+        body: `Uma **pilha** (célula galvânica) converte energia química em energia eléctrica através de uma reacção redox espontânea.\n\n**Componentes:**\n• **Ânodo** (−): onde ocorre OXIDAÇÃO\n• **Cátodo** (+): onde ocorre REDUÇÃO\n• **Ponte salina**: mantém a neutralidade eléctrica\n• **Eléctrodos** ligados por circuito externo\n\n**fem (força electromotriz) padrão:**\n   E°pilha = E°cátodo − E°ânodo\n\n(usar SEMPRE potenciais de redução padrão)\n\n**Espontaneidade:**\n• E°pilha > 0 → reacção espontânea\n• E°pilha < 0 → não espontânea\n\n**Série electroquímica**: ordena metais por poder redutor.\nMetal MAIS redutor (E° mais negativo) → cede electrões mais facilmente → corrói-se preferencialmente.\n\nEx: pilha Zn/Cu → Zn (ânodo, E°=−0,76 V) e Cu (cátodo, E°=+0,34 V)\n   E°pilha = +0,34 − (−0,76) = +1,10 V`
+    }
+};
+
+// Reservado — exercícios complexos vivem em content_11_q_extra.js (lazy load)
+const EXERCISES_11 = [];
+
 const YEARS_AVAILABLE = [
-    { year: 2, label: '2.º ano', cycle: '1.º ciclo' },
-    { year: 5, label: '5.º ano', cycle: '2.º ciclo' },
-    { year: 6, label: '6.º ano', cycle: '2.º ciclo' }
+    { year: 2,  label: '2.º ano',  cycle: '1.º ciclo' },
+    { year: 5,  label: '5.º ano',  cycle: '2.º ciclo' },
+    { year: 6,  label: '6.º ano',  cycle: '2.º ciclo' },
+    { year: 11, label: '11.º ano', cycle: 'Secundário' }
 ];
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   5: SUBJECTS_5,   6: SUBJECTS_6 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 5: CURRICULUM_5, 6: CURRICULUM_6 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  5: EXERCISES_5,  6: EXERCISES_6 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    5: LESSONS_5,    6: LESSONS_6 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    5: PERIODS_5,    6: PERIODS_6 };
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
