@@ -3151,13 +3151,87 @@ function shareLastSummaryAsDuel() {
 async function _shareDuelUrl(url, data) {
     const sub = SUBJECTS[ data.q && _findExerciseAnyYear(data.q[0])?.s ];
     const subName = sub?.name || 'EscolaPlay';
-    const text = `🥊 ${data.c} desafia-te no EscolaPlay!\n\n${subName} · ${data.q.length} perguntas\n${data.sb}/${data.q.length} certas em ${_formatDuelTime(data.st * 1000)}\n\nConsegues melhor? Toca para jogar:\n${url}`;
+    const text =
+`🥊 ${data.c} desafia-te no EscolaPlay!
+
+${subName} · ${data.q.length} perguntas
+${data.sb}/${data.q.length} certas em ${_formatDuelTime(data.st * 1000)}
+
+📲 Como aceitar:
+1. Abre a app EscolaPlay no telemóvel
+2. No início, toca em "🥊 Tens um duelo?"
+3. Cola este link
+
+${url}
+
+(Se não tiveres a app, o link funciona também no browser.)`;
     if (navigator.share) {
         try { await navigator.share({ title: '🥊 Duelo no EscolaPlay', text }); return; }
         catch (err) { if (err && err.name === 'AbortError') return; }
     }
     try { await navigator.clipboard.writeText(text); showToast('🔗 Link de duelo copiado!'); }
     catch { prompt('Copia este link e envia ao teu amigo:', url); }
+}
+
+// ===== ACEITAR DUELO via paste (para quando o link abre no browser
+//       em vez da app instalada — comum em iOS) =====
+function openAcceptDuelModal() {
+    document.getElementById('duel-paste-modal-temp')?.remove();
+    const html = `
+    <div id="duel-paste-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:480px;border-radius:24px;max-height:92vh;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#dc2626 0%,#f97316 50%,#facc15 100%);color:#fff;padding:24px 22px;text-align:center;position:relative;overflow:hidden">
+                <div style="position:absolute;top:-60px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+                <div style="font-size:2.8rem;line-height:1;margin-bottom:6px">🥊</div>
+                <h2 style="font-size:1.3rem;font-weight:900;letter-spacing:-0.01em">Aceitar duelo</h2>
+                <p style="font-size:0.86rem;opacity:0.94;margin-top:4px">Cola aqui o link que recebeste</p>
+            </div>
+            <div class="modal-body" style="padding:20px 22px 24px">
+                <textarea id="duel-paste-input" placeholder="Cola aqui o link ou código do duelo…" style="width:100%;min-height:90px;padding:14px;border:1.5px solid var(--border);border-radius:12px;font-size:0.92rem;background:#fafafa;font-family:inherit;resize:vertical;line-height:1.4"></textarea>
+                <button class="btn btn-block btn-secondary" onclick="pasteDuelFromClipboard()" style="margin-top:10px;padding:11px"><i class="fas fa-clipboard"></i> Colar da área de transferência</button>
+                <button class="btn btn-block" onclick="processPastedDuel()" style="margin-top:10px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)">
+                    <i class="fas fa-fist-raised"></i> Aceitar duelo
+                </button>
+                <button class="btn btn-block btn-secondary" onclick="closeAcceptDuelModal()" style="margin-top:10px;padding:11px">Cancelar</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => document.getElementById('duel-paste-input')?.focus(), 100);
+}
+function closeAcceptDuelModal() {
+    document.getElementById('duel-paste-modal-temp')?.remove();
+}
+async function pasteDuelFromClipboard() {
+    try {
+        const text = await navigator.clipboard.readText();
+        const input = document.getElementById('duel-paste-input');
+        if (input) input.value = text;
+    } catch (_) {
+        showToast('Permissão negada — cola manualmente.');
+    }
+}
+function processPastedDuel() {
+    const input = document.getElementById('duel-paste-input');
+    if (!input) return;
+    const text = (input.value || '').trim();
+    if (!text) { showToast('Cola primeiro o link.'); return; }
+    // Procura ?duel=... no texto colado (pode vir com texto à volta)
+    const m = text.match(/[?&]duel=([A-Za-z0-9_\-=]+)/);
+    let raw = m ? m[1] : text; // se for só o código, aceita também
+    raw = raw.split(/[\s&]/)[0]; // limpa caracteres extra após o código
+    const data = decodeDuel(raw);
+    if (!data || !Array.isArray(data.q) || data.q.length === 0) {
+        showToast('Link inválido. Verifica que copiaste o link completo.');
+        return;
+    }
+    closeAcceptDuelModal();
+    // Garante que o ano do criador está carregado
+    if (data.cy && window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[data.cy] && typeof loadYearExtras === 'function') {
+        loadYearExtras(data.cy).then(() => setTimeout(() => _showDuelIntro(data), 200));
+    } else {
+        setTimeout(() => _showDuelIntro(data), 200);
+    }
 }
 
 // ===== ABRIR DUELO RECEBIDO via URL =====
@@ -3179,6 +3253,20 @@ function _checkIncomingDuel() {
     } catch (_) {}
 }
 
+function _isStandaloneApp() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+        || window.navigator.standalone === true;
+}
+
+async function _copyDuelLinkToClipboard(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        showToast('🔗 Link copiado! Abre a app e cola.');
+    } catch (_) {
+        prompt('Copia este link e abre na app:', url);
+    }
+}
+
 function _showDuelIntro(data) {
     const items = data.q.map(id => _findExerciseAnyYear(id)).filter(Boolean);
     if (items.length === 0) {
@@ -3193,10 +3281,29 @@ function _showDuelIntro(data) {
     const sub = SUBJECTS[items[0]?.s];
     const subName = sub?.fullName || sub?.name || 'EscolaPlay';
 
+    // Banner de aviso quando aberto no browser em vez da app instalada
+    const inBrowser = !_isStandaloneApp();
+    // Construir o link actual para que o utilizador possa copiá-lo e colar na app
+    const currentUrl = `${location.origin}${location.pathname}?duel=${encodeDuel(data)}`;
+    const browserBanner = inBrowser ? `
+        <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:0.85rem;color:#78350f;line-height:1.5">
+            <div style="font-weight:800;margin-bottom:4px">⚠️ Estás no browser</div>
+            Os teus pontos do duelo NÃO vão ficar no perfil da app instalada (são memórias separadas).
+            <details style="margin-top:8px">
+                <summary style="cursor:pointer;font-weight:700;color:#92400e">Como abrir na app instalada?</summary>
+                <div style="margin-top:6px;font-size:0.82rem">
+                    1. Toca <i class="fas fa-clipboard"></i> abaixo para copiar o link<br>
+                    2. Abre a app EscolaPlay (no ecrã principal)<br>
+                    3. No início, toca "🥊 Tens um duelo?" e cola
+                </div>
+                <button onclick="_copyDuelLinkToClipboard('${currentUrl.replace(/'/g, "\\'")}')" style="margin-top:8px;padding:8px 14px;border:none;border-radius:8px;background:#92400e;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer"><i class="fas fa-clipboard"></i> Copiar link</button>
+            </details>
+        </div>` : '';
+
     document.getElementById('duel-intro-modal-temp')?.remove();
     const html = `
     <div id="duel-intro-modal-temp" class="modal" style="align-items:center;padding:20px">
-        <div class="modal-content" style="max-width:480px;border-radius:24px;max-height:92vh;overflow:hidden">
+        <div class="modal-content" style="max-width:480px;border-radius:24px;max-height:92vh;overflow:auto">
             <div style="background:linear-gradient(135deg,#dc2626 0%,#f97316 50%,#facc15 100%);color:#fff;padding:28px 24px;text-align:center;position:relative;overflow:hidden">
                 <div style="position:absolute;top:-60px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
                 <div style="font-size:3.6rem;line-height:1;margin-bottom:6px;animation:heroBounce 1.4s cubic-bezier(.34,1.56,.64,1)">🥊</div>
@@ -3205,6 +3312,7 @@ function _showDuelIntro(data) {
                 <p style="font-size:0.92rem;opacity:0.95;font-weight:600">${escapeHtml(subName)}</p>
             </div>
             <div class="modal-body" style="padding:22px 22px 26px">
+                ${browserBanner}
                 <div style="background:#f9fafb;border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-around;text-align:center">
                     <div>
                         <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Perguntas</div>

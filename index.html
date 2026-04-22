@@ -65,6 +65,17 @@
             </button>
         </div>
 
+        <!-- Aceitar duelo de um amigo -->
+        <div onclick="openAcceptDuelModal()" style="position:relative;background:linear-gradient(135deg,#dc2626 0%,#f97316 50%,#facc15 100%);color:#fff;padding:14px 18px;border-radius:18px;display:flex;align-items:center;gap:14px;margin-top:14px;cursor:pointer;box-shadow:0 12px 28px -8px rgba(220,38,38,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+            <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+            <div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;position:relative;z-index:1">🥊</div>
+            <div style="flex:1;min-width:0;position:relative;z-index:1">
+                <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Tens um duelo?</div>
+                <div style="font-weight:800;font-size:1rem;letter-spacing:-0.01em">Cola o link de um amigo</div>
+            </div>
+            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1"></i>
+        </div>
+
         <!-- Upcoming test countdown -->
         <div id="next-test-card" style="display:none" class="test-countdown-card" onclick="switchTab('tests')">
             <div class="test-countdown-icon"><i class="fas fa-calendar-day"></i></div>
