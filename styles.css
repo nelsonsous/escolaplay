@@ -1432,3 +1432,9 @@ body {
     body { background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%); }
 }
 
+/* ===== DUELO — animação do timer ===== */
+@keyframes duelPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.6; transform: scale(1.08); }
+}
+

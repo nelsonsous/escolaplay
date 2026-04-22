@@ -1037,7 +1037,7 @@ function startTestPrep(testId, opts = {}) {
         showToast(`📚 Só restam ${totalAvailable} perguntas novas — vamos a essas!`);
     }
 
-    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, results: [], isDaily: false, subject: key, testId };
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, results: [], isDaily: false, subject: key, testId, startedAt: Date.now() };
     openExerciseScreen();
     renderQuestion();
 }
@@ -1970,7 +1970,7 @@ function startDailyChallenge() {
     });
     if (items.length === 0) { showToast('Activa alguns tópicos primeiro nas disciplinas.'); return; }
     const shuffled = items.sort(() => Math.random() - 0.5).slice(0, DAILY_QUESTIONS);
-    currentSession = { items: shuffled, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: true };
+    currentSession = { items: shuffled, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: true, startedAt: Date.now() };
     openExerciseScreen();
     renderQuestion();
 }
@@ -1999,7 +1999,7 @@ function startSubjectSession(key, opts = {}) {
         }
     }
     const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
-    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key };
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, startedAt: Date.now() };
     closeSubjectDetail();
     openExerciseScreen();
     renderQuestion();
@@ -2780,6 +2780,11 @@ function nextQuestion() {
 
 function finishSession() {
     const s = currentSession;
+    // Se for duelo, vai para o ecrã de comparação e termina aqui
+    if (s && s.isDuel) {
+        _finishDuel();
+        return;
+    }
     let newBadges = [];
     if (s.isDaily) {
         const today = todayStr();
@@ -3045,6 +3050,366 @@ function claimCurrentReward() {
 function closeRewardModal() {
     document.getElementById('reward-modal').style.display = 'none';
     pendingRewardId = null;
+}
+
+// ============================================================
+// ============== DUELOS — desafiar amigos via URL =============
+// ============================================================
+// Sem backend: a URL transporta { perguntas, score do criador, tempo }.
+// O amigo abre o link, faz as MESMAS perguntas com cronómetro, vê
+// comparação no fim, e pode enviar o seu resultado de volta via outro
+// link. Sistema viral estilo Wordle.
+
+// ----- helpers de codificação base64 URL-safe -----
+function _b64UrlEncode(str) {
+    return btoa(unescape(encodeURIComponent(str)))
+        .replace(/=+$/, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+}
+function _b64UrlDecode(s) {
+    let b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4;
+    if (pad) b64 += '='.repeat(4 - pad);
+    return decodeURIComponent(escape(atob(b64)));
+}
+function encodeDuel(obj) {
+    try { return _b64UrlEncode(JSON.stringify(obj)); } catch (_) { return ''; }
+}
+function decodeDuel(s) {
+    try { return JSON.parse(_b64UrlDecode(s)); } catch (_) { return null; }
+}
+
+// ----- procura exercício por id em qualquer ano carregado -----
+function _findExerciseAnyYear(id) {
+    if (!id) return null;
+    // Tenta no ano activo primeiro
+    if (Array.isArray(EXERCISES)) {
+        const e = EXERCISES.find(x => x && x.id === id);
+        if (e) return e;
+    }
+    // Procura em todos os anos disponíveis
+    if (window.EXERCISES_BY_YEAR) {
+        for (const yr of Object.keys(window.EXERCISES_BY_YEAR)) {
+            const arr = window.EXERCISES_BY_YEAR[yr];
+            if (Array.isArray(arr)) {
+                const e = arr.find(x => x && x.id === id);
+                if (e) return e;
+            }
+        }
+    }
+    // MAX exercises do estado
+    if (state && Array.isArray(state.maxExercises)) {
+        const e = state.maxExercises.find(x => x && x.id === id);
+        if (e) return e;
+    }
+    return null;
+}
+
+// ----- formatação do tempo -----
+function _formatDuelTime(ms) {
+    const sec = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `${s}s`;
+}
+
+// ----- pontuação de duelo -----
+// 100 pontos por certa + bónus por velocidade (5 pontos por seg restante)
+function _duelScore(correct, timeUsedSec, timeLimitSec) {
+    const baseScore = correct * 100;
+    const speedBonus = Math.max(0, Math.floor((timeLimitSec - timeUsedSec) * 5));
+    return baseScore + speedBonus;
+}
+
+// ===== CRIAR DUELO a partir da última sessão =====
+function shareLastSummaryAsDuel() {
+    if (!_lastSummary) return;
+    const { s } = _lastSummary;
+    const p = activeProfile();
+    if (!p || !s.items || s.items.length === 0) return;
+    // Tempo do criador
+    const usedSec = Math.max(1, Math.floor((Date.now() - (s.startedAt || Date.now())) / 1000));
+    // Tempo limite: 20s por pergunta, mínimo 60s
+    const timeLimit = Math.max(60, s.items.length * 20);
+    const data = {
+        v: 1,
+        c: p.name,
+        ca: p.avatar,
+        cy: p.year,
+        q: s.items.map(e => e.id),
+        tl: timeLimit,
+        sb: s.correct,                          // perguntas certas do criador
+        st: Math.min(usedSec, timeLimit),       // tempo usado pelo criador
+        ss: _duelScore(s.correct, usedSec, timeLimit), // score do criador
+        ts: Date.now()
+    };
+    const url = `${location.origin}${location.pathname}?duel=${encodeDuel(data)}`;
+    _shareDuelUrl(url, data);
+}
+
+async function _shareDuelUrl(url, data) {
+    const sub = SUBJECTS[ data.q && _findExerciseAnyYear(data.q[0])?.s ];
+    const subName = sub?.name || 'EscolaPlay';
+    const text = `🥊 ${data.c} desafia-te no EscolaPlay!\n\n${subName} · ${data.q.length} perguntas\n${data.sb}/${data.q.length} certas em ${_formatDuelTime(data.st * 1000)}\n\nConsegues melhor? Toca para jogar:\n${url}`;
+    if (navigator.share) {
+        try { await navigator.share({ title: '🥊 Duelo no EscolaPlay', text }); return; }
+        catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); showToast('🔗 Link de duelo copiado!'); }
+    catch { prompt('Copia este link e envia ao teu amigo:', url); }
+}
+
+// ===== ABRIR DUELO RECEBIDO via URL =====
+function _checkIncomingDuel() {
+    try {
+        const params = new URLSearchParams(location.search);
+        const raw = params.get('duel');
+        if (!raw) return;
+        const data = decodeDuel(raw);
+        if (!data || !Array.isArray(data.q) || data.q.length === 0) return;
+        // Limpa o URL para não voltar a abrir o duelo após reload
+        try { history.replaceState({}, '', location.pathname); } catch (_) {}
+        // Garante que o ano do criador está carregado (se diferente do activo)
+        if (data.cy && window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[data.cy] && typeof loadYearExtras === 'function') {
+            loadYearExtras(data.cy).then(() => setTimeout(() => _showDuelIntro(data), 200));
+        } else {
+            setTimeout(() => _showDuelIntro(data), 200);
+        }
+    } catch (_) {}
+}
+
+function _showDuelIntro(data) {
+    const items = data.q.map(id => _findExerciseAnyYear(id)).filter(Boolean);
+    if (items.length === 0) {
+        showToast('Não foi possível abrir o desafio. Talvez seja de um ano que ainda não criaste.');
+        return;
+    }
+    if (!activeProfile()) {
+        showToast('Cria primeiro um perfil para aceitar o desafio!');
+        switchTab('profile');
+        return;
+    }
+    const sub = SUBJECTS[items[0]?.s];
+    const subName = sub?.fullName || sub?.name || 'EscolaPlay';
+
+    document.getElementById('duel-intro-modal-temp')?.remove();
+    const html = `
+    <div id="duel-intro-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:480px;border-radius:24px;max-height:92vh;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#dc2626 0%,#f97316 50%,#facc15 100%);color:#fff;padding:28px 24px;text-align:center;position:relative;overflow:hidden">
+                <div style="position:absolute;top:-60px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+                <div style="font-size:3.6rem;line-height:1;margin-bottom:6px;animation:heroBounce 1.4s cubic-bezier(.34,1.56,.64,1)">🥊</div>
+                <div style="font-size:0.74rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9;margin-bottom:6px">Duelo recebido</div>
+                <h2 style="font-size:1.6rem;font-weight:900;margin-bottom:4px;letter-spacing:-0.01em">${escapeHtml(data.ca || '👤')} ${escapeHtml(data.c || 'Alguém')} desafia-te!</h2>
+                <p style="font-size:0.92rem;opacity:0.95;font-weight:600">${escapeHtml(subName)}</p>
+            </div>
+            <div class="modal-body" style="padding:22px 22px 26px">
+                <div style="background:#f9fafb;border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-around;text-align:center">
+                    <div>
+                        <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Perguntas</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:var(--text)">${items.length}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Tempo</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#dc2626">${_formatDuelTime(data.tl * 1000)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">A bater</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#f97316">${data.sb}/${items.length}</div>
+                    </div>
+                </div>
+                <p style="text-align:center;font-size:0.92rem;color:var(--text);margin-bottom:18px;line-height:1.5">
+                    Mesmas perguntas. Cronómetro a contar. Quem fizer mais pontos vence!<br>
+                    <span style="color:var(--text-light);font-size:0.82rem">Pontos = certas × 100 + bónus de velocidade</span>
+                </p>
+                <button class="btn btn-block" onclick="acceptDuel()" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:16px;font-size:1rem;margin-bottom:10px;box-shadow:0 8px 20px rgba(220,38,38,0.35)">
+                    <i class="fas fa-fist-raised"></i> Aceitar duelo!
+                </button>
+                <button class="btn btn-block btn-secondary" onclick="closeDuelIntro()" style="padding:13px">
+                    Talvez depois
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    _pendingIncomingDuel = { data, items };
+}
+
+let _pendingIncomingDuel = null;
+function closeDuelIntro() {
+    document.getElementById('duel-intro-modal-temp')?.remove();
+    _pendingIncomingDuel = null;
+}
+
+function acceptDuel() {
+    if (!_pendingIncomingDuel) return;
+    const { data, items } = _pendingIncomingDuel;
+    closeDuelIntro();
+    _startDuelSession(data, items);
+}
+
+let _duelTimerInterval = null;
+function _startDuelSession(data, items) {
+    if (_duelTimerInterval) { clearInterval(_duelTimerInterval); _duelTimerInterval = null; }
+    currentSession = {
+        items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, results: [],
+        isDaily: false, isDuel: true, duel: data,
+        startedAt: Date.now()
+    };
+    openExerciseScreen();
+    renderQuestion();
+    _showDuelTimerBar(data.tl);
+}
+
+function _showDuelTimerBar(seconds) {
+    document.getElementById('duel-timer-bar')?.remove();
+    const bar = document.createElement('div');
+    bar.id = 'duel-timer-bar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:201;padding:6px 14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;font-size:0.95rem;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(220,38,38,0.35)';
+    bar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px">
+            <i class="fas fa-stopwatch"></i> <span>DUELO</span>
+        </div>
+        <div id="duel-timer-display" style="font-variant-numeric:tabular-nums">${_formatDuelTime(seconds * 1000)}</div>
+    `;
+    document.body.appendChild(bar);
+    // Compensa o exercise-screen para não esconder atrás da barra
+    const ex = document.getElementById('exercise-screen');
+    if (ex) ex.style.paddingTop = '40px';
+
+    const start = Date.now();
+    const limitMs = seconds * 1000;
+    _duelTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - start;
+        const remaining = Math.max(0, limitMs - elapsed);
+        const display = document.getElementById('duel-timer-display');
+        if (display) {
+            display.textContent = _formatDuelTime(remaining);
+            // Pisca quando faltar ≤ 10s
+            if (remaining < 10000) display.style.animation = 'duelPulse 0.6s infinite';
+        }
+        if (remaining <= 0) {
+            clearInterval(_duelTimerInterval);
+            _duelTimerInterval = null;
+            _finishDuel();
+        }
+    }, 200);
+}
+
+function _hideDuelTimerBar() {
+    document.getElementById('duel-timer-bar')?.remove();
+    const ex = document.getElementById('exercise-screen');
+    if (ex) ex.style.paddingTop = '';
+    if (_duelTimerInterval) { clearInterval(_duelTimerInterval); _duelTimerInterval = null; }
+}
+
+// Chamado quando o tempo acaba OU quando o aluno termina todas
+function _finishDuel() {
+    const s = currentSession;
+    if (!s || !s.isDuel) return;
+    _hideDuelTimerBar();
+    _showDuelSummary(s);
+    currentSession = null;
+}
+
+function _showDuelSummary(s) {
+    const data = s.duel || {};
+    const items = s.items || [];
+    const usedSec = Math.min(data.tl, Math.max(1, Math.floor((Date.now() - s.startedAt) / 1000)));
+    const myScore = _duelScore(s.correct, usedSec, data.tl);
+    const oppScore = data.ss != null ? data.ss : _duelScore(data.sb || 0, data.st || data.tl, data.tl);
+    const oppCorrect = data.sb || 0;
+    const oppTime = data.st || data.tl;
+
+    const won = myScore > oppScore;
+    const tied = myScore === oppScore;
+
+    let title, emoji, gradient;
+    if (won)      { title = 'Venceste!';       emoji = '🏆'; gradient = 'linear-gradient(135deg,#facc15 0%,#f97316 50%,#dc2626 100%)'; }
+    else if (tied){ title = 'Empate!';         emoji = '🤝'; gradient = 'linear-gradient(135deg,#7c3aed 0%,#8b5cf6 50%,#06b6d4 100%)'; }
+    else          { title = 'Quase!';          emoji = '💪'; gradient = 'linear-gradient(135deg,#475569 0%,#64748b 50%,#94a3b8 100%)'; }
+
+    if (won) playPerfectSound();
+    else if (tied) playVictorySound();
+    if (won) setTimeout(() => _launchConfetti('big'), 200);
+
+    document.getElementById('duel-summary-modal-temp')?.remove();
+    const me = activeProfile();
+    const html = `
+    <div id="duel-summary-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <canvas id="duel-confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:1"></canvas>
+        <div class="modal-content" style="max-width:520px;border-radius:24px;max-height:94vh;overflow:auto;position:relative;z-index:2">
+            <div style="background:${gradient};color:#fff;padding:28px 24px;text-align:center;position:relative;overflow:hidden">
+                <div style="position:absolute;top:-60px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+                <div style="font-size:3.6rem;line-height:1;margin-bottom:8px;animation:heroBounce 1.4s cubic-bezier(.34,1.56,.64,1)">${emoji}</div>
+                <h1 style="font-size:1.8rem;font-weight:900;margin-bottom:6px;letter-spacing:-0.02em">${title}</h1>
+                <div style="font-size:0.82rem;opacity:0.92;font-weight:600">Duelo concluído</div>
+            </div>
+            <div class="modal-body" style="padding:22px">
+                <!-- VS comparison -->
+                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:stretch;margin-bottom:18px">
+                    <div style="background:${won ? '#fef3c7' : tied ? '#ede9fe' : '#fff'};border:2px solid ${won ? '#f59e0b' : tied ? '#a78bfa' : 'var(--border)'};border-radius:18px;padding:16px 12px;text-align:center">
+                        <div style="font-size:2rem;line-height:1;margin-bottom:4px">${escapeHtml(me?.avatar || '👤')}</div>
+                        <div style="font-size:0.8rem;font-weight:800;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(me?.name || 'Tu')}</div>
+                        <div style="font-size:1.7rem;font-weight:900;color:${won ? '#d97706' : tied ? '#7c3aed' : 'var(--text-light)'};letter-spacing:-0.02em">${myScore}</div>
+                        <div style="font-size:0.72rem;color:var(--text-light);font-weight:700;margin-top:2px">PONTOS</div>
+                        <div style="font-size:0.74rem;color:var(--text-light);margin-top:6px">🎯 ${s.correct}/${items.length} · ⏱ ${_formatDuelTime(usedSec * 1000)}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:900;color:var(--text-light)">VS</div>
+                    <div style="background:${!won && !tied ? '#fef3c7' : '#fff'};border:2px solid ${!won && !tied ? '#f59e0b' : 'var(--border)'};border-radius:18px;padding:16px 12px;text-align:center">
+                        <div style="font-size:2rem;line-height:1;margin-bottom:4px">${escapeHtml(data.ca || '👤')}</div>
+                        <div style="font-size:0.8rem;font-weight:800;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(data.c || 'Adversário')}</div>
+                        <div style="font-size:1.7rem;font-weight:900;color:${!won && !tied ? '#d97706' : 'var(--text-light)'};letter-spacing:-0.02em">${oppScore}</div>
+                        <div style="font-size:0.72rem;color:var(--text-light);font-weight:700;margin-top:2px">PONTOS</div>
+                        <div style="font-size:0.74rem;color:var(--text-light);margin-top:6px">🎯 ${oppCorrect}/${items.length} · ⏱ ${_formatDuelTime(oppTime * 1000)}</div>
+                    </div>
+                </div>
+                <p style="text-align:center;font-size:0.86rem;color:var(--text-light);margin-bottom:18px;line-height:1.5">
+                    ${won ? `Bateste o ${escapeHtml(data.c || 'adversário')} por <strong style="color:#d97706">${myScore - oppScore}</strong> pontos! 🎉` :
+                       tied ? `Empate técnico! Ambos com ${myScore} pontos.` :
+                       `Faltaram <strong style="color:#dc2626">${oppScore - myScore}</strong> pontos. Treina mais e desafia de volta!`}
+                </p>
+                <button class="btn btn-block" onclick="sendDuelReplyResult()" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;margin-bottom:10px;box-shadow:0 8px 20px rgba(220,38,38,0.32)">
+                    <i class="fas fa-paper-plane"></i> Enviar resultado ao ${escapeHtml(data.c || 'amigo')}
+                </button>
+                <button class="btn btn-block btn-primary-solid" onclick="closeDuelSummary()" style="padding:13px">
+                    <i class="fas fa-house"></i> Voltar ao início
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    // Guarda dados para o "enviar resultado de volta"
+    _lastDuelResult = { data, myScore, oppScore, myCorrect: s.correct, myTime: usedSec, items };
+
+    // Update stats no perfil
+    if (me) {
+        if (won) state.xp = (state.xp || 0) + 50; // bónus por vencer duelo
+        saveState(); updateAll();
+    }
+}
+
+function closeDuelSummary() {
+    document.getElementById('duel-summary-modal-temp')?.remove();
+    document.getElementById('exercise-screen').style.display = 'none';
+    switchTab('home');
+}
+
+let _lastDuelResult = null;
+async function sendDuelReplyResult() {
+    if (!_lastDuelResult) return;
+    const { data, myScore, oppScore, myCorrect, myTime, items } = _lastDuelResult;
+    const me = activeProfile();
+    const verdict = myScore > oppScore ? 'venci-te!' : myScore === oppScore ? 'empatámos!' : 'venceste!';
+    const text = `🥊 Duelo respondido! ${verdict}\n\n${escapeHtml(me?.name || 'Eu')}: ${myScore} pts (${myCorrect}/${items.length}, ${_formatDuelTime(myTime*1000)})\n${escapeHtml(data.c || 'Tu')}: ${oppScore} pts (${data.sb}/${items.length}, ${_formatDuelTime((data.st||data.tl)*1000)})\n\n— EscolaPlay`;
+    if (navigator.share) {
+        try { await navigator.share({ title: '🥊 Resultado do duelo', text }); return; }
+        catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); showToast('📋 Resultado copiado!'); }
+    catch { prompt('Copia o resultado:', text); }
 }
 
 // ========== PARTILHAR PERGUNTA ==========
@@ -3493,4 +3858,6 @@ window.addEventListener('DOMContentLoaded', () => {
         modalBody.insertBefore(label, div);
     }
     updateAll();
+    // Detectar se URL tem ?duel=... e abrir intro do duelo recebido
+    if (typeof _checkIncomingDuel === 'function') _checkIncomingDuel();
 });
