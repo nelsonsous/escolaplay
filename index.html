@@ -88,23 +88,31 @@
         <div class="grid-2">
             <div class="mini-card">
                 <div class="mini-card-icon" style="background:#fef2f2;color:#dc2626"><i class="fas fa-fire"></i></div>
-                <div class="mini-card-value" id="mini-streak">0</div>
-                <div class="mini-card-label">dias seguidos</div>
+                <div class="mini-card-body">
+                    <div class="mini-card-value" id="mini-streak">0</div>
+                    <div class="mini-card-label">dias seguidos</div>
+                </div>
             </div>
             <div class="mini-card">
                 <div class="mini-card-icon" style="background:#fef3c7;color:#d97706"><i class="fas fa-star"></i></div>
-                <div class="mini-card-value" id="mini-xp">0</div>
-                <div class="mini-card-label">XP total</div>
+                <div class="mini-card-body">
+                    <div class="mini-card-value" id="mini-xp">0</div>
+                    <div class="mini-card-label">XP total</div>
+                </div>
             </div>
             <div class="mini-card">
                 <div class="mini-card-icon" style="background:#dcfce7;color:#16a34a"><i class="fas fa-circle-check"></i></div>
-                <div class="mini-card-value" id="mini-correct">0</div>
-                <div class="mini-card-label">respostas certas</div>
+                <div class="mini-card-body">
+                    <div class="mini-card-value" id="mini-correct">0</div>
+                    <div class="mini-card-label">respostas certas</div>
+                </div>
             </div>
             <div class="mini-card">
                 <div class="mini-card-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-medal"></i></div>
-                <div class="mini-card-value" id="mini-badges">0</div>
-                <div class="mini-card-label">medalhas</div>
+                <div class="mini-card-body">
+                    <div class="mini-card-value" id="mini-badges">0</div>
+                    <div class="mini-card-label">medalhas</div>
+                </div>
             </div>
         </div>
 
@@ -285,26 +293,37 @@
 
     <!-- ===== SUMMARY SCREEN ===== -->
     <div id="summary-screen" class="fullscreen" style="display:none">
+        <canvas id="summary-confetti" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1"></canvas>
         <div class="summary-body">
-            <div class="summary-emoji" id="summary-emoji">&#127881;</div>
-            <h1 id="summary-title">Excelente!</h1>
-            <p id="summary-sub"></p>
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <div class="summary-stat-value" id="sum-correct">0</div>
-                    <div class="summary-stat-label">certas</div>
-                </div>
-                <div class="summary-stat">
-                    <div class="summary-stat-value" id="sum-xp">+0</div>
-                    <div class="summary-stat-label">XP ganho</div>
-                </div>
-                <div class="summary-stat">
-                    <div class="summary-stat-value" id="sum-accuracy">0%</div>
-                    <div class="summary-stat-label">precisão</div>
+            <!-- HERO com gradiente, % grande, pills internas -->
+            <div class="summary-hero" id="summary-hero">
+                <div class="summary-hero-deco summary-hero-deco-1"></div>
+                <div class="summary-hero-deco summary-hero-deco-2"></div>
+                <div class="summary-hero-emoji" id="summary-emoji">🏆</div>
+                <div class="summary-hero-label" id="summary-sub">Sessão concluída</div>
+                <div class="summary-hero-value" id="sum-accuracy">0%</div>
+                <h1 class="summary-hero-title" id="summary-title">Perfeito!</h1>
+                <div class="summary-hero-pills">
+                    <span class="summary-pill summary-pill-correct">
+                        <i class="fas fa-bullseye"></i> <span id="sum-correct">0/0</span> certas
+                    </span>
+                    <span class="summary-pill summary-pill-xp">
+                        <i class="fas fa-star"></i> <span id="sum-xp">+0</span> XP
+                    </span>
                 </div>
             </div>
+
+            <!-- Cards com ícones circulares -->
+            <div id="summary-info-cards"></div>
+
+            <!-- Badges/prémios desbloqueados -->
             <div id="summary-badges" class="summary-badges"></div>
+
+            <!-- Acções -->
             <div id="summary-retry-wrap"></div>
+            <button class="btn btn-block summary-btn-share" onclick="shareSummary()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-weight:700;padding:14px;margin-bottom:10px;border:none">
+                <i class="fas fa-share-nodes"></i> Partilhar resultado
+            </button>
             <button class="btn btn-primary-solid btn-block" onclick="closeSummary()"><i class="fas fa-house"></i> Voltar ao início</button>
         </div>
     </div>

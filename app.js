@@ -507,14 +507,17 @@ function renderHome() {
     // Próximo prémio
     renderNextRewardCard();
 
-    // Treino rápido
+    // Treino rápido — cards modernizados com ícone circular
     const container = document.getElementById('quick-subjects');
-    container.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => `
-        <div class="quick-subject" onclick="openSubjectDetail('${key}')">
-            <i class="fas ${sub.icon}" style="color:${sub.color}"></i>
+    container.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
+        const bg = (sub.color || '#7c3aed') + '1a'; // 10% opacidade
+        return `
+        <div class="quick-subject" onclick="openSubjectDetail('${key}')" style="--qs-color:${sub.color};--qs-bg:${bg}">
+            <div class="qs-icon-wrap"><i class="fas ${sub.icon}"></i></div>
             <div class="qs-name">${sub.name}</div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function renderNextTestCard() {
@@ -2814,49 +2817,188 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     document.getElementById('summary-screen').style.display = 'flex';
     const total = s.items.length;
     const acc = total ? Math.round(s.correct / total * 100) : 0;
-    let title = 'Bom trabalho!', emoji = '\u{1F389}';
-    if (acc === 100) { title = 'Perfeito!'; emoji = '\u{1F3C6}'; }
-    else if (acc >= 80) { title = 'Excelente!'; emoji = '\u{1F31F}'; }
-    else if (acc >= 50) { title = 'Quase lá!'; emoji = '\u{1F4AA}'; }
-    else { title = 'Treina mais!'; emoji = '\u{1F331}'; }
-    // Sons de resultado
-    if (acc === 100) playPerfectSound();
-    else if (acc >= 80) playVictorySound();
-    // Streak sound
-    if (streakIncreased) setTimeout(playStreakSound, 600);
-    // Badge sound
-    if (newBadges && newBadges.length > 0) setTimeout(playBadgeSound, acc === 100 ? 900 : 500);
-    // Reward sound
-    if (newRewards && newRewards.length > 0) setTimeout(playRewardSound, 1400);
+
+    // Tier por desempenho
+    let title, emoji, tier;
+    if (acc === 100)      { title = 'Perfeito!';     emoji = '🏆'; tier = 'tier-perfect'; }
+    else if (acc >= 80)   { title = 'Excelente!';    emoji = '🌟'; tier = 'tier-great'; }
+    else if (acc >= 50)   { title = 'Quase lá!';     emoji = '💪'; tier = 'tier-ok'; }
+    else                  { title = 'Treina mais!';  emoji = '🌱'; tier = 'tier-low'; }
+
+    // Sub-label do hero
+    const subLabel = s.isDaily ? 'Desafio diário' : (s.testId ? 'Treino para teste' : 'Sessão de treino');
+
+    // Hero
+    const hero = document.getElementById('summary-hero');
+    hero.classList.remove('tier-perfect','tier-great','tier-ok','tier-low');
+    hero.classList.add(tier);
     document.getElementById('summary-emoji').textContent = emoji;
+    document.getElementById('summary-sub').textContent = subLabel;
     document.getElementById('summary-title').textContent = title;
-    document.getElementById('summary-sub').textContent = s.isDaily ? 'Desafio diário concluído' : s.testId ? 'Treino para teste concluído' : 'Sessão de treino concluída';
     document.getElementById('sum-correct').textContent = `${s.correct}/${total}`;
     document.getElementById('sum-xp').textContent = '+' + s.xp;
-    document.getElementById('sum-accuracy').textContent = acc + '%';
+    // Anima o número da accuracy
+    _animateNumber(document.getElementById('sum-accuracy'), 0, acc, 900, v => v + '%');
+
+    // Sons
+    if (acc === 100) playPerfectSound();
+    else if (acc >= 80) playVictorySound();
+    if (streakIncreased) setTimeout(playStreakSound, 600);
+    if (newBadges && newBadges.length > 0) setTimeout(playBadgeSound, acc === 100 ? 900 : 500);
+    if (newRewards && newRewards.length > 0) setTimeout(playRewardSound, 1400);
+
+    // Confetti se >= 80% (e celebração maior se 100%)
+    if (acc >= 80) _launchConfetti(acc === 100 ? 'big' : 'normal');
+
+    // Cards informativos abaixo do hero
+    const info = document.getElementById('summary-info-cards');
+    const cards = [];
+    if (s.testId) {
+        const t = state.tests.find(x => x.id === s.testId);
+        const sub = t ? SUBJECTS[t.subject] : null;
+        if (sub) cards.push(_summaryCard('fa-graduation-cap', sub.color, 'TESTE', sub.fullName || sub.name));
+    } else if (s.subject) {
+        const sub = SUBJECTS[s.subject];
+        if (sub) cards.push(_summaryCard('fa-' + (sub.icon || '').replace(/^fa-/, ''), sub.color, 'DISCIPLINA', sub.fullName || sub.name));
+    }
+    if (s.isDaily && state.streak && state.streak.days > 0) {
+        cards.push(_summaryCard('fa-fire', '#f97316', 'SEQUÊNCIA', `${state.streak.days} dia${state.streak.days === 1 ? '' : 's'} seguido${state.streak.days === 1 ? '' : 's'}`));
+    }
+    cards.push(_summaryCard('fa-bolt', '#facc15', 'XP TOTAL', `${state.xp} pontos`));
+    info.innerHTML = cards.join('');
+
+    // Badges/prémios
     const bdg = document.getElementById('summary-badges');
     const badgeChips = newBadges.map(b => `<div class="summary-badge-chip">${b.icon} ${b.name}</div>`).join('');
-    const rewardChips = (newRewards || []).map(r => `<div class="summary-badge-chip" style="background:linear-gradient(135deg,#fef9c3,#fde047);border-color:#eab308">\u{1F381} ${r.name}</div>`).join('');
+    const rewardChips = (newRewards || []).map(r => `<div class="summary-badge-chip" style="background:linear-gradient(135deg,#fef9c3,#fde047);border-color:#eab308">🎁 ${r.name}</div>`).join('');
     bdg.innerHTML = badgeChips + rewardChips;
 
-    // Botão para repetir as perguntas erradas — usa s.results como fonte da verdade
-    // (s.wrong pode ficar dessincronizado em sessões cached antigas)
+    // Botão repetir perguntas erradas
     const wrongCount = (s.results || []).filter(r => r === false).length;
     const retryWrap = document.getElementById('summary-retry-wrap');
     if (retryWrap) {
         if (wrongCount > 0) {
-            retryWrap.innerHTML = `<button class="btn btn-block" onclick="retryWrongSession()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;margin-bottom:12px;border:none;padding:14px"><i class="fas fa-rotate-left"></i> Repetir perguntas erradas (${wrongCount})</button>`;
+            retryWrap.innerHTML = `<button class="btn btn-block" onclick="retryWrongSession()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;margin-bottom:10px;border:none;padding:14px"><i class="fas fa-rotate-left"></i> Repetir perguntas erradas (${wrongCount})</button>`;
         } else {
             retryWrap.innerHTML = '';
         }
     }
-    // Se desbloqueou prémio, mostrar modal depois do summary
+
+    // Modal de prémio desbloqueado
     if (newRewards && newRewards.length > 0) {
         pendingRewardId = newRewards[0].id;
         setTimeout(() => {
             document.getElementById('reward-unlocked-name').textContent = newRewards[0].name;
             document.getElementById('reward-modal').style.display = 'flex';
         }, 800);
+    }
+
+    // Guarda dados para a partilha
+    _lastSummary = { s, acc, total, title, subLabel };
+}
+
+// Card "ícone circular + label/value"
+function _summaryCard(icon, color, label, value) {
+    const c = color || '#6d28d9';
+    // bg suave a partir da cor (12% opacidade)
+    const bg = c + '22';
+    return `<div class="summary-info-card">
+        <div class="summary-info-icon" style="background:${bg};color:${c}"><i class="fas ${icon}"></i></div>
+        <div class="summary-info-body">
+            <div class="summary-info-label">${label}</div>
+            <div class="summary-info-value">${value}</div>
+        </div>
+    </div>`;
+}
+
+// Anima um número de start até end no DOM
+function _animateNumber(el, start, end, durationMs, fmt) {
+    if (!el) return;
+    const t0 = performance.now();
+    fmt = fmt || (v => String(v));
+    const step = (now) => {
+        const p = Math.min(1, (now - t0) / durationMs);
+        const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+        const v = Math.round(start + (end - start) * eased);
+        el.textContent = fmt(v);
+        if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
+
+// Confetti em canvas — sem libs
+function _launchConfetti(intensity) {
+    const canvas = document.getElementById('summary-confetti');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1);
+    const H = canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    const colors = ['#f59e0b','#ef4444','#ec4899','#8b5cf6','#3b82f6','#10b981','#facc15'];
+    const count = intensity === 'big' ? 140 : 80;
+    const parts = [];
+    for (let i = 0; i < count; i++) {
+        parts.push({
+            x: (canvas.clientWidth/2) + (Math.random() - 0.5) * canvas.clientWidth * 0.3,
+            y: -20 - Math.random() * 60,
+            vx: (Math.random() - 0.5) * 5,
+            vy: 2 + Math.random() * 4,
+            size: 6 + Math.random() * 8,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            angle: Math.random() * Math.PI * 2,
+            spin: (Math.random() - 0.5) * 0.3,
+            life: 0
+        });
+    }
+    let frames = 0;
+    const maxFrames = 220;
+    function loop() {
+        frames++;
+        ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+        parts.forEach(p => {
+            p.vy += 0.12; // gravidade
+            p.x += p.vx;
+            p.y += p.vy;
+            p.angle += p.spin;
+            p.life++;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = Math.max(0, 1 - frames / maxFrames);
+            ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+            ctx.restore();
+        });
+        if (frames < maxFrames) requestAnimationFrame(loop);
+        else ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    }
+    requestAnimationFrame(loop);
+}
+
+// Partilha do resultado da sessão
+let _lastSummary = null;
+async function shareSummary() {
+    if (!_lastSummary) return;
+    const { s, acc, total, title, subLabel } = _lastSummary;
+    const lines = [];
+    lines.push(`🏆 ${title} — ${acc}% de precisão`);
+    lines.push('');
+    lines.push(`📚 ${subLabel}`);
+    lines.push(`🎯 ${s.correct}/${total} certas`);
+    lines.push(`⭐ +${s.xp} XP`);
+    if (s.isDaily && state.streak?.days > 0) lines.push(`🔥 Sequência: ${state.streak.days} dia(s)`);
+    lines.push('');
+    lines.push(`— EscolaPlay`);
+    const text = lines.join('\n');
+    if (navigator.share) {
+        try { await navigator.share({ title: 'O meu resultado no EscolaPlay', text }); return; }
+        catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('📋 Resultado copiado!');
+    } catch {
+        showToast('Não foi possível partilhar.');
     }
 }
 
