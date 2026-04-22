@@ -562,12 +562,13 @@ function renderSubjects() {
                           + maxEx.filter(e => e.s === key && active.has(e.t)).length;
         const totalAll = EXERCISES.filter(e => e.s === key).length
                        + maxEx.filter(e => e.s === key).length;
+        const shadow = (sub.color || '#7c3aed') + '40'; // 25% opacidade
         return `
-            <div class="subject-card" onclick="openSubjectDetail('${key}')">
-                <div class="subject-card-icon" style="background:${sub.color}"><i class="fas ${sub.icon}"></i></div>
+            <div class="subject-card" onclick="openSubjectDetail('${key}')" style="--sub-color:${sub.color};--sub-shadow:${shadow}">
+                <div class="subject-card-icon" style="background:linear-gradient(135deg, ${sub.color}, ${sub.color}dd)"><i class="fas ${sub.icon}"></i></div>
                 <h3>${sub.name}</h3>
                 <div class="subject-card-meta">${stats.correct}/${stats.answered} certas · ${totalActive}/${totalAll} activos</div>
-                <div class="subject-card-bar"><div class="subject-card-bar-fill" style="width:${pct}%;background:${sub.color}"></div></div>
+                <div class="subject-card-bar"><div class="subject-card-bar-fill" style="width:${pct}%;background:linear-gradient(90deg, ${sub.color}, ${sub.color}cc)"></div></div>
             </div>
         `;
     }).join('');
