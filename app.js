@@ -558,22 +558,34 @@ function renderNextRewardCard() {
 // ========== SUBJECTS TAB ==========
 function renderSubjects() {
     const grid = document.getElementById('subjects-grid');
+    const seen = state.exerciseSeen || {};
     grid.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
         const stats = state.subjects[key] || { answered: 0, correct: 0, xp: 0 };
-        const pct = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : 0;
+        const accPct = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : 0;
         const active = activeTopicsFor(key);
         const maxEx = state.maxExercises || [];
-        const totalActive = EXERCISES.filter(e => e.s === key && active.has(e.t)).length
-                          + maxEx.filter(e => e.s === key && active.has(e.t)).length;
-        const totalAll = EXERCISES.filter(e => e.s === key).length
-                       + maxEx.filter(e => e.s === key).length;
+        // Pool activo (apenas tópicos activos)
+        const activePool = [
+            ...EXERCISES.filter(e => e.s === key && active.has(e.t)),
+            ...maxEx.filter(e => e.s === key && active.has(e.t))
+        ];
+        const totalActive = activePool.length;
+        // Quantos do pool activo já foram respondidos
+        const answeredInPool = activePool.filter(e => seen[e.id]).length;
+        // Barra: % do banco activo já respondido (= "evolução" verdadeira)
+        const barPct = totalActive > 0 ? Math.round((answeredInPool / totalActive) * 100) : 0;
         const shadow = (sub.color || '#7c3aed') + '40'; // 25% opacidade
         return `
             <div class="subject-card" onclick="openSubjectDetail('${key}')" style="--sub-color:${sub.color};--sub-shadow:${shadow}">
                 <div class="subject-card-icon" style="background:linear-gradient(135deg, ${sub.color}, ${sub.color}dd)"><i class="fas ${sub.icon}"></i></div>
                 <h3>${sub.name}</h3>
-                <div class="subject-card-meta">${stats.correct}/${stats.answered} certas · ${totalActive}/${totalAll} activos</div>
-                <div class="subject-card-bar"><div class="subject-card-bar-fill" style="width:${pct}%;background:linear-gradient(90deg, ${sub.color}, ${sub.color}cc)"></div></div>
+                <div class="subject-card-meta">
+                    <div>${answeredInPool}/${totalActive} respondidas</div>
+                    ${stats.answered > 0 ? `<div style="font-size:0.7rem;color:var(--text-light);margin-top:2px">${accPct}% acerto · ${stats.xp} XP</div>` : ''}
+                </div>
+                <div class="subject-card-bar" title="${barPct}% do banco">
+                    <div class="subject-card-bar-fill" style="width:${barPct}%;background:linear-gradient(90deg, ${sub.color}, ${sub.color}cc)"></div>
+                </div>
             </div>
         `;
     }).join('');
