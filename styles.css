@@ -1438,3 +1438,205 @@ body {
     50%      { opacity: 0.6; transform: scale(1.08); }
 }
 
+/* ============================================================
+   ===================== ANIMAÇÕES GLOBAIS ====================
+   ============================================================
+   Animações pensadas para dar vida sem distrair. Respeitam
+   prefers-reduced-motion (no fim do ficheiro). */
+
+/* --- Keyframes --- */
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+}
+@keyframes pulseScale {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+@keyframes wiggle {
+    0%,100% { transform: rotate(0deg); }
+    25%     { transform: rotate(-8deg); }
+    75%     { transform: rotate(8deg); }
+}
+@keyframes fireFlicker {
+    0%,100% { transform: scale(1) rotate(0deg); }
+    20%     { transform: scale(1.08) rotate(-4deg); filter: brightness(1.1); }
+    40%     { transform: scale(0.96) rotate(3deg); }
+    60%     { transform: scale(1.05) rotate(-2deg); filter: brightness(1.15); }
+    80%     { transform: scale(0.98) rotate(2deg); }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+@keyframes sparkleSpin {
+    0%   { transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 0 transparent); }
+    50%  { transform: rotate(20deg) scale(1.15); filter: drop-shadow(0 0 8px gold); }
+    100% { transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 0 transparent); }
+}
+@keyframes tabIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes confirmBounce {
+    0%   { transform: scale(0); opacity: 0; }
+    50%  { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- Transição de tab (substitui o fadeIn antigo) --- */
+.tab-content.active { animation: tabIn 0.3s cubic-bezier(.34,1.2,.64,1); }
+
+/* --- Pergunta entra com slide-up --- */
+.exercise-body { animation: slideInUp 0.34s cubic-bezier(.34,1.2,.64,1); }
+
+/* --- Stagger das opções de escolha múltipla --- */
+.btn-option { animation: fadeInScale 0.32s cubic-bezier(.34,1.2,.64,1) both; }
+.exercise-answer-area .btn-option:nth-of-type(1) { animation-delay: 0.05s; }
+.exercise-answer-area .btn-option:nth-of-type(2) { animation-delay: 0.10s; }
+.exercise-answer-area .btn-option:nth-of-type(3) { animation-delay: 0.15s; }
+.exercise-answer-area .btn-option:nth-of-type(4) { animation-delay: 0.20s; }
+.exercise-answer-area .btn-option:nth-of-type(5) { animation-delay: 0.25s; }
+
+/* Correct/Wrong feedback */
+.btn-option.correct { animation: pulseScale 0.55s cubic-bezier(.34,1.56,.64,1); }
+.btn-option.wrong   { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97); }
+
+/* --- TF: stagger e feedback --- */
+.tf-btn { animation: fadeInScale 0.32s cubic-bezier(.34,1.2,.64,1) both; }
+.tf-btn:nth-of-type(1) { animation-delay: 0.05s; }
+.tf-btn:nth-of-type(2) { animation-delay: 0.12s; }
+.tf-btn.correct { animation: pulseScale 0.55s cubic-bezier(.34,1.56,.64,1); }
+.tf-btn.wrong   { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97); }
+
+/* --- Match cells stagger --- */
+.match-area .match-cell { animation: fadeInScale 0.3s cubic-bezier(.34,1.2,.64,1) both; }
+.match-area .match-cell:nth-child(1) { animation-delay: 0.04s; }
+.match-area .match-cell:nth-child(2) { animation-delay: 0.10s; }
+.match-area .match-cell:nth-child(3) { animation-delay: 0.16s; }
+.match-area .match-cell:nth-child(4) { animation-delay: 0.22s; }
+
+/* --- Order items stagger --- */
+.order-list .order-item { animation: slideInUp 0.32s cubic-bezier(.34,1.2,.64,1) both; }
+.order-list .order-item:nth-of-type(1) { animation-delay: 0.04s; }
+.order-list .order-item:nth-of-type(2) { animation-delay: 0.10s; }
+.order-list .order-item:nth-of-type(3) { animation-delay: 0.16s; }
+.order-list .order-item:nth-of-type(4) { animation-delay: 0.22s; }
+.order-list .order-item:nth-of-type(5) { animation-delay: 0.28s; }
+
+/* --- Mini-cards stagger na home --- */
+#tab-home .grid-2 .mini-card { animation: fadeInScale 0.4s cubic-bezier(.34,1.2,.64,1) both; }
+#tab-home .grid-2 .mini-card:nth-child(1) { animation-delay: 0.08s; }
+#tab-home .grid-2 .mini-card:nth-child(2) { animation-delay: 0.14s; }
+#tab-home .grid-2 .mini-card:nth-child(3) { animation-delay: 0.20s; }
+#tab-home .grid-2 .mini-card:nth-child(4) { animation-delay: 0.26s; }
+
+/* --- Quick subjects stagger --- */
+.quick-subjects .quick-subject { animation: fadeInScale 0.32s cubic-bezier(.34,1.2,.64,1) both; }
+.quick-subjects .quick-subject:nth-child(1) { animation-delay: 0.05s; }
+.quick-subjects .quick-subject:nth-child(2) { animation-delay: 0.10s; }
+.quick-subjects .quick-subject:nth-child(3) { animation-delay: 0.15s; }
+.quick-subjects .quick-subject:nth-child(4) { animation-delay: 0.20s; }
+.quick-subjects .quick-subject:nth-child(5) { animation-delay: 0.25s; }
+.quick-subjects .quick-subject:nth-child(6) { animation-delay: 0.30s; }
+
+/* --- Subject cards (lista de disciplinas) stagger --- */
+.subjects-grid .subject-card { animation: fadeInScale 0.34s cubic-bezier(.34,1.2,.64,1) both; }
+.subjects-grid .subject-card:nth-child(1) { animation-delay: 0.05s; }
+.subjects-grid .subject-card:nth-child(2) { animation-delay: 0.10s; }
+.subjects-grid .subject-card:nth-child(3) { animation-delay: 0.15s; }
+.subjects-grid .subject-card:nth-child(4) { animation-delay: 0.20s; }
+.subjects-grid .subject-card:nth-child(5) { animation-delay: 0.25s; }
+.subjects-grid .subject-card:nth-child(6) { animation-delay: 0.30s; }
+
+/* --- Test items stagger --- */
+#tests-list .test-item { animation: slideInUp 0.32s cubic-bezier(.34,1.2,.64,1) both; }
+#tests-list .test-item:nth-child(1) { animation-delay: 0.04s; }
+#tests-list .test-item:nth-child(2) { animation-delay: 0.10s; }
+#tests-list .test-item:nth-child(3) { animation-delay: 0.16s; }
+#tests-list .test-item:nth-child(4) { animation-delay: 0.22s; }
+#tests-list .test-item:nth-child(5) { animation-delay: 0.28s; }
+
+/* --- Progress rows stagger --- */
+#progress-list .progress-row { animation: slideInUp 0.32s cubic-bezier(.34,1.2,.64,1) both; }
+#progress-list .progress-row:nth-child(1) { animation-delay: 0.04s; }
+#progress-list .progress-row:nth-child(2) { animation-delay: 0.10s; }
+#progress-list .progress-row:nth-child(3) { animation-delay: 0.16s; }
+#progress-list .progress-row:nth-child(4) { animation-delay: 0.22s; }
+#progress-list .progress-row:nth-child(5) { animation-delay: 0.28s; }
+#progress-list .progress-row:nth-child(6) { animation-delay: 0.34s; }
+
+/* --- Streak chip: chama oscila quando >= 3 dias --- */
+.chip-streak.active i {
+    animation: fireFlicker 1.6s ease-in-out infinite;
+    transform-origin: center bottom;
+}
+
+/* --- XP chip: sparkle ocasional --- */
+.chip-xp i { animation: sparkleSpin 4s ease-in-out infinite; }
+
+/* --- Botão "Começar desafio" pulsante quando o diário não foi feito --- */
+.hero-card .btn-primary.shimmer-pulse {
+    background: linear-gradient(110deg, #fff 25%, rgba(255,255,255,0.8) 50%, #fff 75%);
+    background-size: 200% 100%;
+    animation: shimmer 2.5s ease-in-out infinite;
+}
+
+/* --- Feedback icon (do exercício) faz "pop" ao aparecer --- */
+.exercise-feedback .feedback-icon { animation: confirmBounce 0.55s cubic-bezier(.34,1.56,.64,1); }
+
+/* --- Badge chips no summary entram com pop --- */
+.summary-badge-chip { animation: confirmBounce 0.6s cubic-bezier(.34,1.56,.64,1) both; }
+.summary-badge-chip:nth-child(2) { animation-delay: 0.12s; }
+.summary-badge-chip:nth-child(3) { animation-delay: 0.24s; }
+.summary-badge-chip:nth-child(4) { animation-delay: 0.36s; }
+
+/* --- Progress dot bate (pulse) na pergunta actual --- */
+.progress-dot.current {
+    animation: pulseScale 1.4s ease-in-out infinite;
+    transform-origin: center;
+}
+
+/* --- Help/hint button: lampada wiggle ocasionalmente --- */
+@keyframes lightbulbWiggle {
+    0%, 90%, 100% { transform: rotate(0deg); }
+    93% { transform: rotate(-12deg); }
+    96% { transform: rotate(10deg); }
+    99% { transform: rotate(-4deg); }
+}
+.exercise-header .help-btn i { animation: lightbulbWiggle 6s ease-in-out infinite; transform-origin: center top; }
+
+/* --- Reward progress: barra brilha subtilmente --- */
+@keyframes barShine {
+    0%   { box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+    50%  { box-shadow: 0 0 18px rgba(255,255,255,0.9); }
+    100% { box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+}
+.reward-progress-bar-fill { animation: barShine 2.4s ease-in-out infinite; }
+
+/* --- Avatar do header: tilt subtil ao tocar --- */
+.avatar:active { transform: scale(0.92) rotate(-5deg); }
+
+/* --- Honra prefers-reduced-motion: desliga animações decorativas --- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    /* Mantém animações ESSENCIAIS curtas (feedback de respostas, modais) */
+    .exercise-feedback .feedback-icon { animation: none !important; }
+}
+

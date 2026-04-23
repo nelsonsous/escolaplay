@@ -501,6 +501,11 @@ function renderHome() {
         ? `Concluído hoje (${state.daily.correct}/${DAILY_QUESTIONS})`
         : `${DAILY_QUESTIONS} perguntas, 1 de cada disciplina`;
     document.getElementById('btn-start-daily-label').textContent = dailyDone ? 'Repetir desafio' : 'Começar desafio';
+    // Brilho pulsante no botão quando o desafio diário ainda não foi feito
+    const dailyBtn = document.getElementById('btn-start-daily');
+    if (dailyBtn) dailyBtn.classList.toggle('shimmer-pulse', !dailyDone);
+    // Chama do streak fica activa quando ≥ 3 dias
+    document.querySelectorAll('.chip-streak').forEach(el => el.classList.toggle('active', state.streak.days >= 3));
 
     // Próximo teste
     renderNextTestCard();
