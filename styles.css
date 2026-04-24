@@ -1595,6 +1595,29 @@ body {
     border-radius: 14px;
     padding: 12px;
 }
+.ex-doubt-suggestions {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 10px;
+}
+.ex-doubt-chip {
+    display: inline-block;
+    padding: 5px 10px;
+    font-size: 0.74rem; font-weight: 600;
+    color: #6d28d9;
+    background: #fff;
+    border: 1px solid rgba(139, 92, 246, 0.28);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .1s;
+    line-height: 1.3;
+    text-align: left;
+    font-family: inherit;
+}
+.ex-doubt-chip:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: #a78bfa;
+}
+.ex-doubt-chip:active { transform: scale(0.97); }
 .ex-doubt-input-row {
     display: flex; gap: 6px; align-items: stretch;
 }
