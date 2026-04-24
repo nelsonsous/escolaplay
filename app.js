@@ -898,6 +898,18 @@ function renderTests() {
         const topicsLabel = (t.topics && t.topics.length) ? `${t.topics.length} tópicos: ${t.topics.slice(0, 3).join(', ')}${t.topics.length > 3 ? '…' : ''}` : 'todos os tópicos activos';
         const seenCount = (t.seenEx || []).length;
         const seenLabel = seenCount > 0 ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;margin-top:3px">📚 ${seenCount} pergunta${seenCount === 1 ? '' : 's'} vista${seenCount === 1 ? '' : 's'}</div>` : '';
+        // Pílulas de nota objetivo / nota obtida. A nota obtida muda de cor
+        // conforme bate o objetivo — feedback visual claro.
+        const gradePills = [];
+        if (t.targetGrade != null) {
+            gradePills.push(`<span class="test-grade-pill test-grade-target" title="Nota objetivo">🎯 ${t.targetGrade}</span>`);
+        }
+        if (t.actualGrade != null) {
+            const hit = t.targetGrade != null && t.actualGrade >= t.targetGrade;
+            const cls2 = hit ? 'test-grade-hit' : (t.targetGrade != null ? 'test-grade-miss' : 'test-grade-actual');
+            gradePills.push(`<span class="test-grade-pill ${cls2}" title="Nota obtida">${hit ? '✓' : '📝'} ${t.actualGrade}</span>`);
+        }
+        const gradeLabel = gradePills.length > 0 ? `<div class="test-grade-row">${gradePills.join('')}</div>` : '';
         return `
             <div class="test-item ${cls}">
                 <div class="test-item-icon" style="background:${sub?.color || '#6b7280'}"><i class="fas ${sub?.icon || 'fa-book'}"></i></div>
@@ -905,6 +917,7 @@ function renderTests() {
                     <div class="test-item-subject">${sub?.name || t.subject}</div>
                     <div class="test-item-date">${formatDatePT(t.date)} · ${daysLabel}</div>
                     <div class="test-item-note">${topicsLabel}${t.note ? ` · ${t.note}` : ''}</div>
+                    ${gradeLabel}
                     ${seenLabel}
                 </div>
                 <div class="test-item-actions">
@@ -932,11 +945,15 @@ function openAddTestModal(testId = null) {
             sel.value = t.subject;
             document.getElementById('test-date').value = t.date;
             document.getElementById('test-note').value = t.note || '';
+            document.getElementById('test-target-grade').value = (t.targetGrade != null) ? t.targetGrade : '';
+            document.getElementById('test-actual-grade').value = (t.actualGrade != null) ? t.actualGrade : '';
         }
     } else {
         sel.value = Object.keys(SUBJECTS)[0];
         document.getElementById('test-date').value = defaultDate;
         document.getElementById('test-note').value = '';
+        document.getElementById('test-target-grade').value = '';
+        document.getElementById('test-actual-grade').value = '';
     }
     renderTestTopicsPicker();
     sel.onchange = renderTestTopicsPicker;
@@ -963,24 +980,65 @@ function renderTestTopicsPicker() {
     if (wrap) wrap.innerHTML = `<p class="muted" style="margin:6px 0">Marca os tópicos que saem neste teste (se não marcares nenhum, treinamos com todos os activos).</p>${list}`;
 }
 
+// Lê um campo numérico de nota (0-20). Devolve null se vazio/invalido.
+function _parseGradeInput(id) {
+    const raw = document.getElementById(id)?.value.trim();
+    if (raw == null || raw === '') return null;
+    const n = parseFloat(raw.replace(',', '.'));
+    if (!Number.isFinite(n)) return null;
+    if (n < 0 || n > 20) return NaN; // sentinela "fora da escala"
+    return Math.round(n * 2) / 2; // arredonda a 0.5
+}
+
 function saveTest() {
     const subject = document.getElementById('test-subject').value;
     const date = document.getElementById('test-date').value;
     const note = document.getElementById('test-note').value.trim();
     if (!date) { showToast('Escolhe uma data'); return; }
+    const target = _parseGradeInput('test-target-grade');
+    const actual = _parseGradeInput('test-actual-grade');
+    if (Number.isNaN(target)) { showToast('Nota objetivo tem de ser entre 0 e 20'); return; }
+    if (Number.isNaN(actual)) { showToast('Nota obtida tem de ser entre 0 e 20'); return; }
     const topics = Array.from(document.querySelectorAll('#test-topics-picker input[type="checkbox"]:checked')).map(cb => cb.value);
+
+    let xpGained = 0;
     if (pendingTestId) {
         const t = state.tests.find(x => x.id === pendingTestId);
-        if (t) { t.subject = subject; t.date = date; t.note = note; t.topics = topics; }
+        if (t) {
+            t.subject = subject;
+            t.date = date;
+            t.note = note;
+            t.topics = topics;
+            t.targetGrade = target;
+            t.actualGrade = actual;
+            // Atribuir XP só na 1.ª vez que a nota obtida é registada
+            if (actual != null && !t.gradeXPAwarded) {
+                xpGained = Math.min(200, Math.round(actual * 10));
+                state.xp += xpGained;
+                t.gradeXPAwarded = true;
+                t.done = true;
+            }
+        }
     } else {
-        state.tests.push({ id: uid(), subject, date, note, topics, done: false });
+        const t = { id: uid(), subject, date, note, topics, done: false, targetGrade: target, actualGrade: actual };
+        if (actual != null) {
+            xpGained = Math.min(200, Math.round(actual * 10));
+            state.xp += xpGained;
+            t.gradeXPAwarded = true;
+            t.done = true;
+        }
+        state.tests.push(t);
     }
     saveState();
     const wasEditing = !!pendingTestId;
     closeAddTestModal();
     renderTests();
     renderHome();
-    showToast(wasEditing ? 'Teste actualizado' : 'Teste adicionado');
+    if (xpGained > 0) {
+        showToast(`Nota guardada — +${xpGained} XP! 🎉`);
+    } else {
+        showToast(wasEditing ? 'Teste actualizado' : 'Teste adicionado');
+    }
 }
 
 function closeAddTestModal() {

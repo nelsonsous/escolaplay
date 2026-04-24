@@ -1660,6 +1660,34 @@ body {
     white-space: pre-wrap;
 }
 
+/* ========== NOTAS DOS TESTES (pílulas) ========== */
+.test-grade-row {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
+}
+.test-grade-pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 9px;
+    font-size: 0.74rem; font-weight: 700;
+    border-radius: 999px;
+    line-height: 1.2;
+}
+.test-grade-target {
+    color: #4338ca;
+    background: #e0e7ff;
+}
+.test-grade-actual {
+    color: #1e40af;
+    background: #dbeafe;
+}
+.test-grade-hit {
+    color: #fff;
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+.test-grade-miss {
+    color: #b91c1c;
+    background: #fee2e2;
+}
+
 /* ========== BANNER "INSTALAR APP" ========== */
 .install-banner {
     position: relative;
