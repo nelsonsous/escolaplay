@@ -280,6 +280,26 @@
             <div class="exercise-topic" id="ex-topic"></div>
             <h2 class="exercise-question" id="ex-question"></h2>
             <div class="exercise-answer-area" id="ex-answer-area"></div>
+
+            <!-- Dúvida livre sobre esta pergunta — chip discreto que expande -->
+            <div id="ex-doubt-wrap" class="ex-doubt-wrap">
+                <button id="ex-doubt-trigger" class="ex-doubt-trigger" onclick="toggleExerciseDoubt()" type="button">
+                    <i class="fas fa-circle-question"></i>
+                    <span>Tens uma dúvida sobre esta pergunta?</span>
+                </button>
+                <div id="ex-doubt-panel" class="ex-doubt-panel" style="display:none">
+                    <div class="ex-doubt-input-row">
+                        <input type="text" id="ex-doubt-input" class="ex-doubt-input" maxlength="200"
+                            placeholder="Ex: o que significa narrativa?"
+                            onkeydown="if(event.key==='Enter'){askExerciseDoubt();}">
+                        <button class="ex-doubt-send" onclick="askExerciseDoubt()" type="button" title="Perguntar">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="ex-doubt-answer" class="ex-doubt-answer" style="display:none"></div>
+                </div>
+            </div>
+
             <!-- Professor IA inline — visível durante a pergunta -->
             <div id="ex-prof-ia-wrap" style="display:none;margin-top:14px">
                 <button id="ex-prof-ia-btn" onclick="toggleInlineHint()"

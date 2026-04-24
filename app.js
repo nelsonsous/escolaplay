@@ -2223,6 +2223,15 @@ function renderQuestion() {
     // Esconder painel de pista do feedback (será de novo configurado em showFeedback)
     const fbWrap = document.getElementById('feedback-prof-ia-wrap');
     if (fbWrap) fbWrap.style.display = 'none';
+    // Reset do painel "Tens uma dúvida?" — recolhe, limpa input e resposta antiga
+    const doubtPanel = document.getElementById('ex-doubt-panel');
+    const doubtInput = document.getElementById('ex-doubt-input');
+    const doubtAns   = document.getElementById('ex-doubt-answer');
+    const doubtTrig  = document.getElementById('ex-doubt-trigger');
+    if (doubtPanel) doubtPanel.style.display = 'none';
+    if (doubtInput) doubtInput.value = '';
+    if (doubtAns)   { doubtAns.style.display = 'none'; doubtAns.innerHTML = ''; }
+    if (doubtTrig)  doubtTrig.classList.remove('open');
     selectedAnswer = null;
     matchSelection = { left: null };
     const area = document.getElementById('ex-answer-area');
@@ -3753,41 +3762,30 @@ function openHintModal() {
         parts.unshift(`<p style="color:var(--text-light);margin-bottom:10px">Lê a pergunta com atenção e pensa no conceito do tópico.</p>`);
     }
 
-    // 4) Pergunta livre — o aluno pode tirar qualquer dúvida sobre a pergunta
-    // que está a ver (ex: "o que significa narrativa?", "porque é que isto é assim?").
-    // A IA recebe o enunciado + opções + tópico como contexto.
-    const hasKey = hasAIKey();
-    parts.push(`
-        <div class="ex-ask-wrap" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px">
-            <div style="font-size:0.78rem;font-weight:700;color:#4c1d95;margin-bottom:6px;letter-spacing:.02em">
-                <i class="fas fa-circle-question" style="color:#7c3aed"></i> Tens outra dúvida sobre esta pergunta?
-            </div>
-            <div style="display:flex;gap:6px;align-items:stretch">
-                <input type="text" id="ex-ask-input" maxlength="200"
-                    placeholder="${hasKey ? 'Ex: o que significa narrativa?' : 'Precisas de chave IA no Perfil'}"
-                    ${hasKey ? '' : 'disabled'}
-                    style="flex:1;min-width:0;padding:10px 12px;border:1.5px solid #ddd6fe;border-radius:10px;font-size:0.88rem;outline:none;background:#fff"
-                    onkeydown="if(event.key==='Enter'){askAboutExercise();}">
-                <button id="ex-ask-btn" onclick="askAboutExercise()" ${hasKey ? '' : 'disabled'}
-                    style="width:44px;border:none;border-radius:10px;background:linear-gradient(135deg,#6d28d9,#8b5cf6);color:#fff;font-size:0.95rem;cursor:pointer;${hasKey ? '' : 'opacity:.45;cursor:not-allowed'}">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-            <div id="ex-ask-answer" style="display:none;margin-top:10px;background:#f5f3ff;border-left:4px solid #8b5cf6;border-radius:10px;padding:10px 12px;font-size:0.86rem;line-height:1.55;color:#1e1b4b;white-space:pre-wrap"></div>
-        </div>
-    `);
-
     body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
     document.getElementById('lesson-modal').style.display = 'flex';
+}
+
+// Expande/recolhe o painel "Tens uma dúvida?" inline no ecrã do exercício.
+// Quando expande, foca o input para escrita imediata.
+function toggleExerciseDoubt() {
+    const panel = document.getElementById('ex-doubt-panel');
+    const trigger = document.getElementById('ex-doubt-trigger');
+    const input = document.getElementById('ex-doubt-input');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (trigger) trigger.classList.toggle('open', !isOpen);
+    if (!isOpen && input) setTimeout(() => input.focus(), 100);
 }
 
 // Pergunta livre da criança sobre a pergunta actualmente visível. Usa a IA
 // (Groq/Mistral) com o enunciado + opções + tópico como contexto. Não dá a
 // resposta directamente — explica conceitos, dá pistas pedagógicas.
-async function askAboutExercise() {
-    const input = document.getElementById('ex-ask-input');
-    const btn = document.getElementById('ex-ask-btn');
-    const answer = document.getElementById('ex-ask-answer');
+async function askExerciseDoubt() {
+    const input = document.getElementById('ex-doubt-input');
+    const btn = document.querySelector('.ex-doubt-send');
+    const answer = document.getElementById('ex-doubt-answer');
     if (!input || !currentSession) return;
     const q = (input.value || '').trim();
     if (!q) { showToast('Escreve uma dúvida primeiro'); return; }
