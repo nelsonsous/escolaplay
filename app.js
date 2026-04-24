@@ -514,6 +514,8 @@ function renderHome() {
 
     // Sugestões contextuais no "Tens uma dúvida?" — últimos erros
     renderAskSuggestions();
+    // Banner "Instalar app" — só aparece se aplicável
+    try { refreshInstallUI(); } catch {}
 
     // Treino rápido — cards modernizados com ícone circular
     const container = document.getElementById('quick-subjects');
@@ -1271,6 +1273,8 @@ function closeAddProfileModal() {
 
 // ========== PROFILE (+ rewards editor) ==========
 function renderProfile() {
+    // Estado do botão "Instalar app"
+    try { refreshInstallUI(); } catch {}
     // Listagem de perfis (gestão)
     const pList = document.getElementById('profiles-list');
     if (pList) {
@@ -1837,6 +1841,176 @@ function clearMaxCache() {
     Object.keys(localStorage).filter(k => k.startsWith('max_cache_')).forEach(k => localStorage.removeItem(k));
     saveState();
     showToast('Perguntas IA apagadas. Vão ser geradas novas no próximo treino.');
+}
+
+// ========== INSTALAÇÃO COMO PWA ==========
+// Captura o evento `beforeinstallprompt` no Android para permitir abrir o
+// diálogo nativo a partir de um botão personalizado. Em iOS Safari o evento
+// não existe — mostra-se um tutorial visual em vez disso.
+let _installPromptEvent = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _installPromptEvent = e;
+    // Actualiza a UI — o botão "Instalar" pode deixar de ficar escondido
+    try { refreshInstallUI(); } catch {}
+});
+
+window.addEventListener('appinstalled', () => {
+    _installPromptEvent = null;
+    try {
+        localStorage.setItem('pwaInstalledAt', String(Date.now()));
+        closeInstallModal();
+        refreshInstallUI();
+        showToast('🎉 App instalada!');
+    } catch {}
+});
+
+function isRunningAsPWA() {
+    try {
+        return window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+    } catch { return false; }
+}
+
+function isIOSDevice() {
+    const ua = navigator.userAgent || '';
+    // iPadOS 13+ apresenta-se como "Mac" — verifica também maxTouchPoints
+    return /iPad|iPhone|iPod/.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isSafariBrowser() {
+    const ua = navigator.userAgent || '';
+    return /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+}
+
+// Mostra/esconde banner e botão conforme estado actual.
+function refreshInstallUI() {
+    const banner = document.getElementById('install-banner');
+    const profileBtn = document.getElementById('profile-install-btn');
+    const profileHint = document.getElementById('profile-install-hint');
+    const installedBadge = document.getElementById('profile-installed-badge');
+    const installed = isRunningAsPWA();
+
+    if (installed) {
+        if (banner) banner.style.display = 'none';
+        if (profileBtn) profileBtn.style.display = 'none';
+        if (profileHint) profileHint.style.display = 'none';
+        if (installedBadge) installedBadge.style.display = 'block';
+        return;
+    }
+
+    // Não instalada → mostra sempre botão no Perfil
+    if (profileBtn) profileBtn.style.display = 'block';
+    if (profileHint) profileHint.style.display = 'block';
+    if (installedBadge) installedBadge.style.display = 'none';
+
+    // Banner na Home: só se o utilizador ainda não dispensou
+    const dismissed = localStorage.getItem('installBannerDismissed') === '1';
+    if (banner) banner.style.display = dismissed ? 'none' : 'flex';
+}
+
+function dismissInstallBanner() {
+    localStorage.setItem('installBannerDismissed', '1');
+    const banner = document.getElementById('install-banner');
+    if (banner) banner.style.display = 'none';
+}
+
+function openInstallModal() {
+    const body = document.getElementById('install-modal-body');
+    if (!body) return;
+    let html = '';
+
+    if (isRunningAsPWA()) {
+        html = `<p style="text-align:center;color:#16a34a;font-weight:600">
+            <i class="fas fa-circle-check"></i> A app já está instalada no teu dispositivo.
+        </p>`;
+    } else if (_installPromptEvent) {
+        // Android Chrome/Edge com prompt capturado — dispara o diálogo nativo
+        html = `
+            <p style="margin-bottom:12px;color:var(--text-light);font-size:0.88rem">
+                Instala a EscolaPlay como app no teu telemóvel. Abre mais rápido, funciona sem Internet e fica no ecrã principal como uma aplicação normal.
+            </p>
+            <button class="btn btn-primary-solid btn-block" onclick="triggerInstallPrompt()">
+                <i class="fas fa-download"></i> Instalar agora
+            </button>
+        `;
+    } else if (isIOSDevice()) {
+        // iOS Safari — mostra tutorial visual
+        if (!isSafariBrowser()) {
+            html = `
+                <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.88rem;color:#78350f">
+                    <strong>Abre no Safari</strong><br>
+                    No iPhone/iPad, a instalação só funciona a partir do <strong>Safari</strong> (não Chrome/Firefox). Copia este URL e abre-o no Safari:
+                </div>
+                <div style="background:#f9fafb;border-radius:8px;padding:10px;font-family:monospace;font-size:0.82rem;word-break:break-all;margin-bottom:14px">${escapeHtml(window.location.origin + window.location.pathname)}</div>
+            `;
+        }
+        html += `
+            <ol style="padding-left:18px;line-height:1.9;font-size:0.92rem;color:var(--text)">
+                <li>Toca no botão <strong>Partilhar</strong>
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#e0e7ff;border-radius:6px;margin:0 4px;vertical-align:middle">
+                        <i class="fas fa-arrow-up-from-bracket" style="color:#4f46e5"></i>
+                    </span>
+                    no fundo do Safari.
+                </li>
+                <li>Desliza para baixo e escolhe <strong>Adicionar ao Ecrã Principal</strong>
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;margin:0 4px;vertical-align:middle">
+                        <i class="fas fa-plus" style="color:#374151"></i>
+                    </span>.
+                </li>
+                <li>Confirma o nome "EscolaPlay" e toca em <strong>Adicionar</strong>.</li>
+                <li>Pronto — abre a app pelo ícone no ecrã principal como uma aplicação normal.</li>
+            </ol>
+        `;
+    } else {
+        // Android sem prompt capturado ainda, ou desktop
+        html = `
+            <p style="margin-bottom:14px;color:var(--text-light);font-size:0.88rem">
+                Para instalar a app:
+            </p>
+            <ol style="padding-left:18px;line-height:1.8;font-size:0.92rem;color:var(--text)">
+                <li>Toca no menu do browser
+                    <span style="display:inline-block;padding:2px 8px;background:#f3f4f6;border-radius:6px;margin:0 4px;font-weight:600">⋮</span>
+                    no canto superior direito.
+                </li>
+                <li>Escolhe <strong>Instalar app</strong> ou <strong>Adicionar ao ecrã principal</strong>.</li>
+                <li>Confirma — a app aparece no launcher como uma aplicação normal.</li>
+            </ol>
+            <p style="margin-top:14px;font-size:0.78rem;color:var(--text-light)">
+                Se tiveres o Chrome/Edge e o botão nativo aparecer, ele também funciona.
+            </p>
+        `;
+    }
+
+    body.innerHTML = html;
+    document.getElementById('install-modal').style.display = 'flex';
+}
+
+function closeInstallModal() {
+    const m = document.getElementById('install-modal');
+    if (m) m.style.display = 'none';
+}
+
+async function triggerInstallPrompt() {
+    if (!_installPromptEvent) {
+        // Prompt já foi consumido ou não está disponível — mostra tutorial
+        openInstallModal();
+        return;
+    }
+    try {
+        _installPromptEvent.prompt();
+        const { outcome } = await _installPromptEvent.userChoice;
+        if (outcome === 'accepted') {
+            showToast('A instalar…');
+        }
+    } catch (e) {
+        console.warn('Install prompt falhou:', e);
+    }
+    _installPromptEvent = null;
+    closeInstallModal();
+    refreshInstallUI();
 }
 
 // Limpa caches do service worker e recarrega a app, preservando localStorage
