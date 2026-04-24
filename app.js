@@ -2228,10 +2228,12 @@ function renderQuestion() {
     const doubtInput = document.getElementById('ex-doubt-input');
     const doubtAns   = document.getElementById('ex-doubt-answer');
     const doubtTrig  = document.getElementById('ex-doubt-trigger');
+    const doubtSugg  = document.getElementById('ex-doubt-suggestions');
     if (doubtPanel) doubtPanel.style.display = 'none';
     if (doubtInput) doubtInput.value = '';
     if (doubtAns)   { doubtAns.style.display = 'none'; doubtAns.innerHTML = ''; }
     if (doubtTrig)  doubtTrig.classList.remove('open');
+    if (doubtSugg)  { doubtSugg.style.display = 'none'; doubtSugg.innerHTML = ''; }
     selectedAnswer = null;
     matchSelection = { left: null };
     const area = document.getElementById('ex-answer-area');
@@ -3766,17 +3768,89 @@ function openHintModal() {
     document.getElementById('lesson-modal').style.display = 'flex';
 }
 
+// Palavras-função portuguesas de 7+ letras que NÃO são bons candidatos a
+// perguntar o significado (são comuns). Tudo em minúsculas, sem acentos.
+const _DOUBT_STOP = new Set([
+    'aquele','aqueles','aquela','aquelas','quando','quanto','quantos','quantas',
+    'porque','sempre','nunca','grande','grandes','pequeno','pequena','pequenos','pequenas',
+    'primeiro','primeira','primeiros','primeiras','ultimo','ultima','ultimos','ultimas',
+    'contra','durante','atraves','enquanto','entretanto','todavia','contudo','tambem',
+    'mesmo','mesma','mesmos','mesmas','outro','outra','outros','outras','alguns','algumas',
+    'assim','talvez','apenas','seguinte','seguintes','segundo','terceiro','quarto','quinto',
+    'figura','imagem','abaixo','acima','frente','dentro','direita','esquerda',
+    'existe','existem','possui','possuem','possuir','conforme',
+    'pergunta','perguntas','palavra','palavras','frase','frases','exemplo','exemplos',
+    'correcta','correcto','correctas','correctos','correta','correto','corretas','corretos',
+    'indica','calcula','considera','escolhe','completa','verifica','observa','descobre',
+    'numero','numeros'
+]);
+
+// Gera 2-3 sugestões de dúvidas a partir do texto do exercício + opções.
+// Heurística: palavras com ≥7 letras que não sejam palavras-função comuns.
+// Adiciona sempre uma sugestão genérica "Explica por outras palavras" no fim.
+function buildDoubtSuggestions(exercise) {
+    if (!exercise) return [];
+    const pieces = [exercise.q || ''];
+    if (Array.isArray(exercise.opts)) pieces.push(exercise.opts.join(' '));
+    if (exercise.passage) pieces.push(exercise.passage);
+    const text = pieces.join(' ');
+    // Tokenizar mantendo letras (incluindo acentuadas) e filtrar por comprimento
+    const words = text
+        .replace(/[^\p{L}\s]/gu, ' ')
+        .split(/\s+/)
+        .filter(w => w.length >= 7);
+    const seen = new Set();
+    const picked = [];
+    for (const w of words) {
+        const norm = _askNorm(w); // minúsculas + sem acentos (helper já existe)
+        if (_DOUBT_STOP.has(norm)) continue;
+        if (seen.has(norm)) continue;
+        seen.add(norm);
+        picked.push(w.toLowerCase());
+        if (picked.length >= 3) break;
+    }
+    const suggestions = picked.map(w => `O que significa "${w}"?`);
+    suggestions.push('Explica por outras palavras');
+    return suggestions;
+}
+
+// Chip foi clicado: preenche o input e submete automaticamente.
+function useDoubtSuggestion(text) {
+    const input = document.getElementById('ex-doubt-input');
+    if (!input) return;
+    input.value = text;
+    askExerciseDoubt();
+}
+
 // Expande/recolhe o painel "Tens uma dúvida?" inline no ecrã do exercício.
-// Quando expande, foca o input para escrita imediata.
+// Quando expande, foca o input para escrita imediata e mostra sugestões
+// contextuais (palavras difíceis da pergunta actual).
 function toggleExerciseDoubt() {
     const panel = document.getElementById('ex-doubt-panel');
     const trigger = document.getElementById('ex-doubt-trigger');
     const input = document.getElementById('ex-doubt-input');
+    const sugg = document.getElementById('ex-doubt-suggestions');
     if (!panel) return;
     const isOpen = panel.style.display !== 'none';
     panel.style.display = isOpen ? 'none' : 'block';
     if (trigger) trigger.classList.toggle('open', !isOpen);
-    if (!isOpen && input) setTimeout(() => input.focus(), 100);
+    if (!isOpen) {
+        // Construir sugestões contextuais com base na pergunta actual
+        const e = currentSession?.items?.[currentSession?.idx];
+        const items = buildDoubtSuggestions(e);
+        if (sugg) {
+            if (items.length > 0) {
+                sugg.style.display = 'flex';
+                sugg.innerHTML = items.map(s => {
+                    const safe = escapeHtml(s).replace(/"/g, '&quot;');
+                    return `<button type="button" class="ex-doubt-chip" onclick="useDoubtSuggestion('${safe.replace(/'/g, "\\'")}')">${safe}</button>`;
+                }).join('');
+            } else {
+                sugg.style.display = 'none';
+            }
+        }
+        if (input) setTimeout(() => input.focus(), 100);
+    }
 }
 
 // Pergunta livre da criança sobre a pergunta actualmente visível. Usa a IA
