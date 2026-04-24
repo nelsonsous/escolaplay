@@ -211,7 +211,12 @@
             </label>
             <label>Chave API (Groq)</label>
             <input type="password" id="max-apikey" placeholder="gsk_..." autocomplete="off">
-            <p class="muted">A chave fica guardada apenas neste dispositivo (localStorage).</p>
+            <p class="muted" style="margin-bottom:8px">A chave fica guardada apenas neste dispositivo (localStorage).</p>
+
+            <label>Chave API (Mistral — opcional, fallback)</label>
+            <input type="password" id="max-mistral-apikey" placeholder="Chave Mistral (opcional)" autocomplete="off">
+            <p class="muted">Usada automaticamente quando o Groq atinge o limite diário ou está indisponível. Obtém uma chave grátis em <a href="https://console.mistral.ai/api-keys/" target="_blank" style="color:var(--primary)">console.mistral.ai</a>.</p>
+
             <button class="btn btn-primary-solid btn-block" style="margin-top:8px" onclick="saveMaxConfig()"><i class="fas fa-floppy-disk"></i> Guardar MAX</button>
             <div id="max-stats" style="font-size:0.78rem;color:var(--text-light);margin-top:10px"></div>
         </div>

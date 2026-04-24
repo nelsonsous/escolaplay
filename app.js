@@ -97,7 +97,7 @@ function defaultState() {
     return {
         profiles: [],
         activeProfileId: null,
-        max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0 }
+        max: { enabled: true, apiKey: '', mistralKey: '', totalGenerated: 0, totalRequests: 0 }
     };
 }
 
@@ -131,7 +131,7 @@ function loadState() {
             const s = {
                 profiles: [oldP],
                 activeProfileId: oldP.id,
-                max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+                max: { enabled: true, apiKey: '', mistralKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
             };
             if (!s.max.enabled) s.max.enabled = true;
             return installStateProxy(s);
@@ -144,7 +144,7 @@ function loadState() {
                 return { ...newProfile({ year: yr }), ...p, year: yr };
             }),
             activeProfileId: parsed.activeProfileId,
-            max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+            max: { enabled: true, apiKey: '', mistralKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
         };
         if (!s.max.enabled) s.max.enabled = true;
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
@@ -1295,8 +1295,10 @@ function renderProfile() {
     // MAX config
     const maxEnabled = document.getElementById('max-enabled');
     const maxKey = document.getElementById('max-apikey');
+    const maxMistralKey = document.getElementById('max-mistral-apikey');
     if (maxEnabled) maxEnabled.checked = !!state.max.enabled;
     if (maxKey) maxKey.value = state.max.apiKey || '';
+    if (maxMistralKey) maxMistralKey.value = state.max.mistralKey || '';
     const stats = document.getElementById('max-stats');
     if (stats) {
         if (state.max.totalRequests > 0) {
@@ -1375,30 +1377,57 @@ function toggleMax() {
 }
 function saveMaxConfig() {
     const key = document.getElementById('max-apikey').value.trim();
+    const mistralKey = document.getElementById('max-mistral-apikey')?.value.trim() || '';
     const enabled = document.getElementById('max-enabled').checked;
-    if (enabled && !key) { showToast('Precisas de uma chave API para activar MAX'); return; }
-    if (enabled && !/^gsk_/.test(key)) { showToast('Chave inválida — deve começar por gsk_'); return; }
+    if (enabled && !key && !mistralKey) { showToast('Precisas de pelo menos uma chave (Groq ou Mistral) para activar MAX'); return; }
+    if (key && !/^gsk_/.test(key)) { showToast('Chave Groq inválida — deve começar por gsk_'); return; }
+    // Chaves Mistral não têm prefixo fixo. Validação mínima de comprimento para evitar
+    // que um espaço ou carácter mal colado active o provedor com garbage.
+    if (mistralKey && mistralKey.length < 20) { showToast('Chave Mistral parece curta demais'); return; }
     state.max.apiKey = key;
+    state.max.mistralKey = mistralKey;
     state.max.enabled = enabled;
     saveState();
     showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
 }
 
-// ========== MAX: chamada à Groq API ==========
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+// ========== MAX: chamada à API de IA (Groq → Mistral fallback) ==========
+// Ordem de prioridade: Groq (mais rápido, 14 400 pedidos/dia grátis) →
+// Mistral (fallback quando o Groq está em rate limit ou indisponível).
+// Cada provedor tem uma cadeia de modelos (primário + fallback menor).
+// Todos os endpoints são OpenAI-compatible, logo partilham o mesmo formato.
+const AI_PROVIDERS = [
+    {
+        id: 'groq',
+        name: 'Groq',
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+        stateKey: 'apiKey'
+    },
+    {
+        id: 'mistral',
+        name: 'Mistral',
+        endpoint: 'https://api.mistral.ai/v1/chat/completions',
+        models: ['mistral-small-latest', 'open-mistral-nemo'],
+        stateKey: 'mistralKey'
+    }
+];
 
-async function _callGroq(model, prompt, maxTokens, wantJson, key) {
+const _AI_SYS_JSON = 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.';
+const _AI_SYS_TEXT = 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.';
+
+async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const res = await fetch(provider.endpoint, {
             method: 'POST',
             signal: controller.signal,
             headers: { 'content-type': 'application/json', 'authorization': `Bearer ${key}` },
             body: JSON.stringify({
                 model, max_tokens: maxTokens, temperature: 0.7,
                 messages: [
-                    { role: 'system', content: wantJson ? 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.' : 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.' },
+                    { role: 'system', content: wantJson ? _AI_SYS_JSON : _AI_SYS_TEXT },
                     { role: 'user', content: prompt }
                 ]
             })
@@ -1407,32 +1436,48 @@ async function _callGroq(model, prompt, maxTokens, wantJson, key) {
     } finally { clearTimeout(timeout); }
 }
 
+// Há pelo menos um provedor de IA configurado (Groq ou Mistral)?
+function hasAIKey() {
+    return !!(state?.max?.apiKey || state?.max?.mistralKey);
+}
+
+// Mantém o nome callClaudeAPI por compatibilidade com os chamadores existentes
+// (apesar de usar Groq/Mistral — o "Claude" é um vestígio histórico).
 async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
-    const key = state.max?.apiKey;
-    if (!key) throw new Error('Sem chave API');
+    const active = AI_PROVIDERS
+        .map(p => ({ ...p, key: state.max?.[p.stateKey] }))
+        .filter(p => !!p.key);
+    if (active.length === 0) throw new Error('Sem chave API');
+
     let lastErr = '';
-    for (let i = 0; i < GROQ_MODELS.length; i++) {
-        const model = GROQ_MODELS[i];
-        let res;
-        try {
-            res = await _callGroq(model, prompt, maxTokens, wantJson, key);
-        } catch (e) {
-            if (e.name === 'AbortError') throw new Error('Tempo esgotado (30s). Verifica a ligação.');
-            throw new Error('Erro de rede: ' + e.message);
+    for (let pi = 0; pi < active.length; pi++) {
+        const p = active[pi];
+        for (let mi = 0; mi < p.models.length; mi++) {
+            const model = p.models[mi];
+            let res;
+            try {
+                res = await _callAIProvider(p, model, prompt, maxTokens, wantJson, p.key);
+            } catch (e) {
+                if (e.name === 'AbortError') { lastErr = `${p.name}: tempo esgotado (30s)`; break; }
+                lastErr = `${p.name}: rede: ${e.message}`;
+                break;
+            }
+            if (res.ok) {
+                const data = await res.json();
+                const text = data.choices?.[0]?.message?.content || '';
+                if (!text) { lastErr = `${p.name}: resposta vazia`; break; }
+                if (pi > 0 || mi > 0) console.warn(`MAX: usado fallback ${p.name}/${model}`);
+                return { text, usage: data.usage, model, provider: p.id };
+            }
+            const errText = await res.text().catch(() => '');
+            lastErr = `${p.name} ${res.status}: ${errText.slice(0, 200)}`;
+            // 429 (rate limit) ou 503 (sobrecarga): tenta o próximo modelo do mesmo provedor.
+            // Qualquer outro erro (401 chave inválida, 400 pedido mau, 500 servidor):
+            // salta directamente para o próximo provedor.
+            if (res.status !== 429 && res.status !== 503) break;
         }
-        if (res.ok) {
-            const data = await res.json();
-            const text = data.choices?.[0]?.message?.content || '';
-            if (!text) throw new Error('Resposta vazia do Groq');
-            if (i > 0) console.warn(`MAX: usado modelo de fallback ${model}`);
-            return { text, usage: data.usage, model };
-        }
-        const errText = await res.text();
-        lastErr = `Groq ${res.status}: ${errText.slice(0, 300)}`;
-        // 429 (rate limit) ou 503 (capacidade): tenta o próximo modelo
-        if (res.status !== 429 && res.status !== 503) break;
     }
-    throw new Error(lastErr || 'Erro desconhecido Groq');
+    throw new Error(lastErr || 'Erro desconhecido AI');
 }
 
 async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = false) {
@@ -1682,7 +1727,7 @@ function setMaxCache(subjectKey, topics, items) {
 }
 
 async function startMaxSession(subjectKey, opts = {}) {
-    if (!state.max.enabled || !state.max.apiKey) {
+    if (!state.max.enabled || !hasAIKey()) {
         showToast('Activa o MAX no Perfil primeiro');
         switchTab('profile');
         return;
@@ -2324,7 +2369,7 @@ async function submitAnswer() {
             return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
         });
         // Validação IA como fallback — só se não acertou no matching e há chave API
-        if (!isCorrect && state.max?.apiKey) {
+        if (!isCorrect && hasAIKey()) {
             const btn = document.getElementById('submit-btn');
             if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
             isCorrect = await aiValidateAnswer(e, val);
@@ -2778,7 +2823,7 @@ async function loadDetailedExplanation() {
     };
 
     // Sem API key → lição estática se existir, senão e.exp
-    if (!state.max?.apiKey) {
+    if (!hasAIKey()) {
         if (lesson) return showLesson();
         const fallback = e.exp || 'Não há explicação detalhada disponível para esta pergunta.';
         wrap.innerHTML = escapeHtml(fallback).replace(/\n/g, '<br>');
@@ -3922,7 +3967,7 @@ async function askQuestion() {
 
     try {
         let result;
-        const hasKey = !!(state.max?.apiKey && state.max?.enabled);
+        const hasKey = !!(hasAIKey() && state.max?.enabled);
         if (hasKey) {
             try {
                 result = await _askAIResolve(q);
