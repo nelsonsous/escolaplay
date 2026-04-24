@@ -1562,6 +1562,81 @@ body {
     .exercise-feedback .feedback-icon { animation: none !important; }
 }
 
+/* ========== DÚVIDA INLINE NO EXERCÍCIO (subtil, sempre visível) ========== */
+.ex-doubt-wrap {
+    margin-top: 14px;
+}
+.ex-doubt-trigger {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    font-size: 0.78rem; font-weight: 600;
+    color: #7c3aed;
+    background: transparent;
+    border: 1px dashed #c4b5fd;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.ex-doubt-trigger i { font-size: 0.85rem; }
+.ex-doubt-trigger:hover {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: #a78bfa;
+}
+.ex-doubt-trigger.open {
+    background: #ede9fe;
+    border-style: solid;
+    border-color: #a78bfa;
+    color: #4c1d95;
+}
+.ex-doubt-panel {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #f5f3ff 0%, #fdf4ff 100%);
+    border: 1px solid #e9d5ff;
+    border-radius: 14px;
+    padding: 12px;
+}
+.ex-doubt-input-row {
+    display: flex; gap: 6px; align-items: stretch;
+}
+.ex-doubt-input {
+    flex: 1; min-width: 0;
+    padding: 10px 12px;
+    border: 1.5px solid #ddd6fe;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.88rem; color: var(--text, #111827);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.ex-doubt-input::placeholder { color: #9ca3af; }
+.ex-doubt-input:focus {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+}
+.ex-doubt-send {
+    width: 44px; flex-shrink: 0;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+    color: #fff; font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px -3px rgba(109, 40, 217, 0.5);
+    transition: transform .1s, opacity .15s;
+}
+.ex-doubt-send:hover { transform: translateY(-1px); }
+.ex-doubt-send:disabled { opacity: 0.55; cursor: wait; }
+.ex-doubt-answer {
+    margin-top: 10px;
+    background: #fff;
+    border-left: 4px solid #8b5cf6;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: #1e1b4b;
+    white-space: pre-wrap;
+}
+
 /* ========== ASK AI (pergunta em linguagem natural) ========== */
 .ask-card {
     position: relative;
