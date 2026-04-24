@@ -363,6 +363,17 @@
                 <input type="date" id="test-date">
                 <label>Notas (opcional)</label>
                 <input type="text" id="test-note" placeholder="Ex: matéria do capítulo 3" maxlength="60">
+                <div style="display:flex;gap:10px;margin-top:6px">
+                    <div style="flex:1">
+                        <label>Nota objetivo (0–20)</label>
+                        <input type="number" id="test-target-grade" min="0" max="20" step="0.5" placeholder="Ex: 16" inputmode="decimal">
+                    </div>
+                    <div style="flex:1">
+                        <label>Nota obtida (0–20)</label>
+                        <input type="number" id="test-actual-grade" min="0" max="20" step="0.5" placeholder="Depois do teste" inputmode="decimal">
+                    </div>
+                </div>
+                <p class="muted" style="font-size:0.74rem;margin-top:4px">A nota obtida dá XP — 10 XP por valor (máx. 200 XP). A 1.ª vez que escreveres a nota.</p>
                 <button class="btn btn-primary-solid btn-block" style="margin-top:12px" onclick="saveTest()"><i class="fas fa-floppy-disk"></i> Guardar</button>
             </div>
         </div>
