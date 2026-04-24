@@ -3729,7 +3729,7 @@ function openHintModal() {
     if (!currentSession) return;
     const e = currentSession.items[currentSession.idx];
     const sub = SUBJECTS[e.s];
-    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-comment-dots" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
+    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-magnifying-glass" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
     const body = document.getElementById('lesson-body');
     const parts = [];
 
