@@ -127,6 +127,32 @@
             </div>
         </div>
 
+        <!-- Pergunta em linguagem natural (IA) -->
+        <div class="ask-card" id="ask-card">
+            <div class="ask-card-header">
+                <div class="ask-card-icon"><i class="fas fa-circle-question"></i></div>
+                <div class="ask-card-title">
+                    <div class="ask-card-eyebrow">Tens uma dúvida?</div>
+                    <div class="ask-card-sub">Pergunta em linguagem normal — a IA responde.</div>
+                </div>
+            </div>
+            <div class="ask-card-input-row">
+                <input type="text" id="ask-input" class="ask-card-input"
+                    placeholder="Ex: o que significa narrativa?"
+                    maxlength="200"
+                    onkeydown="if(event.key==='Enter'){askQuestion();}">
+                <button class="ask-card-btn" id="ask-btn" onclick="askQuestion()" title="Perguntar">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div class="ask-card-examples" id="ask-examples">
+                <span class="ask-chip" onclick="askQuestionExample('O que significa narrativa?')">O que significa narrativa?</span>
+                <span class="ask-chip" onclick="askQuestionExample('Quero praticar frações')">Quero praticar frações</span>
+                <span class="ask-chip" onclick="askQuestionExample('Explica-me os verbos no presente')">Verbos no presente</span>
+            </div>
+            <div class="ask-card-result" id="ask-result" style="display:none"></div>
+        </div>
+
         <div class="section-title"><i class="fas fa-dumbbell"></i> Treino rápido</div>
         <div class="quick-subjects" id="quick-subjects"></div>
     </section>
