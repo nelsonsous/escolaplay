@@ -97,7 +97,7 @@ function defaultState() {
     return {
         profiles: [],
         activeProfileId: null,
-        max: { enabled: true, apiKey: '', mistralKey: '', totalGenerated: 0, totalRequests: 0 }
+        max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0 }
     };
 }
 
@@ -131,7 +131,7 @@ function loadState() {
             const s = {
                 profiles: [oldP],
                 activeProfileId: oldP.id,
-                max: { enabled: true, apiKey: '', mistralKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+                max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
             };
             if (!s.max.enabled) s.max.enabled = true;
             return installStateProxy(s);
@@ -144,7 +144,7 @@ function loadState() {
                 return { ...newProfile({ year: yr }), ...p, year: yr };
             }),
             activeProfileId: parsed.activeProfileId,
-            max: { enabled: true, apiKey: '', mistralKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+            max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
         };
         if (!s.max.enabled) s.max.enabled = true;
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
@@ -1296,9 +1296,11 @@ function renderProfile() {
     const maxEnabled = document.getElementById('max-enabled');
     const maxKey = document.getElementById('max-apikey');
     const maxMistralKey = document.getElementById('max-mistral-apikey');
+    const maxPreferred = document.getElementById('max-preferred');
     if (maxEnabled) maxEnabled.checked = !!state.max.enabled;
     if (maxKey) maxKey.value = state.max.apiKey || '';
     if (maxMistralKey) maxMistralKey.value = state.max.mistralKey || '';
+    if (maxPreferred) maxPreferred.value = state.max.preferredProvider === 'mistral' ? 'mistral' : 'groq';
     const stats = document.getElementById('max-stats');
     if (stats) {
         if (state.max.totalRequests > 0) {
@@ -1379,6 +1381,7 @@ function saveMaxConfig() {
     const key = document.getElementById('max-apikey').value.trim();
     const mistralKey = document.getElementById('max-mistral-apikey')?.value.trim() || '';
     const enabled = document.getElementById('max-enabled').checked;
+    const preferred = document.getElementById('max-preferred')?.value || 'groq';
     if (enabled && !key && !mistralKey) { showToast('Precisas de pelo menos uma chave (Groq ou Mistral) para activar MAX'); return; }
     if (key && !/^gsk_/.test(key)) { showToast('Chave Groq inválida — deve começar por gsk_'); return; }
     // Chaves Mistral não têm prefixo fixo. Validação mínima de comprimento para evitar
@@ -1386,6 +1389,7 @@ function saveMaxConfig() {
     if (mistralKey && mistralKey.length < 20) { showToast('Chave Mistral parece curta demais'); return; }
     state.max.apiKey = key;
     state.max.mistralKey = mistralKey;
+    state.max.preferredProvider = preferred === 'mistral' ? 'mistral' : 'groq';
     state.max.enabled = enabled;
     saveState();
     showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
@@ -1448,6 +1452,10 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
         .map(p => ({ ...p, key: state.max?.[p.stateKey] }))
         .filter(p => !!p.key);
     if (active.length === 0) throw new Error('Sem chave API');
+    // Reordena para o provedor preferido vir primeiro (mantém os restantes
+    // na ordem original como fallback).
+    const preferred = state.max?.preferredProvider || 'groq';
+    active.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : 0));
 
     let lastErr = '';
     for (let pi = 0; pi < active.length; pi++) {
@@ -3745,8 +3753,95 @@ function openHintModal() {
         parts.unshift(`<p style="color:var(--text-light);margin-bottom:10px">Lê a pergunta com atenção e pensa no conceito do tópico.</p>`);
     }
 
+    // 4) Pergunta livre — o aluno pode tirar qualquer dúvida sobre a pergunta
+    // que está a ver (ex: "o que significa narrativa?", "porque é que isto é assim?").
+    // A IA recebe o enunciado + opções + tópico como contexto.
+    const hasKey = hasAIKey();
+    parts.push(`
+        <div class="ex-ask-wrap" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:700;color:#4c1d95;margin-bottom:6px;letter-spacing:.02em">
+                <i class="fas fa-circle-question" style="color:#7c3aed"></i> Tens outra dúvida sobre esta pergunta?
+            </div>
+            <div style="display:flex;gap:6px;align-items:stretch">
+                <input type="text" id="ex-ask-input" maxlength="200"
+                    placeholder="${hasKey ? 'Ex: o que significa narrativa?' : 'Precisas de chave IA no Perfil'}"
+                    ${hasKey ? '' : 'disabled'}
+                    style="flex:1;min-width:0;padding:10px 12px;border:1.5px solid #ddd6fe;border-radius:10px;font-size:0.88rem;outline:none;background:#fff"
+                    onkeydown="if(event.key==='Enter'){askAboutExercise();}">
+                <button id="ex-ask-btn" onclick="askAboutExercise()" ${hasKey ? '' : 'disabled'}
+                    style="width:44px;border:none;border-radius:10px;background:linear-gradient(135deg,#6d28d9,#8b5cf6);color:#fff;font-size:0.95rem;cursor:pointer;${hasKey ? '' : 'opacity:.45;cursor:not-allowed'}">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div id="ex-ask-answer" style="display:none;margin-top:10px;background:#f5f3ff;border-left:4px solid #8b5cf6;border-radius:10px;padding:10px 12px;font-size:0.86rem;line-height:1.55;color:#1e1b4b;white-space:pre-wrap"></div>
+        </div>
+    `);
+
     body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
     document.getElementById('lesson-modal').style.display = 'flex';
+}
+
+// Pergunta livre da criança sobre a pergunta actualmente visível. Usa a IA
+// (Groq/Mistral) com o enunciado + opções + tópico como contexto. Não dá a
+// resposta directamente — explica conceitos, dá pistas pedagógicas.
+async function askAboutExercise() {
+    const input = document.getElementById('ex-ask-input');
+    const btn = document.getElementById('ex-ask-btn');
+    const answer = document.getElementById('ex-ask-answer');
+    if (!input || !currentSession) return;
+    const q = (input.value || '').trim();
+    if (!q) { showToast('Escreve uma dúvida primeiro'); return; }
+    if (!hasAIKey()) { showToast('Configura uma chave IA no Perfil'); return; }
+
+    const e = currentSession.items[currentSession.idx];
+    const subName = SUBJECTS[e.s]?.name || e.s;
+    const yr = activeProfile()?.year || 6;
+
+    // Contexto do exercício — enunciado, opções (mc) e tópico
+    let ctx = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta apresentada ao aluno: "${e.q}"`;
+    if (e.type === 'mc' && Array.isArray(e.opts)) {
+        ctx += `\nOpções: ${e.opts.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join(' | ')}`;
+    }
+    if (e.type === 'tf') ctx += `\nTipo: Verdadeiro ou Falso`;
+    if (e.material) ctx += `\nRegra/material: ${e.material}`;
+
+    const prompt = `És um(a) professor(a) do ${yr}.º ano do Ensino Básico português, paciente e carinhoso(a). Um(a) aluno(a) está a resolver o exercício abaixo e tem uma dúvida. Responde em PORTUGUÊS EUROPEU (Portugal), com 2-4 frases, simples e claras.
+
+${ctx}
+
+DÚVIDA DO ALUNO: "${q}"
+
+REGRAS:
+- NÃO reveles a resposta correcta da pergunta. Explica apenas o conceito ou termo que o aluno perguntou.
+- Usa linguagem adequada ao ${yr}.º ano (sem jargão técnico desnecessário).
+- Se a dúvida for sobre o significado de uma palavra, dá uma definição curta + exemplo.
+- Se for sobre "como resolver", dá uma pista (não a solução).
+- Se a dúvida for fora do contexto, responde na mesma mas de forma breve.
+- NUNCA uses português do Brasil ("você", "time", "gols", "trem", "celular", "geladeira", "sorvete"...).
+- Sem markdown, sem asteriscos, sem listas numeradas — texto corrido.`;
+
+    if (answer) {
+        answer.style.display = 'block';
+        answer.textContent = 'A pensar…';
+    }
+    if (btn) btn.disabled = true;
+    try {
+        const { text, provider } = await callClaudeAPI(prompt, 400, false);
+        const clean = (text || '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+        if (answer) {
+            answer.textContent = clean || 'Sem resposta.';
+            // Tag discreta do provedor usado
+            const tag = document.createElement('div');
+            tag.style.cssText = 'font-size:0.68rem;color:var(--text-light);margin-top:6px;text-align:right;font-style:italic';
+            tag.textContent = `via ${provider || 'IA'}`;
+            answer.appendChild(tag);
+        }
+        input.value = '';
+    } catch (err) {
+        if (answer) answer.textContent = 'Não consegui responder: ' + (err.message || 'erro');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // ===== Professor IA inline (durante a pergunta e no feedback) =====
