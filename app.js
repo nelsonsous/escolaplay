@@ -1783,6 +1783,32 @@ function clearMaxCache() {
     showToast('Perguntas IA apagadas. Vão ser geradas novas no próximo treino.');
 }
 
+// Limpa caches do service worker e recarrega a app, preservando localStorage
+// (perfis, XP, medalhas, testes). Útil quando sai uma nova versão e o SW
+// continua a servir a antiga.
+async function forceAppUpdate() {
+    if (!confirm('Forçar atualização da app? A página vai recarregar. Os teus dados (XP, perfis, medalhas, testes) não são apagados.')) return;
+    showToast('A atualizar…');
+    try {
+        // 1. Apagar todas as caches (CacheStorage)
+        if (window.caches && caches.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        // 2. Desregistar todos os service workers desta origem
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+        }
+    } catch (e) {
+        console.warn('forceAppUpdate: falha a limpar cache/SW:', e);
+    }
+    // 3. Recarregar com cache-busting para garantir HTML/JS/CSS novos
+    const url = new URL(window.location.href);
+    url.searchParams.set('_v', Date.now().toString());
+    window.location.replace(url.toString());
+}
+
 // ========== EXPORT / IMPORT PERGUNTAS ==========
 function _groupExercisesBySubjectTopic(list, subjectsMap) {
     const bySubject = {};
