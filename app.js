@@ -97,7 +97,7 @@ function defaultState() {
     return {
         profiles: [],
         activeProfileId: null,
-        max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0 }
+        max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0 }
     };
 }
 
@@ -131,7 +131,7 @@ function loadState() {
             const s = {
                 profiles: [oldP],
                 activeProfileId: oldP.id,
-                max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+                max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
             };
             if (!s.max.enabled) s.max.enabled = true;
             return installStateProxy(s);
@@ -144,7 +144,7 @@ function loadState() {
                 return { ...newProfile({ year: yr }), ...p, year: yr };
             }),
             activeProfileId: parsed.activeProfileId,
-            max: { enabled: true, apiKey: '', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+            max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
         };
         if (!s.max.enabled) s.max.enabled = true;
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
@@ -1295,8 +1295,12 @@ function renderProfile() {
     // MAX config
     const maxEnabled = document.getElementById('max-enabled');
     const maxKey = document.getElementById('max-apikey');
+    const maxMistralKey = document.getElementById('max-mistral-apikey');
+    const maxPreferred = document.getElementById('max-preferred');
     if (maxEnabled) maxEnabled.checked = !!state.max.enabled;
     if (maxKey) maxKey.value = state.max.apiKey || '';
+    if (maxMistralKey) maxMistralKey.value = state.max.mistralKey || '';
+    if (maxPreferred) maxPreferred.value = state.max.preferredProvider === 'mistral' ? 'mistral' : 'groq';
     const stats = document.getElementById('max-stats');
     if (stats) {
         if (state.max.totalRequests > 0) {
@@ -1375,30 +1379,59 @@ function toggleMax() {
 }
 function saveMaxConfig() {
     const key = document.getElementById('max-apikey').value.trim();
+    const mistralKey = document.getElementById('max-mistral-apikey')?.value.trim() || '';
     const enabled = document.getElementById('max-enabled').checked;
-    if (enabled && !key) { showToast('Precisas de uma chave API para activar MAX'); return; }
-    if (enabled && !/^gsk_/.test(key)) { showToast('Chave inválida — deve começar por gsk_'); return; }
+    const preferred = document.getElementById('max-preferred')?.value || 'groq';
+    if (enabled && !key && !mistralKey) { showToast('Precisas de pelo menos uma chave (Groq ou Mistral) para activar MAX'); return; }
+    if (key && !/^gsk_/.test(key)) { showToast('Chave Groq inválida — deve começar por gsk_'); return; }
+    // Chaves Mistral não têm prefixo fixo. Validação mínima de comprimento para evitar
+    // que um espaço ou carácter mal colado active o provedor com garbage.
+    if (mistralKey && mistralKey.length < 20) { showToast('Chave Mistral parece curta demais'); return; }
     state.max.apiKey = key;
+    state.max.mistralKey = mistralKey;
+    state.max.preferredProvider = preferred === 'mistral' ? 'mistral' : 'groq';
     state.max.enabled = enabled;
     saveState();
     showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
 }
 
-// ========== MAX: chamada à Groq API ==========
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+// ========== MAX: chamada à API de IA (Groq → Mistral fallback) ==========
+// Ordem de prioridade: Groq (mais rápido, 14 400 pedidos/dia grátis) →
+// Mistral (fallback quando o Groq está em rate limit ou indisponível).
+// Cada provedor tem uma cadeia de modelos (primário + fallback menor).
+// Todos os endpoints são OpenAI-compatible, logo partilham o mesmo formato.
+const AI_PROVIDERS = [
+    {
+        id: 'groq',
+        name: 'Groq',
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+        stateKey: 'apiKey'
+    },
+    {
+        id: 'mistral',
+        name: 'Mistral',
+        endpoint: 'https://api.mistral.ai/v1/chat/completions',
+        models: ['mistral-small-latest', 'open-mistral-nemo'],
+        stateKey: 'mistralKey'
+    }
+];
 
-async function _callGroq(model, prompt, maxTokens, wantJson, key) {
+const _AI_SYS_JSON = 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.';
+const _AI_SYS_TEXT = 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.';
+
+async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const res = await fetch(provider.endpoint, {
             method: 'POST',
             signal: controller.signal,
             headers: { 'content-type': 'application/json', 'authorization': `Bearer ${key}` },
             body: JSON.stringify({
                 model, max_tokens: maxTokens, temperature: 0.7,
                 messages: [
-                    { role: 'system', content: wantJson ? 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.' : 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.' },
+                    { role: 'system', content: wantJson ? _AI_SYS_JSON : _AI_SYS_TEXT },
                     { role: 'user', content: prompt }
                 ]
             })
@@ -1407,32 +1440,52 @@ async function _callGroq(model, prompt, maxTokens, wantJson, key) {
     } finally { clearTimeout(timeout); }
 }
 
+// Há pelo menos um provedor de IA configurado (Groq ou Mistral)?
+function hasAIKey() {
+    return !!(state?.max?.apiKey || state?.max?.mistralKey);
+}
+
+// Mantém o nome callClaudeAPI por compatibilidade com os chamadores existentes
+// (apesar de usar Groq/Mistral — o "Claude" é um vestígio histórico).
 async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
-    const key = state.max?.apiKey;
-    if (!key) throw new Error('Sem chave API');
+    const active = AI_PROVIDERS
+        .map(p => ({ ...p, key: state.max?.[p.stateKey] }))
+        .filter(p => !!p.key);
+    if (active.length === 0) throw new Error('Sem chave API');
+    // Reordena para o provedor preferido vir primeiro (mantém os restantes
+    // na ordem original como fallback).
+    const preferred = state.max?.preferredProvider || 'groq';
+    active.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : 0));
+
     let lastErr = '';
-    for (let i = 0; i < GROQ_MODELS.length; i++) {
-        const model = GROQ_MODELS[i];
-        let res;
-        try {
-            res = await _callGroq(model, prompt, maxTokens, wantJson, key);
-        } catch (e) {
-            if (e.name === 'AbortError') throw new Error('Tempo esgotado (30s). Verifica a ligação.');
-            throw new Error('Erro de rede: ' + e.message);
+    for (let pi = 0; pi < active.length; pi++) {
+        const p = active[pi];
+        for (let mi = 0; mi < p.models.length; mi++) {
+            const model = p.models[mi];
+            let res;
+            try {
+                res = await _callAIProvider(p, model, prompt, maxTokens, wantJson, p.key);
+            } catch (e) {
+                if (e.name === 'AbortError') { lastErr = `${p.name}: tempo esgotado (30s)`; break; }
+                lastErr = `${p.name}: rede: ${e.message}`;
+                break;
+            }
+            if (res.ok) {
+                const data = await res.json();
+                const text = data.choices?.[0]?.message?.content || '';
+                if (!text) { lastErr = `${p.name}: resposta vazia`; break; }
+                if (pi > 0 || mi > 0) console.warn(`MAX: usado fallback ${p.name}/${model}`);
+                return { text, usage: data.usage, model, provider: p.id };
+            }
+            const errText = await res.text().catch(() => '');
+            lastErr = `${p.name} ${res.status}: ${errText.slice(0, 200)}`;
+            // 429 (rate limit) ou 503 (sobrecarga): tenta o próximo modelo do mesmo provedor.
+            // Qualquer outro erro (401 chave inválida, 400 pedido mau, 500 servidor):
+            // salta directamente para o próximo provedor.
+            if (res.status !== 429 && res.status !== 503) break;
         }
-        if (res.ok) {
-            const data = await res.json();
-            const text = data.choices?.[0]?.message?.content || '';
-            if (!text) throw new Error('Resposta vazia do Groq');
-            if (i > 0) console.warn(`MAX: usado modelo de fallback ${model}`);
-            return { text, usage: data.usage, model };
-        }
-        const errText = await res.text();
-        lastErr = `Groq ${res.status}: ${errText.slice(0, 300)}`;
-        // 429 (rate limit) ou 503 (capacidade): tenta o próximo modelo
-        if (res.status !== 429 && res.status !== 503) break;
     }
-    throw new Error(lastErr || 'Erro desconhecido Groq');
+    throw new Error(lastErr || 'Erro desconhecido AI');
 }
 
 async function generateMaxExercises(subjectKey, topics, count = 12, testPrep = false) {
@@ -1682,7 +1735,7 @@ function setMaxCache(subjectKey, topics, items) {
 }
 
 async function startMaxSession(subjectKey, opts = {}) {
-    if (!state.max.enabled || !state.max.apiKey) {
+    if (!state.max.enabled || !hasAIKey()) {
         showToast('Activa o MAX no Perfil primeiro');
         switchTab('profile');
         return;
@@ -2324,7 +2377,7 @@ async function submitAnswer() {
             return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
         });
         // Validação IA como fallback — só se não acertou no matching e há chave API
-        if (!isCorrect && state.max?.apiKey) {
+        if (!isCorrect && hasAIKey()) {
             const btn = document.getElementById('submit-btn');
             if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
             isCorrect = await aiValidateAnswer(e, val);
@@ -2778,7 +2831,7 @@ async function loadDetailedExplanation() {
     };
 
     // Sem API key → lição estática se existir, senão e.exp
-    if (!state.max?.apiKey) {
+    if (!hasAIKey()) {
         if (lesson) return showLesson();
         const fallback = e.exp || 'Não há explicação detalhada disponível para esta pergunta.';
         wrap.innerHTML = escapeHtml(fallback).replace(/\n/g, '<br>');
@@ -3700,8 +3753,95 @@ function openHintModal() {
         parts.unshift(`<p style="color:var(--text-light);margin-bottom:10px">Lê a pergunta com atenção e pensa no conceito do tópico.</p>`);
     }
 
+    // 4) Pergunta livre — o aluno pode tirar qualquer dúvida sobre a pergunta
+    // que está a ver (ex: "o que significa narrativa?", "porque é que isto é assim?").
+    // A IA recebe o enunciado + opções + tópico como contexto.
+    const hasKey = hasAIKey();
+    parts.push(`
+        <div class="ex-ask-wrap" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:700;color:#4c1d95;margin-bottom:6px;letter-spacing:.02em">
+                <i class="fas fa-circle-question" style="color:#7c3aed"></i> Tens outra dúvida sobre esta pergunta?
+            </div>
+            <div style="display:flex;gap:6px;align-items:stretch">
+                <input type="text" id="ex-ask-input" maxlength="200"
+                    placeholder="${hasKey ? 'Ex: o que significa narrativa?' : 'Precisas de chave IA no Perfil'}"
+                    ${hasKey ? '' : 'disabled'}
+                    style="flex:1;min-width:0;padding:10px 12px;border:1.5px solid #ddd6fe;border-radius:10px;font-size:0.88rem;outline:none;background:#fff"
+                    onkeydown="if(event.key==='Enter'){askAboutExercise();}">
+                <button id="ex-ask-btn" onclick="askAboutExercise()" ${hasKey ? '' : 'disabled'}
+                    style="width:44px;border:none;border-radius:10px;background:linear-gradient(135deg,#6d28d9,#8b5cf6);color:#fff;font-size:0.95rem;cursor:pointer;${hasKey ? '' : 'opacity:.45;cursor:not-allowed'}">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div id="ex-ask-answer" style="display:none;margin-top:10px;background:#f5f3ff;border-left:4px solid #8b5cf6;border-radius:10px;padding:10px 12px;font-size:0.86rem;line-height:1.55;color:#1e1b4b;white-space:pre-wrap"></div>
+        </div>
+    `);
+
     body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
     document.getElementById('lesson-modal').style.display = 'flex';
+}
+
+// Pergunta livre da criança sobre a pergunta actualmente visível. Usa a IA
+// (Groq/Mistral) com o enunciado + opções + tópico como contexto. Não dá a
+// resposta directamente — explica conceitos, dá pistas pedagógicas.
+async function askAboutExercise() {
+    const input = document.getElementById('ex-ask-input');
+    const btn = document.getElementById('ex-ask-btn');
+    const answer = document.getElementById('ex-ask-answer');
+    if (!input || !currentSession) return;
+    const q = (input.value || '').trim();
+    if (!q) { showToast('Escreve uma dúvida primeiro'); return; }
+    if (!hasAIKey()) { showToast('Configura uma chave IA no Perfil'); return; }
+
+    const e = currentSession.items[currentSession.idx];
+    const subName = SUBJECTS[e.s]?.name || e.s;
+    const yr = activeProfile()?.year || 6;
+
+    // Contexto do exercício — enunciado, opções (mc) e tópico
+    let ctx = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta apresentada ao aluno: "${e.q}"`;
+    if (e.type === 'mc' && Array.isArray(e.opts)) {
+        ctx += `\nOpções: ${e.opts.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join(' | ')}`;
+    }
+    if (e.type === 'tf') ctx += `\nTipo: Verdadeiro ou Falso`;
+    if (e.material) ctx += `\nRegra/material: ${e.material}`;
+
+    const prompt = `És um(a) professor(a) do ${yr}.º ano do Ensino Básico português, paciente e carinhoso(a). Um(a) aluno(a) está a resolver o exercício abaixo e tem uma dúvida. Responde em PORTUGUÊS EUROPEU (Portugal), com 2-4 frases, simples e claras.
+
+${ctx}
+
+DÚVIDA DO ALUNO: "${q}"
+
+REGRAS:
+- NÃO reveles a resposta correcta da pergunta. Explica apenas o conceito ou termo que o aluno perguntou.
+- Usa linguagem adequada ao ${yr}.º ano (sem jargão técnico desnecessário).
+- Se a dúvida for sobre o significado de uma palavra, dá uma definição curta + exemplo.
+- Se for sobre "como resolver", dá uma pista (não a solução).
+- Se a dúvida for fora do contexto, responde na mesma mas de forma breve.
+- NUNCA uses português do Brasil ("você", "time", "gols", "trem", "celular", "geladeira", "sorvete"...).
+- Sem markdown, sem asteriscos, sem listas numeradas — texto corrido.`;
+
+    if (answer) {
+        answer.style.display = 'block';
+        answer.textContent = 'A pensar…';
+    }
+    if (btn) btn.disabled = true;
+    try {
+        const { text, provider } = await callClaudeAPI(prompt, 400, false);
+        const clean = (text || '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+        if (answer) {
+            answer.textContent = clean || 'Sem resposta.';
+            // Tag discreta do provedor usado
+            const tag = document.createElement('div');
+            tag.style.cssText = 'font-size:0.68rem;color:var(--text-light);margin-top:6px;text-align:right;font-style:italic';
+            tag.textContent = `via ${provider || 'IA'}`;
+            answer.appendChild(tag);
+        }
+        input.value = '';
+    } catch (err) {
+        if (answer) answer.textContent = 'Não consegui responder: ' + (err.message || 'erro');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // ===== Professor IA inline (durante a pergunta e no feedback) =====
@@ -3922,7 +4062,7 @@ async function askQuestion() {
 
     try {
         let result;
-        const hasKey = !!(state.max?.apiKey && state.max?.enabled);
+        const hasKey = !!(hasAIKey() && state.max?.enabled);
         if (hasKey) {
             try {
                 result = await _askAIResolve(q);
