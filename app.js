@@ -512,6 +512,9 @@ function renderHome() {
     // Próximo prémio
     renderNextRewardCard();
 
+    // Sugestões contextuais no "Tens uma dúvida?" — últimos erros
+    renderAskSuggestions();
+
     // Treino rápido — cards modernizados com ícone circular
     const container = document.getElementById('quick-subjects');
     container.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
@@ -3842,8 +3845,8 @@ function toggleExerciseDoubt() {
             if (items.length > 0) {
                 sugg.style.display = 'flex';
                 sugg.innerHTML = items.map(s => {
-                    const safe = escapeHtml(s).replace(/"/g, '&quot;');
-                    return `<button type="button" class="ex-doubt-chip" onclick="useDoubtSuggestion('${safe.replace(/'/g, "\\'")}')">${safe}</button>`;
+                    const attr = escapeHtml(s).replace(/"/g, '&quot;');
+                    return `<button type="button" class="ex-doubt-chip" data-text="${attr}" onclick="useDoubtSuggestion(this.dataset.text)">${escapeHtml(s)}</button>`;
                 }).join('');
             } else {
                 sugg.style.display = 'none';
@@ -4114,6 +4117,64 @@ function askQuestionExample(text) {
     const input = document.getElementById('ask-input');
     if (input) input.value = text;
     askQuestion();
+}
+
+// Extrai até N tópicos únicos em que o aluno errou recentemente, percorrendo
+// state.history do mais recente para o mais antigo. Usa o banco de exercícios
+// (estáticos + IA) para descobrir o tópico/disciplina de cada id.
+function lastWrongTopics(maxN = 3) {
+    const hist = Array.isArray(state.history) ? state.history : [];
+    if (hist.length === 0) return [];
+    const lookup = new Map();
+    (EXERCISES || []).forEach(e => lookup.set(e.id, e));
+    (state.maxExercises || []).forEach(e => lookup.set(e.id, e));
+    const seen = new Set();
+    const out = [];
+    for (let i = hist.length - 1; i >= 0 && out.length < maxN; i--) {
+        const h = hist[i];
+        if (h.c !== false) continue;
+        const ex = lookup.get(h.id);
+        if (!ex || !ex.t) continue;
+        const key = `${ex.s}/${ex.t}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ subject: ex.s, topic: ex.t });
+    }
+    return out;
+}
+
+// Sugestões de chips para o "Tens uma dúvida?" da Home. Prioriza tópicos
+// onde o aluno errou recentemente. Alterna formatos para variedade visual.
+// Sem histórico de erros → cai nos exemplos fixos de arranque.
+function buildHomeAskSuggestions() {
+    const wrongs = lastWrongTopics(3);
+    if (wrongs.length === 0) {
+        return [
+            'O que significa narrativa?',
+            'Quero praticar frações',
+            'Verbos no presente'
+        ];
+    }
+    // Primeira letra em minúscula para encaixar em frases ("Explica frações"
+    // em vez de "Explica Frações"). Não toca no resto para preservar topónimos
+    // e siglas embebidas.
+    const lc = t => (t && t.length > 0 ? t[0].toLowerCase() + t.slice(1) : t);
+    const formats = [
+        t => `Quero praticar ${lc(t)}`,
+        t => `Explica ${lc(t)}`,
+        t => `Ajuda com ${lc(t)}`
+    ];
+    return wrongs.map((w, i) => formats[i % formats.length](w.topic));
+}
+
+function renderAskSuggestions() {
+    const container = document.getElementById('ask-examples');
+    if (!container) return;
+    const items = buildHomeAskSuggestions();
+    container.innerHTML = items.map(s => {
+        const attr = escapeHtml(s).replace(/"/g, '&quot;');
+        return `<span class="ask-chip" data-text="${attr}" onclick="askQuestionExample(this.dataset.text)">${escapeHtml(s)}</span>`;
+    }).join('');
 }
 
 async function askQuestion() {
