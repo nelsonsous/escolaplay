@@ -747,7 +747,7 @@ function renderTopicList() {
                     ${count > 0 ? `<div style="margin-top:5px;height:4px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${progBarColor};border-radius:999px;transition:width 0.3s"></div></div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Ver perguntas respondidas" style="background:#ede9fe;color:#7c3aed;flex-shrink:0"><i class="fas fa-list-check"></i></button>
-                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Ver explicação"><i class="fas fa-lightbulb"></i></button>` : ''}
+                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Ver explicação"><i class="fas fa-book-open"></i></button>` : ''}
             </div>
         `;
     }).join('');
@@ -3729,7 +3729,7 @@ function openHintModal() {
     if (!currentSession) return;
     const e = currentSession.items[currentSession.idx];
     const sub = SUBJECTS[e.s];
-    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-magnifying-glass" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
+    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-lightbulb" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
     const body = document.getElementById('lesson-body');
     const parts = [];
 
@@ -4417,7 +4417,7 @@ function openLessonByKey(key) {
     const lesson = LESSONS[key] || state.maxLessons?.[key];
     const [subKey, topic] = key.split('/');
     const subName = SUBJECTS[subKey]?.name || subKey;
-    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-lightbulb"></i> ${subName} · ${topic}`;
+    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-book-open"></i> ${subName} · ${topic}`;
     const body = document.getElementById('lesson-body');
     if (!lesson) {
         body.innerHTML = `<p style="color:var(--text-light)">Ainda não há uma explicação detalhada para este tópico. Tenta resolver o exercício — a explicação aparece depois de responderes.</p>`;
