@@ -1783,6 +1783,32 @@ function clearMaxCache() {
     showToast('Perguntas IA apagadas. Vão ser geradas novas no próximo treino.');
 }
 
+// Limpa caches do service worker e recarrega a app, preservando localStorage
+// (perfis, XP, medalhas, testes). Útil quando sai uma nova versão e o SW
+// continua a servir a antiga.
+async function forceAppUpdate() {
+    if (!confirm('Forçar atualização da app? A página vai recarregar. Os teus dados (XP, perfis, medalhas, testes) não são apagados.')) return;
+    showToast('A atualizar…');
+    try {
+        // 1. Apagar todas as caches (CacheStorage)
+        if (window.caches && caches.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        // 2. Desregistar todos os service workers desta origem
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+        }
+    } catch (e) {
+        console.warn('forceAppUpdate: falha a limpar cache/SW:', e);
+    }
+    // 3. Recarregar com cache-busting para garantir HTML/JS/CSS novos
+    const url = new URL(window.location.href);
+    url.searchParams.set('_v', Date.now().toString());
+    window.location.replace(url.toString());
+}
+
 // ========== EXPORT / IMPORT PERGUNTAS ==========
 function _groupExercisesBySubjectTopic(list, subjectsMap) {
     const bySubject = {};
@@ -3868,6 +3894,252 @@ async function loadAIHint(exerciseId) {
 function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+// ========== ASK AI — Query em linguagem natural ==========
+// Estado da última resposta, para os botões "praticar" usarem.
+let _lastAskResult = null;
+
+function askQuestionExample(text) {
+    const input = document.getElementById('ask-input');
+    if (input) input.value = text;
+    askQuestion();
+}
+
+async function askQuestion() {
+    const input = document.getElementById('ask-input');
+    const box = document.getElementById('ask-result');
+    const btn = document.getElementById('ask-btn');
+    if (!input || !box) return;
+    const q = (input.value || '').trim();
+    if (!q) { showToast('Escreve uma dúvida primeiro'); return; }
+    if (!SUBJECTS || Object.keys(SUBJECTS).length === 0) {
+        showToast('Cria um perfil primeiro');
+        return;
+    }
+
+    box.style.display = 'block';
+    box.innerHTML = `<div class="ask-loading"><i class="fas fa-circle-notch fa-spin"></i> A pensar na tua pergunta…</div>`;
+    if (btn) btn.disabled = true;
+
+    try {
+        let result;
+        const hasKey = !!(state.max?.apiKey && state.max?.enabled);
+        if (hasKey) {
+            try {
+                result = await _askAIResolve(q);
+            } catch (err) {
+                console.warn('Ask AI falhou, a usar pesquisa local:', err?.message);
+                result = _askLocalResolve(q);
+                result._fallback = 'ai_error';
+                result._errMsg = err?.message || '';
+            }
+        } else {
+            result = _askLocalResolve(q);
+            result._fallback = 'no_key';
+        }
+        _lastAskResult = result;
+        box.innerHTML = _renderAskResult(q, result);
+    } catch (err) {
+        box.innerHTML = `<div class="ask-error"><i class="fas fa-triangle-exclamation"></i> Não consegui responder: ${escapeHtml(err.message || 'erro')}</div>`;
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// Constrói o "catálogo" de disciplinas+tópicos activos para o modelo
+function _askBuildCatalog() {
+    const out = {};
+    Object.keys(SUBJECTS).forEach(key => {
+        out[key] = {
+            name: SUBJECTS[key].name,
+            topics: (CURRICULUM[key] || []).slice()
+        };
+    });
+    return out;
+}
+
+async function _askAIResolve(q) {
+    const catalog = _askBuildCatalog();
+    const yr = activeProfile()?.year || 6;
+    const catalogStr = Object.entries(catalog).map(([k, v]) =>
+        `- ${k} (${v.name}): ${v.topics.join(', ')}`
+    ).join('\n');
+
+    const prompt = `És um(a) professor(a) do ${yr}.º ano do Ensino Básico português. Um(a) aluno(a) fez a seguinte pergunta em linguagem natural:
+
+PERGUNTA: "${q}"
+
+A tua tarefa:
+1. Identificar a(s) disciplina(s) e tópico(s) do currículo que melhor correspondem à pergunta.
+2. Responder de forma clara, curta e pedagógica (máx. 4 frases), em PORTUGUÊS EUROPEU (Portugal). Nunca uses "você", "time", "gols", "trem", "celular", "geladeira", "sorvete", "esporte", "garoto", etc.
+3. Se a pergunta for vaga ou fora do currículo, devolve subject null e topics vazio, mas tenta na mesma dar uma resposta útil no campo "answer".
+
+CATÁLOGO DE DISCIPLINAS E TÓPICOS DISPONÍVEIS (usa EXACTAMENTE estes nomes):
+${catalogStr}
+
+REGRAS:
+- "subject" deve ser uma das CHAVES do catálogo (ex: "portugues", "matematica") ou null.
+- "topics" é um array com 0 a 3 tópicos, cada um EXACTAMENTE como aparece no catálogo (sensível a maiúsculas/acentos).
+- "answer" é o texto pedagógico em português europeu (sem markdown, sem asteriscos).
+- "keywords" são 2-5 palavras-chave do assunto (em minúsculas, sem acentos) para pesquisa local.
+
+Responde APENAS com JSON válido (sem markdown):
+
+{"subject":"<chave ou null>","topics":["<tópico>"],"answer":"<explicação curta>","keywords":["<kw>"]}`;
+
+    const { text } = await callClaudeAPI(prompt, 600, true);
+    let jsonStr = text.trim();
+    const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fence) jsonStr = fence[1].trim();
+    const start = jsonStr.indexOf('{');
+    const end = jsonStr.lastIndexOf('}');
+    if (start < 0 || end < 0) throw new Error('Resposta não é JSON');
+    const parsed = JSON.parse(jsonStr.slice(start, end + 1));
+
+    // Validar/normalizar: só aceitar disciplinas e tópicos do catálogo
+    const subject = parsed.subject && catalog[parsed.subject] ? parsed.subject : null;
+    const topics = [];
+    if (subject && Array.isArray(parsed.topics)) {
+        const valid = new Set(catalog[subject].topics);
+        parsed.topics.forEach(t => { if (valid.has(t) && !topics.includes(t)) topics.push(t); });
+    }
+    return {
+        subject,
+        topics,
+        answer: String(parsed.answer || '').trim(),
+        keywords: Array.isArray(parsed.keywords) ? parsed.keywords.map(k => String(k).toLowerCase()) : [],
+        _source: 'ai'
+    };
+}
+
+// Normaliza uma string: minúsculas, sem acentos/diacríticos.
+function _askNorm(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+// Pesquisa local nos tópicos do currículo + títulos/corpos das lições.
+function _askLocalResolve(q) {
+    const nq = _askNorm(q);
+    // Tokens significativos (>= 3 letras), ignora stopwords comuns em PT
+    const stop = new Set(['que','qual','quais','como','onde','quem','porque','para','pelo','pela','dos','das','dum','numa','numo','com','sem','por','mais','menos','meu','minha','meus','minhas','tens','tenho','uma','umas','uns','uma','este','esta','estes','estas','esse','essa','isso','isto','aquilo','aquele','aquela','significa','explica','explicar','ajuda','ajudar','quero','queria','saber','praticar','treino','treinar']);
+    const tokens = nq.split(/[^a-z0-9]+/).filter(t => t.length >= 3 && !stop.has(t));
+
+    const matches = [];
+    Object.keys(SUBJECTS).forEach(subKey => {
+        const topics = CURRICULUM[subKey] || [];
+        topics.forEach(topic => {
+            const nt = _askNorm(topic);
+            const lesson = LESSONS[`${subKey}/${topic}`] || state.maxLessons?.[`${subKey}/${topic}`];
+            const lessonText = lesson ? _askNorm((lesson.title || '') + ' ' + (lesson.body || '')) : '';
+            let score = 0;
+            tokens.forEach(tk => {
+                if (nt === tk) score += 10;
+                else if (nt.includes(tk)) score += 5;
+                if (lessonText.includes(tk)) score += 2;
+            });
+            // Bónus se a disciplina aparece literal na pergunta
+            const nsub = _askNorm(SUBJECTS[subKey].name);
+            if (nsub && nq.includes(nsub)) score += 3;
+            if (score > 0) matches.push({ subKey, topic, score, lesson });
+        });
+    });
+    matches.sort((a, b) => b.score - a.score);
+
+    let answer = '';
+    const top = matches.slice(0, 3);
+    if (top.length > 0 && top[0].lesson) {
+        // Usa a 1.ª frase da lição como resposta
+        const body = top[0].lesson.body.replace(/\*\*/g, '').split(/\n/).map(s => s.trim()).filter(Boolean);
+        answer = (body[0] || '').slice(0, 280);
+    }
+    if (!answer) {
+        answer = top.length > 0
+            ? `Encontrei tópicos relacionados na disciplina de ${SUBJECTS[top[0].subKey].name}. Vê abaixo.`
+            : 'Não encontrei nenhum tópico no teu currículo que corresponda à pergunta. Tenta reformular, ou activa o MAX (IA) no Perfil para respostas mais amplas.';
+    }
+
+    return {
+        subject: top[0]?.subKey || null,
+        topics: top.map(m => m.topic),
+        answer,
+        keywords: tokens,
+        _source: 'local'
+    };
+}
+
+function _renderAskResult(q, r) {
+    const parts = [];
+    parts.push(`<div class="ask-result-q"><i class="fas fa-quote-left"></i> ${escapeHtml(q)}</div>`);
+
+    if (r.answer) {
+        parts.push(`<div class="ask-result-answer">${escapeHtml(r.answer)}</div>`);
+    }
+
+    if (r.subject || (r.topics && r.topics.length > 0)) {
+        const tagParts = [];
+        if (r.subject && SUBJECTS[r.subject]) {
+            const sub = SUBJECTS[r.subject];
+            tagParts.push(`<span class="ask-tag ask-tag-subject" style="--tag-color:${sub.color}"><i class="fas ${sub.icon}"></i> ${escapeHtml(sub.name)}</span>`);
+        }
+        (r.topics || []).forEach(t => {
+            tagParts.push(`<span class="ask-tag">${escapeHtml(t)}</span>`);
+        });
+        parts.push(`<div class="ask-result-tags">${tagParts.join('')}</div>`);
+    }
+
+    // Acções
+    const actions = [];
+    if (r.subject && SUBJECTS[r.subject]) {
+        // Praticar sobre estes tópicos
+        if (r.topics && r.topics.length > 0) {
+            actions.push(`<button class="btn btn-primary-solid btn-block" onclick="askStartPractice()"><i class="fas fa-dumbbell"></i> Treinar este tópico</button>`);
+        }
+        // Abrir a lição detalhada do 1.º tópico
+        if (r.topics && r.topics[0]) {
+            const key = `${r.subject}/${r.topics[0]}`;
+            const has = !!(LESSONS[key] || state.maxLessons?.[key]);
+            if (has) {
+                actions.push(`<button class="btn btn-secondary btn-block" onclick="openLessonByKey('${escapeHtml(key).replace(/'/g, "\\'")}')"><i class="fas fa-book-open"></i> Ver explicação completa</button>`);
+            }
+        }
+        // Entrar na disciplina
+        actions.push(`<button class="btn btn-secondary btn-block" onclick="openSubjectDetail('${r.subject}')"><i class="fas fa-arrow-right"></i> Abrir ${escapeHtml(SUBJECTS[r.subject].name)}</button>`);
+    }
+    if (actions.length > 0) parts.push(`<div class="ask-result-actions">${actions.join('')}</div>`);
+
+    // Origem da resposta (IA ou local)
+    let footer = '';
+    if (r._source === 'ai') footer = 'Resposta gerada pela IA (Groq)';
+    else if (r._fallback === 'ai_error') footer = 'A IA falhou — pesquisa no currículo local';
+    else if (r._fallback === 'no_key') footer = 'Pesquisa no currículo local · activa o MAX para respostas com IA';
+    else footer = 'Pesquisa no currículo local';
+    parts.push(`<div class="ask-result-footer">${escapeHtml(footer)}</div>`);
+
+    return parts.join('');
+}
+
+// Inicia uma sessão de treino filtrada pelos tópicos identificados na última
+// pergunta. Reutiliza o pool estático + IA; escolhe até 6 exercícios.
+function askStartPractice() {
+    const r = _lastAskResult;
+    if (!r || !r.subject) { showToast('Primeiro faz uma pergunta'); return; }
+    const subKey = r.subject;
+    const topicsSet = new Set(r.topics || []);
+    if (topicsSet.size === 0) { openSubjectDetail(subKey); return; }
+    const pool = [
+        ...EXERCISES.filter(e => e.s === subKey && topicsSet.has(e.t)),
+        ...((state.maxExercises || []).filter(e => e.s === subKey && topicsSet.has(e.t)))
+    ];
+    if (pool.length === 0) {
+        showToast('Sem exercícios para esses tópicos. A abrir a disciplina…');
+        openSubjectDetail(subKey);
+        return;
+    }
+    const items = pickExercises(pool, Math.min(6, pool.length));
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: subKey, startedAt: Date.now(), fromAsk: true };
+    openExerciseScreen();
+    renderQuestion();
+}
+
 function openLessonByKey(key) {
     const lesson = LESSONS[key] || state.maxLessons?.[key];
     const [subKey, topic] = key.split('/');
