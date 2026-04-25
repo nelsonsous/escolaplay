@@ -1564,6 +1564,39 @@ function _hasCountContradiction(text) {
     return false;
 }
 
+// Valida exercícios "Quantas destas palavras têm a letra X" — fazemos a
+// contagem real char-by-char e descartamos se a resposta não bater.
+// Caso real que apanhou: "exceção/ação/nação/relação têm letra ç" →
+// resposta "3" (errado, são 4 — todas têm ç). A IA confunde-se com regras
+// gramaticais ("ação tem c simples") em vez de olhar para o carácter.
+// Devolve true se houver contradição.
+function _hasLetterCountError(ex) {
+    if (!ex || !ex.q) return false;
+    // Padrão: "Quantas (destas)? palavras têm/contêm/possuem a letra 'X'"
+    const m = ex.q.match(/quant[ao]s?\s+(?:dest[ae]s\s+)?palavras?\s+(?:t[êe]m|cont[êe]m|possuem|usam)\s+(?:a\s+)?(?:letra|consoante|vogal|carácter|caractere|caracter)\s*['"`]?(.)['"`]?/iu);
+    if (!m) return false;
+    const letter = m[1].toLowerCase();
+    if (!letter || letter.length !== 1) return false;
+    // Extrai palavras entre aspas (simples ou duplas) na pergunta
+    const wordMatches = [...ex.q.matchAll(/['"`]([\p{L}\p{M}\-]{2,})['"`]/gu)];
+    const words = wordMatches.map(w => w[1]).filter(w => w.length > 1);
+    if (words.length < 2) return false;
+    // Conta as palavras que contêm a letra (case-insensitive, sem
+    // normalização — queremos distinguir 'ç' de 'c').
+    const actualCount = words.filter(w => w.toLowerCase().includes(letter)).length;
+    // Determina o que a IA respondeu como certo
+    let stated = null;
+    if (ex.type === 'mc' && Array.isArray(ex.opts) && typeof ex.ans === 'number') {
+        const optTxt = String(ex.opts[ex.ans] || '').match(/\d+/);
+        if (optTxt) stated = parseInt(optTxt[0], 10);
+    } else if ((ex.type === 'fill' || ex.type === 'problem') && Array.isArray(ex.ans)) {
+        const optTxt = String(ex.ans[0] || '').match(/\d+/);
+        if (optTxt) stated = parseInt(optTxt[0], 10);
+    }
+    if (stated === null) return false;
+    return stated !== actualCount;
+}
+
 // O prefixo "A " / "B) " / "C: " etc. costuma aparecer no início das opções
 // porque o modelo "ajuda" a numerar — mas o renderer já mostra o A/B/C/D
 // em círculo, ficando duplicado ("A   A caneca"). Só removemos se TODAS
@@ -1797,6 +1830,7 @@ G2. Em mc com listas ("quais são os X", "indica os X da frase", "quantos X há 
    Exemplo PROIBIDO: pergunta "Quais são os determinantes em 'A minha professora explicou a lição com paciência'?", opções "A,a"/"minha,a"/"explicou,a"/"paciência,a" — TODAS incompletas (faltam pelo menos um determinante). Reformula: ou inclui uma opção "A, minha, a", ou muda a frase para ter só 2 determinantes em vez de 3, ou usa fill em vez de mc.
    ANTES DE FECHAR um mc deste tipo: identifica TODOS os X da frase, e confirma que a opção marcada como correcta os contém TODOS.
 H. As "opts" contêm APENAS o texto da opção — NUNCA prefixes com "A)", "A.", "A -", "A " ou similar. O sistema renderiza a letra automaticamente. Errado: "A caneca" / "B) ananás". Certo: "caneca" / "ananás".
+J. CEDILHA (Ç): a terminação "-ção" e "-são" das palavras portuguesas é ESCRITA com Ç (não com C simples). Palavras com Ç: ação, nação, relação, exceção, coração, lição, função, atenção, situação, exposição, reação. NUNCA digas que "ação" ou "nação" se escrevem com "c simples" — é falso. A regra "ç antes de a/o/u" significa que Ç ANTECEDE 'a/o/u' (incluindo 'ã'). A regra "c antes de e/i" aplica-se a casos como 'cebola', 'cidade'. Se uma pergunta perguntar "quantas das palavras X, Y, Z têm a letra ç", CONTA carácter a carácter — não confies em raciocínio gramatical.
 I. CONTAGEM (letras, sílabas, palavras, sons): se mostras uma divisão com hífen (ex-ce-ci-o-nal), o número de partes separadas por hífen TEM DE BATER com o número anunciado. CONTA os hífenes + 1 antes de escrever o número.
    Exemplo PROIBIDO: "ex-ce-ci-o-nal → 4 sílabas" (são 5 partes!).
    Exemplo BOM: "ex-ce-ci-o-nal → 5 sílabas" OU "ex-ce-cio-nal → 4 sílabas" (escolhe uma divisão e conta-a).
@@ -1898,6 +1932,12 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
         const fullText = [e.q, e.exp, e.solution, e.material, ...(Array.isArray(e.ans) ? e.ans : [])].join(' ');
         if (_hasCountContradiction(fullText)) {
             console.warn('MAX: descartado por contradição de contagem:', e.q?.slice(0, 60));
+            return false;
+        }
+        // Descarta "quantas palavras têm a letra X" com contagem errada
+        // (ex.: 'exceção/ação/nação/relação' → 4 têm ç, IA disse 3).
+        if (_hasLetterCountError(e)) {
+            console.warn('MAX: descartado por contagem errada de letras:', e.q?.slice(0, 60));
             return false;
         }
         return true;
