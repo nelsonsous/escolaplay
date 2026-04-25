@@ -1825,7 +1825,7 @@ C. Em perguntas de identificação ("quantos X há na frase", "indica os X"), VE
 D. Para classes de palavras: VERBO = ação/estado (estudar, ser, ter, correr); SUBSTANTIVO = nome de coisa/ser/conceito (testes, alunos, turma); ADJECTIVO = qualifica (bonito, alto). PALAVRAS QUE TERMINAM EM "-es" PODEM SER PLURAIS DE SUBSTANTIVO (testes, peixes, lápis) — não são verbos só pela terminação.
 E. Para problemas de matemática: REFAZ o cálculo passo a passo antes de gravar o ans_fill. Se 3+4=7, ans_fill="7", não "8".
 F. Para tf: a afirmação tem de ser inequivocamente V ou F. Se houver dúvida, troca para mc.
-G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". Em ortografia, se perguntas qual está bem escrita, 3 opções têm de ter erro ortográfico real (ex: "azeitona" certo / "asseitona" errado / "aceitona" errado / "azeytona" errado).
+G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". Em ortografia, se perguntas qual está bem escrita, 3 opções têm de ter erro ortográfico real (ex: "azeitona" certo / "asseitona" errado / "aceitona" errado / "azeytona" errado). PROIBIDO duas opções IGUAIS (ex.: A "transporte", B "transporte" — duas certas, viola "exactamente 1"). VERIFICA antes de fechar: as 4 strings de opts são DIFERENTES entre si.
 G2. Em mc com listas ("quais são os X", "indica os X da frase", "quantos X há e quais"), a opção correcta tem de listar TODOS os X da frase — EXAUSTIVA. Se a frase tem 3 determinantes (A, minha, a), a opção certa lista os 3 — não vale "minha, a" porque omite o "A".
    Exemplo PROIBIDO: pergunta "Quais são os determinantes em 'A minha professora explicou a lição com paciência'?", opções "A,a"/"minha,a"/"explicou,a"/"paciência,a" — TODAS incompletas (faltam pelo menos um determinante). Reformula: ou inclui uma opção "A, minha, a", ou muda a frase para ter só 2 determinantes em vez de 3, ou usa fill em vez de mc.
    ANTES DE FECHAR um mc deste tipo: identifica TODOS os X da frase, e confirma que a opção marcada como correcta os contém TODOS.
@@ -1939,6 +1939,20 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
         if (_hasLetterCountError(e)) {
             console.warn('MAX: descartado por contagem errada de letras:', e.q?.slice(0, 60));
             return false;
+        }
+        // Descarta mc com opções duplicadas (ex.: A "transporte", B "transporte"
+        // — duas correctas, viola "exactamente 1").
+        if (e.type === 'mc' && Array.isArray(e.opts)) {
+            const seen = new Set();
+            for (const o of e.opts) {
+                const key = String(o || '').trim().toLowerCase();
+                if (!key) continue;
+                if (seen.has(key)) {
+                    console.warn('MAX: descartado por opção duplicada:', e.q?.slice(0, 60));
+                    return false;
+                }
+                seen.add(key);
+            }
         }
         return true;
     });
