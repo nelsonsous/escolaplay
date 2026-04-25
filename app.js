@@ -97,8 +97,18 @@ function defaultState() {
     return {
         profiles: [],
         activeProfileId: null,
-        max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0 }
+        max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'mistral', totalGenerated: 0, totalRequests: 0 }
     };
+}
+
+// v94: Mistral passou a ser o default (gera exercícios mais coerentes que o
+// Groq). Quem tinha 'groq' guardado por causa do default antigo é migrado
+// para 'mistral' uma única vez. Marca _prefMigratedV94 para não repetir —
+// se o utilizador escolher groq de propósito após a migração, fica.
+function _migrateMaxPreferred(max) {
+    if (max._prefMigratedV94) return;
+    if (max.preferredProvider === 'groq') max.preferredProvider = 'mistral';
+    max._prefMigratedV94 = true;
 }
 
 function loadState() {
@@ -131,9 +141,10 @@ function loadState() {
             const s = {
                 profiles: [oldP],
                 activeProfileId: oldP.id,
-                max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+                max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'mistral', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
             };
             if (!s.max.enabled) s.max.enabled = true;
+            _migrateMaxPreferred(s.max);
             return installStateProxy(s);
         }
 
@@ -144,9 +155,10 @@ function loadState() {
                 return { ...newProfile({ year: yr }), ...p, year: yr };
             }),
             activeProfileId: parsed.activeProfileId,
-            max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'groq', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
+            max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'mistral', totalGenerated: 0, totalRequests: 0, ...(parsed.max || {}) }
         };
         if (!s.max.enabled) s.max.enabled = true;
+        _migrateMaxPreferred(s.max);
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
         s.profiles.forEach(p => {
             const curr = CURRICULUM_BY_YEAR[p.year];
@@ -1532,7 +1544,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true, opts = {
     if (active.length === 0) throw new Error('Sem chave API');
     // Reordena para o provedor preferido vir primeiro (mantém os restantes
     // na ordem original como fallback).
-    const preferred = state.max?.preferredProvider || 'groq';
+    const preferred = state.max?.preferredProvider || 'mistral';
     active.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : 0));
 
     let lastErr = '';
