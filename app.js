@@ -1485,7 +1485,7 @@ const AI_PROVIDERS = [
 const _AI_SYS_JSON = 'Respond ONLY with valid JSON. No markdown, no asterisks, no explanation outside JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal.';
 const _AI_SYS_TEXT = 'Always use European Portuguese (Portugal), never Brazilian Portuguese. Use vocabulary, spelling and expressions from Portugal. No markdown, no asterisks.';
 
-async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key) {
+async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key, temperature) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     try {
@@ -1494,7 +1494,7 @@ async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key
             signal: controller.signal,
             headers: { 'content-type': 'application/json', 'authorization': `Bearer ${key}` },
             body: JSON.stringify({
-                model, max_tokens: maxTokens, temperature: 0.7,
+                model, max_tokens: maxTokens, temperature: temperature ?? 0.7,
                 messages: [
                     { role: 'system', content: wantJson ? _AI_SYS_JSON : _AI_SYS_TEXT },
                     { role: 'user', content: prompt }
@@ -1505,6 +1505,11 @@ async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key
     } finally { clearTimeout(timeout); }
 }
 
+// Modelos "fortes" (geração de conteúdo pedagógico exige raciocínio mais
+// fiável). Os modelos pequenos (8b-instant, nemo) são úteis para validar
+// respostas curtas mas geram exercícios com erros/incoerências.
+const _STRONG_MODELS = new Set(['llama-3.3-70b-versatile', 'mistral-small-latest']);
+
 // Há pelo menos um provedor de IA configurado (Groq ou Mistral)?
 function hasAIKey() {
     return !!(state?.max?.apiKey || state?.max?.mistralKey);
@@ -1512,10 +1517,18 @@ function hasAIKey() {
 
 // Mantém o nome callClaudeAPI por compatibilidade com os chamadores existentes
 // (apesar de usar Groq/Mistral — o "Claude" é um vestígio histórico).
-async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
+// opts: { highQuality?: bool, temperature?: number }
+//  - highQuality: ignora modelos pequenos (8b/nemo) — usar para gerar
+//    exercícios pedagógicos. Os pequenos confundem-se com coerência interna
+//    (ex.: dizem "testes é substantivo" e listam-no como verbo).
+async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true, opts = {}) {
+    const { highQuality = false, temperature } = opts;
     const active = AI_PROVIDERS
-        .map(p => ({ ...p, key: state.max?.[p.stateKey] }))
-        .filter(p => !!p.key);
+        .map(p => {
+            const models = highQuality ? p.models.filter(m => _STRONG_MODELS.has(m)) : p.models;
+            return { ...p, key: state.max?.[p.stateKey], models };
+        })
+        .filter(p => !!p.key && p.models.length > 0);
     if (active.length === 0) throw new Error('Sem chave API');
     // Reordena para o provedor preferido vir primeiro (mantém os restantes
     // na ordem original como fallback).
@@ -1529,7 +1542,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true) {
             const model = p.models[mi];
             let res;
             try {
-                res = await _callAIProvider(p, model, prompt, maxTokens, wantJson, p.key);
+                res = await _callAIProvider(p, model, prompt, maxTokens, wantJson, p.key, temperature);
             } catch (e) {
                 if (e.name === 'AbortError') { lastErr = `${p.name}: tempo esgotado (30s)`; break; }
                 lastErr = `${p.name}: rede: ${e.message}`;
@@ -1698,6 +1711,21 @@ CRITÉRIOS DE QUALIDADE (OBRIGATÓRIOS):
 6. ${yr === 2 ? '2-3' : 'Pelo menos 4'} exercícios de dificuldade ${yr === 2 ? '2' : '3'}.
 7. NUNCA repitas perguntas óbvias ou triviais que qualquer criança saberia sem estudar.
 
+REGRA DE COERÊNCIA INTERNA (CRÍTICA — falhas aqui invalidam o exercício):
+A. A resposta correcta DEVE ser consistente com a explicação "exp". Se a explicação diz "X é Y", a resposta NÃO pode contradizer isso.
+B. Antes de devolver, RELÊ cada exercício: a explicação justifica a resposta indicada? Se não, corrige a resposta OU a explicação.
+C. Em perguntas de identificação ("quantos X há na frase", "indica os X"), VERIFICA palavra a palavra. Não confies na intuição — analisa cada termo.
+D. Para classes de palavras: VERBO = ação/estado (estudar, ser, ter, correr); SUBSTANTIVO = nome de coisa/ser/conceito (testes, alunos, turma); ADJECTIVO = qualifica (bonito, alto). PALAVRAS QUE TERMINAM EM "-es" PODEM SER PLURAIS DE SUBSTANTIVO (testes, peixes, lápis) — não são verbos só pela terminação.
+E. Para problemas de matemática: REFAZ o cálculo passo a passo antes de gravar o ans_fill. Se 3+4=7, ans_fill="7", não "8".
+F. Para tf: a afirmação tem de ser inequivocamente V ou F. Se houver dúvida, troca para mc.
+
+EXEMPLO PROIBIDO (NÃO geres NUNCA exercícios assim):
+{"q":"Na frase 'Os alunos estudam para os testes', quantos verbos há?","opts":["1","2","3","4"],"ans_mc":1,"exp":"'Testes' é um substantivo, não um verbo, mas a resposta é 2 verbos: estudam, testes."}
+↑ INCOERENTE: a explicação diz que "testes" é substantivo mas a resposta conta-o como verbo. CORRIGIR para ans_mc:0 (1 verbo: estudam) e exp coerente.
+
+EXEMPLO BOM:
+{"q":"Na frase 'Os alunos estudam para os testes', quantos verbos há?","opts":["1","2","3","4"],"ans_mc":0,"exp":"Há 1 verbo: 'estudam' (ação). 'Testes' parece um verbo pela terminação -es mas é o plural do substantivo 'teste'."}
+
 TIPOS DISPONÍVEIS:
 - "mc": escolha múltipla, 4 opções (1 correcta, 3 distratores plausíveis)
 - "tf": verdadeiro ou falso (afirmação completa e precisa)
@@ -1717,7 +1745,10 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
   {"t":"<tópico>","type":"passage","diff":3,"passage":"<texto 3-5 frases>","q":"<pergunta>","ans_fill":["<resposta>"],"svg":"<SVG>","exp":"<explicação>"}
 ]}`;
 
-    const { text, usage } = await callClaudeAPI(prompt, 4000);
+    // highQuality: usa só os modelos grandes (70b/small) — os pequenos
+    // (8b-instant, nemo) geram exercícios com incoerências.
+    // temperature 0.4: mais determinista, reduz alucinações em respostas factuais.
+    const { text, usage } = await callClaudeAPI(prompt, 4000, true, { highQuality: true, temperature: 0.4 });
     // Extrair o JSON (o modelo pode envolver em markdown apesar da instrução)
     let jsonStr = text.trim();
     const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
