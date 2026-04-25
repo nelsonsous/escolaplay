@@ -1522,6 +1522,33 @@ async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key
 // respostas curtas mas geram exercícios com erros/incoerências.
 const _STRONG_MODELS = new Set(['llama-3.3-70b-versatile', 'mistral-small-latest']);
 
+// Detecta padrões "x-y-z → N sílabas/letras" no texto e valida que o número
+// bate com a contagem real (de hífens+1 ou de caracteres). Se houver
+// contradição interna óbvia, devolve true — o chamador descarta o exercício.
+// Só dispara para mismatches descarados — não tenta inferir contagens
+// quando o texto não inclui a divisão explícita.
+function _hasCountContradiction(text) {
+    if (!text || typeof text !== 'string') return false;
+    // Padrão: "<token-com-hífenes> → <num> sílaba(s)/letra(s)"
+    // Permite setas → -> => ou apenas ":" / "="
+    const re = /([\p{L}]+(?:[-‐][\p{L}]+){1,12})\s*(?:→|->|=>|:|=)\s*(\d{1,3})\s*(síl|sil|let)/giu;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const division = m[1];
+        const stated = parseInt(m[2], 10);
+        const kind = m[3].toLowerCase().slice(0, 3);
+        if (kind === 'síl' || kind === 'sil') {
+            const parts = division.split(/[-‐]/).filter(Boolean).length;
+            if (parts !== stated) return true;
+        } else if (kind === 'let') {
+            // Para letras conta caracteres alfabéticos (sem hífens)
+            const letters = division.replace(/[-‐]/g, '').length;
+            if (letters !== stated) return true;
+        }
+    }
+    return false;
+}
+
 // O prefixo "A " / "B) " / "C: " etc. costuma aparecer no início das opções
 // porque o modelo "ajuda" a numerar — mas o renderer já mostra o A/B/C/D
 // em círculo, ficando duplicado ("A   A caneca"). Só removemos se TODAS
@@ -1752,6 +1779,18 @@ E. Para problemas de matemática: REFAZ o cálculo passo a passo antes de gravar
 F. Para tf: a afirmação tem de ser inequivocamente V ou F. Se houver dúvida, troca para mc.
 G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". Em ortografia, se perguntas qual está bem escrita, 3 opções têm de ter erro ortográfico real (ex: "azeitona" certo / "asseitona" errado / "aceitona" errado / "azeytona" errado).
 H. As "opts" contêm APENAS o texto da opção — NUNCA prefixes com "A)", "A.", "A -", "A " ou similar. O sistema renderiza a letra automaticamente. Errado: "A caneca" / "B) ananás". Certo: "caneca" / "ananás".
+I. CONTAGEM (letras, sílabas, palavras, sons): se mostras uma divisão com hífen (ex-ce-ci-o-nal), o número de partes separadas por hífen TEM DE BATER com o número anunciado. CONTA os hífenes + 1 antes de escrever o número.
+   Exemplo PROIBIDO: "ex-ce-ci-o-nal → 4 sílabas" (são 5 partes!).
+   Exemplo BOM: "ex-ce-ci-o-nal → 5 sílabas" OU "ex-ce-cio-nal → 4 sílabas" (escolhe uma divisão e conta-a).
+   PALAVRAS COM CONTAGEM TÍPICA (PT-PT, divisão padrão dicionário Priberam):
+   - excecional: ex-ce-ci-o-nal (5 sílabas, 10 letras)
+   - nacional: na-ci-o-nal (4 sílabas)
+   - racional: ra-ci-o-nal (4 sílabas)
+   - função: fun-ção (2 sílabas)
+   - história: his-tó-ria (3 sílabas)
+   - borboleta: bor-bo-le-ta (4 sílabas)
+   - escola: es-co-la (3 sílabas)
+   Se não tens 100% de certeza da divisão, ESCOLHE outra palavra mais simples.
 
 EXEMPLO PROIBIDO (NÃO geres NUNCA exercícios assim):
 {"q":"Na frase 'Os alunos estudam para os testes', quantos verbos há?","opts":["1","2","3","4"],"ans_mc":1,"exp":"'Testes' é um substantivo, não um verbo, mas a resposta é 2 verbos: estudam, testes."}
@@ -1831,7 +1870,18 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
         if (raw.material) ex.material = isEnglish ? raw.material : _toPT(raw.material);
         if (raw.solution) ex.solution = isEnglish ? raw.solution : _toPT(raw.solution);
         return ex;
-    }).filter(e => e.q && e.type && (e.type === 'tf' ? typeof e.ans === 'boolean' : e.ans !== undefined));
+    }).filter(e => {
+        if (!e.q || !e.type) return false;
+        if (e.type === 'tf' ? typeof e.ans !== 'boolean' : e.ans === undefined) return false;
+        // Descarta exercícios com contradição interna na contagem
+        // (ex.: "ex-ce-ci-o-nal → 4 sílabas" — são 5 partes, não 4).
+        const fullText = [e.q, e.exp, e.solution, e.material, ...(Array.isArray(e.ans) ? e.ans : [])].join(' ');
+        if (_hasCountContradiction(fullText)) {
+            console.warn('MAX: descartado por contradição de contagem:', e.q?.slice(0, 60));
+            return false;
+        }
+        return true;
+    });
     if (items.length === 0) throw new Error('Nenhum exercício válido na resposta');
     const lessons = parsed.lessons || {};
     return { items, lessons, usage };
