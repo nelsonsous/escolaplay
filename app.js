@@ -1564,6 +1564,54 @@ function _hasCountContradiction(text) {
     return false;
 }
 
+// Distância de Levenshtein (edição) — usada para comparar opções ortográficas.
+function _levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a) return b.length;
+    if (!b) return a.length;
+    const m = a.length, n = b.length;
+    let prev = new Array(n + 1);
+    let curr = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+            curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+        }
+        [prev, curr] = [curr, prev];
+    }
+    return prev[n];
+}
+
+// Detecta perguntas de ortografia ("qual está escrita correctamente") onde
+// as 4 opções são PALAVRAS DIFERENTES, não variantes ortográficas — caso
+// real: A "transporte", B "exceção", C "ação", D "relação" (TODAS bem
+// escritas). Numa pergunta legítima de ortografia esperam-se variantes
+// próximas (ex.: azeitona/asseitona/aceitona/azeytona).
+function _isFakeOrthographyMC(ex) {
+    if (ex.type !== 'mc' || !Array.isArray(ex.opts) || ex.opts.length < 3) return false;
+    const isOrtoQ = /qual\s+(?:das|destas)?\s*palavras?\s+(?:est[áa]\s+)?(?:escrit[ao]s?|grafad[ao]s?)\s+(?:correc?tamente|bem)/i.test(ex.q || '');
+    if (!isOrtoQ) return false;
+    const opts = ex.opts.map(o => String(o).toLowerCase().trim());
+    let differentPairs = 0;
+    let totalPairs = 0;
+    for (let i = 0; i < opts.length; i++) {
+        for (let j = i + 1; j < opts.length; j++) {
+            const d = _levenshtein(opts[i], opts[j]);
+            const norm = d / Math.max(opts[i].length, opts[j].length, 1);
+            // Variantes ortográficas: 1-2 chars diferentes em palavra de
+            // 7-10 letras (~0.1-0.3). Palavras diferentes: >0.4.
+            if (norm > 0.4) differentPairs++;
+            totalPairs++;
+        }
+    }
+    if (totalPairs === 0) return false;
+    // Se 80%+ dos pares são "muito diferentes", são palavras distintas, não
+    // variantes ortográficas — pergunta inválida.
+    return differentPairs / totalPairs >= 0.8;
+}
+
 // Valida exercícios "Quantas destas palavras têm a letra X" — fazemos a
 // contagem real char-by-char e descartamos se a resposta não bater.
 // Caso real que apanhou: "exceção/ação/nação/relação têm letra ç" →
@@ -1825,7 +1873,14 @@ C. Em perguntas de identificação ("quantos X há na frase", "indica os X"), VE
 D. Para classes de palavras: VERBO = ação/estado (estudar, ser, ter, correr); SUBSTANTIVO = nome de coisa/ser/conceito (testes, alunos, turma); ADJECTIVO = qualifica (bonito, alto). PALAVRAS QUE TERMINAM EM "-es" PODEM SER PLURAIS DE SUBSTANTIVO (testes, peixes, lápis) — não são verbos só pela terminação.
 E. Para problemas de matemática: REFAZ o cálculo passo a passo antes de gravar o ans_fill. Se 3+4=7, ans_fill="7", não "8".
 F. Para tf: a afirmação tem de ser inequivocamente V ou F. Se houver dúvida, troca para mc.
-G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". Em ortografia, se perguntas qual está bem escrita, 3 opções têm de ter erro ortográfico real (ex: "azeitona" certo / "asseitona" errado / "aceitona" errado / "azeytona" errado). PROIBIDO duas opções IGUAIS (ex.: A "transporte", B "transporte" — duas certas, viola "exactamente 1"). VERIFICA antes de fechar: as 4 strings de opts são DIFERENTES entre si.
+G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". PROIBIDO duas opções IGUAIS (ex.: A "transporte", B "transporte"). VERIFICA antes de fechar: as 4 strings de opts são DIFERENTES entre si.
+
+G3. ORTOGRAFIA — "qual está escrita correctamente": as 4 opções TÊM de ser VARIANTES DA MESMA PALAVRA (1 certa + 3 com erros ortográficos diferentes). PROIBIDO listar 4 palavras diferentes todas correctas.
+   ❌ ERRADO: A "transporte" / B "exceção" / C "ação" / D "relação" — são 4 palavras diferentes, TODAS bem escritas. Não há resposta errada.
+   ✅ CERTO: A "exceção" / B "esceção" / C "excessão" / D "exceição" — variantes da mesma palavra, 1 certa + 3 erradas.
+   ✅ CERTO (AO 1990): A "ato" / B "acto" / C "atto" / D "actto" — testa a queda das consoantes mudas.
+   ✅ CERTO: A "azeitona" / B "asseitona" / C "aceitona" / D "azeytona".
+   REGRA: as 4 opções devem partilhar pelo menos 60% dos caracteres em comum (variantes próximas).
 G2. Em mc com listas ("quais são os X", "indica os X da frase", "quantos X há e quais"), a opção correcta tem de listar TODOS os X da frase — EXAUSTIVA. Se a frase tem 3 determinantes (A, minha, a), a opção certa lista os 3 — não vale "minha, a" porque omite o "A".
    Exemplo PROIBIDO: pergunta "Quais são os determinantes em 'A minha professora explicou a lição com paciência'?", opções "A,a"/"minha,a"/"explicou,a"/"paciência,a" — TODAS incompletas (faltam pelo menos um determinante). Reformula: ou inclui uma opção "A, minha, a", ou muda a frase para ter só 2 determinantes em vez de 3, ou usa fill em vez de mc.
    ANTES DE FECHAR um mc deste tipo: identifica TODOS os X da frase, e confirma que a opção marcada como correcta os contém TODOS.
@@ -1953,6 +2008,12 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
                 }
                 seen.add(key);
             }
+        }
+        // Descarta ortografia "qual está correctamente escrita" com 4
+        // palavras diferentes (todas reais, sem opção errada).
+        if (_isFakeOrthographyMC(e)) {
+            console.warn('MAX: descartado — ortografia com palavras todas diferentes:', e.q?.slice(0, 60));
+            return false;
         }
         return true;
     });
