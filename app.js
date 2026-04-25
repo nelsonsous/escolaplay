@@ -260,6 +260,21 @@ function _isTrivialSvg(svg) {
     const tags = (svg.match(/<(rect|circle|line|polygon|polyline|path|text|g)\b/gi) || []).length;
     return tags < 2;
 }
+// SVG com muito texto longo cabe mal no viewBox 220x160 (o texto não quebra
+// linha e é cortado à direita). Para análise gramatical/sintáctica, a IA
+// devia usar <table> ou texto simples — não SVG. Descartamos estes.
+function _isTextHeavySvg(svg) {
+    if (typeof svg !== 'string') return false;
+    const texts = svg.match(/<text\b[^>]*>([\s\S]*?)<\/text>/gi) || [];
+    if (texts.length === 0) return false;
+    const shapes = (svg.match(/<(rect|circle|line|polygon|polyline|path|ellipse)\b/gi) || []).length;
+    // Se há mais texts do que formas E pelo menos um texto longo (>30 chars)
+    const longText = texts.some(t => {
+        const inner = t.replace(/<[^>]+>/g, '').trim();
+        return inner.length > 30;
+    });
+    return texts.length > shapes && longText;
+}
 function migrateMaxExercise(e) {
     if (!e) return e;
     if (typeof e.q === 'string') e.q = brToPt(e.q);
@@ -269,7 +284,7 @@ function migrateMaxExercise(e) {
     if (typeof e.solution === 'string') e.solution = brToPt(e.solution);
     if (Array.isArray(e.opts)) e.opts = e.opts.map(o => typeof o === 'string' ? brToPt(o) : o);
     if (Array.isArray(e.ans)) e.ans = e.ans.map(a => typeof a === 'string' ? brToPt(a) : a);
-    if (e.svg && _isTrivialSvg(e.svg)) delete e.svg;
+    if (e.svg && (_isTrivialSvg(e.svg) || _isTextHeavySvg(e.svg))) delete e.svg;
     return e;
 }
 
@@ -1807,7 +1822,9 @@ TIPOS DISPONÍVEIS:
 - "tf": verdadeiro ou falso (afirmação completa e precisa)
 - "fill": completar frase com lacuna ___ (aceita variantes ortográficas em ans_fill)
 - "problem": problema com contexto real; "material" = fórmula/regra; "solution" = resolução passo a passo numerada
-- "passage": texto informativo de 3-5 frases + pergunta de compreensão/aplicação; para Matemática e Ciências incluir obrigatoriamente "svg" (SVG 220x160, viewBox="0 0 220 160", com figuras geométricas, gráficos ou diagramas) ou "table" (HTML <table> com cabeçalhos)
+- "passage": texto informativo de 3-5 frases + pergunta de compreensão/aplicação. Para visual:
+   - SVG (campo "svg", viewBox="0 0 220 160", máx. 220 unidades de largura): APENAS para Matemática (figuras geométricas: triângulos, círculos, polígonos, ângulos) e Ciências (diagramas, esquemas científicos, gráficos de barras). PROIBIDO para Português, História, Inglês ou qualquer análise textual/gramatical. NUNCA metas frases longas dentro de <text> SVG — o texto NÃO QUEBRA linha em SVG e fica cortado no viewBox de 220px. Se uma <text> tem mais de 25 caracteres, NÃO uses SVG.
+   - "table" (HTML <table>): para análise sintáctica, classes de palavras, comparação de termos, tabelas de dados. Usa <th>/<td> normais. Aqui podes pôr texto longo — a tabela quebra linha no telemóvel.
 
 LIÇÕES: para cada tópico, escreve uma mini-lição de 2-3 frases no campo "lessons" que explique o conceito principal de forma simples.
 
@@ -1868,7 +1885,7 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
             ex.ans = isEnglish ? ansArr : ansArr.map(a => _toPT(String(a)));
             if (raw.table) ex.table = raw.table;
             // Descartar SVGs triviais (apenas um quadrado colorido sem geometria real)
-            if (raw.svg && !_isTrivialSvg(raw.svg)) ex.svg = raw.svg;
+            if (raw.svg && !_isTrivialSvg(raw.svg) && !_isTextHeavySvg(raw.svg)) ex.svg = raw.svg;
         }
         if (raw.material) ex.material = isEnglish ? raw.material : _toPT(raw.material);
         if (raw.solution) ex.solution = isEnglish ? raw.solution : _toPT(raw.solution);
