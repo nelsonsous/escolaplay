@@ -905,6 +905,7 @@ body {
 .feedback-exp { font-size: 0.85rem; color: var(--text-light); text-align: center; margin-bottom: 14px; }
 .feedback-correct { color: var(--success); }
 .feedback-wrong { color: var(--danger); }
+.feedback-partial { color: #d97706; }
 
 /* ===== MODAL ===== */
 .modal {

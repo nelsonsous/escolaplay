@@ -1778,6 +1778,9 @@ D. Para classes de palavras: VERBO = ação/estado (estudar, ser, ter, correr); 
 E. Para problemas de matemática: REFAZ o cálculo passo a passo antes de gravar o ans_fill. Se 3+4=7, ans_fill="7", não "8".
 F. Para tf: a afirmação tem de ser inequivocamente V ou F. Se houver dúvida, troca para mc.
 G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". Em ortografia, se perguntas qual está bem escrita, 3 opções têm de ter erro ortográfico real (ex: "azeitona" certo / "asseitona" errado / "aceitona" errado / "azeytona" errado).
+G2. Em mc com listas ("quais são os X", "indica os X da frase", "quantos X há e quais"), a opção correcta tem de listar TODOS os X da frase — EXAUSTIVA. Se a frase tem 3 determinantes (A, minha, a), a opção certa lista os 3 — não vale "minha, a" porque omite o "A".
+   Exemplo PROIBIDO: pergunta "Quais são os determinantes em 'A minha professora explicou a lição com paciência'?", opções "A,a"/"minha,a"/"explicou,a"/"paciência,a" — TODAS incompletas (faltam pelo menos um determinante). Reformula: ou inclui uma opção "A, minha, a", ou muda a frase para ter só 2 determinantes em vez de 3, ou usa fill em vez de mc.
+   ANTES DE FECHAR um mc deste tipo: identifica TODOS os X da frase, e confirma que a opção marcada como correcta os contém TODOS.
 H. As "opts" contêm APENAS o texto da opção — NUNCA prefixes com "A)", "A.", "A -", "A " ou similar. O sistema renderiza a letra automaticamente. Errado: "A caneca" / "B) ananás". Certo: "caneca" / "ananás".
 I. CONTAGEM (letras, sílabas, palavras, sons): se mostras uma divisão com hífen (ex-ce-ci-o-nal), o número de partes separadas por hífen TEM DE BATER com o número anunciado. CONTA os hífenes + 1 antes de escrever o número.
    Exemplo PROIBIDO: "ex-ce-ci-o-nal → 4 sílabas" (são 5 partes!).
@@ -2692,26 +2695,62 @@ function matchPickRight(j) {
 }
 
 // ========== VALIDAÇÃO IA ==========
+// Devolve { status: 'correct'|'partial'|'wrong', missing?: string }.
+// "partial" = resposta tem parte certa mas é incompleta — usado em
+// perguntas com vários itens ("agrupa", "indica todos", "quantos X há
+// e quais"). O missing descreve o que ainda falta para o aluno melhorar
+// na próxima.
 async function aiValidateAnswer(exercise, studentAnswer) {
     const n = normalize(studentAnswer);
     if ((exercise.ans || []).some(a => {
         const na = normalize(a);
         return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
-    })) return true;
+    })) return { status: 'correct' };
     const cacheKey = `aival_${exercise.id}_${n.slice(0, 40)}`;
     const cached = sessionStorage.getItem(cacheKey);
-    if (cached !== null) return cached === '1';
+    if (cached !== null) {
+        try { return JSON.parse(cached); }
+        catch (_) { return { status: cached === '1' ? 'correct' : 'wrong' }; }
+    }
     const correctAnswers = (exercise.ans || []).join(' ou ');
     const langNote = exercise.s === 'ingles'
-        ? ' The answer must be in English — Portuguese words are NOT accepted as correct even if they mean the same thing.'
+        ? '\nThe answer must be in English — Portuguese words are NOT accepted as correct even if they mean the same thing.'
         : '';
-    const prompt = `Pergunta: "${exercise.q}"\nResposta correta: "${correctAnswers}"\nResposta do aluno: "${studentAnswer}"\nO aluno está correto? Aceita variações de escrita, abreviaturas, formas equivalentes e respostas parciais onde a palavra-chave está correcta (ex: "atlântico" é válido para "Oceano Atlântico"). Usa Português de Portugal (não brasileiro).${langNote} Responde APENAS com JSON: {"ok":true} ou {"ok":false}`;
+    const prompt = `És um(a) professor(a) a corrigir uma resposta de aluno em PORTUGUÊS EUROPEU.
+
+PERGUNTA: "${exercise.q}"
+RESPOSTA ESPERADA: "${correctAnswers}"
+RESPOSTA DO ALUNO: "${studentAnswer}"
+
+Decide entre 3 status:
+- "correct": resposta certa. Aceita variações de escrita, abreviaturas, formas equivalentes (ex.: "atlântico" vale para "Oceano Atlântico").
+- "partial": resposta TEM parte certa MAS está INCOMPLETA. Usa SEMPRE quando a pergunta pede VÁRIOS itens ("agrupa", "indica TODOS", "lista", "quais são", "quantos X há e quais") e o aluno só identificou ALGUNS. Em "missing" diz o que falta (curto, em PT-PT, máx. 12 palavras).
+- "wrong": resposta factualmente errada ou não responde à pergunta.
+
+Exemplo: pergunta "Agrupa correr/bonito/livro/rapidamente por classes"; aluno escreve "bonito é adjetivo" → status "partial", missing "falta classificar correr (verbo), livro (substantivo), rapidamente (advérbio)".${langNote}
+
+Responde APENAS com JSON, um destes formatos:
+{"status":"correct"}
+{"status":"partial","missing":"<o que falta>"}
+{"status":"wrong"}`;
     try {
-        const { text } = await callClaudeAPI(prompt, 80);
-        const correct = /"ok"\s*:\s*true/.test(text);
-        sessionStorage.setItem(cacheKey, correct ? '1' : '0');
-        return correct;
-    } catch(e) { return false; }
+        const { text } = await callClaudeAPI(prompt, 220);
+        const m = text.match(/\{[\s\S]*\}/);
+        let result = { status: 'wrong' };
+        if (m) {
+            try {
+                const parsed = JSON.parse(m[0]);
+                if (parsed && ['correct', 'partial', 'wrong'].includes(parsed.status)) {
+                    result = { status: parsed.status };
+                    if (parsed.status === 'partial' && typeof parsed.missing === 'string') {
+                        result.missing = parsed.missing.slice(0, 200);
+                    }
+                }
+            } catch (_) {}
+        }
+        sessionStorage.setItem(cacheKey, JSON.stringify(result));
+        return result;
+    } catch(e) { return { status: 'wrong' }; }
 }
 
 // ========== SUBMIT ==========
@@ -2738,12 +2777,17 @@ async function submitAnswer() {
             const na = normalize(a);
             return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
         });
-        // Validação IA como fallback — só se não acertou no matching e há chave API
+        // Validação IA como fallback — só se não acertou no matching e há chave API.
+        // Pode devolver "partial" (resposta tem parte certa mas falta completar).
         if (!isCorrect && hasAIKey()) {
             const btn = document.getElementById('submit-btn');
             if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
-            isCorrect = await aiValidateAnswer(e, val);
+            const r = await aiValidateAnswer(e, val);
             if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
+            isCorrect = r.status === 'correct';
+            if (r.status === 'partial') {
+                currentSession._partial = { missing: r.missing || '' };
+            }
         }
     } else if (e.type === 'order') {
         isCorrect = orderState.every((it, i) => it === e.items[i]);
@@ -3009,17 +3053,28 @@ function showEncouragement() {
 }
 
 function showFeedback(e, isCorrect) {
+    // Detecta resposta parcial (só fill-in via IA pode marcar — ver submitAnswer)
+    const partial = (!isCorrect && currentSession?._partial) || null;
+    if (currentSession) currentSession._partial = null; // consumido aqui
     if (isCorrect) playCorrectSound(); else playWrongSound();
     // Esconder botão IA inline (a pista só faz sentido ANTES de responder)
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     if (profWrap) profWrap.style.display = 'none';
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
-    document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : '\u{1F914}';
+    document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : (partial ? '\u{1F914}' : '\u{1F914}');
     const txt = document.getElementById('feedback-text');
-    txt.textContent = isCorrect ? 'Certo!' : 'Ainda não…';
-    txt.className = 'feedback-text ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
+    if (partial) {
+        txt.textContent = 'Incompleto…';
+        txt.className = 'feedback-text feedback-partial';
+    } else {
+        txt.textContent = isCorrect ? 'Certo!' : 'Ainda não…';
+        txt.className = 'feedback-text ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
+    }
     let expParts = [];
+    if (partial && partial.missing) {
+        expParts.push(`Falta: ${partial.missing}.`);
+    }
     if (!isCorrect) {
         // Mostra sempre a resposta certa — pode repetir no final da sessão
         if (e.type === 'mc') expParts.push(`Resposta certa: ${e.opts[e.ans]}.`);
