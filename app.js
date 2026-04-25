@@ -1522,6 +1522,26 @@ async function _callAIProvider(provider, model, prompt, maxTokens, wantJson, key
 // respostas curtas mas geram exercícios com erros/incoerências.
 const _STRONG_MODELS = new Set(['llama-3.3-70b-versatile', 'mistral-small-latest']);
 
+// O prefixo "A " / "B) " / "C: " etc. costuma aparecer no início das opções
+// porque o modelo "ajuda" a numerar — mas o renderer já mostra o A/B/C/D
+// em círculo, ficando duplicado ("A   A caneca"). Só removemos se TODAS
+// as opções tiverem o padrão em sequência (A→B→C→D…) — assim evitamos
+// partir opções legítimas como "A bola" (artigo + nome) onde a sequência
+// não bateria certo (ia ser A,A,A,A em vez de A,B,C,D).
+function _stripLetterPrefixesFromOptions(opts) {
+    if (!Array.isArray(opts) || opts.length < 2) return opts;
+    const letters = ['A','B','C','D','E','F'];
+    const allMatch = opts.every((o, i) => {
+        if (typeof o !== 'string') return false;
+        const expected = letters[i];
+        if (!expected) return false;
+        const re = new RegExp('^\\s*' + expected + '\\s*([\\).:\\-–—]\\s*|\\s+)\\S', 'i');
+        return re.test(o);
+    });
+    if (!allMatch) return opts;
+    return opts.map(o => o.replace(/^\s*[A-Fa-f]\s*([\).:\-–—]\s*|\s+)/, '').trim());
+}
+
 // Há pelo menos um provedor de IA configurado (Groq ou Mistral)?
 function hasAIKey() {
     return !!(state?.max?.apiKey || state?.max?.mistralKey);
@@ -1730,6 +1750,8 @@ C. Em perguntas de identificação ("quantos X há na frase", "indica os X"), VE
 D. Para classes de palavras: VERBO = ação/estado (estudar, ser, ter, correr); SUBSTANTIVO = nome de coisa/ser/conceito (testes, alunos, turma); ADJECTIVO = qualifica (bonito, alto). PALAVRAS QUE TERMINAM EM "-es" PODEM SER PLURAIS DE SUBSTANTIVO (testes, peixes, lápis) — não são verbos só pela terminação.
 E. Para problemas de matemática: REFAZ o cálculo passo a passo antes de gravar o ans_fill. Se 3+4=7, ans_fill="7", não "8".
 F. Para tf: a afirmação tem de ser inequivocamente V ou F. Se houver dúvida, troca para mc.
+G. Em mc, EXACTAMENTE 1 das opções é correcta — as outras 3 são CLARAMENTE incorrectas. NUNCA "todas estão certas" nem "duas estão certas". Em ortografia, se perguntas qual está bem escrita, 3 opções têm de ter erro ortográfico real (ex: "azeitona" certo / "asseitona" errado / "aceitona" errado / "azeytona" errado).
+H. As "opts" contêm APENAS o texto da opção — NUNCA prefixes com "A)", "A.", "A -", "A " ou similar. O sistema renderiza a letra automaticamente. Errado: "A caneca" / "B) ananás". Certo: "caneca" / "ananás".
 
 EXEMPLO PROIBIDO (NÃO geres NUNCA exercícios assim):
 {"q":"Na frase 'Os alunos estudam para os testes', quantos verbos há?","opts":["1","2","3","4"],"ans_mc":1,"exp":"'Testes' é um substantivo, não um verbo, mas a resposta é 2 verbos: estudam, testes."}
@@ -1789,7 +1811,8 @@ Responde APENAS com JSON válido (sem markdown, sem texto fora do JSON):
             exp: isEnglish ? (raw.exp || '') : _toPT(raw.exp || '')
         };
         if (raw.type === 'mc') {
-            ex.opts = (raw.opts || []).map(o => isEnglish ? o : _toPT(o));
+            const cleaned = (raw.opts || []).map(o => isEnglish ? o : _toPT(o));
+            ex.opts = _stripLetterPrefixesFromOptions(cleaned);
             ex.ans = raw.ans_mc;
         }
         else if (raw.type === 'tf') { ex.ans = raw.ans_tf; }
