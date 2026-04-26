@@ -2718,6 +2718,17 @@ function renderQuestion() {
     tag.textContent = sub.name;
     tag.style.background = sub.color;
     document.getElementById('ex-topic').textContent = e.t;
+    // Indicador de dificuldade (3 pontinhos coloridos)
+    const diffEl = document.getElementById('ex-difficulty');
+    if (diffEl) {
+        const d = Math.max(1, Math.min(3, e.diff || 1));
+        const labels = { 1: 'Fácil', 2: 'Médio', 3: 'Difícil' };
+        diffEl.className = 'exercise-difficulty diff-' + d;
+        diffEl.innerHTML = `${labels[d]}` +
+            ` <span class="diff-dot ${d>=1?'on':''}"></span>` +
+            `<span class="diff-dot ${d>=2?'on':''}"></span>` +
+            `<span class="diff-dot ${d>=3?'on':''}"></span>`;
+    }
     // Suporte a passagem de texto / tabela / SVG acima da pergunta
     const qEl = document.getElementById('ex-question');
     let qHtml = '';

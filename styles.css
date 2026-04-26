@@ -737,6 +737,13 @@ body {
 }
 
 .exercise-body { flex: 1; padding: 24px 18px; }
+.exercise-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
 .exercise-subject-tag {
     display: inline-block;
     padding: 6px 14px;
@@ -744,10 +751,39 @@ body {
     font-size: 0.74rem;
     font-weight: 800;
     color: #fff;
-    margin-bottom: 10px;
     letter-spacing: 0.02em;
     box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
+/* Indicador de dificuldade (3 pontinhos) */
+.exercise-difficulty {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+.exercise-difficulty .diff-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    display: inline-block;
+}
+/* Cores por nível: verde (fácil), amarelo (médio), vermelho (difícil) */
+.exercise-difficulty.diff-1 { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.exercise-difficulty.diff-1 .diff-dot.on { background: #10b981; }
+.exercise-difficulty.diff-2 { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+.exercise-difficulty.diff-2 .diff-dot.on { background: #f59e0b; }
+.exercise-difficulty.diff-3 { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.exercise-difficulty.diff-3 .diff-dot.on { background: #ef4444; }
 .exercise-topic {
     font-size: 0.78rem;
     color: var(--text-light);
