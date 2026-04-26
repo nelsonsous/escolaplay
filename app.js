@@ -60,7 +60,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -562,10 +562,11 @@ function _flashStreakChip() {
 
 // ========== HOME ==========
 function renderHome() {
-    document.getElementById('mini-streak').textContent = state.streak.days;
-    // Atualiza emoji + label do mini-card de streak
     const days = state.streak.days || 0;
     const { tier, emoji } = _streakTier(days);
+    // Mini-card antigo (já não está no HTML, mas mantemos null-safe caso reapareça)
+    const miniStreak = document.getElementById('mini-streak');
+    if (miniStreak) miniStreak.textContent = days;
     const miniEmoji = document.getElementById('mini-streak-emoji');
     if (miniEmoji) miniEmoji.textContent = emoji;
     const miniCard = document.getElementById('mini-card-streak');
@@ -5493,4 +5494,43 @@ window.addEventListener('DOMContentLoaded', () => {
     updateAll();
     // Detectar se URL tem ?duel=... e abrir intro do duelo recebido
     if (typeof _checkIncomingDuel === 'function') _checkIncomingDuel();
+    // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
+    setTimeout(_maybeShowStreakGuilt, 800);
 });
+
+// ============ STREAK GUILT-TRIP ============
+function _maybeShowStreakGuilt() {
+    if (!state || !state.streak) return;
+    const today = todayStr();
+    const last = state.streak.lastDate;
+    const days = state.streak.days || 0;
+    if (days < 1) return;                     // sem ofensiva ativa, não pressiona
+    if (last === today) return;               // já praticou hoje
+    const gap = daysBetween(last, today);
+    if (gap < 1) return;                      // ainda dentro do dia
+    if (gap > 2) return;                      // já está perdida — não vale culpar
+    if (state.lastGuiltDate === today) return; // já mostrou hoje
+    // Mostra
+    const modal = document.getElementById('streak-guilt-modal');
+    if (!modal) return;
+    const title = document.getElementById('streak-guilt-title');
+    const sub = document.getElementById('streak-guilt-sub');
+    if (gap === 1) {
+        if (title) title.textContent = `${days} ${days === 1 ? 'dia' : 'dias'} de ofensiva em risco!`;
+        if (sub) sub.textContent = 'Faz só 1 teste hoje para a manteres viva 🔥';
+    } else { // gap === 2 — última hipótese
+        if (title) title.textContent = `Última hipótese para a tua ofensiva!`;
+        if (sub) sub.textContent = `Tens ${days} ${days === 1 ? 'dia' : 'dias'} acumulados. Se não fizeres um teste hoje, perdes tudo 💔`;
+    }
+    modal.style.display = 'flex';
+    state.lastGuiltDate = today;
+    saveState();
+}
+
+function closeStreakGuilt(goPractice) {
+    const modal = document.getElementById('streak-guilt-modal');
+    if (modal) modal.style.display = 'none';
+    if (goPractice && typeof startDailyChallenge === 'function') {
+        startDailyChallenge();
+    }
+}
