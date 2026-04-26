@@ -572,6 +572,29 @@ function renderHome() {
         else if (days === 1) miniLabel.textContent = 'dia (continua amanhã!)';
         else miniLabel.textContent = 'dias seguidos';
     }
+    // === Streak HERO (estilo Duolingo) ===
+    const hero = document.getElementById('streak-hero');
+    if (hero) {
+        hero.classList.remove('tier-1','tier-2','tier-3','tier-4','zero');
+        if (tier > 0) hero.classList.add('tier-' + tier);
+        if (days === 0) hero.classList.add('zero');
+        const heroEmoji = document.getElementById('streak-hero-emoji');
+        const heroNum = document.getElementById('streak-hero-number');
+        const heroTitle = document.getElementById('streak-hero-title');
+        const heroSub = document.getElementById('streak-hero-sub');
+        if (heroEmoji) heroEmoji.textContent = emoji;
+        if (heroNum) heroNum.textContent = days;
+        if (heroTitle) heroTitle.textContent = days === 1 ? 'dia de ofensiva' : 'dias de ofensiva';
+        if (heroSub) {
+            if (days === 0) heroSub.textContent = 'Faz um teste hoje para começares! 💪';
+            else if (days < 3) heroSub.textContent = 'Boa! Volta amanhã para não perderes a chama 🔥';
+            else if (days < 7) heroSub.textContent = `Estás em chamas! Faltam ${7-days} dias para o troféu 🏆`;
+            else if (days < 14) heroSub.textContent = `Semana perfeita! Faltam ${14-days} para a estrela ⭐`;
+            else if (days < 30) heroSub.textContent = `Incrível! Faltam ${30-days} dias para a coroa 👑`;
+            else heroSub.textContent = 'LENDÁRIA! 👑 Continua assim!';
+        }
+    }
+
     document.getElementById('mini-xp').textContent = state.xp;
     document.getElementById('mini-correct').textContent = totalCorrect(state);
     document.getElementById('mini-badges').textContent = state.badges.length;
