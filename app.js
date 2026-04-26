@@ -594,12 +594,12 @@ function renderHome() {
         if (heroNum) heroNum.textContent = days;
         if (heroTitle) heroTitle.textContent = days === 1 ? 'dia de ofensiva' : 'dias de ofensiva';
         if (heroSub) {
-            if (days === 0) heroSub.textContent = 'Faz um teste hoje para começares! 💪';
-            else if (days < 3) heroSub.textContent = 'Boa! Volta amanhã para não perderes a chama 🔥';
-            else if (days < 7) heroSub.textContent = `Estás em chamas! Faltam ${7-days} dias para o troféu 🏆`;
-            else if (days < 14) heroSub.textContent = `Semana perfeita! Faltam ${14-days} para a estrela ⭐`;
-            else if (days < 30) heroSub.textContent = `Incrível! Faltam ${30-days} dias para a coroa 👑`;
-            else heroSub.textContent = 'LENDÁRIA! 👑 Continua assim!';
+            if (days === 0) heroSub.textContent = 'Faz um teste hoje! 💪';
+            else if (days < 3) heroSub.textContent = 'Volta amanhã para manter a chama 🔥';
+            else if (days < 7) heroSub.textContent = `Faltam ${7-days} para o troféu 🏆`;
+            else if (days < 14) heroSub.textContent = `Faltam ${14-days} para a estrela ⭐`;
+            else if (days < 30) heroSub.textContent = `Faltam ${30-days} para a coroa 👑`;
+            else heroSub.textContent = 'LENDÁRIA! 👑';
         }
     }
 

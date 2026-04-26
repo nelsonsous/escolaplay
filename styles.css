@@ -103,13 +103,13 @@ body {
 
 /* ============ STREAK HERO (estilo Duolingo) ============ */
 .streak-hero {
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center; gap: 12px;
     background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
     border: 2px solid #fed7aa;
-    border-radius: 20px;
-    padding: 18px 20px;
-    margin-bottom: 14px;
-    box-shadow: 0 4px 14px rgba(251,146,60,0.18);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 3px 10px rgba(251,146,60,0.15);
     position: relative; overflow: hidden;
 }
 .streak-hero.tier-1 { border-color: #fb923c; background: linear-gradient(135deg, #ffedd5, #fed7aa); }
@@ -118,7 +118,7 @@ body {
 .streak-hero.tier-4 { border-color: #ec4899; background: linear-gradient(135deg, #fbbf24, #ec4899, #a855f7); box-shadow: 0 10px 26px rgba(168,85,247,0.45); color: #fff; }
 .streak-hero-flame {
     position: relative; flex-shrink: 0;
-    width: 72px; height: 72px;
+    width: 52px; height: 52px;
     display: flex; align-items: center; justify-content: center;
 }
 .streak-hero-flame-bg {
@@ -127,27 +127,30 @@ body {
     animation: streakHeroPulse 2.4s ease-in-out infinite;
 }
 .streak-hero-emoji {
-    position: relative; font-size: 56px; line-height: 1;
-    filter: drop-shadow(0 2px 6px rgba(234,88,12,0.4));
+    position: relative; font-size: 40px; line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(234,88,12,0.35));
     animation: streakHeroBounce 2s ease-in-out infinite;
+    transform-origin: 50% 80%;
 }
 .streak-hero-body { flex: 1; min-width: 0; }
+.streak-hero-body { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .streak-hero-number {
-    font-size: 48px; font-weight: 900; line-height: 1;
+    font-size: 32px; font-weight: 900; line-height: 1;
     color: #f97316;
     text-shadow: 0 1px 0 rgba(255,255,255,0.4);
     letter-spacing: -0.02em;
 }
+.streak-hero-text { display: flex; flex-direction: column; min-width: 0; }
 .streak-hero.tier-3 .streak-hero-number,
 .streak-hero.tier-4 .streak-hero-number { color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.25); }
 .streak-hero-title {
-    font-size: 14px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.04em; color: #9a3412; margin-top: 2px;
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #9a3412; line-height: 1.1;
 }
 .streak-hero.tier-3 .streak-hero-title,
 .streak-hero.tier-4 .streak-hero-title { color: #fff; }
 .streak-hero-sub {
-    font-size: 13px; color: #7c2d12; margin-top: 4px; font-weight: 600;
+    font-size: 12px; color: #7c2d12; margin-top: 2px; font-weight: 600; line-height: 1.25;
 }
 .streak-hero.tier-3 .streak-hero-sub,
 .streak-hero.tier-4 .streak-hero-sub { color: rgba(255,255,255,0.9); }
@@ -161,7 +164,11 @@ body {
     75% { transform: translateY(-3px) rotate(3deg); }
 }
 .streak-hero.zero { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(15,23,42,0.06); }
-.streak-hero.zero .streak-hero-emoji { animation: none; filter: grayscale(1) opacity(0.55); }
+.streak-hero.zero .streak-hero-emoji { animation: streakHeroSway 3.2s ease-in-out infinite; filter: grayscale(1) opacity(0.55); }
+@keyframes streakHeroSway {
+    0%, 100% { transform: rotate(-4deg) translateY(0); }
+    50% { transform: rotate(4deg) translateY(-2px); }
+}
 .streak-hero.zero .streak-hero-flame-bg { animation: none; opacity: 0; }
 .streak-hero.zero .streak-hero-number { color: #94a3b8; }
 .streak-hero.zero .streak-hero-title { color: #64748b; }
