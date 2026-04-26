@@ -2016,3 +2016,55 @@ body {
     font-size: 0.88rem;
     display: flex; align-items: center; gap: 6px;
 }
+
+/* ============================================================
+   Caixas especiais nas lições — exemplo de exame & erros
+   ============================================================ */
+.lesson-example-box {
+    margin: 14px 0;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #fef9c3 0%, #fef3c7 100%);
+    border-left: 4px solid #f59e0b;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+}
+.lesson-example-label {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #92400e;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.lesson-example-body {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: #78350f;
+}
+.lesson-example-body strong { color: #78350f; font-weight: 700; }
+
+.lesson-error-box {
+    margin: 14px 0;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-left: 4px solid #dc2626;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.12);
+}
+.lesson-error-label {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #991b1b;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.lesson-error-body {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: #7f1d1d;
+}
+.lesson-error-body strong { color: #7f1d1d; font-weight: 700; }

@@ -13,10 +13,61 @@ const SUBJECTS_2 = {
 };
 
 const CURRICULUM_2 = {
-    portugues: ['Vogais e consoantes','Sílabas','Ditongos','Sinónimos','Antónimos','Família de palavras','Tipos de frase','Singular e plural','Verbos no presente'],
-    matematica: ['Números até 100','Dezenas e unidades','Adição até 100','Subtração até 100','Tabuada do 2','Tabuada do 5','Tabuada do 10','Sólidos geométricos','Figuras planas','Medir tempo','Dinheiro (€)'],
-    estudo_meio: ['O meu corpo','A minha família','A escola','Animais','Plantas','Estações do ano','Os sentidos','Profissões','Portugal'],
-    ingles: ['Cores','Números','Animais','Família','Cumprimentos']
+    portugues: [
+        // Sons básicos
+        'Vogais e consoantes',
+        'Sílabas',
+        'Ditongos',
+        // Significado
+        'Sinónimos',
+        'Antónimos',
+        'Família de palavras',
+        // Frase
+        'Tipos de frase',
+        'Singular e plural',
+        'Verbos no presente'
+    ],
+    matematica: [
+        // Números
+        'Dezenas e unidades',
+        'Números até 100',
+        // Operações
+        'Adição até 100',
+        'Subtração até 100',
+        // Tabuadas
+        'Tabuada do 2',
+        'Tabuada do 5',
+        'Tabuada do 10',
+        // Geometria
+        'Figuras planas',
+        'Sólidos geométricos',
+        // Vida real
+        'Medir tempo',
+        'Dinheiro (€)'
+    ],
+    estudo_meio: [
+        // Eu e a minha vida
+        'O meu corpo',
+        'Os sentidos',
+        'A minha família',
+        'A escola',
+        // Seres vivos
+        'Animais',
+        'Plantas',
+        // Ambiente
+        'Estações do ano',
+        // Sociedade
+        'Profissões',
+        'Portugal'
+    ],
+    ingles: [
+        // Vocabulário básico (do mais usado para o menos)
+        'Cumprimentos',
+        'Números',
+        'Cores',
+        'Família',
+        'Animais'
+    ]
 };
 
 // Períodos por tópico (1, 2 ou 3) — ano lectivo dividido em 3 períodos
@@ -906,16 +957,19 @@ const EXERCISES_5 = [
 // Ordem aproximada dos manuais do 5.º ano (Porto Editora MX 5 para Matemática).
 const CURRICULUM_5 = {
     matematica: [
+        // 1.º Período — Números e operações
         'Números naturais',
+        'Operações',
         'Divisibilidade',
         'Números primos',
         'MMC/MDC',
         'Potências',
-        'Operações',
+        // 2.º Período — Números racionais
         'Frações',
         'Dízimas',
         'Percentagens',
         'Sequências',
+        // 3.º Período — Geometria e Estatística
         'Ângulos',
         'Retas',
         'Triângulos',
@@ -926,16 +980,21 @@ const CURRICULUM_5 = {
         'Estatística'
     ],
     portugues: [
-        'Ortografia',
+        // Compreensão de textos primeiro (ler)
+        'Tipos de texto',
+        // Gramática — palavras (classes)
         'Classes de palavras',
         'Determinantes',
         'Pronomes',
         'Verbos',
+        // Sintaxe (frase)
         'Funções sintáticas',
-        'Pontuação',
-        'Plurais',
+        // Recursos literários
         'Recursos expressivos',
-        'Tipos de texto'
+        // Escrita correcta
+        'Ortografia',
+        'Pontuação',
+        'Plurais'
     ],
     ingles: [
         'Greetings',

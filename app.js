@@ -4960,10 +4960,29 @@ function openLessonByKey(key) {
     if (!lesson) {
         body.innerHTML = `<p style="color:var(--text-light)">Ainda não há uma explicação detalhada para este tópico. Tenta resolver o exercício — a explicação aparece depois de responderes.</p>`;
     } else {
-        // Markdown-lite: **bold** -> <strong>; linebreaks preserved
+        // Markdown-lite + caixas especiais
         let html = lesson.body
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        // [exemplo]...[/exemplo] → caixa amarela "Exercício tipo de exame"
+        html = html.replace(/\[exemplo\]([\s\S]*?)\[\/exemplo\]/g, (_, inner) => {
+            const innerHtml = inner.trim()
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            return `<div class="lesson-example-box"><div class="lesson-example-label">📝 Exercício tipo de exame</div><div class="lesson-example-body">${innerHtml}</div></div>`;
+        });
+
+        // [erros]...[/erros] → caixa vermelha "Erros frequentes"
+        html = html.replace(/\[erros\]([\s\S]*?)\[\/erros\]/g, (_, inner) => {
+            const innerHtml = inner.trim()
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            return `<div class="lesson-error-box"><div class="lesson-error-label">❌ Erros frequentes em exame</div><div class="lesson-error-body">${innerHtml}</div></div>`;
+        });
+
+        // **bold** restante
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
         body.innerHTML = `<div class="lesson-body"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${lesson.title}</h3>${html}</div>`;
     }
 
