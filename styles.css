@@ -133,9 +133,10 @@ body {
 }
 .streak-hero-body { flex: 1; min-width: 0; }
 .streak-hero-number {
-    font-size: 40px; font-weight: 900; line-height: 1;
-    color: #c2410c;
+    font-size: 48px; font-weight: 900; line-height: 1;
+    color: #f97316;
     text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    letter-spacing: -0.02em;
 }
 .streak-hero.tier-3 .streak-hero-number,
 .streak-hero.tier-4 .streak-hero-number { color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.25); }
@@ -160,9 +161,9 @@ body {
     75% { transform: translateY(-3px) rotate(3deg); }
 }
 .streak-hero.zero { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(15,23,42,0.06); }
-.streak-hero.zero .streak-hero-emoji { animation: none; filter: grayscale(0.6) opacity(0.7); font-size: 48px; }
+.streak-hero.zero .streak-hero-emoji { animation: none; filter: grayscale(1) opacity(0.55); }
 .streak-hero.zero .streak-hero-flame-bg { animation: none; opacity: 0; }
-.streak-hero.zero .streak-hero-number { color: #64748b; }
+.streak-hero.zero .streak-hero-number { color: #94a3b8; }
 .streak-hero.zero .streak-hero-title { color: #64748b; }
 .streak-hero.zero .streak-hero-sub { color: #475569; }
 

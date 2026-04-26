@@ -522,8 +522,7 @@ function _streakEmojiFor(days) {
     if (days >= 30) return '👑';
     if (days >= 14) return '⭐';
     if (days >= 7)  return '🏆';
-    if (days >= 1)  return '🔥';
-    return '🕯️'; // vela apagada — ainda não começou
+    return '🔥'; // sempre chama, mesmo a 0 (vai aparecer cinzenta via CSS .zero)
 }
 function _streakTier(days) {
     if (days >= 30) return { tier: 4, emoji: '👑' };
@@ -531,7 +530,7 @@ function _streakTier(days) {
     if (days >= 7)  return { tier: 3, emoji: '🏆' };
     if (days >= 3)  return { tier: 2, emoji: '🔥' };
     if (days >= 1)  return { tier: 1, emoji: '🔥' };
-    return { tier: 0, emoji: '🕯️' };
+    return { tier: 0, emoji: '🔥' };
 }
 function _updateStreakChipVisuals() {
     const days = state.streak.days || 0;
