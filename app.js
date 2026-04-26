@@ -5031,6 +5031,11 @@ function openLessonByKey(key) {
         // Markdown-lite + caixas especiais
         let html = lesson.body
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        // Para os mais novos, colapsa quebras múltiplas (3+ \n consecutivas)
+        // para no máximo 1 linha em branco — evita gaps verticais enormes.
+        if (_year && _year <= 2) {
+            html = html.replace(/\n{3,}/g, '\n\n');
+        }
 
         // [exemplo]...[/exemplo] → caixa amarela "Exercício tipo de exame"
         html = html.replace(/\[exemplo\]([\s\S]*?)\[\/exemplo\]/g, (_, inner) => {

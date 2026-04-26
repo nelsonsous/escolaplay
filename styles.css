@@ -1080,14 +1080,16 @@ body {
    Aplicado de forma natural (mais espaço, contraste suave, destaque por cor),
    sem qualquer rótulo ou alusão explícita. */
 .lesson-body--y2 {
-    font-size: 1.04rem;
-    line-height: 1.6;
-    letter-spacing: 0.01em;
-    word-spacing: 0.03em;
+    font-size: 1.02rem;
+    line-height: 1.45;
+    letter-spacing: 0.005em;
+    word-spacing: 0.02em;
     color: #1f2937; /* não preto puro — reduz fadiga visual */
     max-width: 56ch; /* linhas mais curtas */
     margin-left: auto;
     margin-right: auto;
+    /* Colapsa quebras de linha duplas/triplas em apenas 1 linha em branco */
+    white-space: pre-line;
 }
 /* Negrito: só roxo (sem highlight de fundo) */
 .lesson-body--y2 strong {
@@ -1120,10 +1122,11 @@ body {
     background: linear-gradient(135deg, #faf5ff 0%, #fff 100%);
     border: 1.5px solid rgba(109, 40, 217, 0.15);
     border-left: 5px solid #8b5cf6;
-    border-radius: 16px;
-    padding: 14px 16px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 6px rgba(109, 40, 217, 0.06);
+    border-radius: 12px;
+    padding: 9px 12px;
+    margin-bottom: 7px;
+    box-shadow: 0 1px 3px rgba(109, 40, 217, 0.05);
+    line-height: 1.35;
 }
 /* Cor do border-left alterna entre as linhas para variedade visual */
 .lesson-body--y2 .lesson-table tr:nth-child(2n)   { border-left-color: #ec4899; background: linear-gradient(135deg, #fdf2f8 0%, #fff 100%); }
@@ -1133,23 +1136,23 @@ body {
 .lesson-body--y2 .lesson-table td {
     display: block;
     border: none;
-    padding: 3px 0;
+    padding: 1px 0;
     background: transparent !important;
 }
 /* Primeira célula = título grande do card */
 .lesson-body--y2 .lesson-table td:first-child {
-    font-size: 1.18em;
+    font-size: 1.1em;
     font-weight: 800;
     color: #6d28d9;
-    margin-bottom: 6px;
-    line-height: 1.3;
+    margin-bottom: 2px;
+    line-height: 1.25;
 }
 /* Restantes células = subtítulos discretos */
 .lesson-body--y2 .lesson-table td:not(:first-child) {
-    font-size: 0.96em;
+    font-size: 0.92em;
     color: #475569;
     padding-left: 0;
-    line-height: 1.55;
+    line-height: 1.35;
 }
 /* Cards com emojis nas pontas para tornar visual */
 .lesson-body--y2 .lesson-table td:first-child::before {
@@ -1186,8 +1189,15 @@ body {
     vertical-align: middle;
 }
 .lesson-body--y2 .lesson-section-header-block {
-    margin: 18px 0 10px;
+    margin: 10px 0 4px;
     display: block;
+}
+/* Em pre-line, ainda assim controlar espaço entre parágrafos visualmente */
+.lesson-body--y2 .lesson-example-box,
+.lesson-body--y2 .lesson-error-box,
+.lesson-body--y2 .lesson-table-wrap {
+    margin-top: 8px;
+    margin-bottom: 10px;
 }
 
 /* 3.º-4.º — versão intermédia, leve aumento de espaço */
