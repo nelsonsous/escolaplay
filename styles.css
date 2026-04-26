@@ -743,7 +743,10 @@ body {
     justify-content: space-between;
     gap: 10px;
     margin-bottom: 10px;
+    flex-wrap: wrap;
 }
+/* Quando o chip de dificuldade está oculto, o tag da disciplina fica sozinho à esquerda */
+.exercise-meta-row .exercise-difficulty[style*="display: none"] { display: none !important; }
 .exercise-subject-tag {
     display: inline-block;
     padding: 6px 14px;

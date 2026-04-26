@@ -2520,38 +2520,38 @@ function targetDifficultyFor(subKey, topic) {
     return { target: 3, prefer: { 1: 0.15, 2: 0.30, 3: 0.55 } };
 }
 
-// Escolhe N exercícios com rotação inteligente E progressão adaptativa de dificuldade:
-// - Nunca-vistos têm prioridade
-// - Cada exercício é "ponderado" pela dificuldade-alvo do seu tópico (acertos do utilizador)
-// - Depois ordenado por antiguidade
-// - Resultado final é baralhado
+// Escolhe N exercícios com progressão adaptativa de dificuldade COMO PRIORIDADE.
+// 1) Dificuldade alvo do tópico (com base nos acertos do utilizador) é PRIMEIRO
+// 2) Dentro da mesma dificuldade, nunca-vistos primeiro
+// 3) Mais antigos primeiro
+// 4) Aleatório
+// Resultado final é baralhado para não dar sempre a mesma ordem.
 function pickExercises(pool, n) {
     const seen = state.exerciseSeen || {};
     const annotated = pool.map(e => {
         const tgt = targetDifficultyFor(e.s, e.t);
         const d = Math.max(1, Math.min(3, e.diff || 1));
-        // Score baseado na preferência da dificuldade-alvo (0 a 1)
         const diffScore = (tgt.prefer && tgt.prefer[d]) || 0;
         return {
             e,
+            d,
             lastSeen: seen[e.id] || 0,
             diffScore,
             rand: Math.random()
         };
     });
     annotated.sort((a, b) => {
-        // 1) Nunca vistos primeiro
+        // 1) Dificuldade alvo PRIMEIRO (maior diffScore vence)
+        if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
+        // 2) Nunca vistos antes de já vistos
         if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
         if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
-        // 2) Maior diffScore primeiro (alinhado com a dificuldade-alvo)
-        if (a.diffScore !== b.diffScore) return b.diffScore - a.diffScore;
-        // 3) Entre vistos, mais antigos primeiro
+        // 3) Mais antigos
         if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
         // 4) Empate → random
         return a.rand - b.rand;
     });
     const top = annotated.slice(0, n).map(x => x.e);
-    // Baralha o subset escolhido para não ser sempre na mesma ordem
     return top.sort(() => Math.random() - 0.5);
 }
 
@@ -2718,16 +2718,28 @@ function renderQuestion() {
     tag.textContent = sub.name;
     tag.style.background = sub.color;
     document.getElementById('ex-topic').textContent = e.t;
-    // Indicador de dificuldade (3 pontinhos coloridos)
+    // Indicador de dificuldade — APENAS se:
+    //  (1) o ano é 2 (foi onde fizemos a curadoria de niveis)
+    //  (2) a pergunta tem diff explicitamente definido (1, 2 ou 3)
+    // Para outros anos ou perguntas nao classificadas, esconder o chip.
     const diffEl = document.getElementById('ex-difficulty');
     if (diffEl) {
-        const d = Math.max(1, Math.min(3, e.diff || 1));
-        const labels = { 1: 'Fácil', 2: 'Médio', 3: 'Difícil' };
-        diffEl.className = 'exercise-difficulty diff-' + d;
-        diffEl.innerHTML = `${labels[d]}` +
-            ` <span class="diff-dot ${d>=1?'on':''}"></span>` +
-            `<span class="diff-dot ${d>=2?'on':''}"></span>` +
-            `<span class="diff-dot ${d>=3?'on':''}"></span>`;
+        const hasExplicitDiff = e.diff === 1 || e.diff === 2 || e.diff === 3;
+        const isYear2 = yr === 2;
+        if (isYear2 && hasExplicitDiff) {
+            const d = e.diff;
+            const labels = { 1: 'Fácil', 2: 'Médio', 3: 'Difícil' };
+            diffEl.className = 'exercise-difficulty diff-' + d;
+            diffEl.style.display = '';
+            diffEl.innerHTML = `${labels[d]}` +
+                ` <span class="diff-dot ${d>=1?'on':''}"></span>` +
+                `<span class="diff-dot ${d>=2?'on':''}"></span>` +
+                `<span class="diff-dot ${d>=3?'on':''}"></span>`;
+        } else {
+            diffEl.style.display = 'none';
+            diffEl.innerHTML = '';
+            diffEl.className = 'exercise-difficulty';
+        }
     }
     // Suporte a passagem de texto / tabela / SVG acima da pergunta
     const qEl = document.getElementById('ex-question');
