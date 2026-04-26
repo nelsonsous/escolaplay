@@ -395,7 +395,61 @@ const EXERCISES_2 = [
     { id:'2i15', s:'ingles', t:'Família',      type:'mc', diff:1, q:'A tua irmã em inglês é:',                           opts:['mum','sister','grandma'],  ans:1, exp:'irmã = sister.' },
     { id:'2i16', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'👋 De manhã dizes:',                                opts:['Good night','Good morning','Bye'], ans:1, exp:'De manhã: Good morning! 🌅' },
     { id:'2i17', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'🌙 Antes de dormir dizes:',                          opts:['Hello','Good night','Thank you'], ans:1, exp:'Antes de dormir: Good night! 🌙' },
-    { id:'2i18', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'Para agradecer dizes:',                              opts:['Hello','Bye','Thank you'], ans:2, exp:'Obrigada = Thank you! 🙏' }
+    { id:'2i18', s:'ingles', t:'Cumprimentos', type:'mc', diff:1, q:'Para agradecer dizes:',                              opts:['Hello','Bye','Thank you'], ans:2, exp:'Obrigada = Thank you! 🙏' },
+
+    // ===== Português — novos tópicos (Hiato, Nomes, Adjetivos, Género, Grau, Verbos passado/futuro, Pontuação) =====
+    { id:'2p15', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'Qual destas palavras tem HIATO?', opts:['pai','saúde','boi','outro'], ans:1, exp:'Saúde = sa-ú-de (3 sílabas, "a" e "u" separados) → hiato. As outras são ditongos.' },
+    { id:'2p16', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'A palavra "leão" tem hiato.', ans:true, exp:'le-ã-o → 3 sílabas, vogais separadas → HIATO.' },
+    { id:'2p17', s:'portugues', t:'Hiato', type:'fill', diff:2, q:'Quantas sílabas tem "saída"?', ans:['3','três'], exp:'sa-í-da → 3 sílabas (hiato entre a e í).' },
+    { id:'2p18', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Qual destes é um nome PRÓPRIO?', opts:['cidade','livro','Lisboa','rapaz'], ans:2, exp:'Lisboa identifica uma cidade ESPECÍFICA → nome próprio (com maiúscula).' },
+    { id:'2p19', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Qual destes é um nome COMUM?', opts:['Maria','Bobi','gato','Tejo'], ans:2, exp:'Gato dá nome a TODOS os animais desta espécie → nome comum (minúscula).' },
+    { id:'2p20', s:'portugues', t:'Nomes próprios e comuns', type:'tf', diff:1, q:'O nome próprio "joão" deve ser escrito com letra MAIÚSCULA.', ans:true, exp:'Os nomes próprios escrevem-se SEMPRE com maiúscula → João.' },
+    { id:'2p21', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'Na frase "O gato preto dorme", qual é o ADJETIVO?', opts:['gato','preto','dorme','o'], ans:1, exp:'Preto descreve o gato → adjetivo.' },
+    { id:'2p22', s:'portugues', t:'Adjetivos', type:'fill', diff:1, q:'O adjetivo concorda com o nome em género e ___ (singular/plural).', ans:['número','numero'], exp:'O adjetivo concorda em GÉNERO e NÚMERO. Ex: meninas altas (fem. plural).' },
+    { id:'2p23', s:'portugues', t:'Adjetivos', type:'mc', diff:2, q:'Qual frase está CORRETA?', opts:['Os meninos alta','As meninas alto','Os meninos altos','Os menino altos'], ans:2, exp:'Concordância: os (masc. plural) + meninos + altos. Tudo plural masculino.' },
+    { id:'2p24', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'Qual é o feminino de "pai"?', opts:['paia','pãe','mãe','tia'], ans:2, exp:'Pai (masculino) → mãe (feminino) — palavra completamente diferente.' },
+    { id:'2p25', s:'portugues', t:'Género (masculino e feminino)', type:'fill', diff:1, q:'O feminino de "professor" é ___.', ans:['professora'], exp:'Acrescenta-se -a: professor → professora.' },
+    { id:'2p26', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:2, q:'Qual destas palavras NÃO MUDA de género?', opts:['gato','aluno','flor','cão'], ans:2, exp:'"Flor" só tem o género feminino — diz-se SEMPRE "a flor".' },
+    { id:'2p27', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Qual é o DIMINUTIVO de "casa"?', opts:['casarão','casinha','casona','casarões'], ans:1, exp:'Casinha = diminutivo (-inha indica pequeno ou carinho).' },
+    { id:'2p28', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Qual é o AUMENTATIVO de "livro"?', opts:['livrinho','livrarias','livrão','livrinhos'], ans:2, exp:'Livrão = aumentativo (-ão indica grande).' },
+    { id:'2p29', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'tf', diff:2, q:'O diminutivo serve sempre para indicar tamanho pequeno.', ans:false, exp:'Falso! O diminutivo também pode indicar CARINHO. Ex: "mãezinha" não significa que a mãe é pequena.' },
+    { id:'2p30', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'Em que tempo verbal está "Amanhã eu correrei"?', opts:['passado','presente','futuro','imperativo'], ans:2, exp:'"Amanhã" + "correrei" → tempo FUTURO.' },
+    { id:'2p31', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'Em que tempo está "Ontem brinquei no parque"?', opts:['passado','presente','futuro','condicional'], ans:0, exp:'"Ontem" + "brinquei" → PASSADO.' },
+    { id:'2p32', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:2, q:'Completa: "Amanhã eu ___ comer" (futuro próximo do verbo "ir + comer").', ans:['vou'], exp:'Futuro próximo: "vou comer" — equivalente a "comerei".' },
+    { id:'2p33', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Que sinal se usa no fim de uma pergunta?', opts:['.','!','?',','], ans:2, exp:'Frases interrogativas terminam em ponto de interrogação (?).' },
+    { id:'2p34', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Qual frase está CORRETAMENTE pontuada?', opts:['Olá Como estás','Olá! Como estás?','olá, como estás','Olá. Como estás!'], ans:1, exp:'Cumprimento → exclamação; pergunta → interrogação. Maiúsculas no início.' },
+    { id:'2p35', s:'portugues', t:'Pontuação básica', type:'tf', diff:2, q:'Numa lista de 3 palavras, deve-se pôr vírgula antes do "e".', ans:false, exp:'Falso. Não se usa vírgula antes de "e": "pão, leite e queijo" (não "pão, leite, e queijo").' },
+
+    // ===== Estudo do Meio — novos tópicos =====
+    { id:'2e15', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'O Sol é uma:', opts:['estrela','planeta','lua','cometa'], ans:0, exp:'O Sol é uma ESTRELA — a mais próxima de nós. Dá luz e calor.' },
+    { id:'2e16', s:'estudo_meio', t:'Astros', type:'tf', diff:1, q:'A Lua tem luz própria.', ans:false, exp:'Falso. A Lua REFLETE a luz do Sol — não tem luz própria.' },
+    { id:'2e17', s:'estudo_meio', t:'Astros', type:'fill', diff:2, q:'A Terra demora ___ horas a dar uma volta sobre si própria.', ans:['24'], exp:'A rotação da Terra demora 24 horas → origina o dia e a noite.' },
+    { id:'2e18', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'O barco é um transporte:', opts:['terrestre','aéreo','aquático','espacial'], ans:2, exp:'O barco anda na ÁGUA → transporte aquático.' },
+    { id:'2e19', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Qual destes é um transporte AÉREO?', opts:['comboio','autocarro','helicóptero','barco'], ans:2, exp:'O helicóptero anda no AR → transporte aéreo.' },
+    { id:'2e20', s:'estudo_meio', t:'Transportes', type:'tf', diff:1, q:'Andar de bicicleta protege o ambiente porque não polui.', ans:true, exp:'Verdade — a bicicleta não emite gases poluentes.' },
+    { id:'2e21', s:'estudo_meio', t:'Higiene', type:'fill', diff:1, q:'Devemos escovar os dentes ___ vezes por dia.', ans:['3','três'], exp:'3 vezes ao dia: manhã, depois do almoço e antes de dormir.' },
+    { id:'2e22', s:'estudo_meio', t:'Higiene', type:'tf', diff:1, q:'Devemos lavar as mãos antes das refeições.', ans:true, exp:'Sim! E também depois de ir à casa de banho ou brincar na rua.' },
+    { id:'2e23', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Quem cuida dos nossos dentes é o:', opts:['médico','dentista','farmacêutico','cabeleireiro'], ans:1, exp:'O DENTISTA cuida dos dentes — ir pelo menos 1 vez por ano.' },
+    { id:'2e24', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Quantas horas devem dormir as crianças?', opts:['4 a 6 h','9 a 11 h','12 a 14 h','3 horas'], ans:1, exp:'Crianças (5–12 anos) precisam de 9 a 11 horas de sono.' },
+    { id:'2e25', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Os refrigerantes são uma bebida saudável.', ans:false, exp:'Falso. Têm muito açúcar — devemos preferir ÁGUA.' },
+    { id:'2e26', s:'estudo_meio', t:'Saúde', type:'mc', diff:2, q:'Qual destes hábitos é MENOS saudável?', opts:['comer fruta','fazer exercício','dormir bem','passar o dia agarrado ao telemóvel'], ans:3, exp:'Estar muito tempo em ecrãs prejudica os olhos, postura e atividade física.' },
+    { id:'2e27', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'O que se celebra a 25 de abril?', opts:['Natal','Liberdade','Páscoa','Dia da Mãe'], ans:1, exp:'25 de Abril = Dia da Liberdade (revolução de 1974, fim da ditadura).' },
+    { id:'2e28', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'O Natal celebra-se a:', opts:['25 de novembro','25 de dezembro','1 de janeiro','24 de junho'], ans:1, exp:'O Natal celebra-se a 25 de dezembro (nascimento de Jesus).' },
+    { id:'2e29', s:'estudo_meio', t:'Comemorações', type:'tf', diff:2, q:'A Páscoa tem sempre a mesma data todos os anos.', ans:false, exp:'Falso. A Páscoa tem data variável (depende da Lua) — sempre na primavera.' },
+
+    // ===== Inglês — novos tópicos =====
+    { id:'2i19', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Quantas letras tem o alfabeto inglês?', opts:['23','24','26','28'], ans:2, exp:'O alfabeto inglês tem 26 letras (em português usamos 23 normalmente).' },
+    { id:'2i20', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "H" em inglês?', opts:['"agá"','"eitch"','"hi"','"a"'], ans:1, exp:'A letra H em inglês diz-se "eitch" (como "ei" + "tch").' },
+    { id:'2i21', s:'ingles', t:'Alfabeto', type:'tf', diff:1, q:'Em inglês existem as letras W, K e Y.', ans:true, exp:'Sim — fazem parte das 26 letras. K, W e Y são pouco usadas em palavras portuguesas.' },
+    { id:'2i22', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ Qual a palavra inglesa?', opts:['ear','eye','nose'], ans:1, exp:'👁️ = eye (olho).' },
+    { id:'2i23', s:'ingles', t:'Body', type:'mc', diff:1, q:'✋ Qual a palavra inglesa?', opts:['foot','hand','arm'], ans:1, exp:'✋ = hand (mão).' },
+    { id:'2i24', s:'ingles', t:'Body', type:'mc', diff:2, q:'Qual é o plural de "tooth" (dente)?', opts:['tooths','teeth','toothes','tooth'], ans:1, exp:'Plural irregular: tooth → teeth (dentes).' },
+    { id:'2i25', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍎 Qual a palavra inglesa?', opts:['apple','orange','banana'], ans:0, exp:'🍎 = apple (maçã).' },
+    { id:'2i26', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍞 Qual a palavra inglesa?', opts:['bird','bread','blue'], ans:1, exp:'🍞 = bread (pão).' },
+    { id:'2i27', s:'ingles', t:'Food', type:'mc', diff:2, q:'Como dizes "Tenho fome" em inglês?', opts:['I am tired','I am hungry','I am thirsty'], ans:1, exp:'I am hungry = Tenho fome. (Thirsty = sede.)' },
+    { id:'2i28', s:'ingles', t:'Toys', type:'mc', diff:1, q:'⚽ Qual a palavra inglesa?', opts:['car','ball','doll'], ans:1, exp:'⚽ = ball (bola).' },
+    { id:'2i29', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🐻 (ursinho) em inglês é:', opts:['teddy bear','dog','cat'], ans:0, exp:'Ursinho de peluche = teddy bear.' },
+    { id:'2i30', s:'ingles', t:'Toys', type:'mc', diff:2, q:'Como dizes "Vamos brincar!" em inglês?', opts:["Let's eat!","Let's play!","Let's sleep!"], ans:1, exp:"Let's play! = Vamos brincar! (play = brincar/jogar.)" }
 ];
 
 
@@ -1166,7 +1220,37 @@ const EXERCISES_5 = [
     { id:'g19', s:'hgp', t:'Clima', type:'tf', diff:2, q:'O clima do Algarve é geralmente mais quente e seco que o do Minho.', ans:true, exp:'Correto: o Algarve (sul) é mais quente e seco; o Minho (noroeste) é mais chuvoso.' },
     { id:'g20', s:'hgp', t:'Rios', type:'order', diff:2, q:'Ordena os rios de norte para sul (em Portugal continental):', items:['Minho','Douro','Tejo','Guadiana'], exp:'Minho (fronteira norte) → Douro → Tejo → Guadiana (fronteira sul).' },
     { id:'g21', s:'hgp', t:'Ilhas', type:'fill', diff:2, q:'Qual é a capital da Madeira?', ans:['funchal'], exp:'Funchal é a capital da Região Autónoma da Madeira.' },
-    { id:'g22', s:'hgp', t:'Europa', type:'fill', diff:2, q:'Em que ano Portugal entrou na União Europeia? (só o ano)', ans:['1986'], exp:'Portugal aderiu à CEE (atual UE) em 1 de janeiro de 1986.' }
+    { id:'g22', s:'hgp', t:'Europa', type:'fill', diff:2, q:'Em que ano Portugal entrou na União Europeia? (só o ano)', ans:['1986'], exp:'Portugal aderiu à CEE (atual UE) em 1 de janeiro de 1986.' },
+
+    // ===== Matemática — novos tópicos (Simetrias, Construções geométricas) =====
+    { id:'m_sim1', s:'matematica', t:'Simetrias', type:'mc', diff:1, q:'Quantos eixos de simetria tem um quadrado?', opts:['2','3','4','infinitos'], ans:2, exp:'O quadrado tem 4 eixos: 2 diagonais + 2 mediatrizes dos lados.' },
+    { id:'m_sim2', s:'matematica', t:'Simetrias', type:'mc', diff:2, q:'Quantos eixos de simetria tem um retângulo (não quadrado)?', opts:['1','2','3','4'], ans:1, exp:'O retângulo tem 2 eixos de simetria (mediatrizes dos lados). As diagonais NÃO são eixos.' },
+    { id:'m_sim3', s:'matematica', t:'Simetrias', type:'mc', diff:1, q:'Qual destas figuras tem INFINITOS eixos de simetria?', opts:['triângulo','quadrado','círculo','pentágono'], ans:2, exp:'O círculo tem infinitos eixos — qualquer reta que passe pelo centro é eixo.' },
+    { id:'m_sim4', s:'matematica', t:'Simetrias', type:'tf', diff:2, q:'A letra "F" tem pelo menos um eixo de simetria.', ans:false, exp:'Falso. A letra F NÃO tem eixos de simetria. (As letras A, H, M, T, V, W têm.)' },
+    { id:'m_sim5', s:'matematica', t:'Simetrias', type:'fill', diff:2, q:'Que ângulo tem a simetria de rotação MENOR de uma estrela com 5 pontas? (em graus, sem o símbolo)', ans:['72'], exp:'360° ÷ 5 = 72° — a rotação mínima que devolve a mesma figura.' },
+    { id:'m_cgeo1', s:'matematica', t:'Construções geométricas', type:'mc', diff:1, q:'Que instrumento se usa para desenhar uma circunferência?', opts:['régua','transferidor','compasso','esquadro'], ans:2, exp:'O compasso desenha circunferências e transporta comprimentos.' },
+    { id:'m_cgeo2', s:'matematica', t:'Construções geométricas', type:'mc', diff:1, q:'Que instrumento se usa para medir ângulos em graus?', opts:['compasso','transferidor','régua','esquadro'], ans:1, exp:'O transferidor mede e traça ângulos. Tem escala de 0° a 180° (ou 360°).' },
+    { id:'m_cgeo3', s:'matematica', t:'Construções geométricas', type:'tf', diff:2, q:'Para construir um triângulo com 3 lados conhecidos basta saber se a soma dos 2 lados menores é maior que o lado maior.', ans:true, exp:'Verdade — desigualdade triangular. Senão os arcos do compasso não se cruzam.' },
+    { id:'m_cgeo4', s:'matematica', t:'Construções geométricas', type:'mc', diff:2, q:'A MEDIATRIZ de um segmento é uma reta que:', opts:['é paralela ao segmento','divide o segmento ao meio formando 90°','é igual ao segmento','passa por um extremo'], ans:1, exp:'Mediatriz = reta perpendicular ao segmento, passando pelo seu ponto médio.' },
+    { id:'m_cgeo5', s:'matematica', t:'Construções geométricas', type:'mc', diff:2, q:'A BISSETRIZ de um ângulo:', opts:['duplica o ângulo','divide o ângulo em 2 partes iguais','é perpendicular ao ângulo','desenha-se com transferidor apenas'], ans:1, exp:'Bissetriz = reta que divide o ângulo em 2 ângulos iguais (constrói-se com compasso).' },
+
+    // ===== Inglês — novos tópicos (Demonstratives, Possessives, Have got, There is/are) =====
+    { id:'i_dem1', s:'ingles', t:'Demonstratives', type:'mc', diff:1, q:'Como dizes "ESTE livro" (perto, singular)?', opts:['this book','that book','these book','those book'], ans:0, exp:'Perto + singular = THIS. → "This book".' },
+    { id:'i_dem2', s:'ingles', t:'Demonstratives', type:'mc', diff:2, q:'Completa: "___ are my friends" (perto, vários).', opts:['This','That','These','Those'], ans:2, exp:'Perto + plural = THESE. → "These are my friends".' },
+    { id:'i_dem3', s:'ingles', t:'Demonstratives', type:'mc', diff:2, q:'Completa: "___ is my brother in the photo" (longe, singular).', opts:['This','That','These','Those'], ans:1, exp:'Longe + singular = THAT.' },
+    { id:'i_dem4', s:'ingles', t:'Demonstratives', type:'tf', diff:2, q:'Diz-se "These is a pen".', ans:false, exp:'Falso! THESE é plural — leva "are". O correto é "This is a pen" (singular) ou "These ARE pens" (plural).' },
+    { id:'i_pos1', s:'ingles', t:'Possessives', type:'mc', diff:1, q:'Como se diz "o meu livro" em inglês?', opts:['the my book','my book','mine book','book my'], ans:1, exp:'My + nome. Diz-se simplesmente "my book".' },
+    { id:'i_pos2', s:'ingles', t:'Possessives', type:'mc', diff:2, q:'Completa: "Anna lives in Lisbon. ___ house is small."', opts:['His','Her','Its','Their'], ans:1, exp:'Anna = ela → HER. (His = dele.)' },
+    { id:'i_pos3', s:'ingles', t:'Possessives', type:'mc', diff:2, q:'Qual é a forma correta? "This pen is ___ (de mim)."', opts:['my','mine','me','mines'], ans:1, exp:'Pronome possessivo (sozinho, sem nome a seguir) = MINE. (My só vai ANTES do nome.)' },
+    { id:'i_pos4', s:'ingles', t:'Possessives', type:'fill', diff:2, q:'O livro do João: "___ book" (em inglês, com genitivo \\\'s).', ans:["John's","john's"], exp:"Genitivo saxónico: John's book = O livro do João." },
+    { id:'i_hg1', s:'ingles', t:'Have got', type:'mc', diff:1, q:'Como se diz "ele tem um cão" em inglês?', opts:['He have got a dog','He has got a dog','He have a dog','He got a dog'], ans:1, exp:'3.ª pessoa singular (he/she/it) → HAS got.' },
+    { id:'i_hg2', s:'ingles', t:'Have got', type:'mc', diff:2, q:'Como se diz "Eu não tenho um irmão"?', opts:["I have got a brother","I haven't got a brother","I hasn't got a brother","I no have brother"], ans:1, exp:"Negativa: I HAVEN'T got = I have not got." },
+    { id:'i_hg3', s:'ingles', t:'Have got', type:'mc', diff:2, q:'Como se faz a pergunta "Tens uma caneta?"?', opts:['You have got a pen?','Have you got a pen?','Do you have got a pen?','Got you a pen?'], ans:1, exp:'Inverter Have/Has com o sujeito: "Have you got a pen?".' },
+    { id:'i_hg4', s:'ingles', t:'Have got', type:'tf', diff:2, q:'"She have got a sister" está correto.', ans:false, exp:'Falso. She/he/it leva HAS got, não "have got". → "She HAS got a sister".' },
+    { id:'i_tia1', s:'ingles', t:'There is/are', type:'mc', diff:1, q:'Como se diz "Há um livro na mesa"?', opts:['There are a book on the table','There is a book on the table','It is a book on the table','Have a book on the table'], ans:1, exp:'Singular (1 livro) → THERE IS.' },
+    { id:'i_tia2', s:'ingles', t:'There is/are', type:'mc', diff:1, q:'Como se diz "Há cinco alunos na sala"?', opts:['There is five students in the room','There are five students in the room','It is five students','Have five students'], ans:1, exp:'Plural (5 alunos) → THERE ARE.' },
+    { id:'i_tia3', s:'ingles', t:'There is/are', type:'mc', diff:2, q:'Completa a pergunta: "___ any milk in the fridge?"', opts:['Are there','Is there','It is','Have there'], ans:1, exp:'Milk = singular não-contável → IS THERE.' },
+    { id:'i_tia4', s:'ingles', t:'There is/are', type:'tf', diff:2, q:'Em frases negativas usa-se SOME (não "any").', ans:false, exp:"Falso. Em frases NEGATIVAS e INTERROGATIVAS usa-se ANY: \"There aren't ANY apples\". SOME usa-se nas afirmativas." }
 ];
 
 // ========== CURRICULUM (ordem dos tópicos do livro / programa) ==========
@@ -1628,7 +1712,26 @@ const EXERCISES_6 = [
     { id:'h6_017', s:'hgp', t:'Estado Novo', type:'tf', diff:2, q:'Durante o Estado Novo havia censura à imprensa e uma polícia política chamada PIDE.', ans:true, exp:'Correto. O Estado Novo era um regime autoritário com censura e perseguição política através da PIDE.' },
     { id:'h6_018', s:'hgp', t:'25 de Abril', type:'fill', diff:1, q:'Em que ano ocorreu a Revolução dos Cravos? ___', ans:['1974'], exp:'A 25 de abril de 1974 o MFA derrubou o Estado Novo, na chamada Revolução dos Cravos.' },
     { id:'h6_019', s:'hgp', t:'25 de Abril', type:'mc', diff:2, q:'Que canção foi a senha da revolução, na madrugada de 25 de abril?', opts:['A Portuguesa','Grândola, Vila Morena','Uma Casa Portuguesa','Verdes Anos'], ans:1, exp:'"Grândola, Vila Morena", de Zeca Afonso, foi a segunda senha que confirmou o início da revolução.' },
-    { id:'h6_020', s:'hgp', t:'Portugal democrático', type:'fill', diff:2, q:'Em que ano Portugal aderiu à CEE (atual União Europeia)? ___', ans:['1986'], exp:'Portugal aderiu à CEE a 1 de janeiro de 1986.' }
+    { id:'h6_020', s:'hgp', t:'Portugal democrático', type:'fill', diff:2, q:'Em que ano Portugal aderiu à CEE (atual União Europeia)? ___', ans:['1986'], exp:'Portugal aderiu à CEE a 1 de janeiro de 1986.' },
+
+    // ===== Ciências — novos tópicos (Sistema imunitário, Plantas trocas nutricionais, Reprodução das plantas) =====
+    { id:'c6_si1', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1, q:'Que células são as principais responsáveis pela defesa do organismo?', opts:['glóbulos vermelhos','glóbulos brancos (leucócitos)','plaquetas','neurónios'], ans:1, exp:'Os GLÓBULOS BRANCOS (leucócitos) são as células de defesa: fagócitos, linfócitos B e T.' },
+    { id:'c6_si2', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2, q:'Como funcionam as vacinas?', opts:['matam todas as bactérias do corpo','introduzem um microrganismo morto/enfraquecido para criar memória imunitária','curam doenças instantaneamente','substituem os glóbulos brancos'], ans:1, exp:'As vacinas treinam o sistema imunitário com microrganismos inativos, criando MEMÓRIA imunitária.' },
+    { id:'c6_si3', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:2, q:'A febre é um sinal de defesa do organismo.', ans:true, exp:'Verdade — a febre eleva a temperatura para travar a multiplicação dos microrganismos.' },
+    { id:'c6_si4', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2, q:'Uma alergia é uma reação:', opts:['normal do corpo','exagerada do sistema imunitário a algo inofensivo','causada por bactérias','causada por falta de vacinas'], ans:1, exp:'Alergia = REAÇÃO EXAGERADA do sistema imunitário a substâncias inofensivas (pólen, ácaros, etc.).' },
+    { id:'c6_si5', s:'ciencias', t:'Sistema imunitário', type:'fill', diff:2, q:'A imunidade obtida pela vacina é uma imunidade ATIVA ___ (natural / artificial).', ans:['artificial'], exp:'Vacina = imunidade ativa ARTIFICIAL (cria anticorpos próprios). Apanhar a doença = ativa natural.' },
+
+    { id:'c6_pn1', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:1, q:'Que parte da planta absorve a água e os sais minerais do solo?', opts:['folha','caule','raiz','flor'], ans:2, exp:'A RAIZ absorve água e sais minerais (formando a SEIVA BRUTA).' },
+    { id:'c6_pn2', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2, q:'O xilema transporta:', opts:['seiva elaborada','seiva bruta (água + sais)','dióxido de carbono','oxigénio'], ans:1, exp:'XILEMA = vasos lenhosos que transportam SEIVA BRUTA (água + sais minerais) da raiz às folhas.' },
+    { id:'c6_pn3', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2, q:'Onde acontece a fotossíntese?', opts:['nas raízes','nas mitocôndrias','nos cloroplastos das folhas','no caule'], ans:2, exp:'A fotossíntese ocorre nos CLOROPLASTOS, sobretudo nas folhas (têm clorofila — pigmento verde).' },
+    { id:'c6_pn4', s:'ciencias', t:'Plantas — trocas nutricionais', type:'tf', diff:2, q:'As plantas só respiram à noite.', ans:false, exp:'Falso. As plantas RESPIRAM 24 horas por dia. Mas só fazem fotossíntese com luz.' },
+    { id:'c6_pn5', s:'ciencias', t:'Plantas — trocas nutricionais', type:'fill', diff:2, q:'Pequenas aberturas na epiderme das folhas por onde a planta faz trocas gasosas: ___.', ans:['estomas','estomatos'], exp:'ESTOMAS — abrem e fecham para regular trocas de CO₂, O₂ e vapor de água.' },
+
+    { id:'c6_rp1', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:1, q:'O órgão reprodutor das plantas com flor é a:', opts:['raiz','folha','flor','semente'], ans:2, exp:'A FLOR é o órgão reprodutor das angiospérmicas. Contém androceu (♂) e gineceu (♀).' },
+    { id:'c6_rp2', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'A polinização é:', opts:['a união do gameta masculino com o óvulo','o transporte do pólen da antera para o estigma','a germinação da semente','a formação do fruto'], ans:1, exp:'POLINIZAÇÃO = transporte do PÓLEN (antera ♂) para o ESTIGMA (♀). FECUNDAÇÃO é a união dos gametas.' },
+    { id:'c6_rp3', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'Após a fecundação, o ovário transforma-se em:', opts:['semente','fruto','folha','raiz'], ans:1, exp:'OVÁRIO → FRUTO. ÓVULO → SEMENTE.' },
+    { id:'c6_rp4', s:'ciencias', t:'Reprodução das plantas', type:'tf', diff:2, q:'A reprodução por estolhos (ex: morangueiro) é uma reprodução assexuada.', ans:true, exp:'Verdade — não envolve flores nem sementes; gera plantas geneticamente IGUAIS (clones).' },
+    { id:'c6_rp5', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'Qual destes NÃO é um agente polinizador?', opts:['abelhas','vento','sol','beija-flores'], ans:2, exp:'O SOL não polinaliza — é fonte de energia para a fotossíntese. Polinizam: insetos, vento, aves, água.' }
 ];
 
 const CURRICULUM_6 = {
