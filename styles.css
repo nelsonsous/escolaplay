@@ -1050,20 +1050,105 @@ body {
     margin-left: auto;
     margin-right: auto;
 }
+/* Negrito: só roxo (sem highlight de fundo) */
 .lesson-body--y2 strong {
-    background: linear-gradient(transparent 62%, rgba(252, 211, 77, 0.45) 62%);
-    padding: 0 2px;
     color: #6d28d9;
+    font-weight: 800;
 }
-.lesson-body--y2 .lesson-table { font-size: 1em; }
-.lesson-body--y2 .lesson-table th,
-.lesson-body--y2 .lesson-table td { padding: 11px 13px; line-height: 1.6; }
 .lesson-body--y2 .lesson-example-box,
 .lesson-body--y2 .lesson-error-box {
     border-radius: 14px;
     padding: 14px 14px 12px;
     font-size: 1em;
     line-height: 1.75;
+}
+
+/* ===== Tabelas no 2.º ano: cada linha vira um CARD visual ===== */
+.lesson-body--y2 .lesson-table-wrap {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    margin: 14px 0 18px;
+}
+.lesson-body--y2 .lesson-table {
+    display: block;
+    background: transparent;
+}
+.lesson-body--y2 .lesson-table thead { display: none; }
+.lesson-body--y2 .lesson-table tbody { display: block; }
+.lesson-body--y2 .lesson-table tr {
+    display: block;
+    background: linear-gradient(135deg, #faf5ff 0%, #fff 100%);
+    border: 1.5px solid rgba(109, 40, 217, 0.15);
+    border-left: 5px solid #8b5cf6;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(109, 40, 217, 0.06);
+}
+/* Cor do border-left alterna entre as linhas para variedade visual */
+.lesson-body--y2 .lesson-table tr:nth-child(2n)   { border-left-color: #ec4899; background: linear-gradient(135deg, #fdf2f8 0%, #fff 100%); }
+.lesson-body--y2 .lesson-table tr:nth-child(3n)   { border-left-color: #06b6d4; background: linear-gradient(135deg, #ecfeff 0%, #fff 100%); }
+.lesson-body--y2 .lesson-table tr:nth-child(4n)   { border-left-color: #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #fff 100%); }
+.lesson-body--y2 .lesson-table tr:nth-child(5n)   { border-left-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #fff 100%); }
+.lesson-body--y2 .lesson-table td {
+    display: block;
+    border: none;
+    padding: 3px 0;
+    background: transparent !important;
+}
+/* Primeira célula = título grande do card */
+.lesson-body--y2 .lesson-table td:first-child {
+    font-size: 1.18em;
+    font-weight: 800;
+    color: #6d28d9;
+    margin-bottom: 6px;
+    line-height: 1.3;
+}
+/* Restantes células = subtítulos discretos */
+.lesson-body--y2 .lesson-table td:not(:first-child) {
+    font-size: 0.96em;
+    color: #475569;
+    padding-left: 0;
+    line-height: 1.55;
+}
+/* Cards com emojis nas pontas para tornar visual */
+.lesson-body--y2 .lesson-table td:first-child::before {
+    content: "📌  ";
+    font-size: 0.95em;
+}
+.lesson-body--y2 .lesson-table tr:nth-child(2n) td:first-child::before { content: "✨  "; }
+.lesson-body--y2 .lesson-table tr:nth-child(3n) td:first-child::before { content: "💡  "; }
+.lesson-body--y2 .lesson-table tr:nth-child(4n) td:first-child::before { content: "🎯  "; }
+.lesson-body--y2 .lesson-table tr:nth-child(5n) td:first-child::before { content: "⭐  "; }
+
+/* ===== Cabeçalhos numerados (1. 2. 3.) viram badges coloridos no 2.º ano ===== */
+.lesson-body--y2 .lesson-section-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.95em;
+    margin-right: 10px;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+    vertical-align: middle;
+    line-height: 1;
+}
+.lesson-body--y2 .lesson-section-title {
+    display: inline-block;
+    font-weight: 800;
+    color: #6d28d9;
+    font-size: 1.08em;
+    vertical-align: middle;
+}
+.lesson-body--y2 .lesson-section-header-block {
+    margin: 18px 0 10px;
+    display: block;
 }
 
 /* 3.º-4.º — versão intermédia, leve aumento de espaço */

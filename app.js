@@ -4984,6 +4984,13 @@ function openLessonByKey(key) {
         // Tabelas markdown: |a|b|c|\n|---|---|---|\n|x|y|z|
         html = _renderMarkdownTables(html);
 
+        // Cabeçalhos numerados ("**1. Título**") → badge colorido (apenas para os mais novos)
+        if (_year && _year <= 2) {
+            html = html.replace(/(^|\n)\*\*(\d+)\.\s+([^*\n]+?)\*\*/g, (_, before, num, title) => {
+                return `${before}<div class="lesson-section-header-block"><span class="lesson-section-num">${num}</span><span class="lesson-section-title">${title.trim()}</span></div>`;
+            });
+        }
+
         // **bold** restante
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
