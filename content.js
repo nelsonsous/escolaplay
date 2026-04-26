@@ -331,13 +331,13 @@ const EXERCISES_2 = [
     { id:'2p5', s:'portugues', t:'Antónimos', type:'mc', diff:1, q:'Qual é o antónimo de "alto"?', opts:['grande','baixo','forte','rápido'], ans:1, exp:'Alto ≠ baixo.' },
     { id:'2p6', s:'portugues', t:'Antónimos', type:'fill', diff:1, q:'O antónimo de "quente" é ___.', ans:['frio'], exp:'Quente ≠ frio.' },
     { id:'2p7', s:'portugues', t:'Singular e plural', type:'fill', diff:1, q:'Qual é o plural de "casa"?', ans:['casas'], exp:'Acrescenta-se "s" no final.' },
-    { id:'2p8', s:'portugues', t:'Singular e plural', type:'fill', diff:2, q:'Qual é o plural de "papel"?', ans:['papéis','papeis'], exp:'Palavras em "-el" fazem plural em "-éis".' },
+    { id:'2p8', s:'portugues', t:'Singular e plural', type:'fill', diff:1, q:'Qual é o plural de "papel"?', ans:['papéis','papeis'], exp:'Palavras em "-el" fazem plural em "-éis".' },
     { id:'2p9', s:'portugues', t:'Tipos de frase', type:'mc', diff:1, q:'"Que dia bonito!" é uma frase:', opts:['interrogativa','exclamativa','declarativa','imperativa'], ans:1, exp:'Termina com "!" → exclamativa.' },
     { id:'2p10', s:'portugues', t:'Verbos no presente', type:'fill', diff:1, q:'Eu ___ (correr) no parque. (presente)', ans:['corro'], exp:'Eu corro, tu corres, ele corre.' },
     { id:'2p11', s:'portugues', t:'Família de palavras', type:'mc', diff:2, q:'Qual destas palavras NÃO pertence à família de "flor"?', opts:['florista','florido','florescer','feliz'], ans:3, exp:'Florista, florido e florescer vêm de flor. Feliz não.' },
-    { id:'2p12', s:'portugues', t:'Ditongos', type:'mc', diff:1, q:'Qual destas palavras tem um ditongo?', opts:['casa','pai','sol','livro'], ans:1, exp:'Em "pai", "ai" é um ditongo (duas vogais juntas).' },
+    { id:'2p12', s:'portugues', t:'Ditongos', type:'mc', diff:2, q:'Qual destas palavras tem um ditongo?', opts:['casa','pai','sol','livro'], ans:1, exp:'Em "pai", "ai" é um ditongo (duas vogais juntas).' },
     { id:'2p13', s:'portugues', t:'Vogais e consoantes', type:'fill', diff:1, q:'Quantas vogais existem? ___', ans:['5','cinco'], exp:'a, e, i, o, u → 5 vogais.' },
-    { id:'2p14', s:'portugues', t:'Sinónimos', type:'fill', diff:2, q:'Sinónimo de "alegre": ___', ans:['contente','feliz'], exp:'Alegre = contente = feliz.' },
+    { id:'2p14', s:'portugues', t:'Sinónimos', type:'fill', diff:1, q:'Sinónimo de "alegre": ___', ans:['contente','feliz'], exp:'Alegre = contente = feliz.' },
 
     // Matemática
     { id:'2m1', s:'matematica', t:'Números até 100', type:'mc', diff:1, q:'Quantas dezenas tem o número 47?', opts:['4','7','47','40'], ans:0, exp:'47 = 4 dezenas + 7 unidades.' },
@@ -348,17 +348,17 @@ const EXERCISES_2 = [
     { id:'2m6', s:'matematica', t:'Subtração até 100', type:'problem', diff:2, q:'Tinha 50 berlindes e perdi 18. Com quantos fiquei?', ans:['32'], material:'Subtração: 50 − 18.', solution:'50 − 10 = 40. 40 − 8 = 32. Fiquei com 32 berlindes.', exp:'Subtração com empréstimo.' },
     { id:'2m7', s:'matematica', t:'Tabuada do 2', type:'fill', diff:1, q:'2 × 7 = ___', ans:['14'], exp:'2 × 7 = 7 + 7 = 14.' },
     { id:'2m8', s:'matematica', t:'Tabuada do 2', type:'mc', diff:1, q:'Quanto é 2 × 6?', opts:['10','12','14','8'], ans:1, exp:'2 × 6 = 12.' },
-    { id:'2m9', s:'matematica', t:'Tabuada do 5', type:'fill', diff:1, q:'5 × 4 = ___', ans:['20'], exp:'5 × 4 = 20.' },
-    { id:'2m10', s:'matematica', t:'Tabuada do 5', type:'problem', diff:2, q:'A Eduarda tem 5 sacos com 3 chocolates em cada. Quantos chocolates tem?', ans:['15'], material:'Multiplica: 5 × 3.', solution:'5 + 5 + 5 = 15. Ou 5 × 3 = 15.', exp:'Multiplicação como soma repetida.' },
+    { id:'2m9', s:'matematica', t:'Tabuada do 5', type:'fill', diff:2, q:'5 × 4 = ___', ans:['20'], exp:'5 × 4 = 20.' },
+    { id:'2m10', s:'matematica', t:'Tabuada do 5', type:'problem', diff:1, q:'A Eduarda tem 5 sacos com 3 chocolates em cada. Quantos chocolates tem?', ans:['15'], material:'Multiplica: 5 × 3.', solution:'5 + 5 + 5 = 15. Ou 5 × 3 = 15.', exp:'Multiplicação como soma repetida.' },
     { id:'2m11', s:'matematica', t:'Tabuada do 10', type:'fill', diff:1, q:'10 × 8 = ___', ans:['80'], exp:'Multiplicar por 10: junta um zero. 8 → 80.' },
     { id:'2m12', s:'matematica', t:'Sólidos geométricos', type:'mc', diff:1, q:'Qual destes objetos tem a forma de uma esfera?', opts:['caixa de sapatos','bola de futebol','livro','pirâmide'], ans:1, exp:'A bola é uma esfera.' },
     { id:'2m13', s:'matematica', t:'Figuras planas', type:'mc', diff:1, q:'Quantos lados tem um triângulo?', opts:['2','3','4','5'], ans:1, exp:'Triângulo = 3 lados.' },
     { id:'2m14', s:'matematica', t:'Figuras planas', type:'mc', diff:1, q:'Uma figura com 4 lados iguais é um:', opts:['triângulo','quadrado','círculo','retângulo'], ans:1, exp:'Quadrado: 4 lados iguais.' },
     { id:'2m15', s:'matematica', t:'Medir tempo', type:'fill', diff:1, q:'Quantos minutos tem 1 hora? ___', ans:['60'], exp:'1 hora = 60 minutos.' },
     { id:'2m16', s:'matematica', t:'Medir tempo', type:'mc', diff:1, q:'Quantos dias tem uma semana?', opts:['5','6','7','30'], ans:2, exp:'Uma semana = 7 dias.' },
-    { id:'2m17', s:'matematica', t:'Dinheiro (€)', type:'problem', diff:2, q:'Uma sandes custa 2€ e um sumo custa 1€. Quanto custa o lanche?', ans:['3','3€','3 euros'], material:'Soma: 2 + 1.', solution:'2 + 1 = 3. O lanche custa 3€.', exp:'Adição simples.' },
+    { id:'2m17', s:'matematica', t:'Dinheiro (€)', type:'problem', diff:1, q:'Uma sandes custa 2€ e um sumo custa 1€. Quanto custa o lanche?', ans:['3','3€','3 euros'], material:'Soma: 2 + 1.', solution:'2 + 1 = 3. O lanche custa 3€.', exp:'Adição simples.' },
     { id:'2m18', s:'matematica', t:'Dinheiro (€)', type:'problem', diff:2, q:'A Eduarda tinha 10€ e comprou um livro de 6€. Quanto dinheiro lhe ficou?', ans:['4','4€','4 euros'], material:'Subtração: 10 − 6.', solution:'10 − 6 = 4. Ficou com 4€.', exp:'Subtração com dinheiro.' },
-    { id:'2m19', s:'matematica', t:'Números até 100', type:'order', diff:2, q:'Ordena do menor para o maior: 27, 7, 72, 17', items:['7','17','27','72'], exp:'Comparam-se as dezenas primeiro.' },
+    { id:'2m19', s:'matematica', t:'Números até 100', type:'order', diff:1, q:'Ordena do menor para o maior: 27, 7, 72, 17', items:['7','17','27','72'], exp:'Comparam-se as dezenas primeiro.' },
     { id:'2m20', s:'matematica', t:'Tabuada do 5', type:'mc', diff:1, q:'Qual é o resultado de 5 × 9?', opts:['40','45','50','55'], ans:1, exp:'5 × 9 = 45.' },
 
     // Estudo do Meio
@@ -375,7 +375,7 @@ const EXERCISES_2 = [
     { id:'2e11', s:'estudo_meio', t:'Profissões', type:'mc', diff:1, q:'Quem cuida dos doentes no hospital?', opts:['professor','médico','padeiro','jardineiro'], ans:1, exp:'O médico (com a ajuda dos enfermeiros) cuida dos doentes.' },
     { id:'2e12', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Qual é a capital de Portugal?', opts:['Porto','Coimbra','Lisboa','Faro'], ans:2, exp:'A capital de Portugal é Lisboa.' },
     { id:'2e13', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Quais são as cores da bandeira de Portugal?', opts:['azul e branco','verde e vermelho','vermelho e amarelo','verde e branco'], ans:1, exp:'A bandeira portuguesa é verde e vermelha, com o brasão.' },
-    { id:'2e14', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'Um animal que põe ovos chama-se:', opts:['vivíparo','ovíparo','mamífero','herbívoro'], ans:1, exp:'Ovíparo: nasce de um ovo.' },
+    { id:'2e14', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'Um animal que põe ovos chama-se:', opts:['vivíparo','ovíparo','mamífero','herbívoro'], ans:1, exp:'Ovíparo: nasce de um ovo.' },
 
     // Inglês — visual-first, sem escrever em inglês, opções com 3 alternativas
     { id:'2i1',  s:'ingles', t:'Cores',        type:'mc', diff:1, q:'🔴 Que cor é esta em inglês?',                     opts:['red','blue','yellow'],     ans:0, exp:'🔴 = red (vermelho).' },
@@ -385,7 +385,7 @@ const EXERCISES_2 = [
     { id:'2i5',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'☝️ Quantos dedos? Em inglês:',                       opts:['one','two','three'],       ans:0, exp:'☝️ = 1 = one.' },
     { id:'2i6',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'✌️ Quantos dedos? Em inglês:',                       opts:['four','two','three'],      ans:1, exp:'✌️ = 2 = two.' },
     { id:'2i7',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'🖐️ Quantos dedos? Em inglês:',                       opts:['three','four','five'],     ans:2, exp:'🖐️ = 5 = five.' },
-    { id:'2i8',  s:'ingles', t:'Números',      type:'mc', diff:2, q:'Quantas estrelas? ⭐⭐⭐ Em inglês:',                  opts:['two','three','four'],      ans:1, exp:'⭐⭐⭐ = 3 = three.' },
+    { id:'2i8',  s:'ingles', t:'Números',      type:'mc', diff:1, q:'Quantas estrelas? ⭐⭐⭐ Em inglês:',                  opts:['two','three','four'],      ans:1, exp:'⭐⭐⭐ = 3 = three.' },
     { id:'2i9',  s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐶 Que animal é em inglês?',                       opts:['cat','dog','bird'],        ans:1, exp:'🐶 = dog (cão).' },
     { id:'2i10', s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐱 Que animal é em inglês?',                       opts:['cat','fish','rabbit'],     ans:0, exp:'🐱 = cat (gato).' },
     { id:'2i11', s:'ingles', t:'Animais',      type:'mc', diff:1, q:'🐟 Que animal é em inglês?',                       opts:['bird','fish','horse'],     ans:1, exp:'🐟 = fish (peixe).' },
@@ -547,8 +547,8 @@ const EXERCISES_2 = [
     { id:'2p73', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Qual frase está no PRESENTE?', opts:['Eu cantei.','Eu cantarei.','Eu canto.','Eu cantava.'], ans:2, exp:'"Canto" = agora = presente.' },
     { id:'2p74', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:2, q:'Passado de "Eu como" (1.ª pessoa singular): "Eu ___"', ans:['comi'], exp:'Pretérito perfeito: eu COMI.' },
     { id:'2p75', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:2, q:'"Vou jogar" significa que vou jogar no futuro.', ans:true, exp:'Verdade — futuro próximo: vou + infinitivo.' },
-    { id:'2p76', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Que palavra indica PASSADO?', opts:['amanhã','agora','ontem','já'], ans:2, exp:'"Ontem" → passado.' },
-    { id:'2p77', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Que palavra indica FUTURO?', opts:['ontem','agora','amanhã','antigamente'], ans:2, exp:'"Amanhã" → futuro.' },
+    { id:'2p76', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Que palavra fala de algo que JÁ ACONTECEU?', opts:['amanhã','agora','ontem','depois'], ans:2, exp:'"Ontem" — fala do passado (já aconteceu).' },
+    { id:'2p77', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Que palavra fala de algo que VAI ACONTECER?', opts:['ontem','agora','amanhã','antigamente'], ans:2, exp:'"Amanhã" — fala do futuro (vai acontecer).' },
 
     // ----- Português: Pontuação (+7) -----
     { id:'2p78', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal de fim de frase declarativa (afirmativa):', opts:['?','!','.',','], ans:2, exp:'Frase declarativa termina em PONTO FINAL (.).' },
@@ -661,20 +661,20 @@ const EXERCISES_2 = [
     // ----- Matemática: Capacidade (+7) -----
     { id:'2m137', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Para medir líquido usas:', opts:['régua','balança','copo medidor','transferidor'], ans:2, exp:'Copo medidor (graduado) → capacidade.' },
     { id:'2m138', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'1 L tem quantos mL?', opts:['10','100','1000','60'], ans:2, exp:'1 L = 1000 mL.' },
-    { id:'2m139', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa pequena de água é mais ou menos:', opts:['33 mL','330 mL','3,3 L','33 L'], ans:1, exp:'Uma garrafa pequena (lata refrigerante): ~330 mL.' },
-    { id:'2m140', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'2 L = ___ mL', ans:['2000','2 000'], exp:'1 L = 1000 mL; 2 L = 2000 mL.' },
-    { id:'2m141', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'½ L = ___ mL', ans:['500'], exp:'Metade de 1 L = 500 mL.' },
+    { id:'2m139', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Uma garrafa pequena de água é mais ou menos:', opts:['33 mL','330 mL','3,3 L','33 L'], ans:1, exp:'Uma garrafa pequena (lata refrigerante): ~330 mL.' },
+    { id:'2m140', s:'matematica', t:'Capacidade', type:'fill', diff:1, q:'2 L = ___ mL', ans:['2000','2 000'], exp:'1 L = 1000 mL; 2 L = 2000 mL.' },
+    { id:'2m141', s:'matematica', t:'Capacidade', type:'fill', diff:1, q:'½ L = ___ mL', ans:['500'], exp:'Metade de 1 L = 500 mL.' },
     { id:'2m142', s:'matematica', t:'Capacidade', type:'tf', diff:1, q:'Um copo de água tem cerca de 200 mL.', ans:true, exp:'Verdade — copo normal de água ≈ 200 mL.' },
-    { id:'2m143', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Quantos copos de 250 mL podes encher com 1 L de leite?', opts:['2','3','4','5'], ans:2, exp:'1000 ÷ 250 = 4 copos.' },
+    { id:'2m143', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Quantos copos de 250 mL podes encher com 1 L de leite?', opts:['2','3','4','5'], ans:2, exp:'1000 ÷ 250 = 4 copos.' },
 
     // ----- Matemática: Gráficos (+7) -----
     { id:'2m144', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Num gráfico de barras, a barra MAIS BAIXA significa:', opts:['mais','menos','o mesmo','dobro'], ans:1, exp:'Barra mais BAIXA = menor quantidade.' },
     { id:'2m145', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'O que mostra um pictograma?', opts:['imagens que representam quantidades','só números','só letras','só linhas'], ans:0, exp:'Pictograma usa IMAGENS/desenhos para mostrar quantidades.' },
-    { id:'2m146', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Numa tabela: cães=4, gatos=6, pássaros=2. Quantos animais ao todo?', opts:['8','10','12','14'], ans:2, exp:'4 + 6 + 2 = 12.' },
-    { id:'2m147', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Mesma tabela. Quantos cães a MAIS que pássaros?', opts:['1','2','3','4'], ans:1, exp:'Cães − pássaros = 4 − 2 = 2.' },
-    { id:'2m148', s:'matematica', t:'Gráficos', type:'fill', diff:2, q:'Mesma tabela. Animal mais frequente: ___', ans:['gatos','gato'], exp:'Gatos = 6 → o maior número.' },
-    { id:'2m149', s:'matematica', t:'Gráficos', type:'tf', diff:2, q:'Antes de interpretar um gráfico, deve-se ler o título e os eixos.', ans:true, exp:'Verdade — título e eixos dizem o que está a ser representado.' },
-    { id:'2m150', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Voto: maçã 5, banana 5, pêra 3. Qual a fruta MENOS votada?', opts:['maçã','banana','pêra','iguais'], ans:2, exp:'A pêra com 3 votos é a menor.' },
+    { id:'2m146', s:'matematica', t:'Gráficos', type:'mc', diff:3, q:'Numa tabela: cães=4, gatos=6, pássaros=2. Quantos animais ao todo?', opts:['8','10','12','14'], ans:2, exp:'4 + 6 + 2 = 12.' },
+    { id:'2m147', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Mesma tabela. Quantos cães a MAIS que pássaros?', opts:['1','2','3','4'], ans:1, exp:'Cães − pássaros = 4 − 2 = 2.' },
+    { id:'2m148', s:'matematica', t:'Gráficos', type:'fill', diff:1, q:'Mesma tabela. Animal mais frequente: ___', ans:['gatos','gato'], exp:'Gatos = 6 → o maior número.' },
+    { id:'2m149', s:'matematica', t:'Gráficos', type:'tf', diff:1, q:'Antes de interpretar um gráfico, deve-se ler o título e os eixos.', ans:true, exp:'Verdade — título e eixos dizem o que está a ser representado.' },
+    { id:'2m150', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Voto: maçã 5, banana 5, pêra 3. Qual a fruta MENOS votada?', opts:['maçã','banana','pêra','iguais'], ans:2, exp:'A pêra com 3 votos é a menor.' },
 
     // ----- Estudo do Meio: Astros (+7) -----
     { id:'2e30', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'Quantos planetas tem o Sistema Solar?', opts:['7','8','9','10'], ans:1, exp:'8 planetas (Plutão deixou de ser planeta em 2006).' },
@@ -802,20 +802,20 @@ const EXERCISES_2 = [
     { id:'2p110', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Em que tempo está "Eles brincaram"?', opts:['presente','passado','futuro','condicional'], ans:1, exp:'BRINCARAM → passado (já aconteceu).' },
     { id:'2p111', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Como dizes no FUTURO: "Eu como"?', opts:['Eu comi','Eu como','Eu comerei','Eu comia'], ans:2, exp:'Futuro: comerei (também serve "vou comer").' },
     { id:'2p112', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:2, q:'Passado de "Tu corres": "Tu ___"', ans:['correste'], exp:'Tu corres (presente) → tu CORRESTE (passado).' },
-    { id:'2p113', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:2, q:'"Ontem vou jogar" é uma frase correta.', ans:false, exp:'Falso! "Ontem" é passado, "vou jogar" é futuro. Misturado! Correto: "Ontem joguei" ou "Amanhã vou jogar".' },
-    { id:'2p114', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:3, q:'Qual frase está TODA no passado?', opts:['Como agora.','Comerei amanhã.','Comi e bebi ontem.','Hoje brinco.'], ans:2, exp:'"Comi e bebi" — ambos no passado.' },
+    { id:'2p113', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:1, q:'"Ontem vou jogar" é uma frase correta.', ans:false, exp:'Falso! "Ontem" é passado, "vou jogar" é futuro. Misturado! Correto: "Ontem joguei" ou "Amanhã vou jogar".' },
+    { id:'2p114', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Qual frase está TODA no passado?', opts:['Como agora.','Comerei amanhã.','Comi e bebi ontem.','Hoje brinco.'], ans:2, exp:'"Comi e bebi" — ambos no passado.' },
 
     // ----- Português: Pontuação (+5) -----
-    { id:'2p115', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Que sinal vai no fim de "Cuidado"?', opts:['.','?','!',','], ans:2, exp:'Cuidado! → exclamação (atenção, alerta).' },
+    { id:'2p115', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Que sinal vai no fim de "Cuidado"?', opts:['.','?','!',','], ans:2, exp:'Cuidado! → exclamação (atenção, alerta).' },
     { id:'2p116', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Onde se coloca a vírgula? "Comprei pão leite e fruta"', opts:['só antes do "e"','depois de "pão" e depois de "leite"','no fim','não leva nenhuma'], ans:1, exp:'"Comprei pão, leite e fruta." (Vírgula entre os 2 primeiros.)' },
-    { id:'2p117', s:'portugues', t:'Pontuação básica', type:'fill', diff:2, q:'Sinal usado no fim de "Que dia maravilhoso": ___', ans:['!','exclamação','ponto de exclamação'], exp:'! para exprimir admiração/emoção.' },
-    { id:'2p118', s:'portugues', t:'Pontuação básica', type:'tf', diff:2, q:'A pontuação ajuda quem lê a saber as pausas.', ans:true, exp:'Verdade — sinais de pontuação marcam pausas e mostram a intenção da frase.' },
-    { id:'2p119', s:'portugues', t:'Pontuação básica', type:'mc', diff:3, q:'Qual frase está completamente CORRETA?', opts:['olá como te chamas','Olá como te chamas?','Olá! Como te chamas?','OLÁ. como te chamas!'], ans:2, exp:'Maiúsculas + cumprimento (!) + pergunta (?).' },
+    { id:'2p117', s:'portugues', t:'Pontuação básica', type:'fill', diff:1, q:'Sinal usado no fim de "Que dia maravilhoso": ___', ans:['!','exclamação','ponto de exclamação'], exp:'! para exprimir admiração/emoção.' },
+    { id:'2p118', s:'portugues', t:'Pontuação básica', type:'tf', diff:1, q:'A pontuação ajuda quem lê a saber as pausas.', ans:true, exp:'Verdade — sinais de pontuação marcam pausas e mostram a intenção da frase.' },
+    { id:'2p119', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Qual frase está completamente CORRETA?', opts:['olá como te chamas','Olá como te chamas?','Olá! Como te chamas?','OLÁ. como te chamas!'], ans:2, exp:'Maiúsculas + cumprimento (!) + pergunta (?).' },
 
     // ----- Matemática: Multiplicação (+5 desafio) -----
-    { id:'2m151', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'Numa caixa há 6 fileiras de 4 chocolates. Total?', opts:['10','18','24','28'], ans:2, exp:'6 × 4 = 24 chocolates.' },
+    { id:'2m151', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'Numa caixa há 6 fileiras de 4 chocolates. Total?', opts:['10','18','24','28'], ans:2, exp:'6 × 4 = 24 chocolates.' },
     { id:'2m152', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'Quanto é 3 × 8 + 4?', opts:['11','15','24','28'], ans:3, exp:'Primeiro multiplica: 3×8=24. Depois soma: 24+4=28.' },
-    { id:'2m153', s:'matematica', t:'Multiplicação', type:'fill', diff:2, q:'Se 5 × ? = 30, qual é o ?', ans:['6'], exp:'5 × 6 = 30.' },
+    { id:'2m153', s:'matematica', t:'Multiplicação', type:'fill', diff:1, q:'Se 5 × ? = 30, qual é o ?', ans:['6'], exp:'5 × 6 = 30.' },
     { id:'2m154', s:'matematica', t:'Multiplicação', type:'mc', diff:3, q:'Tens 4 sacos com 6 maçãs cada. A Maria deu-te mais 5. Quantas tens ao todo?', opts:['15','24','29','34'], ans:2, exp:'4 × 6 = 24 maçãs + 5 = 29.' },
     { id:'2m155', s:'matematica', t:'Multiplicação', type:'tf', diff:2, q:'8 × 7 é igual a 7 × 8.', ans:true, exp:'Verdade — propriedade comutativa: a ordem não muda o resultado (= 56).' },
 
@@ -823,85 +823,85 @@ const EXERCISES_2 = [
     { id:'2m156', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'Numa pizza com 8 fatias, dividida igualmente por 4 pessoas, cada uma come:', opts:['1','2','3','4'], ans:1, exp:'8 ÷ 4 = 2 fatias por pessoa.' },
     { id:'2m157', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'Tens 21 berlindes para 3 amigos. Sobra algum?', opts:['cada um leva 7, não sobra','cada um leva 6, sobra 3','cada um leva 5, sobram 6','cada um leva 8, faltam 3'], ans:0, exp:'21 ÷ 3 = 7 exato (não sobra nada).' },
     { id:'2m158', s:'matematica', t:'Divisão', type:'fill', diff:2, q:'40 ÷ 8 = ___', ans:['5'], exp:'40 ÷ 8 = 5 (porque 5 × 8 = 40).' },
-    { id:'2m159', s:'matematica', t:'Divisão', type:'mc', diff:3, q:'A Joana tinha 24 cromos. Deu metade ao irmão. Com quantos ficou?', opts:['10','12','14','24'], ans:1, exp:'Metade de 24 = 24 ÷ 2 = 12. Ficou com 12.' },
-    { id:'2m160', s:'matematica', t:'Divisão', type:'tf', diff:2, q:'14 dividido por 2 dá 7.', ans:true, exp:'Verdade — 14 ÷ 2 = 7 (porque 7 × 2 = 14).' },
+    { id:'2m159', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'A Joana tinha 24 cromos. Deu metade ao irmão. Com quantos ficou?', opts:['10','12','14','24'], ans:1, exp:'Metade de 24 = 24 ÷ 2 = 12. Ficou com 12.' },
+    { id:'2m160', s:'matematica', t:'Divisão', type:'tf', diff:1, q:'14 dividido por 2 dá 7.', ans:true, exp:'Verdade — 14 ÷ 2 = 7 (porque 7 × 2 = 14).' },
 
     // ----- Matemática: Tabuada do 3 (+5 desafio) -----
     { id:'2m161', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'Quanto é 3 × 9 − 7?', opts:['18','20','27','29'], ans:1, exp:'3 × 9 = 27. 27 − 7 = 20.' },
-    { id:'2m162', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'Em 6 dúzias e meia de ovos quantos ovos há?', opts:['18','42','54','78'], ans:3, exp:'1 dúzia = 12. 6 × 12 = 72. + meia (=6) = 78. (Outra forma: 6,5 × 12.)' },
-    { id:'2m163', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'Qual NÃO é múltiplo de 3?', opts:['12','18','22','27'], ans:2, exp:'22 → 2+2=4 (não é mult de 3).' },
-    { id:'2m164', s:'matematica', t:'Tabuada do 3', type:'fill', diff:3, q:'Quantas pernas têm 9 cadeiras (cada uma com 3 pernas)? ___', ans:['27'], exp:'9 × 3 = 27 pernas.' },
-    { id:'2m165', s:'matematica', t:'Tabuada do 3', type:'tf', diff:3, q:'30 é múltiplo de 3.', ans:true, exp:'Verdade — 3 × 10 = 30. (3+0=3 ✓)' },
+    { id:'2m162', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'Em 6 dúzias e meia de ovos quantos ovos há?', opts:['18','42','54','78'], ans:3, exp:'1 dúzia = 12. 6 × 12 = 72. + meia (=6) = 78. (Outra forma: 6,5 × 12.)' },
+    { id:'2m163', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'Qual NÃO é múltiplo de 3?', opts:['12','18','22','27'], ans:2, exp:'22 → 2+2=4 (não é mult de 3).' },
+    { id:'2m164', s:'matematica', t:'Tabuada do 3', type:'fill', diff:2, q:'Quantas pernas têm 9 cadeiras (cada uma com 3 pernas)? ___', ans:['27'], exp:'9 × 3 = 27 pernas.' },
+    { id:'2m165', s:'matematica', t:'Tabuada do 3', type:'tf', diff:1, q:'30 é múltiplo de 3.', ans:true, exp:'Verdade — 3 × 10 = 30. (3+0=3 ✓)' },
 
     // ----- Matemática: Tabuada do 4 (+5 desafio) -----
     { id:'2m166', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'Quanto é 4 × 6 + 4 × 2?', opts:['24','28','32','36'], ans:2, exp:'4×6=24; 4×2=8; 24+8=32. (Truque: = 4×(6+2) = 4×8 = 32.)' },
-    { id:'2m167', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'Numa estação há 4 comboios com 8 carruagens cada. Total carruagens?', opts:['12','24','32','40'], ans:2, exp:'4 × 8 = 32 carruagens.' },
-    { id:'2m168', s:'matematica', t:'Tabuada do 4', type:'fill', diff:2, q:'4 × ? = 24. ? = ___', ans:['6'], exp:'4 × 6 = 24.' },
+    { id:'2m167', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'Numa estação há 4 comboios com 8 carruagens cada. Total carruagens?', opts:['12','24','32','40'], ans:2, exp:'4 × 8 = 32 carruagens.' },
+    { id:'2m168', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × ? = 24. ? = ___', ans:['6'], exp:'4 × 6 = 24.' },
     { id:'2m169', s:'matematica', t:'Tabuada do 4', type:'mc', diff:3, q:'Cada cão tem 4 patas. Numa rua há 7 cães e 3 gatos. Quantas patas ao todo?', opts:['28','30','40','44'], ans:2, exp:'7×4 (cães) = 28. 3×4 (gatos) = 12. Total = 28+12 = 40.' },
     { id:'2m170', s:'matematica', t:'Tabuada do 4', type:'tf', diff:2, q:'9 × 4 = 4 × 9.', ans:true, exp:'Verdade — comutativa. Resultado = 36.' },
 
     // ----- Matemática: Tabuada do 6 (+5 desafio) -----
-    { id:'2m171', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'Numa caixa há 6 ovos. Quantos em meia dúzia de caixas?', opts:['12','24','30','36'], ans:3, exp:'Meia dúzia = 6. 6 × 6 = 36 ovos.' },
+    { id:'2m171', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'Numa caixa há 6 ovos. Quantos em meia dúzia de caixas?', opts:['12','24','30','36'], ans:3, exp:'Meia dúzia = 6. 6 × 6 = 36 ovos.' },
     { id:'2m172', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'A Sara faz 6 km a caminhar por dia. Numa semana (7 dias)?', opts:['36','42','48','54'], ans:1, exp:'7 × 6 = 42 km.' },
-    { id:'2m173', s:'matematica', t:'Tabuada do 6', type:'fill', diff:2, q:'6 × ? = 48. ? = ___', ans:['8'], exp:'6 × 8 = 48.' },
-    { id:'2m174', s:'matematica', t:'Tabuada do 6', type:'mc', diff:3, q:'Quanto é 6 × 7 − 6?', opts:['30','36','42','48'], ans:1, exp:'6×7=42. 42−6=36. (Truque: = 6×(7−1) = 6×6 = 36.)' },
-    { id:'2m175', s:'matematica', t:'Tabuada do 6', type:'tf', diff:3, q:'Os múltiplos de 6 são também múltiplos de 2 e de 3.', ans:true, exp:'Verdade — 6 = 2 × 3, então tudo o que é múltiplo de 6 é também de 2 e 3.' },
+    { id:'2m173', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × ? = 48. ? = ___', ans:['8'], exp:'6 × 8 = 48.' },
+    { id:'2m174', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'Quanto é 6 × 7 − 6?', opts:['30','36','42','48'], ans:1, exp:'6×7=42. 42−6=36. (Truque: = 6×(7−1) = 6×6 = 36.)' },
+    { id:'2m175', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'Os múltiplos de 6 são também múltiplos de 2 e de 3.', ans:true, exp:'Verdade — 6 = 2 × 3, então tudo o que é múltiplo de 6 é também de 2 e 3.' },
 
     // ----- Matemática: Tabuada do 7 (+5 desafio) -----
-    { id:'2m176', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'Numa loja vendem-se 7 chocolates por euro. Quantos chocolates compras com 6 €?', opts:['28','35','42','49'], ans:2, exp:'6 × 7 = 42 chocolates.' },
-    { id:'2m177', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'Quantos dias têm 8 semanas?', opts:['49','54','56','63'], ans:2, exp:'8 × 7 = 56 dias.' },
-    { id:'2m178', s:'matematica', t:'Tabuada do 7', type:'fill', diff:2, q:'7 × ? = 35. ? = ___', ans:['5'], exp:'7 × 5 = 35.' },
+    { id:'2m176', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'Numa loja vendem-se 7 chocolates por euro. Quantos chocolates compras com 6 €?', opts:['28','35','42','49'], ans:2, exp:'6 × 7 = 42 chocolates.' },
+    { id:'2m177', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'Quantos dias têm 8 semanas?', opts:['49','54','56','63'], ans:2, exp:'8 × 7 = 56 dias.' },
+    { id:'2m178', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × ? = 35. ? = ___', ans:['5'], exp:'7 × 5 = 35.' },
     { id:'2m179', s:'matematica', t:'Tabuada do 7', type:'mc', diff:3, q:'Tens 3 sacos com 7 cromos cada e o teu amigo deu-te mais 9. Total?', opts:['16','21','27','30'], ans:3, exp:'3 × 7 = 21. 21 + 9 = 30 cromos.' },
-    { id:'2m180', s:'matematica', t:'Tabuada do 7', type:'tf', diff:3, q:'A tabuada do 7 é a mais difícil (sem truque óbvio).', ans:true, exp:'Verdade — daí ser preciso decorar mais. Truque: usar a comutativa (7×3 = 3×7).' },
+    { id:'2m180', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'A tabuada do 7 é a mais difícil (sem truque óbvio).', ans:true, exp:'Verdade — daí ser preciso decorar mais. Truque: usar a comutativa (7×3 = 3×7).' },
 
     // ----- Matemática: Tabuada do 8 (+5 desafio) -----
     { id:'2m181', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'Quanto é 8 × 7 − 6?', opts:['46','48','50','56'], ans:2, exp:'8×7=56. 56−6=50.' },
-    { id:'2m182', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'Cada polvo tem 8 patas. Quantas patas têm 6 polvos?', opts:['42','48','54','64'], ans:1, exp:'6 × 8 = 48 patas.' },
-    { id:'2m183', s:'matematica', t:'Tabuada do 8', type:'fill', diff:2, q:'8 × ? = 56. ? = ___', ans:['7'], exp:'8 × 7 = 56.' },
-    { id:'2m184', s:'matematica', t:'Tabuada do 8', type:'mc', diff:3, q:'Numa garagem há 8 carros. Cada carro tem 4 rodas. Total rodas?', opts:['12','24','32','40'], ans:2, exp:'8 × 4 = 32 rodas.' },
-    { id:'2m185', s:'matematica', t:'Tabuada do 8', type:'tf', diff:3, q:'8 × 8 = 64.', ans:true, exp:'Verdade — 8 × 8 = 64.' },
+    { id:'2m182', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'Cada polvo tem 8 patas. Quantas patas têm 6 polvos?', opts:['42','48','54','64'], ans:1, exp:'6 × 8 = 48 patas.' },
+    { id:'2m183', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × ? = 56. ? = ___', ans:['7'], exp:'8 × 7 = 56.' },
+    { id:'2m184', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'Numa garagem há 8 carros. Cada carro tem 4 rodas. Total rodas?', opts:['12','24','32','40'], ans:2, exp:'8 × 4 = 32 rodas.' },
+    { id:'2m185', s:'matematica', t:'Tabuada do 8', type:'tf', diff:2, q:'8 × 8 = 64.', ans:true, exp:'Verdade — 8 × 8 = 64.' },
 
     // ----- Matemática: Tabuada do 9 (+5 desafio) -----
     { id:'2m186', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'Truque: 9 × 4 = (10 × 4) − 4. Quanto dá?', opts:['32','34','36','40'], ans:2, exp:'10 × 4 = 40. 40 − 4 = 36 = 9 × 4 ✓.' },
     { id:'2m187', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'Quanto é 9 × 7 + 1?', opts:['56','63','64','70'], ans:2, exp:'9 × 7 = 63. 63 + 1 = 64.' },
-    { id:'2m188', s:'matematica', t:'Tabuada do 9', type:'fill', diff:2, q:'9 × ? = 81. ? = ___', ans:['9'], exp:'9 × 9 = 81.' },
-    { id:'2m189', s:'matematica', t:'Tabuada do 9', type:'mc', diff:3, q:'A soma dos algarismos do produto 9×6 dá:', opts:['8','9','10','18'], ans:1, exp:'9 × 6 = 54. 5+4 = 9. Truque mágico do 9!' },
-    { id:'2m190', s:'matematica', t:'Tabuada do 9', type:'tf', diff:3, q:'Múltiplo de 9: a soma dos algarismos é sempre 9 (ou múltiplo de 9).', ans:true, exp:'Verdade — truque para verificar se um número é múltiplo de 9.' },
+    { id:'2m188', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × ? = 81. ? = ___', ans:['9'], exp:'9 × 9 = 81.' },
+    { id:'2m189', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'A soma dos algarismos do produto 9×6 dá:', opts:['8','9','10','18'], ans:1, exp:'9 × 6 = 54. 5+4 = 9. Truque mágico do 9!' },
+    { id:'2m190', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'Múltiplo de 9: a soma dos algarismos é sempre 9 (ou múltiplo de 9).', ans:true, exp:'Verdade — truque para verificar se um número é múltiplo de 9.' },
 
     // ----- Matemática: Frações simples (+5 desafio) -----
     { id:'2m191', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Tens 12 bolachas e comes metade. Quantas comes?', opts:['4','5','6','8'], ans:2, exp:'Metade de 12 = 12 ÷ 2 = 6 bolachas.' },
     { id:'2m192', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'1/4 de 20 é:', opts:['4','5','6','10'], ans:1, exp:'20 ÷ 4 = 5.' },
     { id:'2m193', s:'matematica', t:'Frações simples', type:'fill', diff:2, q:'Metade de 16 = ___', ans:['8'], exp:'16 ÷ 2 = 8.' },
-    { id:'2m194', s:'matematica', t:'Frações simples', type:'mc', diff:3, q:'Um bolo dividido em 8 partes iguais. Comeste 4. Que fração comeste?', opts:['1/2 (metade)','1/4','3/4','4/4 (todo)'], ans:0, exp:'4/8 = 1/2 (metade).' },
-    { id:'2m195', s:'matematica', t:'Frações simples', type:'tf', diff:3, q:'1/2 de uma laranja = 50% da laranja.', ans:true, exp:'Verdade — metade = 50%.' },
+    { id:'2m194', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Um bolo dividido em 8 partes iguais. Comeste 4. Que fração comeste?', opts:['1/2 (metade)','1/4','3/4','4/4 (todo)'], ans:0, exp:'4/8 = 1/2 (metade).' },
+    { id:'2m195', s:'matematica', t:'Frações simples', type:'tf', diff:2, q:'1/2 de uma laranja = 50% da laranja.', ans:true, exp:'Verdade — metade = 50%.' },
 
     // ----- Matemática: Comprimento (+5 desafio) -----
-    { id:'2m196', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'A altura de uma porta é cerca de:', opts:['2 cm','2 m','2 km','20 cm'], ans:1, exp:'~2 metros.' },
+    { id:'2m196', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'A altura de uma porta é cerca de:', opts:['2 cm','2 m','2 km','20 cm'], ans:1, exp:'~2 metros.' },
     { id:'2m197', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'1 m + 50 cm = ___ cm', opts:['51','60','105','150'], ans:3, exp:'1 m = 100 cm; 100 + 50 = 150 cm.' },
-    { id:'2m198', s:'matematica', t:'Comprimento', type:'fill', diff:2, q:'5 km = ___ m', ans:['5000','5 000'], exp:'5 × 1000 = 5000 m.' },
-    { id:'2m199', s:'matematica', t:'Comprimento', type:'mc', diff:3, q:'Tens uma fita de 2 m. Cortas em pedaços de 50 cm. Quantos pedaços ficas?', opts:['2','3','4','5'], ans:2, exp:'2 m = 200 cm. 200 ÷ 50 = 4 pedaços.' },
-    { id:'2m200', s:'matematica', t:'Comprimento', type:'tf', diff:3, q:'1 km é o mesmo que 1000 metros.', ans:true, exp:'Verdade — 1 km = 1000 m.' },
+    { id:'2m198', s:'matematica', t:'Comprimento', type:'fill', diff:1, q:'5 km = ___ m', ans:['5000','5 000'], exp:'5 × 1000 = 5000 m.' },
+    { id:'2m199', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'Tens uma fita de 2 m. Cortas em pedaços de 50 cm. Quantos pedaços ficas?', opts:['2','3','4','5'], ans:2, exp:'2 m = 200 cm. 200 ÷ 50 = 4 pedaços.' },
+    { id:'2m200', s:'matematica', t:'Comprimento', type:'tf', diff:2, q:'1 km é o mesmo que 1000 metros.', ans:true, exp:'Verdade — 1 km = 1000 m.' },
 
     // ----- Matemática: Massa (+5 desafio) -----
-    { id:'2m201', s:'matematica', t:'Massa', type:'mc', diff:2, q:'Uma criança normal pesa cerca de:', opts:['2 g','25 kg','25 g','25 t'], ans:1, exp:'~25 kg para uma criança de 7-8 anos.' },
+    { id:'2m201', s:'matematica', t:'Massa', type:'mc', diff:1, q:'Uma criança normal pesa cerca de:', opts:['2 g','25 kg','25 g','25 t'], ans:1, exp:'~25 kg para uma criança de 7-8 anos.' },
     { id:'2m202', s:'matematica', t:'Massa', type:'mc', diff:2, q:'2 kg + 500 g = ___ g', opts:['250','502','2002','2500'], ans:3, exp:'2 kg = 2000 g. 2000 + 500 = 2500 g.' },
-    { id:'2m203', s:'matematica', t:'Massa', type:'fill', diff:2, q:'¼ kg = ___ g', ans:['250'], exp:'1 kg = 1000 g; 1000 ÷ 4 = 250 g.' },
-    { id:'2m204', s:'matematica', t:'Massa', type:'mc', diff:3, q:'Compras 3 sacos de batatas de 2 kg cada. Total?', opts:['5 kg','6 kg','8 kg','12 kg'], ans:1, exp:'3 × 2 = 6 kg.' },
-    { id:'2m205', s:'matematica', t:'Massa', type:'tf', diff:3, q:'1000 gramas pesam o mesmo que 1 quilograma.', ans:true, exp:'Verdade — 1 kg = 1000 g.' },
+    { id:'2m203', s:'matematica', t:'Massa', type:'fill', diff:1, q:'¼ kg = ___ g', ans:['250'], exp:'1 kg = 1000 g; 1000 ÷ 4 = 250 g.' },
+    { id:'2m204', s:'matematica', t:'Massa', type:'mc', diff:2, q:'Compras 3 sacos de batatas de 2 kg cada. Total?', opts:['5 kg','6 kg','8 kg','12 kg'], ans:1, exp:'3 × 2 = 6 kg.' },
+    { id:'2m205', s:'matematica', t:'Massa', type:'tf', diff:2, q:'1000 gramas pesam o mesmo que 1 quilograma.', ans:true, exp:'Verdade — 1 kg = 1000 g.' },
 
     // ----- Matemática: Capacidade (+5 desafio) -----
-    { id:'2m206', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa grande de água tem cerca de:', opts:['15 mL','150 mL','1,5 L','15 L'], ans:2, exp:'~1,5 L.' },
-    { id:'2m207', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'3 L = ___ mL', opts:['30','300','3000','30000'], ans:2, exp:'3 × 1000 = 3000 mL.' },
-    { id:'2m208', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'¼ L = ___ mL', ans:['250'], exp:'1 L = 1000 mL; ÷ 4 = 250 mL.' },
-    { id:'2m209', s:'matematica', t:'Capacidade', type:'mc', diff:3, q:'Tens 2 L de sumo. Enche copos de 250 mL. Quantos copos enches?', opts:['4','6','8','10'], ans:2, exp:'2 L = 2000 mL. 2000 ÷ 250 = 8 copos.' },
-    { id:'2m210', s:'matematica', t:'Capacidade', type:'tf', diff:3, q:'1 L de água = 1000 mL de água.', ans:true, exp:'Verdade — sempre.' },
+    { id:'2m206', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Uma garrafa grande de água tem cerca de:', opts:['15 mL','150 mL','1,5 L','15 L'], ans:2, exp:'~1,5 L.' },
+    { id:'2m207', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'3 L = ___ mL', opts:['30','300','3000','30000'], ans:2, exp:'3 × 1000 = 3000 mL.' },
+    { id:'2m208', s:'matematica', t:'Capacidade', type:'fill', diff:1, q:'¼ L = ___ mL', ans:['250'], exp:'1 L = 1000 mL; ÷ 4 = 250 mL.' },
+    { id:'2m209', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Tens 2 L de sumo. Enche copos de 250 mL. Quantos copos enches?', opts:['4','6','8','10'], ans:2, exp:'2 L = 2000 mL. 2000 ÷ 250 = 8 copos.' },
+    { id:'2m210', s:'matematica', t:'Capacidade', type:'tf', diff:1, q:'1 L de água = 1000 mL de água.', ans:true, exp:'Verdade — sempre.' },
 
     // ----- Matemática: Gráficos (+5 desafio) -----
-    { id:'2m211', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Tabela: Cães=4, Gatos=6, Pássaros=2. Animal MENOS frequente?', opts:['Cães','Gatos','Pássaros','iguais'], ans:2, exp:'Pássaros = 2 (a menor).' },
-    { id:'2m212', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Mesma tabela. Quantos gatos a MAIS que cães?', opts:['1','2','4','6'], ans:1, exp:'Gatos − cães = 6 − 4 = 2.' },
-    { id:'2m213', s:'matematica', t:'Gráficos', type:'fill', diff:2, q:'Tabela votos: Maçã=10, Banana=5, Pêra=5. Total ___ votos.', ans:['20'], exp:'10 + 5 + 5 = 20 votos.' },
-    { id:'2m214', s:'matematica', t:'Gráficos', type:'mc', diff:3, q:'Pictograma: 🐱🐱🐱 (cada 🐱 = 2 gatos). Total gatos?', opts:['3','5','6','8'], ans:2, exp:'3 imagens × 2 gatos = 6 gatos.' },
-    { id:'2m215', s:'matematica', t:'Gráficos', type:'tf', diff:3, q:'Num gráfico de barras, a barra mais alta representa o valor MAIOR.', ans:true, exp:'Verdade — barra alta = mais; barra baixa = menos.' },
+    { id:'2m211', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Tabela: Cães=4, Gatos=6, Pássaros=2. Animal MENOS frequente?', opts:['Cães','Gatos','Pássaros','iguais'], ans:2, exp:'Pássaros = 2 (a menor).' },
+    { id:'2m212', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Mesma tabela. Quantos gatos a MAIS que cães?', opts:['1','2','4','6'], ans:1, exp:'Gatos − cães = 6 − 4 = 2.' },
+    { id:'2m213', s:'matematica', t:'Gráficos', type:'fill', diff:1, q:'Tabela votos: Maçã=10, Banana=5, Pêra=5. Total ___ votos.', ans:['20'], exp:'10 + 5 + 5 = 20 votos.' },
+    { id:'2m214', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Pictograma: 🐱🐱🐱 (cada 🐱 = 2 gatos). Total gatos?', opts:['3','5','6','8'], ans:2, exp:'3 imagens × 2 gatos = 6 gatos.' },
+    { id:'2m215', s:'matematica', t:'Gráficos', type:'tf', diff:1, q:'Num gráfico de barras, a barra mais alta representa o valor MAIOR.', ans:true, exp:'Verdade — barra alta = mais; barra baixa = menos.' },
 
     // ----- Estudo do Meio: Astros (+5 desafio) -----
     { id:'2e65', s:'estudo_meio', t:'Astros', type:'mc', diff:2, q:'O nosso planeta é o ___ planeta a contar do Sol:', opts:['1.º','2.º','3.º','4.º'], ans:2, exp:'Mercúrio (1) → Vénus (2) → TERRA (3) → Marte (4)...' },
@@ -955,16 +955,16 @@ const EXERCISES_2 = [
     // ----- Inglês: Food (+5 desafio) -----
     { id:'2i69', s:'ingles', t:'Food', type:'mc', diff:2, q:'"I am hungry" significa:', opts:['Tenho frio','Tenho sede','Tenho fome','Tenho sono'], ans:2, exp:'I am hungry = Tenho fome.' },
     { id:'2i70', s:'ingles', t:'Food', type:'mc', diff:2, q:'"Cheese" em inglês é:', opts:['carne','peixe','queijo','pão'], ans:2, exp:'Cheese = queijo.' },
-    { id:'2i71', s:'ingles', t:'Food', type:'fill', diff:2, q:'Carne em inglês: ___', ans:['meat'], exp:'Meat = carne.' },
-    { id:'2i72', s:'ingles', t:'Food', type:'tf', diff:3, q:'"Vegetables" em inglês são legumes.', ans:true, exp:'Verdade — vegetables = legumes/vegetais.' },
-    { id:'2i73', s:'ingles', t:'Food', type:'mc', diff:3, q:'"What is your favourite food?" significa:', opts:['Onde está a comida?','Quanto custa a comida?','Qual é a tua comida favorita?','Quem comeu?'], ans:2, exp:'What is your favourite food? = Qual é a tua comida favorita?' },
+    { id:'2i71', s:'ingles', t:'Food', type:'fill', diff:1, q:'Carne em inglês: ___', ans:['meat'], exp:'Meat = carne.' },
+    { id:'2i72', s:'ingles', t:'Food', type:'tf', diff:1, q:'"Vegetables" em inglês são legumes.', ans:true, exp:'Verdade — vegetables = legumes/vegetais.' },
+    { id:'2i73', s:'ingles', t:'Food', type:'mc', diff:2, q:'"What is your favourite food?" significa:', opts:['Onde está a comida?','Quanto custa a comida?','Qual é a tua comida favorita?','Quem comeu?'], ans:2, exp:'What is your favourite food? = Qual é a tua comida favorita?' },
 
     // ----- Inglês: Toys (+5 desafio) -----
     { id:'2i74', s:'ingles', t:'Toys', type:'mc', diff:2, q:"\"It's mine!\" significa:", opts:['É teu','É dele','É meu','É nosso'], ans:2, exp:"It's mine! = É meu!" },
     { id:'2i75', s:'ingles', t:'Toys', type:'mc', diff:2, q:'"Can I play?" significa:', opts:['Posso comer?','Posso brincar?','Posso ir?','Posso ver?'], ans:1, exp:'Can I play? = Posso brincar?' },
-    { id:'2i76', s:'ingles', t:'Toys', type:'fill', diff:2, q:'Patins em inglês: roller ___', ans:['skates'], exp:'Roller skates = patins.' },
-    { id:'2i77', s:'ingles', t:'Toys', type:'tf', diff:3, q:'"Share" em inglês significa partilhar.', ans:true, exp:'Verdade — share = partilhar. (Importante para brincar com amigos!)' },
-    { id:'2i78', s:'ingles', t:'Toys', type:'mc', diff:3, q:'"Robot" em inglês é a mesma palavra em português.', opts:['Sim, escreve-se igual','Não, é diferente','É "robotic"','É "machine"'], ans:0, exp:'Robot escreve-se igual em inglês e português (só pronúncia muda).' },
+    { id:'2i76', s:'ingles', t:'Toys', type:'fill', diff:1, q:'Patins em inglês: roller ___', ans:['skates'], exp:'Roller skates = patins.' },
+    { id:'2i77', s:'ingles', t:'Toys', type:'tf', diff:1, q:'"Share" em inglês significa partilhar.', ans:true, exp:'Verdade — share = partilhar. (Importante para brincar com amigos!)' },
+    { id:'2i78', s:'ingles', t:'Toys', type:'mc', diff:1, q:'"Robot" em inglês é a mesma palavra em português.', opts:['Sim, escreve-se igual','Não, é diferente','É "robotic"','É "machine"'], ans:0, exp:'Robot escreve-se igual em inglês e português (só pronúncia muda).' },
 
     // ============================================================
     // ===== EXTRA-FÁCIL 2.º ano - perguntas mais simples =========
@@ -973,7 +973,7 @@ const EXERCISES_2 = [
     // ============================================================
 
     // ----- Português: Hiato (+5 fácil) -----
-    { id:'2p120', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'No hiato, as vogais ficam:', opts:['na mesma sílaba','em sílabas diferentes','não juntas','sem ler'], ans:1, exp:'Hiato = vogais juntas mas em SÍLABAS DIFERENTES.' },
+    { id:'2p120', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'No hiato, as vogais ficam:', opts:['na mesma sílaba','em sílabas diferentes','não juntas','sem ler'], ans:1, exp:'Hiato = vogais juntas mas em SÍLABAS DIFERENTES.' },
     { id:'2p121', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'A palavra "baú" tem:', opts:['ditongo','hiato'], ans:1, exp:'ba-ú → 2 sílabas → hiato.' },
     { id:'2p122', s:'portugues', t:'Hiato', type:'tf', diff:1, q:'"Pai" tem 1 sílaba.', ans:true, exp:'Verdade — "pai" diz-se de uma só vez (ditongo).' },
     { id:'2p123', s:'portugues', t:'Hiato', type:'fill', diff:1, q:'Quantas sílabas tem "pai"? ___', ans:['1','uma'], exp:'1 sílaba (ditongo "ai").' },
@@ -1008,11 +1008,11 @@ const EXERCISES_2 = [
     { id:'2p144', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'fill', diff:1, q:'Diminutivo de "gato": ___', ans:['gatinho'], exp:'Gato → gatinho.' },
 
     // ----- Português: Verbos passado/futuro (+5 fácil) -----
-    { id:'2p145', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Ontem" é uma pista de:', opts:['presente','passado','futuro'], ans:1, exp:'Ontem = passado (já aconteceu).' },
-    { id:'2p146', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Amanhã" é uma pista de:', opts:['presente','passado','futuro'], ans:2, exp:'Amanhã = futuro (vai acontecer).' },
-    { id:'2p147', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Agora" é uma pista de:', opts:['presente','passado','futuro'], ans:0, exp:'Agora = presente.' },
+    { id:'2p145', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'Quando dizes "ontem", falas de:', opts:['presente','passado','futuro'], ans:1, exp:'Ontem = passado (já aconteceu).' },
+    { id:'2p146', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'Quando dizes "amanhã", falas de:', opts:['presente','passado','futuro'], ans:2, exp:'Amanhã = futuro (vai acontecer).' },
+    { id:'2p147', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'Quando dizes "agora", falas de:', opts:['presente','passado','futuro'], ans:0, exp:'Agora = presente.' },
     { id:'2p148', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:1, q:'"Eu corri" está no passado.', ans:true, exp:'Verdade — corri = passado.' },
-    { id:'2p149', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:1, q:'Pista de tempo PASSADO: ___', ans:['ontem','antes'], exp:'Ontem ou antes → passado.' },
+    { id:'2p149', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:1, q:'Diz uma palavra que mostra que algo JÁ ACONTECEU: ___', ans:['ontem','antes','já'], exp:'Ontem, antes, já → passado (já aconteceu).' },
 
     // ----- Português: Pontuação (+5 fácil) -----
     { id:'2p150', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Que sinal vai no fim de uma pergunta?', opts:['.','?','!'], ans:1, exp:'Pergunta → ?.' },
@@ -1045,14 +1045,14 @@ const EXERCISES_2 = [
     // ----- Matemática: Tabuada do 4 (+5 fácil) -----
     { id:'2m231', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 1 = ?', opts:['0','4','8'], ans:1, exp:'4 × 1 = 4.' },
     { id:'2m232', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 2 = ?', opts:['6','8','10'], ans:1, exp:'4 × 2 = 8.' },
-    { id:'2m233', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 5 = ___', ans:['20'], exp:'4 × 5 = 20.' },
+    { id:'2m233', s:'matematica', t:'Tabuada do 4', type:'fill', diff:2, q:'4 × 5 = ___', ans:['20'], exp:'4 × 5 = 20.' },
     { id:'2m234', s:'matematica', t:'Tabuada do 4', type:'tf', diff:1, q:'4 × 0 = 0.', ans:true, exp:'Sempre — × 0 dá 0.' },
     { id:'2m235', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 4 = ?', opts:['12','16','20'], ans:1, exp:'4 × 4 = 16.' },
 
     // ----- Matemática: Tabuada do 6 (+5 fácil) -----
     { id:'2m236', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 1 = ?', opts:['0','6','12'], ans:1, exp:'6 × 1 = 6.' },
     { id:'2m237', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 5 = ?', opts:['25','30','36'], ans:1, exp:'6 × 5 = 30.' },
-    { id:'2m238', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 3 = ___', ans:['18'], exp:'6 × 3 = 18.' },
+    { id:'2m238', s:'matematica', t:'Tabuada do 6', type:'fill', diff:2, q:'6 × 3 = ___', ans:['18'], exp:'6 × 3 = 18.' },
     { id:'2m239', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'6 × 10 = 60.', ans:true, exp:'Verdade — junta 0 ao 6.' },
     { id:'2m240', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 2 = ?', opts:['8','10','12'], ans:2, exp:'6 × 2 = 12.' },
 
@@ -1061,7 +1061,7 @@ const EXERCISES_2 = [
     { id:'2m242', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 2 = ?', opts:['12','14','16'], ans:1, exp:'7 × 2 = 14.' },
     { id:'2m243', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 0 = ___', ans:['0','zero'], exp:'× 0 = 0.' },
     { id:'2m244', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'7 × 10 = 70.', ans:true, exp:'Verdade.' },
-    { id:'2m245', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 3 = ?', opts:['18','21','24'], ans:1, exp:'7 × 3 = 21.' },
+    { id:'2m245', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 3 = ?', opts:['18','21','24'], ans:1, exp:'7 × 3 = 21.' },
 
     // ----- Matemática: Tabuada do 8 (+5 fácil) -----
     { id:'2m246', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 1 = ?', opts:['0','8','16'], ans:1, exp:'8 × 1 = 8.' },
@@ -1075,14 +1075,14 @@ const EXERCISES_2 = [
     { id:'2m252', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 2 = ?', opts:['11','18','20'], ans:1, exp:'9 × 2 = 18.' },
     { id:'2m253', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
     { id:'2m254', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'9 × 0 = 0.', ans:true, exp:'× 0 = 0.' },
-    { id:'2m255', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 3 = ?', opts:['18','21','27'], ans:2, exp:'9 × 3 = 27.' },
+    { id:'2m255', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 3 = ?', opts:['18','21','27'], ans:2, exp:'9 × 3 = 27.' },
 
     // ----- Matemática: Frações simples (+5 fácil) -----
     { id:'2m256', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade quer dizer:', opts:['1 parte de 4','1 parte de 2','tudo'], ans:1, exp:'Metade = 1/2 (1 de 2 partes iguais).' },
-    { id:'2m257', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 4 é:', opts:['1','2','3'], ans:1, exp:'4 ÷ 2 = 2.' },
-    { id:'2m258', s:'matematica', t:'Frações simples', type:'fill', diff:1, q:'Metade de 6 = ___', ans:['3'], exp:'6 ÷ 2 = 3.' },
-    { id:'2m259', s:'matematica', t:'Frações simples', type:'tf', diff:1, q:'1/2 lê-se "um meio".', ans:true, exp:'Verdade — 1/2 = um meio = metade.' },
-    { id:'2m260', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Em 1/4 dividimos em quantas partes?', opts:['2','3','4'], ans:2, exp:'1/4 → dividido em 4 partes iguais.' },
+    { id:'2m257', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade de 4 é:', opts:['1','2','3'], ans:1, exp:'4 ÷ 2 = 2.' },
+    { id:'2m258', s:'matematica', t:'Frações simples', type:'fill', diff:2, q:'Metade de 6 = ___', ans:['3'], exp:'6 ÷ 2 = 3.' },
+    { id:'2m259', s:'matematica', t:'Frações simples', type:'tf', diff:2, q:'1/2 lê-se "um meio".', ans:true, exp:'Verdade — 1/2 = um meio = metade.' },
+    { id:'2m260', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Em 1/4 dividimos em quantas partes?', opts:['2','3','4'], ans:2, exp:'1/4 → dividido em 4 partes iguais.' },
 
     // ----- Matemática: Comprimento (+5 fácil) -----
     { id:'2m261', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'O que mede o comprimento?', opts:['quanto pesa','tamanho de ponta a ponta','quanto líquido cabe'], ans:1, exp:'Comprimento = tamanho.' },
@@ -1137,7 +1137,7 @@ const EXERCISES_2 = [
     { id:'2e105', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'O que é mais saudável beber?', opts:['refrigerante','água','sumo açucarado'], ans:1, exp:'Água — sempre a melhor.' },
     { id:'2e106', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Comida saudável inclui:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Fruta e legumes.' },
     { id:'2e107', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Devemos dormir bastantes horas.', ans:true, exp:'Verdade — 9 a 11 horas (criança).' },
-    { id:'2e108', s:'estudo_meio', t:'Saúde', type:'fill', diff:1, q:'Para sermos saudáveis devemos fazer ___ (movimento).', ans:['exercício','exercicio'], exp:'Exercício físico.' },
+    { id:'2e108', s:'estudo_meio', t:'Saúde', type:'fill', diff:2, q:'Para sermos saudáveis devemos fazer ___ (movimento).', ans:['exercício','exercicio'], exp:'Exercício físico.' },
     { id:'2e109', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Quem cuida dos doentes?', opts:['professor','médico','padeiro'], ans:1, exp:'O médico (e enfermeiros).' },
 
     // ----- Estudo do Meio: Comemorações (+5 fácil) -----
@@ -1158,21 +1158,21 @@ const EXERCISES_2 = [
     { id:'2i84', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ em inglês:', opts:['eye','ear','nose'], ans:0, exp:'👁️ = eye.' },
     { id:'2i85', s:'ingles', t:'Body', type:'mc', diff:1, q:'👃 em inglês:', opts:['mouth','nose','ear'], ans:1, exp:'👃 = nose.' },
     { id:'2i86', s:'ingles', t:'Body', type:'mc', diff:1, q:'✋ em inglês:', opts:['hand','foot','head'], ans:0, exp:'✋ = hand.' },
-    { id:'2i87', s:'ingles', t:'Body', type:'tf', diff:1, q:'"Head" significa cabeça.', ans:true, exp:'Verdade.' },
+    { id:'2i87', s:'ingles', t:'Body', type:'tf', diff:2, q:'"Head" significa cabeça.', ans:true, exp:'Verdade.' },
     { id:'2i88', s:'ingles', t:'Body', type:'fill', diff:1, q:'Pé em inglês: ___', ans:['foot'], exp:'Foot = pé.' },
 
     // ----- Inglês: Food (+5 fácil) -----
     { id:'2i89', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍎 em inglês:', opts:['apple','orange','pear'], ans:0, exp:'🍎 = apple.' },
     { id:'2i90', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍌 em inglês:', opts:['apple','banana','grape'], ans:1, exp:'🍌 = banana.' },
     { id:'2i91', s:'ingles', t:'Food', type:'mc', diff:1, q:'🥛 em inglês:', opts:['water','milk','juice'], ans:1, exp:'🥛 = milk.' },
-    { id:'2i92', s:'ingles', t:'Food', type:'tf', diff:1, q:'"Bread" significa pão.', ans:true, exp:'Verdade.' },
+    { id:'2i92', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Bread" significa pão.', ans:true, exp:'Verdade.' },
     { id:'2i93', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
 
     // ----- Inglês: Toys (+5 fácil) -----
     { id:'2i94', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🐻 (peluche) em inglês:', opts:['dog','teddy bear','cat'], ans:1, exp:'Teddy bear = ursinho.' },
     { id:'2i95', s:'ingles', t:'Toys', type:'mc', diff:1, q:'⚽ em inglês:', opts:['ball','car','book'], ans:0, exp:'Ball = bola.' },
     { id:'2i96', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🚗 em inglês:', opts:['car','bike','train'], ans:0, exp:'Car = carro.' },
-    { id:'2i97', s:'ingles', t:'Toys', type:'tf', diff:1, q:'"Doll" significa boneca.', ans:true, exp:'Verdade.' },
+    { id:'2i97', s:'ingles', t:'Toys', type:'tf', diff:2, q:'"Doll" significa boneca.', ans:true, exp:'Verdade.' },
     { id:'2i98', s:'ingles', t:'Toys', type:'fill', diff:1, q:'Livro em inglês: ___', ans:['book'], exp:'Book = livro.' },
 
     // ============================================================
@@ -1216,10 +1216,10 @@ const EXERCISES_2 = [
 
     // ----- Português: Verbos passado/futuro (+5 fácil) -----
     { id:'2p180', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Hoje brinco" está no:', opts:['passado','presente','futuro'], ans:1, exp:'Hoje + brinco = presente.' },
-    { id:'2p181', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Ontem" indica:', opts:['presente','passado','futuro'], ans:1, exp:'Ontem = passado.' },
-    { id:'2p182', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Amanhã" indica:', opts:['presente','passado','futuro'], ans:2, exp:'Amanhã = futuro.' },
+    { id:'2p181', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'A palavra "ontem" fala de que tempo?', opts:['presente','passado','futuro'], ans:1, exp:'Ontem = passado (já aconteceu).' },
+    { id:'2p182', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'A palavra "amanhã" fala de que tempo?', opts:['presente','passado','futuro'], ans:2, exp:'Amanhã = futuro (vai acontecer).' },
     { id:'2p183', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:1, q:'O passado é o que já aconteceu.', ans:true, exp:'Verdade.' },
-    { id:'2p184', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:1, q:'Pista de futuro: ___', ans:['amanhã','depois','logo'], exp:'Amanhã ou depois = futuro.' },
+    { id:'2p184', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:1, q:'Diz uma palavra que mostra que algo VAI ACONTECER: ___', ans:['amanhã','depois','logo'], exp:'Amanhã, depois, logo → futuro (vai acontecer).' },
 
     // ----- Português: Pontuação (+5 fácil) -----
     { id:'2p185', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal "?" usa-se em:', opts:['perguntas','exclamações','frases simples'], ans:0, exp:'? = pergunta.' },
@@ -1240,56 +1240,56 @@ const EXERCISES_2 = [
     { id:'2m287', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'10 ÷ 5 = ?', opts:['1','2','5'], ans:1, exp:'10 ÷ 5 = 2.' },
     { id:'2m288', s:'matematica', t:'Divisão', type:'fill', diff:1, q:'10 ÷ 2 = ___', ans:['5'], exp:'10 ÷ 2 = 5.' },
     { id:'2m289', s:'matematica', t:'Divisão', type:'tf', diff:1, q:'12 ÷ 4 = 3.', ans:true, exp:'Verdade.' },
-    { id:'2m290', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'Tens 4 maçãs e 2 amigos. Cada um leva:', opts:['1','2','4'], ans:1, exp:'4 ÷ 2 = 2.' },
+    { id:'2m290', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'Tens 4 maçãs e 2 amigos. Cada um leva:', opts:['1','2','4'], ans:1, exp:'4 ÷ 2 = 2.' },
 
     // ----- Mat: Tabuada do 3 (+5 fácil) -----
-    { id:'2m291', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 5 = ?', opts:['10','15','20'], ans:1, exp:'3 × 5 = 15.' },
-    { id:'2m292', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 6 = ?', opts:['12','18','24'], ans:1, exp:'3 × 6 = 18.' },
+    { id:'2m291', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 5 = ?', opts:['10','15','20'], ans:1, exp:'3 × 5 = 15.' },
+    { id:'2m292', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 6 = ?', opts:['12','18','24'], ans:1, exp:'3 × 6 = 18.' },
     { id:'2m293', s:'matematica', t:'Tabuada do 3', type:'fill', diff:1, q:'3 × 10 = ___', ans:['30'], exp:'3 × 10 = 30.' },
     { id:'2m294', s:'matematica', t:'Tabuada do 3', type:'tf', diff:1, q:'3 × 1 = 3.', ans:true, exp:'Verdade.' },
-    { id:'2m295', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 7 = ?', opts:['18','21','24'], ans:1, exp:'3 × 7 = 21.' },
+    { id:'2m295', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 7 = ?', opts:['18','21','24'], ans:1, exp:'3 × 7 = 21.' },
 
     // ----- Mat: Tabuada do 4 (+5 fácil) -----
     { id:'2m296', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 3 = ?', opts:['9','12','15'], ans:1, exp:'4 × 3 = 12.' },
-    { id:'2m297', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 6 = ?', opts:['18','24','28'], ans:1, exp:'4 × 6 = 24.' },
+    { id:'2m297', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'4 × 6 = ?', opts:['18','24','28'], ans:1, exp:'4 × 6 = 24.' },
     { id:'2m298', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 10 = ___', ans:['40'], exp:'4 × 10 = 40.' },
     { id:'2m299', s:'matematica', t:'Tabuada do 4', type:'tf', diff:1, q:'4 × 1 = 4.', ans:true, exp:'Verdade.' },
-    { id:'2m300', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 7 = ?', opts:['24','28','32'], ans:1, exp:'4 × 7 = 28.' },
+    { id:'2m300', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'4 × 7 = ?', opts:['24','28','32'], ans:1, exp:'4 × 7 = 28.' },
 
     // ----- Mat: Tabuada do 6 (+5 fácil) -----
-    { id:'2m301', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 4 = ?', opts:['18','20','24'], ans:2, exp:'6 × 4 = 24.' },
-    { id:'2m302', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 6 = ?', opts:['30','36','42'], ans:1, exp:'6 × 6 = 36.' },
+    { id:'2m301', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'6 × 4 = ?', opts:['18','20','24'], ans:2, exp:'6 × 4 = 24.' },
+    { id:'2m302', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'6 × 6 = ?', opts:['30','36','42'], ans:1, exp:'6 × 6 = 36.' },
     { id:'2m303', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 10 = ___', ans:['60'], exp:'6 × 10 = 60.' },
     { id:'2m304', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'6 × 1 = 6.', ans:true, exp:'Verdade.' },
-    { id:'2m305', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 7 = ?', opts:['36','42','48'], ans:1, exp:'6 × 7 = 42.' },
+    { id:'2m305', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'6 × 7 = ?', opts:['36','42','48'], ans:1, exp:'6 × 7 = 42.' },
 
     // ----- Mat: Tabuada do 7 (+5 fácil) -----
-    { id:'2m306', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 4 = ?', opts:['21','28','35'], ans:1, exp:'7 × 4 = 28.' },
+    { id:'2m306', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 4 = ?', opts:['21','28','35'], ans:1, exp:'7 × 4 = 28.' },
     { id:'2m307', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 5 = ?', opts:['28','35','42'], ans:1, exp:'7 × 5 = 35.' },
     { id:'2m308', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 10 = ___', ans:['70'], exp:'7 × 10 = 70.' },
     { id:'2m309', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'7 × 1 = 7.', ans:true, exp:'Verdade.' },
-    { id:'2m310', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 6 = ?', opts:['35','42','49'], ans:1, exp:'7 × 6 = 42.' },
+    { id:'2m310', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 6 = ?', opts:['35','42','49'], ans:1, exp:'7 × 6 = 42.' },
 
     // ----- Mat: Tabuada do 8 (+5 fácil) -----
-    { id:'2m311', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 3 = ?', opts:['18','24','30'], ans:1, exp:'8 × 3 = 24.' },
-    { id:'2m312', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 4 = ?', opts:['24','32','40'], ans:1, exp:'8 × 4 = 32.' },
+    { id:'2m311', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'8 × 3 = ?', opts:['18','24','30'], ans:1, exp:'8 × 3 = 24.' },
+    { id:'2m312', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'8 × 4 = ?', opts:['24','32','40'], ans:1, exp:'8 × 4 = 32.' },
     { id:'2m313', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × 10 = ___', ans:['80'], exp:'8 × 10 = 80.' },
     { id:'2m314', s:'matematica', t:'Tabuada do 8', type:'tf', diff:1, q:'8 × 1 = 8.', ans:true, exp:'Verdade.' },
-    { id:'2m315', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 6 = ?', opts:['42','48','56'], ans:1, exp:'8 × 6 = 48.' },
+    { id:'2m315', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'8 × 6 = ?', opts:['42','48','56'], ans:1, exp:'8 × 6 = 48.' },
 
     // ----- Mat: Tabuada do 9 (+5 fácil) -----
-    { id:'2m316', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 4 = ?', opts:['27','32','36'], ans:2, exp:'9 × 4 = 36.' },
+    { id:'2m316', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 4 = ?', opts:['27','32','36'], ans:2, exp:'9 × 4 = 36.' },
     { id:'2m317', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 5 = ?', opts:['40','45','50'], ans:1, exp:'9 × 5 = 45.' },
     { id:'2m318', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
     { id:'2m319', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'9 × 1 = 9.', ans:true, exp:'Verdade.' },
-    { id:'2m320', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 6 = ?', opts:['45','54','63'], ans:1, exp:'9 × 6 = 54.' },
+    { id:'2m320', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 6 = ?', opts:['45','54','63'], ans:1, exp:'9 × 6 = 54.' },
 
     // ----- Mat: Frações simples (+5 fácil) -----
-    { id:'2m321', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 2 maçãs:', opts:['1','2','4'], ans:0, exp:'Metade = 1 maçã.' },
-    { id:'2m322', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 10 é:', opts:['2','5','8'], ans:1, exp:'10 ÷ 2 = 5.' },
-    { id:'2m323', s:'matematica', t:'Frações simples', type:'fill', diff:1, q:'Metade de 8 = ___', ans:['4'], exp:'8 ÷ 2 = 4.' },
-    { id:'2m324', s:'matematica', t:'Frações simples', type:'tf', diff:1, q:'1/4 lê-se "um quarto".', ans:true, exp:'Verdade.' },
-    { id:'2m325', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Em 1/2 dividimos em quantas partes?', opts:['1','2','4'], ans:1, exp:'1/2 → 2 partes iguais.' },
+    { id:'2m321', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade de 2 maçãs:', opts:['1','2','4'], ans:0, exp:'Metade = 1 maçã.' },
+    { id:'2m322', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade de 10 é:', opts:['2','5','8'], ans:1, exp:'10 ÷ 2 = 5.' },
+    { id:'2m323', s:'matematica', t:'Frações simples', type:'fill', diff:2, q:'Metade de 8 = ___', ans:['4'], exp:'8 ÷ 2 = 4.' },
+    { id:'2m324', s:'matematica', t:'Frações simples', type:'tf', diff:2, q:'1/4 lê-se "um quarto".', ans:true, exp:'Verdade.' },
+    { id:'2m325', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Em 1/2 dividimos em quantas partes?', opts:['1','2','4'], ans:1, exp:'1/2 → 2 partes iguais.' },
 
     // ----- Mat: Comprimento (+5 fácil) -----
     { id:'2m326', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Símbolo de metro:', opts:['m','kg','L'], ans:0, exp:'m = metro.' },
@@ -1364,21 +1364,21 @@ const EXERCISES_2 = [
     // ----- Inglês: Body (+5 fácil) -----
     { id:'2i104', s:'ingles', t:'Body', type:'mc', diff:1, q:'Olho em inglês:', opts:['eye','ear','arm'], ans:0, exp:'Eye = olho.' },
     { id:'2i105', s:'ingles', t:'Body', type:'mc', diff:1, q:'Boca em inglês:', opts:['nose','mouth','head'], ans:1, exp:'Mouth = boca.' },
-    { id:'2i106', s:'ingles', t:'Body', type:'tf', diff:1, q:'"Hand" significa mão.', ans:true, exp:'Verdade.' },
+    { id:'2i106', s:'ingles', t:'Body', type:'tf', diff:2, q:'"Hand" significa mão.', ans:true, exp:'Verdade.' },
     { id:'2i107', s:'ingles', t:'Body', type:'fill', diff:1, q:'Cabeça em inglês: ___', ans:['head'], exp:'Head = cabeça.' },
     { id:'2i108', s:'ingles', t:'Body', type:'mc', diff:1, q:'Perna em inglês:', opts:['leg','arm','head'], ans:0, exp:'Leg = perna.' },
 
     // ----- Inglês: Food (+5 fácil) -----
     { id:'2i109', s:'ingles', t:'Food', type:'mc', diff:1, q:'Maçã em inglês:', opts:['apple','banana','orange'], ans:0, exp:'Apple = maçã.' },
     { id:'2i110', s:'ingles', t:'Food', type:'mc', diff:1, q:'Pão em inglês:', opts:['bread','milk','egg'], ans:0, exp:'Bread = pão.' },
-    { id:'2i111', s:'ingles', t:'Food', type:'tf', diff:1, q:'"Milk" significa leite.', ans:true, exp:'Verdade.' },
+    { id:'2i111', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Milk" significa leite.', ans:true, exp:'Verdade.' },
     { id:'2i112', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
     { id:'2i113', s:'ingles', t:'Food', type:'mc', diff:1, q:'Banana em inglês:', opts:['apple','banana','pear'], ans:1, exp:'Banana = igual em inglês.' },
 
     // ----- Inglês: Toys (+5 fácil) -----
     { id:'2i114', s:'ingles', t:'Toys', type:'mc', diff:1, q:'Bola em inglês:', opts:['ball','car','book'], ans:0, exp:'Ball = bola.' },
     { id:'2i115', s:'ingles', t:'Toys', type:'mc', diff:1, q:'Carro em inglês:', opts:['ball','car','book'], ans:1, exp:'Car = carro.' },
-    { id:'2i116', s:'ingles', t:'Toys', type:'tf', diff:1, q:'"Book" significa livro.', ans:true, exp:'Verdade.' },
+    { id:'2i116', s:'ingles', t:'Toys', type:'tf', diff:2, q:'"Book" significa livro.', ans:true, exp:'Verdade.' },
     { id:'2i117', s:'ingles', t:'Toys', type:'fill', diff:1, q:'Boneca em inglês: ___', ans:['doll'], exp:'Doll = boneca.' },
     { id:'2i118', s:'ingles', t:'Toys', type:'mc', diff:1, q:'Bicicleta em inglês:', opts:['bike','car','train'], ans:0, exp:'Bike (ou bicycle).' }
 ];
