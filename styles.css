@@ -996,6 +996,85 @@ body {
 }
 .lesson-body strong { color: var(--primary); font-weight: 700; }
 
+/* ===== Tabelas dentro de lições (markdown |a|b|c|) ===== */
+.lesson-table-wrap {
+    margin: 12px 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(109, 40, 217, 0.06);
+    border: 1px solid rgba(109, 40, 217, 0.08);
+    /* Tabelas não devem herdar pre-wrap para que celas longas façam wrap correctamente */
+    white-space: normal;
+}
+.lesson-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92em;
+    background: #fff;
+    table-layout: auto;
+}
+.lesson-table th, .lesson-table td {
+    padding: 9px 11px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.45;
+}
+.lesson-table th {
+    background: linear-gradient(135deg, rgba(109, 40, 217, 0.08), rgba(236, 72, 153, 0.05));
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 0.88em;
+    text-transform: none;
+}
+.lesson-table tr:last-child td { border-bottom: none; }
+.lesson-table tr:nth-child(even) td { background: rgba(248, 250, 252, 0.6); }
+
+/* Tabelas também dentro das caixas [exemplo] e [erros] */
+.lesson-example-box .lesson-table,
+.lesson-error-box .lesson-table {
+    background: rgba(255, 255, 255, 0.7);
+    font-size: 0.88em;
+}
+
+/* ===== Variantes por ano — leitura mais confortável para os mais novos =====
+   Aplicado de forma natural (mais espaço, contraste suave, destaque por cor),
+   sem qualquer rótulo ou alusão explícita. */
+.lesson-body--y2 {
+    font-size: 1.04rem;
+    line-height: 1.85;
+    letter-spacing: 0.012em;
+    word-spacing: 0.04em;
+    color: #1f2937; /* não preto puro — reduz fadiga visual */
+    max-width: 56ch; /* linhas mais curtas */
+    margin-left: auto;
+    margin-right: auto;
+}
+.lesson-body--y2 strong {
+    background: linear-gradient(transparent 62%, rgba(252, 211, 77, 0.45) 62%);
+    padding: 0 2px;
+    color: #6d28d9;
+}
+.lesson-body--y2 .lesson-table { font-size: 1em; }
+.lesson-body--y2 .lesson-table th,
+.lesson-body--y2 .lesson-table td { padding: 11px 13px; line-height: 1.6; }
+.lesson-body--y2 .lesson-example-box,
+.lesson-body--y2 .lesson-error-box {
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    font-size: 1em;
+    line-height: 1.75;
+}
+
+/* 3.º-4.º — versão intermédia, leve aumento de espaço */
+.lesson-body--y4 {
+    font-size: 0.98rem;
+    line-height: 1.7;
+    letter-spacing: 0.005em;
+    color: #1f2937;
+}
+.lesson-body--y4 strong { color: var(--primary); }
+
 /* ===== Summary — design "share-worthy" ===== */
 .summary-body { padding: 20px 16px 32px; position: relative; z-index: 2; }
 

@@ -4957,6 +4957,11 @@ function openLessonByKey(key) {
     const subName = SUBJECTS[subKey]?.name || subKey;
     document.getElementById('lesson-title').innerHTML = `<i class="fas fa-book-open"></i> ${subName} · ${topic}`;
     const body = document.getElementById('lesson-body');
+    // Detectar ano para aplicar variante de leitura mais confortável aos mais novos
+    const _year = activeProfile()?.year || 0;
+    const _bodyClasses = ['lesson-body'];
+    if (_year && _year <= 2) _bodyClasses.push('lesson-body--y2');
+    else if (_year && _year <= 4) _bodyClasses.push('lesson-body--y4');
     if (!lesson) {
         body.innerHTML = `<p style="color:var(--text-light)">Ainda não há uma explicação detalhada para este tópico. Tenta resolver o exercício — a explicação aparece depois de responderes.</p>`;
     } else {
@@ -4966,24 +4971,23 @@ function openLessonByKey(key) {
 
         // [exemplo]...[/exemplo] → caixa amarela "Exercício tipo de exame"
         html = html.replace(/\[exemplo\]([\s\S]*?)\[\/exemplo\]/g, (_, inner) => {
-            const innerHtml = inner.trim()
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
+            const innerHtml = _renderInnerLessonBlock(inner.trim());
             return `<div class="lesson-example-box"><div class="lesson-example-label">📝 Exercício tipo de exame</div><div class="lesson-example-body">${innerHtml}</div></div>`;
         });
 
         // [erros]...[/erros] → caixa vermelha "Erros frequentes"
         html = html.replace(/\[erros\]([\s\S]*?)\[\/erros\]/g, (_, inner) => {
-            const innerHtml = inner.trim()
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
+            const innerHtml = _renderInnerLessonBlock(inner.trim());
             return `<div class="lesson-error-box"><div class="lesson-error-label">❌ Erros frequentes em exame</div><div class="lesson-error-body">${innerHtml}</div></div>`;
         });
+
+        // Tabelas markdown: |a|b|c|\n|---|---|---|\n|x|y|z|
+        html = _renderMarkdownTables(html);
 
         // **bold** restante
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-        body.innerHTML = `<div class="lesson-body"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${lesson.title}</h3>${html}</div>`;
+        body.innerHTML = `<div class="${_bodyClasses.join(' ')}"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${lesson.title}</h3>${html}</div>`;
     }
 
     // Preparar o widget "Tens uma dúvida?"
@@ -5126,7 +5130,13 @@ async function askLessonDoubt() {
                         yr <= 6 ? `um aluno do ${yr}.º ano (10-12 anos)` :
                         `um aluno do ${yr}.º ano`;
         const lessonText = String(lesson?.body || '').replace(/\*\*/g, '').slice(0, 1200);
-        const prompt = `És um professor/professora português a ajudar ${audience}.\n\nO aluno está a ler o seguinte resumo do tópico "${topic}" (${subName}):\n---\n${lessonText}\n---\n\nO aluno tem esta dúvida:\n"${q}"\n\nResponde de forma BREVE (3 a 6 frases), CLARA e em PORTUGUÊS EUROPEU (Portugal). Usa linguagem adequada à idade. Se a dúvida for um pedido de exemplo, dá um exemplo concreto. Se for uma pergunta de "como fazer", dá os passos. Se for uma definição, sê preciso. NUNCA digas "não sei" — usa o resumo acima como base. Não digas "olá" nem te apresentes — vai direto à resposta.`;
+        // Regras especiais para os mais novos: linguagem simples, frases curtas, exemplos do dia-a-dia
+        const youngExtras = yr <= 2
+            ? `\n\nREGRAS ESPECIAIS (porque o aluno tem 7-8 anos):\n- Frases CURTAS (máximo 12 palavras cada).\n- Vocabulário simples — evita palavras técnicas; se as usares, explica logo.\n- Dá pelo menos 1 EXEMPLO CONCRETO do dia-a-dia da criança (brinquedos, frutas, animais, escola, família).\n- Se ajudar, usa 1 ou 2 emojis no início para captar atenção.\n- Tom carinhoso, encorajador. Trata por "tu".\n- NÃO uses listas com mais de 3 pontos. NÃO uses tabelas.`
+            : (yr <= 4
+                ? `\n\nNotas: usa frases curtas (máx. 15 palavras), pelo menos 1 exemplo concreto, tom encorajador, trata por "tu".`
+                : '');
+        const prompt = `És um professor/professora português a ajudar ${audience}.\n\nO aluno está a ler o seguinte resumo do tópico "${topic}" (${subName}):\n---\n${lessonText}\n---\n\nO aluno tem esta dúvida:\n"${q}"\n\nResponde de forma BREVE (3 a 6 frases), CLARA e em PORTUGUÊS EUROPEU (Portugal). Usa linguagem adequada à idade. Se a dúvida for um pedido de exemplo, dá um exemplo concreto. Se for uma pergunta de "como fazer", dá os passos. Se for uma definição, sê preciso. NUNCA digas "não sei" — usa o resumo acima como base. Não digas "olá" nem te apresentes — vai direto à resposta.${youngExtras}`;
 
         const hasKey = !!(typeof hasAIKey === 'function' && hasAIKey() && state.max?.enabled);
         if (hasKey && typeof callClaudeAPI === 'function') {
@@ -5139,6 +5149,53 @@ async function askLessonDoubt() {
     } catch (err) {
         ans.innerHTML = `<div class="lesson-doubt-error"><i class="fas fa-triangle-exclamation"></i> Não consegui responder: ${escapeHtml(err?.message || 'erro')}</div>`;
     }
+}
+
+// Renderiza o conteúdo de uma caixa [exemplo]/[erros]: bold, tabelas e quebras de linha
+function _renderInnerLessonBlock(inner) {
+    let h = inner.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    h = _renderMarkdownTables(h);
+    // Converter \n para <br> EXCEPTO quando estiver imediatamente antes/depois de uma tabela
+    h = h.replace(/\n+(<table)/g, '$1').replace(/(<\/table>)\n+/g, '$1');
+    h = h.replace(/\n/g, '<br>');
+    return h;
+}
+
+// Converte tabelas markdown em <table>. Aceita pipes opcionais nas pontas.
+// Linha separadora: |---|---|---|  ou  | --- | :---: |
+function _renderMarkdownTables(html) {
+    // Captura blocos de 2+ linhas começadas/cercadas por pipes, sendo a 2.ª uma separadora
+    const re = /(?:^|\n)((?:[^\n]*\|[^\n]*\n){2,})/g;
+    return html.replace(re, (full, block) => {
+        const lines = block.split('\n').filter(l => l.trim() !== '');
+        if (lines.length < 2) return full;
+        const sep = lines[1].trim();
+        if (!/^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(sep)) return full;
+        const splitRow = (row) => {
+            // Tira pipes externos (se houver) e divide por |
+            let r = row.trim();
+            if (r.startsWith('|')) r = r.slice(1);
+            if (r.endsWith('|')) r = r.slice(0, -1);
+            return r.split('|').map(c => c.trim());
+        };
+        const header = splitRow(lines[0]);
+        const rows = lines.slice(2).map(splitRow);
+        let out = '<div class="lesson-table-wrap"><table class="lesson-table"><thead><tr>';
+        header.forEach(c => { out += `<th>${c.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</th>`; });
+        out += '</tr></thead><tbody>';
+        rows.forEach(r => {
+            out += '<tr>';
+            // Garante mesmo número de colunas que o header
+            for (let i = 0; i < header.length; i++) {
+                const cell = (r[i] || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                out += `<td>${cell}</td>`;
+            }
+            out += '</tr>';
+        });
+        out += '</tbody></table></div>';
+        // Devolve com newlines mínimas a tornar pre-wrap menos disruptivo
+        return '\n' + out + '\n';
+    });
 }
 
 function _lessonDoubtFormat(text) {
