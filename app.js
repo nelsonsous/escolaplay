@@ -1691,6 +1691,7 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true, opts = {
     active.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : 0));
 
     let lastErr = '';
+    const preferredName = active[0].name; // após o sort, o primeiro é o preferido (se disponível)
     for (let pi = 0; pi < active.length; pi++) {
         const p = active[pi];
         for (let mi = 0; mi < p.models.length; mi++) {
@@ -1707,8 +1708,16 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true, opts = {
                 const data = await res.json();
                 const text = data.choices?.[0]?.message?.content || '';
                 if (!text) { lastErr = `${p.name}: resposta vazia`; break; }
-                if (pi > 0 || mi > 0) console.warn(`MAX: usado fallback ${p.name}/${model}`);
-                return { text, usage: data.usage, model, provider: p.id };
+                // Aviso visível quando o provider preferido falha e foi usado fallback
+                if (pi > 0) {
+                    console.warn(`MAX: usado fallback ${p.name}/${model} (preferido ${preferredName} falhou: ${lastErr})`);
+                    if (typeof showToast === 'function') {
+                        try { showToast(`⚠️ ${preferredName} falhou — usei ${p.name}`); } catch(_) {}
+                    }
+                } else if (mi > 0) {
+                    console.warn(`MAX: usado modelo alternativo ${p.name}/${model}`);
+                }
+                return { text, usage: data.usage, model, provider: p.id, providerName: p.name, usedFallback: pi > 0 };
             }
             const errText = await res.text().catch(() => '');
             lastErr = `${p.name} ${res.status}: ${errText.slice(0, 200)}`;
@@ -4857,7 +4866,8 @@ Responde APENAS com JSON válido (sem markdown):
 
 {"subject":"<chave ou null>","topics":["<tópico>"],"answer":"<explicação curta>","keywords":["<kw>"]}`;
 
-    const { text } = await callClaudeAPI(prompt, 600, true);
+    const aiResp = await callClaudeAPI(prompt, 600, true);
+    const text = aiResp.text;
     let jsonStr = text.trim();
     const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (fence) jsonStr = fence[1].trim();
@@ -4878,7 +4888,9 @@ Responde APENAS com JSON válido (sem markdown):
         topics,
         answer: String(parsed.answer || '').trim(),
         keywords: Array.isArray(parsed.keywords) ? parsed.keywords.map(k => String(k).toLowerCase()) : [],
-        _source: 'ai'
+        _source: 'ai',
+        _provider: aiResp.provider || 'ai',
+        _providerName: aiResp.providerName || 'IA'
     };
 }
 
@@ -4979,7 +4991,7 @@ function _renderAskResult(q, r) {
 
     // Origem da resposta (IA ou local)
     let footer = '';
-    if (r._source === 'ai') footer = 'Resposta gerada pela IA (Groq)';
+    if (r._source === 'ai') footer = 'Resposta gerada pela IA (' + (r._providerName || 'IA') + ')';
     else if (r._fallback === 'ai_error') footer = 'A IA falhou — pesquisa no currículo local';
     else if (r._fallback === 'no_key') footer = 'Pesquisa no currículo local · activa o MAX para respostas com IA';
     else footer = 'Pesquisa no currículo local';
