@@ -518,20 +518,28 @@ function updateHeader() {
 }
 
 // Tier visual + emoji do streak conforme dias seguidos
+function _streakEmojiFor(days) {
+    if (days >= 30) return '👑';
+    if (days >= 14) return '⭐';
+    if (days >= 7)  return '🏆';
+    if (days >= 1)  return '🔥';
+    return '🕯️'; // vela apagada — ainda não começou
+}
 function _streakTier(days) {
     if (days >= 30) return { tier: 4, emoji: '👑' };
     if (days >= 14) return { tier: 4, emoji: '⭐' };
     if (days >= 7)  return { tier: 3, emoji: '🏆' };
     if (days >= 3)  return { tier: 2, emoji: '🔥' };
     if (days >= 1)  return { tier: 1, emoji: '🔥' };
-    return { tier: 0, emoji: '🔥' };
+    return { tier: 0, emoji: '🕯️' };
 }
 function _updateStreakChipVisuals() {
     const days = state.streak.days || 0;
     const { tier, emoji } = _streakTier(days);
     document.querySelectorAll('.chip-streak').forEach(chip => {
-        chip.classList.remove('tier-1','tier-2','tier-3','tier-4','active');
+        chip.classList.remove('tier-1','tier-2','tier-3','tier-4','active','zero');
         if (tier > 0) chip.classList.add('tier-' + tier);
+        else chip.classList.add('zero');
         if (days >= 3) chip.classList.add('active');
         const em = chip.querySelector('.streak-emoji');
         if (em) em.textContent = emoji;
