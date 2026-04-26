@@ -1881,3 +1881,138 @@ body {
     font-style: italic;
 }
 
+
+/* ============================================================
+   "Tens uma dúvida?" dentro do modal da lição
+   ============================================================ */
+.lesson-doubt-wrap {
+    border-top: 1px solid var(--border);
+    padding: 12px 18px 18px;
+    background: linear-gradient(180deg, #fafaff 0%, #f5f3ff 100%);
+}
+.lesson-doubt-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1.5px solid #c4b5fd;
+    border-radius: 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: transform .12s, box-shadow .15s, border-color .15s;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.08);
+}
+.lesson-doubt-trigger:hover { transform: translateY(-1px); border-color: var(--primary); box-shadow: 0 6px 16px rgba(124, 58, 237, 0.15); }
+.lesson-doubt-trigger:active { transform: scale(0.98); }
+.lesson-doubt-trigger-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    color: #fff;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+.lesson-doubt-trigger-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lesson-doubt-trigger-title { font-weight: 800; color: var(--text); font-size: 0.92rem; line-height: 1.2; }
+.lesson-doubt-trigger-sub { font-size: 0.74rem; color: var(--text-light); margin-top: 2px; font-weight: 600; }
+.lesson-doubt-chevron { font-size: 0.78rem; color: var(--primary); transition: transform .2s; flex-shrink: 0; }
+
+.lesson-doubt-panel {
+    margin-top: 12px;
+    padding: 14px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px var(--border);
+}
+.lesson-doubt-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.lesson-doubt-chip {
+    background: #f5f3ff;
+    color: var(--primary);
+    border: 1px solid #ddd6fe;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .12s, border-color .15s;
+}
+.lesson-doubt-chip:hover { background: #ede9fe; border-color: var(--primary); }
+.lesson-doubt-chip:active { transform: scale(0.95); }
+
+.lesson-doubt-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.lesson-doubt-input {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    background: #fafafa;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.lesson-doubt-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.12);
+}
+.lesson-doubt-send {
+    width: 42px; height: 42px;
+    border: none;
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    color: #fff;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(109, 40, 217, 0.3);
+    transition: transform .12s, box-shadow .15s;
+}
+.lesson-doubt-send:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(109, 40, 217, 0.4); }
+.lesson-doubt-send:active { transform: scale(0.94); }
+
+.lesson-doubt-answer {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #f5f3ff;
+    border-left: 3px solid var(--primary);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+.lesson-doubt-loading {
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex; align-items: center; gap: 8px;
+}
+.lesson-doubt-result-q {
+    font-style: italic;
+    color: var(--text-light);
+    font-size: 0.82rem;
+    margin-bottom: 8px;
+}
+.lesson-doubt-result-q i { color: var(--primary); margin-right: 4px; }
+.lesson-doubt-result-answer { color: var(--text); }
+.lesson-doubt-result-answer p { margin-bottom: 6px; }
+.lesson-doubt-result-answer p:last-child { margin-bottom: 0; }
+.lesson-doubt-error {
+    color: var(--danger);
+    font-weight: 600;
+    font-size: 0.88rem;
+    display: flex; align-items: center; gap: 6px;
+}

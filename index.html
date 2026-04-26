@@ -346,6 +346,30 @@
                 <button class="icon-btn" onclick="closeLessonModal()"><i class="fas fa-xmark"></i></button>
             </div>
             <div class="modal-body" id="lesson-body"></div>
+
+            <!-- "Tens uma dúvida?" inline ao ler o resumo da lição -->
+            <div id="lesson-doubt-wrap" class="lesson-doubt-wrap" style="display:none">
+                <button id="lesson-doubt-trigger" class="lesson-doubt-trigger" onclick="toggleLessonDoubt()" type="button">
+                    <span class="lesson-doubt-trigger-icon"><i class="fas fa-circle-question"></i></span>
+                    <span class="lesson-doubt-trigger-text">
+                        <span class="lesson-doubt-trigger-title">Tens uma dúvida?</span>
+                        <span class="lesson-doubt-trigger-sub">Pergunta em linguagem normal — a IA responde.</span>
+                    </span>
+                    <i class="fas fa-chevron-down lesson-doubt-chevron" id="lesson-doubt-chevron"></i>
+                </button>
+                <div id="lesson-doubt-panel" class="lesson-doubt-panel" style="display:none">
+                    <div id="lesson-doubt-suggestions" class="lesson-doubt-suggestions"></div>
+                    <div class="lesson-doubt-input-row">
+                        <input type="text" id="lesson-doubt-input" class="lesson-doubt-input" maxlength="240"
+                            placeholder="Ex: o que significa anáfora?"
+                            onkeydown="if(event.key==='Enter'){askLessonDoubt();}">
+                        <button class="lesson-doubt-send" onclick="askLessonDoubt()" type="button" title="Perguntar">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="lesson-doubt-answer" class="lesson-doubt-answer" style="display:none"></div>
+                </div>
+            </div>
         </div>
     </div>
 

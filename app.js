@@ -4948,6 +4948,9 @@ function askStartPractice() {
     renderQuestion();
 }
 
+// Estado da dúvida actual aberta dentro da lição (para contexto da pergunta)
+let _currentLessonDoubtCtx = null;
+
 function openLessonByKey(key) {
     const lesson = LESSONS[key] || state.maxLessons?.[key];
     const [subKey, topic] = key.split('/');
@@ -4963,10 +4966,168 @@ function openLessonByKey(key) {
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         body.innerHTML = `<div class="lesson-body"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${lesson.title}</h3>${html}</div>`;
     }
+
+    // Preparar o widget "Tens uma dúvida?"
+    _currentLessonDoubtCtx = { key, subKey, topic, subName, lesson };
+    const doubtWrap = document.getElementById('lesson-doubt-wrap');
+    if (doubtWrap) {
+        doubtWrap.style.display = 'block';
+        // Garantir estado inicial: trigger visível, painel fechado
+        const panel = document.getElementById('lesson-doubt-panel');
+        if (panel) panel.style.display = 'none';
+        const chevron = document.getElementById('lesson-doubt-chevron');
+        if (chevron) chevron.style.transform = '';
+        const ans = document.getElementById('lesson-doubt-answer');
+        if (ans) { ans.style.display = 'none'; ans.innerHTML = ''; }
+        const inp = document.getElementById('lesson-doubt-input');
+        if (inp) {
+            inp.value = '';
+            // Placeholder dinâmico ligado ao tópico
+            inp.placeholder = `Ex: o que significa ${_topicHintWord(topic)}?`;
+        }
+        // Sugestões contextuais
+        _renderLessonDoubtSuggestions();
+    }
+
     document.getElementById('lesson-modal').style.display = 'flex';
 }
+
 function closeLessonModal() {
     document.getElementById('lesson-modal').style.display = 'none';
+    _currentLessonDoubtCtx = null;
+}
+
+// Extrai uma palavra-chave do tópico para o placeholder
+function _topicHintWord(topic) {
+    const t = String(topic || '').toLowerCase();
+    // Tira preposições/artigos comuns e devolve a 1.ª palavra "forte"
+    const stop = new Set(['o','a','os','as','do','da','dos','das','de','e','com','em','um','uma','para','por']);
+    const words = t.split(/[\s\-—,/()]+/).filter(w => w.length > 2 && !stop.has(w));
+    return words[0] || 'isto';
+}
+
+// Sugestões de dúvidas contextualizadas pelo tópico
+function _renderLessonDoubtSuggestions() {
+    const wrap = document.getElementById('lesson-doubt-suggestions');
+    if (!wrap || !_currentLessonDoubtCtx) return;
+    const { topic, subName, lesson } = _currentLessonDoubtCtx;
+    const suggestions = _generateLessonDoubtSuggestions(topic, subName, lesson);
+    if (!suggestions.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    wrap.style.display = 'flex';
+    wrap.innerHTML = suggestions.map(s =>
+        `<button type="button" class="lesson-doubt-chip" onclick="useLessonDoubtSuggestion(this)" data-q="${s.replace(/"/g, '&quot;')}">${escapeHtml(s)}</button>`
+    ).join('');
+}
+
+// Gera 3-4 sugestões inteligentes a partir do tópico + corpo da lição
+function _generateLessonDoubtSuggestions(topic, subName, lesson) {
+    const out = [];
+    const tLow = String(topic || '').toLowerCase();
+    const body = String(lesson?.body || '');
+
+    // Heurísticas por palavras-chave do tópico
+    const map = [
+        { match: /verbo|conjuga/i, qs: ['Como conjugar este verbo?', 'O que é um verbo regular?', 'Diferença entre tempo e modo?'] },
+        { match: /fra(c|ç)/i,      qs: ['Como simplificar uma fração?', 'Quando se reduz ao mesmo denominador?', 'O que é fração irredutível?'] },
+        { match: /percent/i,       qs: ['Como calcular 25% de um número?', 'Como converter fração em percentagem?', 'Diferença entre desconto e aumento'] },
+        { match: /pot[eê]ncia/i,   qs: ['Quanto é qualquer número elevado a 0?', 'Como multiplicar potências da mesma base?', 'O que é base e expoente?'] },
+        { match: /(área|areas|perímetro)/i, qs: ['Diferença entre área e perímetro?', 'Como calcular a área de um triângulo?', 'O que é π (pi)?'] },
+        { match: /volume/i,        qs: ['Quantos litros tem 1 m³?', 'Como calcular o volume de um cubo?', 'Diferença entre volume e capacidade?'] },
+        { match: /equil(í|i)brio/i,qs: ['O que é uma reacção reversível?', 'Como interpretar Kc?', 'Em que sentido evolui o equilíbrio?'] },
+        { match: /(ácido|base|pH)/i, qs: ['O que é um ácido forte?', 'Como calcular o pH?', 'Quando uma solução é neutra?'] },
+        { match: /reacc?[aã]o|le ch[aâ]telier/i, qs: ['Como aplicar Le Châtelier?', 'O que é o quociente de reacção?', 'Catalisador desloca o equilíbrio?'] },
+        { match: /(ânimal|animal|vertebrad|invertebrad)/i, qs: ['Como classificar este animal?', 'Diferença entre vivíparo e ovíparo?', 'Que classes têm coluna vertebral?'] },
+        { match: /sistema (digest|circulat|respirat|excret|reprod|nervo)/i, qs: ['Quais são os principais órgãos?', 'Qual é a função principal?', 'Como funciona em poucas palavras?'] },
+        { match: /microrgan|bact[eé]r|v[ií]rus|fungo/i, qs: ['Diferença entre vírus e bactéria?', 'Antibiótico funciona em vírus?', 'Que doenças causam?'] },
+        { match: /portugal|fronteir|distrit|continente|geograf/i, qs: ['Quantos distritos tem Portugal?', 'Quantas ilhas têm os Açores?', 'Qual é o ponto mais alto?'] },
+        { match: /reconquist|funda[cç][aã]o|romano|mu[cç]ulman|b[aá]rbar|monarq|repúblic|estado novo|25 de abril/i, qs: ['Em que ano aconteceu?', 'Quem foi o protagonista?', 'Qual a importância para Portugal?'] },
+        { match: /sin[oó]nim/i,     qs: ['Diferença entre sinónimo e antónimo?', 'Dá um exemplo de sinónimo', 'Para que servem os sinónimos?'] },
+        { match: /ant[oó]nim/i,     qs: ['Diferença entre antónimo e sinónimo?', 'Dá um exemplo de antónimo', 'Toda a palavra tem antónimo?'] },
+        { match: /tabuada/i,        qs: ['Como decorar a tabuada?', 'Truque para multiplicar por 10', 'Tabuada do 5 termina em quê?'] },
+        { match: /dezena|unidade|n[uú]mer/i, qs: ['Como ler números grandes?', 'Quanto vale o 4 em 47?', 'O que é o sucessor?'] },
+        { match: /isometr/i,        qs: ['Diferença entre rotação e translação?', 'O que é eixo de simetria?', 'Reflexão muda o tamanho?'] },
+        { match: /past simple|present|past|future/i, qs: ['Como se forma o past simple?', 'Quando usar going to vs will?', 'Verbos irregulares mais comuns'] },
+        { match: /comparativ|superlativ/i, qs: ['Quando usar -er vs more?', 'Forma irregular de "good"?', 'Como se faz o superlativo?'] },
+    ];
+    for (const r of map) {
+        if (r.match.test(tLow) || r.match.test(body)) {
+            r.qs.forEach(q => out.push(q));
+            if (out.length >= 4) break;
+        }
+    }
+
+    // Sugestões genéricas se ainda há espaço
+    const generic = [
+        `O que é mais importante neste tópico?`,
+        `Dá-me um exemplo simples de ${topic}.`,
+        `Como costuma sair em teste?`
+    ];
+    while (out.length < 3) out.push(generic[out.length] || `Explica-me ${topic} por outras palavras.`);
+
+    // Limita a 4 e remove duplicados
+    return [...new Set(out)].slice(0, 4);
+}
+
+function useLessonDoubtSuggestion(btn) {
+    const q = btn?.dataset?.q || '';
+    const inp = document.getElementById('lesson-doubt-input');
+    if (inp) { inp.value = q; inp.focus(); }
+}
+
+function toggleLessonDoubt() {
+    const panel = document.getElementById('lesson-doubt-panel');
+    const chevron = document.getElementById('lesson-doubt-chevron');
+    if (!panel) return;
+    const open = panel.style.display !== 'none';
+    if (open) {
+        panel.style.display = 'none';
+        if (chevron) chevron.style.transform = '';
+    } else {
+        panel.style.display = 'block';
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+        setTimeout(() => document.getElementById('lesson-doubt-input')?.focus(), 80);
+    }
+}
+
+async function askLessonDoubt() {
+    const input = document.getElementById('lesson-doubt-input');
+    const ans = document.getElementById('lesson-doubt-answer');
+    if (!input || !ans || !_currentLessonDoubtCtx) return;
+    const q = (input.value || '').trim();
+    if (!q) { showToast('Escreve a tua dúvida primeiro'); return; }
+    const { subKey, subName, topic, lesson } = _currentLessonDoubtCtx;
+
+    ans.style.display = 'block';
+    ans.innerHTML = `<div class="lesson-doubt-loading"><i class="fas fa-circle-notch fa-spin"></i> A pensar na tua pergunta…</div>`;
+
+    try {
+        const yr = activeProfile()?.year || 6;
+        const audience = yr <= 2 ? 'uma criança do 2.º ano (7-8 anos)' :
+                        yr <= 4 ? `uma criança do ${yr}.º ano (8-10 anos)` :
+                        yr <= 6 ? `um aluno do ${yr}.º ano (10-12 anos)` :
+                        `um aluno do ${yr}.º ano`;
+        const lessonText = String(lesson?.body || '').replace(/\*\*/g, '').slice(0, 1200);
+        const prompt = `És um professor/professora português a ajudar ${audience}.\n\nO aluno está a ler o seguinte resumo do tópico "${topic}" (${subName}):\n---\n${lessonText}\n---\n\nO aluno tem esta dúvida:\n"${q}"\n\nResponde de forma BREVE (3 a 6 frases), CLARA e em PORTUGUÊS EUROPEU (Portugal). Usa linguagem adequada à idade. Se a dúvida for um pedido de exemplo, dá um exemplo concreto. Se for uma pergunta de "como fazer", dá os passos. Se for uma definição, sê preciso. NUNCA digas "não sei" — usa o resumo acima como base. Não digas "olá" nem te apresentes — vai direto à resposta.`;
+
+        const hasKey = !!(typeof hasAIKey === 'function' && hasAIKey() && state.max?.enabled);
+        if (hasKey && typeof callClaudeAPI === 'function') {
+            const { text } = await callClaudeAPI(prompt, 380, false);
+            const clean = String(text || '').trim().replace(/^["']|["']$/g, '');
+            ans.innerHTML = `<div class="lesson-doubt-result"><div class="lesson-doubt-result-q"><i class="fas fa-quote-left"></i> ${escapeHtml(q)}</div><div class="lesson-doubt-result-answer">${_lessonDoubtFormat(clean)}</div></div>`;
+        } else {
+            ans.innerHTML = `<div class="lesson-doubt-result"><div class="lesson-doubt-result-q"><i class="fas fa-quote-left"></i> ${escapeHtml(q)}</div><div class="lesson-doubt-result-answer">Para responder a perguntas livres preciso da chave da IA. Vai a Perfil → MAX e activa-a, ou consulta o resumo acima.</div></div>`;
+        }
+    } catch (err) {
+        ans.innerHTML = `<div class="lesson-doubt-error"><i class="fas fa-triangle-exclamation"></i> Não consegui responder: ${escapeHtml(err?.message || 'erro')}</div>`;
+    }
+}
+
+function _lessonDoubtFormat(text) {
+    return escapeHtml(text)
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/^/, '<p>')
+        .replace(/$/, '</p>');
 }
 
 // ========== BOOT ==========
