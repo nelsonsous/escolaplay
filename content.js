@@ -953,6 +953,12 @@ const CURRICULUM_5 = {
         'Questions'
     ],
     ciencias: [
+        // VOLUME 1 — A Água, o Solo, as Rochas e os Seres Vivos
+        'Água',
+        'Rochas',
+        'Solo',
+        'Plantas',
+        // VOLUME 2 — Diversidade dos Seres Vivos e Interações com o Meio
         'Seres vivos',
         'Classificação',
         'Vertebrados',
@@ -962,28 +968,26 @@ const CURRICULUM_5 = {
         'Revestimento',
         'Alimentação',
         'Reprodução',
-        'Cadeia alimentar',
-        'Ecossistema',
         'Habitat',
-        'Plantas',
-        'Água',
-        'Solo',
-        'Rochas'
+        'Ecossistema',
+        'Cadeia alimentar'
     ],
     hgp: [
-        'Localização',
-        'Fronteiras',
+        // GEOGRAFIA — do mais geral (Mundo) ao mais particular (Portugal)
         'Continentes',
         'Oceanos',
-        'Europa',
         'Pontos cardeais',
-        'Distritos',
         'Capitais',
-        'Rios',
+        'Europa',
+        'Localização',
+        'Fronteiras',
         'Relevo',
         'Montanha',
-        'Ilhas',
+        'Rios',
         'Clima',
+        'Distritos',
+        'Ilhas',
+        // HISTÓRIA — em ordem cronológica
         'Pré-história',
         'Romanos',
         'Bárbaros',
@@ -994,8 +998,8 @@ const CURRICULUM_5 = {
         'Batalhas',
         'Reis',
         'Cultura',
-        'Símbolos',
         'Dinastias',
+        'Símbolos',
         'Ordem cronológica'
     ]
 };
