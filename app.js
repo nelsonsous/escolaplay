@@ -2578,7 +2578,7 @@ function switchTab(name) {
     if (name === 'subjects') renderSubjects();
     if (name === 'tests') renderTests();
     if (name === 'progress') renderProgress();
-    if (name === 'profile') renderProfile();
+    if (name === 'profile') { renderProfile(); try { refreshNotifUI(); } catch {} }
 }
 
 // ========== TOAST ==========
@@ -5496,6 +5496,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof _checkIncomingDuel === 'function') _checkIncomingDuel();
     // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
     setTimeout(_maybeShowStreakGuilt, 800);
+    // Notificações: refrescar UI + reagendar lembrete diário
+    try { refreshNotifUI(); } catch {}
+    try { _scheduleStreakReminder(); } catch {}
 });
 
 // ============ STREAK GUILT-TRIP ============
@@ -5533,4 +5536,100 @@ function closeStreakGuilt(goPractice) {
     if (goPractice && typeof startDailyChallenge === 'function') {
         startDailyChallenge();
     }
+}
+
+// ============ NOTIFICAÇÕES (lembretes diários) ============
+function _notifSupported() {
+    return 'Notification' in window && 'serviceWorker' in navigator;
+}
+function refreshNotifUI() {
+    const btn = document.getElementById('btn-toggle-notif');
+    const label = document.getElementById('notif-btn-label');
+    const status = document.getElementById('notif-status');
+    if (!btn || !label || !status) return;
+    if (!_notifSupported()) {
+        btn.disabled = true;
+        label.textContent = 'Não suportado neste browser';
+        status.textContent = 'Instala a app no ecrã principal para receberes lembretes.';
+        return;
+    }
+    const perm = Notification.permission;
+    const enabled = !!(state && state.notifEnabled) && perm === 'granted';
+    if (enabled) {
+        label.textContent = 'Lembretes ativados ✓';
+        btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
+        status.textContent = 'Vais receber um aviso por dia se ainda não tiveres feito um teste.';
+    } else if (perm === 'denied') {
+        label.textContent = 'Permissão bloqueada';
+        status.textContent = 'Ativa as notificações nas definições do sistema para esta app.';
+    } else {
+        label.textContent = 'Ativar lembretes diários';
+        btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary');
+        status.textContent = 'Recebe um aviso para não perderes a tua ofensiva 🔥';
+    }
+}
+
+async function toggleNotifications() {
+    if (!_notifSupported()) return;
+    if (state.notifEnabled && Notification.permission === 'granted') {
+        // Desativar
+        state.notifEnabled = false;
+        saveState();
+        showToast('Lembretes desativados');
+        refreshNotifUI();
+        return;
+    }
+    let perm = Notification.permission;
+    if (perm === 'default') {
+        perm = await Notification.requestPermission();
+    }
+    if (perm !== 'granted') {
+        showToast('Permissão recusada — ativa nas definições');
+        refreshNotifUI();
+        return;
+    }
+    state.notifEnabled = true;
+    saveState();
+    showToast('Lembretes ativados! 🔔');
+    refreshNotifUI();
+    _scheduleStreakReminder();
+    // Notificação imediata só para confirmar
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification('EscolaPlay', {
+            body: 'Lembretes ativados! Vais ser avisada quando faltar fazer o teste 🔥',
+            icon: 'icon-192.png',
+            badge: 'icon-192.png',
+            tag: 'escolaplay-welcome'
+        });
+    } catch {}
+}
+
+async function _scheduleStreakReminder() {
+    if (!_notifSupported()) return;
+    if (!state || !state.notifEnabled) return;
+    if (Notification.permission !== 'granted') return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        // Agendar para hoje às 19:00 (ou amanhã se já passou)
+        const now = new Date();
+        const target = new Date();
+        target.setHours(19, 0, 0, 0);
+        if (target <= now) target.setDate(target.getDate() + 1);
+        const tag = 'escolaplay-daily-' + target.toISOString().slice(0,10);
+        const opts = {
+            body: 'Não te esqueças da tua ofensiva! Faz só 1 teste hoje 🔥',
+            icon: 'icon-192.png',
+            badge: 'icon-192.png',
+            tag,
+            requireInteraction: false
+        };
+        // Best-effort: usar TimestampTrigger se disponível (Chrome)
+        if ('TimestampTrigger' in window) {
+            opts.showTrigger = new TimestampTrigger(target.getTime());
+            await reg.showNotification('EscolaPlay 🦊', opts);
+        }
+        // Sem TimestampTrigger (iOS Safari etc.) — não há agendamento real;
+        // o aviso aparecerá via guilt-trip modal quando reabrir a app.
+    } catch (e) { console.warn('schedule reminder failed', e); }
 }

@@ -277,6 +277,14 @@
             <p class="muted">Limpa a cache e recarrega. Os dados (XP, perfis, medalhas, testes) NÃO são apagados.</p>
         </div>
 
+        <div class="section-title"><i class="fas fa-bell"></i> Lembretes</div>
+        <div class="form-card">
+            <button class="btn btn-secondary btn-block" id="btn-toggle-notif" onclick="toggleNotifications()">
+                <i class="fas fa-bell"></i> <span id="notif-btn-label">Ativar lembretes diários</span>
+            </button>
+            <p class="muted" id="notif-status">Recebe um aviso para não perderes a tua ofensiva 🔥</p>
+        </div>
+
         <div class="section-title"><i class="fas fa-gear"></i> Dados</div>
         <div class="form-card">
             <button class="btn btn-secondary btn-block" onclick="clearMaxCache()" style="margin-bottom:8px"><i class="fas fa-broom"></i> Limpar perguntas IA</button>

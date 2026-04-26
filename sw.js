@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v137';
+const CACHE_NAME = 'escolaplay-v138';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -20,6 +20,18 @@ self.addEventListener('activate', (event) => {
         await self.clients.claim();
         const wins = await self.clients.matchAll({ type: 'window' });
         wins.forEach(c => { try { c.navigate(c.url); } catch {} });
+    })());
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil((async () => {
+        const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const url = '/escolaplay/';
+        for (const c of all) {
+            if (c.url.includes('/escolaplay/')) { try { await c.focus(); return; } catch {} }
+        }
+        await self.clients.openWindow(url);
     })());
 });
 
