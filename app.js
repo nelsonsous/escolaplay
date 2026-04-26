@@ -2499,25 +2499,55 @@ function showToast(msg) {
 }
 
 // ========== SESSION ==========
-// Escolhe N exercícios com rotação inteligente:
-// - Nunca-vistos têm prioridade absoluta
-// - Depois, os mais antigos (menor timestamp) ganham
-// - Empates resolvidos com aleatoriedade
-// - Resultado final é baralhado para não dar sempre a mesma ordem
+// Calcula a dificuldade-alvo para um tópico, com base no histórico de acertos.
+// Regra: precisa de 3+ acertos numa dificuldade para "desbloquear" a próxima.
+// Devolve { target, prefer: { 1: w, 2: w, 3: w } } com pesos para a seleção.
+function targetDifficultyFor(subKey, topic) {
+    const m = (state.topicMastery || {})[subKey + '/' + topic] || { d1:0, d2:0, d3:0 };
+    const c1 = m.d1 || 0, c2 = m.d2 || 0, c3 = m.d3 || 0;
+    // Threshold de "domínio" por nível (mais baixo para os mais novos)
+    const yr = activeProfile()?.year || 6;
+    const TH = yr <= 2 ? 3 : (yr <= 4 ? 4 : 5);
+    if (c1 < TH) {
+        // Ainda a aprender: maioria diff:1, raramente diff:2 para não saturar
+        return { target: 1, prefer: { 1: 0.9, 2: 0.1, 3: 0 } };
+    }
+    if (c2 < TH) {
+        // Domina o básico: foco em diff:2, alguma reciclagem de diff:1, raro diff:3
+        return { target: 2, prefer: { 1: 0.25, 2: 0.65, 3: 0.10 } };
+    }
+    // Domina os 2 níveis: foco em diff:3, mistura tudo
+    return { target: 3, prefer: { 1: 0.15, 2: 0.30, 3: 0.55 } };
+}
+
+// Escolhe N exercícios com rotação inteligente E progressão adaptativa de dificuldade:
+// - Nunca-vistos têm prioridade
+// - Cada exercício é "ponderado" pela dificuldade-alvo do seu tópico (acertos do utilizador)
+// - Depois ordenado por antiguidade
+// - Resultado final é baralhado
 function pickExercises(pool, n) {
     const seen = state.exerciseSeen || {};
-    const annotated = pool.map(e => ({
-        e,
-        lastSeen: seen[e.id] || 0,
-        rand: Math.random()
-    }));
+    const annotated = pool.map(e => {
+        const tgt = targetDifficultyFor(e.s, e.t);
+        const d = Math.max(1, Math.min(3, e.diff || 1));
+        // Score baseado na preferência da dificuldade-alvo (0 a 1)
+        const diffScore = (tgt.prefer && tgt.prefer[d]) || 0;
+        return {
+            e,
+            lastSeen: seen[e.id] || 0,
+            diffScore,
+            rand: Math.random()
+        };
+    });
     annotated.sort((a, b) => {
-        // Nunca vistos primeiro
+        // 1) Nunca vistos primeiro
         if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
         if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
-        // Entre vistos, mais antigos primeiro
+        // 2) Maior diffScore primeiro (alinhado com a dificuldade-alvo)
+        if (a.diffScore !== b.diffScore) return b.diffScore - a.diffScore;
+        // 3) Entre vistos, mais antigos primeiro
         if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
-        // Empate → random
+        // 4) Empate → random
         return a.rand - b.rand;
     });
     const top = annotated.slice(0, n).map(x => x.e);
@@ -2964,6 +2994,16 @@ function recordAnswer(e, isCorrect) {
     // Regista timestamp da última vez que foi vista (para rotação inteligente)
     state.exerciseSeen = state.exerciseSeen || {};
     state.exerciseSeen[e.id] = Date.now();
+    // Tracking de mestria por tópico+dificuldade (progressão adaptativa)
+    state.topicMastery = state.topicMastery || {};
+    if (e.s && e.t) {
+        const key = e.s + '/' + e.t;
+        const m = state.topicMastery[key] || { d1: 0, d2: 0, d3: 0, w1: 0, w2: 0, w3: 0 };
+        const d = Math.max(1, Math.min(3, e.diff || 1));
+        if (isCorrect) m['d' + d] = (m['d' + d] || 0) + 1;
+        else m['w' + d] = (m['w' + d] || 0) + 1;
+        state.topicMastery[key] = m;
+    }
     // Marca pergunta como vista no teste activo (para evitar repetir em sessões futuras)
     if (s.testId) {
         const t = (state.tests || []).find(x => x.id === s.testId);

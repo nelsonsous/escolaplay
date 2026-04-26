@@ -964,7 +964,423 @@ const EXERCISES_2 = [
     { id:'2i75', s:'ingles', t:'Toys', type:'mc', diff:2, q:'"Can I play?" significa:', opts:['Posso comer?','Posso brincar?','Posso ir?','Posso ver?'], ans:1, exp:'Can I play? = Posso brincar?' },
     { id:'2i76', s:'ingles', t:'Toys', type:'fill', diff:2, q:'Patins em inglês: roller ___', ans:['skates'], exp:'Roller skates = patins.' },
     { id:'2i77', s:'ingles', t:'Toys', type:'tf', diff:3, q:'"Share" em inglês significa partilhar.', ans:true, exp:'Verdade — share = partilhar. (Importante para brincar com amigos!)' },
-    { id:'2i78', s:'ingles', t:'Toys', type:'mc', diff:3, q:'"Robot" em inglês é a mesma palavra em português.', opts:['Sim, escreve-se igual','Não, é diferente','É "robotic"','É "machine"'], ans:0, exp:'Robot escreve-se igual em inglês e português (só pronúncia muda).' }
+    { id:'2i78', s:'ingles', t:'Toys', type:'mc', diff:3, q:'"Robot" em inglês é a mesma palavra em português.', opts:['Sim, escreve-se igual','Não, é diferente','É "robotic"','É "machine"'], ans:0, exp:'Robot escreve-se igual em inglês e português (só pronúncia muda).' },
+
+    // ============================================================
+    // ===== EXTRA-FÁCIL 2.º ano - perguntas mais simples =========
+    // (5 perguntas diff:1 por cada um dos 29 tópicos novos =145)
+    // Linguagem MUITO simples, perguntas diretas, sem combinacoes
+    // ============================================================
+
+    // ----- Português: Hiato (+5 fácil) -----
+    { id:'2p120', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'No hiato, as vogais ficam:', opts:['na mesma sílaba','em sílabas diferentes','não juntas','sem ler'], ans:1, exp:'Hiato = vogais juntas mas em SÍLABAS DIFERENTES.' },
+    { id:'2p121', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'A palavra "baú" tem:', opts:['ditongo','hiato'], ans:1, exp:'ba-ú → 2 sílabas → hiato.' },
+    { id:'2p122', s:'portugues', t:'Hiato', type:'tf', diff:1, q:'"Pai" tem 1 sílaba.', ans:true, exp:'Verdade — "pai" diz-se de uma só vez (ditongo).' },
+    { id:'2p123', s:'portugues', t:'Hiato', type:'fill', diff:1, q:'Quantas sílabas tem "pai"? ___', ans:['1','uma'], exp:'1 sílaba (ditongo "ai").' },
+    { id:'2p124', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'Que palavra tem hiato?', opts:['mãe','baú','boi'], ans:1, exp:'Baú → hiato (ba-ú).' },
+
+    // ----- Português: Nomes próprios e comuns (+5 fácil) -----
+    { id:'2p125', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Nome próprio começa por letra:', opts:['minúscula','maiúscula','número','não importa'], ans:1, exp:'Sempre MAIÚSCULA: João, Lisboa, Bobi.' },
+    { id:'2p126', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'"Rita" é um nome:', opts:['comum','próprio'], ans:1, exp:'Rita = nome de uma pessoa → próprio.' },
+    { id:'2p127', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'"Mesa" é um nome:', opts:['comum','próprio'], ans:0, exp:'Mesa = qualquer mesa → comum.' },
+    { id:'2p128', s:'portugues', t:'Nomes próprios e comuns', type:'tf', diff:1, q:'"Lisboa" deve ter L maiúsculo.', ans:true, exp:'Sim — Lisboa é nome próprio (cidade).' },
+    { id:'2p129', s:'portugues', t:'Nomes próprios e comuns', type:'fill', diff:1, q:'Diz o nome próprio de uma menina: ___', ans:['Maria','Ana','Sofia','Rita','Joana','Inês','Sara','Beatriz','Carolina','Mariana'], exp:'Qualquer nome de menina serve.' },
+
+    // ----- Português: Adjetivos (+5 fácil) -----
+    { id:'2p130', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'O adjetivo serve para:', opts:['contar números','dizer como é uma coisa','dar ordens','rir'], ans:1, exp:'Adjetivo descreve / qualifica.' },
+    { id:'2p131', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'Em "casa grande", o adjetivo é:', opts:['casa','grande'], ans:1, exp:'GRANDE descreve a casa → adjetivo.' },
+    { id:'2p132', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'Qual destes é um adjetivo?', opts:['correr','feliz','escola'], ans:1, exp:'FELIZ descreve um sentimento → adjetivo.' },
+    { id:'2p133', s:'portugues', t:'Adjetivos', type:'tf', diff:1, q:'"Bonito" é um adjetivo.', ans:true, exp:'Verdade — descreve algo → adjetivo.' },
+    { id:'2p134', s:'portugues', t:'Adjetivos', type:'fill', diff:1, q:'Adjetivo de cor: ___', ans:['azul','verde','vermelho','amarelo','branco','preto','rosa','laranja','roxo','castanho','cinzento'], exp:'Qualquer cor (azul, verde, etc.) é um adjetivo.' },
+
+    // ----- Português: Género (+5 fácil) -----
+    { id:'2p135', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'"O gato" é:', opts:['masculino','feminino'], ans:0, exp:'O = masculino.' },
+    { id:'2p136', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'"A flor" é:', opts:['masculino','feminino'], ans:1, exp:'A = feminino.' },
+    { id:'2p137', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'Feminino de "menino":', opts:['menino','menina','meninito'], ans:1, exp:'Menino → menina.' },
+    { id:'2p138', s:'portugues', t:'Género (masculino e feminino)', type:'tf', diff:1, q:'"Pai" e "mãe" são palavras diferentes.', ans:true, exp:'Verdade — pai (masc.) e mãe (fem.).' },
+    { id:'2p139', s:'portugues', t:'Género (masculino e feminino)', type:'fill', diff:1, q:'Feminino de "irmão": ___', ans:['irmã'], exp:'Irmão → irmã.' },
+
+    // ----- Português: Grau (+5 fácil) -----
+    { id:'2p140', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'"Casinha" é:', opts:['aumentativo','diminutivo'], ans:1, exp:'-inha = diminutivo (pequeno).' },
+    { id:'2p141', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'"Casarão" é:', opts:['aumentativo','diminutivo'], ans:0, exp:'-ão = aumentativo (grande).' },
+    { id:'2p142', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Diminutivo de "pé":', opts:['pézão','pezinho','pés'], ans:1, exp:'Pé → pezinho.' },
+    { id:'2p143', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'tf', diff:1, q:'"Cãozinho" é diminutivo de "cão".', ans:true, exp:'Verdade — cão → cãozinho.' },
+    { id:'2p144', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'fill', diff:1, q:'Diminutivo de "gato": ___', ans:['gatinho'], exp:'Gato → gatinho.' },
+
+    // ----- Português: Verbos passado/futuro (+5 fácil) -----
+    { id:'2p145', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Ontem" é uma pista de:', opts:['presente','passado','futuro'], ans:1, exp:'Ontem = passado (já aconteceu).' },
+    { id:'2p146', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Amanhã" é uma pista de:', opts:['presente','passado','futuro'], ans:2, exp:'Amanhã = futuro (vai acontecer).' },
+    { id:'2p147', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Agora" é uma pista de:', opts:['presente','passado','futuro'], ans:0, exp:'Agora = presente.' },
+    { id:'2p148', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:1, q:'"Eu corri" está no passado.', ans:true, exp:'Verdade — corri = passado.' },
+    { id:'2p149', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:1, q:'Pista de tempo PASSADO: ___', ans:['ontem','antes'], exp:'Ontem ou antes → passado.' },
+
+    // ----- Português: Pontuação (+5 fácil) -----
+    { id:'2p150', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Que sinal vai no fim de uma pergunta?', opts:['.','?','!'], ans:1, exp:'Pergunta → ?.' },
+    { id:'2p151', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal usado no fim de "Olha":', opts:['?','!','.'], ans:1, exp:'Olha! → exclamação.' },
+    { id:'2p152', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal de fim de uma frase normal:', opts:['?','!','.'], ans:2, exp:'Frase declarativa → . (ponto final).' },
+    { id:'2p153', s:'portugues', t:'Pontuação básica', type:'tf', diff:1, q:'Depois de ponto final começa-se com letra MAIÚSCULA.', ans:true, exp:'Sempre.' },
+    { id:'2p154', s:'portugues', t:'Pontuação básica', type:'fill', diff:1, q:'Sinal de exclamação: ___', ans:['!'], exp:'! para emoção/admiração.' },
+
+    // ----- Matemática: Multiplicação (+5 fácil) -----
+    { id:'2m216', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'2 × 3 = ?', opts:['5','6','7'], ans:1, exp:'2 × 3 = 6.' },
+    { id:'2m217', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'1 × 5 = ?', opts:['0','5','15'], ans:1, exp:'Qualquer número × 1 = ele próprio.' },
+    { id:'2m218', s:'matematica', t:'Multiplicação', type:'fill', diff:1, q:'3 × 2 = ___', ans:['6'], exp:'3 × 2 = 6.' },
+    { id:'2m219', s:'matematica', t:'Multiplicação', type:'tf', diff:1, q:'4 × 0 = 0.', ans:true, exp:'Qualquer número × 0 = 0.' },
+    { id:'2m220', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'O símbolo da multiplicação é:', opts:['+','×','÷'], ans:1, exp:'× = multiplicação ("vezes").' },
+
+    // ----- Matemática: Divisão (+5 fácil) -----
+    { id:'2m221', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'6 ÷ 2 = ?', opts:['2','3','4'], ans:1, exp:'6 ÷ 2 = 3.' },
+    { id:'2m222', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'4 ÷ 2 = ?', opts:['1','2','3'], ans:1, exp:'4 ÷ 2 = 2.' },
+    { id:'2m223', s:'matematica', t:'Divisão', type:'fill', diff:1, q:'8 ÷ 2 = ___', ans:['4'], exp:'8 ÷ 2 = 4.' },
+    { id:'2m224', s:'matematica', t:'Divisão', type:'tf', diff:1, q:'Dividir significa repartir igualmente.', ans:true, exp:'Verdade — divisão = partilha em partes iguais.' },
+    { id:'2m225', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'O símbolo da divisão é:', opts:['+','×','÷'], ans:2, exp:'÷ = divisão.' },
+
+    // ----- Matemática: Tabuada do 3 (+5 fácil) -----
+    { id:'2m226', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 1 = ?', opts:['0','3','6'], ans:1, exp:'3 × 1 = 3.' },
+    { id:'2m227', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 2 = ?', opts:['5','6','9'], ans:1, exp:'3 × 2 = 6.' },
+    { id:'2m228', s:'matematica', t:'Tabuada do 3', type:'fill', diff:1, q:'3 × 3 = ___', ans:['9'], exp:'3 × 3 = 9.' },
+    { id:'2m229', s:'matematica', t:'Tabuada do 3', type:'tf', diff:1, q:'3 × 0 = 0.', ans:true, exp:'Qualquer número × 0 = 0.' },
+    { id:'2m230', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 4 = ?', opts:['9','12','15'], ans:1, exp:'3 × 4 = 12.' },
+
+    // ----- Matemática: Tabuada do 4 (+5 fácil) -----
+    { id:'2m231', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 1 = ?', opts:['0','4','8'], ans:1, exp:'4 × 1 = 4.' },
+    { id:'2m232', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 2 = ?', opts:['6','8','10'], ans:1, exp:'4 × 2 = 8.' },
+    { id:'2m233', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 5 = ___', ans:['20'], exp:'4 × 5 = 20.' },
+    { id:'2m234', s:'matematica', t:'Tabuada do 4', type:'tf', diff:1, q:'4 × 0 = 0.', ans:true, exp:'Sempre — × 0 dá 0.' },
+    { id:'2m235', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 4 = ?', opts:['12','16','20'], ans:1, exp:'4 × 4 = 16.' },
+
+    // ----- Matemática: Tabuada do 6 (+5 fácil) -----
+    { id:'2m236', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 1 = ?', opts:['0','6','12'], ans:1, exp:'6 × 1 = 6.' },
+    { id:'2m237', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 5 = ?', opts:['25','30','36'], ans:1, exp:'6 × 5 = 30.' },
+    { id:'2m238', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 3 = ___', ans:['18'], exp:'6 × 3 = 18.' },
+    { id:'2m239', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'6 × 10 = 60.', ans:true, exp:'Verdade — junta 0 ao 6.' },
+    { id:'2m240', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 2 = ?', opts:['8','10','12'], ans:2, exp:'6 × 2 = 12.' },
+
+    // ----- Matemática: Tabuada do 7 (+5 fácil) -----
+    { id:'2m241', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 1 = ?', opts:['0','7','14'], ans:1, exp:'7 × 1 = 7.' },
+    { id:'2m242', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 2 = ?', opts:['12','14','16'], ans:1, exp:'7 × 2 = 14.' },
+    { id:'2m243', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 0 = ___', ans:['0','zero'], exp:'× 0 = 0.' },
+    { id:'2m244', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'7 × 10 = 70.', ans:true, exp:'Verdade.' },
+    { id:'2m245', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 3 = ?', opts:['18','21','24'], ans:1, exp:'7 × 3 = 21.' },
+
+    // ----- Matemática: Tabuada do 8 (+5 fácil) -----
+    { id:'2m246', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 1 = ?', opts:['0','8','16'], ans:1, exp:'8 × 1 = 8.' },
+    { id:'2m247', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 2 = ?', opts:['10','14','16'], ans:2, exp:'8 × 2 = 16.' },
+    { id:'2m248', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × 5 = ___', ans:['40'], exp:'8 × 5 = 40.' },
+    { id:'2m249', s:'matematica', t:'Tabuada do 8', type:'tf', diff:1, q:'8 × 10 = 80.', ans:true, exp:'Verdade.' },
+    { id:'2m250', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 0 = ?', opts:['0','8','80'], ans:0, exp:'× 0 = 0.' },
+
+    // ----- Matemática: Tabuada do 9 (+5 fácil) -----
+    { id:'2m251', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 1 = ?', opts:['0','9','18'], ans:1, exp:'9 × 1 = 9.' },
+    { id:'2m252', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 2 = ?', opts:['11','18','20'], ans:1, exp:'9 × 2 = 18.' },
+    { id:'2m253', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
+    { id:'2m254', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'9 × 0 = 0.', ans:true, exp:'× 0 = 0.' },
+    { id:'2m255', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 3 = ?', opts:['18','21','27'], ans:2, exp:'9 × 3 = 27.' },
+
+    // ----- Matemática: Frações simples (+5 fácil) -----
+    { id:'2m256', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade quer dizer:', opts:['1 parte de 4','1 parte de 2','tudo'], ans:1, exp:'Metade = 1/2 (1 de 2 partes iguais).' },
+    { id:'2m257', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 4 é:', opts:['1','2','3'], ans:1, exp:'4 ÷ 2 = 2.' },
+    { id:'2m258', s:'matematica', t:'Frações simples', type:'fill', diff:1, q:'Metade de 6 = ___', ans:['3'], exp:'6 ÷ 2 = 3.' },
+    { id:'2m259', s:'matematica', t:'Frações simples', type:'tf', diff:1, q:'1/2 lê-se "um meio".', ans:true, exp:'Verdade — 1/2 = um meio = metade.' },
+    { id:'2m260', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Em 1/4 dividimos em quantas partes?', opts:['2','3','4'], ans:2, exp:'1/4 → dividido em 4 partes iguais.' },
+
+    // ----- Matemática: Comprimento (+5 fácil) -----
+    { id:'2m261', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'O que mede o comprimento?', opts:['quanto pesa','tamanho de ponta a ponta','quanto líquido cabe'], ans:1, exp:'Comprimento = tamanho.' },
+    { id:'2m262', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Que instrumento mede o comprimento?', opts:['balança','relógio','régua'], ans:2, exp:'A régua mede comprimento.' },
+    { id:'2m263', s:'matematica', t:'Comprimento', type:'fill', diff:1, q:'1 m = ___ cm', ans:['100'], exp:'1 metro = 100 centímetros.' },
+    { id:'2m264', s:'matematica', t:'Comprimento', type:'tf', diff:1, q:'cm = centímetro.', ans:true, exp:'Verdade — cm é o símbolo de centímetro.' },
+    { id:'2m265', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Para medir um lápis usas:', opts:['cm','km','toneladas'], ans:0, exp:'Centímetros (lápis é pequeno).' },
+
+    // ----- Matemática: Massa (+5 fácil) -----
+    { id:'2m266', s:'matematica', t:'Massa', type:'mc', diff:1, q:'A massa mede-se com:', opts:['régua','balança','copo'], ans:1, exp:'Balança mede massa.' },
+    { id:'2m267', s:'matematica', t:'Massa', type:'mc', diff:1, q:'Símbolo de quilograma:', opts:['g','kg','m'], ans:1, exp:'kg = quilograma.' },
+    { id:'2m268', s:'matematica', t:'Massa', type:'fill', diff:1, q:'1 kg = ___ g', ans:['1000','1 000'], exp:'1 quilo = 1000 gramas.' },
+    { id:'2m269', s:'matematica', t:'Massa', type:'tf', diff:1, q:'g = grama.', ans:true, exp:'Verdade — g é o símbolo de grama.' },
+    { id:'2m270', s:'matematica', t:'Massa', type:'mc', diff:1, q:'Uma maçã pesa cerca de:', opts:['150 g','15 kg','1 t'], ans:0, exp:'~150 gramas.' },
+
+    // ----- Matemática: Capacidade (+5 fácil) -----
+    { id:'2m271', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'A capacidade mede:', opts:['quanto pesa','quanto líquido cabe','quanto comprido'], ans:1, exp:'Capacidade = quantidade de líquido.' },
+    { id:'2m272', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Símbolo de litro:', opts:['L','kg','m'], ans:0, exp:'L = litro.' },
+    { id:'2m273', s:'matematica', t:'Capacidade', type:'fill', diff:1, q:'1 L = ___ mL', ans:['1000','1 000'], exp:'1 litro = 1000 mililitros.' },
+    { id:'2m274', s:'matematica', t:'Capacidade', type:'tf', diff:1, q:'mL = mililitro.', ans:true, exp:'Verdade.' },
+    { id:'2m275', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Um pacote de leite tem cerca de:', opts:['1 mL','1 L','1 km'], ans:1, exp:'Pacote normal = 1 litro.' },
+
+    // ----- Matemática: Gráficos (+5 fácil) -----
+    { id:'2m276', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Um gráfico mostra:', opts:['letras','dados (números)','animais'], ans:1, exp:'Gráficos mostram DADOS de forma visual.' },
+    { id:'2m277', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Pictograma usa:', opts:['só números','imagens','sons'], ans:1, exp:'Pictograma usa IMAGENS para representar dados.' },
+    { id:'2m278', s:'matematica', t:'Gráficos', type:'tf', diff:1, q:'Num gráfico de barras, barra mais alta = mais quantidade.', ans:true, exp:'Verdade — barra alta = maior valor.' },
+    { id:'2m279', s:'matematica', t:'Gráficos', type:'fill', diff:1, q:'2 + 3 = ___', ans:['5'], exp:'Total simples: 2 + 3 = 5.' },
+    { id:'2m280', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Num gráfico vês: cães=3, gatos=4. Mais animais?', opts:['cães','gatos','iguais'], ans:1, exp:'Gatos = 4 (mais que 3 cães).' },
+
+    // ----- Estudo do Meio: Astros (+5 fácil) -----
+    { id:'2e90', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'O Sol é uma:', opts:['planeta','lua','estrela'], ans:2, exp:'O Sol é uma estrela.' },
+    { id:'2e91', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'A Terra é um:', opts:['planeta','estrela','satélite'], ans:0, exp:'A Terra é um planeta.' },
+    { id:'2e92', s:'estudo_meio', t:'Astros', type:'tf', diff:1, q:'Vivemos no planeta Terra.', ans:true, exp:'Verdade — vivemos na Terra.' },
+    { id:'2e93', s:'estudo_meio', t:'Astros', type:'fill', diff:1, q:'O Sol dá luz e ___ (sensação).', ans:['calor'], exp:'O Sol dá luz e calor.' },
+    { id:'2e94', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'A Lua vê-se principalmente:', opts:['de manhã','à noite','ao almoço'], ans:1, exp:'A Lua vê-se à noite.' },
+
+    // ----- Estudo do Meio: Transportes (+5 fácil) -----
+    { id:'2e95', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Carro é um transporte:', opts:['terrestre','aéreo','aquático'], ans:0, exp:'Carro anda em terra.' },
+    { id:'2e96', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Avião é um transporte:', opts:['terrestre','aéreo','aquático'], ans:1, exp:'Avião voa no ar.' },
+    { id:'2e97', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Barco é um transporte:', opts:['terrestre','aéreo','aquático'], ans:2, exp:'Barco anda na água.' },
+    { id:'2e98', s:'estudo_meio', t:'Transportes', type:'tf', diff:1, q:'A bicicleta não polui.', ans:true, exp:'Verdade — não tem motor.' },
+    { id:'2e99', s:'estudo_meio', t:'Transportes', type:'fill', diff:1, q:'Atravessar a estrada na ___ (faixa pintada).', ans:['passadeira'], exp:'Passadeira — local seguro para atravessar.' },
+
+    // ----- Estudo do Meio: Higiene (+5 fácil) -----
+    { id:'2e100', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Antes de comer devemos:', opts:['ver TV','lavar as mãos','dormir'], ans:1, exp:'Lavar as mãos.' },
+    { id:'2e101', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Devemos escovar os dentes:', opts:['1 vez por mês','todos os dias','quando dói'], ans:1, exp:'Todos os dias (várias vezes).' },
+    { id:'2e102', s:'estudo_meio', t:'Higiene', type:'tf', diff:1, q:'O dentista cuida dos dentes.', ans:true, exp:'Verdade.' },
+    { id:'2e103', s:'estudo_meio', t:'Higiene', type:'fill', diff:1, q:'O que se usa para escovar dentes: ___', ans:['escova','escova de dentes'], exp:'Escova de dentes.' },
+    { id:'2e104', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Para nos lavarmos usamos:', opts:['só água','água e sabão','só toalha'], ans:1, exp:'Água + sabão.' },
+
+    // ----- Estudo do Meio: Saúde (+5 fácil) -----
+    { id:'2e105', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'O que é mais saudável beber?', opts:['refrigerante','água','sumo açucarado'], ans:1, exp:'Água — sempre a melhor.' },
+    { id:'2e106', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Comida saudável inclui:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Fruta e legumes.' },
+    { id:'2e107', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Devemos dormir bastantes horas.', ans:true, exp:'Verdade — 9 a 11 horas (criança).' },
+    { id:'2e108', s:'estudo_meio', t:'Saúde', type:'fill', diff:1, q:'Para sermos saudáveis devemos fazer ___ (movimento).', ans:['exercício','exercicio'], exp:'Exercício físico.' },
+    { id:'2e109', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Quem cuida dos doentes?', opts:['professor','médico','padeiro'], ans:1, exp:'O médico (e enfermeiros).' },
+
+    // ----- Estudo do Meio: Comemorações (+5 fácil) -----
+    { id:'2e110', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'No Natal há:', opts:['ovos de chocolate','árvore e presentes','marchas populares'], ans:1, exp:'Árvore de Natal e presentes.' },
+    { id:'2e111', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'Na Páscoa há:', opts:['árvore enfeitada','ovos de chocolate','foguetes'], ans:1, exp:'Ovos de chocolate, amêndoas, folar.' },
+    { id:'2e112', s:'estudo_meio', t:'Comemorações', type:'tf', diff:1, q:'O Natal é a 25 de dezembro.', ans:true, exp:'Verdade.' },
+    { id:'2e113', s:'estudo_meio', t:'Comemorações', type:'fill', diff:1, q:'Festa em que nos vestimos com fatos: ___', ans:['Carnaval','carnaval'], exp:'Carnaval — fatos e máscaras.' },
+    { id:'2e114', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'No Dia da Mãe damos:', opts:['nada','flores ou prendas','dinheiro'], ans:1, exp:'Flores, prendas ou um abraço.' },
+
+    // ----- Inglês: Alfabeto (+5 fácil) -----
+    { id:'2i79', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Primeira letra do alfabeto:', opts:['A','B','Z'], ans:0, exp:'A é a primeira.' },
+    { id:'2i80', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Última letra do alfabeto inglês:', opts:['X','Y','Z'], ans:2, exp:'Z é a última.' },
+    { id:'2i81', s:'ingles', t:'Alfabeto', type:'tf', diff:1, q:'O alfabeto inglês tem 26 letras.', ans:true, exp:'Verdade.' },
+    { id:'2i82', s:'ingles', t:'Alfabeto', type:'fill', diff:1, q:'Letra que vem depois do A: ___', ans:['B','b'], exp:'A → B.' },
+    { id:'2i83', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Letra antes do C:', opts:['A','B','D'], ans:1, exp:'A → B → C. B vem antes.' },
+
+    // ----- Inglês: Body (+5 fácil) -----
+    { id:'2i84', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ em inglês:', opts:['eye','ear','nose'], ans:0, exp:'👁️ = eye.' },
+    { id:'2i85', s:'ingles', t:'Body', type:'mc', diff:1, q:'👃 em inglês:', opts:['mouth','nose','ear'], ans:1, exp:'👃 = nose.' },
+    { id:'2i86', s:'ingles', t:'Body', type:'mc', diff:1, q:'✋ em inglês:', opts:['hand','foot','head'], ans:0, exp:'✋ = hand.' },
+    { id:'2i87', s:'ingles', t:'Body', type:'tf', diff:1, q:'"Head" significa cabeça.', ans:true, exp:'Verdade.' },
+    { id:'2i88', s:'ingles', t:'Body', type:'fill', diff:1, q:'Pé em inglês: ___', ans:['foot'], exp:'Foot = pé.' },
+
+    // ----- Inglês: Food (+5 fácil) -----
+    { id:'2i89', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍎 em inglês:', opts:['apple','orange','pear'], ans:0, exp:'🍎 = apple.' },
+    { id:'2i90', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍌 em inglês:', opts:['apple','banana','grape'], ans:1, exp:'🍌 = banana.' },
+    { id:'2i91', s:'ingles', t:'Food', type:'mc', diff:1, q:'🥛 em inglês:', opts:['water','milk','juice'], ans:1, exp:'🥛 = milk.' },
+    { id:'2i92', s:'ingles', t:'Food', type:'tf', diff:1, q:'"Bread" significa pão.', ans:true, exp:'Verdade.' },
+    { id:'2i93', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
+
+    // ----- Inglês: Toys (+5 fácil) -----
+    { id:'2i94', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🐻 (peluche) em inglês:', opts:['dog','teddy bear','cat'], ans:1, exp:'Teddy bear = ursinho.' },
+    { id:'2i95', s:'ingles', t:'Toys', type:'mc', diff:1, q:'⚽ em inglês:', opts:['ball','car','book'], ans:0, exp:'Ball = bola.' },
+    { id:'2i96', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🚗 em inglês:', opts:['car','bike','train'], ans:0, exp:'Car = carro.' },
+    { id:'2i97', s:'ingles', t:'Toys', type:'tf', diff:1, q:'"Doll" significa boneca.', ans:true, exp:'Verdade.' },
+    { id:'2i98', s:'ingles', t:'Toys', type:'fill', diff:1, q:'Livro em inglês: ___', ans:['book'], exp:'Book = livro.' },
+
+    // ============================================================
+    // ===== EXTRA-FÁCIL 2 ano - SEGUNDO bloco (mais 5 por tópico)
+    // ============================================================
+
+    // ----- Português: Hiato (+5 fácil) -----
+    { id:'2p155', s:'portugues', t:'Hiato', type:'tf', diff:1, q:'"Saúde" tem 3 sílabas.', ans:true, exp:'sa-ú-de = 3 sílabas (hiato).' },
+    { id:'2p156', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'No HIATO, dizes as 2 vogais:', opts:['ao mesmo tempo','separadas (em sílabas diferentes)'], ans:1, exp:'Hiato = sílabas diferentes.' },
+    { id:'2p157', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'Que palavra tem hiato?', opts:['mãe','baú','sol'], ans:1, exp:'Baú = ba-ú (hiato).' },
+    { id:'2p158', s:'portugues', t:'Hiato', type:'fill', diff:1, q:'Quantas sílabas tem "baú"? ___', ans:['2','duas'], exp:'ba-ú = 2 sílabas.' },
+    { id:'2p159', s:'portugues', t:'Hiato', type:'tf', diff:1, q:'Bater palmas ajuda a contar sílabas.', ans:true, exp:'Sim! Cada palmada = 1 sílaba.' },
+
+    // ----- Português: Nomes próprios e comuns (+5 fácil) -----
+    { id:'2p160', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'"Bobi" (cão) é nome:', opts:['comum','próprio'], ans:1, exp:'É o nome do cão → próprio.' },
+    { id:'2p161', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'"Cão" é nome:', opts:['comum','próprio'], ans:0, exp:'Refere todos os cães → comum.' },
+    { id:'2p162', s:'portugues', t:'Nomes próprios e comuns', type:'tf', diff:1, q:'Nomes próprios começam por maiúscula.', ans:true, exp:'Sempre.' },
+    { id:'2p163', s:'portugues', t:'Nomes próprios e comuns', type:'fill', diff:1, q:'Diz o nome próprio de um menino: ___', ans:['João','Pedro','Tomás','Miguel','Diogo','Tiago','Rui','Rodrigo','Gonçalo'], exp:'Qualquer nome de menino.' },
+    { id:'2p164', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Nome PRÓPRIO desta lista:', opts:['casa','Porto','livro','cão'], ans:1, exp:'Porto é o nome de uma cidade.' },
+
+    // ----- Português: Adjetivos (+5 fácil) -----
+    { id:'2p165', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'Em "menina alta", o adjetivo é:', opts:['menina','alta'], ans:1, exp:'Alta descreve a menina.' },
+    { id:'2p166', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'Adjetivo desta lista:', opts:['saltar','feliz','escola'], ans:1, exp:'Feliz = adjetivo (sentimento).' },
+    { id:'2p167', s:'portugues', t:'Adjetivos', type:'tf', diff:1, q:'"Triste" é um adjetivo.', ans:true, exp:'Sim — descreve sentimento.' },
+    { id:'2p168', s:'portugues', t:'Adjetivos', type:'fill', diff:1, q:'Adjetivo de tamanho: ___', ans:['grande','pequeno','alto','baixo','curto','comprido'], exp:'Grande, pequeno, alto, etc.' },
+    { id:'2p169', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'O adjetivo qualifica:', opts:['o nome','o verbo','o número'], ans:0, exp:'Adjetivo descreve o nome.' },
+
+    // ----- Português: Género (+5 fácil) -----
+    { id:'2p170', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'"O cão" é:', opts:['masculino','feminino'], ans:0, exp:'O = masculino.' },
+    { id:'2p171', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'"A menina" é:', opts:['masculino','feminino'], ans:1, exp:'A = feminino.' },
+    { id:'2p172', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'Feminino de "gato":', opts:['gata','gatão','gatinho'], ans:0, exp:'Gato → gata.' },
+    { id:'2p173', s:'portugues', t:'Género (masculino e feminino)', type:'tf', diff:1, q:'"A flor" é feminino.', ans:true, exp:'Verdade — diz-se "a flor".' },
+    { id:'2p174', s:'portugues', t:'Género (masculino e feminino)', type:'fill', diff:1, q:'Feminino de "tio": ___', ans:['tia'], exp:'Tio → tia.' },
+
+    // ----- Português: Grau (+5 fácil) -----
+    { id:'2p175', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'"Cãozinho" é:', opts:['aumentativo','diminutivo'], ans:1, exp:'-zinho = diminutivo.' },
+    { id:'2p176', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'"Livrão" é:', opts:['aumentativo','diminutivo'], ans:0, exp:'-ão = aumentativo.' },
+    { id:'2p177', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'tf', diff:1, q:'"Florzinha" é diminutivo de "flor".', ans:true, exp:'Verdade.' },
+    { id:'2p178', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'fill', diff:1, q:'Diminutivo de "menino": ___', ans:['meninozinho','menininho'], exp:'Menino → meninozinho.' },
+    { id:'2p179', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Aumentativo de "casa":', opts:['casinha','casarão','casita'], ans:1, exp:'Casa → casarão.' },
+
+    // ----- Português: Verbos passado/futuro (+5 fácil) -----
+    { id:'2p180', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Hoje brinco" está no:', opts:['passado','presente','futuro'], ans:1, exp:'Hoje + brinco = presente.' },
+    { id:'2p181', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Ontem" indica:', opts:['presente','passado','futuro'], ans:1, exp:'Ontem = passado.' },
+    { id:'2p182', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Amanhã" indica:', opts:['presente','passado','futuro'], ans:2, exp:'Amanhã = futuro.' },
+    { id:'2p183', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:1, q:'O passado é o que já aconteceu.', ans:true, exp:'Verdade.' },
+    { id:'2p184', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:1, q:'Pista de futuro: ___', ans:['amanhã','depois','logo'], exp:'Amanhã ou depois = futuro.' },
+
+    // ----- Português: Pontuação (+5 fácil) -----
+    { id:'2p185', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal "?" usa-se em:', opts:['perguntas','exclamações','frases simples'], ans:0, exp:'? = pergunta.' },
+    { id:'2p186', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal "!" usa-se em:', opts:['perguntas','exclamações/admiração','listas'], ans:1, exp:'! = exclamação.' },
+    { id:'2p187', s:'portugues', t:'Pontuação básica', type:'tf', diff:1, q:'O ponto final é "."', ans:true, exp:'Verdade.' },
+    { id:'2p188', s:'portugues', t:'Pontuação básica', type:'fill', diff:1, q:'Sinal usado para fazer pequena pausa: ___', ans:[',','vírgula'], exp:'Vírgula (,).' },
+    { id:'2p189', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Toda a frase termina com:', opts:['nada','algum sinal de pontuação'], ans:1, exp:'Sempre termina com ., ? ou !.' },
+
+    // ----- Mat: Multiplicação (+5 fácil) -----
+    { id:'2m281', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'2 × 2 = ?', opts:['3','4','5'], ans:1, exp:'2 × 2 = 4.' },
+    { id:'2m282', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'2 × 5 = ?', opts:['7','10','12'], ans:1, exp:'2 × 5 = 10.' },
+    { id:'2m283', s:'matematica', t:'Multiplicação', type:'fill', diff:1, q:'2 × 4 = ___', ans:['8'], exp:'2 × 4 = 8.' },
+    { id:'2m284', s:'matematica', t:'Multiplicação', type:'tf', diff:1, q:'5 × 2 = 2 × 5.', ans:true, exp:'Verdade — ordem não muda.' },
+    { id:'2m285', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'10 × 1 = ?', opts:['1','10','100'], ans:1, exp:'× 1 = ele próprio.' },
+
+    // ----- Mat: Divisão (+5 fácil) -----
+    { id:'2m286', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'2 ÷ 2 = ?', opts:['0','1','2'], ans:1, exp:'2 ÷ 2 = 1.' },
+    { id:'2m287', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'10 ÷ 5 = ?', opts:['1','2','5'], ans:1, exp:'10 ÷ 5 = 2.' },
+    { id:'2m288', s:'matematica', t:'Divisão', type:'fill', diff:1, q:'10 ÷ 2 = ___', ans:['5'], exp:'10 ÷ 2 = 5.' },
+    { id:'2m289', s:'matematica', t:'Divisão', type:'tf', diff:1, q:'12 ÷ 4 = 3.', ans:true, exp:'Verdade.' },
+    { id:'2m290', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'Tens 4 maçãs e 2 amigos. Cada um leva:', opts:['1','2','4'], ans:1, exp:'4 ÷ 2 = 2.' },
+
+    // ----- Mat: Tabuada do 3 (+5 fácil) -----
+    { id:'2m291', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 5 = ?', opts:['10','15','20'], ans:1, exp:'3 × 5 = 15.' },
+    { id:'2m292', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 6 = ?', opts:['12','18','24'], ans:1, exp:'3 × 6 = 18.' },
+    { id:'2m293', s:'matematica', t:'Tabuada do 3', type:'fill', diff:1, q:'3 × 10 = ___', ans:['30'], exp:'3 × 10 = 30.' },
+    { id:'2m294', s:'matematica', t:'Tabuada do 3', type:'tf', diff:1, q:'3 × 1 = 3.', ans:true, exp:'Verdade.' },
+    { id:'2m295', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 7 = ?', opts:['18','21','24'], ans:1, exp:'3 × 7 = 21.' },
+
+    // ----- Mat: Tabuada do 4 (+5 fácil) -----
+    { id:'2m296', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 3 = ?', opts:['9','12','15'], ans:1, exp:'4 × 3 = 12.' },
+    { id:'2m297', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 6 = ?', opts:['18','24','28'], ans:1, exp:'4 × 6 = 24.' },
+    { id:'2m298', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 10 = ___', ans:['40'], exp:'4 × 10 = 40.' },
+    { id:'2m299', s:'matematica', t:'Tabuada do 4', type:'tf', diff:1, q:'4 × 1 = 4.', ans:true, exp:'Verdade.' },
+    { id:'2m300', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 7 = ?', opts:['24','28','32'], ans:1, exp:'4 × 7 = 28.' },
+
+    // ----- Mat: Tabuada do 6 (+5 fácil) -----
+    { id:'2m301', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 4 = ?', opts:['18','20','24'], ans:2, exp:'6 × 4 = 24.' },
+    { id:'2m302', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 6 = ?', opts:['30','36','42'], ans:1, exp:'6 × 6 = 36.' },
+    { id:'2m303', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 10 = ___', ans:['60'], exp:'6 × 10 = 60.' },
+    { id:'2m304', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'6 × 1 = 6.', ans:true, exp:'Verdade.' },
+    { id:'2m305', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 7 = ?', opts:['36','42','48'], ans:1, exp:'6 × 7 = 42.' },
+
+    // ----- Mat: Tabuada do 7 (+5 fácil) -----
+    { id:'2m306', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 4 = ?', opts:['21','28','35'], ans:1, exp:'7 × 4 = 28.' },
+    { id:'2m307', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 5 = ?', opts:['28','35','42'], ans:1, exp:'7 × 5 = 35.' },
+    { id:'2m308', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 10 = ___', ans:['70'], exp:'7 × 10 = 70.' },
+    { id:'2m309', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'7 × 1 = 7.', ans:true, exp:'Verdade.' },
+    { id:'2m310', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 6 = ?', opts:['35','42','49'], ans:1, exp:'7 × 6 = 42.' },
+
+    // ----- Mat: Tabuada do 8 (+5 fácil) -----
+    { id:'2m311', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 3 = ?', opts:['18','24','30'], ans:1, exp:'8 × 3 = 24.' },
+    { id:'2m312', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 4 = ?', opts:['24','32','40'], ans:1, exp:'8 × 4 = 32.' },
+    { id:'2m313', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × 10 = ___', ans:['80'], exp:'8 × 10 = 80.' },
+    { id:'2m314', s:'matematica', t:'Tabuada do 8', type:'tf', diff:1, q:'8 × 1 = 8.', ans:true, exp:'Verdade.' },
+    { id:'2m315', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 6 = ?', opts:['42','48','56'], ans:1, exp:'8 × 6 = 48.' },
+
+    // ----- Mat: Tabuada do 9 (+5 fácil) -----
+    { id:'2m316', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 4 = ?', opts:['27','32','36'], ans:2, exp:'9 × 4 = 36.' },
+    { id:'2m317', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 5 = ?', opts:['40','45','50'], ans:1, exp:'9 × 5 = 45.' },
+    { id:'2m318', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
+    { id:'2m319', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'9 × 1 = 9.', ans:true, exp:'Verdade.' },
+    { id:'2m320', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 6 = ?', opts:['45','54','63'], ans:1, exp:'9 × 6 = 54.' },
+
+    // ----- Mat: Frações simples (+5 fácil) -----
+    { id:'2m321', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 2 maçãs:', opts:['1','2','4'], ans:0, exp:'Metade = 1 maçã.' },
+    { id:'2m322', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 10 é:', opts:['2','5','8'], ans:1, exp:'10 ÷ 2 = 5.' },
+    { id:'2m323', s:'matematica', t:'Frações simples', type:'fill', diff:1, q:'Metade de 8 = ___', ans:['4'], exp:'8 ÷ 2 = 4.' },
+    { id:'2m324', s:'matematica', t:'Frações simples', type:'tf', diff:1, q:'1/4 lê-se "um quarto".', ans:true, exp:'Verdade.' },
+    { id:'2m325', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Em 1/2 dividimos em quantas partes?', opts:['1','2','4'], ans:1, exp:'1/2 → 2 partes iguais.' },
+
+    // ----- Mat: Comprimento (+5 fácil) -----
+    { id:'2m326', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Símbolo de metro:', opts:['m','kg','L'], ans:0, exp:'m = metro.' },
+    { id:'2m327', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Para distâncias longas usa-se:', opts:['mm','cm','km'], ans:2, exp:'km = quilómetros (longas distâncias).' },
+    { id:'2m328', s:'matematica', t:'Comprimento', type:'fill', diff:1, q:'1 km = ___ m', ans:['1000','1 000'], exp:'1 km = 1000 metros.' },
+    { id:'2m329', s:'matematica', t:'Comprimento', type:'tf', diff:1, q:'A régua serve para medir comprimento.', ans:true, exp:'Verdade.' },
+    { id:'2m330', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'A altura de uma porta é:', opts:['2 cm','2 m','2 km'], ans:1, exp:'~2 metros.' },
+
+    // ----- Mat: Massa (+5 fácil) -----
+    { id:'2m331', s:'matematica', t:'Massa', type:'mc', diff:1, q:'Para coisas pequenas (sal) usa-se:', opts:['g','kg','t'], ans:0, exp:'g = gramas (coisas pequenas).' },
+    { id:'2m332', s:'matematica', t:'Massa', type:'mc', diff:1, q:'Para uma criança usa-se:', opts:['g','kg','mL'], ans:1, exp:'kg — uma criança ~25 kg.' },
+    { id:'2m333', s:'matematica', t:'Massa', type:'fill', diff:1, q:'A balança mede a ___', ans:['massa'], exp:'A balança mede a massa.' },
+    { id:'2m334', s:'matematica', t:'Massa', type:'tf', diff:1, q:'kg = quilograma.', ans:true, exp:'Verdade.' },
+    { id:'2m335', s:'matematica', t:'Massa', type:'mc', diff:1, q:'1 quilo tem quantos gramas?', opts:['10','100','1000'], ans:2, exp:'1 kg = 1000 g.' },
+
+    // ----- Mat: Capacidade (+5 fácil) -----
+    { id:'2m336', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Símbolo de litro:', opts:['L','kg','m'], ans:0, exp:'L = litro.' },
+    { id:'2m337', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Para medir líquidos usa-se:', opts:['balança','copo medidor','régua'], ans:1, exp:'Copo graduado/medidor.' },
+    { id:'2m338', s:'matematica', t:'Capacidade', type:'fill', diff:1, q:'1 litro = ___ mL', ans:['1000','1 000'], exp:'1 L = 1000 mL.' },
+    { id:'2m339', s:'matematica', t:'Capacidade', type:'tf', diff:1, q:'mL = mililitro.', ans:true, exp:'Verdade.' },
+    { id:'2m340', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Uma garrafa típica de água tem cerca de:', opts:['1 mL','1 L','100 L'], ans:1, exp:'~1 a 1,5 L.' },
+
+    // ----- Mat: Gráficos (+5 fácil) -----
+    { id:'2m341', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Pictograma usa:', opts:['imagens','sons','sabores'], ans:0, exp:'Imagens.' },
+    { id:'2m342', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Gráfico de barras: barra alta = ?', opts:['mais','menos','igual'], ans:0, exp:'Barra alta = MAIS.' },
+    { id:'2m343', s:'matematica', t:'Gráficos', type:'fill', diff:1, q:'2 + 2 = ___', ans:['4'], exp:'2 + 2 = 4.' },
+    { id:'2m344', s:'matematica', t:'Gráficos', type:'tf', diff:1, q:'Os gráficos mostram dados de forma visual.', ans:true, exp:'Verdade.' },
+    { id:'2m345', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Tabela: maçãs=3, peras=2. Qual mais?', opts:['maçãs','peras','iguais'], ans:0, exp:'Maçãs = 3 (mais que 2).' },
+
+    // ----- Estudo do Meio: Astros (+5 fácil) -----
+    { id:'2e115', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'O Sol vê-se durante:', opts:['o dia','a noite'], ans:0, exp:'O Sol é a estrela do dia.' },
+    { id:'2e116', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'A Lua tem luz própria?', opts:['sim','não'], ans:1, exp:'Não — reflete a luz do Sol.' },
+    { id:'2e117', s:'estudo_meio', t:'Astros', type:'tf', diff:1, q:'A Terra é o nosso planeta.', ans:true, exp:'Verdade.' },
+    { id:'2e118', s:'estudo_meio', t:'Astros', type:'fill', diff:1, q:'O Sol dá luz e ___', ans:['calor'], exp:'Luz e calor.' },
+    { id:'2e119', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'As estrelas vêem-se:', opts:['de dia','à noite'], ans:1, exp:'À noite (sem o Sol).' },
+
+    // ----- Estudo do Meio: Transportes (+5 fácil) -----
+    { id:'2e120', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Avião vai pelo:', opts:['terra','ar','água'], ans:1, exp:'Avião voa.' },
+    { id:'2e121', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Bicicleta é transporte:', opts:['terrestre','aéreo','aquático'], ans:0, exp:'Bicicleta anda em terra.' },
+    { id:'2e122', s:'estudo_meio', t:'Transportes', type:'tf', diff:1, q:'Devemos usar capacete na bicicleta.', ans:true, exp:'Sempre — proteção.' },
+    { id:'2e123', s:'estudo_meio', t:'Transportes', type:'fill', diff:1, q:'No carro usamos o ___ de segurança.', ans:['cinto'], exp:'Cinto de segurança.' },
+    { id:'2e124', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Comboio anda em:', opts:['ar','carris (terra)','água'], ans:1, exp:'Em carris (terrestre).' },
+
+    // ----- Estudo do Meio: Higiene (+5 fácil) -----
+    { id:'2e125', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Para tomar banho precisas de:', opts:['só água','água e sabão','só sabão'], ans:1, exp:'Água + sabão.' },
+    { id:'2e126', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Para escovar os dentes usas:', opts:['escova de dentes','garfo','colher'], ans:0, exp:'Escova de dentes.' },
+    { id:'2e127', s:'estudo_meio', t:'Higiene', type:'tf', diff:1, q:'É importante lavar as mãos.', ans:true, exp:'Verdade.' },
+    { id:'2e128', s:'estudo_meio', t:'Higiene', type:'fill', diff:1, q:'Quem cuida dos dentes: ___', ans:['dentista'], exp:'Dentista.' },
+    { id:'2e129', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Devemos cortar as:', opts:['orelhas','unhas','sobrancelhas'], ans:1, exp:'Unhas (manter limpas).' },
+
+    // ----- Estudo do Meio: Saúde (+5 fácil) -----
+    { id:'2e130', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Bebida mais saudável:', opts:['água','refrigerante','álcool'], ans:0, exp:'Água — sempre.' },
+    { id:'2e131', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Devemos comer:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Fruta e legumes.' },
+    { id:'2e132', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Dormir bem é importante.', ans:true, exp:'Verdade.' },
+    { id:'2e133', s:'estudo_meio', t:'Saúde', type:'fill', diff:1, q:'Atividade que faz bem ao corpo: ___', ans:['exercício','desporto','exercicio'], exp:'Exercício / desporto.' },
+    { id:'2e134', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Vacinas:', opts:['fazem mal','protegem-nos','não servem'], ans:1, exp:'Vacinas protegem de doenças.' },
+
+    // ----- Estudo do Meio: Comemorações (+5 fácil) -----
+    { id:'2e135', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'No Natal há:', opts:['ovos chocolate','árvore e presentes','sardinhas'], ans:1, exp:'Árvore + presentes.' },
+    { id:'2e136', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'Na Páscoa há:', opts:['árvore','ovos de chocolate','foguetes'], ans:1, exp:'Ovos de chocolate.' },
+    { id:'2e137', s:'estudo_meio', t:'Comemorações', type:'tf', diff:1, q:'O Natal é em dezembro.', ans:true, exp:'25 de dezembro.' },
+    { id:'2e138', s:'estudo_meio', t:'Comemorações', type:'fill', diff:1, q:'Festa de fatos e máscaras: ___', ans:['Carnaval','carnaval'], exp:'Carnaval.' },
+    { id:'2e139', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'Aniversário é o dia em que:', opts:['vamos à escola','nascemos','dormimos'], ans:1, exp:'Dia em que nascemos.' },
+
+    // ----- Inglês: Alfabeto (+5 fácil) -----
+    { id:'2i99', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Alfabeto inglês tem ___ letras:', opts:['20','23','26'], ans:2, exp:'26 letras.' },
+    { id:'2i100', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Letra que vem depois do B:', opts:['A','C','D'], ans:1, exp:'A → B → C.' },
+    { id:'2i101', s:'ingles', t:'Alfabeto', type:'tf', diff:1, q:'A letra Z é a última.', ans:true, exp:'Verdade.' },
+    { id:'2i102', s:'ingles', t:'Alfabeto', type:'fill', diff:1, q:'Primeira letra do alfabeto: ___', ans:['A','a'], exp:'A é a primeira.' },
+    { id:'2i103', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'A letra "A" diz-se em inglês:', opts:['"a"','"ei"','"ah"'], ans:1, exp:'A em inglês = "ei".' },
+
+    // ----- Inglês: Body (+5 fácil) -----
+    { id:'2i104', s:'ingles', t:'Body', type:'mc', diff:1, q:'Olho em inglês:', opts:['eye','ear','arm'], ans:0, exp:'Eye = olho.' },
+    { id:'2i105', s:'ingles', t:'Body', type:'mc', diff:1, q:'Boca em inglês:', opts:['nose','mouth','head'], ans:1, exp:'Mouth = boca.' },
+    { id:'2i106', s:'ingles', t:'Body', type:'tf', diff:1, q:'"Hand" significa mão.', ans:true, exp:'Verdade.' },
+    { id:'2i107', s:'ingles', t:'Body', type:'fill', diff:1, q:'Cabeça em inglês: ___', ans:['head'], exp:'Head = cabeça.' },
+    { id:'2i108', s:'ingles', t:'Body', type:'mc', diff:1, q:'Perna em inglês:', opts:['leg','arm','head'], ans:0, exp:'Leg = perna.' },
+
+    // ----- Inglês: Food (+5 fácil) -----
+    { id:'2i109', s:'ingles', t:'Food', type:'mc', diff:1, q:'Maçã em inglês:', opts:['apple','banana','orange'], ans:0, exp:'Apple = maçã.' },
+    { id:'2i110', s:'ingles', t:'Food', type:'mc', diff:1, q:'Pão em inglês:', opts:['bread','milk','egg'], ans:0, exp:'Bread = pão.' },
+    { id:'2i111', s:'ingles', t:'Food', type:'tf', diff:1, q:'"Milk" significa leite.', ans:true, exp:'Verdade.' },
+    { id:'2i112', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
+    { id:'2i113', s:'ingles', t:'Food', type:'mc', diff:1, q:'Banana em inglês:', opts:['apple','banana','pear'], ans:1, exp:'Banana = igual em inglês.' },
+
+    // ----- Inglês: Toys (+5 fácil) -----
+    { id:'2i114', s:'ingles', t:'Toys', type:'mc', diff:1, q:'Bola em inglês:', opts:['ball','car','book'], ans:0, exp:'Ball = bola.' },
+    { id:'2i115', s:'ingles', t:'Toys', type:'mc', diff:1, q:'Carro em inglês:', opts:['ball','car','book'], ans:1, exp:'Car = carro.' },
+    { id:'2i116', s:'ingles', t:'Toys', type:'tf', diff:1, q:'"Book" significa livro.', ans:true, exp:'Verdade.' },
+    { id:'2i117', s:'ingles', t:'Toys', type:'fill', diff:1, q:'Boneca em inglês: ___', ans:['doll'], exp:'Doll = boneca.' },
+    { id:'2i118', s:'ingles', t:'Toys', type:'mc', diff:1, q:'Bicicleta em inglês:', opts:['bike','car','train'], ans:0, exp:'Bike (ou bicycle).' }
 ];
 
 
