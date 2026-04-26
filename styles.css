@@ -1042,9 +1042,9 @@ body {
    sem qualquer rótulo ou alusão explícita. */
 .lesson-body--y2 {
     font-size: 1.04rem;
-    line-height: 1.85;
-    letter-spacing: 0.012em;
-    word-spacing: 0.04em;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+    word-spacing: 0.03em;
     color: #1f2937; /* não preto puro — reduz fadiga visual */
     max-width: 56ch; /* linhas mais curtas */
     margin-left: auto;
@@ -1060,7 +1060,7 @@ body {
     border-radius: 14px;
     padding: 14px 14px 12px;
     font-size: 1em;
-    line-height: 1.75;
+    line-height: 1.55;
 }
 
 /* ===== Tabelas no 2.º ano: cada linha vira um CARD visual ===== */

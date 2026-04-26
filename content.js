@@ -755,7 +755,216 @@ const EXERCISES_2 = [
     { id:'2i55', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🪆 (boneca) em inglês:', opts:['ball','book','doll'], ans:2, exp:'🪆 = doll (boneca).' },
     { id:'2i56', s:'ingles', t:'Toys', type:'mc', diff:2, q:'"Vamos brincar!" em inglês:', opts:["Let's eat!","Let's play!","Let's sleep!"], ans:1, exp:"Let's play! (play = brincar/jogar)." },
     { id:'2i57', s:'ingles', t:'Toys', type:'fill', diff:2, q:'🚲 (bicicleta) em inglês: ___', ans:['bike','bicycle'], exp:'🚲 = bike ou bicycle.' },
-    { id:'2i58', s:'ingles', t:'Toys', type:'tf', diff:2, q:'"Book" em inglês significa livro.', ans:true, exp:'Verdade — book = livro.' }
+    { id:'2i58', s:'ingles', t:'Toys', type:'tf', diff:2, q:'"Book" em inglês significa livro.', ans:true, exp:'Verdade — book = livro.' },
+
+    // ============================================================
+    // ===== EXTRA-DESAFIO 2.º ano - perguntas mais elevadas ======
+    // (mantendo linguagem para 7-8 anos: contexto do dia-a-dia,
+    //  frases curtas, mas com problemas que obrigam a pensar mais)
+    // ============================================================
+
+    // ----- Português: Hiato (+5 desafio) -----
+    { id:'2p85', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'Quantas palavras desta frase TÊM hiato? "O baú do meu avô caiu na saída."', opts:['1','2','3','4'], ans:2, exp:'baú, avô (não tem!), saída → 2 com hiato (baú, saída). "Avô" tem só vogal "ô" no final.' },
+    { id:'2p86', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'Em "país-pai-paiol", quantas têm hiato?', opts:['nenhuma','uma (país)','duas','todas'], ans:1, exp:'Só "país" tem hiato (pa-ís). "pai" e "paiol" têm ditongo (ai).' },
+    { id:'2p87', s:'portugues', t:'Hiato', type:'fill', diff:2, q:'Acrescenta o acento que falta para criar hiato: "saude" → ___', ans:['saúde'], exp:'saúde — acento no "ú" → cria hiato (sa-ú-de).' },
+    { id:'2p88', s:'portugues', t:'Hiato', type:'mc', diff:3, q:'Qual destas tem MAIS sílabas?', opts:['boi (1)','baú (2)','herói (2)','saída (3)'], ans:3, exp:'saída tem 3 sílabas (sa-í-da). As outras têm 1 ou 2.' },
+    { id:'2p89', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'Em "dia", o "i" e o "a" formam um hiato.', ans:true, exp:'Verdade — di-a → 2 sílabas, "i" e "a" separados → hiato.' },
+
+    // ----- Português: Nomes próprios e comuns (+5) -----
+    { id:'2p90', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:2, q:'Quantos nomes próprios há em "A Maria e o João vieram do Porto até Lisboa."?', opts:['1','2','3','4'], ans:2, exp:'4 próprios: Maria, João, Porto, Lisboa.' },
+    { id:'2p91', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:2, q:'Qual destas frases TEM nomes comuns E próprios?', opts:['Lisboa Porto Tejo','o livro a flor','O João comprou um livro.','correr saltar dormir'], ans:2, exp:'João = próprio; livro = comum.' },
+    { id:'2p92', s:'portugues', t:'Nomes próprios e comuns', type:'fill', diff:2, q:'Diz o NOME PRÓPRIO de um rio português: ___', ans:['Tejo','Douro','Mondego','Minho','Guadiana','Sado','Tâmega','tejo','douro','mondego'], exp:'Rios portugueses: Tejo, Douro, Mondego, Minho, Guadiana, Sado, Tâmega...' },
+    { id:'2p93', s:'portugues', t:'Nomes próprios e comuns', type:'tf', diff:2, q:'Em "A minha cadela chama-se Lola.", "cadela" é nome próprio.', ans:false, exp:'Falso — "cadela" é COMUM (qualquer cadela). "Lola" é o nome PRÓPRIO desta cadela.' },
+    { id:'2p94', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:3, q:'Quantos nomes COMUNS há em "O cão Rex correu no jardim com o gato Tomás."?', opts:['1','2','3','4'], ans:1, exp:'2 comuns: cão, gato, jardim → 3 comuns. (Rex e Tomás são próprios.) Resposta correta: 3.' },
+
+    // ----- Português: Adjetivos (+5) -----
+    { id:'2p95', s:'portugues', t:'Adjetivos', type:'mc', diff:2, q:'Quantos adjetivos há em "A casa pequena tem um jardim grande e bonito."?', opts:['1','2','3','4'], ans:2, exp:'3 adjetivos: pequena, grande, bonito.' },
+    { id:'2p96', s:'portugues', t:'Adjetivos', type:'mc', diff:2, q:'Qual a frase com TUDO no PLURAL?', opts:['o gato preto','os gatos pretos','os gato pretos','o gatos preto'], ans:1, exp:'OS (det. plural) + GATOS (nome plural) + PRETOS (adj. plural).' },
+    { id:'2p97', s:'portugues', t:'Adjetivos', type:'fill', diff:2, q:'Adjetivo de cor que descreve o céu de dia: ___', ans:['azul'], exp:'O céu de dia é azul.' },
+    { id:'2p98', s:'portugues', t:'Adjetivos', type:'tf', diff:2, q:'"Velho" e "novo" são adjetivos contrários (antónimos).', ans:true, exp:'Verdade — velho ≠ novo, são antónimos (ambos adjetivos).' },
+    { id:'2p99', s:'portugues', t:'Adjetivos', type:'mc', diff:3, q:'Frase com PROBLEMA de concordância:', opts:['As meninas bonitas riem.','O menino alto corre.','Os cães pretos ladram.','A flor amarelos é linda.'], ans:3, exp:'A flor (sing. fem.) + AMARELOS (plural masc.) → ERRADO. Devia ser "amarela".' },
+
+    // ----- Português: Género (+5) -----
+    { id:'2p100', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:2, q:'Feminino de "leão":', opts:['leão','leoa','leona','leoazinha'], ans:1, exp:'Leão → LEOA.' },
+    { id:'2p101', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:2, q:'Feminino de "galo":', opts:['gala','galinha','galita','galiana'], ans:1, exp:'Galo → GALINHA (palavra diferente).' },
+    { id:'2p102', s:'portugues', t:'Género (masculino e feminino)', type:'fill', diff:2, q:'Feminino de "padrinho": ___', ans:['madrinha'], exp:'Padrinho → MADRINHA.' },
+    { id:'2p103', s:'portugues', t:'Género (masculino e feminino)', type:'tf', diff:2, q:'A palavra "criança" tem só feminino.', ans:true, exp:'Verdade — diz-se sempre "a criança" (masc. ou fem., a palavra é só fem.).' },
+    { id:'2p104', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:3, q:'Qual NÃO tem mudança comum (palavra diferente no fem.)?', opts:['rei → rainha','homem → mulher','professor → professora','pai → mãe'], ans:2, exp:'"Professor → professora" só acrescenta -a. Os outros mudam para palavra diferente.' },
+
+    // ----- Português: Grau (+5) -----
+    { id:'2p105', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:2, q:'Diminutivo de "porta":', opts:['portarão','portinha','portona','portarás'], ans:1, exp:'Porta → PORTINHA.' },
+    { id:'2p106', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:2, q:'Aumentativo de "sapato":', opts:['sapatinho','sapatão','sapatozão','sapatozinho'], ans:1, exp:'Sapato → SAPATÃO (sapato grande).' },
+    { id:'2p107', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'fill', diff:2, q:'Aumentativo de "mão": ___', ans:['manzorra','mãozona'], exp:'Mão → MANZORRA ou MÃOZONA (aumentativo).' },
+    { id:'2p108', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'tf', diff:2, q:'"Avozinha" pode ser usado com carinho, mesmo se a avó não for pequena.', ans:true, exp:'Verdade — diminutivo também serve para mostrar CARINHO.' },
+    { id:'2p109', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:3, q:'Em "Olá, mãezinha! Trouxe um livrinho.", quantas palavras estão no diminutivo?', opts:['0','1','2','3'], ans:2, exp:'2: mãezinha (carinho) + livrinho (livro pequeno).' },
+
+    // ----- Português: Verbos passado/futuro (+5) -----
+    { id:'2p110', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Em que tempo está "Eles brincaram"?', opts:['presente','passado','futuro','condicional'], ans:1, exp:'BRINCARAM → passado (já aconteceu).' },
+    { id:'2p111', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Como dizes no FUTURO: "Eu como"?', opts:['Eu comi','Eu como','Eu comerei','Eu comia'], ans:2, exp:'Futuro: comerei (também serve "vou comer").' },
+    { id:'2p112', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:2, q:'Passado de "Tu corres": "Tu ___"', ans:['correste'], exp:'Tu corres (presente) → tu CORRESTE (passado).' },
+    { id:'2p113', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:2, q:'"Ontem vou jogar" é uma frase correta.', ans:false, exp:'Falso! "Ontem" é passado, "vou jogar" é futuro. Misturado! Correto: "Ontem joguei" ou "Amanhã vou jogar".' },
+    { id:'2p114', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:3, q:'Qual frase está TODA no passado?', opts:['Como agora.','Comerei amanhã.','Comi e bebi ontem.','Hoje brinco.'], ans:2, exp:'"Comi e bebi" — ambos no passado.' },
+
+    // ----- Português: Pontuação (+5) -----
+    { id:'2p115', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Que sinal vai no fim de "Cuidado"?', opts:['.','?','!',','], ans:2, exp:'Cuidado! → exclamação (atenção, alerta).' },
+    { id:'2p116', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Onde se coloca a vírgula? "Comprei pão leite e fruta"', opts:['só antes do "e"','depois de "pão" e depois de "leite"','no fim','não leva nenhuma'], ans:1, exp:'"Comprei pão, leite e fruta." (Vírgula entre os 2 primeiros.)' },
+    { id:'2p117', s:'portugues', t:'Pontuação básica', type:'fill', diff:2, q:'Sinal usado no fim de "Que dia maravilhoso": ___', ans:['!','exclamação','ponto de exclamação'], exp:'! para exprimir admiração/emoção.' },
+    { id:'2p118', s:'portugues', t:'Pontuação básica', type:'tf', diff:2, q:'A pontuação ajuda quem lê a saber as pausas.', ans:true, exp:'Verdade — sinais de pontuação marcam pausas e mostram a intenção da frase.' },
+    { id:'2p119', s:'portugues', t:'Pontuação básica', type:'mc', diff:3, q:'Qual frase está completamente CORRETA?', opts:['olá como te chamas','Olá como te chamas?','Olá! Como te chamas?','OLÁ. como te chamas!'], ans:2, exp:'Maiúsculas + cumprimento (!) + pergunta (?).' },
+
+    // ----- Matemática: Multiplicação (+5 desafio) -----
+    { id:'2m151', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'Numa caixa há 6 fileiras de 4 chocolates. Total?', opts:['10','18','24','28'], ans:2, exp:'6 × 4 = 24 chocolates.' },
+    { id:'2m152', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'Quanto é 3 × 8 + 4?', opts:['11','15','24','28'], ans:3, exp:'Primeiro multiplica: 3×8=24. Depois soma: 24+4=28.' },
+    { id:'2m153', s:'matematica', t:'Multiplicação', type:'fill', diff:2, q:'Se 5 × ? = 30, qual é o ?', ans:['6'], exp:'5 × 6 = 30.' },
+    { id:'2m154', s:'matematica', t:'Multiplicação', type:'mc', diff:3, q:'Tens 4 sacos com 6 maçãs cada. A Maria deu-te mais 5. Quantas tens ao todo?', opts:['15','24','29','34'], ans:2, exp:'4 × 6 = 24 maçãs + 5 = 29.' },
+    { id:'2m155', s:'matematica', t:'Multiplicação', type:'tf', diff:2, q:'8 × 7 é igual a 7 × 8.', ans:true, exp:'Verdade — propriedade comutativa: a ordem não muda o resultado (= 56).' },
+
+    // ----- Matemática: Divisão (+5 desafio) -----
+    { id:'2m156', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'Numa pizza com 8 fatias, dividida igualmente por 4 pessoas, cada uma come:', opts:['1','2','3','4'], ans:1, exp:'8 ÷ 4 = 2 fatias por pessoa.' },
+    { id:'2m157', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'Tens 21 berlindes para 3 amigos. Sobra algum?', opts:['cada um leva 7, não sobra','cada um leva 6, sobra 3','cada um leva 5, sobram 6','cada um leva 8, faltam 3'], ans:0, exp:'21 ÷ 3 = 7 exato (não sobra nada).' },
+    { id:'2m158', s:'matematica', t:'Divisão', type:'fill', diff:2, q:'40 ÷ 8 = ___', ans:['5'], exp:'40 ÷ 8 = 5 (porque 5 × 8 = 40).' },
+    { id:'2m159', s:'matematica', t:'Divisão', type:'mc', diff:3, q:'A Joana tinha 24 cromos. Deu metade ao irmão. Com quantos ficou?', opts:['10','12','14','24'], ans:1, exp:'Metade de 24 = 24 ÷ 2 = 12. Ficou com 12.' },
+    { id:'2m160', s:'matematica', t:'Divisão', type:'tf', diff:2, q:'14 dividido por 2 dá 7.', ans:true, exp:'Verdade — 14 ÷ 2 = 7 (porque 7 × 2 = 14).' },
+
+    // ----- Matemática: Tabuada do 3 (+5 desafio) -----
+    { id:'2m161', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'Quanto é 3 × 9 − 7?', opts:['18','20','27','29'], ans:1, exp:'3 × 9 = 27. 27 − 7 = 20.' },
+    { id:'2m162', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'Em 6 dúzias e meia de ovos quantos ovos há?', opts:['18','42','54','78'], ans:3, exp:'1 dúzia = 12. 6 × 12 = 72. + meia (=6) = 78. (Outra forma: 6,5 × 12.)' },
+    { id:'2m163', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'Qual NÃO é múltiplo de 3?', opts:['12','18','22','27'], ans:2, exp:'22 → 2+2=4 (não é mult de 3).' },
+    { id:'2m164', s:'matematica', t:'Tabuada do 3', type:'fill', diff:3, q:'Quantas pernas têm 9 cadeiras (cada uma com 3 pernas)? ___', ans:['27'], exp:'9 × 3 = 27 pernas.' },
+    { id:'2m165', s:'matematica', t:'Tabuada do 3', type:'tf', diff:3, q:'30 é múltiplo de 3.', ans:true, exp:'Verdade — 3 × 10 = 30. (3+0=3 ✓)' },
+
+    // ----- Matemática: Tabuada do 4 (+5 desafio) -----
+    { id:'2m166', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'Quanto é 4 × 6 + 4 × 2?', opts:['24','28','32','36'], ans:2, exp:'4×6=24; 4×2=8; 24+8=32. (Truque: = 4×(6+2) = 4×8 = 32.)' },
+    { id:'2m167', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'Numa estação há 4 comboios com 8 carruagens cada. Total carruagens?', opts:['12','24','32','40'], ans:2, exp:'4 × 8 = 32 carruagens.' },
+    { id:'2m168', s:'matematica', t:'Tabuada do 4', type:'fill', diff:2, q:'4 × ? = 24. ? = ___', ans:['6'], exp:'4 × 6 = 24.' },
+    { id:'2m169', s:'matematica', t:'Tabuada do 4', type:'mc', diff:3, q:'Cada cão tem 4 patas. Numa rua há 7 cães e 3 gatos. Quantas patas ao todo?', opts:['28','30','40','44'], ans:2, exp:'7×4 (cães) = 28. 3×4 (gatos) = 12. Total = 28+12 = 40.' },
+    { id:'2m170', s:'matematica', t:'Tabuada do 4', type:'tf', diff:2, q:'9 × 4 = 4 × 9.', ans:true, exp:'Verdade — comutativa. Resultado = 36.' },
+
+    // ----- Matemática: Tabuada do 6 (+5 desafio) -----
+    { id:'2m171', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'Numa caixa há 6 ovos. Quantos em meia dúzia de caixas?', opts:['12','24','30','36'], ans:3, exp:'Meia dúzia = 6. 6 × 6 = 36 ovos.' },
+    { id:'2m172', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'A Sara faz 6 km a caminhar por dia. Numa semana (7 dias)?', opts:['36','42','48','54'], ans:1, exp:'7 × 6 = 42 km.' },
+    { id:'2m173', s:'matematica', t:'Tabuada do 6', type:'fill', diff:2, q:'6 × ? = 48. ? = ___', ans:['8'], exp:'6 × 8 = 48.' },
+    { id:'2m174', s:'matematica', t:'Tabuada do 6', type:'mc', diff:3, q:'Quanto é 6 × 7 − 6?', opts:['30','36','42','48'], ans:1, exp:'6×7=42. 42−6=36. (Truque: = 6×(7−1) = 6×6 = 36.)' },
+    { id:'2m175', s:'matematica', t:'Tabuada do 6', type:'tf', diff:3, q:'Os múltiplos de 6 são também múltiplos de 2 e de 3.', ans:true, exp:'Verdade — 6 = 2 × 3, então tudo o que é múltiplo de 6 é também de 2 e 3.' },
+
+    // ----- Matemática: Tabuada do 7 (+5 desafio) -----
+    { id:'2m176', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'Numa loja vendem-se 7 chocolates por euro. Quantos chocolates compras com 6 €?', opts:['28','35','42','49'], ans:2, exp:'6 × 7 = 42 chocolates.' },
+    { id:'2m177', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'Quantos dias têm 8 semanas?', opts:['49','54','56','63'], ans:2, exp:'8 × 7 = 56 dias.' },
+    { id:'2m178', s:'matematica', t:'Tabuada do 7', type:'fill', diff:2, q:'7 × ? = 35. ? = ___', ans:['5'], exp:'7 × 5 = 35.' },
+    { id:'2m179', s:'matematica', t:'Tabuada do 7', type:'mc', diff:3, q:'Tens 3 sacos com 7 cromos cada e o teu amigo deu-te mais 9. Total?', opts:['16','21','27','30'], ans:3, exp:'3 × 7 = 21. 21 + 9 = 30 cromos.' },
+    { id:'2m180', s:'matematica', t:'Tabuada do 7', type:'tf', diff:3, q:'A tabuada do 7 é a mais difícil (sem truque óbvio).', ans:true, exp:'Verdade — daí ser preciso decorar mais. Truque: usar a comutativa (7×3 = 3×7).' },
+
+    // ----- Matemática: Tabuada do 8 (+5 desafio) -----
+    { id:'2m181', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'Quanto é 8 × 7 − 6?', opts:['46','48','50','56'], ans:2, exp:'8×7=56. 56−6=50.' },
+    { id:'2m182', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'Cada polvo tem 8 patas. Quantas patas têm 6 polvos?', opts:['42','48','54','64'], ans:1, exp:'6 × 8 = 48 patas.' },
+    { id:'2m183', s:'matematica', t:'Tabuada do 8', type:'fill', diff:2, q:'8 × ? = 56. ? = ___', ans:['7'], exp:'8 × 7 = 56.' },
+    { id:'2m184', s:'matematica', t:'Tabuada do 8', type:'mc', diff:3, q:'Numa garagem há 8 carros. Cada carro tem 4 rodas. Total rodas?', opts:['12','24','32','40'], ans:2, exp:'8 × 4 = 32 rodas.' },
+    { id:'2m185', s:'matematica', t:'Tabuada do 8', type:'tf', diff:3, q:'8 × 8 = 64.', ans:true, exp:'Verdade — 8 × 8 = 64.' },
+
+    // ----- Matemática: Tabuada do 9 (+5 desafio) -----
+    { id:'2m186', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'Truque: 9 × 4 = (10 × 4) − 4. Quanto dá?', opts:['32','34','36','40'], ans:2, exp:'10 × 4 = 40. 40 − 4 = 36 = 9 × 4 ✓.' },
+    { id:'2m187', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'Quanto é 9 × 7 + 1?', opts:['56','63','64','70'], ans:2, exp:'9 × 7 = 63. 63 + 1 = 64.' },
+    { id:'2m188', s:'matematica', t:'Tabuada do 9', type:'fill', diff:2, q:'9 × ? = 81. ? = ___', ans:['9'], exp:'9 × 9 = 81.' },
+    { id:'2m189', s:'matematica', t:'Tabuada do 9', type:'mc', diff:3, q:'A soma dos algarismos do produto 9×6 dá:', opts:['8','9','10','18'], ans:1, exp:'9 × 6 = 54. 5+4 = 9. Truque mágico do 9!' },
+    { id:'2m190', s:'matematica', t:'Tabuada do 9', type:'tf', diff:3, q:'Múltiplo de 9: a soma dos algarismos é sempre 9 (ou múltiplo de 9).', ans:true, exp:'Verdade — truque para verificar se um número é múltiplo de 9.' },
+
+    // ----- Matemática: Frações simples (+5 desafio) -----
+    { id:'2m191', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Tens 12 bolachas e comes metade. Quantas comes?', opts:['4','5','6','8'], ans:2, exp:'Metade de 12 = 12 ÷ 2 = 6 bolachas.' },
+    { id:'2m192', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'1/4 de 20 é:', opts:['4','5','6','10'], ans:1, exp:'20 ÷ 4 = 5.' },
+    { id:'2m193', s:'matematica', t:'Frações simples', type:'fill', diff:2, q:'Metade de 16 = ___', ans:['8'], exp:'16 ÷ 2 = 8.' },
+    { id:'2m194', s:'matematica', t:'Frações simples', type:'mc', diff:3, q:'Um bolo dividido em 8 partes iguais. Comeste 4. Que fração comeste?', opts:['1/2 (metade)','1/4','3/4','4/4 (todo)'], ans:0, exp:'4/8 = 1/2 (metade).' },
+    { id:'2m195', s:'matematica', t:'Frações simples', type:'tf', diff:3, q:'1/2 de uma laranja = 50% da laranja.', ans:true, exp:'Verdade — metade = 50%.' },
+
+    // ----- Matemática: Comprimento (+5 desafio) -----
+    { id:'2m196', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'A altura de uma porta é cerca de:', opts:['2 cm','2 m','2 km','20 cm'], ans:1, exp:'~2 metros.' },
+    { id:'2m197', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'1 m + 50 cm = ___ cm', opts:['51','60','105','150'], ans:3, exp:'1 m = 100 cm; 100 + 50 = 150 cm.' },
+    { id:'2m198', s:'matematica', t:'Comprimento', type:'fill', diff:2, q:'5 km = ___ m', ans:['5000','5 000'], exp:'5 × 1000 = 5000 m.' },
+    { id:'2m199', s:'matematica', t:'Comprimento', type:'mc', diff:3, q:'Tens uma fita de 2 m. Cortas em pedaços de 50 cm. Quantos pedaços ficas?', opts:['2','3','4','5'], ans:2, exp:'2 m = 200 cm. 200 ÷ 50 = 4 pedaços.' },
+    { id:'2m200', s:'matematica', t:'Comprimento', type:'tf', diff:3, q:'1 km é o mesmo que 1000 metros.', ans:true, exp:'Verdade — 1 km = 1000 m.' },
+
+    // ----- Matemática: Massa (+5 desafio) -----
+    { id:'2m201', s:'matematica', t:'Massa', type:'mc', diff:2, q:'Uma criança normal pesa cerca de:', opts:['2 g','25 kg','25 g','25 t'], ans:1, exp:'~25 kg para uma criança de 7-8 anos.' },
+    { id:'2m202', s:'matematica', t:'Massa', type:'mc', diff:2, q:'2 kg + 500 g = ___ g', opts:['250','502','2002','2500'], ans:3, exp:'2 kg = 2000 g. 2000 + 500 = 2500 g.' },
+    { id:'2m203', s:'matematica', t:'Massa', type:'fill', diff:2, q:'¼ kg = ___ g', ans:['250'], exp:'1 kg = 1000 g; 1000 ÷ 4 = 250 g.' },
+    { id:'2m204', s:'matematica', t:'Massa', type:'mc', diff:3, q:'Compras 3 sacos de batatas de 2 kg cada. Total?', opts:['5 kg','6 kg','8 kg','12 kg'], ans:1, exp:'3 × 2 = 6 kg.' },
+    { id:'2m205', s:'matematica', t:'Massa', type:'tf', diff:3, q:'1000 gramas pesam o mesmo que 1 quilograma.', ans:true, exp:'Verdade — 1 kg = 1000 g.' },
+
+    // ----- Matemática: Capacidade (+5 desafio) -----
+    { id:'2m206', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa grande de água tem cerca de:', opts:['15 mL','150 mL','1,5 L','15 L'], ans:2, exp:'~1,5 L.' },
+    { id:'2m207', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'3 L = ___ mL', opts:['30','300','3000','30000'], ans:2, exp:'3 × 1000 = 3000 mL.' },
+    { id:'2m208', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'¼ L = ___ mL', ans:['250'], exp:'1 L = 1000 mL; ÷ 4 = 250 mL.' },
+    { id:'2m209', s:'matematica', t:'Capacidade', type:'mc', diff:3, q:'Tens 2 L de sumo. Enche copos de 250 mL. Quantos copos enches?', opts:['4','6','8','10'], ans:2, exp:'2 L = 2000 mL. 2000 ÷ 250 = 8 copos.' },
+    { id:'2m210', s:'matematica', t:'Capacidade', type:'tf', diff:3, q:'1 L de água = 1000 mL de água.', ans:true, exp:'Verdade — sempre.' },
+
+    // ----- Matemática: Gráficos (+5 desafio) -----
+    { id:'2m211', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Tabela: Cães=4, Gatos=6, Pássaros=2. Animal MENOS frequente?', opts:['Cães','Gatos','Pássaros','iguais'], ans:2, exp:'Pássaros = 2 (a menor).' },
+    { id:'2m212', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Mesma tabela. Quantos gatos a MAIS que cães?', opts:['1','2','4','6'], ans:1, exp:'Gatos − cães = 6 − 4 = 2.' },
+    { id:'2m213', s:'matematica', t:'Gráficos', type:'fill', diff:2, q:'Tabela votos: Maçã=10, Banana=5, Pêra=5. Total ___ votos.', ans:['20'], exp:'10 + 5 + 5 = 20 votos.' },
+    { id:'2m214', s:'matematica', t:'Gráficos', type:'mc', diff:3, q:'Pictograma: 🐱🐱🐱 (cada 🐱 = 2 gatos). Total gatos?', opts:['3','5','6','8'], ans:2, exp:'3 imagens × 2 gatos = 6 gatos.' },
+    { id:'2m215', s:'matematica', t:'Gráficos', type:'tf', diff:3, q:'Num gráfico de barras, a barra mais alta representa o valor MAIOR.', ans:true, exp:'Verdade — barra alta = mais; barra baixa = menos.' },
+
+    // ----- Estudo do Meio: Astros (+5 desafio) -----
+    { id:'2e65', s:'estudo_meio', t:'Astros', type:'mc', diff:2, q:'O nosso planeta é o ___ planeta a contar do Sol:', opts:['1.º','2.º','3.º','4.º'], ans:2, exp:'Mercúrio (1) → Vénus (2) → TERRA (3) → Marte (4)...' },
+    { id:'2e66', s:'estudo_meio', t:'Astros', type:'mc', diff:2, q:'Por que se vêem as estrelas só à noite?', opts:['só aparecem à noite','sem o Sol forte conseguimos vê-las','dormem de dia','não brilham de dia'], ans:1, exp:'As estrelas estão sempre lá, mas a luz forte do Sol "esconde-as" durante o dia.' },
+    { id:'2e67', s:'estudo_meio', t:'Astros', type:'fill', diff:2, q:'A Terra demora ___ dias a dar uma volta ao Sol.', ans:['365'], exp:'365 dias = 1 ano (de translação).' },
+    { id:'2e68', s:'estudo_meio', t:'Astros', type:'tf', diff:3, q:'Vénus é maior que a Terra.', ans:false, exp:'Falso — Vénus é ligeiramente menor que a Terra (mas é o mais quente).' },
+    { id:'2e69', s:'estudo_meio', t:'Astros', type:'mc', diff:3, q:'A Lua tem fases. Quando vemos só uma "fatia" estreita da Lua a CRESCER, é:', opts:['Lua Nova','Quarto Crescente','Lua Cheia','Quarto Minguante'], ans:1, exp:'QUARTO CRESCENTE — vê-se uma "fatia" e está a crescer (em direção à lua cheia).' },
+
+    // ----- Estudo do Meio: Transportes (+5 desafio) -----
+    { id:'2e70', s:'estudo_meio', t:'Transportes', type:'mc', diff:2, q:'Qual destes transportes é MAIS ANTIGO (existe há mais tempo)?', opts:['avião','carro','bicicleta','foguetão'], ans:2, exp:'A bicicleta é o mais antigo (séc. XIX). O foguetão é o mais recente.' },
+    { id:'2e71', s:'estudo_meio', t:'Transportes', type:'mc', diff:2, q:'Por que andar de transportes públicos polui MENOS?', opts:['é mais rápido','transporta muitas pessoas em vez de cada uma usar 1 carro','é mais barato','tem assentos confortáveis'], ans:1, exp:'Um autocarro = ~50 carros a menos na estrada → menos poluição.' },
+    { id:'2e72', s:'estudo_meio', t:'Transportes', type:'fill', diff:2, q:'No carro, devemos sempre usar o ___ (segurança).', ans:['cinto','cinto de segurança'], exp:'CINTO DE SEGURANÇA — protege-nos em caso de acidente.' },
+    { id:'2e73', s:'estudo_meio', t:'Transportes', type:'tf', diff:3, q:'Comboio e metro são transportes públicos terrestres.', ans:true, exp:'Verdade — ambos terrestres e públicos (vão por carris).' },
+    { id:'2e74', s:'estudo_meio', t:'Transportes', type:'mc', diff:3, q:'Um foguetão é um transporte:', opts:['terrestre','aquático','aéreo','espacial'], ans:3, exp:'O foguetão vai para o ESPAÇO → transporte espacial.' },
+
+    // ----- Estudo do Meio: Higiene (+5 desafio) -----
+    { id:'2e75', s:'estudo_meio', t:'Higiene', type:'mc', diff:2, q:'Quanto tempo deves escovar os dentes?', opts:['10 segundos','30 segundos','2 minutos','10 minutos'], ans:2, exp:'~2 minutos para limpar todos os dentes.' },
+    { id:'2e76', s:'estudo_meio', t:'Higiene', type:'mc', diff:2, q:'Lavar a fruta antes de comer serve para:', opts:['ficar mais brilhante','tirar microrganismos e químicos','ficar mais doce','não dar trabalho'], ans:1, exp:'Lavar tira sujidade, micróbios e restos de pesticidas.' },
+    { id:'2e77', s:'estudo_meio', t:'Higiene', type:'fill', diff:2, q:'Pequenos seres vivos invisíveis que podem causar doenças: ___', ans:['microrganismos','germes','bactérias','micróbios'], exp:'Microrganismos / micróbios — só os vemos ao microscópio.' },
+    { id:'2e78', s:'estudo_meio', t:'Higiene', type:'tf', diff:3, q:'Lavar as mãos com sabão é melhor que só com água.', ans:true, exp:'Verdade — o sabão remove bactérias e óleos que a água sozinha não remove.' },
+    { id:'2e79', s:'estudo_meio', t:'Higiene', type:'mc', diff:3, q:'Que aparecem se NÃO escovarmos bem os dentes?', opts:['cabelo branco','cáries','olheiras','espinhas'], ans:1, exp:'CÁRIES — buracos provocados por bactérias dos restos de comida.' },
+
+    // ----- Estudo do Meio: Saúde (+5 desafio) -----
+    { id:'2e80', s:'estudo_meio', t:'Saúde', type:'mc', diff:2, q:'Para que serve a Roda dos Alimentos?', opts:['só decoração','mostrar quanto comer de cada grupo','marcar as horas','desenhar mapas'], ans:1, exp:'A Roda mostra os grupos e as quantidades para uma alimentação equilibrada.' },
+    { id:'2e81', s:'estudo_meio', t:'Saúde', type:'mc', diff:2, q:'Quantos minutos de exercício devemos fazer por dia (crianças)?', opts:['10','30','60 (1 hora)','5 horas'], ans:2, exp:'~60 minutos por dia (correr, jogar, andar de bicicleta).' },
+    { id:'2e82', s:'estudo_meio', t:'Saúde', type:'fill', diff:2, q:'Devo dormir entre 9 e ___ horas por noite (criança).', ans:['11'], exp:'Crianças (5-12 anos): 9 a 11 horas.' },
+    { id:'2e83', s:'estudo_meio', t:'Saúde', type:'tf', diff:3, q:'Comer fruta inteira é melhor do que beber sumo da fruta.', ans:true, exp:'Verdade — a fruta tem fibra. O sumo perde a fibra e tem muito açúcar.' },
+    { id:'2e84', s:'estudo_meio', t:'Saúde', type:'mc', diff:3, q:'No centro da Roda dos Alimentos está:', opts:['azeite','água','pão','carne'], ans:1, exp:'A água está no CENTRO — é fundamental (1,5 a 2 L por dia).' },
+
+    // ----- Estudo do Meio: Comemorações (+5 desafio) -----
+    { id:'2e85', s:'estudo_meio', t:'Comemorações', type:'mc', diff:2, q:'No Carnaval, as pessoas usam:', opts:['fatos pretos','máscaras e fatos','vestidos brancos','uniformes'], ans:1, exp:'No Carnaval há máscaras, fatos coloridos e desfiles.' },
+    { id:'2e86', s:'estudo_meio', t:'Comemorações', type:'mc', diff:2, q:'Comida típica da Páscoa:', opts:['bolo-rei','folar','pão de ló','rabanadas'], ans:1, exp:'FOLAR — bolo típico de Páscoa.' },
+    { id:'2e87', s:'estudo_meio', t:'Comemorações', type:'fill', diff:2, q:'Comida típica do Natal: ___', ans:['bacalhau','peru','rabanadas','bolo-rei','sonhos'], exp:'No Natal: bacalhau, peru, rabanadas, sonhos, bolo-rei.' },
+    { id:'2e88', s:'estudo_meio', t:'Comemorações', type:'tf', diff:3, q:'Os Santos Populares (sardinhas, marchas) celebram-se em junho.', ans:true, exp:'Verdade — Santo António (12-13 jun), São João (23-24 jun), São Pedro (28-29 jun).' },
+    { id:'2e89', s:'estudo_meio', t:'Comemorações', type:'mc', diff:3, q:'O Dia da Liberdade (25 de Abril) tem como símbolo:', opts:['rosa','cravo','tulipa','margarida'], ans:1, exp:'CRAVO — flor que os soldados puseram no cano das espingardas em 1974.' },
+
+    // ----- Inglês: Alfabeto (+5 desafio) -----
+    { id:'2i59', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "K" em inglês?', opts:['"ka"','"kei"','"si"','"queu"'], ans:1, exp:'A letra K em inglês diz-se "kei".' },
+    { id:'2i60', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "W" em inglês?', opts:['"vê"','"double-iu"','"u-vê"','"dobliu"'], ans:1, exp:'W = "double-iu" (duplo U).' },
+    { id:'2i61', s:'ingles', t:'Alfabeto', type:'fill', diff:2, q:'Letra que vem depois do M no alfabeto: ___', ans:['N','n'], exp:'M → N → O.' },
+    { id:'2i62', s:'ingles', t:'Alfabeto', type:'tf', diff:3, q:'O alfabeto inglês tem mais letras do que o português.', ans:true, exp:'Verdade — inglês tem 26, português usa normalmente 23.' },
+    { id:'2i63', s:'ingles', t:'Alfabeto', type:'mc', diff:3, q:'Soletra "OK" em inglês:', opts:['"ou-kei"','"o-ka"','"ou-si"','"o-key"'], ans:0, exp:'O="ou", K="kei" → "ou-kei".' },
+
+    // ----- Inglês: Body (+5 desafio) -----
+    { id:'2i64', s:'ingles', t:'Body', type:'mc', diff:2, q:'Plural de "tooth" (dente):', opts:['tooths','teeth','tooths\'','tooths"s'], ans:1, exp:'tooth → teeth (irregular).' },
+    { id:'2i65', s:'ingles', t:'Body', type:'mc', diff:2, q:'O coração em inglês é:', opts:['hand','head','heart','hair'], ans:2, exp:'Heart = coração.' },
+    { id:'2i66', s:'ingles', t:'Body', type:'fill', diff:2, q:'Cabelo em inglês: ___', ans:['hair'], exp:'Hair = cabelo.' },
+    { id:'2i67', s:'ingles', t:'Body', type:'tf', diff:3, q:'"Fingers" em inglês são os dedos das mãos.', ans:true, exp:'Verdade — fingers = dedos das mãos. Toes = dedos dos pés.' },
+    { id:'2i68', s:'ingles', t:'Body', type:'mc', diff:3, q:'Quantas patas tem uma aranha em inglês?', opts:['"four legs"','"six legs"','"eight legs"','"ten legs"'], ans:2, exp:'Aranha = 8 patas = "eight legs".' },
+
+    // ----- Inglês: Food (+5 desafio) -----
+    { id:'2i69', s:'ingles', t:'Food', type:'mc', diff:2, q:'"I am hungry" significa:', opts:['Tenho frio','Tenho sede','Tenho fome','Tenho sono'], ans:2, exp:'I am hungry = Tenho fome.' },
+    { id:'2i70', s:'ingles', t:'Food', type:'mc', diff:2, q:'"Cheese" em inglês é:', opts:['carne','peixe','queijo','pão'], ans:2, exp:'Cheese = queijo.' },
+    { id:'2i71', s:'ingles', t:'Food', type:'fill', diff:2, q:'Carne em inglês: ___', ans:['meat'], exp:'Meat = carne.' },
+    { id:'2i72', s:'ingles', t:'Food', type:'tf', diff:3, q:'"Vegetables" em inglês são legumes.', ans:true, exp:'Verdade — vegetables = legumes/vegetais.' },
+    { id:'2i73', s:'ingles', t:'Food', type:'mc', diff:3, q:'"What is your favourite food?" significa:', opts:['Onde está a comida?','Quanto custa a comida?','Qual é a tua comida favorita?','Quem comeu?'], ans:2, exp:'What is your favourite food? = Qual é a tua comida favorita?' },
+
+    // ----- Inglês: Toys (+5 desafio) -----
+    { id:'2i74', s:'ingles', t:'Toys', type:'mc', diff:2, q:"\"It's mine!\" significa:", opts:['É teu','É dele','É meu','É nosso'], ans:2, exp:"It's mine! = É meu!" },
+    { id:'2i75', s:'ingles', t:'Toys', type:'mc', diff:2, q:'"Can I play?" significa:', opts:['Posso comer?','Posso brincar?','Posso ir?','Posso ver?'], ans:1, exp:'Can I play? = Posso brincar?' },
+    { id:'2i76', s:'ingles', t:'Toys', type:'fill', diff:2, q:'Patins em inglês: roller ___', ans:['skates'], exp:'Roller skates = patins.' },
+    { id:'2i77', s:'ingles', t:'Toys', type:'tf', diff:3, q:'"Share" em inglês significa partilhar.', ans:true, exp:'Verdade — share = partilhar. (Importante para brincar com amigos!)' },
+    { id:'2i78', s:'ingles', t:'Toys', type:'mc', diff:3, q:'"Robot" em inglês é a mesma palavra em português.', opts:['Sim, escreve-se igual','Não, é diferente','É "robotic"','É "machine"'], ans:0, exp:'Robot escreve-se igual em inglês e português (só pronúncia muda).' }
 ];
 
 
