@@ -490,7 +490,272 @@ const EXERCISES_2 = [
     { id:'2m56', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'Uma garrafa de 1,5 L tem ___ mL.', ans:['1500','1 500'], exp:'1,5 L = 1500 mL.' },
     { id:'2m57', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Num gráfico de barras, a barra MAIOR significa que essa categoria tem:', opts:['menos','mais','o mesmo','metade'], ans:1, exp:'Quanto maior a barra, MAIOR a quantidade.' },
     { id:'2m58', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Os alunos votaram: maçã 8, banana 5, laranja 3. Qual a fruta mais votada?', opts:['banana','laranja','maçã','iguais'], ans:2, exp:'A maçã teve 8 votos — o número MAIOR.' },
-    { id:'2m59', s:'matematica', t:'Gráficos', type:'fill', diff:2, q:'Maçã 8, banana 5, laranja 3. Quantos alunos votaram ao TODO? ___', ans:['16'], exp:'Total = 8 + 5 + 3 = 16 alunos.' }
+    { id:'2m59', s:'matematica', t:'Gráficos', type:'fill', diff:2, q:'Maçã 8, banana 5, laranja 3. Quantos alunos votaram ao TODO? ___', ans:['16'], exp:'Total = 8 + 5 + 3 = 16 alunos.' },
+
+    // ============================================================
+    // ===== EXPANSÃO 2.º ano - chegar a 10+ por tópico ===========
+    // ============================================================
+
+    // ----- Português: Hiato (já 3, +7) -----
+    { id:'2p36', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'Qual destas palavras tem hiato?', opts:['casa','baú','pai','flor'], ans:1, exp:'Baú = ba-ú → 2 sílabas, vogais separadas (hiato).' },
+    { id:'2p37', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'A palavra "país" tem:', opts:['ditongo','hiato','sílaba só','consoantes só'], ans:1, exp:'Pa-ís → 2 sílabas, "a" e "í" separados (hiato).' },
+    { id:'2p38', s:'portugues', t:'Hiato', type:'fill', diff:2, q:'Quantas sílabas tem "saúde"? ___', ans:['3','três'], exp:'sa-ú-de → 3 sílabas (hiato entre a e ú).' },
+    { id:'2p39', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'A palavra "boi" tem hiato.', ans:false, exp:'Falso! "boi" tem 1 sílaba só → ditongo (oi).' },
+    { id:'2p40', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'Qual destas tem ditongo (não hiato)?', opts:['baú','pais','pai','saída'], ans:2, exp:'"Pai" = 1 sílaba → ditongo. As outras são hiatos.' },
+    { id:'2p41', s:'portugues', t:'Hiato', type:'fill', diff:2, q:'Em "leão" há ___ sílabas.', ans:['3','três'], exp:'le-ã-o → 3 sílabas (hiato).' },
+    { id:'2p42', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'Quando há acento numa das vogais juntas, geralmente é hiato.', ans:true, exp:'Verdade — saúde, saída, baú, país... o acento "separa" as vogais.' },
+
+    // ----- Português: Nomes próprios e comuns (+7) -----
+    { id:'2p43', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Qual destes é nome PRÓPRIO?', opts:['cidade','livro','Maria','rapaz'], ans:2, exp:'Maria identifica uma pessoa específica → próprio (com maiúscula).' },
+    { id:'2p44', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Qual destes é nome COMUM?', opts:['Lisboa','Tejo','Bobi','livro'], ans:3, exp:'Livro dá nome a TODOS os livros → nome comum.' },
+    { id:'2p45', s:'portugues', t:'Nomes próprios e comuns', type:'tf', diff:1, q:'Os nomes próprios escrevem-se com maiúscula.', ans:true, exp:'Sempre! João, Lisboa, Tejo, Portugal... maiúscula.' },
+    { id:'2p46', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:2, q:'"O cão Bobi correu no parque". Quais são os nomes próprios?', opts:['cão','Bobi','parque','correu'], ans:1, exp:'Bobi é o NOME do cão (próprio). "Cão" e "parque" são comuns.' },
+    { id:'2p47', s:'portugues', t:'Nomes próprios e comuns', type:'fill', diff:2, q:'Nome próprio de uma cidade portuguesa: ___', ans:['Lisboa','Porto','Coimbra','Faro','Braga','Aveiro','Évora','Setúbal','Funchal'], exp:'Qualquer cidade portuguesa serve (Lisboa, Porto, Coimbra, etc).' },
+    { id:'2p48', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:2, q:'Qual destas frases está CORRETA?', opts:['o joão mora em lisboa','O João mora em Lisboa','o João mora em lisboa','O joão mora em Lisboa'], ans:1, exp:'Início de frase + nomes próprios → todos com maiúscula.' },
+    { id:'2p49', s:'portugues', t:'Nomes próprios e comuns', type:'tf', diff:2, q:'"Mãe" e "pai" são nomes próprios.', ans:false, exp:'Falso. São nomes COMUNS (descrevem uma relação familiar geral).' },
+
+    // ----- Português: Adjetivos (+7) -----
+    { id:'2p50', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'Qual destas palavras é um adjetivo?', opts:['gato','correr','grande','escola'], ans:2, exp:'GRANDE descreve algo (tamanho) → adjetivo.' },
+    { id:'2p51', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'"O gato preto" — qual é o adjetivo?', opts:['o','gato','preto','frase toda'], ans:2, exp:'PRETO descreve a cor do gato → adjetivo.' },
+    { id:'2p52', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'O adjetivo concorda com o nome em género e ___', opts:['cor','número (singular/plural)','tamanho','peso'], ans:1, exp:'Concorda em GÉNERO (masc/fem) e NÚMERO (sing/plural).' },
+    { id:'2p53', s:'portugues', t:'Adjetivos', type:'mc', diff:2, q:'Qual frase tem CONCORDÂNCIA correta?', opts:['o menino alta','as menina bonitas','os meninos altos','a meninas alta'], ans:2, exp:'Os (masc. plural) + meninos + altos → tudo concorda.' },
+    { id:'2p54', s:'portugues', t:'Adjetivos', type:'fill', diff:2, q:'Feminino plural de "alto" (descrever várias meninas): ___', ans:['altas'], exp:'alta + plural = altas. Ex: "as meninas ALTAS".' },
+    { id:'2p55', s:'portugues', t:'Adjetivos', type:'tf', diff:2, q:'"Triste" e "feliz" são adjetivos.', ans:true, exp:'Verdade — descrevem como uma pessoa SE SENTE → adjetivos.' },
+    { id:'2p56', s:'portugues', t:'Adjetivos', type:'mc', diff:2, q:'Quantos adjetivos tem "A flor amarela é muito bonita"?', opts:['1','2','3','4'], ans:1, exp:'Dois adjetivos: AMARELA e BONITA (descrevem a flor).' },
+
+    // ----- Português: Género (+7) -----
+    { id:'2p57', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'Feminino de "rapaz":', opts:['rapazes','rapaza','rapariga','rapacita'], ans:2, exp:'Rapaz → RAPARIGA (palavra completamente diferente).' },
+    { id:'2p58', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'Feminino de "rei":', opts:['reia','rainha','reizinha','rainheira'], ans:1, exp:'Rei → RAINHA.' },
+    { id:'2p59', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:1, q:'Feminino de "homem":', opts:['homema','mulher','homenita','homenzinha'], ans:1, exp:'Homem → MULHER (palavra diferente).' },
+    { id:'2p60', s:'portugues', t:'Género (masculino e feminino)', type:'fill', diff:1, q:'Feminino de "menino": ___', ans:['menina'], exp:'Troca-se -o por -a: menino → menina.' },
+    { id:'2p61', s:'portugues', t:'Género (masculino e feminino)', type:'mc', diff:2, q:'Qual destas palavras é só MASCULINA?', opts:['casa','flor','sol','janela'], ans:2, exp:'O sol — só masculino. As outras são femininas.' },
+    { id:'2p62', s:'portugues', t:'Género (masculino e feminino)', type:'tf', diff:2, q:'Para passar "professor" para feminino, basta acrescentar "a".', ans:true, exp:'Verdade — professor → professora.' },
+    { id:'2p63', s:'portugues', t:'Género (masculino e feminino)', type:'fill', diff:2, q:'Feminino de "cão": ___', ans:['cadela'], exp:'Cão → CADELA (palavra diferente).' },
+
+    // ----- Português: Grau (+7) -----
+    { id:'2p64', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Diminutivo de "menino":', opts:['meninão','meninozão','meninozinho','menina'], ans:2, exp:'Menino → meninozinho ou menininho.' },
+    { id:'2p65', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Aumentativo de "menino":', opts:['meninozinho','meninão','menininho','menininha'], ans:1, exp:'Meninão = aumentativo (-ão).' },
+    { id:'2p66', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Diminutivo de "flor":', opts:['florona','florinha','florezinha','florzinha'], ans:3, exp:'Flor → FLORZINHA (-zinha).' },
+    { id:'2p67', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'fill', diff:2, q:'Aumentativo de "casa": ___', ans:['casarão','casona'], exp:'Casa → CASARÃO ou CASONA (aumentativo, com -ão / -ona).' },
+    { id:'2p68', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'tf', diff:2, q:'O diminutivo serve sempre para indicar tamanho pequeno.', ans:false, exp:'Falso! Também serve para CARINHO (mãezinha, paizinho).' },
+    { id:'2p69', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:2, q:'Diminutivo de "cão":', opts:['cãozinho','canzão','caninho','cãozão'], ans:0, exp:'Cão → CÃOZINHO.' },
+    { id:'2p70', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:2, q:'Aumentativo de "livro":', opts:['livrinho','livraria','livrão','livreira'], ans:2, exp:'Livro → LIVRÃO (livro grande).' },
+
+    // ----- Português: Verbos passado/futuro (+7) -----
+    { id:'2p71', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Ontem fui à escola." Em que tempo está "fui"?', opts:['presente','passado','futuro','imperativo'], ans:1, exp:'"Ontem" + "fui" → PASSADO.' },
+    { id:'2p72', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:1, q:'"Amanhã vou ao parque." Em que tempo está "vou"?', opts:['passado','presente','futuro próximo','condicional'], ans:2, exp:'"Amanhã" + "vou" → FUTURO próximo (vou + verbo).' },
+    { id:'2p73', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Qual frase está no PRESENTE?', opts:['Eu cantei.','Eu cantarei.','Eu canto.','Eu cantava.'], ans:2, exp:'"Canto" = agora = presente.' },
+    { id:'2p74', s:'portugues', t:'Verbos no passado e futuro', type:'fill', diff:2, q:'Passado de "Eu como" (1.ª pessoa singular): "Eu ___"', ans:['comi'], exp:'Pretérito perfeito: eu COMI.' },
+    { id:'2p75', s:'portugues', t:'Verbos no passado e futuro', type:'tf', diff:2, q:'"Vou jogar" significa que vou jogar no futuro.', ans:true, exp:'Verdade — futuro próximo: vou + infinitivo.' },
+    { id:'2p76', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Que palavra indica PASSADO?', opts:['amanhã','agora','ontem','já'], ans:2, exp:'"Ontem" → passado.' },
+    { id:'2p77', s:'portugues', t:'Verbos no passado e futuro', type:'mc', diff:2, q:'Que palavra indica FUTURO?', opts:['ontem','agora','amanhã','antigamente'], ans:2, exp:'"Amanhã" → futuro.' },
+
+    // ----- Português: Pontuação (+7) -----
+    { id:'2p78', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Sinal de fim de frase declarativa (afirmativa):', opts:['?','!','.',','], ans:2, exp:'Frase declarativa termina em PONTO FINAL (.).' },
+    { id:'2p79', s:'portugues', t:'Pontuação básica', type:'mc', diff:1, q:'Que sinal vai no fim de "Que dia lindo"?', opts:['.','?','!',':'], ans:2, exp:'É exclamação → "Que dia lindo!".' },
+    { id:'2p80', s:'portugues', t:'Pontuação básica', type:'tf', diff:1, q:'Depois do ponto final, a próxima palavra começa com letra MAIÚSCULA.', ans:true, exp:'Verdade — sempre maiúscula depois de ponto final.' },
+    { id:'2p81', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Numa lista de 4 coisas, onde NÃO se usa vírgula?', opts:['entre as 2 primeiras','entre as 2 do meio','antes do "e" final','no fim'], ans:2, exp:'Não se usa vírgula antes do "e": "leite, pão, queijo E manteiga".' },
+    { id:'2p82', s:'portugues', t:'Pontuação básica', type:'fill', diff:2, q:'Sinal usado para perguntas: ___', ans:['?','interrogação','ponto de interrogação'], exp:'? = ponto de interrogação.' },
+    { id:'2p83', s:'portugues', t:'Pontuação básica', type:'mc', diff:2, q:'Que pontuação usas para abrir uma fala? "A Maria disse___ Olá!"', opts:[';',':','.','-'], ans:1, exp:'Dois pontos (:) anunciam uma fala ou citação.' },
+    { id:'2p84', s:'portugues', t:'Pontuação básica', type:'tf', diff:2, q:'A vírgula faz uma pausa pequena na frase.', ans:true, exp:'Verdade — vírgula = pausa pequena. Ponto = pausa maior.' },
+
+    // ----- Matemática: Multiplicação (+7) -----
+    { id:'2m60', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'2 × 6 = ?', opts:['8','12','14','16'], ans:1, exp:'2 × 6 = 12.' },
+    { id:'2m61', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'3 × 5 = ?', opts:['8','12','15','18'], ans:2, exp:'3 × 5 = 15.' },
+    { id:'2m62', s:'matematica', t:'Multiplicação', type:'fill', diff:1, q:'4 × 7 = ___', ans:['28'], exp:'4 × 7 = 28.' },
+    { id:'2m63', s:'matematica', t:'Multiplicação', type:'tf', diff:1, q:'5 × 1 = 5.', ans:true, exp:'Verdade — qualquer número × 1 = ele próprio.' },
+    { id:'2m64', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'4 caixas com 7 chocolates cada. Quantos chocolates?', opts:['11','21','25','28'], ans:3, exp:'4 × 7 = 28 chocolates.' },
+    { id:'2m65', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'Qual é igual a 6 + 6 + 6?', opts:['3 × 6','6 × 6','6 + 3','3 + 6'], ans:0, exp:'Somar 3 vezes o 6 = 3 × 6 = 18.' },
+    { id:'2m66', s:'matematica', t:'Multiplicação', type:'fill', diff:2, q:'7 × 0 = ___', ans:['0','zero'], exp:'Qualquer número × 0 = 0.' },
+
+    // ----- Matemática: Divisão (+7) -----
+    { id:'2m67', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'10 ÷ 2 = ?', opts:['2','4','5','8'], ans:2, exp:'10 ÷ 2 = 5.' },
+    { id:'2m68', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'15 ÷ 3 = ?', opts:['3','4','5','6'], ans:2, exp:'15 ÷ 3 = 5.' },
+    { id:'2m69', s:'matematica', t:'Divisão', type:'fill', diff:1, q:'20 ÷ 4 = ___', ans:['5'], exp:'20 ÷ 4 = 5.' },
+    { id:'2m70', s:'matematica', t:'Divisão', type:'tf', diff:2, q:'NÃO se pode dividir por 0.', ans:true, exp:'Verdade — divisão por 0 não existe.' },
+    { id:'2m71', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'24 doces para 6 amigos, igual partilha. Quantos cada um?', opts:['2','3','4','5'], ans:2, exp:'24 ÷ 6 = 4 doces para cada amigo.' },
+    { id:'2m72', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'Se 5 × 6 = 30, então 30 ÷ 5 = ?', opts:['5','6','25','35'], ans:1, exp:'Divisão é o inverso da multiplicação: 30 ÷ 5 = 6.' },
+    { id:'2m73', s:'matematica', t:'Divisão', type:'fill', diff:2, q:'9 ÷ 9 = ___', ans:['1'], exp:'Qualquer número (≠0) dividido por ele próprio = 1.' },
+
+    // ----- Matemática: Tabuada do 3 (+7) -----
+    { id:'2m74', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 4 = ?', opts:['7','9','12','15'], ans:2, exp:'3 × 4 = 12.' },
+    { id:'2m75', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 6 = ?', opts:['12','15','18','21'], ans:2, exp:'3 × 6 = 18.' },
+    { id:'2m76', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 8 = ?', opts:['18','21','24','27'], ans:2, exp:'3 × 8 = 24.' },
+    { id:'2m77', s:'matematica', t:'Tabuada do 3', type:'fill', diff:1, q:'3 × 5 = ___', ans:['15'], exp:'3 × 5 = 15.' },
+    { id:'2m78', s:'matematica', t:'Tabuada do 3', type:'fill', diff:1, q:'3 × 10 = ___', ans:['30'], exp:'3 × 10 = 30.' },
+    { id:'2m79', s:'matematica', t:'Tabuada do 3', type:'tf', diff:2, q:'24 é múltiplo de 3.', ans:true, exp:'2+4=6 → múltiplo de 3 ✓ (de facto: 3×8=24).' },
+    { id:'2m80', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'5 caixas com 3 lápis cada. Quantos lápis?', opts:['8','12','15','18'], ans:2, exp:'5 × 3 = 15 lápis.' },
+
+    // ----- Matemática: Tabuada do 4 (+7) -----
+    { id:'2m81', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 3 = ?', opts:['9','12','15','16'], ans:1, exp:'4 × 3 = 12.' },
+    { id:'2m82', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 5 = ?', opts:['16','18','20','24'], ans:2, exp:'4 × 5 = 20.' },
+    { id:'2m83', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 7 = ?', opts:['24','28','32','36'], ans:1, exp:'4 × 7 = 28.' },
+    { id:'2m84', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 9 = ___', ans:['36'], exp:'4 × 9 = 36.' },
+    { id:'2m85', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 10 = ___', ans:['40'], exp:'4 × 10 = 40.' },
+    { id:'2m86', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'Quantas patas têm 4 cães?', opts:['12','16','20','24'], ans:1, exp:'4 cães × 4 patas = 16 patas.' },
+    { id:'2m87', s:'matematica', t:'Tabuada do 4', type:'tf', diff:2, q:'Os múltiplos de 4 são todos pares.', ans:true, exp:'Verdade — 4, 8, 12, 16, 20... todos pares.' },
+
+    // ----- Matemática: Tabuada do 6 (+7) -----
+    { id:'2m88', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 2 = ?', opts:['8','10','12','14'], ans:2, exp:'6 × 2 = 12.' },
+    { id:'2m89', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 4 = ?', opts:['18','20','24','30'], ans:2, exp:'6 × 4 = 24.' },
+    { id:'2m90', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 6 = ?', opts:['30','36','42','48'], ans:1, exp:'6 × 6 = 36.' },
+    { id:'2m91', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 8 = ___', ans:['48'], exp:'6 × 8 = 48.' },
+    { id:'2m92', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 10 = ___', ans:['60'], exp:'6 × 10 = 60.' },
+    { id:'2m93', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'Uma dúzia tem 12 ovos. Quantos ovos têm 6 dúzias?', opts:['36','60','72','84'], ans:2, exp:'6 × 12 = 72 ovos. (Pista: 6 × 12 = 6×10 + 6×2 = 60+12 = 72.)' },
+    { id:'2m94', s:'matematica', t:'Tabuada do 6', type:'tf', diff:2, q:'18 é múltiplo de 6.', ans:true, exp:'Verdade — 6 × 3 = 18.' },
+
+    // ----- Matemática: Tabuada do 7 (+7) -----
+    { id:'2m95', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 3 = ?', opts:['14','18','21','24'], ans:2, exp:'7 × 3 = 21.' },
+    { id:'2m96', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 5 = ?', opts:['25','30','35','40'], ans:2, exp:'7 × 5 = 35.' },
+    { id:'2m97', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 6 = ?', opts:['36','42','48','54'], ans:1, exp:'7 × 6 = 42.' },
+    { id:'2m98', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 4 = ___', ans:['28'], exp:'7 × 4 = 28.' },
+    { id:'2m99', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 10 = ___', ans:['70'], exp:'7 × 10 = 70.' },
+    { id:'2m100', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'Quantos dias têm 5 semanas?', opts:['28','30','35','40'], ans:2, exp:'5 semanas × 7 dias = 35 dias.' },
+    { id:'2m101', s:'matematica', t:'Tabuada do 7', type:'tf', diff:2, q:'63 é múltiplo de 7.', ans:true, exp:'Verdade — 7 × 9 = 63.' },
+
+    // ----- Matemática: Tabuada do 8 (+7) -----
+    { id:'2m102', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 3 = ?', opts:['16','21','24','28'], ans:2, exp:'8 × 3 = 24.' },
+    { id:'2m103', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 4 = ?', opts:['28','32','36','40'], ans:1, exp:'8 × 4 = 32.' },
+    { id:'2m104', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 6 = ?', opts:['42','48','54','56'], ans:1, exp:'8 × 6 = 48.' },
+    { id:'2m105', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × 8 = ___', ans:['64'], exp:'8 × 8 = 64.' },
+    { id:'2m106', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × 9 = ___', ans:['72'], exp:'8 × 9 = 72.' },
+    { id:'2m107', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'Um polvo tem 8 patas. Quantas patas têm 4 polvos?', opts:['24','28','32','40'], ans:2, exp:'4 × 8 = 32 patas.' },
+    { id:'2m108', s:'matematica', t:'Tabuada do 8', type:'tf', diff:2, q:'Os múltiplos de 8 são todos pares.', ans:true, exp:'Verdade — 8, 16, 24, 32... todos pares.' },
+
+    // ----- Matemática: Tabuada do 9 (+7) -----
+    { id:'2m109', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 3 = ?', opts:['21','24','27','30'], ans:2, exp:'9 × 3 = 27.' },
+    { id:'2m110', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 5 = ?', opts:['35','40','45','50'], ans:2, exp:'9 × 5 = 45.' },
+    { id:'2m111', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 6 = ?', opts:['45','54','56','63'], ans:1, exp:'9 × 6 = 54 (truque: 60−6=54).' },
+    { id:'2m112', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 8 = ___', ans:['72'], exp:'9 × 8 = 72.' },
+    { id:'2m113', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
+    { id:'2m114', s:'matematica', t:'Tabuada do 9', type:'tf', diff:2, q:'Os algarismos de 9×3 (=27) somados dão 9.', ans:true, exp:'2+7=9 ✓ Truque mágico — múltiplos de 9 somam sempre 9.' },
+    { id:'2m115', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 9 = ?', opts:['72','81','90','99'], ans:1, exp:'9 × 9 = 81 (8+1=9 ✓).' },
+
+    // ----- Matemática: Frações simples (+7) -----
+    { id:'2m116', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'Metade de 10 é:', opts:['2','3','5','8'], ans:2, exp:'Metade = ÷ 2 → 10 ÷ 2 = 5.' },
+    { id:'2m117', s:'matematica', t:'Frações simples', type:'mc', diff:1, q:'1/4 de 8 é:', opts:['2','3','4','5'], ans:0, exp:'1/4 = ÷ 4 → 8 ÷ 4 = 2.' },
+    { id:'2m118', s:'matematica', t:'Frações simples', type:'fill', diff:1, q:'Como se lê 1/2?', ans:['metade','um meio'], exp:'1/2 = "um meio" ou "metade".' },
+    { id:'2m119', s:'matematica', t:'Frações simples', type:'fill', diff:1, q:'Como se lê 1/4?', ans:['um quarto'], exp:'1/4 = "um quarto".' },
+    { id:'2m120', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade + metade = ?', opts:['1/4','1 (inteiro)','2','1/2'], ans:1, exp:'1/2 + 1/2 = 1 inteiro.' },
+    { id:'2m121', s:'matematica', t:'Frações simples', type:'tf', diff:2, q:'2/4 é igual a 1/2.', ans:true, exp:'Verdade — 2/4 simplifica para 1/2 (são frações equivalentes).' },
+    { id:'2m122', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'1/3 de 9 é:', opts:['2','3','4','6'], ans:1, exp:'1/3 = ÷ 3 → 9 ÷ 3 = 3.' },
+
+    // ----- Matemática: Comprimento (+7) -----
+    { id:'2m123', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Para medir um lápis usas:', opts:['mm','cm','m','km'], ans:1, exp:'Centímetros (cm) — adequado para coisas pequenas como um lápis.' },
+    { id:'2m124', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'1 dm tem quantos cm?', opts:['10','100','1000','60'], ans:0, exp:'1 dm = 10 cm.' },
+    { id:'2m125', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'Que instrumento usas para medir o comprimento?', opts:['balança','régua','copo','relógio'], ans:1, exp:'Régua ou fita métrica → comprimento.' },
+    { id:'2m126', s:'matematica', t:'Comprimento', type:'fill', diff:2, q:'2 m = ___ cm', ans:['200'], exp:'1 m = 100 cm; 2 m = 200 cm.' },
+    { id:'2m127', s:'matematica', t:'Comprimento', type:'fill', diff:2, q:'3 km = ___ m', ans:['3000','3 000'], exp:'1 km = 1000 m; 3 km = 3000 m.' },
+    { id:'2m128', s:'matematica', t:'Comprimento', type:'tf', diff:1, q:'A distância entre duas cidades mede-se em km.', ans:true, exp:'Verdade — quilómetros para distâncias grandes.' },
+    { id:'2m129', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'Quanto mede a altura típica de um adulto?', opts:['17 cm','170 cm','17 m','17 km'], ans:1, exp:'~170 cm (1,70 m) é a altura típica de um adulto.' },
+
+    // ----- Matemática: Massa (+7) -----
+    { id:'2m130', s:'matematica', t:'Massa', type:'mc', diff:1, q:'Para medir massa usas:', opts:['régua','balança','copo','transferidor'], ans:1, exp:'A balança mede a massa.' },
+    { id:'2m131', s:'matematica', t:'Massa', type:'mc', diff:1, q:'1 kg tem quantos g?', opts:['10','100','1000','60'], ans:2, exp:'1 kg = 1000 g.' },
+    { id:'2m132', s:'matematica', t:'Massa', type:'mc', diff:2, q:'Para um saco grande de batatas, a unidade adequada é:', opts:['mg','g','kg','t'], ans:2, exp:'Quilogramas (kg) — adequado para sacos de alimentos.' },
+    { id:'2m133', s:'matematica', t:'Massa', type:'fill', diff:2, q:'2 kg = ___ g', ans:['2000','2 000'], exp:'1 kg = 1000 g; 2 kg = 2000 g.' },
+    { id:'2m134', s:'matematica', t:'Massa', type:'fill', diff:2, q:'½ kg = ___ g', ans:['500'], exp:'Metade de 1 kg (=1000g) = 500 g.' },
+    { id:'2m135', s:'matematica', t:'Massa', type:'tf', diff:2, q:'Um carro pesa cerca de 1 tonelada (= 1000 kg).', ans:true, exp:'Verdade — um carro pequeno pesa ~1 t = 1000 kg.' },
+    { id:'2m136', s:'matematica', t:'Massa', type:'mc', diff:2, q:'Qual destes pesa mais?', opts:['1 kg de algodão','1 kg de chumbo','pesam o mesmo','1 g de chumbo'], ans:2, exp:'1 kg = 1 kg, qualquer que seja o material!' },
+
+    // ----- Matemática: Capacidade (+7) -----
+    { id:'2m137', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Para medir líquido usas:', opts:['régua','balança','copo medidor','transferidor'], ans:2, exp:'Copo medidor (graduado) → capacidade.' },
+    { id:'2m138', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'1 L tem quantos mL?', opts:['10','100','1000','60'], ans:2, exp:'1 L = 1000 mL.' },
+    { id:'2m139', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa pequena de água é mais ou menos:', opts:['33 mL','330 mL','3,3 L','33 L'], ans:1, exp:'Uma garrafa pequena (lata refrigerante): ~330 mL.' },
+    { id:'2m140', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'2 L = ___ mL', ans:['2000','2 000'], exp:'1 L = 1000 mL; 2 L = 2000 mL.' },
+    { id:'2m141', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'½ L = ___ mL', ans:['500'], exp:'Metade de 1 L = 500 mL.' },
+    { id:'2m142', s:'matematica', t:'Capacidade', type:'tf', diff:1, q:'Um copo de água tem cerca de 200 mL.', ans:true, exp:'Verdade — copo normal de água ≈ 200 mL.' },
+    { id:'2m143', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Quantos copos de 250 mL podes encher com 1 L de leite?', opts:['2','3','4','5'], ans:2, exp:'1000 ÷ 250 = 4 copos.' },
+
+    // ----- Matemática: Gráficos (+7) -----
+    { id:'2m144', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'Num gráfico de barras, a barra MAIS BAIXA significa:', opts:['mais','menos','o mesmo','dobro'], ans:1, exp:'Barra mais BAIXA = menor quantidade.' },
+    { id:'2m145', s:'matematica', t:'Gráficos', type:'mc', diff:1, q:'O que mostra um pictograma?', opts:['imagens que representam quantidades','só números','só letras','só linhas'], ans:0, exp:'Pictograma usa IMAGENS/desenhos para mostrar quantidades.' },
+    { id:'2m146', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Numa tabela: cães=4, gatos=6, pássaros=2. Quantos animais ao todo?', opts:['8','10','12','14'], ans:2, exp:'4 + 6 + 2 = 12.' },
+    { id:'2m147', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Mesma tabela. Quantos cães a MAIS que pássaros?', opts:['1','2','3','4'], ans:1, exp:'Cães − pássaros = 4 − 2 = 2.' },
+    { id:'2m148', s:'matematica', t:'Gráficos', type:'fill', diff:2, q:'Mesma tabela. Animal mais frequente: ___', ans:['gatos','gato'], exp:'Gatos = 6 → o maior número.' },
+    { id:'2m149', s:'matematica', t:'Gráficos', type:'tf', diff:2, q:'Antes de interpretar um gráfico, deve-se ler o título e os eixos.', ans:true, exp:'Verdade — título e eixos dizem o que está a ser representado.' },
+    { id:'2m150', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Voto: maçã 5, banana 5, pêra 3. Qual a fruta MENOS votada?', opts:['maçã','banana','pêra','iguais'], ans:2, exp:'A pêra com 3 votos é a menor.' },
+
+    // ----- Estudo do Meio: Astros (+7) -----
+    { id:'2e30', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'Quantos planetas tem o Sistema Solar?', opts:['7','8','9','10'], ans:1, exp:'8 planetas (Plutão deixou de ser planeta em 2006).' },
+    { id:'2e31', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'Em que planeta vivemos?', opts:['Marte','Vénus','Terra','Júpiter'], ans:2, exp:'Vivemos no planeta TERRA.' },
+    { id:'2e32', s:'estudo_meio', t:'Astros', type:'mc', diff:2, q:'O movimento da Terra que dá origem ao ANO chama-se:', opts:['rotação','translação','revolução','vibração'], ans:1, exp:'TRANSLAÇÃO = volta da Terra ao Sol em 365 dias.' },
+    { id:'2e33', s:'estudo_meio', t:'Astros', type:'fill', diff:2, q:'Único satélite natural da Terra: ___', ans:['Lua','lua'], exp:'A Lua é o único satélite natural da Terra.' },
+    { id:'2e34', s:'estudo_meio', t:'Astros', type:'tf', diff:1, q:'O Sol é maior do que a Terra.', ans:true, exp:'Verdade — o Sol é MUITO maior que a Terra.' },
+    { id:'2e35', s:'estudo_meio', t:'Astros', type:'mc', diff:2, q:'Quando vemos a Lua TODA iluminada, é:', opts:['Lua Nova','Quarto Crescente','Lua Cheia','Quarto Minguante'], ans:2, exp:'Lua CHEIA = vemos a face inteira iluminada.' },
+    { id:'2e36', s:'estudo_meio', t:'Astros', type:'mc', diff:2, q:'As estrelas vêem-se MELHOR:', opts:['de manhã','ao meio-dia','à noite','quando chove'], ans:2, exp:'À NOITE — sem a luz forte do Sol, vemos as estrelas.' },
+
+    // ----- Estudo do Meio: Transportes (+7) -----
+    { id:'2e37', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Avião é um transporte:', opts:['terrestre','aquático','aéreo','espacial'], ans:2, exp:'Avião anda no AR → aéreo.' },
+    { id:'2e38', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Comboio é um transporte:', opts:['aéreo','terrestre','aquático','submarino'], ans:1, exp:'Comboio anda em terra (carris) → terrestre.' },
+    { id:'2e39', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Submarino é um transporte:', opts:['aéreo','terrestre','aquático','espacial'], ans:2, exp:'Submarino anda DEBAIXO de água → aquático.' },
+    { id:'2e40', s:'estudo_meio', t:'Transportes', type:'mc', diff:2, q:'Qual é um transporte PÚBLICO?', opts:['carro','bicicleta','autocarro','trotineta'], ans:2, exp:'Autocarro = público (transporta muitas pessoas).' },
+    { id:'2e41', s:'estudo_meio', t:'Transportes', type:'tf', diff:1, q:'Devemos atravessar a estrada na passadeira.', ans:true, exp:'Sempre — passadeira (e ver para os 2 lados antes).' },
+    { id:'2e42', s:'estudo_meio', t:'Transportes', type:'fill', diff:2, q:'Equipamento de proteção da cabeça quando andas de bicicleta: ___', ans:['capacete'], exp:'CAPACETE — protege a cabeça em caso de queda.' },
+    { id:'2e43', s:'estudo_meio', t:'Transportes', type:'mc', diff:2, q:'Que transporte é mais ECOLÓGICO?', opts:['carro','autocarro','bicicleta','avião'], ans:2, exp:'Bicicleta — não polui e faz exercício.' },
+
+    // ----- Estudo do Meio: Higiene (+7) -----
+    { id:'2e44', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Antes das refeições deves:', opts:['ver TV','lavar as mãos','dormir','correr'], ans:1, exp:'LAVAR AS MÃOS antes de comer (evita doenças).' },
+    { id:'2e45', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Devemos tomar banho:', opts:['1 vez por mês','1 vez por semana','todos os dias','nunca'], ans:2, exp:'Banho diário (ou pelo menos quase todos os dias).' },
+    { id:'2e46', s:'estudo_meio', t:'Higiene', type:'mc', diff:2, q:'Quem trata dos dentes é o:', opts:['médico de família','dentista','enfermeiro','farmacêutico'], ans:1, exp:'DENTISTA — vai pelo menos 1 vez por ano.' },
+    { id:'2e47', s:'estudo_meio', t:'Higiene', type:'tf', diff:1, q:'Devemos escovar os dentes pelo menos 2 vezes por dia.', ans:true, exp:'Verdade — ideal são 3 vezes (manhã, almoço, antes de dormir).' },
+    { id:'2e48', s:'estudo_meio', t:'Higiene', type:'fill', diff:2, q:'Os buracos nos dentes que aparecem por má higiene chamam-se ___', ans:['cáries','caries','cárie','carie'], exp:'CÁRIES — buracos causados por bactérias dos restos de comida.' },
+    { id:'2e49', s:'estudo_meio', t:'Higiene', type:'mc', diff:2, q:'Qual destes hábitos NÃO é de higiene?', opts:['lavar as mãos','escovar os dentes','tomar banho','jogar à bola'], ans:3, exp:'Jogar à bola é desporto — não higiene (mas também é importante!).' },
+    { id:'2e50', s:'estudo_meio', t:'Higiene', type:'mc', diff:2, q:'Para que serve a pasta de dentes com FLÚOR?', opts:['só para o sabor','para fortalecer os dentes','para mudar a cor','para nada'], ans:1, exp:'O FLÚOR fortalece o esmalte dos dentes e previne cáries.' },
+
+    // ----- Estudo do Meio: Saúde (+7) -----
+    { id:'2e51', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Para sermos saudáveis devemos comer:', opts:['só doces','só batatas fritas','fruta e legumes','só hambúrgueres'], ans:2, exp:'Fruta e legumes são fundamentais.' },
+    { id:'2e52', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Quanta água devemos beber por dia?', opts:['1 copo','muito pouco','1,5 a 2 litros','5 litros'], ans:2, exp:'Crianças: ~1,5 L de água por dia.' },
+    { id:'2e53', s:'estudo_meio', t:'Saúde', type:'mc', diff:2, q:'Qual destes é um exercício físico?', opts:['ver TV','jogar futebol','dormir','comer'], ans:1, exp:'Jogar futebol = exercício físico (faz bem ao corpo).' },
+    { id:'2e54', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Devemos passar o dia inteiro nos ecrãs (telemóvel/TV).', ans:false, exp:'Falso — limitar tempo de ecrãs e fazer outras atividades.' },
+    { id:'2e55', s:'estudo_meio', t:'Saúde', type:'fill', diff:2, q:'Quem nos protege de doenças graves quando ainda somos pequenos: as ___', ans:['vacinas'], exp:'VACINAS — protegem contra doenças como sarampo, tétano, polio.' },
+    { id:'2e56', s:'estudo_meio', t:'Saúde', type:'mc', diff:2, q:'Quantas refeições principais devemos fazer por dia?', opts:['1','2','3 a 5','10'], ans:2, exp:'3 principais (pequeno-almoço, almoço, jantar) + 1-2 lanches.' },
+    { id:'2e57', s:'estudo_meio', t:'Saúde', type:'mc', diff:2, q:'A roda dos alimentos está dividida em quantos grupos?', opts:['3','5','7','10'], ans:2, exp:'A Roda dos Alimentos tem 7 grupos.' },
+
+    // ----- Estudo do Meio: Comemorações (+7) -----
+    { id:'2e58', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'O Dia da Mãe é em:', opts:['janeiro','maio','setembro','dezembro'], ans:1, exp:'1.º domingo de MAIO.' },
+    { id:'2e59', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'O Dia do Pai em Portugal é em:', opts:['março','junho','novembro','dezembro'], ans:0, exp:'19 de MARÇO (dia de São José).' },
+    { id:'2e60', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'O Dia da Criança é a:', opts:['25 de abril','1 de junho','25 de dezembro','1 de janeiro'], ans:1, exp:'1 de JUNHO — Dia Mundial da Criança.' },
+    { id:'2e61', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'Em que dia se celebra o Dia de Portugal?', opts:['25 de abril','10 de junho','5 de outubro','1 de dezembro'], ans:1, exp:'10 de JUNHO — Dia de Portugal, de Camões e das Comunidades.' },
+    { id:'2e62', s:'estudo_meio', t:'Comemorações', type:'tf', diff:2, q:'O Carnaval celebra-se sempre em fevereiro.', ans:false, exp:'Falso — o Carnaval depende da Páscoa, pode ser em fevereiro OU março.' },
+    { id:'2e63', s:'estudo_meio', t:'Comemorações', type:'fill', diff:2, q:'No Natal, presépio representa o nascimento de ___', ans:['Jesus','jesus'], exp:'O presépio mostra o nascimento de Jesus em Belém.' },
+    { id:'2e64', s:'estudo_meio', t:'Comemorações', type:'mc', diff:2, q:'Festa do Dia das Bruxas (origem americana):', opts:['Carnaval','Páscoa','Halloween','São João'], ans:2, exp:'HALLOWEEN — 31 de outubro, festa americana com fatos e doces.' },
+
+    // ----- Inglês: Alfabeto (+7) -----
+    { id:'2i31', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Quantas letras tem o alfabeto inglês?', opts:['23','24','26','28'], ans:2, exp:'26 letras (em português usamos 23 normalmente).' },
+    { id:'2i32', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "A" em inglês?', opts:['"a"','"ei"','"ah"','"ai"'], ans:1, exp:'A letra A em inglês diz-se "ei".' },
+    { id:'2i33', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "I" em inglês?', opts:['"i"','"ai"','"ih"','"ee"'], ans:1, exp:'A letra I em inglês diz-se "ai".' },
+    { id:'2i34', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "E" em inglês?', opts:['"e"','"ei"','"i"','"u"'], ans:2, exp:'A letra E em inglês diz-se "i".' },
+    { id:'2i35', s:'ingles', t:'Alfabeto', type:'tf', diff:1, q:'A letra "Y" existe no alfabeto inglês.', ans:true, exp:'Sim — Y é a 25.ª letra.' },
+    { id:'2i36', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'"Spell" em inglês significa:', opts:['cantar','soletrar','correr','falar'], ans:1, exp:'"Spell" = SOLETRAR. "How do you spell?" = Como se soletra?' },
+    { id:'2i37', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Letra que vem antes do A: nenhuma. Letra DEPOIS do Z: também nenhuma. E depois do M?', opts:['L','N','O','P'], ans:1, exp:'M → N → O. Vem o N.' },
+
+    // ----- Inglês: Body (+7) -----
+    { id:'2i38', s:'ingles', t:'Body', type:'mc', diff:1, q:'👃 em inglês:', opts:['nose','ear','mouth'], ans:0, exp:'👃 = nose (nariz).' },
+    { id:'2i39', s:'ingles', t:'Body', type:'mc', diff:1, q:'👂 em inglês:', opts:['eye','ear','arm'], ans:1, exp:'👂 = ear (orelha).' },
+    { id:'2i40', s:'ingles', t:'Body', type:'mc', diff:1, q:'🦶 em inglês:', opts:['hand','foot','head'], ans:1, exp:'🦶 = foot (pé). Plural: feet.' },
+    { id:'2i41', s:'ingles', t:'Body', type:'mc', diff:1, q:'👄 em inglês:', opts:['mouth','tongue','tooth'], ans:0, exp:'👄 = mouth (boca).' },
+    { id:'2i42', s:'ingles', t:'Body', type:'fill', diff:2, q:'Plural de "foot" em inglês: ___', ans:['feet'], exp:'foot → feet (plural irregular).' },
+    { id:'2i43', s:'ingles', t:'Body', type:'tf', diff:2, q:'Em inglês, "head" significa cabeça.', ans:true, exp:'Verdade — head = cabeça.' },
+    { id:'2i44', s:'ingles', t:'Body', type:'mc', diff:2, q:'Quantos olhos tens? Em inglês:', opts:['I have one eye','I have two eyes','I have three eyes','I have ten eyes'], ans:1, exp:'Two eyes = dois olhos.' },
+
+    // ----- Inglês: Food (+7) -----
+    { id:'2i45', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍌 em inglês:', opts:['apple','orange','banana'], ans:2, exp:'🍌 = banana.' },
+    { id:'2i46', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍊 em inglês:', opts:['orange','apple','pear'], ans:0, exp:'🍊 = orange (laranja).' },
+    { id:'2i47', s:'ingles', t:'Food', type:'mc', diff:1, q:'🥛 em inglês:', opts:['water','milk','juice'], ans:1, exp:'🥛 = milk (leite).' },
+    { id:'2i48', s:'ingles', t:'Food', type:'mc', diff:1, q:'💧 (água) em inglês:', opts:['milk','wine','water'], ans:2, exp:'💧 = water.' },
+    { id:'2i49', s:'ingles', t:'Food', type:'mc', diff:2, q:'"Tenho sede" em inglês:', opts:['I am hungry','I am thirsty','I am tired','I am happy'], ans:1, exp:'I am thirsty = Tenho sede. (Hungry = fome.)' },
+    { id:'2i50', s:'ingles', t:'Food', type:'fill', diff:2, q:'🍞 em inglês: ___', ans:['bread'], exp:'🍞 = bread (pão).' },
+    { id:'2i51', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Cheese" em inglês significa queijo.', ans:true, exp:'Verdade — cheese = queijo.' },
+
+    // ----- Inglês: Toys (+7) -----
+    { id:'2i52', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🐻 (peluche) em inglês:', opts:['cat','teddy bear','dog'], ans:1, exp:'🐻 = teddy bear (ursinho de peluche).' },
+    { id:'2i53', s:'ingles', t:'Toys', type:'mc', diff:1, q:'⚽ em inglês:', opts:['car','ball','book'], ans:1, exp:'⚽ = ball (bola).' },
+    { id:'2i54', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🚗 em inglês:', opts:['car','train','plane'], ans:0, exp:'🚗 = car (carro).' },
+    { id:'2i55', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🪆 (boneca) em inglês:', opts:['ball','book','doll'], ans:2, exp:'🪆 = doll (boneca).' },
+    { id:'2i56', s:'ingles', t:'Toys', type:'mc', diff:2, q:'"Vamos brincar!" em inglês:', opts:["Let's eat!","Let's play!","Let's sleep!"], ans:1, exp:"Let's play! (play = brincar/jogar)." },
+    { id:'2i57', s:'ingles', t:'Toys', type:'fill', diff:2, q:'🚲 (bicicleta) em inglês: ___', ans:['bike','bicycle'], exp:'🚲 = bike ou bicycle.' },
+    { id:'2i58', s:'ingles', t:'Toys', type:'tf', diff:2, q:'"Book" em inglês significa livro.', ans:true, exp:'Verdade — book = livro.' }
 ];
 
 
@@ -1356,7 +1621,228 @@ const EXERCISES_5 = [
     { id:'g_sim1', s:'hgp', t:'Símbolos', type:'mc', diff:1, q:'O hino nacional de Portugal chama-se:', opts:['Grândola, Vila Morena','A Portuguesa','Heróis do Mar','Os Lusíadas'], ans:1, exp:'"A Portuguesa" — hino nacional desde 1911.' },
     { id:'g_sim2', s:'hgp', t:'Símbolos', type:'tf', diff:2, q:'Os 5 escudos azuis (quinas) na bandeira representam os 5 reis mouros vencidos por D. Afonso Henriques na Batalha de Ourique.', ans:true, exp:'Verdade — segundo a tradição, os 5 escudos azuis (quinas) na bandeira recordam os 5 reis mouros vencidos em Ourique (1139).' },
     { id:'g_ord1', s:'hgp', t:'Ordem cronológica', type:'order', diff:2, q:'Ordena os acontecimentos do mais antigo para o mais recente:', items:['Conquista de Lisboa (1147)','Batalha de Aljubarrota (1385)','Chegada à Índia (1498)','Restauração da Independência (1640)'], exp:'Ordem cronológica: 1147 → 1385 → 1498 → 1640.' },
-    { id:'g_ord2', s:'hgp', t:'Ordem cronológica', type:'mc', diff:2, q:'Qual destes acontecimentos é o MAIS ANTIGO?', opts:['Fundação de Portugal (1143)','Conquista de Ceuta (1415)','Batalha de Ourique (1139)','Tratado de Tordesilhas (1494)'], ans:2, exp:'Batalha de Ourique (1139) é o mais antigo — antes mesmo do Tratado de Zamora (1143) que reconheceu Portugal como reino.' }
+    { id:'g_ord2', s:'hgp', t:'Ordem cronológica', type:'mc', diff:2, q:'Qual destes acontecimentos é o MAIS ANTIGO?', opts:['Fundação de Portugal (1143)','Conquista de Ceuta (1415)','Batalha de Ourique (1139)','Tratado de Tordesilhas (1494)'], ans:2, exp:'Batalha de Ourique (1139) é o mais antigo — antes mesmo do Tratado de Zamora (1143) que reconheceu Portugal como reino.' },
+
+    // ===== EXPANSÃO 5.º Matemática (Simetrias, Construções geométricas) =====
+    { id:'m_sim6', s:'matematica', t:'Simetrias', type:'mc', diff:1, q:'Quantos eixos de simetria tem um triângulo equilátero?', opts:['1','2','3','infinitos'], ans:2, exp:'Triângulo equilátero tem 3 eixos de simetria (um por cada vértice/lado oposto).' },
+    { id:'m_sim7', s:'matematica', t:'Simetrias', type:'tf', diff:1, q:'A letra "H" tem 2 eixos de simetria.', ans:true, exp:'Verdade — H tem eixo VERTICAL e HORIZONTAL.' },
+    { id:'m_sim8', s:'matematica', t:'Simetrias', type:'mc', diff:2, q:'Qual a ordem da simetria de rotação de um triângulo equilátero?', opts:['2','3','4','6'], ans:1, exp:'Ordem 3 — fica igual em rotações de 120° e 240° (3 posições idênticas em 360°).' },
+    { id:'m_sim9', s:'matematica', t:'Simetrias', type:'fill', diff:2, q:'Um hexágono regular tem ___ eixos de simetria.', ans:['6'], exp:'6 eixos: 3 que passam pelos vértices opostos + 3 pelos pontos médios dos lados opostos.' },
+    { id:'m_sim10', s:'matematica', t:'Simetrias', type:'tf', diff:2, q:'A letra "S" tem simetria de reflexão.', ans:false, exp:'Falso. A letra "S" não tem eixo de reflexão. Mas tem simetria de ROTAÇÃO de 180°.' },
+
+    { id:'m_cgeo6', s:'matematica', t:'Construções geométricas', type:'mc', diff:1, q:'O esquadro serve para traçar:', opts:['ângulos de qualquer tamanho','retas paralelas e perpendiculares','circunferências','arcos'], ans:1, exp:'O esquadro tem ângulo de 90° — usa-se para retas paralelas e perpendiculares.' },
+    { id:'m_cgeo7', s:'matematica', t:'Construções geométricas', type:'fill', diff:1, q:'Para traçar uma circunferência usamos o ___', ans:['compasso'], exp:'O compasso desenha circunferências e transporta comprimentos.' },
+    { id:'m_cgeo8', s:'matematica', t:'Construções geométricas', type:'mc', diff:2, q:'Para construir um triângulo de lados 3, 4 e 5 cm, começa por traçar:', opts:['um arco de 5 cm','o lado de 5 cm com a régua','o lado de 3 cm','os 3 lados em simultâneo'], ans:1, exp:'Começa-se sempre pelo lado MAIOR (5 cm), depois traça-se arcos de 3 e 4 cm para encontrar o 3.º vértice.' },
+    { id:'m_cgeo9', s:'matematica', t:'Construções geométricas', type:'tf', diff:2, q:'A bissetriz de um ângulo desenha-se com transferidor.', ans:false, exp:'Falso. A bissetriz constrói-se com COMPASSO (3 arcos), não com transferidor.' },
+    { id:'m_cgeo10', s:'matematica', t:'Construções geométricas', type:'mc', diff:2, q:'A mediatriz de um segmento PASSA SEMPRE pelo:', opts:['extremo A','extremo B','ponto médio do segmento','centro da circunferência'], ans:2, exp:'Mediatriz: reta perpendicular ao segmento que passa pelo PONTO MÉDIO (a igual distância de A e B).' },
+
+    // ===== EXPANSÃO 5.º Inglês (Demonstratives, Possessives, Have got, There is/are) =====
+    { id:'i_dem5', s:'ingles', t:'Demonstratives', type:'mc', diff:1, q:'Como dizes "ESTAS canetas" (perto, plural)?', opts:['this pens','that pens','these pens','those pens'], ans:2, exp:'Perto + plural = THESE pens.' },
+    { id:'i_dem6', s:'ingles', t:'Demonstratives', type:'mc', diff:1, q:'Como dizes "AQUELES carros" (longe, plural)?', opts:['this cars','that cars','these cars','those cars'], ans:3, exp:'Longe + plural = THOSE cars.' },
+    { id:'i_dem7', s:'ingles', t:'Demonstratives', type:'fill', diff:2, q:'Plural de "this" é ___', ans:['these'], exp:'this (sing.) → these (plural).' },
+    { id:'i_dem8', s:'ingles', t:'Demonstratives', type:'fill', diff:2, q:'Plural de "that" é ___', ans:['those'], exp:'that (sing.) → those (plural).' },
+    { id:'i_dem9', s:'ingles', t:'Demonstratives', type:'mc', diff:2, q:'Completa: "Who is ___ man over there?"', opts:['this','that','these','those'], ans:1, exp:'"over there" indica DISTÂNCIA + singular (man) → THAT.' },
+    { id:'i_dem10', s:'ingles', t:'Demonstratives', type:'mc', diff:2, q:'Como traduzes "Take this!" (a passar algo a alguém)?', opts:['Toma este!','Toma esse!','Toma aquele!','Toma estes!'], ans:0, exp:'THIS = este/isto (perto). "Take this" = "Toma isto/este".' },
+
+    { id:'i_pos5', s:'ingles', t:'Possessives', type:'mc', diff:1, q:'Como se diz "o NOSSO cão"?', opts:['my dog','your dog','our dog','their dog'], ans:2, exp:'we → OUR (nosso/nossa).' },
+    { id:'i_pos6', s:'ingles', t:'Possessives', type:'mc', diff:1, q:'Como se diz "o teu/vosso livro"?', opts:['my book','your book','his book','their book'], ans:1, exp:'you → YOUR (teu/tua, vosso/vossa — igual no singular e plural).' },
+    { id:'i_pos7', s:'ingles', t:'Possessives', type:'mc', diff:2, q:'Pronome possessivo de "her" (sozinho, sem nome a seguir)?', opts:['hers','her','herself','hims'], ans:0, exp:'her (adj.) → hers (pron.). Ex: "The pen is hers" = A caneta é dela.' },
+    { id:'i_pos8', s:'ingles', t:'Possessives', type:'tf', diff:2, q:"\"Its\" e \"It's\" são a mesma coisa.", ans:false, exp:"Falso! ITS = possessivo (dele/dela coisa). IT'S = it is (ele é/está). Cuidado!" },
+    { id:'i_pos9', s:'ingles', t:'Possessives', type:'fill', diff:2, q:"O carro do meu pai: \"my ___ car\" (preenche com pai + apóstrofe s).", ans:["father's","fathers"], exp:"Genitivo saxónico: my father's car (com apóstrofe + s)." },
+    { id:'i_pos10', s:'ingles', t:'Possessives', type:'mc', diff:2, q:'Qual está CORRETO?', opts:["The childrens toys","The children's toys","The childrens' toys","The childrens's toys"], ans:1, exp:"\"Children\" já é plural (irregular) → genitivo: children's." },
+
+    { id:'i_hg5', s:'ingles', t:'Have got', type:'mc', diff:1, q:'Como se diz "Nós temos uma casa"?', opts:['We has got a house','We have got a house','We got a house','We have a got house'], ans:1, exp:'we/you/they/I → HAVE got. Só he/she/it é HAS got.' },
+    { id:'i_hg6', s:'ingles', t:'Have got', type:'mc', diff:2, q:'Forma curta de "He has got" é:', opts:["He's got","He've got","He'as got","Hes got"], ans:0, exp:"He has = He's. Atenção: He's pode também ser \"He is\" — depende do contexto." },
+    { id:'i_hg7', s:'ingles', t:'Have got', type:'mc', diff:2, q:'Como se diz "Ela não tem irmãos"?', opts:["She haven't got brothers","She hasn't got brothers","She no has brothers","She doesn't have got brothers"], ans:1, exp:"She/he/it → HASN'T got. (Have got NÃO usa do/does.)" },
+    { id:'i_hg8', s:'ingles', t:'Have got', type:'mc', diff:2, q:'Como respondes "Yes" a "Have you got a pen?"', opts:['Yes, I have got','Yes, I have','Yes, I do','Yes, I am'], ans:1, exp:'Resposta curta: Yes, I have. (Não se repete o "got".)' },
+    { id:'i_hg9', s:'ingles', t:'Have got', type:'tf', diff:2, q:'Em inglês americano usa-se mais "have" do que "have got".', ans:true, exp:'Verdade — UK: "I have got"; US: "I have". Os dois significam o mesmo.' },
+    { id:'i_hg10', s:'ingles', t:'Have got', type:'fill', diff:2, q:'Completa: "My sister ___ got blue eyes." (have/has)', ans:['has'], exp:'sister = she → HAS got.' },
+
+    { id:'i_tia5', s:'ingles', t:'There is/are', type:'mc', diff:1, q:'Como se diz "Há 3 gatos no jardim"?', opts:['There is 3 cats in the garden','There are 3 cats in the garden','It are 3 cats','Have 3 cats'], ans:1, exp:'Plural (3 gatos) → THERE ARE.' },
+    { id:'i_tia6', s:'ingles', t:'There is/are', type:'mc', diff:2, q:'Como se diz "Não há leite no frigorífico"?', opts:["There isn't any milk in the fridge","There aren't any milk in the fridge","There no milk","Have not milk"], ans:0, exp:"milk = singular não-contável → THERE ISN'T any (any em frase negativa)." },
+    { id:'i_tia7', s:'ingles', t:'There is/are', type:'mc', diff:2, q:'Forma curta de "There is" é:', opts:["There's","There are's","There'is","Theyre"], ans:0, exp:"There's (não confundir com THEIRS = pronome possessivo deles)." },
+    { id:'i_tia8', s:'ingles', t:'There is/are', type:'fill', diff:2, q:'Completa: "How many people ___ there in your class?" (is/are)', ans:['are'], exp:'people = plural → ARE there.' },
+    { id:'i_tia9', s:'ingles', t:'There is/are', type:'mc', diff:2, q:'"Há um problema?" em inglês:', opts:['There is a problem?','It has a problem?','Is there a problem?','Are there a problem?'], ans:2, exp:'Inverter para pergunta: "Is there a problem?" (singular).' },
+    { id:'i_tia10', s:'ingles', t:'There is/are', type:'tf', diff:2, q:'Em frases AFIRMATIVAS usa-se SOME (e não ANY).', ans:true, exp:'Verdade. Afirmativa: SOME ("There are SOME apples"). Negativa/interrogativa: ANY.' },
+
+    // ===== EXPANSÃO 5.º Ciências =====
+    { id:'c5_te6', s:'ciencias', t:'A Terra – Planeta especial', type:'mc', diff:1, q:'Qual é o planeta MAIOR do Sistema Solar?', opts:['Terra','Marte','Júpiter','Saturno'], ans:2, exp:'Júpiter é o maior planeta — gigante gasoso.' },
+    { id:'c5_te7', s:'ciencias', t:'A Terra – Planeta especial', type:'mc', diff:1, q:'Qual destes é o planeta MAIS QUENTE?', opts:['Mercúrio','Vénus','Marte','Júpiter'], ans:1, exp:'Vénus (~470°C) é mais quente que Mercúrio devido à atmosfera densa de CO₂ (efeito de estufa extremo).' },
+    { id:'c5_te8', s:'ciencias', t:'A Terra – Planeta especial', type:'mc', diff:2, q:'Quanto demora a Lua a dar uma volta à Terra?', opts:['1 dia','1 semana','~1 mês','1 ano'], ans:2, exp:'A Lua demora cerca de 28 dias (1 mês lunar) a dar uma volta à Terra.' },
+    { id:'c5_te9', s:'ciencias', t:'A Terra – Planeta especial', type:'tf', diff:2, q:'O Sol nasce a este e põe-se a oeste devido à rotação da Terra.', ans:true, exp:'Verdade — a Terra roda de oeste para este, por isso o Sol parece "nascer" a este.' },
+    { id:'c5_te10', s:'ciencias', t:'A Terra – Planeta especial', type:'fill', diff:2, q:'Camada externa sólida da Terra: ___', ans:['crosta'], exp:'CROSTA terrestre — camada superficial sólida (continentes + fundos oceânicos).' },
+
+    { id:'c5_rch4', s:'ciencias', t:'Rochas', type:'mc', diff:2, q:'O granito é uma rocha:', opts:['sedimentar','magmática','metamórfica','vulcânica'], ans:1, exp:'O granito é uma rocha MAGMÁTICA (intrusiva — formada em profundidade).' },
+    { id:'c5_rch5', s:'ciencias', t:'Rochas', type:'mc', diff:2, q:'A ardósia (xisto) usada em telhados é uma rocha:', opts:['sedimentar','magmática','metamórfica','vulcânica'], ans:2, exp:'A ardósia é uma rocha METAMÓRFICA, que se separa em finas placas.' },
+    { id:'c5_rch6', s:'ciencias', t:'Rochas', type:'fill', diff:2, q:'Lava que arrefece à superfície dá origem a rocha ___ (extrusiva).', ans:['vulcânica','vulcanica'], exp:'Rochas vulcânicas (basalto) — lava arrefecida à superfície. Granito = arrefecimento em profundidade.' },
+    { id:'c5_rch7', s:'ciencias', t:'Rochas', type:'mc', diff:2, q:'Rocha sedimentar formada por restos de seres vivos:', opts:['granito','calcário','basalto','xisto'], ans:1, exp:'CALCÁRIO — rocha sedimentar com origem em conchas e carapaças de seres marinhos.' },
+    { id:'c5_rch8', s:'ciencias', t:'Rochas', type:'mc', diff:2, q:'Os fósseis encontram-se em rochas:', opts:['magmáticas','metamórficas','sedimentares','vulcânicas'], ans:2, exp:'Os fósseis ficam preservados em rochas SEDIMENTARES (em camadas, sem calor extremo).' },
+    { id:'c5_rch9', s:'ciencias', t:'Rochas', type:'tf', diff:2, q:'O calcário pode dissolver-se em ácido (forma cavernas).', ans:true, exp:'Verdade — daí a formação de grutas calcárias (Mira de Aire, Alvados, em Portugal).' },
+
+    { id:'c5_solo4', s:'ciencias', t:'Solo', type:'mc', diff:1, q:'Qual destes é um agente de ALTERAÇÃO mecânica das rochas?', opts:['água da chuva','vento','variações de temperatura','todos os anteriores'], ans:3, exp:'Água, vento e variações de temperatura desagregam mecanicamente as rochas, formando solo.' },
+    { id:'c5_solo5', s:'ciencias', t:'Solo', type:'mc', diff:2, q:'O HÚMUS no solo provém de:', opts:['rochas trituradas','restos de seres vivos decompostos','água da chuva','minerais do subsolo'], ans:1, exp:'HÚMUS = matéria orgânica resultante da DECOMPOSIÇÃO de seres vivos.' },
+    { id:'c5_solo6', s:'ciencias', t:'Solo', type:'mc', diff:2, q:'Solo bom para agricultura tem:', opts:['só areia','só argila','equilíbrio entre areia, argila e húmus','só pedra'], ans:2, exp:'Solos férteis têm equilíbrio entre AREIA (drenagem), ARGILA (retenção) e HÚMUS (nutrientes).' },
+    { id:'c5_solo7', s:'ciencias', t:'Solo', type:'fill', diff:2, q:'Camada superficial do solo, rica em húmus: horizonte ___', ans:['A','a'], exp:'HORIZONTE A — camada superficial mais escura e fértil.' },
+    { id:'c5_solo8', s:'ciencias', t:'Solo', type:'tf', diff:2, q:'A erosão acelerada (causada pelo Homem) é um problema porque o solo demora milénios a formar-se.', ans:true, exp:'Verdade — perder solo é grave, demora milhares de anos a regenerar.' },
+    { id:'c5_solo9', s:'ciencias', t:'Solo', type:'mc', diff:2, q:'Para PROTEGER o solo da erosão deve-se:', opts:['arar a terra de cima para baixo na encosta','manter coberto vegetal e árvores','desflorestar','remover toda a matéria orgânica'], ans:1, exp:'Cobertura vegetal e árvores TRAVAM a água da chuva e mantêm o solo no lugar.' },
+
+    { id:'c5_agu4', s:'ciencias', t:'Água', type:'mc', diff:1, q:'Em que ESTADO da matéria está o vapor de água?', opts:['sólido','líquido','gasoso','plasma'], ans:2, exp:'O vapor de água é o estado GASOSO da água.' },
+    { id:'c5_agu5', s:'ciencias', t:'Água', type:'mc', diff:2, q:'Mudança de estado: água líquida → vapor (com calor)', opts:['fusão','evaporação','condensação','solidificação'], ans:1, exp:'EVAPORAÇÃO = passagem de líquido a gasoso.' },
+    { id:'c5_agu6', s:'ciencias', t:'Água', type:'mc', diff:2, q:'Mudança de estado: gelo → água líquida', opts:['fusão','evaporação','condensação','solidificação'], ans:0, exp:'FUSÃO = passagem de sólido a líquido.' },
+    { id:'c5_agu7', s:'ciencias', t:'Água', type:'fill', diff:2, q:'A maior parte da água doce no planeta encontra-se nos ___ (locais).', ans:['glaciares','glaciers','calotes polares'], exp:'~70% da água doce está em GLACIARES e calotes polares (gelo).' },
+    { id:'c5_agu8', s:'ciencias', t:'Água', type:'tf', diff:2, q:'A maior parte da água do planeta é doce (potável).', ans:false, exp:'Falso — só 2,5% é doce. 97,5% é salgada (mares e oceanos). E só ~1% da doce está acessível.' },
+
+    { id:'c5_ar6', s:'ciencias', t:'O ar', type:'mc', diff:2, q:'Qual destes NÃO é um gás presente no ar?', opts:['azoto','oxigénio','dióxido de carbono','hidrogénio'], ans:3, exp:'O ar tem azoto (78%), oxigénio (21%), CO₂ e outros gases — mas não hidrogénio em quantidade significativa.' },
+    { id:'c5_ar7', s:'ciencias', t:'O ar', type:'mc', diff:2, q:'O OZONO (O₃) protege-nos da:', opts:['chuva ácida','radiação ultravioleta (UV)','poluição','dióxido de carbono'], ans:1, exp:'A camada de ozono na ESTRATOSFERA filtra a radiação UV nociva do Sol.' },
+    { id:'c5_ar8', s:'ciencias', t:'O ar', type:'tf', diff:2, q:'O ar quente é mais leve e SOBE.', ans:true, exp:'Verdade — o ar quente expande-se, fica menos denso e SOBE (princípio dos balões de ar quente).' },
+    { id:'c5_ar9', s:'ciencias', t:'O ar', type:'mc', diff:2, q:'O efeito de estufa em excesso é causado principalmente por:', opts:['azoto','oxigénio','dióxido de carbono','árgon'], ans:2, exp:'O CO₂ (e o metano) retêm calor → aquecimento global.' },
+    { id:'c5_ar10', s:'ciencias', t:'O ar', type:'fill', diff:2, q:'Pressão do ar atmosférico mede-se com o ___ (instrumento).', ans:['barómetro'], exp:'BARÓMETRO mede a pressão atmosférica.' },
+
+    { id:'c5_bio5', s:'ciencias', t:'A biodiversidade', type:'mc', diff:2, q:'Quantas espécies se estima existirem no planeta?', opts:['~10 mil','~1 milhão','~8,7 milhões','~1 bilião'], ans:2, exp:'Estima-se ~8,7 milhões de espécies. Só ~2 milhões estão descritas pela ciência.' },
+    { id:'c5_bio6', s:'ciencias', t:'A biodiversidade', type:'mc', diff:2, q:'Animal extinto pela ação do Homem:', opts:['lobo ibérico','dodô','tigre','panda'], ans:1, exp:'O DODÔ (extinto no séc. XVII na ilha Maurícia) é o exemplo clássico de extinção causada pelo Homem.' },
+    { id:'c5_bio7', s:'ciencias', t:'A biodiversidade', type:'tf', diff:2, q:'Espécies invasoras ajudam o ecossistema local.', ans:false, exp:'Falso. Espécies invasoras COMPETEM com as nativas e desequilibram o ecossistema.' },
+    { id:'c5_bio8', s:'ciencias', t:'A biodiversidade', type:'mc', diff:2, q:'Em Portugal, espécie em PERIGO de extinção:', opts:['raposa','lobo-ibérico','melro','andorinha'], ans:1, exp:'O lobo-ibérico está em perigo — restam ~300 indivíduos em Portugal.' },
+    { id:'c5_bio9', s:'ciencias', t:'A biodiversidade', type:'fill', diff:2, q:'Conjunto de seres vivos que habitam um determinado lugar: ___', ans:['comunidade','ecossistema'], exp:'COMUNIDADE = conjunto de seres vivos. ECOSSISTEMA = comunidade + ambiente físico.' },
+    { id:'c5_bio10', s:'ciencias', t:'A biodiversidade', type:'mc', diff:2, q:"Reciclar os 3 R's significa:", opts:['Reduzir, Reutilizar, Reciclar','Reusar, Repor, Repintar','Renovar, Reflorestar, Reconstruir','Remover, Repor, Recolher'], ans:0, exp:"Os 3 R's: REDUZIR (consumo), REUTILIZAR (objetos), RECICLAR (separar lixo)." },
+
+    { id:'c5_cel6', s:'ciencias', t:'A célula e a vida', type:'mc', diff:2, q:'Estrutura que envolve e protege a célula:', opts:['núcleo','membrana celular','citoplasma','vacúolo'], ans:1, exp:'MEMBRANA CELULAR — envolve a célula e controla o que entra e sai.' },
+    { id:'c5_cel7', s:'ciencias', t:'A célula e a vida', type:'mc', diff:2, q:'Onde se faz a respiração celular (produção de energia)?', opts:['núcleo','cloroplastos','mitocôndrias','vacúolo'], ans:2, exp:'MITOCÔNDRIAS — "centrais de energia" da célula. Existem em células animais E vegetais.' },
+    { id:'c5_cel8', s:'ciencias', t:'A célula e a vida', type:'tf', diff:2, q:'Os vírus são considerados seres vivos.', ans:false, exp:'Falso. Os vírus NÃO têm células — estão no LIMITE entre vivo e não vivo.' },
+    { id:'c5_cel9', s:'ciencias', t:'A célula e a vida', type:'mc', diff:2, q:'Cientista que primeiro observou células (1665) em cortiça:', opts:['Pasteur','Robert Hooke','Leeuwenhoek','Darwin'], ans:1, exp:'Robert Hooke (1665) — chamou-lhes "cells" porque pareciam quartinhos de monges.' },
+    { id:'c5_cel10', s:'ciencias', t:'A célula e a vida', type:'fill', diff:2, q:'Pigmento verde dos cloroplastos: ___', ans:['clorofila'], exp:'CLOROFILA — capta luz solar para a fotossíntese, dá cor verde às plantas.' },
+
+    // ===== EXPANSÃO 5.º HGP (19 tópicos com <10) =====
+    { id:'g_cap3', s:'hgp', t:'Capitais', type:'mc', diff:2, q:'Capital da Alemanha:', opts:['Munique','Berlim','Frankfurt','Hamburgo'], ans:1, exp:'Berlim é a capital da Alemanha desde a reunificação (1990).' },
+    { id:'g_cap4', s:'hgp', t:'Capitais', type:'mc', diff:2, q:'Capital do Reino Unido:', opts:['Manchester','Liverpool','Londres','Dublin'], ans:2, exp:'Londres é a capital do Reino Unido. (Dublin é a capital da Irlanda.)' },
+    { id:'g_cap5', s:'hgp', t:'Capitais', type:'mc', diff:2, q:'Capital do Brasil:', opts:['Rio de Janeiro','São Paulo','Brasília','Salvador'], ans:2, exp:'Brasília é a capital do Brasil desde 1960 (antes era o Rio de Janeiro).' },
+    { id:'g_cap6', s:'hgp', t:'Capitais', type:'fill', diff:2, q:'Capital da Grécia: ___', ans:['Atenas','atenas'], exp:'Atenas — berço da democracia.' },
+    { id:'g_rel3', s:'hgp', t:'Relevo', type:'mc', diff:2, q:'A maior parte do relevo a NORTE do Tejo é:', opts:['planícies','montanhoso','desértico','litoral'], ans:1, exp:'Norte do Tejo: predomínio de MONTANHAS e serras.' },
+    { id:'g_rel4', s:'hgp', t:'Relevo', type:'fill', diff:2, q:'Maior cordilheira da Península Ibérica: ___', ans:['Pirenéus','pireneus','Pirenéos'], exp:'Pirenéus — fronteira natural entre Espanha e França.' },
+    { id:'g_rel5', s:'hgp', t:'Relevo', type:'mc', diff:2, q:'Em Portugal, a serra mais extensa é:', opts:['Serra do Gerês','Serra da Estrela','Serra de Sintra','Serra de Monchique'], ans:1, exp:'A Serra da Estrela é a mais extensa e mais alta de Portugal continental.' },
+    { id:'g_rel6', s:'hgp', t:'Relevo', type:'mc', diff:2, q:'Planície fértil no sul de Portugal:', opts:['Minho','Beira Litoral','Alentejo','Trás-os-Montes'], ans:2, exp:'O Alentejo é a maior planície portuguesa — terras de cereais e azeite.' },
+    { id:'g_rel7', s:'hgp', t:'Relevo', type:'tf', diff:2, q:'Os Açores são de origem vulcânica.', ans:true, exp:'Verdade — todas as 9 ilhas dos Açores têm origem vulcânica.' },
+    { id:'g_mon3', s:'hgp', t:'Montanha', type:'mc', diff:2, q:'A Montanha do Pico fica em qual ilha dos Açores?', opts:['São Miguel','Pico','Faial','Terceira'], ans:1, exp:'Ilha do Pico — onde fica a Montanha do Pico (2351m), o ponto mais alto de Portugal.' },
+    { id:'g_mon4', s:'hgp', t:'Montanha', type:'mc', diff:2, q:'Que serra portuguesa é destino de neve no Inverno?', opts:['Sintra','Estrela','Monchique','Arrábida'], ans:1, exp:'Serra da Estrela — única serra portuguesa onde costuma cair neve com regularidade.' },
+    { id:'g_mon5', s:'hgp', t:'Montanha', type:'fill', diff:2, q:'Altitude da Montanha do Pico (Açores): ___ m', ans:['2351','2.351'], exp:'2351 metros — o ponto mais alto de Portugal (incluindo ilhas).' },
+    { id:'g_mon6', s:'hgp', t:'Montanha', type:'tf', diff:2, q:'A Torre da Serra da Estrela é o ponto mais alto de Portugal CONTINENTAL.', ans:true, exp:'Verdade — Torre da Serra da Estrela: 1993m (continente). Pico: 2351m (Açores) é o mais alto do PAÍS.' },
+    { id:'g_rio4', s:'hgp', t:'Rios', type:'mc', diff:2, q:'Rio que separa Portugal de Espanha a NORTE:', opts:['Tejo','Douro','Minho','Guadiana'], ans:2, exp:'O rio MINHO faz fronteira entre Portugal e Espanha a norte.' },
+    { id:'g_rio5', s:'hgp', t:'Rios', type:'mc', diff:2, q:'Onde nasce o rio Tejo?', opts:['Portugal','Espanha','França','Marrocos'], ans:1, exp:'O Tejo nasce em Espanha (Serra de Albarracín) e desagua em Lisboa.' },
+    { id:'g_rio6', s:'hgp', t:'Rios', type:'fill', diff:2, q:'Rio que faz fronteira sul entre Portugal e Espanha: ___', ans:['Guadiana'], exp:'O Guadiana faz fronteira entre o Algarve e a Andaluzia espanhola.' },
+    { id:'g_cli3', s:'hgp', t:'Clima', type:'mc', diff:2, q:'Em Portugal continental, a região com mais chuva é:', opts:['Algarve','Minho (NO)','Alentejo','Beira Baixa'], ans:1, exp:'O Minho (noroeste) tem o clima mais húmido devido à proximidade do oceano e às serras.' },
+    { id:'g_cli4', s:'hgp', t:'Clima', type:'mc', diff:2, q:'O clima mediterrânico é típico de:', opts:['regiões polares','regiões tropicais','sul da Europa','desertos'], ans:2, exp:'O clima mediterrânico é típico do sul da Europa (Portugal, Espanha, Itália, Grécia).' },
+    { id:'g_cli5', s:'hgp', t:'Clima', type:'tf', diff:2, q:'No Algarve costuma chover muito no Verão.', ans:false, exp:'Falso. No Algarve, os Verões são MUITO secos (clima mediterrânico).' },
+    { id:'g_ilh3', s:'hgp', t:'Ilhas', type:'mc', diff:2, q:'A Madeira é composta por 2 ilhas habitadas: Madeira e ___', opts:['Pico','Porto Santo','Faial','Corvo'], ans:1, exp:'PORTO SANTO — segunda ilha habitada da Madeira (com a sua famosa praia dourada).' },
+    { id:'g_ilh4', s:'hgp', t:'Ilhas', type:'fill', diff:2, q:'Ilha mais a oeste dos Açores (e da Europa): ___', ans:['Corvo'], exp:'CORVO — a mais ocidental e a mais pequena ilha dos Açores.' },
+    { id:'g_ilh5', s:'hgp', t:'Ilhas', type:'mc', diff:2, q:'Quantas ilhas têm os Açores?', opts:['5','7','9','12'], ans:2, exp:'Os Açores têm 9 ilhas habitadas, organizadas em 3 grupos.' },
+    { id:'g_pre3', s:'hgp', t:'Pré-história', type:'mc', diff:2, q:'No Paleolítico, o ser humano vivia de:', opts:['agricultura','caça e recolha','indústria','comércio'], ans:1, exp:'Paleolítico = caçadores-recolectores nómadas.' },
+    { id:'g_pre4', s:'hgp', t:'Pré-história', type:'mc', diff:2, q:'A grande revolução do Neolítico foi:', opts:['descoberta do fogo','agricultura e pastorícia','escrita','roda'], ans:1, exp:'No Neolítico o homem começou a CULTIVAR e DOMESTICAR animais → tornou-se sedentário.' },
+    { id:'g_pre5', s:'hgp', t:'Pré-história', type:'fill', diff:2, q:'Monumentos megalíticos com várias pedras dispostas em círculo: ___', ans:['cromeleque','cromeleques','crómlech'], exp:'CROMELEQUE — ex: Cromeleque dos Almendres (Évora), o maior da Península Ibérica.' },
+    { id:'g_pre6', s:'hgp', t:'Pré-história', type:'tf', diff:2, q:'O Homem da Pré-história só conhecia o fogo a partir do Neolítico.', ans:false, exp:'Falso — o fogo já era usado no Paleolítico (há cerca de 1 milhão de anos).' },
+    { id:'g_rom4', s:'hgp', t:'Romanos', type:'mc', diff:2, q:'Como se chamava a actual Península Ibérica no tempo dos romanos?', opts:['Hispânia','Lusitânia','Ibéria','Galécia'], ans:0, exp:'HISPÂNIA — nome romano da Península Ibérica, dividida em várias províncias.' },
+    { id:'g_rom5', s:'hgp', t:'Romanos', type:'mc', diff:2, q:'A província romana correspondente ao território português atual chamava-se:', opts:['Galécia','Lusitânia','Bética','Tarraconense'], ans:1, exp:'LUSITÂNIA — nome romano da região correspondente a grande parte de Portugal e oeste de Espanha.' },
+    { id:'g_rom6', s:'hgp', t:'Romanos', type:'fill', diff:2, q:'Líder romano que invadiu a Hispânia: ___ César.', ans:['Júlio','Julio'], exp:'Júlio César — invadiu e dominou várias regiões da Hispânia.' },
+    { id:'g_rom7', s:'hgp', t:'Romanos', type:'tf', diff:2, q:'A língua portuguesa deriva do LATIM falado pelos romanos.', ans:true, exp:'Verdade — o português, espanhol, francês, italiano e romeno são línguas românicas (do latim).' },
+    { id:'g_bar3', s:'hgp', t:'Bárbaros', type:'mc', diff:2, q:'Os Visigodos eram:', opts:['povos romanos','povo bárbaro','povo muçulmano','povo grego'], ans:1, exp:'Visigodos = povo bárbaro de origem germânica que dominou grande parte da Hispânia (séc. V-VIII).' },
+    { id:'g_bar4', s:'hgp', t:'Bárbaros', type:'mc', diff:2, q:'O reino bárbaro mais importante na Península Ibérica foi:', opts:['Suevos (NO)','Vândalos (S)','Visigodos (centro)','Alanos'], ans:2, exp:'O reino dos VISIGODOS dominou quase toda a Hispânia até à invasão muçulmana (711).' },
+    { id:'g_bar5', s:'hgp', t:'Bárbaros', type:'fill', diff:2, q:'Capital do reino visigodo na Hispânia: ___', ans:['Toledo','toledo'], exp:'Toledo (Espanha) — capital do reino visigodo.' },
+    { id:'g_muc3', s:'hgp', t:'Muçulmanos', type:'mc', diff:2, q:'A religião dos muçulmanos é o:', opts:['cristianismo','islão','judaísmo','hinduísmo'], ans:1, exp:'ISLÃO — religião monoteísta fundada por Maomé no séc. VII.' },
+    { id:'g_muc4', s:'hgp', t:'Muçulmanos', type:'mc', diff:2, q:'Lugar de oração muçulmano:', opts:['igreja','sinagoga','mesquita','templo'], ans:2, exp:'MESQUITA é o local de oração dos muçulmanos.' },
+    { id:'g_muc5', s:'hgp', t:'Muçulmanos', type:'tf', diff:2, q:'Os mouros trouxeram para a Península conhecimentos de matemática, medicina e arquitetura.', ans:true, exp:'Verdade — também trouxeram cultivos como a laranja, o açúcar e o algodão.' },
+    { id:'g_muc6', s:'hgp', t:'Muçulmanos', type:'fill', diff:2, q:'Muitas palavras portuguesas começam por "al-" porque vêm do ___ (idioma).', ans:['árabe','arabe'], exp:'Açúcar, álcool, alfândega, almofada... várias palavras portuguesas têm origem árabe.' },
+    { id:'g_rec1', s:'hgp', t:'Reconquista', type:'mc', diff:2, q:'A Reconquista cristã da Península Ibérica começou em:', opts:['Sul (Algarve)','Norte (Astúrias)','Centro (Toledo)','Este (Catalunha)'], ans:1, exp:'A Reconquista começou no NORTE (Reino das Astúrias, séc. VIII), onde os cristãos resistiram aos mouros.' },
+    { id:'g_rec2', s:'hgp', t:'Reconquista', type:'mc', diff:2, q:'A Reconquista TERMINOU em Portugal com a tomada de:', opts:['Lisboa','Coimbra','Faro (Algarve)','Porto'], ans:2, exp:'Em Portugal, a Reconquista termina com a tomada do Algarve (Faro), em 1249, por D. Afonso III.' },
+    { id:'g_rec3', s:'hgp', t:'Reconquista', type:'fill', diff:2, q:'Rei português que terminou a Reconquista (1249): D. Afonso ___', ans:['III','3','3.º'], exp:'D. Afonso III tomou o Algarve em 1249 — fim da Reconquista em Portugal.' },
+    { id:'g_fun1', s:'hgp', t:'Fundação', type:'mc', diff:1, q:'Em que ano foi fundado Portugal (Tratado de Zamora)?', opts:['1139','1143','1147','1249'], ans:1, exp:'1143 — Tratado de Zamora: D. Afonso VII de Leão reconhece D. Afonso Henriques como rei de Portugal.' },
+    { id:'g_fun2', s:'hgp', t:'Fundação', type:'mc', diff:2, q:'D. Afonso Henriques venceu o seu primo Afonso VII na batalha de:', opts:['Ourique','São Mamede','Aljubarrota','Tomar'], ans:1, exp:'Batalha de São Mamede (1128) — D. Afonso Henriques venceu a sua mãe e o conde galego, ganhando autonomia.' },
+    { id:'g_fun3', s:'hgp', t:'Fundação', type:'fill', diff:2, q:'Pais de D. Afonso Henriques: D. Henrique de Borgonha e D. ___ (mãe).', ans:['Teresa','teresa'], exp:'D. Teresa — mãe de D. Afonso Henriques, filha de Afonso VI de Leão.' },
+    { id:'g_lis3', s:'hgp', t:'Lisboa', type:'mc', diff:2, q:'Quem ajudou D. Afonso Henriques na conquista de Lisboa (1147)?', opts:['os mouros','os cruzados','os romanos','os bárbaros'], ans:1, exp:'A conquista de Lisboa contou com a ajuda dos CRUZADOS que iam para a Terra Santa (2.ª Cruzada).' },
+    { id:'g_lis4', s:'hgp', t:'Lisboa', type:'fill', diff:2, q:'O grande terramoto de Lisboa ocorreu em ___ (ano).', ans:['1755'], exp:'1 de novembro de 1755 — terramoto seguido de tsunami e incêndio destruiu grande parte de Lisboa.' },
+    { id:'g_lis5', s:'hgp', t:'Lisboa', type:'mc', diff:2, q:'Quem reconstruiu Lisboa após 1755?', opts:['D. José I','Marquês de Pombal','D. João V','D. Maria I'], ans:1, exp:'O Marquês de Pombal (Sebastião José de Carvalho e Melo) liderou a reconstrução de Lisboa.' },
+    { id:'g_bat3', s:'hgp', t:'Batalhas', type:'mc', diff:2, q:'A Batalha de Aljubarrota foi em:', opts:['1139','1385','1415','1640'], ans:1, exp:'Aljubarrota — 14 de agosto de 1385.' },
+    { id:'g_bat4', s:'hgp', t:'Batalhas', type:'mc', diff:2, q:'Quem comandou os portugueses em Aljubarrota?', opts:['D. Afonso Henriques','D. Nuno Álvares Pereira','D. João I','D. Sebastião'], ans:2, exp:'D. João I (Mestre de Avis) era rei. D. Nuno Álvares Pereira (Santo Condestável) foi o grande estratega.' },
+    { id:'g_bat5', s:'hgp', t:'Batalhas', type:'fill', diff:2, q:'Mosteiro construído em agradecimento pela vitória de Aljubarrota: Mosteiro da ___', ans:['Batalha','batalha'], exp:'Mosteiro da Batalha — Património Mundial da UNESCO, construído por D. João I.' },
+    { id:'g_rei3', s:'hgp', t:'Reis', type:'mc', diff:2, q:'Rei conhecido como "O Conquistador":', opts:['D. Sancho I','D. Afonso Henriques','D. Dinis','D. João II'], ans:1, exp:'D. Afonso Henriques — o Conquistador (conquistou várias terras aos mouros, incluindo Lisboa).' },
+    { id:'g_rei4', s:'hgp', t:'Reis', type:'mc', diff:2, q:'Rei "O Príncipe Perfeito" (séc. XV):', opts:['D. João I','D. João II','D. Manuel I','D. Afonso V'], ans:1, exp:'D. João II — "O Príncipe Perfeito" (1481-1495), forte impulsionador dos Descobrimentos.' },
+    { id:'g_rei5', s:'hgp', t:'Reis', type:'fill', diff:2, q:'Rei português que morreu em Alcácer Quibir (1578): D. ___', ans:['Sebastião','sebastiao','sebastião'], exp:'D. Sebastião desapareceu na batalha de Alcácer Quibir, dando origem ao "sebastianismo".' },
+    { id:'g_cul3', s:'hgp', t:'Cultura', type:'mc', diff:2, q:'Camões escreveu o famoso poema épico:', opts:['A Mensagem','Os Lusíadas','Auto da Barca','O Crime do Padre Amaro'], ans:1, exp:'Os Lusíadas (1572) — epopeia que narra a história dos Descobrimentos.' },
+    { id:'g_cul4', s:'hgp', t:'Cultura', type:'mc', diff:2, q:'Que estilo arquitetónico é típico do tempo dos Descobrimentos?', opts:['gótico','manuelino','barroco','romântico'], ans:1, exp:'O estilo MANUELINO (do tempo de D. Manuel I) — janelas com cordas, motivos marítimos. Ex: Mosteiro dos Jerónimos.' },
+    { id:'g_cul5', s:'hgp', t:'Cultura', type:'fill', diff:2, q:'Antigo nome da capital de Portugal antes de Lisboa: ___', ans:['Coimbra','coimbra','Guimarães','guimarães'], exp:'Guimarães foi a primeira cidade-capital; depois Coimbra (com D. Sancho I); depois Lisboa (com D. Afonso III).' },
+    { id:'g_din3', s:'hgp', t:'Dinastias', type:'mc', diff:2, q:'A 2.ª dinastia portuguesa foi a Dinastia de:', opts:['Bragança','Avis','Filipina','Borgonha'], ans:1, exp:'Dinastia de Avis (1385-1580) — começou com D. João I após Aljubarrota.' },
+    { id:'g_din4', s:'hgp', t:'Dinastias', type:'mc', diff:2, q:'Durante a Dinastia Filipina (1580-1640) Portugal era governado por reis de:', opts:['França','Inglaterra','Espanha','Itália'], ans:2, exp:'União Ibérica — Portugal sob domínio dos reis Filipes de Espanha (Filipe I, II, III).' },
+    { id:'g_din5', s:'hgp', t:'Dinastias', type:'fill', diff:2, q:'Restauração da Independência (1640): início da Dinastia de ___', ans:['Bragança','braganca'], exp:'1 de dezembro de 1640 — D. João IV (Bragança) torna-se rei. Início da 4.ª e última dinastia.' },
+    { id:'g_sim3', s:'hgp', t:'Símbolos', type:'mc', diff:2, q:"Quem compôs a música d'A Portuguesa?", opts:['Alfredo Keil','Eça de Queirós','Camões','Zeca Afonso'], ans:0, exp:'Música: Alfredo Keil. Letra: Henrique Lopes de Mendonça. Composta em 1890.' },
+    { id:'g_sim4', s:'hgp', t:'Símbolos', type:'mc', diff:2, q:'Quantos castelos amarelos tem a bandeira de Portugal?', opts:['5','7','12','15'], ans:1, exp:'A bandeira tem 7 castelos amarelos no rebordo vermelho do escudo (símbolo das praças conquistadas aos mouros).' },
+    { id:'g_sim5', s:'hgp', t:'Símbolos', type:'fill', diff:2, q:'Esfera com linhas que representa os Descobrimentos: ___ (instrumento de navegação).', ans:['esfera armilar','armilar'], exp:'A ESFERA ARMILAR é o símbolo no centro do brasão da bandeira portuguesa — representa os Descobrimentos.' },
+    { id:'g_ord3', s:'hgp', t:'Ordem cronológica', type:'order', diff:2, q:'Ordena os reinados (do mais antigo ao mais recente):', items:['D. Afonso Henriques','D. Dinis','D. João I','D. Manuel I'], exp:'D. Afonso Henriques (1143) → D. Dinis (1279) → D. João I (1385) → D. Manuel I (1495).' },
+    { id:'g_ord4', s:'hgp', t:'Ordem cronológica', type:'mc', diff:2, q:'Qual destes acontecimentos é o MAIS RECENTE?', opts:['Tratado de Zamora (1143)','Conquista do Algarve (1249)','Aljubarrota (1385)','Restauração (1640)'], ans:3, exp:'Restauração da Independência (1640) é o mais recente desta lista.' },
+    { id:'g_ord5', s:'hgp', t:'Ordem cronológica', type:'fill', diff:2, q:'Século da fundação de Portugal (1143): séc. ___', ans:['XII','12','xii'], exp:'Séc. XII (anos 1101-1200). 1143 está no séc. XII.' },
+
+    // ===== Reforço FINAL HGP 5.º — chegar a 10 em cada tópico =====
+    { id:'g_cap7', s:'hgp', t:'Capitais', type:'mc', diff:2, q:'Capital do Japão:', opts:['Pequim','Tóquio','Seul','Bangkok'], ans:1, exp:'Tóquio é a capital do Japão.' },
+    { id:'g_cap8', s:'hgp', t:'Capitais', type:'fill', diff:2, q:'Capital dos Estados Unidos: ___', ans:['Washington','washington'], exp:'Washington D.C. (não Nova Iorque, que é a maior cidade).' },
+    { id:'g_rel8', s:'hgp', t:'Relevo', type:'mc', diff:2, q:'Os fundos do mar (oceano) também fazem parte do relevo. Verdadeiro?', opts:['Sim, é o relevo submarino','Não, só o relevo terrestre conta','Só os recifes','Só as ilhas'], ans:0, exp:'Sim — o relevo submarino tem fossas, montes e planícies abissais.' },
+    { id:'g_rel9', s:'hgp', t:'Relevo', type:'tf', diff:2, q:'O Algarve tem mais montanhas que planícies.', ans:false, exp:'Falso — o Algarve tem litoral de praias e barrocal/serra ligeira (Monchique, Caldeirão), mas predominam as planícies costeiras.' },
+    { id:'g_mon7', s:'hgp', t:'Montanha', type:'mc', diff:2, q:'Onde está localizada a Serra do Gerês?', opts:['Algarve','Norte de Portugal','Açores','Madeira'], ans:1, exp:'Serra do Gerês fica no NORTE de Portugal — único Parque Nacional.' },
+    { id:'g_mon8', s:'hgp', t:'Montanha', type:'tf', diff:2, q:'Na Madeira existe a Pico do Arieiro (~1818 m).', ans:true, exp:'Verdade — Pico do Arieiro é o 3.º ponto mais alto da Madeira.' },
+    { id:'g_mon9', s:'hgp', t:'Montanha', type:'mc', diff:2, q:'O Pico Ruivo (1862 m) fica em:', opts:['Açores','Madeira','Continente','Cabo Verde'], ans:1, exp:'Pico Ruivo é o ponto mais alto da Madeira.' },
+    { id:'g_rio7', s:'hgp', t:'Rios', type:'mc', diff:2, q:'Em que cidade desagua o rio Mondego?', opts:['Coimbra','Figueira da Foz','Aveiro','Porto'], ans:1, exp:'O Mondego desagua na Figueira da Foz.' },
+    { id:'g_rio8', s:'hgp', t:'Rios', type:'fill', diff:2, q:'Rio que atravessa Coimbra: ___', ans:['Mondego'], exp:'O rio Mondego atravessa Coimbra.' },
+    { id:'g_rio9', s:'hgp', t:'Rios', type:'tf', diff:2, q:'O rio Sado é um rio só português (não atravessa Espanha).', ans:true, exp:'Verdade — o Sado nasce e desagua em Portugal (Setúbal). Os rios Tejo, Douro, Minho e Guadiana são também espanhóis.' },
+    { id:'g_cli6', s:'hgp', t:'Clima', type:'mc', diff:2, q:'Em Portugal, no Verão a temperatura mais alta costuma ser no:', opts:['Norte','Algarve / Alentejo (Sul)','Açores','Madeira'], ans:1, exp:'Sul (Alentejo, Algarve) — temperaturas frequentemente acima de 35°C.' },
+    { id:'g_cli7', s:'hgp', t:'Clima', type:'fill', diff:2, q:'Estação mais chuvosa em Portugal: ___', ans:['inverno','Inverno'], exp:'O Inverno é a estação mais chuvosa em Portugal.' },
+    { id:'g_cli8', s:'hgp', t:'Clima', type:'tf', diff:2, q:'O clima dos Açores é influenciado pela Corrente do Golfo.', ans:true, exp:'Verdade — a Corrente do Golfo torna o clima dos Açores ameno todo o ano.' },
+    { id:'g_ilh6', s:'hgp', t:'Ilhas', type:'mc', diff:2, q:'Capital dos Açores:', opts:['Funchal','Ponta Delgada','Angra do Heroísmo','Horta'], ans:1, exp:'Ponta Delgada (ilha de São Miguel) — capital política dos Açores.' },
+    { id:'g_ilh7', s:'hgp', t:'Ilhas', type:'mc', diff:2, q:'A maior ilha dos Açores é:', opts:['Pico','São Miguel','Terceira','Faial'], ans:1, exp:'São Miguel é a maior ilha dos Açores e a mais populosa.' },
+    { id:'g_ilh8', s:'hgp', t:'Ilhas', type:'fill', diff:2, q:'Capital da Madeira: ___', ans:['Funchal','funchal'], exp:'Funchal é a capital da Madeira.' },
+    { id:'g_ilh9', s:'hgp', t:'Ilhas', type:'tf', diff:2, q:'Os Açores estão divididos em 3 grupos: Oriental, Central e Ocidental.', ans:true, exp:'Verdade — Oriental (S. Miguel, S. Maria), Central (Terceira, Graciosa, S. Jorge, Pico, Faial), Ocidental (Flores, Corvo).' },
+    { id:'g_pre7', s:'hgp', t:'Pré-história', type:'mc', diff:2, q:'Antas (dolmens) eram:', opts:['casas','templos','monumentos funerários','muralhas'], ans:2, exp:'Antas (dolmens) eram MONUMENTOS FUNERÁRIOS megalíticos do Neolítico.' },
+    { id:'g_pre8', s:'hgp', t:'Pré-história', type:'tf', diff:2, q:'A Idade dos Metais vem depois do Neolítico.', ans:true, exp:'Verdade — Paleolítico → Neolítico → Idade dos Metais (cobre, bronze, ferro).' },
+    { id:'g_rom8', s:'hgp', t:'Romanos', type:'mc', diff:2, q:'Famosa cidade romana em Portugal (sítio arqueológico):', opts:['Lisboa','Conimbriga','Évora','Porto'], ans:1, exp:'Conimbriga (perto de Coimbra) — uma das maiores cidades romanas em Portugal.' },
+    { id:'g_rom9', s:'hgp', t:'Romanos', type:'tf', diff:2, q:'Os romanos construíram estradas e pontes em Portugal.', ans:true, exp:'Verdade — muitas pontes romanas ainda existem (Chaves, Trajano em Bragança, etc.) — os romanos eram excelentes engenheiros.' },
+    { id:'g_bar6', s:'hgp', t:'Bárbaros', type:'mc', diff:2, q:'O Reino Suevo localizava-se sobretudo na região da actual:', opts:['Andaluzia','Galiza e norte de Portugal','Catalunha','Algarve'], ans:1, exp:'Suevos fixaram-se no NO da Península (atual Galiza e norte de Portugal).' },
+    { id:'g_bar7', s:'hgp', t:'Bárbaros', type:'tf', diff:2, q:'Os Visigodos converteram-se ao cristianismo na Hispânia.', ans:true, exp:'Verdade — os Visigodos, inicialmente arianos, converteram-se ao catolicismo no séc. VI.' },
+    { id:'g_muc7', s:'hgp', t:'Muçulmanos', type:'mc', diff:2, q:'A Reconquista cristã levou aproximadamente quantos anos?', opts:['~50','~200','~700','~1000'], ans:2, exp:'~700 anos — começou em 722 (Covadonga) e terminou em 1492 (Granada).' },
+    { id:'g_muc8', s:'hgp', t:'Muçulmanos', type:'fill', diff:2, q:'Cidade portuguesa que tem nome de origem árabe começado por "Al-": ___ (uma das possíveis).', ans:['Algarve','algarve','Albufeira','albufeira','Alcácer','alcácer'], exp:'Várias cidades portuguesas têm nomes árabes: Algarve (al-Gharb = ocidente), Albufeira, Alcácer, Almada, etc.' },
+    { id:'g_rec4', s:'hgp', t:'Reconquista', type:'mc', diff:2, q:'A primeira vitória cristã da Reconquista foi em:', opts:['Covadonga (722)','Calatañazor','Toledo','Granada'], ans:0, exp:'Batalha de Covadonga (722) — Pelágio (Pelayo) derrota os mouros nas Astúrias.' },
+    { id:'g_rec5', s:'hgp', t:'Reconquista', type:'fill', diff:2, q:'Em que ano terminou a Reconquista em toda a Península (com a tomada de Granada)? ___', ans:['1492'], exp:'1492 — Reis Católicos conquistam Granada (último reino mouro). No mesmo ano: Colombo chega à América.' },
+    { id:'g_fun4', s:'hgp', t:'Fundação', type:'mc', diff:2, q:'Onde nasceu D. Afonso Henriques?', opts:['Coimbra','Guimarães','Viseu','Porto'], ans:1, exp:'Guimarães — daí ser chamada a "cidade berço de Portugal".' },
+    { id:'g_fun5', s:'hgp', t:'Fundação', type:'tf', diff:2, q:'D. Afonso Henriques tornou-se rei depois de derrotar a sua mãe na Batalha de São Mamede.', ans:true, exp:'Verdade — Batalha de São Mamede (1128), em Guimarães, contra a mãe (D. Teresa) e o conde galego.' },
+    { id:'g_lis6', s:'hgp', t:'Lisboa', type:'mc', diff:2, q:'Que monumento foi construído em homenagem aos Descobrimentos no Restelo?', opts:['Mosteiro dos Jerónimos','Castelo de São Jorge','Sé de Lisboa','Padrão dos Descobrimentos'], ans:0, exp:'Mosteiro dos Jerónimos — construído com riquezas dos Descobrimentos. (O Padrão dos Descobrimentos também está lá perto, mas é do séc. XX.)' },
+    { id:'g_lis7', s:'hgp', t:'Lisboa', type:'tf', diff:2, q:'O Castelo de São Jorge foi construído pelos romanos.', ans:false, exp:'Falso — foi construído pelos MOUROS. Os romanos tiveram outras estruturas no local (oppidum).' },
+    { id:'g_bat6', s:'hgp', t:'Batalhas', type:'mc', diff:2, q:'Batalha em que D. Sebastião desapareceu (1578):', opts:['Ourique','Aljubarrota','Alcácer Quibir','Toro'], ans:2, exp:'Alcácer Quibir (Marrocos, 1578) — D. Sebastião desapareceu. Crise de sucessão → União Ibérica (1580).' },
+    { id:'g_bat7', s:'hgp', t:'Batalhas', type:'tf', diff:2, q:'Em Aljubarrota, os portugueses estavam em INFERIORIDADE numérica.', ans:true, exp:'Verdade — ~7000 portugueses contra ~30000 castelhanos. Vitória estratégica de D. Nuno Álvares Pereira.' },
+    { id:'g_rei6', s:'hgp', t:'Reis', type:'mc', diff:2, q:'Rei que fundou a Universidade de Coimbra (1290):', opts:['D. Afonso Henriques','D. Sancho I','D. Dinis','D. João I'], ans:2, exp:'D. Dinis — fundou a Universidade em Lisboa em 1290 (depois transferida para Coimbra).' },
+    { id:'g_rei7', s:'hgp', t:'Reis', type:'tf', diff:2, q:'D. Manuel I governou no tempo dos Descobrimentos.', ans:true, exp:'Verdade — D. Manuel I "O Venturoso" (1495-1521): chegada à Índia, ao Brasil. Estilo manuelino tem o seu nome.' },
+    { id:'g_cul6', s:'hgp', t:'Cultura', type:'mc', diff:2, q:'Mosteiro construído em homenagem à vitória de Aljubarrota:', opts:['Jerónimos','Batalha','Alcobaça','Tibães'], ans:1, exp:'Mosteiro da Batalha — construído por D. João I em agradecimento pela vitória.' },
+    { id:'g_cul7', s:'hgp', t:'Cultura', type:'tf', diff:2, q:'O fado é Património Imaterial da Humanidade (UNESCO).', ans:true, exp:'Verdade — o fado foi reconhecido pela UNESCO em 2011.' },
+    { id:'g_din6', s:'hgp', t:'Dinastias', type:'mc', diff:2, q:'A Dinastia Filipina durou:', opts:['1383-1385','1580-1640','1640-1910','1910-1926'], ans:1, exp:'Dinastia Filipina = União Ibérica = 1580-1640 (60 anos sob domínio espanhol).' },
+    { id:'g_din7', s:'hgp', t:'Dinastias', type:'tf', diff:2, q:'A Dinastia de Bragança terminou em 1910 com a implantação da República.', ans:true, exp:'Verdade — D. Manuel II foi o último rei. 5 de outubro de 1910: implantação da República.' },
+    { id:'g_sim6', s:'hgp', t:'Símbolos', type:'mc', diff:2, q:'Cores da bandeira de Portugal:', opts:['azul e branco','vermelho e amarelo','verde e vermelho','azul e amarelo'], ans:2, exp:'Verde (esquerda) e vermelho (direita) — adotada em 1911 com a República.' },
+    { id:'g_sim7', s:'hgp', t:'Símbolos', type:'tf', diff:2, q:'A bandeira atual de Portugal foi adotada com a República em 1911.', ans:true, exp:'Verdade — antes de 1910 era azul e branco (monarquia).' },
+    { id:'g_ord6', s:'hgp', t:'Ordem cronológica', type:'mc', diff:2, q:'Ordem correta:', opts:['Romanos → Bárbaros → Muçulmanos → Cristãos','Bárbaros → Romanos → Muçulmanos','Muçulmanos → Romanos → Bárbaros','Cristãos → Romanos → Muçulmanos'], ans:0, exp:'Romanos (200 a.C.) → Bárbaros (séc. V) → Muçulmanos (711) → Cristãos (Reconquista a partir do séc. VIII).' },
+    { id:'g_ord7', s:'hgp', t:'Ordem cronológica', type:'fill', diff:2, q:'Século dos Descobrimentos (Vasco da Gama, Cabral): séc. ___', ans:['XV','XVI','15','16'], exp:'Séc. XV (final) e XVI — Cabo da Boa Esperança 1488, Índia 1498, Brasil 1500.' },
+
+    // ===== Reforço FINAL HGP — chegar a 10 em todos =====
+    { id:'g_bar8', s:'hgp', t:'Bárbaros', type:'mc', diff:2, q:'Os bárbaros vinham de que zona da Europa?', opts:['África','sul da Europa','norte e centro da Europa','Médio Oriente'], ans:2, exp:'Bárbaros eram povos germânicos do norte e centro da Europa.' },
+    { id:'g_bar9', s:'hgp', t:'Bárbaros', type:'fill', diff:2, q:'Século da queda do Império Romano do Ocidente: ___', ans:['V','5'], exp:'Séc. V (476 d.C.) — invasões bárbaras provocam a queda.' },
+    { id:'g_rec6', s:'hgp', t:'Reconquista', type:'mc', diff:2, q:'A Reconquista cristã durou aproximadamente:', opts:['100 anos','300 anos','500 anos','quase 800 anos'], ans:3, exp:'~770 anos (722-1492). Em Portugal terminou mais cedo (1249).' },
+    { id:'g_rec7', s:'hgp', t:'Reconquista', type:'tf', diff:2, q:'Os Reis Católicos (Espanha) terminaram a Reconquista em 1492 com a tomada de Granada.', ans:true, exp:'Verdade — Fernando e Isabel "Reis Católicos" tomam Granada em 1492.' },
+    { id:'g_fun6', s:'hgp', t:'Fundação', type:'mc', diff:2, q:'Em que rio (perto de Guimarães) ficou a fronteira do condado portucalense?', opts:['Tejo','Douro','Minho','Mondego'], ans:2, exp:'O rio Minho era a fronteira norte do condado portucalense.' },
+    { id:'g_fun7', s:'hgp', t:'Fundação', type:'tf', diff:2, q:'D. Henrique de Borgonha, pai de D. Afonso Henriques, era francês.', ans:true, exp:'Verdade — D. Henrique de Borgonha veio de França para ajudar na Reconquista.' },
+    { id:'g_lis8', s:'hgp', t:'Lisboa', type:'mc', diff:2, q:'Que cidade portuguesa é conhecida como "cidade das 7 colinas"?', opts:['Coimbra','Porto','Lisboa','Évora'], ans:2, exp:'Lisboa — construída sobre 7 colinas (como Roma).' },
+    { id:'g_lis9', s:'hgp', t:'Lisboa', type:'fill', diff:2, q:'Famosa torre defensiva no rio Tejo: Torre de ___', ans:['Belém','belem'], exp:'Torre de Belém — ex-libris de Lisboa, construída no séc. XVI (D. Manuel I).' },
+    { id:'g_bat8', s:'hgp', t:'Batalhas', type:'mc', diff:2, q:'Que batalha venceu D. Afonso Henriques contra a sua mãe (1128)?', opts:['Ourique','São Mamede','Aljubarrota','Toro'], ans:1, exp:'Batalha de São Mamede (1128), em Guimarães — autonomia do condado.' },
+    { id:'g_bat9', s:'hgp', t:'Batalhas', type:'tf', diff:2, q:'A Batalha de Toro (1476) foi entre Portugal e Espanha pela coroa de Castela.', ans:true, exp:'Verdade — Portugal (D. Afonso V) lutou pela coroa castelhana mas perdeu.' },
+    { id:'g_rei8', s:'hgp', t:'Reis', type:'mc', diff:2, q:'Quem foi o último rei de Portugal?', opts:['D. Carlos I','D. Manuel I','D. Manuel II','D. José I'], ans:2, exp:'D. Manuel II (1908-1910) — exilado quando se implantou a República.' },
+    { id:'g_rei9', s:'hgp', t:'Reis', type:'fill', diff:2, q:'Rei "Príncipe Perfeito": D. ___', ans:['João II','Joao II','D. João II','D. Joao II'], exp:'D. João II (1481-1495) — "O Príncipe Perfeito".' },
+    { id:'g_cul8', s:'hgp', t:'Cultura', type:'mc', diff:2, q:'Famoso poeta português do séc. XX:', opts:['Camões','Fernando Pessoa','Gil Vicente','Eça de Queirós'], ans:1, exp:'Fernando Pessoa (1888-1935) — um dos maiores poetas portugueses.' },
+    { id:'g_cul9', s:'hgp', t:'Cultura', type:'tf', diff:2, q:'A azulejaria é uma arte tipicamente portuguesa.', ans:true, exp:'Verdade — embora venha do mundo árabe, Portugal desenvolveu uma tradição muito própria de azulejos.' },
+    { id:'g_din8', s:'hgp', t:'Dinastias', type:'mc', diff:2, q:'Quantas dinastias teve Portugal?', opts:['2','3','4','5'], ans:2, exp:'4 dinastias: Borgonha (1.ª), Avis (2.ª), Filipina (3.ª), Bragança (4.ª).' },
+    { id:'g_din9', s:'hgp', t:'Dinastias', type:'tf', diff:2, q:'A Dinastia de Avis começou após a Batalha de Aljubarrota.', ans:true, exp:'Verdade — D. João I (Mestre de Avis) tornou-se rei após Aljubarrota (1385).' },
+    { id:'g_sim8', s:'hgp', t:'Símbolos', type:'mc', diff:2, q:'O brasão da bandeira tem:', opts:['5 quinas','7 castelos','5 quinas e 7 castelos','só uma esfera armilar'], ans:2, exp:'5 escudos azuis (quinas) + 7 castelos amarelos no rebordo + esfera armilar atrás.' },
+    { id:'g_sim9', s:'hgp', t:'Símbolos', type:'tf', diff:2, q:'A flor símbolo de Portugal é o cravo (lembra o 25 de Abril).', ans:true, exp:'Verdade — o CRAVO simboliza a Revolução de 1974 ("Revolução dos Cravos").' },
+    { id:'g_ord8', s:'hgp', t:'Ordem cronológica', type:'mc', diff:2, q:'Que séculos compõem o "tempo dos Descobrimentos"?', opts:['XI-XII','XIII-XIV','XV-XVI','XVII-XVIII'], ans:2, exp:'Séculos XV e XVI — Ceuta (1415), Índia (1498), Brasil (1500).' },
+    { id:'g_ord9', s:'hgp', t:'Ordem cronológica', type:'fill', diff:2, q:'Século da Restauração da Independência (1640): séc. ___', ans:['XVII','17','xvii'], exp:'Séc. XVII (1601-1700). 1640 está no séc. XVII.' }
 ];
 
 // ========== CURRICULUM (ordem dos tópicos do livro / programa) ==========
@@ -1837,7 +2323,28 @@ const EXERCISES_6 = [
     { id:'c6_rp2', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'A polinização é:', opts:['a união do gameta masculino com o óvulo','o transporte do pólen da antera para o estigma','a germinação da semente','a formação do fruto'], ans:1, exp:'POLINIZAÇÃO = transporte do PÓLEN (antera ♂) para o ESTIGMA (♀). FECUNDAÇÃO é a união dos gametas.' },
     { id:'c6_rp3', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'Após a fecundação, o ovário transforma-se em:', opts:['semente','fruto','folha','raiz'], ans:1, exp:'OVÁRIO → FRUTO. ÓVULO → SEMENTE.' },
     { id:'c6_rp4', s:'ciencias', t:'Reprodução das plantas', type:'tf', diff:2, q:'A reprodução por estolhos (ex: morangueiro) é uma reprodução assexuada.', ans:true, exp:'Verdade — não envolve flores nem sementes; gera plantas geneticamente IGUAIS (clones).' },
-    { id:'c6_rp5', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'Qual destes NÃO é um agente polinizador?', opts:['abelhas','vento','sol','beija-flores'], ans:2, exp:'O SOL não polinaliza — é fonte de energia para a fotossíntese. Polinizam: insetos, vento, aves, água.' }
+    { id:'c6_rp5', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'Qual destes NÃO é um agente polinizador?', opts:['abelhas','vento','sol','beija-flores'], ans:2, exp:'O SOL não polinaliza — é fonte de energia para a fotossíntese. Polinizam: insetos, vento, aves, água.' },
+
+    // Sistema imunitário — +5 (total 10)
+    { id:'c6_si6', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1, q:'Qual destes é uma BARREIRA EXTERNA do sistema imunitário?', opts:['glóbulos brancos','pele','mitocôndrias','plaquetas'], ans:1, exp:'A PELE é a 1.ª linha de defesa (barreira externa). Os glóbulos brancos são defesa interna.' },
+    { id:'c6_si7', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2, q:'Os anticorpos são produzidos pelos:', opts:['glóbulos vermelhos','linfócitos B','plaquetas','neurónios'], ans:1, exp:'LINFÓCITOS B produzem anticorpos. Linfócitos T destroem células infetadas.' },
+    { id:'c6_si8', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:2, q:'Os antibióticos funcionam contra vírus.', ans:false, exp:'Falso. Os antibióticos só atuam em BACTÉRIAS. Para vírus usam-se antivirais ou prevenção (vacina).' },
+    { id:'c6_si9', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2, q:'A imunidade que o bebé recebe pelo leite materno é:', opts:['ativa natural','ativa artificial','passiva natural','passiva artificial'], ans:2, exp:'Anticorpos da mãe → bebé pelo leite ou placenta = imunidade PASSIVA NATURAL (curta duração).' },
+    { id:'c6_si10', s:'ciencias', t:'Sistema imunitário', type:'fill', diff:2, q:'Doença em que o sistema imunitário ataca o próprio corpo: doença ___ (categoria).', ans:['autoimune','autoimunes'], exp:'Doenças AUTOIMUNES: o sistema imunitário ataca o próprio corpo. Ex: diabetes tipo 1, lúpus.' },
+
+    // Plantas — trocas nutricionais — +5 (total 10)
+    { id:'c6_pn6', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2, q:'O floema transporta:', opts:['água do solo','seiva elaborada (com glicose)','dióxido de carbono','oxigénio'], ans:1, exp:'FLOEMA = vasos liberinos que transportam SEIVA ELABORADA (glicose feita na fotossíntese) por toda a planta.' },
+    { id:'c6_pn7', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2, q:'Na fotossíntese, a planta usa:', opts:['O₂ + glicose','CO₂ + água + luz','azoto + água','glicose + sais'], ans:1, exp:'Fotossíntese: 6 CO₂ + 6 H₂O + LUZ → glicose + 6 O₂.' },
+    { id:'c6_pn8', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2, q:'O pigmento verde responsável pela captação de luz é:', opts:['hemoglobina','clorofila','melanina','caroteno'], ans:1, exp:'CLOROFILA = pigmento verde dos cloroplastos que capta a luz solar para a fotossíntese.' },
+    { id:'c6_pn9', s:'ciencias', t:'Plantas — trocas nutricionais', type:'tf', diff:2, q:'Quando uma planta TRANSPIRA, liberta vapor de água pelos estomas.', ans:true, exp:'Verdade — a transpiração também ajuda a "puxar" a seiva bruta para cima e refrigera a planta.' },
+    { id:'c6_pn10', s:'ciencias', t:'Plantas — trocas nutricionais', type:'fill', diff:2, q:'Mistura de água + sais minerais que sobe da raiz: seiva ___', ans:['bruta','xilémica'], exp:'SEIVA BRUTA (ou xilémica) = água + sais. Sobe pelo XILEMA até às folhas.' },
+
+    // Reprodução das plantas — +5 (total 10)
+    { id:'c6_rp6', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:1, q:'Qual destas é uma forma de reprodução ASSEXUADA das plantas?', opts:['polinização','fecundação','estaca','germinação'], ans:2, exp:'ESTACA = corta-se um ramo e planta-se → reprodução assexuada (clone). Outras: estolhos, tubérculos, bolbos.' },
+    { id:'c6_rp7', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'Parte MASCULINA da flor:', opts:['gineceu (carpelos)','androceu (estames)','sépalas','pétalas'], ans:1, exp:'ANDROCEU (estames com anteras) = parte masculina, produz pólen. GINECEU = parte feminina (carpelos com óvulos).' },
+    { id:'c6_rp8', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2, q:'O pólen é produzido nas:', opts:['sépalas','pétalas','anteras (estames)','ovários'], ans:2, exp:'As ANTERAS dos estames produzem o pólen (gametas masculinos).' },
+    { id:'c6_rp9', s:'ciencias', t:'Reprodução das plantas', type:'tf', diff:2, q:'A batata é uma forma de reprodução assexuada (tubérculo).', ans:true, exp:'Verdade — a batata é um TUBÉRCULO (caule subterrâneo) que origina novas plantas.' },
+    { id:'c6_rp10', s:'ciencias', t:'Reprodução das plantas', type:'fill', diff:2, q:'Conjunto das pétalas de uma flor: ___', ans:['corola'], exp:'COROLA = conjunto das pétalas (atraem polinizadores). CÁLICE = conjunto das sépalas (verdes, protegem o botão).' }
 ];
 
 const CURRICULUM_6 = {
