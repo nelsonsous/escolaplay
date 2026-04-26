@@ -503,6 +503,7 @@ function updateHeader() {
     document.getElementById('user-name').textContent = state.profile.name;
     document.getElementById('level-name').textContent = lvl.name;
     document.getElementById('streak-days').textContent = state.streak.days;
+    _updateStreakChipVisuals();
     document.getElementById('xp-total').textContent = state.xp;
     document.getElementById('xp-into-level').textContent = lvl.into;
     document.getElementById('xp-next-level').textContent = lvl.span;
@@ -516,9 +517,61 @@ function updateHeader() {
     }
 }
 
+// Tier visual + emoji do streak conforme dias seguidos
+function _streakTier(days) {
+    if (days >= 30) return { tier: 4, emoji: '👑' };
+    if (days >= 14) return { tier: 4, emoji: '⭐' };
+    if (days >= 7)  return { tier: 3, emoji: '🏆' };
+    if (days >= 3)  return { tier: 2, emoji: '🔥' };
+    if (days >= 1)  return { tier: 1, emoji: '🔥' };
+    return { tier: 0, emoji: '🔥' };
+}
+function _updateStreakChipVisuals() {
+    const days = state.streak.days || 0;
+    const { tier, emoji } = _streakTier(days);
+    document.querySelectorAll('.chip-streak').forEach(chip => {
+        chip.classList.remove('tier-1','tier-2','tier-3','tier-4','active');
+        if (tier > 0) chip.classList.add('tier-' + tier);
+        if (days >= 3) chip.classList.add('active');
+        const em = chip.querySelector('.streak-emoji');
+        if (em) em.textContent = emoji;
+        // tooltip dinâmico
+        const next = days < 3 ? 3 : days < 7 ? 7 : days < 14 ? 14 : days < 30 ? 30 : null;
+        const tip = next ? `${days} dias seguidos! Faltam ${next-days} para ${_streakTier(next).emoji}` : `${days} dias seguidos! 👑 Lendário!`;
+        chip.title = tip;
+    });
+}
+
+// Anima o chip quando o streak acabou de aumentar
+function _flashStreakChip() {
+    document.querySelectorAll('.chip-streak').forEach(chip => {
+        chip.classList.remove('just-up');
+        // Force reflow para reiniciar animação
+        void chip.offsetWidth;
+        chip.classList.add('just-up');
+        setTimeout(() => chip.classList.remove('just-up'), 900);
+    });
+}
+
 // ========== HOME ==========
 function renderHome() {
     document.getElementById('mini-streak').textContent = state.streak.days;
+    // Atualiza emoji + label do mini-card de streak
+    const days = state.streak.days || 0;
+    const { tier, emoji } = _streakTier(days);
+    const miniEmoji = document.getElementById('mini-streak-emoji');
+    if (miniEmoji) miniEmoji.textContent = emoji;
+    const miniCard = document.getElementById('mini-card-streak');
+    if (miniCard) {
+        miniCard.classList.remove('tier-1','tier-2','tier-3','tier-4');
+        if (tier > 0) miniCard.classList.add('tier-' + tier);
+    }
+    const miniLabel = document.getElementById('mini-streak-label');
+    if (miniLabel) {
+        if (days === 0) miniLabel.textContent = 'começa hoje!';
+        else if (days === 1) miniLabel.textContent = 'dia (continua amanhã!)';
+        else miniLabel.textContent = 'dias seguidos';
+    }
     document.getElementById('mini-xp').textContent = state.xp;
     document.getElementById('mini-correct').textContent = totalCorrect(state);
     document.getElementById('mini-badges').textContent = state.badges.length;
@@ -3503,24 +3556,45 @@ function finishSession() {
         return;
     }
     let newBadges = [];
-    if (s.isDaily) {
-        const today = todayStr();
-        const lastDate = state.streak.lastDate;
-        if (lastDate !== today) {
-            const gap = daysBetween(lastDate, today);
-            if (gap === 1) state.streak.days += 1;
-            else state.streak.days = 1;
-            state.streak.lastDate = today;
-            if (state.streak.days > state.streak.best) state.streak.best = state.streak.days;
+    // === STREAK (Ofensiva) ===
+    // Conta QUALQUER sessão de exercícios (não só desafio diário).
+    // Tolera 1 dia de folga: reset só ocorre quando passam 2+ dias sem fazer
+    // (gap entre o último dia e hoje > 2).
+    const today = todayStr();
+    const prevStreak = state.streak.days;
+    const lastDate = state.streak.lastDate;
+    let streakJustIncreased = false;
+    let streakReset = false;
+    if (lastDate !== today) {
+        const gap = daysBetween(lastDate, today);
+        if (gap >= 1 && gap <= 2) {
+            // Continuou: gap=1 (jogou ontem) ou gap=2 (1 dia de folga, ainda dentro)
+            state.streak.days += 1;
+            streakJustIncreased = true;
+        } else {
+            // Reinicia: ou primeira vez, ou passaram 2+ dias sem fazer
+            if (state.streak.days > 0) streakReset = true;
+            state.streak.days = 1;
         }
+        state.streak.lastDate = today;
+        if (state.streak.days > state.streak.best) state.streak.best = state.streak.days;
+    }
+    if (s.isDaily) {
         state.daily = { date: today, completed: true, correct: s.correct };
         state.totalDailies = (state.totalDailies || 0) + 1;
         if (s.correct === s.items.length) state.perfectDailies = (state.perfectDailies || 0) + 1;
     }
-    // Streak: se acabou desafio diário e streak subiu, tocar som
-    let streakJustIncreased = false;
-    if (s.isDaily && state.streak.lastDate === todayStr()) {
-        streakJustIncreased = state.streak.days >= 3;
+    // Notificações visuais ao utilizador
+    if (streakJustIncreased && state.streak.days >= 2) {
+        const milestoneMap = { 3: '🔥 3 dias seguidos!', 7: '🏆 1 semana inteira!', 14: '⭐ 2 semanas!', 30: '👑 1 mês completo!', 60: '💎 2 meses!', 100: '🌟 100 dias!' };
+        const ms = milestoneMap[state.streak.days];
+        if (ms) showToast(ms);
+        else if (typeof showToast === 'function') showToast(`🔥 ${state.streak.days} dias seguidos!`);
+        // Animação visual no chip
+        setTimeout(() => { try { _flashStreakChip(); } catch(_) {} }, 200);
+    } else if (streakReset && prevStreak >= 3) {
+        // Aviso amistoso quando perdeu uma streak grande
+        if (typeof showToast === 'function') showToast(`💪 Recomeçaste a tua ofensiva! (anterior: ${prevStreak} dias)`);
     }
     BADGES.forEach(b => {
         if (!state.badges.includes(b.id) && b.check(state)) {

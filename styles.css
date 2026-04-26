@@ -88,6 +88,50 @@ body {
 }
 .chip:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
 .chip-streak { color: #fed7aa; }
+.chip-streak .streak-emoji { font-size: 1.05em; line-height: 1; display: inline-block; }
+/* Variantes por marco — visual progressivamente mais "premium" */
+.chip-streak.tier-1 { background: linear-gradient(135deg, rgba(251,146,60,0.45), rgba(254,215,170,0.25)); border-color: #fb923c; color: #fff7ed; box-shadow: 0 0 0 2px rgba(251,146,60,0.25), 0 4px 12px rgba(251,146,60,0.35); }
+.chip-streak.tier-2 { background: linear-gradient(135deg, rgba(245,158,11,0.55), rgba(252,211,77,0.30)); border-color: #f59e0b; color: #fffbeb; box-shadow: 0 0 0 2px rgba(245,158,11,0.30), 0 4px 14px rgba(245,158,11,0.45); }
+.chip-streak.tier-3 { background: linear-gradient(135deg, rgba(234,88,12,0.6), rgba(251,113,133,0.35)); border-color: #fb7185; color: #fef2f2; box-shadow: 0 0 0 2px rgba(251,113,133,0.35), 0 6px 18px rgba(234,88,12,0.5); animation: streakPulse 2.4s ease-in-out infinite; }
+.chip-streak.tier-4 { background: linear-gradient(135deg, rgba(168,85,247,0.6), rgba(236,72,153,0.45)); border-color: #ec4899; color: #fff; box-shadow: 0 0 0 2px rgba(236,72,153,0.4), 0 6px 20px rgba(168,85,247,0.55); animation: streakPulse 2s ease-in-out infinite; }
+.chip-streak .streak-emoji { transition: transform .3s; }
+.chip-streak.tier-2 .streak-emoji,
+.chip-streak.tier-3 .streak-emoji,
+.chip-streak.tier-4 .streak-emoji { animation: streakBounce 1.8s ease-in-out infinite; }
+@keyframes streakPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+@keyframes streakBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-2px) scale(1.15); }
+}
+/* Mini-card de streak na Home com cores progressivas */
+.mini-card-icon-streak {
+    background: #fef2f2;
+    color: #dc2626;
+    display: flex; align-items: center; justify-content: center;
+}
+.mini-card-streak.tier-1 .mini-card-icon-streak { background: linear-gradient(135deg, #ffedd5, #fed7aa); }
+.mini-card-streak.tier-2 .mini-card-icon-streak { background: linear-gradient(135deg, #fed7aa, #fb923c); box-shadow: 0 0 0 2px rgba(251,146,60,0.2); }
+.mini-card-streak.tier-3 .mini-card-icon-streak { background: linear-gradient(135deg, #fbbf24, #f97316); box-shadow: 0 0 0 2px rgba(245,158,11,0.3); }
+.mini-card-streak.tier-4 .mini-card-icon-streak { background: linear-gradient(135deg, #ec4899, #a855f7); box-shadow: 0 0 0 2px rgba(168,85,247,0.35); }
+.mini-card-streak.tier-2 .mini-card-icon-streak span,
+.mini-card-streak.tier-3 .mini-card-icon-streak span,
+.mini-card-streak.tier-4 .mini-card-icon-streak span { animation: streakBounce 1.8s ease-in-out infinite; }
+.mini-card-streak.tier-3 .mini-card-value,
+.mini-card-streak.tier-4 .mini-card-value { background: linear-gradient(135deg, #f59e0b, #ec4899); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* Animação especial quando incrementa */
+.chip-streak.just-up {
+    animation: streakBurst 0.8s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes streakBurst {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.3) rotate(-5deg); }
+    60%  { transform: scale(1.1) rotate(3deg); }
+    100% { transform: scale(1) rotate(0); }
+}
 .chip-xp { color: #fef08a; }
 
 .xp-bar-wrap {

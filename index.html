@@ -28,8 +28,8 @@
             </div>
         </div>
         <div class="header-right">
-            <div class="chip chip-streak" title="Dias seguidos">
-                <i class="fas fa-fire"></i> <span id="streak-days">0</span>
+            <div class="chip chip-streak" id="streak-chip" title="Ofensiva — dias seguidos a fazer testes">
+                <span class="streak-emoji" id="streak-emoji">🔥</span> <span id="streak-days">0</span>
             </div>
             <div class="chip chip-xp" title="Experiência">
                 <i class="fas fa-star"></i> <span id="xp-total">0</span>
@@ -109,11 +109,11 @@
         </div>
 
         <div class="grid-2">
-            <div class="mini-card">
-                <div class="mini-card-icon" style="background:#fef2f2;color:#dc2626"><i class="fas fa-fire"></i></div>
+            <div class="mini-card mini-card-streak" id="mini-card-streak">
+                <div class="mini-card-icon mini-card-icon-streak"><span id="mini-streak-emoji" style="font-size:1.2em">🔥</span></div>
                 <div class="mini-card-body">
                     <div class="mini-card-value" id="mini-streak">0</div>
-                    <div class="mini-card-label">dias seguidos</div>
+                    <div class="mini-card-label" id="mini-streak-label">dias seguidos</div>
                 </div>
             </div>
             <div class="mini-card">
