@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v153';
+const APP_VERSION = 'v154';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2713,7 +2713,7 @@ function startSubjectSession(key, opts = {}) {
         }
     }
     const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
-    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, startedAt: Date.now() };
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now() };
     closeSubjectDetail();
     openExerciseScreen();
     renderQuestion();
@@ -3721,6 +3721,16 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
         }
     }
 
+    // Botão "Mais um ciclo!" — só em sessões de treino normais (não diário, não teste, não duelo)
+    const newCycleWrap = document.getElementById('summary-newcycle-wrap');
+    if (newCycleWrap) {
+        if (!s.isDaily && !s.testId && !s.isDuel && !s.isMax && !s._isRetry && s.subject) {
+            newCycleWrap.innerHTML = `<button class="btn btn-block" onclick="startNewCycle()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:700;padding:14px;margin-bottom:10px;border:none"><i class="fas fa-rotate-right"></i> Mais um ciclo!</button>`;
+        } else {
+            newCycleWrap.innerHTML = '';
+        }
+    }
+
     // Modal de prémio desbloqueado
     if (newRewards && newRewards.length > 0) {
         pendingRewardId = newRewards[0].id;
@@ -3844,6 +3854,21 @@ function closeSummary() {
     currentSession = null;
     updateAll();
     switchTab('home');
+}
+
+// Inicia novo ciclo com o mesmo tópico/disciplina (bypassa verificação de "tudo visto")
+function startNewCycle() {
+    const s = currentSession;
+    if (!s || !s.subject) { closeSummary(); return; }
+    const key = s.subject;
+    const topicSet = s.topicSet || activeTopicsFor(key);
+    const pool = allExercisesFor(key, topicSet);
+    if (pool.length === 0) { closeSummary(); return; }
+    const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
+    document.getElementById('summary-screen').style.display = 'none';
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now() };
+    openExerciseScreen();
+    renderQuestion();
 }
 
 // Inicia uma mini-sessão só com as perguntas que o aluno errou

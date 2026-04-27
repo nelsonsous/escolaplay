@@ -446,7 +446,7 @@ const EXERCISES_2 = [
 
     // ===== Português — novos tópicos (Hiato, Nomes, Adjetivos, Género, Grau, Verbos passado/futuro, Pontuação) =====
     { id:'2p15', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'Qual destas palavras tem HIATO?', opts:['pai','saúde','boi','outro'], ans:1, exp:'Saúde = sa-ú-de (3 sílabas, "a" e "u" separados) → hiato. As outras são ditongos.' },
-    { id:'2p16', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'A palavra "leão" tem hiato.', ans:true, exp:'le-ã-o → 3 sílabas, vogais separadas → HIATO.' },
+    { id:'2p16', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'A palavra "leão" tem hiato.', ans:false, exp:'Falso! "Leão" = le-ão (2 sílabas). O "ão" é um ditongo nasal (vogais na mesma sílaba) → NÃO é hiato. Exemplo de hiato: "vo-o" (voo) ou "ru-í-do".' },
     { id:'2p17', s:'portugues', t:'Hiato', type:'fill', diff:2, q:'Quantas sílabas tem "saída"?', ans:['3','três'], exp:'sa-í-da → 3 sílabas (hiato entre a e í).' },
     { id:'2p18', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Qual destes é um nome PRÓPRIO?', opts:['cidade','livro','Lisboa','rapaz'], ans:2, exp:'Lisboa identifica uma cidade ESPECÍFICA → nome próprio (com maiúscula).' },
     { id:'2p19', s:'portugues', t:'Nomes próprios e comuns', type:'mc', diff:1, q:'Qual destes é um nome COMUM?', opts:['Maria','Bobi','gato','Tejo'], ans:2, exp:'Gato dá nome a TODOS os animais desta espécie → nome comum (minúscula).' },
