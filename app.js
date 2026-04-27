@@ -335,7 +335,46 @@ const _yearExtrasLoaded = {};
 // SW (cada pedido tinha URL única) e fazia 9 round-trips de rede em cada
 // boot, o que aumentava a probabilidade de falhas silenciosas em redes
 // instáveis (resultando em tópicos com 0 exs).
-const APP_VERSION = 'v146';
+const APP_VERSION = 'v147';
+
+// ===== Auto-detector de cache stale =====
+// Sempre que o utilizador instala uma nova versão da app, esta lógica
+// garante UMA limpeza forçada de cache + SW na primeira execução. Isto
+// evita o problema "tópicos com 0 exs" causado por SW a servir app.js
+// antigo e content.js novo (mismatch entre YEAR_EXTRA_FILES e CURRICULUM).
+(function _autoCleanOnVersionFirstRun() {
+    try {
+        const KEY = 'escolaplay_cleaned_for_' + APP_VERSION;
+        if (localStorage.getItem(KEY)) return; // já correu nesta versão
+        // Marca já a flag para evitar loop infinito (só permitimos 1 reload por versão)
+        localStorage.setItem(KEY, '1');
+
+        // Detetar se há SW registado E cache stale (primeira instalação não tem cache)
+        const hasSW = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+        const hasCacheStorage = !!window.caches;
+        if (!hasSW && !hasCacheStorage) return; // nada para limpar
+
+        console.log('[escolaplay] primeira execução de ' + APP_VERSION + ' — a limpar cache + SW…');
+        (async () => {
+            try {
+                if (window.caches && caches.keys) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(k => caches.delete(k)));
+                }
+                if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(regs.map(r => r.unregister()));
+                }
+            } catch (e) { console.warn(e); }
+            // Pequeno delay para o SW terminar unregister, depois reload limpo
+            setTimeout(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('_v', APP_VERSION);
+                window.location.replace(url.toString());
+            }, 150);
+        })();
+    } catch (e) { /* localStorage indisponível, ignora */ }
+})();
 
 function _loadExtraScript(file, attempt = 1) {
     return new Promise(resolve => {
