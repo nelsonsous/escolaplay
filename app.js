@@ -297,9 +297,13 @@ const YEAR_EXTRA_FILES = {
     2: [
         { src: 'content_2_extra.js',    varName: 'EXERCISES_2_EXTRA' },
         { src: 'content_2_p_extra2.js', varName: 'EXERCISES_2_P_EXTRA2' },
+        { src: 'content_2_p_extra3.js', varName: 'EXERCISES_2_P_EXTRA3' },
         { src: 'content_2_m_extra2.js', varName: 'EXERCISES_2_M_EXTRA2' },
+        { src: 'content_2_m_extra3.js', varName: 'EXERCISES_2_M_EXTRA3' },
         { src: 'content_2_e_extra2.js', varName: 'EXERCISES_2_E_EXTRA2' },
-        { src: 'content_2_i_extra2.js', varName: 'EXERCISES_2_I_EXTRA2' }
+        { src: 'content_2_e_extra3.js', varName: 'EXERCISES_2_E_EXTRA3' },
+        { src: 'content_2_i_extra2.js', varName: 'EXERCISES_2_I_EXTRA2' },
+        { src: 'content_2_i_extra3.js', varName: 'EXERCISES_2_I_EXTRA3' }
     ],
     5: [
         { src: 'content_5_p_extra.js', varName: 'EXERCISES_5_P_EXTRA' },
