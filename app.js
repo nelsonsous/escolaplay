@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v151';
+const APP_VERSION = 'v152';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5386,10 +5386,14 @@ function _renderMarkdownTables(html) {
         out += '</tr></thead><tbody>';
         rows.forEach(r => {
             out += '<tr>';
-            // Garante mesmo número de colunas que o header
+            // Garante mesmo número de colunas que o header.
+            // Inclui data-label com o cabeçalho da coluna — em layouts
+            // mobile (2.º ano) é mostrado como etiqueta antes da célula
+            // para não perder o contexto quando o thead é ocultado.
             for (let i = 0; i < header.length; i++) {
+                const headerLabel = (header[i] || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/"/g, '&quot;');
                 const cell = (r[i] || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-                out += `<td>${cell}</td>`;
+                out += `<td data-label="${headerLabel}">${cell}</td>`;
             }
             out += '</tr>';
         });

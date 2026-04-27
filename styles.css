@@ -1307,12 +1307,31 @@ body {
     margin-bottom: 2px;
     line-height: 1.25;
 }
-/* Restantes células = subtítulos discretos */
+/* Restantes células = subtítulos discretos com etiqueta do header
+   (data-label vem do parser para não perder contexto sem thead). */
 .lesson-body--y2 .lesson-table td:not(:first-child) {
     font-size: 0.92em;
     color: #475569;
     padding-left: 0;
     line-height: 1.35;
+}
+.lesson-body--y2 .lesson-table td:not(:first-child)[data-label]:not([data-label=""])::before {
+    content: attr(data-label) ": ";
+    color: #7c3aed;
+    font-weight: 700;
+    margin-right: 4px;
+    font-size: 0.88em;
+}
+/* Quando a primeira coluna NÃO tem header (tabela "comparativa" estilo
+   Hiato vs Ditongo), tornamos a 1.ª célula uma etiqueta normal — não
+   título — e damos label também a ela. */
+.lesson-body--y2 .lesson-table td:first-child[data-label]:not([data-label=""])::before {
+    content: attr(data-label) ": ";
+    color: #7c3aed;
+    font-weight: 700;
+    font-size: 0.85em;
+    display: block;
+    margin-bottom: 1px;
 }
 /* Cards com emojis nas pontas para tornar visual */
 .lesson-body--y2 .lesson-table td:first-child::before {
