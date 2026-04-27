@@ -309,11 +309,13 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_5_h_extra.js', varName: 'EXERCISES_5_H_EXTRA' }
     ],
     6: [
-        { src: 'content_6_p_extra.js', varName: 'EXERCISES_6_P_EXTRA' },
-        { src: 'content_6_m_extra.js', varName: 'EXERCISES_6_M_EXTRA' },
-        { src: 'content_6_i_extra.js', varName: 'EXERCISES_6_I_EXTRA' },
-        { src: 'content_6_c_extra.js', varName: 'EXERCISES_6_C_EXTRA' },
-        { src: 'content_6_h_extra.js', varName: 'EXERCISES_6_H_EXTRA' }
+        { src: 'content_6_p_extra.js',  varName: 'EXERCISES_6_P_EXTRA' },
+        { src: 'content_6_p_extra2.js', varName: 'EXERCISES_6_P_EXTRA2' },
+        { src: 'content_6_m_extra.js',  varName: 'EXERCISES_6_M_EXTRA' },
+        { src: 'content_6_m_extra2.js', varName: 'EXERCISES_6_M_EXTRA2' },
+        { src: 'content_6_i_extra.js',  varName: 'EXERCISES_6_I_EXTRA' },
+        { src: 'content_6_c_extra.js',  varName: 'EXERCISES_6_C_EXTRA' },
+        { src: 'content_6_h_extra.js',  varName: 'EXERCISES_6_H_EXTRA' }
     ],
     11: [
         { src: 'content_11_q_extra.js', varName: 'EXERCISES_11_Q_EXTRA' }

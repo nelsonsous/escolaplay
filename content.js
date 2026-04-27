@@ -38,36 +38,32 @@ const CURRICULUM_2 = {
         'Pontuação básica'
     ],
     matematica: [
-        // Números
+        // P1 — Números até 100 e operações simples
         'Dezenas e unidades',
         'Números até 100',
-        // Operações
         'Adição até 100',
+        // P2 — Subtração, multiplicação, tabuadas iniciais e medidas
         'Subtração até 100',
         'Multiplicação',
-        'Divisão',
-        // Tabuadas
         'Tabuada do 2',
+        'Tabuada do 5',
+        'Tabuada do 10',
         'Tabuada do 3',
         'Tabuada do 4',
-        'Tabuada do 5',
+        'Comprimento',
+        'Massa',
+        'Capacidade',
+        // P3 — Restantes tabuadas, divisão, frações, geometria, tempo, dinheiro e gráficos
         'Tabuada do 6',
         'Tabuada do 7',
         'Tabuada do 8',
         'Tabuada do 9',
-        'Tabuada do 10',
-        // Frações simples
+        'Divisão',
         'Frações simples',
-        // Geometria
         'Figuras planas',
         'Sólidos geométricos',
-        // Medidas
         'Medir tempo',
-        'Comprimento',
-        'Massa',
-        'Capacidade',
         'Dinheiro (€)',
-        // Estatística
         'Gráficos'
     ],
     estudo_meio: [
@@ -104,12 +100,51 @@ const CURRICULUM_2 = {
     ]
 };
 
-// Períodos por tópico (1, 2 ou 3) — ano lectivo dividido em 3 períodos
+// Períodos por tópico (1, 2 ou 3) — ano lectivo dividido em 3 períodos.
+// Alinhado com o manual "Supermiúdos" (Texto Editores) e Aprendizagens Essenciais 2.º ano.
 const PERIODS_2 = {
-    portugues:   { 'Vogais e consoantes':1, 'Sílabas':1, 'Ditongos':1, 'Sinónimos':2, 'Antónimos':2, 'Família de palavras':2, 'Tipos de frase':3, 'Singular e plural':3, 'Verbos no presente':3 },
-    matematica:  { 'Números até 100':1, 'Dezenas e unidades':1, 'Adição até 100':1, 'Subtração até 100':2, 'Tabuada do 2':2, 'Tabuada do 5':2, 'Tabuada do 10':2, 'Sólidos geométricos':3, 'Figuras planas':3, 'Medir tempo':3, 'Dinheiro (€)':3 },
-    estudo_meio: { 'O meu corpo':1, 'A minha família':1, 'A escola':1, 'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Os sentidos':3, 'Profissões':3, 'Portugal':3 },
-    ingles:      { 'Cores':1, 'Números':1, 'Animais':2, 'Família':2, 'Cumprimentos':3 }
+    portugues:   {
+        // P1 — Sons e sílabas
+        'Vogais e consoantes':1, 'Sílabas':1, 'Ditongos':1, 'Hiato':1,
+        // P2 — Significado e classes de palavras
+        'Sinónimos':2, 'Antónimos':2, 'Família de palavras':2,
+        'Nomes próprios e comuns':2, 'Adjetivos':2,
+        // P3 — Flexão, verbos e frase
+        'Singular e plural':3, 'Género (masculino e feminino)':3, 'Grau (aumentativo e diminutivo)':3,
+        'Verbos no presente':3, 'Verbos no passado e futuro':3,
+        'Tipos de frase':3, 'Pontuação básica':3
+    },
+    matematica:  {
+        // P1 — Números até 100 e operações simples
+        'Dezenas e unidades':1, 'Números até 100':1, 'Adição até 100':1,
+        // P2 — Subtração, tabuadas iniciais e medidas
+        'Subtração até 100':2, 'Multiplicação':2,
+        'Tabuada do 2':2, 'Tabuada do 5':2, 'Tabuada do 10':2,
+        'Tabuada do 3':2, 'Tabuada do 4':2,
+        'Comprimento':2, 'Massa':2, 'Capacidade':2,
+        // P3 — Restantes tabuadas, divisão, frações, geometria, dinheiro e gráficos
+        'Tabuada do 6':3, 'Tabuada do 7':3, 'Tabuada do 8':3, 'Tabuada do 9':3,
+        'Divisão':3, 'Frações simples':3,
+        'Figuras planas':3, 'Sólidos geométricos':3,
+        'Medir tempo':3, 'Dinheiro (€)':3, 'Gráficos':3
+    },
+    estudo_meio: {
+        // P1 — À descoberta de si mesmo
+        'O meu corpo':1, 'Os sentidos':1, 'Higiene':1, 'Saúde':1,
+        'A minha família':1, 'A escola':1,
+        // P2 — À descoberta dos seres vivos e do ambiente
+        'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Astros':2,
+        // P3 — À descoberta da sociedade
+        'Profissões':3, 'Transportes':3, 'Comemorações':3, 'Portugal':3
+    },
+    ingles:      {
+        // P1 — Saudações, alfabeto, números, cores
+        'Cumprimentos':1, 'Alfabeto':1, 'Números':1, 'Cores':1,
+        // P2 — Família, animais, corpo
+        'Família':2, 'Animais':2, 'Body':2,
+        // P3 — Comida e brinquedos
+        'Food':3, 'Toys':3
+    }
 };
 
 const LESSONS_2 = {
@@ -2817,7 +2852,35 @@ const LESSONS_6 = {
     'hgp/Portugal democrático': {
         title: 'Portugal democrático e a UE',
         body: `Após o 25 de Abril de 1974, Portugal tornou-se uma **DEMOCRACIA**.\n\n**MARCOS PRINCIPAIS**:\n\n• **25 abril 1975** — primeiras eleições livres em Portugal (Assembleia Constituinte). Mais de 90% de afluência.\n• **2 abril 1976** — entra em vigor a nova **CONSTITUIÇÃO DA REPÚBLICA PORTUGUESA**:\n   – Sufrágio universal (homens e mulheres ≥ 18 anos).\n   – Liberdade de expressão, associação, religião.\n   – Direitos sociais (saúde, educação, segurança social).\n   – Estado de direito democrático.\n• **1976** — primeiras eleições legislativas. **Mário Soares** torna-se primeiro-ministro.\n• **1985-87** — governo de **Cavaco Silva** (PSD) inicia modernização.\n• **1986** — Portugal ADERE à **CEE** (Comunidade Económica Europeia, atual UE), junto com Espanha. Grande viragem económica.\n• **1992** — **Tratado de Maastricht** cria a UE. Portugal participa.\n• **1999** — Portugal é dos primeiros a aderir ao **EURO** (€). Entrou em circulação física a **1 jan 2002**.\n• **1999** — Macau regressa à China (última colónia portuguesa).\n• **2004** — Portugal organiza o EURO 2004 (futebol).\n• **2008-2014** — Crise financeira; Portugal pede ajuda à Troika (FMI+UE+BCE) em 2011.\n\n**REGIME ATUAL — República semipresidencial**:\n• **Presidente da República** — chefe de Estado (representativo, com algum poder, ex: dissolver parlamento, vetar leis). Eleito por sufrágio universal direto. Mandato 5 anos, máx 2.\n• **Primeiro-Ministro** — chefe do GOVERNO (poder executivo). Indicado pelo presidente após eleições legislativas.\n• **Assembleia da República** — parlamento (230 deputados). Poder LEGISLATIVO. Eleita 4 em 4 anos.\n• **Tribunais** — poder JUDICIAL (independente).\n\n**Símbolos**: bandeira verde-vermelha com brasão; "A Portuguesa" (hino).\n\n[exemplo]\n**Pergunta tipo de exame**: Em que ano Portugal aderiu à CEE/UE? E ao Euro? Qual a diferença entre Presidente da República e Primeiro-Ministro?\n\n**Como pensar**:\n1. Adesão à CEE: 1 de janeiro de 1986 (junto com Espanha).\n2. Adesão ao Euro: 1999 (virtual) → 2002 (físico, em circulação).\n3. Diferenças:\n   - Presidente da República = chefe de ESTADO (representa o país); eleito directamente pelo povo; mandato 5 anos.\n   - Primeiro-Ministro = chefe do GOVERNO (executivo); indicado pelo presidente após eleições legislativas.\n\n**Resposta**: Portugal aderiu à **CEE em 1986** e ao **Euro em 1999** (físico em 2002). O **Presidente da República** é o chefe de Estado (eleito por sufrágio universal). O **Primeiro-Ministro** é o chefe do Governo (indicado pelo Presidente após eleições legislativas).\n[/exemplo]\n\n[erros]\n• Confundir 1976 (Constituição) com 1986 (adesão à CEE).\n• Achar que Portugal está na UE desde sempre — entrou em **1986**.\n• Confundir PRESIDENTE (de Estado, representativo) com PRIMEIRO-MINISTRO (de Governo, executivo).\n• Pensar que o EURO entrou em 1999 fisicamente — foi **2002** (1999 só virtual).\n• Esquecer-se que a Assembleia da República tem 230 deputados.\n[/erros]`
+    },
+    // ============================================================
+    // ===== LIÇÕES TOP-UP (alinhadas com Mensagens 6 / MX 6) =====
+    // ============================================================
+    'portugues/Frase ativa e passiva': {
+        title: 'Frase ativa e passiva',
+        body: `**1. O que é**\nA **voz** indica como o sujeito se relaciona com a ação do verbo. Em português há duas vozes principais: **voz ativa** e **voz passiva**.\n\nNa **voz ativa**, o sujeito **PRATICA** a ação. Na **voz passiva**, o sujeito **SOFRE** (recebe) a ação.\n\n**2. Diferença essencial — exemplos**\n• **Ativa**: *O João comeu o bolo.* → o João (sujeito) FAZ a ação.\n• **Passiva**: *O bolo foi comido pelo João.* → o bolo (sujeito) RECEBE a ação.\n\n**3. Como se forma a voz passiva**\n\nA voz passiva forma-se com:\n• verbo **SER** (auxiliar) + **PARTICÍPIO PASSADO** do verbo principal.\n• o particípio CONCORDA em género e número com o sujeito.\n\n**Atenção**: o tempo do verbo "ser" é o MESMO da frase ativa.\n\n| Voz ativa | Voz passiva |\n|---|---|\n| O João lê o livro. | O livro **é lido** pelo João. |\n| A Ana comeu a maçã. | A maçã **foi comida** pela Ana. |\n| Os alunos escreverão o teste. | O teste **será escrito** pelos alunos. |\n| O cão mordeu as crianças. | As crianças **foram mordidas** pelo cão. |\n\n**4. Transformação ATIVA → PASSIVA — passos**\n1. O **complemento direto** da ativa passa a **sujeito** da passiva.\n2. O **sujeito** da ativa passa a **complemento agente da passiva** (introduzido por "**por**", "**pelo**", "**pela**", "**pelos**", "**pelas**").\n3. O verbo principal passa a "**ser** + particípio" (no mesmo tempo).\n\n*Ex*: *A Maria pintou o quadro.*\n→ Sujeito (Maria) → agente (pela Maria).\n→ CD (o quadro) → sujeito (O quadro).\n→ "pintou" (pret. perfeito) → "**foi pintado**".\n→ **O quadro foi pintado pela Maria.**\n\n**5. Complemento agente da passiva**\n• Indica QUEM PRATICA a ação na frase passiva.\n• Vem precedido de **por / pelo / pela / pelos / pelas**.\n*Ex: O livro foi lido **pela aluna**.*\n• Pode ser OMITIDO se não for relevante: *A janela foi partida.* (não se diz por quem)\n\n**6. Quando se usa cada voz**\n• **Ativa** — quando o foco é QUEM FAZ a ação. É a forma mais comum e direta.\n• **Passiva** — quando o foco é o QUE ACONTECE / a quem (ou se não se sabe quem fez): notícias, ciência, textos formais.\n*Ex: "A vacina foi descoberta em 1885."* (importa o facto, não tanto quem)\n\n[exemplo]\n**Pergunta tipo de exame**: Transforma a frase para a voz passiva:\n\n*"Os bombeiros salvaram o cão."*\n\n**Como pensar**:\n1. Identifico a estrutura: sujeito = "Os bombeiros"; verbo = "salvaram" (pret. perfeito); CD = "o cão".\n2. Trocas:\n   - CD "o cão" → SUJEITO da passiva.\n   - "salvaram" → "**foi salvo**" (ser no pret. perfeito + particípio; concorda com "o cão", masc. singular).\n   - "Os bombeiros" → agente: "**pelos bombeiros**".\n3. Junto a frase passiva.\n\n**Resposta**: O cão foi salvo pelos bombeiros.\n[/exemplo]\n\n[erros]\n• Esquecer-se de mudar o TEMPO do verbo "ser" (tem de ser igual ao da ativa).\n• Não fazer o particípio CONCORDAR com o sujeito (✗ "as casas foi construído" → ✓ "as casas **foram construídas**").\n• Trocar "por" com "para" no agente (✗ "para o João" → ✓ "**pelo** João").\n• Achar que TODAS as frases podem ser passivas — só funciona com verbos transitivos diretos (que tenham CD).\n• Confundir voz passiva com tempos compostos (ter + particípio = composto; ser + particípio = passiva).\n[/erros]`
+    },
+    'portugues/Pronomes e determinantes': {
+        title: 'Pronomes e determinantes',
+        body: `**1. O que são**\n**Determinantes** e **pronomes** são classes de palavras que se relacionam com nomes (substantivos), MAS têm papéis diferentes:\n\n• **DETERMINANTE** — **ACOMPANHA** o nome (vem antes dele). *Ex: **o** livro, **este** menino, **meu** caderno.*\n• **PRONOME** — **SUBSTITUI** o nome (aparece SOZINHO). *Ex: **Ele** chegou. **Este** é meu.*\n\n**Truque**: se a palavra está antes de um nome, é DETERMINANTE; se está sozinha (em vez do nome), é PRONOME.\n\n**2. Tipos de DETERMINANTES**\n\n| Tipo | Exemplos |\n|---|---|\n| Artigos definidos | o, a, os, as |\n| Artigos indefinidos | um, uma, uns, umas |\n| Possessivos | meu, teu, seu, nosso, vosso, dele, dela |\n| Demonstrativos | este, esse, aquele (e formas femininas/plurais) |\n| Indefinidos | algum, nenhum, todo, muito, pouco, outro |\n| Numerais | um, dois, três, primeiro, segundo |\n| Interrogativos | que, qual, quanto |\n\n*Ex*: ***A** minha **primeira** casa tinha **três** quartos.* (4 determinantes)\n\n**3. Tipos de PRONOMES**\n\n**A) PESSOAIS** — substituem pessoas. Variam pela função sintática:\n\n| Função | Singular | Plural |\n|---|---|---|\n| Sujeito | eu, tu, ele/ela | nós, vós, eles/elas |\n| CD | me, te, o, a | nos, vos, os, as |\n| CI | me, te, lhe | nos, vos, lhes |\n\n**B) POSSESSIVOS** — meu, teu, seu, nosso, vosso (sozinhos): *Este livro é **meu**.*\n\n**C) DEMONSTRATIVOS** — este, esse, aquele, isto, isso, aquilo: *Quero **aquele**.*\n\n**D) INDEFINIDOS** — alguém, ninguém, tudo, nada, algo, cada um, outro: *Não vi **ninguém**.*\n\n**E) RELATIVOS** — que, quem, onde, cujo, o qual: *O livro **que** li é bom.*\n\n**F) INTERROGATIVOS** — quem, que, qual, quanto (em PERGUNTAS): ***Quem** chegou?*\n\n**4. Colocação dos pronomes (CD/CI) — onde fica o pronome?**\n\nHá 3 posições possíveis para os pronomes "me, te, o, a, lhe, nos, vos, lhes":\n\n• **ÊNCLISE** — DEPOIS do verbo, com hífen. É o **caso normal**.\n  *Ex: O João viu-**me**. / Disse-**lhe** a verdade.*\n\n• **PRÓCLISE** — ANTES do verbo. Usa-se quando há **palavra atrativa** antes:\n   – negação: não, nunca, nada, ninguém. *Ex: **Não me viu**.*\n   – advérbios: já, sempre, talvez, ainda. *Ex: **Já me chamou**.*\n   – conjunções subordinativas: que, se, porque, quando. *Ex: Disse **que me viu**.*\n   – pronomes interrogativos/relativos: quem, que. *Ex: ***Quem te disse**?*\n\n• **MESÓCLISE** — NO MEIO do verbo. SÓ no FUTURO e CONDICIONAL (sem palavra atrativa).\n  *Ex: Dir-**te-ei** a verdade. (= eu te direi)*\n  *Ex: Far-**lhe-ia** a vontade. (= eu lhe faria)*\n\n**Mnemónica**: PrÓclise (Antes), Ênclise (depois), MeSÓclise (no MeIO).\n\n[exemplo]\n**Pergunta tipo de exame**: Indica se as palavras a **negrito** são determinantes ou pronomes e classifica a colocação do pronome:\n\n*1. "**O** João leu **o** livro **que** lhe ofereci."*\n*2. "**Não me digas isso!**"*\n\n**Como pensar**:\n1. Frase 1:\n   - "**O** João" — vem antes de "João" (nome) → determinante artigo definido.\n   - "**o** livro" — vem antes de "livro" → determinante artigo definido.\n   - "**que**" — substitui "livro" e liga orações → pronome relativo.\n   - "**lhe**" — pronome pessoal CI (a quem? a ele).\n2. Frase 2: "**Não me** digas" — "me" vem ANTES do verbo → PRÓCLISE (atraído por "não").\n\n**Resposta**:\n1. O (det.) · o (det.) · que (pronome relativo); lhe = pron. pessoal CI.\n2. "me" em PRÓCLISE (porque "não" atrai o pronome para antes do verbo).\n[/exemplo]\n\n[erros]\n• Confundir DETERMINANTE (acompanha nome) com PRONOME (substitui o nome).\n• Achar que "me, te, o, a" são sempre iguais — variam: CD vs CI.\n• Pôr ênclise depois de "não" (✗ "não disse-me" → ✓ "não **me** disse").\n• Esquecer-se de mesóclise no FUTURO (✗ "Direi-te" → ✓ "**Dir-te-ei**").\n• Confundir possessivo determinante ("o **meu** livro") com possessivo pronome ("é **meu**").\n• Achar que "que" é sempre conjunção — pode ser pronome RELATIVO ou INTERROGATIVO.\n[/erros]`
+    },
+    'portugues/Notícia e entrevista': {
+        title: 'Notícia e entrevista',
+        body: `**1. O que são**\nA **notícia** e a **entrevista** são textos dos **MEDIA** (jornais, rádio, TV, internet) com objetivo de **INFORMAR** o público.\n\n• **NOTÍCIA** — relato breve, objetivo e atual de um acontecimento.\n• **ENTREVISTA** — diálogo com perguntas e respostas entre **entrevistador** e **entrevistado**.\n\n**2. Estrutura da NOTÍCIA**\n\n| Parte | O que é |\n|---|---|\n| **Manchete / Título** | Frase curta e apelativa que resume o assunto |\n| **Subtítulo** (lead) | Resumo nos 1.os parágrafos com as 6 informações-chave |\n| **Corpo** | Desenvolvimento dos pormenores, por ordem de importância |\n| **Fonte** | De onde vem a informação (jornalista, agência) |\n\nA notícia segue a regra da **PIRÂMIDE INVERTIDA**: o mais importante PRIMEIRO; os pormenores depois.\n\n**3. As 6 perguntas do LEAD**\n\nO **lead** (parágrafo de abertura) deve responder às **6 perguntas-chave**:\n\n• **QUEM?** — protagonistas do acontecimento.\n• **O QUÊ?** — o que aconteceu.\n• **QUANDO?** — quando aconteceu.\n• **ONDE?** — em que local.\n• **COMO?** — de que forma decorreu.\n• **PORQUÊ?** — qual a causa / motivo.\n\n*Ex de lead*: "**O presidente da Câmara de Lisboa** (quem) **inaugurou um novo parque** (o quê) **ontem** (quando) **na Avenida da Liberdade** (onde), **cortando a fita simbólica** (como) **para celebrar o Dia da Cidade** (porquê)."\n\n**4. Características da notícia**\n• **Objetiva** — sem opinião pessoal do jornalista.\n• **Atual** — facto recente.\n• **Clara** — linguagem simples e direta.\n• **Verdadeira** — informação verificada.\n• Verbos sobretudo no **pretérito perfeito** ou **presente**.\n\n**5. Estrutura da ENTREVISTA**\n\n| Parte | Conteúdo |\n|---|---|\n| **Introdução** | Apresenta o entrevistado (nome, profissão, motivo) |\n| **Perguntas e respostas** | Diálogo organizado em P / R |\n| **Conclusão** | Frase de fecho, agradecimento ou síntese |\n\n• **Entrevistador** — quem faz as perguntas.\n• **Entrevistado** — quem responde.\n• Usa **discurso DIRETO** (com travessão ou aspas).\n\n**6. Tipos de entrevista**\n• **Informativa** — sobre um acontecimento.\n• **De opinião** — pede a opinião do entrevistado sobre um tema.\n• **Biográfica** (ou de personalidade) — sobre a vida e percurso de alguém.\n\n**7. Notícia vs Reportagem (não confundir!)**\n• **Notícia** — curta, objetiva, factual.\n• **Reportagem** — mais longa, com várias fontes, testemunhos, descrições, contextualização.\n\n[exemplo]\n**Pergunta tipo de exame**: Lê o seguinte lead e identifica as 6 perguntas:\n\n*"Os alunos do 6.º A da Escola Básica do Porto plantaram cinquenta árvores no recreio da escola, na manhã de sábado, com a ajuda dos pais, no âmbito do projeto 'Floresta Viva' para sensibilizar para o ambiente."*\n\n**Como pensar**:\n1. Quem? → os alunos do 6.º A da Escola Básica do Porto.\n2. O quê? → plantaram cinquenta árvores.\n3. Onde? → no recreio da escola.\n4. Quando? → na manhã de sábado.\n5. Como? → com a ajuda dos pais.\n6. Porquê? → no âmbito do projeto "Floresta Viva", para sensibilizar para o ambiente.\n\n**Resposta**: É um lead completo, pois responde às 6 perguntas (quem, o quê, onde, quando, como, porquê).\n[/exemplo]\n\n[erros]\n• Confundir TÍTULO (manchete) com SUBTÍTULO (mais explicativo, abaixo).\n• Achar que a notícia tem opinião do jornalista — é OBJETIVA.\n• Esquecer-se de uma das 6 perguntas no lead.\n• Confundir NOTÍCIA (curta, factual) com REPORTAGEM (longa, com testemunhos).\n• Trocar entrevistador (pergunta) com entrevistado (responde).\n• Não usar discurso DIRETO na entrevista (perguntas e respostas devem aparecer tal como foram ditas).\n[/erros]`
+    },
+    'matematica/Números inteiros relativos': {
+        title: 'Números inteiros relativos',
+        body: `**1. O que são**\nOs **números inteiros relativos** são os números **POSITIVOS**, **NEGATIVOS** e o **ZERO**.\n\nO conjunto representa-se por **ℤ** (de "Zahlen", número em alemão):\n   ℤ = { ..., −3, −2, −1, 0, +1, +2, +3, ... }\n\n• Os **positivos** podem escrever-se com ou sem o sinal "+": +5 = 5.\n• Os **negativos** levam SEMPRE o sinal "−": −5.\n• O **zero** não é positivo nem negativo.\n\n**2. Onde aparecem na vida real**\n\n| Situação | Positivo | Negativo |\n|---|---|---|\n| Temperatura | acima de 0 °C (+10 °C) | abaixo de 0 °C (−5 °C) |\n| Andares | acima do solo (+3) | caves (−2) |\n| Dinheiro | crédito / saldo (+50 €) | dívida (−30 €) |\n| Altitude | acima do mar (+1000 m) | abaixo do mar (−200 m) |\n| Tempo | depois de Cristo (+2026) | antes de Cristo (−500) |\n\n**3. Reta numérica**\nNa **reta numérica** os inteiros estão ordenados:\n   ←  −4  −3  −2  −1   0  +1  +2  +3  +4  →\n\n• Os números à **DIREITA** são MAIORES.\n• Os números à **ESQUERDA** são MENORES.\n• Logo: **−5 < −2 < 0 < +3 < +7**.\n\n**Cuidado**: −5 é MENOR que −2 (porque está mais à esquerda)!\n\n**4. Valor absoluto |x|**\nO **valor absoluto** (ou módulo) é a DISTÂNCIA do número ao **zero**, sem ter em conta o sinal.\n\n   |+5| = 5     |−5| = 5     |0| = 0\n\n**Regra**: o valor absoluto NUNCA é negativo.\n\n**5. Simétrico de um número**\nO **simétrico** (ou oposto) de um número tem o MESMO VALOR ABSOLUTO mas o SINAL CONTRÁRIO.\n\n• Simétrico de +7 = **−7**\n• Simétrico de −3 = **+3**\n• Simétrico de 0 = **0**\n\nA soma de um número com o seu simétrico dá SEMPRE 0:  +5 + (−5) = 0.\n\n**6. Adição e subtração — regras dos sinais**\n\n**A) ADIÇÃO**\n\n| Caso | Regra | Exemplo |\n|---|---|---|\n| Sinais IGUAIS | soma os valores absolutos; mantém o sinal | (+3) + (+5) = **+8**; (−3) + (−5) = **−8** |\n| Sinais DIFERENTES | subtrai os valores absolutos; sinal do MAIOR | (+7) + (−3) = **+4**; (−7) + (+3) = **−4** |\n\n**B) SUBTRAÇÃO**\nSubtrair é o mesmo que **somar o simétrico** do segundo número:\n   a − b = a + (−b)\n\n*Ex*:\n• (+5) − (+3) = (+5) + (−3) = **+2**\n• (+5) − (−3) = (+5) + (+3) = **+8**\n• (−5) − (−3) = (−5) + (+3) = **−2**\n\n**Mnemónica dos sinais**: "**Menos com menos dá mais**" (− × − = +).\n\n[exemplo]\n**Pergunta tipo de exame**: Numa cidade, a temperatura ao meio-dia era de **+4 °C**. À noite, baixou **7 graus**. Qual a temperatura à noite? Indica também o valor absoluto e o simétrico desse valor.\n\n**Como pensar**:\n1. "Baixar 7 graus" → subtrair 7 → +4 − 7.\n2. (+4) − (+7) = (+4) + (−7). Sinais diferentes → subtrair valores absolutos: 7 − 4 = 3. Sinal do maior (7 é negativo) → resultado **−3**.\n3. Valor absoluto: |−3| = **3**.\n4. Simétrico de −3 = **+3**.\n\n**Resposta**: A temperatura à noite era −3 °C. O valor absoluto é 3 e o simétrico é +3.\n[/exemplo]\n\n[erros]\n• Achar que −5 > −2 (errado: −5 está mais à esquerda → é MENOR).\n• Esquecer-se que o valor absoluto NUNCA é negativo (|−7| = 7, não −7).\n• Confundir simétrico (sinal contrário) com inverso (1/x).\n• Errar regras dos sinais: ✗ (−5) + (−3) = +8 → ✓ −8.\n• Pensar que zero é positivo OU negativo — não é nenhum.\n• Não trocar o sinal ao subtrair: ✗ (+5) − (−3) = +2 → ✓ **+8** (menos com menos dá mais).\n[/erros]`
+    },
+    'matematica/Equações simples': {
+        title: 'Equações simples',
+        body: `**1. O que é uma equação**\nUma **equação** é uma **igualdade** que contém uma **incógnita** (letra que representa um número desconhecido — geralmente x).\n\n*Ex*: **x + 5 = 12**\n\n**Resolver** uma equação é DESCOBRIR o valor da incógnita que torna a igualdade VERDADEIRA.\n\n**2. Partes de uma equação**\n\n• **1.º membro** — tudo o que está à ESQUERDA do sinal "=".\n• **2.º membro** — tudo o que está à DIREITA do sinal "=".\n• **Incógnita** — a letra (x, y, ...) cujo valor queremos descobrir.\n• **Solução (raiz)** — valor que torna a igualdade verdadeira.\n\n*Ex*: em **3x − 2 = 10** → 1.º membro: 3x − 2; 2.º membro: 10; incógnita: x.\n\n**3. Verificar se um número é solução**\nSubstitui o valor na equação e vê se a igualdade fica VERDADEIRA.\n\n*Ex*: É x = 4 solução de 3x − 2 = 10?\n→ 3 × 4 − 2 = 12 − 2 = 10. ✓ → **Sim, é solução**.\n\n*Ex*: É x = 5 solução? → 3 × 5 − 2 = 13 ≠ 10. ✗ → **Não**.\n\n**4. Princípios de equivalência (regras de ouro)**\n\nDuas equações são **equivalentes** quando têm a MESMA solução. Podemos transformar uma equação aplicando a MESMA operação aos DOIS membros:\n\n| Operação | Pode-se? |\n|---|---|\n| Somar o mesmo número aos 2 membros | ✓ |\n| Subtrair o mesmo número dos 2 membros | ✓ |\n| Multiplicar os 2 membros pelo mesmo número (≠ 0) | ✓ |\n| Dividir os 2 membros pelo mesmo número (≠ 0) | ✓ |\n\n**Regra prática**: o que está a SOMAR num lado, passa a SUBTRAIR para o outro (e vice-versa). O que está a MULTIPLICAR num lado, passa a DIVIDIR para o outro (e vice-versa).\n\n**5. Os 4 tipos básicos**\n\n**A) x + a = b** → subtrair a aos dois lados.\n   *Ex*: x + 5 = 12 → x = 12 − 5 → **x = 7**.\n\n**B) x − a = b** → somar a aos dois lados.\n   *Ex*: x − 3 = 8 → x = 8 + 3 → **x = 11**.\n\n**C) a · x = b** → dividir os dois lados por a.\n   *Ex*: 4x = 20 → x = 20 ÷ 4 → **x = 5**.\n\n**D) x / a = b** → multiplicar os dois lados por a.\n   *Ex*: x / 3 = 6 → x = 6 × 3 → **x = 18**.\n\n**Combinação dos tipos** (vários passos):\n*Ex*: 2x + 3 = 11\n→ subtrair 3: 2x = 8\n→ dividir por 2: **x = 4**.\n\n**6. Resolver problemas com equações — passos**\n1. **Ler** o enunciado com atenção.\n2. **Atribuir** a letra x à quantidade desconhecida.\n3. **Traduzir** a frase para uma equação.\n4. **Resolver** a equação.\n5. **Verificar** se a solução faz sentido no problema.\n\n*Ex*: "O dobro de um número, mais 5, é igual a 21. Qual o número?"\n→ Seja x o número.\n→ 2x + 5 = 21\n→ 2x = 16 → x = 8.\n→ Verificação: 2 × 8 + 5 = 21. ✓\n\n[exemplo]\n**Pergunta tipo de exame**: Resolve a equação: **3x − 7 = 14**\n\n**Como pensar**:\n1. Quero isolar o x. O "−7" passa para o outro lado a SOMAR:\n   3x = 14 + 7\n   3x = 21\n2. O "3" está a multiplicar x; passa a dividir:\n   x = 21 ÷ 3\n   x = 7\n3. Verificação: 3 × 7 − 7 = 21 − 7 = 14. ✓\n\n**Resposta**: x = 7.\n[/exemplo]\n\n[erros]\n• Esquecer-se de aplicar a operação aos DOIS membros (só num lado fica mal).\n• Trocar o sinal ao "passar para o outro lado" (✗ x + 5 = 12 → x = 12 + 5).\n• Confundir 2x (= 2·x) com 2 + x.\n• Não verificar a solução no fim (substituir e ver se dá igualdade).\n• Dividir mal: ✗ 4x = 20 → x = 20 − 4 → ✓ x = 20 ÷ 4 = 5.\n• Esquecer-se que x/3 = 6 dá x = 18 (multiplicar) e não x = 2 (dividir).\n[/erros]`
+    },
+    'matematica/Probabilidades': {
+        title: 'Probabilidades',
+        body: `**1. O que é probabilidade**\nA **probabilidade** mede a **possibilidade** de um acontecimento ocorrer. É um número entre **0 e 1** (ou entre 0% e 100%).\n\n• **0** → IMPOSSÍVEL (nunca acontece).\n• **1** → CERTO (acontece sempre).\n• Entre 0 e 1 → POSSÍVEL (mais ou menos provável).\n\n**2. Experiências aleatórias vs deterministas**\n\n• **DETERMINÍSTICA** — sabemos sempre o resultado antes. *Ex: aquecer água a 100 °C → ferve.*\n• **ALEATÓRIA** — o resultado depende do acaso; não se consegue prever. *Ex: lançar um dado, tirar uma carta, atirar uma moeda.*\n\nA probabilidade só faz sentido em experiências **ALEATÓRIAS**.\n\n**3. Vocabulário essencial**\n\n• **Espaço de resultados (Ω)** — conjunto de TODOS os resultados possíveis.\n   *Ex*: lançar um dado → Ω = {1, 2, 3, 4, 5, 6}.\n• **Acontecimento (A)** — subconjunto do espaço de resultados.\n   *Ex*: "sair número par" → A = {2, 4, 6}.\n• **Casos favoráveis** — resultados que satisfazem o acontecimento.\n• **Casos possíveis** — total de resultados.\n\n**4. Tipos de acontecimentos**\n\n| Tipo | Significado | Probabilidade |\n|---|---|---|\n| **Certo** | acontece sempre | P = 1 |\n| **Impossível** | nunca acontece | P = 0 |\n| **Possível** | pode ou não acontecer | 0 < P < 1 |\n| **Elementar** | um único resultado | — |\n| **Complementar** | "o contrário" do acontecimento | P(A) + P(Ā) = 1 |\n\n*Ex (dado)*:\n• Certo: "sair número entre 1 e 6". P = 1.\n• Impossível: "sair 7". P = 0.\n• Possível: "sair par". P = 1/2.\n\n**5. Regra de Laplace (probabilidade clássica)**\n\nQuando todos os casos têm a **MESMA probabilidade**:\n\n   **P(A) = casos favoráveis / casos possíveis**\n\n*Ex*: lançar um dado. Qual a probabilidade de sair número par?\n• Casos favoráveis: {2, 4, 6} → 3 casos.\n• Casos possíveis: {1, 2, 3, 4, 5, 6} → 6 casos.\n• P("sair par") = 3/6 = **1/2 = 0,5 = 50%**.\n\n**6. Três representações equivalentes**\n\nUma probabilidade pode-se escrever de 3 formas:\n\n| Fração | Decimal | Percentagem |\n|---|---|---|\n| 1/2 | 0,5 | 50% |\n| 1/4 | 0,25 | 25% |\n| 3/4 | 0,75 | 75% |\n| 1/6 | 0,1(6) | ≈ 16,7% |\n| 1 | 1 | 100% |\n\n**7. Acontecimento complementar**\nO **complementar** de A (escreve-se Ā ou "não A") é o acontecimento que ocorre quando A NÃO ocorre.\n\n   **P(Ā) = 1 − P(A)**\n\n*Ex*: P("sair par") = 1/2 → P("não sair par") = 1 − 1/2 = **1/2**.\n\n**8. Casos típicos do 6.º ano**\n\n• **Lançamento de moeda** — Ω = {cara, coroa}. P(cara) = 1/2.\n• **Lançamento de dado** — Ω = {1, 2, 3, 4, 5, 6}. P(qualquer) = 1/6.\n• **Extração de bolas** — saco com bolas de cores. P = bolas dessa cor / total.\n   *Ex: saco com 3 bolas vermelhas e 2 azuis (total 5). P(vermelha) = 3/5.*\n• **Baralho de cartas, roleta, tira-rifa**, etc.\n\n[exemplo]\n**Pergunta tipo de exame**: Num saco há **4 berlindes amarelos**, **3 verdes** e **5 azuis**. Tira-se um berlinde ao acaso.\n\n*1. Qual o espaço de resultados (em número)?*\n*2. Qual a probabilidade de sair um berlinde verde?*\n*3. Qual a probabilidade de NÃO sair amarelo?*\n*4. Expressa as respostas em fração, decimal e percentagem.*\n\n**Como pensar**:\n1. Total de berlindes: 4 + 3 + 5 = **12** casos possíveis.\n2. P(verde) = casos favoráveis / casos possíveis = 3/12 = **1/4**.\n3. P(amarelo) = 4/12 = 1/3. P(não amarelo) = 1 − 1/3 = **2/3**.\n4. Conversões:\n   - 1/4 = 0,25 = 25%.\n   - 2/3 ≈ 0,67 ≈ 66,7%.\n\n**Resposta**:\n1. 12 casos possíveis.\n2. P(verde) = 1/4 = 0,25 = 25%.\n3. P(não amarelo) = 2/3 ≈ 0,67 ≈ 66,7%.\n[/exemplo]\n\n[erros]\n• Achar que probabilidade pode ser maior que 1 (NÃO pode — máximo é 1 = 100%).\n• Confundir casos favoráveis com casos possíveis.\n• Não simplificar fração (deixar 3/6 em vez de 1/2).\n• Esquecer-se de que P(certo) = 1 e P(impossível) = 0.\n• Trocar percentagem com decimal (50% = 0,5, NÃO 50).\n• Achar que P(Ā) = −P(A) — é P(Ā) = **1 − P(A)**.\n• Aplicar Laplace quando os casos NÃO são equiprováveis (regra só serve se todos tiverem a mesma chance).\n[/erros]`
     }
+
 };
 
 const EXERCISES_6 = [
@@ -2974,30 +3037,42 @@ const EXERCISES_6 = [
 
 const CURRICULUM_6 = {
     portugues: [
+        // P1 — Educação literária (narrativa) + revisão gramatical (classes/pronomes)
         'Texto narrativo',
+        'Pronomes e determinantes',
         'Texto poético',
+        'Modos verbais',
+        // P2 — Texto dramático + sintaxe + voz
         'Texto dramático',
         'Funções sintáticas',
-        'Modos verbais',
+        'Frase ativa e passiva',
         'Tempos compostos',
         'Discurso direto e indireto',
+        // P3 — Recursos expressivos + ortografia + orações + texto jornalístico
         'Recursos expressivos',
         'Acentuação gráfica',
-        'Orações coordenadas e subordinadas'
+        'Orações coordenadas e subordinadas',
+        'Notícia e entrevista'
     ],
     matematica: [
+        // P1 — Números e operações
         'Números racionais não negativos',
         'Operações com frações',
         'Potências de expoente natural',
         'Sequências e regularidades',
+        // P2 — Proporcionalidade e geometria
         'Razões e proporções',
         'Proporcionalidade direta',
         'Áreas de polígonos',
         'Áreas e perímetros do círculo',
-        'Volumes de prismas e cilindros',
-        'Estatística',
         'Isometrias',
-        'Ângulos internos de polígonos'
+        'Ângulos internos de polígonos',
+        // P3 — Volumes, inteiros, equações, estatística, probabilidades
+        'Volumes de prismas e cilindros',
+        'Números inteiros relativos',
+        'Equações simples',
+        'Estatística',
+        'Probabilidades'
     ],
     ingles: [
         'Past simple',
@@ -3036,12 +3111,41 @@ const CURRICULUM_6 = {
     ]
 };
 
+// Períodos do 6.º ano alinhados com Mensagens 6 (Texto), MX 6 (Porto Editora),
+// Hop on 6 (Porto Editora), UAU! Vida 6 (Areal) e Aqui há HGP 6 (Areal).
 const PERIODS_6 = {
-    portugues:  { 'Texto narrativo':1, 'Texto poético':1, 'Texto dramático':1, 'Funções sintáticas':2, 'Modos verbais':2, 'Tempos compostos':2, 'Discurso direto e indireto':2, 'Recursos expressivos':3, 'Acentuação gráfica':3, 'Orações coordenadas e subordinadas':3 },
-    matematica: { 'Números racionais não negativos':1, 'Operações com frações':1, 'Potências de expoente natural':1, 'Sequências e regularidades':1, 'Razões e proporções':2, 'Proporcionalidade direta':2, 'Áreas de polígonos':2, 'Áreas e perímetros do círculo':2, 'Volumes de prismas e cilindros':3, 'Estatística':3, 'Isometrias':3, 'Ângulos internos de polígonos':3 },
-    ingles:     { 'Past simple':1, 'Present continuous':1, 'Future':2, 'Comparatives & superlatives':2, 'Daily routines':2, 'Health & body':3, 'Quantifiers':3, 'Adverbs of frequency':3 },
-    ciencias:   { 'Sistema digestivo':1, 'Sistema circulatório':1, 'Sistema respiratório':1, 'Sistema excretor':2, 'Sistema reprodutor':2, 'Sistema nervoso':2, 'Sistema imunitário':2, 'Plantas — trocas nutricionais':3, 'Reprodução das plantas':3, 'Microrganismos':3, 'Saúde e prevenção':3 },
-    hgp:        { 'Expansão Marítima':1, 'União Ibérica':1, 'Restauração da Independência':1, 'Iluminismo e Marquês de Pombal':2, 'Liberalismo':2, 'Monarquia Constitucional':2, '1.ª República':2, 'Estado Novo':3, '25 de Abril':3, 'Portugal democrático':3 }
+    portugues:  {
+        'Texto narrativo':1, 'Pronomes e determinantes':1, 'Texto poético':1, 'Modos verbais':1,
+        'Texto dramático':2, 'Funções sintáticas':2, 'Frase ativa e passiva':2,
+        'Tempos compostos':2, 'Discurso direto e indireto':2,
+        'Recursos expressivos':3, 'Acentuação gráfica':3,
+        'Orações coordenadas e subordinadas':3, 'Notícia e entrevista':3
+    },
+    matematica: {
+        'Números racionais não negativos':1, 'Operações com frações':1,
+        'Potências de expoente natural':1, 'Sequências e regularidades':1,
+        'Razões e proporções':2, 'Proporcionalidade direta':2,
+        'Áreas de polígonos':2, 'Áreas e perímetros do círculo':2,
+        'Isometrias':2, 'Ângulos internos de polígonos':2,
+        'Volumes de prismas e cilindros':3, 'Números inteiros relativos':3,
+        'Equações simples':3, 'Estatística':3, 'Probabilidades':3
+    },
+    ingles:     {
+        'Past simple':1, 'Present continuous':1,
+        'Future':2, 'Comparatives & superlatives':2, 'Daily routines':2,
+        'Health & body':3, 'Quantifiers':3, 'Adverbs of frequency':3
+    },
+    ciencias:   {
+        'Sistema digestivo':1, 'Sistema circulatório':1, 'Sistema respiratório':1,
+        'Sistema excretor':2, 'Sistema reprodutor':2, 'Sistema nervoso':2, 'Sistema imunitário':2,
+        'Plantas — trocas nutricionais':3, 'Reprodução das plantas':3,
+        'Microrganismos':3, 'Saúde e prevenção':3
+    },
+    hgp:        {
+        'Expansão Marítima':1, 'União Ibérica':1, 'Restauração da Independência':1,
+        'Iluminismo e Marquês de Pombal':2, 'Liberalismo':2, 'Monarquia Constitucional':2, '1.ª República':2,
+        'Estado Novo':3, '25 de Abril':3, 'Portugal democrático':3
+    }
 };
 
 // ============================================================
