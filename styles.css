@@ -1813,6 +1813,8 @@ body {
     .exercise-header { padding-top: calc(12px + env(safe-area-inset-top)); }
     .tabs { padding-bottom: env(safe-area-inset-bottom); }
     #app { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+    /* Summary screen: hero fica colado ao topo — precisa de safe-area */
+    .summary-hero { padding-top: calc(28px + env(safe-area-inset-top)); }
 }
 
 /* ---------- DARK MODE básico — respeita preferência do sistema ---------- */

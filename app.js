@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v155';
+const APP_VERSION = 'v156';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3711,10 +3711,11 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     bdg.innerHTML = badgeChips + rewardChips;
 
     // Botão repetir perguntas erradas
-    const wrongCount = (s.results || []).filter(r => r === false).length;
+    // Usa s.correct como fonte de verdade para evitar inconsistência visual
+    const wrongCount = total - s.correct;
     const retryWrap = document.getElementById('summary-retry-wrap');
     if (retryWrap) {
-        if (wrongCount > 0) {
+        if (wrongCount > 0 && s.correct < total) {
             retryWrap.innerHTML = `<button class="btn btn-block" onclick="retryWrongSession()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;margin-bottom:10px;border:none;padding:14px"><i class="fas fa-rotate-left"></i> Repetir perguntas erradas (${wrongCount})</button>`;
         } else {
             retryWrap.innerHTML = '';
