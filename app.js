@@ -335,7 +335,7 @@ const _yearExtrasLoaded = {};
 // SW (cada pedido tinha URL única) e fazia 9 round-trips de rede em cada
 // boot, o que aumentava a probabilidade de falhas silenciosas em redes
 // instáveis (resultando em tópicos com 0 exs).
-const APP_VERSION = 'v145';
+const APP_VERSION = 'v146';
 
 function _loadExtraScript(file, attempt = 1) {
     return new Promise(resolve => {
@@ -426,39 +426,45 @@ function loadYearExtras(year) {
         if (added > 0 && typeof updateAll === 'function') {
             try { updateAll(); } catch {}
         }
-        // Sumário em consola para diagnóstico
+        // Sumário em consola para diagnóstico (sem UI intrusiva)
         console.log('[lazy-load] ano ' + year + ': +' + added + ' exs carregados de ' +
             (files.length - failedFiles.length) + '/' + files.length + ' ficheiros' +
             (failedFiles.length ? ' (falharam: ' + failedFiles.join(', ') + ')' : ''));
-        // Se algum ficheiro falhou COMPLETAMENTE, mostra aviso ao utilizador
-        // com botão para recarregar — evita o estado "tópicos com 0 exs".
-        if (failedFiles.length > 0 && typeof _showLazyLoadError === 'function') {
-            _showLazyLoadError(failedFiles.length, files.length);
+        // Se algum ficheiro falhou, faz auto-retry silencioso após 2s.
+        // Sem banner visível (era intrusivo; respeita safe-area do iPhone).
+        if (failedFiles.length > 0) {
+            setTimeout(() => _retryFailedFiles(year, failedFiles), 2000);
         }
         return added;
     });
     return _yearExtrasLoaded[year];
 }
 
-// Aviso visível se o lazy-load falhou (alguns ficheiros não carregaram).
-// Aparece como banner amarelo no topo, com botão para forçar recarregamento.
-function _showLazyLoadError(failed, total) {
-    if (document.getElementById('lazy-load-error-banner')) return;
-    const div = document.createElement('div');
-    div.id = 'lazy-load-error-banner';
-    div.style.cssText = [
-        'position:fixed','top:0','left:0','right:0','z-index:8000',
-        'background:#fef3c7','border-bottom:2px solid #f59e0b','color:#78350f',
-        'padding:10px 14px','display:flex','align-items:center','gap:10px',
-        'font-size:0.85rem','font-weight:600',
-        'box-shadow:0 4px 12px rgba(0,0,0,0.08)'
-    ].join(';');
-    div.innerHTML =
-        '<span style="font-size:1.2rem">⚠️</span>' +
-        '<span style="flex:1">' + failed + ' de ' + total + ' ficheiros de exercícios não carregaram. Alguns tópicos podem aparecer vazios.</span>' +
-        '<button onclick="forceAppUpdate && forceAppUpdate()" style="background:#f59e0b;color:#fff;border:0;padding:6px 12px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer">Forçar atualização</button>' +
-        '<button onclick="document.getElementById(\'lazy-load-error-banner\').remove()" style="background:transparent;border:0;color:#78350f;font-size:1.2rem;cursor:pointer;padding:0 4px">×</button>';
-    document.body.appendChild(div);
+// Auto-retry silencioso dos ficheiros que falharam — tenta de novo
+// até duas vezes, com backoff. Sem UI intrusiva.
+function _retryFailedFiles(year, failedSrcs) {
+    const files = (YEAR_EXTRA_FILES[year] || []).filter(f => failedSrcs.includes(f.src));
+    if (!files.length) return;
+    Promise.all(files.map(f => _loadExtraScript(f))).then(arrays => {
+        const base = window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[year];
+        if (!Array.isArray(base)) return;
+        const existing = new Set(base.map(e => e && e.id));
+        let added = 0;
+        arrays.forEach(arr => {
+            if (!Array.isArray(arr)) return;
+            arr.forEach(raw => {
+                const e = _sanitizeExercise(raw);
+                if (e && e.id && !existing.has(e.id)) {
+                    base.push(e); existing.add(e.id); added++;
+                }
+            });
+        });
+        if (added > 0) {
+            if (window.activeYear === year) window.EXERCISES = base;
+            console.log('[lazy-load retry] ano ' + year + ': +' + added + ' exs recuperados');
+            if (typeof updateAll === 'function') { try { updateAll(); } catch {} }
+        }
+    });
 }
 
 function saveState() {
