@@ -307,3 +307,4 @@ const EXERCISES_6_M_EXTRA2 = [
     opts:['1/2','1/3','1/4','2/4'], ans:2,
     exp:'Casos possíveis: (CC, CK, KC, KK) — 4 casos. Favorável: CC. P = 1/4.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_6_M_EXTRA2 = EXERCISES_6_M_EXTRA2;

@@ -198,3 +198,4 @@ const EXERCISES_2_E_EXTRA3 = [
     opts:['azul e branco','verde e vermelho','vermelho e amarelo'], ans:1,
     exp:'A bandeira de Portugal é verde e vermelha, com o escudo no meio.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_2_E_EXTRA3 = EXERCISES_2_E_EXTRA3;

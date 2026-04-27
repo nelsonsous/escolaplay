@@ -247,3 +247,4 @@ const EXERCISES_6_C_EXTRA2 = [
       opts:['Reprodução sexuada','Reprodução assexuada','Polinização cruzada','Autopolinização'], ans:1,
       exp:'A divisão de raízes é reprodução assexuada vegetativa, originando plantas geneticamente iguais à planta-mãe.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_6_C_EXTRA2 = EXERCISES_6_C_EXTRA2;

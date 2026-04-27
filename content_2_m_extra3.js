@@ -509,3 +509,4 @@ const EXERCISES_2_M_EXTRA3 = [
 ];
 
 if (typeof module !== 'undefined' && module.exports) module.exports = EXERCISES_2_M_EXTRA3;
+if (typeof window !== 'undefined') window.EXERCISES_2_M_EXTRA3 = EXERCISES_2_M_EXTRA3;

@@ -154,3 +154,4 @@ const EXERCISES_2_I_EXTRA3 = [
     opts:['kite','car','milk'], ans:2,
     exp:'"Kite" (papagaio de papel) e "car" (carro) são brinquedos. "Milk" não é brinquedo.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_2_I_EXTRA3 = EXERCISES_2_I_EXTRA3;

@@ -259,3 +259,4 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['esquerda','frente','trás','cima'], ans:0,
       exp:'Olha para a esquerda, depois para a direita, e à esquerda outra vez. Em Portugal os carros vêm primeiro pela esquerda.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_2_E_EXTRA4 = EXERCISES_2_E_EXTRA4;

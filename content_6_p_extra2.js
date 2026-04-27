@@ -307,3 +307,4 @@ const EXERCISES_6_P_EXTRA2 = [
     ans:['entrevistador'],
     exp:'O entrevistador prepara e formula as perguntas, dirigindo a entrevista.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_6_P_EXTRA2 = EXERCISES_6_P_EXTRA2;

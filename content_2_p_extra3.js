@@ -243,3 +243,4 @@ const EXERCISES_2_P_EXTRA3 = [
     opts:['A Ana, o João, e a Rita','A Ana, o João e a Rita','A Ana o João, e a Rita'], ans:1,
     exp:'Vírgula entre "Ana" e "o João". Antes do "e" não se põe vírgula.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_2_P_EXTRA3 = EXERCISES_2_P_EXTRA3;

@@ -132,3 +132,4 @@ const EXERCISES_6_H_EXTRA2 = [
       opts:['Perda do Brasil em 1822','Aumento da influência inglesa em Portugal','Fim da monarquia','Construção do Mosteiro dos Jerónimos'], ans:1,
       exp:'A presença militar inglesa, sob Beresford, deu à Inglaterra grande influência política e económica em Portugal.' }
 ];
+if (typeof window !== 'undefined') window.EXERCISES_6_H_EXTRA2 = EXERCISES_6_H_EXTRA2;
