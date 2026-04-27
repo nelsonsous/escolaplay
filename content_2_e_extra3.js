@@ -67,10 +67,6 @@ const EXERCISES_2_E_EXTRA3 = [
     exp:'Os irmãos partilham os mesmos pais — são 2 pessoas (mãe e pai).' },
 
   // A escola
-  { id:'2ee3_016', s:'estudo_meio', t:'A escola', type:'mc', diff:3,
-    q:'🏫 Quem ajuda a manter a escola limpa?',
-    opts:['o professor','os auxiliares','o diretor'], ans:1,
-    exp:'Os auxiliares (assistentes operacionais) ajudam a limpar e a cuidar da escola.' },
   { id:'2ee3_017', s:'estudo_meio', t:'A escola', type:'tf', diff:3,
     q:'Na escola devemos correr nos corredores.',
     ans:false,

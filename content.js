@@ -196,8 +196,6 @@ const LESSONS_2 = {
     },
     'matematica/Tabuada do 5': { title:'Tabuada do 5', body:'**5 × 1 = 5** · 5 × 2 = 10 · 5 × 3 = 15 · 5 × 4 = 20 · 5 × 5 = 25\n5 × 6 = 30 · 5 × 7 = 35 · 5 × 8 = 40 · 5 × 9 = 45 · **5 × 10 = 50**\n\n**Truque mágico**: os múltiplos de 5 acabam SEMPRE em **0** ou **5**.\n\n**Para multiplicar por 5**: multiplica por 10 e divide por 2.\nEx: 5 × 8 = (10 × 8) ÷ 2 = 80 ÷ 2 = 40. ✓\n\n[exemplo]\n**Pergunta tipo de exame**: Quanto custam 6 chocolates a 5€ cada?\n\n**Como pensar**:\n1. 6 × 5 = ?\n2. Truque: 6 × 10 = 60; 60 ÷ 2 = 30.\n\n**Resposta**: 30€.\n[/exemplo]\n\n[erros]\n• Confundir 5×6 com 5×7 (são 30 e 35).\n• Achar que 5×0 = 5 (é 0!).\n• Dizer que 23 é múltiplo de 5 — não é (não acaba em 0 nem 5).\n[/erros]' },
 
-    'matematica/Tabuada do 5': { title:'Tabuada do 5', body:'**5 × 1 = 5** · 5 × 2 = 10 · 5 × 3 = 15 · 5 × 4 = 20 · 5 × 5 = 25\n5 × 6 = 30 · 5 × 7 = 35 · 5 × 8 = 40 · 5 × 9 = 45 · **5 × 10 = 50**\n\n**Truque mágico**: os múltiplos de 5 acabam SEMPRE em **0** ou **5**.\n\n**Para multiplicar por 5**: multiplica por 10 e divide por 2.\nEx: 5 × 8 = (10 × 8) ÷ 2 = 80 ÷ 2 = 40. ✓\n\n**❌ O que se costuma errar**\n• Confundir 5×6 com 5×7 (são 30 e 35).\n• Achar que 5×0 = 5 (é 0!).\n• Dizer que 23 é múltiplo de 5 — não é (não acaba em 0 nem 5).' },
-
     'matematica/Tabuada do 10': {
         title: 'Tabuada do 10',
         body: `Multiplicar por 10 é o **MAIS FÁCIL**: junta um **zero** ao número!\n\n3 × 10 = **30** · 5 × 10 = **50** · 7 × 10 = **70** · 9 × 10 = **90**\n\n**Tabuada completa**:\n10 × 1 = 10 · 10 × 2 = 20 · 10 × 3 = 30 · 10 × 4 = 40 · 10 × 5 = 50\n10 × 6 = 60 · 10 × 7 = 70 · 10 × 8 = 80 · 10 × 9 = 90 · 10 × 10 = 100\n\nOs **múltiplos de 10** acabam SEMPRE em **0**: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100.\n\n**Truque mental**: para multiplicar por 10, é como deslocar todos os algarismos uma casa para a esquerda (e pôr 0 no fim).\n\n[exemplo]\n**Pergunta tipo de exame**: A escola tem 10 turmas. Cada turma tem 8 alunos. Quantos alunos tem a escola ao todo?\n\n**Como pensar**:\n1. 10 × 8 = 80 (ou 8 × 10 = junta um zero ao 8).\n\n**Resposta**: A escola tem **80 alunos**.\n[/exemplo]\n\n[erros]\n• Esquecer que 10 × 0 = **0** (não é 10!).\n• Juntar DOIS zeros em vez de um (3 × 10 NÃO é 300, é 30).\n• Achar que 25 é múltiplo de 10 — não é (acaba em 5, não em 0).\n[/erros]`
@@ -212,7 +210,7 @@ const LESSONS_2 = {
     },
     'matematica/Massa': {
         title: 'Massa',
-        body: `**1. O que é a massa**\n**Massa** = a quantidade de matéria que um corpo tem. Mede-se com a **BALANÇA**.\n\n*Em linguagem comum dizemos "peso", mas o termo correto é "massa".*\n\n**2. Unidades principais**\n\n| Unidade | Símbolo | Tamanho típico |\n|---|---|---|\n| Grama | **g** | uma azeitona |\n| **Quilograma** | **kg** | um pacote de açúcar |\n| Tonelada | t | um carro pequeno |\n\n**3. Equivalências importantes**\n• **1 kg = 1 000 g** (mil gramas)\n• **1 t = 1 000 kg**\n\n**4. Quando usar cada unidade?**\n• **g**: comida em pequenas quantidades (sal, ervas, especiarias)\n• **kg**: pessoas, sacos de batatas, frutas\n• **t**: carros, caminhões, animais grandes\n\n**5. Massas comuns para teres ideia**\n• Um lápis: ~5 g\n• Uma maçã: ~150 g\n• Um pão: ~500 g (= ½ kg)\n• Uma criança de 7 anos: ~25 kg\n• Um adulto: ~70 kg\n• Um carro pequeno: ~1 t = 1 000 kg\n\n[exemplo]\n**Pergunta tipo de exame**: A Maria pesa 25 kg e o irmão pesa 18 kg. Quantos gramas pesam ao todo?\n\n**Como pensar**:\n1. Soma: 25 + 18 = 43 kg.\n2. Converter para gramas: 43 kg = 43 × 1 000 = 43 000 g.\n\n**Resposta**: Pesam ao todo **43 kg = 43 000 g**.\n[/exemplo]\n\n[erros]\n• Confundir 1 kg com 100 g (é 1 000 g).\n• Confundir massa com volume (são coisas DIFERENTES).\n• Achar que tudo o que é grande pesa mais (uma penca de algodão pode ser maior que uma pedra mas pesar muito menos).\n• Usar gramas para medir um carro (use toneladas!).\n[/erros]`
+        body: `**1. O que é a massa**\n**Massa** = a quantidade de matéria que um corpo tem. Mede-se com a **BALANÇA**.\n\n*Em linguagem comum dizemos "peso", mas o termo correto é "massa".*\n\n**2. Unidades principais**\n\n| Unidade | Símbolo | Tamanho típico |\n|---|---|---|\n| Grama | **g** | uma azeitona |\n| **Quilograma** | **kg** | um pacote de açúcar |\n| Tonelada | t | um carro pequeno |\n\n**3. Equivalências importantes**\n• **1 kg = 1 000 g** (mil gramas)\n• **1 t = 1 000 kg**\n\n**4. Quando usar cada unidade?**\n• **g**: comida em pequenas quantidades (sal, ervas, especiarias)\n• **kg**: pessoas, sacos de batatas, frutas\n• **t**: carros, caminhões, animais grandes\n\n**5. Massas comuns para teres ideia**\n• Um lápis: ~5 g\n• Uma maçã: ~150 g\n• Um pão: ~500 g (= ½ kg)\n• Uma criança de 7 anos: ~25 kg\n• Um adulto: ~70 kg\n• Um carro pequeno: ~1 t = 1 000 kg\n\n[exemplo]\n**Pergunta tipo de exame**: A Maria pesa 25 kg e o irmão pesa 18 kg. Quantos gramas pesam ao todo?\n\n**Como pensar**:\n1. Soma: 25 + 18 = 43 kg.\n2. Converter para gramas: 43 kg = 43 × 1 000 = 43 000 g.\n\n**Resposta**: Pesam ao todo **43 kg = 43 000 g**.\n[/exemplo]\n\n[erros]\n• Confundir 1 kg com 100 g (é 1 000 g).\n• Confundir massa com volume (são coisas DIFERENTES).\n• Achar que tudo o que é grande pesa mais (uma **bola de algodão** pode ser maior que uma pedra mas pesar muito menos).\n• Usar gramas para medir um carro (use toneladas!).\n[/erros]`
     },
     'matematica/Capacidade': {
         title: 'Capacidade',
@@ -232,7 +230,7 @@ const LESSONS_2 = {
     'matematica/Dinheiro (€)': { title:'Dinheiro', body:'Em Portugal usamos o **euro (€)**.\n\n**Moedas** (de menor para maior):\n1 cêntimo · 2 cêntimos · 5 cêntimos · 10 cêntimos · 20 cêntimos · 50 cêntimos · 1 € · 2 €\n\n**Notas** (do menor valor para o maior):\n5 € · 10 € · 20 € · 50 € · 100 € · 200 € · 500 €\n\n**Atenção**: **100 cêntimos = 1 €**.\n\n**Calcular trocos**: somar o que se compra e ver quanto sobra do dinheiro dado.\nEx: tinha 10€ e gastei 6€ → fico com 10 − 6 = **4 €**.\n\n**❌ O que se costuma errar**\n• Trocar cêntimos com euros (50 cêntimos não são 50 €!).\n• Achar que a nota maior é a de 100€ (a maior é 500€).\n• Esquecer-se que 100 cêntimos = 1€ (não 10).' },
 
     // ===== PORTUGUÊS =====
-    'portugues/Vogais e consoantes': { title:'Vogais e consoantes', body:'O alfabeto português tem **23 letras**. Dividem-se em:\n\n**5 vogais**: **a, e, i, o, u** 🔤\n\n**Todas as outras** são **consoantes**: b, c, d, f, g, h, j, l, m, n, p, q, r, s, t, v, x, z (e ainda k, w, y de palavras estrangeiras).\n\n**Truque**: as vogais sentem-se na boca aberta — as consoantes precisam dos lábios, dentes ou língua.\n\n**❌ O que se costuma errar**\n• Esquecer uma das vogais (são SEMPRE 5: a-e-i-o-u).\n• Achar que "y" é vogal em português (em palavras portuguesas é consoante).\n• Confundir "h" com vogal (é consoante).' },
+    'portugues/Vogais e consoantes': { title:'Vogais e consoantes', body:'O alfabeto português tem **26 letras** (depois do Acordo Ortográfico de 1990, que juntou o **k, w, y**). Dividem-se em:\n\n**5 vogais**: **a, e, i, o, u** 🔤\n\n**21 consoantes**: b, c, d, f, g, h, j, k, l, m, n, p, q, r, s, t, v, w, x, y, z.\n\n**Truque**: as vogais sentem-se na boca aberta — as consoantes precisam dos lábios, dentes ou língua.\n\n**❌ O que se costuma errar**\n• Esquecer uma das vogais (são SEMPRE 5: a-e-i-o-u).\n• Achar que o alfabeto português tem 23 letras — antes do Acordo de 1990 tinha; agora tem **26** (com k, w, y).\n• Achar que "y" é vogal em português (em palavras portuguesas é consoante).\n• Confundir "h" com vogal (é consoante; na maioria das palavras nem se ouve).' },
 
     'portugues/Sílabas': { title:'Sílabas', body:'Cada palavra divide-se em **sílabas** — pedacinhos que dizemos numa **única emissão de voz**.\n\n**Exemplos**:\n• **ca-sa** → 2 sílabas\n• **bo-ne-ca** → 3 sílabas\n• **pa-pa-gai-o** → 4 sílabas\n• **flor** → 1 sílaba\n\n**Truque**: bate as palmas ao dizer a palavra. Cada palmada é uma sílaba!\n\n**❌ O que se costuma errar**\n• Bater palmas a mais (em "casa" são só 2: "ca" + "sa", não "c-a-s-a").\n• Cortar uma palavra de forma errada (não é "es-c-ola" mas sim "es-co-la").\n• Esquecer que "flor" tem só 1 sílaba (não 2).' },
 
@@ -246,7 +244,7 @@ const LESSONS_2 = {
 
     'portugues/Tipos de frase': { title:'Tipos de frase', body:'As frases dividem-se em **4 tipos** conforme o que servem para dizer:\n\n• **Declarativa** — afirma ou nega algo. Termina em **".".**\n   Ex: "O céu está azul."\n• **Interrogativa** — pergunta. Termina em **"?".**\n   Ex: "O céu está azul?"\n• **Exclamativa** — exprime emoção. Termina em **"!".**\n   Ex: "Que céu lindo!"\n• **Imperativa** — dá ordem ou faz pedido.\n   Ex: "Olha para o céu."\n\n**❌ O que se costuma errar**\n• Olhar só para o sinal de pontuação sem perceber a intenção.\n• Confundir interrogativa com exclamativa (uma pergunta com emoção pode ter os dois: "Já chegou?!").\n• Dizer que "Olha!" é só exclamativa — também é imperativa (é uma ordem).' },
 
-    'portugues/Singular e plural': { title:'Singular e plural', body:'**Singular** = um só (gato, casa, livro).\n**Plural** = mais do que um (gatos, casas, livros).\n\n**Regras de formação do plural**:\n• Geral: junta **"s"** → casa/cas**as**, livro/livr**os**.\n• **-al, -el, -ol, -ul** → muda para **-ais, -éis, -óis, -uis**: anim**al** → anim**ais**; pap**el** → pap**éis**; faro**l** → far**óis**.\n• **-il com acento**: **-is** → barr**il** → barr**is**.\n• **-il sem acento**: **-eis** → fós**sil** → fós**seis**.\n• **-m** → **-ns**: hom**em** → hom**ens**.\n• **-ão**: pode ser **-ões** (cão→cães; pão→pães; mão→mãos — depende da palavra!).\n\n**❌ O que se costuma errar**\n• Fazer "papel" → "papels" (é **papéis**!).\n• Fazer "homem" → "homems" (é **homens**!).\n• Achar que TODAS as palavras em "-ão" fazem "-ões" — algumas fazem "-ães" (cão→cães) ou "-ãos" (mão→mãos).' },
+    'portugues/Singular e plural': { title:'Singular e plural', body:'**Singular** = um só (gato, casa, livro).\n**Plural** = mais do que um (gatos, casas, livros).\n\n**Regras de formação do plural**:\n• Geral: junta **"s"** → casa/cas**as**, livro/livr**os**.\n• **-al, -el, -ol, -ul** → muda para **-ais, -éis, -óis, -uis**: anim**al** → anim**ais**; pap**el** → pap**éis**; faro**l** → far**óis**.\n• **-il com força no fim** (palavras agudas): **-is** → barr**il** → barr**is**; perf**il** → perf**is**.\n• **-il com força no meio** (palavras graves, com acento gráfico): **-eis** → **fós**sil → fós**seis**; **rép**til → ré**pteis**.\n• **-m** → **-ns**: hom**em** → hom**ens**.\n• **-ão** pode ser **-ões** (leão→leões), **-ães** (cão→cães; pão→pães) ou **-ãos** (mão→mãos; irmão→irmãos) — depende da palavra!\n\n**❌ O que se costuma errar**\n• Fazer "papel" → "papels" (é **papéis**!).\n• Fazer "homem" → "homems" (é **homens**!).\n• Achar que TODAS as palavras em "-ão" fazem "-ões" — algumas fazem "-ães" (cão→cães) ou "-ãos" (mão→mãos).\n• Trocar a regra do "-il": "barril" (força no FIM, sem acento gráfico) → "barris"; "fóssil" (força no MEIO, COM acento gráfico) → "fósseis".' },
 
     'portugues/Verbos no presente': { title:'Verbos no presente', body:'O **presente** é o tempo de **agora** — o que está a acontecer.\n\n**Verbo "correr"** (no presente):\n• Eu **corro**\n• Tu **corres**\n• Ele/Ela **corre**\n• Nós **corremos**\n• Vós **correis**\n• Eles/Elas **correm**\n\n**Verbo "ser"** (importante!):\n• Eu **sou** · Tu **és** · Ele **é**\n• Nós **somos** · Vós **sois** · Eles **são**\n\n**Verbo "ter"**:\n• Eu **tenho** · Tu **tens** · Ele **tem**\n• Nós **temos** · Vós **tendes** · Eles **têm**\n\n**❌ O que se costuma errar**\n• Misturar tempos (eu corro = agora; eu corri = ontem).\n• Esquecer-se que "ele" e "ela" partilham a mesma forma (ele corre / ela corre).\n• Conjugar mal verbos especiais como "ser" (não é "eu sou correr"... é "eu corro").' },
 
@@ -306,7 +304,7 @@ const LESSONS_2 = {
 
     'estudo_meio/Astros': {
         title: 'Astros',
-        body: `**1. O que são astros**\nOs **ASTROS** são corpos que estão no **céu / espaço**. Os principais são o **Sol**, a **Terra**, a **Lua** e as **estrelas**.\n\n**2. O Sol** ☀️\n• É uma **ESTRELA** (a mais próxima de nós).\n• Dá-nos **luz** e **calor**.\n• É MUITO maior que a Terra.\n• Sem o Sol não havia vida na Terra.\n\n**3. A Terra** 🌍\n• É um **PLANETA** onde nós vivemos.\n• Roda à volta do Sol → demora **1 ANO** (365 dias).\n• Roda sobre si mesma → demora **1 DIA** (24 horas) → assim acontece o dia e a noite.\n\n**4. A Lua** 🌙\n• É um **SATÉLITE** da Terra (anda à volta da Terra).\n• Não tem luz própria — REFLETE a luz do Sol.\n• Demora cerca de **1 mês** a dar a volta à Terra.\n• Tem **fases**: Lua Nova 🌑, Quarto Crescente 🌓, Lua Cheia 🌕, Quarto Minguante 🌗.\n\n**5. As estrelas** ⭐\n• São como o Sol mas estão MUITO longe.\n• Vêem-se à noite porque sem o Sol não há tanta luz.\n\n**6. Quadro resumo**\n\n| Astro | O que é | Tem luz própria? |\n|---|---|---|\n| Sol | Estrela | **SIM** |\n| Terra | Planeta | NÃO |\n| Lua | Satélite | NÃO (reflete) |\n| Estrelas | Estrelas | **SIM** |\n\n[exemplo]\n**Pergunta tipo de exame**: Diz quais destes astros têm luz PRÓPRIA: Sol, Lua, estrelas, Terra.\n\n**Como pensar**:\n1. Sol → estrela → tem luz própria ✓\n2. Lua → reflete a luz do Sol → NÃO tem luz própria ✗\n3. Estrelas → como o Sol → têm luz própria ✓\n4. Terra → planeta → NÃO tem luz própria ✗\n\n**Resposta**: Têm luz própria **o Sol e as estrelas**.\n[/exemplo]\n\n[erros]\n• Achar que a Lua tem luz própria (não — só REFLETE).\n• Confundir o Sol com um planeta (é uma ESTRELA).\n• Pensar que o dia e a noite são porque o Sol "se apaga" (não — a Terra é que ROTA).\n• Esquecer que a Terra dá uma volta ao Sol num ANO inteiro.\n[/erros]`
+        body: `**1. O que são astros**\nOs **ASTROS** são corpos que estão no **céu / espaço**. Os principais são o **Sol**, a **Terra**, a **Lua** e as **estrelas**.\n\n**2. O Sol** ☀️\n• É uma **ESTRELA** (a mais próxima de nós).\n• Dá-nos **luz** e **calor**.\n• É MUITO maior que a Terra.\n• Sem o Sol não havia vida na Terra.\n\n**3. A Terra** 🌍\n• É um **PLANETA** onde nós vivemos.\n• Roda à volta do Sol → demora **1 ANO** (365 dias).\n• Roda sobre si mesma → demora **1 DIA** (24 horas) → assim acontece o dia e a noite.\n\n**4. A Lua** 🌙\n• É um **SATÉLITE** da Terra (anda à volta da Terra).\n• Não tem luz própria — REFLETE a luz do Sol.\n• Demora cerca de **1 mês** a dar a volta à Terra.\n• Tem **fases**: Lua Nova 🌑, Quarto Crescente 🌓, Lua Cheia 🌕, Quarto Minguante 🌗.\n\n**5. As estrelas** ⭐\n• São como o Sol mas estão MUITO longe.\n• Vêem-se à noite porque sem o Sol não há tanta luz.\n\n**6. Quadro resumo**\n\n| Astro | O que é | Tem luz própria? |\n|---|---|---|\n| Sol | Estrela | **SIM** |\n| Terra | Planeta | NÃO |\n| Lua | Satélite | NÃO (reflete) |\n| Estrelas | Estrelas | **SIM** |\n\n[exemplo]\n**Pergunta tipo de exame**: Diz quais destes astros têm luz PRÓPRIA: Sol, Lua, estrelas, Terra.\n\n**Como pensar**:\n1. Sol → estrela → tem luz própria ✓\n2. Lua → reflete a luz do Sol → NÃO tem luz própria ✗\n3. Estrelas → como o Sol → têm luz própria ✓\n4. Terra → planeta → NÃO tem luz própria ✗\n\n**Resposta**: Têm luz própria **o Sol e as estrelas**.\n[/exemplo]\n\n[erros]\n• Achar que a Lua tem luz própria (não — só REFLETE).\n• Confundir o Sol com um planeta (é uma ESTRELA).\n• Pensar que o dia e a noite são porque o Sol "se apaga" (não — a **Terra é que roda** sobre si mesma).\n• Esquecer que a Terra dá uma volta ao Sol num ANO inteiro.\n[/erros]`
     },
 
     'estudo_meio/Transportes': {
@@ -332,7 +330,7 @@ const LESSONS_2 = {
     // ===== INGLÊS =====
     'ingles/Cores': { title:'As cores em inglês', body:'🔴 **red** = vermelho\n🔵 **blue** = azul\n🟡 **yellow** = amarelo\n🟢 **green** = verde\n💗 **pink** = rosa\n🟣 **purple** = roxo\n🟠 **orange** = laranja\n🟤 **brown** = castanho\n⚫ **black** = preto\n⚪ **white** = branco\n\n**Truque**: muitas cores são parecidas com palavras portuguesas — "violet" (violeta), "rose" (rosa).\n\n**Como dizer**: "What colour is it?" = Que cor é? Resposta: "It is red." (É vermelho.)\n\n**❌ O que se costuma errar**\n• Confundir **red** com **read** (read = ler — escreve-se igual mas em cores é red).\n• Trocar **blue** com **green**.\n• Pronunciar "white" como "wite" — diz-se "uait".' },
 
-    'ingles/Números': { title:'Os números 1 a 5', body:'**1** = **one** ☝️\n**2** = **two** ✌️\n**3** = **three** 🤟\n**4** = **four** ✋ (sem o polegar)\n**5** = **five** 🖐️\n\nDepois: **6** = six · **7** = seven · **8** = eight · **9** = nine · **10** = ten.\n\n**Como dizer**: "How many?" = Quantos? Resposta: "Three." (Três.)\n\n**❌ O que se costuma errar**\n• Confundir **two** com **too** (too = também).\n• Trocar **four** (quatro) com **for** (para — outra palavra).\n• Pronunciar "three" como "tri" — diz-se "fri".' },
+    'ingles/Números': { title:'Os números 1 a 5', body:'**1** = **one** ☝️\n**2** = **two** ✌️\n**3** = **three** 🤟\n**4** = **four** ✋ (sem o polegar)\n**5** = **five** 🖐️\n\nDepois: **6** = six · **7** = seven · **8** = eight · **9** = nine · **10** = ten.\n\n**Como dizer**: "How many?" = Quantos? Resposta: "Three." (Três.)\n\n**❌ O que se costuma errar**\n• Confundir **two** com **too** (too = também).\n• Trocar **four** (quatro) com **for** (para — outra palavra).\n• Pronunciar **three** com "f" — não é "fri". O "th" diz-se com a língua a tocar nos dentes da frente, parecido com "tri" em PT-PT.' },
 
     'ingles/Animais': { title:'Os animais', body:'🐶 **dog** = cão\n🐱 **cat** = gato\n🐦 **bird** = passarinho\n🐟 **fish** = peixe\n🐰 **rabbit** = coelho\n🐴 **horse** = cavalo\n🐮 **cow** = vaca\n🐷 **pig** = porco\n🐭 **mouse** = rato\n🦁 **lion** = leão\n🐘 **elephant** = elefante\n\n**Como perguntar**: "What animal is it?" = Que animal é?\n\n**❌ O que se costuma errar**\n• Confundir **fish** (peixe) com **fist** (punho).\n• Pronunciar **mouse** como "mouse" — diz-se "maus".\n• Trocar **cat** (gato) com **cap** (boné).' },
 
@@ -352,7 +350,7 @@ const LESSONS_2 = {
 
     'ingles/Food': {
         title: 'Food (comida)',
-        body: `**1. Frutas (fruits)** 🍎\n\n🍎 **apple** = maçã\n🍌 **banana** = banana\n🍊 **orange** = laranja\n🍓 **strawberry** = morango\n🍐 **pear** = pera\n🍇 **grape** / grapes = uva / uvas\n🥝 **kiwi** = kiwi\n🍉 **watermelon** = melancia\n🍋 **lemon** = limão\n🍒 **cherry** / cherries = cereja / cerejas\n\n**2. Legumes (vegetables)** 🥕\n\n🥕 **carrot** = cenoura\n🥔 **potato** / potatoes = batata / batatas\n🥬 **lettuce** = alface\n🍅 **tomato** / tomatoes = tomate / tomates\n🥦 **broccoli** = brócolos\n🌽 **corn** = milho\n🧅 **onion** = cebola\n\n**3. Outros alimentos**\n\n🍞 **bread** = pão\n🥚 **egg** / eggs = ovo / ovos\n🥛 **milk** = leite\n🧀 **cheese** = queijo\n🍝 **pasta** = massa\n🍚 **rice** = arroz\n🍗 **chicken** = frango / galinha\n🐟 **fish** = peixe\n🥩 **meat** = carne\n💧 **water** = água\n🍫 **chocolate** = chocolate\n🍰 **cake** = bolo\n\n**4. Frases úteis**\n• "I like apples." = Gosto de maçãs.\n• "I don't like fish." = Não gosto de peixe.\n• "I am hungry." = Tenho fome.\n• "I am thirsty." = Tenho sede.\n• "What's your favourite food?" = Qual é a tua comida favorita?\n\n[exemplo]\n**Pergunta tipo de exame**: Diz em inglês:\n(a) Eu gosto de maçãs.\n(b) Não gosto de peixe.\n(c) Tenho fome.\n\n**Como pensar**:\n1. "Gosto de" = I like.\n2. "Não gosto de" = I don't like.\n3. "Tenho fome" = I am hungry.\n\n**Resposta**:\n(a) I like apples.\n(b) I don't like fish.\n(c) I am hungry.\n[/exemplo]\n\n[erros]\n• Confundir **bread** (pão) com **bird** (passarinho).\n• Pronunciar **cheese** como "tchiz" — diz-se "tchiiz".\n• Confundir **meat** (carne) com **meet** (encontrar) — escrevem-se diferente.\n• Esquecer-se que o plural de "potato" é "potato**ES**" (com -es).\n[/erros]`
+        body: `**1. Frutas (fruits)** 🍎\n\n🍎 **apple** = maçã\n🍌 **banana** = banana\n🍊 **orange** = laranja\n🍓 **strawberry** = morango\n🍐 **pear** = pera\n🍇 **grape** / grapes = uva / uvas\n🥝 **kiwi** = kiwi\n🍉 **watermelon** = melancia\n🍋 **lemon** = limão\n🍒 **cherry** / cherries = cereja / cerejas\n\n**2. Legumes (vegetables)** 🥕\n\n🥕 **carrot** = cenoura\n🥔 **potato** / potatoes = batata / batatas\n🥬 **lettuce** = alface\n🍅 **tomato** / tomatoes = tomate / tomates\n🥦 **broccoli** = brócolos\n🌽 **corn** = milho\n🧅 **onion** = cebola\n\n**3. Outros alimentos**\n\n🍞 **bread** = pão\n🥚 **egg** / eggs = ovo / ovos\n🥛 **milk** = leite\n🧀 **cheese** = queijo\n🍝 **pasta** = massa\n🍚 **rice** = arroz\n🍗 **chicken** = frango / galinha\n🐟 **fish** = peixe\n🥩 **meat** = carne\n💧 **water** = água\n🍫 **chocolate** = chocolate\n🍰 **cake** = bolo\n\n**4. Frases úteis**\n• "I like apples." = Gosto de maçãs.\n• "I don't like fish." = Não gosto de peixe.\n• "I am hungry." = Tenho fome.\n• "I am thirsty." = Tenho sede.\n• "What's your favourite food?" = Qual é a tua comida favorita?\n\n[exemplo]\n**Pergunta tipo de exame**: Diz em inglês:\n(a) Eu gosto de maçãs.\n(b) Não gosto de peixe.\n(c) Tenho fome.\n\n**Como pensar**:\n1. "Gosto de" = I like.\n2. "Não gosto de" = I don't like.\n3. "Tenho fome" = I am hungry.\n\n**Resposta**:\n(a) I like apples.\n(b) I don't like fish.\n(c) I am hungry.\n[/exemplo]\n\n[erros]\n• Confundir **bread** (pão) com **bird** (passarinho).\n• Esquecer-se que **cheese** tem o "ee" longo: lê-se aproximadamente "tchiiiz" (com o "i" arrastado), e não como o "i" curto do português.\n• Confundir **meat** (carne) com **meet** (encontrar) — escrevem-se diferente.\n• Esquecer-se que o plural de "potato" é "potato**ES**" (com -es).\n[/erros]`
     },
 
     'ingles/Toys': {
@@ -546,7 +544,6 @@ const EXERCISES_2 = [
     // ============================================================
 
     // ----- Português: Hiato (já 3, +7) -----
-    { id:'2p36', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'Qual destas palavras tem hiato?', opts:['casa','baú','pai','flor'], ans:1, exp:'Baú = ba-ú → 2 sílabas, vogais separadas (hiato).' },
     { id:'2p37', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'A palavra "país" tem:', opts:['ditongo','hiato','sílaba só','consoantes só'], ans:1, exp:'Pa-ís → 2 sílabas, "a" e "í" separados (hiato).' },
     { id:'2p38', s:'portugues', t:'Hiato', type:'fill', diff:2, q:'Quantas sílabas tem "saúde"? ___', ans:['3','três'], exp:'sa-ú-de → 3 sílabas (hiato entre a e ú).' },
     { id:'2p39', s:'portugues', t:'Hiato', type:'tf', diff:2, q:'A palavra "boi" tem hiato.', ans:false, exp:'Falso! "boi" tem 1 sílaba só → ditongo (oi).' },
@@ -586,7 +583,6 @@ const EXERCISES_2 = [
     { id:'2p65', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Aumentativo de "menino":', opts:['meninozinho','meninão','menininho','menininha'], ans:1, exp:'Meninão = aumentativo (-ão).' },
     { id:'2p66', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:1, q:'Diminutivo de "flor":', opts:['florona','florinha','florezinha','florzinha'], ans:3, exp:'Flor → FLORZINHA (-zinha).' },
     { id:'2p67', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'fill', diff:2, q:'Aumentativo de "casa": ___', ans:['casarão','casona'], exp:'Casa → CASARÃO ou CASONA (aumentativo, com -ão / -ona).' },
-    { id:'2p68', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'tf', diff:2, q:'O diminutivo serve sempre para indicar tamanho pequeno.', ans:false, exp:'Falso! Também serve para CARINHO (mãezinha, paizinho).' },
     { id:'2p69', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:2, q:'Diminutivo de "cão":', opts:['cãozinho','canzão','caninho','cãozão'], ans:0, exp:'Cão → CÃOZINHO.' },
     { id:'2p70', s:'portugues', t:'Grau (aumentativo e diminutivo)', type:'mc', diff:2, q:'Aumentativo de "livro":', opts:['livrinho','livraria','livrão','livreira'], ans:2, exp:'Livro → LIVRÃO (livro grande).' },
 
@@ -771,7 +767,6 @@ const EXERCISES_2 = [
     { id:'2e64', s:'estudo_meio', t:'Comemorações', type:'mc', diff:2, q:'Festa do Dia das Bruxas (origem americana):', opts:['Carnaval','Páscoa','Halloween','São João'], ans:2, exp:'HALLOWEEN — 31 de outubro, festa americana com fatos e doces.' },
 
     // ----- Inglês: Alfabeto (+7) -----
-    { id:'2i31', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Quantas letras tem o alfabeto inglês?', opts:['23','24','26','28'], ans:2, exp:'26 letras (em português usamos 23 normalmente).' },
     { id:'2i32', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "A" em inglês?', opts:['"a"','"ei"','"ah"','"ai"'], ans:1, exp:'A letra A em inglês diz-se "ei".' },
     { id:'2i33', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "I" em inglês?', opts:['"i"','"ai"','"ih"','"ee"'], ans:1, exp:'A letra I em inglês diz-se "ai".' },
     { id:'2i34', s:'ingles', t:'Alfabeto', type:'mc', diff:2, q:'Como se diz "E" em inglês?', opts:['"e"','"ei"','"i"','"u"'], ans:2, exp:'A letra E em inglês diz-se "i".' },
@@ -1089,7 +1084,6 @@ const EXERCISES_2 = [
     { id:'2m227', s:'matematica', t:'Tabuada do 3', type:'mc', diff:1, q:'3 × 2 = ?', opts:['5','6','9'], ans:1, exp:'3 × 2 = 6.' },
     { id:'2m228', s:'matematica', t:'Tabuada do 3', type:'fill', diff:2, q:'3 × 3 = ___', ans:['9'], exp:'3 × 3 = 9.' },
     { id:'2m229', s:'matematica', t:'Tabuada do 3', type:'tf', diff:1, q:'3 × 0 = 0.', ans:true, exp:'Qualquer número × 0 = 0.' },
-    { id:'2m230', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 4 = ?', opts:['9','12','15'], ans:1, exp:'3 × 4 = 12.' },
 
     // ----- Matemática: Tabuada do 4 (+5 fácil) -----
     { id:'2m231', s:'matematica', t:'Tabuada do 4', type:'mc', diff:1, q:'4 × 1 = ?', opts:['0','4','8'], ans:1, exp:'4 × 1 = 4.' },
@@ -1103,14 +1097,12 @@ const EXERCISES_2 = [
     { id:'2m237', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 5 = ?', opts:['25','30','36'], ans:1, exp:'6 × 5 = 30.' },
     { id:'2m238', s:'matematica', t:'Tabuada do 6', type:'fill', diff:2, q:'6 × 3 = ___', ans:['18'], exp:'6 × 3 = 18.' },
     { id:'2m239', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'6 × 10 = 60.', ans:true, exp:'Verdade — junta 0 ao 6.' },
-    { id:'2m240', s:'matematica', t:'Tabuada do 6', type:'mc', diff:1, q:'6 × 2 = ?', opts:['8','10','12'], ans:2, exp:'6 × 2 = 12.' },
 
     // ----- Matemática: Tabuada do 7 (+5 fácil) -----
     { id:'2m241', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 1 = ?', opts:['0','7','14'], ans:1, exp:'7 × 1 = 7.' },
     { id:'2m242', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 2 = ?', opts:['12','14','16'], ans:1, exp:'7 × 2 = 14.' },
     { id:'2m243', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 0 = ___', ans:['0','zero'], exp:'× 0 = 0.' },
     { id:'2m244', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'7 × 10 = 70.', ans:true, exp:'Verdade.' },
-    { id:'2m245', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 3 = ?', opts:['18','21','24'], ans:1, exp:'7 × 3 = 21.' },
 
     // ----- Matemática: Tabuada do 8 (+5 fácil) -----
     { id:'2m246', s:'matematica', t:'Tabuada do 8', type:'mc', diff:1, q:'8 × 1 = ?', opts:['0','8','16'], ans:1, exp:'8 × 1 = 8.' },
@@ -1122,9 +1114,7 @@ const EXERCISES_2 = [
     // ----- Matemática: Tabuada do 9 (+5 fácil) -----
     { id:'2m251', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 1 = ?', opts:['0','9','18'], ans:1, exp:'9 × 1 = 9.' },
     { id:'2m252', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 2 = ?', opts:['11','18','20'], ans:1, exp:'9 × 2 = 18.' },
-    { id:'2m253', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
     { id:'2m254', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'9 × 0 = 0.', ans:true, exp:'× 0 = 0.' },
-    { id:'2m255', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 3 = ?', opts:['18','21','27'], ans:2, exp:'9 × 3 = 27.' },
 
     // ----- Matemática: Frações simples (+5 fácil) -----
     { id:'2m256', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade quer dizer:', opts:['1 parte de 4','1 parte de 2','tudo'], ans:1, exp:'Metade = 1/2 (1 de 2 partes iguais).' },
@@ -1138,7 +1128,6 @@ const EXERCISES_2 = [
     { id:'2m262', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Que instrumento mede o comprimento?', opts:['balança','relógio','régua'], ans:2, exp:'A régua mede comprimento.' },
     { id:'2m263', s:'matematica', t:'Comprimento', type:'fill', diff:2, q:'1 m = ___ cm', ans:['100'], exp:'1 metro = 100 centímetros.' },
     { id:'2m264', s:'matematica', t:'Comprimento', type:'tf', diff:2, q:'cm = centímetro.', ans:true, exp:'Verdade — cm é o símbolo de centímetro.' },
-    { id:'2m265', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'Para medir um lápis usas:', opts:['cm','km','toneladas'], ans:0, exp:'Centímetros (lápis é pequeno).' },
 
     // ----- Matemática: Massa (+5 fácil) -----
     { id:'2m266', s:'matematica', t:'Massa', type:'mc', diff:1, q:'A massa mede-se com:', opts:['régua','balança','copo'], ans:1, exp:'Balança mede massa.' },
@@ -1162,7 +1151,6 @@ const EXERCISES_2 = [
     { id:'2m280', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Num gráfico vês: cães=3, gatos=4. Mais animais?', opts:['cães','gatos','iguais'], ans:1, exp:'Gatos = 4 (mais que 3 cães).' },
 
     // ----- Estudo do Meio: Astros (+5 fácil) -----
-    { id:'2e90', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'O Sol é uma:', opts:['planeta','lua','estrela'], ans:2, exp:'O Sol é uma estrela.' },
     { id:'2e91', s:'estudo_meio', t:'Astros', type:'mc', diff:1, q:'A Terra é um:', opts:['planeta','estrela','satélite'], ans:0, exp:'A Terra é um planeta.' },
     { id:'2e92', s:'estudo_meio', t:'Astros', type:'tf', diff:1, q:'Vivemos no planeta Terra.', ans:true, exp:'Verdade — vivemos na Terra.' },
     { id:'2e93', s:'estudo_meio', t:'Astros', type:'fill', diff:1, q:'O Sol dá luz e ___ (sensação).', ans:['calor'], exp:'O Sol dá luz e calor.' },
@@ -1170,7 +1158,6 @@ const EXERCISES_2 = [
 
     // ----- Estudo do Meio: Transportes (+5 fácil) -----
     { id:'2e95', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Carro é um transporte:', opts:['terrestre','aéreo','aquático'], ans:0, exp:'Carro anda em terra.' },
-    { id:'2e96', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Avião é um transporte:', opts:['terrestre','aéreo','aquático'], ans:1, exp:'Avião voa no ar.' },
     { id:'2e97', s:'estudo_meio', t:'Transportes', type:'mc', diff:1, q:'Barco é um transporte:', opts:['terrestre','aéreo','aquático'], ans:2, exp:'Barco anda na água.' },
     { id:'2e98', s:'estudo_meio', t:'Transportes', type:'tf', diff:1, q:'A bicicleta não polui.', ans:true, exp:'Verdade — não tem motor.' },
     { id:'2e99', s:'estudo_meio', t:'Transportes', type:'fill', diff:1, q:'Atravessar a estrada na ___ (faixa pintada).', ans:['passadeira'], exp:'Passadeira — local seguro para atravessar.' },
@@ -1205,22 +1192,16 @@ const EXERCISES_2 = [
 
     // ----- Inglês: Body (+5 fácil) -----
     { id:'2i84', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ em inglês:', opts:['eye','ear','nose'], ans:0, exp:'👁️ = eye.' },
-    { id:'2i85', s:'ingles', t:'Body', type:'mc', diff:1, q:'👃 em inglês:', opts:['mouth','nose','ear'], ans:1, exp:'👃 = nose.' },
     { id:'2i86', s:'ingles', t:'Body', type:'mc', diff:1, q:'✋ em inglês:', opts:['hand','foot','head'], ans:0, exp:'✋ = hand.' },
     { id:'2i87', s:'ingles', t:'Body', type:'tf', diff:2, q:'"Head" significa cabeça.', ans:true, exp:'Verdade.' },
     { id:'2i88', s:'ingles', t:'Body', type:'fill', diff:1, q:'Pé em inglês: ___', ans:['foot'], exp:'Foot = pé.' },
 
     // ----- Inglês: Food (+5 fácil) -----
     { id:'2i89', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍎 em inglês:', opts:['apple','orange','pear'], ans:0, exp:'🍎 = apple.' },
-    { id:'2i90', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍌 em inglês:', opts:['apple','banana','grape'], ans:1, exp:'🍌 = banana.' },
-    { id:'2i91', s:'ingles', t:'Food', type:'mc', diff:1, q:'🥛 em inglês:', opts:['water','milk','juice'], ans:1, exp:'🥛 = milk.' },
     { id:'2i92', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Bread" significa pão.', ans:true, exp:'Verdade.' },
     { id:'2i93', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
 
     // ----- Inglês: Toys (+5 fácil) -----
-    { id:'2i94', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🐻 (peluche) em inglês:', opts:['dog','teddy bear','cat'], ans:1, exp:'Teddy bear = ursinho.' },
-    { id:'2i95', s:'ingles', t:'Toys', type:'mc', diff:1, q:'⚽ em inglês:', opts:['ball','car','book'], ans:0, exp:'Ball = bola.' },
-    { id:'2i96', s:'ingles', t:'Toys', type:'mc', diff:1, q:'🚗 em inglês:', opts:['car','bike','train'], ans:0, exp:'Car = carro.' },
     { id:'2i97', s:'ingles', t:'Toys', type:'tf', diff:2, q:'"Doll" significa boneca.', ans:true, exp:'Verdade.' },
     { id:'2i98', s:'ingles', t:'Toys', type:'fill', diff:1, q:'Livro em inglês: ___', ans:['book'], exp:'Book = livro.' },
 
@@ -1231,7 +1212,6 @@ const EXERCISES_2 = [
     // ----- Português: Hiato (+5 fácil) -----
     { id:'2p155', s:'portugues', t:'Hiato', type:'tf', diff:1, q:'"Saúde" tem 3 sílabas.', ans:true, exp:'sa-ú-de = 3 sílabas (hiato).' },
     { id:'2p156', s:'portugues', t:'Hiato', type:'mc', diff:1, q:'No HIATO, dizes as 2 vogais:', opts:['ao mesmo tempo','separadas (em sílabas diferentes)'], ans:1, exp:'Hiato = sílabas diferentes.' },
-    { id:'2p157', s:'portugues', t:'Hiato', type:'mc', diff:2, q:'Que palavra tem hiato?', opts:['mãe','baú','sol'], ans:1, exp:'Baú = ba-ú (hiato).' },
     { id:'2p158', s:'portugues', t:'Hiato', type:'fill', diff:1, q:'Quantas sílabas tem "baú"? ___', ans:['2','duas'], exp:'ba-ú = 2 sílabas.' },
     { id:'2p159', s:'portugues', t:'Hiato', type:'tf', diff:1, q:'Bater palmas ajuda a contar sílabas.', ans:true, exp:'Sim! Cada palmada = 1 sílaba.' },
 
@@ -1293,49 +1273,27 @@ const EXERCISES_2 = [
 
     // ----- Mat: Tabuada do 3 (+5 fácil) -----
     { id:'2m291', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 5 = ?', opts:['10','15','20'], ans:1, exp:'3 × 5 = 15.' },
-    { id:'2m292', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 6 = ?', opts:['12','18','24'], ans:1, exp:'3 × 6 = 18.' },
-    { id:'2m293', s:'matematica', t:'Tabuada do 3', type:'fill', diff:1, q:'3 × 10 = ___', ans:['30'], exp:'3 × 10 = 30.' },
     { id:'2m294', s:'matematica', t:'Tabuada do 3', type:'tf', diff:1, q:'3 × 1 = 3.', ans:true, exp:'Verdade.' },
-    { id:'2m295', s:'matematica', t:'Tabuada do 3', type:'mc', diff:2, q:'3 × 7 = ?', opts:['18','21','24'], ans:1, exp:'3 × 7 = 21.' },
 
     // ----- Mat: Tabuada do 4 (+5 fácil) -----
-    { id:'2m296', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'4 × 3 = ?', opts:['9','12','15'], ans:1, exp:'4 × 3 = 12.' },
-    { id:'2m297', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'4 × 6 = ?', opts:['18','24','28'], ans:1, exp:'4 × 6 = 24.' },
-    { id:'2m298', s:'matematica', t:'Tabuada do 4', type:'fill', diff:1, q:'4 × 10 = ___', ans:['40'], exp:'4 × 10 = 40.' },
     { id:'2m299', s:'matematica', t:'Tabuada do 4', type:'tf', diff:1, q:'4 × 1 = 4.', ans:true, exp:'Verdade.' },
-    { id:'2m300', s:'matematica', t:'Tabuada do 4', type:'mc', diff:2, q:'4 × 7 = ?', opts:['24','28','32'], ans:1, exp:'4 × 7 = 28.' },
 
     // ----- Mat: Tabuada do 6 (+5 fácil) -----
-    { id:'2m301', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'6 × 4 = ?', opts:['18','20','24'], ans:2, exp:'6 × 4 = 24.' },
-    { id:'2m302', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'6 × 6 = ?', opts:['30','36','42'], ans:1, exp:'6 × 6 = 36.' },
-    { id:'2m303', s:'matematica', t:'Tabuada do 6', type:'fill', diff:1, q:'6 × 10 = ___', ans:['60'], exp:'6 × 10 = 60.' },
     { id:'2m304', s:'matematica', t:'Tabuada do 6', type:'tf', diff:1, q:'6 × 1 = 6.', ans:true, exp:'Verdade.' },
-    { id:'2m305', s:'matematica', t:'Tabuada do 6', type:'mc', diff:2, q:'6 × 7 = ?', opts:['36','42','48'], ans:1, exp:'6 × 7 = 42.' },
 
     // ----- Mat: Tabuada do 7 (+5 fácil) -----
     { id:'2m306', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 4 = ?', opts:['21','28','35'], ans:1, exp:'7 × 4 = 28.' },
-    { id:'2m307', s:'matematica', t:'Tabuada do 7', type:'mc', diff:1, q:'7 × 5 = ?', opts:['28','35','42'], ans:1, exp:'7 × 5 = 35.' },
-    { id:'2m308', s:'matematica', t:'Tabuada do 7', type:'fill', diff:1, q:'7 × 10 = ___', ans:['70'], exp:'7 × 10 = 70.' },
     { id:'2m309', s:'matematica', t:'Tabuada do 7', type:'tf', diff:1, q:'7 × 1 = 7.', ans:true, exp:'Verdade.' },
-    { id:'2m310', s:'matematica', t:'Tabuada do 7', type:'mc', diff:2, q:'7 × 6 = ?', opts:['35','42','49'], ans:1, exp:'7 × 6 = 42.' },
 
     // ----- Mat: Tabuada do 8 (+5 fácil) -----
-    { id:'2m311', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'8 × 3 = ?', opts:['18','24','30'], ans:1, exp:'8 × 3 = 24.' },
-    { id:'2m312', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'8 × 4 = ?', opts:['24','32','40'], ans:1, exp:'8 × 4 = 32.' },
     { id:'2m313', s:'matematica', t:'Tabuada do 8', type:'fill', diff:1, q:'8 × 10 = ___', ans:['80'], exp:'8 × 10 = 80.' },
     { id:'2m314', s:'matematica', t:'Tabuada do 8', type:'tf', diff:1, q:'8 × 1 = 8.', ans:true, exp:'Verdade.' },
-    { id:'2m315', s:'matematica', t:'Tabuada do 8', type:'mc', diff:2, q:'8 × 6 = ?', opts:['42','48','56'], ans:1, exp:'8 × 6 = 48.' },
 
     // ----- Mat: Tabuada do 9 (+5 fácil) -----
-    { id:'2m316', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 4 = ?', opts:['27','32','36'], ans:2, exp:'9 × 4 = 36.' },
-    { id:'2m317', s:'matematica', t:'Tabuada do 9', type:'mc', diff:1, q:'9 × 5 = ?', opts:['40','45','50'], ans:1, exp:'9 × 5 = 45.' },
-    { id:'2m318', s:'matematica', t:'Tabuada do 9', type:'fill', diff:1, q:'9 × 10 = ___', ans:['90'], exp:'9 × 10 = 90.' },
     { id:'2m319', s:'matematica', t:'Tabuada do 9', type:'tf', diff:1, q:'9 × 1 = 9.', ans:true, exp:'Verdade.' },
-    { id:'2m320', s:'matematica', t:'Tabuada do 9', type:'mc', diff:2, q:'9 × 6 = ?', opts:['45','54','63'], ans:1, exp:'9 × 6 = 54.' },
 
     // ----- Mat: Frações simples (+5 fácil) -----
     { id:'2m321', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade de 2 maçãs:', opts:['1','2','4'], ans:0, exp:'Metade = 1 maçã.' },
-    { id:'2m322', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Metade de 10 é:', opts:['2','5','8'], ans:1, exp:'10 ÷ 2 = 5.' },
     { id:'2m323', s:'matematica', t:'Frações simples', type:'fill', diff:2, q:'Metade de 8 = ___', ans:['4'], exp:'8 ÷ 2 = 4.' },
     { id:'2m324', s:'matematica', t:'Frações simples', type:'tf', diff:1, q:'1/4 lê-se "um quarto".', ans:true, exp:'Verdade.' },
     { id:'2m325', s:'matematica', t:'Frações simples', type:'mc', diff:2, q:'Em 1/2 dividimos em quantas partes?', opts:['1','2','4'], ans:1, exp:'1/2 → 2 partes iguais.' },
@@ -1355,14 +1313,11 @@ const EXERCISES_2 = [
     { id:'2m335', s:'matematica', t:'Massa', type:'mc', diff:2, q:'1 quilo tem quantos gramas?', opts:['10','100','1000'], ans:2, exp:'1 kg = 1000 g.' },
 
     // ----- Mat: Capacidade (+5 fácil) -----
-    { id:'2m336', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Símbolo de litro:', opts:['L','kg','m'], ans:0, exp:'L = litro.' },
     { id:'2m337', s:'matematica', t:'Capacidade', type:'mc', diff:1, q:'Para medir líquidos usa-se:', opts:['balança','copo medidor','régua'], ans:1, exp:'Copo graduado/medidor.' },
     { id:'2m338', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'1 litro = ___ mL', ans:['1000','1 000'], exp:'1 L = 1000 mL.' },
-    { id:'2m339', s:'matematica', t:'Capacidade', type:'tf', diff:2, q:'mL = mililitro.', ans:true, exp:'Verdade.' },
     { id:'2m340', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa típica de água tem cerca de:', opts:['1 mL','1 L','100 L'], ans:1, exp:'~1 a 1,5 L.' },
 
     // ----- Mat: Gráficos (+5 fácil) -----
-    { id:'2m341', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Pictograma usa:', opts:['imagens','sons','sabores'], ans:0, exp:'Imagens.' },
     { id:'2m342', s:'matematica', t:'Gráficos', type:'mc', diff:2, q:'Gráfico de barras: barra alta = ?', opts:['mais','menos','igual'], ans:0, exp:'Barra alta = MAIS.' },
     { id:'2m343', s:'matematica', t:'Gráficos', type:'fill', diff:1, q:'2 + 2 = ___', ans:['4'], exp:'2 + 2 = 4.' },
     { id:'2m344', s:'matematica', t:'Gráficos', type:'tf', diff:2, q:'Os gráficos mostram dados de forma visual.', ans:true, exp:'Verdade.' },
@@ -1397,8 +1352,6 @@ const EXERCISES_2 = [
     { id:'2e134', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Vacinas:', opts:['fazem mal','protegem-nos','não servem'], ans:1, exp:'Vacinas protegem de doenças.' },
 
     // ----- Estudo do Meio: Comemorações (+5 fácil) -----
-    { id:'2e135', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'No Natal há:', opts:['ovos chocolate','árvore e presentes','sardinhas'], ans:1, exp:'Árvore + presentes.' },
-    { id:'2e136', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'Na Páscoa há:', opts:['árvore','ovos de chocolate','foguetes'], ans:1, exp:'Ovos de chocolate.' },
     { id:'2e137', s:'estudo_meio', t:'Comemorações', type:'tf', diff:1, q:'O Natal é em dezembro.', ans:true, exp:'25 de dezembro.' },
     { id:'2e138', s:'estudo_meio', t:'Comemorações', type:'fill', diff:1, q:'Festa de fatos e máscaras: ___', ans:['Carnaval','carnaval'], exp:'Carnaval.' },
     { id:'2e139', s:'estudo_meio', t:'Comemorações', type:'mc', diff:1, q:'Aniversário é o dia em que:', opts:['vamos à escola','nascemos','dormimos'], ans:1, exp:'Dia em que nascemos.' },
@@ -1421,7 +1374,6 @@ const EXERCISES_2 = [
     { id:'2i109', s:'ingles', t:'Food', type:'mc', diff:1, q:'Maçã em inglês:', opts:['apple','banana','orange'], ans:0, exp:'Apple = maçã.' },
     { id:'2i110', s:'ingles', t:'Food', type:'mc', diff:1, q:'Pão em inglês:', opts:['bread','milk','egg'], ans:0, exp:'Bread = pão.' },
     { id:'2i111', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Milk" significa leite.', ans:true, exp:'Verdade.' },
-    { id:'2i112', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
     { id:'2i113', s:'ingles', t:'Food', type:'mc', diff:1, q:'Banana em inglês:', opts:['apple','banana','pear'], ans:1, exp:'Banana = igual em inglês.' },
 
     // ----- Inglês: Toys (+5 fácil) -----
@@ -2736,7 +2688,7 @@ const LESSONS_6 = {
     },
     'matematica/Isometrias': {
         title: 'Isometrias',
-        body: `**1. O que é uma isometria**\nUma **isometria** é uma transformação geométrica que **PRESERVA**:\n• **Distâncias** entre pontos\n• **Ângulos**\n• **Forma e tamanho** da figura\n\nA figura "imagem" é CONGRUENTE à figura "objeto" (só muda de POSIÇÃO).\n\n**2. Os 3 tipos de isometrias**\n\n**A) REFLEXÃO (simetria axial)** 🪞\n• A figura é "espelhada" sobre um **EIXO DE SIMETRIA** (linha).\n• A imagem fica INVERTIDA (espelho).\n• Cada ponto e o seu correspondente estão à mesma distância do eixo.\n\n*Eixos de simetria* — uma figura pode ter:\n• 0 eixos — figuras assimétricas (uma letra "F", "G").\n• 1 eixo — borboleta, coração.\n• Vários — quadrado tem 4, círculo tem infinitos.\n\n**B) ROTAÇÃO** 🔄\n• A figura GIRA em torno de um **PONTO** (centro de rotação) com um certo **ÂNGULO**.\n• Pode ser no sentido **horário** (sentido dos ponteiros do relógio) ou **anti-horário** (positivo, contrário).\n• Rotação de 360° volta ao ponto inicial.\n• Rotação de 180° é equivalente a reflexão pelo centro.\n\n**Simetria de rotação**: figura coincide consigo própria após rotação de menos de 360°.\n  Ex: hexágono regular tem simetria de rotação de 60°.\n\n**C) TRANSLAÇÃO** ➡️\n• A figura DESLIZA segundo um **VETOR** (direção, sentido e comprimento).\n• NÃO ROTA, NÃO INVERTE — mantém orientação.\n\n*Vetor*: representa-se por uma seta. Tem 3 atributos:\n• **Direção** (horizontal, vertical, oblíqua)\n• **Sentido** (esquerda/direita, cima/baixo)\n• **Comprimento** (módulo)\n\n**3. Tabela comparativa**\n\n| Isometria | Elemento | Mantém orientação? | Inverte? |\n|---|---|---|---|\n| Reflexão | Eixo | NÃO | SIM (espelho) |\n| Rotação | Centro + ângulo | NÃO (gira) | NÃO |\n| Translação | Vetor | SIM | NÃO |\n\n**4. Composição de isometrias**\nAplicar várias isometrias seguidas dá outra isometria.\n• Reflexão + reflexão (eixos paralelos) = translação.\n• Reflexão + reflexão (eixos concorrentes) = rotação.\n\n**5. Aplicações**\n• Padrões geométricos.\n• **FRISOS** — repetição numa faixa (translação).\n• **ROSÁCEAS** — figuras com rotações em torno de centro.\n• Azulejos portugueses, mosaicos islâmicos.\n• Logótipos, design.\n\n[exemplo]\n**Pergunta tipo de exame**: Identifica as isometrias usadas em cada caso:\n\n*1. Um padrão de azulejos onde uma figura se repete em linha, sempre na mesma orientação.*\n*2. Uma flor com 6 pétalas iguais que coincidem ao girar 60°.*\n*3. A letra "M" e a sua imagem ao espelho "W".*\n\n**Como pensar**:\n1. Repetição linear, mesma orientação → **TRANSLAÇÃO** (vetor horizontal).\n2. Coincide ao girar 60° → **ROTAÇÃO** (centro = centro da flor; ângulo = 60°). É uma simetria de rotação.\n3. M no espelho dá W → **REFLEXÃO** (com eixo horizontal).\n\n**Resposta**: 1) Translação · 2) Rotação · 3) Reflexão.\n[/exemplo]\n\n[erros]\n• Confundir REFLEXÃO (espelho) com ROTAÇÃO (gira).\n• Achar que translação ROTA — apenas DESLIZA.\n• Trocar sentido horário com anti-horário.\n• Pensar que a figura muda de TAMANHO — isometrias preservam tudo.\n• Esquecer-se que vetor tem 3 atributos (direção, sentido, comprimento).\n• Não saber que rotação de 180° = reflexão pelo centro.\n[/erros]`
+        body: `**1. O que é uma isometria**\nUma **isometria** é uma transformação geométrica que **PRESERVA**:\n• **Distâncias** entre pontos\n• **Ângulos**\n• **Forma e tamanho** da figura\n\nA figura "imagem" é CONGRUENTE à figura "objeto" (só muda de POSIÇÃO).\n\n**2. Os 3 tipos de isometrias**\n\n**A) REFLEXÃO (simetria axial)** 🪞\n• A figura é "espelhada" sobre um **EIXO DE SIMETRIA** (linha).\n• A imagem fica INVERTIDA (espelho).\n• Cada ponto e o seu correspondente estão à mesma distância do eixo.\n\n*Eixos de simetria* — uma figura pode ter:\n• 0 eixos — figuras assimétricas (uma letra "F", "G").\n• 1 eixo — borboleta, coração.\n• Vários — quadrado tem 4, círculo tem infinitos.\n\n**B) ROTAÇÃO** 🔄\n• A figura GIRA em torno de um **PONTO** (centro de rotação) com um certo **ÂNGULO**.\n• Pode ser no sentido **horário** (sentido dos ponteiros do relógio) ou **anti-horário** (positivo, contrário).\n• Rotação de 360° volta ao ponto inicial.\n• Rotação de 180° é equivalente a reflexão pelo centro.\n\n**Simetria de rotação**: figura coincide consigo própria após rotação de menos de 360°.\n  Ex: hexágono regular tem simetria de rotação de 60°.\n\n**C) TRANSLAÇÃO** ➡️\n• A figura DESLIZA segundo um **VETOR** (direção, sentido e comprimento).\n• NÃO GIRA, NÃO INVERTE — mantém orientação.\n\n*Vetor*: representa-se por uma seta. Tem 3 atributos:\n• **Direção** (horizontal, vertical, oblíqua)\n• **Sentido** (esquerda/direita, cima/baixo)\n• **Comprimento** (módulo)\n\n**3. Tabela comparativa**\n\n| Isometria | Elemento | Mantém orientação? | Inverte? |\n|---|---|---|---|\n| Reflexão | Eixo | NÃO | SIM (espelho) |\n| Rotação | Centro + ângulo | NÃO (gira) | NÃO |\n| Translação | Vetor | SIM | NÃO |\n\n**4. Composição de isometrias**\nAplicar várias isometrias seguidas dá outra isometria.\n• Reflexão + reflexão (eixos paralelos) = translação.\n• Reflexão + reflexão (eixos concorrentes) = rotação.\n\n**5. Aplicações**\n• Padrões geométricos.\n• **FRISOS** — repetição numa faixa (translação).\n• **ROSÁCEAS** — figuras com rotações em torno de centro.\n• Azulejos portugueses, mosaicos islâmicos.\n• Logótipos, design.\n\n[exemplo]\n**Pergunta tipo de exame**: Identifica as isometrias usadas em cada caso:\n\n*1. Um padrão de azulejos onde uma figura se repete em linha, sempre na mesma orientação.*\n*2. Uma flor com 6 pétalas iguais que coincidem ao girar 60°.*\n*3. A letra "M" e a sua imagem ao espelho "W".*\n\n**Como pensar**:\n1. Repetição linear, mesma orientação → **TRANSLAÇÃO** (vetor horizontal).\n2. Coincide ao girar 60° → **ROTAÇÃO** (centro = centro da flor; ângulo = 60°). É uma simetria de rotação.\n3. M no espelho dá W → **REFLEXÃO** (com eixo horizontal).\n\n**Resposta**: 1) Translação · 2) Rotação · 3) Reflexão.\n[/exemplo]\n\n[erros]\n• Confundir REFLEXÃO (espelho) com ROTAÇÃO (gira).\n• Achar que translação ROTA — apenas DESLIZA.\n• Trocar sentido horário com anti-horário.\n• Pensar que a figura muda de TAMANHO — isometrias preservam tudo.\n• Esquecer-se que vetor tem 3 atributos (direção, sentido, comprimento).\n• Não saber que rotação de 180° = reflexão pelo centro.\n[/erros]`
     },
     'matematica/Ângulos internos de polígonos': {
         title: 'Ângulos internos de polígonos',
