@@ -89,7 +89,7 @@ const EXERCISES_6_H_EXTRA2 = [
     { id:'6he2_017', s:'hgp', t:'Invasões Francesas', type:'mc', diff:2,
       q:'🔥 Como reagiu a população portuguesa às tropas francesas?',
       opts:['Recebeu-as com festas','Resistiu, atacando as tropas francesas','Ajudou-as a saquear','Fugiu toda para Espanha'], ans:1,
-      exp:'A população resistiu activamente, atacando colunas francesas — fazendo parte da chamada Guerra Peninsular.' },
+      exp:'A população resistiu ativamente, atacando colunas francesas — fazendo parte da chamada Guerra Peninsular.' },
 
     { id:'6he2_018', s:'hgp', t:'Invasões Francesas', type:'mc', diff:2,
       q:'📅 Que conjunto de guerras na Península Ibérica enquadra as Invasões Francesas?',
@@ -99,7 +99,7 @@ const EXERCISES_6_H_EXTRA2 = [
     { id:'6he2_019', s:'hgp', t:'Invasões Francesas', type:'tf', diff:2,
       q:'A política do "deserto" consistia em queimar colheitas e abandonar as aldeias para dificultar o avanço francês.',
       opts:['Verdadeiro','Falso'], ans:0,
-      exp:'Verdadeiro. A táctica de "terra queimada" privava o exército francês de alimentos e abrigo.' },
+      exp:'Verdadeiro. A tática de "terra queimada" privava o exército francês de alimentos e abrigo.' },
 
     { id:'6he2_020', s:'hgp', t:'Invasões Francesas', type:'mc', diff:2,
       q:'🚢 Quem dava apoio militar a Portugal contra os franceses?',
@@ -113,7 +113,7 @@ const EXERCISES_6_H_EXTRA2 = [
       exp:'Napoleão exigiu que Portugal aderisse ao bloqueio continental e fechasse os portos aos navios ingleses.' },
 
     { id:'6he2_022', s:'hgp', t:'Invasões Francesas', type:'mc', diff:3,
-      q:'🌅 Que consequência indirecta das Invasões Francesas eclodiu em 1820?',
+      q:'🌅 Que consequência indireta das Invasões Francesas eclodiu em 1820?',
       opts:['A Restauração','A Revolução Liberal do Porto','A Guerra Civil','A Implantação da República'], ans:1,
       exp:'A Revolução Liberal de 1820 nasceu do descontentamento com o domínio inglês e a ausência da corte no Brasil.' },
 
@@ -128,7 +128,7 @@ const EXERCISES_6_H_EXTRA2 = [
       exp:'Falso. D. João VI permaneceu no Brasil até 1821, regressando apenas após a Revolução Liberal de 1820.' },
 
     { id:'6he2_025', s:'hgp', t:'Invasões Francesas', type:'mc', diff:3,
-      q:'🗺️ Qual destas é uma consequência directa das Invasões Francesas em Portugal?',
+      q:'🗺️ Qual destas é uma consequência direta das Invasões Francesas em Portugal?',
       opts:['Perda do Brasil em 1822','Aumento da influência inglesa em Portugal','Fim da monarquia','Construção do Mosteiro dos Jerónimos'], ans:1,
       exp:'A presença militar inglesa, sob Beresford, deu à Inglaterra grande influência política e económica em Portugal.' }
 ];

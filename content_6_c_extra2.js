@@ -12,7 +12,7 @@ const EXERCISES_6_C_EXTRA2 = [
       exp:'A pele é a primeira barreira física que impede a entrada de micróbios.' },
 
     { id:'6ce2_002', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1,
-      q:'🧫 Como se chamam as células do sangue que combatem infecções?',
+      q:'🧫 Como se chamam as células do sangue que combatem infeções?',
       opts:['Glóbulos vermelhos','Plaquetas','Glóbulos brancos (leucócitos)','Hemácias'], ans:2,
       exp:'Os glóbulos brancos, ou leucócitos, defendem o organismo dos agentes infecciosos.' },
 
@@ -40,11 +40,11 @@ const EXERCISES_6_C_EXTRA2 = [
     { id:'6ce2_007', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2,
       q:'🦠 Como se chama a substância estranha que provoca uma resposta do sistema imunitário?',
       opts:['Antigénio','Anticorpo','Hormona','Enzima'], ans:0,
-      exp:'O antigénio é a substância (vírus, bactéria...) que activa a defesa imunitária.' },
+      exp:'O antigénio é a substância (vírus, bactéria...) que ativa a defesa imunitária.' },
 
     { id:'6ce2_008', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2,
       q:'🤧 O que é uma alergia?',
-      opts:['Uma infecção viral','Uma reacção exagerada do sistema imunitário a algo inofensivo','Uma falta de defesas','Uma doença bacteriana'], ans:1,
+      opts:['Uma infeção viral','Uma reação exagerada do sistema imunitário a algo inofensivo','Uma falta de defesas','Uma doença bacteriana'], ans:1,
       exp:'Numa alergia, o sistema imunitário reage de forma exagerada a algo que normalmente não causaria problema (pólen, pó, alimentos...).' },
 
     { id:'6ce2_009', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:2,
@@ -53,7 +53,7 @@ const EXERCISES_6_C_EXTRA2 = [
       exp:'Verdadeiro. A imunidade adquirida desenvolve-se com a exposição a antigénios ou através de vacinas.' },
 
     { id:'6ce2_010', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2,
-      q:'🧬 Que doença ataca directamente o sistema imunitário, enfraquecendo as defesas do corpo?',
+      q:'🧬 Que doença ataca diretamente o sistema imunitário, enfraquecendo as defesas do corpo?',
       opts:['Gripe','SIDA','Sarampo','Varicela'], ans:1,
       exp:'A SIDA, causada pelo vírus VIH, destrói células do sistema imunitário, deixando o corpo vulnerável.' },
 
@@ -70,13 +70,13 @@ const EXERCISES_6_C_EXTRA2 = [
     // diff 3 (3)
     { id:'6ce2_013', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:3,
       q:'🔬 Quando recebemos anticorpos prontos (por exemplo do leite materno), trata-se de imunidade...',
-      opts:['Activa adquirida','Passiva','Natural inata','Artificial activa'], ans:1,
+      opts:['Ativa adquirida','Passiva','Natural inata','Artificial ativa'], ans:1,
       exp:'É imunidade passiva: recebem-se anticorpos já formados, sem o corpo os produzir.' },
 
     { id:'6ce2_014', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:3,
       q:'Tomar antibióticos sempre que estamos constipados é a melhor forma de defesa do organismo.',
       opts:['Verdadeiro','Falso'], ans:1,
-      exp:'Falso. Os antibióticos só actuam contra bactérias, não contra vírus (como o da constipação), e usá-los em excesso causa resistências.' },
+      exp:'Falso. Os antibióticos só atuam contra bactérias, não contra vírus (como o da constipação), e usá-los em excesso causa resistências.' },
 
     { id:'6ce2_015', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:3,
       q:'🩸 Onde são produzidos a maior parte dos glóbulos brancos?',
@@ -203,8 +203,8 @@ const EXERCISES_6_C_EXTRA2 = [
     // diff 2 (6)
     { id:'6ce2_037', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2,
       q:'🌬️ Quais destes são agentes de polinização?',
-      opts:['Vento, insectos e aves','Apenas o vento','Apenas as abelhas','Só a água'], ans:0,
-      exp:'A polinização pode ser feita pelo vento, por insectos (abelhas, borboletas) e aves.' },
+      opts:['Vento, insetos e aves','Apenas o vento','Apenas as abelhas','Só a água'], ans:0,
+      exp:'A polinização pode ser feita pelo vento, por insetos (abelhas, borboletas) e aves.' },
 
     { id:'6ce2_038', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2,
       q:'🌰 Como se chamam as folhas modificadas verdes que protegem o botão da flor?',
@@ -214,7 +214,7 @@ const EXERCISES_6_C_EXTRA2 = [
     { id:'6ce2_039', s:'ciencias', t:'Reprodução das plantas', type:'tf', diff:2,
       q:'A dispersão das sementes pode ser feita pelo vento, pela água, pelos animais ou pela própria planta.',
       opts:['Verdadeiro','Falso'], ans:0,
-      exp:'Verdadeiro. Existem vários agentes de dispersão: vento, água, animais e autodispersão (a planta projecta as sementes).' },
+      exp:'Verdadeiro. Existem vários agentes de dispersão: vento, água, animais e autodispersão (a planta projeta as sementes).' },
 
     { id:'6ce2_040', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2,
       q:'🍓 A reprodução por estacaria, em que se planta um pedaço do caule, é um exemplo de reprodução...',
