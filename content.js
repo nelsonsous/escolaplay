@@ -67,24 +67,27 @@ const CURRICULUM_2 = {
         'Gráficos'
     ],
     estudo_meio: [
-        // Eu e a minha vida
+        // P1 — À descoberta de si mesmo
         'O meu corpo',
         'Os sentidos',
         'Higiene',
         'Saúde',
+        // P1 — À descoberta dos outros e das instituições
         'A minha família',
         'A escola',
-        // Seres vivos
+        // P2 — À descoberta do ambiente natural
         'Animais',
         'Plantas',
-        // Ambiente
         'Estações do ano',
         'Astros',
-        // Sociedade
+        // P3 — À descoberta da sociedade
         'Profissões',
         'Transportes',
         'Comemorações',
-        'Portugal'
+        'Portugal',
+        // P3 — À descoberta dos materiais e da segurança
+        'Materiais e objetos',
+        'Segurança e prevenção'
     ],
     ingles: [
         // Vocabulário básico (do mais usado para o menos)
@@ -129,13 +132,14 @@ const PERIODS_2 = {
         'Medir tempo':3, 'Dinheiro (€)':3, 'Gráficos':3
     },
     estudo_meio: {
-        // P1 — À descoberta de si mesmo
+        // P1 — À descoberta de si mesmo + instituições
         'O meu corpo':1, 'Os sentidos':1, 'Higiene':1, 'Saúde':1,
         'A minha família':1, 'A escola':1,
         // P2 — À descoberta dos seres vivos e do ambiente
         'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Astros':2,
-        // P3 — À descoberta da sociedade
-        'Profissões':3, 'Transportes':3, 'Comemorações':3, 'Portugal':3
+        // P3 — À descoberta da sociedade, materiais e segurança
+        'Profissões':3, 'Transportes':3, 'Comemorações':3, 'Portugal':3,
+        'Materiais e objetos':3, 'Segurança e prevenção':3
     },
     ingles:      {
         // P1 — Saudações, alfabeto, números, cores
@@ -354,7 +358,17 @@ const LESSONS_2 = {
     'ingles/Toys': {
         title: 'Toys (brinquedos)',
         body: `**1. Brinquedos comuns**\n\n🐻 **teddy bear** = ursinho de peluche\n🪆 **doll** = boneca\n⚽ **ball** = bola\n🚗 **car** = carro\n🚂 **train** = comboio\n🪁 **kite** = papagaio (de papel)\n🎈 **balloon** = balão\n🎲 **dice** = dado\n🧩 **puzzle** = puzzle\n📚 **book** = livro\n🚲 **bike / bicycle** = bicicleta\n🛼 **roller skates** = patins\n🎮 **video game** = jogo de vídeo\n🤖 **robot** = robot\n🪀 **yoyo** = ioió\n\n**2. Cores dos brinquedos**\n• "I have a **red** car." = Tenho um carro **vermelho**.\n• "My doll has **blue** eyes." = A minha boneca tem olhos **azuis**.\n\n**3. Frases úteis**\n• "What's your favourite toy?" = Qual é o teu brinquedo preferido?\n• "I like to play with my doll." = Gosto de brincar com a minha boneca.\n• "Can I play?" = Posso brincar?\n• "Let's play!" = Vamos brincar!\n• "It's mine." = É meu.\n• "It's yours." = É teu.\n\n**4. Verbos importantes**\n• **play** = brincar / jogar\n• **share** = partilhar\n• **break** = partir\n• **build** = construir\n\n[exemplo]\n**Pergunta tipo de exame**: Traduz para inglês:\n(a) Tenho uma bola vermelha.\n(b) Gosto de brincar com o meu carro.\n(c) Vamos brincar!\n\n**Como pensar**:\n1. "tenho" = I have; "bola" = ball; "vermelha" = red.\n2. "gosto de brincar" = I like to play; "com o meu" = with my.\n3. "vamos brincar" = let's play.\n\n**Resposta**:\n(a) I have a red ball.\n(b) I like to play with my car.\n(c) Let's play!\n[/exemplo]\n\n[erros]\n• Confundir **doll** (boneca) com **dog** (cão).\n• Achar que "play" só significa jogar — também é BRINCAR.\n• Esquecer-se de "to" no "I like **to** play".\n• Pronunciar **bear** como "biar" — diz-se "bér".\n[/erros]`
+    },
+    // ===== LIÇÕES TOP-UP — Materiais e objetos / Segurança e prevenção (Supermiúdos) =====
+    'estudo_meio/Materiais e objetos': {
+        title: 'Materiais e objetos',
+        body: `**1. O que é um material**\nTudo o que existe à nossa volta é feito de algum **material**. A cadeira, o livro, o copo, a roupa — cada coisa é feita de um material diferente.\n\n**2. Materiais mais comuns**\n\n| Material | Onde aparece |\n|---|---|\n| **Madeira** 🪵 | Mesas, cadeiras, lápis |\n| **Plástico** | Garrafas, brinquedos, canetas |\n| **Metal** | Talheres, panelas, chaves |\n| **Vidro** | Janelas, copos, garrafas |\n| **Papel** | Livros, cadernos, jornais |\n| **Tecido** 👕 | Roupa, lençóis, toalhas |\n| **Borracha** | Rodas, apagadores |\n| **Pedra** | Paredes, estátuas |\n\n**3. Como são os materiais (propriedades)**\n• **Duro / mole**: a pedra é dura, a esponja é mole.\n• **Rígido / flexível**: o vidro é rígido (não dobra), o pano é flexível (dobra).\n• **Transparente / opaco**: o vidro é transparente (vê-se através), a madeira é opaca (não se vê).\n• **Pesado / leve**: o ferro é pesado, o papel é leve.\n• **Áspero / liso**: a lixa é áspera, o vidro é liso.\n\n**4. Curiosidades importantes**\n• O **vidro parte-se** se cair com força — é frágil!\n• O **plástico não enferruja** com a água (o ferro, sim).\n• A **madeira vem das árvores** — é um material natural.\n• O **plástico é fabricado** pelas pessoas — não vem da natureza.\n\n**5. Reciclagem — os ecopontos**\nQuando uma coisa já não serve, vai para o **ecoponto** certo:\n\n| Cor | Para o quê |\n|---|---|\n| **Azul** | Papel e cartão |\n| **Amarelo** | Plástico e metal |\n| **Verde** | Vidro |\n\nReciclar ajuda a **poupar a natureza** — gasta-se menos árvores, menos petróleo e o lixo não fica espalhado.\n\n**6. Cuidado com objetos perigosos**\nFacas, tesouras, ferramentas afiadas e objetos de vidro partidos podem **magoar**. Só se mexem com um adulto a ajudar.\n\n[exemplo]\n**Pergunta tipo de exame**: A Inês tem uma garrafa de iogurte (de plástico) vazia e uma caixa de cereais (de cartão). Em que ecopontos as deve colocar?\n\n**Como pensar**:\n1. Garrafa de iogurte = **plástico** → ecoponto **AMARELO**.\n2. Caixa de cereais = **cartão (papel)** → ecoponto **AZUL**.\n\n**Resposta**: Iogurte no amarelo, caixa no azul.\n[/exemplo]\n\n[erros]\n• Confundir cubo com paralelepípedo... (ATENÇÃO: outro tópico).\n• Achar que tudo o que é de vidro vai para o amarelo (vidro é VERDE!).\n• Pôr garrafa de plástico no verde (verde é só vidro).\n• Confundir transparente (deixa ver) com opaco (não deixa ver).\n• Achar que o plástico é natural — é fabricado pelas pessoas.\n[/erros]`
+    },
+    'estudo_meio/Segurança e prevenção': {
+        title: 'Segurança e prevenção',
+        body: `**1. O que é prevenir**\n**Prevenir** quer dizer ter cuidado para que NÃO aconteçam acidentes. Vale mais prevenir do que ter de remediar depois.\n\n**2. Em casa — cuidados importantes**\n• **Tomadas elétricas** ⚡: nunca metas dedos, lápis ou água — dão **choque**.\n• **Fogão e panelas**: estão muito quentes — não tocar para não te **queimares**.\n• **Gás**: se sentires cheiro a gás, **abre janelas**, NÃO acendas fósforos e chama um adulto.\n• **Fósforos e isqueiros**: NÃO são brinquedos.\n• **Medicamentos**: só se tomam com um adulto. Nunca os comas como se fossem rebuçados.\n• **Escadas**: agarra-te ao corrimão. Não corras com sapatos desapertados.\n• **Casa de banho molhada**: o chão escorrega — limpa a água e usa tapete.\n\n**3. Na rua — segurança rodoviária**\n• Atravessa sempre na **passadeira** (riscas brancas).\n• Olha para a **esquerda**, depois para a **direita**, e à esquerda outra vez.\n• No semáforo dos peões: **verde = passa**, **vermelho = pára**.\n• De **bicicleta** 🚲: usa sempre **capacete** e cores claras para os carros te verem.\n• De **carro** 🚗: aperta SEMPRE o **cinto de segurança**, mesmo nas viagens curtas.\n\n**4. Número de emergência: 112**\n☎️ O **112** chama bombeiros, polícia e ambulância — funciona em toda a Europa.\n\nAo ligar diz, com calma:\n1. O teu **nome**.\n2. **Onde estás** (rua, perto de quê).\n3. **O que aconteceu**.\n\n**5. O que fazer em caso de…**\n• **Incêndio em casa** 🔥: sai depressa, anda **baixo** (o fumo sobe), tapa boca e nariz com um pano e chama 112.\n• **Queda forte**: chama um adulto. Se for na cabeça, é sério.\n• **Picada de inseto** 🐝: lava com água e avisa um adulto. Se inchar muito, vai ao centro de saúde.\n• **Ferida com sangue**: lava com água e tapa com um penso.\n\n**6. Na praia e na piscina**\n• Usa **boia** se ainda não nadas bem.\n• Anda sempre perto de um **adulto**.\n• Olha para a **bandeira** da praia:\n  - **Vermelha** 🚩: NÃO entrar na água (perigo).\n  - **Amarela**: só dar pé.\n  - **Verde**: pode tomar banho com cuidado.\n• Não vás para águas fundas se não souberes nadar bem.\n\n[exemplo]\n**Pergunta tipo de exame**: Estás em casa e sentes muito cheiro a fumo. O que fazes pela ordem certa?\n\n**Como pensar**:\n1. NÃO me escondo — tenho de sair.\n2. Tapo a boca e o nariz com um pano (melhor se for molhado).\n3. Ando **baixo**, perto do chão (o fumo sobe).\n4. Saio de casa e ligo o **112** (ou peço a um vizinho adulto).\n\n**Resposta**: Saio depressa, baixo, com a boca tapada, e chamo o 112.\n[/exemplo]\n\n[erros]\n• Achar que o cinto de segurança só é preciso em viagens longas — É SEMPRE.\n• Acender um fósforo quando há cheiro a gás (PERIGO de explosão).\n• Atravessar fora da passadeira porque "está perto".\n• Tomar medicamentos sem um adulto.\n• Ir para água funda só com a boia, sem adulto perto.\n• Esquecer-se de que o número de emergência é o **112** (não 911 — esse é nos EUA).\n[/erros]`
     }
+
 };
 
 const EXERCISES_2 = [
@@ -2880,6 +2894,12 @@ const LESSONS_6 = {
         title: 'Probabilidades',
         body: `**1. O que é probabilidade**\nA **probabilidade** mede a **possibilidade** de um acontecimento ocorrer. É um número entre **0 e 1** (ou entre 0% e 100%).\n\n• **0** → IMPOSSÍVEL (nunca acontece).\n• **1** → CERTO (acontece sempre).\n• Entre 0 e 1 → POSSÍVEL (mais ou menos provável).\n\n**2. Experiências aleatórias vs deterministas**\n\n• **DETERMINÍSTICA** — sabemos sempre o resultado antes. *Ex: aquecer água a 100 °C → ferve.*\n• **ALEATÓRIA** — o resultado depende do acaso; não se consegue prever. *Ex: lançar um dado, tirar uma carta, atirar uma moeda.*\n\nA probabilidade só faz sentido em experiências **ALEATÓRIAS**.\n\n**3. Vocabulário essencial**\n\n• **Espaço de resultados (Ω)** — conjunto de TODOS os resultados possíveis.\n   *Ex*: lançar um dado → Ω = {1, 2, 3, 4, 5, 6}.\n• **Acontecimento (A)** — subconjunto do espaço de resultados.\n   *Ex*: "sair número par" → A = {2, 4, 6}.\n• **Casos favoráveis** — resultados que satisfazem o acontecimento.\n• **Casos possíveis** — total de resultados.\n\n**4. Tipos de acontecimentos**\n\n| Tipo | Significado | Probabilidade |\n|---|---|---|\n| **Certo** | acontece sempre | P = 1 |\n| **Impossível** | nunca acontece | P = 0 |\n| **Possível** | pode ou não acontecer | 0 < P < 1 |\n| **Elementar** | um único resultado | — |\n| **Complementar** | "o contrário" do acontecimento | P(A) + P(Ā) = 1 |\n\n*Ex (dado)*:\n• Certo: "sair número entre 1 e 6". P = 1.\n• Impossível: "sair 7". P = 0.\n• Possível: "sair par". P = 1/2.\n\n**5. Regra de Laplace (probabilidade clássica)**\n\nQuando todos os casos têm a **MESMA probabilidade**:\n\n   **P(A) = casos favoráveis / casos possíveis**\n\n*Ex*: lançar um dado. Qual a probabilidade de sair número par?\n• Casos favoráveis: {2, 4, 6} → 3 casos.\n• Casos possíveis: {1, 2, 3, 4, 5, 6} → 6 casos.\n• P("sair par") = 3/6 = **1/2 = 0,5 = 50%**.\n\n**6. Três representações equivalentes**\n\nUma probabilidade pode-se escrever de 3 formas:\n\n| Fração | Decimal | Percentagem |\n|---|---|---|\n| 1/2 | 0,5 | 50% |\n| 1/4 | 0,25 | 25% |\n| 3/4 | 0,75 | 75% |\n| 1/6 | 0,1(6) | ≈ 16,7% |\n| 1 | 1 | 100% |\n\n**7. Acontecimento complementar**\nO **complementar** de A (escreve-se Ā ou "não A") é o acontecimento que ocorre quando A NÃO ocorre.\n\n   **P(Ā) = 1 − P(A)**\n\n*Ex*: P("sair par") = 1/2 → P("não sair par") = 1 − 1/2 = **1/2**.\n\n**8. Casos típicos do 6.º ano**\n\n• **Lançamento de moeda** — Ω = {cara, coroa}. P(cara) = 1/2.\n• **Lançamento de dado** — Ω = {1, 2, 3, 4, 5, 6}. P(qualquer) = 1/6.\n• **Extração de bolas** — saco com bolas de cores. P = bolas dessa cor / total.\n   *Ex: saco com 3 bolas vermelhas e 2 azuis (total 5). P(vermelha) = 3/5.*\n• **Baralho de cartas, roleta, tira-rifa**, etc.\n\n[exemplo]\n**Pergunta tipo de exame**: Num saco há **4 berlindes amarelos**, **3 verdes** e **5 azuis**. Tira-se um berlinde ao acaso.\n\n*1. Qual o espaço de resultados (em número)?*\n*2. Qual a probabilidade de sair um berlinde verde?*\n*3. Qual a probabilidade de NÃO sair amarelo?*\n*4. Expressa as respostas em fração, decimal e percentagem.*\n\n**Como pensar**:\n1. Total de berlindes: 4 + 3 + 5 = **12** casos possíveis.\n2. P(verde) = casos favoráveis / casos possíveis = 3/12 = **1/4**.\n3. P(amarelo) = 4/12 = 1/3. P(não amarelo) = 1 − 1/3 = **2/3**.\n4. Conversões:\n   - 1/4 = 0,25 = 25%.\n   - 2/3 ≈ 0,67 ≈ 66,7%.\n\n**Resposta**:\n1. 12 casos possíveis.\n2. P(verde) = 1/4 = 0,25 = 25%.\n3. P(não amarelo) = 2/3 ≈ 0,67 ≈ 66,7%.\n[/exemplo]\n\n[erros]\n• Achar que probabilidade pode ser maior que 1 (NÃO pode — máximo é 1 = 100%).\n• Confundir casos favoráveis com casos possíveis.\n• Não simplificar fração (deixar 3/6 em vez de 1/2).\n• Esquecer-se de que P(certo) = 1 e P(impossível) = 0.\n• Trocar percentagem com decimal (50% = 0,5, NÃO 50).\n• Achar que P(Ā) = −P(A) — é P(Ā) = **1 − P(A)**.\n• Aplicar Laplace quando os casos NÃO são equiprováveis (regra só serve se todos tiverem a mesma chance).\n[/erros]`
     }
+,
+    // ===== LIÇÃO TOP-UP — Invasões Francesas (Aqui há HGP 6) =====
+    'hgp/Invasões Francesas': {
+        title: 'Invasões Francesas',
+        body: `As **Invasões Francesas** (1807-1810) foram três tentativas do exército de Napoleão para ocupar Portugal. Marcam o fim do Antigo Regime e abrem caminho ao Liberalismo.\n\n**1. Contexto: Napoleão e o bloqueio continental**\nNo início do século XIX, **Napoleão Bonaparte** dominava grande parte da Europa. Para vencer Inglaterra (sua maior rival), decretou em 1806 o **bloqueio continental**: nenhum país europeu podia comerciar com os ingleses.\nPortugal, aliado histórico de Inglaterra, recusou. Napoleão lançou então um **ultimato** e, perante a recusa, ordenou a invasão.\n\n**2. As três invasões**\n\n| Invasão | Ano | Comandante | Caminho |\n|---|---|---|---|\n| 1.ª | 1807 | **Junot** | Entra por Espanha → toma Lisboa |\n| 2.ª | 1809 | **Soult** | Entra pelo Norte → ocupa o Porto |\n| 3.ª | 1810 | **Masséna** | Avança até Lisboa, é travado |\n\n**3. Fuga da família real para o Brasil (1807)**\nAntes de Junot chegar a Lisboa, o **príncipe regente D. João** (futuro **D. João VI**) embarcou com toda a corte para o **Brasil**, sob escolta da frota inglesa. Levou cerca de 15 000 pessoas, o tesouro e a biblioteca real.\nPela primeira vez, um rei europeu governava a partir de uma colónia.\n\n**4. Resistência popular e Guerra Peninsular**\nO povo português não aceitou os franceses. Houve **revoltas populares** (como a do Porto em 1809), ataques às tropas e a chamada **política do deserto**: queimar colheitas e abandonar aldeias para que os franceses não tivessem comida nem abrigo.\nEste conflito, alargado a Espanha, ficou conhecido como **Guerra Peninsular** (1807-1814).\n\n**5. Os ingleses e as Linhas de Torres Vedras**\nA Inglaterra enviou tropas para apoiar Portugal. **William Beresford** reorganizou o exército português; o duque de **Wellington** comandou as forças anglo-lusas.\nPara travar Masséna em 1810, mandaram construir as **Linhas de Torres Vedras** — duas linhas de fortificações a norte de Lisboa (mais de 150 fortes e redutos). O exército francês não conseguiu passar e retirou-se faminto.\n\n**6. Consequências**\n• A corte permaneceu no Brasil. Em **1815** o Brasil é elevado a **Reino Unido a Portugal e Algarves** (deixou de ser apenas colónia).\n• Portugal ficou **dominado pelos ingleses** (Beresford governava de facto).\n• Surgiram em Portugal os primeiros **sentimentos liberais** (igualdade, constituição, fim do absolutismo).\n• Estes descontentamentos conduziram à **Revolução Liberal de 1820**, no Porto, que exigiu o regresso do rei e uma constituição.\n\n[exemplo]\n**Pergunta-tipo:** "Indica duas razões que levaram à fuga da família real para o Brasil em 1807."\n**Raciocínio:** (1) Napoleão tinha lançado um ultimato e o exército de Junot avançava sobre Lisboa; (2) Portugal era aliado de Inglaterra, e os ingleses ofereceram protecção naval para a corte se transferir, garantindo que Portugal continuava a ter um governo legítimo, agora a partir do Brasil.\n[/exemplo]\n\n[erros]\n• Confundir os três generais — **Junot (1807) → Soult (1809) → Masséna (1810)**, por esta ordem.\n• Dizer que D. João VI fugiu — em 1807 era ainda **príncipe regente D. João**; só foi rei em 1816.\n• Achar que as **Linhas de Torres Vedras** eram caminhos de ferro ou estradas — eram **fortificações militares**.\n• Confundir **bloqueio continental** (proibição de comércio com Inglaterra) com bloqueio naval.\n• Pensar que o regresso do rei foi imediato — D. João VI só voltou a Portugal em **1821**, após a Revolução Liberal de 1820.\n[/erros]`
+    }
 
 };
 
@@ -3085,26 +3105,33 @@ const CURRICULUM_6 = {
         'Adverbs of frequency'
     ],
     ciencias: [
+        // P1 — Processos vitais (parte 1): digestão, respiração, circulação
         'Sistema digestivo',
-        'Sistema circulatório',
         'Sistema respiratório',
+        'Sistema circulatório',
+        // P2 — Processos vitais (parte 2) e funções de relação/reprodução
         'Sistema excretor',
         'Sistema reprodutor',
         'Sistema nervoso',
         'Sistema imunitário',
+        // P3 — Plantas, microrganismos e ambiente
         'Plantas — trocas nutricionais',
         'Reprodução das plantas',
         'Microrganismos',
         'Saúde e prevenção'
     ],
     hgp: [
+        // P1 — Séculos XV-XVII: Expansão e União Ibérica
         'Expansão Marítima',
         'União Ibérica',
         'Restauração da Independência',
+        // P2 — Séculos XVIII-XIX: Absolutismo, Iluminismo e Liberalismo
         'Iluminismo e Marquês de Pombal',
+        'Invasões Francesas',
         'Liberalismo',
         'Monarquia Constitucional',
         '1.ª República',
+        // P3 — Séculos XX-XXI: Estado Novo, Democracia e Portugal hoje
         'Estado Novo',
         '25 de Abril',
         'Portugal democrático'
@@ -3136,14 +3163,21 @@ const PERIODS_6 = {
         'Health & body':3, 'Quantifiers':3, 'Adverbs of frequency':3
     },
     ciencias:   {
-        'Sistema digestivo':1, 'Sistema circulatório':1, 'Sistema respiratório':1,
+        // P1 — digestivo, respiratório, circulatório
+        'Sistema digestivo':1, 'Sistema respiratório':1, 'Sistema circulatório':1,
+        // P2 — excretor, reprodutor, nervoso, imunitário
         'Sistema excretor':2, 'Sistema reprodutor':2, 'Sistema nervoso':2, 'Sistema imunitário':2,
+        // P3 — plantas, microrganismos, saúde
         'Plantas — trocas nutricionais':3, 'Reprodução das plantas':3,
         'Microrganismos':3, 'Saúde e prevenção':3
     },
     hgp:        {
+        // P1 — séculos XV-XVII
         'Expansão Marítima':1, 'União Ibérica':1, 'Restauração da Independência':1,
-        'Iluminismo e Marquês de Pombal':2, 'Liberalismo':2, 'Monarquia Constitucional':2, '1.ª República':2,
+        // P2 — séculos XVIII-XIX
+        'Iluminismo e Marquês de Pombal':2, 'Invasões Francesas':2, 'Liberalismo':2,
+        'Monarquia Constitucional':2, '1.ª República':2,
+        // P3 — séculos XX-XXI
         'Estado Novo':3, '25 de Abril':3, 'Portugal democrático':3
     }
 };
