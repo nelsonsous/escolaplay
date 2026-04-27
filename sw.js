@@ -1,11 +1,31 @@
-const CACHE_NAME = 'escolaplay-v147';
+const CACHE_NAME = 'escolaplay-v148';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
     '/escolaplay/styles.css',
     '/escolaplay/app.js',
     '/escolaplay/content.js',
-    '/escolaplay/manifest.json'
+    '/escolaplay/manifest.json',
+    // Bancos de exercícios (síncronos desde v148)
+    '/escolaplay/content_2_extra.js',
+    '/escolaplay/content_2_p_extra2.js',
+    '/escolaplay/content_2_p_extra3.js',
+    '/escolaplay/content_2_m_extra2.js',
+    '/escolaplay/content_2_m_extra3.js',
+    '/escolaplay/content_2_e_extra2.js',
+    '/escolaplay/content_2_e_extra3.js',
+    '/escolaplay/content_2_e_extra4.js',
+    '/escolaplay/content_2_i_extra2.js',
+    '/escolaplay/content_2_i_extra3.js',
+    '/escolaplay/content_6_p_extra.js',
+    '/escolaplay/content_6_p_extra2.js',
+    '/escolaplay/content_6_m_extra.js',
+    '/escolaplay/content_6_m_extra2.js',
+    '/escolaplay/content_6_i_extra.js',
+    '/escolaplay/content_6_c_extra.js',
+    '/escolaplay/content_6_c_extra2.js',
+    '/escolaplay/content_6_h_extra.js',
+    '/escolaplay/content_6_h_extra2.js'
 ];
 
 self.addEventListener('install', (event) => {
