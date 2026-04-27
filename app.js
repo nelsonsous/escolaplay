@@ -416,12 +416,17 @@ function switchProfile(id) {
     if (!p) return;
     state.activeProfileId = id;
     setActiveYear(p.year);
-    loadYearExtras(p.year);
     selectedTopicsForMax.clear();
     saveState();
     closeProfileSwitcher();
-    updateAll();
-    switchTab('home');
+    // Aguardar o lazy-load antes de renderizar para o utilizador NUNCA ver
+    // tópicos com 0/1 exs (os exercícios reais estão em ficheiros _extra*).
+    _showLoadingSplash(`A carregar exercícios do ${p.year}.º ano…`);
+    loadYearExtras(p.year).finally(() => {
+        _hideLoadingSplash();
+        updateAll();
+        switchTab('home');
+    });
 }
 
 function addProfileFromForm() {
@@ -437,13 +442,16 @@ function addProfileFromForm() {
     state.profiles.push(p);
     state.activeProfileId = p.id;
     setActiveYear(p.year);
-    loadYearExtras(p.year);
     selectedTopicsForMax.clear();
     saveState();
     closeAddProfileModal();
-    updateAll();
-    switchTab('home');
-    showToast(`Perfil ${name} criado!`);
+    _showLoadingSplash(`A preparar o ${p.year}.º ano…`);
+    loadYearExtras(p.year).finally(() => {
+        _hideLoadingSplash();
+        updateAll();
+        switchTab('home');
+        showToast(`Perfil ${name} criado!`);
+    });
 }
 
 function removeProfile(id) {
@@ -5478,9 +5486,18 @@ window.addEventListener('DOMContentLoaded', () => {
     state = loadState();
     // Activar o ano do perfil activo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS).
     // Se não existir perfil, não carrega nada (regra: nenhum ano por defeito).
+    let bootLazyPromise = Promise.resolve();
     if (typeof setActiveYear === 'function') {
         const p = activeProfile();
-        if (p) { setActiveYear(p.year); loadYearExtras(p.year); }
+        if (p) {
+            setActiveYear(p.year);
+            // Mostrar splash IMEDIATAMENTE para o utilizador nunca ver tópicos
+            // com 0 exs (os exercícios reais estão em ficheiros lazy-loaded).
+            _showLoadingSplash(`A carregar exercícios do ${p.year}.º ano…`);
+            bootLazyPromise = loadYearExtras(p.year).finally(() => {
+                _hideLoadingSplash();
+            });
+        }
     }
     // Injectar container dos tópicos do teste no modal (se não existir)
     const modalBody = document.querySelector('#test-modal .modal-body');
@@ -5500,15 +5517,54 @@ window.addEventListener('DOMContentLoaded', () => {
         label.textContent = 'Tópicos que saem no teste';
         modalBody.insertBefore(label, div);
     }
-    updateAll();
-    // Detectar se URL tem ?duel=... e abrir intro do duelo recebido
-    if (typeof _checkIncomingDuel === 'function') _checkIncomingDuel();
-    // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
-    setTimeout(_maybeShowStreakGuilt, 800);
-    // Notificações: refrescar UI + reagendar lembrete diário
-    try { refreshNotifUI(); } catch {}
-    try { _scheduleStreakReminder(); } catch {}
+    // Render inicial só DEPOIS do lazy-load — assim os tópicos novos
+    // (Materiais/Segurança 2.º; Pronomes/Frase passiva/Notícia/Inteiros/
+    // Equações/Probabilidades/Invasões Francesas 6.º) já têm exs visíveis.
+    bootLazyPromise.finally(() => {
+        updateAll();
+        // Detectar se URL tem ?duel=... e abrir intro do duelo recebido
+        if (typeof _checkIncomingDuel === 'function') _checkIncomingDuel();
+        // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
+        setTimeout(_maybeShowStreakGuilt, 800);
+        // Notificações: refrescar UI + reagendar lembrete diário
+        try { refreshNotifUI(); } catch {}
+        try { _scheduleStreakReminder(); } catch {}
+    });
 });
+
+// ===== Splash de carregamento durante o lazy-load do ano =====
+function _showLoadingSplash(msg) {
+    if (document.getElementById('boot-loading-splash')) return;
+    const div = document.createElement('div');
+    div.id = 'boot-loading-splash';
+    div.setAttribute('aria-live', 'polite');
+    div.style.cssText = [
+        'position:fixed','inset:0','z-index:9000',
+        'background:linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%)',
+        'display:flex','flex-direction:column','align-items:center','justify-content:center',
+        'gap:18px','font-family:inherit'
+    ].join(';');
+    div.innerHTML =
+        '<div style="font-size:3.4rem;animation:bls-bounce 1.4s ease-in-out infinite">📚</div>' +
+        '<div style="font-weight:800;color:#5b21b6;font-size:1.05rem;letter-spacing:-0.01em">' +
+        (msg || 'A carregar exercícios…') + '</div>' +
+        '<div style="width:220px;height:6px;background:rgba(255,255,255,0.7);border-radius:3px;overflow:hidden;position:relative">' +
+            '<div style="position:absolute;top:0;left:0;height:100%;width:40%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:3px;animation:bls-bar 1.2s linear infinite"></div>' +
+        '</div>' +
+        '<style>' +
+        '@keyframes bls-bar { 0% { transform: translateX(-100%) } 100% { transform: translateX(550%) } }' +
+        '@keyframes bls-bounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }' +
+        '</style>';
+    document.body.appendChild(div);
+}
+
+function _hideLoadingSplash() {
+    const el = document.getElementById('boot-loading-splash');
+    if (!el) return;
+    el.style.transition = 'opacity 220ms ease-out';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 230);
+}
 
 // ============ STREAK GUILT-TRIP ============
 function _maybeShowStreakGuilt() {
