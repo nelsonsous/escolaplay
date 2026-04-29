@@ -13,7 +13,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_002', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1,
       q:'🧫 Como se chamam as células do sangue que combatem infeções?',
-      opts:['Glóbulos vermelhos','Plaquetas','Glóbulos brancos (leucócitos)','Hemácias'], ans:2,
+      opts:['Glóbulos vermelhos','Plaquetas','Glóbulos brancos','Hemácias'], ans:2,
       exp:'Os glóbulos brancos, ou leucócitos, defendem o organismo dos agentes infecciosos.' },
 
     { id:'6ce2_003', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:1,
@@ -33,7 +33,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_006', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1,
       q:'🍋 Que líquido do estômago ajuda a destruir micróbios engolidos com a comida?',
-      opts:['Água','Suco gástrico (ácido)','Saliva','Bílis'], ans:1,
+      opts:['Água','Suco gástrico','Saliva','Bílis'], ans:1,
       exp:'O suco gástrico do estômago é muito ácido e destrói grande parte dos micróbios ingeridos.' },
 
     // diff 2 (6)
@@ -121,7 +121,7 @@ const EXERCISES_6_C_EXTRA2 = [
     // diff 2 (6)
     { id:'6ce2_022', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2,
       q:'🧪 Quais são os reagentes da fotossíntese?',
-      opts:['Oxigénio + glicose','Dióxido de carbono + água (com luz)','Azoto + sais minerais','Glicose + água'], ans:1,
+      opts:['Oxigénio + glicose','Dióxido de carbono + água','Azoto + sais minerais','Glicose + água'], ans:1,
       exp:'Na fotossíntese: dióxido de carbono + água, na presença de luz e clorofila → glicose + oxigénio.' },
 
     { id:'6ce2_023', s:'ciencias', t:'Plantas — trocas nutricionais', type:'tf', diff:2,
@@ -131,7 +131,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_024', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2,
       q:'🌙 Durante a noite, as plantas...',
-      opts:['Fazem só fotossíntese','Apenas respiram (não fazem fotossíntese)','Param todas as funções','Absorvem luz da lua'], ans:1,
+      opts:['Fazem só fotossíntese','Apenas respiram','Param todas as funções','Absorvem luz da lua'], ans:1,
       exp:'Sem luz, as plantas não fazem fotossíntese, mas continuam a respirar.' },
 
     { id:'6ce2_025', s:'ciencias', t:'Plantas — trocas nutricionais', type:'fill', diff:2,
@@ -208,7 +208,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_038', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2,
       q:'🌰 Como se chamam as folhas modificadas verdes que protegem o botão da flor?',
-      opts:['Pétalas','Sépalas (cálice)','Estames','Estigma'], ans:1,
+      opts:['Pétalas','Sépalas','Estames','Estigma'], ans:1,
       exp:'As sépalas formam o cálice e protegem a flor antes de abrir.' },
 
     { id:'6ce2_039', s:'ciencias', t:'Reprodução das plantas', type:'tf', diff:2,
@@ -234,7 +234,7 @@ const EXERCISES_6_C_EXTRA2 = [
     // diff 3 (3)
     { id:'6ce2_043', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:3,
       q:'🌼 Numa flor completa, qual é a estrutura feminina onde estão os óvulos?',
-      opts:['Estame','Antera','Ovário (no pistilo)','Filete'], ans:2,
+      opts:['Estame','Antera','Ovário','Filete'], ans:2,
       exp:'O ovário, na base do pistilo, contém os óvulos que serão fecundados.' },
 
     { id:'6ce2_044', s:'ciencias', t:'Reprodução das plantas', type:'tf', diff:3,

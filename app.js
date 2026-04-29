@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v163';
+const APP_VERSION = 'v164';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3043,52 +3043,64 @@ Responde APENAS com JSON, um destes formatos:
 // ========== SUBMIT ==========
 async function submitAnswer() {
     if (!currentSession) return;
-    const e = currentSession.items[currentSession.idx];
-    let isCorrect = false;
-    if (e.type === 'mc') {
-        if (selectedAnswer === null) { showToast('Escolhe uma opção'); return; }
-        isCorrect = selectedAnswer === e.ans;
-        document.querySelectorAll('#ex-answer-area .btn-option').forEach((el, idx) => {
-            el.disabled = true;
-            if (idx === e.ans) el.classList.add('correct');
-            else if (idx === selectedAnswer) el.classList.add('wrong');
-        });
-    } else if (e.type === 'tf') {
-        if (selectedAnswer === null) { showToast('Escolhe Verdadeiro ou Falso'); return; }
-        isCorrect = selectedAnswer === e.ans;
-    } else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
-        const val = document.getElementById('fill-input')?.value || '';
-        if (!val.trim()) { showToast('Escreve uma resposta'); return; }
-        const n = normalize(val);
-        isCorrect = (e.ans || []).some(a => {
-            const na = normalize(a);
-            return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
-        });
-        // Validação IA como fallback — só se não acertou no matching e há chave API.
-        // Pode devolver "partial" (resposta tem parte certa mas falta completar).
-        if (!isCorrect && hasAIKey()) {
-            const btn = document.getElementById('submit-btn');
-            if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
-            const r = await aiValidateAnswer(e, val);
-            if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
-            isCorrect = r.status === 'correct';
-            if (r.status === 'partial') {
-                currentSession._partial = { missing: r.missing || '' };
+    const s = currentSession;
+    if (s._submitting) return;
+    if (s.results && s.results[s.idx] !== undefined) return;
+    s._submitting = true;
+    try {
+        const e = s.items[s.idx];
+        let isCorrect = false;
+        if (e.type === 'mc') {
+            if (selectedAnswer === null) { showToast('Escolhe uma opção'); return; }
+            isCorrect = selectedAnswer === e.ans;
+            document.querySelectorAll('#ex-answer-area .btn-option').forEach((el, idx) => {
+                el.disabled = true;
+                if (idx === e.ans) el.classList.add('correct');
+                else if (idx === selectedAnswer) el.classList.add('wrong');
+            });
+        } else if (e.type === 'tf') {
+            if (selectedAnswer === null) { showToast('Escolhe Verdadeiro ou Falso'); return; }
+            isCorrect = selectedAnswer === e.ans;
+        } else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
+            const val = document.getElementById('fill-input')?.value || '';
+            if (!val.trim()) { showToast('Escreve uma resposta'); return; }
+            const n = normalize(val);
+            isCorrect = (e.ans || []).some(a => {
+                const na = normalize(a);
+                return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
+            });
+            // Validação IA como fallback — só se não acertou no matching e há chave API.
+            // Pode devolver "partial" (resposta tem parte certa mas falta completar).
+            if (!isCorrect && hasAIKey()) {
+                const btn = document.getElementById('submit-btn');
+                if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
+                const r = await aiValidateAnswer(e, val);
+                if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
+                // Se a sessão mudou durante o await (ex: utilizador cancelou e
+                // entrou noutra), descartar o resultado para não corromper a nova.
+                if (currentSession !== s) return;
+                isCorrect = r.status === 'correct';
+                if (r.status === 'partial') {
+                    s._partial = { missing: r.missing || '' };
+                }
             }
+        } else if (e.type === 'order') {
+            isCorrect = orderState.every((it, i) => it === e.items[i]);
+        } else if (e.type === 'match') {
+            const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
+            if (!all) { showToast('Completa todas as associações'); return; }
+            isCorrect = Object.entries(matchState.matched).every(([li, ri]) => {
+                const left = matchState.leftItems[li];
+                const right = matchState.rightItems[ri];
+                return e.pairs.some(p => p[0] === left && p[1] === right);
+            });
         }
-    } else if (e.type === 'order') {
-        isCorrect = orderState.every((it, i) => it === e.items[i]);
-    } else if (e.type === 'match') {
-        const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
-        if (!all) { showToast('Completa todas as associações'); return; }
-        isCorrect = Object.entries(matchState.matched).every(([li, ri]) => {
-            const left = matchState.leftItems[li];
-            const right = matchState.rightItems[ri];
-            return e.pairs.some(p => p[0] === left && p[1] === right);
-        });
+        if (currentSession !== s) return;
+        recordAnswer(e, isCorrect);
+        showFeedback(e, isCorrect);
+    } finally {
+        s._submitting = false;
     }
-    recordAnswer(e, isCorrect);
-    showFeedback(e, isCorrect);
 }
 
 function recordAnswer(e, isCorrect) {

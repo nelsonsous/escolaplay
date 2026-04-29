@@ -857,7 +857,7 @@ const EXERCISES_5_H_EXTRA = [
     // ----- Motivações para os Descobrimentos -----
     { id:'5he208', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:2,
       q:'🌶️ Que produto valioso da Ásia motivou as viagens marítimas?',
-      opts:['ouro','especiarias (pimenta, cravo, canela)','seda','marfim'], ans:1,
+      opts:['ouro','especiarias','seda','marfim'], ans:1,
       exp:'As especiarias (pimenta, cravinho, canela) eram muito valiosas na Europa e motivaram as navegações.' },
     { id:'5he209', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:2,
       q:'❓ Qual destas NÃO foi uma motivação para os Descobrimentos?',
@@ -879,7 +879,7 @@ const EXERCISES_5_H_EXTRA = [
       exp:'O Infante D. Henrique (filho de D. João I) organizou e financiou as primeiras viagens de descoberta.' },
     { id:'5he213', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:1,
       q:'🏛️ Onde se situava a famosa Escola atribuída ao Infante D. Henrique?',
-      opts:['Lisboa','Sagres (Algarve)','Porto','Coimbra'], ans:1,
+      opts:['Lisboa','Sagres','Porto','Coimbra'], ans:1,
       exp:'A "Escola de Sagres", no Algarve, terá reunido cartógrafos, astrónomos e marinheiros.' },
     { id:'5he214', s:'hgp', t:'Início dos Descobrimentos', type:'tf', diff:1,
       q:'O Infante D. Henrique era filho de D. João I.',
@@ -967,7 +967,7 @@ const EXERCISES_5_H_EXTRA = [
     // ----- Conquista de Ceuta (aprofundamento) -----
     { id:'5he231', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:2,
       q:'⛵ A conquista de Ceuta foi feita aos:',
-      opts:['castelhanos','muçulmanos (mouros)','cruzados','vikings'], ans:1,
+      opts:['castelhanos','muçulmanos','cruzados','vikings'], ans:1,
       exp:'Ceuta era uma cidade muçulmana (mourisca) controlada pelos benimerinos. Os portugueses tomaram-na em 1415.' },
     { id:'5he232', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:3,
       q:'⛵ Em que dia e mês foi conquistada Ceuta (1415)?',
@@ -1051,7 +1051,7 @@ const EXERCISES_5_H_EXTRA = [
     // ----- Bartolomeu Dias / nome do Cabo -----
     { id:'5he250', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:3,
       q:'🌊 Bartolomeu Dias chamou inicialmente ao Cabo da Boa Esperança:',
-      opts:['Cabo das Tempestades (Tormentas)','Cabo Verde','Cabo Bojador','Cabo da Roca'], ans:0,
+      opts:['Cabo das Tempestades','Cabo Verde','Cabo Bojador','Cabo da Roca'], ans:0,
       exp:'Bartolomeu Dias chamou-lhe Cabo das Tormentas (devido às tempestades). D. João II rebatizou-o "Cabo da Boa Esperança" pela esperança de chegar à Índia.' },
     { id:'5he251', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:3,
       q:'👑 Que rei rebatizou o Cabo das Tormentas para "Cabo da Boa Esperança"?',
@@ -1065,7 +1065,7 @@ const EXERCISES_5_H_EXTRA = [
       exp:'João Gonçalves Zarco, com Tristão Vaz Teixeira, descobriu a Madeira em 1419.' },
     { id:'5he253', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:3,
       q:'🌾 O principal produto agrícola que enriqueceu a ilha da Madeira no séc. XV foi:',
-      opts:['café','açúcar (cana-de-açúcar)','tabaco','algodão'], ans:1,
+      opts:['café','açúcar','tabaco','algodão'], ans:1,
       exp:'A cana-de-açúcar, introduzida na Madeira, fez da ilha um grande produtor e enriqueceu Portugal.' },
     { id:'5he254', s:'hgp', t:'Início dos Descobrimentos', type:'tf', diff:3,
       q:'A Madeira e os Açores estavam habitados quando os portugueses lá chegaram.',
@@ -1089,7 +1089,7 @@ const EXERCISES_5_H_EXTRA = [
     // ----- Comércio com África / Mina -----
     { id:'5he258', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:3,
       q:'🏰 A fortaleza-feitoria de S. Jorge da Mina (1482) foi construída na costa de:',
-      opts:['Marrocos','Guiné (atual Gana)','Moçambique','Cabo Verde'], ans:1,
+      opts:['Marrocos','Guiné','Moçambique','Cabo Verde'], ans:1,
       exp:'S. Jorge da Mina foi construída na Costa do Ouro (atual Gana) para defender o comércio do ouro africano.' },
     { id:'5he259', s:'hgp', t:'Início dos Descobrimentos', type:'mc', diff:3,
       q:'⚖️ Que tipo de comércio começou a desenvolver-se com África no séc. XV (lado negro dos Descobrimentos)?',

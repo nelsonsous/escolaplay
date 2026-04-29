@@ -32,7 +32,7 @@ const EXERCISES_6_H_EXTRA2 = [
 
     { id:'6he2_006', s:'hgp', t:'Invasões Francesas', type:'mc', diff:1,
       q:'🚢 Quem era o príncipe regente que partiu para o Brasil em 1807?',
-      opts:['D. Pedro IV','D. João (futuro D. João VI)','D. Miguel','D. Manuel II'], ans:1,
+      opts:['D. Pedro IV','D. João','D. Miguel','D. Manuel II'], ans:1,
       exp:'Era D. João, príncipe regente, que viria a tornar-se D. João VI.' },
 
     { id:'6he2_007', s:'hgp', t:'Invasões Francesas', type:'tf', diff:1,
