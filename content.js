@@ -2586,6 +2586,7 @@ const CURRICULUM_5 = {
         'Reis',
         'Cultura',
         'Dinastias',
+        'Início dos Descobrimentos',
         'Símbolos',
         'Ordem cronológica'
     ]
@@ -3142,7 +3143,7 @@ const PERIODS_5 = {
     portugues:   { 'Ortografia':1, 'Classes de palavras':1, 'Determinantes':1, 'Pronomes':2, 'Verbos':2, 'Funções sintáticas':2, 'Pontuação':2, 'Plurais':3, 'Recursos expressivos':3, 'Tipos de texto':3 },
     ingles:      { 'Greetings':1, 'Numbers':1, 'Days':1, 'Months':1, 'Family':1, 'School':2, 'Colors':2, 'Articles':2, 'Verb to be':2, 'Plurals':3, 'Present simple':3, 'Prepositions':3, 'Questions':3 },
     ciencias:    { 'Seres vivos':1, 'Classificação':1, 'Vertebrados':1, 'Anfíbios':1, 'Aves':1, 'Invertebrados':1, 'Revestimento':2, 'Alimentação':2, 'Reprodução':2, 'Cadeia alimentar':2, 'Ecossistema':2, 'Habitat':2, 'Plantas':3, 'Água':3, 'Solo':3, 'Rochas':3 },
-    hgp:         { 'Localização':1, 'Fronteiras':1, 'Continentes':1, 'Oceanos':1, 'Europa':1, 'Pontos cardeais':1, 'Distritos':1, 'Capitais':1, 'Rios':2, 'Relevo':2, 'Montanha':2, 'Ilhas':2, 'Clima':2, 'Pré-história':2, 'Romanos':2, 'Bárbaros':2, 'Muçulmanos':3, 'Reconquista':3, 'Fundação':3, 'Lisboa':3, 'Batalhas':3, 'Reis':3, 'Cultura':3, 'Símbolos':3, 'Dinastias':3, 'Ordem cronológica':3 }
+    hgp:         { 'Localização':1, 'Fronteiras':1, 'Continentes':1, 'Oceanos':1, 'Europa':1, 'Pontos cardeais':1, 'Distritos':1, 'Capitais':1, 'Rios':2, 'Relevo':2, 'Montanha':2, 'Ilhas':2, 'Clima':2, 'Pré-história':2, 'Romanos':2, 'Bárbaros':2, 'Muçulmanos':3, 'Reconquista':3, 'Fundação':3, 'Lisboa':3, 'Batalhas':3, 'Reis':3, 'Cultura':3, 'Símbolos':3, 'Dinastias':3, 'Início dos Descobrimentos':3, 'Ordem cronológica':3 }
 };
 
 // ============================================================
