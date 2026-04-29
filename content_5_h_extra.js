@@ -148,7 +148,7 @@ const EXERCISES_5_H_EXTRA = [
 
     // ----- Fronteiras (30) -----
     { id:'5he36', s:'hgp', t:'Fronteiras', type:'mc', diff:1,
-      q:'🇪🇸 Com que país Portugal Continental tem fronteira terrestre?',
+      q:'🗺️ Com que país Portugal Continental tem fronteira terrestre?',
       opts:['França','Espanha','Marrocos','Itália'], ans:1,
       exp:'Portugal só tem fronteira terrestre com Espanha.' },
     { id:'5he37', s:'hgp', t:'Fronteiras', type:'fill', diff:1,
@@ -546,7 +546,7 @@ const EXERCISES_5_H_EXTRA = [
       ans:['Bruxelas','bruxelas'],
       exp:'Bruxelas (Bélgica) é a sede principal da UE.' },
     { id:'5he134', s:'hgp', t:'Europa', type:'mc', diff:2,
-      q:'🇪🇸 Que país europeu faz fronteira com Portugal?',
+      q:'🌍 Que país europeu faz fronteira com Portugal?',
       opts:['França','Espanha','Itália','Alemanha'], ans:1,
       exp:'Apenas Espanha.' },
     { id:'5he135', s:'hgp', t:'Europa', type:'tf', diff:2,
