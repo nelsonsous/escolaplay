@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v167';
+const APP_VERSION = 'v168';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2653,19 +2653,32 @@ function pickExercises(pool, n) {
         // 4) Empate → random
         return a.rand - b.rand;
     });
-    // De-dup por texto normalizado: alguns bancos extra têm a mesma pergunta
-    // com IDs diferentes (só muda o emoji). Sem este filtro, podem aparecer
-    // duas vezes no mesmo teste. Compara por disciplina + texto sem emojis,
-    // pontuação ou espaços extra.
-    const normQ = s => (s||'').toLowerCase()
+    // De-dup por texto + resposta normalizados: alguns bancos extra têm
+    // o mesmo exercício duplicado em ficheiros diferentes (mesmo Q + mesma
+    // resposta/opções). Sem este filtro podem aparecer dois iguais no mesmo
+    // teste. ATENÇÃO: comparamos texto E resposta — exercícios com prompt
+    // genérico tipo "Qual destas palavras está bem escrita?" com opções
+    // diferentes NÃO são considerados duplicados (testam palavras diferentes).
+    const normTxt = s => (s||'').toLowerCase()
         .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
         .replace(/[^\p{L}\p{N} ]/gu, '')
         .replace(/\s+/g, ' ')
         .trim();
+    const dupKey = e => {
+        let ans = '';
+        if (e.type === 'mc') ans = (e.opts || []).map(o => normTxt(String(o))).sort().join(',');
+        else if (e.type === 'tf') ans = String(e.ans);
+        else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
+            const a = Array.isArray(e.ans) ? e.ans : [e.ans || ''];
+            ans = a.map(x => normTxt(String(x))).sort().join(',');
+        } else if (e.type === 'order') ans = (e.items || []).map(o => normTxt(String(o))).sort().join(',');
+        else if (e.type === 'match') ans = (e.pairs || []).map(p => normTxt(String(p[0])) + '|' + normTxt(String(p[1]))).sort().join(',');
+        return (e.s || '') + '|' + normTxt(e.q) + '|' + ans;
+    };
     const pickedKeys = new Set();
     const top = [];
     for (const x of annotated) {
-        const k = (x.e.s || '') + '|' + normQ(x.e.q);
+        const k = dupKey(x.e);
         if (pickedKeys.has(k)) continue;
         pickedKeys.add(k);
         top.push(x.e);
