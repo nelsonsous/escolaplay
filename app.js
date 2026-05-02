@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v166';
+const APP_VERSION = 'v167';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2653,7 +2653,24 @@ function pickExercises(pool, n) {
         // 4) Empate → random
         return a.rand - b.rand;
     });
-    const top = annotated.slice(0, n).map(x => x.e);
+    // De-dup por texto normalizado: alguns bancos extra têm a mesma pergunta
+    // com IDs diferentes (só muda o emoji). Sem este filtro, podem aparecer
+    // duas vezes no mesmo teste. Compara por disciplina + texto sem emojis,
+    // pontuação ou espaços extra.
+    const normQ = s => (s||'').toLowerCase()
+        .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
+        .replace(/[^\p{L}\p{N} ]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const pickedKeys = new Set();
+    const top = [];
+    for (const x of annotated) {
+        const k = (x.e.s || '') + '|' + normQ(x.e.q);
+        if (pickedKeys.has(k)) continue;
+        pickedKeys.add(k);
+        top.push(x.e);
+        if (top.length >= n) break;
+    }
     return top.sort(() => Math.random() - 0.5);
 }
 
