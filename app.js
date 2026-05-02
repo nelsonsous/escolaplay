@@ -330,7 +330,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v165';
+const APP_VERSION = 'v166';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2852,6 +2852,9 @@ function renderQuestion() {
     qHtml += `<span class="ex-q-text">${escapeHtml(e.q)}</span>`;
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
+    // Reabrir interação na área de resposta (foi trancada em showFeedback)
+    const _aa = document.getElementById('ex-answer-area');
+    if (_aa) _aa.style.pointerEvents = '';
     // Mostrar botão Professor IA inline; resetar estado
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     const profBox  = document.getElementById('ex-prof-ia-box');
@@ -3369,6 +3372,20 @@ function showFeedback(e, isCorrect) {
     // Esconder botão IA inline (a pista só faz sentido ANTES de responder)
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     if (profWrap) profWrap.style.display = 'none';
+    // Trancar a área de resposta: esconder botões "Responder" e bloquear
+    // interação (não dá para clicar opções, arrastar, escrever). O utilizador
+    // é direccionado para o painel de feedback que aparece logo abaixo.
+    const answerArea = document.getElementById('ex-answer-area');
+    if (answerArea) {
+        answerArea.style.pointerEvents = 'none';
+        answerArea.querySelectorAll('button.btn-primary-solid').forEach(b => {
+            // Esconde apenas botões "Responder" — preserva qualquer outro
+            if ((b.textContent || '').trim().toLowerCase().startsWith('responder')) {
+                b.style.display = 'none';
+            }
+        });
+        answerArea.querySelectorAll('input, textarea').forEach(el => { el.disabled = true; });
+    }
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : (partial ? '\u{1F914}' : '\u{1F914}');
@@ -3414,6 +3431,8 @@ function showFeedback(e, isCorrect) {
     nextSpan.textContent = isLast ? 'Ver resultado' : 'Continuar';
     if (nextIcon) nextIcon.className = 'fas fa-arrow-right';
     document.getElementById('session-xp').textContent = currentSession.xp;
+    // Garantir que o utilizador vê o feedback (e o botão Continuar) — scroll suave
+    requestAnimationFrame(() => panel.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 }
 
 // Avança para a próxima pergunta (ou termina a sessão)
