@@ -1387,12 +1387,16 @@ const EXERCISES_2 = [
 
 // ============================================================
 // ===================== 3.º ANO ==============================
-// Aprendizagens Essenciais 2018 (alinhado com manuais Texto/Porto/Areal)
+// Aprendizagens Essenciais 2018 (alinhado com manuais Texto/Porto/Areal).
+// NOTA: para o aluno do Colégio Oceanus, Estudo do Meio é leccionado
+// EM INGLÊS — a disciplina aparece como "Science" e o conteúdo (tópicos,
+// perguntas, explicações) está em inglês. As outras disciplinas mantêm-se
+// em português.
 // ============================================================
 const SUBJECTS_3 = {
     portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
     matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
-    estudo_meio:  { name: 'Estudo do Meio', icon: 'fa-globe',        color: '#16a34a' },
+    estudo_meio:  { name: 'Science',         icon: 'fa-globe',        color: '#16a34a' },
     ingles:       { name: 'Inglês',         icon: 'fa-language',     color: '#7c3aed' }
 };
 
@@ -1409,9 +1413,9 @@ const CURRICULUM_3 = {
         'Comprimento', 'Tempo', 'Dinheiro', 'Tabelas e gráficos'
     ],
     estudo_meio: [
-        'O meu passado', 'O corpo humano', 'Saúde e higiene', 'A família',
-        'Plantas', 'Animais', 'Os astros', 'Aspetos físicos',
-        'A freguesia e o concelho', 'Portugal', 'Materiais', 'Atividades produtivas'
+        'My past', 'The human body', 'Health and hygiene', 'Family',
+        'Plants', 'Animals', 'The Sun, Earth and Moon', 'Landforms',
+        'My local area', 'Portugal', 'Materials', 'Jobs and industries'
     ],
     ingles: [
         'Greetings', 'Numbers', 'Colours',
@@ -1433,9 +1437,9 @@ const PERIODS_3 = {
         'Comprimento':3, 'Tempo':3, 'Dinheiro':3, 'Tabelas e gráficos':3
     },
     estudo_meio: {
-        'O meu passado':1, 'O corpo humano':1, 'Saúde e higiene':1, 'A família':1,
-        'Plantas':2, 'Animais':2, 'Os astros':2, 'Aspetos físicos':2,
-        'A freguesia e o concelho':3, 'Portugal':3, 'Materiais':3, 'Atividades produtivas':3
+        'My past':1, 'The human body':1, 'Health and hygiene':1, 'Family':1,
+        'Plants':2, 'Animals':2, 'The Sun, Earth and Moon':2, 'Landforms':2,
+        'My local area':3, 'Portugal':3, 'Materials':3, 'Jobs and industries':3
     },
     ingles:      {
         'Greetings':1, 'Numbers':1, 'Colours':1,
@@ -1558,55 +1562,55 @@ const EXERCISES_3 = [
     { id:'3m39', s:'matematica', t:'Tabelas e gráficos', type:'fill', diff:2, q:'Total de votos do exercício anterior (A=5, B=8, C=2): ___', ans:['15'], exp:'5 + 8 + 2 = 15.' },
 
     // ===========================================================
-    // ESTUDO DO MEIO 3.º
+    // SCIENCE 3.º (Estudo do Meio em inglês — Colégio Oceanus)
     // ===========================================================
-    { id:'3e1', s:'estudo_meio', t:'O meu passado', type:'mc', diff:1, q:'📅 Documento que mostra a data em que nasceste:', opts:['cartão de cidadão','registo de nascimento','passaporte'], ans:1, exp:'O assento/registo de nascimento regista o nascimento.' },
-    { id:'3e2', s:'estudo_meio', t:'O meu passado', type:'fill', diff:1, q:'Festa que celebra o aniversário do nascimento: ___', ans:['aniversário'], exp:'Aniversário.' },
-    { id:'3e3', s:'estudo_meio', t:'O meu passado', type:'tf', diff:1, q:'A árvore genealógica mostra os antepassados de uma família.', ans:true, exp:'Verdade — pais, avós, bisavós, etc.' },
+    { id:'3e1', s:'estudo_meio', t:'My past', type:'mc', diff:1, q:'📅 Document that shows the date you were born:', opts:['ID card','birth certificate','passport'], ans:1, exp:'The birth certificate records the date and place of birth.' },
+    { id:'3e2', s:'estudo_meio', t:'My past', type:'fill', diff:1, q:'A celebration of the day you were born is called a ___.', ans:['birthday'], exp:'Birthday — yearly celebration of birth.' },
+    { id:'3e3', s:'estudo_meio', t:'My past', type:'tf', diff:1, q:'A family tree shows the ancestors of a family.', ans:true, exp:'True — parents, grandparents, great-grandparents and so on.' },
 
-    { id:'3e4', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'🦴 Quantos ossos tem aproximadamente o corpo humano adulto?', opts:['50','100','206'], ans:2, exp:'Cerca de 206 ossos no adulto.' },
-    { id:'3e5', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🫀 Órgão que bombeia o sangue:', opts:['pulmão','coração','fígado'], ans:1, exp:'O coração bombeia o sangue por todo o corpo.' },
-    { id:'3e6', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🫁 Órgãos da respiração:', opts:['estômago','pulmões','intestinos'], ans:1, exp:'Pulmões — onde o ar entra e o O₂ passa ao sangue.' },
-    { id:'3e7', s:'estudo_meio', t:'O corpo humano', type:'fill', diff:1, q:'Os órgãos do paladar estão na ___', ans:['língua'], exp:'Língua — sente os sabores (doce, salgado, ácido, amargo).' },
+    { id:'3e4', s:'estudo_meio', t:'The human body', type:'mc', diff:1, q:'🦴 About how many bones does an adult human body have?', opts:['50','100','206'], ans:2, exp:'About 206 bones in the adult skeleton.' },
+    { id:'3e5', s:'estudo_meio', t:'The human body', type:'mc', diff:2, q:'🫀 The organ that pumps blood is the:', opts:['lung','heart','liver'], ans:1, exp:'The heart pumps blood around the body.' },
+    { id:'3e6', s:'estudo_meio', t:'The human body', type:'mc', diff:2, q:'🫁 The organs of breathing are the:', opts:['stomach','lungs','intestines'], ans:1, exp:'Lungs — air enters and oxygen passes into the blood.' },
+    { id:'3e7', s:'estudo_meio', t:'The human body', type:'fill', diff:1, q:'The sense of taste is in the ___.', ans:['tongue'], exp:'Tongue — it senses sweet, salty, sour and bitter.' },
 
-    { id:'3e8', s:'estudo_meio', t:'Saúde e higiene', type:'mc', diff:1, q:'🦷 Quantas vezes ao dia se devem lavar os dentes?', opts:['1','2 ou 3','5 ou mais'], ans:1, exp:'Pelo menos 2 vezes — depois do pequeno-almoço e antes de deitar.' },
-    { id:'3e9', s:'estudo_meio', t:'Saúde e higiene', type:'tf', diff:1, q:'Lavar as mãos antes de comer ajuda a evitar doenças.', ans:true, exp:'Mata micróbios que podem causar infeções.' },
-    { id:'3e10', s:'estudo_meio', t:'Saúde e higiene', type:'mc', diff:2, q:'🥗 Alimento saudável para comer todos os dias:', opts:['rebuçados','fruta e legumes','batatas fritas'], ans:1, exp:'Fruta e legumes — vitaminas e fibras.' },
+    { id:'3e8', s:'estudo_meio', t:'Health and hygiene', type:'mc', diff:1, q:'🦷 How many times a day should you brush your teeth?', opts:['1','2 or 3','5 or more'], ans:1, exp:'At least twice — after breakfast and before bed.' },
+    { id:'3e9', s:'estudo_meio', t:'Health and hygiene', type:'tf', diff:1, q:'Washing your hands before eating helps prevent illnesses.', ans:true, exp:'It kills germs that can cause infections.' },
+    { id:'3e10', s:'estudo_meio', t:'Health and hygiene', type:'mc', diff:2, q:'🥗 Healthy food to eat every day:', opts:['sweets','fruit and vegetables','crisps'], ans:1, exp:'Fruit and vegetables provide vitamins and fibre.' },
 
-    { id:'3e11', s:'estudo_meio', t:'A família', type:'mc', diff:1, q:'👵 Mãe da mãe é a:', opts:['tia','avó','prima'], ans:1, exp:'Avó (lado materno).' },
-    { id:'3e12', s:'estudo_meio', t:'A família', type:'mc', diff:2, q:'👨‍👩‍👧 Filho do meu tio é meu:', opts:['irmão','primo','sobrinho'], ans:1, exp:'Primo.' },
-    { id:'3e13', s:'estudo_meio', t:'A família', type:'fill', diff:1, q:'Pai do meu pai é o meu ___', ans:['avô'], exp:'Avô paterno.' },
+    { id:'3e11', s:'estudo_meio', t:'Family', type:'mc', diff:1, q:'👵 Your mother\'s mother is your:', opts:['aunt','grandmother','cousin'], ans:1, exp:'Grandmother (on the mother\'s side).' },
+    { id:'3e12', s:'estudo_meio', t:'Family', type:'mc', diff:2, q:'👨‍👩‍👧 Your uncle\'s child is your:', opts:['brother','cousin','nephew'], ans:1, exp:'Cousin.' },
+    { id:'3e13', s:'estudo_meio', t:'Family', type:'fill', diff:1, q:'Your father\'s father is your ___.', ans:['grandfather'], exp:'Grandfather (on the father\'s side).' },
 
-    { id:'3e14', s:'estudo_meio', t:'Plantas', type:'mc', diff:1, q:'🌱 Parte da planta que absorve água e sais minerais:', opts:['raiz','caule','folha'], ans:0, exp:'A raiz absorve do solo.' },
-    { id:'3e15', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🍃 Onde acontece a fotossíntese?', opts:['raiz','folhas','flor'], ans:1, exp:'Nas folhas, com luz solar e clorofila.' },
-    { id:'3e16', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🌳 Plantas que dão fruto e semente são:', opts:['gimnospérmicas','angiospérmicas','algas'], ans:1, exp:'Angiospérmicas — semente protegida por fruto. Gimnospérmicas (ex: pinheiro) não têm fruto.' },
-    { id:'3e17', s:'estudo_meio', t:'Plantas', type:'tf', diff:1, q:'As plantas precisam de luz, água e ar para viver.', ans:true, exp:'Verdade.' },
+    { id:'3e14', s:'estudo_meio', t:'Plants', type:'mc', diff:1, q:'🌱 The part of the plant that absorbs water and minerals from the soil:', opts:['root','stem','leaf'], ans:0, exp:'The root takes in water and nutrients.' },
+    { id:'3e15', s:'estudo_meio', t:'Plants', type:'mc', diff:2, q:'🍃 Where does photosynthesis happen?', opts:['root','leaves','flower'], ans:1, exp:'In the leaves, using sunlight and chlorophyll.' },
+    { id:'3e16', s:'estudo_meio', t:'Plants', type:'mc', diff:2, q:'🌳 Plants that produce flowers and fruit are:', opts:['gymnosperms','angiosperms','algae'], ans:1, exp:'Angiosperms — seeds protected inside fruit. Gymnosperms (e.g. pine) have seeds without fruit.' },
+    { id:'3e17', s:'estudo_meio', t:'Plants', type:'tf', diff:1, q:'Plants need light, water and air to live.', ans:true, exp:'True — plus minerals from the soil.' },
 
-    { id:'3e18', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'🐟 Animais que vivem dentro de água e respiram por guelras:', opts:['mamíferos','peixes','aves'], ans:1, exp:'Peixes.' },
-    { id:'3e19', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🦅 Animais com penas e bico:', opts:['répteis','aves','mamíferos'], ans:1, exp:'Aves — caracterizam-se por penas e bico.' },
-    { id:'3e20', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🐢 Tartaruga, cobra e crocodilo são:', opts:['anfíbios','répteis','peixes'], ans:1, exp:'Répteis (escamas, sangue frio, ovíparos em geral).' },
-    { id:'3e21', s:'estudo_meio', t:'Animais', type:'tf', diff:2, q:'Os mamíferos alimentam as crias com leite materno.', ans:true, exp:'Característica essencial dos mamíferos.' },
+    { id:'3e18', s:'estudo_meio', t:'Animals', type:'mc', diff:1, q:'🐟 Animals that live in water and breathe through gills are:', opts:['mammals','fish','birds'], ans:1, exp:'Fish.' },
+    { id:'3e19', s:'estudo_meio', t:'Animals', type:'mc', diff:2, q:'🦅 Animals with feathers and a beak are:', opts:['reptiles','birds','mammals'], ans:1, exp:'Birds — feathers, beak and they lay eggs.' },
+    { id:'3e20', s:'estudo_meio', t:'Animals', type:'mc', diff:2, q:'🐢 Turtles, snakes and crocodiles are:', opts:['amphibians','reptiles','fish'], ans:1, exp:'Reptiles — scaly skin, cold-blooded, usually lay eggs.' },
+    { id:'3e21', s:'estudo_meio', t:'Animals', type:'tf', diff:2, q:'Mammals feed their young with milk from the mother.', ans:true, exp:'Key feature of mammals — they produce milk for their babies.' },
 
-    { id:'3e22', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'⭐ A Terra dá uma volta sobre si mesma em ___ horas:', opts:['12','24','365'], ans:1, exp:'Movimento de rotação → 24h (1 dia).' },
-    { id:'3e23', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌍 A Terra dá uma volta ao Sol em:', opts:['1 mês','1 ano','24 horas'], ans:1, exp:'Movimento de translação → 365 dias (1 ano).' },
-    { id:'3e24', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'🌙 Astro que gira à volta da Terra:', opts:['Sol','Lua','Marte'], ans:1, exp:'A Lua é o satélite natural da Terra.' },
+    { id:'3e22', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:1, q:'⭐ The Earth spins on itself once every ___ hours.', opts:['12','24','365'], ans:1, exp:'Earth\'s rotation takes 24 hours — that is one day.' },
+    { id:'3e23', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:2, q:'🌍 The Earth orbits the Sun once every:', opts:['1 month','1 year','24 hours'], ans:1, exp:'Earth\'s orbit (revolution) takes about 365 days = 1 year.' },
+    { id:'3e24', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:1, q:'🌙 The body that orbits the Earth is the:', opts:['Sun','Moon','Mars'], ans:1, exp:'The Moon is Earth\'s natural satellite.' },
 
-    { id:'3e25', s:'estudo_meio', t:'Aspetos físicos', type:'mc', diff:1, q:'🌊 Curso de água que desagua no mar:', opts:['lago','rio','poço'], ans:1, exp:'Rio.' },
-    { id:'3e26', s:'estudo_meio', t:'Aspetos físicos', type:'mc', diff:2, q:'⛰️ Elevação muito alta de terreno:', opts:['colina','serra','vale'], ans:1, exp:'Serras são as elevações mais altas (planícies = baixas, vales = entre montes).' },
-    { id:'3e27', s:'estudo_meio', t:'Aspetos físicos', type:'fill', diff:1, q:'Grande extensão de água salgada: ___', ans:['mar','oceano'], exp:'Mar ou oceano.' },
+    { id:'3e25', s:'estudo_meio', t:'Landforms', type:'mc', diff:1, q:'🌊 A flow of water that ends in the sea is a:', opts:['lake','river','well'], ans:1, exp:'River.' },
+    { id:'3e26', s:'estudo_meio', t:'Landforms', type:'mc', diff:2, q:'⛰️ A very high area of land is called a:', opts:['hill','mountain','valley'], ans:1, exp:'Mountains are the highest landforms. Hills are smaller; valleys lie between mountains.' },
+    { id:'3e27', s:'estudo_meio', t:'Landforms', type:'fill', diff:1, q:'A large area of salt water is a ___.', ans:['sea','ocean'], exp:'Sea or ocean.' },
 
-    { id:'3e28', s:'estudo_meio', t:'A freguesia e o concelho', type:'mc', diff:1, q:'🏛️ Quem dirige a câmara municipal?', opts:['o presidente da freguesia','o presidente da câmara','o ministro'], ans:1, exp:'O presidente da câmara dirige o concelho/município.' },
-    { id:'3e29', s:'estudo_meio', t:'A freguesia e o concelho', type:'mc', diff:2, q:'🏛️ Como se chama o conjunto de freguesias?', opts:['distrito','concelho','país'], ans:1, exp:'Várias freguesias formam um concelho (município).' },
+    { id:'3e28', s:'estudo_meio', t:'My local area', type:'mc', diff:1, q:'🏛️ Who leads the town hall (city council)?', opts:['the parish president','the mayor','the minister'], ans:1, exp:'The mayor leads the municipality (concelho).' },
+    { id:'3e29', s:'estudo_meio', t:'My local area', type:'mc', diff:2, q:'🏛️ A group of parishes (freguesias) forms a:', opts:['district','municipality','country'], ans:1, exp:'Several parishes form a municipality (concelho).' },
 
-    { id:'3e30', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Capital de Portugal:', opts:['Porto','Lisboa','Coimbra'], ans:1, exp:'Lisboa.' },
-    { id:'3e31', s:'estudo_meio', t:'Portugal', type:'mc', diff:2, q:'🏝️ Quais os arquipélagos portugueses?', opts:['Madeira e Açores','Canárias e Cabo Verde','Madeira apenas'], ans:0, exp:'Madeira e Açores são as Regiões Autónomas insulares.' },
-    { id:'3e32', s:'estudo_meio', t:'Portugal', type:'tf', diff:1, q:'Portugal faz fronteira terrestre apenas com Espanha.', ans:true, exp:'Verdade — única fronteira terrestre.' },
+    { id:'3e30', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'The capital of Portugal is:', opts:['Porto','Lisbon','Coimbra'], ans:1, exp:'Lisbon (Lisboa).' },
+    { id:'3e31', s:'estudo_meio', t:'Portugal', type:'mc', diff:2, q:'🏝️ Which are the Portuguese archipelagos?', opts:['Madeira and Azores','Canary Islands and Cape Verde','Madeira only'], ans:0, exp:'Madeira and the Azores are Portugal\'s autonomous island regions.' },
+    { id:'3e32', s:'estudo_meio', t:'Portugal', type:'tf', diff:1, q:'Portugal shares a land border only with Spain.', ans:true, exp:'True — Spain is the only country that borders mainland Portugal by land.' },
 
-    { id:'3e33', s:'estudo_meio', t:'Materiais', type:'mc', diff:1, q:'🪵 Material que vem das árvores:', opts:['plástico','madeira','metal'], ans:1, exp:'Madeira — material natural, vegetal.' },
-    { id:'3e34', s:'estudo_meio', t:'Materiais', type:'mc', diff:2, q:'♻️ Para que serve a reciclagem?', opts:['poluir mais','reaproveitar materiais','perder tempo'], ans:1, exp:'Poupa recursos e reduz lixo.' },
+    { id:'3e33', s:'estudo_meio', t:'Materials', type:'mc', diff:1, q:'🪵 A material that comes from trees:', opts:['plastic','wood','metal'], ans:1, exp:'Wood — a natural material from trees.' },
+    { id:'3e34', s:'estudo_meio', t:'Materials', type:'mc', diff:2, q:'♻️ Why do we recycle?', opts:['to pollute more','to reuse materials','to waste time'], ans:1, exp:'Recycling saves resources and reduces waste.' },
 
-    { id:'3e35', s:'estudo_meio', t:'Atividades produtivas', type:'mc', diff:1, q:'🚜 Atividade que cultiva a terra:', opts:['agricultura','pesca','indústria'], ans:0, exp:'Agricultura.' },
-    { id:'3e36', s:'estudo_meio', t:'Atividades produtivas', type:'mc', diff:2, q:'🏭 Setor que transforma matérias-primas em produtos:', opts:['primário (agricultura)','secundário (indústria)','terciário (serviços)'], ans:1, exp:'Indústria = setor secundário.' },
+    { id:'3e35', s:'estudo_meio', t:'Jobs and industries', type:'mc', diff:1, q:'🚜 The job of growing crops on the land is called:', opts:['farming','fishing','manufacturing'], ans:0, exp:'Farming (agriculture).' },
+    { id:'3e36', s:'estudo_meio', t:'Jobs and industries', type:'mc', diff:2, q:'🏭 The sector that turns raw materials into products is the:', opts:['primary sector','secondary sector','tertiary sector'], ans:1, exp:'Manufacturing/industry is the secondary sector. Primary = farming, fishing, mining. Tertiary = services.' },
 
     // ===========================================================
     // INGLÊS 3.º
