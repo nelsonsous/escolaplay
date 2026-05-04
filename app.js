@@ -306,6 +306,12 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_2_i_extra2.js', varName: 'EXERCISES_2_I_EXTRA2' },
         { src: 'content_2_i_extra3.js', varName: 'EXERCISES_2_I_EXTRA3' }
     ],
+    3: [
+        { src: 'content_3_p_extra.js', varName: 'EXERCISES_3_P_EXTRA' },
+        { src: 'content_3_m_extra.js', varName: 'EXERCISES_3_M_EXTRA' },
+        { src: 'content_3_e_extra.js', varName: 'EXERCISES_3_E_EXTRA' },
+        { src: 'content_3_i_extra.js', varName: 'EXERCISES_3_I_EXTRA' }
+    ],
     5: [
         { src: 'content_5_p_extra.js', varName: 'EXERCISES_5_P_EXTRA' },
         { src: 'content_5_m_extra.js', varName: 'EXERCISES_5_M_EXTRA' },
@@ -330,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v168';
+const APP_VERSION = 'v169';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"

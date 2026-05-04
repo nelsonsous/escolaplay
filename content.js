@@ -1386,6 +1386,266 @@ const EXERCISES_2 = [
 
 
 // ============================================================
+// ===================== 3.º ANO ==============================
+// Aprendizagens Essenciais 2018 (alinhado com manuais Texto/Porto/Areal)
+// ============================================================
+const SUBJECTS_3 = {
+    portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
+    matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
+    estudo_meio:  { name: 'Estudo do Meio', icon: 'fa-globe',        color: '#16a34a' },
+    ingles:       { name: 'Inglês',         icon: 'fa-language',     color: '#7c3aed' }
+};
+
+const CURRICULUM_3 = {
+    portugues: [
+        'Ditongos e hiatos', 'Acentuação', 'Translineação',
+        'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Adjetivos', 'Verbos', 'Plurais e feminino',
+        'Tipos de frase', 'Sinónimos e antónimos', 'Família de palavras', 'Compreensão de texto'
+    ],
+    matematica: [
+        'Números até 10 000', 'Valor posicional', 'Adição e subtração', 'Multiplicação',
+        'Tabuadas', 'Divisão', 'Múltiplos e divisores',
+        'Frações', 'Polígonos', 'Sólidos geométricos', 'Perímetro',
+        'Comprimento', 'Tempo', 'Dinheiro', 'Tabelas e gráficos'
+    ],
+    estudo_meio: [
+        'O meu passado', 'O corpo humano', 'Saúde e higiene', 'A família',
+        'Plantas', 'Animais', 'Os astros', 'Aspetos físicos',
+        'A freguesia e o concelho', 'Portugal', 'Materiais', 'Atividades produtivas'
+    ],
+    ingles: [
+        'Greetings', 'Numbers', 'Colours',
+        'Family', 'Body', 'School',
+        'Animals', 'Food'
+    ]
+};
+
+const PERIODS_3 = {
+    portugues:   {
+        'Ditongos e hiatos':1, 'Acentuação':1, 'Translineação':1,
+        'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
+        'Tipos de frase':3, 'Sinónimos e antónimos':3, 'Família de palavras':3, 'Compreensão de texto':3
+    },
+    matematica:  {
+        'Números até 10 000':1, 'Valor posicional':1, 'Adição e subtração':1, 'Multiplicação':1,
+        'Tabuadas':2, 'Divisão':2, 'Múltiplos e divisores':2,
+        'Frações':3, 'Polígonos':3, 'Sólidos geométricos':3, 'Perímetro':3,
+        'Comprimento':3, 'Tempo':3, 'Dinheiro':3, 'Tabelas e gráficos':3
+    },
+    estudo_meio: {
+        'O meu passado':1, 'O corpo humano':1, 'Saúde e higiene':1, 'A família':1,
+        'Plantas':2, 'Animais':2, 'Os astros':2, 'Aspetos físicos':2,
+        'A freguesia e o concelho':3, 'Portugal':3, 'Materiais':3, 'Atividades produtivas':3
+    },
+    ingles:      {
+        'Greetings':1, 'Numbers':1, 'Colours':1,
+        'Family':2, 'Body':2, 'School':2,
+        'Animals':3, 'Food':3
+    }
+};
+
+const LESSONS_3 = {
+    // Lições serão adicionadas em sessão posterior. Os exercícios já cobrem
+    // o curriculum base — o livrinho só aparece nos tópicos com entrada aqui.
+};
+
+const EXERCISES_3 = [
+    // ===========================================================
+    // PORTUGUÊS 3.º
+    // ===========================================================
+    { id:'3p1', s:'portugues', t:'Ditongos e hiatos', type:'mc', diff:1, q:'🌧️ Qual destas palavras tem um ditongo?', opts:['casa','pai','sol'], ans:1, exp:'"Pai" tem o ditongo "ai" (duas vogais na mesma sílaba).' },
+    { id:'3p2', s:'portugues', t:'Ditongos e hiatos', type:'mc', diff:2, q:'🦁 Qual destas palavras tem hiato?', opts:['mau','leão','não'], ans:1, exp:'"Le-ão" tem hiato — duas vogais em sílabas diferentes (le | ão).' },
+    { id:'3p3', s:'portugues', t:'Ditongos e hiatos', type:'tf', diff:2, q:'A palavra "saída" tem hiato.', ans:true, exp:'sa-í-da: o "a" e o "í" estão em sílabas diferentes → hiato.' },
+    { id:'3p4', s:'portugues', t:'Ditongos e hiatos', type:'fill', diff:2, q:'Indica o ditongo de "boi": ___', ans:['oi'], exp:'B-oi → ditongo "oi".' },
+
+    { id:'3p5', s:'portugues', t:'Acentuação', type:'mc', diff:1, q:'🔤 Que acento tem a palavra "café"?', opts:['agudo','grave','circunflexo'], ans:0, exp:'"Café" leva acento agudo (´).' },
+    { id:'3p6', s:'portugues', t:'Acentuação', type:'mc', diff:2, q:'🔤 Que acento tem "avô"?', opts:['agudo','grave','circunflexo'], ans:2, exp:'"Avô" leva acento circunflexo (^).' },
+    { id:'3p7', s:'portugues', t:'Acentuação', type:'mc', diff:2, q:'🔤 Em que palavra é OBRIGATÓRIO o acento?', opts:['casa','árvore','mesa'], ans:1, exp:'"Árvore" é palavra esdrúxula — leva sempre acento.' },
+    { id:'3p8', s:'portugues', t:'Acentuação', type:'tf', diff:1, q:'A palavra "mãe" leva til (~).', ans:true, exp:'O til marca a nasalidade: m-ã-e.' },
+
+    { id:'3p9', s:'portugues', t:'Translineação', type:'mc', diff:2, q:'🔤 Como se divide a palavra "escola" para passar à linha seguinte?', opts:['esc-ola','es-co-la','escol-a'], ans:1, exp:'Por sílabas: es-co-la.' },
+    { id:'3p10', s:'portugues', t:'Translineação', type:'fill', diff:2, q:'Quantas sílabas tem "borboleta"? ___', ans:['4','quatro'], exp:'bor-bo-le-ta → 4 sílabas.' },
+
+    { id:'3p11', s:'portugues', t:'Nomes (próprios, comuns, coletivos)', type:'mc', diff:1, q:'📛 "Maria" é um nome:', opts:['comum','próprio','coletivo'], ans:1, exp:'Nomes de pessoas são próprios — escrevem-se com maiúscula.' },
+    { id:'3p12', s:'portugues', t:'Nomes (próprios, comuns, coletivos)', type:'mc', diff:2, q:'🐝 Conjunto de abelhas chama-se:', opts:['cardume','enxame','rebanho'], ans:1, exp:'Enxame é o nome coletivo de abelhas.' },
+    { id:'3p13', s:'portugues', t:'Nomes (próprios, comuns, coletivos)', type:'mc', diff:2, q:'🐟 Conjunto de peixes chama-se:', opts:['cardume','manada','enxame'], ans:0, exp:'Cardume = conjunto de peixes.' },
+    { id:'3p14', s:'portugues', t:'Nomes (próprios, comuns, coletivos)', type:'fill', diff:2, q:'Conjunto de árvores: ___', ans:['floresta','arvoredo'], exp:'Floresta ou arvoredo são nomes coletivos de árvores.' },
+
+    { id:'3p15', s:'portugues', t:'Determinantes', type:'mc', diff:1, q:'🔤 "O", "a", "os", "as" são:', opts:['nomes','artigos definidos','adjetivos'], ans:1, exp:'"O/a/os/as" são artigos definidos.' },
+    { id:'3p16', s:'portugues', t:'Determinantes', type:'mc', diff:2, q:'🔤 Em "este livro", "este" é determinante:', opts:['artigo','demonstrativo','possessivo'], ans:1, exp:'"Este" indica proximidade — é demonstrativo.' },
+    { id:'3p17', s:'portugues', t:'Determinantes', type:'mc', diff:2, q:'🔤 Em "o meu cão", "meu" é:', opts:['artigo','possessivo','demonstrativo'], ans:1, exp:'"Meu" indica posse — é determinante possessivo.' },
+
+    { id:'3p18', s:'portugues', t:'Adjetivos', type:'mc', diff:1, q:'📝 Em "cão preto", o adjetivo é:', opts:['cão','preto'], ans:1, exp:'"Preto" qualifica o nome "cão" → adjetivo.' },
+    { id:'3p19', s:'portugues', t:'Adjetivos', type:'mc', diff:2, q:'📝 Grau superlativo absoluto sintético de "alto":', opts:['mais alto','altíssimo','muito alto'], ans:1, exp:'Altíssimo (com -íssimo) é superlativo absoluto sintético.' },
+
+    { id:'3p20', s:'portugues', t:'Verbos', type:'mc', diff:1, q:'⏰ "Eu cantei" está no:', opts:['presente','passado','futuro'], ans:1, exp:'"Cantei" é pretérito perfeito → passado.' },
+    { id:'3p21', s:'portugues', t:'Verbos', type:'mc', diff:2, q:'⏰ "Amanhã vou correr." Está no:', opts:['presente','passado','futuro'], ans:2, exp:'"Vou correr" + "amanhã" → futuro.' },
+    { id:'3p22', s:'portugues', t:'Verbos', type:'fill', diff:2, q:'Verbo no infinitivo de "comemos": ___', ans:['comer'], exp:'Comer é o infinitivo (forma -ar/-er/-ir).' },
+
+    { id:'3p23', s:'portugues', t:'Plurais e feminino', type:'mc', diff:1, q:'🐶 Plural de "cão":', opts:['cãos','cães','cãoes'], ans:1, exp:'Plural irregular: cão → cães.' },
+    { id:'3p24', s:'portugues', t:'Plurais e feminino', type:'fill', diff:2, q:'Feminino de "padeiro": ___', ans:['padeira'], exp:'Padeiro → padeira.' },
+    { id:'3p25', s:'portugues', t:'Plurais e feminino', type:'mc', diff:2, q:'🐎 Feminino de "cavalo":', opts:['égua','cavala','cavalinha'], ans:0, exp:'Cavalo / égua — feminino diferente da forma masculina.' },
+
+    { id:'3p26', s:'portugues', t:'Tipos de frase', type:'mc', diff:1, q:'❓ "Como te chamas?" é frase:', opts:['declarativa','interrogativa','exclamativa','imperativa'], ans:1, exp:'Termina em "?" e faz pergunta → interrogativa.' },
+    { id:'3p27', s:'portugues', t:'Tipos de frase', type:'mc', diff:2, q:'❗ "Que dia lindo!" é frase:', opts:['declarativa','interrogativa','exclamativa','imperativa'], ans:2, exp:'Termina em "!" e exprime emoção → exclamativa.' },
+    { id:'3p28', s:'portugues', t:'Tipos de frase', type:'mc', diff:2, q:'📜 "Vai dormir." é frase:', opts:['declarativa','interrogativa','exclamativa','imperativa'], ans:3, exp:'Dá uma ordem/conselho → imperativa.' },
+
+    { id:'3p29', s:'portugues', t:'Sinónimos e antónimos', type:'mc', diff:1, q:'🔄 Sinónimo de "bonito":', opts:['feio','lindo','grande'], ans:1, exp:'"Lindo" tem o mesmo sentido que "bonito".' },
+    { id:'3p30', s:'portugues', t:'Sinónimos e antónimos', type:'fill', diff:2, q:'Antónimo de "claro": ___', ans:['escuro'], exp:'Claro ↔ escuro.' },
+
+    { id:'3p31', s:'portugues', t:'Família de palavras', type:'mc', diff:2, q:'🌳 Qual destas palavras NÃO pertence à família de "flor"?', opts:['florista','floresta','flora'], ans:1, exp:'Floresta vem de "floresta", não de "flor".' },
+    { id:'3p32', s:'portugues', t:'Família de palavras', type:'fill', diff:2, q:'Pessoa que vende pão: ___', ans:['padeiro','padeira'], exp:'Padeiro/padeira — da família de "pão".' },
+
+    { id:'3p33', s:'portugues', t:'Compreensão de texto', type:'mc', diff:2, q:'📖 Quem conta a história num texto narrativo é o:', opts:['autor','narrador','protagonista'], ans:1, exp:'O narrador é a voz que conta. O autor é quem escreve. O protagonista é a personagem principal.' },
+    { id:'3p34', s:'portugues', t:'Compreensão de texto', type:'mc', diff:2, q:'📖 As três partes de uma história são:', opts:['princípio, meio, fim','introdução, desenvolvimento, conclusão','personagem, espaço, tempo'], ans:1, exp:'Estrutura: introdução → desenvolvimento → conclusão (também chamado desenlace).' },
+    { id:'3p35', s:'portugues', t:'Compreensão de texto', type:'tf', diff:1, q:'Personagem é alguém (ou algo) que aparece na história.', ans:true, exp:'Personagens podem ser pessoas, animais ou objetos personificados.' },
+
+    // ===========================================================
+    // MATEMÁTICA 3.º
+    // ===========================================================
+    { id:'3m1', s:'matematica', t:'Números até 10 000', type:'mc', diff:1, q:'🔢 Quantas centenas tem 1 000?', opts:['1','10','100'], ans:1, exp:'1 000 = 10 centenas.' },
+    { id:'3m2', s:'matematica', t:'Números até 10 000', type:'mc', diff:2, q:'🔢 Como se lê 4 305?', opts:['quatrocentos e trinta e cinco','quatro mil e trezentos e cinco','quarenta mil e trinta e cinco'], ans:1, exp:'4 305 = quatro mil e trezentos e cinco.' },
+    { id:'3m3', s:'matematica', t:'Números até 10 000', type:'fill', diff:2, q:'Escreve em algarismos: três mil e doze. ___', ans:['3012','3 012'], exp:'3 000 + 12 = 3 012.' },
+
+    { id:'3m4', s:'matematica', t:'Valor posicional', type:'mc', diff:2, q:'🔢 No número 5 472, qual é o valor do algarismo 4?', opts:['4','40','400','4 000'], ans:2, exp:'O 4 está nas centenas → 400.' },
+    { id:'3m5', s:'matematica', t:'Valor posicional', type:'fill', diff:1, q:'Em 753, o algarismo das centenas é ___', ans:['7'], exp:'7 centenas + 5 dezenas + 3 unidades.' },
+
+    { id:'3m6', s:'matematica', t:'Adição e subtração', type:'mc', diff:1, q:'🔢 248 + 132 =', opts:['370','380','390'], ans:1, exp:'248 + 132 = 380.' },
+    { id:'3m7', s:'matematica', t:'Adição e subtração', type:'mc', diff:2, q:'🔢 1 000 − 347 =', opts:['653','663','753'], ans:0, exp:'1 000 − 347 = 653.' },
+    { id:'3m8', s:'matematica', t:'Adição e subtração', type:'problem', diff:2, q:'A Ana tinha 152 cromos. Comprou mais 78. Quantos tem agora?', ans:['230','230 cromos'], exp:'152 + 78 = 230 cromos.' },
+
+    { id:'3m9', s:'matematica', t:'Multiplicação', type:'mc', diff:1, q:'🔢 7 × 8 =', opts:['54','56','58'], ans:1, exp:'Tabuada do 7: 7×8 = 56.' },
+    { id:'3m10', s:'matematica', t:'Multiplicação', type:'mc', diff:2, q:'🔢 23 × 4 =', opts:['82','92','102'], ans:1, exp:'23 × 4 = 92.' },
+    { id:'3m11', s:'matematica', t:'Multiplicação', type:'problem', diff:2, q:'4 caixas com 25 lápis cada. Quantos lápis ao todo?', ans:['100','100 lápis'], exp:'4 × 25 = 100 lápis.' },
+
+    { id:'3m12', s:'matematica', t:'Tabuadas', type:'mc', diff:1, q:'🔢 6 × 7 =', opts:['42','48','54'], ans:0, exp:'6 × 7 = 42.' },
+    { id:'3m13', s:'matematica', t:'Tabuadas', type:'mc', diff:1, q:'🔢 9 × 9 =', opts:['72','81','90'], ans:1, exp:'9 × 9 = 81.' },
+    { id:'3m14', s:'matematica', t:'Tabuadas', type:'fill', diff:2, q:'8 × ___ = 56', ans:['7'], exp:'56 ÷ 8 = 7.' },
+
+    { id:'3m15', s:'matematica', t:'Divisão', type:'mc', diff:1, q:'🔢 36 ÷ 6 =', opts:['5','6','7'], ans:1, exp:'36 ÷ 6 = 6 (porque 6 × 6 = 36).' },
+    { id:'3m16', s:'matematica', t:'Divisão', type:'mc', diff:2, q:'🔢 23 ÷ 4: quociente e resto?', opts:['5 e 3','6 e 0','5 e 4'], ans:0, exp:'4×5=20; 23−20=3 → quociente 5, resto 3.' },
+    { id:'3m17', s:'matematica', t:'Divisão', type:'problem', diff:2, q:'30 alunos formam 5 equipas iguais. Quantos por equipa?', ans:['6','6 alunos'], exp:'30 ÷ 5 = 6.' },
+
+    { id:'3m18', s:'matematica', t:'Múltiplos e divisores', type:'mc', diff:2, q:'🔢 Qual destes é múltiplo de 5?', opts:['12','25','37'], ans:1, exp:'25 = 5 × 5 → múltiplo.' },
+    { id:'3m19', s:'matematica', t:'Múltiplos e divisores', type:'mc', diff:2, q:'🔢 Qual destes é divisor de 24?', opts:['5','7','8'], ans:2, exp:'24 ÷ 8 = 3 (resto 0) → 8 é divisor.' },
+    { id:'3m20', s:'matematica', t:'Múltiplos e divisores', type:'fill', diff:2, q:'O menor múltiplo comum entre 4 e 6 é ___', ans:['12'], exp:'Múltiplos: 4, 8, 12... e 6, 12... → 12.' },
+
+    { id:'3m21', s:'matematica', t:'Frações', type:'mc', diff:1, q:'🍕 Uma piza dividida em 4 partes iguais e 1 comida. Que fração resta?', opts:['1/4','3/4','4/4'], ans:1, exp:'Comeu 1/4, restam 3/4.' },
+    { id:'3m22', s:'matematica', t:'Frações', type:'mc', diff:2, q:'🔢 Qual é maior?', opts:['1/2','1/3','1/4'], ans:0, exp:'Quanto maior o denominador, MENOR cada parte. 1/2 > 1/3 > 1/4.' },
+    { id:'3m23', s:'matematica', t:'Frações', type:'fill', diff:2, q:'Metade escreve-se como fração: ___', ans:['1/2'], exp:'Metade = 1 parte de 2 = 1/2.' },
+
+    { id:'3m24', s:'matematica', t:'Polígonos', type:'mc', diff:1, q:'🔺 Polígono com 3 lados:', opts:['quadrado','triângulo','pentágono'], ans:1, exp:'Tri = 3. Triângulo tem 3 lados.' },
+    { id:'3m25', s:'matematica', t:'Polígonos', type:'mc', diff:2, q:'⬢ Polígono com 6 lados:', opts:['pentágono','hexágono','octógono'], ans:1, exp:'Hexa = 6. Hexágono tem 6 lados.' },
+    { id:'3m26', s:'matematica', t:'Polígonos', type:'fill', diff:2, q:'Polígono com 5 lados: ___', ans:['pentágono'], exp:'Penta = 5.' },
+
+    { id:'3m27', s:'matematica', t:'Sólidos geométricos', type:'mc', diff:1, q:'⚽ Uma bola é parecida com:', opts:['cubo','esfera','cone'], ans:1, exp:'Esfera = forma redonda perfeita.' },
+    { id:'3m28', s:'matematica', t:'Sólidos geométricos', type:'mc', diff:2, q:'🎲 Quantas faces tem um cubo?', opts:['4','6','8'], ans:1, exp:'O cubo tem 6 faces quadradas.' },
+
+    { id:'3m29', s:'matematica', t:'Perímetro', type:'mc', diff:2, q:'📐 Perímetro de um quadrado de lado 5 cm:', opts:['10 cm','20 cm','25 cm'], ans:1, exp:'P = 4 × 5 = 20 cm.' },
+    { id:'3m30', s:'matematica', t:'Perímetro', type:'problem', diff:2, q:'Um retângulo tem 8 cm e 3 cm. Qual o perímetro?', ans:['22','22 cm'], exp:'P = 2×(8+3) = 22 cm.' },
+
+    { id:'3m31', s:'matematica', t:'Comprimento', type:'mc', diff:1, q:'📏 1 metro = ___ centímetros', opts:['10','100','1 000'], ans:1, exp:'1 m = 100 cm.' },
+    { id:'3m32', s:'matematica', t:'Comprimento', type:'mc', diff:2, q:'📏 1 km = ___ m', opts:['100','1 000','10 000'], ans:1, exp:'1 km = 1 000 m (quilo = mil).' },
+
+    { id:'3m33', s:'matematica', t:'Tempo', type:'mc', diff:1, q:'⏰ 1 hora = ___ minutos', opts:['30','60','100'], ans:1, exp:'1 hora = 60 minutos.' },
+    { id:'3m34', s:'matematica', t:'Tempo', type:'mc', diff:2, q:'⏰ 1 dia tem ___ horas', opts:['12','24','48'], ans:1, exp:'24 horas (12 do dia + 12 da noite).' },
+
+    { id:'3m35', s:'matematica', t:'Dinheiro', type:'mc', diff:1, q:'💶 1 € = ___ cêntimos', opts:['10','100','1 000'], ans:1, exp:'1 euro = 100 cêntimos.' },
+    { id:'3m36', s:'matematica', t:'Dinheiro', type:'problem', diff:2, q:'Um livro custa 8,50 €. Pago com nota de 10 €. Quanto recebo de troco?', ans:['1,50','1,50 €','1.50'], exp:'10 − 8,50 = 1,50 €.' },
+
+    { id:'3m37', s:'matematica', t:'Tabelas e gráficos', type:'mc', diff:1, q:'📊 Gráfico bom para mostrar partes de um todo (percentagens):', opts:['barras','linhas','circular'], ans:2, exp:'Gráfico circular ("pizza") mostra bem as partes do todo.' },
+    { id:'3m38', s:'matematica', t:'Tabelas e gráficos', type:'mc', diff:2, q:'📊 Numa votação 5 alunos votaram em A, 8 em B, 2 em C. Quem ganhou?', opts:['A','B','C'], ans:1, exp:'B teve o maior número de votos (8).' },
+    { id:'3m39', s:'matematica', t:'Tabelas e gráficos', type:'fill', diff:2, q:'Total de votos do exercício anterior (A=5, B=8, C=2): ___', ans:['15'], exp:'5 + 8 + 2 = 15.' },
+
+    // ===========================================================
+    // ESTUDO DO MEIO 3.º
+    // ===========================================================
+    { id:'3e1', s:'estudo_meio', t:'O meu passado', type:'mc', diff:1, q:'📅 Documento que mostra a data em que nasceste:', opts:['cartão de cidadão','registo de nascimento','passaporte'], ans:1, exp:'O assento/registo de nascimento regista o nascimento.' },
+    { id:'3e2', s:'estudo_meio', t:'O meu passado', type:'fill', diff:1, q:'Festa que celebra o aniversário do nascimento: ___', ans:['aniversário'], exp:'Aniversário.' },
+    { id:'3e3', s:'estudo_meio', t:'O meu passado', type:'tf', diff:1, q:'A árvore genealógica mostra os antepassados de uma família.', ans:true, exp:'Verdade — pais, avós, bisavós, etc.' },
+
+    { id:'3e4', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'🦴 Quantos ossos tem aproximadamente o corpo humano adulto?', opts:['50','100','206'], ans:2, exp:'Cerca de 206 ossos no adulto.' },
+    { id:'3e5', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🫀 Órgão que bombeia o sangue:', opts:['pulmão','coração','fígado'], ans:1, exp:'O coração bombeia o sangue por todo o corpo.' },
+    { id:'3e6', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🫁 Órgãos da respiração:', opts:['estômago','pulmões','intestinos'], ans:1, exp:'Pulmões — onde o ar entra e o O₂ passa ao sangue.' },
+    { id:'3e7', s:'estudo_meio', t:'O corpo humano', type:'fill', diff:1, q:'Os órgãos do paladar estão na ___', ans:['língua'], exp:'Língua — sente os sabores (doce, salgado, ácido, amargo).' },
+
+    { id:'3e8', s:'estudo_meio', t:'Saúde e higiene', type:'mc', diff:1, q:'🦷 Quantas vezes ao dia se devem lavar os dentes?', opts:['1','2 ou 3','5 ou mais'], ans:1, exp:'Pelo menos 2 vezes — depois do pequeno-almoço e antes de deitar.' },
+    { id:'3e9', s:'estudo_meio', t:'Saúde e higiene', type:'tf', diff:1, q:'Lavar as mãos antes de comer ajuda a evitar doenças.', ans:true, exp:'Mata micróbios que podem causar infeções.' },
+    { id:'3e10', s:'estudo_meio', t:'Saúde e higiene', type:'mc', diff:2, q:'🥗 Alimento saudável para comer todos os dias:', opts:['rebuçados','fruta e legumes','batatas fritas'], ans:1, exp:'Fruta e legumes — vitaminas e fibras.' },
+
+    { id:'3e11', s:'estudo_meio', t:'A família', type:'mc', diff:1, q:'👵 Mãe da mãe é a:', opts:['tia','avó','prima'], ans:1, exp:'Avó (lado materno).' },
+    { id:'3e12', s:'estudo_meio', t:'A família', type:'mc', diff:2, q:'👨‍👩‍👧 Filho do meu tio é meu:', opts:['irmão','primo','sobrinho'], ans:1, exp:'Primo.' },
+    { id:'3e13', s:'estudo_meio', t:'A família', type:'fill', diff:1, q:'Pai do meu pai é o meu ___', ans:['avô'], exp:'Avô paterno.' },
+
+    { id:'3e14', s:'estudo_meio', t:'Plantas', type:'mc', diff:1, q:'🌱 Parte da planta que absorve água e sais minerais:', opts:['raiz','caule','folha'], ans:0, exp:'A raiz absorve do solo.' },
+    { id:'3e15', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🍃 Onde acontece a fotossíntese?', opts:['raiz','folhas','flor'], ans:1, exp:'Nas folhas, com luz solar e clorofila.' },
+    { id:'3e16', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🌳 Plantas que dão fruto e semente são:', opts:['gimnospérmicas','angiospérmicas','algas'], ans:1, exp:'Angiospérmicas — semente protegida por fruto. Gimnospérmicas (ex: pinheiro) não têm fruto.' },
+    { id:'3e17', s:'estudo_meio', t:'Plantas', type:'tf', diff:1, q:'As plantas precisam de luz, água e ar para viver.', ans:true, exp:'Verdade.' },
+
+    { id:'3e18', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'🐟 Animais que vivem dentro de água e respiram por guelras:', opts:['mamíferos','peixes','aves'], ans:1, exp:'Peixes.' },
+    { id:'3e19', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🦅 Animais com penas e bico:', opts:['répteis','aves','mamíferos'], ans:1, exp:'Aves — caracterizam-se por penas e bico.' },
+    { id:'3e20', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🐢 Tartaruga, cobra e crocodilo são:', opts:['anfíbios','répteis','peixes'], ans:1, exp:'Répteis (escamas, sangue frio, ovíparos em geral).' },
+    { id:'3e21', s:'estudo_meio', t:'Animais', type:'tf', diff:2, q:'Os mamíferos alimentam as crias com leite materno.', ans:true, exp:'Característica essencial dos mamíferos.' },
+
+    { id:'3e22', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'⭐ A Terra dá uma volta sobre si mesma em ___ horas:', opts:['12','24','365'], ans:1, exp:'Movimento de rotação → 24h (1 dia).' },
+    { id:'3e23', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌍 A Terra dá uma volta ao Sol em:', opts:['1 mês','1 ano','24 horas'], ans:1, exp:'Movimento de translação → 365 dias (1 ano).' },
+    { id:'3e24', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'🌙 Astro que gira à volta da Terra:', opts:['Sol','Lua','Marte'], ans:1, exp:'A Lua é o satélite natural da Terra.' },
+
+    { id:'3e25', s:'estudo_meio', t:'Aspetos físicos', type:'mc', diff:1, q:'🌊 Curso de água que desagua no mar:', opts:['lago','rio','poço'], ans:1, exp:'Rio.' },
+    { id:'3e26', s:'estudo_meio', t:'Aspetos físicos', type:'mc', diff:2, q:'⛰️ Elevação muito alta de terreno:', opts:['colina','serra','vale'], ans:1, exp:'Serras são as elevações mais altas (planícies = baixas, vales = entre montes).' },
+    { id:'3e27', s:'estudo_meio', t:'Aspetos físicos', type:'fill', diff:1, q:'Grande extensão de água salgada: ___', ans:['mar','oceano'], exp:'Mar ou oceano.' },
+
+    { id:'3e28', s:'estudo_meio', t:'A freguesia e o concelho', type:'mc', diff:1, q:'🏛️ Quem dirige a câmara municipal?', opts:['o presidente da freguesia','o presidente da câmara','o ministro'], ans:1, exp:'O presidente da câmara dirige o concelho/município.' },
+    { id:'3e29', s:'estudo_meio', t:'A freguesia e o concelho', type:'mc', diff:2, q:'🏛️ Como se chama o conjunto de freguesias?', opts:['distrito','concelho','país'], ans:1, exp:'Várias freguesias formam um concelho (município).' },
+
+    { id:'3e30', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'Capital de Portugal:', opts:['Porto','Lisboa','Coimbra'], ans:1, exp:'Lisboa.' },
+    { id:'3e31', s:'estudo_meio', t:'Portugal', type:'mc', diff:2, q:'🏝️ Quais os arquipélagos portugueses?', opts:['Madeira e Açores','Canárias e Cabo Verde','Madeira apenas'], ans:0, exp:'Madeira e Açores são as Regiões Autónomas insulares.' },
+    { id:'3e32', s:'estudo_meio', t:'Portugal', type:'tf', diff:1, q:'Portugal faz fronteira terrestre apenas com Espanha.', ans:true, exp:'Verdade — única fronteira terrestre.' },
+
+    { id:'3e33', s:'estudo_meio', t:'Materiais', type:'mc', diff:1, q:'🪵 Material que vem das árvores:', opts:['plástico','madeira','metal'], ans:1, exp:'Madeira — material natural, vegetal.' },
+    { id:'3e34', s:'estudo_meio', t:'Materiais', type:'mc', diff:2, q:'♻️ Para que serve a reciclagem?', opts:['poluir mais','reaproveitar materiais','perder tempo'], ans:1, exp:'Poupa recursos e reduz lixo.' },
+
+    { id:'3e35', s:'estudo_meio', t:'Atividades produtivas', type:'mc', diff:1, q:'🚜 Atividade que cultiva a terra:', opts:['agricultura','pesca','indústria'], ans:0, exp:'Agricultura.' },
+    { id:'3e36', s:'estudo_meio', t:'Atividades produtivas', type:'mc', diff:2, q:'🏭 Setor que transforma matérias-primas em produtos:', opts:['primário (agricultura)','secundário (indústria)','terciário (serviços)'], ans:1, exp:'Indústria = setor secundário.' },
+
+    // ===========================================================
+    // INGLÊS 3.º
+    // ===========================================================
+    { id:'3i1', s:'ingles', t:'Greetings', type:'mc', diff:1, q:'👋 "Hello!" significa:', opts:['Adeus','Olá','Obrigado'], ans:1, exp:'Hello = olá.' },
+    { id:'3i2', s:'ingles', t:'Greetings', type:'mc', diff:1, q:'🌅 "Good morning" diz-se:', opts:['à noite','de manhã','à tarde'], ans:1, exp:'Good morning = bom dia (de manhã).' },
+    { id:'3i3', s:'ingles', t:'Greetings', type:'fill', diff:1, q:'"How are you?" significa: Como ___?', ans:['estás','estas'], exp:'How are you? = Como estás?' },
+
+    { id:'3i4', s:'ingles', t:'Numbers', type:'mc', diff:1, q:'🔢 "Five" =', opts:['4','5','6'], ans:1, exp:'Five = 5.' },
+    { id:'3i5', s:'ingles', t:'Numbers', type:'mc', diff:1, q:'🔢 "Twelve" =', opts:['2','12','20'], ans:1, exp:'Twelve = 12. (Twenty = 20.)' },
+    { id:'3i6', s:'ingles', t:'Numbers', type:'fill', diff:2, q:'Em inglês, vinte: ___', ans:['twenty'], exp:'Twenty = 20.' },
+
+    { id:'3i7', s:'ingles', t:'Colours', type:'mc', diff:1, q:'🟦 "Blue" =', opts:['azul','vermelho','verde'], ans:0, exp:'Blue = azul.' },
+    { id:'3i8', s:'ingles', t:'Colours', type:'mc', diff:1, q:'🟥 "Red" =', opts:['amarelo','vermelho','preto'], ans:1, exp:'Red = vermelho.' },
+    { id:'3i9', s:'ingles', t:'Colours', type:'fill', diff:2, q:'Verde em inglês: ___', ans:['green'], exp:'Green = verde.' },
+
+    { id:'3i10', s:'ingles', t:'Family', type:'mc', diff:1, q:'👩 "Mother" =', opts:['pai','mãe','irmã'], ans:1, exp:'Mother = mãe.' },
+    { id:'3i11', s:'ingles', t:'Family', type:'mc', diff:1, q:'👨 "Father" =', opts:['pai','filho','tio'], ans:0, exp:'Father = pai.' },
+    { id:'3i12', s:'ingles', t:'Family', type:'fill', diff:2, q:'Irmão em inglês: ___', ans:['brother'], exp:'Brother = irmão.' },
+
+    { id:'3i13', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ "Eye" =', opts:['olho','boca','nariz'], ans:0, exp:'Eye = olho.' },
+    { id:'3i14', s:'ingles', t:'Body', type:'mc', diff:1, q:'🖐️ "Hand" =', opts:['pé','mão','cabeça'], ans:1, exp:'Hand = mão.' },
+    { id:'3i15', s:'ingles', t:'Body', type:'fill', diff:2, q:'Cabeça em inglês: ___', ans:['head'], exp:'Head = cabeça.' },
+
+    { id:'3i16', s:'ingles', t:'School', type:'mc', diff:1, q:'📕 "Book" =', opts:['caderno','livro','caneta'], ans:1, exp:'Book = livro.' },
+    { id:'3i17', s:'ingles', t:'School', type:'mc', diff:1, q:'✏️ "Pencil" =', opts:['lápis','caneta','régua'], ans:0, exp:'Pencil = lápis.' },
+    { id:'3i18', s:'ingles', t:'School', type:'fill', diff:2, q:'Professor (homem) em inglês: ___', ans:['teacher'], exp:'Teacher = professor(a) — vale para os dois géneros.' },
+
+    { id:'3i19', s:'ingles', t:'Animals', type:'mc', diff:1, q:'🐶 "Dog" =', opts:['gato','cão','cavalo'], ans:1, exp:'Dog = cão.' },
+    { id:'3i20', s:'ingles', t:'Animals', type:'mc', diff:1, q:'🐱 "Cat" =', opts:['gato','cão','rato'], ans:0, exp:'Cat = gato.' },
+    { id:'3i21', s:'ingles', t:'Animals', type:'fill', diff:2, q:'Pássaro em inglês: ___', ans:['bird'], exp:'Bird = pássaro.' },
+
+    { id:'3i22', s:'ingles', t:'Food', type:'mc', diff:1, q:'🥛 "Milk" =', opts:['água','leite','sumo'], ans:1, exp:'Milk = leite.' },
+    { id:'3i23', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍞 "Bread" =', opts:['pão','queijo','manteiga'], ans:0, exp:'Bread = pão.' },
+    { id:'3i24', s:'ingles', t:'Food', type:'fill', diff:2, q:'Maçã em inglês: ___', ans:['apple'], exp:'Apple = maçã.' }
+];
+
+
+// ============================================================
 // ===================== 5.º ANO ==============================
 // ============================================================
 const SUBJECTS_5 = {
@@ -3225,16 +3485,17 @@ const EXERCISES_11 = [];
 
 const YEARS_AVAILABLE = [
     { year: 2,  label: '2.º ano',  cycle: '1.º ciclo' },
+    { year: 3,  label: '3.º ano',  cycle: '1.º ciclo' },
     { year: 5,  label: '5.º ano',  cycle: '2.º ciclo' },
     { year: 6,  label: '6.º ano',  cycle: '2.º ciclo' },
     { year: 11, label: '11.º ano', cycle: 'Secundário' }
 ];
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11 };
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
