@@ -1413,9 +1413,15 @@ const CURRICULUM_3 = {
         'Comprimento', 'Tempo', 'Dinheiro', 'Tabelas e gráficos'
     ],
     estudo_meio: [
-        'My past', 'The human body', 'Health and hygiene', 'Family',
-        'Plants', 'Animals', 'The Sun, Earth and Moon', 'Landforms',
-        'My local area', 'Portugal', 'Materials', 'Jobs and industries'
+        // Biology
+        'Living things', 'Plants', 'Animals and habitats', 'The human body',
+        'Senses', 'Healthy eating',
+        // Chemistry
+        'Materials and their properties', 'Solids, liquids and gases', 'Mixing and separating',
+        // Physics
+        'Forces (push and pull)', 'Magnets', 'Light and shadows',
+        // Earth and Space
+        'The Sun, Earth and Moon', 'Weather'
     ],
     ingles: [
         'Greetings', 'Numbers', 'Colours',
@@ -1437,9 +1443,13 @@ const PERIODS_3 = {
         'Comprimento':3, 'Tempo':3, 'Dinheiro':3, 'Tabelas e gráficos':3
     },
     estudo_meio: {
-        'My past':1, 'The human body':1, 'Health and hygiene':1, 'Family':1,
-        'Plants':2, 'Animals':2, 'The Sun, Earth and Moon':2, 'Landforms':2,
-        'My local area':3, 'Portugal':3, 'Materials':3, 'Jobs and industries':3
+        // P1 — Biology basics (living things, plants, animals, body)
+        'Living things':1, 'Plants':1, 'Animals and habitats':1, 'The human body':1, 'Senses':1,
+        // P2 — Biology nutrition + Chemistry
+        'Healthy eating':2, 'Materials and their properties':2, 'Solids, liquids and gases':2, 'Mixing and separating':2,
+        // P3 — Physics + Earth and Space
+        'Forces (push and pull)':3, 'Magnets':3, 'Light and shadows':3,
+        'The Sun, Earth and Moon':3, 'Weather':3
     },
     ingles:      {
         'Greetings':1, 'Numbers':1, 'Colours':1,
@@ -1562,55 +1572,84 @@ const EXERCISES_3 = [
     { id:'3m39', s:'matematica', t:'Tabelas e gráficos', type:'fill', diff:2, q:'Total de votos do exercício anterior (A=5, B=8, C=2): ___', ans:['15'], exp:'5 + 8 + 2 = 15.' },
 
     // ===========================================================
-    // SCIENCE 3.º (Estudo do Meio em inglês — Colégio Oceanus)
+    // SCIENCE 3.º (Cambridge Primary Stage 3 — Oceanus)
+    // 4 strands: Biology · Chemistry · Physics · Earth and Space
     // ===========================================================
-    { id:'3e1', s:'estudo_meio', t:'My past', type:'mc', diff:1, q:'📅 Document that shows the date you were born:', opts:['ID card','birth certificate','passport'], ans:1, exp:'The birth certificate records the date and place of birth.' },
-    { id:'3e2', s:'estudo_meio', t:'My past', type:'fill', diff:1, q:'A celebration of the day you were born is called a ___.', ans:['birthday'], exp:'Birthday — yearly celebration of birth.' },
-    { id:'3e3', s:'estudo_meio', t:'My past', type:'tf', diff:1, q:'A family tree shows the ancestors of a family.', ans:true, exp:'True — parents, grandparents, great-grandparents and so on.' },
+    // ----- Biology: Living things -----
+    { id:'3e1', s:'estudo_meio', t:'Living things', type:'mc', diff:1, q:'🌿 Which of these is a living thing?', opts:['rock','tree','car'], ans:1, exp:'A tree grows, takes in water and reproduces — it is living.' },
+    { id:'3e2', s:'estudo_meio', t:'Living things', type:'mc', diff:2, q:'🔬 Which of these is NOT a feature of all living things?', opts:['they grow','they move on their own','they need food'], ans:1, exp:'Plants grow but do not move from place to place. All living things grow, feed, breathe and reproduce.' },
+    { id:'3e3', s:'estudo_meio', t:'Living things', type:'tf', diff:1, q:'A flame is a living thing because it grows.', ans:false, exp:'False — a flame grows but does not feed, breathe or reproduce. Living things must do all of those.' },
 
-    { id:'3e4', s:'estudo_meio', t:'The human body', type:'mc', diff:1, q:'🦴 About how many bones does an adult human body have?', opts:['50','100','206'], ans:2, exp:'About 206 bones in the adult skeleton.' },
-    { id:'3e5', s:'estudo_meio', t:'The human body', type:'mc', diff:2, q:'🫀 The organ that pumps blood is the:', opts:['lung','heart','liver'], ans:1, exp:'The heart pumps blood around the body.' },
-    { id:'3e6', s:'estudo_meio', t:'The human body', type:'mc', diff:2, q:'🫁 The organs of breathing are the:', opts:['stomach','lungs','intestines'], ans:1, exp:'Lungs — air enters and oxygen passes into the blood.' },
-    { id:'3e7', s:'estudo_meio', t:'The human body', type:'fill', diff:1, q:'The sense of taste is in the ___.', ans:['tongue'], exp:'Tongue — it senses sweet, salty, sour and bitter.' },
+    // ----- Biology: Plants -----
+    { id:'3e4', s:'estudo_meio', t:'Plants', type:'mc', diff:1, q:'🌱 The part of a plant that takes water and minerals from the soil is the:', opts:['root','stem','leaf'], ans:0, exp:'The root absorbs water and nutrients.' },
+    { id:'3e5', s:'estudo_meio', t:'Plants', type:'mc', diff:2, q:'🍃 Where do plants make their food?', opts:['in the roots','in the leaves','in the flower'], ans:1, exp:'In the leaves, using sunlight (photosynthesis).' },
+    { id:'3e6', s:'estudo_meio', t:'Plants', type:'mc', diff:1, q:'🌸 What part of the plant becomes the fruit?', opts:['the leaf','the flower','the root'], ans:1, exp:'The flower turns into fruit, which carries the seeds.' },
+    { id:'3e7', s:'estudo_meio', t:'Plants', type:'tf', diff:1, q:'Plants need light, water and air to grow.', ans:true, exp:'True — and minerals from the soil.' },
 
-    { id:'3e8', s:'estudo_meio', t:'Health and hygiene', type:'mc', diff:1, q:'🦷 How many times a day should you brush your teeth?', opts:['1','2 or 3','5 or more'], ans:1, exp:'At least twice — after breakfast and before bed.' },
-    { id:'3e9', s:'estudo_meio', t:'Health and hygiene', type:'tf', diff:1, q:'Washing your hands before eating helps prevent illnesses.', ans:true, exp:'It kills germs that can cause infections.' },
-    { id:'3e10', s:'estudo_meio', t:'Health and hygiene', type:'mc', diff:2, q:'🥗 Healthy food to eat every day:', opts:['sweets','fruit and vegetables','crisps'], ans:1, exp:'Fruit and vegetables provide vitamins and fibre.' },
+    // ----- Biology: Animals and habitats -----
+    { id:'3e8', s:'estudo_meio', t:'Animals and habitats', type:'mc', diff:1, q:'🐟 Animals that live in water and breathe through gills are:', opts:['mammals','fish','birds'], ans:1, exp:'Fish.' },
+    { id:'3e9', s:'estudo_meio', t:'Animals and habitats', type:'mc', diff:2, q:'🦅 Animals with feathers and a beak are:', opts:['reptiles','birds','mammals'], ans:1, exp:'Birds — feathers, beak and they lay eggs.' },
+    { id:'3e10', s:'estudo_meio', t:'Animals and habitats', type:'mc', diff:2, q:'🐢 Turtles, snakes and crocodiles are:', opts:['amphibians','reptiles','fish'], ans:1, exp:'Reptiles — scaly skin, cold-blooded.' },
+    { id:'3e11', s:'estudo_meio', t:'Animals and habitats', type:'mc', diff:2, q:'🏜️ The natural home of a camel is the:', opts:['rainforest','desert','arctic'], ans:1, exp:'A habitat is where an animal lives. Camels live in deserts.' },
+    { id:'3e12', s:'estudo_meio', t:'Animals and habitats', type:'tf', diff:2, q:'Mammals feed their young with milk.', ans:true, exp:'True — a key feature of mammals.' },
 
-    { id:'3e11', s:'estudo_meio', t:'Family', type:'mc', diff:1, q:'👵 Your mother\'s mother is your:', opts:['aunt','grandmother','cousin'], ans:1, exp:'Grandmother (on the mother\'s side).' },
-    { id:'3e12', s:'estudo_meio', t:'Family', type:'mc', diff:2, q:'👨‍👩‍👧 Your uncle\'s child is your:', opts:['brother','cousin','nephew'], ans:1, exp:'Cousin.' },
-    { id:'3e13', s:'estudo_meio', t:'Family', type:'fill', diff:1, q:'Your father\'s father is your ___.', ans:['grandfather'], exp:'Grandfather (on the father\'s side).' },
+    // ----- Biology: The human body -----
+    { id:'3e13', s:'estudo_meio', t:'The human body', type:'mc', diff:1, q:'🦴 About how many bones does an adult human body have?', opts:['50','100','206'], ans:2, exp:'About 206 bones make up the adult skeleton.' },
+    { id:'3e14', s:'estudo_meio', t:'The human body', type:'mc', diff:2, q:'🫀 The organ that pumps blood around the body is the:', opts:['lung','heart','liver'], ans:1, exp:'The heart pumps blood through the body.' },
+    { id:'3e15', s:'estudo_meio', t:'The human body', type:'mc', diff:2, q:'🫁 We breathe in oxygen using our:', opts:['stomach','lungs','intestines'], ans:1, exp:'Lungs take in air and oxygen passes into the blood.' },
+    { id:'3e16', s:'estudo_meio', t:'The human body', type:'fill', diff:1, q:'The body system that lets us move our body is the ___ system.', ans:['muscular','musculoskeletal','muscle'], exp:'Muscles work with bones to make us move.' },
 
-    { id:'3e14', s:'estudo_meio', t:'Plants', type:'mc', diff:1, q:'🌱 The part of the plant that absorbs water and minerals from the soil:', opts:['root','stem','leaf'], ans:0, exp:'The root takes in water and nutrients.' },
-    { id:'3e15', s:'estudo_meio', t:'Plants', type:'mc', diff:2, q:'🍃 Where does photosynthesis happen?', opts:['root','leaves','flower'], ans:1, exp:'In the leaves, using sunlight and chlorophyll.' },
-    { id:'3e16', s:'estudo_meio', t:'Plants', type:'mc', diff:2, q:'🌳 Plants that produce flowers and fruit are:', opts:['gymnosperms','angiosperms','algae'], ans:1, exp:'Angiosperms — seeds protected inside fruit. Gymnosperms (e.g. pine) have seeds without fruit.' },
-    { id:'3e17', s:'estudo_meio', t:'Plants', type:'tf', diff:1, q:'Plants need light, water and air to live.', ans:true, exp:'True — plus minerals from the soil.' },
+    // ----- Biology: Senses -----
+    { id:'3e17', s:'estudo_meio', t:'Senses', type:'mc', diff:1, q:'👁️ How many senses do humans have?', opts:['3','5','7'], ans:1, exp:'5 senses: sight, hearing, smell, taste, touch.' },
+    { id:'3e18', s:'estudo_meio', t:'Senses', type:'mc', diff:1, q:'👃 We use our nose for the sense of:', opts:['sight','smell','taste'], ans:1, exp:'The nose senses smells.' },
+    { id:'3e19', s:'estudo_meio', t:'Senses', type:'fill', diff:1, q:'We use our ___ to taste food.', ans:['tongue'], exp:'The tongue senses sweet, salty, sour and bitter.' },
+    { id:'3e20', s:'estudo_meio', t:'Senses', type:'mc', diff:2, q:'🤚 The sense of touch is detected by the:', opts:['eyes','skin','ears'], ans:1, exp:'The skin has receptors for pressure, heat and pain.' },
 
-    { id:'3e18', s:'estudo_meio', t:'Animals', type:'mc', diff:1, q:'🐟 Animals that live in water and breathe through gills are:', opts:['mammals','fish','birds'], ans:1, exp:'Fish.' },
-    { id:'3e19', s:'estudo_meio', t:'Animals', type:'mc', diff:2, q:'🦅 Animals with feathers and a beak are:', opts:['reptiles','birds','mammals'], ans:1, exp:'Birds — feathers, beak and they lay eggs.' },
-    { id:'3e20', s:'estudo_meio', t:'Animals', type:'mc', diff:2, q:'🐢 Turtles, snakes and crocodiles are:', opts:['amphibians','reptiles','fish'], ans:1, exp:'Reptiles — scaly skin, cold-blooded, usually lay eggs.' },
-    { id:'3e21', s:'estudo_meio', t:'Animals', type:'tf', diff:2, q:'Mammals feed their young with milk from the mother.', ans:true, exp:'Key feature of mammals — they produce milk for their babies.' },
+    // ----- Biology: Healthy eating -----
+    { id:'3e21', s:'estudo_meio', t:'Healthy eating', type:'mc', diff:1, q:'🥗 A healthy daily food is:', opts:['sweets','fruit and vegetables','crisps'], ans:1, exp:'Fruit and vegetables give vitamins and fibre.' },
+    { id:'3e22', s:'estudo_meio', t:'Healthy eating', type:'mc', diff:2, q:'🍝 Bread, rice and pasta give us mostly:', opts:['proteins','carbohydrates','fats'], ans:1, exp:'They are rich in carbohydrates — our main source of energy.' },
+    { id:'3e23', s:'estudo_meio', t:'Healthy eating', type:'mc', diff:2, q:'🥩 Foods rich in protein for growth are:', opts:['butter and oil','meat, fish, eggs and beans','sugar and honey'], ans:1, exp:'Proteins (meat, fish, eggs, beans) help us grow and repair our body.' },
+    { id:'3e24', s:'estudo_meio', t:'Healthy eating', type:'tf', diff:1, q:'Drinking water every day is important for the body.', ans:true, exp:'True — water keeps our body working.' },
 
-    { id:'3e22', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:1, q:'⭐ The Earth spins on itself once every ___ hours.', opts:['12','24','365'], ans:1, exp:'Earth\'s rotation takes 24 hours — that is one day.' },
-    { id:'3e23', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:2, q:'🌍 The Earth orbits the Sun once every:', opts:['1 month','1 year','24 hours'], ans:1, exp:'Earth\'s orbit (revolution) takes about 365 days = 1 year.' },
-    { id:'3e24', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:1, q:'🌙 The body that orbits the Earth is the:', opts:['Sun','Moon','Mars'], ans:1, exp:'The Moon is Earth\'s natural satellite.' },
+    // ----- Chemistry: Materials and their properties -----
+    { id:'3e25', s:'estudo_meio', t:'Materials and their properties', type:'mc', diff:1, q:'🪵 Wood is a material that comes from:', opts:['trees','rocks','animals'], ans:0, exp:'Wood is a natural material from trees.' },
+    { id:'3e26', s:'estudo_meio', t:'Materials and their properties', type:'mc', diff:2, q:'🪟 The best material for a window because we can see through it:', opts:['wood','glass','metal'], ans:1, exp:'Glass is transparent — light passes through it.' },
+    { id:'3e27', s:'estudo_meio', t:'Materials and their properties', type:'mc', diff:2, q:'🧦 A material that bends easily and is soft to the touch:', opts:['stone','fabric','metal'], ans:1, exp:'Fabric is flexible and soft — used for clothes.' },
 
-    { id:'3e25', s:'estudo_meio', t:'Landforms', type:'mc', diff:1, q:'🌊 A flow of water that ends in the sea is a:', opts:['lake','river','well'], ans:1, exp:'River.' },
-    { id:'3e26', s:'estudo_meio', t:'Landforms', type:'mc', diff:2, q:'⛰️ A very high area of land is called a:', opts:['hill','mountain','valley'], ans:1, exp:'Mountains are the highest landforms. Hills are smaller; valleys lie between mountains.' },
-    { id:'3e27', s:'estudo_meio', t:'Landforms', type:'fill', diff:1, q:'A large area of salt water is a ___.', ans:['sea','ocean'], exp:'Sea or ocean.' },
+    // ----- Chemistry: Solids, liquids and gases -----
+    { id:'3e28', s:'estudo_meio', t:'Solids, liquids and gases', type:'mc', diff:1, q:'🧊 Ice is an example of a:', opts:['solid','liquid','gas'], ans:0, exp:'Ice is solid water — it holds its shape.' },
+    { id:'3e29', s:'estudo_meio', t:'Solids, liquids and gases', type:'mc', diff:2, q:'💧 A liquid:', opts:['keeps its shape','takes the shape of its container','fills any space available'], ans:1, exp:'Liquids flow and take the shape of the container.' },
+    { id:'3e30', s:'estudo_meio', t:'Solids, liquids and gases', type:'tf', diff:2, q:'A gas spreads out to fill all the space available.', ans:true, exp:'True — gases have no fixed shape or volume.' },
 
-    { id:'3e28', s:'estudo_meio', t:'My local area', type:'mc', diff:1, q:'🏛️ Who leads the town hall (city council)?', opts:['the parish president','the mayor','the minister'], ans:1, exp:'The mayor leads the municipality (concelho).' },
-    { id:'3e29', s:'estudo_meio', t:'My local area', type:'mc', diff:2, q:'🏛️ A group of parishes (freguesias) forms a:', opts:['district','municipality','country'], ans:1, exp:'Several parishes form a municipality (concelho).' },
+    // ----- Chemistry: Mixing and separating -----
+    { id:'3e31', s:'estudo_meio', t:'Mixing and separating', type:'mc', diff:2, q:'🧂 When you stir salt into water, the salt:', opts:['floats on top','disappears (dissolves)','sinks to the bottom'], ans:1, exp:'Salt dissolves in water — it forms a solution.' },
+    { id:'3e32', s:'estudo_meio', t:'Mixing and separating', type:'mc', diff:2, q:'☕ How can you separate sand from water?', opts:['by mixing more','by filtering','by heating only'], ans:1, exp:'A filter (like coffee paper) lets the water pass but holds the sand.' },
+    { id:'3e33', s:'estudo_meio', t:'Mixing and separating', type:'mc', diff:2, q:'🧲 The best way to separate iron pieces from sand:', opts:['filter','magnet','sieve'], ans:1, exp:'A magnet picks up the iron — it does not affect sand.' },
 
-    { id:'3e30', s:'estudo_meio', t:'Portugal', type:'mc', diff:1, q:'The capital of Portugal is:', opts:['Porto','Lisbon','Coimbra'], ans:1, exp:'Lisbon (Lisboa).' },
-    { id:'3e31', s:'estudo_meio', t:'Portugal', type:'mc', diff:2, q:'🏝️ Which are the Portuguese archipelagos?', opts:['Madeira and Azores','Canary Islands and Cape Verde','Madeira only'], ans:0, exp:'Madeira and the Azores are Portugal\'s autonomous island regions.' },
-    { id:'3e32', s:'estudo_meio', t:'Portugal', type:'tf', diff:1, q:'Portugal shares a land border only with Spain.', ans:true, exp:'True — Spain is the only country that borders mainland Portugal by land.' },
+    // ----- Physics: Forces (push and pull) -----
+    { id:'3e34', s:'estudo_meio', t:'Forces (push and pull)', type:'mc', diff:1, q:'🛒 Pushing a shopping trolley is an example of a:', opts:['push','pull'], ans:0, exp:'A push moves something away from you.' },
+    { id:'3e35', s:'estudo_meio', t:'Forces (push and pull)', type:'mc', diff:1, q:'🚪 Opening a door towards you is a:', opts:['push','pull'], ans:1, exp:'A pull brings something closer to you.' },
+    { id:'3e36', s:'estudo_meio', t:'Forces (push and pull)', type:'tf', diff:2, q:'A force can change the speed or direction of a moving object.', ans:true, exp:'True — pushes and pulls speed up, slow down or change direction.' },
 
-    { id:'3e33', s:'estudo_meio', t:'Materials', type:'mc', diff:1, q:'🪵 A material that comes from trees:', opts:['plastic','wood','metal'], ans:1, exp:'Wood — a natural material from trees.' },
-    { id:'3e34', s:'estudo_meio', t:'Materials', type:'mc', diff:2, q:'♻️ Why do we recycle?', opts:['to pollute more','to reuse materials','to waste time'], ans:1, exp:'Recycling saves resources and reduces waste.' },
+    // ----- Physics: Magnets -----
+    { id:'3e37', s:'estudo_meio', t:'Magnets', type:'mc', diff:1, q:'🧲 A magnet attracts objects made of:', opts:['plastic','iron','wood'], ans:1, exp:'Magnets attract iron and some other metals (steel, nickel).' },
+    { id:'3e38', s:'estudo_meio', t:'Magnets', type:'mc', diff:2, q:'🧲 The two ends of a magnet are called:', opts:['top and bottom','north and south poles','plus and minus'], ans:1, exp:'A magnet has a north pole and a south pole.' },
+    { id:'3e39', s:'estudo_meio', t:'Magnets', type:'tf', diff:2, q:'Two opposite poles of magnets repel each other.', ans:false, exp:'False — opposite poles ATTRACT. Same poles repel.' },
 
-    { id:'3e35', s:'estudo_meio', t:'Jobs and industries', type:'mc', diff:1, q:'🚜 The job of growing crops on the land is called:', opts:['farming','fishing','manufacturing'], ans:0, exp:'Farming (agriculture).' },
-    { id:'3e36', s:'estudo_meio', t:'Jobs and industries', type:'mc', diff:2, q:'🏭 The sector that turns raw materials into products is the:', opts:['primary sector','secondary sector','tertiary sector'], ans:1, exp:'Manufacturing/industry is the secondary sector. Primary = farming, fishing, mining. Tertiary = services.' },
+    // ----- Physics: Light and shadows -----
+    { id:'3e40', s:'estudo_meio', t:'Light and shadows', type:'mc', diff:1, q:'☀️ The main natural source of light on Earth is the:', opts:['Moon','Sun','stars'], ans:1, exp:'The Sun is our main source of light and heat.' },
+    { id:'3e41', s:'estudo_meio', t:'Light and shadows', type:'mc', diff:2, q:'🌑 A shadow forms when light is blocked by a/an:', opts:['transparent object','opaque object','mirror'], ans:1, exp:'Opaque objects block light and create shadows. Transparent objects let light through.' },
+    { id:'3e42', s:'estudo_meio', t:'Light and shadows', type:'tf', diff:1, q:'A shadow is longer when the Sun is low in the sky.', ans:true, exp:'True — at sunrise/sunset shadows are long; at midday they are short.' },
+
+    // ----- Earth and Space: The Sun, Earth and Moon -----
+    { id:'3e43', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:1, q:'⭐ The Earth turns once on itself every ___ hours.', opts:['12','24','365'], ans:1, exp:'Earth\'s rotation = 24 hours = 1 day.' },
+    { id:'3e44', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:2, q:'🌍 The Earth orbits the Sun once every:', opts:['1 month','1 year','24 hours'], ans:1, exp:'Earth\'s orbit (revolution) takes about 365 days = 1 year.' },
+    { id:'3e45', s:'estudo_meio', t:'The Sun, Earth and Moon', type:'mc', diff:1, q:'🌙 The body that orbits the Earth is the:', opts:['Sun','Moon','Mars'], ans:1, exp:'The Moon is Earth\'s natural satellite.' },
+
+    // ----- Earth and Space: Weather -----
+    { id:'3e46', s:'estudo_meio', t:'Weather', type:'mc', diff:1, q:'🌧️ Tiny drops of water that fall from clouds:', opts:['snow','rain','hail'], ans:1, exp:'Rain is liquid water falling from clouds.' },
+    { id:'3e47', s:'estudo_meio', t:'Weather', type:'mc', diff:2, q:'🌡️ The instrument used to measure temperature is the:', opts:['barometer','thermometer','rain gauge'], ans:1, exp:'Thermometer measures how hot or cold something is.' },
+    { id:'3e48', s:'estudo_meio', t:'Weather', type:'tf', diff:1, q:'Clouds are made of tiny drops of water.', ans:true, exp:'True — when air rises and cools, water vapour turns into tiny drops that form clouds.' },
 
     // ===========================================================
     // INGLÊS 3.º
