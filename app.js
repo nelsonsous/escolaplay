@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v189';
+const APP_VERSION = 'v190';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2947,16 +2947,11 @@ function renderQuestion() {
 }
 
 function renderMC(e) {
-    // Som+: cada opção tem um mini botão 🔊 para ouvir
-    const speakBtn = (txt) => (e.s === 'som_plus' && 'speechSynthesis' in window)
-        ? `<button onclick="event.stopPropagation();ttsSpeak('${String(txt).replace(/'/g,"&#39;").replace(/"/g,'&quot;')}')" title="Ouvir" style="background:#dbeafe;border:1.5px solid #2563eb;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#2563eb;font-size:0.92rem;margin-left:auto;padding:0;flex-shrink:0">🔊</button>`
-        : '';
     return `
         ${e.opts.map((o, i) => `
             <button class="btn-option" id="opt-${i}" onclick="selectMC(${i})">
                 <span class="opt-letter">${String.fromCharCode(65+i)}</span>
                 <span>${o}</span>
-                ${speakBtn(o)}
             </button>
         `).join('')}
         <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
@@ -5988,24 +5983,51 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 // TTS — Web Speech API para Som+ (e qualquer pack que peça)
 // ============================================================
 let _ttsVoice = null;
+// Selecciona a MELHOR voz PT disponível. Estratégia em camadas:
+// 1.º — voz PT-PT marcada como Enhanced/Premium/Neural/Online (mais natural)
+// 2.º — vozes "famosas" boas: Joana, Catarina, Joaquim (iOS PT-PT)
+// 3.º — qualquer PT-PT
+// 4.º — voz PT-BR Premium (Luciana, Felipe) — sotaque BR mas natural
+// 5.º — qualquer PT
+// 6.º — primeira voz disponível
 function _pickPTVoice() {
     if (!('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
     if (!voices || !voices.length) return null;
-    // Procura voz PT-PT
-    let v = voices.find(x => /pt[-_]PT/i.test(x.lang));
-    if (!v) v = voices.find(x => /^pt/i.test(x.lang));
-    return v || voices[0];
+    const score = (v) => {
+        let s = 0;
+        const name = (v.name || '').toLowerCase();
+        const lang = (v.lang || '').toLowerCase();
+        // Idioma
+        if (/pt[-_]pt/.test(lang)) s += 100;
+        else if (/^pt/.test(lang)) s += 50;
+        // Qualidade
+        if (/(enhanced|premium|neural|google|natural)/i.test(name)) s += 40;
+        // Vozes PT-PT conhecidas boas (iOS / macOS)
+        if (/^(joana|catarina|joaquim)/i.test(name)) s += 30;
+        // Vozes PT-BR Premium (sotaque BR mas naturais — Luciana, Felipe)
+        if (/^(luciana|felipe)/i.test(name)) s += 15;
+        // Penalizar vozes muito robóticas conhecidas
+        if (/(compact|eloquence)/i.test(name)) s -= 10;
+        // Online costuma ser melhor que offline (Google, Microsoft)
+        if (v.localService === false) s += 5;
+        return s;
+    };
+    const best = voices.slice().sort((a,b) => score(b) - score(a))[0];
+    return best || voices[0];
 }
 window.ttsSpeak = function (text) {
     try {
         if (!('speechSynthesis' in window)) return;
         // Cancelar fala em curso
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,''));
+        const cleaned = String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,'').replace(/\*/g,'');
+        const u = new SpeechSynthesisUtterance(cleaned);
         u.lang = 'pt-PT';
-        u.rate = 0.85;
-        u.pitch = 1.05;
+        // Parâmetros para som mais natural (menos robótico)
+        u.rate = 0.92;    // ligeiramente mais lento que normal mas não dormente
+        u.pitch = 1.0;    // pitch natural (não esticado para cima)
+        u.volume = 1.0;
         // Pode demorar a carregar vozes — tenta agora e em fallback
         if (!_ttsVoice) _ttsVoice = _pickPTVoice();
         if (_ttsVoice) u.voice = _ttsVoice;
