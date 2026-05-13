@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v191';
+const APP_VERSION = 'v192';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -657,6 +657,10 @@ function renderHome() {
 
     // Number Talk do dia — prompt rotativo determinístico por data
     renderNumberTalk();
+    // Rotina Heggerty do dia (consciência fonológica)
+    renderHeggerty();
+    // Journal semanal (segunda-feira ou se já aberto esta semana)
+    renderMathJournal();
 }
 
 // ============================================================
@@ -720,6 +724,134 @@ function toggleNumberTalk() {
     card.classList.toggle('open', !open);
 }
 window.toggleNumberTalk = toggleNumberTalk;
+
+// ============================================================
+// HEGGERTY-INSPIRED PHONOLOGICAL ROUTINE — 7 dias por semana
+// Cada dia foca componentes diferentes (rima/sílaba/fonema)
+// Fonte: Heggerty Phonemic Awareness Curriculum (adaptado PT)
+// ============================================================
+const HEGGERTY_DAYS = [
+    // Domingo (0)
+    [
+        { tag: 'Rima', text: 'Adulto diz <strong>BOLA</strong> · GATO · MOLA · FOLA · OLHO. Repete só as que rimam com BOLA.' },
+        { tag: 'Sílaba', text: '<strong>BORBOLETA</strong> — bate palmas em cada sílaba (4: BOR-BO-LE-TA).' },
+        { tag: 'Primeiro som', text: 'Qual é o primeiro som de <strong>SAPO</strong>? (resposta: /s/)' },
+        { tag: 'Juntar', text: 'Junta: /m/ + /a/ + /r/ — que palavra é? (MAR)' },
+    ],
+    // Segunda (1)
+    [
+        { tag: 'Rima', text: 'Diz 3 palavras que rimem com <strong>PATO</strong>. (ex.: gato, rato, mato)' },
+        { tag: 'Sílaba', text: 'Tira a primeira sílaba de <strong>CAMISA</strong>. (MISA)' },
+        { tag: 'Último som', text: 'Qual é o último som de <strong>FLOR</strong>? (/r/)' },
+        { tag: 'Trocar', text: 'Em <strong>MALA</strong>, troca /m/ por /b/. Que palavra fica? (BALA)' },
+    ],
+    // Terça (2)
+    [
+        { tag: 'Rima', text: 'Diz uma palavra que rime com <strong>CHÃO</strong>. (mão, pão, são, não)' },
+        { tag: 'Sílaba', text: 'Junta as sílabas <strong>CA-VA-LO</strong>. (CAVALO)' },
+        { tag: 'Sons', text: 'Quantos sons tem <strong>SOL</strong>? (3: /s/ /o/ /l/)' },
+        { tag: 'Tirar', text: 'Em <strong>BARCO</strong>, tira o som /b/. Que palavra fica? (ARCO)' },
+    ],
+    // Quarta (3)
+    [
+        { tag: 'Onset-rime', text: '<strong>PORTA</strong> começa com /p/ e o resto é /orta/. E <strong>CASA</strong>? (/c/ + /asa/)' },
+        { tag: 'Sílaba', text: 'Acrescenta <strong>BA</strong> antes de <strong>NANA</strong>. (BANANA)' },
+        { tag: 'Som médio', text: 'Qual é o som do meio em <strong>MAR</strong>? (/a/)' },
+        { tag: 'Substituir', text: 'Em <strong>SOPA</strong>, troca /s/ por /c/. Que palavra fica? (COPA)' },
+    ],
+    // Quinta (4)
+    [
+        { tag: 'Rima', text: 'Estas palavras rimam? <strong>FOLHA · BOLHA</strong>. (sim) E <strong>FOLHA · MESA</strong>? (não)' },
+        { tag: 'Sílaba', text: 'Quantas sílabas tem <strong>CARACOL</strong>? (3: CA-RA-COL)' },
+        { tag: 'Segmentar', text: 'Diz os sons de <strong>PÉ</strong>. (/p/ /é/ — 2 sons)' },
+        { tag: 'Famílias', text: 'BO, RO, MO, FO, JO — qual é o som comum? (/o/)' },
+    ],
+    // Sexta (5)
+    [
+        { tag: 'Rima', text: 'Inventa uma palavra que rime com <strong>SOL</strong>. (pode ser palavra-fingida!)' },
+        { tag: 'Sílaba', text: 'Tira a sílaba do fim em <strong>MENINO</strong>. (MENI)' },
+        { tag: 'Juntar sons', text: 'Junta /p/ + /é/. (PÉ) Junta /m/ + /ã/ + /o/. (MÃO)' },
+        { tag: 'Inversão', text: 'Diz <strong>OPA</strong> ao contrário. (APO)' },
+    ],
+    // Sábado (6)
+    [
+        { tag: 'Mistura', text: 'Estas rimam? <strong>VACA · FACA</strong>. (sim) · <strong>RATO · CASA</strong>. (não)' },
+        { tag: 'Sílaba', text: 'Bate palmas em <strong>HIPOPÓTAMO</strong>. (5: HI-PO-PÓ-TA-MO)' },
+        { tag: 'Pares mínimos', text: 'BOLA e MOLA — que som mudou? (/b/ → /m/)' },
+        { tag: 'Trava-línguas', text: 'Diz devagar: <strong>"O rato roeu a rolha da garrafa do rei da Rússia"</strong>.' },
+    ],
+];
+function _todayHeggertyDay() { return new Date().getDay(); }
+function renderHeggerty() {
+    const promptsEl = document.getElementById('hg-prompts');
+    const titleEl = document.getElementById('hg-title');
+    if (!promptsEl) return;
+    const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const day = _todayHeggertyDay();
+    if (titleEl) titleEl.textContent = `Sons de ${dayNames[day]}`;
+    const items = HEGGERTY_DAYS[day] || HEGGERTY_DAYS[0];
+    promptsEl.innerHTML = items.map(p =>
+        `<div class="hg-step"><span class="hg-step-label">${p.tag}</span>${p.text}</div>`
+    ).join('');
+}
+function toggleHeggerty() {
+    const card = document.getElementById('heggerty-card');
+    const body = document.getElementById('hg-body');
+    if (!card || !body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    card.classList.toggle('open', !open);
+}
+window.toggleHeggerty = toggleHeggerty;
+
+// ============================================================
+// MATH JOURNAL — prompt semanal (segunda-feira)
+// Convida a criança a refletir/desenhar matemática num caderno
+// ============================================================
+const MATH_JOURNAL_PROMPTS = [
+    'Desenha o número <strong>15</strong> de 3 formas diferentes (ex.: dedos, dezenas+unidades, dinheiro).',
+    'Onde viste matemática esta semana? Conta uma história curta.',
+    'Inventa um problema com <strong>"comprei 3 e ganhei 2"</strong> e desenha-o.',
+    'Qual é o teu número favorito? Porquê? Desenha-o em 3 formas.',
+    'Faz um quadro de marcas (||| ||) para contar uma coleção (legos, cromos).',
+    'Desenha duas formas geométricas que vês na cozinha.',
+    'Conta passos de casa até à porta. Estima primeiro, depois conta!',
+    'Quantos olhos há na tua família? E pés? E dedos das mãos?',
+    'Que horas são quando acordas? E quando vais dormir? Quantas horas dormes?',
+    'Desenha uma <strong>linha numérica</strong> de 0 a 20 e marca o teu número da sorte.',
+];
+function _thisWeekJournalIndex() {
+    const t = new Date();
+    const yearStart = new Date(t.getFullYear(), 0, 1);
+    const weeks = Math.floor((t - yearStart) / (7 * 86400000));
+    return weeks % MATH_JOURNAL_PROMPTS.length;
+}
+function renderMathJournal() {
+    const card = document.getElementById('math-journal-card');
+    const promptEl = document.getElementById('mj-prompt');
+    if (!card || !promptEl) return;
+    // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
+    const day = new Date().getDay();
+    const isMonday = day === 1;
+    const weekKey = 'mj-week-' + _thisWeekJournalIndex();
+    const wasOpened = state.mathJournalOpened === weekKey;
+    if (!isMonday && !wasOpened) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    promptEl.innerHTML = MATH_JOURNAL_PROMPTS[_thisWeekJournalIndex()];
+}
+function toggleMathJournal() {
+    const card = document.getElementById('math-journal-card');
+    const body = document.getElementById('mj-body');
+    if (!card || !body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    card.classList.toggle('open', !open);
+    if (!open) {
+        state.mathJournalOpened = 'mj-week-' + _thisWeekJournalIndex();
+        saveState();
+    }
+}
+window.toggleMathJournal = toggleMathJournal;
 
 function renderNextTestCard() {
     const card = document.getElementById('next-test-card');

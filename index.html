@@ -186,6 +186,38 @@
             </div>
         </div>
 
+        <!-- Rotina Heggerty do dia (consciência fonológica em 4 minutos) -->
+        <div id="heggerty-card" class="heggerty-card" onclick="toggleHeggerty()">
+            <div class="hg-header">
+                <div class="hg-icon">👂</div>
+                <div>
+                    <div class="hg-eyebrow">Sons da semana</div>
+                    <div class="hg-title" id="hg-title">Aquecimento de sons</div>
+                </div>
+                <i class="fas fa-chevron-down hg-chev" id="hg-chev"></i>
+            </div>
+            <div class="hg-body" id="hg-body" style="display:none">
+                <div class="hg-prompts" id="hg-prompts"></div>
+                <div class="hg-foot">⏱️ ~3 minutos. Faz com o adulto: ele/ela diz, tu repetes ou respondes.</div>
+            </div>
+        </div>
+
+        <!-- Diário de matemática (uma vez por semana) -->
+        <div id="math-journal-card" class="math-journal-card" onclick="toggleMathJournal()" style="display:none">
+            <div class="mj-header">
+                <div class="mj-icon">📔</div>
+                <div>
+                    <div class="mj-eyebrow">Diário de matemática</div>
+                    <div class="mj-title" id="mj-title">Reflexão da semana</div>
+                </div>
+                <i class="fas fa-chevron-down mj-chev"></i>
+            </div>
+            <div class="mj-body" id="mj-body" style="display:none">
+                <div class="mj-prompt" id="mj-prompt"></div>
+                <div class="mj-foot">✏️ Desenha ou escreve num caderno. Pode ser só uma frase ou um esquema.</div>
+            </div>
+        </div>
+
         <div class="section-title"><i class="fas fa-dumbbell"></i> Treino rápido</div>
         <div class="quick-subjects" id="quick-subjects"></div>
     </section>
