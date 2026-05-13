@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EscolaPlay — Encrypt Secret Pack</title>
+<style>
+    * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
+    body { max-width: 820px; margin: 0 auto; padding: 24px; background: #f7f7fb; color: #1a1a2e; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .subtle { color: #6b6b80; font-size: 0.85rem; margin-bottom: 24px; }
+    .card { background: #fff; padding: 18px; border-radius: 14px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    label { display: block; font-size: 0.84rem; font-weight: 600; margin-bottom: 6px; color: #444; }
+    input, textarea { width: 100%; padding: 10px; border: 1.5px solid #d6d6e0; border-radius: 8px; font-size: 0.92rem; font-family: ui-monospace, monospace; }
+    textarea { min-height: 200px; resize: vertical; }
+    button { background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #fff; border: none; padding: 12px 22px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+    button:hover { filter: brightness(1.08); }
+    button.secondary { background: #e8e8f0; color: #444; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row > * { flex: 1; }
+    .out { background: #0f172a; color: #cbd5e1; padding: 14px; border-radius: 8px; font-family: ui-monospace, monospace; font-size: 0.78rem; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
+    .ok { color: #16a34a; font-weight: 600; }
+    .err { color: #dc2626; font-weight: 600; }
+    .small { font-size: 0.78rem; color: #6b6b80; }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-size: 0.86rem; color: #5b21b6; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>🔐 EscolaPlay — Encrypt Secret Pack</h1>
+<p class="subtle">Ferramenta offline. Cria blobs cifrados (AES-GCM + PBKDF2 250k iters) para colocar em <code>content_secret.js</code>.</p>
+
+<div class="card">
+    <label>1️⃣ ID do pack (curto, sem espaços)</label>
+    <input id="pack-id" placeholder="ex: sap-en" value="sap-en">
+
+    <label style="margin-top:14px">2️⃣ Hint (opcional, mostrado quando alguém erra a password)</label>
+    <input id="pack-label" placeholder="ex: Conteúdo profissional" value="">
+
+    <label style="margin-top:14px">3️⃣ Password (mínimo 8 chars recomendado)</label>
+    <input id="password" type="text" placeholder="escolhe uma password forte">
+    <p class="small">⚠️ Esta password fica só contigo. Não a percas — não há recovery.</p>
+
+    <label style="margin-top:14px">4️⃣ Conteúdo (JSON) — texto claro a cifrar</label>
+    <textarea id="plaintext" placeholder='{
+  "year": 5,
+  "subjects": { "sap_en": { "name": "SAP English", "icon": "fa-briefcase", "color": "#0070f3" } },
+  "curriculum": { "sap_en": ["Kickoff", "Status report", "Scope discussions"] },
+  "periods": { "sap_en": { "Kickoff": 1, "Status report": 2, "Scope discussions": 3 } },
+  "lessons": {
+    "sap_en/Kickoff": { "title": "Kickoff meeting", "body": "Standard phrases..." }
+  },
+  "exercises": [
+    { "id": "sap1", "s": "sap_en", "t": "Kickoff", "type": "mc", "diff": 2,
+      "q": "Common phrase to start a kickoff:", "opts": ["Let me dive in", "Let me walk you through", "Let me skip ahead"],
+      "ans": 1, "exp": "\"Let me walk you through...\" is standard opening." }
+  ]
+}'></textarea>
+    <p class="small">⚠️ Tem de ser JSON válido. Para campos no exercício, segue o mesmo formato que <code>EXERCISES_5</code> etc. (id, s, t, type, q, opts, ans, exp).</p>
+
+    <div class="row" style="margin-top:14px">
+        <button onclick="doEncrypt()">🔒 Cifrar</button>
+        <button class="secondary" onclick="doTestDecrypt()">🧪 Testar decifrar</button>
+    </div>
+</div>
+
+<div class="card">
+    <label>📦 Blob gerado — copia e cola dentro do array <code>SECRET_PACKS</code> em <code>content_secret.js</code></label>
+    <div id="output" class="out">Aguarda...</div>
+    <details>
+        <summary>O que faz cada campo?</summary>
+        <p class="small"><strong>ct</strong> = ciphertext (conteúdo cifrado + tag de autenticação GCM).<br>
+        <strong>salt</strong> = aleatório, usado para derivar a chave da password.<br>
+        <strong>iv</strong> = nonce único para esta operação GCM.<br>
+        <strong>iters</strong> = iterações PBKDF2-SHA256 — quanto mais, mais lento atacar.<br>
+        Cada vez que cifras, salt e iv são novos → o blob muda mesmo com a mesma password e conteúdo. Isso é correto.</p>
+    </details>
+</div>
+
+<script>
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+const ITERS = 250000;
+
+function b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function unb64(s) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+
+async function deriveKey(password, salt, iters) {
+    const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+async function doEncrypt() {
+    const id = document.getElementById('pack-id').value.trim();
+    const label = document.getElementById('pack-label').value.trim();
+    const password = document.getElementById('password').value;
+    const plaintext = document.getElementById('plaintext').value;
+    const out = document.getElementById('output');
+
+    if (!id || !password || !plaintext) {
+        out.innerHTML = '<span class="err">⚠️ Preenche ID, password e conteúdo.</span>';
+        return;
+    }
+    try {
+        JSON.parse(plaintext); // validar JSON
+    } catch (e) {
+        out.innerHTML = '<span class="err">⚠️ JSON inválido: ' + e.message + '</span>';
+        return;
+    }
+
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv   = crypto.getRandomValues(new Uint8Array(12));
+    const key  = await deriveKey(password, salt, ITERS);
+    const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+
+    const blob = {
+        id,
+        ...(label ? { label } : {}),
+        ct:    b64(ct),
+        salt:  b64(salt),
+        iv:    b64(iv),
+        iters: ITERS
+    };
+    const formatted = '    ' + JSON.stringify(blob, null, 4).replace(/\n/g, '\n    ') + ',';
+    out.innerHTML = '<span class="ok">✓ Blob gerado (' + b64(ct).length + ' chars de ciphertext).</span>\n\n' + formatted;
+}
+
+async function doTestDecrypt() {
+    const password = document.getElementById('password').value;
+    const out = document.getElementById('output');
+    const text = out.textContent;
+    const blobMatch = text.match(/\{[\s\S]*\}/);
+    if (!blobMatch) { out.innerHTML = '<span class="err">⚠️ Cifra primeiro.</span>'; return; }
+    try {
+        const blob = JSON.parse(blobMatch[0].replace(/,\s*$/, ''));
+        const key = await deriveKey(password, unb64(blob.salt), blob.iters);
+        const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(blob.iv) }, key, unb64(blob.ct));
+        const json = dec.decode(pt);
+        out.innerHTML = '<span class="ok">✓ Decifrado OK. Plaintext:</span>\n\n' + json;
+    } catch (e) {
+        out.innerHTML = '<span class="err">✗ Falha ao decifrar (password errada ou blob inválido).</span>';
+    }
+}
+</script>
+
+</body>
+</html>

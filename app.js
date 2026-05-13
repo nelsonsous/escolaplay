@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v173';
+const APP_VERSION = 'v178';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5580,8 +5580,12 @@ window.addEventListener('DOMContentLoaded', () => {
         if (p) {
             setActiveYear(p.year);
             loadYearExtras(p.year); // síncrono desde v148 — exs já estão em window
+            // Reaplicar packs secretos já desbloqueados (plaintext em localStorage)
+            try { _applyAllUnlockedSecrets(p); } catch (e) { console.warn('[secret] apply failed', e); }
         }
     }
+    // Inicializar version tag + long-press handler
+    _setupVersionTag();
     // Injectar container dos tópicos do teste no modal (se não existir)
     const modalBody = document.querySelector('#test-modal .modal-body');
     if (modalBody && !document.getElementById('test-topics-picker')) {
@@ -5741,4 +5745,224 @@ async function _scheduleStreakReminder() {
         // Sem TimestampTrigger (iOS Safari etc.) — não há agendamento real;
         // o aviso aparecerá via guilt-trip modal quando reabrir a app.
     } catch (e) { console.warn('schedule reminder failed', e); }
+}
+
+// ============================================================
+// CONTEÚDO SECRETO (cifrado) — long-press na versão para destrancar
+// ============================================================
+// Os blobs estão em content_secret.js (window.SECRET_PACKS).
+// Cada blob é AES-GCM cifrado. A password só é conhecida pelo dono.
+// Quando se acerta a password, o plaintext fica em
+// activeProfile().unlockedSecrets[packId] e o conteúdo é injetado nas
+// estruturas SUBJECTS_BY_YEAR / CURRICULUM_BY_YEAR / etc. para o ano
+// indicado no payload.
+
+function _setupVersionTag() {
+    const el = document.getElementById('app-version-tag');
+    if (!el) return;
+    el.textContent = (typeof APP_VERSION === 'string' ? APP_VERSION : '');
+    // Long-press 2.5s (mouse + touch) → abre modal de código
+    let timer = null;
+    const start = (ev) => {
+        // só permitir se houver perfil ativo
+        if (!activeProfile()) return;
+        timer = setTimeout(() => { timer = null; openSecretModal(); }, 2500);
+    };
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('mouseup', cancel);
+    el.addEventListener('mouseleave', cancel);
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchcancel', cancel);
+}
+
+function openSecretModal() {
+    const modal = document.getElementById('secret-modal');
+    const input = document.getElementById('secret-password');
+    const hint  = document.getElementById('secret-hint');
+    const list  = document.getElementById('secret-locks-list');
+    if (!modal) return;
+    if (input) input.value = '';
+    if (hint) hint.textContent = '';
+    // Mostrar packs disponíveis + estado
+    const profile = activeProfile();
+    const unlocked = (profile && profile.unlockedSecrets) || {};
+    const packs = (window.SECRET_PACKS || []);
+    if (list) {
+        if (packs.length === 0) {
+            list.innerHTML = '<em>Sem packs disponíveis.</em>';
+        } else {
+            list.innerHTML = packs.map(p => {
+                const isOpen = !!unlocked[p.id];
+                return `<div style="margin-top:4px">${isOpen ? '🔓' : '🔒'} <strong>${escapeHtml(p.id)}</strong>${p.label ? ' — '+escapeHtml(p.label) : ''}${isOpen ? ' <button onclick="lockSecretPack(\''+p.id+'\')" style="margin-left:6px;background:transparent;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:0.74rem;cursor:pointer;color:var(--text-light)">Lock</button>' : ''}</div>`;
+            }).join('');
+        }
+    }
+    modal.style.display = 'flex';
+    setTimeout(() => input?.focus(), 50);
+}
+
+function closeSecretModal() {
+    const modal = document.getElementById('secret-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function trySecretUnlock() {
+    const input = document.getElementById('secret-password');
+    const hint  = document.getElementById('secret-hint');
+    const pw = (input?.value || '').trim();
+    if (!pw) return;
+    const profile = activeProfile();
+    if (!profile) { if (hint) hint.textContent = 'Sem perfil ativo.'; return; }
+    profile.unlockedSecrets = profile.unlockedSecrets || {};
+    const packs = (window.SECRET_PACKS || []).filter(p => !profile.unlockedSecrets[p.id]);
+    if (packs.length === 0) {
+        if (hint) hint.textContent = 'Tudo já desbloqueado neste perfil.';
+        return;
+    }
+    if (hint) hint.textContent = 'A verificar…';
+    let unlocked = 0;
+    for (const pack of packs) {
+        try {
+            const plaintext = await _decryptPack(pack, pw);
+            if (plaintext != null) {
+                profile.unlockedSecrets[pack.id] = { pt: plaintext, at: Date.now() };
+                _injectSecretPayload(plaintext, profile);
+                unlocked++;
+            }
+        } catch (e) { /* tenta o próximo */ }
+    }
+    if (unlocked > 0) {
+        saveState();
+        if (hint) hint.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ Desbloqueado ('+unlocked+').</span>';
+        if (typeof showToast === 'function') showToast('🔓 Conteúdo desbloqueado');
+        if (typeof updateAll === 'function') updateAll();
+        setTimeout(closeSecretModal, 900);
+    } else {
+        if (hint) hint.innerHTML = '<span style="color:#dc2626;font-weight:600">✗ Código inválido.</span>';
+    }
+}
+
+function lockSecretPack(packId) {
+    const profile = activeProfile();
+    if (!profile || !profile.unlockedSecrets) return;
+    delete profile.unlockedSecrets[packId];
+    // Como SUBJECTS_BY_YEAR etc. foram mutados, mais simples recarregar a app:
+    saveState();
+    if (typeof showToast === 'function') showToast('🔒 Pack trancado — a recarregar…');
+    setTimeout(() => location.reload(), 600);
+}
+
+function _b64ToBytes(s) {
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+}
+
+async function _deriveKey(password, salt, iters) {
+    const enc = new TextEncoder();
+    const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+    );
+}
+
+async function _decryptPack(pack, password) {
+    if (!pack || !pack.ct || !pack.salt || !pack.iv || !pack.iters) return null;
+    const salt = _b64ToBytes(pack.salt);
+    const iv   = _b64ToBytes(pack.iv);
+    const ct   = _b64ToBytes(pack.ct);
+    const key  = await _deriveKey(password, salt, pack.iters);
+    try {
+        const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+        return new TextDecoder().decode(pt);
+    } catch {
+        return null; // tag GCM falhou → password errada
+    }
+}
+
+function _applyAllUnlockedSecrets(profile) {
+    if (!profile || !profile.unlockedSecrets) return;
+    for (const id of Object.keys(profile.unlockedSecrets)) {
+        const blob = profile.unlockedSecrets[id];
+        if (blob && blob.pt) {
+            try { _injectSecretPayload(blob.pt, profile); }
+            catch (e) { console.warn('[secret] inject '+id+' failed', e); }
+        }
+    }
+}
+
+function _injectSecretPayload(plaintext, profile) {
+    let data;
+    try { data = JSON.parse(plaintext); }
+    catch (e) { console.warn('[secret] JSON parse failed', e); return; }
+    if (!data || typeof data !== 'object') return;
+    const year = data.year || (profile && profile.year);
+    if (!year || !window.SUBJECTS_BY_YEAR || !window.SUBJECTS_BY_YEAR[year]) {
+        console.warn('[secret] year inválido ou não existe:', year);
+        return;
+    }
+    // Merge SUBJECTS
+    if (data.subjects && typeof data.subjects === 'object') {
+        Object.assign(window.SUBJECTS_BY_YEAR[year], data.subjects);
+    }
+    // Merge CURRICULUM (cada disciplina = array de tópicos)
+    if (data.curriculum && typeof data.curriculum === 'object') {
+        const curr = window.CURRICULUM_BY_YEAR[year];
+        for (const subj of Object.keys(data.curriculum)) {
+            const topics = data.curriculum[subj];
+            if (Array.isArray(topics)) {
+                curr[subj] = [...(curr[subj] || []), ...topics.filter(t => !(curr[subj] || []).includes(t))];
+            }
+        }
+    }
+    // Merge PERIODS
+    if (data.periods && typeof data.periods === 'object') {
+        const per = window.PERIODS_BY_YEAR[year];
+        for (const subj of Object.keys(data.periods)) {
+            per[subj] = Object.assign({}, per[subj] || {}, data.periods[subj]);
+        }
+    }
+    // Merge LESSONS
+    if (data.lessons && typeof data.lessons === 'object') {
+        Object.assign(window.LESSONS_BY_YEAR[year], data.lessons);
+    }
+    // Append EXERCISES (com sanitização)
+    if (Array.isArray(data.exercises)) {
+        const dest = window.EXERCISES_BY_YEAR[year];
+        const existing = new Set(dest.map(e => e.id));
+        for (const raw of data.exercises) {
+            const e = (typeof _sanitizeExercise === 'function') ? _sanitizeExercise(raw) : raw;
+            if (e && e.id && !existing.has(e.id)) {
+                dest.push(e);
+                existing.add(e.id);
+            }
+        }
+    }
+    // Se o ano corresponde ao ativo, sincronizar as referências mutáveis
+    if (window.activeYear === year && typeof setActiveYear === 'function') {
+        setActiveYear(year);
+    }
+    // Garantir que o perfil tem toIndex para a nova disciplina
+    if (profile && profile.progress && data.curriculum) {
+        for (const subj of Object.keys(data.curriculum)) {
+            if (!profile.progress[subj]) {
+                profile.progress[subj] = { toIndex: (window.CURRICULUM_BY_YEAR[year][subj] || []).length };
+            } else {
+                profile.progress[subj].toIndex = (window.CURRICULUM_BY_YEAR[year][subj] || []).length;
+            }
+        }
+    }
+    // Garantir subjects stats
+    if (profile && profile.subjects && data.subjects) {
+        for (const subj of Object.keys(data.subjects)) {
+            if (!profile.subjects[subj]) profile.subjects[subj] = { answered: 0, correct: 0, xp: 0 };
+        }
+    }
 }

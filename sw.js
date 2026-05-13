@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v173';
+const CACHE_NAME = 'escolaplay-v178';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -34,7 +34,8 @@ const ASSETS = [
     '/escolaplay/content_6_c_extra.js',
     '/escolaplay/content_6_c_extra2.js',
     '/escolaplay/content_6_h_extra.js',
-    '/escolaplay/content_6_h_extra2.js'
+    '/escolaplay/content_6_h_extra2.js',
+    '/escolaplay/content_secret.js'
 ];
 
 self.addEventListener('install', (event) => {
