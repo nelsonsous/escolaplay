@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v183';
+const APP_VERSION = 'v189';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -861,12 +861,13 @@ function renderTopicList() {
         const tEsc = t.replace(/'/g, "\\'");
         // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
         const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
+        const stars = topicStars(key, t);
         return `
             <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
                 ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
                 <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:600;font-size:0.9rem">${t}</div>
+                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
                         ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
@@ -2838,6 +2839,9 @@ function exitSession() {
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
+    // Lição-primeiro: se a criança nunca viu um exercício deste tópico
+    // e há lição disponível, abrir lição automaticamente.
+    if (s.idx === 0 && typeof _maybeShowFirstLesson === 'function') _maybeShowFirstLesson(e);
     // Conforto de leitura: aluno do 2.º ano em matemática (e estudo do meio) → mais espaçamento
     const yr = activeProfile()?.year;
     const screenEl = document.getElementById('exercise-screen');
@@ -2885,7 +2889,18 @@ function renderQuestion() {
     if (e.passage) qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
-    qHtml += `<span class="ex-q-text">${escapeHtml(e.q)}</span>`;
+    // Render question com markdown leve: **bold** e *italic*. Segura porque
+    // escapamos HTML primeiro e só depois substituímos pelos tags <strong>/<em>.
+    const renderMd = (s) => escapeHtml(s || '')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    qHtml += `<span class="ex-q-text">${renderMd(e.q)}</span>`;
+    // Botão 🔊 (TTS) para Som+ — bem visível, abaixo da pergunta
+    if (e.s === 'som_plus' && 'speechSynthesis' in window) {
+        const textToSpeak = (e.q || '').replace(/\*\*/g,'').replace(/\*/g,'')
+            .replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+        qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
+    }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
     // Reabrir interação na área de resposta (foi trancada em showFeedback)
@@ -2932,11 +2947,16 @@ function renderQuestion() {
 }
 
 function renderMC(e) {
+    // Som+: cada opção tem um mini botão 🔊 para ouvir
+    const speakBtn = (txt) => (e.s === 'som_plus' && 'speechSynthesis' in window)
+        ? `<button onclick="event.stopPropagation();ttsSpeak('${String(txt).replace(/'/g,"&#39;").replace(/"/g,'&quot;')}')" title="Ouvir" style="background:#dbeafe;border:1.5px solid #2563eb;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#2563eb;font-size:0.92rem;margin-left:auto;padding:0;flex-shrink:0">🔊</button>`
+        : '';
     return `
         ${e.opts.map((o, i) => `
             <button class="btn-option" id="opt-${i}" onclick="selectMC(${i})">
                 <span class="opt-letter">${String.fromCharCode(65+i)}</span>
                 <span>${o}</span>
+                ${speakBtn(o)}
             </button>
         `).join('')}
         <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
@@ -3448,8 +3468,13 @@ function showFeedback(e, isCorrect) {
     if (e.material)  expParts.push(`📘 ${e.material}`);
     if (e.solution)  expParts.push(`📐 Resolução: ${e.solution}`);
     if (e.exp && isCorrect) expParts.push(e.exp);
-    document.getElementById('feedback-exp').textContent = expParts.join('\n\n');
-    document.getElementById('feedback-exp').style.whiteSpace = 'pre-wrap';
+    // Render markdown leve (**bold**/*italic*) na explicação
+    const _renderMdExp = (s) => escapeHtml(s || '')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    const expEl = document.getElementById('feedback-exp');
+    expEl.innerHTML = expParts.map(p => _renderMdExp(p)).join('<br><br>');
+    expEl.style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
     // Botão explicação detalhada: sempre visível
     const detailBtn = document.getElementById('feedback-detail-btn');
@@ -5929,3 +5954,115 @@ function _injectSecretPayload(plaintext, profile) {
         }
     }
 }
+
+// ============================================================
+// TTS (Text-to-Speech) — leitura em PT-PT
+// ============================================================
+// Usado pelo pack Som+ para crianças ouvirem palavras/perguntas em voz alta.
+// Web Speech API é nativo do browser. iOS Safari suporta desde iOS 7.
+
+function ttsSpeak(text) {
+    if (!text || !('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel(); // cancela qualquer fala em curso
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'pt-PT';
+        u.rate = 0.85; // mais lento para crianças
+        u.pitch = 1.0;
+        u.volume = 1.0;
+        // Procurar voz PT-PT preferencialmente
+        const voices = window.speechSynthesis.getVoices();
+        const pt = voices.find(v => v.lang === 'pt-PT') || voices.find(v => v.lang && v.lang.startsWith('pt'));
+        if (pt) u.voice = pt;
+        window.speechSynthesis.speak(u);
+    } catch (e) { console.warn('[tts] failed:', e); }
+}
+
+// Garantir que as vozes são carregadas (algumas browsers precisam de tempo)
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try { window.speechSynthesis.getVoices(); } catch {}
+    window.speechSynthesis.onvoiceschanged = () => {};
+}
+
+// ============================================================
+// TTS — Web Speech API para Som+ (e qualquer pack que peça)
+// ============================================================
+let _ttsVoice = null;
+function _pickPTVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+    // Procura voz PT-PT
+    let v = voices.find(x => /pt[-_]PT/i.test(x.lang));
+    if (!v) v = voices.find(x => /^pt/i.test(x.lang));
+    return v || voices[0];
+}
+window.ttsSpeak = function (text) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        // Cancelar fala em curso
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,''));
+        u.lang = 'pt-PT';
+        u.rate = 0.85;
+        u.pitch = 1.05;
+        // Pode demorar a carregar vozes — tenta agora e em fallback
+        if (!_ttsVoice) _ttsVoice = _pickPTVoice();
+        if (_ttsVoice) u.voice = _ttsVoice;
+        window.speechSynthesis.speak(u);
+    } catch (err) { console.warn('TTS failed', err); }
+};
+
+// ============================================================
+// ESTRELAS DE DOMÍNIO — por tópico, baseado em respostas certas
+// ★      = 3+ corretas, accuracy ≥ 50%
+// ★★     = 10+ corretas, accuracy ≥ 70%
+// ★★★    = 20+ corretas, accuracy ≥ 80% E pelo menos 2 difíceis
+// ============================================================
+function topicStars(subjectKey, topic) {
+    if (!state || !state.topicMastery) return '';
+    const m = state.topicMastery[subjectKey + '/' + topic];
+    if (!m) return '';
+    const c = (m.d1||0) + (m.d2||0) + (m.d3||0);
+    const w = (m.w1||0) + (m.w2||0) + (m.w3||0);
+    const tot = c + w;
+    if (tot < 3 || c < 3) return '';
+    const acc = c / tot;
+    if (c >= 20 && acc >= 0.80 && (m.d3||0) >= 2) return '★★★';
+    if (c >= 10 && acc >= 0.70) return '★★';
+    if (c >= 3 && acc >= 0.50) return '★';
+    return '';
+}
+
+// ============================================================
+// LIÇÃO PRIMEIRO — abre a lição do tópico antes do primeiro exercício
+// se a criança ainda nunca viu nenhum exercício desse tópico.
+// ============================================================
+function _maybeShowFirstLesson(e) {
+    try {
+        const profile = activeProfile();
+        if (!profile || !e || !e.s || !e.t) return;
+        profile.lessonsSeen = profile.lessonsSeen || {};
+        const key = e.s + '/' + e.t;
+        if (profile.lessonsSeen[key]) return; // já viu
+        if (!window.LESSONS || !window.LESSONS[key]) return; // sem lição
+        // Verificar se já respondeu algum exercício deste tópico
+        const seen = state.exerciseSeen || {};
+        const anySeenInTopic = (window.EXERCISES || []).some(x => x.s === e.s && x.t === e.t && seen[x.id]);
+        if (anySeenInTopic) {
+            // Já respondeu antes — só marca como visto, não interrompe
+            profile.lessonsSeen[key] = Date.now();
+            saveState();
+            return;
+        }
+        // Primeira vez — abrir lição automaticamente
+        if (typeof openLessonByKey === 'function') {
+            setTimeout(() => {
+                openLessonByKey(key);
+                profile.lessonsSeen[key] = Date.now();
+                saveState();
+            }, 250);
+        }
+    } catch (err) { console.warn('first-lesson hook failed', err); }
+}
+
