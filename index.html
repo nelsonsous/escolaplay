@@ -294,6 +294,9 @@
             <button class="btn btn-secondary btn-block" onclick="resetStats()"><i class="fas fa-rotate"></i> Reiniciar progresso</button>
             <p class="muted">Apaga XP, streak, testes, prémios e histórico (mantém nome e avatar).</p>
         </div>
+
+        <!-- Versão da app — long-press 2.5s para inserir código secreto -->
+        <div id="app-version-tag" style="text-align:center;padding:14px 0 24px;color:var(--text-light);font-size:0.72rem;font-family:ui-monospace,monospace;user-select:none;-webkit-user-select:none;cursor:default;opacity:0.55;letter-spacing:0.04em"></div>
     </section>
 
     <!-- ===== EXERCISE FULLSCREEN ===== -->
@@ -560,22 +563,16 @@
 <script src="content_6_c_extra.js"></script>
 <script src="content_6_c_extra2.js"></script>
 <script src="content_6_h_extra.js"></script>
-<!-- Tag da versão (long-press 2.5s para introduzir código secreto) -->
-<!-- Posicionado top-right, acima do nav bar e do header. Visível mas discreto. -->
-<div id="app-version-tag" style="position:fixed;top:calc(env(safe-area-inset-top, 0px) + 4px);right:8px;font-size:0.68rem;color:rgba(255,255,255,0.5);font-family:ui-monospace,monospace;z-index:10000;user-select:none;-webkit-user-select:none;pointer-events:auto;cursor:default;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.08);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)"></div>
+<!-- Tag da versão removido do canto superior — agora vive dentro da tab Perfil
+     no fundo (long-press 2.5s para introduzir código secreto). -->
 
-<!-- Modal secreto de unlock -->
+<!-- Modal de disciplinas extra (long-press na versao) -->
 <div id="secret-modal" class="modal" style="display:none;align-items:center;padding:20px;z-index:9999">
-    <div class="modal-content" style="max-width:420px;border-radius:20px;padding:24px">
-        <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.01em">🔐 Inserir código</h2>
-        <p style="font-size:0.84rem;color:var(--text-light);margin-bottom:16px;line-height:1.4">Introduz o código secreto para desbloquear conteúdo escondido neste perfil.</p>
-        <input type="password" id="secret-password" placeholder="Código…" autocomplete="off" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:0.96rem;font-family:ui-monospace,monospace;margin-bottom:6px">
-        <div id="secret-hint" style="font-size:0.78rem;color:var(--text-light);margin-bottom:14px;min-height:18px"></div>
-        <div style="display:flex;gap:10px">
-            <button class="btn" onclick="closeSecretModal()" style="flex:1;background:#e8e8f0;color:#444;border:none;padding:11px;border-radius:10px;font-weight:700">Cancelar</button>
-            <button class="btn" onclick="trySecretUnlock()" style="flex:2;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;padding:11px;border-radius:10px;font-weight:700">🔓 Desbloquear</button>
-        </div>
-        <div id="secret-locks-list" style="margin-top:14px;font-size:0.78rem;color:var(--text-light)"></div>
+    <div class="modal-content" style="max-width:480px;border-radius:20px;padding:24px;max-height:88vh;overflow-y:auto">
+        <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.01em">📚 Disciplinas extra</h2>
+        <p style="font-size:0.84rem;color:var(--text-light);margin-bottom:14px;line-height:1.4">Disciplinas adicionais para perfis especiais. Toca em <strong>+ Adicionar</strong> para incluir uma disciplina neste perfil. Toca em <strong>− Remover</strong> para a esconder de novo.</p>
+        <div id="secret-locks-list"></div>
+        <button class="btn btn-block" onclick="closeSecretModal()" style="margin-top:18px;background:#e8e8f0;color:#444;border:none;padding:13px;border-radius:10px;font-weight:700">Fechar</button>
     </div>
 </div>
 
