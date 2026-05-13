@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v187';
+const APP_VERSION = 'v188';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2889,10 +2889,17 @@ function renderQuestion() {
     if (e.passage) qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
-    qHtml += `<span class="ex-q-text">${escapeHtml(e.q)}</span>`;
-    // Botão 🔊 (TTS) para Som+ — permite à criança OUVIR a pergunta
+    // Render question com markdown leve: **bold** e *italic*. Segura porque
+    // escapamos HTML primeiro e só depois substituímos pelos tags <strong>/<em>.
+    const renderMd = (s) => escapeHtml(s || '')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    qHtml += `<span class="ex-q-text">${renderMd(e.q)}</span>`;
+    // Botão 🔊 (TTS) para Som+ — bem visível, abaixo da pergunta
     if (e.s === 'som_plus' && 'speechSynthesis' in window) {
-        qHtml += ` <button onclick="ttsSpeak('${(e.q || '').replace(/'/g,"&#39;").replace(/"/g,'&quot;')}')" title="Ouvir" style="background:#dbeafe;border:1.5px solid #2563eb;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#2563eb;font-size:1rem;vertical-align:middle;margin-left:4px;padding:0">🔊</button>`;
+        const textToSpeak = (e.q || '').replace(/\*\*/g,'').replace(/\*/g,'')
+            .replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+        qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
     }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
@@ -2940,11 +2947,16 @@ function renderQuestion() {
 }
 
 function renderMC(e) {
+    // Som+: cada opção tem um mini botão 🔊 para ouvir
+    const speakBtn = (txt) => (e.s === 'som_plus' && 'speechSynthesis' in window)
+        ? `<button onclick="event.stopPropagation();ttsSpeak('${String(txt).replace(/'/g,"&#39;").replace(/"/g,'&quot;')}')" title="Ouvir" style="background:#dbeafe;border:1.5px solid #2563eb;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#2563eb;font-size:0.92rem;margin-left:auto;padding:0;flex-shrink:0">🔊</button>`
+        : '';
     return `
         ${e.opts.map((o, i) => `
             <button class="btn-option" id="opt-${i}" onclick="selectMC(${i})">
                 <span class="opt-letter">${String.fromCharCode(65+i)}</span>
                 <span>${o}</span>
+                ${speakBtn(o)}
             </button>
         `).join('')}
         <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
