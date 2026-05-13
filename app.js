@@ -2886,6 +2886,10 @@ function renderQuestion() {
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
     qHtml += `<span class="ex-q-text">${escapeHtml(e.q)}</span>`;
+    // Botão 🔊 (TTS) para Som+ — permite à criança OUVIR a pergunta
+    if (e.s === 'som_plus' && 'speechSynthesis' in window) {
+        qHtml += ` <button onclick="ttsSpeak('${(e.q || '').replace(/'/g,"&#39;").replace(/"/g,'&quot;')}')" title="Ouvir" style="background:#dbeafe;border:1.5px solid #2563eb;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#2563eb;font-size:1rem;vertical-align:middle;margin-left:4px;padding:0">🔊</button>`;
+    }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
     // Reabrir interação na área de resposta (foi trancada em showFeedback)
@@ -5928,4 +5932,33 @@ function _injectSecretPayload(plaintext, profile) {
             if (!profile.subjects[subj]) profile.subjects[subj] = { answered: 0, correct: 0, xp: 0 };
         }
     }
+}
+
+// ============================================================
+// TTS (Text-to-Speech) — leitura em PT-PT
+// ============================================================
+// Usado pelo pack Som+ para crianças ouvirem palavras/perguntas em voz alta.
+// Web Speech API é nativo do browser. iOS Safari suporta desde iOS 7.
+
+function ttsSpeak(text) {
+    if (!text || !('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel(); // cancela qualquer fala em curso
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'pt-PT';
+        u.rate = 0.85; // mais lento para crianças
+        u.pitch = 1.0;
+        u.volume = 1.0;
+        // Procurar voz PT-PT preferencialmente
+        const voices = window.speechSynthesis.getVoices();
+        const pt = voices.find(v => v.lang === 'pt-PT') || voices.find(v => v.lang && v.lang.startsWith('pt'));
+        if (pt) u.voice = pt;
+        window.speechSynthesis.speak(u);
+    } catch (e) { console.warn('[tts] failed:', e); }
+}
+
+// Garantir que as vozes são carregadas (algumas browsers precisam de tempo)
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try { window.speechSynthesis.getVoices(); } catch {}
+    window.speechSynthesis.onvoiceschanged = () => {};
 }
