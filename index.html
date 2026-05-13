@@ -560,7 +560,26 @@
 <script src="content_6_c_extra.js"></script>
 <script src="content_6_c_extra2.js"></script>
 <script src="content_6_h_extra.js"></script>
+<!-- Tag discreto da versão (long-press 2.5s para introduzir código secreto) -->
+<div id="app-version-tag" style="position:fixed;bottom:6px;right:8px;font-size:0.62rem;color:rgba(120,120,140,0.5);font-family:ui-monospace,monospace;z-index:5;user-select:none;-webkit-user-select:none;pointer-events:auto;cursor:default;padding:4px 6px"></div>
+
+<!-- Modal secreto de unlock -->
+<div id="secret-modal" class="modal" style="display:none;align-items:center;padding:20px;z-index:9999">
+    <div class="modal-content" style="max-width:420px;border-radius:20px;padding:24px">
+        <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.01em">🔐 Inserir código</h2>
+        <p style="font-size:0.84rem;color:var(--text-light);margin-bottom:16px;line-height:1.4">Introduz o código secreto para desbloquear conteúdo escondido neste perfil.</p>
+        <input type="password" id="secret-password" placeholder="Código…" autocomplete="off" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:0.96rem;font-family:ui-monospace,monospace;margin-bottom:6px">
+        <div id="secret-hint" style="font-size:0.78rem;color:var(--text-light);margin-bottom:14px;min-height:18px"></div>
+        <div style="display:flex;gap:10px">
+            <button class="btn" onclick="closeSecretModal()" style="flex:1;background:#e8e8f0;color:#444;border:none;padding:11px;border-radius:10px;font-weight:700">Cancelar</button>
+            <button class="btn" onclick="trySecretUnlock()" style="flex:2;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;padding:11px;border-radius:10px;font-weight:700">🔓 Desbloquear</button>
+        </div>
+        <div id="secret-locks-list" style="margin-top:14px;font-size:0.78rem;color:var(--text-light)"></div>
+    </div>
+</div>
+
 <script src="content_6_h_extra2.js"></script>
+<script src="content_secret.js"></script>
 <script src="app.js"></script>
 <script>
     if ('serviceWorker' in navigator) {
