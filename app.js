@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v190';
+const APP_VERSION = 'v191';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -654,7 +654,72 @@ function renderHome() {
         </div>
         `;
     }).join('');
+
+    // Number Talk do dia — prompt rotativo determinístico por data
+    renderNumberTalk();
 }
+
+// ============================================================
+// NUMBER TALKS — rotina diária de matemática mental (Parrish / Humphreys)
+// Não pontua, não pede resposta — é prompt de conversa em família.
+// Roda 14 prompts diferentes ao longo de 2 semanas para variar.
+// ============================================================
+const NUMBER_TALKS = [
+    { n: 10, q: 'De quantas formas consegues fazer <span class="nt-number">10</span>?',
+      strats: ['5 + 5', '6 + 4', '9 + 1', '8 + 2', '7 + 3', '3 + 3 + 4'] },
+    { n: 12, q: 'Como podes fazer <span class="nt-number">12</span> usando somas?',
+      strats: ['10 + 2', '6 + 6 (dobro do 6)', '8 + 4', '3 × 4', '7 + 5'] },
+    { n: 15, q: 'Quantas maneiras encontras de fazer <span class="nt-number">15</span>?',
+      strats: ['10 + 5', '7 + 8 (quase-dobro)', '9 + 6', '5 × 3', '20 − 5'] },
+    { n: 18, q: 'Como decompor <span class="nt-number">18</span>?',
+      strats: ['10 + 8', '9 + 9 (dobro do 9)', '20 − 2', '6 × 3', '15 + 3'] },
+    { n: 20, q: 'De quantas formas chegas a <span class="nt-number">20</span>?',
+      strats: ['10 + 10', '15 + 5', '4 × 5', '25 − 5', '8 + 8 + 4'] },
+    { n: 24, q: '<span class="nt-number">24</span> — decompõe à tua maneira',
+      strats: ['20 + 4', '12 + 12 (dobro)', '25 − 1', '6 × 4', '3 × 8', '10 + 10 + 4'] },
+    { n: 25, q: 'Como podes pensar em <span class="nt-number">25</span>?',
+      strats: ['20 + 5', '5 × 5', '10 + 10 + 5', '30 − 5', '15 + 10'] },
+    { n: 30, q: 'Decompõe <span class="nt-number">30</span> de várias formas',
+      strats: ['15 + 15 (dobro)', '10 + 10 + 10', '3 × 10', '6 × 5', '25 + 5'] },
+    { n: 36, q: 'Como pensas em <span class="nt-number">36</span>?',
+      strats: ['30 + 6', '18 + 18 (dobro)', '40 − 4', '6 × 6', '4 × 9', '12 × 3'] },
+    { n: 50, q: 'De quantas formas fazes <span class="nt-number">50</span>?',
+      strats: ['25 + 25 (dobro)', '10 × 5', '40 + 10', '100 ÷ 2', '20 + 20 + 10'] },
+    { n: 99, q: '<span class="nt-number">99</span> — pensa rápido (dica: 100−1!)',
+      strats: ['100 − 1', '90 + 9', '50 + 49', '33 × 3', '9 × 11'] },
+    { n: 100, q: 'Como podes formar <span class="nt-number">100</span>?',
+      strats: ['50 + 50', '99 + 1', '4 × 25', '10 × 10', '60 + 40', '75 + 25'] },
+    { n: 48, q: 'Decompõe <span class="nt-number">48</span>',
+      strats: ['40 + 8', '50 − 2', '24 + 24 (dobro)', '6 × 8', '4 × 12'] },
+    { n: 72, q: '<span class="nt-number">72</span> — várias formas',
+      strats: ['70 + 2', '36 + 36 (dobro)', '8 × 9', '70 + 2', '80 − 8'] },
+];
+function _todayNumberTalkIndex() {
+    const t = new Date();
+    const dayOfYear = Math.floor((t - new Date(t.getFullYear(),0,0)) / 86400000);
+    return dayOfYear % NUMBER_TALKS.length;
+}
+function renderNumberTalk() {
+    const card  = document.getElementById('number-talk-card');
+    const titleEl = document.getElementById('nt-title');
+    const promptEl  = document.getElementById('nt-prompt');
+    const stratsEl  = document.getElementById('nt-strategies');
+    if (!card || !promptEl) return;
+    const nt = NUMBER_TALKS[_todayNumberTalkIndex()];
+    if (titleEl) titleEl.textContent = `Number Talk de hoje · ${nt.n}`;
+    promptEl.innerHTML = nt.q;
+    stratsEl.innerHTML = '<strong>Algumas estratégias possíveis</strong><br>' +
+        nt.strats.map(s => `<div class="nt-strat-row">• ${s}</div>`).join('');
+}
+function toggleNumberTalk() {
+    const card = document.getElementById('number-talk-card');
+    const body = document.getElementById('nt-body');
+    if (!card || !body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    card.classList.toggle('open', !open);
+}
+window.toggleNumberTalk = toggleNumberTalk;
 
 function renderNextTestCard() {
     const card = document.getElementById('next-test-card');
@@ -2637,19 +2702,32 @@ function targetDifficultyFor(subKey, topic) {
 // Resultado final é baralhado para não dar sempre a mesma ordem.
 function pickExercises(pool, n) {
     const seen = state.exerciseSeen || {};
+    // Spaced repetition LITE: marca exercícios errados na última tentativa
+    // para serem priorizados no próximo teste do mesmo tópico.
+    const lastResultById = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
     const annotated = pool.map(e => {
         const tgt = targetDifficultyFor(e.s, e.t);
         const d = Math.max(1, Math.min(3, e.diff || 1));
         const diffScore = (tgt.prefer && tgt.prefer[d]) || 0;
+        const wrongLast = lastResultById[e.id] === false;
         return {
             e,
             d,
             lastSeen: seen[e.id] || 0,
             diffScore,
+            wrongLast,
             rand: Math.random()
         };
     });
-    annotated.sort((a, b) => {
+    // Estratégia: reservar até ~35% do teste para revisão de errados (até 5 de 14)
+    const reviewBudget = Math.min(Math.floor(n * 0.35), 5);
+    const wrongPool = annotated.filter(x => x.wrongLast)
+        .sort((a,b) => a.lastSeen - b.lastSeen); // mais antigos primeiro (já tiveram tempo)
+    const reviewItems = wrongPool.slice(0, reviewBudget);
+    const reviewIds = new Set(reviewItems.map(x => x.e.id));
+    const fresh = annotated.filter(x => !reviewIds.has(x.e.id));
+    fresh.sort((a, b) => {
         // 1) Dificuldade alvo PRIMEIRO (maior diffScore vence)
         if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
         // 2) Nunca vistos antes de já vistos
@@ -2658,6 +2736,25 @@ function pickExercises(pool, n) {
         // 3) Mais antigos
         if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
         // 4) Empate → random
+        return a.rand - b.rand;
+    });
+    // Mistura: review primeiro (vai ser baralhado no fim), depois novos
+    const annotated2 = [...reviewItems, ...fresh];
+    // Substitui o array original para o resto da função usar `annotated`
+    annotated.length = 0;
+    annotated.push(...annotated2);
+    annotated.sort((a, b) => {
+        // Estável agora — manter ordem prévia (review já está em cima)
+        // Mas precisamos do mesmo critério para itens não-review:
+        if (reviewIds.has(a.e.id) && !reviewIds.has(b.e.id)) return -1;
+        if (!reviewIds.has(a.e.id) && reviewIds.has(b.e.id)) return 1;
+        // Entre review: mais antigos primeiro
+        if (reviewIds.has(a.e.id) && reviewIds.has(b.e.id)) return a.lastSeen - b.lastSeen;
+        // Entre fresh: usar critério normal
+        if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
+        if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
+        if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
+        if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
         return a.rand - b.rand;
     });
     // De-dup por texto + resposta normalizados: alguns bancos extra têm
@@ -2886,6 +2983,17 @@ function renderQuestion() {
     // Suporte a passagem de texto / tabela / SVG acima da pergunta
     const qEl = document.getElementById('ex-question');
     let qHtml = '';
+    // Three-Reads scaffold (Mat+ problemas) — guia em 3 passos para ler problemas
+    // de forma estratégica, baseado na rotina de Kelemanik/Lucenta/Creighton.
+    if (e.s === 'mat_plus' && e.type === 'problem') {
+        qHtml += `<details class="three-reads"><summary>📖 Lê em 3 passos (clica)</summary>
+            <ol>
+                <li><strong>1.ª leitura</strong> — lê a história devagar. Sobre o que é?</li>
+                <li><strong>2.ª leitura</strong> — que está a pergunta a pedir?</li>
+                <li><strong>3.ª leitura</strong> — que números/informação preciso para responder?</li>
+            </ol>
+        </details>`;
+    }
     if (e.passage) qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
