@@ -566,18 +566,13 @@
 <!-- Tag da versão removido do canto superior — agora vive dentro da tab Perfil
      no fundo (long-press 2.5s para introduzir código secreto). -->
 
-<!-- Modal secreto de unlock -->
+<!-- Modal de disciplinas extra (long-press na versao) -->
 <div id="secret-modal" class="modal" style="display:none;align-items:center;padding:20px;z-index:9999">
-    <div class="modal-content" style="max-width:420px;border-radius:20px;padding:24px">
-        <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.01em">🔐 Inserir código</h2>
-        <p style="font-size:0.84rem;color:var(--text-light);margin-bottom:16px;line-height:1.4">Introduz o código secreto para desbloquear conteúdo escondido neste perfil.</p>
-        <input type="password" id="secret-password" placeholder="Código…" autocomplete="off" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:0.96rem;font-family:ui-monospace,monospace;margin-bottom:6px">
-        <div id="secret-hint" style="font-size:0.78rem;color:var(--text-light);margin-bottom:14px;min-height:18px"></div>
-        <div style="display:flex;gap:10px">
-            <button class="btn" onclick="closeSecretModal()" style="flex:1;background:#e8e8f0;color:#444;border:none;padding:11px;border-radius:10px;font-weight:700">Cancelar</button>
-            <button class="btn" onclick="trySecretUnlock()" style="flex:2;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;padding:11px;border-radius:10px;font-weight:700">🔓 Desbloquear</button>
-        </div>
-        <div id="secret-locks-list" style="margin-top:14px;font-size:0.78rem;color:var(--text-light)"></div>
+    <div class="modal-content" style="max-width:480px;border-radius:20px;padding:24px;max-height:88vh;overflow-y:auto">
+        <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.01em">📚 Disciplinas extra</h2>
+        <p style="font-size:0.84rem;color:var(--text-light);margin-bottom:14px;line-height:1.4">Disciplinas adicionais para perfis especiais. Toca em <strong>+ Adicionar</strong> para incluir uma disciplina neste perfil. Toca em <strong>− Remover</strong> para a esconder de novo.</p>
+        <div id="secret-locks-list"></div>
+        <button class="btn btn-block" onclick="closeSecretModal()" style="margin-top:18px;background:#e8e8f0;color:#444;border:none;padding:13px;border-radius:10px;font-weight:700">Fechar</button>
     </div>
 </div>
 

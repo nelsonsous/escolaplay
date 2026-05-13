@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v182';
+const APP_VERSION = 'v183';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5779,28 +5779,9 @@ function _setupVersionTag() {
 
 function openSecretModal() {
     const modal = document.getElementById('secret-modal');
-    const input = document.getElementById('secret-password');
-    const hint  = document.getElementById('secret-hint');
-    const list  = document.getElementById('secret-locks-list');
     if (!modal) return;
-    if (input) input.value = '';
-    if (hint) hint.textContent = '';
-    // Mostrar packs disponíveis + estado
-    const profile = activeProfile();
-    const unlocked = (profile && profile.unlockedSecrets) || {};
-    const packs = (window.SECRET_PACKS || []);
-    if (list) {
-        if (packs.length === 0) {
-            list.innerHTML = '<em>Sem packs disponíveis.</em>';
-        } else {
-            list.innerHTML = packs.map(p => {
-                const isOpen = !!unlocked[p.id];
-                return `<div style="margin-top:4px">${isOpen ? '🔓' : '🔒'} <strong>${escapeHtml(p.id)}</strong>${p.label ? ' — '+escapeHtml(p.label) : ''}${isOpen ? ' <button onclick="lockSecretPack(\''+p.id+'\')" style="margin-left:6px;background:transparent;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:0.74rem;cursor:pointer;color:var(--text-light)">Lock</button>' : ''}</div>`;
-            }).join('');
-        }
-    }
+    renderSecretModalList();
     modal.style.display = 'flex';
-    setTimeout(() => input?.focus(), 50);
 }
 
 function closeSecretModal() {
@@ -5808,84 +5789,66 @@ function closeSecretModal() {
     if (modal) modal.style.display = 'none';
 }
 
-async function trySecretUnlock() {
-    const input = document.getElementById('secret-password');
-    const hint  = document.getElementById('secret-hint');
-    const pw = (input?.value || '').trim();
-    if (!pw) return;
+function renderSecretModalList() {
+    const list = document.getElementById('secret-locks-list');
+    if (!list) return;
     const profile = activeProfile();
-    if (!profile) { if (hint) hint.textContent = 'Sem perfil ativo.'; return; }
-    profile.unlockedSecrets = profile.unlockedSecrets || {};
-    const packs = (window.SECRET_PACKS || []).filter(p => !profile.unlockedSecrets[p.id]);
-    if (packs.length === 0) {
-        if (hint) hint.textContent = 'Tudo já desbloqueado neste perfil.';
+    const added = (profile && profile.unlockedSecrets) || {};
+    const packs = (window.SECRET_PACKS || []);
+    // Filtra packs cujo year != ano do perfil (se year especificado no pack)
+    const profileYear = profile ? profile.year : null;
+    const visible = packs.filter(p => !p.year || p.year === profileYear);
+    if (!profile) {
+        list.innerHTML = '<em>Cria um perfil primeiro.</em>';
         return;
     }
-    if (hint) hint.textContent = 'A verificar…';
-    let unlocked = 0;
-    for (const pack of packs) {
-        try {
-            const plaintext = await _decryptPack(pack, pw);
-            if (plaintext != null) {
-                profile.unlockedSecrets[pack.id] = { pt: plaintext, at: Date.now() };
-                _injectSecretPayload(plaintext, profile);
-                unlocked++;
-            }
-        } catch (e) { /* tenta o próximo */ }
+    if (visible.length === 0) {
+        list.innerHTML = '<em>Sem disciplinas extra disponíveis para este ano.</em>';
+        return;
     }
-    if (unlocked > 0) {
-        saveState();
-        if (hint) hint.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ Desbloqueado ('+unlocked+').</span>';
-        if (typeof showToast === 'function') showToast('🔓 Conteúdo desbloqueado');
-        if (typeof updateAll === 'function') updateAll();
-        setTimeout(closeSecretModal, 900);
-    } else {
-        if (hint) hint.innerHTML = '<span style="color:#dc2626;font-weight:600">✗ Código inválido.</span>';
-    }
+    list.innerHTML = visible.map(p => {
+        const isAdded = !!added[p.id];
+        const btn = isAdded
+            ? `<button onclick="removeSecretPack('${p.id}')" style="background:#fee2e2;color:#b91c1c;border:1.5px solid #fecaca;border-radius:8px;padding:8px 14px;font-size:0.84rem;font-weight:700;cursor:pointer">− Remover</button>`
+            : `<button onclick="addSecretPack('${p.id}')" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.84rem;font-weight:700;cursor:pointer">+ Adicionar</button>`;
+        return `
+            <div style="background:${isAdded?'#f0fdf4':'#f8fafc'};border:1.5px solid ${isAdded?'#86efac':'#e2e8f0'};border-radius:10px;padding:12px;margin-top:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:0.94rem;font-weight:800;color:#1e293b;margin-bottom:4px">${isAdded?'✓ ':''}${escapeHtml(p.label || p.id)}</div>
+                    ${p.description ? `<div style="font-size:0.78rem;color:var(--text-light);line-height:1.4">${escapeHtml(p.description)}</div>` : ''}
+                </div>
+                <div style="flex-shrink:0">${btn}</div>
+            </div>`;
+    }).join('');
 }
 
-function lockSecretPack(packId) {
+function addSecretPack(packId) {
+    const profile = activeProfile();
+    if (!profile) return;
+    const pack = (window.SECRET_PACKS || []).find(p => p.id === packId);
+    if (!pack || !pack.payloadJSON) return;
+    profile.unlockedSecrets = profile.unlockedSecrets || {};
+    profile.unlockedSecrets[packId] = { pt: pack.payloadJSON, at: Date.now() };
+    try {
+        _injectSecretPayload(pack.payloadJSON, profile);
+    } catch (e) { console.warn('[secret] inject failed', e); }
+    saveState();
+    if (typeof showToast === 'function') showToast('✓ ' + (pack.label || packId) + ' adicionada');
+    if (typeof updateAll === 'function') updateAll();
+    renderSecretModalList();
+}
+
+function removeSecretPack(packId) {
     const profile = activeProfile();
     if (!profile || !profile.unlockedSecrets) return;
     delete profile.unlockedSecrets[packId];
-    // Como SUBJECTS_BY_YEAR etc. foram mutados, mais simples recarregar a app:
     saveState();
-    if (typeof showToast === 'function') showToast('🔒 Pack trancado — a recarregar…');
+    if (typeof showToast === 'function') showToast('Disciplina removida — a recarregar…');
     setTimeout(() => location.reload(), 600);
 }
 
-function _b64ToBytes(s) {
-    const bin = atob(s);
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
-}
-
-async function _deriveKey(password, salt, iters) {
-    const enc = new TextEncoder();
-    const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
-        baseKey,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['decrypt']
-    );
-}
-
-async function _decryptPack(pack, password) {
-    if (!pack || !pack.ct || !pack.salt || !pack.iv || !pack.iters) return null;
-    const salt = _b64ToBytes(pack.salt);
-    const iv   = _b64ToBytes(pack.iv);
-    const ct   = _b64ToBytes(pack.ct);
-    const key  = await _deriveKey(password, salt, pack.iters);
-    try {
-        const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
-        return new TextDecoder().decode(pt);
-    } catch {
-        return null; // tag GCM falhou → password errada
-    }
-}
+// Compatibilidade — alguns sítios chamavam lockSecretPack
+function lockSecretPack(packId) { return removeSecretPack(packId); }
 
 function _applyAllUnlockedSecrets(profile) {
     if (!profile || !profile.unlockedSecrets) return;
