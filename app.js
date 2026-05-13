@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v188';
+const APP_VERSION = 'v189';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3468,8 +3468,13 @@ function showFeedback(e, isCorrect) {
     if (e.material)  expParts.push(`📘 ${e.material}`);
     if (e.solution)  expParts.push(`📐 Resolução: ${e.solution}`);
     if (e.exp && isCorrect) expParts.push(e.exp);
-    document.getElementById('feedback-exp').textContent = expParts.join('\n\n');
-    document.getElementById('feedback-exp').style.whiteSpace = 'pre-wrap';
+    // Render markdown leve (**bold**/*italic*) na explicação
+    const _renderMdExp = (s) => escapeHtml(s || '')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    const expEl = document.getElementById('feedback-exp');
+    expEl.innerHTML = expParts.map(p => _renderMdExp(p)).join('<br><br>');
+    expEl.style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
     // Botão explicação detalhada: sempre visível
     const detailBtn = document.getElementById('feedback-detail-btn');
