@@ -294,6 +294,9 @@
             <button class="btn btn-secondary btn-block" onclick="resetStats()"><i class="fas fa-rotate"></i> Reiniciar progresso</button>
             <p class="muted">Apaga XP, streak, testes, prémios e histórico (mantém nome e avatar).</p>
         </div>
+
+        <!-- Versão da app — long-press 2.5s para inserir código secreto -->
+        <div id="app-version-tag" style="text-align:center;padding:14px 0 24px;color:var(--text-light);font-size:0.72rem;font-family:ui-monospace,monospace;user-select:none;-webkit-user-select:none;cursor:default;opacity:0.55;letter-spacing:0.04em"></div>
     </section>
 
     <!-- ===== EXERCISE FULLSCREEN ===== -->
@@ -560,9 +563,8 @@
 <script src="content_6_c_extra.js"></script>
 <script src="content_6_c_extra2.js"></script>
 <script src="content_6_h_extra.js"></script>
-<!-- Tag da versão (long-press 2.5s para introduzir código secreto) -->
-<!-- Posicionado top-right, acima do nav bar e do header. Visível mas discreto. -->
-<div id="app-version-tag" style="position:fixed;top:calc(env(safe-area-inset-top, 0px) + 4px);right:8px;font-size:0.68rem;color:rgba(255,255,255,0.5);font-family:ui-monospace,monospace;z-index:10000;user-select:none;-webkit-user-select:none;pointer-events:auto;cursor:default;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.08);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)"></div>
+<!-- Tag da versão removido do canto superior — agora vive dentro da tab Perfil
+     no fundo (long-press 2.5s para introduzir código secreto). -->
 
 <!-- Modal secreto de unlock -->
 <div id="secret-modal" class="modal" style="display:none;align-items:center;padding:20px;z-index:9999">
