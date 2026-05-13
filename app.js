@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v186';
+const APP_VERSION = 'v187';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -861,12 +861,13 @@ function renderTopicList() {
         const tEsc = t.replace(/'/g, "\\'");
         // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
         const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
+        const stars = topicStars(key, t);
         return `
             <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
                 ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
                 <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:600;font-size:0.9rem">${t}</div>
+                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
                         ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
@@ -2838,6 +2839,9 @@ function exitSession() {
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
+    // Lição-primeiro: se a criança nunca viu um exercício deste tópico
+    // e há lição disponível, abrir lição automaticamente.
+    if (s.idx === 0 && typeof _maybeShowFirstLesson === 'function') _maybeShowFirstLesson(e);
     // Conforto de leitura: aluno do 2.º ano em matemática (e estudo do meio) → mais espaçamento
     const yr = activeProfile()?.year;
     const screenEl = document.getElementById('exercise-screen');
@@ -5962,3 +5966,86 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try { window.speechSynthesis.getVoices(); } catch {}
     window.speechSynthesis.onvoiceschanged = () => {};
 }
+
+// ============================================================
+// TTS — Web Speech API para Som+ (e qualquer pack que peça)
+// ============================================================
+let _ttsVoice = null;
+function _pickPTVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+    // Procura voz PT-PT
+    let v = voices.find(x => /pt[-_]PT/i.test(x.lang));
+    if (!v) v = voices.find(x => /^pt/i.test(x.lang));
+    return v || voices[0];
+}
+window.ttsSpeak = function (text) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        // Cancelar fala em curso
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,''));
+        u.lang = 'pt-PT';
+        u.rate = 0.85;
+        u.pitch = 1.05;
+        // Pode demorar a carregar vozes — tenta agora e em fallback
+        if (!_ttsVoice) _ttsVoice = _pickPTVoice();
+        if (_ttsVoice) u.voice = _ttsVoice;
+        window.speechSynthesis.speak(u);
+    } catch (err) { console.warn('TTS failed', err); }
+};
+
+// ============================================================
+// ESTRELAS DE DOMÍNIO — por tópico, baseado em respostas certas
+// ★      = 3+ corretas, accuracy ≥ 50%
+// ★★     = 10+ corretas, accuracy ≥ 70%
+// ★★★    = 20+ corretas, accuracy ≥ 80% E pelo menos 2 difíceis
+// ============================================================
+function topicStars(subjectKey, topic) {
+    if (!state || !state.topicMastery) return '';
+    const m = state.topicMastery[subjectKey + '/' + topic];
+    if (!m) return '';
+    const c = (m.d1||0) + (m.d2||0) + (m.d3||0);
+    const w = (m.w1||0) + (m.w2||0) + (m.w3||0);
+    const tot = c + w;
+    if (tot < 3 || c < 3) return '';
+    const acc = c / tot;
+    if (c >= 20 && acc >= 0.80 && (m.d3||0) >= 2) return '★★★';
+    if (c >= 10 && acc >= 0.70) return '★★';
+    if (c >= 3 && acc >= 0.50) return '★';
+    return '';
+}
+
+// ============================================================
+// LIÇÃO PRIMEIRO — abre a lição do tópico antes do primeiro exercício
+// se a criança ainda nunca viu nenhum exercício desse tópico.
+// ============================================================
+function _maybeShowFirstLesson(e) {
+    try {
+        const profile = activeProfile();
+        if (!profile || !e || !e.s || !e.t) return;
+        profile.lessonsSeen = profile.lessonsSeen || {};
+        const key = e.s + '/' + e.t;
+        if (profile.lessonsSeen[key]) return; // já viu
+        if (!window.LESSONS || !window.LESSONS[key]) return; // sem lição
+        // Verificar se já respondeu algum exercício deste tópico
+        const seen = state.exerciseSeen || {};
+        const anySeenInTopic = (window.EXERCISES || []).some(x => x.s === e.s && x.t === e.t && seen[x.id]);
+        if (anySeenInTopic) {
+            // Já respondeu antes — só marca como visto, não interrompe
+            profile.lessonsSeen[key] = Date.now();
+            saveState();
+            return;
+        }
+        // Primeira vez — abrir lição automaticamente
+        if (typeof openLessonByKey === 'function') {
+            setTimeout(() => {
+                openLessonByKey(key);
+                profile.lessonsSeen[key] = Date.now();
+                saveState();
+            }, 250);
+        }
+    } catch (err) { console.warn('first-lesson hook failed', err); }
+}
+

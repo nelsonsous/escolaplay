@@ -2462,3 +2462,60 @@ body {
     color: #7f1d1d;
 }
 .lesson-error-body strong { color: #7f1d1d; font-weight: 700; }
+
+/* ============================================================
+   v187: Animações suaves para SVGs visuais (Mat+ / Som+)
+   Fade-in suave + scale gentil. Sem distrair, melhora a perceção
+   de novidade quando o exercício carrega.
+   ============================================================ */
+@keyframes ep-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ep-pop-in {
+    0%   { opacity: 0; transform: scale(0.6); }
+    60%  { opacity: 1; transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+/* SVGs dentro de ex-svg-wrap animam ao aparecer */
+.ex-svg-wrap > svg,
+.ex-svg-wrap > div {
+    animation: ep-fade-in 0.35s ease-out both;
+}
+.ex-svg-wrap svg circle,
+.ex-svg-wrap svg rect,
+.ex-svg-wrap svg polygon,
+.ex-svg-wrap svg ellipse,
+.ex-svg-wrap svg path {
+    transform-origin: center;
+}
+
+/* Pulse leve nas opções correctas após responder */
+@keyframes ep-correct-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.03); }
+}
+.btn-option.correct {
+    animation: ep-correct-pulse 0.5s ease-in-out 1;
+}
+
+/* Shake muito leve nas erradas (sem ser punitivo) */
+@keyframes ep-wrong-shake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-2px); }
+    75%      { transform: translateX(2px); }
+}
+.btn-option.wrong {
+    animation: ep-wrong-shake 0.25s ease-in-out 1;
+}
+
+/* Reduz/desativa para utilizadores que pedem prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    .ex-svg-wrap > svg,
+    .ex-svg-wrap > div,
+    .btn-option.correct,
+    .btn-option.wrong {
+        animation: none !important;
+    }
+}
