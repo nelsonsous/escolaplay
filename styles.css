@@ -2970,3 +2970,227 @@ body {
     font-weight: 800;
     letter-spacing: 0.02em;
 }
+
+/* ========================================================
+   DESIGN GLOBAL DUOLINGO-STYLE (v209)
+   Pass abrangente em: botões, cards, tabs, hero, mini-cards
+   ======================================================== */
+
+/* === Botões primários globais — efeito 3D press como Duolingo === */
+.btn-primary-solid {
+    background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+    color: #fff;
+    border: none;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    box-shadow:
+        0 4px 0 #5b21b6,
+        0 6px 16px rgba(124, 58, 237, 0.25);
+    transition: transform 0.08s, box-shadow 0.12s;
+}
+.btn-primary-solid:hover {
+    box-shadow:
+        0 4px 0 #5b21b6,
+        0 8px 20px rgba(124, 58, 237, 0.35);
+}
+.btn-primary-solid:active {
+    transform: translateY(2px);
+    box-shadow:
+        0 2px 0 #5b21b6,
+        0 3px 10px rgba(124, 58, 237, 0.2);
+}
+
+/* btn-secondary — também ganha press 3D suave */
+.btn-secondary {
+    background: #fff;
+    color: #4b5563;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 2px 0 #e5e7eb;
+    font-weight: 700;
+    transition: transform 0.08s, box-shadow 0.12s, background 0.15s;
+}
+.btn-secondary:hover { background: #f9fafb; }
+.btn-secondary:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 #e5e7eb;
+}
+
+/* btn-danger — vermelho com press */
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 0 #991b1b, 0 6px 14px rgba(220, 38, 38, 0.25);
+}
+.btn-danger:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #991b1b, 0 3px 8px rgba(220, 38, 38, 0.2);
+}
+
+/* === Tab bar bottom — pill no active === */
+.tabs {
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255,255,255,0.97);
+    border-top: 1.5px solid rgba(229, 231, 235, 0.8);
+}
+.tab {
+    border-radius: 14px;
+    padding: 8px 4px;
+    margin: 0 2px;
+    transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
+}
+.tab.active {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(236, 72, 153, 0.10));
+}
+.tab.active i {
+    color: var(--primary);
+    transform: scale(1.18);
+}
+.tab.active::before {
+    width: 24px;
+    height: 3px;
+    border-radius: 999px;
+    top: -2px;
+}
+
+/* === Mini cards (XP/correct/badges) — mais visuais === */
+.mini-card {
+    background: #fff;
+    border: 1.5px solid #f3f4f6;
+    border-radius: 16px;
+    padding: 12px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 0 #f3f4f6;
+}
+.mini-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #f3f4f6;
+}
+.mini-card-icon {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+}
+.mini-card-value {
+    font-size: 1.4rem;
+    font-weight: 900;
+    line-height: 1.05;
+}
+
+/* === Quick subject cards — bigger, vibrantes === */
+.quick-subject {
+    background: #fff;
+    border: 2px solid #f3f4f6;
+    border-radius: 18px;
+    padding: 14px 10px;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    box-shadow: 0 3px 0 #f3f4f6;
+    cursor: pointer;
+}
+.quick-subject:hover {
+    transform: translateY(-3px);
+    border-color: var(--qs-color);
+    box-shadow: 0 6px 0 #f3f4f6, 0 8px 16px rgba(0,0,0,0.06);
+}
+.quick-subject:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 #f3f4f6;
+}
+.quick-subject .qs-icon-wrap {
+    width: 52px; height: 52px;
+    border-radius: 16px;
+    background: var(--qs-bg);
+    color: var(--qs-color);
+    font-size: 1.5rem;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.05);
+}
+.quick-subject .qs-name {
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-align: center;
+    color: #1f2937;
+    letter-spacing: -0.005em;
+}
+
+/* === Subject cards (lista de disciplinas) === */
+.subject-card {
+    border-radius: 20px;
+    box-shadow: 0 4px 0 var(--sub-shadow, #e5e7eb), 0 6px 16px rgba(0,0,0,0.05);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.subject-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 var(--sub-shadow, #e5e7eb), 0 10px 22px rgba(0,0,0,0.08);
+}
+.subject-card:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--sub-shadow, #e5e7eb), 0 4px 10px rgba(0,0,0,0.06);
+}
+
+/* === Streak hero — mais contraste no número === */
+.streak-hero-number {
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+/* === Section titles — mais Duolingo (caps, weight) === */
+.section-title {
+    font-weight: 900;
+    font-size: 0.86rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #4b5563;
+    margin: 18px 0 10px;
+}
+.section-title i {
+    color: var(--primary);
+    margin-right: 6px;
+}
+
+/* === Form-card no Perfil — borda mais arredondada === */
+.form-card {
+    border-radius: 18px;
+    border: 1.5px solid #f3f4f6;
+    box-shadow: 0 2px 0 #f3f4f6;
+}
+
+/* === Chip da streak/XP no header — mais pronunciado === */
+.chip {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255,255,255,0.25);
+}
+
+/* === Modal — bordas mais arredondadas, sombra mais leve === */
+.modal-content {
+    border-radius: 22px;
+    box-shadow: 0 20px 48px rgba(0,0,0,0.2);
+}
+
+/* === Inputs e textareas globais — focus mais visível === */
+.fill-input, .ask-card-input, input[type="text"]:not([class*="check"]):not([class*="radio"]) {
+    border-radius: 14px;
+    border-width: 2px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.fill-input:focus, .ask-card-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+}
+
+/* === Header avatar — mais playful === */
+.avatar {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+.avatar:active { transform: scale(0.92); }
