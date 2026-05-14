@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v194';
+const APP_VERSION = 'v196';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -703,12 +703,19 @@ function _todayNumberTalkIndex() {
     const dayOfYear = Math.floor((t - new Date(t.getFullYear(),0,0)) / 86400000);
     return dayOfYear % NUMBER_TALKS.length;
 }
+function _hasSecretPack(packId) {
+    const p = activeProfile();
+    return !!(p && p.unlockedSecrets && p.unlockedSecrets[packId]);
+}
 function renderNumberTalk() {
     const card  = document.getElementById('number-talk-card');
     const titleEl = document.getElementById('nt-title');
     const promptEl  = document.getElementById('nt-prompt');
     const stratsEl  = document.getElementById('nt-strategies');
     if (!card || !promptEl) return;
+    // Só visível se o pack Mat+ estiver activo
+    if (!_hasSecretPack('mat-plus')) { card.style.display = 'none'; return; }
+    card.style.display = '';
     const nt = NUMBER_TALKS[_todayNumberTalkIndex()];
     if (titleEl) titleEl.textContent = `Number Talk de hoje · ${nt.n}`;
     promptEl.innerHTML = nt.q;
@@ -783,9 +790,13 @@ const HEGGERTY_DAYS = [
 ];
 function _todayHeggertyDay() { return new Date().getDay(); }
 function renderHeggerty() {
+    const card = document.getElementById('heggerty-card');
     const promptsEl = document.getElementById('hg-prompts');
     const titleEl = document.getElementById('hg-title');
-    if (!promptsEl) return;
+    if (!card || !promptsEl) return;
+    // Só visível se o pack Som+ estiver activo
+    if (!_hasSecretPack('som-plus')) { card.style.display = 'none'; return; }
+    card.style.display = '';
     const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
     const day = _todayHeggertyDay();
     if (titleEl) titleEl.textContent = `Sons de ${dayNames[day]}`;
@@ -830,6 +841,8 @@ function renderMathJournal() {
     const card = document.getElementById('math-journal-card');
     const promptEl = document.getElementById('mj-prompt');
     if (!card || !promptEl) return;
+    // Só visível se o pack Mat+ estiver activo
+    if (!_hasSecretPack('mat-plus')) { card.style.display = 'none'; return; }
     // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
     const day = new Date().getDay();
     const isMonday = day === 1;
@@ -6269,28 +6282,135 @@ function _pickPTVoice() {
     if (!('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
     if (!voices || !voices.length) return null;
+    // 1) Se o utilizador escolheu uma voz manualmente, usar essa
+    const chosen = state.ttsVoiceName;
+    if (chosen) {
+        const exact = voices.find(v => v.name === chosen);
+        if (exact) return exact;
+    }
+    // 2) Scoring automático
     const score = (v) => {
         let s = 0;
         const name = (v.name || '').toLowerCase();
         const lang = (v.lang || '').toLowerCase();
-        // Idioma
         if (/pt[-_]pt/.test(lang)) s += 100;
         else if (/^pt/.test(lang)) s += 50;
-        // Qualidade
         if (/(enhanced|premium|neural|google|natural)/i.test(name)) s += 40;
-        // Vozes PT-PT conhecidas boas (iOS / macOS)
         if (/^(joana|catarina|joaquim)/i.test(name)) s += 30;
-        // Vozes PT-BR Premium (sotaque BR mas naturais — Luciana, Felipe)
         if (/^(luciana|felipe)/i.test(name)) s += 15;
-        // Penalizar vozes muito robóticas conhecidas
         if (/(compact|eloquence)/i.test(name)) s -= 10;
-        // Online costuma ser melhor que offline (Google, Microsoft)
         if (v.localService === false) s += 5;
         return s;
     };
     const best = voices.slice().sort((a,b) => score(b) - score(a))[0];
     return best || voices[0];
 }
+
+// ============================================================
+// VOICE PICKER — modal que lista todas as vozes PT/PT-BR disponíveis
+// e permite ouvir + escolher uma delas (salva em state.ttsVoiceName)
+// ============================================================
+function openVoicePicker() {
+    if (!('speechSynthesis' in window)) {
+        showToast('Este browser não suporta vozes.');
+        return;
+    }
+    // Forçar carregamento (algumas browsers carregam lazy)
+    let voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) {
+        window.speechSynthesis.getVoices();
+        setTimeout(openVoicePicker, 300);
+        return;
+    }
+    // Apenas vozes Portuguese (PT ou BR)
+    const ptVoices = voices.filter(v => /^pt/i.test(v.lang || ''));
+    // Ordenar: PT-PT primeiro, depois PT-BR
+    ptVoices.sort((a, b) => {
+        const aPT = /pt[-_]pt/i.test(a.lang) ? 0 : 1;
+        const bPT = /pt[-_]pt/i.test(b.lang) ? 0 : 1;
+        if (aPT !== bPT) return aPT - bPT;
+        return (a.name || '').localeCompare(b.name || '');
+    });
+    document.getElementById('voice-picker-modal-temp')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'voice-picker-modal-temp';
+    modal.className = 'modal';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px';
+    const currentName = state.ttsVoiceName || '';
+    const rows = ptVoices.length === 0
+        ? `<p style="text-align:center;color:var(--text-light);padding:24px 12px">
+             Não encontrei nenhuma voz portuguesa instalada no teu dispositivo.<br><br>
+             <strong>iOS:</strong> Definições → Acessibilidade → Conteúdo Falado → Vozes → Português → Portugal → descarregar Joana/Catarina (Aperfeiçoada).
+           </p>`
+        : ptVoices.map(v => {
+            const isPT = /pt[-_]pt/i.test(v.lang);
+            const isChosen = v.name === currentName;
+            const flag = isPT ? '🇵🇹' : '🇧🇷';
+            const safeName = v.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            return `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isChosen ? '#f0fdfa' : '#fafafa'};border:2px solid ${isChosen ? '#14b8a6' : '#e5e7eb'};border-radius:10px;margin-bottom:6px">
+                <span style="font-size:1.2rem;flex-shrink:0">${flag}</span>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:700;font-size:0.92rem;color:#1f2937">${escapeHtml(v.name)}</div>
+                    <div style="font-size:0.72rem;color:#6b7280;margin-top:2px">${escapeHtml(v.lang)}${v.localService === false ? ' · online' : ' · offline'}</div>
+                </div>
+                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoice('${safeName}')" title="Ouvir"><i class="fas fa-volume-high"></i></button>
+                <button class="btn ${isChosen ? 'btn-primary-solid' : 'btn-secondary'}" style="font-size:0.78rem;padding:6px 12px" onclick="chooseVoice('${safeName}')">${isChosen ? '✓ Escolhida' : 'Escolher'}</button>
+              </div>
+            `;
+          }).join('');
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:500px;max-height:85vh;padding:18px;display:flex;flex-direction:column">
+        <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Escolher voz</h3>
+        <p style="font-size:0.85rem;color:#6b7280;margin:0 0 12px;line-height:1.45">
+          Toca em 🔊 para ouvir uma frase de teste, depois em "Escolher".
+        </p>
+        ${currentName ? `<div style="background:#f0fdfa;border:1px solid #14b8a6;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0f766e"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
+        <div style="flex:1;overflow-y:auto;padding-right:4px">${rows}</div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          ${currentName ? `<button class="btn btn-secondary" style="flex:1" onclick="clearVoiceChoice()"><i class="fas fa-rotate"></i> Auto</button>` : ''}
+          <button class="btn btn-primary-solid" style="flex:2" onclick="closeVoicePicker()"><i class="fas fa-check"></i> Pronto</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+}
+function testVoice(voiceName) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel();
+        const voices = window.speechSynthesis.getVoices();
+        const v = voices.find(x => x.name === voiceName);
+        if (!v) return;
+        const u = new SpeechSynthesisUtterance('Olá! Quantas sílabas tem a palavra elefante?');
+        u.voice = v;
+        u.lang = v.lang || 'pt-PT';
+        u.rate = 0.92;
+        u.pitch = 1.0;
+        window.speechSynthesis.speak(u);
+    } catch {}
+}
+function chooseVoice(voiceName) {
+    state.ttsVoiceName = voiceName;
+    _ttsVoice = null; // forçar re-pick
+    saveState();
+    openVoicePicker(); // re-render para mostrar a nova escolhida
+}
+function clearVoiceChoice() {
+    delete state.ttsVoiceName;
+    _ttsVoice = null;
+    saveState();
+    openVoicePicker();
+}
+function closeVoicePicker() {
+    try { window.speechSynthesis.cancel(); } catch {}
+    document.getElementById('voice-picker-modal-temp')?.remove();
+}
+window.openVoicePicker = openVoicePicker;
+window.testVoice = testVoice;
+window.chooseVoice = chooseVoice;
+window.clearVoiceChoice = clearVoiceChoice;
+window.closeVoicePicker = closeVoicePicker;
 window.ttsSpeak = function (text) {
     try {
         if (!('speechSynthesis' in window)) return;
