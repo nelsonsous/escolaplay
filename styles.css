@@ -2875,3 +2875,98 @@ body {
     .session-combo,
     .xp-float { animation: none !important; }
 }
+
+/* ========================================================
+   TIPOGRAFIA DUOLINGO-STYLE (v208)
+   Fontes mais bold, alto contraste, action button uppercase
+   ======================================================== */
+
+/* Pergunta — bigger, bolder, mais contraste */
+.exercise-question {
+    font-size: 1.42rem;
+    font-weight: 900;
+    color: #1f2937;
+    letter-spacing: -0.015em;
+    line-height: 1.3;
+}
+
+/* Tópico (eyebrow) — caps com fina letter-spacing */
+.exercise-topic {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Opções MC — números maiores e mais bold quando contêm só números */
+.btn-option {
+    font-weight: 800;
+    font-size: 1.05rem;
+    padding: 18px 18px;
+    border-width: 2.5px;
+    border-radius: 16px;
+    transition: transform 0.1s, border-color 0.15s, background 0.15s;
+}
+.btn-option .opt-letter {
+    font-weight: 900;
+}
+.btn-option > span:not(.opt-letter) {
+    font-weight: 800;
+}
+.btn-option.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    border-width: 2.5px;
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+}
+
+/* Action button (Responder / Continuar) — uppercase, mais largo, sombra forte */
+.ex-action-bar #ex-action-btn {
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 16px 20px;
+    border-radius: 18px;
+    box-shadow: 0 6px 0 rgba(91, 33, 182, 0.5), 0 8px 20px rgba(124, 58, 237, 0.3);
+    border: none;
+    transition: transform 0.08s, box-shadow 0.15s;
+}
+.ex-action-bar #ex-action-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(91, 33, 182, 0.5), 0 4px 12px rgba(124, 58, 237, 0.25);
+}
+.ex-action-bar.is-continue #ex-action-btn {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    box-shadow: 0 6px 0 #166534, 0 8px 20px rgba(22, 163, 74, 0.3);
+}
+.ex-action-bar.is-continue #ex-action-btn:active {
+    box-shadow: 0 2px 0 #166534, 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+
+/* Feedback text — Duolingo-style: BIG e VIBRANTE */
+.feedback-text {
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+}
+.feedback-correct { color: #16a34a; }
+.feedback-wrong   { color: #dc2626; }
+.feedback-partial { color: #d97706; }
+.feedback-exp {
+    font-size: 0.92rem;
+    color: #4b5563;
+    line-height: 1.5;
+}
+
+/* Difficulty badge — mais bold e arredondado */
+.exercise-difficulty {
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* Subject tag (Mat+, Som+, etc) — mais bold */
+.exercise-subject-tag {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
