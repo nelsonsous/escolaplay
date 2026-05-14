@@ -1699,7 +1699,7 @@ button, input, textarea, select { font-family: inherit; }
     .progress-dot { height: 8px; }
     .session-xp { font-size: 0.95rem; }
     .exercise-body { padding: 28px 32px; max-width: 720px; margin: 0 auto; width: 100%; }
-    .exercise-question { font-size: 1.4rem; margin-bottom: 24px; line-height: 1.35; }
+    .exercise-question { font-size: 2.4rem; margin-bottom: 24px; line-height: 1.25; }
     .exercise-subject-tag { font-size: 0.82rem; padding: 5px 12px; }
     .exercise-topic { font-size: 0.85rem; }
 
@@ -1767,7 +1767,7 @@ button, input, textarea, select { font-family: inherit; }
     /* Exercise body mais largo */
     .exercise-body { max-width: 920px; padding: 36px 48px; }
     .exercise-feedback { max-width: 920px; padding: 26px 48px 32px; }
-    .exercise-question { font-size: 1.5rem; }
+    .exercise-question { font-size: 2.6rem; }
 
     /* Summary stats maiores */
     .summary-stat-value { font-size: 2rem; }
@@ -3231,11 +3231,16 @@ button, input, textarea, select { font-family: inherit; }
 body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 
 /* Pergunta — display */
-/* Pergunta — mantém presence visual. Com Nunito (geometric) precisa de
-   ser ~10% maior que o que era com system font para a mesma "peso visual". */
-.exercise-question { font-size: var(--fs-2xl); font-weight: var(--fw-black); line-height: 1.25; }
+/* Pergunta — display gigante (Duolingo usa equações com tipo grande).
+   Nunito-Black precisa de tamanho generoso para ter peso visual. */
+.exercise-question {
+    font-size: var(--fs-3xl);
+    font-weight: var(--fw-black);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
 
-/* Feedback "Certo!" — também display */
+/* Feedback "Certo!" — match com a pergunta */
 .feedback-text { font-size: var(--fs-2xl); font-weight: var(--fw-black); }
 .feedback-exp  { font-size: var(--fs-sm); font-weight: var(--fw-normal); }
 
