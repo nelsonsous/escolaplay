@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v201';
+const APP_VERSION = 'v202';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6226,6 +6226,24 @@ function lockSecretPack(packId) { return removeSecretPack(packId); }
 
 function _applyAllUnlockedSecrets(profile) {
     if (!profile || !profile.unlockedSecrets) return;
+    // Auto-refresh: se o payload no content_secret.js (build novo) for diferente
+    // do que está guardado no perfil (build antigo), substituir pelo novo.
+    // Sem isto, fixes a exercícios secretos nunca chegam a perfis já existentes.
+    const fresh = window.SECRET_PACKS || [];
+    let didRefresh = false;
+    for (const id of Object.keys(profile.unlockedSecrets)) {
+        const blob = profile.unlockedSecrets[id];
+        const live = fresh.find(p => p.id === id);
+        if (live && live.payloadJSON && blob && blob.pt && live.payloadJSON !== blob.pt) {
+            blob.pt = live.payloadJSON;
+            blob.refreshedAt = Date.now();
+            didRefresh = true;
+        }
+    }
+    if (didRefresh) {
+        try { saveState(); } catch {}
+        console.log('[secret] payload refreshed to latest build');
+    }
     for (const id of Object.keys(profile.unlockedSecrets)) {
         const blob = profile.unlockedSecrets[id];
         if (blob && blob.pt) {
