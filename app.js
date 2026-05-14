@@ -60,7 +60,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v196';
+const APP_VERSION = 'v198';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1055,6 +1055,16 @@ function openSubjectDetail(key) {
                     </button>
                     <button class="btn btn-block" style="background:rgba(255,255,255,0.1);color:#ddd6fe;border-radius:10px;padding:8px;font-size:0.78rem" onclick="startMaxSession('${key}', {forceNew:true})">
                         <i class="fas fa-rotate"></i> Forçar novos exercícios (consome API)
+                    </button>
+                </div>
+
+                <!-- Reiniciar progresso desta disciplina -->
+                <div style="margin-top:20px;padding:14px;background:#fef2f2;border:1.5px dashed #fecaca;border-radius:12px">
+                    <div style="font-size:0.82rem;color:#991b1b;margin-bottom:8px;line-height:1.4">
+                        <i class="fas fa-triangle-exclamation"></i> Apaga respostas, acertos, IA e progresso <strong>só desta disciplina</strong>. Mantém o resto.
+                    </div>
+                    <button class="btn btn-block" style="background:#fff;color:#dc2626;border:1.5px solid #fecaca;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="resetSubject('${key}')">
+                        <i class="fas fa-rotate-left"></i> Reiniciar "${(sub.name || key).replace(/'/g, "\\'")}"
                     </button>
                 </div>
             </div>
@@ -2462,6 +2472,55 @@ async function startMaxForTest(testId) {
     const topics = (t.topics && t.topics.length > 0) ? t.topics : Array.from(activeTopicsFor(t.subject));
     return startMaxSession(t.subject, { topics });
 }
+
+// Reiniciar progresso só de UMA disciplina (mantém XP/streak/outras disciplinas)
+function resetSubject(key) {
+    const p = activeProfile();
+    if (!p) return;
+    const subName = SUBJECTS[key]?.name || key;
+    if (!confirm(`Reiniciar o progresso de "${subName}"? Vais perder respostas, acertos, exercícios IA e tópicos respondidos desta disciplina. XP global, streak e outras disciplinas mantêm-se.`)) return;
+    // 1) Stats da disciplina
+    if (!p.subjects) p.subjects = {};
+    const subXP = (p.subjects[key] && p.subjects[key].xp) || 0;
+    p.subjects[key] = { answered: 0, correct: 0, xp: 0 };
+    // 2) Subtrair XP global desta disciplina (não pode ir abaixo de 0)
+    p.xp = Math.max(0, (p.xp || 0) - subXP);
+    // 3) IDs dos exercícios desta disciplina (estáticos + IA do utilizador)
+    const subjectExIds = new Set();
+    if (typeof EXERCISES !== 'undefined') {
+        EXERCISES.filter(e => e.s === key).forEach(e => subjectExIds.add(e.id));
+    }
+    (p.maxExercises || []).filter(e => e.s === key).forEach(e => subjectExIds.add(e.id));
+    // 4) Limpar history dos exercícios desta disciplina
+    p.history = (p.history || []).filter(h => !h || !subjectExIds.has(h.id));
+    p.recentIds = (p.recentIds || []).filter(id => !subjectExIds.has(id));
+    // 5) Limpar exerciseSeen para esta disciplina
+    if (p.exerciseSeen) {
+        for (const id of Object.keys(p.exerciseSeen)) {
+            if (subjectExIds.has(id)) delete p.exerciseSeen[id];
+        }
+    }
+    // 6) Apagar exercícios IA (MAX) desta disciplina
+    p.maxExercises = (p.maxExercises || []).filter(e => e.s !== key);
+    if (p.maxLessons) delete p.maxLessons[key];
+    // 7) Testes desta disciplina
+    p.tests = (p.tests || []).filter(t => t.subject !== key);
+    // 8) Progress (até onde estudou) — repor para "tudo activo"
+    if (p.progress) {
+        const curr = (typeof CURRICULUM !== 'undefined' && CURRICULUM[key]) ? CURRICULUM[key] : [];
+        p.progress[key] = { toIndex: curr.length };
+    }
+    // 9) Caso especial: Mat+ — limpar diagnóstico
+    if (key === 'mat_plus') {
+        delete p.matPlusDiag;
+        delete p.matPlusDiagSkipped;
+    }
+    saveState();
+    closeSubjectDetail();
+    updateAll();
+    showToast(`✓ Progresso de "${subName}" reiniciado`);
+}
+window.resetSubject = resetSubject;
 
 function resetStats() {
     if (!confirm('Tens a certeza? Vais perder XP, streak, testes, prémios e histórico deste perfil.')) return;
