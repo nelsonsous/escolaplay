@@ -1776,7 +1776,7 @@ button, input, textarea, select { font-family: inherit; }
     .summary-body h1 { font-size: 2.4rem; }
 
     /* Botões opção MC com gap maior */
-    .btn-option { font-size: 1.05rem !important; padding: 16px 18px !important; }
+    .btn-option { padding: 16px 18px; }
 }
 
 /* ---------- iPad PRO LANDSCAPE & DESKTOP (≥ 1200px) ---------- */
@@ -3292,3 +3292,49 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 
 /* === Sobrescreve overrides anteriores que tinham sizes hardcoded === */
 .exercise-question, .feedback-text { letter-spacing: -0.01em; }
+
+/* ========================================================
+   v212 — LOCK na escala tipográfica para o ecrã de exercício
+   Alta especificidade para evitar overrides antigos
+   ======================================================== */
+#exercise-screen .exercise-question {
+    font-size: var(--fs-3xl);
+    font-weight: var(--fw-black);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+}
+#exercise-screen .exercise-topic {
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-extra);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+#exercise-screen .btn-option {
+    font-size: var(--fs-lg);    /* 20px */
+    font-weight: var(--fw-extra);
+    padding: 18px 18px;
+}
+#exercise-screen .feedback-text {
+    font-size: var(--fs-2xl);
+    font-weight: var(--fw-black);
+}
+#exercise-screen .feedback-exp {
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-normal);
+}
+#exercise-screen #ex-action-btn {
+    font-size: var(--fs-md);
+    font-weight: var(--fw-black);
+    letter-spacing: 0.07em;
+}
+#exercise-screen .exercise-subject-tag {
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-extra);
+}
+#exercise-screen .exercise-difficulty {
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-extra);
+}
