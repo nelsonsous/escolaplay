@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v203';
+const APP_VERSION = 'v204';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3250,6 +3250,8 @@ function renderQuestion() {
     }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
+    // Repor a barra de acção em modo "Responder"
+    _setExAction('submit');
     // Reabrir interação na área de resposta (foi trancada em showFeedback)
     const _aa = document.getElementById('ex-answer-area');
     if (_aa) _aa.style.pointerEvents = '';
@@ -3282,8 +3284,8 @@ function renderQuestion() {
     if (e.type === 'mc') area.innerHTML = renderMC(e);
     else if (e.type === 'tf') area.innerHTML = renderTF(e);
     else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') area.innerHTML = renderFill(e);
-    else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
-    else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div><button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>`; setTimeout(redrawMatch, 0); }
+    else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
+    else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div>`; setTimeout(redrawMatch, 0); }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -3301,7 +3303,6 @@ function renderMC(e) {
                 <span>${o}</span>
             </button>
         `).join('')}
-        <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
     `;
 }
 function selectMC(i) {
@@ -3315,7 +3316,6 @@ function renderTF(e) {
             <button class="tf-btn" id="tf-true" onclick="selectTF(true)">&#10004; Verdadeiro</button>
             <button class="tf-btn" id="tf-false" onclick="selectTF(false)">&#10008; Falso</button>
         </div>
-        <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="submitAnswer()">Responder</button>
     `;
 }
 function selectTF(v) {
@@ -3326,8 +3326,7 @@ function selectTF(v) {
 
 function renderFill(e) {
     return `
-        <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="">
-        <button class="btn btn-primary-solid btn-block" id="submit-btn" onclick="submitAnswer()">Responder</button>
+        <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="" onkeydown="if(event.key==='Enter'){event.preventDefault();exActionTap();}">
     `;
 }
 
@@ -3834,16 +3833,37 @@ function showFeedback(e, isCorrect) {
         detailBtn.textContent = '💡 Explicar passo a passo';
         detailBtn.disabled = false;
     }
-    // Botão de avanço: sempre "Continuar" ou "Ver resultado"
-    const nextSpan = document.getElementById('feedback-next');
-    const nextIcon = document.getElementById('feedback-next-icon');
+    // Barra de acção passa a "Continuar" / "Ver resultado"
     const isLast = currentSession.idx + 1 >= currentSession.items.length;
-    nextSpan.textContent = isLast ? 'Ver resultado' : 'Continuar';
-    if (nextIcon) nextIcon.className = 'fas fa-arrow-right';
+    _setExAction('continue', isLast ? 'Ver resultado' : 'Continuar');
     document.getElementById('session-xp').textContent = currentSession.xp;
-    // Garantir que o utilizador vê o feedback (e o botão Continuar) — scroll suave
+    // Garantir que o utilizador vê o feedback — scroll suave para o painel
     requestAnimationFrame(() => panel.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 }
+
+// ============================================================
+// Action bar (Duolingo-style): UM botão fixo no fundo que alterna
+// entre "Responder" e "Continuar"/"Ver resultado".
+// ============================================================
+let _exActionMode = 'submit';
+function _setExAction(mode, label) {
+    _exActionMode = mode;
+    const bar = document.getElementById('ex-action-bar');
+    const btn = document.getElementById('ex-action-btn');
+    if (!btn || !bar) return;
+    if (mode === 'continue') {
+        bar.classList.add('is-continue');
+        btn.innerHTML = (label || 'Continuar') + ' <i class="fas fa-arrow-right"></i>';
+    } else {
+        bar.classList.remove('is-continue');
+        btn.innerHTML = 'Responder';
+    }
+}
+function exActionTap() {
+    if (_exActionMode === 'continue') feedbackNext();
+    else submitAnswer();
+}
+window.exActionTap = exActionTap;
 
 // Avança para a próxima pergunta (ou termina a sessão)
 function feedbackNext() {
