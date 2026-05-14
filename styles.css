@@ -11,12 +11,18 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    /* Nunito = geometric rounded, irmã livre do Feather Bold (Duolingo).
+       Fallback para system fonts em caso de falha no carregamento. */
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
     color: #1f2937;
     min-height: 100vh;
     overscroll-behavior: none;
 }
+button, input, textarea, select { font-family: inherit; }
 :root {
     --primary: #6d28d9;
     --primary-dark: #5b21b6;
@@ -3194,3 +3200,90 @@ body {
     transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
 }
 .avatar:active { transform: scale(0.92); }
+
+/* ========================================================
+   ESCALA TIPOGRÁFICA UNIFORME (v210)
+   Duolingo-style — uma fonte (Nunito), escala única
+   ======================================================== */
+:root {
+    /* Type scale — 7 níveis, ratio 1.2 */
+    --fs-xs:    0.75rem;   /* 12px — captions, hints */
+    --fs-sm:    0.875rem;  /* 14px — body small */
+    --fs-base: 1rem;      /* 16px — body */
+    --fs-md:   1.125rem;  /* 18px — emphasis body */
+    --fs-lg:   1.25rem;   /* 20px — subtitle */
+    --fs-xl:   1.5rem;    /* 24px — title */
+    --fs-2xl:  1.875rem;  /* 30px — display */
+    --fs-3xl:  2.25rem;   /* 36px — hero */
+
+    /* Font weights (Nunito) */
+    --fw-normal:   400;
+    --fw-semibold: 600;
+    --fw-bold:     700;
+    --fw-extra:    800;
+    --fw-black:    900;
+}
+
+/* Aplicar escala uniforme — sobrescreve sizes inconsistentes anteriores
+   (selectivamente, mantendo a UI funcional). */
+
+/* Body base */
+body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
+
+/* Pergunta — display */
+/* Pergunta — mantém presence visual. Com Nunito (geometric) precisa de
+   ser ~10% maior que o que era com system font para a mesma "peso visual". */
+.exercise-question { font-size: var(--fs-2xl); font-weight: var(--fw-black); line-height: 1.25; }
+
+/* Feedback "Certo!" — também display */
+.feedback-text { font-size: var(--fs-2xl); font-weight: var(--fw-black); }
+.feedback-exp  { font-size: var(--fs-sm); font-weight: var(--fw-normal); }
+
+/* Opções MC — body emphasis */
+.btn-option { font-size: var(--fs-md); font-weight: var(--fw-extra); }
+
+/* Action button — emphasis */
+.ex-action-bar #ex-action-btn { font-size: var(--fs-md); font-weight: var(--fw-black); }
+
+/* Section titles — caps small */
+.section-title { font-size: var(--fs-sm); font-weight: var(--fw-black); }
+
+/* Topic eyebrow — caps tiny */
+.exercise-topic { font-size: var(--fs-xs); font-weight: var(--fw-extra); }
+
+/* Mini cards (XP / certas / medalhas) — value big bold */
+.mini-card-value { font-size: var(--fs-lg); font-weight: var(--fw-black); }
+.mini-card-label { font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+
+/* Quick subject — body small */
+.quick-subject .qs-name { font-size: var(--fs-sm); font-weight: var(--fw-extra); }
+
+/* Subject cards (detalhe) */
+.subject-card .subject-name { font-size: var(--fs-base); font-weight: var(--fw-black); }
+
+/* Streak hero — hero size */
+.streak-hero-number { font-size: var(--fs-2xl); font-weight: var(--fw-black); }
+.streak-hero-title  { font-size: var(--fs-sm); font-weight: var(--fw-extra); }
+.streak-hero-sub    { font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+
+/* Header (nome do perfil, chips) */
+.header-name  { font-size: var(--fs-base); font-weight: var(--fw-black); }
+.header-level { font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+.chip         { font-size: var(--fs-xs); font-weight: var(--fw-extra); }
+
+/* Tab bar */
+.tab          { font-size: var(--fs-xs); font-weight: var(--fw-extra); }
+.tab i        { font-size: var(--fs-md); }
+
+/* Lessons */
+.lesson-body { font-size: var(--fs-base); font-weight: var(--fw-normal); line-height: 1.6; }
+.lesson-body strong { font-weight: var(--fw-extra); }
+
+/* TF buttons */
+.tf-btn { font-size: var(--fs-md); font-weight: var(--fw-extra); }
+
+/* Fill input */
+.fill-input { font-size: var(--fs-md); font-weight: var(--fw-extra); }
+
+/* === Sobrescreve overrides anteriores que tinham sizes hardcoded === */
+.exercise-question, .feedback-text { letter-spacing: -0.01em; }
