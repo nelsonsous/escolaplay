@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v204';
+const APP_VERSION = 'v205';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2941,61 +2941,31 @@ function targetDifficultyFor(subKey, topic) {
 // Resultado final é baralhado para não dar sempre a mesma ordem.
 function pickExercises(pool, n) {
     const seen = state.exerciseSeen || {};
-    // Spaced repetition LITE: marca exercícios errados na última tentativa
-    // para serem priorizados no próximo teste do mesmo tópico.
     const lastResultById = {};
     (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
     const annotated = pool.map(e => {
         const tgt = targetDifficultyFor(e.s, e.t);
         const d = Math.max(1, Math.min(3, e.diff || 1));
         const diffScore = (tgt.prefer && tgt.prefer[d]) || 0;
+        const lastSeen = seen[e.id] || 0;
         const wrongLast = lastResultById[e.id] === false;
-        return {
-            e,
-            d,
-            lastSeen: seen[e.id] || 0,
-            diffScore,
-            wrongLast,
-            rand: Math.random()
-        };
+        return { e, d, lastSeen, diffScore, wrongLast, rand: Math.random() };
     });
-    // Estratégia: reservar até ~35% do teste para revisão de errados (até 5 de 14)
-    const reviewBudget = Math.min(Math.floor(n * 0.35), 5);
-    const wrongPool = annotated.filter(x => x.wrongLast)
-        .sort((a,b) => a.lastSeen - b.lastSeen); // mais antigos primeiro (já tiveram tempo)
-    const reviewItems = wrongPool.slice(0, reviewBudget);
-    const reviewIds = new Set(reviewItems.map(x => x.e.id));
-    const fresh = annotated.filter(x => !reviewIds.has(x.e.id));
-    fresh.sort((a, b) => {
-        // 1) Dificuldade alvo PRIMEIRO (maior diffScore vence)
+    // 3 baldes em ordem de prioridade ESTRITA:
+    //   1.º — UNSEEN (nunca respondido) — SEMPRE preferido
+    //   2.º — WRONG (errado na última tentativa) — revisão espaçada
+    //   3.º — SEEN OK (já respondeu certo) — só repetir se mesmo necessário
+    const cmpInBucket = (a, b) => {
+        // dificuldade alvo > mais antigo > random
         if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
-        // 2) Nunca vistos antes de já vistos
-        if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
-        if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
-        // 3) Mais antigos
         if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
-        // 4) Empate → random
         return a.rand - b.rand;
-    });
-    // Mistura: review primeiro (vai ser baralhado no fim), depois novos
-    const annotated2 = [...reviewItems, ...fresh];
-    // Substitui o array original para o resto da função usar `annotated`
+    };
+    const unseen = annotated.filter(x => x.lastSeen === 0).sort(cmpInBucket);
+    const wrong  = annotated.filter(x => x.lastSeen > 0 && x.wrongLast).sort(cmpInBucket);
+    const seenOK = annotated.filter(x => x.lastSeen > 0 && !x.wrongLast).sort(cmpInBucket);
     annotated.length = 0;
-    annotated.push(...annotated2);
-    annotated.sort((a, b) => {
-        // Estável agora — manter ordem prévia (review já está em cima)
-        // Mas precisamos do mesmo critério para itens não-review:
-        if (reviewIds.has(a.e.id) && !reviewIds.has(b.e.id)) return -1;
-        if (!reviewIds.has(a.e.id) && reviewIds.has(b.e.id)) return 1;
-        // Entre review: mais antigos primeiro
-        if (reviewIds.has(a.e.id) && reviewIds.has(b.e.id)) return a.lastSeen - b.lastSeen;
-        // Entre fresh: usar critério normal
-        if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
-        if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
-        if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
-        if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
-        return a.rand - b.rand;
-    });
+    annotated.push(...unseen, ...wrong, ...seenOK);
     // De-dup por texto + resposta normalizados: alguns bancos extra têm
     // o mesmo exercício duplicado em ficheiros diferentes (mesmo Q + mesma
     // resposta/opções). Sem este filtro podem aparecer dois iguais no mesmo
