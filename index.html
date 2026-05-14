@@ -401,17 +401,19 @@
                 </div>
             </div>
         </div>
-        <!-- Barra de acção fixa no fundo (estilo Duolingo): Responder → Continuar -->
-        <div id="ex-action-bar" class="ex-action-bar">
-            <button id="ex-action-btn" class="btn btn-primary-solid btn-block" onclick="exActionTap()">Responder</button>
-        </div>
+        <!-- Drawer inferior: feedback (quando aparece) + barra de acção
+             estilo Duolingo. Ambos colados ao fundo do ecrã. -->
         <div class="exercise-feedback" id="ex-feedback" style="display:none">
             <div class="feedback-icon" id="feedback-icon"></div>
             <div class="feedback-text" id="feedback-text"></div>
             <div class="feedback-exp" id="feedback-exp"></div>
             <button id="feedback-detail-btn" class="btn btn-block" onclick="loadDetailedExplanation()" style="display:none;margin-bottom:10px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;border:none;font-weight:700;padding:13px"><i class="fas fa-graduation-cap"></i> Explicar passo a passo com o Professor IA</button>
             <div id="feedback-detail-wrap" style="display:none;background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:8px;text-align:left;font-size:0.88rem;line-height:1.5;color:#1e3a5f;max-height:35vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
-            <!-- O botão Continuar passou para a barra de acção fixa no fundo (ex-action-bar) -->
+            <!-- O botão Continuar está abaixo, na ex-action-bar -->
+        </div>
+        <!-- Barra de acção fixa no fundo: Responder → Continuar -->
+        <div id="ex-action-bar" class="ex-action-bar">
+            <button id="ex-action-btn" class="btn btn-primary-solid btn-block" onclick="exActionTap()">Responder</button>
         </div>
     </div>
 
