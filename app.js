@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v200';
+const APP_VERSION = 'v201';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3815,7 +3815,14 @@ function showFeedback(e, isCorrect) {
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
     const expEl = document.getElementById('feedback-exp');
-    expEl.innerHTML = expParts.map(p => _renderMdExp(p)).join('<br><br>');
+    // svgAfter: visualização da solução (mostrada no feedback). Se o exercício
+    // não tiver svgAfter mas tiver svg, mostra o svg original na altura do
+    // feedback (sem repetir se for visualmente igual ao da pergunta).
+    let visualFB = '';
+    if (e.svgAfter) {
+        visualFB = `<div style="margin:0 0 10px;text-align:center">${e.svgAfter}</div>`;
+    }
+    expEl.innerHTML = visualFB + expParts.map(p => _renderMdExp(p)).join('<br><br>');
     expEl.style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
     // Botão explicação detalhada: sempre visível
