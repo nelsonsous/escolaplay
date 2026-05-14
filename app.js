@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v212';
+const APP_VERSION = 'v213';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3902,6 +3902,42 @@ function exActionTap() {
     else submitAnswer();
 }
 window.exActionTap = exActionTap;
+
+// ============================================================
+// Manter a action-bar visível quando o teclado iOS abre.
+// iOS shrink-encolhe o visualViewport mas o layout viewport não.
+// Usamos visualViewport API para subir a barra acima do teclado.
+// ============================================================
+(function _setupActionBarKeyboardFix() {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const adjust = () => {
+        const bar = document.getElementById('ex-action-bar');
+        if (!bar) return;
+        const vv = window.visualViewport;
+        const hidden = window.innerHeight - (vv.height + vv.offsetTop);
+        if (hidden > 80) {
+            // Teclado provavelmente aberto — fixar a barra acima dele
+            bar.style.position = 'fixed';
+            bar.style.left = '0';
+            bar.style.right = '0';
+            bar.style.bottom = hidden + 'px';
+            bar.style.maxWidth = '480px';
+            bar.style.margin = '0 auto';
+            bar.style.zIndex = '100';
+        } else {
+            // Teclado fechado — voltar a sticky
+            bar.style.position = '';
+            bar.style.left = '';
+            bar.style.right = '';
+            bar.style.bottom = '';
+            bar.style.maxWidth = '';
+            bar.style.margin = '';
+            bar.style.zIndex = '';
+        }
+    };
+    window.visualViewport.addEventListener('resize', adjust);
+    window.visualViewport.addEventListener('scroll', adjust);
+})();
 
 // Avança para a próxima pergunta (ou termina a sessão)
 function feedbackNext() {
