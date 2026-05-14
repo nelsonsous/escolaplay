@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v195';
+const APP_VERSION = 'v196';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -703,12 +703,19 @@ function _todayNumberTalkIndex() {
     const dayOfYear = Math.floor((t - new Date(t.getFullYear(),0,0)) / 86400000);
     return dayOfYear % NUMBER_TALKS.length;
 }
+function _hasSecretPack(packId) {
+    const p = activeProfile();
+    return !!(p && p.unlockedSecrets && p.unlockedSecrets[packId]);
+}
 function renderNumberTalk() {
     const card  = document.getElementById('number-talk-card');
     const titleEl = document.getElementById('nt-title');
     const promptEl  = document.getElementById('nt-prompt');
     const stratsEl  = document.getElementById('nt-strategies');
     if (!card || !promptEl) return;
+    // Só visível se o pack Mat+ estiver activo
+    if (!_hasSecretPack('mat-plus')) { card.style.display = 'none'; return; }
+    card.style.display = '';
     const nt = NUMBER_TALKS[_todayNumberTalkIndex()];
     if (titleEl) titleEl.textContent = `Number Talk de hoje · ${nt.n}`;
     promptEl.innerHTML = nt.q;
@@ -783,9 +790,13 @@ const HEGGERTY_DAYS = [
 ];
 function _todayHeggertyDay() { return new Date().getDay(); }
 function renderHeggerty() {
+    const card = document.getElementById('heggerty-card');
     const promptsEl = document.getElementById('hg-prompts');
     const titleEl = document.getElementById('hg-title');
-    if (!promptsEl) return;
+    if (!card || !promptsEl) return;
+    // Só visível se o pack Som+ estiver activo
+    if (!_hasSecretPack('som-plus')) { card.style.display = 'none'; return; }
+    card.style.display = '';
     const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
     const day = _todayHeggertyDay();
     if (titleEl) titleEl.textContent = `Sons de ${dayNames[day]}`;
@@ -830,6 +841,8 @@ function renderMathJournal() {
     const card = document.getElementById('math-journal-card');
     const promptEl = document.getElementById('mj-prompt');
     if (!card || !promptEl) return;
+    // Só visível se o pack Mat+ estiver activo
+    if (!_hasSecretPack('mat-plus')) { card.style.display = 'none'; return; }
     // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
     const day = new Date().getDay();
     const isMonday = day === 1;
