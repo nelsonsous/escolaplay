@@ -2519,3 +2519,215 @@ body {
         animation: none !important;
     }
 }
+
+/* ========================================================
+   Three-Reads scaffold (Mat+ problemas)
+   ======================================================== */
+.three-reads {
+    background: #fef3c7;
+    border: 1.5px solid #f59e0b;
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+}
+.three-reads summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #92400e;
+    list-style: none;
+    user-select: none;
+}
+.three-reads summary::-webkit-details-marker { display: none; }
+.three-reads[open] summary { margin-bottom: 6px; }
+.three-reads ol {
+    margin: 4px 0 4px 18px;
+    padding: 0;
+    color: #78350f;
+    line-height: 1.45;
+}
+.three-reads ol li { margin-bottom: 4px; }
+.three-reads strong { color: #92400e; }
+
+/* ========================================================
+   Number Talk card (Home)
+   ======================================================== */
+.number-talk-card {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1.5px solid #f59e0b;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.number-talk-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.18);
+}
+.nt-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.nt-icon {
+    font-size: 1.6rem;
+    flex-shrink: 0;
+}
+.nt-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #92400e;
+    opacity: 0.85;
+}
+.nt-title {
+    font-weight: 800;
+    font-size: 1rem;
+    color: #78350f;
+    letter-spacing: -0.01em;
+}
+.nt-chev {
+    margin-left: auto;
+    color: #92400e;
+    transition: transform 0.2s;
+}
+.number-talk-card.open .nt-chev {
+    transform: rotate(180deg);
+}
+.nt-body {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(146, 64, 14, 0.3);
+    animation: ep-fade-in 0.25s ease-out;
+}
+.nt-prompt {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #78350f;
+    text-align: center;
+    margin-bottom: 10px;
+    line-height: 1.35;
+}
+.nt-prompt .nt-number {
+    display: inline-block;
+    background: #fff;
+    border: 2px solid #f59e0b;
+    border-radius: 12px;
+    padding: 6px 16px;
+    margin: 0 4px;
+    font-size: 1.4rem;
+    color: #d97706;
+    font-weight: 900;
+}
+.nt-strategies {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    font-size: 0.88rem;
+    color: #78350f;
+    line-height: 1.5;
+}
+.nt-strategies strong { color: #92400e; }
+.nt-strategies .nt-strat-row {
+    margin-bottom: 4px;
+}
+.nt-foot {
+    font-size: 0.78rem;
+    color: #78350f;
+    opacity: 0.85;
+    text-align: center;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+/* ========================================================
+   Heggerty daily routine card (Home)
+   ======================================================== */
+.heggerty-card {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border: 1.5px solid #3b82f6;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.heggerty-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.18);
+}
+.hg-header { display:flex; align-items:center; gap:12px; }
+.hg-icon { font-size: 1.6rem; flex-shrink: 0; }
+.hg-eyebrow {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #1e3a8a; opacity: 0.85;
+}
+.hg-title {
+    font-weight: 800; font-size: 1rem; color: #1e3a8a; letter-spacing: -0.01em;
+}
+.hg-chev { margin-left: auto; color: #1e3a8a; transition: transform 0.2s; }
+.heggerty-card.open .hg-chev { transform: rotate(180deg); }
+.hg-body {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px dashed rgba(30, 58, 138, 0.3);
+    animation: ep-fade-in 0.25s ease-out;
+}
+.hg-prompts { display: flex; flex-direction: column; gap: 8px; }
+.hg-prompts .hg-step {
+    background: rgba(255, 255, 255, 0.75);
+    border-radius: 10px; padding: 10px 12px;
+    color: #1e3a8a; font-size: 0.92rem; line-height: 1.45;
+}
+.hg-prompts .hg-step strong { color: #1d4ed8; }
+.hg-prompts .hg-step .hg-step-label {
+    display: inline-block; background: #1d4ed8; color: white;
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 6px; margin-right: 6px;
+    vertical-align: middle;
+}
+.hg-foot {
+    font-size: 0.78rem; color: #1e3a8a; opacity: 0.85;
+    text-align: center; margin-top: 8px; line-height: 1.4;
+}
+
+/* ========================================================
+   Math journal weekly card (Home)
+   ======================================================== */
+.math-journal-card {
+    background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+    border: 1.5px solid #db2777;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    cursor: pointer;
+}
+.math-journal-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(219, 39, 119, 0.18);
+}
+.mj-header { display:flex; align-items:center; gap:12px; }
+.mj-icon { font-size: 1.6rem; flex-shrink: 0; }
+.mj-eyebrow {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #9d174d; opacity: 0.85;
+}
+.mj-title { font-weight: 800; font-size: 1rem; color: #9d174d; }
+.mj-chev { margin-left: auto; color: #9d174d; transition: transform 0.2s; }
+.math-journal-card.open .mj-chev { transform: rotate(180deg); }
+.mj-body {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px dashed rgba(157, 23, 77, 0.3);
+    animation: ep-fade-in 0.25s ease-out;
+}
+.mj-prompt {
+    background: rgba(255,255,255,0.75); border-radius: 10px;
+    padding: 12px 14px; color: #9d174d; font-size: 0.95rem;
+    line-height: 1.5; font-weight: 600;
+}
+.mj-foot {
+    font-size: 0.78rem; color: #9d174d; opacity: 0.85;
+    text-align: center; margin-top: 8px; line-height: 1.4;
+}

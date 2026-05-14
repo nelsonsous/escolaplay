@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v189';
+const APP_VERSION = 'v194';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -654,7 +654,204 @@ function renderHome() {
         </div>
         `;
     }).join('');
+
+    // Number Talk do dia — prompt rotativo determinístico por data
+    renderNumberTalk();
+    // Rotina Heggerty do dia (consciência fonológica)
+    renderHeggerty();
+    // Journal semanal (segunda-feira ou se já aberto esta semana)
+    renderMathJournal();
 }
+
+// ============================================================
+// NUMBER TALKS — rotina diária de matemática mental (Parrish / Humphreys)
+// Não pontua, não pede resposta — é prompt de conversa em família.
+// Roda 14 prompts diferentes ao longo de 2 semanas para variar.
+// ============================================================
+const NUMBER_TALKS = [
+    { n: 10, q: 'De quantas formas consegues fazer <span class="nt-number">10</span>?',
+      strats: ['5 + 5', '6 + 4', '9 + 1', '8 + 2', '7 + 3', '3 + 3 + 4'] },
+    { n: 12, q: 'Como podes fazer <span class="nt-number">12</span> usando somas?',
+      strats: ['10 + 2', '6 + 6 (dobro do 6)', '8 + 4', '3 × 4', '7 + 5'] },
+    { n: 15, q: 'Quantas maneiras encontras de fazer <span class="nt-number">15</span>?',
+      strats: ['10 + 5', '7 + 8 (quase-dobro)', '9 + 6', '5 × 3', '20 − 5'] },
+    { n: 18, q: 'Como decompor <span class="nt-number">18</span>?',
+      strats: ['10 + 8', '9 + 9 (dobro do 9)', '20 − 2', '6 × 3', '15 + 3'] },
+    { n: 20, q: 'De quantas formas chegas a <span class="nt-number">20</span>?',
+      strats: ['10 + 10', '15 + 5', '4 × 5', '25 − 5', '8 + 8 + 4'] },
+    { n: 24, q: '<span class="nt-number">24</span> — decompõe à tua maneira',
+      strats: ['20 + 4', '12 + 12 (dobro)', '25 − 1', '6 × 4', '3 × 8', '10 + 10 + 4'] },
+    { n: 25, q: 'Como podes pensar em <span class="nt-number">25</span>?',
+      strats: ['20 + 5', '5 × 5', '10 + 10 + 5', '30 − 5', '15 + 10'] },
+    { n: 30, q: 'Decompõe <span class="nt-number">30</span> de várias formas',
+      strats: ['15 + 15 (dobro)', '10 + 10 + 10', '3 × 10', '6 × 5', '25 + 5'] },
+    { n: 36, q: 'Como pensas em <span class="nt-number">36</span>?',
+      strats: ['30 + 6', '18 + 18 (dobro)', '40 − 4', '6 × 6', '4 × 9', '12 × 3'] },
+    { n: 50, q: 'De quantas formas fazes <span class="nt-number">50</span>?',
+      strats: ['25 + 25 (dobro)', '10 × 5', '40 + 10', '100 ÷ 2', '20 + 20 + 10'] },
+    { n: 99, q: '<span class="nt-number">99</span> — pensa rápido (dica: 100−1!)',
+      strats: ['100 − 1', '90 + 9', '50 + 49', '33 × 3', '9 × 11'] },
+    { n: 100, q: 'Como podes formar <span class="nt-number">100</span>?',
+      strats: ['50 + 50', '99 + 1', '4 × 25', '10 × 10', '60 + 40', '75 + 25'] },
+    { n: 48, q: 'Decompõe <span class="nt-number">48</span>',
+      strats: ['40 + 8', '50 − 2', '24 + 24 (dobro)', '6 × 8', '4 × 12'] },
+    { n: 72, q: '<span class="nt-number">72</span> — várias formas',
+      strats: ['70 + 2', '36 + 36 (dobro)', '8 × 9', '70 + 2', '80 − 8'] },
+];
+function _todayNumberTalkIndex() {
+    const t = new Date();
+    const dayOfYear = Math.floor((t - new Date(t.getFullYear(),0,0)) / 86400000);
+    return dayOfYear % NUMBER_TALKS.length;
+}
+function renderNumberTalk() {
+    const card  = document.getElementById('number-talk-card');
+    const titleEl = document.getElementById('nt-title');
+    const promptEl  = document.getElementById('nt-prompt');
+    const stratsEl  = document.getElementById('nt-strategies');
+    if (!card || !promptEl) return;
+    const nt = NUMBER_TALKS[_todayNumberTalkIndex()];
+    if (titleEl) titleEl.textContent = `Number Talk de hoje · ${nt.n}`;
+    promptEl.innerHTML = nt.q;
+    stratsEl.innerHTML = '<strong>Algumas estratégias possíveis</strong><br>' +
+        nt.strats.map(s => `<div class="nt-strat-row">• ${s}</div>`).join('');
+}
+function toggleNumberTalk() {
+    const card = document.getElementById('number-talk-card');
+    const body = document.getElementById('nt-body');
+    if (!card || !body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    card.classList.toggle('open', !open);
+}
+window.toggleNumberTalk = toggleNumberTalk;
+
+// ============================================================
+// HEGGERTY-INSPIRED PHONOLOGICAL ROUTINE — 7 dias por semana
+// Cada dia foca componentes diferentes (rima/sílaba/fonema)
+// Fonte: Heggerty Phonemic Awareness Curriculum (adaptado PT)
+// ============================================================
+const HEGGERTY_DAYS = [
+    // Domingo (0)
+    [
+        { tag: 'Rima', text: 'Adulto diz <strong>BOLA</strong> · GATO · MOLA · FOLA · OLHO. Repete só as que rimam com BOLA.' },
+        { tag: 'Sílaba', text: '<strong>BORBOLETA</strong> — bate palmas em cada sílaba (4: BOR-BO-LE-TA).' },
+        { tag: 'Primeiro som', text: 'Qual é o primeiro som de <strong>SAPO</strong>? (resposta: /s/)' },
+        { tag: 'Juntar', text: 'Junta: /m/ + /a/ + /r/ — que palavra é? (MAR)' },
+    ],
+    // Segunda (1)
+    [
+        { tag: 'Rima', text: 'Diz 3 palavras que rimem com <strong>PATO</strong>. (ex.: gato, rato, mato)' },
+        { tag: 'Sílaba', text: 'Tira a primeira sílaba de <strong>CAMISA</strong>. (MISA)' },
+        { tag: 'Último som', text: 'Qual é o último som de <strong>FLOR</strong>? (/r/)' },
+        { tag: 'Trocar', text: 'Em <strong>MALA</strong>, troca /m/ por /b/. Que palavra fica? (BALA)' },
+    ],
+    // Terça (2)
+    [
+        { tag: 'Rima', text: 'Diz uma palavra que rime com <strong>CHÃO</strong>. (mão, pão, são, não)' },
+        { tag: 'Sílaba', text: 'Junta as sílabas <strong>CA-VA-LO</strong>. (CAVALO)' },
+        { tag: 'Sons', text: 'Quantos sons tem <strong>SOL</strong>? (3: /s/ /o/ /l/)' },
+        { tag: 'Tirar', text: 'Em <strong>BARCO</strong>, tira o som /b/. Que palavra fica? (ARCO)' },
+    ],
+    // Quarta (3)
+    [
+        { tag: 'Onset-rime', text: '<strong>PORTA</strong> começa com /p/ e o resto é /orta/. E <strong>CASA</strong>? (/c/ + /asa/)' },
+        { tag: 'Sílaba', text: 'Acrescenta <strong>BA</strong> antes de <strong>NANA</strong>. (BANANA)' },
+        { tag: 'Som médio', text: 'Qual é o som do meio em <strong>MAR</strong>? (/a/)' },
+        { tag: 'Substituir', text: 'Em <strong>SOPA</strong>, troca /s/ por /c/. Que palavra fica? (COPA)' },
+    ],
+    // Quinta (4)
+    [
+        { tag: 'Rima', text: 'Estas palavras rimam? <strong>FOLHA · BOLHA</strong>. (sim) E <strong>FOLHA · MESA</strong>? (não)' },
+        { tag: 'Sílaba', text: 'Quantas sílabas tem <strong>CARACOL</strong>? (3: CA-RA-COL)' },
+        { tag: 'Segmentar', text: 'Diz os sons de <strong>PÉ</strong>. (/p/ /é/ — 2 sons)' },
+        { tag: 'Famílias', text: 'BO, RO, MO, FO, JO — qual é o som comum? (/o/)' },
+    ],
+    // Sexta (5)
+    [
+        { tag: 'Rima', text: 'Inventa uma palavra que rime com <strong>SOL</strong>. (pode ser palavra-fingida!)' },
+        { tag: 'Sílaba', text: 'Tira a sílaba do fim em <strong>MENINO</strong>. (MENI)' },
+        { tag: 'Juntar sons', text: 'Junta /p/ + /é/. (PÉ) Junta /m/ + /ã/ + /o/. (MÃO)' },
+        { tag: 'Inversão', text: 'Diz <strong>OPA</strong> ao contrário. (APO)' },
+    ],
+    // Sábado (6)
+    [
+        { tag: 'Mistura', text: 'Estas rimam? <strong>VACA · FACA</strong>. (sim) · <strong>RATO · CASA</strong>. (não)' },
+        { tag: 'Sílaba', text: 'Bate palmas em <strong>HIPOPÓTAMO</strong>. (5: HI-PO-PÓ-TA-MO)' },
+        { tag: 'Pares mínimos', text: 'BOLA e MOLA — que som mudou? (/b/ → /m/)' },
+        { tag: 'Trava-línguas', text: 'Diz devagar: <strong>"O rato roeu a rolha da garrafa do rei da Rússia"</strong>.' },
+    ],
+];
+function _todayHeggertyDay() { return new Date().getDay(); }
+function renderHeggerty() {
+    const promptsEl = document.getElementById('hg-prompts');
+    const titleEl = document.getElementById('hg-title');
+    if (!promptsEl) return;
+    const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const day = _todayHeggertyDay();
+    if (titleEl) titleEl.textContent = `Sons de ${dayNames[day]}`;
+    const items = HEGGERTY_DAYS[day] || HEGGERTY_DAYS[0];
+    promptsEl.innerHTML = items.map(p =>
+        `<div class="hg-step"><span class="hg-step-label">${p.tag}</span>${p.text}</div>`
+    ).join('');
+}
+function toggleHeggerty() {
+    const card = document.getElementById('heggerty-card');
+    const body = document.getElementById('hg-body');
+    if (!card || !body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    card.classList.toggle('open', !open);
+}
+window.toggleHeggerty = toggleHeggerty;
+
+// ============================================================
+// MATH JOURNAL — prompt semanal (segunda-feira)
+// Convida a criança a refletir/desenhar matemática num caderno
+// ============================================================
+const MATH_JOURNAL_PROMPTS = [
+    'Desenha o número <strong>15</strong> de 3 formas diferentes (ex.: dedos, dezenas+unidades, dinheiro).',
+    'Onde viste matemática esta semana? Conta uma história curta.',
+    'Inventa um problema com <strong>"comprei 3 e ganhei 2"</strong> e desenha-o.',
+    'Qual é o teu número favorito? Porquê? Desenha-o em 3 formas.',
+    'Faz um quadro de marcas (||| ||) para contar uma coleção (legos, cromos).',
+    'Desenha duas formas geométricas que vês na cozinha.',
+    'Conta passos de casa até à porta. Estima primeiro, depois conta!',
+    'Quantos olhos há na tua família? E pés? E dedos das mãos?',
+    'Que horas são quando acordas? E quando vais dormir? Quantas horas dormes?',
+    'Desenha uma <strong>linha numérica</strong> de 0 a 20 e marca o teu número da sorte.',
+];
+function _thisWeekJournalIndex() {
+    const t = new Date();
+    const yearStart = new Date(t.getFullYear(), 0, 1);
+    const weeks = Math.floor((t - yearStart) / (7 * 86400000));
+    return weeks % MATH_JOURNAL_PROMPTS.length;
+}
+function renderMathJournal() {
+    const card = document.getElementById('math-journal-card');
+    const promptEl = document.getElementById('mj-prompt');
+    if (!card || !promptEl) return;
+    // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
+    const day = new Date().getDay();
+    const isMonday = day === 1;
+    const weekKey = 'mj-week-' + _thisWeekJournalIndex();
+    const wasOpened = state.mathJournalOpened === weekKey;
+    if (!isMonday && !wasOpened) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    promptEl.innerHTML = MATH_JOURNAL_PROMPTS[_thisWeekJournalIndex()];
+}
+function toggleMathJournal() {
+    const card = document.getElementById('math-journal-card');
+    const body = document.getElementById('mj-body');
+    if (!card || !body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    card.classList.toggle('open', !open);
+    if (!open) {
+        state.mathJournalOpened = 'mj-week-' + _thisWeekJournalIndex();
+        saveState();
+    }
+}
+window.toggleMathJournal = toggleMathJournal;
 
 function renderNextTestCard() {
     const card = document.getElementById('next-test-card');
@@ -724,6 +921,11 @@ function renderSubjects() {
 
 // ========== SUBJECT DETAIL (modal fullscreen) ==========
 function openSubjectDetail(key) {
+    // Primeira vez em Mat+? Oferece o diagnóstico inicial
+    if (key === 'mat_plus' && !state.matPlusDiag && !state.matPlusDiagSkipped) {
+        showMatPlusDiagnosticIntro();
+        return;
+    }
     currentSubjectView = key;
     const sub = SUBJECTS[key];
     const topics = CURRICULUM[key] || [];
@@ -769,6 +971,29 @@ function openSubjectDetail(key) {
                     </div>
                     <div style="font-size:0.7rem;color:var(--text-light);text-align:right;margin-top:3px">${seenPct}% do banco visto</div>
                 </div>
+
+                ${(key === 'mat_plus' && state.matPlusDiag) ? `
+                <div style="background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border:1.5px solid #14b8a6;padding:12px 14px;border-radius:14px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                        <span style="font-size:1.4rem">🎯</span>
+                        <div style="flex:1">
+                            <div style="font-size:0.72rem;color:#0f766e;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Último diagnóstico</div>
+                            <div style="font-weight:800;color:#0f766e;font-size:1rem">${state.matPlusDiag.score}/${state.matPlusDiag.total} · ${new Date(state.matPlusDiag.date).toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' })}</div>
+                        </div>
+                        <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="redoMatDiagnostic()"><i class="fas fa-rotate"></i> Refazer</button>
+                    </div>
+                    ${(state.matPlusDiag.recommended || []).length > 0 ? `
+                    <div style="font-size:0.78rem;color:#0f766e;margin-top:6px">
+                        <strong>Recomendado:</strong> ${state.matPlusDiag.recommended.slice(0,3).map(t => escapeHtml(t)).join(' · ')}
+                    </div>` : ''}
+                </div>
+                ` : (key === 'mat_plus' && !state.matPlusDiag) ? `
+                <div style="background:#f0fdfa;border:1.5px dashed #14b8a6;padding:12px 14px;border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+                    <span style="font-size:1.4rem">🎯</span>
+                    <div style="flex:1;font-size:0.85rem;color:#0f766e">Ainda não fizeste o diagnóstico inicial.</div>
+                    <button class="btn btn-primary-solid" style="font-size:0.78rem;padding:6px 12px;background:#14b8a6" onclick="redoMatDiagnostic()">Fazer agora</button>
+                </div>
+                ` : ''}
 
                 <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
                     <label style="display:block;font-weight:700;margin-bottom:6px">Até onde já estudaste?</label>
@@ -840,8 +1065,13 @@ function renderTopicList() {
     if (!container) return;
     const seen = state.exerciseSeen || {};
     const subColor = SUBJECTS[key]?.color || '#7c3aed';
+    // Tópicos recomendados pelo diagnóstico Mat+ (destacar)
+    const recommendedSet = (key === 'mat_plus' && state.matPlusDiag && Array.isArray(state.matPlusDiag.recommended))
+        ? new Set(state.matPlusDiag.recommended)
+        : new Set();
     container.innerHTML = topics.map((t, i) => {
         const isActive = active.has(t);
+        const isRecommended = recommendedSet.has(t);
         // Pool deste tópico (estático + IA)
         const pool = [
             ...EXERCISES.filter(e => e.s === key && e.t === t),
@@ -862,12 +1092,14 @@ function renderTopicList() {
         // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
         const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
         const stars = topicStars(key, t);
+        const borderColor = sel ? '#7c3aed' : (isRecommended ? '#14b8a6' : 'transparent');
+        const cardBg = sel ? '#f5f3ff' : (isRecommended ? '#f0fdfa' : '#fff');
         return `
-            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
+            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${cardBg};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${borderColor}">
                 ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
                 <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
+                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${isRecommended ? '<span title="Tópico recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase">REC.</span>' : ''}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
                         ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
@@ -2637,19 +2869,32 @@ function targetDifficultyFor(subKey, topic) {
 // Resultado final é baralhado para não dar sempre a mesma ordem.
 function pickExercises(pool, n) {
     const seen = state.exerciseSeen || {};
+    // Spaced repetition LITE: marca exercícios errados na última tentativa
+    // para serem priorizados no próximo teste do mesmo tópico.
+    const lastResultById = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
     const annotated = pool.map(e => {
         const tgt = targetDifficultyFor(e.s, e.t);
         const d = Math.max(1, Math.min(3, e.diff || 1));
         const diffScore = (tgt.prefer && tgt.prefer[d]) || 0;
+        const wrongLast = lastResultById[e.id] === false;
         return {
             e,
             d,
             lastSeen: seen[e.id] || 0,
             diffScore,
+            wrongLast,
             rand: Math.random()
         };
     });
-    annotated.sort((a, b) => {
+    // Estratégia: reservar até ~35% do teste para revisão de errados (até 5 de 14)
+    const reviewBudget = Math.min(Math.floor(n * 0.35), 5);
+    const wrongPool = annotated.filter(x => x.wrongLast)
+        .sort((a,b) => a.lastSeen - b.lastSeen); // mais antigos primeiro (já tiveram tempo)
+    const reviewItems = wrongPool.slice(0, reviewBudget);
+    const reviewIds = new Set(reviewItems.map(x => x.e.id));
+    const fresh = annotated.filter(x => !reviewIds.has(x.e.id));
+    fresh.sort((a, b) => {
         // 1) Dificuldade alvo PRIMEIRO (maior diffScore vence)
         if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
         // 2) Nunca vistos antes de já vistos
@@ -2658,6 +2903,25 @@ function pickExercises(pool, n) {
         // 3) Mais antigos
         if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
         // 4) Empate → random
+        return a.rand - b.rand;
+    });
+    // Mistura: review primeiro (vai ser baralhado no fim), depois novos
+    const annotated2 = [...reviewItems, ...fresh];
+    // Substitui o array original para o resto da função usar `annotated`
+    annotated.length = 0;
+    annotated.push(...annotated2);
+    annotated.sort((a, b) => {
+        // Estável agora — manter ordem prévia (review já está em cima)
+        // Mas precisamos do mesmo critério para itens não-review:
+        if (reviewIds.has(a.e.id) && !reviewIds.has(b.e.id)) return -1;
+        if (!reviewIds.has(a.e.id) && reviewIds.has(b.e.id)) return 1;
+        // Entre review: mais antigos primeiro
+        if (reviewIds.has(a.e.id) && reviewIds.has(b.e.id)) return a.lastSeen - b.lastSeen;
+        // Entre fresh: usar critério normal
+        if (Math.abs(a.diffScore - b.diffScore) > 0.05) return b.diffScore - a.diffScore;
+        if (a.lastSeen === 0 && b.lastSeen !== 0) return -1;
+        if (b.lastSeen === 0 && a.lastSeen !== 0) return 1;
+        if (a.lastSeen !== b.lastSeen) return a.lastSeen - b.lastSeen;
         return a.rand - b.rand;
     });
     // De-dup por texto + resposta normalizados: alguns bancos extra têm
@@ -2886,6 +3150,17 @@ function renderQuestion() {
     // Suporte a passagem de texto / tabela / SVG acima da pergunta
     const qEl = document.getElementById('ex-question');
     let qHtml = '';
+    // Three-Reads scaffold (Mat+ problemas) — guia em 3 passos para ler problemas
+    // de forma estratégica, baseado na rotina de Kelemanik/Lucenta/Creighton.
+    if (e.s === 'mat_plus' && e.type === 'problem') {
+        qHtml += `<details class="three-reads"><summary>📖 Lê em 3 passos (clica)</summary>
+            <ol>
+                <li><strong>1.ª leitura</strong> — lê a história devagar. Sobre o que é?</li>
+                <li><strong>2.ª leitura</strong> — que está a pergunta a pedir?</li>
+                <li><strong>3.ª leitura</strong> — que números/informação preciso para responder?</li>
+            </ol>
+        </details>`;
+    }
     if (e.passage) qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
@@ -2947,16 +3222,11 @@ function renderQuestion() {
 }
 
 function renderMC(e) {
-    // Som+: cada opção tem um mini botão 🔊 para ouvir
-    const speakBtn = (txt) => (e.s === 'som_plus' && 'speechSynthesis' in window)
-        ? `<button onclick="event.stopPropagation();ttsSpeak('${String(txt).replace(/'/g,"&#39;").replace(/"/g,'&quot;')}')" title="Ouvir" style="background:#dbeafe;border:1.5px solid #2563eb;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#2563eb;font-size:0.92rem;margin-left:auto;padding:0;flex-shrink:0">🔊</button>`
-        : '';
     return `
         ${e.opts.map((o, i) => `
             <button class="btn-option" id="opt-${i}" onclick="selectMC(${i})">
                 <span class="opt-letter">${String.fromCharCode(65+i)}</span>
                 <span>${o}</span>
-                ${speakBtn(o)}
             </button>
         `).join('')}
         <button class="btn btn-primary-solid btn-block" onclick="submitAnswer()">Responder</button>
@@ -5988,24 +6258,51 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 // TTS — Web Speech API para Som+ (e qualquer pack que peça)
 // ============================================================
 let _ttsVoice = null;
+// Selecciona a MELHOR voz PT disponível. Estratégia em camadas:
+// 1.º — voz PT-PT marcada como Enhanced/Premium/Neural/Online (mais natural)
+// 2.º — vozes "famosas" boas: Joana, Catarina, Joaquim (iOS PT-PT)
+// 3.º — qualquer PT-PT
+// 4.º — voz PT-BR Premium (Luciana, Felipe) — sotaque BR mas natural
+// 5.º — qualquer PT
+// 6.º — primeira voz disponível
 function _pickPTVoice() {
     if (!('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
     if (!voices || !voices.length) return null;
-    // Procura voz PT-PT
-    let v = voices.find(x => /pt[-_]PT/i.test(x.lang));
-    if (!v) v = voices.find(x => /^pt/i.test(x.lang));
-    return v || voices[0];
+    const score = (v) => {
+        let s = 0;
+        const name = (v.name || '').toLowerCase();
+        const lang = (v.lang || '').toLowerCase();
+        // Idioma
+        if (/pt[-_]pt/.test(lang)) s += 100;
+        else if (/^pt/.test(lang)) s += 50;
+        // Qualidade
+        if (/(enhanced|premium|neural|google|natural)/i.test(name)) s += 40;
+        // Vozes PT-PT conhecidas boas (iOS / macOS)
+        if (/^(joana|catarina|joaquim)/i.test(name)) s += 30;
+        // Vozes PT-BR Premium (sotaque BR mas naturais — Luciana, Felipe)
+        if (/^(luciana|felipe)/i.test(name)) s += 15;
+        // Penalizar vozes muito robóticas conhecidas
+        if (/(compact|eloquence)/i.test(name)) s -= 10;
+        // Online costuma ser melhor que offline (Google, Microsoft)
+        if (v.localService === false) s += 5;
+        return s;
+    };
+    const best = voices.slice().sort((a,b) => score(b) - score(a))[0];
+    return best || voices[0];
 }
 window.ttsSpeak = function (text) {
     try {
         if (!('speechSynthesis' in window)) return;
         // Cancelar fala em curso
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,''));
+        const cleaned = String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,'').replace(/\*/g,'');
+        const u = new SpeechSynthesisUtterance(cleaned);
         u.lang = 'pt-PT';
-        u.rate = 0.85;
-        u.pitch = 1.05;
+        // Parâmetros para som mais natural (menos robótico)
+        u.rate = 0.92;    // ligeiramente mais lento que normal mas não dormente
+        u.pitch = 1.0;    // pitch natural (não esticado para cima)
+        u.volume = 1.0;
         // Pode demorar a carregar vozes — tenta agora e em fallback
         if (!_ttsVoice) _ttsVoice = _pickPTVoice();
         if (_ttsVoice) u.voice = _ttsVoice;
@@ -6065,4 +6362,168 @@ function _maybeShowFirstLesson(e) {
         }
     } catch (err) { console.warn('first-lesson hook failed', err); }
 }
+
+// ============================================================
+// MAT+ DIAGNOSTIC SCREENER — 10 perguntas curtas para identificar
+// pontos fracos e recomendar tópicos iniciais
+// Cobre: subitizing, ligação a 10, dezenas/unidades, somar/tirar,
+// dobros, partilha, padrões e problema simples.
+// ============================================================
+const MATPLUS_DIAG = [
+    { area: 'subitizing',  q: 'Quantos pontos vês? ● ● ●', opts: ['2','3','4','5'], ans: 1 },
+    { area: 'subitizing',  q: 'Quantos pontos vês? ● ● ● ● ●', opts: ['3','4','5','6'], ans: 2 },
+    { area: 'ten_bond',    q: '7 + ? = 10', opts: ['2','3','4','5'], ans: 1 },
+    { area: 'add_easy',    q: '5 + 4 = ?', opts: ['7','8','9','10'], ans: 2 },
+    { area: 'add_bridge',  q: '8 + 6 = ?', opts: ['12','13','14','15'], ans: 2 },
+    { area: 'sub_easy',    q: '10 − 3 = ?', opts: ['6','7','8','9'], ans: 1 },
+    { area: 'tens_units',  q: 'No número 47, quantas dezenas há?', opts: ['4','7','40','11'], ans: 0 },
+    { area: 'doubles',     q: 'Quanto é o dobro de 6?', opts: ['10','11','12','13'], ans: 2 },
+    { area: 'multiplic',   q: '3 × 4 = ?', opts: ['7','10','12','14'], ans: 2 },
+    { area: 'problem',     q: 'Tinha 8 cromos. Dei 3 ao Tomás. Quantos ficaram?', opts: ['4','5','6','11'], ans: 1 },
+];
+// Mapa: área fraca → tópicos sugeridos (do Mat+)
+const MATPLUS_DIAG_RECS = {
+    subitizing:  ['Quantos vês?', 'Contar até 10'],
+    ten_bond:    ['Fazer 10', 'Partir números'],
+    add_easy:    ['Juntar e tirar com desenhos', 'Mais, menos, igual'],
+    add_bridge:  ['Somar até 100 (com transporte)', 'Fazer 10'],
+    sub_easy:    ['Tirar até 100 (sem empréstimo)', 'Famílias de factos'],
+    tens_units:  ['Dezenas e unidades', 'Saltar de 10 em 10'],
+    doubles:     ['Dobros e quase-dobros', 'Dobro e metade'],
+    multiplic:   ['Grupos iguais', 'Tabuada do 2', 'Tabuada do 5'],
+    problem:     ['Problemas — juntar e tirar', 'Modelo de barra'],
+};
+let _matDiagState = null;
+function showMatPlusDiagnosticIntro() {
+    document.getElementById('mat-diag-modal-temp')?.remove();
+    const m = document.createElement('div');
+    m.id = 'mat-diag-modal-temp';
+    m.className = 'modal';
+    m.style.display = 'flex';
+    m.style.alignItems = 'center';
+    m.style.justifyContent = 'center';
+    m.style.padding = '20px';
+    m.innerHTML = `
+      <div class="modal-content" style="max-width:420px;padding:20px">
+        <h3 style="margin:0 0 10px;font-size:1.15rem;color:#0f766e">🎯 Diagnóstico inicial de Mat+</h3>
+        <p style="font-size:0.92rem;line-height:1.5;color:#374151;margin:0 0 14px">
+          10 perguntas rápidas para descobrir os melhores tópicos para começar. Não conta para pontuação — é só para te orientar!
+        </p>
+        <p style="font-size:0.85rem;color:#6b7280;margin:0 0 16px">⏱️ ~3 minutos</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary-solid btn-block" onclick="startMatDiagnostic()">Começar diagnóstico</button>
+          <button class="btn btn-secondary btn-block" onclick="skipMatDiagnostic()">Saltar (posso fazer depois)</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(m);
+}
+function skipMatDiagnostic() {
+    state.matPlusDiagSkipped = true;
+    saveState();
+    document.getElementById('mat-diag-modal-temp')?.remove();
+    openSubjectDetail('mat_plus');
+}
+function startMatDiagnostic() {
+    _matDiagState = { idx: 0, answers: [], wrong: [] };
+    renderMatDiagQuestion();
+}
+function renderMatDiagQuestion() {
+    const s = _matDiagState;
+    const q = MATPLUS_DIAG[s.idx];
+    const modal = document.getElementById('mat-diag-modal-temp');
+    if (!modal) return;
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:420px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+            <div style="height:100%;background:#0f766e;width:${((s.idx)/MATPLUS_DIAG.length)*100}%;transition:width 0.3s"></div>
+          </div>
+          <span style="font-size:0.8rem;color:#6b7280;font-weight:700">${s.idx+1}/${MATPLUS_DIAG.length}</span>
+        </div>
+        <div style="font-size:1.05rem;font-weight:700;color:#0f766e;margin-bottom:16px;line-height:1.4">${q.q}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${q.opts.map((o,i) => `
+            <button class="btn-option" onclick="answerMatDiag(${i})" style="text-align:left">
+              <span class="opt-letter">${String.fromCharCode(65+i)}</span>
+              <span>${o}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+}
+function answerMatDiag(i) {
+    const s = _matDiagState;
+    const q = MATPLUS_DIAG[s.idx];
+    s.answers.push(i);
+    if (i !== q.ans) s.wrong.push(q.area);
+    s.idx++;
+    if (s.idx >= MATPLUS_DIAG.length) {
+        finishMatDiagnostic();
+    } else {
+        renderMatDiagQuestion();
+    }
+}
+function finishMatDiagnostic() {
+    const s = _matDiagState;
+    const correctCount = MATPLUS_DIAG.length - s.wrong.length;
+    // Compila tópicos recomendados (deduplicado, máx 5)
+    const recs = [];
+    const seen = new Set();
+    for (const area of s.wrong) {
+        for (const topic of (MATPLUS_DIAG_RECS[area] || [])) {
+            if (!seen.has(topic)) { seen.add(topic); recs.push(topic); }
+            if (recs.length >= 5) break;
+        }
+        if (recs.length >= 5) break;
+    }
+    if (recs.length === 0) {
+        // Acertou tudo — dá tópicos de desafio
+        recs.push('Estimativa', 'Estratégias mentais', 'Problemas em 2 passos');
+    }
+    state.matPlusDiag = {
+        date: Date.now(),
+        score: correctCount,
+        total: MATPLUS_DIAG.length,
+        wrongAreas: s.wrong,
+        recommended: recs,
+    };
+    saveState();
+    const modal = document.getElementById('mat-diag-modal-temp');
+    if (modal) {
+        const pct = Math.round((correctCount/MATPLUS_DIAG.length)*100);
+        modal.innerHTML = `
+          <div class="modal-content" style="max-width:440px;padding:20px">
+            <h3 style="margin:0 0 8px;color:#0f766e">🎯 Resultado</h3>
+            <div style="font-size:2rem;font-weight:900;color:#0f766e;text-align:center;margin:8px 0">${correctCount}/${MATPLUS_DIAG.length} <span style="font-size:1rem;color:#6b7280">(${pct}%)</span></div>
+            <p style="font-size:0.92rem;color:#374151;line-height:1.5;margin:0 0 12px">
+              ${correctCount === MATPLUS_DIAG.length
+                ? '✨ Acertaste em tudo! Aqui ficam tópicos de desafio:'
+                : 'Os tópicos abaixo vão ajudar-te a reforçar onde tive(s)te mais dificuldade:'}
+            </p>
+            <div style="background:#f0fdfa;border:1.5px solid #14b8a6;border-radius:10px;padding:10px 12px;margin:8px 0">
+              ${recs.map(t => `<div style="padding:4px 0;color:#0f766e;font-weight:600">→ ${escapeHtml(t)}</div>`).join('')}
+            </div>
+            <button class="btn btn-primary-solid btn-block" onclick="closeMatDiagAndOpen()" style="margin-top:12px">Abrir Mat+ →</button>
+          </div>
+        `;
+    }
+}
+function closeMatDiagAndOpen() {
+    document.getElementById('mat-diag-modal-temp')?.remove();
+    openSubjectDetail('mat_plus');
+}
+function redoMatDiagnostic() {
+    // Limpa estado para forçar novo diagnóstico
+    delete state.matPlusDiagSkipped;
+    saveState();
+    closeSubjectDetail();
+    showMatPlusDiagnosticIntro();
+}
+window.startMatDiagnostic = startMatDiagnostic;
+window.skipMatDiagnostic = skipMatDiagnostic;
+window.answerMatDiag = answerMatDiag;
+window.closeMatDiagAndOpen = closeMatDiagAndOpen;
+window.redoMatDiagnostic = redoMatDiagnostic;
 

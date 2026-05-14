@@ -169,6 +169,55 @@
             <div class="ask-card-result" id="ask-result" style="display:none"></div>
         </div>
 
+        <!-- Number Talk do dia (matemática mental, conversa-com-família) -->
+        <div id="number-talk-card" class="number-talk-card" onclick="toggleNumberTalk()">
+            <div class="nt-header">
+                <div class="nt-icon">🧠</div>
+                <div>
+                    <div class="nt-eyebrow">Conversa de matemática</div>
+                    <div class="nt-title" id="nt-title">Number Talk de hoje</div>
+                </div>
+                <i class="fas fa-chevron-down nt-chev" id="nt-chev"></i>
+            </div>
+            <div class="nt-body" id="nt-body" style="display:none">
+                <div class="nt-prompt" id="nt-prompt"></div>
+                <div class="nt-strategies" id="nt-strategies"></div>
+                <div class="nt-foot">💡 Pensa em silêncio. Depois explica como pensaste — não tem só uma resposta certa!</div>
+            </div>
+        </div>
+
+        <!-- Rotina Heggerty do dia (consciência fonológica em 4 minutos) -->
+        <div id="heggerty-card" class="heggerty-card" onclick="toggleHeggerty()">
+            <div class="hg-header">
+                <div class="hg-icon">👂</div>
+                <div>
+                    <div class="hg-eyebrow">Sons da semana</div>
+                    <div class="hg-title" id="hg-title">Aquecimento de sons</div>
+                </div>
+                <i class="fas fa-chevron-down hg-chev" id="hg-chev"></i>
+            </div>
+            <div class="hg-body" id="hg-body" style="display:none">
+                <div class="hg-prompts" id="hg-prompts"></div>
+                <div class="hg-foot">⏱️ ~3 minutos. Faz com o adulto: ele/ela diz, tu repetes ou respondes.</div>
+            </div>
+        </div>
+
+        <!-- Diário de matemática (uma vez por semana) -->
+        <div id="math-journal-card" class="math-journal-card" onclick="toggleMathJournal()" style="display:none">
+            <div class="mj-header">
+                <div class="mj-icon">📔</div>
+                <div>
+                    <div class="mj-eyebrow">Diário de matemática</div>
+                    <div class="mj-title" id="mj-title">Reflexão da semana</div>
+                </div>
+                <i class="fas fa-chevron-down mj-chev"></i>
+            </div>
+            <div class="mj-body" id="mj-body" style="display:none">
+                <div class="mj-prompt" id="mj-prompt"></div>
+                <div class="mj-foot">✏️ Desenha ou escreve num caderno. Pode ser só uma frase ou um esquema.</div>
+            </div>
+        </div>
+
         <div class="section-title"><i class="fas fa-dumbbell"></i> Treino rápido</div>
         <div class="quick-subjects" id="quick-subjects"></div>
     </section>
