@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v206';
+const APP_VERSION = 'v207';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3145,6 +3145,12 @@ function exitSession() {
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
+    // Reset animação XP/combo no início da sessão
+    if (s.idx === 0) {
+        _lastSessionXP = 0;
+        const combo = document.getElementById('session-combo');
+        if (combo) combo.remove();
+    }
     // Lição-primeiro: se a criança nunca viu um exercício deste tópico
     // e há lição disponível, abrir lição automaticamente.
     if (s.idx === 0 && typeof _maybeShowFirstLesson === 'function') _maybeShowFirstLesson(e);
@@ -3278,6 +3284,7 @@ function renderMC(e) {
 function selectMC(i) {
     selectedAnswer = i;
     document.querySelectorAll('#ex-answer-area .btn-option').forEach((el, idx) => el.classList.toggle('selected', idx === i));
+    _markActionHasSelection(true);
 }
 
 function renderTF(e) {
@@ -3292,11 +3299,14 @@ function selectTF(v) {
     selectedAnswer = v;
     document.getElementById('tf-true').classList.toggle('selected', v === true);
     document.getElementById('tf-false').classList.toggle('selected', v === false);
+    _markActionHasSelection(true);
 }
 
 function renderFill(e) {
     return `
-        <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="" onkeydown="if(event.key==='Enter'){event.preventDefault();exActionTap();}">
+        <input type="text" class="fill-input" id="fill-input" placeholder="Escreve a tua resposta" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""
+            oninput="_markActionHasSelection(this.value.trim().length > 0)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();exActionTap();}">
     `;
 }
 
@@ -3806,9 +3816,61 @@ function showFeedback(e, isCorrect) {
     // Barra de acção passa a "Continuar" / "Ver resultado"
     const isLast = currentSession.idx + 1 >= currentSession.items.length;
     _setExAction('continue', isLast ? 'Ver resultado' : 'Continuar');
-    document.getElementById('session-xp').textContent = currentSession.xp;
+    // Animar XP se aumentou + floating "+N XP" sobre o feedback
+    _bumpSessionXP(currentSession.xp, isCorrect);
+    // Combo indicator: 3+ certas seguidas mostra "COMBO xN"
+    _updateCombo(isCorrect ? (currentSession.streak || 0) : 0);
     // Garantir que o utilizador vê o feedback — scroll suave para o painel
     requestAnimationFrame(() => panel.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+}
+
+// ============================================================
+// Animações Duolingo-style: combo / XP bump / floating XP
+// ============================================================
+let _lastSessionXP = 0;
+function _bumpSessionXP(newXP, isCorrect) {
+    const wrap = document.querySelector('.session-xp');
+    const span = document.getElementById('session-xp');
+    if (!span) return;
+    const gain = newXP - _lastSessionXP;
+    span.textContent = newXP;
+    _lastSessionXP = newXP;
+    if (isCorrect && gain > 0 && wrap) {
+        wrap.classList.remove('bump');
+        // Forçar reflow para reiniciar a animação
+        void wrap.offsetWidth;
+        wrap.classList.add('bump');
+        // Float "+N XP" perto do indicador de XP
+        try {
+            const rect = wrap.getBoundingClientRect();
+            const float = document.createElement('div');
+            float.className = 'xp-float';
+            float.textContent = '+' + gain + ' XP';
+            float.style.left = (rect.left + rect.width/2 - 30) + 'px';
+            float.style.top  = (rect.bottom + 4) + 'px';
+            document.body.appendChild(float);
+            setTimeout(() => float.remove(), 1200);
+        } catch {}
+    }
+}
+function _updateCombo(streakCount) {
+    let combo = document.getElementById('session-combo');
+    if (streakCount < 3) {
+        if (combo) combo.remove();
+        return;
+    }
+    if (!combo) {
+        combo = document.createElement('div');
+        combo.id = 'session-combo';
+        combo.className = 'session-combo';
+        // Inserir junto ao session-xp
+        const xp = document.querySelector('.session-xp');
+        if (xp && xp.parentNode) xp.parentNode.insertBefore(combo, xp);
+    }
+    combo.innerHTML = '🔥 COMBO ×' + streakCount;
+    combo.classList.remove('bump');
+    void combo.offsetWidth;
+    combo.classList.add('bump');
 }
 
 // ============================================================
@@ -3823,11 +3885,17 @@ function _setExAction(mode, label) {
     if (!btn || !bar) return;
     if (mode === 'continue') {
         bar.classList.add('is-continue');
+        bar.classList.remove('has-selection');
         btn.innerHTML = (label || 'Continuar') + ' <i class="fas fa-arrow-right"></i>';
     } else {
         bar.classList.remove('is-continue');
+        bar.classList.remove('has-selection');
         btn.innerHTML = 'Responder';
     }
+}
+function _markActionHasSelection(has) {
+    const bar = document.getElementById('ex-action-bar');
+    if (bar) bar.classList.toggle('has-selection', !!has && _exActionMode === 'submit');
 }
 function exActionTap() {
     if (_exActionMode === 'continue') feedbackNext();
