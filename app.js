@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v193';
+const APP_VERSION = 'v194';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -971,6 +971,29 @@ function openSubjectDetail(key) {
                     </div>
                     <div style="font-size:0.7rem;color:var(--text-light);text-align:right;margin-top:3px">${seenPct}% do banco visto</div>
                 </div>
+
+                ${(key === 'mat_plus' && state.matPlusDiag) ? `
+                <div style="background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border:1.5px solid #14b8a6;padding:12px 14px;border-radius:14px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                        <span style="font-size:1.4rem">🎯</span>
+                        <div style="flex:1">
+                            <div style="font-size:0.72rem;color:#0f766e;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Último diagnóstico</div>
+                            <div style="font-weight:800;color:#0f766e;font-size:1rem">${state.matPlusDiag.score}/${state.matPlusDiag.total} · ${new Date(state.matPlusDiag.date).toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' })}</div>
+                        </div>
+                        <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="redoMatDiagnostic()"><i class="fas fa-rotate"></i> Refazer</button>
+                    </div>
+                    ${(state.matPlusDiag.recommended || []).length > 0 ? `
+                    <div style="font-size:0.78rem;color:#0f766e;margin-top:6px">
+                        <strong>Recomendado:</strong> ${state.matPlusDiag.recommended.slice(0,3).map(t => escapeHtml(t)).join(' · ')}
+                    </div>` : ''}
+                </div>
+                ` : (key === 'mat_plus' && !state.matPlusDiag) ? `
+                <div style="background:#f0fdfa;border:1.5px dashed #14b8a6;padding:12px 14px;border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+                    <span style="font-size:1.4rem">🎯</span>
+                    <div style="flex:1;font-size:0.85rem;color:#0f766e">Ainda não fizeste o diagnóstico inicial.</div>
+                    <button class="btn btn-primary-solid" style="font-size:0.78rem;padding:6px 12px;background:#14b8a6" onclick="redoMatDiagnostic()">Fazer agora</button>
+                </div>
+                ` : ''}
 
                 <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
                     <label style="display:block;font-weight:700;margin-bottom:6px">Até onde já estudaste?</label>
@@ -6491,8 +6514,16 @@ function closeMatDiagAndOpen() {
     document.getElementById('mat-diag-modal-temp')?.remove();
     openSubjectDetail('mat_plus');
 }
+function redoMatDiagnostic() {
+    // Limpa estado para forçar novo diagnóstico
+    delete state.matPlusDiagSkipped;
+    saveState();
+    closeSubjectDetail();
+    showMatPlusDiagnosticIntro();
+}
 window.startMatDiagnostic = startMatDiagnostic;
 window.skipMatDiagnostic = skipMatDiagnostic;
 window.answerMatDiag = answerMatDiag;
 window.closeMatDiagAndOpen = closeMatDiagAndOpen;
+window.redoMatDiagnostic = redoMatDiagnostic;
 
