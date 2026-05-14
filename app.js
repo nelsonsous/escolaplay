@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v192';
+const APP_VERSION = 'v193';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -921,6 +921,11 @@ function renderSubjects() {
 
 // ========== SUBJECT DETAIL (modal fullscreen) ==========
 function openSubjectDetail(key) {
+    // Primeira vez em Mat+? Oferece o diagnóstico inicial
+    if (key === 'mat_plus' && !state.matPlusDiag && !state.matPlusDiagSkipped) {
+        showMatPlusDiagnosticIntro();
+        return;
+    }
     currentSubjectView = key;
     const sub = SUBJECTS[key];
     const topics = CURRICULUM[key] || [];
@@ -1037,8 +1042,13 @@ function renderTopicList() {
     if (!container) return;
     const seen = state.exerciseSeen || {};
     const subColor = SUBJECTS[key]?.color || '#7c3aed';
+    // Tópicos recomendados pelo diagnóstico Mat+ (destacar)
+    const recommendedSet = (key === 'mat_plus' && state.matPlusDiag && Array.isArray(state.matPlusDiag.recommended))
+        ? new Set(state.matPlusDiag.recommended)
+        : new Set();
     container.innerHTML = topics.map((t, i) => {
         const isActive = active.has(t);
+        const isRecommended = recommendedSet.has(t);
         // Pool deste tópico (estático + IA)
         const pool = [
             ...EXERCISES.filter(e => e.s === key && e.t === t),
@@ -1059,12 +1069,14 @@ function renderTopicList() {
         // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
         const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
         const stars = topicStars(key, t);
+        const borderColor = sel ? '#7c3aed' : (isRecommended ? '#14b8a6' : 'transparent');
+        const cardBg = sel ? '#f5f3ff' : (isRecommended ? '#f0fdfa' : '#fff');
         return `
-            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${sel ? '#f5f3ff' : '#fff'};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${sel ? '#7c3aed' : 'transparent'}">
+            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${cardBg};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${borderColor}">
                 ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
                 <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
+                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${isRecommended ? '<span title="Tópico recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase">REC.</span>' : ''}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
                         ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
@@ -6327,4 +6339,160 @@ function _maybeShowFirstLesson(e) {
         }
     } catch (err) { console.warn('first-lesson hook failed', err); }
 }
+
+// ============================================================
+// MAT+ DIAGNOSTIC SCREENER — 10 perguntas curtas para identificar
+// pontos fracos e recomendar tópicos iniciais
+// Cobre: subitizing, ligação a 10, dezenas/unidades, somar/tirar,
+// dobros, partilha, padrões e problema simples.
+// ============================================================
+const MATPLUS_DIAG = [
+    { area: 'subitizing',  q: 'Quantos pontos vês? ● ● ●', opts: ['2','3','4','5'], ans: 1 },
+    { area: 'subitizing',  q: 'Quantos pontos vês? ● ● ● ● ●', opts: ['3','4','5','6'], ans: 2 },
+    { area: 'ten_bond',    q: '7 + ? = 10', opts: ['2','3','4','5'], ans: 1 },
+    { area: 'add_easy',    q: '5 + 4 = ?', opts: ['7','8','9','10'], ans: 2 },
+    { area: 'add_bridge',  q: '8 + 6 = ?', opts: ['12','13','14','15'], ans: 2 },
+    { area: 'sub_easy',    q: '10 − 3 = ?', opts: ['6','7','8','9'], ans: 1 },
+    { area: 'tens_units',  q: 'No número 47, quantas dezenas há?', opts: ['4','7','40','11'], ans: 0 },
+    { area: 'doubles',     q: 'Quanto é o dobro de 6?', opts: ['10','11','12','13'], ans: 2 },
+    { area: 'multiplic',   q: '3 × 4 = ?', opts: ['7','10','12','14'], ans: 2 },
+    { area: 'problem',     q: 'Tinha 8 cromos. Dei 3 ao Tomás. Quantos ficaram?', opts: ['4','5','6','11'], ans: 1 },
+];
+// Mapa: área fraca → tópicos sugeridos (do Mat+)
+const MATPLUS_DIAG_RECS = {
+    subitizing:  ['Quantos vês?', 'Contar até 10'],
+    ten_bond:    ['Fazer 10', 'Partir números'],
+    add_easy:    ['Juntar e tirar com desenhos', 'Mais, menos, igual'],
+    add_bridge:  ['Somar até 100 (com transporte)', 'Fazer 10'],
+    sub_easy:    ['Tirar até 100 (sem empréstimo)', 'Famílias de factos'],
+    tens_units:  ['Dezenas e unidades', 'Saltar de 10 em 10'],
+    doubles:     ['Dobros e quase-dobros', 'Dobro e metade'],
+    multiplic:   ['Grupos iguais', 'Tabuada do 2', 'Tabuada do 5'],
+    problem:     ['Problemas — juntar e tirar', 'Modelo de barra'],
+};
+let _matDiagState = null;
+function showMatPlusDiagnosticIntro() {
+    document.getElementById('mat-diag-modal-temp')?.remove();
+    const m = document.createElement('div');
+    m.id = 'mat-diag-modal-temp';
+    m.className = 'modal';
+    m.style.display = 'flex';
+    m.style.alignItems = 'center';
+    m.style.justifyContent = 'center';
+    m.style.padding = '20px';
+    m.innerHTML = `
+      <div class="modal-content" style="max-width:420px;padding:20px">
+        <h3 style="margin:0 0 10px;font-size:1.15rem;color:#0f766e">🎯 Diagnóstico inicial de Mat+</h3>
+        <p style="font-size:0.92rem;line-height:1.5;color:#374151;margin:0 0 14px">
+          10 perguntas rápidas para descobrir os melhores tópicos para começar. Não conta para pontuação — é só para te orientar!
+        </p>
+        <p style="font-size:0.85rem;color:#6b7280;margin:0 0 16px">⏱️ ~3 minutos</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary-solid btn-block" onclick="startMatDiagnostic()">Começar diagnóstico</button>
+          <button class="btn btn-secondary btn-block" onclick="skipMatDiagnostic()">Saltar (posso fazer depois)</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(m);
+}
+function skipMatDiagnostic() {
+    state.matPlusDiagSkipped = true;
+    saveState();
+    document.getElementById('mat-diag-modal-temp')?.remove();
+    openSubjectDetail('mat_plus');
+}
+function startMatDiagnostic() {
+    _matDiagState = { idx: 0, answers: [], wrong: [] };
+    renderMatDiagQuestion();
+}
+function renderMatDiagQuestion() {
+    const s = _matDiagState;
+    const q = MATPLUS_DIAG[s.idx];
+    const modal = document.getElementById('mat-diag-modal-temp');
+    if (!modal) return;
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:420px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+            <div style="height:100%;background:#0f766e;width:${((s.idx)/MATPLUS_DIAG.length)*100}%;transition:width 0.3s"></div>
+          </div>
+          <span style="font-size:0.8rem;color:#6b7280;font-weight:700">${s.idx+1}/${MATPLUS_DIAG.length}</span>
+        </div>
+        <div style="font-size:1.05rem;font-weight:700;color:#0f766e;margin-bottom:16px;line-height:1.4">${q.q}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${q.opts.map((o,i) => `
+            <button class="btn-option" onclick="answerMatDiag(${i})" style="text-align:left">
+              <span class="opt-letter">${String.fromCharCode(65+i)}</span>
+              <span>${o}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+}
+function answerMatDiag(i) {
+    const s = _matDiagState;
+    const q = MATPLUS_DIAG[s.idx];
+    s.answers.push(i);
+    if (i !== q.ans) s.wrong.push(q.area);
+    s.idx++;
+    if (s.idx >= MATPLUS_DIAG.length) {
+        finishMatDiagnostic();
+    } else {
+        renderMatDiagQuestion();
+    }
+}
+function finishMatDiagnostic() {
+    const s = _matDiagState;
+    const correctCount = MATPLUS_DIAG.length - s.wrong.length;
+    // Compila tópicos recomendados (deduplicado, máx 5)
+    const recs = [];
+    const seen = new Set();
+    for (const area of s.wrong) {
+        for (const topic of (MATPLUS_DIAG_RECS[area] || [])) {
+            if (!seen.has(topic)) { seen.add(topic); recs.push(topic); }
+            if (recs.length >= 5) break;
+        }
+        if (recs.length >= 5) break;
+    }
+    if (recs.length === 0) {
+        // Acertou tudo — dá tópicos de desafio
+        recs.push('Estimativa', 'Estratégias mentais', 'Problemas em 2 passos');
+    }
+    state.matPlusDiag = {
+        date: Date.now(),
+        score: correctCount,
+        total: MATPLUS_DIAG.length,
+        wrongAreas: s.wrong,
+        recommended: recs,
+    };
+    saveState();
+    const modal = document.getElementById('mat-diag-modal-temp');
+    if (modal) {
+        const pct = Math.round((correctCount/MATPLUS_DIAG.length)*100);
+        modal.innerHTML = `
+          <div class="modal-content" style="max-width:440px;padding:20px">
+            <h3 style="margin:0 0 8px;color:#0f766e">🎯 Resultado</h3>
+            <div style="font-size:2rem;font-weight:900;color:#0f766e;text-align:center;margin:8px 0">${correctCount}/${MATPLUS_DIAG.length} <span style="font-size:1rem;color:#6b7280">(${pct}%)</span></div>
+            <p style="font-size:0.92rem;color:#374151;line-height:1.5;margin:0 0 12px">
+              ${correctCount === MATPLUS_DIAG.length
+                ? '✨ Acertaste em tudo! Aqui ficam tópicos de desafio:'
+                : 'Os tópicos abaixo vão ajudar-te a reforçar onde tive(s)te mais dificuldade:'}
+            </p>
+            <div style="background:#f0fdfa;border:1.5px solid #14b8a6;border-radius:10px;padding:10px 12px;margin:8px 0">
+              ${recs.map(t => `<div style="padding:4px 0;color:#0f766e;font-weight:600">→ ${escapeHtml(t)}</div>`).join('')}
+            </div>
+            <button class="btn btn-primary-solid btn-block" onclick="closeMatDiagAndOpen()" style="margin-top:12px">Abrir Mat+ →</button>
+          </div>
+        `;
+    }
+}
+function closeMatDiagAndOpen() {
+    document.getElementById('mat-diag-modal-temp')?.remove();
+    openSubjectDetail('mat_plus');
+}
+window.startMatDiagnostic = startMatDiagnostic;
+window.skipMatDiagnostic = skipMatDiagnostic;
+window.answerMatDiag = answerMatDiag;
+window.closeMatDiagAndOpen = closeMatDiagAndOpen;
 
