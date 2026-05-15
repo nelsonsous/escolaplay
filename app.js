@@ -25,12 +25,14 @@ function renderAvatar(av, sizePx = 46) {
     if (!av) return '<span>🎓</span>';
     const s = String(av);
     if (s.startsWith('data:image') || /^https?:\/\//.test(s)) {
-        return `<img src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        // Foto real / URL — sem zoom (a foto ja preenche)
+        return `<img class="av-photo" src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('dicebear:')) {
+        // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
         const [, style, seed] = s.split(':');
         const url = `https://api.dicebear.com/9.x/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed || 'EscolaPlay')}&backgroundColor=transparent`;
-        return `<img src="${url}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        return `<img class="av-cartoon" src="${url}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     // Emoji ou outro texto curto — render como texto
     return `<span style="font-size:${Math.round(sizePx * 0.55)}px;line-height:1">${s}</span>`;
@@ -373,7 +375,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v226';
+const APP_VERSION = 'v227';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
