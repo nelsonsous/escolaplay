@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v216';
+const APP_VERSION = 'v217';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1024,14 +1024,8 @@ function openSubjectDetail(key) {
                 </div>
                 <div id="topic-list"></div>
 
-                <div id="topic-sel-actions" style="display:none;margin-top:12px;background:#f5f3ff;border:2px solid #c4b5fd;border-radius:12px;padding:12px">
-                    <div style="font-size:0.78rem;font-weight:700;color:#5b21b6;margin-bottom:8px"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
-                    <button class="btn btn-primary-solid btn-block" onclick="startSubjectSession('${key}', { useSelection: true })">
-                        <i class="fas fa-play"></i> Treinar tópicos selecionados
-                    </button>
-                </div>
-
-                <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="startSubjectSession('${key}')">
+                <!-- Botão "todos os tópicos" sempre disponível -->
+                <button class="btn btn-primary-solid btn-block" style="margin-top:12px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
                 </button>
 
@@ -1059,7 +1053,7 @@ function openSubjectDetail(key) {
                 </div>
 
                 <!-- Reiniciar progresso desta disciplina -->
-                <div style="margin-top:20px;padding:14px;background:#fef2f2;border:1.5px dashed #fecaca;border-radius:12px">
+                <div style="margin-top:20px;padding:14px;background:#fef2f2;border:1.5px dashed #fecaca;border-radius:12px;margin-bottom:80px">
                     <div style="font-size:0.82rem;color:#991b1b;margin-bottom:8px;line-height:1.4">
                         <i class="fas fa-triangle-exclamation"></i> Apaga respostas, acertos, IA e progresso <strong>só desta disciplina</strong>. Mantém o resto.
                     </div>
@@ -1067,6 +1061,13 @@ function openSubjectDetail(key) {
                         <i class="fas fa-rotate-left"></i> Reiniciar "${(sub.name || key).replace(/'/g, "\\'")}"
                     </button>
                 </div>
+            </div>
+            <!-- Sticky action bar — só aparece com tópicos selecionados -->
+            <div id="topic-sel-actions" style="display:none;position:sticky;bottom:0;left:0;right:0;background:#fff;border-top:1.5px solid #e5e7eb;padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));box-shadow:0 -4px 16px rgba(0,0,0,0.08);z-index:20">
+                <div style="font-size:0.78rem;font-weight:700;color:#5b21b6;margin-bottom:6px;text-align:center"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
+                <button class="btn btn-primary-solid btn-block" onclick="startSubjectSession('${key}', { useSelection: true })">
+                    <i class="fas fa-play"></i> Treinar tópicos selecionados
+                </button>
             </div>
         </div>
     `;
@@ -1118,20 +1119,20 @@ function renderTopicList() {
         const borderColor = sel ? '#7c3aed' : (isRecommended ? '#14b8a6' : 'transparent');
         const cardBg = sel ? '#f5f3ff' : (isRecommended ? '#f0fdfa' : '#fff');
         return `
-            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${cardBg};padding:10px 12px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:8px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:2px solid ${borderColor}">
+            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${cardBg};padding:7px 10px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:5px;display:flex;align-items:center;gap:7px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:1.5px solid ${borderColor}">
                 ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
-                <span style="width:22px;height:22px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+                <span style="width:20px;height:20px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:6px">${t}${isRecommended ? '<span title="Tópico recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase">REC.</span>' : ''}${stars ? `<span title="Estrelas de domínio" style="font-size:0.78rem;letter-spacing:1px">${stars}</span>` : ''}</div>
-                    <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
-                        <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span> respondidos
-                        ${correctCount > 0 ? ` · <span style="color:#16a34a">✓ ${correctCount}</span>` : ''}
-                        ${wrongCount > 0 ? ` · <span style="color:#dc2626">✗ ${wrongCount}</span>` : ''}
+                    <div style="font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:5px;line-height:1.2">${t}${isRecommended ? '<span title="Recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">REC</span>' : ''}${stars ? `<span title="Domínio" style="font-size:0.72rem;letter-spacing:1px">${stars}</span>` : ''}</div>
+                    <div style="font-size:0.68rem;color:var(--text-light);margin-top:1px;display:flex;align-items:center;gap:6px">
+                        <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span>
+                        ${correctCount > 0 ? `<span style="color:#16a34a">✓${correctCount}</span>` : ''}
+                        ${wrongCount > 0 ? `<span style="color:#dc2626">✗${wrongCount}</span>` : ''}
+                        ${count > 0 ? `<span style="flex:1;height:3px;background:#f3f4f6;border-radius:999px;overflow:hidden;min-width:30px"><span style="display:block;height:100%;width:${pct}%;background:${progBarColor};border-radius:999px;transition:width 0.3s"></span></span>` : ''}
                     </div>
-                    ${count > 0 ? `<div style="margin-top:5px;height:4px;background:#f3f4f6;border-radius:999px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${progBarColor};border-radius:999px;transition:width 0.3s"></div></div>` : ''}
                 </div>
-                <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Ver perguntas respondidas" style="background:#ede9fe;color:#7c3aed;flex-shrink:0"><i class="fas fa-list-check"></i></button>
-                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Ver explicação"><i class="fas fa-book-open"></i></button>` : ''}
+                <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Perguntas respondidas" style="background:#ede9fe;color:#7c3aed;flex-shrink:0;width:30px;height:30px;font-size:0.78rem"><i class="fas fa-list-check"></i></button>
+                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Explicação" style="width:30px;height:30px;font-size:0.78rem"><i class="fas fa-book-open"></i></button>` : ''}
             </div>
         `;
     }).join('');
