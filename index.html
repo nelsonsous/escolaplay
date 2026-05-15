@@ -647,6 +647,14 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+        // Quando um novo SW assume controlo, recarrega a pagina para servir os
+        // novos assets (evita ficar preso numa versao antiga apos deploy).
+        let _swReloading = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (_swReloading) return;
+            _swReloading = true;
+            location.reload();
+        });
     }
 </script>
 </body>
