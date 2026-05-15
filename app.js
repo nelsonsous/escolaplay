@@ -97,7 +97,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicViewMode'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -373,7 +373,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v223';
+const APP_VERSION = 'v224';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1084,6 +1084,11 @@ function openSubjectDetail(key) {
                     <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="selectAllTopics()"><i class="fas fa-check-double"></i> Todos</button>
                     <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="clearTopicSelection()"><i class="fas fa-xmark"></i> Limpar</button>
                 </div>
+                <div class="ep-topic-view-toggle" id="ep-topic-view-toggle">
+                    <button type="button" data-mode="roadmap" onclick="setTopicViewMode('roadmap')"><i class="fas fa-route"></i> Roadmap</button>
+                    <button type="button" data-mode="list" onclick="setTopicViewMode('list')"><i class="fas fa-list"></i> Lista</button>
+                </div>
+                <div id="topic-roadmap"></div>
                 <div id="topic-list"></div>
 
                 <!-- ===== BLOCO MAX ===== -->
@@ -1137,6 +1142,30 @@ function openSubjectDetail(key) {
 
 let selectedTopicsForMax = new Set();
 
+function _currentTopicViewMode() {
+    const m = state && state.topicViewMode;
+    return (m === 'list') ? 'list' : 'roadmap';
+}
+function setTopicViewMode(mode) {
+    state.topicViewMode = (mode === 'list') ? 'list' : 'roadmap';
+    saveState();
+    _applyTopicViewMode();
+    renderTopicList();
+}
+window.setTopicViewMode = setTopicViewMode;
+
+function _applyTopicViewMode() {
+    const mode = _currentTopicViewMode();
+    const rm = document.getElementById('topic-roadmap');
+    const lst = document.getElementById('topic-list');
+    if (rm)  rm.style.display  = (mode === 'roadmap') ? '' : 'none';
+    if (lst) lst.style.display = (mode === 'list')    ? '' : 'none';
+    const tog = document.getElementById('ep-topic-view-toggle');
+    if (tog) tog.querySelectorAll('button[data-mode]').forEach(b => {
+        b.classList.toggle('is-active', b.dataset.mode === mode);
+    });
+}
+
 function renderTopicList() {
     const key = currentSubjectView;
     const topics = CURRICULUM[key] || [];
@@ -1145,6 +1174,8 @@ function renderTopicList() {
     const active = activeTopicsFor(key);
     // Mantém selectedTopicsForMax em sync com active topics (para a MAX bar)
     selectedTopicsForMax = new Set(active);
+    _applyTopicViewMode();
+    if (_currentTopicViewMode() === 'roadmap') renderTopicRoadmap();
     const container = document.getElementById('topic-list');
     if (!container) return;
     const seen = state.exerciseSeen || {};
@@ -1199,6 +1230,215 @@ function renderTopicList() {
     }).join('');
     updateTopicSelBar();
 }
+
+// ========== ROADMAP (Duolingo-style path) ==========
+function renderTopicRoadmap() {
+    const key = currentSubjectView;
+    if (!key) return;
+    const wrap = document.getElementById('topic-roadmap');
+    if (!wrap) return;
+    const topics = CURRICULUM[key] || [];
+    const sub = SUBJECTS[key] || {};
+    const subColor = sub.color || '#7c3aed';
+    const active = activeTopicsFor(key);
+    const seen = state.exerciseSeen || {};
+    const lastResultById = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
+    const recommendedSet = (key === 'mat_plus' && state.matPlusDiag && Array.isArray(state.matPlusDiag.recommended))
+        ? new Set(state.matPlusDiag.recommended)
+        : new Set();
+
+    // Pré-cálculos por tópico
+    const stats = topics.map(t => {
+        const pool = [
+            ...EXERCISES.filter(e => e.s === key && e.t === t),
+            ...(state.maxExercises || []).filter(e => e.s === key && e.t === t)
+        ];
+        const seenIds = pool.filter(e => seen[e.id]).map(e => e.id);
+        const correct = seenIds.filter(id => lastResultById[id] === true).length;
+        const acc = seenIds.length > 0 ? correct / seenIds.length : 0;
+        const completed = pool.length > 0 && seenIds.length === pool.length && acc >= 0.8;
+        return { pool, seen: seenIds.length, correct, acc, completed, stars: topicStars(key, t) };
+    });
+
+    // "Atual" = primeiro tópico activo não-completo; fallback = primeiro não-completo; fallback = 0
+    let currentIdx = -1;
+    for (let i = 0; i < topics.length; i++) {
+        if (active.has(topics[i]) && !stats[i].completed) { currentIdx = i; break; }
+    }
+    if (currentIdx === -1) {
+        for (let i = 0; i < topics.length; i++) { if (!stats[i].completed) { currentIdx = i; break; } }
+    }
+
+    // Geometria do serpentine (container fixo 288px — cabe em qualquer telemóvel)
+    const W = 288;
+    const cx = W / 2;          // centro horizontal
+    const amp = 92;            // amplitude lateral
+    const rowH = 118;          // espaço vertical por tópico (nó + label)
+    const nodeR = 28;          // raio do nó
+    const padTop = 30;
+    const totalHeight = topics.length * rowH + padTop + 30;
+    const pts = topics.map((_, i) => {
+        const x = cx + Math.sin(i * 0.62) * amp;
+        const y = padTop + i * rowH;
+        return { x, y };
+    });
+
+    // SVG path conectando nós (curva suave via cubic bezier)
+    let pathD = '';
+    pts.forEach(({ x, y }, i) => {
+        if (i === 0) { pathD += `M ${x.toFixed(1)} ${y.toFixed(1)}`; return; }
+        const p0 = pts[i - 1];
+        const cp1x = p0.x;
+        const cp1y = p0.y + (y - p0.y) * 0.55;
+        const cp2x = x;
+        const cp2y = y - (y - p0.y) * 0.55;
+        pathD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${x.toFixed(1)} ${y.toFixed(1)}`;
+    });
+
+    // Nós
+    const nodesHtml = topics.map((t, i) => {
+        const { x, y } = pts[i];
+        const s = stats[i];
+        const isActive = active.has(t);
+        const isCurrent = i === currentIdx;
+        const isLocked = !isActive && !s.completed && !isCurrent;
+        const isRecommended = recommendedSet.has(t);
+        const tEsc = String(t).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+        let nodeClass = 'ep-roadmap-node';
+        let nodeBg, nodeBorder, nodeColor, nodeShadow, inner;
+        if (s.completed) {
+            nodeClass += ' is-completed';
+            nodeBg = 'linear-gradient(135deg,#fbbf24,#f59e0b)';
+            nodeBorder = '#d97706';
+            nodeColor = '#fff';
+            nodeShadow = '#b45309';
+            inner = '<i class="fas fa-crown"></i>';
+        } else if (isCurrent) {
+            nodeClass += ' is-current';
+            nodeBg = subColor;
+            nodeBorder = '#fff';
+            nodeColor = '#fff';
+            nodeShadow = _darkenColor(subColor);
+            inner = '<i class="fas fa-play"></i>';
+        } else if (isActive) {
+            nodeBg = '#fff';
+            nodeBorder = subColor;
+            nodeColor = subColor;
+            nodeShadow = '#e5e7eb';
+            inner = String(i + 1);
+        } else {
+            nodeClass += ' is-locked';
+            nodeBg = '#e5e7eb';
+            nodeBorder = '#cbd5e1';
+            nodeColor = '#94a3b8';
+            nodeShadow = '#cbd5e1';
+            inner = isLocked ? '<i class="fas fa-lock"></i>' : String(i + 1);
+        }
+
+        const label = `
+            <div class="ep-roadmap-label" style="top:${(y + nodeR + 6).toFixed(1)}px">
+                <div class="ep-roadmap-stars">${s.stars || ''}</div>
+                <div class="ep-roadmap-title" style="color:${(isActive || isCurrent || s.completed) ? '#1f2937' : '#6b7280'}">${escapeHtml(t)}</div>
+                ${isRecommended ? '<div class="ep-roadmap-rec">REC</div>' : ''}
+                ${s.pool.length > 0 ? `<div class="ep-roadmap-progress"><span style="width:${Math.round((s.seen / s.pool.length) * 100)}%;background:${s.completed ? '#16a34a' : (s.acc >= 0.5 ? '#f59e0b' : subColor)}"></span></div>` : ''}
+            </div>
+        `;
+        const aniDelay = Math.min(i * 0.03, 0.6);
+        return `
+            <button type="button" class="${nodeClass}" data-idx="${i}"
+                style="left:${(x - nodeR).toFixed(1)}px;top:${(y - nodeR).toFixed(1)}px;width:${nodeR * 2}px;height:${nodeR * 2}px;background:${nodeBg};border-color:${nodeBorder};color:${nodeColor};box-shadow:0 4px 0 ${nodeShadow};--rm-shadow:${nodeShadow};--rm-halo:${subColor};animation-delay:${aniDelay}s"
+                onclick="onRoadmapNodeClick('${key}','${tEsc}',${i})"
+                aria-label="${escapeHtml(t)}">
+                <span class="ep-roadmap-node-inner">${inner}</span>
+            </button>
+            ${label}
+        `;
+    }).join('');
+
+    wrap.innerHTML = `
+        <div class="ep-roadmap" style="height:${totalHeight}px;width:${W}px">
+            <svg width="${W}" height="${totalHeight}" viewBox="0 0 ${W} ${totalHeight}" style="position:absolute;left:0;top:0;pointer-events:none">
+                <path d="${pathD}" stroke="#e5e7eb" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="2 14"/>
+            </svg>
+            ${nodesHtml}
+        </div>
+    `;
+}
+
+function _darkenColor(hex) {
+    if (!hex || hex[0] !== '#') return '#1f2937';
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const r = Math.max(0, parseInt(h.slice(0, 2), 16) - 40);
+    const g = Math.max(0, parseInt(h.slice(2, 4), 16) - 40);
+    const b = Math.max(0, parseInt(h.slice(4, 6), 16) - 40);
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function onRoadmapNodeClick(subjectKey, topic, idx) {
+    const sub = SUBJECTS[subjectKey] || {};
+    const subColor = sub.color || '#7c3aed';
+    const isActive = activeTopicsFor(subjectKey).has(topic);
+    const pool = [
+        ...EXERCISES.filter(e => e.s === subjectKey && e.t === topic),
+        ...(state.maxExercises || []).filter(e => e.s === subjectKey && e.t === topic)
+    ];
+    const seen = state.exerciseSeen || {};
+    const seenCount = pool.filter(e => seen[e.id]).length;
+    const lastResultById = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastResultById[h.id] = h.c; });
+    const correctCount = pool.filter(e => seen[e.id] && lastResultById[e.id] === true).length;
+    const accPct = seenCount > 0 ? Math.round((correctCount / seenCount) * 100) : 0;
+    const stars = topicStars(subjectKey, topic);
+    const hasLesson = !!(window.LESSONS && window.LESSONS[`${subjectKey}/${topic}`]);
+    const tEsc = String(topic).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+    document.getElementById('topic-node-sheet-temp')?.remove();
+    const html = `
+        <div id="topic-node-sheet-temp" class="ep-sheet-overlay" onclick="if(event.target===this)closeRoadmapNodeSheet()">
+            <div class="ep-sheet">
+                <div class="ep-sheet-handle"></div>
+                <div class="ep-sheet-header">
+                    <div class="ep-sheet-num" style="background:${subColor}">${idx + 1}</div>
+                    <div style="flex:1;min-width:0">
+                        <div class="ep-sheet-title">${escapeHtml(topic)} ${stars ? `<span style="letter-spacing:1px;font-size:0.78rem;margin-left:4px">${stars}</span>` : ''}</div>
+                        <div class="ep-sheet-meta">
+                            <span style="color:${subColor};font-weight:700">${seenCount}/${pool.length}</span>
+                            ${seenCount > 0 ? ` · <span style="color:${accPct >= 80 ? '#16a34a' : (accPct >= 50 ? '#f59e0b' : '#dc2626')};font-weight:700">${accPct}% acerto</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="icon-btn" onclick="closeRoadmapNodeSheet()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="ep-sheet-body">
+                    <button class="btn btn-primary-solid btn-block" style="margin-bottom:8px" onclick="closeRoadmapNodeSheet();startRoadmapTopicSession('${subjectKey}','${tEsc}')">
+                        <i class="fas fa-play"></i> Treinar este tópico
+                    </button>
+                    <button class="btn btn-block ep-sheet-toggle ${isActive ? 'is-on' : ''}" onclick="toggleActiveTopic('${subjectKey}','${tEsc}');renderTopicList();closeRoadmapNodeSheet();">
+                        <i class="fas ${isActive ? 'fa-check-square' : 'fa-square'}"></i> ${isActive ? 'Remover dos meus treinos' : 'Incluir nos meus treinos'}
+                    </button>
+                    ${hasLesson ? `<button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="closeRoadmapNodeSheet();openLessonByKey('${subjectKey}/${tEsc}')"><i class="fas fa-book-open"></i> Ver explicação</button>` : ''}
+                    ${seenCount > 0 ? `<button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="closeRoadmapNodeSheet();openTopicAnsweredModal('${subjectKey}','${tEsc}')"><i class="fas fa-list-check"></i> Perguntas respondidas</button>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+window.onRoadmapNodeClick = onRoadmapNodeClick;
+
+function closeRoadmapNodeSheet() {
+    document.getElementById('topic-node-sheet-temp')?.remove();
+}
+window.closeRoadmapNodeSheet = closeRoadmapNodeSheet;
+
+function startRoadmapTopicSession(subjectKey, topic) {
+    // Treino focado num único tópico (ignora active set)
+    selectedTopicsForMax = new Set([topic]);
+    startSubjectSession(subjectKey, { useSelection: true });
+}
+window.startRoadmapTopicSession = startRoadmapTopicSession;
 
 // Modal: lista de perguntas respondidas para um tópico
 function openTopicAnsweredModal(subjectKey, topic) {
