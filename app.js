@@ -336,7 +336,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v217';
+const APP_VERSION = 'v218';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1017,17 +1017,17 @@ function openSubjectDetail(key) {
                     </div>
                 </div>
 
+                <!-- Botão "começar treino" ANTES da lista — acesso rápido sem scroll -->
+                <button class="btn btn-primary-solid btn-block" style="margin-bottom:14px" onclick="startSubjectSession('${key}')">
+                    <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
+                </button>
+
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                     <i class="fas fa-list-ol"></i> <span style="flex:1">Tópicos</span>
                     <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="selectAllTopics()"><i class="fas fa-check-double"></i> Todos</button>
                     <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="clearTopicSelection()"><i class="fas fa-xmark"></i> Limpar</button>
                 </div>
                 <div id="topic-list"></div>
-
-                <!-- Botão "todos os tópicos" sempre disponível -->
-                <button class="btn btn-primary-solid btn-block" style="margin-top:12px" onclick="startSubjectSession('${key}')">
-                    <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
-                </button>
 
                 <!-- ===== BLOCO MAX ===== -->
                 <div style="margin-top:16px;background:linear-gradient(135deg,#4c1d95,#6d28d9);border-radius:16px;padding:14px;box-shadow:0 4px 16px rgba(109,40,217,0.35)">
