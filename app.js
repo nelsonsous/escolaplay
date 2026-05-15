@@ -373,7 +373,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v225';
+const APP_VERSION = 'v226';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1238,6 +1238,10 @@ function renderTopicRoadmap() {
     const wrap = document.getElementById('topic-roadmap');
     if (!wrap) return;
     const topics = CURRICULUM[key] || [];
+    if (topics.length === 0) {
+        wrap.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:20px">Sem tópicos para mostrar.</p>';
+        return;
+    }
     const sub = SUBJECTS[key] || {};
     const subColor = sub.color || '#7c3aed';
     const active = activeTopicsFor(key);
