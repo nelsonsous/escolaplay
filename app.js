@@ -14,7 +14,12 @@ const LEVELS = [
 ];
 const XP_BY_DIFF = { 1: 10, 2: 20, 3: 30 };
 const DAILY_QUESTIONS = 5;      // 1 por disciplina (temos 5)
-const PRACTICE_QUESTIONS = 6;
+const PRACTICE_QUESTIONS = 6;   // default — utilizador pode override via state.practiceQuestions
+const PRACTICE_QUESTIONS_PRESETS = [5, 10, 15, 20];
+function getPracticeQuestions() {
+    const n = state && state.practiceQuestions;
+    return (typeof n === 'number' && n > 0) ? n : PRACTICE_QUESTIONS;
+}
 
 const DEFAULT_REWARDS = [
     { id: 'r1', name: 'Escolher a sobremesa', cost: 2000, claimed: false },
@@ -60,7 +65,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -336,7 +341,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v218';
+const APP_VERSION = 'v219';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1480,7 +1485,7 @@ function startTestPrep(testId, opts = {}) {
     }
 
     // Distribuir por tópicos
-    const target = Math.max(PRACTICE_QUESTIONS, topicsOrdered.length * 2);
+    const target = Math.max(getPracticeQuestions(), topicsOrdered.length * 2);
     const perTopic = Math.max(2, Math.ceil(target / topicsOrdered.length));
     const items = [];
     topicsOrdered.forEach(topic => {
@@ -3056,7 +3061,7 @@ function startSubjectSession(key, opts = {}) {
             return;
         }
     }
-    const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
+    const items = pickExercises(pool, Math.min(getPracticeQuestions(), pool.length));
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now() };
     closeSubjectDetail();
     openExerciseScreen();
@@ -3917,7 +3922,7 @@ window.exActionTap = exActionTap;
         const vv = window.visualViewport;
         const hidden = window.innerHeight - (vv.height + vv.offsetTop);
         if (hidden > 80) {
-            // Teclado provavelmente aberto — fixar a barra acima dele
+            // Teclado aberto — fixar a barra acima dele
             bar.style.position = 'fixed';
             bar.style.left = '0';
             bar.style.right = '0';
@@ -3925,6 +3930,22 @@ window.exActionTap = exActionTap;
             bar.style.maxWidth = '480px';
             bar.style.margin = '0 auto';
             bar.style.zIndex = '100';
+            // Garantir que o input está visível ACIMA da action bar.
+            // Sem isto, a barra pode tapar o input (bug reportado em iPad
+            // landscape: "Se for uma imagem o responder fica em cima do
+            // campo da resposta").
+            const input = document.getElementById('fill-input');
+            if (input && document.activeElement === input) {
+                requestAnimationFrame(() => {
+                    const r = input.getBoundingClientRect();
+                    const barH = bar.offsetHeight || 64;
+                    const visibleBottom = vv.height - barH - 12;
+                    if (r.bottom > visibleBottom) {
+                        const delta = r.bottom - visibleBottom;
+                        window.scrollBy({ top: delta, behavior: 'smooth' });
+                    }
+                });
+            }
         } else {
             // Teclado fechado — voltar a sticky
             bar.style.position = '';
@@ -3938,6 +3959,13 @@ window.exActionTap = exActionTap;
     };
     window.visualViewport.addEventListener('resize', adjust);
     window.visualViewport.addEventListener('scroll', adjust);
+    // Também ajustar quando um fill-input ganha focus
+    document.addEventListener('focusin', (e) => {
+        if (e.target && e.target.id === 'fill-input') {
+            setTimeout(adjust, 100);
+            setTimeout(adjust, 400);
+        }
+    });
 })();
 
 // Avança para a próxima pergunta (ou termina a sessão)
@@ -4401,7 +4429,7 @@ function startNewCycle() {
     const topicSet = s.topicSet || activeTopicsFor(key);
     const pool = allExercisesFor(key, topicSet);
     if (pool.length === 0) { closeSummary(); return; }
-    const items = pickExercises(pool, Math.min(PRACTICE_QUESTIONS, pool.length));
+    const items = pickExercises(pool, Math.min(getPracticeQuestions(), pool.length));
     document.getElementById('summary-screen').style.display = 'none';
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now() };
     openExerciseScreen();
