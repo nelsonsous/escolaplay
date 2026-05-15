@@ -373,7 +373,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v221';
+const APP_VERSION = 'v222';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1778,27 +1778,21 @@ function renderProfile() {
     const isCustomPhoto = typeof curAv === 'string' && (curAv.startsWith('data:image') || /^https?:\/\//.test(curAv));
     // Bloco 1: 12 avatares cartoon (DiceBear)
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')" style="padding:4px">${renderAvatar(a, 56)}</div>
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
     `).join('');
     // Bloco 2: 12 emojis (compatibilidade)
     const emojisHtml = AVATARS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
     `).join('');
-    // Bloco 3: carregar foto + foto actual se já tiver
+    // Bloco 3: carregar foto (primeira célula, mais visível)
     const photoHtml = `
-        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px;background:${isCustomPhoto ? 'transparent' : '#f3f4f6'}" title="Carregar uma foto">
+        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Carregar uma foto">
             ${isCustomPhoto ? renderAvatar(curAv, 56) : '<span style="font-size:1.5rem">📷</span>'}
             <input type="file" accept="image/*" onchange="uploadAvatarPhoto(event)" style="display:none">
         </label>
     `;
-    grid.innerHTML = `
-        <div style="grid-column:1/-1;font-size:0.72rem;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:4px 0 6px">🎨 Personagens</div>
-        ${cartoonsHtml}
-        <div style="grid-column:1/-1;font-size:0.72rem;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 6px">📷 Foto</div>
-        ${photoHtml}
-        <div style="grid-column:1/-1;font-size:0.72rem;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 6px">😀 Emojis</div>
-        ${emojisHtml}
-    `;
+    // Tudo numa só grelha — foto primeiro, depois 12 cartoons, depois 12 emojis (25 cells em 6 cols = ~5 linhas, sem subtítulos)
+    grid.innerHTML = `${photoHtml}${cartoonsHtml}${emojisHtml}`;
 
     // MAX config
     const maxEnabled = document.getElementById('max-enabled');
