@@ -1615,7 +1615,7 @@ button, input, textarea, select { font-family: inherit; }
     border: 1px solid #e5e7eb;
 }
 .ex-svg-wrap svg { max-width: 100%; height: auto; }
-.ex-q-text { display: block; font-weight: 700; font-size: var(--fs-base); }
+.ex-q-text { display: block; font-weight: var(--fw-black); }
 
 /* Banner de encorajamento mid-sessão */
 .ep-encourage {
@@ -3350,7 +3350,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 /* Override @media queries antigas com a mesma especificidade */
 @media (min-width: 600px) {
     #exercise-screen .exercise-question { font-size: var(--fs-3xl); }
-    #exercise-screen .btn-option        { font-size: var(--fs-xl); }
+    #exercise-screen .btn-option        { font-size: var(--fs-md); }
 }
 
 /* ========================================================
