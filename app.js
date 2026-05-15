@@ -3,6 +3,38 @@
 
 const STORAGE_KEY = 'escolaplay_v2';
 const AVATARS = ['\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}','\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F984}','\u{1F409}'];
+// Avatares cartoon ilustrados (DiceBear, gratuito) — seeds escolhidas
+// para dar variedade visual entre miúdo/miúda/animal-friendly.
+const AVATAR_CARTOONS = [
+    'dicebear:adventurer:Eduarda',
+    'dicebear:adventurer:Carolina',
+    'dicebear:adventurer:Nelson',
+    'dicebear:adventurer:Maria',
+    'dicebear:adventurer:Tomas',
+    'dicebear:adventurer:Beatriz',
+    'dicebear:adventurer:Lucas',
+    'dicebear:adventurer:Inês',
+    'dicebear:lorelei:rosa',
+    'dicebear:lorelei:azul',
+    'dicebear:lorelei:verde',
+    'dicebear:lorelei:amarelo',
+];
+// Renderiza um avatar a partir de uma string que pode ser emoji,
+// dicebear:STYLE:SEED, ou data:image/... (foto upload).
+function renderAvatar(av, sizePx = 46) {
+    if (!av) return '<span>🎓</span>';
+    const s = String(av);
+    if (s.startsWith('data:image') || /^https?:\/\//.test(s)) {
+        return `<img src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+    }
+    if (s.startsWith('dicebear:')) {
+        const [, style, seed] = s.split(':');
+        const url = `https://api.dicebear.com/9.x/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed || 'EscolaPlay')}&backgroundColor=transparent`;
+        return `<img src="${url}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+    }
+    // Emoji ou outro texto curto — render como texto
+    return `<span style="font-size:${Math.round(sizePx * 0.55)}px;line-height:1">${s}</span>`;
+}
 const LEVELS = [
     { min:    0, name: 'Aprendiz' },
     { min:  500, name: 'Aventureiro' },
@@ -341,7 +373,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v219';
+const APP_VERSION = 'v220';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -519,7 +551,8 @@ function levelInfo(xp) {
 function updateHeader() {
     const lvl = levelInfo(state.xp);
     const p = activeProfile();
-    document.getElementById('avatar').textContent = state.profile.avatar;
+    const avEl = document.getElementById('avatar');
+    if (avEl) avEl.innerHTML = renderAvatar(state.profile.avatar, 46);
     document.getElementById('user-name').textContent = state.profile.name;
     document.getElementById('level-name').textContent = lvl.name;
     document.getElementById('streak-days').textContent = state.streak.days;
@@ -1647,7 +1680,7 @@ function openProfileSwitcher() {
         const active = p.id === state.activeProfileId;
         return `
             <div onclick="switchProfile('${p.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:${active ? '#ede9fe' : '#fff'};border:2px solid ${active ? '#7c3aed' : 'var(--border)'};margin-bottom:8px;cursor:pointer">
-                <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;font-size:1.4rem;display:flex;align-items:center;justify-content:center">${p.avatar}</div>
+                <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 42)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:700">${p.name}</div>
                     <div style="font-size:0.78rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP</div>
@@ -1728,7 +1761,7 @@ function renderProfile() {
             const active = p.id === state.activeProfileId;
             return `
                 <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#ede9fe' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
-                    <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">${p.avatar}</div>
+                    <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
                     <div style="flex:1;min-width:0">
                         <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#7c3aed;font-size:0.7rem">(activo)</span>' : ''}</div>
                         <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
@@ -1741,9 +1774,31 @@ function renderProfile() {
 
     document.getElementById('input-name').value = state.profile.name;
     const grid = document.getElementById('avatar-grid');
-    grid.innerHTML = AVATARS.map(a => `
-        <div class="avatar-option ${a === state.profile.avatar ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
+    const curAv = state.profile.avatar;
+    const isCustomPhoto = typeof curAv === 'string' && (curAv.startsWith('data:image') || /^https?:\/\//.test(curAv));
+    // Bloco 1: 12 avatares cartoon (DiceBear)
+    const cartoonsHtml = AVATAR_CARTOONS.map(a => `
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')" style="padding:4px">${renderAvatar(a, 56)}</div>
     `).join('');
+    // Bloco 2: 12 emojis (compatibilidade)
+    const emojisHtml = AVATARS.map(a => `
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
+    `).join('');
+    // Bloco 3: carregar foto + foto actual se já tiver
+    const photoHtml = `
+        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px;background:${isCustomPhoto ? 'transparent' : '#f3f4f6'}" title="Carregar uma foto">
+            ${isCustomPhoto ? renderAvatar(curAv, 56) : '<span style="font-size:1.5rem">📷</span>'}
+            <input type="file" accept="image/*" onchange="uploadAvatarPhoto(event)" style="display:none">
+        </label>
+    `;
+    grid.innerHTML = `
+        <div style="grid-column:1/-1;font-size:0.72rem;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:4px 0 6px">🎨 Personagens</div>
+        ${cartoonsHtml}
+        <div style="grid-column:1/-1;font-size:0.72rem;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 6px">📷 Foto</div>
+        ${photoHtml}
+        <div style="grid-column:1/-1;font-size:0.72rem;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 6px">😀 Emojis</div>
+        ${emojisHtml}
+    `;
 
     // MAX config
     const maxEnabled = document.getElementById('max-enabled');
@@ -1774,9 +1829,42 @@ function renderProfile() {
 }
 function selectAvatar(a) {
     state.profile.avatar = a;
+    saveState();
     renderProfile();
     updateHeader();
 }
+// Upload de foto — converte para dataURL (base64) com resize para 256px
+// para não inchar o localStorage com megabytes de imagem.
+function uploadAvatarPhoto(event) {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande (max 5 MB).'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            // Redimensionar para 256×256 com crop central (square)
+            const SIZE = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = SIZE; canvas.height = SIZE;
+            const ctx = canvas.getContext('2d');
+            const min = Math.min(img.width, img.height);
+            const sx = (img.width - min) / 2;
+            const sy = (img.height - min) / 2;
+            ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            state.profile.avatar = dataUrl;
+            saveState();
+            renderProfile();
+            updateHeader();
+            showToast('✓ Foto guardada');
+        };
+        img.onerror = () => showToast('Erro a carregar imagem.');
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+window.uploadAvatarPhoto = uploadAvatarPhoto;
 function saveProfile() {
     const name = document.getElementById('input-name').value.trim() || 'Aluno(a)';
     state.profile.name = name;
