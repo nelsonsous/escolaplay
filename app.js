@@ -99,7 +99,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicViewMode'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicViewMode','topicFocus'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -375,7 +375,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v227';
+const APP_VERSION = 'v228';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1086,9 +1086,12 @@ function openSubjectDetail(key) {
                     <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="selectAllTopics()"><i class="fas fa-check-double"></i> Todos</button>
                     <button class="btn btn-secondary" style="font-size:0.72rem;padding:6px 10px" onclick="clearTopicSelection()"><i class="fas fa-xmark"></i> Limpar</button>
                 </div>
-                <div class="ep-topic-view-toggle" id="ep-topic-view-toggle">
-                    <button type="button" data-mode="roadmap" onclick="setTopicViewMode('roadmap')"><i class="fas fa-route"></i> Roadmap</button>
-                    <button type="button" data-mode="list" onclick="setTopicViewMode('list')"><i class="fas fa-list"></i> Lista</button>
+                <div class="ep-topic-controls">
+                    <div class="ep-topic-view-toggle" id="ep-topic-view-toggle">
+                        <button type="button" data-mode="roadmap" onclick="setTopicViewMode('roadmap')"><i class="fas fa-route"></i> Roadmap</button>
+                        <button type="button" data-mode="list" onclick="setTopicViewMode('list')"><i class="fas fa-list"></i> Lista</button>
+                    </div>
+                    <button type="button" class="ep-topic-focus-pill" id="ep-topic-focus-pill" onclick="toggleTopicFocus()"></button>
                 </div>
                 <div id="topic-roadmap"></div>
                 <div id="topic-list"></div>
@@ -1156,6 +1159,17 @@ function setTopicViewMode(mode) {
 }
 window.setTopicViewMode = setTopicViewMode;
 
+function _currentTopicFocus() {
+    const f = state && state.topicFocus;
+    return f === 'all' ? 'all' : 'active';
+}
+function toggleTopicFocus() {
+    state.topicFocus = _currentTopicFocus() === 'active' ? 'all' : 'active';
+    saveState();
+    renderTopicList();
+}
+window.toggleTopicFocus = toggleTopicFocus;
+
 function _applyTopicViewMode() {
     const mode = _currentTopicViewMode();
     const rm = document.getElementById('topic-roadmap');
@@ -1166,6 +1180,19 @@ function _applyTopicViewMode() {
     if (tog) tog.querySelectorAll('button[data-mode]').forEach(b => {
         b.classList.toggle('is-active', b.dataset.mode === mode);
     });
+    // Pill "Só activos" / "Todos" — só faz sentido no modo roadmap
+    const pill = document.getElementById('ep-topic-focus-pill');
+    if (pill) {
+        const key = currentSubjectView;
+        const total = (CURRICULUM[key] || []).length;
+        const activeN = activeTopicsFor(key).size;
+        const focus = _currentTopicFocus();
+        pill.classList.toggle('is-on', focus === 'active');
+        pill.innerHTML = focus === 'active'
+            ? `<i class="fas fa-bullseye"></i> Só activos · ${activeN}`
+            : `<i class="fas fa-layer-group"></i> Todos · ${total}`;
+        pill.style.display = (mode === 'roadmap') ? '' : 'none';
+    }
 }
 
 function renderTopicList() {
@@ -1239,8 +1266,8 @@ function renderTopicRoadmap() {
     if (!key) return;
     const wrap = document.getElementById('topic-roadmap');
     if (!wrap) return;
-    const topics = CURRICULUM[key] || [];
-    if (topics.length === 0) {
+    const allTopics = CURRICULUM[key] || [];
+    if (allTopics.length === 0) {
         wrap.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:20px">Sem tópicos para mostrar.</p>';
         return;
     }
@@ -1254,7 +1281,15 @@ function renderTopicRoadmap() {
         ? new Set(state.matPlusDiag.recommended)
         : new Set();
 
-    // Pré-cálculos por tópico
+    // Filtro "Só activos" vs "Todos". Quando "Só activos" e a lista activa está
+    // vazia, recua para mostrar tudo (senão a vista fica em branco).
+    const focus = _currentTopicFocus();
+    const useFilter = focus === 'active' && active.size > 0;
+    const topics = useFilter ? allTopics.filter(t => active.has(t)) : allTopics;
+    // Indice original no currículo (para mostrar no nó: "tópico nº N de M")
+    const origIndex = new Map(allTopics.map((t, i) => [t, i]));
+
+    // Pré-cálculos por tópico (já apenas para os visíveis)
     const stats = topics.map(t => {
         const pool = [
             ...EXERCISES.filter(e => e.s === key && e.t === t),
@@ -1267,7 +1302,7 @@ function renderTopicRoadmap() {
         return { pool, seen: seenIds.length, correct, acc, completed, stars: topicStars(key, t) };
     });
 
-    // "Atual" = primeiro tópico activo não-completo; fallback = primeiro não-completo; fallback = 0
+    // "Atual" = primeiro activo não-completo; fallback = primeiro não-completo
     let currentIdx = -1;
     for (let i = 0; i < topics.length; i++) {
         if (active.has(topics[i]) && !stats[i].completed) { currentIdx = i; break; }
@@ -1278,10 +1313,10 @@ function renderTopicRoadmap() {
 
     // Geometria do serpentine (container fixo 288px — cabe em qualquer telemóvel)
     const W = 288;
-    const cx = W / 2;          // centro horizontal
-    const amp = 92;            // amplitude lateral
-    const rowH = 118;          // espaço vertical por tópico (nó + label)
-    const nodeR = 28;          // raio do nó
+    const cx = W / 2;
+    const amp = 92;
+    const rowH = 118;
+    const nodeR = 28;
     const padTop = 30;
     const totalHeight = topics.length * rowH + padTop + 30;
     const pts = topics.map((_, i) => {
@@ -1311,6 +1346,7 @@ function renderTopicRoadmap() {
         const isLocked = !isActive && !s.completed && !isCurrent;
         const isRecommended = recommendedSet.has(t);
         const tEsc = String(t).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const displayNum = (origIndex.get(t) ?? i) + 1;
 
         let nodeClass = 'ep-roadmap-node';
         let nodeBg, nodeBorder, nodeColor, nodeShadow, inner;
@@ -1333,14 +1369,14 @@ function renderTopicRoadmap() {
             nodeBorder = subColor;
             nodeColor = subColor;
             nodeShadow = '#e5e7eb';
-            inner = String(i + 1);
+            inner = String(displayNum);
         } else {
             nodeClass += ' is-locked';
             nodeBg = '#e5e7eb';
             nodeBorder = '#cbd5e1';
             nodeColor = '#94a3b8';
             nodeShadow = '#cbd5e1';
-            inner = isLocked ? '<i class="fas fa-lock"></i>' : String(i + 1);
+            inner = isLocked ? '<i class="fas fa-lock"></i>' : String(displayNum);
         }
 
         const label = `
@@ -1355,7 +1391,7 @@ function renderTopicRoadmap() {
         return `
             <button type="button" class="${nodeClass}" data-idx="${i}"
                 style="left:${(x - nodeR).toFixed(1)}px;top:${(y - nodeR).toFixed(1)}px;width:${nodeR * 2}px;height:${nodeR * 2}px;background:${nodeBg};border-color:${nodeBorder};color:${nodeColor};box-shadow:0 4px 0 ${nodeShadow};--rm-shadow:${nodeShadow};--rm-halo:${subColor};animation-delay:${aniDelay}s"
-                onclick="onRoadmapNodeClick('${key}','${tEsc}',${i})"
+                onclick="onRoadmapNodeClick('${key}','${tEsc}',${displayNum - 1})"
                 aria-label="${escapeHtml(t)}">
                 <span class="ep-roadmap-node-inner">${inner}</span>
             </button>
@@ -1363,7 +1399,16 @@ function renderTopicRoadmap() {
         `;
     }).join('');
 
+    // Banner se filtro está activo e a esconder muitos tópicos
+    const hiddenCount = allTopics.length - topics.length;
+    const banner = (useFilter && hiddenCount > 0)
+        ? `<div class="ep-roadmap-banner"><i class="fas fa-bullseye"></i> A mostrar ${topics.length} tópico${topics.length === 1 ? '' : 's'} activo${topics.length === 1 ? '' : 's'} (${hiddenCount} escondidos). <button type="button" onclick="toggleTopicFocus()" class="ep-roadmap-banner-link">Ver todos</button></div>`
+        : (focus === 'active' && active.size === 0)
+            ? `<div class="ep-roadmap-banner"><i class="fas fa-circle-info"></i> Sem tópicos activos. Selecciona alguns na vista <button type="button" onclick="setTopicViewMode('list')" class="ep-roadmap-banner-link">Lista</button>.</div>`
+            : '';
+
     wrap.innerHTML = `
+        ${banner}
         <div class="ep-roadmap" style="height:${totalHeight}px;width:${W}px">
             <svg width="${W}" height="${totalHeight}" viewBox="0 0 ${W} ${totalHeight}" style="position:absolute;left:0;top:0;pointer-events:none">
                 <path d="${pathD}" stroke="#e5e7eb" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="2 14"/>

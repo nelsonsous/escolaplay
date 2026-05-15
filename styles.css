@@ -3373,7 +3373,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 /* Override @media queries antigas com a mesma especificidade */
 @media (min-width: 600px) {
-    #exercise-screen .exercise-question { font-size: var(--fs-3xl); }
+    #exercise-screen .exercise-question { font-size: var(--fs-2xl); }
     #exercise-screen .btn-option        { font-size: var(--fs-md); }
 }
 
@@ -3382,9 +3382,9 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
    Pergunta maior + tudo o resto mais compacto
    ======================================================== */
 #exercise-screen .exercise-question {
-    font-size: var(--fs-3xl);           /* 36px ↑ — pergunta DOMINA */
-    line-height: 1.2;
-    margin-bottom: 14px;                 /* 20px → 14px */
+    font-size: var(--fs-2xl);           /* 30px — domina sem ser exagerado (era 36 em v216) */
+    line-height: 1.25;
+    margin-bottom: 14px;
 }
 #exercise-screen .exercise-topic {
     margin-bottom: 6px;                  /* 8px → 6px */
@@ -3478,13 +3478,62 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
    ROADMAP — caminho serpentino estilo Duolingo (v224)
    ======================================================== */
 
+.ep-topic-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 6px 0 10px;
+}
 .ep-topic-view-toggle {
     display: inline-flex;
     background: #f3f4f6;
     border-radius: 999px;
     padding: 3px;
-    margin: 6px 0 10px;
     gap: 2px;
+}
+.ep-topic-focus-pill {
+    background: #f3f4f6;
+    color: var(--text-light);
+    border: 1.5px solid transparent;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ep-topic-focus-pill.is-on {
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #c4b5fd;
+}
+.ep-topic-focus-pill:active { transform: scale(0.96); }
+
+.ep-roadmap-banner {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin: 0 auto 12px;
+    max-width: 320px;
+    font-size: var(--fs-xs);
+    color: #1e3a8a;
+    line-height: 1.4;
+    text-align: center;
+}
+.ep-roadmap-banner-link {
+    background: none;
+    border: 0;
+    color: #2563eb;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0 2px;
+    font-size: inherit;
 }
 .ep-topic-view-toggle button {
     background: transparent;
