@@ -97,7 +97,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -373,7 +373,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v222';
+const APP_VERSION = 'v223';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -532,9 +532,28 @@ function normalize(s) {
 }
 function activeTopicsFor(subjectKey) {
     const topics = CURRICULUM[subjectKey] || [];
+    // 1) Se o utilizador escolheu manualmente tópicos activos por defeito,
+    //    usar essa lista (filtrada contra tópicos válidos).
+    const custom = state.activeTopics && state.activeTopics[subjectKey];
+    if (Array.isArray(custom) && custom.length > 0) {
+        const valid = new Set(topics);
+        return new Set(custom.filter(t => valid.has(t)));
+    }
+    // 2) Fallback legacy — tópicos 0..toIndex via slider
     const to = state.progress[subjectKey]?.toIndex ?? topics.length;
     return new Set(topics.slice(0, to));
 }
+function setActiveTopicsFor(subjectKey, topicsArr) {
+    if (!state.activeTopics) state.activeTopics = {};
+    state.activeTopics[subjectKey] = Array.isArray(topicsArr) ? [...topicsArr] : [];
+    saveState();
+}
+function toggleActiveTopic(subjectKey, topic) {
+    const current = new Set(activeTopicsFor(subjectKey));
+    if (current.has(topic)) current.delete(topic); else current.add(topic);
+    setActiveTopicsFor(subjectKey, Array.from(current));
+}
+window.toggleActiveTopic = toggleActiveTopic;
 
 // ========== LEVEL/XP ==========
 function levelInfo(xp) {
@@ -1121,8 +1140,11 @@ let selectedTopicsForMax = new Set();
 function renderTopicList() {
     const key = currentSubjectView;
     const topics = CURRICULUM[key] || [];
-    const toIndex = state.progress[key]?.toIndex ?? topics.length;
-    const active = new Set(topics.slice(0, toIndex));
+    // 'active' agora vem do state persistente (state.activeTopics) — checkbox
+    // marca/desmarca um tópico para entrar no 'Começar treino' por defeito.
+    const active = activeTopicsFor(key);
+    // Mantém selectedTopicsForMax em sync com active topics (para a MAX bar)
+    selectedTopicsForMax = new Set(active);
     const container = document.getElementById('topic-list');
     if (!container) return;
     const seen = state.exerciseSeen || {};
@@ -1149,17 +1171,18 @@ function renderTopicList() {
         const correctCount = seenIds.filter(id => lastResultById[id] === true).length;
         const wrongCount = seenIds.filter(id => lastResultById[id] === false).length;
         const pct = count > 0 ? Math.round((seenCount / count) * 100) : 0;
-        const sel = selectedTopicsForMax.has(t);
+        // 'isActive' agora = "incluído nos meus treinos por defeito" (state persistente)
+        // Click no checkbox/card persiste a escolha em state.activeTopics
         const tEsc = t.replace(/'/g, "\\'");
         // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
         const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
         const stars = topicStars(key, t);
-        const borderColor = sel ? '#7c3aed' : (isRecommended ? '#14b8a6' : 'transparent');
-        const cardBg = sel ? '#f5f3ff' : (isRecommended ? '#f0fdfa' : '#fff');
+        const borderColor = isActive ? subColor : (isRecommended ? '#14b8a6' : 'transparent');
+        const cardBg = isActive ? '#fff' : (isRecommended ? '#f0fdfa' : '#fafafa');
         return `
-            <div onclick="${isActive ? `toggleTopicSelection('${tEsc}')` : ''}" style="background:${cardBg};padding:7px 10px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:5px;display:flex;align-items:center;gap:7px;opacity:${isActive ? '1' : '0.45'};cursor:${isActive ? 'pointer' : 'default'};border:1.5px solid ${borderColor}">
-                ${isActive ? `<input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleTopicSelection('${tEsc}')" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0">` : `<span style="width:16px;height:16px;flex-shrink:0"></span>`}
-                <span style="width:20px;height:20px;border-radius:50%;background:${isActive ? subColor : '#e5e7eb'};color:#fff;font-size:0.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+            <div onclick="toggleActiveTopic('${key}','${tEsc}');renderTopicList();" style="background:${cardBg};padding:7px 10px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:5px;display:flex;align-items:center;gap:7px;opacity:${isActive ? '1' : '0.55'};cursor:pointer;border:1.5px solid ${borderColor}">
+                <input type="checkbox" ${isActive ? 'checked' : ''} onclick="event.stopPropagation();toggleActiveTopic('${key}','${tEsc}');renderTopicList();" style="width:16px;height:16px;accent-color:${subColor};flex-shrink:0" title="Incluir nos meus treinos por defeito">
+                <span style="width:20px;height:20px;border-radius:50%;background:${isActive ? subColor : '#cbd5e1'};color:#fff;font-size:0.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:5px;line-height:1.2">${t}${isRecommended ? '<span title="Recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">REC</span>' : ''}${stars ? `<span title="Domínio" style="font-size:0.72rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.68rem;color:var(--text-light);margin-top:1px;display:flex;align-items:center;gap:6px">
@@ -1249,7 +1272,9 @@ function toggleTopicSelection(topic) {
 }
 
 function clearTopicSelection() {
-    selectedTopicsForMax.clear();
+    // Desactiva TODOS os tópicos da disciplina actual (state persistente)
+    const key = currentSubjectView;
+    if (key) setActiveTopicsFor(key, []);
     renderTopicList();
 }
 
@@ -1259,18 +1284,18 @@ function updateTopicSelBar() {
     const maxCnt = document.getElementById('max-sel-count');
     if (maxBar) maxBar.style.display = n > 0 ? 'block' : 'none';
     if (maxCnt) maxCnt.textContent = n;
+    // Sticky bar 'Treinar selecionados' já não é necessária — o botão
+    // 'Começar treino' no topo usa os mesmos tópicos activos.
     const selBar = document.getElementById('topic-sel-actions');
-    const selCnt = document.getElementById('sel-count');
-    if (selBar) selBar.style.display = n > 0 ? 'block' : 'none';
-    if (selCnt) selCnt.textContent = n;
+    if (selBar) selBar.style.display = 'none';
 }
 
 function selectAllTopics() {
+    // Activa TODOS os tópicos da disciplina (state persistente)
     const key = currentSubjectView;
     if (!key) return;
     const topics = CURRICULUM[key] || [];
-    const toIndex = state.progress[key]?.toIndex ?? topics.length;
-    topics.slice(0, toIndex).forEach(t => selectedTopicsForMax.add(t));
+    setActiveTopicsFor(key, topics);
     renderTopicList();
 }
 
@@ -1282,8 +1307,12 @@ function startMaxForSelected(key, isTestPrep = false) {
 
 function onProgressSlider(val) {
     const key = currentSubjectView;
-    state.progress[key] = { toIndex: parseInt(val) };
-    saveState();
+    const n = parseInt(val);
+    state.progress[key] = { toIndex: n };
+    // Slider funciona como atalho: define os tópicos 0..N como activos
+    // (sobrescreve o estado persistente).
+    const topics = CURRICULUM[key] || [];
+    setActiveTopicsFor(key, topics.slice(0, n));
     document.getElementById('progress-current').textContent = val;
     renderTopicList();
 }
