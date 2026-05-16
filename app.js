@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v233';
+const APP_VERSION = 'v234';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3359,13 +3359,28 @@ function renderQuestion() {
     const screenEl = document.getElementById('exercise-screen');
     const friendly = yr === 2 && (e.s === 'matematica' || e.s === 'estudo_meio');
     if (screenEl) screenEl.classList.toggle('reader-friendly', !!friendly);
-    const dots = s.items.map((_, i) => {
-        let cls = '';
-        if (i < s.idx) cls = (s.results && s.results[i]) ? 'done' : 'wrong';
-        else if (i === s.idx) cls = 'current';
-        return `<div class="progress-dot ${cls}"></div>`;
-    }).join('');
-    document.getElementById('progress-dots').innerHTML = dots;
+    // Indicador de progresso: dots ate 10 perguntas, barra unica com contador
+    // acima disso (com 20 dots no header espremido viravam fios invisiveis).
+    const N = s.items.length;
+    const wrap = document.getElementById('progress-dots');
+    if (N <= 10) {
+        wrap.classList.remove('progress-compact');
+        wrap.innerHTML = s.items.map((_, i) => {
+            let cls = '';
+            if (i < s.idx) cls = (s.results && s.results[i]) ? 'done' : 'wrong';
+            else if (i === s.idx) cls = 'current';
+            return `<div class="progress-dot ${cls}"></div>`;
+        }).join('');
+    } else {
+        wrap.classList.add('progress-compact');
+        const correct = (s.results || []).filter(r => r === true).length;
+        const wrong   = (s.results || []).filter(r => r === false).length;
+        const pct = Math.round((s.idx / N) * 100);
+        wrap.innerHTML = `
+            <div class="progress-bar"><span style="width:${pct}%"></span></div>
+            <div class="progress-counter">${s.idx + 1}/${N}${correct ? ` · <span style="color:var(--success)">✓${correct}</span>` : ''}${wrong ? ` · <span style="color:var(--danger)">✗${wrong}</span>` : ''}</div>
+        `;
+    }
     document.getElementById('session-xp').textContent = s.xp;
     const sub = SUBJECTS[e.s];
     const tag = document.getElementById('ex-subject-tag');

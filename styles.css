@@ -918,7 +918,7 @@ button, input, textarea, select { font-family: inherit; }
 .help-btn:hover { background: #fde68a; }
 .hint-btn { background: #dbeafe; color: #2563eb; }
 .hint-btn:hover { background: #bfdbfe; }
-.progress-dots { flex: 1; display: flex; gap: 4px; }
+.progress-dots { flex: 1; display: flex; gap: 4px; align-items: center; min-width: 0; }
 .progress-dot {
     flex: 1;
     height: 6px;
@@ -929,6 +929,30 @@ button, input, textarea, select { font-family: inherit; }
 .progress-dot.done { background: var(--success); }
 .progress-dot.current { background: var(--primary); }
 .progress-dot.wrong { background: var(--danger); }
+/* Modo compacto: barra unica + contador quando N > 10 */
+.progress-dots.progress-compact { gap: 8px; }
+.progress-dots.progress-compact .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 40px;
+}
+.progress-dots.progress-compact .progress-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 999px;
+    transition: width 0.3s;
+}
+.progress-dots.progress-compact .progress-counter {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 .session-xp {
     font-size: var(--fs-sm); font-weight: 700;
     color: var(--accent);
