@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v240';
+const APP_VERSION = 'v241';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1400,6 +1400,22 @@ function closeSubjectDetail() {
     renderHome();
 }
 
+// Abreviaturas curtas das disciplinas para o calendario de testes (cabem em
+// celulas pequenas, melhor que so um ponto colorido).
+const SUBJECT_SHORT = {
+    portugues:   'Por',
+    matematica:  'Mat',
+    estudo_meio: 'EM',
+    ingles:      'Ing',
+    ciencias:    'CN',
+    hgp:         'HGP',
+    historia:    'His',
+    quimica:     'Quí'
+};
+function subjectShortLabel(key) {
+    return SUBJECT_SHORT[key] || (key || '?').slice(0, 3);
+}
+
 // ========== TESTS ==========
 let _testsCalCursor = null; // 'YYYY-MM' do mês actualmente mostrado
 
@@ -1418,6 +1434,8 @@ function renderTestsCalendar() {
     const firstOfMonth = new Date(yr, mo - 1, 1);
     const lastOfMonth = new Date(yr, mo, 0);
     const daysInMonth = lastOfMonth.getDate();
+    // PT: semana comeca a Segunda. Converte getDay() (0=Dom..6=Sab) para (0=Seg..6=Dom).
+    const firstWeekdayPT = (firstOfMonth.getDay() + 6) % 7;
     const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     // Dias do mês com testes (agrupados por data → array de testes)
     const byDate = {};
@@ -1425,37 +1443,35 @@ function renderTestsCalendar() {
         if (!byDate[t.date]) byDate[t.date] = [];
         byDate[t.date].push(t);
     });
-    // Calendário só com dias úteis (Seg–Sex). Aos fins-de-semana não há testes,
-    // por isso poupamos espaço e mostramos um grid de 5 colunas.
-    const dow = ['Seg','Ter','Qua','Qui','Sex'];
+    // Calendario completo Seg-Dom (fins de semana em cinza claro).
+    const dow = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
     const cells = [];
-    let firstCol = null;
+    for (let i = 0; i < firstWeekdayPT; i++) cells.push('<div class="tests-cal-cell empty"></div>');
     for (let d = 1; d <= daysInMonth; d++) {
         const dayDate = new Date(yr, mo - 1, d);
-        const dayOfWeek = dayDate.getDay(); // 0=Dom..6=Sáb
-        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-        const col = dayOfWeek - 1; // 0=Seg..4=Sex
-        if (firstCol === null) {
-            firstCol = col;
-            for (let i = 0; i < firstCol; i++) cells.push('<div class="tests-cal-cell empty"></div>');
-        }
+        const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
         const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const ts = byDate[dateStr] || [];
         const isToday = dateStr === todayStrFmt;
         const hasTests = ts.length > 0;
-        const dots = ts.slice(0, 4).map(t => {
+        // Chips com sigla + cor da disciplina (max 3 visiveis, +N para overflow)
+        const visible = ts.slice(0, 3);
+        const chipsHtml = visible.map(t => {
             const sub = SUBJECTS[t.subject];
-            const done = t.done ? 'is-done' : '';
-            return `<span class="tests-cal-dot ${done}" style="background:${sub?.color || '#6b7280'}"></span>`;
+            const done = t.done ? ' is-done' : '';
+            const label = subjectShortLabel(t.subject);
+            return `<span class="tests-cal-chip${done}" style="background:${sub?.color || '#6b7280'}">${label}</span>`;
         }).join('');
+        const overflow = ts.length > 3 ? `<span class="tests-cal-chip-more">+${ts.length - 3}</span>` : '';
         const tooltipNames = ts.map(t => (SUBJECTS[t.subject]?.name || t.subject)).join(', ');
         const cls = ['tests-cal-cell'];
         if (isToday) cls.push('is-today');
         if (hasTests) cls.push('has-tests');
+        if (isWeekend) cls.push('is-weekend');
         const handler = hasTests ? `onclick="scrollToTestOn('${dateStr}')"` : '';
         cells.push(`<button type="button" class="${cls.join(' ')}" ${handler} ${hasTests ? `title="${tooltipNames}"` : ''}>
             <span class="tests-cal-day">${d}</span>
-            ${hasTests ? `<span class="tests-cal-dots">${dots}</span>` : ''}
+            ${hasTests ? `<span class="tests-cal-chips">${chipsHtml}${overflow}</span>` : ''}
         </button>`);
     }
     wrap.innerHTML = `
@@ -3482,12 +3498,17 @@ function renderQuestion() {
         }).join('');
     } else {
         wrap.classList.add('progress-compact');
+        const pct = Math.round((s.idx / N) * 100);
+        // Counter PRIMEIRO (a esquerda) — texto fixo, nunca cortado.
+        // Barra a seguir, ocupa o resto do espaco. Indicadores ✓ / ✗ no fim.
         const correct = (s.results || []).filter(r => r === true).length;
         const wrong   = (s.results || []).filter(r => r === false).length;
-        const pct = Math.round((s.idx / N) * 100);
+        const tail = (correct || wrong)
+            ? ` <span class="progress-tail">${correct ? `<span style="color:var(--success)">✓${correct}</span>` : ''}${wrong ? ` <span style="color:var(--danger)">✗${wrong}</span>` : ''}</span>`
+            : '';
         wrap.innerHTML = `
-            <div class="progress-bar"><span style="width:${pct}%"></span></div>
-            <div class="progress-counter">${s.idx + 1}/${N}${correct ? ` · <span style="color:var(--success)">✓${correct}</span>` : ''}${wrong ? ` · <span style="color:var(--danger)">✗${wrong}</span>` : ''}</div>
+            <span class="progress-counter">${s.idx + 1}/${N}</span>
+            <div class="progress-bar"><span style="width:${pct}%"></span></div>${tail}
         `;
     }
     document.getElementById('session-xp').textContent = s.xp;
