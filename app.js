@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v232';
+const APP_VERSION = 'v233';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3322,9 +3322,29 @@ function exitSession() {
     switchTab('home');
 }
 
+// Embaralha as opcoes de uma pergunta MC e remapeia `ans`. Uma so vez por
+// exercicio (marca _shuffled=true). Necessario porque os bancos gerados por
+// IA tem viés massivo para ans:1 (em alguns ficheiros chega aos 75%), o que
+// criava o efeito "a segunda resposta e sempre a certa". O baralhamento usa
+// Fisher-Yates e nao toca em TF (V/F tem ordem convencional).
+function _shuffleMCOptions(e) {
+    if (!e || e._shuffled) return;
+    if (e.type !== 'mc' || !Array.isArray(e.opts) || e.opts.length < 3) return;
+    if (typeof e.ans !== 'number' || e.ans < 0 || e.ans >= e.opts.length) return;
+    const idx = e.opts.map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [idx[i], idx[j]] = [idx[j], idx[i]];
+    }
+    e.opts = idx.map(i => e.opts[i]);
+    e.ans = idx.indexOf(e.ans);
+    e._shuffled = true;
+}
+
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
+    _shuffleMCOptions(e);
     // Reset animação XP/combo no início da sessão
     if (s.idx === 0) {
         _lastSessionXP = 0;
