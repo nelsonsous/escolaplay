@@ -3331,9 +3331,9 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
    (a hierarquia vem da posição e do peso, não do tamanho).
    ======================================================== */
 #exercise-screen .exercise-question {
-    font-size: var(--fs-2xl);          /* 30px — claramente maior que opções (20px) */
+    font-size: var(--fs-xl);           /* 24px (v231) — proporção 1.33:1 vs opções 18px */
     font-weight: var(--fw-black);
-    line-height: 1.25;
+    line-height: 1.3;
     letter-spacing: -0.015em;
     margin-bottom: 20px;
 }
@@ -3373,7 +3373,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 /* Override @media queries antigas com a mesma especificidade */
 @media (min-width: 600px) {
-    #exercise-screen .exercise-question { font-size: var(--fs-2xl); }
+    #exercise-screen .exercise-question { font-size: var(--fs-xl); }
     #exercise-screen .btn-option        { font-size: var(--fs-md); }
 }
 
@@ -3382,8 +3382,8 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
    Pergunta maior + tudo o resto mais compacto
    ======================================================== */
 #exercise-screen .exercise-question {
-    font-size: var(--fs-2xl);           /* 30px — domina sem ser exagerado (era 36 em v216) */
-    line-height: 1.25;
+    font-size: var(--fs-xl);            /* 24px — equilibrada com opcoes 18px (1.33:1) */
+    line-height: 1.3;
     margin-bottom: 14px;
 }
 #exercise-screen .exercise-topic {
