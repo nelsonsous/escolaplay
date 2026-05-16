@@ -49,11 +49,30 @@ const LEVELS = [
 const XP_BY_DIFF = { 1: 10, 2: 20, 3: 30 };
 const DAILY_QUESTIONS = 5;      // 1 por disciplina (temos 5)
 const PRACTICE_QUESTIONS = 6;   // default — utilizador pode override via state.practiceQuestions
-const PRACTICE_QUESTIONS_PRESETS = [5, 10, 15, 20];
+const PRACTICE_QUESTIONS_PRESETS = [5, 6, 10, 15, 20];
 function getPracticeQuestions() {
     const n = state && state.practiceQuestions;
     return (typeof n === 'number' && n > 0) ? n : PRACTICE_QUESTIONS;
 }
+function setPracticeQuestions(n) {
+    const v = parseInt(n, 10);
+    if (!v || v < 1 || v > 50) return;
+    state.practiceQuestions = v;
+    saveState();
+    renderPracticeQuestionsUI();
+    if (typeof showToast === 'function') showToast(`${v} perguntas por treino`);
+}
+window.setPracticeQuestions = setPracticeQuestions;
+function renderPracticeQuestionsUI() {
+    const wrap = document.getElementById('practice-q-presets');
+    if (!wrap) return;
+    const current = getPracticeQuestions();
+    wrap.innerHTML = PRACTICE_QUESTIONS_PRESETS.map(n => {
+        const isOn = n === current;
+        return `<button type="button" class="practice-q-btn ${isOn ? 'is-on' : ''}" onclick="setPracticeQuestions(${n})">${n}</button>`;
+    }).join('');
+}
+window.renderPracticeQuestionsUI = renderPracticeQuestionsUI;
 
 const DEFAULT_REWARDS = [
     { id: 'r1', name: 'Escolher a sobremesa', cost: 2000, claimed: false },
@@ -375,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v229';
+const APP_VERSION = 'v230';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1863,6 +1882,9 @@ function renderProfile() {
     `;
     // Tudo numa só grelha — foto primeiro, depois 12 cartoons, depois 12 emojis (25 cells em 6 cols = ~5 linhas, sem subtítulos)
     grid.innerHTML = `${photoHtml}${cartoonsHtml}${emojisHtml}`;
+
+    // Picker de perguntas por treino
+    renderPracticeQuestionsUI();
 
     // MAX config
     const maxEnabled = document.getElementById('max-enabled');
