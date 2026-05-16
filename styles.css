@@ -3618,8 +3618,8 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tests-cal-nav:active { transform: scale(0.92); }
 .tests-cal-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    grid-template-columns: repeat(5, 1fr); /* Seg-Sex apenas (sem fins-de-semana) */
+    gap: 6px;
 }
 .tests-cal-dow {
     text-align: center;
