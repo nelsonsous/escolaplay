@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v239';
+const APP_VERSION = 'v240';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -687,12 +687,26 @@ function renderHome() {
         if (heroNum) heroNum.textContent = days;
         if (heroTitle) heroTitle.textContent = days === 1 ? 'dia de ofensiva' : 'dias de ofensiva';
         if (heroSub) {
-            if (days === 0) heroSub.textContent = 'Faz um teste hoje! 💪';
-            else if (days < 3) heroSub.textContent = 'Volta amanhã para manter a chama 🔥';
-            else if (days < 7) heroSub.textContent = `Faltam ${7-days} para o troféu 🏆`;
-            else if (days < 14) heroSub.textContent = `Faltam ${14-days} para a estrela ⭐`;
-            else if (days < 30) heroSub.textContent = `Faltam ${30-days} para a coroa 👑`;
-            else heroSub.textContent = 'LENDÁRIA! 👑';
+            let base;
+            if (days === 0) base = 'Faz um teste hoje! 💪';
+            else if (days < 3) base = 'Volta amanhã para manter a chama 🔥';
+            else if (days < 7) base = `Faltam ${7-days} para o troféu 🏆`;
+            else if (days < 14) base = `Faltam ${14-days} para a estrela ⭐`;
+            else if (days < 30) base = `Faltam ${30-days} para a coroa 👑`;
+            else base = 'LENDÁRIA! 👑';
+            // Indicador de escudo (proteccao para 1 dia perdido por mes)
+            if (days > 0) {
+                const todayStrV = todayStr();
+                const lastShield = state.streak.lastShield;
+                const shieldGap = lastShield ? daysBetween(lastShield, todayStrV) : null;
+                if (shieldGap == null || shieldGap >= 30) {
+                    base += ' · 🛡️ Tens 1 escudo';
+                } else {
+                    const left = 30 - shieldGap;
+                    base += ` · 🛡️ Próximo escudo em ${left}d`;
+                }
+            }
+            heroSub.textContent = base;
         }
     }
 
@@ -4466,13 +4480,15 @@ function finishSession() {
     let newBadges = [];
     // === STREAK (Ofensiva) ===
     // Conta QUALQUER sessão de exercícios (não só desafio diário).
-    // Tolera 1 dia de folga: reset só ocorre quando passam 2+ dias sem fazer
-    // (gap entre o último dia e hoje > 2).
+    // Tolera 1 dia de folga (gap até 2).
+    // Para gap >= 3 (streak partiria): ainda há 1 ESCUDO por mês — se houver
+    // escudo disponível, salva a streak silenciosamente e mostra celebracao.
     const today = todayStr();
     const prevStreak = state.streak.days;
     const lastDate = state.streak.lastDate;
     let streakJustIncreased = false;
     let streakReset = false;
+    let streakSaved = false; // escudo usado para salvar a streak
     if (lastDate !== today) {
         const gap = daysBetween(lastDate, today);
         if (gap >= 1 && gap <= 2) {
@@ -4480,9 +4496,20 @@ function finishSession() {
             state.streak.days += 1;
             streakJustIncreased = true;
         } else {
-            // Reinicia: ou primeira vez, ou passaram 2+ dias sem fazer
-            if (state.streak.days > 0) streakReset = true;
-            state.streak.days = 1;
+            // gap >= 3 — streak normalmente partia. Se houver escudo disponivel
+            // (nunca usado ou usado ha 30+ dias), salva-a.
+            const lastShield = state.streak.lastShield;
+            const shieldDays = lastShield ? daysBetween(lastShield, today) : null;
+            const canSave = state.streak.days > 0 && (shieldDays == null || shieldDays >= 30);
+            if (canSave) {
+                state.streak.days += 1;
+                state.streak.lastShield = today;
+                streakJustIncreased = true;
+                streakSaved = true;
+            } else {
+                if (state.streak.days > 0) streakReset = true;
+                state.streak.days = 1;
+            }
         }
         state.streak.lastDate = today;
         if (state.streak.days > state.streak.best) state.streak.best = state.streak.days;
@@ -4493,7 +4520,11 @@ function finishSession() {
         if (s.correct === s.items.length) state.perfectDailies = (state.perfectDailies || 0) + 1;
     }
     // Notificações visuais ao utilizador
-    if (streakJustIncreased && state.streak.days >= 2) {
+    if (streakSaved) {
+        // Escudo usado — celebrar
+        if (typeof showToast === 'function') showToast(`🛡️ Escudo usado! Ofensiva de ${state.streak.days} dias salva.`);
+        setTimeout(() => { try { _flashStreakChip(); } catch(_) {} }, 200);
+    } else if (streakJustIncreased && state.streak.days >= 2) {
         const milestoneMap = { 3: '🔥 3 dias seguidos!', 7: '🏆 1 semana inteira!', 14: '⭐ 2 semanas!', 30: '👑 1 mês completo!', 60: '💎 2 meses!', 100: '🌟 100 dias!' };
         const ms = milestoneMap[state.streak.days];
         if (ms) showToast(ms);
