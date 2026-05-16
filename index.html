@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#6d28d9">
+    <meta name="theme-color" content="#db2777">
     <title>EscolaPlay</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -106,7 +106,7 @@
                 </div>
             </div>
             <div class="mini-card">
-                <div class="mini-card-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-medal"></i></div>
+                <div class="mini-card-icon" style="background:#fce7f3;color:#ec4899"><i class="fas fa-medal"></i></div>
                 <div class="mini-card-body">
                     <div class="mini-card-value" id="mini-badges">0</div>
                     <div class="mini-card-label">medalhas</div>
@@ -407,11 +407,11 @@
             <!-- Professor IA inline — visível durante a pergunta -->
             <div id="ex-prof-ia-wrap" style="display:none;margin-top:14px">
                 <button id="ex-prof-ia-btn" onclick="toggleInlineHint()"
-                    style="width:100%;padding:10px 14px;border:2px dashed #a78bfa;border-radius:14px;background:transparent;color:#7c3aed;font-size:0.88rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:background .15s">
+                    style="width:100%;padding:10px 14px;border:2px dashed #f9a8d4;border-radius:14px;background:transparent;color:#ec4899;font-size:0.88rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:background .15s">
                     <i class="fas fa-robot"></i> Professor IA — pedir pista
                 </button>
-                <div id="ex-prof-ia-box" style="display:none;margin-top:8px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:12px;padding:14px 16px;font-size:0.88rem;line-height:1.6;color:#1e1b4b">
-                    <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.04em">🎓 PROFESSOR IA</div>
+                <div id="ex-prof-ia-box" style="display:none;margin-top:8px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-left:4px solid #ec4899;border-radius:12px;padding:14px 16px;font-size:0.88rem;line-height:1.6;color:#831843">
+                    <div style="font-size:0.75rem;font-weight:700;color:#ec4899;margin-bottom:6px;letter-spacing:.04em">🎓 PROFESSOR IA</div>
                     <div id="ex-prof-ia-text">A pensar…</div>
                 </div>
             </div>
@@ -422,7 +422,7 @@
             <div class="feedback-icon" id="feedback-icon"></div>
             <div class="feedback-text" id="feedback-text"></div>
             <div class="feedback-exp" id="feedback-exp"></div>
-            <button id="feedback-detail-btn" class="btn btn-block" onclick="loadDetailedExplanation()" style="display:none;margin-bottom:10px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;border:none;font-weight:700;padding:13px"><i class="fas fa-graduation-cap"></i> Explicar passo a passo com o Professor IA</button>
+            <button id="feedback-detail-btn" class="btn btn-block" onclick="loadDetailedExplanation()" style="display:none;margin-bottom:10px;background:linear-gradient(135deg,#e11d48,#ec4899);color:#fff;border:none;font-weight:700;padding:13px"><i class="fas fa-graduation-cap"></i> Explicar passo a passo com o Professor IA</button>
             <div id="feedback-detail-wrap" style="display:none;background:#f0f9ff;border-radius:10px;padding:12px;margin-bottom:8px;text-align:left;font-size:0.88rem;line-height:1.5;color:#1e3a5f;max-height:35vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
             <!-- O botão Continuar está abaixo, na ex-action-bar -->
         </div>
@@ -595,7 +595,7 @@
             <h2 style="color:var(--primary);margin-bottom:8px">A gerar perguntas novas…</h2>
             <p class="muted" id="max-loader-msg">O Groq está a inventar exercícios para ti. Aguarda uns segundos.</p>
             <div style="margin-top:20px;width:260px">
-                <div class="xp-bar" style="background:#e5e7eb"><div class="xp-bar-fill" id="max-loader-bar" style="width:60%;background:linear-gradient(90deg,#6d28d9,#ec4899);animation:pulse 1.4s infinite"></div></div>
+                <div class="xp-bar" style="background:#e5e7eb"><div class="xp-bar-fill" id="max-loader-bar" style="width:60%;background:linear-gradient(90deg,#db2777,#ec4899);animation:pulse 1.4s infinite"></div></div>
             </div>
             <p class="muted" style="margin-top:16px;font-size:0.78rem">A próxima vez usa exercícios guardados (sem espera)</p>
         </div>

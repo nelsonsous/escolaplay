@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v236';
+const APP_VERSION = 'v237';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -724,7 +724,7 @@ function renderHome() {
     // Treino rápido — cards modernizados com ícone circular
     const container = document.getElementById('quick-subjects');
     container.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
-        const bg = (sub.color || '#7c3aed') + '1a'; // 10% opacidade
+        const bg = (sub.color || '#ec4899') + '1a'; // 10% opacidade
         return `
         <div class="quick-subject" onclick="openSubjectDetail('${key}')" style="--qs-color:${sub.color};--qs-bg:${bg}">
             <div class="qs-icon-wrap"><i class="fas ${sub.icon}"></i></div>
@@ -993,7 +993,7 @@ function renderSubjects() {
         const answeredInPool = activePool.filter(e => seen[e.id]).length;
         // Barra: % do banco activo já respondido (= "evolução" verdadeira)
         const barPct = totalActive > 0 ? Math.round((answeredInPool / totalActive) * 100) : 0;
-        const shadow = (sub.color || '#7c3aed') + '40'; // 25% opacidade
+        const shadow = (sub.color || '#ec4899') + '40'; // 25% opacidade
         return `
             <div class="subject-card" onclick="openSubjectDetail('${key}')" style="--sub-color:${sub.color};--sub-shadow:${shadow}">
                 <div class="subject-card-icon" style="background:linear-gradient(135deg, ${sub.color}, ${sub.color}dd)"><i class="fas ${sub.icon}"></i></div>
@@ -1111,13 +1111,13 @@ function openSubjectDetail(key) {
                 <div id="topic-list"></div>
 
                 <!-- ===== BLOCO MAX ===== -->
-                <div style="margin-top:16px;background:linear-gradient(135deg,#4c1d95,#6d28d9);border-radius:16px;padding:14px;box-shadow:0 4px 16px rgba(109,40,217,0.35)">
+                <div style="margin-top:16px;background:linear-gradient(135deg,#4c1d95,#db2777);border-radius:16px;padding:14px;box-shadow:0 4px 16px rgba(109,40,217,0.35)">
                     <div style="color:#fff;font-weight:800;font-size:1rem;margin-bottom:4px"><i class="fas fa-wand-magic-sparkles"></i> MAX — Exercícios com IA</div>
-                    <div style="color:#ddd6fe;font-size:0.78rem;margin-bottom:12px">Selecciona tópicos acima ou gera para todos</div>
+                    <div style="color:#fbcfe8;font-size:0.78rem;margin-bottom:12px">Selecciona tópicos acima ou gera para todos</div>
 
                     <div id="max-topic-sel-bar" style="display:none;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;margin-bottom:10px">
                         <div style="color:#e9d5ff;font-size:0.78rem;font-weight:700;margin-bottom:8px"><i class="fas fa-check-square"></i> <span id="max-sel-count">0</span> tópico(s) selecionado(s)</div>
-                        <button class="btn btn-block" style="margin-bottom:6px;background:#fff;color:#6d28d9;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="startMaxForSelected('${key}', false)">
+                        <button class="btn btn-block" style="margin-bottom:6px;background:#fff;color:#db2777;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="startMaxForSelected('${key}', false)">
                             <i class="fas fa-wand-magic-sparkles"></i> Gerar exercícios MAX
                         </button>
                         <button class="btn btn-block" style="margin-bottom:6px;background:#fbbf24;color:#78350f;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem" onclick="startMaxForSelected('${key}', true)">
@@ -1128,7 +1128,7 @@ function openSubjectDetail(key) {
                     <button class="btn btn-block" style="background:rgba(255,255,255,0.18);color:#fff;border-radius:10px;padding:10px;font-weight:600;font-size:0.88rem;margin-bottom:6px" onclick="startMaxSession('${key}')">
                         <i class="fas fa-shuffle"></i> Treino MAX (todos os tópicos activos)
                     </button>
-                    <button class="btn btn-block" style="background:rgba(255,255,255,0.1);color:#ddd6fe;border-radius:10px;padding:8px;font-size:0.78rem" onclick="startMaxSession('${key}', {forceNew:true})">
+                    <button class="btn btn-block" style="background:rgba(255,255,255,0.1);color:#fbcfe8;border-radius:10px;padding:8px;font-size:0.78rem" onclick="startMaxSession('${key}', {forceNew:true})">
                         <i class="fas fa-rotate"></i> Forçar novos exercícios (consome API)
                     </button>
                 </div>
@@ -1145,7 +1145,7 @@ function openSubjectDetail(key) {
             </div>
             <!-- Sticky action bar — só aparece com tópicos selecionados -->
             <div id="topic-sel-actions" style="display:none;position:sticky;bottom:0;left:0;right:0;background:#fff;border-top:1.5px solid #e5e7eb;padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));box-shadow:0 -4px 16px rgba(0,0,0,0.08);z-index:20">
-                <div style="font-size:0.78rem;font-weight:700;color:#5b21b6;margin-bottom:6px;text-align:center"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
+                <div style="font-size:0.78rem;font-weight:700;color:#9d174d;margin-bottom:6px;text-align:center"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
                 <button class="btn btn-primary-solid btn-block" onclick="startSubjectSession('${key}', { useSelection: true })">
                     <i class="fas fa-play"></i> Treinar tópicos selecionados
                 </button>
@@ -1202,7 +1202,7 @@ function renderTopicList() {
     const container = document.getElementById('topic-list');
     if (!container) return;
     const seen = state.exerciseSeen || {};
-    const subColor = SUBJECTS[key]?.color || '#7c3aed';
+    const subColor = SUBJECTS[key]?.color || '#ec4899';
     // Tópicos recomendados pelo diagnóstico Mat+ (destacar)
     const recommendedSet = (key === 'mat_plus' && state.matPlusDiag && Array.isArray(state.matPlusDiag.recommended))
         ? new Set(state.matPlusDiag.recommended)
@@ -1253,7 +1253,7 @@ function renderTopicList() {
                         ${count > 0 ? `<span style="flex:1;height:3px;background:#f3f4f6;border-radius:999px;overflow:hidden;min-width:30px"><span style="display:block;height:100%;width:${pct}%;background:${progBarColor};border-radius:999px;transition:width 0.3s"></span></span>` : ''}
                     </div>
                 </div>
-                <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Perguntas respondidas" style="background:#ede9fe;color:#7c3aed;flex-shrink:0;width:30px;height:30px;font-size:0.78rem"><i class="fas fa-list-check"></i></button>
+                <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Perguntas respondidas" style="background:#fce7f3;color:#ec4899;flex-shrink:0;width:30px;height:30px;font-size:0.78rem"><i class="fas fa-list-check"></i></button>
                 ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Explicação" style="width:30px;height:30px;font-size:0.78rem"><i class="fas fa-book-open"></i></button>` : ''}
             </div>
         `;
@@ -1309,7 +1309,7 @@ function openTopicAnsweredModal(subjectKey, topic) {
                 </div>
                 <div class="modal-body" style="flex:1;overflow-y:auto">
                     <div style="display:flex;gap:8px;margin-bottom:14px;font-size:0.78rem;flex-wrap:wrap">
-                        <span style="background:#ede9fe;color:#7c3aed;padding:4px 10px;border-radius:999px;font-weight:700">📖 ${pool.length} no total</span>
+                        <span style="background:#fce7f3;color:#ec4899;padding:4px 10px;border-radius:999px;font-weight:700">📖 ${pool.length} no total</span>
                         <span style="background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:999px;font-weight:700">${seenItems.length} respondidas</span>
                         ${unseenCount > 0 ? `<span style="background:#f3f4f6;color:#6b7280;padding:4px 10px;border-radius:999px;font-weight:700">${unseenCount} novas</span>` : ''}
                     </div>
@@ -1502,7 +1502,7 @@ function renderTests() {
         const daysLabel = t.done ? 'Feito' : past ? `${-days}d atrás` : days === 0 ? 'Hoje!' : days === 1 ? 'Amanhã' : `em ${days}d`;
         const topicsLabel = (t.topics && t.topics.length) ? `${t.topics.length} tópicos: ${t.topics.slice(0, 3).join(', ')}${t.topics.length > 3 ? '…' : ''}` : 'todos os tópicos activos';
         const seenCount = (t.seenEx || []).length;
-        const seenLabel = seenCount > 0 ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;margin-top:3px">📚 ${seenCount} pergunta${seenCount === 1 ? '' : 's'} vista${seenCount === 1 ? '' : 's'}</div>` : '';
+        const seenLabel = seenCount > 0 ? `<div style="font-size:0.72rem;color:#ec4899;font-weight:600;margin-top:3px">📚 ${seenCount} pergunta${seenCount === 1 ? '' : 's'} vista${seenCount === 1 ? '' : 's'}</div>` : '';
         // Pílulas de nota objetivo / nota obtida. A nota obtida muda de cor
         // conforme bate o objetivo — feedback visual claro.
         const gradePills = [];
@@ -1527,7 +1527,7 @@ function renderTests() {
                 </div>
                 <div class="test-item-actions">
                     ${!t.done ? `<button class="practice" title="Treinar para este teste" onclick="startTestPrep('${t.id}')"><i class="fas fa-dumbbell"></i></button>` : ''}
-                    ${!t.done ? `<button class="practice" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff" title="Treino MAX (IA) para este teste" onclick="startMaxForTest('${t.id}')"><i class="fas fa-wand-magic-sparkles"></i></button>` : ''}
+                    ${!t.done ? `<button class="practice" style="background:linear-gradient(135deg,#ec4899,#ec4899);color:#fff" title="Treino MAX (IA) para este teste" onclick="startMaxForTest('${t.id}')"><i class="fas fa-wand-magic-sparkles"></i></button>` : ''}
                     <button onclick="editTest('${t.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                     <button class="del" onclick="deleteTest('${t.id}')" title="Apagar"><i class="fas fa-trash"></i></button>
                 </div>
@@ -1749,7 +1749,7 @@ function showAllAnsweredTestModal(testId, totalCount) {
                     <button class="btn btn-block" onclick="continueTestAnyway('${testId}')" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
                         <i class="fas fa-rotate-left"></i> Responder de novo (mesmas perguntas)
                     </button>
-                    <button class="btn btn-block" onclick="closeAllAnsweredModal();startMaxForTest('${testId}')" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                    <button class="btn btn-block" onclick="closeAllAnsweredModal();startMaxForTest('${testId}')" style="background:linear-gradient(135deg,#ec4899,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
                         <i class="fas fa-wand-magic-sparkles"></i> Carregar novas com IA MAX
                     </button>
                     <button class="btn btn-block btn-secondary" onclick="closeAllAnsweredModal()" style="padding:12px">
@@ -1863,13 +1863,13 @@ function openProfileSwitcher() {
     body.innerHTML = state.profiles.map(p => {
         const active = p.id === state.activeProfileId;
         return `
-            <div onclick="switchProfile('${p.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:${active ? '#ede9fe' : '#fff'};border:2px solid ${active ? '#7c3aed' : 'var(--border)'};margin-bottom:8px;cursor:pointer">
-                <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 42)}</div>
+            <div onclick="switchProfile('${p.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:${active ? '#fce7f3' : '#fff'};border:2px solid ${active ? '#ec4899' : 'var(--border)'};margin-bottom:8px;cursor:pointer">
+                <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#ec4899' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 42)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:700">${p.name}</div>
                     <div style="font-size:0.78rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP</div>
                 </div>
-                ${active ? '<i class="fas fa-check" style="color:#7c3aed"></i>' : ''}
+                ${active ? '<i class="fas fa-check" style="color:#ec4899"></i>' : ''}
             </div>`;
     }).join('') + `
         <button class="btn btn-primary-solid btn-block" style="margin-top:6px" onclick="openAddProfileModal()">
@@ -1944,10 +1944,10 @@ function renderProfile() {
         pList.innerHTML = state.profiles.map(p => {
             const active = p.id === state.activeProfileId;
             return `
-                <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#ede9fe' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
-                    <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#7c3aed' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#fce7f3' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
+                    <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#ec4899' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#7c3aed;font-size:0.7rem">(activo)</span>' : ''}</div>
+                        <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#ec4899;font-size:0.7rem">(activo)</span>' : ''}</div>
                         <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
                     </div>
                     ${!active ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem" onclick="switchProfile('${p.id}')">Usar</button>` : ''}
@@ -3363,7 +3363,7 @@ function showAllAnsweredSubjectModal(subjectKey, topicSet, totalCount, originalO
                     <button class="btn btn-block" onclick="continueSubjectAnyway()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
                         <i class="fas fa-rotate-left"></i> Responder de novo (mesmas perguntas)
                     </button>
-                    <button class="btn btn-block" onclick="generateMaxForSubjectAnswered()" style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
+                    <button class="btn btn-block" onclick="generateMaxForSubjectAnswered()" style="background:linear-gradient(135deg,#ec4899,#ec4899);color:#fff;border:none;font-weight:700;padding:14px;margin-bottom:10px">
                         <i class="fas fa-wand-magic-sparkles"></i> Carregar novas com IA MAX
                     </button>
                     <button class="btn btn-block btn-secondary" onclick="closeAllAnsweredSubjectModal()" style="padding:12px">
@@ -4594,7 +4594,7 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     const newCycleWrap = document.getElementById('summary-newcycle-wrap');
     if (newCycleWrap) {
         if (!s.isDaily && !s.testId && !s.isDuel && !s.isMax && !s._isRetry && s.subject) {
-            newCycleWrap.innerHTML = `<button class="btn btn-block" onclick="startNewCycle()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:700;padding:14px;margin-bottom:10px;border:none"><i class="fas fa-rotate-right"></i> Mais um ciclo!</button>`;
+            newCycleWrap.innerHTML = `<button class="btn btn-block" onclick="startNewCycle()" style="background:linear-gradient(135deg,#ec4899,#db2777);color:#fff;font-weight:700;padding:14px;margin-bottom:10px;border:none"><i class="fas fa-rotate-right"></i> Mais um ciclo!</button>`;
         } else {
             newCycleWrap.innerHTML = '';
         }
@@ -4615,7 +4615,7 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
 
 // Card "ícone circular + label/value"
 function _summaryCard(icon, color, label, value) {
-    const c = color || '#6d28d9';
+    const c = color || '#db2777';
     // bg suave a partir da cor (12% opacidade)
     const bg = c + '22';
     return `<div class="summary-info-card">
@@ -4650,7 +4650,7 @@ function _launchConfetti(intensity) {
     const W = canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1);
     const H = canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1);
     ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-    const colors = ['#f59e0b','#ef4444','#ec4899','#8b5cf6','#3b82f6','#10b981','#facc15'];
+    const colors = ['#f59e0b','#ef4444','#ec4899','#f472b6','#3b82f6','#10b981','#facc15'];
     const count = intensity === 'big' ? 140 : 80;
     const parts = [];
     for (let i = 0; i < count; i++) {
@@ -5160,7 +5160,7 @@ function _showDuelSummary(s) {
 
     let title, emoji, gradient;
     if (won)      { title = 'Venceste!';       emoji = '🏆'; gradient = 'linear-gradient(135deg,#facc15 0%,#f97316 50%,#dc2626 100%)'; }
-    else if (tied){ title = 'Empate!';         emoji = '🤝'; gradient = 'linear-gradient(135deg,#7c3aed 0%,#8b5cf6 50%,#06b6d4 100%)'; }
+    else if (tied){ title = 'Empate!';         emoji = '🤝'; gradient = 'linear-gradient(135deg,#ec4899 0%,#f472b6 50%,#06b6d4 100%)'; }
     else          { title = 'Quase!';          emoji = '💪'; gradient = 'linear-gradient(135deg,#475569 0%,#64748b 50%,#94a3b8 100%)'; }
 
     if (won) playPerfectSound();
@@ -5182,10 +5182,10 @@ function _showDuelSummary(s) {
             <div class="modal-body" style="padding:22px">
                 <!-- VS comparison -->
                 <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:stretch;margin-bottom:18px">
-                    <div style="background:${won ? '#fef3c7' : tied ? '#ede9fe' : '#fff'};border:2px solid ${won ? '#f59e0b' : tied ? '#a78bfa' : 'var(--border)'};border-radius:18px;padding:16px 12px;text-align:center">
+                    <div style="background:${won ? '#fef3c7' : tied ? '#fce7f3' : '#fff'};border:2px solid ${won ? '#f59e0b' : tied ? '#f9a8d4' : 'var(--border)'};border-radius:18px;padding:16px 12px;text-align:center">
                         <div style="font-size:2rem;line-height:1;margin-bottom:4px">${escapeHtml(me?.avatar || '👤')}</div>
                         <div style="font-size:0.8rem;font-weight:800;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(me?.name || 'Tu')}</div>
-                        <div style="font-size:1.7rem;font-weight:900;color:${won ? '#d97706' : tied ? '#7c3aed' : 'var(--text-light)'};letter-spacing:-0.02em">${myScore}</div>
+                        <div style="font-size:1.7rem;font-weight:900;color:${won ? '#d97706' : tied ? '#ec4899' : 'var(--text-light)'};letter-spacing:-0.02em">${myScore}</div>
                         <div style="font-size:0.72rem;color:var(--text-light);font-weight:700;margin-top:2px">PONTOS</div>
                         <div style="font-size:0.74rem;color:var(--text-light);margin-top:6px">🎯 ${s.correct}/${items.length} · ⏱ ${_formatDuelTime(usedSec * 1000)}</div>
                     </div>
@@ -5372,7 +5372,7 @@ function openHintModal() {
         parts.push(_hintAiBox(cachedHint));
     } else {
         parts.push(`<div id="hint-ai-area">
-            <button class="btn btn-primary btn-block" id="hint-ai-btn" onclick="loadAIHint('${e.id}')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff">
+            <button class="btn btn-primary btn-block" id="hint-ai-btn" onclick="loadAIHint('${e.id}')" style="background:linear-gradient(135deg,#e11d48,#f472b6);border:none;color:#fff">
                 <i class="fas fa-robot"></i> Pedir ajuda ao Professor IA
             </button>
         </div>`);
@@ -5615,7 +5615,7 @@ function _renderHintHtml(rawText) {
     let html = '';
     if (conceitoMatch) {
         const body = escapeHtml(conceitoMatch[1].trim()).replace(/\n+/g, '<br>');
-        html += `<div style="margin-bottom:12px"><div style="font-weight:700;color:#7c3aed;margin-bottom:4px;font-size:0.85rem">📚 Conceito</div><div style="color:#1e1b4b">${body}</div></div>`;
+        html += `<div style="margin-bottom:12px"><div style="font-weight:700;color:#ec4899;margin-bottom:4px;font-size:0.85rem">📚 Conceito</div><div style="color:#831843">${body}</div></div>`;
     }
     if (dicasMatch) {
         const dicas = dicasMatch[1].trim();
@@ -5624,15 +5624,15 @@ function _renderHintHtml(rawText) {
         let dicasHtml;
         if (bullets.length >= 2) {
             dicasHtml = '<ul style="margin:0;padding-left:20px;list-style:none">' +
-                bullets.map(l => `<li style="margin-bottom:6px;position:relative;padding-left:4px"><span style="position:absolute;left:-16px;color:#7c3aed">•</span>${escapeHtml(l.replace(/^[•\-*]\s*/, ''))}</li>`).join('') +
+                bullets.map(l => `<li style="margin-bottom:6px;position:relative;padding-left:4px"><span style="position:absolute;left:-16px;color:#ec4899">•</span>${escapeHtml(l.replace(/^[•\-*]\s*/, ''))}</li>`).join('') +
                 '</ul>';
         } else {
             dicasHtml = `<div>${escapeHtml(dicas).replace(/\n+/g, '<br>')}</div>`;
         }
-        html += `<div style="margin-bottom:12px"><div style="font-weight:700;color:#7c3aed;margin-bottom:6px;font-size:0.85rem">💡 Como pensar</div><div style="color:#1e1b4b">${dicasHtml}</div></div>`;
+        html += `<div style="margin-bottom:12px"><div style="font-weight:700;color:#ec4899;margin-bottom:6px;font-size:0.85rem">💡 Como pensar</div><div style="color:#831843">${dicasHtml}</div></div>`;
     }
     if (encMatch) {
-        html += `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #c4b5fd;color:#6d28d9;font-style:italic;font-size:0.88rem">✨ ${escapeHtml(encMatch[1].trim())}</div>`;
+        html += `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #fbcfe8;color:#db2777;font-style:italic;font-size:0.88rem">✨ ${escapeHtml(encMatch[1].trim())}</div>`;
     }
 
     // Fallback: se a IA não respeitou o formato, mostra o texto puro
@@ -5653,7 +5653,7 @@ async function _loadAndShowHint(textEl, btnEl, boxEl) {
     }
     btnEl.disabled = true;
     btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…';
-    textEl.innerHTML = '<div style="color:#7c3aed">A preparar a pista…</div>';
+    textEl.innerHTML = '<div style="color:#ec4899">A preparar a pista…</div>';
     boxEl.style.display = 'block';
 
     const yr = activeProfile()?.year || 6;
@@ -5686,9 +5686,9 @@ function toggleInlineHint() {
 }
 
 function _hintAiBox(text) {
-    return `<div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-left:4px solid #7c3aed;border-radius:10px;padding:14px 16px;margin-top:4px">
-        <div style="font-size:0.78rem;font-weight:700;color:#7c3aed;margin-bottom:8px;letter-spacing:.03em">🎓 PROFESSOR IA</div>
-        <div style="font-size:0.9rem;line-height:1.6;color:#1e1b4b">${_renderHintHtml(text)}</div>
+    return `<div style="background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-left:4px solid #ec4899;border-radius:10px;padding:14px 16px;margin-top:4px">
+        <div style="font-size:0.78rem;font-weight:700;color:#ec4899;margin-bottom:8px;letter-spacing:.03em">🎓 PROFESSOR IA</div>
+        <div style="font-size:0.9rem;line-height:1.6;color:#831843">${_renderHintHtml(text)}</div>
     </div>`;
 }
 
@@ -6611,7 +6611,7 @@ function renderSecretModalList() {
         const isAdded = !!added[p.id];
         const btn = isAdded
             ? `<button onclick="removeSecretPack('${p.id}')" style="background:#fee2e2;color:#b91c1c;border:1.5px solid #fecaca;border-radius:8px;padding:8px 14px;font-size:0.84rem;font-weight:700;cursor:pointer">− Remover</button>`
-            : `<button onclick="addSecretPack('${p.id}')" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.84rem;font-weight:700;cursor:pointer">+ Adicionar</button>`;
+            : `<button onclick="addSecretPack('${p.id}')" style="background:linear-gradient(135deg,#ec4899,#9d174d);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.84rem;font-weight:700;cursor:pointer">+ Adicionar</button>`;
         return `
             <div style="background:${isAdded?'#f0fdf4':'#f8fafc'};border:1.5px solid ${isAdded?'#86efac':'#e2e8f0'};border-radius:10px;padding:12px;margin-top:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
                 <div style="flex:1;min-width:0">
