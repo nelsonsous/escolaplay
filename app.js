@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v235';
+const APP_VERSION = 'v236';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1404,8 +1404,6 @@ function renderTestsCalendar() {
     const firstOfMonth = new Date(yr, mo - 1, 1);
     const lastOfMonth = new Date(yr, mo, 0);
     const daysInMonth = lastOfMonth.getDate();
-    // Em PT a semana começa na segunda. Converter getDay() (0=Dom..6=Sáb) para (0=Seg..6=Dom).
-    const firstWeekdayPT = (firstOfMonth.getDay() + 6) % 7;
     const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     // Dias do mês com testes (agrupados por data → array de testes)
     const byDate = {};
@@ -1413,10 +1411,20 @@ function renderTestsCalendar() {
         if (!byDate[t.date]) byDate[t.date] = [];
         byDate[t.date].push(t);
     });
-    const dow = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    // Calendário só com dias úteis (Seg–Sex). Aos fins-de-semana não há testes,
+    // por isso poupamos espaço e mostramos um grid de 5 colunas.
+    const dow = ['Seg','Ter','Qua','Qui','Sex'];
     const cells = [];
-    for (let i = 0; i < firstWeekdayPT; i++) cells.push('<div class="tests-cal-cell empty"></div>');
+    let firstCol = null;
     for (let d = 1; d <= daysInMonth; d++) {
+        const dayDate = new Date(yr, mo - 1, d);
+        const dayOfWeek = dayDate.getDay(); // 0=Dom..6=Sáb
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+        const col = dayOfWeek - 1; // 0=Seg..4=Sex
+        if (firstCol === null) {
+            firstCol = col;
+            for (let i = 0; i < firstCol; i++) cells.push('<div class="tests-cal-cell empty"></div>');
+        }
         const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const ts = byDate[dateStr] || [];
         const isToday = dateStr === todayStrFmt;
