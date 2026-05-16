@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v234';
+const APP_VERSION = 'v235';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1387,7 +1387,94 @@ function closeSubjectDetail() {
 }
 
 // ========== TESTS ==========
+let _testsCalCursor = null; // 'YYYY-MM' do mês actualmente mostrado
+
+function renderTestsCalendar() {
+    const wrap = document.getElementById('tests-calendar');
+    if (!wrap) return;
+    const today = new Date();
+    const todayY = today.getFullYear();
+    const todayM = today.getMonth() + 1;
+    const todayD = today.getDate();
+    const todayStrFmt = `${todayY}-${String(todayM).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`;
+    if (!_testsCalCursor) {
+        _testsCalCursor = `${todayY}-${String(todayM).padStart(2,'0')}`;
+    }
+    const [yr, mo] = _testsCalCursor.split('-').map(Number);
+    const firstOfMonth = new Date(yr, mo - 1, 1);
+    const lastOfMonth = new Date(yr, mo, 0);
+    const daysInMonth = lastOfMonth.getDate();
+    // Em PT a semana começa na segunda. Converter getDay() (0=Dom..6=Sáb) para (0=Seg..6=Dom).
+    const firstWeekdayPT = (firstOfMonth.getDay() + 6) % 7;
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    // Dias do mês com testes (agrupados por data → array de testes)
+    const byDate = {};
+    (state.tests || []).forEach(t => {
+        if (!byDate[t.date]) byDate[t.date] = [];
+        byDate[t.date].push(t);
+    });
+    const dow = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const cells = [];
+    for (let i = 0; i < firstWeekdayPT; i++) cells.push('<div class="tests-cal-cell empty"></div>');
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const ts = byDate[dateStr] || [];
+        const isToday = dateStr === todayStrFmt;
+        const hasTests = ts.length > 0;
+        const dots = ts.slice(0, 4).map(t => {
+            const sub = SUBJECTS[t.subject];
+            const done = t.done ? 'is-done' : '';
+            return `<span class="tests-cal-dot ${done}" style="background:${sub?.color || '#6b7280'}"></span>`;
+        }).join('');
+        const tooltipNames = ts.map(t => (SUBJECTS[t.subject]?.name || t.subject)).join(', ');
+        const cls = ['tests-cal-cell'];
+        if (isToday) cls.push('is-today');
+        if (hasTests) cls.push('has-tests');
+        const handler = hasTests ? `onclick="scrollToTestOn('${dateStr}')"` : '';
+        cells.push(`<button type="button" class="${cls.join(' ')}" ${handler} ${hasTests ? `title="${tooltipNames}"` : ''}>
+            <span class="tests-cal-day">${d}</span>
+            ${hasTests ? `<span class="tests-cal-dots">${dots}</span>` : ''}
+        </button>`);
+    }
+    wrap.innerHTML = `
+        <div class="tests-cal">
+            <div class="tests-cal-header">
+                <button type="button" class="tests-cal-nav" onclick="shiftTestsCal(-1)" aria-label="Mês anterior"><i class="fas fa-chevron-left"></i></button>
+                <div class="tests-cal-title">${monthNames[mo-1]} ${yr}</div>
+                <button type="button" class="tests-cal-nav" onclick="shiftTestsCal(1)" aria-label="Mês seguinte"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="tests-cal-grid">
+                ${dow.map(d => `<div class="tests-cal-dow">${d}</div>`).join('')}
+                ${cells.join('')}
+            </div>
+        </div>
+    `;
+}
+function shiftTestsCal(delta) {
+    const [yr, mo] = (_testsCalCursor || '').split('-').map(Number);
+    const d = new Date(yr || new Date().getFullYear(), (mo || (new Date().getMonth()+1)) - 1 + delta, 1);
+    _testsCalCursor = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    renderTestsCalendar();
+}
+window.shiftTestsCal = shiftTestsCal;
+function scrollToTestOn(dateStr) {
+    const ts = (state.tests || []).filter(t => t.date === dateStr);
+    if (ts.length === 0) return;
+    const firstId = ts[0].id;
+    const el = document.querySelector(`.test-item[data-test-id="${firstId}"]`);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('test-flash');
+        setTimeout(() => el.classList.remove('test-flash'), 1500);
+    } else {
+        const list = document.getElementById('tests-list');
+        if (list) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+window.scrollToTestOn = scrollToTestOn;
+
 function renderTests() {
+    renderTestsCalendar();
     const list = document.getElementById('tests-list');
     const today = todayStr();
     const sorted = [...state.tests].sort((a, b) => a.date.localeCompare(b.date));
@@ -1421,7 +1508,7 @@ function renderTests() {
         }
         const gradeLabel = gradePills.length > 0 ? `<div class="test-grade-row">${gradePills.join('')}</div>` : '';
         return `
-            <div class="test-item ${cls}">
+            <div class="test-item ${cls}" data-test-id="${t.id}">
                 <div class="test-item-icon" style="background:${sub?.color || '#6b7280'}"><i class="fas ${sub?.icon || 'fa-book'}"></i></div>
                 <div class="test-item-body">
                     <div class="test-item-subject">${sub?.name || t.subject}</div>

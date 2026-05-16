@@ -3577,3 +3577,112 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     border-color: var(--primary);
     color: var(--primary);
 }
+
+/* ========================================================
+   CALENDÁRIO MENSAL DE TESTES (v235)
+   ======================================================== */
+.tests-cal {
+    background: #fff;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+    margin-top: 8px;
+}
+.tests-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.tests-cal-title {
+    font-weight: 800;
+    font-size: var(--fs-md);
+    color: var(--text);
+    text-transform: capitalize;
+}
+.tests-cal-nav {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    color: var(--text);
+    border: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-sm);
+    transition: background 0.15s, transform 0.1s;
+}
+.tests-cal-nav:hover { background: #e5e7eb; }
+.tests-cal-nav:active { transform: scale(0.92); }
+.tests-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.tests-cal-dow {
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-light);
+    text-transform: uppercase;
+    padding: 4px 0;
+    letter-spacing: 0.04em;
+}
+.tests-cal-cell {
+    aspect-ratio: 1;
+    border: 0;
+    background: transparent;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    cursor: default;
+    position: relative;
+    transition: background 0.15s, transform 0.1s;
+}
+.tests-cal-cell.empty { visibility: hidden; }
+.tests-cal-cell .tests-cal-day {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+}
+.tests-cal-cell.is-today {
+    background: var(--primary);
+}
+.tests-cal-cell.is-today .tests-cal-day { color: #fff; font-weight: 800; }
+.tests-cal-cell.has-tests {
+    background: #f9fafb;
+    cursor: pointer;
+}
+.tests-cal-cell.has-tests:hover { background: #f3f4f6; }
+.tests-cal-cell.has-tests.is-today { background: var(--primary); }
+.tests-cal-cell.has-tests:active { transform: scale(0.95); }
+.tests-cal-dots {
+    display: flex;
+    gap: 2px;
+    margin-top: 3px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 100%;
+}
+.tests-cal-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.tests-cal-dot.is-done { opacity: 0.45; }
+.tests-cal-cell.is-today .tests-cal-dot { box-shadow: 0 0 0 1px rgba(255,255,255,0.55); }
+
+@keyframes test-flash {
+    0%   { background: #fef3c7; box-shadow: 0 0 0 3px #fcd34d; }
+    100% { background: inherit; box-shadow: none; }
+}
+.test-item.test-flash {
+    animation: test-flash 1.5s ease-out;
+}
