@@ -2,66 +2,30 @@
 // State + gamificação + exercícios + testes + prémios
 
 const STORAGE_KEY = 'escolaplay_v2';
-const AVATARS = [
-    // Magia / royals (vibe Disney, sem IP)
-    '\u{1F451}','\u{1F478}','\u{1F934}','\u{1F9DA}','\u{1F9DC}','\u{1F9D9}','\u{1F9DD}',
-    '\u{1F984}','\u{1F409}','\u{2728}','\u{1F31F}','\u{1F98B}',
-    // Animais cativantes
-    '\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}',
-    '\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F98C}','\u{1F990}'
-];
-// Avatares cartoon ilustrados (DiceBear, gratuito). Mix de estilos:
-// adventurer (rostos), lorelei (abstracto), big-smile (alegre), fun-emoji.
-// Os seeds com nomes Disney-inspired sao apenas chaves de hash — o output
-// e arte unica gerada (nada de IP infringido).
+const AVATARS = ['\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}','\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F984}','\u{1F409}'];
+// Cartoons DiceBear (12 iniciais — estado v220).
 const AVATAR_CARTOONS = [
     'dicebear:adventurer:Eduarda',
     'dicebear:adventurer:Carolina',
-    'dicebear:adventurer:Sofia',
+    'dicebear:adventurer:Nelson',
     'dicebear:adventurer:Maria',
-    'dicebear:adventurer:Beatriz',
-    'dicebear:adventurer:Inês',
     'dicebear:adventurer:Tomas',
-    'dicebear:adventurer:Miguel',
-    'dicebear:big-smile:Anna',
-    'dicebear:big-smile:Elsa',
-    'dicebear:big-smile:Belle',
-    'dicebear:big-smile:Moana',
-    'dicebear:big-smile:Aurora',
-    'dicebear:big-smile:Ariel',
+    'dicebear:adventurer:Beatriz',
+    'dicebear:adventurer:Lucas',
+    'dicebear:adventurer:Inês',
     'dicebear:lorelei:rosa',
     'dicebear:lorelei:azul',
     'dicebear:lorelei:verde',
     'dicebear:lorelei:amarelo',
-    'dicebear:fun-emoji:Magia',
-    'dicebear:fun-emoji:Estrela',
-    'dicebear:fun-emoji:Princesa',
-    'dicebear:fun-emoji:Aventura'
-];
-// Avatares 3D estilo "Disney" — sao Fluent UI 3D da Microsoft (MIT license),
-// alojados localmente em icons/disney/*.png. Estilo cartoon volumoso, vibe
-// Disney/Pixar sem infringir IP (e arte oficial Microsoft, nao Disney).
-const AVATAR_DISNEY = [
-    'disney3d:princess', 'disney3d:prince', 'disney3d:mickey', 'disney3d:mouse',
-    'disney3d:fairy', 'disney3d:mage_woman', 'disney3d:mage_man',
-    'disney3d:elf_woman', 'disney3d:elf_man', 'disney3d:genie_woman',
-    'disney3d:unicorn', 'disney3d:dragon', 'disney3d:lion', 'disney3d:tiger',
-    'disney3d:bear', 'disney3d:panda', 'disney3d:butterfly', 'disney3d:rainbow',
-    'disney3d:star', 'disney3d:crown', 'disney3d:castle', 'disney3d:rocket',
-    'disney3d:robot', 'disney3d:chick'
 ];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
-// dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
+// dicebear:STYLE:SEED, ou data:image/... (foto upload).
 function renderAvatar(av, sizePx = 46) {
     if (!av) return '<span>🎓</span>';
     const s = String(av);
     if (s.startsWith('data:image') || /^https?:\/\//.test(s)) {
         // Foto real / URL — sem zoom (a foto ja preenche)
         return `<img class="av-photo" src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
-    }
-    if (s.startsWith('disney3d:')) {
-        const name = s.substring('disney3d:'.length).replace(/[^a-z0-9_-]/gi, '');
-        return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
     }
     if (s.startsWith('dicebear:')) {
         // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
@@ -429,7 +393,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v244';
+const APP_VERSION = 'v245';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2015,19 +1979,21 @@ function renderNewProfileAvatarGrid() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    // Bloco 3a: Disney 3D (Fluent UI) — destaque, vem antes dos cartoons abstractos
-    const disneyHtml = AVATAR_DISNEY.map(a => `
-        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
-    `).join('');
-    // Bloco 3b: Cartoons DiceBear
+    // Bloco link URL — para colar imagens da Disney da internet
+    const urlHtml = `
+        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney, etc.)" onclick="openUrlAvatarPrompt('newProfile')">
+            <span style="font-size:1.5rem">🔗</span>
+        </div>
+    `;
+    // Cartoons DiceBear (12 iniciais)
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
         <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Bloco 4: Emojis (primeiro seleccionado por defeito se nao houver foto)
+    // Emojis (primeiro seleccionado por defeito se nao houver foto)
     const emojisHtml = AVATARS.map((a, i) => `
         <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
     `).join('');
-    grid.innerHTML = photoHtml + cameraHtml + disneyHtml + cartoonsHtml + emojisHtml;
+    grid.innerHTML = photoHtml + cameraHtml + urlHtml + cartoonsHtml + emojisHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2128,6 +2094,67 @@ async function openCameraForAvatar(context) {
     };
 }
 window.openCameraForAvatar = openCameraForAvatar;
+
+// Pede um URL de imagem (procura Disney no Google Images, copia URL da imagem,
+// cola aqui). O fetch acontece no telemovel/Mac do utilizador — nao no nosso
+// servidor. Para uso pessoal a infringir tipo Disney, e' aceitavel.
+function openUrlAvatarPrompt(context) {
+    const url = prompt('Cola o URL de uma imagem (PNG/JPG):\n\nDica: no Google Images, long-press na imagem → "Copiar endereço da imagem".\n\nUso pessoal, fica só guardada no teu telemóvel.');
+    if (!url) return;
+    const trimmed = url.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+        showToast('URL inválido — tem de começar por https://');
+        return;
+    }
+    // Carrega a imagem e converte para data URL (256x256, jpeg) — fica em
+    // localStorage como qualquer outra foto. Vantagem: se o URL externo
+    // morrer, o avatar continua a funcionar.
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+        const SIZE = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+        let dataUrl;
+        try {
+            dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {
+            // CORS bloqueia toDataURL — guarda o URL directo como fallback
+            dataUrl = trimmed;
+        }
+        if (context === 'newProfile') {
+            _newProfileCustomAvatar = dataUrl;
+            renderNewProfileAvatarGrid();
+        } else {
+            state.profile.avatar = dataUrl;
+            saveState();
+            renderProfile();
+            updateHeader();
+            showToast('✓ Avatar guardado');
+        }
+    };
+    img.onerror = () => {
+        // Se nao consegue carregar (CORS / 404), usa o URL directo na mesma
+        if (context === 'newProfile') {
+            _newProfileCustomAvatar = trimmed;
+            renderNewProfileAvatarGrid();
+            showToast('⚠️ Usando URL direto (CORS bloqueou cache local)');
+        } else {
+            state.profile.avatar = trimmed;
+            saveState();
+            renderProfile();
+            updateHeader();
+            showToast('⚠️ Avatar guardado (URL externo)');
+        }
+    };
+    img.src = trimmed;
+}
+window.openUrlAvatarPrompt = openUrlAvatarPrompt;
 function closeAddProfileModal() {
     const m = document.getElementById('add-profile-modal');
     if (m) m.style.display = 'none';
@@ -2159,15 +2186,9 @@ function renderProfile() {
     const grid = document.getElementById('avatar-grid');
     const curAv = state.profile.avatar;
     const isCustomPhoto = typeof curAv === 'string' && (curAv.startsWith('data:image') || /^https?:\/\//.test(curAv));
-    // Bloco 1a: Disney 3D (Fluent UI Microsoft, MIT — Disney-vibe sem IP)
-    const disneyHtml = AVATAR_DISNEY.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
-    `).join('');
-    // Bloco 1b: Cartoons DiceBear
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Bloco 2: emojis
     const emojisHtml = AVATARS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
     `).join('');
@@ -2184,7 +2205,12 @@ function renderProfile() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    grid.innerHTML = `${photoHtml}${cameraHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
+    const urlHtml = `
+        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney, etc.)" onclick="openUrlAvatarPrompt('profile')">
+            <span style="font-size:1.5rem">🔗</span>
+        </div>
+    `;
+    grid.innerHTML = `${photoHtml}${cameraHtml}${urlHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
