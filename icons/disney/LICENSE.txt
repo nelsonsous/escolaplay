@@ -1,0 +1,16 @@
+Fluent UI Emoji — assets de Disney-vibe na app
+=================================================
+
+Origem: Microsoft Fluent UI Emoji (MIT License)
+https://github.com/microsoft/fluentui-emoji
+
+Estes ficheiros (princess.png, mickey.png, etc.) NÃO são personagens Disney
+oficiais. São emojis 3D rendered da Microsoft, com estilo cartoon que evoca
+Disney/Pixar mas que é arte original Microsoft sob licença MIT.
+
+A pasta chama-se "disney/" porque no nosso glossário interno é a categoria
+"Disney-vibe" de avatares — não porque sejam Disney.
+
+LICENÇA MIT (Microsoft):
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of these files... [ver LICENSE em https://github.com/microsoft/fluentui-emoji/blob/main/LICENSE]
