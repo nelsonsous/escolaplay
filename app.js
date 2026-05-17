@@ -18,14 +18,30 @@ const AVATAR_CARTOONS = [
     'dicebear:lorelei:verde',
     'dicebear:lorelei:amarelo',
 ];
+// Avatares 3D estilo Disney/Pixar — Microsoft Fluent UI 3D (MIT license)
+// alojado em icons/disney/*.png. Nao sao personagens Disney oficiais (eu
+// nao consegui aceder a fontes Disney reais do meu lado), mas sao o que
+// existe no GitHub com vibe parecida.
+const AVATAR_DISNEY = [
+    'disney3d:princess', 'disney3d:prince', 'disney3d:fairy',
+    'disney3d:mage_woman', 'disney3d:mage_man',
+    'disney3d:elf_woman', 'disney3d:elf_man', 'disney3d:genie_woman',
+    'disney3d:mickey', 'disney3d:mouse', 'disney3d:unicorn', 'disney3d:dragon',
+    'disney3d:lion', 'disney3d:tiger', 'disney3d:bear', 'disney3d:panda',
+    'disney3d:butterfly', 'disney3d:rainbow', 'disney3d:star', 'disney3d:crown',
+    'disney3d:castle', 'disney3d:rocket', 'disney3d:robot', 'disney3d:chick'
+];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
-// dicebear:STYLE:SEED, ou data:image/... (foto upload).
+// dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
 function renderAvatar(av, sizePx = 46) {
     if (!av) return '<span>🎓</span>';
     const s = String(av);
     if (s.startsWith('data:image') || /^https?:\/\//.test(s)) {
-        // Foto real / URL — sem zoom (a foto ja preenche)
         return `<img class="av-photo" src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+    }
+    if (s.startsWith('disney3d:')) {
+        const name = s.substring('disney3d:'.length).replace(/[^a-z0-9_-]/gi, '');
+        return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
     }
     if (s.startsWith('dicebear:')) {
         // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
@@ -393,7 +409,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v245';
+const APP_VERSION = 'v246';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1963,37 +1979,27 @@ function renderNewProfileAvatarGrid() {
     const grid = document.getElementById('new-profile-avatars');
     if (!grid) return;
     const photo = _newProfileCustomAvatar;
-    const isCustomPhoto = !!photo;
-    const defaultPicked = !isCustomPhoto;
-    // Bloco 1: Foto upload (primeira celula, mais visivel)
-    const photoHtml = `
-        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Carregar uma foto">
-            ${isCustomPhoto ? renderAvatar(photo, 56) : '<span style="font-size:1.5rem">📷</span>'}
-            <input type="file" accept="image/*" onchange="uploadNewProfilePhoto(event)" style="display:none">
-        </label>
-    `;
-    // Bloco 2: Camara (so se o browser suportar getUserMedia)
+    const defaultPicked = !photo;
+    // Bloco 1: Camara (so se o browser suportar getUserMedia)
     const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const cameraHtml = hasCamera ? `
         <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('newProfile')">
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    // Bloco link URL — para colar imagens da Disney da internet
-    const urlHtml = `
-        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney, etc.)" onclick="openUrlAvatarPrompt('newProfile')">
-            <span style="font-size:1.5rem">🔗</span>
-        </div>
-    `;
-    // Cartoons DiceBear (12 iniciais)
+    // Bloco 2: Disney 3D (Fluent UI Microsoft, GitHub)
+    const disneyHtml = AVATAR_DISNEY.map(a => `
+        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    // Bloco 3: Cartoons DiceBear
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
         <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Emojis (primeiro seleccionado por defeito se nao houver foto)
+    // Bloco 4: Emojis
     const emojisHtml = AVATARS.map((a, i) => `
         <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
     `).join('');
-    grid.innerHTML = photoHtml + cameraHtml + urlHtml + cartoonsHtml + emojisHtml;
+    grid.innerHTML = cameraHtml + disneyHtml + cartoonsHtml + emojisHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2185,32 +2191,23 @@ function renderProfile() {
     document.getElementById('input-name').value = state.profile.name;
     const grid = document.getElementById('avatar-grid');
     const curAv = state.profile.avatar;
-    const isCustomPhoto = typeof curAv === 'string' && (curAv.startsWith('data:image') || /^https?:\/\//.test(curAv));
+    // Disney 3D (Fluent UI Microsoft, no GitHub)
+    const disneyHtml = AVATAR_DISNEY.map(a => `
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
+    `).join('');
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
     `).join('');
     const emojisHtml = AVATARS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
     `).join('');
-    // Bloco 3: carregar foto + tirar foto com camara (primeiras celulas)
-    const photoHtml = `
-        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Carregar uma foto">
-            ${isCustomPhoto ? renderAvatar(curAv, 56) : '<span style="font-size:1.5rem">📷</span>'}
-            <input type="file" accept="image/*" onchange="uploadAvatarPhoto(event)" style="display:none">
-        </label>
-    `;
     const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const cameraHtml = hasCamera ? `
         <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('profile')">
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    const urlHtml = `
-        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney, etc.)" onclick="openUrlAvatarPrompt('profile')">
-            <span style="font-size:1.5rem">🔗</span>
-        </div>
-    `;
-    grid.innerHTML = `${photoHtml}${cameraHtml}${urlHtml}${cartoonsHtml}${emojisHtml}`;
+    grid.innerHTML = `${cameraHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
