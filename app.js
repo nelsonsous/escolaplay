@@ -7,9 +7,15 @@ const AVATAR_CARTOONS = [];
 // Avatares 3D estilo Disney/Pixar — Microsoft Fluent UI 3D (MIT license)
 // alojado em icons/disney/*.png. Unico grupo de avatares — emojis e cartoons
 // DiceBear removidos por escolha do utilizador.
-// Disney — so personagens reais enviados pela utilizadora (icons/disney/*.png).
+// Disney — personagens femininas (collage enviado pela utilizadora) + Stitch
 const AVATAR_DISNEY = [
-    'disney3d:stitch'
+    'disney:alice', 'disney:anna', 'disney:ariel', 'disney:aurora',
+    'disney:belle', 'disney:cinderella', 'disney:aurora2', 'disney:elsa',
+    'disney:esmeralda', 'disney:giselle', 'disney:tarzan', 'disney:jasmine',
+    'disney:jessica', 'disney:kida', 'disney:eilonwy', 'disney:megara',
+    'disney:merida', 'disney:mirabel', 'disney:moana', 'disney:mulan',
+    'disney:pocahontas', 'disney:rapunzel', 'disney:raya', 'disney:snowwhite',
+    'disney:tiana', 'disney:tinkerbell', 'disney3d:stitch'
 ];
 // Diario de um Vampiro (elenco principal — Vampire Diaries / The Originals)
 const AVATAR_VAMPIRE = [
@@ -35,6 +41,10 @@ function renderAvatar(av, sizePx = 46) {
     if (s.startsWith('disney3d:')) {
         const name = s.substring('disney3d:'.length).replace(/[^a-z0-9_-]/gi, '');
         return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
+    }
+    if (s.startsWith('disney:')) {
+        const name = s.substring('disney:'.length).replace(/[^a-z0-9_-]/gi, '');
+        return `<img class="av-disney" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('vampire:')) {
         const name = s.substring('vampire:'.length).replace(/[^a-z0-9_-]/gi, '');
@@ -434,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v254';
+const APP_VERSION = 'v255';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
