@@ -394,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v247';
+const APP_VERSION = 'v248';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1964,8 +1964,16 @@ function renderNewProfileAvatarGrid() {
     const grid = document.getElementById('new-profile-avatars');
     if (!grid) return;
     const photo = _newProfileCustomAvatar;
+    const isCustomPhoto = !!photo;
     const defaultPicked = !photo;
-    // Bloco 1: Camara (so se o browser suportar getUserMedia)
+    // Bloco 1a: Carregar foto da galeria
+    const photoHtml = `
+        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Escolher foto da galeria">
+            ${isCustomPhoto ? renderAvatar(photo, 56) : '<span style="font-size:1.5rem">📷</span>'}
+            <input type="file" accept="image/*" onchange="uploadNewProfilePhoto(event)" style="display:none">
+        </label>
+    `;
+    // Bloco 1b: Camara (so se o browser suportar getUserMedia)
     const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const cameraHtml = hasCamera ? `
         <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('newProfile')">
@@ -1976,7 +1984,12 @@ function renderNewProfileAvatarGrid() {
     const disneyHtml = AVATAR_DISNEY.map((a, i) => `
         <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
-    grid.innerHTML = cameraHtml + disneyHtml;
+    const urlHtml = `
+        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney da internet)" onclick="openUrlAvatarPrompt('newProfile')">
+            <span style="font-size:1.5rem">🔗</span>
+        </div>
+    `;
+    grid.innerHTML = photoHtml + cameraHtml + urlHtml + disneyHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2168,6 +2181,14 @@ function renderProfile() {
     document.getElementById('input-name').value = state.profile.name;
     const grid = document.getElementById('avatar-grid');
     const curAv = state.profile.avatar;
+    const isCustomPhoto = typeof curAv === 'string' && (curAv.startsWith('data:image') || /^https?:\/\//.test(curAv));
+    // Carregar foto da galeria
+    const photoHtml = `
+        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Escolher foto da galeria">
+            ${isCustomPhoto ? renderAvatar(curAv, 56) : '<span style="font-size:1.5rem">📷</span>'}
+            <input type="file" accept="image/*" onchange="uploadAvatarPhoto(event)" style="display:none">
+        </label>
+    `;
     // Disney 3D (Fluent UI Microsoft, no GitHub)
     const disneyHtml = AVATAR_DISNEY.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
@@ -2184,7 +2205,12 @@ function renderProfile() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    grid.innerHTML = `${cameraHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
+    const urlHtml = `
+        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney da internet)" onclick="openUrlAvatarPrompt('profile')">
+            <span style="font-size:1.5rem">🔗</span>
+        </div>
+    `;
+    grid.innerHTML = `${photoHtml}${cameraHtml}${urlHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
