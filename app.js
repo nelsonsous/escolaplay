@@ -155,9 +155,33 @@ function defaultState() {
     return {
         profiles: [],
         activeProfileId: null,
-        max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'mistral', totalGenerated: 0, totalRequests: 0 }
+        max: { enabled: true, apiKey: '', mistralKey: '', preferredProvider: 'mistral', totalGenerated: 0, totalRequests: 0 },
+        // Avatares customizados — adicionados via foto/camara/URL.
+        // Partilhados entre todos os perfis no mesmo dispositivo (todos os
+        // utilizadores podem escolher). Cada entrada e uma string (dataURL
+        // ou URL externo).
+        customAvatars: []
     };
 }
+
+// Adiciona um avatar customizado a state.customAvatars (sem duplicados).
+function pushCustomAvatar(av) {
+    if (!av || typeof av !== 'string') return;
+    if (!Array.isArray(state.customAvatars)) state.customAvatars = [];
+    if (state.customAvatars.includes(av)) return;
+    state.customAvatars.push(av);
+    saveState();
+}
+window.pushCustomAvatar = pushCustomAvatar;
+
+function removeCustomAvatar(av) {
+    if (!Array.isArray(state.customAvatars)) return;
+    state.customAvatars = state.customAvatars.filter(x => x !== av);
+    saveState();
+    if (typeof renderProfile === 'function') renderProfile();
+    if (typeof renderNewProfileAvatarGrid === 'function') renderNewProfileAvatarGrid();
+}
+window.removeCustomAvatar = removeCustomAvatar;
 
 // v94: Mistral passou a ser o default (gera exercícios mais coerentes que o
 // Groq). Quem tinha 'groq' guardado por causa do default antigo é migrado
@@ -394,7 +418,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v248';
+const APP_VERSION = 'v249';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1980,16 +2004,21 @@ function renderNewProfileAvatarGrid() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    // Disney 3D (Fluent UI Microsoft, GitHub) — unico grupo
-    const disneyHtml = AVATAR_DISNEY.map((a, i) => `
-        <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
-    `).join('');
     const urlHtml = `
         <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney da internet)" onclick="openUrlAvatarPrompt('newProfile')">
             <span style="font-size:1.5rem">🔗</span>
         </div>
     `;
-    grid.innerHTML = photoHtml + cameraHtml + urlHtml + disneyHtml;
+    // Avatares customizados — partilhados entre todos os perfis no dispositivo
+    const customs = Array.isArray(state.customAvatars) ? state.customAvatars : [];
+    const customHtml = customs.map(a => `
+        <div class="avatar-option" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    // Disney 3D (Fluent UI Microsoft, GitHub)
+    const disneyHtml = AVATAR_DISNEY.map((a, i) => `
+        <div class="avatar-option ${(defaultPicked && customs.length === 0 && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    grid.innerHTML = photoHtml + cameraHtml + urlHtml + customHtml + disneyHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2077,6 +2106,7 @@ async function openCameraForAvatar(context) {
         ctx.drawImage(video, sx, sy, min, min, 0, 0, SIZE, SIZE);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         cleanup();
+        pushCustomAvatar(dataUrl);
         if (context === 'newProfile') {
             _newProfileCustomAvatar = dataUrl;
             renderNewProfileAvatarGrid();
@@ -2123,6 +2153,7 @@ function openUrlAvatarPrompt(context) {
             // CORS bloqueia toDataURL — guarda o URL directo como fallback
             dataUrl = trimmed;
         }
+        pushCustomAvatar(dataUrl);
         if (context === 'newProfile') {
             _newProfileCustomAvatar = dataUrl;
             renderNewProfileAvatarGrid();
@@ -2131,11 +2162,12 @@ function openUrlAvatarPrompt(context) {
             saveState();
             renderProfile();
             updateHeader();
-            showToast('✓ Avatar guardado');
+            showToast('✓ Avatar guardado e adicionado à galeria');
         }
     };
     img.onerror = () => {
         // Se nao consegue carregar (CORS / 404), usa o URL directo na mesma
+        pushCustomAvatar(trimmed);
         if (context === 'newProfile') {
             _newProfileCustomAvatar = trimmed;
             renderNewProfileAvatarGrid();
@@ -2210,7 +2242,12 @@ function renderProfile() {
             <span style="font-size:1.5rem">🔗</span>
         </div>
     `;
-    grid.innerHTML = `${photoHtml}${cameraHtml}${urlHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
+    // Avatares customizados — partilhados entre todos os perfis no dispositivo
+    const customs = Array.isArray(state.customAvatars) ? state.customAvatars : [];
+    const customHtml = customs.map(a => `
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectAvatar(this.dataset.avatar)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    grid.innerHTML = `${photoHtml}${cameraHtml}${urlHtml}${customHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
