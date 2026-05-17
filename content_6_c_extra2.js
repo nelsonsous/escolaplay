@@ -28,7 +28,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_005', s:'ciencias', t:'Sistema imunitário', type:'fill', diff:1,
       q:'Os ___ são produzidos pelo corpo para combater agentes invasores específicos.',
-      opts:['anticorpos','antibióticos','antigénios','antídotos'], ans:0,
+      opts:['anticorpos','antibióticos','antigénios','antídotos'], ans:["anticorpos"],
       exp:'Os anticorpos são proteínas produzidas pelos linfócitos para combater antigénios.' },
 
     { id:'6ce2_006', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1,
@@ -59,7 +59,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_011', s:'ciencias', t:'Sistema imunitário', type:'fill', diff:2,
       q:'A imunidade ___ é aquela com que já nascemos (pele, mucosas, glóbulos brancos).',
-      opts:['natural','adquirida','passiva','artificial'], ans:0,
+      opts:['natural','adquirida','passiva','artificial'], ans:["natural"],
       exp:'A imunidade natural é a que existe desde o nascimento; a adquirida desenvolve-se ao longo da vida.' },
 
     { id:'6ce2_012', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2,
@@ -110,7 +110,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_020', s:'ciencias', t:'Plantas — trocas nutricionais', type:'fill', diff:1,
       q:'A mistura de água e sais minerais absorvida pelas raízes chama-se seiva ___.',
-      opts:['bruta','elaborada','doce','salgada'], ans:0,
+      opts:['bruta','elaborada','doce','salgada'], ans:["bruta"],
       exp:'A seiva bruta sobe pela planta até às folhas, onde é transformada em seiva elaborada.' },
 
     { id:'6ce2_021', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:1,
@@ -136,7 +136,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_025', s:'ciencias', t:'Plantas — trocas nutricionais', type:'fill', diff:2,
       q:'A seiva ___, rica em glicose, distribui-se por toda a planta após a fotossíntese.',
-      opts:['elaborada','bruta','mineral','simples'], ans:0,
+      opts:['elaborada','bruta','mineral','simples'], ans:["elaborada"],
       exp:'A seiva elaborada (com nutrientes produzidos nas folhas) alimenta toda a planta.' },
 
     { id:'6ce2_026', s:'ciencias', t:'Plantas — trocas nutricionais', type:'mc', diff:2,
@@ -162,7 +162,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_030', s:'ciencias', t:'Plantas — trocas nutricionais', type:'fill', diff:3,
       q:'O produto orgânico principal da fotossíntese é a ___, um açúcar simples.',
-      opts:['glicose','frutose','sacarose','celulose'], ans:0,
+      opts:['glicose','frutose','sacarose','celulose'], ans:["glicose"],
       exp:'A glicose é o açúcar produzido na fotossíntese e usado pela planta como fonte de energia.' },
 
     // ============================================================
@@ -192,7 +192,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_035', s:'ciencias', t:'Reprodução das plantas', type:'fill', diff:1,
       q:'Após a fecundação, a flor dá origem a um ___ que contém as sementes.',
-      opts:['fruto','tubérculo','bolbo','rizoma'], ans:0,
+      opts:['fruto','tubérculo','bolbo','rizoma'], ans:["fruto"],
       exp:'O ovário transforma-se em fruto e os óvulos fecundados em sementes.' },
 
     { id:'6ce2_036', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:1,
@@ -223,7 +223,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_041', s:'ciencias', t:'Reprodução das plantas', type:'fill', diff:2,
       q:'A união do pólen com o óvulo no interior do pistilo chama-se ___.',
-      opts:['fecundação','germinação','polinização','dispersão'], ans:0,
+      opts:['fecundação','germinação','polinização','dispersão'], ans:["fecundação"],
       exp:'Após a polinização, ocorre a fecundação, originando o fruto e a semente.' },
 
     { id:'6ce2_042', s:'ciencias', t:'Reprodução das plantas', type:'mc', diff:2,
