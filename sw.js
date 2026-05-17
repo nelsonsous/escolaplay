@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v243';
+const CACHE_NAME = 'escolaplay-v244';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -36,7 +36,32 @@ const ASSETS = [
     '/escolaplay/content_6_h_extra.js',
     '/escolaplay/content_6_h_extra2.js',
     '/escolaplay/content_11_q_extra.js',
-    '/escolaplay/content_secret.js'
+    '/escolaplay/content_secret.js',
+    // Avatares 3D estilo Disney (Fluent UI Microsoft, MIT license)
+    '/escolaplay/icons/disney/bear.png',
+    '/escolaplay/icons/disney/butterfly.png',
+    '/escolaplay/icons/disney/castle.png',
+    '/escolaplay/icons/disney/chick.png',
+    '/escolaplay/icons/disney/crown.png',
+    '/escolaplay/icons/disney/dragon.png',
+    '/escolaplay/icons/disney/elf_man.png',
+    '/escolaplay/icons/disney/elf_woman.png',
+    '/escolaplay/icons/disney/fairy.png',
+    '/escolaplay/icons/disney/genie_woman.png',
+    '/escolaplay/icons/disney/lion.png',
+    '/escolaplay/icons/disney/mage_man.png',
+    '/escolaplay/icons/disney/mage_woman.png',
+    '/escolaplay/icons/disney/mickey.png',
+    '/escolaplay/icons/disney/mouse.png',
+    '/escolaplay/icons/disney/panda.png',
+    '/escolaplay/icons/disney/prince.png',
+    '/escolaplay/icons/disney/princess.png',
+    '/escolaplay/icons/disney/rainbow.png',
+    '/escolaplay/icons/disney/robot.png',
+    '/escolaplay/icons/disney/rocket.png',
+    '/escolaplay/icons/disney/star.png',
+    '/escolaplay/icons/disney/tiger.png',
+    '/escolaplay/icons/disney/unicorn.png'
 ];
 
 self.addEventListener('install', (event) => {

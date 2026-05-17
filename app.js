@@ -38,14 +38,30 @@ const AVATAR_CARTOONS = [
     'dicebear:fun-emoji:Princesa',
     'dicebear:fun-emoji:Aventura'
 ];
+// Avatares 3D estilo "Disney" — sao Fluent UI 3D da Microsoft (MIT license),
+// alojados localmente em icons/disney/*.png. Estilo cartoon volumoso, vibe
+// Disney/Pixar sem infringir IP (e arte oficial Microsoft, nao Disney).
+const AVATAR_DISNEY = [
+    'disney3d:princess', 'disney3d:prince', 'disney3d:mickey', 'disney3d:mouse',
+    'disney3d:fairy', 'disney3d:mage_woman', 'disney3d:mage_man',
+    'disney3d:elf_woman', 'disney3d:elf_man', 'disney3d:genie_woman',
+    'disney3d:unicorn', 'disney3d:dragon', 'disney3d:lion', 'disney3d:tiger',
+    'disney3d:bear', 'disney3d:panda', 'disney3d:butterfly', 'disney3d:rainbow',
+    'disney3d:star', 'disney3d:crown', 'disney3d:castle', 'disney3d:rocket',
+    'disney3d:robot', 'disney3d:chick'
+];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
-// dicebear:STYLE:SEED, ou data:image/... (foto upload).
+// dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
 function renderAvatar(av, sizePx = 46) {
     if (!av) return '<span>🎓</span>';
     const s = String(av);
     if (s.startsWith('data:image') || /^https?:\/\//.test(s)) {
         // Foto real / URL — sem zoom (a foto ja preenche)
         return `<img class="av-photo" src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+    }
+    if (s.startsWith('disney3d:')) {
+        const name = s.substring('disney3d:'.length).replace(/[^a-z0-9_-]/gi, '');
+        return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
     }
     if (s.startsWith('dicebear:')) {
         // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
@@ -413,7 +429,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v243';
+const APP_VERSION = 'v244';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1999,7 +2015,11 @@ function renderNewProfileAvatarGrid() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    // Bloco 3: Cartoons DiceBear
+    // Bloco 3a: Disney 3D (Fluent UI) — destaque, vem antes dos cartoons abstractos
+    const disneyHtml = AVATAR_DISNEY.map(a => `
+        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    // Bloco 3b: Cartoons DiceBear
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
         <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
@@ -2007,7 +2027,7 @@ function renderNewProfileAvatarGrid() {
     const emojisHtml = AVATARS.map((a, i) => `
         <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
     `).join('');
-    grid.innerHTML = photoHtml + cameraHtml + cartoonsHtml + emojisHtml;
+    grid.innerHTML = photoHtml + cameraHtml + disneyHtml + cartoonsHtml + emojisHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2139,11 +2159,15 @@ function renderProfile() {
     const grid = document.getElementById('avatar-grid');
     const curAv = state.profile.avatar;
     const isCustomPhoto = typeof curAv === 'string' && (curAv.startsWith('data:image') || /^https?:\/\//.test(curAv));
-    // Bloco 1: 12 avatares cartoon (DiceBear)
+    // Bloco 1a: Disney 3D (Fluent UI Microsoft, MIT — Disney-vibe sem IP)
+    const disneyHtml = AVATAR_DISNEY.map(a => `
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
+    `).join('');
+    // Bloco 1b: Cartoons DiceBear
     const cartoonsHtml = AVATAR_CARTOONS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Bloco 2: 12 emojis (compatibilidade)
+    // Bloco 2: emojis
     const emojisHtml = AVATARS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
     `).join('');
@@ -2160,7 +2184,7 @@ function renderProfile() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    grid.innerHTML = `${photoHtml}${cameraHtml}${cartoonsHtml}${emojisHtml}`;
+    grid.innerHTML = `${photoHtml}${cameraHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
