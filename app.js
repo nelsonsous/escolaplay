@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v259';
+const APP_VERSION = 'v260';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5728,6 +5728,11 @@ function openHintModal() {
 
     body.innerHTML = `<div style="padding:4px">${parts.join('')}</div>`;
     document.getElementById('lesson-modal').style.display = 'flex';
+    const _hModal = document.getElementById('lesson-modal');
+    const _hContent = _hModal && _hModal.querySelector('.modal-content');
+    if (_hModal) _hModal.scrollTop = 0;
+    if (_hContent) _hContent.scrollTop = 0;
+    if (body) body.scrollTop = 0;
 }
 
 // Palavras-função portuguesas de 7+ letras que NÃO são bons candidatos a
@@ -6452,6 +6457,13 @@ function openLessonByKey(key) {
     }
 
     document.getElementById('lesson-modal').style.display = 'flex';
+    // Scroll para o topo (evita herdar posicao de um resumo anterior)
+    const _lessonModal = document.getElementById('lesson-modal');
+    const _lessonContent = _lessonModal && _lessonModal.querySelector('.modal-content');
+    const _lessonBody = document.getElementById('lesson-body');
+    if (_lessonModal) _lessonModal.scrollTop = 0;
+    if (_lessonContent) _lessonContent.scrollTop = 0;
+    if (_lessonBody) _lessonBody.scrollTop = 0;
 }
 
 function closeLessonModal() {
