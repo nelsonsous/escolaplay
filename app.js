@@ -2,26 +2,11 @@
 // State + gamificação + exercícios + testes + prémios
 
 const STORAGE_KEY = 'escolaplay_v2';
-const AVATARS = ['\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}','\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F984}','\u{1F409}'];
-// Cartoons DiceBear (12 iniciais — estado v220).
-const AVATAR_CARTOONS = [
-    'dicebear:adventurer:Eduarda',
-    'dicebear:adventurer:Carolina',
-    'dicebear:adventurer:Nelson',
-    'dicebear:adventurer:Maria',
-    'dicebear:adventurer:Tomas',
-    'dicebear:adventurer:Beatriz',
-    'dicebear:adventurer:Lucas',
-    'dicebear:adventurer:Inês',
-    'dicebear:lorelei:rosa',
-    'dicebear:lorelei:azul',
-    'dicebear:lorelei:verde',
-    'dicebear:lorelei:amarelo',
-];
+const AVATARS = [];
+const AVATAR_CARTOONS = [];
 // Avatares 3D estilo Disney/Pixar — Microsoft Fluent UI 3D (MIT license)
-// alojado em icons/disney/*.png. Nao sao personagens Disney oficiais (eu
-// nao consegui aceder a fontes Disney reais do meu lado), mas sao o que
-// existe no GitHub com vibe parecida.
+// alojado em icons/disney/*.png. Unico grupo de avatares — emojis e cartoons
+// DiceBear removidos por escolha do utilizador.
 const AVATAR_DISNEY = [
     'disney3d:princess', 'disney3d:prince', 'disney3d:fairy',
     'disney3d:mage_woman', 'disney3d:mage_man',
@@ -135,7 +120,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
 const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus'];
 
-function newProfile({ name = 'Aluno(a)', avatar = AVATARS[0], year } = {}) {
+function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
         year = parseInt(Object.keys(SUBJECTS_BY_YEAR)[0]);
     }
@@ -195,7 +180,7 @@ function loadState() {
         if (!Array.isArray(parsed.profiles)) {
             const oldP = newProfile({
                 name: parsed.profile?.name || 'Carolina',
-                avatar: parsed.profile?.avatar || AVATARS[0],
+                avatar: parsed.profile?.avatar || AVATAR_DISNEY[0],
                 year: 5
             });
             // copiar campos do estado antigo
@@ -409,7 +394,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v246';
+const APP_VERSION = 'v247';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -516,7 +501,7 @@ function addProfileFromForm() {
     // Prefere foto custom (camera/upload) se definida
     const avatar = _newProfileCustomAvatar
         || avEl?.dataset.avatar
-        || AVATARS[Math.floor(Math.random()*AVATARS.length)];
+        || AVATAR_DISNEY[Math.floor(Math.random()*AVATAR_DISNEY.length)];
     const p = newProfile({ name, avatar, year });
     state.profiles.push(p);
     state.activeProfileId = p.id;
@@ -1987,19 +1972,11 @@ function renderNewProfileAvatarGrid() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    // Bloco 2: Disney 3D (Fluent UI Microsoft, GitHub)
-    const disneyHtml = AVATAR_DISNEY.map(a => `
-        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    // Disney 3D (Fluent UI Microsoft, GitHub) — unico grupo
+    const disneyHtml = AVATAR_DISNEY.map((a, i) => `
+        <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Bloco 3: Cartoons DiceBear
-    const cartoonsHtml = AVATAR_CARTOONS.map(a => `
-        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
-    `).join('');
-    // Bloco 4: Emojis
-    const emojisHtml = AVATARS.map((a, i) => `
-        <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
-    `).join('');
-    grid.innerHTML = cameraHtml + disneyHtml + cartoonsHtml + emojisHtml;
+    grid.innerHTML = cameraHtml + disneyHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
