@@ -7,15 +7,9 @@ const AVATAR_CARTOONS = [];
 // Avatares 3D estilo Disney/Pixar — Microsoft Fluent UI 3D (MIT license)
 // alojado em icons/disney/*.png. Unico grupo de avatares — emojis e cartoons
 // DiceBear removidos por escolha do utilizador.
+// Disney — so personagens reais enviados pela utilizadora (icons/disney/*.png).
 const AVATAR_DISNEY = [
-    'disney3d:stitch',
-    'disney3d:princess', 'disney3d:prince', 'disney3d:fairy',
-    'disney3d:mage_woman', 'disney3d:mage_man',
-    'disney3d:elf_woman', 'disney3d:elf_man', 'disney3d:genie_woman',
-    'disney3d:mickey', 'disney3d:mouse', 'disney3d:unicorn', 'disney3d:dragon',
-    'disney3d:lion', 'disney3d:tiger', 'disney3d:bear', 'disney3d:panda',
-    'disney3d:butterfly', 'disney3d:rainbow', 'disney3d:star', 'disney3d:crown',
-    'disney3d:castle', 'disney3d:rocket', 'disney3d:robot', 'disney3d:chick'
+    'disney3d:stitch'
 ];
 // Diario de um Vampiro (elenco principal — Vampire Diaries / The Originals)
 const AVATAR_VAMPIRE = [
@@ -23,6 +17,8 @@ const AVATAR_VAMPIRE = [
     'vampire:bonnie', 'vampire:klaus', 'vampire:elijah', 'vampire:rebekah',
     'vampire:tyler', 'vampire:matt', 'vampire:jeremy', 'vampire:anna'
 ];
+// Stranger Things (a preencher quando a utilizadora enviar collage do elenco)
+const AVATAR_STRANGER = [];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
 // dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
 function renderAvatar(av, sizePx = 46) {
@@ -429,7 +425,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v250';
+const APP_VERSION = 'v251';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -524,6 +520,47 @@ function switchProfile(id) {
 }
 
 let _newProfileCustomAvatar = null; // foto/dataURL temporaria ao criar perfil
+
+// Estado UI dos grupos de avatares (sessao only — nao persiste). Cada grupo
+// e identificado por 'context:id' (ex: 'profile:disney').
+const _avatarGroupOpen = {};
+
+function toggleAvatarGroup(key, context) {
+    _avatarGroupOpen[key] = !_avatarGroupOpen[key];
+    // Re-render apenas o lado relevante
+    if (context === 'newProfile') renderNewProfileAvatarGrid();
+    else if (typeof renderProfile === 'function') renderProfile();
+}
+window.toggleAvatarGroup = toggleAvatarGroup;
+
+function _renderAvatarGroups(context, curAv) {
+    // Lista de grupos. id, label, items (avatar strings), onclick handler suffix.
+    const groups = [
+        { id: 'disney',  label: '✨ Disney',              items: AVATAR_DISNEY },
+        { id: 'vampire', label: '🧛 Diário de um Vampiro', items: AVATAR_VAMPIRE },
+        { id: 'stranger', label: '👽 Stranger Things',      items: AVATAR_STRANGER }
+    ].filter(g => g.items.length > 0);
+
+    return groups.map((g, idx) => {
+        const key = context + ':' + g.id;
+        // Por defeito: primeiro grupo aberto, restantes fechados
+        if (!(key in _avatarGroupOpen)) _avatarGroupOpen[key] = (idx === 0);
+        const open = _avatarGroupOpen[key];
+        const arrow = open ? '▾' : '▸';
+        const itemsHtml = open ? g.items.map(a => {
+            const isSel = (curAv != null) && a === curAv;
+            if (context === 'newProfile') {
+                return `<div class="avatar-option ${isSel ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>`;
+            }
+            return `<div class="avatar-option ${isSel ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>`;
+        }).join('') : '';
+        const ctxEsc = context.replace(/'/g, "\\'");
+        return `<button type="button" class="avatar-group-label" onclick="toggleAvatarGroup('${key}','${ctxEsc}')" aria-expanded="${open}">
+            <span>${g.label}</span>
+            <span class="avatar-group-arrow">${arrow} <small>${g.items.length}</small></span>
+        </button>${itemsHtml}`;
+    }).join('');
+}
 
 function addProfileFromForm() {
     const nameEl = document.getElementById('new-profile-name');
@@ -2020,16 +2057,9 @@ function renderNewProfileAvatarGrid() {
     const customHtml = customs.map(a => `
         <div class="avatar-option" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Disney 3D (Fluent UI Microsoft, GitHub)
-    const disneyHtml = AVATAR_DISNEY.map((a, i) => `
-        <div class="avatar-option ${(defaultPicked && customs.length === 0 && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
-    `).join('');
-    // Diario de um Vampiro
-    const vampireHtml = `<div class="avatar-group-label">🧛 Diário de um Vampiro</div>` + AVATAR_VAMPIRE.map(a => `
-        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
-    `).join('');
-    const disneyLabel = `<div class="avatar-group-label">✨ Disney-vibe</div>`;
-    grid.innerHTML = photoHtml + cameraHtml + customHtml + disneyLabel + disneyHtml + vampireHtml;
+    // Grupos colapsiveis. Default: primeiro aberto, restantes fechados.
+    const groupsHtml = _renderAvatarGroups('newProfile', null);
+    grid.innerHTML = photoHtml + cameraHtml + customHtml + groupsHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2232,16 +2262,6 @@ function renderProfile() {
             <input type="file" accept="image/*" onchange="uploadAvatarPhoto(event)" style="display:none">
         </label>
     `;
-    // Disney 3D (Fluent UI Microsoft, no GitHub)
-    const disneyHtml = AVATAR_DISNEY.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
-    `).join('');
-    const cartoonsHtml = AVATAR_CARTOONS.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
-    `).join('');
-    const emojisHtml = AVATARS.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
-    `).join('');
     const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const cameraHtml = hasCamera ? `
         <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('profile')">
@@ -2253,12 +2273,9 @@ function renderProfile() {
     const customHtml = customs.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectAvatar(this.dataset.avatar)">${renderAvatar(a, 56)}</div>
     `).join('');
-    // Diario de um Vampiro
-    const vampireHtml = `<div class="avatar-group-label">🧛 Diário de um Vampiro</div>` + AVATAR_VAMPIRE.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
-    `).join('');
-    const disneyLabel = `<div class="avatar-group-label">✨ Disney-vibe</div>`;
-    grid.innerHTML = `${photoHtml}${cameraHtml}${customHtml}${disneyLabel}${disneyHtml}${vampireHtml}${cartoonsHtml}${emojisHtml}`;
+    // Grupos colapsiveis
+    const groupsHtml = _renderAvatarGroups('profile', curAv);
+    grid.innerHTML = `${photoHtml}${cameraHtml}${customHtml}${groupsHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
