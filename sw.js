@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v251';
+const CACHE_NAME = 'escolaplay-v252';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -51,7 +51,14 @@ const ASSETS = [
     '/escolaplay/icons/vampire/matt.png',
     '/escolaplay/icons/vampire/rebekah.png',
     '/escolaplay/icons/vampire/stefan.png',
-    '/escolaplay/icons/vampire/tyler.png'
+    '/escolaplay/icons/vampire/tyler.png',
+    // Stranger Things
+    '/escolaplay/icons/stranger/dustin.png',
+    '/escolaplay/icons/stranger/eleven.png',
+    '/escolaplay/icons/stranger/lucas.png',
+    '/escolaplay/icons/stranger/max.png',
+    '/escolaplay/icons/stranger/mike.png',
+    '/escolaplay/icons/stranger/will.png'
 ];
 
 self.addEventListener('install', (event) => {
