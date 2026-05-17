@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v252';
+const CACHE_NAME = 'escolaplay-v253';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -54,10 +54,14 @@ const ASSETS = [
     '/escolaplay/icons/vampire/tyler.png',
     // Stranger Things
     '/escolaplay/icons/stranger/dustin.png',
+    '/escolaplay/icons/stranger/eddie.png',
     '/escolaplay/icons/stranger/eleven.png',
+    '/escolaplay/icons/stranger/hopper.png',
+    '/escolaplay/icons/stranger/jonathan.png',
     '/escolaplay/icons/stranger/lucas.png',
     '/escolaplay/icons/stranger/max.png',
     '/escolaplay/icons/stranger/mike.png',
+    '/escolaplay/icons/stranger/steve.png',
     '/escolaplay/icons/stranger/will.png'
 ];
 

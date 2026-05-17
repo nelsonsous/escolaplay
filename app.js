@@ -19,8 +19,9 @@ const AVATAR_VAMPIRE = [
 ];
 // Stranger Things — elenco principal
 const AVATAR_STRANGER = [
-    'stranger:eleven', 'stranger:mike', 'stranger:max', 'stranger:will',
-    'stranger:dustin', 'stranger:lucas'
+    'stranger:eleven', 'stranger:mike', 'stranger:will', 'stranger:lucas',
+    'stranger:jonathan', 'stranger:dustin', 'stranger:steve', 'stranger:max',
+    'stranger:hopper', 'stranger:eddie'
 ];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
 // dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
@@ -432,7 +433,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v252';
+const APP_VERSION = 'v253';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
