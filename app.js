@@ -17,8 +17,11 @@ const AVATAR_VAMPIRE = [
     'vampire:bonnie', 'vampire:klaus', 'vampire:elijah', 'vampire:rebekah',
     'vampire:tyler', 'vampire:matt', 'vampire:jeremy', 'vampire:anna'
 ];
-// Stranger Things (a preencher quando a utilizadora enviar collage do elenco)
-const AVATAR_STRANGER = [];
+// Stranger Things — elenco principal
+const AVATAR_STRANGER = [
+    'stranger:eleven', 'stranger:mike', 'stranger:max', 'stranger:will',
+    'stranger:dustin', 'stranger:lucas'
+];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
 // dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
 function renderAvatar(av, sizePx = 46) {
@@ -34,6 +37,10 @@ function renderAvatar(av, sizePx = 46) {
     if (s.startsWith('vampire:')) {
         const name = s.substring('vampire:'.length).replace(/[^a-z0-9_-]/gi, '');
         return `<img class="av-vampire" src="icons/vampire/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+    }
+    if (s.startsWith('stranger:')) {
+        const name = s.substring('stranger:'.length).replace(/[^a-z0-9_-]/gi, '');
+        return `<img class="av-stranger" src="icons/stranger/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('dicebear:')) {
         // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
@@ -425,7 +432,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v251';
+const APP_VERSION = 'v252';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
