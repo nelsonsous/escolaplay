@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v249';
+const CACHE_NAME = 'escolaplay-v250';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -60,8 +60,22 @@ const ASSETS = [
     '/escolaplay/icons/disney/robot.png',
     '/escolaplay/icons/disney/rocket.png',
     '/escolaplay/icons/disney/star.png',
+    '/escolaplay/icons/disney/stitch.png',
     '/escolaplay/icons/disney/tiger.png',
-    '/escolaplay/icons/disney/unicorn.png'
+    '/escolaplay/icons/disney/unicorn.png',
+    // Diário de um Vampiro
+    '/escolaplay/icons/vampire/anna.png',
+    '/escolaplay/icons/vampire/bonnie.png',
+    '/escolaplay/icons/vampire/caroline.png',
+    '/escolaplay/icons/vampire/damon.png',
+    '/escolaplay/icons/vampire/elena.png',
+    '/escolaplay/icons/vampire/elijah.png',
+    '/escolaplay/icons/vampire/jeremy.png',
+    '/escolaplay/icons/vampire/klaus.png',
+    '/escolaplay/icons/vampire/matt.png',
+    '/escolaplay/icons/vampire/rebekah.png',
+    '/escolaplay/icons/vampire/stefan.png',
+    '/escolaplay/icons/vampire/tyler.png'
 ];
 
 self.addEventListener('install', (event) => {

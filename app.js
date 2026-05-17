@@ -8,6 +8,7 @@ const AVATAR_CARTOONS = [];
 // alojado em icons/disney/*.png. Unico grupo de avatares — emojis e cartoons
 // DiceBear removidos por escolha do utilizador.
 const AVATAR_DISNEY = [
+    'disney3d:stitch',
     'disney3d:princess', 'disney3d:prince', 'disney3d:fairy',
     'disney3d:mage_woman', 'disney3d:mage_man',
     'disney3d:elf_woman', 'disney3d:elf_man', 'disney3d:genie_woman',
@@ -15,6 +16,12 @@ const AVATAR_DISNEY = [
     'disney3d:lion', 'disney3d:tiger', 'disney3d:bear', 'disney3d:panda',
     'disney3d:butterfly', 'disney3d:rainbow', 'disney3d:star', 'disney3d:crown',
     'disney3d:castle', 'disney3d:rocket', 'disney3d:robot', 'disney3d:chick'
+];
+// Diario de um Vampiro (elenco principal — Vampire Diaries / The Originals)
+const AVATAR_VAMPIRE = [
+    'vampire:elena', 'vampire:damon', 'vampire:stefan', 'vampire:caroline',
+    'vampire:bonnie', 'vampire:klaus', 'vampire:elijah', 'vampire:rebekah',
+    'vampire:tyler', 'vampire:matt', 'vampire:jeremy', 'vampire:anna'
 ];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
 // dicebear:STYLE:SEED, disney3d:NAME, ou data:image/... (foto upload).
@@ -27,6 +34,10 @@ function renderAvatar(av, sizePx = 46) {
     if (s.startsWith('disney3d:')) {
         const name = s.substring('disney3d:'.length).replace(/[^a-z0-9_-]/gi, '');
         return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
+    }
+    if (s.startsWith('vampire:')) {
+        const name = s.substring('vampire:'.length).replace(/[^a-z0-9_-]/gi, '');
+        return `<img class="av-vampire" src="icons/vampire/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('dicebear:')) {
         // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
@@ -418,7 +429,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v249';
+const APP_VERSION = 'v250';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2004,11 +2015,6 @@ function renderNewProfileAvatarGrid() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    const urlHtml = `
-        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney da internet)" onclick="openUrlAvatarPrompt('newProfile')">
-            <span style="font-size:1.5rem">🔗</span>
-        </div>
-    `;
     // Avatares customizados — partilhados entre todos os perfis no dispositivo
     const customs = Array.isArray(state.customAvatars) ? state.customAvatars : [];
     const customHtml = customs.map(a => `
@@ -2018,7 +2024,12 @@ function renderNewProfileAvatarGrid() {
     const disneyHtml = AVATAR_DISNEY.map((a, i) => `
         <div class="avatar-option ${(defaultPicked && customs.length === 0 && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
-    grid.innerHTML = photoHtml + cameraHtml + urlHtml + customHtml + disneyHtml;
+    // Diario de um Vampiro
+    const vampireHtml = `<div class="avatar-group-label">🧛 Diário de um Vampiro</div>` + AVATAR_VAMPIRE.map(a => `
+        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    const disneyLabel = `<div class="avatar-group-label">✨ Disney-vibe</div>`;
+    grid.innerHTML = photoHtml + cameraHtml + customHtml + disneyLabel + disneyHtml + vampireHtml;
 }
 window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
 
@@ -2237,17 +2248,17 @@ function renderProfile() {
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
-    const urlHtml = `
-        <div class="avatar-option" style="cursor:pointer" title="Colar URL de uma imagem (Disney da internet)" onclick="openUrlAvatarPrompt('profile')">
-            <span style="font-size:1.5rem">🔗</span>
-        </div>
-    `;
     // Avatares customizados — partilhados entre todos os perfis no dispositivo
     const customs = Array.isArray(state.customAvatars) ? state.customAvatars : [];
     const customHtml = customs.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectAvatar(this.dataset.avatar)">${renderAvatar(a, 56)}</div>
     `).join('');
-    grid.innerHTML = `${photoHtml}${cameraHtml}${urlHtml}${customHtml}${disneyHtml}${cartoonsHtml}${emojisHtml}`;
+    // Diario de um Vampiro
+    const vampireHtml = `<div class="avatar-group-label">🧛 Diário de um Vampiro</div>` + AVATAR_VAMPIRE.map(a => `
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>
+    `).join('');
+    const disneyLabel = `<div class="avatar-group-label">✨ Disney-vibe</div>`;
+    grid.innerHTML = `${photoHtml}${cameraHtml}${customHtml}${disneyLabel}${disneyHtml}${vampireHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();

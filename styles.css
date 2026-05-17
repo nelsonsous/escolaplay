@@ -3706,3 +3706,17 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .test-item.test-flash {
     animation: test-flash 1.5s ease-out;
 }
+
+/* Labels de grupos no grid de avatares (v250) */
+.avatar-group-label {
+    grid-column: 1 / -1;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 10px 0 4px;
+    padding-top: 6px;
+    border-top: 1px solid #f3f4f6;
+}
+.avatar-group-label:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
