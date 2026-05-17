@@ -2,22 +2,41 @@
 // State + gamificação + exercícios + testes + prémios
 
 const STORAGE_KEY = 'escolaplay_v2';
-const AVATARS = ['\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}','\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F984}','\u{1F409}'];
-// Avatares cartoon ilustrados (DiceBear, gratuito) — seeds escolhidas
-// para dar variedade visual entre miúdo/miúda/animal-friendly.
+const AVATARS = [
+    // Magia / royals (vibe Disney, sem IP)
+    '\u{1F451}','\u{1F478}','\u{1F934}','\u{1F9DA}','\u{1F9DC}','\u{1F9D9}','\u{1F9DD}',
+    '\u{1F984}','\u{1F409}','\u{2728}','\u{1F31F}','\u{1F98B}',
+    // Animais cativantes
+    '\u{1F98A}','\u{1F43B}','\u{1F981}','\u{1F436}','\u{1F43C}','\u{1F42F}',
+    '\u{1F43A}','\u{1F42D}','\u{1F427}','\u{1F989}','\u{1F98C}','\u{1F990}'
+];
+// Avatares cartoon ilustrados (DiceBear, gratuito). Mix de estilos:
+// adventurer (rostos), lorelei (abstracto), big-smile (alegre), fun-emoji.
+// Os seeds com nomes Disney-inspired sao apenas chaves de hash — o output
+// e arte unica gerada (nada de IP infringido).
 const AVATAR_CARTOONS = [
     'dicebear:adventurer:Eduarda',
     'dicebear:adventurer:Carolina',
-    'dicebear:adventurer:Nelson',
+    'dicebear:adventurer:Sofia',
     'dicebear:adventurer:Maria',
-    'dicebear:adventurer:Tomas',
     'dicebear:adventurer:Beatriz',
-    'dicebear:adventurer:Lucas',
     'dicebear:adventurer:Inês',
+    'dicebear:adventurer:Tomas',
+    'dicebear:adventurer:Miguel',
+    'dicebear:big-smile:Anna',
+    'dicebear:big-smile:Elsa',
+    'dicebear:big-smile:Belle',
+    'dicebear:big-smile:Moana',
+    'dicebear:big-smile:Aurora',
+    'dicebear:big-smile:Ariel',
     'dicebear:lorelei:rosa',
     'dicebear:lorelei:azul',
     'dicebear:lorelei:verde',
     'dicebear:lorelei:amarelo',
+    'dicebear:fun-emoji:Magia',
+    'dicebear:fun-emoji:Estrela',
+    'dicebear:fun-emoji:Princesa',
+    'dicebear:fun-emoji:Aventura'
 ];
 // Renderiza um avatar a partir de uma string que pode ser emoji,
 // dicebear:STYLE:SEED, ou data:image/... (foto upload).
@@ -394,7 +413,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v242';
+const APP_VERSION = 'v243';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -488,6 +507,8 @@ function switchProfile(id) {
     switchTab('home');
 }
 
+let _newProfileCustomAvatar = null; // foto/dataURL temporaria ao criar perfil
+
 function addProfileFromForm() {
     const nameEl = document.getElementById('new-profile-name');
     const yearEl = document.querySelector('input[name="new-profile-year"]:checked');
@@ -496,7 +517,10 @@ function addProfileFromForm() {
     if (!name) { showToast('Escreve um nome'); return; }
     const fallbackYear = (window.YEARS_AVAILABLE && window.YEARS_AVAILABLE[0]?.year) || 2;
     const year = parseInt(yearEl?.value || String(fallbackYear));
-    const avatar = avEl?.dataset.avatar || AVATARS[Math.floor(Math.random()*AVATARS.length)];
+    // Prefere foto custom (camera/upload) se definida
+    const avatar = _newProfileCustomAvatar
+        || avEl?.dataset.avatar
+        || AVATARS[Math.floor(Math.random()*AVATARS.length)];
     const p = newProfile({ name, avatar, year });
     state.profiles.push(p);
     state.activeProfileId = p.id;
@@ -553,10 +577,11 @@ function normalize(s) {
 }
 function activeTopicsFor(subjectKey) {
     const topics = CURRICULUM[subjectKey] || [];
-    // 1) Se o utilizador escolheu manualmente tópicos activos por defeito,
-    //    usar essa lista (filtrada contra tópicos válidos).
+    // Se existe um array (mesmo vazio) em state.activeTopics, e a escolha
+    // explicita do utilizador — array vazio significa "nenhum activo".
+    // So usa o fallback (topics 0..toIndex) se NUNCA foi customizado.
     const custom = state.activeTopics && state.activeTopics[subjectKey];
-    if (Array.isArray(custom) && custom.length > 0) {
+    if (Array.isArray(custom)) {
         const valid = new Set(topics);
         return new Set(custom.filter(t => valid.has(t)));
     }
@@ -1949,16 +1974,140 @@ function openAddProfileModal() {
         </label>
     `).join('');
     document.getElementById('new-profile-years').innerHTML = yearsHtml;
-    const avGrid = document.getElementById('new-profile-avatars');
-    avGrid.innerHTML = AVATARS.map((a, i) => `
-        <div class="avatar-option ${i===0?'selected':''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
-    `).join('');
+    _newProfileCustomAvatar = null; // reset photo state
+    renderNewProfileAvatarGrid();
     modal.style.display = 'flex';
 }
+
+function renderNewProfileAvatarGrid() {
+    const grid = document.getElementById('new-profile-avatars');
+    if (!grid) return;
+    const photo = _newProfileCustomAvatar;
+    const isCustomPhoto = !!photo;
+    const defaultPicked = !isCustomPhoto;
+    // Bloco 1: Foto upload (primeira celula, mais visivel)
+    const photoHtml = `
+        <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Carregar uma foto">
+            ${isCustomPhoto ? renderAvatar(photo, 56) : '<span style="font-size:1.5rem">📷</span>'}
+            <input type="file" accept="image/*" onchange="uploadNewProfilePhoto(event)" style="display:none">
+        </label>
+    `;
+    // Bloco 2: Camara (so se o browser suportar getUserMedia)
+    const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const cameraHtml = hasCamera ? `
+        <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('newProfile')">
+            <span style="font-size:1.5rem">📸</span>
+        </div>
+    ` : '';
+    // Bloco 3: Cartoons DiceBear
+    const cartoonsHtml = AVATAR_CARTOONS.map(a => `
+        <div class="avatar-option" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+    `).join('');
+    // Bloco 4: Emojis (primeiro seleccionado por defeito se nao houver foto)
+    const emojisHtml = AVATARS.map((a, i) => `
+        <div class="avatar-option ${(defaultPicked && i===0) ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${a}</div>
+    `).join('');
+    grid.innerHTML = photoHtml + cameraHtml + cartoonsHtml + emojisHtml;
+}
+window.renderNewProfileAvatarGrid = renderNewProfileAvatarGrid;
+
+function uploadNewProfilePhoto(event) {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande (max 5 MB).'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const SIZE = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = SIZE; canvas.height = SIZE;
+            const ctx = canvas.getContext('2d');
+            const min = Math.min(img.width, img.height);
+            const sx = (img.width - min) / 2;
+            const sy = (img.height - min) / 2;
+            ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+            _newProfileCustomAvatar = canvas.toDataURL('image/jpeg', 0.85);
+            renderNewProfileAvatarGrid();
+        };
+        img.onerror = () => showToast('Erro a carregar imagem.');
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+window.uploadNewProfilePhoto = uploadNewProfilePhoto;
+
 function selectNewProfileAvatar(el) {
+    _newProfileCustomAvatar = null; // utilizador escolheu um avatar predefinido
     document.querySelectorAll('#new-profile-avatars .avatar-option').forEach(x => x.classList.remove('selected'));
     el.classList.add('selected');
 }
+
+// Captura de foto via webcam — funciona em Mac/desktop e iOS.
+// context: 'newProfile' (modal de criar perfil) | 'profile' (perfil activo).
+async function openCameraForAvatar(context) {
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+        showToast('Câmara não suportada neste browser.');
+        return;
+    }
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } } });
+    } catch (e) {
+        showToast('Sem permissão para a câmara.');
+        return;
+    }
+    const old = document.getElementById('camera-modal-temp');
+    if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.id = 'camera-modal-temp';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:18px;padding:18px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+            <h3 style="margin:0 0 12px;font-size:1.04rem;text-align:center;font-weight:800">📸 Tira uma foto</h3>
+            <video id="cam-video" autoplay playsinline muted style="width:100%;border-radius:14px;background:#000;aspect-ratio:1;object-fit:cover;transform:scaleX(-1)"></video>
+            <div style="display:flex;gap:8px;margin-top:14px">
+                <button class="btn btn-secondary" id="cam-cancel" style="flex:1">Cancelar</button>
+                <button class="btn btn-primary-solid" id="cam-shoot" style="flex:1"><i class="fas fa-camera"></i> Capturar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    const cleanup = () => {
+        try { stream.getTracks().forEach(t => t.stop()); } catch {}
+        modal.remove();
+    };
+    document.getElementById('cam-cancel').onclick = cleanup;
+    document.getElementById('cam-shoot').onclick = () => {
+        const SIZE = 256;
+        const vw = video.videoWidth, vh = video.videoHeight;
+        if (!vw || !vh) { showToast('Câmara ainda não está pronta'); return; }
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        // Espelha horizontalmente para casar com a previsao (selfie style)
+        ctx.translate(SIZE, 0); ctx.scale(-1, 1);
+        const min = Math.min(vw, vh);
+        const sx = (vw - min) / 2;
+        const sy = (vh - min) / 2;
+        ctx.drawImage(video, sx, sy, min, min, 0, 0, SIZE, SIZE);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        cleanup();
+        if (context === 'newProfile') {
+            _newProfileCustomAvatar = dataUrl;
+            renderNewProfileAvatarGrid();
+        } else {
+            state.profile.avatar = dataUrl;
+            saveState();
+            renderProfile();
+            updateHeader();
+            showToast('✓ Foto guardada');
+        }
+    };
+}
+window.openCameraForAvatar = openCameraForAvatar;
 function closeAddProfileModal() {
     const m = document.getElementById('add-profile-modal');
     if (m) m.style.display = 'none';
@@ -1998,15 +2147,20 @@ function renderProfile() {
     const emojisHtml = AVATARS.map(a => `
         <div class="avatar-option ${a === curAv ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</div>
     `).join('');
-    // Bloco 3: carregar foto (primeira célula, mais visível)
+    // Bloco 3: carregar foto + tirar foto com camara (primeiras celulas)
     const photoHtml = `
         <label class="avatar-option ${isCustomPhoto ? 'selected' : ''}" style="cursor:pointer" title="Carregar uma foto">
             ${isCustomPhoto ? renderAvatar(curAv, 56) : '<span style="font-size:1.5rem">📷</span>'}
             <input type="file" accept="image/*" onchange="uploadAvatarPhoto(event)" style="display:none">
         </label>
     `;
-    // Tudo numa só grelha — foto primeiro, depois 12 cartoons, depois 12 emojis (25 cells em 6 cols = ~5 linhas, sem subtítulos)
-    grid.innerHTML = `${photoHtml}${cartoonsHtml}${emojisHtml}`;
+    const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const cameraHtml = hasCamera ? `
+        <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('profile')">
+            <span style="font-size:1.5rem">📸</span>
+        </div>
+    ` : '';
+    grid.innerHTML = `${photoHtml}${cameraHtml}${cartoonsHtml}${emojisHtml}`;
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
@@ -4642,11 +4796,13 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
         }
     }
 
-    // Botão "Mais um ciclo!" — só em sessões de treino normais (não diário, não teste, não duelo)
+    // Botão "Mais um ciclo!" — em sessões de treino normais OU retry (apos
+    // corrigir as erradas, vir o convite para fazer outra ronda).
     const newCycleWrap = document.getElementById('summary-newcycle-wrap');
     if (newCycleWrap) {
-        if (!s.isDaily && !s.testId && !s.isDuel && !s.isMax && !s._isRetry && s.subject) {
-            newCycleWrap.innerHTML = `<button class="btn btn-block" onclick="startNewCycle()" style="background:linear-gradient(135deg,#f472b6,#f472b6);color:#fff;font-weight:700;padding:14px;margin-bottom:10px;border:none"><i class="fas fa-rotate-right"></i> Mais um ciclo!</button>`;
+        if (!s.isDaily && !s.testId && !s.isDuel && !s.isMax && s.subject) {
+            const label = s._isRetry ? 'Iniciar novo ciclo' : 'Mais um ciclo!';
+            newCycleWrap.innerHTML = `<button class="btn btn-block" onclick="startNewCycle()" style="background:linear-gradient(135deg,#f472b6,#db2777);color:#fff;font-weight:700;padding:14px;margin-bottom:10px;border:none"><i class="fas fa-rotate-right"></i> ${label}</button>`;
         } else {
             newCycleWrap.innerHTML = '';
         }
@@ -4814,7 +4970,9 @@ function retryWrongSession() {
         results: [],
         isDaily: false,
         testId:  null,
-        _isRetry: true
+        _isRetry: true,
+        subject: s.subject,    // preserva para "Mais um ciclo" funcionar
+        topicSet: s.topicSet
     };
     document.getElementById('exercise-screen').style.display = 'flex';
     renderQuestion();
@@ -6422,6 +6580,20 @@ function _unlockAudio() {
 }
 document.addEventListener('touchstart', _unlockAudio, { once: true, capture: true, passive: true });
 document.addEventListener('click',      _unlockAudio, { once: true, capture: true });
+
+// Enter global no ecra de exercicio — dispara Responder / Continuar.
+// Inputs (text/textarea) ja tem o seu proprio handler inline.
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    if (e.target.matches('input, textarea, select')) return;
+    const exScreen = document.getElementById('exercise-screen');
+    if (!exScreen || exScreen.style.display === 'none') return;
+    const btn = document.getElementById('ex-action-btn');
+    if (btn && !btn.disabled && typeof exActionTap === 'function') {
+        e.preventDefault();
+        exActionTap();
+    }
+});
 
 window.addEventListener('DOMContentLoaded', () => {
     // Inicializar estado agora — neste ponto PROFILE_FIELDS, AVATARS, defaultState etc. já existem.
