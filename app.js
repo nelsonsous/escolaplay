@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v270';
+const APP_VERSION = 'v271';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5786,12 +5786,15 @@ async function _attachMyUserListener() {
     await _onFbReady();
     const { db, doc, onSnapshot } = window.__fb;
     const ref = doc(db, 'users', state.userCode);
+    let firstSnap = true;
+    const seenRequests = new Set();
     _myUserUnsub = onSnapshot(ref, snap => {
         if (!snap.exists()) return;
         const data = snap.data();
         const fbFriends = data.friends || {};
+        const fbRequests = data.requests || {};
         if (!state.friends) state.friends = [];
-        // Para cada amigo no Firestore que nao tenho localmente — adiciona
+        // Sync friends que outros adicionaram
         let changed = false;
         for (const [code, info] of Object.entries(fbFriends)) {
             if (!state.friends.some(f => f.code === code)) {
@@ -5800,19 +5803,39 @@ async function _attachMyUserListener() {
                     name: info.name || 'Anónimo',
                     avatar: info.avatar || '👤',
                     year: info.year || 0,
-                    addedAt: info.addedAt || Date.now(),
-                    addedByOther: true  // marca que veio de outra pessoa
+                    addedAt: info.addedAt || Date.now()
                 });
                 changed = true;
-                showToast(`✨ ${info.name || 'Alguém'} adicionou-te como amigo!`);
+                if (!firstSnap) showToast(`✨ ${info.name || 'Alguém'} adicionou-te!`);
             }
         }
-        if (changed) {
-            saveState();
-            // Re-render do ecra de amigos se aberto
-            if (document.getElementById('friends-modal-temp')) openFriendsScreen();
+        if (changed) saveState();
+        // Detectar novos pedidos (so apos primeiro snapshot)
+        const reqEntries = Object.entries(fbRequests);
+        state._pendingRequests = reqEntries.map(([code, info]) => Object.assign({ code }, info));
+        _updateFriendRequestsBadge(reqEntries.length);
+        if (!firstSnap) {
+            for (const [code, info] of reqEntries) {
+                if (!seenRequests.has(code)) {
+                    seenRequests.add(code);
+                    showToast(`✉️ ${info.name || 'Alguém'} pediu-te amizade!`);
+                    _maybePushNotif(`✉️ Novo pedido de amizade`, `${info.name || 'Alguém'} quer ser teu amigo`);
+                }
+            }
+        } else {
+            for (const [code] of reqEntries) seenRequests.add(code);
+            firstSnap = false;
         }
+        // Re-render do ecra de amigos se aberto
+        if (document.getElementById('friends-modal-temp')) openFriendsScreen();
     }, err => console.warn('[user] listener err', err));
+}
+
+function _updateFriendRequestsBadge(n) {
+    const el = document.getElementById('friends-requests-badge');
+    if (!el) return;
+    if (n > 0) { el.textContent = String(n); el.style.display = 'inline-flex'; }
+    else el.style.display = 'none';
 }
 
 // Garantir que o perfil ativo tem userCode + registado no Firestore
@@ -5844,6 +5867,97 @@ async function ensureUserCode() {
     }
     return state.userCode;
 }
+
+// Lista todos os utilizadores registados (ordenado por lastSeen)
+async function fbListUsers() {
+    await _onFbReady();
+    const { db } = window.__fb;
+    const { collection, getDocs, query, orderBy, limit } = await _fbQueryFns();
+    const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(200));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => Object.assign({ code: d.id }, d.data()));
+}
+
+// Enviar pedido de amizade — escreve em users/{targetCode}.requests.{myCode}
+async function fbSendFriendRequest(myCode, myProfile, targetCode) {
+    await _onFbReady();
+    const { db, doc, setDoc } = window.__fb;
+    await setDoc(doc(db, 'users', targetCode), {
+        requests: {
+            [myCode]: {
+                name: myProfile.name || 'Anónimo',
+                avatar: myProfile.avatar || '👤',
+                year: myProfile.year || 0,
+                at: Date.now()
+            }
+        }
+    }, { merge: true });
+}
+
+async function fbDeleteFriendRequest(myCode, fromCode) {
+    await _onFbReady();
+    const { db, doc, updateDoc, deleteField } = window.__fb;
+    await updateDoc(doc(db, 'users', myCode), { [`requests.${fromCode}`]: deleteField() });
+}
+
+async function sendFriendRequest(targetCode, targetName) {
+    const myCode = state.userCode || await ensureUserCode();
+    if (!myCode) { showToast('Erro — perfil não registado.'); return false; }
+    if (targetCode === myCode) { showToast('Esse és tu.'); return false; }
+    try {
+        await fbSendFriendRequest(myCode, activeProfile(), targetCode);
+        showToast(`✉️ Pedido enviado a ${targetName || targetCode}!`);
+        return true;
+    } catch (err) {
+        console.error('[friend] request fail', err);
+        showToast('❌ Erro ao enviar pedido.');
+        return false;
+    }
+}
+window.sendFriendRequest = sendFriendRequest;
+
+async function acceptFriendRequest(fromCode) {
+    const myCode = state.userCode;
+    if (!myCode) return;
+    const myProfile = activeProfile();
+    const requester = await fbLookupUser(fromCode);
+    if (!requester) { showToast('Pedido inválido.'); return; }
+    try {
+        await fbAddFriendBidi(myCode, myProfile, fromCode, requester);
+        await fbDeleteFriendRequest(myCode, fromCode);
+        // Update local
+        if (!state.friends) state.friends = [];
+        if (!state.friends.some(f => f.code === fromCode)) {
+            state.friends.push({
+                code: fromCode,
+                name: requester.name,
+                avatar: requester.avatar,
+                year: requester.year,
+                addedAt: Date.now()
+            });
+            saveState();
+        }
+        showToast(`✅ Tu e ${requester.name} agora são amigos!`);
+        if (document.getElementById('friends-modal-temp')) openFriendsScreen();
+    } catch (err) {
+        console.error('[friend] accept fail', err);
+        showToast('❌ Erro ao aceitar.');
+    }
+}
+window.acceptFriendRequest = acceptFriendRequest;
+
+async function rejectFriendRequest(fromCode) {
+    const myCode = state.userCode;
+    if (!myCode) return;
+    try {
+        await fbDeleteFriendRequest(myCode, fromCode);
+        showToast('Pedido rejeitado.');
+        if (document.getElementById('friends-modal-temp')) openFriendsScreen();
+    } catch (err) {
+        console.error('[friend] reject fail', err);
+    }
+}
+window.rejectFriendRequest = rejectFriendRequest;
 
 // Adicionar amigo pelo codigo — BIDIRECIONAL (escreve em ambos os users)
 async function addFriendByCode(rawCode) {
@@ -5899,8 +6013,23 @@ function openFriendsScreen() {
     document.getElementById('friends-modal-temp')?.remove();
     const myCode = state.userCode || '—';
     const friends = state.friends || [];
+    const pendingReq = state._pendingRequests || [];
+    const requestsHtml = pendingReq.length === 0 ? '' : `
+        <div style="margin-bottom:18px">
+            <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:var(--text-light)">Pedidos de amizade (${pendingReq.length})</div>
+            ${pendingReq.map(r => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #fbbf24;border-radius:12px;margin-bottom:6px;background:linear-gradient(135deg,#fef3c7,#fde68a)">
+                <div style="font-size:1.8rem">${escapeHtml(r.avatar || '👤')}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:800">${escapeHtml(r.name)}</div>
+                    <div style="font-size:0.74rem;color:#78350f;font-family:monospace">${escapeHtml(r.code)} · ${r.year || '?'}.º ano</div>
+                </div>
+                <button class="btn" style="background:#16a34a;color:#fff;padding:8px 12px;font-size:0.82rem;font-weight:700;border:none" onclick="acceptFriendRequest('${r.code}')"><i class="fas fa-check"></i></button>
+                <button class="btn" style="background:#fff;color:#dc2626;padding:8px 12px;font-size:0.82rem;font-weight:700;border:1.5px solid #fecaca" onclick="rejectFriendRequest('${r.code}')"><i class="fas fa-xmark"></i></button>
+            </div>`).join('')}
+        </div>
+    `;
     const friendsHtml = friends.length === 0
-        ? `<div style="text-align:center;padding:30px 20px;color:var(--text-light)"><div style="font-size:2.6rem;margin-bottom:8px">👥</div><p style="font-size:0.88rem">Ainda não tens amigos.</p><p style="font-size:0.78rem;margin-top:4px">Pede o código a um colega e adiciona em baixo.</p></div>`
+        ? `<div style="text-align:center;padding:30px 20px;color:var(--text-light)"><div style="font-size:2.6rem;margin-bottom:8px">👥</div><p style="font-size:0.88rem">Ainda não tens amigos.</p><p style="font-size:0.78rem;margin-top:4px">Procura pessoas ou adiciona pelo código.</p></div>`
         : friends.map(f => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
             <div style="font-size:1.8rem">${escapeHtml(f.avatar || '👤')}</div>
             <div style="flex:1;min-width:0">
@@ -5915,7 +6044,7 @@ function openFriendsScreen() {
             <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
                 <div>
                     <h1 style="font-size:1.4rem;font-weight:900">👥 Os meus amigos</h1>
-                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${friends.length} ${friends.length===1?'amigo':'amigos'}</p>
+                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${friends.length} ${friends.length===1?'amigo':'amigos'}${pendingReq.length>0?` · ${pendingReq.length} pedido${pendingReq.length>1?'s':''}`:''}</p>
                 </div>
                 <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeFriendsScreen()"><i class="fas fa-xmark"></i></button>
             </div>
@@ -5923,16 +6052,19 @@ function openFriendsScreen() {
                 <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:16px;margin-bottom:18px;text-align:center">
                     <div style="font-size:0.72rem;font-weight:700;color:#78350f;text-transform:uppercase;letter-spacing:0.04em">O TEU CÓDIGO</div>
                     <div style="font-size:2.2rem;font-weight:900;color:#78350f;letter-spacing:0.18em;font-family:monospace;margin:6px 0">${escapeHtml(myCode)}</div>
-                    <div style="font-size:0.78rem;color:#78350f">Partilha este código para te adicionarem.</div>
-                    <button class="btn" style="margin-top:8px;background:#fff;color:#78350f;font-weight:800;border:1.5px solid #f59e0b;border-radius:10px;padding:8px 14px;font-size:0.82rem" onclick="_shareMyCode()"><i class="fas fa-share-nodes"></i> Partilhar</button>
+                    <button class="btn" style="margin-top:4px;background:#fff;color:#78350f;font-weight:800;border:1.5px solid #f59e0b;border-radius:10px;padding:8px 14px;font-size:0.82rem" onclick="_shareMyCode()"><i class="fas fa-share-nodes"></i> Partilhar</button>
                 </div>
-                <div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:18px">
-                    <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-light)">Adicionar amigo</div>
-                    <div style="display:flex;gap:8px">
+                ${requestsHtml}
+                <div style="display:flex;gap:8px;margin-bottom:18px">
+                    <button class="btn" style="flex:1;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:13px;font-weight:800;border:none" onclick="openSearchPeopleScreen()"><i class="fas fa-magnifying-glass"></i> Procurar pessoas</button>
+                </div>
+                <details style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:18px">
+                    <summary style="font-size:0.84rem;font-weight:700;cursor:pointer;color:var(--text-light)">Adicionar por código</summary>
+                    <div style="display:flex;gap:8px;margin-top:10px">
                         <input type="text" id="friend-code-input" placeholder="EX: ABC4" maxlength="4" style="flex:1;padding:11px;border:1.5px solid var(--border);border-radius:10px;font-size:1.05rem;text-transform:uppercase;font-family:monospace;letter-spacing:0.1em" oninput="this.value=this.value.toUpperCase()">
                         <button class="btn btn-primary-solid" style="padding:11px 16px" onclick="_addFriendFromInput()"><i class="fas fa-plus"></i></button>
                     </div>
-                </div>
+                </details>
                 <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:var(--text-light)">Amigos (${friends.length})</div>
                 ${friendsHtml}
             </div>
@@ -5941,6 +6073,87 @@ function openFriendsScreen() {
     document.body.insertAdjacentHTML('beforeend', html);
 }
 function closeFriendsScreen() { document.getElementById('friends-modal-temp')?.remove(); }
+
+// ===== ECRA PROCURAR PESSOAS =====
+let _searchPeopleCache = null;
+async function openSearchPeopleScreen() {
+    document.getElementById('search-people-modal-temp')?.remove();
+    const myCode = state.userCode;
+    const friends = state.friends || [];
+    const friendCodes = new Set(friends.map(f => f.code));
+    // Loading state
+    const html = `
+    <div id="search-people-modal-temp" class="modal" style="align-items:flex-start;padding:0">
+        <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
+            <div style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+                <div>
+                    <h1 style="font-size:1.4rem;font-weight:900">🔍 Procurar pessoas</h1>
+                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Encontra colegas e pede amizade</p>
+                </div>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeSearchPeopleScreen()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:18px">
+                <input type="text" id="people-search-input" placeholder="🔍 Filtrar por nome…" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:0.96rem;margin-bottom:14px" oninput="_filterPeople()">
+                <div id="people-list-container"><div style="text-align:center;padding:30px;color:var(--text-light)"><i class="fas fa-spinner fa-spin"></i> A carregar…</div></div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    // Fetch
+    try {
+        const users = await fbListUsers();
+        _searchPeopleCache = users.filter(u =>
+            u.code !== myCode &&
+            !friendCodes.has(u.code) &&
+            u.name  // tem nome registado
+        );
+        _renderPeopleList('');
+    } catch (err) {
+        console.error('[people] fetch fail', err);
+        document.getElementById('people-list-container').innerHTML = `<div style="text-align:center;padding:30px;color:#dc2626">Erro a carregar utilizadores.</div>`;
+    }
+}
+function closeSearchPeopleScreen() { document.getElementById('search-people-modal-temp')?.remove(); }
+function _filterPeople() {
+    const q = (document.getElementById('people-search-input')?.value || '').trim().toLowerCase();
+    _renderPeopleList(q);
+}
+function _renderPeopleList(filter) {
+    const c = document.getElementById('people-list-container');
+    if (!c || !_searchPeopleCache) return;
+    let list = _searchPeopleCache;
+    if (filter) list = list.filter(u => (u.name || '').toLowerCase().includes(filter));
+    if (list.length === 0) {
+        c.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-light)"><div style="font-size:2.2rem;margin-bottom:8px">🤷</div><p style="font-size:0.86rem">Ninguém encontrado.</p></div>`;
+        return;
+    }
+    c.innerHTML = list.map(u => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
+        <div style="font-size:1.8rem">${escapeHtml(u.avatar || '👤')}</div>
+        <div style="flex:1;min-width:0">
+            <div style="font-weight:800">${escapeHtml(u.name)}</div>
+            <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace">${escapeHtml(u.code)} · ${u.year || '?'}.º ano</div>
+        </div>
+        <button class="btn" id="req-btn-${u.code}" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:8px 14px;font-size:0.82rem;font-weight:700;border:none" onclick="_sendRequestFromList('${u.code}','${escapeHtml(u.name).replace(/'/g,"&#39;")}')"><i class="fas fa-user-plus"></i> Pedir</button>
+    </div>`).join('');
+}
+async function _sendRequestFromList(code, name) {
+    const btn = document.getElementById(`req-btn-${code}`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    const ok = await sendFriendRequest(code, name);
+    if (btn) {
+        if (ok) {
+            btn.style.background = '#16a34a';
+            btn.innerHTML = '<i class="fas fa-check"></i> Enviado';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-user-plus"></i> Pedir';
+        }
+    }
+}
+window.openSearchPeopleScreen = openSearchPeopleScreen;
+window.closeSearchPeopleScreen = closeSearchPeopleScreen;
+window._filterPeople = _filterPeople;
+window._sendRequestFromList = _sendRequestFromList;
 async function _addFriendFromInput() {
     const inp = document.getElementById('friend-code-input');
     if (!inp) return;
