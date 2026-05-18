@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v286';
+const APP_VERSION = 'v287';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1288,11 +1288,8 @@ function openSubjectDetail(key) {
                 </div>
 
                 <!-- Botão "começar treino" ANTES da lista — acesso rápido sem scroll -->
-                <button class="btn btn-primary-solid btn-block" style="margin-bottom:8px" onclick="startSubjectSession('${key}')">
+                <button class="btn btn-primary-solid btn-block" style="margin-bottom:14px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
-                </button>
-                <button class="btn btn-block" style="margin-bottom:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="pickDuelRecipientsAndCreate('${key}')">
-                    <i class="fas fa-fist-raised"></i> 🥊 Criar duelo
                 </button>
 
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1325,6 +1322,15 @@ function openSubjectDetail(key) {
                     </button>
                     <button class="btn btn-block" style="background:rgba(255,255,255,0.1);color:#fbcfe8;border-radius:10px;padding:8px;font-size:0.78rem" onclick="startMaxSession('${key}', {forceNew:true})">
                         <i class="fas fa-rotate"></i> Forçar novos exercícios (consome API)
+                    </button>
+                </div>
+
+                <!-- Criar duelo (accao social, secundaria — abaixo do MAX) -->
+                <div style="margin-top:16px;background:linear-gradient(135deg,#06b6d4 0%,#0891b2 100%);border-radius:14px;padding:14px;box-shadow:0 4px 12px rgba(6,182,212,0.18)">
+                    <div style="color:#fff;font-weight:800;font-size:0.95rem;margin-bottom:4px"><i class="fas fa-fist-raised"></i> 🥊 Duelo com amigos</div>
+                    <div style="color:#cffafe;font-size:0.74rem;margin-bottom:10px">Desafia os amigos com perguntas desta disciplina</div>
+                    <button class="btn btn-block" style="background:#fff;color:#0891b2;border-radius:10px;padding:10px;font-weight:700;font-size:0.88rem;border:none" onclick="pickDuelRecipientsAndCreate('${key}')">
+                        <i class="fas fa-fist-raised"></i> Criar duelo
                     </button>
                 </div>
 
