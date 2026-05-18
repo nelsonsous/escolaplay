@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v269';
+const APP_VERSION = 'v270';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5749,6 +5749,27 @@ async function fbRegisterUser(code, profile) {
     }, { merge: true });
 }
 
+// Adiciona amigo bidirecional: escreve em ambos os users/{code}.friends
+async function fbAddFriendBidi(myCode, myProfile, theirCode, theirProfile) {
+    await _onFbReady();
+    const { db, doc, setDoc } = window.__fb;
+    const myFriendEntry = {
+        name: theirProfile.name || 'Anónimo',
+        avatar: theirProfile.avatar || '👤',
+        year: theirProfile.year || 0,
+        addedAt: Date.now()
+    };
+    const theirFriendEntry = {
+        name: myProfile.name || 'Anónimo',
+        avatar: myProfile.avatar || '👤',
+        year: myProfile.year || 0,
+        addedAt: Date.now()
+    };
+    // Usa setDoc com merge para criar ou atualizar a chave do friends map
+    await setDoc(doc(db, 'users', myCode), { friends: { [theirCode]: myFriendEntry } }, { merge: true });
+    await setDoc(doc(db, 'users', theirCode), { friends: { [myCode]: theirFriendEntry } }, { merge: true });
+}
+
 async function fbLookupUser(code) {
     await _onFbReady();
     const { db, doc, getDoc } = window.__fb;
@@ -5757,8 +5778,42 @@ async function fbLookupUser(code) {
     return snap.exists() ? Object.assign({ code: code.toUpperCase() }, snap.data()) : null;
 }
 
-// Garantir que o perfil ativo tem userCode + registado no Firestore
-async function ensureUserCode() {
+// Listener no proprio doc users/{myCode} — sincroniza amigos adicionados
+// por outras pessoas (bidirecional)
+let _myUserUnsub = null;
+async function _attachMyUserListener() {
+    if (!state.userCode || _myUserUnsub) return;
+    await _onFbReady();
+    const { db, doc, onSnapshot } = window.__fb;
+    const ref = doc(db, 'users', state.userCode);
+    _myUserUnsub = onSnapshot(ref, snap => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const fbFriends = data.friends || {};
+        if (!state.friends) state.friends = [];
+        // Para cada amigo no Firestore que nao tenho localmente — adiciona
+        let changed = false;
+        for (const [code, info] of Object.entries(fbFriends)) {
+            if (!state.friends.some(f => f.code === code)) {
+                state.friends.push({
+                    code,
+                    name: info.name || 'Anónimo',
+                    avatar: info.avatar || '👤',
+                    year: info.year || 0,
+                    addedAt: info.addedAt || Date.now(),
+                    addedByOther: true  // marca que veio de outra pessoa
+                });
+                changed = true;
+                showToast(`✨ ${info.name || 'Alguém'} adicionou-te como amigo!`);
+            }
+        }
+        if (changed) {
+            saveState();
+            // Re-render do ecra de amigos se aberto
+            if (document.getElementById('friends-modal-temp')) openFriendsScreen();
+        }
+    }, err => console.warn('[user] listener err', err));
+}
     const p = activeProfile();
     if (!p) return null;
     if (!state.userCode) {
@@ -5787,7 +5842,7 @@ async function ensureUserCode() {
     return state.userCode;
 }
 
-// Adicionar amigo pelo codigo
+// Adicionar amigo pelo codigo — BIDIRECIONAL (escreve em ambos os users)
 async function addFriendByCode(rawCode) {
     const code = (rawCode || '').trim().toUpperCase();
     if (!/^[A-Z2-9]{4}$/.test(code)) {
@@ -5808,9 +5863,19 @@ async function addFriendByCode(rawCode) {
         showToast('Código não encontrado.');
         return false;
     }
+    // Garantir userCode
+    const myCode = state.userCode || await ensureUserCode();
+    const myProfile = activeProfile();
+    try {
+        await fbAddFriendBidi(myCode, myProfile, code, user);
+    } catch (err) {
+        console.error('[friend] bidi add fail', err);
+        showToast('Erro ao adicionar. Tenta novamente.');
+        return false;
+    }
     state.friends.push({ code, name: user.name, avatar: user.avatar, year: user.year, addedAt: Date.now() });
     saveState();
-    showToast(`✅ ${user.name} adicionado!`);
+    showToast(`✅ ${user.name} adicionado dos dois lados!`);
     return true;
 }
 window.addFriendByCode = addFriendByCode;
@@ -7637,12 +7702,13 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.warn('[fbduel] url check failed', e); }
     // Listeners em tempo real dos meus duelos (recebo toast quando alguem responde)
     setTimeout(() => { if (typeof _attachAllDuelListeners === 'function') _attachAllDuelListeners(); }, 1200);
-    // Garantir userCode + registar perfil e fazer fetch inicial da inbox
+    // Garantir userCode + registar perfil + listeners inbox e amigos
     setTimeout(() => {
         if (typeof ensureUserCode === 'function') {
             ensureUserCode().then(() => {
                 if (typeof refreshInbox === 'function') refreshInbox();
                 if (typeof _attachInboxListener === 'function') _attachInboxListener();
+                if (typeof _attachMyUserListener === 'function') _attachMyUserListener();
             });
         }
     }, 1400);
