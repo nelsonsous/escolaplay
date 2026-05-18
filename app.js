@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v292';
+const APP_VERSION = 'v293';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1278,8 +1278,8 @@ function openSubjectDetail(key) {
                 </div>
                 ` : ''}
 
-                <!-- Criar duelo — acima do slider, secundario tonal (visivel mas nao primario) -->
-                <button class="btn btn-block" style="margin-bottom:12px;background:#fef2f2;color:#dc2626;font-weight:800;padding:13px;border:2px solid #fca5a5;border-radius:12px;box-shadow:0 2px 8px rgba(220,38,38,0.10)" onclick="pickDuelRecipientsAndCreate('${key}')">
+                <!-- Criar duelo — solid, mesma prominencia visual do 'Comecar treino' (mas vermelho) -->
+                <button class="btn btn-block" style="margin-bottom:12px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-weight:800;padding:16px;border:none;border-radius:14px;box-shadow:0 6px 16px rgba(220,38,38,0.30)" onclick="pickDuelRecipientsAndCreate('${key}')">
                     <i class="fas fa-fist-raised"></i> 🥊 Criar duelo com amigos
                 </button>
 
@@ -6989,14 +6989,21 @@ window.refreshInbox = refreshInbox;
 
 // ===== PICKER de destinatarios ao criar duelo =====
 async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
+    console.log('[duel] pickDuelRecipientsAndCreate', subjectKey, opts);
     const p = activeProfile();
-    if (!p) return;
+    if (!p) { showToast('Sem perfil activo.'); return; }
     if (!isProfileShareable(p)) {
-        // Bloqueia — pede para marcar shareable
+        console.log('[duel] not shareable — opening gate');
         _openShareableGate();
         return;
     }
+    if (!state.userCode) {
+        console.log('[duel] no userCode — ensuring');
+        showToast('A registar perfil…');
+        await ensureUserCode();
+    }
     const friends = state.friends || [];
+    console.log('[duel] friends count:', friends.length);
     if (friends.length === 0) {
         // Sem amigos — manda para "Procurar pessoas"
         const wants = confirm('Ainda não tens amigos. Queres procurar agora?');
