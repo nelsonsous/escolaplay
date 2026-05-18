@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v284';
+const APP_VERSION = 'v285';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6226,10 +6226,23 @@ async function addFriendByCode(rawCode) {
 }
 window.addFriendByCode = addFriendByCode;
 
-function removeFriend(code) {
+async function removeFriend(code) {
     if (!state.friends) return;
     const f = state.friends.find(x => x.code === code);
     if (!f) return;
+    // Apagar bidi no Firestore (eu + outro) — senao o listener re-sincroniza
+    const myCode = state.userCode;
+    if (myCode) {
+        try {
+            await _onFbReady();
+            const { db, doc, updateDoc, deleteField } = window.__fb;
+            await updateDoc(doc(db, 'users', myCode), { [`friends.${code}`]: deleteField() });
+        } catch (e) { console.warn('[friend] remove self fail', e); }
+        try {
+            const { db, doc, updateDoc, deleteField } = window.__fb;
+            await updateDoc(doc(db, 'users', code), { [`friends.${myCode}`]: deleteField() });
+        } catch (e) { console.warn('[friend] remove other fail', e); }
+    }
     state.friends = state.friends.filter(x => x.code !== code);
     saveState();
     showToast(`${f.name} removido dos amigos.`);
