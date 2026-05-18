@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v282';
+const APP_VERSION = 'v283';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5817,6 +5817,12 @@ function _showDuelAlreadyPlayed(data, id) {
 
 async function _startFirestoreDuel(id) {
     _closeFbDuelIntro();
+    // Fechar quaisquer overlays — subject detail, hub, my duels, inbox
+    if (typeof closeSubjectDetail === 'function') closeSubjectDetail();
+    document.getElementById('my-duels-modal-temp')?.remove();
+    document.getElementById('inbox-modal-temp')?.remove();
+    document.getElementById('social-hub-modal-temp')?.remove();
+    document.getElementById('creator-play-modal-temp')?.remove();
     const data = await fbGetDuel(id);
     if (!data) { showToast('Duelo desapareceu.'); return; }
     // Resolver as questoes pelos IDs
