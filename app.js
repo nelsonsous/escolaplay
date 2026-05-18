@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v291';
+const APP_VERSION = 'v292';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6804,7 +6804,7 @@ async function openInboxScreen() {
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${pending.length} ${pending.length===1?'pendente':'pendentes'}</p>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
-                    <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff;padding:8px 12px;font-weight:700" onclick="closeInboxScreen();setTimeout(openRankingScreen,150)" title="Ranking">🏅</button>
+                    <button style="background:#fff;color:#d97706;padding:8px 14px;border:none;border-radius:999px;font-weight:800;font-size:0.86rem;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer" onclick="closeInboxScreen();setTimeout(openRankingScreen,150)" title="Ranking">🏅 Ranking</button>
                     <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeInboxScreen()"><i class="fas fa-xmark"></i></button>
                 </div>
             </div>
