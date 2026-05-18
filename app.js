@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v263';
+const APP_VERSION = 'v264';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4961,10 +4961,24 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     // Guarda dados para a partilha
     _lastSummary = { s, acc, total, title, subLabel };
 
-    // Se a sessão foi iniciada com createDuelAfter (botão "Desafiar amigo"
-    // no ecrã da disciplina), abrir automaticamente o partilhador de duelo.
-    if (s.createDuelAfter) {
-        setTimeout(() => { try { shareLastSummaryAsDuel(); } catch (e) {} }, 600);
+    // Se a sessão foi iniciada com 'Desafiar amigo' (createDuelAfter), em
+    // vez de auto-disparar share (que falha por falta de user gesture),
+    // destacamos visualmente o botão de duelo no summary e mostramos um
+    // banner claro no topo. O utilizador toca uma vez e o share abre.
+    const duelBtn = document.querySelector('#summary-screen button[onclick="shareLastSummaryAsDuel()"]');
+    if (duelBtn) {
+        duelBtn.classList.toggle('duel-cta-pulse', !!s.createDuelAfter);
+    }
+    const dh = document.getElementById('summary-duel-cta-hint');
+    if (dh) dh.remove();
+    if (s.createDuelAfter && duelBtn) {
+        const hint = document.createElement('div');
+        hint.id = 'summary-duel-cta-hint';
+        hint.style.cssText = 'margin:8px 0 6px;padding:10px 14px;border-radius:12px;background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;font-weight:700;font-size:0.88rem;text-align:center';
+        hint.innerHTML = '🥊 Toca aqui para enviares o duelo ao teu amigo';
+        duelBtn.parentNode.insertBefore(hint, duelBtn);
+        // Scroll para o botão
+        setTimeout(() => duelBtn.scrollIntoView({behavior:'smooth', block:'center'}), 350);
     }
 }
 
