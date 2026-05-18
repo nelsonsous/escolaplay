@@ -144,7 +144,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v285';
+const APP_VERSION = 'v286';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5729,7 +5729,23 @@ async function openFirestoreDuelFromUrl(id) {
     catch (err) { console.error('[fbduel] get fail', err); showToast('❌ Erro a carregar duelo: ' + (err?.message||err)); return; }
     if (!data) { showToast('Duelo não encontrado (ID: ' + id + ')'); return; }
     console.log('[fbduel] loaded', id, data);
-    // Single-use por dispositivo
+    // Se ja respondi (no Firestore ou localmente), vai directo ao ranking
+    const myName = activeProfile()?.name || '';
+    const lc = myName.trim().toLowerCase();
+    let myResp = null;
+    if (data.responses) {
+        myResp = data.responses[myName];
+        if (!myResp) {
+            const k = Object.keys(data.responses).find(x => x.trim().toLowerCase() === lc);
+            if (k) myResp = data.responses[k];
+        }
+    }
+    if (myResp) {
+        try { _showFirestoreDuelSummary(data, myResp); }
+        catch (err) { console.error('[fbduel] showSummary fail', err); showToast('Erro a abrir ranking.'); }
+        return;
+    }
+    // Single-use por dispositivo (fallback caso o doc nao tenha a minha resposta)
     if (_hasDuelPlayed(id)) {
         try { _showDuelAlreadyPlayed(data, id); }
         catch (err) { console.error('[fbduel] showAlready fail', err); showToast('Erro a mostrar duelo já jogado.'); }
@@ -6670,6 +6686,9 @@ async function openInboxScreen() {
         seen.add(d.id);
         all.push(d);
     }
+    // Filtrar duelos escondidos localmente (apagados do lado do receptor)
+    const hidden = new Set(state.duelsHiddenIds || []);
+    const allVisible = all.filter(d => !hidden.has(d.id));
     const myName = activeProfile()?.name || '';
     const hasMyResponse = d => {
         if (!d.responses) return false;
@@ -6678,8 +6697,8 @@ async function openInboxScreen() {
         return Object.keys(d.responses).some(k => k.trim().toLowerCase() === lc);
     };
     const isMine = d => (state.myDuels || []).some(e => e.id === d.id);
-    const pending = all.filter(d => !hasMyResponse(d));
-    const answered = all.filter(d => hasMyResponse(d));
+    const pending = allVisible.filter(d => !hasMyResponse(d));
+    const answered = allVisible.filter(d => hasMyResponse(d));
     state._inboxCache = pending.filter(d => !isMine(d)); // so recebidos pendentes para badge
     _updateInboxBadge(state._inboxCache.length);
 
@@ -6708,18 +6727,37 @@ async function openInboxScreen() {
             ? `📤 Para ${(d.inviteNames||[]).join(', ') || (d.inviteFor||[]).length+' amigos'}`
             : `📥 ${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` · ${cYear}`:''}`;
         const lblMid = `${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}`;
+
+        // Determinar vencedor (so se tiver pelo menos 2 respostas e for concluido)
+        const allResp = Object.entries(d.responses || {});
+        let winnerHtml = '';
+        if (isAnswered && allResp.length >= 2) {
+            const sorted = [...allResp].sort((a,b) => (b[1].score||0) - (a[1].score||0));
+            const topScore = sorted[0][1].score || 0;
+            const winners = sorted.filter(([_, r]) => (r.score||0) === topScore);
+            const lcMine = myName.trim().toLowerCase();
+            if (winners.length > 1) {
+                winnerHtml = `<div style="font-size:0.74rem;color:#0891b2;margin-top:2px;font-weight:700">🤝 Empate · ${topScore}pts</div>`;
+            } else {
+                const [winName] = winners[0];
+                const iWon = winName.trim().toLowerCase() === lcMine;
+                winnerHtml = `<div style="font-size:0.74rem;color:${iWon?'#d97706':'#475569'};margin-top:2px;font-weight:700">🏆 ${iWon?'Tu ganhas':escapeHtml(winName)+' ganha'} · ${topScore}pts</div>`;
+            }
+        }
+
         const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Tu: ${myResp.correct}/${d.questions.length} · ${myResp.score}pts</div>` : '';
-        const othersLine = otherResps.length > 0
+        const othersLine = !isAnswered && otherResps.length > 0
             ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">${otherResps.length} ${otherResps.length===1?'resposta':'respostas'}</div>`
-            : (mine ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">⏳ A aguardar respostas</div>` : '');
+            : (!isAnswered && mine ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">⏳ A aguardar respostas</div>` : '');
 
         const avatarHtml = mine
             ? `<div style="width:42px;height:42px;border-radius:12px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.2rem">📤</div>`
             : `<div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>`;
 
+        // Apagar: para criadores apaga do Firestore; para receptores so esconde local
         const deleteBtn = mine
             ? `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();deleteMyDuel('${d.id}')" title="Apagar duelo"><i class="fas fa-trash"></i></button>`
-            : '';
+            : `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();hideReceivedDuel('${d.id}')" title="Remover da caixa"><i class="fas fa-trash"></i></button>`;
 
         const cta = !isAnswered
             ? `<i class="fas fa-fist-raised" style="color:#dc2626;font-size:1rem" title="Jogar"></i>`
@@ -6730,6 +6768,7 @@ async function openInboxScreen() {
             <div style="flex:1;min-width:0">
                 <div style="font-weight:800;font-size:0.92rem">${lblTop}</div>
                 <div style="font-size:0.76rem;color:var(--text-light)">${lblMid}</div>
+                ${winnerHtml}
                 ${myLine}
                 ${othersLine}
             </div>
@@ -6779,9 +6818,39 @@ async function _openInboxDuel(id) {
 async function _openAnyDuel(id) {
     closeInboxScreen();
     _socialNavReturn = () => openInboxScreen();
-    setTimeout(() => openFirestoreDuelFromUrl(id), 200);
+    // Se ja respondi a este duelo, vai DIRECTO ao ranking (sem ecra 'ja jogaste')
+    const data = await fbGetDuel(id);
+    if (!data) { showToast('Duelo não encontrado.'); openInboxScreen(); return; }
+    const myName = activeProfile()?.name || '';
+    const lc = myName.trim().toLowerCase();
+    let myResp = null;
+    if (data.responses) {
+        myResp = data.responses[myName];
+        if (!myResp) {
+            const k = Object.keys(data.responses).find(x => x.trim().toLowerCase() === lc);
+            if (k) myResp = data.responses[k];
+        }
+    }
+    if (myResp) {
+        // Ja joguei — mostra ranking directo
+        _showFirestoreDuelSummary(data, myResp);
+    } else {
+        // Nao joguei — intro
+        _showFirestoreDuelIntro(data, id);
+    }
 }
 window._openAnyDuel = _openAnyDuel;
+
+// Esconder localmente um duelo recebido (nao apaga do Firestore, so da minha caixa)
+function hideReceivedDuel(id) {
+    if (!confirm('Remover este duelo da tua caixa? Não vai apagar para os outros.')) return;
+    if (!state.duelsHiddenIds) state.duelsHiddenIds = [];
+    if (!state.duelsHiddenIds.includes(id)) state.duelsHiddenIds.push(id);
+    saveState();
+    showToast('Removido da tua caixa.');
+    openInboxScreen();
+}
+window.hideReceivedDuel = hideReceivedDuel;
 
 // Gate para perfis nao partilhaveis quando tentam aceder ao social
 function _openShareableGate() {
