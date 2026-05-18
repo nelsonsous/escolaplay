@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v273';
+const APP_VERSION = 'v274';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6237,14 +6237,19 @@ function openFriendsScreen() {
     `;
     const friendsHtml = friends.length === 0
         ? `<div style="text-align:center;padding:30px 20px;color:var(--text-light)"><div style="font-size:2.6rem;margin-bottom:8px">👥</div><p style="font-size:0.88rem">Ainda não tens amigos.</p><p style="font-size:0.78rem;margin-top:4px">Procura pessoas ou adiciona pelo código.</p></div>`
-        : friends.map(f => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
-            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 38)}</div>
-            <div style="flex:1;min-width:0">
-                <div style="font-weight:800">${escapeHtml(f.name)}</div>
-                <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
-            </div>
-            <button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="if(confirm('Remover ${escapeHtml(f.name)}?'))removeFriend('${f.code}')"><i class="fas fa-trash"></i></button>
-        </div>`).join('');
+        : friends.map(f => {
+            const unavail = f.available === false;
+            const opacity = unavail ? 'opacity:0.55' : '';
+            const badge = unavail ? '<span style="background:#fef2f2;color:#dc2626;font-size:0.66rem;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:6px">INDISPONÍVEL</span>' : '';
+            return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff;${opacity}">
+                <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 38)}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:800">${escapeHtml(f.name)}${badge}</div>
+                    <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
+                </div>
+                <button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="if(confirm('Remover ${escapeHtml(f.name)}?'))removeFriend('${f.code}')"><i class="fas fa-trash"></i></button>
+            </div>`;
+        }).join('');
     const html = `
     <div id="friends-modal-temp" class="modal" style="align-items:flex-start;padding:0">
         <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
@@ -6278,8 +6283,38 @@ function openFriendsScreen() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+    // Refresh availability em background — re-render quando vier
+    if (friends.length > 0) {
+        setTimeout(() => { _refreshFriendsAvailability(); }, 50);
+    }
 }
 function closeFriendsScreen() { document.getElementById('friends-modal-temp')?.remove(); }
+
+// Refresca a disponibilidade (shareable + nome+ano actualizados) de cada amigo.
+// Marca f.available no estado local.
+async function _refreshFriendsAvailability() {
+    const friends = state.friends || [];
+    if (friends.length === 0) return;
+    let changed = false;
+    for (const f of friends) {
+        try {
+            const fresh = await fbLookupUser(f.code);
+            if (!fresh) { if (f.available !== false) { f.available = false; changed = true; } continue; }
+            const isAvail = fresh.shareable !== false;
+            if (f.available !== isAvail) { f.available = isAvail; changed = true; }
+            // Actualizar nome/avatar/year se mudaram
+            if (fresh.name && fresh.name !== f.name) { f.name = fresh.name; changed = true; }
+            if (fresh.avatar && fresh.avatar !== f.avatar) { f.avatar = fresh.avatar; changed = true; }
+            if (fresh.year && fresh.year !== f.year) { f.year = fresh.year; changed = true; }
+        } catch {}
+    }
+    if (changed) {
+        saveState();
+        if (document.getElementById('friends-modal-temp')) openFriendsScreen();
+    }
+    return friends;
+}
+window._refreshFriendsAvailability = _refreshFriendsAvailability;
 
 // ===== ECRA PROCURAR PESSOAS =====
 let _searchPeopleCache = null;
@@ -6490,11 +6525,12 @@ async function openInboxScreen() {
             const sub = SUBJECTS[d.subject];
             const subName = sub?.name || '?';
             const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
+            const cYear = d.creator?.year ? `${d.creator.year}.º ano` : '';
             return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="_openInboxDuel('${d.id}')">
                 <div style="display:flex;align-items:center;gap:12px">
                     <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')} desafia-te</div>
+                        <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` <span style="font-size:0.74rem;color:var(--text-light);font-weight:600">· ${cYear}</span>`:''} desafia-te</div>
                         <div style="font-size:0.78rem;color:var(--text-light)">${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}</div>
                     </div>
                     <i class="fas fa-chevron-right" style="color:var(--text-light)"></i>
@@ -6543,15 +6579,23 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
         if (wants) openSearchPeopleScreen();
         return;
     }
+    // Refresh disponibilidade antes de mostrar
+    await _refreshFriendsAvailability();
     document.getElementById('duel-recipients-modal-temp')?.remove();
-    const friendsHtml = friends.map(f => `<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:pointer;background:#fff">
-        <input type="checkbox" class="dr-friend" value="${f.code}" data-name="${escapeHtml(f.name)}" style="width:20px;height:20px">
-        <div style="width:34px;height:34px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 34)}</div>
-        <div style="flex:1;min-width:0">
-            <div style="font-weight:700">${escapeHtml(f.name)}</div>
-            <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace">${escapeHtml(f.code)}</div>
-        </div>
-    </label>`).join('');
+    const friendsHtml = friends.map(f => {
+        const unavail = f.available === false;
+        const opacity = unavail ? 'opacity:0.5' : '';
+        const disabled = unavail ? 'disabled' : '';
+        const badge = unavail ? '<span style="background:#fef2f2;color:#dc2626;font-size:0.62rem;font-weight:800;padding:2px 6px;border-radius:6px;margin-left:6px">INDISPONÍVEL</span>' : '';
+        return `<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:${unavail?'not-allowed':'pointer'};background:#fff;${opacity}">
+            <input type="checkbox" class="dr-friend" value="${f.code}" data-name="${escapeHtml(f.name)}" style="width:20px;height:20px" ${disabled}>
+            <div style="width:34px;height:34px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 34)}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:700">${escapeHtml(f.name)}${badge}</div>
+                <div style="font-size:0.74rem;color:var(--text-light)"><span style="font-family:monospace">${escapeHtml(f.code)}</span> · ${f.year || '?'}.º ano</div>
+            </div>
+        </label>`;
+    }).join('');
     const html = `
     <div id="duel-recipients-modal-temp" class="modal" style="align-items:center;padding:20px">
         <div class="modal-content" style="max-width:480px;border-radius:20px;max-height:88vh;overflow:auto">
