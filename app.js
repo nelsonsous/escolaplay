@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v276';
+const APP_VERSION = 'v277';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5723,12 +5723,13 @@ function _showFirestoreDuelIntro(data, id) {
         <div class="modal-content" style="max-width:480px;border-radius:24px">
             <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:28px 22px;text-align:center">
                 <div style="font-size:3.6rem;line-height:1;margin-bottom:8px;animation:heroBounce 1.4s cubic-bezier(.34,1.56,.64,1)">🥊</div>
-                <h1 style="font-size:1.6rem;font-weight:900;margin-bottom:4px">${escapeHtml(data.creator?.name || 'Alguém')} desafia-te!</h1>
+                <h1 style="font-size:1.6rem;font-weight:900;margin-bottom:4px">${isCreator ? 'O teu duelo' : `${escapeHtml(data.creator?.name || 'Alguém')} desafia-te!`}</h1>
                 <p style="font-size:0.88rem;opacity:0.94">${subName} · ${data.questions.length} perguntas · ${Math.floor((data.timeLimit||120)/60)}min</p>
+                ${!isCreator ? `<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.18);padding:6px 12px;border-radius:999px;margin-top:10px;backdrop-filter:blur(4px)"><div style="width:24px;height:24px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center">${renderAvatar(data.creator?.avatar||'👤', 24)}</div><span style="font-size:0.78rem;font-weight:700">vs ${escapeHtml(data.creator?.name||'Adversário')}${data.creator?.year?` · ${data.creator.year}.º`:''}</span></div>` : ''}
             </div>
             <div class="modal-body" style="padding:22px;text-align:center">
                 ${opponentsHtml}
-                <p style="font-size:0.88rem;color:var(--text);margin-bottom:14px;line-height:1.5">${isCreator ? 'És o criador. Joga para depois comparares.' : 'Responde a todas as perguntas o mais rápido que conseguires.'}</p>
+                <p style="font-size:0.88rem;color:var(--text);margin-bottom:14px;line-height:1.5">${isCreator ? 'És o criador. Joga para depois comparares com os teus amigos.' : 'Responde a todas as perguntas o mais rápido que conseguires.'}</p>
                 <button class="btn btn-block" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:15px;border:none;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="_startFirestoreDuel('${id}')">
                     <i class="fas fa-fist-raised"></i> ${isCreator ? 'Jogar agora!' : 'Aceitar duelo!'}
                 </button>
@@ -6022,12 +6023,18 @@ async function ensureUserCode() {
 async function fbListUsers() {
     await _onFbReady();
     const { db } = window.__fb;
-    const { collection, getDocs, query, orderBy, limit } = await _fbQueryFns();
-    const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(200));
+    const { collection, getDocs, query, limit } = await _fbQueryFns();
+    // Sem orderBy — sort client-side para nao precisar de indice composto
+    const q = query(collection(db, 'users'), limit(300));
     const snap = await getDocs(q);
     return snap.docs
         .map(d => Object.assign({ code: d.id }, d.data()))
-        .filter(u => u.shareable !== false && u.name); // exclui despublicados
+        .filter(u => u.shareable !== false && u.name)
+        .sort((a, b) => {
+            const av = a.lastSeen?.toMillis ? a.lastSeen.toMillis() : 0;
+            const bv = b.lastSeen?.toMillis ? b.lastSeen.toMillis() : 0;
+            return bv - av;
+        });
 }
 
 // Enviar pedido de amizade — escreve em users/{targetCode}.requests.{myCode}
@@ -6456,18 +6463,24 @@ window._addFriendFromInput = _addFriendFromInput;
 window._shareMyCode = _shareMyCode;
 
 // ===== CAIXA DE ENTRADA — duelos para mim =====
+// Sem orderBy para evitar indice composto. Sort client-side.
 async function fbQueryInbox(myCode) {
     await _onFbReady();
     const { db } = window.__fb;
-    const { query, collection, where, orderBy, limit, getDocs } = await _fbQueryFns();
+    const { query, collection, where, limit, getDocs } = await _fbQueryFns();
     const q = query(
         collection(db, 'duels'),
         where('inviteFor', 'array-contains', myCode),
-        orderBy('createdAt', 'desc'),
-        limit(30)
+        limit(50)
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    return snap.docs
+        .map(d => Object.assign({ id: d.id }, d.data()))
+        .sort((a, b) => {
+            const av = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const bv = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return bv - av;
+        });
 }
 
 // Lazy load query/where/orderBy/limit/getDocs/collection — nao estavam no SDK base
@@ -6497,12 +6510,12 @@ let _inboxUnsub = null;
 async function _attachInboxListener() {
     if (!state.userCode || _inboxUnsub) return;
     const { db } = window.__fb;
-    const { query, collection, where, orderBy, limit, onSnapshot } = await _fbQueryFns();
+    const { query, collection, where, limit, onSnapshot } = await _fbQueryFns();
+    // Sem orderBy para nao precisar de indice composto
     const q = query(
         collection(db, 'duels'),
         where('inviteFor', 'array-contains', state.userCode),
-        orderBy('createdAt', 'desc'),
-        limit(30)
+        limit(50)
     );
     let firstSnapshot = true;
     const seenIds = new Set();
@@ -6868,12 +6881,20 @@ function _showDuelTimerBar(seconds) {
     document.getElementById('duel-timer-bar')?.remove();
     const bar = document.createElement('div');
     bar.id = 'duel-timer-bar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:201;padding:6px 14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;font-size:0.95rem;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(220,38,38,0.35)';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:201;padding:6px 14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;font-size:0.92rem;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(220,38,38,0.35)';
+    // Mostrar criador (se houver) e tempo
+    const s = currentSession;
+    const cr = s?.fbDuelData?.creator;
+    const me = activeProfile();
+    const isCreator = cr && me && cr.name === me.name;
+    const oppLabel = isCreator
+        ? '<i class="fas fa-stopwatch"></i> O TEU DUELO'
+        : (cr ? `<div style="width:22px;height:22px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center">${renderAvatar(cr.avatar||'👤', 22)}</div><span>vs ${escapeHtml(cr.name)}</span>` : '<i class="fas fa-stopwatch"></i> DUELO');
     bar.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px">
-            <i class="fas fa-stopwatch"></i> <span>DUELO</span>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+            ${oppLabel}
         </div>
-        <div id="duel-timer-display" style="font-variant-numeric:tabular-nums">${_formatDuelTime(seconds * 1000)}</div>
+        <div id="duel-timer-display" style="font-variant-numeric:tabular-nums;flex-shrink:0">${_formatDuelTime(seconds * 1000)}</div>
     `;
     document.body.appendChild(bar);
     // Compensa o exercise-screen para não esconder atrás da barra
