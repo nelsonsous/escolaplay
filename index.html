@@ -198,16 +198,28 @@
             </button>
         </div>
 
-        <!-- Hub: Amigos & Duelos (junta inbox, my duels, friends) -->
-        <div onclick="openSocialHub()" style="position:relative;background:linear-gradient(135deg,#dc2626 0%,#f97316 50%,#facc15 100%);color:#fff;padding:14px 16px;border-radius:18px;display:flex;align-items:center;gap:14px;margin-top:14px;cursor:pointer;box-shadow:0 10px 24px -8px rgba(220,38,38,0.45);overflow:hidden;transition:transform .15s, box-shadow .15s">
-            <div style="position:absolute;top:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
-            <div style="width:44px;height:44px;border-radius:13px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;position:relative;z-index:1">🥊</div>
+        <!-- Caixa de duelos (tudo: recebidos + criados por mim) -->
+        <div onclick="openInboxScreen()" style="position:relative;background:linear-gradient(135deg,#06b6d4 0%,#0891b2 100%);color:#fff;padding:12px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:14px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(6,182,212,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+            <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+            <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0;position:relative;z-index:1">📬</div>
             <div style="flex:1;min-width:0;position:relative;z-index:1">
-                <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Amigos & Duelos</div>
-                <div style="font-weight:900;font-size:1rem;letter-spacing:-0.01em">Desafiar, ranking, amigos</div>
+                <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Caixa de duelos</div>
+                <div style="font-weight:800;font-size:0.95rem;letter-spacing:-0.01em">Desafios e rankings</div>
             </div>
-            <span id="social-hub-badge" style="display:none;background:#fff;color:#dc2626;border-radius:999px;min-width:24px;height:24px;padding:0 8px;font-size:0.82rem;font-weight:900;align-items:center;justify-content:center;position:relative;z-index:1">0</span>
-            <i class="fas fa-chevron-right" style="font-size:1.1rem;opacity:0.85;position:relative;z-index:1;margin-left:6px"></i>
+            <span id="inbox-badge" style="display:none;background:#fff;color:#0891b2;border-radius:999px;min-width:22px;height:22px;padding:0 7px;font-size:0.78rem;font-weight:900;align-items:center;justify-content:center;position:relative;z-index:1">0</span>
+            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1;margin-left:6px"></i>
+        </div>
+
+        <!-- Amigos -->
+        <div onclick="openFriendsScreen()" style="position:relative;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:#fff;padding:12px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:10px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(124,58,237,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+            <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+            <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0;position:relative;z-index:1">👥</div>
+            <div style="flex:1;min-width:0;position:relative;z-index:1">
+                <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Amigos</div>
+                <div style="font-weight:800;font-size:0.95rem;letter-spacing:-0.01em">Procura pessoas, pede amizade</div>
+            </div>
+            <span id="friends-requests-badge" style="display:none;background:#facc15;color:#78350f;border-radius:999px;min-width:22px;height:22px;padding:0 7px;font-size:0.78rem;font-weight:900;align-items:center;justify-content:center;position:relative;z-index:1">0</span>
+            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1;margin-left:6px"></i>
         </div>
 
         <!-- Próximo teste -->

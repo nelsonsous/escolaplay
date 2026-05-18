@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v283';
+const APP_VERSION = 'v284';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6632,27 +6632,51 @@ function _updateInboxBadge(n) {
 
 async function openInboxScreen() {
     document.getElementById('inbox-modal-temp')?.remove();
-    // Vai buscar TODOS os duelos para mim (pendentes + respondidos)
-    let all = [];
-    try { all = await fbQueryInbox(state.userCode); } catch {}
+    // Garantir que estou registado (caso ainda nao tenha userCode)
+    const p = activeProfile();
+    if (!p) return;
+    if (!isProfileShareable(p)) {
+        _openShareableGate();
+        return;
+    }
+    // Buscar (a) duelos para mim via Firestore + (b) os que criei via state.myDuels
+    let inboxAll = [];
+    try { inboxAll = await fbQueryInbox(state.userCode); } catch (e) { console.warn('[inbox] fail', e); }
+    const created = [];
+    for (const e of (state.myDuels || [])) {
+        try {
+            const d = await fbGetDuel(e.id);
+            if (d) created.push(d);
+        } catch {}
+    }
+    // Dedupe por id (um duelo que eu criei E me esteja no inviteFor aparece em ambos)
+    const seen = new Set();
+    const all = [];
+    for (const d of [...inboxAll, ...created]) {
+        if (seen.has(d.id)) continue;
+        seen.add(d.id);
+        all.push(d);
+    }
     const myName = activeProfile()?.name || '';
-    // Detecta a resposta minha tolerando minusculas/maiusculas/trim
     const hasMyResponse = d => {
         if (!d.responses) return false;
         if (d.responses[myName]) return true;
         const lc = myName.trim().toLowerCase();
         return Object.keys(d.responses).some(k => k.trim().toLowerCase() === lc);
     };
+    const isMine = d => (state.myDuels || []).some(e => e.id === d.id);
     const pending = all.filter(d => !hasMyResponse(d));
     const answered = all.filter(d => hasMyResponse(d));
-    state._inboxCache = pending;
-    _updateInboxBadge(pending.length);
+    state._inboxCache = pending.filter(d => !isMine(d)); // so recebidos pendentes para badge
+    _updateInboxBadge(state._inboxCache.length);
+
     const _row = (d, isAnswered) => {
         const sub = SUBJECTS[d.subject];
         const subName = sub?.name || '?';
         const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
+        const mine = isMine(d);
         const cYear = d.creator?.year ? `${d.creator.year}.º ano` : '';
-        const opacity = isAnswered ? 'opacity:0.75' : '';
+        const opacity = isAnswered ? 'opacity:0.78' : '';
         let myResp = null;
         if (isAnswered && d.responses) {
             myResp = d.responses[myName];
@@ -6662,32 +6686,58 @@ async function openInboxScreen() {
                 if (k) myResp = d.responses[k];
             }
         }
-        const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Respondido · ${myResp.correct}/${d.questions.length} · ${myResp.score}pts</div>` : '';
-        return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;${opacity}" onclick="_openInboxDuel('${d.id}')">
-            <div style="display:flex;align-items:center;gap:12px">
-                <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>
-                <div style="flex:1;min-width:0">
-                    <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` <span style="font-size:0.74rem;color:var(--text-light);font-weight:600">· ${cYear}</span>`:''}${isAnswered?'':' desafia-te'}</div>
-                    <div style="font-size:0.78rem;color:var(--text-light)">${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}</div>
-                    ${myLine}
-                </div>
-                <i class="fas fa-chevron-right" style="color:var(--text-light)"></i>
+        // Outros respondentes (excluindo eu)
+        const otherResps = Object.entries(d.responses || {}).filter(([n]) => {
+            return n.trim().toLowerCase() !== myName.trim().toLowerCase();
+        });
+
+        const lblTop = mine
+            ? `📤 Para ${(d.inviteNames||[]).join(', ') || (d.inviteFor||[]).length+' amigos'}`
+            : `📥 ${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` · ${cYear}`:''}`;
+        const lblMid = `${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}`;
+        const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Tu: ${myResp.correct}/${d.questions.length} · ${myResp.score}pts</div>` : '';
+        const othersLine = otherResps.length > 0
+            ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">${otherResps.length} ${otherResps.length===1?'resposta':'respostas'}</div>`
+            : (mine ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">⏳ A aguardar respostas</div>` : '');
+
+        const avatarHtml = mine
+            ? `<div style="width:42px;height:42px;border-radius:12px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.2rem">📤</div>`
+            : `<div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>`;
+
+        const deleteBtn = mine
+            ? `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();deleteMyDuel('${d.id}')" title="Apagar duelo"><i class="fas fa-trash"></i></button>`
+            : '';
+
+        const cta = !isAnswered
+            ? `<i class="fas fa-fist-raised" style="color:#dc2626;font-size:1rem" title="Jogar"></i>`
+            : `<i class="fas fa-chevron-right" style="color:var(--text-light)"></i>`;
+
+        return `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:8px;cursor:pointer;${opacity}" onclick="_openAnyDuel('${d.id}')">
+            ${avatarHtml}
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:0.92rem">${lblTop}</div>
+                <div style="font-size:0.76rem;color:var(--text-light)">${lblMid}</div>
+                ${myLine}
+                ${othersLine}
             </div>
+            ${deleteBtn}
+            ${cta}
         </div>`;
     };
+
     let content;
     if (pending.length === 0 && answered.length === 0) {
         content = `<div style="text-align:center;padding:40px 20px;color:var(--text-light)">
             <div style="font-size:3rem;margin-bottom:10px">📭</div>
-            <p style="font-size:0.92rem">Caixa de entrada vazia.</p>
-            <p style="font-size:0.78rem;margin-top:6px">Quando um amigo te enviar um duelo, vai aparecer aqui.</p>
+            <p style="font-size:0.92rem">Sem duelos ainda.</p>
+            <p style="font-size:0.78rem;margin-top:6px">Cria um numa disciplina ou aceita um pedido.</p>
         </div>`;
     } else {
         const pendingSection = pending.length > 0
-            ? `<div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:8px;letter-spacing:0.04em">Pendentes (${pending.length})</div>${pending.map(d => _row(d, false)).join('')}`
+            ? `<div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:8px;letter-spacing:0.04em">Por jogar (${pending.length})</div>${pending.map(d => _row(d, false)).join('')}`
             : '';
         const answeredSection = answered.length > 0
-            ? `<div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:18px 0 8px;letter-spacing:0.04em">Já respondidos (${answered.length})</div>${answered.map(d => _row(d, true)).join('')}`
+            ? `<div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:18px 0 8px;letter-spacing:0.04em">Concluídos (${answered.length})</div>${answered.map(d => _row(d, true)).join('')}`
             : '';
         content = pendingSection + answeredSection;
     }
@@ -6712,6 +6762,37 @@ async function _openInboxDuel(id) {
     _socialNavReturn = () => openInboxScreen();
     setTimeout(() => openFirestoreDuelFromUrl(id), 200);
 }
+// Versao unificada para a nova caixa (recebidos + criados por mim)
+async function _openAnyDuel(id) {
+    closeInboxScreen();
+    _socialNavReturn = () => openInboxScreen();
+    setTimeout(() => openFirestoreDuelFromUrl(id), 200);
+}
+window._openAnyDuel = _openAnyDuel;
+
+// Gate para perfis nao partilhaveis quando tentam aceder ao social
+function _openShareableGate() {
+    const p = activeProfile();
+    const otherShareable = state.profiles.find(x => x.shareable && x.id !== p?.id);
+    const html = `
+    <div id="inbox-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:480px;border-radius:20px">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:28px 22px;text-align:center" class="social-modal-header">
+                <div style="font-size:3rem;margin-bottom:6px">🔒</div>
+                <h2 style="font-size:1.3rem;font-weight:900">Perfil privado</h2>
+            </div>
+            <div class="modal-body" style="padding:22px">
+                <p style="font-size:0.92rem;line-height:1.5;margin-bottom:14px">Para criar duelos ou ter amigos, marca este perfil como <strong>partilhável neste dispositivo</strong>.</p>
+                ${otherShareable ? `<p style="font-size:0.84rem;background:#fef3c7;border-left:4px solid #f59e0b;padding:10px;border-radius:8px;color:#78350f">⚠️ Outro perfil neste telemóvel já é partilhável: <strong>${escapeHtml(otherShareable.name)}</strong>. Marcar ${escapeHtml(p?.name||'')} vai despublicar o outro (só 1 por telemóvel).</p>` : ''}
+                <button class="btn btn-block" style="margin-top:14px;background:#16a34a;color:#fff;border:none;padding:14px;font-weight:800" onclick="closeInboxScreen();setActiveProfileShareable(true).then(()=>openInboxScreen())">
+                    <i class="fas fa-share-nodes"></i> Tornar partilhável e continuar
+                </button>
+                <button class="btn btn-block btn-secondary" style="margin-top:8px;padding:11px" onclick="closeInboxScreen()">Mais tarde</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
 window.openInboxScreen = openInboxScreen;
 window.closeInboxScreen = closeInboxScreen;
 window._openInboxDuel = _openInboxDuel;
@@ -6722,8 +6803,8 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
     const p = activeProfile();
     if (!p) return;
     if (!isProfileShareable(p)) {
-        // Bloqueia — manda para o hub que vai pedir para marcar shareable
-        openSocialHub();
+        // Bloqueia — pede para marcar shareable
+        _openShareableGate();
         return;
     }
     const friends = state.friends || [];
