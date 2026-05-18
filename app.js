@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v268';
+const APP_VERSION = 'v269';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5354,7 +5354,7 @@ async function createDuelFromSubject(subjectKey, opts = {}) {
             const names = opts.inviteNames || opts.inviteFor;
             const namesStr = names.length === 1 ? names[0] : `${names.length} amigos`;
             showToast(`✅ Duelo enviado para ${namesStr}!`);
-            if (opts.alsoLink !== false) {
+            if (opts.alsoLink === true) {
                 setTimeout(() => _shareNewDuelLink(id, p.name, subjectKey, count), 600);
             }
         } else {
@@ -5881,10 +5881,9 @@ async function _addFriendFromInput() {
 }
 async function _shareMyCode() {
     const code = state.userCode;
-    const p = activeProfile();
-    const text = `🥊 Adiciona-me no EscolaPlay!\n\nO meu código: ${code}\n(Vai a Amigos → Adicionar amigo)\n\n${location.origin}${location.pathname}`;
+    const text = `🥊 O meu código no EscolaPlay: ${code}\n\nAbre a app, vai a Amigos → Adicionar amigo, e introduz o código.`;
     if (navigator.share) {
-        try { await navigator.share({ title: '🥊 EscolaPlay', text }); return; }
+        try { await navigator.share({ title: 'EscolaPlay', text }); return; }
         catch (err) { if (err && err.name === 'AbortError') return; }
     }
     try { await navigator.clipboard.writeText(text); showToast('🔗 Código copiado!'); }
@@ -6067,8 +6066,8 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
             <div class="modal-body" style="padding:18px">
                 <div style="margin-bottom:14px">${friendsHtml}</div>
                 <label style="display:flex;align-items:center;gap:10px;padding:11px;border:1.5px dashed var(--border);border-radius:12px;background:#f9fafb;cursor:pointer">
-                    <input type="checkbox" id="dr-link-also" checked style="width:18px;height:18px">
-                    <span style="font-size:0.86rem">Gerar também link (para enviar via WhatsApp, etc.)</span>
+                    <input type="checkbox" id="dr-link-also" style="width:18px;height:18px">
+                    <span style="font-size:0.82rem;color:var(--text-light)">Gerar também link (só preciso se algum amigo não usar a app)</span>
                 </label>
                 <button class="btn btn-block" style="margin-top:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="_confirmDuelRecipients('${subjectKey}')">
                     <i class="fas fa-fist-raised"></i> Criar duelo
