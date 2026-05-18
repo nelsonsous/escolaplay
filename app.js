@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v272';
+const APP_VERSION = 'v273';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -660,10 +660,37 @@ function addProfileFromForm() {
     showToast(`Perfil ${name} criado!`);
 }
 
-function removeProfile(id) {
+async function removeProfile(id) {
     const p = state.profiles.find(x => x.id === id);
     if (!p) return;
-    if (!confirm(`Apagar o perfil de ${p.name}? Todo o progresso será perdido.`)) return;
+    const hadCode = p.userCode;
+    const wasShareable = !!p.shareable;
+    const warn = wasShareable
+        ? `Apagar o perfil de ${p.name}?\n\n⚠️ Este perfil é o partilhável neste dispositivo. Vai ser removido também da listagem pública e os amigos vão deixar de o ver.\n\nTodo o progresso local será perdido.`
+        : `Apagar o perfil de ${p.name}? Todo o progresso será perdido.`;
+    if (!confirm(warn)) return;
+    // Despublicar do Firestore se aplicavel
+    if (hadCode && wasShareable) {
+        try { await fbUnpublishUser(hadCode); } catch (e) { console.warn('[remove] unpub fail', e); }
+        // Tentar tambem remover-me da lista de amigos das pessoas que me tinham
+        try {
+            await _onFbReady();
+            const { db, doc, getDoc, updateDoc, deleteField } = window.__fb;
+            const myDoc = await getDoc(doc(db, 'users', hadCode));
+            if (myDoc.exists()) {
+                const data = myDoc.data();
+                const friendCodes = Object.keys(data.friends || {});
+                for (const fc of friendCodes) {
+                    try {
+                        await updateDoc(doc(db, 'users', fc), { [`friends.${hadCode}`]: deleteField() });
+                    } catch (e) { /* segue */ }
+                }
+            }
+        } catch (e) { console.warn('[remove] friends cleanup fail', e); }
+    }
+    // Apagar listeners
+    if (typeof _myUserUnsub === 'function') { try { _myUserUnsub(); } catch {} _myUserUnsub = null; }
+    if (typeof _inboxUnsub === 'function') { try { _inboxUnsub(); } catch {} _inboxUnsub = null; }
     state.profiles = state.profiles.filter(x => x.id !== id);
     if (state.profiles.length === 0) {
         state.activeProfileId = null;
@@ -6198,7 +6225,7 @@ function openFriendsScreen() {
         <div style="margin-bottom:18px">
             <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:var(--text-light)">Pedidos de amizade (${pendingReq.length})</div>
             ${pendingReq.map(r => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #fbbf24;border-radius:12px;margin-bottom:6px;background:linear-gradient(135deg,#fef3c7,#fde68a)">
-                <div style="font-size:1.8rem">${escapeHtml(r.avatar || '👤')}</div>
+                <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">${renderAvatar(r.avatar || '👤', 38)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:800">${escapeHtml(r.name)}</div>
                     <div style="font-size:0.74rem;color:#78350f;font-family:monospace">${escapeHtml(r.code)} · ${r.year || '?'}.º ano</div>
@@ -6211,7 +6238,7 @@ function openFriendsScreen() {
     const friendsHtml = friends.length === 0
         ? `<div style="text-align:center;padding:30px 20px;color:var(--text-light)"><div style="font-size:2.6rem;margin-bottom:8px">👥</div><p style="font-size:0.88rem">Ainda não tens amigos.</p><p style="font-size:0.78rem;margin-top:4px">Procura pessoas ou adiciona pelo código.</p></div>`
         : friends.map(f => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
-            <div style="font-size:1.8rem">${escapeHtml(f.avatar || '👤')}</div>
+            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 38)}</div>
             <div style="flex:1;min-width:0">
                 <div style="font-weight:800">${escapeHtml(f.name)}</div>
                 <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
@@ -6308,7 +6335,7 @@ function _renderPeopleList(filter) {
         return;
     }
     c.innerHTML = list.map(u => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
-        <div style="font-size:1.8rem">${escapeHtml(u.avatar || '👤')}</div>
+        <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(u.avatar || '👤', 38)}</div>
         <div style="flex:1;min-width:0">
             <div style="font-weight:800">${escapeHtml(u.name)}</div>
             <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace">${escapeHtml(u.code)} · ${u.year || '?'}.º ano</div>
@@ -6465,7 +6492,7 @@ async function openInboxScreen() {
             const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
             return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="_openInboxDuel('${d.id}')">
                 <div style="display:flex;align-items:center;gap:12px">
-                    <div style="font-size:2rem">${escapeHtml(d.creator?.avatar || '👤')}</div>
+                    <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>
                     <div style="flex:1;min-width:0">
                         <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')} desafia-te</div>
                         <div style="font-size:0.78rem;color:var(--text-light)">${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}</div>
@@ -6519,7 +6546,7 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
     document.getElementById('duel-recipients-modal-temp')?.remove();
     const friendsHtml = friends.map(f => `<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:pointer;background:#fff">
         <input type="checkbox" class="dr-friend" value="${f.code}" data-name="${escapeHtml(f.name)}" style="width:20px;height:20px">
-        <div style="font-size:1.5rem">${escapeHtml(f.avatar || '👤')}</div>
+        <div style="width:34px;height:34px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 34)}</div>
         <div style="flex:1;min-width:0">
             <div style="font-weight:700">${escapeHtml(f.name)}</div>
             <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace">${escapeHtml(f.code)}</div>
