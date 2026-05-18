@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v289';
+const APP_VERSION = 'v290';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6803,7 +6803,10 @@ async function openInboxScreen() {
                     <h1 style="font-size:1.4rem;font-weight:900">📬 Caixa de duelos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${pending.length} ${pending.length===1?'pendente':'pendentes'}</p>
                 </div>
-                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeInboxScreen()"><i class="fas fa-xmark"></i></button>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff;padding:8px 12px;font-weight:700" onclick="closeInboxScreen();setTimeout(openRankingScreen,150)" title="Ranking">🏅</button>
+                    <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeInboxScreen()"><i class="fas fa-xmark"></i></button>
+                </div>
             </div>
             <div class="modal-body" style="padding:18px">${content}</div>
         </div>
@@ -6842,6 +6845,108 @@ async function _openAnyDuel(id) {
     }
 }
 window._openAnyDuel = _openAnyDuel;
+
+// ============================================================
+// RANKING GLOBAL — soma pontos de todos os duelos
+// ============================================================
+async function _fetchAllMyDuelsForRanking() {
+    let inboxAll = [];
+    try { inboxAll = await fbQueryInbox(state.userCode); } catch {}
+    const created = [];
+    for (const e of (state.myDuels || [])) {
+        try {
+            const d = await fbGetDuel(e.id);
+            if (d) created.push(d);
+        } catch {}
+    }
+    const seen = new Set();
+    const all = [];
+    for (const d of [...inboxAll, ...created]) {
+        if (seen.has(d.id)) continue;
+        seen.add(d.id);
+        all.push(d);
+    }
+    // Excluir duelos escondidos pelo proprio
+    const hidden = new Set(state.duelsHiddenIds || []);
+    return all.filter(d => !hidden.has(d.id));
+}
+
+async function openRankingScreen() {
+    document.getElementById('ranking-modal-temp')?.remove();
+    const myName = activeProfile()?.name || 'Tu';
+    const lcMe = myName.trim().toLowerCase();
+    // Loading state
+    document.body.insertAdjacentHTML('beforeend', `<div id="ranking-modal-temp" class="modal" style="align-items:flex-start;padding:0"><div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh"><div class="social-modal-header" style="background:linear-gradient(135deg,#facc15,#f59e0b,#d97706);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10"><div><h1 style="font-size:1.4rem;font-weight:900">🏅 Ranking</h1><p style="font-size:0.82rem;opacity:0.94;margin-top:2px">A calcular…</p></div><button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeRankingScreen()"><i class="fas fa-xmark"></i></button></div><div class="modal-body" id="ranking-body" style="padding:18px;text-align:center;color:var(--text-light)"><i class="fas fa-spinner fa-spin"></i> A carregar duelos…</div></div></div>`);
+
+    const all = await _fetchAllMyDuelsForRanking();
+
+    // Agregar pontos por jogador
+    const totals = {}; // lcName -> {name, points, wins, losses, ties, played, avatar}
+    for (const d of all) {
+        const responses = Object.entries(d.responses || {});
+        if (responses.length < 2) continue;
+        const sorted = [...responses].sort((a,b) => (b[1].score||0) - (a[1].score||0));
+        const topScore = sorted[0][1].score || 0;
+        const winners = sorted.filter(([_, r]) => (r.score||0) === topScore);
+        const isTie = winners.length > 1;
+        for (const [name, r] of responses) {
+            const lc = name.trim().toLowerCase();
+            const t = totals[lc] = totals[lc] || { name, points: 0, wins: 0, losses: 0, ties: 0, played: 0, avatar: null };
+            t.points += (r.score || 0);
+            t.played++;
+            const isWinner = winners.some(([wn]) => wn === name);
+            if (isTie && isWinner) t.ties++;
+            else if (isWinner) t.wins++;
+            else t.losses++;
+            // Avatar: tentar inferir do duelo (se for o criador)
+            if (!t.avatar && d.creator && d.creator.name && d.creator.name.trim().toLowerCase() === lc) {
+                t.avatar = d.creator.avatar;
+            }
+        }
+    }
+    // Avatares: para amigos, ler de state.friends
+    for (const f of (state.friends || [])) {
+        const lc = (f.name || '').trim().toLowerCase();
+        if (totals[lc] && !totals[lc].avatar) totals[lc].avatar = f.avatar;
+    }
+    // Avatar proprio
+    if (totals[lcMe] && !totals[lcMe].avatar) totals[lcMe].avatar = activeProfile()?.avatar;
+
+    const ranked = Object.values(totals).sort((a,b) => b.points - a.points);
+
+    let bodyHtml;
+    if (ranked.length === 0) {
+        bodyHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-light)"><div style="font-size:3rem;margin-bottom:10px">🏅</div><p style="font-size:0.92rem">Sem duelos concluídos ainda.</p><p style="font-size:0.78rem;margin-top:6px">Cria duelos e responde para construires o ranking.</p></div>`;
+    } else {
+        bodyHtml = ranked.map((t, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="font-weight:800;color:var(--text-light)">${i+1}.º</span>`;
+            const isMe = t.name.trim().toLowerCase() === lcMe;
+            const bg = isMe ? 'background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b' : 'background:#fff;border-color:var(--border)';
+            return `<div style="display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid;border-radius:14px;margin-bottom:8px;${bg}">
+                <div style="font-size:1.6rem;width:36px;text-align:center">${medal}</div>
+                <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(t.avatar || '👤', 42)}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:800;font-size:0.96rem">${escapeHtml(t.name)}${isMe?' <span style="color:#d97706;font-size:0.74rem;font-weight:700">(tu)</span>':''}</div>
+                    <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
+                        ${t.played} duelo${t.played===1?'':'s'} · ${t.wins}V ${t.losses}D${t.ties?` ${t.ties}E`:''}
+                    </div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:1.3rem;font-weight:900;color:#d97706;line-height:1">${t.points}</div>
+                    <div style="font-size:0.66rem;color:var(--text-light);font-weight:700">PONTOS</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    const body = document.getElementById('ranking-body');
+    if (body) body.innerHTML = bodyHtml;
+    // Update subheader
+    const sub = document.querySelector('#ranking-modal-temp .social-modal-header p');
+    if (sub) sub.textContent = ranked.length > 0 ? `${ranked.length} jogadores · ${all.length} duelo${all.length===1?'':'s'}` : '';
+}
+function closeRankingScreen() { document.getElementById('ranking-modal-temp')?.remove(); }
+window.openRankingScreen = openRankingScreen;
+window.closeRankingScreen = closeRankingScreen;
 
 // Esconder localmente um duelo recebido (nao apaga do Firestore, so da minha caixa)
 function hideReceivedDuel(id) {
