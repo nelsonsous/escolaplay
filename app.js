@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v288';
+const APP_VERSION = 'v289';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1278,8 +1278,8 @@ function openSubjectDetail(key) {
                 </div>
                 ` : ''}
 
-                <!-- Criar duelo — acima do slider, visivel mas separado de 'Comecar treino' -->
-                <button class="btn btn-block" style="margin-bottom:12px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="pickDuelRecipientsAndCreate('${key}')">
+                <!-- Criar duelo — acima do slider, neutro para nao competir com 'Comecar treino' -->
+                <button class="btn btn-block" style="margin-bottom:12px;background:#fff;color:#dc2626;font-weight:700;padding:12px;border:1.5px solid #fecaca;border-radius:12px" onclick="pickDuelRecipientsAndCreate('${key}')">
                     <i class="fas fa-fist-raised"></i> 🥊 Criar duelo com amigos
                 </button>
 
