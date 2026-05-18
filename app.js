@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v264';
+const APP_VERSION = 'v265';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1207,11 +1207,8 @@ function openSubjectDetail(key) {
                 </div>
 
                 <!-- Botão "começar treino" ANTES da lista — acesso rápido sem scroll -->
-                <button class="btn btn-primary-solid btn-block" style="margin-bottom:8px" onclick="startSubjectSession('${key}')">
+                <button class="btn btn-primary-solid btn-block" style="margin-bottom:14px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
-                </button>
-                <button class="btn btn-block" style="margin-bottom:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="startSubjectSession('${key}', { createDuelAfter: true })">
-                    <i class="fas fa-fist-raised"></i> 🥊 Desafiar amigo (criar duelo)
                 </button>
 
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1260,11 +1257,8 @@ function openSubjectDetail(key) {
             <!-- Sticky action bar — só aparece com tópicos selecionados -->
             <div id="topic-sel-actions" style="display:none;position:sticky;bottom:0;left:0;right:0;background:#fff;border-top:1.5px solid #e5e7eb;padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));box-shadow:0 -4px 16px rgba(0,0,0,0.08);z-index:20">
                 <div style="font-size:0.78rem;font-weight:700;color:#db2777;margin-bottom:6px;text-align:center"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
-                <button class="btn btn-primary-solid btn-block" style="margin-bottom:6px" onclick="startSubjectSession('${key}', { useSelection: true })">
+                <button class="btn btn-primary-solid btn-block" onclick="startSubjectSession('${key}', { useSelection: true })">
                     <i class="fas fa-play"></i> Treinar tópicos selecionados
-                </button>
-                <button class="btn btn-block" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:12px;border:none" onclick="startSubjectSession('${key}', { useSelection: true, createDuelAfter: true })">
-                    <i class="fas fa-fist-raised"></i> 🥊 Duelo com estes tópicos
                 </button>
             </div>
         </div>
@@ -3654,9 +3648,8 @@ function startSubjectSession(key, opts = {}) {
             return;
         }
     }
-    const targetCount = (typeof opts.overrideCount === 'number' && opts.overrideCount > 0) ? opts.overrideCount : getPracticeQuestions();
-    const items = pickExercises(pool, Math.min(targetCount, pool.length));
-    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now(), createDuelAfter: !!opts.createDuelAfter };
+    const items = pickExercises(pool, Math.min(getPracticeQuestions(), pool.length));
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now() };
     closeSubjectDetail();
     openExerciseScreen();
     renderQuestion();
@@ -4960,26 +4953,6 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
 
     // Guarda dados para a partilha
     _lastSummary = { s, acc, total, title, subLabel };
-
-    // Se a sessão foi iniciada com 'Desafiar amigo' (createDuelAfter), em
-    // vez de auto-disparar share (que falha por falta de user gesture),
-    // destacamos visualmente o botão de duelo no summary e mostramos um
-    // banner claro no topo. O utilizador toca uma vez e o share abre.
-    const duelBtn = document.querySelector('#summary-screen button[onclick="shareLastSummaryAsDuel()"]');
-    if (duelBtn) {
-        duelBtn.classList.toggle('duel-cta-pulse', !!s.createDuelAfter);
-    }
-    const dh = document.getElementById('summary-duel-cta-hint');
-    if (dh) dh.remove();
-    if (s.createDuelAfter && duelBtn) {
-        const hint = document.createElement('div');
-        hint.id = 'summary-duel-cta-hint';
-        hint.style.cssText = 'margin:8px 0 6px;padding:10px 14px;border-radius:12px;background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;font-weight:700;font-size:0.88rem;text-align:center';
-        hint.innerHTML = '🥊 Toca aqui para enviares o duelo ao teu amigo';
-        duelBtn.parentNode.insertBefore(hint, duelBtn);
-        // Scroll para o botão
-        setTimeout(() => duelBtn.scrollIntoView({behavior:'smooth', block:'center'}), 350);
-    }
 }
 
 // Card "ícone circular + label/value"
