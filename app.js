@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v261';
+const APP_VERSION = 'v262';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1207,8 +1207,11 @@ function openSubjectDetail(key) {
                 </div>
 
                 <!-- Botão "começar treino" ANTES da lista — acesso rápido sem scroll -->
-                <button class="btn btn-primary-solid btn-block" style="margin-bottom:14px" onclick="startSubjectSession('${key}')">
+                <button class="btn btn-primary-solid btn-block" style="margin-bottom:8px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
+                </button>
+                <button class="btn btn-block" style="margin-bottom:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="startSubjectSession('${key}', { createDuelAfter: true })">
+                    <i class="fas fa-fist-raised"></i> 🥊 Desafiar amigo (criar duelo)
                 </button>
 
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1257,8 +1260,11 @@ function openSubjectDetail(key) {
             <!-- Sticky action bar — só aparece com tópicos selecionados -->
             <div id="topic-sel-actions" style="display:none;position:sticky;bottom:0;left:0;right:0;background:#fff;border-top:1.5px solid #e5e7eb;padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));box-shadow:0 -4px 16px rgba(0,0,0,0.08);z-index:20">
                 <div style="font-size:0.78rem;font-weight:700;color:#db2777;margin-bottom:6px;text-align:center"><i class="fas fa-check-square"></i> <span id="sel-count">0</span> tópico(s) selecionado(s)</div>
-                <button class="btn btn-primary-solid btn-block" onclick="startSubjectSession('${key}', { useSelection: true })">
+                <button class="btn btn-primary-solid btn-block" style="margin-bottom:6px" onclick="startSubjectSession('${key}', { useSelection: true })">
                     <i class="fas fa-play"></i> Treinar tópicos selecionados
+                </button>
+                <button class="btn btn-block" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:12px;border:none" onclick="startSubjectSession('${key}', { useSelection: true, createDuelAfter: true })">
+                    <i class="fas fa-fist-raised"></i> 🥊 Duelo com estes tópicos
                 </button>
             </div>
         </div>
@@ -3649,7 +3655,7 @@ function startSubjectSession(key, opts = {}) {
         }
     }
     const items = pickExercises(pool, Math.min(getPracticeQuestions(), pool.length));
-    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now() };
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now(), createDuelAfter: !!opts.createDuelAfter };
     closeSubjectDetail();
     openExerciseScreen();
     renderQuestion();
@@ -4953,6 +4959,12 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
 
     // Guarda dados para a partilha
     _lastSummary = { s, acc, total, title, subLabel };
+
+    // Se a sessão foi iniciada com createDuelAfter (botão "Desafiar amigo"
+    // no ecrã da disciplina), abrir automaticamente o partilhador de duelo.
+    if (s.createDuelAfter) {
+        setTimeout(() => { try { shareLastSummaryAsDuel(); } catch (e) {} }, 600);
+    }
 }
 
 // Card "ícone circular + label/value"
