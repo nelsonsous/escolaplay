@@ -144,7 +144,61 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable'];
+
+// deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
+// Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
+// "perfis Carolina e Eduarda no telemovel da mae" sao distintos dos perfis
+// "Carolina no telemovel da Carolina".
+function getDeviceId() {
+    let id = null;
+    try { id = localStorage.getItem('escolaplay_device_id'); } catch {}
+    if (!id) {
+        id = 'd_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
+        try { localStorage.setItem('escolaplay_device_id', id); } catch {}
+    }
+    return id;
+}
+
+function isProfileShareable(profile) {
+    return !!(profile && profile.shareable === true);
+}
+
+// Marca o perfil atual como o partilhavel deste device.
+// Todos os outros perfis no device ficam shareable=false (regra: 1 por device).
+async function setActiveProfileShareable(makeShareable) {
+    const p = activeProfile();
+    if (!p) return;
+    if (makeShareable) {
+        // Despublica os outros perfis no device
+        for (const other of state.profiles) {
+            if (other.id !== p.id && other.shareable) {
+                other.shareable = false;
+                if (other.userCode) {
+                    try { await fbUnpublishUser(other.userCode); } catch (e) { console.warn('[share] unpub other fail', e); }
+                }
+            }
+        }
+        state.shareable = true;
+        saveState();
+        // Garante userCode + registo Firestore
+        await ensureUserCode();
+        // Liga os listeners
+        if (typeof _attachInboxListener === 'function') _attachInboxListener();
+        if (typeof _attachMyUserListener === 'function') _attachMyUserListener();
+        if (typeof refreshInbox === 'function') refreshInbox();
+        showToast('✅ Este perfil é agora o partilhável neste dispositivo.');
+    } else {
+        if (state.userCode) {
+            try { await fbUnpublishUser(state.userCode); } catch (e) { console.warn('[share] unpub self fail', e); }
+        }
+        state.shareable = false;
+        saveState();
+        showToast('Perfil tornado privado neste dispositivo.');
+    }
+    if (typeof renderProfile === 'function') renderProfile();
+}
+window.setActiveProfileShareable = setActiveProfileShareable;
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -444,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v271';
+const APP_VERSION = 'v272';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2260,17 +2314,40 @@ function renderProfile() {
     if (pList) {
         pList.innerHTML = state.profiles.map(p => {
             const active = p.id === state.activeProfileId;
+            const shareable = !!p.shareable;
+            const shareBadge = shareable ? '<span style="background:#dcfce7;color:#15803d;font-size:0.66rem;font-weight:800;padding:2px 6px;border-radius:6px;margin-left:4px">📤 PARTILHÁVEL</span>' : '';
             return `
                 <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#fce7f3' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
                     <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#f472b6' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(activo)</span>' : ''}</div>
+                        <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(activo)</span>' : ''}${shareBadge}</div>
                         <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
                     </div>
                     ${!active ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem" onclick="switchProfile('${p.id}')">Usar</button>` : ''}
                     <button class="icon-btn" onclick="removeProfile('${p.id}')" title="Apagar perfil"><i class="fas fa-trash" style="color:#dc2626"></i></button>
                 </div>`;
         }).join('');
+        // Toggle "partilhavel neste dispositivo" para o perfil ativo
+        const active = activeProfile();
+        const otherShareable = state.profiles.find(x => x.shareable && x.id !== active?.id);
+        const toggleHtml = active ? `
+            <div style="background:${active.shareable ? '#dcfce7' : '#fef3c7'};border:1.5px solid ${active.shareable ? '#16a34a' : '#f59e0b'};border-radius:12px;padding:14px;margin-top:10px">
+                <div style="display:flex;align-items:start;gap:10px">
+                    <div style="font-size:1.6rem">${active.shareable ? '📤' : '🔒'}</div>
+                    <div style="flex:1">
+                        <div style="font-weight:800;font-size:0.92rem;color:${active.shareable ? '#15803d' : '#78350f'}">${active.shareable ? 'Partilhável neste dispositivo' : 'Perfil privado neste dispositivo'}</div>
+                        <div style="font-size:0.78rem;color:${active.shareable ? '#15803d' : '#78350f'};margin-top:4px;line-height:1.4">${active.shareable
+                            ? 'Aparece em "Procurar pessoas" e pode receber/enviar duelos.'
+                            : (otherShareable
+                                ? `Outro perfil neste telemóvel já é o partilhável (${escapeHtml(otherShareable.name)}). Marcar este vai despublicar o outro.`
+                                : 'Marca como partilhável se este telemóvel é teu/teu filho. Senão, deixa privado (uso ocasional).')}</div>
+                        <button class="btn" style="margin-top:8px;background:${active.shareable ? '#fff' : '#16a34a'};color:${active.shareable ? '#dc2626' : '#fff'};border:1.5px solid ${active.shareable ? '#fecaca' : '#16a34a'};border-radius:10px;padding:8px 14px;font-size:0.82rem;font-weight:700" onclick="setActiveProfileShareable(${!active.shareable})">
+                            ${active.shareable ? 'Tornar privado' : 'Tornar partilhável'}
+                        </button>
+                    </div>
+                </div>
+            </div>` : '';
+        pList.insertAdjacentHTML('beforeend', toggleHtml);
     }
 
     document.getElementById('input-name').value = state.profile.name;
@@ -5349,17 +5426,12 @@ async function createDuelFromSubject(subjectKey, opts = {}) {
             creatorCode: myCode || null
         });
         _trackMyDuel(id, subjectKey, count);
-        // Se tiver destinatarios, mostra confirmacao + opcional link
         if (opts.inviteFor && opts.inviteFor.length > 0) {
             const names = opts.inviteNames || opts.inviteFor;
             const namesStr = names.length === 1 ? names[0] : `${names.length} amigos`;
             showToast(`✅ Duelo enviado para ${namesStr}!`);
-            if (opts.alsoLink === true) {
-                setTimeout(() => _shareNewDuelLink(id, p.name, subjectKey, count), 600);
-            }
         } else {
-            // Sem destinatarios — partilhar link como antes
-            _shareNewDuelLink(id, p.name, subjectKey, count);
+            showToast('✅ Duelo criado.');
         }
     } catch (err) {
         console.error('[duel] create failed', err);
@@ -5745,8 +5817,17 @@ async function fbRegisterUser(code, profile) {
         name: profile.name || 'Anónimo',
         avatar: profile.avatar || '👤',
         year: profile.year || 0,
+        deviceId: getDeviceId(),
+        shareable: true,
         lastSeen: serverTimestamp()
     }, { merge: true });
+}
+
+// Despublica o user: marca shareable=false (mantem o doc para historico)
+async function fbUnpublishUser(code) {
+    await _onFbReady();
+    const { db, doc, setDoc } = window.__fb;
+    await setDoc(doc(db, 'users', code), { shareable: false }, { merge: true });
 }
 
 // Adiciona amigo bidirecional: escreve em ambos os users/{code}.friends
@@ -5833,15 +5914,19 @@ async function _attachMyUserListener() {
 
 function _updateFriendRequestsBadge(n) {
     const el = document.getElementById('friends-requests-badge');
-    if (!el) return;
-    if (n > 0) { el.textContent = String(n); el.style.display = 'inline-flex'; }
-    else el.style.display = 'none';
+    if (el) {
+        if (n > 0) { el.textContent = String(n); el.style.display = 'inline-flex'; }
+        else el.style.display = 'none';
+    }
+    if (typeof _updateSocialHubBadge === 'function') _updateSocialHubBadge();
 }
 
-// Garantir que o perfil ativo tem userCode + registado no Firestore
+// Garantir que o perfil ativo tem userCode + registado no Firestore.
+// SO corre se o perfil estiver marcado como shareable neste dispositivo.
 async function ensureUserCode() {
     const p = activeProfile();
     if (!p) return null;
+    if (!isProfileShareable(p)) return null; // perfil local-only
     if (!state.userCode) {
         // Gera ate nao colidir
         for (let i = 0; i < 5; i++) {
@@ -5868,14 +5953,16 @@ async function ensureUserCode() {
     return state.userCode;
 }
 
-// Lista todos os utilizadores registados (ordenado por lastSeen)
+// Lista utilizadores partilhaveis (ordenado por lastSeen)
 async function fbListUsers() {
     await _onFbReady();
     const { db } = window.__fb;
     const { collection, getDocs, query, orderBy, limit } = await _fbQueryFns();
     const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(200));
     const snap = await getDocs(q);
-    return snap.docs.map(d => Object.assign({ code: d.id }, d.data()));
+    return snap.docs
+        .map(d => Object.assign({ code: d.id }, d.data()))
+        .filter(u => u.shareable !== false && u.name); // exclui despublicados
 }
 
 // Enviar pedido de amizade — escreve em users/{targetCode}.requests.{myCode}
@@ -6007,6 +6094,99 @@ function removeFriend(code) {
     if (typeof openFriendsScreen === 'function') openFriendsScreen();
 }
 window.removeFriend = removeFriend;
+
+// ===== HUB SOCIAL — junta Amigos / Caixa de duelos / Os meus duelos =====
+async function openSocialHub() {
+    document.getElementById('social-hub-modal-temp')?.remove();
+    const p = activeProfile();
+    if (!p) return;
+
+    // Se nao for shareable, primeiro pergunta
+    if (!isProfileShareable(p)) {
+        const otherShareable = state.profiles.find(x => x.shareable && x.id !== p.id);
+        const html = `
+        <div id="social-hub-modal-temp" class="modal" style="align-items:center;padding:20px">
+            <div class="modal-content" style="max-width:480px;border-radius:20px">
+                <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:28px 22px;text-align:center">
+                    <div style="font-size:3rem;margin-bottom:6px">🔒</div>
+                    <h2 style="font-size:1.3rem;font-weight:900">Perfil privado</h2>
+                </div>
+                <div class="modal-body" style="padding:22px">
+                    <p style="font-size:0.92rem;line-height:1.5;margin-bottom:14px">Para criar duelos ou ter amigos, marca este perfil como <strong>partilhável neste dispositivo</strong>.</p>
+                    ${otherShareable ? `<p style="font-size:0.84rem;background:#fef3c7;border-left:4px solid #f59e0b;padding:10px;border-radius:8px;color:#78350f">⚠️ Outro perfil neste telemóvel já é partilhável: <strong>${escapeHtml(otherShareable.name)}</strong>. Marcar ${escapeHtml(p.name)} vai despublicar o outro (só 1 por telemóvel).</p>` : ''}
+                    <button class="btn btn-block" style="margin-top:14px;background:#16a34a;color:#fff;border:none;padding:14px;font-weight:800" onclick="document.getElementById('social-hub-modal-temp').remove();setActiveProfileShareable(true).then(()=>openSocialHub())">
+                        <i class="fas fa-share-nodes"></i> Tornar partilhável e continuar
+                    </button>
+                    <button class="btn btn-block btn-secondary" style="margin-top:8px;padding:11px" onclick="document.getElementById('social-hub-modal-temp').remove()">Mais tarde</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        return;
+    }
+
+    const friends = state.friends || [];
+    const pendingReq = state._pendingRequests || [];
+    const pendingInbox = state._inboxCache || [];
+    const myDuels = state.myDuels || [];
+    const myDuelsActive = myDuels.length;
+
+    const html = `
+    <div id="social-hub-modal-temp" class="modal" style="align-items:flex-start;padding:0">
+        <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316,#facc15);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+                <div>
+                    <h1 style="font-size:1.4rem;font-weight:900">🥊 Amigos & Duelos</h1>
+                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Código: <strong style="font-family:monospace;letter-spacing:0.1em">${escapeHtml(state.userCode||'—')}</strong></p>
+                </div>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeSocialHub()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:18px">
+                <div onclick="closeSocialHub();openInboxScreen()" style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;box-shadow:0 6px 16px -8px rgba(6,182,212,0.5)">
+                    <div style="font-size:1.6rem">📬</div>
+                    <div style="flex:1">
+                        <div style="font-weight:800;font-size:1rem">Caixa de duelos</div>
+                        <div style="font-size:0.78rem;opacity:0.92">${pendingInbox.length} pendente${pendingInbox.length!==1?'s':''} de amigos</div>
+                    </div>
+                    ${pendingInbox.length>0 ? `<span style="background:#fff;color:#0891b2;border-radius:999px;min-width:24px;height:24px;padding:0 8px;font-size:0.82rem;font-weight:900;display:inline-flex;align-items:center;justify-content:center">${pendingInbox.length}</span>` : ''}
+                </div>
+                <div onclick="closeSocialHub();openMyDuelsScreen()" style="background:linear-gradient(135deg,#f97316,#fbbf24);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;box-shadow:0 6px 16px -8px rgba(249,115,22,0.5)">
+                    <div style="font-size:1.6rem">📋</div>
+                    <div style="flex:1">
+                        <div style="font-weight:800;font-size:1rem">Os meus duelos</div>
+                        <div style="font-size:0.78rem;opacity:0.92">${myDuelsActive} criado${myDuelsActive!==1?'s':''}</div>
+                    </div>
+                </div>
+                <div onclick="closeSocialHub();openFriendsScreen()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 6px 16px -8px rgba(124,58,237,0.5)">
+                    <div style="font-size:1.6rem">👥</div>
+                    <div style="flex:1">
+                        <div style="font-weight:800;font-size:1rem">Os meus amigos</div>
+                        <div style="font-size:0.78rem;opacity:0.92">${friends.length} ${friends.length===1?'amigo':'amigos'}${pendingReq.length>0?` · ${pendingReq.length} pedido${pendingReq.length>1?'s':''}`:''}</div>
+                    </div>
+                    ${pendingReq.length>0 ? `<span style="background:#facc15;color:#78350f;border-radius:999px;min-width:24px;height:24px;padding:0 8px;font-size:0.82rem;font-weight:900;display:inline-flex;align-items:center;justify-content:center">${pendingReq.length}</span>` : ''}
+                </div>
+                <p style="text-align:center;font-size:0.72rem;color:var(--text-light);margin-top:18px">Adiciona amigos pelo código ou em "Procurar pessoas".</p>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeSocialHub() { document.getElementById('social-hub-modal-temp')?.remove(); }
+window.openSocialHub = openSocialHub;
+window.closeSocialHub = closeSocialHub;
+
+function _updateSocialHubBadge() {
+    const el = document.getElementById('social-hub-badge');
+    if (!el) return;
+    const a = (state._pendingRequests || []).length;
+    const b = (state._inboxCache || []).length;
+    const total = a + b;
+    if (total > 0) { el.textContent = String(total); el.style.display = 'inline-flex'; }
+    else el.style.display = 'none';
+}
+// Hook nos updaters existentes
+const _origUpdateInboxBadge = typeof _updateInboxBadge === 'function' ? _updateInboxBadge : null;
+const _origUpdateRequestsBadge = typeof _updateFriendRequestsBadge === 'function' ? _updateFriendRequestsBadge : null;
 
 // ===== ECRA AMIGOS =====
 function openFriendsScreen() {
@@ -6260,11 +6440,11 @@ function _maybePushNotif(title, body) {
 
 function _updateInboxBadge(n) {
     const el = document.getElementById('inbox-badge');
-    if (!el) return;
-    if (n > 0) {
-        el.textContent = String(n);
-        el.style.display = 'inline-flex';
-    } else { el.style.display = 'none'; }
+    if (el) {
+        if (n > 0) { el.textContent = String(n); el.style.display = 'inline-flex'; }
+        else el.style.display = 'none';
+    }
+    if (typeof _updateSocialHubBadge === 'function') _updateSocialHubBadge();
 }
 
 async function openInboxScreen() {
@@ -6322,10 +6502,19 @@ window.refreshInbox = refreshInbox;
 
 // ===== PICKER de destinatarios ao criar duelo =====
 async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
+    const p = activeProfile();
+    if (!p) return;
+    if (!isProfileShareable(p)) {
+        // Bloqueia — manda para o hub que vai pedir para marcar shareable
+        openSocialHub();
+        return;
+    }
     const friends = state.friends || [];
     if (friends.length === 0) {
-        // Sem amigos — segue caminho de link direto (cria sem destinatarios)
-        return createDuelFromSubject(subjectKey, opts);
+        // Sem amigos — manda para "Procurar pessoas"
+        const wants = confirm('Ainda não tens amigos. Queres procurar agora?');
+        if (wants) openSearchPeopleScreen();
+        return;
     }
     document.getElementById('duel-recipients-modal-temp')?.remove();
     const friendsHtml = friends.map(f => `<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:pointer;background:#fff">
@@ -6346,12 +6535,8 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
             </div>
             <div class="modal-body" style="padding:18px">
                 <div style="margin-bottom:14px">${friendsHtml}</div>
-                <label style="display:flex;align-items:center;gap:10px;padding:11px;border:1.5px dashed var(--border);border-radius:12px;background:#f9fafb;cursor:pointer">
-                    <input type="checkbox" id="dr-link-also" style="width:18px;height:18px">
-                    <span style="font-size:0.82rem;color:var(--text-light)">Gerar também link (só preciso se algum amigo não usar a app)</span>
-                </label>
-                <button class="btn btn-block" style="margin-top:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="_confirmDuelRecipients('${subjectKey}')">
-                    <i class="fas fa-fist-raised"></i> Criar duelo
+                <button class="btn btn-block" style="margin-top:6px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="_confirmDuelRecipients('${subjectKey}')">
+                    <i class="fas fa-fist-raised"></i> Enviar duelo
                 </button>
                 <button class="btn btn-block btn-secondary" style="margin-top:8px;padding:11px" onclick="document.getElementById('duel-recipients-modal-temp').remove()">Cancelar</button>
             </div>
@@ -6361,11 +6546,14 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
 }
 async function _confirmDuelRecipients(subjectKey) {
     const checked = [...document.querySelectorAll('.dr-friend:checked')];
+    if (checked.length === 0) {
+        showToast('Escolhe pelo menos um amigo.');
+        return;
+    }
     const codes = checked.map(c => c.value);
     const names = checked.map(c => c.dataset.name);
-    const alsoLink = document.getElementById('dr-link-also')?.checked !== false;
     document.getElementById('duel-recipients-modal-temp')?.remove();
-    await createDuelFromSubject(subjectKey, { inviteFor: codes, inviteNames: names, alsoLink });
+    await createDuelFromSubject(subjectKey, { inviteFor: codes, inviteNames: names, alsoLink: false });
 }
 window.pickDuelRecipientsAndCreate = pickDuelRecipientsAndCreate;
 window._confirmDuelRecipients = _confirmDuelRecipients;
@@ -7918,8 +8106,11 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.warn('[fbduel] url check failed', e); }
     // Listeners em tempo real dos meus duelos (recebo toast quando alguem responde)
     setTimeout(() => { if (typeof _attachAllDuelListeners === 'function') _attachAllDuelListeners(); }, 1200);
-    // Garantir userCode + registar perfil + listeners inbox e amigos
+    // Garantir userCode + registar perfil + listeners inbox e amigos.
+    // Apenas se o perfil ativo for shareable neste dispositivo.
     setTimeout(() => {
+        const p = activeProfile();
+        if (!p || !isProfileShareable(p)) return;
         if (typeof ensureUserCode === 'function') {
             ensureUserCode().then(() => {
                 if (typeof refreshInbox === 'function') refreshInbox();
