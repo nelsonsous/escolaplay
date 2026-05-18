@@ -3740,3 +3740,8 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     gap: 4px;
 }
 .avatar-group-arrow small { font-weight: 600; opacity: 0.7; }
+
+/* Safe-area top para os headers dos modais social (notch / dynamic island) */
+@supports (padding: env(safe-area-inset-top)) {
+    .social-modal-header { padding-top: calc(24px + env(safe-area-inset-top)) !important; }
+}
