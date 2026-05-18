@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v279';
+const APP_VERSION = 'v280';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5834,11 +5834,21 @@ function _showFirestoreDuelSummary(data, myResult) {
     const all = [[myName, myResult], ...others].sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
     const myRank = all.findIndex(([n]) => n === myName) + 1;
     const winning = myRank === 1 && others.length > 0;
-    const emoji = others.length === 0 ? '⏳' : (winning ? '🏆' : myRank === all.length ? '💪' : '🤝');
-    const title = others.length === 0 ? 'Resultado enviado!' : (winning ? `Estás em 1.º!` : `Estás em ${myRank}.º de ${all.length}`);
-    const gradient = others.length === 0
-        ? 'linear-gradient(135deg,#06b6d4,#0891b2)'
-        : (winning ? 'linear-gradient(135deg,#facc15,#f97316,#dc2626)' : 'linear-gradient(135deg,#475569,#64748b)');
+    const isLast = others.length > 0 && myRank === all.length;
+    let emoji, title, gradient;
+    if (others.length === 0) {
+        emoji = '⏳'; title = 'Resultado enviado!'; gradient = 'linear-gradient(135deg,#06b6d4,#0891b2)';
+    } else if (winning) {
+        emoji = '🏆'; title = `Estás em 1.º!`; gradient = 'linear-gradient(135deg,#facc15,#f97316,#dc2626)';
+    } else if (isLast) {
+        // Ultimo lugar — emoji empatico, gradient cor-de-rosa amigavel
+        emoji = '😅'; title = `Ficaste em ${myRank}.º — tenta de novo!`;
+        gradient = 'linear-gradient(135deg,#f472b6,#db2777)';
+    } else {
+        // Meio do ranking
+        emoji = '🥈'; title = `Estás em ${myRank}.º de ${all.length}`;
+        gradient = 'linear-gradient(135deg,#06b6d4,#0891b2)';
+    }
     const rankHtml = all.map(([n, r], i) => {
         const isMe = n === myName;
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
