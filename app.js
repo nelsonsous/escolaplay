@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v275';
+const APP_VERSION = 'v276';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2438,6 +2438,10 @@ function selectAvatar(a) {
     saveState();
     renderProfile();
     updateHeader();
+    // Propagar para Firestore se shareable (amigos veem actualizado)
+    if (isProfileShareable(activeProfile()) && state.userCode) {
+        fbRegisterUser(state.userCode, activeProfile()).catch(()=>{});
+    }
 }
 // Upload de foto — converte para dataURL (base64) com resize para 256px
 // para não inchar o localStorage com megabytes de imagem.
@@ -2471,11 +2475,17 @@ function uploadAvatarPhoto(event) {
     reader.readAsDataURL(file);
 }
 window.uploadAvatarPhoto = uploadAvatarPhoto;
-function saveProfile() {
+async function saveProfile() {
     const name = document.getElementById('input-name').value.trim() || 'Aluno(a)';
     state.profile.name = name;
     saveState();
     updateHeader();
+    // Se for shareable, propagar nome/avatar/year para Firestore
+    // para os amigos verem actualizado imediatamente
+    if (isProfileShareable(activeProfile()) && state.userCode) {
+        try { await fbRegisterUser(state.userCode, activeProfile()); }
+        catch (e) { console.warn('[profile] sync fail', e); }
+    }
     showToast('Perfil guardado!');
 }
 function updateRewardName(id, val) {
