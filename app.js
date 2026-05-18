@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v281';
+const APP_VERSION = 'v282';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5418,6 +5418,35 @@ async function fbGetDuel(id) {
     return snap.exists() ? Object.assign({ id }, snap.data()) : null;
 }
 
+async function fbDeleteDuel(id) {
+    await _onFbReady();
+    const { db, doc } = window.__fb;
+    const { deleteDoc } = await _fbQueryFns();
+    await deleteDoc(doc(db, 'duels', id));
+}
+
+async function deleteMyDuel(id) {
+    if (!confirm('Apagar este duelo? Não vai aparecer mais nem para ti nem para os amigos.')) return;
+    try {
+        await fbDeleteDuel(id);
+    } catch (err) {
+        console.error('[duel] delete fail', err);
+        showToast('❌ Erro: ' + (err?.message || err));
+        // Pode ser que rule Firestore ainda esteja em allow delete: if false
+        if (err?.code === 'permission-denied' || /permission/i.test(err?.message || '')) {
+            showToast('⚠️ Actualiza regras Firestore: allow delete: if true');
+        }
+        return;
+    }
+    // Remove do local + apaga listener
+    if (state.myDuels) state.myDuels = state.myDuels.filter(d => d.id !== id);
+    if (_duelListeners[id]) { try { _duelListeners[id](); } catch {} delete _duelListeners[id]; }
+    saveState();
+    showToast('🗑️ Duelo apagado.');
+    if (document.getElementById('my-duels-modal-temp')) openMyDuelsScreen();
+}
+window.deleteMyDuel = deleteMyDuel;
+
 async function fbSubmitDuelResult(id, playerName, result) {
     await _onFbReady();
     const { db, doc, updateDoc } = window.__fb;
@@ -5605,6 +5634,7 @@ async function openMyDuelsScreen() {
                     ${!myResp
                         ? `<button class="btn" style="flex:1;padding:9px;font-size:0.84rem;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800" onclick="closeMyDuelsScreen();_startFirestoreDuel('${entry.id}')"><i class="fas fa-fist-raised"></i> Jogar</button>`
                         : `<button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_openDuelDetails('${entry.id}')"><i class="fas fa-eye"></i> Ver ranking</button>`}
+                    <button class="btn" style="padding:8px 12px;font-size:0.8rem;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca" onclick="deleteMyDuel('${entry.id}')" title="Apagar"><i class="fas fa-trash"></i></button>
                 </div>
             </div>`;
         }).join('');
@@ -5835,17 +5865,23 @@ function _showFirestoreDuelSummary(data, myResult) {
     const myRank = all.findIndex(([n]) => n === myName) + 1;
     const winning = myRank === 1 && others.length > 0;
     const isLast = others.length > 0 && myRank === all.length;
+    // Detectar empate no topo
+    const myScoreVal = myResult.score || 0;
+    const topScore = all[0][1].score || 0;
+    const tiedAtTopCount = all.filter(([_, r]) => (r.score || 0) === topScore).length;
+    const isTie = others.length > 0 && myScoreVal === topScore && tiedAtTopCount > 1;
     let emoji, title, gradient;
     if (others.length === 0) {
         emoji = '⏳'; title = 'Resultado enviado!'; gradient = 'linear-gradient(135deg,#06b6d4,#0891b2)';
+    } else if (isTie) {
+        emoji = '🤝'; title = tiedAtTopCount === all.length ? `Empate!` : `Empate em 1.º!`;
+        gradient = 'linear-gradient(135deg,#06b6d4,#f472b6)';
     } else if (winning) {
         emoji = '🏆'; title = `Estás em 1.º!`; gradient = 'linear-gradient(135deg,#facc15,#f97316,#dc2626)';
     } else if (isLast) {
-        // Ultimo lugar — emoji empatico, gradient cor-de-rosa amigavel
         emoji = '😅'; title = `Ficaste em ${myRank}.º — tenta de novo!`;
         gradient = 'linear-gradient(135deg,#f472b6,#db2777)';
     } else {
-        // Meio do ranking
         emoji = '🥈'; title = `Estás em ${myRank}.º de ${all.length}`;
         gradient = 'linear-gradient(135deg,#06b6d4,#0891b2)';
     }
