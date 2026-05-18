@@ -144,7 +144,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v266';
+const APP_VERSION = 'v267';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5343,12 +5343,187 @@ async function createDuelFromSubject(subjectKey, opts = {}) {
             avatar: p.avatar,
             year: p.year
         });
+        _trackMyDuel(id, subjectKey, count);
         _shareNewDuelLink(id, p.name, subjectKey, count);
     } catch (err) {
         console.error('[duel] create failed', err);
         showToast('❌ Erro ao criar duelo. Verifica a ligação.');
     }
 }
+
+// Guarda no perfil os duelos que criei (para historico e listeners)
+function _trackMyDuel(id, subjectKey, qCount) {
+    if (!state.myDuels) state.myDuels = [];
+    // Evita duplicados
+    if (state.myDuels.some(d => d.id === id)) return;
+    state.myDuels.unshift({
+        id, subject: subjectKey, qCount,
+        createdAt: Date.now(),
+        lastSeenResponses: 0
+    });
+    // Trim a 50 duelos
+    if (state.myDuels.length > 50) state.myDuels = state.myDuels.slice(0, 50);
+    saveState();
+    // Comecar a ouvir
+    _attachDuelListener(state.myDuels[0]);
+}
+
+// Listeners ativos (id -> unsubscribe fn)
+const _duelListeners = {};
+
+function _attachDuelListener(entry) {
+    if (!entry || !entry.id) return;
+    if (_duelListeners[entry.id]) return;
+    _onFbReady().then(() => {
+        const { db, doc, onSnapshot } = window.__fb;
+        const ref = doc(db, 'duels', entry.id);
+        const unsub = onSnapshot(ref, snap => {
+            if (!snap.exists()) return;
+            const data = snap.data();
+            const respNames = Object.keys(data.responses || {});
+            const p = activeProfile();
+            const myName = p?.name;
+            // Excluir as proprias respostas
+            const othersNames = respNames.filter(n => n !== myName);
+            const cur = othersNames.length;
+            const prev = entry.lastSeenResponses || 0;
+            if (cur > prev) {
+                // Novidade!
+                const newOnes = othersNames.slice(prev);
+                const last = newOnes[newOnes.length - 1];
+                const lastResp = data.responses[last];
+                const sub = SUBJECTS[entry.subject]?.name || 'EscolaPlay';
+                showToast(`🥊 ${last} respondeu! ${lastResp.correct||0}/${data.questions.length} · ${lastResp.score||0}pts (${sub})`);
+                entry.lastSeenResponses = cur;
+                entry.lastResponseAt = Date.now();
+                saveState();
+                _updateDuelsBadge();
+            }
+        }, err => {
+            console.warn('[duel] listener err for', entry.id, err);
+        });
+        _duelListeners[entry.id] = unsub;
+    });
+}
+
+function _attachAllDuelListeners() {
+    if (!state.myDuels) return;
+    for (const d of state.myDuels) _attachDuelListener(d);
+    _updateDuelsBadge();
+}
+
+function _updateDuelsBadge() {
+    const el = document.getElementById('my-duels-badge');
+    if (!el) return;
+    const total = (state.myDuels || []).reduce((s, d) => s + (d.lastSeenResponses || 0), 0);
+    if (total > 0) {
+        el.textContent = String(total);
+        el.style.display = 'inline-flex';
+    } else {
+        el.style.display = 'none';
+    }
+}
+window._updateDuelsBadge = _updateDuelsBadge;
+
+// ===== ECRA "Os meus duelos" =====
+async function openMyDuelsScreen() {
+    document.getElementById('my-duels-modal-temp')?.remove();
+    const duels = state.myDuels || [];
+    let content;
+    if (duels.length === 0) {
+        content = `<div style="text-align:center;padding:40px 20px;color:var(--text-light)">
+            <div style="font-size:3rem;margin-bottom:10px">🥊</div>
+            <p style="font-size:0.92rem">Ainda não criaste nenhum duelo.</p>
+            <p style="font-size:0.82rem;margin-top:6px">Abre uma disciplina e toca em <strong>Criar duelo</strong>.</p>
+        </div>`;
+    } else {
+        // Vai buscar fresh data
+        const rows = await Promise.all(duels.map(async d => {
+            try {
+                const data = await fbGetDuel(d.id);
+                return { entry: d, data };
+            } catch { return { entry: d, data: null }; }
+        }));
+        content = rows.map(({entry, data}) => {
+            const sub = SUBJECTS[entry.subject];
+            const subName = sub?.name || entry.subject || '?';
+            const url = `${location.origin}${location.pathname}?d=${entry.id}`;
+            if (!data) {
+                return `<div style="background:#fef2f2;border-radius:14px;padding:14px;margin-bottom:10px"><div style="font-weight:800">${escapeHtml(subName)}</div><div style="font-size:0.78rem;color:#991b1b">Não foi possível carregar (sem ligação?)</div></div>`;
+            }
+            const resp = Object.entries(data.responses || {});
+            const p = activeProfile();
+            const myName = p?.name;
+            const others = resp.filter(([n]) => n !== myName);
+            const myResp = resp.find(([n]) => n === myName)?.[1];
+            const dateStr = new Date(entry.createdAt).toLocaleDateString('pt-PT', {day:'2-digit',month:'short'});
+            const status = others.length === 0 ? '⏳ A aguardar respostas…' : `${others.length} ${others.length===1?'resposta':'respostas'}`;
+            const othersList = others.length > 0
+                ? others.slice(0,3).map(([n, r]) => `<div style="font-size:0.78rem;color:var(--text);margin-top:2px"><strong>${escapeHtml(n)}</strong>: ${r.correct}/${data.questions.length} · ${r.score}pts</div>`).join('')
+                : '';
+            const myLine = myResp
+                ? `<div style="font-size:0.78rem;color:#d97706;margin-top:4px">✓ Tu: ${myResp.correct}/${data.questions.length} · ${myResp.score}pts</div>`
+                : `<div style="font-size:0.78rem;color:var(--text-light);margin-top:4px">— Ainda não jogaste</div>`;
+            return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,0.04)">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                    <div style="flex:1">
+                        <div style="font-weight:800;font-size:0.95rem">${escapeHtml(subName)}</div>
+                        <div style="font-size:0.74rem;color:var(--text-light);font-weight:600">${dateStr} · ${data.questions.length} perguntas · ${status}</div>
+                        ${myLine}
+                        ${othersList}
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:10px">
+                    <button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_copyDuelLink('${entry.id}')"><i class="fas fa-link"></i> Copiar link</button>
+                    <button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_openDuelDetails('${entry.id}')"><i class="fas fa-eye"></i> Ver ranking</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    const html = `
+    <div id="my-duels-modal-temp" class="modal" style="align-items:flex-start;padding:0">
+        <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+                <div>
+                    <h1 style="font-size:1.4rem;font-weight:900">🥊 Os meus duelos</h1>
+                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${duels.length} ${duels.length===1?'criado':'criados'}</p>
+                </div>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeMyDuelsScreen()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:18px">${content}</div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeMyDuelsScreen() { document.getElementById('my-duels-modal-temp')?.remove(); }
+async function _copyDuelLink(id) {
+    const url = `${location.origin}${location.pathname}?d=${id}`;
+    if (navigator.share) {
+        try { await navigator.share({ title: '🥊 Duelo EscolaPlay', text: `Junta-te ao meu duelo: ${url}` }); return; }
+        catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(url); showToast('🔗 Link copiado!'); }
+    catch { prompt('Copia o link:', url); }
+}
+async function _openDuelDetails(id) {
+    const data = await fbGetDuel(id);
+    if (!data) { showToast('Duelo não encontrado.'); return; }
+    closeMyDuelsScreen();
+    const p = activeProfile();
+    const myName = p?.name;
+    const myResp = data.responses?.[myName];
+    if (myResp) {
+        // Já joguei — mostra ranking
+        _showFirestoreDuelSummary(data, myResp);
+    } else {
+        // Não joguei ainda — pede para jogar
+        _showFirestoreDuelIntro(data, id);
+    }
+}
+window.openMyDuelsScreen = openMyDuelsScreen;
+window.closeMyDuelsScreen = closeMyDuelsScreen;
+window._copyDuelLink = _copyDuelLink;
+window._openDuelDetails = _openDuelDetails;
 
 async function _shareNewDuelLink(id, creatorName, subjectKey, qCount) {
     const url = `${location.origin}${location.pathname}?d=${id}`;
@@ -7078,6 +7253,8 @@ window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { if (typeof openFirestoreDuelFromUrl === 'function') openFirestoreDuelFromUrl(dId); }, 300);
         }
     } catch (e) { console.warn('[fbduel] url check failed', e); }
+    // Listeners em tempo real dos meus duelos (recebo toast quando alguem responde)
+    setTimeout(() => { if (typeof _attachAllDuelListeners === 'function') _attachAllDuelListeners(); }, 1200);
     // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
     setTimeout(_maybeShowStreakGuilt, 800);
     // Notificações: refrescar UI + reagendar lembrete diário
