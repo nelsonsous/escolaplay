@@ -144,7 +144,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v265';
+const APP_VERSION = 'v266';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1207,8 +1207,11 @@ function openSubjectDetail(key) {
                 </div>
 
                 <!-- Botão "começar treino" ANTES da lista — acesso rápido sem scroll -->
-                <button class="btn btn-primary-solid btn-block" style="margin-bottom:14px" onclick="startSubjectSession('${key}')">
+                <button class="btn btn-primary-solid btn-block" style="margin-bottom:8px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
+                </button>
+                <button class="btn btn-block" style="margin-bottom:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="createDuelFromSubject('${key}')">
+                    <i class="fas fa-fist-raised"></i> 🥊 Criar duelo (envia link a um amigo)
                 </button>
 
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -4781,7 +4784,12 @@ function nextQuestion() {
 
 function finishSession() {
     const s = currentSession;
-    // Se for duelo, vai para o ecrã de comparação e termina aqui
+    // Duelo Firestore (novo, v266+)
+    if (s && s.fbDuelId) {
+        _finishFirestoreDuel();
+        return;
+    }
+    // Duelo legacy via URL ?duel=base64
     if (s && s.isDuel) {
         _finishDuel();
         return;
@@ -5241,6 +5249,288 @@ ${url}
     try { await navigator.clipboard.writeText(text); showToast('🔗 Link de duelo copiado!'); }
     catch { prompt('Copia este link e envia ao teu amigo:', url); }
 }
+
+// ============================================================
+// DUELOS via FIRESTORE (v266+)
+// ============================================================
+// Schema: duels/{duelId}: { v, createdAt, creator:{name,avatar,year},
+//   questions:[ids], mode:'open', responses:{ [name]: {...} } }
+
+function _fbReady() { return !!(window.__fb && window.__fb.db); }
+function _onFbReady() {
+    return _fbReady() ? Promise.resolve() : new Promise(res => window.addEventListener('fbready', () => res(), { once: true }));
+}
+function _genDuelId() {
+    // ID curto memoravel — 8 chars alfanum (sem 0/O/I/1 para evitar confusao)
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 8; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return s;
+}
+
+async function fbCreateDuel({ subjectKey, questionIds, name, avatar, year, timeLimit }) {
+    await _onFbReady();
+    const { db, doc, setDoc, serverTimestamp } = window.__fb;
+    // Gera id e tenta ate nao colidir (probabilidade ridicula em 32^8=1.1e12)
+    let id, tries = 0;
+    while (tries < 4) {
+        id = _genDuelId();
+        const ref = doc(db, 'duels', id);
+        const { getDoc } = window.__fb;
+        const snap = await getDoc(ref);
+        if (!snap.exists()) break;
+        tries++;
+    }
+    const ref = doc(db, 'duels', id);
+    await setDoc(ref, {
+        v: 1,
+        createdAt: serverTimestamp(),
+        mode: 'open',
+        subject: subjectKey || null,
+        creator: { name: name || 'Anónimo', avatar: avatar || '👤', year: year || 0 },
+        questions: questionIds,
+        timeLimit: timeLimit || Math.max(60, questionIds.length * 20),
+        responses: {}
+    });
+    return id;
+}
+
+async function fbGetDuel(id) {
+    await _onFbReady();
+    const { db, doc, getDoc } = window.__fb;
+    const ref = doc(db, 'duels', id);
+    const snap = await getDoc(ref);
+    return snap.exists() ? Object.assign({ id }, snap.data()) : null;
+}
+
+async function fbSubmitDuelResult(id, playerName, result) {
+    await _onFbReady();
+    const { db, doc, updateDoc } = window.__fb;
+    const ref = doc(db, 'duels', id);
+    // result = { correct, time, score, items, completedAt }
+    const path = `responses.${playerName}`;
+    await updateDoc(ref, { [path]: result });
+}
+
+// Single-use por dispositivo (state.duelsPlayed[id] = {at, score, ...})
+function _markDuelPlayed(id, payload) {
+    if (!state.duelsPlayed) state.duelsPlayed = {};
+    state.duelsPlayed[id] = Object.assign({ at: Date.now() }, payload);
+    saveState();
+}
+function _hasDuelPlayed(id) {
+    return !!(state.duelsPlayed && state.duelsPlayed[id]);
+}
+
+// ===== CRIAR DUELO direto da disciplina (mode='open' — sem score) =====
+async function createDuelFromSubject(subjectKey, opts = {}) {
+    const p = activeProfile();
+    if (!p) { showToast('Cria um perfil primeiro.'); return; }
+    let topicSet;
+    if (opts.useSelection && selectedTopicsForMax.size > 0) topicSet = new Set(selectedTopicsForMax);
+    else topicSet = activeTopicsFor(subjectKey);
+    const pool = allExercisesFor(subjectKey, topicSet);
+    if (pool.length === 0) { showToast('Sem exercícios para gerar duelo.'); return; }
+    const count = Math.min(getPracticeQuestions(), pool.length);
+    const items = pickExercises(pool, count);
+    const questionIds = items.map(e => e.id);
+    showToast('A criar duelo…');
+    try {
+        const id = await fbCreateDuel({
+            subjectKey,
+            questionIds,
+            name: p.name,
+            avatar: p.avatar,
+            year: p.year
+        });
+        _shareNewDuelLink(id, p.name, subjectKey, count);
+    } catch (err) {
+        console.error('[duel] create failed', err);
+        showToast('❌ Erro ao criar duelo. Verifica a ligação.');
+    }
+}
+
+async function _shareNewDuelLink(id, creatorName, subjectKey, qCount) {
+    const url = `${location.origin}${location.pathname}?d=${id}`;
+    const subName = SUBJECTS[subjectKey]?.name || 'EscolaPlay';
+    const text = `🥊 ${creatorName} desafia-te no EscolaPlay!\n\n${subName} · ${qCount} perguntas\n\nAbre o link e responde — eu também vou jogar e depois comparamos:\n\n${url}`;
+    if (navigator.share) {
+        try { await navigator.share({ title: '🥊 Duelo EscolaPlay', text }); return; }
+        catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); showToast('🔗 Link copiado!'); }
+    catch { prompt('Copia este link e envia ao teu amigo:', url); }
+}
+
+// ===== ABRIR DUELO Firestore via URL ?d=<id> =====
+async function openFirestoreDuelFromUrl(id) {
+    showToast('🥊 A carregar duelo…');
+    let data;
+    try { data = await fbGetDuel(id); }
+    catch (err) { showToast('❌ Erro a carregar duelo.'); return; }
+    if (!data) { showToast('Duelo não encontrado.'); return; }
+    // Single-use por dispositivo
+    if (_hasDuelPlayed(id)) {
+        _showDuelAlreadyPlayed(data, id);
+        return;
+    }
+    _showFirestoreDuelIntro(data, id);
+}
+
+function _showFirestoreDuelIntro(data, id) {
+    document.getElementById('fb-duel-intro-modal-temp')?.remove();
+    const p = activeProfile();
+    const myName = p?.name || 'Tu';
+    const isCreator = p && data.creator?.name === p.name;
+    const subName = SUBJECTS[data.subject]?.name || 'EscolaPlay';
+    const responsesCount = Object.keys(data.responses || {}).length;
+    // Se outros ja responderam — mostrar quem
+    let opponentsHtml = '';
+    if (responsesCount > 0) {
+        const list = Object.entries(data.responses).slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml(n)}</strong>: ${r.correct}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
+        opponentsHtml = `<div style="background:#f9fafb;border-radius:12px;padding:12px;margin:14px 0;text-align:left"><div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase">Já jogaram:</div>${list}</div>`;
+    }
+    const html = `
+    <div id="fb-duel-intro-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:480px;border-radius:24px">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:28px 22px;text-align:center">
+                <div style="font-size:3.6rem;line-height:1;margin-bottom:8px;animation:heroBounce 1.4s cubic-bezier(.34,1.56,.64,1)">🥊</div>
+                <h1 style="font-size:1.6rem;font-weight:900;margin-bottom:4px">${escapeHtml(data.creator?.name || 'Alguém')} desafia-te!</h1>
+                <p style="font-size:0.88rem;opacity:0.94">${subName} · ${data.questions.length} perguntas · ${Math.floor((data.timeLimit||120)/60)}min</p>
+            </div>
+            <div class="modal-body" style="padding:22px;text-align:center">
+                ${opponentsHtml}
+                <p style="font-size:0.88rem;color:var(--text);margin-bottom:14px;line-height:1.5">${isCreator ? 'És o criador. Joga para depois comparares.' : 'Responde a todas as perguntas o mais rápido que conseguires.'}</p>
+                <button class="btn btn-block" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:15px;border:none;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="_startFirestoreDuel('${id}')">
+                    <i class="fas fa-fist-raised"></i> ${isCreator ? 'Jogar agora!' : 'Aceitar duelo!'}
+                </button>
+                <button class="btn btn-block btn-secondary" style="margin-top:10px;padding:11px" onclick="_closeFbDuelIntro()">Mais tarde</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function _closeFbDuelIntro() { document.getElementById('fb-duel-intro-modal-temp')?.remove(); }
+window._closeFbDuelIntro = _closeFbDuelIntro;
+
+function _showDuelAlreadyPlayed(data, id) {
+    document.getElementById('fb-duel-intro-modal-temp')?.remove();
+    const myRecord = state.duelsPlayed[id] || {};
+    const p = activeProfile();
+    const myName = p?.name || 'Tu';
+    const myResp = data.responses?.[myName] || myRecord;
+    const others = Object.entries(data.responses || {}).filter(([n]) => n !== myName);
+    const othersHtml = others.length > 0
+        ? others.map(([n, r]) => `<tr><td style="padding:6px 4px">${escapeHtml(n)}</td><td style="text-align:right;padding:6px 4px">${r.correct}/${data.questions.length}</td><td style="text-align:right;padding:6px 4px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:6px 4px;font-weight:800;color:#dc2626">${r.score} pts</td></tr>`).join('')
+        : `<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-light)">Ninguém mais respondeu ainda.</td></tr>`;
+    const html = `
+    <div id="fb-duel-intro-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:480px;border-radius:24px">
+            <div style="background:#f9fafb;padding:24px;text-align:center;border-bottom:1px solid var(--border)">
+                <div style="font-size:2.6rem;line-height:1;margin-bottom:6px">🥊</div>
+                <h2 style="font-size:1.3rem;font-weight:900">Já completaste este duelo</h2>
+                <p style="font-size:0.84rem;color:var(--text-light);margin-top:4px">Cada link só pode ser jogado uma vez.</p>
+            </div>
+            <div class="modal-body" style="padding:22px">
+                <div style="background:#fef3c7;border-radius:12px;padding:14px;margin-bottom:14px;text-align:center">
+                    <div style="font-size:0.78rem;font-weight:700;color:#78350f;margin-bottom:4px">O TEU RESULTADO</div>
+                    <div style="font-size:1.8rem;font-weight:900;color:#d97706">${myResp.score || 0} pts</div>
+                    <div style="font-size:0.82rem;color:#78350f;margin-top:4px">${myResp.correct||0}/${data.questions.length} · ${_formatDuelTime((myResp.time||0)*1000)}</div>
+                </div>
+                <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;color:var(--text-light);text-transform:uppercase">Outros</div>
+                <table style="width:100%;font-size:0.86rem"><tbody>${othersHtml}</tbody></table>
+                <button class="btn btn-block btn-primary-solid" style="margin-top:16px;padding:13px" onclick="_closeFbDuelIntro()">Fechar</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function _startFirestoreDuel(id) {
+    _closeFbDuelIntro();
+    const data = await fbGetDuel(id);
+    if (!data) { showToast('Duelo desapareceu.'); return; }
+    // Resolver as questoes pelos IDs
+    const items = data.questions.map(qid => _findExerciseAnyYear(qid)).filter(Boolean);
+    if (items.length === 0) { showToast('Não foi possível carregar as perguntas.'); return; }
+    currentSession = {
+        items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0,
+        isDaily: false, isDuel: true,
+        fbDuelId: id, fbDuelData: data,
+        startedAt: Date.now()
+    };
+    _showDuelTimerBar(data.timeLimit || 120);
+    openExerciseScreen();
+    renderQuestion();
+}
+window._startFirestoreDuel = _startFirestoreDuel;
+
+// Chamado em vez de _finishDuel quando a sessao tem fbDuelId
+async function _finishFirestoreDuel() {
+    const s = currentSession;
+    if (!s || !s.fbDuelId) return;
+    _hideDuelTimerBar();
+    const usedSec = Math.min(s.fbDuelData.timeLimit, Math.max(1, Math.floor((Date.now() - s.startedAt) / 1000)));
+    const myScore = _duelScore(s.correct, usedSec, s.fbDuelData.timeLimit);
+    const p = activeProfile();
+    const myName = p?.name || 'Anónimo';
+    const result = { correct: s.correct, time: usedSec, score: myScore, completedAt: Date.now() };
+    try { await fbSubmitDuelResult(s.fbDuelId, myName, result); }
+    catch (err) { console.warn('[duel] submit failed', err); showToast('Resultado guardado localmente — erro de rede.'); }
+    _markDuelPlayed(s.fbDuelId, result);
+    // Re-fetch para mostrar comparativo atualizado
+    let fresh = null;
+    try { fresh = await fbGetDuel(s.fbDuelId); } catch {}
+    _showFirestoreDuelSummary(fresh || s.fbDuelData, result);
+    currentSession = null;
+}
+
+function _showFirestoreDuelSummary(data, myResult) {
+    document.getElementById('fb-duel-summary-modal-temp')?.remove();
+    const p = activeProfile();
+    const myName = p?.name || 'Tu';
+    const others = Object.entries(data.responses || {}).filter(([n]) => n !== myName);
+    const total = data.questions.length;
+    // Ranking
+    const all = [[myName, myResult], ...others].sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+    const myRank = all.findIndex(([n]) => n === myName) + 1;
+    const winning = myRank === 1 && others.length > 0;
+    const emoji = others.length === 0 ? '⏳' : (winning ? '🏆' : myRank === all.length ? '💪' : '🤝');
+    const title = others.length === 0 ? 'Resultado enviado!' : (winning ? `Estás em 1.º!` : `Estás em ${myRank}.º de ${all.length}`);
+    const gradient = others.length === 0
+        ? 'linear-gradient(135deg,#06b6d4,#0891b2)'
+        : (winning ? 'linear-gradient(135deg,#facc15,#f97316,#dc2626)' : 'linear-gradient(135deg,#475569,#64748b)');
+    const rankHtml = all.map(([n, r], i) => {
+        const isMe = n === myName;
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+        return `<tr style="background:${isMe ? '#fef3c7' : 'transparent'}"><td style="padding:8px 6px;font-weight:800">${medal} ${escapeHtml(n)}${isMe ? ' (tu)' : ''}</td><td style="text-align:right;padding:8px 6px">${r.correct}/${total}</td><td style="text-align:right;padding:8px 6px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:8px 6px;font-weight:900;color:#dc2626">${r.score}</td></tr>`;
+    }).join('');
+    const html = `
+    <div id="fb-duel-summary-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:520px;border-radius:24px;max-height:94vh;overflow:auto">
+            <div style="background:${gradient};color:#fff;padding:28px 22px;text-align:center">
+                <div style="font-size:3.6rem;line-height:1;margin-bottom:8px;animation:heroBounce 1.4s cubic-bezier(.34,1.56,.64,1)">${emoji}</div>
+                <h1 style="font-size:1.7rem;font-weight:900;margin-bottom:4px">${title}</h1>
+                <p style="font-size:0.86rem;opacity:0.94">${others.length === 0 ? 'Quando alguém jogar, vê o resultado aqui.' : `${all.length} jogadores`}</p>
+            </div>
+            <div class="modal-body" style="padding:22px">
+                <table style="width:100%;font-size:0.88rem;border-collapse:collapse">
+                    <thead><tr style="border-bottom:2px solid var(--border)"><th style="text-align:left;padding:6px;font-size:0.74rem;color:var(--text-light)">JOGADOR</th><th style="text-align:right;padding:6px;font-size:0.74rem;color:var(--text-light)">CERTAS</th><th style="text-align:right;padding:6px;font-size:0.74rem;color:var(--text-light)">TEMPO</th><th style="text-align:right;padding:6px;font-size:0.74rem;color:var(--text-light)">PTS</th></tr></thead>
+                    <tbody>${rankHtml}</tbody>
+                </table>
+                <p style="text-align:center;font-size:0.78rem;color:var(--text-light);margin:16px 0">Partilha o mesmo link com mais amigos para entrarem no ranking.</p>
+                <button class="btn btn-block btn-primary-solid" style="padding:13px" onclick="_closeFbDuelSummary()">Voltar ao início</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function _closeFbDuelSummary() {
+    document.getElementById('fb-duel-summary-modal-temp')?.remove();
+    document.getElementById('exercise-screen').style.display = 'none';
+    switchTab('home');
+}
+window._closeFbDuelSummary = _closeFbDuelSummary;
 
 // ===== ACEITAR DUELO via paste (para quando o link abre no browser
 //       em vez da app instalada — comum em iOS) =====
@@ -6776,8 +7066,18 @@ window.addEventListener('DOMContentLoaded', () => {
         modalBody.insertBefore(label, div);
     }
     updateAll();
-    // Detectar se URL tem ?duel=... e abrir intro do duelo recebido
+    // Detectar se URL tem ?duel=... e abrir intro do duelo recebido (legacy)
     if (typeof _checkIncomingDuel === 'function') _checkIncomingDuel();
+    // Detectar ?d=<id> — duelo Firestore (v266+)
+    try {
+        const params = new URLSearchParams(location.search);
+        const dId = params.get('d');
+        if (dId && /^[A-Z2-9]{8}$/.test(dId)) {
+            // Limpa URL para não voltar a abrir
+            history.replaceState({}, '', location.pathname);
+            setTimeout(() => { if (typeof openFirestoreDuelFromUrl === 'function') openFirestoreDuelFromUrl(dId); }, 300);
+        }
+    } catch (e) { console.warn('[fbduel] url check failed', e); }
     // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
     setTimeout(_maybeShowStreakGuilt, 800);
     // Notificações: refrescar UI + reagendar lembrete diário

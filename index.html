@@ -651,6 +651,24 @@
 <script src="content_6_h_extra2.js"></script>
 <script src="content_11_q_extra.js"></script>
 <script src="content_secret.js"></script>
+<!-- Firebase Firestore (modular SDK v10, via CDN) — para duelos -->
+<script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+    const firebaseConfig = {
+        apiKey: "AIzaSyDoFI-3-V1357jIMIC4FxLhH2UNlJgGzG8",
+        authDomain: "escolaplay-86fb2.firebaseapp.com",
+        projectId: "escolaplay-86fb2",
+        storageBucket: "escolaplay-86fb2.firebasestorage.app",
+        messagingSenderId: "763446942592",
+        appId: "1:763446942592:web:92f7a40592245323e3ff65"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window.__fb = { db, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp };
+    window.__fbReady = true;
+    window.dispatchEvent(new Event('fbready'));
+</script>
 <script src="app.js"></script>
 <script>
     if ('serviceWorker' in navigator) {
