@@ -5814,6 +5814,9 @@ async function _attachMyUserListener() {
         }
     }, err => console.warn('[user] listener err', err));
 }
+
+// Garantir que o perfil ativo tem userCode + registado no Firestore
+async function ensureUserCode() {
     const p = activeProfile();
     if (!p) return null;
     if (!state.userCode) {
