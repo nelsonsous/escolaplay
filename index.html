@@ -221,6 +221,29 @@
             <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1;margin-left:6px"></i>
         </div>
 
+        <!-- Caixa de entrada de duelos enviados por amigos -->
+        <div onclick="openInboxScreen()" style="position:relative;background:linear-gradient(135deg,#06b6d4 0%,#0891b2 100%);color:#fff;padding:10px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:10px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(6,182,212,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+            <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+            <div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;position:relative;z-index:1">📬</div>
+            <div style="flex:1;min-width:0;position:relative;z-index:1">
+                <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Caixa de duelos</div>
+                <div style="font-weight:800;font-size:0.9rem;letter-spacing:-0.01em">Desafios dos teus amigos</div>
+            </div>
+            <span id="inbox-badge" style="display:none;background:#fff;color:#0891b2;border-radius:999px;min-width:22px;height:22px;padding:0 7px;font-size:0.78rem;font-weight:900;align-items:center;justify-content:center;position:relative;z-index:1">0</span>
+            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1;margin-left:6px"></i>
+        </div>
+
+        <!-- Amigos -->
+        <div onclick="openFriendsScreen()" style="position:relative;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:#fff;padding:10px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:10px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(124,58,237,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+            <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
+            <div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;position:relative;z-index:1">👥</div>
+            <div style="flex:1;min-width:0;position:relative;z-index:1">
+                <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Os meus amigos</div>
+                <div style="font-weight:800;font-size:0.9rem;letter-spacing:-0.01em">Adiciona pelos códigos</div>
+            </div>
+            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1"></i>
+        </div>
+
         <!-- Próximo teste -->
         <div id="next-test-card" style="display:none;margin-top:14px" class="test-countdown-card" onclick="switchTab('tests')">
             <div class="test-countdown-icon"><i class="fas fa-calendar-day"></i></div>

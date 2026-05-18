@@ -144,7 +144,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked'];
 
 function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {}) {
     if (!year || !SUBJECTS_BY_YEAR[year]) {
@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v267';
+const APP_VERSION = 'v268';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1210,8 +1210,8 @@ function openSubjectDetail(key) {
                 <button class="btn btn-primary-solid btn-block" style="margin-bottom:8px" onclick="startSubjectSession('${key}')">
                     <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
                 </button>
-                <button class="btn btn-block" style="margin-bottom:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="createDuelFromSubject('${key}')">
-                    <i class="fas fa-fist-raised"></i> 🥊 Criar duelo (envia link a um amigo)
+                <button class="btn btn-block" style="margin-bottom:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;font-weight:800;padding:14px;border:none;box-shadow:0 6px 16px rgba(220,38,38,0.28)" onclick="pickDuelRecipientsAndCreate('${key}')">
+                    <i class="fas fa-fist-raised"></i> 🥊 Criar duelo
                 </button>
 
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -5268,7 +5268,7 @@ function _genDuelId() {
     return s;
 }
 
-async function fbCreateDuel({ subjectKey, questionIds, name, avatar, year, timeLimit }) {
+async function fbCreateDuel({ subjectKey, questionIds, name, avatar, year, timeLimit, inviteFor, creatorCode }) {
     await _onFbReady();
     const { db, doc, setDoc, serverTimestamp } = window.__fb;
     // Gera id e tenta ate nao colidir (probabilidade ridicula em 32^8=1.1e12)
@@ -5287,9 +5287,10 @@ async function fbCreateDuel({ subjectKey, questionIds, name, avatar, year, timeL
         createdAt: serverTimestamp(),
         mode: 'open',
         subject: subjectKey || null,
-        creator: { name: name || 'Anónimo', avatar: avatar || '👤', year: year || 0 },
+        creator: { name: name || 'Anónimo', avatar: avatar || '👤', year: year || 0, code: creatorCode || null },
         questions: questionIds,
         timeLimit: timeLimit || Math.max(60, questionIds.length * 20),
+        inviteFor: Array.isArray(inviteFor) ? inviteFor : [],
         responses: {}
     });
     return id;
@@ -5336,15 +5337,30 @@ async function createDuelFromSubject(subjectKey, opts = {}) {
     const questionIds = items.map(e => e.id);
     showToast('A criar duelo…');
     try {
+        // Garante userCode (e regista perfil) antes de criar
+        const myCode = await ensureUserCode();
         const id = await fbCreateDuel({
             subjectKey,
             questionIds,
             name: p.name,
             avatar: p.avatar,
-            year: p.year
+            year: p.year,
+            inviteFor: opts.inviteFor || [],
+            creatorCode: myCode || null
         });
         _trackMyDuel(id, subjectKey, count);
-        _shareNewDuelLink(id, p.name, subjectKey, count);
+        // Se tiver destinatarios, mostra confirmacao + opcional link
+        if (opts.inviteFor && opts.inviteFor.length > 0) {
+            const names = opts.inviteNames || opts.inviteFor;
+            const namesStr = names.length === 1 ? names[0] : `${names.length} amigos`;
+            showToast(`✅ Duelo enviado para ${namesStr}!`);
+            if (opts.alsoLink !== false) {
+                setTimeout(() => _shareNewDuelLink(id, p.name, subjectKey, count), 600);
+            }
+        } else {
+            // Sem destinatarios — partilhar link como antes
+            _shareNewDuelLink(id, p.name, subjectKey, count);
+        }
     } catch (err) {
         console.error('[duel] create failed', err);
         showToast('❌ Erro ao criar duelo. Verifica a ligação.');
@@ -5706,6 +5722,373 @@ function _closeFbDuelSummary() {
     switchTab('home');
 }
 window._closeFbDuelSummary = _closeFbDuelSummary;
+
+// ============================================================
+// AMIGOS + CAIXA DE ENTRADA DE DUELOS (v268+)
+// ============================================================
+// Cada perfil tem um userCode (4 chars) registado em Firestore users/{code}.
+// Adicionas amigos pelo codigo deles. Ao criar duelo escolhes destinatarios.
+// Caixa de entrada lista duelos onde inviteFor contem o teu codigo.
+
+function _genUserCode() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 4; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return s;
+}
+
+async function fbRegisterUser(code, profile) {
+    await _onFbReady();
+    const { db, doc, setDoc, serverTimestamp } = window.__fb;
+    const ref = doc(db, 'users', code);
+    await setDoc(ref, {
+        name: profile.name || 'Anónimo',
+        avatar: profile.avatar || '👤',
+        year: profile.year || 0,
+        lastSeen: serverTimestamp()
+    }, { merge: true });
+}
+
+async function fbLookupUser(code) {
+    await _onFbReady();
+    const { db, doc, getDoc } = window.__fb;
+    const ref = doc(db, 'users', code.toUpperCase());
+    const snap = await getDoc(ref);
+    return snap.exists() ? Object.assign({ code: code.toUpperCase() }, snap.data()) : null;
+}
+
+// Garantir que o perfil ativo tem userCode + registado no Firestore
+async function ensureUserCode() {
+    const p = activeProfile();
+    if (!p) return null;
+    if (!state.userCode) {
+        // Gera ate nao colidir
+        for (let i = 0; i < 5; i++) {
+            const candidate = _genUserCode();
+            try {
+                const exists = await fbLookupUser(candidate);
+                if (!exists) {
+                    state.userCode = candidate;
+                    saveState();
+                    break;
+                }
+            } catch {
+                // Sem rede — tenta usar mesmo assim
+                state.userCode = candidate;
+                saveState();
+                break;
+            }
+        }
+    }
+    // Re-regista (refresca name/avatar/year e lastSeen)
+    if (state.userCode) {
+        try { await fbRegisterUser(state.userCode, p); } catch (e) { console.warn('[user] register fail', e); }
+    }
+    return state.userCode;
+}
+
+// Adicionar amigo pelo codigo
+async function addFriendByCode(rawCode) {
+    const code = (rawCode || '').trim().toUpperCase();
+    if (!/^[A-Z2-9]{4}$/.test(code)) {
+        showToast('Código inválido. São 4 letras/números.');
+        return false;
+    }
+    if (code === state.userCode) {
+        showToast('Esse é o teu próprio código.');
+        return false;
+    }
+    if (!state.friends) state.friends = [];
+    if (state.friends.some(f => f.code === code)) {
+        showToast('Já tens esse amigo.');
+        return false;
+    }
+    const user = await fbLookupUser(code);
+    if (!user) {
+        showToast('Código não encontrado.');
+        return false;
+    }
+    state.friends.push({ code, name: user.name, avatar: user.avatar, year: user.year, addedAt: Date.now() });
+    saveState();
+    showToast(`✅ ${user.name} adicionado!`);
+    return true;
+}
+window.addFriendByCode = addFriendByCode;
+
+function removeFriend(code) {
+    if (!state.friends) return;
+    const f = state.friends.find(x => x.code === code);
+    if (!f) return;
+    state.friends = state.friends.filter(x => x.code !== code);
+    saveState();
+    showToast(`${f.name} removido dos amigos.`);
+    if (typeof openFriendsScreen === 'function') openFriendsScreen();
+}
+window.removeFriend = removeFriend;
+
+// ===== ECRA AMIGOS =====
+function openFriendsScreen() {
+    document.getElementById('friends-modal-temp')?.remove();
+    const myCode = state.userCode || '—';
+    const friends = state.friends || [];
+    const friendsHtml = friends.length === 0
+        ? `<div style="text-align:center;padding:30px 20px;color:var(--text-light)"><div style="font-size:2.6rem;margin-bottom:8px">👥</div><p style="font-size:0.88rem">Ainda não tens amigos.</p><p style="font-size:0.78rem;margin-top:4px">Pede o código a um colega e adiciona em baixo.</p></div>`
+        : friends.map(f => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
+            <div style="font-size:1.8rem">${escapeHtml(f.avatar || '👤')}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:800">${escapeHtml(f.name)}</div>
+                <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
+            </div>
+            <button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="if(confirm('Remover ${escapeHtml(f.name)}?'))removeFriend('${f.code}')"><i class="fas fa-trash"></i></button>
+        </div>`).join('');
+    const html = `
+    <div id="friends-modal-temp" class="modal" style="align-items:flex-start;padding:0">
+        <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+                <div>
+                    <h1 style="font-size:1.4rem;font-weight:900">👥 Os meus amigos</h1>
+                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${friends.length} ${friends.length===1?'amigo':'amigos'}</p>
+                </div>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeFriendsScreen()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:18px">
+                <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:16px;margin-bottom:18px;text-align:center">
+                    <div style="font-size:0.72rem;font-weight:700;color:#78350f;text-transform:uppercase;letter-spacing:0.04em">O TEU CÓDIGO</div>
+                    <div style="font-size:2.2rem;font-weight:900;color:#78350f;letter-spacing:0.18em;font-family:monospace;margin:6px 0">${escapeHtml(myCode)}</div>
+                    <div style="font-size:0.78rem;color:#78350f">Partilha este código para te adicionarem.</div>
+                    <button class="btn" style="margin-top:8px;background:#fff;color:#78350f;font-weight:800;border:1.5px solid #f59e0b;border-radius:10px;padding:8px 14px;font-size:0.82rem" onclick="_shareMyCode()"><i class="fas fa-share-nodes"></i> Partilhar</button>
+                </div>
+                <div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:18px">
+                    <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-light)">Adicionar amigo</div>
+                    <div style="display:flex;gap:8px">
+                        <input type="text" id="friend-code-input" placeholder="EX: ABC4" maxlength="4" style="flex:1;padding:11px;border:1.5px solid var(--border);border-radius:10px;font-size:1.05rem;text-transform:uppercase;font-family:monospace;letter-spacing:0.1em" oninput="this.value=this.value.toUpperCase()">
+                        <button class="btn btn-primary-solid" style="padding:11px 16px" onclick="_addFriendFromInput()"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:var(--text-light)">Amigos (${friends.length})</div>
+                ${friendsHtml}
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeFriendsScreen() { document.getElementById('friends-modal-temp')?.remove(); }
+async function _addFriendFromInput() {
+    const inp = document.getElementById('friend-code-input');
+    if (!inp) return;
+    const ok = await addFriendByCode(inp.value);
+    if (ok) { inp.value = ''; openFriendsScreen(); }
+}
+async function _shareMyCode() {
+    const code = state.userCode;
+    const p = activeProfile();
+    const text = `🥊 Adiciona-me no EscolaPlay!\n\nO meu código: ${code}\n(Vai a Amigos → Adicionar amigo)\n\n${location.origin}${location.pathname}`;
+    if (navigator.share) {
+        try { await navigator.share({ title: '🥊 EscolaPlay', text }); return; }
+        catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); showToast('🔗 Código copiado!'); }
+    catch { prompt('Copia o teu código:', text); }
+}
+window.openFriendsScreen = openFriendsScreen;
+window.closeFriendsScreen = closeFriendsScreen;
+window._addFriendFromInput = _addFriendFromInput;
+window._shareMyCode = _shareMyCode;
+
+// ===== CAIXA DE ENTRADA — duelos para mim =====
+async function fbQueryInbox(myCode) {
+    await _onFbReady();
+    const { db } = window.__fb;
+    const { query, collection, where, orderBy, limit, getDocs } = await _fbQueryFns();
+    const q = query(
+        collection(db, 'duels'),
+        where('inviteFor', 'array-contains', myCode),
+        orderBy('createdAt', 'desc'),
+        limit(30)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+}
+
+// Lazy load query/where/orderBy/limit/getDocs/collection — nao estavam no SDK base
+let _fbQueryFnsCache = null;
+async function _fbQueryFns() {
+    if (_fbQueryFnsCache) return _fbQueryFnsCache;
+    const mod = await import('https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js');
+    _fbQueryFnsCache = mod;
+    return mod;
+}
+
+async function refreshInbox() {
+    if (!state.userCode) return;
+    let duels;
+    try { duels = await fbQueryInbox(state.userCode); }
+    catch (err) { console.warn('[inbox] fail', err); return; }
+    // Filtrar duelos onde ja respondi
+    const myName = activeProfile()?.name;
+    const pending = duels.filter(d => !(d.responses && d.responses[myName]));
+    state._inboxCache = pending;
+    _updateInboxBadge(pending.length);
+    return pending;
+}
+
+// Real-time listener da inbox — toast quando chega duelo novo
+let _inboxUnsub = null;
+async function _attachInboxListener() {
+    if (!state.userCode || _inboxUnsub) return;
+    const { db } = window.__fb;
+    const { query, collection, where, orderBy, limit, onSnapshot } = await _fbQueryFns();
+    const q = query(
+        collection(db, 'duels'),
+        where('inviteFor', 'array-contains', state.userCode),
+        orderBy('createdAt', 'desc'),
+        limit(30)
+    );
+    let firstSnapshot = true;
+    const seenIds = new Set();
+    _inboxUnsub = onSnapshot(q, snap => {
+        const myName = activeProfile()?.name;
+        const all = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+        const pending = all.filter(d => !(d.responses && d.responses[myName]));
+        _updateInboxBadge(pending.length);
+        state._inboxCache = pending;
+        if (firstSnapshot) {
+            for (const d of pending) seenIds.add(d.id);
+            firstSnapshot = false;
+            return;
+        }
+        // Detectar novos
+        for (const d of pending) {
+            if (!seenIds.has(d.id)) {
+                seenIds.add(d.id);
+                const creator = d.creator?.name || 'Alguém';
+                const sub = SUBJECTS[d.subject]?.name || '';
+                showToast(`📬 ${creator} desafia-te! (${sub})`);
+                // Notif push se permitido + tab escondido
+                _maybePushNotif(`🥊 ${creator} desafia-te!`, `${sub} · ${d.questions.length} perguntas`);
+            }
+        }
+    }, err => console.warn('[inbox] listener err', err));
+}
+
+function _maybePushNotif(title, body) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    if (!document.hidden) return; // tab visivel — toast chega
+    try { new Notification(title, { body, icon: '/escolaplay/icons/icon-192.png' }); } catch {}
+}
+
+function _updateInboxBadge(n) {
+    const el = document.getElementById('inbox-badge');
+    if (!el) return;
+    if (n > 0) {
+        el.textContent = String(n);
+        el.style.display = 'inline-flex';
+    } else { el.style.display = 'none'; }
+}
+
+async function openInboxScreen() {
+    document.getElementById('inbox-modal-temp')?.remove();
+    const pending = await refreshInbox() || [];
+    const myName = activeProfile()?.name;
+    let content;
+    if (pending.length === 0) {
+        content = `<div style="text-align:center;padding:40px 20px;color:var(--text-light)">
+            <div style="font-size:3rem;margin-bottom:10px">📭</div>
+            <p style="font-size:0.92rem">Caixa de entrada vazia.</p>
+            <p style="font-size:0.78rem;margin-top:6px">Quando um amigo te enviar um duelo, vai aparecer aqui.</p>
+        </div>`;
+    } else {
+        content = pending.map(d => {
+            const sub = SUBJECTS[d.subject];
+            const subName = sub?.name || '?';
+            const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
+            return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="_openInboxDuel('${d.id}')">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="font-size:2rem">${escapeHtml(d.creator?.avatar || '👤')}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')} desafia-te</div>
+                        <div style="font-size:0.78rem;color:var(--text-light)">${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}</div>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:var(--text-light)"></i>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    const html = `
+    <div id="inbox-modal-temp" class="modal" style="align-items:flex-start;padding:0">
+        <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
+            <div style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+                <div>
+                    <h1 style="font-size:1.4rem;font-weight:900">📬 Caixa de duelos</h1>
+                    <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${pending.length} ${pending.length===1?'pendente':'pendentes'}</p>
+                </div>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeInboxScreen()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:18px">${content}</div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeInboxScreen() { document.getElementById('inbox-modal-temp')?.remove(); }
+async function _openInboxDuel(id) {
+    closeInboxScreen();
+    setTimeout(() => openFirestoreDuelFromUrl(id), 200);
+}
+window.openInboxScreen = openInboxScreen;
+window.closeInboxScreen = closeInboxScreen;
+window._openInboxDuel = _openInboxDuel;
+window.refreshInbox = refreshInbox;
+
+// ===== PICKER de destinatarios ao criar duelo =====
+async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
+    const friends = state.friends || [];
+    if (friends.length === 0) {
+        // Sem amigos — segue caminho de link direto (cria sem destinatarios)
+        return createDuelFromSubject(subjectKey, opts);
+    }
+    document.getElementById('duel-recipients-modal-temp')?.remove();
+    const friendsHtml = friends.map(f => `<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:pointer;background:#fff">
+        <input type="checkbox" class="dr-friend" value="${f.code}" data-name="${escapeHtml(f.name)}" style="width:20px;height:20px">
+        <div style="font-size:1.5rem">${escapeHtml(f.avatar || '👤')}</div>
+        <div style="flex:1;min-width:0">
+            <div style="font-weight:700">${escapeHtml(f.name)}</div>
+            <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace">${escapeHtml(f.code)}</div>
+        </div>
+    </label>`).join('');
+    const html = `
+    <div id="duel-recipients-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:480px;border-radius:20px;max-height:88vh;overflow:auto">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:22px;text-align:center">
+                <div style="font-size:2.4rem;margin-bottom:4px">🥊</div>
+                <h2 style="font-size:1.2rem;font-weight:900">Para quem?</h2>
+                <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Escolhe os amigos. Eles veem na caixa de entrada — sem precisares de enviar link.</p>
+            </div>
+            <div class="modal-body" style="padding:18px">
+                <div style="margin-bottom:14px">${friendsHtml}</div>
+                <label style="display:flex;align-items:center;gap:10px;padding:11px;border:1.5px dashed var(--border);border-radius:12px;background:#f9fafb;cursor:pointer">
+                    <input type="checkbox" id="dr-link-also" checked style="width:18px;height:18px">
+                    <span style="font-size:0.86rem">Gerar também link (para enviar via WhatsApp, etc.)</span>
+                </label>
+                <button class="btn btn-block" style="margin-top:14px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="_confirmDuelRecipients('${subjectKey}')">
+                    <i class="fas fa-fist-raised"></i> Criar duelo
+                </button>
+                <button class="btn btn-block btn-secondary" style="margin-top:8px;padding:11px" onclick="document.getElementById('duel-recipients-modal-temp').remove()">Cancelar</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+async function _confirmDuelRecipients(subjectKey) {
+    const checked = [...document.querySelectorAll('.dr-friend:checked')];
+    const codes = checked.map(c => c.value);
+    const names = checked.map(c => c.dataset.name);
+    const alsoLink = document.getElementById('dr-link-also')?.checked !== false;
+    document.getElementById('duel-recipients-modal-temp')?.remove();
+    await createDuelFromSubject(subjectKey, { inviteFor: codes, inviteNames: names, alsoLink });
+}
+window.pickDuelRecipientsAndCreate = pickDuelRecipientsAndCreate;
+window._confirmDuelRecipients = _confirmDuelRecipients;
 
 // ===== ACEITAR DUELO via paste (para quando o link abre no browser
 //       em vez da app instalada — comum em iOS) =====
@@ -7255,6 +7638,15 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.warn('[fbduel] url check failed', e); }
     // Listeners em tempo real dos meus duelos (recebo toast quando alguem responde)
     setTimeout(() => { if (typeof _attachAllDuelListeners === 'function') _attachAllDuelListeners(); }, 1200);
+    // Garantir userCode + registar perfil e fazer fetch inicial da inbox
+    setTimeout(() => {
+        if (typeof ensureUserCode === 'function') {
+            ensureUserCode().then(() => {
+                if (typeof refreshInbox === 'function') refreshInbox();
+                if (typeof _attachInboxListener === 'function') _attachInboxListener();
+            });
+        }
+    }, 1400);
     // Aviso "ofensiva em risco" estilo Duolingo (1x por dia)
     setTimeout(_maybeShowStreakGuilt, 800);
     // Notificações: refrescar UI + reagendar lembrete diário
