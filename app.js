@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v278';
+const APP_VERSION = 'v279';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5612,7 +5612,7 @@ async function openMyDuelsScreen() {
     const html = `
     <div id="my-duels-modal-temp" class="modal" style="align-items:flex-start;padding:0">
         <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
-            <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10" class="social-modal-header">
                 <div>
                     <h1 style="font-size:1.4rem;font-weight:900">🥊 Os meus duelos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${duels.length} ${duels.length===1?'criado':'criados'}</p>
@@ -5638,6 +5638,7 @@ async function _openDuelDetails(id) {
     const data = await fbGetDuel(id);
     if (!data) { showToast('Duelo não encontrado.'); return; }
     closeMyDuelsScreen();
+    _socialNavReturn = () => openMyDuelsScreen();
     const p = activeProfile();
     const myName = p?.name;
     const myResp = data.responses?.[myName];
@@ -5863,9 +5864,17 @@ function _showFirestoreDuelSummary(data, myResult) {
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 }
+// Stack de navegacao — guarda funcao para voltar ao ecra de origem
+let _socialNavReturn = null;
+
 function _closeFbDuelSummary() {
     document.getElementById('fb-duel-summary-modal-temp')?.remove();
     document.getElementById('exercise-screen').style.display = 'none';
+    if (_socialNavReturn) {
+        const ret = _socialNavReturn;
+        _socialNavReturn = null;
+        try { ret(); return; } catch (e) { console.warn('[nav] return fail', e); }
+    }
     switchTab('home');
 }
 window._closeFbDuelSummary = _closeFbDuelSummary;
@@ -6215,7 +6224,7 @@ async function openSocialHub() {
     const html = `
     <div id="social-hub-modal-temp" class="modal" style="align-items:flex-start;padding:0">
         <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
-            <div style="background:linear-gradient(135deg,#dc2626,#f97316,#facc15);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+            <div style="background:linear-gradient(135deg,#dc2626,#f97316,#facc15);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10" class="social-modal-header">
                 <div>
                     <h1 style="font-size:1.4rem;font-weight:900">🥊 Amigos & Duelos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Código: <strong style="font-family:monospace;letter-spacing:0.1em">${escapeHtml(state.userCode||'—')}</strong></p>
@@ -6307,7 +6316,7 @@ function openFriendsScreen() {
     const html = `
     <div id="friends-modal-temp" class="modal" style="align-items:flex-start;padding:0">
         <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
-            <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10" class="social-modal-header">
                 <div>
                     <h1 style="font-size:1.4rem;font-weight:900">👥 Os meus amigos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${friends.length} ${friends.length===1?'amigo':'amigos'}${pendingReq.length>0?` · ${pendingReq.length} pedido${pendingReq.length>1?'s':''}`:''}</p>
@@ -6381,7 +6390,7 @@ async function openSearchPeopleScreen() {
     const html = `
     <div id="search-people-modal-temp" class="modal" style="align-items:flex-start;padding:0">
         <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
-            <div style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+            <div style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10" class="social-modal-header">
                 <div>
                     <h1 style="font-size:1.4rem;font-weight:900">🔍 Procurar pessoas</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Encontra colegas e pede amizade</p>
@@ -6571,37 +6580,54 @@ function _updateInboxBadge(n) {
 
 async function openInboxScreen() {
     document.getElementById('inbox-modal-temp')?.remove();
-    const pending = await refreshInbox() || [];
+    // Vai buscar TODOS os duelos para mim (pendentes + respondidos)
+    let all = [];
+    try { all = await fbQueryInbox(state.userCode); } catch {}
     const myName = activeProfile()?.name;
+    const pending = all.filter(d => !(d.responses && d.responses[myName]));
+    const answered = all.filter(d => d.responses && d.responses[myName]);
+    state._inboxCache = pending;
+    _updateInboxBadge(pending.length);
+    const _row = (d, isAnswered) => {
+        const sub = SUBJECTS[d.subject];
+        const subName = sub?.name || '?';
+        const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
+        const cYear = d.creator?.year ? `${d.creator.year}.º ano` : '';
+        const opacity = isAnswered ? 'opacity:0.75' : '';
+        const myResp = isAnswered ? d.responses[myName] : null;
+        const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Respondido · ${myResp.correct}/${d.questions.length} · ${myResp.score}pts</div>` : '';
+        return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;${opacity}" onclick="_openInboxDuel('${d.id}')">
+            <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` <span style="font-size:0.74rem;color:var(--text-light);font-weight:600">· ${cYear}</span>`:''}${isAnswered?'':' desafia-te'}</div>
+                    <div style="font-size:0.78rem;color:var(--text-light)">${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}</div>
+                    ${myLine}
+                </div>
+                <i class="fas fa-chevron-right" style="color:var(--text-light)"></i>
+            </div>
+        </div>`;
+    };
     let content;
-    if (pending.length === 0) {
+    if (pending.length === 0 && answered.length === 0) {
         content = `<div style="text-align:center;padding:40px 20px;color:var(--text-light)">
             <div style="font-size:3rem;margin-bottom:10px">📭</div>
             <p style="font-size:0.92rem">Caixa de entrada vazia.</p>
             <p style="font-size:0.78rem;margin-top:6px">Quando um amigo te enviar um duelo, vai aparecer aqui.</p>
         </div>`;
     } else {
-        content = pending.map(d => {
-            const sub = SUBJECTS[d.subject];
-            const subName = sub?.name || '?';
-            const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
-            const cYear = d.creator?.year ? `${d.creator.year}.º ano` : '';
-            return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="_openInboxDuel('${d.id}')">
-                <div style="display:flex;align-items:center;gap:12px">
-                    <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>
-                    <div style="flex:1;min-width:0">
-                        <div style="font-weight:800;font-size:0.95rem">${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` <span style="font-size:0.74rem;color:var(--text-light);font-weight:600">· ${cYear}</span>`:''} desafia-te</div>
-                        <div style="font-size:0.78rem;color:var(--text-light)">${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}</div>
-                    </div>
-                    <i class="fas fa-chevron-right" style="color:var(--text-light)"></i>
-                </div>
-            </div>`;
-        }).join('');
+        const pendingSection = pending.length > 0
+            ? `<div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:8px;letter-spacing:0.04em">Pendentes (${pending.length})</div>${pending.map(d => _row(d, false)).join('')}`
+            : '';
+        const answeredSection = answered.length > 0
+            ? `<div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin:18px 0 8px;letter-spacing:0.04em">Já respondidos (${answered.length})</div>${answered.map(d => _row(d, true)).join('')}`
+            : '';
+        content = pendingSection + answeredSection;
     }
     const html = `
     <div id="inbox-modal-temp" class="modal" style="align-items:flex-start;padding:0">
         <div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh">
-            <div style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+            <div style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10" class="social-modal-header">
                 <div>
                     <h1 style="font-size:1.4rem;font-weight:900">📬 Caixa de duelos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${pending.length} ${pending.length===1?'pendente':'pendentes'}</p>
@@ -6616,6 +6642,7 @@ async function openInboxScreen() {
 function closeInboxScreen() { document.getElementById('inbox-modal-temp')?.remove(); }
 async function _openInboxDuel(id) {
     closeInboxScreen();
+    _socialNavReturn = () => openInboxScreen();
     setTimeout(() => openFirestoreDuelFromUrl(id), 200);
 }
 window.openInboxScreen = openInboxScreen;
