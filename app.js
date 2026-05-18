@@ -444,7 +444,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v262';
+const APP_VERSION = 'v263';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3654,7 +3654,8 @@ function startSubjectSession(key, opts = {}) {
             return;
         }
     }
-    const items = pickExercises(pool, Math.min(getPracticeQuestions(), pool.length));
+    const targetCount = (typeof opts.overrideCount === 'number' && opts.overrideCount > 0) ? opts.overrideCount : getPracticeQuestions();
+    const items = pickExercises(pool, Math.min(targetCount, pool.length));
     currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: key, topicSet, startedAt: Date.now(), createDuelAfter: !!opts.createDuelAfter };
     closeSubjectDetail();
     openExerciseScreen();
