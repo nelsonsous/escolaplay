@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v280';
+const APP_VERSION = 'v281';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6593,9 +6593,16 @@ async function openInboxScreen() {
     // Vai buscar TODOS os duelos para mim (pendentes + respondidos)
     let all = [];
     try { all = await fbQueryInbox(state.userCode); } catch {}
-    const myName = activeProfile()?.name;
-    const pending = all.filter(d => !(d.responses && d.responses[myName]));
-    const answered = all.filter(d => d.responses && d.responses[myName]);
+    const myName = activeProfile()?.name || '';
+    // Detecta a resposta minha tolerando minusculas/maiusculas/trim
+    const hasMyResponse = d => {
+        if (!d.responses) return false;
+        if (d.responses[myName]) return true;
+        const lc = myName.trim().toLowerCase();
+        return Object.keys(d.responses).some(k => k.trim().toLowerCase() === lc);
+    };
+    const pending = all.filter(d => !hasMyResponse(d));
+    const answered = all.filter(d => hasMyResponse(d));
     state._inboxCache = pending;
     _updateInboxBadge(pending.length);
     const _row = (d, isAnswered) => {
@@ -6604,7 +6611,15 @@ async function openInboxScreen() {
         const dateStr = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('pt-PT', {day:'2-digit',month:'short'}) : '';
         const cYear = d.creator?.year ? `${d.creator.year}.º ano` : '';
         const opacity = isAnswered ? 'opacity:0.75' : '';
-        const myResp = isAnswered ? d.responses[myName] : null;
+        let myResp = null;
+        if (isAnswered && d.responses) {
+            myResp = d.responses[myName];
+            if (!myResp) {
+                const lc = myName.trim().toLowerCase();
+                const k = Object.keys(d.responses).find(x => x.trim().toLowerCase() === lc);
+                if (k) myResp = d.responses[k];
+            }
+        }
         const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Respondido · ${myResp.correct}/${d.questions.length} · ${myResp.score}pts</div>` : '';
         return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;${opacity}" onclick="_openInboxDuel('${d.id}')">
             <div style="display:flex;align-items:center;gap:12px">
