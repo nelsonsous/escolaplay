@@ -239,9 +239,10 @@
             <div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;position:relative;z-index:1">👥</div>
             <div style="flex:1;min-width:0;position:relative;z-index:1">
                 <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.92">Os meus amigos</div>
-                <div style="font-weight:800;font-size:0.9rem;letter-spacing:-0.01em">Adiciona pelos códigos</div>
+                <div style="font-weight:800;font-size:0.9rem;letter-spacing:-0.01em">Procura pessoas, pede amizade</div>
             </div>
-            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1"></i>
+            <span id="friends-requests-badge" style="display:none;background:#facc15;color:#78350f;border-radius:999px;min-width:22px;height:22px;padding:0 7px;font-size:0.78rem;font-weight:900;align-items:center;justify-content:center;position:relative;z-index:1">0</span>
+            <i class="fas fa-chevron-right" style="font-size:1rem;opacity:0.85;position:relative;z-index:1;margin-left:6px"></i>
         </div>
 
         <!-- Próximo teste -->
@@ -689,7 +690,7 @@
 <!-- Firebase Firestore (modular SDK v10, via CDN) — para duelos -->
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
     const firebaseConfig = {
         apiKey: "AIzaSyDoFI-3-V1357jIMIC4FxLhH2UNlJgGzG8",
         authDomain: "escolaplay-86fb2.firebaseapp.com",
@@ -700,7 +701,7 @@
     };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    window.__fb = { db, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp };
+    window.__fb = { db, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, deleteField };
     window.__fbReady = true;
     window.dispatchEvent(new Event('fbready'));
 </script>
