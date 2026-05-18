@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v277';
+const APP_VERSION = 'v278';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5695,23 +5695,32 @@ async function openFirestoreDuelFromUrl(id) {
     showToast('🥊 A carregar duelo…');
     let data;
     try { data = await fbGetDuel(id); }
-    catch (err) { showToast('❌ Erro a carregar duelo.'); return; }
-    if (!data) { showToast('Duelo não encontrado.'); return; }
+    catch (err) { console.error('[fbduel] get fail', err); showToast('❌ Erro a carregar duelo: ' + (err?.message||err)); return; }
+    if (!data) { showToast('Duelo não encontrado (ID: ' + id + ')'); return; }
+    console.log('[fbduel] loaded', id, data);
     // Single-use por dispositivo
     if (_hasDuelPlayed(id)) {
-        _showDuelAlreadyPlayed(data, id);
+        try { _showDuelAlreadyPlayed(data, id); }
+        catch (err) { console.error('[fbduel] showAlready fail', err); showToast('Erro a mostrar duelo já jogado.'); }
         return;
     }
-    _showFirestoreDuelIntro(data, id);
+    try { _showFirestoreDuelIntro(data, id); }
+    catch (err) { console.error('[fbduel] showIntro fail', err); showToast('Erro a abrir duelo: ' + (err?.message||err)); }
 }
 
 function _showFirestoreDuelIntro(data, id) {
     document.getElementById('fb-duel-intro-modal-temp')?.remove();
+    if (!data || !Array.isArray(data.questions) || data.questions.length === 0) {
+        showToast('Duelo sem perguntas — pode ser dado antigo. ID: ' + id);
+        console.warn('[fbduel] bad data', data);
+        return;
+    }
     const p = activeProfile();
     const myName = p?.name || 'Tu';
     const isCreator = p && data.creator?.name === p.name;
     const subName = SUBJECTS[data.subject]?.name || 'EscolaPlay';
     const responsesCount = Object.keys(data.responses || {}).length;
+    const qCount = data.questions.length;
     // Se outros ja responderam — mostrar quem
     let opponentsHtml = '';
     if (responsesCount > 0) {
