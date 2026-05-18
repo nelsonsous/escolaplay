@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v274';
+const APP_VERSION = 'v275';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5457,8 +5457,11 @@ async function createDuelFromSubject(subjectKey, opts = {}) {
             const names = opts.inviteNames || opts.inviteFor;
             const namesStr = names.length === 1 ? names[0] : `${names.length} amigos`;
             showToast(`✅ Duelo enviado para ${namesStr}!`);
+            // Convidar criador a jogar tambem
+            setTimeout(() => _promptCreatorPlay(id, namesStr), 700);
         } else {
             showToast('✅ Duelo criado.');
+            setTimeout(() => _promptCreatorPlay(id, 'os teus amigos'), 700);
         }
     } catch (err) {
         console.error('[duel] create failed', err);
@@ -5589,8 +5592,9 @@ async function openMyDuelsScreen() {
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;margin-top:10px">
-                    <button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_copyDuelLink('${entry.id}')"><i class="fas fa-link"></i> Copiar link</button>
-                    <button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_openDuelDetails('${entry.id}')"><i class="fas fa-eye"></i> Ver ranking</button>
+                    ${!myResp
+                        ? `<button class="btn" style="flex:1;padding:9px;font-size:0.84rem;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800" onclick="closeMyDuelsScreen();_startFirestoreDuel('${entry.id}')"><i class="fas fa-fist-raised"></i> Jogar</button>`
+                        : `<button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_openDuelDetails('${entry.id}')"><i class="fas fa-eye"></i> Ver ranking</button>`}
                 </div>
             </div>`;
         }).join('');
@@ -5641,16 +5645,40 @@ window._copyDuelLink = _copyDuelLink;
 window._openDuelDetails = _openDuelDetails;
 
 async function _shareNewDuelLink(id, creatorName, subjectKey, qCount) {
+    // (mantido para backward compat - chamado se algum amigo nao usa a app)
     const url = `${location.origin}${location.pathname}?d=${id}`;
-    const subName = SUBJECTS[subjectKey]?.name || 'EscolaPlay';
-    const text = `🥊 ${creatorName} desafia-te no EscolaPlay!\n\n${subName} · ${qCount} perguntas\n\nAbre o link e responde — eu também vou jogar e depois comparamos:\n\n${url}`;
+    const text = `🥊 ${creatorName} desafia-te no EscolaPlay! Abre: ${url}`;
     if (navigator.share) {
-        try { await navigator.share({ title: '🥊 Duelo EscolaPlay', text }); return; }
-        catch (err) { if (err && err.name === 'AbortError') return; }
+        try { await navigator.share({ title: '🥊 Duelo', text }); return; } catch (err) { if (err?.name === 'AbortError') return; }
     }
-    try { await navigator.clipboard.writeText(text); showToast('🔗 Link copiado!'); }
-    catch { prompt('Copia este link e envia ao teu amigo:', url); }
+    try { await navigator.clipboard.writeText(text); showToast('🔗 Link copiado!'); } catch { prompt('Link:', url); }
 }
+
+// Modal pos-criacao a convidar o criador a jogar tambem
+function _promptCreatorPlay(duelId, recipientStr) {
+    document.getElementById('creator-play-modal-temp')?.remove();
+    const html = `
+    <div id="creator-play-modal-temp" class="modal" style="align-items:center;padding:20px">
+        <div class="modal-content" style="max-width:440px;border-radius:20px">
+            <div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:24px;text-align:center">
+                <div style="font-size:3rem;margin-bottom:4px">🎯</div>
+                <h2 style="font-size:1.3rem;font-weight:900">Duelo enviado!</h2>
+                <p style="font-size:0.86rem;opacity:0.94;margin-top:4px">Joga tu também para compararem.</p>
+            </div>
+            <div class="modal-body" style="padding:22px">
+                <p style="font-size:0.88rem;color:var(--text);line-height:1.5;margin-bottom:14px">
+                    O ${recipientStr ? `desafio foi para ${recipientStr}` : 'duelo foi criado'}. Para apareceres no ranking, tens de jogar tu também.
+                </p>
+                <button class="btn btn-block" style="background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)" onclick="document.getElementById('creator-play-modal-temp').remove();_startFirestoreDuel('${duelId}')">
+                    <i class="fas fa-fist-raised"></i> Jogar agora
+                </button>
+                <button class="btn btn-block btn-secondary" style="margin-top:8px;padding:11px" onclick="document.getElementById('creator-play-modal-temp').remove()">Mais tarde</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+window._promptCreatorPlay = _promptCreatorPlay;
 
 // ===== ABRIR DUELO Firestore via URL ?d=<id> =====
 async function openFirestoreDuelFromUrl(id) {
