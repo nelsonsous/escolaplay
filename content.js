@@ -3886,14 +3886,24 @@ const YEARS_AVAILABLE = [
     { year: 3,  label: '3.º ano',  cycle: '1.º ciclo' },
     { year: 5,  label: '5.º ano',  cycle: '2.º ciclo' },
     { year: 6,  label: '6.º ano',  cycle: '2.º ciclo' },
-    { year: 11, label: '11.º ano', cycle: 'Secundário' }
+    { year: 11, label: '11.º ano', cycle: 'Secundário' },
+    { year: 99, label: 'Profissional', cycle: 'Adulto' }
 ];
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11 };
+// Year 99 — Profissional. Base vazia: as disciplinas vêm de packs
+// secretos (English for PMs, etc.). Permite cursos para adultos
+// ficarem escondidos até serem activados manualmente.
+const SUBJECTS_99   = {};
+const CURRICULUM_99 = {};
+const EXERCISES_99  = [];
+const LESSONS_99    = {};
+const PERIODS_99    = {};
+
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11,   99: SUBJECTS_99 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11, 99: CURRICULUM_99 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11,  99: EXERCISES_99 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11,    99: LESSONS_99 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11,    99: PERIODS_99 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
