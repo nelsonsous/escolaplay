@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v305';
+const APP_VERSION = 'v306';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -533,6 +533,10 @@ function _sanitizeExercise(e) {
         if (typeof e.ans !== 'number' || e.ans < 0 || e.ans >= e.opts.length) return null;
     }
     if (e.type === 'tf' && typeof e.ans !== 'boolean') return null;
+    if (e.type === 'speak') {
+        if (typeof e.ans === 'string') e.ans = [e.ans];
+        if (!Array.isArray(e.ans) || !e.ans.length) return null;
+    }
     return e;
 }
 
@@ -3837,6 +3841,7 @@ function pickExercises(pool, n) {
             ans = a.map(x => normTxt(String(x))).sort().join(',');
         } else if (e.type === 'order') ans = (e.items || []).map(o => normTxt(String(o))).sort().join(',');
         else if (e.type === 'match') ans = (e.pairs || []).map(p => normTxt(String(p[0])) + '|' + normTxt(String(p[1]))).sort().join(',');
+        else if (e.type === 'speak') ans = (e.ans || []).map(a => normTxt(String(a))).sort().join(',');
         return (e.s || '') + '|' + normTxt(e.q) + '|' + ans;
     };
     const pickedKeys = new Set();
@@ -4153,6 +4158,7 @@ function renderQuestion() {
     else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') area.innerHTML = renderFill(e);
     else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div>`; setTimeout(redrawMatch, 0); }
+    else if (e.type === 'speak') { area.innerHTML = renderSpeak(e); speakState = { transcript: '', listening: false, lang: e.lang || 'en-US' }; }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -4199,6 +4205,177 @@ function renderFill(e) {
             oninput="_markActionHasSelection(this.value.trim().length > 0)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();exActionTap();}">
     `;
+}
+
+// ============================================================
+// SPEAK — Web Speech API (STT en-US/en-GB + TTS voz Google)
+// ============================================================
+let speakState = { transcript: '', listening: false, lang: 'en-US' };
+let _speakRecog = null;
+
+function renderSpeak(e) {
+    const model = (e.ans && e.ans[0]) || '';
+    const lang = e.lang || 'en-US';
+    const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+    const tip = e.tip ? `<div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:6px;margin:8px 0 12px;font-size:0.86rem;color:#78350f"><strong>💡 Dica:</strong> ${escapeHtml(e.tip)}</div>` : '';
+    const sttBlock = sttOk
+        ? `<button id="speak-mic" onclick="toggleSpeakMic()" style="display:block;width:100%;background:linear-gradient(135deg,#0891b2,#2563eb);color:#fff;border:none;border-radius:14px;padding:18px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(8,145,178,0.3);margin-bottom:10px"><i class="fas fa-microphone"></i>&nbsp;&nbsp;Tocar e falar</button>
+           <div id="speak-transcript" style="min-height:64px;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:12px 14px;font-size:0.95rem;color:#475569;line-height:1.5;text-align:left">A tua fala aparece aqui…</div>
+           <div style="display:flex;gap:8px;margin-top:8px">
+             <button onclick="resetSpeak()" style="flex:1;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-rotate-left"></i>&nbsp;Apagar</button>
+             <button onclick="ttsSpeakEN(_speakModelText, '${lang}')" style="flex:1;background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-volume-high"></i>&nbsp;Ouvir modelo</button>
+           </div>`
+        : `<div style="background:#fee2e2;border-left:3px solid #dc2626;padding:10px 14px;border-radius:6px;color:#7f1d1d;font-size:0.86rem">Este browser não suporta reconhecimento de voz. Usa Chrome ou Safari.</div>`;
+    _speakModelText = model;
+    return tip + sttBlock;
+}
+
+let _speakModelText = '';
+
+function _pickENVoice(lang) {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+    const wantUK = /gb/i.test(lang);
+    const score = (v) => {
+        let s = 0;
+        const name = (v.name || '').toLowerCase();
+        const vlang = (v.lang || '').toLowerCase();
+        if (wantUK && /en[-_]gb/.test(vlang)) s += 100;
+        else if (!wantUK && /en[-_]us/.test(vlang)) s += 100;
+        else if (/^en/.test(vlang)) s += 40;
+        if (/google/.test(name)) s += 50;
+        if (/(natural|neural|premium|enhanced)/.test(name)) s += 20;
+        if (v.localService === false) s += 5;
+        return s;
+    };
+    return voices.slice().sort((a,b) => score(b) - score(a))[0] || null;
+}
+
+function ttsSpeakEN(text, lang) {
+    if (!text || !('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = lang || 'en-US';
+        u.rate = 0.92;
+        u.pitch = 1.0;
+        const v = _pickENVoice(u.lang);
+        if (v) u.voice = v;
+        window.speechSynthesis.speak(u);
+    } catch (e) { console.warn('[tts-en] failed:', e); }
+}
+
+function toggleSpeakMic() {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Rec) { showToast('Reconhecimento de voz não suportado'); return; }
+    if (speakState.listening && _speakRecog) {
+        try { _speakRecog.stop(); } catch {}
+        return;
+    }
+    const r = new Rec();
+    r.lang = speakState.lang || 'en-US';
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+    r.continuous = false;
+    _speakRecog = r;
+    speakState.listening = true;
+    const btn = document.getElementById('speak-mic');
+    if (btn) { btn.innerHTML = '<i class="fas fa-stop"></i>&nbsp;&nbsp;A ouvir… (toca para parar)'; btn.style.background = 'linear-gradient(135deg,#dc2626,#ea580c)'; }
+    let finalTxt = '';
+    r.onresult = (ev) => {
+        let interim = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const res = ev.results[i];
+            if (res.isFinal) finalTxt += res[0].transcript;
+            else interim += res[0].transcript;
+        }
+        const out = (finalTxt + ' ' + interim).trim();
+        speakState.transcript = finalTxt.trim() || out;
+        const el = document.getElementById('speak-transcript');
+        if (el) {
+            el.style.color = '#0f172a';
+            el.style.borderStyle = 'solid';
+            el.style.background = '#fff';
+            el.textContent = out || '…';
+        }
+        _markActionHasSelection(speakState.transcript.length > 0);
+    };
+    r.onerror = (ev) => {
+        speakState.listening = false;
+        if (btn) { btn.innerHTML = '<i class="fas fa-microphone"></i>&nbsp;&nbsp;Tocar e falar'; btn.style.background = 'linear-gradient(135deg,#0891b2,#2563eb)'; }
+        const el = document.getElementById('speak-transcript');
+        if (el && ev.error === 'not-allowed') el.textContent = 'Sem permissão de microfone. Ativa nas definições do browser.';
+        else if (el && ev.error === 'no-speech') el.textContent = 'Não ouvi nada. Toca de novo e fala mais perto do mic.';
+    };
+    r.onend = () => {
+        speakState.listening = false;
+        if (btn) { btn.innerHTML = '<i class="fas fa-microphone"></i>&nbsp;&nbsp;Falar de novo'; btn.style.background = 'linear-gradient(135deg,#0891b2,#2563eb)'; }
+        _speakRecog = null;
+    };
+    try { r.start(); } catch (e) { console.warn('[stt] start failed:', e); speakState.listening = false; }
+}
+window.toggleSpeakMic = toggleSpeakMic;
+
+function resetSpeak() {
+    speakState.transcript = '';
+    const el = document.getElementById('speak-transcript');
+    if (el) {
+        el.textContent = 'A tua fala aparece aqui…';
+        el.style.color = '#475569';
+        el.style.borderStyle = 'dashed';
+        el.style.background = '#f8fafc';
+    }
+    _markActionHasSelection(false);
+}
+window.resetSpeak = resetSpeak;
+window.ttsSpeakEN = ttsSpeakEN;
+
+// Validação speak via IA — devolve {status, corrected, tip}
+async function aiValidateSpeech(exercise, transcript) {
+    const expected = (exercise.ans || []).join(' / ');
+    const norm = (s) => normalize(s).replace(/[^a-z0-9\s']/g, '');
+    const nT = norm(transcript);
+    const nE = norm(exercise.ans[0] || '');
+    // Match local: se as palavras-chave estao todas presentes consideramos "correct".
+    const tWords = new Set(nT.split(/\s+/).filter(w => w.length > 2));
+    const eWords = nE.split(/\s+/).filter(w => w.length > 2);
+    const hit = eWords.filter(w => tWords.has(w)).length;
+    const localRatio = eWords.length ? hit / eWords.length : 0;
+    if (!hasAIKey()) {
+        if (localRatio >= 0.7) return { status: 'correct', corrected: '', tip: '' };
+        if (localRatio >= 0.4) return { status: 'close', corrected: exercise.ans[0], tip: 'Tens metade da ideia — repete devagar a frase modelo.' };
+        return { status: 'wrong', corrected: exercise.ans[0], tip: 'Ouve o modelo e tenta repetir a estrutura.' };
+    }
+    const prompt = `You are an English coach evaluating a Portuguese Project Manager (B2→C1) preparing for SAP/consulting meetings.
+
+CONTEXT (Portuguese, what the student should say in English): "${exercise.q}"
+MODEL ANSWER(S): "${expected}"
+STUDENT SAID (transcribed from speech): "${transcript}"
+
+Evaluate:
+- "correct": meaning AND grammar acceptable for a senior PM, even if wording differs from model.
+- "close": meaning right but grammar/word-choice off (article, tense, preposition, awkward phrasing).
+- "wrong": meaning wrong or unintelligible.
+
+Return STRICT JSON:
+{"status":"correct|close|wrong","corrected":"<one polished English version the student should learn>","tip":"<one short coaching note in EUROPEAN PORTUGUESE, max 18 words>"}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 320);
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) {
+            const parsed = JSON.parse(m[0]);
+            if (parsed && ['correct', 'close', 'wrong'].includes(parsed.status)) {
+                return {
+                    status: parsed.status,
+                    corrected: String(parsed.corrected || exercise.ans[0]).slice(0, 400),
+                    tip: String(parsed.tip || '').slice(0, 200)
+                };
+            }
+        }
+    } catch (e) { console.warn('[speak-ai] failed:', e); }
+    if (localRatio >= 0.7) return { status: 'correct', corrected: '', tip: '' };
+    return { status: 'close', corrected: exercise.ans[0], tip: 'Repete a frase modelo devagar.' };
 }
 
 let orderState = [];
@@ -4355,6 +4532,16 @@ async function submitAnswer() {
                     s._partial = { missing: r.missing || '' };
                 }
             }
+        } else if (e.type === 'speak') {
+            const tr = (speakState.transcript || '').trim();
+            if (!tr) { showToast('Toca no microfone e diz a frase'); return; }
+            const btn = document.getElementById('submit-btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'A avaliar…'; }
+            const r = await aiValidateSpeech(e, tr);
+            if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
+            if (currentSession !== s) return;
+            isCorrect = r.status === 'correct';
+            s._speakResult = { transcript: tr, status: r.status, corrected: r.corrected, tip: r.tip };
         } else if (e.type === 'order') {
             isCorrect = orderState.every((it, i) => it === e.items[i]);
         } else if (e.type === 'match') {
@@ -4675,7 +4862,20 @@ function showFeedback(e, isCorrect) {
         else if (e.type === 'tf') expParts.push(`Resposta certa: ${e.ans ? 'Verdadeiro' : 'Falso'}.`);
         else if (e.type === 'fill' || e.type === 'problem') expParts.push(`Resposta certa: ${e.ans[0]}.`);
         else if (e.type === 'order') expParts.push(`Ordem certa: ${e.items.join(' > ')}.`);
+        else if (e.type === 'speak') {
+            const r = currentSession?._speakResult;
+            if (r) {
+                expParts.push(`🎙️ Disseste: "${r.transcript}"`);
+                if (r.corrected) expParts.push(`✅ Versão correta: "${r.corrected}"`);
+                if (r.tip) expParts.push(`💡 ${r.tip}`);
+            } else {
+                expParts.push(`Resposta esperada: ${e.ans[0]}.`);
+            }
+        }
         if (e.exp) expParts.push(e.exp);
+    } else if (e.type === 'speak') {
+        const r = currentSession?._speakResult;
+        if (r) expParts.push(`🎙️ Disseste: "${r.transcript}"`);
     }
     if (e.material)  expParts.push(`📘 ${e.material}`);
     if (e.solution)  expParts.push(`📐 Resolução: ${e.solution}`);
@@ -4693,6 +4893,19 @@ function showFeedback(e, isCorrect) {
         visualFB = `<div style="margin:0 0 10px;text-align:center">${e.svgAfter}</div>`;
     }
     expEl.innerHTML = visualFB + expParts.map(p => _renderMdExp(p)).join('<br><br>');
+    // Botões dedicados para exercícios speak: ouvir a versão correta + repetir a tentativa
+    if (e.type === 'speak') {
+        const r = currentSession?._speakResult;
+        const modelTxt = (r && r.corrected) ? r.corrected : (e.ans?.[0] || '');
+        const lang = e.lang || 'en-US';
+        if (modelTxt) {
+            const btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:8px;margin-top:12px';
+            btnRow.innerHTML = `<button class="speak-fb-listen" style="flex:1;background:linear-gradient(135deg,#0891b2,#2563eb);color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:700;cursor:pointer"><i class="fas fa-volume-high"></i>&nbsp;Ouvir versão correta</button>`;
+            btnRow.querySelector('.speak-fb-listen').addEventListener('click', () => ttsSpeakEN(modelTxt, lang));
+            expEl.appendChild(btnRow);
+        }
+    }
     expEl.style.whiteSpace = 'pre-wrap';
     document.getElementById('feedback-exp').style.textAlign = 'left';
     // Botão explicação detalhada: sempre visível
