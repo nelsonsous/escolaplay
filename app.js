@@ -499,7 +499,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v298';
+const APP_VERSION = 'v299';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1435,6 +1435,23 @@ function renderTopicList() {
         const tEsc = t.replace(/'/g, "\\'");
         // Cor da barra de progresso: verde se ≥ 80% acertos, amarelo se intermédio, cinza se nada
         const progBarColor = seenCount === 0 ? '#e5e7eb' : (correctCount / Math.max(seenCount, 1)) >= 0.8 ? '#16a34a' : '#f59e0b';
+        // Indicador de estado para saber qual treinar
+        // - 'novo' (sem badge — só a contagem 0/N)
+        // - 'treinar' (vermelho) — acertos < 60%
+        // - 'curso' (amarelo) — acertos 60-85% OU progresso < 80% do banco
+        // - 'dominado' (verde) — acertos ≥ 85% E pelo menos 80% do banco respondido
+        let statusBadge = '';
+        if (seenCount > 0 && count > 0) {
+            const acc = correctCount / seenCount;
+            const coverage = seenCount / count;
+            if (acc < 0.6) {
+                statusBadge = '<span title="Acerto baixo — pratica mais" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:0.58rem;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">🎯 Treinar</span>';
+            } else if (acc >= 0.85 && coverage >= 0.8) {
+                statusBadge = '<span title="Dominado — continua a manter" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:0.58rem;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">✓ Dominado</span>';
+            } else {
+                statusBadge = '<span title="Em progresso" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:0.58rem;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">⚡ Em curso</span>';
+            }
+        }
         const stars = topicStars(key, t);
         const borderColor = isActive ? subColor : (isRecommended ? '#14b8a6' : 'transparent');
         const cardBg = isActive ? '#fff' : (isRecommended ? '#f0fdfa' : '#fafafa');
@@ -1443,7 +1460,7 @@ function renderTopicList() {
                 <input type="checkbox" ${isActive ? 'checked' : ''} onclick="event.stopPropagation();toggleActiveTopic('${key}','${tEsc}');renderTopicList();" style="width:16px;height:16px;accent-color:${subColor};flex-shrink:0" title="Incluir nos meus treinos por defeito">
                 <span style="width:20px;height:20px;border-radius:50%;background:${isActive ? subColor : '#cbd5e1'};color:#fff;font-size:0.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:5px;line-height:1.2">${t}${isRecommended ? '<span title="Recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">REC</span>' : ''}${stars ? `<span title="Domínio" style="font-size:0.72rem;letter-spacing:1px">${stars}</span>` : ''}</div>
+                    <div style="font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:5px;line-height:1.2;flex-wrap:wrap">${t}${statusBadge}${isRecommended ? '<span title="Recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">REC</span>' : ''}${stars ? `<span title="Domínio" style="font-size:0.72rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.68rem;color:var(--text-light);margin-top:1px;display:flex;align-items:center;gap:6px">
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span>
                         ${correctCount > 0 ? `<span style="color:#16a34a">✓${correctCount}</span>` : ''}
