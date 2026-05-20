@@ -325,6 +325,87 @@
         }, 1000);
     }
 
+    // ========== Cenas animadas por disciplina ==========
+    const _CUSTOM_SCENES = new Set(['portugues', 'matematica', 'ingles', 'estudo_meio', 'ciencias', 'hgp']);
+    function _sceneClass(subject) {
+        return _CUSTOM_SCENES.has(subject) ? `esc-scene--${subject}` : 'esc-scene--generic';
+    }
+    function _sceneHTML(subject, fallbackIcon) {
+        switch (subject) {
+            case 'portugues': {
+                const letters = ['A','Á','E','Ê','I','O','Õ','U','Ç','M','N','S','B','P','R','J'];
+                const items = [];
+                for (let i = 0; i < 14; i++) {
+                    const L = letters[Math.floor(Math.random() * letters.length)];
+                    const left = Math.floor(Math.random() * 95);
+                    const dur = (Math.random() * 8 + 6).toFixed(1);
+                    const delay = (Math.random() * 8).toFixed(1);
+                    const size = Math.floor(Math.random() * 22 + 18);
+                    items.push(`<span class="esc-letter" style="left:${left}%;font-size:${size}px;animation-duration:${dur}s;animation-delay:${delay}s">${L}</span>`);
+                }
+                return items.join('') + '<i class="esc-quill fas fa-feather-pointed"></i>';
+            }
+            case 'matematica': {
+                const eqs = ['2+2=4', '√16=4', 'x²+y²', 'π≈3.14', 'sin(θ)', 'a²+b²=c²', '∫dx', 'lim→∞', '∑n', 'e^iπ+1=0', 'log(10)', '½', '∞'];
+                const items = [];
+                for (let i = 0; i < 6; i++) {
+                    const eq = eqs[Math.floor(Math.random() * eqs.length)];
+                    const top = Math.floor(Math.random() * 80 + 5);
+                    const dur = (Math.random() * 10 + 8).toFixed(1);
+                    const delay = (Math.random() * 6).toFixed(1);
+                    const size = Math.floor(Math.random() * 8 + 13);
+                    items.push(`<span class="esc-eq" style="top:${top}%;font-size:${size}px;animation-duration:${dur}s;animation-delay:${delay}s">${eq}</span>`);
+                }
+                return items.join('') + '<span class="esc-pi">π</span>';
+            }
+            case 'ingles': {
+                const words = ['hello', 'world', 'learn', 'speak', 'listen', 'meeting', 'agenda', 'report'];
+                const items = [];
+                for (let i = 0; i < 6; i++) {
+                    const w = words[Math.floor(Math.random() * words.length)];
+                    const left = Math.floor(Math.random() * 90);
+                    const dur = (Math.random() * 7 + 7).toFixed(1);
+                    const delay = (Math.random() * 6).toFixed(1);
+                    items.push(`<span class="esc-en-word" style="left:${left}%;animation-duration:${dur}s;animation-delay:${delay}s">${w}</span>`);
+                }
+                items.push('<span class="esc-wave" style="animation-delay:0s"></span>');
+                items.push('<span class="esc-wave" style="animation-delay:1s"></span>');
+                items.push('<span class="esc-wave" style="animation-delay:2s"></span>');
+                items.push('<div class="esc-globe"></div>');
+                return items.join('');
+            }
+            case 'estudo_meio': {
+                const leaves = [];
+                for (let i = 0; i < 8; i++) {
+                    const left = Math.floor(Math.random() * 95);
+                    const dur = (Math.random() * 5 + 5).toFixed(1);
+                    const delay = (Math.random() * 5).toFixed(1);
+                    leaves.push(`<i class="esc-leaf fas fa-leaf" style="left:${left}%;animation-duration:${dur}s;animation-delay:${delay}s"></i>`);
+                }
+                return '<div class="esc-sun"></div>' + leaves.join('') + '<i class="esc-tree fas fa-tree"></i>';
+            }
+            case 'ciencias': {
+                return `<div class="esc-mol">
+                    <span class="esc-bond"></span>
+                    <span class="esc-atom esc-atom-c">C</span>
+                    <span class="esc-atom esc-atom-c2">C</span>
+                    <span class="esc-atom esc-atom-h esc-atom-ha">H</span>
+                    <span class="esc-atom esc-atom-h esc-atom-hb">H</span>
+                    <span class="esc-atom esc-atom-h esc-atom-hc">H</span>
+                    <span class="esc-atom esc-atom-o">OH</span>
+                </div>`;
+            }
+            case 'hgp': {
+                return `<div class="esc-column c1"></div>
+                    <div class="esc-column c2"></div>
+                    <div class="esc-column c3"></div>
+                    <div class="esc-hourglass"><span class="esc-sand"></span></div>`;
+            }
+            default:
+                return `<span class="esc-scene-orbit"></span><i class="esc-scene-icon fas ${fallbackIcon || 'fa-key'}"></i>`;
+        }
+    }
+
     // ========== Renderizar sala atual ==========
     function _renderRoom() {
         const stage = document.getElementById('esc-stage');
@@ -352,9 +433,8 @@
                     </div>
                     <div class="esc-q-counter">${room.currentQ + 1}/${room.questions.length}</div>
                 </div>
-                <div class="esc-scene">
-                    <span class="esc-scene-orbit"></span>
-                    <i class="esc-scene-icon fas ${room.sceneIcon}"></i>
+                <div class="esc-scene ${_sceneClass(room.subject)}">
+                    ${_sceneHTML(room.subject, room.sceneIcon)}
                 </div>
                 <div class="esc-question">
                     ${_renderMd(q.q)}
