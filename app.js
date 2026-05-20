@@ -499,7 +499,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v299';
+const APP_VERSION = 'v300';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1405,13 +1405,35 @@ function renderTopicList() {
     const recommendedSet = (key === 'mat_plus' && state.matPlusDiag && Array.isArray(state.matPlusDiag.recommended))
         ? new Set(state.matPlusDiag.recommended)
         : new Set();
+    // Testes futuros (nao feitos) desta disciplina — para sinalizar topicos que saem em teste
+    const testsForSubject = (state.tests || []).filter(t =>
+        t.subject === key && !t.done && Array.isArray(t.topics) && t.topics.length > 0
+    ).sort((a, b) => a.date.localeCompare(b.date));
+    // Map topic -> teste mais proximo
+    const topicToTest = {};
+    for (const test of testsForSubject) {
+        for (const tp of test.topics) {
+            if (!topicToTest[tp]) topicToTest[tp] = test;
+        }
+    }
     const hiddenN = allTopics.length - visibleTopics.length;
+    // Banner de testes proximos (se houver topicos em teste)
+    let testBanner = '';
+    if (testsForSubject.length > 0) {
+        const topicsInTests = new Set();
+        for (const test of testsForSubject) for (const tp of test.topics) topicsInTests.add(tp);
+        const nextTest = testsForSubject[0];
+        const [yyyy, mm, dd] = nextTest.date.split('-');
+        const dateStr = `${dd}/${mm}`;
+        const tCount = topicsInTests.size;
+        testBanner = `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fcd34d;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:0.82rem;color:#78350f;display:flex;align-items:center;gap:8px"><span style="font-size:1rem">📝</span><span style="flex:1"><strong>${tCount}</strong> ${tCount===1?'tópico sai':'tópicos saem'} no teste de ${dateStr}</span></div>`;
+    }
     const banner = (useFilter && hiddenN > 0)
         ? `<div class="ep-topic-banner"><i class="fas fa-bullseye"></i> ${visibleTopics.length} de ${allTopics.length} tópicos activos. <button type="button" onclick="toggleTopicFocus()" class="ep-topic-banner-link">Ver todos</button></div>`
         : (focus === 'active' && active.size === 0 && allTopics.length > 0)
             ? `<div class="ep-topic-banner"><i class="fas fa-circle-info"></i> Sem tópicos activos. Activa abaixo o que ela está a dar agora.</div>`
             : '';
-    container.innerHTML = banner + visibleTopics.map((t, vi) => {
+    container.innerHTML = testBanner + banner + visibleTopics.map((t, vi) => {
         const i = origIndex.get(t) ?? vi;
         const isActive = active.has(t);
         const isRecommended = recommendedSet.has(t);
@@ -1453,14 +1475,27 @@ function renderTopicList() {
             }
         }
         const stars = topicStars(key, t);
-        const borderColor = isActive ? subColor : (isRecommended ? '#14b8a6' : 'transparent');
-        const cardBg = isActive ? '#fff' : (isRecommended ? '#f0fdfa' : '#fafafa');
+        // Badge "Sai no teste" — se este topico esta em algum teste futuro desta disciplina
+        let testBadge = '';
+        const upcomingTest = topicToTest[t];
+        if (upcomingTest) {
+            const [yyyy, mm, dd] = upcomingTest.date.split('-');
+            const dateStr = `${dd}/${mm}`;
+            const today = todayStr();
+            const isPast = upcomingTest.date < today;
+            const bg = isPast ? '#fef2f2' : '#fef3c7';
+            const fg = isPast ? '#dc2626' : '#92400e';
+            const bd = isPast ? '#fca5a5' : '#fcd34d';
+            testBadge = `<span title="Sai no teste de ${SUBJECTS[key]?.name||''} de ${dateStr}" style="background:${bg};color:${fg};border:1px solid ${bd};font-size:0.58rem;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">📝 ${dateStr}</span>`;
+        }
+        const borderColor = isActive ? subColor : (isRecommended ? '#14b8a6' : (upcomingTest ? '#fcd34d' : 'transparent'));
+        const cardBg = isActive ? '#fff' : (isRecommended ? '#f0fdfa' : (upcomingTest ? '#fffbeb' : '#fafafa'));
         return `
             <div onclick="toggleActiveTopic('${key}','${tEsc}');renderTopicList();" style="background:${cardBg};padding:7px 10px;border-radius:10px;box-shadow:var(--shadow-sm);margin-bottom:5px;display:flex;align-items:center;gap:7px;opacity:${isActive ? '1' : '0.55'};cursor:pointer;border:1.5px solid ${borderColor}">
                 <input type="checkbox" ${isActive ? 'checked' : ''} onclick="event.stopPropagation();toggleActiveTopic('${key}','${tEsc}');renderTopicList();" style="width:16px;height:16px;accent-color:${subColor};flex-shrink:0" title="Incluir nos meus treinos por defeito">
                 <span style="width:20px;height:20px;border-radius:50%;background:${isActive ? subColor : '#cbd5e1'};color:#fff;font-size:0.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:5px;line-height:1.2;flex-wrap:wrap">${t}${statusBadge}${isRecommended ? '<span title="Recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">REC</span>' : ''}${stars ? `<span title="Domínio" style="font-size:0.72rem;letter-spacing:1px">${stars}</span>` : ''}</div>
+                    <div style="font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:5px;line-height:1.2;flex-wrap:wrap">${t}${testBadge}${statusBadge}${isRecommended ? '<span title="Recomendado pelo diagnóstico" style="background:#14b8a6;color:#fff;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase">REC</span>' : ''}${stars ? `<span title="Domínio" style="font-size:0.72rem;letter-spacing:1px">${stars}</span>` : ''}</div>
                     <div style="font-size:0.68rem;color:var(--text-light);margin-top:1px;display:flex;align-items:center;gap:6px">
                         <span style="color:${seenCount > 0 ? subColor : 'var(--text-light)'};font-weight:600">${seenCount}/${count}</span>
                         ${correctCount > 0 ? `<span style="color:#16a34a">✓${correctCount}</span>` : ''}
