@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v294';
+const APP_VERSION = 'v295';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7059,6 +7059,69 @@ async function _confirmDuelRecipients(subjectKey) {
 }
 window.pickDuelRecipientsAndCreate = pickDuelRecipientsAndCreate;
 window._confirmDuelRecipients = _confirmDuelRecipients;
+
+// Utilitario: cria os 3 testes do 3.o periodo para a Eduarda (2.o ano).
+// Executar via console no browser: setupEduarda3rdPeriod()
+function setupEduarda3rdPeriod() {
+    const p = activeProfile();
+    if (!p) { console.warn('Sem perfil activo'); return; }
+    if (p.year !== 2) {
+        if (!confirm(`Perfil ativo (${p.name}) e do ${p.year}.o ano. Continuar mesmo assim?`)) return;
+    }
+    const tests = [
+        {
+            subject: 'matematica',
+            date: '2026-06-03',
+            note: '3.º período · Tabuadas, multiplicação, divisão, frações, dinheiro, comprimento',
+            topics: [
+                'Tabuada do 2','Tabuada do 3','Tabuada do 4','Tabuada do 5','Tabuada do 10',
+                'Multiplicação','Divisão','Frações simples','Dinheiro (€)','Comprimento',
+                'Adição até 100','Subtração até 100','Gráficos','Figuras planas','Números até 100'
+            ]
+        },
+        {
+            subject: 'portugues',
+            date: '2026-06-11',
+            note: '3.º período · Verbos, adjetivos, nomes, sílabas, frases',
+            topics: [
+                'Adjetivos','Verbos no presente','Verbos no passado e futuro',
+                'Nomes próprios e comuns','Tipos de frase','Pontuação básica','Sílabas','Singular e plural'
+            ]
+        },
+        {
+            subject: 'estudo_meio',
+            date: '2026-06-16',
+            note: '3.º período · Portugal, pertenças, comemorações',
+            topics: [
+                'Portugal','A minha família','Comemorações','A escola'
+            ]
+        }
+    ];
+    if (!state.tests) state.tests = [];
+    let added = 0;
+    for (const t of tests) {
+        // Skip se ja existir teste mesmo dia + mesma disciplina
+        if (state.tests.some(x => x.date === t.date && x.subject === t.subject)) continue;
+        state.tests.push({
+            id: uid(),
+            subject: t.subject,
+            date: t.date,
+            note: t.note,
+            topics: t.topics,
+            done: false,
+            targetGrade: null,
+            actualGrade: null
+        });
+        added++;
+    }
+    saveState();
+    if (typeof renderTests === 'function') renderTests();
+    if (typeof renderHome === 'function') renderHome();
+    if (typeof updateAll === 'function') updateAll();
+    showToast(`✅ ${added} teste(s) do 3.º período adicionado(s)!`);
+    return added;
+}
+window.setupEduarda3rdPeriod = setupEduarda3rdPeriod;
 
 // ===== ACEITAR DUELO via paste (para quando o link abre no browser
 //       em vez da app instalada — comum em iOS) =====
