@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v309';
+const APP_VERSION = 'v310';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -937,6 +937,8 @@ function renderHome() {
     renderHeggerty();
     // Journal semanal (segunda-feira ou se já aberto esta semana)
     renderMathJournal();
+    // Modo Escape Room (apenas anos 2/5/6 — injeta cartão na Home)
+    try { window.renderEscapeHomeCard && window.renderEscapeHomeCard(); } catch {}
 }
 
 // ============================================================
