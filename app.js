@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v306';
+const APP_VERSION = 'v307';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4270,55 +4270,78 @@ function toggleSpeakMic() {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec) { showToast('Reconhecimento de voz não suportado'); return; }
     if (speakState.listening && _speakRecog) {
+        speakState._userStop = true;
         try { _speakRecog.stop(); } catch {}
         return;
     }
-    const r = new Rec();
-    r.lang = speakState.lang || 'en-US';
-    r.interimResults = true;
-    r.maxAlternatives = 1;
-    r.continuous = false;
-    _speakRecog = r;
-    speakState.listening = true;
-    const btn = document.getElementById('speak-mic');
-    if (btn) { btn.innerHTML = '<i class="fas fa-stop"></i>&nbsp;&nbsp;A ouvir… (toca para parar)'; btn.style.background = 'linear-gradient(135deg,#dc2626,#ea580c)'; }
-    let finalTxt = '';
-    r.onresult = (ev) => {
-        let interim = '';
-        for (let i = ev.resultIndex; i < ev.results.length; i++) {
-            const res = ev.results[i];
-            if (res.isFinal) finalTxt += res[0].transcript;
-            else interim += res[0].transcript;
+    speakState._userStop = false;
+    speakState._finalAcc = speakState._finalAcc || '';
+    const start = () => {
+        const r = new Rec();
+        r.lang = speakState.lang || 'en-US';
+        r.interimResults = true;
+        r.maxAlternatives = 1;
+        r.continuous = true; // tenta — alguns browsers (iOS) ignoram e cortam na primeira pausa
+        _speakRecog = r;
+        speakState.listening = true;
+        const btn = document.getElementById('speak-mic');
+        if (btn) { btn.innerHTML = '<i class="fas fa-stop"></i>&nbsp;&nbsp;A ouvir… toca para terminar'; btn.style.background = 'linear-gradient(135deg,#dc2626,#ea580c)'; }
+        r.onresult = (ev) => {
+            let interim = '';
+            for (let i = ev.resultIndex; i < ev.results.length; i++) {
+                const res = ev.results[i];
+                if (res.isFinal) speakState._finalAcc += res[0].transcript + ' ';
+                else interim += res[0].transcript;
+            }
+            const out = (speakState._finalAcc + interim).replace(/\s+/g, ' ').trim();
+            speakState.transcript = speakState._finalAcc.trim() || out;
+            const el = document.getElementById('speak-transcript');
+            if (el) {
+                el.style.color = '#0f172a';
+                el.style.borderStyle = 'solid';
+                el.style.background = '#fff';
+                el.textContent = out || '…';
+            }
+            _markActionHasSelection(speakState.transcript.length > 0);
+        };
+        r.onerror = (ev) => {
+            // Erros recuperáveis: 'no-speech', 'aborted' — deixa onend lidar.
+            if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+                speakState._userStop = true;
+                const el = document.getElementById('speak-transcript');
+                if (el) el.textContent = 'Sem permissão de microfone. Ativa nas definições do browser.';
+            }
+        };
+        r.onend = () => {
+            // Auto-restart se o utilizador NÃO tocou em "Stop" — alguns motores
+            // (Chrome iOS, webkit) terminam sozinhos na primeira pausa longa.
+            if (!speakState._userStop) {
+                try { setTimeout(start, 80); return; } catch {}
+            }
+            speakState.listening = false;
+            _speakRecog = null;
+            const btn = document.getElementById('speak-mic');
+            if (btn) {
+                const txt = speakState._finalAcc.trim().length > 0 ? 'Falar de novo' : 'Tocar e falar';
+                btn.innerHTML = `<i class="fas fa-microphone"></i>&nbsp;&nbsp;${txt}`;
+                btn.style.background = 'linear-gradient(135deg,#0891b2,#2563eb)';
+            }
+        };
+        try { r.start(); } catch (e) {
+            console.warn('[stt] start failed:', e);
+            // Se já estava a correr, faz reset e tenta de novo daqui a pouco
+            speakState.listening = false;
+            setTimeout(() => { try { r.start(); speakState.listening = true; } catch {} }, 200);
         }
-        const out = (finalTxt + ' ' + interim).trim();
-        speakState.transcript = finalTxt.trim() || out;
-        const el = document.getElementById('speak-transcript');
-        if (el) {
-            el.style.color = '#0f172a';
-            el.style.borderStyle = 'solid';
-            el.style.background = '#fff';
-            el.textContent = out || '…';
-        }
-        _markActionHasSelection(speakState.transcript.length > 0);
     };
-    r.onerror = (ev) => {
-        speakState.listening = false;
-        if (btn) { btn.innerHTML = '<i class="fas fa-microphone"></i>&nbsp;&nbsp;Tocar e falar'; btn.style.background = 'linear-gradient(135deg,#0891b2,#2563eb)'; }
-        const el = document.getElementById('speak-transcript');
-        if (el && ev.error === 'not-allowed') el.textContent = 'Sem permissão de microfone. Ativa nas definições do browser.';
-        else if (el && ev.error === 'no-speech') el.textContent = 'Não ouvi nada. Toca de novo e fala mais perto do mic.';
-    };
-    r.onend = () => {
-        speakState.listening = false;
-        if (btn) { btn.innerHTML = '<i class="fas fa-microphone"></i>&nbsp;&nbsp;Falar de novo'; btn.style.background = 'linear-gradient(135deg,#0891b2,#2563eb)'; }
-        _speakRecog = null;
-    };
-    try { r.start(); } catch (e) { console.warn('[stt] start failed:', e); speakState.listening = false; }
+    start();
 }
 window.toggleSpeakMic = toggleSpeakMic;
 
 function resetSpeak() {
     speakState.transcript = '';
+    speakState._finalAcc = '';
+    speakState._userStop = false;
     const el = document.getElementById('speak-transcript');
     if (el) {
         el.textContent = 'A tua fala aparece aqui…';
