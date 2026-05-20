@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v307';
+const APP_VERSION = 'v308';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1210,6 +1210,12 @@ function renderSubjects() {
 
 // ========== SUBJECT DETAIL (modal fullscreen) ==========
 function openSubjectDetail(key) {
+    // Disciplina english_pm tem modo Curso dedicado (caminho linear estilo
+    // path com 14 licoes e progressao). Nao interfere com outras disciplinas.
+    if (key === 'english_pm' && window.COURSE_ENGLISH_PM) {
+        openCoursePath(key);
+        return;
+    }
     // Primeira vez em Mat+? Oferece o diagnóstico inicial
     if (key === 'mat_plus' && !state.matPlusDiag && !state.matPlusDiagSkipped) {
         showMatPlusDiagnosticIntro();
@@ -1645,6 +1651,182 @@ function closeSubjectDetail() {
     currentSubjectView = null;
     renderSubjects();
     renderHome();
+}
+
+// ============================================================
+// MODO CURSO — isolado para disciplina english_pm
+// ============================================================
+// Estrutura: 14 lições agrupadas em 4 unidades. Cada lição mapeia
+// exercícios existentes do pack english-pm. Progresso persistido em
+// state.coursePath[subjectKey][lessonId] = {completed, accuracy, attempts, crown}.
+// Crown: 0=não feita, 1=passada (≥60%), 2=boa (≥75%), 3=excelente (≥90%).
+// Lock: lesson N+1 desbloqueia quando lesson N tiver crown ≥ 1.
+function _getCourseConfig(subjectKey) {
+    if (subjectKey === 'english_pm') return window.COURSE_ENGLISH_PM || null;
+    return null;
+}
+function _courseState(subjectKey) {
+    state.coursePath = state.coursePath || {};
+    state.coursePath[subjectKey] = state.coursePath[subjectKey] || { lessons: {} };
+    return state.coursePath[subjectKey];
+}
+function _lessonProgress(subjectKey, lessonId) {
+    const cs = _courseState(subjectKey);
+    return cs.lessons[lessonId] || { completed: false, accuracy: 0, attempts: 0, crown: 0 };
+}
+function _isLessonUnlocked(course, lessonId) {
+    const idx = course.lessons.findIndex(l => l.id === lessonId);
+    if (idx <= 0) return true;
+    const prev = course.lessons[idx - 1];
+    return _lessonProgress(course.subjectKey, prev.id).crown >= 1;
+}
+function _crownFromAccuracy(acc) {
+    if (acc >= 0.9) return 3;
+    if (acc >= 0.75) return 2;
+    if (acc >= 0.6) return 1;
+    return 0;
+}
+
+function openCoursePath(subjectKey) {
+    const course = _getCourseConfig(subjectKey);
+    if (!course) { showToast('Curso indisponível'); return; }
+    currentSubjectView = subjectKey;
+    const sub = SUBJECTS[subjectKey];
+    const cs = _courseState(subjectKey);
+    const totalLessons = course.lessons.length;
+    const doneLessons = course.lessons.filter(l => _lessonProgress(subjectKey, l.id).crown >= 1).length;
+    const totalCrowns = course.lessons.reduce((sum, l) => sum + _lessonProgress(subjectKey, l.id).crown, 0);
+    const maxCrowns = totalLessons * 3;
+    const pct = Math.round((doneLessons / totalLessons) * 100);
+    // Render unidade a unidade
+    const unitsHtml = course.units.map((unit) => {
+        const lessons = unit.lessonIds.map(id => course.lessons.find(l => l.id === id)).filter(Boolean);
+        const lessonsHtml = lessons.map((l, idx) => {
+            const prog = _lessonProgress(subjectKey, l.id);
+            const unlocked = _isLessonUnlocked(course, l.id);
+            const isLast = prog.crown === 3;
+            const sideClass = idx % 2 === 0 ? 'left' : 'right';
+            const stateClass = !unlocked ? 'locked' : (prog.crown >= 1 ? 'done' : 'available');
+            const icon = !unlocked ? 'fa-lock'
+                       : prog.crown >= 1 ? 'fa-check'
+                       : 'fa-play';
+            const crowns = unlocked && prog.crown > 0
+                ? `<div class="course-crowns">${'★'.repeat(prog.crown)}${'☆'.repeat(3-prog.crown)}</div>`
+                : '';
+            const exCount = (l.exerciseIds || []).length;
+            const click = unlocked ? `onclick="startCourseLesson('${subjectKey}','${l.id}')"` : '';
+            return `
+              <div class="course-node ${sideClass} ${stateClass}" ${click}>
+                <div class="course-node-circle" style="background:${unlocked ? unit.color : '#cbd5e1'}">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div class="course-node-label">
+                    <div class="course-node-title">${escapeHtml(l.title)}</div>
+                    <div class="course-node-sub">${escapeHtml(l.subtitle || '')} · ${exCount} ex</div>
+                    ${crowns}
+                </div>
+              </div>`;
+        }).join('');
+        return `
+          <div class="course-unit" style="--unit-color:${unit.color}">
+            <div class="course-unit-header">
+              <span class="course-unit-icon"><i class="fas ${unit.icon}"></i></span>
+              <div>
+                <div class="course-unit-title">${escapeHtml(unit.title)}</div>
+                <div class="course-unit-sub">${lessons.length} lições</div>
+              </div>
+            </div>
+            ${lessonsHtml}
+          </div>`;
+    }).join('');
+
+    document.getElementById('subject-detail-container')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'subject-detail-container';
+    wrap.innerHTML = `
+      <div class="fullscreen" id="subject-detail-screen">
+        <div class="exercise-header">
+          <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+          <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
+            <span style="width:32px;height:32px;border-radius:8px;background:${sub.color};color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas ${sub.icon}"></i></span>
+            ${escapeHtml(course.title)}
+          </div>
+          <button class="icon-btn" onclick="openCourseFreePractice('${subjectKey}')" title="Treino livre por tópico"><i class="fas fa-list"></i></button>
+        </div>
+        <div class="exercise-body" style="padding-bottom:80px">
+          <div style="background:linear-gradient(135deg,${sub.color},${sub.color}cc);color:#fff;padding:16px 18px;border-radius:16px;margin-bottom:18px">
+            <div style="font-size:0.78rem;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">O teu caminho</div>
+            <div style="font-size:1.4rem;font-weight:800;margin:4px 0">${doneLessons} / ${totalLessons} lições</div>
+            <div style="height:8px;background:rgba(255,255,255,0.25);border-radius:999px;overflow:hidden;margin:8px 0 4px">
+              <div style="height:100%;width:${pct}%;background:#fff;border-radius:999px;transition:width 0.5s"></div>
+            </div>
+            <div style="font-size:0.82rem;opacity:0.9">⭐ ${totalCrowns} / ${maxCrowns} coroas</div>
+          </div>
+          ${unitsHtml}
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+}
+window.openCoursePath = openCoursePath;
+
+function openCourseFreePractice(subjectKey) {
+    // Fallback: usa o renderizador original (lista de tópicos) sem o intercept.
+    if (subjectKey === 'english_pm' && window.COURSE_ENGLISH_PM) {
+        const prev = window.COURSE_ENGLISH_PM;
+        delete window.COURSE_ENGLISH_PM;
+        document.getElementById('subject-detail-container')?.remove();
+        openSubjectDetail(subjectKey);
+        window.COURSE_ENGLISH_PM = prev;
+        return;
+    }
+    openSubjectDetail(subjectKey);
+}
+window.openCourseFreePractice = openCourseFreePractice;
+
+function startCourseLesson(subjectKey, lessonId) {
+    const course = _getCourseConfig(subjectKey);
+    if (!course) return;
+    const lesson = course.lessons.find(l => l.id === lessonId);
+    if (!lesson) return;
+    if (!_isLessonUnlocked(course, lessonId)) { showToast('Completa a lição anterior primeiro'); return; }
+    // Resolver IDs → exercícios. Suporta exercícios injetados pelo secret pack
+    // (window.EXERCISES_BY_YEAR[99]) e EXERCISES global. NÃO mexe noutros anos.
+    const yearPool = (window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[99]) || [];
+    const byId = {};
+    for (const e of yearPool) byId[e.id] = e;
+    for (const e of (typeof EXERCISES !== 'undefined' ? EXERCISES : [])) if (e.s === subjectKey) byId[e.id] = e;
+    const items = lesson.exerciseIds.map(id => byId[id]).filter(Boolean);
+    if (items.length === 0) { showToast('Lição sem exercícios — verifica que o pack está ativo'); return; }
+    currentSession = {
+        items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, results: [],
+        isDaily: false, subject: subjectKey,
+        courseLesson: { subjectKey, lessonId },
+        startedAt: Date.now()
+    };
+    openExerciseScreen();
+    renderQuestion();
+}
+window.startCourseLesson = startCourseLesson;
+
+// Chamado no fim da sessão (showSummary) — só ativa se courseLesson estiver presente
+function _recordCourseLessonResult(session) {
+    if (!session || !session.courseLesson) return;
+    const { subjectKey, lessonId } = session.courseLesson;
+    const total = (session.items || []).length;
+    if (total === 0) return;
+    const correct = session.correct || 0;
+    const acc = correct / total;
+    const cs = _courseState(subjectKey);
+    const prev = cs.lessons[lessonId] || { completed: false, accuracy: 0, attempts: 0, crown: 0 };
+    const newCrown = _crownFromAccuracy(acc);
+    cs.lessons[lessonId] = {
+        completed: prev.completed || newCrown >= 1,
+        accuracy: Math.max(prev.accuracy || 0, acc),
+        attempts: (prev.attempts || 0) + 1,
+        crown: Math.max(prev.crown || 0, newCrown),
+        lastAt: Date.now()
+    };
+    saveState();
 }
 
 // Abreviaturas curtas das disciplinas para o calendario de testes (cabem em
@@ -5285,6 +5467,8 @@ function finishSession() {
         _finishDuel();
         return;
     }
+    // Modo Curso: regista resultado da lição (isolado, não interfere com nada)
+    try { _recordCourseLessonResult(s); } catch (e) { console.warn('[course] record failed', e); }
     let newBadges = [];
     // === STREAK (Ofensiva) ===
     // Conta QUALQUER sessão de exercícios (não só desafio diário).

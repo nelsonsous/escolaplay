@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v307';
+const CACHE_NAME = 'escolaplay-v308';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -39,6 +39,7 @@ const ASSETS = [
     '/escolaplay/content_6_h_extra2.js',
     '/escolaplay/content_11_q_extra.js',
     '/escolaplay/content_secret.js',
+    '/escolaplay/content_course_english.js',
     // Avatares Disney (uso pessoal)
     '/escolaplay/icons/disney/alice.png',
     '/escolaplay/icons/disney/anna.png',
