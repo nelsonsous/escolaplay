@@ -480,7 +480,8 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_5_m_extra.js', varName: 'EXERCISES_5_M_EXTRA' },
         { src: 'content_5_i_extra.js', varName: 'EXERCISES_5_I_EXTRA' },
         { src: 'content_5_c_extra.js', varName: 'EXERCISES_5_C_EXTRA' },
-        { src: 'content_5_h_extra.js', varName: 'EXERCISES_5_H_EXTRA' }
+        { src: 'content_5_h_extra.js', varName: 'EXERCISES_5_H_EXTRA' },
+        { src: 'content_5_i_orient.js', varName: 'EXERCISES_5_I_ORIENT' }
     ],
     6: [
         { src: 'content_6_p_extra.js',  varName: 'EXERCISES_6_P_EXTRA' },
@@ -499,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v302';
+const APP_VERSION = 'v303';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1430,6 +1431,9 @@ function renderTopicList() {
     } else if (activeProfile()?.year === 2 && ['matematica','portugues','estudo_meio','mat_plus'].includes(key)) {
         // Sugerir criar os testes do 3.o periodo se ainda nao houver nenhum
         testBanner = `<div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:0.82rem;color:#1e3a8a;display:flex;align-items:center;gap:10px"><span style="font-size:1.2rem">📅</span><div style="flex:1"><div style="font-weight:800">Ainda não tens testes deste período</div><div style="font-size:0.72rem;margin-top:2px">Cria os 3 testes do 3.º período (Mat 3/6 · Pt 11/6 · EM 16/6) com tópicos já marcados</div></div><button class="btn" style="background:#2563eb;color:#fff;border:none;padding:7px 12px;font-size:0.74rem;font-weight:800;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();setupEduarda3rdPeriod()">Criar</button></div>`;
+    } else if (activeProfile()?.year === 5 && key === 'ingles') {
+        // Sugerir criar teste de Ingles 5.o ano (orientadores da professora)
+        testBanner = `<div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:0.82rem;color:#1e3a8a;display:flex;align-items:center;gap:10px"><span style="font-size:1.2rem">📅</span><div style="flex:1"><div style="font-weight:800">Ainda não tens teste de Inglês</div><div style="font-size:0.72rem;margin-top:2px">Cria teste com orientadores da professora (horas, rotinas, profissões, present simple, prepositions of time)</div></div><button class="btn" style="background:#2563eb;color:#fff;border:none;padding:7px 12px;font-size:0.74rem;font-weight:800;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();setupCarolinaIngles5()">Criar</button></div>`;
     }
     const banner = (useFilter && hiddenN > 0)
         ? `<div class="ep-topic-banner"><i class="fas fa-bullseye"></i> ${visibleTopics.length} de ${allTopics.length} tópicos activos. <button type="button" onclick="toggleTopicFocus()" class="ep-topic-banner-link">Ver todos</button></div>`
@@ -1836,6 +1840,17 @@ function openAddTestModal(testId = null) {
 
 // Agrupadores (presets) — selecionam vários tópicos de uma vez no picker
 const TEST_TOPIC_PRESETS = {
+    // 5.º ano, Inglês — orientadores da professora
+    'orientadores-ingles-5ano': {
+        label: '🎯 Orientadores Inglês · 5.º ano',
+        year: 5,
+        topicsBySubject: {
+            ingles: [
+                'Telling the time','Daily routines','Jobs',
+                'Present simple','Prepositions of time','Prepositions'
+            ]
+        }
+    },
     // 2.º ano, 3.º período — orientadores AE
     'orientadores-p3-2ano': {
         label: '🎯 Orientadores 3.º período · 2.º ano',
@@ -7262,6 +7277,46 @@ function setupEduarda3rdPeriod() {
     return added;
 }
 window.setupEduarda3rdPeriod = setupEduarda3rdPeriod;
+
+// Utilitario: cria teste de Ingles 5.o ano (orientadores da professora)
+function setupCarolinaIngles5() {
+    const p = activeProfile();
+    if (!p) { console.warn('Sem perfil activo'); return; }
+    if (p.year !== 5) {
+        if (!confirm(`Perfil ativo (${p.name}) e do ${p.year}.o ano. Continuar mesmo assim?`)) return;
+    }
+    if (!state.tests) state.tests = [];
+    // Data: ~3 semanas a partir de hoje (sextas-feiras tipicamente)
+    const today = new Date();
+    const inThreeWeeks = new Date(today.getTime() + 21*24*60*60*1000);
+    const yyyy = inThreeWeeks.getFullYear();
+    const mm = String(inThreeWeeks.getMonth()+1).padStart(2,'0');
+    const dd = String(inThreeWeeks.getDate()).padStart(2,'0');
+    const date = `${yyyy}-${mm}-${dd}`;
+    const topics = TEST_TOPIC_PRESETS['orientadores-ingles-5ano'].topicsBySubject.ingles;
+    // Skip se ja existir teste mesmo dia + mesma disciplina
+    if (state.tests.some(x => x.date === date && x.subject === 'ingles')) {
+        showToast('Já existe um teste de Inglês nessa data.');
+        return 0;
+    }
+    state.tests.push({
+        id: uid(),
+        subject: 'ingles',
+        date,
+        note: 'Inglês 5.º ano · Horas, rotinas, profissões, present simple, prepositions of time',
+        topics,
+        done: false,
+        targetGrade: null,
+        actualGrade: null
+    });
+    saveState();
+    if (typeof renderTests === 'function') renderTests();
+    if (typeof renderHome === 'function') renderHome();
+    if (typeof updateAll === 'function') updateAll();
+    showToast(`✅ Teste de Inglês 5.º ano criado para ${dd}/${mm}!`);
+    return 1;
+}
+window.setupCarolinaIngles5 = setupCarolinaIngles5;
 
 // ===== ACEITAR DUELO via paste (para quando o link abre no browser
 //       em vez da app instalada — comum em iOS) =====
