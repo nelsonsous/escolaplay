@@ -498,7 +498,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v295';
+const APP_VERSION = 'v296';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7072,28 +7072,35 @@ function setupEduarda3rdPeriod() {
         {
             subject: 'matematica',
             date: '2026-06-03',
-            note: '3.º período · Tabuadas, multiplicação, divisão, frações, dinheiro, comprimento',
+            note: '3.º período · Tabuadas, mult/div, frações, dinheiro, comprimento, ângulos',
             topics: [
                 'Tabuada do 2','Tabuada do 3','Tabuada do 4','Tabuada do 5','Tabuada do 10',
-                'Multiplicação','Divisão','Frações simples','Dinheiro (€)','Comprimento',
-                'Adição até 100','Subtração até 100','Gráficos','Figuras planas','Números até 100'
+                'Multiplicação','Propriedades da multiplicação',
+                'Divisão','Relação multiplicação e divisão','Cálculo mental',
+                'Frações simples','Dinheiro (€)','Comprimento','Perímetro','Ângulos retos',
+                'Gráficos','Sequências de crescimento','Números até 1000'
             ]
         },
         {
             subject: 'portugues',
             date: '2026-06-11',
-            note: '3.º período · Verbos, adjetivos, nomes, sílabas, frases',
+            note: '3.º período · Textos narrativos, BD, poesia, classes de palavras, conectores',
             topics: [
+                'Textos narrativos','Poesia e BD','Compreensão de texto',
+                'Conetores (e, ou)','Interjeições',
                 'Adjetivos','Verbos no presente','Verbos no passado e futuro',
-                'Nomes próprios e comuns','Tipos de frase','Pontuação básica','Sílabas','Singular e plural'
+                'Nomes próprios e comuns','Determinantes artigos',
+                'Sílabas','Sílaba átona','Tipos de frase','Pontuação básica'
             ]
         },
         {
             subject: 'estudo_meio',
             date: '2026-06-16',
-            note: '3.º período · Portugal, pertenças, comemorações',
+            note: '3.º período · Portugal na Europa, culturas, pertenças, direitos da criança',
             topics: [
-                'Portugal','A minha família','Comemorações','A escola'
+                'Portugal na Europa e no mundo','Influências de outras culturas',
+                'Múltiplas pertenças e grupos','Diálogo e compromisso','Direitos da criança',
+                'Portugal','Comemorações'
             ]
         }
     ];
