@@ -466,7 +466,8 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_2_e_extra3.js', varName: 'EXERCISES_2_E_EXTRA3' },
         { src: 'content_2_e_extra4.js', varName: 'EXERCISES_2_E_EXTRA4' },
         { src: 'content_2_i_extra2.js', varName: 'EXERCISES_2_I_EXTRA2' },
-        { src: 'content_2_i_extra3.js', varName: 'EXERCISES_2_I_EXTRA3' }
+        { src: 'content_2_i_extra3.js', varName: 'EXERCISES_2_I_EXTRA3' },
+        { src: 'content_2_orientadores_p3.js', varName: 'EXERCISES_2_ORIENT_P3' }
     ],
     3: [
         { src: 'content_3_p_extra.js', varName: 'EXERCISES_3_P_EXTRA' },
@@ -498,7 +499,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v296';
+const APP_VERSION = 'v297';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1778,6 +1779,56 @@ function openAddTestModal(testId = null) {
     document.getElementById('test-modal').style.display = 'flex';
 }
 
+// Agrupadores (presets) — selecionam vários tópicos de uma vez no picker
+const TEST_TOPIC_PRESETS = {
+    // 2.º ano, 3.º período — orientadores AE
+    'orientadores-p3-2ano': {
+        label: '🎯 Orientadores 3.º período · 2.º ano',
+        year: 2,
+        topicsBySubject: {
+            matematica: [
+                'Tabuada do 2','Tabuada do 3','Tabuada do 4','Tabuada do 5','Tabuada do 10',
+                'Multiplicação','Propriedades da multiplicação',
+                'Divisão','Relação multiplicação e divisão','Cálculo mental',
+                'Frações simples','Dinheiro (€)','Comprimento','Perímetro','Ângulos retos',
+                'Gráficos','Sequências de crescimento','Números até 1000'
+            ],
+            portugues: [
+                'Textos narrativos','Poesia e BD','Compreensão de texto',
+                'Conetores (e, ou)','Interjeições',
+                'Adjetivos','Verbos no presente','Verbos no passado e futuro',
+                'Nomes próprios e comuns','Determinantes artigos',
+                'Sílabas','Sílaba átona','Tipos de frase','Pontuação básica'
+            ],
+            estudo_meio: [
+                'Portugal na Europa e no mundo','Influências de outras culturas',
+                'Múltiplas pertenças e grupos','Diálogo e compromisso','Direitos da criança',
+                'Portugal','Comemorações'
+            ]
+        }
+    }
+};
+
+function applyTestTopicPreset(presetId) {
+    const preset = TEST_TOPIC_PRESETS[presetId];
+    if (!preset) return;
+    const subKey = document.getElementById('test-subject').value;
+    const topicsForSub = preset.topicsBySubject[subKey] || [];
+    if (topicsForSub.length === 0) {
+        showToast(`Este agrupador não tem tópicos para ${SUBJECTS[subKey]?.name||subKey}.`);
+        return;
+    }
+    const checks = document.querySelectorAll('#test-topics-picker input[type="checkbox"]');
+    let marked = 0;
+    for (const cb of checks) {
+        if (topicsForSub.includes(cb.value)) {
+            if (!cb.disabled) { cb.checked = true; marked++; }
+        }
+    }
+    showToast(`✅ ${marked} tópicos marcados (${preset.label}).`);
+}
+window.applyTestTopicPreset = applyTestTopicPreset;
+
 function renderTestTopicsPicker() {
     const subKey = document.getElementById('test-subject').value;
     const topics = CURRICULUM[subKey] || [];
@@ -1794,8 +1845,14 @@ function renderTestTopicsPicker() {
             </label>
         `;
     }).join('');
+    // Presets visiveis para o ano activo
+    const yearNow = activeProfile()?.year;
+    const presetButtons = Object.entries(TEST_TOPIC_PRESETS)
+        .filter(([_, p]) => p.year === yearNow && (p.topicsBySubject[subKey] || []).length > 0)
+        .map(([id, p]) => `<button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px;margin-right:6px;margin-bottom:6px;background:linear-gradient(135deg,#facc15,#f59e0b);color:#78350f;border:none;font-weight:800" onclick="applyTestTopicPreset('${id}')">${p.label}</button>`).join('');
+    const presetWrap = presetButtons ? `<div style="margin-bottom:10px;padding:10px;background:#fef3c7;border-radius:10px;border:1.5px solid #fde68a"><div style="font-size:0.72rem;font-weight:800;color:#78350f;text-transform:uppercase;margin-bottom:6px">🎯 Agrupadores rápidos</div>${presetButtons}</div>` : '';
     const wrap = document.getElementById('test-topics-picker');
-    if (wrap) wrap.innerHTML = `<p class="muted" style="margin:6px 0">Marca os tópicos que saem neste teste (se não marcares nenhum, treinamos com todos os activos).</p>${list}`;
+    if (wrap) wrap.innerHTML = `<p class="muted" style="margin:6px 0">Marca os tópicos que saem neste teste (se não marcares nenhum, treinamos com todos os activos).</p>${presetWrap}${list}`;
 }
 
 // Lê um campo numérico de nota (0-20). Devolve null se vazio/invalido.
