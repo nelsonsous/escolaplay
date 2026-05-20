@@ -35,7 +35,15 @@ const CURRICULUM_2 = {
         'Verbos no passado e futuro',
         // Frase
         'Tipos de frase',
-        'Pontuação básica'
+        'Pontuação básica',
+        // P3 — Conetores, classes de palavras avancadas, compreensao (Aprend. Essenciais)
+        'Conetores (e, ou)',
+        'Interjeições',
+        'Determinantes artigos',
+        'Sílaba átona',
+        'Compreensão de texto',
+        'Textos narrativos',
+        'Poesia e BD'
     ],
     matematica: [
         // P1 — Números até 100 e operações simples
@@ -64,7 +72,15 @@ const CURRICULUM_2 = {
         'Sólidos geométricos',
         'Medir tempo',
         'Dinheiro (€)',
-        'Gráficos'
+        'Gráficos',
+        // P3 — Aprendizagens Essenciais 2.o ano (orientadores 3.o periodo)
+        'Números até 1000',
+        'Propriedades da multiplicação',
+        'Relação multiplicação e divisão',
+        'Cálculo mental',
+        'Sequências de crescimento',
+        'Perímetro',
+        'Ângulos retos'
     ],
     estudo_meio: [
         // P1 — À descoberta de si mesmo
@@ -87,7 +103,13 @@ const CURRICULUM_2 = {
         'Portugal',
         // P3 — À descoberta dos materiais e da segurança
         'Materiais e objetos',
-        'Segurança e prevenção'
+        'Segurança e prevenção',
+        // P3 — Cidadania (Aprend. Essenciais 2.o ano)
+        'Portugal na Europa e no mundo',
+        'Influências de outras culturas',
+        'Múltiplas pertenças e grupos',
+        'Direitos da criança',
+        'Diálogo e compromisso'
     ],
     ingles: [
         // Vocabulário básico (do mais usado para o menos)
@@ -115,7 +137,11 @@ const PERIODS_2 = {
         // P3 — Flexão, verbos e frase
         'Singular e plural':3, 'Género (masculino e feminino)':3, 'Grau (aumentativo e diminutivo)':3,
         'Verbos no presente':3, 'Verbos no passado e futuro':3,
-        'Tipos de frase':3, 'Pontuação básica':3
+        'Tipos de frase':3, 'Pontuação básica':3,
+        // Novos topicos P3 alinhados com orientadores 2.o ano
+        'Conetores (e, ou)':3, 'Interjeições':3, 'Determinantes artigos':3,
+        'Sílaba átona':3, 'Compreensão de texto':3,
+        'Textos narrativos':3, 'Poesia e BD':3
     },
     matematica:  {
         // P1 — Números até 100 e operações simples
@@ -129,7 +155,11 @@ const PERIODS_2 = {
         'Tabuada do 6':3, 'Tabuada do 7':3, 'Tabuada do 8':3, 'Tabuada do 9':3,
         'Divisão':3, 'Frações simples':3,
         'Figuras planas':3, 'Sólidos geométricos':3,
-        'Medir tempo':3, 'Dinheiro (€)':3, 'Gráficos':3
+        'Medir tempo':3, 'Dinheiro (€)':3, 'Gráficos':3,
+        // Novos topicos P3 alinhados com orientadores 2.o ano
+        'Números até 1000':3, 'Propriedades da multiplicação':3,
+        'Relação multiplicação e divisão':3, 'Cálculo mental':3,
+        'Sequências de crescimento':3, 'Perímetro':3, 'Ângulos retos':3
     },
     estudo_meio: {
         // P1 — À descoberta de si mesmo + instituições
@@ -139,7 +169,11 @@ const PERIODS_2 = {
         'Animais':2, 'Plantas':2, 'Estações do ano':2, 'Astros':2,
         // P3 — À descoberta da sociedade, materiais e segurança
         'Profissões':3, 'Transportes':3, 'Comemorações':3, 'Portugal':3,
-        'Materiais e objetos':3, 'Segurança e prevenção':3
+        'Materiais e objetos':3, 'Segurança e prevenção':3,
+        // Novos topicos P3 — Cidadania (orientadores 2.o ano)
+        'Portugal na Europa e no mundo':3, 'Influências de outras culturas':3,
+        'Múltiplas pertenças e grupos':3, 'Direitos da criança':3,
+        'Diálogo e compromisso':3
     },
     ingles:      {
         // P1 — Saudações, alfabeto, números, cores
