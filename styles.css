@@ -3796,7 +3796,11 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     cursor: pointer;
     transition: transform 0.15s;
     position: relative;
+    -webkit-tap-highlight-color: rgba(8,145,178,0.2);
+    user-select: none;
+    -webkit-user-select: none;
 }
+.course-node:not(.locked) > * { pointer-events: none; }
 .course-node.right {
     flex-direction: row-reverse;
     text-align: right;

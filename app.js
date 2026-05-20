@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v308';
+const APP_VERSION = 'v309';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1704,7 +1704,6 @@ function openCoursePath(subjectKey) {
         const lessonsHtml = lessons.map((l, idx) => {
             const prog = _lessonProgress(subjectKey, l.id);
             const unlocked = _isLessonUnlocked(course, l.id);
-            const isLast = prog.crown === 3;
             const sideClass = idx % 2 === 0 ? 'left' : 'right';
             const stateClass = !unlocked ? 'locked' : (prog.crown >= 1 ? 'done' : 'available');
             const icon = !unlocked ? 'fa-lock'
@@ -1714,9 +1713,8 @@ function openCoursePath(subjectKey) {
                 ? `<div class="course-crowns">${'★'.repeat(prog.crown)}${'☆'.repeat(3-prog.crown)}</div>`
                 : '';
             const exCount = (l.exerciseIds || []).length;
-            const click = unlocked ? `onclick="startCourseLesson('${subjectKey}','${l.id}')"` : '';
             return `
-              <div class="course-node ${sideClass} ${stateClass}" ${click}>
+              <div class="course-node ${sideClass} ${stateClass}" data-lesson="${l.id}" data-subject="${subjectKey}" role="button" tabindex="0">
                 <div class="course-node-circle" style="background:${unlocked ? unit.color : '#cbd5e1'}">
                     <i class="fas ${icon}"></i>
                 </div>
@@ -1766,6 +1764,15 @@ function openCoursePath(subjectKey) {
         </div>
       </div>`;
     document.body.appendChild(wrap);
+    // Bind clicks via JS — cursor:pointer no CSS garante que iOS Safari
+    // entrega o click. Nao usamos touchend (duplicava por click sintetico).
+    wrap.querySelectorAll('.course-node:not(.locked)').forEach(node => {
+        node.addEventListener('click', () => {
+            const sk = node.getAttribute('data-subject');
+            const lid = node.getAttribute('data-lesson');
+            startCourseLesson(sk, lid);
+        });
+    });
 }
 window.openCoursePath = openCoursePath;
 
@@ -1784,10 +1791,11 @@ function openCourseFreePractice(subjectKey) {
 window.openCourseFreePractice = openCourseFreePractice;
 
 function startCourseLesson(subjectKey, lessonId) {
+    console.log('[course] startCourseLesson', subjectKey, lessonId);
     const course = _getCourseConfig(subjectKey);
-    if (!course) return;
+    if (!course) { showToast('Curso não disponível'); return; }
     const lesson = course.lessons.find(l => l.id === lessonId);
-    if (!lesson) return;
+    if (!lesson) { showToast('Lição não encontrada: ' + lessonId); return; }
     if (!_isLessonUnlocked(course, lessonId)) { showToast('Completa a lição anterior primeiro'); return; }
     // Resolver IDs → exercícios. Suporta exercícios injetados pelo secret pack
     // (window.EXERCISES_BY_YEAR[99]) e EXERCISES global. NÃO mexe noutros anos.
@@ -1796,7 +1804,11 @@ function startCourseLesson(subjectKey, lessonId) {
     for (const e of yearPool) byId[e.id] = e;
     for (const e of (typeof EXERCISES !== 'undefined' ? EXERCISES : [])) if (e.s === subjectKey) byId[e.id] = e;
     const items = lesson.exerciseIds.map(id => byId[id]).filter(Boolean);
-    if (items.length === 0) { showToast('Lição sem exercícios — verifica que o pack está ativo'); return; }
+    console.log('[course] resolved items:', items.length, '/ expected:', lesson.exerciseIds.length);
+    if (items.length === 0) {
+        showToast('Sem exercícios — ativa o pack english-pm no perfil');
+        return;
+    }
     currentSession = {
         items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, results: [],
         isDaily: false, subject: subjectKey,
