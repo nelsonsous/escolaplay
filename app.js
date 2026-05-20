@@ -499,7 +499,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v301';
+const APP_VERSION = 'v302';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1427,7 +1427,7 @@ function renderTopicList() {
         const dateStr = `${dd}/${mm}`;
         const tCount = topicsInTests.size;
         testBanner = `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fcd34d;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:0.82rem;color:#78350f;display:flex;align-items:center;gap:8px"><span style="font-size:1rem">📝</span><span style="flex:1"><strong>${tCount}</strong> ${tCount===1?'tópico sai':'tópicos saem'} no teste de ${dateStr}</span></div>`;
-    } else if (activeProfile()?.year === 2 && ['matematica','portugues','estudo_meio'].includes(key)) {
+    } else if (activeProfile()?.year === 2 && ['matematica','portugues','estudo_meio','mat_plus'].includes(key)) {
         // Sugerir criar os testes do 3.o periodo se ainda nao houver nenhum
         testBanner = `<div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:0.82rem;color:#1e3a8a;display:flex;align-items:center;gap:10px"><span style="font-size:1.2rem">📅</span><div style="flex:1"><div style="font-weight:800">Ainda não tens testes deste período</div><div style="font-size:0.72rem;margin-top:2px">Cria os 3 testes do 3.º período (Mat 3/6 · Pt 11/6 · EM 16/6) com tópicos já marcados</div></div><button class="btn" style="background:#2563eb;color:#fff;border:none;padding:7px 12px;font-size:0.74rem;font-weight:800;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();setupEduarda3rdPeriod()">Criar</button></div>`;
     }
@@ -1859,6 +1859,18 @@ const TEST_TOPIC_PRESETS = {
                 'Portugal na Europa e no mundo','Influências de outras culturas',
                 'Múltiplas pertenças e grupos','Diálogo e compromisso','Direitos da criança',
                 'Portugal','Comemorações'
+            ],
+            // Mat+ (pack secreto) — topicos equivalentes para reforco
+            mat_plus: [
+                'Tabuada do 2','Tabuada do 3','Tabuada do 4','Tabuada do 5','Tabuada do 6',
+                'Tabuada do 7','Tabuada do 8','Tabuada do 9','Tabuada do 10',
+                'Famílias de factos','Divisão por partilha','Estratégias mentais',
+                'Dobro e metade','Quartos','Sequências numéricas',
+                'Saltar de 2 em 2','Saltar de 5 e de 10','Grupos iguais',
+                'Somar até 100','Somar com transporte','Tirar até 100','Tirar com empréstimo',
+                'Moedas','Comprimento','Pictogramas e gráficos',
+                'Problemas — juntar','Problemas — tirar','Problemas — comparar','Problemas em 2 passos',
+                'Sinal de igual','Estimativa','Formas planas','Horas no relógio'
             ]
         }
     }
@@ -7216,6 +7228,15 @@ function setupEduarda3rdPeriod() {
             ]
         }
     ];
+    // Mat+ (pack reforco) — adiciona so se o pack estiver activo no perfil
+    if (SUBJECTS && SUBJECTS.mat_plus) {
+        tests.push({
+            subject: 'mat_plus',
+            date: '2026-06-03',
+            note: '3.º período Mat+ · reforço visual',
+            topics: TEST_TOPIC_PRESETS['orientadores-p3-2ano'].topicsBySubject.mat_plus
+        });
+    }
     if (!state.tests) state.tests = [];
     let added = 0;
     for (const t of tests) {
