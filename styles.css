@@ -3800,7 +3800,6 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     user-select: none;
     -webkit-user-select: none;
 }
-.course-node:not(.locked) > * { pointer-events: none; }
 .course-node.right {
     flex-direction: row-reverse;
     text-align: right;
