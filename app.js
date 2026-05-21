@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v311';
+const APP_VERSION = 'v312';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1766,14 +1766,19 @@ function openCoursePath(subjectKey) {
         </div>
       </div>`;
     document.body.appendChild(wrap);
-    // Bind clicks via JS — cursor:pointer no CSS garante que iOS Safari
-    // entrega o click. Nao usamos touchend (duplicava por click sintetico).
-    wrap.querySelectorAll('.course-node:not(.locked)').forEach(node => {
-        node.addEventListener('click', () => {
-            const sk = node.getAttribute('data-subject');
-            const lid = node.getAttribute('data-lesson');
-            startCourseLesson(sk, lid);
-        });
+    // Event delegation no wrap inteiro — apanha clicks em qualquer filho do
+    // course-node (icone, titulo, subtitulo) sem depender de pointer-events.
+    wrap.addEventListener('click', (ev) => {
+        const node = ev.target.closest('.course-node');
+        if (!node) return;
+        if (node.classList.contains('locked')) {
+            showToast('Lição trancada — completa a anterior primeiro');
+            return;
+        }
+        const sk = node.getAttribute('data-subject');
+        const lid = node.getAttribute('data-lesson');
+        if (!sk || !lid) { showToast('Sem dados na lição: ' + (lid || '?')); return; }
+        startCourseLesson(sk, lid);
     });
 }
 window.openCoursePath = openCoursePath;
