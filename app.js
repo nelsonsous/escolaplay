@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v312';
+const APP_VERSION = 'v313';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1822,6 +1822,9 @@ function startCourseLesson(subjectKey, lessonId) {
         courseLesson: { subjectKey, lessonId },
         startedAt: Date.now()
     };
+    // Fechar o ecra do caminho — senao o exercise-screen abre por baixo e
+    // os exercicios so aparecem quando o utilizador sai do ecra do curso.
+    document.getElementById('subject-detail-container')?.remove();
     openExerciseScreen();
     renderQuestion();
 }
