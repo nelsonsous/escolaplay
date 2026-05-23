@@ -24,9 +24,24 @@ conteúdo legado (`content_*.js`) são reutilizados via `buildPackFromLegacy`,
 
 | Pacote | Estado | Verificação |
 |---|---|---|
-| `@escolaplay/core` | ✅ funcional | `tsc` limpo + **15 testes passam** |
-| `@escolaplay/ui` | ✅ build + typecheck | compila para `dist`; `tsc` limpo |
-| `apps/mobile` | ✅ typecheck + configs | `tsc` limpo contra Expo/RN/Tamagui; Metro carrega |
+| `@escolaplay/core` | ✅ funcional | `tsc` limpo + **47 testes passam** (XP, respostas, sessão/repetição espaçada, ofensiva, progresso, packs) |
+| `@escolaplay/ui` | ✅ build + typecheck | compila para `dist` |
+| `apps/mobile` | ✅ corre no iOS | confirmado no simulador; `tsc` limpo |
+
+### App mobile (a correr)
+- **Início**: hero header (XP/ofensiva/precisão), meta diária, sugestão
+  personalizada, cards de disciplina com domínio.
+- **Exercício**: mc / verdadeiro-falso / preenchimento, com validação do
+  core, XP por dificuldade, feedback e resumo.
+- **Progresso**: stats globais + detalhe por disciplina.
+- **Perfil**: avatar, nível, XP e conquistas.
+- Navegação por tabs; ícones FontAwesome; barras animadas.
+
+### Conteúdo
+- `scripts/gen-content.mjs` converte o `content.js` da PWA em packs tipados.
+- `content/generated.ts`: **1567 exercícios reais** (2.º/3.º/5.º/6.º ano).
+- A app mobile ainda usa um conjunto de demonstração; ligar os packs reais
+  é o passo seguinte.
 
 > Honestidade: tudo acima foi verificado por compilação/tipos/testes neste
 > ambiente. **Nada foi renderizado** — não há browser nem simulador iOS aqui.

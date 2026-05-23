@@ -77,6 +77,24 @@ function DailyGoal({ done, target }: { done: number; target: number }) {
   );
 }
 
+function Recommended({ subject, onPress }: { subject: Subject; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.recCard, { backgroundColor: subject.color }, pressed && { transform: [{ scale: 0.98 }] }]}>
+      <View style={s.recDecor} />
+      <View style={s.recIcon}>
+        <FontAwesome5 name={subjectIconName(subject.icon) as any} size={24} color={colors.white} solid />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.recLabel}>SUGESTÃO DE HOJE</Text>
+        <Text style={s.recTitle}>Treinar {subject.name}</Text>
+      </View>
+      <View style={s.recPlay}>
+        <FontAwesome5 name="play" size={14} color={subject.color} solid />
+      </View>
+    </Pressable>
+  );
+}
+
 function SubjectCard({ subject, count, mastery, accuracy, onPress }: {
   subject: Subject; count: number; mastery: number; accuracy: number; onPress: () => void;
 }) {
@@ -115,6 +133,11 @@ export function HomeScreen({ profile, pack, daily, onOpenSubject }: {
   const rows: Subject[][] = [];
   for (let i = 0; i < pack.subjects.length; i += 2) rows.push(pack.subjects.slice(i, i + 2));
 
+  // Sugestao: disciplina com menor dominio (com exercicios disponiveis).
+  const recommended = [...pack.subjects]
+    .filter((sub) => countFor(sub.key) > 0)
+    .sort((a, b) => subjectMastery(profile.subjects[a.key], countFor(a.key)) - subjectMastery(profile.subjects[b.key], countFor(b.key)))[0];
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 24 }}>
@@ -123,6 +146,12 @@ export function HomeScreen({ profile, pack, daily, onOpenSubject }: {
         <View style={{ paddingHorizontal: space.lg, marginTop: -18 }}>
           <DailyGoal done={daily.done} target={daily.target} />
         </View>
+
+        {recommended && (
+          <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
+            <Recommended subject={recommended} onPress={() => onOpenSubject(recommended.key)} />
+          </View>
+        )}
 
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: space.md }}>
           <View style={s.sectionHead}>
@@ -185,6 +214,12 @@ const s = StyleSheet.create({
   dailyTitle: { fontSize: 15, fontWeight: '900', color: colors.text },
   dailyCount: { fontSize: 15, fontWeight: '900', color: colors.primaryDark },
   dailySub: { fontSize: 12, fontWeight: '600', color: colors.textLight },
+  recCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, padding: space.lg, overflow: 'hidden' },
+  recDecor: { position: 'absolute', top: -30, right: -20, width: 110, height: 110, borderRadius: 55, backgroundColor: 'rgba(255,255,255,0.12)' },
+  recIcon: { width: 52, height: 52, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  recLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  recTitle: { color: colors.white, fontSize: 18, fontWeight: '900', marginTop: 2, letterSpacing: -0.3 },
+  recPlay: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
   sectionBadge: { fontSize: 12, fontWeight: '900', color: colors.primaryDark, backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill, overflow: 'hidden' },
