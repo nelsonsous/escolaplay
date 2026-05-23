@@ -22,6 +22,13 @@ export {
 export type { Level, LevelInfo } from './engine/xp.js';
 
 export {
+  normalizeText,
+  checkFillAnswer,
+  checkAnswer,
+} from './engine/answer.js';
+export type { UserAnswer } from './engine/answer.js';
+
+export {
   buildPackFromLegacy,
   fromLegacyExercise,
 } from './content/legacy.js';
