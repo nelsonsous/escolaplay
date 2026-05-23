@@ -1,0 +1,19 @@
+{
+  "name": "escolaplay-platform",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Monorepo: core partilhado (conteudo + motor) consumido por web e mobile",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

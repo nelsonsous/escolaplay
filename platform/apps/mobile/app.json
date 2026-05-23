@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "EscolaPlay",
+    "slug": "escolaplay",
+    "scheme": "escolaplay",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#9d174d"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.escolaplay.app"
+    }
+  }
+}
