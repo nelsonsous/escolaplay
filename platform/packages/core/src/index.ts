@@ -28,6 +28,26 @@ export {
 } from './engine/answer.js';
 export type { UserAnswer } from './engine/answer.js';
 
+export { buildSession } from './engine/session.js';
+export type { SeenMap, ResultMap, BuildSessionOptions } from './engine/session.js';
+
+export { updateStreak, todayStr, daysBetween } from './engine/streak.js';
+export type { StreakState, StreakUpdate } from './engine/streak.js';
+
+export {
+  recordAnswer,
+  subjectAccuracy,
+  subjectMastery,
+  emptySubjectProgress,
+} from './engine/progress.js';
+
+export {
+  listPacks,
+  getPack,
+  getPackByGrade,
+  availableGrades,
+} from './content/packs.js';
+
 export {
   buildPackFromLegacy,
   fromLegacyExercise,
