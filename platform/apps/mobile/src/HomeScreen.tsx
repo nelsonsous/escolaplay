@@ -2,7 +2,15 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, StatusBar, Pressable } from 'react-native';
 import { levelInfo, levelProgressPercent } from '@escolaplay/core';
 import type { Profile, CurriculumPack, Subject } from '@escolaplay/core';
-import { colors } from './theme';
+import { colors, radius, space, shadow, tint } from './theme';
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={s.chip}>
+      <Text style={s.chipText}>{children}</Text>
+    </View>
+  );
+}
 
 function Header({ profile }: { profile: Profile }) {
   const lvl = levelInfo(profile.xp);
@@ -10,16 +18,31 @@ function Header({ profile }: { profile: Profile }) {
   return (
     <View style={s.header}>
       <StatusBar barStyle="light-content" />
+      {/* circulos decorativos */}
+      <View style={s.decorTop} />
+      <View style={s.decorBottom} />
+
       <View style={s.headerRow}>
-        <View style={s.avatar}><Text style={{ fontSize: 28 }}>{profile.avatar}</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.name}>{profile.name}</Text>
-          <Text style={s.levelLabel}>{lvl.name} · 🔥 {profile.streakDays} dias</Text>
+        <View style={s.avatarRing}>
+          <View style={s.avatar}><Text style={{ fontSize: 30 }}>{profile.avatar}</Text></View>
         </View>
-        <Text style={s.xpBadge}>{profile.xp} XP</Text>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={s.name}>{profile.name}</Text>
+          <View style={s.chipRow}>
+            <Chip>⭐ {lvl.name}</Chip>
+            <Chip>🔥 {profile.streakDays} dias</Chip>
+          </View>
+        </View>
+      </View>
+
+      <View style={s.xpHeaderRow}>
+        <Text style={s.xpLabel}>Nível {lvl.number}</Text>
+        <Text style={s.xpValue}>{profile.xp} XP</Text>
       </View>
       <View style={s.barBg}><View style={[s.barFill, { width: `${pct}%` }]} /></View>
-      <Text style={s.barLabel}>{lvl.into}/{lvl.span} XP para {lvl.next ?? 'nível máximo'}</Text>
+      <Text style={s.barCaption}>
+        {lvl.next ? `Faltam ${lvl.span - lvl.into} XP para ${lvl.next}` : 'Nível máximo atingido!'}
+      </Text>
     </View>
   );
 }
@@ -27,14 +50,21 @@ function Header({ profile }: { profile: Profile }) {
 function SubjectCard({ subject, count, onPress }: { subject: Subject; count: number; onPress: () => void }) {
   return (
     <Pressable
-      style={({ pressed }) => [s.card, { borderLeftColor: subject.color, opacity: pressed ? 0.85 : 1 }]}
       onPress={onPress}
+      style={({ pressed }) => [
+        s.card,
+        { backgroundColor: tint(subject.color, 0.06) },
+        pressed && { transform: [{ scale: 0.97 }] },
+      ]}
     >
-      <View style={[s.cardIcon, { backgroundColor: subject.color }]}>
-        <Text style={{ fontSize: 20 }}>{subject.icon}</Text>
+      <View style={[s.cardIcon, { backgroundColor: subject.color }, shadow]}>
+        <Text style={{ fontSize: 24 }}>{subject.icon}</Text>
       </View>
       <Text style={s.cardName}>{subject.name}</Text>
-      <Text style={s.cardMeta}>{count} exercícios</Text>
+      <View style={s.cardFooter}>
+        <Text style={[s.cardMeta, { color: subject.color }]}>{count} exercícios</Text>
+        <Text style={[s.cardArrow, { color: subject.color }]}>›</Text>
+      </View>
     </Pressable>
   );
 }
@@ -55,8 +85,9 @@ export function HomeScreen({
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Header profile={profile} />
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-        <Text style={s.sectionTitle}>{pack.label} · Disciplinas</Text>
+      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }} showsVerticalScrollIndicator={false}>
+        <Text style={s.sectionTitle}>{pack.label}</Text>
+        <Text style={s.sectionSub}>Escolhe uma disciplina para treinar</Text>
         {rows.map((row, i) => (
           <View key={i} style={s.row}>
             {row.map((sub) => (
@@ -71,19 +102,37 @@ export function HomeScreen({
 }
 
 const s = StyleSheet.create({
-  header: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 20 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  avatar: { width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.45)' },
-  name: { color: colors.white, fontSize: 18, fontWeight: '800' },
-  levelLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 2 },
-  xpBadge: { color: colors.white, fontWeight: '900', fontSize: 14 },
-  barBg: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' },
-  barFill: { height: 10, borderRadius: 5, backgroundColor: colors.white },
-  barLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 4 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.primaryDark, marginBottom: 4 },
-  row: { flexDirection: 'row', gap: 12 },
-  card: { flex: 1, backgroundColor: colors.card, borderRadius: 14, padding: 14, gap: 6, borderLeftWidth: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  cardIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cardName: { fontSize: 13, fontWeight: '700', color: colors.text },
-  cardMeta: { fontSize: 11, color: colors.textLight, fontWeight: '600' },
+  header: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: space.lg,
+    paddingTop: 56,
+    paddingBottom: space.xl,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+    overflow: 'hidden',
+  },
+  decorTop: { position: 'absolute', top: -50, right: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.12)' },
+  decorBottom: { position: 'absolute', bottom: -40, left: -20, width: 110, height: 110, borderRadius: 55, backgroundColor: 'rgba(255,255,255,0.08)' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg },
+  avatarRing: { padding: 3, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.35)' },
+  avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  name: { color: colors.white, fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
+  chipRow: { flexDirection: 'row', gap: space.sm },
+  chip: { backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  xpHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 6 },
+  xpLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '800' },
+  xpValue: { color: colors.white, fontSize: 14, fontWeight: '900' },
+  barBg: { height: 12, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.28)', overflow: 'hidden' },
+  barFill: { height: 12, borderRadius: radius.pill, backgroundColor: colors.white },
+  barCaption: { color: 'rgba(255,255,255,0.95)', fontSize: 12, fontWeight: '700', marginTop: 6 },
+  sectionTitle: { fontSize: 24, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
+  sectionSub: { fontSize: 14, color: colors.textLight, fontWeight: '600', marginTop: -6 },
+  row: { flexDirection: 'row', gap: space.md },
+  card: { flex: 1, borderRadius: radius.lg, padding: space.lg, gap: space.sm, borderWidth: 1, borderColor: colors.border, ...shadow },
+  cardIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: space.xs },
+  cardName: { fontSize: 16, fontWeight: '800', color: colors.text },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardMeta: { fontSize: 12, fontWeight: '800' },
+  cardArrow: { fontSize: 22, fontWeight: '900', marginTop: -4 },
 });
