@@ -6,6 +6,7 @@ import type { Profile, CurriculumPack, Subject } from '@escolaplay/core';
 import { colors, radius, space, shadow, tint } from './theme';
 import { ProgressBar, StatPill } from './ui';
 import { subjectIconName } from './Icon';
+import { TAB_BAR_HEIGHT } from './TabBar';
 
 function Header({ profile }: { profile: Profile }) {
   const lvl = levelInfo(profile.xp);
@@ -116,7 +117,7 @@ export function HomeScreen({ profile, pack, daily, onOpenSubject }: {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 24 }}>
         <Header profile={profile} />
 
         <View style={{ paddingHorizontal: space.lg, marginTop: -18 }}>

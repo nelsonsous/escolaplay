@@ -52,3 +52,22 @@ export const demoProfile: Profile = {
 
 // Meta diaria (demo).
 export const dailyGoal = { done: 3, target: 5 };
+
+// Conquistas (demo) — para o ecra de Perfil.
+export interface Achievement {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string; // FontAwesome5
+  color: string;
+  unlocked: boolean;
+}
+
+export const achievements: Achievement[] = [
+  { id: 'first', name: 'Primeiros passos', desc: 'Completaste o 1.º treino', icon: 'shoe-prints', color: '#16a34a', unlocked: true },
+  { id: 'streak7', name: 'Uma semana!', desc: '7 dias seguidos', icon: 'fire', color: '#f97316', unlocked: true },
+  { id: 'cem', name: 'Centena', desc: '100 exercícios feitos', icon: 'medal', color: '#eab308', unlocked: true },
+  { id: 'perfect', name: 'Sem falhas', desc: 'Treino 100% certo', icon: 'bullseye', color: '#e11d48', unlocked: true },
+  { id: 'mat', name: 'Mestre dos números', desc: 'Domínio total em Matemática', icon: 'calculator', color: '#2563eb', unlocked: false },
+  { id: 'streak30', name: 'Um mês inteiro', desc: '30 dias seguidos', icon: 'crown', color: '#a855f7', unlocked: false },
+];
