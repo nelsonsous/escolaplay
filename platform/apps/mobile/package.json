@@ -12,10 +12,10 @@
     "@escolaplay/core": "workspace:*",
     "@escolaplay/ui": "workspace:*",
     "@tamagui/core": "^1.144.0",
-    "expo": "^56.0.0",
-    "expo-status-bar": "^3.0.0",
+    "expo": "55.0.26",
+    "expo-status-bar": "^2.0.0",
     "react": "19.2.6",
-    "react-native": "0.85.3"
+    "react-native": "0.82.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
