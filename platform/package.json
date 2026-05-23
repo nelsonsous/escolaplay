@@ -6,7 +6,8 @@
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "mobile": "pnpm --filter @escolaplay/core build && pnpm --filter @escolaplay/ui build && pnpm --filter @escolaplay/mobile start"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
@@ -15,5 +16,12 @@
   "packageManager": "pnpm@10.0.0",
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "19.2.6",
+      "react-dom": "19.2.6",
+      "react-native": "0.85.3"
+    }
   }
 }

@@ -24,30 +24,35 @@ conteúdo legado (`content_*.js`) são reutilizados via `buildPackFromLegacy`,
 
 | Pacote | Estado | Verificação |
 |---|---|---|
-| `@escolaplay/core` | ✅ funcional | `tsc` limpo + **15 testes passam** (`pnpm --filter @escolaplay/core test`) |
-| `@escolaplay/ui` | ✅ typecheck | `tsc` limpo. **Não renderizado** (sem browser/simulador no ambiente) |
-| `apps/mobile` | 🚧 scaffold | entrada escrita; precisa do toolchain Expo local para correr |
-| `apps/web` | ⬜ por criar | mesma `<HomeScreen />`, via react-native-web |
+| `@escolaplay/core` | ✅ funcional | `tsc` limpo + **15 testes passam** |
+| `@escolaplay/ui` | ✅ build + typecheck | compila para `dist`; `tsc` limpo |
+| `apps/mobile` | ✅ typecheck + configs | `tsc` limpo contra Expo/RN/Tamagui; Metro carrega |
 
-> Honestidade: o `core` está provado por testes. O visual (`ui`/apps) está
-> escrito e validado por tipos, mas **não foi renderizado aqui**. Para "ver
-> com os olhos", correr localmente (abaixo).
+> Honestidade: tudo acima foi verificado por compilação/tipos/testes neste
+> ambiente. **Nada foi renderizado** — não há browser nem simulador iOS aqui.
+> O "ver com os olhos" faz-se no Mac (abaixo).
 
-## Comandos
+## Matriz de versões
+
+Alinhada com o ecossistema atual (mai/2026): **Expo SDK 56 · React 19 ·
+React Native 0.85**. Fixada via `pnpm.overrides` na raiz para garantir uma
+única versão de React/RN em todo o monorepo (requisito do RN).
+
+## Correr no Mac
 
 ```bash
 cd platform
 pnpm install
 
-# core — o que está 100% verificado
+# 1) confirmar o core (deve dar 15 testes verdes)
 pnpm --filter @escolaplay/core test
-pnpm --filter @escolaplay/core typecheck
 
-# ui
-pnpm --filter @escolaplay/ui typecheck
+# 2) arrancar a app (constroi core+ui e abre o Expo)
+pnpm mobile
+#   -> 'i' para o simulador iOS, ou ler o QR com a app Expo Go no iPhone
 
-# mobile (requer toolchain Expo na máquina local)
-pnpm --filter @escolaplay/mobile start
+# Se o Expo se queixar de versoes, alinhar ao SDK instalado:
+cd apps/mobile && npx expo install --fix
 ```
 
 ## Próximos passos sugeridos

@@ -6,7 +6,7 @@
 // ambiente remoto — so o core (testado) e o ui (typecheck) foram validados.
 
 import { TamaguiProvider } from '@tamagui/core';
-import { SafeAreaView } from 'react-native';
+import { View } from 'react-native';
 import {
   tamaguiConfig,
   HomeScreen,
@@ -46,13 +46,13 @@ const demoProfile: Profile = {
 export default function App() {
   return (
     <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
-      <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
         <HomeScreen
           profile={demoProfile}
           pack={demoPack}
           onOpenSubject={(key) => console.log('abrir disciplina', key)}
         />
-      </SafeAreaView>
+      </View>
     </TamaguiProvider>
   );
 }
