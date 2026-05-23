@@ -7,7 +7,9 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "mobile": "pnpm --filter @escolaplay/core build && pnpm --filter @escolaplay/mobile start"
+    "mobile": "pnpm --filter @escolaplay/core build && pnpm --filter @escolaplay/mobile start",
+    "mobile:ios": "pnpm --filter @escolaplay/core build && pnpm --filter @escolaplay/mobile start:ios",
+    "simulator": "bash setup-simulator.sh"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
