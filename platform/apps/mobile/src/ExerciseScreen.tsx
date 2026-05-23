@@ -2,20 +2,19 @@ import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, StatusBar, Pressable, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { checkAnswer, xpForCorrect } from '@escolaplay/core';
 import type { Exercise, CurriculumPack, UserAnswer } from '@escolaplay/core';
 import { colors, radius, space, shadow, shadowStrong, tint } from './theme';
+import { ProgressBar } from './ui';
+import { subjectIconName } from './Icon';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
-export function ExerciseScreen({
-  pack,
-  subjectKey,
-  onExit,
-}: {
+export function ExerciseScreen({ pack, subjectKey, onExit }: {
   pack: CurriculumPack;
   subjectKey: string;
-  onExit: (xpGained: number) => void;
+  onExit: (xpGained: number, answered: number) => void;
 }) {
   const subject = pack.subjects.find((s) => s.key === subjectKey)!;
   const items = useMemo(() => pack.exercises.filter((e) => e.subject === subjectKey), [pack, subjectKey]);
@@ -27,6 +26,7 @@ export function ExerciseScreen({
   const [isCorrect, setIsCorrect] = useState(false);
   const [xpGained, setXpGained] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
+  const [answeredCount, setAnsweredCount] = useState(0);
   const [finished, setFinished] = useState(false);
 
   const ex: Exercise | undefined = items[idx];
@@ -38,6 +38,7 @@ export function ExerciseScreen({
     const ok = checkAnswer(ex, answer);
     setIsCorrect(ok);
     setAnswered(true);
+    setAnsweredCount((c) => c + 1);
     if (ok) {
       setXpGained((x) => x + xpForCorrect(ex.difficulty));
       setCorrectCount((c) => c + 1);
@@ -55,19 +56,21 @@ export function ExerciseScreen({
 
   if (finished || !ex) {
     const perfect = correctCount === items.length;
+    const acc = items.length ? Math.round((correctCount / items.length) * 100) : 0;
     return (
       <View style={[s.screen, s.center]}>
         <View style={[s.summaryEmoji, { backgroundColor: tint(subject.color, 0.12) }]}>
-          <Text style={{ fontSize: 64 }}>{perfect ? '🏆' : '🎉'}</Text>
+          <Text style={{ fontSize: 60 }}>{perfect ? '🏆' : acc >= 50 ? '🎉' : '💪'}</Text>
         </View>
         <Text style={s.summaryTitle}>Treino concluído!</Text>
-        <Text style={s.summaryLine}>{correctCount} de {items.length} certas</Text>
+        <Text style={s.summaryLine}>{correctCount} de {items.length} certas · {acc}%</Text>
         <View style={[s.xpPill, { backgroundColor: tint(subject.color, 0.12) }]}>
+          <FontAwesome5 name="star" size={16} color={subject.color} solid />
           <Text style={[s.xpPillText, { color: subject.color }]}>+{xpGained} XP</Text>
         </View>
         <Pressable
           style={({ pressed }) => [s.primaryBtn, { backgroundColor: subject.color }, shadowStrong(subject.color), pressed && { transform: [{ scale: 0.98 }] }]}
-          onPress={() => onExit(xpGained)}
+          onPress={() => onExit(xpGained, answeredCount)}
         >
           <Text style={s.primaryBtnText}>Voltar ao início</Text>
         </Pressable>
@@ -75,38 +78,29 @@ export function ExerciseScreen({
     );
   }
 
-  const showFooterBtn = (label: string, action: () => void, enabled = true) => (
-    <Pressable
-      style={({ pressed }) => [
-        s.primaryBtn,
-        { backgroundColor: enabled ? subject.color : colors.textMuted },
-        enabled && shadowStrong(subject.color),
-        pressed && enabled && { transform: [{ scale: 0.98 }] },
-      ]}
-      onPress={enabled ? action : undefined}
-    >
-      <Text style={s.primaryBtnText}>{label}</Text>
-    </Pressable>
-  );
-
   const hasAnswer = ex.type === 'fill' ? text.trim().length > 0 : choice !== null;
+  const progressPct = ((idx + (answered ? 1 : 0)) / items.length) * 100;
 
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[s.topBar, { backgroundColor: subject.color }]}>
         <StatusBar barStyle="light-content" />
-        <Pressable onPress={() => onExit(xpGained)} hitSlop={12} style={s.closeBtn}>
-          <Text style={s.close}>✕</Text>
+        <Pressable onPress={() => onExit(xpGained, answeredCount)} hitSlop={12} style={s.closeBtn}>
+          <Ionicons name="close" size={24} color={colors.white} />
         </Pressable>
-        <View style={s.progressBg}>
-          <View style={[s.progressFill, { width: `${((idx + (answered ? 1 : 0)) / items.length) * 100}%` }]} />
+        <View style={{ flex: 1 }}>
+          <ProgressBar percent={progressPct} height={10} track="rgba(255,255,255,0.35)" fill={colors.white} />
         </View>
-        <Text style={s.counter}>{idx + 1}/{items.length}</Text>
+        <View style={s.xpChip}>
+          <FontAwesome5 name="star" size={11} color="#fde047" solid />
+          <Text style={s.xpChipText}>{xpGained}</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={[s.topicChip, { backgroundColor: tint(subject.color, 0.1) }]}>
-          <Text style={[s.topicText, { color: subject.color }]}>{subject.icon}  {ex.topic}</Text>
+          <FontAwesome5 name={subjectIconName(subject.icon) as any} size={12} color={subject.color} solid />
+          <Text style={[s.topicText, { color: subject.color }]}>{ex.topic}</Text>
         </View>
         <Text style={s.question}>{ex.question}</Text>
 
@@ -129,11 +123,11 @@ export function ExerciseScreen({
               <View style={[
                 s.badge,
                 selected && { backgroundColor: subject.color },
-                showState && (right ? { backgroundColor: colors.success } : { backgroundColor: colors.danger }),
+                showState && { backgroundColor: right ? colors.success : colors.danger },
               ]}>
-                <Text style={[s.badgeText, (selected || showState) && { color: colors.white }]}>
-                  {showState ? (right ? '✓' : '✗') : LETTERS[i]}
-                </Text>
+                {showState
+                  ? <FontAwesome5 name={right ? 'check' : 'times'} size={14} color={colors.white} />
+                  : <Text style={[s.badgeText, selected && { color: colors.white }]}>{LETTERS[i]}</Text>}
               </View>
               <Text style={s.optionText}>{opt}</Text>
             </Pressable>
@@ -155,7 +149,9 @@ export function ExerciseScreen({
                 showState && (right ? s.optionRight : s.optionWrong),
               ]}
             >
-              <Text style={{ fontSize: 22 }}>{v ? '✅' : '❌'}</Text>
+              <View style={[s.badge, { backgroundColor: v ? tint(colors.success, 0.15) : tint(colors.danger, 0.15) }]}>
+                <FontAwesome5 name={v ? 'check' : 'times'} size={14} color={v ? colors.success : colors.danger} />
+              </View>
               <Text style={s.optionText}>{v ? 'Verdadeiro' : 'Falso'}</Text>
             </Pressable>
           );
@@ -177,18 +173,32 @@ export function ExerciseScreen({
 
         {answered && (
           <View style={[s.feedback, { backgroundColor: isCorrect ? colors.successBg : colors.dangerBg }]}>
-            <Text style={[s.feedbackTitle, { color: isCorrect ? colors.success : colors.danger }]}>
-              {isCorrect ? '🎯 Boa, acertaste!' : '💡 Não faz mal, fica a dica:'}
-            </Text>
+            <View style={s.feedbackHead}>
+              <FontAwesome5 name={isCorrect ? 'check-circle' : 'lightbulb'} size={18} color={isCorrect ? colors.success : colors.danger} solid />
+              <Text style={[s.feedbackTitle, { color: isCorrect ? colors.success : colors.danger }]}>
+                {isCorrect ? 'Boa, acertaste!' : 'Não faz mal — fica a dica:'}
+              </Text>
+            </View>
             {ex.explanation && <Text style={s.feedbackText}>{ex.explanation}</Text>}
           </View>
         )}
       </ScrollView>
 
       <View style={s.footer}>
-        {!answered
-          ? showFooterBtn('Responder', submit, hasAnswer)
-          : showFooterBtn(idx + 1 >= items.length ? 'Terminar' : 'Próximo →', next)}
+        <Pressable
+          disabled={!answered && !hasAnswer}
+          onPress={answered ? next : submit}
+          style={({ pressed }) => [
+            s.primaryBtn,
+            { backgroundColor: !answered && !hasAnswer ? colors.textMuted : subject.color },
+            (answered || hasAnswer) && shadowStrong(subject.color),
+            pressed && { transform: [{ scale: 0.98 }] },
+          ]}
+        >
+          <Text style={s.primaryBtnText}>
+            {!answered ? 'Responder' : idx + 1 >= items.length ? 'Terminar' : 'Próximo'}
+          </Text>
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
   );
@@ -199,23 +209,22 @@ const s = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xxl },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingTop: 56, paddingBottom: space.md, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
   closeBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  close: { color: colors.white, fontSize: 18, fontWeight: '800' },
-  progressBg: { flex: 1, height: 10, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.35)', overflow: 'hidden' },
-  progressFill: { height: 10, borderRadius: radius.pill, backgroundColor: colors.white },
-  counter: { color: colors.white, fontWeight: '900', fontSize: 13 },
-  topicChip: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  xpChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  xpChipText: { color: colors.white, fontWeight: '900', fontSize: 13 },
+  topicChip: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   topicText: { fontSize: 13, fontWeight: '800' },
-  question: { fontSize: 24, fontWeight: '900', color: colors.text, lineHeight: 32, letterSpacing: -0.4 },
+  question: { fontSize: 25, fontWeight: '900', color: colors.text, lineHeight: 33, letterSpacing: -0.4 },
   option: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.card, borderRadius: radius.md, padding: space.lg, borderWidth: 2, borderColor: colors.border, ...shadow },
   optionRight: { borderColor: colors.success, backgroundColor: colors.successBg },
   optionWrong: { borderColor: colors.danger, backgroundColor: colors.dangerBg },
   optionText: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.text },
-  badge: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f1f3f5', alignItems: 'center', justifyContent: 'center' },
+  badge: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#f1f3f5', alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 15, fontWeight: '900', color: colors.textLight },
   input: { backgroundColor: colors.card, borderRadius: radius.md, padding: space.lg, borderWidth: 2, borderColor: colors.border, fontSize: 20, fontWeight: '700', color: colors.text, ...shadow },
   inputRight: { borderColor: colors.success, backgroundColor: colors.successBg },
   inputWrong: { borderColor: colors.danger, backgroundColor: colors.dangerBg },
-  feedback: { borderRadius: radius.md, padding: space.lg, gap: 6 },
+  feedback: { borderRadius: radius.md, padding: space.lg, gap: 8 },
+  feedbackHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   feedbackTitle: { fontSize: 16, fontWeight: '900' },
   feedbackText: { fontSize: 15, color: colors.text, lineHeight: 22, fontWeight: '500' },
   footer: { padding: space.lg, paddingBottom: 32 },
@@ -223,7 +232,7 @@ const s = StyleSheet.create({
   primaryBtnText: { color: colors.white, fontSize: 17, fontWeight: '900', letterSpacing: 0.2 },
   summaryEmoji: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center' },
   summaryTitle: { fontSize: 26, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
-  summaryLine: { fontSize: 17, color: colors.textLight, fontWeight: '700' },
-  xpPill: { borderRadius: radius.pill, paddingHorizontal: 20, paddingVertical: 8, marginBottom: space.sm },
+  summaryLine: { fontSize: 16, color: colors.textLight, fontWeight: '700' },
+  xpPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingHorizontal: 20, paddingVertical: 9, marginBottom: space.sm },
   xpPillText: { fontSize: 20, fontWeight: '900' },
 });
