@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v330';
+const APP_VERSION = 'v331';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4516,6 +4516,11 @@ function renderRoleplay(e) {
       </div>`;
     // Esconde o botão "Responder" — o roleplay conduz-se sozinho
     _setExAction('hidden');
+    // Esconder painéis genéricos que não fazem sentido no roleplay
+    ['ex-prof-ia-wrap', 'ex-doubt-panel', 'ex-doubt-trigger'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
     _rpAdvance();
 }
 
@@ -4542,15 +4547,30 @@ function _rpAdvance() {
     const turn = turns[st.idx];
     const controls = document.getElementById('rp-controls');
     if (turn.who === 'them') {
-        // A personagem fala
+        // A personagem fala — em iOS o audio so arranca a partir de um toque,
+        // por isso mostramos um botao "Ouvir" (gesto) em vez de auto-play.
         const chat = document.getElementById('rp-chat');
         chat.insertAdjacentHTML('beforeend', _rpBubbleThem(turn.text));
         _rpScroll();
-        if (controls) controls.innerHTML = `<div class="rp-speaking"><i class="fas fa-volume-high"></i> ${escapeHtml(st.charName)} está a falar…</div>`;
         const next = () => { st.idx++; _rpAdvance(); };
-        if (typeof speakEN === 'function') {
-            speakEN(turn.text, st.lang, { onEnd: () => setTimeout(next, 350) }, _voiceForCurrentExercise && _voiceForCurrentExercise());
-        } else { setTimeout(next, 800); }
+        if (controls) {
+            controls.innerHTML = `<button id="rp-play" class="rp-mic-btn"><i class="fas fa-volume-high"></i> Ouvir ${escapeHtml(st.charName)}</button>
+                <button id="rp-skip" class="rp-model-btn" style="margin-top:8px;width:100%"><i class="fas fa-forward"></i> Saltar</button>`;
+            const playBtn = document.getElementById('rp-play');
+            const onDone = () => { const b = document.getElementById('rp-play'); if (b) { b.disabled = false; b.innerHTML = `<i class="fas fa-rotate-right"></i> Ouvir de novo`; } };
+            playBtn.addEventListener('click', () => {
+                playBtn.disabled = true;
+                playBtn.innerHTML = `<i class="fas fa-volume-high"></i> ${escapeHtml(st.charName)} está a falar…`;
+                // 1.ª vez avanca automaticamente quando acaba; depois fica como "ouvir de novo"
+                if (!playBtn.dataset.played) {
+                    playBtn.dataset.played = '1';
+                    speakEN(turn.text, st.lang, { onEnd: () => setTimeout(next, 400) }, _voiceForCurrentExercise && _voiceForCurrentExercise());
+                } else {
+                    speakEN(turn.text, st.lang, { onEnd: onDone }, _voiceForCurrentExercise && _voiceForCurrentExercise());
+                }
+            });
+            document.getElementById('rp-skip').addEventListener('click', () => { _stopCurrentAudio(); next(); });
+        }
     } else {
         // A tua vez
         if (controls) {
