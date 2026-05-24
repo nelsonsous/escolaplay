@@ -4300,6 +4300,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-quit { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 9px; padding: 5px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .tutor-quit:active { transform: scale(0.97); }
 .tutor-quit.ask { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.tutor-quit.deep { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
 .tutor-inputrow { display: flex; align-items: flex-end; gap: 8px; }
 .tutor-text {
     flex: 1; min-width: 0;
