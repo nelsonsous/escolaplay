@@ -120,9 +120,16 @@
             const u = new SpeechSynthesisUtterance(text);
             u.lang = lang || 'pt-PT';
             u.rate = 0.96; u.pitch = 1.05;
-            const voices = synth.getVoices();
-            const v = voices.find(x => x.lang === u.lang)
-                   || voices.find(x => x.lang && x.lang.startsWith((u.lang || '').slice(0, 2)));
+            // Para inglês usa o seletor partilhado (respeita a voz neural escolhida)
+            let v = null;
+            if (/^en/i.test(u.lang) && typeof window._pickENVoice === 'function') {
+                v = window._pickENVoice(u.lang);
+            }
+            if (!v) {
+                const voices = synth.getVoices();
+                v = voices.find(x => x.lang === u.lang)
+                 || voices.find(x => x.lang && x.lang.startsWith((u.lang || '').slice(0, 2)));
+            }
             if (v) u.voice = v;
             u.onstart = _startTalk;
             u.onend = _stopTalk;

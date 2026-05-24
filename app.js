@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v321';
+const APP_VERSION = 'v322';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4490,6 +4490,7 @@ function renderSpeak(e) {
            <div style="display:flex;gap:8px;margin-top:8px">
              <button onclick="resetSpeak()" style="flex:1;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-rotate-left"></i>&nbsp;Apagar</button>
              <button onclick="ttsSpeakEN(_speakModelText, '${lang}')" style="flex:1;background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-volume-high"></i>&nbsp;Ouvir modelo</button>
+             <button onclick="openVoicePickerEN()" title="Escolher voz" style="background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px 12px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-sliders"></i></button>
            </div>`
         : `<div style="background:#fee2e2;border-left:3px solid #dc2626;padding:10px 14px;border-radius:6px;color:#7f1d1d;font-size:0.86rem">Este browser não suporta reconhecimento de voz. Usa Chrome ou Safari.</div>`;
     _speakModelText = model;
@@ -4502,21 +4503,33 @@ function _pickENVoice(lang) {
     if (!('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
     if (!voices || !voices.length) return null;
-    const wantUK = /gb/i.test(lang);
+    // 1) Escolha manual do utilizador
+    const chosen = state && state.ttsVoiceNameEN;
+    if (chosen) {
+        const exact = voices.find(v => v.name === chosen);
+        if (exact) return exact;
+    }
+    // 2) Scoring automático — prioriza vozes neurais/premium
+    const wantUK = /gb/i.test(lang || '');
     const score = (v) => {
         let s = 0;
         const name = (v.name || '').toLowerCase();
         const vlang = (v.lang || '').toLowerCase();
         if (wantUK && /en[-_]gb/.test(vlang)) s += 100;
         else if (!wantUK && /en[-_]us/.test(vlang)) s += 100;
-        else if (/^en/.test(vlang)) s += 40;
-        if (/google/.test(name)) s += 50;
-        if (/(natural|neural|premium|enhanced)/.test(name)) s += 20;
-        if (v.localService === false) s += 5;
+        else if (/^en/.test(vlang)) s += 50;
+        // Vozes claramente neurais/de qualidade
+        if (/google/.test(name)) s += 60;
+        if (/(siri|premium|enhanced|neural|natural)/.test(name)) s += 55;
+        if (/\(.*(premium|enhanced).*\)/.test(name)) s += 10;
+        // Vozes "compactas"/eloquence soam pior
+        if (/(compact|eloquence)/.test(name)) s -= 30;
+        if (v.localService === false) s += 8; // online costuma ser neural
         return s;
     };
-    return voices.slice().sort((a,b) => score(b) - score(a))[0] || null;
+    return voices.slice().sort((a, b) => score(b) - score(a))[0] || null;
 }
+window._pickENVoice = _pickENVoice;
 
 function ttsSpeakEN(text, lang) {
     if (!text || !('speechSynthesis' in window)) return;
@@ -10026,6 +10039,82 @@ window.testVoice = testVoice;
 window.chooseVoice = chooseVoice;
 window.clearVoiceChoice = clearVoiceChoice;
 window.closeVoicePicker = closeVoicePicker;
+
+// ============================================================
+// VOICE PICKER (EN) — lista vozes inglesas, prioriza neurais,
+// permite ouvir + escolher (salva em state.ttsVoiceNameEN)
+// ============================================================
+function openVoicePickerEN() {
+    if (!('speechSynthesis' in window)) { showToast('Este browser não suporta vozes.'); return; }
+    let voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) { window.speechSynthesis.getVoices(); setTimeout(openVoicePickerEN, 300); return; }
+    const enVoices = voices.filter(v => /^en/i.test(v.lang || ''));
+    const isNeural = (v) => /(google|siri|premium|enhanced|neural|natural)/i.test(v.name || '') || v.localService === false;
+    enVoices.sort((a, b) => {
+        const an = isNeural(a) ? 0 : 1, bn = isNeural(b) ? 0 : 1;
+        if (an !== bn) return an - bn;
+        return (a.name || '').localeCompare(b.name || '');
+    });
+    document.getElementById('voice-picker-en-temp')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'voice-picker-en-temp';
+    modal.className = 'modal';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px';
+    const currentName = state.ttsVoiceNameEN || '';
+    const rows = enVoices.length === 0
+        ? `<p style="text-align:center;color:var(--text-light);padding:24px 12px">
+             Não encontrei vozes inglesas instaladas.<br><br>
+             <strong>iPhone:</strong> Definições → Acessibilidade → Conteúdo Falado → Vozes → English → descarrega uma voz <strong>"Premium"</strong> (soa quase humana).<br><br>
+             <strong>Android:</strong> normalmente já tens "Google US English".
+           </p>`
+        : enVoices.map(v => {
+            const neural = isNeural(v);
+            const isChosen = v.name === currentName;
+            const flag = /gb/i.test(v.lang) ? '🇬🇧' : (/au/i.test(v.lang) ? '🇦🇺' : '🇺🇸');
+            const safeName = v.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isChosen ? '#ecfeff' : '#fafafa'};border:2px solid ${isChosen ? '#0891b2' : '#e5e7eb'};border-radius:10px;margin-bottom:6px">
+                <span style="font-size:1.2rem;flex-shrink:0">${flag}</span>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:700;font-size:0.92rem;color:#1f2937">${escapeHtml(v.name)}${neural ? ' <span style="font-size:0.66rem;background:#0891b2;color:#fff;padding:1px 6px;border-radius:8px;vertical-align:middle">NEURAL</span>' : ''}</div>
+                    <div style="font-size:0.72rem;color:#6b7280;margin-top:2px">${escapeHtml(v.lang)}${v.localService === false ? ' · online' : ' · offline'}</div>
+                </div>
+                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoiceEN('${safeName}')"><i class="fas fa-volume-high"></i></button>
+                <button class="btn ${isChosen ? 'btn-primary-solid' : 'btn-secondary'}" style="font-size:0.78rem;padding:6px 12px" onclick="chooseVoiceEN('${safeName}')">${isChosen ? '✓' : 'Escolher'}</button>
+              </div>`;
+        }).join('');
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:500px;max-height:85vh;padding:18px;display:flex;flex-direction:column">
+        <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Voz inglesa</h3>
+        <p style="font-size:0.85rem;color:#6b7280;margin:0 0 12px;line-height:1.45">Escolhe uma voz <strong>NEURAL</strong> para soar tipo Duolingo. Toca em 🔊 para ouvir.</p>
+        ${currentName ? `<div style="background:#ecfeff;border:1px solid #0891b2;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0e7490"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
+        <div style="flex:1;overflow-y:auto;padding-right:4px">${rows}</div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          ${currentName ? `<button class="btn btn-secondary" style="flex:1" onclick="clearVoiceChoiceEN()"><i class="fas fa-rotate"></i> Auto</button>` : ''}
+          <button class="btn btn-primary-solid" style="flex:2" onclick="closeVoicePickerEN()"><i class="fas fa-check"></i> Pronto</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+}
+function testVoiceEN(voiceName) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel();
+        const v = window.speechSynthesis.getVoices().find(x => x.name === voiceName);
+        if (!v) return;
+        const u = new SpeechSynthesisUtterance('Good morning everyone, thanks for joining the meeting.');
+        u.voice = v; u.lang = v.lang || 'en-US'; u.rate = 0.95; u.pitch = 1.0;
+        window.speechSynthesis.speak(u);
+    } catch {}
+}
+function chooseVoiceEN(voiceName) { state.ttsVoiceNameEN = voiceName; saveState(); openVoicePickerEN(); }
+function clearVoiceChoiceEN() { delete state.ttsVoiceNameEN; saveState(); openVoicePickerEN(); }
+function closeVoicePickerEN() { try { window.speechSynthesis.cancel(); } catch {} document.getElementById('voice-picker-en-temp')?.remove(); }
+window.openVoicePickerEN = openVoicePickerEN;
+window.testVoiceEN = testVoiceEN;
+window.chooseVoiceEN = chooseVoiceEN;
+window.clearVoiceChoiceEN = clearVoiceChoiceEN;
+window.closeVoicePickerEN = closeVoicePickerEN;
 window.ttsSpeak = function (text) {
     try {
         if (!('speechSynthesis' in window)) return;
