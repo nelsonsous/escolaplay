@@ -9,6 +9,30 @@
 // "natural" o utilizador tem de descarregar a voz premium em
 // Definições → Acessibilidade → Conteúdo Falado → Vozes → Inglês.
 
+// Importa expo-av para forçar audio session em playback antes de cada speak.
+// Carregamento defensivo — se não estiver instalado, ignora.
+let AvAudio: any = null;
+try {
+
+  AvAudio = require('expo-av').Audio;
+} catch {
+  AvAudio = null;
+}
+
+async function ensurePlaybackAudioSession(): Promise<void> {
+  if (!AvAudio) return;
+  try {
+    await AvAudio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    });
+  } catch {
+    /* swallow */
+  }
+}
+
 type SpeechModule = {
   speak: (text: string, opts?: {
     language?: string; voice?: string; rate?: number; pitch?: number;
@@ -139,6 +163,13 @@ let speakingPromise: Promise<void> | null = null;
 
 async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: string | null): Promise<void> {
   if (!Speech) return;
+
+  // 0. Garantir SEMPRE que o audio session iOS está em modo playback.
+  // Sem isto, depois de uma sessão de microfone (que muda para
+  // 'recording'), as falas seguintes ficam silenciosas mesmo que o
+  // motor TTS aparente funcionar. Este setAudioMode é idempotente
+  // e rápido (~5ms).
+  await ensurePlaybackAudioSession();
 
   // 1. Detectar se há fala em curso, com 3 caminhos:
   //    a) isSpeakingAsync diz que sim → stop + esperar mais

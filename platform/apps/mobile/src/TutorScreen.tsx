@@ -15,20 +15,20 @@ import {
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { callTutor, transcribeAudio, TUTOR_OPENER } from '@escolaplay/core';
-import type { TutorMessage, TutorReply, TutorErrorAnalysis } from '@escolaplay/core';
+import type { TutorMessage, TutorReply, TutorErrorAnalysis, TutorPracticeExercise } from '@escolaplay/core';
 import { colors, radius, space, shadow, shadowSoft, shadowStrong, tint } from './theme';
 import { PressScale, DecorOrb } from './ui';
 import { ttsAvailable, ttsSpeak, ttsStop, ttsSetPreferredVoice } from './Tts';
 import { recorderAvailable, startRecording, buildTranscribeForm, prepareAudioForPlayback, type RecordingHandle } from './Recorder';
 import { VoicePicker } from './VoicePicker';
 import { LessonCard } from './LessonCard';
-import { PracticeModal } from './PracticeModal';
+import { InlinePracticeCard } from './InlinePracticeCard';
 import { usePersistedState } from './persistence';
 import { MISTRAL_API_KEY } from './secrets';
 
 interface TurnDisplay {
   id: string;
-  role: 'student' | 'tutor';
+  role: 'student' | 'tutor' | 'practice';
   text: string;
   corrected?: string;
   tip?: string;
@@ -36,6 +36,14 @@ interface TurnDisplay {
   errorAnalysis?: TutorErrorAnalysis | null;
   /** O que o student disse antes desta resposta (para o card de comparação). */
   studentOriginal?: string;
+  /** Para turns de prática inline. */
+  practice?: {
+    exercise: TutorPracticeExercise;
+    indexInBatch: number;
+    totalInBatch: number;
+    state: 'pending' | 'answered';
+    chosenIdx?: number;
+  };
 }
 
 const TUTOR_COLOR = '#0d9488';
@@ -51,7 +59,6 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
   const [recording, setRecording] = useState<RecordingHandle | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
-  const [practiceFor, setPracticeFor] = useState<TutorErrorAnalysis | null>(null);
   const [preferredVoice, setPreferredVoice] = usePersistedState<string | null>(
     '@escolaplay/tutor-voice',
     null,
@@ -79,6 +86,39 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
     }
   }, [turns, autoSpeak]);
 
+  /** Inicia uma série de exercícios práticos inline no chat. */
+  function startInlinePractice(analysis: TutorErrorAnalysis) {
+    if (!analysis.practice.length) return;
+    const intro: TurnDisplay = {
+      id: `pi${Date.now()}`,
+      role: 'tutor',
+      text: `Vamos praticar — ${analysis.practice.length} ${analysis.practice.length === 1 ? 'pergunta' : 'perguntas'} sobre "${analysis.title}".`,
+    };
+    // Marca o intro como já "spoken" para o auto-speak não tentar lê-lo.
+    spokenIdsRef.current.add(intro.id);
+    const practiceTurns: TurnDisplay[] = analysis.practice.map((ex, i) => ({
+      id: `pe${Date.now()}_${i}`,
+      role: 'practice',
+      text: '',
+      practice: {
+        exercise: ex,
+        indexInBatch: i,
+        totalInBatch: analysis.practice.length,
+        state: 'pending',
+      },
+    }));
+    setTurns((prev) => [...prev, intro, ...practiceTurns]);
+  }
+
+  /** Responde a um turn de prática inline. */
+  function answerPracticeTurn(turnId: string, chosenIdx: number) {
+    setTurns((prev) => prev.map((t) => (
+      t.id === turnId && t.practice
+        ? { ...t, practice: { ...t.practice, state: 'answered', chosenIdx } }
+        : t
+    )));
+  }
+
   // Auto-scroll quando muda turns.
   useEffect(() => {
     const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
@@ -95,8 +135,11 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
   }, []);
 
   // Histórico que vai para a IA (sem o corrected/tip — só o que foi "dito").
+  // Filtra turns de prática (role='practice') que são UI only.
   const apiHistory = useMemo<TutorMessage[]>(
-    () => turns.map((t) => ({ role: t.role, text: t.text })),
+    () => turns
+      .filter((t): t is TurnDisplay & { role: 'student' | 'tutor' } => t.role !== 'practice')
+      .map((t) => ({ role: t.role, text: t.text })),
     [turns],
   );
 
@@ -249,7 +292,8 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
           <TurnView
             key={t.id}
             turn={t}
-            onPracticeError={(a) => setPracticeFor(a)}
+            onPracticeError={startInlinePractice}
+            onAnswerPractice={answerPracticeTurn}
           />
         ))}
         {busy && (
@@ -326,13 +370,6 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
         onChoose={(id) => { setPreferredVoice(id); setShowVoicePicker(false); }}
         onClose={() => setShowVoicePicker(false)}
       />
-
-      <PracticeModal
-        visible={!!practiceFor}
-        title={practiceFor?.title ?? ''}
-        exercises={practiceFor?.practice ?? []}
-        onClose={() => setPracticeFor(null)}
-      />
     </KeyboardAvoidingView>
   );
 }
@@ -340,10 +377,29 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
 function TurnView({
   turn,
   onPracticeError,
+  onAnswerPractice,
 }: {
   turn: TurnDisplay;
   onPracticeError: (a: TutorErrorAnalysis) => void;
+  onAnswerPractice: (turnId: string, chosenIdx: number) => void;
 }) {
+  if (turn.role === 'practice' && turn.practice) {
+    return (
+      <View style={s.tutorRow}>
+        <View style={s.tutorAvatar}><Text style={{ fontSize: 16 }}>🧑‍🏫</Text></View>
+        <View style={{ flex: 1 }}>
+          <InlinePracticeCard
+            exercise={turn.practice.exercise}
+            indexInBatch={turn.practice.indexInBatch}
+            totalInBatch={turn.practice.totalInBatch}
+            state={turn.practice.state}
+            chosenIdx={turn.practice.chosenIdx}
+            onAnswer={(idx) => onAnswerPractice(turn.id, idx)}
+          />
+        </View>
+      </View>
+    );
+  }
   if (turn.role === 'student') {
     return (
       <View style={s.studentRow}>
