@@ -113,6 +113,22 @@ Do ALL of this and return STRICT JSON only:
      ]
    }
 
+   STRICT RULES for the "practice" array (NON-NEGOTIABLE):
+   - EXACTLY 4 options in "opts" (not 3, not 5).
+   - The 4 options must be the SAME grammatical category (all verb forms,
+     OR all connectors, OR all prepositions — NEVER mix categories).
+   - Plausible distractors: choose 3 wrong options that a Portuguese B2/C1
+     learner would realistically consider — NOT obvious nonsense.
+   - Contextualize in PM / SAP / consulting / meeting language whenever
+     possible (e.g. "The steering committee ___ the proposal yesterday").
+     This is what the student does for a living.
+   - The blank position should be where the rule is tested — not random.
+   - "exp" MUST be in EUROPEAN PORTUGUESE (Portugal), max 25 words, explain
+     WHY the right option works and briefly WHY a tempting wrong one
+     doesn't. No markdown.
+   - The 3 exercises should escalate slightly in difficulty: 1.º básico,
+     2.º contexto real, 3.º com nuance (e.g. negative form, complex tense).
+
 4) "reply": your spoken answer in ENGLISH — react naturally to the student's message (2-3 short sentences) and END with ONE question to keep them talking. Conversational, meeting-relevant.
 
 Return ONLY this JSON object (no markdown, no commentary):
