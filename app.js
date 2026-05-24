@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v314';
+const APP_VERSION = 'v315';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5600,6 +5600,24 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     // Confetti se >= 80% (e celebração maior se 100%)
     if (acc >= 80) _launchConfetti(acc === 100 ? 'big' : 'normal');
 
+    // === Celebrações extra (v315) ===
+    // Lição do curso concluída — revela coroas ganhas + garante festa
+    if (s.courseLesson) {
+        const cs = state.coursePath?.[s.courseLesson.subjectKey]?.lessons?.[s.courseLesson.lessonId];
+        const crown = cs?.crown || 0;
+        if (crown >= 1 && acc < 80) _launchConfetti('normal');
+        if (crown >= 1) setTimeout(() => _popCelebration('👑', 'Lição completa!', '<span class="pop-crowns">' + '★'.repeat(crown) + '☆'.repeat(3 - crown) + '</span>'), 450);
+    }
+    // Marco de ofensiva (streak)
+    const _streakMilestones = [3, 7, 14, 30, 50, 100, 365];
+    if (streakIncreased && _streakMilestones.includes(state.streak?.days)) {
+        setTimeout(() => { fireConfetti({ count: 180, duration: 2800 }); _popCelebration('🔥', `${state.streak.days} dias seguidos!`, 'Ofensiva imparável'); }, 500);
+    }
+    // Badge desbloqueado
+    if (newBadges && newBadges.length > 0) {
+        setTimeout(() => fireConfetti({ count: 120 }), 700);
+    }
+
     // Cards informativos abaixo do hero
     const info = document.getElementById('summary-info-cards');
     const cards = [];
@@ -5744,6 +5762,22 @@ function fireConfetti(opts) {
     requestAnimationFrame(frame);
 }
 window.fireConfetti = fireConfetti;
+
+// Pop de celebração central — cartão com emoji + título que faz bounce e
+// desaparece sozinho. Reutilizável para qualquer "win" (coroas, streak…).
+function _popCelebration(emoji, title, subtitleHtml) {
+    const el = document.createElement('div');
+    el.className = 'pop-celebrate';
+    el.innerHTML = `<div class="pop-celebrate-card">
+        <div class="pop-celebrate-emoji">${emoji}</div>
+        <div class="pop-celebrate-title">${escapeHtml(title)}</div>
+        <div class="pop-celebrate-sub">${subtitleHtml || ''}</div>
+    </div>`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 1700);
+}
+window._popCelebration = _popCelebration;
 
 function _launchConfetti(intensity) {
     const canvas = document.getElementById('summary-confetti');
