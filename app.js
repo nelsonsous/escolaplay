@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v324';
+const APP_VERSION = 'v325';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -10163,6 +10163,11 @@ function openVoicePickerEN() {
     if (!('speechSynthesis' in window)) { showToast('Este browser não suporta vozes.'); return; }
     let voices = window.speechSynthesis.getVoices();
     if (!voices || !voices.length) { window.speechSynthesis.getVoices(); setTimeout(openVoicePickerEN, 300); return; }
+    // Re-renderiza quando o SO carregar mais vozes (algumas chegam tarde)
+    if (!window._enVoiceListenerBound) {
+        window._enVoiceListenerBound = true;
+        try { window.speechSynthesis.onvoiceschanged = () => { if (document.getElementById('voice-picker-en-temp')) openVoicePickerEN(); }; } catch {}
+    }
     const enVoices = voices.filter(v => /^en/i.test(v.lang || ''));
     const isNeural = (v) => /(google|siri|premium|enhanced|neural|natural)/i.test(v.name || '') || v.localService === false;
     enVoices.sort((a, b) => {
@@ -10227,7 +10232,8 @@ function openVoicePickerEN() {
         <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Voz inglesa</h3>
         <div style="flex:1;overflow-y:auto;padding-right:4px">
           ${gemSection}
-          <p style="font-size:0.85rem;color:#6b7280;margin:0 0 10px;line-height:1.45">Ou usa uma voz <strong>NEURAL</strong> do sistema. Toca em 🔊 para ouvir.</p>
+          <p style="font-size:0.85rem;color:#6b7280;margin:0 0 6px;line-height:1.45">Ou usa uma voz do sistema (${enVoices.length} disponíveis). Toca em 🔊 para ouvir.</p>
+          <p style="font-size:0.74rem;color:#9ca3af;margin:0 0 10px;line-height:1.4">ℹ️ No iPhone, o Safari não deixa as apps usar as vozes "Premium" que descarregas — ficam só para a Siri. Para voz topo, usa o Gemini acima.</p>
           ${currentName ? `<div style="background:#ecfeff;border:1px solid #0891b2;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0e7490"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
           ${rows}
         </div>
