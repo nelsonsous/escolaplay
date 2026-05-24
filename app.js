@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v348';
+const APP_VERSION = 'v349';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5111,20 +5111,22 @@ Return STRICT JSON:
 3) "explanation": a short lesson in EUROPEAN PORTUGUESE (Portugal, never Brazilian) explaining the rule and why it was wrong. Max 35 words.
 4) "tip": ultra-short PT-PT tip, max 12 words.
 5) "reply": ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.
+6) "lessonTitle": short grammar rule title (e.g. "Work ON vs. work ABOUT", "Past Simple vs. Present Perfect"). "" if correct.
+7) "examples": array of 2 objects {wrong,right,note} showing the rule. note max 8 words PT-PT. [] if correct.
 
-{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"..."}`;
+{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","examples":[{"wrong":"...","right":"...","note":"..."}]}`;
     try {
-        const { text } = await callClaudeAPI(prompt, 420, true);
+        const { text } = await callClaudeAPI(prompt, 650, true);
         if (!tutorState) return;
         const m = text.match(/\{[\s\S]*\}/);
-        let corrected = '', errorType = '', explanation = '', tip = '', reply = '';
+        let corrected = '', errorType = '', explanation = '', tip = '', reply = '', lessonTitle = '', examples = [];
         if (m) {
-            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); } catch {}
+            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; } catch {}
         }
         if (!reply) reply = "Got it. Tell me more?";
         if (corrected && normalize(corrected) === normalize(userText)) corrected = '';
         if (corrected) {
-            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply };
+            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, examples };
             _tutorShowCorrection(tutorState._pending);
         } else {
             _tutorAddTutor(reply, '', tip, true);
@@ -5141,6 +5143,13 @@ function _tutorShowCorrection(d) {
     if (!chat) return;
     if (d.errorType) _tutorTrackWeak(d.errorType, false);
     const badge = d.errorType ? `<span class="tutor-errtype">${escapeHtml(d.errorType)}</span>` : '';
+    const exHtml = (d.examples && d.examples.length) ? `
+        <div class="tutor-ex-label">EXEMPLOS</div>
+        ${d.examples.map(ex => `<div class="tutor-ex-row">
+          <span class="tutor-ex-wrong">❌ ${escapeHtml(ex.wrong || '')}</span>
+          <span class="tutor-ex-right">✅ ${escapeHtml(ex.right || '')}</span>
+          ${ex.note ? `<span class="tutor-ex-note">${escapeHtml(ex.note)}</span>` : ''}
+        </div>`).join('')}` : '';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">${_tutorAvatar()}</div>
@@ -5148,18 +5157,21 @@ function _tutorShowCorrection(d) {
           <div class="tutor-lesson-head">📖 Vamos corrigir ${badge}</div>
           <div class="tutor-cmp-said">🗣️ Disseste: "${escapeHtml(d.said)}"</div>
           <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
-          ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
-          <div class="tutor-lesson-btns">
+          ${(d.lessonTitle || d.explanation) ? `<div class="tutor-lesson-rule">
+            ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
+            ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
+            ${exHtml}
+          </div>` : ''}
+          <button class="tutor-lbtn prac full" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar agora · 3 exercícios →</button>
+          <div class="tutor-lesson-btns2">
             <button class="tutor-lbtn rep" onclick="_tutorDoRepeat()"><i class="fas fa-repeat"></i> Repetir</button>
-            <button class="tutor-lbtn prac" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar</button>
             <button class="tutor-lbtn cont" onclick="_tutorDoContinue()"><i class="fas fa-arrow-right"></i> Continuar</button>
           </div>
         </div>
       </div>`);
     _tutorScroll();
     const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe: repetir a frase, praticar o erro, ou continuar</div>`;
-    // Diz a forma correta em voz alta (não só por escrito)
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe: praticar o erro, repetir a frase, ou continuar</div>`;
     if (d.corrected && typeof speakEN === 'function') {
         setTimeout(() => { if (tutorState && tutorState._pending) speakEN(d.corrected, tutorState.lang); }, 250);
     }
@@ -5223,7 +5235,7 @@ function _tutorRenderQuizItem() {
       <div class="tutor-row them">
         <div class="tutor-bubble-av">🎯</div>
         <div class="tutor-quiz" id="${qid}">
-          <div class="tutor-quiz-h">Exercício ${q.idx + 1}/${q.items.length}</div>
+          <div class="tutor-quiz-h"><span>Exercício ${q.idx + 1}/${q.items.length}</span><span class="tutor-quiz-result"></span></div>
           <div class="tutor-quiz-q">${escapeHtml(it.q)}</div>
           <div class="tutor-quiz-opts">${opts}</div>
           <div class="tutor-quiz-fb" style="display:none"></div>
@@ -5242,6 +5254,7 @@ function _tutorQuizAnswer(i) {
     card.dataset.done = '1';
     const ok = i === it.answer;
     if (ok) q.correct++;
+    else { q.wrongTopics = q.wrongTopics || []; q.wrongTopics.push(it.topic || q.topic || ''); }
     _tutorTrackWeak(it.topic || q.topic, ok);
     card.querySelectorAll('.tutor-qopt').forEach((b, idx) => {
         b.disabled = true;
@@ -5249,23 +5262,84 @@ function _tutorQuizAnswer(i) {
         else if (idx === i) b.classList.add('wrong');
     });
     if (typeof _haptic === 'function') _haptic(ok ? 'ok' : 'wrong');
+    const res = card.querySelector('.tutor-quiz-result');
+    if (res) { res.textContent = ok ? '✓ Certo' : '× Errado'; res.className = 'tutor-quiz-result ' + (ok ? 'ok' : 'err'); }
     const fb = card.querySelector('.tutor-quiz-fb');
     fb.style.display = 'block';
-    fb.innerHTML = `${ok ? '✅ Certo!' : '❌ Não é essa.'} ${escapeHtml(it.exp || '')}<br><button class="tutor-qnext" onclick="_tutorQuizNext()">${q.idx + 1 < q.items.length ? 'Próximo →' : 'Terminar →'}</button>`;
+    fb.innerHTML = `<div class="tutor-quiz-fb-inner ${ok ? 'fb-ok' : 'fb-err'}">${escapeHtml(it.exp || '')}</div><button class="tutor-qnext" onclick="_tutorQuizNext()">${q.idx + 1 < q.items.length ? 'Próximo →' : 'Terminar →'}</button>`;
     _tutorScroll();
 }
 function _tutorQuizNext() {
     const q = tutorState && tutorState._quiz; if (!q) return;
     if (q.idx + 1 < q.items.length) { q.idx++; _tutorRenderQuizItem(); }
-    else { const c = q.correct, t = q.items.length; tutorState._quiz = null; _tutorFinishPractice(c, t); }
+    else { const c = q.correct, t = q.items.length, wt = q.wrongTopics || []; tutorState._quiz = null; _tutorFinishPractice(c, t, wt); }
 }
-function _tutorFinishPractice(correct, total) {
+function _tutorFinishPractice(correct, total, wrongTopics) {
     const reply = (tutorState && tutorState._practiceReply) || 'Great practice! Shall we continue?';
     if (tutorState) tutorState._practiceReply = null;
     const score = (typeof correct === 'number') ? ` Acertaste ${correct}/${total}.` : '';
-    _tutorAddTutor(`Nice work!${score} ${reply}`, '', '', true);
-    _tutorRenderWeak();
+    if (typeof correct === 'number' && correct < total && wrongTopics && wrongTopics.length) {
+        // Houve erros — mostra mensagem, gera lição sobre os tópicos falhados e novo loop
+        const msg = correct === 0 ? 'Vamos rever — dou-te uma lição antes de tentares de novo.' : `Bom esforço!${score} Vamos rever o que falhou.`;
+        _tutorAddTutor(msg, '', '', false);
+        _tutorRenderWeak();
+        setTimeout(() => _tutorLessonAndRetry(wrongTopics), 400);
+    } else {
+        _tutorAddTutor(`Nice work!${score} ${reply}`, '', '', true);
+        _tutorRenderWeak();
+    }
 }
+async function _tutorLessonAndRetry(wrongTopics) {
+    if (!tutorState) return;
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar lição…</div>`;
+    const topicStr = [...new Set(wrongTopics.filter(Boolean))].slice(0, 2).join(', ');
+    const prompt = `Create a concise grammar lesson for a Portuguese Project Manager (B2→C1) learning English about: "${topicStr}".
+Return STRICT JSON only:
+{"lessonTitle":"...","explanation":"short rule in PT-PT max 35 words","examples":[{"wrong":"...","right":"...","note":"max 8 words PT-PT"},{"wrong":"...","right":"...","note":"max 8 words PT-PT"}]}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 400, true);
+        if (!tutorState) return;
+        const m = text.match(/\{[\s\S]*\}/);
+        let lesson = {};
+        if (m) { try { lesson = JSON.parse(m[0]); } catch {} }
+        _tutorRenderLessonCard({ lessonTitle: lesson.lessonTitle || topicStr, explanation: lesson.explanation || '', examples: Array.isArray(lesson.examples) ? lesson.examples.slice(0, 3) : [], topicStr });
+    } catch {
+        if (tutorState) { _tutorRenderMic(); _tutorGeneratePractice(topicStr, ''); }
+    }
+}
+function _tutorRenderLessonCard({ lessonTitle, explanation, examples, topicStr }) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat || !tutorState) return;
+    tutorState._retryTopic = topicStr;
+    const exHtml = (examples && examples.length) ? `
+        <div class="tutor-ex-label">EXEMPLOS</div>
+        ${examples.map(ex => `<div class="tutor-ex-row">
+          <span class="tutor-ex-wrong">❌ ${escapeHtml(ex.wrong || '')}</span>
+          <span class="tutor-ex-right">✅ ${escapeHtml(ex.right || '')}</span>
+          ${ex.note ? `<span class="tutor-ex-note">${escapeHtml(ex.note)}</span>` : ''}
+        </div>`).join('')}` : '';
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">📖</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">📖 Revisão rápida</div>
+          ${lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(lessonTitle)}</div>` : ''}
+          ${explanation ? `<div class="tutor-explain">${escapeHtml(explanation)}</div>` : ''}
+          ${exHtml}
+          <button class="tutor-lbtn prac full" onclick="_tutorRetryAfterLesson()"><i class="fas fa-dumbbell"></i> Tentar de novo · 3 exercícios →</button>
+        </div>
+      </div>`);
+    _tutorScroll();
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Lê a lição e tenta de novo</div>`;
+}
+function _tutorRetryAfterLesson() {
+    const topic = tutorState && tutorState._retryTopic;
+    if (tutorState) tutorState._retryTopic = null;
+    _tutorGeneratePractice(topic || 'grammar', '');
+}
+window._tutorRetryAfterLesson = _tutorRetryAfterLesson;
 window._tutorQuizAnswer = _tutorQuizAnswer;
 window._tutorQuizNext = _tutorQuizNext;
 window._tutorStartMic = _tutorStartMic;
