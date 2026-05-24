@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v315';
+const APP_VERSION = 'v316';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1754,13 +1754,25 @@ function openCoursePath(subjectKey) {
           <button class="icon-btn" onclick="openCourseFreePractice('${subjectKey}')" title="Treino livre por tópico"><i class="fas fa-list"></i></button>
         </div>
         <div class="exercise-body" style="padding-bottom:80px">
-          <div style="background:linear-gradient(135deg,${sub.color},${sub.color}cc);color:#fff;padding:16px 18px;border-radius:16px;margin-bottom:18px">
-            <div style="font-size:0.78rem;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">O teu caminho</div>
-            <div style="font-size:1.4rem;font-weight:800;margin:4px 0">${doneLessons} / ${totalLessons} lições</div>
-            <div style="height:8px;background:rgba(255,255,255,0.25);border-radius:999px;overflow:hidden;margin:8px 0 4px">
-              <div style="height:100%;width:${pct}%;background:#fff;border-radius:999px;transition:width 0.5s"></div>
+          <div style="background:linear-gradient(135deg,${sub.color},${sub.color}cc);color:#fff;padding:16px 18px;border-radius:16px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.78rem;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">O teu caminho</div>
+              <div style="font-size:1.4rem;font-weight:800;margin:4px 0">${doneLessons} / ${totalLessons} lições</div>
+              <div style="height:8px;background:rgba(255,255,255,0.25);border-radius:999px;overflow:hidden;margin:8px 0 4px">
+                <div style="height:100%;width:${pct}%;background:#fff;border-radius:999px;transition:width 0.5s"></div>
+              </div>
+              <div style="font-size:0.82rem;opacity:0.9">⭐ ${totalCrowns} / ${maxCrowns} coroas</div>
             </div>
-            <div style="font-size:0.82rem;opacity:0.9">⭐ ${totalCrowns} / ${maxCrowns} coroas</div>
+            <div class="course-mascot" id="course-mascot">
+              <div class="cm-hat"></div>
+              <div class="cm-body">
+                <div class="cm-eye left"></div>
+                <div class="cm-eye right"></div>
+                <div class="cm-cheek left"></div>
+                <div class="cm-cheek right"></div>
+                <div class="cm-mouth"></div>
+              </div>
+            </div>
           </div>
           ${unitsHtml}
         </div>
@@ -5051,6 +5063,9 @@ function showFeedback(e, isCorrect) {
     const partial = (!isCorrect && currentSession?._partial) || null;
     if (currentSession) currentSession._partial = null; // consumido aqui
     if (isCorrect) playCorrectSound(); else playWrongSound();
+    _haptic(isCorrect ? 'ok' : 'wrong');
+    // Mascote festeja no acerto (se o ecra do curso estiver visivel)
+    if (isCorrect) { const _m = document.getElementById('course-mascot'); if (_m) { _m.classList.remove('cheer'); void _m.offsetWidth; _m.classList.add('cheer'); } }
     // Esconder botão IA inline (a pista só faz sentido ANTES de responder)
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     if (profWrap) profWrap.style.display = 'none';
@@ -5598,7 +5613,7 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     if (newRewards && newRewards.length > 0) setTimeout(playRewardSound, 1400);
 
     // Confetti se >= 80% (e celebração maior se 100%)
-    if (acc >= 80) _launchConfetti(acc === 100 ? 'big' : 'normal');
+    if (acc >= 80) { _launchConfetti(acc === 100 ? 'big' : 'normal'); _haptic('win'); }
 
     // === Celebrações extra (v315) ===
     // Lição do curso concluída — revela coroas ganhas + garante festa
@@ -5778,6 +5793,18 @@ function _popCelebration(emoji, title, subtitleHtml) {
     setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 1700);
 }
 window._popCelebration = _popCelebration;
+
+// Haptic feedback (Android + alguns browsers). Silencioso onde nao suportado.
+function _haptic(kind) {
+    if (!('vibrate' in navigator)) return;
+    try {
+        if (kind === 'ok') navigator.vibrate(18);
+        else if (kind === 'wrong') navigator.vibrate([30, 40, 30]);
+        else if (kind === 'win') navigator.vibrate([20, 30, 20, 30, 60]);
+        else navigator.vibrate(15);
+    } catch {}
+}
+window._haptic = _haptic;
 
 function _launchConfetti(intensity) {
     const canvas = document.getElementById('summary-confetti');

@@ -37,6 +37,9 @@ button, input, textarea, select { font-family: inherit; }
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
     --shadow: 0 2px 10px rgba(0,0,0,0.06);
     --shadow-lg: 0 8px 24px rgba(109,40,217,0.15);
+    /* Motion: curva elástica estilo Duolingo (ligeiro overshoot) */
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 #app { max-width: 480px; margin: 0 auto; padding-bottom: 88px; }
 
@@ -3905,4 +3908,172 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     color: #fbbf24;
     letter-spacing: 4px;
     text-shadow: 0 0 14px rgba(251, 191, 36, 0.6);
+}
+
+/* ============================================================
+   MOTION PASS (v316) — springs, botões 3D, transições, staggered
+   ============================================================ */
+
+/* --- Botões 3D pressáveis estilo Duolingo (lip inferior + squish) --- */
+.course-node-circle {
+    box-shadow: 0 5px 0 rgba(0,0,0,0.22), 0 9px 14px rgba(0,0,0,0.18) !important;
+    transition: transform 0.09s ease, box-shadow 0.09s ease !important;
+    will-change: transform;
+}
+.course-node:active .course-node-circle {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.22), 0 3px 7px rgba(0,0,0,0.18) !important;
+}
+
+/* Press feel global nos botões principais (toda a app) */
+.btn, .btn-primary-solid, .btn-secondary, .tf-btn, .btn-option {
+    transition: transform 0.1s var(--spring), box-shadow 0.1s ease, background 0.2s ease;
+}
+.btn:active, .btn-primary-solid:active, .btn-secondary:active,
+.tf-btn:active, .btn-option:active {
+    transform: translateY(2px) scale(0.985);
+}
+
+/* --- Transição de entrada de ecrãs (slide+fade) --- */
+@keyframes screenSlideIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+#subject-detail-screen,
+#exercise-screen,
+#summary-screen {
+    animation: screenSlideIn 0.32s var(--spring-soft);
+}
+
+/* --- Staggered entrance do caminho do curso --- */
+@keyframes courseItemIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.course-unit {
+    animation: courseItemIn 0.4s var(--spring-soft) both;
+}
+.course-unit:nth-child(2) { animation-delay: 0.05s; }
+.course-unit:nth-child(3) { animation-delay: 0.10s; }
+.course-unit:nth-child(4) { animation-delay: 0.15s; }
+.course-unit:nth-child(5) { animation-delay: 0.20s; }
+.course-node {
+    animation: courseItemIn 0.35s var(--spring-soft) both;
+}
+.course-node:nth-child(2) { animation-delay: 0.04s; }
+.course-node:nth-child(3) { animation-delay: 0.08s; }
+.course-node:nth-child(4) { animation-delay: 0.12s; }
+.course-node:nth-child(5) { animation-delay: 0.16s; }
+
+/* --- Opções de MC entram em cascata --- */
+@keyframes optionIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+#ex-answer-area .btn-option {
+    animation: optionIn 0.3s var(--spring-soft) both;
+}
+#ex-answer-area .btn-option:nth-child(1) { animation-delay: 0.03s; }
+#ex-answer-area .btn-option:nth-child(2) { animation-delay: 0.08s; }
+#ex-answer-area .btn-option:nth-child(3) { animation-delay: 0.13s; }
+#ex-answer-area .btn-option:nth-child(4) { animation-delay: 0.18s; }
+
+/* ============================================================
+   MASCOTE animado em CSS — "Plinho", o explorador do curso
+   ============================================================ */
+.course-mascot {
+    position: relative;
+    width: 76px;
+    height: 84px;
+    flex-shrink: 0;
+    animation: mascotBob 2.8s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+@keyframes mascotBob {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-6px) rotate(1.5deg); }
+}
+.cm-body {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 58px;
+    height: 60px;
+    border-radius: 50% 50% 46% 46%;
+    background: linear-gradient(160deg, #fde68a 0%, #fbbf24 100%);
+    box-shadow: inset 0 -6px 0 rgba(0,0,0,0.08), 0 5px 12px rgba(0,0,0,0.18);
+}
+/* "Topo" verde (alusão ao mascote do utilizador com chapéu) */
+.cm-hat {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 22px;
+    border-radius: 50% 50% 40% 40%;
+    background: linear-gradient(160deg, #4ade80, #16a34a);
+    z-index: 2;
+}
+.cm-hat::before {
+    content: '';
+    position: absolute;
+    top: 6px; left: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #bbf7d0;
+    box-shadow: 16px 0 0 #bbf7d0;
+}
+.cm-eye {
+    position: absolute;
+    top: 22px;
+    width: 12px;
+    height: 14px;
+    background: #1f2937;
+    border-radius: 50%;
+    z-index: 3;
+    animation: mascotBlink 4s infinite;
+}
+.cm-eye.left  { left: 32px; }
+.cm-eye.right { right: 32px; }
+.cm-eye::after {
+    content: '';
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #fff;
+}
+@keyframes mascotBlink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.1); }
+}
+.cm-cheek {
+    position: absolute;
+    top: 36px;
+    width: 9px; height: 6px;
+    background: rgba(244, 114, 182, 0.6);
+    border-radius: 50%;
+    z-index: 3;
+}
+.cm-cheek.left  { left: 28px; }
+.cm-cheek.right { right: 28px; }
+.cm-mouth {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px; height: 7px;
+    border: 2px solid #1f2937;
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    z-index: 3;
+}
+/* mascote festeja: classe adicionada por JS ao completar lição */
+.course-mascot.cheer { animation: mascotCheer 0.6s var(--spring) 2; }
+@keyframes mascotCheer {
+    0%   { transform: translateY(0) scale(1); }
+    40%  { transform: translateY(-16px) scale(1.12); }
+    100% { transform: translateY(0) scale(1); }
 }
