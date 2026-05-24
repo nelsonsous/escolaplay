@@ -4285,6 +4285,17 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     box-shadow: 0 4px 14px rgba(13,148,136,0.3);
 }
 .tutor-mic.rec { background: linear-gradient(135deg, #dc2626, #ea580c); }
+.tutor-live {
+    background: #f1f5f9;
+    border: 2px solid #0d9488;
+    border-radius: 12px;
+    padding: 10px 13px;
+    margin-bottom: 10px;
+    font-size: 0.92rem;
+    color: #0f172a;
+    line-height: 1.45;
+    min-height: 24px;
+}
 .tutor-thinking {
     display: flex; align-items: center; justify-content: center; gap: 9px;
     color: #0d9488; font-weight: 700; font-size: 0.88rem; padding: 6px;

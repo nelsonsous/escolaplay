@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v337';
+const APP_VERSION = 'v338';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4711,7 +4711,7 @@ window.closeTutor = closeTutor;
 function _tutorAvatar() {
     return (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(34)) || '🧑‍🏫';
 }
-function _tutorAddTutor(text, corrected, tip) {
+function _tutorAddTutor(text, corrected, tip, autoSpeak) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     tutorState.history.push({ role: 'tutor', text });
@@ -4731,6 +4731,10 @@ function _tutorAddTutor(text, corrected, tip) {
         </div>
       </div>`);
     chat.scrollTop = chat.scrollHeight;
+    if (autoSpeak && typeof speakEN === 'function') {
+        // Fala automaticamente e, ao terminar, volta a ouvir (mãos-livres)
+        speakEN(text, tutorState.lang, { onEnd: () => _tutorAutoListen() });
+    }
 }
 function _tutorPlay(sid) {
     const btn = document.getElementById(sid);
@@ -4748,28 +4752,52 @@ function _tutorAddYou(text) {
     chat.scrollTop = chat.scrollHeight;
 }
 
+// Quanto da frase esperada o aluno acertou (0..1) — para validar a repetição
+function _tutorWordMatch(said, expected) {
+    const norm = s => normalize(s).replace(/[^a-z0-9\s']/g, '');
+    const ew = norm(expected).split(/\s+/).filter(w => w.length > 2);
+    if (!ew.length) return 1;
+    const sset = new Set(norm(said).split(/\s+/));
+    return ew.filter(w => sset.has(w)).length / ew.length;
+}
+
 let _tutorRecog = null;
 function _tutorRenderMic() {
     const bar = document.getElementById('tutor-bar');
     if (!bar) return;
     const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     if (!sttOk) {
-        bar.innerHTML = `<div style="color:#fff;font-size:0.85rem;text-align:center">Este browser não suporta voz. Usa Chrome ou Safari.</div>`;
+        bar.innerHTML = `<div style="color:#475569;font-size:0.85rem;text-align:center">Este browser não suporta voz. Usa Chrome ou Safari.</div>`;
         return;
     }
-    bar.innerHTML = `<button id="tutor-mic" class="tutor-mic"><i class="fas fa-microphone"></i> Falar</button>`;
-    document.getElementById('tutor-mic').addEventListener('click', _tutorMic);
+    bar.innerHTML = `
+      <div id="tutor-live" class="tutor-live" style="display:none"></div>
+      <button id="tutor-mic" class="tutor-mic"><i class="fas fa-microphone"></i> Falar</button>`;
+    document.getElementById('tutor-mic').addEventListener('click', _tutorStartMic);
 }
-function _tutorMic() {
+function _tutorAutoListen() {
+    if (!tutorState) return;
+    // Mãos-livres: só auto-arranca depois de o micro já ter sido autorizado uma vez
+    if (!tutorState.micGranted) { _tutorRenderMic(); return; }
+    setTimeout(() => { if (tutorState && !_tutorRecog) _tutorStartMic(); }, 350);
+}
+function _tutorStartMic() {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec || !tutorState) return;
-    const btn = document.getElementById('tutor-mic');
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
+    try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
     const r = new Rec();
     r.lang = tutorState.lang; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
     _tutorRecog = r;
     let finalTxt = '';
-    if (btn) { btn.innerHTML = '<i class="fas fa-stop"></i> A ouvir… toca para terminar'; btn.classList.add('rec'); }
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `
+      <div id="tutor-live" class="tutor-live">…</div>
+      <button id="tutor-mic" class="tutor-mic rec"><i class="fas fa-stop"></i> A ouvir… toca para terminar</button>`;
+    const liveEl = document.getElementById('tutor-live');
+    const micBtn = document.getElementById('tutor-mic');
+    if (micBtn) micBtn.addEventListener('click', () => { try { r.stop(); } catch {} });
+    r.onstart = () => { tutorState.micGranted = true; };
     r.onresult = (ev) => {
         let interim = '';
         for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -4777,55 +4805,79 @@ function _tutorMic() {
             if (res.isFinal) finalTxt += res[0].transcript + ' ';
             else interim += res[0].transcript;
         }
-        tutorState._said = (finalTxt + interim).replace(/\s+/g, ' ').trim();
+        const live = (finalTxt + interim).replace(/\s+/g, ' ').trim();
+        tutorState._said = finalTxt.trim() || live;
+        if (liveEl) liveEl.textContent = live || '…';
     };
+    r.onerror = () => {};
     r.onend = () => {
         _tutorRecog = null;
         const said = (tutorState._said || '').trim();
         tutorState._said = '';
-        if (btn) { btn.classList.remove('rec'); }
-        if (said.length > 1) { _tutorAddYou(said); _tutorRespond(said); }
+        if (said.length > 1) _tutorHandleInput(said);
         else _tutorRenderMic();
     };
-    try { r.start(); } catch {}
+    try { r.start(); } catch { _tutorRenderMic(); }
+}
+
+function _tutorHandleInput(said) {
+    if (!tutorState) return;
+    _tutorAddYou(said);
+    // Em modo "treino do erro": valida a repetição antes de prosseguir
+    if (tutorState.drill) {
+        const d = tutorState.drill;
+        if (_tutorWordMatch(said, d.expected) >= 0.6) {
+            tutorState.drill = null;
+            const cont = d.pendingReply ? (' ' + d.pendingReply) : '';
+            _tutorAddTutor('Perfect!' + cont, '', '', true);
+        } else {
+            _tutorAddTutor(`Almost — say it like this: ${d.expected}`, '', '', true);
+        }
+        return;
+    }
+    _tutorRespond(said);
 }
 
 async function _tutorRespond(userText) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a pensar…</div>`;
     const hist = tutorState.history.slice(-8).map(h => `${h.role === 'you' ? 'Student' : 'Tutor'}: ${h.text}`).join('\n');
-    const prompt = `You are a warm, encouraging English tutor for a Portuguese Project Manager (level B2→C1) preparing to lead SAP/consulting meetings in English.
+    const prompt = `You are a snappy, encouraging English tutor for a Portuguese Project Manager (B2→C1) preparing to lead SAP/consulting meetings.
 
 Conversation so far:
 ${hist}
 
 The student just said (transcribed from speech): "${userText}"
 
-Do ALL of this:
-1) "corrected": rewrite the student's sentence with correct grammar, verb tenses and natural word choice. If it was already correct, return "".
-2) "tip": ONE short tip in EUROPEAN PORTUGUESE (Portugal, never Brazilian), max 18 words, about the main mistake (tense, grammar or a likely pronunciation slip). If perfect, a short praise in PT-PT.
-3) "reply": your spoken answer in ENGLISH — react naturally, 2-3 short sentences, and END with ONE question to keep the student talking. Keep it conversational and meeting-relevant.
+Return STRICT JSON:
+1) "corrected": the student's sentence rewritten with correct grammar/verb tenses/natural wording. "" if already correct.
+2) "tip": ONE very short tip in EUROPEAN PORTUGUESE (Portugal, never Brazilian) about the main mistake. Max 14 words. If perfect, a 3-word praise in PT-PT.
+3) "reply": ONE short, snappy English sentence to continue the conversation (max 16 words). End with a brief question.
 
-Return STRICT JSON only:
 {"corrected":"...","tip":"...","reply":"..."}`;
     try {
-        const { text } = await callClaudeAPI(prompt, 420, true);
+        const { text } = await callClaudeAPI(prompt, 320, true);
         if (!tutorState) return;
         const m = text.match(/\{[\s\S]*\}/);
         let corrected = '', tip = '', reply = '';
         if (m) {
             try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); } catch {}
         }
-        if (!reply) reply = "Got it. Can you tell me a bit more?";
-        // Não mostrar "corrected" se for igual ao que o aluno disse
+        if (!reply) reply = "Got it. Tell me more?";
         if (corrected && normalize(corrected) === normalize(userText)) corrected = '';
-        _tutorAddTutor(reply, corrected, tip);
-        _tutorRenderMic();
+        if (corrected) {
+            // Foca no erro: pede para repetir a versão correta ANTES de prosseguir
+            tutorState.drill = { expected: corrected, pendingReply: reply };
+            _tutorAddTutor('Let’s fix that first. Repeat after me: ' + corrected, corrected, tip, true);
+        } else {
+            _tutorAddTutor(reply, '', tip, true);
+        }
     } catch (e) {
         console.warn('[tutor] failed', e);
-        if (tutorState) { _tutorAddTutor("Sorry, I didn't catch that. Could you say it again?", '', ''); _tutorRenderMic(); }
+        if (tutorState) { _tutorAddTutor("Sorry, I didn't catch that. Say it again?", '', '', true); }
     }
 }
+window._tutorStartMic = _tutorStartMic;
 
 function renderSpeak(e) {
     const model = (e.ans && e.ans[0]) || '';
@@ -4980,7 +5032,7 @@ async function _edgeTTS(text, voiceName, lang) {
         ws.onopen = () => {
             try {
                 ws.send(`X-Timestamp:${new Date().toString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
-                const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang || 'en-US'}'><voice name='${voice}'><prosody rate='-4%' pitch='0%'>${_xmlEsc(text)}</prosody></voice></speak>`;
+                const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang || 'en-US'}'><voice name='${voice}'><prosody rate='+10%' pitch='0%'>${_xmlEsc(text)}</prosody></voice></speak>`;
                 ws.send(`X-RequestId:${_uuidHex()}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toString()}\r\nPath:ssml\r\n\r\n${ssml}`);
             } catch { clearTimeout(to); finish(null); }
         };
@@ -5068,7 +5120,7 @@ function _sysSpeak(text, lang, cbs) {
         try { if (synth.speaking || synth.pending) synth.cancel(); synth.resume(); } catch {}
         const u = new SpeechSynthesisUtterance(text);
         u.lang = lang || 'en-US';
-        u.rate = /^en/i.test(u.lang) ? 0.95 : 0.96;
+        u.rate = /^en/i.test(u.lang) ? 1.05 : 0.96;
         u.pitch = 1.0;
         const v = /^en/i.test(u.lang) ? _pickENVoice(u.lang) : (typeof _pickPTVoice === 'function' ? _pickPTVoice() : null);
         if (v) u.voice = v;
