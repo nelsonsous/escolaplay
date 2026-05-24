@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v318';
+const APP_VERSION = 'v319';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -786,6 +786,11 @@ function updateHeader() {
     document.getElementById('xp-next-level').textContent = lvl.span;
     const pct = Math.min(100, Math.round(lvl.into / lvl.span * 100));
     document.getElementById('xp-bar-fill').style.width = pct + '%';
+    // Anel de progresso de nível + badge do número do nível
+    const ring = document.getElementById('avatar-ring');
+    if (ring) ring.style.setProperty('--lvl-progress', pct + '%');
+    const lvlBadge = document.getElementById('level-badge');
+    if (lvlBadge) lvlBadge.textContent = lvl.number;
     // Ano + indicador de troca
     const yearEl = document.getElementById('header-year');
     if (yearEl && p) {

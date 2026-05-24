@@ -26,7 +26,10 @@
     <!-- Top header -->
     <header class="app-header">
         <div class="header-left" onclick="openProfileSwitcher()" style="cursor:pointer">
-            <div class="avatar" id="avatar">&#128060;</div>
+            <div class="avatar-ring" id="avatar-ring">
+                <div class="avatar" id="avatar">&#128060;</div>
+                <div class="level-badge" id="level-badge">1</div>
+            </div>
             <div class="header-user">
                 <div class="header-name" id="user-name">Aluno(a)</div>
                 <div class="header-level"><span id="header-year">6.º ano</span> &middot; <span id="level-name">Aprendiz</span></div>
@@ -44,7 +47,7 @@
 
     <div class="xp-bar-wrap">
         <div class="xp-bar"><div class="xp-bar-fill" id="xp-bar-fill"></div></div>
-        <div class="xp-bar-label"><span id="xp-into-level">0</span> / <span id="xp-next-level">500</span> XP para o próximo nível</div>
+        <div class="xp-bar-label"><span id="xp-into-level">0</span> / <span id="xp-next-level">500</span> <span class="xp-next-suffix">XP</span></div>
     </div>
 
     <nav class="tabs">
