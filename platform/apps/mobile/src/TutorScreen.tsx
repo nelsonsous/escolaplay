@@ -49,12 +49,28 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
     '@escolaplay/tutor-voice',
     null,
   );
+  const [autoSpeak, setAutoSpeak] = usePersistedState<boolean>(
+    '@escolaplay/tutor-autospeak',
+    true,
+  );
+  // Não falar o opener — só novos turns do tutor.
+  const spokenIdsRef = useRef<Set<string>>(new Set(['opener']));
   const scrollRef = useRef<ScrollView>(null);
 
   // Sincroniza voz preferida com o módulo TTS.
   useEffect(() => {
     ttsSetPreferredVoice('en-US', preferredVoice);
   }, [preferredVoice]);
+
+  // Auto-speak: lê cada resposta nova do tutor.
+  useEffect(() => {
+    if (!autoSpeak || !ttsAvailable()) return;
+    const last = turns[turns.length - 1];
+    if (last && last.role === 'tutor' && !spokenIdsRef.current.has(last.id)) {
+      spokenIdsRef.current.add(last.id);
+      ttsSpeak(last.text, 'en-US');
+    }
+  }, [turns, autoSpeak]);
 
   // Auto-scroll quando muda turns.
   useEffect(() => {
@@ -164,9 +180,29 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>English Tutor</Text>
-            <Text style={s.headerSub}>{busy ? 'A pensar…' : 'pronto para falar'}</Text>
+            <Text style={s.headerSub}>
+              {busy ? 'A pensar…' : autoSpeak ? '🔊 lê automaticamente' : 'pronto para falar'}
+            </Text>
           </View>
         </View>
+        {ttsAvailable() && (
+          <PressScale
+            onPress={() => {
+              if (autoSpeak) ttsStop();
+              setAutoSpeak(!autoSpeak);
+            }}
+            style={[s.voiceBtn, ...(autoSpeak ? [s.voiceBtnActive] : [])]}
+            scale={0.92}
+            hitSlop={6}
+          >
+            <FontAwesome5
+              name={autoSpeak ? 'volume-up' : 'volume-mute'}
+              size={14}
+              color={colors.white}
+              solid
+            />
+          </PressScale>
+        )}
         {ttsAvailable() && (
           <PressScale
             onPress={() => setShowVoicePicker(true)}
@@ -355,6 +391,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)',
+  },
+  voiceBtnActive: {
+    backgroundColor: 'rgba(253,224,71,0.35)',
+    borderColor: 'rgba(253,224,71,0.60)',
   },
   aiTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   aiTagText: { color: TUTOR_DEEP, fontSize: 11, fontWeight: '900' },
