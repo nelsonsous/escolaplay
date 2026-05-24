@@ -101,9 +101,48 @@
             idleTweens = [];
         }
 
+        // Pip "fala": TTS + lip-sync (boca abre/fecha enquanto o audio toca)
+        let _flap = null, _talkBob = null;
+        function _startTalk() {
+            let open = false;
+            _flap = setInterval(() => { open = !open; setMouth(open ? 'open' : 'smile'); }, 150);
+            if (g) _talkBob = g.to(q('.pip-root'), { y: -3, duration: 0.22, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+        }
+        function _stopTalk() {
+            if (_flap) { clearInterval(_flap); _flap = null; }
+            if (_talkBob) { _talkBob.kill(); _talkBob = null; if (g) g.set(q('.pip-root'), { y: 0 }); }
+            setMouth('smile');
+        }
+        function speak(text, lang) {
+            if (!text || !('speechSynthesis' in window)) return;
+            const synth = window.speechSynthesis;
+            try { synth.cancel(); } catch {}
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = lang || 'pt-PT';
+            u.rate = 0.96; u.pitch = 1.05;
+            const voices = synth.getVoices();
+            const v = voices.find(x => x.lang === u.lang)
+                   || voices.find(x => x.lang && x.lang.startsWith((u.lang || '').slice(0, 2)));
+            if (v) u.voice = v;
+            u.onstart = _startTalk;
+            u.onend = _stopTalk;
+            u.onerror = _stopTalk;
+            try { synth.speak(u); } catch { _stopTalk(); }
+        }
+
         setMouth('smile');
         startIdle();
-        return { el: root, react, destroy };
+        // Tocar no Pip → fala uma frase (se opts.phrases definido)
+        if (opts.talkOnTap && Array.isArray(opts.phrases) && opts.phrases.length) {
+            root.style.cursor = 'pointer';
+            root.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const ph = opts.phrases[Math.floor(Math.random() * opts.phrases.length)];
+                react('happy');
+                speak(ph.text, ph.lang);
+            });
+        }
+        return { el: root, react, destroy, speak };
     }
 
     window.Mascot = { create: createMascot };

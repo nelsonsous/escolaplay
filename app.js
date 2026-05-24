@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v319';
+const APP_VERSION = 'v320';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -935,6 +935,13 @@ function renderHome() {
         </div>
         `;
     }).join('');
+    // Entrada em cascata dos cartões de disciplina (GSAP)
+    if (window.gsap) {
+        window.gsap.from(container.querySelectorAll('.quick-subject'), {
+            opacity: 0, y: 18, scale: 0.92, duration: 0.4,
+            ease: 'back.out(1.6)', stagger: 0.05
+        });
+    }
 
     // Number Talk do dia — prompt rotativo determinístico por data
     renderNumberTalk();
@@ -1791,10 +1798,21 @@ function openCoursePath(subjectKey) {
         if (!sk || !lid) { showToast('Sem dados na lição: ' + (lid || '?')); return; }
         startCourseLesson(sk, lid);
     });
-    // Mascote SVG animado (Pip) no hero
+    // Mascote SVG animado (Pip) no hero — fala ao tocar
     const mascotHost = wrap.querySelector('#course-mascot');
     if (mascotHost && window.Mascot) {
-        try { window._courseMascot = window.Mascot.create(mascotHost, { size: 78 }); } catch {}
+        try {
+            window._courseMascot = window.Mascot.create(mascotHost, {
+                size: 78,
+                talkOnTap: true,
+                phrases: [
+                    { text: "Let's practise! You've got this.", lang: 'en-US' },
+                    { text: "Ready to lead in English?", lang: 'en-US' },
+                    { text: "One lesson at a time. Keep going!", lang: 'en-US' },
+                    { text: "Toca numa lição e vamos a isto!", lang: 'pt-PT' }
+                ]
+            });
+        } catch {}
     }
     // Reveal premium com GSAP (física de mola). Degrada para CSS se ausente.
     if (window.gsap) {
@@ -3995,6 +4013,13 @@ function switchTab(name) {
     if (name === 'tests') renderTests();
     if (name === 'progress') renderProgress();
     if (name === 'profile') { renderProfile(); try { refreshNotifUI(); } catch {} }
+    // Animação de transição (GSAP, degrada sem efeito se ausente)
+    if (window.gsap) {
+        const active = document.getElementById('tab-' + name);
+        if (active) window.gsap.fromTo(active, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
+        const icon = document.querySelector(`.tab[data-tab="${name}"] i`);
+        if (icon) window.gsap.fromTo(icon, { scale: 0.6 }, { scale: 1, duration: 0.45, ease: 'back.out(3)' });
+    }
 }
 
 // ========== TOAST ==========
@@ -5631,7 +5656,10 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
         emojiEl.style.display = 'flex';
         emojiEl.style.justifyContent = 'center';
         try {
-            const m = window.Mascot.create(emojiEl, { size: 72 });
+            const _ph = acc >= 80 ? [{ text: `Boa! Acertaste ${s.correct} em ${total}!`, lang: 'pt-PT' }, { text: 'Excellent work!', lang: 'en-US' }]
+                       : acc >= 50 ? [{ text: 'Quase lá! Continua a treinar.', lang: 'pt-PT' }]
+                       : [{ text: 'Não faz mal. Vamos tentar outra vez!', lang: 'pt-PT' }];
+            const m = window.Mascot.create(emojiEl, { size: 72, talkOnTap: true, phrases: _ph });
             setTimeout(() => { try { m && m.react(acc >= 50 ? (acc >= 80 ? 'cheer' : 'happy') : 'sad'); } catch {} }, 350);
         } catch { emojiEl.textContent = emoji; }
     } else if (emojiEl) {
