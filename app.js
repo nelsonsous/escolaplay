@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v313';
+const APP_VERSION = 'v314';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5690,6 +5690,61 @@ function _animateNumber(el, start, end, durationMs, fmt) {
 }
 
 // Confetti em canvas — sem libs
+// Confetti full-screen independente — funciona em qualquer ecrã/overlay
+// (inclui o escape room). Cria o seu proprio canvas e remove-o no fim.
+function fireConfetti(opts) {
+    opts = opts || {};
+    const count = opts.count || 130;
+    const duration = opts.duration || 2400;
+    const colors = opts.colors || ['#f59e0b','#ef4444','#f472b6','#a78bfa','#22d3ee','#10b981','#facc15'];
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:99999';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    function resize() { canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    resize();
+    const ox = opts.x != null ? opts.x : innerWidth / 2;
+    const oy = opts.y != null ? opts.y : innerHeight * 0.32;
+    const parts = [];
+    for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const sp = Math.random() * 7 + 3;
+        parts.push({
+            x: ox, y: oy,
+            vx: Math.cos(ang) * sp,
+            vy: Math.sin(ang) * sp - Math.random() * 5,
+            size: Math.random() * 7 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rot: Math.random() * Math.PI,
+            vr: (Math.random() - 0.5) * 0.35,
+            circle: Math.random() < 0.4
+        });
+    }
+    const start = performance.now();
+    function frame(now) {
+        const t = now - start;
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        const alpha = Math.max(0, 1 - t / duration);
+        parts.forEach(p => {
+            p.vy += 0.16; p.vx *= 0.99;
+            p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.color;
+            if (p.circle) { ctx.beginPath(); ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); ctx.fill(); }
+            else ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66);
+            ctx.restore();
+        });
+        if (t < duration) requestAnimationFrame(frame);
+        else canvas.remove();
+    }
+    requestAnimationFrame(frame);
+}
+window.fireConfetti = fireConfetti;
+
 function _launchConfetti(intensity) {
     const canvas = document.getElementById('summary-confetti');
     if (!canvas) return;

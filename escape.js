@@ -631,6 +631,13 @@
         const endWrap = document.createElement('div');
         endWrap.innerHTML = endHtml;
         document.getElementById('escape-overlay').appendChild(endWrap.firstElementChild);
+        // Confetti na vitoria (mais intenso quanto melhor a pontuacao)
+        if (escaped && typeof window.fireConfetti === 'function') {
+            const big = game.score >= 1000;
+            setTimeout(() => window.fireConfetti({ count: big ? 200 : 130, duration: big ? 3000 : 2400 }), 250);
+            if (big) setTimeout(() => window.fireConfetti({ count: 120, x: window.innerWidth * 0.25 }), 700);
+            if (big) setTimeout(() => window.fireConfetti({ count: 120, x: window.innerWidth * 0.75 }), 950);
+        }
         document.getElementById('esc-btn-again').addEventListener('click', () => {
             document.querySelector('#escape-overlay .esc-end')?.remove();
             _startGame();
