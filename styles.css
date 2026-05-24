@@ -4393,6 +4393,11 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-ex-wrong { display: block; color: #ef4444; text-decoration: line-through; font-size: 0.84rem; }
 .tutor-ex-right { display: block; color: #059669; font-weight: 600; font-size: 0.84rem; }
 .tutor-ex-note { display: block; color: #6b7280; font-size: 0.78rem; font-style: italic; margin-top: 1px; }
+.tutor-points { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 10px; padding: 9px 12px; margin: 4px 0 10px; }
+.tutor-points-row { display: flex; gap: 10px; font-size: 0.84rem; line-height: 1.45; padding: 3px 0; }
+.tutor-points-row + .tutor-points-row { border-top: 1px solid #ccfbf1; }
+.tutor-points-form { font-weight: 800; color: #0f766e; flex-shrink: 0; min-width: 72px; }
+.tutor-points-use { color: #334155; }
 
 /* Mini-quiz de prática */
 .tutor-quiz {

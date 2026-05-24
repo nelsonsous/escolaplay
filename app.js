@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v351';
+const APP_VERSION = 'v352';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5108,25 +5108,26 @@ The student just said (transcribed from speech): "${userText}"
 Return STRICT JSON:
 1) "corrected": the student's sentence rewritten with correct grammar/verb tenses/natural wording. "" if already correct.
 2) "errorType": short label of the MAIN error category, in EUROPEAN PORTUGUESE (e.g. "Past Simple", "Preposições", "Conectores", "Artigos", "Ordem das palavras", "Concordância", "Vocabulário"). "" if correct.
-3) "explanation": a short lesson in EUROPEAN PORTUGUESE (Portugal, never Brazilian) explaining the rule and why it was wrong. Max 35 words.
+3) "explanation": a clear lesson in EUROPEAN PORTUGUESE (Portugal, never Brazilian) explaining the rule and why it was wrong. 40-70 words. Teach the concept properly.
 4) "tip": ultra-short PT-PT tip, max 12 words.
 5) "reply": ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.
 6) "lessonTitle": short grammar rule title (e.g. "Work ON vs. work ABOUT", "Past Simple vs. Present Perfect"). "" if correct.
-7) "examples": array of 2 objects {wrong,right,note} showing the rule. note max 8 words PT-PT. [] if correct.
+7) "points": array of 2-4 objects {form, use} mapping the whole rule — each form/word and WHEN to use it, in PT-PT. E.g. for articles: [{"form":"a / an","use":"algo novo ou não específico"},{"form":"the","use":"algo específico ou já mencionado"},{"form":"(sem artigo)","use":"ideias gerais, plurais, incontáveis"}]. "form" stays in English, "use" in PT-PT. [] if correct.
+8) "examples": array of 2-3 objects {wrong,right,note} showing the rule (English wrong/right, note max 8 words PT-PT). [] if correct.
 
-{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","examples":[{"wrong":"...","right":"...","note":"..."}]}`;
+{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}]}`;
     try {
-        const { text } = await callClaudeAPI(prompt, 650, true);
+        const { text } = await callClaudeAPI(prompt, 850, true);
         if (!tutorState) return;
         const m = text.match(/\{[\s\S]*\}/);
-        let corrected = '', errorType = '', explanation = '', tip = '', reply = '', lessonTitle = '', examples = [];
+        let corrected = '', errorType = '', explanation = '', tip = '', reply = '', lessonTitle = '', points = [], examples = [];
         if (m) {
-            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; } catch {}
+            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); points = Array.isArray(p.points) ? p.points.slice(0, 4) : []; examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; } catch {}
         }
         if (!reply) reply = "Got it. Tell me more?";
         if (corrected && normalize(corrected) === normalize(userText)) corrected = '';
         if (corrected) {
-            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, examples };
+            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples };
             _tutorShowCorrection(tutorState._pending);
         } else {
             _tutorAddTutor(reply, '', tip, true);
@@ -5137,19 +5138,27 @@ Return STRICT JSON:
     }
 }
 
+// Bloco "como se usa" — cada forma (a/an, the, …) e quando usar
+function _tutorPointsHtml(points) {
+    if (!Array.isArray(points) || !points.length) return '';
+    return `<div class="tutor-points">${points.map(p => `<div class="tutor-points-row"><span class="tutor-points-form">${escapeHtml(p.form || '')}</span><span class="tutor-points-use">${escapeHtml(p.use || '')}</span></div>`).join('')}</div>`;
+}
+function _tutorExamplesHtml(examples) {
+    if (!Array.isArray(examples) || !examples.length) return '';
+    return `<div class="tutor-ex-label">EXEMPLOS</div>${examples.map(ex => `<div class="tutor-ex-row">
+          <span class="tutor-ex-wrong">❌ ${escapeHtml(ex.wrong || '')}</span>
+          <span class="tutor-ex-right">✅ ${escapeHtml(ex.right || '')}</span>
+          ${ex.note ? `<span class="tutor-ex-note">${escapeHtml(ex.note)}</span>` : ''}
+        </div>`).join('')}`;
+}
+
 // Cartão de lição: o que disseste vs o correto + tipo de erro + explicação
 function _tutorShowCorrection(d) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     if (d.errorType) _tutorTrackWeak(d.errorType, false);
     const badge = d.errorType ? `<span class="tutor-errtype">${escapeHtml(d.errorType)}</span>` : '';
-    const exHtml = (d.examples && d.examples.length) ? `
-        <div class="tutor-ex-label">EXEMPLOS</div>
-        ${d.examples.map(ex => `<div class="tutor-ex-row">
-          <span class="tutor-ex-wrong">❌ ${escapeHtml(ex.wrong || '')}</span>
-          <span class="tutor-ex-right">✅ ${escapeHtml(ex.right || '')}</span>
-          ${ex.note ? `<span class="tutor-ex-note">${escapeHtml(ex.note)}</span>` : ''}
-        </div>`).join('')}` : '';
+    const hasRule = d.lessonTitle || d.explanation || (d.points && d.points.length) || (d.examples && d.examples.length);
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">${_tutorAvatar()}</div>
@@ -5157,10 +5166,11 @@ function _tutorShowCorrection(d) {
           <div class="tutor-lesson-head">📖 Vamos corrigir ${badge}</div>
           <div class="tutor-cmp-said">🗣️ Disseste: "${escapeHtml(d.said)}"</div>
           <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
-          ${(d.lessonTitle || d.explanation) ? `<div class="tutor-lesson-rule">
+          ${hasRule ? `<div class="tutor-lesson-rule">
             ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
             ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
-            ${exHtml}
+            ${_tutorPointsHtml(d.points)}
+            ${_tutorExamplesHtml(d.examples)}
           </div>` : ''}
           <button class="tutor-lbtn prac full" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar agora · 3 exercícios →</button>
           <div class="tutor-lesson-btns2">
@@ -5316,10 +5326,10 @@ Correct option: "${correct}"
 They chose (WRONG): "${chosen}"
 Topic: "${item.topic || ''}"
 
-Teach this exact mistake, then drill it.
-LANGUAGE RULES (critical): the exercise questions "q" and all "options" MUST be in ENGLISH (they are English practice). The wrong/right examples "wrong"/"right" and the "said"/"correct" are also in ENGLISH. ONLY "explanation", the "note" fields and "exp" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
+Teach this exact mistake properly, then drill it.
+LANGUAGE RULES (critical): the exercise questions "q" and all "options" MUST be in ENGLISH (they are English practice). The "wrong"/"right" examples, "said"/"correct" and "points.form" are in ENGLISH. ONLY "explanation", "points.use", "note" and "exp" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
 Return STRICT JSON only:
-{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, max 35 words","examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"}]}`;
+{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"}]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 1000, true);
         const m = text.match(/\{[\s\S]*\}/);
@@ -5330,13 +5340,6 @@ Return STRICT JSON only:
 function _tutorRenderMistakeLesson(d) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
-    const exHtml = (d.examples && d.examples.length) ? `
-        <div class="tutor-ex-label">EXEMPLOS</div>
-        ${d.examples.map(ex => `<div class="tutor-ex-row">
-          <span class="tutor-ex-wrong">❌ ${escapeHtml(ex.wrong || '')}</span>
-          <span class="tutor-ex-right">✅ ${escapeHtml(ex.right || '')}</span>
-          ${ex.note ? `<span class="tutor-ex-note">${escapeHtml(ex.note)}</span>` : ''}
-        </div>`).join('')}` : '';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">💡</div>
@@ -5346,7 +5349,8 @@ function _tutorRenderMistakeLesson(d) {
           ${d.correct ? `<div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.correct)}" <button class="tutor-say" data-text="${escapeHtml(d.correct)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>` : ''}
           ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
           ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
-          ${exHtml}
+          ${_tutorPointsHtml(d.points)}
+          ${_tutorExamplesHtml(d.examples)}
         </div>
       </div>`);
     _tutorScroll();
