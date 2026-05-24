@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v346';
+const APP_VERSION = 'v347';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4886,17 +4886,21 @@ function _tutorSubmitText() {
 function _tutorAutoListen() {
     if (!tutorState) return;
     _tutorRenderMic();
-    // Mãos-livres: depois de o micro ter sido autorizado uma vez, arranca
-    // sozinho — mas o que disseres fica na barra para reveres/editares
-    // antes de enviar (não envia automaticamente).
-    if (tutorState.micGranted) {
-        setTimeout(() => { if (tutorState && !_tutorMicBusy()) _tutorStartMic(); }, 400);
-    }
+    if (!tutorState.micGranted) return;
+    // Com Voxtral NÃO auto-gravamos: uma gravação automática sem fala (ex.: no
+    // iOS, fora do gesto) faria o modelo inventar texto. Mãos-livres fica só
+    // no Web Speech, que devolve vazio em silêncio.
+    const usingVox = !!(state.max && state.max.mistralKey)
+        && typeof MediaRecorder !== 'undefined'
+        && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        && state.useVoxtral !== false;
+    if (usingVox) return;
+    setTimeout(() => { if (tutorState && !_tutorMicBusy()) _tutorStartMic(); }, 400);
 }
 // Dispatcher: usa o Voxtral (Mistral) por defeito; cai para o Web Speech
 // quando não há chave Mistral, o browser não grava, ou o Voxtral falha.
 let _tutorRec = null, _tutorRecStream = null, _tutorRecChunks = [], _tutorRecAbort = false;
-let _tutorAudioCtx = null, _tutorSilenceTimer = null;
+let _tutorAudioCtx = null, _tutorSilenceTimer = null, _tutorSpoke = false, _tutorAnalysed = false;
 function _tutorMicBusy() {
     return !!_tutorRecog || !!(_tutorRec && _tutorRec.state !== 'inactive');
 }
@@ -4923,50 +4927,57 @@ function _tutorStopSilenceWatch() {
     if (_tutorAudioCtx) { try { _tutorAudioCtx.close(); } catch {} _tutorAudioCtx = null; }
 }
 // Pára a gravação sozinho quando deteta uma pausa (silêncio), tal como o
-// Web Speech. Usa o nível RMS do micro via Web Audio.
-function _tutorWatchSilence(stream) {
+// Web Speech. Usa o nível RMS do micro via Web Audio. Recebe o AudioContext
+// já criado (dentro do gesto) para funcionar no iOS.
+function _tutorWatchSilence(stream, ctx) {
     try {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) { _tutorSilenceTimer = setTimeout(_tutorStopMic, 12000); return; }
-        const ctx = new Ctx();
+        if (!ctx) { _tutorSilenceTimer = setTimeout(_tutorStopMic, 9000); return; }
         _tutorAudioCtx = ctx;
-        try { ctx.resume(); } catch {}
         const an = ctx.createAnalyser();
         an.fftSize = 512;
         ctx.createMediaStreamSource(stream).connect(an);
         const data = new Uint8Array(an.fftSize);
         const start = Date.now();
-        let lastLoud = start, spoke = false;
+        let lastLoud = start;
         _tutorSilenceTimer = setInterval(() => {
+            if (ctx.state === 'running') _tutorAnalysed = true;
             an.getByteTimeDomainData(data);
             let sum = 0;
             for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
             const rms = Math.sqrt(sum / data.length);
             const now = Date.now();
-            if (rms > 0.045) { lastLoud = now; spoke = true; }
+            if (rms > 0.045) { lastLoud = now; _tutorSpoke = true; }
             const elapsed = now - start;
-            if ((spoke && now - lastLoud > 1400) || (!spoke && elapsed > 6000) || elapsed > 20000) {
+            if ((_tutorSpoke && now - lastLoud > 1600) || (!_tutorSpoke && elapsed > 7000) || elapsed > 25000) {
                 _tutorStopMic();
             }
         }, 120);
-    } catch { _tutorSilenceTimer = setTimeout(_tutorStopMic, 12000); }
+    } catch { _tutorSilenceTimer = setTimeout(_tutorStopMic, 9000); }
 }
 async function _tutorStartVoxtral() {
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
     const mic = document.getElementById('tutor-mic');
     const liveEl = document.getElementById('tutor-live');
+    // Cria o AudioContext JÁ (ainda dentro do gesto do toque) — depois do
+    // await getUserMedia o gesto perde-se e no iOS o contexto não arranca,
+    // o que impediria a deteção de fala.
+    let actx = null;
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) { actx = new Ctx(); try { actx.resume(); } catch {} }
+    } catch {}
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch { _tutorStartWebSpeech(); return; }
-    if (!tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} return; }
+    catch { if (actx) { try { actx.close(); } catch {} } _tutorStartWebSpeech(); return; }
+    if (!tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} if (actx) { try { actx.close(); } catch {} } return; }
     tutorState.micGranted = true;
-    _tutorRecStream = stream; _tutorRecChunks = []; _tutorRecAbort = false;
+    _tutorRecStream = stream; _tutorRecChunks = []; _tutorRecAbort = false; _tutorSpoke = false; _tutorAnalysed = false;
     let mime = '';
     ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg']
         .some(m => (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) ? (mime = m, true) : false);
     let rec;
     try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
-    catch { try { rec = new MediaRecorder(stream); } catch { try { stream.getTracks().forEach(t => t.stop()); } catch {} _tutorRecStream = null; _tutorStartWebSpeech(); return; } }
+    catch { try { rec = new MediaRecorder(stream); } catch { try { stream.getTracks().forEach(t => t.stop()); } catch {} if (actx) { try { actx.close(); } catch {} } _tutorRecStream = null; _tutorStartWebSpeech(); return; } }
     _tutorRec = rec;
     rec.ondataavailable = (e) => { if (e.data && e.data.size) _tutorRecChunks.push(e.data); };
     rec.onstop = () => {
@@ -4976,14 +4987,18 @@ async function _tutorStartVoxtral() {
         const blob = new Blob(_tutorRecChunks, { type: rec.mimeType || mime || 'audio/webm' });
         _tutorRec = null;
         _tutorMicIdle();
-        if (_tutorRecAbort) { _tutorRecAbort = false; if (liveEl) liveEl.style.display = 'none'; return; }
-        if (!blob.size) { if (liveEl) liveEl.style.display = 'none'; return; }
+        if (liveEl) liveEl.style.display = 'none';
+        // Não envia se: cancelado, sem áudio, ou se conseguimos analisar o som
+        // e não houve fala (evita o Voxtral "inventar" texto sobre silêncio).
+        if (_tutorRecAbort) { _tutorRecAbort = false; return; }
+        if (!blob.size || blob.size < 1200) return;
+        if (_tutorAnalysed && !_tutorSpoke) { if (typeof showToast === 'function') showToast('Não ouvi nada — toca e fala'); return; }
         _tutorTranscribeVoxtral(blob);
     };
     if (mic) { mic.classList.add('rec'); mic.innerHTML = '<i class="fas fa-stop"></i>'; }
     if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = '🎙️ A gravar… faz uma pausa quando acabares'; }
-    try { rec.start(); } catch { _tutorStopSilenceWatch(); try { stream.getTracks().forEach(t => t.stop()); } catch {} _tutorRec = null; _tutorRecStream = null; _tutorMicIdle(); _tutorStartWebSpeech(); return; }
-    _tutorWatchSilence(stream);
+    try { rec.start(); } catch { _tutorStopSilenceWatch(); try { stream.getTracks().forEach(t => t.stop()); } catch {} if (actx) { try { actx.close(); } catch {} } _tutorRec = null; _tutorRecStream = null; _tutorMicIdle(); _tutorStartWebSpeech(); return; }
+    _tutorWatchSilence(stream, actx);
 }
 async function _tutorTranscribeVoxtral(blob) {
     const inp = document.getElementById('tutor-text');
