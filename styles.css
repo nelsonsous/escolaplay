@@ -4396,10 +4396,10 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-ex-right { display: block; color: #059669; font-weight: 600; font-size: 0.92rem; }
 .tutor-ex-note { display: block; color: #6b7280; font-size: 0.84rem; font-style: italic; margin-top: 1px; }
 .tutor-points { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 10px; padding: 9px 12px; margin: 4px 0 10px; }
-.tutor-points-row { display: flex; gap: 10px; font-size: 0.92rem; line-height: 1.5; padding: 3px 0; }
+.tutor-points-row { font-size: 0.92rem; line-height: 1.5; padding: 5px 0; }
 .tutor-points-row + .tutor-points-row { border-top: 1px solid #ccfbf1; }
-.tutor-points-form { font-weight: 800; color: #0f766e; flex-shrink: 0; min-width: 72px; }
-.tutor-points-use { color: #334155; }
+.tutor-points-form { display: block; font-weight: 800; color: #0f766e; margin-bottom: 1px; }
+.tutor-points-use { display: block; color: #334155; }
 
 /* Mini-quiz de prática */
 .tutor-quiz {
