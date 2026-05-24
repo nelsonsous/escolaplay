@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v341';
+const APP_VERSION = 'v342';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4763,12 +4763,30 @@ function _tutorScroll() {
 }
 
 // Quanto da frase esperada o aluno acertou (0..1) — para validar a repetição
+// Compara duas palavras com tolerância: o STT troca "worked"→"work",
+// "their"→"there", etc. Conta como acerto se: igual, mesmo radical
+// (-ed/-ing/-s/-d), uma é prefixo da outra, ou distância de edição pequena.
+function _wordSimilar(a, b) {
+    if (a === b) return true;
+    const stem = w => w.replace(/(ing|ed|es|s|d)$/, '');
+    const sa = stem(a), sb = stem(b);
+    if (sa && sa === sb) return true;
+    if (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a))) return true;
+    const maxLen = Math.max(a.length, b.length);
+    const d = _levenshtein(a, b);
+    return maxLen <= 4 ? d <= 1 : d <= 2;
+}
 function _tutorWordMatch(said, expected) {
     const norm = s => normalize(s).replace(/[^a-z0-9\s']/g, '');
-    const ew = norm(expected).split(/\s+/).filter(w => w.length > 2);
+    const ew = norm(expected).split(/\s+/).filter(w => w.length > 1);
     if (!ew.length) return 1;
-    const sset = new Set(norm(said).split(/\s+/));
-    return ew.filter(w => sset.has(w)).length / ew.length;
+    const sw = norm(said).split(/\s+/).filter(Boolean);
+    if (!sw.length) return 0;
+    let hits = 0;
+    for (const w of ew) {
+        if (sw.some(s => _wordSimilar(w, s))) hits++;
+    }
+    return hits / ew.length;
 }
 
 let _tutorRecog = null;
@@ -4838,7 +4856,7 @@ function _tutorHandleInput(said) {
     // Em modo "treino do erro": valida a repetição antes de prosseguir
     if (tutorState.drill) {
         const d = tutorState.drill;
-        if (_tutorWordMatch(said, d.expected) >= 0.6) {
+        if (_tutorWordMatch(said, d.expected) >= 0.55) {
             tutorState.drill = null;
             const cont = d.pendingReply ? (' ' + d.pendingReply) : '';
             _tutorAddTutor('Perfect!' + cont, '', '', true);
