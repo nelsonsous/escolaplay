@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v360';
+const APP_VERSION = 'v361';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4888,7 +4888,7 @@ window._tutorToggleAsk = _tutorToggleAsk;
 // Entra em modo dúvida a partir de uma lição (com o tópico em contexto)
 function _tutorAskDoubt(topic) {
     if (!tutorState) return;
-    tutorState._ask = { topic: topic || '', fromPractice: !!tutorState._pq };
+    tutorState._ask = { topic: topic || tutorState._lastTopic || '', fromPractice: !!tutorState._pq };
     _tutorRenderMic();
     const inp = document.getElementById('tutor-text');
     if (inp) { try { inp.focus(); } catch {} }
@@ -4914,14 +4914,21 @@ function _tutorSubmitText() {
 async function _tutorAnswerDoubt(question) {
     if (!tutorState) return;
     const ask = tutorState._ask || {};
-    const topic = ask.topic || '';
+    const topic = ask.topic || tutorState._lastTopic || '';
     const fromPractice = !!ask.fromPractice;
     _tutorAddYou(question);
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a explicar…</div>`;
-    const ctx = topic ? `The doubt is about "${topic}". ` : '';
-    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${ctx}The student asks a DOUBT (may be written in Portuguese or English): "${question}"
-Answer it clearly and teach the concept.
+    const hist = tutorState.history.slice(-8).map(h => `${h.role === 'you' ? 'Student' : 'Tutor'}: ${h.text}`).join('\n');
+    const ctx = topic ? `The TOPIC IN FOCUS is "${topic}". ` : '';
+    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${ctx}This is a FOLLOW-UP inside an ongoing lesson.
+
+Recent conversation:
+${hist}
+
+The student now asks (may be written in Portuguese or English): "${question}"
+
+CRITICAL: If the message is a meta-request like "explica melhor", "podes explicar melhor?", "dá mais exemplos", "não percebi", "and in the past?", treat it as a request to ELABORATE ON THE TOPIC IN FOCUS above — do NOT teach the literal phrase the student used and do NOT translate their request; go deeper on the grammar topic with new angles and fresh examples. Only if the student clearly asks about a NEW concept should you switch topic.
 GRAMMAR TERMS RULE (critical): all grammar term NAMES (tenses, categories — e.g. Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals) MUST stay in ENGLISH everywhere, INCLUDING inside the Portuguese text — never translate them to Portuguese (write "Simple Past", never "passado simples").
 Return STRICT JSON only:
 {"title":"concept title using ENGLISH grammar terms (e.g. Simple Past vs Present Perfect)","explanation":"clear answer in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 50-90 words, but keep grammar term names in English","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English INCORRECT version (must differ from right and be genuinely wrong)","right":"English correct version","note":"PT-PT max 8 words"},{"wrong":"English incorrect","right":"English correct","note":"PT-PT max 8 words"}]}`;
@@ -4941,6 +4948,7 @@ function _tutorRenderDoubtAnswer(d, fromPractice) {
     const chat = document.getElementById('tutor-chat');
     if (!chat || !tutorState) return;
     tutorState._ask = null;
+    if (d.title) tutorState._lastTopic = d.title;
     const resumeBtn = (fromPractice && tutorState._pq && tutorState._pq.queue.length)
         ? `<button class="tutor-lbtn prac full" onclick="_tutorResumePractice()"><i class="fas fa-arrow-right"></i> Continuar prática</button>` : '';
     chat.insertAdjacentHTML('beforeend', `
@@ -5232,6 +5240,7 @@ function _tutorShowCorrection(d) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     if (d.errorType) _tutorTrackWeak(d.errorType, false);
+    tutorState._lastTopic = d.lessonTitle || d.errorType || tutorState._lastTopic;
     const badge = d.errorType ? `<span class="tutor-errtype">${escapeHtml(d.errorType)}</span>` : '';
     const hasRule = d.lessonTitle || d.explanation || (d.points && d.points.length) || (d.examples && d.examples.length);
     chat.insertAdjacentHTML('beforeend', `
@@ -5308,6 +5317,7 @@ Return STRICT JSON array only:
         if (!items.length) { _tutorAddTutor('Não consegui preparar exercícios agora. Continuamos a conversar?', '', '', true); return; }
         items.forEach(it => it.depth = 0);
         tutorState._pq = { queue: items, topic: errorType };
+        tutorState._lastTopic = errorType;
         const chat = document.getElementById('tutor-chat');
         if (chat) chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them"><div class="tutor-bubble-av">${_tutorAvatar()}</div><div class="tutor-bubble tutor-them"><span>Vamos praticar — ${items.length} exercícios sobre "${escapeHtml(errorType)}".</span></div></div>`);
         _tutorRenderPracticeItem();
@@ -5436,6 +5446,7 @@ Return STRICT JSON only:
 function _tutorRenderMistakeLesson(d) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
+    if (tutorState && d.lessonTitle) tutorState._lastTopic = d.lessonTitle;
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">💡</div>
