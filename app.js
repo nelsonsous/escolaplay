@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v316';
+const APP_VERSION = 'v317';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1754,10 +1754,13 @@ function openCoursePath(subjectKey) {
           <button class="icon-btn" onclick="openCourseFreePractice('${subjectKey}')" title="Treino livre por tópico"><i class="fas fa-list"></i></button>
         </div>
         <div class="exercise-body" style="padding-bottom:80px">
-          <div style="background:linear-gradient(135deg,${sub.color},${sub.color}cc);color:#fff;padding:16px 18px;border-radius:16px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
-            <div style="flex:1;min-width:0">
+          <div class="course-hero" style="background:linear-gradient(135deg,${sub.color},${sub.color}cc);color:#fff;padding:16px 18px;border-radius:16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden">
+            <span class="hero-sparkle" style="top:14%;left:30%"></span>
+            <span class="hero-sparkle" style="top:60%;left:12%;animation-delay:0.8s"></span>
+            <span class="hero-sparkle" style="top:24%;right:38%;animation-delay:1.4s"></span>
+            <div style="flex:1;min-width:0;position:relative;z-index:1">
               <div style="font-size:0.78rem;opacity:0.85;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">O teu caminho</div>
-              <div style="font-size:1.4rem;font-weight:800;margin:4px 0">${doneLessons} / ${totalLessons} lições</div>
+              <div style="font-size:1.4rem;font-weight:800;margin:4px 0"><span class="course-hero-count" data-target="${doneLessons}">${doneLessons}</span> / ${totalLessons} lições</div>
               <div style="height:8px;background:rgba(255,255,255,0.25);border-radius:999px;overflow:hidden;margin:8px 0 4px">
                 <div style="height:100%;width:${pct}%;background:#fff;border-radius:999px;transition:width 0.5s"></div>
               </div>
@@ -1792,6 +1795,27 @@ function openCoursePath(subjectKey) {
         if (!sk || !lid) { showToast('Sem dados na lição: ' + (lid || '?')); return; }
         startCourseLesson(sk, lid);
     });
+    // Reveal premium com GSAP (física de mola). Degrada para CSS se ausente.
+    if (window.gsap) {
+        wrap.classList.add('gsap-on');
+        const g = window.gsap;
+        const hero = wrap.querySelector('.course-hero');
+        const mascot = wrap.querySelector('#course-mascot');
+        const nodes = wrap.querySelectorAll('.course-node');
+        const units = wrap.querySelectorAll('.course-unit');
+        if (hero) g.from(hero, { y: -22, opacity: 0, duration: 0.5, ease: 'back.out(1.6)' });
+        if (mascot) g.from(mascot, { scale: 0, opacity: 0, duration: 0.65, ease: 'back.out(2.2)', delay: 0.35, transformOrigin: 'bottom center' });
+        g.from(units, { opacity: 0, duration: 0.4, stagger: 0.08, delay: 0.1 });
+        g.from(nodes, { y: 26, opacity: 0, duration: 0.5, ease: 'back.out(1.5)', stagger: 0.05, delay: 0.18 });
+        // Contador animado nas lições do hero
+        const counter = wrap.querySelector('.course-hero-count');
+        if (counter) {
+            const target = parseInt(counter.dataset.target, 10) || 0;
+            const obj = { v: 0 };
+            g.to(obj, { v: target, duration: 0.9, delay: 0.3, ease: 'power2.out',
+                onUpdate: () => { counter.textContent = Math.round(obj.v); } });
+        }
+    }
 }
 window.openCoursePath = openCoursePath;
 

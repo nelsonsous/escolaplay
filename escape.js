@@ -633,6 +633,15 @@
         const endWrap = document.createElement('div');
         endWrap.innerHTML = endHtml;
         document.getElementById('escape-overlay').appendChild(endWrap.firstElementChild);
+        // Entrada premium do cartao + contadores animados (GSAP, se presente)
+        if (window.gsap) {
+            const g = window.gsap;
+            const card = document.querySelector('#escape-overlay .esc-end-card');
+            if (card) g.from(card, { scale: 0.7, opacity: 0, y: 24, duration: 0.6, ease: 'back.out(1.7)' });
+            g.from('#escape-overlay .esc-stat', { opacity: 0, y: 14, duration: 0.4, stagger: 0.08, delay: 0.25 });
+            g.from('#escape-overlay .esc-breakdown-row', { opacity: 0, x: -16, duration: 0.35, stagger: 0.05, delay: 0.5 });
+        }
+        if (escaped && typeof window._haptic === 'function') window._haptic('win');
         // Confetti na vitoria (mais intenso quanto melhor a pontuacao)
         if (escaped && typeof window.fireConfetti === 'function') {
             const big = game.score >= 1000;

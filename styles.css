@@ -4077,3 +4077,51 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     40%  { transform: translateY(-16px) scale(1.12); }
     100% { transform: translateY(0) scale(1); }
 }
+
+/* ============================================================
+   PREMIUM PASS (v317) — GSAP reveal + sparkles + sheen
+   ============================================================ */
+/* Quando GSAP orquestra a entrada, desligar a entrada CSS para nao colidir */
+.gsap-on .course-unit,
+.gsap-on .course-node { animation: none !important; }
+
+/* Sparkles cintilantes (estilo premium Duolingo) */
+.hero-sparkle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 60%);
+    animation: heroTwinkle 2.6s ease-in-out infinite;
+}
+.hero-sparkle::before,
+.hero-sparkle::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(currentColor, currentColor) no-repeat center / 100% 2px,
+                linear-gradient(currentColor, currentColor) no-repeat center / 2px 100%;
+    color: rgba(255,255,255,0.9);
+}
+@keyframes heroTwinkle {
+    0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+    50%      { opacity: 1; transform: scale(1) rotate(45deg); }
+}
+
+/* Sheen sutil que percorre o hero (brilho premium) */
+.course-hero::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%;
+    width: 50%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent);
+    transform: skewX(-18deg);
+    animation: heroSheen 5s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes heroSheen {
+    0%, 100% { left: -60%; }
+    55%, 70% { left: 130%; }
+}
