@@ -167,13 +167,12 @@ async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: strin
   }
 
   if (!Speech) return;
-  Speech.speak(text, {
-    ...voiceOpts(lang, candidate),
-    onError: () => {
-      // Última defesa: se a voz validada ainda falhou, tenta sem voice.
-      if (Speech && candidate) Speech.speak(text, voiceOpts(lang, null));
-    },
-  });
+  // NOTA: não usamos onError com retry — interrupções legítimas (ex:
+  // utilizador a começar a gravar microfone, que muda audio session)
+  // também disparam onError, e o retry fazia o TTS começar a falar
+  // outra vez no momento errado. A validação de voice identifier antes
+  // de speak já cobre o caso da voz não existir.
+  Speech.speak(text, voiceOpts(lang, candidate));
 
   // Em paralelo, descobre a melhor voz para cache (se ainda não houver).
   if (!bestVoiceCache[lang]) {

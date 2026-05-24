@@ -100,6 +100,10 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
       return;
     }
     setError(null);
+    // Pára qualquer TTS em curso ANTES de mudar o audio mode para
+    // gravação. Sem isto, o iOS interrompe o TTS abruptamente o que
+    // pode disparar callbacks indesejados.
+    ttsStop();
     try {
       const h = await startRecording();
       setRecording(h);
