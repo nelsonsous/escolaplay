@@ -11,7 +11,8 @@ window.COURSE_ENGLISH_PM = {
         { id: 'U1', title: 'Foundations',           color: '#0891b2', icon: 'fa-seedling',    lessonIds: ['L1','L2','L3'] },
         { id: 'U2', title: 'Meeting English',       color: '#2563eb', icon: 'fa-users',       lessonIds: ['L4','L5','L6','L7'] },
         { id: 'U3', title: 'SAP / PM Vocabulary',   color: '#7c3aed', icon: 'fa-database',    lessonIds: ['L8','L9','L10','L11'] },
-        { id: 'U4', title: 'Executive Communication', color: '#dc2626', icon: 'fa-crown',     lessonIds: ['L12','L13','L14'] }
+        { id: 'U4', title: 'Executive Communication', color: '#dc2626', icon: 'fa-crown',     lessonIds: ['L12','L13','L14'] },
+        { id: 'U5', title: 'Conversação (roleplay)', color: '#0d9488', icon: 'fa-comments',  lessonIds: ['L15','L16','L17'] }
     ],
     lessons: [
         { id: 'L1',  title: 'Tempos verbais para status',
@@ -58,6 +59,16 @@ window.COURSE_ENGLISH_PM = {
           exerciseIds: ['epm_024','eng-pm-speak-024','epm_025','eng-pm-speak-025'] },
         { id: 'L14', title: 'Fechar forte · Storytelling · Cultura',
           subtitle: '3 asks · Narrative · DE/UK/PT styles',
-          exerciseIds: ['epm_026','eng-pm-speak-026','epm_027','eng-pm-speak-027','epm_028','eng-pm-speak-028'] }
+          exerciseIds: ['epm_026','eng-pm-speak-026','epm_027','eng-pm-speak-027','epm_028','eng-pm-speak-028'] },
+
+        { id: 'L15', title: 'Roleplay: pushback com a Karen',
+          subtitle: 'Ela fala, tu respondes',
+          exerciseIds: ['eng-pm-rp-001'] },
+        { id: 'L16', title: 'Roleplay: status com o Ricardo',
+          subtitle: 'Conversa de steering',
+          exerciseIds: ['eng-pm-rp-002'] },
+        { id: 'L17', title: 'Roleplay: más notícias à Irina',
+          subtitle: 'Anunciar um atraso',
+          exerciseIds: ['eng-pm-rp-003'] }
     ]
 };

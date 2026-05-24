@@ -3981,6 +3981,144 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 
 /* ============================================================
+   ROLEPLAY — conversa por turnos (a personagem fala, tu respondes)
+   ============================================================ */
+.rp-scenario {
+    background: #f0fdfa;
+    border-left: 3px solid #0d9488;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    color: #115e59;
+    line-height: 1.45;
+    margin-bottom: 10px;
+}
+.rp-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 42vh;
+    overflow-y: auto;
+    padding: 4px 2px;
+    -webkit-overflow-scrolling: touch;
+}
+.rp-row { display: flex; align-items: flex-end; gap: 8px; }
+.rp-row.you { flex-direction: row-reverse; }
+.rp-av {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    display: flex; align-items: center; justify-content: center;
+}
+.rp-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.rp-bubble {
+    max-width: 78%;
+    padding: 10px 13px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    animation: rpBubbleIn 0.3s var(--spring, ease);
+}
+@keyframes rpBubbleIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.rp-them {
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-bottom-left-radius: 5px;
+    color: #1f2937;
+}
+.rp-you {
+    background: linear-gradient(135deg, #0d9488, #0891b2);
+    color: #fff;
+    border-bottom-right-radius: 5px;
+}
+.rp-controls { margin-top: 12px; }
+.rp-speaking {
+    text-align: center;
+    color: #0d9488;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 8px;
+    animation: escPulse 1.2s ease-in-out infinite;
+}
+.rp-hint {
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: #78350f;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+.rp-transcript {
+    min-height: 48px;
+    background: #f8fafc;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    color: #475569;
+    line-height: 1.45;
+    margin-bottom: 8px;
+}
+.rp-transcript.rp-has {
+    color: #0f172a;
+    border-style: solid;
+    background: #fff;
+}
+.rp-btns { display: flex; gap: 8px; }
+.rp-mic-btn {
+    flex: 1;
+    background: linear-gradient(135deg, #0d9488, #0891b2);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(13,148,136,0.3);
+}
+.rp-mic-btn.rec { background: linear-gradient(135deg, #dc2626, #ea580c); }
+.rp-model-btn {
+    background: #fff;
+    color: #0d9488;
+    border: 1px solid #0d9488;
+    border-radius: 12px;
+    padding: 13px 14px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.rp-continue-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: linear-gradient(135deg, #f472b6, #db2777);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 0.92rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(219,39,119,0.3);
+}
+.rp-done {
+    text-align: center;
+    color: #16a34a;
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 12px;
+    line-height: 1.4;
+}
+
+/* ============================================================
    MOTION PASS (v316) — springs, botões 3D, transições, staggered
    ============================================================ */
 

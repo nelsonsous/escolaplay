@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v327';
+const APP_VERSION = 'v328';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -552,6 +552,9 @@ function _sanitizeExercise(e) {
     if (e.type === 'speak') {
         if (typeof e.ans === 'string') e.ans = [e.ans];
         if (!Array.isArray(e.ans) || !e.ans.length) return null;
+    }
+    if (e.type === 'roleplay') {
+        if (!Array.isArray(e.turns) || e.turns.length < 2) return null;
     }
     return e;
 }
@@ -4436,6 +4439,7 @@ function renderQuestion() {
     else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div>`; setTimeout(redrawMatch, 0); }
     else if (e.type === 'speak') { area.innerHTML = renderSpeak(e); speakState = { transcript: '', listening: false, lang: e.lang || 'en-US' }; }
+    else if (e.type === 'roleplay') { renderRoleplay(e); }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -4489,6 +4493,148 @@ function renderFill(e) {
 // ============================================================
 let speakState = { transcript: '', listening: false, lang: 'en-US' };
 let _speakRecog = null;
+
+// ============================================================
+// ROLEPLAY — conversa por turnos: a personagem fala (TTS), tu respondes
+// ============================================================
+let roleplayState = null;
+function renderRoleplay(e) {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const lang = e.lang || 'en-US';
+    const charName = e.character || 'Speaker';
+    const avatarHtml = (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(40)) ||
+        `<span style="font-size:22px">🧑‍💼</span>`;
+    roleplayState = { e, idx: 0, lang, charName, done: false };
+    area.innerHTML = `
+      <div class="rp-wrap">
+        <div class="rp-scenario">🎬 ${escapeHtml(e.q)}</div>
+        <div class="rp-chat" id="rp-chat"></div>
+        <div class="rp-controls" id="rp-controls"></div>
+      </div>`;
+    // Esconde o botão "Responder" — o roleplay conduz-se sozinho
+    _setExAction('hidden');
+    _rpAdvance();
+}
+
+function _rpBubbleThem(text) {
+    const av = (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(36)) || '🧑‍💼';
+    return `<div class="rp-row them">
+        <div class="rp-av">${av}</div>
+        <div class="rp-bubble rp-them">${escapeHtml(text)}</div>
+    </div>`;
+}
+function _rpBubbleYou(text) {
+    return `<div class="rp-row you"><div class="rp-bubble rp-you">${escapeHtml(text)}</div></div>`;
+}
+function _rpScroll() {
+    const c = document.getElementById('rp-chat');
+    if (c) c.scrollTop = c.scrollHeight;
+}
+
+function _rpAdvance() {
+    const st = roleplayState;
+    if (!st) return;
+    const turns = st.e.turns;
+    if (st.idx >= turns.length) { _rpFinish(); return; }
+    const turn = turns[st.idx];
+    const controls = document.getElementById('rp-controls');
+    if (turn.who === 'them') {
+        // A personagem fala
+        const chat = document.getElementById('rp-chat');
+        chat.insertAdjacentHTML('beforeend', _rpBubbleThem(turn.text));
+        _rpScroll();
+        if (controls) controls.innerHTML = `<div class="rp-speaking"><i class="fas fa-volume-high"></i> ${escapeHtml(st.charName)} está a falar…</div>`;
+        const next = () => { st.idx++; _rpAdvance(); };
+        if (typeof speakEN === 'function') {
+            speakEN(turn.text, st.lang, { onEnd: () => setTimeout(next, 350) }, _voiceForCurrentExercise && _voiceForCurrentExercise());
+        } else { setTimeout(next, 800); }
+    } else {
+        // A tua vez
+        if (controls) {
+            controls.innerHTML = `
+                ${turn.hint ? `<div class="rp-hint">💡 ${escapeHtml(turn.hint)}</div>` : ''}
+                <div id="rp-transcript" class="rp-transcript">A tua resposta aparece aqui…</div>
+                <div class="rp-btns">
+                  <button id="rp-mic" class="rp-mic-btn"><i class="fas fa-microphone"></i> Tocar e falar</button>
+                  <button id="rp-model" class="rp-model-btn"><i class="fas fa-lightbulb"></i> Ver modelo</button>
+                </div>`;
+            document.getElementById('rp-mic').addEventListener('click', _rpMic);
+            document.getElementById('rp-model').addEventListener('click', () => {
+                const t = document.getElementById('rp-transcript');
+                if (t) { t.textContent = turn.model || ''; t.classList.add('rp-has'); }
+                if (typeof ttsSpeakEN === 'function') ttsSpeakEN(turn.model || '', st.lang);
+                _rpEnableContinue();
+            });
+        }
+    }
+}
+
+let _rpRecog = null;
+function _rpMic() {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const st = roleplayState;
+    if (!Rec || !st) { showToast('Reconhecimento de voz não suportado'); return; }
+    const btn = document.getElementById('rp-mic');
+    const tEl = document.getElementById('rp-transcript');
+    if (_rpRecog) { try { _rpRecog.stop(); } catch {} return; }
+    const r = new Rec();
+    r.lang = st.lang; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    _rpRecog = r;
+    let finalTxt = '';
+    if (btn) { btn.innerHTML = '<i class="fas fa-stop"></i> A ouvir… toca para terminar'; btn.classList.add('rec'); }
+    r.onresult = (ev) => {
+        let interim = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const res = ev.results[i];
+            if (res.isFinal) finalTxt += res[0].transcript + ' ';
+            else interim += res[0].transcript;
+        }
+        const out = (finalTxt + interim).replace(/\s+/g, ' ').trim();
+        st._said = finalTxt.trim() || out;
+        if (tEl) { tEl.textContent = out || '…'; tEl.classList.add('rp-has'); }
+    };
+    r.onerror = () => {};
+    r.onend = () => {
+        _rpRecog = null;
+        if (btn) { btn.innerHTML = '<i class="fas fa-microphone"></i> Falar de novo'; btn.classList.remove('rec'); }
+        if (st._said && st._said.length > 1) _rpEnableContinue();
+    };
+    try { r.start(); } catch {}
+}
+
+function _rpEnableContinue() {
+    const st = roleplayState;
+    if (!st) return;
+    const controls = document.getElementById('rp-controls');
+    if (!controls || document.getElementById('rp-continue')) return;
+    const btn = document.createElement('button');
+    btn.id = 'rp-continue';
+    btn.className = 'rp-continue-btn';
+    btn.innerHTML = 'Continuar conversa <i class="fas fa-arrow-right"></i>';
+    btn.addEventListener('click', () => {
+        const chat = document.getElementById('rp-chat');
+        const said = st._said || st.e.turns[st.idx].model || '…';
+        chat.insertAdjacentHTML('beforeend', _rpBubbleYou(said));
+        st._said = '';
+        _rpScroll();
+        st.idx++;
+        _rpAdvance();
+    });
+    controls.appendChild(btn);
+}
+
+function _rpFinish() {
+    const st = roleplayState;
+    if (!st || st.done) return;
+    st.done = true;
+    const controls = document.getElementById('rp-controls');
+    if (controls) controls.innerHTML = `<div class="rp-done">✅ Conversa completa! Boa, ${escapeHtml(st.charName)} ficou convencido(a).</div>`;
+    try { recordAnswer(st.e, true); } catch {}
+    if (typeof _haptic === 'function') _haptic('win');
+    const isLast = currentSession.idx + 1 >= currentSession.items.length;
+    _setExAction('continue', isLast ? 'Ver resultado' : 'Continuar');
+}
 
 function renderSpeak(e) {
     const model = (e.ans && e.ans[0]) || '';
@@ -5445,6 +5591,9 @@ function _setExAction(mode, label) {
     const bar = document.getElementById('ex-action-bar');
     const btn = document.getElementById('ex-action-btn');
     if (!btn || !bar) return;
+    // Modo escondido — usado pelo roleplay, que se conduz sozinho
+    if (mode === 'hidden') { bar.style.display = 'none'; return; }
+    bar.style.display = '';
     if (mode === 'continue') {
         bar.classList.add('is-continue');
         bar.classList.remove('has-selection');
