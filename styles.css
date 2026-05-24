@@ -4334,6 +4334,28 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
     50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
 }
+/* Cartão "os teus erros a treinar" */
+.tutor-weak {
+    background: #fff7ed;
+    border: 1.5px solid #fed7aa;
+    border-radius: 16px;
+    border-bottom-left-radius: 5px;
+    padding: 12px 14px;
+    max-width: 86%;
+    animation: rpBubbleIn 0.3s var(--spring, ease);
+}
+.tutor-weak-h { font-weight: 800; font-size: 0.9rem; color: #c2410c; margin-bottom: 9px; }
+.tutor-weak-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 11px; }
+.tutor-weak-chip {
+    background: #fff;
+    border: 1px solid #fdba74;
+    color: #9a3412;
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+.tutor-weak-chip b { color: #ea580c; }
 
 /* Cartão de lição (correção rica) */
 .tutor-lesson {
