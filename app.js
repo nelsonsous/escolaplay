@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v350';
+const APP_VERSION = 'v351';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5210,9 +5210,10 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
-Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, a 1-line explanation in EUROPEAN PORTUGUESE (Portugal), and "topic" = the error category it trains, in EUROPEAN PORTUGUESE (e.g. "Past Simple", "Preposições", "Conectores").
+Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, a 1-line explanation, and "topic" = the error category it trains.
+LANGUAGE RULES (critical): the question "q" and all "options" MUST be in ENGLISH (they are English practice). ONLY "exp" and "topic" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — e.g. topic "Past Simple", "Preposições", "Conectores".
 Return STRICT JSON array only:
-[{"q":"...","options":["..","..",".."],"answer":0,"exp":"..","topic":".."}]`;
+[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"PT-PT category"}]`;
     try {
         const { text } = await callClaudeAPI(prompt, 700, true);
         if (!tutorState) return;
@@ -5315,8 +5316,10 @@ Correct option: "${correct}"
 They chose (WRONG): "${chosen}"
 Topic: "${item.topic || ''}"
 
-Teach this exact mistake, then drill it. Return STRICT JSON only:
-{"lessonTitle":"short rule title","said":"the wrong full sentence/phrase they effectively chose","correct":"the correct full sentence/phrase","explanation":"why it's wrong + the rule, EUROPEAN PORTUGUESE (Portugal, never Brazilian), max 35 words","examples":[{"wrong":"...","right":"...","note":"max 8 words PT-PT"},{"wrong":"...","right":"...","note":"max 8 words PT-PT"}],"exercises":[{"q":"...","options":["..","..",".."],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"...","options":["..","..",".."],"answer":0,"exp":"..","topic":"${item.topic || ''}"},{"q":"...","options":["..","..",".."],"answer":0,"exp":"..","topic":"${item.topic || ''}"}]}`;
+Teach this exact mistake, then drill it.
+LANGUAGE RULES (critical): the exercise questions "q" and all "options" MUST be in ENGLISH (they are English practice). The wrong/right examples "wrong"/"right" and the "said"/"correct" are also in ENGLISH. ONLY "explanation", the "note" fields and "exp" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
+Return STRICT JSON only:
+{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, max 35 words","examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"}]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 1000, true);
         const m = text.match(/\{[\s\S]*\}/);
