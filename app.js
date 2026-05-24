@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v331';
+const APP_VERSION = 'v332';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4801,7 +4801,9 @@ async function _geminiTTS(text, voiceName, lang) {
 function _stopCurrentAudio() {
     try { if (typeof _ttsLoadingClear === 'function') _ttsLoadingClear(); } catch {}
     try { if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio.src = ''; _ttsAudio = null; } } catch {}
-    try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
+    // Só cancela a fala se estiver mesmo a tocar (cancelar idle e depois falar
+    // no mesmo gesto dropa o áudio em iOS).
+    try { const s = window.speechSynthesis; if (s && (s.speaking || s.pending)) s.cancel(); } catch {}
 }
 
 function _sysSpeak(text, lang, cbs) {
@@ -4809,7 +4811,9 @@ function _sysSpeak(text, lang, cbs) {
     if (!('speechSynthesis' in window)) { cbs.onEnd && cbs.onEnd(); return; }
     try {
         const synth = window.speechSynthesis;
-        try { synth.cancel(); synth.resume(); } catch {}
+        // Só cancela se houver algo a tocar (cancelar a meio de um gesto e
+        // depois falar dropa a fala em iOS). resume() desbloqueia se pausado.
+        try { if (synth.speaking || synth.pending) synth.cancel(); synth.resume(); } catch {}
         const u = new SpeechSynthesisUtterance(text);
         u.lang = lang || 'en-US';
         u.rate = /^en/i.test(u.lang) ? 0.95 : 0.96;
@@ -4819,8 +4823,8 @@ function _sysSpeak(text, lang, cbs) {
         u.onstart = () => cbs.onStart && cbs.onStart();
         u.onend = () => cbs.onEnd && cbs.onEnd();
         u.onerror = () => cbs.onEnd && cbs.onEnd();
-        // iOS por vezes precisa de um tick depois do cancel para arrancar a fala
-        setTimeout(() => { try { synth.speak(u); } catch { cbs.onEnd && cbs.onEnd(); } }, 60);
+        // SÍNCRONO — tem de ser no mesmo instante do toque para o iOS deixar tocar
+        synth.speak(u);
     } catch { cbs.onEnd && cbs.onEnd(); }
 }
 
@@ -4841,6 +4845,26 @@ function _ttsLoadingShow() {
 function _ttsLoadingClear() {
     if (_ttsLoadingTimer) { clearTimeout(_ttsLoadingTimer); _ttsLoadingTimer = null; }
     document.getElementById('tts-loading')?.remove();
+}
+
+// Desbloqueio de áudio em iOS: no 1.º toque do utilizador, fala uma
+// utterance silenciosa para "acordar" o motor de voz (depois disto, falar
+// programaticamente passa a funcionar de forma mais fiável).
+let _speechUnlocked = false;
+function _unlockSpeechOnce() {
+    if (_speechUnlocked) return;
+    _speechUnlocked = true;
+    try {
+        if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance('​');
+            u.volume = 0;
+            window.speechSynthesis.speak(u);
+        }
+    } catch {}
+}
+if (typeof document !== 'undefined') {
+    document.addEventListener('pointerdown', _unlockSpeechOnce, { once: true, capture: true });
+    document.addEventListener('touchend', _unlockSpeechOnce, { once: true, capture: true });
 }
 
 // Router central de fala. EN com key Gemini -> voz neural; senao sistema.
