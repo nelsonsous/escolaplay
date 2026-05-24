@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v357';
+const APP_VERSION = 'v358';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5294,11 +5294,11 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
-Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, a 1-line explanation, and "topic" = the error category it trains.
+Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, "exp" = 1-line explanation in ENGLISH, "expPt" = the same idea as ONE short EUROPEAN PORTUGUESE note (max 12 words), and "topic" = the error category it trains.
 QUALITY RULES (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence (e.g. never write "She has ___ always worked" with answer "always"); exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; each option must be a distinct plausible fit for the gap.
-LANGUAGE RULES (critical): the question "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). ONLY "topic" is in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — e.g. "Past Simple", "Preposições", "Conectores".
+LANGUAGE RULES (critical): "q" and all "options" MUST be in ENGLISH (keep it immersive). "exp" in ENGLISH; "expPt" and "topic" in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — topic e.g. "Past Simple", "Preposições", "Conectores".
 Return STRICT JSON array only:
-[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"PT-PT category"}]`;
+[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"PT-PT category"}]`;
     try {
         const { text } = await callClaudeAPI(prompt, 700, true);
         if (!tutorState) return;
@@ -5374,7 +5374,11 @@ function _tutorPracticeAnswer(i) {
     const res = card.querySelector('.tutor-quiz-result');
     if (res) { res.textContent = ok ? '✓ Certo' : '× Errado'; res.className = 'tutor-quiz-result ' + (ok ? 'ok' : 'err'); }
     const fb = card.querySelector('.tutor-quiz-fb');
-    if (fb) { fb.style.display = 'block'; fb.innerHTML = `<div class="tutor-quiz-fb-inner ${ok ? 'fb-ok' : 'fb-err'}">${escapeHtml(it.exp || '')}</div>`; }
+    if (fb) {
+        fb.style.display = 'block';
+        const ptNote = it.expPt ? `<span class="tutor-fb-pt">${escapeHtml(it.expPt)}</span>` : '';
+        fb.innerHTML = `<div class="tutor-quiz-fb-inner ${ok ? 'fb-ok' : 'fb-err'}">${escapeHtml(it.exp || '')}${ptNote}</div>`;
+    }
     _tutorScroll();
     pq.queue.shift(); // remove o exercício respondido
     if (ok) {
@@ -5415,9 +5419,9 @@ Topic: "${item.topic || ''}"
 Teach this exact mistake properly, then drill it.
 QUALITY RULES for "exercises" (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence; exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; options must be distinct.
 QUALITY RULES for "examples" (critical): each "wrong" must be genuinely incorrect English and DIFFERENT from its "right".
-LANGUAGE RULES (critical): the exercise questions "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). The "wrong"/"right" examples, "said"/"correct" and "points.form" are also in ENGLISH. ONLY the lesson's "explanation", "points.use" and "note" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
+LANGUAGE RULES (critical): the exercise "q", all "options" MUST be in ENGLISH (immersive). Each exercise "exp" in ENGLISH and "expPt" a short EUROPEAN PORTUGUESE note (max 12 words). The "wrong"/"right" examples, "said"/"correct" and "points.form" are in ENGLISH. The lesson's "explanation", "points.use" and "note" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
 Return STRICT JSON only:
-{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"}]}`;
+{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"${item.topic || ''}"}]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 1000, true);
         const m = text.match(/\{[\s\S]*\}/);
