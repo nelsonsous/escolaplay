@@ -62,13 +62,13 @@ window.COURSE_ENGLISH_PM = {
           exerciseIds: ['epm_026','eng-pm-speak-026','epm_027','eng-pm-speak-027','epm_028','eng-pm-speak-028'] },
 
         { id: 'L15', title: 'Roleplay: pushback com a Karen',
-          subtitle: 'Ela fala, tu respondes',
+          subtitle: 'Ela fala, tu respondes', unlocked: true,
           exerciseIds: ['eng-pm-rp-001'] },
         { id: 'L16', title: 'Roleplay: status com o Ricardo',
-          subtitle: 'Conversa de steering',
+          subtitle: 'Conversa de steering', unlocked: true,
           exerciseIds: ['eng-pm-rp-002'] },
         { id: 'L17', title: 'Roleplay: más notícias à Irina',
-          subtitle: 'Anunciar um atraso',
+          subtitle: 'Anunciar um atraso', unlocked: true,
           exerciseIds: ['eng-pm-rp-003'] }
     ]
 };
