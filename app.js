@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v347';
+const APP_VERSION = 'v348';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4779,8 +4779,12 @@ function _tutorAddTutor(text, corrected, tip, autoSpeak) {
         </div>
       </div>`);
     _tutorScroll();
+    // Restaura JÁ a barra de input (não depender do fim do TTS): no iOS a fala
+    // do sistema pode falhar em silêncio e o onEnd nunca dispara — antes a barra
+    // ficava presa em "O professor está a pensar…". A fala é só um extra.
+    _tutorRenderMic();
     if (autoSpeak && typeof speakEN === 'function') {
-        // Fala automaticamente e, ao terminar, volta a ouvir (mãos-livres)
+        // Fala automaticamente e, ao terminar, volta a ouvir (mãos-livres no Web Speech)
         speakEN(text, tutorState.lang, { onEnd: () => _tutorAutoListen() });
     }
 }
@@ -4895,7 +4899,9 @@ function _tutorAutoListen() {
         && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
         && state.useVoxtral !== false;
     if (usingVox) return;
-    setTimeout(() => { if (tutorState && !_tutorMicBusy()) _tutorStartMic(); }, 400);
+    setTimeout(() => {
+        if (tutorState && !_tutorMicBusy() && !((tutorState._draft || '').trim())) _tutorStartMic();
+    }, 400);
 }
 // Dispatcher: usa o Voxtral (Mistral) por defeito; cai para o Web Speech
 // quando não há chave Mistral, o browser não grava, ou o Voxtral falha.
