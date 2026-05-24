@@ -37,6 +37,8 @@ export async function startRecording(): Promise<RecordingHandle> {
   await Audio.setAudioModeAsync({
     allowsRecordingIOS: true,
     playsInSilentModeIOS: true,
+    staysActiveInBackground: false,
+    shouldDuckAndroid: true,
   });
 
   const recording = new Audio.Recording();
@@ -54,7 +56,15 @@ export async function startRecording(): Promise<RecordingHandle> {
       /* swallow */
     }
     try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      // Importante: reverter o audio session para um modo que permite
+      // playback (Speech.speak). Se ficar em modo gravação, o TTS
+      // não toca depois de uma sessão de microfone.
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+      });
     } catch {
       /* swallow */
     }

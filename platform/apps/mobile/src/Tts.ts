@@ -107,22 +107,33 @@ function getBestVoice(lang: string): Promise<string | null> {
 /** Toca o texto na voz preferida (se houver) ou na melhor disponível. */
 export function ttsSpeak(text: string, lang: string = 'en-US'): void {
   if (!Speech) return;
+  // Limpa qualquer fala em curso. Adicionamos um pequeno delay antes de
+  // chamar speak — em alguns devices iOS, chamar speak imediatamente
+  // após stop falha silenciosamente (motor ainda em estado "stopping").
   try { Speech.stop(); } catch { /* swallow */ }
-  // 1.º preferred (override do utilizador)
-  const pref = preferredVoice[lang];
-  if (pref) {
-    Speech.speak(text, voiceOpts(lang, pref));
-    return;
-  }
-  // 2.º best discovered (cached)
-  const cached = bestVoiceCache[lang];
-  if (cached !== undefined) {
-    Speech.speak(text, voiceOpts(lang, cached));
-    return;
-  }
-  // 3.º default + lookup em background
-  getBestVoice(lang).catch(() => {/* swallow */});
-  Speech.speak(text, voiceOpts(lang, null));
+
+  const doSpeak = () => {
+    if (!Speech) return;
+    // 1.º preferred (override do utilizador)
+    const pref = preferredVoice[lang];
+    if (pref) {
+      Speech.speak(text, voiceOpts(lang, pref));
+      return;
+    }
+    // 2.º best discovered (cached)
+    const cached = bestVoiceCache[lang];
+    if (cached !== undefined) {
+      Speech.speak(text, voiceOpts(lang, cached));
+      return;
+    }
+    // 3.º default + lookup em background
+    getBestVoice(lang).catch(() => {/* swallow */});
+    Speech.speak(text, voiceOpts(lang, null));
+  };
+
+  // 100ms de delay defensivo — imperceptível para o utilizador mas
+  // suficiente para o motor TTS recuperar entre stop e speak.
+  setTimeout(doSpeak, 100);
 }
 
 function voiceOpts(lang: string, voice: string | null): {
