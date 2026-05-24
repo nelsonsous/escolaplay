@@ -145,7 +145,11 @@ function Row({
         )}
         {!isAuto && voice && (
           <Pressable
-            onPress={(e) => { e.stopPropagation(); ttsSpeak(SAMPLE, voice.identifier ? 'en-US' : 'en-US'); }}
+            onPress={(e) => {
+              e.stopPropagation();
+              // Bug-fix: testar EXACTAMENTE esta voz, não a preferida actual.
+              ttsSpeak(SAMPLE, 'en-US', voice.identifier);
+            }}
             style={s.playBtn}
             hitSlop={8}
           >

@@ -44,6 +44,24 @@ const inflightLookup: Record<string, Promise<string | null> | undefined> = {};
 // usado em vez da auto-discovery.
 const preferredVoice: Record<string, string | null> = {};
 
+/** Cache de identifiers de vozes existentes (por language). */
+const knownVoiceIds: Record<string, Set<string>> = {};
+
+async function ensureKnownVoices(lang: string): Promise<Set<string>> {
+  if (knownVoiceIds[lang]) return knownVoiceIds[lang]!;
+  const ids = new Set<string>();
+  if (Speech?.getAvailableVoicesAsync) {
+    try {
+      const all = await Speech.getAvailableVoicesAsync();
+      const langKey = lang.toLowerCase().slice(0, 2);
+      all.filter((v) => v.language?.toLowerCase().startsWith(langKey))
+        .forEach((v) => ids.add(v.identifier));
+    } catch { /* swallow */ }
+  }
+  knownVoiceIds[lang] = ids;
+  return ids;
+}
+
 /** Define a voz preferida do utilizador para um idioma. Passa null para limpar. */
 export function ttsSetPreferredVoice(lang: string, voiceId: string | null): void {
   preferredVoice[lang] = voiceId;
@@ -105,13 +123,15 @@ function getBestVoice(lang: string): Promise<string | null> {
   return p;
 }
 
-/** Toca o texto na voz preferida (se houver) ou na melhor disponível. */
-export function ttsSpeak(text: string, lang: string = 'en-US'): void {
+/** Toca o texto na voz preferida (se houver) ou na melhor disponível.
+ * Se `voiceOverride` for passado, usa essa voz (ignora preferida) —
+ * útil para o botão "testar voz" no picker. */
+export function ttsSpeak(text: string, lang: string = 'en-US', voiceOverride?: string | null): void {
   if (!Speech) return;
-  void _ttsSpeakSafely(text, lang);
+  void _ttsSpeakSafely(text, lang, voiceOverride);
 }
 
-async function _ttsSpeakSafely(text: string, lang: string): Promise<void> {
+async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: string | null): Promise<void> {
   if (!Speech) return;
 
   // Só faz stop se efetivamente está a falar — chamar stop em "idle"
@@ -127,34 +147,38 @@ async function _ttsSpeakSafely(text: string, lang: string): Promise<void> {
 
   if (!Speech) return;
 
-  // Estratégia de voz, com fallback se a preferida falhar:
-  const pref = preferredVoice[lang];
-  if (pref) {
-    Speech.speak(text, {
-      ...voiceOpts(lang, pref),
-      onError: () => {
-        // A voz preferida não funcionou (não descarregada / identifier
-        // mudou após update iOS). Tenta sem voice especifica.
-        if (Speech) Speech.speak(text, voiceOpts(lang, null));
-      },
-    });
-    return;
+  // Resolve qual voz usar (override > preferred > cached best > default).
+  let candidate: string | null = null;
+  if (voiceOverride !== undefined) {
+    candidate = voiceOverride; // explicit (pode ser null)
+  } else if (preferredVoice[lang]) {
+    candidate = preferredVoice[lang]!;
+  } else if (bestVoiceCache[lang]) {
+    candidate = bestVoiceCache[lang]!;
   }
 
-  const cached = bestVoiceCache[lang];
-  if (cached !== undefined) {
-    Speech.speak(text, {
-      ...voiceOpts(lang, cached),
-      onError: () => {
-        if (Speech) Speech.speak(text, voiceOpts(lang, null));
-      },
-    });
-    return;
+  // Valida que a voz existe no sistema — evita Speech.speak silencioso
+  // quando o identifier está stale (após update iOS, voz removida, etc.).
+  if (candidate) {
+    const known = await ensureKnownVoices(lang);
+    if (!known.has(candidate)) {
+      candidate = null; // cai para default
+    }
   }
 
-  // Default + lookup em background.
-  getBestVoice(lang).catch(() => {/* swallow */});
-  Speech.speak(text, voiceOpts(lang, null));
+  if (!Speech) return;
+  Speech.speak(text, {
+    ...voiceOpts(lang, candidate),
+    onError: () => {
+      // Última defesa: se a voz validada ainda falhou, tenta sem voice.
+      if (Speech && candidate) Speech.speak(text, voiceOpts(lang, null));
+    },
+  });
+
+  // Em paralelo, descobre a melhor voz para cache (se ainda não houver).
+  if (!bestVoiceCache[lang]) {
+    getBestVoice(lang).catch(() => {/* swallow */});
+  }
 }
 
 function voiceOpts(lang: string, voice: string | null): {
