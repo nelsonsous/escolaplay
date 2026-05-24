@@ -11,6 +11,7 @@ import { ProgressScreen } from './src/ProgressScreen';
 import { ProfileScreen } from './src/ProfileScreen';
 import { ExerciseScreen } from './src/ExerciseScreen';
 import { CourseScreen } from './src/CourseScreen';
+import { TutorScreen } from './src/TutorScreen';
 import { PackSelector } from './src/PackSelector';
 import { TabBar, type TabKey } from './src/TabBar';
 import { demoProfile, dailyGoal, achievements } from './src/data';
@@ -35,6 +36,7 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('home');
   const [target, setTarget] = useState<ExerciseTarget | null>(null);
   const [showPackSelector, setShowPackSelector] = useState(false);
+  const [showTutor, setShowTutor] = useState(false);
 
   const pack: CurriculumPack = useMemo(
     () => getPack(packId) ?? listPacks()[0]!,
@@ -57,6 +59,10 @@ export default function App() {
       return changed ? next : p;
     });
   }, [pack, setProfile]);
+
+  if (showTutor) {
+    return <TutorScreen onExit={() => setShowTutor(false)} />;
+  }
 
   if (target) {
     return (
@@ -89,6 +95,7 @@ export default function App() {
                 title: lesson.title,
                 exerciseIds: lesson.exerciseIds,
               })}
+              onOpenTutor={() => setShowTutor(true)}
             />
           ) : (
             <HomeScreen

@@ -37,10 +37,13 @@ export function CourseScreen({
   pack,
   profile,
   onStartLesson,
+  onOpenTutor,
 }: {
   pack: CurriculumPack;
   profile: Profile;
   onStartLesson: (lesson: { id: string; subjectKey: string; title: string; exerciseIds: string[] }) => void;
+  /** Opcional: abre o ecrã de chat com o tutor IA. */
+  onOpenTutor?: () => void;
 }) {
   const course = pack.course;
   if (!course) {
@@ -96,6 +99,22 @@ export function CourseScreen({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: space.lg, paddingBottom: 120, gap: space.xl }}
       >
+        {onOpenTutor && (
+          <PressScale onPress={onOpenTutor} scale={0.97} style={{ width: '100%' }}>
+            <View style={[s.tutorCta, shadowSoft('#0d9488')]}>
+              <View style={s.tutorCtaAvatar}>
+                <Text style={{ fontSize: 22 }}>🧑‍🏫</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.tutorCtaEyebrow}>FALAR COM O PROFESSOR</Text>
+                <Text style={s.tutorCtaTitle}>English Tutor</Text>
+                <Text style={s.tutorCtaSub}>Conversa livre · corrige · ouve em inglês</Text>
+              </View>
+              <FontAwesome5 name="comments" size={20} color={colors.white} solid />
+            </View>
+          </PressScale>
+        )}
+
         {course.units.map((unit) => (
           <View key={unit.id} style={{ gap: space.md }}>
             <View style={s.unitHead}>
@@ -212,4 +231,21 @@ const s = StyleSheet.create({
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xxl },
   emptyText: { fontSize: 14, fontWeight: '700', color: colors.textLight },
+
+  tutorCta: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    backgroundColor: '#0d9488',
+    borderRadius: radius.lg,
+    padding: space.md,
+    overflow: 'hidden',
+  },
+  tutorCtaAvatar: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)',
+  },
+  tutorCtaEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 0.7, color: 'rgba(255,255,255,0.85)' },
+  tutorCtaTitle: { fontSize: 17, fontWeight: '900', color: colors.white, letterSpacing: -0.3, marginTop: 2 },
+  tutorCtaSub: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.88)' },
 });

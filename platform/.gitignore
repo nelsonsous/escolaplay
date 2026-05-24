@@ -5,3 +5,6 @@ dist/
 .expo/
 .next/
 coverage/
+
+# Local secrets (API keys, etc.) — nunca commitar
+apps/mobile/src/secrets.ts

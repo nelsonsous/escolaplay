@@ -54,6 +54,13 @@ export {
 export type { AskMatch, AskResult } from './engine/ask.js';
 
 export {
+  callTutor,
+  parseTutorJson,
+  TUTOR_OPENER,
+} from './engine/tutor.js';
+export type { TutorMessage, TutorReply, CallTutorOptions } from './engine/tutor.js';
+
+export {
   listPacks,
   getPack,
   getPackByGrade,
