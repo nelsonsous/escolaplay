@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v316';
+const CACHE_NAME = 'escolaplay-v317';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
     '/escolaplay/app.js',
     '/escolaplay/content.js',
     '/escolaplay/escape.js',
+    '/escolaplay/gsap.min.js',
     '/escolaplay/manifest.json',
     // Bancos de exercícios (síncronos desde v148)
     '/escolaplay/content_2_extra.js',
