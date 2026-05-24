@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v363';
+const APP_VERSION = 'v364';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4813,6 +4813,20 @@ function _tutorScroll() {
         setTimeout(() => { chat.scrollTop = chat.scrollHeight; }, 120);
     });
 }
+// Posiciona o TOPO do último cartão no topo do chat (para ler explicações
+// longas desde o início, em vez de saltar para o fim).
+function _tutorScrollToLastTop() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const rows = chat.querySelectorAll('.tutor-row');
+    const last = rows[rows.length - 1];
+    if (!last) return;
+    const go = () => {
+        const top = chat.scrollTop + (last.getBoundingClientRect().top - chat.getBoundingClientRect().top) - 10;
+        chat.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    };
+    requestAnimationFrame(() => { go(); setTimeout(go, 140); });
+}
 
 // Quanto da frase esperada o aluno acertou (0..1) — para validar a repetição
 // Compara duas palavras com tolerância: o STT troca "worked"→"work",
@@ -4964,7 +4978,7 @@ function _tutorRenderDoubtAnswer(d, fromPractice) {
           ${resumeBtn}
         </div>
       </div>`);
-    _tutorScroll();
+    _tutorScrollToLastTop();
     _tutorRenderMic();
 }
 function _tutorResumePractice() {
@@ -5018,7 +5032,7 @@ function _tutorRenderDeepDive(d) {
           ${resumeBtn}
         </div>
       </div>`);
-    _tutorScroll();
+    _tutorScrollToLastTop();
     _tutorRenderMic();
 }
 function _tutorAutoListen() {
