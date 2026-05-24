@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v325';
+const APP_VERSION = 'v326';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4511,9 +4511,11 @@ function _pickENVoice(lang) {
         if (wantUK && /en[-_]gb/.test(vlang)) s += 100;
         else if (!wantUK && /en[-_]us/.test(vlang)) s += 100;
         else if (/^en/.test(vlang)) s += 50;
-        // Vozes claramente neurais/de qualidade
+        // Siri é a melhor voz do sistema — prioridade máxima
+        if (/siri/.test(name) || /siri/i.test(v.voiceURI || '')) s += 200;
+        // Outras vozes neurais/de qualidade
         if (/google/.test(name)) s += 60;
-        if (/(siri|premium|enhanced|neural|natural)/.test(name)) s += 55;
+        if (/(premium|enhanced|neural|natural)/.test(name)) s += 55;
         if (/\(.*(premium|enhanced).*\)/.test(name)) s += 10;
         // Vozes "compactas"/eloquence soam pior
         if (/(compact|eloquence)/.test(name)) s -= 30;
@@ -4633,14 +4635,14 @@ function _sysSpeak(text, lang, cbs) {
 }
 
 // Router central de fala. EN com key Gemini -> voz neural; senao sistema.
-async function speakEN(text, lang, cbs) {
+async function speakEN(text, lang, cbs, voiceOverride) {
     cbs = cbs || {};
     if (!text) { cbs.onEnd && cbs.onEnd(); return; }
     _stopCurrentAudio();
     const isEN = /^en/i.test(lang || '');
     if (isEN && _hasGeminiTTS()) {
         try {
-            const blob = await _geminiTTS(text, state.geminiVoice, lang);
+            const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
             if (blob) {
                 const audio = new Audio(URL.createObjectURL(blob));
                 _ttsAudio = audio;
@@ -4656,8 +4658,24 @@ async function speakEN(text, lang, cbs) {
 }
 window.speakEN = speakEN;
 
+// Voz Gemini determinística por exercício (mesmo exercício → mesma voz,
+// exercícios diferentes → vozes diferentes). Simula vários oradores.
+const _GEMINI_VOICE_POOL = ['Kore', 'Aoede', 'Charon', 'Puck', 'Fenrir'];
+function _voiceForCurrentExercise() {
+    if (state.geminiRotateVoice === false) return state.geminiVoice || 'Kore';
+    try {
+        const ex = currentSession && currentSession.items && currentSession.items[currentSession.idx];
+        if (ex && ex.id) {
+            let h = 0; const s = String(ex.id);
+            for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+            return _GEMINI_VOICE_POOL[h % _GEMINI_VOICE_POOL.length];
+        }
+    } catch {}
+    return state.geminiVoice || 'Kore';
+}
+
 function ttsSpeakEN(text, lang) {
-    speakEN(text, lang || 'en-US');
+    speakEN(text, lang || 'en-US', null, _voiceForCurrentExercise());
 }
 
 function toggleSpeakMic() {
@@ -10168,8 +10186,14 @@ function openVoicePickerEN() {
         window._enVoiceListenerBound = true;
         try { window.speechSynthesis.onvoiceschanged = () => { if (document.getElementById('voice-picker-en-temp')) openVoicePickerEN(); }; } catch {}
     }
-    const enVoices = voices.filter(v => /^en/i.test(v.lang || ''));
+    const allEn = voices.filter(v => /^en/i.test(v.lang || ''));
+    const isSiri = (v) => /siri/i.test(v.name || '') || /siri/i.test(v.voiceURI || '');
     const isNeural = (v) => /(google|siri|premium|enhanced|neural|natural)/i.test(v.name || '') || v.localService === false;
+    // Mostrar só a Siri (as outras do sistema não valem a pena). Se o
+    // dispositivo não expuser Siri, mostrar as neurais; em último caso todas.
+    const siriVoices = allEn.filter(isSiri);
+    const neuralVoices = allEn.filter(isNeural);
+    const enVoices = siriVoices.length ? siriVoices : (neuralVoices.length ? neuralVoices : allEn);
     enVoices.sort((a, b) => {
         const an = isNeural(a) ? 0 : 1, bn = isNeural(b) ? 0 : 1;
         if (an !== bn) return an - bn;
@@ -10199,6 +10223,10 @@ function openVoicePickerEN() {
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
             ${GEM_VOICES.map(v => `<button onclick="chooseGeminiVoice('${v.id}')" style="background:${v.id === gemVoice ? '#fbbf24' : 'rgba(255,255,255,0.12)'};color:${v.id === gemVoice ? '#1e1b4b' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">${v.id}<span style="font-weight:500;opacity:0.7;font-size:0.66rem"> · ${v.desc}</span></button>`).join('')}
           </div>
+          <button onclick="toggleGeminiRotate()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;margin-bottom:8px">
+            <span>🎭 Alternar voz por exercício</span>
+            <span style="font-weight:800;color:${state.geminiRotateVoice === false ? 'rgba(255,255,255,0.5)' : '#fbbf24'}">${state.geminiRotateVoice === false ? 'OFF' : 'ON'}</span>
+          </button>
           <div style="display:flex;gap:8px">
             <button onclick="previewGeminiVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
             <button onclick="removeGeminiKey()" style="background:rgba(239,68,68,0.25);color:#fecaca;border:none;border-radius:10px;padding:9px 12px;font-size:0.82rem;font-weight:700;cursor:pointer">Remover key</button>
@@ -10283,8 +10311,14 @@ function chooseGeminiVoice(v) {
     setTimeout(() => previewGeminiVoice(), 150);
 }
 function previewGeminiVoice() {
-    speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US');
+    speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US', null, state.geminiVoice);
 }
+function toggleGeminiRotate() {
+    state.geminiRotateVoice = (state.geminiRotateVoice === false) ? true : false;
+    saveState();
+    openVoicePickerEN();
+}
+window.toggleGeminiRotate = toggleGeminiRotate;
 window.openVoicePickerEN = openVoicePickerEN;
 window.addGeminiKey = addGeminiKey;
 window.removeGeminiKey = removeGeminiKey;
