@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v322';
+const APP_VERSION = 'v323';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4531,18 +4531,140 @@ function _pickENVoice(lang) {
 }
 window._pickENVoice = _pickENVoice;
 
-function ttsSpeakEN(text, lang) {
-    if (!text || !('speechSynthesis' in window)) return;
+// ============================================================
+// GEMINI TTS — voz neural (premium). Cache em IndexedDB por frase+voz.
+// Cai para a voz do sistema se nao houver key / falhar / offline.
+// ============================================================
+const GEMINI_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+let _ttsAudio = null; // Audio em curso (para conseguir cancelar)
+
+function _hasGeminiTTS() { return !!(state && state.max && state.max.geminiKey); }
+
+function _idb() {
+    return new Promise((resolve) => {
+        try {
+            const r = indexedDB.open('ep-tts', 1);
+            r.onupgradeneeded = () => { try { r.result.createObjectStore('audio'); } catch {} };
+            r.onsuccess = () => resolve(r.result);
+            r.onerror = () => resolve(null);
+        } catch { resolve(null); }
+    });
+}
+async function _idbGet(key) {
+    const db = await _idb(); if (!db) return null;
+    return new Promise((resolve) => {
+        try { const tx = db.transaction('audio', 'readonly').objectStore('audio').get(key);
+            tx.onsuccess = () => resolve(tx.result || null); tx.onerror = () => resolve(null);
+        } catch { resolve(null); }
+    });
+}
+async function _idbPut(key, val) {
+    const db = await _idb(); if (!db) return;
+    try { const tx = db.transaction('audio', 'readwrite').objectStore('audio').put(val, key); void tx; } catch {}
+}
+
+function _b64ToBytes(b64) {
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+}
+// Embrulha PCM 16-bit mono num container WAV tocável pelo browser
+function _pcm16ToWav(pcm, sampleRate) {
+    const numCh = 1, bps = 16;
+    const byteRate = sampleRate * numCh * bps / 8;
+    const blockAlign = numCh * bps / 8;
+    const buf = new ArrayBuffer(44 + pcm.length);
+    const dv = new DataView(buf);
+    const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    ws(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length, true); ws(8, 'WAVE');
+    ws(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true);
+    dv.setUint16(22, numCh, true); dv.setUint32(24, sampleRate, true);
+    dv.setUint32(28, byteRate, true); dv.setUint16(32, blockAlign, true); dv.setUint16(34, bps, true);
+    ws(36, 'data'); dv.setUint32(40, pcm.length, true);
+    new Uint8Array(buf, 44).set(pcm);
+    return new Blob([buf], { type: 'audio/wav' });
+}
+
+async function _geminiTTS(text, voiceName, lang) {
+    const key = state.max.geminiKey;
+    if (!key) return null;
+    const voice = voiceName || state.geminiVoice || 'Kore';
+    const cacheKey = `${voice}|${lang || 'en-US'}|${text}`;
+    // 1) Cache
+    const cached = await _idbGet(cacheKey);
+    if (cached instanceof Blob) return cached;
+    // 2) Pedido à API
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+    const body = {
+        contents: [{ parts: [{ text: text }] }],
+        generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
+        }
+    };
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) { console.warn('[gemini-tts] HTTP', res.status); return null; }
+    const json = await res.json();
+    const part = json?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!part) return null;
+    const mime = part.inlineData.mimeType || 'audio/L16;rate=24000';
+    const rate = parseInt((mime.match(/rate=(\d+)/) || [])[1], 10) || 24000;
+    const pcm = _b64ToBytes(part.inlineData.data);
+    const wav = _pcm16ToWav(pcm, rate);
+    _idbPut(cacheKey, wav);
+    return wav;
+}
+
+function _stopCurrentAudio() {
+    try { if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio.src = ''; _ttsAudio = null; } } catch {}
+    try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
+}
+
+function _sysSpeak(text, lang, cbs) {
+    if (!('speechSynthesis' in window)) { cbs.onEnd && cbs.onEnd(); return; }
     try {
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
         u.lang = lang || 'en-US';
-        u.rate = 0.92;
+        u.rate = /^en/i.test(u.lang) ? 0.95 : 0.96;
         u.pitch = 1.0;
-        const v = _pickENVoice(u.lang);
+        const v = /^en/i.test(u.lang) ? _pickENVoice(u.lang) : (typeof _pickPTVoice === 'function' ? _pickPTVoice() : null);
         if (v) u.voice = v;
+        u.onstart = () => cbs.onStart && cbs.onStart();
+        u.onend = () => cbs.onEnd && cbs.onEnd();
+        u.onerror = () => cbs.onEnd && cbs.onEnd();
         window.speechSynthesis.speak(u);
-    } catch (e) { console.warn('[tts-en] failed:', e); }
+    } catch { cbs.onEnd && cbs.onEnd(); }
+}
+
+// Router central de fala. EN com key Gemini -> voz neural; senao sistema.
+async function speakEN(text, lang, cbs) {
+    cbs = cbs || {};
+    if (!text) { cbs.onEnd && cbs.onEnd(); return; }
+    _stopCurrentAudio();
+    const isEN = /^en/i.test(lang || '');
+    if (isEN && _hasGeminiTTS()) {
+        try {
+            const blob = await _geminiTTS(text, state.geminiVoice, lang);
+            if (blob) {
+                const audio = new Audio(URL.createObjectURL(blob));
+                _ttsAudio = audio;
+                audio.onplay = () => cbs.onStart && cbs.onStart();
+                audio.onended = () => { cbs.onEnd && cbs.onEnd(); try { URL.revokeObjectURL(audio.src); } catch {} };
+                audio.onerror = () => cbs.onEnd && cbs.onEnd();
+                await audio.play();
+                return;
+            }
+        } catch (e) { console.warn('[gemini-tts] fallback:', e); }
+    }
+    _sysSpeak(text, lang, cbs);
+}
+window.speakEN = speakEN;
+
+function ttsSpeakEN(text, lang) {
+    speakEN(text, lang || 'en-US');
 }
 
 function toggleSpeakMic() {
@@ -10061,6 +10183,30 @@ function openVoicePickerEN() {
     modal.className = 'modal';
     modal.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px';
     const currentName = state.ttsVoiceNameEN || '';
+    // Secção Gemini (voz neural premium)
+    const GEM_VOICES = [
+        { id: 'Kore', desc: 'firme · US' },
+        { id: 'Aoede', desc: 'leve · UK' },
+        { id: 'Charon', desc: 'informativa' },
+        { id: 'Puck', desc: 'animada' },
+        { id: 'Fenrir', desc: 'enérgica' }
+    ];
+    const gemActive = !!(state.max && state.max.geminiKey);
+    const gemVoice = state.geminiVoice || 'Kore';
+    const gemSection = `
+      <div style="background:linear-gradient(135deg,#1e1b4b,#4c1d95);color:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#fbbf24"></i> Voz neural Gemini ${gemActive ? '<span style="font-size:0.66rem;background:#10b981;padding:2px 8px;border-radius:8px;margin-left:auto">ATIVA</span>' : '<span style="font-size:0.66rem;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;margin-left:auto">INATIVA</span>'}</div>
+        <div style="font-size:0.78rem;opacity:0.85;margin:6px 0 10px;line-height:1.4">Qualidade tipo Duolingo. Grátis no Google AI Studio. Áudio fica em cache.</div>
+        ${gemActive ? `
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            ${GEM_VOICES.map(v => `<button onclick="chooseGeminiVoice('${v.id}')" style="background:${v.id === gemVoice ? '#fbbf24' : 'rgba(255,255,255,0.12)'};color:${v.id === gemVoice ? '#1e1b4b' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">${v.id}<span style="font-weight:500;opacity:0.7;font-size:0.66rem"> · ${v.desc}</span></button>`).join('')}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="previewGeminiVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
+            <button onclick="removeGeminiKey()" style="background:rgba(239,68,68,0.25);color:#fecaca;border:none;border-radius:10px;padding:9px 12px;font-size:0.82rem;font-weight:700;cursor:pointer">Remover key</button>
+          </div>`
+        : `<button onclick="addGeminiKey()" style="width:100%;background:#fbbf24;color:#1e1b4b;border:none;border-radius:10px;padding:11px;font-size:0.85rem;font-weight:800;cursor:pointer"><i class="fas fa-key"></i> Colar key do Google AI Studio</button>`}
+      </div>`;
     const rows = enVoices.length === 0
         ? `<p style="text-align:center;color:var(--text-light);padding:24px 12px">
              Não encontrei vozes inglesas instaladas.<br><br>
@@ -10086,9 +10232,12 @@ function openVoicePickerEN() {
     modal.innerHTML = `
       <div class="modal-content" style="max-width:500px;max-height:85vh;padding:18px;display:flex;flex-direction:column">
         <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Voz inglesa</h3>
-        <p style="font-size:0.85rem;color:#6b7280;margin:0 0 12px;line-height:1.45">Escolhe uma voz <strong>NEURAL</strong> para soar tipo Duolingo. Toca em 🔊 para ouvir.</p>
-        ${currentName ? `<div style="background:#ecfeff;border:1px solid #0891b2;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0e7490"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
-        <div style="flex:1;overflow-y:auto;padding-right:4px">${rows}</div>
+        <div style="flex:1;overflow-y:auto;padding-right:4px">
+          ${gemSection}
+          <p style="font-size:0.85rem;color:#6b7280;margin:0 0 10px;line-height:1.45">Ou usa uma voz <strong>NEURAL</strong> do sistema. Toca em 🔊 para ouvir.</p>
+          ${currentName ? `<div style="background:#ecfeff;border:1px solid #0891b2;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0e7490"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
+          ${rows}
+        </div>
         <div style="display:flex;gap:8px;margin-top:12px">
           ${currentName ? `<button class="btn btn-secondary" style="flex:1" onclick="clearVoiceChoiceEN()"><i class="fas fa-rotate"></i> Auto</button>` : ''}
           <button class="btn btn-primary-solid" style="flex:2" onclick="closeVoicePickerEN()"><i class="fas fa-check"></i> Pronto</button>
@@ -10109,8 +10258,39 @@ function testVoiceEN(voiceName) {
 }
 function chooseVoiceEN(voiceName) { state.ttsVoiceNameEN = voiceName; saveState(); openVoicePickerEN(); }
 function clearVoiceChoiceEN() { delete state.ttsVoiceNameEN; saveState(); openVoicePickerEN(); }
-function closeVoicePickerEN() { try { window.speechSynthesis.cancel(); } catch {} document.getElementById('voice-picker-en-temp')?.remove(); }
+function closeVoicePickerEN() { try { _stopCurrentAudio(); } catch {} document.getElementById('voice-picker-en-temp')?.remove(); }
+function addGeminiKey() {
+    const k = prompt('Cola a tua key do Google AI Studio (aistudio.google.com → Get API key):');
+    if (k === null) return;
+    const key = k.trim();
+    if (key.length < 20) { showToast('Key parece curta demais'); return; }
+    state.max = state.max || {};
+    state.max.geminiKey = key;
+    if (!state.geminiVoice) state.geminiVoice = 'Kore';
+    saveState();
+    showToast('Voz neural Gemini ativada 🎙️');
+    openVoicePickerEN();
+}
+function removeGeminiKey() {
+    if (!confirm('Remover a key Gemini? Voltas à voz do sistema.')) return;
+    if (state.max) delete state.max.geminiKey;
+    saveState();
+    openVoicePickerEN();
+}
+function chooseGeminiVoice(v) {
+    state.geminiVoice = v;
+    saveState();
+    openVoicePickerEN();
+    setTimeout(() => previewGeminiVoice(), 150);
+}
+function previewGeminiVoice() {
+    speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US');
+}
 window.openVoicePickerEN = openVoicePickerEN;
+window.addGeminiKey = addGeminiKey;
+window.removeGeminiKey = removeGeminiKey;
+window.chooseGeminiVoice = chooseGeminiVoice;
+window.previewGeminiVoice = previewGeminiVoice;
 window.testVoiceEN = testVoiceEN;
 window.chooseVoiceEN = chooseVoiceEN;
 window.clearVoiceChoiceEN = clearVoiceChoiceEN;
