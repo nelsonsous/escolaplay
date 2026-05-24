@@ -14,11 +14,12 @@ import {
   KeyboardAvoidingView, Platform, Animated, Easing,
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { callTutor, TUTOR_OPENER } from '@escolaplay/core';
+import { callTutor, transcribeAudio, TUTOR_OPENER } from '@escolaplay/core';
 import type { TutorMessage, TutorReply } from '@escolaplay/core';
 import { colors, radius, space, shadow, shadowSoft, shadowStrong, tint } from './theme';
 import { PressScale, DecorOrb } from './ui';
 import { ttsAvailable, ttsSpeak, ttsStop } from './Tts';
+import { recorderAvailable, startRecording, buildTranscribeForm, type RecordingHandle } from './Recorder';
 import { MISTRAL_API_KEY } from './secrets';
 
 interface TurnDisplay {
@@ -39,6 +40,8 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recording, setRecording] = useState<RecordingHandle | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // Auto-scroll quando muda turns.
@@ -54,6 +57,46 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
     () => turns.map((t) => ({ role: t.role, text: t.text })),
     [turns],
   );
+
+  async function startMic() {
+    if (recording || busy || transcribing) return;
+    if (!recorderAvailable()) {
+      setError('Microfone não disponível (expo-av em falta). Reinicia o Metro.');
+      return;
+    }
+    setError(null);
+    try {
+      const h = await startRecording();
+      setRecording(h);
+    } catch (e: any) {
+      setError(e?.message || 'Não foi possível abrir o microfone');
+    }
+  }
+
+  async function stopMicAndTranscribe() {
+    if (!recording) return;
+    const h = recording;
+    setRecording(null);
+    setTranscribing(true);
+    setError(null);
+    try {
+      const uri = await h.stopAndGetUri();
+      if (!uri) throw new Error('Gravação vazia');
+      if (!MISTRAL_API_KEY) throw new Error('Configura a key Mistral em apps/mobile/src/secrets.ts');
+      const form = buildTranscribeForm(uri, 'en');
+      const { text } = await transcribeAudio({ apiKey: MISTRAL_API_KEY, form });
+      if (text) {
+        // Acrescenta à frase já no input (ou substitui se vazio).
+        setInput((prev) => (prev ? prev.trim() + ' ' + text : text));
+      } else {
+        setError('Não consegui transcrever. Tenta falar mais alto/perto do mic.');
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Falha na transcrição');
+    } finally {
+      setTranscribing(false);
+    }
+  }
 
   async function send() {
     const text = input.trim();
@@ -148,21 +191,45 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
           style={s.input}
           value={input}
           onChangeText={setInput}
-          placeholder="Type in English…"
-          placeholderTextColor={colors.textMuted}
+          placeholder={recording ? '🔴 A gravar… toca para parar' : (transcribing ? 'A transcrever…' : 'Type in English…')}
+          placeholderTextColor={recording ? colors.danger : colors.textMuted}
           multiline
-          editable={!busy}
+          editable={!busy && !recording && !transcribing}
           onSubmitEditing={send}
           returnKeyType="send"
           blurOnSubmit
         />
+        {recorderAvailable() && (
+          recording ? (
+            <PressScale
+              onPress={stopMicAndTranscribe}
+              style={[s.micBtn, s.micBtnRec]}
+              scale={0.92}
+            >
+              <View style={s.micStop} />
+            </PressScale>
+          ) : (
+            <PressScale
+              onPress={startMic}
+              disabled={busy || transcribing}
+              style={[s.micBtn, ...((busy || transcribing) ? [{ opacity: 0.4 }] : [])]}
+              scale={0.92}
+            >
+              {transcribing ? (
+                <ThinkingDots />
+              ) : (
+                <FontAwesome5 name="microphone" size={16} color={TUTOR_COLOR} solid />
+              )}
+            </PressScale>
+          )
+        )}
         <PressScale
           onPress={send}
-          disabled={busy || !input.trim()}
+          disabled={busy || !input.trim() || transcribing}
           style={[
             s.sendBtn,
-            { backgroundColor: (busy || !input.trim()) ? '#cbd5e1' : TUTOR_COLOR },
-            ...(!busy && input.trim() ? [shadowStrong(TUTOR_COLOR)] : []),
+            { backgroundColor: (busy || !input.trim() || transcribing) ? '#cbd5e1' : TUTOR_COLOR },
+            ...(!busy && input.trim() && !transcribing ? [shadowStrong(TUTOR_COLOR)] : []),
           ]}
           scale={0.92}
         >
@@ -347,5 +414,24 @@ const s = StyleSheet.create({
   sendBtn: {
     width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
+  },
+  micBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: tint(TUTOR_COLOR, 0.12),
+    borderWidth: 1.5, borderColor: tint(TUTOR_COLOR, 0.35),
+  },
+  micBtnRec: {
+    backgroundColor: colors.danger,
+    borderColor: colors.dangerDeep,
+    shadowColor: colors.danger,
+    shadowOpacity: 0.55,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  micStop: {
+    width: 16, height: 16, borderRadius: 3,
+    backgroundColor: colors.white,
   },
 });

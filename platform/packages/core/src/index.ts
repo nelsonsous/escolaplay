@@ -60,6 +60,9 @@ export {
 } from './engine/tutor.js';
 export type { TutorMessage, TutorReply, CallTutorOptions } from './engine/tutor.js';
 
+export { transcribeAudio } from './engine/transcribe.js';
+export type { TranscribeOptions, TranscribeResult } from './engine/transcribe.js';
+
 export {
   listPacks,
   getPack,

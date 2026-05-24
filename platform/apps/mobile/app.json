@@ -10,10 +10,22 @@
       "backgroundColor": "#9d174d"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Para conversar em inglês com o tutor por voz."
+      }
     },
     "android": {
-      "package": "com.escolaplay.app"
-    }
+      "package": "com.escolaplay.app",
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Para conversar em inglês com o tutor por voz."
+        }
+      ]
+    ]
   }
 }
