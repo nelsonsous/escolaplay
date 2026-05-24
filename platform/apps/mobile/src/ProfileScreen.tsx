@@ -4,7 +4,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { levelInfo, levelProgressPercent } from '@escolaplay/core';
 import type { Profile } from '@escolaplay/core';
 import { colors, radius, space, shadow, shadowSoft, tint } from './theme';
-import { ProgressBar, DecorOrb } from './ui';
+import { ProgressBar, DecorOrb, PressScale } from './ui';
 import { TAB_BAR_HEIGHT } from './TabBar';
 import type { Achievement } from './data';
 
@@ -28,7 +28,14 @@ function AchievementCard({ a }: { a: Achievement }) {
   );
 }
 
-export function ProfileScreen({ profile, achievements }: { profile: Profile; achievements: Achievement[] }) {
+export function ProfileScreen({
+  profile, achievements, packLabel, onChangePack,
+}: {
+  profile: Profile;
+  achievements: Achievement[];
+  packLabel?: string;
+  onChangePack?: () => void;
+}) {
   const lvl = levelInfo(profile.xp);
   const pct = levelProgressPercent(profile.xp);
   const unlocked = achievements.filter((a) => a.unlocked).length;
@@ -56,6 +63,21 @@ export function ProfileScreen({ profile, achievements }: { profile: Profile; ach
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: space.lg, paddingBottom: TAB_BAR_HEIGHT + 24, gap: space.lg }}>
+        {packLabel && onChangePack && (
+          <PressScale onPress={onChangePack} style={{ width: '100%' }} scale={0.98}>
+            <View style={[s.packRow, shadow]}>
+              <View style={s.packIcon}>
+                <FontAwesome5 name="graduation-cap" size={16} color={colors.primary} solid />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.packEyebrow}>CURSO ATIVO</Text>
+                <Text style={s.packTitle}>{packLabel}</Text>
+              </View>
+              <FontAwesome5 name="chevron-right" size={12} color={colors.textMuted} />
+            </View>
+          </PressScale>
+        )}
+
         <View style={[s.xpCard, shadow]}>
           <View style={s.xpStripe} />
           <View style={s.xpTop}>
@@ -111,6 +133,21 @@ const s = StyleSheet.create({
   },
   levelBadgeText: { color: colors.primaryDeep, fontWeight: '900', fontSize: 11 },
   levelChipText: { color: colors.white, fontSize: 13, fontWeight: '800' },
+
+  packRow: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    backgroundColor: colors.card, borderRadius: radius.lg,
+    padding: space.md,
+    borderWidth: 1, borderColor: colors.primaryLight,
+  },
+  packIcon: {
+    width: 40, height: 40, borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: tint(colors.primary, 0.30),
+  },
+  packEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 0.7, color: colors.primaryDark, textTransform: 'uppercase' },
+  packTitle: { fontSize: 15, fontWeight: '900', color: colors.text, marginTop: 2 },
 
   xpCard: {
     backgroundColor: colors.card, borderRadius: radius.lg,

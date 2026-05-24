@@ -7,6 +7,7 @@ import { colors, radius, space, shadow, shadowSoft, shadowStrong, tint } from '.
 import { ProgressBar, StatPill, PressScale, DecorOrb } from './ui';
 import { subjectIconName } from './Icon';
 import { TAB_BAR_HEIGHT } from './TabBar';
+import { AskCard } from './AskCard';
 
 function Header({ profile }: { profile: Profile }) {
   const lvl = levelInfo(profile.xp);
@@ -154,11 +155,12 @@ function SubjectCard({ subject, count, mastery, accuracy, onPress }: {
   );
 }
 
-export function HomeScreen({ profile, pack, daily, onOpenSubject }: {
+export function HomeScreen({ profile, pack, daily, onOpenSubject, onOpenPackSelector }: {
   profile: Profile;
   pack: CurriculumPack;
   daily: { done: number; target: number };
   onOpenSubject: (subjectKey: string) => void;
+  onOpenPackSelector?: () => void;
 }) {
   const countFor = (k: string) => pack.exercises.filter((e) => e.subject === k).length;
   const rows: Subject[][] = [];
@@ -186,7 +188,14 @@ export function HomeScreen({ profile, pack, daily, onOpenSubject }: {
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: space.md }}>
           <View style={s.sectionHead}>
             <Text style={s.sectionTitle}>Disciplinas</Text>
-            <Text style={s.sectionBadge}>{pack.label}</Text>
+            <PressScale onPress={onOpenPackSelector || (() => {})} scale={0.94} style={{}}>
+              <View style={s.packBadge}>
+                <Text style={s.sectionBadge}>{pack.label}</Text>
+                {onOpenPackSelector && (
+                  <FontAwesome5 name="chevron-down" size={9} color={colors.primaryDark} />
+                )}
+              </View>
+            </PressScale>
           </View>
           {rows.map((row, i) => (
             <View key={i} style={s.row}>
@@ -206,6 +215,10 @@ export function HomeScreen({ profile, pack, daily, onOpenSubject }: {
               {row.length === 1 && <View style={{ flex: 1 }} />}
             </View>
           ))}
+        </View>
+
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl }}>
+          <AskCard pack={pack} onOpenSubject={onOpenSubject} />
         </View>
       </ScrollView>
     </View>
@@ -314,7 +327,8 @@ const s = StyleSheet.create({
 
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
-  sectionBadge: { fontSize: 12, fontWeight: '900', color: colors.primaryDark, backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill, overflow: 'hidden' },
+  packBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
+  sectionBadge: { fontSize: 12, fontWeight: '900', color: colors.primaryDark },
 
   row: { flexDirection: 'row', gap: space.md },
   card: {

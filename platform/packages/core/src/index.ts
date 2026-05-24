@@ -10,6 +10,9 @@ export type {
   CurriculumPack,
   SubjectProgress,
   Profile,
+  Lesson,
+  Unit,
+  Course,
 } from './domain/types.js';
 
 export {
@@ -40,6 +43,15 @@ export {
   subjectMastery,
   emptySubjectProgress,
 } from './engine/progress.js';
+
+export {
+  askLocalResolve,
+  askTokenize,
+  askNorm,
+  askSuggestions,
+  exercisesForTopic,
+} from './engine/ask.js';
+export type { AskMatch, AskResult } from './engine/ask.js';
 
 export {
   listPacks,

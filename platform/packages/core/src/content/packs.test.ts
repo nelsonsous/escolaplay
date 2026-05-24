@@ -3,8 +3,17 @@ import { getPack, getPackByGrade, listPacks, availableGrades } from './packs.js'
 import { checkAnswer } from '../engine/answer.js';
 
 describe('packs gerados (conteudo real)', () => {
-  it('tem os 4 anos com exercicios', () => {
+  it('tem os anos PT-PT com exercicios', () => {
     expect(availableGrades('pt-PT')).toEqual([2, 3, 5, 6]);
+  });
+
+  it('inclui o pack english-pm (year 99) em locale en-US', () => {
+    expect(availableGrades('en-US')).toContain(99);
+    const pm = getPack('en-PM.english-pm');
+    expect(pm).toBeDefined();
+    expect(pm!.grade).toBe(99);
+    expect(pm!.course).toBeDefined();
+    expect(pm!.course!.units.length).toBeGreaterThan(0);
   });
 
   it('o pack do 2.º ano tem disciplinas e muitos exercicios', () => {
@@ -22,7 +31,7 @@ describe('packs gerados (conteudo real)', () => {
   it('todos os exercicios tem tipo suportado e dificuldade valida', () => {
     for (const pack of listPacks()) {
       for (const e of pack.exercises) {
-        expect(['mc', 'tf', 'fill']).toContain(e.type);
+        expect(['mc', 'tf', 'fill', 'speak']).toContain(e.type);
         expect([1, 2, 3]).toContain(e.difficulty);
         if (e.type === 'mc') {
           expect(Array.isArray(e.options)).toBe(true);

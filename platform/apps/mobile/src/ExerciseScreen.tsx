@@ -12,13 +12,26 @@ import { subjectIconName } from './Icon';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
-export function ExerciseScreen({ pack, subjectKey, onExit }: {
+export function ExerciseScreen({ pack, subjectKey, exerciseIds, sessionTitle, onExit }: {
   pack: CurriculumPack;
   subjectKey: string;
+  /** Se presente, restringe a sessão a estes exercícios (em ordem). Caso
+   * contrário usa todos os exercícios do subject. Usado pelo modo Curso. */
+  exerciseIds?: string[];
+  /** Título opcional mostrado no topo (ex: nome da lição). */
+  sessionTitle?: string;
   onExit: (xpGained: number, answered: number) => void;
 }) {
   const subject = pack.subjects.find((s) => s.key === subjectKey)!;
-  const items = useMemo(() => pack.exercises.filter((e) => e.subject === subjectKey), [pack, subjectKey]);
+  const items = useMemo(() => {
+    if (exerciseIds && exerciseIds.length > 0) {
+      const idSet = new Set(exerciseIds);
+      // Mantém a ordem de exerciseIds
+      const byId = new Map(pack.exercises.filter((e) => idSet.has(e.id)).map((e) => [e.id, e] as const));
+      return exerciseIds.map((id) => byId.get(id)).filter(Boolean) as typeof pack.exercises;
+    }
+    return pack.exercises.filter((e) => e.subject === subjectKey);
+  }, [pack, subjectKey, exerciseIds]);
 
   const [idx, setIdx] = useState(0);
   const [choice, setChoice] = useState<number | boolean | null>(null);
@@ -125,6 +138,9 @@ export function ExerciseScreen({ pack, subjectKey, onExit }: {
 
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View style={{ gap: space.lg, opacity: slideOp, transform: [{ translateY: slideY }] }}>
+          {sessionTitle && (
+            <Text style={s.sessionTitle}>{sessionTitle}</Text>
+          )}
           <View style={[s.topicChip, { backgroundColor: tint(subject.color, 0.10), borderColor: tint(subject.color, 0.30) }]}>
             <FontAwesome5 name={subjectIconName(subject.icon) as any} size={12} color={subject.color} solid />
             <Text style={[s.topicText, { color: subject.color }]}>{ex.topic}</Text>
@@ -189,18 +205,35 @@ export function ExerciseScreen({ pack, subjectKey, onExit }: {
             );
           })}
 
-          {ex.type === 'fill' && (
-            <TextInput
-              style={[s.input, answered && (isCorrect ? s.inputRight : s.inputWrong)]}
-              value={text}
-              onChangeText={setText}
-              editable={!answered}
-              placeholder="Escreve a tua resposta…"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              onSubmitEditing={submit}
-            />
+          {(ex.type === 'fill' || ex.type === 'speak') && (
+            <View style={{ gap: 8 }}>
+              {ex.type === 'speak' && (
+                <View style={[s.speakHint, { backgroundColor: tint(subject.color, 0.10), borderColor: tint(subject.color, 0.30) }]}>
+                  <FontAwesome5 name="microphone-alt" size={12} color={subject.color} solid />
+                  <Text style={[s.speakHintText, { color: subject.color }]}>
+                    {ex.lang ? `Responde em ${ex.lang === 'en-US' ? 'inglês' : ex.lang}` : 'Responde por escrito'}
+                  </Text>
+                </View>
+              )}
+              <TextInput
+                style={[s.input, answered && (isCorrect ? s.inputRight : s.inputWrong)]}
+                value={text}
+                onChangeText={setText}
+                editable={!answered}
+                placeholder={ex.type === 'speak' ? 'Escreve em inglês…' : 'Escreve a tua resposta…'}
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize={ex.type === 'speak' ? 'sentences' : 'none'}
+                autoCorrect={false}
+                multiline={ex.type === 'speak'}
+                onSubmitEditing={ex.type === 'speak' ? undefined : submit}
+              />
+              {ex.tip && !answered && (
+                <Text style={s.tip}>
+                  <FontAwesome5 name="lightbulb" size={10} color={colors.accent} solid /> {' '}
+                  {ex.tip}
+                </Text>
+              )}
+            </View>
           )}
 
           {answered && (
@@ -262,6 +295,7 @@ const s = StyleSheet.create({
   xpChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)' },
   xpChipText: { color: colors.white, fontWeight: '900', fontSize: 13 },
 
+  sessionTitle: { fontSize: 13, fontWeight: '900', color: colors.textLight, letterSpacing: 0.4, textTransform: 'uppercase' },
   topicChip: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
   topicText: { fontSize: 13, fontWeight: '800' },
   question: { fontSize: 25, fontWeight: '900', color: colors.text, lineHeight: 33, letterSpacing: -0.4 },
@@ -286,9 +320,17 @@ const s = StyleSheet.create({
   },
   badgeText: { fontSize: 15, fontWeight: '900', color: colors.textLight },
 
-  input: { backgroundColor: colors.card, borderRadius: radius.md, padding: space.lg, borderWidth: 2, borderColor: colors.border, fontSize: 20, fontWeight: '700', color: colors.text, ...shadow },
+  input: { backgroundColor: colors.card, borderRadius: radius.md, padding: space.lg, borderWidth: 2, borderColor: colors.border, fontSize: 20, fontWeight: '700', color: colors.text, ...shadow, minHeight: 60 },
   inputRight: { borderColor: colors.success, backgroundColor: colors.successBg },
   inputWrong: { borderColor: colors.danger, backgroundColor: colors.dangerBg },
+  speakHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: radius.pill, borderWidth: 1,
+  },
+  speakHintText: { fontSize: 11, fontWeight: '900', letterSpacing: 0.3 },
+  tip: { fontSize: 12, fontWeight: '700', color: colors.textLight, lineHeight: 17, paddingHorizontal: 4 },
 
   feedback: { borderRadius: radius.md, padding: space.lg, gap: 10, borderWidth: 1.5 },
   feedbackHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },

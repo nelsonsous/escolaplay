@@ -5,7 +5,7 @@
 // pais/lingua/ano. Trocar de pais = trocar de pack. O motor (XP, niveis,
 // selecao de exercicios) nao conhece portugues nenhum.
 
-export type ExerciseType = 'mc' | 'tf' | 'fill' | 'order' | 'match';
+export type ExerciseType = 'mc' | 'tf' | 'fill' | 'order' | 'match' | 'speak';
 
 export type Difficulty = 1 | 2 | 3;
 
@@ -41,11 +41,16 @@ export interface Exercise {
    *  - mc: indice da opcao correta (number)
    *  - tf: boolean
    *  - fill: lista de respostas aceites (string[])
+   *  - speak: lista de respostas aceites em texto (string[])
    *  - order/match: depende do conteudo (number[] | string[])
    */
   answer: number | boolean | string[] | number[];
   /** Explicacao mostrada apos responder. */
   explanation?: string;
+  /** Dica opcional (usada em speak / fill complexos). */
+  tip?: string;
+  /** Locale da resposta esperada (ex: "en-US" para speak em ingles). */
+  lang?: string;
 }
 
 /** Mapa disciplina -> lista ordenada de topicos do curriculo. */
@@ -67,6 +72,9 @@ export interface CurriculumPack {
   subjects: Subject[];
   curriculum: Curriculum;
   exercises: Exercise[];
+  /** Modo curso opcional (path linear de licoes). Quando presente,
+   * a UI mostra `CourseScreen` em vez do grid de disciplinas. */
+  course?: Course;
 }
 
 /** Progresso por disciplina dentro de um perfil. */
@@ -99,4 +107,37 @@ export interface Profile {
   userCode?: string;
   /** Perfil visivel publicamente para amigos/duelos. */
   shareable?: boolean;
+}
+
+/**
+ * Modo Curso. Quando um pack tem `course`, a UI mostra um caminho
+ * linear de licoes agrupadas em unidades, em vez do grid de disciplinas.
+ */
+export interface Lesson {
+  id: string;
+  title: string;
+  subtitle?: string;
+  /** Exercicios desta licao, na ordem em que sao apresentados. */
+  exerciseIds: string[];
+  /** Se true, esta sempre desbloqueada (ex: roleplay opcional). */
+  unlocked?: boolean;
+}
+
+export interface Unit {
+  id: string;
+  title: string;
+  /** Cor de marca da unidade (hex). */
+  color: string;
+  /** Icone (estilo "fa-..."). */
+  icon: string;
+  /** Ids das licoes desta unidade. */
+  lessonIds: string[];
+}
+
+export interface Course {
+  /** Chave da disciplina a que pertence (deve existir em pack.subjects). */
+  subjectKey: string;
+  title: string;
+  units: Unit[];
+  lessons: Lesson[];
 }
