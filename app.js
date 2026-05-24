@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v361';
+const APP_VERSION = 'v362';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4960,6 +4960,7 @@ function _tutorRenderDoubtAnswer(d, fromPractice) {
           ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
           ${_tutorPointsHtml(d.points)}
           ${_tutorExamplesHtml(d.examples)}
+          ${_tutorXtraRow(d.title || tutorState._lastTopic)}
           ${resumeBtn}
         </div>
       </div>`);
@@ -4970,6 +4971,56 @@ function _tutorResumePractice() {
     if (tutorState && tutorState._pq && tutorState._pq.queue.length) _tutorRenderPracticeItem();
 }
 window._tutorResumePractice = _tutorResumePractice;
+// Explicação exaustiva de um tema (visão geral longa + regras + exemplos + erros comuns)
+async function _tutorDeepDive(topic) {
+    if (!tutorState) return;
+    topic = topic || tutorState._lastTopic || '';
+    if (!topic) return;
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar explicação detalhada…</div>`;
+    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. Give an EXHAUSTIVE, in-depth lesson on: "${topic}".
+GRAMMAR TERMS RULE (critical): all grammar term NAMES (Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals…) MUST stay in ENGLISH everywhere, including inside the Portuguese text — never translate (write "Simple Past", never "passado simples").
+Return STRICT JSON only:
+{"title":"concept title using ENGLISH grammar terms","overview":"thorough overview in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 90-150 words, grammar term names in English","points":[{"form":"English form/word","use":"PT-PT detalhe de quando usar"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 8 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"]}
+Include 4-6 "points", 3-5 "examples", and 2-4 "pitfalls".`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 1400, true);
+        if (!tutorState) return;
+        const m = text.match(/\{[\s\S]*\}/);
+        let d = {};
+        if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        _tutorRenderDeepDive(d);
+    } catch (e) {
+        console.warn('[tutor] deepdive failed', e);
+        if (tutorState) _tutorAddTutor('Não consegui preparar isso agora. Tenta outra vez?', '', '', true);
+    }
+}
+window._tutorDeepDive = _tutorDeepDive;
+function _tutorRenderDeepDive(d) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat || !tutorState) return;
+    if (d.title) tutorState._lastTopic = d.title;
+    const pitfalls = (Array.isArray(d.pitfalls) && d.pitfalls.length)
+        ? `<div class="tutor-ex-label">ERROS COMUNS</div><ul class="tutor-pitfalls">${d.pitfalls.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>` : '';
+    const resumeBtn = (tutorState._pq && tutorState._pq.queue.length)
+        ? `<button class="tutor-lbtn prac full" onclick="_tutorResumePractice()"><i class="fas fa-arrow-right"></i> Continuar prática</button>` : '';
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">${_tutorAvatar()}</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">📚 Explicação detalhada</div>
+          ${d.title ? `<div class="tutor-lesson-title">${escapeHtml(d.title)}</div>` : ''}
+          ${d.overview ? `<div class="tutor-explain">${escapeHtml(d.overview)}</div>` : ''}
+          ${_tutorPointsHtml(d.points)}
+          ${_tutorExamplesHtml(d.examples)}
+          ${pitfalls}
+          ${_tutorXtraRow(d.title || tutorState._lastTopic)}
+          ${resumeBtn}
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderMic();
+}
 function _tutorAutoListen() {
     if (!tutorState) return;
     _tutorRenderMic();
@@ -5226,6 +5277,14 @@ function _tutorPointsHtml(points) {
     if (!Array.isArray(points) || !points.length) return '';
     return `<div class="tutor-points">${points.map(p => `<div class="tutor-points-row"><span class="tutor-points-form">${escapeHtml(p.form || '')}</span><span class="tutor-points-use">${escapeHtml(p.use || '')}</span></div>`).join('')}</div>`;
 }
+// Linha de ações de aprendizagem: tirar dúvida + pedir explicação detalhada
+function _tutorXtraRow(topic) {
+    const t = escapeHtml(topic || '');
+    return `<div class="tutor-xtra-row">
+      <button class="tutor-xtra doubt" data-topic="${t}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida</button>
+      <button class="tutor-xtra deep" data-topic="${t}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> Mais detalhe</button>
+    </div>`;
+}
 function _tutorExamplesHtml(examples) {
     if (!Array.isArray(examples) || !examples.length) return '';
     return `<div class="tutor-ex-label">EXEMPLOS</div>${examples.map(ex => `<div class="tutor-ex-row">
@@ -5256,7 +5315,7 @@ function _tutorShowCorrection(d) {
             ${_tutorPointsHtml(d.points)}
             ${_tutorExamplesHtml(d.examples)}
           </div>` : ''}
-          <button class="tutor-doubt-btn" data-topic="${escapeHtml(d.lessonTitle || d.errorType || '')}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida sobre isto</button>
+          ${_tutorXtraRow(d.lessonTitle || d.errorType || '')}
           <button class="tutor-lbtn prac full" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar agora · 3 exercícios →</button>
           <div class="tutor-lesson-btns2">
             <button class="tutor-lbtn rep" onclick="_tutorDoRepeat()"><i class="fas fa-repeat"></i> Repetir</button>
@@ -5458,7 +5517,7 @@ function _tutorRenderMistakeLesson(d) {
           ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
           ${_tutorPointsHtml(d.points)}
           ${_tutorExamplesHtml(d.examples)}
-          <button class="tutor-doubt-btn" data-topic="${escapeHtml(d.lessonTitle || '')}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida sobre isto</button>
+          ${_tutorXtraRow(d.lessonTitle || '')}
         </div>
       </div>`);
     _tutorScroll();
