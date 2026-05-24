@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v359';
+const APP_VERSION = 'v360';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4921,8 +4921,10 @@ async function _tutorAnswerDoubt(question) {
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a explicar…</div>`;
     const ctx = topic ? `The doubt is about "${topic}". ` : '';
     const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${ctx}The student asks a DOUBT (may be written in Portuguese or English): "${question}"
-Answer it clearly and teach the concept. Return STRICT JSON only:
-{"title":"short concept title in English","explanation":"clear answer in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 50-90 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English INCORRECT version (must differ from right and be genuinely wrong)","right":"English correct version","note":"PT-PT max 8 words"},{"wrong":"English incorrect","right":"English correct","note":"PT-PT max 8 words"}]}`;
+Answer it clearly and teach the concept.
+GRAMMAR TERMS RULE (critical): all grammar term NAMES (tenses, categories — e.g. Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals) MUST stay in ENGLISH everywhere, INCLUDING inside the Portuguese text — never translate them to Portuguese (write "Simple Past", never "passado simples").
+Return STRICT JSON only:
+{"title":"concept title using ENGLISH grammar terms (e.g. Simple Past vs Present Perfect)","explanation":"clear answer in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 50-90 words, but keep grammar term names in English","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English INCORRECT version (must differ from right and be genuinely wrong)","right":"English correct version","note":"PT-PT max 8 words"},{"wrong":"English incorrect","right":"English correct","note":"PT-PT max 8 words"}]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 900, true);
         if (!tutorState) return;
@@ -5180,8 +5182,8 @@ The student just said (transcribed from speech): "${userText}"
 
 Return STRICT JSON:
 1) "corrected": the student's sentence rewritten with correct grammar/verb tenses/natural wording. "" if already correct.
-2) "errorType": short label of the MAIN error category, in EUROPEAN PORTUGUESE (e.g. "Past Simple", "Preposições", "Conectores", "Artigos", "Ordem das palavras", "Concordância", "Vocabulário"). "" if correct.
-3) "explanation": a clear lesson in EUROPEAN PORTUGUESE (Portugal, never Brazilian) explaining the rule and why it was wrong. 40-70 words. Teach the concept properly.
+2) "errorType": short label of the MAIN error category, in ENGLISH grammar terminology (e.g. "Past Simple", "Prepositions", "Connectors", "Articles", "Word order", "Subject-verb agreement", "Vocabulary"). "" if correct.
+3) "explanation": a clear lesson in EUROPEAN PORTUGUESE (Portugal, never Brazilian) explaining the rule and why it was wrong. 40-70 words. Teach the concept properly. Keep all grammar term names in ENGLISH (write "Simple Past", "Present Perfect", never "passado simples").
 4) "tip": ultra-short PT-PT tip, max 12 words.
 5) "reply": ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.
 6) "lessonTitle": short grammar rule title (e.g. "Work ON vs. work ABOUT", "Past Simple vs. Present Perfect"). "" if correct.
@@ -5296,7 +5298,7 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
 Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, "exp" = 1-line explanation in ENGLISH, "expPt" = the same idea as ONE short EUROPEAN PORTUGUESE note (max 12 words), and "topic" = the error category it trains.
 QUALITY RULES (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence (e.g. never write "She has ___ always worked" with answer "always"); exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; each option must be a distinct plausible fit for the gap.
-LANGUAGE RULES (critical): "q" and all "options" MUST be in ENGLISH (keep it immersive). "exp" in ENGLISH; "expPt" and "topic" in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — topic e.g. "Past Simple", "Preposições", "Conectores".
+LANGUAGE RULES (critical): "q" and all "options" MUST be in ENGLISH (keep it immersive). "exp" in ENGLISH. "expPt" in EUROPEAN PORTUGUESE (Portugal, never Brazilian) BUT keep grammar term names in English. "topic" = the category in ENGLISH grammar terminology (e.g. "Past Simple", "Prepositions", "Connectors", "Articles", "Word order").
 Return STRICT JSON array only:
 [{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"PT-PT category"}]`;
     try {
@@ -5418,6 +5420,7 @@ They chose (WRONG): "${chosen}"
 Topic: "${item.topic || ''}"
 
 Teach this exact mistake properly, then drill it.
+GRAMMAR TERMS RULE (critical): all grammar term NAMES (tenses, categories — Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order…) MUST stay in ENGLISH everywhere, including inside Portuguese text — never translate (write "Simple Past", never "passado simples"). "lessonTitle" uses English grammar terms.
 QUALITY RULES for "exercises" (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence; exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; options must be distinct.
 QUALITY RULES for "examples" (critical): each "wrong" must be genuinely incorrect English and DIFFERENT from its "right".
 LANGUAGE RULES (critical): the exercise "q", all "options" MUST be in ENGLISH (immersive). Each exercise "exp" in ENGLISH and "expPt" a short EUROPEAN PORTUGUESE note (max 12 words). The "wrong"/"right" examples, "said"/"correct" and "points.form" are in ENGLISH. The lesson's "explanation", "points.use" and "note" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
