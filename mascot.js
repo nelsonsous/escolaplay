@@ -44,6 +44,8 @@
 
     function createMascot(container, opts) {
         opts = opts || {};
+        // Modo avatar: usa a imagem do perfil (Disney/Stranger/...) animada.
+        if (opts.avatarHtml) return createAvatarMascot(container, opts);
         const size = opts.size || 84;
         container.innerHTML = SVG;
         const root = container.querySelector('.pip-svg');
@@ -133,6 +135,85 @@
         setMouth('smile');
         startIdle();
         // Tocar no Pip → fala uma frase (se opts.phrases definido)
+        if (opts.talkOnTap && Array.isArray(opts.phrases) && opts.phrases.length) {
+            root.style.cursor = 'pointer';
+            root.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const ph = opts.phrases[Math.floor(Math.random() * opts.phrases.length)];
+                react('happy');
+                speak(ph.text, ph.lang);
+            });
+        }
+        return { el: root, react, destroy, speak };
+    }
+
+    // ===== Mascote baseado no avatar do perfil (imagem) =====
+    function createAvatarMascot(container, opts) {
+        const size = opts.size || 84;
+        const g = window.gsap;
+        container.innerHTML = `
+          <div class="pip-avatar" style="position:relative;width:${size}px;height:${size}px">
+            <div class="pip-av-shadow" style="position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);width:${size*0.7}px;height:6px;border-radius:50%;background:rgba(0,0,0,0.18);filter:blur(1px)"></div>
+            <div class="pip-av-img" style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,0.22);border:3px solid #fff;background:#fff">${opts.avatarHtml}</div>
+            <div class="pip-av-bubble" style="position:absolute;top:-14px;right:-10px;background:#fff;border-radius:14px;padding:4px 8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:none;align-items:center;gap:3px">
+              <span class="pip-dot" style="width:5px;height:5px;border-radius:50%;background:#0891b2;display:inline-block"></span>
+              <span class="pip-dot" style="width:5px;height:5px;border-radius:50%;background:#0891b2;display:inline-block"></span>
+              <span class="pip-dot" style="width:5px;height:5px;border-radius:50%;background:#0891b2;display:inline-block"></span>
+            </div>
+          </div>`;
+        const root = container.querySelector('.pip-avatar');
+        const img = container.querySelector('.pip-av-img');
+        const bubble = container.querySelector('.pip-av-bubble');
+        const dots = container.querySelectorAll('.pip-dot');
+        let idleTweens = [], talkTween = null, dotTween = null;
+
+        function startIdle() {
+            if (!g) return;
+            idleTweens.push(g.to(root, { y: -5, rotation: 1.5, duration: 2.4, yoyo: true, repeat: -1, ease: 'sine.inOut', transformOrigin: '50% 100%' }));
+        }
+        function react(mood) {
+            if (!g) return;
+            if (mood === 'happy') {
+                g.fromTo(root, { y: 0 }, { y: -16, duration: 0.26, ease: 'power2.out', yoyo: true, repeat: 1 });
+            } else if (mood === 'cheer') {
+                g.fromTo(root, { y: 0 }, { y: -28, duration: 0.3, ease: 'power2.out', yoyo: true, repeat: 1 });
+                g.fromTo(img, { rotation: -8 }, { rotation: 8, duration: 0.12, yoyo: true, repeat: 5, onComplete: () => g.set(img, { rotation: 0 }) });
+            } else if (mood === 'sad') {
+                g.fromTo(root, { x: 0 }, { x: -5, duration: 0.06, yoyo: true, repeat: 5, onComplete: () => g.set(root, { x: 0 }) });
+                g.fromTo(img, { rotation: 0 }, { rotation: -10, duration: 0.3, yoyo: true, repeat: 1 });
+            }
+        }
+        function _startTalk() {
+            if (bubble) bubble.style.display = 'inline-flex';
+            if (g) {
+                talkTween = g.to(img, { scale: 1.06, duration: 0.18, yoyo: true, repeat: -1, ease: 'sine.inOut', transformOrigin: '50% 100%' });
+                dotTween = g.fromTo(dots, { y: 0, opacity: 0.4 }, { y: -3, opacity: 1, duration: 0.3, yoyo: true, repeat: -1, stagger: 0.12, ease: 'sine.inOut' });
+            }
+        }
+        function _stopTalk() {
+            if (bubble) bubble.style.display = 'none';
+            if (talkTween) { talkTween.kill(); talkTween = null; }
+            if (dotTween) { dotTween.kill(); dotTween = null; }
+            if (g) g.set(img, { scale: 1 });
+        }
+        function speak(text, lang) {
+            if (!text) return;
+            if (typeof window.speakEN === 'function') {
+                window.speakEN(text, lang || 'pt-PT', { onStart: _startTalk, onEnd: _stopTalk });
+                return;
+            }
+            if (!('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = lang || 'pt-PT'; u.rate = 0.96;
+                u.onstart = _startTalk; u.onend = _stopTalk; u.onerror = _stopTalk;
+                window.speechSynthesis.speak(u);
+            } catch { _stopTalk(); }
+        }
+        function destroy() { idleTweens.forEach(t => { try { t.kill(); } catch {} }); idleTweens = []; _stopTalk(); }
+
+        startIdle();
         if (opts.talkOnTap && Array.isArray(opts.phrases) && opts.phrases.length) {
             root.style.cursor = 'pointer';
             root.addEventListener('click', (ev) => {
