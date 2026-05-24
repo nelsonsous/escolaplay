@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v344';
+const APP_VERSION = 'v345';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4703,6 +4703,8 @@ window.openTutor = openTutor;
 function closeTutor() {
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
     try { if (_tutorRecog) _tutorRecog.stop(); } catch {}
+    try { _tutorRecAbort = true; _tutorStopSilenceWatch(); if (_tutorRec && _tutorRec.state !== 'inactive') _tutorRec.stop(); } catch {}
+    try { _tutorRecStream && _tutorRecStream.getTracks().forEach(t => t.stop()); _tutorRecStream = null; } catch {}
     document.getElementById('tutor-overlay')?.remove();
     document.body.style.overflow = '';
     tutorState = null;
@@ -4854,7 +4856,10 @@ function _tutorRenderMic() {
         inp.value = draft;
         inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); _tutorSubmitText(); } });
         inp.addEventListener('input', () => { if (tutorState) tutorState._draft = inp.value; });
-        inp.addEventListener('focus', () => { if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} } });
+        inp.addEventListener('focus', () => {
+            if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
+            if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
+        });
     }
     const send = document.getElementById('tutor-send');
     if (send) send.addEventListener('click', _tutorSubmitText);
@@ -4865,6 +4870,7 @@ function _tutorSubmitText() {
     const inp = document.getElementById('tutor-text');
     if (!inp || !tutorState) return;
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
+    if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
     const val = inp.value.trim();
     if (!val) return;
     inp.value = '';
@@ -4878,10 +4884,133 @@ function _tutorAutoListen() {
     // sozinho — mas o que disseres fica na barra para reveres/editares
     // antes de enviar (não envia automaticamente).
     if (tutorState.micGranted) {
-        setTimeout(() => { if (tutorState && !_tutorRecog) _tutorStartMic(); }, 400);
+        setTimeout(() => { if (tutorState && !_tutorMicBusy()) _tutorStartMic(); }, 400);
     }
 }
+// Dispatcher: usa o Voxtral (Mistral) por defeito; cai para o Web Speech
+// quando não há chave Mistral, o browser não grava, ou o Voxtral falha.
+let _tutorRec = null, _tutorRecStream = null, _tutorRecChunks = [], _tutorRecAbort = false;
+let _tutorAudioCtx = null, _tutorSilenceTimer = null;
+function _tutorMicBusy() {
+    return !!_tutorRecog || !!(_tutorRec && _tutorRec.state !== 'inactive');
+}
 function _tutorStartMic() {
+    if (!tutorState) return;
+    if (_tutorMicBusy()) { _tutorStopMic(); return; }
+    const canVox = !!(state.max && state.max.mistralKey)
+        && typeof MediaRecorder !== 'undefined'
+        && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        && state.useVoxtral !== false;
+    if (canVox) _tutorStartVoxtral();
+    else _tutorStartWebSpeech();
+}
+function _tutorStopMic() {
+    if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
+    if (_tutorRec && _tutorRec.state !== 'inactive') { try { _tutorRec.stop(); } catch {} }
+}
+function _tutorMicIdle() {
+    const mic = document.getElementById('tutor-mic');
+    if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
+}
+function _tutorStopSilenceWatch() {
+    if (_tutorSilenceTimer) { clearInterval(_tutorSilenceTimer); _tutorSilenceTimer = null; }
+    if (_tutorAudioCtx) { try { _tutorAudioCtx.close(); } catch {} _tutorAudioCtx = null; }
+}
+// Pára a gravação sozinho quando deteta uma pausa (silêncio), tal como o
+// Web Speech. Usa o nível RMS do micro via Web Audio.
+function _tutorWatchSilence(stream) {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) { _tutorSilenceTimer = setTimeout(_tutorStopMic, 12000); return; }
+        const ctx = new Ctx();
+        _tutorAudioCtx = ctx;
+        try { ctx.resume(); } catch {}
+        const an = ctx.createAnalyser();
+        an.fftSize = 512;
+        ctx.createMediaStreamSource(stream).connect(an);
+        const data = new Uint8Array(an.fftSize);
+        const start = Date.now();
+        let lastLoud = start, spoke = false;
+        _tutorSilenceTimer = setInterval(() => {
+            an.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+            const rms = Math.sqrt(sum / data.length);
+            const now = Date.now();
+            if (rms > 0.045) { lastLoud = now; spoke = true; }
+            const elapsed = now - start;
+            if ((spoke && now - lastLoud > 1400) || (!spoke && elapsed > 6000) || elapsed > 20000) {
+                _tutorStopMic();
+            }
+        }, 120);
+    } catch { _tutorSilenceTimer = setTimeout(_tutorStopMic, 12000); }
+}
+async function _tutorStartVoxtral() {
+    try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
+    const mic = document.getElementById('tutor-mic');
+    const liveEl = document.getElementById('tutor-live');
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { _tutorStartWebSpeech(); return; }
+    if (!tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} return; }
+    tutorState.micGranted = true;
+    _tutorRecStream = stream; _tutorRecChunks = []; _tutorRecAbort = false;
+    let mime = '';
+    ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg']
+        .some(m => (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) ? (mime = m, true) : false);
+    let rec;
+    try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+    catch { try { rec = new MediaRecorder(stream); } catch { try { stream.getTracks().forEach(t => t.stop()); } catch {} _tutorRecStream = null; _tutorStartWebSpeech(); return; } }
+    _tutorRec = rec;
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) _tutorRecChunks.push(e.data); };
+    rec.onstop = () => {
+        _tutorStopSilenceWatch();
+        try { _tutorRecStream && _tutorRecStream.getTracks().forEach(t => t.stop()); } catch {}
+        _tutorRecStream = null;
+        const blob = new Blob(_tutorRecChunks, { type: rec.mimeType || mime || 'audio/webm' });
+        _tutorRec = null;
+        _tutorMicIdle();
+        if (_tutorRecAbort) { _tutorRecAbort = false; if (liveEl) liveEl.style.display = 'none'; return; }
+        if (!blob.size) { if (liveEl) liveEl.style.display = 'none'; return; }
+        _tutorTranscribeVoxtral(blob);
+    };
+    if (mic) { mic.classList.add('rec'); mic.innerHTML = '<i class="fas fa-stop"></i>'; }
+    if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = '🎙️ A gravar… faz uma pausa quando acabares'; }
+    try { rec.start(); } catch { _tutorStopSilenceWatch(); try { stream.getTracks().forEach(t => t.stop()); } catch {} _tutorRec = null; _tutorRecStream = null; _tutorMicIdle(); _tutorStartWebSpeech(); return; }
+    _tutorWatchSilence(stream);
+}
+async function _tutorTranscribeVoxtral(blob) {
+    const inp = document.getElementById('tutor-text');
+    const liveEl = document.getElementById('tutor-live');
+    if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = '⏳ A transcrever…'; }
+    try {
+        const t = blob.type || '';
+        const ext = (t.includes('mp4') || t.includes('aac')) ? 'm4a' : (t.includes('ogg') ? 'ogg' : 'webm');
+        const fd = new FormData();
+        fd.append('model', 'voxtral-mini-latest');
+        fd.append('file', blob, 'speech.' + ext);
+        fd.append('language', ((tutorState && tutorState.lang) || 'en').slice(0, 2));
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 25000);
+        const res = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'authorization': `Bearer ${state.max.mistralKey}` },
+            body: fd, signal: ctrl.signal
+        });
+        clearTimeout(to);
+        if (!res.ok) throw new Error('voxtral ' + res.status);
+        const data = await res.json();
+        const text = (data.text || '').trim();
+        if (liveEl) liveEl.style.display = 'none';
+        if (!tutorState || !text) return;
+        if (inp) { inp.value = text; tutorState._draft = text; try { inp.focus(); } catch {} }
+    } catch (e) {
+        console.warn('[tutor] voxtral failed', e);
+        if (liveEl) liveEl.style.display = 'none';
+        if (typeof showToast === 'function') showToast('Transcrição falhou — toca para tentar ou escreve');
+    }
+}
+function _tutorStartWebSpeech() {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec || !tutorState) return;
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
