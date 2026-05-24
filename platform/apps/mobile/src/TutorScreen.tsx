@@ -18,8 +18,10 @@ import { callTutor, transcribeAudio, TUTOR_OPENER } from '@escolaplay/core';
 import type { TutorMessage, TutorReply } from '@escolaplay/core';
 import { colors, radius, space, shadow, shadowSoft, shadowStrong, tint } from './theme';
 import { PressScale, DecorOrb } from './ui';
-import { ttsAvailable, ttsSpeak, ttsStop } from './Tts';
+import { ttsAvailable, ttsSpeak, ttsStop, ttsSetPreferredVoice } from './Tts';
 import { recorderAvailable, startRecording, buildTranscribeForm, type RecordingHandle } from './Recorder';
+import { VoicePicker } from './VoicePicker';
+import { usePersistedState } from './persistence';
 import { MISTRAL_API_KEY } from './secrets';
 
 interface TurnDisplay {
@@ -42,7 +44,17 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState<RecordingHandle | null>(null);
   const [transcribing, setTranscribing] = useState(false);
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
+  const [preferredVoice, setPreferredVoice] = usePersistedState<string | null>(
+    '@escolaplay/tutor-voice',
+    null,
+  );
   const scrollRef = useRef<ScrollView>(null);
+
+  // Sincroniza voz preferida com o módulo TTS.
+  useEffect(() => {
+    ttsSetPreferredVoice('en-US', preferredVoice);
+  }, [preferredVoice]);
 
   // Auto-scroll quando muda turns.
   useEffect(() => {
@@ -155,6 +167,16 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
             <Text style={s.headerSub}>{busy ? 'A pensar…' : 'pronto para falar'}</Text>
           </View>
         </View>
+        {ttsAvailable() && (
+          <PressScale
+            onPress={() => setShowVoicePicker(true)}
+            style={s.voiceBtn}
+            scale={0.92}
+            hitSlop={6}
+          >
+            <FontAwesome5 name="sliders-h" size={14} color={colors.white} solid />
+          </PressScale>
+        )}
         <View style={s.aiTag}>
           <FontAwesome5 name="bolt" size={10} color={TUTOR_DEEP} solid />
           <Text style={s.aiTagText}>IA</Text>
@@ -236,6 +258,14 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
           <FontAwesome5 name="paper-plane" size={16} color={colors.white} solid />
         </PressScale>
       </View>
+
+      <VoicePicker
+        visible={showVoicePicker}
+        selectedId={preferredVoice}
+        lang="en-US"
+        onChoose={(id) => { setPreferredVoice(id); setShowVoicePicker(false); }}
+        onClose={() => setShowVoicePicker(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -320,6 +350,12 @@ const s = StyleSheet.create({
   headerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.30)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: colors.white, fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
   headerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700' },
+  voiceBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)',
+  },
   aiTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   aiTagText: { color: TUTOR_DEEP, fontSize: 11, fontWeight: '900' },
 

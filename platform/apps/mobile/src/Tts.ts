@@ -39,6 +39,20 @@ export function ttsAvailable(): boolean {
 const bestVoiceCache: Record<string, string | null> = {};
 const inflightLookup: Record<string, Promise<string | null> | undefined> = {};
 
+// Override do utilizador (escolhido em Settings). Quando definido, é
+// usado em vez da auto-discovery.
+const preferredVoice: Record<string, string | null> = {};
+
+/** Define a voz preferida do utilizador para um idioma. Passa null para limpar. */
+export function ttsSetPreferredVoice(lang: string, voiceId: string | null): void {
+  preferredVoice[lang] = voiceId;
+}
+
+/** Devolve a voz preferida (null se nenhuma). */
+export function ttsGetPreferredVoice(lang: string): string | null {
+  return preferredVoice[lang] ?? null;
+}
+
 // Heurística: priorizar Premium > Enhanced > Default, e dentro de cada
 // tier dar preferência a vozes Siri / femininas naturais conhecidas.
 const PREFERRED_NAMES = [
@@ -90,18 +104,23 @@ function getBestVoice(lang: string): Promise<string | null> {
   return p;
 }
 
-/** Toca o texto na melhor voz disponível para o idioma (default en-US). */
+/** Toca o texto na voz preferida (se houver) ou na melhor disponível. */
 export function ttsSpeak(text: string, lang: string = 'en-US'): void {
   if (!Speech) return;
   try { Speech.stop(); } catch { /* swallow */ }
-  // Lança a chamada — se a voz ainda não foi descoberta, fala já com a
-  // default e a seguir já está cached.
+  // 1.º preferred (override do utilizador)
+  const pref = preferredVoice[lang];
+  if (pref) {
+    Speech.speak(text, voiceOpts(lang, pref));
+    return;
+  }
+  // 2.º best discovered (cached)
   const cached = bestVoiceCache[lang];
   if (cached !== undefined) {
     Speech.speak(text, voiceOpts(lang, cached));
     return;
   }
-  // Optimista: descobre a melhor em background, mas fala já com a default.
+  // 3.º default + lookup em background
   getBestVoice(lang).catch(() => {/* swallow */});
   Speech.speak(text, voiceOpts(lang, null));
 }
