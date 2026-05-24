@@ -156,90 +156,57 @@ export function ttsSpeak(text: string, lang: string = 'en-US', voiceOverride?: s
   void _ttsSpeakSafely(text, lang, voiceOverride);
 }
 
-// Tracking da fala em curso. Cada nova chamada aguarda a anterior
-// terminar (com timeout) antes de iniciar — evita race conditions
-// em iOS onde Speech.speak chamado durante "stopping" falha silente.
-let speakingPromise: Promise<void> | null = null;
+// Sequência monotónica — cada chamada incrementa. Se uma nova chamada
+// vier antes da anterior terminar de preparar, a anterior aborta para
+// evitar dois speaks sobrepostos.
+let speakSeq = 0;
 
 async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: string | null): Promise<void> {
   if (!Speech) return;
 
-  // 0. Garantir SEMPRE que o audio session iOS está em modo playback.
-  // Sem isto, depois de uma sessão de microfone (que muda para
-  // 'recording'), as falas seguintes ficam silenciosas mesmo que o
-  // motor TTS aparente funcionar. Este setAudioMode é idempotente
-  // e rápido (~5ms).
+  const mySeq = ++speakSeq;
+
+  // 1. Stop SEMPRE (idempotente, seguro mesmo em idle).
+  try { Speech.stop(); } catch { /* swallow */ }
+
+  // 2. Esperar 300ms para garantir que o motor sai do estado "stopping"
+  //    completamente — alguns iOS deixam o motor pendurado se chamarmos
+  //    speak demasiado cedo após stop.
+  await new Promise<void>((r) => setTimeout(r, 300));
+  if (mySeq !== speakSeq) return; // nova call sobrepôs-se — abortar
+
+  // 3. Garantir audio session em playback. Após cada gravação ou
+  //    interrupção, isto é o que permite que speak tenha realmente som.
   await ensurePlaybackAudioSession();
+  if (mySeq !== speakSeq) return;
 
-  // 1. Detectar se há fala em curso, com 3 caminhos:
-  //    a) isSpeakingAsync diz que sim → stop + esperar mais
-  //    b) speakingPromise pendente → aguardar (até timeout)
-  //    c) idle → seguir directo
-  let wasSpeaking = false;
-  try {
-    if (Speech.isSpeakingAsync) {
-      wasSpeaking = await Speech.isSpeakingAsync();
-    }
-  } catch { /* swallow */ }
+  // 4. Pequeno tick após setAudioMode para o session ficar efectivo.
+  await new Promise<void>((r) => setTimeout(r, 60));
+  if (mySeq !== speakSeq || !Speech) return;
 
-  if (wasSpeaking) {
-    try { Speech.stop(); } catch { /* swallow */ }
-    // Espera o motor terminar de "stopping" — testes empíricos
-    // mostram que 250ms é suficiente em iPhones modernos.
-    await new Promise<void>((r) => setTimeout(r, 250));
-  } else if (speakingPromise) {
-    // Há uma promise pendente mas isSpeakingAsync diz idle. Espera
-    // até 200ms para o resolve formal chegar.
-    await Promise.race([
-      speakingPromise,
-      new Promise<void>((r) => setTimeout(r, 200)),
-    ]);
-    // Reset defensivo do stop, caso fique algo em fila.
-    try { Speech.stop(); } catch { /* swallow */ }
-    await new Promise<void>((r) => setTimeout(r, 60));
-  } else {
-    // Idle — apenas defensivo um pequeno tick para deixar event loop.
-    await new Promise<void>((r) => setTimeout(r, 30));
-  }
-
-  if (!Speech) return;
-
-  // 2. Resolve qual voz usar (override > preferred > cached best > default).
+  // 5. Resolve qual voz usar.
   let candidate: string | null = null;
   if (voiceOverride !== undefined) {
-    candidate = voiceOverride; // explicit (pode ser null para default)
+    candidate = voiceOverride;
   } else if (preferredVoice[lang]) {
     candidate = preferredVoice[lang]!;
   } else if (bestVoiceCache[lang]) {
     candidate = bestVoiceCache[lang]!;
   }
 
-  // 3. Valida que a voz existe — evita Speech.speak silencioso quando o
-  // identifier está stale.
+  // 6. Valida (apenas se conseguimos lista de vozes — não bloqueia).
   if (candidate) {
     const known = await ensureKnownVoices(lang);
     if (known.size > 0 && !known.has(candidate)) {
       candidate = null;
     }
   }
+  if (mySeq !== speakSeq || !Speech) return;
 
-  if (!Speech) return;
+  // 7. Speak. Sem onError retry (interrupções legítimas disparam onError).
+  Speech.speak(text, voiceOpts(lang, candidate));
 
-  // 4. Cria a promise tracking — resolve quando done/stopped/error.
-  let resolveSpeak: () => void = () => {};
-  speakingPromise = new Promise<void>((r) => { resolveSpeak = r; });
-
-  Speech.speak(text, {
-    ...voiceOpts(lang, candidate),
-    onDone: () => resolveSpeak(),
-    onStopped: () => resolveSpeak(),
-    onError: () => resolveSpeak(),
-  });
-
-  // Safety: se nenhum callback disparar em 30s, resolve para não bloquear.
-  setTimeout(() => resolveSpeak(), 30000);
-
-  // Em paralelo, descobre a melhor voz para cache (se ainda não houver).
+  // Em paralelo, descobre a melhor voz para cache.
   if (!bestVoiceCache[lang]) {
     getBestVoice(lang).catch(() => {/* swallow */});
   }
