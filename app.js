@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v334';
+const APP_VERSION = 'v335';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4955,10 +4955,18 @@ async function _geminiTTS(text, voiceName, lang) {
         }
     };
     const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    if (!res.ok) { console.warn('[gemini-tts] HTTP', res.status); return null; }
+    if (!res.ok) {
+        console.warn('[gemini-tts] HTTP', res.status);
+        const msg = res.status === 400 ? 'Key Gemini inválida — gera uma nova no AI Studio'
+            : res.status === 429 ? 'Limite Gemini atingido — tenta daqui a pouco'
+            : res.status === 403 ? 'Key Gemini sem permissão (ativa a Generative Language API)'
+            : 'Voz Gemini falhou (HTTP ' + res.status + ')';
+        try { showToast(msg); } catch {}
+        return null;
+    }
     const json = await res.json();
     const part = json?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (!part) return null;
+    if (!part) { try { showToast('Voz Gemini sem áudio — usando voz do sistema'); } catch {} return null; }
     const mime = part.inlineData.mimeType || 'audio/L16;rate=24000';
     const rate = parseInt((mime.match(/rate=(\d+)/) || [])[1], 10) || 24000;
     const pcm = _b64ToBytes(part.inlineData.data);
