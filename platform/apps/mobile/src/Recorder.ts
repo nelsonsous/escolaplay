@@ -15,6 +15,26 @@ export function recorderAvailable(): boolean {
   return !!Av;
 }
 
+/**
+ * Configura o audio session do iOS para playback (TTS).
+ * Útil chamar no mount de ecrãs com TTS para garantir um estado limpo
+ * mesmo se a app tinha o audio session em modo gravação (ex: utilizador
+ * fechou o mic abruptamente).
+ */
+export async function prepareAudioForPlayback(): Promise<void> {
+  if (!Av) return;
+  try {
+    await Av.Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    });
+  } catch {
+    /* swallow */
+  }
+}
+
 export interface RecordingHandle {
   stopAndGetUri: () => Promise<string | null>;
   cancel: () => Promise<void>;

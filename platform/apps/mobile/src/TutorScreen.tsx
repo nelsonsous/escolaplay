@@ -19,7 +19,7 @@ import type { TutorMessage, TutorReply, TutorErrorAnalysis } from '@escolaplay/c
 import { colors, radius, space, shadow, shadowSoft, shadowStrong, tint } from './theme';
 import { PressScale, DecorOrb } from './ui';
 import { ttsAvailable, ttsSpeak, ttsStop, ttsSetPreferredVoice } from './Tts';
-import { recorderAvailable, startRecording, buildTranscribeForm, type RecordingHandle } from './Recorder';
+import { recorderAvailable, startRecording, buildTranscribeForm, prepareAudioForPlayback, type RecordingHandle } from './Recorder';
 import { VoicePicker } from './VoicePicker';
 import { LessonCard } from './LessonCard';
 import { PracticeModal } from './PracticeModal';
@@ -86,6 +86,13 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
   }, [turns.length, busy]);
 
   useEffect(() => () => { ttsStop(); }, []);
+
+  // Ao abrir o tutor, garante audio session em modo playback.
+  // Defensivo: se algures a app deixou o session em "recording", o TTS
+  // não tocaria. Esta chamada inicia sempre o ecrã num estado bom.
+  useEffect(() => {
+    prepareAudioForPlayback().catch(() => {/* swallow */});
+  }, []);
 
   // Histórico que vai para a IA (sem o corrected/tip — só o que foi "dito").
   const apiHistory = useMemo<TutorMessage[]>(

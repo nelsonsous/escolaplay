@@ -134,23 +134,19 @@ export function ttsSpeak(text: string, lang: string = 'en-US', voiceOverride?: s
 async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: string | null): Promise<void> {
   if (!Speech) return;
 
-  // Só faz stop se efetivamente está a falar — chamar stop em "idle"
-  // pode pôr o motor num estado estranho em alguns iOS.
-  try {
-    const speaking = Speech.isSpeakingAsync ? await Speech.isSpeakingAsync() : false;
-    if (speaking) {
-      Speech.stop();
-      // Espera o motor recuperar antes de pedir nova fala.
-      await new Promise<void>((r) => setTimeout(r, 150));
-    }
-  } catch { /* swallow */ }
+  // Para qualquer fala em curso. Speech.stop() é seguro mesmo em idle.
+  try { Speech.stop(); } catch { /* swallow */ }
+
+  // Pequeno delay para o motor TTS recuperar (especialmente após uma
+  // sessão de microfone que mexe no audio session).
+  await new Promise<void>((r) => setTimeout(r, 80));
 
   if (!Speech) return;
 
   // Resolve qual voz usar (override > preferred > cached best > default).
   let candidate: string | null = null;
   if (voiceOverride !== undefined) {
-    candidate = voiceOverride; // explicit (pode ser null)
+    candidate = voiceOverride; // explicit (pode ser null para default)
   } else if (preferredVoice[lang]) {
     candidate = preferredVoice[lang]!;
   } else if (bestVoiceCache[lang]) {
@@ -161,17 +157,14 @@ async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: strin
   // quando o identifier está stale (após update iOS, voz removida, etc.).
   if (candidate) {
     const known = await ensureKnownVoices(lang);
-    if (!known.has(candidate)) {
+    if (known.size > 0 && !known.has(candidate)) {
       candidate = null; // cai para default
     }
+    // Se known.size === 0 (lookup falhou), confiamos no candidate
+    // e deixamos o iOS decidir.
   }
 
   if (!Speech) return;
-  // NOTA: não usamos onError com retry — interrupções legítimas (ex:
-  // utilizador a começar a gravar microfone, que muda audio session)
-  // também disparam onError, e o retry fazia o TTS começar a falar
-  // outra vez no momento errado. A validação de voice identifier antes
-  // de speak já cobre o caso da voz não existir.
   Speech.speak(text, voiceOpts(lang, candidate));
 
   // Em paralelo, descobre a melhor voz para cache (se ainda não houver).
