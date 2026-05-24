@@ -15,6 +15,7 @@ type SpeechModule = {
     onDone?: () => void; onError?: () => void;
   }) => void;
   stop: () => void;
+  isSpeakingAsync?: () => Promise<boolean>;
   getAvailableVoicesAsync?: () => Promise<Array<{
     identifier: string;
     name: string;
@@ -107,33 +108,53 @@ function getBestVoice(lang: string): Promise<string | null> {
 /** Toca o texto na voz preferida (se houver) ou na melhor disponível. */
 export function ttsSpeak(text: string, lang: string = 'en-US'): void {
   if (!Speech) return;
-  // Limpa qualquer fala em curso. Adicionamos um pequeno delay antes de
-  // chamar speak — em alguns devices iOS, chamar speak imediatamente
-  // após stop falha silenciosamente (motor ainda em estado "stopping").
-  try { Speech.stop(); } catch { /* swallow */ }
+  void _ttsSpeakSafely(text, lang);
+}
 
-  const doSpeak = () => {
-    if (!Speech) return;
-    // 1.º preferred (override do utilizador)
-    const pref = preferredVoice[lang];
-    if (pref) {
-      Speech.speak(text, voiceOpts(lang, pref));
-      return;
-    }
-    // 2.º best discovered (cached)
-    const cached = bestVoiceCache[lang];
-    if (cached !== undefined) {
-      Speech.speak(text, voiceOpts(lang, cached));
-      return;
-    }
-    // 3.º default + lookup em background
-    getBestVoice(lang).catch(() => {/* swallow */});
-    Speech.speak(text, voiceOpts(lang, null));
-  };
+async function _ttsSpeakSafely(text: string, lang: string): Promise<void> {
+  if (!Speech) return;
 
-  // 100ms de delay defensivo — imperceptível para o utilizador mas
-  // suficiente para o motor TTS recuperar entre stop e speak.
-  setTimeout(doSpeak, 100);
+  // Só faz stop se efetivamente está a falar — chamar stop em "idle"
+  // pode pôr o motor num estado estranho em alguns iOS.
+  try {
+    const speaking = Speech.isSpeakingAsync ? await Speech.isSpeakingAsync() : false;
+    if (speaking) {
+      Speech.stop();
+      // Espera o motor recuperar antes de pedir nova fala.
+      await new Promise<void>((r) => setTimeout(r, 150));
+    }
+  } catch { /* swallow */ }
+
+  if (!Speech) return;
+
+  // Estratégia de voz, com fallback se a preferida falhar:
+  const pref = preferredVoice[lang];
+  if (pref) {
+    Speech.speak(text, {
+      ...voiceOpts(lang, pref),
+      onError: () => {
+        // A voz preferida não funcionou (não descarregada / identifier
+        // mudou após update iOS). Tenta sem voice especifica.
+        if (Speech) Speech.speak(text, voiceOpts(lang, null));
+      },
+    });
+    return;
+  }
+
+  const cached = bestVoiceCache[lang];
+  if (cached !== undefined) {
+    Speech.speak(text, {
+      ...voiceOpts(lang, cached),
+      onError: () => {
+        if (Speech) Speech.speak(text, voiceOpts(lang, null));
+      },
+    });
+    return;
+  }
+
+  // Default + lookup em background.
+  getBestVoice(lang).catch(() => {/* swallow */});
+  Speech.speak(text, voiceOpts(lang, null));
 }
 
 function voiceOpts(lang: string, voice: string | null): {
