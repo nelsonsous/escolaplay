@@ -15,12 +15,14 @@ import {
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { callTutor, transcribeAudio, TUTOR_OPENER } from '@escolaplay/core';
-import type { TutorMessage, TutorReply } from '@escolaplay/core';
+import type { TutorMessage, TutorReply, TutorErrorAnalysis } from '@escolaplay/core';
 import { colors, radius, space, shadow, shadowSoft, shadowStrong, tint } from './theme';
 import { PressScale, DecorOrb } from './ui';
 import { ttsAvailable, ttsSpeak, ttsStop, ttsSetPreferredVoice } from './Tts';
 import { recorderAvailable, startRecording, buildTranscribeForm, type RecordingHandle } from './Recorder';
 import { VoicePicker } from './VoicePicker';
+import { LessonCard } from './LessonCard';
+import { PracticeModal } from './PracticeModal';
 import { usePersistedState } from './persistence';
 import { MISTRAL_API_KEY } from './secrets';
 
@@ -30,6 +32,10 @@ interface TurnDisplay {
   text: string;
   corrected?: string;
   tip?: string;
+  /** Análise pedagógica do erro (só em tutor turns). */
+  errorAnalysis?: TutorErrorAnalysis | null;
+  /** O que o student disse antes desta resposta (para o card de comparação). */
+  studentOriginal?: string;
 }
 
 const TUTOR_COLOR = '#0d9488';
@@ -45,6 +51,7 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
   const [recording, setRecording] = useState<RecordingHandle | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
+  const [practiceFor, setPracticeFor] = useState<TutorErrorAnalysis | null>(null);
   const [preferredVoice, setPreferredVoice] = usePersistedState<string | null>(
     '@escolaplay/tutor-voice',
     null,
@@ -150,6 +157,8 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
         text: r.reply,
         corrected: r.corrected || undefined,
         tip: r.tip || undefined,
+        errorAnalysis: r.errorAnalysis || null,
+        studentOriginal: text,
       };
       setTurns((prev) => [...prev, tutorTurn]);
     } catch (e: any) {
@@ -226,7 +235,11 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
         showsVerticalScrollIndicator={false}
       >
         {turns.map((t) => (
-          <TurnView key={t.id} turn={t} />
+          <TurnView
+            key={t.id}
+            turn={t}
+            onPracticeError={(a) => setPracticeFor(a)}
+          />
         ))}
         {busy && (
           <View style={s.thinkingRow}>
@@ -302,11 +315,24 @@ export function TutorScreen({ onExit }: { onExit: () => void }) {
         onChoose={(id) => { setPreferredVoice(id); setShowVoicePicker(false); }}
         onClose={() => setShowVoicePicker(false)}
       />
+
+      <PracticeModal
+        visible={!!practiceFor}
+        title={practiceFor?.title ?? ''}
+        exercises={practiceFor?.practice ?? []}
+        onClose={() => setPracticeFor(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-function TurnView({ turn }: { turn: TurnDisplay }) {
+function TurnView({
+  turn,
+  onPracticeError,
+}: {
+  turn: TurnDisplay;
+  onPracticeError: (a: TutorErrorAnalysis) => void;
+}) {
   if (turn.role === 'student') {
     return (
       <View style={s.studentRow}>
@@ -316,20 +342,38 @@ function TurnView({ turn }: { turn: TurnDisplay }) {
       </View>
     );
   }
+  // Tutor turn — pode ter (1) lição completa, (2) só corrected+tip, ou
+  // (3) nem uma coisa nem outra (reply puro).
+  const hasAnalysis = !!turn.errorAnalysis;
   return (
     <View style={s.tutorRow}>
       <View style={s.tutorAvatar}><Text style={{ fontSize: 16 }}>🧑‍🏫</Text></View>
       <View style={{ flex: 1, gap: 6 }}>
-        {turn.corrected && (
-          <View style={s.correctedBox}>
-            <Text style={s.correctedLabel}>✏️ Melhor assim:</Text>
-            <Text style={s.correctedText}>{turn.corrected}</Text>
-          </View>
-        )}
-        {turn.tip && (
-          <View style={s.tipBox}>
-            <Text style={s.tipText}>💡 {turn.tip}</Text>
-          </View>
+        {hasAnalysis ? (
+          <LessonCard
+            analysis={turn.errorAnalysis!}
+            originalText={turn.studentOriginal ?? ''}
+            correctedText={turn.corrected ?? ''}
+            onPractice={
+              (turn.errorAnalysis!.practice.length > 0)
+                ? () => onPracticeError(turn.errorAnalysis!)
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            {turn.corrected && (
+              <View style={s.correctedBox}>
+                <Text style={s.correctedLabel}>✏️ Melhor assim:</Text>
+                <Text style={s.correctedText}>{turn.corrected}</Text>
+              </View>
+            )}
+            {turn.tip && (
+              <View style={s.tipBox}>
+                <Text style={s.tipText}>💡 {turn.tip}</Text>
+              </View>
+            )}
+          </>
         )}
         <View style={[s.bubble, s.tutorBubble]}>
           <Text style={s.tutorText}>{turn.text}</Text>

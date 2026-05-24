@@ -12,6 +12,37 @@ export interface TutorMessage {
   text: string;
 }
 
+/** Um exemplo wrong→right para ilustrar a regra. */
+export interface TutorExample {
+  wrong: string;
+  right: string;
+  note?: string;
+}
+
+/** Um mini-exercício mc para praticar a regra. */
+export interface TutorPracticeExercise {
+  q: string;
+  opts: string[];
+  ans: number;
+  exp?: string;
+}
+
+/** Análise pedagógica do erro principal. */
+export interface TutorErrorAnalysis {
+  /** Chave estável da categoria (ex: "tempos_verbais"). */
+  category: string;
+  /** Etiqueta da categoria em PT-PT (ex: "Tempos verbais"). */
+  categoryLabel: string;
+  /** Título curto da regra em PT-PT (ex: "Already vs Yet em frases negativas"). */
+  title: string;
+  /** Explicação pedagógica em PT-PT (1-2 frases). */
+  lesson: string;
+  /** Exemplos wrong→right (2-3). */
+  examples: TutorExample[];
+  /** Exercícios mc para praticar (2-3). */
+  practice: TutorPracticeExercise[];
+}
+
 /** Resposta estruturada do tutor. */
 export interface TutorReply {
   /** Resposta principal em inglês (2-3 frases + pergunta). */
@@ -20,6 +51,8 @@ export interface TutorReply {
   corrected: string;
   /** Dica curta em PT-PT sobre o erro principal (ou elogio se perfeito). */
   tip: string;
+  /** Análise pedagógica do erro (null se não houve erro relevante). */
+  errorAnalysis: TutorErrorAnalysis | null;
 }
 
 /** Opções para uma chamada ao tutor. */
@@ -59,13 +92,31 @@ ${hist}
 
 The student just said (transcribed from speech): "${userText}"
 
-Do ALL of this:
-1) "corrected": rewrite the student's sentence with correct grammar, verb tenses and natural word choice. If it was already correct, return "".
-2) "tip": ONE short tip in EUROPEAN PORTUGUESE (Portugal, never Brazilian), max 18 words, about the main mistake (tense, grammar or a likely pronunciation slip). If perfect, a short praise in PT-PT.
-3) "reply": your spoken answer in ENGLISH — react naturally, 2-3 short sentences, and END with ONE question to keep the student talking. Keep it conversational and meeting-relevant.
+Do ALL of this and return STRICT JSON only:
 
-Return STRICT JSON only:
-{"corrected":"...","tip":"...","reply":"..."}`;
+1) "corrected": rewrite the student's sentence with correct grammar, tenses and natural word choice. If it was already correct, return "".
+
+2) "tip": ONE short tip in EUROPEAN PORTUGUESE (Portugal, never Brazilian), max 18 words, about the main mistake. If perfect, a short praise in PT-PT.
+
+3) "errorAnalysis": if there is a MEANINGFUL grammar/usage error (not just a typo or pronunciation slip), return a pedagogical analysis object. If no meaningful error, return null. Object shape:
+   {
+     "category": one of "tempos_verbais","conectores","preposicoes","vocabulario","estrutura_frase","artigos","modais","outro",
+     "categoryLabel": short PT-PT label (ex: "Tempos verbais", "Conectores e ligadores"),
+     "title": ONE short PT-PT line naming the rule (ex: "Already vs Yet em frases negativas"),
+     "lesson": 1-2 sentences in PT-PT explaining WHEN to use which form (max 50 words, no markdown),
+     "examples": [
+       {"wrong": "...", "right": "...", "note": "..."}  // 2-3 short example pairs
+     ],
+     "practice": [
+       {"q": "English sentence with ___", "opts": ["a","b","c","d"], "ans": 0, "exp": "short PT-PT explanation"}
+       // EXACTLY 3 mc exercises to drill THIS specific rule
+     ]
+   }
+
+4) "reply": your spoken answer in ENGLISH — react naturally to the student's message (2-3 short sentences) and END with ONE question to keep them talking. Conversational, meeting-relevant.
+
+Return ONLY this JSON object (no markdown, no commentary):
+{"corrected":"...","tip":"...","errorAnalysis":null or {...},"reply":"..."}`;
 }
 
 /**
@@ -94,7 +145,8 @@ export async function callTutor(opts: CallTutorOptions): Promise<TutorReply> {
   const body = {
     model,
     messages: [{ role: 'user', content: prompt }],
-    max_tokens: maxTokens,
+    // Resposta agora pode incluir lição + 3 exercícios — precisa mais tokens.
+    max_tokens: Math.max(maxTokens, 900),
     temperature: 0.7,
     response_format: { type: 'json_object' as const },
   };
@@ -135,20 +187,76 @@ async function safeText(res: Response): Promise<string> {
 export function parseTutorJson(raw: string, userText: string): TutorReply {
   const m = raw.match(/\{[\s\S]*\}/);
   let corrected = '', tip = '', reply = '';
+  let errorAnalysis: TutorErrorAnalysis | null = null;
   if (m && m[0]) {
     try {
       const p = JSON.parse(m[0]);
       corrected = String(p.corrected ?? '').trim();
       tip = String(p.tip ?? '').trim();
       reply = String(p.reply ?? '').trim();
+      errorAnalysis = sanitizeErrorAnalysis(p.errorAnalysis);
     } catch { /* fall through */ }
   }
   if (!reply) reply = "Got it. Can you tell me a bit more?";
-  // Se "corrected" é igual ao input, não vale a pena mostrar.
+  // Se "corrected" é igual ao input, não vale a pena mostrar — e também
+  // não faz sentido haver análise de erro.
   if (corrected && normalizeForCompare(corrected) === normalizeForCompare(userText)) {
     corrected = '';
+    errorAnalysis = null;
   }
-  return { reply, corrected, tip };
+  return { reply, corrected, tip, errorAnalysis };
+}
+
+function sanitizeErrorAnalysis(raw: unknown): TutorErrorAnalysis | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const category = String(r.category || '').trim();
+  const categoryLabel = String(r.categoryLabel || '').trim();
+  const title = String(r.title || '').trim();
+  const lesson = String(r.lesson || '').trim();
+  if (!title || !lesson) return null;
+
+  const examples = Array.isArray(r.examples)
+    ? r.examples
+        .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
+        .map((e) => {
+          const ex: TutorExample = {
+            wrong: String(e.wrong || '').trim(),
+            right: String(e.right || '').trim(),
+          };
+          if (e.note !== undefined) ex.note = String(e.note).trim();
+          return ex;
+        })
+        .filter((e) => e.wrong && e.right)
+        .slice(0, 3)
+    : [];
+
+  const practice = Array.isArray(r.practice)
+    ? r.practice
+        .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
+        .map((e) => {
+          const opts = Array.isArray(e.opts) ? e.opts.map((o) => String(o)) : [];
+          const ans = typeof e.ans === 'number' ? e.ans : -1;
+          const out: TutorPracticeExercise = {
+            q: String(e.q || '').trim(),
+            opts,
+            ans,
+          };
+          if (e.exp !== undefined) out.exp = String(e.exp).trim();
+          return out;
+        })
+        .filter((e) => e.q && e.opts.length >= 2 && e.ans >= 0 && e.ans < e.opts.length)
+        .slice(0, 3)
+    : [];
+
+  return {
+    category: category || 'outro',
+    categoryLabel: categoryLabel || 'Inglês',
+    title,
+    lesson,
+    examples,
+    practice,
+  };
 }
 
 function normalizeForCompare(s: string): string {
