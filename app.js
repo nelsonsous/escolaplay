@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v342';
+const APP_VERSION = 'v343';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4794,39 +4794,62 @@ function _tutorRenderMic() {
     const bar = document.getElementById('tutor-bar');
     if (!bar) return;
     const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
-    if (!sttOk) {
-        bar.innerHTML = `<div style="color:#475569;font-size:0.85rem;text-align:center">Este browser não suporta voz. Usa Chrome ou Safari.</div>`;
-        return;
-    }
+    const draft = (tutorState && tutorState._draft) || '';
     bar.innerHTML = `
       <div id="tutor-live" class="tutor-live" style="display:none"></div>
-      <button id="tutor-mic" class="tutor-mic"><i class="fas fa-microphone"></i> Falar</button>`;
-    document.getElementById('tutor-mic').addEventListener('click', _tutorStartMic);
+      <div class="tutor-inputrow">
+        <input id="tutor-text" class="tutor-text" type="text" autocomplete="off" autocapitalize="sentences"
+               placeholder="${sttOk ? 'Fala ou escreve…' : 'Escreve a tua resposta…'}">
+        ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="Falar"><i class="fas fa-microphone"></i></button>` : ''}
+        <button id="tutor-send" class="tutor-send" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
+      </div>`;
+    const inp = document.getElementById('tutor-text');
+    if (inp) {
+        inp.value = draft;
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); _tutorSubmitText(); } });
+        inp.addEventListener('input', () => { if (tutorState) tutorState._draft = inp.value; });
+        inp.addEventListener('focus', () => { if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} } });
+    }
+    const send = document.getElementById('tutor-send');
+    if (send) send.addEventListener('click', _tutorSubmitText);
+    const mic = document.getElementById('tutor-mic');
+    if (mic) mic.addEventListener('click', _tutorStartMic);
+}
+function _tutorSubmitText() {
+    const inp = document.getElementById('tutor-text');
+    if (!inp || !tutorState) return;
+    if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
+    const val = inp.value.trim();
+    if (!val) return;
+    inp.value = '';
+    tutorState._draft = '';
+    _tutorHandleInput(val);
 }
 function _tutorAutoListen() {
     if (!tutorState) return;
-    // Mãos-livres: só auto-arranca depois de o micro já ter sido autorizado uma vez
-    if (!tutorState.micGranted) { _tutorRenderMic(); return; }
-    setTimeout(() => { if (tutorState && !_tutorRecog) _tutorStartMic(); }, 350);
+    _tutorRenderMic();
+    // Mãos-livres: depois de o micro ter sido autorizado uma vez, arranca
+    // sozinho — mas o que disseres fica na barra para reveres/editares
+    // antes de enviar (não envia automaticamente).
+    if (tutorState.micGranted) {
+        setTimeout(() => { if (tutorState && !_tutorRecog) _tutorStartMic(); }, 400);
+    }
 }
 function _tutorStartMic() {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec || !tutorState) return;
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
+    const inp = document.getElementById('tutor-text');
+    const mic = document.getElementById('tutor-mic');
+    const liveEl = document.getElementById('tutor-live');
     const r = new Rec();
-    // continuous=false: pára sozinho quando fazes uma pausa e valida logo
-    // (sem teres de carregar para parar — fim do "walkie-talkie")
+    // continuous=false: pára sozinho quando fazes uma pausa
     r.lang = tutorState.lang; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
     _tutorRecog = r;
     let finalTxt = '';
-    const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `
-      <div id="tutor-live" class="tutor-live">A ouvir… fala e faz uma pausa quando acabares</div>
-      <button id="tutor-mic" class="tutor-mic rec"><i class="fas fa-stop"></i> A ouvir…</button>`;
-    const liveEl = document.getElementById('tutor-live');
-    const micBtn = document.getElementById('tutor-mic');
-    if (micBtn) micBtn.addEventListener('click', () => { try { r.stop(); } catch {} });
+    if (mic) { mic.classList.add('rec'); mic.innerHTML = '<i class="fas fa-stop"></i>'; }
+    if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = 'A ouvir… faz uma pausa quando acabares'; }
     r.onstart = () => { tutorState.micGranted = true; };
     r.onresult = (ev) => {
         let interim = '';
@@ -4836,18 +4859,19 @@ function _tutorStartMic() {
             else interim += res[0].transcript;
         }
         const live = (finalTxt + interim).replace(/\s+/g, ' ').trim();
-        tutorState._said = finalTxt.trim() || live;
+        if (inp) { inp.value = live; tutorState._draft = live; }
         if (liveEl) liveEl.textContent = live || '…';
     };
     r.onerror = () => {};
     r.onend = () => {
         _tutorRecog = null;
-        const said = (tutorState._said || '').trim();
-        tutorState._said = '';
-        if (said.length > 1) _tutorHandleInput(said);
-        else _tutorRenderMic();
+        if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
+        if (liveEl) liveEl.style.display = 'none';
+        // Deixa o texto na barra para reveres/editares — não envia sozinho
+        const inpNow = document.getElementById('tutor-text');
+        if (inpNow && inpNow.value.trim()) { try { inpNow.focus(); } catch {} }
     };
-    try { r.start(); } catch { _tutorRenderMic(); }
+    try { r.start(); } catch { if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; } }
 }
 
 function _tutorHandleInput(said) {
