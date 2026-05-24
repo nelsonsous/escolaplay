@@ -63,6 +63,22 @@ function renderAvatar(av, sizePx = 46) {
     // Emoji ou outro texto curto — render como texto
     return `<span style="font-size:${Math.round(sizePx * 0.55)}px;line-height:1">${s}</span>`;
 }
+// HTML do avatar do perfil para usar como mascote — só se for imagem
+// (Disney/Stranger/Vampire/foto/URL/dicebear). Caso contrário devolve null
+// e o mascote cai para o Pip SVG.
+function _mascotAvatarHtml(size) {
+    try {
+        const av = state && state.profile && state.profile.avatar;
+        if (!av) return null;
+        const s = String(av);
+        const isImg = s.startsWith('data:image') || /^https?:\/\//.test(s)
+            || s.startsWith('disney3d:') || s.startsWith('disney:')
+            || s.startsWith('vampire:') || s.startsWith('stranger:') || s.startsWith('dicebear:');
+        if (!isImg) return null;
+        return renderAvatar(av, size || 72);
+    } catch { return null; }
+}
+
 const LEVELS = [
     { min:    0, name: 'Aprendiz' },
     { min:  500, name: 'Aventureiro' },
@@ -500,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v326';
+const APP_VERSION = 'v327';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1791,12 +1807,14 @@ function openCoursePath(subjectKey) {
         if (!sk || !lid) { showToast('Sem dados na lição: ' + (lid || '?')); return; }
         startCourseLesson(sk, lid);
     });
-    // Mascote SVG animado (Pip) no hero — fala ao tocar
+    // Mascote no hero — usa o avatar do perfil (Disney/etc.) se for imagem,
+    // senão o Pip SVG. Fala ao tocar.
     const mascotHost = wrap.querySelector('#course-mascot');
     if (mascotHost && window.Mascot) {
         try {
             window._courseMascot = window.Mascot.create(mascotHost, {
                 size: 78,
+                avatarHtml: _mascotAvatarHtml(72),
                 talkOnTap: true,
                 phrases: [
                     { text: "Let's practise! You've got this.", lang: 'en-US' },
@@ -5805,7 +5823,7 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
             const _ph = acc >= 80 ? [{ text: `Boa! Acertaste ${s.correct} em ${total}!`, lang: 'pt-PT' }, { text: 'Excellent work!', lang: 'en-US' }]
                        : acc >= 50 ? [{ text: 'Quase lá! Continua a treinar.', lang: 'pt-PT' }]
                        : [{ text: 'Não faz mal. Vamos tentar outra vez!', lang: 'pt-PT' }];
-            const m = window.Mascot.create(emojiEl, { size: 72, talkOnTap: true, phrases: _ph });
+            const m = window.Mascot.create(emojiEl, { size: 72, avatarHtml: _mascotAvatarHtml(66), talkOnTap: true, phrases: _ph });
             setTimeout(() => { try { m && m.react(acc >= 50 ? (acc >= 80 ? 'cheer' : 'happy') : 'sad'); } catch {} }, 350);
         } catch { emojiEl.textContent = emoji; }
     } else if (emojiEl) {
