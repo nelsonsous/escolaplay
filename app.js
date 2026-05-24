@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v355';
+const APP_VERSION = 'v356';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4847,11 +4847,15 @@ function _tutorRenderMic() {
     if (!bar) return;
     const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     const draft = (tutorState && tutorState._draft) || '';
+    const asking = !!(tutorState && tutorState._ask);
+    const ph = asking ? 'Tira a tua dúvida (ex: explica o Past Perfect)…' : (sttOk ? 'Fala ou escreve…' : 'Escreve a tua resposta…');
     bar.innerHTML = `
       <div id="tutor-live" class="tutor-live" style="display:none"></div>
+      ${asking ? `<div class="tutor-askhint">💬 Modo dúvida — pergunta o que quiseres. <button class="tutor-askx" onclick="_tutorToggleAsk()">cancelar</button></div>` : ''}
       <div class="tutor-inputrow">
         <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
-               placeholder="${sttOk ? 'Fala ou escreve…' : 'Escreve a tua resposta…'}"></textarea>
+               placeholder="${ph}"></textarea>
+        <button id="tutor-ask" class="tutor-ask-btn${asking ? ' on' : ''}" aria-label="Tirar dúvida" title="Tirar dúvida"><i class="fas fa-circle-question"></i></button>
         ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="Falar"><i class="fas fa-microphone"></i></button>` : ''}
         <button id="tutor-send" class="tutor-send" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
       </div>`;
@@ -4870,7 +4874,26 @@ function _tutorRenderMic() {
     if (send) send.addEventListener('click', _tutorSubmitText);
     const mic = document.getElementById('tutor-mic');
     if (mic) mic.addEventListener('click', _tutorStartMic);
+    const askBtn = document.getElementById('tutor-ask');
+    if (askBtn) askBtn.addEventListener('click', _tutorToggleAsk);
 }
+function _tutorToggleAsk() {
+    if (!tutorState) return;
+    tutorState._ask = tutorState._ask ? null : { topic: '', fromPractice: false };
+    _tutorRenderMic();
+    const inp = document.getElementById('tutor-text');
+    if (inp) { try { inp.focus(); } catch {} }
+}
+window._tutorToggleAsk = _tutorToggleAsk;
+// Entra em modo dúvida a partir de uma lição (com o tópico em contexto)
+function _tutorAskDoubt(topic) {
+    if (!tutorState) return;
+    tutorState._ask = { topic: topic || '', fromPractice: !!tutorState._pq };
+    _tutorRenderMic();
+    const inp = document.getElementById('tutor-text');
+    if (inp) { try { inp.focus(); } catch {} }
+}
+window._tutorAskDoubt = _tutorAskDoubt;
 function _tutorGrow(el) {
     if (!el) return;
     el.style.height = 'auto';
@@ -4885,8 +4908,58 @@ function _tutorSubmitText() {
     if (!val) return;
     inp.value = '';
     tutorState._draft = '';
-    _tutorHandleInput(val);
+    if (tutorState._ask) _tutorAnswerDoubt(val);
+    else _tutorHandleInput(val);
 }
+async function _tutorAnswerDoubt(question) {
+    if (!tutorState) return;
+    const ask = tutorState._ask || {};
+    const topic = ask.topic || '';
+    const fromPractice = !!ask.fromPractice;
+    _tutorAddYou(question);
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a explicar…</div>`;
+    const ctx = topic ? `The doubt is about "${topic}". ` : '';
+    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${ctx}The student asks a DOUBT (may be written in Portuguese or English): "${question}"
+Answer it clearly and teach the concept. Return STRICT JSON only:
+{"title":"short concept title in English","explanation":"clear answer in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 50-90 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English INCORRECT version (must differ from right and be genuinely wrong)","right":"English correct version","note":"PT-PT max 8 words"},{"wrong":"English incorrect","right":"English correct","note":"PT-PT max 8 words"}]}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 900, true);
+        if (!tutorState) return;
+        const m = text.match(/\{[\s\S]*\}/);
+        let d = {};
+        if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        _tutorRenderDoubtAnswer(d, fromPractice);
+    } catch (e) {
+        console.warn('[tutor] doubt failed', e);
+        if (tutorState) { tutorState._ask = null; _tutorAddTutor("Sorry, I couldn't explain that now. Ask me again?", '', '', true); }
+    }
+}
+function _tutorRenderDoubtAnswer(d, fromPractice) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat || !tutorState) return;
+    tutorState._ask = null;
+    const resumeBtn = (fromPractice && tutorState._pq && tutorState._pq.queue.length)
+        ? `<button class="tutor-lbtn prac full" onclick="_tutorResumePractice()"><i class="fas fa-arrow-right"></i> Continuar prática</button>` : '';
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">${_tutorAvatar()}</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">💬 Resposta à tua dúvida</div>
+          ${d.title ? `<div class="tutor-lesson-title">${escapeHtml(d.title)}</div>` : ''}
+          ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
+          ${_tutorPointsHtml(d.points)}
+          ${_tutorExamplesHtml(d.examples)}
+          ${resumeBtn}
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderMic();
+}
+function _tutorResumePractice() {
+    if (tutorState && tutorState._pq && tutorState._pq.queue.length) _tutorRenderPracticeItem();
+}
+window._tutorResumePractice = _tutorResumePractice;
 function _tutorAutoListen() {
     if (!tutorState) return;
     _tutorRenderMic();
@@ -5113,7 +5186,7 @@ Return STRICT JSON:
 5) "reply": ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.
 6) "lessonTitle": short grammar rule title (e.g. "Work ON vs. work ABOUT", "Past Simple vs. Present Perfect"). "" if correct.
 7) "points": array of 2-4 objects {form, use} mapping the whole rule — each form/word and WHEN to use it, in PT-PT. E.g. for articles: [{"form":"a / an","use":"algo novo ou não específico"},{"form":"the","use":"algo específico ou já mencionado"},{"form":"(sem artigo)","use":"ideias gerais, plurais, incontáveis"}]. "form" stays in English, "use" in PT-PT. [] if correct.
-8) "examples": array of 2-3 objects {wrong,right,note} showing the rule (English wrong/right, note max 8 words PT-PT). [] if correct.
+8) "examples": array of 2-3 objects {wrong,right,note} showing the rule (English wrong/right, note max 8 words PT-PT). "wrong" must be genuinely incorrect and DIFFERENT from "right". [] if correct.
 
 {"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}]}`;
     try {
@@ -5172,6 +5245,7 @@ function _tutorShowCorrection(d) {
             ${_tutorPointsHtml(d.points)}
             ${_tutorExamplesHtml(d.examples)}
           </div>` : ''}
+          <button class="tutor-doubt-btn" data-topic="${escapeHtml(d.lessonTitle || d.errorType || '')}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida sobre isto</button>
           <button class="tutor-lbtn prac full" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar agora · 3 exercícios →</button>
           <div class="tutor-lesson-btns2">
             <button class="tutor-lbtn rep" onclick="_tutorDoRepeat()"><i class="fas fa-repeat"></i> Repetir</button>
@@ -5249,10 +5323,13 @@ function _tutorParseExercises(text) {
 function _tutorRenderPracticeItem() {
     const pq = tutorState && tutorState._pq;
     if (!pq) return;
+    if (tutorState._ask) return; // a meio de uma dúvida — não renderiza ainda
     if (!pq.queue.length) { _tutorPracticeDone(); return; }
     const it = pq.queue[0];
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
+    // Evita cartão duplicado ao retomar: remove o último exercício ainda não respondido
+    if (pq._el) { const prev = document.getElementById(pq._el); if (prev && !prev.dataset.done) prev.closest('.tutor-row')?.remove(); }
     const qid = 'q' + Date.now() + Math.floor(Math.random() * 1000);
     pq._el = qid;
     const depth = it.depth || 0;
@@ -5336,6 +5413,7 @@ Topic: "${item.topic || ''}"
 
 Teach this exact mistake properly, then drill it.
 QUALITY RULES for "exercises" (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence; exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; options must be distinct.
+QUALITY RULES for "examples" (critical): each "wrong" must be genuinely incorrect English and DIFFERENT from its "right".
 LANGUAGE RULES (critical): the exercise questions "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). The "wrong"/"right" examples, "said"/"correct" and "points.form" are also in ENGLISH. ONLY the lesson's "explanation", "points.use" and "note" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
 Return STRICT JSON only:
 {"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"}]}`;
@@ -5360,6 +5438,7 @@ function _tutorRenderMistakeLesson(d) {
           ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
           ${_tutorPointsHtml(d.points)}
           ${_tutorExamplesHtml(d.examples)}
+          <button class="tutor-doubt-btn" data-topic="${escapeHtml(d.lessonTitle || '')}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida sobre isto</button>
         </div>
       </div>`);
     _tutorScroll();

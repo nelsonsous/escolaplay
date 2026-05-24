@@ -4327,6 +4327,20 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     font-size: 1.05rem;
     cursor: pointer;
 }
+.tutor-ask-btn {
+    flex: 0 0 auto;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1.5px solid #e2e8f0;
+    background: #f1f5f9; color: #64748b;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; cursor: pointer;
+}
+.tutor-ask-btn.on { background: linear-gradient(135deg, #7c3aed, #db2777); color: #fff; border-color: transparent; }
+.tutor-askhint { font-size: 0.82rem; color: #6d28d9; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 6px 10px; margin-bottom: 8px; }
+.tutor-askx { background: none; border: none; color: #db2777; font-weight: 700; font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0 2px; }
+.tutor-doubt-btn { width: 100%; background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; border-radius: 10px; padding: 9px; font-size: 0.84rem; font-weight: 700; cursor: pointer; margin: 2px 0 8px; }
+.tutor-doubt-btn:active { transform: scale(0.98); }
 .tutor-mic-btn { background: #e6fffb; color: #0d9488; border: 1.5px solid #99f6e4; }
 .tutor-mic-btn.rec {
     background: linear-gradient(135deg, #dc2626, #ea580c);
