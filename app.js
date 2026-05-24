@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v332';
+const APP_VERSION = 'v333';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1793,6 +1793,14 @@ function openCoursePath(subjectKey) {
               <div style="font-size:0.82rem;opacity:0.9">⭐ ${totalCrowns} / ${maxCrowns} coroas</div>
             </div>
             <div class="course-mascot-host" id="course-mascot" style="position:relative;z-index:1"></div>
+          </div>
+          <div class="tutor-card" onclick="openTutor()">
+            <div class="tutor-card-icon"><i class="fas fa-chalkboard-user"></i></div>
+            <div class="tutor-card-text">
+              <div class="tutor-card-title">Falar com o Professor</div>
+              <div class="tutor-card-sub">Conversa livre · corrige-te e faz perguntas</div>
+            </div>
+            <i class="fas fa-microphone tutor-card-mic"></i>
           </div>
           ${unitsHtml}
         </div>
@@ -4656,6 +4664,167 @@ function _rpFinish() {
     if (typeof _haptic === 'function') _haptic('win');
     const isLast = currentSession.idx + 1 >= currentSession.items.length;
     _setExAction('continue', isLast ? 'Ver resultado' : 'Continuar');
+}
+
+// ============================================================
+// PROFESSOR DE INGLÊS (IA) — conversa livre que corrige e pergunta
+// ============================================================
+let tutorState = null;
+
+function openTutor(opts) {
+    opts = opts || {};
+    if (!hasAIKey()) {
+        showToast('Configura uma chave IA (Mistral) no Perfil para falar com o Professor');
+        return;
+    }
+    tutorState = { history: [], lang: 'en-US', busy: false };
+    const av = (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(40)) || '🧑‍🏫';
+    document.getElementById('tutor-overlay')?.remove();
+    const o = document.createElement('div');
+    o.id = 'tutor-overlay';
+    o.innerHTML = `
+      <div class="tutor-header">
+        <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
+        <div class="tutor-title"><span class="tutor-av">${av}</span> English Tutor</div>
+        <span class="tutor-tag">IA</span>
+      </div>
+      <div class="tutor-chat" id="tutor-chat"></div>
+      <div class="tutor-bar" id="tutor-bar"></div>`;
+    document.body.appendChild(o);
+    document.body.style.overflow = 'hidden';
+    // Linha de abertura (fixa, sem gastar chamada à IA)
+    const opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
+    _tutorAddTutor(opener, null, null);
+    _tutorRenderMic();
+}
+window.openTutor = openTutor;
+
+function closeTutor() {
+    try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
+    try { if (_tutorRecog) _tutorRecog.stop(); } catch {}
+    document.getElementById('tutor-overlay')?.remove();
+    document.body.style.overflow = '';
+    tutorState = null;
+}
+window.closeTutor = closeTutor;
+
+function _tutorAvatar() {
+    return (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(34)) || '🧑‍🏫';
+}
+function _tutorAddTutor(text, corrected, tip) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    tutorState.history.push({ role: 'tutor', text });
+    const sid = 't' + Date.now() + Math.floor(Math.random() * 1000);
+    let corrHtml = '';
+    if (corrected) corrHtml += `<div class="tutor-correct"><b>✏️ Melhor assim:</b> ${escapeHtml(corrected)}</div>`;
+    if (tip) corrHtml += `<div class="tutor-tip"><b>💡</b> ${escapeHtml(tip)}</div>`;
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">${_tutorAvatar()}</div>
+        <div>
+          ${corrHtml}
+          <div class="tutor-bubble tutor-them" data-text="${escapeHtml(text)}">
+            <span>${escapeHtml(text)}</span>
+            <button class="tutor-play" onclick="_tutorPlay('${sid}')" id="${sid}"><i class="fas fa-volume-high"></i></button>
+          </div>
+        </div>
+      </div>`);
+    chat.scrollTop = chat.scrollHeight;
+}
+function _tutorPlay(sid) {
+    const btn = document.getElementById(sid);
+    if (!btn) return;
+    const text = btn.closest('.tutor-them')?.getAttribute('data-text') || '';
+    if (text && typeof speakEN === 'function') speakEN(text.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'), tutorState ? tutorState.lang : 'en-US');
+}
+window._tutorPlay = _tutorPlay;
+
+function _tutorAddYou(text) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    tutorState.history.push({ role: 'you', text });
+    chat.insertAdjacentHTML('beforeend', `<div class="tutor-row you"><div class="tutor-bubble tutor-you">${escapeHtml(text)}</div></div>`);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+let _tutorRecog = null;
+function _tutorRenderMic() {
+    const bar = document.getElementById('tutor-bar');
+    if (!bar) return;
+    const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+    if (!sttOk) {
+        bar.innerHTML = `<div style="color:#fff;font-size:0.85rem;text-align:center">Este browser não suporta voz. Usa Chrome ou Safari.</div>`;
+        return;
+    }
+    bar.innerHTML = `<button id="tutor-mic" class="tutor-mic"><i class="fas fa-microphone"></i> Falar</button>`;
+    document.getElementById('tutor-mic').addEventListener('click', _tutorMic);
+}
+function _tutorMic() {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Rec || !tutorState) return;
+    const btn = document.getElementById('tutor-mic');
+    if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
+    const r = new Rec();
+    r.lang = tutorState.lang; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    _tutorRecog = r;
+    let finalTxt = '';
+    if (btn) { btn.innerHTML = '<i class="fas fa-stop"></i> A ouvir… toca para terminar'; btn.classList.add('rec'); }
+    r.onresult = (ev) => {
+        let interim = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const res = ev.results[i];
+            if (res.isFinal) finalTxt += res[0].transcript + ' ';
+            else interim += res[0].transcript;
+        }
+        tutorState._said = (finalTxt + interim).replace(/\s+/g, ' ').trim();
+    };
+    r.onend = () => {
+        _tutorRecog = null;
+        const said = (tutorState._said || '').trim();
+        tutorState._said = '';
+        if (btn) { btn.classList.remove('rec'); }
+        if (said.length > 1) { _tutorAddYou(said); _tutorRespond(said); }
+        else _tutorRenderMic();
+    };
+    try { r.start(); } catch {}
+}
+
+async function _tutorRespond(userText) {
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a pensar…</div>`;
+    const hist = tutorState.history.slice(-8).map(h => `${h.role === 'you' ? 'Student' : 'Tutor'}: ${h.text}`).join('\n');
+    const prompt = `You are a warm, encouraging English tutor for a Portuguese Project Manager (level B2→C1) preparing to lead SAP/consulting meetings in English.
+
+Conversation so far:
+${hist}
+
+The student just said (transcribed from speech): "${userText}"
+
+Do ALL of this:
+1) "corrected": rewrite the student's sentence with correct grammar, verb tenses and natural word choice. If it was already correct, return "".
+2) "tip": ONE short tip in EUROPEAN PORTUGUESE (Portugal, never Brazilian), max 18 words, about the main mistake (tense, grammar or a likely pronunciation slip). If perfect, a short praise in PT-PT.
+3) "reply": your spoken answer in ENGLISH — react naturally, 2-3 short sentences, and END with ONE question to keep the student talking. Keep it conversational and meeting-relevant.
+
+Return STRICT JSON only:
+{"corrected":"...","tip":"...","reply":"..."}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 420, true);
+        if (!tutorState) return;
+        const m = text.match(/\{[\s\S]*\}/);
+        let corrected = '', tip = '', reply = '';
+        if (m) {
+            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); } catch {}
+        }
+        if (!reply) reply = "Got it. Can you tell me a bit more?";
+        // Não mostrar "corrected" se for igual ao que o aluno disse
+        if (corrected && normalize(corrected) === normalize(userText)) corrected = '';
+        _tutorAddTutor(reply, corrected, tip);
+        _tutorRenderMic();
+    } catch (e) {
+        console.warn('[tutor] failed', e);
+        if (tutorState) { _tutorAddTutor("Sorry, I didn't catch that. Could you say it again?", '', ''); _tutorRenderMic(); }
+    }
 }
 
 function renderSpeak(e) {
