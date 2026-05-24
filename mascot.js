@@ -114,26 +114,19 @@
             setMouth('smile');
         }
         function speak(text, lang) {
-            if (!text || !('speechSynthesis' in window)) return;
+            if (!text) return;
+            // Usa o router central (Gemini neural p/ EN se houver key; senao sistema)
+            if (typeof window.speakEN === 'function') {
+                window.speakEN(text, lang || 'pt-PT', { onStart: _startTalk, onEnd: _stopTalk });
+                return;
+            }
+            if (!('speechSynthesis' in window)) return;
             const synth = window.speechSynthesis;
             try { synth.cancel(); } catch {}
             const u = new SpeechSynthesisUtterance(text);
             u.lang = lang || 'pt-PT';
             u.rate = 0.96; u.pitch = 1.05;
-            // Para inglês usa o seletor partilhado (respeita a voz neural escolhida)
-            let v = null;
-            if (/^en/i.test(u.lang) && typeof window._pickENVoice === 'function') {
-                v = window._pickENVoice(u.lang);
-            }
-            if (!v) {
-                const voices = synth.getVoices();
-                v = voices.find(x => x.lang === u.lang)
-                 || voices.find(x => x.lang && x.lang.startsWith((u.lang || '').slice(0, 2)));
-            }
-            if (v) u.voice = v;
-            u.onstart = _startTalk;
-            u.onend = _stopTalk;
-            u.onerror = _stopTalk;
+            u.onstart = _startTalk; u.onend = _stopTalk; u.onerror = _stopTalk;
             try { synth.speak(u); } catch { _stopTalk(); }
         }
 
