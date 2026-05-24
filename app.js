@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v338';
+const APP_VERSION = 'v339';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4730,7 +4730,7 @@ function _tutorAddTutor(text, corrected, tip, autoSpeak) {
           </div>
         </div>
       </div>`);
-    chat.scrollTop = chat.scrollHeight;
+    _tutorScroll();
     if (autoSpeak && typeof speakEN === 'function') {
         // Fala automaticamente e, ao terminar, volta a ouvir (mãos-livres)
         speakEN(text, tutorState.lang, { onEnd: () => _tutorAutoListen() });
@@ -4749,7 +4749,17 @@ function _tutorAddYou(text) {
     if (!chat) return;
     tutorState.history.push({ role: 'you', text });
     chat.insertAdjacentHTML('beforeend', `<div class="tutor-row you"><div class="tutor-bubble tutor-you">${escapeHtml(text)}</div></div>`);
-    chat.scrollTop = chat.scrollHeight;
+    _tutorScroll();
+}
+function _tutorScroll() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    // 2 frames + delay para garantir scroll após o layout (avatares, cartões)
+    requestAnimationFrame(() => {
+        chat.scrollTop = chat.scrollHeight;
+        requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+        setTimeout(() => { chat.scrollTop = chat.scrollHeight; }, 120);
+    });
 }
 
 // Quanto da frase esperada o aluno acertou (0..1) — para validar a repetição
@@ -4787,13 +4797,15 @@ function _tutorStartMic() {
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
     const r = new Rec();
-    r.lang = tutorState.lang; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    // continuous=false: pára sozinho quando fazes uma pausa e valida logo
+    // (sem teres de carregar para parar — fim do "walkie-talkie")
+    r.lang = tutorState.lang; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
     _tutorRecog = r;
     let finalTxt = '';
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `
-      <div id="tutor-live" class="tutor-live">…</div>
-      <button id="tutor-mic" class="tutor-mic rec"><i class="fas fa-stop"></i> A ouvir… toca para terminar</button>`;
+      <div id="tutor-live" class="tutor-live">A ouvir… fala e faz uma pausa quando acabares</div>
+      <button id="tutor-mic" class="tutor-mic rec"><i class="fas fa-stop"></i> A ouvir…</button>`;
     const liveEl = document.getElementById('tutor-live');
     const micBtn = document.getElementById('tutor-mic');
     if (micBtn) micBtn.addEventListener('click', () => { try { r.stop(); } catch {} });
