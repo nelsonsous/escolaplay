@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v340';
+const APP_VERSION = 'v341';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4902,7 +4902,7 @@ function _tutorShowCorrection(d) {
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">📖 Vamos corrigir ${badge}</div>
           <div class="tutor-cmp-said">🗣️ Disseste: "${escapeHtml(d.said)}"</div>
-          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}"</div>
+          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
           ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
           <div class="tutor-lesson-btns">
             <button class="tutor-lbtn rep" onclick="_tutorDoRepeat()"><i class="fas fa-repeat"></i> Repetir</button>
@@ -4914,7 +4914,16 @@ function _tutorShowCorrection(d) {
     _tutorScroll();
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe: repetir a frase, praticar o erro, ou continuar</div>`;
+    // Diz a forma correta em voz alta (não só por escrito)
+    if (d.corrected && typeof speakEN === 'function') {
+        setTimeout(() => { if (tutorState && tutorState._pending) speakEN(d.corrected, tutorState.lang); }, 250);
+    }
 }
+function _tutorSpeakBtn(el) {
+    const t = el && el.getAttribute('data-text');
+    if (t && typeof speakEN === 'function') speakEN(t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'), tutorState ? tutorState.lang : 'en-US');
+}
+window._tutorSpeakBtn = _tutorSpeakBtn;
 function _tutorDoContinue() {
     const d = tutorState && tutorState._pending; if (!d) return;
     tutorState._pending = null;
