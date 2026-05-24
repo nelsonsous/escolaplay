@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v352';
+const APP_VERSION = 'v353';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5221,9 +5221,9 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
 Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, a 1-line explanation, and "topic" = the error category it trains.
-LANGUAGE RULES (critical): the question "q" and all "options" MUST be in ENGLISH (they are English practice). ONLY "exp" and "topic" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — e.g. topic "Past Simple", "Preposições", "Conectores".
+LANGUAGE RULES (critical): the question "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). ONLY "topic" is in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — e.g. "Past Simple", "Preposições", "Conectores".
 Return STRICT JSON array only:
-[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"PT-PT category"}]`;
+[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"PT-PT category"}]`;
     try {
         const { text } = await callClaudeAPI(prompt, 700, true);
         if (!tutorState) return;
@@ -5269,8 +5269,15 @@ function _tutorRenderPracticeItem() {
       </div>`);
     _tutorScroll();
     const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe a opção correta</div>`;
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe a opção correta <button class="tutor-quit" onclick="_tutorQuitPractice()"><i class="fas fa-arrow-left"></i> voltar à conversa</button></div>`;
 }
+function _tutorQuitPractice() {
+    if (!tutorState) return;
+    tutorState._pq = null;
+    tutorState._practiceReply = null;
+    _tutorAddTutor("No problem — let's keep chatting. What would you like to talk about?", '', '', true);
+}
+window._tutorQuitPractice = _tutorQuitPractice;
 function _tutorPracticeAnswer(i) {
     const pq = tutorState && tutorState._pq; if (!pq) return;
     const it = pq.queue[0]; if (!it) return;
@@ -5327,9 +5334,9 @@ They chose (WRONG): "${chosen}"
 Topic: "${item.topic || ''}"
 
 Teach this exact mistake properly, then drill it.
-LANGUAGE RULES (critical): the exercise questions "q" and all "options" MUST be in ENGLISH (they are English practice). The "wrong"/"right" examples, "said"/"correct" and "points.form" are in ENGLISH. ONLY "explanation", "points.use", "note" and "exp" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
+LANGUAGE RULES (critical): the exercise questions "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). The "wrong"/"right" examples, "said"/"correct" and "points.form" are also in ENGLISH. ONLY the lesson's "explanation", "points.use" and "note" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
 Return STRICT JSON only:
-{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"PT-PT 1 line","topic":"${item.topic || ''}"}]}`;
+{"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"}]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 1000, true);
         const m = text.match(/\{[\s\S]*\}/);
