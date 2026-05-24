@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v358';
+const APP_VERSION = 'v359';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5348,7 +5348,8 @@ function _tutorRenderPracticeItem() {
       </div>`);
     _tutorScroll();
     const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe a opção correta <button class="tutor-quit" onclick="_tutorQuitPractice()"><i class="fas fa-arrow-left"></i> voltar à conversa</button></div>`;
+    const dtopic = it.topic || pq.topic || '';
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar"><span>Escolhe a opção correta</span> <button class="tutor-quit ask" data-topic="${escapeHtml(dtopic)}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> tirar dúvida</button> <button class="tutor-quit" onclick="_tutorQuitPractice()"><i class="fas fa-arrow-left"></i> voltar à conversa</button></div>`;
 }
 function _tutorQuitPractice() {
     if (!tutorState) return;
