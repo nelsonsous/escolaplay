@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v323';
+const APP_VERSION = 'v324';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -935,13 +935,6 @@ function renderHome() {
         </div>
         `;
     }).join('');
-    // Entrada em cascata dos cartões de disciplina (GSAP)
-    if (window.gsap) {
-        window.gsap.from(container.querySelectorAll('.quick-subject'), {
-            opacity: 0, y: 18, scale: 0.92, duration: 0.4,
-            ease: 'back.out(1.6)', stagger: 0.05, clearProps: 'all'
-        });
-    }
 
     // Number Talk do dia — prompt rotativo determinístico por data
     renderNumberTalk();
@@ -1825,7 +1818,7 @@ function openCoursePath(subjectKey) {
         if (hero) g.from(hero, { y: -22, opacity: 0, duration: 0.5, ease: 'back.out(1.6)' });
         if (mascot) g.from(mascot, { scale: 0, opacity: 0, duration: 0.65, ease: 'back.out(2.2)', delay: 0.35, transformOrigin: 'bottom center' });
         g.from(units, { opacity: 0, duration: 0.4, stagger: 0.08, delay: 0.1, clearProps: 'opacity' });
-        g.from(nodes, { y: 26, opacity: 0, duration: 0.5, ease: 'back.out(1.5)', stagger: 0.05, delay: 0.18, clearProps: 'all' });
+        g.from(nodes, { y: 26, opacity: 0, duration: 0.5, ease: 'back.out(1.5)', stagger: 0.05, delay: 0.18, clearProps: 'transform,opacity' });
         // Contador animado nas lições do hero
         const counter = wrap.querySelector('.course-hero-count');
         if (counter) {
