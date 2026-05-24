@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v354';
+const APP_VERSION = 'v355';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5221,6 +5221,7 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
 Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, a 1-line explanation, and "topic" = the error category it trains.
+QUALITY RULES (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence (e.g. never write "She has ___ always worked" with answer "always"); exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; each option must be a distinct plausible fit for the gap.
 LANGUAGE RULES (critical): the question "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). ONLY "topic" is in EUROPEAN PORTUGUESE (Portugal, never Brazilian) — e.g. "Past Simple", "Preposições", "Conectores".
 Return STRICT JSON array only:
 [{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"PT-PT category"}]`;
@@ -5334,6 +5335,7 @@ They chose (WRONG): "${chosen}"
 Topic: "${item.topic || ''}"
 
 Teach this exact mistake properly, then drill it.
+QUALITY RULES for "exercises" (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence; exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; options must be distinct.
 LANGUAGE RULES (critical): the exercise questions "q", all "options" and the feedback "exp" MUST be in ENGLISH (English practice — keep it immersive, no Portuguese inside exercises). The "wrong"/"right" examples, "said"/"correct" and "points.form" are also in ENGLISH. ONLY the lesson's "explanation", "points.use" and "note" are in EUROPEAN PORTUGUESE (Portugal, never Brazilian).
 Return STRICT JSON only:
 {"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","topic":"${item.topic || ''}"}]}`;
