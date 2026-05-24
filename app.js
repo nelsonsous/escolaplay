@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v343';
+const APP_VERSION = 'v344';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4695,6 +4695,7 @@ function openTutor(opts) {
     // Linha de abertura (fixa, sem gastar chamada à IA)
     const opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
     _tutorAddTutor(opener, null, null);
+    _tutorRenderWeak();
     _tutorRenderMic();
 }
 window.openTutor = openTutor;
@@ -4707,6 +4708,51 @@ function closeTutor() {
     tutorState = null;
 }
 window.closeTutor = closeTutor;
+
+// ---- Erros a treinar (áreas fracas, persistidas em state.max.tutorWeak) ----
+function _tutorTrackWeak(topic, correct) {
+    if (!topic || !state.max) return;
+    topic = String(topic).trim();
+    if (!topic || topic.length > 44) return;
+    state.max.tutorWeak = state.max.tutorWeak || {};
+    const w = state.max.tutorWeak[topic] || { wrong: 0, right: 0, last: 0 };
+    if (correct) w.right++; else w.wrong++;
+    w.last = Date.now();
+    state.max.tutorWeak[topic] = w;
+    saveState();
+}
+function _tutorTopWeak(n) {
+    const w = (state.max && state.max.tutorWeak) || {};
+    return Object.keys(w)
+        .filter(k => (w[k].wrong || 0) > (w[k].right || 0))
+        .sort((a, b) => ((w[b].wrong - w[b].right) - (w[a].wrong - w[a].right)) || (w[b].last - w[a].last))
+        .slice(0, n || 6);
+}
+function _tutorRenderWeak() {
+    const list = _tutorTopWeak(6);
+    if (!list.length) return;
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const w = state.max.tutorWeak;
+    const chips = list.map(t => `<span class="tutor-weak-chip">${escapeHtml(t)} <b>×${w[t].wrong - (w[t].right || 0)}</b></span>`).join('');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-weak">
+          <div class="tutor-weak-h">📌 Os teus erros a treinar</div>
+          <div class="tutor-weak-chips">${chips}</div>
+          <button class="tutor-lbtn prac" onclick="_tutorPracticeWeak()"><i class="fas fa-dumbbell"></i> Treinar os meus erros</button>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorPracticeWeak() {
+    const list = _tutorTopWeak(3);
+    if (!list.length) return;
+    tutorState._practiceReply = 'Boa! Continuamos quando quiseres.';
+    _tutorGeneratePractice(list.join(', '), '');
+}
+window._tutorPracticeWeak = _tutorPracticeWeak;
 
 function _tutorAvatar() {
     return (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(34)) || '🧑‍🏫';
@@ -4937,6 +4983,7 @@ Return STRICT JSON:
 function _tutorShowCorrection(d) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
+    if (d.errorType) _tutorTrackWeak(d.errorType, false);
     const badge = d.errorType ? `<span class="tutor-errtype">${escapeHtml(d.errorType)}</span>` : '';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
@@ -4992,9 +5039,9 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
-Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, and a 1-line explanation in EUROPEAN PORTUGUESE (Portugal).
+Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, a 1-line explanation in EUROPEAN PORTUGUESE (Portugal), and "topic" = the error category it trains, in EUROPEAN PORTUGUESE (e.g. "Past Simple", "Preposições", "Conectores").
 Return STRICT JSON array only:
-[{"q":"...","options":["..","..",".."],"answer":0,"exp":".."}]`;
+[{"q":"...","options":["..","..",".."],"answer":0,"exp":"..","topic":".."}]`;
     try {
         const { text } = await callClaudeAPI(prompt, 700, true);
         if (!tutorState) return;
@@ -5003,7 +5050,7 @@ Return STRICT JSON array only:
         if (m) { try { items = JSON.parse(m[0]); } catch {} }
         items = (items || []).filter(it => it && it.q && Array.isArray(it.options) && it.options.length >= 2 && typeof it.answer === 'number').slice(0, 3);
         if (!items.length) { _tutorFinishPractice(); return; }
-        tutorState._quiz = { items, idx: 0, correct: 0 };
+        tutorState._quiz = { items, idx: 0, correct: 0, topic: errorType };
         _tutorRenderQuizItem();
     } catch (e) {
         console.warn('[tutor] practice failed', e);
@@ -5039,6 +5086,7 @@ function _tutorQuizAnswer(i) {
     card.dataset.done = '1';
     const ok = i === it.answer;
     if (ok) q.correct++;
+    _tutorTrackWeak(it.topic || q.topic, ok);
     card.querySelectorAll('.tutor-qopt').forEach((b, idx) => {
         b.disabled = true;
         if (idx === it.answer) b.classList.add('right');
@@ -5060,6 +5108,7 @@ function _tutorFinishPractice(correct, total) {
     if (tutorState) tutorState._practiceReply = null;
     const score = (typeof correct === 'number') ? ` Acertaste ${correct}/${total}.` : '';
     _tutorAddTutor(`Nice work!${score} ${reply}`, '', '', true);
+    _tutorRenderWeak();
 }
 window._tutorQuizAnswer = _tutorQuizAnswer;
 window._tutorQuizNext = _tutorQuizNext;
