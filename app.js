@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v336';
+const APP_VERSION = 'v337';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4937,6 +4937,68 @@ function _pcm16ToWav(pcm, sampleRate) {
     return new Blob([buf], { type: 'audio/wav' });
 }
 
+// ============================================================
+// EDGE TTS — vozes neurais grátis do Microsoft Edge (read-aloud).
+// Sem key, limites largos. Via WebSocket; pode ser bloqueado pelo
+// browser (CORS/WS) — nesse caso entra em cooldown e cai p/ Gemini/sistema.
+// ============================================================
+const EDGE_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+let _edgeCooldownUntil = 0;
+const EDGE_VOICES = [
+    { id: 'en-US-AriaNeural', label: 'Aria · US ♀' },
+    { id: 'en-US-GuyNeural', label: 'Guy · US ♂' },
+    { id: 'en-US-JennyNeural', label: 'Jenny · US ♀' },
+    { id: 'en-GB-SoniaNeural', label: 'Sonia · UK ♀' },
+    { id: 'en-GB-RyanNeural', label: 'Ryan · UK ♂' }
+];
+function _xmlEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&apos;').replace(/"/g, '&quot;'); }
+function _uuidHex() { try { return crypto.randomUUID().replace(/-/g, ''); } catch { return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16)); } }
+async function _edgeSecToken() {
+    const WIN_EPOCH = 11644473600;
+    let ticks = Math.floor(Date.now() / 1000) + WIN_EPOCH;
+    ticks -= ticks % 300;
+    ticks *= 1e9 / 100;
+    const str = String(ticks) + EDGE_TOKEN;
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+async function _edgeTTS(text, voiceName, lang) {
+    const voice = voiceName || state.edgeVoice || 'en-US-AriaNeural';
+    const cacheKey = `edge|${voice}|${text}`;
+    const cached = await _idbGet(cacheKey);
+    if (cached instanceof Blob) return cached;
+    let token;
+    try { token = await _edgeSecToken(); } catch { return null; }
+    const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${token}&Sec-MS-GEC-Version=1-130.0.2849.68`;
+    return new Promise((resolve) => {
+        let ws, done = false;
+        const chunks = [];
+        const finish = (blob) => { if (done) return; done = true; try { ws && ws.close(); } catch {} resolve(blob); };
+        const to = setTimeout(() => finish(null), 8000);
+        try { ws = new WebSocket(url); } catch { clearTimeout(to); resolve(null); return; }
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = () => {
+            try {
+                ws.send(`X-Timestamp:${new Date().toString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
+                const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang || 'en-US'}'><voice name='${voice}'><prosody rate='-4%' pitch='0%'>${_xmlEsc(text)}</prosody></voice></speak>`;
+                ws.send(`X-RequestId:${_uuidHex()}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toString()}\r\nPath:ssml\r\n\r\n${ssml}`);
+            } catch { clearTimeout(to); finish(null); }
+        };
+        ws.onmessage = (ev) => {
+            if (typeof ev.data === 'string') {
+                if (ev.data.indexOf('Path:turn.end') !== -1) {
+                    clearTimeout(to);
+                    finish(chunks.length ? (() => { const b = new Blob(chunks, { type: 'audio/mpeg' }); _idbPut(cacheKey, b); return b; })() : null);
+                }
+            } else {
+                try { const dv = new DataView(ev.data); const hLen = dv.getUint16(0); chunks.push(new Uint8Array(ev.data, 2 + hLen)); } catch {}
+            }
+        };
+        ws.onerror = () => { clearTimeout(to); finish(null); };
+        ws.onclose = () => { if (!done) { clearTimeout(to); finish(chunks.length ? new Blob(chunks, { type: 'audio/mpeg' }) : null); } };
+    });
+}
+
 let _geminiCooldownUntil = 0; // enquanto > now, salta o Gemini e usa voz do sistema
 async function _geminiTTS(text, voiceName, lang) {
     const key = state.max.geminiKey;
@@ -5064,36 +5126,50 @@ if (typeof document !== 'undefined') {
     document.addEventListener('touchend', _unlockSpeechOnce, { once: true, capture: true });
 }
 
-// Router central de fala. EN com key Gemini -> voz neural; senao sistema.
+// Toca um Blob de áudio no elemento já desbloqueado. Devolve true se arrancou.
+function _playBlob(blob, text, lang, cbs) {
+    try {
+        const audio = _getTtsAudioEl();
+        try { if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src); } catch {}
+        audio.src = URL.createObjectURL(blob);
+        _ttsAudio = audio;
+        audio.onplay = () => { _ttsLoadingClear(); cbs.onStart && cbs.onStart(); };
+        audio.onended = () => { cbs.onEnd && cbs.onEnd(); };
+        audio.onerror = () => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); };
+        const p = audio.play();
+        if (p && p.catch) p.catch(() => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); });
+        return true;
+    } catch { return false; }
+}
+
+// Router central de fala. EN: Edge (neural grátis) -> Gemini -> voz do sistema.
 async function speakEN(text, lang, cbs, voiceOverride) {
     cbs = cbs || {};
     if (!text) { cbs.onEnd && cbs.onEnd(); return; }
     _stopCurrentAudio();
     const isEN = /^en/i.test(lang || '');
-    // Se o Gemini está em cooldown (limite/erro recente), salta já para a voz
-    // do sistema — SÍNCRONO, no mesmo gesto, para o iOS deixar tocar.
-    if (isEN && _hasGeminiTTS() && Date.now() > _geminiCooldownUntil) {
-        _ttsLoadingShow();
-        try {
-            const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
-            if (blob) {
-                // Reutiliza o elemento de áudio já desbloqueado (toca após await em iOS)
-                const audio = _getTtsAudioEl();
-                try { if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src); } catch {}
-                const url = URL.createObjectURL(blob);
-                audio.src = url;
-                _ttsAudio = audio;
-                audio.onplay = () => { _ttsLoadingClear(); cbs.onStart && cbs.onStart(); };
-                audio.onended = () => { cbs.onEnd && cbs.onEnd(); };
-                audio.onerror = () => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); };
-                const p = audio.play();
-                // Em iOS o play() apos await pode ser bloqueado (sem gesto) -> fallback voz sistema
-                if (p && p.catch) p.catch(() => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); });
-                return;
-            }
+    if (isEN) {
+        // 1) Edge TTS (neural, grátis) — preferido, se ativo e fora de cooldown
+        if (state.useEdgeTTS !== false && Date.now() > _edgeCooldownUntil) {
+            _ttsLoadingShow();
+            try {
+                const blob = await _edgeTTS(text, state.edgeVoice, lang);
+                if (blob) { if (_playBlob(blob, text, lang, cbs)) return; }
+                else { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; } // falhou (browser bloqueou?) — recua
+            } catch (e) { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; console.warn('[edge-tts]', e); }
             _ttsLoadingClear();
-        } catch (e) { _ttsLoadingClear(); console.warn('[gemini-tts] fallback:', e); }
+        }
+        // 2) Gemini (se houver key e fora de cooldown)
+        if (_hasGeminiTTS() && Date.now() > _geminiCooldownUntil) {
+            _ttsLoadingShow();
+            try {
+                const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
+                if (blob) { if (_playBlob(blob, text, lang, cbs)) return; }
+            } catch (e) { console.warn('[gemini-tts]', e); }
+            _ttsLoadingClear();
+        }
     }
+    // 3) Voz do sistema (síncrona)
     _sysSpeak(text, lang, cbs);
 }
 window.speakEN = speakEN;
@@ -10658,6 +10734,22 @@ function openVoicePickerEN() {
     ];
     const gemActive = !!(state.max && state.max.geminiKey);
     const gemVoice = state.geminiVoice || 'Kore';
+    // Secção Edge (voz neural grátis, sem key)
+    const edgeOn = state.useEdgeTTS !== false;
+    const edgeVoice = state.edgeVoice || 'en-US-AriaNeural';
+    const edgeSection = `
+      <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#60a5fa"></i> Voz neural grátis (Edge)
+          <button onclick="toggleEdgeTTS()" style="margin-left:auto;font-size:0.66rem;font-weight:800;background:${edgeOn ? '#22c55e' : 'rgba(255,255,255,0.2)'};color:#fff;border:none;padding:3px 10px;border-radius:10px;cursor:pointer">${edgeOn ? 'ON' : 'OFF'}</button>
+        </div>
+        <div style="font-size:0.78rem;opacity:0.85;margin:6px 0 10px;line-height:1.4">Vozes naturais, sem key e sem limite apertado. Pode falhar em alguns browsers — aí cai para Gemini/sistema.</div>
+        ${edgeOn ? `
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            ${EDGE_VOICES.map(v => `<button onclick="chooseEdgeVoice('${v.id}')" style="background:${v.id === edgeVoice ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${v.id === edgeVoice ? '#0f172a' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.76rem;font-weight:700;cursor:pointer">${v.label}</button>`).join('')}
+          </div>
+          <button onclick="previewEdgeVoice()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
+        ` : ''}
+      </div>`;
     const gemSection = `
       <div style="background:linear-gradient(135deg,#1e1b4b,#4c1d95);color:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#fbbf24"></i> Voz neural Gemini ${gemActive ? '<span style="font-size:0.66rem;background:#10b981;padding:2px 8px;border-radius:8px;margin-left:auto">ATIVA</span>' : '<span style="font-size:0.66rem;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;margin-left:auto">INATIVA</span>'}</div>
@@ -10702,6 +10794,7 @@ function openVoicePickerEN() {
       <div class="modal-content" style="max-width:500px;max-height:85vh;padding:18px;display:flex;flex-direction:column">
         <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Voz inglesa</h3>
         <div style="flex:1;overflow-y:auto;padding-right:4px">
+          ${edgeSection}
           ${gemSection}
           <p style="font-size:0.85rem;color:#6b7280;margin:0 0 6px;line-height:1.45">Ou usa uma voz do sistema (${enVoices.length} disponíveis). Toca em 🔊 para ouvir.</p>
           <p style="font-size:0.74rem;color:#9ca3af;margin:0 0 10px;line-height:1.4">ℹ️ No iPhone, o Safari não deixa as apps usar as vozes "Premium" que descarregas — ficam só para a Siri. Para voz topo, usa o Gemini acima.</p>
@@ -10761,6 +10854,25 @@ function toggleGeminiRotate() {
     saveState();
     openVoicePickerEN();
 }
+function toggleEdgeTTS() {
+    state.useEdgeTTS = (state.useEdgeTTS === false) ? true : false;
+    _edgeCooldownUntil = 0;
+    saveState();
+    openVoicePickerEN();
+}
+function chooseEdgeVoice(v) {
+    state.edgeVoice = v;
+    _edgeCooldownUntil = 0;
+    saveState();
+    openVoicePickerEN();
+    setTimeout(() => previewEdgeVoice(), 150);
+}
+function previewEdgeVoice() {
+    speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US');
+}
+window.toggleEdgeTTS = toggleEdgeTTS;
+window.chooseEdgeVoice = chooseEdgeVoice;
+window.previewEdgeVoice = previewEdgeVoice;
 window.toggleGeminiRotate = toggleGeminiRotate;
 window.openVoicePickerEN = openVoicePickerEN;
 window.addGeminiKey = addGeminiKey;
