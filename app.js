@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v329';
+const APP_VERSION = 'v330';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4779,6 +4779,7 @@ async function _geminiTTS(text, voiceName, lang) {
 }
 
 function _stopCurrentAudio() {
+    try { if (typeof _ttsLoadingClear === 'function') _ttsLoadingClear(); } catch {}
     try { if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio.src = ''; _ttsAudio = null; } } catch {}
     try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
 }
@@ -4803,6 +4804,25 @@ function _sysSpeak(text, lang, cbs) {
     } catch { cbs.onEnd && cbs.onEnd(); }
 }
 
+// Indicador "a processar voz…" enquanto o Gemini gera o audio (so aparece
+// se demorar >220ms — audio em cache nao faz piscar o spinner).
+let _ttsLoadingTimer = null;
+function _ttsLoadingShow() {
+    _ttsLoadingClear();
+    _ttsLoadingTimer = setTimeout(() => {
+        if (document.getElementById('tts-loading')) return;
+        const el = document.createElement('div');
+        el.id = 'tts-loading';
+        el.className = 'tts-loading';
+        el.innerHTML = '<span class="tts-spinner"></span> A processar voz…';
+        document.body.appendChild(el);
+    }, 220);
+}
+function _ttsLoadingClear() {
+    if (_ttsLoadingTimer) { clearTimeout(_ttsLoadingTimer); _ttsLoadingTimer = null; }
+    document.getElementById('tts-loading')?.remove();
+}
+
 // Router central de fala. EN com key Gemini -> voz neural; senao sistema.
 async function speakEN(text, lang, cbs, voiceOverride) {
     cbs = cbs || {};
@@ -4810,20 +4830,22 @@ async function speakEN(text, lang, cbs, voiceOverride) {
     _stopCurrentAudio();
     const isEN = /^en/i.test(lang || '');
     if (isEN && _hasGeminiTTS()) {
+        _ttsLoadingShow();
         try {
             const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
             if (blob) {
                 const audio = new Audio(URL.createObjectURL(blob));
                 _ttsAudio = audio;
-                audio.onplay = () => cbs.onStart && cbs.onStart();
+                audio.onplay = () => { _ttsLoadingClear(); cbs.onStart && cbs.onStart(); };
                 audio.onended = () => { cbs.onEnd && cbs.onEnd(); try { URL.revokeObjectURL(audio.src); } catch {} };
-                audio.onerror = () => _sysSpeak(text, lang, cbs);
+                audio.onerror = () => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); };
                 const p = audio.play();
                 // Em iOS o play() apos await pode ser bloqueado (sem gesto) -> fallback voz sistema
-                if (p && p.catch) p.catch(() => _sysSpeak(text, lang, cbs));
+                if (p && p.catch) p.catch(() => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); });
                 return;
             }
-        } catch (e) { console.warn('[gemini-tts] fallback:', e); }
+            _ttsLoadingClear();
+        } catch (e) { _ttsLoadingClear(); console.warn('[gemini-tts] fallback:', e); }
     }
     _sysSpeak(text, lang, cbs);
 }
