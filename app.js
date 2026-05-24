@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v335';
+const APP_VERSION = 'v336';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4937,6 +4937,7 @@ function _pcm16ToWav(pcm, sampleRate) {
     return new Blob([buf], { type: 'audio/wav' });
 }
 
+let _geminiCooldownUntil = 0; // enquanto > now, salta o Gemini e usa voz do sistema
 async function _geminiTTS(text, voiceName, lang) {
     const key = state.max.geminiKey;
     if (!key) return null;
@@ -4957,10 +4958,13 @@ async function _geminiTTS(text, voiceName, lang) {
     const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) {
         console.warn('[gemini-tts] HTTP', res.status);
-        const msg = res.status === 400 ? 'Key Gemini inválida — gera uma nova no AI Studio'
-            : res.status === 429 ? 'Limite Gemini atingido — tenta daqui a pouco'
-            : res.status === 403 ? 'Key Gemini sem permissão (ativa a Generative Language API)'
-            : 'Voz Gemini falhou (HTTP ' + res.status + ')';
+        // Cooldown: durante este tempo usa-se a voz do sistema (sem martelar a API)
+        if (res.status === 429) _geminiCooldownUntil = Date.now() + 90 * 1000;
+        else if (res.status === 400 || res.status === 403) _geminiCooldownUntil = Date.now() + 10 * 60 * 1000;
+        const msg = res.status === 400 ? 'Key Gemini inválida — uso a voz do sistema'
+            : res.status === 429 ? 'Limite Gemini atingido — uso a voz do sistema'
+            : res.status === 403 ? 'Key Gemini sem permissão — uso a voz do sistema'
+            : 'Voz Gemini falhou — uso a voz do sistema';
         try { showToast(msg); } catch {}
         return null;
     }
@@ -5066,7 +5070,9 @@ async function speakEN(text, lang, cbs, voiceOverride) {
     if (!text) { cbs.onEnd && cbs.onEnd(); return; }
     _stopCurrentAudio();
     const isEN = /^en/i.test(lang || '');
-    if (isEN && _hasGeminiTTS()) {
+    // Se o Gemini está em cooldown (limite/erro recente), salta já para a voz
+    // do sistema — SÍNCRONO, no mesmo gesto, para o iOS deixar tocar.
+    if (isEN && _hasGeminiTTS() && Date.now() > _geminiCooldownUntil) {
         _ttsLoadingShow();
         try {
             const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
