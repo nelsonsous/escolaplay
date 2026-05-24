@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v364';
+const APP_VERSION = 'v365';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5035,6 +5035,96 @@ function _tutorRenderDeepDive(d) {
     _tutorScrollToLastTop();
     _tutorRenderMic();
 }
+
+// ---- Treino de pronúncia: lê a frase-alvo em voz alta e recebe nota ----
+// Nota: o Voxtral devolve texto (não fonemas), por isso a "nota" é uma
+// aproximação por palavra — apanha trocas audíveis (ship/sheep), não o "th".
+function _tutorStartPron(target, reply) {
+    if (!tutorState || !target) return;
+    tutorState._pron = { target, reply: reply || '' };
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">🎤</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">🎤 Treina a pronúncia</div>
+          <div class="tutor-pron-target">${escapeHtml(target)} <button class="tutor-say" data-text="${escapeHtml(target)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-pron-hint">Ouve o modelo, depois toca no micro e lê em voz alta.</div>
+        </div>
+      </div>`);
+    _tutorScrollToLastTop();
+    _tutorRenderPronBar();
+    if (typeof speakEN === 'function') setTimeout(() => { if (tutorState && tutorState._pron) speakEN(target, tutorState.lang); }, 300);
+}
+function _tutorRenderPronBar() {
+    const bar = document.getElementById('tutor-bar');
+    if (!bar) return;
+    bar.innerHTML = `
+      <div id="tutor-live" class="tutor-live" style="display:none"></div>
+      <div class="tutor-pron-row">
+        <button id="tutor-pron-mic" class="tutor-pron-mic"><i class="fas fa-microphone"></i> Tocar e ler</button>
+        <button class="tutor-quit" onclick="_tutorEndPron()"><i class="fas fa-arrow-left"></i> sair</button>
+      </div>`;
+    const mic = document.getElementById('tutor-pron-mic');
+    if (mic) mic.addEventListener('click', _tutorStartMic);
+}
+function _tutorPronEval(said, target) {
+    const norm = s => normalize(s).replace(/[^a-z0-9\s']/g, '');
+    const heard = norm(said).split(/\s+/).filter(Boolean);
+    const words = String(target).split(/\s+/).map(tw => {
+        const n = norm(tw);
+        return { w: tw, scorable: !!n, ok: !!n && heard.some(h => _wordSimilar(n, h)) };
+    });
+    const scorable = words.filter(x => x.scorable);
+    const okCount = scorable.filter(x => x.ok).length;
+    const score = scorable.length ? Math.round(100 * okCount / scorable.length) : 0;
+    return { score, words };
+}
+function _tutorEvalPron(said) {
+    const pron = tutorState && tutorState._pron;
+    if (!pron) return;
+    said = (said || '').trim();
+    const { score, words } = _tutorPronEval(said, pron.target);
+    const wordsHtml = words.map(x => `<span class="tutor-pw ${x.scorable ? (x.ok ? 'ok' : 'no') : ''}">${escapeHtml(x.w)}</span>`).join(' ');
+    let verdict, cls;
+    if (!said) { verdict = 'Não ouvi nada — toca e lê outra vez.'; cls = 'no'; }
+    else if (score >= 85) { verdict = `Excelente! Soaste muito claro.`; cls = 'ok'; }
+    else if (score >= 60) { verdict = `Quase lá. Foca as palavras a vermelho e repete.`; cls = 'mid'; }
+    else { verdict = `Ouve o modelo e tenta de novo, mais devagar.`; cls = 'no'; }
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">🎯 Resultado da pronúncia</div>
+          <div class="tutor-pron-score s-${cls}">${said ? score + '%' : '—'}</div>
+          <div class="tutor-pron-words">${wordsHtml}</div>
+          ${said ? `<div class="tutor-pron-said">Ouvi: "${escapeHtml(said)}"</div>` : ''}
+          <div class="tutor-explain">${verdict}</div>
+          <div class="tutor-lesson-btns2">
+            <button class="tutor-lbtn rep" onclick="_tutorPronRetry()"><i class="fas fa-repeat"></i> Ouvir e repetir</button>
+            <button class="tutor-lbtn cont" onclick="_tutorEndPron(true)"><i class="fas fa-arrow-right"></i> Continuar</button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderPronBar();
+}
+function _tutorPronRetry() {
+    const pron = tutorState && tutorState._pron;
+    if (pron && pron.target && typeof speakEN === 'function') speakEN(pron.target, tutorState.lang);
+}
+function _tutorEndPron(cont) {
+    const pron = tutorState && tutorState._pron;
+    const reply = pron && pron.reply;
+    if (tutorState) tutorState._pron = null;
+    if (cont && reply) _tutorAddTutor(reply, '', '', true);
+    else _tutorRenderMic();
+}
+window._tutorStartPron = _tutorStartPron;
+window._tutorPronRetry = _tutorPronRetry;
+window._tutorEndPron = _tutorEndPron;
+
 function _tutorAutoListen() {
     if (!tutorState) return;
     _tutorRenderMic();
@@ -5177,7 +5267,9 @@ async function _tutorTranscribeVoxtral(blob) {
         const data = await res.json();
         const text = (data.text || '').trim();
         if (liveEl) liveEl.style.display = 'none';
-        if (!tutorState || !text) return;
+        if (!tutorState) return;
+        if (tutorState._pron) { _tutorEvalPron(text); return; }
+        if (!text) return;
         if (inp) { inp.value = text; tutorState._draft = text; _tutorGrow(inp); try { inp.focus(); } catch {} }
     } catch (e) {
         console.warn('[tutor] voxtral failed', e);
@@ -5217,6 +5309,7 @@ function _tutorStartWebSpeech() {
         _tutorRecog = null;
         if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
         if (liveEl) liveEl.style.display = 'none';
+        if (tutorState && tutorState._pron) { _tutorEvalPron((finalTxt || '').replace(/\s+/g, ' ').trim()); return; }
         // Deixa o texto na barra para reveres/editares — não envia sozinho
         const inpNow = document.getElementById('tutor-text');
         if (inpNow && inpNow.value.trim()) { try { inpNow.focus(); } catch {} }
@@ -5332,14 +5425,14 @@ function _tutorShowCorrection(d) {
           ${_tutorXtraRow(d.lessonTitle || d.errorType || '')}
           <button class="tutor-lbtn prac full" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar agora · 3 exercícios →</button>
           <div class="tutor-lesson-btns2">
-            <button class="tutor-lbtn rep" onclick="_tutorDoRepeat()"><i class="fas fa-repeat"></i> Repetir</button>
+            <button class="tutor-lbtn rep" onclick="_tutorDoPron()"><i class="fas fa-microphone"></i> Pronúncia</button>
             <button class="tutor-lbtn cont" onclick="_tutorDoContinue()"><i class="fas fa-arrow-right"></i> Continuar</button>
           </div>
         </div>
       </div>`);
     _tutorScroll();
     const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe: praticar o erro, repetir a frase, ou continuar</div>`;
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe: praticar o erro, treinar a pronúncia, ou continuar</div>`;
     if (d.corrected && typeof speakEN === 'function') {
         setTimeout(() => { if (tutorState && tutorState._pending) speakEN(d.corrected, tutorState.lang); }, 250);
     }
@@ -5360,6 +5453,12 @@ function _tutorDoRepeat() {
     tutorState.drill = { expected: d.corrected, pendingReply: d.reply };
     _tutorAddTutor('Repeat after me: ' + d.corrected, '', '', true);
 }
+function _tutorDoPron() {
+    const d = tutorState && tutorState._pending; if (!d) return;
+    tutorState._pending = null;
+    _tutorStartPron(d.corrected, d.reply);
+}
+window._tutorDoPron = _tutorDoPron;
 function _tutorDoPractice() {
     const d = tutorState && tutorState._pending; if (!d) return;
     tutorState._practiceReply = d.reply;
