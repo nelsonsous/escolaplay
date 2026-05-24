@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v333';
+const APP_VERSION = 'v334';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4967,9 +4967,18 @@ async function _geminiTTS(text, voiceName, lang) {
     return wav;
 }
 
+// Elemento de áudio persistente — desbloqueado no 1.º toque do utilizador.
+// Reutilizá-lo (em vez de criar new Audio() a cada vez) permite tocar áudio
+// vindo do Gemini APÓS o await sem o iOS bloquear (já está "unlocked").
+let _ttsAudioEl = null;
+function _getTtsAudioEl() {
+    if (!_ttsAudioEl) { _ttsAudioEl = new Audio(); _ttsAudioEl.preload = 'auto'; }
+    return _ttsAudioEl;
+}
 function _stopCurrentAudio() {
     try { if (typeof _ttsLoadingClear === 'function') _ttsLoadingClear(); } catch {}
-    try { if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio.src = ''; _ttsAudio = null; } } catch {}
+    try { if (_ttsAudioEl) { _ttsAudioEl.pause(); } } catch {}
+    _ttsAudio = null;
     // Só cancela a fala se estiver mesmo a tocar (cancelar idle e depois falar
     // no mesmo gesto dropa o áudio em iOS).
     try { const s = window.speechSynthesis; if (s && (s.speaking || s.pending)) s.cancel(); } catch {}
@@ -5030,6 +5039,13 @@ function _unlockSpeechOnce() {
             window.speechSynthesis.speak(u);
         }
     } catch {}
+    // Desbloquear o elemento de áudio com um WAV silencioso curtinho
+    try {
+        const a = _getTtsAudioEl();
+        a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+        const p = a.play();
+        if (p && p.then) p.then(() => { try { a.pause(); a.currentTime = 0; } catch {} }).catch(() => {});
+    } catch {}
 }
 if (typeof document !== 'undefined') {
     document.addEventListener('pointerdown', _unlockSpeechOnce, { once: true, capture: true });
@@ -5047,10 +5063,14 @@ async function speakEN(text, lang, cbs, voiceOverride) {
         try {
             const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
             if (blob) {
-                const audio = new Audio(URL.createObjectURL(blob));
+                // Reutiliza o elemento de áudio já desbloqueado (toca após await em iOS)
+                const audio = _getTtsAudioEl();
+                try { if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src); } catch {}
+                const url = URL.createObjectURL(blob);
+                audio.src = url;
                 _ttsAudio = audio;
                 audio.onplay = () => { _ttsLoadingClear(); cbs.onStart && cbs.onStart(); };
-                audio.onended = () => { cbs.onEnd && cbs.onEnd(); try { URL.revokeObjectURL(audio.src); } catch {} };
+                audio.onended = () => { cbs.onEnd && cbs.onEnd(); };
                 audio.onerror = () => { _ttsLoadingClear(); _sysSpeak(text, lang, cbs); };
                 const p = audio.play();
                 // Em iOS o play() apos await pode ser bloqueado (sem gesto) -> fallback voz sistema
