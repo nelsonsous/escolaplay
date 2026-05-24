@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v345';
+const APP_VERSION = 'v346';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4846,16 +4846,17 @@ function _tutorRenderMic() {
     bar.innerHTML = `
       <div id="tutor-live" class="tutor-live" style="display:none"></div>
       <div class="tutor-inputrow">
-        <input id="tutor-text" class="tutor-text" type="text" autocomplete="off" autocapitalize="sentences"
-               placeholder="${sttOk ? 'Fala ou escreve…' : 'Escreve a tua resposta…'}">
+        <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
+               placeholder="${sttOk ? 'Fala ou escreve…' : 'Escreve a tua resposta…'}"></textarea>
         ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="Falar"><i class="fas fa-microphone"></i></button>` : ''}
         <button id="tutor-send" class="tutor-send" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
       </div>`;
     const inp = document.getElementById('tutor-text');
     if (inp) {
         inp.value = draft;
-        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); _tutorSubmitText(); } });
-        inp.addEventListener('input', () => { if (tutorState) tutorState._draft = inp.value; });
+        _tutorGrow(inp);
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _tutorSubmitText(); } });
+        inp.addEventListener('input', () => { if (tutorState) tutorState._draft = inp.value; _tutorGrow(inp); });
         inp.addEventListener('focus', () => {
             if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
             if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
@@ -4865,6 +4866,11 @@ function _tutorRenderMic() {
     if (send) send.addEventListener('click', _tutorSubmitText);
     const mic = document.getElementById('tutor-mic');
     if (mic) mic.addEventListener('click', _tutorStartMic);
+}
+function _tutorGrow(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
 }
 function _tutorSubmitText() {
     const inp = document.getElementById('tutor-text');
@@ -5003,7 +5009,7 @@ async function _tutorTranscribeVoxtral(blob) {
         const text = (data.text || '').trim();
         if (liveEl) liveEl.style.display = 'none';
         if (!tutorState || !text) return;
-        if (inp) { inp.value = text; tutorState._draft = text; try { inp.focus(); } catch {} }
+        if (inp) { inp.value = text; tutorState._draft = text; _tutorGrow(inp); try { inp.focus(); } catch {} }
     } catch (e) {
         console.warn('[tutor] voxtral failed', e);
         if (liveEl) liveEl.style.display = 'none';
@@ -5034,7 +5040,7 @@ function _tutorStartWebSpeech() {
             else interim += res[0].transcript;
         }
         const live = (finalTxt + interim).replace(/\s+/g, ' ').trim();
-        if (inp) { inp.value = live; tutorState._draft = live; }
+        if (inp) { inp.value = live; tutorState._draft = live; _tutorGrow(inp); }
         if (liveEl) liveEl.textContent = live || '…';
     };
     r.onerror = () => {};
