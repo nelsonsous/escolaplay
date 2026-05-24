@@ -500,7 +500,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v317';
+const APP_VERSION = 'v318';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1766,16 +1766,7 @@ function openCoursePath(subjectKey) {
               </div>
               <div style="font-size:0.82rem;opacity:0.9">⭐ ${totalCrowns} / ${maxCrowns} coroas</div>
             </div>
-            <div class="course-mascot" id="course-mascot">
-              <div class="cm-hat"></div>
-              <div class="cm-body">
-                <div class="cm-eye left"></div>
-                <div class="cm-eye right"></div>
-                <div class="cm-cheek left"></div>
-                <div class="cm-cheek right"></div>
-                <div class="cm-mouth"></div>
-              </div>
-            </div>
+            <div class="course-mascot-host" id="course-mascot" style="position:relative;z-index:1"></div>
           </div>
           ${unitsHtml}
         </div>
@@ -1795,6 +1786,11 @@ function openCoursePath(subjectKey) {
         if (!sk || !lid) { showToast('Sem dados na lição: ' + (lid || '?')); return; }
         startCourseLesson(sk, lid);
     });
+    // Mascote SVG animado (Pip) no hero
+    const mascotHost = wrap.querySelector('#course-mascot');
+    if (mascotHost && window.Mascot) {
+        try { window._courseMascot = window.Mascot.create(mascotHost, { size: 78 }); } catch {}
+    }
     // Reveal premium com GSAP (física de mola). Degrada para CSS se ausente.
     if (window.gsap) {
         wrap.classList.add('gsap-on');
@@ -5088,8 +5084,10 @@ function showFeedback(e, isCorrect) {
     if (currentSession) currentSession._partial = null; // consumido aqui
     if (isCorrect) playCorrectSound(); else playWrongSound();
     _haptic(isCorrect ? 'ok' : 'wrong');
-    // Mascote festeja no acerto (se o ecra do curso estiver visivel)
-    if (isCorrect) { const _m = document.getElementById('course-mascot'); if (_m) { _m.classList.remove('cheer'); void _m.offsetWidth; _m.classList.add('cheer'); } }
+    // Mascote reage (se o ecra do curso estiver visivel)
+    if (window._courseMascot && window._courseMascot.el && window._courseMascot.el.isConnected) {
+        window._courseMascot.react(isCorrect ? 'happy' : 'sad');
+    }
     // Esconder botão IA inline (a pista só faz sentido ANTES de responder)
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     if (profWrap) profWrap.style.display = 'none';
@@ -5621,7 +5619,19 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     const hero = document.getElementById('summary-hero');
     hero.classList.remove('tier-perfect','tier-great','tier-ok','tier-low');
     hero.classList.add(tier);
-    document.getElementById('summary-emoji').textContent = emoji;
+    // Mascote Pip no lugar do emoji — reage ao desempenho
+    const emojiEl = document.getElementById('summary-emoji');
+    if (window.Mascot && emojiEl) {
+        emojiEl.textContent = '';
+        emojiEl.style.display = 'flex';
+        emojiEl.style.justifyContent = 'center';
+        try {
+            const m = window.Mascot.create(emojiEl, { size: 72 });
+            setTimeout(() => { try { m && m.react(acc >= 50 ? (acc >= 80 ? 'cheer' : 'happy') : 'sad'); } catch {} }, 350);
+        } catch { emojiEl.textContent = emoji; }
+    } else if (emojiEl) {
+        emojiEl.textContent = emoji;
+    }
     document.getElementById('summary-sub').textContent = subLabel;
     document.getElementById('summary-title').textContent = title;
     document.getElementById('sum-correct').textContent = `${s.correct}/${total}`;
