@@ -486,6 +486,7 @@
             ansEls[idx].classList.add('right');
             ansEls.forEach(b => b.classList.add('locked', 'locked-all'));
             room.selectedIdx = idx;
+            if (typeof window._haptic === 'function') window._haptic('ok');
             let pts = 100;
             if (room.hintUsed) pts -= 30;
             pts -= room.wrongTries * 20;
@@ -510,6 +511,7 @@
             game.score = Math.max(0, game.score - 20);
             fb.className = 'esc-feedback err show';
             fb.innerHTML = `❌ Errou. −20 pts. Tenta outra opção ou usa a pista.`;
+            if (typeof window._haptic === 'function') window._haptic('wrong');
             _updateHUD();
         }
     }
