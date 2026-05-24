@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v328';
+const APP_VERSION = 'v329';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1701,6 +1701,8 @@ function _lessonProgress(subjectKey, lessonId) {
     return cs.lessons[lessonId] || { completed: false, accuracy: 0, attempts: 0, crown: 0 };
 }
 function _isLessonUnlocked(course, lessonId) {
+    const lesson = course.lessons.find(l => l.id === lessonId);
+    if (lesson && lesson.unlocked) return true;
     const idx = course.lessons.findIndex(l => l.id === lessonId);
     if (idx <= 0) return true;
     const prev = course.lessons[idx - 1];
@@ -4782,9 +4784,11 @@ function _stopCurrentAudio() {
 }
 
 function _sysSpeak(text, lang, cbs) {
+    cbs = cbs || {};
     if (!('speechSynthesis' in window)) { cbs.onEnd && cbs.onEnd(); return; }
     try {
-        window.speechSynthesis.cancel();
+        const synth = window.speechSynthesis;
+        try { synth.cancel(); synth.resume(); } catch {}
         const u = new SpeechSynthesisUtterance(text);
         u.lang = lang || 'en-US';
         u.rate = /^en/i.test(u.lang) ? 0.95 : 0.96;
@@ -4794,7 +4798,8 @@ function _sysSpeak(text, lang, cbs) {
         u.onstart = () => cbs.onStart && cbs.onStart();
         u.onend = () => cbs.onEnd && cbs.onEnd();
         u.onerror = () => cbs.onEnd && cbs.onEnd();
-        window.speechSynthesis.speak(u);
+        // iOS por vezes precisa de um tick depois do cancel para arrancar a fala
+        setTimeout(() => { try { synth.speak(u); } catch { cbs.onEnd && cbs.onEnd(); } }, 60);
     } catch { cbs.onEnd && cbs.onEnd(); }
 }
 
@@ -4812,8 +4817,10 @@ async function speakEN(text, lang, cbs, voiceOverride) {
                 _ttsAudio = audio;
                 audio.onplay = () => cbs.onStart && cbs.onStart();
                 audio.onended = () => { cbs.onEnd && cbs.onEnd(); try { URL.revokeObjectURL(audio.src); } catch {} };
-                audio.onerror = () => cbs.onEnd && cbs.onEnd();
-                await audio.play();
+                audio.onerror = () => _sysSpeak(text, lang, cbs);
+                const p = audio.play();
+                // Em iOS o play() apos await pode ser bloqueado (sem gesto) -> fallback voz sistema
+                if (p && p.catch) p.catch(() => _sysSpeak(text, lang, cbs));
                 return;
             }
         } catch (e) { console.warn('[gemini-tts] fallback:', e); }
