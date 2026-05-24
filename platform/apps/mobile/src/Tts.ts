@@ -12,7 +12,8 @@
 type SpeechModule = {
   speak: (text: string, opts?: {
     language?: string; voice?: string; rate?: number; pitch?: number;
-    onDone?: () => void; onError?: () => void;
+    onDone?: () => void; onError?: () => void; onStopped?: () => void;
+    onStart?: () => void;
   }) => void;
   stop: () => void;
   isSpeakingAsync?: () => Promise<boolean>;
@@ -131,19 +132,48 @@ export function ttsSpeak(text: string, lang: string = 'en-US', voiceOverride?: s
   void _ttsSpeakSafely(text, lang, voiceOverride);
 }
 
+// Tracking da fala em curso. Cada nova chamada aguarda a anterior
+// terminar (com timeout) antes de iniciar — evita race conditions
+// em iOS onde Speech.speak chamado durante "stopping" falha silente.
+let speakingPromise: Promise<void> | null = null;
+
 async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: string | null): Promise<void> {
   if (!Speech) return;
 
-  // Para qualquer fala em curso. Speech.stop() é seguro mesmo em idle.
-  try { Speech.stop(); } catch { /* swallow */ }
+  // 1. Detectar se há fala em curso, com 3 caminhos:
+  //    a) isSpeakingAsync diz que sim → stop + esperar mais
+  //    b) speakingPromise pendente → aguardar (até timeout)
+  //    c) idle → seguir directo
+  let wasSpeaking = false;
+  try {
+    if (Speech.isSpeakingAsync) {
+      wasSpeaking = await Speech.isSpeakingAsync();
+    }
+  } catch { /* swallow */ }
 
-  // Pequeno delay para o motor TTS recuperar (especialmente após uma
-  // sessão de microfone que mexe no audio session).
-  await new Promise<void>((r) => setTimeout(r, 80));
+  if (wasSpeaking) {
+    try { Speech.stop(); } catch { /* swallow */ }
+    // Espera o motor terminar de "stopping" — testes empíricos
+    // mostram que 250ms é suficiente em iPhones modernos.
+    await new Promise<void>((r) => setTimeout(r, 250));
+  } else if (speakingPromise) {
+    // Há uma promise pendente mas isSpeakingAsync diz idle. Espera
+    // até 200ms para o resolve formal chegar.
+    await Promise.race([
+      speakingPromise,
+      new Promise<void>((r) => setTimeout(r, 200)),
+    ]);
+    // Reset defensivo do stop, caso fique algo em fila.
+    try { Speech.stop(); } catch { /* swallow */ }
+    await new Promise<void>((r) => setTimeout(r, 60));
+  } else {
+    // Idle — apenas defensivo um pequeno tick para deixar event loop.
+    await new Promise<void>((r) => setTimeout(r, 30));
+  }
 
   if (!Speech) return;
 
-  // Resolve qual voz usar (override > preferred > cached best > default).
+  // 2. Resolve qual voz usar (override > preferred > cached best > default).
   let candidate: string | null = null;
   if (voiceOverride !== undefined) {
     candidate = voiceOverride; // explicit (pode ser null para default)
@@ -153,19 +183,30 @@ async function _ttsSpeakSafely(text: string, lang: string, voiceOverride?: strin
     candidate = bestVoiceCache[lang]!;
   }
 
-  // Valida que a voz existe no sistema — evita Speech.speak silencioso
-  // quando o identifier está stale (após update iOS, voz removida, etc.).
+  // 3. Valida que a voz existe — evita Speech.speak silencioso quando o
+  // identifier está stale.
   if (candidate) {
     const known = await ensureKnownVoices(lang);
     if (known.size > 0 && !known.has(candidate)) {
-      candidate = null; // cai para default
+      candidate = null;
     }
-    // Se known.size === 0 (lookup falhou), confiamos no candidate
-    // e deixamos o iOS decidir.
   }
 
   if (!Speech) return;
-  Speech.speak(text, voiceOpts(lang, candidate));
+
+  // 4. Cria a promise tracking — resolve quando done/stopped/error.
+  let resolveSpeak: () => void = () => {};
+  speakingPromise = new Promise<void>((r) => { resolveSpeak = r; });
+
+  Speech.speak(text, {
+    ...voiceOpts(lang, candidate),
+    onDone: () => resolveSpeak(),
+    onStopped: () => resolveSpeak(),
+    onError: () => resolveSpeak(),
+  });
+
+  // Safety: se nenhum callback disparar em 30s, resolve para não bloquear.
+  setTimeout(() => resolveSpeak(), 30000);
 
   // Em paralelo, descobre a melhor voz para cache (se ainda não houver).
   if (!bestVoiceCache[lang]) {
