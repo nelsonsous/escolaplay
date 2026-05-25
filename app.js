@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v382';
+const APP_VERSION = 'v383';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -11622,7 +11622,7 @@ function openVoicePickerEN() {
     const mistralOn = mistralHasKey && state.useMistralTTS !== false;
     const mistralVoice = state.mistralVoice || '';
     // Lista descoberta via API (state.mistralVoiceList) ou candidatos para experimentar
-    const mistralCandidates = ['en_paul_neutral', 'en_oliver_neutral', 'en_oliver_confident', 'en_oliver_cheerful', 'en_oliver_excited'];
+    const mistralCandidates = ['en_paul_neutral', 'gb_oliver_neutral', 'gb_jane_neutral', 'gb_oliver_confident'];
     const mistralList = (Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length) ? state.mistralVoiceList : mistralCandidates;
     const mistralListLoaded = !!(Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length);
     const mistralSection = `
@@ -11632,7 +11632,7 @@ function openVoicePickerEN() {
         </div>
         <div style="font-size:0.78rem;opacity:0.9;margin:6px 0 10px;line-height:1.4">${mistralHasKey ? 'Mesma chave do reconhecimento de voz. 1.ª escolha quando ON — se falhar, cai para a Edge.' : 'Adiciona a tua chave Mistral nas definições para usares esta voz.'}</div>
         ${mistralOn ? `
-          <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">${mistralListLoaded ? 'Vozes disponíveis:' : 'Experimenta/escreve uma (padrão: en_&lt;nome&gt;_&lt;emoção&gt;, ex: en_oliver_confident):'}</div>
+          <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">${mistralListLoaded ? 'Vozes disponíveis:' : 'Toca "Carregar vozes" p/ a lista real. Padrão: en_&lt;nome&gt; (US) ou gb_&lt;nome&gt; (UK), ex: gb_oliver_neutral:'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
             ${mistralList.map(id => { const s = String(id).replace(/'/g, "\\'"); return `<button onclick="chooseMistralVoice('${s}')" style="background:${id === mistralVoice ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === mistralVoice ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${escapeHtml(String(id))}</button>`; }).join('')}
           </div>
