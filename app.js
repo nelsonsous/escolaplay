@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v402';
+const APP_VERSION = 'v403';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5329,14 +5329,19 @@ async function _tutorDeepDive(topic, opts) {
     tutorState._deepLevel = level;
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> ${level > 0 ? 'A aprofundar ainda mais…' : 'A preparar a lição completa…'}</div>`;
-    const deeper = level > 0
-        ? `\nThis is an EVEN DEEPER follow-up (level ${level + 1}) on the SAME topic: go beyond the basics — nuance, edge cases, register (formal/informal), frequent confusions with neighbouring tenses/structures, and richer business examples. Add NEW substance, do not just repeat a summary.`
-        : '';
-    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. Write a COMPLETE, COURSE-STYLE lesson on: "${topic}" — thorough and didactic, like a full lesson a student studies before practising.${deeper}
+    const focused = level === 0;
+    const styleInstr = focused
+        ? `Write the student's FIRST lesson on this — FOCUSED and engaging, like a great teacher, NOT an encyclopedia. LEAD with a mental model/intuition and a clear golden rule, then teach only the 2-3 HIGHEST-IMPACT ideas through MEANING. Warm, conversational European Portuguese that talks TO the student. Leave exhaustive edge cases for the deeper level.`
+        : `This is an EVEN DEEPER follow-up (level ${level + 1}) on the SAME topic — now go EXHAUSTIVE: nuance, edge cases, register (formal/informal), frequent confusions with neighbouring tenses/structures and richer business examples. Add NEW substance beyond the first lesson.`;
+    const cc = focused
+        ? { ov: '90-130 words', pts: '3-4', ex: '3-4', pit: '2-3', rows: '3-4', pairs: '2-3' }
+        : { ov: '180-260 words', pts: '6-9', ex: '5-7', pit: '4-6', rows: '4-6', pairs: '3-4' };
+    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${styleInstr}
+Topic: "${topic}".
 GRAMMAR TERMS RULE (critical): all grammar term NAMES (Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals…) MUST stay in ENGLISH everywhere, including inside the Portuguese text — never translate (write "Simple Past", never "passado simples").
 Return STRICT JSON only:
-{"title":"concept title using ENGLISH grammar terms","overview":"thorough, well-structured explanation in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 160-240 words, grammar term names in English","rule":"the GOLDEN RULE in PT-PT, ONE short memorable sentence (grammar terms in English); empty string if there is no single clear rule","compare":{"a":"option A name in English","b":"option B name in English","rows":[{"k":"aspect in PT-PT (e.g. Foco, Palavras-chave, Estrutura)","a":"A value in PT-PT with examples in English","b":"B value in PT-PT with examples in English"}]},"points":[{"form":"English form/word/structure","use":"PT-PT detalhe de quando e como usar"}],"contrasts":[{"a":"English sentence (option A)","am":"PT-PT meaning of A","b":"English sentence (option B, SAME idea)","bm":"PT-PT meaning of B"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 10 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"],"tip":"ONE short practical PT-PT quick tip to decide fast; empty string if none"}
-Include 5-8 "points", 4-6 "examples", 3-5 "pitfalls". If the topic CONTRASTS two tenses/structures (e.g. "X vs Y"), ALWAYS fill "compare" (3-5 rows) and "contrasts" (3-4 side-by-side pairs that show how the MEANING changes). If it is a single concept, use "compare":{} and "contrasts":[].`;
+{"title":"concept title using ENGLISH grammar terms","overview":"intuition-FIRST explanation in EUROPEAN PORTUGUESE (Portugal, never Brazilian), ${cc.ov}, start with the mental model (not a textbook intro), grammar term names in English","rule":"the GOLDEN RULE in PT-PT, ONE short memorable sentence (grammar terms in English); empty string if there is no single clear rule","compare":{"a":"option A name in English","b":"option B name in English","rows":[{"k":"aspect in PT-PT (e.g. Foco, Palavras-chave, Estrutura)","a":"A value in PT-PT with examples in English","b":"B value in PT-PT with examples in English"}]},"points":[{"form":"English form/word/structure","use":"PT-PT detalhe de quando e como usar"}],"contrasts":[{"a":"English sentence (option A)","am":"PT-PT meaning of A","b":"English sentence (option B, SAME idea)","bm":"PT-PT meaning of B"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 10 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"],"tip":"ONE short practical PT-PT quick tip to decide fast; empty string if none"}
+Include ${cc.pts} "points", ${cc.ex} "examples", ${cc.pit} "pitfalls" — quality over quantity${focused ? ', keep it tight and high-impact' : ''}. If the topic CONTRASTS two tenses/structures (e.g. "X vs Y"), ALWAYS fill "compare" (${cc.rows} rows) and "contrasts" (${cc.pairs} side-by-side pairs that show how the MEANING changes). If it is a single concept, use "compare":{} and "contrasts":[].`;
     try {
         const { text } = await callClaudeAPI(prompt, 2400, true);
         if (!tutorState) return false;
