@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v365';
+const APP_VERSION = 'v366';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5815,6 +5815,34 @@ async function _edgeTTS(text, voiceName, lang) {
     });
 }
 
+// Mistral Voxtral TTS (texto→voz) — usa a MESMA chave do STT (state.max.mistralKey).
+// Devolve um Blob de áudio (mp3) ou null se falhar (cai para Edge/Gemini/sistema).
+let _mistralTTSCooldownUntil = 0;
+async function _mistralTTS(text, lang) {
+    const key = state.max && state.max.mistralKey;
+    if (!key) return null;
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 20000);
+    try {
+        const res = await fetch('https://api.mistral.ai/v1/audio/speech', {
+            method: 'POST',
+            headers: { 'authorization': `Bearer ${key}`, 'content-type': 'application/json' },
+            body: JSON.stringify({
+                model: state.mistralTTSModel || 'voxtral-mini-tts-2603',
+                input: text,
+                voice: state.mistralVoice || 'neutral_female',
+                response_format: 'mp3'
+            }),
+            signal: ctrl.signal
+        });
+        clearTimeout(to);
+        if (!res.ok) throw new Error('mistral-tts ' + res.status);
+        const blob = await res.blob();
+        if (!blob || blob.size < 200) throw new Error('mistral-tts empty');
+        return blob;
+    } catch (e) { clearTimeout(to); console.warn('[mistral-tts]', e); return null; }
+}
+
 let _geminiCooldownUntil = 0; // enquanto > now, salta o Gemini e usa voz do sistema
 async function _geminiTTS(text, voiceName, lang) {
     const key = state.max.geminiKey;
@@ -5965,6 +5993,16 @@ async function speakEN(text, lang, cbs, voiceOverride) {
     _stopCurrentAudio();
     const isEN = /^en/i.test(lang || '');
     if (isEN) {
+        // 0) Mistral Voxtral TTS (mesma chave do STT) — preferido se houver chave
+        if (state.max && state.max.mistralKey && state.useMistralTTS !== false && Date.now() > _mistralTTSCooldownUntil) {
+            _ttsLoadingShow();
+            try {
+                const blob = await _mistralTTS(text, lang);
+                if (blob) { if (_playBlob(blob, text, lang, cbs)) return; }
+                else { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; } // falhou — recua 8 min
+            } catch (e) { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; console.warn('[mistral-tts]', e); }
+            _ttsLoadingClear();
+        }
         // 1) Edge TTS (neural, grátis) — preferido, se ativo e fora de cooldown
         if (state.useEdgeTTS !== false && Date.now() > _edgeCooldownUntil) {
             _ttsLoadingShow();
