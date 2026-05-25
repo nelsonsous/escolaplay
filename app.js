@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v398';
+const APP_VERSION = 'v399';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6088,8 +6088,32 @@ function _tutorPracticeAnswer(i) {
 window._tutorPracticeAnswer = _tutorPracticeAnswer;
 
 // Erro num exercício → sub-lição focada (Mistral) + 3 sub-exercícios à frente da fila
+function _tutorShouldDeepTeach(topic) {
+    if (!topic || !state.max) return false;
+    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || { wrong: 0 };
+    const wrong = w.wrong || 0;
+    if (wrong < 3) return false;
+    const given = (state.max.tutorDeepGiven && state.max.tutorDeepGiven[topic]) || 0;
+    return (wrong - given) >= 3; // re-ensina a lição completa a cada +3 erros no mesmo tópico
+}
+function _tutorMarkDeepTaught(topic) {
+    if (!topic || !state.max) return;
+    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || { wrong: 0 };
+    state.max.tutorDeepGiven = state.max.tutorDeepGiven || {};
+    state.max.tutorDeepGiven[topic] = w.wrong || 0;
+    saveState();
+}
 async function _tutorPracticeMistake(item, chosenIdx) {
     const pq = tutorState && tutorState._pq; if (!pq) return;
+    // Erras muito o mesmo tópico → lição completa (estilo curso) em vez do reforço curto, seguida de prática.
+    const _deepTopic = (item && item.topic) || pq.topic || '';
+    if (_deepTopic && _tutorShouldDeepTeach(_deepTopic)) {
+        _tutorMarkDeepTaught(_deepTopic);
+        tutorState._pendingPracticeTopic = _deepTopic;
+        tutorState._pendingPracticeArg = '';
+        const okDeep = await _tutorDeepDive(_deepTopic, { prePractice: true });
+        if (okDeep) return;
+    }
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> Vou explicar este erro…</div>`;
     const d = await callPracticeMistake(item, chosenIdx);
