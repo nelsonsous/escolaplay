@@ -4492,6 +4492,14 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-lbtn.cont { background: #f1f5f9; color: #475569; }
 .tutor-lbtn.prac.full { width: 100%; margin: 10px 0 6px; font-size: 0.85rem; padding: 11px; border-radius: 12px; }
 .tutor-lesson-btns2 { display: flex; gap: 6px; }
+.tutor-fh { background: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: 16px; border-bottom-left-radius: 5px; padding: 12px 14px; max-width: 88%; animation: rpBubbleIn 0.3s var(--spring, ease); }
+.tutor-fh-h { font-size: 0.82rem; font-weight: 800; color: #6d28d9; margin-bottom: 6px; }
+.tutor-fh-want { font-size: 0.88rem; color: #4c1d95; margin-bottom: 8px; }
+.tutor-fh-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 5px 0; border-bottom: 1px dashed #e9d5ff; }
+.tutor-fh-en { font-weight: 700; color: #1f2937; font-size: 0.95rem; }
+.tutor-fh-pt { color: #6b7280; font-size: 0.84rem; font-style: italic; }
+.tutor-fh-conns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tutor-fh-chip { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 4px 10px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .tutor-lesson-rule { margin: 8px 0 10px; }
 .tutor-lesson-title { font-size: 1.08rem; font-weight: 800; color: #1f2937; margin-bottom: 5px; }
 .tutor-ex-label { font-size: 0.68rem; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 5px; }
