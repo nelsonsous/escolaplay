@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v384';
+const APP_VERSION = 'v385';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4879,8 +4879,9 @@ function _tutorRenderMic() {
         inp.value = draft;
         _tutorGrow(inp);
         inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _tutorSubmitText(); } });
-        inp.addEventListener('input', () => { if (tutorState) tutorState._draft = inp.value; _tutorGrow(inp); });
+        inp.addEventListener('input', () => { _tutorCancelAutoSend(); if (tutorState) tutorState._draft = inp.value; _tutorGrow(inp); });
         inp.addEventListener('focus', () => {
+            _tutorCancelAutoSend();
             if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
             if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
         });
@@ -4914,9 +4915,26 @@ function _tutorGrow(el) {
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 140) + 'px';
 }
+let _tutorAutoSendTimer = null;
+function _tutorCancelAutoSend() {
+    if (_tutorAutoSendTimer) { clearTimeout(_tutorAutoSendTimer); _tutorAutoSendTimer = null; }
+    const live = document.getElementById('tutor-live');
+    if (live && /A enviar/.test(live.textContent || '')) live.style.display = 'none';
+}
+// Depois de transcrever, envia sozinho ao fim de ~1.4s (menos cliques).
+// Toca na barra ou escreve para cancelar e editar.
+function _tutorScheduleAutoSend() {
+    _tutorCancelAutoSend();
+    const inp = document.getElementById('tutor-text');
+    if (!inp || !inp.value.trim() || !tutorState) return;
+    const live = document.getElementById('tutor-live');
+    if (live) { live.style.display = 'block'; live.textContent = '✓ A enviar… (toca para editar)'; }
+    _tutorAutoSendTimer = setTimeout(() => { _tutorAutoSendTimer = null; _tutorSubmitText(); }, 1400);
+}
 function _tutorSubmitText() {
     const inp = document.getElementById('tutor-text');
     if (!inp || !tutorState) return;
+    _tutorCancelAutoSend();
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
     if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
     const val = inp.value.trim();
@@ -5151,6 +5169,7 @@ function _tutorMicBusy() {
 }
 function _tutorStartMic() {
     if (!tutorState) return;
+    _tutorCancelAutoSend();
     if (_tutorMicBusy()) { _tutorStopMic(); return; }
     const canVox = !!(state.max && state.max.mistralKey)
         && typeof MediaRecorder !== 'undefined'
@@ -5271,7 +5290,7 @@ async function _tutorTranscribeVoxtral(blob) {
         if (!tutorState) return;
         if (tutorState._pron) { _tutorEvalPron(text); return; }
         if (!text) return;
-        if (inp) { inp.value = text; tutorState._draft = text; _tutorGrow(inp); try { inp.focus(); } catch {} }
+        if (inp) { inp.value = text; tutorState._draft = text; _tutorGrow(inp); _tutorScheduleAutoSend(); }
     } catch (e) {
         console.warn('[tutor] voxtral failed', e);
         if (liveEl) liveEl.style.display = 'none';
@@ -5311,9 +5330,9 @@ function _tutorStartWebSpeech() {
         if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
         if (liveEl) liveEl.style.display = 'none';
         if (tutorState && tutorState._pron) { _tutorEvalPron((finalTxt || '').replace(/\s+/g, ' ').trim()); return; }
-        // Deixa o texto na barra para reveres/editares — não envia sozinho
+        // Texto fica na barra e envia sozinho ao fim de ~1.4s (toca p/ editar)
         const inpNow = document.getElementById('tutor-text');
-        if (inpNow && inpNow.value.trim()) { try { inpNow.focus(); } catch {} }
+        if (inpNow && inpNow.value.trim()) _tutorScheduleAutoSend();
     };
     try { r.start(); } catch { if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; } }
 }
@@ -11645,9 +11664,7 @@ function openVoicePickerEN() {
             <button onclick="previewMistralVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
           </div>
           <div style="font-size:0.7rem;opacity:0.85;margin-top:8px">Para usares <b>só</b> a Mistral: ON aqui + Edge OFF.</div>
-          <button onclick="_mistralRTSpike()" style="width:100%;margin-top:8px;background:rgba(0,0,0,0.25);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer"><i class="fas fa-flask"></i> Testar transcrição em tempo real (spike)</button>
           ${_mistralTTSLastErr ? `<div style="margin-top:8px;background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 10px;font-size:0.7rem;line-height:1.35;word-break:break-word">⚠️ Último erro: ${escapeHtml(_mistralTTSLastErr)}</div>` : ''}
-          ${_rtSpikeResult ? `<div style="margin-top:8px;background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 10px;font-size:0.7rem;line-height:1.35;word-break:break-word">🧪 ${escapeHtml(_rtSpikeResult)}</div>` : ''}
         ` : ''}
       </div>`;
     const engineNote = _lastTTSEngine ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.82rem;color:#334155"><i class="fas fa-circle-info" style="color:#0891b2"></i> Última voz que ouviste: <b>${escapeHtml(_lastTTSEngine)}</b></div>` : '';
@@ -11872,41 +11889,6 @@ async function _mistralLoadVoices() {
     }
 }
 window._mistralLoadVoices = _mistralLoadVoices;
-// SPIKE: testa se o WebSocket realtime autentica no browser (sem servidor).
-// Tenta auth por query-param e por subprotocol; reporta o que abriu/falhou.
-let _rtSpikeResult = '';
-function _rtTryWS(url, protos, label) {
-    return new Promise(resolve => {
-        let ws, settled = false;
-        const done = (msg, ok) => { if (settled) return; settled = true; try { ws && ws.close(); } catch {} console.log('[rt-spike]', label, msg); resolve({ ok, msg: label + ': ' + msg }); };
-        try { ws = protos ? new WebSocket(url, protos) : new WebSocket(url); } catch (e) { done('erro ' + (e && e.message || e), false); return; }
-        const to = setTimeout(() => done('timeout', false), 7000);
-        ws.onopen = () => { clearTimeout(to); try { ws.send(JSON.stringify({ type: 'session.update', session: { model: 'voxtral-mini-transcribe-realtime-2602' } })); } catch {} done('ABRIU ✅ (auth OK)', true); };
-        ws.onmessage = (ev) => { console.log('[rt-spike] msg', ev.data); };
-        ws.onerror = () => { clearTimeout(to); done('erro de ligação', false); };
-        ws.onclose = (ev) => { clearTimeout(to); done('fechou code=' + ev.code + (ev.reason ? ' ' + ev.reason : ''), false); };
-    });
-}
-async function _mistralRTSpike() {
-    const key = state.max && state.max.mistralKey;
-    if (!key) { showToast('Sem chave Mistral'); return; }
-    _rtSpikeResult = 'A testar…'; openVoicePickerEN();
-    const base = 'wss://api.mistral.ai/v1/audio/transcriptions/realtime';
-    const attempts = [
-        () => _rtTryWS(base + '?api_key=' + encodeURIComponent(key), null, 'query api_key'),
-        () => _rtTryWS(base, ['Authorization', 'Bearer.' + key], 'subprotocol Bearer'),
-        () => _rtTryWS(base, ['mistral-insecure-api-key.' + key], 'subprotocol insecure-api-key'),
-    ];
-    const results = [];
-    for (const run of attempts) {
-        const r = await run();
-        results.push(r.msg);
-        if (r.ok) { _rtSpikeResult = r.msg + ' — viável! Diz-me e eu implemento.'; openVoicePickerEN(); return; }
-    }
-    _rtSpikeResult = 'Nenhum método abriu. ' + results.join(' | ');
-    openVoicePickerEN();
-}
-window._mistralRTSpike = _mistralRTSpike;
 async function previewMistralVoice() {
     _mistralTTSCooldownUntil = 0;
     if (!(state.max && state.max.mistralKey)) { showToast('Sem chave Mistral'); return; }
