@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v376';
+const APP_VERSION = 'v377';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -11622,7 +11622,7 @@ function openVoicePickerEN() {
     const mistralOn = mistralHasKey && state.useMistralTTS !== false;
     const mistralVoice = state.mistralVoice || '';
     // Lista descoberta via API (state.mistralVoiceList) ou candidatos para experimentar
-    const mistralCandidates = ['en_paul_neutral', 'en_olivia_neutral', 'en_liam_neutral', 'en_ethan_neutral', 'en_sophia_neutral'];
+    const mistralCandidates = ['en_paul_neutral'];
     const mistralList = (Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length) ? state.mistralVoiceList : mistralCandidates;
     const mistralListLoaded = !!(Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length);
     const mistralSection = `
