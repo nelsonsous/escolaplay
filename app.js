@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v379';
+const APP_VERSION = 'v380';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -11646,11 +11646,11 @@ function openVoicePickerEN() {
           </div>
           <div style="font-size:0.7rem;opacity:0.85;margin-top:8px">Para usares <b>só</b> a Mistral: ON aqui + Edge OFF.</div>
           <div style="border-top:1px solid rgba(255,255,255,0.22);margin-top:10px;padding-top:10px">
-            <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos). en_paul_neutral lê PT (multilingue):</div>
+            <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-              ${['en_paul_neutral', 'pt_bruna_neutral', 'pt_duarte_neutral'].map(id => `<button onclick="chooseMistralVoicePT('${id}')" style="background:${id === (state.mistralVoicePT || 'en_paul_neutral') ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === (state.mistralVoicePT || 'en_paul_neutral') ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${id}</button>`).join('')}
+              ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral)']].map(([id, lbl]) => `<button onclick="choosePTVoice('${id}')" style="background:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button>`).join('')}
             </div>
-            <button onclick="previewMistralPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
+            <button onclick="previewPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
           </div>
           ${_mistralTTSLastErr ? `<div style="margin-top:8px;background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 10px;font-size:0.7rem;line-height:1.35;word-break:break-word">⚠️ Último erro: ${escapeHtml(_mistralTTSLastErr)}</div>` : ''}
         ` : ''}
@@ -11832,24 +11832,18 @@ function chooseMistralVoiceCustom() {
     chooseMistralVoice(v);
 }
 window.chooseMistralVoiceCustom = chooseMistralVoiceCustom;
-function chooseMistralVoicePT(v) {
-    state.mistralVoicePT = v;
-    _mistralTTSCooldownUntil = 0;
+function choosePTVoice(sel) {
+    state.voicePT = sel;
+    _edgeCooldownUntil = 0; _mistralTTSCooldownUntil = 0;
     saveState();
     openVoicePickerEN();
-    setTimeout(() => previewMistralPT(), 150);
+    setTimeout(() => previewPT(), 150);
 }
-async function previewMistralPT() {
-    if (!(state.max && state.max.mistralKey)) { showToast('Sem chave Mistral'); return; }
-    try {
-        _stopCurrentAudio();
-        const blob = await _mistralTTS('Olá! Vamos praticar juntos.', 'pt', state.mistralVoicePT || 'en_paul_neutral');
-        if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, 'teste de voz', 'pt-PT', {}); }
-        else { showToast('Voz PT falhou'); openVoicePickerEN(); }
-    } catch { showToast('Voz PT falhou'); openVoicePickerEN(); }
+function previewPT() {
+    try { window.ttsSpeak('Olá! Vamos praticar juntos. Estás pronto?'); } catch {}
 }
-window.chooseMistralVoicePT = chooseMistralVoicePT;
-window.previewMistralPT = previewMistralPT;
+window.choosePTVoice = choosePTVoice;
+window.previewPT = previewPT;
 // Descobre as vozes disponíveis na conta Mistral (catálogo da API hospedada)
 async function _mistralListVoices() {
     const key = state.max && state.max.mistralKey;
@@ -11902,18 +11896,28 @@ window.testVoiceEN = testVoiceEN;
 window.chooseVoiceEN = chooseVoiceEN;
 window.clearVoiceChoiceEN = clearVoiceChoiceEN;
 window.closeVoicePickerEN = closeVoicePickerEN;
-window.ttsSpeak = function (text) {
+// Voz portuguesa: escolha (Edge pt-PT Raquel/Duarte, ou Mistral) com
+// degradação — voz escolhida → Mistral en_paul → voz do sistema.
+window.ttsSpeak = async function (text) {
     const cleaned = String(text || '').replace(/<[^>]+>/g, '').replace(/\*\*/g, '').replace(/\*/g, '');
     if (!cleaned) return;
-    // Voz PT da Mistral (mesma chave do STT), se ativa — senão voz do sistema
-    if (state.max && state.max.mistralKey && state.useMistralTTS !== false && Date.now() > _mistralTTSCooldownUntil) {
-        try { _stopCurrentAudio(); } catch {}
-        _mistralTTS(cleaned, 'pt', state.mistralVoicePT || 'en_paul_neutral').then(blob => {
-            if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, cleaned, 'pt-PT', {}); }
-            else { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; _ttsSpeakSystem(cleaned); }
-        }).catch(() => { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; _ttsSpeakSystem(cleaned); });
-        return;
+    try { _stopCurrentAudio(); } catch {}
+    const sel = state.voicePT || 'edge:pt-PT-RaquelNeural';
+    const sep = sel.indexOf(':');
+    const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
+    const vname = sep > 0 ? sel.slice(sep + 1) : sel;
+    const mistralOk = !!(state.max && state.max.mistralKey) && state.useMistralTTS !== false;
+    // 1) Voz escolhida
+    if (eng === 'edge' && state.useEdgeTTS !== false && Date.now() > _edgeCooldownUntil) {
+        try { const b = await _edgeTTS(cleaned, vname, 'pt-PT'); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Edge'; return; } else if (!b) _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; } catch { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; }
+    } else if (eng === 'mistral' && mistralOk) {
+        try { const b = await _mistralTTS(cleaned, 'pt', vname); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Mistral'; return; } } catch {}
     }
+    // 2) Recuo: Mistral en_paul (multilingue) se a escolha não era Mistral
+    if (eng !== 'mistral' && mistralOk && Date.now() > _mistralTTSCooldownUntil) {
+        try { const b = await _mistralTTS(cleaned, 'pt', 'en_paul_neutral'); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Mistral'; return; } else if (!b) _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; } catch { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; }
+    }
+    // 3) Voz do sistema
     _ttsSpeakSystem(cleaned);
 };
 function _ttsSpeakSystem(text) {
