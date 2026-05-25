@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v366';
+const APP_VERSION = 'v367';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5818,6 +5818,7 @@ async function _edgeTTS(text, voiceName, lang) {
 // Mistral Voxtral TTS (texto→voz) — usa a MESMA chave do STT (state.max.mistralKey).
 // Devolve um Blob de áudio (mp3) ou null se falhar (cai para Edge/Gemini/sistema).
 let _mistralTTSCooldownUntil = 0;
+let _lastTTSEngine = ''; // qual motor tocou por último (Mistral/Edge/Gemini/Sistema)
 async function _mistralTTS(text, lang) {
     const key = state.max && state.max.mistralKey;
     if (!key) return null;
@@ -5998,7 +5999,7 @@ async function speakEN(text, lang, cbs, voiceOverride) {
             _ttsLoadingShow();
             try {
                 const blob = await _mistralTTS(text, lang);
-                if (blob) { if (_playBlob(blob, text, lang, cbs)) return; }
+                if (blob) { if (_playBlob(blob, text, lang, cbs)) { _lastTTSEngine = 'Mistral'; return; } }
                 else { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; } // falhou — recua 8 min
             } catch (e) { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; console.warn('[mistral-tts]', e); }
             _ttsLoadingClear();
@@ -6008,7 +6009,7 @@ async function speakEN(text, lang, cbs, voiceOverride) {
             _ttsLoadingShow();
             try {
                 const blob = await _edgeTTS(text, state.edgeVoice, lang);
-                if (blob) { if (_playBlob(blob, text, lang, cbs)) return; }
+                if (blob) { if (_playBlob(blob, text, lang, cbs)) { _lastTTSEngine = 'Edge'; return; } }
                 else { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; } // falhou (browser bloqueou?) — recua
             } catch (e) { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; console.warn('[edge-tts]', e); }
             _ttsLoadingClear();
@@ -6018,11 +6019,12 @@ async function speakEN(text, lang, cbs, voiceOverride) {
             _ttsLoadingShow();
             try {
                 const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
-                if (blob) { if (_playBlob(blob, text, lang, cbs)) return; }
+                if (blob) { if (_playBlob(blob, text, lang, cbs)) { _lastTTSEngine = 'Gemini'; return; } }
             } catch (e) { console.warn('[gemini-tts]', e); }
             _ttsLoadingClear();
         }
     }
+    _lastTTSEngine = 'Sistema';
     // 3) Voz do sistema (síncrona)
     _sysSpeak(text, lang, cbs);
 }
@@ -11588,6 +11590,32 @@ function openVoicePickerEN() {
     ];
     const gemActive = !!(state.max && state.max.geminiKey);
     const gemVoice = state.geminiVoice || 'Kore';
+    // Secção Mistral (Voxtral TTS — mesma chave do STT)
+    const MISTRAL_VOICES = [
+        { id: 'neutral_female', label: 'Neutra ♀' },
+        { id: 'neutral_male', label: 'Neutra ♂' },
+        { id: 'casual_female', label: 'Casual ♀' },
+        { id: 'casual_male', label: 'Casual ♂' },
+        { id: 'cheerful_female', label: 'Alegre ♀' }
+    ];
+    const mistralHasKey = !!(state.max && state.max.mistralKey);
+    const mistralOn = mistralHasKey && state.useMistralTTS !== false;
+    const mistralVoice = state.mistralVoice || 'neutral_female';
+    const mistralSection = `
+      <div style="background:linear-gradient(135deg,#7c2d12,#ea580c);color:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#fed7aa"></i> Voz Mistral (Voxtral TTS)
+          ${mistralHasKey ? `<button onclick="toggleMistralTTS()" style="margin-left:auto;font-size:0.66rem;font-weight:800;background:${mistralOn ? '#22c55e' : 'rgba(255,255,255,0.2)'};color:#fff;border:none;padding:3px 10px;border-radius:10px;cursor:pointer">${mistralOn ? 'ON' : 'OFF'}</button>` : '<span style="margin-left:auto;font-size:0.66rem;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px">SEM CHAVE</span>'}
+        </div>
+        <div style="font-size:0.78rem;opacity:0.9;margin:6px 0 10px;line-height:1.4">${mistralHasKey ? 'Usa a mesma chave Mistral do reconhecimento de voz. É a 1.ª escolha quando está ON — se falhar, cai para a Edge.' : 'Adiciona a tua chave Mistral nas definições para usares esta voz.'}</div>
+        ${mistralOn ? `
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            ${MISTRAL_VOICES.map(v => `<button onclick="chooseMistralVoice('${v.id}')" style="background:${v.id === mistralVoice ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${v.id === mistralVoice ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.76rem;font-weight:700;cursor:pointer">${v.label}</button>`).join('')}
+          </div>
+          <div style="font-size:0.72rem;opacity:0.85;margin-bottom:8px">Para usares <b>só</b> a Mistral: deixa esta ON e põe a Edge em OFF abaixo.</div>
+          <button onclick="previewMistralVoice()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
+        ` : ''}
+      </div>`;
+    const engineNote = _lastTTSEngine ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.82rem;color:#334155"><i class="fas fa-circle-info" style="color:#0891b2"></i> Última voz que ouviste: <b>${escapeHtml(_lastTTSEngine)}</b></div>` : '';
     // Secção Edge (voz neural grátis, sem key)
     const edgeOn = state.useEdgeTTS !== false;
     const edgeVoice = state.edgeVoice || 'en-US-AriaNeural';
@@ -11648,6 +11676,8 @@ function openVoicePickerEN() {
       <div class="modal-content" style="max-width:500px;max-height:85vh;padding:18px;display:flex;flex-direction:column">
         <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Voz inglesa</h3>
         <div style="flex:1;overflow-y:auto;padding-right:4px">
+          ${engineNote}
+          ${mistralSection}
           ${edgeSection}
           ${gemSection}
           <p style="font-size:0.85rem;color:#6b7280;margin:0 0 6px;line-height:1.45">Ou usa uma voz do sistema (${enVoices.length} disponíveis). Toca em 🔊 para ouvir.</p>
@@ -11724,6 +11754,32 @@ function chooseEdgeVoice(v) {
 function previewEdgeVoice() {
     speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US');
 }
+function toggleMistralTTS() {
+    state.useMistralTTS = (state.useMistralTTS === false) ? true : false;
+    _mistralTTSCooldownUntil = 0;
+    saveState();
+    openVoicePickerEN();
+}
+function chooseMistralVoice(v) {
+    state.mistralVoice = v;
+    _mistralTTSCooldownUntil = 0;
+    saveState();
+    openVoicePickerEN();
+    setTimeout(() => previewMistralVoice(), 150);
+}
+async function previewMistralVoice() {
+    _mistralTTSCooldownUntil = 0;
+    if (!(state.max && state.max.mistralKey)) { showToast('Sem chave Mistral'); return; }
+    try {
+        _stopCurrentAudio();
+        const blob = await _mistralTTS('Good morning everyone, thanks for joining the meeting.', 'en-US');
+        if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, '', 'en-US', {}); }
+        else showToast('A voz Mistral falhou — diz-me e eu ajusto o modelo/voz');
+    } catch { showToast('A voz Mistral falhou'); }
+}
+window.toggleMistralTTS = toggleMistralTTS;
+window.chooseMistralVoice = chooseMistralVoice;
+window.previewMistralVoice = previewMistralVoice;
 window.toggleEdgeTTS = toggleEdgeTTS;
 window.chooseEdgeVoice = chooseEdgeVoice;
 window.previewEdgeVoice = previewEdgeVoice;
