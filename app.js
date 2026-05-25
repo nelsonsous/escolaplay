@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v395';
+const APP_VERSION = 'v396';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5958,6 +5958,7 @@ function _tutorRenderPracticeItem() {
     pq._el = qid;
     const depth = it.depth || 0;
     const label = depth > 0 ? '🔁 Reforço do erro' : 'Exercício';
+    const topic = it.topic || pq.topic || '';
     const speakQ = (it.q || '').replace(/\s*_{2,}\s*/g, ', ').replace(/\s+/g, ' ').trim();
     const opts = it.options.map((o, i) => `<button class="tutor-qopt" data-i="${i}" onclick="_tutorPracticeAnswer(${i})">${String.fromCharCode(65 + i)}. ${escapeHtml(o)}</button>`).join('');
     chat.insertAdjacentHTML('beforeend', `
@@ -5965,6 +5966,7 @@ function _tutorRenderPracticeItem() {
         <div class="tutor-bubble-av">🎯</div>
         <div class="tutor-quiz${depth > 0 ? ' sub' : ''}" id="${qid}">
           <div class="tutor-quiz-h"><span>${label}</span><span class="tutor-quiz-result"></span></div>
+          ${topic ? `<div class="tutor-quiz-topic"><i class="fas fa-graduation-cap"></i> A treinar: <b>${escapeHtml(topic)}</b></div>` : ''}
           <div class="tutor-quiz-q">${escapeHtml(it.q)} <button class="tutor-say" data-text="${escapeHtml(speakQ)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir em inglês"><i class="fas fa-volume-high"></i></button></div>
           <div class="tutor-quiz-opts">${opts}</div>
           <div class="tutor-quiz-fb" style="display:none"></div>
