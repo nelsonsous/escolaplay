@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v400';
+const APP_VERSION = 'v401';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5839,15 +5839,16 @@ Return STRICT JSON:
 6) "lessonTitle": short grammar rule title (e.g. "Work ON vs. work ABOUT", "Past Simple vs. Present Perfect"). "" if correct.
 7) "points": array of 2-4 objects {form, use} mapping the whole rule — each form/word and WHEN to use it, in PT-PT. E.g. for articles: [{"form":"a / an","use":"algo novo ou não específico"},{"form":"the","use":"algo específico ou já mencionado"},{"form":"(sem artigo)","use":"ideias gerais, plurais, incontáveis"}]. "form" stays in English, "use" in PT-PT. [] if correct.
 8) "examples": array of 2-3 objects {wrong,right,note} showing the rule (English wrong/right, note max 8 words PT-PT). "wrong" must be genuinely incorrect and DIFFERENT from "right". [] if correct.
+9) "fluencyHelp": Look BEYOND grammar at WHAT the student is trying to communicate. If they struggled with vocabulary or fluency — used a Portuguese word, left a word out, described a word instead of naming it, used unnatural/non-fluent phrasing, or was missing linking words (connectors) — help them say it better and more fluently. Object: {"want":"what they were trying to express, PT-PT short","phrases":[{"en":"natural English word/phrase","pt":"PT-PT meaning"}],"connectors":["useful linking words for this idea, if relevant"],"topic":"short lesson topic in ENGLISH (vocabulary/Connectors/grammar) to drill this gap"}. Use {} if they expressed themselves naturally with no lexical/connector/fluency gap.
 
-{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}]}`;
+{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}],"fluencyHelp":{}}`;
     try {
-        const { text } = await callClaudeAPI(prompt, 850, true);
+        const { text } = await callClaudeAPI(prompt, 1100, true);
         if (!tutorState) return;
         const m = text.match(/\{[\s\S]*\}/);
-        let corrected = '', errorType = '', explanation = '', tip = '', reply = '', lessonTitle = '', points = [], examples = [];
+        let corrected = '', errorType = '', explanation = '', tip = '', reply = '', lessonTitle = '', points = [], examples = [], fluencyHelp = {};
         if (m) {
-            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); points = Array.isArray(p.points) ? p.points.slice(0, 4) : []; examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; } catch {}
+            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); points = Array.isArray(p.points) ? p.points.slice(0, 4) : []; examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; fluencyHelp = (p.fluencyHelp && typeof p.fluencyHelp === 'object' && !Array.isArray(p.fluencyHelp)) ? p.fluencyHelp : {}; } catch {}
         }
         if (!reply) reply = "Got it. Tell me more?";
         if (corrected && _sameUtterance(corrected, userText)) corrected = '';
@@ -5857,12 +5858,46 @@ Return STRICT JSON:
         } else {
             _tutorAddTutor(reply, '', tip, true);
         }
+        _tutorRenderFluencyHelp(fluencyHelp);
     } catch (e) {
         console.warn('[tutor] failed', e);
         if (tutorState) { _tutorAddTutor("Sorry, I didn't catch that. Say it again?", '', '', true); }
     }
 }
 
+// Ajuda à fluência: o que querias dizer + palavras/expressões naturais + ligações,
+// com áudio e botões para criar lição+exercícios ou treinar a falar (voz).
+function _tutorRenderFluencyHelp(fh) {
+    if (!fh || typeof fh !== 'object') return;
+    const phrases = Array.isArray(fh.phrases) ? fh.phrases.filter(p => p && p.en).slice(0, 4) : [];
+    const conns = Array.isArray(fh.connectors) ? fh.connectors.filter(Boolean).slice(0, 6) : [];
+    if (!phrases.length && !conns.length) return;
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const want = fh.want ? `<div class="tutor-fh-want">Querias dizer: <i>${escapeHtml(fh.want)}</i></div>` : '';
+    const phraseHtml = phrases.map(p => `<div class="tutor-fh-row"><span class="tutor-fh-en">${escapeHtml(p.en)}</span>${p.pt ? `<span class="tutor-fh-pt">${escapeHtml(p.pt)}</span>` : ''} <button class="tutor-say" data-text="${escapeHtml(p.en)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button></div>`).join('');
+    const connHtml = conns.length ? `<div class="tutor-ex-label">PALAVRAS DE LIGAÇÃO</div><div class="tutor-fh-conns">${conns.map(c => `<span class="tutor-fh-chip" data-text="${escapeHtml(c)}" onclick="_tutorSpeakBtn(this)">${escapeHtml(c)} <i class="fas fa-volume-high"></i></span>`).join('')}</div>` : '';
+    const topic = escapeHtml(fh.topic || 'Vocabulary & fluency');
+    const firstPhrase = escapeHtml(phrases.length ? phrases[0].en : '');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">💬</div>
+        <div class="tutor-fh">
+          <div class="tutor-fh-h">🗣️ Dizer isto de forma mais fluente</div>
+          ${want}
+          ${phraseHtml}
+          ${connHtml}
+          <div class="tutor-lesson-btns">
+            <button class="tutor-lbtn prac" data-topic="${topic}" onclick="_tutorHelpLessonBtn(this)"><i class="fas fa-book-open"></i> Lição & exercícios</button>
+            ${firstPhrase ? `<button class="tutor-lbtn" data-text="${firstPhrase}" onclick="_tutorHelpSpeakBtn(this)"><i class="fas fa-microphone"></i> Treinar a falar</button>` : ''}
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorHelpLessonBtn(el) { const t = el && el.dataset && el.dataset.topic; if (t) _tutorGeneratePractice(t, ''); }
+window._tutorHelpLessonBtn = _tutorHelpLessonBtn;
+function _tutorHelpSpeakBtn(el) { const t = el && el.dataset && el.dataset.text; if (t && typeof _tutorStartPron === 'function') _tutorStartPron(t, ''); }
+window._tutorHelpSpeakBtn = _tutorHelpSpeakBtn;
 // Bloco "como se usa" — cada forma (a/an, the, …) e quando usar
 function _tutorPointsHtml(points) {
     if (!Array.isArray(points) || !points.length) return '';
