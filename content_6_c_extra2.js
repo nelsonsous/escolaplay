@@ -18,7 +18,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_003', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:1,
       q:'As lágrimas e a saliva também ajudam a defender o nosso corpo.',
-      opts:['Verdadeiro','Falso'], ans:0,
+      ans:true,
       exp:'Verdadeiro. As lágrimas, a saliva e as mucosas contêm substâncias que destroem micróbios.' },
 
     { id:'6ce2_004', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:1,
@@ -49,7 +49,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_009', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:2,
       q:'A imunidade adquirida é a que se desenvolve ao longo da vida, por exemplo após uma vacina ou doença.',
-      opts:['Verdadeiro','Falso'], ans:0,
+      ans:true,
       exp:'Verdadeiro. A imunidade adquirida desenvolve-se com a exposição a antigénios ou através de vacinas.' },
 
     { id:'6ce2_010', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:2,
@@ -75,7 +75,7 @@ const EXERCISES_6_C_EXTRA2 = [
 
     { id:'6ce2_014', s:'ciencias', t:'Sistema imunitário', type:'tf', diff:3,
       q:'Tomar antibióticos sempre que estamos constipados é a melhor forma de defesa do organismo.',
-      opts:['Verdadeiro','Falso'], ans:1,
+      ans:false,
       exp:'Falso. Os antibióticos só atuam contra bactérias, não contra vírus (como o da constipação), e usá-los em excesso causa resistências.' },
 
     { id:'6ce2_015', s:'ciencias', t:'Sistema imunitário', type:'mc', diff:3,
