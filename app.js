@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v390';
+const APP_VERSION = 'v391';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -752,6 +752,19 @@ function normalize(s) {
     return String(s).trim().toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/\s+/g, ' ');
+}
+// Igualdade "de fala": ignora diferen\u00e7as s\u00f3 tipogr\u00e1ficas (ap\u00f3strofo reto vs
+// curvo, aspas curvas, travess\u00f5es) e pontua\u00e7\u00e3o final. Evita o falso positivo
+// de mostrar "Vamos corrigir" quando o original e o corrigido s\u00e3o id\u00eanticos
+// e s\u00f3 diferem no caractere do ap\u00f3strofo (ex.: we're vs we\u2019re).
+function _sameUtterance(a, b) {
+    const f = s => normalize(s)
+        .replace(/[\u2018\u2019\u02bc\u2032`\u00b4]/g, "'")
+        .replace(/[\u201c\u201d\u2033"]/g, '')
+        .replace(/[\u2013\u2014]/g, '-')
+        .replace(/[.,!?;:]+/g, '')
+        .replace(/\s+/g, ' ').trim();
+    return f(a) === f(b);
 }
 function activeTopicsFor(subjectKey) {
     const topics = CURRICULUM[subjectKey] || [];
@@ -5791,7 +5804,7 @@ Return STRICT JSON:
             try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); points = Array.isArray(p.points) ? p.points.slice(0, 4) : []; examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; } catch {}
         }
         if (!reply) reply = "Got it. Tell me more?";
-        if (corrected && normalize(corrected) === normalize(userText)) corrected = '';
+        if (corrected && _sameUtterance(corrected, userText)) corrected = '';
         if (corrected) {
             tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples };
             _tutorShowCorrection(tutorState._pending);
