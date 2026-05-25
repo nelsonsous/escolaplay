@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v385';
+const APP_VERSION = 'v386';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4752,13 +4752,29 @@ function _tutorRenderWeak() {
 function _tutorPracticeWeak() {
     const list = _tutorTopWeak(3);
     if (!list.length) return;
-    tutorState._practiceReply = 'Boa! Continuamos quando quiseres.';
+    tutorState._practiceReply = 'Continuamos quando quiseres.';
     _tutorGeneratePractice(list.join(', '), '');
 }
 window._tutorPracticeWeak = _tutorPracticeWeak;
 
 function _tutorAvatar() {
     return (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(34)) || '🧑‍🏫';
+}
+// Deteta a língua dominante de um texto (PT vs EN) para escolher a voz certa.
+// Acentos próprios do PT (ã, õ, ç, …) pesam mais; senão conta palavras comuns.
+function _detectLang(text) {
+    const t = String(text || '').replace(/<[^>]+>/g, ' ').replace(/[“”"'’‘]/g, ' ').toLowerCase();
+    if (!t.trim()) return 'en';
+    let pt = (t.match(/[ãõçáâàêéíóôú]/g) || []).length * 2;
+    pt += (t.match(/\b(que|n[ãa]o|uma|com|para|isto|isso|quando|vamos|erro|erros|est[áa]|s[ãa]o|ap[óo]s|verbo|frase|ordem|pr[áa]tica|continu\w*|escolheste|correto|adv[ée]rbio|teu|tua|mais|j[áa]|muito|bem|aqui|tens|fizeste|acab\w*|quiseres)\b/g) || []).length;
+    const en = (t.match(/\b(the|you|your|is|are|was|were|this|that|with|for|and|to|of|in|it|we|they|he|she|sentence|word|verb|order|good|well|done|let|me|do|does|did|have|has|what|when|where|why|how)\b/g) || []).length;
+    return pt > en ? 'pt' : 'en';
+}
+// Fala um texto do tutor escolhendo a voz pela língua detetada — corrige o
+// caso de explicações em PT lidas com voz inglesa (soava "espanholado").
+function _tutorSpeak(text, cbs) {
+    const lang = _detectLang(text) === 'pt' ? 'pt-PT' : (tutorState ? tutorState.lang : 'en-US');
+    return speakEN(text, lang, cbs);
 }
 function _tutorAddTutor(text, corrected, tip, autoSpeak) {
     const chat = document.getElementById('tutor-chat');
@@ -4785,15 +4801,15 @@ function _tutorAddTutor(text, corrected, tip, autoSpeak) {
     // ficava presa em "O professor está a pensar…". A fala é só um extra.
     _tutorRenderMic();
     if (autoSpeak && typeof speakEN === 'function') {
-        // Fala automaticamente e, ao terminar, volta a ouvir (mãos-livres no Web Speech)
-        speakEN(text, tutorState.lang, { onEnd: () => _tutorAutoListen() });
+        // Fala (voz escolhida pela língua do texto) e, ao terminar, volta a ouvir
+        _tutorSpeak(text, { onEnd: () => _tutorAutoListen() });
     }
 }
 function _tutorPlay(sid) {
     const btn = document.getElementById(sid);
     if (!btn) return;
     const text = btn.closest('.tutor-them')?.getAttribute('data-text') || '';
-    if (text && typeof speakEN === 'function') speakEN(text.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'), tutorState ? tutorState.lang : 'en-US');
+    if (text && typeof speakEN === 'function') _tutorSpeak(text.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
 }
 window._tutorPlay = _tutorPlay;
 
@@ -5459,7 +5475,7 @@ function _tutorShowCorrection(d) {
 }
 function _tutorSpeakBtn(el) {
     const t = el && el.getAttribute('data-text');
-    if (t && typeof speakEN === 'function') speakEN(t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'), tutorState ? tutorState.lang : 'en-US');
+    if (t && typeof speakEN === 'function') _tutorSpeak(t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
 }
 window._tutorSpeakBtn = _tutorSpeakBtn;
 function _tutorDoContinue() {
@@ -6036,6 +6052,7 @@ async function speakEN(text, lang, cbs, voiceOverride) {
     if (!text) { cbs.onEnd && cbs.onEnd(); return; }
     _stopCurrentAudio();
     const isEN = /^en/i.test(lang || '');
+    const isPT = /^pt/i.test(lang || '');
     if (isEN) {
         // 0) Mistral Voxtral TTS (mesma chave do STT) — preferido se houver chave
         if (state.max && state.max.mistralKey && state.useMistralTTS !== false && Date.now() > _mistralTTSCooldownUntil) {
@@ -6067,11 +6084,26 @@ async function speakEN(text, lang, cbs, voiceOverride) {
             _ttsLoadingClear();
         }
     }
+    // Português: voz PT neural (Edge — fiável no iOS via <audio>), depois sistema.
+    if (isPT && state.useEdgeTTS !== false && Date.now() > _edgeCooldownUntil) {
+        _ttsLoadingShow();
+        try {
+            const blob = await _edgeTTS(text, _ptEdgeVoice(), 'pt-PT');
+            if (blob) { if (_playBlob(blob, text, lang, cbs)) { _lastTTSEngine = 'Edge'; return; } }
+            else { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; }
+        } catch (e) { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; console.warn('[edge-tts pt]', e); }
+        _ttsLoadingClear();
+    }
     _lastTTSEngine = 'Sistema';
-    // 3) Voz do sistema (síncrona)
+    // 3) Voz do sistema (síncrona) — PT escolhe voz pt-PT, EN escolhe voz EN
     _sysSpeak(text, lang, cbs);
 }
 window.speakEN = speakEN;
+// Voz PT do Edge a usar: respeita a escolha do utilizador se for Edge, senão Raquel.
+function _ptEdgeVoice() {
+    const sel = (state && state.voicePT) || 'edge:pt-PT-RaquelNeural';
+    return sel.indexOf('edge:') === 0 ? sel.slice(5) : 'pt-PT-RaquelNeural';
+}
 
 // Voz Gemini determinística por exercício (mesmo exercício → mesma voz,
 // exercícios diferentes → vozes diferentes). Simula vários oradores.
