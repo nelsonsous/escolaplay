@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v370';
+const APP_VERSION = 'v371';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5825,7 +5825,7 @@ async function _mistralTTS(text, lang) {
     const key = state.max && state.max.mistralKey;
     if (!key) return null;
     const model = state.mistralTTSModel || 'voxtral-mini-tts-2603';
-    const voice = state.mistralVoice || 'neutral_female';
+    const voice = state.mistralVoice || 'en_paul_neutral';
     // O cliente oficial usa "voice_id"; enviamos também "voice" por segurança.
     const body = { model, input: text, voice_id: voice, voice, response_format: 'mp3', format: 'mp3' };
     const ctrl = new AbortController();
@@ -11585,7 +11585,9 @@ function openVoicePickerEN() {
     const modal = document.createElement('div');
     modal.id = 'voice-picker-en-temp';
     modal.className = 'modal';
-    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px';
+    // z-index acima do overlay do tutor (9200) — senão abria por trás e só
+    // aparecia depois de fechar o tutor.
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px;z-index:99999';
     const currentName = state.ttsVoiceNameEN || '';
     // Secção Gemini (voz neural premium)
     const GEM_VOICES = [
@@ -11603,7 +11605,7 @@ function openVoicePickerEN() {
     const mistralOn = mistralHasKey && state.useMistralTTS !== false;
     const mistralVoice = state.mistralVoice || '';
     // Lista descoberta via API (state.mistralVoiceList) ou candidatos para experimentar
-    const mistralCandidates = ['pt_female', 'pt_male', 'neutral_female', 'neutral_male', 'casual_female', 'casual_male', 'cheerful_female'];
+    const mistralCandidates = ['en_paul_neutral', 'en_emma_neutral', 'en_paul_casual', 'en_emma_casual'];
     const mistralList = (Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length) ? state.mistralVoiceList : mistralCandidates;
     const mistralListLoaded = !!(Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length);
     const mistralSection = `
