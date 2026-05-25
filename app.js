@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v397';
+const APP_VERSION = 'v398';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5317,50 +5317,92 @@ function _tutorResumePractice() {
 }
 window._tutorResumePractice = _tutorResumePractice;
 // Explicação exaustiva de um tema (visão geral longa + regras + exemplos + erros comuns)
-async function _tutorDeepDive(topic) {
-    if (!tutorState) return;
+async function _tutorDeepDive(topic, opts) {
+    if (!tutorState) return false;
+    opts = opts || {};
     topic = topic || tutorState._lastTopic || '';
-    if (!topic) return;
+    if (!topic) return false;
+    const level = opts.level || 0; // 0 = lição de curso; 1+ = ainda mais detalhe
+    tutorState._deepTopic = topic;
+    tutorState._deepLevel = level;
     const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar explicação detalhada…</div>`;
-    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. Give an EXHAUSTIVE, in-depth lesson on: "${topic}".
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> ${level > 0 ? 'A aprofundar ainda mais…' : 'A preparar a lição completa…'}</div>`;
+    const deeper = level > 0
+        ? `\nThis is an EVEN DEEPER follow-up (level ${level + 1}) on the SAME topic: go beyond the basics — nuance, edge cases, register (formal/informal), frequent confusions with neighbouring tenses/structures, and richer business examples. Add NEW substance, do not just repeat a summary.`
+        : '';
+    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. Write a COMPLETE, COURSE-STYLE lesson on: "${topic}" — thorough and didactic, like a full lesson a student studies before practising.${deeper}
 GRAMMAR TERMS RULE (critical): all grammar term NAMES (Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals…) MUST stay in ENGLISH everywhere, including inside the Portuguese text — never translate (write "Simple Past", never "passado simples").
 Return STRICT JSON only:
-{"title":"concept title using ENGLISH grammar terms","overview":"thorough overview in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 90-150 words, grammar term names in English","points":[{"form":"English form/word","use":"PT-PT detalhe de quando usar"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 8 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"]}
-Include 4-6 "points", 3-5 "examples", and 2-4 "pitfalls".`;
+{"title":"concept title using ENGLISH grammar terms","overview":"thorough, well-structured explanation in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 180-260 words, grammar term names in English","points":[{"form":"English form/word/structure","use":"PT-PT detalhe de quando e como usar"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 10 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"]}
+Include 5-8 "points", 4-6 "examples", and 3-5 "pitfalls".`;
     try {
-        const { text } = await callClaudeAPI(prompt, 1400, true);
-        if (!tutorState) return;
+        const { text } = await callClaudeAPI(prompt, 1900, true);
+        if (!tutorState) return false;
         const m = text.match(/\{[\s\S]*\}/);
         let d = {};
         if (m) { try { d = JSON.parse(m[0]); } catch {} }
-        _tutorRenderDeepDive(d);
+        if (!d || !d.overview) {
+            if (opts.prePractice) { _tutorRunPractice(topic, opts.practiceArg || ''); return true; }
+            _tutorAddTutor('Não consegui preparar isso agora. Tenta outra vez?', '', '', true);
+            return false;
+        }
+        _tutorRenderDeepDive(d, { prePractice: !!opts.prePractice, level });
+        return true;
     } catch (e) {
         console.warn('[tutor] deepdive failed', e);
+        if (opts.prePractice) { _tutorRunPractice(topic, opts.practiceArg || ''); return true; }
         if (tutorState) _tutorAddTutor('Não consegui preparar isso agora. Tenta outra vez?', '', '', true);
+        return false;
     }
 }
 window._tutorDeepDive = _tutorDeepDive;
-function _tutorRenderDeepDive(d) {
+function _tutorMoreDetail() {
+    const t = tutorState && tutorState._deepTopic;
+    if (!t) return;
+    // Se ainda há prática pendente deste tópico, mantém o botão "Praticar" na lição mais funda.
+    const pre = !!(tutorState._pendingPracticeTopic && tutorState._pendingPracticeTopic === t);
+    _tutorDeepDive(t, { level: (tutorState._deepLevel || 0) + 1, prePractice: pre, practiceArg: tutorState._pendingPracticeArg || '' });
+}
+window._tutorMoreDetail = _tutorMoreDetail;
+function _tutorPracticeNow() {
+    const t = tutorState && tutorState._pendingPracticeTopic;
+    if (!t) return;
+    const arg = tutorState._pendingPracticeArg || '';
+    tutorState._pendingPracticeTopic = null;
+    tutorState._pendingPracticeArg = null;
+    _tutorRunPractice(t, arg);
+}
+window._tutorPracticeNow = _tutorPracticeNow;
+function _tutorRenderDeepDive(d, opts) {
+    opts = opts || {};
     const chat = document.getElementById('tutor-chat');
     if (!chat || !tutorState) return;
     if (d.title) tutorState._lastTopic = d.title;
+    const tEsc = escapeHtml(d.title || tutorState._deepTopic || tutorState._lastTopic || '');
     const pitfalls = (Array.isArray(d.pitfalls) && d.pitfalls.length)
         ? `<div class="tutor-ex-label">ERROS COMUNS</div><ul class="tutor-pitfalls">${d.pitfalls.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>` : '';
-    const resumeBtn = (tutorState._pq && tutorState._pq.queue.length)
-        ? `<button class="tutor-lbtn prac full" onclick="_tutorResumePractice()"><i class="fas fa-arrow-right"></i> Continuar prática</button>` : '';
+    const overview = d.overview
+        ? `<div class="tutor-explain">${escapeHtml(d.overview)} <button class="tutor-say" data-text="${escapeHtml(d.overview)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir a lição"><i class="fas fa-volume-high"></i></button></div>` : '';
+    const practiceBtn = opts.prePractice
+        ? `<button class="tutor-lbtn prac full" onclick="_tutorPracticeNow()"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios</button>`
+        : ((tutorState._pq && tutorState._pq.queue.length)
+            ? `<button class="tutor-lbtn prac full" onclick="_tutorResumePractice()"><i class="fas fa-arrow-right"></i> Continuar prática</button>` : '');
+    const headLabel = (opts.level > 0) ? `📚 Lição — ainda mais detalhe (nível ${opts.level + 1})` : '📚 Lição completa';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">${_tutorAvatar()}</div>
         <div class="tutor-lesson">
-          <div class="tutor-lesson-head">📚 Explicação detalhada</div>
+          <div class="tutor-lesson-head">${headLabel}</div>
           ${d.title ? `<div class="tutor-lesson-title">${escapeHtml(d.title)}</div>` : ''}
-          ${d.overview ? `<div class="tutor-explain">${escapeHtml(d.overview)}</div>` : ''}
+          ${overview}
           ${_tutorPointsHtml(d.points)}
           ${_tutorExamplesHtml(d.examples)}
           ${pitfalls}
-          ${_tutorXtraRow(d.title || tutorState._lastTopic)}
-          ${resumeBtn}
+          <div class="tutor-lesson-btns">
+            <button class="tutor-lbtn" onclick="_tutorMoreDetail()"><i class="fas fa-layer-group"></i> Ainda mais detalhe</button>
+            <button class="tutor-lbtn" data-topic="${tEsc}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida</button>
+            ${practiceBtn}
+          </div>
         </div>
       </div>`);
     _tutorScrollToLastTop();
@@ -5913,7 +5955,31 @@ window._tutorDoPractice = _tutorDoPractice;
 // A fila começa com 3 exercícios. Acertas → próximo. Erras → o tutor gera
 // uma sub-lição focada no erro + 3 sub-exercícios que entram À FRENTE da fila
 // (antes dos que faltavam). Funciona em qualquer nível de profundidade.
+function _tutorIsNewTopic(topic) {
+    if (!topic || !state.max) return false;
+    const t = String(topic).trim();
+    if (!t || t.length < 3 || t.toLowerCase() === 'grammar') return false;
+    return !(state.max.tutorTaught && state.max.tutorTaught[t]);
+}
+function _tutorMarkTaught(topic) {
+    if (!topic || !state.max) return;
+    state.max.tutorTaught = state.max.tutorTaught || {};
+    state.max.tutorTaught[String(topic).trim()] = Date.now();
+    saveState();
+}
 async function _tutorGeneratePractice(errorType, exampleCorrect) {
+    errorType = errorType || 'grammar';
+    // Tema novo → lição completa (estilo curso) ANTES da 1.ª prática; o botão "Praticar" arranca os exercícios.
+    if (_tutorIsNewTopic(errorType)) {
+        _tutorMarkTaught(errorType);
+        tutorState._pendingPracticeTopic = errorType;
+        tutorState._pendingPracticeArg = exampleCorrect || '';
+        await _tutorDeepDive(errorType, { prePractice: true, practiceArg: exampleCorrect || '' });
+        return;
+    }
+    return _tutorRunPractice(errorType, exampleCorrect);
+}
+async function _tutorRunPractice(errorType, exampleCorrect) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
     const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
