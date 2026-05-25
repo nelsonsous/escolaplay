@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v387';
+const APP_VERSION = 'v388';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4686,6 +4686,7 @@ function openTutor(opts) {
       <div class="tutor-header">
         <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
         <div class="tutor-title"><span class="tutor-av">${av}</span> English Tutor</div>
+        <button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>
         <button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>
         <span class="tutor-tag">IA</span>
       </div>
@@ -4697,6 +4698,8 @@ function openTutor(opts) {
     const opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
     _tutorAddTutor(opener, null, null);
     _tutorRenderWeak();
+    _tutorRenderReviewPrompt();
+    _tutorUpdateReviewBadge();
     _tutorRenderMic();
 }
 window.openTutor = openTutor;
@@ -4756,6 +4759,164 @@ function _tutorPracticeWeak() {
     _tutorGeneratePractice(list.join(', '), '');
 }
 window._tutorPracticeWeak = _tutorPracticeWeak;
+
+// ============================================================
+// PHRASEBOOK + REVISÃO ESPAÇADA (SRS tipo Anki)
+// Cartões em state.max.srs: type 'phrase' (expressão guardada) ou 'topic'
+// (erro a fixar). Voltam a aparecer em intervalos crescentes.
+// ============================================================
+const _SRS_INTERVALS = [1, 3, 7, 16, 35, 75]; // dias entre revisões (crescente)
+function _srsAll() { return (state.max && Array.isArray(state.max.srs)) ? state.max.srs : []; }
+function _srsAdd(card) {
+    if (!state.max) state.max = {};
+    if (!Array.isArray(state.max.srs)) state.max.srs = [];
+    card.id = 'c' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+    card.createdAt = Date.now();
+    card.intervalIdx = -1;
+    card.due = Date.now();
+    card.lapses = 0;
+    state.max.srs.push(card);
+    try { saveState(); } catch {}
+    return card;
+}
+function _srsRemove(id) {
+    if (!state.max || !Array.isArray(state.max.srs)) return;
+    state.max.srs = state.max.srs.filter(c => c.id !== id);
+    try { saveState(); } catch {}
+}
+function _srsDueCount() { const n = Date.now(); return _srsAll().filter(c => (c.due || 0) <= n).length; }
+function _srsDueCards() { const n = Date.now(); return _srsAll().filter(c => (c.due || 0) <= n).sort((a, b) => (a.due || 0) - (b.due || 0)); }
+function _srsGrade(id, grade) {
+    const c = _srsAll().find(x => x.id === id);
+    if (!c) return;
+    if (grade === 'again') { c.intervalIdx = 0; c.lapses = (c.lapses || 0) + 1; c.due = Date.now() + _SRS_INTERVALS[0] * 864e5; }
+    else {
+        let idx = c.intervalIdx < 0 ? 0 : c.intervalIdx + (grade === 'easy' ? 2 : 1);
+        idx = Math.min(idx, _SRS_INTERVALS.length - 1);
+        c.intervalIdx = idx;
+        c.due = Date.now() + _SRS_INTERVALS[idx] * 864e5;
+    }
+    try { saveState(); } catch {}
+}
+function _tutorSavePhrase(text, note, topic) {
+    text = String(text || '').trim(); if (!text) return false;
+    if (_srsAll().some(c => c.type === 'phrase' && c.text === text)) { if (typeof showToast === 'function') showToast('Já está no phrasebook'); return false; }
+    _srsAdd({ type: 'phrase', text, note: String(note || '').trim(), topic: String(topic || '').trim() });
+    if (typeof showToast === 'function') showToast('💾 Guardado no phrasebook');
+    _tutorUpdateReviewBadge();
+    return true;
+}
+function _tutorSavePhraseBtn(el) {
+    if (!el) return;
+    const dec = s => String(s || '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    if (_tutorSavePhrase(dec(el.dataset.text), dec(el.dataset.note), dec(el.dataset.topic))) {
+        el.disabled = true; el.innerHTML = '<i class="fas fa-check"></i>';
+        el.classList.add('saved');
+    }
+}
+window._tutorSavePhraseBtn = _tutorSavePhraseBtn;
+function _tutorEnqueueTopic(topic) {
+    topic = String(topic || '').trim(); if (!topic || topic.length > 60) return;
+    if (_srsAll().some(c => c.type === 'topic' && c.topic === topic)) return;
+    const card = _srsAdd({ type: 'topic', topic });
+    // Acabaste de praticar este erro → 1.ª revisão amanhã, não já a seguir.
+    if (card) { card.due = Date.now() + _SRS_INTERVALS[0] * 864e5; try { saveState(); } catch {} }
+}
+function _tutorUpdateReviewBadge() {
+    const b = document.getElementById('tutor-review-badge');
+    if (!b) return;
+    const n = _srsDueCount();
+    b.textContent = n ? (n > 9 ? '9+' : String(n)) : '';
+    b.style.display = n ? 'flex' : 'none';
+}
+function _tutorRenderReviewPrompt() {
+    const n = _srsDueCount();
+    if (!n) return;
+    const chat = document.getElementById('tutor-chat'); if (!chat) return;
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">📚</div>
+        <div class="tutor-weak">
+          <div class="tutor-weak-h">Tens ${n} ${n === 1 ? 'cartão' : 'cartões'} para rever</div>
+          <button class="tutor-lbtn prac" onclick="_tutorOpenReview()"><i class="fas fa-book"></i> Rever agora</button>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorOpenReview() {
+    document.getElementById('review-overlay')?.remove();
+    const o = document.createElement('div');
+    o.id = 'review-overlay';
+    o.innerHTML = `
+      <div class="tutor-header">
+        <button class="icon-btn" onclick="_tutorCloseReview()"><i class="fas fa-arrow-left"></i></button>
+        <div class="tutor-title"><span class="tutor-av">📚</span> Phrasebook & Revisão</div>
+      </div>
+      <div class="review-body" id="review-body"></div>`;
+    document.body.appendChild(o);
+    _tutorRenderReview();
+}
+window._tutorOpenReview = _tutorOpenReview;
+function _tutorCloseReview() { document.getElementById('review-overlay')?.remove(); _tutorUpdateReviewBadge(); }
+window._tutorCloseReview = _tutorCloseReview;
+function _tutorRenderReview() {
+    const body = document.getElementById('review-body');
+    if (!body) return;
+    body.innerHTML = _reviewSessionHtml() + _phrasebookListHtml();
+}
+function _reviewSessionHtml() {
+    const due = _srsDueCards();
+    if (!due.length) return `<div class="review-card review-done"><div class="review-done-ic">✅</div><div>Sem revisões pendentes. Bom trabalho!</div></div>`;
+    const c = due[0];
+    const remaining = due.length;
+    const head = `<div class="review-sec-h">🔁 A rever — ${remaining} ${remaining === 1 ? 'cartão' : 'cartões'}</div>`;
+    if (c.type === 'phrase') {
+        return head + `<div class="review-card" data-id="${c.id}">
+          <div class="review-q">${escapeHtml(c.text)} <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="review-note" id="review-note" style="display:none">${c.note ? escapeHtml(c.note) : '<i>(sem nota)</i>'}${c.topic ? ` · <span class="review-topic">${escapeHtml(c.topic)}</span>` : ''}</div>
+          <button class="review-reveal" id="review-reveal" onclick="document.getElementById('review-reveal').style.display='none';document.getElementById('review-note').style.display='block';document.getElementById('review-grades').style.display='flex'">Mostrar nota</button>
+          <div class="review-grades" id="review-grades" style="display:none">
+            <button class="review-grade again" onclick="_reviewGrade('${c.id}','again')">Outra vez</button>
+            <button class="review-grade good" onclick="_reviewGrade('${c.id}','good')">Bom</button>
+            <button class="review-grade easy" onclick="_reviewGrade('${c.id}','easy')">Fácil</button>
+          </div>
+        </div>`;
+    }
+    return head + `<div class="review-card" data-id="${c.id}">
+      <div class="review-q">📌 Erro a fixar: <b>${escapeHtml(c.topic)}</b></div>
+      <button class="review-practice" onclick="_reviewPractice('${c.id}')"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios</button>
+      <div class="review-grades" style="display:flex">
+        <button class="review-grade again" onclick="_reviewGrade('${c.id}','again')">Ainda erro</button>
+        <button class="review-grade good" onclick="_reviewGrade('${c.id}','good')">Já domino</button>
+      </div>
+    </div>`;
+}
+function _phrasebookListHtml() {
+    const phrases = _srsAll().filter(c => c.type === 'phrase').sort((a, b) => b.createdAt - a.createdAt);
+    if (!phrases.length) return `<div class="review-sec-h">📖 O meu phrasebook</div><div class="review-empty">Ainda não guardaste expressões. Quando o professor te corrigir, toca em <i class="fas fa-bookmark"></i> para guardar.</div>`;
+    return `<div class="review-sec-h">📖 O meu phrasebook (${phrases.length})</div>` + phrases.map(c => `
+      <div class="phrase-row" data-id="${c.id}">
+        <div class="phrase-main">
+          <div class="phrase-text">${escapeHtml(c.text)}</div>
+          ${c.note ? `<div class="phrase-note">${escapeHtml(c.note)}</div>` : ''}
+        </div>
+        <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button>
+        <button class="phrase-del" onclick="_reviewDelete('${c.id}')" aria-label="Apagar"><i class="fas fa-trash"></i></button>
+      </div>`).join('');
+}
+function _reviewGrade(id, grade) { _srsGrade(id, grade); _tutorRenderReview(); }
+window._reviewGrade = _reviewGrade;
+function _reviewPractice(id) {
+    const c = _srsAll().find(x => x.id === id);
+    if (!c) return;
+    _srsGrade(id, 'good');
+    _tutorCloseReview();
+    if (tutorState) { tutorState._practiceReply = 'Continuamos quando quiseres.'; _tutorGeneratePractice(c.topic, ''); }
+}
+window._reviewPractice = _reviewPractice;
+function _reviewDelete(id) { _srsRemove(id); _tutorRenderReview(); }
+window._reviewDelete = _reviewDelete;
+
 
 function _tutorAvatar() {
     return (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(34)) || '🧑‍🏫';
@@ -5553,7 +5714,7 @@ function _tutorExamplesHtml(examples) {
 function _tutorShowCorrection(d) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
-    if (d.errorType) _tutorTrackWeak(d.errorType, false);
+    if (d.errorType) { _tutorTrackWeak(d.errorType, false); _tutorEnqueueTopic(d.errorType); }
     tutorState._lastTopic = d.lessonTitle || d.errorType || tutorState._lastTopic;
     const badge = d.errorType ? `<span class="tutor-errtype">${escapeHtml(d.errorType)}</span>` : '';
     const hasRule = d.lessonTitle || d.explanation || (d.points && d.points.length) || (d.examples && d.examples.length);
@@ -5563,7 +5724,7 @@ function _tutorShowCorrection(d) {
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">📖 Vamos corrigir ${badge}</div>
           <div class="tutor-cmp-said">🗣️ Disseste: "${escapeHtml(d.said)}"</div>
-          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button> <button class="tutor-save" data-text="${escapeHtml(d.corrected)}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(d.errorType || '')}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button></div>
           ${hasRule ? `<div class="tutor-lesson-rule">
             ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
             ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
