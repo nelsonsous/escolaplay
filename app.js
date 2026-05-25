@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v394';
+const APP_VERSION = 'v395';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5958,7 +5958,7 @@ function _tutorRenderPracticeItem() {
     pq._el = qid;
     const depth = it.depth || 0;
     const label = depth > 0 ? '🔁 Reforço do erro' : 'Exercício';
-    const speakQ = (it.q || '').replace(/_{2,}/g, ' blank ').replace(/\s+/g, ' ').trim();
+    const speakQ = (it.q || '').replace(/\s*_{2,}\s*/g, ', ').replace(/\s+/g, ' ').trim();
     const opts = it.options.map((o, i) => `<button class="tutor-qopt" data-i="${i}" onclick="_tutorPracticeAnswer(${i})">${String.fromCharCode(65 + i)}. ${escapeHtml(o)}</button>`).join('');
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
@@ -6004,6 +6004,11 @@ function _tutorPracticeAnswer(i) {
         const ptNote = it.expPt ? `<span class="tutor-fb-pt">${escapeHtml(it.expPt)}</span>` : '';
         fb.innerHTML = `<div class="tutor-quiz-fb-inner ${ok ? 'fb-ok' : 'fb-err'}">${escapeHtml(it.exp || '')}${ptNote}</div>`;
     }
+    // Após responder, lê em voz alta a frase completa já com a palavra certa
+    // (ou só a palavra, se a pergunta não tiver lacuna) — antes a lacuna era lida como "blank".
+    const _correctOpt = it.options[it.answer] || '';
+    const _sayCorrect = (/_{2,}/.test(it.q) ? it.q.replace(/_{2,}/, _correctOpt) : _correctOpt).replace(/\s+/g, ' ').trim();
+    if (_sayCorrect && typeof speakEN === 'function') _tutorSpeak(_sayCorrect);
     _tutorScroll();
     pq.queue.shift(); // remove o exercício respondido
     if (ok) {
