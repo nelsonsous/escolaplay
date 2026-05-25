@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v372';
+const APP_VERSION = 'v373';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5826,8 +5826,9 @@ async function _mistralTTS(text, lang) {
     if (!key) return null;
     const model = state.mistralTTSModel || 'voxtral-mini-tts-2603';
     const voice = state.mistralVoice || 'en_paul_neutral';
-    // O cliente oficial usa "voice_id"; enviamos também "voice" por segurança.
-    const body = { model, input: text, voice_id: voice, voice, response_format: 'mp3', format: 'mp3' };
+    // A API rejeita campos extra (extra_forbidden). Só os aceites: model,
+    // input, voice_id/voice, response_format. (en_paul_neutral é voz válida.)
+    const body = { model, input: text, voice_id: voice, voice, response_format: 'mp3' };
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 20000);
     try {
