@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v367';
+const APP_VERSION = 'v368';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4686,6 +4686,7 @@ function openTutor(opts) {
       <div class="tutor-header">
         <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
         <div class="tutor-title"><span class="tutor-av">${av}</span> English Tutor</div>
+        <button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>
         <span class="tutor-tag">IA</span>
       </div>
       <div class="tutor-chat" id="tutor-chat"></div>
