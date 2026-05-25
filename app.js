@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v389';
+const APP_VERSION = 'v390';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4886,7 +4886,8 @@ function _reviewSessionHtml() {
     return head + `<div class="review-card" data-id="${c.id}">
       <div class="review-q">📌 Erro a fixar: <b>${escapeHtml(c.topic)}</b></div>
       <button class="review-practice" onclick="_reviewPractice('${c.id}')"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios</button>
-      <div class="review-grades" style="display:flex">
+      <div class="review-orlabel">ou marca já, sem praticar:</div>
+      <div class="review-grades">
         <button class="review-grade again" onclick="_reviewGrade('${c.id}','again')">Ainda erro</button>
         <button class="review-grade good" onclick="_reviewGrade('${c.id}','good')">Já domino</button>
       </div>
@@ -4910,9 +4911,9 @@ window._reviewGrade = _reviewGrade;
 function _reviewPractice(id) {
     const c = _srsAll().find(x => x.id === id);
     if (!c) return;
-    _srsGrade(id, 'good');
     _tutorCloseReview();
-    if (tutorState) { tutorState._practiceReply = 'Continuamos quando quiseres.'; _tutorGeneratePractice(c.topic, ''); }
+    // Praticar NÃO gradua — no fim da prática perguntamos se avança de nível.
+    if (tutorState) { tutorState._reviewingCard = { id: c.id, topic: c.topic }; tutorState._practiceReply = ''; _tutorGeneratePractice(c.topic, ''); }
 }
 window._reviewPractice = _reviewPractice;
 function _reviewDelete(id) { _srsRemove(id); _tutorRenderReview(); }
@@ -6061,10 +6062,37 @@ function _tutorRenderMistakeLesson(d) {
 }
 function _tutorPracticeDone() {
     const reply = (tutorState && tutorState._practiceReply) || '';
-    if (tutorState) { tutorState._practiceReply = null; tutorState._pq = null; }
+    const rc = tutorState && tutorState._reviewingCard;
+    if (tutorState) { tutorState._practiceReply = null; tutorState._pq = null; tutorState._reviewingCard = null; }
     _tutorAddTutor(`Boa! Acabámos a prática 🎉${reply ? ' ' + reply : ''}`, '', '', true);
+    // Se a prática veio de um cartão de revisão, decides tu se avança de nível.
+    if (rc && _srsAll().some(x => x.id === rc.id)) _tutorAskAdvance(rc);
+    else _tutorRenderWeak();
+}
+function _tutorAskAdvance(rc) {
+    const chat = document.getElementById('tutor-chat'); if (!chat) return;
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-weak">
+          <div class="tutor-weak-h">Como correu "${escapeHtml(rc.topic)}"?</div>
+          <div class="tutor-advance-q">Avançar este erro para o próximo nível de revisão?</div>
+          <div class="tutor-advance-btns">
+            <button class="tutor-lbtn cont" onclick="_tutorAdvanceCard('${rc.id}','again')">Ainda erro · amanhã</button>
+            <button class="tutor-lbtn rep" onclick="_tutorAdvanceCard('${rc.id}','good')">Bom · próximo nível</button>
+            <button class="tutor-lbtn prac" onclick="_tutorAdvanceCard('${rc.id}','easy')">Fácil · saltar nível</button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorAdvanceCard(id, grade) {
+    _srsGrade(id, grade);
+    _tutorUpdateReviewBadge();
+    _tutorAddTutor(grade === 'again' ? 'Combinado — volto a trazer este erro amanhã. Continuamos?' : 'Boa — agendado para o próximo nível. Continuamos?', '', '', true);
     _tutorRenderWeak();
 }
+window._tutorAdvanceCard = _tutorAdvanceCard;
 window._tutorStartMic = _tutorStartMic;
 
 function renderSpeak(e) {
