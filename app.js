@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v388';
+const APP_VERSION = 'v389';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4699,6 +4699,7 @@ function openTutor(opts) {
     _tutorAddTutor(opener, null, null);
     _tutorRenderWeak();
     _tutorRenderReviewPrompt();
+    _tutorRenderRoleplayPrompt();
     _tutorUpdateReviewBadge();
     _tutorRenderMic();
 }
@@ -4917,6 +4918,112 @@ window._reviewPractice = _reviewPractice;
 function _reviewDelete(id) { _srsRemove(id); _tutorRenderReview(); }
 window._reviewDelete = _reviewDelete;
 
+// ============================================================
+// ROLE-PLAY DE REUNIÕES — pratica o inglês real do trabalho (SAP/Sonae)
+// A persona responde em personagem; as correções continuam a funcionar e
+// alimentam o phrasebook/SRS. No fim, um debrief com avaliação.
+// ============================================================
+const _TUTOR_SCENES = [
+    {
+        id: 'kickoff', icon: '🚀', label: 'Kickoff', persona: 'Karen',
+        personaRole: 'the client sponsor at Sonae (demanding, results-driven, non-technical, busy)',
+        objective: 'Apresenta o projeto e alinha o âmbito e o calendário com a Karen.',
+        opener: "Hi, thanks for joining. Before we dive in — can you walk me through the scope and the timeline for this SAP rollout?"
+    },
+    {
+        id: 'status', icon: '📊', label: 'Status', persona: 'Ricardo',
+        personaRole: 'a senior SAP functional consultant on your team (detail-oriented, asks technical follow-ups)',
+        objective: 'Dá um update de progresso claro e responde às perguntas técnicas do Ricardo.',
+        opener: "Morning! Quick status check — where are we with the integration testing? Any blockers I should know about?"
+    },
+    {
+        id: 'escalation', icon: '⚠️', label: 'Escalation', persona: 'Irina',
+        personaRole: 'the PMO / program manager (process-focused, watches risks and the go-live date closely)',
+        objective: 'Sinaliza um risco/atraso à Irina e propõe uma mitigação, de forma profissional.',
+        opener: "I saw your note about a possible delay. Let's talk — what exactly is the risk, and how bad is it for the go-live date?"
+    }
+];
+function _tutorRenderRoleplayPrompt() {
+    const chat = document.getElementById('tutor-chat'); if (!chat) return;
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">🎭</div>
+        <div class="tutor-weak">
+          <div class="tutor-weak-h">Treinar uma reunião (role-play)</div>
+          <div class="tutor-scenes">
+            ${_TUTOR_SCENES.map(s => `<button class="tutor-scene-btn" onclick="_tutorStartRoleplay('${s.id}')"><span>${s.icon} ${s.label}</span><small>com ${escapeHtml(s.persona)}</small></button>`).join('')}
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorStartRoleplay(sceneId) {
+    const sc = _TUTOR_SCENES.find(s => s.id === sceneId); if (!sc || !tutorState) return;
+    tutorState._roleplay = sc;
+    tutorState._ask = null; tutorState._pron = null; tutorState._pending = null; tutorState.drill = null;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) {
+        chat.insertAdjacentHTML('beforeend', `
+          <div class="tutor-row them">
+            <div class="tutor-bubble-av">${sc.icon}</div>
+            <div class="tutor-role-head">
+              <div class="tutor-role-title">🎭 ${escapeHtml(sc.label)} · com ${escapeHtml(sc.persona)}</div>
+              <div class="tutor-role-obj">🎯 ${escapeHtml(sc.objective)}</div>
+            </div>
+          </div>`);
+    }
+    _tutorAddTutor(sc.opener, '', '', true);
+    _tutorRenderMic();
+}
+window._tutorStartRoleplay = _tutorStartRoleplay;
+async function _tutorEndRoleplay() {
+    if (!tutorState || !tutorState._roleplay) return;
+    const sc = tutorState._roleplay;
+    tutorState._roleplay = null;
+    _tutorRenderMic();
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A avaliar a reunião…</div>`;
+    const hist = tutorState.history.slice(-16).map(h => `${h.role === 'you' ? 'PM' : sc.persona}: ${h.text}`).join('\n');
+    const prompt = `A Portuguese Project Manager just finished a role-play "${sc.label}" meeting (SAP project at Sonae), playing against ${sc.persona}, ${sc.personaRole}. The objective was: ${sc.objective}
+
+Transcript:
+${hist}
+
+Give a SHORT debrief in EUROPEAN PORTUGUESE (Portugal, never Brazilian). Return STRICT JSON:
+{"achieved":"sim|parcial|não","summary":"<=30 words, how the meeting went (PT-PT)","good":"<=18 words, one thing the PM did well (PT-PT)","improve":["2-3 concrete English/phrasing tips, each <=10 words, PT-PT"]}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 420, true);
+        let d = {};
+        const m = text && text.match(/\{[\s\S]*\}/);
+        if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        if (tutorState) { _tutorRenderMic(); _tutorShowDebrief(sc, d); }
+    } catch (e) {
+        console.warn('[tutor] debrief failed', e);
+        if (tutorState) _tutorAddTutor('Boa sessão! Continuamos quando quiseres.', '', '', true);
+    }
+}
+window._tutorEndRoleplay = _tutorEndRoleplay;
+function _tutorShowDebrief(sc, d) {
+    const chat = document.getElementById('tutor-chat'); if (!chat) return;
+    const ach = (d.achieved || '').toLowerCase();
+    const badge = ach === 'sim' ? '<span class="dbf-badge ok">Objetivo cumprido</span>'
+        : ach === 'parcial' ? '<span class="dbf-badge mid">Parcialmente</span>'
+        : ach === 'não' || ach === 'nao' ? '<span class="dbf-badge no">Não cumprido</span>' : '';
+    const improve = Array.isArray(d.improve) ? d.improve.slice(0, 3) : [];
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">🎭</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">📋 Debrief — ${escapeHtml(sc.label)} ${badge}</div>
+          ${d.summary ? `<div class="tutor-explain">${escapeHtml(d.summary)}</div>` : ''}
+          ${d.good ? `<div class="dbf-good">✅ ${escapeHtml(d.good)}</div>` : ''}
+          ${improve.length ? `<div class="tutor-ex-label">A melhorar</div><ul class="tutor-pitfalls">${improve.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : ''}
+          <button class="tutor-lbtn prac full" onclick="_tutorRenderRoleplayPrompt()"><i class="fas fa-comments"></i> Nova cena</button>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+
 
 function _tutorAvatar() {
     return (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(34)) || '🧑‍🏫';
@@ -5050,6 +5157,7 @@ function _tutorRenderMic() {
     bar.innerHTML = `
       <div id="tutor-live" class="tutor-live" style="display:none"></div>
       ${asking ? `<div class="tutor-askhint">💬 Modo dúvida — pergunta o que quiseres. <button class="tutor-askx" onclick="_tutorToggleAsk()">cancelar</button></div>` : ''}
+      ${(tutorState && tutorState._roleplay) ? `<div class="tutor-rolehint">🎭 ${escapeHtml(tutorState._roleplay.persona)} · ${escapeHtml(tutorState._roleplay.label)} <button class="tutor-askx" onclick="_tutorEndRoleplay()">terminar e avaliar</button></div>` : ''}
       <div class="tutor-inputrow">
         <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
                placeholder="${ph}"></textarea>
@@ -5648,7 +5756,14 @@ async function _tutorRespond(userText) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a pensar…</div>`;
     const hist = tutorState.history.slice(-8).map(h => `${h.role === 'you' ? 'Student' : 'Tutor'}: ${h.text}`).join('\n');
-    const prompt = `You are a snappy, encouraging English tutor for a Portuguese Project Manager (B2→C1) preparing to lead SAP/consulting meetings.
+    const rp = tutorState._roleplay;
+    const replyInstr = rp
+        ? `${rp.persona}'s in-character response in natural spoken business English (max 30 words), moving the meeting forward and pushing the student toward the objective ("${rp.objective}"), ending with a question or prompt. Stay fully in character as ${rp.persona}.`
+        : `ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.`;
+    const persona = rp
+        ? `You are role-playing as ${rp.persona}, ${rp.personaRole}, in a "${rp.label}" work meeting (SAP project at Sonae) with a Portuguese Project Manager (B2→C1) practising business English. In the conversation below, "Tutor" lines are YOU (${rp.persona}). Stay fully in character, but STILL correct the student's English in the JSON fields.`
+        : `You are a snappy, encouraging English tutor for a Portuguese Project Manager (B2→C1) preparing to lead SAP/consulting meetings.`;
+    const prompt = `${persona}
 
 Conversation so far:
 ${hist}
@@ -5660,7 +5775,7 @@ Return STRICT JSON:
 2) "errorType": short label of the MAIN error category, in ENGLISH grammar terminology (e.g. "Past Simple", "Prepositions", "Connectors", "Articles", "Word order", "Subject-verb agreement", "Vocabulary"). "" if correct.
 3) "explanation": a clear lesson in EUROPEAN PORTUGUESE (Portugal, never Brazilian) explaining the rule and why it was wrong. 40-70 words. Teach the concept properly. Keep all grammar term names in ENGLISH (write "Simple Past", "Present Perfect", never "passado simples").
 4) "tip": ultra-short PT-PT tip, max 12 words.
-5) "reply": ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.
+5) "reply": ${replyInstr}
 6) "lessonTitle": short grammar rule title (e.g. "Work ON vs. work ABOUT", "Past Simple vs. Present Perfect"). "" if correct.
 7) "points": array of 2-4 objects {form, use} mapping the whole rule — each form/word and WHEN to use it, in PT-PT. E.g. for articles: [{"form":"a / an","use":"algo novo ou não específico"},{"form":"the","use":"algo específico ou já mencionado"},{"form":"(sem artigo)","use":"ideias gerais, plurais, incontáveis"}]. "form" stays in English, "use" in PT-PT. [] if correct.
 8) "examples": array of 2-3 objects {wrong,right,note} showing the rule (English wrong/right, note max 8 words PT-PT). "wrong" must be genuinely incorrect and DIFFERENT from "right". [] if correct.
