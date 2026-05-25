@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v399';
+const APP_VERSION = 'v400';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4737,8 +4737,10 @@ function _tutorTrackWeak(topic, correct) {
     topic = String(topic).trim();
     if (!topic || topic.length > 44) return;
     state.max.tutorWeak = state.max.tutorWeak || {};
-    const w = state.max.tutorWeak[topic] || { wrong: 0, right: 0, last: 0 };
-    if (correct) w.right++; else w.wrong++;
+    const w = state.max.tutorWeak[topic] || { wrong: 0, right: 0, last: 0, streak: 0 };
+    if (correct) { w.right++; w.streak = (w.streak || 0) + 1; }
+    else { w.wrong++; w.streak = 0; }
+    w.lastResult = correct ? 'ok' : 'wrong';
     w.last = Date.now();
     state.max.tutorWeak[topic] = w;
     saveState();
@@ -4746,7 +4748,7 @@ function _tutorTrackWeak(topic, correct) {
 function _tutorTopWeak(n) {
     const w = (state.max && state.max.tutorWeak) || {};
     return Object.keys(w)
-        .filter(k => (w[k].wrong || 0) > (w[k].right || 0))
+        .filter(k => (w[k].wrong || 0) > (w[k].right || 0) && _tutorMasteryState(k) !== 'consolidado')
         .sort((a, b) => ((w[b].wrong - w[b].right) - (w[a].wrong - w[a].right)) || (w[b].last - w[a].last))
         .slice(0, n || 6);
 }
@@ -6098,17 +6100,99 @@ function _tutorShouldDeepTeach(topic) {
 }
 function _tutorMarkDeepTaught(topic) {
     if (!topic || !state.max) return;
-    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || { wrong: 0 };
+    state.max.tutorWeak = state.max.tutorWeak || {};
+    const w = state.max.tutorWeak[topic] || { wrong: 0, right: 0 };
     state.max.tutorDeepGiven = state.max.tutorDeepGiven || {};
     state.max.tutorDeepGiven[topic] = w.wrong || 0;
+    w.deepTimes = (w.deepTimes || 0) + 1;
+    state.max.tutorWeak[topic] = w;
     saveState();
 }
+// Estado de domínio derivado da memória: novo / a aprender / abana / preso / consolidado.
+function _tutorMasteryState(topic) {
+    if (!topic || !state.max) return 'novo';
+    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || null;
+    if (!w) return 'novo';
+    const seen = (w.right || 0) + (w.wrong || 0);
+    if (seen === 0) return 'novo';
+    const taught = !!((state.max.tutorTaught && state.max.tutorTaught[topic]) || (w.deepTimes || 0) > 0);
+    if ((w.streak || 0) >= 4 && (w.right || 0) > (w.wrong || 0)) return 'consolidado';
+    if (taught && (w.wrong || 0) >= 3 && (w.streak || 0) === 0) return 'preso';
+    if ((w.wrong || 0) > (w.right || 0)) return 'abana';
+    return 'a aprender';
+}
+// Coach adaptativo: já ensinado e continua a errar → reforçar de novo ou recuar a um pré-requisito.
+async function _tutorCoachDecide(topic) {
+    if (!topic || !state.max) return null;
+    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || { wrong: 0, right: 0, deepTimes: 0 };
+    const prompt = `You are an adaptive English-learning coach helping a Portuguese learner reach fluency.
+The learner KEEPS failing the topic "${topic}" EVEN AFTER being taught it ${(w.deepTimes || 0)} time(s) (wrong ${(w.wrong || 0)}x, right ${(w.right || 0)}x).
+Decide the smartest next step:
+- "regress": the real gap is a SIMPLER PREREQUISITE concept they must master first — step back and rebuild from there (often the right call when re-teaching the same topic isn't working).
+- "reinforce": a fresh, thorough re-teach of THIS topic is still the best move.
+Return STRICT JSON only:
+{"action":"regress"|"reinforce","prereq":"simpler prerequisite topic in ENGLISH grammar terms, or empty string if reinforce","level":"CEFR (A1|A2|B1|B2|C1) of the prereq, or of this topic if reinforce","reason":"ONE short EUROPEAN PORTUGUESE sentence, grammar terms in English"}`;
+    try {
+        const { text } = await callClaudeAPI(prompt, 400, true);
+        const m = text.match(/\{[\s\S]*\}/);
+        if (!m) return null;
+        const d = JSON.parse(m[0]);
+        if (d && (d.action === 'regress' || d.action === 'reinforce')) {
+            if (d.level && state.max.tutorWeak && state.max.tutorWeak[topic]) { state.max.tutorWeak[topic].level = String(d.level).trim(); saveState(); }
+            return d;
+        }
+    } catch (e) { console.warn('[tutor] coach', e); }
+    return null;
+}
+// Recuar: ensina o pré-requisito mais simples e guarda o tópico difícil (pilha) para voltar depois.
+async function _tutorRegressTo(prereq, level, returnTopic, reason) {
+    if (!tutorState || !prereq) return false;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🧭</div>
+        <div class="tutor-bubble tutor-them"><span>Vamos recuar a uma base mais simples${level ? ' (' + escapeHtml(level) + ')' : ''}: <b>${escapeHtml(prereq)}</b>. ${escapeHtml(reason || 'Dominar isto primeiro vai destravar o tópico mais difícil.')} Depois voltamos a "${escapeHtml(returnTopic)}".</span></div>
+      </div>`);
+    _tutorScroll();
+    tutorState._returnStack = tutorState._returnStack || [];
+    if (returnTopic && tutorState._returnStack[tutorState._returnStack.length - 1] !== returnTopic) tutorState._returnStack.push(returnTopic);
+    _tutorMarkTaught(prereq);
+    tutorState._pendingPracticeTopic = prereq;
+    tutorState._pendingPracticeArg = '';
+    return await _tutorDeepDive(prereq, { prePractice: true });
+}
+function _tutorOfferReturn(topic) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-weak">
+          <div class="tutor-weak-h">Já reforçaste a base. Voltamos a "${escapeHtml(topic)}"?</div>
+          <button class="tutor-lbtn prac full" data-topic="${escapeHtml(topic)}" onclick="_tutorReturnTopicBtn(this)"><i class="fas fa-arrow-up"></i> Voltar e praticar</button>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorReturnTopicBtn(el) { const t = el && el.dataset && el.dataset.topic; if (t) _tutorRunPractice(t, ''); }
+window._tutorReturnTopicBtn = _tutorReturnTopicBtn;
 async function _tutorPracticeMistake(item, chosenIdx) {
     const pq = tutorState && tutorState._pq; if (!pq) return;
-    // Erras muito o mesmo tópico → lição completa (estilo curso) em vez do reforço curto, seguida de prática.
+    // Memória: erras muito o mesmo tópico → 1.ª vez reforça (lição completa); se continuas a errar
+    // depois de ensinado, o coach decide reforçar de novo ou RECUAR a um pré-requisito mais simples.
     const _deepTopic = (item && item.topic) || pq.topic || '';
     if (_deepTopic && _tutorShouldDeepTeach(_deepTopic)) {
+        const wRec = (state.max.tutorWeak && state.max.tutorWeak[_deepTopic]) || {};
+        const firstTeach = (wRec.deepTimes || 0) === 0;
         _tutorMarkDeepTaught(_deepTopic);
+        if (!firstTeach) {
+            const bar0 = document.getElementById('tutor-bar');
+            if (bar0) bar0.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A pensar no melhor caminho para ti…</div>`;
+            const dec = await _tutorCoachDecide(_deepTopic);
+            if (!tutorState || !tutorState._pq) return;
+            if (dec && dec.action === 'regress' && dec.prereq) {
+                const okReg = await _tutorRegressTo(dec.prereq, dec.level || '', _deepTopic, dec.reason || '');
+                if (okReg) return;
+            }
+        }
         tutorState._pendingPracticeTopic = _deepTopic;
         tutorState._pendingPracticeArg = '';
         const okDeep = await _tutorDeepDive(_deepTopic, { prePractice: true });
@@ -6175,11 +6259,14 @@ function _tutorRenderMistakeLesson(d) {
 function _tutorPracticeDone() {
     const reply = (tutorState && tutorState._practiceReply) || '';
     const rc = tutorState && tutorState._reviewingCard;
+    const stack = (tutorState && tutorState._returnStack) || [];
     if (tutorState) { tutorState._practiceReply = null; tutorState._pq = null; tutorState._reviewingCard = null; }
     _tutorAddTutor(`Boa! Acabámos a prática 🎉${reply ? ' ' + reply : ''}`, '', '', true);
     // Se a prática veio de um cartão de revisão, decides tu se avança de nível.
-    if (rc && _srsAll().some(x => x.id === rc.id)) _tutorAskAdvance(rc);
-    else _tutorRenderWeak();
+    if (rc && _srsAll().some(x => x.id === rc.id)) { _tutorAskAdvance(rc); return; }
+    // Recuámos a um pré-requisito? Agora sobe de volta ao tópico difícil.
+    if (stack.length) { _tutorOfferReturn(stack.pop()); return; }
+    _tutorRenderWeak();
 }
 function _tutorAskAdvance(rc) {
     const chat = document.getElementById('tutor-chat'); if (!chat) return;
