@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v377';
+const APP_VERSION = 'v378';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5821,11 +5821,11 @@ async function _edgeTTS(text, voiceName, lang) {
 let _mistralTTSCooldownUntil = 0;
 let _lastTTSEngine = ''; // qual motor tocou por último (Mistral/Edge/Gemini/Sistema)
 let _mistralTTSLastErr = ''; // último erro (status+msg) para diagnóstico no seletor
-async function _mistralTTS(text, lang) {
+async function _mistralTTS(text, lang, voiceOverride) {
     const key = state.max && state.max.mistralKey;
     if (!key) return null;
     const model = state.mistralTTSModel || 'voxtral-mini-tts-2603';
-    const voice = state.mistralVoice || 'en_paul_neutral';
+    const voice = voiceOverride || state.mistralVoice || 'en_paul_neutral';
     // A API rejeita campos extra (extra_forbidden). Só os aceites: model,
     // input, voice_id/voice, response_format. (en_paul_neutral é voz válida.)
     const body = { model, input: text, voice_id: voice, voice, response_format: 'mp3' };
@@ -11645,6 +11645,13 @@ function openVoicePickerEN() {
             <button onclick="previewMistralVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
           </div>
           <div style="font-size:0.7rem;opacity:0.85;margin-top:8px">Para usares <b>só</b> a Mistral: ON aqui + Edge OFF.</div>
+          <div style="border-top:1px solid rgba(255,255,255,0.22);margin-top:10px;padding-top:10px">
+            <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+              ${['pt_bruna_neutral', 'pt_duarte_neutral'].map(id => `<button onclick="chooseMistralVoicePT('${id}')" style="background:${id === (state.mistralVoicePT || 'pt_bruna_neutral') ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === (state.mistralVoicePT || 'pt_bruna_neutral') ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${id}</button>`).join('')}
+            </div>
+            <button onclick="previewMistralPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
+          </div>
           ${_mistralTTSLastErr ? `<div style="margin-top:8px;background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 10px;font-size:0.7rem;line-height:1.35;word-break:break-word">⚠️ Último erro: ${escapeHtml(_mistralTTSLastErr)}</div>` : ''}
         ` : ''}
       </div>`;
@@ -11825,6 +11832,24 @@ function chooseMistralVoiceCustom() {
     chooseMistralVoice(v);
 }
 window.chooseMistralVoiceCustom = chooseMistralVoiceCustom;
+function chooseMistralVoicePT(v) {
+    state.mistralVoicePT = v;
+    _mistralTTSCooldownUntil = 0;
+    saveState();
+    openVoicePickerEN();
+    setTimeout(() => previewMistralPT(), 150);
+}
+async function previewMistralPT() {
+    if (!(state.max && state.max.mistralKey)) { showToast('Sem chave Mistral'); return; }
+    try {
+        _stopCurrentAudio();
+        const blob = await _mistralTTS('Olá! Vamos praticar juntos.', 'pt', state.mistralVoicePT || 'pt_bruna_neutral');
+        if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, 'teste de voz', 'pt-PT', {}); }
+        else { showToast('Voz PT falhou'); openVoicePickerEN(); }
+    } catch { showToast('Voz PT falhou'); openVoicePickerEN(); }
+}
+window.chooseMistralVoicePT = chooseMistralVoicePT;
+window.previewMistralPT = previewMistralPT;
 // Descobre as vozes disponíveis na conta Mistral (catálogo da API hospedada)
 async function _mistralListVoices() {
     const key = state.max && state.max.mistralKey;
@@ -11878,23 +11903,31 @@ window.chooseVoiceEN = chooseVoiceEN;
 window.clearVoiceChoiceEN = clearVoiceChoiceEN;
 window.closeVoicePickerEN = closeVoicePickerEN;
 window.ttsSpeak = function (text) {
+    const cleaned = String(text || '').replace(/<[^>]+>/g, '').replace(/\*\*/g, '').replace(/\*/g, '');
+    if (!cleaned) return;
+    // Voz PT da Mistral (mesma chave do STT), se ativa — senão voz do sistema
+    if (state.max && state.max.mistralKey && state.useMistralTTS !== false && Date.now() > _mistralTTSCooldownUntil) {
+        try { _stopCurrentAudio(); } catch {}
+        _mistralTTS(cleaned, 'pt', state.mistralVoicePT || 'pt_bruna_neutral').then(blob => {
+            if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, cleaned, 'pt-PT', {}); }
+            else { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; _ttsSpeakSystem(cleaned); }
+        }).catch(() => { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; _ttsSpeakSystem(cleaned); });
+        return;
+    }
+    _ttsSpeakSystem(cleaned);
+};
+function _ttsSpeakSystem(text) {
     try {
         if (!('speechSynthesis' in window)) return;
-        // Cancelar fala em curso
         window.speechSynthesis.cancel();
-        const cleaned = String(text || '').replace(/<[^>]+>/g,'').replace(/\*\*/g,'').replace(/\*/g,'');
-        const u = new SpeechSynthesisUtterance(cleaned);
+        const u = new SpeechSynthesisUtterance(text);
         u.lang = 'pt-PT';
-        // Parâmetros para som mais natural (menos robótico)
-        u.rate = 0.92;    // ligeiramente mais lento que normal mas não dormente
-        u.pitch = 1.0;    // pitch natural (não esticado para cima)
-        u.volume = 1.0;
-        // Pode demorar a carregar vozes — tenta agora e em fallback
+        u.rate = 0.92; u.pitch = 1.0; u.volume = 1.0;
         if (!_ttsVoice) _ttsVoice = _pickPTVoice();
         if (_ttsVoice) u.voice = _ttsVoice;
         window.speechSynthesis.speak(u);
     } catch (err) { console.warn('TTS failed', err); }
-};
+}
 
 // ============================================================
 // ESTRELAS DE DOMÍNIO — por tópico, baseado em respostas certas
