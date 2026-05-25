@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v401';
+const APP_VERSION = 'v402';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5335,10 +5335,10 @@ async function _tutorDeepDive(topic, opts) {
     const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. Write a COMPLETE, COURSE-STYLE lesson on: "${topic}" — thorough and didactic, like a full lesson a student studies before practising.${deeper}
 GRAMMAR TERMS RULE (critical): all grammar term NAMES (Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals…) MUST stay in ENGLISH everywhere, including inside the Portuguese text — never translate (write "Simple Past", never "passado simples").
 Return STRICT JSON only:
-{"title":"concept title using ENGLISH grammar terms","overview":"thorough, well-structured explanation in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 180-260 words, grammar term names in English","points":[{"form":"English form/word/structure","use":"PT-PT detalhe de quando e como usar"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 10 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"]}
-Include 5-8 "points", 4-6 "examples", and 3-5 "pitfalls".`;
+{"title":"concept title using ENGLISH grammar terms","overview":"thorough, well-structured explanation in EUROPEAN PORTUGUESE (Portugal, never Brazilian), 160-240 words, grammar term names in English","rule":"the GOLDEN RULE in PT-PT, ONE short memorable sentence (grammar terms in English); empty string if there is no single clear rule","compare":{"a":"option A name in English","b":"option B name in English","rows":[{"k":"aspect in PT-PT (e.g. Foco, Palavras-chave, Estrutura)","a":"A value in PT-PT with examples in English","b":"B value in PT-PT with examples in English"}]},"points":[{"form":"English form/word/structure","use":"PT-PT detalhe de quando e como usar"}],"contrasts":[{"a":"English sentence (option A)","am":"PT-PT meaning of A","b":"English sentence (option B, SAME idea)","bm":"PT-PT meaning of B"}],"examples":[{"wrong":"English wrong (differ from right)","right":"English correct","note":"PT-PT max 10 words"}],"pitfalls":["erro comum em PT-PT (termos gramaticais em inglês)"],"tip":"ONE short practical PT-PT quick tip to decide fast; empty string if none"}
+Include 5-8 "points", 4-6 "examples", 3-5 "pitfalls". If the topic CONTRASTS two tenses/structures (e.g. "X vs Y"), ALWAYS fill "compare" (3-5 rows) and "contrasts" (3-4 side-by-side pairs that show how the MEANING changes). If it is a single concept, use "compare":{} and "contrasts":[].`;
     try {
-        const { text } = await callClaudeAPI(prompt, 1900, true);
+        const { text } = await callClaudeAPI(prompt, 2400, true);
         if (!tutorState) return false;
         const m = text.match(/\{[\s\S]*\}/);
         let d = {};
@@ -5375,6 +5375,24 @@ function _tutorPracticeNow() {
     _tutorRunPractice(t, arg);
 }
 window._tutorPracticeNow = _tutorPracticeNow;
+// Tabela comparativa (X vs Y): aspeto | opção A | opção B
+function _tutorCompareHtml(c) {
+    if (!c || typeof c !== 'object' || !Array.isArray(c.rows)) return '';
+    const rows = c.rows.filter(r => r && (r.a || r.b)).slice(0, 6)
+        .map(r => `<tr><th>${escapeHtml(r.k || '')}</th><td>${escapeHtml(r.a || '')}</td><td>${escapeHtml(r.b || '')}</td></tr>`).join('');
+    if (!rows) return '';
+    return `<div class="tutor-cmp-wrap"><table class="tutor-cmp-table"><thead><tr><th></th><th>${escapeHtml(c.a || 'A')}</th><th>${escapeHtml(c.b || 'B')}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+// Exemplos lado-a-lado: mesma ideia em duas formas + significado de cada (com áudio)
+function _tutorContrastsHtml(arr) {
+    if (!Array.isArray(arr) || !arr.length) return '';
+    const rows = arr.filter(x => x && (x.a || x.b)).slice(0, 4).map(x => `
+      <div class="tutor-contrast">
+        <div class="tutor-contrast-side"><span class="tutor-ct-en">${escapeHtml(x.a || '')}</span>${x.a ? ` <button class="tutor-say" data-text="${escapeHtml(x.a)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>` : ''}${x.am ? `<span class="tutor-ct-mean">${escapeHtml(x.am)}</span>` : ''}</div>
+        <div class="tutor-contrast-side"><span class="tutor-ct-en">${escapeHtml(x.b || '')}</span>${x.b ? ` <button class="tutor-say" data-text="${escapeHtml(x.b)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>` : ''}${x.bm ? `<span class="tutor-ct-mean">${escapeHtml(x.bm)}</span>` : ''}</div>
+      </div>`).join('');
+    return rows ? `<div class="tutor-ex-label">FRASE A FRASE — COMO MUDA O SENTIDO</div>${rows}` : '';
+}
 function _tutorRenderDeepDive(d, opts) {
     opts = opts || {};
     const chat = document.getElementById('tutor-chat');
@@ -5385,6 +5403,10 @@ function _tutorRenderDeepDive(d, opts) {
         ? `<div class="tutor-ex-label">ERROS COMUNS</div><ul class="tutor-pitfalls">${d.pitfalls.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>` : '';
     const overview = d.overview
         ? `<div class="tutor-explain">${escapeHtml(d.overview)} <button class="tutor-say" data-text="${escapeHtml(d.overview)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir a lição"><i class="fas fa-volume-high"></i></button></div>` : '';
+    const ruleHtml = d.rule ? `<div class="tutor-rule">💡 <b>Regra de ouro:</b> ${escapeHtml(d.rule)}</div>` : '';
+    const cmpHtml = _tutorCompareHtml(d.compare);
+    const contrastHtml = _tutorContrastsHtml(d.contrasts);
+    const tipHtml = d.tip ? `<div class="tutor-tip2">⚡ <b>Dica rápida:</b> ${escapeHtml(d.tip)}</div>` : '';
     const practiceBtn = opts.prePractice
         ? `<button class="tutor-lbtn prac full" onclick="_tutorPracticeNow()"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios</button>`
         : ((tutorState._pq && tutorState._pq.queue.length)
@@ -5397,9 +5419,13 @@ function _tutorRenderDeepDive(d, opts) {
           <div class="tutor-lesson-head">${headLabel}</div>
           ${d.title ? `<div class="tutor-lesson-title">${escapeHtml(d.title)}</div>` : ''}
           ${overview}
+          ${ruleHtml}
+          ${cmpHtml}
           ${_tutorPointsHtml(d.points)}
+          ${contrastHtml}
           ${_tutorExamplesHtml(d.examples)}
           ${pitfalls}
+          ${tipHtml}
           <div class="tutor-lesson-btns">
             <button class="tutor-lbtn" onclick="_tutorMoreDetail()"><i class="fas fa-layer-group"></i> Ainda mais detalhe</button>
             <button class="tutor-lbtn" data-topic="${tEsc}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida</button>
