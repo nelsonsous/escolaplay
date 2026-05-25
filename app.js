@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v368';
+const APP_VERSION = 'v369';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5820,29 +5820,35 @@ async function _edgeTTS(text, voiceName, lang) {
 // Devolve um Blob de áudio (mp3) ou null se falhar (cai para Edge/Gemini/sistema).
 let _mistralTTSCooldownUntil = 0;
 let _lastTTSEngine = ''; // qual motor tocou por último (Mistral/Edge/Gemini/Sistema)
+let _mistralTTSLastErr = ''; // último erro (status+msg) para diagnóstico no seletor
 async function _mistralTTS(text, lang) {
     const key = state.max && state.max.mistralKey;
     if (!key) return null;
+    const model = state.mistralTTSModel || 'voxtral-mini-tts-2603';
+    const voice = state.mistralVoice || 'neutral_female';
+    // O cliente oficial usa "voice_id"; enviamos também "voice" por segurança.
+    const body = { model, input: text, voice_id: voice, voice, response_format: 'mp3', format: 'mp3' };
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 20000);
     try {
         const res = await fetch('https://api.mistral.ai/v1/audio/speech', {
             method: 'POST',
             headers: { 'authorization': `Bearer ${key}`, 'content-type': 'application/json' },
-            body: JSON.stringify({
-                model: state.mistralTTSModel || 'voxtral-mini-tts-2603',
-                input: text,
-                voice: state.mistralVoice || 'neutral_female',
-                response_format: 'mp3'
-            }),
+            body: JSON.stringify(body),
             signal: ctrl.signal
         });
         clearTimeout(to);
-        if (!res.ok) throw new Error('mistral-tts ' + res.status);
+        if (!res.ok) {
+            let detail = '';
+            try { detail = (await res.text()).slice(0, 240); } catch {}
+            _mistralTTSLastErr = res.status + (detail ? ' ' + detail : '');
+            throw new Error('mistral-tts ' + res.status);
+        }
         const blob = await res.blob();
-        if (!blob || blob.size < 200) throw new Error('mistral-tts empty');
+        if (!blob || blob.size < 200) { _mistralTTSLastErr = 'resposta vazia'; throw new Error('mistral-tts empty'); }
+        _mistralTTSLastErr = '';
         return blob;
-    } catch (e) { clearTimeout(to); console.warn('[mistral-tts]', e); return null; }
+    } catch (e) { clearTimeout(to); if (!_mistralTTSLastErr) _mistralTTSLastErr = String(e && e.message || e); console.warn('[mistral-tts]', e, _mistralTTSLastErr); return null; }
 }
 
 let _geminiCooldownUntil = 0; // enquanto > now, salta o Gemini e usa voz do sistema
@@ -6015,8 +6021,8 @@ async function speakEN(text, lang, cbs, voiceOverride) {
             } catch (e) { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; console.warn('[edge-tts]', e); }
             _ttsLoadingClear();
         }
-        // 2) Gemini (se houver key e fora de cooldown)
-        if (_hasGeminiTTS() && Date.now() > _geminiCooldownUntil) {
+        // 2) Gemini (se houver key, ativo e fora de cooldown)
+        if (_hasGeminiTTS() && state.useGeminiTTS !== false && Date.now() > _geminiCooldownUntil) {
             _ttsLoadingShow();
             try {
                 const blob = await _geminiTTS(text, voiceOverride || state.geminiVoice, lang);
@@ -11591,6 +11597,7 @@ function openVoicePickerEN() {
     ];
     const gemActive = !!(state.max && state.max.geminiKey);
     const gemVoice = state.geminiVoice || 'Kore';
+    const gemOn = gemActive && state.useGeminiTTS !== false;
     // Secção Mistral (Voxtral TTS — mesma chave do STT)
     const MISTRAL_VOICES = [
         { id: 'neutral_female', label: 'Neutra ♀' },
@@ -11635,9 +11642,9 @@ function openVoicePickerEN() {
       </div>`;
     const gemSection = `
       <div style="background:linear-gradient(135deg,#1e1b4b,#4c1d95);color:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#fbbf24"></i> Voz neural Gemini ${gemActive ? '<span style="font-size:0.66rem;background:#10b981;padding:2px 8px;border-radius:8px;margin-left:auto">ATIVA</span>' : '<span style="font-size:0.66rem;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;margin-left:auto">INATIVA</span>'}</div>
+        <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#fbbf24"></i> Voz neural Gemini ${gemActive ? `<button onclick="toggleGeminiTTS()" style="margin-left:auto;font-size:0.66rem;font-weight:800;background:${gemOn ? '#22c55e' : 'rgba(255,255,255,0.2)'};color:#fff;border:none;padding:3px 10px;border-radius:10px;cursor:pointer">${gemOn ? 'ON' : 'OFF'}</button>` : '<span style="font-size:0.66rem;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;margin-left:auto">SEM CHAVE</span>'}</div>
         <div style="font-size:0.78rem;opacity:0.85;margin:6px 0 10px;line-height:1.4">Qualidade tipo Duolingo. Grátis no Google AI Studio. Áudio fica em cache.</div>
-        ${gemActive ? `
+        ${gemOn ? `
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
             ${GEM_VOICES.map(v => `<button onclick="chooseGeminiVoice('${v.id}')" style="background:${v.id === gemVoice ? '#fbbf24' : 'rgba(255,255,255,0.12)'};color:${v.id === gemVoice ? '#1e1b4b' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">${v.id}<span style="font-weight:500;opacity:0.7;font-size:0.66rem"> · ${v.desc}</span></button>`).join('')}
           </div>
@@ -11649,7 +11656,7 @@ function openVoicePickerEN() {
             <button onclick="previewGeminiVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
             <button onclick="removeGeminiKey()" style="background:rgba(239,68,68,0.25);color:#fecaca;border:none;border-radius:10px;padding:9px 12px;font-size:0.82rem;font-weight:700;cursor:pointer">Remover key</button>
           </div>`
-        : `<button onclick="addGeminiKey()" style="width:100%;background:#fbbf24;color:#1e1b4b;border:none;border-radius:10px;padding:11px;font-size:0.85rem;font-weight:800;cursor:pointer"><i class="fas fa-key"></i> Colar key do Google AI Studio</button>`}
+        : (gemActive ? '' : `<button onclick="addGeminiKey()" style="width:100%;background:#fbbf24;color:#1e1b4b;border:none;border-radius:10px;padding:11px;font-size:0.85rem;font-weight:800;cursor:pointer"><i class="fas fa-key"></i> Colar key do Google AI Studio</button>`)}
       </div>`;
     const rows = enVoices.length === 0
         ? `<p style="text-align:center;color:var(--text-light);padding:24px 12px">
@@ -11731,8 +11738,14 @@ function chooseGeminiVoice(v) {
     openVoicePickerEN();
     setTimeout(() => previewGeminiVoice(), 150);
 }
-function previewGeminiVoice() {
-    speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US', null, state.geminiVoice);
+async function previewGeminiVoice() {
+    if (!(state.max && state.max.geminiKey)) { showToast('Sem chave Gemini'); return; }
+    try {
+        _stopCurrentAudio();
+        const blob = await _geminiTTS('Good morning everyone, thanks for joining the meeting.', state.geminiVoice || 'Kore', 'en-US');
+        if (blob) { _lastTTSEngine = 'Gemini'; _playBlob(blob, '', 'en-US', {}); }
+        else showToast('A voz Gemini falhou');
+    } catch { showToast('A voz Gemini falhou'); }
 }
 function toggleGeminiRotate() {
     state.geminiRotateVoice = (state.geminiRotateVoice === false) ? true : false;
@@ -11752,8 +11765,13 @@ function chooseEdgeVoice(v) {
     openVoicePickerEN();
     setTimeout(() => previewEdgeVoice(), 150);
 }
-function previewEdgeVoice() {
-    speakEN('Good morning everyone, thanks for joining. Let us start.', 'en-US');
+async function previewEdgeVoice() {
+    try {
+        _stopCurrentAudio();
+        const blob = await _edgeTTS('Good morning everyone, thanks for joining the meeting.', state.edgeVoice || 'en-US-AriaNeural', 'en-US');
+        if (blob) { _lastTTSEngine = 'Edge'; _playBlob(blob, '', 'en-US', {}); }
+        else showToast('A voz Edge falhou neste browser');
+    } catch { showToast('A voz Edge falhou neste browser'); }
 }
 function toggleMistralTTS() {
     state.useMistralTTS = (state.useMistralTTS === false) ? true : false;
@@ -11761,6 +11779,13 @@ function toggleMistralTTS() {
     saveState();
     openVoicePickerEN();
 }
+function toggleGeminiTTS() {
+    state.useGeminiTTS = (state.useGeminiTTS === false) ? true : false;
+    _geminiCooldownUntil = 0;
+    saveState();
+    openVoicePickerEN();
+}
+window.toggleGeminiTTS = toggleGeminiTTS;
 function chooseMistralVoice(v) {
     state.mistralVoice = v;
     _mistralTTSCooldownUntil = 0;
@@ -11775,8 +11800,8 @@ async function previewMistralVoice() {
         _stopCurrentAudio();
         const blob = await _mistralTTS('Good morning everyone, thanks for joining the meeting.', 'en-US');
         if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, '', 'en-US', {}); }
-        else showToast('A voz Mistral falhou — diz-me e eu ajusto o modelo/voz');
-    } catch { showToast('A voz Mistral falhou'); }
+        else showToast('Mistral falhou — ' + (_mistralTTSLastErr || 'erro') );
+    } catch { showToast('Mistral falhou — ' + (_mistralTTSLastErr || 'erro')); }
 }
 window.toggleMistralTTS = toggleMistralTTS;
 window.chooseMistralVoice = chooseMistralVoice;
