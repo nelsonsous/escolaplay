@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v371';
+const APP_VERSION = 'v372';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5845,7 +5845,23 @@ async function _mistralTTS(text, lang) {
             throw new Error('mistral-tts ' + res.status);
         }
         const blob = await res.blob();
-        if (!blob || blob.size < 200) { _mistralTTSLastErr = 'resposta vazia'; throw new Error('mistral-tts empty'); }
+        // A resposta pode vir como JSON (base64) em vez de áudio puro
+        if (blob && /json|text/i.test(blob.type)) {
+            let raw = ''; try { raw = await blob.text(); } catch {}
+            try {
+                const j = JSON.parse(raw);
+                const b64 = j.audio || j.audio_content || j.data || (j.output && j.output.audio) || '';
+                if (b64) {
+                    const bin = atob(b64); const arr = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                    _mistralTTSLastErr = '';
+                    return new Blob([arr], { type: 'audio/mpeg' });
+                }
+            } catch {}
+            _mistralTTSLastErr = 'resposta não-áudio (' + blob.type + '): ' + raw.slice(0, 180);
+            return null;
+        }
+        if (!blob || blob.size < 200) { _mistralTTSLastErr = 'resposta vazia (' + (blob ? blob.type + ' ' + blob.size : 'null') + ')'; return null; }
         _mistralTTSLastErr = '';
         return blob;
     } catch (e) { clearTimeout(to); if (!_mistralTTSLastErr) _mistralTTSLastErr = String(e && e.message || e); console.warn('[mistral-tts]', e, _mistralTTSLastErr); return null; }
@@ -11628,6 +11644,7 @@ function openVoicePickerEN() {
             <button onclick="previewMistralVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
           </div>
           <div style="font-size:0.7rem;opacity:0.85;margin-top:8px">Para usares <b>só</b> a Mistral: ON aqui + Edge OFF.</div>
+          ${_mistralTTSLastErr ? `<div style="margin-top:8px;background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 10px;font-size:0.7rem;line-height:1.35;word-break:break-word">⚠️ Último erro: ${escapeHtml(_mistralTTSLastErr)}</div>` : ''}
         ` : ''}
       </div>`;
     const engineNote = _lastTTSEngine ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.82rem;color:#334155"><i class="fas fa-circle-info" style="color:#0891b2"></i> Última voz que ouviste: <b>${escapeHtml(_lastTTSEngine)}</b></div>` : '';
@@ -11839,9 +11856,9 @@ async function previewMistralVoice() {
     try {
         _stopCurrentAudio();
         const blob = await _mistralTTS('Good morning everyone, thanks for joining the meeting.', 'en-US');
-        if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, '', 'en-US', {}); }
-        else showToast('Mistral falhou — ' + (_mistralTTSLastErr || 'erro') );
-    } catch { showToast('Mistral falhou — ' + (_mistralTTSLastErr || 'erro')); }
+        if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, 'teste de voz', 'en-US', {}); }
+        else { showToast('Mistral falhou'); openVoicePickerEN(); }
+    } catch { showToast('Mistral falhou'); openVoicePickerEN(); }
 }
 window.toggleMistralTTS = toggleMistralTTS;
 window.chooseMistralVoice = chooseMistralVoice;
