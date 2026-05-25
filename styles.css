@@ -4353,6 +4353,26 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     font-size: 1.05rem; cursor: pointer;
 }
 .tutor-ask-btn.on { background: linear-gradient(135deg, #7c3aed, #db2777); color: #fff; border-color: transparent; }
+.tutor-hf-btn {
+    flex: 0 0 auto;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1.5px solid #e2e8f0;
+    background: #f1f5f9; color: #64748b;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; cursor: pointer;
+}
+.tutor-hf-btn.on { background: #e6fffb; color: #0d9488; border-color: #99f6e4; }
+.tutor-hf-btn:active { transform: scale(0.96); }
+.tutor-eq { display: inline-flex; align-items: center; gap: 3px; height: 16px; margin-right: 8px; vertical-align: middle; color: #0d9488; }
+.tutor-eq i { display: block; width: 3px; height: 16px; background: currentColor; border-radius: 2px; transform: scaleY(0.2); transform-origin: center; transition: transform 0.08s linear; }
+.tutor-eq.anim i { animation: tutorEq 0.9s ease-in-out infinite; }
+.tutor-eq.anim i:nth-child(2) { animation-delay: 0.15s; }
+.tutor-eq.anim i:nth-child(3) { animation-delay: 0.3s; }
+.tutor-eq.anim i:nth-child(4) { animation-delay: 0.45s; }
+.tutor-eq.anim i:nth-child(5) { animation-delay: 0.6s; }
+.tutor-live-txt { vertical-align: middle; }
+@keyframes tutorEq { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
 .tutor-askhint { font-size: 0.82rem; color: #6d28d9; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 6px 10px; margin-bottom: 8px; }
 .tutor-askx { background: none; border: none; color: #db2777; font-weight: 700; font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0 2px; }
 .tutor-xtra-row { display: flex; gap: 6px; margin: 4px 0 8px; }
