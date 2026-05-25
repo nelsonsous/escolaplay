@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v386';
+const APP_VERSION = 'v387';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4801,8 +4801,14 @@ function _tutorAddTutor(text, corrected, tip, autoSpeak) {
     // ficava presa em "O professor está a pensar…". A fala é só um extra.
     _tutorRenderMic();
     if (autoSpeak && typeof speakEN === 'function') {
-        // Fala (voz escolhida pela língua do texto) e, ao terminar, volta a ouvir
-        _tutorSpeak(text, { onEnd: () => _tutorAutoListen() });
+        // Fala (voz pela língua do texto) e, em simultâneo, ouve o micro: se
+        // interromperes (barge-in) corta a fala e começa a ouvir; ao terminar
+        // naturalmente, volta a ouvir (mãos-livres).
+        _tutorTtsPlaying = true;
+        _tutorStartBargeMonitor();
+        _tutorSpeak(text, { onEnd: () => { _tutorTtsPlaying = false; _tutorStopBargeMonitor(true); _tutorAutoListen(); } });
+    } else {
+        _tutorTtsPlaying = false;
     }
 }
 function _tutorPlay(sid) {
@@ -4887,6 +4893,7 @@ function _tutorRenderMic() {
         <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
                placeholder="${ph}"></textarea>
         <button id="tutor-ask" class="tutor-ask-btn${asking ? ' on' : ''}" aria-label="Tirar dúvida" title="Tirar dúvida"><i class="fas fa-circle-question"></i></button>
+        ${sttOk ? `<button id="tutor-hf" class="tutor-hf-btn${_tutorHandsFreeOn() ? ' on' : ''}" aria-label="Mãos-livres" title="Mãos-livres: ouve sozinho e podes interromper o professor"><i class="fas fa-headset"></i></button>` : ''}
         ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="Falar"><i class="fas fa-microphone"></i></button>` : ''}
         <button id="tutor-send" class="tutor-send" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
       </div>`;
@@ -4898,6 +4905,8 @@ function _tutorRenderMic() {
         inp.addEventListener('input', () => { _tutorCancelAutoSend(); if (tutorState) tutorState._draft = inp.value; _tutorGrow(inp); });
         inp.addEventListener('focus', () => {
             _tutorCancelAutoSend();
+            _tutorTtsPlaying = false;
+            _tutorStopBargeMonitor(true);
             if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
             if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
         });
@@ -4906,6 +4915,8 @@ function _tutorRenderMic() {
     if (send) send.addEventListener('click', _tutorSubmitText);
     const mic = document.getElementById('tutor-mic');
     if (mic) mic.addEventListener('click', _tutorStartMic);
+    const hf = document.getElementById('tutor-hf');
+    if (hf) hf.addEventListener('click', _tutorToggleHF);
     const askBtn = document.getElementById('tutor-ask');
     if (askBtn) askBtn.addEventListener('click', _tutorToggleAsk);
 }
@@ -5163,29 +5174,128 @@ window._tutorEndPron = _tutorEndPron;
 function _tutorAutoListen() {
     if (!tutorState) return;
     _tutorRenderMic();
-    if (!tutorState.micGranted) return;
-    // Com Voxtral NÃO auto-gravamos: uma gravação automática sem fala (ex.: no
-    // iOS, fora do gesto) faria o modelo inventar texto. Mãos-livres fica só
-    // no Web Speech, que devolve vazio em silêncio.
-    const usingVox = !!(state.max && state.max.mistralKey)
-        && typeof MediaRecorder !== 'undefined'
-        && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-        && state.useVoxtral !== false;
-    if (usingVox) return;
+    if (!tutorState.micGranted || !_tutorHandsFreeOn()) return;
     setTimeout(() => {
-        if (tutorState && !_tutorMicBusy() && !((tutorState._draft || '').trim())) _tutorStartMic();
-    }, 400);
+        if (!tutorState || _tutorMicBusy() || (tutorState._draft || '').trim()) return;
+        const canVox = !!(state.max && state.max.mistralKey)
+            && typeof MediaRecorder !== 'undefined'
+            && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+            && state.useVoxtral !== false;
+        // Mãos-livres com Voxtral só quando o AudioContext está 'running' (foi
+        // resumido num gesto anterior): só assim a deteção de silêncio funciona
+        // e o Voxtral não inventa texto. Caso contrário cai no Web Speech, que
+        // devolve vazio em silêncio.
+        const ctx = _tutorPersistentCtx;
+        if (canVox && ctx && ctx.state === 'running') _tutorStartVoxtral();
+        else _tutorStartWebSpeech();
+    }, 450);
 }
 // Dispatcher: usa o Voxtral (Mistral) por defeito; cai para o Web Speech
 // quando não há chave Mistral, o browser não grava, ou o Voxtral falha.
 let _tutorRec = null, _tutorRecStream = null, _tutorRecChunks = [], _tutorRecAbort = false;
-let _tutorAudioCtx = null, _tutorSilenceTimer = null, _tutorSpoke = false, _tutorAnalysed = false;
+let _tutorSilenceTimer = null, _tutorSpoke = false, _tutorAnalysed = false;
+let _tutorSrcNode = null, _tutorAnNode = null;
+// AudioContext único e persistente: criado/resumido num gesto do utilizador e
+// reutilizado. No iOS, um contexto resumido num gesto mantém-se 'running', o
+// que permite detetar silêncio mesmo nas gravações automáticas (mãos-livres) —
+// sem isto o Voxtral inventaria texto sobre silêncio.
+let _tutorPersistentCtx = null;
+function _tutorGetCtx() {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!_tutorPersistentCtx || _tutorPersistentCtx.state === 'closed') _tutorPersistentCtx = new Ctx();
+        if (_tutorPersistentCtx.state === 'suspended') { try { _tutorPersistentCtx.resume(); } catch {} }
+        return _tutorPersistentCtx;
+    } catch { return null; }
+}
+function _tutorHandsFreeOn() { return !(state.max && state.max.tutorHF === false); }
+function _tutorToggleHF() {
+    if (!state.max) state.max = {};
+    state.max.tutorHF = (state.max.tutorHF === false) ? true : false;
+    try { saveState(); } catch {}
+    if (!_tutorHandsFreeOn()) { _tutorTtsPlaying = false; _tutorStopBargeMonitor(true); }
+    _tutorRenderMic();
+    if (typeof showToast === 'function') showToast(_tutorHandsFreeOn() ? '🎧 Mãos-livres ligado' : 'Mãos-livres desligado');
+}
+window._tutorToggleHF = _tutorToggleHF;
+// Medidor de nível (barras tipo equalizador) no balão "a ouvir".
+function _tutorLiveListening(label, animated) {
+    const el = document.getElementById('tutor-live');
+    if (!el) return;
+    el.style.display = 'block';
+    el.innerHTML = '<span class="tutor-eq' + (animated ? ' anim' : '') + '"><i></i><i></i><i></i><i></i><i></i></span><span class="tutor-live-txt">' + escapeHtml(label) + '</span>';
+}
+function _tutorLiveSetText(t) {
+    const tx = document.querySelector('#tutor-live .tutor-live-txt');
+    if (tx) tx.textContent = t;
+}
+function _tutorLiveLevel(rms) {
+    const bars = document.querySelectorAll('#tutor-live .tutor-eq i');
+    if (!bars.length) return;
+    const m = [0.55, 0.8, 1, 0.8, 0.55];
+    for (let i = 0; i < bars.length; i++) {
+        const s = Math.max(0.18, Math.min(1, rms * m[i] * 7));
+        bars[i].style.transform = 'scaleY(' + s.toFixed(2) + ')';
+    }
+}
+// Barge-in: enquanto o professor fala, ouve o micro (com cancelamento de eco)
+// e, se detetar a tua voz acima do nível do eco, corta a fala e começa a ouvir.
+let _tutorTtsPlaying = false, _tutorBargeStream = null, _tutorBargeTimer = null;
+let _tutorBargeSrc = null, _tutorBargeAn = null, _tutorBargeActive = false;
+async function _tutorStartBargeMonitor() {
+    if (!tutorState || !tutorState.micGranted || !_tutorHandsFreeOn()) return;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
+    const ctx = _tutorGetCtx();
+    if (!ctx || ctx.state !== 'running') return; // sem análise fiável → sem barge-in
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch { return; }
+    if (!_tutorTtsPlaying || !tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} return; }
+    _tutorBargeStream = stream;
+    _tutorBargeAn = ctx.createAnalyser(); _tutorBargeAn.fftSize = 512;
+    _tutorBargeSrc = ctx.createMediaStreamSource(stream); _tutorBargeSrc.connect(_tutorBargeAn);
+    const data = new Uint8Array(_tutorBargeAn.fftSize);
+    const t0 = Date.now();
+    let baseline = 0.02, loud = 0;
+    _tutorBargeActive = true;
+    _tutorBargeTimer = setInterval(() => {
+        if (!_tutorBargeActive || !_tutorBargeAn) return;
+        _tutorBargeAn.getByteTimeDomainData(data);
+        let sum = 0; for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+        const rms = Math.sqrt(sum / data.length);
+        if (Date.now() - t0 < 700) { baseline = Math.max(baseline, rms); return; } // calibra eco/ambiente
+        const thresh = Math.max(0.07, baseline * 2.2);
+        loud = rms > thresh ? loud + 1 : Math.max(0, loud - 1);
+        if (loud >= 6) _tutorBargeIn(); // ~300ms de fala sustida
+    }, 50);
+}
+function _tutorStopBargeMonitor(stopStream) {
+    _tutorBargeActive = false;
+    if (_tutorBargeTimer) { clearInterval(_tutorBargeTimer); _tutorBargeTimer = null; }
+    try { _tutorBargeSrc && _tutorBargeSrc.disconnect(); } catch {}
+    try { _tutorBargeAn && _tutorBargeAn.disconnect(); } catch {}
+    _tutorBargeSrc = null; _tutorBargeAn = null;
+    if (stopStream && _tutorBargeStream) { try { _tutorBargeStream.getTracks().forEach(t => t.stop()); } catch {} _tutorBargeStream = null; }
+}
+function _tutorBargeIn() {
+    const stream = _tutorBargeStream;
+    _tutorStopBargeMonitor(false);   // mantém o stream para reutilizar na gravação
+    _tutorBargeStream = null;
+    _tutorTtsPlaying = false;
+    try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
+    const canVox = !!(state.max && state.max.mistralKey) && typeof MediaRecorder !== 'undefined' && state.useVoxtral !== false;
+    if (canVox && stream) _tutorStartVoxtral(stream);
+    else { if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch {} } _tutorStartWebSpeech(); }
+}
 function _tutorMicBusy() {
     return !!_tutorRecog || !!(_tutorRec && _tutorRec.state !== 'inactive');
 }
 function _tutorStartMic() {
     if (!tutorState) return;
     _tutorCancelAutoSend();
+    _tutorTtsPlaying = false;
+    _tutorStopBargeMonitor(true);
     if (_tutorMicBusy()) { _tutorStopMic(); return; }
     const canVox = !!(state.max && state.max.mistralKey)
         && typeof MediaRecorder !== 'undefined'
@@ -5204,18 +5314,22 @@ function _tutorMicIdle() {
 }
 function _tutorStopSilenceWatch() {
     if (_tutorSilenceTimer) { clearInterval(_tutorSilenceTimer); _tutorSilenceTimer = null; }
-    if (_tutorAudioCtx) { try { _tutorAudioCtx.close(); } catch {} _tutorAudioCtx = null; }
+    try { _tutorSrcNode && _tutorSrcNode.disconnect(); } catch {}
+    try { _tutorAnNode && _tutorAnNode.disconnect(); } catch {}
+    _tutorSrcNode = null; _tutorAnNode = null;
+    // O contexto persistente NÃO é fechado (reutilizado p/ mãos-livres).
 }
 // Pára a gravação sozinho quando deteta uma pausa (silêncio), tal como o
-// Web Speech. Usa o nível RMS do micro via Web Audio. Recebe o AudioContext
-// já criado (dentro do gesto) para funcionar no iOS.
+// Web Speech. Usa o nível RMS do micro via Web Audio (no contexto persistente)
+// e alimenta o medidor de nível visual.
 function _tutorWatchSilence(stream, ctx) {
     try {
         if (!ctx) { _tutorSilenceTimer = setTimeout(_tutorStopMic, 9000); return; }
-        _tutorAudioCtx = ctx;
         const an = ctx.createAnalyser();
         an.fftSize = 512;
-        ctx.createMediaStreamSource(stream).connect(an);
+        const src = ctx.createMediaStreamSource(stream);
+        src.connect(an);
+        _tutorSrcNode = src; _tutorAnNode = an;
         const data = new Uint8Array(an.fftSize);
         const start = Date.now();
         let lastLoud = start;
@@ -5225,31 +5339,29 @@ function _tutorWatchSilence(stream, ctx) {
             let sum = 0;
             for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
             const rms = Math.sqrt(sum / data.length);
+            _tutorLiveLevel(rms);
             const now = Date.now();
             if (rms > 0.045) { lastLoud = now; _tutorSpoke = true; }
             const elapsed = now - start;
             if ((_tutorSpoke && now - lastLoud > 1600) || (!_tutorSpoke && elapsed > 7000) || elapsed > 25000) {
                 _tutorStopMic();
             }
-        }, 120);
+        }, 90);
     } catch { _tutorSilenceTimer = setTimeout(_tutorStopMic, 9000); }
 }
-async function _tutorStartVoxtral() {
+async function _tutorStartVoxtral(preStream) {
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
     const mic = document.getElementById('tutor-mic');
     const liveEl = document.getElementById('tutor-live');
-    // Cria o AudioContext JÁ (ainda dentro do gesto do toque) — depois do
-    // await getUserMedia o gesto perde-se e no iOS o contexto não arranca,
-    // o que impediria a deteção de fala.
-    let actx = null;
-    try {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (Ctx) { actx = new Ctx(); try { actx.resume(); } catch {} }
-    } catch {}
-    let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch { if (actx) { try { actx.close(); } catch {} } _tutorStartWebSpeech(); return; }
-    if (!tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} if (actx) { try { actx.close(); } catch {} } return; }
+    // Contexto persistente (resumido no gesto). Reutilizado nas gravações
+    // automáticas (mãos-livres) para a deteção de silêncio funcionar no iOS.
+    const actx = _tutorGetCtx();
+    let stream = preStream || null;
+    if (!stream) {
+        try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+        catch { _tutorStartWebSpeech(); return; }
+    }
+    if (!tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} return; }
     tutorState.micGranted = true;
     _tutorRecStream = stream; _tutorRecChunks = []; _tutorRecAbort = false; _tutorSpoke = false; _tutorAnalysed = false;
     let mime = '';
@@ -5257,7 +5369,7 @@ async function _tutorStartVoxtral() {
         .some(m => (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) ? (mime = m, true) : false);
     let rec;
     try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
-    catch { try { rec = new MediaRecorder(stream); } catch { try { stream.getTracks().forEach(t => t.stop()); } catch {} if (actx) { try { actx.close(); } catch {} } _tutorRecStream = null; _tutorStartWebSpeech(); return; } }
+    catch { try { rec = new MediaRecorder(stream); } catch { try { stream.getTracks().forEach(t => t.stop()); } catch {} _tutorRecStream = null; _tutorStartWebSpeech(); return; } }
     _tutorRec = rec;
     rec.ondataavailable = (e) => { if (e.data && e.data.size) _tutorRecChunks.push(e.data); };
     rec.onstop = () => {
@@ -5276,8 +5388,8 @@ async function _tutorStartVoxtral() {
         _tutorTranscribeVoxtral(blob);
     };
     if (mic) { mic.classList.add('rec'); mic.innerHTML = '<i class="fas fa-stop"></i>'; }
-    if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = '🎙️ A gravar… faz uma pausa quando acabares'; }
-    try { rec.start(); } catch { _tutorStopSilenceWatch(); try { stream.getTracks().forEach(t => t.stop()); } catch {} if (actx) { try { actx.close(); } catch {} } _tutorRec = null; _tutorRecStream = null; _tutorMicIdle(); _tutorStartWebSpeech(); return; }
+    _tutorLiveListening('A ouvir… faz uma pausa quando acabares', false);
+    try { rec.start(); } catch { _tutorStopSilenceWatch(); try { stream.getTracks().forEach(t => t.stop()); } catch {} _tutorRec = null; _tutorRecStream = null; _tutorMicIdle(); _tutorStartWebSpeech(); return; }
     _tutorWatchSilence(stream, actx);
 }
 async function _tutorTranscribeVoxtral(blob) {
@@ -5327,7 +5439,7 @@ function _tutorStartWebSpeech() {
     _tutorRecog = r;
     let finalTxt = '';
     if (mic) { mic.classList.add('rec'); mic.innerHTML = '<i class="fas fa-stop"></i>'; }
-    if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = 'A ouvir… faz uma pausa quando acabares'; }
+    _tutorLiveListening('A ouvir… faz uma pausa quando acabares', true);
     r.onstart = () => { tutorState.micGranted = true; };
     r.onresult = (ev) => {
         let interim = '';
@@ -5338,7 +5450,7 @@ function _tutorStartWebSpeech() {
         }
         const live = (finalTxt + interim).replace(/\s+/g, ' ').trim();
         if (inp) { inp.value = live; tutorState._draft = live; _tutorGrow(inp); }
-        if (liveEl) liveEl.textContent = live || '…';
+        _tutorLiveSetText(live || 'A ouvir…');
     };
     r.onerror = () => {};
     r.onend = () => {
@@ -6010,6 +6122,10 @@ let _speechUnlocked = false;
 function _unlockSpeechOnce() {
     if (_speechUnlocked) return;
     _speechUnlocked = true;
+    // Cria/resumir o AudioContext do tutor JÁ (estamos num gesto real): assim
+    // fica 'running' e a deteção de silêncio das gravações mãos-livres funciona
+    // no iOS, mesmo quando arrancam fora de um toque.
+    try { if (typeof _tutorGetCtx === 'function') _tutorGetCtx(); } catch {}
     try {
         if ('speechSynthesis' in window) {
             const u = new SpeechSynthesisUtterance('​');
