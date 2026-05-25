@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v369';
+const APP_VERSION = 'v370';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -11599,28 +11599,33 @@ function openVoicePickerEN() {
     const gemVoice = state.geminiVoice || 'Kore';
     const gemOn = gemActive && state.useGeminiTTS !== false;
     // Secção Mistral (Voxtral TTS — mesma chave do STT)
-    const MISTRAL_VOICES = [
-        { id: 'neutral_female', label: 'Neutra ♀' },
-        { id: 'neutral_male', label: 'Neutra ♂' },
-        { id: 'casual_female', label: 'Casual ♀' },
-        { id: 'casual_male', label: 'Casual ♂' },
-        { id: 'cheerful_female', label: 'Alegre ♀' }
-    ];
     const mistralHasKey = !!(state.max && state.max.mistralKey);
     const mistralOn = mistralHasKey && state.useMistralTTS !== false;
-    const mistralVoice = state.mistralVoice || 'neutral_female';
+    const mistralVoice = state.mistralVoice || '';
+    // Lista descoberta via API (state.mistralVoiceList) ou candidatos para experimentar
+    const mistralCandidates = ['pt_female', 'pt_male', 'neutral_female', 'neutral_male', 'casual_female', 'casual_male', 'cheerful_female'];
+    const mistralList = (Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length) ? state.mistralVoiceList : mistralCandidates;
+    const mistralListLoaded = !!(Array.isArray(state.mistralVoiceList) && state.mistralVoiceList.length);
     const mistralSection = `
       <div style="background:linear-gradient(135deg,#7c2d12,#ea580c);color:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.95rem"><i class="fas fa-wand-magic-sparkles" style="color:#fed7aa"></i> Voz Mistral (Voxtral TTS)
           ${mistralHasKey ? `<button onclick="toggleMistralTTS()" style="margin-left:auto;font-size:0.66rem;font-weight:800;background:${mistralOn ? '#22c55e' : 'rgba(255,255,255,0.2)'};color:#fff;border:none;padding:3px 10px;border-radius:10px;cursor:pointer">${mistralOn ? 'ON' : 'OFF'}</button>` : '<span style="margin-left:auto;font-size:0.66rem;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px">SEM CHAVE</span>'}
         </div>
-        <div style="font-size:0.78rem;opacity:0.9;margin:6px 0 10px;line-height:1.4">${mistralHasKey ? 'Usa a mesma chave Mistral do reconhecimento de voz. É a 1.ª escolha quando está ON — se falhar, cai para a Edge.' : 'Adiciona a tua chave Mistral nas definições para usares esta voz.'}</div>
+        <div style="font-size:0.78rem;opacity:0.9;margin:6px 0 10px;line-height:1.4">${mistralHasKey ? 'Mesma chave do reconhecimento de voz. 1.ª escolha quando ON — se falhar, cai para a Edge.' : 'Adiciona a tua chave Mistral nas definições para usares esta voz.'}</div>
         ${mistralOn ? `
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-            ${MISTRAL_VOICES.map(v => `<button onclick="chooseMistralVoice('${v.id}')" style="background:${v.id === mistralVoice ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${v.id === mistralVoice ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.76rem;font-weight:700;cursor:pointer">${v.label}</button>`).join('')}
+          <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">${mistralListLoaded ? 'Vozes disponíveis:' : 'Carrega as vozes da tua conta, ou experimenta/escreve uma:'}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            ${mistralList.map(id => { const s = String(id).replace(/'/g, "\\'"); return `<button onclick="chooseMistralVoice('${s}')" style="background:${id === mistralVoice ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === mistralVoice ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${escapeHtml(String(id))}</button>`; }).join('')}
           </div>
-          <div style="font-size:0.72rem;opacity:0.85;margin-bottom:8px">Para usares <b>só</b> a Mistral: deixa esta ON e põe a Edge em OFF abaixo.</div>
-          <button onclick="previewMistralVoice()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <input id="mistral-voice-custom" placeholder="escreve uma voz…" value="${escapeHtml(mistralVoice)}" style="flex:1;min-width:0;border:none;border-radius:10px;padding:8px 10px;font-size:0.8rem;color:#0f172a"/>
+            <button onclick="chooseMistralVoiceCustom()" style="background:#fed7aa;color:#7c2d12;border:none;border-radius:10px;padding:8px 12px;font-size:0.8rem;font-weight:800;cursor:pointer">Usar</button>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="_mistralLoadVoices()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-rotate"></i> Carregar vozes</button>
+            <button onclick="previewMistralVoice()" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir</button>
+          </div>
+          <div style="font-size:0.7rem;opacity:0.85;margin-top:8px">Para usares <b>só</b> a Mistral: ON aqui + Edge OFF.</div>
         ` : ''}
       </div>`;
     const engineNote = _lastTTSEngine ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.82rem;color:#334155"><i class="fas fa-circle-info" style="color:#0891b2"></i> Última voz que ouviste: <b>${escapeHtml(_lastTTSEngine)}</b></div>` : '';
@@ -11793,6 +11798,39 @@ function chooseMistralVoice(v) {
     openVoicePickerEN();
     setTimeout(() => previewMistralVoice(), 150);
 }
+function chooseMistralVoiceCustom() {
+    const el = document.getElementById('mistral-voice-custom');
+    const v = el && el.value.trim();
+    if (!v) { showToast('Escreve o nome de uma voz'); return; }
+    chooseMistralVoice(v);
+}
+window.chooseMistralVoiceCustom = chooseMistralVoiceCustom;
+// Descobre as vozes disponíveis na conta Mistral (catálogo da API hospedada)
+async function _mistralListVoices() {
+    const key = state.max && state.max.mistralKey;
+    if (!key) return { error: 'Sem chave Mistral' };
+    try {
+        const res = await fetch('https://api.mistral.ai/v1/audio/voices', { headers: { 'authorization': `Bearer ${key}` } });
+        if (!res.ok) { let d = ''; try { d = (await res.text()).slice(0, 160); } catch {} return { error: res.status + ' ' + d }; }
+        const j = await res.json();
+        const arr = Array.isArray(j) ? j : (j.data || j.voices || []);
+        const ids = arr.map(v => (typeof v === 'string' ? v : (v.id || v.name || v.voice_id))).filter(Boolean);
+        return { voices: ids };
+    } catch (e) { return { error: String(e && e.message || e) }; }
+}
+async function _mistralLoadVoices() {
+    showToast('A carregar vozes…');
+    const r = await _mistralListVoices();
+    if (r.voices && r.voices.length) {
+        state.mistralVoiceList = r.voices;
+        saveState();
+        showToast(r.voices.length + ' vozes carregadas');
+        openVoicePickerEN();
+    } else {
+        showToast('Listagem indisponível (' + (r.error || '') + '). Escreve a voz à mão.');
+    }
+}
+window._mistralLoadVoices = _mistralLoadVoices;
 async function previewMistralVoice() {
     _mistralTTSCooldownUntil = 0;
     if (!(state.max && state.max.mistralKey)) { showToast('Sem chave Mistral'); return; }
