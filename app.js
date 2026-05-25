@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v378';
+const APP_VERSION = 'v379';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -11646,9 +11646,9 @@ function openVoicePickerEN() {
           </div>
           <div style="font-size:0.7rem;opacity:0.85;margin-top:8px">Para usares <b>só</b> a Mistral: ON aqui + Edge OFF.</div>
           <div style="border-top:1px solid rgba(255,255,255,0.22);margin-top:10px;padding-top:10px">
-            <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
+            <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos). en_paul_neutral lê PT (multilingue):</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-              ${['pt_bruna_neutral', 'pt_duarte_neutral'].map(id => `<button onclick="chooseMistralVoicePT('${id}')" style="background:${id === (state.mistralVoicePT || 'pt_bruna_neutral') ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === (state.mistralVoicePT || 'pt_bruna_neutral') ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${id}</button>`).join('')}
+              ${['en_paul_neutral', 'pt_bruna_neutral', 'pt_duarte_neutral'].map(id => `<button onclick="chooseMistralVoicePT('${id}')" style="background:${id === (state.mistralVoicePT || 'en_paul_neutral') ? '#fed7aa' : 'rgba(255,255,255,0.12)'};color:${id === (state.mistralVoicePT || 'en_paul_neutral') ? '#7c2d12' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${id}</button>`).join('')}
             </div>
             <button onclick="previewMistralPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
           </div>
@@ -11843,7 +11843,7 @@ async function previewMistralPT() {
     if (!(state.max && state.max.mistralKey)) { showToast('Sem chave Mistral'); return; }
     try {
         _stopCurrentAudio();
-        const blob = await _mistralTTS('Olá! Vamos praticar juntos.', 'pt', state.mistralVoicePT || 'pt_bruna_neutral');
+        const blob = await _mistralTTS('Olá! Vamos praticar juntos.', 'pt', state.mistralVoicePT || 'en_paul_neutral');
         if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, 'teste de voz', 'pt-PT', {}); }
         else { showToast('Voz PT falhou'); openVoicePickerEN(); }
     } catch { showToast('Voz PT falhou'); openVoicePickerEN(); }
@@ -11908,7 +11908,7 @@ window.ttsSpeak = function (text) {
     // Voz PT da Mistral (mesma chave do STT), se ativa — senão voz do sistema
     if (state.max && state.max.mistralKey && state.useMistralTTS !== false && Date.now() > _mistralTTSCooldownUntil) {
         try { _stopCurrentAudio(); } catch {}
-        _mistralTTS(cleaned, 'pt', state.mistralVoicePT || 'pt_bruna_neutral').then(blob => {
+        _mistralTTS(cleaned, 'pt', state.mistralVoicePT || 'en_paul_neutral').then(blob => {
             if (blob) { _lastTTSEngine = 'Mistral'; _playBlob(blob, cleaned, 'pt-PT', {}); }
             else { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; _ttsSpeakSystem(cleaned); }
         }).catch(() => { _mistralTTSCooldownUntil = Date.now() + 8 * 60 * 1000; _ttsSpeakSystem(cleaned); });
