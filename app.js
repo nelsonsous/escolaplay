@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v403';
+const APP_VERSION = 'v405';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5491,6 +5491,7 @@ function _tutorEvalPron(said) {
     if (!pron) return;
     said = (said || '').trim();
     const { score, words } = _tutorPronEval(said, pron.target);
+    if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
     const wordsHtml = words.map(x => `<span class="tutor-pw ${x.scorable ? (x.ok ? 'ok' : 'no') : ''}">${escapeHtml(x.w)}</span>`).join(' ');
     let verdict, cls;
     if (!said) { verdict = 'Não ouvi nada — toca e lê outra vez.'; cls = 'no'; }
@@ -5530,6 +5531,88 @@ function _tutorEndPron(cont) {
 window._tutorStartPron = _tutorStartPron;
 window._tutorPronRetry = _tutorPronRetry;
 window._tutorEndPron = _tutorEndPron;
+
+// ---- Prática ORAL: dizer a frase em voz alta, em loop até acertar (+ pronúncia) ----
+function _oralTargetForItem(it) {
+    if (!it) return '';
+    const correct = (it.options && it.options[it.answer]) || '';
+    if (/_{2,}/.test(it.q || '')) return (it.q || '').replace(/_{2,}/, correct).replace(/\s+/g, ' ').trim();
+    return correct || (it.q || '');
+}
+function _tutorOralStart() {
+    const pq = tutorState && tutorState._pq;
+    if (!pq || !pq.queue.length) return;
+    const it = pq.queue[0];
+    const target = _oralTargetForItem(it);
+    if (!target) { _tutorRenderPracticeItem(); return; }
+    tutorState._oralMode = true;
+    const card = pq._el && document.getElementById(pq._el);
+    if (card) card.dataset.done = '1';
+    tutorState._pron = { target, reply: '', practiceOral: true, keyword: (it.options && it.options[it.answer]) || '', topic: it.topic || pq.topic || '' };
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🎤</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">🎤 Diz em voz alta</div>
+          <div class="tutor-pron-target">${escapeHtml(target)} <button class="tutor-say" data-text="${escapeHtml(target)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-pron-hint">Ouve o modelo, toca no micro e di-la (podes prolongar a frase). Repetimos até ficar bem.</div>
+        </div>
+      </div>`);
+    _tutorScrollToLastTop();
+    _tutorRenderPronBar();
+    if (typeof speakEN === 'function') setTimeout(() => { if (tutorState && tutorState._pron) speakEN(target, tutorState.lang); }, 300);
+}
+window._tutorOralStart = _tutorOralStart;
+function _tutorEvalOral(said, score, words, pron) {
+    said = (said || '').trim();
+    const heard = normalize(said);
+    const kw = normalize(pron.keyword || '');
+    const keywordOk = !kw || heard.split(/\s+/).some(h => _wordSimilar(h, kw)) || heard.indexOf(kw) >= 0;
+    const pass = !!said && score >= 70 && keywordOk;
+    const wordsHtml = words.map(x => `<span class="tutor-pw ${x.scorable ? (x.ok ? 'ok' : 'no') : ''}">${escapeHtml(x.w)}</span>`).join(' ');
+    let verdict, cls;
+    if (!said) { verdict = 'Não ouvi nada — toca no micro e di-la outra vez.'; cls = 'no'; }
+    else if (pass) { verdict = score >= 88 ? 'Excelente! Claro e correto.' : 'Boa! Disseste-o bem.'; cls = 'ok'; }
+    else if (!keywordOk) { verdict = 'Quase — faltou a palavra-chave. Ouve o modelo e repete.'; cls = 'mid'; }
+    else { verdict = 'Quase lá. Foca as palavras a vermelho e repete, mais devagar.'; cls = 'mid'; }
+    const btns = pass
+        ? `<button class="tutor-lbtn prac" onclick="_tutorOralNext(true)"><i class="fas fa-arrow-right"></i> Próximo</button>`
+        : `<button class="tutor-lbtn rep" onclick="_tutorPronRetry()"><i class="fas fa-repeat"></i> Ouvir e repetir</button><button class="tutor-lbtn cont" onclick="_tutorOralNext(false)"><i class="fas fa-forward"></i> Saltar</button>`;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">🎯 Pronúncia</div>
+          <div class="tutor-pron-score s-${cls}">${said ? score + '%' : '—'}</div>
+          <div class="tutor-pron-words">${wordsHtml}</div>
+          ${said ? `<div class="tutor-pron-said">Ouvi: "${escapeHtml(said)}"</div>` : ''}
+          <div class="tutor-explain">${verdict}</div>
+          <div class="tutor-lesson-btns2">${btns}</div>
+          <div class="tutor-lesson-btns2" style="margin-top:6px"><button class="tutor-lbtn cont" onclick="_tutorOralOff()"><i class="fas fa-list-ul"></i> Voltar à escolha múltipla</button></div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderPronBar();
+}
+function _tutorOralNext(passed) {
+    const pq = tutorState && tutorState._pq;
+    if (tutorState) tutorState._pron = null;
+    if (!pq) { _tutorRenderMic(); return; }
+    const it = pq.queue[0];
+    _tutorTrackWeak((it && it.topic) || pq.topic, passed !== false);
+    pq.queue.shift();
+    if (!pq.queue.length) { _tutorPracticeDone(); return; }
+    setTimeout(() => {
+        if (!tutorState || !tutorState._pq) return;
+        if (tutorState._oralMode) _tutorOralStart(); else _tutorRenderPracticeItem();
+    }, 450);
+}
+window._tutorOralNext = _tutorOralNext;
+function _tutorOralOff() {
+    if (tutorState) { tutorState._oralMode = false; tutorState._pron = null; }
+    _tutorRenderPracticeItem();
+}
+window._tutorOralOff = _tutorOralOff;
 
 function _tutorAutoListen() {
     if (!tutorState) return;
@@ -6083,6 +6166,7 @@ function _tutorRenderPracticeItem() {
     if (!pq) return;
     if (tutorState._ask) return; // a meio de uma dúvida — não renderiza ainda
     if (!pq.queue.length) { _tutorPracticeDone(); return; }
+    if (tutorState._oralMode) { _tutorOralStart(); return; }
     const it = pq.queue[0];
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
@@ -6103,6 +6187,7 @@ function _tutorRenderPracticeItem() {
           ${topic ? `<div class="tutor-quiz-topic"><i class="fas fa-graduation-cap"></i> A treinar: <b>${escapeHtml(topic)}</b></div>` : ''}
           <div class="tutor-quiz-q">${escapeHtml(it.q)} <button class="tutor-say" data-text="${escapeHtml(speakQ)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir em inglês"><i class="fas fa-volume-high"></i></button></div>
           <div class="tutor-quiz-opts">${opts}</div>
+          <button class="tutor-qopt oral" onclick="_tutorOralStart()"><i class="fas fa-microphone"></i> Responder a falar</button>
           <div class="tutor-quiz-fb" style="display:none"></div>
         </div>
       </div>`);
