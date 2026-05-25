@@ -516,7 +516,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v373';
+const APP_VERSION = 'v374';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5851,7 +5851,7 @@ async function _mistralTTS(text, lang) {
             let raw = ''; try { raw = await blob.text(); } catch {}
             try {
                 const j = JSON.parse(raw);
-                const b64 = j.audio || j.audio_content || j.data || (j.output && j.output.audio) || '';
+                const b64 = j.audio_data || j.audio || j.audio_content || j.data || (j.output && j.output.audio) || '';
                 if (b64) {
                     const bin = atob(b64); const arr = new Uint8Array(bin.length);
                     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
