@@ -4456,6 +4456,10 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .review-grade.good { background: linear-gradient(135deg, #0d9488, #0891b2); color: #fff; }
 .review-grade.easy { background: #dcfce7; color: #15803d; }
 .review-practice { width: 100%; border: none; border-radius: 12px; padding: 12px; background: linear-gradient(135deg, #0d9488, #0891b2); color: #fff; font-weight: 800; font-size: 0.9rem; cursor: pointer; margin-top: 12px; }
+.review-orlabel { font-size: 0.76rem; color: #94a3b8; font-weight: 700; text-align: center; margin-top: 12px; }
+.tutor-advance-q { font-size: 0.86rem; color: #475569; margin-bottom: 9px; line-height: 1.4; }
+.tutor-advance-btns { display: flex; flex-direction: column; gap: 6px; }
+.tutor-advance-btns .tutor-lbtn { width: 100%; }
 .review-done { text-align: center; color: #475569; font-weight: 700; }
 .review-done-ic { font-size: 2.4rem; margin-bottom: 6px; }
 .review-empty { background: #fff; border-radius: 14px; padding: 16px; color: #64748b; font-size: 0.9rem; line-height: 1.5; }
