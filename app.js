@@ -518,7 +518,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v406';
+const APP_VERSION = 'v407';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5968,7 +5968,7 @@ Return STRICT JSON:
         if (corrected && _sameUtterance(corrected, userText)) corrected = '';
         if (corrected) {
             tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples };
-            _tutorShowCorrection(tutorState._pending);
+            _tutorFluidCorrection(tutorState._pending);
         } else {
             _tutorAddTutor(reply, '', tip, true);
         }
@@ -6034,6 +6034,40 @@ function _tutorExamplesHtml(examples) {
         </div>`).join('')}`;
 }
 
+// Correção FLUIDA: a conversa continua e, em vez do cartão grande, o professor
+// reformula (com áudio), mostra uma análise curta e pede para repetires em voz alta.
+function _tutorFluidCorrection(d) {
+    if (!tutorState || !d) return;
+    // 1) Conversa continua — o professor responde (e fala). Input normal mantém-se.
+    _tutorAddTutor(d.reply || 'Got it.', '', '', true);
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const topic = d.lessonTitle || d.errorType || '';
+    tutorState._lastRecast = d.corrected || '';
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">✏️</div>
+        <div class="tutor-fix">
+          <div class="tutor-fix-h">✏️ Diz antes assim</div>
+          <div class="tutor-fix-recast">${escapeHtml(d.corrected || '')}
+            <button class="tutor-say" data-text="${escapeHtml(d.corrected || '')}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-save" data-text="${escapeHtml(d.corrected || '')}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(topic)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+          </div>
+          ${d.errorType ? `<div class="tutor-fix-tag">${escapeHtml(d.errorType)}</div>` : ''}
+          ${d.explanation ? `<div class="tutor-fix-why">${escapeHtml(d.explanation)}</div>` : ''}
+          <div class="tutor-fix-btns">
+            <button class="tutor-lbtn prac" onclick="_tutorRepeatRecast()"><i class="fas fa-microphone"></i> Repetir em voz alta</button>
+            <button class="tutor-lbtn" data-topic="${escapeHtml(topic)}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> Aprofundar</button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+window._tutorFluidCorrection = _tutorFluidCorrection;
+function _tutorRepeatRecast() {
+    const t = tutorState && tutorState._lastRecast;
+    if (t && typeof _tutorStartPron === 'function') _tutorStartPron(t, '');
+}
+window._tutorRepeatRecast = _tutorRepeatRecast;
 // Cartão de lição: o que disseste vs o correto + tipo de erro + explicação
 function _tutorShowCorrection(d) {
     const chat = document.getElementById('tutor-chat');
