@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v408';
+const APP_VERSION = 'v409';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7609,6 +7609,16 @@ function showFeedback(e, isCorrect) {
         detailBtn.textContent = '💡 Explicar passo a passo';
         detailBtn.disabled = false;
     }
+    // "Explica o teu raciocínio" — só Matemática (treina a comunicação/justificação matemática)
+    const reasonBtn = document.getElementById('feedback-reason-btn');
+    const reasonWrap = document.getElementById('feedback-reason-wrap');
+    if (reasonWrap) { reasonWrap.style.display = 'none'; reasonWrap.innerHTML = ''; }
+    if (reasonBtn) {
+        const isMath = e && (e.s === 'matematica' || e.s === 'mat_plus');
+        reasonBtn.style.display = isMath ? 'block' : 'none';
+        reasonBtn.disabled = false;
+        reasonBtn.innerHTML = '<i class="fas fa-pen-fancy"></i> Explica o teu raciocínio';
+    }
     // Barra de acção passa a "Continuar" / "Ver resultado"
     const isLast = currentSession.idx + 1 >= currentSession.items.length;
     _setExAction('continue', isLast ? 'Ver resultado' : 'Continuar');
@@ -7938,6 +7948,85 @@ async function loadDetailedExplanation() {
     }
 }
 
+// ===== "Explica o teu raciocínio" — treina a comunicação/justificação matemática =====
+function _exCorrectAnswerText(e) {
+    if (!e) return '';
+    if (e.type === 'mc' && Array.isArray(e.opts) && typeof e.ans === 'number') return e.opts[e.ans] || '';
+    if (e.type === 'tf') return e.ans ? 'Verdadeiro' : 'Falso';
+    if (Array.isArray(e.ans)) return e.ans[0] || '';
+    if (typeof e.ans === 'string' || typeof e.ans === 'number') return String(e.ans);
+    return '';
+}
+function startReasonExplain() {
+    const wrap = document.getElementById('feedback-reason-wrap');
+    const btn = document.getElementById('feedback-reason-btn');
+    if (!wrap) return;
+    if (btn) btn.style.display = 'none';
+    wrap.style.display = 'block';
+    wrap.innerHTML = `
+      <div class="reason-box">
+        <div class="reason-q">Explica, por palavras tuas, como se chega à resposta:</div>
+        <textarea id="reason-input" class="reason-input" rows="3" placeholder="Ex: Como 1 m = 100 cm, a metade é 100 ÷ 2 = 50 cm."></textarea>
+        <button class="btn btn-block reason-send" onclick="submitReasonExplain()" style="margin-top:8px"><i class="fas fa-check"></i> Avaliar o meu raciocínio</button>
+      </div>`;
+    setTimeout(() => { const ta = document.getElementById('reason-input'); if (ta) ta.focus(); }, 120);
+}
+window.startReasonExplain = startReasonExplain;
+async function submitReasonExplain() {
+    const e = currentSession && currentSession.items && currentSession.items[currentSession.idx];
+    const wrap = document.getElementById('feedback-reason-wrap');
+    const ta = document.getElementById('reason-input');
+    const said = (ta && ta.value || '').trim();
+    if (!e || !wrap) return;
+    if (!said) { if (typeof showToast === 'function') showToast('Escreve a tua explicação primeiro'); return; }
+    const sendBtn = wrap.querySelector('.reason-send');
+    if (sendBtn) { sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A avaliar…'; sendBtn.disabled = true; }
+    if (!hasAIKey()) {
+        wrap.innerHTML = `<div class="reason-box reason-result"><div class="reason-fb">Para avaliar o teu raciocínio com feedback, configura uma chave IA (Mistral) no Perfil.</div>${e.exp ? `<div class="reason-model"><b>📝 Explicação-modelo</b><div>${escapeHtml(e.exp).replace(/\n/g, '<br>')}</div></div>` : ''}</div>`;
+        return;
+    }
+    const yr = (typeof activeProfile === 'function' && activeProfile()?.year) || 6;
+    const prompt = _buildReasonEvalPrompt(e, said, yr);
+    try {
+        const { text } = await callClaudeAPI(prompt, 700, true);
+        const m = text.match(/\{[\s\S]*\}/);
+        let d = {}; if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        wrap.innerHTML = _renderReasonEval(d, e);
+    } catch (err) {
+        wrap.innerHTML = `<div class="reason-box reason-result"><div class="reason-fb">Não consegui avaliar agora. Tenta outra vez.</div>${e.exp ? `<div class="reason-model"><b>📝 Explicação-modelo</b><div>${escapeHtml(e.exp).replace(/\n/g, '<br>')}</div></div>` : ''}</div>`;
+    }
+}
+window.submitReasonExplain = submitReasonExplain;
+function _buildReasonEvalPrompt(e, said, yr) {
+    const correct = _exCorrectAnswerText(e);
+    return `És um professor de Matemática (Portugal, AE 2018) a avaliar a EXPLICAÇÃO DO RACIOCÍNIO de um aluno do ${yr}.º ano (avalias a justificação/comunicação, não só a resposta final).
+Problema: "${(e.q || '').replace(/"/g, "'")}"
+Resposta correta: "${String(correct).replace(/"/g, "'")}"
+Explicação de referência: "${(e.exp || '').replace(/"/g, "'")}"
+O aluno explicou assim: "${said.replace(/"/g, "'")}"
+Avalia a QUALIDADE da explicação: os passos estão certos e por ordem? justifica o "porquê"? usa linguagem matemática adequada? Sê encorajador mas honesto.
+Devolve JSON ESTRITO em PORTUGUÊS EUROPEU (Portugal, nunca brasileiro):
+{"nivel":"bom"|"parcial"|"fraco","feedback":"1-2 frases, específico e encorajador","bem":"o que esteve bem (curto; vazio se nada)","falta":"o que falta ou está errado no raciocínio (curto; vazio se nada)","modelo":"explicação-modelo do raciocínio, 2-4 passos curtos","frases":["frase-modelo para o aluno aprender a redigir a justificação","outra frase-modelo"]}`;
+}
+function _renderReasonEval(d, e) {
+    d = d || {};
+    const lvl = (d.nivel || '').toLowerCase();
+    const badge = lvl === 'bom' ? '<span class="reason-badge ok">✓ Bom raciocínio</span>'
+        : lvl === 'parcial' ? '<span class="reason-badge mid">≈ Quase lá</span>'
+        : '<span class="reason-badge no">Vamos melhorar</span>';
+    const frases = Array.isArray(d.frases) ? d.frases.filter(Boolean).slice(0, 3) : [];
+    const modelo = d.modelo || (e && e.exp) || '';
+    return `<div class="reason-box reason-result">
+        ${badge}
+        ${d.feedback ? `<div class="reason-fb">${escapeHtml(d.feedback)}</div>` : ''}
+        ${d.bem ? `<div class="reason-line bem"><b>👍 Bem:</b> ${escapeHtml(d.bem)}</div>` : ''}
+        ${d.falta ? `<div class="reason-line falta"><b>🔧 Falta:</b> ${escapeHtml(d.falta)}</div>` : ''}
+        ${modelo ? `<div class="reason-model"><b>📝 Explicação-modelo</b><div>${escapeHtml(modelo).replace(/\n/g, '<br>')}</div></div>` : ''}
+        ${frases.length ? `<div class="reason-frames"><b>✍️ Frases que podes usar</b>${frases.map(f => `<div class="reason-frame">${escapeHtml(f)}</div>`).join('')}</div>` : ''}
+        <button class="btn btn-block reason-retry" onclick="startReasonExplain()" style="margin-top:8px"><i class="fas fa-rotate-right"></i> Tentar explicar outra vez</button>
+    </div>`;
+}
+window._renderReasonEval = _renderReasonEval;
 function nextQuestion() {
     showEncouragement();
     currentSession.idx += 1;
