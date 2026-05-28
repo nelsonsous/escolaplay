@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v415';
+const APP_VERSION = 'v416';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4756,7 +4756,7 @@ function openTutor(opts) {
         <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
         <div class="tutor-title"><span class="tutor-av">${av}</span> ${headerTitle}</div>
         ${isSubjectMode ? '' : `<button class="icon-btn" onclick="_tutorOpenExplore()" title="Explorar lições por nível"><i class="fas fa-layer-group"></i></button>`}
-        <button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>
+        ${isSubjectMode ? '' : `<button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>`}
         ${isSubjectMode ? '' : `<button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>`}
         <span class="tutor-tag">IA</span>
       </div>
@@ -6199,7 +6199,7 @@ Devolve JSON ESTRITO (em Português Europeu, Portugal):
 3) "explanation": explicação clara em PT-PT (40-70 palavras), ao nível do ${_subjT.year}.º ano.
 4) "tip": dica PT-PT curta (máx 12 palavras).
 5) "reply": UMA frase curta em PT-PT a continuar a conversa, encorajadora, terminando com uma pergunta ou sugestão (próximo passo: rever, exercícios, aprofundar).
-6) "lessonTitle": título curto do tópico/conceito de ${_subjT.name} em causa. "" se sem erro.
+6) "lessonTitle": título curto do tópico/conceito de ${_subjT.name} em causa NESTA conversa (SEMPRE preenches — é o que a aluna/aluno está a explorar agora, mesmo sem erro; ex.: "Subtração até 20", "Frações", "Comprimentos").
 7) "points": 2-4 {form, use} explicando regra/conceito (form = ideia/fórmula/termo, use = quando/como aplicar, em PT-PT). [] se sem erro.
 8) "examples": 2-3 {wrong, right, note} com erro típico vs correção (em PT-PT). [] se sem erro.
 9) "fluencyHelp": se faltou vocabulário técnico/concetual, sugere termos {"want":"o que queria dizer (PT-PT)","phrases":[{"en":"termo correto","pt":"o que significa"}],"connectors":[],"topic":"breve tópico"}. {} se está bem.
@@ -6239,6 +6239,17 @@ Return STRICT JSON:
             _tutorFluidCorrection(tutorState._pending);
         } else {
             _tutorAddTutor(reply, '', tip, true);
+            // Modo-disciplina: oferece sempre exercícios sobre o tópico em conversa.
+            if (_subjectMode && lessonTitle) {
+                const _chat = document.getElementById('tutor-chat');
+                if (_chat) _chat.insertAdjacentHTML('beforeend', `
+                  <div class="tutor-row them"><div class="tutor-bubble-av">🎯</div>
+                    <div class="tutor-chat-prac">
+                      <button class="tutor-lbtn prac full" data-topic="${escapeHtml(lessonTitle)}" onclick="_tutorChatPracticeBtn(this)"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios sobre "${escapeHtml(lessonTitle)}"</button>
+                    </div>
+                  </div>`);
+                if (typeof _tutorScroll === 'function') _tutorScroll();
+            }
         }
         _tutorRenderFluencyHelp(fluencyHelp);
     } catch (e) {
@@ -6250,6 +6261,12 @@ Return STRICT JSON:
         }
     }
 }
+function _tutorChatPracticeBtn(el) {
+    const t = el && el.dataset && el.dataset.topic;
+    if (!t) return;
+    if (typeof _tutorGeneratePractice === 'function') _tutorGeneratePractice(t, '');
+}
+window._tutorChatPracticeBtn = _tutorChatPracticeBtn;
 
 // Ajuda à fluência: o que querias dizer + palavras/expressões naturais + ligações,
 // com áudio e botões para criar lição+exercícios ou treinar a falar (voz).
