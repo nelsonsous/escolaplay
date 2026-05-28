@@ -4383,7 +4383,10 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     display: flex; align-items: center; justify-content: center;
     font-size: 1rem; cursor: pointer;
 }
-.tutor-hf-btn.on { background: #e6fffb; color: #0d9488; border-color: #99f6e4; }
+.tutor-hf-btn { position: relative; }
+.tutor-hf-btn.on { background: linear-gradient(135deg, #0d9488, #0891b2); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(13,148,136,0.35); }
+.tutor-hf-btn.on::after { content: ''; position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; background: #22c55e; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 0 rgba(34,197,94,0.6); animation: tutorHfPulse 1.6s ease-in-out infinite; }
+@keyframes tutorHfPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); } 50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } }
 .tutor-hf-btn:active { transform: scale(0.96); }
 .tutor-eq { display: inline-flex; align-items: center; gap: 3px; height: 16px; margin-right: 8px; vertical-align: middle; color: #0d9488; }
 .tutor-eq i { display: block; width: 3px; height: 16px; background: currentColor; border-radius: 2px; transform: scaleY(0.2); transform-origin: center; transition: transform 0.08s linear; }
