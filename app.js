@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v411';
+const APP_VERSION = 'v412';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5245,7 +5245,7 @@ function _tutorRenderMic() {
         <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
                placeholder="${ph}"></textarea>
         <button id="tutor-ask" class="tutor-ask-btn${asking ? ' on' : ''}" aria-label="Tirar dúvida" title="Tirar dúvida"><i class="fas fa-circle-question"></i></button>
-        ${sttOk ? `<button id="tutor-hf" class="tutor-hf-btn${_tutorHandsFreeOn() ? ' on' : ''}" aria-label="Mãos-livres" title="Mãos-livres: ouve sozinho e podes interromper o professor"><i class="fas fa-headset"></i></button>` : ''}
+        ${sttOk ? `<button id="tutor-hf" class="tutor-hf-btn${_tutorHandsFreeOn() ? ' on' : ''}" aria-label="Mãos-livres" title="${_tutorHandsFreeOn() ? 'Mãos-livres ATIVO — toca para desligar' : 'Mãos-livres desligado — toca para ligar (o professor fala e ouve-te sozinho)'}"><i class="fas fa-headset"></i></button>` : ''}
         ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="Falar"><i class="fas fa-microphone"></i></button>` : ''}
         <button id="tutor-send" class="tutor-send" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
       </div>`;
