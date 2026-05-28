@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v412';
+const APP_VERSION = 'v413';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5493,10 +5493,11 @@ function _tutorOpenExplore() {
     const bands = TUTOR_LESSON_LADDER.map(band => {
         const items = band.topics.map(t => {
             const done = !!exp[t];
-            const clearBtn = done ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar"><i class="fas fa-xmark"></i></button>` : '';
-            return `<button class="tutor-ladder-item${done ? ' done' : ''}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
-              <i class="fas ${done ? 'fa-circle-check' : 'fa-circle-play'}"></i> <span>${escapeHtml(t)}</span>${clearBtn}
+            const itemBtn = `<button class="tutor-ladder-item${done ? ' done' : ''}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
+              <i class="fas ${done ? 'fa-circle-check' : 'fa-circle-play'}"></i> <span>${escapeHtml(t)}</span>
             </button>`;
+            const clearBtn = done ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar"><i class="fas fa-xmark"></i></button>` : '';
+            return `<div class="tutor-ladder-row">${itemBtn}${clearBtn}</div>`;
         }).join('');
         const doneCount = band.topics.filter(t => exp[t]).length;
         return `<div class="tutor-ladder-band${band.lvl === userLvl ? ' current' : ''}">
