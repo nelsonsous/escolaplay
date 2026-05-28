@@ -4534,6 +4534,8 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-fix-tag { display: inline-block; margin-top: 8px; font-size: 0.72rem; font-weight: 800; color: #0f766e; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 999px; padding: 3px 9px; }
 .tutor-fix-why { font-size: 0.95rem; color: #1f2937; line-height: 1.55; margin-top: 8px; }
 .tutor-fix-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.tutor-chat-prac { max-width: 92%; }
+.tutor-chat-prac .tutor-lbtn { width: 100%; padding: 12px; font-size: 0.92rem; }
 .reason-box { background: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: 12px; padding: 12px; text-align: left; margin-bottom: 8px; }
 .reason-q { font-size: 0.9rem; font-weight: 700; color: #5b21b6; margin-bottom: 8px; }
 .reason-input { width: 100%; border: 1.5px solid #c4b5fd; border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; font-family: inherit; resize: vertical; color: #1f2937; background: #fff; -webkit-appearance: none; }
