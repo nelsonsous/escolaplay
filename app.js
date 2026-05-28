@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v413';
+const APP_VERSION = 'v414';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1286,6 +1286,15 @@ function openSubjectDetail(key) {
     const seenPct = totalEx > 0 ? Math.round((seenEx / totalEx) * 100) : 0;
     const accPct = stats.answered > 0 ? Math.round((stats.correct / stats.answered) * 100) : 0;
 
+    // Cartão do PROFESSOR da disciplina (especialista PT-PT; Inglês mantém-se em EN).
+    const _profSD = (typeof activeProfile === 'function' && activeProfile()) || {};
+    const _studentSD = _profSD.name || '';
+    const _isEnSD = (key === 'ingles' || key === 'english_pm');
+    const _tutorTitleSD = _isEnSD ? 'Falar com o Professor' : `Professor(a) de ${escapeHtml(sub.name)}`;
+    const _tutorSubSD = _isEnSD
+        ? 'Conversa livre · corrige-te e faz perguntas'
+        : (_studentSD ? `Tira dúvidas e treina ${escapeHtml(sub.name)} contigo, ${escapeHtml(_studentSD)}` : `Tira dúvidas e treina ${escapeHtml(sub.name)} contigo`);
+
     const html = `
         <div class="fullscreen" id="subject-detail-screen">
             <div class="exercise-header">
@@ -1296,6 +1305,14 @@ function openSubjectDetail(key) {
                 </div>
             </div>
             <div class="exercise-body">
+                <div class="tutor-card" data-tutor-subject="${escapeHtml(key)}" data-tutor-name="${escapeHtml(sub.name)}" onclick="openTutorFromSubjectCard(this)" style="margin:0 0 14px">
+                  <div class="tutor-card-icon"><i class="fas fa-chalkboard-user"></i></div>
+                  <div class="tutor-card-text">
+                    <div class="tutor-card-title">${_tutorTitleSD}</div>
+                    <div class="tutor-card-sub">${_tutorSubSD}</div>
+                  </div>
+                  <i class="fas fa-microphone tutor-card-mic"></i>
+                </div>
                 <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
                         <div>
@@ -5402,28 +5419,38 @@ function _tutorMarkExplored(topic) {
     state.max.tutorExplored[String(topic).trim()] = Date.now();
     saveState();
 }
-// Nível CEFR estimado do utilizador: o nível mais alto onde já explorou >=metade dos tópicos.
+// Consolidado = dominou o tópico (≥ 2/3 acertos na prática). É o "verdadeiro" ✓.
+function _tutorConsolidated() { return (state.max && state.max.tutorConsolidated) || {}; }
+function _tutorMarkConsolidated(topic) {
+    if (!topic || !state.max) return;
+    state.max.tutorConsolidated = state.max.tutorConsolidated || {};
+    state.max.tutorConsolidated[String(topic).trim()] = Date.now();
+    // consolidado implica explorado
+    state.max.tutorExplored = state.max.tutorExplored || {};
+    if (!state.max.tutorExplored[String(topic).trim()]) state.max.tutorExplored[String(topic).trim()] = Date.now();
+    saveState();
+}
+// Nível CEFR estimado do utilizador: o nível mais alto onde já consolidou >=metade dos tópicos.
 function _tutorUserLevel() {
-    const exp = _tutorExplored();
+    const cons = _tutorConsolidated();
     let level = 'A1';
     for (const band of TUTOR_LESSON_LADDER) {
-        const done = band.topics.filter(t => exp[t]).length;
+        const done = band.topics.filter(t => cons[t]).length;
         if (done >= Math.ceil(band.topics.length / 2)) level = band.lvl; else break;
     }
     return level;
 }
-// Próximo tópico a explorar: o 1.º não-explorado, a começar no nível do utilizador.
+// Próximo tópico a explorar: 1.º NÃO-CONSOLIDADO no nível do utilizador.
 function _tutorNextLadderTopic() {
-    const exp = _tutorExplored();
+    const cons = _tutorConsolidated();
     const lvl = _tutorUserLevel();
     const startIdx = Math.max(0, _CEFR_ORDER.indexOf(lvl));
     for (let i = startIdx; i < TUTOR_LESSON_LADDER.length; i++) {
-        const t = TUTOR_LESSON_LADDER[i].topics.find(tp => !exp[tp]);
+        const t = TUTOR_LESSON_LADDER[i].topics.find(tp => !cons[tp]);
         if (t) return { topic: t, lvl: TUTOR_LESSON_LADDER[i].lvl };
     }
-    // tudo explorado a partir do nível: procura do início (revisão)
     for (const band of TUTOR_LESSON_LADDER) {
-        const t = band.topics.find(tp => !exp[tp]);
+        const t = band.topics.find(tp => !cons[tp]);
         if (t) return { topic: t, lvl: band.lvl };
     }
     return null;
@@ -5466,9 +5493,11 @@ function _tutorLearnTopicBtn(el) {
 window._tutorLearnTopicBtn = _tutorLearnTopicBtn;
 // Limpar uma marcação individual (✕ nos itens já feitos) ou todas.
 function _tutorClearExplored(topic) {
-    if (!state.max || !state.max.tutorExplored) return;
-    if (topic) delete state.max.tutorExplored[topic];
-    else state.max.tutorExplored = {};
+    if (!state.max) return;
+    state.max.tutorExplored = state.max.tutorExplored || {};
+    state.max.tutorConsolidated = state.max.tutorConsolidated || {};
+    if (topic) { delete state.max.tutorExplored[topic]; delete state.max.tutorConsolidated[topic]; }
+    else { state.max.tutorExplored = {}; state.max.tutorConsolidated = {}; }
     saveState();
     if (document.getElementById('tutor-explore')) { document.getElementById('tutor-explore').remove(); _tutorOpenExplore(); }
 }
@@ -5489,17 +5518,21 @@ window._tutorClearAllExplored = _tutorClearAllExplored;
 function _tutorOpenExplore() {
     if (!tutorState) return;
     const exp = _tutorExplored();
+    const cons = _tutorConsolidated();
     const userLvl = _tutorUserLevel();
     const bands = TUTOR_LESSON_LADDER.map(band => {
         const items = band.topics.map(t => {
-            const done = !!exp[t];
-            const itemBtn = `<button class="tutor-ladder-item${done ? ' done' : ''}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
-              <i class="fas ${done ? 'fa-circle-check' : 'fa-circle-play'}"></i> <span>${escapeHtml(t)}</span>
+            const isCons = !!cons[t];
+            const isSeen = !isCons && !!exp[t];
+            const cls = isCons ? ' done' : (isSeen ? ' seen' : '');
+            const icon = isCons ? 'fa-circle-check' : (isSeen ? 'fa-eye' : 'fa-circle-play');
+            const itemBtn = `<button class="tutor-ladder-item${cls}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
+              <i class="fas ${icon}"></i> <span>${escapeHtml(t)}</span>
             </button>`;
-            const clearBtn = done ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar"><i class="fas fa-xmark"></i></button>` : '';
+            const clearBtn = (isCons || isSeen) ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar"><i class="fas fa-xmark"></i></button>` : '';
             return `<div class="tutor-ladder-row">${itemBtn}${clearBtn}</div>`;
         }).join('');
-        const doneCount = band.topics.filter(t => exp[t]).length;
+        const doneCount = band.topics.filter(t => cons[t]).length;
         return `<div class="tutor-ladder-band${band.lvl === userLvl ? ' current' : ''}">
             <div class="tutor-ladder-h"><span class="tutor-ladder-lvl">${band.lvl}</span> <span>${doneCount}/${band.topics.length}</span>${band.lvl === userLvl ? '<span class="tutor-ladder-you">estás aqui</span>' : ''}</div>
             <div class="tutor-ladder-items">${items}</div>
@@ -5515,7 +5548,7 @@ function _tutorOpenExplore() {
         <button class="icon-btn" onclick="_tutorClearAllExplored()" title="Limpar progresso"><i class="fas fa-broom"></i></button>
       </div>
       <div class="tutor-explore-body">
-        <div class="tutor-explore-intro">Tópicos por nível, do <b>A1</b> até à fluência (<b>C1</b>). Explora por ordem — cada um abre uma lição completa e prática. Só fica ✓ quando a lição abrir mesmo.</div>
+        <div class="tutor-explore-intro">Tópicos por nível, do <b>A1</b> até à fluência (<b>C1</b>). 👁️ <b>Explorado</b> = lição aberta. ✓ <b>Consolidado</b> = acertaste ≥ 2 em 3 na prática. O nível e a barra contam só os consolidados.</div>
         ${bands}
       </div>`;
     document.body.appendChild(ov);
@@ -6487,6 +6520,9 @@ function _tutorPracticeAnswer(i) {
     const card = document.getElementById(pq._el); if (!card) return;
     if (card.dataset.done) return;
     card.dataset.done = '1';
+    // Conta resultado da sessão para "consolidar" o tópico (≥ 2/3 → ✓ na escada).
+    pq.sessionTotal = (pq.sessionTotal || 0) + 1;
+    if (i === it.answer) pq.sessionRight = (pq.sessionRight || 0) + 1;
     const ok = i === it.answer;
     _tutorTrackWeak(it.topic || pq.topic, ok);
     card.querySelectorAll('.tutor-qopt').forEach((b, idx) => {
@@ -6689,8 +6725,14 @@ function _tutorPracticeDone() {
     const reply = (tutorState && tutorState._practiceReply) || '';
     const rc = tutorState && tutorState._reviewingCard;
     const stack = (tutorState && tutorState._returnStack) || [];
+    const pq = tutorState && tutorState._pq;
+    // Consolida o tópico se a sessão teve ≥ 2/3 acertos.
+    if (pq && pq.topic && (pq.sessionTotal || 0) >= 3 && (pq.sessionRight || 0) / pq.sessionTotal >= (2 / 3) - 1e-6) {
+        try { _tutorMarkConsolidated(pq.topic); } catch {}
+    }
+    const consolMsg = (pq && pq.sessionTotal) ? ` (${pq.sessionRight || 0}/${pq.sessionTotal} certas)` : '';
     if (tutorState) { tutorState._practiceReply = null; tutorState._pq = null; tutorState._reviewingCard = null; }
-    _tutorAddTutor(`Boa! Acabámos a prática 🎉${reply ? ' ' + reply : ''}`, '', '', true);
+    _tutorAddTutor(`Boa! Acabámos a prática 🎉${consolMsg}${reply ? ' ' + reply : ''}`, '', '', true);
     // Se a prática veio de um cartão de revisão, decides tu se avança de nível.
     if (rc && _srsAll().some(x => x.id === rc.id)) { _tutorAskAdvance(rc); return; }
     // Recuámos a um pré-requisito? Agora sobe de volta ao tópico difícil.
