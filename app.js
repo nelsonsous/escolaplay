@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v409';
+const APP_VERSION = 'v410';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4702,6 +4702,7 @@ function openTutor(opts) {
       <div class="tutor-header">
         <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
         <div class="tutor-title"><span class="tutor-av">${av}</span> English Tutor</div>
+        <button class="icon-btn" onclick="_tutorOpenExplore()" title="Explorar lições por nível"><i class="fas fa-layer-group"></i></button>
         <button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>
         <button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>
         <span class="tutor-tag">IA</span>
@@ -4713,6 +4714,7 @@ function openTutor(opts) {
     // Linha de abertura (fixa, sem gastar chamada à IA)
     const opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
     _tutorAddTutor(opener, null, null);
+    _tutorRenderDailyLesson();
     _tutorRenderWeak();
     _tutorRenderReviewPrompt();
     _tutorRenderRoleplayPrompt();
@@ -4726,6 +4728,7 @@ function closeTutor() {
     try { if (_tutorRecog) _tutorRecog.stop(); } catch {}
     try { _tutorRecAbort = true; _tutorStopSilenceWatch(); if (_tutorRec && _tutorRec.state !== 'inactive') _tutorRec.stop(); } catch {}
     try { _tutorRecStream && _tutorRecStream.getTracks().forEach(t => t.stop()); _tutorRecStream = null; } catch {}
+    document.getElementById('tutor-explore')?.remove();
     document.getElementById('tutor-overlay')?.remove();
     document.body.style.overflow = '';
     tutorState = null;
@@ -5319,6 +5322,117 @@ function _tutorResumePractice() {
     if (tutorState && tutorState._pq && tutorState._pq.queue.length) _tutorRenderPracticeItem();
 }
 window._tutorResumePractice = _tutorResumePractice;
+
+// ===== Escada de lições por nível CEFR (A1 → C1), ordem crescente até à fluência =====
+// Catálogo curado (terminologia gramatical em inglês). As lições são geradas a pedido
+// pelo _tutorDeepDive; aqui definimos só a ORDEM e o nível de cada tópico.
+const TUTOR_LESSON_LADDER = [
+    { lvl: 'A1', topics: ['Verb to be (am/is/are)', 'Subject pronouns', 'Articles (a/an/the)', 'Plural nouns', 'This / That / These / Those', 'Present Simple', 'Possessive adjectives', 'There is / There are'] },
+    { lvl: 'A2', topics: ['Present Continuous', 'Past Simple', 'Countable & uncountable nouns', 'Comparatives & superlatives', 'Going to (future)', 'Adverbs of frequency', 'Prepositions of time & place', 'Modal verbs: can / must / should'] },
+    { lvl: 'B1', topics: ['Present Perfect', 'Present Perfect vs Past Simple', 'Past Continuous', 'First Conditional', 'Will vs Going to', 'Used to', 'Relative clauses (who/which/that)', 'Quantifiers (some/any/much/many)'] },
+    { lvl: 'B2', topics: ['Present Perfect Continuous', 'Past Perfect', 'Second Conditional', 'Third Conditional', 'Passive voice', 'Reported speech', 'Gerunds & infinitives', 'Modals of deduction (must/might/can’t)'] },
+    { lvl: 'C1', topics: ['Mixed conditionals', 'Inversion', 'Cleft sentences', 'Advanced linking & discourse markers', 'Phrasal verbs (advanced)', 'Collocations & register', 'Hedging & diplomatic language', 'Nuance: Future Perfect & Continuous'] }
+];
+const _CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1'];
+function _tutorExplored() { return (state.max && state.max.tutorExplored) || {}; }
+function _tutorMarkExplored(topic) {
+    if (!topic || !state.max) return;
+    state.max.tutorExplored = state.max.tutorExplored || {};
+    state.max.tutorExplored[String(topic).trim()] = Date.now();
+    saveState();
+}
+// Nível CEFR estimado do utilizador: o nível mais alto onde já explorou >=metade dos tópicos.
+function _tutorUserLevel() {
+    const exp = _tutorExplored();
+    let level = 'A1';
+    for (const band of TUTOR_LESSON_LADDER) {
+        const done = band.topics.filter(t => exp[t]).length;
+        if (done >= Math.ceil(band.topics.length / 2)) level = band.lvl; else break;
+    }
+    return level;
+}
+// Próximo tópico a explorar: o 1.º não-explorado, a começar no nível do utilizador.
+function _tutorNextLadderTopic() {
+    const exp = _tutorExplored();
+    const lvl = _tutorUserLevel();
+    const startIdx = Math.max(0, _CEFR_ORDER.indexOf(lvl));
+    for (let i = startIdx; i < TUTOR_LESSON_LADDER.length; i++) {
+        const t = TUTOR_LESSON_LADDER[i].topics.find(tp => !exp[tp]);
+        if (t) return { topic: t, lvl: TUTOR_LESSON_LADDER[i].lvl };
+    }
+    // tudo explorado a partir do nível: procura do início (revisão)
+    for (const band of TUTOR_LESSON_LADDER) {
+        const t = band.topics.find(tp => !exp[tp]);
+        if (t) return { topic: t, lvl: band.lvl };
+    }
+    return null;
+}
+// Cartão "Lição do dia": sugere o próximo tópico da escada (ou um erro fraco a rever).
+function _tutorRenderDailyLesson() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat || !state.max) return;
+    const today = new Date().toISOString().slice(0, 10);
+    // Prioriza rever um tópico fraco se houver; senão segue a escada.
+    const weak = (typeof _tutorTopWeak === 'function') ? _tutorTopWeak(1) : [];
+    let topic, lvl, isReview = false;
+    if (weak.length) { topic = weak[0]; lvl = ((state.max.tutorWeak && state.max.tutorWeak[topic] && state.max.tutorWeak[topic].level) || ''); isReview = true; }
+    else { const nx = _tutorNextLadderTopic(); if (!nx) return; topic = nx.topic; lvl = nx.lvl; }
+    const userLvl = _tutorUserLevel();
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">📅</div>
+        <div class="tutor-daily">
+          <div class="tutor-daily-h">📅 Lição do dia · o teu nível: <b>${escapeHtml(userLvl)}</b></div>
+          <div class="tutor-daily-topic">${isReview ? '🔁 Rever' : '⬆️ A seguir'}${lvl ? ` · <span class="tutor-daily-lvl">${escapeHtml(lvl)}</span>` : ''}<br><b>${escapeHtml(topic)}</b></div>
+          <div class="tutor-daily-btns">
+            <button class="tutor-lbtn prac" data-topic="${escapeHtml(topic)}" onclick="_tutorLearnTopicBtn(this)"><i class="fas fa-graduation-cap"></i> Aprender agora</button>
+            <button class="tutor-lbtn" onclick="_tutorOpenExplore()"><i class="fas fa-layer-group"></i> Explorar tudo</button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+function _tutorLearnTopicBtn(el) {
+    const t = el && el.dataset && el.dataset.topic;
+    if (!t) return;
+    _tutorMarkExplored(t);
+    tutorState._pendingPracticeTopic = t;
+    tutorState._pendingPracticeArg = '';
+    _tutorDeepDive(t, { prePractice: true });
+}
+window._tutorLearnTopicBtn = _tutorLearnTopicBtn;
+// Ecrã "Explorar lições": a escada completa A1→C1 com progresso.
+function _tutorOpenExplore() {
+    if (!tutorState) return;
+    const exp = _tutorExplored();
+    const userLvl = _tutorUserLevel();
+    const bands = TUTOR_LESSON_LADDER.map(band => {
+        const items = band.topics.map(t => {
+            const done = !!exp[t];
+            return `<button class="tutor-ladder-item${done ? ' done' : ''}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
+              <i class="fas ${done ? 'fa-circle-check' : 'fa-circle-play'}"></i> <span>${escapeHtml(t)}</span>
+            </button>`;
+        }).join('');
+        const doneCount = band.topics.filter(t => exp[t]).length;
+        return `<div class="tutor-ladder-band${band.lvl === userLvl ? ' current' : ''}">
+            <div class="tutor-ladder-h"><span class="tutor-ladder-lvl">${band.lvl}</span> <span>${doneCount}/${band.topics.length}</span>${band.lvl === userLvl ? '<span class="tutor-ladder-you">estás aqui</span>' : ''}</div>
+            <div class="tutor-ladder-items">${items}</div>
+          </div>`;
+    }).join('');
+    document.getElementById('tutor-explore')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'tutor-explore';
+    ov.innerHTML = `
+      <div class="tutor-header">
+        <button class="icon-btn" onclick="document.getElementById('tutor-explore').remove()"><i class="fas fa-arrow-left"></i></button>
+        <div class="tutor-title">📚 Explorar lições</div>
+      </div>
+      <div class="tutor-explore-body">
+        <div class="tutor-explore-intro">Tópicos por nível, do <b>A1</b> até à fluência (<b>C1</b>). Explora por ordem — cada um abre uma lição completa e prática.</div>
+        ${bands}
+      </div>`;
+    document.body.appendChild(ov);
+}
+window._tutorOpenExplore = _tutorOpenExplore;
 // Explicação exaustiva de um tema (visão geral longa + regras + exemplos + erros comuns)
 async function _tutorDeepDive(topic, opts) {
     if (!tutorState) return false;
