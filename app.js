@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v410';
+const APP_VERSION = 'v411';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -879,6 +879,12 @@ function _flashStreakChip() {
 
 // ========== HOME ==========
 function renderHome() {
+    // Cartão "Falar com o Professor" (English Tutor) só faz sentido para o perfil de ano 99.
+    const _homeTutorCard = document.getElementById('home-tutor-card');
+    if (_homeTutorCard) {
+        const _p = (typeof activeProfile === 'function' && activeProfile()) || {};
+        _homeTutorCard.style.display = (_p.year === 99) ? 'flex' : 'none';
+    }
     const days = state.streak.days || 0;
     const { tier, emoji } = _streakTier(days);
     // Mini-card antigo (já não está no HTML, mas mantemos null-safe caso reapareça)
@@ -1783,6 +1789,14 @@ function openCoursePath(subjectKey) {
     }).join('');
 
     document.getElementById('subject-detail-container')?.remove();
+    // Tutor da DISCIPLINA: usa o contexto do perfil ativo (ano + nome).
+    const _profSD = (typeof activeProfile === 'function' && activeProfile()) || {};
+    const _studentSD = _profSD.name || '';
+    const _isEnSD = (subjectKey === 'ingles' || subjectKey === 'english_pm');
+    const _tutorTitleSD = _isEnSD ? 'Falar com o Professor' : `Professor(a) de ${escapeHtml(sub.name)}`;
+    const _tutorSubSD = _isEnSD
+        ? 'Conversa livre · corrige-te e faz perguntas'
+        : (_studentSD ? `Tira dúvidas e treina ${escapeHtml(sub.name)} contigo, ${escapeHtml(_studentSD)}` : `Tira dúvidas e treina ${escapeHtml(sub.name)} contigo`);
     const wrap = document.createElement('div');
     wrap.id = 'subject-detail-container';
     wrap.innerHTML = `
@@ -1810,11 +1824,11 @@ function openCoursePath(subjectKey) {
             </div>
             <div class="course-mascot-host" id="course-mascot" style="position:relative;z-index:1"></div>
           </div>
-          <div class="tutor-card" onclick="openTutor()">
+          <div class="tutor-card" data-tutor-subject="${escapeHtml(subjectKey)}" data-tutor-name="${escapeHtml(sub.name)}" onclick="openTutorFromSubjectCard(this)">
             <div class="tutor-card-icon"><i class="fas fa-chalkboard-user"></i></div>
             <div class="tutor-card-text">
-              <div class="tutor-card-title">Falar com o Professor</div>
-              <div class="tutor-card-sub">Conversa livre · corrige-te e faz perguntas</div>
+              <div class="tutor-card-title">${_tutorTitleSD}</div>
+              <div class="tutor-card-sub">${_tutorSubSD}</div>
             </div>
             <i class="fas fa-microphone tutor-card-mic"></i>
           </div>
@@ -4693,35 +4707,82 @@ function openTutor(opts) {
         showToast('Configura uma chave IA (Mistral) no Perfil para falar com o Professor');
         return;
     }
-    tutorState = { history: [], lang: 'en-US', busy: false };
-    const av = (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(40)) || '🧑‍🏫';
+    const prof = (typeof activeProfile === 'function' && activeProfile()) || { name: '', year: 6 };
+    let subj = null;
+    if (opts.subject) {
+        const yr = opts.year || prof.year || 6;
+        const subDef = (window.SUBJECTS_BY_YEAR && window.SUBJECTS_BY_YEAR[yr] && window.SUBJECTS_BY_YEAR[yr][opts.subject])
+            || (window.SUBJECTS && window.SUBJECTS[opts.subject]) || null;
+        const englishKeys = new Set(['ingles', 'english_pm']);
+        const isEnglish = englishKeys.has(opts.subject) || opts.lang === 'en-US';
+        subj = {
+            key: opts.subject,
+            name: opts.subjectName || (subDef && subDef.name) || opts.subject,
+            year: yr,
+            studentName: opts.studentName || prof.name || '',
+            lang: isEnglish ? 'en-US' : 'pt-PT',
+            color: opts.color || (subDef && subDef.color) || '#0d9488',
+            icon: opts.icon || (subDef && subDef.icon) || 'fa-chalkboard-user',
+            isEnglish
+        };
+    }
+    const isSubjectMode = !!(subj && !subj.isEnglish);
+    tutorState = { history: [], lang: subj ? subj.lang : 'en-US', busy: false, subject: subj };
+    const av = (typeof _mascotAvatarHtml === 'function' && _mascotAvatarHtml(40)) || (isSubjectMode ? '👩‍🏫' : '🧑‍🏫');
     document.getElementById('tutor-overlay')?.remove();
     const o = document.createElement('div');
     o.id = 'tutor-overlay';
+    const headerStyle = isSubjectMode ? ` style="background:linear-gradient(135deg,${subj.color},#0891b2)"` : '';
+    const headerTitle = isSubjectMode ? `Professor(a) de ${escapeHtml(subj.name)}` : 'English Tutor';
     o.innerHTML = `
-      <div class="tutor-header">
+      <div class="tutor-header"${headerStyle}>
         <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
-        <div class="tutor-title"><span class="tutor-av">${av}</span> English Tutor</div>
-        <button class="icon-btn" onclick="_tutorOpenExplore()" title="Explorar lições por nível"><i class="fas fa-layer-group"></i></button>
+        <div class="tutor-title"><span class="tutor-av">${av}</span> ${headerTitle}</div>
+        ${isSubjectMode ? '' : `<button class="icon-btn" onclick="_tutorOpenExplore()" title="Explorar lições por nível"><i class="fas fa-layer-group"></i></button>`}
         <button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>
-        <button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>
+        ${isSubjectMode ? '' : `<button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>`}
         <span class="tutor-tag">IA</span>
       </div>
       <div class="tutor-chat" id="tutor-chat"></div>
       <div class="tutor-bar" id="tutor-bar"></div>`;
     document.body.appendChild(o);
     document.body.style.overflow = 'hidden';
-    // Linha de abertura (fixa, sem gastar chamada à IA)
-    const opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
+    let opener;
+    if (isSubjectMode) {
+        const nm = subj.studentName ? ` ${subj.studentName}` : '';
+        opener = `Olá${nm}! Sou o(a) teu/tua Professor(a) de ${subj.name}. Estou aqui para te ajudar com a matéria do ${subj.year}.º ano. Em que tema queres trabalhar? Podes escrever uma dúvida, um conceito que queres rever, ou pedir-me exercícios.`;
+    } else {
+        opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
+    }
     _tutorAddTutor(opener, null, null);
-    _tutorRenderDailyLesson();
-    _tutorRenderWeak();
-    _tutorRenderReviewPrompt();
-    _tutorRenderRoleplayPrompt();
-    _tutorUpdateReviewBadge();
+    if (!isSubjectMode) {
+        _tutorRenderDailyLesson();
+        _tutorRenderWeak();
+        _tutorRenderReviewPrompt();
+        _tutorRenderRoleplayPrompt();
+        _tutorUpdateReviewBadge();
+    }
     _tutorRenderMic();
 }
 window.openTutor = openTutor;
+// Abre o tutor a partir do cartão da disciplina (subject-detail) — Inglês mantém-se em EN,
+// outras disciplinas abrem o Professor especialista em PT-PT, no nível e tratando pelo nome.
+function openTutorFromSubjectCard(el) {
+    if (!el) return openTutor();
+    const k = el.dataset && el.dataset.tutorSubject;
+    if (!k) return openTutor();
+    const englishKeys = new Set(['ingles', 'english_pm']);
+    if (englishKeys.has(k)) return openTutor();
+    const prof = (typeof activeProfile === 'function' && activeProfile()) || {};
+    openTutor({
+        subject: k,
+        subjectName: el.dataset.tutorName || k,
+        year: prof.year,
+        studentName: prof.name,
+        lang: 'pt-PT'
+    });
+}
+window.openTutorFromSubjectCard = openTutorFromSubjectCard;
 
 function closeTutor() {
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
@@ -5394,12 +5455,36 @@ function _tutorRenderDailyLesson() {
 function _tutorLearnTopicBtn(el) {
     const t = el && el.dataset && el.dataset.topic;
     if (!t) return;
-    _tutorMarkExplored(t);
+    // Fecha o overlay de explorar (se estiver aberto) e marca como em curso — NÃO marca como
+    // explorado já (só fica ✓ quando a lição abrir mesmo). Para evitar marcas de cliques sem
+    // querer, marca-se em _tutorDeepDive ao concluir o render.
+    document.getElementById('tutor-explore')?.remove();
     tutorState._pendingPracticeTopic = t;
     tutorState._pendingPracticeArg = '';
     _tutorDeepDive(t, { prePractice: true });
 }
 window._tutorLearnTopicBtn = _tutorLearnTopicBtn;
+// Limpar uma marcação individual (✕ nos itens já feitos) ou todas.
+function _tutorClearExplored(topic) {
+    if (!state.max || !state.max.tutorExplored) return;
+    if (topic) delete state.max.tutorExplored[topic];
+    else state.max.tutorExplored = {};
+    saveState();
+    if (document.getElementById('tutor-explore')) { document.getElementById('tutor-explore').remove(); _tutorOpenExplore(); }
+}
+window._tutorClearExplored = _tutorClearExplored;
+function _tutorClearExploredBtn(el, ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+    const t = el && el.dataset && el.dataset.topic;
+    if (t) _tutorClearExplored(t);
+    return false;
+}
+window._tutorClearExploredBtn = _tutorClearExploredBtn;
+function _tutorClearAllExplored() {
+    if (!confirm('Limpar todo o progresso da escada de lições?')) return;
+    _tutorClearExplored(null);
+}
+window._tutorClearAllExplored = _tutorClearAllExplored;
 // Ecrã "Explorar lições": a escada completa A1→C1 com progresso.
 function _tutorOpenExplore() {
     if (!tutorState) return;
@@ -5408,8 +5493,9 @@ function _tutorOpenExplore() {
     const bands = TUTOR_LESSON_LADDER.map(band => {
         const items = band.topics.map(t => {
             const done = !!exp[t];
+            const clearBtn = done ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar"><i class="fas fa-xmark"></i></button>` : '';
             return `<button class="tutor-ladder-item${done ? ' done' : ''}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
-              <i class="fas ${done ? 'fa-circle-check' : 'fa-circle-play'}"></i> <span>${escapeHtml(t)}</span>
+              <i class="fas ${done ? 'fa-circle-check' : 'fa-circle-play'}"></i> <span>${escapeHtml(t)}</span>${clearBtn}
             </button>`;
         }).join('');
         const doneCount = band.topics.filter(t => exp[t]).length;
@@ -5425,9 +5511,10 @@ function _tutorOpenExplore() {
       <div class="tutor-header">
         <button class="icon-btn" onclick="document.getElementById('tutor-explore').remove()"><i class="fas fa-arrow-left"></i></button>
         <div class="tutor-title">📚 Explorar lições</div>
+        <button class="icon-btn" onclick="_tutorClearAllExplored()" title="Limpar progresso"><i class="fas fa-broom"></i></button>
       </div>
       <div class="tutor-explore-body">
-        <div class="tutor-explore-intro">Tópicos por nível, do <b>A1</b> até à fluência (<b>C1</b>). Explora por ordem — cada um abre uma lição completa e prática.</div>
+        <div class="tutor-explore-intro">Tópicos por nível, do <b>A1</b> até à fluência (<b>C1</b>). Explora por ordem — cada um abre uma lição completa e prática. Só fica ✓ quando a lição abrir mesmo.</div>
         ${bands}
       </div>`;
     document.body.appendChild(ov);
@@ -5451,7 +5538,15 @@ async function _tutorDeepDive(topic, opts) {
     const cc = focused
         ? { ov: '90-130 words', pts: '3-4', ex: '3-4', pit: '2-3', rows: '3-4', pairs: '2-3' }
         : { ov: '180-260 words', pts: '6-9', ex: '5-7', pit: '4-6', rows: '4-6', pairs: '3-4' };
-    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${styleInstr}
+    const _sDD = tutorState && tutorState.subject;
+    const _subjModeDD = !!(_sDD && !_sDD.isEnglish);
+    const prompt = _subjModeDD
+        ? `Tu és Professor(a) de ${_sDD.name}, especialista para o ${_sDD.year}.º ano em Portugal (currículo AE 2018). ${focused ? 'Escreve a PRIMEIRA lição deste tópico — FOCADA e cativante, como um(a) grande professor(a), NÃO uma enciclopédia. Lidera com modelo mental e uma regra de ouro, ensina as 2-3 ideias de maior impacto pelo significado. Tom conversacional em Português Europeu. Linguagem adequada ao ' + _sDD.year + '.º ano.' : 'É um aprofundamento (nível ' + (level+1) + '): vai a fundo — casos-limite, confusões comuns, mais exemplos concretos. Acrescenta substância nova.'}
+Tópico: "${topic}".
+Devolve JSON ESTRITO em Português Europeu (Portugal — NUNCA brasileiro):
+{"title":"título do conceito em PT-PT","overview":"explicação que começa pela intuição, ${cc.ov}, ao nível do ${_sDD.year}.º ano","rule":"regra de ouro em PT-PT, uma frase memorável; vazio se não houver","compare":{"a":"opção A","b":"opção B","rows":[{"k":"aspeto (ex.: Quando usar, Como calcular)","a":"valor PT-PT","b":"valor PT-PT"}]},"points":[{"form":"termo/fórmula","use":"quando e como aplicar (PT-PT)"}],"contrasts":[{"a":"frase/exemplo A","am":"o que significa","b":"frase/exemplo B","bm":"o que significa"}],"examples":[{"wrong":"PT-PT errado (diferente do certo)","right":"PT-PT correto","note":"PT-PT máx 10 palavras"}],"pitfalls":["erro comum em PT-PT"],"tip":"dica rápida PT-PT para decidir depressa; vazio se nenhuma"}
+Inclui ${cc.pts} "points", ${cc.ex} "examples", ${cc.pit} "pitfalls" — qualidade > quantidade${focused ? ', mantém-te focado e de alto impacto' : ''}. Se for um tópico de comparação (X vs Y), preenche "compare" (${cc.rows} linhas) e "contrasts" (${cc.pairs} pares lado-a-lado). Se é um conceito único, usa "compare":{} e "contrasts":[].`
+        : `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${styleInstr}
 Topic: "${topic}".
 GRAMMAR TERMS RULE (critical): all grammar term NAMES (Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals…) MUST stay in ENGLISH everywhere, including inside the Portuguese text — never translate (write "Simple Past", never "passado simples").
 Return STRICT JSON only:
@@ -5469,6 +5564,8 @@ Include ${cc.pts} "points", ${cc.ex} "examples", ${cc.pit} "pitfalls" — qualit
             return false;
         }
         _tutorRenderDeepDive(d, { prePractice: !!opts.prePractice, level });
+        // Marca como explorado SÓ agora — a lição abriu mesmo (corrige cliques sem querer no Explorar).
+        if (typeof _tutorMarkExplored === 'function') { try { _tutorMarkExplored(topic); } catch {} }
         return true;
     } catch (e) {
         console.warn('[tutor] deepdive failed', e);
@@ -6052,7 +6149,29 @@ async function _tutorRespond(userText) {
     const persona = rp
         ? `You are role-playing as ${rp.persona}, ${rp.personaRole}, in a "${rp.label}" work meeting (SAP project at Sonae) with a Portuguese Project Manager (B2→C1) practising business English. In the conversation below, "Tutor" lines are YOU (${rp.persona}). Stay fully in character, but STILL correct the student's English in the JSON fields.`
         : `You are a snappy, encouraging English tutor for a Portuguese Project Manager (B2→C1) preparing to lead SAP/consulting meetings.`;
-    const prompt = `${persona}
+    const _subjT = tutorState && tutorState.subject;
+    const _subjectMode = !!(_subjT && !_subjT.isEnglish);
+    const prompt = _subjectMode
+        ? `Tu és Professor(a) de ${_subjT.name}, especialista em ${_subjT.name} para o ${_subjT.year}.º ano em Portugal (currículo AE 2018, DGE/ME). Estás a ajudar ${_subjT.studentName ? 'a aluna/aluno ' + _subjT.studentName : 'a aluna/aluno'}. Trata-a/o pelo nome com naturalidade quando fizer sentido. Usa SEMPRE Português Europeu (Portugal — NUNCA brasileiro), linguagem clara, didática e adequada à idade. Encorajador e paciente. À medida que a aluna/aluno fala sobre a matéria, exploras o que está a perceber e sugeres o próximo passo (rever conceito, fazer um exercício, ou aprofundar um tópico).
+
+Conversa até agora:
+${hist}
+
+A aluna/aluno disse: "${userText}"
+
+Devolve JSON ESTRITO (em Português Europeu, Portugal):
+1) "corrected": versão clarificada/correta SÓ se houver erro conceptual/factual ou Português pouco claro. "" se já está bem.
+2) "errorType": rótulo curto em PT-PT do tipo de erro (ex.: "Conceito", "Cálculo", "Comunicação", "Vocabulário"). "" se sem erro.
+3) "explanation": explicação clara em PT-PT (40-70 palavras), ao nível do ${_subjT.year}.º ano.
+4) "tip": dica PT-PT curta (máx 12 palavras).
+5) "reply": UMA frase curta em PT-PT a continuar a conversa, encorajadora, terminando com uma pergunta ou sugestão (próximo passo: rever, exercícios, aprofundar).
+6) "lessonTitle": título curto do tópico/conceito de ${_subjT.name} em causa. "" se sem erro.
+7) "points": 2-4 {form, use} explicando regra/conceito (form = ideia/fórmula/termo, use = quando/como aplicar, em PT-PT). [] se sem erro.
+8) "examples": 2-3 {wrong, right, note} com erro típico vs correção (em PT-PT). [] se sem erro.
+9) "fluencyHelp": se faltou vocabulário técnico/concetual, sugere termos {"want":"o que queria dizer (PT-PT)","phrases":[{"en":"termo correto","pt":"o que significa"}],"connectors":[],"topic":"breve tópico"}. {} se está bem.
+
+{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}],"fluencyHelp":{}}`
+        : `${persona}
 
 Conversation so far:
 ${hist}
@@ -6282,7 +6401,16 @@ async function _tutorGeneratePractice(errorType, exampleCorrect) {
 async function _tutorRunPractice(errorType, exampleCorrect) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> A preparar exercícios de "${escapeHtml(errorType)}"…</div>`;
-    const prompt = `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
+    const _sGP = tutorState && tutorState.subject;
+    const _subjModeGP = !!(_sGP && !_sGP.isEnglish);
+    const prompt = _subjModeGP
+        ? `Cria 3 exercícios de escolha múltipla para treinar "${errorType}" na disciplina de ${_sGP.name} ao nível do ${_sGP.year}.º ano em Portugal (currículo AE 2018, DGE/ME).
+Cada exercício: uma frase curta com lacuna (usa ___) OU uma pergunta de escolha entre 3, com exatamente 3 opções, índice (0-2) da correta, "exp" = explicação curta em PT-PT, "expPt" = também em PT-PT (idêntico ou complementar), "topic" = categoria/subtópico em PT-PT.
+QUALIDADE (crítico): exatamente UMA lacuna "___" por frase quando aplicável; uma única opção é claramente correta; as outras devem ser plausíveis mas erradas; a frase preenchida deve ler-se natural e correta em Português Europeu (NUNCA brasileiro).
+LÍNGUA (crítico): TUDO em Português Europeu (Portugal). "q", "options", "exp", "expPt" e "topic" em PT-PT. Linguagem adequada ao ${_sGP.year}.º ano.
+Devolve APENAS um array JSON STRICT:
+[{"q":"enunciado PT-PT","options":["A","B","C"],"answer":0,"exp":"explicação PT-PT 1 linha","expPt":"nota PT-PT curta","topic":"categoria PT-PT"}]`
+        : `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
 Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, "exp" = 1-line explanation in ENGLISH, "expPt" = the same idea as ONE short EUROPEAN PORTUGUESE note (max 12 words), and "topic" = the error category it trains.
 QUALITY RULES (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence (e.g. never write "She has ___ always worked" with answer "always"); exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; each option must be a distinct plausible fit for the gap.
 LANGUAGE RULES (critical): "q" and all "options" MUST be in ENGLISH (keep it immersive). "exp" in ENGLISH. "expPt" in EUROPEAN PORTUGUESE (Portugal, never Brazilian) BUT keep grammar term names in English. "topic" = the category in ENGLISH grammar terminology (e.g. "Past Simple", "Prepositions", "Connectors", "Articles", "Word order").
