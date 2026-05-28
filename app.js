@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v414';
+const APP_VERSION = 'v415';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6232,7 +6232,7 @@ Return STRICT JSON:
         if (m) {
             try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); points = Array.isArray(p.points) ? p.points.slice(0, 4) : []; examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; fluencyHelp = (p.fluencyHelp && typeof p.fluencyHelp === 'object' && !Array.isArray(p.fluencyHelp)) ? p.fluencyHelp : {}; } catch {}
         }
-        if (!reply) reply = "Got it. Tell me more?";
+        if (!reply) reply = _subjectMode ? 'Entendido. Conta-me mais.' : "Got it. Tell me more?";
         if (corrected && _sameUtterance(corrected, userText)) corrected = '';
         if (corrected) {
             tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples };
@@ -6243,7 +6243,11 @@ Return STRICT JSON:
         _tutorRenderFluencyHelp(fluencyHelp);
     } catch (e) {
         console.warn('[tutor] failed', e);
-        if (tutorState) { _tutorAddTutor("Sorry, I didn't catch that. Say it again?", '', '', true); }
+        if (tutorState) {
+            const _fallbackEN = "Sorry, I didn't catch that. Say it again?";
+            const _fallbackPT = 'Desculpa, não percebi. Podes repetir?';
+            _tutorAddTutor(_subjectMode ? _fallbackPT : _fallbackEN, '', '', true);
+        }
     }
 }
 
