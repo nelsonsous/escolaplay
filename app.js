@@ -519,7 +519,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v416';
+const APP_VERSION = 'v417';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6239,13 +6239,17 @@ Return STRICT JSON:
             _tutorFluidCorrection(tutorState._pending);
         } else {
             _tutorAddTutor(reply, '', tip, true);
-            // Modo-disciplina: oferece sempre exercícios sobre o tópico em conversa.
+            // Modo-disciplina: oferece sempre LIÇÃO completa + EXERCÍCIOS sobre o tópico em conversa.
             if (_subjectMode && lessonTitle) {
                 const _chat = document.getElementById('tutor-chat');
                 if (_chat) _chat.insertAdjacentHTML('beforeend', `
                   <div class="tutor-row them"><div class="tutor-bubble-av">🎯</div>
                     <div class="tutor-chat-prac">
-                      <button class="tutor-lbtn prac full" data-topic="${escapeHtml(lessonTitle)}" onclick="_tutorChatPracticeBtn(this)"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios sobre "${escapeHtml(lessonTitle)}"</button>
+                      <div class="tutor-chat-prac-h">Próximo passo para "${escapeHtml(lessonTitle)}":</div>
+                      <div class="tutor-chat-prac-btns">
+                        <button class="tutor-lbtn" data-topic="${escapeHtml(lessonTitle)}" onclick="_tutorChatLessonBtn(this)"><i class="fas fa-book-open"></i> Aprofundar (lição)</button>
+                        <button class="tutor-lbtn prac" data-topic="${escapeHtml(lessonTitle)}" onclick="_tutorChatPracticeBtn(this)"><i class="fas fa-dumbbell"></i> Praticar 3 exercícios</button>
+                      </div>
                     </div>
                   </div>`);
                 if (typeof _tutorScroll === 'function') _tutorScroll();
@@ -6267,6 +6271,12 @@ function _tutorChatPracticeBtn(el) {
     if (typeof _tutorGeneratePractice === 'function') _tutorGeneratePractice(t, '');
 }
 window._tutorChatPracticeBtn = _tutorChatPracticeBtn;
+function _tutorChatLessonBtn(el) {
+    const t = el && el.dataset && el.dataset.topic;
+    if (!t) return;
+    if (typeof _tutorDeepDive === 'function') _tutorDeepDive(t);
+}
+window._tutorChatLessonBtn = _tutorChatLessonBtn;
 
 // Ajuda à fluência: o que querias dizer + palavras/expressões naturais + ligações,
 // com áudio e botões para criar lição+exercícios ou treinar a falar (voz).
