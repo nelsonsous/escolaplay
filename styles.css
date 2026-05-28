@@ -4203,7 +4203,10 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-ladder-item { display: flex; align-items: center; gap: 9px; text-align: left; background: #f8fafc; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; font-size: 0.92rem; color: #1f2937; cursor: pointer; font-family: inherit; }
 .tutor-ladder-item i { color: #0891b2; }
 .tutor-ladder-item.done { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
-.tutor-ladder-item.done i { color: #22c55e; }
+.tutor-ladder-item.done > i { color: #22c55e; }
+.tutor-ladder-item span { flex: 1; }
+.tutor-ladder-clear { margin-left: auto; background: transparent; border: 0; color: #94a3b8; cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 0.95rem; }
+.tutor-ladder-clear:hover { background: #fee2e2; color: #b91c1c; }
 .tutor-daily { background: linear-gradient(135deg, #faf5ff, #eff6ff); border: 1.5px solid #ddd6fe; border-radius: 14px; border-bottom-left-radius: 5px; padding: 13px 15px; max-width: 92%; }
 .tutor-daily-h { font-size: 0.8rem; font-weight: 800; color: #6d28d9; margin-bottom: 8px; }
 .tutor-daily-topic { font-size: 1.02rem; color: #1f2937; line-height: 1.45; margin-bottom: 10px; }
