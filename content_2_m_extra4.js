@@ -55,11 +55,13 @@ const EXERCISES_2_M_EXTRA4 = [
 
   // ===== D) DECOMPOSIÇÃO E LEITURA POR EXTENSO =====
   { id:'2mrf_011', s:'matematica', t:'Revisão final', type:'mc', diff:2,
-    q:'🔢 A decomposição do número 324 é...',
+    svg:`<svg viewBox="0 0 280 90" width="280" xmlns="http://www.w3.org/2000/svg"><g fill="#bae6fd" stroke="#0369a1" stroke-width="1.5"><rect x="6" y="14" width="50" height="50"/><rect x="62" y="14" width="50" height="50"/><rect x="118" y="14" width="50" height="50"/></g><g stroke="#0369a1" stroke-width="0.4" fill="none"><line x1="6" y1="24" x2="56" y2="24"/><line x1="6" y1="34" x2="56" y2="34"/><line x1="6" y1="44" x2="56" y2="44"/><line x1="6" y1="54" x2="56" y2="54"/><line x1="16" y1="14" x2="16" y2="64"/><line x1="26" y1="14" x2="26" y2="64"/><line x1="36" y1="14" x2="36" y2="64"/><line x1="46" y1="14" x2="46" y2="64"/><line x1="62" y1="24" x2="112" y2="24"/><line x1="62" y1="34" x2="112" y2="34"/><line x1="62" y1="44" x2="112" y2="44"/><line x1="62" y1="54" x2="112" y2="54"/><line x1="72" y1="14" x2="72" y2="64"/><line x1="82" y1="14" x2="82" y2="64"/><line x1="92" y1="14" x2="92" y2="64"/><line x1="102" y1="14" x2="102" y2="64"/><line x1="118" y1="24" x2="168" y2="24"/><line x1="118" y1="34" x2="168" y2="34"/><line x1="118" y1="44" x2="168" y2="44"/><line x1="118" y1="54" x2="168" y2="54"/><line x1="128" y1="14" x2="128" y2="64"/><line x1="138" y1="14" x2="138" y2="64"/><line x1="148" y1="14" x2="148" y2="64"/><line x1="158" y1="14" x2="158" y2="64"/></g><g fill="#86efac" stroke="#166534" stroke-width="1.2"><rect x="184" y="14" width="8" height="50"/><rect x="196" y="14" width="8" height="50"/></g><g stroke="#166534" stroke-width="0.4" fill="none"><line x1="184" y1="24" x2="192" y2="24"/><line x1="184" y1="34" x2="192" y2="34"/><line x1="184" y1="44" x2="192" y2="44"/><line x1="184" y1="54" x2="192" y2="54"/><line x1="196" y1="24" x2="204" y2="24"/><line x1="196" y1="34" x2="204" y2="34"/><line x1="196" y1="44" x2="204" y2="44"/><line x1="196" y1="54" x2="204" y2="54"/></g><g fill="#fde047" stroke="#a16207" stroke-width="1"><rect x="218" y="54" width="10" height="10"/><rect x="232" y="54" width="10" height="10"/><rect x="246" y="54" width="10" height="10"/><rect x="260" y="54" width="10" height="10"/></g><text x="31" y="82" font-size="9" text-anchor="middle" fill="#0369a1">centenas</text><text x="194" y="82" font-size="9" text-anchor="middle" fill="#166534">dezenas</text><text x="244" y="82" font-size="9" text-anchor="middle" fill="#a16207">unidades</text></svg>`,
+    q:'🔢 Olhando para os blocos (3 placas, 2 barras, 4 cubinhos), qual é a decomposição correta?',
     opts:['3 + 2 + 4','300 + 20 + 4','30 + 20 + 4','300 + 200 + 4'], ans:1,
-    exp:'324 = 3 centenas + 2 dezenas + 4 unidades = 300 + 20 + 4.' },
+    exp:'3 centenas + 2 dezenas + 4 unidades = 300 + 20 + 4 = 324.' },
   { id:'2mrf_012', s:'matematica', t:'Revisão final', type:'fill', diff:2,
-    q:'🔢 Completa a decomposição de 556: 500 + ___ + 6.',
+    svg:`<svg viewBox="0 0 280 90" width="280" xmlns="http://www.w3.org/2000/svg"><g fill="#bae6fd" stroke="#0369a1" stroke-width="1.5"><rect x="6" y="14" width="50" height="50"/><rect x="62" y="14" width="50" height="50"/><rect x="118" y="14" width="50" height="50"/><rect x="6" y="14" width="50" height="50"/></g><g fill="#bae6fd" stroke="#0369a1" stroke-width="1.5"><rect x="6" y="14" width="42" height="50" opacity="0.0"/></g><g fill="#bae6fd" stroke="#0369a1" stroke-width="1.5"><rect x="6" y="14" width="50" height="50"/><rect x="62" y="14" width="50" height="50"/><rect x="118" y="14" width="50" height="50"/><rect x="6" y="14" width="50" height="50"/></g><g fill="#86efac" stroke="#166534" stroke-width="1.2"><rect x="184" y="14" width="8" height="50"/><rect x="196" y="14" width="8" height="50"/><rect x="208" y="14" width="8" height="50"/><rect x="220" y="14" width="8" height="50"/><rect x="232" y="14" width="8" height="50"/></g><g fill="#fde047" stroke="#a16207" stroke-width="1"><rect x="254" y="54" width="10" height="10"/><rect x="268" y="54" width="2" height="10" opacity="0"/></g><g fill="#fde047" stroke="#a16207" stroke-width="1"><rect x="246" y="54" width="10" height="10"/><rect x="260" y="54" width="10" height="10"/></g><text x="56" y="82" font-size="9" text-anchor="middle" fill="#0369a1">centenas</text><text x="206" y="82" font-size="9" text-anchor="middle" fill="#166534">dezenas</text><text x="260" y="82" font-size="9" text-anchor="middle" fill="#a16207">unidades</text></svg>`,
+    q:'🔢 Pelos blocos, o número é 556. Completa: 500 + ___ + 6.',
     ans:['50'], exp:'556 = 500 + 50 + 6 (5 centenas, 5 dezenas, 6 unidades).' },
   { id:'2mrf_013', s:'matematica', t:'Revisão final', type:'mc', diff:2,
     q:'✍️ Como se lê o número 324?',
@@ -72,9 +74,10 @@ const EXERCISES_2_M_EXTRA4 = [
 
   // ===== E) TABUADA DO 3 / MÚLTIPLOS =====
   { id:'2mrf_015', s:'matematica', t:'Revisão final', type:'mc', diff:1,
-    q:'✖️ Quanto é 3 × 6?',
+    svg:`<svg viewBox="0 0 240 80" width="240" xmlns="http://www.w3.org/2000/svg"><g fill="#dc2626"><circle cx="20" cy="20" r="8"/><circle cx="55" cy="20" r="8"/><circle cx="90" cy="20" r="8"/><circle cx="125" cy="20" r="8"/><circle cx="160" cy="20" r="8"/><circle cx="195" cy="20" r="8"/><circle cx="20" cy="42" r="8"/><circle cx="55" cy="42" r="8"/><circle cx="90" cy="42" r="8"/><circle cx="125" cy="42" r="8"/><circle cx="160" cy="42" r="8"/><circle cx="195" cy="42" r="8"/><circle cx="20" cy="64" r="8"/><circle cx="55" cy="64" r="8"/><circle cx="90" cy="64" r="8"/><circle cx="125" cy="64" r="8"/><circle cx="160" cy="64" r="8"/><circle cx="195" cy="64" r="8"/></g></svg>`,
+    q:'✖️ Tens 3 linhas com 6 bolinhas cada. Quantas bolinhas há no total? (3 × 6 = ?)',
     opts:['15','18','21','9'], ans:1,
-    exp:'3 × 6 = 18 (conta de 3 em 3: 3, 6, 9, 12, 15, 18).' },
+    exp:'3 × 6 = 18. Conta de 3 em 3: 3, 6, 9, 12, 15, 18.' },
   { id:'2mrf_016', s:'matematica', t:'Revisão final', type:'mc', diff:2,
     q:'✖️ Qual destes é um produto da tabuada do 3?',
     opts:['16','25','24','29'], ans:2,
@@ -107,8 +110,9 @@ const EXERCISES_2_M_EXTRA4 = [
     opts:['7','10','11','12'], ans:2,
     exp:'Padrão: +1, +2, +1, +2... → 2, 3, 5, 6, 8, 11. Fig.6 = 11.' },
   { id:'2mrf_023', s:'matematica', t:'Revisão final', type:'fill', diff:3,
-    q:'🙂 Na sequência 2, 3, 4, 5, 6, …, quantas carinhas tem a Figura 4? ___',
-    ans:['5'], exp:'2, 3, 4, 5 — a Figura 4 tem 5 carinhas.' },
+    svg:`<svg viewBox="0 0 320 100" width="320" xmlns="http://www.w3.org/2000/svg"><g><circle cx="20" cy="50" r="10" fill="#facc15"/><circle cx="42" cy="50" r="10" fill="#facc15"/><text x="31" y="88" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">Fig.1</text></g><g><circle cx="100" cy="35" r="10" fill="#facc15"/><circle cx="90" cy="60" r="10" fill="#facc15"/><circle cx="110" cy="60" r="10" fill="#facc15"/><text x="100" y="88" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">Fig.2</text></g><g><circle cx="180" cy="25" r="10" fill="#facc15"/><circle cx="160" cy="50" r="10" fill="#facc15"/><circle cx="200" cy="50" r="10" fill="#facc15"/><circle cx="170" cy="75" r="10" fill="#facc15"/><text x="180" y="98" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">Fig.3</text></g><g><rect x="240" y="15" width="70" height="65" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4"/><text x="275" y="98" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">Fig.4</text></g></svg>`,
+    q:'🙂 Olhando para a sequência (2, 3, 4 carinhas em cada figura), quantas carinhas tem a Figura 4? ___',
+    ans:['5'], exp:'O padrão é +1 de cada vez: 2, 3, 4, 5. A Figura 4 tem 5 carinhas.' },
 
   // ===== H) FRAÇÕES — REPRESENTAR PARTE PINTADA (com SVG) =====
   { id:'2mrf_024', s:'matematica', t:'Revisão final', type:'mc', diff:2,
@@ -172,15 +176,18 @@ const EXERCISES_2_M_EXTRA4 = [
 
   // ===== K) NÚMEROS ANTES / DEPOIS =====
   { id:'2mrf_036', s:'matematica', t:'Revisão final', type:'fill', diff:1,
-    q:'🔢 O número imediatamente ANTES de 322 é ___.',
+    svg:`<svg viewBox="0 0 240 70" width="240" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="15" width="64" height="40" fill="#fff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5"/><text x="42" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#94a3b8">?</text><rect x="88" y="15" width="64" height="40" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="120" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#1e3a8a">322</text><rect x="166" y="15" width="64" height="40" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/></svg>`,
+    q:'🔢 Escreve o número que vem imediatamente ANTES de 322 (no quadrado da esquerda): ___',
     ans:['321'], exp:'Antes = menos 1. 322 − 1 = 321.' },
   { id:'2mrf_037', s:'matematica', t:'Revisão final', type:'fill', diff:1,
-    q:'🔢 O número imediatamente DEPOIS de 599 é ___.',
+    svg:`<svg viewBox="0 0 240 70" width="240" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="15" width="64" height="40" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><rect x="88" y="15" width="64" height="40" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="120" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#1e3a8a">599</text><rect x="166" y="15" width="64" height="40" fill="#fff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5"/><text x="198" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#94a3b8">?</text></svg>`,
+    q:'🔢 Escreve o número que vem imediatamente DEPOIS de 599 (quadrado da direita): ___',
     ans:['600'], exp:'Depois = mais 1. 599 + 1 = 600.' },
   { id:'2mrf_038', s:'matematica', t:'Revisão final', type:'mc', diff:2,
-    q:'🔢 Qual é o número entre 503 e 505?',
+    svg:`<svg viewBox="0 0 240 70" width="240" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="15" width="64" height="40" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="42" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#1e3a8a">503</text><rect x="88" y="15" width="64" height="40" fill="#fff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5"/><text x="120" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#94a3b8">?</text><rect x="166" y="15" width="64" height="40" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="198" y="42" font-size="20" font-weight="800" text-anchor="middle" fill="#1e3a8a">505</text></svg>`,
+    q:'🔢 Qual é o número que falta no meio (entre 503 e 505)?',
     opts:['504','502','506','500'], ans:0,
-    exp:'Entre 503 e 505 está o 504 (503, 504, 505).' },
+    exp:'A seguir a 503 vem 504. Logo: 503, 504, 505.' },
 
   // ===== L) DISTRIBUIR EQUITATIVAMENTE / DIVISÃO =====
   { id:'2mrf_039', s:'matematica', t:'Revisão final', type:'mc', diff:2,
@@ -189,7 +196,8 @@ const EXERCISES_2_M_EXTRA4 = [
     opts:['2','3','4','6'], ans:1,
     exp:'6 : 2 = 3. Ficam 3 lápis em cada estojo.' },
   { id:'2mrf_040', s:'matematica', t:'Revisão final', type:'mc', diff:2,
-    q:'🃏 O João vai oferecer os 24 cromos repetidos a 2 amigos, de forma equitativa. Quantos cromos dá a cada amigo?',
+    svg:`<svg viewBox="0 0 280 80" width="280" xmlns="http://www.w3.org/2000/svg"><g fill="#fde68a" stroke="#a16207" stroke-width="1"><rect x="2" y="6" width="14" height="20" rx="2"/><rect x="18" y="6" width="14" height="20" rx="2"/><rect x="34" y="6" width="14" height="20" rx="2"/><rect x="50" y="6" width="14" height="20" rx="2"/><rect x="66" y="6" width="14" height="20" rx="2"/><rect x="82" y="6" width="14" height="20" rx="2"/><rect x="98" y="6" width="14" height="20" rx="2"/><rect x="114" y="6" width="14" height="20" rx="2"/><rect x="2" y="30" width="14" height="20" rx="2"/><rect x="18" y="30" width="14" height="20" rx="2"/><rect x="34" y="30" width="14" height="20" rx="2"/><rect x="50" y="30" width="14" height="20" rx="2"/><rect x="66" y="30" width="14" height="20" rx="2"/><rect x="82" y="30" width="14" height="20" rx="2"/><rect x="98" y="30" width="14" height="20" rx="2"/><rect x="114" y="30" width="14" height="20" rx="2"/><rect x="2" y="54" width="14" height="20" rx="2"/><rect x="18" y="54" width="14" height="20" rx="2"/><rect x="34" y="54" width="14" height="20" rx="2"/><rect x="50" y="54" width="14" height="20" rx="2"/><rect x="66" y="54" width="14" height="20" rx="2"/><rect x="82" y="54" width="14" height="20" rx="2"/><rect x="98" y="54" width="14" height="20" rx="2"/><rect x="114" y="54" width="14" height="20" rx="2"/></g><text x="140" y="44" font-size="20" font-weight="800" fill="#0f172a">→</text><g><circle cx="180" cy="40" r="16" fill="#fca5a5" stroke="#dc2626" stroke-width="1.5"/><circle cx="180" cy="36" r="5" fill="#fff" stroke="#dc2626"/><circle cx="180" cy="36" r="2" fill="#0f172a"/></g><g><circle cx="240" cy="40" r="16" fill="#86efac" stroke="#16a34a" stroke-width="1.5"/><circle cx="240" cy="36" r="5" fill="#fff" stroke="#16a34a"/><circle cx="240" cy="36" r="2" fill="#0f172a"/></g></svg>`,
+    q:'🃏 O João tem 24 cromos repetidos (em cima) e vai oferecê-los, em partes iguais, aos 2 amigos. Quantos cromos dá a cada amigo?',
     opts:['10','12','14','24'], ans:1,
     exp:'24 : 2 = 12. Cada amigo recebe 12 cromos.' },
 
@@ -206,15 +214,18 @@ const EXERCISES_2_M_EXTRA4 = [
 
   // ===== N) ASSOCIAR FIGURA AO CÁLCULO DO PERÍMETRO (ex. 5 da ficha) =====
   { id:'2mrf_043', s:'matematica', t:'Revisão final', type:'mc', diff:2,
-    q:'🟦 A qual cálculo corresponde um QUADRADO com 2 cm de lado?',
+    svg:`<svg viewBox="0 0 160 130" width="160" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="30" width="80" height="80" fill="#fca5a5" stroke="#dc2626" stroke-width="2"/><text x="75" y="22" font-size="13" font-weight="700" fill="#0f172a">2 cm</text><text x="125" y="75" font-size="13" font-weight="700" fill="#0f172a">2 cm</text><text x="75" y="125" font-size="13" font-weight="700" fill="#0f172a">2 cm</text><text x="10" y="75" font-size="13" font-weight="700" fill="#0f172a">2 cm</text></svg>`,
+    q:'🟥 Olha para o quadrado com lados de 2 cm. Qual destes cálculos é o do perímetro?',
     opts:['2 + 2 + 2 + 2 = 8 cm','3 + 3 + 3 = 9 cm','2 + 2 + 1 + 1 = 6 cm','4 + 2 + 4 + 2 = 12 cm'], ans:0,
     exp:'Quadrado tem 4 lados iguais. Lado 2 cm → 2+2+2+2 = 8 cm.' },
   { id:'2mrf_044', s:'matematica', t:'Revisão final', type:'mc', diff:2,
-    q:'🔺 A qual cálculo corresponde um TRIÂNGULO com os 3 lados iguais a 3 cm?',
+    svg:`<svg viewBox="0 0 180 150" width="180" xmlns="http://www.w3.org/2000/svg"><polygon points="90,20 25,135 155,135" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/><text x="40" y="85" font-size="13" font-weight="700" fill="#0f172a">3 cm</text><text x="135" y="85" font-size="13" font-weight="700" fill="#0f172a">3 cm</text><text x="73" y="148" font-size="13" font-weight="700" fill="#0f172a">3 cm</text></svg>`,
+    q:'🔺 Olha para o triângulo com os 3 lados iguais a 3 cm. Qual destes cálculos é o do perímetro?',
     opts:['2 + 2 + 2 + 2 = 8 cm','3 + 3 + 3 = 9 cm','2 + 2 + 1 + 1 = 6 cm','3 + 3 + 3 + 3 = 12 cm'], ans:1,
     exp:'Triângulo tem 3 lados. Cada 3 cm → 3 + 3 + 3 = 9 cm.' },
   { id:'2mrf_045', s:'matematica', t:'Revisão final', type:'mc', diff:2,
-    q:'▭ A qual cálculo corresponde um RETÂNGULO com 2 lados de 2 cm e 2 lados de 1 cm?',
+    svg:`<svg viewBox="0 0 200 110" width="200" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="30" width="120" height="60" fill="#fde047" stroke="#a16207" stroke-width="2"/><text x="85" y="22" font-size="13" font-weight="700" fill="#0f172a">2 cm</text><text x="165" y="65" font-size="13" font-weight="700" fill="#0f172a">1 cm</text><text x="85" y="105" font-size="13" font-weight="700" fill="#0f172a">2 cm</text><text x="10" y="65" font-size="13" font-weight="700" fill="#0f172a">1 cm</text></svg>`,
+    q:'🟨 Olha para o retângulo (2 lados de 2 cm e 2 lados de 1 cm). Qual destes cálculos é o do perímetro?',
     opts:['2 + 2 + 2 + 2 = 8 cm','3 + 3 + 3 = 9 cm','2 + 2 + 1 + 1 = 6 cm','5 + 1 + 5 + 1 = 12 cm'], ans:2,
     exp:'Retângulo: 2 + 2 + 1 + 1 = 6 cm.' }
 
