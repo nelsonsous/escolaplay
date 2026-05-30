@@ -80,7 +80,8 @@ const CURRICULUM_2 = {
         'Cálculo mental',
         'Sequências de crescimento',
         'Perímetro',
-        'Ângulos retos'
+        'Ângulos retos',
+        'Revisão final'
     ],
     estudo_meio: [
         // P1 — À descoberta de si mesmo
@@ -159,7 +160,8 @@ const PERIODS_2 = {
         // Novos topicos P3 alinhados com orientadores 2.o ano
         'Números até 1000':3, 'Propriedades da multiplicação':3,
         'Relação multiplicação e divisão':3, 'Cálculo mental':3,
-        'Sequências de crescimento':3, 'Perímetro':3, 'Ângulos retos':3
+        'Sequências de crescimento':3, 'Perímetro':3, 'Ângulos retos':3,
+        'Revisão final':3
     },
     estudo_meio: {
         // P1 — À descoberta de si mesmo + instituições
