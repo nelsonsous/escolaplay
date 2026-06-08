@@ -3510,6 +3510,90 @@ const LESSONS_6 = {
         title: 'Equações simples',
         body: `**1. O que é uma equação**\nUma **equação** é uma **igualdade** que contém uma **incógnita** (letra que representa um número desconhecido — geralmente x).\n\n*Ex*: **x + 5 = 12**\n\n**Resolver** uma equação é DESCOBRIR o valor da incógnita que torna a igualdade VERDADEIRA.\n\n**2. Partes de uma equação**\n\n• **1.º membro** — tudo o que está à ESQUERDA do sinal "=".\n• **2.º membro** — tudo o que está à DIREITA do sinal "=".\n• **Incógnita** — a letra (x, y, ...) cujo valor queremos descobrir.\n• **Solução (raiz)** — valor que torna a igualdade verdadeira.\n\n*Ex*: em **3x − 2 = 10** → 1.º membro: 3x − 2; 2.º membro: 10; incógnita: x.\n\n**3. Verificar se um número é solução**\nSubstitui o valor na equação e vê se a igualdade fica VERDADEIRA.\n\n*Ex*: É x = 4 solução de 3x − 2 = 10?\n→ 3 × 4 − 2 = 12 − 2 = 10. ✓ → **Sim, é solução**.\n\n*Ex*: É x = 5 solução? → 3 × 5 − 2 = 13 ≠ 10. ✗ → **Não**.\n\n**4. Princípios de equivalência (regras de ouro)**\n\nDuas equações são **equivalentes** quando têm a MESMA solução. Podemos transformar uma equação aplicando a MESMA operação aos DOIS membros:\n\n| Operação | Pode-se? |\n|---|---|\n| Somar o mesmo número aos 2 membros | ✓ |\n| Subtrair o mesmo número dos 2 membros | ✓ |\n| Multiplicar os 2 membros pelo mesmo número (≠ 0) | ✓ |\n| Dividir os 2 membros pelo mesmo número (≠ 0) | ✓ |\n\n**Regra prática**: o que está a SOMAR num lado, passa a SUBTRAIR para o outro (e vice-versa). O que está a MULTIPLICAR num lado, passa a DIVIDIR para o outro (e vice-versa).\n\n**5. Os 4 tipos básicos**\n\n**A) x + a = b** → subtrair a aos dois lados.\n   *Ex*: x + 5 = 12 → x = 12 − 5 → **x = 7**.\n\n**B) x − a = b** → somar a aos dois lados.\n   *Ex*: x − 3 = 8 → x = 8 + 3 → **x = 11**.\n\n**C) a · x = b** → dividir os dois lados por a.\n   *Ex*: 4x = 20 → x = 20 ÷ 4 → **x = 5**.\n\n**D) x / a = b** → multiplicar os dois lados por a.\n   *Ex*: x / 3 = 6 → x = 6 × 3 → **x = 18**.\n\n**Combinação dos tipos** (vários passos):\n*Ex*: 2x + 3 = 11\n→ subtrair 3: 2x = 8\n→ dividir por 2: **x = 4**.\n\n**6. Resolver problemas com equações — passos**\n1. **Ler** o enunciado com atenção.\n2. **Atribuir** a letra x à quantidade desconhecida.\n3. **Traduzir** a frase para uma equação.\n4. **Resolver** a equação.\n5. **Verificar** se a solução faz sentido no problema.\n\n*Ex*: "O dobro de um número, mais 5, é igual a 21. Qual o número?"\n→ Seja x o número.\n→ 2x + 5 = 21\n→ 2x = 16 → x = 8.\n→ Verificação: 2 × 8 + 5 = 21. ✓\n\n[exemplo]\n**Pergunta tipo de exame**: Resolve a equação: **3x − 7 = 14**\n\n**Como pensar**:\n1. Quero isolar o x. O "−7" passa para o outro lado a SOMAR:\n   3x = 14 + 7\n   3x = 21\n2. O "3" está a multiplicar x; passa a dividir:\n   x = 21 ÷ 3\n   x = 7\n3. Verificação: 3 × 7 − 7 = 21 − 7 = 14. ✓\n\n**Resposta**: x = 7.\n[/exemplo]\n\n[erros]\n• Esquecer-se de aplicar a operação aos DOIS membros (só num lado fica mal).\n• Trocar o sinal ao "passar para o outro lado" (✗ x + 5 = 12 → x = 12 + 5).\n• Confundir 2x (= 2·x) com 2 + x.\n• Não verificar a solução no fim (substituir e ver se dá igualdade).\n• Dividir mal: ✗ 4x = 20 → x = 20 − 4 → ✓ x = 20 ÷ 4 = 5.\n• Esquecer-se que x/3 = 6 dá x = 18 (multiplicar) e não x = 2 (dividir).\n[/erros]`
     },
+    'matematica/Representações gráficas': {
+        title: 'Representações gráficas de dados',
+        body: `**1. Para que servem os gráficos**\nUm **gráfico** transforma dados (números, frequências) numa imagem que se "lê com os olhos". Permite **comparar** rapidamente e **interpretar** a informação.
+
+**2. Tipos de gráficos mais usados no 6.º ano**
+
+**A) Gráfico de BARRAS**
+• Barras VERTICAIS (ou horizontais) SEPARADAS umas das outras.
+• Eixo horizontal → categorias (futebol, ténis, natação…).
+• Eixo vertical → frequência (n.º de respostas).
+• **Todas as barras têm a MESMA largura**; só a altura varia.
+
+**B) PICTOGRAMA**
+• Usa **imagens/símbolos** (☺, ⭐, 🍎) em vez de barras.
+• Tem uma **legenda** a indicar quanto vale cada símbolo.
+   *Ex: 1 ⭐ = 2 alunos.*
+
+**C) Gráfico CIRCULAR (de setores)**
+• Mostra **partes de um TODO** (%).
+• O círculo inteiro = **360° = 100% = total**.
+• Cada setor (fatia) representa uma categoria.
+
+   **Ângulo do setor = (frequência ÷ total) × 360°**
+
+   *Ex: 20 em 60 pessoas escolheram cinema.*
+   *→ 20/60 = 1/3 → 1/3 × 360° = 120°.*
+
+**D) Gráfico de LINHAS**
+• Pontos ligados por segmentos.
+• Mostra a **EVOLUÇÃO** ao longo do TEMPO.
+   *Ex: temperatura diária, vendas ao longo dos meses.*
+
+**E) HISTOGRAMA**
+• Parece um gráfico de barras, MAS as barras estão **ENCOSTADAS** (não há espaço entre elas).
+• Representa dados quantitativos AGRUPADOS em **CLASSES** (intervalos).
+   *Ex: alturas em [140, 150[, [150, 160[, [160, 170[.*
+
+**F) POLÍGONO de frequências**
+• Liga os pontos médios dos topos das barras de um histograma.
+• Salienta a forma da distribuição.
+
+**G) DIAGRAMA de caule-e-folhas**
+• Cada número é dividido em "caule" (dezenas) e "folha" (unidades).
+   *Ex: 23 → caule 2, folha 3.*
+• Mantém os valores originais visíveis.
+
+**3. Como escolher o gráfico CERTO**
+
+| Tipo de informação | Gráfico mais indicado |
+|---|---|
+| Comparar categorias | Barras |
+| Mostrar PERCENTAGENS (parte/todo) | Circular |
+| EVOLUÇÃO ao longo do tempo | Linhas |
+| Dados em CLASSES (intervalos) | Histograma |
+| Usar imagens | Pictograma |
+
+**4. Ler um gráfico — passos**
+1. Ler o **TÍTULO** (do que fala o gráfico).
+2. Ler os **EIXOS** ou a **LEGENDA**.
+3. **Identificar** maior/menor, totais, percentagens.
+4. **Comparar** categorias e tirar conclusões.
+
+[exemplo]
+**Pergunta tipo de exame**: Numa turma com 30 alunos, perguntou-se qual o desporto preferido:
+• Futebol: 12  • Ténis: 6  • Natação: 9  • Ginástica: 3
+
+*1. Qual é a fração do total que escolheu futebol?*
+*2. Que ângulo deve ter o setor "ténis" num gráfico circular?*
+*3. Que tipo de gráfico usarias para comparar estes desportos? Porquê?*
+
+**Como pensar**:
+1. Futebol: 12/30 = **2/5**.
+2. Ténis: 6/30 = 1/5. Ângulo = 1/5 × 360° = **72°**.
+3. **Gráfico de barras** ou **circular** — ambos servem para comparar categorias. Circular é melhor para mostrar PROPORÇÕES; barras é melhor para comparar QUANTIDADES.
+[/exemplo]
+
+[erros]
+• Confundir **histograma** (barras encostadas, dados em classes) com gráfico de **barras** (barras separadas, categorias).
+• Esquecer que a SOMA dos setores num gráfico circular é **360°** (= 100%).
+• No pictograma, **não ler a legenda** (1 símbolo pode valer 2, 5, 10…).
+• Achar que num gráfico de linhas pontos NÃO se podem ligar (devem ligar-se com segmentos).
+• Usar gráfico de linhas para CATEGORIAS (só serve para evolução no TEMPO).
+[/erros]`
+    },
     'matematica/Probabilidades': {
         title: 'Probabilidades',
         body: `**1. O que é probabilidade**\nA **probabilidade** mede a **possibilidade** de um acontecimento ocorrer. É um número entre **0 e 1** (ou entre 0% e 100%).\n\n• **0** → IMPOSSÍVEL (nunca acontece).\n• **1** → CERTO (acontece sempre).\n• Entre 0 e 1 → POSSÍVEL (mais ou menos provável).\n\n**2. Experiências aleatórias vs deterministas**\n\n• **DETERMINÍSTICA** — sabemos sempre o resultado antes. *Ex: aquecer água a 100 °C → ferve.*\n• **ALEATÓRIA** — o resultado depende do acaso; não se consegue prever. *Ex: lançar um dado, tirar uma carta, atirar uma moeda.*\n\nA probabilidade só faz sentido em experiências **ALEATÓRIAS**.\n\n**3. Vocabulário essencial**\n\n• **Espaço de resultados (Ω)** — conjunto de TODOS os resultados possíveis.\n   *Ex*: lançar um dado → Ω = {1, 2, 3, 4, 5, 6}.\n• **Acontecimento (A)** — subconjunto do espaço de resultados.\n   *Ex*: "sair número par" → A = {2, 4, 6}.\n• **Casos favoráveis** — resultados que satisfazem o acontecimento.\n• **Casos possíveis** — total de resultados.\n\n**4. Tipos de acontecimentos**\n\n| Tipo | Significado | Probabilidade |\n|---|---|---|\n| **Certo** | acontece sempre | P = 1 |\n| **Impossível** | nunca acontece | P = 0 |\n| **Possível** | pode ou não acontecer | 0 < P < 1 |\n| **Elementar** | um único resultado | — |\n| **Complementar** | "o contrário" do acontecimento | P(A) + P(Ā) = 1 |\n\n*Ex (dado)*:\n• Certo: "sair número entre 1 e 6". P = 1.\n• Impossível: "sair 7". P = 0.\n• Possível: "sair par". P = 1/2.\n\n**5. Regra de Laplace (probabilidade clássica)**\n\nQuando todos os casos têm a **MESMA probabilidade**:\n\n   **P(A) = casos favoráveis / casos possíveis**\n\n*Ex*: lançar um dado. Qual a probabilidade de sair número par?\n• Casos favoráveis: {2, 4, 6} → 3 casos.\n• Casos possíveis: {1, 2, 3, 4, 5, 6} → 6 casos.\n• P("sair par") = 3/6 = **1/2 = 0,5 = 50%**.\n\n**6. Três representações equivalentes**\n\nUma probabilidade pode-se escrever de 3 formas:\n\n| Fração | Decimal | Percentagem |\n|---|---|---|\n| 1/2 | 0,5 | 50% |\n| 1/4 | 0,25 | 25% |\n| 3/4 | 0,75 | 75% |\n| 1/6 | 0,1(6) | ≈ 16,7% |\n| 1 | 1 | 100% |\n\n**7. Acontecimento complementar**\nO **complementar** de A (escreve-se Ā ou "não A") é o acontecimento que ocorre quando A NÃO ocorre.\n\n   **P(Ā) = 1 − P(A)**\n\n*Ex*: P("sair par") = 1/2 → P("não sair par") = 1 − 1/2 = **1/2**.\n\n**8. Casos típicos do 6.º ano**\n\n• **Lançamento de moeda** — Ω = {cara, coroa}. P(cara) = 1/2.\n• **Lançamento de dado** — Ω = {1, 2, 3, 4, 5, 6}. P(qualquer) = 1/6.\n• **Extração de bolas** — saco com bolas de cores. P = bolas dessa cor / total.\n   *Ex: saco com 3 bolas vermelhas e 2 azuis (total 5). P(vermelha) = 3/5.*\n• **Baralho de cartas, roleta, tira-rifa**, etc.\n\n[exemplo]\n**Pergunta tipo de exame**: Num saco há **4 berlindes amarelos**, **3 verdes** e **5 azuis**. Tira-se um berlinde ao acaso.\n\n*1. Qual o espaço de resultados (em número)?*\n*2. Qual a probabilidade de sair um berlinde verde?*\n*3. Qual a probabilidade de NÃO sair amarelo?*\n*4. Expressa as respostas em fração, decimal e percentagem.*\n\n**Como pensar**:\n1. Total de berlindes: 4 + 3 + 5 = **12** casos possíveis.\n2. P(verde) = casos favoráveis / casos possíveis = 3/12 = **1/4**.\n3. P(amarelo) = 4/12 = 1/3. P(não amarelo) = 1 − 1/3 = **2/3**.\n4. Conversões:\n   - 1/4 = 0,25 = 25%.\n   - 2/3 ≈ 0,67 ≈ 66,7%.\n\n**Resposta**:\n1. 12 casos possíveis.\n2. P(verde) = 1/4 = 0,25 = 25%.\n3. P(não amarelo) = 2/3 ≈ 0,67 ≈ 66,7%.\n[/exemplo]\n\n[erros]\n• Achar que probabilidade pode ser maior que 1 (NÃO pode — máximo é 1 = 100%).\n• Confundir casos favoráveis com casos possíveis.\n• Não simplificar fração (deixar 3/6 em vez de 1/2).\n• Esquecer-se de que P(certo) = 1 e P(impossível) = 0.\n• Trocar percentagem com decimal (50% = 0,5, NÃO 50).\n• Achar que P(Ā) = −P(A) — é P(Ā) = **1 − P(A)**.\n• Aplicar Laplace quando os casos NÃO são equiprováveis (regra só serve se todos tiverem a mesma chance).\n[/erros]`
@@ -3692,6 +3776,7 @@ const CURRICULUM_6 = {
         'Números inteiros relativos',
         'Equações simples',
         'Estatística',
+        'Representações gráficas',
         'Probabilidades'
     ],
     ingles: [
@@ -3755,7 +3840,7 @@ const PERIODS_6 = {
         'Áreas de polígonos':2, 'Áreas e perímetros do círculo':2,
         'Isometrias':2, 'Ângulos internos de polígonos':2,
         'Volumes de prismas e cilindros':3, 'Números inteiros relativos':3,
-        'Equações simples':3, 'Estatística':3, 'Probabilidades':3
+        'Equações simples':3, 'Estatística':3, 'Representações gráficas':3, 'Probabilidades':3
     },
     ingles:     {
         'Past simple':1, 'Present continuous':1,
