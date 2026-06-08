@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v424';
+const APP_VERSION = 'v425';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8873,7 +8873,9 @@ function _findExerciseAnyYear(id) {
 
 // ----- formatação do tempo -----
 function _formatDuelTime(ms) {
-    const sec = Math.max(0, Math.floor(ms / 1000));
+    const n = Number(ms);
+    const safe = Number.isFinite(n) ? n : 0;
+    const sec = Math.max(0, Math.floor(safe / 1000));
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `${s}s`;
@@ -8882,8 +8884,13 @@ function _formatDuelTime(ms) {
 // ----- pontuação de duelo -----
 // 100 pontos por certa + bónus por velocidade (5 pontos por seg restante)
 function _duelScore(correct, timeUsedSec, timeLimitSec) {
-    const baseScore = correct * 100;
-    const speedBonus = Math.max(0, Math.floor((timeLimitSec - timeUsedSec) * 5));
+    const c = Number(correct) || 0;
+    const used = Number(timeUsedSec);
+    const limit = Number(timeLimitSec);
+    const baseScore = c * 100;
+    const speedBonus = Number.isFinite(used) && Number.isFinite(limit)
+        ? Math.max(0, Math.floor((limit - used) * 5))
+        : 0;
     return baseScore + speedBonus;
 }
 
