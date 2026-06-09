@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v425';
+const APP_VERSION = 'v426';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1262,7 +1262,8 @@ function renderSubjects() {
 function openSubjectDetail(key) {
     // Disciplina english_pm tem modo Curso dedicado (caminho linear estilo
     // path com 14 licoes e progressao). Nao interfere com outras disciplinas.
-    if (key === 'english_pm' && window.COURSE_ENGLISH_PM) {
+    if ((key === 'english_pm' && window.COURSE_ENGLISH_PM) ||
+        (key === 'english_ge' && window.COURSE_ENGLISH_GE)) {
         openCoursePath(key);
         return;
     }
@@ -1291,7 +1292,7 @@ function openSubjectDetail(key) {
     // Cartão do PROFESSOR da disciplina (especialista PT-PT; Inglês mantém-se em EN).
     const _profSD = (typeof activeProfile === 'function' && activeProfile()) || {};
     const _studentSD = _profSD.name || '';
-    const _isEnSD = (key === 'ingles' || key === 'english_pm');
+    const _isEnSD = (key === 'ingles' || key === 'english_pm' || key === 'english_ge');
     const _tutorTitleSD = _isEnSD ? 'Falar com o Professor' : `Professor(a) de ${escapeHtml(sub.name)}`;
     const _tutorSubSD = _isEnSD
         ? 'Conversa livre · corrige-te e faz perguntas'
@@ -1730,6 +1731,7 @@ function closeSubjectDetail() {
 // Lock: lesson N+1 desbloqueia quando lesson N tiver crown ≥ 1.
 function _getCourseConfig(subjectKey) {
     if (subjectKey === 'english_pm') return window.COURSE_ENGLISH_PM || null;
+    if (subjectKey === 'english_ge') return window.COURSE_ENGLISH_GE || null;
     return null;
 }
 function _courseState(subjectKey) {
@@ -1921,6 +1923,14 @@ function openCourseFreePractice(subjectKey) {
         window.COURSE_ENGLISH_PM = prev;
         return;
     }
+    if (subjectKey === 'english_ge' && window.COURSE_ENGLISH_GE) {
+        const prev = window.COURSE_ENGLISH_GE;
+        delete window.COURSE_ENGLISH_GE;
+        document.getElementById('subject-detail-container')?.remove();
+        openSubjectDetail(subjectKey);
+        window.COURSE_ENGLISH_GE = prev;
+        return;
+    }
     openSubjectDetail(subjectKey);
 }
 window.openCourseFreePractice = openCourseFreePractice;
@@ -1932,16 +1942,23 @@ function startCourseLesson(subjectKey, lessonId) {
     const lesson = course.lessons.find(l => l.id === lessonId);
     if (!lesson) { showToast('Lição não encontrada: ' + lessonId); return; }
     if (!_isLessonUnlocked(course, lessonId)) { showToast('Completa a lição anterior primeiro'); return; }
-    // Resolver IDs → exercícios. Suporta exercícios injetados pelo secret pack
-    // (window.EXERCISES_BY_YEAR[99]) e EXERCISES global. NÃO mexe noutros anos.
-    const yearPool = (window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[99]) || [];
+    // Resolver IDs → exercícios. Suporta exercícios injetados por secret packs
+    // (english-pm em EXERCISES_BY_YEAR[99]; english-ge no ano do perfil) e o
+    // EXERCISES global. NÃO mexe noutros anos.
     const byId = {};
-    for (const e of yearPool) byId[e.id] = e;
+    const _profYr = (typeof activeProfile === 'function' && activeProfile() && activeProfile().year) || null;
+    const _pools = [];
+    if (window.EXERCISES_BY_YEAR) {
+        if (Array.isArray(window.EXERCISES_BY_YEAR[99])) _pools.push(window.EXERCISES_BY_YEAR[99]);
+        if (_profYr && Array.isArray(window.EXERCISES_BY_YEAR[_profYr])) _pools.push(window.EXERCISES_BY_YEAR[_profYr]);
+    }
+    for (const pool of _pools) for (const e of pool) byId[e.id] = e;
     for (const e of (typeof EXERCISES !== 'undefined' ? EXERCISES : [])) if (e.s === subjectKey) byId[e.id] = e;
     const items = lesson.exerciseIds.map(id => byId[id]).filter(Boolean);
     console.log('[course] resolved items:', items.length, '/ expected:', lesson.exerciseIds.length);
     if (items.length === 0) {
-        showToast('Sem exercícios — ativa o pack english-pm no perfil');
+        const _pk = subjectKey === 'english_ge' ? 'english-ge' : 'english-pm';
+        showToast('Sem exercícios — ativa o pack ' + _pk + ' no perfil');
         return;
     }
     currentSession = {
@@ -4732,7 +4749,7 @@ function openTutor(opts) {
         const yr = opts.year || prof.year || 6;
         const subDef = (window.SUBJECTS_BY_YEAR && window.SUBJECTS_BY_YEAR[yr] && window.SUBJECTS_BY_YEAR[yr][opts.subject])
             || (window.SUBJECTS && window.SUBJECTS[opts.subject]) || null;
-        const englishKeys = new Set(['ingles', 'english_pm']);
+        const englishKeys = new Set(['ingles', 'english_pm', 'english_ge']);
         const isEnglish = englishKeys.has(opts.subject) || opts.lang === 'en-US';
         subj = {
             key: opts.subject,
@@ -4790,7 +4807,7 @@ function openTutorFromSubjectCard(el) {
     if (!el) return openTutor();
     const k = el.dataset && el.dataset.tutorSubject;
     if (!k) return openTutor();
-    const englishKeys = new Set(['ingles', 'english_pm']);
+    const englishKeys = new Set(['ingles', 'english_pm', 'english_ge']);
     if (englishKeys.has(k)) return openTutor();
     const prof = (typeof activeProfile === 'function' && activeProfile()) || {};
     openTutor({
