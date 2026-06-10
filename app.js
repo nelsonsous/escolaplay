@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v430';
+const APP_VERSION = 'v431';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -12742,33 +12742,12 @@ function _injectSecretPayload(plaintext, profile) {
 // ============================================================
 // TTS (Text-to-Speech) — leitura em PT-PT
 // ============================================================
-// Usado pelo pack Som+ para crianças ouvirem palavras/perguntas em voz alta.
-// Web Speech API é nativo do browser. iOS Safari suporta desde iOS 7.
-
-function ttsSpeak(text) {
-    if (!text || !('speechSynthesis' in window)) return;
-    try {
-        window.speechSynthesis.cancel(); // cancela qualquer fala em curso
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'pt-PT';
-        u.rate = 0.92; // ligeiramente mais lento que o normal, mas natural
-        u.pitch = 1.0;
-        u.volume = 1.0;
-        // Usar _pickPTVoice: respeita a escolha do utilizador (state.ttsVoiceName)
-        // e, em alternativa, escolhe a melhor voz PT-PT disponível (Joana/Catarina
-        // Enhanced no iOS, Microsoft Raquel/Duarte Online Natural no Edge,
-        // Google PT de Portugal no Chrome).
-        const pt = (typeof _pickPTVoice === 'function') ? _pickPTVoice() : null;
-        if (pt) { u.voice = pt; u.lang = pt.lang || u.lang; }
-        else {
-            // Fallback antigo se _pickPTVoice ainda não tiver carregado vozes
-            const voices = window.speechSynthesis.getVoices();
-            const v = voices.find(v => v.lang === 'pt-PT') || voices.find(v => v.lang && v.lang.startsWith('pt'));
-            if (v) u.voice = v;
-        }
-        window.speechSynthesis.speak(u);
-    } catch (e) { console.warn('[tts] failed:', e); }
-}
+// NOTA: a implementação REAL de ttsSpeak é o override `window.ttsSpeak =
+// async function (text)` mais abaixo (secção "Voz portuguesa"), que toca a
+// voz escolhida (Edge pt-PT Raquel/Duarte/Fernanda neural ou Mistral) e cai
+// para a voz do sistema (_ttsSpeakSystem → _pickPTVoice). A antiga função
+// síncrona ttsSpeak que vivia aqui era código morto (substituída no load
+// pelo override) e foi removida para não confundir.
 
 // Garantir que as vozes são carregadas (algumas browsers precisam de tempo)
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -13043,7 +13022,7 @@ function openVoicePickerEN() {
         <div style="border-top:1px solid rgba(255,255,255,0.18);margin-top:10px;padding-top:10px">
           <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-            ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral)']].map(([id, lbl]) => `<button onclick="choosePTVoice('${id}')" style="background:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#0f172a' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button>`).join('')}
+            ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['edge:pt-PT-FernandaNeural', 'Fernanda ♀ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral · voz EN ⚠️)']].map(([id, lbl]) => `<button onclick="choosePTVoice('${id}')" style="background:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#0f172a' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button>`).join('')}
           </div>
           <button onclick="previewPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
         </div>
@@ -13300,8 +13279,12 @@ function _ttsSpeakSystem(text) {
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'pt-PT';
         u.rate = 0.92; u.pitch = 1.0; u.volume = 1.0;
-        if (!_ttsVoice) _ttsVoice = _pickPTVoice();
-        if (_ttsVoice) u.voice = _ttsVoice;
+        // Re-escolher a cada chamada (barato): a cache _ttsVoice prendia uma
+        // voz má quando getVoices() ainda vinha vazio no arranque, e ignorava
+        // mudanças de escolha do utilizador a meio da sessão.
+        const v = _pickPTVoice();
+        if (v) { u.voice = v; _ttsVoice = v; }
+        else if (_ttsVoice) u.voice = _ttsVoice;
         window.speechSynthesis.speak(u);
     } catch (err) { console.warn('TTS failed', err); }
 }
