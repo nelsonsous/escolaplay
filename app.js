@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v433';
+const APP_VERSION = 'v434';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7244,18 +7244,35 @@ function _getTtsAudioEl() {
 }
 // iOS Safari só deixa um <audio> tocar programaticamente (após await de
 // rede/WebSocket) se já tiver tocado UMA vez dentro de um gesto do utilizador.
-// Tocar este WAV silencioso de 4 amostras no instante do toque "abençoa" o
-// elemento — depois o blob da Edge/Mistral já pode tocar segundos mais tarde.
+// data: URLs no <audio> são frequentemente rejeitados pelo autoplay policy
+// do iOS, especialmente em modo PWA. Solução mais robusta: WebAudio com um
+// buffer silencioso de 1 sample destranca o motor de áudio iOS e abençoa
+// tanto o AudioContext como o subsequente audio.play() do blob.
 let _ttsAudioPrimed = false;
-const _SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQQAAAAAAA==';
 function _primeTtsAudio() {
     if (_ttsAudioPrimed) return;
+    // 1) WebAudio prime — o mais fiável em iOS Safari/PWA.
+    try {
+        const ctx = getAudioCtx();
+        if (ctx) {
+            if (ctx.state === 'suspended') { try { ctx.resume(); } catch {} }
+            const buf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            try { src.start(0); _ttsAudioPrimed = true; } catch {}
+        }
+    } catch {}
+    // 2) Prime do <audio> também — para o caso de o blob.play() depender
+    // disto independentemente do AudioContext.
     try {
         const el = _getTtsAudioEl();
-        el.src = _SILENT_WAV;
+        // muted=true contorna o autoplay policy do iOS para o priming.
+        el.muted = true;
+        el.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQQAAAAAAA==';
         const p = el.play();
-        if (p && p.then) p.then(() => { _ttsAudioPrimed = true; }).catch(() => {});
-        else _ttsAudioPrimed = true;
+        if (p && p.then) p.then(() => { el.muted = false; }).catch(() => { el.muted = false; });
+        else { el.muted = false; }
     } catch {}
 }
 function _stopCurrentAudio() {
@@ -13138,6 +13155,7 @@ function openVoicePickerEN() {
         ` : ''}
         <div style="border-top:1px solid rgba(255,255,255,0.18);margin-top:10px;padding-top:10px">
           <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
+          ${isIOSDevice() ? `<div style="font-size:0.7rem;background:rgba(251,191,36,0.18);border:1px solid rgba(251,191,36,0.4);color:#fde68a;padding:6px 10px;border-radius:8px;margin-bottom:8px;line-height:1.4">⚠️ No iPhone/iPad usamos a voz pt-PT do sistema (Joana/Catarina) — as vozes neurais não funcionam de forma fiável em Safari iOS.</div>` : ''}
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
             ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['edge:pt-PT-FernandaNeural', 'Fernanda ♀ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral · voz EN ⚠️)']].map(([id, lbl]) => { const chosen = id === (state.voicePT || 'edge:pt-PT-RaquelNeural'); return `<span style="display:inline-flex;align-items:center;gap:0;border-radius:18px;overflow:hidden;background:${chosen ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${chosen ? '#0f172a' : '#fff'}"><button onclick="previewPTVoice('${id}')" title="Ouvir esta voz" style="background:transparent;color:inherit;border:none;padding:6px 8px;font-size:0.78rem;cursor:pointer">🔊</button><button onclick="choosePTVoice('${id}')" style="background:transparent;color:inherit;border:none;padding:6px 10px 6px 4px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button></span>`; }).join('')}
           </div>
@@ -13322,6 +13340,12 @@ async function previewPTVoice(sel) {
     const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
     const vname = sep > 0 ? sel.slice(sep + 1) : sel;
     const text = 'Olá! Vamos praticar juntos. Estás pronto?';
+    // iOS: Edge não é fiável — toca a voz do sistema. Ver comentário em ttsSpeak.
+    if (isIOSDevice()) {
+        try { _stopCurrentAudio(); } catch {}
+        _ttsSpeakSystem(text);
+        return;
+    }
     // Prime SÍNCRONO no gesto — sem isto o iOS recusa o blob que chega depois.
     try { _stopCurrentAudio(); } catch {}
     try { _primeTtsAudio(); } catch {}
@@ -13398,6 +13422,16 @@ window.closeVoicePickerEN = closeVoicePickerEN;
 window.ttsSpeak = async function (text) {
     const cleaned = String(text || '').replace(/<[^>]+>/g, '').replace(/\*\*/g, '').replace(/\*/g, '');
     if (!cleaned) return;
+    // iOS Safari: Edge TTS via WebSocket é fundamentalmente frágil (Apple
+    // degrada estas ligações, sobretudo em modo PWA). Tentar Edge primeiro
+    // resulta em SILÊNCIO porque o gesto do utilizador expira antes do blob
+    // chegar. Vamos direto à voz pt-PT do sistema (Joana/Catarina), SÍNCRONO
+    // no gesto — fiável a 100% em iOS.
+    if (isIOSDevice()) {
+        try { _stopCurrentAudio(); } catch {}
+        _ttsSpeakSystem(cleaned);
+        return;
+    }
     // ANTES de qualquer await: abençoar o <audio> dentro do gesto de toque,
     // senão o iOS recusa tocar o blob que chega segundos depois do WebSocket.
     try { _stopCurrentAudio(); } catch {}
@@ -13443,7 +13477,11 @@ window.ttsSpeak = async function (text) {
 function _ttsSpeakSystem(text) {
     try {
         if (!('speechSynthesis' in window)) return;
-        window.speechSynthesis.cancel();
+        const s = window.speechSynthesis;
+        // iOS: cancel() seguido de speak() no mesmo turn dropa o áudio.
+        // Só cancela se houver algo a tocar.
+        try { if (s.speaking || s.pending) s.cancel(); } catch {}
+        try { s.resume(); } catch {} // desbloqueia se estiver pausado
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'pt-PT';
         u.rate = 0.92; u.pitch = 1.0; u.volume = 1.0;
@@ -13453,7 +13491,7 @@ function _ttsSpeakSystem(text) {
         const v = _pickPTVoice();
         if (v) { u.voice = v; _ttsVoice = v; }
         else if (_ttsVoice) u.voice = _ttsVoice;
-        window.speechSynthesis.speak(u);
+        s.speak(u);
     } catch (err) { console.warn('TTS failed', err); }
 }
 
