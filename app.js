@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v431';
+const APP_VERSION = 'v432';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4717,7 +4717,19 @@ function _rpEnableContinue() {
     btn.addEventListener('click', () => {
         const chat = document.getElementById('rp-chat');
         const said = st._said || st.e.turns[st.idx].model || '…';
+        const expected = st.e.turns[st.idx].model || '';
         chat.insertAdjacentHTML('beforeend', _rpBubbleYou(said));
+        // Feedback visual de pronúncia: comparar com o modelo quando existe.
+        if (expected && st._said) {
+            const fb = _tutorHighlightSaid(st._said, expected);
+            if (fb) {
+                chat.insertAdjacentHTML('beforeend',
+                  `<div class="rp-row you"><div class="rp-bubble rp-you" style="background:#fafafa;border:1px solid #e5e7eb">
+                     <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px;letter-spacing:0.04em">🎯 ${_tutT('VS MODEL','VS MODELO')}</div>
+                     ${fb}
+                   </div></div>`);
+            }
+        }
         st._said = '';
         _rpScroll();
         st.idx++;
@@ -5293,6 +5305,56 @@ function _tutorWordMatch(said, expected) {
     }
     return hits / ew.length;
 }
+// Comparação palavra-a-palavra para visualizar o que o aluno disse vs o modelo.
+// Devolve [{ word, status: 'ok' | 'close' | 'wrong' | 'missing' }] sobre as
+// palavras ESPERADAS (mantém a ordem do modelo). 'ok'=igual, 'close'=mesmo
+// radical/edição mínima, 'wrong'=existe nada parecido em quem falou.
+function _tutorWordCompare(said, expected) {
+    const norm = s => normalize(s).replace(/[^a-z0-9\s']/g, '');
+    const ewRaw = String(expected || '').split(/(\s+)/).filter(Boolean);
+    const sw = norm(said).split(/\s+/).filter(Boolean);
+    const stem = w => w.replace(/(ing|ed|es|s|d)$/, '');
+    const result = [];
+    for (const tok of ewRaw) {
+        if (/^\s+$/.test(tok) || /^[^\w']/.test(tok)) { result.push({ word: tok, status: 'sep' }); continue; }
+        const nw = norm(tok);
+        if (!nw) { result.push({ word: tok, status: 'sep' }); continue; }
+        const exact = sw.some(s => s === nw);
+        if (exact) { result.push({ word: tok, status: 'ok' }); continue; }
+        // similar (radical igual, prefixo, edit-distance pequena)
+        const sim = sw.some(s => _wordSimilar(nw, s));
+        if (sim) {
+            // distinguir 'ok' (mesmo radical) de 'close' (só edit-distance)
+            const sameStem = sw.some(s => stem(nw) && stem(nw) === stem(s));
+            result.push({ word: tok, status: sameStem ? 'ok' : 'close' });
+            continue;
+        }
+        result.push({ word: tok, status: 'wrong' });
+    }
+    return result;
+}
+// Renderiza HTML com cada palavra colorida conforme o status.
+function _tutorHighlightSaid(said, expected) {
+    if (!said || !expected) return '';
+    const parts = _tutorWordCompare(said, expected);
+    if (!parts.length) return '';
+    const colorMap = {
+        ok: 'background:#dcfce7;color:#166534',           // verde claro
+        close: 'background:#fef3c7;color:#92400e',        // amarelo
+        wrong: 'background:#fee2e2;color:#991b1b;text-decoration:underline wavy #dc2626 1.5px'
+    };
+    const html = parts.map(p => {
+        if (p.status === 'sep') return escapeHtml(p.word);
+        const st = colorMap[p.status] || '';
+        return `<span style="${st};padding:1px 3px;border-radius:4px;font-weight:600">${escapeHtml(p.word)}</span>`;
+    }).join('');
+    const total = parts.filter(p => p.status !== 'sep').length;
+    const ok = parts.filter(p => p.status === 'ok').length;
+    const close = parts.filter(p => p.status === 'close').length;
+    const pct = total ? Math.round((ok + close * 0.5) / total * 100) : 0;
+    const score = `<div style="margin-top:6px;font-size:0.78rem;color:#475569"><strong>${pct}%</strong> · 🟢 ${ok} ${_tutT('correct','certas')} · 🟡 ${close} ${_tutT('close','perto')} · 🔴 ${total - ok - close} ${_tutT('missed','falhadas')}</div>`;
+    return `<div style="font-size:1rem;line-height:1.7">${html}</div>${score}`;
+}
 
 let _tutorRecog = null;
 function _tutorRenderMic() {
@@ -5781,27 +5843,44 @@ function _tutorRenderPronBar() {
 }
 function _tutorPronEval(said, target) {
     const norm = s => normalize(s).replace(/[^a-z0-9\s']/g, '');
+    const stem = w => w.replace(/(ing|ed|es|s|d)$/, '');
     const heard = norm(said).split(/\s+/).filter(Boolean);
     const words = String(target).split(/\s+/).map(tw => {
         const n = norm(tw);
-        return { w: tw, scorable: !!n, ok: !!n && heard.some(h => _wordSimilar(n, h)) };
+        if (!n) return { w: tw, scorable: false, ok: false, close: false };
+        // 'ok' = palavra exata OU mesmo radical (think→thinking conta como ok)
+        const exact = heard.some(h => h === n);
+        const sameStem = !exact && heard.some(h => stem(n) && stem(n) === stem(h));
+        if (exact || sameStem) return { w: tw, scorable: true, ok: true, close: false };
+        // 'close' = similar por edit-distance pequena (talvez má pronúncia, não erro)
+        const similar = heard.some(h => _wordSimilar(n, h));
+        if (similar) return { w: tw, scorable: true, ok: false, close: true };
+        return { w: tw, scorable: true, ok: false, close: false };
     });
     const scorable = words.filter(x => x.scorable);
     const okCount = scorable.filter(x => x.ok).length;
-    const score = scorable.length ? Math.round(100 * okCount / scorable.length) : 0;
-    return { score, words };
+    const closeCount = scorable.filter(x => x.close).length;
+    // "Perto" vale meio ponto — mais justo do que all-or-nothing.
+    const score = scorable.length ? Math.round(100 * (okCount + closeCount * 0.5) / scorable.length) : 0;
+    return { score, words, okCount, closeCount, totalCount: scorable.length };
 }
 function _tutorEvalPron(said) {
     const pron = tutorState && tutorState._pron;
     if (!pron) return;
     said = (said || '').trim();
-    const { score, words } = _tutorPronEval(said, pron.target);
+    const { score, words, okCount, closeCount, totalCount } = _tutorPronEval(said, pron.target);
     if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
-    const wordsHtml = words.map(x => `<span class="tutor-pw ${x.scorable ? (x.ok ? 'ok' : 'no') : ''}">${escapeHtml(x.w)}</span>`).join(' ');
+    const wordsHtml = words.map(x => {
+        if (!x.scorable) return `<span class="tutor-pw">${escapeHtml(x.w)}</span>`;
+        const cls = x.ok ? 'ok' : (x.close ? 'close' : 'no');
+        return `<span class="tutor-pw ${cls}">${escapeHtml(x.w)}</span>`;
+    }).join(' ');
+    const breakdown = totalCount ? `<div style="font-size:0.78rem;color:#475569;margin:4px 0 6px">🟢 ${okCount} certas · 🟡 ${closeCount} perto · 🔴 ${totalCount - okCount - closeCount} a treinar</div>` : '';
     let verdict, cls;
     if (!said) { verdict = 'Não ouvi nada — toca e lê outra vez.'; cls = 'no'; }
-    else if (score >= 85) { verdict = `Excelente! Soaste muito claro.`; cls = 'ok'; }
-    else if (score >= 60) { verdict = `Quase lá. Foca as palavras a vermelho e repete.`; cls = 'mid'; }
+    else if (score >= 90) { verdict = `Excelente! Soaste muito claro.`; cls = 'ok'; }
+    else if (score >= 70) { verdict = `Muito bom. ${closeCount ? 'Refina as palavras a amarelo.' : 'Foca as palavras a vermelho.'}`; cls = 'ok'; }
+    else if (score >= 50) { verdict = `Quase lá. Ouve o modelo e foca as palavras marcadas.`; cls = 'mid'; }
     else { verdict = `Ouve o modelo e tenta de novo, mais devagar.`; cls = 'no'; }
     const chat = document.getElementById('tutor-chat');
     if (chat) chat.insertAdjacentHTML('beforeend', `
@@ -5811,6 +5890,7 @@ function _tutorEvalPron(said) {
           <div class="tutor-lesson-head">🎯 Resultado da pronúncia</div>
           <div class="tutor-pron-score s-${cls}">${said ? score + '%' : '—'}</div>
           <div class="tutor-pron-words">${wordsHtml}</div>
+          ${breakdown}
           ${said ? `<div class="tutor-pron-said">Ouvi: "${escapeHtml(said)}"</div>` : ''}
           <div class="tutor-explain">${verdict}</div>
           <div class="tutor-lesson-btns2">
@@ -7006,12 +7086,26 @@ async function _edgeSecToken() {
 }
 async function _edgeTTS(text, voiceName, lang) {
     const voice = voiceName || state.edgeVoice || 'en-US-AriaNeural';
-    const cacheKey = `edge|${voice}|${text}`;
+    // SSML v2: rate/pitch por língua + breaks após pontuação para soar menos "lido".
+    // Bump no cacheKey para invalidar o áudio antigo (que tinha o rate +10% genérico).
+    const cacheKey = `edge|v2|${voice}|${text}`;
     const cached = await _idbGet(cacheKey);
     if (cached instanceof Blob) return cached;
     let token;
     try { token = await _edgeSecToken(); } catch { return null; }
     const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${token}&Sec-MS-GEC-Version=1-130.0.2849.68`;
+    // Prosódia por língua. PT-PT fica robótico se for rápido; EN aguenta +10%.
+    const isPT = /^pt/i.test(lang || '');
+    const rate = isPT ? '+3%' : '+10%';
+    const pitch = isPT ? '+2%' : '0%';
+    // Pequenas pausas naturais após pontuação (não usar regex em modo cego: aplicar só
+    // a frases longas, e descartar se o texto já tiver tags SSML).
+    const safe = _xmlEsc(text);
+    const withBreaks = (text.length > 60 && !/<break|<prosody|<voice/i.test(text))
+        ? safe
+            .replace(/([\.\!\?])\s+/g, '$1 <break time="180ms"/> ')
+            .replace(/([,;:])\s+/g, '$1 <break time="80ms"/> ')
+        : safe;
     return new Promise((resolve) => {
         let ws, done = false;
         const chunks = [];
@@ -7022,7 +7116,7 @@ async function _edgeTTS(text, voiceName, lang) {
         ws.onopen = () => {
             try {
                 ws.send(`X-Timestamp:${new Date().toString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
-                const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang || 'en-US'}'><voice name='${voice}'><prosody rate='+10%' pitch='0%'>${_xmlEsc(text)}</prosody></voice></speak>`;
+                const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang || 'en-US'}'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${withBreaks}</prosody></voice></speak>`;
                 ws.send(`X-RequestId:${_uuidHex()}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toString()}\r\nPath:ssml\r\n\r\n${ssml}`);
             } catch { clearTimeout(to); finish(null); }
         };
@@ -13022,7 +13116,7 @@ function openVoicePickerEN() {
         <div style="border-top:1px solid rgba(255,255,255,0.18);margin-top:10px;padding-top:10px">
           <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-            ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['edge:pt-PT-FernandaNeural', 'Fernanda ♀ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral · voz EN ⚠️)']].map(([id, lbl]) => `<button onclick="choosePTVoice('${id}')" style="background:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${id === (state.voicePT || 'edge:pt-PT-RaquelNeural') ? '#0f172a' : '#fff'};border:none;border-radius:18px;padding:6px 12px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button>`).join('')}
+            ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['edge:pt-PT-FernandaNeural', 'Fernanda ♀ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral · voz EN ⚠️)']].map(([id, lbl]) => { const chosen = id === (state.voicePT || 'edge:pt-PT-RaquelNeural'); return `<span style="display:inline-flex;align-items:center;gap:0;border-radius:18px;overflow:hidden;background:${chosen ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${chosen ? '#0f172a' : '#fff'}"><button onclick="previewPTVoice('${id}')" title="Ouvir esta voz" style="background:transparent;color:inherit;border:none;padding:6px 8px;font-size:0.78rem;cursor:pointer">🔊</button><button onclick="choosePTVoice('${id}')" style="background:transparent;color:inherit;border:none;padding:6px 10px 6px 4px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button></span>`; }).join('')}
           </div>
           <button onclick="previewPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
         </div>
@@ -13197,8 +13291,29 @@ function choosePTVoice(sel) {
 function previewPT() {
     try { window.ttsSpeak('Olá! Vamos praticar juntos. Estás pronto?'); } catch {}
 }
+// Preview de uma voz PT específica SEM mudar a escolha guardada — útil para
+// testar Raquel/Duarte/Fernanda no picker antes de escolher.
+async function previewPTVoice(sel) {
+    if (!sel) return;
+    const sep = sel.indexOf(':');
+    const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
+    const vname = sep > 0 ? sel.slice(sep + 1) : sel;
+    const text = 'Olá! Vamos praticar juntos. Estás pronto?';
+    try { _stopCurrentAudio(); } catch {}
+    try {
+        if (eng === 'edge') {
+            const b = await _edgeTTS(text, vname, 'pt-PT');
+            if (b && _playBlob(b, text, 'pt-PT', {})) { _lastTTSEngine = 'Edge'; return; }
+        } else if (eng === 'mistral' && state.max && state.max.mistralKey) {
+            const b = await _mistralTTS(text, 'pt', vname);
+            if (b && _playBlob(b, text, 'pt-PT', {})) { _lastTTSEngine = 'Mistral'; return; }
+        }
+    } catch {}
+    showToast('Pré-visualização desta voz indisponível.');
+}
 window.choosePTVoice = choosePTVoice;
 window.previewPT = previewPT;
+window.previewPTVoice = previewPTVoice;
 // Descobre as vozes disponíveis na conta Mistral (catálogo da API hospedada)
 async function _mistralListVoices() {
     const key = state.max && state.max.mistralKey;
@@ -13267,6 +13382,22 @@ window.ttsSpeak = async function (text) {
         try { const b = await _edgeTTS(cleaned, vname, 'pt-PT'); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Edge'; return; } else if (!b) _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; } catch { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; }
     } else if (eng === 'mistral' && mistralOk) {
         try { const b = await _mistralTTS(cleaned, 'pt', vname); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Mistral'; return; } } catch {}
+    }
+    // 1b) Auto-fallback: se a Edge falhou (rede/cooldown), tentar OUTRAS vozes PT-PT
+    // Edge antes de cair para o sistema. As três vozes neurais são fiáveis e grátis;
+    // se uma falhou por rate-limit ou rede, outra pode estar disponível.
+    if (eng === 'edge' && state.useEdgeTTS !== false) {
+        const fallbacks = ['pt-PT-RaquelNeural', 'pt-PT-DuarteNeural', 'pt-PT-FernandaNeural']
+            .filter(v => v !== vname);
+        for (const fv of fallbacks) {
+            try {
+                const b = await _edgeTTS(cleaned, fv, 'pt-PT');
+                if (b && _playBlob(b, cleaned, 'pt-PT', {})) {
+                    _lastTTSEngine = 'Edge'; _edgeCooldownUntil = 0;
+                    return;
+                }
+            } catch {}
+        }
     }
     // 2) Recuo: voz pt-PT do sistema (europeia, ex.: Joana/Catarina no iOS) —
     // melhor que uma voz inglesa a ler PT (soa espanholado).
