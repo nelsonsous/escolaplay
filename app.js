@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v434';
+const APP_VERSION = 'v435';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7140,6 +7140,32 @@ async function _edgeTTS(text, voiceName, lang, timeoutMs) {
     });
 }
 
+// Edge TTS via proxy server-side (Cloudflare Worker em tts-proxy/).
+// O proxy faz a ligação WebSocket à Microsoft e devolve um MP3 num GET HTTPS
+// — o iOS Safari toca isto sem stress (resolve o silêncio em modo PWA).
+async function _edgeTTSProxy(text, voiceName, lang) {
+    if (!state.ttsProxyUrl) return null;
+    const voice = voiceName || state.edgeVoice || 'en-US-AriaNeural';
+    const cacheKey = `proxy|${voice}|${text}`;
+    const cached = await _idbGet(cacheKey);
+    if (cached instanceof Blob) return cached;
+    const isPT = /^pt/i.test(lang || voice);
+    const qs = new URLSearchParams({
+        text, voice, lang: lang || (isPT ? 'pt-PT' : 'en-US'),
+    }).toString();
+    const url = state.ttsProxyUrl.replace(/\/+$/, '') + '/?' + qs;
+    const ctrl = new AbortController();
+    const to = setTimeout(() => { try { ctrl.abort(); } catch {} }, 12000);
+    try {
+        const res = await fetch(url, { signal: ctrl.signal, mode: 'cors' });
+        clearTimeout(to);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        if (blob && blob.size > 0) { _idbPut(cacheKey, blob); return blob; }
+        return null;
+    } catch { clearTimeout(to); return null; }
+}
+
 // Mistral Voxtral TTS (texto→voz) — usa a MESMA chave do STT (state.max.mistralKey).
 // Devolve um Blob de áudio (mp3) ou null se falhar (cai para Edge/Gemini/sistema).
 let _mistralTTSCooldownUntil = 0;
@@ -7381,6 +7407,17 @@ async function speakEN(text, lang, cbs, voiceOverride) {
     try { _primeTtsAudio(); } catch {}
     const isEN = /^en/i.test(lang || '');
     const isPT = /^pt/i.test(lang || '');
+    // PROXY server-side da Edge — preferido se configurado. Funciona em iOS
+    // (REST HTTPS, não WebSocket) e poupa a quota da chave Gemini para EN.
+    if (state.ttsProxyUrl && state.useEdgeTTS !== false) {
+        const voice = voiceOverride || state.edgeVoice || (isPT ? 'pt-PT-RaquelNeural' : 'en-US-AriaNeural');
+        _ttsLoadingShow();
+        try {
+            const blob = await _edgeTTSProxy(text, voice, lang);
+            if (blob && _playBlob(blob, text, lang, cbs)) { _lastTTSEngine = 'Proxy'; _ttsLoadingClear(); return; }
+        } catch (e) { console.warn('[proxy-tts]', e); }
+        _ttsLoadingClear();
+    }
     if (isEN) {
         // 0) Mistral Voxtral TTS (mesma chave do STT) — preferido se houver chave
         if (state.max && state.max.mistralKey && state.useMistralTTS !== false && Date.now() > _mistralTTSCooldownUntil) {
@@ -13155,11 +13192,20 @@ function openVoicePickerEN() {
         ` : ''}
         <div style="border-top:1px solid rgba(255,255,255,0.18);margin-top:10px;padding-top:10px">
           <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Voz portuguesa (leituras dos miúdos):</div>
-          ${isIOSDevice() ? `<div style="font-size:0.7rem;background:rgba(251,191,36,0.18);border:1px solid rgba(251,191,36,0.4);color:#fde68a;padding:6px 10px;border-radius:8px;margin-bottom:8px;line-height:1.4">⚠️ No iPhone/iPad usamos a voz pt-PT do sistema (Joana/Catarina) — as vozes neurais não funcionam de forma fiável em Safari iOS.</div>` : ''}
+          ${isIOSDevice() && !state.ttsProxyUrl ? `<div style="font-size:0.7rem;background:rgba(251,191,36,0.18);border:1px solid rgba(251,191,36,0.4);color:#fde68a;padding:6px 10px;border-radius:8px;margin-bottom:8px;line-height:1.4">⚠️ No iPhone/iPad usamos a voz pt-PT do sistema (Joana/Catarina). Para vozes neurais aqui, configura o "Proxy TTS" em baixo.</div>` : ''}
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
             ${[['edge:pt-PT-RaquelNeural', 'Raquel ♀ (Edge)'], ['edge:pt-PT-DuarteNeural', 'Duarte ♂ (Edge)'], ['edge:pt-PT-FernandaNeural', 'Fernanda ♀ (Edge)'], ['mistral:en_paul_neutral', 'Paul (Mistral · voz EN ⚠️)']].map(([id, lbl]) => { const chosen = id === (state.voicePT || 'edge:pt-PT-RaquelNeural'); return `<span style="display:inline-flex;align-items:center;gap:0;border-radius:18px;overflow:hidden;background:${chosen ? '#60a5fa' : 'rgba(255,255,255,0.12)'};color:${chosen ? '#0f172a' : '#fff'}"><button onclick="previewPTVoice('${id}')" title="Ouvir esta voz" style="background:transparent;color:inherit;border:none;padding:6px 8px;font-size:0.78rem;cursor:pointer">🔊</button><button onclick="choosePTVoice('${id}')" style="background:transparent;color:inherit;border:none;padding:6px 10px 6px 4px;font-size:0.74rem;font-weight:700;cursor:pointer">${lbl}</button></span>`; }).join('')}
           </div>
           <button onclick="previewPT()" style="width:100%;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:10px;padding:9px;font-size:0.82rem;font-weight:700;cursor:pointer"><i class="fas fa-play"></i> Ouvir PT</button>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.18);margin-top:10px;padding-top:10px">
+          <div style="font-size:0.72rem;opacity:0.9;margin-bottom:6px">Proxy TTS <span style="opacity:0.6">(para iPhone — opcional)</span>:</div>
+          <div style="font-size:0.68rem;opacity:0.75;line-height:1.4;margin-bottom:6px">Cola o URL do Cloudflare Worker (ver <code>tts-proxy/README.md</code>). Em iOS isto destranca vozes neurais Edge.</div>
+          <div style="display:flex;gap:6px">
+            <input id="tts-proxy-input" type="url" placeholder="https://escolaplay-tts.xxx.workers.dev" value="${escapeHtml(state.ttsProxyUrl || '')}" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 10px;font-size:0.78rem;font-family:inherit">
+            <button onclick="saveTtsProxyUrl()" style="background:#60a5fa;color:#0f172a;border:none;border-radius:8px;padding:7px 14px;font-size:0.78rem;font-weight:800;cursor:pointer">Guardar</button>
+          </div>
+          ${state.ttsProxyUrl ? `<div style="font-size:0.68rem;color:#86efac;margin-top:6px">✓ Proxy configurado — vozes neurais ativas em iOS.</div>` : ''}
         </div>
       </div>`;
     const gemSection = `
@@ -13287,6 +13333,20 @@ function chooseEdgeVoice(v) {
     openVoicePickerEN();
     setTimeout(() => previewEdgeVoice(), 150);
 }
+function saveTtsProxyUrl() {
+    const inp = document.getElementById('tts-proxy-input');
+    if (!inp) return;
+    let url = (inp.value || '').trim();
+    if (url) {
+        // Normalizar: tirar barra final, validar https.
+        url = url.replace(/\/+$/, '');
+        if (!/^https?:\/\//i.test(url)) { showToast('URL inválido — começa com https://'); return; }
+    }
+    state.ttsProxyUrl = url || '';
+    saveState();
+    showToast(url ? 'Proxy guardado. Toca "Ouvir" para testar.' : 'Proxy removido.');
+    openVoicePickerEN();
+}
 async function previewEdgeVoice() {
     try {
         _stopCurrentAudio();
@@ -13340,8 +13400,16 @@ async function previewPTVoice(sel) {
     const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
     const vname = sep > 0 ? sel.slice(sep + 1) : sel;
     const text = 'Olá! Vamos praticar juntos. Estás pronto?';
-    // iOS: Edge não é fiável — toca a voz do sistema. Ver comentário em ttsSpeak.
+    // iOS: usar proxy se disponível, senão voz do sistema. Ver ttsSpeak.
     if (isIOSDevice()) {
+        if (state.ttsProxyUrl && eng === 'edge') {
+            try { _primeTtsAudio(); } catch {}
+            try { _stopCurrentAudio(); } catch {}
+            try {
+                const b = await _edgeTTSProxy(text, vname, 'pt-PT');
+                if (b && _playBlob(b, text, 'pt-PT', {})) { _lastTTSEngine = 'Proxy'; return; }
+            } catch {}
+        }
         try { _stopCurrentAudio(); } catch {}
         _ttsSpeakSystem(text);
         return;
@@ -13406,6 +13474,7 @@ window.chooseMistralVoice = chooseMistralVoice;
 window.previewMistralVoice = previewMistralVoice;
 window.toggleEdgeTTS = toggleEdgeTTS;
 window.chooseEdgeVoice = chooseEdgeVoice;
+window.saveTtsProxyUrl = saveTtsProxyUrl;
 window.previewEdgeVoice = previewEdgeVoice;
 window.toggleGeminiRotate = toggleGeminiRotate;
 window.openVoicePickerEN = openVoicePickerEN;
@@ -13423,12 +13492,25 @@ window.ttsSpeak = async function (text) {
     const cleaned = String(text || '').replace(/<[^>]+>/g, '').replace(/\*\*/g, '').replace(/\*/g, '');
     if (!cleaned) return;
     // iOS Safari: Edge TTS via WebSocket é fundamentalmente frágil (Apple
-    // degrada estas ligações, sobretudo em modo PWA). Tentar Edge primeiro
-    // resulta em SILÊNCIO porque o gesto do utilizador expira antes do blob
-    // chegar. Vamos direto à voz pt-PT do sistema (Joana/Catarina), SÍNCRONO
-    // no gesto — fiável a 100% em iOS.
+    // degrada estas ligações, sobretudo em modo PWA). Caminhos:
+    // (a) com proxy configurado → MP3 via GET HTTPS → toca em iOS perfeitamente
+    // (b) sem proxy → voz pt-PT do sistema (Joana/Catarina), síncrono no gesto
     if (isIOSDevice()) {
-        try { _stopCurrentAudio(); } catch {}
+        const sel = state.voicePT || 'edge:pt-PT-RaquelNeural';
+        const sep = sel.indexOf(':');
+        const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
+        const vname = sep > 0 ? sel.slice(sep + 1) : sel;
+        if (state.ttsProxyUrl && eng === 'edge') {
+            try { _primeTtsAudio(); } catch {}
+            try { _stopCurrentAudio(); } catch {}
+            try {
+                const b = await _edgeTTSProxy(cleaned, vname, 'pt-PT');
+                if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Proxy'; return; }
+            } catch {}
+            // Proxy falhou — cai para sistema.
+        } else {
+            try { _stopCurrentAudio(); } catch {}
+        }
         _ttsSpeakSystem(cleaned);
         return;
     }
