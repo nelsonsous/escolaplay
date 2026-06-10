@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v429';
+const APP_VERSION = 'v430';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5077,6 +5077,18 @@ const _TUTOR_SCENES = [
         personaRole: 'the PMO / program manager (process-focused, watches risks and the go-live date closely)',
         objective: 'Sinaliza um risco/atraso à Irina e propõe uma mitigação, de forma profissional.',
         opener: "I saw your note about a possible delay. Let's talk — what exactly is the risk, and how bad is it for the go-live date?"
+    },
+    {
+        id: 'demo', icon: '🖥️', label: 'Demo', persona: 'Hans',
+        personaRole: 'the German CTO who is technical and skeptical (asks precise, probing questions, prefers concrete numbers and trade-offs over generalities)',
+        objective: 'Apresenta a demo a 1 minuto e responde com precisão às perguntas técnicas do Hans.',
+        opener: "Thanks for setting this up. Before the demo: in two sentences, what's the most important thing you want me to take away today?"
+    },
+    {
+        id: '1on1', icon: '☕', label: '1:1', persona: 'Sarah',
+        personaRole: "your direct manager (warm but candid; gives honest feedback and asks how she can unblock you)",
+        objective: 'Faz um check-in com a Sarah — partilha 1 win, 1 dor e 1 pedido de apoio.',
+        opener: "Hey, good to see you. Quick check-in: how are you doing this week — and is there anything I can help unblock?"
     }
 ];
 function _tutorRenderRoleplayPrompt() {
@@ -5452,11 +5464,11 @@ window._tutorResumePractice = _tutorResumePractice;
 // Catálogo curado (terminologia gramatical em inglês). As lições são geradas a pedido
 // pelo _tutorDeepDive; aqui definimos só a ORDEM e o nível de cada tópico.
 const TUTOR_LESSON_LADDER = [
-    { lvl: 'A1', topics: ['Verb to be (am/is/are)', 'Subject pronouns', 'Articles (a/an/the)', 'Plural nouns', 'This / That / These / Those', 'Present Simple', 'Possessive adjectives', 'There is / There are'] },
-    { lvl: 'A2', topics: ['Present Continuous', 'Past Simple', 'Countable & uncountable nouns', 'Comparatives & superlatives', 'Going to (future)', 'Adverbs of frequency', 'Prepositions of time & place', 'Modal verbs: can / must / should'] },
-    { lvl: 'B1', topics: ['Present Perfect', 'Present Perfect vs Past Simple', 'Past Continuous', 'First Conditional', 'Will vs Going to', 'Used to', 'Relative clauses (who/which/that)', 'Quantifiers (some/any/much/many)'] },
-    { lvl: 'B2', topics: ['Present Perfect Continuous', 'Past Perfect', 'Second Conditional', 'Third Conditional', 'Passive voice', 'Reported speech', 'Gerunds & infinitives', 'Modals of deduction (must/might/can’t)'] },
-    { lvl: 'C1', topics: ['Mixed conditionals', 'Inversion', 'Cleft sentences', 'Advanced linking & discourse markers', 'Phrasal verbs (advanced)', 'Collocations & register', 'Hedging & diplomatic language', 'Nuance: Future Perfect & Continuous'] }
+    { lvl: 'A1', topics: ['Verb to be (am/is/are)', 'Subject pronouns', 'Articles (a/an/the)', 'Plural nouns', 'This / That / These / Those', 'Present Simple', 'Possessive adjectives', 'Possessive pronouns (mine/yours/…)', 'There is / There are', 'have got', 'Wh- questions (what/where/when/why)', 'Imperatives (do/don\'t)'] },
+    { lvl: 'A2', topics: ['Present Continuous', 'Present Simple vs Continuous', 'Past Simple', 'Past Simple of be (was/were)', 'Countable & uncountable nouns', 'some / any / much / many / a lot of', 'Comparatives & superlatives', 'as ... as', 'Going to (future)', 'Will (predictions, decisions)', 'Adverbs of frequency', 'Prepositions of time & place', 'Modal verbs: can / could / must / should', 'Object pronouns (me/him/her/us/them)'] },
+    { lvl: 'B1', topics: ['Present Perfect', 'ever / never / just / already / yet', 'since vs for', 'Present Perfect vs Past Simple', 'Past Continuous', 'Past Continuous vs Past Simple', 'First Conditional (if + will)', 'Zero Conditional (if + present)', 'Will vs Going to', 'Used to / would (past habits)', 'Relative clauses (who/which/that)', 'Defining vs non-defining clauses', 'Phrasal verbs (basic)', 'Modal verbs of obligation (have to / must)', 'Question tags'] },
+    { lvl: 'B2', topics: ['Present Perfect Continuous', 'Past Perfect', 'Past Perfect Continuous', 'Second Conditional (if + would)', 'Third Conditional (if + would have)', 'Wish + past simple / past perfect', 'Passive voice (all tenses)', 'Reported speech (statements & questions)', 'Reported speech (commands & requests)', 'Gerunds & infinitives', 'Verbs followed by gerund vs infinitive', 'Modals of deduction (must / might / can’t)', 'Causative have / get something done', 'Comparatives with much/far/a lot'] },
+    { lvl: 'C1', topics: ['Mixed conditionals', 'Inversion (negative adverbials)', 'Cleft sentences (it was X who…)', 'Advanced linking & discourse markers', 'Phrasal verbs (advanced & business)', 'Collocations & register (formal/informal)', 'Hedging & diplomatic language', 'Nuance: Future Perfect & Future Continuous', 'Subjunctive (it is essential that…)', 'Participle clauses', 'Reduced relative clauses', 'Emphasis with do/does (I do agree)'] }
 ];
 const _CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1'];
 function _tutorExplored() { return (state.max && state.max.tutorExplored) || {}; }
@@ -6269,8 +6281,9 @@ Return STRICT JSON:
 7) "points": array of 2-4 objects {form, use} mapping the whole rule — each form/word and WHEN to use it, in PT-PT. E.g. for articles: [{"form":"a / an","use":"algo novo ou não específico"},{"form":"the","use":"algo específico ou já mencionado"},{"form":"(sem artigo)","use":"ideias gerais, plurais, incontáveis"}]. "form" stays in English, "use" in PT-PT. [] if correct.
 8) "examples": array of 2-3 objects {wrong,right,note} showing the rule (English wrong/right, note max 8 words PT-PT). "wrong" must be genuinely incorrect and DIFFERENT from "right". [] if correct.
 9) "fluencyHelp": Look BEYOND grammar at WHAT the student is trying to communicate. If they struggled with vocabulary or fluency — used a Portuguese word, left a word out, described a word instead of naming it, used unnatural/non-fluent phrasing, or was missing linking words (connectors) — help them say it better and more fluently. Object: {"want":"what they were trying to express, PT-PT short","phrases":[{"en":"natural English word/phrase","pt":"PT-PT meaning"}],"connectors":["useful linking words for this idea, if relevant"],"topic":"short lesson topic in ENGLISH (vocabulary/Connectors/grammar) to drill this gap"}. Use {} if they expressed themselves naturally with no lexical/connector/fluency gap.
+10) "pronunciationTips": Optional array of 0-3 objects {word, hint} for English words that are commonly mispronounced by Portuguese speakers AND appear in this sentence. Examples of typical traps to focus on: "though" (silent 'gh'), "thought" (th + ought), "schedule" (UK: 'shed-yool' / US: 'sked-jool'), "vegetable" (3 syllables, not 4), "Wednesday" (silent 'd'), "comfortable" (3 syllables: 'KUMF-ter-bul'), "iron" (silent 'r' in UK, 'EYE-urn' in US), "queue" (sounds like 'cue'), "chaos" (KAY-oss), "epitome" (4 syllables). "hint" is in PT-PT, max 10 words, with the phonetic approximation in caps. Use [] if no notable traps in the sentence.
 
-{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}],"fluencyHelp":{}}`;
+{"corrected":"...","errorType":"...","explanation":"...","tip":"...","reply":"...","lessonTitle":"...","points":[{"form":"...","use":"..."}],"examples":[{"wrong":"...","right":"...","note":"..."}],"fluencyHelp":{},"pronunciationTips":[]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 1100, true);
         if (!tutorState) return;
@@ -6400,6 +6413,16 @@ function _tutorFluidCorrection(d) {
           </div>
           ${d.errorType ? `<div class="tutor-fix-tag">${escapeHtml(d.errorType)}</div>` : ''}
           ${d.explanation ? `<div class="tutor-fix-why">${escapeHtml(d.explanation)}</div>` : ''}
+          ${Array.isArray(d.pronunciationTips) && d.pronunciationTips.length ? `
+            <div class="tutor-fix-pron">
+              <div class="tutor-fix-pron-h">🎤 ${_tutT('Pronunciation','Pronúncia')}</div>
+              ${d.pronunciationTips.slice(0,3).filter(t => t && t.word).map(t => `
+                <div class="tutor-fix-pron-row">
+                  <button class="tutor-say" data-text="${escapeHtml(t.word)}" onclick="_tutorSpeakBtn(this)" aria-label="${_tutT('Listen','Ouvir')}"><i class="fas fa-volume-high"></i></button>
+                  <strong>${escapeHtml(t.word)}</strong>
+                  ${t.hint ? `<span>${escapeHtml(t.hint)}</span>` : ''}
+                </div>`).join('')}
+            </div>` : ''}
           <div class="tutor-fix-btns">
             <button class="tutor-lbtn prac" onclick="_tutorRepeatRecast()"><i class="fas fa-microphone"></i> ${_tutT('Repeat out loud','Repetir em voz alta')}</button>
             <button class="tutor-lbtn" data-topic="${escapeHtml(topic)}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> ${_tutT('Go deeper','Aprofundar')}</button>
@@ -12728,13 +12751,21 @@ function ttsSpeak(text) {
         window.speechSynthesis.cancel(); // cancela qualquer fala em curso
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'pt-PT';
-        u.rate = 0.85; // mais lento para crianças
+        u.rate = 0.92; // ligeiramente mais lento que o normal, mas natural
         u.pitch = 1.0;
         u.volume = 1.0;
-        // Procurar voz PT-PT preferencialmente
-        const voices = window.speechSynthesis.getVoices();
-        const pt = voices.find(v => v.lang === 'pt-PT') || voices.find(v => v.lang && v.lang.startsWith('pt'));
-        if (pt) u.voice = pt;
+        // Usar _pickPTVoice: respeita a escolha do utilizador (state.ttsVoiceName)
+        // e, em alternativa, escolhe a melhor voz PT-PT disponível (Joana/Catarina
+        // Enhanced no iOS, Microsoft Raquel/Duarte Online Natural no Edge,
+        // Google PT de Portugal no Chrome).
+        const pt = (typeof _pickPTVoice === 'function') ? _pickPTVoice() : null;
+        if (pt) { u.voice = pt; u.lang = pt.lang || u.lang; }
+        else {
+            // Fallback antigo se _pickPTVoice ainda não tiver carregado vozes
+            const voices = window.speechSynthesis.getVoices();
+            const v = voices.find(v => v.lang === 'pt-PT') || voices.find(v => v.lang && v.lang.startsWith('pt'));
+            if (v) u.voice = v;
+        }
         window.speechSynthesis.speak(u);
     } catch (e) { console.warn('[tts] failed:', e); }
 }
@@ -12767,17 +12798,31 @@ function _pickPTVoice() {
         if (exact) return exact;
     }
     // 2) Scoring automático
+    // Scoring v2: privilegiar vozes neurais Microsoft (Edge, Azure-backed),
+    // Apple Enhanced/Premium (iOS/macOS), Google PT (Chrome) por esta ordem.
     const score = (v) => {
         let s = 0;
         const name = (v.name || '').toLowerCase();
         const lang = (v.lang || '').toLowerCase();
+        // Idioma — PT-PT > PT-BR > qualquer outro
         if (/pt[-_]pt/.test(lang)) s += 100;
         else if (/^pt/.test(lang)) s += 50;
-        if (/(enhanced|premium|neural|google|natural)/i.test(name)) s += 40;
-        if (/^(joana|catarina|joaquim)/i.test(name)) s += 30;
-        if (/^(luciana|felipe)/i.test(name)) s += 15;
-        if (/(compact|eloquence)/i.test(name)) s -= 10;
-        if (v.localService === false) s += 5;
+        // Vozes Microsoft Online (Natural) — Edge desktop (Raquel/Duarte/Fernanda)
+        // são neural Azure, muito naturais e grátis.
+        if (/microsoft.*online.*natural/i.test(name)) s += 80;
+        else if (/microsoft.*natural/i.test(name)) s += 60;
+        else if (/online \(natural\)/i.test(name)) s += 75;
+        // Marcadores genéricos de qualidade
+        if (/(enhanced|aperfei|premium|neural|natural)/i.test(name)) s += 40;
+        if (/google/i.test(name) && /pt/i.test(lang)) s += 35;
+        // Vozes nomeadas conhecidas como naturais em PT-PT
+        if (/(raquel|duarte|fernanda)/i.test(name)) s += 25;     // Microsoft Azure PT-PT
+        if (/(joana|catarina|joaquim|madalena)/i.test(name)) s += 25; // Apple PT-PT
+        // PT-BR neurais como segundo melhor (sotaque BR mas naturais)
+        if (/(luciana|felipe|francisca|antonio)/i.test(name)) s += 12;
+        // Penalizações: vozes antigas robóticas
+        if (/(compact|eloquence|microsoft.*helia|microsoft.*helena)/i.test(name)) s -= 20;
+        if (v.localService === false) s += 6;
         return s;
     };
     const best = voices.slice().sort((a,b) => score(b) - score(a))[0];
@@ -12802,11 +12847,16 @@ function openVoicePicker() {
     }
     // Apenas vozes Portuguese (PT ou BR)
     const ptVoices = voices.filter(v => /^pt/i.test(v.lang || ''));
-    // Ordenar: PT-PT primeiro, depois PT-BR
+    // Ordenar: PT-PT primeiro, depois PT-BR. Dentro de cada, vozes neurais ("Natural",
+    // "Enhanced", "Aperfeiçoada", "Premium") primeiro para empurrar as melhores no topo.
+    const isNeural = v => /(online.*natural|natural|enhanced|aperfei|premium|neural|google)/i.test(v.name || '');
     ptVoices.sort((a, b) => {
         const aPT = /pt[-_]pt/i.test(a.lang) ? 0 : 1;
         const bPT = /pt[-_]pt/i.test(b.lang) ? 0 : 1;
         if (aPT !== bPT) return aPT - bPT;
+        const aN = isNeural(a) ? 0 : 1;
+        const bN = isNeural(b) ? 0 : 1;
+        if (aN !== bN) return aN - bN;
         return (a.name || '').localeCompare(b.name || '');
     });
     document.getElementById('voice-picker-modal-temp')?.remove();
@@ -12815,10 +12865,17 @@ function openVoicePicker() {
     modal.className = 'modal';
     modal.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px';
     const currentName = state.ttsVoiceName || '';
+    const noNeuralPT = ptVoices.length > 0 && !ptVoices.some(v => /pt[-_]pt/i.test(v.lang) && isNeural(v));
+    const guide = `
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:0.8rem;color:#1e3a8a;line-height:1.5">
+        <strong>💡 Para uma voz menos robótica:</strong><br>
+        • <strong>iOS/iPad</strong>: Definições → Acessibilidade → Conteúdo Falado → Vozes → Português → Portugal → descarregar <strong>Joana (Aperfeiçoada)</strong> ou <strong>Catarina (Aperfeiçoada)</strong>.<br>
+        • <strong>Windows/Mac</strong>: abre esta app no <strong>Microsoft Edge</strong> — surgem as vozes <strong>Microsoft Raquel Online (Natural)</strong> e <strong>Duarte Online (Natural)</strong>, neurais e grátis.<br>
+        • <strong>Android</strong>: usa o <strong>Chrome</strong> — surge a voz <strong>Google português de Portugal</strong>.
+      </div>`;
     const rows = ptVoices.length === 0
-        ? `<p style="text-align:center;color:var(--text-light);padding:24px 12px">
-             Não encontrei nenhuma voz portuguesa instalada no teu dispositivo.<br><br>
-             <strong>iOS:</strong> Definições → Acessibilidade → Conteúdo Falado → Vozes → Português → Portugal → descarregar Joana/Catarina (Aperfeiçoada).
+        ? guide + `<p style="text-align:center;color:var(--text-light);padding:12px">
+             Ainda não vejo nenhuma voz portuguesa instalada. Segue um dos passos acima e recarrega a app.
            </p>`
         : ptVoices.map(v => {
             const isPT = /pt[-_]pt/i.test(v.lang);
@@ -12844,6 +12901,7 @@ function openVoicePicker() {
           Toca em 🔊 para ouvir uma frase de teste, depois em "Escolher".
         </p>
         ${currentName ? `<div style="background:#f0fdfa;border:1px solid #14b8a6;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0f766e"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
+        ${noNeuralPT ? guide : ''}
         <div style="flex:1;overflow-y:auto;padding-right:4px">${rows}</div>
         <div style="display:flex;gap:8px;margin-top:12px">
           ${currentName ? `<button class="btn btn-secondary" style="flex:1" onclick="clearVoiceChoice()"><i class="fas fa-rotate"></i> Auto</button>` : ''}
