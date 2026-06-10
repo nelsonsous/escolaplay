@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v427';
+const APP_VERSION = 'v428';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -553,7 +553,13 @@ function _sanitizeExercise(e) {
         if (!Array.isArray(e.opts) || e.opts.length < 2) return null;
         if (typeof e.ans !== 'number' || e.ans < 0 || e.ans >= e.opts.length) return null;
     }
-    if (e.type === 'tf' && typeof e.ans !== 'boolean') return null;
+    if (e.type === 'tf' && typeof e.ans !== 'boolean') {
+        // Alguns bancos usam o padrão mc (opts:['Verdadeiro','Falso'], ans:0/1).
+        // Converter: 0 = Verdadeiro = true, 1 = Falso = false.
+        if (e.ans === 0) e.ans = true;
+        else if (e.ans === 1) e.ans = false;
+        else return null;
+    }
     if (e.type === 'speak') {
         if (typeof e.ans === 'string') e.ans = [e.ans];
         if (!Array.isArray(e.ans) || !e.ans.length) return null;

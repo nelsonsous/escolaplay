@@ -2533,7 +2533,7 @@ const EXERCISES_5 = [
     { id:'m17', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'Qual destas frações é maior?', opts:['1/2','1/3','1/4','1/5'], ans:0, exp:'Numeradores iguais: menor denominador → maior fração.' },
     { id:'m18', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Simplifica a fração 8/12.', ans:['2/3'], exp:'MDC(8,12)=4. 8/12 = 2/3.' },
     { id:'m126', s:'matematica', t:'Frações', type:'fill', diff:2, q:'Simplifica 6/9.', ans:['2/3'], exp:'MDC(6,9)=3. 6/9 = 2/3.' },
-    { id:'m127', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'2/3 + 1/3 = ?', opts:['3/6','1','3/3','2/6'], ans:1, exp:'Mesmo denominador: soma numeradores. 2/3+1/3 = 3/3 = 1.' },
+    { id:'m127', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'2/3 + 1/3 = ?', opts:['3/6','1','4/3','2/6'], ans:1, exp:'Mesmo denominador: soma numeradores. 2/3+1/3 = 3/3 = 1.' },
     { id:'m128', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Calcula: 2/5 × 3/4 = (forma a/b)', ans:['6/20','3/10'], exp:'Numerador × numerador, denominador × denominador: 6/20 = 3/10.' },
     { id:'m129', s:'matematica', t:'Frações', type:'mc',   diff:2, q:'Qual destas é uma fração imprópria?', opts:['3/4','1/2','7/3','2/5'], ans:2, exp:'Imprópria = numerador ≥ denominador. 7/3 > 1.' },
     { id:'m130', s:'matematica', t:'Frações', type:'fill', diff:3, q:'Escreve 7/3 como número misto.', ans:['2 1/3','2+1/3','2 e 1/3'], exp:'7 ÷ 3 = 2 resto 1. Logo 7/3 = 2 + 1/3.' },
@@ -2541,7 +2541,7 @@ const EXERCISES_5 = [
     { id:'m132', s:'matematica', t:'Frações', type:'mc',   diff:3, q:'Qual é maior: 2/5 ou 3/7?', opts:['2/5','3/7','são iguais','não é possível comparar'], ans:1, exp:'Denominador comum 35: 2/5=14/35; 3/7=15/35. 3/7 é maior.' },
 
     // --- Dízimas ---
-    { id:'m22', s:'matematica', t:'Dízimas', type:'mc',   diff:2, q:'Qual é a fração equivalente a 0,5?', opts:['1/5','1/2','1/10','5/10'], ans:1, exp:'0,5 = 1/2 (forma simplificada de 5/10).' },
+    { id:'m22', s:'matematica', t:'Dízimas', type:'mc',   diff:2, q:'Qual é a fração equivalente a 0,5?', opts:['1/5','1/2','1/10','2/5'], ans:1, exp:'0,5 = 1/2 (5 décimas = metade).' },
     { id:'m23', s:'matematica', t:'Dízimas', type:'fill', diff:2, q:'Escreve 3/4 como dízima.', ans:['0,75','0.75'], exp:'3 ÷ 4 = 0,75.' },
     { id:'m133', s:'matematica', t:'Dízimas', type:'fill', diff:2, q:'Escreve 1/5 como dízima.', ans:['0,2','0.2'], exp:'1 ÷ 5 = 0,2.' },
     { id:'m134', s:'matematica', t:'Dízimas', type:'mc',   diff:2, q:'A fração 1/4 em percentagem é:', opts:['14%','25%','40%','250%'], ans:1, exp:'1/4 = 0,25 = 25%.' },
@@ -3641,7 +3641,7 @@ const EXERCISES_6 = [
     { id:'m6_003', s:'matematica', t:'Números racionais não negativos', type:'fill', diff:2, q:'Escreve 0,6 na forma de fração irredutível: ___', ans:['3/5'], exp:'0,6 = 6/10 = 3/5 (dividindo por 2).' },
     { id:'m6_004', s:'matematica', t:'Operações com frações', type:'fill', diff:2, q:'1/2 + 1/3 = ___ (fração irredutível)', ans:['5/6'], exp:'Reduz ao mesmo denominador: 3/6 + 2/6 = 5/6.' },
     { id:'m6_005', s:'matematica', t:'Operações com frações', type:'fill', diff:2, q:'2/3 × 3/4 = ___ (irredutível)', ans:['1/2'], exp:'2×3/(3×4) = 6/12 = 1/2.' },
-    { id:'m6_006', s:'matematica', t:'Operações com frações', type:'mc', diff:3, q:'Quanto é 3/4 ÷ 1/2?', opts:['3/8','1/2','3/2','6/4'], ans:2, exp:'Dividir é multiplicar pelo inverso: 3/4 × 2/1 = 6/4 = 3/2.' },
+    { id:'m6_006', s:'matematica', t:'Operações com frações', type:'mc', diff:3, q:'Quanto é 3/4 ÷ 1/2?', opts:['3/8','1/2','3/2','2/3'], ans:2, exp:'Dividir é multiplicar pelo inverso: 3/4 × 2/1 = 6/4 = 3/2.' },
     { id:'m6_007', s:'matematica', t:'Potências de expoente natural', type:'fill', diff:1, q:'Calcula 2⁴ = ___', ans:['16'], exp:'2 × 2 × 2 × 2 = 16.' },
     { id:'m6_008', s:'matematica', t:'Potências de expoente natural', type:'mc', diff:2, q:'Quanto é 5⁰?', opts:['0','1','5','indefinido'], ans:1, exp:'Qualquer número (≠ 0) elevado a 0 é igual a 1.' },
     { id:'m6_009', s:'matematica', t:'Potências de expoente natural', type:'fill', diff:2, q:'Simplifica e calcula: 2² × 2³ = ___', ans:['32'], exp:'Mesma base: somam-se expoentes. 2^(2+3) = 2⁵ = 32.' },
