@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v432';
+const APP_VERSION = 'v433';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7084,15 +7084,19 @@ async function _edgeSecToken() {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
-async function _edgeTTS(text, voiceName, lang) {
+async function _edgeTTS(text, voiceName, lang, timeoutMs) {
     const voice = voiceName || state.edgeVoice || 'en-US-AriaNeural';
     // SSML v2: rate/pitch por língua + breaks após pontuação para soar menos "lido".
     // Bump no cacheKey para invalidar o áudio antigo (que tinha o rate +10% genérico).
     const cacheKey = `edge|v2|${voice}|${text}`;
     const cached = await _idbGet(cacheKey);
     if (cached instanceof Blob) return cached;
+    // Recuo para o cache v1 (pré-v432): se a rede falhar, áudio antigo com a
+    // prosódia anterior é MUITO melhor do que silêncio. Não copiamos para v2
+    // para que uma síntese nova substitua quando a rede voltar.
+    const cachedV1 = await _idbGet(`edge|${voice}|${text}`);
     let token;
-    try { token = await _edgeSecToken(); } catch { return null; }
+    try { token = await _edgeSecToken(); } catch { return (cachedV1 instanceof Blob) ? cachedV1 : null; }
     const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${token}&Sec-MS-GEC-Version=1-130.0.2849.68`;
     // Prosódia por língua. PT-PT fica robótico se for rápido; EN aguenta +10%.
     const isPT = /^pt/i.test(lang || '');
@@ -7109,9 +7113,10 @@ async function _edgeTTS(text, voiceName, lang) {
     return new Promise((resolve) => {
         let ws, done = false;
         const chunks = [];
-        const finish = (blob) => { if (done) return; done = true; try { ws && ws.close(); } catch {} resolve(blob); };
-        const to = setTimeout(() => finish(null), 8000);
-        try { ws = new WebSocket(url); } catch { clearTimeout(to); resolve(null); return; }
+        // Rede falhou → devolve o áudio v1 em cache se existir (melhor que silêncio).
+        const finish = (blob) => { if (done) return; done = true; try { ws && ws.close(); } catch {} resolve(blob || ((cachedV1 instanceof Blob) ? cachedV1 : null)); };
+        const to = setTimeout(() => finish(null), timeoutMs || 8000);
+        try { ws = new WebSocket(url); } catch { clearTimeout(to); finish(null); return; }
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
             try {
@@ -7237,6 +7242,22 @@ function _getTtsAudioEl() {
     if (!_ttsAudioEl) { _ttsAudioEl = new Audio(); _ttsAudioEl.preload = 'auto'; }
     return _ttsAudioEl;
 }
+// iOS Safari só deixa um <audio> tocar programaticamente (após await de
+// rede/WebSocket) se já tiver tocado UMA vez dentro de um gesto do utilizador.
+// Tocar este WAV silencioso de 4 amostras no instante do toque "abençoa" o
+// elemento — depois o blob da Edge/Mistral já pode tocar segundos mais tarde.
+let _ttsAudioPrimed = false;
+const _SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQQAAAAAAA==';
+function _primeTtsAudio() {
+    if (_ttsAudioPrimed) return;
+    try {
+        const el = _getTtsAudioEl();
+        el.src = _SILENT_WAV;
+        const p = el.play();
+        if (p && p.then) p.then(() => { _ttsAudioPrimed = true; }).catch(() => {});
+        else _ttsAudioPrimed = true;
+    } catch {}
+}
 function _stopCurrentAudio() {
     try { if (typeof _ttsLoadingClear === 'function') _ttsLoadingClear(); } catch {}
     try { if (_ttsAudioEl) { _ttsAudioEl.pause(); } } catch {}
@@ -7339,6 +7360,8 @@ async function speakEN(text, lang, cbs, voiceOverride) {
     cbs = cbs || {};
     if (!text) { cbs.onEnd && cbs.onEnd(); return; }
     _stopCurrentAudio();
+    // Abençoar o <audio> ainda dentro do gesto (iOS) — antes de qualquer await.
+    try { _primeTtsAudio(); } catch {}
     const isEN = /^en/i.test(lang || '');
     const isPT = /^pt/i.test(lang || '');
     if (isEN) {
@@ -13299,17 +13322,21 @@ async function previewPTVoice(sel) {
     const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
     const vname = sep > 0 ? sel.slice(sep + 1) : sel;
     const text = 'Olá! Vamos praticar juntos. Estás pronto?';
+    // Prime SÍNCRONO no gesto — sem isto o iOS recusa o blob que chega depois.
     try { _stopCurrentAudio(); } catch {}
+    try { _primeTtsAudio(); } catch {}
     try {
         if (eng === 'edge') {
-            const b = await _edgeTTS(text, vname, 'pt-PT');
+            const b = await _edgeTTS(text, vname, 'pt-PT', 6000);
             if (b && _playBlob(b, text, 'pt-PT', {})) { _lastTTSEngine = 'Edge'; return; }
         } else if (eng === 'mistral' && state.max && state.max.mistralKey) {
             const b = await _mistralTTS(text, 'pt', vname);
             if (b && _playBlob(b, text, 'pt-PT', {})) { _lastTTSEngine = 'Mistral'; return; }
         }
     } catch {}
-    showToast('Pré-visualização desta voz indisponível.');
+    // Nunca ficar mudo: cair para a voz pt-PT do sistema e avisar porquê.
+    showToast('Voz neural indisponível agora — a tocar com a voz do sistema.');
+    _ttsSpeakSystem(text);
 }
 window.choosePTVoice = choosePTVoice;
 window.previewPT = previewPT;
@@ -13371,27 +13398,37 @@ window.closeVoicePickerEN = closeVoicePickerEN;
 window.ttsSpeak = async function (text) {
     const cleaned = String(text || '').replace(/<[^>]+>/g, '').replace(/\*\*/g, '').replace(/\*/g, '');
     if (!cleaned) return;
+    // ANTES de qualquer await: abençoar o <audio> dentro do gesto de toque,
+    // senão o iOS recusa tocar o blob que chega segundos depois do WebSocket.
     try { _stopCurrentAudio(); } catch {}
+    try { _primeTtsAudio(); } catch {}
     const sel = state.voicePT || 'edge:pt-PT-RaquelNeural';
     const sep = sel.indexOf(':');
     const eng = sep > 0 ? sel.slice(0, sep) : 'edge';
     const vname = sep > 0 ? sel.slice(sep + 1) : sel;
     const mistralOk = !!(state.max && state.max.mistralKey) && state.useMistralTTS !== false;
-    // 1) Voz escolhida
-    if (eng === 'edge' && state.useEdgeTTS !== false && Date.now() > _edgeCooldownUntil) {
-        try { const b = await _edgeTTS(cleaned, vname, 'pt-PT'); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Edge'; return; } else if (!b) _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; } catch { _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; }
+    // 1) Voz escolhida. Em cooldown NÃO saltamos a Edge: chamamos com timeout
+    // curto, para os hits de cache (v2 ou v1) tocarem na mesma — o cooldown
+    // só deve cortar a espera de rede, não o áudio offline.
+    if (eng === 'edge' && state.useEdgeTTS !== false) {
+        const cooled = Date.now() > _edgeCooldownUntil;
+        try {
+            const b = await _edgeTTS(cleaned, vname, 'pt-PT', cooled ? 8000 : 1500);
+            if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Edge'; return; }
+            else if (!b && cooled) _edgeCooldownUntil = Date.now() + 8 * 60 * 1000;
+        } catch { if (cooled) _edgeCooldownUntil = Date.now() + 8 * 60 * 1000; }
     } else if (eng === 'mistral' && mistralOk) {
         try { const b = await _mistralTTS(cleaned, 'pt', vname); if (b && _playBlob(b, cleaned, 'pt-PT', {})) { _lastTTSEngine = 'Mistral'; return; } } catch {}
     }
-    // 1b) Auto-fallback: se a Edge falhou (rede/cooldown), tentar OUTRAS vozes PT-PT
-    // Edge antes de cair para o sistema. As três vozes neurais são fiáveis e grátis;
-    // se uma falhou por rate-limit ou rede, outra pode estar disponível.
+    // 1b) Auto-fallback: tentar UMA voz PT-PT Edge alternativa, com timeout curto.
+    // (Se a primeira falhou por rede, as outras quase de certeza também falham —
+    // só vale a pena pelo cache da alternativa ou rate-limit pontual.)
     if (eng === 'edge' && state.useEdgeTTS !== false) {
-        const fallbacks = ['pt-PT-RaquelNeural', 'pt-PT-DuarteNeural', 'pt-PT-FernandaNeural']
-            .filter(v => v !== vname);
-        for (const fv of fallbacks) {
+        const alt = ['pt-PT-RaquelNeural', 'pt-PT-DuarteNeural', 'pt-PT-FernandaNeural']
+            .find(v => v !== vname);
+        if (alt) {
             try {
-                const b = await _edgeTTS(cleaned, fv, 'pt-PT');
+                const b = await _edgeTTS(cleaned, alt, 'pt-PT', 3000);
                 if (b && _playBlob(b, cleaned, 'pt-PT', {})) {
                     _lastTTSEngine = 'Edge'; _edgeCooldownUntil = 0;
                     return;
