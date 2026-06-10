@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v428';
+const APP_VERSION = 'v429';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4743,6 +4743,17 @@ function _rpFinish() {
 // ============================================================
 let tutorState = null;
 
+// Helper: estamos em modo tutor de INGLÊS? (ingles, english_pm, english_ge)
+// Se tutorState ainda não foi definido, default = EN (entry-point principal).
+function _tutIsEN() {
+    const s = tutorState && tutorState.subject;
+    if (!s) return true;
+    if (s.isEnglish === true) return true;
+    return typeof s.lang === 'string' && /^en/i.test(s.lang);
+}
+// Helper de tradução: en se modo inglês, pt caso contrário.
+function _tutT(en, pt) { return _tutIsEN() ? en : pt; }
+
 function openTutor(opts) {
     opts = opts || {};
     if (!hasAIKey()) {
@@ -4870,9 +4881,9 @@ function _tutorRenderWeak() {
       <div class="tutor-row them">
         <div class="tutor-bubble-av">🎯</div>
         <div class="tutor-weak">
-          <div class="tutor-weak-h">📌 Os teus erros a treinar</div>
+          <div class="tutor-weak-h">${_tutT('📌 Things to work on','📌 Os teus erros a treinar')}</div>
           <div class="tutor-weak-chips">${chips}</div>
-          <button class="tutor-lbtn prac" onclick="_tutorPracticeWeak()"><i class="fas fa-dumbbell"></i> Treinar os meus erros</button>
+          <button class="tutor-lbtn prac" onclick="_tutorPracticeWeak()"><i class="fas fa-dumbbell"></i> ${_tutT('Practise my mistakes','Treinar os meus erros')}</button>
         </div>
       </div>`);
     _tutorScroll();
@@ -4962,8 +4973,8 @@ function _tutorRenderReviewPrompt() {
       <div class="tutor-row them">
         <div class="tutor-bubble-av">📚</div>
         <div class="tutor-weak">
-          <div class="tutor-weak-h">Tens ${n} ${n === 1 ? 'cartão' : 'cartões'} para rever</div>
-          <button class="tutor-lbtn prac" onclick="_tutorOpenReview()"><i class="fas fa-book"></i> Rever agora</button>
+          <div class="tutor-weak-h">${_tutT(`You have ${n} card${n === 1 ? '' : 's'} to review`, `Tens ${n} ${n === 1 ? 'cartão' : 'cartões'} para rever`)}</div>
+          <button class="tutor-lbtn prac" onclick="_tutorOpenReview()"><i class="fas fa-book"></i> ${_tutT('Review now','Rever agora')}</button>
         </div>
       </div>`);
     _tutorScroll();
@@ -5074,9 +5085,9 @@ function _tutorRenderRoleplayPrompt() {
       <div class="tutor-row them">
         <div class="tutor-bubble-av">🎭</div>
         <div class="tutor-weak">
-          <div class="tutor-weak-h">Treinar uma reunião (role-play)</div>
+          <div class="tutor-weak-h">${_tutT('Practise a meeting (role-play)','Treinar uma reunião (role-play)')}</div>
           <div class="tutor-scenes">
-            ${_TUTOR_SCENES.map(s => `<button class="tutor-scene-btn" onclick="_tutorStartRoleplay('${s.id}')"><span>${s.icon} ${s.label}</span><small>com ${escapeHtml(s.persona)}</small></button>`).join('')}
+            ${_TUTOR_SCENES.map(s => `<button class="tutor-scene-btn" onclick="_tutorStartRoleplay('${s.id}')"><span>${s.icon} ${s.label}</span><small>${_tutT('with','com')} ${escapeHtml(s.persona)}</small></button>`).join('')}
           </div>
         </div>
       </div>`);
@@ -5278,18 +5289,29 @@ function _tutorRenderMic() {
     const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     const draft = (tutorState && tutorState._draft) || '';
     const asking = !!(tutorState && tutorState._ask);
-    const ph = asking ? 'Tira a tua dúvida (ex: explica o Past Perfect)…' : (sttOk ? 'Fala ou escreve…' : 'Escreve a tua resposta…');
+    const ph = asking
+        ? _tutT('Ask anything (e.g. explain Past Perfect)…','Tira a tua dúvida (ex: explica o Past Perfect)…')
+        : (sttOk ? _tutT('Speak or type…','Fala ou escreve…') : _tutT('Type your answer…','Escreve a tua resposta…'));
+    const askHint = _tutT('💬 Question mode — ask anything you want.','💬 Modo dúvida — pergunta o que quiseres.');
+    const cancelLabel = _tutT('cancel','cancelar');
+    const endRpLabel = _tutT('end and review','terminar e avaliar');
+    const askLabel = _tutT('Ask a question','Tirar dúvida');
+    const hfLabel = _tutT('Hands-free','Mãos-livres');
+    const hfTitleOn = _tutT('Hands-free ON — tap to turn off','Mãos-livres ATIVO — toca para desligar');
+    const hfTitleOff = _tutT("Hands-free off — tap to turn on (the tutor speaks and listens on its own)",'Mãos-livres desligado — toca para ligar (o professor fala e ouve-te sozinho)');
+    const speakLabel = _tutT('Speak','Falar');
+    const sendLabel = _tutT('Send','Enviar');
     bar.innerHTML = `
       <div id="tutor-live" class="tutor-live" style="display:none"></div>
-      ${asking ? `<div class="tutor-askhint">💬 Modo dúvida — pergunta o que quiseres. <button class="tutor-askx" onclick="_tutorToggleAsk()">cancelar</button></div>` : ''}
-      ${(tutorState && tutorState._roleplay) ? `<div class="tutor-rolehint">🎭 ${escapeHtml(tutorState._roleplay.persona)} · ${escapeHtml(tutorState._roleplay.label)} <button class="tutor-askx" onclick="_tutorEndRoleplay()">terminar e avaliar</button></div>` : ''}
+      ${asking ? `<div class="tutor-askhint">${askHint} <button class="tutor-askx" onclick="_tutorToggleAsk()">${cancelLabel}</button></div>` : ''}
+      ${(tutorState && tutorState._roleplay) ? `<div class="tutor-rolehint">🎭 ${escapeHtml(tutorState._roleplay.persona)} · ${escapeHtml(tutorState._roleplay.label)} <button class="tutor-askx" onclick="_tutorEndRoleplay()">${endRpLabel}</button></div>` : ''}
       <div class="tutor-inputrow">
         <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
                placeholder="${ph}"></textarea>
-        <button id="tutor-ask" class="tutor-ask-btn${asking ? ' on' : ''}" aria-label="Tirar dúvida" title="Tirar dúvida"><i class="fas fa-circle-question"></i></button>
-        ${sttOk ? `<button id="tutor-hf" class="tutor-hf-btn${_tutorHandsFreeOn() ? ' on' : ''}" aria-label="Mãos-livres" title="${_tutorHandsFreeOn() ? 'Mãos-livres ATIVO — toca para desligar' : 'Mãos-livres desligado — toca para ligar (o professor fala e ouve-te sozinho)'}"><i class="fas fa-headset"></i></button>` : ''}
-        ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="Falar"><i class="fas fa-microphone"></i></button>` : ''}
-        <button id="tutor-send" class="tutor-send" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
+        <button id="tutor-ask" class="tutor-ask-btn${asking ? ' on' : ''}" aria-label="${askLabel}" title="${askLabel}"><i class="fas fa-circle-question"></i></button>
+        ${sttOk ? `<button id="tutor-hf" class="tutor-hf-btn${_tutorHandsFreeOn() ? ' on' : ''}" aria-label="${hfLabel}" title="${_tutorHandsFreeOn() ? hfTitleOn : hfTitleOff}"><i class="fas fa-headset"></i></button>` : ''}
+        ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="${speakLabel}"><i class="fas fa-microphone"></i></button>` : ''}
+        <button id="tutor-send" class="tutor-send" aria-label="${sendLabel}"><i class="fas fa-paper-plane"></i></button>
       </div>`;
     const inp = document.getElementById('tutor-text');
     if (inp) {
@@ -5494,11 +5516,11 @@ function _tutorRenderDailyLesson() {
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">📅</div>
         <div class="tutor-daily">
-          <div class="tutor-daily-h">📅 Lição do dia · o teu nível: <b>${escapeHtml(userLvl)}</b></div>
-          <div class="tutor-daily-topic">${isReview ? '🔁 Rever' : '⬆️ A seguir'}${lvl ? ` · <span class="tutor-daily-lvl">${escapeHtml(lvl)}</span>` : ''}<br><b>${escapeHtml(topic)}</b></div>
+          <div class="tutor-daily-h">📅 ${_tutT('Lesson of the day','Lição do dia')} · ${_tutT('your level','o teu nível')}: <b>${escapeHtml(userLvl)}</b></div>
+          <div class="tutor-daily-topic">${isReview ? (_tutT('🔁 Review','🔁 Rever')) : (_tutT('⬆️ Up next','⬆️ A seguir'))}${lvl ? ` · <span class="tutor-daily-lvl">${escapeHtml(lvl)}</span>` : ''}<br><b>${escapeHtml(topic)}</b></div>
           <div class="tutor-daily-btns">
-            <button class="tutor-lbtn prac" data-topic="${escapeHtml(topic)}" onclick="_tutorLearnTopicBtn(this)"><i class="fas fa-graduation-cap"></i> Aprender agora</button>
-            <button class="tutor-lbtn" onclick="_tutorOpenExplore()"><i class="fas fa-layer-group"></i> Explorar tudo</button>
+            <button class="tutor-lbtn prac" data-topic="${escapeHtml(topic)}" onclick="_tutorLearnTopicBtn(this)"><i class="fas fa-graduation-cap"></i> ${_tutT('Learn now','Aprender agora')}</button>
+            <button class="tutor-lbtn" onclick="_tutorOpenExplore()"><i class="fas fa-layer-group"></i> ${_tutT('Explore all','Explorar tudo')}</button>
           </div>
         </div>
       </div>`);
@@ -6312,21 +6334,21 @@ function _tutorRenderFluencyHelp(fh) {
     if (!phrases.length && !conns.length) return;
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
-    const want = fh.want ? `<div class="tutor-fh-want">Querias dizer: <i>${escapeHtml(fh.want)}</i></div>` : '';
-    const phraseHtml = phrases.map(p => `<div class="tutor-fh-row"><span class="tutor-fh-en">${escapeHtml(p.en)}</span>${p.pt ? `<span class="tutor-fh-pt">${escapeHtml(p.pt)}</span>` : ''} <button class="tutor-say" data-text="${escapeHtml(p.en)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button></div>`).join('');
-    const connHtml = conns.length ? `<div class="tutor-ex-label">PALAVRAS DE LIGAÇÃO</div><div class="tutor-fh-conns">${conns.map(c => `<span class="tutor-fh-chip" data-text="${escapeHtml(c)}" onclick="_tutorSpeakBtn(this)">${escapeHtml(c)} <i class="fas fa-volume-high"></i></span>`).join('')}</div>` : '';
+    const want = fh.want ? `<div class="tutor-fh-want">${_tutT('You wanted to say:','Querias dizer:')} <i>${escapeHtml(fh.want)}</i></div>` : '';
+    const phraseHtml = phrases.map(p => `<div class="tutor-fh-row"><span class="tutor-fh-en">${escapeHtml(p.en)}</span>${p.pt ? `<span class="tutor-fh-pt">${escapeHtml(p.pt)}</span>` : ''} <button class="tutor-say" data-text="${escapeHtml(p.en)}" onclick="_tutorSpeakBtn(this)" aria-label="${_tutT('Listen','Ouvir')}"><i class="fas fa-volume-high"></i></button></div>`).join('');
+    const connHtml = conns.length ? `<div class="tutor-ex-label">${_tutT('LINKING WORDS','PALAVRAS DE LIGAÇÃO')}</div><div class="tutor-fh-conns">${conns.map(c => `<span class="tutor-fh-chip" data-text="${escapeHtml(c)}" onclick="_tutorSpeakBtn(this)">${escapeHtml(c)} <i class="fas fa-volume-high"></i></span>`).join('')}</div>` : '';
     const topic = escapeHtml(fh.topic || 'Vocabulary & fluency');
     const firstPhrase = escapeHtml(phrases.length ? phrases[0].en : '');
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">💬</div>
         <div class="tutor-fh">
-          <div class="tutor-fh-h">🗣️ Dizer isto de forma mais fluente</div>
+          <div class="tutor-fh-h">🗣️ ${_tutT('Say this more fluently','Dizer isto de forma mais fluente')}</div>
           ${want}
           ${phraseHtml}
           ${connHtml}
           <div class="tutor-lesson-btns">
-            <button class="tutor-lbtn prac" data-topic="${topic}" onclick="_tutorHelpLessonBtn(this)"><i class="fas fa-book-open"></i> Lição & exercícios</button>
-            ${firstPhrase ? `<button class="tutor-lbtn" data-text="${firstPhrase}" onclick="_tutorHelpSpeakBtn(this)"><i class="fas fa-microphone"></i> Treinar a falar</button>` : ''}
+            <button class="tutor-lbtn prac" data-topic="${topic}" onclick="_tutorHelpLessonBtn(this)"><i class="fas fa-book-open"></i> ${_tutT('Lesson & exercises','Lição & exercícios')}</button>
+            ${firstPhrase ? `<button class="tutor-lbtn" data-text="${firstPhrase}" onclick="_tutorHelpSpeakBtn(this)"><i class="fas fa-microphone"></i> ${_tutT('Practise speaking','Treinar a falar')}</button>` : ''}
           </div>
         </div>
       </div>`);
@@ -6345,13 +6367,13 @@ function _tutorPointsHtml(points) {
 function _tutorXtraRow(topic) {
     const t = escapeHtml(topic || '');
     return `<div class="tutor-xtra-row">
-      <button class="tutor-xtra doubt" data-topic="${t}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> Tirar dúvida</button>
-      <button class="tutor-xtra deep" data-topic="${t}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> Mais detalhe</button>
+      <button class="tutor-xtra doubt" data-topic="${t}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> ${_tutT('Ask a question','Tirar dúvida')}</button>
+      <button class="tutor-xtra deep" data-topic="${t}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> ${_tutT('More detail','Mais detalhe')}</button>
     </div>`;
 }
 function _tutorExamplesHtml(examples) {
     if (!Array.isArray(examples) || !examples.length) return '';
-    return `<div class="tutor-ex-label">EXEMPLOS</div>${examples.map(ex => `<div class="tutor-ex-row">
+    return `<div class="tutor-ex-label">${_tutT('EXAMPLES','EXEMPLOS')}</div>${examples.map(ex => `<div class="tutor-ex-row">
           <span class="tutor-ex-wrong">❌ ${escapeHtml(ex.wrong || '')}</span>
           <span class="tutor-ex-right">✅ ${escapeHtml(ex.right || '')}</span>
           ${ex.note ? `<span class="tutor-ex-note">${escapeHtml(ex.note)}</span>` : ''}
@@ -6371,16 +6393,16 @@ function _tutorFluidCorrection(d) {
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">✏️</div>
         <div class="tutor-fix">
-          <div class="tutor-fix-h">✏️ Diz antes assim</div>
+          <div class="tutor-fix-h">✏️ ${_tutT('Say it like this','Diz antes assim')}</div>
           <div class="tutor-fix-recast">${escapeHtml(d.corrected || '')}
-            <button class="tutor-say" data-text="${escapeHtml(d.corrected || '')}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
-            <button class="tutor-save" data-text="${escapeHtml(d.corrected || '')}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(topic)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+            <button class="tutor-say" data-text="${escapeHtml(d.corrected || '')}" onclick="_tutorSpeakBtn(this)" aria-label="${_tutT('Listen','Ouvir')}"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-save" data-text="${escapeHtml(d.corrected || '')}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(topic)}" onclick="_tutorSavePhraseBtn(this)" title="${_tutT('Save to phrasebook','Guardar no phrasebook')}"><i class="fas fa-bookmark"></i></button>
           </div>
           ${d.errorType ? `<div class="tutor-fix-tag">${escapeHtml(d.errorType)}</div>` : ''}
           ${d.explanation ? `<div class="tutor-fix-why">${escapeHtml(d.explanation)}</div>` : ''}
           <div class="tutor-fix-btns">
-            <button class="tutor-lbtn prac" onclick="_tutorRepeatRecast()"><i class="fas fa-microphone"></i> Repetir em voz alta</button>
-            <button class="tutor-lbtn" data-topic="${escapeHtml(topic)}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> Aprofundar</button>
+            <button class="tutor-lbtn prac" onclick="_tutorRepeatRecast()"><i class="fas fa-microphone"></i> ${_tutT('Repeat out loud','Repetir em voz alta')}</button>
+            <button class="tutor-lbtn" data-topic="${escapeHtml(topic)}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> ${_tutT('Go deeper','Aprofundar')}</button>
           </div>
         </div>
       </div>`);
@@ -6824,17 +6846,20 @@ window._tutorStartMic = _tutorStartMic;
 function renderSpeak(e) {
     const model = (e.ans && e.ans[0]) || '';
     const lang = e.lang || 'en-US';
+    const isEN = /^en/i.test(lang);
+    const t = (en, pt) => isEN ? en : pt;
     const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
-    const tip = e.tip ? `<div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:6px;margin:8px 0 12px;font-size:0.86rem;color:#78350f"><strong>💡 Dica:</strong> ${escapeHtml(e.tip)}</div>` : '';
+    const tipLabel = t('💡 Tip:', '💡 Dica:');
+    const tip = e.tip ? `<div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:6px;margin:8px 0 12px;font-size:0.86rem;color:#78350f"><strong>${tipLabel}</strong> ${escapeHtml(e.tip)}</div>` : '';
     const sttBlock = sttOk
-        ? `<button id="speak-mic" onclick="toggleSpeakMic()" style="display:block;width:100%;background:linear-gradient(135deg,#0891b2,#2563eb);color:#fff;border:none;border-radius:14px;padding:18px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(8,145,178,0.3);margin-bottom:10px"><i class="fas fa-microphone"></i>&nbsp;&nbsp;Tocar e falar</button>
-           <div id="speak-transcript" style="min-height:64px;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:12px 14px;font-size:0.95rem;color:#475569;line-height:1.5;text-align:left">A tua fala aparece aqui…</div>
+        ? `<button id="speak-mic" onclick="toggleSpeakMic()" style="display:block;width:100%;background:linear-gradient(135deg,#0891b2,#2563eb);color:#fff;border:none;border-radius:14px;padding:18px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(8,145,178,0.3);margin-bottom:10px"><i class="fas fa-microphone"></i>&nbsp;&nbsp;${t('Tap and speak','Tocar e falar')}</button>
+           <div id="speak-transcript" style="min-height:64px;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:12px 14px;font-size:0.95rem;color:#475569;line-height:1.5;text-align:left">${t('Your speech will appear here…','A tua fala aparece aqui…')}</div>
            <div style="display:flex;gap:8px;margin-top:8px">
-             <button onclick="resetSpeak()" style="flex:1;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-rotate-left"></i>&nbsp;Apagar</button>
-             <button onclick="ttsSpeakEN(_speakModelText, '${lang}')" style="flex:1;background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-volume-high"></i>&nbsp;Ouvir modelo</button>
-             <button onclick="openVoicePickerEN()" title="Escolher voz" style="background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px 12px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-sliders"></i></button>
+             <button onclick="resetSpeak()" style="flex:1;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-rotate-left"></i>&nbsp;${t('Clear','Apagar')}</button>
+             <button onclick="ttsSpeakEN(_speakModelText, '${lang}')" style="flex:1;background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-volume-high"></i>&nbsp;${t('Listen to model','Ouvir modelo')}</button>
+             <button onclick="openVoicePickerEN()" title="${t('Choose voice','Escolher voz')}" style="background:#fff;color:#0891b2;border:1px solid #0891b2;border-radius:10px;padding:10px 12px;font-size:0.85rem;font-weight:600;cursor:pointer"><i class="fas fa-sliders"></i></button>
            </div>`
-        : `<div style="background:#fee2e2;border-left:3px solid #dc2626;padding:10px 14px;border-radius:6px;color:#7f1d1d;font-size:0.86rem">Este browser não suporta reconhecimento de voz. Usa Chrome ou Safari.</div>`;
+        : `<div style="background:#fee2e2;border-left:3px solid #dc2626;padding:10px 14px;border-radius:6px;color:#7f1d1d;font-size:0.86rem">${t("This browser doesn't support speech recognition. Use Chrome or Safari.",'Este browser não suporta reconhecimento de voz. Usa Chrome ou Safari.')}</div>`;
     _speakModelText = model;
     return tip + sttBlock;
 }
