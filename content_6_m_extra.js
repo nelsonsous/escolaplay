@@ -263,7 +263,7 @@ const EXERCISES_6_M_EXTRA = [
       exp:'4 × 1/4 = 4/4 = 1.' },
     { id:'6me64', s:'matematica', t:'Operações com frações', type:'mc', diff:2,
       q:'Quanto é ⅗ × ⅔?',
-      opts:['6/15','2/5','5/8','5/15'], ans:1,
+      opts:['6/10','2/5','5/8','5/15'], ans:1,
       exp:'⅗ × ⅔ = 6/15 = 2/5.' },
     { id:'6me65', s:'matematica', t:'Operações com frações', type:'tf', diff:1,
       q:'Para somar frações com o mesmo denominador, somam-se os numeradores e mantém-se o denominador.',
