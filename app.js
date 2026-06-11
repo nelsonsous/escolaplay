@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v438';
+const APP_VERSION = 'v439';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -570,43 +570,85 @@ function _sanitizeExercise(e) {
     return e;
 }
 
-// loadYearExtras: agora SÍNCRONO. Concatena os arrays globais já
-// carregados pelo index.html no EXERCISES_BY_YEAR. Devolve uma Promise
-// resolvida para manter compatibilidade com chamadas existentes que
-// fazem `.then()` ou `.finally()`.
+// Carrega um <script> dinamicamente. Promise resolve quando onload dispara,
+// rejeita em onerror. Idempotente — se já existe um <script> com o mesmo src
+// no DOM, não duplica (importante quando o utilizador alterna entre perfis
+// do mesmo ano).
+const _scriptLoadCache = {};
+function _loadScript(src) {
+    if (_scriptLoadCache[src]) return _scriptLoadCache[src];
+    _scriptLoadCache[src] = new Promise((resolve, reject) => {
+        // Reutilizar tag existente (cobre o caso de o sw.js a ter no cache)
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (existing.dataset.loaded === '1') return resolve();
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('load failed: ' + src)), { once: true });
+            return;
+        }
+        const s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = () => { s.dataset.loaded = '1'; resolve(); };
+        s.onerror = () => { delete _scriptLoadCache[src]; reject(new Error('load failed: ' + src)); };
+        document.head.appendChild(s);
+    });
+    return _scriptLoadCache[src];
+}
+
+// loadYearExtras (v439): LAZY LOAD verdadeiro. Antes, todos os ~2 MB de
+// content_<ano>_*.js eram carregados eager pelo index.html (mesmo com defer).
+// Agora só os ficheiros do ano do perfil ativo são fetched, em paralelo, via
+// <script> dinâmico. Fresh load fica visivelmente mais rápido em 3G/4G.
+//
+// API mantém-se compatível: devolve Promise<number> (exs adicionados).
 function loadYearExtras(year) {
     if (!year) return Promise.resolve(0);
     if (_yearExtrasLoaded[year]) return _yearExtrasLoaded[year];
     const files = YEAR_EXTRA_FILES[year] || [];
-    const base = window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[year];
-    if (!Array.isArray(base) || files.length === 0) {
+    if (files.length === 0) {
         _yearExtrasLoaded[year] = Promise.resolve(0);
         return _yearExtrasLoaded[year];
     }
-    const existing = new Set(base.map(e => e && e.id));
-    let added = 0;
-    const empties = [];
-    for (const f of files) {
-        const arr = window[f.varName];
-        if (!Array.isArray(arr) || arr.length === 0) {
-            empties.push(f.src);
-            continue;
-        }
-        for (const raw of arr) {
-            const e = _sanitizeExercise(raw);
-            if (e && e.id && !existing.has(e.id)) {
-                base.push(e);
-                existing.add(e.id);
-                added++;
+    const promise = Promise.all(files.map(f => {
+        // Se a global já existe (cache, build anterior eager), não faz network.
+        if (Array.isArray(window[f.varName])) return Promise.resolve();
+        return _loadScript(f.src).catch(e => { console.warn('[lazy]', e.message); });
+    })).then(() => {
+        const base = window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[year];
+        if (!Array.isArray(base)) return 0;
+        const existing = new Set(base.map(e => e && e.id));
+        let added = 0;
+        const empties = [];
+        for (const f of files) {
+            const arr = window[f.varName];
+            if (!Array.isArray(arr) || arr.length === 0) {
+                empties.push(f.src);
+                continue;
+            }
+            for (const raw of arr) {
+                const e = _sanitizeExercise(raw);
+                if (e && e.id && !existing.has(e.id)) {
+                    base.push(e);
+                    existing.add(e.id);
+                    added++;
+                }
             }
         }
-    }
-    if (window.activeYear === year) window.EXERCISES = base;
-    console.log('[escolaplay] ano ' + year + ': +' + added + ' exs (de ' +
-        (files.length - empties.length) + '/' + files.length + ' bancos)' +
-        (empties.length ? ' — em falta: ' + empties.join(', ') : ''));
-    _yearExtrasLoaded[year] = Promise.resolve(added);
-    return _yearExtrasLoaded[year];
+        if (window.activeYear === year) window.EXERCISES = base;
+        console.log('[escolaplay] ano ' + year + ': +' + added + ' exs (de ' +
+            (files.length - empties.length) + '/' + files.length + ' bancos)' +
+            (empties.length ? ' — em falta: ' + empties.join(', ') : ''));
+        // Re-pintar a home quando os extras chegam mais tarde, para os
+        // contadores de exercícios por disciplina mostrarem o número final.
+        try {
+            const homeActive = document.querySelector('.tab.active')?.dataset?.tab === 'home';
+            if (homeActive && typeof renderHome === 'function') renderHome();
+            if (typeof renderSubjects === 'function' && document.querySelector('.tab.active')?.dataset?.tab === 'subjects') renderSubjects();
+        } catch {}
+        return added;
+    });
+    _yearExtrasLoaded[year] = promise;
+    return promise;
 }
 
 function saveState() {
