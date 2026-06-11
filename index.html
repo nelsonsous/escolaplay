@@ -36,11 +36,13 @@
             </div>
         </div>
         <div class="header-right">
-            <div class="chip chip-streak" id="streak-chip" title="Ofensiva — dias seguidos a fazer testes">
-                <span class="streak-emoji" id="streak-emoji">🔥</span> <span id="streak-days">0</span>
+            <div class="chip chip-streak" id="streak-chip" title="Ofensiva — dias seguidos a fazer testes" aria-label="Ofensiva de dias">
+                <span class="streak-emoji" id="streak-emoji" aria-hidden="true">🔥</span>
+                <span class="chip-num" id="streak-days">0</span>
             </div>
-            <div class="chip chip-xp" title="Experiência">
-                <i class="fas fa-star"></i> <span id="xp-total">0</span>
+            <div class="chip chip-xp" title="Experiência total acumulada" aria-label="XP total">
+                <i class="fas fa-star" aria-hidden="true"></i>
+                <span class="chip-num" id="xp-total">0</span>
             </div>
         </div>
     </header>
@@ -50,12 +52,12 @@
         <div class="xp-bar-label"><span id="xp-into-level">0</span> / <span id="xp-next-level">500</span> <span class="xp-next-suffix">XP</span></div>
     </div>
 
-    <nav class="tabs">
-        <button class="tab active" data-tab="home" onclick="switchTab('home')"><i class="fas fa-house"></i><span>Início</span></button>
-        <button class="tab" data-tab="subjects" onclick="switchTab('subjects')"><i class="fas fa-book-open"></i><span>Disciplinas</span></button>
-        <button class="tab" data-tab="tests" onclick="switchTab('tests')"><i class="fas fa-calendar-check"></i><span>Testes</span></button>
-        <button class="tab" data-tab="progress" onclick="switchTab('progress')"><i class="fas fa-chart-line"></i><span>Progresso</span></button>
-        <button class="tab" data-tab="profile" onclick="switchTab('profile')"><i class="fas fa-user-gear"></i><span>Perfil</span></button>
+    <nav class="tabs" role="tablist" aria-label="Secções principais">
+        <button class="tab active" data-tab="home" onclick="switchTab('home')" role="tab" aria-selected="true"><i class="fas fa-house" aria-hidden="true"></i><span>Início</span></button>
+        <button class="tab" data-tab="subjects" onclick="switchTab('subjects')" role="tab" aria-selected="false"><i class="fas fa-book-open" aria-hidden="true"></i><span>Disciplinas</span></button>
+        <button class="tab" data-tab="tests" onclick="switchTab('tests')" role="tab" aria-selected="false"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Testes</span></button>
+        <button class="tab" data-tab="progress" onclick="switchTab('progress')" role="tab" aria-selected="false"><i class="fas fa-chart-line" aria-hidden="true"></i><span>Progresso</span></button>
+        <button class="tab" data-tab="profile" onclick="switchTab('profile')" role="tab" aria-selected="false"><i class="fas fa-user-gear" aria-hidden="true"></i><span>Perfil</span></button>
     </nav>
 
     <!-- ===== HOME TAB ===== -->
@@ -395,11 +397,11 @@
     <!-- ===== EXERCISE FULLSCREEN ===== -->
     <div id="exercise-screen" class="fullscreen" style="display:none">
         <div class="exercise-header">
-            <button class="icon-btn" onclick="exitSession()" title="Sair"><i class="fas fa-xmark"></i></button>
-            <div class="progress-dots" id="progress-dots"></div>
-            <button class="icon-btn hint-btn" onclick="openHintModal()" title="Pista sobre esta pergunta"><i class="fas fa-lightbulb"></i></button>
-            <button class="icon-btn help-btn" onclick="openLessonModal()" title="Ver explicação do tópico"><i class="fas fa-book-open"></i></button>
-            <button class="icon-btn" onclick="shareCurrentQuestion()" title="Partilhar pergunta" style="background:#dcfce7;color:#16a34a"><i class="fas fa-share-nodes"></i></button>
+            <button class="icon-btn" onclick="exitSession()" title="Sair" aria-label="Sair da sessão"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            <div class="progress-dots" id="progress-dots" role="progressbar" aria-label="Progresso na sessão"></div>
+            <button class="icon-btn hint-btn" onclick="openHintModal()" title="Pista sobre esta pergunta" aria-label="Pedir pista"><i class="fas fa-lightbulb" aria-hidden="true"></i></button>
+            <button class="icon-btn help-btn" onclick="openLessonModal()" title="Ver explicação do tópico" aria-label="Ver explicação do tópico"><i class="fas fa-book-open" aria-hidden="true"></i></button>
+            <button class="icon-btn" onclick="shareCurrentQuestion()" title="Partilhar pergunta" aria-label="Partilhar pergunta" style="background:#dcfce7;color:#16a34a"><i class="fas fa-share-nodes" aria-hidden="true"></i></button>
             <div class="session-xp"><i class="fas fa-star"></i> <span id="session-xp">0</span></div>
         </div>
         <div class="exercise-body">
@@ -462,7 +464,7 @@
     </div>
 
     <!-- ===== LESSON MODAL ===== -->
-    <div id="lesson-modal" class="modal" style="display:none">
+    <div id="lesson-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="lesson-title"><i class="fas fa-book-open"></i> Explicação</h2>
@@ -497,7 +499,7 @@
     </div>
 
     <!-- ===== ADD TEST MODAL ===== -->
-    <div id="test-modal" class="modal" style="display:none">
+    <div id="test-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-calendar-plus"></i> <span id="test-modal-title">Adicionar teste</span></h2>
@@ -527,7 +529,7 @@
     </div>
 
     <!-- ===== INSTALL APP MODAL ===== -->
-    <div id="install-modal" class="modal" style="display:none">
+    <div id="install-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-mobile-screen-button"></i> Instalar a EscolaPlay</h2>
@@ -563,7 +565,7 @@
     </div>
 
     <!-- ===== REWARD UNLOCKED MODAL ===== -->
-    <div id="reward-modal" class="modal" style="display:none">
+    <div id="reward-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-body" style="text-align:center;padding:26px 20px">
                 <div style="font-size:3.6rem;margin-bottom:6px">&#127873;</div>

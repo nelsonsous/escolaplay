@@ -139,15 +139,19 @@ button, input, textarea, select { font-family: inherit; }
 .chip {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 6px 12px;
+    /* Touch target ≥ 32px (mobile friendly) — antes era ~26px. */
+    min-height: 34px;
     border-radius: 999px;
-    font-size: var(--fs-xs);
+    font-size: var(--fs-sm);
     font-weight: 800;
     background: rgba(255,255,255,0.22);
     border: 1px solid rgba(255,255,255,0.35);
     backdrop-filter: blur(6px);
     transition: transform .12s, background .15s;
+    font-variant-numeric: tabular-nums;
 }
 .chip:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+.chip-num { font-size: 1em; line-height: 1; }
 .chip-streak {
     background: linear-gradient(135deg, rgba(251,146,60,0.55), rgba(254,215,170,0.30));
     border-color: #fb923c;
@@ -987,24 +991,33 @@ button, input, textarea, select { font-family: inherit; }
     overflow-y: auto;
 }
 .exercise-header {
-    display: flex; align-items: center; gap: 8px;
-    padding: 12px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 12px 12px;
     border-bottom: 1px solid var(--border);
     background: #fff;
     position: sticky; top: 0; z-index: 5;
 }
 .icon-btn {
-    width: 38px; height: 38px;
+    width: 40px; height: 40px;
+    /* Touch target alargado (Apple HIG: ≥44pt). O alvo invisível à volta
+       garante hit-area de 44×44 mesmo com o visual de 40×40. */
+    min-width: 40px;
     border: none; background: #f3f4f6;
     border-radius: 50%;
     font-size: var(--fs-base);
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    transition: transform .12s, background .15s, box-shadow .15s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: transform .12s, background .15s, box-shadow .12s;
+    box-shadow: 0 2px 0 #d1d5db;
+    position: relative;
 }
-.icon-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-.icon-btn:active { transform: scale(0.92); }
+.icon-btn::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+}
+.icon-btn:hover { background: #e5e7eb; }
+.icon-btn:active { transform: translateY(2px); box-shadow: 0 0 0 #d1d5db; }
 .help-btn { background: #fef3c7; color: #d97706; }
 .help-btn:hover { background: #fde68a; }
 .hint-btn { background: #dbeafe; color: #2563eb; }
@@ -1296,11 +1309,11 @@ button, input, textarea, select { font-family: inherit; }
 .modal-content::before {
     content: '';
     display: block;
-    width: 44px;
+    width: 52px;
     height: 5px;
-    background: var(--border);
+    background: #d1d5db;
     border-radius: 999px;
-    margin: 8px auto 0;
+    margin: 9px auto 0;
 }
 .modal-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -1333,20 +1346,33 @@ button, input, textarea, select { font-family: inherit; }
 .modal-body input[type="text"],
 .modal-body input[type="date"],
 .modal-body input[type="number"],
+.modal-body input[type="email"],
+.modal-body input[type="url"],
+.modal-body input[type="password"],
+.modal-body textarea,
 .modal-body select {
     width: 100%;
-    padding: 13px 14px;
+    padding: 14px 14px;
+    /* min-height = 48px → confortável para dedo e teclado iOS não faz zoom */
+    min-height: 48px;
+    font-size: 16px; /* >=16px evita o zoom automático do Safari iOS em focus */
     border: 1.5px solid var(--border);
     border-radius: 12px;
-    font-size: var(--fs-base);
     background: #fafafa;
     transition: border-color .15s, box-shadow .15s, background .15s;
+    font-family: inherit;
 }
-.modal-body input:focus, .modal-body select:focus {
+.modal-body textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+.modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus {
     outline: none;
     border-color: var(--primary);
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.12);
+    box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.18);
+}
+.modal-body input:invalid:not(:placeholder-shown),
+.modal-body input[aria-invalid="true"] {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
 }
 
 .lesson-body {
@@ -1708,8 +1734,23 @@ button, input, textarea, select { font-family: inherit; }
     text-align: center;
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
     border: 1px solid rgba(255,255,255,0.06);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+.toast-icon {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.85em; flex-shrink: 0;
+    font-weight: 800;
+}
+.toast.t-success { background: linear-gradient(135deg, #15803d 0%, #16a34a 100%); box-shadow: 0 12px 32px rgba(22, 163, 74, 0.35); }
+.toast.t-error   { background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); box-shadow: 0 12px 32px rgba(220, 38, 38, 0.35); }
+.toast.t-warn    { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); box-shadow: 0 12px 32px rgba(217, 119, 6, 0.35); color: #fff; }
 
 .sub-color-portugues  { background: #e11d48; }
 .sub-color-matematica { background: #2563eb; }
@@ -4873,4 +4914,35 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .btn:focus-visible, .btn-option:focus-visible, .tab:focus-visible {
     outline: 3px solid rgba(219, 39, 119, 0.55);
     outline-offset: 3px;
+}
+
+/* ========================================================
+   EMPTY STATES (v437) — placeholders amigáveis para listas vazias
+   ======================================================== */
+.empty-state {
+    text-align: center;
+    padding: 36px 20px 30px;
+    color: var(--text-light);
+}
+.empty-state-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-light), #fff);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--primary);
+    margin-bottom: 14px;
+    box-shadow: 0 0 0 1px rgba(244, 114, 182, 0.18), 0 8px 18px rgba(244, 114, 182, 0.15);
+}
+.empty-state-title {
+    font-size: var(--fs-base);
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+.empty-state-sub {
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    max-width: 280px;
+    margin: 0 auto 16px;
 }

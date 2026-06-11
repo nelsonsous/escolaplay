@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v436';
+const APP_VERSION = 'v437';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4102,7 +4102,11 @@ async function importQuestionsFile(input) {
 
 // ========== TABS ==========
 function switchTab(name) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.tab').forEach(t => {
+        const isActive = t.dataset.tab === name;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
     if (name === 'home') renderHome();
     if (name === 'subjects') renderSubjects();
@@ -4120,12 +4124,39 @@ function switchTab(name) {
 
 // ========== TOAST ==========
 let toastTimer;
-function showToast(msg) {
+// Fecha o modal quando se toca no backdrop (zona escura à volta do cartão).
+// Padrão mobile: bottom-sheets fecham com tap fora. Aplicado SÓ aos modais
+// marcados com onclick="_modalBackdropTap(event)" — assim modais críticos
+// (streak-guilt, secret) não fecham por acidente.
+window._modalBackdropTap = function (ev) {
+    if (ev.target !== ev.currentTarget) return;
+    ev.currentTarget.style.display = 'none';
+    // Limpa SpeechSynthesis se algum modal o estiver a usar
+    try { if (window.speechSynthesis && window.speechSynthesis.speaking) window.speechSynthesis.cancel(); } catch {}
+};
+
+// showToast(msg) ou showToast(msg, 'success' | 'error' | 'warn' | 'info')
+// Tipo auto-detetado por palavras-chave se omitido — assim chamadas antigas
+// ganham cor sem mudanças. Tempo proporcional ao tamanho da mensagem.
+function showToast(msg, type) {
     const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
+    if (!t) return;
+    const text = String(msg || '');
+    if (!type) {
+        const low = text.toLowerCase();
+        if (/(erro|falhou|indispon[íi]vel|inv[áa]lido|n[ãa]o)/.test(low)) type = 'error';
+        else if (/(guardado|ok|sucesso|conclu[íi]do|✓|desbloqueado)/.test(low)) type = 'success';
+        else if (/(atenção|aviso|⚠️|limite|cuidado)/.test(low)) type = 'warn';
+        else type = 'info';
+    }
+    const icons = { info: 'i', success: '✓', error: '!', warn: '!' };
+    t.innerHTML = `<span class="toast-icon" aria-hidden="true">${icons[type] || 'i'}</span><span>${escapeHtml(text)}</span>`;
+    t.className = 'toast show t-' + type;
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+    const dwell = Math.max(2200, Math.min(5500, 1800 + text.length * 35));
+    toastTimer = setTimeout(() => t.classList.remove('show'), dwell);
 }
 
 // ========== SESSION ==========
