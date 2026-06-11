@@ -296,6 +296,26 @@
             </button>
         </div>
 
+        <!-- Backup do progresso (v441) -->
+        <div class="section-title"><i class="fas fa-cloud-arrow-up"></i> Backup do progresso</div>
+        <div class="form-card">
+            <p class="muted" style="margin-bottom:8px">
+                O teu progresso é guardado <strong>automaticamente na nuvem</strong> 30 s depois de cada actividade — desde que tenhas activado a partilha (cria o código a partir do Duelo). Última sincronização: <strong id="backup-last-sync">nunca sincronizado</strong>.
+            </p>
+            <button class="btn btn-secondary btn-block" style="margin-bottom:6px" onclick="openRestoreBackupDialog()">
+                <i class="fas fa-cloud-arrow-down"></i> Restaurar de outro dispositivo
+            </button>
+            <p class="muted" style="margin:6px 0 4px;font-size:0.78rem">Ou em alternativa, exporta/importa um ficheiro local:</p>
+            <div style="display:flex;gap:6px">
+                <button class="btn btn-secondary" style="flex:1" onclick="exportProgressJSON()">
+                    <i class="fas fa-file-arrow-down"></i> Exportar
+                </button>
+                <button class="btn btn-secondary" style="flex:1" onclick="openImportProgressJSON()">
+                    <i class="fas fa-file-arrow-up"></i> Importar
+                </button>
+            </div>
+        </div>
+
         <div class="section-title"><i class="fas fa-user"></i> Editar perfil activo</div>
         <div class="form-card">
             <label>Nome</label>

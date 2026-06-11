@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v440';
+const APP_VERSION = 'v441';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -655,6 +655,10 @@ function saveState() {
     // Serializar apenas { profiles, activeProfileId, max } — os getters não são enumeráveis
     const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    // v441: cloud backup com push automático debounced (30s). Só dispara se o
+    // perfil ativo tem userCode (i.e. já foi "partilhado" para o Duelo) — sem
+    // userCode não temos chave estável entre dispositivos.
+    try { _scheduleBackupPush(); } catch {}
 }
 
 function switchProfile(id) {
@@ -2909,6 +2913,7 @@ function closeAddProfileModal() {
 function renderProfile() {
     // Estado do botão "Instalar app"
     try { refreshInstallUI(); } catch {}
+    try { _updateBackupIndicator(); } catch {}
     // Listagem de perfis (gestão)
     const pList = document.getElementById('profiles-list');
     if (pList) {
@@ -12609,6 +12614,11 @@ function showFirstRunGate() {
                 <button class="btn btn-primary btn-block" onclick="openAddProfileModal()">
                     <i class="fas fa-plus"></i> Criar perfil
                 </button>
+                <div style="height:14px"></div>
+                <p style="margin:0 0 8px;color:var(--text-light);font-size:0.84rem">Já tens conta noutro dispositivo?</p>
+                <button class="btn btn-secondary btn-block" onclick="event.stopPropagation(); openRestoreBackupDialog()">
+                    <i class="fas fa-cloud-arrow-down"></i> Restaurar com código
+                </button>
             </div>`;
         document.querySelector('#app').appendChild(gate);
     }
@@ -13950,3 +13960,170 @@ window.answerMatDiag = answerMatDiag;
 window.closeMatDiagAndOpen = closeMatDiagAndOpen;
 window.redoMatDiagnostic = redoMatDiagnostic;
 
+// ============================================================
+//  CLOUD BACKUP (v441)
+//  Sync de progresso por userCode. Push automático debounced 30s
+//  (dispara em cada saveState), pull manual via "Restaurar de
+//  outro dispositivo". Export/import JSON local como fallback
+//  para quando o Firebase não está disponível.
+//
+//  Esquema Firestore:
+//    collection: "backups", docId: userCode
+//    payload: { v:1, updatedAt, profile, max }
+//
+//  Decisões:
+//   - Guardamos APENAS o perfil ativo (não todos os perfis) para
+//     manter cada doc < 100 KB típico, bem dentro do limite 1 MB
+//     do Firestore. Cada device sincroniza o seu próprio perfil.
+//   - userCode tem 6 chars (gerado no Duelo). Reutilizamos como
+//     identidade — sem login/email/RGPD.
+//   - Conflitos: último-escreve-vence. Pull explícito do user é
+//     sempre quem ganha.
+// ============================================================
+
+const BACKUP_LAST_AT_KEY = 'ep_last_backup_at';
+let _backupPushTimer = null;
+let _backupInProgress = false;
+let _lastBackupAt = null;
+try {
+    const v = parseInt(localStorage.getItem(BACKUP_LAST_AT_KEY) || '0', 10);
+    if (v > 0) _lastBackupAt = v;
+} catch {}
+
+function _scheduleBackupPush() {
+    const p = activeProfile();
+    if (!p || !p.userCode) return; // sem userCode, não há para onde enviar
+    if (_backupPushTimer) clearTimeout(_backupPushTimer);
+    _backupPushTimer = setTimeout(() => {
+        _doBackupPush(p.userCode).catch(err => console.warn('[backup] push err', err));
+    }, 30000);
+}
+
+async function _doBackupPush(userCode) {
+    if (_backupInProgress) return;
+    _backupInProgress = true;
+    try {
+        // Re-find o perfil no momento de enviar (pode ter mudado).
+        const p = state.profiles.find(x => x.userCode === userCode);
+        if (!p) return;
+        await fbBackupState(userCode, { profile: p, max: state.max });
+        _lastBackupAt = Date.now();
+        try { localStorage.setItem(BACKUP_LAST_AT_KEY, String(_lastBackupAt)); } catch {}
+        _updateBackupIndicator();
+    } finally {
+        _backupInProgress = false;
+    }
+}
+
+async function fbBackupState(userCode, payload) {
+    await _onFbReady();
+    const { db, doc, setDoc, serverTimestamp } = window.__fb;
+    const ref = doc(db, 'backups', userCode);
+    await setDoc(ref, {
+        v: 1,
+        updatedAt: serverTimestamp(),
+        profile: payload.profile,
+        max: payload.max || null
+    });
+}
+
+async function fbFetchBackup(userCode) {
+    await _onFbReady();
+    const { db, doc, getDoc } = window.__fb;
+    const ref = doc(db, 'backups', userCode);
+    const snap = await getDoc(ref);
+    return snap.exists() ? snap.data() : null;
+}
+
+function openRestoreBackupDialog() {
+    const codeRaw = prompt('Indica o código do perfil (6–8 caracteres, ex: AB3K9X):');
+    if (!codeRaw) return;
+    const code = codeRaw.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6,8}$/.test(code)) { showToast('Código inválido — só letras/números (6–8 chars).'); return; }
+    showToast('A procurar o backup…');
+    fbFetchBackup(code).then(data => {
+        if (!data || !data.profile) { showToast('Sem backup para esse código.'); return; }
+        const name = data.profile.name || 'Perfil';
+        const xp = data.profile.xp || 0;
+        if (!confirm(`Encontrado: ${name} · ${xp} XP. Restaurar para este dispositivo? O perfil atual com o mesmo código será substituído.`)) return;
+        _applyRestoredBackup(data);
+    }).catch(err => {
+        console.warn('[backup] fetch failed', err);
+        showToast('Erro ao buscar backup — verifica a ligação.');
+    });
+}
+
+function _applyRestoredBackup(data) {
+    const p = data.profile;
+    if (!p || !p.id) { showToast('Backup corrupto.'); return; }
+    const idx = state.profiles.findIndex(x => x.userCode === p.userCode || x.id === p.id);
+    if (idx >= 0) state.profiles[idx] = p;
+    else state.profiles.push(p);
+    state.activeProfileId = p.id;
+    if (data.max) state.max = data.max;
+    saveState();
+    showToast('✅ Progresso restaurado. A recarregar…');
+    setTimeout(() => location.reload(), 800);
+}
+
+function exportProgressJSON() {
+    const payload = {
+        ep_export_v: 1,
+        exportedAt: new Date().toISOString(),
+        appVersion: APP_VERSION,
+        profiles: state.profiles,
+        activeProfileId: state.activeProfileId,
+        max: state.max
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `escolaplay-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Backup descarregado.');
+}
+
+function openImportProgressJSON() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'application/json,.json';
+    input.onchange = async () => {
+        const f = input.files?.[0];
+        if (!f) return;
+        try {
+            const txt = await f.text();
+            const data = JSON.parse(txt);
+            if (!data.ep_export_v || !Array.isArray(data.profiles)) throw new Error('Formato inválido');
+            const n = data.profiles.length;
+            if (!confirm(`Restaurar ${n} perfil(is) deste ficheiro? O progresso atual será substituído.`)) return;
+            state.profiles = data.profiles;
+            state.activeProfileId = data.activeProfileId || (data.profiles[0]?.id || null);
+            if (data.max) state.max = data.max;
+            saveState();
+            showToast('✅ Importado. A recarregar…');
+            setTimeout(() => location.reload(), 800);
+        } catch (e) {
+            console.error('[import] failed', e);
+            showToast('Ficheiro inválido — verifica que é um export do EscolaPlay.');
+        }
+    };
+    input.click();
+}
+
+function _updateBackupIndicator() {
+    const el = document.getElementById('backup-last-sync');
+    if (!el) return;
+    if (!_lastBackupAt) { el.textContent = 'nunca sincronizado'; return; }
+    const minAgo = Math.floor((Date.now() - _lastBackupAt) / 60000);
+    if (minAgo < 1) el.textContent = 'há instantes';
+    else if (minAgo < 60) el.textContent = `há ${minAgo} min`;
+    else if (minAgo < 60 * 24) el.textContent = `há ${Math.floor(minAgo / 60)} h`;
+    else el.textContent = `há ${Math.floor(minAgo / (60 * 24))} dias`;
+}
+// Atualiza o indicador a cada minuto (se a tab de Perfil estiver visível).
+setInterval(() => _updateBackupIndicator(), 60000);
+
+window.openRestoreBackupDialog = openRestoreBackupDialog;
+window.exportProgressJSON = exportProgressJSON;
+window.openImportProgressJSON = openImportProgressJSON;
