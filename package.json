@@ -1,0 +1,15 @@
+{
+  "name": "escolaplay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EscolaPlay — app educativa (build pipeline)",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:report": "node build.mjs --report"
+  },
+  "devDependencies": {
+    "terser": "^5.36.0",
+    "csso": "^5.0.5",
+    "html-minifier-terser": "^7.2.0"
+  }
+}
