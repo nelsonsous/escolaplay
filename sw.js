@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v438';
+const CACHE_NAME = 'escolaplay-v439';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
@@ -10,43 +10,10 @@ const ASSETS = [
     '/escolaplay/gsap.min.js',
     '/escolaplay/mascot.js',
     '/escolaplay/manifest.json',
-    // Bancos de exercícios (síncronos desde v148)
-    '/escolaplay/content_2_extra.js',
-    '/escolaplay/content_2_p_extra2.js',
-    '/escolaplay/content_2_p_extra3.js',
-    '/escolaplay/content_2_m_extra2.js',
-    '/escolaplay/content_2_m_extra3.js',
-    '/escolaplay/content_2_m_extra4.js',
-    '/escolaplay/content_2_e_extra2.js',
-    '/escolaplay/content_2_e_extra3.js',
-    '/escolaplay/content_2_e_extra4.js',
-    '/escolaplay/content_2_i_extra2.js',
-    '/escolaplay/content_2_i_extra3.js',
-    '/escolaplay/content_2_orientadores_p3.js',
-    '/escolaplay/content_3_p_extra.js',
-    '/escolaplay/content_3_m_extra.js',
-    '/escolaplay/content_3_e_extra.js',
-    '/escolaplay/content_3_i_extra.js',
-    '/escolaplay/content_5_p_extra.js',
-    '/escolaplay/content_5_m_extra.js',
-    '/escolaplay/content_5_i_extra.js',
-    '/escolaplay/content_5_i_orient.js',
-    '/escolaplay/content_5_c_extra.js',
-    '/escolaplay/content_5_h_extra.js',
-    '/escolaplay/content_6_p_extra.js',
-    '/escolaplay/content_6_p_extra2.js',
-    '/escolaplay/content_6_m_extra.js',
-    '/escolaplay/content_6_m_extra2.js',
-    '/escolaplay/content_6_m_extra3.js',
-    '/escolaplay/content_6_m_extra4.js',
-    '/escolaplay/content_6_i_extra.js',
-    '/escolaplay/content_6_c_extra.js',
-    '/escolaplay/content_6_c_extra2.js',
-    '/escolaplay/content_6_c_extra3.js',
-    '/escolaplay/content_6_c_extra4.js',
-    '/escolaplay/content_6_h_extra.js',
-    '/escolaplay/content_6_h_extra2.js',
-    '/escolaplay/content_11_q_extra.js',
+    // NOTA (v439): os ficheiros content_<ano>_*.js já não estão no precache.
+    // São lazy-loaded por _loadScript() quando o utilizador ativa um perfil
+    // desse ano — fresh load fica ~2 MB mais leve. O fetch handler ainda os
+    // faz cache on-demand, por isso ficam offline depois da 1ª visita ao ano.
     '/escolaplay/content_secret.js',
     '/escolaplay/content_course_english.js',
     '/escolaplay/content_course_ge.js',
