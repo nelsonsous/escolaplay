@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v437';
+const APP_VERSION = 'v438';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -776,6 +776,37 @@ function _sameUtterance(a, b) {
         .replace(/[.,!?;:]+/g, '')
         .replace(/\s+/g, ' ').trim();
     return f(a) === f(b);
+}
+// Extrai JSON de uma resposta de LLM. Mais robusto que o regex greedy
+// /\{[\s\S]*\}/ que partia quando o modelo metia chavetas no pre\u00e2mbulo
+// (ex: "I think {x} works. {...real JSON...}"). Tenta:
+//   1. parse direto (texto inteiro j\u00e1 \u00e9 JSON)
+//   2. strip markdown fences ```json ... ```
+//   3. balanced match a partir de cada '{', respeitando strings e escapes
+// Devolve o objeto parsed ou null.
+function _extractJSON(text) {
+    if (!text || typeof text !== 'string') return null;
+    let t = text.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    try { return JSON.parse(t); } catch {}
+    for (let i = 0; i < t.length; i++) {
+        if (t[i] !== '{') continue;
+        let depth = 0, inStr = false, esc = false;
+        for (let j = i; j < t.length; j++) {
+            const c = t[j];
+            if (esc) { esc = false; continue; }
+            if (c === '\\') { esc = true; continue; }
+            if (c === '"') { inStr = !inStr; continue; }
+            if (inStr) continue;
+            if (c === '{') depth++;
+            else if (c === '}') {
+                depth--;
+                if (depth === 0) {
+                    try { return JSON.parse(t.slice(i, j + 1)); } catch { break; }
+                }
+            }
+        }
+    }
+    return null;
 }
 function activeTopicsFor(subjectKey) {
     const topics = CURRICULUM[subjectKey] || [];
@@ -5184,9 +5215,7 @@ Give a SHORT debrief in EUROPEAN PORTUGUESE (Portugal, never Brazilian). Return 
 {"achieved":"sim|parcial|não","summary":"<=30 words, how the meeting went (PT-PT)","good":"<=18 words, one thing the PM did well (PT-PT)","improve":["2-3 concrete English/phrasing tips, each <=10 words, PT-PT"]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 420, true);
-        let d = {};
-        const m = text && text.match(/\{[\s\S]*\}/);
-        if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        let d = _extractJSON(text) || {};
         if (tutorState) { _tutorRenderMic(); _tutorShowDebrief(sc, d); }
     } catch (e) {
         console.warn('[tutor] debrief failed', e);
@@ -5489,6 +5518,10 @@ function _tutorSubmitText() {
     if (!val) return;
     inp.value = '';
     tutorState._draft = '';
+    // Em modo pronúncia, qualquer submit (até escrito) deve ser avaliado contra
+    // a frase modelo. Sem isto, o estado _pron ficava pendurado e o utilizador
+    // entrava em conversa normal por engano.
+    if (tutorState._pron) { _tutorEvalPron(val); return; }
     if (tutorState._ask) _tutorAnswerDoubt(val);
     else _tutorHandleInput(val);
 }
@@ -5516,9 +5549,7 @@ Return STRICT JSON only:
     try {
         const { text } = await callClaudeAPI(prompt, 900, true);
         if (!tutorState) return;
-        const m = text.match(/\{[\s\S]*\}/);
-        let d = {};
-        if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        const d = _extractJSON(text) || {};
         _tutorRenderDoubtAnswer(d, fromPractice);
     } catch (e) {
         console.warn('[tutor] doubt failed', e);
@@ -5530,6 +5561,15 @@ function _tutorRenderDoubtAnswer(d, fromPractice) {
     if (!chat || !tutorState) return;
     tutorState._ask = null;
     if (d.title) tutorState._lastTopic = d.title;
+    // Se o LLM devolveu lixo (JSON vazio), evita cartão fantasma com só o cabeçalho.
+    const hasContent = d.title || d.explanation || (Array.isArray(d.points) && d.points.length) || (Array.isArray(d.examples) && d.examples.length);
+    if (!hasContent) {
+        _tutorAddTutor(_tutT(
+          "I couldn't quite answer that. Try rephrasing the question?",
+          'Não consegui responder a isso agora. Reformulas a pergunta?'
+        ), '', '', true);
+        return;
+    }
     const resumeBtn = (fromPractice && tutorState._pq && tutorState._pq.queue.length)
         ? `<button class="tutor-lbtn prac full" onclick="_tutorResumePractice()"><i class="fas fa-arrow-right"></i> Continuar prática</button>` : '';
     chat.insertAdjacentHTML('beforeend', `
@@ -5741,9 +5781,7 @@ Include ${cc.pts} "points", ${cc.ex} "examples", ${cc.pit} "pitfalls" — qualit
     try {
         const { text } = await callClaudeAPI(prompt, 2400, true);
         if (!tutorState) return false;
-        const m = text.match(/\{[\s\S]*\}/);
-        let d = {};
-        if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        const d = _extractJSON(text) || {};
         if (!d || !d.overview) {
             if (opts.prePractice) { _tutorRunPractice(topic, opts.practiceArg || ''); return true; }
             _tutorAddTutor('Não consegui preparar isso agora. Tenta outra vez?', '', '', true);
@@ -6311,7 +6349,26 @@ function _tutorStartWebSpeech() {
         if (inp) { inp.value = live; tutorState._draft = live; _tutorGrow(inp); }
         _tutorLiveSetText(live || 'A ouvir…');
     };
-    r.onerror = () => {};
+    // Feedback honesto quando o STT falha (sem permissão, sem rede, bloqueado).
+    // Antes era silencioso e o utilizador ficava sem saber porque é que nada
+    // acontecia. Em Safari iOS, onend nem sempre dispara após onerror.
+    r.onerror = (ev) => {
+        try {
+            const err = (ev && ev.error) || 'unknown';
+            const msg = err === 'not-allowed' || err === 'service-not-allowed'
+                ? _tutT('Microphone access denied. Allow it in browser settings.', 'Permissão de microfone negada. Ativa nas definições do browser.')
+                : err === 'no-speech'
+                  ? _tutT('I did not hear anything.', 'Não ouvi nada — tenta de novo.')
+                  : err === 'network'
+                    ? _tutT('Network problem with speech recognition.', 'Problema de rede no reconhecimento de fala.')
+                    : _tutT('Speech recognition failed.', 'Falha no reconhecimento de fala.');
+            if (err !== 'no-speech' && err !== 'aborted') showToast(msg, 'error');
+        } catch {}
+        // Garante cleanup mesmo se onend não disparar (iOS Safari)
+        if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
+        if (liveEl) liveEl.style.display = 'none';
+        _tutorRecog = null;
+    };
     r.onend = () => {
         _tutorRecog = null;
         if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
@@ -6398,15 +6455,25 @@ Return STRICT JSON:
     try {
         const { text } = await callClaudeAPI(prompt, 1100, true);
         if (!tutorState) return;
-        const m = text.match(/\{[\s\S]*\}/);
-        let corrected = '', errorType = '', explanation = '', tip = '', reply = '', lessonTitle = '', points = [], examples = [], fluencyHelp = {};
-        if (m) {
-            try { const p = JSON.parse(m[0]); corrected = (p.corrected || '').trim(); errorType = (p.errorType || '').trim(); explanation = (p.explanation || '').trim(); tip = (p.tip || '').trim(); reply = (p.reply || '').trim(); lessonTitle = (p.lessonTitle || '').trim(); points = Array.isArray(p.points) ? p.points.slice(0, 4) : []; examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : []; fluencyHelp = (p.fluencyHelp && typeof p.fluencyHelp === 'object' && !Array.isArray(p.fluencyHelp)) ? p.fluencyHelp : {}; } catch {}
-        }
+        const p = _extractJSON(text) || {};
+        const corrected0 = (p.corrected || '').trim();
+        const errorType = (p.errorType || '').trim();
+        const explanation = (p.explanation || '').trim();
+        const tip = (p.tip || '').trim();
+        let reply = (p.reply || '').trim();
+        const lessonTitle = (p.lessonTitle || '').trim();
+        const points = Array.isArray(p.points) ? p.points.slice(0, 4) : [];
+        const examples = Array.isArray(p.examples) ? p.examples.slice(0, 3) : [];
+        const fluencyHelp = (p.fluencyHelp && typeof p.fluencyHelp === 'object' && !Array.isArray(p.fluencyHelp)) ? p.fluencyHelp : {};
+        // Bug histórico: pronunciationTips era pedido no prompt e renderizado em
+        // _tutorFluidCorrection, mas NUNCA extraído nem propagado — cartão
+        // de pronúncia nunca aparecia. Agora é extraído e enviado adiante.
+        const pronunciationTips = Array.isArray(p.pronunciationTips) ? p.pronunciationTips.slice(0, 3) : [];
         if (!reply) reply = _subjectMode ? 'Entendido. Conta-me mais.' : "Got it. Tell me more?";
+        let corrected = corrected0;
         if (corrected && _sameUtterance(corrected, userText)) corrected = '';
         if (corrected) {
-            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples };
+            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples, pronunciationTips };
             _tutorFluidCorrection(tutorState._pending);
         } else {
             _tutorAddTutor(reply, '', tip, true);
@@ -6811,9 +6878,8 @@ Return STRICT JSON only:
 {"action":"regress"|"reinforce","prereq":"simpler prerequisite topic in ENGLISH grammar terms, or empty string if reinforce","level":"CEFR (A1|A2|B1|B2|C1) of the prereq, or of this topic if reinforce","reason":"ONE short EUROPEAN PORTUGUESE sentence, grammar terms in English"}`;
     try {
         const { text } = await callClaudeAPI(prompt, 400, true);
-        const m = text.match(/\{[\s\S]*\}/);
-        if (!m) return null;
-        const d = JSON.parse(m[0]);
+        const d = _extractJSON(text);
+        if (!d) return null;
         if (d && (d.action === 'regress' || d.action === 'reinforce')) {
             if (d.level && state.max.tutorWeak && state.max.tutorWeak[topic]) { state.max.tutorWeak[topic].level = String(d.level).trim(); saveState(); }
             return d;
@@ -6908,9 +6974,7 @@ Return STRICT JSON only:
 {"lessonTitle":"short rule title in English","said":"the wrong English sentence/phrase they effectively chose","correct":"the correct English sentence/phrase","explanation":"why it's wrong + the rule, in EUROPEAN PORTUGUESE, 40-70 words","points":[{"form":"English form/word","use":"PT-PT quando usar"},{"form":"English form","use":"PT-PT quando usar"}],"examples":[{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"},{"wrong":"English wrong","right":"English correct","note":"PT-PT max 8 words"}],"exercises":[{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"${item.topic || ''}"},{"q":"English question","options":["English","English","English"],"answer":0,"exp":"English 1 line","expPt":"nota PT-PT curta","topic":"${item.topic || ''}"}]}`;
     try {
         const { text } = await callClaudeAPI(prompt, 1000, true);
-        const m = text.match(/\{[\s\S]*\}/);
-        if (!m) return null;
-        return JSON.parse(m[0]);
+        return _extractJSON(text);
     } catch (e) { console.warn('[tutor] callPracticeMistake', e); return null; }
 }
 function _tutorRenderMistakeLesson(d) {
@@ -7640,16 +7704,13 @@ Return STRICT JSON:
 {"status":"correct|close|wrong","corrected":"<one polished English version the student should learn>","tip":"<one short coaching note in EUROPEAN PORTUGUESE, max 18 words>"}`;
     try {
         const { text } = await callClaudeAPI(prompt, 320);
-        const m = text.match(/\{[\s\S]*\}/);
-        if (m) {
-            const parsed = JSON.parse(m[0]);
-            if (parsed && ['correct', 'close', 'wrong'].includes(parsed.status)) {
-                return {
-                    status: parsed.status,
-                    corrected: String(parsed.corrected || exercise.ans[0]).slice(0, 400),
-                    tip: String(parsed.tip || '').slice(0, 200)
-                };
-            }
+        const parsed = _extractJSON(text);
+        if (parsed && ['correct', 'close', 'wrong'].includes(parsed.status)) {
+            return {
+                status: parsed.status,
+                corrected: String(parsed.corrected || exercise.ans[0]).slice(0, 400),
+                tip: String(parsed.tip || '').slice(0, 200)
+            };
         }
     } catch (e) { console.warn('[speak-ai] failed:', e); }
     if (localRatio >= 0.7) return { status: 'correct', corrected: '', tip: '' };
@@ -7748,18 +7809,13 @@ Responde APENAS com JSON, um destes formatos:
 {"status":"wrong"}`;
     try {
         const { text } = await callClaudeAPI(prompt, 220);
-        const m = text.match(/\{[\s\S]*\}/);
+        const parsed = _extractJSON(text);
         let result = { status: 'wrong' };
-        if (m) {
-            try {
-                const parsed = JSON.parse(m[0]);
-                if (parsed && ['correct', 'partial', 'wrong'].includes(parsed.status)) {
-                    result = { status: parsed.status };
-                    if (parsed.status === 'partial' && typeof parsed.missing === 'string') {
-                        result.missing = parsed.missing.slice(0, 200);
-                    }
-                }
-            } catch (_) {}
+        if (parsed && ['correct', 'partial', 'wrong'].includes(parsed.status)) {
+            result = { status: parsed.status };
+            if (parsed.status === 'partial' && typeof parsed.missing === 'string') {
+                result.missing = parsed.missing.slice(0, 200);
+            }
         }
         sessionStorage.setItem(cacheKey, JSON.stringify(result));
         return result;
@@ -8580,8 +8636,7 @@ async function submitReasonExplain() {
     const prompt = _buildReasonEvalPrompt(e, said, yr);
     try {
         const { text } = await callClaudeAPI(prompt, 700, true);
-        const m = text.match(/\{[\s\S]*\}/);
-        let d = {}; if (m) { try { d = JSON.parse(m[0]); } catch {} }
+        const d = _extractJSON(text) || {};
         wrap.innerHTML = _renderReasonEval(d, e);
     } catch (err) {
         wrap.innerHTML = `<div class="reason-box reason-result"><div class="reason-fb">Não consegui avaliar agora. Tenta outra vez.</div>${e.exp ? `<div class="reason-model"><b>📝 Explicação-modelo</b><div>${escapeHtml(e.exp).replace(/\n/g, '<br>')}</div></div>` : ''}</div>`;
