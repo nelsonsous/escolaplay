@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v439';
+const APP_VERSION = 'v440';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7898,13 +7898,14 @@ async function submitAnswer() {
             if (!isCorrect && hasAIKey()) {
                 const btn = document.getElementById('submit-btn');
                 if (btn) { btn.disabled = true; btn.textContent = 'A verificar…'; }
-                const r = await aiValidateAnswer(e, val);
-                if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
+                let r;
+                try { r = await aiValidateAnswer(e, val); }
+                finally { if (btn) { btn.disabled = false; btn.textContent = 'Responder'; } }
                 // Se a sessão mudou durante o await (ex: utilizador cancelou e
                 // entrou noutra), descartar o resultado para não corromper a nova.
                 if (currentSession !== s) return;
-                isCorrect = r.status === 'correct';
-                if (r.status === 'partial') {
+                isCorrect = r && r.status === 'correct';
+                if (r && r.status === 'partial') {
                     s._partial = { missing: r.missing || '' };
                 }
             }
@@ -7913,9 +7914,11 @@ async function submitAnswer() {
             if (!tr) { showToast('Toca no microfone e diz a frase'); return; }
             const btn = document.getElementById('submit-btn');
             if (btn) { btn.disabled = true; btn.textContent = 'A avaliar…'; }
-            const r = await aiValidateSpeech(e, tr);
-            if (btn) { btn.disabled = false; btn.textContent = 'Responder'; }
+            let r;
+            try { r = await aiValidateSpeech(e, tr); }
+            finally { if (btn) { btn.disabled = false; btn.textContent = 'Responder'; } }
             if (currentSession !== s) return;
+            r = r || { status: 'wrong' };
             isCorrect = r.status === 'correct';
             s._speakResult = { transcript: tr, status: r.status, corrected: r.corrected, tip: r.tip };
         } else if (e.type === 'order') {
@@ -9323,7 +9326,18 @@ ${url}
 
 function _fbReady() { return !!(window.__fb && window.__fb.db); }
 function _onFbReady() {
-    return _fbReady() ? Promise.resolve() : new Promise(res => window.addEventListener('fbready', () => res(), { once: true }));
+    if (_fbReady()) return Promise.resolve();
+    // Timeout de 10s: sem isto, se o Firebase não carregar (rede/adblocker),
+    // todos os fbCreateDuel/fbSubmitDuelResult ficavam pendurados para sempre
+    // e o utilizador via "A criar duelo…" eternamente, sem feedback.
+    return new Promise((resolve, reject) => {
+        const onReady = () => { clearTimeout(to); resolve(); };
+        const to = setTimeout(() => {
+            try { window.removeEventListener('fbready', onReady); } catch {}
+            reject(new Error('Firebase não disponível (verifica ligação ou bloqueador).'));
+        }, 10000);
+        window.addEventListener('fbready', onReady, { once: true });
+    });
 }
 function _genDuelId() {
     // ID curto memoravel — 8 chars alfanum (sem 0/O/I/1 para evitar confusao)
@@ -9511,6 +9525,11 @@ function _attachDuelListener(entry) {
             console.warn('[duel] listener err for', entry.id, err);
         });
         _duelListeners[entry.id] = unsub;
+    }).catch(err => {
+        // Com o novo timeout em _onFbReady, este .catch evita o
+        // "Uncaught promise rejection" na consola quando o Firebase
+        // não carrega (offline, bloqueador, sem chave fb).
+        console.warn('[duel] listener attach skipped:', err.message);
     });
 }
 
@@ -9812,19 +9831,28 @@ async function _finishFirestoreDuel() {
     const s = currentSession;
     if (!s || !s.fbDuelId) return;
     _hideDuelTimerBar();
-    const usedSec = Math.min(s.fbDuelData.timeLimit, Math.max(1, Math.floor((Date.now() - s.startedAt) / 1000)));
-    const myScore = _duelScore(s.correct, usedSec, s.fbDuelData.timeLimit);
-    const p = activeProfile();
-    const myName = p?.name || 'Anónimo';
-    const result = { correct: s.correct, time: usedSec, score: myScore, completedAt: Date.now() };
-    try { await fbSubmitDuelResult(s.fbDuelId, myName, result); }
-    catch (err) { console.warn('[duel] submit failed', err); showToast('Resultado guardado localmente — erro de rede.'); }
-    _markDuelPlayed(s.fbDuelId, result);
-    // Re-fetch para mostrar comparativo atualizado
-    let fresh = null;
-    try { fresh = await fbGetDuel(s.fbDuelId); } catch {}
-    _showFirestoreDuelSummary(fresh || s.fbDuelData, result);
-    currentSession = null;
+    try {
+        const usedSec = Math.min(s.fbDuelData.timeLimit, Math.max(1, Math.floor((Date.now() - s.startedAt) / 1000)));
+        const myScore = _duelScore(s.correct, usedSec, s.fbDuelData.timeLimit);
+        const p = activeProfile();
+        const myName = p?.name || 'Anónimo';
+        const result = { correct: s.correct, time: usedSec, score: myScore, completedAt: Date.now() };
+        let submitOK = false;
+        try { await fbSubmitDuelResult(s.fbDuelId, myName, result); submitOK = true; }
+        catch (err) { console.warn('[duel] submit failed', err); showToast('Resultado guardado localmente — erro de rede.', 'warn'); }
+        // Só marca localmente como jogado se o submit foi para o servidor — senão
+        // o utilizador podia repetir mais tarde online. (Bug: antes marcava
+        // sempre, deixando o duelo "morto" no servidor sem resposta dele.)
+        if (submitOK) _markDuelPlayed(s.fbDuelId, result);
+        let fresh = null;
+        try { fresh = await fbGetDuel(s.fbDuelId); } catch {}
+        _showFirestoreDuelSummary(fresh || s.fbDuelData, result);
+    } finally {
+        // Garantir que currentSession é limpo MESMO se _showFirestoreDuelSummary
+        // throw. Sem isto, o user ficava com a sessão presa e não conseguia
+        // iniciar novos exercícios.
+        currentSession = null;
+    }
 }
 
 function _showFirestoreDuelSummary(data, myResult) {
