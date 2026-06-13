@@ -5226,7 +5226,10 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     display: flex;
     align-items: stretch;
     justify-content: center;
-    padding: 12px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
     animation: teacher-fade-in .25s var(--spring-soft);
 }
 @keyframes teacher-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -5686,7 +5689,10 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     display: flex;
     align-items: stretch;
     justify-content: center;
-    padding: 12px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
     animation: teacher-fade-in .25s var(--spring-soft);
 }
 .holiday-box {

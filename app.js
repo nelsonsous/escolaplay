@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v466';
+const APP_VERSION = 'v467';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14332,6 +14332,7 @@ function openReadingTeacher(exId) {
                 <button class="teacher-btn teacher-btn-listen" id="teacher-listen-btn" onclick="_teacherListen()">🎓 Ouve o professor</button>
                 <button class="teacher-btn teacher-btn-read" id="teacher-read-btn" onclick="_teacherStartRead()">🎤 Agora lê tu</button>
                 <button class="teacher-btn teacher-btn-stop" id="teacher-stop-btn" onclick="_teacherStop()" style="display:none">⏸ Parar</button>
+                <button class="teacher-btn teacher-btn-skip" id="teacher-skip-btn" onclick="_teacherSkipWord()" style="display:none" title="Salta a palavra atual se o microfone não a captou">⏭ Saltar palavra</button>
             </div>
             <div class="teacher-feedback" id="teacher-feedback" style="display:none"></div>
         </div>
@@ -14372,14 +14373,56 @@ function _teacherStop() {
     _teacher.utterance = null;
     _teacher.mode = null;
     const stopBtn = document.getElementById('teacher-stop-btn');
+    const skipBtn = document.getElementById('teacher-skip-btn');
     const listenBtn = document.getElementById('teacher-listen-btn');
     const readBtn = document.getElementById('teacher-read-btn');
     if (stopBtn) stopBtn.style.display = 'none';
+    if (skipBtn) skipBtn.style.display = 'none';
     if (listenBtn) listenBtn.style.display = '';
     if (readBtn) readBtn.style.display = '';
     const status = document.getElementById('teacher-status');
     if (status) status.textContent = '';
 }
+
+// Salta a palavra atual: avança position +1, marca como good (assume que a
+// criança a leu mas o ASR não captou). Útil quando o ASR fica preso.
+function _teacherSkipWord() {
+    if (_teacher.mode !== 'read') return;
+    const p = _teacher.position;
+    if (p >= _teacher.words.length) return;
+    const sp = _teacher.spans[p];
+    if (sp) {
+        sp.classList.remove('t-current', 't-bad');
+        sp.classList.add('t-good');
+        if (!_teacher.wordTimes[p]) _teacher.wordTimes[p] = Date.now();
+    }
+    _teacher.position = p + 1;
+    _teacher.restartCount = 0;
+    // marca próxima como current
+    if (_teacher.spans[p + 1]) {
+        _teacher.spans.forEach(s => s.classList.remove('t-current'));
+        _teacher.spans[p + 1].classList.add('t-current');
+    }
+    // se chegou ao fim do parágrafo, dispara a pergunta
+    if (_teacher.paragraphChecks.length > _teacher.pCheckIdx) {
+        const check = _teacher.paragraphChecks[_teacher.pCheckIdx];
+        const afterPara = (check && typeof check.afterParagraph === 'number')
+            ? check.afterParagraph : _teacher.pCheckIdx;
+        const targetEnd = _teacher.paragraphEnds[afterPara];
+        if (typeof targetEnd === 'number' && _teacher.position > targetEnd && check) {
+            _teacher.pCheckIdx++;
+            try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
+            _teacher.mode = 'paused-check';
+            _teacherShowParagraphCheck(check);
+            return;
+        }
+    }
+    if (_teacher.position >= _teacher.words.length) {
+        try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
+        _teacherFinishRead();
+    }
+}
+window._teacherSkipWord = _teacherSkipWord;
 window._teacherStop = _teacherStop;
 
 // =========== Modo OUVIR (TTS via ttsSpeak — Edge Raquel quando disponível) ===========
@@ -14472,7 +14515,10 @@ function _teacherStartRead(resume) {
     r.onstart = () => {
         const status = document.getElementById('teacher-status');
         if (status) status.innerHTML = '🎤 <strong>O microfone está a ouvir-te.</strong> Lê o texto em voz alta, devagar!';
-        document.getElementById('teacher-stop-btn').style.display = '';
+        const stopBtn = document.getElementById('teacher-stop-btn');
+        const skipBtn = document.getElementById('teacher-skip-btn');
+        if (stopBtn) stopBtn.style.display = '';
+        if (skipBtn) skipBtn.style.display = '';
     };
     r.onresult = (event) => {
         // Concatena todos os resultados (interim + final)
@@ -14497,11 +14543,12 @@ function _teacherStartRead(resume) {
     };
     r.onend = () => {
         // Web Speech Recognition em iOS Safari pode parar sozinho após
-        // silêncio. Se ainda estamos em modo 'read' e ainda há palavras
-        // para ler, faz auto-restart (até 3 vezes para evitar loops).
+        // silêncio. Auto-restart até 8 vezes seguidas para tolerar pausas
+        // longas, mas reseta o contador sempre que uma palavra nova foi
+        // reconhecida (mostra que ainda há fluxo).
         if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
             _teacher.restartCount = (_teacher.restartCount || 0) + 1;
-            if (_teacher.restartCount <= 3) {
+            if (_teacher.restartCount <= 8) {
                 setTimeout(() => {
                     if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
                         _teacher.recognition = null;
@@ -14546,6 +14593,7 @@ function _teacherMatchHeard(heard) {
             _teacher.spans[p].classList.remove('t-bad', 't-current');
             _teacher.spans[p].classList.add('t-good');
             if (!_teacher.wordTimes[p]) _teacher.wordTimes[p] = Date.now();
+            _teacher.restartCount = 0; // há fluxo — reseta o contador
             p++; h++;
             if (_teacher.spans[p]) {
                 _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
