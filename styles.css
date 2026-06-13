@@ -5255,13 +5255,17 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .teacher-close {
     background: rgba(15, 23, 42, 0.08);
     border: none;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    font-size: 1rem;
+    font-size: 1.05rem;
     cursor: pointer;
     color: #475569;
     font-weight: var(--fw-bold);
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
+    flex-shrink: 0;
 }
 .teacher-close:active { transform: scale(0.92); }
 .teacher-subtitle {

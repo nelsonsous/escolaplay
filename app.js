@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v459';
+const APP_VERSION = 'v460';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14300,11 +14300,15 @@ function openReadingTeacher(exId) {
     if (_teacher.overlay) _teacher.overlay.remove();
     const overlay = document.createElement('div');
     overlay.className = 'teacher-overlay';
+    overlay.onclick = (ev) => {
+        // Clicar no fundo escuro (não na caixa) fecha o overlay
+        if (ev.target === overlay) closeReadingTeacher();
+    };
     overlay.innerHTML = `
-        <div class="teacher-box">
+        <div class="teacher-box" onclick="event.stopPropagation()">
             <div class="teacher-header">
                 <div class="teacher-title">🎓 Professor de Leitura</div>
-                <button class="teacher-close" onclick="closeReadingTeacher()" aria-label="Fechar">✕</button>
+                <button class="teacher-close" onclick="closeReadingTeacher(); event.stopPropagation();" aria-label="Fechar">✕</button>
             </div>
             <div class="teacher-subtitle">${escapeHtml(title)}</div>
             ${tip ? `<div class="teacher-tip">💡 ${escapeHtml(tip)}</div>` : ''}
@@ -14905,11 +14909,12 @@ function openHolidayPlan(targetYear) {
     if (oldOverlay) oldOverlay.remove();
     const overlay = document.createElement('div');
     overlay.className = 'holiday-overlay';
+    overlay.onclick = (ev) => { if (ev.target === overlay) closeHolidayPlan(); };
     overlay.innerHTML = `
-        <div class="holiday-box">
+        <div class="holiday-box" onclick="event.stopPropagation()">
             <div class="holiday-header">
                 <div class="holiday-title">${cfg.title}</div>
-                <button class="holiday-close" onclick="closeHolidayPlan()" aria-label="Fechar">✕</button>
+                <button class="holiday-close" onclick="closeHolidayPlan(); event.stopPropagation();" aria-label="Fechar">✕</button>
             </div>
             <div class="holiday-subtitle">${cfg.subtitle}</div>
             <div class="holiday-progress-bar"><div class="holiday-progress-fill" style="width:${(doneCount/HOLIDAY_DAYS*100).toFixed(0)}%"></div></div>
