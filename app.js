@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v453';
+const APP_VERSION = 'v454';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14187,7 +14187,10 @@ const _teacher = {
     words: [],          // tokens (palavras normalizadas para comparação)
     rawTokens: [],      // tokens originais (com pontuação)
     spans: [],          // referências aos <span class="t-word">
-    position: 0,        // próxima palavra a ler (índice em words)
+    position: 0,        // próxima palavra esperada a aparecer
+    heardCursor: 0,     // cursor no array de palavras já reconhecidas (não voltar atrás)
+    wordTimes: [],      // timestamp em ms quando cada palavra foi reconhecida
+    punctPositions: [], // [{ afterWord: idx, kind: ',|.|?|!' }] — para avaliar pausa
     recognition: null,
     utterance: null,
     startTime: 0,
@@ -14231,11 +14234,22 @@ function openReadingTeacher(exId) {
     _teacher.mode = null;
 
     // Build HTML: cada palavra é um span; pontuação fica em spans diferentes
+    _teacher.punctPositions = [];
+    _teacher.wordTimes = [];
     let html = '';
     let wordIdx = 0;
     parts.forEach(p => {
         if (/^\s+$/.test(p)) { html += ' '; return; }
-        if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) { html += `<span class="t-punct">${escapeHtml(p)}</span>`; return; }
+        if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) {
+            // Regista pontuação importante (vírgula, ponto, ?, !) e a sua posição
+            // — afterWord = índice da palavra ANTES desta pontuação.
+            const kind = p[0];
+            if ([',', '.', '?', '!', ';', ':'].includes(kind) && wordIdx > 0) {
+                _teacher.punctPositions.push({ afterWord: wordIdx - 1, kind });
+            }
+            html += `<span class="t-punct">${escapeHtml(p)}</span>`;
+            return;
+        }
         const norm = _teacherNormalize(p);
         if (!norm) { html += escapeHtml(p); return; }
         _teacher.words.push(norm);
@@ -14381,6 +14395,8 @@ function _teacherStartRead() {
     _teacherStop();
     _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
     _teacher.position = 0;
+    _teacher.heardCursor = 0;
+    _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
     _teacher.mode = 'read';
     _teacher.startTime = Date.now();
     if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
@@ -14431,43 +14447,52 @@ function _teacherStartRead() {
 window._teacherStartRead = _teacherStartRead;
 
 // Avalia palavras ouvidas vs esperadas.
-// Algoritmo: avança a posição enquanto encontra match. Tolerância: aceita
-// 1 palavra à frente (para o caso de saltar). Palavras "saltadas" ficam
-// marcadas como erradas.
+// Usa cursores PERSISTENTES (heardCursor + position) entre chamadas — assim
+// não voltamos a re-processar palavras já reconhecidas. Tolerância: 1 skip.
 function _teacherMatchHeard(heard) {
-    let h = 0;
-    for (let p = _teacher.position; p < _teacher.words.length && h < heard.length;) {
+    const matches = (expected, got) => {
+        if (!expected || !got) return false;
+        if (expected === got) return true;
+        // tolerância: palavra parcial (ASR pode partir compostos)
+        if (expected.length >= 3 && got.length >= 3) {
+            if (expected.startsWith(got) || got.startsWith(expected)) return true;
+        }
+        return false;
+    };
+    let h = _teacher.heardCursor;
+    let p = _teacher.position;
+    while (p < _teacher.words.length && h < heard.length) {
         const expected = _teacher.words[p];
         const got = heard[h];
         if (!got) { h++; continue; }
-        if (expected === got || (expected && got && (expected.startsWith(got) || got.startsWith(expected)))) {
+        if (matches(expected, got)) {
             _teacher.spans[p].classList.remove('t-bad', 't-current');
             _teacher.spans[p].classList.add('t-good');
-            p++;
-            h++;
-            _teacher.position = p;
-            // marca próxima como current
-            if (_teacher.spans[p]) _teacher.spans[p].classList.add('t-current');
-        } else {
-            // tenta saltar 1 palavra esperada (pode ter pronunciado mal)
-            if (p + 1 < _teacher.words.length) {
-                const nextExp = _teacher.words[p + 1];
-                if (nextExp === got || (nextExp && got && (nextExp.startsWith(got) || got.startsWith(nextExp)))) {
-                    _teacher.spans[p].classList.remove('t-current');
-                    _teacher.spans[p].classList.add('t-bad');
-                    _teacher.spans[p + 1].classList.add('t-good');
-                    p += 2;
-                    h++;
-                    _teacher.position = p;
-                    if (_teacher.spans[p]) _teacher.spans[p].classList.add('t-current');
-                    continue;
-                }
+            if (!_teacher.wordTimes[p]) _teacher.wordTimes[p] = Date.now();
+            p++; h++;
+            if (_teacher.spans[p]) {
+                // limpa qualquer current existente (apenas 1 current de cada vez)
+                _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
+                _teacher.spans[p].classList.add('t-current');
             }
-            // não consegui match — saltar ouvido
+        } else if (p + 1 < _teacher.words.length && matches(_teacher.words[p + 1], got)) {
+            // saltou 1 palavra (pronunciou mal a primeira)
+            _teacher.spans[p].classList.remove('t-current');
+            _teacher.spans[p].classList.add('t-bad');
+            _teacher.spans[p + 1].classList.add('t-good');
+            if (!_teacher.wordTimes[p + 1]) _teacher.wordTimes[p + 1] = Date.now();
+            p += 2; h++;
+            if (_teacher.spans[p]) {
+                _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
+                _teacher.spans[p].classList.add('t-current');
+            }
+        } else {
+            // talvez seja palavra de "enchimento" (hesitação, repetição) — skipar
             h++;
         }
     }
-    // Se chegou ao fim
+    _teacher.position = p;
+    _teacher.heardCursor = h;
     if (_teacher.position >= _teacher.words.length) {
         try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
     }
@@ -14477,20 +14502,46 @@ function _teacherFinishRead() {
     const duration = (Date.now() - _teacher.startTime) / 1000;
     const total = _teacher.words.length;
     const correct = _teacher.spans.filter(sp => sp.classList.contains('t-good')).length;
-    const bad = _teacher.spans.filter(sp => sp.classList.contains('t-bad')).length;
-    const missed = total - correct - bad;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     const wpm = duration > 0 ? Math.round((correct / duration) * 60) : 0;
 
-    // Pontuação: heurística simples baseada em duração esperada
-    // Esperado: ~100 wpm para um leitor de 3.º ano. Se foi >130 wpm, leu rápido demais.
+    // Avaliação de PONTUAÇÃO via timestamps das palavras reconhecidas:
+    // Se há vírgula/ponto/etc. entre palavra[i] e palavra[i+1], compara
+    // (wordTimes[i+1] − wordTimes[i]) com um threshold:
+    //   ponto/exclamação/interrogação → ≥ 380ms = respeitada
+    //   vírgula/dois pontos/ponto-e-vírgula → ≥ 220ms = respeitada
+    let punctTotal = 0, punctRespected = 0;
+    const punctDetail = { '.': [0, 0], '?': [0, 0], '!': [0, 0], ',': [0, 0], ';': [0, 0], ':': [0, 0] };
+    _teacher.punctPositions.forEach(({ afterWord, kind }) => {
+        const t1 = _teacher.wordTimes[afterWord];
+        const t2 = _teacher.wordTimes[afterWord + 1];
+        if (!t1 || !t2) return;
+        punctTotal++;
+        const pause = t2 - t1;
+        const threshold = ('.?!'.includes(kind)) ? 380 : 220;
+        if (pause >= threshold) {
+            punctRespected++;
+            if (punctDetail[kind]) { punctDetail[kind][0]++; punctDetail[kind][1]++; }
+        } else {
+            if (punctDetail[kind]) punctDetail[kind][1]++;
+        }
+    });
+
+    // Dica baseada nos resultados
     let pontMsg = '';
-    if (wpm > 130 && correct > 5) {
-        pontMsg = '⚠️ Leste muito rápido. Tenta fazer pausa nas vírgulas (curta) e nos pontos (mais longa) na próxima.';
+    if (punctTotal > 0) {
+        const pctPunct = Math.round((punctRespected / punctTotal) * 100);
+        if (pctPunct >= 80) {
+            pontMsg = `👏 <strong>Excelente pontuação!</strong> Respeitaste ${punctRespected} de ${punctTotal} pausas.`;
+        } else if (pctPunct >= 50) {
+            pontMsg = `🙂 Respeitaste ${punctRespected} de ${punctTotal} pausas. Tenta fazer pausa um pouquinho maior nas vírgulas (1 batida) e nos pontos (2 batidas).`;
+        } else {
+            pontMsg = `⚠️ <strong>Atenção à pontuação!</strong> Só respeitaste ${punctRespected} de ${punctTotal} pausas. Lê mais devagar e pára nas vírgulas e nos pontos.`;
+        }
+    } else if (wpm > 130 && correct > 5) {
+        pontMsg = '⚠️ Leste muito rápido. Tenta fazer pausa nas vírgulas e nos pontos na próxima.';
     } else if (wpm < 60 && correct > 5) {
-        pontMsg = '🐢 Leste muito devagar. Está bem — agora tenta de novo um bocadinho mais fluido.';
-    } else if (correct > 5) {
-        pontMsg = '👌 Boa velocidade! Continua a treinar para ler ainda mais fluido.';
+        pontMsg = '🐢 Leste muito devagar. Tenta de novo um bocadinho mais fluido.';
     }
 
     let stars = '⭐';
@@ -14505,7 +14556,8 @@ function _teacherFinishRead() {
             <div class="teacher-fb-stats">
                 <div><strong>${correct}</strong>/${total} palavras certas</div>
                 <div><strong>${pct}%</strong> de precisão</div>
-                <div><strong>${wpm}</strong> palavras / minuto</div>
+                <div><strong>${wpm}</strong> palavras / min</div>
+                ${punctTotal > 0 ? `<div><strong>${punctRespected}</strong>/${punctTotal} pausas ✓</div>` : ''}
             </div>
             ${pontMsg ? `<div class="teacher-fb-tip">${pontMsg}</div>` : ''}
             <div class="teacher-fb-actions">
