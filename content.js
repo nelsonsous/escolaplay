@@ -2039,7 +2039,6 @@ const SUBJECTS_3 = {
     matematica:       { name: 'Matemática',        icon: 'fa-calculator',        color: '#2563eb' },
     estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',             color: '#16a34a' },
     ingles:           { name: 'Inglês',            icon: 'fa-language',          color: '#7c3aed' },
-    formacao_crista:  { name: 'Formação Cristã',   icon: 'fa-cross',             color: '#d97706' },
     cidadania:        { name: 'Cidadania',         icon: 'fa-people-group',      color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' }
 };
 
@@ -2068,11 +2067,6 @@ const CURRICULUM_3 = {
         'Greetings and feelings', 'School things', 'Toys and playtime',
         'Rooms at home', 'Family members', 'Farm animals', 'My town',
         'Clothes', 'Hobbies and sports', 'Numbers and colours'
-    ],
-    formacao_crista: [
-        'Eu sou único e importante', 'Viver em família',
-        'A criação do mundo', 'A vida de Jesus',
-        'A Igreja e os sacramentos', 'Valores cristãos'
     ],
     cidadania: [
         'Direitos e deveres', 'Regras de convivência', 'Diversidade e respeito',
@@ -2122,11 +2116,6 @@ const PERIODS_3 = {
         'Greetings and feelings':1, 'School things':1, 'Numbers and colours':1,
         'Toys and playtime':2, 'Rooms at home':2, 'Family members':2,
         'Farm animals':3, 'My town':3, 'Clothes':3, 'Hobbies and sports':3
-    },
-    formacao_crista: {
-        'Eu sou único e importante':1, 'Viver em família':1,
-        'A criação do mundo':2, 'A vida de Jesus':2,
-        'A Igreja e os sacramentos':3, 'Valores cristãos':3
     },
     cidadania: {
         'Direitos e deveres':1, 'Regras de convivência':1,
@@ -2279,32 +2268,6 @@ const LESSONS_3 = {
     'ingles/Numbers and colours': {
         title: 'Numbers and colours',
         body: '**Numbers 1–20**:\none, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen, twenty.\n\n**Tens to 100**: ten, twenty, thirty, forty, fifty, sixty, seventy, eighty, ninety, one hundred.\n\n**21 = twenty-one** (hyphen). 35 = thirty-five.\n\n**Colours**:\n• red, blue, yellow, green, orange, purple, pink, brown, black, white, grey\n• light blue (azul claro) / dark blue (azul escuro)\n\n**Asking**:\n• How many ___?\n• What colour is it?\n• It\'s red.\n\n**❌ Common mistakes**\n• "fourteen" (14) vs "forty" (40) — careful with stress.\n• "thirty" (30) — no "e" (NOT "thirthy").\n• Colour goes BEFORE the noun: a **red** car.'
-    },
-
-    // ----- FORMAÇÃO CRISTÃ (Ao Encontro 3, SNEC) -----
-    'formacao_crista/Eu sou único e importante': {
-        title: 'Eu sou único e importante',
-        body: 'Cada pessoa é **única** — não há duas iguais no mundo!\n\n• Tens o teu **nome**, **rosto**, **história**, **qualidades** e defeitos.\n• Foste **amado e desejado** antes mesmo de nasceres.\n• Tens **dignidade** — mereces respeito só por seres pessoa.\n\nNa **Bíblia**, no livro do Génesis, lê-se que Deus criou o ser humano **à sua imagem** (Gn 1, 27). Cada pessoa tem um valor enorme.\n\n**Respeito por si mesmo**: cuidar do corpo, da mente, dos sentimentos.\n**Respeito pelos outros**: tratar todos com bondade, mesmo os diferentes.\n\n**❌ O que se costuma errar**\n• Pensar que ser único é ser melhor — todos são únicos, todos valem.\n• Achar que defeitos tiram dignidade — todos temos defeitos.\n• Confundir "amar-se a si mesmo" com egoísmo.'
-    },
-    'formacao_crista/Viver em família': {
-        title: 'Viver em família',
-        body: 'A **família** é a primeira comunidade onde aprendemos a amar.\n\n• **Tipos de família**: nuclear, alargada, monoparental, adotiva, recomposta — todas são válidas.\n• **Funções**: dar amor, alimentar, educar, dar segurança.\n• **Direitos da criança**: ser amada, ter casa, ir à escola, brincar, ser ouvida.\n• **Deveres**: ajudar em casa, respeitar, falar com verdade, partilhar.\n\nNa Bíblia, a **Sagrada Família** (Jesus, Maria e José) é um modelo de família simples e cheia de fé.\n\n**Mandamento**: "Honra o teu pai e a tua mãe" (4.º mandamento).\n\n**❌ O que se costuma errar**\n• Achar que só a família nuclear é "normal".\n• Esquecer que os filhos também têm deveres.\n• Confundir "honrar" com obedecer cegamente — significa respeitar e amar.'
-    },
-    'formacao_crista/A criação do mundo': {
-        title: 'A criação do mundo',
-        body: 'Os cristãos acreditam que o mundo foi **criado por Deus**. A história está no primeiro livro da Bíblia — o **Génesis**.\n\n**Os 7 dias da criação** (Génesis 1):\n• Dia 1 — Luz e escuridão.\n• Dia 2 — Céu e água.\n• Dia 3 — Mar, terra e plantas.\n• Dia 4 — Sol, Lua e estrelas.\n• Dia 5 — Peixes e aves.\n• Dia 6 — Animais terrestres e o **ser humano**.\n• Dia 7 — Deus descansa (= **Dia do Senhor**).\n\nDeus viu que tudo o que tinha feito era **bom**.\n\n**Cuidar da criação** — Deus pediu ao ser humano que cuidasse da Terra. O Papa Francisco fala disso na encíclica *Laudato Si\'*.\n\n**❌ O que se costuma errar**\n• Confundir o sentido religioso com a ciência (Big Bang) — falam de planos diferentes.\n• Esquecer que o ser humano foi criado no **6.º dia**.\n• Achar que Deus se cansou — "descansar" é símbolo do dia santo.'
-    },
-    'formacao_crista/A vida de Jesus': {
-        title: 'A vida de Jesus',
-        body: '**Jesus** nasceu em **Belém**, há mais de 2 000 anos. Seus pais terrenos: **Maria** e **José**. Jesus é o **Filho de Deus**.\n\n**Momentos importantes**:\n• **Anunciação** — o anjo Gabriel diz a Maria que vai ser mãe de Jesus.\n• **Natal** (25 de dezembro) — nascimento em Belém.\n• **Apresentação no Templo**.\n• **Infância em Nazaré** — José era carpinteiro.\n• **Batismo no rio Jordão** — por João Batista, aos 30 anos.\n• **Vida pública** — anuncia o Reino, faz milagres, escolhe 12 **apóstolos**.\n• **Última Ceia** — partilha do pão e do vinho (= **Eucaristia**).\n• **Sexta-Feira Santa** — crucificado.\n• **Páscoa** (domingo) — **Ressuscita**! Maior festa cristã.\n• **Ascensão** — sobe ao Céu, 40 dias depois.\n• **Pentecostes** — Espírito Santo desce sobre os apóstolos.\n\n**Mensagem central**: Deus é Pai, ama-te; ama o próximo como a ti mesmo.\n\n**❌ O que se costuma errar**\n• Confundir Natal (nascimento) com Páscoa (ressurreição).\n• Esquecer que Jesus teve uma infância normal.\n• Achar que os apóstolos eram 10 — foram **12**.'
-    },
-    'formacao_crista/A Igreja e os sacramentos': {
-        title: 'A Igreja e os sacramentos',
-        body: 'A **Igreja** é a comunidade dos cristãos — todos os baptizados em Jesus.\n\n• A palavra "igreja" tem 2 sentidos: o **edifício** (com altar, banco, sacrário) e a **comunidade** das pessoas.\n• Quem orienta a Igreja Católica: o **Papa** (sucessor de São Pedro), os **bispos** (responsáveis das dioceses), os **padres** (paróquias).\n\n**Os 7 sacramentos** são sinais visíveis do amor de Deus:\n1. **Batismo** — entrada na Igreja (símbolo: água).\n2. **Eucaristia** — comunhão (pão e vinho = corpo e sangue de Jesus).\n3. **Reconciliação** (Confissão) — perdão dos pecados.\n4. **Crisma** (Confirmação).\n5. **Matrimónio** — casamento.\n6. **Ordem** — torna alguém padre/bispo.\n7. **Unção dos Doentes** — acompanha doentes graves.\n\nNo 3.º ano muitas crianças preparam a **Primeira Comunhão**.\n\n**❌ O que se costuma errar**\n• Confundir "igreja" (edifício) com "Igreja" (comunidade).\n• Achar que há só 5 sacramentos — são **7**.\n• Trocar Batismo (entrada) com Crisma (confirmação posterior).'
-    },
-    'formacao_crista/Valores cristãos': {
-        title: 'Valores cristãos',
-        body: 'Jesus ensinou-nos como viver bem. **Valores cristãos** principais:\n\n• **Amor ao próximo** — "Amar-vos uns aos outros como Eu vos amei" (Jo 15, 12).\n• **Perdão** — desculpar os outros.\n• **Partilha** — dar do que se tem aos que precisam.\n• **Verdade** — falar com honestidade.\n• **Humildade** — não se achar superior aos outros.\n• **Paz** — resolver problemas sem violência.\n• **Justiça** — defender os mais fracos.\n• **Esperança** — confiar em Deus mesmo nos dias maus.\n\n**A Regra de Ouro** (Mt 7, 12):\n*"Tudo o que queres que os outros te façam, fá-lo tu também a eles."*\n\n**❌ O que se costuma errar**\n• Achar que perdoar é "deixar fazer tudo" — perdoar é não guardar rancor.\n• Confundir humildade com baixa autoestima.\n• Esquecer que a paz começa em casa.'
     },
 
     // ----- CIDADANIA E DESENVOLVIMENTO -----
@@ -2528,29 +2491,6 @@ const EXERCISES_3 = [
     { id:'3li_num2', s:'ingles', t:'Numbers and colours', type:'mc', diff:2, q:'🔢 "Thirteen" é o número:', opts:['3','13','30'], ans:1, exp:'Thirteen = 13; Thirty = 30.' },
     { id:'3li_num3', s:'ingles', t:'Numbers and colours', type:'mc', diff:1, q:'🎨 "Yellow" é a cor:', opts:['vermelho','amarelo','azul'], ans:1, exp:'Yellow = amarelo.' },
     { id:'3li_num4', s:'ingles', t:'Numbers and colours', type:'fill', diff:1, q:'Verde em inglês: ___', ans:['green'], exp:'Green.' },
-
-    // ============================ FORMAÇÃO CRISTÃ ==============================
-    { id:'3lf_uni1', s:'formacao_crista', t:'Eu sou único e importante', type:'tf', diff:1, q:'Cada pessoa é única no mundo.', ans:true, exp:'Verdadeiro — não há duas iguais.' },
-    { id:'3lf_uni2', s:'formacao_crista', t:'Eu sou único e importante', type:'mc', diff:2, q:'📖 Segundo o Génesis, Deus criou o ser humano:', opts:['como um robô','à sua imagem','por engano'], ans:1, exp:'"Deus criou o ser humano à sua imagem" (Gn 1, 27).' },
-
-    { id:'3lf_fam1', s:'formacao_crista', t:'Viver em família', type:'mc', diff:1, q:'👨‍👩‍👧 A "Sagrada Família" é:', opts:['Pedro, Paulo e João','Jesus, Maria e José','Adão, Eva e Caim'], ans:1, exp:'Jesus, Maria e José.' },
-    { id:'3lf_fam2', s:'formacao_crista', t:'Viver em família', type:'mc', diff:2, q:'📜 O 4.º mandamento diz:', opts:['Não matarás','Honra o teu pai e a tua mãe','Não roubarás'], ans:1, exp:'"Honra o teu pai e a tua mãe."' },
-
-    { id:'3lf_cri1', s:'formacao_crista', t:'A criação do mundo', type:'mc', diff:1, q:'📖 O 1.º livro da Bíblia chama-se:', opts:['Salmos','Génesis','Apocalipse'], ans:1, exp:'Génesis.' },
-    { id:'3lf_cri2', s:'formacao_crista', t:'A criação do mundo', type:'mc', diff:2, q:'☀️ Segundo o Génesis, o ser humano foi criado no:', opts:['1.º dia','3.º dia','6.º dia'], ans:2, exp:'6.º dia.' },
-    { id:'3lf_cri3', s:'formacao_crista', t:'A criação do mundo', type:'tf', diff:2, q:'O Papa Francisco fala do cuidado da criação na encíclica "Laudato Si".', ans:true, exp:'Verdadeiro — Laudato Si (2015).' },
-
-    { id:'3lf_jes1', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:1, q:'🌟 Jesus nasceu em:', opts:['Nazaré','Belém','Jerusalém'], ans:1, exp:'Belém.' },
-    { id:'3lf_jes2', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:1, q:'🎄 O Natal celebra o ___ de Jesus:', opts:['batismo','nascimento','milagre'], ans:1, exp:'Natal = nascimento.' },
-    { id:'3lf_jes3', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:2, q:'✝️ Jesus escolheu ___ apóstolos:', opts:['7','10','12'], ans:2, exp:'12 apóstolos.' },
-    { id:'3lf_jes4', s:'formacao_crista', t:'A vida de Jesus', type:'tf', diff:2, q:'A Páscoa celebra a Ressurreição de Jesus.', ans:true, exp:'Verdadeiro.' },
-
-    { id:'3lf_igr1', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'mc', diff:1, q:'⛪ "Igreja" pode ser:', opts:['só o edifício','só a comunidade','o edifício e a comunidade'], ans:2, exp:'Ambos os sentidos.' },
-    { id:'3lf_igr2', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'mc', diff:2, q:'🙏 Quantos sacramentos tem a Igreja Católica?', opts:['5','7','10'], ans:1, exp:'7 sacramentos.' },
-    { id:'3lf_igr3', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'fill', diff:1, q:'O sacramento que marca a entrada na Igreja é o ___', ans:['Batismo','batismo'], exp:'Batismo.' },
-
-    { id:'3lf_val1', s:'formacao_crista', t:'Valores cristãos', type:'mc', diff:1, q:'💛 "Amar o próximo como a ti mesmo" significa:', opts:['só amar a família','tratar os outros como queres ser tratado','amar só os amigos'], ans:1, exp:'Regra de Ouro (Mt 7, 12).' },
-    { id:'3lf_val2', s:'formacao_crista', t:'Valores cristãos', type:'tf', diff:2, q:'Perdoar é o mesmo que permitir tudo.', ans:false, exp:'Falso — perdoar é não guardar rancor, não significa permitir abusos.' },
 
     // ============================ CIDADANIA E DESENVOLVIMENTO ==================
     { id:'3lc_dir1', s:'cidadania', t:'Direitos e deveres', type:'mc', diff:1, q:'👶 Direito de toda a criança:', opts:['ter um carro','ir à escola','escolher os pais'], ans:1, exp:'Direito à educação.' },
