@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v464';
+const APP_VERSION = 'v465';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15026,30 +15026,31 @@ window._holidayMarkDoneIfApplicable = _holidayMarkDoneIfApplicable;
 
 // Botão de entrada no menu: injectado se o perfil for year=3 (Eduarda).
 function _injectHolidayButton() {
-    if (!state || !state.profile) return;
-    const year = state.profile.year;
+    if (!state || !state.profile) { return; }
+    const year = Number(state.profile.year);
     let targetYear = null;
     let label = '';
-    if (year === 3) { targetYear = 3; label = '14 dias para preparar o 3.º ano'; }
+    if (year === 3 || year === 31) { targetYear = 3; label = '14 dias para preparar o 3.º ano'; }
     else if (year === 7) { targetYear = 7; label = '14 dias para rever 6.º e preparar 7.º'; }
-    else return;
+    else { return; }
     if (document.getElementById('holiday-entry-btn')) return;
     const main = document.getElementById('main-screen');
-    if (!main || main.style.display === 'none') return;
-    // Injeta no topo do main-screen, antes do 1.º elemento filho
+    if (!main) { console.warn('[holiday] main-screen não encontrado'); return; }
+    // Aceita main mesmo se display === 'none' temporariamente — pode estar a
+    // mudar de ecrã. O botão fica injectado e visível quando o ecrã aparecer.
     const btn = document.createElement('button');
     btn.id = 'holiday-entry-btn';
     btn.className = 'holiday-entry-btn';
     btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>${label}</small></span><span class="he-arrow">›</span>`;
     btn.onclick = () => openHolidayPlan(targetYear);
-    // Preferência: depois do hero-card; se não houver, no início do main
+    // Preferência: depois do hero-card; se não houver, no topo do main
     const hero = main.querySelector('.hero-card');
     if (hero && hero.parentNode) {
         hero.parentNode.insertBefore(btn, hero.nextSibling);
     } else {
         main.insertBefore(btn, main.firstChild);
     }
-    console.log('[holiday] botão injectado para year=' + year);
+    console.log('[holiday] botão injectado | year=' + year + ' | targetYear=' + targetYear);
 }
 window._injectHolidayButton = _injectHolidayButton;
 
