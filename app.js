@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v454';
+const APP_VERSION = 'v455';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4568,6 +4568,19 @@ function renderQuestion() {
     // Suporte a passagem de texto / tabela / SVG acima da pergunta
     const qEl = document.getElementById('ex-question');
     let qHtml = '';
+    // === v455: enriquecimento opcional dos exercícios ===
+    // Campo `intro` — contexto narrativo antes da pergunta (cenário, "imagina que...").
+    if (e.intro) {
+        const introMd = escapeHtml(e.intro)
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+        qHtml += `<div class="ex-intro"><div class="ex-intro-tag">📖 Contexto</div><div class="ex-intro-body">${introMd}</div></div>`;
+    }
+    // Campo `hint` — dica progressiva via botão 💡 (não estraga a pergunta).
+    if (e.hint) {
+        const hintEsc = escapeHtml(e.hint).replace(/'/g, "&#39;").replace(/"/g, '&quot;');
+        qHtml += `<div class="ex-hint-wrap"><button type="button" class="ex-hint-btn" onclick="_toggleHint(this)" aria-expanded="false">💡 Mostrar dica</button><div class="ex-hint-body" style="display:none">${escapeHtml(e.hint).replace(/\n/g,'<br>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</div></div>`;
+    }
     // Three-Reads scaffold (Mat+ problemas) — guia em 3 passos para ler problemas
     // de forma estratégica, baseado na rotina de Kelemanik/Lucenta/Creighton.
     if (e.s === 'mat_plus' && e.type === 'problem') {
@@ -8314,6 +8327,8 @@ function showFeedback(e, isCorrect) {
         visualFB = `<div style="margin:0 0 10px;text-align:center">${e.svgAfter}</div>`;
     }
     expEl.innerHTML = visualFB + expParts.map(p => _renderMdExp(p)).join('<br><br>');
+    // v455: renderiza explicação rica se existir no exercício
+    try { _renderRichExp(e); } catch {}
     // Botões dedicados para exercícios speak: ouvir a versão correta + repetir a tentativa
     if (e.type === 'speak') {
         const r = currentSession?._speakResult;
@@ -14191,10 +14206,13 @@ const _teacher = {
     heardCursor: 0,     // cursor no array de palavras já reconhecidas (não voltar atrás)
     wordTimes: [],      // timestamp em ms quando cada palavra foi reconhecida
     punctPositions: [], // [{ afterWord: idx, kind: ',|.|?|!' }] — para avaliar pausa
+    paragraphEnds: [],  // índices da última palavra de cada parágrafo
+    paragraphChecks: [],// [{ q, opts, ans, exp }] — perguntas no fim de cada parágrafo
+    pCheckIdx: 0,       // próxima pergunta de parágrafo a mostrar
     recognition: null,
     utterance: null,
     startTime: 0,
-    mode: null,         // 'listen' | 'read' | null
+    mode: null,         // 'listen' | 'read' | null | 'paused-check'
 };
 
 function _teacherCleanText(raw) {
@@ -14224,7 +14242,8 @@ function openReadingTeacher(exId) {
     const cleanText = _teacherCleanText(ex.passage || '');
     const vocab = ex.vocab || {};
 
-    // Tokenize
+    // Tokenize. Mantém o texto ORIGINAL (com \n) para detetar parágrafos,
+    // mas em paralelo calcula a versão "limpa" para TTS.
     const parts = _teacherTokenize(cleanText);
     _teacher.text = cleanText;
     _teacher.words = [];
@@ -14232,6 +14251,20 @@ function openReadingTeacher(exId) {
     _teacher.spans = [];
     _teacher.position = 0;
     _teacher.mode = null;
+    // Parágrafos: split do passage ORIGINAL por \n. Para cada parágrafo,
+    // contar as palavras → última palavra do parágrafo k = soma cumulativa - 1.
+    _teacher.paragraphEnds = [];
+    _teacher.paragraphChecks = ex.paragraphChecks || [];
+    _teacher.pCheckIdx = 0;
+    const rawParas = String(ex.passage || '').split(/\n+/).filter(s => s.trim());
+    let cumWords = 0;
+    rawParas.forEach(p => {
+        const cleaned = _teacherCleanText(p);
+        const tokens = _teacherTokenize(cleaned);
+        const wordsInPara = tokens.filter(t => /[^\s.,;:!?—–\-"()«»…]/.test(t) && _teacherNormalize(t)).length;
+        cumWords += wordsInPara;
+        _teacher.paragraphEnds.push(cumWords - 1);
+    });
 
     // Build HTML: cada palavra é um span; pontuação fica em spans diferentes
     _teacher.punctPositions = [];
@@ -14385,7 +14418,7 @@ function _teacherHighlightAll() {
 }
 
 // =========== Modo LER (SpeechRecognition pt-PT) ===========
-function _teacherStartRead() {
+function _teacherStartRead(resume) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
         const status = document.getElementById('teacher-status');
@@ -14393,13 +14426,20 @@ function _teacherStartRead() {
         return;
     }
     _teacherStop();
-    _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
-    _teacher.position = 0;
-    _teacher.heardCursor = 0;
-    _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
+    if (!resume) {
+        _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
+        _teacher.position = 0;
+        _teacher.heardCursor = 0;
+        _teacher.pCheckIdx = 0;
+        _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
+        _teacher.startTime = Date.now();
+        if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
+    } else {
+        // Resume: marca a próxima palavra como current (a actual da position)
+        _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
+        if (_teacher.spans[_teacher.position]) _teacher.spans[_teacher.position].classList.add('t-current');
+    }
     _teacher.mode = 'read';
-    _teacher.startTime = Date.now();
-    if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
 
     const r = new SR();
     r.lang = 'pt-PT';
@@ -14493,10 +14533,86 @@ function _teacherMatchHeard(heard) {
     }
     _teacher.position = p;
     _teacher.heardCursor = h;
+    // === Perguntas por parágrafo: detetar se passámos um fim de parágrafo. ===
+    if (_teacher.mode === 'read' && _teacher.paragraphChecks.length > _teacher.pCheckIdx) {
+        const targetEnd = _teacher.paragraphEnds[_teacher.pCheckIdx];
+        if (typeof targetEnd === 'number' && _teacher.position > targetEnd) {
+            const check = _teacher.paragraphChecks[_teacher.pCheckIdx];
+            if (check) {
+                _teacher.pCheckIdx++;
+                try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
+                _teacher.mode = 'paused-check';
+                _teacherShowParagraphCheck(check);
+                return;
+            }
+        }
+    }
     if (_teacher.position >= _teacher.words.length) {
         try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
     }
 }
+
+// Mostra uma pergunta de "percebeste?" entre parágrafos.
+// Renderiza inline no overlay. Resposta → retoma o ASR para o próximo parágrafo.
+function _teacherShowParagraphCheck(check) {
+    const fb = document.getElementById('teacher-feedback');
+    if (!fb) return;
+    const optsHtml = (check.opts || []).map((opt, i) =>
+        `<button class="teacher-pcheck-opt" data-i="${i}" onclick="_teacherAnswerPCheck(${i}, ${check.ans}, this)">${escapeHtml(opt)}</button>`
+    ).join('');
+    fb.style.display = 'block';
+    fb.innerHTML = `
+        <div class="teacher-pcheck">
+            <div class="teacher-pcheck-tag">🤔 Percebeste este parágrafo?</div>
+            <div class="teacher-pcheck-q">${escapeHtml(check.q)}</div>
+            <div class="teacher-pcheck-opts">${optsHtml}</div>
+            <div class="teacher-pcheck-fb" id="teacher-pcheck-fb" style="display:none"></div>
+        </div>
+    `;
+    // Esconder controles principais enquanto responde
+    const ctrls = _teacher.overlay && _teacher.overlay.querySelector('.teacher-controls');
+    if (ctrls) ctrls.style.display = 'none';
+    const status = document.getElementById('teacher-status');
+    if (status) status.innerHTML = '⏸️ <strong>Pausa.</strong> Responde a esta pergunta para continuar.';
+    fb.dataset.checkAns = String(check.ans);
+    fb.dataset.checkExp = check.exp || '';
+}
+window._teacherShowParagraphCheck = _teacherShowParagraphCheck;
+
+function _teacherAnswerPCheck(picked, correct, btn) {
+    const ok = (picked === correct);
+    const fb = document.getElementById('teacher-feedback');
+    if (!fb) return;
+    // Marca a opção escolhida + correcta
+    fb.querySelectorAll('.teacher-pcheck-opt').forEach((b, idx) => {
+        b.disabled = true;
+        if (idx === correct) b.classList.add('teacher-pcheck-correct');
+        else if (idx === picked && !ok) b.classList.add('teacher-pcheck-wrong');
+    });
+    const pfb = document.getElementById('teacher-pcheck-fb');
+    if (pfb) {
+        pfb.style.display = 'block';
+        const exp = fb.dataset.checkExp || '';
+        pfb.innerHTML = (ok ? '✅ <strong>Boa!</strong> ' : '🤔 <strong>Quase!</strong> ') + escapeHtml(exp) +
+            `<div style="margin-top:10px;text-align:center"><button class="teacher-btn teacher-btn-read" onclick="_teacherResumeAfterCheck()">▶️ Continuar a ler</button></div>`;
+    }
+}
+window._teacherAnswerPCheck = _teacherAnswerPCheck;
+
+function _teacherResumeAfterCheck() {
+    const fb = document.getElementById('teacher-feedback');
+    if (fb) { fb.style.display = 'none'; fb.innerHTML = ''; }
+    const ctrls = _teacher.overlay && _teacher.overlay.querySelector('.teacher-controls');
+    if (ctrls) ctrls.style.display = '';
+    if (_teacher.position >= _teacher.words.length) {
+        // já leu tudo — vai direto ao feedback final
+        _teacherFinishRead();
+    } else {
+        // Retomar ASR no parágrafo seguinte (sem resetar progresso)
+        _teacherStartRead(true);
+    }
+}
+window._teacherResumeAfterCheck = _teacherResumeAfterCheck;
 
 function _teacherFinishRead() {
     const duration = (Date.now() - _teacher.startTime) / 1000;
@@ -14592,3 +14708,36 @@ function _showConfetti(n) {
     }
 }
 window._showConfetti = _showConfetti;
+
+// === v455: hint/richExp helpers ===
+function _toggleHint(btn) {
+    const wrap = btn.parentElement;
+    if (!wrap) return;
+    const body = wrap.querySelector('.ex-hint-body');
+    if (!body) return;
+    const showing = body.style.display !== 'none';
+    body.style.display = showing ? 'none' : 'block';
+    btn.textContent = showing ? '💡 Mostrar dica' : '💡 Esconder dica';
+    btn.setAttribute('aria-expanded', showing ? 'false' : 'true');
+}
+window._toggleHint = _toggleHint;
+
+// Render rich explanation (markdown leve) na feedback area.
+// Chamado após o submit, se e.richExp existir.
+function _renderRichExp(e) {
+    if (!e || !e.richExp) return;
+    const expEl = document.getElementById('feedback-exp');
+    if (!expEl) return;
+    // Adiciona ao final do exp curto existente
+    const md = String(e.richExp)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^- /gm, '• ')
+        .replace(/\n/g, '<br>');
+    const rich = document.createElement('div');
+    rich.className = 'ex-rich-exp';
+    rich.innerHTML = `<div class="ex-rich-tag">📘 Saber mais</div><div class="ex-rich-body">${md}</div>`;
+    expEl.appendChild(rich);
+}
+window._renderRichExp = _renderRichExp;
