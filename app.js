@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v455';
+const APP_VERSION = 'v456';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4580,6 +4580,8 @@ function renderQuestion() {
     if (e.hint) {
         const hintEsc = escapeHtml(e.hint).replace(/'/g, "&#39;").replace(/"/g, '&quot;');
         qHtml += `<div class="ex-hint-wrap"><button type="button" class="ex-hint-btn" onclick="_toggleHint(this)" aria-expanded="false">💡 Mostrar dica</button><div class="ex-hint-body" style="display:none">${escapeHtml(e.hint).replace(/\n/g,'<br>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</div></div>`;
+    } else if (state.max && state.max.mistralKey && e.s !== 'leitura' && e.s !== 'som_plus') {
+        qHtml += `<div class="ex-hint-wrap"><button type="button" class="ex-hint-btn" onclick="_askMistralHint()">🪄 Pedir dica à IA</button></div>`;
     }
     // Three-Reads scaffold (Mat+ problemas) — guia em 3 passos para ler problemas
     // de forma estratégica, baseado na rotina de Kelemanik/Lucenta/Creighton.
@@ -14723,21 +14725,119 @@ function _toggleHint(btn) {
 window._toggleHint = _toggleHint;
 
 // Render rich explanation (markdown leve) na feedback area.
-// Chamado após o submit, se e.richExp existir.
+// Se e.richExp existir, mostra-o; senão, e se Mistral key estiver
+// configurada, oferece botão "🪄 Saber mais (IA)" que pede on-demand.
 function _renderRichExp(e) {
-    if (!e || !e.richExp) return;
+    if (!e) return;
     const expEl = document.getElementById('feedback-exp');
     if (!expEl) return;
-    // Adiciona ao final do exp curto existente
-    const md = String(e.richExp)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/^- /gm, '• ')
-        .replace(/\n/g, '<br>');
-    const rich = document.createElement('div');
-    rich.className = 'ex-rich-exp';
-    rich.innerHTML = `<div class="ex-rich-tag">📘 Saber mais</div><div class="ex-rich-body">${md}</div>`;
-    expEl.appendChild(rich);
+    if (e.richExp) {
+        const md = String(e.richExp)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/^- /gm, '• ')
+            .replace(/\n/g, '<br>');
+        const rich = document.createElement('div');
+        rich.className = 'ex-rich-exp';
+        rich.innerHTML = `<div class="ex-rich-tag">📘 Saber mais</div><div class="ex-rich-body">${md}</div>`;
+        expEl.appendChild(rich);
+    } else if (state.max && state.max.mistralKey && e.s !== 'leitura') {
+        const wrap = document.createElement('div');
+        wrap.style.textAlign = 'center';
+        wrap.style.marginTop = '10px';
+        wrap.innerHTML = `<button class="ex-hint-btn" onclick="_askMistralExplain()">🪄 Saber mais (IA)</button>`;
+        expEl.appendChild(wrap);
+    }
 }
 window._renderRichExp = _renderRichExp;
+
+// ============================================================
+// v456: chamada Mistral genérica para gerar dicas/explicações
+// quando o exercício não tem `hint` ou `richExp` pré-definidos.
+// ============================================================
+async function _askMistral(prompt, systemMsg) {
+    const key = state.max && state.max.mistralKey;
+    if (!key) throw new Error('Sem chave Mistral. Vai a Perfil → Configurar Mistral.');
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({
+            model: 'mistral-small-latest',
+            messages: [
+                { role: 'system', content: systemMsg || 'És um professor amigável para crianças do 3.º ao 7.º ano portuguesas. Respondes em português europeu, curto e claro.' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.5,
+            max_tokens: 280
+        })
+    });
+    if (!res.ok) throw new Error('Mistral devolveu ' + res.status);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || '';
+}
+window._askMistral = _askMistral;
+
+function _currentEx() {
+    try {
+        if (typeof currentSession === 'object' && currentSession && Array.isArray(currentSession.items)) {
+            return currentSession.items[currentSession.idx];
+        }
+    } catch {}
+    return null;
+}
+
+async function _askMistralHint() {
+    const e = _currentEx();
+    if (!e) return;
+    const wrap = document.querySelector('.ex-hint-wrap');
+    if (!wrap) return;
+    let body = wrap.querySelector('.ex-hint-body');
+    const btn = wrap.querySelector('.ex-hint-btn');
+    if (btn) btn.disabled = true;
+    if (!body) {
+        body = document.createElement('div');
+        body.className = 'ex-hint-body';
+        body.style.display = 'block';
+        wrap.appendChild(body);
+    } else {
+        body.style.display = 'block';
+    }
+    body.innerHTML = '⏳ A pedir uma dica à IA...';
+    try {
+        const prompt = `Exercício para um aluno do ${(_currentEx()?.s || 'tópico')}:\n${e.q}\n${e.opts ? 'Opções: ' + e.opts.join(' / ') : ''}\n\nDá UMA pista curta (1-2 frases) que oriente sem dar a resposta. Sem fórmulas pesadas.`;
+        const text = await _askMistral(prompt);
+        body.innerHTML = '💡 ' + text.replace(/\n/g, '<br>');
+    } catch (err) {
+        body.innerHTML = '⚠️ ' + (err.message || 'Não consegui contactar a IA.');
+    }
+    if (btn) btn.disabled = false;
+}
+window._askMistralHint = _askMistralHint;
+
+async function _askMistralExplain() {
+    const e = _currentEx();
+    if (!e) return;
+    const expEl = document.getElementById('feedback-exp');
+    if (!expEl) return;
+    let target = expEl.querySelector('.ex-rich-exp');
+    if (!target) {
+        target = document.createElement('div');
+        target.className = 'ex-rich-exp';
+        expEl.appendChild(target);
+    }
+    target.innerHTML = '<div class="ex-rich-tag">🪄 IA</div><div class="ex-rich-body">⏳ A explicar...</div>';
+    try {
+        const ansLabel = e.type === 'mc' ? e.opts[e.ans] : (Array.isArray(e.ans) ? e.ans[0] : String(e.ans));
+        const prompt = `Tópico: ${e.t || ''}.\nPergunta: ${e.q}\nResposta certa: ${ansLabel}.\n\nExplica a um aluno (3.º ou 7.º ano) com:\n- Passo a passo (numerado)\n- Um exemplo concreto\n- Uma curiosidade ou ligação a outro tópico\n\nMáximo 5 linhas no total.`;
+        const text = await _askMistral(prompt);
+        const md = String(text)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+        target.innerHTML = '<div class="ex-rich-tag">🪄 IA explicou</div><div class="ex-rich-body">' + md + '</div>';
+    } catch (err) {
+        target.innerHTML = '<div class="ex-rich-tag">⚠️ IA</div><div class="ex-rich-body">' + (err.message || 'Não consegui contactar a IA.') + '</div>';
+    }
+}
+window._askMistralExplain = _askMistralExplain;
