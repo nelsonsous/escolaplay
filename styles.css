@@ -5023,6 +5023,105 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 
 /* ========================================================
+   v455+ EXERCÍCIO RICO: intro card, hint colapsável, rich exp
+   ======================================================== */
+.ex-intro {
+    background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #fcd34d;
+    border-radius: var(--radius-md);
+    padding: 14px 14px 12px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+}
+.ex-intro-tag {
+    display: inline-block;
+    background: #92400e;
+    color: #fef3c7;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-black);
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.ex-intro-body {
+    font-size: 0.98rem;
+    line-height: 1.55;
+    color: #713f12;
+    font-weight: var(--fw-semibold);
+}
+.ex-hint-wrap {
+    margin: 6px 0 12px;
+    text-align: center;
+}
+.ex-hint-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 8px 16px;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #b45309, 0 6px 14px -2px rgba(217,119,6,0.35);
+    transition: transform .12s var(--spring-soft);
+}
+.ex-hint-btn:active { transform: translateY(2px); }
+.ex-hint-body {
+    margin-top: 10px;
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: var(--fs-sm);
+    color: #713f12;
+    line-height: 1.55;
+    font-weight: var(--fw-semibold);
+    animation: ex-hint-slide-in 0.25s var(--spring-soft);
+}
+@keyframes ex-hint-slide-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.ex-rich-exp {
+    margin-top: 14px;
+    padding: 14px;
+    background: linear-gradient(180deg, #f0f9ff 0%, #ecfeff 100%);
+    border: 2px solid #a5f3fc;
+    border-radius: var(--radius-md);
+}
+.ex-rich-tag {
+    display: inline-block;
+    background: #0c4a6e;
+    color: #ecfeff;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-black);
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.ex-rich-body {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #0c4a6e;
+    text-align: left;
+}
+.ex-rich-body code {
+    background: rgba(8,145,178,0.13);
+    color: #0e7490;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* ========================================================
    v451+ INTERACTIVIDADE: TTS button, estrelas no summary,
    confete ao acertar.
    ======================================================== */
@@ -5312,6 +5411,76 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+/* Perguntas por parágrafo no Professor de Leitura */
+.teacher-pcheck { text-align: center; }
+.teacher-pcheck-tag {
+    display: inline-block;
+    background: #facc15;
+    color: #713f12;
+    font-weight: var(--fw-black);
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+}
+.teacher-pcheck-q {
+    font-size: 1rem;
+    font-weight: var(--fw-bold);
+    color: #0c4a6e;
+    margin-bottom: 14px;
+    line-height: 1.4;
+}
+.teacher-pcheck-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.teacher-pcheck-opt {
+    background: #fff;
+    border: 2px solid #a5f3fc;
+    color: #0c4a6e;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+    text-align: left;
+    transition: transform .12s, border-color .15s, box-shadow .12s;
+    box-shadow: 0 2px 0 #a5f3fc;
+}
+.teacher-pcheck-opt:hover:not(:disabled) {
+    border-color: #0891b2;
+    box-shadow: 0 2px 0 #0891b2;
+}
+.teacher-pcheck-opt:active:not(:disabled) { transform: translateY(1px); }
+.teacher-pcheck-opt:disabled { cursor: not-allowed; opacity: 0.7; }
+.teacher-pcheck-correct {
+    background: #d1fae5 !important;
+    border-color: #10b981 !important;
+    color: #065f46 !important;
+    box-shadow: 0 2px 0 #10b981 !important;
+}
+.teacher-pcheck-wrong {
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    color: #991b1b !important;
+    text-decoration: line-through;
+    box-shadow: 0 2px 0 #ef4444 !important;
+}
+.teacher-pcheck-fb {
+    background: #f0f9ff;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: var(--fs-sm);
+    color: #0c4a6e;
+    line-height: 1.5;
+    text-align: left;
 }
 /* Botão grande "Abrir Professor de Leitura" no exercício */
 .reading-btn-teacher {
