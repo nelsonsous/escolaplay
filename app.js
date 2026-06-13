@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v467';
+const APP_VERSION = 'v468';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15095,24 +15095,36 @@ function _injectHolidayButton() {
     if (year === 3 || year === 31) { targetYear = 3; label = '14 dias para preparar o 3.º ano'; }
     else if (year === 7) { targetYear = 7; label = '14 dias para rever 6.º e preparar 7.º'; }
     else { return; }
+    // Estratégia DUPLA: FAB fixo (sempre visível) + tentativa de injeção
+    // dentro do main-screen (variante "inline" para integrar no fluxo).
+    if (!document.getElementById('holiday-fab')) {
+        const fab = document.createElement('button');
+        fab.id = 'holiday-fab';
+        fab.className = 'holiday-fab';
+        fab.title = 'Plano de Férias — ' + label;
+        fab.setAttribute('aria-label', 'Plano de Férias');
+        fab.innerHTML = '🌞';
+        fab.onclick = () => openHolidayPlan(targetYear);
+        document.body.appendChild(fab);
+        console.log('[holiday] FAB injectado | year=' + year + ' | targetYear=' + targetYear);
+    }
+    // Variante inline (no main-screen, depois do hero-card) — opcional, só
+    // se possível. Não bloqueia o FAB.
     if (document.getElementById('holiday-entry-btn')) return;
     const main = document.getElementById('main-screen');
-    if (!main) { console.warn('[holiday] main-screen não encontrado'); return; }
-    // Aceita main mesmo se display === 'none' temporariamente — pode estar a
-    // mudar de ecrã. O botão fica injectado e visível quando o ecrã aparecer.
+    if (!main) return;
     const btn = document.createElement('button');
     btn.id = 'holiday-entry-btn';
     btn.className = 'holiday-entry-btn';
     btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>${label}</small></span><span class="he-arrow">›</span>`;
     btn.onclick = () => openHolidayPlan(targetYear);
-    // Preferência: depois do hero-card; se não houver, no topo do main
     const hero = main.querySelector('.hero-card');
     if (hero && hero.parentNode) {
         hero.parentNode.insertBefore(btn, hero.nextSibling);
     } else {
         main.insertBefore(btn, main.firstChild);
     }
-    console.log('[holiday] botão injectado | year=' + year + ' | targetYear=' + targetYear);
+    console.log('[holiday] inline button injectado');
 }
 window._injectHolidayButton = _injectHolidayButton;
 
@@ -15122,16 +15134,16 @@ window._injectHolidayButton = _injectHolidayButton;
 let _holidayInjectInterval = null;
 function _holidayInjectTry() {
     try {
-        const btn = document.getElementById('holiday-entry-btn');
-        const year = state && state.profile && state.profile.year;
-        const eligible = (year === 3 || year === 7);
-        if (btn && !eligible) {
-            // perfil mudou — remove botão antigo
-            btn.remove();
+        const year = state && state.profile && Number(state.profile.year);
+        const eligible = (year === 3 || year === 31 || year === 7);
+        const fab = document.getElementById('holiday-fab');
+        const inline = document.getElementById('holiday-entry-btn');
+        if (!eligible) {
+            if (fab) fab.remove();
+            if (inline) inline.remove();
             return;
         }
-        if (btn) return; // já existe
-        if (!eligible) return; // espera por perfil compatível
+        if (fab && inline) return; // ambos já existem
         _injectHolidayButton();
     } catch (e) { /* ignora */ }
 }
