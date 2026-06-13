@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v468';
+const APP_VERSION = 'v469';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15067,11 +15067,15 @@ function _startHolidayDay(dayIdx, targetYear) {
         startedAt: Date.now(),
         results: []
     };
-    document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('summary-screen').style.display = 'none';
-    document.getElementById('exercise-screen').style.display = 'flex';
-    if (typeof renderExercise === 'function') renderExercise();
-    else if (typeof loadCurrentExercise === 'function') loadCurrentExercise();
+    // Usar o handler oficial da app (igual ao daily/treino).
+    try {
+        if (typeof openExerciseScreen === 'function') openExerciseScreen();
+        if (typeof renderQuestion === 'function') renderQuestion();
+        else { console.warn('[holiday] renderQuestion não encontrado'); alert('Erro a iniciar — refresh a página por favor.'); }
+    } catch (err) {
+        console.error('[holiday] erro a iniciar', err);
+        alert('Erro: ' + err.message);
+    }
 }
 window._startHolidayDay = _startHolidayDay;
 
