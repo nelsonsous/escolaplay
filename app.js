@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v458';
+const APP_VERSION = 'v459';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14514,23 +14514,14 @@ function _teacherMatchHeard(heard) {
             if (!_teacher.wordTimes[p]) _teacher.wordTimes[p] = Date.now();
             p++; h++;
             if (_teacher.spans[p]) {
-                // limpa qualquer current existente (apenas 1 current de cada vez)
-                _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
-                _teacher.spans[p].classList.add('t-current');
-            }
-        } else if (p + 1 < _teacher.words.length && matches(_teacher.words[p + 1], got)) {
-            // saltou 1 palavra (pronunciou mal a primeira)
-            _teacher.spans[p].classList.remove('t-current');
-            _teacher.spans[p].classList.add('t-bad');
-            _teacher.spans[p + 1].classList.add('t-good');
-            if (!_teacher.wordTimes[p + 1]) _teacher.wordTimes[p + 1] = Date.now();
-            p += 2; h++;
-            if (_teacher.spans[p]) {
                 _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
                 _teacher.spans[p].classList.add('t-current');
             }
         } else {
-            // talvez seja palavra de "enchimento" (hesitação, repetição) — skipar
+            // Não match — skipa esta palavra do heard (pode ser hesitação,
+            // pronúncia diferente do ASR, ou repetição). NÃO marca a esperada
+            // como errada — isso só acontece no _teacherFinishRead com base
+            // nas palavras que ficaram sem `t-good` no final.
             h++;
         }
     }
@@ -14620,6 +14611,16 @@ window._teacherResumeAfterCheck = _teacherResumeAfterCheck;
 function _teacherFinishRead() {
     const duration = (Date.now() - _teacher.startTime) / 1000;
     const total = _teacher.words.length;
+    // Marca como erradas as palavras que JÁ PASSARAM (antes da position
+    // máxima atingida) mas que não foram reconhecidas (sem t-good).
+    // Não marca as palavras à frente — essas simplesmente não foram lidas.
+    const maxReached = _teacher.position;
+    for (let i = 0; i < maxReached; i++) {
+        const sp = _teacher.spans[i];
+        if (sp && !sp.classList.contains('t-good')) {
+            sp.classList.add('t-bad');
+        }
+    }
     const correct = _teacher.spans.filter(sp => sp.classList.contains('t-good')).length;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     const wpm = duration > 0 ? Math.round((correct / duration) * 60) : 0;
@@ -14857,18 +14858,47 @@ function _holidayProgress() {
     return state.profile.holidayProgress;
 }
 
-function openHolidayPlan() {
+// Configuração por ano-alvo
+const HOLIDAY_PLANS = {
+    3: { // Eduarda — 2.º para 3.º
+        targetYear: 3,
+        fromYears: [2, 3],
+        subjects: ['portugues', 'matematica', 'estudo_meio'],
+        title: '🌞 Plano de Férias para o 3.º',
+        subtitle: '14 dias para te preparares para o 3.º ano. Português, Matemática e Estudo do Meio. Ganha um autocolante por dia!',
+        finishedMsg: '🎉 <strong>Acabaste todo o plano!</strong> Estás pronta para o 3.º ano!'
+    },
+    7: { // Carolina — 6.º para 7.º
+        targetYear: 7,
+        fromYears: [6, 7],
+        subjects: ['portugues', 'matematica', 'ciencias'],
+        subjects7: ['portugues', 'matematica', 'ciencias_naturais'],
+        title: '🌞 Plano de Férias para o 7.º',
+        subtitle: '14 dias para reveres o 6.º e ganhares balanço para o 7.º. Português, Matemática e Ciências. Ganha um autocolante por dia!',
+        finishedMsg: '🎉 <strong>Acabaste todo o plano!</strong> Estás pronta para o 7.º ano!'
+    }
+};
+
+function _holidayKey(year) { return 'year' + year; }
+
+function openHolidayPlan(targetYear) {
     if (!state.profile) return;
-    const progress = _holidayProgress();
+    // Detecta o ano se não fornecido
+    if (!targetYear) targetYear = (state.profile.year === 7 || state.profile.year === 6) ? 7 : 3;
+    const cfg = HOLIDAY_PLANS[targetYear];
+    if (!cfg) return;
+    const allProgress = _holidayProgress();
+    const progressKey = _holidayKey(targetYear);
+    if (!allProgress[progressKey]) allProgress[progressKey] = {};
+    const progress = allProgress[progressKey];
     let cardsHtml = '';
     const doneCount = Object.values(progress).filter(Boolean).length;
     for (let i = 0; i < HOLIDAY_DAYS; i++) {
         const done = !!progress['day' + i];
-        // Bloqueia dias futuros — só pode fazer o próximo
-        const locked = !done && i > 0 && !progress['day' + (i - 1)];
-        cardsHtml += `<button class="holiday-day ${done ? 'done' : ''} ${locked ? 'locked' : ''}" onclick="${locked ? '' : '_startHolidayDay(' + i + ')'}" ${locked ? 'disabled' : ''}>
+        // SEM BLOQUEIO — todos os dias estão disponíveis (pedido v459)
+        cardsHtml += `<button class="holiday-day ${done ? 'done' : ''}" onclick="_startHolidayDay(${i}, ${targetYear})">
             <div class="holiday-day-num">Dia ${i+1}</div>
-            <div class="holiday-day-sticker">${done ? HOLIDAY_STICKERS[i] : (locked ? '🔒' : '▶️')}</div>
+            <div class="holiday-day-sticker">${done ? HOLIDAY_STICKERS[i] : '▶️'}</div>
         </button>`;
     }
     const oldOverlay = document.querySelector('.holiday-overlay');
@@ -14878,14 +14908,14 @@ function openHolidayPlan() {
     overlay.innerHTML = `
         <div class="holiday-box">
             <div class="holiday-header">
-                <div class="holiday-title">🌞 Plano de Férias para o 3.º</div>
+                <div class="holiday-title">${cfg.title}</div>
                 <button class="holiday-close" onclick="closeHolidayPlan()" aria-label="Fechar">✕</button>
             </div>
-            <div class="holiday-subtitle">14 dias para te preparares para o 3.º ano. Português, Matemática e Estudo do Meio. Ganha um autocolante por dia!</div>
+            <div class="holiday-subtitle">${cfg.subtitle}</div>
             <div class="holiday-progress-bar"><div class="holiday-progress-fill" style="width:${(doneCount/HOLIDAY_DAYS*100).toFixed(0)}%"></div></div>
             <div class="holiday-progress-text">${doneCount} de ${HOLIDAY_DAYS} dias completos</div>
             <div class="holiday-grid">${cardsHtml}</div>
-            ${doneCount === HOLIDAY_DAYS ? '<div class="holiday-finished">🎉 <strong>Acabaste todo o plano!</strong> Estás pronta para o 3.º ano!</div>' : ''}
+            ${doneCount === HOLIDAY_DAYS ? '<div class="holiday-finished">' + cfg.finishedMsg + '</div>' : ''}
         </div>
     `;
     document.body.appendChild(overlay);
@@ -14911,24 +14941,30 @@ function _seededShuffle(arr, seed) {
     return a;
 }
 
-function _startHolidayDay(dayIdx) {
-    const subjects = ['portugues', 'matematica', 'estudo_meio'];
-    const seedBase = (dayIdx + 1) * 137 + (state.profile?.id?.length || 0);
-    const exs2 = window.EXERCISES_BY_YEAR[2] || [];
-    const exs3 = window.EXERCISES_BY_YEAR[3] || [];
+function _startHolidayDay(dayIdx, targetYear) {
+    if (!targetYear) targetYear = 3;
+    const cfg = HOLIDAY_PLANS[targetYear];
+    if (!cfg) return;
+    const fromYear = cfg.fromYears[0];
+    const toYear = cfg.fromYears[1];
+    const subjectsFrom = cfg.subjects;
+    const subjectsTo = cfg.subjects7 || cfg.subjects;
+    const seedBase = (dayIdx + 1) * 137 + (state.profile?.id?.length || 0) + targetYear * 1000;
+    const exsFrom = window.EXERCISES_BY_YEAR[fromYear] || [];
+    const exsTo = window.EXERCISES_BY_YEAR[toYear] || [];
     const items = [];
-    subjects.forEach((s, idx) => {
-        const from2 = _seededShuffle(exs2.filter(e => e.s === s && (!e.type || ['mc','tf','fill','problem'].includes(e.type))), seedBase + idx).slice(0, 2);
-        const from3 = _seededShuffle(exs3.filter(e => e.s === s && (!e.type || ['mc','tf','fill','problem'].includes(e.type))), seedBase + idx * 7).slice(0, 1);
-        items.push(...from2, ...from3);
+    subjectsFrom.forEach((s, idx) => {
+        const sTo = subjectsTo[idx] || s;
+        const from = _seededShuffle(exsFrom.filter(e => e.s === s && (!e.type || ['mc','tf','fill','problem'].includes(e.type))), seedBase + idx).slice(0, 2);
+        const to = _seededShuffle(exsTo.filter(e => e.s === sTo && (!e.type || ['mc','tf','fill','problem'].includes(e.type))), seedBase + idx * 7).slice(0, 1);
+        items.push(...from, ...to);
     });
     if (items.length === 0) {
         alert('Não foi possível gerar exercícios para hoje. Tenta de novo.');
         return;
     }
     closeHolidayPlan();
-    // Carrega extras do 2.º se ainda não estão (são placeholders mas mantém consistência)
-    try { if (typeof loadYearExtras === 'function') loadYearExtras(2); } catch {}
+    try { if (typeof loadYearExtras === 'function') { loadYearExtras(fromYear); loadYearExtras(toYear); } } catch {}
     currentSession = {
         items,
         idx: 0,
@@ -14939,11 +14975,11 @@ function _startHolidayDay(dayIdx) {
         isDaily: false,
         isHoliday: true,
         holidayDay: dayIdx,
+        holidayYear: targetYear,
         subject: 'férias',
         startedAt: Date.now(),
         results: []
     };
-    // Inicia o ecrã de exercício
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('summary-screen').style.display = 'none';
     document.getElementById('exercise-screen').style.display = 'flex';
@@ -14955,25 +14991,32 @@ window._startHolidayDay = _startHolidayDay;
 // Hook no fim da sessão: se foi do Plano de Férias, marca o dia como done.
 function _holidayMarkDoneIfApplicable(s) {
     if (!s || !s.isHoliday) return;
-    const progress = _holidayProgress();
-    progress['day' + s.holidayDay] = true;
+    const allProgress = _holidayProgress();
+    const key = _holidayKey(s.holidayYear || 3);
+    if (!allProgress[key]) allProgress[key] = {};
+    allProgress[key]['day' + s.holidayDay] = true;
     if (typeof saveState === 'function') { try { saveState(); } catch {} }
 }
 window._holidayMarkDoneIfApplicable = _holidayMarkDoneIfApplicable;
 
 // Botão de entrada no menu: injectado se o perfil for year=3 (Eduarda).
 function _injectHolidayButton() {
-    if (!state.profile || state.profile.year !== 3) return;
-    if (document.getElementById('holiday-entry-btn')) return; // já existe
+    if (!state.profile) return;
+    const year = state.profile.year;
+    let targetYear = null;
+    let label = '';
+    if (year === 3) { targetYear = 3; label = '14 dias para preparar o 3.º ano'; }
+    else if (year === 7) { targetYear = 7; label = '14 dias para rever 6.º e preparar 7.º'; }
+    else return;
+    if (document.getElementById('holiday-entry-btn')) return;
     const main = document.getElementById('main-screen');
     if (!main) return;
-    // Tenta achar a zona certa (após o avatar/header)
     const target = main.querySelector('.hero-card') || main.querySelector('.subject-section') || main.querySelector('section') || main;
     const btn = document.createElement('button');
     btn.id = 'holiday-entry-btn';
     btn.className = 'holiday-entry-btn';
-    btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>14 dias para preparar o 3.º ano</small></span><span class="he-arrow">›</span>`;
-    btn.onclick = openHolidayPlan;
+    btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>${label}</small></span><span class="he-arrow">›</span>`;
+    btn.onclick = () => openHolidayPlan(targetYear);
     target.parentNode.insertBefore(btn, target.nextSibling);
 }
 window._injectHolidayButton = _injectHolidayButton;
