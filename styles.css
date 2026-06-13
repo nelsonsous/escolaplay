@@ -4960,6 +4960,215 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 
 /* ========================================================
+   PROFESSOR DE LEITURA — overlay fullscreen
+   ======================================================== */
+.teacher-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 12px;
+    animation: teacher-fade-in .25s var(--spring-soft);
+}
+@keyframes teacher-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.teacher-box {
+    width: 100%;
+    max-width: 540px;
+    background: linear-gradient(180deg, #f0f9ff 0%, #ecfeff 100%);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 18px 16px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.teacher-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.teacher-title {
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-black);
+    color: #0c4a6e;
+}
+.teacher-close {
+    background: rgba(15, 23, 42, 0.08);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #475569;
+    font-weight: var(--fw-bold);
+}
+.teacher-close:active { transform: scale(0.92); }
+.teacher-subtitle {
+    font-size: var(--fs-sm);
+    color: #0e7490;
+    font-weight: var(--fw-bold);
+    margin-bottom: 12px;
+}
+.teacher-tip {
+    background: #fef9c3;
+    border-left: 4px solid #facc15;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    color: #713f12;
+    font-weight: var(--fw-semibold);
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+.teacher-text {
+    background: #fff;
+    border: 2px solid #a5f3fc;
+    border-radius: var(--radius-md);
+    padding: 16px 14px;
+    font-size: 1.25rem;
+    line-height: 2.0;
+    color: #0c4a6e;
+    font-weight: var(--fw-semibold);
+    margin-bottom: 12px;
+    max-height: 50vh;
+    overflow-y: auto;
+    word-spacing: 0.06em;
+}
+.t-word {
+    transition: background-color .2s, color .2s, transform .15s;
+    border-radius: 4px;
+    padding: 1px 1px;
+    display: inline-block;
+}
+.t-vocab {
+    border-bottom: 2px dashed #f9a8d4;
+    cursor: help;
+}
+.t-word.t-good {
+    background: #d1fae5;
+    color: #065f46;
+}
+.t-word.t-bad {
+    background: #fee2e2;
+    color: #991b1b;
+    text-decoration: line-through wavy #ef4444;
+}
+.t-word.t-current {
+    background: #fef3c7;
+    color: #92400e;
+    transform: scale(1.08);
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+}
+.t-punct { color: #be185d; font-weight: var(--fw-black); }
+.teacher-status {
+    text-align: center;
+    font-size: var(--fs-sm);
+    color: #0e7490;
+    min-height: 22px;
+    margin-bottom: 10px;
+    line-height: 1.45;
+}
+.teacher-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.teacher-btn {
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 12px 18px;
+    font-family: inherit;
+    font-size: 0.96rem;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform .12s var(--spring-soft), box-shadow .12s var(--spring-soft), opacity .15s;
+}
+.teacher-btn:active { transform: scale(0.96); }
+.teacher-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.teacher-btn-listen {
+    background: linear-gradient(135deg, #0891b2, #0e7490);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+}
+.teacher-btn-read {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+.teacher-btn-stop {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.teacher-btn-replay {
+    background: #fff;
+    color: #0e7490;
+    border: 2px solid #67e8f9;
+}
+.teacher-feedback {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: var(--radius-md);
+    padding: 16px 14px;
+    margin-top: 14px;
+    text-align: center;
+    border: 2px solid #a5f3fc;
+}
+.teacher-fb-stars {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    letter-spacing: 4px;
+}
+.teacher-fb-stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 8px;
+    font-size: var(--fs-sm);
+    color: #1f2937;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.teacher-fb-stats strong {
+    color: #0e7490;
+    font-size: 1.15rem;
+    display: block;
+    font-weight: var(--fw-black);
+}
+.teacher-fb-tip {
+    font-size: var(--fs-sm);
+    color: #713f12;
+    background: #fef9c3;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+.teacher-fb-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+/* Botão grande "Abrir Professor de Leitura" no exercício */
+.reading-btn-teacher {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+    font-size: 1rem;
+    padding: 14px 22px;
+    width: 100%;
+    justify-content: center;
+}
+
+/* ========================================================
    MODO LEITURA — texto para a criança LER, com orientações
    (disciplina "leitura" no 3.º ano)
    ======================================================== */
