@@ -5233,9 +5233,11 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     animation: teacher-fade-in .25s var(--spring-soft);
 }
 /* Quando o Professor está aberto, esconde o card original de Leitura
-   por baixo para não confundir. Também esconde o FAB do plano de férias. */
+   por baixo para não confundir. Também esconde o FAB do plano de férias
+   e a TELA DO EXERCÍCIO inteira — fica só o Professor visível. */
 body.has-teacher-overlay .reading-block,
-body.has-teacher-overlay #holiday-fab {
+body.has-teacher-overlay #holiday-fab,
+body.has-teacher-overlay #exercise-screen {
     display: none !important;
 }
 @keyframes teacher-fade-in { from { opacity: 0; } to { opacity: 1; } }
