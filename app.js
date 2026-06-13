@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v461';
+const APP_VERSION = 'v462';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15010,7 +15010,7 @@ window._holidayMarkDoneIfApplicable = _holidayMarkDoneIfApplicable;
 
 // Botão de entrada no menu: injectado se o perfil for year=3 (Eduarda).
 function _injectHolidayButton() {
-    if (!state.profile) return;
+    if (!state || !state.profile) return;
     const year = state.profile.year;
     let targetYear = null;
     let label = '';
@@ -15019,29 +15019,52 @@ function _injectHolidayButton() {
     else return;
     if (document.getElementById('holiday-entry-btn')) return;
     const main = document.getElementById('main-screen');
-    if (!main) return;
-    const target = main.querySelector('.hero-card') || main.querySelector('.subject-section') || main.querySelector('section') || main;
+    if (!main || main.style.display === 'none') return;
+    // Injeta no topo do main-screen, antes do 1.º elemento filho
     const btn = document.createElement('button');
     btn.id = 'holiday-entry-btn';
     btn.className = 'holiday-entry-btn';
     btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>${label}</small></span><span class="he-arrow">›</span>`;
     btn.onclick = () => openHolidayPlan(targetYear);
-    target.parentNode.insertBefore(btn, target.nextSibling);
+    // Preferência: depois do hero-card; se não houver, no início do main
+    const hero = main.querySelector('.hero-card');
+    if (hero && hero.parentNode) {
+        hero.parentNode.insertBefore(btn, hero.nextSibling);
+    } else {
+        main.insertBefore(btn, main.firstChild);
+    }
+    console.log('[holiday] botão injectado para year=' + year);
 }
 window._injectHolidayButton = _injectHolidayButton;
 
-// Re-injecta sempre que o main screen é exibido
-const _originalShowMain = window.showMainScreen;
-if (typeof _originalShowMain === 'function') {
-    window.showMainScreen = function () {
-        const r = _originalShowMain.apply(this, arguments);
-        try { _injectHolidayButton(); } catch {}
-        return r;
-    };
+// Tenta injetar o botão repetidamente até conseguir (perfil carregado +
+// main-screen visível). Para após sucesso ou se não há perfil compatível.
+// Também remove se o perfil mudar para um ano não-elegível.
+let _holidayInjectInterval = null;
+function _holidayInjectTry() {
+    try {
+        const btn = document.getElementById('holiday-entry-btn');
+        const year = state && state.profile && state.profile.year;
+        const eligible = (year === 3 || year === 7);
+        if (btn && !eligible) {
+            // perfil mudou — remove botão antigo
+            btn.remove();
+            return;
+        }
+        if (btn) return; // já existe
+        if (!eligible) return; // espera por perfil compatível
+        _injectHolidayButton();
+    } catch (e) { /* ignora */ }
 }
-// Também injecta ao carregar a página
+function _startHolidayInjectWatcher() {
+    if (_holidayInjectInterval) return;
+    _holidayInjectInterval = setInterval(_holidayInjectTry, 1500);
+    setTimeout(_holidayInjectTry, 300);
+    setTimeout(_holidayInjectTry, 1000);
+    setTimeout(_holidayInjectTry, 2500);
+}
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(_injectHolidayButton, 500);
+    _startHolidayInjectWatcher();
 } else {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(_injectHolidayButton, 500));
+    document.addEventListener('DOMContentLoaded', _startHolidayInjectWatcher);
 }
