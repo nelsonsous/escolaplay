@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v451';
+const APP_VERSION = 'v452';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4616,11 +4616,14 @@ function renderQuestion() {
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
     qHtml += `<span class="ex-q-text">${renderMd(e.q)}</span>`;
-    // Botão 🔊 (TTS) para Som+ — bem visível, abaixo da pergunta
-    if (e.s === 'som_plus' && 'speechSynthesis' in window) {
+    // Botão 🔊 (TTS) — sempre disponível para a Eduarda ouvir a pergunta.
+    // Exceções: leitura (tem o "Professor de Leitura" próprio) e inglês/frances
+    // (texto em outra língua).
+    const ttsBlocked = (e.s === 'leitura' || e.s === 'ingles' || e.s === 'frances' || e.s === 'english_ge' || e.s === 'english_pm');
+    if (!ttsBlocked && 'speechSynthesis' in window && typeof ttsSpeak === 'function') {
         const textToSpeak = (e.q || '').replace(/\*\*/g,'').replace(/\*/g,'')
             .replace(/'/g,"&#39;").replace(/"/g,'&quot;');
-        qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
+        qHtml += `<button class="ex-tts-btn" onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" aria-label="Ouvir a pergunta">🔊</button>`;
     }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
@@ -8264,6 +8267,7 @@ function showFeedback(e, isCorrect) {
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : (partial ? '\u{1F914}' : '\u{1F914}');
+    if (isCorrect) { try { _showConfetti(); } catch {} }
     const txt = document.getElementById('feedback-text');
     if (partial) {
         txt.textContent = 'Incompleto…';
@@ -8886,6 +8890,22 @@ function showSummary(s, newBadges, newRewards, streakIncreased) {
     document.getElementById('summary-title').textContent = title;
     document.getElementById('sum-correct').textContent = `${s.correct}/${total}`;
     document.getElementById('sum-xp').textContent = '+' + s.xp;
+    // Estrelas (1-3) baseadas em accuracy. < 50% fica sem estrelas (vai treinar).
+    const starsEl = document.getElementById('summary-stars');
+    if (starsEl) {
+        let n = 0;
+        if (acc >= 90) n = 3;
+        else if (acc >= 70) n = 2;
+        else if (acc >= 50) n = 1;
+        starsEl.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const span = document.createElement('span');
+            span.className = 'summary-star' + (i < n ? ' summary-star-on' : ' summary-star-off');
+            span.textContent = '⭐';
+            span.style.animationDelay = (i * 0.2 + 0.4) + 's';
+            starsEl.appendChild(span);
+        }
+    }
     // Anima o número da accuracy
     _animateNumber(document.getElementById('sum-accuracy'), 0, acc, 900, v => v + '%');
 
@@ -14524,3 +14544,23 @@ function _teacherFinishRead() {
     const stopBtn = document.getElementById('teacher-stop-btn');
     if (stopBtn) stopBtn.style.display = 'none';
 }
+
+// ============================================================
+// CONFETE — pequenas divs que caem do topo ao acertar.
+// Leve, sem libraries. Usado em showFeedback quando isCorrect.
+// ============================================================
+function _showConfetti(n) {
+    const N = n || 14;
+    const colors = ['#f472b6', '#facc15', '#10b981', '#0891b2', '#a78bfa', '#fb923c'];
+    for (let i = 0; i < N; i++) {
+        const d = document.createElement('div');
+        d.className = 'confetti-piece';
+        d.style.left = (Math.random() * 100) + 'vw';
+        d.style.background = colors[i % colors.length];
+        d.style.setProperty('--cf-x', ((Math.random() - 0.5) * 200) + 'px');
+        d.style.animationDelay = (Math.random() * 0.15) + 's';
+        document.body.appendChild(d);
+        setTimeout(() => d.remove(), 1900);
+    }
+}
+window._showConfetti = _showConfetti;

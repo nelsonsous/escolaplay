@@ -5023,6 +5023,99 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 
 /* ========================================================
+   v451+ INTERACTIVIDADE: TTS button, estrelas no summary,
+   confete ao acertar.
+   ======================================================== */
+/* Botão TTS pequeno e discreto ao lado da pergunta */
+.ex-tts-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: 8px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0891b2, #0e7490);
+    color: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow: 0 4px 10px -2px rgba(8, 145, 178, 0.45);
+    transition: transform .12s var(--spring-soft), box-shadow .12s;
+    vertical-align: middle;
+}
+.ex-tts-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -2px rgba(8, 145, 178, 0.55); }
+.ex-tts-btn:active { transform: scale(0.92); }
+
+/* Estrelas no summary */
+.summary-hero-stars {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 6px 0 8px;
+    min-height: 36px;
+}
+.summary-star {
+    font-size: 1.7rem;
+    display: inline-block;
+    transform: scale(0);
+    opacity: 0;
+    animation: star-pop 0.55s cubic-bezier(0.25, 0.8, 0.3, 1.4) forwards;
+}
+.summary-star-off {
+    filter: grayscale(1);
+    opacity: 0.35 !important;
+}
+.summary-star-off { animation: star-pop-dim 0.4s ease forwards; }
+@keyframes star-pop {
+    0%   { transform: scale(0) rotate(-30deg); opacity: 0; }
+    60%  { transform: scale(1.25) rotate(8deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes star-pop-dim {
+    0%   { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 0.35; }
+}
+
+/* Confete ao acertar — divs absolutas que caem */
+.confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 14px;
+    top: -20px;
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 2px;
+    animation: confetti-fall 1.6s cubic-bezier(0.2, 0.4, 0.6, 1) forwards;
+}
+@keyframes confetti-fall {
+    0%   { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; }
+    100% { transform: translate3d(var(--cf-x, 0), 110vh, 0) rotate(720deg); opacity: 0; }
+}
+
+/* Opções com cor mais vibrante ao serem selecionadas/corretas/erradas.
+   Reforço sobre o que já existe no design system. */
+.btn-option.selected:not(:disabled) {
+    border-color: var(--primary-dark);
+    background: var(--primary-light);
+    box-shadow: 0 3px 0 var(--primary-dark), 0 8px 18px -6px rgba(244,114,182,0.35);
+}
+.btn-option.correct {
+    border-color: #10b981;
+    background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+    box-shadow: 0 3px 0 #10b981, 0 8px 18px -6px rgba(16,185,129,0.35) !important;
+    color: #065f46;
+    font-weight: var(--fw-black);
+}
+.btn-option.wrong {
+    border-color: #ef4444;
+    background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+    box-shadow: 0 3px 0 #ef4444, 0 8px 18px -6px rgba(239,68,68,0.35) !important;
+    color: #991b1b;
+    text-decoration: line-through wavy #ef4444;
+}
+
+/* ========================================================
    PROFESSOR DE LEITURA — overlay fullscreen
    ======================================================== */
 .teacher-overlay {
