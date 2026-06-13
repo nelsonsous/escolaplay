@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v449';
+const APP_VERSION = 'v450';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4592,21 +4592,18 @@ function renderQuestion() {
                 })
                 .replace(/\n/g, '<br>');
             const tipHtml = e.tip ? `<div class="reading-tip">💡 ${escapeHtml(e.tip)}</div>` : '';
-            const ttsTextRaw = e.passage.replace(/\*\*/g, '');
-            const ttsText = ttsTextRaw.replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/\n/g, ' ');
-            const ttsHtml = ('speechSynthesis' in window)
-                ? `<div class="reading-controls">
-                       <button class="reading-btn reading-btn-listen" onclick="ttsSpeak('${ttsText}')">🔊 Ouvir o texto</button>
-                       <button class="reading-btn reading-btn-replay" onclick="ttsSpeak('${ttsText}')" title="Repetir (releitura aumenta fluência)">🔁 Repetir</button>
-                   </div>`
-                : '';
+            // Botão principal: abrir Professor de Leitura
+            const exId = (e.id || '').replace(/'/g, "\\'");
+            const teacherHtml = `<div class="reading-controls">
+                <button class="reading-btn reading-btn-teacher" onclick="openReadingTeacher('${exId}')">🎓 Abrir o Professor de Leitura</button>
+            </div>`;
             const vocabEntries = Object.entries(vocab);
             const vocabHtml = vocabEntries.length
                 ? `<div class="reading-vocab"><div class="reading-vocab-title">📖 Palavras novas</div><ul>${
                        vocabEntries.map(([w, d]) => `<li><strong>${escapeHtml(w)}</strong> — ${escapeHtml(d)}</li>`).join('')
                    }</ul></div>`
                 : '';
-            qHtml += `<div class="reading-block">${tipHtml}<div class="reading-passage">${pass}</div>${ttsHtml}${vocabHtml}</div>`;
+            qHtml += `<div class="reading-block">${tipHtml}<div class="reading-passage">${pass}</div>${teacherHtml}${vocabHtml}</div>`;
         } else {
             qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
         }
@@ -14161,3 +14158,369 @@ setInterval(() => _updateBackupIndicator(), 60000);
 window.openRestoreBackupDialog = openRestoreBackupDialog;
 window.exportProgressJSON = exportProgressJSON;
 window.openImportProgressJSON = openImportProgressJSON;
+
+// ============================================================
+// PROFESSOR DE LEITURA — overlay fullscreen com TTS karaoke
+// + reconhecimento de voz (Web Speech API, pt-PT).
+// Para a Eduarda treinar leitura no 3.º ano.
+// ============================================================
+const _teacher = {
+    overlay: null,
+    text: '',           // texto limpo (sem marcações)
+    words: [],          // tokens (palavras normalizadas para comparação)
+    rawTokens: [],      // tokens originais (com pontuação)
+    spans: [],          // referências aos <span class="t-word">
+    position: 0,        // próxima palavra a ler (índice em words)
+    recognition: null,
+    utterance: null,
+    startTime: 0,
+    mode: null,         // 'listen' | 'read' | null
+};
+
+function _teacherCleanText(raw) {
+    return String(raw || '').replace(/\*\*/g, '').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function _teacherNormalize(w) {
+    return String(w || '').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos
+        .replace(/[^a-z0-9]/g, '');                         // remove pontuação
+}
+function _teacherTokenize(text) {
+    // Divide em palavras + pontuação (mantém ordem).
+    // Retorna: { raw: [...], normalized: [...] } onde só as palavras "alfa" vão
+    // para normalized e renderização interactiva. A pontuação fica entre spans.
+    const parts = [];
+    const re = /(\s+|[.,;:!?—–\-"()«»…]|[^\s.,;:!?—–\-"()«»…]+)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) parts.push(m[0]);
+    return parts;
+}
+
+function openReadingTeacher(exId) {
+    const ex = (window.EXERCISES || []).find(e => e.id === exId);
+    if (!ex) { alert('Texto não encontrado.'); return; }
+    const title = ex.t || 'Leitura';
+    const tip = ex.tip || '';
+    const cleanText = _teacherCleanText(ex.passage || '');
+    const vocab = ex.vocab || {};
+
+    // Tokenize
+    const parts = _teacherTokenize(cleanText);
+    _teacher.text = cleanText;
+    _teacher.words = [];
+    _teacher.rawTokens = parts;
+    _teacher.spans = [];
+    _teacher.position = 0;
+    _teacher.mode = null;
+
+    // Build HTML: cada palavra é um span; pontuação fica em spans diferentes
+    let html = '';
+    let wordIdx = 0;
+    parts.forEach(p => {
+        if (/^\s+$/.test(p)) { html += ' '; return; }
+        if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) { html += `<span class="t-punct">${escapeHtml(p)}</span>`; return; }
+        const norm = _teacherNormalize(p);
+        if (!norm) { html += escapeHtml(p); return; }
+        _teacher.words.push(norm);
+        const def = vocab[p] || vocab[p.toLowerCase()] || '';
+        const defAttr = String(def).replace(/"/g, '&quot;');
+        const cls = def ? 't-word t-vocab' : 't-word';
+        html += `<span class="${cls}" data-i="${wordIdx}" title="${defAttr}">${escapeHtml(p)}</span>`;
+        wordIdx++;
+    });
+
+    // Build overlay
+    if (_teacher.overlay) _teacher.overlay.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'teacher-overlay';
+    overlay.innerHTML = `
+        <div class="teacher-box">
+            <div class="teacher-header">
+                <div class="teacher-title">🎓 Professor de Leitura</div>
+                <button class="teacher-close" onclick="closeReadingTeacher()" aria-label="Fechar">✕</button>
+            </div>
+            <div class="teacher-subtitle">${escapeHtml(title)}</div>
+            ${tip ? `<div class="teacher-tip">💡 ${escapeHtml(tip)}</div>` : ''}
+            <div class="teacher-text" id="teacher-text">${html}</div>
+            <div class="teacher-status" id="teacher-status"></div>
+            <div class="teacher-controls">
+                <button class="teacher-btn teacher-btn-listen" id="teacher-listen-btn" onclick="_teacherListen()">🎓 Ouve o professor</button>
+                <button class="teacher-btn teacher-btn-read" id="teacher-read-btn" onclick="_teacherStartRead()">🎤 Agora lê tu</button>
+                <button class="teacher-btn teacher-btn-stop" id="teacher-stop-btn" onclick="_teacherStop()" style="display:none">⏸ Parar</button>
+            </div>
+            <div class="teacher-feedback" id="teacher-feedback" style="display:none"></div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    _teacher.overlay = overlay;
+    _teacher.spans = Array.from(overlay.querySelectorAll('.t-word'));
+
+    // Avisar se Speech Recognition não está disponível
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+        const readBtn = document.getElementById('teacher-read-btn');
+        if (readBtn) {
+            readBtn.disabled = true;
+            readBtn.title = 'O teu browser não suporta reconhecimento de voz. Mas podes ouvir o professor a ler.';
+            readBtn.style.opacity = '0.55';
+        }
+    }
+}
+window.openReadingTeacher = openReadingTeacher;
+
+function closeReadingTeacher() {
+    _teacherStop();
+    if (_teacher.overlay) {
+        _teacher.overlay.remove();
+        _teacher.overlay = null;
+    }
+}
+window.closeReadingTeacher = closeReadingTeacher;
+
+function _teacherStop() {
+    if (_teacher.recognition) {
+        try { _teacher.recognition.stop(); } catch {}
+        _teacher.recognition = null;
+    }
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch {}
+    _teacher.utterance = null;
+    _teacher.mode = null;
+    const stopBtn = document.getElementById('teacher-stop-btn');
+    const listenBtn = document.getElementById('teacher-listen-btn');
+    const readBtn = document.getElementById('teacher-read-btn');
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (listenBtn) listenBtn.style.display = '';
+    if (readBtn) readBtn.style.display = '';
+    const status = document.getElementById('teacher-status');
+    if (status) status.textContent = '';
+}
+window._teacherStop = _teacherStop;
+
+// =========== Modo OUVIR (TTS karaoke via boundary event) ===========
+function _teacherListen() {
+    _teacherStop();
+    _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
+    _teacher.position = 0;
+    _teacher.mode = 'listen';
+    const status = document.getElementById('teacher-status');
+    if (status) status.innerHTML = '🔊 <strong>O professor está a ler...</strong> Acompanha com os olhos!';
+    document.getElementById('teacher-stop-btn').style.display = '';
+
+    // Em iOS / Edge TTS via proxy não temos timestamps por palavra. Usa speechSynthesis nativo
+    // (que tem onboundary em muitos browsers) — fallback: simula highlight por tempo.
+    if (!('speechSynthesis' in window)) {
+        if (status) status.textContent = 'O teu browser não suporta fala.';
+        return;
+    }
+    try { window.speechSynthesis.cancel(); } catch {}
+    const u = new SpeechSynthesisUtterance(_teacher.text);
+    u.lang = 'pt-PT';
+    u.rate = 0.85;
+    u.pitch = 1.0;
+    // tentar escolher voz pt-PT
+    const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+    const ptVoice = voices.find(v => /pt-PT|pt_PT/i.test(v.lang)) || voices.find(v => /^pt/i.test(v.lang));
+    if (ptVoice) u.voice = ptVoice;
+
+    let boundarySupported = false;
+    u.onboundary = (ev) => {
+        if (ev.name === 'word' || !ev.name) {
+            boundarySupported = true;
+            // Mapear charIndex → posição da palavra
+            const upTo = _teacher.text.slice(0, ev.charIndex || 0);
+            const wordsBefore = (upTo.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).length;
+            _teacherHighlight(wordsBefore);
+        }
+    };
+    u.onend = () => {
+        _teacherHighlightAll();
+        _teacherStop();
+        if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
+    };
+    u.onerror = () => { _teacherStop(); };
+    _teacher.utterance = u;
+    window.speechSynthesis.speak(u);
+
+    // Fallback: se boundary não dispara nos primeiros 800ms, faz simulação por tempo
+    setTimeout(() => {
+        if (!boundarySupported && _teacher.mode === 'listen') {
+            const totalDuration = Math.max(2000, _teacher.words.length * 380); // ~380ms/palavra @ rate 0.85
+            const step = totalDuration / Math.max(1, _teacher.words.length);
+            let i = 0;
+            const tick = () => {
+                if (_teacher.mode !== 'listen' || i >= _teacher.words.length) return;
+                _teacherHighlight(i);
+                i++;
+                setTimeout(tick, step);
+            };
+            tick();
+        }
+    }, 800);
+}
+window._teacherListen = _teacherListen;
+
+function _teacherHighlight(idx) {
+    // Marca todas as palavras até idx como "lidas" e a actual como "current".
+    _teacher.spans.forEach((sp, i) => {
+        sp.classList.remove('t-current');
+        if (i < idx) sp.classList.add('t-good');
+        else if (i === idx) { sp.classList.add('t-good'); sp.classList.add('t-current'); }
+    });
+    // scroll
+    const sp = _teacher.spans[idx];
+    if (sp && sp.scrollIntoView) sp.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function _teacherHighlightAll() {
+    _teacher.spans.forEach(sp => { sp.classList.add('t-good'); sp.classList.remove('t-current'); });
+}
+
+// =========== Modo LER (SpeechRecognition pt-PT) ===========
+function _teacherStartRead() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+        const status = document.getElementById('teacher-status');
+        if (status) status.innerHTML = '⚠️ O teu browser não suporta reconhecimento de voz. Pede ao teu pai/mãe que tente noutro browser (Chrome no Android funciona bem).';
+        return;
+    }
+    _teacherStop();
+    _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
+    _teacher.position = 0;
+    _teacher.mode = 'read';
+    _teacher.startTime = Date.now();
+    if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
+
+    const r = new SR();
+    r.lang = 'pt-PT';
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    r.onstart = () => {
+        const status = document.getElementById('teacher-status');
+        if (status) status.innerHTML = '🎤 <strong>O microfone está a ouvir-te.</strong> Lê o texto em voz alta, devagar!';
+        document.getElementById('teacher-stop-btn').style.display = '';
+    };
+    r.onresult = (event) => {
+        // Concatena todos os resultados (interim + final)
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript + ' ';
+        }
+        const heardWords = (transcript.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
+        _teacherMatchHeard(heardWords);
+    };
+    r.onerror = (ev) => {
+        const status = document.getElementById('teacher-status');
+        if (status) {
+            if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+                status.innerHTML = '⚠️ Precisas de dar permissão ao microfone. Toca outra vez quando estiveres pronta.';
+            } else if (ev.error === 'no-speech') {
+                status.innerHTML = '🤫 Não te ouvi. Tenta ler mais alto.';
+            } else {
+                status.innerHTML = `⚠️ ${escapeHtml(ev.error || 'erro')}`;
+            }
+        }
+    };
+    r.onend = () => {
+        if (_teacher.mode === 'read') _teacherFinishRead();
+    };
+    _teacher.recognition = r;
+    try {
+        r.start();
+    } catch (e) {
+        const status = document.getElementById('teacher-status');
+        if (status) status.innerHTML = '⚠️ Não consegui iniciar o microfone. Tenta outra vez.';
+    }
+}
+window._teacherStartRead = _teacherStartRead;
+
+// Avalia palavras ouvidas vs esperadas.
+// Algoritmo: avança a posição enquanto encontra match. Tolerância: aceita
+// 1 palavra à frente (para o caso de saltar). Palavras "saltadas" ficam
+// marcadas como erradas.
+function _teacherMatchHeard(heard) {
+    let h = 0;
+    for (let p = _teacher.position; p < _teacher.words.length && h < heard.length;) {
+        const expected = _teacher.words[p];
+        const got = heard[h];
+        if (!got) { h++; continue; }
+        if (expected === got || (expected && got && (expected.startsWith(got) || got.startsWith(expected)))) {
+            _teacher.spans[p].classList.remove('t-bad', 't-current');
+            _teacher.spans[p].classList.add('t-good');
+            p++;
+            h++;
+            _teacher.position = p;
+            // marca próxima como current
+            if (_teacher.spans[p]) _teacher.spans[p].classList.add('t-current');
+        } else {
+            // tenta saltar 1 palavra esperada (pode ter pronunciado mal)
+            if (p + 1 < _teacher.words.length) {
+                const nextExp = _teacher.words[p + 1];
+                if (nextExp === got || (nextExp && got && (nextExp.startsWith(got) || got.startsWith(nextExp)))) {
+                    _teacher.spans[p].classList.remove('t-current');
+                    _teacher.spans[p].classList.add('t-bad');
+                    _teacher.spans[p + 1].classList.add('t-good');
+                    p += 2;
+                    h++;
+                    _teacher.position = p;
+                    if (_teacher.spans[p]) _teacher.spans[p].classList.add('t-current');
+                    continue;
+                }
+            }
+            // não consegui match — saltar ouvido
+            h++;
+        }
+    }
+    // Se chegou ao fim
+    if (_teacher.position >= _teacher.words.length) {
+        try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
+    }
+}
+
+function _teacherFinishRead() {
+    const duration = (Date.now() - _teacher.startTime) / 1000;
+    const total = _teacher.words.length;
+    const correct = _teacher.spans.filter(sp => sp.classList.contains('t-good')).length;
+    const bad = _teacher.spans.filter(sp => sp.classList.contains('t-bad')).length;
+    const missed = total - correct - bad;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const wpm = duration > 0 ? Math.round((correct / duration) * 60) : 0;
+
+    // Pontuação: heurística simples baseada em duração esperada
+    // Esperado: ~100 wpm para um leitor de 3.º ano. Se foi >130 wpm, leu rápido demais.
+    let pontMsg = '';
+    if (wpm > 130 && correct > 5) {
+        pontMsg = '⚠️ Leste muito rápido. Tenta fazer pausa nas vírgulas (curta) e nos pontos (mais longa) na próxima.';
+    } else if (wpm < 60 && correct > 5) {
+        pontMsg = '🐢 Leste muito devagar. Está bem — agora tenta de novo um bocadinho mais fluido.';
+    } else if (correct > 5) {
+        pontMsg = '👌 Boa velocidade! Continua a treinar para ler ainda mais fluido.';
+    }
+
+    let stars = '⭐';
+    if (pct >= 90) stars = '⭐⭐⭐';
+    else if (pct >= 70) stars = '⭐⭐';
+
+    const fb = document.getElementById('teacher-feedback');
+    if (fb) {
+        fb.style.display = 'block';
+        fb.innerHTML = `
+            <div class="teacher-fb-stars">${stars}</div>
+            <div class="teacher-fb-stats">
+                <div><strong>${correct}</strong>/${total} palavras certas</div>
+                <div><strong>${pct}%</strong> de precisão</div>
+                <div><strong>${wpm}</strong> palavras / minuto</div>
+            </div>
+            ${pontMsg ? `<div class="teacher-fb-tip">${pontMsg}</div>` : ''}
+            <div class="teacher-fb-actions">
+                <button class="teacher-btn teacher-btn-replay" onclick="_teacherStartRead()">🔁 Tentar outra vez</button>
+                <button class="teacher-btn teacher-btn-listen" onclick="_teacherListen()">🎓 Ouvir o professor</button>
+            </div>
+        `;
+    }
+    const status = document.getElementById('teacher-status');
+    if (status) status.textContent = '';
+    _teacher.mode = null;
+    const stopBtn = document.getElementById('teacher-stop-btn');
+    if (stopBtn) stopBtn.style.display = 'none';
+}
