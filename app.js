@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v475';
+const APP_VERSION = 'v476';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4623,19 +4623,15 @@ function renderQuestion() {
         qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
     }
     qEl.innerHTML = qHtml;
-    // v466: para exercícios de Leitura, abrir o Professor automaticamente —
-    // é a experiência preferida (overlay imersivo, TTS karaoke, ASR, perguntas
-    // por parágrafo). O utilizador pode fechar e responder à pergunta de
-    // compreensão no card abaixo.
+    // v476: para Leitura, o Professor de Leitura é a única experiência —
+    // abrir já (não com setTimeout) e marcar logo a body class para que o
+    // ex-screen fique escondido por trás sem flicker. Ao fechar o Professor,
+    // closeReadingTeacher() encerra a sessão (não há ecrã de exercício a ver).
     if (e.s === 'leitura' && e.passage && !document.querySelector('.teacher-overlay')) {
-        setTimeout(() => {
-            try {
-                if (typeof openReadingTeacher === 'function' && currentSession &&
-                    currentSession.items[currentSession.idx] && currentSession.items[currentSession.idx].id === e.id) {
-                    openReadingTeacher(e.id);
-                }
-            } catch (err) { console.warn('[leitura] auto-open falhou', err); }
-        }, 250);
+        try {
+            document.body.classList.add('has-teacher-overlay');
+            if (typeof openReadingTeacher === 'function') openReadingTeacher(e.id);
+        } catch (err) { console.warn('[leitura] auto-open falhou', err); }
     }
     document.getElementById('ex-feedback').style.display = 'none';
     // Repor a barra de acção em modo "Responder"
@@ -14347,6 +14343,18 @@ function closeReadingTeacher() {
         _teacher.overlay.remove();
         _teacher.overlay = null;
     }
+    // Leitura é exclusivamente Professor de Leitura: ao fechar, sai da
+    // sessão e volta para a vista da disciplina — sem mostrar o ecrã de
+    // exercício vazio com o botão "Voltar a abrir o Professor".
+    try {
+        const cur = currentSession && currentSession.items && currentSession.items[currentSession.idx];
+        if (cur && cur.s === 'leitura') {
+            currentSession = null;
+            closeExerciseScreen();
+            if (typeof openSubjectDetail === 'function') openSubjectDetail('leitura');
+            else switchTab('home');
+        }
+    } catch (err) { /* falha silenciosa */ }
 }
 window.closeReadingTeacher = closeReadingTeacher;
 
