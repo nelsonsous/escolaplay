@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v463';
+const APP_VERSION = 'v464';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14438,6 +14438,7 @@ function _teacherStartRead(resume) {
         _teacher.position = 0;
         _teacher.heardCursor = 0;
         _teacher.pCheckIdx = 0;
+        _teacher.restartCount = 0;
         _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
         _teacher.startTime = Date.now();
         if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
@@ -14481,6 +14482,21 @@ function _teacherStartRead(resume) {
         }
     };
     r.onend = () => {
+        // Web Speech Recognition em iOS Safari pode parar sozinho após
+        // silêncio. Se ainda estamos em modo 'read' e ainda há palavras
+        // para ler, faz auto-restart (até 3 vezes para evitar loops).
+        if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
+            _teacher.restartCount = (_teacher.restartCount || 0) + 1;
+            if (_teacher.restartCount <= 3) {
+                setTimeout(() => {
+                    if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
+                        _teacher.recognition = null;
+                        try { _teacherStartRead(true); } catch {}
+                    }
+                }, 300);
+                return;
+            }
+        }
         if (_teacher.mode === 'read') _teacherFinishRead();
     };
     _teacher.recognition = r;
