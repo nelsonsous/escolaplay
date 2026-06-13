@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v471';
+const APP_VERSION = 'v472';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14338,6 +14338,7 @@ function openReadingTeacher(exId) {
         </div>
     `;
     document.body.appendChild(overlay);
+    document.body.classList.add('has-teacher-overlay');
     _teacher.overlay = overlay;
     _teacher.spans = Array.from(overlay.querySelectorAll('.t-word'));
 
@@ -14356,6 +14357,7 @@ window.openReadingTeacher = openReadingTeacher;
 
 function closeReadingTeacher() {
     _teacherStop();
+    document.body.classList.remove('has-teacher-overlay');
     if (_teacher.overlay) {
         _teacher.overlay.remove();
         _teacher.overlay = null;
@@ -14448,18 +14450,24 @@ function _teacherStartReadWatcher() {
             return;
         }
         const stalledMs = Date.now() - _teacher.lastProgressAt;
-        // Re-arranca ASR se está morto e ainda nem 4s sem progresso
-        if (!_teacher.recognition && stalledMs < 4500) {
+        // Re-arranca ASR se está morto (dá mais tempo: 7s)
+        if (!_teacher.recognition && stalledMs < 7000) {
             try { _teacherStartRead(true); } catch (e) { console.warn('[teacher] restart falhou', e); }
             return;
         }
-        // Auto-skip se está REALMENTE preso há > 4s
-        if (stalledMs > 4000) {
+        // Aviso suave a 5s
+        if (stalledMs > 5000 && stalledMs < 7000) {
             const status = document.getElementById('teacher-status');
-            if (status) status.innerHTML = '🤖 <strong>A avançar...</strong> O microfone não te ouve. Continua a ler!';
+            if (status && !status.innerHTML.includes('A ouvir')) {
+                status.innerHTML = '🎤 <strong>A ouvir...</strong> Lê mais alto, se faz favor.';
+            }
+        }
+        // Auto-skip APENAS depois de 7s totalmente preso
+        if (stalledMs > 7000) {
+            const status = document.getElementById('teacher-status');
+            if (status) status.innerHTML = '🤖 <strong>A avançar...</strong> O microfone não te ouve. Continua!';
             try { _teacherSkipWord(); } catch {}
             _teacher.lastProgressAt = Date.now();
-            // Se chegou ao fim, mode != 'read' e o watcher para
             if (_teacher.mode === 'read' && !_teacher.recognition) {
                 try { _teacherStartRead(true); } catch {}
             }
