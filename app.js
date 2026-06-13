@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v470';
+const APP_VERSION = 'v471';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14364,6 +14364,7 @@ function closeReadingTeacher() {
 window.closeReadingTeacher = closeReadingTeacher;
 
 function _teacherStop() {
+    if (_teacher.watchInterval) { clearInterval(_teacher.watchInterval); _teacher.watchInterval = null; }
     if (_teacher.recognition) {
         try { _teacher.recognition.stop(); } catch {}
         _teacher.recognition = null;
@@ -14424,6 +14425,48 @@ function _teacherSkipWord() {
 }
 window._teacherSkipWord = _teacherSkipWord;
 window._teacherStop = _teacherStop;
+
+// Watcher robusto do modo "Agora lê tu". Corre a cada 1.2s e:
+// 1) Se ASR está morto e ainda há palavras → restart.
+// 2) Se passaram > 4s sem qualquer progresso na position → AUTO-SKIP da
+//    palavra current (a Eduarda não está bloqueada).
+// 3) Para quando modo deixa de ser 'read'.
+function _teacherStartReadWatcher() {
+    if (_teacher.watchInterval) { clearInterval(_teacher.watchInterval); }
+    _teacher.lastPosition = _teacher.position;
+    _teacher.lastProgressAt = Date.now();
+    _teacher.watchInterval = setInterval(() => {
+        if (_teacher.mode !== 'read') {
+            clearInterval(_teacher.watchInterval);
+            _teacher.watchInterval = null;
+            return;
+        }
+        // Detetar progresso
+        if (_teacher.position > _teacher.lastPosition) {
+            _teacher.lastPosition = _teacher.position;
+            _teacher.lastProgressAt = Date.now();
+            return;
+        }
+        const stalledMs = Date.now() - _teacher.lastProgressAt;
+        // Re-arranca ASR se está morto e ainda nem 4s sem progresso
+        if (!_teacher.recognition && stalledMs < 4500) {
+            try { _teacherStartRead(true); } catch (e) { console.warn('[teacher] restart falhou', e); }
+            return;
+        }
+        // Auto-skip se está REALMENTE preso há > 4s
+        if (stalledMs > 4000) {
+            const status = document.getElementById('teacher-status');
+            if (status) status.innerHTML = '🤖 <strong>A avançar...</strong> O microfone não te ouve. Continua a ler!';
+            try { _teacherSkipWord(); } catch {}
+            _teacher.lastProgressAt = Date.now();
+            // Se chegou ao fim, mode != 'read' e o watcher para
+            if (_teacher.mode === 'read' && !_teacher.recognition) {
+                try { _teacherStartRead(true); } catch {}
+            }
+        }
+    }, 1200);
+}
+window._teacherStartReadWatcher = _teacherStartReadWatcher;
 
 // =========== Modo OUVIR (TTS via ttsSpeak — Edge Raquel quando disponível) ===========
 // Usa a voz Raquel Neural (Edge TTS via proxy) se configurada — muito mais
@@ -14542,34 +14585,13 @@ function _teacherStartRead(resume) {
         }
     };
     r.onend = () => {
-        // Auto-restart até 8 vezes (o contador reseta sempre que uma nova
-        // palavra é matched). Após 3 restarts sem progresso, faz AUTO-SKIP
-        // da palavra atual para não bloquear a Eduarda.
-        if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
-            _teacher.restartCount = (_teacher.restartCount || 0) + 1;
-            // Auto-skip se ficou MESMO preso
-            if (_teacher.restartCount >= 3) {
-                const status = document.getElementById('teacher-status');
-                if (status) status.innerHTML = '🤖 <strong>A avançar...</strong> O microfone não te ouve bem. Continua a ler!';
-                try { _teacherSkipWord(); } catch {}
-                // Após skip, _teacherSkipWord pode ter chamado _teacherFinishRead já
-                if (_teacher.mode !== 'read') return;
-                // Reset contador depois do skip — dá chance ao ASR de captar a próxima
-                _teacher.restartCount = 0;
-            }
-            if (_teacher.restartCount <= 8) {
-                setTimeout(() => {
-                    if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
-                        _teacher.recognition = null;
-                        try { _teacherStartRead(true); } catch {}
-                    }
-                }, 300);
-                return;
-            }
-        }
-        if (_teacher.mode === 'read') _teacherFinishRead();
+        // Em modo 'read': agenda re-arranque do ASR pelo watcher. O onend
+        // dispara muito (após cada pausa de fala) — confiar nele para
+        // contar bloqueios não é fiável. O watcher (setInterval) trata.
+        _teacher.recognition = null;
     };
     _teacher.recognition = r;
+    _teacherStartReadWatcher();
     try {
         r.start();
     } catch (e) {
