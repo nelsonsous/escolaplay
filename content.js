@@ -1501,21 +1501,21 @@ const EXERCISES_2 = [
 
 
 // ============================================================
-// ===================== 3.º ANO ==============================
+// ============= 3.º ANO — COLÉGIO OCEANUS (year=31) ==========
 // Aprendizagens Essenciais 2018 (alinhado com manuais Texto/Porto/Areal).
 // NOTA: para o aluno do Colégio Oceanus, Estudo do Meio é leccionado
 // EM INGLÊS — a disciplina aparece como "Science" e o conteúdo (tópicos,
 // perguntas, explicações) está em inglês. As outras disciplinas mantêm-se
 // em português.
 // ============================================================
-const SUBJECTS_3 = {
+const SUBJECTS_3_OCEANUS = {
     portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
     matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
     estudo_meio:  { name: 'Science',         icon: 'fa-globe',        color: '#16a34a' },
     ingles:       { name: 'English',         icon: 'fa-language',     color: '#7c3aed' }
 };
 
-const CURRICULUM_3 = {
+const CURRICULUM_3_OCEANUS = {
     portugues: [
         'Ditongos e hiatos', 'Acentuação', 'Translineação',
         'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Adjetivos', 'Verbos', 'Plurais e feminino',
@@ -1548,7 +1548,7 @@ const CURRICULUM_3 = {
     ]
 };
 
-const PERIODS_3 = {
+const PERIODS_3_OCEANUS = {
     portugues:   {
         'Ditongos e hiatos':1, 'Acentuação':1, 'Translineação':1,
         'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
@@ -1576,7 +1576,7 @@ const PERIODS_3 = {
     }
 };
 
-const LESSONS_3 = {
+const LESSONS_3_OCEANUS = {
     // ===== PORTUGUÊS =====
     'portugues/Ditongos e hiatos': {
         title: 'Ditongos e hiatos',
@@ -1782,7 +1782,7 @@ const LESSONS_3 = {
     }
 };
 
-const EXERCISES_3 = [
+const EXERCISES_3_OCEANUS = [
     // ===========================================================
     // PORTUGUÊS 3.º
     // ===========================================================
@@ -2018,6 +2018,473 @@ const EXERCISES_3 = [
     { id:'3i27', s:'ingles', t:'Reading comprehension', type:'mc', diff:2, q:'📖 The place where a story happens is called the:', opts:['setting','plot','character'], ans:0, exp:'Setting = where (and when) the story takes place.' },
 ];
 
+
+// ============================================================
+// ========== 3.º ANO — COLÉGIO DE LOURDES (year=3) ===========
+// Currículo Aprendizagens Essenciais 2018, alinhado com os manuais
+// adotados pelo Colégio de Nossa Senhora de Lourdes (Santo Tirso)
+// para o ano letivo 2025/2026:
+//
+//  • Português, Matemática, Estudo do Meio: Missão Zupi 3 (Porto Editora)
+//    António José Mota, Filipe Cardoso. Cada manual com Livro de Fichas.
+//  • Inglês: Kid's Box [New Generation] Pupil's Book 2 + Activity Book 2
+//    (Cambridge English) — Caroline Nixon, Michael Tomlinson.
+//  • Formação Cristã: Ao Encontro 3 (S.N.E.C.) — Catarina Moura,
+//    Jaime Barbosa, José Sousa.
+//  • Cidadania e Desenvolvimento: Estratégia Nacional (sem manual).
+// ============================================================
+const SUBJECTS_3 = {
+    portugues:        { name: 'Português',         icon: 'fa-book',         color: '#e11d48' },
+    matematica:       { name: 'Matemática',        icon: 'fa-calculator',   color: '#2563eb' },
+    estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',        color: '#16a34a' },
+    ingles:           { name: 'Inglês',            icon: 'fa-language',     color: '#7c3aed' },
+    formacao_crista:  { name: 'Formação Cristã',   icon: 'fa-cross',        color: '#d97706' },
+    cidadania:        { name: 'Cidadania',         icon: 'fa-people-group', color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' }
+};
+
+const CURRICULUM_3 = {
+    portugues: [
+        'Sílabas', 'Ditongos e hiatos', 'Acentuação', 'Translineação',
+        'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Pronomes pessoais',
+        'Adjetivos', 'Verbos', 'Plurais e feminino',
+        'Tipos de frase', 'Sinónimos e antónimos', 'Família de palavras',
+        'Compreensão de texto', 'Texto poético', 'Banda desenhada'
+    ],
+    matematica: [
+        'Números até 10 000', 'Valor posicional', 'Adição e subtração', 'Multiplicação',
+        'Tabuadas', 'Cálculo mental', 'Divisão', 'Múltiplos e divisores',
+        'Frações', 'Polígonos', 'Sólidos geométricos', 'Perímetro',
+        'Comprimento', 'Massa e capacidade', 'Tempo', 'Dinheiro', 'Tabelas e gráficos'
+    ],
+    estudo_meio: [
+        'O passado da criança', 'O corpo humano', 'Os sistemas do corpo',
+        'A saúde e a prevenção', 'Os cinco sentidos',
+        'O passado do meio local', 'Símbolos nacionais', 'Instituições e serviços',
+        'Os astros', 'Aspetos físicos do meio', 'Animais', 'Plantas',
+        'Materiais e objetos', 'Experiências'
+    ],
+    ingles: [
+        'Greetings and feelings', 'School things', 'Toys and playtime',
+        'Rooms at home', 'Family members', 'Farm animals', 'My town',
+        'Clothes', 'Hobbies and sports', 'Numbers and colours'
+    ],
+    formacao_crista: [
+        'Eu sou único e importante', 'Viver em família',
+        'A criação do mundo', 'A vida de Jesus',
+        'A Igreja e os sacramentos', 'Valores cristãos'
+    ],
+    cidadania: [
+        'Direitos e deveres', 'Regras de convivência', 'Diversidade e respeito',
+        'Ambiente e sustentabilidade', 'Segurança rodoviária', 'Saúde e bem-estar'
+    ]
+};
+
+const PERIODS_3 = {
+    portugues: {
+        'Sílabas':1, 'Ditongos e hiatos':1, 'Acentuação':1, 'Translineação':1,
+        'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Pronomes pessoais':2,
+        'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
+        'Tipos de frase':3, 'Sinónimos e antónimos':3, 'Família de palavras':3,
+        'Compreensão de texto':3, 'Texto poético':3, 'Banda desenhada':3
+    },
+    matematica: {
+        'Números até 10 000':1, 'Valor posicional':1, 'Adição e subtração':1, 'Multiplicação':1,
+        'Tabuadas':2, 'Cálculo mental':2, 'Divisão':2, 'Múltiplos e divisores':2,
+        'Frações':3, 'Polígonos':3, 'Sólidos geométricos':3, 'Perímetro':3,
+        'Comprimento':3, 'Massa e capacidade':3, 'Tempo':3, 'Dinheiro':3, 'Tabelas e gráficos':3
+    },
+    estudo_meio: {
+        'O passado da criança':1, 'O corpo humano':1, 'Os sistemas do corpo':1,
+        'A saúde e a prevenção':1, 'Os cinco sentidos':1,
+        'O passado do meio local':2, 'Símbolos nacionais':2, 'Instituições e serviços':2,
+        'Os astros':3, 'Aspetos físicos do meio':3, 'Animais':3, 'Plantas':3,
+        'Materiais e objetos':3, 'Experiências':3
+    },
+    ingles: {
+        'Greetings and feelings':1, 'School things':1, 'Numbers and colours':1,
+        'Toys and playtime':2, 'Rooms at home':2, 'Family members':2,
+        'Farm animals':3, 'My town':3, 'Clothes':3, 'Hobbies and sports':3
+    },
+    formacao_crista: {
+        'Eu sou único e importante':1, 'Viver em família':1,
+        'A criação do mundo':2, 'A vida de Jesus':2,
+        'A Igreja e os sacramentos':3, 'Valores cristãos':3
+    },
+    cidadania: {
+        'Direitos e deveres':1, 'Regras de convivência':1,
+        'Diversidade e respeito':2, 'Saúde e bem-estar':2,
+        'Ambiente e sustentabilidade':3, 'Segurança rodoviária':3
+    }
+};
+
+// LIÇÕES — Português e Matemática reaproveitam o bloco Oceanus
+// (mesmo programa nacional / AE 2018). Restantes disciplinas são novas.
+const LESSONS_3 = {
+    ...Object.fromEntries(Object.entries(LESSONS_3_OCEANUS).filter(([k]) =>
+        k.startsWith('portugues/') || k.startsWith('matematica/')
+    )),
+
+    // ----- PORTUGUÊS (novos do Lourdes) -----
+    'portugues/Sílabas': {
+        title: 'Sílabas',
+        body: 'Uma **sílaba** é um som que se pronuncia de uma só vez. Toda a sílaba tem PELO MENOS uma vogal.\n\nExemplos de divisão silábica:\n• **ca-sa** (2 sílabas)\n• **bor-bo-le-ta** (4 sílabas)\n• **pão** (1 sílaba — ditongo)\n• **sa-í-da** (3 sílabas — hiato)\n\n**Sílaba tónica** = a sílaba que se pronuncia com mais força. Ex: em "**ca**-sa" a sílaba tónica é "ca".\n\n**❌ O que se costuma errar**\n• Esquecer que toda a sílaba tem uma vogal.\n• Não saber que ditongos (pai, mãe) ficam numa única sílaba.\n• Trocar sílaba tónica (forte) com sílaba átona (fraca).'
+    },
+    'portugues/Pronomes pessoais': {
+        title: 'Pronomes pessoais',
+        body: 'Os **pronomes pessoais** substituem os nomes para evitar repetições.\n\n**Sujeito** (quem faz a ação):\n• 1.ª pessoa: **eu** (singular) / **nós** (plural)\n• 2.ª pessoa: **tu** (singular) / **vós** (plural)\n• 3.ª pessoa: **ele/ela** (singular) / **eles/elas** (plural)\n\nEx: "A Maria comprou um livro. **Ela** está contente." — "Ela" = Maria.\n\n**Complemento** (depois do verbo): me, te, o/a, nos, vos, os/as. Ex: "Vi-**o** ontem" (= vi ele ontem).\n\n**❌ O que se costuma errar**\n• Confundir "ele" (3.ª pessoa) com "tu" (2.ª pessoa).\n• Esquecer que "vós" é plural de "tu" (raro hoje, usa-se "vocês").\n• Achar que "o" e "a" são sempre artigos — também podem ser pronomes (vi-o = vi ele).'
+    },
+    'portugues/Texto poético': {
+        title: 'Texto poético',
+        body: 'Um **poema** é um texto escrito em **versos** (linhas) agrupados em **estrofes**.\n\n• **Verso** — cada linha do poema.\n• **Estrofe** — grupo de versos separados por uma linha em branco.\n• **Rima** — palavras com sons parecidos no fim do verso. Ex: lu**a** / ru**a**, m**ar** / cant**ar**.\n• **Ritmo** — a cadência/musicalidade.\n\nUma estrofe de 4 versos chama-se **quadra**.\n\n**❌ O que se costuma errar**\n• Confundir verso (linha) com estrofe (grupo de linhas).\n• Achar que todo o texto com rimas é um poema.\n• Contar mal as estrofes — separam-se por linhas em branco.'
+    },
+    'portugues/Banda desenhada': {
+        title: 'Banda desenhada',
+        body: 'A **banda desenhada (BD)** conta uma história com **imagens e palavras**.\n\n• **Vinheta** — cada "quadradinho" da BD.\n• **Balão** — onde se escreve o que a personagem **diz**.\n• **Pensamento** — balão em forma de nuvem (o que a personagem **pensa**).\n• **Legenda** — texto fora dos balões (narrador).\n• **Onomatopeia** — palavras que imitam sons: BOOM!, MIAU!, ZÁS!.\n\nA BD lê-se da **esquerda para a direita** e de **cima para baixo**.\n\n**❌ O que se costuma errar**\n• Confundir balão de fala com balão de pensamento (nuvem).\n• Não saber a ordem de leitura.\n• Ignorar as onomatopeias — fazem parte da narrativa.'
+    },
+
+    // ----- MATEMÁTICA (novos do Lourdes) -----
+    'matematica/Cálculo mental': {
+        title: 'Cálculo mental',
+        body: 'O **cálculo mental** é fazer contas DE CABEÇA, sem papel. Truques:\n\n• **Decompor**: 47 + 25 = (40 + 20) + (7 + 5) = 60 + 12 = 72.\n• **Arredondar**: 98 + 56 ≈ 100 + 56 − 2 = 154.\n• **Compensar** na subtração: 73 − 28 = 73 − 30 + 2 = 45.\n• Multiplicar por 10/100/1000: juntar zeros (4 × 100 = 400).\n• Metade e dobro: 8 × 5 = (8 × 10) ÷ 2 = 40.\n\nQuanto mais treinares, mais rápido fica.\n\n**❌ O que se costuma errar**\n• Esquecer de compensar (47 + 25 → arredondo a 50, esqueço-me de tirar 3).\n• Achar que tudo se decompõe igual — é preciso escolher boa estratégia.\n• Confundir "metade" com "dobro".'
+    },
+    'matematica/Massa e capacidade': {
+        title: 'Massa e capacidade',
+        body: '**Massa** mede-se em **gramas (g)** e **quilogramas (kg)**.\n• 1 **kg** = 1 000 g\n• 1 **t** (tonelada) = 1 000 kg\n\nInstrumento: a **balança**.\n\n**Capacidade** mede-se em **litros (L)** e **mililitros (mL)**.\n• 1 **L** = 1 000 mL\n• 1 **dL** = 100 mL = 1/10 L\n\nInstrumento: o **copo graduado** / **medidor**.\n\nExemplos:\n• 1 maçã ≈ 200 g; 1 saco de batatas ≈ 5 kg\n• 1 garrafa de água = 1,5 L; 1 chávena ≈ 250 mL\n\n**❌ O que se costuma errar**\n• Confundir massa (kg, g) com capacidade (L, mL).\n• Esquecer que 1 kg = 1 000 g (não 100).\n• Trocar L com mL: 500 mL = meio L, NÃO 500 L.'
+    },
+
+    // ----- ESTUDO DO MEIO (em português) -----
+    'estudo_meio/O passado da criança': {
+        title: 'O passado da criança',
+        body: 'Cada criança tem um **passado** — coisas que aconteceram na sua vida. Para o organizar usa-se uma **linha do tempo**.\n\n• **Data de nascimento** — o dia, mês e ano em que nasceste.\n• **Idade** — quantos anos tens hoje.\n• **Marcos importantes**: creche, jardim de infância, 1.º ano da escola, mudanças, viagens.\n• **Árvore genealógica** — esquema da família (pais, avós, bisavós, irmãos, tios, primos).\n\nDocumentos importantes: **cartão de cidadão**, **boletim de vacinas**.\n\n**❌ O que se costuma errar**\n• Confundir avós (pais dos teus pais) com bisavós (pais dos avós).\n• Esquecer-se de que a idade muda no dia do aniversário.\n• Não saber a diferença entre primo (filho de tio) e irmão.'
+    },
+    'estudo_meio/O corpo humano': {
+        title: 'O corpo humano',
+        body: 'O corpo humano divide-se em 3 grandes partes:\n\n• **Cabeça** — onde estão o cérebro e os 5 sentidos.\n• **Tronco** — onde estão os órgãos vitais (coração, pulmões, estômago).\n• **Membros** — superiores (braços, mãos) e inferiores (pernas, pés).\n\nO **esqueleto** (~206 ossos) dá forma ao corpo e protege os órgãos. Os **músculos** ligam-se aos ossos e fazem-nos mover. As **articulações** (joelho, cotovelo) permitem dobrar.\n\n**❌ O que se costuma errar**\n• Achar que coração e pulmões estão na cabeça — estão no tronco.\n• Confundir esqueleto (ossos) com músculos.\n• Esquecer-se que a pele é o maior órgão do corpo.'
+    },
+    'estudo_meio/Os sistemas do corpo': {
+        title: 'Os sistemas do corpo',
+        body: 'O corpo trabalha através de **sistemas**:\n\n• **Sistema digestivo** — transforma comida em energia. Boca → esófago → estômago → intestinos → ânus.\n• **Sistema respiratório** — traz oxigénio. Nariz/boca → traqueia → pulmões.\n• **Sistema circulatório** — leva sangue a todo o corpo. **Coração** + veias + artérias.\n• **Sistema urinário** — filtra o sangue e elimina urina. Rins + bexiga.\n• **Sistema reprodutor** — para ter filhos.\n• **Sistema nervoso** — controla tudo. Cérebro + medula + nervos.\n\nTodos trabalham em conjunto.\n\n**❌ O que se costuma errar**\n• Confundir digestivo (comida) com respiratório (ar).\n• Achar que o sangue circula apenas pelas artérias — também pelas veias.\n• Esquecer que o cérebro coordena tudo.'
+    },
+    'estudo_meio/A saúde e a prevenção': {
+        title: 'A saúde e a prevenção',
+        body: 'Para sermos **saudáveis** precisamos de:\n\n• **Alimentação variada e equilibrada** — fruta, vegetais, cereais, lacticínios, carne/peixe/ovos, sem excesso de doces.\n• **Roda dos Alimentos** — mostra as proporções.\n• **Exercício físico** — pelo menos 1h/dia.\n• **Higiene**: lavar as mãos antes das refeições, escovar dentes 2× por dia, banho diário.\n• **Sono** — 9–11 horas para uma criança.\n• **Vacinas** — protegem-nos de doenças graves.\n• Visitas regulares ao **médico** e ao **dentista**.\n\n**❌ O que se costuma errar**\n• Achar que basta comer fruta para ser saudável — é preciso variar.\n• Esquecer-se de lavar as mãos antes de comer.\n• Não saber que dormir mal afeta a saúde.'
+    },
+    'estudo_meio/Os cinco sentidos': {
+        title: 'Os cinco sentidos',
+        body: 'Os **5 sentidos** ajudam-nos a conhecer o mundo:\n\n• **Visão** — os **olhos** veem cores, formas, distâncias.\n• **Audição** — os **ouvidos** ouvem sons.\n• **Olfato** — o **nariz** cheira.\n• **Paladar** — a **língua** sente sabores (doce, salgado, ácido, amargo).\n• **Tato** — a **pele** sente temperatura, dor, pressão, texturas.\n\nAlgumas pessoas têm um sentido que não funciona bem (cegos, surdos) e desenvolvem mais os outros.\n\n**❌ O que se costuma errar**\n• Confundir olfato (cheiro) com paladar (sabor).\n• Esquecer que o tato está em toda a pele.\n• Achar que só vemos com luz natural.'
+    },
+    'estudo_meio/O passado do meio local': {
+        title: 'O passado do meio local',
+        body: 'O **meio local** é o sítio onde vives (a tua freguesia, vila ou cidade).\n\n• Tem um **nome**, uma **bandeira** e um **brasão**.\n• Pertence a um **concelho** (governado por uma **Câmara Municipal**).\n• O concelho pertence a um **distrito** ou **região**.\n\nO meio local tem **vestígios do passado**:\n• **Monumentos** antigos (igrejas, castelos, casas, fontes).\n• **Tradições** (festas, danças, comida típica).\n• **Personalidades** importantes que ali nasceram ou viveram.\n\nSanto Tirso é conhecido pelo **Mosteiro de São Bento** e pela indústria têxtil.\n\n**❌ O que se costuma errar**\n• Confundir concelho (município) com distrito (maior).\n• Esquecer que cada freguesia tem o seu nome próprio.\n• Achar que monumentos só estão em Lisboa.'
+    },
+    'estudo_meio/Símbolos nacionais': {
+        title: 'Símbolos nacionais',
+        body: 'Portugal tem **símbolos** que o representam:\n\n• **Bandeira** — verde (esquerda) e vermelho (direita), com o escudo. A esfera armilar lembra os Descobrimentos.\n• **Hino** — "A Portuguesa", de 1890.\n• **Língua oficial** — português.\n• **Capital** — Lisboa.\n\n**Datas nacionais importantes**:\n• **25 de Abril** (1974) — Dia da Liberdade (Revolução dos Cravos).\n• **10 de Junho** — Dia de Portugal, de Camões e das Comunidades.\n• **1 de Dezembro** (1640) — Restauração da Independência.\n• **5 de Outubro** (1910) — Implantação da República.\n\n**❌ O que se costuma errar**\n• Trocar as cores da bandeira (verde fica à ESQUERDA do mastro).\n• Confundir 25 de Abril com 10 de Junho.\n• Esquecer que a capital é Lisboa.'
+    },
+    'estudo_meio/Instituições e serviços': {
+        title: 'Instituições e serviços',
+        body: 'Há **instituições** e **serviços** que ajudam a comunidade:\n\n• **Câmara Municipal** — gere o concelho (estradas, parques, lixo).\n• **Junta de Freguesia** — gere a freguesia.\n• **Escola** — para aprender.\n• **Hospital** e **Centro de Saúde** — saúde.\n• **Bombeiros** — apagam fogos, socorrem feridos.\n• **GNR / PSP** — polícia, mantém a segurança.\n• **Correios (CTT)** — entregam cartas.\n• **Biblioteca** — empresta livros.\n• **Igreja / Centro paroquial** — apoio espiritual e social.\n\nNúmero de emergência: **112** (gratuito, válido em toda a Europa).\n\n**❌ O que se costuma errar**\n• Confundir GNR (rural) com PSP (urbana).\n• Esquecer o número de emergência (112).\n• Confundir Câmara Municipal com Junta de Freguesia.'
+    },
+    'estudo_meio/Os astros': {
+        title: 'Os astros',
+        body: 'Os **astros** são corpos celestes no espaço.\n\n• **Estrelas** — bolas de gás com luz própria. O **Sol** é a nossa estrela.\n• **Planetas** — orbitam uma estrela. A **Terra** é um planeta.\n• **Satélites naturais** — orbitam planetas. A **Lua** é o satélite da Terra.\n\n**Sistema Solar** — 8 planetas pela ordem do Sol:\nMercúrio, Vénus, **Terra**, Marte, Júpiter, Saturno, Úrano, Neptuno.\n\n**Movimentos da Terra**:\n• **Rotação** — gira sobre si própria em **24 horas** (dia/noite).\n• **Translação** — gira à volta do Sol em **365 dias** (1 ano, estações).\n\n**❌ O que se costuma errar**\n• Achar que a Lua emite luz própria — só reflete a luz do Sol.\n• Confundir rotação (24h) com translação (1 ano).\n• Trocar a ordem dos planetas (Terra é o **3.º**).'
+    },
+    'estudo_meio/Aspetos físicos do meio': {
+        title: 'Aspetos físicos do meio',
+        body: 'O **relevo** = forma da superfície da Terra:\n\n• **Montanha** — terra muito alta. Em Portugal: **Serra da Estrela** (Torre 1 993 m), **Pico** (Açores 2 351 m — o mais alto).\n• **Colina** — elevação pequena.\n• **Planície** — terra plana.\n• **Vale** — terra baixa entre montanhas.\n\n**Cursos de água**:\n• **Rio** — corre por um leito. Principais: **Tejo**, **Douro**, **Mondego**, **Guadiana**, **Minho**.\n• **Lago** / **lagoa** — água parada.\n• **Mar / oceano** — água salgada. Portugal tem costa no **Atlântico**.\n\n**❌ O que se costuma errar**\n• Confundir lago (parado) com rio (corre).\n• Esquecer que o ponto mais alto é o **Pico** (Açores).\n• Achar que o mar é doce.'
+    },
+    'estudo_meio/Animais': {
+        title: 'Animais',
+        body: 'Os **animais** classificam-se em grupos:\n\n• **Mamíferos** — pelo, mães amamentam. Ex: cão, vaca, ser humano, baleia (sim!), morcego.\n• **Aves** — penas, bico, ovos. Ex: pomba, águia, galinha, pinguim.\n• **Répteis** — escamas, sangue frio. Ex: cobra, lagarto, crocodilo, tartaruga.\n• **Anfíbios** — vivem na água e em terra. Ex: rã, sapo, salamandra.\n• **Peixes** — vivem na água, respiram por **brânquias**. Ex: sardinha, atum.\n• **Insetos** — 6 patas, 3 partes do corpo. Ex: formiga, abelha, borboleta.\n\n**Alimentação**: herbívoros (plantas), carnívoros (carne), omnívoros (tudo).\n\n**❌ O que se costuma errar**\n• Achar que a baleia é peixe — é **mamífero**.\n• Confundir réptil com anfíbio.\n• Esquecer que insetos têm 6 patas (aranhas têm 8 e NÃO são insetos).'
+    },
+    'estudo_meio/Plantas': {
+        title: 'Plantas',
+        body: 'As **plantas** são seres vivos. Têm 4 partes principais:\n\n• **Raiz** — fixa a planta e absorve água e sais minerais do solo.\n• **Caule** — sustenta a planta e leva água até às folhas.\n• **Folhas** — fazem o alimento da planta (**fotossíntese**) usando luz solar.\n• **Flor** — forma sementes; depois transforma-se em fruto.\n\nA **fotossíntese** = as folhas usam luz + água + ar (CO₂) para fazer alimento e libertam **oxigénio**.\n\nA planta precisa de: **luz**, **água**, **ar** e **sais minerais**.\n\n**❌ O que se costuma errar**\n• Achar que as plantas fazem alimento nas raízes — fazem nas **folhas**.\n• Esquecer que as plantas libertam oxigénio.\n• Confundir flor com folha.'
+    },
+    'estudo_meio/Materiais e objetos': {
+        title: 'Materiais e objetos',
+        body: 'Os **materiais** podem ser:\n\n• **Naturais** — vêm da natureza. Madeira, lã, algodão, pedra, barro.\n• **Artificiais** — feitos pelo Homem. Plástico, vidro, papel, metal trabalhado.\n\n**Propriedades**:\n• **Transparente** (deixa ver) ↔ **opaco** (não deixa).\n• **Rígido** ↔ **flexível**.\n• **Áspero** ↔ **liso**.\n• **Frágil** ↔ **resistente**.\n• **Bom** ou **mau** condutor de calor / eletricidade.\n\n**Reciclar**: papel → ecoponto **AZUL**; embalagens (plástico/metal) → **AMARELO**; vidro → **VERDE**.\n\n**❌ O que se costuma errar**\n• Trocar as cores do ecoponto.\n• Achar que tudo o que é "duro" é metal.\n• Confundir transparente com translúcido.'
+    },
+    'estudo_meio/Experiências': {
+        title: 'Experiências',
+        body: 'Para descobrir como o mundo funciona fazemos **experiências**. Passos:\n\n1. **Pergunta** — o que quero saber?\n2. **Hipótese** — o que acho que vai acontecer.\n3. **Experiência** — testar (com material).\n4. **Observação** — ver e registar.\n5. **Conclusão** — confirma ou não?\n\nExemplos clássicos do 3.º ano:\n• A **água** pode estar nos 3 estados: **sólido** (gelo), **líquido**, **gasoso** (vapor).\n• O **ar** ocupa espaço (sopra um balão!) e empurra (vento).\n• A **luz** propaga-se em linha reta e cria **sombras** atrás de objetos opacos.\n• Os **ímanes** atraem ferro mas não plástico, madeira ou alumínio.\n\n**❌ O que se costuma errar**\n• Achar que o ar não pesa — pesa muito pouco mas pesa.\n• Confundir transparente com translúcido.\n• Pensar que um íman atrai todos os metais — só ferro, níquel e cobalto.'
+    },
+
+    // ----- INGLÊS (Kid's Box [New Generation] Pupil's Book 2) -----
+    'ingles/Greetings and feelings': {
+        title: 'Greetings and feelings',
+        body: '**Saying hello and goodbye**:\n• Hello! / Hi! → Olá!\n• Good morning! → Bom dia!\n• Good afternoon! → Boa tarde!\n• Good evening! / Good night! → Boa noite!\n• Goodbye! / Bye! → Adeus!\n\n**How are you?** → Como estás?\n• I\'m fine, thank you. → Estou bem, obrigado(a).\n• I\'m happy / sad / tired.\n• I\'m hungry. → Tenho fome.\n• I\'m thirsty. → Tenho sede.\n\n**Introducing yourself**:\n• What\'s your name? → Como te chamas?\n• My name is ___. / I\'m ___.\n• How old are you? → Quantos anos tens?\n• I\'m 8 years old.\n\n**❌ Common mistakes**\n• Saying "I have hungry" → must be "I am hungry".\n• Confusing "your" (teu) with "you" (tu).\n• Forgetting the capital "I" — always uppercase.'
+    },
+    'ingles/School things': {
+        title: 'School things',
+        body: '**Things at school**:\n• pencil → lápis\n• pen → caneta\n• rubber → borracha (UK) / eraser (US)\n• ruler → régua\n• book → livro\n• notebook → caderno\n• schoolbag → mochila\n• pencil case → estojo\n• desk → secretária\n• chair → cadeira\n• board → quadro\n• window → janela\n• door → porta\n\n**At the classroom**:\n• Open your book, please.\n• Close the door.\n• Sit down. / Stand up.\n• Listen! / Look!\n• Can I go to the toilet?\n\n**❌ Common mistakes**\n• "rubber" (UK) = borracha; in the USA say "eraser".\n• Plural — add **-s**: pencil → pencil**s**.\n• "schoolbag" is one word.'
+    },
+    'ingles/Toys and playtime': {
+        title: 'Toys and playtime',
+        body: '**Toys**:\n• doll → boneca\n• teddy bear → urso de peluche\n• ball → bola\n• kite → papagaio (de papel)\n• car → carrinho\n• train → comboio\n• bike → bicicleta\n• puzzle → puzzle\n• game → jogo\n• robot → robô\n\n**Playing**:\n• Let\'s play! → Vamos brincar!\n• I like playing with ___. → Gosto de brincar com ___.\n• Whose toy is this? → De quem é este brinquedo?\n• It\'s my toy. → É o meu brinquedo.\n\n**❌ Common mistakes**\n• "play with" (NÃO "play to") — I play with dolls.\n• "I like playing" needs the **-ing** form after "like".\n• Capital letter at the start of "Let\'s".'
+    },
+    'ingles/Rooms at home': {
+        title: 'Rooms at home',
+        body: '**Rooms**:\n• kitchen → cozinha\n• living room → sala\n• bedroom → quarto\n• bathroom → casa de banho\n• dining room → sala de jantar\n• garage → garagem\n• garden → jardim\n\n**Furniture**:\n• bed, table, chair, sofa, TV, fridge, cooker, bath.\n\n**Where is...?**\n• Where is the cat? → Onde está o gato?\n• It\'s **in** the bedroom. (dentro)\n• It\'s **on** the table. (em cima)\n• It\'s **under** the chair. (debaixo)\n• It\'s **next to** the sofa. (ao lado)\n\n**❌ Common mistakes**\n• Confusing "in" (dentro) with "on" (em cima).\n• "in the table" → must be "on the table".\n• Plural: bedroom**s** (not "bedroomes").'
+    },
+    'ingles/Family members': {
+        title: 'Family members',
+        body: '**My family**:\n• mum / mother → mãe\n• dad / father → pai\n• parents → pais\n• brother → irmão\n• sister → irmã\n• grandma / grandmother → avó\n• grandpa / grandfather → avô\n• grandparents → avós\n• uncle → tio\n• aunt → tia\n• cousin → primo/prima\n• baby → bebé\n\n**This is...**\n• This is my mum.\n• These are my parents.\n• I have one brother and two sisters.\n\n**❌ Common mistakes**\n• "Cousin" — same word for primo AND prima.\n• "Brother" (singular) ≠ "brothers" (plural).\n• Possessive: **my**, **your**, **his**, **her**.'
+    },
+    'ingles/Farm animals': {
+        title: 'Farm animals',
+        body: '**Animals on the farm**:\n• cow → vaca\n• horse → cavalo\n• sheep → ovelha (plural also "sheep"!)\n• pig → porco\n• chicken → galinha\n• duck → pato\n• rabbit → coelho\n• goat → cabra\n• donkey → burro\n• dog → cão\n• cat → gato\n\n**Animal sounds (English)**:\n• cow: moo  •  dog: woof  •  cat: meow  •  duck: quack  •  sheep: baa  •  horse: neigh\n\n**Has got** / **have got**:\n• A cow **has got** four legs.\n• Chickens **have got** feathers and a beak.\n\n**❌ Common mistakes**\n• Plural of "sheep" → STAYS "sheep".\n• "chicken" = animal OR meat.\n• Use "has got" for he/she/it; "have got" for I/you/we/they.'
+    },
+    'ingles/My town': {
+        title: 'My town',
+        body: '**Places in town**:\n• school → escola\n• park → parque\n• shop → loja\n• supermarket → supermercado\n• hospital → hospital\n• library → biblioteca\n• post office → correios\n• bank → banco\n• cinema → cinema\n• restaurant → restaurante\n• café → café\n• church → igreja\n• bus stop → paragem de autocarro\n• train station → estação de comboios\n• street → rua\n• square → praça\n\n**Asking the way**:\n• Where is the park?\n• It\'s **near** the school.\n• It\'s **opposite** the bank.\n• Go straight on.\n• Turn left / right.\n\n**❌ Common mistakes**\n• "library" is BIBLIOTECA (not livraria — that\'s "bookshop").\n• Confusing "near" (perto) with "next to" (ao lado).\n• "I go to school" (without "the").'
+    },
+    'ingles/Clothes': {
+        title: 'Clothes',
+        body: '**Clothes**:\n• T-shirt → t-shirt\n• shirt → camisa\n• jumper / sweater → camisola\n• trousers (UK) / pants (US) → calças\n• jeans → jeans (always plural!)\n• shorts → calções\n• dress → vestido\n• skirt → saia\n• shoes → sapatos\n• socks → meias\n• hat → chapéu\n• coat / jacket → casaco\n• scarf → cachecol\n• gloves → luvas\n\n**Verbs**: put on (vestir), take off (despir), wear (usar).\n\n**Colours**: red, blue, green, yellow, black, white, pink, orange, purple, brown.\n\n**❌ Common mistakes**\n• Trousers, jeans, shorts, socks, shoes — ALWAYS plural in English.\n• "She wear" → WRONG. Must be "She wear**s**".\n• Order: "a big red ball" (size before colour).'
+    },
+    'ingles/Hobbies and sports': {
+        title: 'Hobbies and sports',
+        body: '**Sports**:\n• football → futebol\n• basketball → basquetebol\n• volleyball → voleibol\n• tennis → ténis\n• swimming → natação\n• running → corrida\n• cycling → ciclismo\n• dancing → dança\n• karate / judo → karaté / judo\n\n**Other hobbies**:\n• reading, drawing, painting, singing\n• playing the piano / guitar\n• playing computer games\n• watching TV\n\n**Talking about hobbies**:\n• I like ___ing. / I don\'t like ___ing.\n• I love football.\n• My favourite sport is ___.\n• Can you swim? — Yes, I can. / No, I can\'t.\n\n**❌ Common mistakes**\n• You **play** football/tennis but you **go** swimming/running.\n• Musical instruments need "the": play **the** piano.\n• "I like swim" → WRONG. Must be "I like swimm**ing**".'
+    },
+    'ingles/Numbers and colours': {
+        title: 'Numbers and colours',
+        body: '**Numbers 1–20**:\none, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen, twenty.\n\n**Tens to 100**: ten, twenty, thirty, forty, fifty, sixty, seventy, eighty, ninety, one hundred.\n\n**21 = twenty-one** (hyphen). 35 = thirty-five.\n\n**Colours**:\n• red, blue, yellow, green, orange, purple, pink, brown, black, white, grey\n• light blue (azul claro) / dark blue (azul escuro)\n\n**Asking**:\n• How many ___?\n• What colour is it?\n• It\'s red.\n\n**❌ Common mistakes**\n• "fourteen" (14) vs "forty" (40) — careful with stress.\n• "thirty" (30) — no "e" (NOT "thirthy").\n• Colour goes BEFORE the noun: a **red** car.'
+    },
+
+    // ----- FORMAÇÃO CRISTÃ (Ao Encontro 3, SNEC) -----
+    'formacao_crista/Eu sou único e importante': {
+        title: 'Eu sou único e importante',
+        body: 'Cada pessoa é **única** — não há duas iguais no mundo!\n\n• Tens o teu **nome**, **rosto**, **história**, **qualidades** e defeitos.\n• Foste **amado e desejado** antes mesmo de nasceres.\n• Tens **dignidade** — mereces respeito só por seres pessoa.\n\nNa **Bíblia**, no livro do Génesis, lê-se que Deus criou o ser humano **à sua imagem** (Gn 1, 27). Cada pessoa tem um valor enorme.\n\n**Respeito por si mesmo**: cuidar do corpo, da mente, dos sentimentos.\n**Respeito pelos outros**: tratar todos com bondade, mesmo os diferentes.\n\n**❌ O que se costuma errar**\n• Pensar que ser único é ser melhor — todos são únicos, todos valem.\n• Achar que defeitos tiram dignidade — todos temos defeitos.\n• Confundir "amar-se a si mesmo" com egoísmo.'
+    },
+    'formacao_crista/Viver em família': {
+        title: 'Viver em família',
+        body: 'A **família** é a primeira comunidade onde aprendemos a amar.\n\n• **Tipos de família**: nuclear, alargada, monoparental, adotiva, recomposta — todas são válidas.\n• **Funções**: dar amor, alimentar, educar, dar segurança.\n• **Direitos da criança**: ser amada, ter casa, ir à escola, brincar, ser ouvida.\n• **Deveres**: ajudar em casa, respeitar, falar com verdade, partilhar.\n\nNa Bíblia, a **Sagrada Família** (Jesus, Maria e José) é um modelo de família simples e cheia de fé.\n\n**Mandamento**: "Honra o teu pai e a tua mãe" (4.º mandamento).\n\n**❌ O que se costuma errar**\n• Achar que só a família nuclear é "normal".\n• Esquecer que os filhos também têm deveres.\n• Confundir "honrar" com obedecer cegamente — significa respeitar e amar.'
+    },
+    'formacao_crista/A criação do mundo': {
+        title: 'A criação do mundo',
+        body: 'Os cristãos acreditam que o mundo foi **criado por Deus**. A história está no primeiro livro da Bíblia — o **Génesis**.\n\n**Os 7 dias da criação** (Génesis 1):\n• Dia 1 — Luz e escuridão.\n• Dia 2 — Céu e água.\n• Dia 3 — Mar, terra e plantas.\n• Dia 4 — Sol, Lua e estrelas.\n• Dia 5 — Peixes e aves.\n• Dia 6 — Animais terrestres e o **ser humano**.\n• Dia 7 — Deus descansa (= **Dia do Senhor**).\n\nDeus viu que tudo o que tinha feito era **bom**.\n\n**Cuidar da criação** — Deus pediu ao ser humano que cuidasse da Terra. O Papa Francisco fala disso na encíclica *Laudato Si\'*.\n\n**❌ O que se costuma errar**\n• Confundir o sentido religioso com a ciência (Big Bang) — falam de planos diferentes.\n• Esquecer que o ser humano foi criado no **6.º dia**.\n• Achar que Deus se cansou — "descansar" é símbolo do dia santo.'
+    },
+    'formacao_crista/A vida de Jesus': {
+        title: 'A vida de Jesus',
+        body: '**Jesus** nasceu em **Belém**, há mais de 2 000 anos. Seus pais terrenos: **Maria** e **José**. Jesus é o **Filho de Deus**.\n\n**Momentos importantes**:\n• **Anunciação** — o anjo Gabriel diz a Maria que vai ser mãe de Jesus.\n• **Natal** (25 de dezembro) — nascimento em Belém.\n• **Apresentação no Templo**.\n• **Infância em Nazaré** — José era carpinteiro.\n• **Batismo no rio Jordão** — por João Batista, aos 30 anos.\n• **Vida pública** — anuncia o Reino, faz milagres, escolhe 12 **apóstolos**.\n• **Última Ceia** — partilha do pão e do vinho (= **Eucaristia**).\n• **Sexta-Feira Santa** — crucificado.\n• **Páscoa** (domingo) — **Ressuscita**! Maior festa cristã.\n• **Ascensão** — sobe ao Céu, 40 dias depois.\n• **Pentecostes** — Espírito Santo desce sobre os apóstolos.\n\n**Mensagem central**: Deus é Pai, ama-te; ama o próximo como a ti mesmo.\n\n**❌ O que se costuma errar**\n• Confundir Natal (nascimento) com Páscoa (ressurreição).\n• Esquecer que Jesus teve uma infância normal.\n• Achar que os apóstolos eram 10 — foram **12**.'
+    },
+    'formacao_crista/A Igreja e os sacramentos': {
+        title: 'A Igreja e os sacramentos',
+        body: 'A **Igreja** é a comunidade dos cristãos — todos os baptizados em Jesus.\n\n• A palavra "igreja" tem 2 sentidos: o **edifício** (com altar, banco, sacrário) e a **comunidade** das pessoas.\n• Quem orienta a Igreja Católica: o **Papa** (sucessor de São Pedro), os **bispos** (responsáveis das dioceses), os **padres** (paróquias).\n\n**Os 7 sacramentos** são sinais visíveis do amor de Deus:\n1. **Batismo** — entrada na Igreja (símbolo: água).\n2. **Eucaristia** — comunhão (pão e vinho = corpo e sangue de Jesus).\n3. **Reconciliação** (Confissão) — perdão dos pecados.\n4. **Crisma** (Confirmação).\n5. **Matrimónio** — casamento.\n6. **Ordem** — torna alguém padre/bispo.\n7. **Unção dos Doentes** — acompanha doentes graves.\n\nNo 3.º ano muitas crianças preparam a **Primeira Comunhão**.\n\n**❌ O que se costuma errar**\n• Confundir "igreja" (edifício) com "Igreja" (comunidade).\n• Achar que há só 5 sacramentos — são **7**.\n• Trocar Batismo (entrada) com Crisma (confirmação posterior).'
+    },
+    'formacao_crista/Valores cristãos': {
+        title: 'Valores cristãos',
+        body: 'Jesus ensinou-nos como viver bem. **Valores cristãos** principais:\n\n• **Amor ao próximo** — "Amar-vos uns aos outros como Eu vos amei" (Jo 15, 12).\n• **Perdão** — desculpar os outros.\n• **Partilha** — dar do que se tem aos que precisam.\n• **Verdade** — falar com honestidade.\n• **Humildade** — não se achar superior aos outros.\n• **Paz** — resolver problemas sem violência.\n• **Justiça** — defender os mais fracos.\n• **Esperança** — confiar em Deus mesmo nos dias maus.\n\n**A Regra de Ouro** (Mt 7, 12):\n*"Tudo o que queres que os outros te façam, fá-lo tu também a eles."*\n\n**❌ O que se costuma errar**\n• Achar que perdoar é "deixar fazer tudo" — perdoar é não guardar rancor.\n• Confundir humildade com baixa autoestima.\n• Esquecer que a paz começa em casa.'
+    },
+
+    // ----- CIDADANIA E DESENVOLVIMENTO -----
+    'cidadania/Direitos e deveres': {
+        title: 'Direitos e deveres',
+        body: 'Toda a criança tem **direitos**, garantidos pela **Convenção sobre os Direitos da Criança** (ONU, 1989).\n\n**Direitos principais**:\n• Direito à **vida** e a um **nome**.\n• Direito à **saúde** e à alimentação.\n• Direito à **educação**.\n• Direito ao **amor** e à família.\n• Direito a **brincar** e descansar.\n• Direito a ser **ouvida**.\n• Direito a ser protegida da violência.\n\n**Deveres**:\n• Respeitar os outros.\n• Cumprir as regras da escola e de casa.\n• Cuidar das coisas.\n• Dizer a verdade.\n• Ajudar quem precisa.\n\nDireitos e deveres caminham **juntos**.\n\n**❌ O que se costuma errar**\n• Pensar que só há direitos.\n• Achar que "ser ouvido" é "fazer sempre a sua vontade".\n• Esquecer-se que os direitos protegem TODAS as crianças.'
+    },
+    'cidadania/Regras de convivência': {
+        title: 'Regras de convivência',
+        body: 'Para vivermos bem em **grupo** precisamos de **regras**.\n\n**Na escola**:\n• Levantar o braço antes de falar.\n• Não interromper.\n• Tratar colegas e professores com respeito.\n• Não correr nos corredores.\n• Arrumar a sala antes de sair.\n\n**Em casa**:\n• Cumprimentar quem chega.\n• Pôr a mesa, arrumar o quarto.\n• Avisar antes de sair.\n\n**Conflitos** — passos:\n1. **Acalma-te** — respira fundo, conta até 10.\n2. **Fala** — explica o que sentes ("Eu sinto..." em vez de "Tu fazes...").\n3. **Ouve** o outro lado.\n4. **Procura** uma solução em conjunto.\n5. **Pede desculpa** se errares.\n\n**❌ O que se costuma errar**\n• Achar que regras são para "estragar a brincadeira".\n• Resolver conflitos com violência.\n• Esquecer que ouvir o outro é tão importante como falar.'
+    },
+    'cidadania/Diversidade e respeito': {
+        title: 'Diversidade e respeito',
+        body: 'A **diversidade** torna o mundo rico. Somos todos **diferentes**:\n\n• **Cultura** — origens, línguas, tradições.\n• **Religião** — católicos, muçulmanos, judeus, budistas, ateus...\n• **Cor da pele**, **género**, **idade**.\n• **Capacidades** — pessoas usam cadeira de rodas, óculos, aparelhos auditivos; outras têm dificuldades de aprendizagem.\n• **Famílias** — diferentes formas.\n\n**Respeitar a diferença** é:\n• Não troçar nem fazer "piadas".\n• Tratar todos com igualdade.\n• Aprender com quem é diferente.\n• Defender quem está a ser maltratado.\n\n**Bullying** = alguém é repetidamente magoado. É **errado** e deve ser **denunciado** a um adulto.\n\n**❌ O que se costuma errar**\n• Achar que "incluir" é um favor — é o mínimo.\n• Calar-se quando alguém é vítima de bullying.\n• Confundir igualdade com sermos todos iguais.'
+    },
+    'cidadania/Ambiente e sustentabilidade': {
+        title: 'Ambiente e sustentabilidade',
+        body: 'O **planeta Terra** é a nossa casa comum.\n\n**Problemas ambientais**:\n• **Poluição** — ar, água, solos.\n• **Aquecimento global** — Terra mais quente por causa do CO₂.\n• **Desflorestação**.\n• **Lixo nos oceanos** — sobretudo plástico.\n\n**O que posso fazer (regra dos 3 R)**:\n• **Reduzir** — comprar menos.\n• **Reutilizar** — dar nova vida.\n• **Reciclar** — separar no ecoponto: papel (azul), embalagens (amarelo), vidro (verde), pilhas (vermelho), orgânico (castanho).\n\n**Outros gestos**:\n• Fechar a torneira ao escovar os dentes (poupa ~6 L/min).\n• Apagar luzes ao sair.\n• Ir a pé ou de bicicleta.\n• Plantar uma árvore.\n\n**❌ O que se costuma errar**\n• Achar que reciclar é a 1.ª prioridade — primeiro vem **reduzir**.\n• Confundir as cores do ecoponto.\n• Pensar que "só um copo" não faz diferença.'
+    },
+    'cidadania/Segurança rodoviária': {
+        title: 'Segurança rodoviária',
+        body: '**Para peões**:\n• Caminhar no **passeio**, longe da estrada.\n• Atravessar na **passadeira** (zebra) ou no semáforo.\n• Olhar **esquerda → direita → esquerda** antes de atravessar.\n• Não correr a atravessar.\n• Não atravessar entre carros estacionados.\n\n**Semáforo para peões**: verde = atravessa; vermelho = espera; piscar = termina depressa.\n\n**Para passageiros** (em carro):\n• Crianças com menos de 12 anos (ou 1,35 m) vão sempre no **banco de trás**.\n• **Cadeira de criança** ou **assento elevatório** apropriado.\n• **Cinto de segurança** SEMPRE.\n• Não distrair o condutor.\n\n**Para ciclistas**:\n• **Capacete** sempre.\n• Sinalizar com o braço antes de virar.\n• **Luzes** e refletores à noite.\n\n**❌ O que se costuma errar**\n• Atravessar a correr.\n• Ir ao banco da frente.\n• Esquecer o capacete por ser "só dar uma volta".'
+    },
+    'cidadania/Saúde e bem-estar': {
+        title: 'Saúde e bem-estar',
+        body: '**Saúde** = corpo + mente + emoções, em equilíbrio.\n\n**Hábitos saudáveis**:\n• **Alimentação**: 3 refeições principais + 2 lanches. Variedade de cores no prato. Beber água em vez de sumos.\n• **Sono**: 9 a 11 horas por noite para crianças de 8-9 anos.\n• **Higiene**: lavar mãos antes de comer, escovar dentes 2× ao dia, banho diário.\n• **Atividade física**: 1 hora por dia.\n• **Tempo de ecrã**: máximo ~1 hora por dia (TV, telemóvel, tablet).\n• **Pausas**: não estar muito tempo sentado.\n\n**Bem-estar emocional**:\n• Falar sobre o que sentes.\n• Pedir ajuda quando precisas.\n• Brincar, rir, partilhar com amigos.\n• Estar com a família.\n\n**Sinais de alerta**: dor que não passa, tristeza grande, dificuldade em dormir → falar com um adulto de confiança.\n\n**❌ O que se costuma errar**\n• Pensar que "saúde" é só não estar doente.\n• Esconder o que sentes.\n• Achar que tempo de ecrã ilimitado não faz mal.'
+    }
+};
+
+const EXERCISES_3 = [
+    ...EXERCISES_3_OCEANUS.filter(e => e.s === 'portugues' || e.s === 'matematica'),
+
+    // ============================ PORTUGUÊS — NOVOS ============================
+    { id:'3lp_sil1', s:'portugues', t:'Sílabas', type:'mc', diff:1, q:'🔤 Quantas sílabas tem "borboleta"?', opts:['2','3','4','5'], ans:2, exp:'bor-bo-le-ta → 4 sílabas.' },
+    { id:'3lp_sil2', s:'portugues', t:'Sílabas', type:'fill', diff:1, q:'Divide em sílabas: "menino" → ___', ans:['me-ni-no'], exp:'me-ni-no (3 sílabas).' },
+    { id:'3lp_sil3', s:'portugues', t:'Sílabas', type:'mc', diff:2, q:'🔤 A sílaba tónica de "cadeira" é:', opts:['ca','dei','ra'], ans:1, exp:'Em "cadeira" a sílaba forte é "dei".' },
+
+    { id:'3lp_pro1', s:'portugues', t:'Pronomes pessoais', type:'mc', diff:1, q:'🔤 Que pronome substitui "a Maria"?', opts:['ele','ela','eles'], ans:1, exp:'Maria = feminino singular → "ela".' },
+    { id:'3lp_pro2', s:'portugues', t:'Pronomes pessoais', type:'fill', diff:2, q:'Substitui "o João e o Pedro" por um pronome: ___', ans:['eles'], exp:'Dois meninos → "eles".' },
+    { id:'3lp_pro3', s:'portugues', t:'Pronomes pessoais', type:'mc', diff:2, q:'🔤 Pronome de 1.ª pessoa do plural:', opts:['eu','nós','eles'], ans:1, exp:'Eu (1.ª sg) → nós (1.ª pl).' },
+
+    { id:'3lp_poe1', s:'portugues', t:'Texto poético', type:'mc', diff:1, q:'📖 Cada linha de um poema chama-se:', opts:['estrofe','verso','rima'], ans:1, exp:'Verso = linha do poema.' },
+    { id:'3lp_poe2', s:'portugues', t:'Texto poético', type:'mc', diff:2, q:'📖 Uma estrofe com 4 versos chama-se:', opts:['terceto','quadra','soneto'], ans:1, exp:'4 versos = quadra.' },
+    { id:'3lp_poe3', s:'portugues', t:'Texto poético', type:'fill', diff:2, q:'"Lua" rima com ___', ans:['rua','nua','crua'], exp:'Rua, nua, crua — som "ua" no fim.' },
+
+    { id:'3lp_bd1', s:'portugues', t:'Banda desenhada', type:'mc', diff:1, q:'💬 O "quadradinho" da BD chama-se:', opts:['vinheta','balão','legenda'], ans:0, exp:'Vinheta = cada quadrado da BD.' },
+    { id:'3lp_bd2', s:'portugues', t:'Banda desenhada', type:'mc', diff:2, q:'☁️ O balão em forma de nuvem mostra:', opts:['o que diz','o que pensa','o som'], ans:1, exp:'Balão-nuvem = pensamento.' },
+    { id:'3lp_bd3', s:'portugues', t:'Banda desenhada', type:'mc', diff:2, q:'💥 "BOOM!" numa BD é uma:', opts:['onomatopeia','rima','legenda'], ans:0, exp:'Onomatopeia = palavra que imita um som.' },
+
+    // ============================ MATEMÁTICA — NOVOS ===========================
+    { id:'3lm_cm1', s:'matematica', t:'Cálculo mental', type:'mc', diff:1, q:'🧠 47 + 25 (de cabeça) =', opts:['62','72','82'], ans:1, exp:'40+20=60; 7+5=12; 60+12=72.' },
+    { id:'3lm_cm2', s:'matematica', t:'Cálculo mental', type:'mc', diff:2, q:'🧠 98 + 56 (arredondar) =', opts:['144','154','164'], ans:1, exp:'100 + 56 = 156, depois −2 = 154.' },
+    { id:'3lm_cm3', s:'matematica', t:'Cálculo mental', type:'fill', diff:2, q:'Dobro de 35 = ___', ans:['70'], exp:'35 × 2 = 70.' },
+
+    { id:'3lm_mc1', s:'matematica', t:'Massa e capacidade', type:'mc', diff:1, q:'⚖️ 1 kg = ___ g', opts:['10','100','1 000'], ans:2, exp:'1 kg = 1 000 g.' },
+    { id:'3lm_mc2', s:'matematica', t:'Massa e capacidade', type:'mc', diff:1, q:'🥛 1 L = ___ mL', opts:['10','100','1 000'], ans:2, exp:'1 L = 1 000 mL.' },
+    { id:'3lm_mc3', s:'matematica', t:'Massa e capacidade', type:'mc', diff:2, q:'⚖️ Uma maçã pesa aproximadamente:', opts:['20 g','200 g','2 kg'], ans:1, exp:'≈ 200 g (uma maçã média).' },
+    { id:'3lm_mc4', s:'matematica', t:'Massa e capacidade', type:'mc', diff:2, q:'🥛 Uma chávena tem aproximadamente:', opts:['25 mL','250 mL','2,5 L'], ans:1, exp:'Uma chávena ≈ 250 mL.' },
+
+    // ============================ ESTUDO DO MEIO ===============================
+    { id:'3le_pas1', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:1, q:'👨‍👩‍👧 Os pais dos teus pais são os teus:', opts:['tios','avós','primos'], ans:1, exp:'Pais dos pais = avós.' },
+    { id:'3le_pas2', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:2, q:'👶 Documento oficial para identificar uma criança em Portugal:', opts:['passaporte','cartão de cidadão','cartão de aluno'], ans:1, exp:'Cartão de cidadão.' },
+    { id:'3le_pas3', s:'estudo_meio', t:'O passado da criança', type:'tf', diff:1, q:'Bisavós são os pais dos avós.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3le_corp1', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'🦴 O esqueleto humano tem aproximadamente ___ ossos.', opts:['50','100','206'], ans:2, exp:'≈ 206 ossos no adulto.' },
+    { id:'3le_corp2', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🤸 As articulações servem para:', opts:['proteger os órgãos','permitir movimento','dar cor à pele'], ans:1, exp:'Articulações permitem dobrar.' },
+    { id:'3le_corp3', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'❤️ O coração está localizado no:', opts:['cabeça','tronco','membros'], ans:1, exp:'Coração no tronco.' },
+
+    { id:'3le_sis1', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:1, q:'🍎 O sistema que transforma a comida em energia é o:', opts:['respiratório','digestivo','circulatório'], ans:1, exp:'Digestivo.' },
+    { id:'3le_sis2', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:2, q:'🫁 Os pulmões fazem parte do sistema:', opts:['digestivo','respiratório','circulatório'], ans:1, exp:'Respiratório.' },
+    { id:'3le_sis3', s:'estudo_meio', t:'Os sistemas do corpo', type:'fill', diff:2, q:'O órgão que bombeia o sangue é o ___', ans:['coração'], exp:'Coração.' },
+
+    { id:'3le_sau1', s:'estudo_meio', t:'A saúde e a prevenção', type:'mc', diff:1, q:'🥗 Para uma alimentação saudável, devemos:', opts:['comer só doces','variar os alimentos','comer só fruta'], ans:1, exp:'Variedade é a chave.' },
+    { id:'3le_sau2', s:'estudo_meio', t:'A saúde e a prevenção', type:'tf', diff:1, q:'Lavar as mãos antes de comer ajuda a prevenir doenças.', ans:true, exp:'Verdadeiro.' },
+    { id:'3le_sau3', s:'estudo_meio', t:'A saúde e a prevenção', type:'mc', diff:2, q:'😴 Uma criança de 8 anos precisa de dormir cerca de:', opts:['4 horas','9-11 horas','15 horas'], ans:1, exp:'≈ 9–11 h por noite.' },
+
+    { id:'3le_sen1', s:'estudo_meio', t:'Os cinco sentidos', type:'mc', diff:1, q:'👃 Para cheirar usamos:', opts:['os olhos','o nariz','a língua'], ans:1, exp:'Nariz = olfato.' },
+    { id:'3le_sen2', s:'estudo_meio', t:'Os cinco sentidos', type:'mc', diff:2, q:'👅 O sentido associado à língua é o:', opts:['olfato','paladar','tato'], ans:1, exp:'Paladar = sabor.' },
+    { id:'3le_sen3', s:'estudo_meio', t:'Os cinco sentidos', type:'fill', diff:2, q:'Sentido em que se usa a pele: ___', ans:['tato','tacto'], exp:'Tato.' },
+
+    { id:'3le_loc1', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:1, q:'🏛️ Conjunto de freguesias forma um:', opts:['concelho','distrito','país'], ans:0, exp:'Freguesia → Concelho → Distrito → País.' },
+    { id:'3le_loc2', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:2, q:'🏰 Santo Tirso é conhecido pelo:', opts:['Castelo de São Jorge','Mosteiro de São Bento','Pelourinho de Sintra'], ans:1, exp:'Mosteiro de São Bento.' },
+    { id:'3le_loc3', s:'estudo_meio', t:'O passado do meio local', type:'fill', diff:2, q:'Órgão que governa o concelho: ___ Municipal', ans:['Câmara','câmara'], exp:'Câmara Municipal.' },
+
+    { id:'3le_sim1', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:1, q:'🇵🇹 As cores da bandeira de Portugal são:', opts:['azul e branco','verde e vermelho','vermelho e amarelo'], ans:1, exp:'Verde e vermelho.' },
+    { id:'3le_sim2', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:2, q:'📅 25 de Abril celebra:', opts:['Dia de Portugal','Dia da Liberdade','Implantação da República'], ans:1, exp:'25 Abril 1974 = Revolução dos Cravos.' },
+    { id:'3le_sim3', s:'estudo_meio', t:'Símbolos nacionais', type:'fill', diff:2, q:'O hino nacional chama-se: A ___', ans:['Portuguesa','portuguesa'], exp:'A Portuguesa.' },
+
+    { id:'3le_ins1', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:1, q:'🚒 Em caso de incêndio chamamos:', opts:['polícia','bombeiros','correios'], ans:1, exp:'Bombeiros (112).' },
+    { id:'3le_ins2', s:'estudo_meio', t:'Instituições e serviços', type:'fill', diff:1, q:'Número de emergência em Portugal e na UE: ___', ans:['112'], exp:'112.' },
+    { id:'3le_ins3', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:2, q:'📚 Instituição onde se empresta livros:', opts:['câmara','biblioteca','tribunal'], ans:1, exp:'Biblioteca.' },
+
+    { id:'3le_ast1', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'☀️ O Sol é uma:', opts:['planeta','estrela','satélite'], ans:1, exp:'Sol = estrela.' },
+    { id:'3le_ast2', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌍 A Terra é o ___ planeta a contar do Sol.', opts:['1.º','2.º','3.º','4.º'], ans:2, exp:'Mercúrio → Vénus → TERRA → Marte.' },
+    { id:'3le_ast3', s:'estudo_meio', t:'Os astros', type:'tf', diff:2, q:'A Lua tem luz própria.', ans:false, exp:'Falso — reflete a luz do Sol.' },
+    { id:'3le_ast4', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌐 A Terra gira sobre si própria em ___ horas:', opts:['12','24','48'], ans:1, exp:'Rotação = 24 h = 1 dia.' },
+
+    { id:'3le_rel1', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:1, q:'🏔️ O ponto mais alto de Portugal é:', opts:['Serra da Estrela','Pico (Açores)','Monchique'], ans:1, exp:'Pico ≈ 2 351 m.' },
+    { id:'3le_rel2', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:2, q:'🌊 O maior rio de Portugal é o:', opts:['Tejo','Douro','Mondego'], ans:0, exp:'Tejo.' },
+    { id:'3le_rel3', s:'estudo_meio', t:'Aspetos físicos do meio', type:'fill', diff:2, q:'Terra plana e baixa chama-se ___', ans:['planície'], exp:'Planície.' },
+
+    { id:'3le_ani1', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'🐄 A vaca é um:', opts:['réptil','mamífero','ave'], ans:1, exp:'Vaca = mamífero.' },
+    { id:'3le_ani2', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🐋 A baleia é um:', opts:['peixe','mamífero','réptil'], ans:1, exp:'Mamífero — respira ar, amamenta.' },
+    { id:'3le_ani3', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🐛 Os insetos têm ___ patas:', opts:['4','6','8'], ans:1, exp:'6 patas. (Aranhas têm 8.)' },
+    { id:'3le_ani4', s:'estudo_meio', t:'Animais', type:'tf', diff:1, q:'Os peixes respiram por brânquias.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3le_pla1', s:'estudo_meio', t:'Plantas', type:'mc', diff:1, q:'🌱 A parte da planta que fixa no solo é a:', opts:['raiz','caule','folha'], ans:0, exp:'Raiz fixa e absorve água.' },
+    { id:'3le_pla2', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🍃 As plantas fazem o seu alimento na:', opts:['raiz','caule','folha'], ans:2, exp:'Folha (fotossíntese).' },
+    { id:'3le_pla3', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🌸 A parte da planta que se transforma em fruto é a:', opts:['raiz','flor','folha'], ans:1, exp:'A flor dá origem ao fruto.' },
+    { id:'3le_pla4', s:'estudo_meio', t:'Plantas', type:'fill', diff:2, q:'Gás que a planta liberta na fotossíntese: ___', ans:['oxigénio','oxigenio','O2'], exp:'Oxigénio.' },
+
+    { id:'3le_mat1', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:1, q:'🪵 A madeira é um material:', opts:['natural','artificial'], ans:0, exp:'Vem das árvores.' },
+    { id:'3le_mat2', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2, q:'♻️ No ecoponto AZUL deita-se:', opts:['vidro','papel','plástico'], ans:1, exp:'Azul = papel/cartão.' },
+    { id:'3le_mat3', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2, q:'♻️ As embalagens de plástico vão para o ecoponto:', opts:['azul','amarelo','verde'], ans:1, exp:'Amarelo = embalagens.' },
+    { id:'3le_mat4', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2, q:'♻️ Onde vai o vidro?', opts:['azul','amarelo','verde'], ans:2, exp:'Verde = vidro.' },
+
+    { id:'3le_exp1', s:'estudo_meio', t:'Experiências', type:'mc', diff:1, q:'💧 A água em forma de gelo está no estado:', opts:['sólido','líquido','gasoso'], ans:0, exp:'Gelo = sólido.' },
+    { id:'3le_exp2', s:'estudo_meio', t:'Experiências', type:'mc', diff:2, q:'🧲 Um íman atrai objetos de:', opts:['plástico','ferro','madeira'], ans:1, exp:'Ferro (e níquel, cobalto).' },
+    { id:'3le_exp3', s:'estudo_meio', t:'Experiências', type:'tf', diff:2, q:'O ar ocupa espaço.', ans:true, exp:'Verdadeiro — vê um balão.' },
+
+    // ============================ INGLÊS (Kid\'s Box NG 2) =====================
+    { id:'3li_gre1', s:'ingles', t:'Greetings and feelings', type:'mc', diff:1, q:'👋 "Good morning!" significa:', opts:['boa noite','bom dia','boa tarde'], ans:1, exp:'Good morning = bom dia.' },
+    { id:'3li_gre2', s:'ingles', t:'Greetings and feelings', type:'mc', diff:1, q:'😊 "I\'m happy" significa:', opts:['estou triste','estou contente','estou cansado'], ans:1, exp:'Happy = contente.' },
+    { id:'3li_gre3', s:'ingles', t:'Greetings and feelings', type:'fill', diff:1, q:'What\'s your name? — My name ___ Eduarda.', ans:['is'], exp:'My name **is** Eduarda.' },
+
+    { id:'3li_sch1', s:'ingles', t:'School things', type:'mc', diff:1, q:'✏️ Em inglês, lápis é:', opts:['pen','pencil','book'], ans:1, exp:'Pencil = lápis.' },
+    { id:'3li_sch2', s:'ingles', t:'School things', type:'fill', diff:1, q:'Borracha em inglês (UK): ___', ans:['rubber'], exp:'Rubber (UK) / Eraser (US).' },
+    { id:'3li_sch3', s:'ingles', t:'School things', type:'mc', diff:2, q:'🎒 "Schoolbag" significa:', opts:['mochila','cadeira','quadro'], ans:0, exp:'Schoolbag = mochila.' },
+
+    { id:'3li_toy1', s:'ingles', t:'Toys and playtime', type:'mc', diff:1, q:'🧸 "Teddy bear" significa:', opts:['gato','urso de peluche','boneca'], ans:1, exp:'Teddy bear = urso de peluche.' },
+    { id:'3li_toy2', s:'ingles', t:'Toys and playtime', type:'fill', diff:1, q:'Boneca em inglês: ___', ans:['doll'], exp:'Doll = boneca.' },
+    { id:'3li_toy3', s:'ingles', t:'Toys and playtime', type:'mc', diff:2, q:'🎮 "Let\'s play!" significa:', opts:['Vamos comer','Vamos brincar','Vamos dormir'], ans:1, exp:'Let\'s play = Vamos brincar.' },
+
+    { id:'3li_rom1', s:'ingles', t:'Rooms at home', type:'mc', diff:1, q:'🍳 "Kitchen" significa:', opts:['quarto','cozinha','sala'], ans:1, exp:'Kitchen = cozinha.' },
+    { id:'3li_rom2', s:'ingles', t:'Rooms at home', type:'mc', diff:2, q:'🛏️ "The cat is ___ the bed" (em cima):', opts:['in','on','under'], ans:1, exp:'On = em cima de.' },
+    { id:'3li_rom3', s:'ingles', t:'Rooms at home', type:'fill', diff:1, q:'Casa de banho em inglês: ___', ans:['bathroom'], exp:'Bathroom.' },
+
+    { id:'3li_fam1', s:'ingles', t:'Family members', type:'mc', diff:1, q:'👩 "Mum" significa:', opts:['pai','mãe','irmã'], ans:1, exp:'Mum / mother = mãe.' },
+    { id:'3li_fam2', s:'ingles', t:'Family members', type:'mc', diff:1, q:'👴 "Grandfather" significa:', opts:['avô','tio','primo'], ans:0, exp:'Grandfather = avô.' },
+    { id:'3li_fam3', s:'ingles', t:'Family members', type:'fill', diff:2, q:'Irmã em inglês: ___', ans:['sister'], exp:'Sister.' },
+
+    { id:'3li_far1', s:'ingles', t:'Farm animals', type:'mc', diff:1, q:'🐄 "Cow" significa:', opts:['galinha','vaca','porco'], ans:1, exp:'Cow = vaca.' },
+    { id:'3li_far2', s:'ingles', t:'Farm animals', type:'mc', diff:2, q:'🐑 Plural de "sheep" é:', opts:['sheeps','sheepes','sheep'], ans:2, exp:'Sheep — igual no plural.' },
+    { id:'3li_far3', s:'ingles', t:'Farm animals', type:'fill', diff:1, q:'Cavalo em inglês: ___', ans:['horse'], exp:'Horse.' },
+
+    { id:'3li_tow1', s:'ingles', t:'My town', type:'mc', diff:1, q:'🏥 "Hospital" significa:', opts:['hospital','escola','loja'], ans:0, exp:'Hospital = hospital.' },
+    { id:'3li_tow2', s:'ingles', t:'My town', type:'fill', diff:1, q:'Biblioteca em inglês: ___', ans:['library'], exp:'Library (NÃO "livraria"!).' },
+    { id:'3li_tow3', s:'ingles', t:'My town', type:'mc', diff:2, q:'➡️ "Turn left" significa:', opts:['vira à direita','vira à esquerda','vai em frente'], ans:1, exp:'Turn left = à esquerda.' },
+
+    { id:'3li_clo1', s:'ingles', t:'Clothes', type:'mc', diff:1, q:'👕 "T-shirt" significa:', opts:['casaco','t-shirt','calças'], ans:1, exp:'T-shirt.' },
+    { id:'3li_clo2', s:'ingles', t:'Clothes', type:'mc', diff:2, q:'👖 "Trousers" (UK) significa:', opts:['saia','calças','sapatos'], ans:1, exp:'Trousers = calças (sempre plural).' },
+    { id:'3li_clo3', s:'ingles', t:'Clothes', type:'fill', diff:1, q:'Sapatos em inglês: ___', ans:['shoes'], exp:'Shoes (sempre plural).' },
+
+    { id:'3li_hob1', s:'ingles', t:'Hobbies and sports', type:'mc', diff:1, q:'⚽ "Football" significa:', opts:['ténis','futebol','natação'], ans:1, exp:'Football = futebol.' },
+    { id:'3li_hob2', s:'ingles', t:'Hobbies and sports', type:'mc', diff:2, q:'🏊 "I like swimming" significa:', opts:['Gosto de correr','Gosto de nadar','Gosto de saltar'], ans:1, exp:'Swimming = natação.' },
+    { id:'3li_hob3', s:'ingles', t:'Hobbies and sports', type:'fill', diff:2, q:'Cantar (forma -ing): I like ___', ans:['singing'], exp:'After "like" use -ing form.' },
+
+    { id:'3li_num1', s:'ingles', t:'Numbers and colours', type:'mc', diff:1, q:'🔢 "Seven" é o número:', opts:['5','7','9'], ans:1, exp:'Seven = 7.' },
+    { id:'3li_num2', s:'ingles', t:'Numbers and colours', type:'mc', diff:2, q:'🔢 "Thirteen" é o número:', opts:['3','13','30'], ans:1, exp:'Thirteen = 13; Thirty = 30.' },
+    { id:'3li_num3', s:'ingles', t:'Numbers and colours', type:'mc', diff:1, q:'🎨 "Yellow" é a cor:', opts:['vermelho','amarelo','azul'], ans:1, exp:'Yellow = amarelo.' },
+    { id:'3li_num4', s:'ingles', t:'Numbers and colours', type:'fill', diff:1, q:'Verde em inglês: ___', ans:['green'], exp:'Green.' },
+
+    // ============================ FORMAÇÃO CRISTÃ ==============================
+    { id:'3lf_uni1', s:'formacao_crista', t:'Eu sou único e importante', type:'tf', diff:1, q:'Cada pessoa é única no mundo.', ans:true, exp:'Verdadeiro — não há duas iguais.' },
+    { id:'3lf_uni2', s:'formacao_crista', t:'Eu sou único e importante', type:'mc', diff:2, q:'📖 Segundo o Génesis, Deus criou o ser humano:', opts:['como um robô','à sua imagem','por engano'], ans:1, exp:'"Deus criou o ser humano à sua imagem" (Gn 1, 27).' },
+
+    { id:'3lf_fam1', s:'formacao_crista', t:'Viver em família', type:'mc', diff:1, q:'👨‍👩‍👧 A "Sagrada Família" é:', opts:['Pedro, Paulo e João','Jesus, Maria e José','Adão, Eva e Caim'], ans:1, exp:'Jesus, Maria e José.' },
+    { id:'3lf_fam2', s:'formacao_crista', t:'Viver em família', type:'mc', diff:2, q:'📜 O 4.º mandamento diz:', opts:['Não matarás','Honra o teu pai e a tua mãe','Não roubarás'], ans:1, exp:'"Honra o teu pai e a tua mãe."' },
+
+    { id:'3lf_cri1', s:'formacao_crista', t:'A criação do mundo', type:'mc', diff:1, q:'📖 O 1.º livro da Bíblia chama-se:', opts:['Salmos','Génesis','Apocalipse'], ans:1, exp:'Génesis.' },
+    { id:'3lf_cri2', s:'formacao_crista', t:'A criação do mundo', type:'mc', diff:2, q:'☀️ Segundo o Génesis, o ser humano foi criado no:', opts:['1.º dia','3.º dia','6.º dia'], ans:2, exp:'6.º dia.' },
+    { id:'3lf_cri3', s:'formacao_crista', t:'A criação do mundo', type:'tf', diff:2, q:'O Papa Francisco fala do cuidado da criação na encíclica "Laudato Si".', ans:true, exp:'Verdadeiro — Laudato Si (2015).' },
+
+    { id:'3lf_jes1', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:1, q:'🌟 Jesus nasceu em:', opts:['Nazaré','Belém','Jerusalém'], ans:1, exp:'Belém.' },
+    { id:'3lf_jes2', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:1, q:'🎄 O Natal celebra o ___ de Jesus:', opts:['batismo','nascimento','milagre'], ans:1, exp:'Natal = nascimento.' },
+    { id:'3lf_jes3', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:2, q:'✝️ Jesus escolheu ___ apóstolos:', opts:['7','10','12'], ans:2, exp:'12 apóstolos.' },
+    { id:'3lf_jes4', s:'formacao_crista', t:'A vida de Jesus', type:'tf', diff:2, q:'A Páscoa celebra a Ressurreição de Jesus.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3lf_igr1', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'mc', diff:1, q:'⛪ "Igreja" pode ser:', opts:['só o edifício','só a comunidade','o edifício e a comunidade'], ans:2, exp:'Ambos os sentidos.' },
+    { id:'3lf_igr2', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'mc', diff:2, q:'🙏 Quantos sacramentos tem a Igreja Católica?', opts:['5','7','10'], ans:1, exp:'7 sacramentos.' },
+    { id:'3lf_igr3', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'fill', diff:1, q:'O sacramento que marca a entrada na Igreja é o ___', ans:['Batismo','batismo'], exp:'Batismo.' },
+
+    { id:'3lf_val1', s:'formacao_crista', t:'Valores cristãos', type:'mc', diff:1, q:'💛 "Amar o próximo como a ti mesmo" significa:', opts:['só amar a família','tratar os outros como queres ser tratado','amar só os amigos'], ans:1, exp:'Regra de Ouro (Mt 7, 12).' },
+    { id:'3lf_val2', s:'formacao_crista', t:'Valores cristãos', type:'tf', diff:2, q:'Perdoar é o mesmo que permitir tudo.', ans:false, exp:'Falso — perdoar é não guardar rancor, não significa permitir abusos.' },
+
+    // ============================ CIDADANIA E DESENVOLVIMENTO ==================
+    { id:'3lc_dir1', s:'cidadania', t:'Direitos e deveres', type:'mc', diff:1, q:'👶 Direito de toda a criança:', opts:['ter um carro','ir à escola','escolher os pais'], ans:1, exp:'Direito à educação.' },
+    { id:'3lc_dir2', s:'cidadania', t:'Direitos e deveres', type:'mc', diff:2, q:'📜 A Convenção sobre os Direitos da Criança foi aprovada pela:', opts:['UE','ONU','UNESCO'], ans:1, exp:'ONU, em 1989.' },
+    { id:'3lc_dir3', s:'cidadania', t:'Direitos e deveres', type:'tf', diff:1, q:'As crianças também têm deveres, não apenas direitos.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3lc_reg1', s:'cidadania', t:'Regras de convivência', type:'mc', diff:1, q:'🙋 Na sala de aula, para falar:', opts:['gritar','levantar o braço','sair do lugar'], ans:1, exp:'Levantar o braço.' },
+    { id:'3lc_reg2', s:'cidadania', t:'Regras de convivência', type:'mc', diff:2, q:'😤 Quando há um conflito, o primeiro passo é:', opts:['gritar','acalmar-se','responder à letra'], ans:1, exp:'Acalmar-se.' },
+
+    { id:'3lc_div1', s:'cidadania', t:'Diversidade e respeito', type:'tf', diff:1, q:'Todas as pessoas merecem respeito, independentemente da cor, religião ou capacidade.', ans:true, exp:'Verdadeiro.' },
+    { id:'3lc_div2', s:'cidadania', t:'Diversidade e respeito', type:'mc', diff:2, q:'😠 "Bullying" é:', opts:['uma piada inofensiva','uma agressão repetida','um jogo de equipa'], ans:1, exp:'Agressão repetida.' },
+    { id:'3lc_div3', s:'cidadania', t:'Diversidade e respeito', type:'mc', diff:2, q:'😟 Quando vejo alguém a ser maltratado:', opts:['ignoro','denuncio a um adulto','aplaudo'], ans:1, exp:'Denunciar a um adulto de confiança.' },
+
+    { id:'3lc_amb1', s:'cidadania', t:'Ambiente e sustentabilidade', type:'mc', diff:1, q:'♻️ A regra dos 3 R é:', opts:['Reduzir, Reutilizar, Reciclar','Recolher, Repartir, Reservar','Receber, Refazer, Reciclar'], ans:0, exp:'Reduzir → Reutilizar → Reciclar.' },
+    { id:'3lc_amb2', s:'cidadania', t:'Ambiente e sustentabilidade', type:'mc', diff:2, q:'💧 Ao escovar os dentes devo:', opts:['deixar a torneira aberta','fechar a torneira','encher o lavatório'], ans:1, exp:'Fechar poupa ~6 L/min.' },
+    { id:'3lc_amb3', s:'cidadania', t:'Ambiente e sustentabilidade', type:'tf', diff:2, q:'Reciclar é a 1.ª prioridade nos 3 R.', ans:false, exp:'Falso — a 1.ª é REDUZIR.' },
+
+    { id:'3lc_rod1', s:'cidadania', t:'Segurança rodoviária', type:'mc', diff:1, q:'🚶 Atravesso a estrada na:', opts:['passadeira','curva','meio do trânsito'], ans:0, exp:'Sempre na passadeira.' },
+    { id:'3lc_rod2', s:'cidadania', t:'Segurança rodoviária', type:'mc', diff:2, q:'🚗 No carro, crianças com menos de 12 anos devem ir:', opts:['na frente','no banco de trás','no porta-bagagens'], ans:1, exp:'Sempre no banco de trás.' },
+    { id:'3lc_rod3', s:'cidadania', t:'Segurança rodoviária', type:'tf', diff:1, q:'É obrigatório usar capacete na bicicleta.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3lc_sau1', s:'cidadania', t:'Saúde e bem-estar', type:'mc', diff:1, q:'😴 Uma criança de 8-9 anos precisa de dormir:', opts:['4-5 h','9-11 h','15 h'], ans:1, exp:'≈ 9-11 horas.' },
+    { id:'3lc_sau2', s:'cidadania', t:'Saúde e bem-estar', type:'mc', diff:2, q:'📱 Tempo recomendado em ecrãs por dia:', opts:['ilimitado','até 1 hora','5 horas'], ans:1, exp:'~1 hora por dia.' },
+    { id:'3lc_sau3', s:'cidadania', t:'Saúde e bem-estar', type:'tf', diff:1, q:'Falar sobre o que sentimos ajuda o bem-estar emocional.', ans:true, exp:'Verdadeiro.' }
+];
 
 // ============================================================
 // ===================== 5.º ANO ==============================
@@ -3954,6 +4421,7 @@ const EXERCISES_11 = [];
 const YEARS_AVAILABLE = [
     { year: 2,  label: '2.º ano',  cycle: '1.º ciclo' },
     { year: 3,  label: '3.º ano',  cycle: '1.º ciclo' },
+    { year: 31, label: '3.º ano (Oceanus)', cycle: '1.º ciclo' },
     { year: 5,  label: '5.º ano',  cycle: '2.º ciclo' },
     { year: 6,  label: '6.º ano',  cycle: '2.º ciclo' },
     { year: 11, label: '11.º ano', cycle: 'Secundário' },
@@ -3969,11 +4437,11 @@ const EXERCISES_99  = [];
 const LESSONS_99    = {};
 const PERIODS_99    = {};
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11,   99: SUBJECTS_99 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11, 99: CURRICULUM_99 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11,  99: EXERCISES_99 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11,    99: LESSONS_99 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11,    99: PERIODS_99 };
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   31: SUBJECTS_3_OCEANUS,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11,   99: SUBJECTS_99 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 31: CURRICULUM_3_OCEANUS, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11, 99: CURRICULUM_99 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  31: EXERCISES_3_OCEANUS,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11,  99: EXERCISES_99 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    31: LESSONS_3_OCEANUS,    5: LESSONS_5,   6: LESSONS_6,   11: LESSONS_11,   99: LESSONS_99 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    31: PERIODS_3_OCEANUS,    5: PERIODS_5,   6: PERIODS_6,   11: PERIODS_11,   99: PERIODS_99 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
