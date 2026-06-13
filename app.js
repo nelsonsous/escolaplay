@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v469';
+const APP_VERSION = 'v470';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14542,12 +14542,21 @@ function _teacherStartRead(resume) {
         }
     };
     r.onend = () => {
-        // Web Speech Recognition em iOS Safari pode parar sozinho após
-        // silêncio. Auto-restart até 8 vezes seguidas para tolerar pausas
-        // longas, mas reseta o contador sempre que uma palavra nova foi
-        // reconhecida (mostra que ainda há fluxo).
+        // Auto-restart até 8 vezes (o contador reseta sempre que uma nova
+        // palavra é matched). Após 3 restarts sem progresso, faz AUTO-SKIP
+        // da palavra atual para não bloquear a Eduarda.
         if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
             _teacher.restartCount = (_teacher.restartCount || 0) + 1;
+            // Auto-skip se ficou MESMO preso
+            if (_teacher.restartCount >= 3) {
+                const status = document.getElementById('teacher-status');
+                if (status) status.innerHTML = '🤖 <strong>A avançar...</strong> O microfone não te ouve bem. Continua a ler!';
+                try { _teacherSkipWord(); } catch {}
+                // Após skip, _teacherSkipWord pode ter chamado _teacherFinishRead já
+                if (_teacher.mode !== 'read') return;
+                // Reset contador depois do skip — dá chance ao ASR de captar a próxima
+                _teacher.restartCount = 0;
+            }
             if (_teacher.restartCount <= 8) {
                 setTimeout(() => {
                     if (_teacher.mode === 'read' && _teacher.position < _teacher.words.length) {
