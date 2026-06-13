@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v460';
+const APP_VERSION = 'v461';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14531,11 +14531,15 @@ function _teacherMatchHeard(heard) {
     }
     _teacher.position = p;
     _teacher.heardCursor = h;
-    // === Perguntas por parágrafo: detetar se passámos um fim de parágrafo. ===
+    // === Perguntas por parágrafo: detetar se passámos o fim do parágrafo
+    // de referência da pergunta (campo `afterParagraph`, 0-indexed). Se não
+    // estiver definido, usa o índice da pergunta como default. ===
     if (_teacher.mode === 'read' && _teacher.paragraphChecks.length > _teacher.pCheckIdx) {
-        const targetEnd = _teacher.paragraphEnds[_teacher.pCheckIdx];
+        const check = _teacher.paragraphChecks[_teacher.pCheckIdx];
+        const afterPara = (check && typeof check.afterParagraph === 'number')
+            ? check.afterParagraph : _teacher.pCheckIdx;
+        const targetEnd = _teacher.paragraphEnds[afterPara];
         if (typeof targetEnd === 'number' && _teacher.position > targetEnd) {
-            const check = _teacher.paragraphChecks[_teacher.pCheckIdx];
             if (check) {
                 _teacher.pCheckIdx++;
                 try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
