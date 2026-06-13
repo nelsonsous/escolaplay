@@ -1509,13 +1509,25 @@ const EXERCISES_2 = [
 // em português.
 // ============================================================
 const SUBJECTS_3_OCEANUS = {
-    portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
-    matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
-    estudo_meio:  { name: 'Science',         icon: 'fa-globe',        color: '#16a34a' },
-    ingles:       { name: 'English',         icon: 'fa-language',     color: '#7c3aed' }
+    portugues:    { name: 'Português',      icon: 'fa-book',              color: '#e11d48' },
+    leitura:      { name: 'Leitura',        icon: 'fa-book-open-reader',  color: '#0e7490', fullName: 'Leitura — fluência, prosódia e compreensão' },
+    matematica:   { name: 'Matemática',     icon: 'fa-calculator',        color: '#2563eb' },
+    estudo_meio:  { name: 'Science',         icon: 'fa-globe',             color: '#16a34a' },
+    ingles:       { name: 'English',         icon: 'fa-language',          color: '#7c3aed' }
 };
 
 const CURRICULUM_3_OCEANUS = {
+    leitura: [
+        'Pausas na vírgula', 'Pausas no ponto final',
+        'Voz sobe na pergunta', 'Voz expressiva na exclamação',
+        'Discurso direto e diálogos',
+        'Velocidade certa de leitura', 'Frases longas sem perder o fôlego',
+        'Palavras difíceis — silabar e voltar', 'Vocabulário em contexto',
+        'Quem, o quê, onde, quando',
+        'O que a personagem sente', 'O que vai acontecer (predição)',
+        'Causa e efeito (porquê?)', 'Ideia principal e detalhes',
+        'Resumir e contar por palavras suas'
+    ],
     portugues: [
         'Ditongos e hiatos', 'Acentuação', 'Translineação',
         'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Adjetivos', 'Verbos', 'Plurais e feminino',
@@ -1549,6 +1561,17 @@ const CURRICULUM_3_OCEANUS = {
 };
 
 const PERIODS_3_OCEANUS = {
+    leitura: {
+        'Pausas na vírgula':1, 'Pausas no ponto final':1,
+        'Voz sobe na pergunta':1, 'Voz expressiva na exclamação':1,
+        'Discurso direto e diálogos':1,
+        'Velocidade certa de leitura':2, 'Frases longas sem perder o fôlego':2,
+        'Palavras difíceis — silabar e voltar':2, 'Vocabulário em contexto':2,
+        'Quem, o quê, onde, quando':2,
+        'O que a personagem sente':3, 'O que vai acontecer (predição)':3,
+        'Causa e efeito (porquê?)':3, 'Ideia principal e detalhes':3,
+        'Resumir e contar por palavras suas':3
+    },
     portugues:   {
         'Ditongos e hiatos':1, 'Acentuação':1, 'Translineação':1,
         'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
@@ -2037,6 +2060,7 @@ const SUBJECTS_3 = {
     portugues:        { name: 'Português',         icon: 'fa-book',              color: '#e11d48' },
     leitura:          { name: 'Leitura',           icon: 'fa-book-open-reader',  color: '#0e7490', fullName: 'Leitura — fluência, prosódia e compreensão' },
     matematica:       { name: 'Matemática',        icon: 'fa-calculator',        color: '#2563eb' },
+    mat_plus:         { name: 'Mat+',              icon: 'fa-shapes',            color: '#f97316', fullName: 'Matemática visual (apoio passo-a-passo)' },
     estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',             color: '#16a34a' },
     ingles:           { name: 'Inglês',            icon: 'fa-language',          color: '#7c3aed' },
     cidadania:        { name: 'Cidadania',         icon: 'fa-people-group',      color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' }
@@ -2071,6 +2095,9 @@ const CURRICULUM_3 = {
     cidadania: [
         'Direitos e deveres', 'Regras de convivência', 'Diversidade e respeito',
         'Ambiente e sustentabilidade', 'Segurança rodoviária', 'Saúde e bem-estar'
+    ],
+    mat_plus: [
+        'Centenas com ten-frames', 'Decompor até 10 000', 'Linha numérica até 10 000', 'Comparar números grandes', 'Aproximar à dezena ou centena', 'Adição com transporte', 'Subtração com empréstimo', 'Tabuada do 6 visual', 'Tabuada do 7 visual', 'Tabuada do 8 visual', 'Tabuada do 9 visual', 'Famílias de factos', 'Multiplicação × 10, 100, 1000', 'Multiplicação por 1 dígito', 'Divisão por partilha', 'Divisão com resto', 'Frações — partes iguais', 'Frações — comparar', 'Modelo de barra', 'Problemas em 2 passos'
     ],
     // Programa autoral, foco em fluência (Hasbrouck & Tindal) + prosódia
     // (Rasinski) + compreensão (Simple View of Reading + estratégias da
@@ -2122,6 +2149,7 @@ const PERIODS_3 = {
         'Diversidade e respeito':2, 'Saúde e bem-estar':2,
         'Ambiente e sustentabilidade':3, 'Segurança rodoviária':3
     },
+    mat_plus: { 'Centenas com ten-frames':1, 'Decompor até 10 000':1, 'Linha numérica até 10 000':1, 'Comparar números grandes':1, 'Aproximar à dezena ou centena':1, 'Adição com transporte':2, 'Subtração com empréstimo':2, 'Tabuada do 6 visual':2, 'Tabuada do 7 visual':2, 'Tabuada do 8 visual':2, 'Tabuada do 9 visual':2, 'Famílias de factos':2, 'Multiplicação × 10, 100, 1000':2, 'Multiplicação por 1 dígito':2, 'Divisão por partilha':3, 'Divisão com resto':3, 'Frações — partes iguais':3, 'Frações — comparar':3, 'Modelo de barra':3, 'Problemas em 2 passos':3 },
     leitura: {
         'Pausas na vírgula':1, 'Pausas no ponto final':1,
         'Voz sobe na pergunta':1, 'Voz expressiva na exclamação':1,
@@ -2356,6 +2384,88 @@ const LESSONS_3 = {
     'leitura/Resumir e contar por palavras suas': {
         title: 'Resumir e contar por palavras suas',
         body: '**Resumir** = contar a história em **menos palavras**, sem perder o essencial.\n\nO resumo deve ter:\n• **Quem** — personagens principais.\n• **O quê** — o que aconteceu (princípio, meio, fim).\n• **Onde e quando** — só se for importante.\n\n**NÃO deve ter**:\n• Detalhes pequenos.\n• Opinião tua.\n• Frases inventadas.\n\n**Como fazer**:\n1. Lê o texto **todo**.\n2. Identifica a **ideia principal**.\n3. Conta os 3 ou 4 acontecimentos mais importantes.\n4. Liga-os com "**no início**", "**depois**", "**a seguir**", "**no fim**".\n5. Confere: contei o essencial?\n\n**Exemplo de texto**:\n*"A Eduarda saiu de casa com pressa para ir à escola. Esqueceu-se do livro. Quando chegou, a professora pediu para ler. A Eduarda ficou envergonhada. A colega Carolina emprestou-lhe o seu livro. A Eduarda agradeceu e leu muito bem."*\n\n**Resumo (3 frases)**:\n"A Eduarda saiu à pressa e esqueceu o livro. A Carolina emprestou-lhe o dela. Conseguiu ler bem na aula."\n\n**Estratégias úteis** ✨\n• Conta o resumo aos pais ou ao espelho.\n• Escreve em 3-4 frases curtas.\n• Volta ao texto se esqueceres algo.\n• Quanto mais treinares, mais fácil fica.\n\n**❌ O que se costuma errar**\n• Copiar frases inteiras do texto (não é resumo, é copy-paste).\n• Esquecer o fim da história.\n• Contar TUDO em vez de só o essencial.\n• Acrescentar coisas que não estão no texto.'
+    },
+
+    // ----- MAT+ 3.º (Matemática visual) -----
+    'mat_plus/Centenas com ten-frames': {
+        title: 'Centenas com ten-frames',
+        body: "No 3.º ano os números ficam **grandes**. Para os ver bem, organizamos em grupos de **10 e 100**.\n\n• 1 ten-frame cheio = **10**.\n• 10 ten-frames cheios = uma **centena** (100).\n• 10 centenas = um **milhar** (1 000).\n\n**Modelo visual de base 10**:\n• Cubo pequeno = unidade (1).\n• Barra de 10 cubos = dezena (10).\n• Placa 10×10 = centena (100).\n• Cubo grande 10×10×10 = milhar (1 000).\n\n**Estratégias úteis** ✨\n• Pinta um quadradinho 10×10 → vê 100 num só olhar.\n• Junta 3 placas de 100 → 300. Junta 5 barras → 50. Total: 350.\n• Quando o número é **grande**, separa em milhares + centenas + dezenas + unidades."
+    },
+    'mat_plus/Decompor até 10 000': {
+        title: 'Decompor até 10 000',
+        body: "Cada algarismo tem um **valor** diferente conforme a posição.\n\nNo número **3 472**:\n• **3** vale 3 000 (milhares)\n• **4** vale 400 (centenas)\n• **7** vale 70 (dezenas)\n• **2** vale 2 (unidades)\n\nTotal: 3 000 + 400 + 70 + 2 = **3 472**.\n\n**Tabela de valor posicional**:\n| M | C | D | U |\n| 3 | 4 | 7 | 2 |\n\n**Estratégias úteis** ✨\n• Lê o número devagar: \"três mil, quatrocentos e setenta e dois\".\n• Atenção aos zeros: 3 052 ≠ 3 502. O zero também ocupa uma posição.\n• Se vires 4 005 sabe que tem 4 milhares e 5 unidades — 0 centenas e 0 dezenas."
+    },
+    'mat_plus/Linha numérica até 10 000': {
+        title: 'Linha numérica até 10 000',
+        body: "A **linha numérica** ajuda a \"ver\" onde estão os números.\n\nMarca-se de 1 000 em 1 000:\n0 — 1 000 — 2 000 — ... — 10 000.\n\nDepois divide-se cada milhar em 10 partes (de 100 em 100) e cada centena em 10 (de 10 em 10).\n\n**Estratégias úteis** ✨\n• Para colocar 3 700 na linha: vê que está entre 3 000 e 4 000, perto do meio mas mais à direita.\n• Para 5 250: está entre 5 000 e 5 500, mais ou menos a meio.\n• Saltar de 100 em 100 ou de 10 em 10 ajuda a contar para a frente e para trás."
+    },
+    'mat_plus/Comparar números grandes': {
+        title: 'Comparar números grandes',
+        body: "Para comparar números até 10 000, vê **da esquerda para a direita**.\n\n**Regras**:\n1. Quem tem mais algarismos é maior (9 999 < 10 000).\n2. Se o número de algarismos é igual, compara o algarismo das MAIORES posições primeiro.\n\n**Símbolos**:\n• **>** maior que (a \"boca aberta\" para o maior).\n• **<** menor que.\n• **=** igual.\n\n**Estratégias úteis** ✨\n• Alinha sempre os números pela direita.\n• Se ficares baralhada, escreve um por cima do outro.\n• A \"boca\" do símbolo abre sempre para o maior."
+    },
+    'mat_plus/Aproximar à dezena ou centena': {
+        title: 'Aproximar à dezena ou centena',
+        body: "**Aproximar** = arredondar para o número certo (10, 100) mais perto.\n\n**Regra dos 5**:\n• Se o algarismo a seguir é **0, 1, 2, 3, 4** → desce.\n• Se é **5, 6, 7, 8, 9** → sobe.\n\n**Exemplos** (à dezena):\n• 47 → **50** (7 ≥ 5).\n• 42 → **40** (2 < 5).\n• 35 → **40** (regra dos 5 sobe).\n\n**À centena**:\n• 347 → **300** (4 dezenas < 5).\n• 372 → **400** (7 dezenas ≥ 5).\n\n**Estratégias úteis** ✨\n• Para aproximar à dezena, olha SÓ para as unidades.\n• Para aproximar à centena, olha SÓ para as dezenas.\n• Estimar antes ajuda a ver se a tua resposta faz sentido."
+    },
+    'mat_plus/Adição com transporte': {
+        title: 'Adição com transporte',
+        body: "Quando a soma de duas colunas dá **mais de 9**, há **transporte** para a coluna seguinte.\n\n**Exemplo**: 248 + 175\n```\n   1 1\n   2 4 8\n + 1 7 5\n ───────\n   4 2 3\n```\n• U: 8+5=13 → escreve 3, transp. 1.\n• D: 4+7+1=12 → escreve 2, transp. 1.\n• C: 2+1+1=4.\n\n**Estratégias úteis** ✨\n• Alinha SEMPRE pela direita.\n• Escreve o transporte pequenino por cima.\n• Se a soma final tiver transporte na coluna mais à esquerda, escreve-o à frente."
+    },
+    'mat_plus/Subtração com empréstimo': {
+        title: 'Subtração com empréstimo',
+        body: "Se o algarismo de cima é **menor** que o de baixo, pede-se \"emprestado\" 1 à coluna do lado esquerdo.\n\n**Exemplo**: 524 − 187 = 337\n• U: 4 < 7. Empresta 10 → 14−7=7. O 2 das dezenas vira 1.\n• D: 1 < 8. Empresta 100 → 11−8=3. O 5 vira 4.\n• C: 4−1=3.\n\n**Estratégias úteis** ✨\n• Quando emprestas, **risca** o número de cima e escreve o novo.\n• Se a coluna tem 0, tens de \"emprestar mais longe\".\n• Confirma somando: 337 + 187 deve dar 524."
+    },
+    'mat_plus/Tabuada do 6 visual': {
+        title: 'Tabuada do 6 visual',
+        body: "O 6 é o **dobro do 3**. Por isso a tabuada do 6 = dobro da tabuada do 3.\n\n**Resultados**:\n6×1=6 · 6×2=12 · 6×3=18 · 6×4=24 · 6×5=**30** · 6×6=36 · 6×7=42 · 6×8=48 · 6×9=54 · 6×10=60.\n\n**Truques visuais**:\n• Caixas de ovos (6 por caixa) → 4 caixas = 24 ovos.\n• 6×5=30 (a meio — fácil).\n• Para 6×8: pensa 6×10=60, depois −12 = 48.\n\n**Estratégias úteis** ✨\n• Aprende primeiro 6×5 e 6×10.\n• Os resultados são SEMPRE pares.\n• 6×9 = 54 — soma dos algarismos = 9!"
+    },
+    'mat_plus/Tabuada do 7 visual': {
+        title: 'Tabuada do 7 visual',
+        body: "A tabuada do **7** é a mais \"esquisita\". Mas há truques.\n\n**Resultados**:\n7×1=7 · 7×2=14 · 7×3=21 · 7×4=28 · 7×5=**35** · 7×6=42 · 7×7=**49** · 7×8=56 · 7×9=63 · 7×10=70.\n\n**Truques**:\n• Dias da semana: 1 semana = 7 dias → 4 semanas = 28 dias.\n• 7×7 = 49 (quadrado).\n• Para 7×8: 7×10−7×2 = 70−14 = 56.\n\n**Estratégias úteis** ✨\n• Decora 7×5=35, 7×10=70, 7×7=49.\n• Usa a comutativa: 7×3 = 3×7.\n• Faz fichas — escreve 10 vezes seguidas."
+    },
+    'mat_plus/Tabuada do 8 visual': {
+        title: 'Tabuada do 8 visual',
+        body: "O 8 é o **dobro do 4**. Tabuada do 8 = dobro da do 4.\n\n**Resultados**:\n8×1=8 · 8×2=16 · 8×3=24 · 8×4=32 · 8×5=**40** · 8×6=48 · 8×7=56 · 8×8=**64** · 8×9=72 · 8×10=80.\n\n**Truques**:\n• Polvo (8 patas) → 3 polvos = 24 patas.\n• 8×5 = 40 (acaba em 0).\n• 8×8 = 64 (quadrado).\n• 8×9 = 72: 8×10 − 8.\n\n**Estratégias úteis** ✨\n• Os resultados saltam de 8 em 8.\n• Todos pares.\n• 8×n = (8×(n−1)) + 8."
+    },
+    'mat_plus/Tabuada do 9 visual': {
+        title: 'Tabuada do 9 visual',
+        body: "A tabuada do **9** tem um padrão lindo: **os algarismos do resultado somam 9**.\n\n**Resultados**:\n9×1=09 · 9×2=18 · 9×3=27 · 9×4=36 · 9×5=45 · 9×6=54 · 9×7=63 · 9×8=72 · 9×9=81 · 9×10=90.\n\nNota: 18 → 1+8=9. 27 → 2+7=9. Sempre 9!\n\n**Truque dos dedos** 👋: para 9×3, baixa o 3.º dedo. À esquerda 2 dedos = 20; à direita 7 dedos = 7 → 27.\n\n**Estratégias úteis** ✨\n• 9×n = (10×n) − n.\n• O algarismo das dezenas é sempre (n − 1).\n• Pratica com os dedos."
+    },
+    'mat_plus/Famílias de factos': {
+        title: 'Famílias de factos',
+        body: "Uma **família de factos** são 4 contas relacionadas com os mesmos 3 números.\n\nCom 3, 4 e 12:\n• 3 × 4 = 12\n• 4 × 3 = 12\n• 12 ÷ 3 = 4\n• 12 ÷ 4 = 3\n\nSe sabes UMA destas, sabes TODAS. ✨\n\n**Estratégias úteis** ✨\n• Se sabes 6×7=42, sabes 7×6=42, 42÷6=7, 42÷7=6.\n• A divisão é a operação inversa da multiplicação.\n• Treina escrever as 4 contas seguidas."
+    },
+    'mat_plus/Multiplicação × 10, 100, 1000': {
+        title: 'Multiplicação × 10, 100, 1000',
+        body: "Para multiplicar por 10, 100 ou 1000 — **acrescenta zeros**.\n\n• × **10** → +1 zero. 7 × 10 = 70.\n• × **100** → +2 zeros. 7 × 100 = 700.\n• × **1 000** → +3 zeros. 7 × 1 000 = 7 000.\n\n**Exemplos**:\n• 23 × 100 = 2 300.\n• 5 × 1 000 = 5 000.\n\n**Estratégias úteis** ✨\n• Conta os zeros: × 10 tem 1 zero, × 100 tem 2 zeros.\n• Não confundir com adição: 7 + 10 = 17 (NÃO 70)."
+    },
+    'mat_plus/Multiplicação por 1 dígito': {
+        title: 'Multiplicação por 1 dígito',
+        body: "Para multiplicar um número grande por **um dígito**, usa o algoritmo em coluna.\n\n**Exemplo**: 234 × 3 = 702\n• U: 4×3=12 → 2, transp 1.\n• D: 3×3=9 + 1 = 10 → 0, transp 1.\n• C: 2×3=6 + 1 = 7.\n\n**Estratégias úteis** ✨\n• Multiplica da direita para a esquerda.\n• Não esqueças o transporte!\n• Estima primeiro: 234 × 3 ≈ 200 × 3 = 600."
+    },
+    'mat_plus/Divisão por partilha': {
+        title: 'Divisão por partilha',
+        body: "**Dividir** = repartir em partes iguais.\n\n12 ÷ 3 = ? Se tens 12 lápis e queres dar a 3 amigos, cada um leva **4**.\n\n**Modelo de barra**:\n```\n│ ▓▓▓▓ │ ▓▓▓▓ │ ▓▓▓▓ │   12 em 3 grupos → 4 por grupo.\n```\n\n**Vocabulário**:\n• Dividendo (12) — o que se divide.\n• Divisor (3) — em quantos grupos.\n• Quociente (4) — quanto fica em cada grupo.\n\n**Estratégias úteis** ✨\n• Pensa: \"quantas vezes cabe o 3 no 12?\" → 4 vezes.\n• Usa a tabuada: 3 × ? = 12 → ? = 4.\n• Desenha grupos com pontinhos quando estiver difícil."
+    },
+    'mat_plus/Divisão com resto': {
+        title: 'Divisão com resto',
+        body: "Nem sempre a divisão é **exata**. Às vezes sobra qualquer coisa — o **resto**.\n\n**Exemplo**: 23 ÷ 4\n• 4×5=20 → cabe 5 vezes.\n• 23−20 = **3** sobra.\n• Q=5; R=3.\n\nEscreve-se: **23 = 4 × 5 + 3**.\n\n**Importante**: o resto tem de ser **menor** que o divisor.\n\n**Estratégias úteis** ✨\n• Procura a maior multiplicação que cabe.\n• 23 ÷ 4: maior múltiplo de 4 abaixo de 23 → 20.\n• Confirma: Q × divisor + R = dividendo."
+    },
+    'mat_plus/Frações — partes iguais': {
+        title: 'Frações — partes iguais',
+        body: "Uma **fração** representa **partes IGUAIS** de um todo.\n\nSe divides uma piza em 4 partes iguais e comes 1, comeste **1/4**.\n\n• **Numerador** (em cima) — quantas partes tomas.\n• **Denominador** (em baixo) — em quantas partes está dividido o todo.\n\n**Cuidado!** Se as partes NÃO forem iguais, NÃO é fração.\n\n**Frações famosas**: 1/2 = metade · 1/3 = um terço · 1/4 = um quarto.\n\n**Estratégias úteis** ✨\n• Desenha o todo e divide com tracinhos.\n• Pinta as partes que tomas.\n• Se numerador = denominador → tens o **todo**."
+    },
+    'mat_plus/Frações — comparar': {
+        title: 'Frações — comparar',
+        body: "Para comparar frações com o **MESMO denominador** — quem tem maior **numerador** é maior.\n\n• 3/5 > 2/5.\n\nCom o **MESMO numerador** — quem tem MENOR denominador é maior.\n\n• 1/2 > 1/3 > 1/4.\n\n**Atenção**: quanto maior o denominador, **menores** são as partes.\n\n**Estratégias úteis** ✨\n• Pinta as duas frações em barras IGUAIS e compara visualmente.\n• 1/2 é referência: mais ou menos que metade?\n• Frações equivalentes: 1/2 = 2/4 = 3/6."
+    },
+    'mat_plus/Modelo de barra': {
+        title: 'Modelo de barra',
+        body: "O **modelo de barra** ajuda a \"ver\" um problema com retângulos.\n\n**Exemplo**: A Ana tem 5 e o Bruno 8. Quantos ao todo?\n```\nAna:   [▓▓▓▓▓]      = 5\nBruno: [▓▓▓▓▓▓▓▓]   = 8\nTotal: [▓▓▓▓▓▓▓▓▓▓▓▓▓] = 13\n```\n\n**Estratégias úteis** ✨\n• Desenha SEMPRE o problema antes de fazer a conta.\n• Cada barra representa um grupo. A largura é o tamanho.\n• \"Quanto FICA\" → subtração.\n• \"Ao TODO\" / \"JUNTOS\" → soma."
+    },
+    'mat_plus/Problemas em 2 passos': {
+        title: 'Problemas em 2 passos',
+        body: "Alguns problemas precisam de **duas contas**, uma a seguir à outra.\n\n**Exemplo**: A Carolina tem 24 €. Comprou 3 livros a 5 €. Com quanto fica?\n• Passo 1: 3 × 5 = 15 €.\n• Passo 2: 24 − 15 = 9 €.\n\n**Estratégias úteis** ✨\n• Lê o problema duas vezes.\n• Identifica os DADOS e a PERGUNTA.\n• Faz UMA conta de cada vez. Escreve o passo intermédio.\n• Confirma: faz sentido?"
     }
 };
 
@@ -2619,7 +2729,201 @@ const EXERCISES_3 = [
     { id:'3lt_res2', s:'leitura', t:'Resumir e contar por palavras suas', type:'mc', diff:1, q:'📋 Um bom resumo:', opts:['copia frases inteiras do texto','conta o essencial por palavras tuas','inventa novas personagens'], ans:1, exp:'Resumo é dito por palavras tuas.' },
     { id:'3lt_res3', s:'leitura', t:'Resumir e contar por palavras suas', type:'mc', diff:2, q:'📋 Para ligar acontecimentos no resumo posso usar:', opts:['no início, depois, a seguir, no fim','sempre, nunca, talvez','aqui, ali, lá'], ans:0, exp:'Marcadores temporais ajudam a sequência.' },
     { id:'3lt_res4', s:'leitura', t:'Resumir e contar por palavras suas', type:'tf', diff:1, q:'Devo incluir TODOS os detalhes no resumo.', ans:false, exp:'Falso — só o essencial; detalhes pequenos ficam de fora.' },
-    { id:'3lt_res5', s:'leitura', t:'Resumir e contar por palavras suas', type:'tf', diff:2, q:'Contar a história aos pais ajuda a treinar o resumo.', ans:true, exp:'Verdade — falar alto fixa melhor.' }
+    { id:'3lt_res5', s:'leitura', t:'Resumir e contar por palavras suas', type:'tf', diff:2, q:'Contar a história aos pais ajuda a treinar o resumo.', ans:true, exp:'Verdade — falar alto fixa melhor.' },
+
+    // ============================ MAT+ 3.º (Matemática visual) ===============================
+    {"id":"mp3_c1","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":1,"q":"🔢 10 ten-frames cheios são:","opts":["10","100","1 000"],"ans":1,"exp":"10 × 10 = 100."},
+    {"id":"mp3_c2","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":1,"q":"🟦 Uma placa 10×10 representa:","opts":["1 dezena","1 centena","1 milhar"],"ans":1,"exp":"100 quadradinhos = 1 centena."},
+    {"id":"mp3_c3","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":1,"q":"🔢 10 centenas dão:","opts":["100","1 000","10 000"],"ans":1,"exp":"10 × 100 = 1 000."},
+    {"id":"mp3_c4","s":"mat_plus","t":"Centenas com ten-frames","type":"fill","diff":2,"q":"3 placas de 100 + 5 barras de 10 = ___","ans":["350"],"exp":"300 + 50 = 350."},
+    {"id":"mp3_c5","s":"mat_plus","t":"Centenas com ten-frames","type":"fill","diff":2,"q":"4 placas + 0 barras + 8 cubos = ___","ans":["408"],"exp":"400 + 0 + 8 = 408."},
+    {"id":"mp3_c6","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":2,"q":"🔢 1 cubo grande = ___ unidades:","opts":["100","1 000","10 000"],"ans":1,"exp":"10×10×10 = 1 000."},
+    {"id":"mp3_c7","s":"mat_plus","t":"Centenas com ten-frames","type":"tf","diff":1,"q":"5 placas de 100 são 500 cubinhos.","ans":true,"exp":"5 × 100 = 500. ✓"},
+    {"id":"mp3_c8","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":2,"q":"📊 2 cubos grandes + 4 placas. Quanto é?","opts":["240","2 400","24 000"],"ans":1,"exp":"2 000 + 400 = 2 400."},
+    {"id":"mp3_c9","s":"mat_plus","t":"Centenas com ten-frames","type":"fill","diff":2,"q":"7 centenas em algarismos: ___","ans":["700"],"exp":"7 × 100 = 700."},
+    {"id":"mp3_c10","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":1,"q":"🔢 Para fazer 1 000 com placas de 100 preciso de ___:","opts":["5","10","100"],"ans":1,"exp":"10 placas."},
+    {"id":"mp3_c11","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":2,"q":"🔢 6 placas + 3 barras + 4 cubos =","opts":["634","643","6 304"],"ans":0,"exp":"600 + 30 + 4 = 634."},
+    {"id":"mp3_c12","s":"mat_plus","t":"Centenas com ten-frames","type":"fill","diff":2,"q":"8 barras de 10 + 5 cubos = ___","ans":["85"],"exp":"80 + 5 = 85."},
+    {"id":"mp3_d1","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":1,"q":"🔢 Em 3 472, o algarismo 4 vale:","opts":["4","40","400","4 000"],"ans":2,"exp":"4 está nas centenas."},
+    {"id":"mp3_d2","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 Decompõe 2 534:","opts":["2 000+500+30+4","2 000+300+50+4","20+50+30+4"],"ans":0,"exp":"2 M + 5 C + 3 D + 4 U."},
+    {"id":"mp3_d3","s":"mat_plus","t":"Decompor até 10 000","type":"fill","diff":2,"q":"Em 6 089, o algarismo das centenas é ___","ans":["0"],"exp":"M=6, C=0, D=8, U=9."},
+    {"id":"mp3_d4","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 Escreve em algarismos: cinco mil e doze.","opts":["512","5 012","5 120"],"ans":1,"exp":"5 000 + 12 = 5 012."},
+    {"id":"mp3_d5","s":"mat_plus","t":"Decompor até 10 000","type":"fill","diff":2,"q":"Em 4 705, o algarismo dos milhares é ___","ans":["4"],"exp":"4 mil."},
+    {"id":"mp3_d6","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 1 000 + 200 + 30 + 5 =","opts":["1 235","1 325","12 305"],"ans":0,"exp":"Junta: 1 235."},
+    {"id":"mp3_d7","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 Em 3 052, o algarismo 0 está nas:","opts":["unidades","dezenas","centenas"],"ans":2,"exp":"3 M, 0 C, 5 D, 2 U."},
+    {"id":"mp3_d8","s":"mat_plus","t":"Decompor até 10 000","type":"fill","diff":2,"q":"Decompõe 8 040: 8 000 + ___ + 40 + 0","ans":["0"],"exp":"0 centenas."},
+    {"id":"mp3_d9","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 Que número tem 7 M, 0 C, 5 D, 3 U?","opts":["7 053","7 530","7 503"],"ans":0,"exp":"7 053."},
+    {"id":"mp3_d10","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":1,"q":"🔢 Maior posição num número de 4 algarismos:","opts":["unidades","centenas","milhares"],"ans":2,"exp":"Milhares."},
+    {"id":"mp3_d11","s":"mat_plus","t":"Decompor até 10 000","type":"fill","diff":2,"q":"6 000 + 700 + 40 + 9 = ___","ans":["6 749","6749"],"exp":"6 749."},
+    {"id":"mp3_d12","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 Quantas centenas tem 2 500?","opts":["2","5","25"],"ans":2,"exp":"2 500 = 25 × 100."},
+    {"id":"mp3_l1","s":"mat_plus","t":"Linha numérica até 10 000","type":"mc","diff":1,"q":"📏 Entre 3 000 e 4 000, mais ou menos a meio:","opts":["3 100","3 500","3 900"],"ans":1,"exp":"3 500."},
+    {"id":"mp3_l2","s":"mat_plus","t":"Linha numérica até 10 000","type":"mc","diff":2,"q":"📏 Que número está entre 5 000 e 5 100?","opts":["4 990","5 050","5 200"],"ans":1,"exp":"Entre 5 000 e 5 100."},
+    {"id":"mp3_l3","s":"mat_plus","t":"Linha numérica até 10 000","type":"fill","diff":2,"q":"Salta de 100 em 100 a partir de 2 300: 2 300, 2 400, ___, 2 600","ans":["2 500","2500"],"exp":"+100."},
+    {"id":"mp3_l4","s":"mat_plus","t":"Linha numérica até 10 000","type":"mc","diff":1,"q":"📏 Antes de 6 000 vem:","opts":["5 999","6 001","7 000"],"ans":0,"exp":"5 999."},
+    {"id":"mp3_l5","s":"mat_plus","t":"Linha numérica até 10 000","type":"fill","diff":2,"q":"Salta de 1 000 em 1 000: 0, 1 000, 2 000, ___, 4 000","ans":["3 000","3000"],"exp":"Múltiplos de 1 000."},
+    {"id":"mp3_l6","s":"mat_plus","t":"Linha numérica até 10 000","type":"mc","diff":2,"q":"📏 7 250 está mais perto de:","opts":["7 000","7 500","8 000"],"ans":0,"exp":"Empate técnico — fica na metade do início."},
+    {"id":"mp3_l7","s":"mat_plus","t":"Linha numérica até 10 000","type":"mc","diff":1,"q":"📏 Depois de 9 999 vem:","opts":["10 000","9 998","99 990"],"ans":0,"exp":"10 000."},
+    {"id":"mp3_l8","s":"mat_plus","t":"Linha numérica até 10 000","type":"tf","diff":1,"q":"5 500 está exatamente a meio entre 5 000 e 6 000.","ans":true,"exp":"Sim — ponto médio."},
+    {"id":"mp3_l9","s":"mat_plus","t":"Linha numérica até 10 000","type":"mc","diff":2,"q":"📏 Salta de 50 em 50: 200, 250, ___, 350","opts":["275","300","305"],"ans":1,"exp":"+50."},
+    {"id":"mp3_l10","s":"mat_plus","t":"Linha numérica até 10 000","type":"fill","diff":2,"q":"4 700 + 100 = ___","ans":["4 800","4800"],"exp":"Salto de 100."},
+    {"id":"mp3_cm1","s":"mat_plus","t":"Comparar números grandes","type":"mc","diff":1,"q":"🔢 Qual é MAIOR?","opts":["3 470","3 480"],"ans":1,"exp":"8 > 7 nas dezenas."},
+    {"id":"mp3_cm2","s":"mat_plus","t":"Comparar números grandes","type":"mc","diff":1,"q":"🔢 Qual é MAIOR?","opts":["4 999","5 100"],"ans":1,"exp":"5 > 4 nos milhares."},
+    {"id":"mp3_cm3","s":"mat_plus","t":"Comparar números grandes","type":"fill","diff":2,"q":"Põe > ou <: 6 234 ___ 6 432","ans":["<"],"exp":"2 < 4 nas centenas."},
+    {"id":"mp3_cm4","s":"mat_plus","t":"Comparar números grandes","type":"fill","diff":2,"q":"Põe > ou <: 8 000 ___ 999","ans":[">"],"exp":"4 algarismos > 3."},
+    {"id":"mp3_cm5","s":"mat_plus","t":"Comparar números grandes","type":"mc","diff":2,"q":"🔢 Menor → maior: 3 200, 3 020, 3 002.","opts":["3 200, 3 020, 3 002","3 002, 3 020, 3 200","3 020, 3 002, 3 200"],"ans":1,"exp":"Cuidado com o 0."},
+    {"id":"mp3_cm6","s":"mat_plus","t":"Comparar números grandes","type":"mc","diff":2,"q":"🔢 Qual é MENOR?","opts":["1 005","1 050","1 500"],"ans":0,"exp":"1 005 < 1 050 < 1 500."},
+    {"id":"mp3_cm7","s":"mat_plus","t":"Comparar números grandes","type":"tf","diff":1,"q":"9 999 > 10 000","ans":false,"exp":"Falso. 10 000 tem 5 algarismos."},
+    {"id":"mp3_cm8","s":"mat_plus","t":"Comparar números grandes","type":"mc","diff":2,"q":"🔢 Maior n.º com 5, 2, 8, 1:","opts":["1 258","5 821","8 521"],"ans":2,"exp":"Maior à frente."},
+    {"id":"mp3_cm9","s":"mat_plus","t":"Comparar números grandes","type":"mc","diff":2,"q":"🔢 Menor n.º com 5, 2, 8, 1:","opts":["1 258","1 285","2 158"],"ans":0,"exp":"1 258."},
+    {"id":"mp3_cm10","s":"mat_plus","t":"Comparar números grandes","type":"fill","diff":2,"q":"Põe = ou ≠: 3 500 ___ 3 050","ans":["≠","<>"],"exp":"Diferentes."},
+    {"id":"mp3_ap1","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"mc","diff":1,"q":"🎯 Aproxima 47 à dezena:","opts":["40","50"],"ans":1,"exp":"7 ≥ 5 → sobe."},
+    {"id":"mp3_ap2","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"mc","diff":1,"q":"🎯 Aproxima 42 à dezena:","opts":["40","50"],"ans":0,"exp":"2 < 5 → desce."},
+    {"id":"mp3_ap3","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"mc","diff":2,"q":"🎯 Aproxima 35 à dezena:","opts":["30","40"],"ans":1,"exp":"Regra dos 5 → sobe."},
+    {"id":"mp3_ap4","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"fill","diff":2,"q":"Aproxima 78 à dezena: ___","ans":["80"],"exp":"8 ≥ 5."},
+    {"id":"mp3_ap5","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"mc","diff":2,"q":"🎯 Aproxima 347 à centena:","opts":["300","400"],"ans":0,"exp":"4 dezenas < 5 → desce."},
+    {"id":"mp3_ap6","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"mc","diff":2,"q":"🎯 Aproxima 372 à centena:","opts":["300","400"],"ans":1,"exp":"7 dezenas ≥ 5 → sobe."},
+    {"id":"mp3_ap7","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"fill","diff":2,"q":"Aproxima 650 à centena: ___","ans":["700"],"exp":"5 dezenas → sobe."},
+    {"id":"mp3_ap8","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"mc","diff":2,"q":"🎯 Estima 198 + 47 (à dezena):","opts":["200 + 50 = 250","200 + 40 = 240","190 + 50 = 240"],"ans":0,"exp":"200 + 50 = 250."},
+    {"id":"mp3_ap9","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"tf","diff":1,"q":"Aproximar dá um valor próximo, não exato.","ans":true,"exp":"Verdade."},
+    {"id":"mp3_ap10","s":"mat_plus","t":"Aproximar à dezena ou centena","type":"fill","diff":2,"q":"Aproxima 23 à dezena: ___","ans":["20"],"exp":"3 < 5 → desce."},
+    {"id":"mp3_ad1","s":"mat_plus","t":"Adição com transporte","type":"mc","diff":2,"q":"🔢 248 + 175 =","opts":["413","423","433"],"ans":1,"exp":"423."},
+    {"id":"mp3_ad2","s":"mat_plus","t":"Adição com transporte","type":"mc","diff":2,"q":"🔢 367 + 459 =","opts":["716","826","836"],"ans":1,"exp":"826."},
+    {"id":"mp3_ad3","s":"mat_plus","t":"Adição com transporte","type":"problem","diff":2,"q":"A Ana tem 248 cromos e o Bruno 175. Quantos AO TODO?","ans":["423","423 cromos"],"exp":"248 + 175 = 423."},
+    {"id":"mp3_ad4","s":"mat_plus","t":"Adição com transporte","type":"mc","diff":1,"q":"🔢 Quando 8+5=13, transportamos:","opts":["o 1","o 3","o 13"],"ans":0,"exp":"Transporta 1."},
+    {"id":"mp3_ad5","s":"mat_plus","t":"Adição com transporte","type":"fill","diff":2,"q":"156 + 234 = ___","ans":["390"],"exp":"390."},
+    {"id":"mp3_ad6","s":"mat_plus","t":"Adição com transporte","type":"mc","diff":2,"q":"🔢 1 248 + 537 =","opts":["1 685","1 785","1 815"],"ans":1,"exp":"1 785."},
+    {"id":"mp3_ad7","s":"mat_plus","t":"Adição com transporte","type":"problem","diff":2,"q":"Fábrica fez 1 234 + 1 856 bonecos. Total?","ans":["3 090","3 090 bonecos"],"exp":"3 090."},
+    {"id":"mp3_ad8","s":"mat_plus","t":"Adição com transporte","type":"tf","diff":1,"q":"O transporte vai para a coluna seguinte à esquerda.","ans":true,"exp":"Sim."},
+    {"id":"mp3_ad9","s":"mat_plus","t":"Adição com transporte","type":"mc","diff":2,"q":"🔢 998 + 247 =","opts":["1 245","1 235","1 145"],"ans":0,"exp":"1 245."},
+    {"id":"mp3_ad10","s":"mat_plus","t":"Adição com transporte","type":"fill","diff":2,"q":"457 + 348 = ___","ans":["805"],"exp":"805."},
+    {"id":"mp3_sb1","s":"mat_plus","t":"Subtração com empréstimo","type":"mc","diff":2,"q":"🔢 524 − 187 =","opts":["327","337","437"],"ans":1,"exp":"337."},
+    {"id":"mp3_sb2","s":"mat_plus","t":"Subtração com empréstimo","type":"mc","diff":2,"q":"🔢 1 000 − 347 =","opts":["653","663","753"],"ans":0,"exp":"653."},
+    {"id":"mp3_sb3","s":"mat_plus","t":"Subtração com empréstimo","type":"problem","diff":2,"q":"O João tinha 542 € e gastou 178 €. Com quanto fica?","ans":["364","364 €","364€"],"exp":"542 − 178 = 364."},
+    {"id":"mp3_sb4","s":"mat_plus","t":"Subtração com empréstimo","type":"mc","diff":1,"q":"🔢 Quando 4 < 7, eu:","opts":["mudo a conta","peço emprestado à coluna ao lado","pulo a coluna"],"ans":1,"exp":"Emprestado."},
+    {"id":"mp3_sb5","s":"mat_plus","t":"Subtração com empréstimo","type":"fill","diff":2,"q":"436 − 158 = ___","ans":["278"],"exp":"278."},
+    {"id":"mp3_sb6","s":"mat_plus","t":"Subtração com empréstimo","type":"mc","diff":2,"q":"🔢 800 − 245 =","opts":["545","555","655"],"ans":1,"exp":"555."},
+    {"id":"mp3_sb7","s":"mat_plus","t":"Subtração com empréstimo","type":"problem","diff":2,"q":"Livro tem 312 páginas. Li 178. Faltam?","ans":["134","134 páginas"],"exp":"134."},
+    {"id":"mp3_sb8","s":"mat_plus","t":"Subtração com empréstimo","type":"tf","diff":2,"q":"Posso confirmar: resultado + subtraendo = minuendo.","ans":true,"exp":"Teste da soma."},
+    {"id":"mp3_sb9","s":"mat_plus","t":"Subtração com empréstimo","type":"mc","diff":2,"q":"🔢 605 − 248 =","opts":["357","367","457"],"ans":0,"exp":"357."},
+    {"id":"mp3_sb10","s":"mat_plus","t":"Subtração com empréstimo","type":"fill","diff":2,"q":"923 − 467 = ___","ans":["456"],"exp":"456."},
+    {"id":"mp3_t61","s":"mat_plus","t":"Tabuada do 6 visual","type":"mc","diff":1,"q":"🔢 6 × 7 =","opts":["36","42","48"],"ans":1,"exp":"42."},
+    {"id":"mp3_t62","s":"mat_plus","t":"Tabuada do 6 visual","type":"mc","diff":1,"q":"🔢 6 × 8 =","opts":["42","48","54"],"ans":1,"exp":"48."},
+    {"id":"mp3_t63","s":"mat_plus","t":"Tabuada do 6 visual","type":"mc","diff":1,"q":"🔢 6 × 9 =","opts":["48","54","60"],"ans":1,"exp":"54."},
+    {"id":"mp3_t64","s":"mat_plus","t":"Tabuada do 6 visual","type":"fill","diff":2,"q":"6 × 5 = ___","ans":["30"],"exp":"30."},
+    {"id":"mp3_t65","s":"mat_plus","t":"Tabuada do 6 visual","type":"fill","diff":2,"q":"6 × 6 = ___","ans":["36"],"exp":"36."},
+    {"id":"mp3_t66","s":"mat_plus","t":"Tabuada do 6 visual","type":"problem","diff":2,"q":"4 caixas de 6 ovos. Quantos ovos?","ans":["24","24 ovos"],"exp":"24."},
+    {"id":"mp3_t67","s":"mat_plus","t":"Tabuada do 6 visual","type":"mc","diff":1,"q":"🔢 6 × 10 =","opts":["16","60","610"],"ans":1,"exp":"60."},
+    {"id":"mp3_t68","s":"mat_plus","t":"Tabuada do 6 visual","type":"tf","diff":2,"q":"A tabuada do 6 dá sempre números pares.","ans":true,"exp":"6 é par."},
+    {"id":"mp3_t69","s":"mat_plus","t":"Tabuada do 6 visual","type":"fill","diff":2,"q":"6 × ? = 42. ? = ___","ans":["7"],"exp":"42÷6=7."},
+    {"id":"mp3_t610","s":"mat_plus","t":"Tabuada do 6 visual","type":"mc","diff":1,"q":"🔢 6 × 4 =","opts":["18","24","30"],"ans":1,"exp":"24."},
+    {"id":"mp3_t71","s":"mat_plus","t":"Tabuada do 7 visual","type":"mc","diff":1,"q":"🔢 7 × 6 =","opts":["36","42","48"],"ans":1,"exp":"42."},
+    {"id":"mp3_t72","s":"mat_plus","t":"Tabuada do 7 visual","type":"mc","diff":1,"q":"🔢 7 × 8 =","opts":["54","56","64"],"ans":1,"exp":"56."},
+    {"id":"mp3_t73","s":"mat_plus","t":"Tabuada do 7 visual","type":"mc","diff":1,"q":"🔢 7 × 7 =","opts":["42","49","56"],"ans":1,"exp":"49."},
+    {"id":"mp3_t74","s":"mat_plus","t":"Tabuada do 7 visual","type":"fill","diff":2,"q":"7 × 5 = ___","ans":["35"],"exp":"35."},
+    {"id":"mp3_t75","s":"mat_plus","t":"Tabuada do 7 visual","type":"fill","diff":2,"q":"7 × 9 = ___","ans":["63"],"exp":"63."},
+    {"id":"mp3_t76","s":"mat_plus","t":"Tabuada do 7 visual","type":"problem","diff":2,"q":"5 semanas têm ___ dias.","ans":["35","35 dias"],"exp":"5×7=35."},
+    {"id":"mp3_t77","s":"mat_plus","t":"Tabuada do 7 visual","type":"mc","diff":1,"q":"🔢 7 × 4 =","opts":["21","28","35"],"ans":1,"exp":"28."},
+    {"id":"mp3_t78","s":"mat_plus","t":"Tabuada do 7 visual","type":"fill","diff":2,"q":"7 × ? = 63. ? = ___","ans":["9"],"exp":"9."},
+    {"id":"mp3_t79","s":"mat_plus","t":"Tabuada do 7 visual","type":"mc","diff":1,"q":"🔢 7 × 3 =","opts":["18","21","24"],"ans":1,"exp":"21."},
+    {"id":"mp3_t710","s":"mat_plus","t":"Tabuada do 7 visual","type":"mc","diff":1,"q":"🔢 7 × 10 =","opts":["7","70","700"],"ans":1,"exp":"70."},
+    {"id":"mp3_t81","s":"mat_plus","t":"Tabuada do 8 visual","type":"mc","diff":1,"q":"🔢 8 × 7 =","opts":["48","56","64"],"ans":1,"exp":"56."},
+    {"id":"mp3_t82","s":"mat_plus","t":"Tabuada do 8 visual","type":"mc","diff":1,"q":"🔢 8 × 8 =","opts":["56","64","72"],"ans":1,"exp":"64."},
+    {"id":"mp3_t83","s":"mat_plus","t":"Tabuada do 8 visual","type":"mc","diff":1,"q":"🔢 8 × 9 =","opts":["64","72","80"],"ans":1,"exp":"72."},
+    {"id":"mp3_t84","s":"mat_plus","t":"Tabuada do 8 visual","type":"fill","diff":2,"q":"8 × 5 = ___","ans":["40"],"exp":"40."},
+    {"id":"mp3_t85","s":"mat_plus","t":"Tabuada do 8 visual","type":"fill","diff":2,"q":"8 × 6 = ___","ans":["48"],"exp":"48."},
+    {"id":"mp3_t86","s":"mat_plus","t":"Tabuada do 8 visual","type":"problem","diff":2,"q":"3 polvos (8 patas cada). Quantas patas?","ans":["24","24 patas"],"exp":"24."},
+    {"id":"mp3_t87","s":"mat_plus","t":"Tabuada do 8 visual","type":"mc","diff":1,"q":"🔢 8 × 4 =","opts":["28","32","40"],"ans":1,"exp":"32."},
+    {"id":"mp3_t88","s":"mat_plus","t":"Tabuada do 8 visual","type":"fill","diff":2,"q":"8 × ? = 56. ? = ___","ans":["7"],"exp":"7."},
+    {"id":"mp3_t89","s":"mat_plus","t":"Tabuada do 8 visual","type":"mc","diff":1,"q":"🔢 8 × 3 =","opts":["18","24","32"],"ans":1,"exp":"24."},
+    {"id":"mp3_t810","s":"mat_plus","t":"Tabuada do 8 visual","type":"mc","diff":1,"q":"🔢 8 × 10 =","opts":["8","80","800"],"ans":1,"exp":"80."},
+    {"id":"mp3_t91","s":"mat_plus","t":"Tabuada do 9 visual","type":"mc","diff":1,"q":"🔢 9 × 6 =","opts":["48","54","63"],"ans":1,"exp":"54."},
+    {"id":"mp3_t92","s":"mat_plus","t":"Tabuada do 9 visual","type":"mc","diff":1,"q":"🔢 9 × 7 =","opts":["56","63","72"],"ans":1,"exp":"63."},
+    {"id":"mp3_t93","s":"mat_plus","t":"Tabuada do 9 visual","type":"mc","diff":1,"q":"🔢 9 × 8 =","opts":["63","72","81"],"ans":1,"exp":"72."},
+    {"id":"mp3_t94","s":"mat_plus","t":"Tabuada do 9 visual","type":"mc","diff":1,"q":"🔢 9 × 9 =","opts":["72","81","90"],"ans":1,"exp":"81."},
+    {"id":"mp3_t95","s":"mat_plus","t":"Tabuada do 9 visual","type":"fill","diff":2,"q":"9 × 4 = 36. Soma dos algarismos = ___","ans":["9"],"exp":"3+6=9."},
+    {"id":"mp3_t96","s":"mat_plus","t":"Tabuada do 9 visual","type":"problem","diff":2,"q":"6 caixas de 9 lápis. Total?","ans":["54","54 lápis"],"exp":"54."},
+    {"id":"mp3_t97","s":"mat_plus","t":"Tabuada do 9 visual","type":"tf","diff":2,"q":"Na tabuada do 9, o algarismo das dezenas = n − 1.","ans":true,"exp":"9×7=63: 6=7−1."},
+    {"id":"mp3_t98","s":"mat_plus","t":"Tabuada do 9 visual","type":"fill","diff":2,"q":"9 × ? = 81. ? = ___","ans":["9"],"exp":"9."},
+    {"id":"mp3_t99","s":"mat_plus","t":"Tabuada do 9 visual","type":"mc","diff":1,"q":"🔢 9 × 3 =","opts":["18","27","36"],"ans":1,"exp":"27."},
+    {"id":"mp3_t910","s":"mat_plus","t":"Tabuada do 9 visual","type":"mc","diff":1,"q":"🔢 9 × 10 =","opts":["9","90","900"],"ans":1,"exp":"90."},
+    {"id":"mp3_ff1","s":"mat_plus","t":"Famílias de factos","type":"mc","diff":2,"q":"🔢 Sabes 4 × 6 = 24. Logo 24 ÷ 4 =","opts":["4","6","24"],"ans":1,"exp":"24÷4=6."},
+    {"id":"mp3_ff2","s":"mat_plus","t":"Famílias de factos","type":"mc","diff":2,"q":"🔢 Sabes 7 × 8 = 56. Logo 56 ÷ 8 =","opts":["6","7","8"],"ans":1,"exp":"56÷8=7."},
+    {"id":"mp3_ff3","s":"mat_plus","t":"Famílias de factos","type":"fill","diff":2,"q":"Família 5, 6, 30: 30 ÷ 6 = ___","ans":["5"],"exp":"5."},
+    {"id":"mp3_ff4","s":"mat_plus","t":"Famílias de factos","type":"mc","diff":2,"q":"🔢 Qual NÃO pertence à família 3, 4, 12?","opts":["3 × 4 = 12","12 ÷ 3 = 4","12 + 4 = 16"],"ans":2,"exp":"Adição não faz parte."},
+    {"id":"mp3_ff5","s":"mat_plus","t":"Famílias de factos","type":"tf","diff":2,"q":"Cada família tem 4 contas (2 × e 2 ÷).","ans":true,"exp":"Sim."},
+    {"id":"mp3_ff6","s":"mat_plus","t":"Famílias de factos","type":"fill","diff":2,"q":"8 × 9 = 72. Então 72 ÷ 9 = ___","ans":["8"],"exp":"8."},
+    {"id":"mp3_ff7","s":"mat_plus","t":"Famílias de factos","type":"mc","diff":2,"q":"🔢 Família 7 × 4 = 28. Outra conta:","opts":["28 × 4 = 112","28 ÷ 7 = 4","7 + 4 = 11"],"ans":1,"exp":"28÷7=4."},
+    {"id":"mp3_x10_1","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"mc","diff":1,"q":"🔢 23 × 10 =","opts":["203","230","2 300"],"ans":1,"exp":"+1 zero."},
+    {"id":"mp3_x10_2","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"mc","diff":1,"q":"🔢 23 × 100 =","opts":["230","2 300","23 000"],"ans":1,"exp":"+2 zeros."},
+    {"id":"mp3_x10_3","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"mc","diff":1,"q":"🔢 7 × 1 000 =","opts":["700","7 000","70 000"],"ans":1,"exp":"+3 zeros."},
+    {"id":"mp3_x10_4","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"fill","diff":2,"q":"40 × 10 = ___","ans":["400"],"exp":"400."},
+    {"id":"mp3_x10_5","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"fill","diff":2,"q":"5 × 100 = ___","ans":["500"],"exp":"500."},
+    {"id":"mp3_x10_6","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"mc","diff":1,"q":"🔢 8 × 1 000 =","opts":["80","800","8 000"],"ans":2,"exp":"+3 zeros."},
+    {"id":"mp3_x10_7","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"tf","diff":1,"q":"5 + 10 = 50.","ans":false,"exp":"Falso — 5+10=15."},
+    {"id":"mp3_x10_8","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"problem","diff":2,"q":"8 sacos × 100 caramelos. Quantos?","ans":["800","800 caramelos"],"exp":"800."},
+    {"id":"mp3_x10_9","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"mc","diff":1,"q":"🔢 30 × 100 =","opts":["300","3 000","30 000"],"ans":1,"exp":"3 000."},
+    {"id":"mp3_x10_10","s":"mat_plus","t":"Multiplicação × 10, 100, 1000","type":"fill","diff":2,"q":"4 × 1 000 = ___","ans":["4 000","4000"],"exp":"4 000."},
+    {"id":"mp3_m1d1","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"mc","diff":2,"q":"🔢 234 × 3 =","opts":["602","702","802"],"ans":1,"exp":"702."},
+    {"id":"mp3_m1d2","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"mc","diff":2,"q":"🔢 158 × 4 =","opts":["532","632","732"],"ans":1,"exp":"632."},
+    {"id":"mp3_m1d3","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"problem","diff":2,"q":"6 caixas de 145 lápis. Total?","ans":["870","870 lápis"],"exp":"870."},
+    {"id":"mp3_m1d4","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"fill","diff":2,"q":"124 × 5 = ___","ans":["620"],"exp":"620."},
+    {"id":"mp3_m1d5","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"mc","diff":2,"q":"🔢 312 × 3 =","opts":["836","936","906"],"ans":1,"exp":"936."},
+    {"id":"mp3_m1d6","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"mc","diff":2,"q":"🔢 Estima 423 × 5:","opts":["~ 1 500","~ 2 100","~ 3 000"],"ans":1,"exp":"400×5=2 000."},
+    {"id":"mp3_m1d7","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"problem","diff":2,"q":"5 turmas × 28 alunos. Total?","ans":["140","140 alunos"],"exp":"140."},
+    {"id":"mp3_m1d8","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"fill","diff":2,"q":"207 × 4 = ___","ans":["828"],"exp":"828."},
+    {"id":"mp3_m1d9","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"mc","diff":2,"q":"🔢 89 × 6 =","opts":["534","524","484"],"ans":0,"exp":"534."},
+    {"id":"mp3_m1d10","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"problem","diff":2,"q":"7 dias × 24 horas. Quantas horas em 1 semana?","ans":["168","168 horas"],"exp":"168."},
+    {"id":"mp3_dp1","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":1,"q":"🔢 12 ÷ 3 =","opts":["3","4","5"],"ans":1,"exp":"4."},
+    {"id":"mp3_dp2","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":1,"q":"🔢 36 ÷ 6 =","opts":["5","6","7"],"ans":1,"exp":"6."},
+    {"id":"mp3_dp3","s":"mat_plus","t":"Divisão por partilha","type":"problem","diff":2,"q":"24 cromos para 4 amigos. Quantos por amigo?","ans":["6","6 cromos"],"exp":"24÷4=6."},
+    {"id":"mp3_dp4","s":"mat_plus","t":"Divisão por partilha","type":"fill","diff":2,"q":"56 ÷ 8 = ___","ans":["7"],"exp":"7."},
+    {"id":"mp3_dp5","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":2,"q":"🔢 35 ÷ 7 =","opts":["4","5","6"],"ans":1,"exp":"5."},
+    {"id":"mp3_dp6","s":"mat_plus","t":"Divisão por partilha","type":"problem","diff":2,"q":"100 cartas em 5 envelopes iguais. Por envelope?","ans":["20","20 cartas"],"exp":"20."},
+    {"id":"mp3_dp7","s":"mat_plus","t":"Divisão por partilha","type":"fill","diff":2,"q":"81 ÷ 9 = ___","ans":["9"],"exp":"9."},
+    {"id":"mp3_dp8","s":"mat_plus","t":"Divisão por partilha","type":"tf","diff":1,"q":"Divisão é a operação inversa da multiplicação.","ans":true,"exp":"Verdade."},
+    {"id":"mp3_dp9","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":1,"q":"🔢 48 ÷ 6 =","opts":["7","8","9"],"ans":1,"exp":"8."},
+    {"id":"mp3_dp10","s":"mat_plus","t":"Divisão por partilha","type":"problem","diff":2,"q":"63 berlindes em 7 sacos iguais. Por saco?","ans":["9","9 berlindes"],"exp":"9."},
+    {"id":"mp3_dr1","s":"mat_plus","t":"Divisão com resto","type":"mc","diff":2,"q":"🔢 23 ÷ 4: Q e R?","opts":["5 e 3","6 e 0","5 e 4"],"ans":0,"exp":"4×5=20; resto 3."},
+    {"id":"mp3_dr2","s":"mat_plus","t":"Divisão com resto","type":"mc","diff":2,"q":"🔢 35 ÷ 6: Q e R?","opts":["5 e 5","6 e 0","5 e 4"],"ans":0,"exp":"6×5=30; resto 5."},
+    {"id":"mp3_dr3","s":"mat_plus","t":"Divisão com resto","type":"problem","diff":2,"q":"17 bombons em 5 caixas iguais. Q e R?","ans":["3 e 2","3 bombons, 2 sobram"],"exp":"3 e 2."},
+    {"id":"mp3_dr4","s":"mat_plus","t":"Divisão com resto","type":"tf","diff":2,"q":"O resto tem de ser MENOR que o divisor.","ans":true,"exp":"Senão dava para mais um grupo."},
+    {"id":"mp3_dr5","s":"mat_plus","t":"Divisão com resto","type":"fill","diff":2,"q":"29 ÷ 7: quociente ___","ans":["4"],"exp":"4."},
+    {"id":"mp3_dr6","s":"mat_plus","t":"Divisão com resto","type":"fill","diff":2,"q":"29 ÷ 7: resto ___","ans":["1"],"exp":"1."},
+    {"id":"mp3_dr7","s":"mat_plus","t":"Divisão com resto","type":"mc","diff":2,"q":"🔢 50 ÷ 8: Q e R?","opts":["6 e 2","6 e 0","7 e 0"],"ans":0,"exp":"6 e 2."},
+    {"id":"mp3_dr8","s":"mat_plus","t":"Divisão com resto","type":"problem","diff":2,"q":"20 lápis em 6 estojos iguais. Quantos em cada e quantos sobram?","ans":["3 e 2","3 lápis, 2 sobram"],"exp":"3 e 2."},
+    {"id":"mp3_f1","s":"mat_plus","t":"Frações — partes iguais","type":"mc","diff":2,"q":"🍕 Piza em 4 partes iguais. Come 1. Fração comida?","opts":["1/4","4/1","3/4"],"ans":0,"exp":"1/4."},
+    {"id":"mp3_f2","s":"mat_plus","t":"Frações — partes iguais","type":"mc","diff":2,"q":"🍕 Piza em 4. Come 1. Sobra?","opts":["1/4","3/4","4/4"],"ans":1,"exp":"3/4."},
+    {"id":"mp3_f3","s":"mat_plus","t":"Frações — partes iguais","type":"fill","diff":2,"q":"Metade em fração: ___","ans":["1/2"],"exp":"1/2."},
+    {"id":"mp3_f4","s":"mat_plus","t":"Frações — partes iguais","type":"fill","diff":2,"q":"3 quartos em fração: ___","ans":["3/4"],"exp":"3/4."},
+    {"id":"mp3_f5","s":"mat_plus","t":"Frações — partes iguais","type":"mc","diff":2,"q":"🔢 Em 2/5, o \"2\" é o:","opts":["numerador","denominador","resto"],"ans":0,"exp":"Numerador."},
+    {"id":"mp3_f6","s":"mat_plus","t":"Frações — partes iguais","type":"tf","diff":1,"q":"Em frações as partes têm de ser IGUAIS.","ans":true,"exp":"Sim."},
+    {"id":"mp3_f7","s":"mat_plus","t":"Frações — partes iguais","type":"mc","diff":2,"q":"🍰 Bolo em 8; come 3. Fração?","opts":["3/8","8/3","5/8"],"ans":0,"exp":"3/8."},
+    {"id":"mp3_f8","s":"mat_plus","t":"Frações — partes iguais","type":"mc","diff":2,"q":"🍫 Tablete 6 quadrados; come 2. Fração?","opts":["2/6","6/2","4/6"],"ans":0,"exp":"2/6."},
+    {"id":"mp3_f9","s":"mat_plus","t":"Frações — partes iguais","type":"mc","diff":2,"q":"🍕 Come 4/4 da piza. Comeu:","opts":["metade","um quarto","tudo"],"ans":2,"exp":"Numerador = denominador → o todo."},
+    {"id":"mp3_f10","s":"mat_plus","t":"Frações — partes iguais","type":"fill","diff":2,"q":"Um quinto em fração: ___","ans":["1/5"],"exp":"1/5."},
+    {"id":"mp3_fc1","s":"mat_plus","t":"Frações — comparar","type":"mc","diff":2,"q":"🔢 MAIOR?","opts":["1/2","1/3","1/4"],"ans":0,"exp":"1/2 > 1/3 > 1/4."},
+    {"id":"mp3_fc2","s":"mat_plus","t":"Frações — comparar","type":"mc","diff":2,"q":"🔢 MAIOR?","opts":["2/5","3/5"],"ans":1,"exp":"3 > 2."},
+    {"id":"mp3_fc3","s":"mat_plus","t":"Frações — comparar","type":"fill","diff":2,"q":"Põe > ou <: 1/3 ___ 1/4","ans":[">"],"exp":"1/3 > 1/4."},
+    {"id":"mp3_fc4","s":"mat_plus","t":"Frações — comparar","type":"fill","diff":2,"q":"Põe > ou <: 4/7 ___ 5/7","ans":["<"],"exp":"4 < 5."},
+    {"id":"mp3_fc5","s":"mat_plus","t":"Frações — comparar","type":"mc","diff":2,"q":"🔢 Equivalente a 1/2:","opts":["2/4","1/3","3/5"],"ans":0,"exp":"2/4 = 1/2."},
+    {"id":"mp3_fc6","s":"mat_plus","t":"Frações — comparar","type":"tf","diff":1,"q":"1/4 < 1/3.","ans":true,"exp":"Sim."},
+    {"id":"mp3_fc7","s":"mat_plus","t":"Frações — comparar","type":"mc","diff":2,"q":"🔢 Ordena (menor → maior): 1/2, 1/4, 1/3","opts":["1/4, 1/3, 1/2","1/2, 1/3, 1/4","1/3, 1/4, 1/2"],"ans":0,"exp":"Maior denominador, menor."},
+    {"id":"mp3_fc8","s":"mat_plus","t":"Frações — comparar","type":"fill","diff":2,"q":"Equivalente a 1/2 com denominador 6: ___","ans":["3/6"],"exp":"3/6."},
+    {"id":"mp3_mb1","s":"mat_plus","t":"Modelo de barra","type":"problem","diff":2,"q":"A Ana tem 5 e o Bruno 8. Ao todo?","ans":["13","13 cromos"],"exp":"13."},
+    {"id":"mp3_mb2","s":"mat_plus","t":"Modelo de barra","type":"problem","diff":2,"q":"O Pedro tinha 12 e deu 5. Fica com?","ans":["7","7 cromos"],"exp":"7."},
+    {"id":"mp3_mb3","s":"mat_plus","t":"Modelo de barra","type":"problem","diff":2,"q":"A Carla tem 24, mais 7 que o Tó. Quantos tem o Tó?","ans":["17","17 cromos"],"exp":"24 − 7 = 17."},
+    {"id":"mp3_mb4","s":"mat_plus","t":"Modelo de barra","type":"problem","diff":2,"q":"O João tem 18, o triplo do Tomás. Quantos tem o Tomás?","ans":["6","6 cromos"],"exp":"18 ÷ 3 = 6."},
+    {"id":"mp3_mb5","s":"mat_plus","t":"Modelo de barra","type":"mc","diff":2,"q":"📊 Total 30. Parte A = 12. Parte B?","opts":["12","18","30"],"ans":1,"exp":"18."},
+    {"id":"mp3_mb6","s":"mat_plus","t":"Modelo de barra","type":"problem","diff":2,"q":"35 lápis: 14 azuis. Verdes?","ans":["21","21 lápis"],"exp":"21."},
+    {"id":"mp3_mb7","s":"mat_plus","t":"Modelo de barra","type":"problem","diff":2,"q":"A Eduarda tem 8 berlindes; a Carolina o dobro. Quantos tem a Carolina?","ans":["16","16 berlindes"],"exp":"8 × 2 = 16."},
+    {"id":"mp3_p2_1","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"A Carolina tem 24 €. Comprou 3 livros a 5 €. Fica?","ans":["9","9 €","9€"],"exp":"24 − 15 = 9."},
+    {"id":"mp3_p2_2","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"Autocarro com 32 pessoas. Saem 8, entram 5. Total?","ans":["29","29 pessoas"],"exp":"32 − 8 + 5 = 29."},
+    {"id":"mp3_p2_3","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"O Pedro tinha 50 cromos. Comprou 4 pacotes × 6 cromos. Total?","ans":["74","74 cromos"],"exp":"50 + 24 = 74."},
+    {"id":"mp3_p2_4","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"Tens 100 €. Compras 3 livros (15 € cada) e 1 caderno (8 €). Sobra?","ans":["47","47 €","47€"],"exp":"100 − 45 − 8 = 47."},
+    {"id":"mp3_p2_5","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"25 alunos; faltam 7. Os presentes em 3 grupos iguais. Q e R?","ans":["Q=6, R=0","6 e 0","Q=6 R=0"],"exp":"18 ÷ 3 = 6."},
+    {"id":"mp3_p2_6","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"O João comeu 3 doces; o Pedro o dobro. Ao todo?","ans":["9","9 doces"],"exp":"3 + 6 = 9."},
+    {"id":"mp3_p2_7","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"4 crianças partilham 5 kg + 3 kg. Cada uma?","ans":["2 kg","2","2kg"],"exp":"8 ÷ 4 = 2 kg."},
+    {"id":"mp3_p2_8","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"A Eduarda corre 6 voltas; a Carolina o triplo + 2. Quantas a Carolina?","ans":["20","20 voltas"],"exp":"3×6 + 2 = 20."}
 ];
 
 // ============================================================
@@ -5453,6 +5757,15 @@ const LESSONS_11 = {
         body: `**1. Pilha (célula galvânica)**\nDispositivo que converte energia química em energia eléctrica através de uma reacção redox ESPONTÂNEA.\n\n**2. Componentes**\n• **Ânodo (−)**: onde ocorre **OXIDAÇÃO**\n• **Cátodo (+)**: onde ocorre **REDUÇÃO**\n• **Ponte salina** (ou membrana porosa): permite migração de iões para manter a NEUTRALIDADE eléctrica\n• **Circuito externo**: condutor que liga os eléctrodos — é por aqui que os ELECTRÕES viajam (do ânodo para o cátodo)\n\nMnemónica: ânodo = "negaTIVO" e oxidaTION; CáTODO = posiTIVO e reducTION (em pilhas).\n⚠️ Em ELECTRÓLISE é o oposto (ânodo é + e cátodo é −).\n\n**3. fem padrão (E°pilha)**\nUsando potenciais de REDUÇÃO padrão tabelados:\n\n   **E°pilha = E°cátodo − E°ânodo**\n\n• E°pilha > 0 → reacção ESPONTÂNEA (a pilha funciona)\n• E°pilha < 0 → não espontânea (precisa de fonte externa = electrólise)\n• E°pilha = 0 → equilíbrio\n\n**4. Série electroquímica**\nOrdena metais por poder REDUTOR (capacidade de ceder electrões):\n• Metal com E° mais NEGATIVO → mais REDUTOR → oxida-se mais facilmente\n• Metal com E° mais POSITIVO → menos redutor → mais "nobre"\n\nOrdem (do mais redutor para o menos):\nK > Na > Mg > Al > Zn > Fe > Pb > H > Cu > Ag > Au\n\n**5. Pilha de Daniell** (clássica)\nZn(s) | Zn²⁺(aq) ‖ Cu²⁺(aq) | Cu(s)\n• E°(Zn²⁺/Zn) = −0,76 V → ânodo: Zn → Zn²⁺ + 2e⁻\n• E°(Cu²⁺/Cu) = +0,34 V → cátodo: Cu²⁺ + 2e⁻ → Cu\n• E°pilha = +0,34 − (−0,76) = +1,10 V\n\n**6. Aplicações**\n• **Protecção catódica**: usar metal mais redutor (ex: Zn) ligado a Fe → o Zn corrói-se em vez do Fe (ânodo de sacrifício).\n• **Pilhas e baterias** comerciais: alcalina, lítio-ião, chumbo-ácido.\n\n**❌ ERROS FREQUENTES EM EXAME**\n• Trocar ânodo (−) com cátodo (+) — em PILHA, ânodo é o negativo e o cátodo é o positivo.\n• Em ELECTRÓLISE inverter sem perceber — aí é o contrário.\n• Aplicar E°pilha = E°ânodo − E°cátodo (sinal trocado) — é cátodo MENOS ânodo.\n• Inverter o sinal de E° quando a equação é escrita ao contrário — usar SEMPRE E° de redução tabelado, e fazer "cátodo − ânodo".\n• Achar que electrões viajam pelo electrólito — viajam pelo CIRCUITO EXTERNO. Pelo electrólito viajam os IÕES.\n• Esquecer que metal mais redutor (E° mais negativo) é o que se OXIDA na pilha.\n• Confundir poder redutor com poder oxidante (são opostos).\n• Multiplicar E° pelos coeficientes estequiométricos — E° NÃO depende dos coeficientes.`
     }
 };
+
+// PATCH: copiar lições de Leitura do Lourdes para o Oceanus (year=31)
+// (são as mesmas — fluência/prosódia/compreensão são universais)
+Object.entries(LESSONS_3).forEach(([k, v]) => {
+    if (k.startsWith('leitura/')) LESSONS_3_OCEANUS[k] = v;
+});
+EXERCISES_3.forEach(e => {
+    if (e.s === 'leitura') EXERCISES_3_OCEANUS.push(e);
+});
 
 // Reservado — exercícios complexos vivem em content_11_q_extra.js (lazy load)
 const EXERCISES_11 = [];
