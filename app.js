@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v465';
+const APP_VERSION = 'v466';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4638,6 +4638,20 @@ function renderQuestion() {
         qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
     }
     qEl.innerHTML = qHtml;
+    // v466: para exercícios de Leitura, abrir o Professor automaticamente —
+    // é a experiência preferida (overlay imersivo, TTS karaoke, ASR, perguntas
+    // por parágrafo). O utilizador pode fechar e responder à pergunta de
+    // compreensão no card abaixo.
+    if (e.s === 'leitura' && e.passage && !document.querySelector('.teacher-overlay')) {
+        setTimeout(() => {
+            try {
+                if (typeof openReadingTeacher === 'function' && currentSession &&
+                    currentSession.items[currentSession.idx] && currentSession.items[currentSession.idx].id === e.id) {
+                    openReadingTeacher(e.id);
+                }
+            } catch (err) { console.warn('[leitura] auto-open falhou', err); }
+        }, 250);
+    }
     document.getElementById('ex-feedback').style.display = 'none';
     // Repor a barra de acção em modo "Responder"
     _setExAction('submit');
