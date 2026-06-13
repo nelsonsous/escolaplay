@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v443';
+const APP_VERSION = 'v444';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2686,7 +2686,7 @@ function openAddProfileModal() {
                     <label>Nome</label>
                     <input type="text" id="new-profile-name" placeholder="Ex: Eduarda" maxlength="24">
                     <label>Ano de escolaridade</label>
-                    <div id="new-profile-years" style="display:flex;gap:8px;margin-bottom:10px"></div>
+                    <div id="new-profile-years" class="year-picker-grid"></div>
                     <label>Avatar</label>
                     <div id="new-profile-avatars" class="avatar-grid"></div>
                     <button class="btn btn-primary-solid btn-block" style="margin-top:14px" onclick="addProfileFromForm()">
@@ -2701,9 +2701,12 @@ function openAddProfileModal() {
     if (closeBtn) closeBtn.style.display = hasAnyProfile() ? '' : 'none';
     document.getElementById('new-profile-name').value = '';
     const yearsHtml = YEARS_AVAILABLE.map((y, i) => `
-        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--border);border-radius:10px;cursor:pointer">
+        <label class="year-picker-option">
             <input type="radio" name="new-profile-year" value="${y.year}" ${i===0?'checked':''}>
-            <div><div style="font-weight:700">${y.label}</div><div style="font-size:0.7rem;color:var(--text-light)">${y.cycle}</div></div>
+            <div class="year-picker-label">
+                <div class="year-picker-year">${y.label}</div>
+                <div class="year-picker-cycle">${y.cycle}</div>
+            </div>
         </label>
     `).join('');
     document.getElementById('new-profile-years').innerHTML = yearsHtml;

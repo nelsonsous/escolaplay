@@ -33,10 +33,22 @@ button, input, textarea, select { font-family: inherit; }
     --text-light: #6b7280;
     --text-muted: #9ca3af;
     --border: #e5e7eb;
+    --border-strong: #d1d5db;
     --card-bg: #ffffff;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow: 0 2px 10px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 24px rgba(109,40,217,0.15);
+    /* Stacked shadows — mais subtis, em camadas (estilo iOS / Stripe) */
+    --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03);
+    --shadow:    0 4px 14px -4px rgba(15,23,42,0.08), 0 2px 4px -2px rgba(15,23,42,0.04);
+    --shadow-md: 0 10px 25px -8px rgba(15,23,42,0.12), 0 4px 10px -4px rgba(15,23,42,0.06);
+    --shadow-lg: 0 18px 40px -12px rgba(244,114,182,0.22), 0 8px 16px -8px rgba(15,23,42,0.08);
+    --shadow-primary: 0 8px 24px -6px rgba(244,114,182,0.45);
+    /* Raios — escala consistente */
+    --radius-xs: 6px;
+    --radius-sm: 10px;
+    --radius:    14px;
+    --radius-md: 18px;
+    --radius-lg: 22px;
+    --radius-xl: 28px;
+    --radius-pill: 999px;
     /* Motion: curva elástica estilo Duolingo (ligeiro overshoot) */
     --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -4946,3 +4958,59 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     max-width: 280px;
     margin: 0 auto 16px;
 }
+
+/* ========================================================
+   YEAR PICKER (modal "Novo perfil")
+   Grid responsivo: 2-3 colunas em mobile, sem overflow horizontal.
+   Cards com estado "selecionado" claro (borda + sombra primária).
+   ======================================================== */
+.year-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.year-picker-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color .15s var(--spring-soft), background .15s var(--spring-soft), transform .15s var(--spring-soft), box-shadow .15s var(--spring-soft);
+    min-height: 56px;
+}
+.year-picker-option:hover {
+    border-color: var(--border-strong);
+}
+.year-picker-option:active {
+    transform: scale(0.97);
+}
+.year-picker-option input[type="radio"] {
+    flex-shrink: 0;
+    accent-color: var(--primary);
+}
+.year-picker-option .year-picker-label { line-height: 1.15; min-width: 0; }
+.year-picker-option .year-picker-year {
+    font-weight: var(--fw-extra);
+    font-size: var(--fs-sm);
+    color: var(--text);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.year-picker-option .year-picker-cycle {
+    font-size: var(--fs-xs);
+    color: var(--text-light);
+    font-weight: var(--fw-semibold);
+    margin-top: 2px;
+}
+.year-picker-option:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    box-shadow: var(--shadow-primary);
+}
+.year-picker-option:has(input:checked) .year-picker-year { color: var(--primary-dark); }
