@@ -2061,6 +2061,7 @@ const SUBJECTS_3 = {
     leitura:          { name: 'Leitura',           icon: 'fa-book-open-reader',  color: '#0e7490', fullName: 'Leitura — fluência, prosódia e compreensão' },
     matematica:       { name: 'Matemática',        icon: 'fa-calculator',        color: '#2563eb' },
     mat_plus:         { name: 'Mat+',              icon: 'fa-shapes',            color: '#f97316', fullName: 'Matemática visual (apoio passo-a-passo)' },
+    som_plus:         { name: 'Som+',              icon: 'fa-book-open',         color: '#0891b2', fullName: 'Consciência fonológica avançada' },
     estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',             color: '#16a34a' },
     ingles:           { name: 'Inglês',            icon: 'fa-language',          color: '#7c3aed' },
     cidadania:        { name: 'Cidadania',         icon: 'fa-people-group',      color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' }
@@ -2098,6 +2099,9 @@ const CURRICULUM_3 = {
     ],
     mat_plus: [
         'Centenas com ten-frames', 'Decompor até 10 000', 'Linha numérica até 10 000', 'Comparar números grandes', 'Aproximar à dezena ou centena', 'Adição com transporte', 'Subtração com empréstimo', 'Tabuada do 6 visual', 'Tabuada do 7 visual', 'Tabuada do 8 visual', 'Tabuada do 9 visual', 'Famílias de factos', 'Multiplicação × 10, 100, 1000', 'Multiplicação por 1 dígito', 'Divisão por partilha', 'Divisão com resto', 'Frações — partes iguais', 'Frações — comparar', 'Modelo de barra', 'Problemas em 2 passos'
+    ],
+    som_plus: [
+        'Rimas com palavras longas', 'Contar sílabas (3-4)', 'Sílaba tónica', 'Sílaba átona', 'Dígrafos LH, NH, CH', 'RR e SS (consoantes dobradas)', 'Encontros consonantais', 'Encontros vocálicos', 'Hiatos', 'Ditongos orais e nasais', 'Pares mínimos avançados', 'Sons que se confundem (B/V, F/V)', 'Trocar uma sílaba', 'Tirar uma sílaba', 'Trocar fonema inicial', 'Segmentar fonemas', 'Famílias de palavras', 'Palavras compostas', 'Trava-línguas', 'Memória auditiva avançada'
     ],
     // Programa autoral, foco em fluência (Hasbrouck & Tindal) + prosódia
     // (Rasinski) + compreensão (Simple View of Reading + estratégias da
@@ -2150,6 +2154,7 @@ const PERIODS_3 = {
         'Ambiente e sustentabilidade':3, 'Segurança rodoviária':3
     },
     mat_plus: { 'Centenas com ten-frames':1, 'Decompor até 10 000':1, 'Linha numérica até 10 000':1, 'Comparar números grandes':1, 'Aproximar à dezena ou centena':1, 'Adição com transporte':2, 'Subtração com empréstimo':2, 'Tabuada do 6 visual':2, 'Tabuada do 7 visual':2, 'Tabuada do 8 visual':2, 'Tabuada do 9 visual':2, 'Famílias de factos':2, 'Multiplicação × 10, 100, 1000':2, 'Multiplicação por 1 dígito':2, 'Divisão por partilha':3, 'Divisão com resto':3, 'Frações — partes iguais':3, 'Frações — comparar':3, 'Modelo de barra':3, 'Problemas em 2 passos':3 },
+    som_plus: { 'Rimas com palavras longas':1, 'Contar sílabas (3-4)':1, 'Sílaba tónica':1, 'Sílaba átona':1, 'Dígrafos LH, NH, CH':1, 'RR e SS (consoantes dobradas)':2, 'Encontros consonantais':2, 'Encontros vocálicos':2, 'Hiatos':2, 'Ditongos orais e nasais':2, 'Pares mínimos avançados':2, 'Sons que se confundem (B/V, F/V)':2, 'Trocar uma sílaba':3, 'Tirar uma sílaba':3, 'Trocar fonema inicial':3, 'Segmentar fonemas':3, 'Famílias de palavras':3, 'Palavras compostas':3, 'Trava-línguas':3, 'Memória auditiva avançada':3 },
     leitura: {
         'Pausas na vírgula':1, 'Pausas no ponto final':1,
         'Voz sobe na pergunta':1, 'Voz expressiva na exclamação':1,
@@ -2466,6 +2471,88 @@ const LESSONS_3 = {
     'mat_plus/Problemas em 2 passos': {
         title: 'Problemas em 2 passos',
         body: "Alguns problemas precisam de **duas contas**, uma a seguir à outra.\n\n**Exemplo**: A Carolina tem 24 €. Comprou 3 livros a 5 €. Com quanto fica?\n• Passo 1: 3 × 5 = 15 €.\n• Passo 2: 24 − 15 = 9 €.\n\n**Estratégias úteis** ✨\n• Lê o problema duas vezes.\n• Identifica os DADOS e a PERGUNTA.\n• Faz UMA conta de cada vez. Escreve o passo intermédio.\n• Confirma: faz sentido?"
+    },
+
+    // ----- SOM+ 3.º (Consciência fonológica avançada) -----
+    'som_plus/Rimas com palavras longas': {
+        title: 'Rimas com palavras longas',
+        body: "Duas palavras **rimam** quando acabam com o mesmo som. Com palavras de 3-4 sílabas, só a parte FINAL conta.\n\n**Exemplos**:\n• **bor-bo-le-ta** e **co-le-ta** → terminam em \"-eta\" → rimam!\n• **es-tu-dan-te** e **co-mer-ci-an-te** → \"-ante\" → rimam!\n• **fa-mí-lia** e **pe-ra** → não rimam.\n\n**Truque**: foca-te só na ÚLTIMA sílaba (ou nas 2 últimas).\n\n**Estratégias úteis** ✨\n• Diz em voz alta — ouvir é a melhor pista.\n• Tapa o início com o dedo e ouve só o fim.\n• Treina em poemas e canções.\n\n**❌ O que se costuma errar**\n• Confundir parecer-se com rimar — \"casa\" e \"casaco\" parecem-se mas NÃO rimam.\n• Achar que palavras curtas e longas não podem rimar.\n• Esquecer-se de ouvir o FIM."
+    },
+    'som_plus/Contar sílabas (3-4)': {
+        title: 'Contar sílabas (palavras de 3-4)',
+        body: "Uma **sílaba** é um som que se diz de uma vez. Conta com batidas.\n\n**Exemplos**:\n• **bor-bo-le-ta** → 4 sílabas.\n• **es-co-la** → 3 sílabas.\n• **pas-sa-ri-nho** → 4 sílabas.\n• **e-le-fan-te** → 4 sílabas.\n\n**Truques**:\n• Bate palmas em cada sílaba.\n• Põe a mão debaixo do queixo — desce uma vez por sílaba.\n• Cada sílaba tem PELO MENOS uma vogal.\n\n**Estratégias úteis** ✨\n• Devagar — palavras longas dão erros.\n• Atenção aos **ditongos** (ai, eu, ão) — 1 só sílaba.\n• Atenção aos **hiatos** (sa-í-da) — separam-se.\n\n**❌ O que se costuma errar**\n• Contar sílabas a mais (separar ditongos).\n• Contar sílabas a menos (não separar hiatos).\n• Esquecer-se de uma sílaba a meio."
+    },
+    'som_plus/Sílaba tónica': {
+        title: 'Sílaba tónica',
+        body: "A **sílaba tónica** é a que se pronuncia com mais FORÇA.\n\n**Exemplos** (em maiúsculas a tónica):\n• ca-DEI-ra.\n• bor-bo-LE-ta.\n• me-NI-no.\n• Por-tu-GAL.\n\n**Tipos**:\n• **Aguda** — tónica na ÚLTIMA sílaba (café, mar, Portugal).\n• **Grave** — na PENÚLTIMA (casa, mesa, menino). A maioria.\n• **Esdrúxula** — na ANTEPENÚLTIMA (árvore, médico). LEVAM SEMPRE acento.\n\n**Estratégias úteis** ✨\n• Diz a palavra alto e nota onde \"pesa\" mais.\n• Bate palmas e nota qual é mais forte.\n• Esdrúxulas têm sempre acento — fáceis.\n\n**❌ O que se costuma errar**\n• Trocar tónica com átona.\n• Achar que \"café\" é grave — é aguda.\n• Confundir esdrúxula com aguda."
+    },
+    'som_plus/Sílaba átona': {
+        title: 'Sílaba átona',
+        body: "As sílabas **átonas** são todas EXCEPTO a tónica — pronunciam-se com menos força.\n\n**Exemplo**: em \"bor-bo-LE-ta\", a tónica é \"LE\" e as outras (bor, bo, ta) são átonas.\n\nEm PT-PT, vogais átonas pronunciam-se mais fechadas:\n• \"menina\" → o \"e\" inicial soa quase \"i\".\n• \"telefone\" → \"te\" soa \"ti\".\n\nIsto chama-se **redução vocálica**.\n\n**Estratégias úteis** ✨\n• Ouve adultos a falar — nota a diferença.\n• Em textos com erros, repara como redução pode levar a trocas.\n• Escrever pode ser diferente de falar — escreve \"telefone\".\n\n**❌ O que se costuma errar**\n• Todas as sílabas com mesma força (parece robô).\n• Escrever como se fala (\"tilifone\" em vez de \"telefone\").\n• Confundir átona com tónica."
+    },
+    'som_plus/Dígrafos LH, NH, CH': {
+        title: 'Dígrafos LH, NH, CH',
+        body: "Um **dígrafo** = DUAS letras que fazem UM único som.\n\n• **LH** — som suave: ve-lho, fi-lho, mu-lher.\n• **NH** — som nasal: ni-nho, ma-nhã.\n• **CH** — som \"sh\": cha-ve, chu-va.\n\n**Atenção**: LH, NH, CH ficam SEMPRE na mesma sílaba!\n• fi-lho (NÃO fi-l-ho)\n• ma-nhã (NÃO ma-n-hã)\n• cha-ve (NÃO c-ha-ve)\n\n**Estratégias úteis** ✨\n• Decora os 3 dígrafos — são os mais comuns.\n• LH é molhado; NH é com nariz; CH é mais \"duro\".\n• Pratica com palavras curtas antes das longas.\n\n**❌ O que se costuma errar**\n• Separar o dígrafo: fi-l-ho ✗.\n• Confundir LH com L (filho ≠ filo).\n• Confundir CH com X."
+    },
+    'som_plus/RR e SS (consoantes dobradas)': {
+        title: 'RR e SS (consoantes dobradas)',
+        body: "O **RR** e o **SS** só aparecem ENTRE duas vogais.\n\n• **RR** — som FORTE: carro, ferro, terra.\n  Compara com R simples (suave): \"caro\" (1 r) ≠ \"carro\" (2 r).\n• **SS** — som \"ssss\" forte: passar, massa, professor.\n  Compara com S entre vogais (soa \"z\"): \"casa\" → \"z\"; \"cassa\" → \"ss\".\n\n**Regras**:\n• NUNCA no início de palavra.\n• NUNCA depois de consoante (com 1 só).\n• SÓ entre 2 vogais.\n\n**Estratégias úteis** ✨\n• RR e R simples têm SONS diferentes — ouve.\n• SS = forte; S entre vogais = \"z\".\n• Decora: \"passar\", \"carro\", \"professor\".\n\n**❌ O que se costuma errar**\n• Trocar \"casa\" (z) com \"cassa\" (ss).\n• Escrever \"rr\" no início.\n• Esquecer-se de dobrar onde devia."
+    },
+    'som_plus/Encontros consonantais': {
+        title: 'Encontros consonantais',
+        body: "Um **encontro consonantal** = DUAS consoantes seguidas, juntas na mesma sílaba.\n\n**Mais comuns**:\n• com R: br, cr, dr, fr, gr, pr, tr, vr — braço, creme, dragão, frio, grama, prato, treze, livro.\n• com L: bl, cl, fl, gl, pl — blusa, claro, flor, globo, plano.\n\nFicam SEMPRE na mesma sílaba.\n\n**Exemplos**:\n• bra-ço (NÃO b-ra-ço)\n• cre-me (NÃO c-re-me)\n• pla-no (NÃO p-la-no)\n\n**Estratégias úteis** ✨\n• Diz \"br\" — é UM som combinado.\n• Pratica com palavras simples: \"pra-to\", \"tre-ze\".\n• Atenção que algumas crianças trocam BR por B ou BL por BR — exercita.\n\n**❌ O que se costuma errar**\n• Separar: p-ra-to ✗ → pra-to ✓.\n• Trocar \"fl\" por \"fr\" (flor ≠ fror).\n• Saltar uma consoante (praça → paça)."
+    },
+    'som_plus/Encontros vocálicos': {
+        title: 'Encontros vocálicos',
+        body: "Um **encontro vocálico** = duas (ou mais) vogais juntas. Pode ser:\n\n• **Ditongo** — vogais na MESMA sílaba: pai, beijo, mau, céu, mãe, pão.\n• **Hiato** — vogais em sílabas DIFERENTES: sa-í-da, le-ão, ru-im, ba-ú.\n• **Tritongo** — três vogais na mesma sílaba: Pa-ra-guai.\n\n**Como distinguir**: divisão silábica.\n• Vogais juntas numa sílaba → ditongo.\n• Vogais separadas → hiato.\n\n**Estratégias úteis** ✨\n• Bate palmas em cada sílaba.\n• Hiatos costumam ter ACENTO na 2.ª vogal.\n• Pratica com ditongos famosos (pai, mãe, pão).\n\n**❌ O que se costuma errar**\n• Confundir ditongo com hiato.\n• Esquecer que ditongos podem ser nasais (mãe, pão).\n• Achar que tritongo é raro — existe (Paraguai)."
+    },
+    'som_plus/Hiatos': {
+        title: 'Hiatos',
+        body: "Um **hiato** = duas vogais em sílabas DIFERENTES.\n\n**Exemplos**:\n• sa-Í-da → \"a\" + \"í\" separados.\n• le-Ã-o → \"e\" + \"ão\" separados.\n• ba-Ú → \"a\" + \"ú\" separados.\n• po-E-ta → \"o\" + \"e\" separados.\n\n**Como reconhecer**:\n• A 2.ª vogal tem muitas vezes ACENTO (sa-í-da, ba-ú).\n• Diz devagar — se conseguires parar entre as vogais, é hiato.\n\n**Estratégias úteis** ✨\n• Acentos no meio (sa-Í-da) → quase sempre hiato.\n• Compara: \"saia\" (di-ton-go ai) vs \"sa-í-da\" (hi-a-to).\n• Acento na vogal alta (í, ú) é pista forte.\n\n**❌ O que se costuma errar**\n• Trocar hiato com ditongo.\n• Esquecer que o acento ajuda.\n• Achar que \"leão\" tem ditongo — não, é hiato."
+    },
+    'som_plus/Ditongos orais e nasais': {
+        title: 'Ditongos orais e nasais',
+        body: "Há 2 tipos de ditongo:\n\n**Orais** (sai só pela boca):\n• ai, ei, oi, ui, au, eu, iu, ou — pai, lei, boi, fui, mau, céu, viu, vou.\n\n**Nasais** (sai pela boca e nariz):\n• ão, ãe, õe, ãi — pão, mãe, põe, cãibra.\n• am, em, im, om, um (no fim) — campo, vem, ruim, com, um.\n\n**Truque**: dedo no nariz.\n• Vibração → nasal.\n• Sem vibração → oral.\n\n**Estratégias úteis** ✨\n• Símbolos ~ e m/n marcam nasalidade.\n• Pratica: \"pão\" (nasal) vs \"pau\" (oral).\n• Decora os ditongos nasais mais comuns.\n\n**❌ O que se costuma errar**\n• Achar que todos os ditongos com til (~) soam igual.\n• Confundir nasal com oral.\n• Não notar o til em \"irmã\", \"manhã\"."
+    },
+    'som_plus/Pares mínimos avançados': {
+        title: 'Pares mínimos avançados',
+        body: "**Pares mínimos** = duas palavras que se diferenciam por UM só som.\n\n**Exemplos**:\n• pato / bato (P vs B).\n• vaca / faca (V vs F).\n• rato / lato (R vs L).\n• chá / já (CH vs J).\n• selo / zelo (S vs Z).\n\nNo 3.º ano: sons mais difíceis:\n• lh vs l: filho / fio.\n• nh vs n: manhã / mana.\n• rr vs r: carro / caro.\n• ss vs s: passo / paso.\n\n**Estratégias úteis** ✨\n• Diz alto — o som faz a diferença.\n• Treina ouvindo só UM dos pares e adivinha.\n• Útil para crianças com dislalia.\n\n**❌ O que se costuma errar**\n• Trocar B/V, F/V, R/L.\n• Achar que \"pato\" e \"rato\" são pares mínimos — mudam 2 sons.\n• Confundir grafia com som."
+    },
+    'som_plus/Sons que se confundem (B/V, F/V)': {
+        title: 'Sons que se confundem',
+        body: "Alguns sons são MUITO parecidos.\n\n**B vs V** — ambos labiais:\n• B fecha lábios juntos: bola, bater.\n• V usa lábio inferior nos dentes: vela, voar.\n\n**F vs V** — ambos labio-dentais:\n• F sem voz: fada, faca, flor.\n• V com voz: vala, vaca, voo.\n\n**P vs B** — ambos bilabiais:\n• P sem voz: pato.\n• B com voz: bato.\n\n**Truque**: mão na garganta. Vibração → tem voz (B, V).\n\n**Estratégias úteis** ✨\n• Treina espelhando o adulto.\n• Dedo nos lábios para sentir o movimento.\n• Pratica pares mínimos: vaca/faca.\n\n**❌ O que se costuma errar**\n• Trocar B/V na escrita (\"vola\" ≠ \"bola\").\n• Confundir F/V ao ouvir.\n• Pensar que P/B são iguais."
+    },
+    'som_plus/Trocar uma sílaba': {
+        title: 'Trocar uma sílaba',
+        body: "Jogo: trocar UMA sílaba para fazer uma palavra nova.\n\n**Exemplos**:\n• borboleta → trocar \"bor\" por \"var\" → varboleta.\n• escola → trocar \"co\" por \"to\" → estola (palavra real!).\n• família → trocar \"fa\" por \"ja\" → jamília (inventada).\n\nNo 3.º ano: palavras LONGAS (3-4 sílabas).\n\n**Estratégias úteis** ✨\n• Identifica as sílabas (palmas).\n• Decide qual trocar.\n• Diz a palavra nova alto.\n• Por vezes sai uma palavra real!\n\n**❌ O que se costuma errar**\n• Trocar mais do que uma sílaba.\n• Trocar fonemas em vez de sílabas.\n• Esquecer-se de manter o resto igual."
+    },
+    'som_plus/Tirar uma sílaba': {
+        title: 'Tirar uma sílaba',
+        body: "Tirar = retirar uma sílaba.\n\n**Exemplos**:\n• borboleta sem \"bor\" → boleta.\n• escola sem \"es\" → cola! (palavra real).\n• trabalhar sem \"tra\" → balhar.\n\n**Posição**:\n• 1.ª (inicial): bor-boleta → boleta.\n• Meio: fa-mí-lia sem \"mí\" → falia.\n• Última: fa-mí-lia sem \"lia\" → famí.\n\n**Estratégias úteis** ✨\n• Bate palmas para identificar sílabas.\n• Pratica com palavras de 3 sílabas.\n• Tenta tirar do início, meio, fim.\n\n**❌ O que se costuma errar**\n• Tirar uma letra em vez de uma sílaba.\n• Esquecer-se de juntar o que sobra.\n• Confundir tirar sílaba com tirar fonema."
+    },
+    'som_plus/Trocar fonema inicial': {
+        title: 'Trocar fonema inicial',
+        body: "**Fonema** = o som mais pequeno (mais pequeno que a sílaba).\n\n**Trocar fonema inicial** = só o PRIMEIRO som muda.\n\n**Exemplos**:\n• pato → trocar P por B → bato.\n• mala → trocar M por F → fala.\n• rato → trocar R por L → lato.\n• casa → trocar K por T → tasa.\n\nDifícil! Tens de identificar o PRIMEIRO som separado da sílaba.\n\n**Estratégias úteis** ✨\n• Diz a palavra devagar alongando o início: \"Pppp-ato\".\n• Pratica pares: pato/bato, mala/fala.\n• Útil para preparar a leitura.\n\n**❌ O que se costuma errar**\n• Trocar a sílaba inteira em vez do fonema.\n• Confundir o som com a LETRA.\n• Esquecer que algumas letras têm vários sons."
+    },
+    'som_plus/Segmentar fonemas': {
+        title: 'Segmentar fonemas',
+        body: "**Segmentar fonemas** = separar uma palavra em sons mais pequenos.\n\n**Exemplos**:\n• PAI → /P/ /A/ /I/ → 3 fonemas.\n• CASA → /K/ /A/ /Z/ /A/ → 4 fonemas.\n• GATO → /G/ /A/ /T/ /O/ → 4 fonemas.\n\n**Sílabas ≠ fonemas**:\n• \"CASA\" tem 2 sílabas (ca-sa) mas 4 fonemas.\n\n**Importância**: melhor preditor da boa leitura.\n\n**Estratégias úteis** ✨\n• Diz a palavra alongando cada som.\n• Bate uma vez para cada fonema.\n• Pratica em palavras curtas antes das longas.\n\n**❌ O que se costuma errar**\n• Contar sílabas em vez de fonemas.\n• Confundir letras com fonemas (LH = 1 fonema, 2 letras).\n• Esquecer que ã, õ são 1 fonema."
+    },
+    'som_plus/Famílias de palavras': {
+        title: 'Famílias de palavras',
+        body: "**Família de palavras** = grupo com a mesma RAIZ (parte comum).\n\n**Exemplos**:\n• flor: flor, florista, florido, florir.\n• livro: livro, livraria, livreiro, livrinho.\n• terra: terra, terreno, terrestre, aterrar.\n\n**Atenção**: parecer-se NÃO é o mesmo que ser da família.\n• \"floresta\" parece com \"flor\" mas vem de outra raiz.\n\n**Estratégias úteis** ✨\n• Procura a parte que se repete → a raiz.\n• Vê se o SIGNIFICADO também é parecido — tem de ser!\n• Aumenta o vocabulário descobrindo famílias.\n\n**❌ O que se costuma errar**\n• Misturar famílias só por parecidas (livre/livro).\n• Não notar a raiz por causa de prefixos.\n• Confundir homófonos com família."
+    },
+    'som_plus/Palavras compostas': {
+        title: 'Palavras compostas',
+        body: "**Palavra composta** = formada por 2 ou mais palavras.\n\n**Com hífen**:\n• guarda-chuva (guarda + chuva)\n• beija-flor (beija + flor)\n• couve-flor\n• segunda-feira\n• arco-íris\n\n**Sem hífen** (juntas):\n• girassol (gira + sol)\n• passatempo (passa + tempo)\n• malmequer (mal + me + quer)\n\n**Como reconhecer**: tenta partir em 2 — se cada parte tem significado, é composta.\n\n**Estratégias úteis** ✨\n• Lê com pausa pequena: \"guarda – chuva\".\n• Procura padrões: \"guarda-\", \"porta-\", \"para-\".\n• Diverte-te a inventar compostas.\n\n**❌ O que se costuma errar**\n• Esquecer hífen.\n• Confundir composta com derivada.\n• Achar que todas levam hífen."
+    },
+    'som_plus/Trava-línguas': {
+        title: 'Trava-línguas',
+        body: "**Trava-línguas** = frase difícil de dizer rápido por ter sons parecidos.\n\n**Exemplos clássicos**:\n• \"O rato roeu a roupa do rei de Roma.\" (R-R-R).\n• \"Três pratos de trigo para três tigres tristes.\" (TR-TR).\n• \"A aranha arranha a rã. A rã arranha a aranha.\" (R-RR).\n• \"O peito do pé do Pedro é preto.\" (P-P-PR).\n\n**Para que servem**?\n• Treinam articulação.\n• Melhoram velocidade e fluência.\n• São divertidos!\n\n**Estratégias úteis** ✨\n• Começa devagar; só depois acelera.\n• Repete 3 vezes seguidas.\n• Inventa os teus próprios.\n\n**❌ O que se costuma errar**\n• Ir depressa demais — perdes os sons.\n• Trocar sons parecidos (R por L).\n• Esquecer parte da frase."
+    },
+    'som_plus/Memória auditiva avançada': {
+        title: 'Memória auditiva avançada',
+        body: "**Memória auditiva** = guardar e recordar o que se ouviu.\n\n**Jogos para treinar**:\n\n**1. Lista de palavras** — ouve 5-7 palavras, repete pela ordem.\n   Ex: gato, mesa, livro, sol, casa, árvore, bola.\n\n**2. Frase longa** — ouve uma frase, repete-a.\n   Ex: \"A Eduarda foi ao mercado e comprou pão, leite e duas maçãs.\"\n\n**3. Instruções em cadeia** — ouve várias ordens.\n   Ex: \"Levanta-te, dá 3 voltas, bate palmas e senta-te.\"\n\n**4. Trás-para-frente** — ouve e diz na ORDEM INVERSA.\n   Ex: pato-mesa-flor → flor, mesa, pato.\n\n**Estratégias úteis** ✨\n• Foca-te enquanto ouves.\n• Imagina a cena na cabeça.\n• Repete mentalmente antes de dizer alto.\n\n**❌ O que se costuma errar**\n• Não prestar atenção.\n• Querer recordar TUDO de uma vez.\n• Esquecer-se da ordem."
     }
 };
 
@@ -2923,7 +3010,115 @@ const EXERCISES_3 = [
     {"id":"mp3_p2_5","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"25 alunos; faltam 7. Os presentes em 3 grupos iguais. Q e R?","ans":["Q=6, R=0","6 e 0","Q=6 R=0"],"exp":"18 ÷ 3 = 6."},
     {"id":"mp3_p2_6","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"O João comeu 3 doces; o Pedro o dobro. Ao todo?","ans":["9","9 doces"],"exp":"3 + 6 = 9."},
     {"id":"mp3_p2_7","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"4 crianças partilham 5 kg + 3 kg. Cada uma?","ans":["2 kg","2","2kg"],"exp":"8 ÷ 4 = 2 kg."},
-    {"id":"mp3_p2_8","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"A Eduarda corre 6 voltas; a Carolina o triplo + 2. Quantas a Carolina?","ans":["20","20 voltas"],"exp":"3×6 + 2 = 20."}
+    {"id":"mp3_p2_8","s":"mat_plus","t":"Problemas em 2 passos","type":"problem","diff":2,"q":"A Eduarda corre 6 voltas; a Carolina o triplo + 2. Quantas a Carolina?","ans":["20","20 voltas"],"exp":"3×6 + 2 = 20."},
+
+    // ============================ SOM+ 3.º (Consciência fonológica avançada) ===============================
+    {"id":"sp3_r1","s":"som_plus","t":"Rimas com palavras longas","type":"mc","diff":2,"q":"🎵 Rima com \"borboleta\":","opts":["gata","coleta","casa"],"ans":1,"exp":"Acabam em \"-eta\"."},
+    {"id":"sp3_r2","s":"som_plus","t":"Rimas com palavras longas","type":"mc","diff":2,"q":"🎵 Rima com \"passarinho\":","opts":["casinha","caminho","vizinho"],"ans":2,"exp":"Vizinho (-inho)."},
+    {"id":"sp3_r3","s":"som_plus","t":"Rimas com palavras longas","type":"mc","diff":2,"q":"🎵 Rima com \"estudante\":","opts":["comerciante","feliz","casaco"],"ans":0,"exp":"Comerciante (-ante)."},
+    {"id":"sp3_r4","s":"som_plus","t":"Rimas com palavras longas","type":"tf","diff":1,"q":"\"Floresta\" rima com \"festa\".","ans":true,"exp":"Ambas acabam em -esta."},
+    {"id":"sp3_r5","s":"som_plus","t":"Rimas com palavras longas","type":"tf","diff":1,"q":"\"Família\" e \"filha\" rimam.","ans":false,"exp":"Não terminam igual."},
+    {"id":"sp3_r6","s":"som_plus","t":"Rimas com palavras longas","type":"mc","diff":2,"q":"🎵 Que palavra rima com \"cantora\"?","opts":["história","professora","amigo"],"ans":1,"exp":"-ora."},
+    {"id":"sp3_r7","s":"som_plus","t":"Rimas com palavras longas","type":"mc","diff":2,"q":"🎵 Rima com \"elefante\":","opts":["hipopótamo","gigante","animal"],"ans":1,"exp":"-ante."},
+    {"id":"sp3_s1","s":"som_plus","t":"Contar sílabas (3-4)","type":"mc","diff":1,"q":"🔢 \"Borboleta\" tem ___ sílabas:","opts":["3","4","5"],"ans":1,"exp":"bor-bo-le-ta = 4."},
+    {"id":"sp3_s2","s":"som_plus","t":"Contar sílabas (3-4)","type":"mc","diff":2,"q":"🔢 \"Cadeira\" tem ___ sílabas:","opts":["2","3","4"],"ans":1,"exp":"ca-dei-ra = 3 (ditongo)."},
+    {"id":"sp3_s3","s":"som_plus","t":"Contar sílabas (3-4)","type":"fill","diff":2,"q":"Sílabas em \"elefante\": ___","ans":["4","quatro"],"exp":"e-le-fan-te."},
+    {"id":"sp3_s4","s":"som_plus","t":"Contar sílabas (3-4)","type":"mc","diff":2,"q":"🔢 \"Passarinho\" tem ___ sílabas:","opts":["3","4","5"],"ans":1,"exp":"pas-sa-ri-nho = 4."},
+    {"id":"sp3_s5","s":"som_plus","t":"Contar sílabas (3-4)","type":"fill","diff":2,"q":"Sílabas em \"menino\": ___","ans":["3","três"],"exp":"me-ni-no."},
+    {"id":"sp3_s6","s":"som_plus","t":"Contar sílabas (3-4)","type":"mc","diff":1,"q":"🔢 \"Escola\" tem ___ sílabas:","opts":["2","3","4"],"ans":1,"exp":"es-co-la = 3."},
+    {"id":"sp3_s7","s":"som_plus","t":"Contar sílabas (3-4)","type":"tf","diff":1,"q":"\"Saída\" tem 3 sílabas (sa-í-da).","ans":true,"exp":"Hiato separa."},
+    {"id":"sp3_s8","s":"som_plus","t":"Contar sílabas (3-4)","type":"mc","diff":2,"q":"🔢 \"Família\" tem ___ sílabas:","opts":["3","4","5"],"ans":0,"exp":"fa-mí-lia = 3."},
+    {"id":"sp3_t1","s":"som_plus","t":"Sílaba tónica","type":"mc","diff":1,"q":"💪 Tónica de \"cadeira\":","opts":["ca","dei","ra"],"ans":1,"exp":"ca-DEI-ra."},
+    {"id":"sp3_t2","s":"som_plus","t":"Sílaba tónica","type":"mc","diff":1,"q":"💪 Tónica de \"menino\":","opts":["me","ni","no"],"ans":1,"exp":"me-NI-no."},
+    {"id":"sp3_t3","s":"som_plus","t":"Sílaba tónica","type":"mc","diff":1,"q":"💪 Palavra AGUDA:","opts":["casa","café","mesa"],"ans":1,"exp":"ca-FÉ."},
+    {"id":"sp3_t4","s":"som_plus","t":"Sílaba tónica","type":"mc","diff":2,"q":"💪 Palavra ESDRÚXULA:","opts":["mesa","árvore","café"],"ans":1,"exp":"ÁR-vo-re."},
+    {"id":"sp3_t5","s":"som_plus","t":"Sílaba tónica","type":"tf","diff":2,"q":"Palavras esdrúxulas têm sempre acento.","ans":true,"exp":"Regra."},
+    {"id":"sp3_t6","s":"som_plus","t":"Sílaba tónica","type":"mc","diff":2,"q":"💪 Tónica de \"borboleta\":","opts":["bor","bo","le","ta"],"ans":2,"exp":"bor-bo-LE-ta."},
+    {"id":"sp3_t7","s":"som_plus","t":"Sílaba tónica","type":"mc","diff":2,"q":"💪 Palavra GRAVE:","opts":["café","casa","lâmpada"],"ans":1,"exp":"CA-sa."},
+    {"id":"sp3_at1","s":"som_plus","t":"Sílaba átona","type":"mc","diff":2,"q":"🤫 Em \"borboleta\", quantas átonas?","opts":["1","2","3"],"ans":2,"exp":"Tónica = \"le\"; 3 átonas."},
+    {"id":"sp3_at2","s":"som_plus","t":"Sílaba átona","type":"mc","diff":1,"q":"🤫 Sílaba átona é:","opts":["a mais forte","a mais fraca","a mais longa"],"ans":1,"exp":"Mais fraca."},
+    {"id":"sp3_at3","s":"som_plus","t":"Sílaba átona","type":"tf","diff":2,"q":"Em PT-PT, \"e\" átono soa quase \"i\".","ans":true,"exp":"Redução vocálica."},
+    {"id":"sp3_at4","s":"som_plus","t":"Sílaba átona","type":"mc","diff":2,"q":"🤫 Em \"menina\", as átonas são:","opts":["ni","me e na","todas"],"ans":1,"exp":"Tónica = ni; átonas = me, na."},
+    {"id":"sp3_di1","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"mc","diff":1,"q":"🔤 \"LH\" faz:","opts":["2 sons","1 som","3 sons"],"ans":1,"exp":"Dígrafo = 1 som."},
+    {"id":"sp3_di2","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"mc","diff":1,"q":"🔤 Sílabas em \"filho\":","opts":["1","2","3"],"ans":1,"exp":"fi-lho = 2."},
+    {"id":"sp3_di3","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"mc","diff":1,"q":"🔤 Qual TEM dígrafo NH?","opts":["ninho","menino","nada"],"ans":0,"exp":"NIN-ho."},
+    {"id":"sp3_di4","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"fill","diff":2,"q":"Dígrafo de \"chuva\": ___","ans":["CH","ch"],"exp":"CH."},
+    {"id":"sp3_di5","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"mc","diff":2,"q":"🔤 \"Manhã\" divide-se em:","opts":["ma-n-hã","ma-nhã","man-hã"],"ans":1,"exp":"NH não separa."},
+    {"id":"sp3_di6","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"tf","diff":1,"q":"Em \"chave\", CH faz \"sh\".","ans":true,"exp":"Sim."},
+    {"id":"sp3_di7","s":"som_plus","t":"Dígrafos LH, NH, CH","type":"mc","diff":1,"q":"🔤 Qual tem dígrafo LH?","opts":["velho","vento","vela"],"ans":0,"exp":"VE-lho."},
+    {"id":"sp3_rs1","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"mc","diff":2,"q":"🔤 \"Carro\" — RR faz som:","opts":["suave","forte","mudo"],"ans":1,"exp":"RR = forte."},
+    {"id":"sp3_rs2","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"mc","diff":2,"q":"🔤 \"Caro\" — R simples entre vogais é:","opts":["forte","suave","mudo"],"ans":1,"exp":"Suave."},
+    {"id":"sp3_rs3","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"tf","diff":2,"q":"Posso escrever \"rr\" no início.","ans":false,"exp":"RR só entre vogais."},
+    {"id":"sp3_rs4","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"mc","diff":1,"q":"🔤 \"Passar\" tem:","opts":["SS","PP","AA"],"ans":0,"exp":"SS."},
+    {"id":"sp3_rs5","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"mc","diff":2,"q":"🔤 Em \"casa\", o S soa:","opts":["SS","Z","F"],"ans":1,"exp":"S entre vogais = \"z\"."},
+    {"id":"sp3_rs6","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"mc","diff":2,"q":"🔤 Diferença \"caro\" / \"carro\":","opts":["nada","RR vs R","AA vs A"],"ans":1,"exp":"Consoante dobrada."},
+    {"id":"sp3_rs7","s":"som_plus","t":"RR e SS (consoantes dobradas)","type":"mc","diff":2,"q":"🔤 \"Pássaro\" tem:","opts":["1 S","SS","3 S"],"ans":1,"exp":"PÁS-SA-RO."},
+    {"id":"sp3_ec1","s":"som_plus","t":"Encontros consonantais","type":"mc","diff":1,"q":"🔤 \"Prato\" começa com:","opts":["PR","BR","TR"],"ans":0,"exp":"PR."},
+    {"id":"sp3_ec2","s":"som_plus","t":"Encontros consonantais","type":"mc","diff":2,"q":"🔤 Sílabas em \"braço\":","opts":["1","2","3"],"ans":1,"exp":"BRA fica junto."},
+    {"id":"sp3_ec3","s":"som_plus","t":"Encontros consonantais","type":"fill","diff":2,"q":"Encontro consonantal de \"flor\": ___","ans":["FL","fl"],"exp":"FL."},
+    {"id":"sp3_ec4","s":"som_plus","t":"Encontros consonantais","type":"mc","diff":2,"q":"🔤 Qual TEM encontro consonantal?","opts":["mala","tigre","casa"],"ans":1,"exp":"TI-GRE."},
+    {"id":"sp3_ec5","s":"som_plus","t":"Encontros consonantais","type":"tf","diff":1,"q":"Em \"blusão\", BL fica na mesma sílaba.","ans":true,"exp":"Sim."},
+    {"id":"sp3_ec6","s":"som_plus","t":"Encontros consonantais","type":"mc","diff":2,"q":"🔤 \"Treze\" começa com:","opts":["T","TR","TRE"],"ans":1,"exp":"TR."},
+    {"id":"sp3_ec7","s":"som_plus","t":"Encontros consonantais","type":"mc","diff":2,"q":"🔤 Em \"globo\" o encontro é:","opts":["BL","GL","OB"],"ans":1,"exp":"GL."},
+    {"id":"sp3_ev1","s":"som_plus","t":"Encontros vocálicos","type":"mc","diff":1,"q":"🔤 Vogais na mesma sílaba =","opts":["hiato","ditongo","tritongo"],"ans":1,"exp":"Ditongo."},
+    {"id":"sp3_ev2","s":"som_plus","t":"Encontros vocálicos","type":"mc","diff":1,"q":"🔤 Vogais em sílabas diferentes =","opts":["hiato","ditongo","tritongo"],"ans":0,"exp":"Hiato."},
+    {"id":"sp3_ev3","s":"som_plus","t":"Encontros vocálicos","type":"mc","diff":2,"q":"🔤 Três vogais na mesma sílaba =","opts":["hiato","ditongo","tritongo"],"ans":2,"exp":"Tritongo."},
+    {"id":"sp3_ev4","s":"som_plus","t":"Encontros vocálicos","type":"tf","diff":1,"q":"Em \"pai\", \"ai\" é ditongo.","ans":true,"exp":"Vogais juntas."},
+    {"id":"sp3_ev5","s":"som_plus","t":"Encontros vocálicos","type":"tf","diff":2,"q":"Em \"saída\", \"aí\" é ditongo.","ans":false,"exp":"É HIATO (sa-í-da)."},
+    {"id":"sp3_hi1","s":"som_plus","t":"Hiatos","type":"mc","diff":1,"q":"🔤 Hiato é:","opts":["vogais juntas","vogais em sílabas diferentes","3 vogais"],"ans":1,"exp":"Separadas."},
+    {"id":"sp3_hi2","s":"som_plus","t":"Hiatos","type":"mc","diff":2,"q":"🔤 Qual TEM hiato?","opts":["mãe","saída","pai"],"ans":1,"exp":"sa-Í-da."},
+    {"id":"sp3_hi3","s":"som_plus","t":"Hiatos","type":"mc","diff":2,"q":"🔤 Em \"leão\":","opts":["ditongo","hiato","tritongo"],"ans":1,"exp":"le-ÃO separados."},
+    {"id":"sp3_hi4","s":"som_plus","t":"Hiatos","type":"tf","diff":2,"q":"Hiatos costumam ter acento.","ans":true,"exp":"Sim."},
+    {"id":"sp3_hi5","s":"som_plus","t":"Hiatos","type":"mc","diff":2,"q":"🔤 Em \"baú\", o hiato é:","opts":["B-A-Ú","B-A","A-Ú"],"ans":2,"exp":"a-Ú."},
+    {"id":"sp3_dt1","s":"som_plus","t":"Ditongos orais e nasais","type":"mc","diff":1,"q":"🔤 \"Pão\" tem ditongo:","opts":["oral","nasal"],"ans":1,"exp":"Til."},
+    {"id":"sp3_dt2","s":"som_plus","t":"Ditongos orais e nasais","type":"mc","diff":1,"q":"🔤 \"Pau\" tem ditongo:","opts":["oral","nasal"],"ans":0,"exp":"Sem til."},
+    {"id":"sp3_dt3","s":"som_plus","t":"Ditongos orais e nasais","type":"mc","diff":2,"q":"🔤 Qual TEM ditongo nasal?","opts":["pai","mãe","lei"],"ans":1,"exp":"mãe — til."},
+    {"id":"sp3_dt4","s":"som_plus","t":"Ditongos orais e nasais","type":"mc","diff":1,"q":"🔤 Qual é ditongo oral?","opts":["ão","ei","õe"],"ans":1,"exp":"EI."},
+    {"id":"sp3_dt5","s":"som_plus","t":"Ditongos orais e nasais","type":"tf","diff":1,"q":"Em \"boi\", \"oi\" é ditongo oral.","ans":true,"exp":"Sim."},
+    {"id":"sp3_dt6","s":"som_plus","t":"Ditongos orais e nasais","type":"fill","diff":2,"q":"Ditongo nasal em \"pão\": ___","ans":["ão"],"exp":"ÃO."},
+    {"id":"sp3_pm1","s":"som_plus","t":"Pares mínimos avançados","type":"mc","diff":1,"q":"🔤 Par mínimo de \"pato\":","opts":["gato","bato","preto"],"ans":1,"exp":"Muda P→B."},
+    {"id":"sp3_pm2","s":"som_plus","t":"Pares mínimos avançados","type":"mc","diff":1,"q":"🔤 Par mínimo de \"vaca\":","opts":["faca","mesa","casa"],"ans":0,"exp":"V→F."},
+    {"id":"sp3_pm3","s":"som_plus","t":"Pares mínimos avançados","type":"mc","diff":2,"q":"🔤 Par mínimo de \"rato\":","opts":["mato","pato","lato"],"ans":2,"exp":"R→L."},
+    {"id":"sp3_pm4","s":"som_plus","t":"Pares mínimos avançados","type":"mc","diff":2,"q":"🔤 Par mínimo de \"filho\":","opts":["filme","fio","falho"],"ans":1,"exp":"LH→sem LH."},
+    {"id":"sp3_pm5","s":"som_plus","t":"Pares mínimos avançados","type":"mc","diff":2,"q":"🔤 Par mínimo de \"carro\":","opts":["caro","cara","corro"],"ans":0,"exp":"RR→R."},
+    {"id":"sp3_pm6","s":"som_plus","t":"Pares mínimos avançados","type":"tf","diff":1,"q":"\"Pato\" e \"gato\" são pares mínimos.","ans":true,"exp":"P/G mudam."},
+    {"id":"sp3_sc1","s":"som_plus","t":"Sons que se confundem (B/V, F/V)","type":"mc","diff":1,"q":"🔤 \"Bola\" começa com:","opts":["B","V"],"ans":0,"exp":"B."},
+    {"id":"sp3_sc2","s":"som_plus","t":"Sons que se confundem (B/V, F/V)","type":"mc","diff":1,"q":"🔤 \"Vaca\" começa com:","opts":["F","V","B"],"ans":1,"exp":"V."},
+    {"id":"sp3_sc3","s":"som_plus","t":"Sons que se confundem (B/V, F/V)","type":"mc","diff":1,"q":"🔤 \"Faca\" começa com:","opts":["F","V","B"],"ans":0,"exp":"F."},
+    {"id":"sp3_sc4","s":"som_plus","t":"Sons que se confundem (B/V, F/V)","type":"tf","diff":2,"q":"B e V usam ambos os lábios.","ans":false,"exp":"B = lábios juntos. V = lábio + dentes."},
+    {"id":"sp3_sc5","s":"som_plus","t":"Sons que se confundem (B/V, F/V)","type":"mc","diff":2,"q":"🔤 Para distinguir F/V põe:","opts":["dedo no nariz","mão na garganta","dedo na orelha"],"ans":1,"exp":"Garganta — vibração."},
+    {"id":"sp3_ts1","s":"som_plus","t":"Trocar uma sílaba","type":"mc","diff":2,"q":"🔄 \"Borboleta\" trocando \"bor\" por \"var\":","opts":["barboleta","varboleta","borboteta"],"ans":1,"exp":"varboleta."},
+    {"id":"sp3_ts2","s":"som_plus","t":"Trocar uma sílaba","type":"mc","diff":2,"q":"🔄 \"Escola\" trocando \"es\" por \"tes\":","opts":["escola","tescola","tesola"],"ans":1,"exp":"tescola."},
+    {"id":"sp3_ts3","s":"som_plus","t":"Trocar uma sílaba","type":"mc","diff":2,"q":"🔄 \"Passarinho\" trocando \"ri\" por \"rou\":","opts":["passarounho","passarinha","pasarinho"],"ans":0,"exp":"passarounho."},
+    {"id":"sp3_ts4","s":"som_plus","t":"Trocar uma sílaba","type":"tf","diff":1,"q":"Trocar uma sílaba muda só essa, o resto fica igual.","ans":true,"exp":"Sim."},
+    {"id":"sp3_ti1","s":"som_plus","t":"Tirar uma sílaba","type":"mc","diff":1,"q":"✂️ Tira \"bor\" de \"borboleta\":","opts":["boleta","boboleta","borleta"],"ans":0,"exp":"boleta."},
+    {"id":"sp3_ti2","s":"som_plus","t":"Tirar uma sílaba","type":"mc","diff":2,"q":"✂️ Tira \"es\" de \"escola\":","opts":["cola","escolla","escola"],"ans":0,"exp":"cola!"},
+    {"id":"sp3_ti3","s":"som_plus","t":"Tirar uma sílaba","type":"mc","diff":2,"q":"✂️ Tira \"ri\" de \"passarinho\":","opts":["passanho","passarinho","paríonho"],"ans":0,"exp":"passanho."},
+    {"id":"sp3_ti4","s":"som_plus","t":"Tirar uma sílaba","type":"tf","diff":1,"q":"Posso tirar uma sílaba do meio.","ans":true,"exp":"Sim — qualquer posição."},
+    {"id":"sp3_tf1","s":"som_plus","t":"Trocar fonema inicial","type":"mc","diff":1,"q":"🔄 Em \"pato\", trocar P por B:","opts":["bato","patos","lato"],"ans":0,"exp":"bato."},
+    {"id":"sp3_tf2","s":"som_plus","t":"Trocar fonema inicial","type":"mc","diff":1,"q":"🔄 Em \"mala\", trocar M por F:","opts":["fala","fila","mala"],"ans":0,"exp":"fala."},
+    {"id":"sp3_tf3","s":"som_plus","t":"Trocar fonema inicial","type":"mc","diff":1,"q":"🔄 Em \"rato\", trocar R por L:","opts":["lato","rado","mato"],"ans":0,"exp":"lato."},
+    {"id":"sp3_tf4","s":"som_plus","t":"Trocar fonema inicial","type":"tf","diff":2,"q":"Fonema é o mesmo que letra.","ans":false,"exp":"Som ≠ letra."},
+    {"id":"sp3_sf1","s":"som_plus","t":"Segmentar fonemas","type":"mc","diff":1,"q":"🔢 \"Pai\" tem ___ fonemas:","opts":["1","2","3"],"ans":2,"exp":"/P/ /A/ /I/."},
+    {"id":"sp3_sf2","s":"som_plus","t":"Segmentar fonemas","type":"mc","diff":2,"q":"🔢 \"Casa\" tem ___ fonemas:","opts":["2","3","4"],"ans":2,"exp":"4 fonemas."},
+    {"id":"sp3_sf3","s":"som_plus","t":"Segmentar fonemas","type":"mc","diff":2,"q":"🔢 \"Gato\" tem ___ fonemas:","opts":["3","4","5"],"ans":1,"exp":"4."},
+    {"id":"sp3_sf4","s":"som_plus","t":"Segmentar fonemas","type":"tf","diff":2,"q":"\"Casa\" tem 4 fonemas e 2 sílabas.","ans":true,"exp":"Verdade."},
+    {"id":"sp3_sf5","s":"som_plus","t":"Segmentar fonemas","type":"mc","diff":2,"q":"🔢 \"Filho\" tem ___ fonemas (LH = 1):","opts":["3","4","5"],"ans":1,"exp":"4."},
+    {"id":"sp3_fa1","s":"som_plus","t":"Famílias de palavras","type":"mc","diff":1,"q":"🌳 Família de \"flor\":","opts":["florista","fluido","fome"],"ans":0,"exp":"florista, florido."},
+    {"id":"sp3_fa2","s":"som_plus","t":"Famílias de palavras","type":"mc","diff":2,"q":"🌳 Que palavra NÃO é família de \"livro\"?","opts":["livraria","livrinho","livre"],"ans":2,"exp":"\"Livre\" vem de outra raiz."},
+    {"id":"sp3_fa3","s":"som_plus","t":"Famílias de palavras","type":"mc","diff":2,"q":"🌳 Família de \"terra\":","opts":["terrestre","terno","tempo"],"ans":0,"exp":"terrestre, terreno."},
+    {"id":"sp3_fa4","s":"som_plus","t":"Famílias de palavras","type":"tf","diff":1,"q":"Família partilha raiz E significado.","ans":true,"exp":"Sim."},
+    {"id":"sp3_pc1","s":"som_plus","t":"Palavras compostas","type":"mc","diff":1,"q":"🔗 Palavra composta:","opts":["casa","guarda-chuva","menino"],"ans":1,"exp":"Guarda + chuva."},
+    {"id":"sp3_pc2","s":"som_plus","t":"Palavras compostas","type":"mc","diff":2,"q":"🔗 \"Girassol\" =","opts":["gi + rassol","gira + sol","gi + ras + sol"],"ans":1,"exp":"Gira + sol."},
+    {"id":"sp3_pc3","s":"som_plus","t":"Palavras compostas","type":"mc","diff":2,"q":"🔗 \"Beija-flor\" leva hífen:","opts":["sim","não"],"ans":0,"exp":"Sim."},
+    {"id":"sp3_pc4","s":"som_plus","t":"Palavras compostas","type":"tf","diff":1,"q":"\"Segunda-feira\" leva hífen.","ans":true,"exp":"Sim."},
+    {"id":"sp3_tl1","s":"som_plus","t":"Trava-línguas","type":"mc","diff":1,"q":"🌀 Trava-língua famoso (R):","opts":["O rato roeu...","A bola está parada","O cão ladra"],"ans":0,"exp":"\"O rato roeu a roupa...\""},
+    {"id":"sp3_tl2","s":"som_plus","t":"Trava-línguas","type":"mc","diff":1,"q":"🌀 Para que servem?","opts":["adormecer","treinar articulação","matemática"],"ans":1,"exp":"Articulação + fluência."},
+    {"id":"sp3_tl3","s":"som_plus","t":"Trava-línguas","type":"tf","diff":1,"q":"Começa devagar e depois acelera.","ans":true,"exp":"Sim."},
+    {"id":"sp3_ma1","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":1,"q":"👂 Para boa memória auditiva:","opts":["ter distrações","focar-se","falar ao mesmo tempo"],"ans":1,"exp":"Foco."},
+    {"id":"sp3_ma2","s":"som_plus","t":"Memória auditiva avançada","type":"tf","diff":2,"q":"Imaginar a cena ajuda a recordar.","ans":true,"exp":"Sim."},
+    {"id":"sp3_ma3","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":2,"q":"👂 Inversa de \"gato, mesa, livro, sol\":","opts":["sol, livro, mesa, gato","gato, mesa, livro, sol","sol, mesa, livro, gato"],"ans":0,"exp":"Última primeiro."},
+    {"id":"sp3_ma4","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":1,"q":"👂 Repete: árvore, casa, bola. A 1.ª foi:","opts":["casa","árvore","bola"],"ans":1,"exp":"Árvore."}
 ];
 
 // ============================================================
