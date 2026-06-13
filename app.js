@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v473';
+const APP_VERSION = 'v474';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4596,29 +4596,14 @@ function renderQuestion() {
     }
     if (e.passage) {
         if (e.s === 'leitura') {
-            // Modo leitura: texto grande, vocab inline, tip e TTS.
-            // Marcação **palavra** vira span com tooltip do vocab.
-            const vocab = e.vocab || {};
-            let pass = escapeHtml(e.passage)
-                .replace(/\*\*([^*]+)\*\*/g, (_, w) => {
-                    const def = vocab[w] || vocab[w.toLowerCase()] || '';
-                    const defAttr = String(def).replace(/"/g, '&quot;');
-                    return `<span class="rd-hard" title="${defAttr}">${w}</span>`;
-                })
-                .replace(/\n/g, '<br>');
-            const tipHtml = e.tip ? `<div class="reading-tip">💡 ${escapeHtml(e.tip)}</div>` : '';
-            // Botão principal: abrir Professor de Leitura
+            // Para leitura: o overlay do Professor é a experiência principal.
+            // Aqui só mostramos um botão pequeno para REABRIR caso a Eduarda
+            // tenha fechado e queira voltar. O texto/tip/glossário/passage
+            // ficam APENAS no overlay — evita duplicação.
             const exId = (e.id || '').replace(/'/g, "\\'");
-            const teacherHtml = `<div class="reading-controls">
-                <button class="reading-btn reading-btn-teacher" onclick="openReadingTeacher('${exId}')">🎓 Abrir o Professor de Leitura</button>
+            qHtml += `<div class="reading-controls" style="margin:6px 0 18px">
+                <button class="reading-btn reading-btn-teacher" onclick="openReadingTeacher('${exId}')">🎓 Voltar a abrir o Professor</button>
             </div>`;
-            const vocabEntries = Object.entries(vocab);
-            const vocabHtml = vocabEntries.length
-                ? `<div class="reading-vocab"><div class="reading-vocab-title">📖 Palavras novas</div><ul>${
-                       vocabEntries.map(([w, d]) => `<li><strong>${escapeHtml(w)}</strong> — ${escapeHtml(d)}</li>`).join('')
-                   }</ul></div>`
-                : '';
-            qHtml += `<div class="reading-block">${tipHtml}<div class="reading-passage">${pass}</div>${teacherHtml}${vocabHtml}</div>`;
         } else {
             qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
         }
