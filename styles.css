@@ -5644,3 +5644,162 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     box-shadow: var(--shadow-primary);
 }
 .year-picker-option:has(input:checked) .year-picker-year { color: var(--primary-dark); }
+
+/* ========================================================
+   v458: PLANO DE FÉRIAS — overlay e botão de entrada
+   ======================================================== */
+.holiday-entry-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #d97706 100%);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    margin: 12px 0;
+    cursor: pointer;
+    box-shadow: 0 6px 16px -4px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255,255,255,0.2);
+    font-family: inherit;
+    text-align: left;
+    transition: transform .12s var(--spring-soft);
+}
+.holiday-entry-btn:active { transform: scale(0.985); }
+.holiday-entry-btn .he-icon { font-size: 2rem; flex-shrink: 0; }
+.holiday-entry-btn .he-text { flex: 1; font-size: var(--fs-sm); line-height: 1.35; }
+.holiday-entry-btn .he-text strong { font-size: var(--fs-md); font-weight: var(--fw-black); display: block; }
+.holiday-entry-btn .he-text small { opacity: 0.92; }
+.holiday-entry-btn .he-arrow { font-size: 1.6rem; opacity: 0.85; flex-shrink: 0; }
+
+.holiday-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9100;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 12px;
+    animation: teacher-fade-in .25s var(--spring-soft);
+}
+.holiday-box {
+    width: 100%;
+    max-width: 540px;
+    background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 60%, #fef9c3 100%);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 18px 16px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.holiday-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.holiday-title {
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-black);
+    color: #92400e;
+}
+.holiday-close {
+    background: rgba(146,64,14,0.12);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #92400e;
+    font-weight: var(--fw-bold);
+}
+.holiday-subtitle {
+    font-size: var(--fs-sm);
+    color: #713f12;
+    line-height: 1.45;
+    margin-bottom: 12px;
+    font-weight: var(--fw-semibold);
+}
+.holiday-progress-bar {
+    height: 10px;
+    background: rgba(146,64,14,0.15);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.holiday-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+    border-radius: var(--radius-pill);
+    transition: width .5s var(--spring-soft);
+}
+.holiday-progress-text {
+    text-align: center;
+    font-size: var(--fs-xs);
+    color: #92400e;
+    font-weight: var(--fw-bold);
+    margin-bottom: 12px;
+}
+.holiday-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.holiday-day {
+    background: #fff;
+    border: 2px solid #fcd34d;
+    border-radius: var(--radius-sm);
+    padding: 10px 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: transform .12s var(--spring-soft), box-shadow .12s;
+    box-shadow: 0 2px 0 #fcd34d;
+    font-family: inherit;
+}
+.holiday-day:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 0 #f59e0b, 0 6px 14px -4px rgba(245,158,11,0.35);
+}
+.holiday-day:active:not(:disabled) { transform: translateY(0); }
+.holiday-day-num {
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-extra);
+    color: #92400e;
+}
+.holiday-day-sticker {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+.holiday-day.done {
+    background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+    border-color: #10b981;
+    box-shadow: 0 2px 0 #10b981;
+}
+.holiday-day.done .holiday-day-num { color: #065f46; }
+.holiday-day.locked {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    box-shadow: 0 2px 0 #e5e7eb;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.holiday-day.locked .holiday-day-num { color: #9ca3af; }
+.holiday-finished {
+    margin-top: 10px;
+    background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+    border: 2px solid #10b981;
+    color: #065f46;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-size: var(--fs-base);
+    line-height: 1.5;
+}

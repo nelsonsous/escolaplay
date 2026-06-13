@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v457';
+const APP_VERSION = 'v458';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8865,6 +8865,7 @@ function finishSession() {
 }
 
 function showSummary(s, newBadges, newRewards, streakIncreased) {
+    try { _holidayMarkDoneIfApplicable(s); } catch {}
     document.getElementById('exercise-screen').style.display = 'none';
     document.getElementById('summary-screen').style.display = 'flex';
     const total = s.items.length;
@@ -14841,3 +14842,154 @@ async function _askMistralExplain() {
     }
 }
 window._askMistralExplain = _askMistralExplain;
+
+// ============================================================
+// v458: PLANO DE FÉRIAS — preparação 2.º → 3.º ano para a Eduarda.
+// Adaptação digital da caderneta "Férias do 2.º para o 3.º" da Porto
+// Editora. 14 dias com 7-9 exercícios cada (mix 2.º + 3.º).
+// ============================================================
+const HOLIDAY_DAYS = 14;
+const HOLIDAY_STICKERS = ['☀️','🏖️','🍦','🏊','🐚','🌴','🦋','🎈','🍉','🍿','🎨','🌈','⛵','🦀'];
+
+function _holidayProgress() {
+    if (!state.profile) return {};
+    if (!state.profile.holidayProgress) state.profile.holidayProgress = {};
+    return state.profile.holidayProgress;
+}
+
+function openHolidayPlan() {
+    if (!state.profile) return;
+    const progress = _holidayProgress();
+    let cardsHtml = '';
+    const doneCount = Object.values(progress).filter(Boolean).length;
+    for (let i = 0; i < HOLIDAY_DAYS; i++) {
+        const done = !!progress['day' + i];
+        // Bloqueia dias futuros — só pode fazer o próximo
+        const locked = !done && i > 0 && !progress['day' + (i - 1)];
+        cardsHtml += `<button class="holiday-day ${done ? 'done' : ''} ${locked ? 'locked' : ''}" onclick="${locked ? '' : '_startHolidayDay(' + i + ')'}" ${locked ? 'disabled' : ''}>
+            <div class="holiday-day-num">Dia ${i+1}</div>
+            <div class="holiday-day-sticker">${done ? HOLIDAY_STICKERS[i] : (locked ? '🔒' : '▶️')}</div>
+        </button>`;
+    }
+    const oldOverlay = document.querySelector('.holiday-overlay');
+    if (oldOverlay) oldOverlay.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'holiday-overlay';
+    overlay.innerHTML = `
+        <div class="holiday-box">
+            <div class="holiday-header">
+                <div class="holiday-title">🌞 Plano de Férias para o 3.º</div>
+                <button class="holiday-close" onclick="closeHolidayPlan()" aria-label="Fechar">✕</button>
+            </div>
+            <div class="holiday-subtitle">14 dias para te preparares para o 3.º ano. Português, Matemática e Estudo do Meio. Ganha um autocolante por dia!</div>
+            <div class="holiday-progress-bar"><div class="holiday-progress-fill" style="width:${(doneCount/HOLIDAY_DAYS*100).toFixed(0)}%"></div></div>
+            <div class="holiday-progress-text">${doneCount} de ${HOLIDAY_DAYS} dias completos</div>
+            <div class="holiday-grid">${cardsHtml}</div>
+            ${doneCount === HOLIDAY_DAYS ? '<div class="holiday-finished">🎉 <strong>Acabaste todo o plano!</strong> Estás pronta para o 3.º ano!</div>' : ''}
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+window.openHolidayPlan = openHolidayPlan;
+
+function closeHolidayPlan() {
+    const overlay = document.querySelector('.holiday-overlay');
+    if (overlay) overlay.remove();
+}
+window.closeHolidayPlan = closeHolidayPlan;
+
+// Geração de exercícios para o dia: seeded por dayIdx + profileId para
+// que ao reabrir, dê os MESMOS exercícios (não confundir a Eduarda).
+function _seededShuffle(arr, seed) {
+    const a = arr.slice();
+    let s = seed;
+    for (let i = a.length - 1; i > 0; i--) {
+        s = (s * 9301 + 49297) % 233280;
+        const j = Math.floor((s / 233280) * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function _startHolidayDay(dayIdx) {
+    const subjects = ['portugues', 'matematica', 'estudo_meio'];
+    const seedBase = (dayIdx + 1) * 137 + (state.profile?.id?.length || 0);
+    const exs2 = window.EXERCISES_BY_YEAR[2] || [];
+    const exs3 = window.EXERCISES_BY_YEAR[3] || [];
+    const items = [];
+    subjects.forEach((s, idx) => {
+        const from2 = _seededShuffle(exs2.filter(e => e.s === s && (!e.type || ['mc','tf','fill','problem'].includes(e.type))), seedBase + idx).slice(0, 2);
+        const from3 = _seededShuffle(exs3.filter(e => e.s === s && (!e.type || ['mc','tf','fill','problem'].includes(e.type))), seedBase + idx * 7).slice(0, 1);
+        items.push(...from2, ...from3);
+    });
+    if (items.length === 0) {
+        alert('Não foi possível gerar exercícios para hoje. Tenta de novo.');
+        return;
+    }
+    closeHolidayPlan();
+    // Carrega extras do 2.º se ainda não estão (são placeholders mas mantém consistência)
+    try { if (typeof loadYearExtras === 'function') loadYearExtras(2); } catch {}
+    currentSession = {
+        items,
+        idx: 0,
+        correct: 0,
+        wrong: 0,
+        xp: 0,
+        streak: 0,
+        isDaily: false,
+        isHoliday: true,
+        holidayDay: dayIdx,
+        subject: 'férias',
+        startedAt: Date.now(),
+        results: []
+    };
+    // Inicia o ecrã de exercício
+    document.getElementById('main-screen').style.display = 'none';
+    document.getElementById('summary-screen').style.display = 'none';
+    document.getElementById('exercise-screen').style.display = 'flex';
+    if (typeof renderExercise === 'function') renderExercise();
+    else if (typeof loadCurrentExercise === 'function') loadCurrentExercise();
+}
+window._startHolidayDay = _startHolidayDay;
+
+// Hook no fim da sessão: se foi do Plano de Férias, marca o dia como done.
+function _holidayMarkDoneIfApplicable(s) {
+    if (!s || !s.isHoliday) return;
+    const progress = _holidayProgress();
+    progress['day' + s.holidayDay] = true;
+    if (typeof saveState === 'function') { try { saveState(); } catch {} }
+}
+window._holidayMarkDoneIfApplicable = _holidayMarkDoneIfApplicable;
+
+// Botão de entrada no menu: injectado se o perfil for year=3 (Eduarda).
+function _injectHolidayButton() {
+    if (!state.profile || state.profile.year !== 3) return;
+    if (document.getElementById('holiday-entry-btn')) return; // já existe
+    const main = document.getElementById('main-screen');
+    if (!main) return;
+    // Tenta achar a zona certa (após o avatar/header)
+    const target = main.querySelector('.hero-card') || main.querySelector('.subject-section') || main.querySelector('section') || main;
+    const btn = document.createElement('button');
+    btn.id = 'holiday-entry-btn';
+    btn.className = 'holiday-entry-btn';
+    btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>14 dias para preparar o 3.º ano</small></span><span class="he-arrow">›</span>`;
+    btn.onclick = openHolidayPlan;
+    target.parentNode.insertBefore(btn, target.nextSibling);
+}
+window._injectHolidayButton = _injectHolidayButton;
+
+// Re-injecta sempre que o main screen é exibido
+const _originalShowMain = window.showMainScreen;
+if (typeof _originalShowMain === 'function') {
+    window.showMainScreen = function () {
+        const r = _originalShowMain.apply(this, arguments);
+        try { _injectHolidayButton(); } catch {}
+        return r;
+    };
+}
+// Também injecta ao carregar a página
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(_injectHolidayButton, 500);
+} else {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(_injectHolidayButton, 500));
+}
