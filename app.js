@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v452';
+const APP_VERSION = 'v454';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4616,14 +4616,11 @@ function renderQuestion() {
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
     qHtml += `<span class="ex-q-text">${renderMd(e.q)}</span>`;
-    // Botão 🔊 (TTS) — sempre disponível para a Eduarda ouvir a pergunta.
-    // Exceções: leitura (tem o "Professor de Leitura" próprio) e inglês/frances
-    // (texto em outra língua).
-    const ttsBlocked = (e.s === 'leitura' || e.s === 'ingles' || e.s === 'frances' || e.s === 'english_ge' || e.s === 'english_pm');
-    if (!ttsBlocked && 'speechSynthesis' in window && typeof ttsSpeak === 'function') {
+    // Botão 🔊 só para Som+ (consciência fonológica — precisa de ouvir o som)
+    if (e.s === 'som_plus' && 'speechSynthesis' in window) {
         const textToSpeak = (e.q || '').replace(/\*\*/g,'').replace(/\*/g,'')
             .replace(/'/g,"&#39;").replace(/"/g,'&quot;');
-        qHtml += `<button class="ex-tts-btn" onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" aria-label="Ouvir a pergunta">🔊</button>`;
+        qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
     }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
@@ -14190,7 +14187,10 @@ const _teacher = {
     words: [],          // tokens (palavras normalizadas para comparação)
     rawTokens: [],      // tokens originais (com pontuação)
     spans: [],          // referências aos <span class="t-word">
-    position: 0,        // próxima palavra a ler (índice em words)
+    position: 0,        // próxima palavra esperada a aparecer
+    heardCursor: 0,     // cursor no array de palavras já reconhecidas (não voltar atrás)
+    wordTimes: [],      // timestamp em ms quando cada palavra foi reconhecida
+    punctPositions: [], // [{ afterWord: idx, kind: ',|.|?|!' }] — para avaliar pausa
     recognition: null,
     utterance: null,
     startTime: 0,
@@ -14234,11 +14234,22 @@ function openReadingTeacher(exId) {
     _teacher.mode = null;
 
     // Build HTML: cada palavra é um span; pontuação fica em spans diferentes
+    _teacher.punctPositions = [];
+    _teacher.wordTimes = [];
     let html = '';
     let wordIdx = 0;
     parts.forEach(p => {
         if (/^\s+$/.test(p)) { html += ' '; return; }
-        if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) { html += `<span class="t-punct">${escapeHtml(p)}</span>`; return; }
+        if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) {
+            // Regista pontuação importante (vírgula, ponto, ?, !) e a sua posição
+            // — afterWord = índice da palavra ANTES desta pontuação.
+            const kind = p[0];
+            if ([',', '.', '?', '!', ';', ':'].includes(kind) && wordIdx > 0) {
+                _teacher.punctPositions.push({ afterWord: wordIdx - 1, kind });
+            }
+            html += `<span class="t-punct">${escapeHtml(p)}</span>`;
+            return;
+        }
         const norm = _teacherNormalize(p);
         if (!norm) { html += escapeHtml(p); return; }
         _teacher.words.push(norm);
@@ -14303,6 +14314,7 @@ function _teacherStop() {
         _teacher.recognition = null;
     }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch {}
+    try { if (typeof _stopCurrentAudio === 'function') _stopCurrentAudio(); } catch {}
     _teacher.utterance = null;
     _teacher.mode = null;
     const stopBtn = document.getElementById('teacher-stop-btn');
@@ -14316,7 +14328,10 @@ function _teacherStop() {
 }
 window._teacherStop = _teacherStop;
 
-// =========== Modo OUVIR (TTS karaoke via boundary event) ===========
+// =========== Modo OUVIR (TTS via ttsSpeak — Edge Raquel quando disponível) ===========
+// Usa a voz Raquel Neural (Edge TTS via proxy) se configurada — muito mais
+// natural que a voz robótica do speechSynthesis nativo. Karaoke é simulado
+// por tempo (~380ms por palavra) já que o Edge TTS retorna MP3 sem boundary.
 function _teacherListen() {
     _teacherStop();
     _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
@@ -14326,56 +14341,31 @@ function _teacherListen() {
     if (status) status.innerHTML = '🔊 <strong>O professor está a ler...</strong> Acompanha com os olhos!';
     document.getElementById('teacher-stop-btn').style.display = '';
 
-    // Em iOS / Edge TTS via proxy não temos timestamps por palavra. Usa speechSynthesis nativo
-    // (que tem onboundary em muitos browsers) — fallback: simula highlight por tempo.
-    if (!('speechSynthesis' in window)) {
-        if (status) status.textContent = 'O teu browser não suporta fala.';
+    if (typeof ttsSpeak !== 'function') {
+        if (status) status.textContent = 'Voz não disponível neste browser.';
         return;
     }
-    try { window.speechSynthesis.cancel(); } catch {}
-    const u = new SpeechSynthesisUtterance(_teacher.text);
-    u.lang = 'pt-PT';
-    u.rate = 0.85;
-    u.pitch = 1.0;
-    // tentar escolher voz pt-PT
-    const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-    const ptVoice = voices.find(v => /pt-PT|pt_PT/i.test(v.lang)) || voices.find(v => /^pt/i.test(v.lang));
-    if (ptVoice) u.voice = ptVoice;
 
-    let boundarySupported = false;
-    u.onboundary = (ev) => {
-        if (ev.name === 'word' || !ev.name) {
-            boundarySupported = true;
-            // Mapear charIndex → posição da palavra
-            const upTo = _teacher.text.slice(0, ev.charIndex || 0);
-            const wordsBefore = (upTo.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).length;
-            _teacherHighlight(wordsBefore);
+    // Inicia karaoke por tempo (~380ms/palavra). Para se a Eduarda tocar Parar.
+    const stepMs = 380;
+    let i = 0;
+    const tick = () => {
+        if (_teacher.mode !== 'listen' || i >= _teacher.words.length) {
+            if (_teacher.mode === 'listen') {
+                _teacherHighlightAll();
+                _teacherStop();
+                if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
+            }
+            return;
         }
+        _teacherHighlight(i);
+        i++;
+        setTimeout(tick, stepMs);
     };
-    u.onend = () => {
-        _teacherHighlightAll();
-        _teacherStop();
-        if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
-    };
-    u.onerror = () => { _teacherStop(); };
-    _teacher.utterance = u;
-    window.speechSynthesis.speak(u);
+    setTimeout(tick, 300); // pequeno delay para o áudio começar
 
-    // Fallback: se boundary não dispara nos primeiros 800ms, faz simulação por tempo
-    setTimeout(() => {
-        if (!boundarySupported && _teacher.mode === 'listen') {
-            const totalDuration = Math.max(2000, _teacher.words.length * 380); // ~380ms/palavra @ rate 0.85
-            const step = totalDuration / Math.max(1, _teacher.words.length);
-            let i = 0;
-            const tick = () => {
-                if (_teacher.mode !== 'listen' || i >= _teacher.words.length) return;
-                _teacherHighlight(i);
-                i++;
-                setTimeout(tick, step);
-            };
-            tick();
-        }
-    }, 800);
+    // Dispara o áudio (assíncrono — usa proxy Edge TTS Raquel se configurado).
+    try { ttsSpeak(_teacher.text); } catch (e) { console.warn('[teacher] tts failed', e); }
 }
 window._teacherListen = _teacherListen;
 
@@ -14405,6 +14395,8 @@ function _teacherStartRead() {
     _teacherStop();
     _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
     _teacher.position = 0;
+    _teacher.heardCursor = 0;
+    _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
     _teacher.mode = 'read';
     _teacher.startTime = Date.now();
     if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
@@ -14455,43 +14447,52 @@ function _teacherStartRead() {
 window._teacherStartRead = _teacherStartRead;
 
 // Avalia palavras ouvidas vs esperadas.
-// Algoritmo: avança a posição enquanto encontra match. Tolerância: aceita
-// 1 palavra à frente (para o caso de saltar). Palavras "saltadas" ficam
-// marcadas como erradas.
+// Usa cursores PERSISTENTES (heardCursor + position) entre chamadas — assim
+// não voltamos a re-processar palavras já reconhecidas. Tolerância: 1 skip.
 function _teacherMatchHeard(heard) {
-    let h = 0;
-    for (let p = _teacher.position; p < _teacher.words.length && h < heard.length;) {
+    const matches = (expected, got) => {
+        if (!expected || !got) return false;
+        if (expected === got) return true;
+        // tolerância: palavra parcial (ASR pode partir compostos)
+        if (expected.length >= 3 && got.length >= 3) {
+            if (expected.startsWith(got) || got.startsWith(expected)) return true;
+        }
+        return false;
+    };
+    let h = _teacher.heardCursor;
+    let p = _teacher.position;
+    while (p < _teacher.words.length && h < heard.length) {
         const expected = _teacher.words[p];
         const got = heard[h];
         if (!got) { h++; continue; }
-        if (expected === got || (expected && got && (expected.startsWith(got) || got.startsWith(expected)))) {
+        if (matches(expected, got)) {
             _teacher.spans[p].classList.remove('t-bad', 't-current');
             _teacher.spans[p].classList.add('t-good');
-            p++;
-            h++;
-            _teacher.position = p;
-            // marca próxima como current
-            if (_teacher.spans[p]) _teacher.spans[p].classList.add('t-current');
-        } else {
-            // tenta saltar 1 palavra esperada (pode ter pronunciado mal)
-            if (p + 1 < _teacher.words.length) {
-                const nextExp = _teacher.words[p + 1];
-                if (nextExp === got || (nextExp && got && (nextExp.startsWith(got) || got.startsWith(nextExp)))) {
-                    _teacher.spans[p].classList.remove('t-current');
-                    _teacher.spans[p].classList.add('t-bad');
-                    _teacher.spans[p + 1].classList.add('t-good');
-                    p += 2;
-                    h++;
-                    _teacher.position = p;
-                    if (_teacher.spans[p]) _teacher.spans[p].classList.add('t-current');
-                    continue;
-                }
+            if (!_teacher.wordTimes[p]) _teacher.wordTimes[p] = Date.now();
+            p++; h++;
+            if (_teacher.spans[p]) {
+                // limpa qualquer current existente (apenas 1 current de cada vez)
+                _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
+                _teacher.spans[p].classList.add('t-current');
             }
-            // não consegui match — saltar ouvido
+        } else if (p + 1 < _teacher.words.length && matches(_teacher.words[p + 1], got)) {
+            // saltou 1 palavra (pronunciou mal a primeira)
+            _teacher.spans[p].classList.remove('t-current');
+            _teacher.spans[p].classList.add('t-bad');
+            _teacher.spans[p + 1].classList.add('t-good');
+            if (!_teacher.wordTimes[p + 1]) _teacher.wordTimes[p + 1] = Date.now();
+            p += 2; h++;
+            if (_teacher.spans[p]) {
+                _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
+                _teacher.spans[p].classList.add('t-current');
+            }
+        } else {
+            // talvez seja palavra de "enchimento" (hesitação, repetição) — skipar
             h++;
         }
     }
-    // Se chegou ao fim
+    _teacher.position = p;
+    _teacher.heardCursor = h;
     if (_teacher.position >= _teacher.words.length) {
         try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
     }
@@ -14501,20 +14502,46 @@ function _teacherFinishRead() {
     const duration = (Date.now() - _teacher.startTime) / 1000;
     const total = _teacher.words.length;
     const correct = _teacher.spans.filter(sp => sp.classList.contains('t-good')).length;
-    const bad = _teacher.spans.filter(sp => sp.classList.contains('t-bad')).length;
-    const missed = total - correct - bad;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     const wpm = duration > 0 ? Math.round((correct / duration) * 60) : 0;
 
-    // Pontuação: heurística simples baseada em duração esperada
-    // Esperado: ~100 wpm para um leitor de 3.º ano. Se foi >130 wpm, leu rápido demais.
+    // Avaliação de PONTUAÇÃO via timestamps das palavras reconhecidas:
+    // Se há vírgula/ponto/etc. entre palavra[i] e palavra[i+1], compara
+    // (wordTimes[i+1] − wordTimes[i]) com um threshold:
+    //   ponto/exclamação/interrogação → ≥ 380ms = respeitada
+    //   vírgula/dois pontos/ponto-e-vírgula → ≥ 220ms = respeitada
+    let punctTotal = 0, punctRespected = 0;
+    const punctDetail = { '.': [0, 0], '?': [0, 0], '!': [0, 0], ',': [0, 0], ';': [0, 0], ':': [0, 0] };
+    _teacher.punctPositions.forEach(({ afterWord, kind }) => {
+        const t1 = _teacher.wordTimes[afterWord];
+        const t2 = _teacher.wordTimes[afterWord + 1];
+        if (!t1 || !t2) return;
+        punctTotal++;
+        const pause = t2 - t1;
+        const threshold = ('.?!'.includes(kind)) ? 380 : 220;
+        if (pause >= threshold) {
+            punctRespected++;
+            if (punctDetail[kind]) { punctDetail[kind][0]++; punctDetail[kind][1]++; }
+        } else {
+            if (punctDetail[kind]) punctDetail[kind][1]++;
+        }
+    });
+
+    // Dica baseada nos resultados
     let pontMsg = '';
-    if (wpm > 130 && correct > 5) {
-        pontMsg = '⚠️ Leste muito rápido. Tenta fazer pausa nas vírgulas (curta) e nos pontos (mais longa) na próxima.';
+    if (punctTotal > 0) {
+        const pctPunct = Math.round((punctRespected / punctTotal) * 100);
+        if (pctPunct >= 80) {
+            pontMsg = `👏 <strong>Excelente pontuação!</strong> Respeitaste ${punctRespected} de ${punctTotal} pausas.`;
+        } else if (pctPunct >= 50) {
+            pontMsg = `🙂 Respeitaste ${punctRespected} de ${punctTotal} pausas. Tenta fazer pausa um pouquinho maior nas vírgulas (1 batida) e nos pontos (2 batidas).`;
+        } else {
+            pontMsg = `⚠️ <strong>Atenção à pontuação!</strong> Só respeitaste ${punctRespected} de ${punctTotal} pausas. Lê mais devagar e pára nas vírgulas e nos pontos.`;
+        }
+    } else if (wpm > 130 && correct > 5) {
+        pontMsg = '⚠️ Leste muito rápido. Tenta fazer pausa nas vírgulas e nos pontos na próxima.';
     } else if (wpm < 60 && correct > 5) {
-        pontMsg = '🐢 Leste muito devagar. Está bem — agora tenta de novo um bocadinho mais fluido.';
-    } else if (correct > 5) {
-        pontMsg = '👌 Boa velocidade! Continua a treinar para ler ainda mais fluido.';
+        pontMsg = '🐢 Leste muito devagar. Tenta de novo um bocadinho mais fluido.';
     }
 
     let stars = '⭐';
@@ -14529,7 +14556,8 @@ function _teacherFinishRead() {
             <div class="teacher-fb-stats">
                 <div><strong>${correct}</strong>/${total} palavras certas</div>
                 <div><strong>${pct}%</strong> de precisão</div>
-                <div><strong>${wpm}</strong> palavras / minuto</div>
+                <div><strong>${wpm}</strong> palavras / min</div>
+                ${punctTotal > 0 ? `<div><strong>${punctRespected}</strong>/${punctTotal} pausas ✓</div>` : ''}
             </div>
             ${pontMsg ? `<div class="teacher-fb-tip">${pontMsg}</div>` : ''}
             <div class="teacher-fb-actions">
