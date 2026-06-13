@@ -1501,21 +1501,21 @@ const EXERCISES_2 = [
 
 
 // ============================================================
-// ===================== 3.º ANO ==============================
+// ============= 3.º ANO — COLÉGIO OCEANUS (year=31) ==========
 // Aprendizagens Essenciais 2018 (alinhado com manuais Texto/Porto/Areal).
 // NOTA: para o aluno do Colégio Oceanus, Estudo do Meio é leccionado
 // EM INGLÊS — a disciplina aparece como "Science" e o conteúdo (tópicos,
 // perguntas, explicações) está em inglês. As outras disciplinas mantêm-se
 // em português.
 // ============================================================
-const SUBJECTS_3 = {
+const SUBJECTS_3_OCEANUS = {
     portugues:    { name: 'Português',      icon: 'fa-book',         color: '#e11d48' },
     matematica:   { name: 'Matemática',     icon: 'fa-calculator',   color: '#2563eb' },
     estudo_meio:  { name: 'Science',         icon: 'fa-globe',        color: '#16a34a' },
     ingles:       { name: 'English',         icon: 'fa-language',     color: '#7c3aed' }
 };
 
-const CURRICULUM_3 = {
+const CURRICULUM_3_OCEANUS = {
     portugues: [
         'Ditongos e hiatos', 'Acentuação', 'Translineação',
         'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Adjetivos', 'Verbos', 'Plurais e feminino',
@@ -1548,7 +1548,7 @@ const CURRICULUM_3 = {
     ]
 };
 
-const PERIODS_3 = {
+const PERIODS_3_OCEANUS = {
     portugues:   {
         'Ditongos e hiatos':1, 'Acentuação':1, 'Translineação':1,
         'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
@@ -1576,7 +1576,7 @@ const PERIODS_3 = {
     }
 };
 
-const LESSONS_3 = {
+const LESSONS_3_OCEANUS = {
     // ===== PORTUGUÊS =====
     'portugues/Ditongos e hiatos': {
         title: 'Ditongos e hiatos',
@@ -1782,7 +1782,7 @@ const LESSONS_3 = {
     }
 };
 
-const EXERCISES_3 = [
+const EXERCISES_3_OCEANUS = [
     // ===========================================================
     // PORTUGUÊS 3.º
     // ===========================================================
@@ -2018,6 +2018,473 @@ const EXERCISES_3 = [
     { id:'3i27', s:'ingles', t:'Reading comprehension', type:'mc', diff:2, q:'📖 The place where a story happens is called the:', opts:['setting','plot','character'], ans:0, exp:'Setting = where (and when) the story takes place.' },
 ];
 
+
+// ============================================================
+// ========== 3.º ANO — COLÉGIO DE LOURDES (year=3) ===========
+// Currículo Aprendizagens Essenciais 2018, alinhado com os manuais
+// adotados pelo Colégio de Nossa Senhora de Lourdes (Santo Tirso)
+// para o ano letivo 2025/2026:
+//
+//  • Português, Matemática, Estudo do Meio: Missão Zupi 3 (Porto Editora)
+//    António José Mota, Filipe Cardoso. Cada manual com Livro de Fichas.
+//  • Inglês: Kid's Box [New Generation] Pupil's Book 2 + Activity Book 2
+//    (Cambridge English) — Caroline Nixon, Michael Tomlinson.
+//  • Formação Cristã: Ao Encontro 3 (S.N.E.C.) — Catarina Moura,
+//    Jaime Barbosa, José Sousa.
+//  • Cidadania e Desenvolvimento: Estratégia Nacional (sem manual).
+// ============================================================
+const SUBJECTS_3 = {
+    portugues:        { name: 'Português',         icon: 'fa-book',         color: '#e11d48' },
+    matematica:       { name: 'Matemática',        icon: 'fa-calculator',   color: '#2563eb' },
+    estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',        color: '#16a34a' },
+    ingles:           { name: 'Inglês',            icon: 'fa-language',     color: '#7c3aed' },
+    formacao_crista:  { name: 'Formação Cristã',   icon: 'fa-cross',        color: '#d97706' },
+    cidadania:        { name: 'Cidadania',         icon: 'fa-people-group', color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' }
+};
+
+const CURRICULUM_3 = {
+    portugues: [
+        'Sílabas', 'Ditongos e hiatos', 'Acentuação', 'Translineação',
+        'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Pronomes pessoais',
+        'Adjetivos', 'Verbos', 'Plurais e feminino',
+        'Tipos de frase', 'Sinónimos e antónimos', 'Família de palavras',
+        'Compreensão de texto', 'Texto poético', 'Banda desenhada'
+    ],
+    matematica: [
+        'Números até 10 000', 'Valor posicional', 'Adição e subtração', 'Multiplicação',
+        'Tabuadas', 'Cálculo mental', 'Divisão', 'Múltiplos e divisores',
+        'Frações', 'Polígonos', 'Sólidos geométricos', 'Perímetro',
+        'Comprimento', 'Massa e capacidade', 'Tempo', 'Dinheiro', 'Tabelas e gráficos'
+    ],
+    estudo_meio: [
+        'O passado da criança', 'O corpo humano', 'Os sistemas do corpo',
+        'A saúde e a prevenção', 'Os cinco sentidos',
+        'O passado do meio local', 'Símbolos nacionais', 'Instituições e serviços',
+        'Os astros', 'Aspetos físicos do meio', 'Animais', 'Plantas',
+        'Materiais e objetos', 'Experiências'
+    ],
+    ingles: [
+        'Greetings and feelings', 'School things', 'Toys and playtime',
+        'Rooms at home', 'Family members', 'Farm animals', 'My town',
+        'Clothes', 'Hobbies and sports', 'Numbers and colours'
+    ],
+    formacao_crista: [
+        'Eu sou único e importante', 'Viver em família',
+        'A criação do mundo', 'A vida de Jesus',
+        'A Igreja e os sacramentos', 'Valores cristãos'
+    ],
+    cidadania: [
+        'Direitos e deveres', 'Regras de convivência', 'Diversidade e respeito',
+        'Ambiente e sustentabilidade', 'Segurança rodoviária', 'Saúde e bem-estar'
+    ]
+};
+
+const PERIODS_3 = {
+    portugues: {
+        'Sílabas':1, 'Ditongos e hiatos':1, 'Acentuação':1, 'Translineação':1,
+        'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Pronomes pessoais':2,
+        'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
+        'Tipos de frase':3, 'Sinónimos e antónimos':3, 'Família de palavras':3,
+        'Compreensão de texto':3, 'Texto poético':3, 'Banda desenhada':3
+    },
+    matematica: {
+        'Números até 10 000':1, 'Valor posicional':1, 'Adição e subtração':1, 'Multiplicação':1,
+        'Tabuadas':2, 'Cálculo mental':2, 'Divisão':2, 'Múltiplos e divisores':2,
+        'Frações':3, 'Polígonos':3, 'Sólidos geométricos':3, 'Perímetro':3,
+        'Comprimento':3, 'Massa e capacidade':3, 'Tempo':3, 'Dinheiro':3, 'Tabelas e gráficos':3
+    },
+    estudo_meio: {
+        'O passado da criança':1, 'O corpo humano':1, 'Os sistemas do corpo':1,
+        'A saúde e a prevenção':1, 'Os cinco sentidos':1,
+        'O passado do meio local':2, 'Símbolos nacionais':2, 'Instituições e serviços':2,
+        'Os astros':3, 'Aspetos físicos do meio':3, 'Animais':3, 'Plantas':3,
+        'Materiais e objetos':3, 'Experiências':3
+    },
+    ingles: {
+        'Greetings and feelings':1, 'School things':1, 'Numbers and colours':1,
+        'Toys and playtime':2, 'Rooms at home':2, 'Family members':2,
+        'Farm animals':3, 'My town':3, 'Clothes':3, 'Hobbies and sports':3
+    },
+    formacao_crista: {
+        'Eu sou único e importante':1, 'Viver em família':1,
+        'A criação do mundo':2, 'A vida de Jesus':2,
+        'A Igreja e os sacramentos':3, 'Valores cristãos':3
+    },
+    cidadania: {
+        'Direitos e deveres':1, 'Regras de convivência':1,
+        'Diversidade e respeito':2, 'Saúde e bem-estar':2,
+        'Ambiente e sustentabilidade':3, 'Segurança rodoviária':3
+    }
+};
+
+// LIÇÕES — Português e Matemática reaproveitam o bloco Oceanus
+// (mesmo programa nacional / AE 2018). Restantes disciplinas são novas.
+const LESSONS_3 = {
+    ...Object.fromEntries(Object.entries(LESSONS_3_OCEANUS).filter(([k]) =>
+        k.startsWith('portugues/') || k.startsWith('matematica/')
+    )),
+
+    // ----- PORTUGUÊS (novos do Lourdes) -----
+    'portugues/Sílabas': {
+        title: 'Sílabas',
+        body: 'Uma **sílaba** é um som que se pronuncia de uma só vez. Toda a sílaba tem PELO MENOS uma vogal.\n\nExemplos de divisão silábica:\n• **ca-sa** (2 sílabas)\n• **bor-bo-le-ta** (4 sílabas)\n• **pão** (1 sílaba — ditongo)\n• **sa-í-da** (3 sílabas — hiato)\n\n**Sílaba tónica** = a sílaba que se pronuncia com mais força. Ex: em "**ca**-sa" a sílaba tónica é "ca".\n\n**❌ O que se costuma errar**\n• Esquecer que toda a sílaba tem uma vogal.\n• Não saber que ditongos (pai, mãe) ficam numa única sílaba.\n• Trocar sílaba tónica (forte) com sílaba átona (fraca).'
+    },
+    'portugues/Pronomes pessoais': {
+        title: 'Pronomes pessoais',
+        body: 'Os **pronomes pessoais** substituem os nomes para evitar repetições.\n\n**Sujeito** (quem faz a ação):\n• 1.ª pessoa: **eu** (singular) / **nós** (plural)\n• 2.ª pessoa: **tu** (singular) / **vós** (plural)\n• 3.ª pessoa: **ele/ela** (singular) / **eles/elas** (plural)\n\nEx: "A Maria comprou um livro. **Ela** está contente." — "Ela" = Maria.\n\n**Complemento** (depois do verbo): me, te, o/a, nos, vos, os/as. Ex: "Vi-**o** ontem" (= vi ele ontem).\n\n**❌ O que se costuma errar**\n• Confundir "ele" (3.ª pessoa) com "tu" (2.ª pessoa).\n• Esquecer que "vós" é plural de "tu" (raro hoje, usa-se "vocês").\n• Achar que "o" e "a" são sempre artigos — também podem ser pronomes (vi-o = vi ele).'
+    },
+    'portugues/Texto poético': {
+        title: 'Texto poético',
+        body: 'Um **poema** é um texto escrito em **versos** (linhas) agrupados em **estrofes**.\n\n• **Verso** — cada linha do poema.\n• **Estrofe** — grupo de versos separados por uma linha em branco.\n• **Rima** — palavras com sons parecidos no fim do verso. Ex: lu**a** / ru**a**, m**ar** / cant**ar**.\n• **Ritmo** — a cadência/musicalidade.\n\nUma estrofe de 4 versos chama-se **quadra**.\n\n**❌ O que se costuma errar**\n• Confundir verso (linha) com estrofe (grupo de linhas).\n• Achar que todo o texto com rimas é um poema.\n• Contar mal as estrofes — separam-se por linhas em branco.'
+    },
+    'portugues/Banda desenhada': {
+        title: 'Banda desenhada',
+        body: 'A **banda desenhada (BD)** conta uma história com **imagens e palavras**.\n\n• **Vinheta** — cada "quadradinho" da BD.\n• **Balão** — onde se escreve o que a personagem **diz**.\n• **Pensamento** — balão em forma de nuvem (o que a personagem **pensa**).\n• **Legenda** — texto fora dos balões (narrador).\n• **Onomatopeia** — palavras que imitam sons: BOOM!, MIAU!, ZÁS!.\n\nA BD lê-se da **esquerda para a direita** e de **cima para baixo**.\n\n**❌ O que se costuma errar**\n• Confundir balão de fala com balão de pensamento (nuvem).\n• Não saber a ordem de leitura.\n• Ignorar as onomatopeias — fazem parte da narrativa.'
+    },
+
+    // ----- MATEMÁTICA (novos do Lourdes) -----
+    'matematica/Cálculo mental': {
+        title: 'Cálculo mental',
+        body: 'O **cálculo mental** é fazer contas DE CABEÇA, sem papel. Truques:\n\n• **Decompor**: 47 + 25 = (40 + 20) + (7 + 5) = 60 + 12 = 72.\n• **Arredondar**: 98 + 56 ≈ 100 + 56 − 2 = 154.\n• **Compensar** na subtração: 73 − 28 = 73 − 30 + 2 = 45.\n• Multiplicar por 10/100/1000: juntar zeros (4 × 100 = 400).\n• Metade e dobro: 8 × 5 = (8 × 10) ÷ 2 = 40.\n\nQuanto mais treinares, mais rápido fica.\n\n**❌ O que se costuma errar**\n• Esquecer de compensar (47 + 25 → arredondo a 50, esqueço-me de tirar 3).\n• Achar que tudo se decompõe igual — é preciso escolher boa estratégia.\n• Confundir "metade" com "dobro".'
+    },
+    'matematica/Massa e capacidade': {
+        title: 'Massa e capacidade',
+        body: '**Massa** mede-se em **gramas (g)** e **quilogramas (kg)**.\n• 1 **kg** = 1 000 g\n• 1 **t** (tonelada) = 1 000 kg\n\nInstrumento: a **balança**.\n\n**Capacidade** mede-se em **litros (L)** e **mililitros (mL)**.\n• 1 **L** = 1 000 mL\n• 1 **dL** = 100 mL = 1/10 L\n\nInstrumento: o **copo graduado** / **medidor**.\n\nExemplos:\n• 1 maçã ≈ 200 g; 1 saco de batatas ≈ 5 kg\n• 1 garrafa de água = 1,5 L; 1 chávena ≈ 250 mL\n\n**❌ O que se costuma errar**\n• Confundir massa (kg, g) com capacidade (L, mL).\n• Esquecer que 1 kg = 1 000 g (não 100).\n• Trocar L com mL: 500 mL = meio L, NÃO 500 L.'
+    },
+
+    // ----- ESTUDO DO MEIO (em português) -----
+    'estudo_meio/O passado da criança': {
+        title: 'O passado da criança',
+        body: 'Cada criança tem um **passado** — coisas que aconteceram na sua vida. Para o organizar usa-se uma **linha do tempo**.\n\n• **Data de nascimento** — o dia, mês e ano em que nasceste.\n• **Idade** — quantos anos tens hoje.\n• **Marcos importantes**: creche, jardim de infância, 1.º ano da escola, mudanças, viagens.\n• **Árvore genealógica** — esquema da família (pais, avós, bisavós, irmãos, tios, primos).\n\nDocumentos importantes: **cartão de cidadão**, **boletim de vacinas**.\n\n**❌ O que se costuma errar**\n• Confundir avós (pais dos teus pais) com bisavós (pais dos avós).\n• Esquecer-se de que a idade muda no dia do aniversário.\n• Não saber a diferença entre primo (filho de tio) e irmão.'
+    },
+    'estudo_meio/O corpo humano': {
+        title: 'O corpo humano',
+        body: 'O corpo humano divide-se em 3 grandes partes:\n\n• **Cabeça** — onde estão o cérebro e os 5 sentidos.\n• **Tronco** — onde estão os órgãos vitais (coração, pulmões, estômago).\n• **Membros** — superiores (braços, mãos) e inferiores (pernas, pés).\n\nO **esqueleto** (~206 ossos) dá forma ao corpo e protege os órgãos. Os **músculos** ligam-se aos ossos e fazem-nos mover. As **articulações** (joelho, cotovelo) permitem dobrar.\n\n**❌ O que se costuma errar**\n• Achar que coração e pulmões estão na cabeça — estão no tronco.\n• Confundir esqueleto (ossos) com músculos.\n• Esquecer-se que a pele é o maior órgão do corpo.'
+    },
+    'estudo_meio/Os sistemas do corpo': {
+        title: 'Os sistemas do corpo',
+        body: 'O corpo trabalha através de **sistemas**:\n\n• **Sistema digestivo** — transforma comida em energia. Boca → esófago → estômago → intestinos → ânus.\n• **Sistema respiratório** — traz oxigénio. Nariz/boca → traqueia → pulmões.\n• **Sistema circulatório** — leva sangue a todo o corpo. **Coração** + veias + artérias.\n• **Sistema urinário** — filtra o sangue e elimina urina. Rins + bexiga.\n• **Sistema reprodutor** — para ter filhos.\n• **Sistema nervoso** — controla tudo. Cérebro + medula + nervos.\n\nTodos trabalham em conjunto.\n\n**❌ O que se costuma errar**\n• Confundir digestivo (comida) com respiratório (ar).\n• Achar que o sangue circula apenas pelas artérias — também pelas veias.\n• Esquecer que o cérebro coordena tudo.'
+    },
+    'estudo_meio/A saúde e a prevenção': {
+        title: 'A saúde e a prevenção',
+        body: 'Para sermos **saudáveis** precisamos de:\n\n• **Alimentação variada e equilibrada** — fruta, vegetais, cereais, lacticínios, carne/peixe/ovos, sem excesso de doces.\n• **Roda dos Alimentos** — mostra as proporções.\n• **Exercício físico** — pelo menos 1h/dia.\n• **Higiene**: lavar as mãos antes das refeições, escovar dentes 2× por dia, banho diário.\n• **Sono** — 9–11 horas para uma criança.\n• **Vacinas** — protegem-nos de doenças graves.\n• Visitas regulares ao **médico** e ao **dentista**.\n\n**❌ O que se costuma errar**\n• Achar que basta comer fruta para ser saudável — é preciso variar.\n• Esquecer-se de lavar as mãos antes de comer.\n• Não saber que dormir mal afeta a saúde.'
+    },
+    'estudo_meio/Os cinco sentidos': {
+        title: 'Os cinco sentidos',
+        body: 'Os **5 sentidos** ajudam-nos a conhecer o mundo:\n\n• **Visão** — os **olhos** veem cores, formas, distâncias.\n• **Audição** — os **ouvidos** ouvem sons.\n• **Olfato** — o **nariz** cheira.\n• **Paladar** — a **língua** sente sabores (doce, salgado, ácido, amargo).\n• **Tato** — a **pele** sente temperatura, dor, pressão, texturas.\n\nAlgumas pessoas têm um sentido que não funciona bem (cegos, surdos) e desenvolvem mais os outros.\n\n**❌ O que se costuma errar**\n• Confundir olfato (cheiro) com paladar (sabor).\n• Esquecer que o tato está em toda a pele.\n• Achar que só vemos com luz natural.'
+    },
+    'estudo_meio/O passado do meio local': {
+        title: 'O passado do meio local',
+        body: 'O **meio local** é o sítio onde vives (a tua freguesia, vila ou cidade).\n\n• Tem um **nome**, uma **bandeira** e um **brasão**.\n• Pertence a um **concelho** (governado por uma **Câmara Municipal**).\n• O concelho pertence a um **distrito** ou **região**.\n\nO meio local tem **vestígios do passado**:\n• **Monumentos** antigos (igrejas, castelos, casas, fontes).\n• **Tradições** (festas, danças, comida típica).\n• **Personalidades** importantes que ali nasceram ou viveram.\n\nSanto Tirso é conhecido pelo **Mosteiro de São Bento** e pela indústria têxtil.\n\n**❌ O que se costuma errar**\n• Confundir concelho (município) com distrito (maior).\n• Esquecer que cada freguesia tem o seu nome próprio.\n• Achar que monumentos só estão em Lisboa.'
+    },
+    'estudo_meio/Símbolos nacionais': {
+        title: 'Símbolos nacionais',
+        body: 'Portugal tem **símbolos** que o representam:\n\n• **Bandeira** — verde (esquerda) e vermelho (direita), com o escudo. A esfera armilar lembra os Descobrimentos.\n• **Hino** — "A Portuguesa", de 1890.\n• **Língua oficial** — português.\n• **Capital** — Lisboa.\n\n**Datas nacionais importantes**:\n• **25 de Abril** (1974) — Dia da Liberdade (Revolução dos Cravos).\n• **10 de Junho** — Dia de Portugal, de Camões e das Comunidades.\n• **1 de Dezembro** (1640) — Restauração da Independência.\n• **5 de Outubro** (1910) — Implantação da República.\n\n**❌ O que se costuma errar**\n• Trocar as cores da bandeira (verde fica à ESQUERDA do mastro).\n• Confundir 25 de Abril com 10 de Junho.\n• Esquecer que a capital é Lisboa.'
+    },
+    'estudo_meio/Instituições e serviços': {
+        title: 'Instituições e serviços',
+        body: 'Há **instituições** e **serviços** que ajudam a comunidade:\n\n• **Câmara Municipal** — gere o concelho (estradas, parques, lixo).\n• **Junta de Freguesia** — gere a freguesia.\n• **Escola** — para aprender.\n• **Hospital** e **Centro de Saúde** — saúde.\n• **Bombeiros** — apagam fogos, socorrem feridos.\n• **GNR / PSP** — polícia, mantém a segurança.\n• **Correios (CTT)** — entregam cartas.\n• **Biblioteca** — empresta livros.\n• **Igreja / Centro paroquial** — apoio espiritual e social.\n\nNúmero de emergência: **112** (gratuito, válido em toda a Europa).\n\n**❌ O que se costuma errar**\n• Confundir GNR (rural) com PSP (urbana).\n• Esquecer o número de emergência (112).\n• Confundir Câmara Municipal com Junta de Freguesia.'
+    },
+    'estudo_meio/Os astros': {
+        title: 'Os astros',
+        body: 'Os **astros** são corpos celestes no espaço.\n\n• **Estrelas** — bolas de gás com luz própria. O **Sol** é a nossa estrela.\n• **Planetas** — orbitam uma estrela. A **Terra** é um planeta.\n• **Satélites naturais** — orbitam planetas. A **Lua** é o satélite da Terra.\n\n**Sistema Solar** — 8 planetas pela ordem do Sol:\nMercúrio, Vénus, **Terra**, Marte, Júpiter, Saturno, Úrano, Neptuno.\n\n**Movimentos da Terra**:\n• **Rotação** — gira sobre si própria em **24 horas** (dia/noite).\n• **Translação** — gira à volta do Sol em **365 dias** (1 ano, estações).\n\n**❌ O que se costuma errar**\n• Achar que a Lua emite luz própria — só reflete a luz do Sol.\n• Confundir rotação (24h) com translação (1 ano).\n• Trocar a ordem dos planetas (Terra é o **3.º**).'
+    },
+    'estudo_meio/Aspetos físicos do meio': {
+        title: 'Aspetos físicos do meio',
+        body: 'O **relevo** = forma da superfície da Terra:\n\n• **Montanha** — terra muito alta. Em Portugal: **Serra da Estrela** (Torre 1 993 m), **Pico** (Açores 2 351 m — o mais alto).\n• **Colina** — elevação pequena.\n• **Planície** — terra plana.\n• **Vale** — terra baixa entre montanhas.\n\n**Cursos de água**:\n• **Rio** — corre por um leito. Principais: **Tejo**, **Douro**, **Mondego**, **Guadiana**, **Minho**.\n• **Lago** / **lagoa** — água parada.\n• **Mar / oceano** — água salgada. Portugal tem costa no **Atlântico**.\n\n**❌ O que se costuma errar**\n• Confundir lago (parado) com rio (corre).\n• Esquecer que o ponto mais alto é o **Pico** (Açores).\n• Achar que o mar é doce.'
+    },
+    'estudo_meio/Animais': {
+        title: 'Animais',
+        body: 'Os **animais** classificam-se em grupos:\n\n• **Mamíferos** — pelo, mães amamentam. Ex: cão, vaca, ser humano, baleia (sim!), morcego.\n• **Aves** — penas, bico, ovos. Ex: pomba, águia, galinha, pinguim.\n• **Répteis** — escamas, sangue frio. Ex: cobra, lagarto, crocodilo, tartaruga.\n• **Anfíbios** — vivem na água e em terra. Ex: rã, sapo, salamandra.\n• **Peixes** — vivem na água, respiram por **brânquias**. Ex: sardinha, atum.\n• **Insetos** — 6 patas, 3 partes do corpo. Ex: formiga, abelha, borboleta.\n\n**Alimentação**: herbívoros (plantas), carnívoros (carne), omnívoros (tudo).\n\n**❌ O que se costuma errar**\n• Achar que a baleia é peixe — é **mamífero**.\n• Confundir réptil com anfíbio.\n• Esquecer que insetos têm 6 patas (aranhas têm 8 e NÃO são insetos).'
+    },
+    'estudo_meio/Plantas': {
+        title: 'Plantas',
+        body: 'As **plantas** são seres vivos. Têm 4 partes principais:\n\n• **Raiz** — fixa a planta e absorve água e sais minerais do solo.\n• **Caule** — sustenta a planta e leva água até às folhas.\n• **Folhas** — fazem o alimento da planta (**fotossíntese**) usando luz solar.\n• **Flor** — forma sementes; depois transforma-se em fruto.\n\nA **fotossíntese** = as folhas usam luz + água + ar (CO₂) para fazer alimento e libertam **oxigénio**.\n\nA planta precisa de: **luz**, **água**, **ar** e **sais minerais**.\n\n**❌ O que se costuma errar**\n• Achar que as plantas fazem alimento nas raízes — fazem nas **folhas**.\n• Esquecer que as plantas libertam oxigénio.\n• Confundir flor com folha.'
+    },
+    'estudo_meio/Materiais e objetos': {
+        title: 'Materiais e objetos',
+        body: 'Os **materiais** podem ser:\n\n• **Naturais** — vêm da natureza. Madeira, lã, algodão, pedra, barro.\n• **Artificiais** — feitos pelo Homem. Plástico, vidro, papel, metal trabalhado.\n\n**Propriedades**:\n• **Transparente** (deixa ver) ↔ **opaco** (não deixa).\n• **Rígido** ↔ **flexível**.\n• **Áspero** ↔ **liso**.\n• **Frágil** ↔ **resistente**.\n• **Bom** ou **mau** condutor de calor / eletricidade.\n\n**Reciclar**: papel → ecoponto **AZUL**; embalagens (plástico/metal) → **AMARELO**; vidro → **VERDE**.\n\n**❌ O que se costuma errar**\n• Trocar as cores do ecoponto.\n• Achar que tudo o que é "duro" é metal.\n• Confundir transparente com translúcido.'
+    },
+    'estudo_meio/Experiências': {
+        title: 'Experiências',
+        body: 'Para descobrir como o mundo funciona fazemos **experiências**. Passos:\n\n1. **Pergunta** — o que quero saber?\n2. **Hipótese** — o que acho que vai acontecer.\n3. **Experiência** — testar (com material).\n4. **Observação** — ver e registar.\n5. **Conclusão** — confirma ou não?\n\nExemplos clássicos do 3.º ano:\n• A **água** pode estar nos 3 estados: **sólido** (gelo), **líquido**, **gasoso** (vapor).\n• O **ar** ocupa espaço (sopra um balão!) e empurra (vento).\n• A **luz** propaga-se em linha reta e cria **sombras** atrás de objetos opacos.\n• Os **ímanes** atraem ferro mas não plástico, madeira ou alumínio.\n\n**❌ O que se costuma errar**\n• Achar que o ar não pesa — pesa muito pouco mas pesa.\n• Confundir transparente com translúcido.\n• Pensar que um íman atrai todos os metais — só ferro, níquel e cobalto.'
+    },
+
+    // ----- INGLÊS (Kid's Box [New Generation] Pupil's Book 2) -----
+    'ingles/Greetings and feelings': {
+        title: 'Greetings and feelings',
+        body: '**Saying hello and goodbye**:\n• Hello! / Hi! → Olá!\n• Good morning! → Bom dia!\n• Good afternoon! → Boa tarde!\n• Good evening! / Good night! → Boa noite!\n• Goodbye! / Bye! → Adeus!\n\n**How are you?** → Como estás?\n• I\'m fine, thank you. → Estou bem, obrigado(a).\n• I\'m happy / sad / tired.\n• I\'m hungry. → Tenho fome.\n• I\'m thirsty. → Tenho sede.\n\n**Introducing yourself**:\n• What\'s your name? → Como te chamas?\n• My name is ___. / I\'m ___.\n• How old are you? → Quantos anos tens?\n• I\'m 8 years old.\n\n**❌ Common mistakes**\n• Saying "I have hungry" → must be "I am hungry".\n• Confusing "your" (teu) with "you" (tu).\n• Forgetting the capital "I" — always uppercase.'
+    },
+    'ingles/School things': {
+        title: 'School things',
+        body: '**Things at school**:\n• pencil → lápis\n• pen → caneta\n• rubber → borracha (UK) / eraser (US)\n• ruler → régua\n• book → livro\n• notebook → caderno\n• schoolbag → mochila\n• pencil case → estojo\n• desk → secretária\n• chair → cadeira\n• board → quadro\n• window → janela\n• door → porta\n\n**At the classroom**:\n• Open your book, please.\n• Close the door.\n• Sit down. / Stand up.\n• Listen! / Look!\n• Can I go to the toilet?\n\n**❌ Common mistakes**\n• "rubber" (UK) = borracha; in the USA say "eraser".\n• Plural — add **-s**: pencil → pencil**s**.\n• "schoolbag" is one word.'
+    },
+    'ingles/Toys and playtime': {
+        title: 'Toys and playtime',
+        body: '**Toys**:\n• doll → boneca\n• teddy bear → urso de peluche\n• ball → bola\n• kite → papagaio (de papel)\n• car → carrinho\n• train → comboio\n• bike → bicicleta\n• puzzle → puzzle\n• game → jogo\n• robot → robô\n\n**Playing**:\n• Let\'s play! → Vamos brincar!\n• I like playing with ___. → Gosto de brincar com ___.\n• Whose toy is this? → De quem é este brinquedo?\n• It\'s my toy. → É o meu brinquedo.\n\n**❌ Common mistakes**\n• "play with" (NÃO "play to") — I play with dolls.\n• "I like playing" needs the **-ing** form after "like".\n• Capital letter at the start of "Let\'s".'
+    },
+    'ingles/Rooms at home': {
+        title: 'Rooms at home',
+        body: '**Rooms**:\n• kitchen → cozinha\n• living room → sala\n• bedroom → quarto\n• bathroom → casa de banho\n• dining room → sala de jantar\n• garage → garagem\n• garden → jardim\n\n**Furniture**:\n• bed, table, chair, sofa, TV, fridge, cooker, bath.\n\n**Where is...?**\n• Where is the cat? → Onde está o gato?\n• It\'s **in** the bedroom. (dentro)\n• It\'s **on** the table. (em cima)\n• It\'s **under** the chair. (debaixo)\n• It\'s **next to** the sofa. (ao lado)\n\n**❌ Common mistakes**\n• Confusing "in" (dentro) with "on" (em cima).\n• "in the table" → must be "on the table".\n• Plural: bedroom**s** (not "bedroomes").'
+    },
+    'ingles/Family members': {
+        title: 'Family members',
+        body: '**My family**:\n• mum / mother → mãe\n• dad / father → pai\n• parents → pais\n• brother → irmão\n• sister → irmã\n• grandma / grandmother → avó\n• grandpa / grandfather → avô\n• grandparents → avós\n• uncle → tio\n• aunt → tia\n• cousin → primo/prima\n• baby → bebé\n\n**This is...**\n• This is my mum.\n• These are my parents.\n• I have one brother and two sisters.\n\n**❌ Common mistakes**\n• "Cousin" — same word for primo AND prima.\n• "Brother" (singular) ≠ "brothers" (plural).\n• Possessive: **my**, **your**, **his**, **her**.'
+    },
+    'ingles/Farm animals': {
+        title: 'Farm animals',
+        body: '**Animals on the farm**:\n• cow → vaca\n• horse → cavalo\n• sheep → ovelha (plural also "sheep"!)\n• pig → porco\n• chicken → galinha\n• duck → pato\n• rabbit → coelho\n• goat → cabra\n• donkey → burro\n• dog → cão\n• cat → gato\n\n**Animal sounds (English)**:\n• cow: moo  •  dog: woof  •  cat: meow  •  duck: quack  •  sheep: baa  •  horse: neigh\n\n**Has got** / **have got**:\n• A cow **has got** four legs.\n• Chickens **have got** feathers and a beak.\n\n**❌ Common mistakes**\n• Plural of "sheep" → STAYS "sheep".\n• "chicken" = animal OR meat.\n• Use "has got" for he/she/it; "have got" for I/you/we/they.'
+    },
+    'ingles/My town': {
+        title: 'My town',
+        body: '**Places in town**:\n• school → escola\n• park → parque\n• shop → loja\n• supermarket → supermercado\n• hospital → hospital\n• library → biblioteca\n• post office → correios\n• bank → banco\n• cinema → cinema\n• restaurant → restaurante\n• café → café\n• church → igreja\n• bus stop → paragem de autocarro\n• train station → estação de comboios\n• street → rua\n• square → praça\n\n**Asking the way**:\n• Where is the park?\n• It\'s **near** the school.\n• It\'s **opposite** the bank.\n• Go straight on.\n• Turn left / right.\n\n**❌ Common mistakes**\n• "library" is BIBLIOTECA (not livraria — that\'s "bookshop").\n• Confusing "near" (perto) with "next to" (ao lado).\n• "I go to school" (without "the").'
+    },
+    'ingles/Clothes': {
+        title: 'Clothes',
+        body: '**Clothes**:\n• T-shirt → t-shirt\n• shirt → camisa\n• jumper / sweater → camisola\n• trousers (UK) / pants (US) → calças\n• jeans → jeans (always plural!)\n• shorts → calções\n• dress → vestido\n• skirt → saia\n• shoes → sapatos\n• socks → meias\n• hat → chapéu\n• coat / jacket → casaco\n• scarf → cachecol\n• gloves → luvas\n\n**Verbs**: put on (vestir), take off (despir), wear (usar).\n\n**Colours**: red, blue, green, yellow, black, white, pink, orange, purple, brown.\n\n**❌ Common mistakes**\n• Trousers, jeans, shorts, socks, shoes — ALWAYS plural in English.\n• "She wear" → WRONG. Must be "She wear**s**".\n• Order: "a big red ball" (size before colour).'
+    },
+    'ingles/Hobbies and sports': {
+        title: 'Hobbies and sports',
+        body: '**Sports**:\n• football → futebol\n• basketball → basquetebol\n• volleyball → voleibol\n• tennis → ténis\n• swimming → natação\n• running → corrida\n• cycling → ciclismo\n• dancing → dança\n• karate / judo → karaté / judo\n\n**Other hobbies**:\n• reading, drawing, painting, singing\n• playing the piano / guitar\n• playing computer games\n• watching TV\n\n**Talking about hobbies**:\n• I like ___ing. / I don\'t like ___ing.\n• I love football.\n• My favourite sport is ___.\n• Can you swim? — Yes, I can. / No, I can\'t.\n\n**❌ Common mistakes**\n• You **play** football/tennis but you **go** swimming/running.\n• Musical instruments need "the": play **the** piano.\n• "I like swim" → WRONG. Must be "I like swimm**ing**".'
+    },
+    'ingles/Numbers and colours': {
+        title: 'Numbers and colours',
+        body: '**Numbers 1–20**:\none, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen, twenty.\n\n**Tens to 100**: ten, twenty, thirty, forty, fifty, sixty, seventy, eighty, ninety, one hundred.\n\n**21 = twenty-one** (hyphen). 35 = thirty-five.\n\n**Colours**:\n• red, blue, yellow, green, orange, purple, pink, brown, black, white, grey\n• light blue (azul claro) / dark blue (azul escuro)\n\n**Asking**:\n• How many ___?\n• What colour is it?\n• It\'s red.\n\n**❌ Common mistakes**\n• "fourteen" (14) vs "forty" (40) — careful with stress.\n• "thirty" (30) — no "e" (NOT "thirthy").\n• Colour goes BEFORE the noun: a **red** car.'
+    },
+
+    // ----- FORMAÇÃO CRISTÃ (Ao Encontro 3, SNEC) -----
+    'formacao_crista/Eu sou único e importante': {
+        title: 'Eu sou único e importante',
+        body: 'Cada pessoa é **única** — não há duas iguais no mundo!\n\n• Tens o teu **nome**, **rosto**, **história**, **qualidades** e defeitos.\n• Foste **amado e desejado** antes mesmo de nasceres.\n• Tens **dignidade** — mereces respeito só por seres pessoa.\n\nNa **Bíblia**, no livro do Génesis, lê-se que Deus criou o ser humano **à sua imagem** (Gn 1, 27). Cada pessoa tem um valor enorme.\n\n**Respeito por si mesmo**: cuidar do corpo, da mente, dos sentimentos.\n**Respeito pelos outros**: tratar todos com bondade, mesmo os diferentes.\n\n**❌ O que se costuma errar**\n• Pensar que ser único é ser melhor — todos são únicos, todos valem.\n• Achar que defeitos tiram dignidade — todos temos defeitos.\n• Confundir "amar-se a si mesmo" com egoísmo.'
+    },
+    'formacao_crista/Viver em família': {
+        title: 'Viver em família',
+        body: 'A **família** é a primeira comunidade onde aprendemos a amar.\n\n• **Tipos de família**: nuclear, alargada, monoparental, adotiva, recomposta — todas são válidas.\n• **Funções**: dar amor, alimentar, educar, dar segurança.\n• **Direitos da criança**: ser amada, ter casa, ir à escola, brincar, ser ouvida.\n• **Deveres**: ajudar em casa, respeitar, falar com verdade, partilhar.\n\nNa Bíblia, a **Sagrada Família** (Jesus, Maria e José) é um modelo de família simples e cheia de fé.\n\n**Mandamento**: "Honra o teu pai e a tua mãe" (4.º mandamento).\n\n**❌ O que se costuma errar**\n• Achar que só a família nuclear é "normal".\n• Esquecer que os filhos também têm deveres.\n• Confundir "honrar" com obedecer cegamente — significa respeitar e amar.'
+    },
+    'formacao_crista/A criação do mundo': {
+        title: 'A criação do mundo',
+        body: 'Os cristãos acreditam que o mundo foi **criado por Deus**. A história está no primeiro livro da Bíblia — o **Génesis**.\n\n**Os 7 dias da criação** (Génesis 1):\n• Dia 1 — Luz e escuridão.\n• Dia 2 — Céu e água.\n• Dia 3 — Mar, terra e plantas.\n• Dia 4 — Sol, Lua e estrelas.\n• Dia 5 — Peixes e aves.\n• Dia 6 — Animais terrestres e o **ser humano**.\n• Dia 7 — Deus descansa (= **Dia do Senhor**).\n\nDeus viu que tudo o que tinha feito era **bom**.\n\n**Cuidar da criação** — Deus pediu ao ser humano que cuidasse da Terra. O Papa Francisco fala disso na encíclica *Laudato Si\'*.\n\n**❌ O que se costuma errar**\n• Confundir o sentido religioso com a ciência (Big Bang) — falam de planos diferentes.\n• Esquecer que o ser humano foi criado no **6.º dia**.\n• Achar que Deus se cansou — "descansar" é símbolo do dia santo.'
+    },
+    'formacao_crista/A vida de Jesus': {
+        title: 'A vida de Jesus',
+        body: '**Jesus** nasceu em **Belém**, há mais de 2 000 anos. Seus pais terrenos: **Maria** e **José**. Jesus é o **Filho de Deus**.\n\n**Momentos importantes**:\n• **Anunciação** — o anjo Gabriel diz a Maria que vai ser mãe de Jesus.\n• **Natal** (25 de dezembro) — nascimento em Belém.\n• **Apresentação no Templo**.\n• **Infância em Nazaré** — José era carpinteiro.\n• **Batismo no rio Jordão** — por João Batista, aos 30 anos.\n• **Vida pública** — anuncia o Reino, faz milagres, escolhe 12 **apóstolos**.\n• **Última Ceia** — partilha do pão e do vinho (= **Eucaristia**).\n• **Sexta-Feira Santa** — crucificado.\n• **Páscoa** (domingo) — **Ressuscita**! Maior festa cristã.\n• **Ascensão** — sobe ao Céu, 40 dias depois.\n• **Pentecostes** — Espírito Santo desce sobre os apóstolos.\n\n**Mensagem central**: Deus é Pai, ama-te; ama o próximo como a ti mesmo.\n\n**❌ O que se costuma errar**\n• Confundir Natal (nascimento) com Páscoa (ressurreição).\n• Esquecer que Jesus teve uma infância normal.\n• Achar que os apóstolos eram 10 — foram **12**.'
+    },
+    'formacao_crista/A Igreja e os sacramentos': {
+        title: 'A Igreja e os sacramentos',
+        body: 'A **Igreja** é a comunidade dos cristãos — todos os baptizados em Jesus.\n\n• A palavra "igreja" tem 2 sentidos: o **edifício** (com altar, banco, sacrário) e a **comunidade** das pessoas.\n• Quem orienta a Igreja Católica: o **Papa** (sucessor de São Pedro), os **bispos** (responsáveis das dioceses), os **padres** (paróquias).\n\n**Os 7 sacramentos** são sinais visíveis do amor de Deus:\n1. **Batismo** — entrada na Igreja (símbolo: água).\n2. **Eucaristia** — comunhão (pão e vinho = corpo e sangue de Jesus).\n3. **Reconciliação** (Confissão) — perdão dos pecados.\n4. **Crisma** (Confirmação).\n5. **Matrimónio** — casamento.\n6. **Ordem** — torna alguém padre/bispo.\n7. **Unção dos Doentes** — acompanha doentes graves.\n\nNo 3.º ano muitas crianças preparam a **Primeira Comunhão**.\n\n**❌ O que se costuma errar**\n• Confundir "igreja" (edifício) com "Igreja" (comunidade).\n• Achar que há só 5 sacramentos — são **7**.\n• Trocar Batismo (entrada) com Crisma (confirmação posterior).'
+    },
+    'formacao_crista/Valores cristãos': {
+        title: 'Valores cristãos',
+        body: 'Jesus ensinou-nos como viver bem. **Valores cristãos** principais:\n\n• **Amor ao próximo** — "Amar-vos uns aos outros como Eu vos amei" (Jo 15, 12).\n• **Perdão** — desculpar os outros.\n• **Partilha** — dar do que se tem aos que precisam.\n• **Verdade** — falar com honestidade.\n• **Humildade** — não se achar superior aos outros.\n• **Paz** — resolver problemas sem violência.\n• **Justiça** — defender os mais fracos.\n• **Esperança** — confiar em Deus mesmo nos dias maus.\n\n**A Regra de Ouro** (Mt 7, 12):\n*"Tudo o que queres que os outros te façam, fá-lo tu também a eles."*\n\n**❌ O que se costuma errar**\n• Achar que perdoar é "deixar fazer tudo" — perdoar é não guardar rancor.\n• Confundir humildade com baixa autoestima.\n• Esquecer que a paz começa em casa.'
+    },
+
+    // ----- CIDADANIA E DESENVOLVIMENTO -----
+    'cidadania/Direitos e deveres': {
+        title: 'Direitos e deveres',
+        body: 'Toda a criança tem **direitos**, garantidos pela **Convenção sobre os Direitos da Criança** (ONU, 1989).\n\n**Direitos principais**:\n• Direito à **vida** e a um **nome**.\n• Direito à **saúde** e à alimentação.\n• Direito à **educação**.\n• Direito ao **amor** e à família.\n• Direito a **brincar** e descansar.\n• Direito a ser **ouvida**.\n• Direito a ser protegida da violência.\n\n**Deveres**:\n• Respeitar os outros.\n• Cumprir as regras da escola e de casa.\n• Cuidar das coisas.\n• Dizer a verdade.\n• Ajudar quem precisa.\n\nDireitos e deveres caminham **juntos**.\n\n**❌ O que se costuma errar**\n• Pensar que só há direitos.\n• Achar que "ser ouvido" é "fazer sempre a sua vontade".\n• Esquecer-se que os direitos protegem TODAS as crianças.'
+    },
+    'cidadania/Regras de convivência': {
+        title: 'Regras de convivência',
+        body: 'Para vivermos bem em **grupo** precisamos de **regras**.\n\n**Na escola**:\n• Levantar o braço antes de falar.\n• Não interromper.\n• Tratar colegas e professores com respeito.\n• Não correr nos corredores.\n• Arrumar a sala antes de sair.\n\n**Em casa**:\n• Cumprimentar quem chega.\n• Pôr a mesa, arrumar o quarto.\n• Avisar antes de sair.\n\n**Conflitos** — passos:\n1. **Acalma-te** — respira fundo, conta até 10.\n2. **Fala** — explica o que sentes ("Eu sinto..." em vez de "Tu fazes...").\n3. **Ouve** o outro lado.\n4. **Procura** uma solução em conjunto.\n5. **Pede desculpa** se errares.\n\n**❌ O que se costuma errar**\n• Achar que regras são para "estragar a brincadeira".\n• Resolver conflitos com violência.\n• Esquecer que ouvir o outro é tão importante como falar.'
+    },
+    'cidadania/Diversidade e respeito': {
+        title: 'Diversidade e respeito',
+        body: 'A **diversidade** torna o mundo rico. Somos todos **diferentes**:\n\n• **Cultura** — origens, línguas, tradições.\n• **Religião** — católicos, muçulmanos, judeus, budistas, ateus...\n• **Cor da pele**, **género**, **idade**.\n• **Capacidades** — pessoas usam cadeira de rodas, óculos, aparelhos auditivos; outras têm dificuldades de aprendizagem.\n• **Famílias** — diferentes formas.\n\n**Respeitar a diferença** é:\n• Não troçar nem fazer "piadas".\n• Tratar todos com igualdade.\n• Aprender com quem é diferente.\n• Defender quem está a ser maltratado.\n\n**Bullying** = alguém é repetidamente magoado. É **errado** e deve ser **denunciado** a um adulto.\n\n**❌ O que se costuma errar**\n• Achar que "incluir" é um favor — é o mínimo.\n• Calar-se quando alguém é vítima de bullying.\n• Confundir igualdade com sermos todos iguais.'
+    },
+    'cidadania/Ambiente e sustentabilidade': {
+        title: 'Ambiente e sustentabilidade',
+        body: 'O **planeta Terra** é a nossa casa comum.\n\n**Problemas ambientais**:\n• **Poluição** — ar, água, solos.\n• **Aquecimento global** — Terra mais quente por causa do CO₂.\n• **Desflorestação**.\n• **Lixo nos oceanos** — sobretudo plástico.\n\n**O que posso fazer (regra dos 3 R)**:\n• **Reduzir** — comprar menos.\n• **Reutilizar** — dar nova vida.\n• **Reciclar** — separar no ecoponto: papel (azul), embalagens (amarelo), vidro (verde), pilhas (vermelho), orgânico (castanho).\n\n**Outros gestos**:\n• Fechar a torneira ao escovar os dentes (poupa ~6 L/min).\n• Apagar luzes ao sair.\n• Ir a pé ou de bicicleta.\n• Plantar uma árvore.\n\n**❌ O que se costuma errar**\n• Achar que reciclar é a 1.ª prioridade — primeiro vem **reduzir**.\n• Confundir as cores do ecoponto.\n• Pensar que "só um copo" não faz diferença.'
+    },
+    'cidadania/Segurança rodoviária': {
+        title: 'Segurança rodoviária',
+        body: '**Para peões**:\n• Caminhar no **passeio**, longe da estrada.\n• Atravessar na **passadeira** (zebra) ou no semáforo.\n• Olhar **esquerda → direita → esquerda** antes de atravessar.\n• Não correr a atravessar.\n• Não atravessar entre carros estacionados.\n\n**Semáforo para peões**: verde = atravessa; vermelho = espera; piscar = termina depressa.\n\n**Para passageiros** (em carro):\n• Crianças com menos de 12 anos (ou 1,35 m) vão sempre no **banco de trás**.\n• **Cadeira de criança** ou **assento elevatório** apropriado.\n• **Cinto de segurança** SEMPRE.\n• Não distrair o condutor.\n\n**Para ciclistas**:\n• **Capacete** sempre.\n• Sinalizar com o braço antes de virar.\n• **Luzes** e refletores à noite.\n\n**❌ O que se costuma errar**\n• Atravessar a correr.\n• Ir ao banco da frente.\n• Esquecer o capacete por ser "só dar uma volta".'
+    },
+    'cidadania/Saúde e bem-estar': {
+        title: 'Saúde e bem-estar',
+        body: '**Saúde** = corpo + mente + emoções, em equilíbrio.\n\n**Hábitos saudáveis**:\n• **Alimentação**: 3 refeições principais + 2 lanches. Variedade de cores no prato. Beber água em vez de sumos.\n• **Sono**: 9 a 11 horas por noite para crianças de 8-9 anos.\n• **Higiene**: lavar mãos antes de comer, escovar dentes 2× ao dia, banho diário.\n• **Atividade física**: 1 hora por dia.\n• **Tempo de ecrã**: máximo ~1 hora por dia (TV, telemóvel, tablet).\n• **Pausas**: não estar muito tempo sentado.\n\n**Bem-estar emocional**:\n• Falar sobre o que sentes.\n• Pedir ajuda quando precisas.\n• Brincar, rir, partilhar com amigos.\n• Estar com a família.\n\n**Sinais de alerta**: dor que não passa, tristeza grande, dificuldade em dormir → falar com um adulto de confiança.\n\n**❌ O que se costuma errar**\n• Pensar que "saúde" é só não estar doente.\n• Esconder o que sentes.\n• Achar que tempo de ecrã ilimitado não faz mal.'
+    }
+};
+
+const EXERCISES_3 = [
+    ...EXERCISES_3_OCEANUS.filter(e => e.s === 'portugues' || e.s === 'matematica'),
+
+    // ============================ PORTUGUÊS — NOVOS ============================
+    { id:'3lp_sil1', s:'portugues', t:'Sílabas', type:'mc', diff:1, q:'🔤 Quantas sílabas tem "borboleta"?', opts:['2','3','4','5'], ans:2, exp:'bor-bo-le-ta → 4 sílabas.' },
+    { id:'3lp_sil2', s:'portugues', t:'Sílabas', type:'fill', diff:1, q:'Divide em sílabas: "menino" → ___', ans:['me-ni-no'], exp:'me-ni-no (3 sílabas).' },
+    { id:'3lp_sil3', s:'portugues', t:'Sílabas', type:'mc', diff:2, q:'🔤 A sílaba tónica de "cadeira" é:', opts:['ca','dei','ra'], ans:1, exp:'Em "cadeira" a sílaba forte é "dei".' },
+
+    { id:'3lp_pro1', s:'portugues', t:'Pronomes pessoais', type:'mc', diff:1, q:'🔤 Que pronome substitui "a Maria"?', opts:['ele','ela','eles'], ans:1, exp:'Maria = feminino singular → "ela".' },
+    { id:'3lp_pro2', s:'portugues', t:'Pronomes pessoais', type:'fill', diff:2, q:'Substitui "o João e o Pedro" por um pronome: ___', ans:['eles'], exp:'Dois meninos → "eles".' },
+    { id:'3lp_pro3', s:'portugues', t:'Pronomes pessoais', type:'mc', diff:2, q:'🔤 Pronome de 1.ª pessoa do plural:', opts:['eu','nós','eles'], ans:1, exp:'Eu (1.ª sg) → nós (1.ª pl).' },
+
+    { id:'3lp_poe1', s:'portugues', t:'Texto poético', type:'mc', diff:1, q:'📖 Cada linha de um poema chama-se:', opts:['estrofe','verso','rima'], ans:1, exp:'Verso = linha do poema.' },
+    { id:'3lp_poe2', s:'portugues', t:'Texto poético', type:'mc', diff:2, q:'📖 Uma estrofe com 4 versos chama-se:', opts:['terceto','quadra','soneto'], ans:1, exp:'4 versos = quadra.' },
+    { id:'3lp_poe3', s:'portugues', t:'Texto poético', type:'fill', diff:2, q:'"Lua" rima com ___', ans:['rua','nua','crua'], exp:'Rua, nua, crua — som "ua" no fim.' },
+
+    { id:'3lp_bd1', s:'portugues', t:'Banda desenhada', type:'mc', diff:1, q:'💬 O "quadradinho" da BD chama-se:', opts:['vinheta','balão','legenda'], ans:0, exp:'Vinheta = cada quadrado da BD.' },
+    { id:'3lp_bd2', s:'portugues', t:'Banda desenhada', type:'mc', diff:2, q:'☁️ O balão em forma de nuvem mostra:', opts:['o que diz','o que pensa','o som'], ans:1, exp:'Balão-nuvem = pensamento.' },
+    { id:'3lp_bd3', s:'portugues', t:'Banda desenhada', type:'mc', diff:2, q:'💥 "BOOM!" numa BD é uma:', opts:['onomatopeia','rima','legenda'], ans:0, exp:'Onomatopeia = palavra que imita um som.' },
+
+    // ============================ MATEMÁTICA — NOVOS ===========================
+    { id:'3lm_cm1', s:'matematica', t:'Cálculo mental', type:'mc', diff:1, q:'🧠 47 + 25 (de cabeça) =', opts:['62','72','82'], ans:1, exp:'40+20=60; 7+5=12; 60+12=72.' },
+    { id:'3lm_cm2', s:'matematica', t:'Cálculo mental', type:'mc', diff:2, q:'🧠 98 + 56 (arredondar) =', opts:['144','154','164'], ans:1, exp:'100 + 56 = 156, depois −2 = 154.' },
+    { id:'3lm_cm3', s:'matematica', t:'Cálculo mental', type:'fill', diff:2, q:'Dobro de 35 = ___', ans:['70'], exp:'35 × 2 = 70.' },
+
+    { id:'3lm_mc1', s:'matematica', t:'Massa e capacidade', type:'mc', diff:1, q:'⚖️ 1 kg = ___ g', opts:['10','100','1 000'], ans:2, exp:'1 kg = 1 000 g.' },
+    { id:'3lm_mc2', s:'matematica', t:'Massa e capacidade', type:'mc', diff:1, q:'🥛 1 L = ___ mL', opts:['10','100','1 000'], ans:2, exp:'1 L = 1 000 mL.' },
+    { id:'3lm_mc3', s:'matematica', t:'Massa e capacidade', type:'mc', diff:2, q:'⚖️ Uma maçã pesa aproximadamente:', opts:['20 g','200 g','2 kg'], ans:1, exp:'≈ 200 g (uma maçã média).' },
+    { id:'3lm_mc4', s:'matematica', t:'Massa e capacidade', type:'mc', diff:2, q:'🥛 Uma chávena tem aproximadamente:', opts:['25 mL','250 mL','2,5 L'], ans:1, exp:'Uma chávena ≈ 250 mL.' },
+
+    // ============================ ESTUDO DO MEIO ===============================
+    { id:'3le_pas1', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:1, q:'👨‍👩‍👧 Os pais dos teus pais são os teus:', opts:['tios','avós','primos'], ans:1, exp:'Pais dos pais = avós.' },
+    { id:'3le_pas2', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:2, q:'👶 Documento oficial para identificar uma criança em Portugal:', opts:['passaporte','cartão de cidadão','cartão de aluno'], ans:1, exp:'Cartão de cidadão.' },
+    { id:'3le_pas3', s:'estudo_meio', t:'O passado da criança', type:'tf', diff:1, q:'Bisavós são os pais dos avós.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3le_corp1', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'🦴 O esqueleto humano tem aproximadamente ___ ossos.', opts:['50','100','206'], ans:2, exp:'≈ 206 ossos no adulto.' },
+    { id:'3le_corp2', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🤸 As articulações servem para:', opts:['proteger os órgãos','permitir movimento','dar cor à pele'], ans:1, exp:'Articulações permitem dobrar.' },
+    { id:'3le_corp3', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'❤️ O coração está localizado no:', opts:['cabeça','tronco','membros'], ans:1, exp:'Coração no tronco.' },
+
+    { id:'3le_sis1', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:1, q:'🍎 O sistema que transforma a comida em energia é o:', opts:['respiratório','digestivo','circulatório'], ans:1, exp:'Digestivo.' },
+    { id:'3le_sis2', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:2, q:'🫁 Os pulmões fazem parte do sistema:', opts:['digestivo','respiratório','circulatório'], ans:1, exp:'Respiratório.' },
+    { id:'3le_sis3', s:'estudo_meio', t:'Os sistemas do corpo', type:'fill', diff:2, q:'O órgão que bombeia o sangue é o ___', ans:['coração'], exp:'Coração.' },
+
+    { id:'3le_sau1', s:'estudo_meio', t:'A saúde e a prevenção', type:'mc', diff:1, q:'🥗 Para uma alimentação saudável, devemos:', opts:['comer só doces','variar os alimentos','comer só fruta'], ans:1, exp:'Variedade é a chave.' },
+    { id:'3le_sau2', s:'estudo_meio', t:'A saúde e a prevenção', type:'tf', diff:1, q:'Lavar as mãos antes de comer ajuda a prevenir doenças.', ans:true, exp:'Verdadeiro.' },
+    { id:'3le_sau3', s:'estudo_meio', t:'A saúde e a prevenção', type:'mc', diff:2, q:'😴 Uma criança de 8 anos precisa de dormir cerca de:', opts:['4 horas','9-11 horas','15 horas'], ans:1, exp:'≈ 9–11 h por noite.' },
+
+    { id:'3le_sen1', s:'estudo_meio', t:'Os cinco sentidos', type:'mc', diff:1, q:'👃 Para cheirar usamos:', opts:['os olhos','o nariz','a língua'], ans:1, exp:'Nariz = olfato.' },
+    { id:'3le_sen2', s:'estudo_meio', t:'Os cinco sentidos', type:'mc', diff:2, q:'👅 O sentido associado à língua é o:', opts:['olfato','paladar','tato'], ans:1, exp:'Paladar = sabor.' },
+    { id:'3le_sen3', s:'estudo_meio', t:'Os cinco sentidos', type:'fill', diff:2, q:'Sentido em que se usa a pele: ___', ans:['tato','tacto'], exp:'Tato.' },
+
+    { id:'3le_loc1', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:1, q:'🏛️ Conjunto de freguesias forma um:', opts:['concelho','distrito','país'], ans:0, exp:'Freguesia → Concelho → Distrito → País.' },
+    { id:'3le_loc2', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:2, q:'🏰 Santo Tirso é conhecido pelo:', opts:['Castelo de São Jorge','Mosteiro de São Bento','Pelourinho de Sintra'], ans:1, exp:'Mosteiro de São Bento.' },
+    { id:'3le_loc3', s:'estudo_meio', t:'O passado do meio local', type:'fill', diff:2, q:'Órgão que governa o concelho: ___ Municipal', ans:['Câmara','câmara'], exp:'Câmara Municipal.' },
+
+    { id:'3le_sim1', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:1, q:'🇵🇹 As cores da bandeira de Portugal são:', opts:['azul e branco','verde e vermelho','vermelho e amarelo'], ans:1, exp:'Verde e vermelho.' },
+    { id:'3le_sim2', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:2, q:'📅 25 de Abril celebra:', opts:['Dia de Portugal','Dia da Liberdade','Implantação da República'], ans:1, exp:'25 Abril 1974 = Revolução dos Cravos.' },
+    { id:'3le_sim3', s:'estudo_meio', t:'Símbolos nacionais', type:'fill', diff:2, q:'O hino nacional chama-se: A ___', ans:['Portuguesa','portuguesa'], exp:'A Portuguesa.' },
+
+    { id:'3le_ins1', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:1, q:'🚒 Em caso de incêndio chamamos:', opts:['polícia','bombeiros','correios'], ans:1, exp:'Bombeiros (112).' },
+    { id:'3le_ins2', s:'estudo_meio', t:'Instituições e serviços', type:'fill', diff:1, q:'Número de emergência em Portugal e na UE: ___', ans:['112'], exp:'112.' },
+    { id:'3le_ins3', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:2, q:'📚 Instituição onde se empresta livros:', opts:['câmara','biblioteca','tribunal'], ans:1, exp:'Biblioteca.' },
+
+    { id:'3le_ast1', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'☀️ O Sol é uma:', opts:['planeta','estrela','satélite'], ans:1, exp:'Sol = estrela.' },
+    { id:'3le_ast2', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌍 A Terra é o ___ planeta a contar do Sol.', opts:['1.º','2.º','3.º','4.º'], ans:2, exp:'Mercúrio → Vénus → TERRA → Marte.' },
+    { id:'3le_ast3', s:'estudo_meio', t:'Os astros', type:'tf', diff:2, q:'A Lua tem luz própria.', ans:false, exp:'Falso — reflete a luz do Sol.' },
+    { id:'3le_ast4', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌐 A Terra gira sobre si própria em ___ horas:', opts:['12','24','48'], ans:1, exp:'Rotação = 24 h = 1 dia.' },
+
+    { id:'3le_rel1', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:1, q:'🏔️ O ponto mais alto de Portugal é:', opts:['Serra da Estrela','Pico (Açores)','Monchique'], ans:1, exp:'Pico ≈ 2 351 m.' },
+    { id:'3le_rel2', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:2, q:'🌊 O maior rio de Portugal é o:', opts:['Tejo','Douro','Mondego'], ans:0, exp:'Tejo.' },
+    { id:'3le_rel3', s:'estudo_meio', t:'Aspetos físicos do meio', type:'fill', diff:2, q:'Terra plana e baixa chama-se ___', ans:['planície'], exp:'Planície.' },
+
+    { id:'3le_ani1', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'🐄 A vaca é um:', opts:['réptil','mamífero','ave'], ans:1, exp:'Vaca = mamífero.' },
+    { id:'3le_ani2', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🐋 A baleia é um:', opts:['peixe','mamífero','réptil'], ans:1, exp:'Mamífero — respira ar, amamenta.' },
+    { id:'3le_ani3', s:'estudo_meio', t:'Animais', type:'mc', diff:2, q:'🐛 Os insetos têm ___ patas:', opts:['4','6','8'], ans:1, exp:'6 patas. (Aranhas têm 8.)' },
+    { id:'3le_ani4', s:'estudo_meio', t:'Animais', type:'tf', diff:1, q:'Os peixes respiram por brânquias.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3le_pla1', s:'estudo_meio', t:'Plantas', type:'mc', diff:1, q:'🌱 A parte da planta que fixa no solo é a:', opts:['raiz','caule','folha'], ans:0, exp:'Raiz fixa e absorve água.' },
+    { id:'3le_pla2', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🍃 As plantas fazem o seu alimento na:', opts:['raiz','caule','folha'], ans:2, exp:'Folha (fotossíntese).' },
+    { id:'3le_pla3', s:'estudo_meio', t:'Plantas', type:'mc', diff:2, q:'🌸 A parte da planta que se transforma em fruto é a:', opts:['raiz','flor','folha'], ans:1, exp:'A flor dá origem ao fruto.' },
+    { id:'3le_pla4', s:'estudo_meio', t:'Plantas', type:'fill', diff:2, q:'Gás que a planta liberta na fotossíntese: ___', ans:['oxigénio','oxigenio','O2'], exp:'Oxigénio.' },
+
+    { id:'3le_mat1', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:1, q:'🪵 A madeira é um material:', opts:['natural','artificial'], ans:0, exp:'Vem das árvores.' },
+    { id:'3le_mat2', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2, q:'♻️ No ecoponto AZUL deita-se:', opts:['vidro','papel','plástico'], ans:1, exp:'Azul = papel/cartão.' },
+    { id:'3le_mat3', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2, q:'♻️ As embalagens de plástico vão para o ecoponto:', opts:['azul','amarelo','verde'], ans:1, exp:'Amarelo = embalagens.' },
+    { id:'3le_mat4', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2, q:'♻️ Onde vai o vidro?', opts:['azul','amarelo','verde'], ans:2, exp:'Verde = vidro.' },
+
+    { id:'3le_exp1', s:'estudo_meio', t:'Experiências', type:'mc', diff:1, q:'💧 A água em forma de gelo está no estado:', opts:['sólido','líquido','gasoso'], ans:0, exp:'Gelo = sólido.' },
+    { id:'3le_exp2', s:'estudo_meio', t:'Experiências', type:'mc', diff:2, q:'🧲 Um íman atrai objetos de:', opts:['plástico','ferro','madeira'], ans:1, exp:'Ferro (e níquel, cobalto).' },
+    { id:'3le_exp3', s:'estudo_meio', t:'Experiências', type:'tf', diff:2, q:'O ar ocupa espaço.', ans:true, exp:'Verdadeiro — vê um balão.' },
+
+    // ============================ INGLÊS (Kid\'s Box NG 2) =====================
+    { id:'3li_gre1', s:'ingles', t:'Greetings and feelings', type:'mc', diff:1, q:'👋 "Good morning!" significa:', opts:['boa noite','bom dia','boa tarde'], ans:1, exp:'Good morning = bom dia.' },
+    { id:'3li_gre2', s:'ingles', t:'Greetings and feelings', type:'mc', diff:1, q:'😊 "I\'m happy" significa:', opts:['estou triste','estou contente','estou cansado'], ans:1, exp:'Happy = contente.' },
+    { id:'3li_gre3', s:'ingles', t:'Greetings and feelings', type:'fill', diff:1, q:'What\'s your name? — My name ___ Eduarda.', ans:['is'], exp:'My name **is** Eduarda.' },
+
+    { id:'3li_sch1', s:'ingles', t:'School things', type:'mc', diff:1, q:'✏️ Em inglês, lápis é:', opts:['pen','pencil','book'], ans:1, exp:'Pencil = lápis.' },
+    { id:'3li_sch2', s:'ingles', t:'School things', type:'fill', diff:1, q:'Borracha em inglês (UK): ___', ans:['rubber'], exp:'Rubber (UK) / Eraser (US).' },
+    { id:'3li_sch3', s:'ingles', t:'School things', type:'mc', diff:2, q:'🎒 "Schoolbag" significa:', opts:['mochila','cadeira','quadro'], ans:0, exp:'Schoolbag = mochila.' },
+
+    { id:'3li_toy1', s:'ingles', t:'Toys and playtime', type:'mc', diff:1, q:'🧸 "Teddy bear" significa:', opts:['gato','urso de peluche','boneca'], ans:1, exp:'Teddy bear = urso de peluche.' },
+    { id:'3li_toy2', s:'ingles', t:'Toys and playtime', type:'fill', diff:1, q:'Boneca em inglês: ___', ans:['doll'], exp:'Doll = boneca.' },
+    { id:'3li_toy3', s:'ingles', t:'Toys and playtime', type:'mc', diff:2, q:'🎮 "Let\'s play!" significa:', opts:['Vamos comer','Vamos brincar','Vamos dormir'], ans:1, exp:'Let\'s play = Vamos brincar.' },
+
+    { id:'3li_rom1', s:'ingles', t:'Rooms at home', type:'mc', diff:1, q:'🍳 "Kitchen" significa:', opts:['quarto','cozinha','sala'], ans:1, exp:'Kitchen = cozinha.' },
+    { id:'3li_rom2', s:'ingles', t:'Rooms at home', type:'mc', diff:2, q:'🛏️ "The cat is ___ the bed" (em cima):', opts:['in','on','under'], ans:1, exp:'On = em cima de.' },
+    { id:'3li_rom3', s:'ingles', t:'Rooms at home', type:'fill', diff:1, q:'Casa de banho em inglês: ___', ans:['bathroom'], exp:'Bathroom.' },
+
+    { id:'3li_fam1', s:'ingles', t:'Family members', type:'mc', diff:1, q:'👩 "Mum" significa:', opts:['pai','mãe','irmã'], ans:1, exp:'Mum / mother = mãe.' },
+    { id:'3li_fam2', s:'ingles', t:'Family members', type:'mc', diff:1, q:'👴 "Grandfather" significa:', opts:['avô','tio','primo'], ans:0, exp:'Grandfather = avô.' },
+    { id:'3li_fam3', s:'ingles', t:'Family members', type:'fill', diff:2, q:'Irmã em inglês: ___', ans:['sister'], exp:'Sister.' },
+
+    { id:'3li_far1', s:'ingles', t:'Farm animals', type:'mc', diff:1, q:'🐄 "Cow" significa:', opts:['galinha','vaca','porco'], ans:1, exp:'Cow = vaca.' },
+    { id:'3li_far2', s:'ingles', t:'Farm animals', type:'mc', diff:2, q:'🐑 Plural de "sheep" é:', opts:['sheeps','sheepes','sheep'], ans:2, exp:'Sheep — igual no plural.' },
+    { id:'3li_far3', s:'ingles', t:'Farm animals', type:'fill', diff:1, q:'Cavalo em inglês: ___', ans:['horse'], exp:'Horse.' },
+
+    { id:'3li_tow1', s:'ingles', t:'My town', type:'mc', diff:1, q:'🏥 "Hospital" significa:', opts:['hospital','escola','loja'], ans:0, exp:'Hospital = hospital.' },
+    { id:'3li_tow2', s:'ingles', t:'My town', type:'fill', diff:1, q:'Biblioteca em inglês: ___', ans:['library'], exp:'Library (NÃO "livraria"!).' },
+    { id:'3li_tow3', s:'ingles', t:'My town', type:'mc', diff:2, q:'➡️ "Turn left" significa:', opts:['vira à direita','vira à esquerda','vai em frente'], ans:1, exp:'Turn left = à esquerda.' },
+
+    { id:'3li_clo1', s:'ingles', t:'Clothes', type:'mc', diff:1, q:'👕 "T-shirt" significa:', opts:['casaco','t-shirt','calças'], ans:1, exp:'T-shirt.' },
+    { id:'3li_clo2', s:'ingles', t:'Clothes', type:'mc', diff:2, q:'👖 "Trousers" (UK) significa:', opts:['saia','calças','sapatos'], ans:1, exp:'Trousers = calças (sempre plural).' },
+    { id:'3li_clo3', s:'ingles', t:'Clothes', type:'fill', diff:1, q:'Sapatos em inglês: ___', ans:['shoes'], exp:'Shoes (sempre plural).' },
+
+    { id:'3li_hob1', s:'ingles', t:'Hobbies and sports', type:'mc', diff:1, q:'⚽ "Football" significa:', opts:['ténis','futebol','natação'], ans:1, exp:'Football = futebol.' },
+    { id:'3li_hob2', s:'ingles', t:'Hobbies and sports', type:'mc', diff:2, q:'🏊 "I like swimming" significa:', opts:['Gosto de correr','Gosto de nadar','Gosto de saltar'], ans:1, exp:'Swimming = natação.' },
+    { id:'3li_hob3', s:'ingles', t:'Hobbies and sports', type:'fill', diff:2, q:'Cantar (forma -ing): I like ___', ans:['singing'], exp:'After "like" use -ing form.' },
+
+    { id:'3li_num1', s:'ingles', t:'Numbers and colours', type:'mc', diff:1, q:'🔢 "Seven" é o número:', opts:['5','7','9'], ans:1, exp:'Seven = 7.' },
+    { id:'3li_num2', s:'ingles', t:'Numbers and colours', type:'mc', diff:2, q:'🔢 "Thirteen" é o número:', opts:['3','13','30'], ans:1, exp:'Thirteen = 13; Thirty = 30.' },
+    { id:'3li_num3', s:'ingles', t:'Numbers and colours', type:'mc', diff:1, q:'🎨 "Yellow" é a cor:', opts:['vermelho','amarelo','azul'], ans:1, exp:'Yellow = amarelo.' },
+    { id:'3li_num4', s:'ingles', t:'Numbers and colours', type:'fill', diff:1, q:'Verde em inglês: ___', ans:['green'], exp:'Green.' },
+
+    // ============================ FORMAÇÃO CRISTÃ ==============================
+    { id:'3lf_uni1', s:'formacao_crista', t:'Eu sou único e importante', type:'tf', diff:1, q:'Cada pessoa é única no mundo.', ans:true, exp:'Verdadeiro — não há duas iguais.' },
+    { id:'3lf_uni2', s:'formacao_crista', t:'Eu sou único e importante', type:'mc', diff:2, q:'📖 Segundo o Génesis, Deus criou o ser humano:', opts:['como um robô','à sua imagem','por engano'], ans:1, exp:'"Deus criou o ser humano à sua imagem" (Gn 1, 27).' },
+
+    { id:'3lf_fam1', s:'formacao_crista', t:'Viver em família', type:'mc', diff:1, q:'👨‍👩‍👧 A "Sagrada Família" é:', opts:['Pedro, Paulo e João','Jesus, Maria e José','Adão, Eva e Caim'], ans:1, exp:'Jesus, Maria e José.' },
+    { id:'3lf_fam2', s:'formacao_crista', t:'Viver em família', type:'mc', diff:2, q:'📜 O 4.º mandamento diz:', opts:['Não matarás','Honra o teu pai e a tua mãe','Não roubarás'], ans:1, exp:'"Honra o teu pai e a tua mãe."' },
+
+    { id:'3lf_cri1', s:'formacao_crista', t:'A criação do mundo', type:'mc', diff:1, q:'📖 O 1.º livro da Bíblia chama-se:', opts:['Salmos','Génesis','Apocalipse'], ans:1, exp:'Génesis.' },
+    { id:'3lf_cri2', s:'formacao_crista', t:'A criação do mundo', type:'mc', diff:2, q:'☀️ Segundo o Génesis, o ser humano foi criado no:', opts:['1.º dia','3.º dia','6.º dia'], ans:2, exp:'6.º dia.' },
+    { id:'3lf_cri3', s:'formacao_crista', t:'A criação do mundo', type:'tf', diff:2, q:'O Papa Francisco fala do cuidado da criação na encíclica "Laudato Si".', ans:true, exp:'Verdadeiro — Laudato Si (2015).' },
+
+    { id:'3lf_jes1', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:1, q:'🌟 Jesus nasceu em:', opts:['Nazaré','Belém','Jerusalém'], ans:1, exp:'Belém.' },
+    { id:'3lf_jes2', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:1, q:'🎄 O Natal celebra o ___ de Jesus:', opts:['batismo','nascimento','milagre'], ans:1, exp:'Natal = nascimento.' },
+    { id:'3lf_jes3', s:'formacao_crista', t:'A vida de Jesus', type:'mc', diff:2, q:'✝️ Jesus escolheu ___ apóstolos:', opts:['7','10','12'], ans:2, exp:'12 apóstolos.' },
+    { id:'3lf_jes4', s:'formacao_crista', t:'A vida de Jesus', type:'tf', diff:2, q:'A Páscoa celebra a Ressurreição de Jesus.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3lf_igr1', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'mc', diff:1, q:'⛪ "Igreja" pode ser:', opts:['só o edifício','só a comunidade','o edifício e a comunidade'], ans:2, exp:'Ambos os sentidos.' },
+    { id:'3lf_igr2', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'mc', diff:2, q:'🙏 Quantos sacramentos tem a Igreja Católica?', opts:['5','7','10'], ans:1, exp:'7 sacramentos.' },
+    { id:'3lf_igr3', s:'formacao_crista', t:'A Igreja e os sacramentos', type:'fill', diff:1, q:'O sacramento que marca a entrada na Igreja é o ___', ans:['Batismo','batismo'], exp:'Batismo.' },
+
+    { id:'3lf_val1', s:'formacao_crista', t:'Valores cristãos', type:'mc', diff:1, q:'💛 "Amar o próximo como a ti mesmo" significa:', opts:['só amar a família','tratar os outros como queres ser tratado','amar só os amigos'], ans:1, exp:'Regra de Ouro (Mt 7, 12).' },
+    { id:'3lf_val2', s:'formacao_crista', t:'Valores cristãos', type:'tf', diff:2, q:'Perdoar é o mesmo que permitir tudo.', ans:false, exp:'Falso — perdoar é não guardar rancor, não significa permitir abusos.' },
+
+    // ============================ CIDADANIA E DESENVOLVIMENTO ==================
+    { id:'3lc_dir1', s:'cidadania', t:'Direitos e deveres', type:'mc', diff:1, q:'👶 Direito de toda a criança:', opts:['ter um carro','ir à escola','escolher os pais'], ans:1, exp:'Direito à educação.' },
+    { id:'3lc_dir2', s:'cidadania', t:'Direitos e deveres', type:'mc', diff:2, q:'📜 A Convenção sobre os Direitos da Criança foi aprovada pela:', opts:['UE','ONU','UNESCO'], ans:1, exp:'ONU, em 1989.' },
+    { id:'3lc_dir3', s:'cidadania', t:'Direitos e deveres', type:'tf', diff:1, q:'As crianças também têm deveres, não apenas direitos.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3lc_reg1', s:'cidadania', t:'Regras de convivência', type:'mc', diff:1, q:'🙋 Na sala de aula, para falar:', opts:['gritar','levantar o braço','sair do lugar'], ans:1, exp:'Levantar o braço.' },
+    { id:'3lc_reg2', s:'cidadania', t:'Regras de convivência', type:'mc', diff:2, q:'😤 Quando há um conflito, o primeiro passo é:', opts:['gritar','acalmar-se','responder à letra'], ans:1, exp:'Acalmar-se.' },
+
+    { id:'3lc_div1', s:'cidadania', t:'Diversidade e respeito', type:'tf', diff:1, q:'Todas as pessoas merecem respeito, independentemente da cor, religião ou capacidade.', ans:true, exp:'Verdadeiro.' },
+    { id:'3lc_div2', s:'cidadania', t:'Diversidade e respeito', type:'mc', diff:2, q:'😠 "Bullying" é:', opts:['uma piada inofensiva','uma agressão repetida','um jogo de equipa'], ans:1, exp:'Agressão repetida.' },
+    { id:'3lc_div3', s:'cidadania', t:'Diversidade e respeito', type:'mc', diff:2, q:'😟 Quando vejo alguém a ser maltratado:', opts:['ignoro','denuncio a um adulto','aplaudo'], ans:1, exp:'Denunciar a um adulto de confiança.' },
+
+    { id:'3lc_amb1', s:'cidadania', t:'Ambiente e sustentabilidade', type:'mc', diff:1, q:'♻️ A regra dos 3 R é:', opts:['Reduzir, Reutilizar, Reciclar','Recolher, Repartir, Reservar','Receber, Refazer, Reciclar'], ans:0, exp:'Reduzir → Reutilizar → Reciclar.' },
+    { id:'3lc_amb2', s:'cidadania', t:'Ambiente e sustentabilidade', type:'mc', diff:2, q:'💧 Ao escovar os dentes devo:', opts:['deixar a torneira aberta','fechar a torneira','encher o lavatório'], ans:1, exp:'Fechar poupa ~6 L/min.' },
+    { id:'3lc_amb3', s:'cidadania', t:'Ambiente e sustentabilidade', type:'tf', diff:2, q:'Reciclar é a 1.ª prioridade nos 3 R.', ans:false, exp:'Falso — a 1.ª é REDUZIR.' },
+
+    { id:'3lc_rod1', s:'cidadania', t:'Segurança rodoviária', type:'mc', diff:1, q:'🚶 Atravesso a estrada na:', opts:['passadeira','curva','meio do trânsito'], ans:0, exp:'Sempre na passadeira.' },
+    { id:'3lc_rod2', s:'cidadania', t:'Segurança rodoviária', type:'mc', diff:2, q:'🚗 No carro, crianças com menos de 12 anos devem ir:', opts:['na frente','no banco de trás','no porta-bagagens'], ans:1, exp:'Sempre no banco de trás.' },
+    { id:'3lc_rod3', s:'cidadania', t:'Segurança rodoviária', type:'tf', diff:1, q:'É obrigatório usar capacete na bicicleta.', ans:true, exp:'Verdadeiro.' },
+
+    { id:'3lc_sau1', s:'cidadania', t:'Saúde e bem-estar', type:'mc', diff:1, q:'😴 Uma criança de 8-9 anos precisa de dormir:', opts:['4-5 h','9-11 h','15 h'], ans:1, exp:'≈ 9-11 horas.' },
+    { id:'3lc_sau2', s:'cidadania', t:'Saúde e bem-estar', type:'mc', diff:2, q:'📱 Tempo recomendado em ecrãs por dia:', opts:['ilimitado','até 1 hora','5 horas'], ans:1, exp:'~1 hora por dia.' },
+    { id:'3lc_sau3', s:'cidadania', t:'Saúde e bem-estar', type:'tf', diff:1, q:'Falar sobre o que sentimos ajuda o bem-estar emocional.', ans:true, exp:'Verdadeiro.' }
+];
 
 // ============================================================
 // ===================== 5.º ANO ==============================
@@ -3868,6 +4335,909 @@ const PERIODS_6 = {
 };
 
 // ============================================================
+// ====== 7.º ANO — ESCOLA SEC. TOMAZ PELAYO (year=7) =========
+// Currículo Aprendizagens Essenciais 2018, alinhado com os
+// manuais adotados pela Escola Secundária Tomaz Pelayo (Santo
+// Tirso), 2024/2025. Língua Estrangeira II = Francês.
+//
+//  • Português:           Palavra-chave 7 (Porto Editora)
+//  • Matemática:          Espiral 7 (Porto Editora)
+//  • Inglês:              Fly High 7 (Asa Editores)
+//  • Francês (LE II):     C'est cool! 7 (Asa Editores)
+//  • História:            Somos História 7 (Areal Editores)
+//  • Geografia:           PLANETA 7 (Porto Editora)
+//  • Ciências Naturais:   GEOCienTIC 7 (Porto Editora)
+//  • Físico-Química:      FQ 7 (novo) (Asa Editores)
+//  • Educação Visual:     Novo Visual 7/8/9 (Porto Editora)
+//  • TIC:                 Login 7 (Asa Editores)
+//  • Educação Física:     Fair Play 7/8/9 (Texto Editores)
+// ============================================================
+const SUBJECTS_7 = {
+    portugues:          { name: 'Português',         icon: 'fa-book',            color: '#e11d48' },
+    matematica:         { name: 'Matemática',        icon: 'fa-calculator',      color: '#2563eb' },
+    ingles:             { name: 'Inglês',            icon: 'fa-language',        color: '#7c3aed' },
+    frances:            { name: 'Francês',           icon: 'fa-flag',            color: '#0ea5e9', fullName: 'Francês (LE II)' },
+    historia:           { name: 'História',          icon: 'fa-landmark',        color: '#b45309' },
+    geografia:          { name: 'Geografia',         icon: 'fa-earth-europe',    color: '#16a34a' },
+    ciencias_naturais:  { name: 'Ciências Naturais', icon: 'fa-leaf',            color: '#15803d' },
+    fisico_quimica:     { name: 'Físico-Química',    icon: 'fa-flask',           color: '#9333ea' },
+    educacao_visual:    { name: 'Ed. Visual',        icon: 'fa-palette',         color: '#f59e0b', fullName: 'Educação Visual' },
+    tic:                { name: 'TIC',               icon: 'fa-laptop-code',     color: '#475569', fullName: 'Tecnologias de Informação e Comunicação' },
+    educacao_fisica:    { name: 'Ed. Física',        icon: 'fa-person-running',  color: '#dc2626', fullName: 'Educação Física' }
+};
+
+const CURRICULUM_7 = {
+    portugues: [
+        'Texto narrativo', 'Conto tradicional', 'Os Lusíadas (excertos)',
+        'Sujeito e predicado', 'Complementos verbais',
+        'Texto poético', 'Modificadores', 'Frase simples e complexa', 'Orações coordenadas',
+        'Texto dramático', 'Orações subordinadas', 'Discurso direto e indireto',
+        'Modo conjuntivo', 'Recursos expressivos'
+    ],
+    matematica: [
+        'Números racionais', 'Adição e subtração de racionais', 'Multiplicação e divisão de racionais', 'Potências',
+        'Sequências e regularidades', 'Expressões algébricas', 'Equações do 1.º grau',
+        'Funções (introdução)', 'Proporcionalidade direta',
+        'Semelhança de figuras', 'Teorema de Pitágoras', 'Áreas e volumes', 'Estatística'
+    ],
+    ingles: [
+        'All about me', 'Daily routines', 'School life', 'Free time and hobbies',
+        'Healthy lifestyle', 'Holidays and travel', 'Technology', 'Environment'
+    ],
+    frances: [
+        'Salutations et présentations', 'La famille', "L'école", 'Les loisirs',
+        'La nourriture', 'La ville', 'Les vêtements', 'Les saisons et la météo'
+    ],
+    historia: [
+        'Pré-história e primeiras civilizações', 'Grécia Antiga', 'Atenas e a democracia',
+        'Roma Antiga', 'Cristianismo', 'Idade Média na Europa',
+        'Mundo Muçulmano', 'Formação de Portugal', 'Sociedade medieval portuguesa',
+        'Crise do século XIV'
+    ],
+    geografia: [
+        'Representações cartográficas', 'Escalas', 'Coordenadas geográficas',
+        'Relevo', 'Clima', 'Hidrografia', 'Vegetação natural', 'Recursos naturais'
+    ],
+    ciencias_naturais: [
+        'A Terra como sistema', 'Subsistemas terrestres',
+        'Estrutura interna da Terra', 'Tectónica de placas',
+        'Rochas', 'Minerais', 'Vulcanologia', 'Sismologia', 'Fósseis e tempo geológico'
+    ],
+    fisico_quimica: [
+        'O Universo', 'Sistema Solar', 'A Terra, a Lua e as forças gravíticas',
+        'Substâncias e misturas', 'Estados físicos da matéria',
+        'Transformações físicas', 'Transformações químicas', 'Massa volúmica'
+    ],
+    educacao_visual: [
+        'Ponto, linha e plano', 'Cor', 'Forma e composição',
+        'Perspetiva', 'Luz e sombra', 'Comunicação visual'
+    ],
+    tic: [
+        'Hardware e software', 'Sistema operativo', 'Internet e navegação',
+        'Segurança online', 'Processador de texto', 'Folha de cálculo', 'Apresentações eletrónicas'
+    ],
+    educacao_fisica: [
+        'Aquecimento e arrefecimento', 'Capacidades físicas', 'Atletismo',
+        'Ginástica', 'Modalidades coletivas', 'Regras gerais do desporto'
+    ]
+};
+
+const PERIODS_7 = {
+    portugues: {
+        'Texto narrativo':1, 'Conto tradicional':1, 'Os Lusíadas (excertos)':1,
+        'Sujeito e predicado':1, 'Complementos verbais':1,
+        'Texto poético':2, 'Modificadores':2, 'Frase simples e complexa':2, 'Orações coordenadas':2,
+        'Texto dramático':3, 'Orações subordinadas':3, 'Discurso direto e indireto':3,
+        'Modo conjuntivo':3, 'Recursos expressivos':3
+    },
+    matematica: {
+        'Números racionais':1, 'Adição e subtração de racionais':1, 'Multiplicação e divisão de racionais':1, 'Potências':1,
+        'Sequências e regularidades':2, 'Expressões algébricas':2, 'Equações do 1.º grau':2,
+        'Funções (introdução)':2, 'Proporcionalidade direta':2,
+        'Semelhança de figuras':3, 'Teorema de Pitágoras':3, 'Áreas e volumes':3, 'Estatística':3
+    },
+    ingles: {
+        'All about me':1, 'Daily routines':1, 'School life':1,
+        'Free time and hobbies':2, 'Healthy lifestyle':2, 'Holidays and travel':2,
+        'Technology':3, 'Environment':3
+    },
+    frances: {
+        'Salutations et présentations':1, 'La famille':1, "L'école":1,
+        'Les loisirs':2, 'La nourriture':2, 'La ville':2,
+        'Les vêtements':3, 'Les saisons et la météo':3
+    },
+    historia: {
+        'Pré-história e primeiras civilizações':1, 'Grécia Antiga':1, 'Atenas e a democracia':1, 'Roma Antiga':1,
+        'Cristianismo':2, 'Idade Média na Europa':2, 'Mundo Muçulmano':2,
+        'Formação de Portugal':3, 'Sociedade medieval portuguesa':3, 'Crise do século XIV':3
+    },
+    geografia: {
+        'Representações cartográficas':1, 'Escalas':1, 'Coordenadas geográficas':1,
+        'Relevo':2, 'Clima':2,
+        'Hidrografia':3, 'Vegetação natural':3, 'Recursos naturais':3
+    },
+    ciencias_naturais: {
+        'A Terra como sistema':1, 'Subsistemas terrestres':1,
+        'Estrutura interna da Terra':2, 'Tectónica de placas':2,
+        'Rochas':2, 'Minerais':2,
+        'Vulcanologia':3, 'Sismologia':3, 'Fósseis e tempo geológico':3
+    },
+    fisico_quimica: {
+        'O Universo':1, 'Sistema Solar':1, 'A Terra, a Lua e as forças gravíticas':1,
+        'Substâncias e misturas':2, 'Estados físicos da matéria':2,
+        'Transformações físicas':3, 'Transformações químicas':3, 'Massa volúmica':3
+    },
+    educacao_visual: {
+        'Ponto, linha e plano':1, 'Cor':1,
+        'Forma e composição':2, 'Perspetiva':2,
+        'Luz e sombra':3, 'Comunicação visual':3
+    },
+    tic: {
+        'Hardware e software':1, 'Sistema operativo':1,
+        'Internet e navegação':2, 'Segurança online':2,
+        'Processador de texto':3, 'Folha de cálculo':3, 'Apresentações eletrónicas':3
+    },
+    educacao_fisica: {
+        'Aquecimento e arrefecimento':1, 'Capacidades físicas':1,
+        'Atletismo':2, 'Ginástica':2,
+        'Modalidades coletivas':3, 'Regras gerais do desporto':3
+    }
+};
+
+const LESSONS_7 = {
+    // ===== PORTUGUÊS (Palavra-chave 7) =====
+    'portugues/Texto narrativo': {
+        title: 'Texto narrativo',
+        body: 'Um **texto narrativo** conta uma história. Elementos principais:\n\n• **Narrador** — quem conta. Pode ser **participante** (1.ª pessoa, dentro da história) ou **não-participante / heterodiegético** (3.ª pessoa, de fora).\n• **Personagens** — principais (protagonista) e secundárias; planas (caraterísticas fixas) ou redondas (evoluem).\n• **Espaço** — físico, social e psicológico.\n• **Tempo** — da história (cronológico) e do discurso (a ordem do texto: analepse = recuo; prolepse = avanço).\n• **Ação** — sequência de acontecimentos.\n\n**Categorias da ação**: situação inicial → desenvolvimento (peripécias) → clímax → desenlace.\n\n**❌ O que se costuma errar**\n• Confundir narrador (voz no texto) com autor (pessoa real).\n• Achar que 1.ª pessoa significa autobiografia — é só a perspetiva.\n• Trocar analepse com prolepse.'
+    },
+    'portugues/Conto tradicional': {
+        title: 'Conto tradicional',
+        body: 'O **conto tradicional** é uma narrativa popular, transmitida oralmente de geração em geração. Caraterísticas:\n\n• Origem **anónima** (não tem autor conhecido).\n• Estrutura simples: início → meio → fim.\n• Personagens **planas** (boas ou más, sem grandes nuances).\n• Tempo e espaço **imprecisos** ("era uma vez", "num reino distante").\n• Presença de elementos **maravilhosos** (mágica, animais que falam).\n• **Moralidade** ou ensinamento no fim.\n\n**Subtipos**: contos de fadas, contos de animais (fábulas), contos religiosos, lendas.\n\n**❌ O que se costuma errar**\n• Confundir conto tradicional com lenda — a lenda explica origens (de um lugar, povo, fenómeno).\n• Achar que toda a narrativa curta é conto — pode ser crónica, fábula, mito.\n• Esquecer-se que o tempo é deliberadamente vago.'
+    },
+    'portugues/Os Lusíadas (excertos)': {
+        title: 'Os Lusíadas (excertos)',
+        body: '**Os Lusíadas** é a **epopeia nacional** portuguesa, escrita por **Luís Vaz de Camões** e publicada em **1572**.\n\n**Estrutura**:\n• 10 **cantos** em **estâncias** (oitavas = estrofes de 8 versos decassílabos).\n• Esquema rimático: **abababcc**.\n• 4 partes: **Proposição** (assunto), **Invocação** (às Tágides), **Dedicatória** (a D. Sebastião), **Narração**.\n\n**Tema**: a viagem de **Vasco da Gama** à Índia (1497–1499) e a história de Portugal.\n\n**Episódios famosos** (alguns lecionados no 7.º ano):\n• **Consílio dos Deuses** — os deuses discutem o destino dos portugueses.\n• **Inês de Castro** — amor trágico (Canto III).\n• **Adamastor** — gigante no Cabo da Boa Esperança (Canto V).\n• **Despedidas em Belém** — partida da armada.\n\n**❌ O que se costuma errar**\n• Confundir Luís Vaz de Camões (autor) com Vasco da Gama (protagonista).\n• Pensar que Os Lusíadas é em prosa — é poesia épica em verso.\n• Achar que os 10 cantos contam só a viagem — também contam a história do reino.'
+    },
+    'portugues/Sujeito e predicado': {
+        title: 'Sujeito e predicado',
+        body: 'Uma frase tem duas funções sintáticas centrais:\n\n• **Sujeito** — sobre quem/o quê se fala. Concorda com o verbo em pessoa e número.\n• **Predicado** — o que se diz sobre o sujeito. É **o verbo** e tudo o que com ele se liga.\n\nEx: "**O João** [SUJ] | **comeu uma maçã** [PRED]."\n\n**Tipos de sujeito**:\n• **Simples** — um só núcleo (O João).\n• **Composto** — dois ou mais núcleos (O João e a Maria).\n• **Subentendido** — não escrito, mas identificável pela desinência verbal ("Cantei" → sujeito = eu).\n• **Indeterminado** — não identificado ("Roubaram o carro").\n• **Nulo expletivo** — verbos impessoais ("Chove", "Há livros").\n\n**❌ O que se costuma errar**\n• Confundir sujeito com complemento direto (sujeito faz a ação; CD recebe a ação).\n• Esquecer que o sujeito subentendido EXISTE (mesmo não escrito).\n• Marcar "há" como tendo sujeito — é nulo expletivo.'
+    },
+    'portugues/Complementos verbais': {
+        title: 'Complementos verbais',
+        body: 'Os **complementos do verbo** completam o sentido do predicado:\n\n• **Complemento direto (CD)** — responde a "o quê?". Pode ser substituído por **o, a, os, as**. Ex: "Comprei **um livro**" → "Comprei-**o**".\n• **Complemento indireto (CI)** — responde a "a quem?". Substituído por **lhe, lhes**. Ex: "Dei o livro **à Ana**" → "Dei-**lhe** o livro".\n• **Complemento oblíquo** — pedido por verbos como "morar", "ir", "vir", "gostar". Substituído por advérbios. Ex: "Moro **em Lisboa**" → "Moro **lá**". "Gosto **de música**".\n• **Complemento agente da passiva** — só em frases passivas, introduzido por **por**. Ex: "O livro foi escrito **pelo autor**."\n\n**❌ O que se costuma errar**\n• Confundir CD (sem preposição) com CI (com "a/para").\n• Trocar CI com complemento oblíquo (gostar/precisar usam oblíquo, não CI).\n• Esquecer que só o agente da passiva aparece em frases passivas.'
+    },
+    'portugues/Texto poético': {
+        title: 'Texto poético',
+        body: 'Um **poema** é escrito em **versos** organizados em **estrofes**. Elementos:\n\n• **Verso** — cada linha. Conta-se a **métrica** (n.º de sílabas métricas).\n  - 4 sílabas = redondilha menor; 5 = redondilha maior; 7 = heptassílabo; 10 = decassílabo.\n• **Estrofe** — conjunto de versos. Quadra (4), terceto (3), oitava (8), soneto (4+4+3+3).\n• **Rima** — sons iguais no fim dos versos.\n  - **Cruzada** (abab), **emparelhada** (aabb), **interpolada** (abba).\n  - **Pobre** (mesma classe gramatical), **rica** (classes diferentes).\n• **Sujeito poético** — o "eu" do poema (NÃO é o autor).\n\n**Recursos**: metáfora, comparação, personificação, anáfora, hipérbole...\n\n**❌ O que se costuma errar**\n• Confundir sílabas métricas com sílabas gramaticais (na métrica une-se vogais entre palavras — sinalefa).\n• Trocar autor com sujeito poético.\n• Confundir rima cruzada (abab) com emparelhada (aabb).'
+    },
+    'portugues/Modificadores': {
+        title: 'Modificadores',
+        body: 'Um **modificador** é uma palavra ou grupo que acrescenta informação **acessória** (não obrigatória) à frase. Pode retirar-se sem tornar a frase agramatical.\n\n• **Modificador do grupo verbal** — acrescenta informação ao predicado, mas o verbo NÃO O EXIGE. Ex: "Estudei **ontem**." / "Trabalhei **na biblioteca**." → ontem e na biblioteca são modificadores (não complementos).\n• **Modificador do nome** — qualifica o nome. Pode ser **restritivo** (essencial à identificação) ou **apositivo** (entre vírgulas). Ex: "O João, **meu amigo**, chegou." (apositivo).\n• **Modificador da frase** — afeta a frase toda. Ex: "**Felizmente**, ganhámos."\n\n**Diferença para complemento**: o complemento é **obrigatório** (o verbo exige); o modificador é **opcional**.\n\n**❌ O que se costuma errar**\n• Trocar modificador com complemento (testa: tira a palavra — se a frase continua bem, é modificador).\n• Esquecer as vírgulas no modificador apositivo.\n• Confundir modificador da frase com advérbio normal.'
+    },
+    'portugues/Frase simples e complexa': {
+        title: 'Frase simples e complexa',
+        body: '• **Frase simples** — tem **uma só** oração (um único verbo principal). Ex: "A Maria leu o livro."\n\n• **Frase complexa** — tem **duas ou mais** orações (dois ou mais verbos principais, ligados por conjunções ou pontuação). Ex: "A Maria leu o livro **e** depois fez o resumo."\n\nOrações na frase complexa podem ser:\n• **Coordenadas** — independentes entre si, ligadas por conjunções coordenativas (e, mas, ou, porque).\n• **Subordinadas** — dependem de outra (a principal) e são ligadas por conjunções subordinativas (que, se, quando, porque, embora).\n\n**❌ O que se costuma errar**\n• Contar verbos auxiliares como verbos principais (uma forma verbal composta como "tinha estudado" é UM só verbo).\n• Achar que ponto de exclamação separa orações — pode marcar fim de frase.\n• Confundir conjunções coordenativas com subordinativas (atenção a "porque" — pode ser ambas dependendo do contexto).'
+    },
+    'portugues/Orações coordenadas': {
+        title: 'Orações coordenadas',
+        body: 'As **orações coordenadas** são ligadas entre si, mas **independentes** (cada uma faz sentido sozinha). Ligam-se por **conjunções coordenativas** ou por **vírgula/pontuação**.\n\n**Tipos**:\n• **Copulativa** — adiciona. Conjunções: **e**, nem, não só...mas também. Ex: "Estudei **e** fui dormir."\n• **Adversativa** — opõe / contraria. Conjunções: **mas**, porém, contudo, todavia. Ex: "Estudei muito, **mas** não tirei boa nota."\n• **Disjuntiva** — escolha. Conjunções: **ou**, ou...ou, ora...ora. Ex: "Vais para o cinema **ou** ficas em casa?"\n• **Conclusiva** — conclui. Conjunções: **logo**, portanto, por isso, pois (final). Ex: "Estudei, **logo** vou passar."\n• **Explicativa** — explica. Conjunções: **pois** (inicial), porque (inicial), que. Ex: "Não veio à escola, **pois** estava doente."\n\n**❌ O que se costuma errar**\n• Confundir explicativa com causal (a explicativa é coordenada; a causal é subordinada).\n• Trocar conclusiva (efeito) com explicativa (causa).\n• Esquecer-se que "porém" é adversativa (não copulativa).'
+    },
+    'portugues/Texto dramático': {
+        title: 'Texto dramático',
+        body: 'O **texto dramático** é escrito para ser **representado em palco** (teatro). Estrutura:\n\n• **Atos** — partes maiores da peça.\n• **Cenas** — subdivisões dos atos (mudança de personagens).\n• **Diálogo** — fala das personagens.\n• **Monólogo** — uma personagem fala sozinha.\n• **Aparte** — fala dirigida ao público (as outras personagens "não ouvem").\n• **Didascálias** (indicações cénicas) — texto entre parênteses ou em itálico que dá indicações sobre cenário, gestos, tom.\n\n**Tipos**:\n• **Tragédia** — fim trágico, personagens elevadas.\n• **Comédia** — riso, fim feliz.\n• **Tragicomédia** — mistura.\n• **Drama** — situações sérias mas sem o fim trágico clássico.\n\nGil Vicente é o pai do teatro português ("Auto da Barca do Inferno").\n\n**❌ O que se costuma errar**\n• Confundir didascália com diálogo — a didascália NÃO é dita pelas personagens.\n• Achar que ato e cena são a mesma coisa.\n• Esquecer que o aparte é dirigido AO PÚBLICO (rutura da quarta parede).'
+    },
+    'portugues/Orações subordinadas': {
+        title: 'Orações subordinadas',
+        body: 'As **orações subordinadas** dependem de uma oração principal — não fazem sentido sozinhas. Tipos:\n\n• **Substantivas** (ocupam lugar de um nome):\n  - **Completivas**: "Quero **que estudes**."\n  - **Relativas sem antecedente**: "**Quem cala** consente."\n\n• **Adjetivas relativas** (qualificam um nome):\n  - **Restritivas**: "O livro **que comprei** é ótimo." (sem vírgula)\n  - **Explicativas**: "O livro, **que comprei ontem**, é ótimo." (com vírgulas)\n\n• **Adverbiais** (funcionam como advérbio):\n  - **Causal**: porque, visto que. Ex: "Fiquei em casa **porque chovia**."\n  - **Final**: para que. Ex: "Estudou **para passar**."\n  - **Temporal**: quando, enquanto. Ex: "Vou sair **quando chegares**."\n  - **Condicional**: se, caso. Ex: "**Se chover**, fico em casa."\n  - **Concessiva**: embora, ainda que. Ex: "**Embora chova**, vou sair."\n  - **Consecutiva**: tão...que. Ex: "Estudou tanto **que passou**."\n  - **Comparativa**: como, tal como.\n\n**❌ O que se costuma errar**\n• Confundir subordinada substantiva completiva com adjetiva relativa.\n• Esquecer a vírgula na relativa explicativa.\n• Trocar causal (causa) com final (objetivo).'
+    },
+    'portugues/Discurso direto e indireto': {
+        title: 'Discurso direto e indireto',
+        body: '• **Discurso direto** — reproduz as palavras EXATAMENTE como foram ditas. Usa-se:\n  - **Travessão** (—) ou aspas.\n  - **Verbo declarativo** (disse, perguntou, respondeu, exclamou).\n  - **Dois pontos** antes da fala.\n\n  Ex: O João disse: **— Vou estudar.**\n\n• **Discurso indireto** — reproduz o que foi dito, mas **adaptado** pelo narrador (sem travessões/aspas). Tudo muda:\n  - **Pronomes**: eu → ele/ela; meu → seu.\n  - **Tempos verbais**: presente → pretérito imperfeito; pretérito perfeito → pretérito mais-que-perfeito; futuro → condicional.\n  - **Advérbios de tempo**: hoje → naquele dia; ontem → no dia anterior; amanhã → no dia seguinte.\n  - **Advérbios de lugar**: aqui → ali.\n\n  Ex: O João disse que **ia estudar**.\n\n**❌ O que se costuma errar**\n• Esquecer de mudar tempos verbais ao passar para indireto.\n• Esquecer a conjunção "que" no início do indireto.\n• Trocar "hoje" em direto por "hoje" em indireto (deve ser "naquele dia").'
+    },
+    'portugues/Modo conjuntivo': {
+        title: 'Modo conjuntivo',
+        body: 'O **modo conjuntivo** exprime **dúvida**, **desejo**, **incerteza** ou **hipótese**. Por oposição ao **indicativo** (factos certos).\n\n**Quando se usa**:\n• Após **conjunções**: que (em verbos volitivos), se (condicional), embora, para que, antes que.\n• Em **frases optativas** (desejo): "**Tomara que** passes!"\n• Após verbos de **vontade, dúvida, sentimento**: querer, desejar, duvidar, recear.\n\n**Tempos**:\n• **Presente do conjuntivo**: que eu cante, que tu cantes, que ele cante...\n• **Pretérito imperfeito do conjuntivo**: se eu cantasse...\n• **Futuro do conjuntivo**: quando eu cantar, se eu chegar...\n\n**Exemplos de uso**:\n• "Quero que **estudes**." (presente conjuntivo)\n• "Se eu **tivesse** dinheiro, comprava." (imperfeito conjuntivo)\n• "Quando eu **acabar** o trabalho, vou descansar." (futuro conjuntivo)\n\n**❌ O que se costuma errar**\n• Usar indicativo após "embora" (deve ser conjuntivo): "Embora **chove** ✗" → "Embora **chova** ✓".\n• Trocar imperfeito conjuntivo (se cantasse) com pretérito imperfeito indicativo (cantava).\n• Esquecer o futuro do conjuntivo — usado em condicionais reais: "Se chover, fico em casa" (chover = futuro conjuntivo).'
+    },
+    'portugues/Recursos expressivos': {
+        title: 'Recursos expressivos',
+        body: 'Os **recursos expressivos** (ou figuras de estilo) tornam o texto mais vivo:\n\n• **Comparação** — usa "como", "tal como". Ex: "Rápido **como** o vento."\n• **Metáfora** — comparação sem "como". Ex: "Os teus olhos são **dois faróis**."\n• **Personificação** — atribui qualidades humanas a seres não-humanos. Ex: "O vento **chorava**."\n• **Hipérbole** — exagero. Ex: "Já te disse **um milhão de vezes**."\n• **Eufemismo** — suaviza algo desagradável. Ex: "**Partiu**" (em vez de "morreu").\n• **Ironia** — diz o contrário do que se pensa. Ex: "Que **lindo** dia!" (com chuva torrencial).\n• **Anáfora** — repetição no início de frases/versos. Ex: "**Hoje** chove, **hoje** vento, **hoje** frio."\n• **Aliteração** — repetição de consoantes. Ex: "O rato **r**oeu a **r**oupa do **r**ei de **R**oma."\n• **Enumeração** — sequência de elementos. Ex: "Comprei pão, leite, queijo, ovos."\n• **Antítese** — oposição. Ex: "Foi um amor de **fogo** e **gelo**."\n\n**❌ O que se costuma errar**\n• Confundir comparação (com "como") com metáfora (sem "como").\n• Achar que toda a repetição é anáfora — tem de ser no INÍCIO.\n• Trocar aliteração (consoantes) com assonância (vogais).'
+    },
+
+    // ===== MATEMÁTICA (Espiral 7) =====
+    'matematica/Números racionais': {
+        title: 'Números racionais',
+        body: 'Um **número racional** é todo aquele que pode ser escrito como **fração** a/b com a, b inteiros e b ≠ 0.\n\nOs racionais (**ℚ**) incluem:\n• **Inteiros** (...,−3,−2,−1,0,1,2,3,...)\n• **Fracionários positivos** (1/2, 3/4)\n• **Fracionários negativos** (−1/2, −3/4)\n• **Decimais finitos** (0,5 = 1/2)\n• **Dízimas infinitas periódicas** (0,333... = 1/3)\n\n**Reta numérica**: os negativos ficam à esquerda do 0; os positivos à direita. Quanto mais à direita, maior.\n\n**Simétrico**: o simétrico de −5 é +5 (e vice-versa). Soma = 0.\n**Módulo / valor absoluto**: |−5| = 5; |3| = 3. Distância ao 0.\n\n**Ordenação**: −10 < −2 < 0 < 3 < 7. Em negativos, o mais "longe de 0" é o MENOR.\n\n**❌ O que se costuma errar**\n• Achar que −10 > −2 (porque 10 > 2). FALSO — em negativos é o contrário.\n• Confundir simétrico (−5 e 5) com inverso (5 e 1/5).\n• Esquecer que |−5| = 5 (módulo é sempre positivo ou zero).'
+    },
+    'matematica/Adição e subtração de racionais': {
+        title: 'Adição e subtração de racionais',
+        body: '**Adição de racionais com sinais**:\n• **Mesmo sinal** — soma os módulos e mantém o sinal.\n  Ex: (−3) + (−5) = −8;  (+4) + (+6) = +10.\n• **Sinais diferentes** — subtrai os módulos e mantém o sinal do maior módulo.\n  Ex: (−7) + (+3) = −4;  (+8) + (−5) = +3.\n\n**Subtração**: transforma-se em adição do simétrico.\n  Ex: 5 − (−3) = 5 + 3 = 8.\n  Ex: −2 − (+4) = −2 + (−4) = −6.\n\n**Adição de frações**:\n• Mesmo denominador: somam-se os numeradores. Ex: 2/5 + 1/5 = 3/5.\n• Denominadores diferentes: reduzir ao **mesmo denominador** (m.m.c.). Ex: 1/2 + 1/3 = 3/6 + 2/6 = 5/6.\n\n**❌ O que se costuma errar**\n• Esquecer a "regra dos sinais" na adição/subtração.\n• Somar frações somando numerador + numerador e denominador + denominador (ERRADO).\n• Não reduzir antes de somar frações diferentes.'
+    },
+    'matematica/Multiplicação e divisão de racionais': {
+        title: 'Multiplicação e divisão de racionais',
+        body: '**Regra dos sinais** (× ou ÷):\n• (+) × (+) = (+)\n• (−) × (−) = (+)\n• (+) × (−) = (−)\n• (−) × (+) = (−)\n\nMnemónica: "iguais → positivo; diferentes → negativo".\n\nEx: (−4) × (−3) = +12;  (−6) ÷ (+2) = −3.\n\n**Multiplicação de frações**: numerador × numerador, denominador × denominador. Simplifica-se sempre que possível.\nEx: 2/3 × 5/4 = 10/12 = 5/6.\n\n**Divisão de frações**: multiplica-se pelo **inverso** do segundo.\nEx: 2/3 ÷ 4/5 = 2/3 × 5/4 = 10/12 = 5/6.\n\n**Inverso** de uma fração: trocar numerador e denominador (3/4 → 4/3).\n\n**❌ O que se costuma errar**\n• Confundir regra dos sinais (em multiplicação não se separa em "soma o módulo").\n• Dividir frações sem inverter a segunda.\n• Confundir simétrico (−a) com inverso (1/a).'
+    },
+    'matematica/Potências': {
+        title: 'Potências',
+        body: 'Uma **potência** representa multiplicação repetida da **base**.\n\n   **a^n** = a × a × a × ... × a   (n vezes)\n\n• **a** — base; **n** — expoente.\n• Ex: 2³ = 2 × 2 × 2 = 8.\n\n**Regras das potências**:\n• **Mesma base, expoentes somados** (multiplicação): a^m × a^n = a^(m+n).  Ex: 2³ × 2² = 2⁵ = 32.\n• **Mesma base, expoentes subtraídos** (divisão): a^m ÷ a^n = a^(m−n).  Ex: 2⁵ ÷ 2² = 2³ = 8.\n• **Potência de potência**: (a^m)^n = a^(m×n).  Ex: (2²)³ = 2⁶ = 64.\n• **Mesmo expoente, bases multiplicadas**: a^n × b^n = (a×b)^n.\n• **Expoente 0**: a⁰ = 1 (com a ≠ 0).\n• **Expoente 1**: a¹ = a.\n• **Potências negativas (10⁻¹, 10⁻²)** introduzem-se com notação científica.\n\n**Quadrado / Cubo**: a² (quadrado), a³ (cubo).\n\n**❌ O que se costuma errar**\n• Confundir 2³ com 2 × 3 (= 6). 2³ = 8.\n• Aplicar a regra a^m × a^n = a^(m·n) (errado, é m+n).\n• Esquecer que a⁰ = 1 (não 0).'
+    },
+    'matematica/Sequências e regularidades': {
+        title: 'Sequências e regularidades',
+        body: 'Uma **sequência** é uma lista ordenada de números (ou objetos) que segue uma regra (**termo geral**).\n\nEx: 2, 4, 6, 8, 10, ... → termo geral **a_n = 2n** (números pares).\n\n• **Termo de ordem n** — qual o número na posição n.\n• **Termo geral** — fórmula que dá qualquer termo em função de n.\n\n**Tipos comuns**:\n• **Aritmética** (soma constante): 3, 7, 11, 15... (+4). Termo geral: a_n = 3 + 4(n−1).\n• **Geométrica** (multiplicação constante): 2, 6, 18, 54... (×3).\n• **Quadrática**: 1, 4, 9, 16... (números quadrados, n²).\n• **Triangulares**: 1, 3, 6, 10... (n(n+1)/2).\n\n**Como descobrir o termo geral**:\n1. Vê a diferença entre termos consecutivos.\n2. Se for constante (=d), é aritmética: a_n = a_1 + d(n−1).\n3. Se for proporcional, é geométrica.\n\n**❌ O que se costuma errar**\n• Confundir ordem (n) com valor do termo.\n• Esquecer-se da subtração "−1" na fórmula da aritmética.\n• Aplicar a fórmula errada (aritmética vs. geométrica).'
+    },
+    'matematica/Expressões algébricas': {
+        title: 'Expressões algébricas',
+        body: 'Uma **expressão algébrica** combina números, letras (variáveis) e operações. As **letras** representam valores desconhecidos.\n\nEx: 3x + 5;  2y − 7;  a² + b².\n\n**Termo** — cada parte separada por + ou −.\n• Em 3x² + 4x − 7, os termos são: 3x², 4x, −7.\n• **Coeficiente** — o número (em 3x², é 3).\n• **Parte literal** — as letras (em 3x², é x²).\n\n**Termos semelhantes** — têm a mesma parte literal. Ex: 3x e 5x são semelhantes; 3x e 3x² NÃO são.\n\n**Operações**:\n• Adicionar termos semelhantes: 3x + 5x = 8x.\n• Multiplicar: 3x · 4x = 12x² (multiplica coeficientes, soma expoentes).\n• Distribuir: 2(3x + 4) = 6x + 8.\n\n**❌ O que se costuma errar**\n• Somar termos não semelhantes: 3x + 2x² ≠ 5x³.\n• Esquecer de distribuir o sinal: −(x−3) = −x+3 (não −x−3).\n• Confundir coeficiente com parte literal.'
+    },
+    'matematica/Equações do 1.º grau': {
+        title: 'Equações do 1.º grau',
+        body: 'Uma **equação do 1.º grau** numa incógnita tem a forma **ax + b = 0** (a ≠ 0).\n\nEx: 2x + 6 = 14 ⇔ 2x = 8 ⇔ x = 4.\n\n**Princípios de resolução**:\n1. Pode **somar/subtrair** o mesmo número aos dois lados.\n2. Pode **multiplicar/dividir** ambos os lados pelo mesmo número (≠ 0).\n3. Termos com **incógnita** passam para um lado; termos **independentes** para o outro (mudando de sinal ao passar o "=").\n\n**Exemplo**:\n3x − 5 = 2x + 7\n3x − 2x = 7 + 5\nx = 12\n\n**Equação impossível**: 2x + 5 = 2x − 3 → 0 = −8 (falso). Não tem solução.\n**Equação possível indeterminada**: 2x + 5 = 2x + 5 → 0 = 0. Todos os valores são soluções.\n\n**❌ O que se costuma errar**\n• Esquecer-se de mudar o sinal ao "passar de lado".\n• Dividir só um lado da equação (tem de ser os dois).\n• Confundir equação impossível (0 = nº) com indeterminada (0 = 0).'
+    },
+    'matematica/Funções (introdução)': {
+        title: 'Funções (introdução)',
+        body: 'Uma **função** é uma "máquina" que, dado um valor de entrada (**objeto** / x), produz **um e um só** valor de saída (**imagem** / y).\n\nNotação: **f(x) = ...** ou **y = ...**.\n\nEx: f(x) = 2x + 1. Para x = 3, f(3) = 7.\n\n**Conjuntos**:\n• **Domínio** — conjunto dos objetos (valores de x).\n• **Contradomínio** — conjunto das imagens (valores de y).\n\n**Representações**:\n• Tabela.\n• Diagrama de setas.\n• Gráfico (no referencial cartesiano xOy).\n• Expressão algébrica.\n\n**Função afim**: f(x) = ax + b. O gráfico é uma **reta**.\n  - Se b = 0 → função **linear** (passa pela origem).\n  - **a** = declive (inclinação).\n  - **b** = ordenada na origem.\n\n**Função constante**: f(x) = b (reta horizontal).\n\n**❌ O que se costuma errar**\n• Achar que uma função pode ter dois "y" para o mesmo "x" — NÃO PODE (caso contrário não é função).\n• Confundir domínio (x) com contradomínio (y).\n• Trocar declive (a) com ordenada na origem (b).'
+    },
+    'matematica/Proporcionalidade direta': {
+        title: 'Proporcionalidade direta',
+        body: 'Duas grandezas são **diretamente proporcionais** quando ao multiplicar uma por um número, a outra fica multiplicada pelo mesmo número.\n\nO **quociente** entre elas é **constante** — chama-se **constante de proporcionalidade (k)**.\n\n   y / x = k   ⇔   y = k · x\n\nEx: se 3 kg custam 6 €, 6 kg custam 12 €. k = 2 €/kg.\n\n**Tabela**:\n| x (kg)  | 1 | 2 | 3 | 4 |\n| y (€)  | 2 | 4 | 6 | 8 |\n\n**Gráfico** — reta que passa pela origem (0, 0). O declive é k.\n\n**Função** — y = kx (função linear).\n\n**Regra de três simples**:\nSe 4 kg → 8 €, quanto custam 6 kg?\n6 × (8/4) = 12 €.\n\n**❌ O que se costuma errar**\n• Confundir proporcionalidade direta com inversa (na inversa, o **produto** é que é constante: x · y = k).\n• Achar que toda a reta é proporcionalidade direta — tem de **passar pela origem**.\n• Esquecer-se de calcular k antes de aplicar.'
+    },
+    'matematica/Semelhança de figuras': {
+        title: 'Semelhança de figuras',
+        body: 'Duas figuras são **semelhantes** quando têm a mesma forma mas tamanhos diferentes (ou iguais).\n\n**Condições de semelhança em triângulos**:\n• **AA** — dois pares de ângulos iguais.\n• **LAL** — dois lados proporcionais e o ângulo entre eles igual.\n• **LLL** — três pares de lados proporcionais.\n\n**Razão de semelhança (k)** = razão entre lados correspondentes.\n• Se k > 1 → ampliação.\n• Se k < 1 → redução.\n• Se k = 1 → figuras congruentes (iguais).\n\n**Propriedades**:\n• **Lados**: proporcionais (razão k).\n• **Ângulos**: iguais.\n• **Perímetros**: razão k.\n• **Áreas**: razão **k²**.\n• **Volumes** (sólidos): razão **k³**.\n\n**❌ O que se costuma errar**\n• Comparar lados que não são correspondentes.\n• Esquecer que a razão de áreas é k² (não k).\n• Trocar congruência (k=1) com semelhança (k≠1).'
+    },
+    'matematica/Teorema de Pitágoras': {
+        title: 'Teorema de Pitágoras',
+        body: 'Num triângulo **retângulo** (com um ângulo de 90°), o **quadrado da hipotenusa** (lado oposto ao ângulo reto) é igual à **soma dos quadrados dos catetos**.\n\n   **a² = b² + c²**\n   (a = hipotenusa; b e c = catetos)\n\n**Exemplo**: triângulo com catetos 3 e 4.\na² = 3² + 4² = 9 + 16 = 25.\na = √25 = **5**.\n\n**Triplos pitagóricos** famosos: (3, 4, 5), (5, 12, 13), (8, 15, 17).\n\n**Recíproco**: se a² = b² + c², então o triângulo é retângulo.\n\n**Usar para calcular um cateto**:\nDada a hipotenusa a = 13 e cateto b = 5:\nc² = 13² − 5² = 169 − 25 = 144 ⇒ c = 12.\n\n**❌ O que se costuma errar**\n• Confundir hipotenusa (lado oposto ao ângulo reto, o MAIOR) com cateto.\n• Aplicar a triângulos não retângulos (o teorema só funciona em retângulos).\n• Esquecer-se da raiz quadrada no final.'
+    },
+    'matematica/Áreas e volumes': {
+        title: 'Áreas e volumes',
+        body: '**Áreas** (unidade: m², cm²):\n• **Quadrado**: A = lado²\n• **Retângulo**: A = c × l (comprimento × largura)\n• **Triângulo**: A = (base × altura) / 2\n• **Paralelogramo**: A = base × altura\n• **Trapézio**: A = (B + b) × h / 2\n• **Círculo**: A = π × r²\n\n**Perímetro do círculo** (circunferência): P = 2π × r.\n\n**Volumes** (unidade: m³, cm³, L):\n• **Cubo**: V = aresta³\n• **Paralelepípedo** (caixa): V = c × l × h\n• **Cilindro**: V = π × r² × h\n• **Prisma**: V = A_base × h\n• **Pirâmide**: V = A_base × h / 3\n• **Cone**: V = π × r² × h / 3\n• **Esfera**: V = (4/3) × π × r³\n\n**Conversões**: 1 m³ = 1000 L = 1 000 000 cm³.\n\n**❌ O que se costuma errar**\n• Esquecer-se de **dividir por 2** na área do triângulo.\n• Trocar diâmetro com raio (raio = metade do diâmetro).\n• Confundir área (superfície, m²) com volume (espaço, m³).'
+    },
+    'matematica/Estatística': {
+        title: 'Estatística',
+        body: '**Estatística** = recolha, organização e análise de dados.\n\n**Conceitos**:\n• **População** — conjunto total que se quer estudar.\n• **Amostra** — parte da população.\n• **Variável**: o que se mede.\n  - **Qualitativa**: cor, sexo.\n  - **Quantitativa**: idade, altura.\n• **Frequência absoluta (fa)**: quantas vezes aparece.\n• **Frequência relativa (fr)**: fa / total. Em %, multiplica por 100.\n\n**Medidas de tendência central** (resumem os dados):\n• **Média (x̄)** = soma de todos os valores / nº de valores.\n• **Mediana** = valor central depois de ordenar (se forem pares, média dos dois do meio).\n• **Moda** = valor que aparece mais vezes.\n\n**Medidas de dispersão**:\n• **Amplitude** = maior − menor.\n\n**Gráficos**: barras, pictogramas, circular, linhas, caule-e-folhas.\n\n**❌ O que se costuma errar**\n• Confundir média (calculada) com mediana (posição central).\n• Achar que sempre há UMA moda — pode haver várias ou nenhuma.\n• Esquecer-se de ORDENAR antes de calcular a mediana.'
+    },
+
+    // ===== INGLÊS (Fly High 7) =====
+    'ingles/All about me': {
+        title: 'All about me',
+        body: '**Talking about yourself**:\n• My name is ___ . / I\'m ___.\n• I\'m ___ years old.\n• I\'m from Portugal. / I live in ___.\n• I\'ve got ___ brothers / sisters.\n• I like ___ . / I don\'t like ___ .\n• My favourite ___ is ___ .\n\n**Personality adjectives**:\nfriendly, shy, kind, funny, clever, hard-working, lazy, talkative, quiet, brave, generous.\n\n**Physical description**:\n• I\'m **tall / short / medium height**.\n• I\'ve got **long / short / curly / straight** hair.\n• My hair is **blonde / brown / black / red**.\n• I\'ve got **blue / green / brown** eyes.\n• I wear **glasses**.\n\n**Asking about others**:\n• Where are you from?\n• How old are you?\n• What do you like doing?\n• Have you got any brothers or sisters?\n\n**❌ Common mistakes**\n• "I have 13 years" → WRONG. Must be "I **am** 13 years old".\n• "She has long hairs" → hair is uncountable, no plural.\n• Word order with adjectives: "long brown hair" (length before colour).'
+    },
+    'ingles/Daily routines': {
+        title: 'Daily routines',
+        body: '**Daily routines** — actions we do every day, usually with **present simple**.\n\n• I **wake up** at 7. / I **get up** at 7.\n• I **have a shower / a bath**.\n• I **brush my teeth**.\n• I **get dressed**.\n• I **have breakfast / lunch / dinner**.\n• I **go to school**.\n• I **come home**.\n• I **do my homework**.\n• I **watch TV / play games**.\n• I **go to bed** at 10.\n\n**Frequency adverbs** (used with present simple):\nalways (100%) → usually → often → sometimes → rarely → never (0%).\nThey go BEFORE the main verb but AFTER "to be": "I **always** brush my teeth", "She is **always** late".\n\n**Time expressions**:\n• in the morning / afternoon / evening\n• at night\n• on Mondays / at weekends\n• every day / every Friday\n\n**❌ Common mistakes**\n• Forgetting the **-s** in 3rd person singular: "He **gets** up" (NOT "He get up").\n• Putting frequency adverbs in the wrong place.\n• "In the night" → must be "at night".'
+    },
+    'ingles/School life': {
+        title: 'School life',
+        body: '**At school**:\n• subjects: Maths, English, Portuguese, Science, History, Geography, PE (Physical Education), Art, Music, IT.\n• people: teacher, headteacher, classmate, student, pupil.\n• places: classroom, library, playground, canteen, gym, lab.\n• things: textbook, exercise book, board, marker, ruler, pencil case.\n\n**Classroom verbs**:\n• study, learn, teach, read, write, listen, answer, ask, check.\n\n**Talking about school**:\n• My favourite subject is ___ because ___ .\n• I\'m good at ___ . / I\'m bad at ___ .\n• I find Maths easy / difficult / boring / interesting.\n• Lessons start at ___ and finish at ___ .\n\n**❌ Common mistakes**\n• "I have Maths in Monday" → should be "**on** Monday".\n• Saying "I am good in Maths" → "good **at** Maths".\n• Confusing "teach" (the teacher does) and "learn" (the student does).'
+    },
+    'ingles/Free time and hobbies': {
+        title: 'Free time and hobbies',
+        body: '**Hobbies and free-time activities**:\n• reading books, listening to music, watching films, playing computer games.\n• playing **football, basketball, tennis, the guitar, the piano**.\n• going to the cinema, the park, the beach.\n• doing **karate, yoga, gymnastics**.\n• cooking, painting, drawing, singing, dancing.\n\n**Talking about hobbies**:\n• I **love** ___ / I **like** ___ / I **don\'t mind** ___ / I **don\'t like** ___ / I **hate** ___.\n• After these verbs we use **-ing**: "I love **playing** football."\n• Or a noun: "I like **football**".\n\n**Asking about hobbies**:\n• What do you do in your free time?\n• What are your hobbies?\n• Do you like ___?\n\n**❌ Common mistakes**\n• "I like to play football" — OK, but more natural: "I like **playing** football".\n• "Play **the** piano" but "play **football**" (no article for sports).\n• "I hate cook" → must be "I hate **cooking**".'
+    },
+    'ingles/Healthy lifestyle': {
+        title: 'Healthy lifestyle',
+        body: '**Healthy habits**:\n• eat a balanced diet (fruit, vegetables, fish, meat, cereals).\n• drink water (avoid sugary drinks).\n• do exercise / play sports.\n• sleep 8–10 hours a night.\n• don\'t smoke.\n• limit screen time.\n\n**Body and health**:\n• body parts: head, eyes, ears, nose, mouth, arms, legs, hands, feet, stomach.\n• illnesses: cold, flu, headache, stomachache, toothache, fever.\n• "I have a headache." / "I feel sick / dizzy / tired."\n\n**Should / shouldn\'t** for advice:\n• You **should** eat more fruit.\n• You **shouldn\'t** drink too many sodas.\n• You **should** see a doctor.\n\n**Food vocabulary**:\n• healthy: vegetables, fruit, water, fish, milk, nuts, yoghurt.\n• less healthy: sweets, crisps, fast food, sugary drinks, fried food.\n\n**❌ Common mistakes**\n• "I have headache" → must be "I have **a** headache".\n• "You should to eat" → must be "You should **eat**" (no "to" after should).\n• "He should goes" → must be "He should **go**" (infinitive after modal).'
+    },
+    'ingles/Holidays and travel': {
+        title: 'Holidays and travel',
+        body: '**Travel vocabulary**:\n• transport: plane, train, bus, car, taxi, ferry, bike.\n• places: hotel, hostel, campsite, beach, mountains, countryside, city.\n• at the airport: ticket, passport, luggage, gate, check-in.\n\n**Verbs**:\n• travel, visit, go on holiday, fly, drive, take a train, stay at, book a hotel.\n\n**Holiday activities**:\n• swim, sunbathe, sightsee, take photos, go shopping, try local food.\n\n**Past holidays — past simple**:\n• Last summer I **went** to Spain.\n• We **stayed** in a hotel.\n• I **visited** Madrid.\n• It **was** amazing!\n\n**Future plans — going to / will**:\n• Next summer I\'**m going to** visit Italy.\n• I think I **will** go to Paris one day.\n\n**❌ Common mistakes**\n• "I go in holiday" → must be "I go **on** holiday".\n• "I travelled to" + place (NOT "I travelled in").\n• Past of "go" is "**went**" (irregular), not "goed".'
+    },
+    'ingles/Technology': {
+        title: 'Technology',
+        body: '**Technology vocabulary**:\n• devices: computer, laptop, tablet, smartphone, smartwatch, headphones, speaker.\n• internet: website, app, social media, online, offline, password, account.\n• actions: send a message / email, post / share, like / follow, download / upload, scroll.\n\n**Pros and cons of technology**:\n• Pros: easy to communicate, fast information, fun games, online learning.\n• Cons: too much screen time, fake news, cyberbullying, addiction.\n\n**Online safety**:\n• Use strong passwords.\n• Don\'t share personal information.\n• Don\'t talk to strangers online.\n• Don\'t click suspicious links.\n• Tell an adult if something is wrong.\n\n**Useful phrases**:\n• I spend ___ hours on my phone every day.\n• My favourite app is ___ .\n• I prefer ___ to ___ .\n\n**❌ Common mistakes**\n• "I love the technology" — usually we don\'t use "the": "I love technology".\n• "I download a film **in** my phone" → "**on** my phone".\n• Plural: "information" and "news" are uncountable, no -s.'
+    },
+    'ingles/Environment': {
+        title: 'Environment',
+        body: '**Environment problems**:\n• air pollution, water pollution, deforestation, global warming, climate change, plastic waste, endangered species.\n\n**Solutions — the 3 Rs**:\n• **Reduce** (use less).\n• **Reuse** (use again).\n• **Recycle** (separate paper, glass, plastic, metal).\n\n**Eco-friendly actions**:\n• Turn off lights when you leave a room.\n• Don\'t waste water — turn off the tap.\n• Walk or cycle instead of going by car.\n• Eat less meat.\n• Plant trees.\n• Buy local products.\n• Use reusable bottles and bags.\n\n**Modal verbs for advice**:\n• We **should** protect the environment.\n• We **must** stop polluting the oceans.\n• We **mustn\'t** throw rubbish in the streets.\n\n**❌ Common mistakes**\n• "I throw the rubbish on the floor" → "**in the bin** / on the **ground**".\n• "We must to protect" → just "we **must** protect".\n• Confusing "mustn\'t" (prohibition) with "don\'t have to" (not necessary).'
+    },
+
+    // ===== FRANCÊS (C'est cool! 7) =====
+    'frances/Salutations et présentations': {
+        title: 'Salutations et présentations',
+        body: '**Salutations** (cumprimentos):\n• **Bonjour !** → Bom dia! / Olá!\n• **Bonsoir !** → Boa noite (chegada)!\n• **Salut !** → Olá! (informal)\n• **Au revoir !** → Adeus!\n• **À bientôt !** → Até breve!\n• **À demain !** → Até amanhã!\n• **Bonne nuit !** → Boa noite (deitar)!\n\n**Comment ça va ?** → Como estás?\n• Ça va bien, merci. → Estou bem, obrigado(a).\n• Ça va mal. → Vai mal.\n• Comme ci, comme ça. → Mais ou menos.\n\n**Se présenter** (apresentar-se):\n• Je m\'appelle ___ . → Chamo-me ___.\n• J\'ai ___ ans. → Tenho ___ anos.\n• Je suis portugais(e). → Sou português(a).\n• J\'habite à ___ . → Vivo em ___.\n• Je suis élève à l\'école ___ . → Sou aluno(a) da escola ___.\n\n**Tu et vous**:\n• **tu** = informal (amigos, família).\n• **vous** = formal (adultos desconhecidos) ou plural.\n\n**❌ Erros frequentes**\n• Esquecer-se do "à" antes da cidade: "J\'habite **à** Lisbonne".\n• Usar "tu" com pessoas desconhecidas — usa-se **vous**.\n• "J\'ai 12 ans" — em francês usa-se o verbo **avoir**, não être.'
+    },
+    'frances/La famille': {
+        title: 'La famille',
+        body: '**La famille**:\n• le père → pai\n• la mère → mãe\n• les parents → pais\n• le frère → irmão\n• la sœur → irmã\n• le grand-père → avô\n• la grand-mère → avó\n• les grands-parents → avós\n• l\'oncle → tio\n• la tante → tia\n• le cousin / la cousine → primo/prima\n• le mari → marido\n• la femme → mulher / esposa\n• le fils → filho\n• la fille → filha\n• le bébé → bebé\n\n**Adjectifs possessifs**:\n• **mon** père, **ma** mère, **mes** parents (meu/minha/meus/minhas)\n• **ton** père, **ta** mère, **tes** parents (teu/tua/teus/tuas)\n• **son** père, **sa** mère, **ses** parents (seu/sua/seus/suas)\n\n**Présenter sa famille**:\n• Voici mon père. → Apresento-te o meu pai.\n• Il s\'appelle ___ . / Elle s\'appelle ___ .\n• Il a ___ ans.\n• Il est ___ (profession).\n\n**❌ Erros frequentes**\n• Antes de palavra com vogal usa-se **mon/ton/son** mesmo no feminino: **mon** amie (NÃO ma amie).\n• "Ma sœur" leva acento agudo no "œ" (ligadura) — não esquecer.\n• Confundir "fille" (filha) com "fils" (filho).'
+    },
+    "frances/L'école": {
+        title: "L'école",
+        body: '**À l\'école**:\n• l\'école → escola\n• le collège → 2.º/3.º ciclo (≈ ESEC básico)\n• le lycée → secundário\n• la classe → turma / sala de aula\n• le professeur → professor\n• le/la prof → prof (informal)\n• l\'élève → aluno(a)\n• le tableau → quadro\n• le cahier → caderno\n• le livre → livro\n• le crayon → lápis\n• le stylo → caneta\n• la gomme → borracha\n• la règle → régua\n• le sac → mochila\n• la trousse → estojo\n• le bureau → secretária\n\n**Les matières** (disciplinas):\n• le français, l\'anglais, les mathématiques (les maths), l\'histoire, la géographie, les sciences, l\'éducation physique (le sport), la musique, les arts.\n\n**Verbes utiles**:\n• étudier (estudar), apprendre (aprender), écouter (ouvir), lire (ler), écrire (escrever), parler (falar).\n\n**Phrases**:\n• Quelle est ta matière préférée ? — Ma matière préférée, c\'est ___.\n• Je suis bon(ne) en maths.\n• Je n\'aime pas l\'histoire.\n\n**❌ Erros frequentes**\n• "J\'aime le français" — usar artigo definido com as matérias.\n• "À l\'école" (com apóstrofo antes de vogal).\n• Confundir "collège" (não é "college") com "lycée" (secundário).'
+    },
+    'frances/Les loisirs': {
+        title: 'Les loisirs',
+        body: '**Les loisirs** (tempos livres):\n• lire → ler\n• écouter de la musique → ouvir música\n• regarder la télévision / un film → ver televisão / um filme\n• jouer aux jeux vidéo → jogar videojogos\n• jouer au football, au basket, au tennis → jogar futebol, basquetebol, ténis\n• jouer du piano, de la guitare → tocar piano, guitarra\n• faire du sport, du vélo, de la natation → praticar desporto, bicicleta, natação\n• danser → dançar\n• chanter → cantar\n• dessiner / peindre → desenhar / pintar\n\n**Jouer à** (jogo / desporto) **vs. jouer de** (instrumento):\n• Je joue **au** football. / Je joue **au** tennis.\n• Je joue **du** piano. / Je joue **de la** guitare.\n\n**Exprimer ses goûts**:\n• J\'aime ___ . → Gosto de ___.\n• J\'adore ___ . → Adoro ___.\n• Je n\'aime pas ___ . → Não gosto de ___.\n• Je déteste ___ . → Detesto ___.\n\n**❌ Erros frequentes**\n• Confundir "jouer **à**" (desportos) com "jouer **de**" (instrumentos).\n• Esquecer o "ne" na negação: "Je **n\'**aime **pas**".\n• Em francês, antes de vogal, "ne" vira "**n\'**" (apóstrofo).'
+    },
+    'frances/La nourriture': {
+        title: 'La nourriture',
+        body: '**La nourriture** (comida):\n• le pain → pão\n• le fromage → queijo\n• le lait → leite\n• l\'eau → água\n• le jus → sumo\n• la viande → carne\n• le poisson → peixe\n• le poulet → frango\n• les œufs → ovos\n• les légumes → legumes\n• les fruits → fruta\n• la pomme → maçã\n• la banane → banana\n• l\'orange → laranja\n• le gâteau → bolo\n• le chocolat → chocolate\n\n**Les repas** (refeições):\n• le petit-déjeuner → pequeno-almoço\n• le déjeuner → almoço\n• le dîner → jantar\n• le goûter → lanche\n\n**Au restaurant**:\n• Je voudrais ___ . → Queria ___.\n• L\'addition, s\'il vous plaît. → A conta, por favor.\n• C\'est combien ? → Quanto custa?\n• Bon appétit ! → Bom apetite!\n\n**Articles partitifs** (do, da, dos, das em "comer um pouco de"):\n• du pain, de la viande, de l\'eau, des fruits.\n\n**❌ Erros frequentes**\n• Confundir "petit-déjeuner" (PT pequeno-almoço) com "dîner" (jantar — falso amigo!).\n• Esquecer-se de usar artigo partitif: "Je mange **du** pain" (não "Je mange pain").\n• Pronúncia: "œufs" no plural ouve-se "eu" (não "ofs").'
+    },
+    'frances/La ville': {
+        title: 'La ville',
+        body: '**La ville** (cidade):\n• la rue → rua\n• la place → praça\n• l\'avenue → avenida\n• le pont → ponte\n• l\'école → escola\n• l\'hôpital → hospital\n• la pharmacie → farmácia\n• la boulangerie → padaria\n• la boucherie → talho\n• le supermarché → supermercado\n• la banque → banco\n• la poste → correios\n• la gare → estação de comboios\n• l\'aéroport → aeroporto\n• le musée → museu\n• le cinéma → cinema\n• le parc → parque\n• l\'église → igreja\n\n**Demander son chemin** (perguntar caminho):\n• Où est ___ ? → Onde fica ___?\n• Est-ce qu\'il y a un ___ près d\'ici ? → Há um ___ perto daqui?\n• Allez tout droit. → Vai sempre em frente.\n• Tournez à gauche. → Vire à esquerda.\n• Tournez à droite. → Vire à direita.\n• C\'est à côté de ___ . → É ao lado de ___.\n\n**❌ Erros frequentes**\n• "À gauche" (esquerda) e "à droite" (direita) — não confundir.\n• "Tout droit" (em frente) ≠ "à droite" (à direita).\n• Pronúncia: "rue" não é "ru-é", é "rü" (som agudo).'
+    },
+    'frances/Les vêtements': {
+        title: 'Les vêtements',
+        body: '**Les vêtements** (roupa):\n• le t-shirt → t-shirt\n• la chemise → camisa\n• le pull → camisola\n• le pantalon → calças\n• le jean → jeans\n• le short → calções\n• la robe → vestido\n• la jupe → saia\n• les chaussures → sapatos\n• les chaussettes → meias\n• le chapeau → chapéu\n• le manteau → casaco\n• la veste → blusão\n• les gants → luvas\n• l\'écharpe → cachecol\n\n**Verbes**:\n• porter → usar / vestir (estar a usar)\n• mettre → vestir / pôr\n• enlever → tirar\n\n**Décrire les vêtements**:\n• Je porte un t-shirt **bleu**.\n• Elle a une jupe **rouge**.\n• Il met un pull **noir**.\n\n**Les couleurs**:\nbleu/bleue, rouge, vert/verte, jaune, noir/noire, blanc/blanche, rose, orange, gris/grise, marron, violet/violette.\n\nNota: as cores **concordam em género e número** com o substantivo: une jupe **bleue** (feminino).\n\n**❌ Erros frequentes**\n• Esquecer-se da concordância das cores (la robe **rouge**, mas la robe **noire** com -e).\n• "Pantalon" e "jean" — em francês são SINGULAR (não plural como em PT/EN).\n• "Porter" (usar uma peça) ≠ "apporter" (trazer).'
+    },
+    'frances/Les saisons et la météo': {
+        title: 'Les saisons et la météo',
+        body: '**Les saisons** (estações):\n• le printemps → primavera\n• l\'été → verão\n• l\'automne → outono\n• l\'hiver → inverno\n\nUsa-se com "en": **en** été, **en** hiver, **en** automne. MAS "**au** printemps".\n\n**Les mois** (meses):\njanvier, février, mars, avril, mai, juin, juillet, août, septembre, octobre, novembre, décembre.\n(escrevem-se com **minúscula** em francês.)\n\n**Les jours** (dias):\nlundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche.\n\n**La météo** (tempo):\n• Il fait beau. → Está bom tempo.\n• Il fait mauvais. → Está mau tempo.\n• Il fait chaud / froid. → Está calor / frio.\n• Il pleut. → Chove.\n• Il neige. → Neva.\n• Il y a du vent. → Faz vento.\n• Il y a du soleil. → Está sol.\n• Il y a des nuages. → Está nublado.\n\n**Quel temps fait-il ?** → Que tempo está?\n\n**❌ Erros frequentes**\n• "Au printemps" (não "en printemps") — é a única exceção.\n• Meses e dias em **minúscula** (diferente do inglês).\n• "Il fait" para temperatura/tempo geral; "Il y a" para fenómenos pontuais (sol, vento).'
+    },
+
+    // ===== HISTÓRIA (Somos História 7) =====
+    'historia/Pré-história e primeiras civilizações': {
+        title: 'Pré-história e primeiras civilizações',
+        body: 'A **Pré-História** é o período anterior à invenção da escrita (~3500 a.C. na Mesopotâmia).\n\n**Períodos**:\n• **Paleolítico** (~2,5 M.A. – 10 000 a.C.) — pedra **lascada**, caça/recoleção, nómadas, descoberta do fogo.\n• **Mesolítico** — transição.\n• **Neolítico** (10 000 – 3500 a.C.) — pedra **polida**, agricultura, **sedentarização**, domesticação de animais, cerâmica, primeiras aldeias.\n\n**Primeiras civilizações** (vales férteis):\n• **Mesopotâmia** — entre os rios **Tigre** e **Eufrates**. Sumérios inventam a **escrita cuneiforme** (~3500 a.C.).\n• **Egito** — vale do **Nilo**. Hieróglifos, faraós, pirâmides.\n• **Vale do Indo** (Índia).\n• **China** — rio Amarelo.\n\nCaraterísticas comuns: cidades, escrita, leis, religião politeísta, divisão do trabalho.\n\n**❌ O que se costuma errar**\n• Confundir Paleolítico (lascada) com Neolítico (polida).\n• Achar que a Pré-história acabou para todos ao mesmo tempo — depende da região (a escrita chegou em diferentes alturas).\n• Trocar Tigre/Eufrates (Mesopotâmia) com Nilo (Egito).'
+    },
+    'historia/Grécia Antiga': {
+        title: 'Grécia Antiga',
+        body: 'A **Grécia Antiga** (~ séc. VIII a.C. – IV a.C.) é o berço da civilização ocidental.\n\n**Geografia**: península Balcânica + ilhas do Mar Egeu. Relevo montanhoso → muitas **cidades-estado** (**pólis**) independentes.\n\n**Pólis** mais importantes: **Atenas**, **Esparta**, Tebas, Corinto.\n\n**Cultura grega**:\n• **Religião politeísta** — deuses do Monte Olimpo: Zeus, Hera, Atena, Apolo, Ares, Afrodite, Poseidon...\n• **Filosofia** — Sócrates, Platão, Aristóteles.\n• **Teatro** — Ésquilo, Sófocles, Eurípides.\n• **Jogos Olímpicos** — em Olímpia, em honra a Zeus (desde 776 a.C.).\n• **Arquitetura** — templos (Partenón em Atenas) com 3 ordens: dórica, jónica, coríntia.\n\n**Período Helenístico**: após **Alexandre Magno** (séc. IV a.C.), espalha a cultura grega pelo Oriente.\n\n**❌ O que se costuma errar**\n• Achar que a Grécia era um país unido — eram pólis INDEPENDENTES.\n• Confundir os deuses gregos com os romanos (Zeus = Júpiter; Atena = Minerva).\n• Trocar Sócrates (mestre) com Platão (aluno) com Aristóteles (aluno de Platão).'
+    },
+    'historia/Atenas e a democracia': {
+        title: 'Atenas e a democracia',
+        body: '**Atenas** foi a primeira **democracia** (séc. V a.C.). A palavra vem de _demos_ (povo) + _kratos_ (poder).\n\n**Reformas**:\n• **Sólon** (séc. VI a.C.) — abole a escravidão por dívidas.\n• **Clístenes** (508 a.C.) — funda a democracia.\n• **Péricles** (séc. V a.C.) — apogeu da democracia ateniense (chamada **Século de Péricles**).\n\n**Instituições**:\n• **Eclésia** — assembleia de cidadãos, decidia as leis.\n• **Bulé** — conselho de 500 membros, preparava as leis.\n• **Heliaia** — tribunal popular.\n• **Estrategos** — 10 magistrados militares (Péricles foi um deles).\n\n**Quem era cidadão?**\n• **Homem**, **livre**, **filho de pais atenienses**.\n• **Excluídos**: mulheres, escravos, estrangeiros (metecos), crianças.\n\nEra uma democracia **direta** (cada cidadão votava em pessoa).\n\n**Esparta** era diferente — oligarquia militar, sociedade rígida, educação para a guerra (agogê).\n\n**❌ O que se costuma errar**\n• Achar que TODA a população podia votar — só os cidadãos (homens livres adultos).\n• Confundir democracia direta (Atenas) com democracia representativa (atual).\n• Trocar Esparta (oligarquia militar) com Atenas (democracia).'
+    },
+    'historia/Roma Antiga': {
+        title: 'Roma Antiga',
+        body: '**Roma** foi fundada em **753 a.C.** (lenda de Rómulo e Remo). 3 fases:\n\n• **Monarquia** (753–509 a.C.) — 7 reis.\n• **República** (509–27 a.C.) — Senado, cônsules, tribunos da plebe. Conquistas: Itália, Cartago, Grécia, Egito.\n• **Império** (27 a.C.–476 d.C.) — primeiro imperador: **Augusto**. Apogeu nos séculos I–II d.C. (_Pax Romana_).\n\n**Sociedade**:\n• **Patrícios** — nobres, ricos.\n• **Plebeus** — povo (artesãos, agricultores, comerciantes).\n• **Escravos** — sem direitos.\n\n**Cultura**:\n• Direito romano (base do direito atual).\n• Arquitetura: aquedutos, anfiteatros (Coliseu), termas, basílicas, arcos, estradas (calçadas romanas).\n• Língua: **latim** (origem do português, espanhol, francês, italiano).\n• Religião politeísta (depois cristianismo).\n\n**Queda do Império Romano do Ocidente**: 476 d.C., invasões bárbaras.\nO Império Romano do Oriente (Bizâncio) continuou até 1453.\n\n**❌ O que se costuma errar**\n• Confundir Monarquia (reis), República (senado) e Império (imperador).\n• Trocar a data de fundação (753 a.C.) com a queda (476 d.C.).\n• Achar que Roma caiu de vez em 476 — o Império do Oriente continuou.'
+    },
+    'historia/Cristianismo': {
+        title: 'Cristianismo',
+        body: 'O **cristianismo** nasce no séc. I d.C. na **Palestina** (então parte do Império Romano).\n\n**Origem**: ensinamentos de **Jesus de Nazaré**, considerado pelos cristãos o Messias / Filho de Deus.\n\n**Mensagem**:\n• Existe **um só Deus** (monoteísmo) — rutura com o politeísmo greco-romano.\n• **Amor ao próximo**, perdão, igualdade entre todos (escravos, livres, mulheres, homens).\n• **Vida eterna** após a morte para os crentes.\n\n**Difusão**:\n• Pelos **apóstolos** (12) e por **Paulo de Tarso** que percorre o Mediterrâneo.\n• Sofreram **perseguições** romanas (mártires).\n\n**Reconhecimento**:\n• **313 d.C.** — Edicto de Milão (Constantino) → liberdade religiosa.\n• **391 d.C.** — Teodósio torna o cristianismo religião OFICIAL do Império.\n\n**Sagrada Escritura**: a **Bíblia** (Antigo e Novo Testamento).\n\n**Igreja Católica** — organização hierárquica: Papa (Roma) → bispos → padres.\n\n**❌ O que se costuma errar**\n• Confundir a libertação (313, Constantino) com a oficialização (391, Teodósio).\n• Achar que o cristianismo nasceu em Roma — nasceu na Palestina (Judeia).\n• Esquecer-se que foi monoteísta desde o início (vem do judaísmo).'
+    },
+    'historia/Idade Média na Europa': {
+        title: 'Idade Média na Europa',
+        body: 'A **Idade Média** vai da queda de Roma (476) à queda de Constantinopla (1453) ou aos Descobrimentos.\n\nDivide-se em:\n• **Alta Idade Média** (séc. V–X) — invasões bárbaras, formação de reinos germânicos, Carlos Magno (Império Carolíngio, 800 d.C.).\n• **Idade Média Central** (séc. XI–XIII) — apogeu do feudalismo, Cruzadas, expansão das cidades.\n• **Baixa Idade Média** (séc. XIV–XV) — crises (peste negra, fome, guerras).\n\n**Feudalismo**:\n• Sociedade dividida em 3 **ordens (estados)**:\n  - **Clero** — rezar.\n  - **Nobreza** — guerrear (cavaleiros, senhores).\n  - **Povo** (servos, camponeses, burgueses) — trabalhar.\n• Relação de **vassalagem** entre rei → senhores → vassalos.\n• Vida no **castelo** e no **mosteiro**.\n\n**Cultura medieval**:\n• Igreja Católica domina (mosteiros copiavam livros).\n• Arte **românica** (séc. XI–XII): igrejas com paredes grossas, arcos redondos.\n• Arte **gótica** (séc. XII–XV): catedrais altas, arcos ogivais, vitrais (Notre-Dame).\n\n**❌ O que se costuma errar**\n• Achar que a Idade Média foi "época das trevas" — houve grandes avanços culturais e artísticos.\n• Trocar românico (arco redondo) com gótico (arco ogival).\n• Confundir clero (Igreja) com nobreza (senhores).'
+    },
+    'historia/Mundo Muçulmano': {
+        title: 'Mundo Muçulmano',
+        body: 'A religião **islâmica** nasce na **Arábia** no séc. VII d.C.\n\n**Fundador**: **Maomé** (Muhammad), nasceu em **Meca** (~570). Em **622** faz a **Hégira** (fuga para Medina) — ano 1 do calendário muçulmano.\n\n**Crenças** (Islão):\n• Um só Deus: **Alá** (monoteísmo).\n• Livro sagrado: **Corão (Alcorão)**.\n• Os **5 pilares**: 1) profissão de fé (shahada); 2) oração 5×/dia; 3) jejum no Ramadão; 4) esmola (zakat); 5) peregrinação a Meca pelo menos 1× na vida (haji).\n\n**Expansão**:\n• Em ~100 anos, os muçulmanos conquistam: Médio Oriente, Norte de África, **Península Ibérica** (711 d.C., chegam aos Pirenéus), Pérsia.\n\n**Al-Andalus** (Península Ibérica muçulmana): grande centro cultural (Córdova, Sevilha).\n• Avanços em: medicina, matemática (álgebra, números arábicos), astronomia, agricultura, arquitetura (mesquitas, alcáceres).\n\n**❌ O que se costuma errar**\n• Confundir Alá (Deus em árabe) com Maomé (o profeta).\n• Achar que os muçulmanos conquistaram a Península em 711 e foram expulsos no mesmo século — ficaram quase 800 anos.\n• Esquecer-se da importância científica dos muçulmanos (números 0-9 vêm dali).'
+    },
+    'historia/Formação de Portugal': {
+        title: 'Formação de Portugal',
+        body: 'A **independência de Portugal** resulta de um longo processo da **Reconquista cristã**.\n\n**Antecedentes**:\n• **711 d.C.** — invasão muçulmana da Península.\n• **722** — Batalha de Covadonga (Astúrias) → início da Reconquista cristã.\n• **séc. IX–XI** — Reino das Astúrias / Leão expande para sul.\n\n**Condado Portucalense**:\n• 1096 — **D. Henrique de Borgonha** recebe o Condado de Portucale do rei de Leão (Afonso VI) como dote pelo casamento com D. Teresa.\n\n**Independência**:\n• 1128 — **Batalha de São Mamede** — D. Afonso Henriques derrota a mãe, D. Teresa, e os galegos.\n• 1139 — **Batalha de Ourique** — vitória sobre os muçulmanos. Afonso Henriques é aclamado **rei**.\n• 1143 — **Tratado de Zamora** — Afonso VII de Leão reconhece a independência.\n• **1179** — bula **Manifestis Probatum** do Papa Alexandre III reconhece Portugal como reino independente.\n\n**Reconquista até ao Algarve**:\n• 1147 — conquista de **Lisboa** (Afonso Henriques).\n• **1249** — conquista do **Algarve** por D. Afonso III (Faro). Fim da Reconquista em Portugal.\n\n**❌ O que se costuma errar**\n• Confundir 1128 (S. Mamede) com 1143 (Zamora) com 1179 (bula papal).\n• Achar que Lisboa foi sempre cristã — só em 1147.\n• Trocar D. Afonso Henriques (fundador) com D. Afonso III (terminou Reconquista).'
+    },
+    'historia/Sociedade medieval portuguesa': {
+        title: 'Sociedade medieval portuguesa',
+        body: 'A sociedade medieval portuguesa organizava-se em **3 ordens**:\n\n• **Clero** — bispos, padres, monges (mosteiros: Alcobaça, Batalha).\n  - Vive do **dízimo** (10% da produção dos fiéis).\n  - Privilégios: não pagava impostos, julgado em tribunais próprios.\n• **Nobreza** — reis, infantes, senhores feudais, cavaleiros.\n  - Vive das **rendas das terras** e do saque das guerras.\n  - Privilégios: terras (senhorios), não pagava impostos.\n• **Povo** — camponeses, artesãos, comerciantes (burgueses).\n  - Pagava **impostos** ao rei, à Igreja (dízimo) e aos senhores.\n  - **Servos** ligados à terra (não podiam sair).\n  - **Burgueses** nas cidades, ganhavam força com o comércio.\n\n**Concelho** (município) — comunidade local com **carta de foral** (lei do rei concedendo privilégios).\n\n**Cortes** — reunião dos 3 estados (clero, nobreza, povo) com o rei. Primeira em **Leiria 1254** (Afonso III).\n\n**Mesteres** — corporações de artesãos (sapateiros, ferreiros).\n\n**❌ O que se costuma errar**\n• Confundir burgueses (povo das cidades) com nobres.\n• Achar que o povo não tinha voz — tinha, nas Cortes.\n• Trocar dízimo (Igreja) com tributos (rei).'
+    },
+    'historia/Crise do século XIV': {
+        title: 'Crise do século XIV',
+        body: 'O séc. XIV em Portugal e na Europa foi marcado por uma **grande crise**:\n\n**Causas e fatores**:\n• **Peste Negra** (1348) — chegou a Portugal vinda do Oriente. Matou ~⅓ da população europeia.\n• **Fome** — más colheitas, problemas climáticos.\n• **Guerras** com Castela.\n• Crise económica — falta de mão-de-obra, salários sobem, conflitos sociais.\n\n**Crise dinástica de 1383–1385** em Portugal:\n• 1383 — morre **D. Fernando** sem herdeiro homem. Filha **D. Beatriz** casada com o rei de Castela → ameaça de perda da independência.\n• 1383–1385 — **interregno** com agitação popular. **D. João, Mestre de Avis**, lidera a resistência.\n• 1385 — **Cortes de Coimbra** elegem D. João rei (D. João I).\n• 1385 — **Batalha de Aljubarrota** (14 de agosto) — Portugal vence Castela, garantindo a independência. Comandantes: **D. João I** e **D. Nuno Álvares Pereira**.\n\nFunda-se a **Dinastia de Avis** (2.ª dinastia).\n\n1386 — **Tratado de Windsor** com Inglaterra (aliança mais antiga do mundo ainda em vigor).\n\n**❌ O que se costuma errar**\n• Esquecer-se que a Peste Negra (1348) é distinta da crise política (1383–1385).\n• Confundir D. Fernando (1.ª dinastia) com D. João I (2.ª dinastia, Avis).\n• Achar que Aljubarrota foi em Aljubarrota só — foi em S. Jorge / São Jorge perto de Aljubarrota.'
+    },
+
+    // ===== GEOGRAFIA (PLANETA 7) =====
+    'geografia/Representações cartográficas': {
+        title: 'Representações cartográficas',
+        body: 'Um **mapa** é a representação da superfície terrestre num plano.\n\n**Elementos do mapa**:\n• **Título** — o que representa.\n• **Legenda** — explica os símbolos.\n• **Escala** — relação entre o mapa e a realidade.\n• **Orientação** (rosa-dos-ventos) — norte normalmente para cima.\n• **Fonte** e **data**.\n\n**Tipos de mapas**:\n• **Mapa físico** — relevo, rios, montanhas.\n• **Mapa político** — países, fronteiras, cidades.\n• **Mapa temático** — distribuição de população, clima, vegetação, recursos.\n• **Planta** — representação detalhada de áreas pequenas.\n• **Globo** — representação 3D (mais fiel mas pouco prática).\n\n**Projeções**:\n• **Mercator** — preserva ângulos mas distorce áreas (Groenlândia parece enorme).\n• **Robinson, Peters** — outras projeções com diferentes vantagens.\n\n**❌ O que se costuma errar**\n• Confundir planta (pequena escala territorial, grande detalhe) com mapa geral.\n• Esquecer-se que o globo é a representação mais fiel (sem distorção).\n• Achar que Mercator mostra os países no tamanho real.'
+    },
+    'geografia/Escalas': {
+        title: 'Escalas',
+        body: 'A **escala** indica a relação entre as distâncias no **mapa** e na **realidade**.\n\nTipos de escala:\n• **Numérica** — 1 : 100 000 (1 cm no mapa = 100 000 cm = 1 km na realidade).\n• **Gráfica** — uma barra com divisões marcadas em km.\n\n**Tipos**:\n• **Grande escala** — números pequenos como 1:1000 ou 1:5000. Pouca área, MUITO detalhe (mapas de bairros, plantas).\n• **Pequena escala** — números grandes como 1:1 000 000. Muita área, POUCO detalhe (mapas-mundi).\n\nRegra prática: **quanto maior o denominador, menor a escala**.\n\n**Calcular distância real**:\nDistância real = Distância no mapa × denominador da escala.\nEx: 4 cm no mapa, escala 1:50 000 → 4 × 50 000 = 200 000 cm = 2 km.\n\n**Calcular distância no mapa**:\nDistância no mapa = Distância real / denominador.\nEx: 10 km na realidade, escala 1:500 000 → 1 000 000 cm / 500 000 = 2 cm.\n\n**❌ O que se costuma errar**\n• Confundir grande escala (detalhe) com pequena escala (vista geral).\n• Esquecer conversão de unidades (cm ↔ m ↔ km).\n• Multiplicar quando se devia dividir (ou vice-versa).'
+    },
+    'geografia/Coordenadas geográficas': {
+        title: 'Coordenadas geográficas',
+        body: 'As **coordenadas geográficas** localizam um ponto na superfície da Terra.\n\n**Latitude** — distância angular ao **Equador** (0°).\n• Varia de 0° a 90° **Norte** ou **Sul**.\n• **Linhas paralelas** ao Equador: trópicos (Câncer no N, Capricórnio no S, ±23,5°), círculos polares (±66,5°).\n\n**Longitude** — distância angular ao **Meridiano de Greenwich** (0°).\n• Varia de 0° a 180° **Este** ou **Oeste**.\n• **Linhas meridianas** verticais ligando os pólos.\n\nLer coordenadas: latitude **antes** da longitude.\nEx: Lisboa ≈ 38° N, 9° O.\n\n**Hemisférios**:\n• Equador divide a Terra em hemisfério **Norte** e **Sul**.\n• Meridiano de Greenwich divide em hemisfério **Este** e **Oeste**.\n\n**GPS** usa estas coordenadas para localizar qualquer ponto.\n\n**❌ O que se costuma errar**\n• Confundir latitude (Equador) com longitude (Greenwich).\n• Trocar "Norte" / "Sul" no hemisfério (Portugal está a N do Equador → Norte).\n• Esquecer-se de incluir N/S/E/O.'
+    },
+    'geografia/Relevo': {
+        title: 'Relevo',
+        body: 'O **relevo** é o conjunto das formas da superfície terrestre.\n\n**Principais formas de relevo**:\n• **Montanha** — elevação > 600 m, com cumes e vertentes íngremes.\n• **Colina** — elevação < 600 m, mais arredondada.\n• **Planalto** — área elevada e plana.\n• **Planície** — área plana de baixa altitude.\n• **Vale** — depressão entre montanhas, geralmente com rio.\n• **Depressão** — área abaixo do nível do mar.\n\n**Mapas de relevo (hipsométricos)**:\n• Cores: verde (baixo), amarelo (médio), castanho (alto), branco (muito alto, neve).\n\n**Em Portugal**:\n• **Norte do Tejo** — predomina relevo elevado (Serra da Estrela 1993 m).\n• **Sul do Tejo** — predominam planícies (Alentejo).\n• **Madeira** — vulcânica, com **Pico Ruivo** (1862 m).\n• **Açores** — vulcânicas, com o **Pico** (2351 m, mais alto de Portugal).\n\n**Forças que modelam o relevo**:\n• **Internas** — tectónica, vulcanismo, sismos.\n• **Externas** — erosão (água, vento, gelo), sedimentação.\n\n**❌ O que se costuma errar**\n• Confundir planalto (elevado) com planície (baixo).\n• Esquecer que o ponto mais alto de Portugal é o Pico (Açores), não a Serra da Estrela.\n• Achar que o relevo é estático — está sempre a mudar.'
+    },
+    'geografia/Clima': {
+        title: 'Clima',
+        body: '**Tempo** = estado da atmosfera num momento (chove agora).\n**Clima** = padrão habitual ao longo de muitos anos.\n\n**Elementos do clima**:\n• **Temperatura** — calor/frio (°C). Termómetro.\n• **Precipitação** — chuva, neve (mm). Pluviómetro.\n• **Humidade** — % de vapor de água.\n• **Pressão atmosférica** — peso do ar (hPa). Barómetro.\n• **Vento** — movimento do ar. Anemómetro (velocidade), cataventos (direção).\n• **Nebulosidade** — % de céu coberto.\n\n**Fatores do clima**:\n• **Latitude** — perto do Equador é mais quente; nos pólos é mais frio.\n• **Altitude** — quanto mais alto, mais frio.\n• **Proximidade do mar** — modera temperaturas (litoral mais ameno).\n• **Correntes marítimas** — quentes ou frias.\n• **Relevo** — bloqueia ventos / aprisiona chuva.\n\n**Climas principais**:\n• **Equatorial** — quente e chuvoso o ano todo.\n• **Tropical** — quente, com estação seca e estação chuvosa.\n• **Desértico** — muito seco, grandes amplitudes térmicas.\n• **Mediterrâneo** (PT) — verões quentes e secos, invernos amenos e chuvosos.\n• **Temperado** — 4 estações marcadas.\n• **Polar** — frio extremo.\n\n**❌ O que se costuma errar**\n• Confundir tempo (momento) com clima (longo prazo).\n• Achar que latitude e altitude são a mesma coisa.\n• Trocar mediterrâneo (verão seco) com tropical (chuvoso).'
+    },
+    'geografia/Hidrografia': {
+        title: 'Hidrografia',
+        body: 'A **hidrografia** estuda as águas da Terra.\n\n**Águas continentais**:\n• **Rios** — cursos de água com leito definido. Têm **nascente** (origem), **leito** (caminho), **foz** (chegada ao mar/lago).\n• **Bacia hidrográfica** — área drenada por um rio principal e seus afluentes.\n• **Afluente** — rio que desagua noutro maior.\n• **Lagos** — massas de água parada interiores.\n• **Águas subterrâneas** — aquíferos.\n• **Glaciares** — gelo permanente.\n\n**Em Portugal**:\n• Maiores rios: **Tejo**, **Douro**, **Mondego**, **Guadiana**, **Minho**.\n• Tejo e Douro nascem em Espanha (rios internacionais).\n\n**Oceanos** (5):\nPacífico (maior), Atlântico, Índico, Ártico (mais a norte), Antártico (em torno da Antártida).\nPortugal tem costa no **Atlântico**.\n\n**Importância da água**:\n• Vida: 70% do corpo humano.\n• Agricultura — rega.\n• Indústria.\n• Transporte.\n• Energia (hidroelétrica).\n\n**Ciclo da água**: evaporação → condensação → precipitação → escoamento → de novo evaporação.\n\n**❌ O que se costuma errar**\n• Confundir nascente (origem) com foz (chegada).\n• Achar que Portugal tem só rios próprios — Tejo e Douro nascem em Espanha.\n• Trocar afluente (entra num rio) com confluente (junta-se).'
+    },
+    'geografia/Vegetação natural': {
+        title: 'Vegetação natural',
+        body: 'A **vegetação natural** depende do **clima** e do **solo**.\n\n**Tipos principais de vegetação**:\n• **Floresta equatorial** — densa, vasta, muita biodiversidade (Amazónia).\n• **Savana** — gramíneas e árvores dispersas (África tropical).\n• **Deserto** — vegetação escassa (cactos, plantas xerófitas).\n• **Estepe** — gramíneas, poucas árvores (Ásia central).\n• **Floresta mediterrânea** — sobreiro, pinheiro, oliveira, alfarrobeira.\n• **Floresta temperada** — caducifólia (perde folha no inverno): carvalho, faia.\n• **Floresta boreal (taiga)** — coníferas (pinheiros, abetos) (Rússia, Canadá).\n• **Tundra** — vegetação rasteira (musgos, líquenes) (zonas polares).\n\n**Em Portugal**:\n• **Norte e centro** — floresta atlântica (carvalhos, castanheiros, pinheiros).\n• **Sul** — vegetação mediterrânea (sobreiros, azinheiras, oliveiras).\n• **Litoral** — pinheiro-bravo, eucalipto.\n• **Serras altas** — vegetação rasteira.\n\n**Importância das florestas**:\n• Produzem oxigénio (fotossíntese).\n• Habitat de espécies.\n• Regulam o clima e o ciclo da água.\n• Recursos (madeira, frutos, cortiça — Portugal é o maior produtor de cortiça do mundo!).\n\n**❌ O que se costuma errar**\n• Confundir caducifólia (perde folha) com perenifólia (não perde).\n• Achar que a Amazónia está em Portugal — está na América do Sul.\n• Esquecer-se que Portugal é o maior produtor de cortiça do mundo.'
+    },
+    'geografia/Recursos naturais': {
+        title: 'Recursos naturais',
+        body: 'Os **recursos naturais** são tudo o que a natureza fornece e o ser humano utiliza. Classificam-se em:\n\n• **Renováveis** — repõem-se naturalmente em pouco tempo. Sol, vento, água, biomassa.\n• **Não-renováveis** — formaram-se ao longo de milhões de anos. Petróleo, carvão, gás natural, minerais.\n\n**Energias renováveis**:\n• **Solar** — painéis fotovoltaicos.\n• **Eólica** — aerogeradores (parques eólicos).\n• **Hídrica** — barragens.\n• **Geotérmica** — calor do interior da Terra (Açores!).\n• **Biomassa** — restos orgânicos.\n• **Ondas e marés** (em desenvolvimento).\n\n**Recursos energéticos não-renováveis**:\n• **Combustíveis fósseis** — petróleo, carvão, gás natural. Têm CO₂ → aquecimento global.\n• **Urânio** — energia nuclear.\n\n**Recursos minerais**:\n• Metais (ferro, cobre, ouro), pedras, areia.\n\n**Em Portugal**:\n• Recursos renováveis abundantes — > 50% da eletricidade vem de renováveis.\n• Recursos não-renováveis poucos — importamos petróleo e gás.\n• Mar é recurso importante — pesca, sal, energia das ondas.\n\n**Sustentabilidade**:\n• Reduzir consumo, reciclar, usar renováveis.\n\n**❌ O que se costuma errar**\n• Confundir renováveis (repõem-se) com não-renováveis.\n• Achar que energia nuclear é renovável — o urânio é não-renovável.\n• Esquecer-se que Portugal é líder em renováveis.'
+    },
+
+    // ===== CIÊNCIAS NATURAIS (GEOCienTIC 7) =====
+    'ciencias_naturais/A Terra como sistema': {
+        title: 'A Terra como sistema',
+        body: 'A **Terra** é um **sistema** — um conjunto de elementos que interagem entre si.\n\n**4 subsistemas principais**:\n• **Atmosfera** — camada de gases (ar) à volta da Terra.\n• **Hidrosfera** — toda a água (líquida, sólida, gasosa).\n• **Geosfera** (litosfera) — rochas e solo.\n• **Biosfera** — todos os seres vivos.\n\nEstes subsistemas trocam **matéria e energia** entre si. Ex: a chuva (água da atmosfera/hidrosfera) erode rochas (geosfera) e fornece água às plantas (biosfera).\n\n**Características únicas da Terra**:\n• Distância adequada ao Sol → temperatura permite água líquida.\n• Atmosfera com oxigénio → respiração.\n• Campo magnético → protege das radiações solares.\n• Lua → estabiliza a inclinação do eixo, marés.\n\n**A "Goldilocks zone"** — a Terra está na "zona habitável" do Sistema Solar.\n\n**❌ O que se costuma errar**\n• Confundir geosfera (rochas) com biosfera (seres vivos).\n• Esquecer-se de que os subsistemas estão INTERLIGADOS.\n• Achar que a Terra é um sistema fechado — recebe energia do Sol constantemente.'
+    },
+    'ciencias_naturais/Subsistemas terrestres': {
+        title: 'Subsistemas terrestres',
+        body: '**Atmosfera**:\n• Camadas (de baixo para cima): troposfera, estratosfera (com a camada de ozono), mesosfera, termosfera, exosfera.\n• Composição: 78% azoto (N₂), 21% oxigénio (O₂), 1% outros (CO₂, vapor de água, árgon).\n• Função: respiração, proteção da radiação UV, regulação da temperatura.\n\n**Hidrosfera**:\n• 97% — água salgada (oceanos).\n• 3% — água doce (glaciares 2%, águas subterrâneas, rios e lagos < 1%).\n• Ciclo da água: evaporação → condensação → precipitação → escoamento.\n\n**Geosfera**:\n• Subdividida em **crusta**, **manto** e **núcleo**.\n• Atividade: vulcões, sismos, formação de rochas.\n• Solos resultam da meteorização das rochas.\n\n**Biosfera**:\n• Todos os seres vivos: bactérias, plantas, animais, fungos.\n• Reino animal, vegetal, fungos, protistas, monera.\n• Ecossistemas e biodiversidade.\n\n**❌ O que se costuma errar**\n• Achar que a maior parte da água da Terra é doce — só 3% (e a maioria desta está em glaciares).\n• Trocar troposfera (chuva, nuvens) com estratosfera (ozono).\n• Confundir geosfera (rochas) com hidrosfera (água).'
+    },
+    'ciencias_naturais/Estrutura interna da Terra': {
+        title: 'Estrutura interna da Terra',
+        body: 'A Terra tem **3 camadas principais**:\n\n• **Crusta** (ou crosta) — camada externa, sólida, fina.\n  - Crusta **continental** — ~30 km de espessura. Constituída por granito.\n  - Crusta **oceânica** — ~7 km. Constituída por basalto.\n• **Manto** — camada intermédia, ~2 900 km de espessura.\n  - Sólido mas plástico (rochas em alta temperatura podem fluir lentamente — corrente de convecção).\n• **Núcleo** — parte central.\n  - **Núcleo externo** — líquido (metais fundidos: ferro e níquel). Responsável pelo campo magnético da Terra.\n  - **Núcleo interno** — sólido (apesar de muito quente, está sob pressão imensa).\n\n**Temperaturas**:\n• Crusta: 0–500 °C\n• Manto: 500–4000 °C\n• Núcleo: 4000–6000 °C\n\nO **raio da Terra** é ~6 371 km. O ser humano só perfurou ~12 km (até hoje).\n\n**Métodos para conhecer o interior**: ondas sísmicas (analisar como atravessam o planeta).\n\n**❌ O que se costuma errar**\n• Achar que o núcleo é todo líquido — só o externo é líquido.\n• Trocar manto (plástico) com crusta (rígida).\n• Esquecer que a crusta é MUITO fina comparada com manto e núcleo.'
+    },
+    'ciencias_naturais/Tectónica de placas': {
+        title: 'Tectónica de placas',
+        body: 'A **crusta** + parte rígida do manto formam a **litosfera**, dividida em **placas tectónicas** que "flutuam" sobre a astenosfera (manto plástico).\n\n**Principais placas**:\nEuro-Asiática, Africana, Norte-Americana, Sul-Americana, Pacífica, Australiana, Antártica + várias menores.\n\nAs placas movem-se ~1–10 cm/ano. Tipos de movimento:\n• **Divergente** — placas afastam-se → criação de nova crusta (dorsais oceânicas como a do Atlântico).\n• **Convergente** — placas chocam-se → uma mergulha sob a outra (subducção). Origina montanhas (Himalaias, Andes) e fossas oceânicas.\n• **Transformante** — placas deslizam lateralmente (Falha de Santo André, Califórnia).\n\n**Consequências**:\n• Sismos.\n• Vulcanismo.\n• Formação de cordilheiras.\n• Deriva continental — Alfred Wegener (1912) propôs que os continentes estiveram unidos: a **Pangeia**.\n\nO Açores está num **ponto triplo** (juntam-se 3 placas) → muita atividade vulcânica e sísmica.\n\n**❌ O que se costuma errar**\n• Achar que as placas estão paradas — movem-se sempre, mas devagar.\n• Confundir divergente (afasta) com convergente (junta).\n• Esquecer-se que sismos e vulcões acontecem MAIS nas fronteiras das placas.'
+    },
+    'ciencias_naturais/Rochas': {
+        title: 'Rochas',
+        body: 'As **rochas** são agregados naturais de **minerais**. 3 tipos principais conforme a origem:\n\n• **Rochas magmáticas** (ígneas) — solidificação do **magma**.\n  - **Plutónicas / intrusivas** — solidificam dentro da Terra, lentamente. Cristais grandes. Ex: **granito**.\n  - **Vulcânicas / extrusivas** — solidificam à superfície, rapidamente. Cristais pequenos ou vidro. Ex: **basalto**, pomes, obsidiana.\n\n• **Rochas sedimentares** — formam-se por:\n  1. **Meteorização** das rochas (alteração).\n  2. **Erosão** e **transporte** dos sedimentos.\n  3. **Sedimentação** (deposição).\n  4. **Diagénese** (consolidação): compactação + cimentação.\n  - Tipos: **detríticas** (arenito, argilito), **químicas** (sal-gema, calcário), **biogénicas** (carvão, calcários conchíferos).\n\n• **Rochas metamórficas** — transformação de outras rochas pelo calor e/ou pressão (sem fundir).\n  - Ex: **calcário → mármore**; **granito → gnaisse**; **argilito → xisto**.\n\n**Ciclo das rochas** — todas as rochas podem transformar-se umas nas outras.\n\n**❌ O que se costuma errar**\n• Confundir granito (intrusiva) com basalto (extrusiva).\n• Achar que rochas sedimentares são sempre frágeis (algumas, como o calcário, são duras).\n• Trocar mármore (metamórfica) com calcário (sedimentar — origina o mármore).'
+    },
+    'ciencias_naturais/Minerais': {
+        title: 'Minerais',
+        body: 'Um **mineral** é uma substância **natural**, **sólida**, **inorgânica**, com **composição química definida** e **estrutura cristalina**.\n\n**Propriedades dos minerais**:\n• **Cor** — algumas variam (ex: quartzo pode ser branco, rosa, roxo).\n• **Brilho** — metálico, vítreo, sedoso, mate.\n• **Risca** — cor do mineral pulverizado.\n• **Dureza** — resistência a ser riscado. **Escala de Mohs** (1–10):\n  1. Talco (muito mole)\n  2. Gesso\n  3. Calcite\n  4. Fluorite\n  5. Apatite\n  6. Feldspato (ortoclase)\n  7. Quartzo\n  8. Topázio\n  9. Corindo\n  10. Diamante (mais duro)\n• **Clivagem** — capacidade de partir em planos.\n• **Forma cristalina** — cúbica, hexagonal, etc.\n\n**Exemplos comuns**:\n• Quartzo (SiO₂)\n• Calcite (CaCO₃)\n• Feldspato\n• Mica (folhas)\n• Pirite ("ouro dos tolos")\n• Sal-gema (halite, NaCl)\n• Ouro, prata, cobre.\n\n**❌ O que se costuma errar**\n• Confundir mineral (componente, ex: quartzo) com rocha (agregado, ex: granito = quartzo + feldspato + mica).\n• Achar que cor é o melhor identificador — é a propriedade menos fiável.\n• Esquecer que diamante e grafite têm a mesma composição (C) mas estruturas diferentes!'
+    },
+    'ciencias_naturais/Vulcanologia': {
+        title: 'Vulcanologia',
+        body: 'Um **vulcão** é uma estrutura geológica onde o magma do interior da Terra chega à superfície.\n\n**Partes de um vulcão**:\n• **Câmara magmática** — onde o magma se acumula.\n• **Chaminé** — canal por onde sobe.\n• **Cratera** — abertura no topo.\n• **Cone vulcânico** — forma exterior.\n• **Caldeira** — depressão grande formada após erupção.\n\n**Materiais emitidos**:\n• **Lava** — magma à superfície.\n• **Gases** — vapor de água, CO₂, SO₂.\n• **Piroclastos** — cinzas, lapilli, bombas (sólidos).\n\n**Tipos de erupção**:\n• **Efusivas** — lava fluida sai calmamente (vulcões do Havai).\n• **Explosivas** — magma viscoso, prende gases, explode (Vesúvio).\n• **Mistas** — combinação.\n\n**Em Portugal**:\n• Açores — várias ilhas vulcânicas ativas (Pico, Furnas, Capelinhos em 1957–58).\n• Madeira — vulcânica mas não ativa.\n• Continente — não há vulcões ativos.\n\n**Benefícios** dos vulcões: solos férteis, energia geotérmica, paisagens, minerais.\n**Perigos**: lava, gases tóxicos, cinzas, tsunamis (se submarinos).\n\n**❌ O que se costuma errar**\n• Confundir magma (interior) com lava (superfície).\n• Achar que todos os vulcões são iguais — há vários tipos.\n• Esquecer-se que os vulcões dos Açores são ATIVOS.'
+    },
+    'ciencias_naturais/Sismologia': {
+        title: 'Sismologia',
+        body: 'Um **sismo** (terramoto) é a vibração da Terra devido à libertação súbita de energia das rochas. Causas:\n• Movimento de placas tectónicas (mais comum).\n• Vulcanismo.\n• Desabamentos.\n• Atividade humana (explosões, barragens).\n\n**Conceitos**:\n• **Hipocentro (foco)** — ponto no interior onde o sismo se origina.\n• **Epicentro** — ponto à superfície, **acima** do hipocentro.\n• **Ondas sísmicas**:\n  - **Ondas P** (primárias) — mais rápidas, longitudinais.\n  - **Ondas S** (secundárias) — transversais, mais lentas, não passam em líquidos.\n  - **Ondas superficiais** (L) — as mais destrutivas.\n\n**Escalas**:\n• **Richter** — mede a **magnitude** (energia libertada). Logarítmica: cada grau é 10× mais energia.\n• **Mercalli modificada** — mede a **intensidade** (estragos sentidos). I (não sentido) a XII (destruição total).\n\n**Aparelhos**: sismógrafo regista as ondas. Sismograma é o gráfico.\n\n**Sismos importantes em Portugal**:\n• **1755** — Grande Terramoto de **Lisboa**. Magnitude estimada ~8,5. Tsunami e incêndios destruíram a cidade.\n• 1969 — Cabo de São Vicente.\n• 1980 — Açores.\n\n**Como agir**: durante um sismo, baixar-se, abrigar-se sob uma mesa, afastar-se de janelas.\n\n**❌ O que se costuma errar**\n• Confundir epicentro (à superfície) com hipocentro (no interior).\n• Trocar magnitude (energia) com intensidade (estragos).\n• Achar que escala de Richter é linear — é LOGARÍTMICA (8 = 10× mais que 7).'
+    },
+    'ciencias_naturais/Fósseis e tempo geológico': {
+        title: 'Fósseis e tempo geológico',
+        body: 'Um **fóssil** é um vestígio de um ser vivo que existiu há muito tempo, conservado em rochas. Os fósseis dão-nos informação sobre a vida passada.\n\n**Tipos**:\n• **Vestígios diretos** — ossos, dentes, conchas (mineralizados).\n• **Vestígios indiretos** — pegadas, fezes (coprólitos), ovos.\n• **Moldes** — impressões da forma do organismo na rocha.\n• **Inclusões** — em âmbar, gelo (mamutes).\n\n**Como se formam**:\n1. Organismo morre.\n2. É soterrado rapidamente por sedimentos.\n3. Partes moles decompõem-se; partes duras (ossos) permanecem.\n4. Minerais infiltram-se e substituem o material original (fossilização).\n5. Após milhões de anos, pode ficar exposto pela erosão.\n\n**Importância**:\n• Reconstituir a evolução das espécies.\n• Datar rochas (fósseis-índice).\n• Reconstituir paleoambientes e paleoclimas.\n\n**Tempo geológico** — escala enorme:\n• Pré-Câmbrico (origem da Terra a 540 M.A. — bactérias).\n• Paleozoico (540–250 M.A. — peixes, anfíbios, répteis).\n• **Mesozoico** (250–65 M.A. — dinossauros).\n• **Cenozoico** (65 M.A. – atualidade — mamíferos, ser humano).\n\nFósseis famosos em Portugal: trilobites (Alentejo), dinossauros (Lourinhã), pegadas (Cabo Mondego).\n\n**❌ O que se costuma errar**\n• Achar que dinossauros e humanos coexistiram — separados por 65 milhões de anos.\n• Confundir fóssil (vestígio) com osso recente.\n• Esquecer que o ser humano só existe há ~200 000 anos (recente!).'
+    },
+
+    // ===== FÍSICO-QUÍMICA (FQ 7) =====
+    'fisico_quimica/O Universo': {
+        title: 'O Universo',
+        body: 'O **Universo** é tudo o que existe: espaço, tempo, matéria, energia.\n\n**Teoria do Big Bang** — origem do Universo há ~13,8 mil milhões de anos. Tudo começou num ponto extremamente quente e denso, depois expandiu.\n\n**Estruturas no Universo** (do maior para o menor):\n• **Universo**\n• **Aglomerados de galáxias** — grupos de galáxias.\n• **Galáxia** — biliões de estrelas + gás + poeira + matéria escura.\n• **Sistema planetário** — estrela + planetas + outros corpos.\n• **Estrela** — bola de gás (H, He) com reações nucleares.\n• **Planeta** — corpo que orbita uma estrela.\n\n**A Via Láctea** — a nossa galáxia. Formato em **espiral**. Contém ~100 mil milhões de estrelas. O Sol é uma delas, num braço periférico.\n\n**Estrela mais próxima do Sol**: **Proxima Centauri** (~4,2 anos-luz).\n\n**Ano-luz** — distância que a luz percorre num ano (~9,5 biliões de km). Unidade usada em astronomia.\n\n**Estrelas no céu noturno** — formam **constelações** (Ursa Maior, Órion, Cruzeiro do Sul).\n\n**❌ O que se costuma errar**\n• Confundir galáxia (conjunto de estrelas) com sistema solar (uma estrela e planetas).\n• Achar que o ano-luz é unidade de tempo — é de DISTÂNCIA.\n• Esquecer que o Sol é uma estrela vulgar.'
+    },
+    'fisico_quimica/Sistema Solar': {
+        title: 'Sistema Solar',
+        body: 'O **Sistema Solar** = Sol + 8 planetas + planetas-anões + asteroides + cometas + satélites naturais.\n\n**Os 8 planetas** (pela ordem do Sol):\n1. **Mercúrio** — o mais próximo, sem atmosfera, sem satélites.\n2. **Vénus** — o mais quente (efeito de estufa extremo).\n3. **Terra** — único com vida conhecida. 1 lua.\n4. **Marte** — o "planeta vermelho". 2 luas pequenas (Fobos, Deimos).\n5. **Júpiter** — o maior. Tem a Grande Mancha Vermelha. 95 luas (Ganimedes, Io, Europa, Calisto).\n6. **Saturno** — anéis de gelo e poeira. 146 luas (Titã).\n7. **Úrano** — gira "deitado".\n8. **Neptuno** — o mais distante. Ventos muito fortes.\n\n**Planetas rochosos / telúricos** (1 a 4) — pequenos, sólidos.\n**Planetas gasosos / jovianos** (5 a 8) — gigantes, sobretudo gás.\n\n**Plutão**: foi planeta até 2006; agora é **planeta-anão**.\n\n**Outros corpos**:\n• Asteroides — entre Marte e Júpiter (Cintura de Asteroides).\n• Cometas — bolas de gelo e poeira; quando perto do Sol formam cauda (Halley, Hale-Bopp).\n• Meteoroides → meteoros (estrelas cadentes) → meteoritos (chegam ao solo).\n\n**❌ O que se costuma errar**\n• Trocar a ordem dos planetas. Mnemónica: **M**eu **V**elho **T**io **M**andou **J**untar **S**eis **U**vas **N**ovas.\n• Achar que Plutão ainda é planeta.\n• Confundir cometa (gelo, cauda) com asteroide (rocha).'
+    },
+    'fisico_quimica/A Terra, a Lua e as forças gravíticas': {
+        title: 'A Terra, a Lua e as forças gravíticas',
+        body: 'A **Terra** tem ~6 371 km de raio. Movimentos:\n• **Rotação** — sobre si própria, em ~24 h. Origina o **dia e a noite**.\n• **Translação** — à volta do Sol, em ~365 dias. Origina as **estações do ano** (combinado com a inclinação do eixo a 23,5°).\n\n**Estações**:\n• No hemisfério Norte: verão (junho), outono (setembro), inverno (dezembro), primavera (março).\n• No hemisfério Sul: opostas.\n\nA **Lua** é o satélite natural da Terra. ~384 000 km de distância. Não tem atmosfera nem água líquida.\n• **Movimento síncrono**: a Lua mostra sempre a mesma face para a Terra (rotação = translação ≈ 27,3 dias).\n• **Fases da Lua**: Nova → Crescente → Cheia → Minguante (~29,5 dias).\n• **Marés** — causadas pela força gravítica da Lua (e do Sol em menor escala).\n• **Eclipses**:\n  - **Solar** — Lua entre Sol e Terra (sombra na Terra).\n  - **Lunar** — Terra entre Sol e Lua (sombra na Lua).\n\n**Forças gravíticas** — atração entre corpos com massa. Quanto maior a **massa**, maior a atração. Quanto maior a **distância**, menor a atração (inverso do quadrado).\n\n**Peso** ≠ **massa**:\n• **Massa** (kg) — quantidade de matéria. Invariável.\n• **Peso** (N) — força gravítica sobre o corpo. Varia conforme o planeta.\n• Na Lua, pesas ~1/6 do peso na Terra (mas a massa é a mesma!).\n\n**❌ O que se costuma errar**\n• Confundir massa (sempre igual) com peso (varia com o planeta).\n• Achar que as estações são causadas pela distância ao Sol (não é — é a INCLINAÇÃO).\n• Trocar eclipse solar (Lua tapa o Sol) com lunar (Terra tapa a luz).'
+    },
+    'fisico_quimica/Substâncias e misturas': {
+        title: 'Substâncias e misturas',
+        body: 'A matéria classifica-se em:\n\n• **Substâncias puras** — composição constante, propriedades fixas.\n  - **Elementares** — formadas por um só elemento (O₂, N₂, Au, Fe).\n  - **Compostas** — formadas por dois ou mais elementos químicos ligados (H₂O, CO₂, NaCl).\n\n• **Misturas** — combinação de duas ou mais substâncias, em proporções variáveis.\n  - **Homogéneas (soluções)** — uma única fase visível (água + sal dissolvido, ar, ligas metálicas como bronze).\n  - **Heterogéneas** — várias fases visíveis (água + areia, granito, sopa).\n  - **Coloidais** — partículas intermédias, parecem homogéneas mas não são (leite, fumo, nevoeiro, gelatina).\n\n**Solução**:\n• **Soluto** — o que se dissolve (sal).\n• **Solvente** — o que dissolve (água, geralmente a substância em maior quantidade).\n\n**Métodos de separação** (consoante o tipo de mistura):\n• Filtração — separar sólido insolúvel de líquido (areia + água).\n• Decantação — líquidos imiscíveis (água + óleo).\n• Destilação — separar líquidos com diferentes pontos de ebulição (água + álcool).\n• Cristalização / evaporação — recuperar soluto (sal da água).\n• Centrifugação — separar fases por rotação.\n• Cromatografia — separar pigmentos.\n• Catação / peneiração / magnetização — sólidos diferentes.\n\n**❌ O que se costuma errar**\n• Confundir substância composta (átomos ligados) com mistura (substâncias misturadas).\n• Achar que o ar é uma substância pura — é mistura homogénea (gases vários).\n• Trocar soluto (dissolvido) com solvente (dissolve).'
+    },
+    'fisico_quimica/Estados físicos da matéria': {
+        title: 'Estados físicos da matéria',
+        body: 'A matéria pode estar em **3 estados físicos** principais (em condições terrestres):\n\n• **Sólido** — forma e volume **constantes**. Partículas muito próximas, vibram em posições fixas.\n• **Líquido** — volume constante, forma **variável** (adapta-se ao recipiente). Partículas próximas mas com mobilidade.\n• **Gasoso** — forma e volume **variáveis** (ocupa todo o espaço disponível). Partículas muito afastadas, com grande movimento.\n\nQuarto estado: **plasma** (gases ionizados, em estrelas, relâmpagos).\n\n**Mudanças de estado**:\n• **Fusão** — sólido → líquido (gelo → água).\n• **Solidificação** — líquido → sólido (água → gelo).\n• **Vaporização** — líquido → gasoso. Pode ser **ebulição** (em todo o líquido, rápida) ou **evaporação** (à superfície, lenta).\n• **Condensação** — gasoso → líquido (vapor → orvalho).\n• **Sublimação** — sólido → gasoso, sem passar por líquido (naftalina, gelo seco).\n• **Sublimação inversa** (deposição) — gasoso → sólido (geada).\n\n**Pontos característicos** (para uma substância pura, a uma dada pressão):\n• **Ponto de fusão (Pf)** — onde funde. Água: 0 °C.\n• **Ponto de ebulição (Pe)** — onde ferve. Água: 100 °C.\n\nDurante a mudança de estado, a **temperatura mantém-se constante** (energia usada para mudar de estado, não para aquecer).\n\n**❌ O que se costuma errar**\n• Confundir vaporização (genérico) com ebulição (específica).\n• Esquecer-se que durante a fusão/ebulição a temperatura não muda.\n• Trocar condensação (líquido) com solidificação (sólido).'
+    },
+    'fisico_quimica/Transformações físicas': {
+        title: 'Transformações físicas',
+        body: 'Uma **transformação física** muda apenas o ESTADO ou a FORMA da matéria. Não há criação de novas substâncias — a composição química mantém-se. **É reversível** (geralmente).\n\n**Exemplos**:\n• Fundir gelo (ainda é H₂O).\n• Ferver água (ainda é H₂O).\n• Cortar papel.\n• Esmagar um copo (continua a ser vidro).\n• Dissolver sal em água (sal continua sal — sai de novo por evaporação).\n• Magnetizar um prego.\n• Esticar um elástico.\n\n**Como reconhecer**:\n• Não há cor / cheiro novos.\n• Não há libertação de gás (a menos que seja por mudança de estado).\n• Geralmente reversível.\n\n**Distinção fundamental**: numa transformação física, as **moléculas mantêm-se**. Numa química, mudam.\n\n**Outras transformações físicas comuns**:\n• Aquecer um metal sem o derreter (dilatação).\n• Tirar limalha de ferro com íman.\n\n**❌ O que se costuma errar**\n• Confundir dissolução (física) com reação química.\n• Achar que toda a mudança de cor é química — algumas são físicas (mudança de estado de cristais).\n• Esquecer que mudanças de estado SÃO transformações físicas.'
+    },
+    'fisico_quimica/Transformações químicas': {
+        title: 'Transformações químicas',
+        body: 'Uma **transformação química** (ou reação química) origina **novas substâncias**, com propriedades diferentes das iniciais. As ligações entre átomos quebram e formam-se de novo.\n\n**Sinais que indicam reação química**:\n• **Mudança de cor**.\n• **Libertação de gás** (efervescência).\n• **Formação de precipitado** (sólido em líquido).\n• **Libertação ou absorção de energia** (calor, luz, som).\n• **Mudança de cheiro**.\n\n**Tipos comuns**:\n• **Combustão** — substância + oxigénio → CO₂ + H₂O + energia.\n  Ex: queimar madeira, gasolina.\n• **Oxidação** — metal + oxigénio → óxido.\n  Ex: ferrugem (Fe + O₂ → Fe₂O₃).\n• **Decomposição** — substância → várias.\n  Ex: aquecer carbonato de cálcio → óxido + CO₂.\n• **Síntese** — substâncias simples → composta.\n  Ex: H₂ + O₂ → H₂O.\n• **Ácido + base** (neutralização) — sal + água.\n  Ex: HCl + NaOH → NaCl + H₂O.\n\n**Equação química**: reagentes → produtos.\nLei de Lavoisier (conservação da massa): **a massa total mantém-se**.\n\n**Reversibilidade**: geralmente, NÃO se reverte facilmente (queimar papel — não voltas a ter papel).\n\n**❌ O que se costuma errar**\n• Achar que toda a libertação de gás é química (ferver água é física).\n• Confundir reagentes (à esquerda) com produtos (à direita).\n• Esquecer Lavoisier — a massa **não desaparece**, transforma-se.'
+    },
+    'fisico_quimica/Massa volúmica': {
+        title: 'Massa volúmica',
+        body: 'A **massa volúmica** (densidade) é a quantidade de massa por unidade de volume.\n\n   **ρ = m / V**\n   ρ (rô) — massa volúmica (kg/m³ ou g/cm³)\n   m — massa (kg ou g)\n   V — volume (m³ ou cm³)\n\nÉ uma **propriedade característica** das substâncias — não depende da quantidade. 1 g de ouro tem a mesma densidade que 1 kg de ouro.\n\n**Valores típicos** (a 20 °C):\n• Água: **1 000 kg/m³** = 1 g/cm³.\n• Gelo: 920 kg/m³ (por isso flutua!).\n• Óleo: ~900 kg/m³ (flutua na água).\n• Mercúrio: 13 600 kg/m³.\n• Ouro: 19 300 kg/m³.\n• Alumínio: 2 700 kg/m³.\n• Ar: 1,2 kg/m³.\n\n**Flutuação**:\n• Densidade do objeto < densidade do líquido → **flutua**.\n• Densidade do objeto > densidade do líquido → **afunda**.\n\nPor isso o gelo flutua na água; o óleo na água; mas uma moeda afunda.\n\n**Unidades** — converter:\n• 1 g/cm³ = 1 000 kg/m³.\n• 1 L = 1 dm³ = 1 000 cm³.\n• 1 m³ = 1 000 L.\n\n**Medir**: massa (balança), volume (proveta para líquidos, cálculo geométrico para sólidos regulares, deslocamento de água para sólidos irregulares).\n\n**❌ O que se costuma errar**\n• Achar que massa volúmica depende da quantidade — NÃO depende.\n• Esquecer-se de converter unidades.\n• Não saber por que o gelo flutua (densidade < água).'
+    },
+
+    // ===== EDUCAÇÃO VISUAL (Novo Visual 7/8/9) =====
+    'educacao_visual/Ponto, linha e plano': {
+        title: 'Ponto, linha e plano',
+        body: 'Os **elementos visuais básicos** da linguagem plástica são o **ponto**, a **linha** e o **plano**.\n\n• **Ponto** — o menor elemento gráfico. Tem posição mas não tem dimensão. Vários pontos sugerem textura, ritmo, gradação.\n  - Pontilhismo (Seurat) usa milhares de pontos coloridos.\n\n• **Linha** — sucessão de pontos numa direção. Tipos:\n  - **Reta** — calma, ordenada.\n  - **Curva** — suave, sensual.\n  - **Quebrada** — agitada.\n  - **Ondulada** — fluida.\n  - **Espiral** — dinâmica.\n  - **Horizontal** — repouso.\n  - **Vertical** — força, equilíbrio.\n  - **Diagonal / oblíqua** — movimento, instabilidade.\n\n• **Plano** — superfície 2D, delimitada por linhas. Define áreas e formas. Pode ser:\n  - Geométrico (quadrado, círculo).\n  - Orgânico (irregular, biomórfico).\n\n**Aplicações**:\n• Desenho técnico — uso de linhas precisas.\n• Pintura — linhas e planos compõem a obra.\n\n**❌ O que se costuma errar**\n• Confundir linha vertical (estática) com diagonal (dinâmica).\n• Achar que plano = ponto grande — plano tem largura E altura.\n• Esquecer-se que o ponto é o elemento mais simples.'
+    },
+    'educacao_visual/Cor': {
+        title: 'Cor',
+        body: 'A **cor** é a sensação visual produzida pela luz refletida pelos objetos.\n\n**Cores primárias** (não se obtêm misturando outras):\n• Sistema **subtrativo / pigmentos**: **magenta**, **amarelo**, **ciano** (CMYK).\n• Sistema **aditivo / luz**: **vermelho**, **verde**, **azul** (RGB) — usado em ecrãs.\n\nNa escola, ainda se usa muito o sistema tradicional: **vermelho**, **amarelo**, **azul**.\n\n**Cores secundárias** (mistura de duas primárias):\n• Vermelho + amarelo = **laranja**\n• Amarelo + azul = **verde**\n• Azul + vermelho = **violeta / roxo**\n\n**Cores terciárias** — mistura de primária + secundária adjacente.\n\n**Cores complementares** — opostas no círculo cromático. Quando juntas, vibram (vermelho/verde, azul/laranja, amarelo/roxo).\n\n**Cores quentes** — vermelho, laranja, amarelo (fogo, sol).\n**Cores frias** — azul, verde, violeta (água, gelo).\n\n**Propriedades da cor**:\n• **Matiz** — a cor em si (vermelho).\n• **Valor / luminosidade** — claro ou escuro (rosa = vermelho claro).\n• **Saturação** — pureza / intensidade.\n\n**Cores neutras** — preto, branco, cinza, castanho.\n\n**❌ O que se costuma errar**\n• Confundir RGB (luz) com CMYK (pigmento).\n• Trocar quentes (vermelho/amarelo) com frias (azul).\n• Achar que complementar = parecida (são opostas).'
+    },
+    'educacao_visual/Forma e composição': {
+        title: 'Forma e composição',
+        body: 'A **forma** é o aspeto visual de um objeto, definido pelo seu contorno.\n\n**Tipos de forma**:\n• **Bidimensional (2D)** — só largura e altura (desenho, pintura).\n• **Tridimensional (3D)** — largura, altura e profundidade (escultura).\n• **Geométrica** — círculo, quadrado, triângulo, retângulo, pentágono...\n• **Orgânica** — irregular, inspirada na natureza.\n\n**Composição** = organização dos elementos numa obra.\n\n**Princípios da composição**:\n• **Equilíbrio**:\n  - **Simétrico** — espelhado, dá sensação de ordem.\n  - **Assimétrico** — diferente em cada lado, mais dinâmico.\n• **Ritmo** — repetição com variação.\n• **Contraste** — diferenças (claro/escuro, grande/pequeno).\n• **Harmonia** — elementos que combinam.\n• **Unidade** — tudo parece pertencer ao mesmo conjunto.\n• **Foco / ponto de interesse** — onde o olhar é dirigido primeiro.\n• **Proporção** — relação entre tamanhos. Regra dos 1/3 (dividir em terços).\n• **Movimento** — direção sugerida pelo olhar.\n\n**❌ O que se costuma errar**\n• Confundir forma (contorno) com cor.\n• Achar que equilíbrio só existe quando simétrico — também há equilíbrio assimétrico.\n• Esquecer-se da regra dos 1/3 ao posicionar elementos.'
+    },
+    'educacao_visual/Perspetiva': {
+        title: 'Perspetiva',
+        body: 'A **perspetiva** é a técnica para representar objetos 3D numa superfície 2D, dando sensação de profundidade.\n\n**Perspetiva linear** — usa **linhas de fuga** que convergem para um ou mais **pontos de fuga** na **linha do horizonte**.\n\n**Tipos**:\n• **1 ponto de fuga** (frontal) — todas as linhas convergem para um único ponto. Útil para vistas frontais (estradas, túneis).\n• **2 pontos de fuga** (oblíqua) — linhas convergem para dois pontos. Útil para esquinas de edifícios.\n• **3 pontos de fuga** — também usado para vistas extremas (de baixo para cima, ou de cima para baixo).\n\n**Outras técnicas para profundidade**:\n• **Sobreposição** — objeto à frente tapa o de trás.\n• **Tamanho relativo** — objetos longe parecem menores.\n• **Cor e contraste** — objetos distantes têm cores mais pálidas (perspetiva atmosférica).\n• **Detalhe** — objetos próximos têm mais detalhe.\n• **Posição na imagem** — quanto mais alto na folha (até o horizonte), mais longe parece.\n\n**Renascimento**: a perspetiva linear foi desenvolvida por **Filippo Brunelleschi** (séc. XV).\n\n**❌ O que se costuma errar**\n• Confundir linha do horizonte com chão.\n• Esquecer-se que todas as linhas paralelas vão para o mesmo ponto de fuga.\n• Achar que perspetiva = só linhas — também há perspetiva atmosférica (cor).'
+    },
+    'educacao_visual/Luz e sombra': {
+        title: 'Luz e sombra',
+        body: 'A **luz** revela a forma dos objetos. A **sombra** dá volume e realismo.\n\n**Elementos**:\n• **Foco de luz** — onde a luz vem (lâmpada, sol).\n• **Zona iluminada** — parte que recebe luz direta.\n• **Sombra própria** — parte do objeto que não recebe luz.\n• **Sombra projetada** — sombra que o objeto faz no chão / parede.\n• **Reflexo / refletida** — luz que ressalta de superfícies próximas (suaviza a sombra).\n• **Brilho / specular** — ponto mais claro, onde a luz reflete diretamente.\n\n**Direção da luz**:\n• **Frontal** — apaga volumes.\n• **Lateral** — realça muito os volumes (clássico em desenho).\n• **Contraluz** — silhueta.\n• **Cenital** (cima) — dramática.\n• **Por baixo** — assustadora (filmes de terror).\n\n**Técnicas de desenho**:\n• **Esfumado** — gradação suave (Leonardo da Vinci).\n• **Hachuras** — linhas paralelas para criar tom.\n• **Pontilhado** — pontos para criar tom.\n\n**Tons de cinza**: ir do branco (luz total) ao preto (sombra total), passando por vários tons médios — escala de valores.\n\n**❌ O que se costuma errar**\n• Confundir sombra própria (no objeto) com sombra projetada (no chão).\n• Esquecer-se que a sombra projetada vai na direção oposta à luz.\n• Não dar gradação à sombra — fica chapada e sem realismo.'
+    },
+    'educacao_visual/Comunicação visual': {
+        title: 'Comunicação visual',
+        body: 'A **comunicação visual** transmite mensagens através de imagens, símbolos e tipografia.\n\n**Cartaz** — mensagem visual num suporte gráfico. Elementos:\n• **Título** — chama a atenção. Grande, claro.\n• **Imagem** — impactante, relacionada com a mensagem.\n• **Texto informativo** — quem, o quê, quando, onde.\n• **Cor** — atrai e cria emoção.\n• **Tipografia** — tipo de letra apropriado.\n\n**Tipografia (tipos de letra)**:\n• **Serifa (serif)** — com pequenos remates (Times, Garamond) — clássico, formal.\n• **Sem serifa (sans-serif)** — limpo, sem remates (Arial, Helvetica) — moderno.\n• **Script** — imita escrita à mão (cursiva).\n• **Display** — decorativa, para títulos.\n\n**Logótipo** — símbolo identificador de uma marca.\n• Pictograma (figura), Logotipo (texto), Combinação dos dois.\n• Características: simples, memorável, intemporal, versátil.\n\n**Sinalética** — sinais para orientação:\n• Saída, casa de banho, escadas, estacionamento, perigo.\n• Cores padronizadas: vermelho (perigo/proibição), verde (segurança), azul (informação), amarelo (atenção).\n\n**Cores e psicologia**:\n• Vermelho — energia, paixão, urgência.\n• Azul — confiança, calma.\n• Verde — natureza, saúde.\n• Amarelo — felicidade, alerta.\n• Preto — elegância, poder.\n• Branco — pureza, simplicidade.\n\n**❌ O que se costuma errar**\n• Cartaz com muita informação — menos é mais.\n• Tipografia ilegível (display em texto longo).\n• Não pensar no público-alvo.'
+    },
+
+    // ===== TIC (Login 7) =====
+    'tic/Hardware e software': {
+        title: 'Hardware e software',
+        body: '**Hardware** = parte FÍSICA do computador (vê-se, toca-se).\n**Software** = parte LÓGICA (programas, dados).\n\n**Componentes de hardware**:\n• **CPU** (Central Processing Unit, processador) — "cérebro" do computador. Processa instruções.\n• **Memória RAM** — memória volátil onde estão programas em execução. Perde-se ao desligar.\n• **Disco rígido / SSD** — memória permanente para guardar ficheiros.\n• **Motherboard** (placa-mãe) — onde tudo se liga.\n• **Placa gráfica (GPU)** — processa imagens.\n• **Fonte de alimentação** — fornece energia.\n\n**Periféricos**:\n• **Entrada (input)** — rato, teclado, microfone, scanner, webcam.\n• **Saída (output)** — monitor, colunas, impressora.\n• **Entrada e saída** — pen drive, disco externo, ecrã tátil.\n\n**Software**:\n• **Sistema operativo (SO)** — gere todo o computador. Windows, macOS, Linux, Android, iOS.\n• **Aplicações** — fazem tarefas específicas. Word, Chrome, Spotify.\n• **Drivers** — fazem a ligação entre SO e hardware.\n• **Antivírus** — proteção.\n\n**Tipos de licença**:\n• **Proprietário** — paga-se (Office, Photoshop).\n• **Software livre / open-source** — gratuito e código aberto (LibreOffice, Linux).\n• **Freeware** — gratuito mas sem código aberto.\n\n**❌ Erros frequentes**\n• Confundir RAM (volátil) com disco (permanente).\n• Achar que monitor = computador.\n• Trocar input (entrada) com output (saída).'
+    },
+    'tic/Sistema operativo': {
+        title: 'Sistema operativo',
+        body: 'Um **sistema operativo (SO)** é o software fundamental que gere o hardware e permite executar aplicações.\n\n**Funções do SO**:\n• Gerir memória, CPU, disco.\n• Executar e fechar aplicações.\n• Gerir ficheiros e pastas.\n• Gerir periféricos (impressoras, pendrives).\n• Interface com o utilizador (gráfica ou texto).\n• Segurança (utilizadores, palavras-passe).\n\n**Principais SO**:\n• **Windows** (Microsoft) — o mais usado em PCs.\n• **macOS** (Apple) — em Macs.\n• **Linux** — open-source, várias distribuições (Ubuntu, Mint, Fedora).\n• **Android** (Google) — smartphones, baseado em Linux.\n• **iOS** (Apple) — iPhone, iPad.\n• **Chrome OS** — para Chromebooks.\n\n**Organização de ficheiros**:\n• **Ficheiro** — unidade de informação (documento, foto).\n• **Pasta / diretoria** — agrupa ficheiros.\n• Caminho (path): C:/Utilizadores/Eduarda/Documentos/escola.docx\n• **Extensão** — indica o tipo: .docx (Word), .pdf, .jpg, .mp3, .mp4, .xlsx (Excel), .pptx (PowerPoint), .txt.\n\n**Operações comuns**:\n• Criar, copiar, mover, renomear, apagar.\n• Atalhos do teclado: Ctrl+C (copiar), Ctrl+V (colar), Ctrl+X (cortar), Ctrl+Z (desfazer), Ctrl+S (gravar).\n\n**❌ Erros frequentes**\n• Confundir ficheiro (documento) com pasta (organização).\n• Apagar ficheiros sem estar em segurança (Shift+Delete não vai para a reciclagem!).\n• Não saber para que serve cada extensão.'
+    },
+    'tic/Internet e navegação': {
+        title: 'Internet e navegação',
+        body: 'A **internet** é uma rede mundial de computadores ligados entre si.\n\n**Conceitos**:\n• **WWW (World Wide Web)** — conjunto de páginas web acessíveis pela internet.\n• **Browser / Navegador** — software para ver páginas web (Chrome, Firefox, Safari, Edge).\n• **URL** — endereço único de uma página (https://www.example.com).\n• **HTTP/HTTPS** — protocolos. O **S** = seguro (encriptação).\n• **Domínio** — parte do URL (.pt, .com, .org, .edu).\n• **Servidor** — computador que aloja sites e serviços.\n• **IP** — endereço numérico único de cada dispositivo na rede.\n• **WiFi** — internet sem fios.\n• **Dados móveis** — internet através da rede móvel.\n\n**Motores de busca**:\n• Google, Bing, DuckDuckGo.\n• Procuram em milhões de páginas.\n\n**Dicas de pesquisa**:\n• Usar palavras-chave **objetivas**.\n• Aspas para frase exata: "Aprendizagens Essenciais 7º".\n• Sinal de menos para excluir: matemática -álgebra.\n• Site específico: site:dge.mec.pt\n\n**Avaliar fontes**:\n• Quem escreveu?\n• Data?\n• Fontes credíveis? (universidades, jornais conhecidos, organismos oficiais)\n• Cuidado com **fake news** — verificar em várias fontes.\n\n**❌ Erros frequentes**\n• Confiar na primeira fonte encontrada.\n• Confundir HTTP (sem segurança) com HTTPS (com segurança).\n• Achar que tudo o que está na internet é verdade.'
+    },
+    'tic/Segurança online': {
+        title: 'Segurança online',
+        body: '**Riscos online**:\n• **Vírus** e **malware** — software malicioso (apaga ficheiros, rouba dados).\n• **Phishing** — fingem ser uma entidade real (banco, escola) para roubar dados.\n• **Cyberbullying** — assédio online.\n• **Predadores** — adultos que fingem ser crianças.\n• **Fake news** — informação falsa.\n• **Vícios** — jogos, redes sociais.\n\n**Boas práticas**:\n• **Palavras-passe seguras** — 12+ caracteres, com maiúsculas, minúsculas, números, símbolos. Não reutilizar.\n• **Autenticação a 2 fatores (2FA)** — código adicional.\n• **Não partilhar** informação pessoal (morada, escola, telefone) com desconhecidos.\n• **Não clicar** em links suspeitos (mesmo de "amigos" — pode ser hackeado).\n• **Antivírus** atualizado.\n• **Atualizações** do SO e apps (corrigem falhas).\n• **Cópias de segurança (backups)** — em disco externo ou cloud.\n\n**Redes sociais**:\n• Perfil privado.\n• Pensar antes de publicar — fica para sempre.\n• Não aceitar pedidos de desconhecidos.\n• Reportar conteúdo abusivo.\n\n**Pegada digital**: tudo o que fazes online deixa rasto. Empresas, escolas e futuros empregadores podem ver.\n\n**Em caso de problema**:\n• Falar com um adulto de confiança.\n• Linha SOS Internet Segura: 800 21 90 90.\n\n**❌ Erros frequentes**\n• Usar a mesma password em todos os sites.\n• Aceitar pedidos de amizade de desconhecidos.\n• Clicar em ofertas "demasiado boas para serem verdade".'
+    },
+    'tic/Processador de texto': {
+        title: 'Processador de texto',
+        body: 'Um **processador de texto** permite criar e formatar documentos (Word, Google Docs, LibreOffice Writer).\n\n**Funcionalidades básicas**:\n• Escrever, apagar, mover texto.\n• Formatar caracteres: **negrito (Ctrl+B)**, *itálico (Ctrl+I)*, sublinhado (Ctrl+U), cor, tamanho, tipo de letra.\n• Alinhamento: à esquerda, ao centro, à direita, justificado.\n• Listas: numerada (1., 2., 3.) ou com marcas (•).\n• **Cabeçalhos** (estilos: Título 1, Título 2).\n• Espaçamento entre linhas (1, 1,5, 2).\n• Margens (página).\n• Inserir: imagens, tabelas, gráficos, hiperligações, símbolos.\n\n**Verificação ortográfica e gramatical** — sublinhado vermelho/azul.\n\n**Páginas**:\n• Numeração de páginas.\n• Cabeçalho e rodapé (informação repetida em todas).\n• Quebra de página (Ctrl+Enter).\n\n**Atalhos importantes**:\n• Ctrl+S — gravar.\n• Ctrl+C / V / X — copiar / colar / cortar.\n• Ctrl+Z — desfazer.\n• Ctrl+F — encontrar.\n• Ctrl+P — imprimir.\n• Ctrl+A — selecionar tudo.\n\n**Formatos**:\n• **.docx** — Word.\n• **.odt** — OpenDocument.\n• **.pdf** — formato final (não editável facilmente).\n\n**❌ Erros frequentes**\n• Esquecer-se de gravar (Ctrl+S sempre!).\n• Mudar manualmente o tipo de letra em vez de usar estilos.\n• Confundir cortar (move) com copiar (duplica).'
+    },
+    'tic/Folha de cálculo': {
+        title: 'Folha de cálculo',
+        body: 'Uma **folha de cálculo** (Excel, Google Sheets, LibreOffice Calc) permite organizar dados em tabelas e fazer cálculos automáticos.\n\n**Estrutura**:\n• **Células** — quadradinhos onde se introduz dados.\n• **Linhas** — numeradas 1, 2, 3, ...\n• **Colunas** — letras A, B, C, ...\n• **Endereço** — combinação coluna + linha: A1, B5, C10.\n• **Intervalo** — várias células: A1:A10 ou A1:C5.\n• **Folha** — uma página da folha de cálculo. Várias folhas num **livro**.\n\n**Tipos de dados**:\n• Números (alinham à direita).\n• Texto (alinha à esquerda).\n• Datas (formato 01/06/2026).\n• Fórmulas (começam com =).\n\n**Fórmulas começam com "="**:\n• =A1+B1 (soma duas células)\n• =A1*2 (multiplica)\n• =(A1+B1)/2 (média de dois)\n\n**Funções comuns**:\n• **=SOMA(A1:A10)** — soma valores.\n• **=MÉDIA(A1:A10)** — calcula a média.\n• **=MÁXIMO(A1:A10)** — maior valor.\n• **=MÍNIMO(A1:A10)** — menor valor.\n• **=CONTAR(A1:A10)** — quantos valores.\n• **=SE(condição; valor_se_verdadeiro; valor_se_falso)** — condicional.\n\n**Gráficos** — selecionar dados → Inserir → Gráfico. Tipos: barras, linhas, colunas, circular.\n\n**Formatação**:\n• Cor das células, contorno, alinhamento.\n• Formato dos números: € (moeda), % (percentagem), casas decimais.\n\n**❌ Erros frequentes**\n• Esquecer o "=" no início da fórmula (não calcula, fica texto).\n• Confundir ; (separa argumentos) com , (decimais).\n• Usar células erradas — verificar a fórmula no topo.'
+    },
+    'tic/Apresentações eletrónicas': {
+        title: 'Apresentações eletrónicas',
+        body: 'Uma **apresentação eletrónica** (PowerPoint, Google Slides, Keynote) é uma sequência de **slides** projetados para apoiar uma exposição oral.\n\n**Estrutura típica**:\n• **Slide de título** — tema, autor.\n• **Índice** — opcional.\n• **Conteúdo** — vários slides com informação.\n• **Conclusão** — síntese.\n• **Referências** — fontes consultadas.\n\n**Boas práticas para slides**:\n• **Pouco texto** — bullet points, frases curtas (regra dos 6: máximo 6 linhas, 6 palavras por linha).\n• **Tamanho de letra grande** — mínimo 24pt para texto, 36+ para títulos.\n• **Contraste** — texto escuro em fundo claro (ou vice-versa).\n• **Imagens de qualidade** — apoiam o texto.\n• **Coerência visual** — mesmo tipo de letra, paleta de cores.\n• **Animações com moderação** — distraem se em excesso.\n\n**Elementos**:\n• Texto, imagens, gráficos, tabelas, vídeos, formas, ícones.\n• Transições (entre slides) e animações (dentro do slide).\n• Notas do orador (visíveis só para quem apresenta).\n\n**Apresentar**:\n• F5 — começar do início.\n• Shift+F5 — começar do slide atual.\n• Esc — sair.\n• Seta direita / espaço — avançar.\n• Seta esquerda — recuar.\n• B — ecrã preto. W — ecrã branco.\n\n**Ao apresentar oralmente**:\n• Não ler os slides — falar sobre eles.\n• Olhar para o público, não para o ecrã.\n• Ritmo: 1–2 minutos por slide.\n• Praticar antes!\n\n**❌ Erros frequentes**\n• Slides com paredes de texto.\n• Ler diretamente do slide.\n• Demasiadas animações que distraem.'
+    },
+
+    // ===== EDUCAÇÃO FÍSICA (Fair Play 7/8/9) =====
+    'educacao_fisica/Aquecimento e arrefecimento': {
+        title: 'Aquecimento e arrefecimento',
+        body: 'Antes de praticar qualquer atividade física é fundamental **aquecer**.\n\n**Aquecimento — para que serve?**\n• Aumenta a temperatura corporal.\n• Prepara o sistema cardiovascular (sobe gradualmente a frequência cardíaca).\n• Aumenta a elasticidade dos músculos → menor risco de **lesão**.\n• Prepara mentalmente para o exercício.\n• Melhora a coordenação.\n\n**Estrutura do aquecimento (~10–15 minutos)**:\n1. **Geral** (5 min) — corrida leve, polichinelos, mobilização articular.\n2. **Específico** (5 min) — exercícios próximos da atividade a praticar (passes se for futebol, saltos se for basquete).\n3. **Alongamentos dinâmicos** (não estáticos antes do esforço!) — movimentos amplos e ativos.\n\n**Sinais de bom aquecimento**: ligeiro suor, respiração mais rápida, sensação de calor nos músculos.\n\n**Arrefecimento (vuelta à calma)** — depois do exercício:\n• Reduzir progressivamente a intensidade.\n• Caminhar 3–5 min.\n• Alongamentos **estáticos** (manter 20–30 segundos por grupo muscular).\n• Hidratar bem.\n\n**Benefícios**: ajuda na recuperação, evita dores musculares (DOMS), normaliza pulsação e temperatura.\n\n**❌ Erros frequentes**\n• Saltar o aquecimento — risco de lesões.\n• Fazer alongamentos estáticos longos ANTES do esforço (reduz a força).\n• Parar de repente após esforço intenso (pode causar tonturas).'
+    },
+    'educacao_fisica/Capacidades físicas': {
+        title: 'Capacidades físicas',
+        body: 'As **capacidades físicas** são as qualidades que determinam o desempenho desportivo. 5 principais:\n\n• **Força** — capacidade de vencer resistências (levantar pesos, saltar).\n  - Tipos: força máxima, força rápida (explosiva), resistência de força.\n  - Treinar com pesos, próprio peso (flexões, agachamentos).\n\n• **Resistência** — capacidade de manter um esforço prolongado.\n  - **Aeróbia** (com oxigénio) — corrida lenta, ciclismo. Melhora coração e pulmões.\n  - **Anaeróbia** (sem oxigénio) — sprints, esforços curtos e intensos.\n  - Treinar com corrida contínua, intervalos.\n\n• **Velocidade** — fazer uma ação no menor tempo.\n  - Sprints, reações rápidas.\n\n• **Flexibilidade** — amplitude dos movimentos articulares.\n  - Alongamentos, yoga.\n\n• **Coordenação** — capacidade de executar movimentos com precisão e em tempo certo.\n  - Equilíbrio, agilidade, ritmo, reação.\n\n**Frequência cardíaca (FC)** — número de batimentos por minuto (bpm).\n• Em repouso: 60–80 bpm.\n• Durante exercício: pode chegar a 180–200 bpm.\n• **FC máxima estimada** = 220 − idade. Para 13 anos: 220 − 13 = 207 bpm.\n• **Zona de treino aeróbio**: 60–80% da FC máxima.\n\n**Princípios do treino**: progressão, continuidade, especificidade, individualização, recuperação.\n\n**❌ Erros frequentes**\n• Confundir força com resistência.\n• Treinar sempre o mesmo (corpo deixa de progredir — é preciso variar).\n• Não respeitar dias de descanso (overtraining).'
+    },
+    'educacao_fisica/Atletismo': {
+        title: 'Atletismo',
+        body: 'O **atletismo** é o "desporto-rei" — base de muitos outros. Conjunto de provas individuais.\n\n**Provas de pista (correr)**:\n• **Velocidade** — 100 m, 200 m, 400 m.\n• **Meio-fundo** — 800 m, 1500 m.\n• **Fundo** — 5000 m, 10 000 m, **maratona** (42,195 km).\n• **Estafetas** — 4×100 m, 4×400 m (testemunho).\n• **Barreiras** — 100 m mulheres, 110 m homens, 400 m barreiras.\n• **Obstáculos** — 3000 m com obstáculos.\n\n**Provas de saltos**:\n• **Em comprimento** — corrida + impulsão + voo + queda na caixa de areia.\n• **Em altura** — Fosbury Flop (de costas).\n• **Triplo salto** — passada + impulsão + salto.\n• **Vara (com vara)** — usa vara para subir.\n\n**Provas de lançamentos**:\n• **Peso** — bola pesada (4 kg juniores, 7,26 kg seniores homens).\n• **Disco** — disco em rotação.\n• **Martelo** — esfera de metal com cabo.\n• **Dardo** — lança aerodinâmica.\n\n**Provas combinadas**:\n• **Decatlo** (homens) — 10 provas em 2 dias.\n• **Heptatlo** (mulheres) — 7 provas em 2 dias.\n\n**Em Portugal**: Carlos Lopes (ouro maratona LA 1984), Rosa Mota (ouro maratona Seul 1988), Nelson Évora (ouro triplo Pequim 2008).\n\n**❌ Erros frequentes**\n• Achar que velocidade e fundo são parecidos — exigem capacidades diferentes.\n• Confundir Fosbury (de costas) com saltar de frente.\n• Trocar peso com disco com martelo.'
+    },
+    'educacao_fisica/Ginástica': {
+        title: 'Ginástica',
+        body: 'A **ginástica** desenvolve força, flexibilidade, coordenação e equilíbrio.\n\n**Modalidades olímpicas**:\n• **Ginástica artística**:\n  - **Solo** (chão).\n  - **Salto** (mesa de saltos).\n  - **Trave** (mulheres).\n  - **Paralelas assimétricas** (mulheres).\n  - **Paralelas** (homens).\n  - **Barra fixa** (homens).\n  - **Cavalo com arções** (homens).\n  - **Argolas** (homens).\n\n• **Ginástica rítmica** — música + aparelhos (corda, arco, bola, maças, fita).\n• **Trampolins** — saltos em cama elástica.\n\n**Elementos básicos** ensinados na escola:\n• **Rolamento à frente** (cambalhota frente).\n• **Rolamento à retaguarda** (cambalhota atrás).\n• **Apoio facial invertido** (pino de mãos).\n• **Roda lateral** (avião).\n• **Salto de eixo** sobre plinto/cavalo.\n• **Pirueta** — rotação no ar.\n• **Equilíbrio** — vela, avião.\n\n**Saúde nos aparelhos**:\n• Aquecer sempre.\n• Usar **colchões** de queda.\n• Ter sempre um **colega ajudante**.\n• Não fazer elementos sozinho sem o professor.\n\n**Coreografia / esquema** — combinação harmoniosa de elementos com música.\n\n**❌ Erros frequentes**\n• Tentar elementos avançados sem progressão.\n• Não usar colchões / ajuda.\n• Esquecer-se de manter a "linha do corpo" (alinhamento).'
+    },
+    'educacao_fisica/Modalidades coletivas': {
+        title: 'Modalidades coletivas',
+        body: 'As **modalidades coletivas** são desportos jogados em equipa.\n\n**Futebol**:\n• 11 jogadores por equipa (1 guarda-redes + 10 de campo).\n• Campo: 100×64 m (FIFA).\n• Tempo: 2 × 45 min.\n• Objetivo: marcar **golos** na baliza adversária com qualquer parte do corpo EXCETO braços/mãos (exceto guarda-redes na sua área).\n• Faltas, cartões (amarelo, vermelho), fora de jogo, livres, pontapés de canto, grandes penalidades.\n\n**Basquetebol**:\n• 5 jogadores por equipa.\n• Campo: 28×15 m.\n• Tempo: 4 × 10 min.\n• Cesto a 3,05 m.\n• Pontos: 1 (lance livre), 2 (dentro da linha), 3 (lance de fora).\n• Drible obrigatório quando se desloca com a bola.\n\n**Voleibol**:\n• 6 jogadores por equipa.\n• Rede: 2,43 m (homens), 2,24 m (mulheres).\n• Sets de 25 pontos (final 15).\n• Toques: máximo 3 por equipa antes de passar para o outro lado.\n• Técnicas: serviço, manchete, passe, ataque, bloco.\n\n**Andebol**:\n• 7 jogadores por equipa (1 GR + 6).\n• Campo: 40×20 m.\n• Tempo: 2 × 30 min.\n• Golos com lançamento à baliza usando as mãos.\n• Drible permitido mas pode-se dar até 3 passos com a bola.\n\n**Valores do desporto coletivo**: cooperação, fair play, comunicação, respeito, perseverança.\n\n**❌ Erros frequentes**\n• Confundir basquete (5) com voleibol (6) e andebol (7).\n• Esquecer regras básicas (fora de jogo no futebol, drible no basquete).\n• Não passar / querer fazer tudo sozinho.'
+    },
+    'educacao_fisica/Regras gerais do desporto': {
+        title: 'Regras gerais do desporto',
+        body: '**Fair play** — jogar limpo, com **respeito**:\n• Pelo adversário, pelos colegas, pelo árbitro.\n• Aceitar a derrota com elegância.\n• Vencer com humildade.\n• Reconhecer faltas próprias.\n• Cumprir as regras voluntariamente.\n\n**Princípios olímpicos** (Pierre de Coubertin):\n• "O importante não é vencer, é participar."\n• **Mais rápido, mais alto, mais forte** (Citius, Altius, Fortius) — desde 2021 também "**Juntos** (Communiter)".\n• 5 anéis da bandeira olímpica — 5 continentes.\n\n**Os Jogos Olímpicos**:\n• De 4 em 4 anos.\n• Verão e Inverno (alternados de 2 em 2).\n• Antigos: na Grécia, desde 776 a.C., em Olímpia.\n• Modernos: desde 1896 (Atenas, organizado por Coubertin).\n• Portugal já organizou? Não — mas teve **Lisboa 1992** como candidata. Já tem medalhas olímpicas.\n\n**Doping** — uso de substâncias proibidas para melhorar desempenho. **Proibido** e perigoso.\n\n**Segurança e prevenção**:\n• Aquecimento + arrefecimento.\n• Equipamento adequado (calçado, proteções).\n• Hidratação antes, durante e depois.\n• Respeitar limites do corpo.\n• Cuidar da alimentação e sono.\n\n**Primeiros socorros básicos**:\n• Em caso de **lesão**: parar a atividade, gelo, repouso, avisar o professor.\n• Para entorse: **PRICE** (Proteger, Repouso, Ice/Gelo, Compressão, Elevação).\n• Em caso grave: ligar **112**.\n\n**Atividades ao ar livre**: orientação, escalada, BTT, canoagem, surf.\n\n**❌ Erros frequentes**\n• Confundir Jogos Olímpicos antigos (Olímpia) com modernos (várias cidades).\n• Achar que doping é "esperteza" — é batota e perigoso.\n• Esquecer que fair play vale mais que vitória.'
+    }
+};
+
+const EXERCISES_7 = [
+    // =============== PORTUGUÊS ===============
+    { id:'7p_nar1', s:'portugues', t:'Texto narrativo', type:'mc', diff:1, q:'📖 O narrador que conta uma história em 1.ª pessoa é:', opts:['heterodiegético','participante','autor'], ans:1, exp:'Participante / autodiegético: usa "eu".' },
+    { id:'7p_nar2', s:'portugues', t:'Texto narrativo', type:'mc', diff:2, q:'📖 Recuo no tempo da narrativa chama-se:', opts:['analepse','prolepse','epígrafe'], ans:0, exp:'Analepse = recuo; prolepse = antecipação.' },
+    { id:'7p_nar3', s:'portugues', t:'Texto narrativo', type:'tf', diff:1, q:'O narrador é a pessoa real que escreve.', ans:false, exp:'Falso — quem escreve é o AUTOR; o narrador é uma voz dentro do texto.' },
+
+    { id:'7p_con1', s:'portugues', t:'Conto tradicional', type:'mc', diff:1, q:'📚 No conto tradicional, o autor é:', opts:['conhecido','anónimo','pseudónimo'], ans:1, exp:'Origem popular, anónima.' },
+    { id:'7p_con2', s:'portugues', t:'Conto tradicional', type:'mc', diff:2, q:'🏰 "Era uma vez..." é típico de:', opts:['lenda','conto tradicional','crónica'], ans:1, exp:'Tempo e espaço imprecisos no conto tradicional.' },
+
+    { id:'7p_lus1', s:'portugues', t:'Os Lusíadas (excertos)', type:'mc', diff:1, q:'📜 Os Lusíadas foi escrito por:', opts:['Fernando Pessoa','Luís Vaz de Camões','Eça de Queirós'], ans:1, exp:'Camões, publicado em 1572.' },
+    { id:'7p_lus2', s:'portugues', t:'Os Lusíadas (excertos)', type:'mc', diff:2, q:'📜 Os Lusíadas tem ___ cantos:', opts:['8','10','12'], ans:1, exp:'10 cantos.' },
+    { id:'7p_lus3', s:'portugues', t:'Os Lusíadas (excertos)', type:'fill', diff:2, q:'Personagem épica protagonista da viagem narrada nos Lusíadas: ___', ans:['Vasco da Gama','Gama'], exp:'Vasco da Gama, viagem à Índia (1497-99).' },
+    { id:'7p_lus4', s:'portugues', t:'Os Lusíadas (excertos)', type:'mc', diff:2, q:'⚔️ Episódio do gigante no Cabo da Boa Esperança:', opts:['Inês de Castro','Adamastor','Consílio dos Deuses'], ans:1, exp:'Adamastor — Canto V.' },
+
+    { id:'7p_suj1', s:'portugues', t:'Sujeito e predicado', type:'mc', diff:1, q:'🔤 Em "O João correu", o sujeito é:', opts:['O João','correu','sujeito nulo'], ans:0, exp:'O João = sujeito.' },
+    { id:'7p_suj2', s:'portugues', t:'Sujeito e predicado', type:'mc', diff:2, q:'🔤 Em "Chove muito", o sujeito é:', opts:['simples','composto','nulo expletivo'], ans:2, exp:'Verbos meteorológicos não têm sujeito → nulo expletivo.' },
+
+    { id:'7p_comp1', s:'portugues', t:'Complementos verbais', type:'mc', diff:1, q:'🔤 Em "Comi um bolo", "um bolo" é:', opts:['CD','CI','oblíquo'], ans:0, exp:'Substituível por -o: "Comi-o" → CD.' },
+    { id:'7p_comp2', s:'portugues', t:'Complementos verbais', type:'mc', diff:2, q:'🔤 Em "Dei o livro à Ana", "à Ana" é:', opts:['CD','CI','agente'], ans:1, exp:'Substituível por "lhe" → CI.' },
+    { id:'7p_comp3', s:'portugues', t:'Complementos verbais', type:'mc', diff:2, q:'🔤 Em "O livro foi escrito pelo autor", "pelo autor" é:', opts:['CD','CI','complemento agente da passiva'], ans:2, exp:'Frase passiva — agente introduzido por "por".' },
+
+    { id:'7p_poe1', s:'portugues', t:'Texto poético', type:'mc', diff:1, q:'📜 Cada linha de um poema chama-se:', opts:['estrofe','verso','estância'], ans:1, exp:'Verso.' },
+    { id:'7p_poe2', s:'portugues', t:'Texto poético', type:'mc', diff:2, q:'📜 Esquema rimático abab é:', opts:['emparelhada','cruzada','interpolada'], ans:1, exp:'Cruzada (alternada).' },
+
+    { id:'7p_mod1', s:'portugues', t:'Modificadores', type:'mc', diff:2, q:'🔤 Em "Estudei ontem", "ontem" é:', opts:['CD','modificador do GV','sujeito'], ans:1, exp:'Não é obrigatório — modificador.' },
+    { id:'7p_mod2', s:'portugues', t:'Modificadores', type:'mc', diff:2, q:'🔤 Em "O João, meu amigo, chegou", "meu amigo" é:', opts:['CD','modificador apositivo','complemento agente'], ans:1, exp:'Entre vírgulas, qualifica o nome.' },
+
+    { id:'7p_fc1', s:'portugues', t:'Frase simples e complexa', type:'mc', diff:1, q:'🔤 "Estudei e fiz o jantar." é frase:', opts:['simples','complexa'], ans:1, exp:'Dois verbos principais ligados.' },
+    { id:'7p_fc2', s:'portugues', t:'Frase simples e complexa', type:'mc', diff:2, q:'🔤 "A Maria leu o livro." é frase:', opts:['simples','complexa'], ans:0, exp:'Um só verbo principal.' },
+
+    { id:'7p_coord1', s:'portugues', t:'Orações coordenadas', type:'mc', diff:1, q:'🔤 "Estudei, MAS não passei." A oração coordenada é:', opts:['copulativa','adversativa','disjuntiva'], ans:1, exp:'"Mas" introduz oposição → adversativa.' },
+    { id:'7p_coord2', s:'portugues', t:'Orações coordenadas', type:'mc', diff:2, q:'🔤 "Estudei, LOGO vou passar." é:', opts:['conclusiva','explicativa','copulativa'], ans:0, exp:'"Logo" → conclusiva.' },
+
+    { id:'7p_dra1', s:'portugues', t:'Texto dramático', type:'mc', diff:1, q:'🎭 Indicações cénicas no texto dramático chamam-se:', opts:['didascálias','réplicas','apartes'], ans:0, exp:'Didascálias — em itálico ou entre parênteses.' },
+    { id:'7p_dra2', s:'portugues', t:'Texto dramático', type:'mc', diff:2, q:'🎭 Quem é considerado o pai do teatro português?', opts:['Camões','Gil Vicente','Eça de Queirós'], ans:1, exp:'Gil Vicente — Auto da Barca do Inferno.' },
+
+    { id:'7p_sub1', s:'portugues', t:'Orações subordinadas', type:'mc', diff:2, q:'🔤 "Estudei PARA passar." A oração subordinada é:', opts:['causal','final','temporal'], ans:1, exp:'"Para" indica finalidade → final.' },
+    { id:'7p_sub2', s:'portugues', t:'Orações subordinadas', type:'mc', diff:2, q:'🔤 "Se chover, fico em casa." A subordinada é:', opts:['condicional','concessiva','consecutiva'], ans:0, exp:'"Se" → condicional.' },
+
+    { id:'7p_dir1', s:'portugues', t:'Discurso direto e indireto', type:'mc', diff:1, q:'💬 No discurso direto usa-se:', opts:['parêntese','travessão ou aspas','ponto e vírgula'], ans:1, exp:'Travessão (—) ou aspas para reproduzir falas.' },
+    { id:'7p_dir2', s:'portugues', t:'Discurso direto e indireto', type:'fill', diff:2, q:'Passa para indireto: O João disse: "Vou estudar." → O João disse ___ estudar.', ans:['que ia','que iria'], exp:'Discurso indireto: "que ia estudar".' },
+
+    { id:'7p_conj1', s:'portugues', t:'Modo conjuntivo', type:'mc', diff:2, q:'🔤 "Embora chova, vou sair." O verbo "chova" está no:', opts:['indicativo','conjuntivo','imperativo'], ans:1, exp:'Após "embora" usa-se conjuntivo (chova, não chove).' },
+    { id:'7p_conj2', s:'portugues', t:'Modo conjuntivo', type:'fill', diff:2, q:'Verbo "estudar" no presente conjuntivo (1.ª pessoa singular): que eu ___', ans:['estude'], exp:'Que eu estude.' },
+
+    { id:'7p_rec1', s:'portugues', t:'Recursos expressivos', type:'mc', diff:1, q:'🌬️ "O vento chorava." Recurso:', opts:['metáfora','personificação','comparação'], ans:1, exp:'Vento (não humano) com ação humana (chorar).' },
+    { id:'7p_rec2', s:'portugues', t:'Recursos expressivos', type:'mc', diff:1, q:'⚡ "Rápido como o vento." Recurso:', opts:['metáfora','comparação','anáfora'], ans:1, exp:'Usa "como" → comparação.' },
+    { id:'7p_rec3', s:'portugues', t:'Recursos expressivos', type:'mc', diff:2, q:'💯 "Já te disse um milhão de vezes." Recurso:', opts:['hipérbole','eufemismo','antítese'], ans:0, exp:'Exagero → hipérbole.' },
+
+    // =============== MATEMÁTICA ===============
+    { id:'7m_rac1', s:'matematica', t:'Números racionais', type:'mc', diff:1, q:'🔢 Qual é o simétrico de −7?', opts:['1/7','+7','−1/7'], ans:1, exp:'Simétrico = mesmo módulo, sinal oposto.' },
+    { id:'7m_rac2', s:'matematica', t:'Números racionais', type:'mc', diff:2, q:'🔢 |−10| =', opts:['−10','10','0'], ans:1, exp:'Módulo é sempre positivo.' },
+    { id:'7m_rac3', s:'matematica', t:'Números racionais', type:'mc', diff:2, q:'🔢 Qual é MAIOR?', opts:['−2','−10','0'], ans:2, exp:'0 > −2 > −10. Nos negativos, mais perto de 0 = maior.' },
+
+    { id:'7m_sub1', s:'matematica', t:'Adição e subtração de racionais', type:'mc', diff:1, q:'🔢 (−5) + (−3) =', opts:['−8','+8','+2'], ans:0, exp:'Sinais iguais — soma módulos, mantém sinal.' },
+    { id:'7m_sub2', s:'matematica', t:'Adição e subtração de racionais', type:'mc', diff:2, q:'🔢 (+7) + (−4) =', opts:['+3','−3','+11'], ans:0, exp:'Sinais diferentes: 7−4=3, mantém sinal do +7.' },
+    { id:'7m_sub3', s:'matematica', t:'Adição e subtração de racionais', type:'fill', diff:2, q:'5 − (−3) = ___', ans:['8'], exp:'5 + 3 = 8.' },
+
+    { id:'7m_mul1', s:'matematica', t:'Multiplicação e divisão de racionais', type:'mc', diff:1, q:'🔢 (−4) × (−3) =', opts:['−12','+12','−7'], ans:1, exp:'Negativo × negativo = positivo.' },
+    { id:'7m_mul2', s:'matematica', t:'Multiplicação e divisão de racionais', type:'mc', diff:2, q:'🔢 (−6) ÷ (+2) =', opts:['−3','+3','−4'], ans:0, exp:'Sinais diferentes → negativo.' },
+    { id:'7m_mul3', s:'matematica', t:'Multiplicação e divisão de racionais', type:'mc', diff:2, q:'🔢 2/3 ÷ 4/5 =', opts:['8/15','5/6','3/4'], ans:1, exp:'2/3 × 5/4 = 10/12 = 5/6.' },
+
+    { id:'7m_pot1', s:'matematica', t:'Potências', type:'mc', diff:1, q:'🔢 2³ =', opts:['6','8','9'], ans:1, exp:'2 × 2 × 2 = 8.' },
+    { id:'7m_pot2', s:'matematica', t:'Potências', type:'mc', diff:2, q:'🔢 2³ × 2² =', opts:['2⁵','2⁶','4⁵'], ans:0, exp:'Mesma base: soma expoentes.' },
+    { id:'7m_pot3', s:'matematica', t:'Potências', type:'fill', diff:2, q:'5⁰ = ___', ans:['1'], exp:'Qualquer número (≠0) elevado a 0 = 1.' },
+
+    { id:'7m_seq1', s:'matematica', t:'Sequências e regularidades', type:'mc', diff:2, q:'🔢 Sequência 3, 7, 11, 15, ... termo geral:', opts:['a_n = 4n','a_n = 4n−1','a_n = 3n+1'], ans:1, exp:'Diferença = 4; 1.º termo = 3 → a_n = 4n−1.' },
+    { id:'7m_seq2', s:'matematica', t:'Sequências e regularidades', type:'mc', diff:2, q:'🔢 5.º termo da sequência 2, 4, 8, 16, ___:', opts:['24','32','64'], ans:1, exp:'Multiplica por 2: 16 × 2 = 32.' },
+
+    { id:'7m_alg1', s:'matematica', t:'Expressões algébricas', type:'mc', diff:1, q:'🔢 Em 3x², o coeficiente é:', opts:['3','x','2'], ans:0, exp:'3 = coeficiente; x² = parte literal.' },
+    { id:'7m_alg2', s:'matematica', t:'Expressões algébricas', type:'mc', diff:2, q:'🔢 3x + 5x =', opts:['8x','8x²','15x'], ans:0, exp:'Termos semelhantes: soma coeficientes.' },
+    { id:'7m_alg3', s:'matematica', t:'Expressões algébricas', type:'fill', diff:2, q:'Simplifica: 2(x + 3) = ___', ans:['2x + 6','2x+6'], exp:'Distribui: 2x + 6.' },
+
+    { id:'7m_eq1', s:'matematica', t:'Equações do 1.º grau', type:'mc', diff:1, q:'🔢 Resolve: 2x + 6 = 14. x =', opts:['2','4','10'], ans:1, exp:'2x = 8 → x = 4.' },
+    { id:'7m_eq2', s:'matematica', t:'Equações do 1.º grau', type:'mc', diff:2, q:'🔢 Resolve: 3x − 5 = 2x + 7. x =', opts:['5','12','−12'], ans:1, exp:'x = 12.' },
+    { id:'7m_eq3', s:'matematica', t:'Equações do 1.º grau', type:'mc', diff:2, q:'🔢 2x + 5 = 2x − 3 é uma equação:', opts:['possível determinada','impossível','indeterminada'], ans:1, exp:'0 = −8 → falso → impossível.' },
+
+    { id:'7m_fun1', s:'matematica', t:'Funções (introdução)', type:'mc', diff:1, q:'📈 Se f(x) = 2x + 1, f(3) =', opts:['5','7','9'], ans:1, exp:'2(3) + 1 = 7.' },
+    { id:'7m_fun2', s:'matematica', t:'Funções (introdução)', type:'mc', diff:2, q:'📈 Em f(x) = ax + b, o gráfico é uma:', opts:['parábola','reta','hipérbole'], ans:1, exp:'Função afim → reta.' },
+
+    { id:'7m_pd1', s:'matematica', t:'Proporcionalidade direta', type:'mc', diff:1, q:'⚖️ Se 3 kg custam 6 €, quanto custam 5 kg?', opts:['10 €','12 €','15 €'], ans:0, exp:'k = 2 €/kg → 5 × 2 = 10 €.' },
+    { id:'7m_pd2', s:'matematica', t:'Proporcionalidade direta', type:'tf', diff:2, q:'No gráfico de proporcionalidade direta a reta passa SEMPRE pela origem.', ans:true, exp:'Verdadeiro — y = kx passa por (0,0).' },
+
+    { id:'7m_sem1', s:'matematica', t:'Semelhança de figuras', type:'mc', diff:2, q:'📐 Se a razão de semelhança é 2, a razão de áreas é:', opts:['2','4','8'], ans:1, exp:'Áreas: k² = 4.' },
+    { id:'7m_sem2', s:'matematica', t:'Semelhança de figuras', type:'mc', diff:2, q:'📐 Dois triângulos com 3 ângulos iguais são:', opts:['congruentes','semelhantes','não relacionados'], ans:1, exp:'Critério AAA / AA → semelhantes.' },
+
+    { id:'7m_pit1', s:'matematica', t:'Teorema de Pitágoras', type:'mc', diff:1, q:'📐 Triângulo retângulo com catetos 3 e 4. Hipotenusa:', opts:['5','6','7'], ans:0, exp:'3² + 4² = 25 → √25 = 5.' },
+    { id:'7m_pit2', s:'matematica', t:'Teorema de Pitágoras', type:'mc', diff:2, q:'📐 Hipotenusa 13, cateto 5. Outro cateto:', opts:['8','12','18'], ans:1, exp:'13² − 5² = 144 → √144 = 12.' },
+    { id:'7m_pit3', s:'matematica', t:'Teorema de Pitágoras', type:'tf', diff:2, q:'O Teorema de Pitágoras aplica-se a qualquer triângulo.', ans:false, exp:'Falso — só a triângulos RETÂNGULOS.' },
+
+    { id:'7m_ar1', s:'matematica', t:'Áreas e volumes', type:'mc', diff:1, q:'📐 Área de um triângulo de base 8 e altura 5:', opts:['13','20','40'], ans:1, exp:'A = (8 × 5) / 2 = 20.' },
+    { id:'7m_ar2', s:'matematica', t:'Áreas e volumes', type:'mc', diff:2, q:'📐 Volume de um cubo de aresta 3 cm:', opts:['9','18','27'], ans:2, exp:'V = 3³ = 27 cm³.' },
+
+    { id:'7m_est1', s:'matematica', t:'Estatística', type:'mc', diff:1, q:'📊 Média de 4, 6, 8, 10:', opts:['6','7','8'], ans:1, exp:'(4+6+8+10)/4 = 28/4 = 7.' },
+    { id:'7m_est2', s:'matematica', t:'Estatística', type:'mc', diff:2, q:'📊 Moda de 2, 3, 3, 5, 7, 3:', opts:['3','5','3.83'], ans:0, exp:'Moda = valor mais repetido = 3.' },
+    { id:'7m_est3', s:'matematica', t:'Estatística', type:'mc', diff:2, q:'📊 Mediana de 1, 4, 7, 10, 13:', opts:['4','7','10'], ans:1, exp:'Ordenado, central = 7.' },
+
+    // =============== INGLÊS ===============
+    { id:'7i_am1', s:'ingles', t:'All about me', type:'mc', diff:1, q:'👋 "I\'m 13 years old" significa:', opts:['Tenho 13 anos','Sou 13 anos','Vivo há 13 anos'], ans:0, exp:'Em inglês usa-se "I am" + idade.' },
+    { id:'7i_am2', s:'ingles', t:'All about me', type:'fill', diff:1, q:'Personality adjective for someone who jokes a lot: ___', ans:['funny'], exp:'Funny = engraçado.' },
+    { id:'7i_am3', s:'ingles', t:'All about me', type:'mc', diff:2, q:'💇 Word order for hair description:', opts:['hair brown long','long brown hair','brown long hair'], ans:1, exp:'Order: length → colour → noun.' },
+
+    { id:'7i_dr1', s:'ingles', t:'Daily routines', type:'mc', diff:1, q:'⏰ "I get up at 7" — get up means:', opts:['ir dormir','levantar-se','descansar'], ans:1, exp:'Get up = levantar-se.' },
+    { id:'7i_dr2', s:'ingles', t:'Daily routines', type:'mc', diff:2, q:'🕐 Frequency adverbs go:', opts:['after main verb','before main verb','at the end'], ans:1, exp:'Before main verb (after "be").' },
+    { id:'7i_dr3', s:'ingles', t:'Daily routines', type:'fill', diff:2, q:'3rd person singular: He ___ up at 7. (verb "get")', ans:['gets'], exp:'Gets — add -s in 3rd person.' },
+
+    { id:'7i_sch1', s:'ingles', t:'School life', type:'mc', diff:1, q:'📚 "P.E." stands for:', opts:['Public Education','Physical Education','Personal Engagement'], ans:1, exp:'P.E. = Physical Education (Educação Física).' },
+    { id:'7i_sch2', s:'ingles', t:'School life', type:'mc', diff:2, q:'📅 "I have Maths ___ Monday."', opts:['in','on','at'], ans:1, exp:'Days of the week → "on Monday".' },
+
+    { id:'7i_hob1', s:'ingles', t:'Free time and hobbies', type:'mc', diff:1, q:'🎵 "I love ___ to music":', opts:['listen','listening','listens'], ans:1, exp:'After "love" use -ing form.' },
+    { id:'7i_hob2', s:'ingles', t:'Free time and hobbies', type:'mc', diff:2, q:'🎸 You play ___ guitar but you play ___ football.', opts:['the / —','— / the','the / a'], ans:0, exp:'Instruments: "the". Sports: no article.' },
+
+    { id:'7i_hl1', s:'ingles', t:'Healthy lifestyle', type:'mc', diff:1, q:'🥗 "You should eat more ___":', opts:['sweets','fruit','crisps'], ans:1, exp:'Fruit is healthy.' },
+    { id:'7i_hl2', s:'ingles', t:'Healthy lifestyle', type:'mc', diff:2, q:'💊 After "should" we use:', opts:['infinitive','infinitive + to','-ing'], ans:0, exp:'Modal verbs use bare infinitive: "You should eat".' },
+
+    { id:'7i_ht1', s:'ingles', t:'Holidays and travel', type:'mc', diff:1, q:'✈️ "I go ___ holiday in summer":', opts:['in','on','at'], ans:1, exp:'"Go on holiday".' },
+    { id:'7i_ht2', s:'ingles', t:'Holidays and travel', type:'fill', diff:2, q:'Past simple of "go": Last summer I ___ to Spain.', ans:['went'], exp:'Irregular: go → went.' },
+
+    { id:'7i_te1', s:'ingles', t:'Technology', type:'mc', diff:1, q:'📱 "Social media" means:', opts:['mass communication only','platforms like Instagram, TikTok','TV channels'], ans:1, exp:'Plataformas online para partilhar.' },
+    { id:'7i_te2', s:'ingles', t:'Technology', type:'mc', diff:2, q:'📲 "I downloaded an app ___ my phone":', opts:['in','on','at'], ans:1, exp:'"On" the phone.' },
+
+    { id:'7i_en1', s:'ingles', t:'Environment', type:'mc', diff:1, q:'♻️ The 3 Rs are Reduce, Reuse and:', opts:['Repeat','Recycle','Reverse'], ans:1, exp:'Reduce, Reuse, Recycle.' },
+    { id:'7i_en2', s:'ingles', t:'Environment', type:'mc', diff:2, q:'🚫 "We ___ throw rubbish in the street":', opts:['must','mustn\'t','don\'t have to'], ans:1, exp:'Mustn\'t = proibição.' },
+
+    // =============== FRANCÊS ===============
+    { id:'7f_sal1', s:'frances', t:'Salutations et présentations', type:'mc', diff:1, q:'👋 "Bonjour !" significa:', opts:['boa noite','bom dia / olá','adeus'], ans:1, exp:'Bonjour = bom dia / olá.' },
+    { id:'7f_sal2', s:'frances', t:'Salutations et présentations', type:'mc', diff:2, q:'🇫🇷 "J\'ai 12 ans" significa:', opts:['Vivo aos 12','Tenho 12 anos','Faço 12 anos'], ans:1, exp:'Em francês usa-se AVOIR para a idade.' },
+    { id:'7f_sal3', s:'frances', t:'Salutations et présentations', type:'fill', diff:2, q:'Forma formal de "tu" em francês: ___', ans:['vous'], exp:'Vous = formal ou plural.' },
+
+    { id:'7f_fam1', s:'frances', t:'La famille', type:'mc', diff:1, q:'👪 "La mère" significa:', opts:['pai','mãe','irmã'], ans:1, exp:'La mère = mãe.' },
+    { id:'7f_fam2', s:'frances', t:'La famille', type:'fill', diff:1, q:'Avô em francês: le ___', ans:['grand-père','grand père'], exp:'Le grand-père.' },
+    { id:'7f_fam3', s:'frances', t:'La famille', type:'mc', diff:2, q:'🔤 Adjetivo possessivo: ___ père (meu pai):', opts:['ma','mon','mes'], ans:1, exp:'Mon père (masculino singular).' },
+
+    { id:'7f_ec1', s:'frances', t:"L'école", type:'mc', diff:1, q:'🏫 "Le professeur" significa:', opts:['aluno','professor','diretor'], ans:1, exp:'Le professeur (le prof).' },
+    { id:'7f_ec2', s:'frances', t:"L'école", type:'fill', diff:2, q:'Borracha em francês: la ___', ans:['gomme'], exp:'La gomme.' },
+
+    { id:'7f_loi1', s:'frances', t:'Les loisirs', type:'mc', diff:1, q:'🎵 "J\'aime la musique" significa:', opts:['Detesto música','Gosto de música','Toco música'], ans:1, exp:'J\'aime = eu gosto.' },
+    { id:'7f_loi2', s:'frances', t:'Les loisirs', type:'mc', diff:2, q:'⚽ Em francês usa-se "jouer ___ football":', opts:['au','du','à la'], ans:0, exp:'Desportos: jouer **au** football (à + le = au).' },
+    { id:'7f_loi3', s:'frances', t:'Les loisirs', type:'mc', diff:2, q:'🎹 "Tocar piano" em francês:', opts:['jouer au piano','jouer du piano','jouer le piano'], ans:1, exp:'Instrumentos: jouer **du** piano.' },
+
+    { id:'7f_nou1', s:'frances', t:'La nourriture', type:'mc', diff:1, q:'🍞 "Le pain" significa:', opts:['queijo','pão','água'], ans:1, exp:'Le pain = pão.' },
+    { id:'7f_nou2', s:'frances', t:'La nourriture', type:'mc', diff:2, q:'🍽️ "Le dîner" em PT é:', opts:['pequeno-almoço','almoço','jantar'], ans:2, exp:'Dîner = jantar (NÃO almoço, falso amigo!).' },
+
+    { id:'7f_vi1', s:'frances', t:'La ville', type:'mc', diff:1, q:'🏥 "L\'hôpital" significa:', opts:['hospital','estação','escola'], ans:0, exp:'Hôpital = hospital.' },
+    { id:'7f_vi2', s:'frances', t:'La ville', type:'mc', diff:2, q:'➡️ "Tournez à droite" significa:', opts:['vai em frente','vira à direita','vira à esquerda'], ans:1, exp:'À droite = à direita.' },
+
+    { id:'7f_ve1', s:'frances', t:'Les vêtements', type:'mc', diff:1, q:'👕 "Le t-shirt" significa:', opts:['casaco','t-shirt','calças'], ans:1, exp:'T-shirt.' },
+    { id:'7f_ve2', s:'frances', t:'Les vêtements', type:'mc', diff:2, q:'👗 "Une robe rouge" — "rouge" concorda com:', opts:['masculino','feminino','não concorda'], ans:1, exp:'Rouge é igual nos dois géneros; mas concorda em número (rouges no plural).' },
+
+    { id:'7f_me1', s:'frances', t:'Les saisons et la météo', type:'mc', diff:1, q:'☀️ "Il fait beau" significa:', opts:['Está bom tempo','Faz frio','Chove'], ans:0, exp:'Bom tempo.' },
+    { id:'7f_me2', s:'frances', t:'Les saisons et la météo', type:'fill', diff:2, q:'Em francês "no inverno": ___ hiver', ans:['en'], exp:'En hiver / en été / en automne. Mas "AU printemps".' },
+
+    // =============== HISTÓRIA ===============
+    { id:'7h_pre1', s:'historia', t:'Pré-história e primeiras civilizações', type:'mc', diff:1, q:'🪨 Período da pedra POLIDA chama-se:', opts:['Paleolítico','Mesolítico','Neolítico'], ans:2, exp:'Neolítico — pedra polida, agricultura, sedentarização.' },
+    { id:'7h_pre2', s:'historia', t:'Pré-história e primeiras civilizações', type:'mc', diff:2, q:'🌊 Primeira civilização da escrita cuneiforme:', opts:['Egito','Mesopotâmia','Vale do Indo'], ans:1, exp:'Sumérios na Mesopotâmia (~3500 a.C.).' },
+    { id:'7h_pre3', s:'historia', t:'Pré-história e primeiras civilizações', type:'mc', diff:2, q:'🏞️ O rio da civilização egípcia é o:', opts:['Tigre','Eufrates','Nilo'], ans:2, exp:'Nilo, vale fértil.' },
+
+    { id:'7h_gre1', s:'historia', t:'Grécia Antiga', type:'mc', diff:1, q:'🏛️ Cidades-estado gregas chamavam-se:', opts:['polis','urbes','cantons'], ans:0, exp:'Pólis (plural póleis).' },
+    { id:'7h_gre2', s:'historia', t:'Grécia Antiga', type:'mc', diff:2, q:'⚡ Deus principal grego:', opts:['Júpiter','Apolo','Zeus'], ans:2, exp:'Zeus (Júpiter na mitologia romana).' },
+    { id:'7h_gre3', s:'historia', t:'Grécia Antiga', type:'mc', diff:2, q:'🏟️ Local dos primeiros Jogos Olímpicos antigos:', opts:['Atenas','Olímpia','Esparta'], ans:1, exp:'Olímpia, em honra a Zeus, 776 a.C.' },
+
+    { id:'7h_at1', s:'historia', t:'Atenas e a democracia', type:'mc', diff:1, q:'⚖️ Atenas é considerada o berço da:', opts:['ditadura','democracia','oligarquia'], ans:1, exp:'Demos (povo) + kratos (poder).' },
+    { id:'7h_at2', s:'historia', t:'Atenas e a democracia', type:'mc', diff:2, q:'👤 Quem NÃO era cidadão em Atenas?', opts:['homens livres atenienses','mulheres','filhos de atenienses (homens)'], ans:1, exp:'Mulheres, escravos, estrangeiros ficavam excluídos.' },
+    { id:'7h_at3', s:'historia', t:'Atenas e a democracia', type:'mc', diff:2, q:'🏛️ Esparta era:', opts:['democracia','oligarquia militar','monarquia constitucional'], ans:1, exp:'Oligarquia militar, sociedade rígida.' },
+
+    { id:'7h_ro1', s:'historia', t:'Roma Antiga', type:'mc', diff:1, q:'🏛️ Roma foi fundada em:', opts:['753 a.C.','476 d.C.','27 a.C.'], ans:0, exp:'Lenda de Rómulo e Remo, 753 a.C.' },
+    { id:'7h_ro2', s:'historia', t:'Roma Antiga', type:'mc', diff:2, q:'⚔️ As 3 fases de Roma foram:', opts:['Monarquia, Império, Ditadura','Monarquia, República, Império','República, Império, Bizantino'], ans:1, exp:'Monarquia → República → Império.' },
+    { id:'7h_ro3', s:'historia', t:'Roma Antiga', type:'mc', diff:2, q:'📜 O primeiro imperador foi:', opts:['Júlio César','Augusto','Nero'], ans:1, exp:'Augusto, 27 a.C. (Júlio César foi ditador da República).' },
+
+    { id:'7h_cr1', s:'historia', t:'Cristianismo', type:'mc', diff:1, q:'✝️ O cristianismo nasceu na:', opts:['Itália','Palestina','Egito'], ans:1, exp:'Palestina, depois espalhou-se pelo Império Romano.' },
+    { id:'7h_cr2', s:'historia', t:'Cristianismo', type:'mc', diff:2, q:'📜 Edicto de Milão (313 d.C.) foi promulgado por:', opts:['Augusto','Constantino','Teodósio'], ans:1, exp:'Constantino → liberdade religiosa para os cristãos.' },
+
+    { id:'7h_id1', s:'historia', t:'Idade Média na Europa', type:'mc', diff:1, q:'⚔️ As 3 ordens medievais eram:', opts:['Reis, soldados, povo','Clero, nobreza, povo','Patrícios, plebeus, escravos'], ans:1, exp:'Estados / ordens: clero, nobreza, povo.' },
+    { id:'7h_id2', s:'historia', t:'Idade Média na Europa', type:'mc', diff:2, q:'🏰 Arte com arcos REDONDOS:', opts:['românica','gótica','neoclássica'], ans:0, exp:'Românica (séc. XI-XII).' },
+
+    { id:'7h_mu1', s:'historia', t:'Mundo Muçulmano', type:'mc', diff:1, q:'☪️ Fundador do Islão:', opts:['Maomé','Alá','Califa'], ans:0, exp:'Maomé (Muhammad). Alá é Deus.' },
+    { id:'7h_mu2', s:'historia', t:'Mundo Muçulmano', type:'mc', diff:2, q:'📅 Ano 1 do calendário muçulmano corresponde a:', opts:['Hégira (622)','Nascimento de Maomé','Conquista de Meca'], ans:0, exp:'Hégira — fuga de Maomé para Medina em 622.' },
+    { id:'7h_mu3', s:'historia', t:'Mundo Muçulmano', type:'mc', diff:2, q:'🏛️ Os muçulmanos invadiram a Península Ibérica em:', opts:['622','711','1492'], ans:1, exp:'711 d.C.' },
+
+    { id:'7h_pt1', s:'historia', t:'Formação de Portugal', type:'mc', diff:1, q:'👑 Primeiro rei de Portugal:', opts:['D. Sancho I','D. Afonso Henriques','D. Dinis'], ans:1, exp:'D. Afonso Henriques, séc. XII.' },
+    { id:'7h_pt2', s:'historia', t:'Formação de Portugal', type:'mc', diff:2, q:'📜 Bula papal que reconheceu Portugal (1179):', opts:['Manifestis Probatum','Aeterni Patris','Pacem in Terris'], ans:0, exp:'Manifestis Probatum, do Papa Alexandre III.' },
+    { id:'7h_pt3', s:'historia', t:'Formação de Portugal', type:'mc', diff:2, q:'📅 Conquista do Algarve por D. Afonso III (fim da Reconquista):', opts:['1147','1185','1249'], ans:2, exp:'1249.' },
+
+    { id:'7h_soc1', s:'historia', t:'Sociedade medieval portuguesa', type:'mc', diff:2, q:'⚖️ "Carta de foral" era:', opts:['mapa do reino','lei do rei que dava privilégios a um concelho','testamento'], ans:1, exp:'Direitos e deveres dos habitantes.' },
+    { id:'7h_soc2', s:'historia', t:'Sociedade medieval portuguesa', type:'mc', diff:2, q:'🤝 Primeiras Cortes portuguesas em:', opts:['Leiria 1254','Lisboa 1147','Coimbra 1185'], ans:0, exp:'Leiria 1254, no reinado de D. Afonso III.' },
+
+    { id:'7h_crise1', s:'historia', t:'Crise do século XIV', type:'mc', diff:1, q:'☠️ Peste Negra chegou a Portugal em:', opts:['1348','1383','1415'], ans:0, exp:'1348, vinda do Oriente.' },
+    { id:'7h_crise2', s:'historia', t:'Crise do século XIV', type:'mc', diff:2, q:'⚔️ Batalha de Aljubarrota foi em:', opts:['1383','1385','1415'], ans:1, exp:'14 de agosto de 1385.' },
+    { id:'7h_crise3', s:'historia', t:'Crise do século XIV', type:'mc', diff:2, q:'👑 D. João I funda a dinastia de:', opts:['Borgonha','Avis','Bragança'], ans:1, exp:'Dinastia de Avis (2.ª dinastia).' },
+
+    // =============== GEOGRAFIA ===============
+    { id:'7g_car1', s:'geografia', t:'Representações cartográficas', type:'mc', diff:1, q:'🗺️ Representação mais fiel da Terra é o:', opts:['mapa','planta','globo'], ans:2, exp:'Globo — sem distorção.' },
+    { id:'7g_car2', s:'geografia', t:'Representações cartográficas', type:'mc', diff:2, q:'🗺️ O mapa que mostra os países e fronteiras é:', opts:['físico','político','temático'], ans:1, exp:'Político.' },
+
+    { id:'7g_esc1', s:'geografia', t:'Escalas', type:'mc', diff:1, q:'📐 Numa escala 1:100 000, 1 cm no mapa = ___ na realidade:', opts:['100 m','1 km','10 km'], ans:1, exp:'100 000 cm = 1 km.' },
+    { id:'7g_esc2', s:'geografia', t:'Escalas', type:'mc', diff:2, q:'📐 Escala 1:1 000 — é:', opts:['grande escala (muito detalhe)','pequena escala (vista geral)'], ans:0, exp:'Denominador pequeno → grande escala.' },
+    { id:'7g_esc3', s:'geografia', t:'Escalas', type:'fill', diff:2, q:'Escala 1:50 000. Distância no mapa: 4 cm. Distância real em km: ___', ans:['2'], exp:'4 × 50 000 = 200 000 cm = 2 km.' },
+
+    { id:'7g_co1', s:'geografia', t:'Coordenadas geográficas', type:'mc', diff:1, q:'🌐 Distância ao Equador chama-se:', opts:['longitude','latitude','altitude'], ans:1, exp:'Latitude — Norte ou Sul.' },
+    { id:'7g_co2', s:'geografia', t:'Coordenadas geográficas', type:'mc', diff:2, q:'🌐 Meridiano de referência (longitude 0°):', opts:['Greenwich','Equador','Paris'], ans:0, exp:'Meridiano de Greenwich, em Londres.' },
+    { id:'7g_co3', s:'geografia', t:'Coordenadas geográficas', type:'mc', diff:2, q:'🇵🇹 Portugal está no hemisfério:', opts:['Sul','Norte','Este (Oriental)'], ans:1, exp:'Norte (≈ 39° N).' },
+
+    { id:'7g_rel1', s:'geografia', t:'Relevo', type:'mc', diff:1, q:'🏔️ Elevação superior a 600 m:', opts:['colina','montanha','planalto'], ans:1, exp:'Montanha.' },
+    { id:'7g_rel2', s:'geografia', t:'Relevo', type:'mc', diff:2, q:'🌍 O ponto mais alto de Portugal é o:', opts:['Pico (Açores)','Serra da Estrela','Marão'], ans:0, exp:'Pico — 2 351 m, Ilha do Pico.' },
+
+    { id:'7g_cli1', s:'geografia', t:'Clima', type:'mc', diff:1, q:'🌡️ Instrumento para medir temperatura:', opts:['termómetro','barómetro','pluviómetro'], ans:0, exp:'Termómetro.' },
+    { id:'7g_cli2', s:'geografia', t:'Clima', type:'mc', diff:2, q:'🌞 Portugal continental tem clima:', opts:['equatorial','tropical','mediterrâneo'], ans:2, exp:'Verão quente e seco; inverno ameno e chuvoso.' },
+
+    { id:'7g_hid1', s:'geografia', t:'Hidrografia', type:'mc', diff:1, q:'💧 Lugar onde nasce um rio:', opts:['foz','nascente','afluente'], ans:1, exp:'Nascente.' },
+    { id:'7g_hid2', s:'geografia', t:'Hidrografia', type:'mc', diff:2, q:'🌊 Maior oceano:', opts:['Atlântico','Pacífico','Índico'], ans:1, exp:'Pacífico — o maior.' },
+
+    { id:'7g_veg1', s:'geografia', t:'Vegetação natural', type:'mc', diff:1, q:'🌳 Vegetação da Amazónia:', opts:['savana','floresta equatorial','tundra'], ans:1, exp:'Floresta equatorial.' },
+    { id:'7g_veg2', s:'geografia', t:'Vegetação natural', type:'tf', diff:2, q:'Portugal é o maior produtor mundial de cortiça.', ans:true, exp:'Verdadeiro — sobreiro (Quercus suber).' },
+
+    { id:'7g_rec1', s:'geografia', t:'Recursos naturais', type:'mc', diff:1, q:'☀️ Energia renovável:', opts:['petróleo','solar','gás natural'], ans:1, exp:'Solar, eólica, hídrica.' },
+    { id:'7g_rec2', s:'geografia', t:'Recursos naturais', type:'mc', diff:2, q:'⚛️ Energia nuclear é:', opts:['renovável','não-renovável'], ans:1, exp:'Usa urânio, que é não-renovável.' },
+
+    // =============== CIÊNCIAS NATURAIS ===============
+    { id:'7cn_sis1', s:'ciencias_naturais', t:'A Terra como sistema', type:'mc', diff:1, q:'🌍 Quantos subsistemas principais tem a Terra?', opts:['2','3','4'], ans:2, exp:'Atmosfera, hidrosfera, geosfera, biosfera.' },
+    { id:'7cn_sis2', s:'ciencias_naturais', t:'A Terra como sistema', type:'mc', diff:2, q:'🌎 A biosfera é constituída por:', opts:['rochas','água','seres vivos'], ans:2, exp:'Todos os seres vivos.' },
+
+    { id:'7cn_sub1', s:'ciencias_naturais', t:'Subsistemas terrestres', type:'mc', diff:1, q:'💨 Gás mais abundante na atmosfera:', opts:['oxigénio','azoto','CO₂'], ans:1, exp:'78% azoto, 21% oxigénio.' },
+    { id:'7cn_sub2', s:'ciencias_naturais', t:'Subsistemas terrestres', type:'mc', diff:2, q:'💧 Percentagem de água doce na Terra:', opts:['3%','30%','50%'], ans:0, exp:'Só 3% é doce (a maior parte em glaciares).' },
+
+    { id:'7cn_es1', s:'ciencias_naturais', t:'Estrutura interna da Terra', type:'mc', diff:1, q:'🌍 As 3 camadas da Terra são:', opts:['crusta, manto, núcleo','geosfera, atmosfera, hidrosfera','interior, intermédio, exterior'], ans:0, exp:'Crusta, manto, núcleo.' },
+    { id:'7cn_es2', s:'ciencias_naturais', t:'Estrutura interna da Terra', type:'mc', diff:2, q:'🌍 O núcleo externo é:', opts:['sólido','líquido','gasoso'], ans:1, exp:'Núcleo externo é LÍQUIDO; interno é sólido.' },
+
+    { id:'7cn_tp1', s:'ciencias_naturais', t:'Tectónica de placas', type:'mc', diff:1, q:'🌎 As placas tectónicas movem-se:', opts:['estão paradas','muito devagar (cm/ano)','rapidamente'], ans:1, exp:'~1-10 cm/ano.' },
+    { id:'7cn_tp2', s:'ciencias_naturais', t:'Tectónica de placas', type:'mc', diff:2, q:'🌎 Quem propôs a deriva continental (Pangeia)?', opts:['Charles Darwin','Alfred Wegener','Isaac Newton'], ans:1, exp:'Wegener, em 1912.' },
+
+    { id:'7cn_ro1', s:'ciencias_naturais', t:'Rochas', type:'mc', diff:1, q:'⛰️ Rocha magmática plutónica clássica:', opts:['basalto','granito','calcário'], ans:1, exp:'Granito — cristaliza dentro da Terra.' },
+    { id:'7cn_ro2', s:'ciencias_naturais', t:'Rochas', type:'mc', diff:2, q:'🪨 Calcário (sedimentar) → mármore por:', opts:['fusão','metamorfismo','erosão'], ans:1, exp:'Metamorfismo (calor + pressão).' },
+
+    { id:'7cn_mi1', s:'ciencias_naturais', t:'Minerais', type:'mc', diff:1, q:'💎 O mineral mais duro na escala de Mohs é:', opts:['quartzo','diamante','talco'], ans:1, exp:'Diamante (dureza 10).' },
+    { id:'7cn_mi2', s:'ciencias_naturais', t:'Minerais', type:'tf', diff:2, q:'O diamante e a grafite têm a mesma composição química (carbono).', ans:true, exp:'Sim — ambos C, mas estruturas cristalinas diferentes.' },
+
+    { id:'7cn_vu1', s:'ciencias_naturais', t:'Vulcanologia', type:'mc', diff:1, q:'🌋 Magma à superfície chama-se:', opts:['lava','piroclasto','cratera'], ans:0, exp:'Lava.' },
+    { id:'7cn_vu2', s:'ciencias_naturais', t:'Vulcanologia', type:'mc', diff:2, q:'🌋 Em Portugal, vulcões ativos estão em:', opts:['Continente','Madeira','Açores'], ans:2, exp:'Açores (ex: Capelinhos, 1957-58).' },
+
+    { id:'7cn_si1', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:1, q:'🌍 Ponto à superfície acima do foco do sismo:', opts:['hipocentro','epicentro','falha'], ans:1, exp:'Epicentro.' },
+    { id:'7cn_si2', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:2, q:'📈 Escala de Richter mede:', opts:['estragos','magnitude (energia)','intensidade sentida'], ans:1, exp:'Magnitude. Mercalli mede intensidade.' },
+    { id:'7cn_si3', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:2, q:'📅 Grande Terramoto de Lisboa foi em:', opts:['1640','1755','1910'], ans:1, exp:'1755 — magnitude ~8,5.' },
+
+    { id:'7cn_fo1', s:'ciencias_naturais', t:'Fósseis e tempo geológico', type:'mc', diff:1, q:'🦴 Era dos dinossauros:', opts:['Paleozoico','Mesozoico','Cenozoico'], ans:1, exp:'Mesozoico (250-65 M.A.).' },
+    { id:'7cn_fo2', s:'ciencias_naturais', t:'Fósseis e tempo geológico', type:'tf', diff:2, q:'Os humanos e os dinossauros viveram na mesma época.', ans:false, exp:'Falso — separados por ~65 milhões de anos.' },
+
+    // =============== FÍSICO-QUÍMICA ===============
+    { id:'7fq_un1', s:'fisico_quimica', t:'O Universo', type:'mc', diff:1, q:'🌌 A nossa galáxia chama-se:', opts:['Andrómeda','Via Láctea','Triângulo'], ans:1, exp:'Via Láctea — em espiral.' },
+    { id:'7fq_un2', s:'fisico_quimica', t:'O Universo', type:'mc', diff:2, q:'⭐ Idade do Universo (Big Bang):', opts:['~4 mil milhões anos','~13,8 mil milhões anos','~100 mil milhões anos'], ans:1, exp:'~13,8 mil milhões de anos.' },
+
+    { id:'7fq_ss1', s:'fisico_quimica', t:'Sistema Solar', type:'mc', diff:1, q:'🪐 Quantos planetas tem o Sistema Solar?', opts:['7','8','9'], ans:1, exp:'8 (Plutão deixou de ser planeta em 2006).' },
+    { id:'7fq_ss2', s:'fisico_quimica', t:'Sistema Solar', type:'mc', diff:2, q:'🪐 Maior planeta do Sistema Solar:', opts:['Saturno','Júpiter','Neptuno'], ans:1, exp:'Júpiter.' },
+
+    { id:'7fq_tl1', s:'fisico_quimica', t:'A Terra, a Lua e as forças gravíticas', type:'mc', diff:1, q:'🌍 Tempo da rotação da Terra:', opts:['1 hora','24 horas','1 ano'], ans:1, exp:'24 h = 1 dia.' },
+    { id:'7fq_tl2', s:'fisico_quimica', t:'A Terra, a Lua e as forças gravíticas', type:'mc', diff:2, q:'⚖️ Quando vais para a Lua, a tua MASSA:', opts:['fica menor','fica igual','fica maior'], ans:1, exp:'Massa é igual. Peso é que diminui (~1/6).' },
+
+    { id:'7fq_sm1', s:'fisico_quimica', t:'Substâncias e misturas', type:'mc', diff:1, q:'🧪 Água + areia é uma mistura:', opts:['homogénea','heterogénea','coloidal'], ans:1, exp:'Vê-se duas fases.' },
+    { id:'7fq_sm2', s:'fisico_quimica', t:'Substâncias e misturas', type:'mc', diff:2, q:'🧪 O ar é:', opts:['substância pura','mistura homogénea','mistura heterogénea'], ans:1, exp:'Mistura homogénea de gases.' },
+    { id:'7fq_sm3', s:'fisico_quimica', t:'Substâncias e misturas', type:'mc', diff:2, q:'🧪 Para separar água + óleo usa-se:', opts:['filtração','decantação','destilação'], ans:1, exp:'Decantação (líquidos imiscíveis).' },
+
+    { id:'7fq_es1', s:'fisico_quimica', t:'Estados físicos da matéria', type:'mc', diff:1, q:'💧 Sólido → líquido é:', opts:['fusão','solidificação','vaporização'], ans:0, exp:'Fusão.' },
+    { id:'7fq_es2', s:'fisico_quimica', t:'Estados físicos da matéria', type:'mc', diff:2, q:'🌫️ Vapor → líquido é:', opts:['evaporação','condensação','sublimação'], ans:1, exp:'Condensação (gasoso → líquido).' },
+
+    { id:'7fq_tf1', s:'fisico_quimica', t:'Transformações físicas', type:'mc', diff:2, q:'🔁 Qual destas é transformação física?', opts:['queimar madeira','partir um vidro','enferrujar ferro'], ans:1, exp:'Partir vidro — continua a ser vidro. Queimar/enferrujar = química.' },
+
+    { id:'7fq_tq1', s:'fisico_quimica', t:'Transformações químicas', type:'mc', diff:1, q:'⚗️ Ferrugem (Fe + O₂) é uma reação:', opts:['física','química','nuclear'], ans:1, exp:'Forma novo composto (óxido).' },
+    { id:'7fq_tq2', s:'fisico_quimica', t:'Transformações químicas', type:'mc', diff:2, q:'⚗️ Lei da conservação da massa foi proposta por:', opts:['Newton','Lavoisier','Mendeleev'], ans:1, exp:'Lavoisier: "Nada se cria, nada se perde, tudo se transforma".' },
+
+    { id:'7fq_mv1', s:'fisico_quimica', t:'Massa volúmica', type:'mc', diff:1, q:'⚖️ Massa volúmica da água é:', opts:['100 kg/m³','1 000 kg/m³','10 000 kg/m³'], ans:1, exp:'1 000 kg/m³ = 1 g/cm³.' },
+    { id:'7fq_mv2', s:'fisico_quimica', t:'Massa volúmica', type:'mc', diff:2, q:'🧊 O gelo flutua na água porque:', opts:['é mais denso','é menos denso','tem ar dentro'], ans:1, exp:'Gelo ~920 kg/m³ < água 1000 kg/m³.' },
+    { id:'7fq_mv3', s:'fisico_quimica', t:'Massa volúmica', type:'fill', diff:2, q:'Massa 200 g, volume 100 cm³. Massa volúmica em g/cm³: ___', ans:['2'], exp:'ρ = m/V = 200/100 = 2 g/cm³.' },
+
+    // =============== EDUCAÇÃO VISUAL ===============
+    { id:'7ev_pl1', s:'educacao_visual', t:'Ponto, linha e plano', type:'mc', diff:1, q:'🎨 O elemento gráfico mais simples é o:', opts:['ponto','linha','plano'], ans:0, exp:'Ponto — só posição, sem dimensão.' },
+    { id:'7ev_pl2', s:'educacao_visual', t:'Ponto, linha e plano', type:'mc', diff:2, q:'📐 Linha que dá sensação de movimento e instabilidade:', opts:['horizontal','vertical','diagonal'], ans:2, exp:'Diagonal/oblíqua = dinâmica.' },
+
+    { id:'7ev_co1', s:'educacao_visual', t:'Cor', type:'mc', diff:1, q:'🎨 Mistura de azul + amarelo:', opts:['laranja','verde','roxo'], ans:1, exp:'Verde (secundária).' },
+    { id:'7ev_co2', s:'educacao_visual', t:'Cor', type:'mc', diff:2, q:'🎨 Cor complementar do vermelho é:', opts:['azul','verde','amarelo'], ans:1, exp:'Vermelho e verde são complementares.' },
+    { id:'7ev_co3', s:'educacao_visual', t:'Cor', type:'mc', diff:2, q:'🖼️ Cores aditivas (luz, RGB):', opts:['magenta, amarelo, ciano','vermelho, verde, azul','vermelho, amarelo, azul'], ans:1, exp:'RGB (red, green, blue) — usado em ecrãs.' },
+
+    { id:'7ev_fc1', s:'educacao_visual', t:'Forma e composição', type:'mc', diff:2, q:'⚖️ Princípio que dá sensação de ordem é:', opts:['equilíbrio simétrico','contraste','movimento'], ans:0, exp:'Simetria = ordem.' },
+    { id:'7ev_fc2', s:'educacao_visual', t:'Forma e composição', type:'tf', diff:2, q:'Equilíbrio só existe quando a composição é simétrica.', ans:false, exp:'Falso — há também equilíbrio assimétrico.' },
+
+    { id:'7ev_pe1', s:'educacao_visual', t:'Perspetiva', type:'mc', diff:1, q:'📐 Linhas paralelas convergem para:', opts:['plano','ponto de fuga','horizonte'], ans:1, exp:'Ponto de fuga, na linha do horizonte.' },
+    { id:'7ev_pe2', s:'educacao_visual', t:'Perspetiva', type:'mc', diff:2, q:'🏛️ Quem desenvolveu a perspetiva linear no Renascimento?', opts:['Brunelleschi','Da Vinci','Picasso'], ans:0, exp:'Filippo Brunelleschi, séc. XV.' },
+
+    { id:'7ev_ls1', s:'educacao_visual', t:'Luz e sombra', type:'mc', diff:1, q:'☀️ Sombra projetada pelo objeto no chão chama-se:', opts:['sombra própria','sombra projetada','brilho'], ans:1, exp:'Projetada.' },
+    { id:'7ev_ls2', s:'educacao_visual', t:'Luz e sombra', type:'mc', diff:2, q:'🎨 Técnica de gradação suave (Leonardo da Vinci):', opts:['esfumado','hachuras','pontilhado'], ans:0, exp:'Esfumado (sfumato).' },
+
+    { id:'7ev_cv1', s:'educacao_visual', t:'Comunicação visual', type:'mc', diff:1, q:'🚦 Cor associada a perigo na sinalética:', opts:['vermelho','verde','azul'], ans:0, exp:'Vermelho = perigo/proibição.' },
+    { id:'7ev_cv2', s:'educacao_visual', t:'Comunicação visual', type:'mc', diff:2, q:'🔤 Tipos de letra "sans-serif" (sem remates):', opts:['Times New Roman','Arial','Garamond'], ans:1, exp:'Arial não tem serifas.' },
+
+    // =============== TIC ===============
+    { id:'7t_hs1', s:'tic', t:'Hardware e software', type:'mc', diff:1, q:'💻 "CPU" é:', opts:['processador','memória','disco'], ans:0, exp:'Central Processing Unit — processador.' },
+    { id:'7t_hs2', s:'tic', t:'Hardware e software', type:'mc', diff:2, q:'💾 Memória VOLÁTIL (perde-se ao desligar) é:', opts:['SSD','RAM','disco rígido'], ans:1, exp:'RAM — memória volátil.' },
+    { id:'7t_hs3', s:'tic', t:'Hardware e software', type:'mc', diff:1, q:'🖱️ Rato é periférico de:', opts:['entrada','saída','ambos'], ans:0, exp:'Input — entrada de dados.' },
+
+    { id:'7t_so1', s:'tic', t:'Sistema operativo', type:'mc', diff:1, q:'💻 Sistema operativo da Microsoft:', opts:['macOS','Windows','Linux'], ans:1, exp:'Windows.' },
+    { id:'7t_so2', s:'tic', t:'Sistema operativo', type:'mc', diff:2, q:'⌨️ Atalho para "Copiar":', opts:['Ctrl+V','Ctrl+C','Ctrl+X'], ans:1, exp:'Ctrl+C copia; Ctrl+V cola; Ctrl+X corta.' },
+    { id:'7t_so3', s:'tic', t:'Sistema operativo', type:'fill', diff:2, q:'Extensão do PowerPoint: ___', ans:['.pptx','pptx'], exp:'.pptx para Microsoft PowerPoint.' },
+
+    { id:'7t_in1', s:'tic', t:'Internet e navegação', type:'mc', diff:1, q:'🌐 "HTTPS" é:', opts:['site sem segurança','protocolo SEGURO','servidor de e-mail'], ans:1, exp:'HTTPS — Secure HTTP.' },
+    { id:'7t_in2', s:'tic', t:'Internet e navegação', type:'mc', diff:2, q:'🔍 Para procurar frase exata no Google:', opts:['sem aspas','entre aspas','com asterisco'], ans:1, exp:'"frase exata" — pesquisa fechada.' },
+
+    { id:'7t_seg1', s:'tic', t:'Segurança online', type:'mc', diff:1, q:'🔒 Boa palavra-passe:', opts:['12345','o teu nome','12+ caracteres com maiúsculas, números, símbolos'], ans:2, exp:'Forte = longa e variada.' },
+    { id:'7t_seg2', s:'tic', t:'Segurança online', type:'mc', diff:2, q:'🎣 "Phishing" é:', opts:['vírus','tentativa de roubar dados com falsa identidade','jogo online'], ans:1, exp:'Phishing — engana o utilizador.' },
+    { id:'7t_seg3', s:'tic', t:'Segurança online', type:'tf', diff:1, q:'Devo usar a mesma password em todos os sites.', ans:false, exp:'Falso — se uma for roubada, todas ficam vulneráveis.' },
+
+    { id:'7t_pt1', s:'tic', t:'Processador de texto', type:'mc', diff:1, q:'⌨️ Atalho para guardar:', opts:['Ctrl+S','Ctrl+G','Ctrl+F'], ans:0, exp:'Ctrl+S (Save).' },
+    { id:'7t_pt2', s:'tic', t:'Processador de texto', type:'mc', diff:2, q:'📄 Formato NÃO editável facilmente:', opts:['.docx','.txt','.pdf'], ans:2, exp:'PDF — formato final.' },
+
+    { id:'7t_fc1', s:'tic', t:'Folha de cálculo', type:'mc', diff:1, q:'📊 Uma fórmula começa SEMPRE com:', opts:['+','=','#'], ans:1, exp:'=A1+B1.' },
+    { id:'7t_fc2', s:'tic', t:'Folha de cálculo', type:'mc', diff:2, q:'📊 Função para média:', opts:['=SOMA','=MÉDIA','=MÁXIMO'], ans:1, exp:'=MÉDIA(A1:A10).' },
+    { id:'7t_fc3', s:'tic', t:'Folha de cálculo', type:'fill', diff:2, q:'Função para somar A1 a A10: =___(A1:A10)', ans:['SOMA','soma'], exp:'=SOMA(A1:A10).' },
+
+    { id:'7t_ap1', s:'tic', t:'Apresentações eletrónicas', type:'mc', diff:1, q:'⌨️ Tecla para iniciar apresentação do início:', opts:['Esc','F5','Tab'], ans:1, exp:'F5 inicia do começo. Shift+F5 do slide atual.' },
+    { id:'7t_ap2', s:'tic', t:'Apresentações eletrónicas', type:'tf', diff:2, q:'Um bom slide deve ter muito texto para o público ler.', ans:false, exp:'Falso — pouco texto, máximo 6 linhas / 6 palavras.' },
+
+    // =============== EDUCAÇÃO FÍSICA ===============
+    { id:'7ef_aq1', s:'educacao_fisica', t:'Aquecimento e arrefecimento', type:'tf', diff:1, q:'O aquecimento previne lesões.', ans:true, exp:'Verdadeiro — prepara músculos e articulações.' },
+    { id:'7ef_aq2', s:'educacao_fisica', t:'Aquecimento e arrefecimento', type:'mc', diff:2, q:'🤸 Alongamentos estáticos longos devem fazer-se:', opts:['antes do esforço','depois do esforço','não se devem fazer'], ans:1, exp:'Depois (arrefecimento). Antes podem reduzir a força.' },
+
+    { id:'7ef_cap1', s:'educacao_fisica', t:'Capacidades físicas', type:'mc', diff:1, q:'💪 Quantas capacidades físicas principais?', opts:['3','5','10'], ans:1, exp:'Força, resistência, velocidade, flexibilidade, coordenação.' },
+    { id:'7ef_cap2', s:'educacao_fisica', t:'Capacidades físicas', type:'mc', diff:2, q:'❤️ FC máxima para 13 anos (fórmula 220 − idade):', opts:['180','207','220'], ans:1, exp:'220 − 13 = 207 bpm.' },
+
+    { id:'7ef_at1', s:'educacao_fisica', t:'Atletismo', type:'mc', diff:1, q:'🏃 Maratona tem ___ km:', opts:['10','21','42,195'], ans:2, exp:'42,195 km.' },
+    { id:'7ef_at2', s:'educacao_fisica', t:'Atletismo', type:'mc', diff:2, q:'🏅 Carlos Lopes ganhou ouro olímpico em:', opts:['100 m','maratona','salto em altura'], ans:1, exp:'Maratona — Los Angeles 1984.' },
+    { id:'7ef_at3', s:'educacao_fisica', t:'Atletismo', type:'fill', diff:2, q:'Decatlo tem ___ provas.', ans:['10','dez'], exp:'10 provas em 2 dias (homens).' },
+
+    { id:'7ef_gin1', s:'educacao_fisica', t:'Ginástica', type:'mc', diff:1, q:'🤸 Aparelho EXCLUSIVO das mulheres na ginástica artística:', opts:['barra fixa','trave','cavalo com arções'], ans:1, exp:'Trave / paralelas assimétricas (mulheres).' },
+    { id:'7ef_gin2', s:'educacao_fisica', t:'Ginástica', type:'tf', diff:1, q:'Devo usar colchões e ter ajuda ao fazer ginástica.', ans:true, exp:'Verdadeiro — segurança primeiro.' },
+
+    { id:'7ef_co1', s:'educacao_fisica', t:'Modalidades coletivas', type:'mc', diff:1, q:'⚽ Quantos jogadores no campo em futebol (por equipa)?', opts:['9','11','13'], ans:1, exp:'11 (1 GR + 10 de campo).' },
+    { id:'7ef_co2', s:'educacao_fisica', t:'Modalidades coletivas', type:'mc', diff:2, q:'🏀 Pontuação máxima de um lançamento de basquete:', opts:['1','2','3'], ans:2, exp:'3 pontos (atrás da linha).' },
+    { id:'7ef_co3', s:'educacao_fisica', t:'Modalidades coletivas', type:'mc', diff:2, q:'🏐 Voleibol: máximo de toques por equipa antes de passar:', opts:['2','3','4'], ans:1, exp:'3 toques.' },
+
+    { id:'7ef_reg1', s:'educacao_fisica', t:'Regras gerais do desporto', type:'mc', diff:1, q:'🤝 Fair play significa:', opts:['vencer a qualquer custo','jogar limpo, com respeito','tirar partido das regras'], ans:1, exp:'Espírito desportivo.' },
+    { id:'7ef_reg2', s:'educacao_fisica', t:'Regras gerais do desporto', type:'mc', diff:2, q:'🏅 Lema olímpico até 2021:', opts:['Mais rápido, mais alto, mais forte','Vitória ou nada','Um por todos, todos por um'], ans:0, exp:'Citius, Altius, Fortius. Em 2021 adicionou "Communiter" (juntos).' },
+    { id:'7ef_reg3', s:'educacao_fisica', t:'Regras gerais do desporto', type:'fill', diff:1, q:'Número de emergência em Portugal e UE: ___', ans:['112'], exp:'112.' }
+];
+
+// ============================================================
 // =============== EXPORTS / SELECTOR DE ANO ==================
 // ============================================================
 const PERIODS_5 = {
@@ -3954,8 +5324,10 @@ const EXERCISES_11 = [];
 const YEARS_AVAILABLE = [
     { year: 2,  label: '2.º ano',  cycle: '1.º ciclo' },
     { year: 3,  label: '3.º ano',  cycle: '1.º ciclo' },
+    { year: 31, label: '3.º ano (Oceanus)', cycle: '1.º ciclo' },
     { year: 5,  label: '5.º ano',  cycle: '2.º ciclo' },
     { year: 6,  label: '6.º ano',  cycle: '2.º ciclo' },
+    { year: 7,  label: '7.º ano',  cycle: '3.º ciclo' },
     { year: 11, label: '11.º ano', cycle: 'Secundário' },
     { year: 99, label: 'Profissional', cycle: 'Adulto' }
 ];
@@ -3969,11 +5341,11 @@ const EXERCISES_99  = [];
 const LESSONS_99    = {};
 const PERIODS_99    = {};
 
-const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   5: SUBJECTS_5,   6: SUBJECTS_6,   11: SUBJECTS_11,   99: SUBJECTS_99 };
-const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 5: CURRICULUM_5, 6: CURRICULUM_6, 11: CURRICULUM_11, 99: CURRICULUM_99 };
-const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  5: EXERCISES_5,  6: EXERCISES_6,  11: EXERCISES_11,  99: EXERCISES_99 };
-const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    5: LESSONS_5,    6: LESSONS_6,    11: LESSONS_11,    99: LESSONS_99 };
-const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    5: PERIODS_5,    6: PERIODS_6,    11: PERIODS_11,    99: PERIODS_99 };
+const SUBJECTS_BY_YEAR   = { 2: SUBJECTS_2,   3: SUBJECTS_3,   31: SUBJECTS_3_OCEANUS,   5: SUBJECTS_5,   6: SUBJECTS_6,   7: SUBJECTS_7,   11: SUBJECTS_11,   99: SUBJECTS_99 };
+const CURRICULUM_BY_YEAR = { 2: CURRICULUM_2, 3: CURRICULUM_3, 31: CURRICULUM_3_OCEANUS, 5: CURRICULUM_5, 6: CURRICULUM_6, 7: CURRICULUM_7, 11: CURRICULUM_11, 99: CURRICULUM_99 };
+const EXERCISES_BY_YEAR  = { 2: EXERCISES_2,  3: EXERCISES_3,  31: EXERCISES_3_OCEANUS,  5: EXERCISES_5,  6: EXERCISES_6,  7: EXERCISES_7,  11: EXERCISES_11,  99: EXERCISES_99 };
+const LESSONS_BY_YEAR    = { 2: LESSONS_2,    3: LESSONS_3,    31: LESSONS_3_OCEANUS,    5: LESSONS_5,   6: LESSONS_6,   7: LESSONS_7,   11: LESSONS_11,   99: LESSONS_99 };
+const PERIODS_BY_YEAR    = { 2: PERIODS_2,    3: PERIODS_3,    31: PERIODS_3_OCEANUS,    5: PERIODS_5,   6: PERIODS_6,   7: PERIODS_7,   11: PERIODS_11,   99: PERIODS_99 };
 
 // Mutáveis: app.js usa SUBJECTS, CURRICULUM, EXERCISES, LESSONS, PERIODS
 // directamente. setActiveYear() troca-os atomicamente quando se muda de perfil.
