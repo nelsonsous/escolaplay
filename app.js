@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v448';
+const APP_VERSION = 'v449';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4579,7 +4579,38 @@ function renderQuestion() {
             </ol>
         </details>`;
     }
-    if (e.passage) qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
+    if (e.passage) {
+        if (e.s === 'leitura') {
+            // Modo leitura: texto grande, vocab inline, tip e TTS.
+            // Marcação **palavra** vira span com tooltip do vocab.
+            const vocab = e.vocab || {};
+            let pass = escapeHtml(e.passage)
+                .replace(/\*\*([^*]+)\*\*/g, (_, w) => {
+                    const def = vocab[w] || vocab[w.toLowerCase()] || '';
+                    const defAttr = String(def).replace(/"/g, '&quot;');
+                    return `<span class="rd-hard" title="${defAttr}">${w}</span>`;
+                })
+                .replace(/\n/g, '<br>');
+            const tipHtml = e.tip ? `<div class="reading-tip">💡 ${escapeHtml(e.tip)}</div>` : '';
+            const ttsTextRaw = e.passage.replace(/\*\*/g, '');
+            const ttsText = ttsTextRaw.replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/\n/g, ' ');
+            const ttsHtml = ('speechSynthesis' in window)
+                ? `<div class="reading-controls">
+                       <button class="reading-btn reading-btn-listen" onclick="ttsSpeak('${ttsText}')">🔊 Ouvir o texto</button>
+                       <button class="reading-btn reading-btn-replay" onclick="ttsSpeak('${ttsText}')" title="Repetir (releitura aumenta fluência)">🔁 Repetir</button>
+                   </div>`
+                : '';
+            const vocabEntries = Object.entries(vocab);
+            const vocabHtml = vocabEntries.length
+                ? `<div class="reading-vocab"><div class="reading-vocab-title">📖 Palavras novas</div><ul>${
+                       vocabEntries.map(([w, d]) => `<li><strong>${escapeHtml(w)}</strong> — ${escapeHtml(d)}</li>`).join('')
+                   }</ul></div>`
+                : '';
+            qHtml += `<div class="reading-block">${tipHtml}<div class="reading-passage">${pass}</div>${ttsHtml}${vocabHtml}</div>`;
+        } else {
+            qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
+        }
+    }
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
     // Render question com markdown leve: **bold** e *italic*. Segura porque
