@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v452';
+const APP_VERSION = 'v453';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4616,14 +4616,11 @@ function renderQuestion() {
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
     qHtml += `<span class="ex-q-text">${renderMd(e.q)}</span>`;
-    // Botão 🔊 (TTS) — sempre disponível para a Eduarda ouvir a pergunta.
-    // Exceções: leitura (tem o "Professor de Leitura" próprio) e inglês/frances
-    // (texto em outra língua).
-    const ttsBlocked = (e.s === 'leitura' || e.s === 'ingles' || e.s === 'frances' || e.s === 'english_ge' || e.s === 'english_pm');
-    if (!ttsBlocked && 'speechSynthesis' in window && typeof ttsSpeak === 'function') {
+    // Botão 🔊 só para Som+ (consciência fonológica — precisa de ouvir o som)
+    if (e.s === 'som_plus' && 'speechSynthesis' in window) {
         const textToSpeak = (e.q || '').replace(/\*\*/g,'').replace(/\*/g,'')
             .replace(/'/g,"&#39;").replace(/"/g,'&quot;');
-        qHtml += `<button class="ex-tts-btn" onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" aria-label="Ouvir a pergunta">🔊</button>`;
+        qHtml += `<div style="text-align:center;margin:10px 0 0"><button onclick="ttsSpeak('${textToSpeak}')" title="Ouvir a pergunta" style="background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:0.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);display:inline-flex;align-items:center;gap:8px">🔊 Ouvir a pergunta</button></div>`;
     }
     qEl.innerHTML = qHtml;
     document.getElementById('ex-feedback').style.display = 'none';
@@ -14303,6 +14300,7 @@ function _teacherStop() {
         _teacher.recognition = null;
     }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch {}
+    try { if (typeof _stopCurrentAudio === 'function') _stopCurrentAudio(); } catch {}
     _teacher.utterance = null;
     _teacher.mode = null;
     const stopBtn = document.getElementById('teacher-stop-btn');
@@ -14316,7 +14314,10 @@ function _teacherStop() {
 }
 window._teacherStop = _teacherStop;
 
-// =========== Modo OUVIR (TTS karaoke via boundary event) ===========
+// =========== Modo OUVIR (TTS via ttsSpeak — Edge Raquel quando disponível) ===========
+// Usa a voz Raquel Neural (Edge TTS via proxy) se configurada — muito mais
+// natural que a voz robótica do speechSynthesis nativo. Karaoke é simulado
+// por tempo (~380ms por palavra) já que o Edge TTS retorna MP3 sem boundary.
 function _teacherListen() {
     _teacherStop();
     _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
@@ -14326,56 +14327,31 @@ function _teacherListen() {
     if (status) status.innerHTML = '🔊 <strong>O professor está a ler...</strong> Acompanha com os olhos!';
     document.getElementById('teacher-stop-btn').style.display = '';
 
-    // Em iOS / Edge TTS via proxy não temos timestamps por palavra. Usa speechSynthesis nativo
-    // (que tem onboundary em muitos browsers) — fallback: simula highlight por tempo.
-    if (!('speechSynthesis' in window)) {
-        if (status) status.textContent = 'O teu browser não suporta fala.';
+    if (typeof ttsSpeak !== 'function') {
+        if (status) status.textContent = 'Voz não disponível neste browser.';
         return;
     }
-    try { window.speechSynthesis.cancel(); } catch {}
-    const u = new SpeechSynthesisUtterance(_teacher.text);
-    u.lang = 'pt-PT';
-    u.rate = 0.85;
-    u.pitch = 1.0;
-    // tentar escolher voz pt-PT
-    const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-    const ptVoice = voices.find(v => /pt-PT|pt_PT/i.test(v.lang)) || voices.find(v => /^pt/i.test(v.lang));
-    if (ptVoice) u.voice = ptVoice;
 
-    let boundarySupported = false;
-    u.onboundary = (ev) => {
-        if (ev.name === 'word' || !ev.name) {
-            boundarySupported = true;
-            // Mapear charIndex → posição da palavra
-            const upTo = _teacher.text.slice(0, ev.charIndex || 0);
-            const wordsBefore = (upTo.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).length;
-            _teacherHighlight(wordsBefore);
+    // Inicia karaoke por tempo (~380ms/palavra). Para se a Eduarda tocar Parar.
+    const stepMs = 380;
+    let i = 0;
+    const tick = () => {
+        if (_teacher.mode !== 'listen' || i >= _teacher.words.length) {
+            if (_teacher.mode === 'listen') {
+                _teacherHighlightAll();
+                _teacherStop();
+                if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
+            }
+            return;
         }
+        _teacherHighlight(i);
+        i++;
+        setTimeout(tick, stepMs);
     };
-    u.onend = () => {
-        _teacherHighlightAll();
-        _teacherStop();
-        if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
-    };
-    u.onerror = () => { _teacherStop(); };
-    _teacher.utterance = u;
-    window.speechSynthesis.speak(u);
+    setTimeout(tick, 300); // pequeno delay para o áudio começar
 
-    // Fallback: se boundary não dispara nos primeiros 800ms, faz simulação por tempo
-    setTimeout(() => {
-        if (!boundarySupported && _teacher.mode === 'listen') {
-            const totalDuration = Math.max(2000, _teacher.words.length * 380); // ~380ms/palavra @ rate 0.85
-            const step = totalDuration / Math.max(1, _teacher.words.length);
-            let i = 0;
-            const tick = () => {
-                if (_teacher.mode !== 'listen' || i >= _teacher.words.length) return;
-                _teacherHighlight(i);
-                i++;
-                setTimeout(tick, step);
-            };
-            tick();
-        }
-    }, 800);
+    // Dispara o áudio (assíncrono — usa proxy Edge TTS Raquel se configurado).
+    try { ttsSpeak(_teacher.text); } catch (e) { console.warn('[teacher] tts failed', e); }
 }
 window._teacherListen = _teacherListen;
 
