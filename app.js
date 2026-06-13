@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v472';
+const APP_VERSION = 'v473';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15186,8 +15186,19 @@ function _holidayInjectTry() {
             if (inline) inline.remove();
             return;
         }
-        if (fab && inline) return; // ambos já existem
-        _injectHolidayButton();
+        if (!fab || !inline) _injectHolidayButton();
+        // FAB só aparece no main-screen — esconde durante exercício, summary, etc.
+        const fabNow = document.getElementById('holiday-fab');
+        if (fabNow) {
+            const mainScreen = document.getElementById('main-screen');
+            const exScreen = document.getElementById('exercise-screen');
+            const sumScreen = document.getElementById('summary-screen');
+            const mainVisible = mainScreen && mainScreen.style.display !== 'none' && mainScreen.offsetParent !== null;
+            const exVisible = exScreen && exScreen.style.display !== 'none' && exScreen.offsetParent !== null;
+            const sumVisible = sumScreen && sumScreen.style.display !== 'none' && sumScreen.offsetParent !== null;
+            const shouldShow = mainVisible && !exVisible && !sumVisible;
+            fabNow.style.display = shouldShow ? '' : 'none';
+        }
     } catch (e) { /* ignora */ }
 }
 function _startHolidayInjectWatcher() {
