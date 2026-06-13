@@ -5300,31 +5300,32 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     word-spacing: 0.06em;
 }
 .t-word {
-    transition: background-color .2s, color .2s, transform .15s;
-    border-radius: 4px;
-    padding: 1px 1px;
-    display: inline-block;
+    transition: color .2s, transform .15s;
+    /* sem display:inline-block para o texto fluir continuamente, sem cortes
+       visíveis entre palavras já lidas */
 }
 .t-vocab {
     border-bottom: 2px dashed #f9a8d4;
     cursor: help;
 }
 .t-word.t-good {
-    background: #d1fae5;
-    color: #065f46;
+    color: #10b981;
+    font-weight: var(--fw-extra);
 }
 .t-word.t-bad {
-    background: #fee2e2;
     color: #991b1b;
     text-decoration: line-through wavy #ef4444;
 }
 .t-word.t-current {
     background: #fef3c7;
     color: #92400e;
-    transform: scale(1.08);
+    display: inline-block;
+    transform: scale(1.06);
+    border-radius: 4px;
+    padding: 0 3px;
     box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
 }
-.t-punct { color: #be185d; font-weight: var(--fw-black); }
+.t-punct { color: inherit; font-weight: var(--fw-black); }
 .teacher-status {
     text-align: center;
     font-size: var(--fs-sm);
