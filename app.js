@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v479';
+const APP_VERSION = 'v480';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14319,7 +14319,7 @@ function openReadingTeacher(exId) {
                 <button class="teacher-btn teacher-btn-listen" id="teacher-listen-btn" onclick="_teacherListen()">🎓 Ouve o professor</button>
                 <button class="teacher-btn teacher-btn-read" id="teacher-read-btn" onclick="_teacherStartRead()">🎤 Agora lê tu</button>
                 <button class="teacher-btn teacher-btn-stop" id="teacher-stop-btn" onclick="_teacherStop()" style="display:none">⏸ Parar</button>
-                <button class="teacher-btn teacher-btn-skip" id="teacher-skip-btn" onclick="_teacherSkipWord()" style="display:none" title="Salta a palavra atual se o microfone não a captou">⏭ Saltar palavra</button>
+                <button class="teacher-btn teacher-btn-skip" id="teacher-skip-btn" onclick="_teacherEndParagraph()" style="display:none" title="Carrega quando acabaste de ler este parágrafo">✅ Acabei!</button>
             </div>
             <div class="teacher-feedback" id="teacher-feedback" style="display:none"></div>
         </div>
@@ -14608,6 +14608,9 @@ function _teacherStartRead(resume) {
     }
     _teacherStop();
     if (!resume) {
+        // v480 (estilo Duolingo): NÃO há cursor por palavra. A Eduarda lê o
+        // parágrafo todo ao seu ritmo; o score só aparece no fim do parágrafo
+        // (verde/laranja/vermelho), nunca há "preso numa palavra".
         _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
         _teacher.position = 0;
         _teacher.heardCursor = 0;
@@ -14615,11 +14618,9 @@ function _teacherStartRead(resume) {
         _teacher.restartCount = 0;
         _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
         _teacher.startTime = Date.now();
-        if (_teacher.spans[0]) _teacher.spans[0].classList.add('t-current');
-    } else {
-        // Resume: marca a próxima palavra como current (a actual da position)
-        _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
-        if (_teacher.spans[_teacher.position]) _teacher.spans[_teacher.position].classList.add('t-current');
+        _teacher.paragraphCursor = 0;
+        _teacher.allHeard = [];
+        _teacher.paraHeardStart = 0;
     }
     _teacher.mode = 'read';
 
@@ -14631,11 +14632,17 @@ function _teacherStartRead(resume) {
 
     r.onstart = () => {
         const status = document.getElementById('teacher-status');
-        if (status) status.innerHTML = '🎤 <strong>O microfone está a ouvir-te.</strong> Lê o texto em voz alta, devagar!';
+        const curPara = _teacher.paragraphCursor + 1;
+        const totalParas = _teacher.paragraphEnds.length;
+        if (status) status.innerHTML = `🎤 <strong>A ouvir-te</strong> — parágrafo ${curPara}/${totalParas}. Lê com calma; quando acabares carrega em <strong>"Acabei!"</strong>`;
         const stopBtn = document.getElementById('teacher-stop-btn');
         const skipBtn = document.getElementById('teacher-skip-btn');
         if (stopBtn) stopBtn.style.display = '';
-        if (skipBtn) skipBtn.style.display = '';
+        if (skipBtn) {
+            skipBtn.style.display = '';
+            skipBtn.innerHTML = '✅ Acabei!';
+            skipBtn.title = 'Acabei de ler este parágrafo';
+        }
     };
     r.onresult = (event) => {
         // Concatena todos os resultados (interim + final)
@@ -14644,17 +14651,19 @@ function _teacherStartRead(resume) {
             transcript += event.results[i][0].transcript + ' ';
         }
         const heardWords = (transcript.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
-        // v479: mostrar transcrito ao vivo (últimas 8 palavras) — ajuda a
-        // perceber se o microfone está a captar bem.
+        _teacher.allHeard = heardWords;
+        // Transcrito ao vivo: últimas 8 palavras + nº do parágrafo.
         const liveEl = document.getElementById('teacher-live');
         if (liveEl) {
             const tail = heardWords.slice(-8).join(' ');
-            const expected = _teacher.words[_teacher.position] || '';
             liveEl.innerHTML = tail
-                ? `<span class="teacher-live-label">🎤 Ouvi:</span> <span class="teacher-live-heard">${escapeHtml(tail)}</span>${expected ? `<span class="teacher-live-expected"> · esperava <strong>${escapeHtml(expected)}</strong></span>` : ''}`
+                ? `<span class="teacher-live-label">🎤 Ouvi:</span> <span class="teacher-live-heard">${escapeHtml(tail)}</span>`
                 : '';
         }
-        _teacherMatchHeard(heardWords);
+        // Auto-deteção: se as últimas 2-3 palavras do parágrafo aparecem no
+        // tail do transcrito, scoring + check automaticamente. Senão, a
+        // Eduarda carrega no botão "Acabei!".
+        _teacherMaybeAutoEndParagraph();
     };
     r.onerror = (ev) => {
         const status = document.getElementById('teacher-status');
@@ -14669,13 +14678,18 @@ function _teacherStartRead(resume) {
         }
     };
     r.onend = () => {
-        // Em modo 'read': agenda re-arranque do ASR pelo watcher. O onend
-        // dispara muito (após cada pausa de fala) — confiar nele para
-        // contar bloqueios não é fiável. O watcher (setInterval) trata.
+        // ASR pode parar sozinho após silêncio. Re-arranca se ainda estamos em
+        // modo read e não terminámos. Sem watcher complexo — basta re-iniciar.
         _teacher.recognition = null;
+        if (_teacher.mode === 'read') {
+            setTimeout(() => {
+                if (_teacher.mode === 'read' && !_teacher.recognition) {
+                    try { _teacherStartRead(true); } catch {}
+                }
+            }, 400);
+        }
     };
     _teacher.recognition = r;
-    _teacherStartReadWatcher();
     try {
         r.start();
     } catch (e) {
@@ -14684,6 +14698,101 @@ function _teacherStartRead(resume) {
     }
 }
 window._teacherStartRead = _teacherStartRead;
+
+// Estilo Duolingo: alinha palavras ouvidas com as esperadas DO PARÁGRAFO
+// e marca verde (lida ok), laranja (parcial) ou vermelho (não foi lida).
+// Sem cursor, sem bloqueio: a Eduarda lê livremente e só vê o resultado no fim.
+function _teacherScoreParagraph(paraIdx) {
+    const matches = (expected, got) => {
+        if (!expected || !got) return false;
+        if (expected === got) return true;
+        if (expected.length >= 3 && got.length >= 3) {
+            if (expected.startsWith(got) || got.startsWith(expected)) return true;
+        }
+        return false;
+    };
+    const paraEnd = _teacher.paragraphEnds[paraIdx];
+    if (typeof paraEnd !== 'number') return;
+    const paraStart = paraIdx === 0 ? 0 : (_teacher.paragraphEnds[paraIdx - 1] + 1);
+    const heard = (_teacher.allHeard || []).slice(_teacher.paraHeardStart || 0);
+    // Two-pointer com look-ahead 5 — alinha esperado vs ouvido. Palavras
+    // esperadas sem match → t-bad; com match → t-good.
+    let h = 0;
+    for (let e = paraStart; e <= paraEnd; e++) {
+        const expected = _teacher.words[e];
+        const sp = _teacher.spans[e];
+        if (!sp) continue;
+        sp.classList.remove('t-good', 't-bad', 't-current');
+        let matched = false;
+        const maxLook = Math.min(heard.length, h + 5);
+        for (let hh = h; hh < maxLook; hh++) {
+            if (matches(expected, heard[hh])) {
+                sp.classList.add('t-good');
+                if (!_teacher.wordTimes[e]) _teacher.wordTimes[e] = Date.now();
+                h = hh + 1;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) sp.classList.add('t-bad');
+    }
+    _teacher.position = paraEnd + 1;
+    _teacher.paraHeardStart = _teacher.allHeard.length;
+}
+
+// Auto-deteção: se as últimas palavras do parágrafo aparecerem no tail
+// do transcrito, dispara o scoring automaticamente. Caso contrário, a
+// Eduarda carrega em "Acabei!".
+function _teacherMaybeAutoEndParagraph() {
+    const paraIdx = _teacher.paragraphCursor;
+    const paraEnd = _teacher.paragraphEnds[paraIdx];
+    if (typeof paraEnd !== 'number') return;
+    const paraStart = paraIdx === 0 ? 0 : (_teacher.paragraphEnds[paraIdx - 1] + 1);
+    if (paraEnd - paraStart < 2) return; // parágrafo muito curto, deixa o botão
+    const last = _teacher.words[paraEnd];
+    const prev = _teacher.words[paraEnd - 1];
+    const heard = (_teacher.allHeard || []).slice(_teacher.paraHeardStart || 0);
+    // Procura nos últimos 6 ouvidos
+    const tail = heard.slice(-6);
+    const has = (w) => tail.some(h => h === w || (w.length >= 3 && h.length >= 3 && (w.startsWith(h) || h.startsWith(w))));
+    if (has(last) && has(prev)) {
+        _teacherEndParagraph();
+    }
+}
+
+// Termina o parágrafo actual: para o ASR, faz scoring, mostra pergunta.
+function _teacherEndParagraph() {
+    if (_teacher.mode !== 'read') return;
+    const paraIdx = _teacher.paragraphCursor;
+    try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
+    _teacher.recognition = null;
+    _teacherScoreParagraph(paraIdx);
+    if (!_teacher.askedChecks) _teacher.askedChecks = new Set();
+    const check = _teacher.paragraphChecks.find(c =>
+        (typeof c.afterParagraph === 'number' ? c.afterParagraph : 0) === paraIdx &&
+        !_teacher.askedChecks.has(c)
+    );
+    if (check) {
+        _teacher.askedChecks.add(check);
+        _teacher.mode = 'paused-check';
+        _teacherShowParagraphCheck(check);
+    } else {
+        _teacherAdvanceParagraph();
+    }
+}
+window._teacherEndParagraph = _teacherEndParagraph;
+
+// Próximo parágrafo: incrementa cursor; se acabou o texto → finishRead.
+function _teacherAdvanceParagraph() {
+    _teacher.paragraphCursor++;
+    if (_teacher.paragraphCursor >= _teacher.paragraphEnds.length) {
+        _teacherFinishRead();
+        return;
+    }
+    // Retoma ASR para o próximo parágrafo
+    setTimeout(() => { try { _teacherStartRead(true); } catch {} }, 200);
+}
+window._teacherAdvanceParagraph = _teacherAdvanceParagraph;
 
 // Avalia palavras ouvidas vs esperadas.
 // Usa cursores PERSISTENTES (heardCursor + position) entre chamadas — assim
@@ -14827,13 +14936,9 @@ function _teacherResumeAfterCheck() {
     if (fb) { fb.style.display = 'none'; fb.innerHTML = ''; }
     const ctrls = _teacher.overlay && _teacher.overlay.querySelector('.teacher-controls');
     if (ctrls) ctrls.style.display = '';
-    if (_teacher.position >= _teacher.words.length) {
-        // já leu tudo — vai direto ao feedback final
-        _teacherFinishRead();
-    } else {
-        // Retomar ASR no parágrafo seguinte (sem resetar progresso)
-        _teacherStartRead(true);
-    }
+    // v480 (Duolingo): avança para o próximo parágrafo (cursor de parágrafos,
+    // não palavras). Se já não há mais → fim.
+    _teacherAdvanceParagraph();
 }
 window._teacherResumeAfterCheck = _teacherResumeAfterCheck;
 
