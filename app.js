@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v477';
+const APP_VERSION = 'v478';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14514,20 +14514,21 @@ function _teacherStartReadWatcher() {
             return;
         }
         const stalledMs = Date.now() - _teacher.lastProgressAt;
-        // Re-arranca ASR se está morto (dá mais tempo: 7s)
-        if (!_teacher.recognition && stalledMs < 7000) {
+        // Re-arranca ASR se está morto (até 4s tentamos restart silencioso)
+        if (!_teacher.recognition && stalledMs < 4000) {
             try { _teacherStartRead(true); } catch (e) { console.warn('[teacher] restart falhou', e); }
             return;
         }
-        // Aviso suave a 5s
-        if (stalledMs > 5000 && stalledMs < 7000) {
+        // Aviso suave a 2.5s
+        if (stalledMs > 2500 && stalledMs < 4000) {
             const status = document.getElementById('teacher-status');
             if (status && !status.innerHTML.includes('A ouvir')) {
                 status.innerHTML = '🎤 <strong>A ouvir...</strong> Lê mais alto, se faz favor.';
             }
         }
-        // Auto-skip APENAS depois de 7s totalmente preso
-        if (stalledMs > 7000) {
+        // v478: Auto-skip a 4s (era 7s) — destranca mais cedo em palavras
+        // que o ASR não capta (ex: "Pus", monossílabos).
+        if (stalledMs > 4000) {
             const status = document.getElementById('teacher-status');
             if (status) status.innerHTML = '🤖 <strong>A avançar...</strong> O microfone não te ouve. Continua!';
             try { _teacherSkipWord(); } catch {}
@@ -14536,7 +14537,7 @@ function _teacherStartReadWatcher() {
                 try { _teacherStartRead(true); } catch {}
             }
         }
-    }, 1200);
+    }, 800);
 }
 window._teacherStartReadWatcher = _teacherStartReadWatcher;
 
@@ -14703,11 +14704,39 @@ function _teacherMatchHeard(heard) {
                 _teacher.spans[p].classList.add('t-current');
             }
         } else {
-            // Não match — skipa esta palavra do heard (pode ser hesitação,
-            // pronúncia diferente do ASR, ou repetição). NÃO marca a esperada
-            // como errada — isso só acontece no _teacherFinishRead com base
-            // nas palavras que ficaram sem `t-good` no final.
-            h++;
+            // v478: Look-ahead — se o ASR ouviu uma palavra mais à frente
+            // (palavra "Pus" não reconhecida mas a Eduarda já leu "em cima"),
+            // saltamos as 1-2 palavras impossíveis e avançamos.
+            let jumped = false;
+            for (let lookAhead = 1; lookAhead <= 2 && (p + lookAhead) < _teacher.words.length; lookAhead++) {
+                if (matches(_teacher.words[p + lookAhead], got)) {
+                    // marcar as palavras saltadas como current → próxima
+                    for (let k = 0; k < lookAhead; k++) {
+                        const sp = _teacher.spans[p + k];
+                        if (sp) sp.classList.remove('t-current');
+                    }
+                    // a palavra que matched
+                    _teacher.spans[p + lookAhead].classList.remove('t-bad', 't-current');
+                    _teacher.spans[p + lookAhead].classList.add('t-good');
+                    if (!_teacher.wordTimes[p + lookAhead]) _teacher.wordTimes[p + lookAhead] = Date.now();
+                    p = p + lookAhead + 1;
+                    h++;
+                    _teacher.restartCount = 0;
+                    if (_teacher.spans[p]) {
+                        _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
+                        _teacher.spans[p].classList.add('t-current');
+                    }
+                    jumped = true;
+                    break;
+                }
+            }
+            if (!jumped) {
+                // Não match — skipa esta palavra do heard (pode ser hesitação,
+                // pronúncia diferente do ASR, ou repetição). NÃO marca a esperada
+                // como errada — isso só acontece no _teacherFinishRead com base
+                // nas palavras que ficaram sem `t-good` no final.
+                h++;
+            }
         }
     }
     _teacher.position = p;
