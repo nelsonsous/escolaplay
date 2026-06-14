@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v484';
+const APP_VERSION = 'v485';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14434,6 +14434,7 @@ window._openLeituraText = _openLeituraText;
 
 function _teacherStop() {
     if (_teacher.watchInterval) { clearInterval(_teacher.watchInterval); _teacher.watchInterval = null; }
+    if (typeof _teacherStopSilenceVox === 'function') _teacherStopSilenceVox();
     if (_teacher.recognition) {
         try { _teacher.recognition.stop(); } catch {}
         _teacher.recognition = null;
@@ -14751,16 +14752,17 @@ function _teacherStartReadVoxtral(resume) {
     const status = document.getElementById('teacher-status');
     const curPara = _teacher.paragraphCursor + 1;
     const totalParas = _teacher.paragraphEnds.length;
-    if (status) status.innerHTML = `🎤 <strong>A gravar</strong> · parágrafo ${curPara}/${totalParas}`;
+    if (status) status.innerHTML = `🎤 <strong>A ouvir-te</strong> · parágrafo ${curPara}/${totalParas} — quando fizeres pausa, avanço sozinho`;
     const stopBtn = document.getElementById('teacher-stop-btn');
     const skipBtn = document.getElementById('teacher-skip-btn');
     const listenBtn = document.getElementById('teacher-listen-btn');
     const readBtn = document.getElementById('teacher-read-btn');
-    // v483: esconder Ouve/Lê durante a gravação — só Parar + Acabei são úteis.
+    // v485: tempo real — auto-stop por silêncio detecta o fim do parágrafo.
+    // "Acabei!" fica disponível como fallback discreto.
     if (listenBtn) listenBtn.style.display = 'none';
     if (readBtn) readBtn.style.display = 'none';
     if (stopBtn) stopBtn.style.display = '';
-    if (skipBtn) { skipBtn.style.display = ''; skipBtn.innerHTML = '✅ Acabei!'; }
+    if (skipBtn) { skipBtn.style.display = ''; skipBtn.innerHTML = '⏭ Saltar pausa'; }
     // Limpa transcrito antigo
     const liveEl = document.getElementById('teacher-live');
     if (liveEl) liveEl.innerHTML = '';
@@ -14798,7 +14800,12 @@ function _teacherStartReadVoxtral(resume) {
             await _teacherTranscribeVoxtral(blob);
             _teacherFinalizeParagraph();
         };
-        try { rec.start(); } catch (e) {
+        try {
+            rec.start();
+            // v485: auto-stop quando detecta silêncio (≥1.6s sem voz). Voxtral
+            // recebe o blob automaticamente — sem precisar do botão "Acabei!".
+            _teacherWatchSilenceVox(stream);
+        } catch (e) {
             console.warn('[teacher] rec.start falhou', e);
             try { stream.getTracks().forEach(t => t.stop()); } catch {}
             _teacher.voxStream = null;
@@ -14811,6 +14818,61 @@ function _teacherStartReadVoxtral(resume) {
     });
 }
 window._teacherStartReadVoxtral = _teacherStartReadVoxtral;
+
+// Auto-stop por silêncio: usa Web Audio para medir RMS. Quando a Eduarda
+// pára de ler durante 1.6s (e já houve voz antes), pára a gravação
+// sozinha — equivale a carregar "Acabei!" sem precisar do botão.
+function _teacherWatchSilenceVox(stream) {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const an = ctx.createAnalyser();
+        an.fftSize = 512;
+        const src = ctx.createMediaStreamSource(stream);
+        src.connect(an);
+        _teacher.voxAudioCtx = ctx;
+        _teacher.voxAnSrc = src;
+        _teacher.voxAnNode = an;
+        const data = new Uint8Array(an.fftSize);
+        const start = Date.now();
+        let lastLoud = start;
+        let spoke = false;
+        _teacher.voxSilenceTimer = setInterval(() => {
+            an.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) {
+                const v = (data[i] - 128) / 128;
+                sum += v * v;
+            }
+            const rms = Math.sqrt(sum / data.length);
+            const now = Date.now();
+            if (rms > 0.06) { lastLoud = now; spoke = true; }
+            // 1.6s de silêncio + já tinha falado + ≥1s de gravação → auto-stop
+            if (spoke && (now - lastLoud) > 1600 && (now - start) > 1000) {
+                _teacherStopSilenceVox();
+                if (_teacher.voxRec && _teacher.voxRec.state !== 'inactive') {
+                    try { _teacher.voxRec.stop(); } catch {}
+                }
+            }
+            // safety: 60s máximo
+            if ((now - start) > 60000) {
+                _teacherStopSilenceVox();
+                if (_teacher.voxRec && _teacher.voxRec.state !== 'inactive') {
+                    try { _teacher.voxRec.stop(); } catch {}
+                }
+            }
+        }, 200);
+    } catch (e) { console.warn('[teacher] silence watch falhou', e); }
+}
+
+function _teacherStopSilenceVox() {
+    if (_teacher.voxSilenceTimer) { clearInterval(_teacher.voxSilenceTimer); _teacher.voxSilenceTimer = null; }
+    try { _teacher.voxAnSrc && _teacher.voxAnSrc.disconnect(); } catch {}
+    try { _teacher.voxAnNode && _teacher.voxAnNode.disconnect(); } catch {}
+    try { _teacher.voxAudioCtx && _teacher.voxAudioCtx.close(); } catch {}
+    _teacher.voxAnSrc = null; _teacher.voxAnNode = null; _teacher.voxAudioCtx = null;
+}
 
 async function _teacherTranscribeVoxtral(blob) {
     const status = document.getElementById('teacher-status');
