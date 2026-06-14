@@ -14651,6 +14651,7 @@ function _teacherStartRead(resume) {
             transcript += event.results[i][0].transcript + ' ';
         }
         const heardWords = (transcript.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
+<<<<<<< HEAD
         _teacher.allHeard = heardWords;
         // Transcrito ao vivo: últimas 8 palavras + nº do parágrafo.
         const liveEl = document.getElementById('teacher-live');
@@ -14664,6 +14665,19 @@ function _teacherStartRead(resume) {
         // tail do transcrito, scoring + check automaticamente. Senão, a
         // Eduarda carrega no botão "Acabei!".
         _teacherMaybeAutoEndParagraph();
+=======
+        // v479: mostrar transcrito ao vivo (últimas 8 palavras) — ajuda a
+        // perceber se o microfone está a captar bem.
+        const liveEl = document.getElementById('teacher-live');
+        if (liveEl) {
+            const tail = heardWords.slice(-8).join(' ');
+            const expected = _teacher.words[_teacher.position] || '';
+            liveEl.innerHTML = tail
+                ? `<span class="teacher-live-label">🎤 Ouvi:</span> <span class="teacher-live-heard">${escapeHtml(tail)}</span>${expected ? `<span class="teacher-live-expected"> · esperava <strong>${escapeHtml(expected)}</strong></span>` : ''}`
+                : '';
+        }
+        _teacherMatchHeard(heardWords);
+>>>>>>> origin/main
     };
     r.onerror = (ev) => {
         const status = document.getElementById('teacher-status');
