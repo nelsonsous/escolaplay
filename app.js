@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v483';
+const APP_VERSION = 'v484';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14245,55 +14245,48 @@ function openReadingTeacher(exId) {
     const cleanText = _teacherCleanText(ex.passage || '');
     const vocab = ex.vocab || {};
 
-    // Tokenize. Mantém o texto ORIGINAL (com \n) para detetar parágrafos,
-    // mas em paralelo calcula a versão "limpa" para TTS.
-    const parts = _teacherTokenize(cleanText);
     _teacher.text = cleanText;
     _teacher.words = [];
-    _teacher.rawTokens = parts;
     _teacher.spans = [];
     _teacher.position = 0;
     _teacher.mode = null;
-    // Parágrafos: split do passage ORIGINAL por \n. Para cada parágrafo,
-    // contar as palavras → última palavra do parágrafo k = soma cumulativa - 1.
     _teacher.paragraphEnds = [];
     _teacher.paragraphChecks = ex.paragraphChecks || [];
     _teacher.pCheckIdx = 0;
-    const rawParas = String(ex.passage || '').split(/\n+/).filter(s => s.trim());
-    let cumWords = 0;
-    rawParas.forEach(p => {
-        const cleaned = _teacherCleanText(p);
-        const tokens = _teacherTokenize(cleaned);
-        const wordsInPara = tokens.filter(t => /[^\s.,;:!?—–\-"()«»…]/.test(t) && _teacherNormalize(t)).length;
-        cumWords += wordsInPara;
-        _teacher.paragraphEnds.push(cumWords - 1);
-    });
-
-    // Build HTML: cada palavra é um span; pontuação fica em spans diferentes
     _teacher.punctPositions = [];
     _teacher.wordTimes = [];
+
+    // v484: renderiza CADA parágrafo num <p class="t-para"> separado — assim
+    // a Eduarda vê visualmente onde cada parágrafo começa/acaba, e podemos
+    // destacar apenas o que ela deve estar a ler agora.
+    const rawParas = String(ex.passage || '').split(/\n+/).filter(s => s.trim());
     let html = '';
     let wordIdx = 0;
-    parts.forEach(p => {
-        if (/^\s+$/.test(p)) { html += ' '; return; }
-        if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) {
-            // Regista pontuação importante (vírgula, ponto, ?, !) e a sua posição
-            // — afterWord = índice da palavra ANTES desta pontuação.
-            const kind = p[0];
-            if ([',', '.', '?', '!', ';', ':'].includes(kind) && wordIdx > 0) {
-                _teacher.punctPositions.push({ afterWord: wordIdx - 1, kind });
+    rawParas.forEach((rawPara, pIdx) => {
+        const cleaned = _teacherCleanText(rawPara);
+        const tokens = _teacherTokenize(cleaned);
+        let pHtml = '';
+        tokens.forEach(p => {
+            if (/^\s+$/.test(p)) { pHtml += ' '; return; }
+            if (/^[.,;:!?—–\-"()«»…]+$/.test(p)) {
+                const kind = p[0];
+                if ([',', '.', '?', '!', ';', ':'].includes(kind) && wordIdx > 0) {
+                    _teacher.punctPositions.push({ afterWord: wordIdx - 1, kind });
+                }
+                pHtml += `<span class="t-punct">${escapeHtml(p)}</span>`;
+                return;
             }
-            html += `<span class="t-punct">${escapeHtml(p)}</span>`;
-            return;
-        }
-        const norm = _teacherNormalize(p);
-        if (!norm) { html += escapeHtml(p); return; }
-        _teacher.words.push(norm);
-        const def = vocab[p] || vocab[p.toLowerCase()] || '';
-        const defAttr = String(def).replace(/"/g, '&quot;');
-        const cls = def ? 't-word t-vocab' : 't-word';
-        html += `<span class="${cls}" data-i="${wordIdx}" title="${defAttr}">${escapeHtml(p)}</span>`;
-        wordIdx++;
+            const norm = _teacherNormalize(p);
+            if (!norm) { pHtml += escapeHtml(p); return; }
+            _teacher.words.push(norm);
+            const def = vocab[p] || vocab[p.toLowerCase()] || '';
+            const defAttr = String(def).replace(/"/g, '&quot;');
+            const cls = def ? 't-word t-vocab' : 't-word';
+            pHtml += `<span class="${cls}" data-i="${wordIdx}" title="${defAttr}">${escapeHtml(p)}</span>`;
+            wordIdx++;
+        });
+        _teacher.paragraphEnds.push(wordIdx - 1);
+        html += `<p class="t-para" data-p="${pIdx}">${pHtml}</p>`;
     });
 
     // Build overlay
@@ -14334,6 +14327,9 @@ function openReadingTeacher(exId) {
     document.body.classList.add('has-teacher-overlay');
     _teacher.overlay = overlay;
     _teacher.spans = Array.from(overlay.querySelectorAll('.t-word'));
+    // v484: destaca o 1.º parágrafo (o que a Eduarda vai ler primeiro)
+    _teacher.paragraphCursor = 0;
+    _teacherMarkCurrentParagraph(0);
 
     // Avisar se Speech Recognition não está disponível
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -14966,10 +14962,30 @@ function _teacherAdvanceParagraph() {
         _teacherFinishRead();
         return;
     }
+    _teacherMarkCurrentParagraph(_teacher.paragraphCursor);
     // Retoma ASR para o próximo parágrafo
     setTimeout(() => { try { _teacherStartRead(true); } catch {} }, 200);
 }
 window._teacherAdvanceParagraph = _teacherAdvanceParagraph;
+
+// Marca visualmente o parágrafo a ler: destaca o actual, esbate os outros.
+// Aplica classes ao container .t-para (que envolve cada parágrafo completo,
+// incluindo pontuação), não aos word spans individuais.
+function _teacherMarkCurrentParagraph(paraIdx) {
+    if (!_teacher.overlay) return;
+    const paras = _teacher.overlay.querySelectorAll('.t-para');
+    paras.forEach((el, i) => {
+        el.classList.remove('t-para-current', 't-para-done', 't-para-pending');
+        if (i < paraIdx)        el.classList.add('t-para-done');
+        else if (i === paraIdx) el.classList.add('t-para-current');
+        else                    el.classList.add('t-para-pending');
+    });
+    const cur = paras[paraIdx];
+    if (cur && cur.scrollIntoView) {
+        try { cur.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+    }
+}
+window._teacherMarkCurrentParagraph = _teacherMarkCurrentParagraph;
 
 // Avalia palavras ouvidas vs esperadas.
 // Usa cursores PERSISTENTES (heardCursor + position) entre chamadas — assim
