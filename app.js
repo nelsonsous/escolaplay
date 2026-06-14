@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v480';
+const APP_VERSION = 'v481';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14436,6 +14436,14 @@ function _teacherStop() {
         try { _teacher.recognition.stop(); } catch {}
         _teacher.recognition = null;
     }
+    if (_teacher.voxRec && _teacher.voxRec.state !== 'inactive') {
+        try { _teacher.voxRec.stop(); } catch {}
+    }
+    _teacher.voxRec = null;
+    if (_teacher.voxStream) {
+        try { _teacher.voxStream.getTracks().forEach(t => t.stop()); } catch {}
+        _teacher.voxStream = null;
+    }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch {}
     try { if (typeof _stopCurrentAudio === 'function') _stopCurrentAudio(); } catch {}
     _teacher.utterance = null;
@@ -14600,6 +14608,14 @@ function _teacherHighlightAll() {
 
 // =========== Modo LER (SpeechRecognition pt-PT) ===========
 function _teacherStartRead(resume) {
+    // v481: Se temos chave Mistral, usamos Voxtral (api.mistral.ai/v1/audio/transcriptions)
+    // — muito mais robusto que Web Speech API, especialmente para vozes infantis
+    // e monossílabos como "Pus". Fallback automático para SR se Voxtral não dá.
+    const canVox = !!(state.max && state.max.mistralKey)
+        && typeof MediaRecorder !== 'undefined'
+        && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        && state.useVoxtral !== false;
+    if (canVox) { _teacherStartReadVoxtral(resume); return; }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
         const status = document.getElementById('teacher-status');
@@ -14699,6 +14715,136 @@ function _teacherStartRead(resume) {
 }
 window._teacherStartRead = _teacherStartRead;
 
+// ============================================================
+// Modo Voxtral (Mistral) — gravação MediaRecorder + STT no Mistral
+// ============================================================
+function _teacherStartReadVoxtral(resume) {
+    _teacherStop();
+    if (!resume) {
+        _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
+        _teacher.position = 0;
+        _teacher.heardCursor = 0;
+        _teacher.pCheckIdx = 0;
+        _teacher.askedChecks = new Set();
+        _teacher.wordTimes = new Array(_teacher.words.length).fill(0);
+        _teacher.startTime = Date.now();
+        _teacher.paragraphCursor = 0;
+        _teacher.allHeard = [];
+        _teacher.paraHeardStart = 0;
+    }
+    _teacher.mode = 'read';
+    _teacher.voxChunks = [];
+    const status = document.getElementById('teacher-status');
+    const curPara = _teacher.paragraphCursor + 1;
+    const totalParas = _teacher.paragraphEnds.length;
+    if (status) status.innerHTML = `🎤 <strong>A gravar</strong> — parágrafo ${curPara}/${totalParas}. Lê em voz alta e carrega <strong>"Acabei!"</strong> no fim.`;
+    const stopBtn = document.getElementById('teacher-stop-btn');
+    const skipBtn = document.getElementById('teacher-skip-btn');
+    if (stopBtn) stopBtn.style.display = '';
+    if (skipBtn) { skipBtn.style.display = ''; skipBtn.innerHTML = '✅ Acabei!'; }
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        _teacher.voxStream = stream;
+        const candidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/ogg;codecs=opus','audio/ogg'];
+        let mime = '';
+        for (const m of candidates) {
+            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) { mime = m; break; }
+        }
+        let rec;
+        try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+        catch (e) {
+            console.warn('[teacher] MediaRecorder falhou, fallback SR', e);
+            try { stream.getTracks().forEach(t => t.stop()); } catch {}
+            _teacher.voxStream = null;
+            state.useVoxtral = false;
+            _teacherStartRead(resume);
+            return;
+        }
+        _teacher.voxRec = rec;
+        rec.ondataavailable = (e) => { if (e.data && e.data.size) _teacher.voxChunks.push(e.data); };
+        rec.onstop = async () => {
+            try { _teacher.voxStream && _teacher.voxStream.getTracks().forEach(t => t.stop()); } catch {}
+            _teacher.voxStream = null;
+            const blob = new Blob(_teacher.voxChunks, { type: rec.mimeType || mime || 'audio/webm' });
+            _teacher.voxRec = null;
+            if (!blob.size || blob.size < 1200) {
+                // Pouco áudio — score vazio (tudo t-bad)
+                _teacher.allHeard = [];
+                _teacherFinalizeParagraph();
+                return;
+            }
+            await _teacherTranscribeVoxtral(blob);
+            _teacherFinalizeParagraph();
+        };
+        try { rec.start(); } catch (e) {
+            console.warn('[teacher] rec.start falhou', e);
+            try { stream.getTracks().forEach(t => t.stop()); } catch {}
+            _teacher.voxStream = null;
+            state.useVoxtral = false;
+            _teacherStartRead(resume);
+        }
+    }).catch(err => {
+        console.warn('[teacher] getUserMedia falhou', err);
+        if (status) status.innerHTML = '⚠️ Precisas de dar permissão ao microfone para o Professor te ouvir.';
+    });
+}
+window._teacherStartReadVoxtral = _teacherStartReadVoxtral;
+
+async function _teacherTranscribeVoxtral(blob) {
+    const status = document.getElementById('teacher-status');
+    if (status) status.innerHTML = '⏳ <strong>A transcrever</strong> com o Mistral Voxtral…';
+    try {
+        const t = blob.type || '';
+        const ext = (t.includes('mp4') || t.includes('aac')) ? 'm4a' : (t.includes('ogg') ? 'ogg' : 'webm');
+        const fd = new FormData();
+        fd.append('model', 'voxtral-mini-latest');
+        fd.append('file', blob, 'leitura.' + ext);
+        fd.append('language', 'pt');
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 25000);
+        const res = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'authorization': `Bearer ${state.max.mistralKey}` },
+            body: fd, signal: ctrl.signal
+        });
+        clearTimeout(to);
+        if (!res.ok) throw new Error('voxtral ' + res.status);
+        const data = await res.json();
+        const text = (data.text || '').trim();
+        const heardWords = (text.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
+        _teacher.allHeard = heardWords;
+        const liveEl = document.getElementById('teacher-live');
+        if (liveEl) {
+            liveEl.innerHTML = `<span class="teacher-live-label">🎤 Ouvi (Voxtral):</span> <span class="teacher-live-heard">${escapeHtml(text || '(nada)')}</span>`;
+        }
+    } catch (e) {
+        console.warn('[teacher] voxtral failed', e);
+        if (status) status.innerHTML = '⚠️ Transcrição falhou. A usar reconhecimento do browser.';
+        _teacher.allHeard = [];
+    }
+}
+
+// Finaliza o parágrafo após Voxtral devolver: score + pergunta + próximo.
+function _teacherFinalizeParagraph() {
+    const paraIdx = _teacher.paragraphCursor;
+    _teacher.paraHeardStart = 0; // Voxtral retorna só o que foi dito no parágrafo
+    _teacherScoreParagraph(paraIdx);
+    _teacher.paraHeardStart = 0; // reset para o próximo
+    _teacher.allHeard = [];
+    if (!_teacher.askedChecks) _teacher.askedChecks = new Set();
+    const check = _teacher.paragraphChecks.find(c =>
+        (typeof c.afterParagraph === 'number' ? c.afterParagraph : 0) === paraIdx &&
+        !_teacher.askedChecks.has(c)
+    );
+    if (check) {
+        _teacher.askedChecks.add(check);
+        _teacher.mode = 'paused-check';
+        _teacherShowParagraphCheck(check);
+    } else {
+        _teacherAdvanceParagraph();
+    }
+}
+
 // Estilo Duolingo: alinha palavras ouvidas com as esperadas DO PARÁGRAFO
 // e marca verde (lida ok), laranja (parcial) ou vermelho (não foi lida).
 // Sem cursor, sem bloqueio: a Eduarda lê livremente e só vê o resultado no fim.
@@ -14760,9 +14906,14 @@ function _teacherMaybeAutoEndParagraph() {
     }
 }
 
-// Termina o parágrafo actual: para o ASR, faz scoring, mostra pergunta.
+// Termina o parágrafo actual: para o ASR/MediaRecorder, faz scoring, mostra pergunta.
 function _teacherEndParagraph() {
     if (_teacher.mode !== 'read') return;
+    // Modo Voxtral: pára a gravação; o resto acontece no onstop (transcribe + finalize).
+    if (_teacher.voxRec && _teacher.voxRec.state !== 'inactive') {
+        try { _teacher.voxRec.stop(); } catch {}
+        return;
+    }
     const paraIdx = _teacher.paragraphCursor;
     try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
     _teacher.recognition = null;
