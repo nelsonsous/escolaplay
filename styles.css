@@ -5403,6 +5403,43 @@ body.has-teacher-overlay #subject-detail-container {
     box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
 }
 .t-punct { color: inherit; font-weight: var(--fw-black); }
+/* === Destaque por parágrafo === */
+/* Cada parágrafo do texto a ler é um <p class="t-para">. Só o parágrafo
+   actual aparece com cor cheia; os outros ficam esbatidos. */
+.t-para {
+    margin: 0 0 14px;
+    transition: opacity .25s, background .25s;
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+.t-para.t-para-done {
+    opacity: 0.30;
+}
+.t-para.t-para-current {
+    opacity: 1;
+    background: linear-gradient(180deg, #fef9c3 0%, #fef3c7 100%);
+    border: 2px solid #fde047;
+    box-shadow: 0 4px 14px rgba(234, 179, 8, 0.18);
+}
+.t-para.t-para-pending {
+    opacity: 0.40;
+}
+/* Marcação "Lê aqui →" antes do parágrafo actual (apenas visual). */
+.t-para.t-para-current::before {
+    content: '👉 Lê este parágrafo';
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: #92400e;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+/* As marcações de score (t-good/t-bad) sobrepõem-se sempre — full opacity. */
+.t-word.t-good,
+.t-word.t-bad {
+    opacity: 1 !important;
+}
 .teacher-status {
     text-align: center;
     font-size: var(--fs-sm);
