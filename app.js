@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v476';
+const APP_VERSION = 'v477';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1348,6 +1348,11 @@ function openSubjectDetail(key) {
     if ((key === 'english_pm' && window.COURSE_ENGLISH_PM) ||
         (key === 'english_ge' && window.COURSE_ENGLISH_GE)) {
         openCoursePath(key);
+        return;
+    }
+    // Leitura: biblioteca de textos — cada um abre o Professor de Leitura.
+    if (key === 'leitura') {
+        openLeituraLibrary();
         return;
     }
     // Primeira vez em Mat+? Oferece o diagnóstico inicial
@@ -14351,12 +14356,78 @@ function closeReadingTeacher() {
         if (cur && cur.s === 'leitura') {
             currentSession = null;
             closeExerciseScreen();
-            if (typeof openSubjectDetail === 'function') openSubjectDetail('leitura');
-            else switchTab('home');
+            // Se vier da Biblioteca de Leitura → volta para lá; senão para a disciplina.
+            if (_teacher._fromLibrary) {
+                _teacher._fromLibrary = false;
+                openLeituraLibrary();
+            } else if (typeof openSubjectDetail === 'function') {
+                openSubjectDetail('leitura');
+            } else {
+                switchTab('home');
+            }
         }
     } catch (err) { /* falha silenciosa */ }
 }
 window.closeReadingTeacher = closeReadingTeacher;
+
+// ============================================================
+// Biblioteca de Leitura — lista todos os textos disponíveis
+// ============================================================
+function openLeituraLibrary() {
+    // Recolhe TODOS os exercícios de Leitura com passage (1 por tópico).
+    const texts = (window.EXERCISES || []).filter(e => e.s === 'leitura' && e.passage);
+    if (texts.length === 0) {
+        showToast('Sem textos de Leitura para este perfil.');
+        return;
+    }
+    const seen = state.exerciseSeen || {};
+    const cards = texts.map(t => {
+        const title = escapeHtml(t.t || 'Leitura');
+        const preview = escapeHtml(String(t.passage || '').replace(/\n+/g, ' ').slice(0, 90));
+        const wasRead = !!seen[t.id];
+        const badge = wasRead ? '<span class="leitura-card-badge">✓ Lido</span>' : '';
+        const exId = (t.id || '').replace(/'/g, "\\'");
+        return `<div class="leitura-card" onclick="_openLeituraText('${exId}')">
+            <div class="leitura-card-title">📖 ${title}${badge}</div>
+            <div class="leitura-card-preview">${preview}…</div>
+            <div class="leitura-card-cta">🎓 Abrir Professor →</div>
+        </div>`;
+    }).join('');
+
+    currentSubjectView = 'leitura';
+    const sub = (SUBJECTS && SUBJECTS.leitura) || { name: 'Leitura', color: '#0e7490', icon: 'fa-book-open-reader' };
+    // Remove qualquer subject-detail-container existente — pattern igual ao openSubjectDetail.
+    const existing = document.getElementById('subject-detail-container');
+    if (existing) existing.remove();
+    const container = document.createElement('div');
+    container.id = 'subject-detail-container';
+    container.innerHTML = `
+        <div class="fullscreen" id="subject-detail-screen">
+            <div class="exercise-header">
+                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
+                    <span style="width:32px;height:32px;border-radius:8px;background:${sub.color};color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas ${sub.icon}"></i></span>
+                    Biblioteca de Leitura
+                </div>
+            </div>
+            <div class="exercise-body">
+                <div class="leitura-library-intro">Escolhe um texto para ler com o Professor. São ${texts.length} textos — lê devagar, ouve o professor, e responde às perguntas no fim de cada parágrafo.</div>
+                <div class="leitura-library-grid">${cards}</div>
+            </div>
+        </div>`;
+    document.body.appendChild(container);
+}
+window.openLeituraLibrary = openLeituraLibrary;
+
+function _openLeituraText(exId) {
+    const ex = (window.EXERCISES || []).find(e => e.id === exId);
+    if (!ex) { showToast('Texto não encontrado.'); return; }
+    _teacher._fromLibrary = true;
+    currentSession = { items: [ex], idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: 'leitura', startedAt: Date.now(), isLibrary: true };
+    document.body.classList.add('has-teacher-overlay');
+    openReadingTeacher(ex.id);
+}
+window._openLeituraText = _openLeituraText;
 
 function _teacherStop() {
     if (_teacher.watchInterval) { clearInterval(_teacher.watchInterval); _teacher.watchInterval = null; }
