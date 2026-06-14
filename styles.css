@@ -5403,6 +5403,34 @@ body.has-teacher-overlay #subject-detail-container {
     box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
 }
 .t-punct { color: inherit; font-weight: var(--fw-black); }
+/* === Selector de ritmo de paragens === */
+.teacher-pace-select {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #475569;
+    margin: 0 0 10px;
+    font-weight: 600;
+}
+.teacher-pace-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.teacher-pace-btn:hover { background: #e2e8f0; }
+.teacher-pace-btn.on {
+    background: #0e7490;
+    border-color: #0e7490;
+    color: #fff;
+}
 /* === Destaque por parágrafo (subtil) === */
 .t-para {
     margin: 0 0 12px;
@@ -5421,6 +5449,23 @@ body.has-teacher-overlay #subject-detail-container {
 .t-para.t-para-pending {
     opacity: 0.42;
     border-left-color: #e2e8f0;
+}
+/* Sublinhado em tempo real (Web Speech) à medida que a Eduarda lê. */
+.t-word.t-reading {
+    border-bottom: 2px solid #14b8a6;
+    color: #0f766e;
+}
+.t-word.t-cursor {
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 4px;
+    padding: 0 2px;
+    box-shadow: 0 0 0 2px #fde047;
+    animation: t-cursor-blink 1.4s ease-in-out infinite;
+}
+@keyframes t-cursor-blink {
+    0%, 100% { box-shadow: 0 0 0 2px #fde047; }
+    50%      { box-shadow: 0 0 0 4px #facc15; }
 }
 /* As marcações de score (t-good/t-bad) sobrepõem-se sempre — full opacity. */
 .t-word.t-good,
