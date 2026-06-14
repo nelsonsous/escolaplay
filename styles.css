@@ -5411,6 +5411,20 @@ body.has-teacher-overlay #subject-detail-container {
     margin-bottom: 10px;
     line-height: 1.45;
 }
+/* Badge mostra se está com Voxtral activo ou se falta a chave Mistral. */
+.teacher-stt-badge {
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 999px;
+    margin: 0 auto 10px;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+}
+.teacher-stt-ok { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.teacher-stt-warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 /* Transcrito ao vivo (o que o microfone ouve) — feedback para a criança
    perceber quando o ASR está a captar a voz e quando precisa de falar mais alto. */
 .teacher-live {

@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v481';
+const APP_VERSION = 'v482';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14311,6 +14311,12 @@ function openReadingTeacher(exId) {
                 <button class="teacher-close" onclick="closeReadingTeacher(); event.stopPropagation();" aria-label="Fechar">✕</button>
             </div>
             <div class="teacher-subtitle">${escapeHtml(title)}</div>
+            ${(() => {
+                const hasKey = !!(state.max && state.max.mistralKey);
+                return hasKey
+                    ? '<div class="teacher-stt-badge teacher-stt-ok">🤖 Mistral Voxtral activo · STT de alta qualidade</div>'
+                    : '<div class="teacher-stt-badge teacher-stt-warn">⚠️ Sem chave Mistral — configura em Perfil → MAX antes de ler</div>';
+            })()}
             ${tip ? `<div class="teacher-tip">💡 ${escapeHtml(tip)}</div>` : ''}
             <div class="teacher-text" id="teacher-text">${html}</div>
             <div class="teacher-status" id="teacher-status"></div>
@@ -14606,16 +14612,28 @@ function _teacherHighlightAll() {
     _teacher.spans.forEach(sp => { sp.classList.add('t-good'); sp.classList.remove('t-current'); });
 }
 
-// =========== Modo LER (SpeechRecognition pt-PT) ===========
+// =========== Modo LER — exige chave Mistral (Voxtral) ===========
 function _teacherStartRead(resume) {
-    // v481: Se temos chave Mistral, usamos Voxtral (api.mistral.ai/v1/audio/transcriptions)
-    // — muito mais robusto que Web Speech API, especialmente para vozes infantis
-    // e monossílabos como "Pus". Fallback automático para SR se Voxtral não dá.
-    const canVox = !!(state.max && state.max.mistralKey)
-        && typeof MediaRecorder !== 'undefined'
-        && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-        && state.useVoxtral !== false;
-    if (canVox) { _teacherStartReadVoxtral(resume); return; }
+    // v482: A Leitura SÓ avança com chave Mistral configurada. Web Speech do
+    // browser é demasiado fraco em vozes infantis e monossílabos — em vez de
+    // fallback silencioso, mostramos mensagem clara para configurar.
+    const hasKey = !!(state.max && state.max.mistralKey);
+    if (!hasKey) {
+        const status = document.getElementById('teacher-status');
+        if (status) {
+            status.innerHTML = `⚠️ <strong>Falta a chave Mistral.</strong> Vai a <a href="#" onclick="closeReadingTeacher(); openProfile && openProfile(); return false;" style="color:#0e7490;text-decoration:underline;font-weight:700">Perfil → MAX</a> e cola a chave Mistral para usar o Professor de Leitura.`;
+        }
+        return;
+    }
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const status = document.getElementById('teacher-status');
+        if (status) status.innerHTML = '⚠️ Este browser não suporta gravação de áudio. Tenta o Chrome ou Safari atualizado.';
+        return;
+    }
+    _teacherStartReadVoxtral(resume);
+    return;
+    // (código abaixo fica como dead code — Web Speech já não é caminho válido)
+    // eslint-disable-next-line no-unreachable
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
         const status = document.getElementById('teacher-status');
