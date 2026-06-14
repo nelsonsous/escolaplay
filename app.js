@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v485';
+const APP_VERSION = 'v486';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14311,6 +14311,12 @@ function openReadingTeacher(exId) {
                     : '<div class="teacher-stt-badge teacher-stt-warn">⚠️ Sem chave Mistral — configura em Perfil → MAX antes de ler</div>';
             })()}
             ${tip ? `<div class="teacher-tip">💡 ${escapeHtml(tip)}</div>` : ''}
+            <div class="teacher-pace-select" id="teacher-pace-select">
+                Paragens:
+                <button data-pace="each" class="teacher-pace-btn">cada parágrafo</button>
+                <button data-pace="every2" class="teacher-pace-btn">de 2 em 2</button>
+                <button data-pace="end" class="teacher-pace-btn">só no fim</button>
+            </div>
             <div class="teacher-text" id="teacher-text">${html}</div>
             <div class="teacher-status" id="teacher-status"></div>
             <div class="teacher-live" id="teacher-live"></div>
@@ -14330,6 +14336,17 @@ function openReadingTeacher(exId) {
     // v484: destaca o 1.º parágrafo (o que a Eduarda vai ler primeiro)
     _teacher.paragraphCursor = 0;
     _teacherMarkCurrentParagraph(0);
+    // v486: ritmo de paragens — cada paragrafo, de 2 em 2, ou só no fim.
+    _teacher.pauseMode = state.teacherPauseMode || 'each';
+    overlay.querySelectorAll('.teacher-pace-btn').forEach(btn => {
+        if (btn.dataset.pace === _teacher.pauseMode) btn.classList.add('on');
+        btn.addEventListener('click', () => {
+            _teacher.pauseMode = btn.dataset.pace;
+            state.teacherPauseMode = btn.dataset.pace;
+            try { saveState && saveState(); } catch {}
+            overlay.querySelectorAll('.teacher-pace-btn').forEach(b => b.classList.toggle('on', b === btn));
+        });
+    });
 
     // Avisar se Speech Recognition não está disponível
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -14435,6 +14452,7 @@ window._openLeituraText = _openLeituraText;
 function _teacherStop() {
     if (_teacher.watchInterval) { clearInterval(_teacher.watchInterval); _teacher.watchInterval = null; }
     if (typeof _teacherStopSilenceVox === 'function') _teacherStopSilenceVox();
+    if (typeof _teacherStopLiveCursor === 'function') _teacherStopLiveCursor();
     if (_teacher.recognition) {
         try { _teacher.recognition.stop(); } catch {}
         _teacher.recognition = null;
@@ -14787,6 +14805,7 @@ function _teacherStartReadVoxtral(resume) {
         _teacher.voxRec = rec;
         rec.ondataavailable = (e) => { if (e.data && e.data.size) _teacher.voxChunks.push(e.data); };
         rec.onstop = async () => {
+            _teacherStopLiveCursor();
             try { _teacher.voxStream && _teacher.voxStream.getTracks().forEach(t => t.stop()); } catch {}
             _teacher.voxStream = null;
             const blob = new Blob(_teacher.voxChunks, { type: rec.mimeType || mime || 'audio/webm' });
@@ -14805,6 +14824,9 @@ function _teacherStartReadVoxtral(resume) {
             // v485: auto-stop quando detecta silêncio (≥1.6s sem voz). Voxtral
             // recebe o blob automaticamente — sem precisar do botão "Acabei!".
             _teacherWatchSilenceVox(stream);
+            // v486: Web Speech em paralelo só para destacar palavras em tempo
+            // real (cursor). Score final é sempre via Voxtral.
+            _teacherStartLiveCursor();
         } catch (e) {
             console.warn('[teacher] rec.start falhou', e);
             try { stream.getTracks().forEach(t => t.stop()); } catch {}
@@ -14866,6 +14888,74 @@ function _teacherWatchSilenceVox(stream) {
     } catch (e) { console.warn('[teacher] silence watch falhou', e); }
 }
 
+// Web Speech API em paralelo: dá-nos PALAVRAS em tempo real (interim
+// results) que usamos só para destacar a posição do cursor enquanto a
+// Eduarda lê. O score AUTORITATIVO continua a ser o Voxtral no final.
+function _teacherStartLiveCursor() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return; // se não suporta, sem cursor mas Voxtral continua a funcionar
+    try {
+        const r = new SR();
+        r.lang = 'pt-PT';
+        r.continuous = true;
+        r.interimResults = true;
+        r.maxAlternatives = 1;
+        _teacher.cursorSR = r;
+        _teacher.cursorPosInPara = 0;
+        const paraIdx = _teacher.paragraphCursor;
+        const paraStart = paraIdx === 0 ? 0 : (_teacher.paragraphEnds[paraIdx - 1] + 1);
+        const paraEnd = _teacher.paragraphEnds[paraIdx];
+        const expectedPara = _teacher.words.slice(paraStart, paraEnd + 1);
+        const matches = (e, g) => {
+            if (!e || !g) return false;
+            if (e === g) return true;
+            if (e.length >= 3 && g.length >= 3 && (e.startsWith(g) || g.startsWith(e))) return true;
+            return false;
+        };
+        r.onresult = (ev) => {
+            let transcript = '';
+            for (let i = 0; i < ev.results.length; i++) transcript += ev.results[i][0].transcript + ' ';
+            const heard = (transcript.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
+            // Two-pointer: avança até onde o ouvido coincide com o esperado
+            let p = 0;
+            for (let h = 0; h < heard.length && p < expectedPara.length; h++) {
+                let matched = false;
+                for (let look = 0; look <= 2 && (p + look) < expectedPara.length; look++) {
+                    if (matches(expectedPara[p + look], heard[h])) { p = p + look + 1; matched = true; break; }
+                }
+                if (!matched) { /* skip heard token */ }
+            }
+            if (p > _teacher.cursorPosInPara) {
+                _teacher.cursorPosInPara = p;
+                // Marca palavras como "a-ler" no parágrafo actual
+                for (let k = 0; k < expectedPara.length; k++) {
+                    const sp = _teacher.spans[paraStart + k];
+                    if (!sp) continue;
+                    sp.classList.remove('t-reading', 't-cursor');
+                    if (k < p)  sp.classList.add('t-reading');
+                    if (k === p) sp.classList.add('t-cursor');
+                }
+            }
+        };
+        r.onerror = () => { /* silencioso — é só visual */ };
+        r.onend = () => {
+            // re-arranca enquanto Voxtral ainda está a gravar
+            if (_teacher.voxRec && _teacher.voxRec.state !== 'inactive') {
+                try { r.start(); } catch {}
+            }
+        };
+        r.start();
+    } catch (e) { console.warn('[teacher] live cursor falhou', e); }
+}
+
+function _teacherStopLiveCursor() {
+    if (_teacher.cursorSR) {
+        try { _teacher.cursorSR.onend = null; } catch {}
+        try { _teacher.cursorSR.stop(); } catch {}
+        _teacher.cursorSR = null;
+    }
+}
+
 function _teacherStopSilenceVox() {
     if (_teacher.voxSilenceTimer) { clearInterval(_teacher.voxSilenceTimer); _teacher.voxSilenceTimer = null; }
     try { _teacher.voxAnSrc && _teacher.voxAnSrc.disconnect(); } catch {}
@@ -14916,10 +15006,20 @@ function _teacherFinalizeParagraph() {
     _teacher.paraHeardStart = 0; // reset para o próximo
     _teacher.allHeard = [];
     if (!_teacher.askedChecks) _teacher.askedChecks = new Set();
-    const check = _teacher.paragraphChecks.find(c =>
-        (typeof c.afterParagraph === 'number' ? c.afterParagraph : 0) === paraIdx &&
+    // v486: pauseMode determina se paramos para fazer pergunta agora.
+    //   each   → pergunta a cada parágrafo (default)
+    //   every2 → só em parágrafos pares (0, 2, 4...)
+    //   end    → só na última (paragraphCursor === paragraphEnds.length - 1)
+    const mode = _teacher.pauseMode || 'each';
+    const isLast = paraIdx >= (_teacher.paragraphEnds.length - 1);
+    const shouldPause =
+        mode === 'each' ? true :
+        mode === 'every2' ? (paraIdx % 2 === 1 || isLast) :
+        /* end */ isLast;
+    const check = shouldPause ? _teacher.paragraphChecks.find(c =>
+        (typeof c.afterParagraph === 'number' ? c.afterParagraph : 0) <= paraIdx &&
         !_teacher.askedChecks.has(c)
-    );
+    ) : null;
     if (check) {
         _teacher.askedChecks.add(check);
         _teacher.mode = 'paused-check';
@@ -14952,7 +15052,7 @@ function _teacherScoreParagraph(paraIdx) {
         const expected = _teacher.words[e];
         const sp = _teacher.spans[e];
         if (!sp) continue;
-        sp.classList.remove('t-good', 't-bad', 't-current');
+        sp.classList.remove('t-good', 't-bad', 't-current', 't-reading', 't-cursor');
         let matched = false;
         const maxLook = Math.min(heard.length, h + 5);
         for (let hh = h; hh < maxLook; hh++) {
