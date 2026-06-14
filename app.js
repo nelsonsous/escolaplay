@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v482';
+const APP_VERSION = 'v483';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14755,11 +14755,19 @@ function _teacherStartReadVoxtral(resume) {
     const status = document.getElementById('teacher-status');
     const curPara = _teacher.paragraphCursor + 1;
     const totalParas = _teacher.paragraphEnds.length;
-    if (status) status.innerHTML = `🎤 <strong>A gravar</strong> — parágrafo ${curPara}/${totalParas}. Lê em voz alta e carrega <strong>"Acabei!"</strong> no fim.`;
+    if (status) status.innerHTML = `🎤 <strong>A gravar</strong> · parágrafo ${curPara}/${totalParas}`;
     const stopBtn = document.getElementById('teacher-stop-btn');
     const skipBtn = document.getElementById('teacher-skip-btn');
+    const listenBtn = document.getElementById('teacher-listen-btn');
+    const readBtn = document.getElementById('teacher-read-btn');
+    // v483: esconder Ouve/Lê durante a gravação — só Parar + Acabei são úteis.
+    if (listenBtn) listenBtn.style.display = 'none';
+    if (readBtn) readBtn.style.display = 'none';
     if (stopBtn) stopBtn.style.display = '';
     if (skipBtn) { skipBtn.style.display = ''; skipBtn.innerHTML = '✅ Acabei!'; }
+    // Limpa transcrito antigo
+    const liveEl = document.getElementById('teacher-live');
+    if (liveEl) liveEl.innerHTML = '';
 
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         _teacher.voxStream = stream;
@@ -14831,13 +14839,13 @@ async function _teacherTranscribeVoxtral(blob) {
         const text = (data.text || '').trim();
         const heardWords = (text.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
         _teacher.allHeard = heardWords;
+        // v483: já não dump do transcrito — as cores na palavra dizem tudo.
         const liveEl = document.getElementById('teacher-live');
-        if (liveEl) {
-            liveEl.innerHTML = `<span class="teacher-live-label">🎤 Ouvi (Voxtral):</span> <span class="teacher-live-heard">${escapeHtml(text || '(nada)')}</span>`;
-        }
+        if (liveEl) liveEl.innerHTML = '';
+        if (status) status.innerHTML = '';
     } catch (e) {
         console.warn('[teacher] voxtral failed', e);
-        if (status) status.innerHTML = '⚠️ Transcrição falhou. A usar reconhecimento do browser.';
+        if (status) status.innerHTML = '⚠️ Transcrição falhou. Tenta outra vez.';
         _teacher.allHeard = [];
     }
 }
