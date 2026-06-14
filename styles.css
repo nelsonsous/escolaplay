@@ -5411,6 +5411,25 @@ body.has-teacher-overlay #subject-detail-container {
     margin-bottom: 10px;
     line-height: 1.45;
 }
+/* Transcrito ao vivo (o que o microfone ouve) — feedback para a criança
+   perceber quando o ASR está a captar a voz e quando precisa de falar mais alto. */
+.teacher-live {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: #475569;
+    min-height: 36px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+.teacher-live:empty { display: none; }
+.teacher-live-label { font-weight: 700; color: #0e7490; margin-right: 4px; }
+.teacher-live-heard { color: #1e293b; font-style: italic; }
+.teacher-live-expected { color: #94a3b8; }
+.teacher-live-expected strong { color: #db2777; }
 .teacher-controls {
     display: flex;
     gap: 8px;

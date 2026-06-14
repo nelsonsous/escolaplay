@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v478';
+const APP_VERSION = 'v479';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14314,6 +14314,7 @@ function openReadingTeacher(exId) {
             ${tip ? `<div class="teacher-tip">💡 ${escapeHtml(tip)}</div>` : ''}
             <div class="teacher-text" id="teacher-text">${html}</div>
             <div class="teacher-status" id="teacher-status"></div>
+            <div class="teacher-live" id="teacher-live"></div>
             <div class="teacher-controls">
                 <button class="teacher-btn teacher-btn-listen" id="teacher-listen-btn" onclick="_teacherListen()">🎓 Ouve o professor</button>
                 <button class="teacher-btn teacher-btn-read" id="teacher-read-btn" onclick="_teacherStartRead()">🎤 Agora lê tu</button>
@@ -14643,6 +14644,16 @@ function _teacherStartRead(resume) {
             transcript += event.results[i][0].transcript + ' ';
         }
         const heardWords = (transcript.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
+        // v479: mostrar transcrito ao vivo (últimas 8 palavras) — ajuda a
+        // perceber se o microfone está a captar bem.
+        const liveEl = document.getElementById('teacher-live');
+        if (liveEl) {
+            const tail = heardWords.slice(-8).join(' ');
+            const expected = _teacher.words[_teacher.position] || '';
+            liveEl.innerHTML = tail
+                ? `<span class="teacher-live-label">🎤 Ouvi:</span> <span class="teacher-live-heard">${escapeHtml(tail)}</span>${expected ? `<span class="teacher-live-expected"> · esperava <strong>${escapeHtml(expected)}</strong></span>` : ''}`
+                : '';
+        }
         _teacherMatchHeard(heardWords);
     };
     r.onerror = (ev) => {
