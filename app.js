@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v486';
+const APP_VERSION = 'v487';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -14307,10 +14307,11 @@ function openReadingTeacher(exId) {
             ${(() => {
                 const hasKey = !!(state.max && state.max.mistralKey);
                 return hasKey
-                    ? '<div class="teacher-stt-badge teacher-stt-ok">🤖 Mistral Voxtral activo · STT de alta qualidade</div>'
+                    ? ''  // v487: sem badge quando ok — texto ganha espaço
                     : '<div class="teacher-stt-badge teacher-stt-warn">⚠️ Sem chave Mistral — configura em Perfil → MAX antes de ler</div>';
             })()}
-            ${tip ? `<div class="teacher-tip">💡 ${escapeHtml(tip)}</div>` : ''}
+            ${tip ? `<details class="teacher-tip"><summary>💡 Dica</summary><div class="teacher-tip-body">${escapeHtml(tip)}</div></details>` : ''}
+            <div class="teacher-mode-banner" id="teacher-mode-banner">📖 Carrega <strong>🎓 Ouve o professor</strong> ou <strong>🎤 Agora lê tu</strong></div>
             <div class="teacher-pace-select" id="teacher-pace-select">
                 Paragens:
                 <button data-pace="each" class="teacher-pace-btn">cada parágrafo</button>
@@ -14479,6 +14480,7 @@ function _teacherStop() {
     if (readBtn) readBtn.style.display = '';
     const status = document.getElementById('teacher-status');
     if (status) status.textContent = '';
+    if (typeof _teacherSetModeBanner === 'function') _teacherSetModeBanner('idle');
 }
 
 // Salta a palavra atual: avança position +1, marca como good (assume que a
@@ -14577,38 +14579,65 @@ window._teacherStartReadWatcher = _teacherStartReadWatcher;
 // por tempo (~380ms por palavra) já que o Edge TTS retorna MP3 sem boundary.
 function _teacherListen() {
     _teacherStop();
-    _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current'); });
+    _teacher.spans.forEach(s => { s.classList.remove('t-good', 't-bad', 't-current', 't-reading', 't-cursor'); });
     _teacher.position = 0;
     _teacher.mode = 'listen';
+    // v487: o karaoke palavra-a-palavra por tempo (~380ms/word) NÃO bate certo
+    // com o áudio do TTS — vozes diferentes têm pacing diferente. Em vez de
+    // tentar sincronizar, destacamos o PARÁGRAFO actual (já é claro qual é) e
+    // deixamos o áudio passar. Sem cursor falso.
+    _teacher.paragraphCursor = 0;
+    _teacherMarkCurrentParagraph(0);
+    _teacherSetModeBanner('listen');
     const status = document.getElementById('teacher-status');
-    if (status) status.innerHTML = '🔊 <strong>O professor está a ler...</strong> Acompanha com os olhos!';
-    document.getElementById('teacher-stop-btn').style.display = '';
+    if (status) status.innerHTML = '🔊 <strong>O professor está a ler...</strong> Segue com os olhos no parágrafo destacado.';
+    const stopBtn = document.getElementById('teacher-stop-btn');
+    const listenBtn = document.getElementById('teacher-listen-btn');
+    const readBtn = document.getElementById('teacher-read-btn');
+    if (stopBtn) stopBtn.style.display = '';
+    if (listenBtn) listenBtn.style.display = 'none';
+    if (readBtn) readBtn.style.display = 'none';
 
     if (typeof ttsSpeak !== 'function') {
         if (status) status.textContent = 'Voz não disponível neste browser.';
         return;
     }
+    // Áudio do parágrafo actual (não o texto inteiro) — avança parágrafo a
+    // parágrafo via TTS.onend (ou fallback de duração).
+    _teacherListenPara(0);
+}
 
-    // Inicia karaoke por tempo (~380ms/palavra). Para se a Eduarda tocar Parar.
-    const stepMs = 380;
-    let i = 0;
-    const tick = () => {
-        if (_teacher.mode !== 'listen' || i >= _teacher.words.length) {
-            if (_teacher.mode === 'listen') {
-                _teacherHighlightAll();
-                _teacherStop();
-                if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
-            }
-            return;
-        }
-        _teacherHighlight(i);
-        i++;
-        setTimeout(tick, stepMs);
+function _teacherListenPara(paraIdx) {
+    if (_teacher.mode !== 'listen') return;
+    _teacher.paragraphCursor = paraIdx;
+    _teacherMarkCurrentParagraph(paraIdx);
+    if (paraIdx >= _teacher.paragraphEnds.length) {
+        // acabou
+        _teacher.spans.forEach(sp => sp.classList.add('t-good'));
+        _teacherStop();
+        const status = document.getElementById('teacher-status');
+        if (status) status.innerHTML = '✅ <strong>Acabou!</strong> Agora tenta tu — toca em 🎤.';
+        _teacherSetModeBanner('idle');
+        return;
+    }
+    const paraStart = paraIdx === 0 ? 0 : (_teacher.paragraphEnds[paraIdx - 1] + 1);
+    const paraEnd = _teacher.paragraphEnds[paraIdx];
+    const paraText = _teacher.words.slice(paraStart, paraEnd + 1).join(' ');
+    // Estimativa: ~380ms/palavra é um bom fallback caso TTS não dispare onend.
+    const fallbackMs = (paraEnd - paraStart + 1) * 420 + 1200;
+    let advanced = false;
+    const next = () => {
+        if (advanced || _teacher.mode !== 'listen') return;
+        advanced = true;
+        _teacherListenPara(paraIdx + 1);
     };
-    setTimeout(tick, 300); // pequeno delay para o áudio começar
-
-    // Dispara o áudio (assíncrono — usa proxy Edge TTS Raquel se configurado).
-    try { ttsSpeak(_teacher.text); } catch (e) { console.warn('[teacher] tts failed', e); }
+    try {
+        ttsSpeak(paraText, { onend: next });
+        setTimeout(next, fallbackMs);
+    } catch (e) {
+        console.warn('[teacher] tts failed', e);
+        setTimeout(next, 800);
+    }
 }
 window._teacherListen = _teacherListen;
 
@@ -14767,6 +14796,7 @@ function _teacherStartReadVoxtral(resume) {
     }
     _teacher.mode = 'read';
     _teacher.voxChunks = [];
+    _teacherSetModeBanner('read');
     const status = document.getElementById('teacher-status');
     const curPara = _teacher.paragraphCursor + 1;
     const totalParas = _teacher.paragraphEnds.length;
@@ -14948,6 +14978,27 @@ function _teacherStartLiveCursor() {
     } catch (e) { console.warn('[teacher] live cursor falhou', e); }
 }
 
+// Banner grande que mostra o estado actual de forma clara à criança.
+function _teacherSetModeBanner(mode) {
+    const el = document.getElementById('teacher-mode-banner');
+    if (!el) return;
+    el.classList.remove('mode-idle', 'mode-listen', 'mode-read', 'mode-pause');
+    if (mode === 'listen') {
+        el.classList.add('mode-listen');
+        el.innerHTML = '👂 <strong>Ouve o professor</strong> — segue com os olhos no parágrafo destacado';
+    } else if (mode === 'read') {
+        el.classList.add('mode-read');
+        el.innerHTML = '🎤 <strong>Agora lê tu</strong> — em voz alta. Quando fizeres pausa, eu avanço sozinho';
+    } else if (mode === 'pause') {
+        el.classList.add('mode-pause');
+        el.innerHTML = '⏸ <strong>Pausa</strong> — responde à pergunta para continuar';
+    } else {
+        el.classList.add('mode-idle');
+        el.innerHTML = '📖 Carrega <strong>🎓 Ouve o professor</strong> ou <strong>🎤 Agora lê tu</strong>';
+    }
+}
+window._teacherSetModeBanner = _teacherSetModeBanner;
+
 function _teacherStopLiveCursor() {
     if (_teacher.cursorSR) {
         try { _teacher.cursorSR.onend = null; } catch {}
@@ -15023,6 +15074,7 @@ function _teacherFinalizeParagraph() {
     if (check) {
         _teacher.askedChecks.add(check);
         _teacher.mode = 'paused-check';
+        _teacherSetModeBanner('pause');
         _teacherShowParagraphCheck(check);
     } else {
         _teacherAdvanceParagraph();
@@ -15110,6 +15162,7 @@ function _teacherEndParagraph() {
     if (check) {
         _teacher.askedChecks.add(check);
         _teacher.mode = 'paused-check';
+        _teacherSetModeBanner('pause');
         _teacherShowParagraphCheck(check);
     } else {
         _teacherAdvanceParagraph();
