@@ -5887,6 +5887,17 @@ body.has-teacher-overlay #subject-detail-container {
     50%      { box-shadow: 0 6px 28px 2px rgba(245, 158, 11, 0.85), inset 0 1px 0 rgba(255,255,255,0.25); }
 }
 
+/* Card "Férias" no grid de disciplinas — destaca-se com gradiente solar. */
+.quick-subject-holiday {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+    border: 1px solid #fbbf24 !important;
+}
+.quick-subject-holiday .qs-icon-wrap {
+    background: linear-gradient(135deg, #fbbf24, #d97706) !important;
+    color: #fff !important;
+}
+.quick-subject-holiday .qs-name { color: #92400e !important; }
+
 .holiday-entry-btn {
     display: flex;
     align-items: center;
