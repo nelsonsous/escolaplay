@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v489';
+const APP_VERSION = 'v490';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4991,6 +4991,7 @@ function openTutor(opts) {
     }
     _tutorAddTutor(opener, null, null);
     if (!isSubjectMode) {
+        _tutorRenderCoachOfTheDay();
         _tutorRenderDailyLesson();
         _tutorRenderWeak();
         _tutorRenderReviewPrompt();
@@ -5779,6 +5780,270 @@ function _tutorRenderDailyLesson() {
       </div>`);
     _tutorScroll();
 }
+
+// ============================================================
+// COACH MODE — orquestra Writing, Pronunciation, Vocab, Roleplay
+// num único fluxo dentro do tutor. Foco B2→C1+ (config via chip de nível).
+// ============================================================
+function _tutorTargetLevel() {
+    const lv = (state && state.tutorTargetLevel) || '';
+    if (['A2','B1','B2','C1','C2'].includes(lv)) return lv;
+    // Default por perfil: ano 99 (Profissional) → B2; senão B1.
+    const p = (typeof activeProfile === 'function' && activeProfile()) || {};
+    return p.year === 99 ? 'B2' : 'B1';
+}
+function _tutorSetTargetLevel(lv) {
+    if (!['A2','B1','B2','C1','C2'].includes(lv)) return;
+    if (!state) return;
+    state.tutorTargetLevel = lv;
+    try { saveState && saveState(); } catch {}
+    showToast && showToast('Nível-alvo: ' + lv);
+    // Re-renderiza o card do coach
+    document.getElementById('tutor-coach-card')?.remove();
+    _tutorRenderCoachOfTheDay();
+}
+window._tutorSetTargetLevel = _tutorSetTargetLevel;
+
+// Card "Coach do dia" no topo do chat: 4 ações + chip de nível.
+function _tutorRenderCoachOfTheDay() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    document.getElementById('tutor-coach-card')?.remove();
+    const lv = _tutorTargetLevel();
+    const levels = ['B1','B2','C1','C2'];
+    const lvChips = levels.map(l =>
+        `<button class="tutor-coach-lv ${l===lv?'on':''}" onclick="_tutorSetTargetLevel('${l}')">${l}</button>`
+    ).join('');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them" id="tutor-coach-card"><div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-coach">
+          <div class="tutor-coach-h">🎯 Coach of the day — target <b>${lv}</b></div>
+          <div class="tutor-coach-lvs">${lvChips}</div>
+          <div class="tutor-coach-acts">
+            <button class="tutor-coach-act act-write" onclick="_tutorCoachWriting()">📝 <b>Writing</b><small>100 words + rubric</small></button>
+            <button class="tutor-coach-act act-pron" onclick="_tutorCoachPron()">🗣️ <b>Pronunciation</b><small>read & get feedback</small></button>
+            <button class="tutor-coach-act act-vocab" onclick="_tutorCoachVocab()">📚 <b>Collocations</b><small>10 at your level</small></button>
+            <button class="tutor-coach-act act-role" onclick="_tutorCoachRoleplay()">💬 <b>Roleplay</b><small>${lv} scenario</small></button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+window._tutorRenderCoachOfTheDay = _tutorRenderCoachOfTheDay;
+
+// === WRITING COACH ===
+// Mostra um prompt, abre textarea, envia a Mistral com rubric C1 e devolve
+// feedback estruturado (Task / Coherence / Range / Accuracy + 3 upgrades).
+async function _tutorCoachWriting() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const lv = _tutorTargetLevel();
+    const prompts = {
+        B1: ['Describe a problem you solved at work recently.', 'A friend asks for travel tips for your city — write a reply.'],
+        B2: ['Should AI replace junior office jobs? Argue your view.', 'Write a polite email refusing a meeting and proposing an alternative.'],
+        C1: ['"Working from home erodes team culture." Discuss to what extent you agree.', 'Write a 150-word executive summary of a recent challenge you faced.'],
+        C2: ['Critique the claim that LLMs are merely "stochastic parrots".', 'Argue for or against four-day work weeks, weighing macro and micro impacts.']
+    };
+    const opts = prompts[lv] || prompts.B2;
+    const prompt = opts[Math.floor(Math.random() * opts.length)];
+    const tid = 'coach-write-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">📝</div>
+        <div class="tutor-coach-task">
+          <div class="tutor-coach-task-h">📝 Writing · ${lv} · 100–150 words</div>
+          <div class="tutor-coach-task-p">${escapeHtml(prompt)}</div>
+          <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="Start writing here…" rows="6"></textarea>
+          <div class="tutor-coach-task-bar">
+            <span id="${tid}-count" class="tutor-coach-count">0 words</span>
+            <button class="tutor-coach-submit" onclick="_tutorCoachWritingSubmit('${tid}', ${JSON.stringify(prompt).replace(/"/g,'&quot;').replace(/'/g,"\\'")}, '${lv}')">Get feedback →</button>
+          </div>
+        </div>
+      </div>`);
+    const ta = document.getElementById(tid + '-ta');
+    const counter = document.getElementById(tid + '-count');
+    if (ta && counter) {
+        ta.addEventListener('input', () => {
+            const w = (ta.value.match(/\S+/g) || []).length;
+            counter.textContent = w + ' words';
+            counter.style.color = (w >= 100 && w <= 180) ? '#16a34a' : '#94a3b8';
+        });
+    }
+    _tutorScroll();
+}
+window._tutorCoachWriting = _tutorCoachWriting;
+
+async function _tutorCoachWritingSubmit(tid, prompt, lv) {
+    const ta = document.getElementById(tid + '-ta');
+    const submit = document.querySelector(`#${tid}-ta + .tutor-coach-task-bar .tutor-coach-submit`) ||
+                   document.querySelector(`.tutor-coach-submit`);
+    if (!ta) return;
+    const text = (ta.value || '').trim();
+    if (text.length < 30) { showToast && showToast('Write at least 30 characters'); return; }
+    if (submit) { submit.disabled = true; submit.textContent = 'Grading…'; }
+    const sys = `You are a strict CEFR examiner grading writing at level ${lv}. Return ONLY a JSON object (no prose) with keys: task (0-5), coherence (0-5), range (0-5), accuracy (0-5), overall (one of A2/B1/B2/C1/C2), feedback (markdown string, 4 short bullets, in English, focused on UPGRADES to next level), corrections (array of {original, better, reason}). Pick 3 corrections max — the most impactful ones.`;
+    const usr = `Prompt: ${prompt}\n\nStudent answer:\n${text}`;
+    try {
+        const json = await _askMistralJSON(sys, usr);
+        _tutorAddTutor(_tutorRenderWritingFeedback(json, lv));
+        if (submit) submit.remove();
+        ta.readOnly = true;
+    } catch (e) {
+        _tutorAddTutor('⚠️ Could not grade — try again.');
+        if (submit) { submit.disabled = false; submit.textContent = 'Get feedback →'; }
+    }
+}
+window._tutorCoachWritingSubmit = _tutorCoachWritingSubmit;
+
+function _tutorRenderWritingFeedback(j, lv) {
+    if (!j || typeof j !== 'object') return 'Feedback unavailable.';
+    const star = (n) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+    const corr = Array.isArray(j.corrections) ? j.corrections.slice(0, 3) : [];
+    const corrHtml = corr.map(c =>
+        `<li><span class="tcw-bad">${escapeHtml(c.original || '')}</span> → <span class="tcw-good">${escapeHtml(c.better || '')}</span><br><small>${escapeHtml(c.reason || '')}</small></li>`
+    ).join('');
+    return `📝 **Writing feedback** · target ${lv} · grade **${escapeHtml(j.overall || '?')}**
+
+| Criterion | Score |
+|---|---|
+| Task | ${star(+j.task||0)} |
+| Coherence | ${star(+j.coherence||0)} |
+| Range | ${star(+j.range||0)} |
+| Accuracy | ${star(+j.accuracy||0)} |
+
+${j.feedback || ''}
+
+${corr.length ? `**Upgrades:**\n<ul class="tcw-corr">${corrHtml}</ul>` : ''}`;
+}
+
+// === PRONUNCIATION DRILL ===
+// Mostra uma frase ao nível, ouve a leitura via Voxtral, compara, devolve feedback.
+async function _tutorCoachPron() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const lv = _tutorTargetLevel();
+    const banks = {
+        B1: [
+            "If I had more time, I would learn another language.",
+            "The meeting has been postponed until next Tuesday."
+        ],
+        B2: [
+            "Although the proposal looks promising, it's not without risks.",
+            "I'd rather not commit to a date before checking with the team."
+        ],
+        C1: [
+            "Had I known the deadline was so tight, I would have escalated sooner.",
+            "Not only did we hit the target, but we also exceeded our forecast."
+        ],
+        C2: [
+            "Were it not for the board's intervention, the merger would have collapsed.",
+            "It is precisely the unpredictable nature of innovation that makes it so valuable."
+        ]
+    };
+    const opts = banks[lv] || banks.B2;
+    const sentence = opts[Math.floor(Math.random() * opts.length)];
+    const tid = 'coach-pron-' + Date.now();
+    tutorState._pron = { tid, sentence, lv };
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🗣️</div>
+        <div class="tutor-coach-task">
+          <div class="tutor-coach-task-h">🗣️ Pronunciation · ${lv}</div>
+          <div class="tutor-coach-task-p"><b>Read aloud:</b><br>"${escapeHtml(sentence)}"</div>
+          <div class="tutor-coach-pron-hint">Tap 🎤 below to record. I'll listen, transcribe, and give you feedback on linking, stress and weak forms.</div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    showToast && showToast('Tap the mic to record');
+}
+window._tutorCoachPron = _tutorCoachPron;
+
+// _tutorTranscribeVoxtral chama _tutorEvalPron quando tutorState._pron está activo.
+async function _tutorEvalPron(heard) {
+    if (!tutorState || !tutorState._pron) return;
+    const { sentence, lv } = tutorState._pron;
+    tutorState._pron = null;
+    const sys = `You are a CEFR examiner at level ${lv}. Compare a target sentence to a student's spoken attempt. Return ONLY JSON with keys: matchPct (0-100 estimate), correctWords (array of words present), missedWords (array missing), score (one of A2/B1/B2/C1/C2), feedback (markdown, 3 bullets about pronunciation: linking, weak forms, stress).`;
+    const usr = `Target: "${sentence}"\nStudent said: "${heard}"`;
+    _tutorAddTutor('🎧 Analysing your pronunciation…');
+    try {
+        const j = await _askMistralJSON(sys, usr);
+        const star = (n) => '★'.repeat(Math.round(n/20)) + '☆'.repeat(5 - Math.round(n/20));
+        _tutorAddTutor(`🗣️ **Pronunciation feedback** · target ${lv} · grade **${escapeHtml(j.overall || j.score || '?')}**
+
+You said: _"${escapeHtml(heard)}"_
+
+**Match:** ${star(j.matchPct||0)} ${j.matchPct||0}%
+
+${j.feedback || ''}`);
+    } catch (e) {
+        _tutorAddTutor('⚠️ Could not analyse — try again.');
+    }
+}
+window._tutorEvalPron = _tutorEvalPron;
+
+// === COLLOCATIONS DRILL ===
+// Pede 10 collocations ao nível, com exemplos e drills cloze.
+async function _tutorCoachVocab() {
+    const lv = _tutorTargetLevel();
+    _tutorAddTutor('📚 Generating 10 ' + lv + ' collocations for you…');
+    const sys = `You are an English teacher building a ${lv} collocations sheet. Return ONLY JSON with key "items" — an array of 10 objects: {collocation, meaning, example, register}. Avoid A1/A2 basics. Pick collocations and phrasal verbs that are notably ${lv}, varying across business, academic and conversational registers.`;
+    const usr = `Generate 10 ${lv}-level collocations now.`;
+    try {
+        const j = await _askMistralJSON(sys, usr);
+        const items = (j && Array.isArray(j.items)) ? j.items.slice(0,10) : [];
+        if (!items.length) throw new Error('no items');
+        const list = items.map((it,i) => `**${i+1}. ${escapeHtml(it.collocation||'')}** _(${escapeHtml(it.register||lv)})_
+   ${escapeHtml(it.meaning||'')}
+   _Example:_ ${escapeHtml(it.example||'')}`).join('\n\n');
+        _tutorAddTutor(`📚 **${lv} collocations · today's 10**\n\n${list}\n\nTry using 3 of these in your next message and I'll check.`);
+        // Guarda em state para uso futuro em weak/review
+        if (!state.tutorVocabHistory) state.tutorVocabHistory = [];
+        state.tutorVocabHistory.push({ lv, items, at: Date.now() });
+        if (state.tutorVocabHistory.length > 50) state.tutorVocabHistory.shift();
+        try { saveState && saveState(); } catch {}
+    } catch (e) {
+        _tutorAddTutor('⚠️ Could not generate vocab — try again.');
+    }
+}
+window._tutorCoachVocab = _tutorCoachVocab;
+
+// === ROLEPLAY ===
+// Reutiliza o existing _tutorRenderRoleplayPrompt (que já é nivelado).
+function _tutorCoachRoleplay() {
+    if (typeof _tutorRenderRoleplayPrompt === 'function') _tutorRenderRoleplayPrompt();
+}
+window._tutorCoachRoleplay = _tutorCoachRoleplay;
+
+// Helper genérico: chama Mistral pedindo JSON e devolve-o já parseado.
+async function _askMistralJSON(sys, usr) {
+    if (typeof _askMistral === 'function') {
+        const raw = await _askMistral(usr, sys);
+        // Tenta extrair {...} mesmo que venha embrulhado em ```json
+        const m = String(raw || '').match(/\{[\s\S]*\}/);
+        if (m) try { return JSON.parse(m[0]); } catch {}
+    }
+    // Fallback directo: usa o endpoint Mistral com response_format json_object
+    const key = state.max && state.max.mistralKey;
+    if (!key) throw new Error('no key');
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
+        body: JSON.stringify({
+            model: 'mistral-large-latest',
+            messages: [
+                { role: 'system', content: sys },
+                { role: 'user', content: usr }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.4
+        })
+    });
+    if (!res.ok) throw new Error('mistral ' + res.status);
+    const data = await res.json();
+    const txt = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    return JSON.parse(txt || '{}');
+}
+window._askMistralJSON = _askMistralJSON;
+
 function _tutorLearnTopicBtn(el) {
     const t = el && el.dataset && el.dataset.topic;
     if (!t) return;
