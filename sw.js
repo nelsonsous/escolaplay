@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v489';
+const CACHE_NAME = 'escolaplay-v490';
 const ASSETS = [
     '/escolaplay/',
     '/escolaplay/index.html',
