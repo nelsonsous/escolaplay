@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v491';
+const APP_VERSION = 'v492';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5824,7 +5824,17 @@ function _tutorRenderCoachDashboard() {
     ];
     const today = new Date();
     const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
-    const todayIdx = dayOfYear % skills.length;
+    let todayIdx = dayOfYear % skills.length;
+    // Se a skill do dia não tiver dados ainda (mistakes sem erros, lesson no topo),
+    // roda para a próxima skill útil — senão o "Start →" parece partido.
+    const hasData = (id) => {
+        if (id === 'mistakes') return (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1).length > 0;
+        if (id === 'lesson')   return (typeof _tutorNextLadderTopic === 'function') && !!_tutorNextLadderTopic();
+        return true;
+    };
+    for (let i = 0; i < skills.length && !hasData(skills[todayIdx].id); i++) {
+        todayIdx = (todayIdx + 1) % skills.length;
+    }
     const todaySkill = skills[todayIdx];
     // Estado: skills feitos esta semana (segunda como início)
     const wkKey = (() => {
@@ -5868,8 +5878,12 @@ function _tutorRenderCoachDashboard() {
 }
 window._tutorRenderCoachDashboard = _tutorRenderCoachDashboard;
 
-// Dispatcher: marca como feito hoje e chama a função correspondente.
+// Dispatcher: re-rendera o dashboard primeiro (para o conteúdo novo da skill
+// aparecer ABAIXO dele), marca como feito hoje, faz pre-checks para os casos
+// em que a função alvo retorna silenciosamente, e cai em fallback se mesmo
+// assim nada aparece.
 function _tutorCoachStart(skillId) {
+    const chat = document.getElementById('tutor-chat');
     const wkKey = (() => {
         const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
         return d.toISOString().slice(0, 10);
@@ -5878,6 +5892,18 @@ function _tutorCoachStart(skillId) {
     if (!state.tutorSkillsDone[wkKey]) state.tutorSkillsDone[wkKey] = {};
     state.tutorSkillsDone[wkKey][skillId] = true;
     try { saveState && saveState(); } catch {}
+    // Move o dashboard para baixo do chat antes da skill renderizar.
+    _tutorRenderCoachDashboard();
+    // Pre-checks dos dois únicos casos que silenciosamente fazem nada.
+    if (skillId === 'mistakes' && (typeof _tutorTopWeak !== 'function' || _tutorTopWeak(1).length === 0)) {
+        _tutorAddTutor("🎯 No tracked mistakes yet — do some **Writing** or **Roleplay** first and I'll learn what to drill. (Tip: today try Writing — it auto-graded errors will feed this list.)");
+        return;
+    }
+    if (skillId === 'lesson' && (typeof _tutorNextLadderTopic !== 'function' || !_tutorNextLadderTopic())) {
+        _tutorAddTutor("🪜 You're at the top of the ladder! Try **Roleplay** or **Writing** for free-form practice at your level.");
+        return;
+    }
+    const rowsBefore = chat ? chat.querySelectorAll('.tutor-row').length : 0;
     const map = {
         writing: _tutorCoachWriting,
         pron: _tutorCoachPron,
@@ -5891,7 +5917,15 @@ function _tutorCoachStart(skillId) {
     if (typeof fn === 'function') {
         try { fn(); } catch (e) { console.warn('[coach] start failed', e); }
     }
-    setTimeout(() => _tutorRenderCoachDashboard(), 50);
+    // Safety net: se nada visível foi renderizado E não abriu overlay (review),
+    // avisa em vez de deixar o user a olhar para um dashboard sem reacção.
+    setTimeout(() => {
+        const rowsAfter = chat ? chat.querySelectorAll('.tutor-row').length : 0;
+        const hasOverlay = !!document.getElementById('review-overlay');
+        if (rowsAfter <= rowsBefore && !hasOverlay) {
+            _tutorAddTutor("Hmm, nothing to load for that right now. Try a different skill.");
+        }
+    }, 250);
 }
 window._tutorCoachStart = _tutorCoachStart;
 
