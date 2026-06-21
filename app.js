@@ -5834,7 +5834,6 @@ function _tutorRenderCoachDashboard() {
     const done = (state.tutorSkillsDone && state.tutorSkillsDone[wkKey]) || {};
     const doneCount = Object.keys(done).filter(k => done[k]).length;
     const userLvl = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
-    // Chips das outras skills (incluindo "today" mas com marca)
     const allChips = skills.map(s => {
         const isToday = s.id === todaySkill.id;
         const isDone  = !!done[s.id];
@@ -5892,12 +5891,11 @@ function _tutorCoachStart(skillId) {
     if (typeof fn === 'function') {
         try { fn(); } catch (e) { console.warn('[coach] start failed', e); }
     }
-    // Re-render do dashboard para mostrar a marca de "feito"
     setTimeout(() => _tutorRenderCoachDashboard(), 50);
 }
 window._tutorCoachStart = _tutorCoachStart;
 
-// Card "Coach do dia" antigo (v490) — mantém alias para compatibilidade.
+// Alias retrocompatível com v490.
 function _tutorRenderCoachOfTheDay() { return _tutorRenderCoachDashboard(); }
 window._tutorRenderCoachOfTheDay = _tutorRenderCoachOfTheDay;
 
