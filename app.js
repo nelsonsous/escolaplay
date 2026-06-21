@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v487';
+const APP_VERSION = 'v488';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -964,6 +964,9 @@ function _flashStreakChip() {
 
 // ========== HOME ==========
 function renderHome() {
+    // v488: garante que o botão "Plano de Férias" é injectado já no
+    // primeiro render (sem esperar pelo interval de 1.5s).
+    try { if (typeof _holidayInjectTry === 'function') _holidayInjectTry(); } catch {}
     // Cartão "Falar com o Professor" (English Tutor) só faz sentido para o perfil de ano 99.
     const _homeTutorCard = document.getElementById('home-tutor-card');
     if (_homeTutorCard) {
@@ -15768,8 +15771,9 @@ function _injectHolidayButton() {
         document.body.appendChild(fab);
         console.log('[holiday] FAB injectado | year=' + year + ' | targetYear=' + targetYear);
     }
-    // Variante inline (no main-screen, depois do hero-card) — opcional, só
-    // se possível. Não bloqueia o FAB.
+    // Variante inline (no main-screen) — inserir antes do quick-subjects
+    // (a grelha "COMEÇA POR AQUI"). Sobrevive a re-renders porque o
+    // _holidayInjectTry corre num interval.
     if (document.getElementById('holiday-entry-btn')) return;
     const main = document.getElementById('main-screen');
     if (!main) return;
@@ -15778,11 +15782,18 @@ function _injectHolidayButton() {
     btn.className = 'holiday-entry-btn';
     btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>${label}</small></span><span class="he-arrow">›</span>`;
     btn.onclick = () => openHolidayPlan(targetYear);
-    const hero = main.querySelector('.hero-card');
-    if (hero && hero.parentNode) {
-        hero.parentNode.insertBefore(btn, hero.nextSibling);
+    // Tenta inserir antes do quick-subjects (grelha de disciplinas);
+    // fallback: antes do hero-card, ou no início do main-screen.
+    const quick = main.querySelector('#quick-subjects');
+    if (quick && quick.parentNode) {
+        // sobe até ao .section-title irmão se existir
+        const titleEl = quick.previousElementSibling;
+        const insertBefore = (titleEl && titleEl.classList && titleEl.classList.contains('section-title')) ? titleEl : quick;
+        insertBefore.parentNode.insertBefore(btn, insertBefore);
     } else {
-        main.insertBefore(btn, main.firstChild);
+        const hero = main.querySelector('.hero-card');
+        if (hero && hero.parentNode) hero.parentNode.insertBefore(btn, hero.nextSibling);
+        else main.insertBefore(btn, main.firstChild);
     }
     console.log('[holiday] inline button injectado');
 }
