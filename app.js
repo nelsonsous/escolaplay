@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v490';
+const APP_VERSION = 'v491';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4991,11 +4991,7 @@ function openTutor(opts) {
     }
     _tutorAddTutor(opener, null, null);
     if (!isSubjectMode) {
-        _tutorRenderCoachOfTheDay();
-        _tutorRenderDailyLesson();
-        _tutorRenderWeak();
-        _tutorRenderReviewPrompt();
-        _tutorRenderRoleplayPrompt();
+        _tutorRenderCoachDashboard();
         _tutorUpdateReviewBadge();
     }
     _tutorRenderMic();
@@ -5804,8 +5800,10 @@ function _tutorSetTargetLevel(lv) {
 }
 window._tutorSetTargetLevel = _tutorSetTargetLevel;
 
-// Card "Coach do dia" no topo do chat: 4 ações + chip de nível.
-function _tutorRenderCoachOfTheDay() {
+// Card "Coach Dashboard" — único hub do tutor de Inglês. Substitui
+// Lesson of the day / Practise my mistakes / Review now / Roleplay
+// num só ecrã com chip de nível + skill do dia + 6 chips de skills.
+function _tutorRenderCoachDashboard() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     document.getElementById('tutor-coach-card')?.remove();
@@ -5814,21 +5812,91 @@ function _tutorRenderCoachOfTheDay() {
     const lvChips = levels.map(l =>
         `<button class="tutor-coach-lv ${l===lv?'on':''}" onclick="_tutorSetTargetLevel('${l}')">${l}</button>`
     ).join('');
+    // Skill do dia — rotação por dia-do-ano para variar sem repetir.
+    const skills = [
+        { id: 'writing',  emoji: '📝', title: 'Writing',       sub: '100-150 words + AI rubric (Task/Coherence/Range/Accuracy)', fn: '_tutorCoachWriting()' },
+        { id: 'pron',     emoji: '🗣️', title: 'Pronunciation', sub: 'Read aloud · Voxtral STT · linking/stress feedback',         fn: '_tutorCoachPron()' },
+        { id: 'vocab',    emoji: '📚', title: 'Collocations',  sub: '10 collocations + phrasal verbs at your level',              fn: '_tutorCoachVocab()' },
+        { id: 'roleplay', emoji: '💬', title: 'Roleplay',      sub: 'Kickoff · Status · Escalation · Demo · 1:1 (meeting practice)', fn: '_tutorRenderRoleplayPrompt()' },
+        { id: 'mistakes', emoji: '🎯', title: 'Mistakes',      sub: 'Drill topics where you got things wrong',                    fn: '_tutorRenderWeak()' },
+        { id: 'lesson',   emoji: '🪜', title: 'Lesson',        sub: 'Next topic on the CEFR ladder (' + lv + ')',                fn: '_tutorRenderDailyLesson()' },
+        { id: 'review',   emoji: '🔁', title: 'Review',        sub: 'Spaced repetition cards in your phrasebook',                 fn: '_tutorOpenReview()' }
+    ];
+    const today = new Date();
+    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+    const todayIdx = dayOfYear % skills.length;
+    const todaySkill = skills[todayIdx];
+    // Estado: skills feitos esta semana (segunda como início)
+    const wkKey = (() => {
+        const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
+        return d.toISOString().slice(0, 10);
+    })();
+    const done = (state.tutorSkillsDone && state.tutorSkillsDone[wkKey]) || {};
+    const doneCount = Object.keys(done).filter(k => done[k]).length;
+    const userLvl = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
+    const allChips = skills.map(s => {
+        const isToday = s.id === todaySkill.id;
+        const isDone  = !!done[s.id];
+        const cls = isToday ? 'today' : (isDone ? 'done' : '');
+        return `<button class="tutor-coach-skill ${cls}" onclick="_tutorCoachStart('${s.id}')" title="${escapeHtml(s.sub)}">
+            <span class="cs-em">${s.emoji}</span>
+            <span class="cs-tt">${s.title}</span>
+            ${isDone ? '<span class="cs-ok">✓</span>' : ''}
+        </button>`;
+    }).join('');
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them" id="tutor-coach-card"><div class="tutor-bubble-av">🎯</div>
         <div class="tutor-coach">
-          <div class="tutor-coach-h">🎯 Coach of the day — target <b>${lv}</b></div>
-          <div class="tutor-coach-lvs">${lvChips}</div>
-          <div class="tutor-coach-acts">
-            <button class="tutor-coach-act act-write" onclick="_tutorCoachWriting()">📝 <b>Writing</b><small>100 words + rubric</small></button>
-            <button class="tutor-coach-act act-pron" onclick="_tutorCoachPron()">🗣️ <b>Pronunciation</b><small>read & get feedback</small></button>
-            <button class="tutor-coach-act act-vocab" onclick="_tutorCoachVocab()">📚 <b>Collocations</b><small>10 at your level</small></button>
-            <button class="tutor-coach-act act-role" onclick="_tutorCoachRoleplay()">💬 <b>Roleplay</b><small>${lv} scenario</small></button>
+          <div class="tutor-coach-head">
+            <div class="tutor-coach-h">🎯 Your Coach</div>
+            <div class="tutor-coach-meta">progress ladder: <b>${escapeHtml(userLvl)}</b> · this week: <b>${doneCount}/7</b></div>
           </div>
+          <div class="tutor-coach-lv-row">target level: <span class="tutor-coach-lvs">${lvChips}</span></div>
+          <div class="tutor-coach-today">
+            <div class="tct-em">${todaySkill.emoji}</div>
+            <div class="tct-info">
+              <div class="tct-tag">TODAY'S FOCUS</div>
+              <div class="tct-title">${todaySkill.title}</div>
+              <div class="tct-sub">${escapeHtml(todaySkill.sub)}</div>
+            </div>
+            <button class="tct-start" onclick="_tutorCoachStart('${todaySkill.id}')">Start →</button>
+          </div>
+          <div class="tutor-coach-skills">${allChips}</div>
         </div>
       </div>`);
     _tutorScroll();
 }
+window._tutorRenderCoachDashboard = _tutorRenderCoachDashboard;
+
+// Dispatcher: marca como feito hoje e chama a função correspondente.
+function _tutorCoachStart(skillId) {
+    const wkKey = (() => {
+        const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
+        return d.toISOString().slice(0, 10);
+    })();
+    if (!state.tutorSkillsDone) state.tutorSkillsDone = {};
+    if (!state.tutorSkillsDone[wkKey]) state.tutorSkillsDone[wkKey] = {};
+    state.tutorSkillsDone[wkKey][skillId] = true;
+    try { saveState && saveState(); } catch {}
+    const map = {
+        writing: _tutorCoachWriting,
+        pron: _tutorCoachPron,
+        vocab: _tutorCoachVocab,
+        roleplay: _tutorRenderRoleplayPrompt,
+        mistakes: _tutorRenderWeak,
+        lesson: _tutorRenderDailyLesson,
+        review: _tutorOpenReview
+    };
+    const fn = map[skillId];
+    if (typeof fn === 'function') {
+        try { fn(); } catch (e) { console.warn('[coach] start failed', e); }
+    }
+    setTimeout(() => _tutorRenderCoachDashboard(), 50);
+}
+window._tutorCoachStart = _tutorCoachStart;
+
+// Alias retrocompatível com v490.
+function _tutorRenderCoachOfTheDay() { return _tutorRenderCoachDashboard(); }
 window._tutorRenderCoachOfTheDay = _tutorRenderCoachOfTheDay;
 
 // === WRITING COACH ===
@@ -5852,10 +5920,10 @@ async function _tutorCoachWriting() {
         <div class="tutor-coach-task">
           <div class="tutor-coach-task-h">📝 Writing · ${lv} · 100–150 words</div>
           <div class="tutor-coach-task-p">${escapeHtml(prompt)}</div>
-          <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="Start writing here…" rows="6"></textarea>
+          <textarea class="tutor-coach-input" id="${tid}-ta" data-prompt="${escapeHtml(prompt)}" data-lv="${lv}" placeholder="Start writing here…" rows="6"></textarea>
           <div class="tutor-coach-task-bar">
             <span id="${tid}-count" class="tutor-coach-count">0 words</span>
-            <button class="tutor-coach-submit" onclick="_tutorCoachWritingSubmit('${tid}', ${JSON.stringify(prompt).replace(/"/g,'&quot;').replace(/'/g,"\\'")}, '${lv}')">Get feedback →</button>
+            <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorCoachWritingSubmit(this.dataset.tid)">Get feedback →</button>
           </div>
         </div>
       </div>`);
@@ -5872,11 +5940,12 @@ async function _tutorCoachWriting() {
 }
 window._tutorCoachWriting = _tutorCoachWriting;
 
-async function _tutorCoachWritingSubmit(tid, prompt, lv) {
+async function _tutorCoachWritingSubmit(tid) {
     const ta = document.getElementById(tid + '-ta');
-    const submit = document.querySelector(`#${tid}-ta + .tutor-coach-task-bar .tutor-coach-submit`) ||
-                   document.querySelector(`.tutor-coach-submit`);
     if (!ta) return;
+    const prompt = ta.dataset.prompt || '';
+    const lv = ta.dataset.lv || _tutorTargetLevel();
+    const submit = document.querySelector(`button.tutor-coach-submit[data-tid="${tid}"]`);
     const text = (ta.value || '').trim();
     if (text.length < 30) { showToast && showToast('Write at least 30 characters'); return; }
     if (submit) { submit.disabled = true; submit.textContent = 'Grading…'; }
