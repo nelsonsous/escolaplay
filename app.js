@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v488';
+const APP_VERSION = 'v489';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1055,7 +1055,7 @@ function renderHome() {
 
     // Treino rápido — cards modernizados com ícone circular
     const container = document.getElementById('quick-subjects');
-    container.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
+    let qsHtml = Object.entries(SUBJECTS).map(([key, sub]) => {
         const bg = (sub.color || '#f472b6') + '1a'; // 10% opacidade
         return `
         <div class="quick-subject" onclick="openSubjectDetail('${key}')" style="--qs-color:${sub.color};--qs-bg:${bg}">
@@ -1064,6 +1064,18 @@ function renderHome() {
         </div>
         `;
     }).join('');
+    // v489: card "Férias" como disciplina virtual para anos elegíveis (3, 31, 7).
+    const _yr = state && state.profile && Number(state.profile.year);
+    if (_yr === 3 || _yr === 31 || _yr === 7) {
+        const tgt = _yr === 7 ? 7 : 3;
+        qsHtml += `
+        <div class="quick-subject quick-subject-holiday" onclick="openHolidayPlan(${tgt})" style="--qs-color:#f59e0b;--qs-bg:#fef3c7">
+            <div class="qs-icon-wrap"><i class="fas fa-umbrella-beach"></i></div>
+            <div class="qs-name">Férias</div>
+        </div>
+        `;
+    }
+    container.innerHTML = qsHtml;
 
     // Number Talk do dia — prompt rotativo determinístico por data
     renderNumberTalk();
@@ -15771,31 +15783,11 @@ function _injectHolidayButton() {
         document.body.appendChild(fab);
         console.log('[holiday] FAB injectado | year=' + year + ' | targetYear=' + targetYear);
     }
-    // Variante inline (no main-screen) — inserir antes do quick-subjects
-    // (a grelha "COMEÇA POR AQUI"). Sobrevive a re-renders porque o
-    // _holidayInjectTry corre num interval.
-    if (document.getElementById('holiday-entry-btn')) return;
-    const main = document.getElementById('main-screen');
-    if (!main) return;
-    const btn = document.createElement('button');
-    btn.id = 'holiday-entry-btn';
-    btn.className = 'holiday-entry-btn';
-    btn.innerHTML = `<span class="he-icon">🌞</span><span class="he-text"><strong>Plano de Férias</strong><br><small>${label}</small></span><span class="he-arrow">›</span>`;
-    btn.onclick = () => openHolidayPlan(targetYear);
-    // Tenta inserir antes do quick-subjects (grelha de disciplinas);
-    // fallback: antes do hero-card, ou no início do main-screen.
-    const quick = main.querySelector('#quick-subjects');
-    if (quick && quick.parentNode) {
-        // sobe até ao .section-title irmão se existir
-        const titleEl = quick.previousElementSibling;
-        const insertBefore = (titleEl && titleEl.classList && titleEl.classList.contains('section-title')) ? titleEl : quick;
-        insertBefore.parentNode.insertBefore(btn, insertBefore);
-    } else {
-        const hero = main.querySelector('.hero-card');
-        if (hero && hero.parentNode) hero.parentNode.insertBefore(btn, hero.nextSibling);
-        else main.insertBefore(btn, main.firstChild);
-    }
-    console.log('[holiday] inline button injectado');
+    // v489: Férias agora vive como card no grid de disciplinas (renderHome
+    // injecta directamente). Limpa qualquer botão inline antigo que possa
+    // ter ficado de versões anteriores.
+    const oldInline = document.getElementById('holiday-entry-btn');
+    if (oldInline) oldInline.remove();
 }
 window._injectHolidayButton = _injectHolidayButton;
 
