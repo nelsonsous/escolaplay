@@ -2088,7 +2088,8 @@ const SUBJECTS_3 = {
     som_plus:         { name: 'Som+',              icon: 'fa-book-open',         color: '#0891b2', fullName: 'Consciência fonológica avançada' },
     estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',             color: '#16a34a' },
     ingles:           { name: 'Inglês',            icon: 'fa-language',          color: '#7c3aed' },
-    cidadania:        { name: 'Cidadania',         icon: 'fa-people-group',      color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' }
+    cidadania:        { name: 'Cidadania',         icon: 'fa-people-group',      color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' },
+    detetive:         { name: 'Detetive Mental',   icon: 'fa-magnifying-glass',  color: '#9333ea', fullName: 'Raciocínio, leitura activa e número-sensibilidade' }
 };
 
 const CURRICULUM_3 = {
@@ -2129,6 +2130,9 @@ const CURRICULUM_3 = {
     ],
     leitura: [
         'Lê com as vírgulas', 'Lê um diálogo', 'Voz sobe na pergunta', 'Voz com emoção', 'Lê e descobre os sentimentos', 'Lê e descobre o que vai acontecer', 'Lê uma carta', 'Lê uma lenda'
+    ],
+    detetive: [
+        'Charadas matemáticas', 'Histórias-mistério', 'Padrões e sequências', 'Estimar e aproximar', 'Sudoku & Kakuro', 'Lógica pura'
     ]
 };
 
@@ -2174,6 +2178,11 @@ const PERIODS_3 = {
         'Lê e descobre o que vai acontecer':2,
         'Lê uma carta':3,
         'Lê uma lenda':3
+    },
+    detetive: {
+        'Charadas matemáticas':1, 'Padrões e sequências':1,
+        'Histórias-mistério':2, 'Estimar e aproximar':2,
+        'Sudoku & Kakuro':3, 'Lógica pura':3
     }
 };
 
@@ -2537,8 +2546,81 @@ const LESSONS_3 = {
     }
 };
 
+// ============================================================
+// DETETIVE MENTAL — disciplina nova de raciocínio (3º ano)
+// Mistura charadas matemáticas, mistérios de leitura, padrões,
+// estimativa, sudoku 4×4 e lógica pura. Cada puzzle treina ao
+// mesmo tempo número-sensibilidade (anti-discalculia) e leitura
+// activa (ler para resolver). 8 semanas, ~50 puzzles.
+// ============================================================
+const EXERCISES_3_DETETIVE = [
+    // ── CHARADAS MATEMÁTICAS ─────────────────────────────────
+    { id:'3dt_cha1', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:1, q:'🔍 A Sara tem o DOBRO dos cromos do João. Juntos têm 18. Quantos tem o João?', opts:['4','6','9','12'], ans:1, exp:'Se o João tem J, a Sara tem 2J. J + 2J = 3J = 18 → J = 6.' },
+    { id:'3dt_cha2', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:1, q:'🔍 Tenho 3 caixas. Cada caixa tem 4 sacos. Cada saco tem 5 berlindes. Quantos berlindes ao todo?', opts:['12','35','45','60'], ans:3, exp:'3 × 4 × 5 = 60 berlindes.' },
+    { id:'3dt_cha3', s:'detetive', t:'Charadas matemáticas', type:'fill', diff:2, q:'🔍 Penso num número, somo 5, depois divido por 3 e dá 4. Que número pensei?', ans:['7'], exp:'Trabalhamos de trás para a frente: 4 × 3 = 12; 12 − 5 = 7.' },
+    { id:'3dt_cha4', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:2, q:'🔍 Sou par. Tenho dois algarismos. Os meus algarismos somam 9. Sou o MAIOR possível. Quem sou?', opts:['72','81','90','99'], ans:2, exp:'Algarismos somam 9: 18, 27, 36, 45, 54, 63, 72, 81, 90. Par e maior → 90 (9+0=9).' },
+    { id:'3dt_cha5', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:2, q:'🔍 Numa quinta há galinhas e vacas. Ao todo são 12 cabeças e 32 patas. Quantas vacas há?', opts:['2','4','6','8'], ans:1, exp:'Se fossem 12 galinhas seriam 24 patas. Faltam 8 patas. Cada vaca dá 2 patas a mais que galinha → 8 ÷ 2 = 4 vacas.' },
+    { id:'3dt_cha6', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:3, q:'🔍 Três irmãos partilham 24 amêndoas. O mais velho leva o DOBRO de cada um dos outros. Quantas leva cada um dos mais novos?', opts:['4','6','8','12'], ans:1, exp:'Mais novos: x cada. Mais velho: 2x. x + x + 2x = 4x = 24 → x = 6.' },
+    { id:'3dt_cha7', s:'detetive', t:'Charadas matemáticas', type:'fill', diff:2, q:'🔍 Sou um número entre 10 e 20. Se me dividires por 3 sobra 1. Se me dividires por 4 sobra 1. Quem sou?', ans:['13'], exp:'13 ÷ 3 = 4 e sobra 1. 13 ÷ 4 = 3 e sobra 1. ✓' },
+    { id:'3dt_cha8', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:3, q:'🔍 O Tomás tem 8 anos. A irmã tem MAIS 4 anos. A mãe tem 3 vezes a idade da irmã. Quantos anos tem a mãe?', opts:['24','30','36','42'], ans:2, exp:'Irmã: 8 + 4 = 12. Mãe: 12 × 3 = 36.' },
+    { id:'3dt_cha9', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:2, q:'🔍 Numa estante há 4 prateleiras com 7 livros cada. Levo 3 livros. Quantos ficam?', opts:['22','25','28','31'], ans:1, exp:'4 × 7 = 28 livros. 28 − 3 = 25.' },
+    { id:'3dt_cha10', s:'detetive', t:'Charadas matemáticas', type:'mc', diff:3, q:'🔍 Comprei um livro por 8€ e dei uma nota de 20€. Recebi o troco em moedas de 2€. Quantas moedas recebi?', opts:['4','5','6','12'], ans:2, exp:'Troco: 20 − 8 = 12€. 12 ÷ 2 = 6 moedas.' },
+
+    // ── HISTÓRIAS-MISTÉRIO ───────────────────────────────────
+    { id:'3dt_mis1', s:'detetive', t:'Histórias-mistério', type:'mc', diff:1, q:'🕵️ O bolo de chocolate desapareceu! Suspeitos: Ana, Bruno, Clara. Pistas: 1) O culpado ficou com chocolate na cara. 2) A Ana tinha lavado a cara antes do almoço. 3) O Bruno só comeu fruta. 4) A Clara tem manchas castanhas no queixo. Quem foi?', opts:['Ana','Bruno','Clara','Ninguém'], ans:2, exp:'A Clara é a única com sinais de chocolate na cara.' },
+    { id:'3dt_mis2', s:'detetive', t:'Histórias-mistério', type:'mc', diff:2, q:'🕵️ Foram roubados 3 lápis na sala. Antes: Pedro tinha 2, Sofia 3, Rui 4. Depois: Pedro tem 2, Sofia 6, Rui 4. Quem é o ladrão?', opts:['Pedro','Sofia','Rui','Foi o professor'], ans:1, exp:'Só a Sofia ganhou lápis (3 → 6, mais 3 — exactamente o número roubado).' },
+    { id:'3dt_mis3', s:'detetive', t:'Histórias-mistério', type:'fill', diff:2, q:'🕵️ A senha do cofre tem 4 algarismos. O primeiro é METADE do segundo. O segundo é 8. O terceiro é o DOBRO do quarto. O quarto é 2. Qual é a senha?', ans:['4842'], exp:'1.º: 8 ÷ 2 = 4. 2.º: 8. 3.º: 2 × 2 = 4. 4.º: 2. Senha → 4842.' },
+    { id:'3dt_mis4', s:'detetive', t:'Histórias-mistério', type:'mc', diff:2, q:'🕵️ Três meninas (Ana, Bia, Carla) estão em fila. Pista 1: a Carla NÃO está no meio. Pista 2: a Ana NÃO é a primeira. Quem está em primeiro?', opts:['Ana','Bia','Carla','Impossível saber'], ans:2, exp:'A Ana não é a primeira. A Carla também não está no meio — se fosse primeira, ficaria a Bia no meio. Mas se a Carla estivesse no meio quebrava a pista 1. Testa: Carla–Bia–Ana → respeita ambas.' },
+    { id:'3dt_mis5', s:'detetive', t:'Histórias-mistério', type:'mc', diff:2, q:'🕵️ Numa caixa havia 3 bolas vermelhas e 2 azuis. Tirei 3 bolas. Ficaram só bolas azuis na caixa. Que cores tirei?', opts:['3 azuis','3 vermelhas','1 vermelha + 2 azuis','2 vermelhas + 1 azul'], ans:1, exp:'Ficaram só azuis → as 2 azuis ficaram. Tirei as 3 vermelhas.' },
+    { id:'3dt_mis6', s:'detetive', t:'Histórias-mistério', type:'mc', diff:3, q:'🕵️ Numa loja roubaram às 14h50. Suspeitos: Sara (entrou 14h, saiu 14h30), Diogo (entrou 14h45, saiu 15h15), Joana (entrou 15h, saiu 15h20). Quem é o suspeito principal?', opts:['Sara','Diogo','Joana','Ninguém'], ans:1, exp:'Às 14h50 só o Diogo estava lá dentro (14h45–15h15).' },
+    { id:'3dt_mis7', s:'detetive', t:'Histórias-mistério', type:'mc', diff:3, q:'🕵️ Há 3 caixas: VERMELHA, VERDE e AZUL. Uma tem um bombom; as outras estão vazias. — Vermelha diz: "O bombom está em mim." — Verde diz: "O bombom NÃO está na azul." — Sabes que UMA caixa diz a verdade e DUAS mentem. Onde está o bombom?', opts:['Vermelha','Verde','Azul','Não dá para saber'], ans:2, exp:'Se a vermelha dissesse a verdade, a verde também diria → 2 verdadeiras (impossível). Logo vermelha mente → bombom NÃO está na vermelha. Verde também mente → bombom ESTÁ na azul.' },
+    { id:'3dt_mis8', s:'detetive', t:'Histórias-mistério', type:'mc', diff:2, q:'🕵️ O cão Tobias saltou para a mesa com lama nas patas. A Maria viu pegadas com lama na ENTRADA e no SOFÁ, mas a cozinha está limpa. Por onde entrou o cão para chegar à mesa?', opts:['Cozinha','Entrada','Janela','Sofá'], ans:1, exp:'A cozinha está limpa, logo o cão não passou lá. A pista começa na ENTRADA (com lama).' },
+    { id:'3dt_mis9', s:'detetive', t:'Histórias-mistério', type:'mc', diff:3, q:'🕵️ Três amigos (Rui, Tiago e Vasco) têm cada um 1 animal: cão, gato e peixe. Pista 1: o Rui é alérgico a pêlo. Pista 2: o Tiago tem um animal que mia. Quem tem o cão?', opts:['Rui','Tiago','Vasco','Impossível'], ans:2, exp:'O Rui é alérgico a pêlo → tem o peixe. O Tiago tem gato (mia). Logo o Vasco tem o cão.' },
+    { id:'3dt_mis10', s:'detetive', t:'Histórias-mistério', type:'mc', diff:2, q:'🕵️ A Inês perdeu o relógio. Esteve só em 3 sítios entre as 8h e as 9h: jardim → sala → cozinha. Quando saiu da sala já não o tinha. Onde caiu o relógio?', opts:['Jardim','Sala','Cozinha','Quarto'], ans:0, exp:'Quando saiu da sala já não tinha → caiu antes de chegar à sala. Esteve antes no jardim.' },
+
+    // ── PADRÕES E SEQUÊNCIAS ─────────────────────────────────
+    { id:'3dt_pad1', s:'detetive', t:'Padrões e sequências', type:'fill', diff:1, q:'🧩 Que número falta? 2, 4, 6, 8, ___, 12', ans:['10'], exp:'Vai de 2 em 2.' },
+    { id:'3dt_pad2', s:'detetive', t:'Padrões e sequências', type:'fill', diff:1, q:'🧩 Que número falta? 5, 10, 15, ___, 25', ans:['20'], exp:'Tabuada do 5.' },
+    { id:'3dt_pad3', s:'detetive', t:'Padrões e sequências', type:'mc', diff:2, q:'🧩 Continua: 1, 3, 6, 10, 15, ___', opts:['18','20','21','22'], ans:2, exp:'+2, +3, +4, +5 → próximo passo +6 → 15 + 6 = 21.' },
+    { id:'3dt_pad4', s:'detetive', t:'Padrões e sequências', type:'mc', diff:2, q:'🧩 Continua: 100, 90, 81, 73, ___', opts:['64','65','66','67'], ans:2, exp:'−10, −9, −8 → próximo −7 → 73 − 7 = 66.' },
+    { id:'3dt_pad5', s:'detetive', t:'Padrões e sequências', type:'mc', diff:2, q:'🧩 Que figura vem a seguir? 🔴🔵🔴🔵🔴___', opts:['🔴','🔵','🟢','🟡'], ans:1, exp:'Alterna vermelho-azul.' },
+    { id:'3dt_pad6', s:'detetive', t:'Padrões e sequências', type:'mc', diff:3, q:'🧩 Continua: 1, 2, 4, 8, 16, ___', opts:['18','24','32','64'], ans:2, exp:'Cada número é o dobro do anterior → 16 × 2 = 32.' },
+    { id:'3dt_pad7', s:'detetive', t:'Padrões e sequências', type:'fill', diff:2, q:'🧩 Que letra vem a seguir? A, C, E, G, ___', ans:['I','i'], exp:'Saltamos uma letra de cada vez (A-B-C, C-D-E, …) → I.' },
+    { id:'3dt_pad8', s:'detetive', t:'Padrões e sequências', type:'mc', diff:3, q:'🧩 Quantos quadrados na figura seguinte? Fig1: 1 quadrado. Fig2: 4 quadrados. Fig3: 9 quadrados. Fig4: ___', opts:['12','14','16','20'], ans:2, exp:'Quadrados dos números: 1², 2², 3², 4² = 16.' },
+
+    // ── ESTIMAR E APROXIMAR ──────────────────────────────────
+    { id:'3dt_est1', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:1, q:'🎯 Aproximadamente, quantos minutos demora a escovar os dentes?', opts:['10 segundos','2 minutos','30 minutos','1 hora'], ans:1, exp:'O ideal são cerca de 2 minutos.' },
+    { id:'3dt_est2', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:1, q:'🎯 Quantas pessoas cabem mais ou menos num autocarro escolar?', opts:['5','50','500','5 000'], ans:1, exp:'Um autocarro tem cerca de 50 lugares.' },
+    { id:'3dt_est3', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:2, q:'🎯 Arredonda à dezena mais próxima: 47 ≈ ___', opts:['40','45','50','60'], ans:2, exp:'47 está mais perto de 50 do que de 40.' },
+    { id:'3dt_est4', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:2, q:'🎯 Arredonda à centena mais próxima: 348 ≈ ___', opts:['200','300','350','400'], ans:1, exp:'348 está mais perto de 300 do que de 400.' },
+    { id:'3dt_est5', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:2, q:'🎯 Sem calcular ao certo: 198 + 203 dá MAIS OU MENOS quanto?', opts:['200','300','400','600'], ans:2, exp:'~200 + ~200 = ~400. Estimativa rápida é uma super-arma.' },
+    { id:'3dt_est6', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:3, q:'🎯 Um livro tem 198 páginas. Lês 19 páginas por dia. Mais ou menos quantos dias precisas?', opts:['1 dia','10 dias','100 dias','1 ano'], ans:1, exp:'200 ÷ 20 = 10. Cerca de 10 dias.' },
+    { id:'3dt_est7', s:'detetive', t:'Estimar e aproximar', type:'mc', diff:3, q:'🎯 Quantos passos dás mais ou menos para ir do portão da escola até à sala?', opts:['5','50','500','5 000'], ans:1, exp:'Tipicamente algumas dezenas — não 5 (curto demais) nem 500 (longo demais).' },
+
+    // ── SUDOKU & KAKURO ──────────────────────────────────────
+    { id:'3dt_sud1', s:'detetive', t:'Sudoku & Kakuro', type:'fill', diff:1, q:'🔢 Que número falta nesta linha do sudoku? 1, 2, ___, 4', ans:['3'], exp:'Linha do sudoku usa 1, 2, 3, 4 (cada um uma vez).' },
+    { id:'3dt_sud2', s:'detetive', t:'Sudoku & Kakuro', type:'fill', diff:2, q:'🔢 Numa linha de sudoku 4×4 já tens 2, 4 e 1. Que número falta?', ans:['3'], exp:'1+2+3+4 = 10. 10 − (2+4+1) = 3.' },
+    { id:'3dt_sud3', s:'detetive', t:'Sudoku & Kakuro', type:'mc', diff:2, q:'🔢 Na linha [_ , 2, 3, _] do sudoku 4×4, o primeiro espaço já não pode ser 2 nem 3. Pode ser:', opts:['1 ou 4','2 ou 3','só 1','só 4'], ans:0, exp:'Os números possíveis são 1, 2, 3, 4. Já há 2 e 3 → falta 1 e 4.' },
+    { id:'3dt_sud4', s:'detetive', t:'Sudoku & Kakuro', type:'fill', diff:2, q:'🔢 KAKURO: dois números diferentes (de 1 a 9) somam 9 e ambos são pares. Quais são?', ans:['2 e 7','7 e 2','4 e 5','5 e 4','4+5','3+6','6+3','1+8','8+1'], exp:'Pares que somam 9: 2+7, 3+6, 4+5, 1+8. Aceito qualquer combinação válida.' },
+    { id:'3dt_sud5', s:'detetive', t:'Sudoku & Kakuro', type:'mc', diff:3, q:'🔢 KAKURO: três números diferentes de 1 a 5 somam 12. Quais são?', opts:['1, 2, 3','3, 4, 5','1, 4, 5','2, 4, 5'], ans:1, exp:'3 + 4 + 5 = 12 ✓.' },
+    { id:'3dt_sud6', s:'detetive', t:'Sudoku & Kakuro', type:'fill', diff:2, q:'🔢 Na coluna [3, _, 1, 2] de um sudoku 4×4, qual é o número que falta?', ans:['4'], exp:'Coluna leva 1, 2, 3, 4 cada uma vez → falta 4.' },
+    { id:'3dt_sud7', s:'detetive', t:'Sudoku & Kakuro', type:'mc', diff:3, q:'🔢 KAKURO: dois números somam 6 e a sua diferença é 2. Quais são?', opts:['1 e 5','2 e 4','3 e 3','0 e 6'], ans:1, exp:'2 + 4 = 6 e 4 − 2 = 2. Os números são diferentes, então (3 e 3) não vale.' },
+    { id:'3dt_sud8', s:'detetive', t:'Sudoku & Kakuro', type:'fill', diff:3, q:'🔢 Quadrado mágico 3×3: cada linha soma 15. Numa linha tens 4 e 6. Qual é o terceiro?', ans:['5'], exp:'15 − 4 − 6 = 5.' },
+
+    // ── LÓGICA PURA ──────────────────────────────────────────
+    { id:'3dt_log1', s:'detetive', t:'Lógica pura', type:'mc', diff:1, q:'🧠 A Ana é MAIS ALTA que o Bruno. O Bruno é MAIS ALTO que a Carla. Quem é a mais baixa?', opts:['Ana','Bruno','Carla','Não dá para saber'], ans:2, exp:'Ana > Bruno > Carla → Carla é a mais baixa.' },
+    { id:'3dt_log2', s:'detetive', t:'Lógica pura', type:'mc', diff:1, q:'🧠 Todos os cães têm 4 patas. O Pirilau é um cão. Quantas patas tem o Pirilau?', opts:['2','3','4','Depende'], ans:2, exp:'Se TODOS os cães têm 4, e o Pirilau é cão → 4 patas.' },
+    { id:'3dt_log3', s:'detetive', t:'Lógica pura', type:'mc', diff:2, q:'🧠 Se hoje é quarta-feira, que dia será depois de amanhã?', opts:['Quinta','Sexta','Sábado','Domingo'], ans:1, exp:'Hoje quarta → amanhã quinta → depois de amanhã sexta.' },
+    { id:'3dt_log4', s:'detetive', t:'Lógica pura', type:'mc', diff:2, q:'🧠 A Maria é mais nova que a Inês. A Inês é mais nova que a Sara. Quem nasceu primeiro?', opts:['Maria','Inês','Sara','Impossível'], ans:2, exp:'Sara é a mais velha → nasceu primeiro.' },
+    { id:'3dt_log5', s:'detetive', t:'Lógica pura', type:'mc', diff:2, q:'🧠 Se um lápis custa 1€ e a borracha custa metade, quanto custam 3 lápis e 2 borrachas?', opts:['4€','5€','6€','7€'], ans:0, exp:'3 lápis = 3€. 2 borrachas = 2 × 0,50€ = 1€. Total: 4€.' },
+    { id:'3dt_log6', s:'detetive', t:'Lógica pura', type:'mc', diff:3, q:'🧠 Tens 2 ampulhetas: uma de 4 minutos e outra de 7 minutos. Como medes EXATAMENTE 9 minutos?', opts:['Inicia as duas; ao acabar a de 4 vira-a; ao acabar a de 7 vira a de 4 — quando esta acabar passaram 9 minutos','Vira só a de 7 e depois vira a de 4 logo a seguir','Espera 9 minutos no relógio normal','Não é possível'], ans:0, exp:'7 min na grande + mais 2 min na pequena (que foi virada a meio) = 9 min.' },
+    { id:'3dt_log7', s:'detetive', t:'Lógica pura', type:'mc', diff:3, q:'🧠 Numa sala há 4 cães e 3 gatos. Cada um tem uma coleira e uma medalha. Quantos olhos há ao todo na sala?', opts:['7','14','28','Não dá para saber'], ans:1, exp:'7 animais × 2 olhos = 14 olhos. As coleiras não têm olhos.' },
+    { id:'3dt_log8', s:'detetive', t:'Lógica pura', type:'mc', diff:3, q:'🧠 Um caracol está no fundo de um poço de 10 metros. De dia sobe 3 metros, de noite escorrega 2. Em quantos dias chega ao topo?', opts:['5','7','8','10'], ans:2, exp:'No fim do dia 7 está a 7 m. No dia 8 sobe 3 m → chega aos 10 m e sai (já não escorrega). Resposta: 8 dias.' }
+];
+
 const EXERCISES_3 = [
     ...EXERCISES_3_OCEANUS.filter(e => e.s === 'portugues' || e.s === 'matematica'),
+    ...EXERCISES_3_DETETIVE,
 
     // ============================ PORTUGUÊS — NOVOS ============================
     { id:'3lp_sil1', s:'portugues', t:'Sílabas', type:'mc', diff:1, q:'🔤 Quantas sílabas tem "borboleta"?', opts:['2','3','4','5'], ans:2, exp:'bor-bo-le-ta → 4 sílabas.' },
