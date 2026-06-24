@@ -6299,3 +6299,68 @@ body.has-teacher-overlay #subject-detail-container {
     font-size: 0.88rem;
     text-align: center;
 }
+
+/* === COFRE DOS CÓDIGOS === */
+.cofre-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.cofre-coach { display: flex; align-items: center; gap: 8px; background: #fff7ed; border: 1.5px solid #fb923c; border-radius: 12px; padding: 8px 12px; max-width: 360px; width: 100%; }
+.cofre-coach-av { font-size: 1.4rem; }
+.cofre-coach-msg { font-size: 0.9rem; color: #9a3412; font-weight: 600; }
+.cofre-story { font-size: 0.95rem; color: #1f2937; max-width: 360px; text-align: center; font-weight: 600; }
+.cofre-clues { list-style: '🔎  '; padding-left: 28px; margin: 4px 0; font-size: 0.88rem; color: #374151; max-width: 360px; line-height: 1.4; }
+.cofre-clues li { margin-bottom: 4px; }
+.cofre-boxes { display: flex; gap: 8px; margin: 6px 0; }
+.cofre-box { width: 52px; height: 64px; border-radius: 10px; background: #fff; border: 2.5px solid #9ca3af; font-size: 2.2rem; font-weight: 800; color: #1f2937; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.cofre-box.filled { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+.cofre-box.next { border-color: #ea580c; box-shadow: 0 0 0 3px #fed7aa; }
+.cofre-actions { display: flex; gap: 10px; }
+.cofre-back, .cofre-hint { padding: 8px 14px; border-radius: 999px; font-weight: 800; font-size: 0.88rem; cursor: pointer; }
+.cofre-back { background: #f3f4f6; border: 1.5px solid #d1d5db; color: #374151; }
+.cofre-hint { background: #fef3c7; border: 1.5px solid #fbbf24; color: #92400e; }
+.cofre-hint:disabled, .cofre-back:disabled { opacity: 0.4; }
+.cofre-numpad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 360px); }
+.cofre-key { aspect-ratio: 1; border-radius: 12px; border: 2px solid #ea580c; background: #fff; color: #ea580c; font-size: 1.5rem; font-weight: 800; cursor: pointer; }
+.cofre-key:active { background: #fff7ed; }
+.cofre-solved { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 1.5px solid #10b981; color: #065f46; border-radius: 10px; padding: 8px 14px; font-weight: 800; font-size: 0.9rem; text-align: center; }
+
+/* === ESTIMADOR (slider) === */
+.est-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 4px; }
+.est-story { font-size: 0.95rem; color: #1f2937; max-width: 360px; text-align: center; font-weight: 600; line-height: 1.35; }
+.est-value { font-size: 3.2rem; font-weight: 900; color: #2563eb; line-height: 1; font-variant-numeric: tabular-nums; }
+.est-unit { font-size: 1.2rem; color: #6b7280; font-weight: 600; }
+.est-slider { width: min(92vw, 360px); height: 40px; -webkit-appearance: none; appearance: none; background: linear-gradient(to right, #93c5fd, #3b82f6); border-radius: 999px; outline: none; }
+.est-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 3px solid #2563eb; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.est-slider::-moz-range-thumb { width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 3px solid #2563eb; cursor: pointer; }
+.est-scale { display: flex; justify-content: space-between; width: min(92vw, 360px); font-size: 0.78rem; color: #6b7280; font-weight: 700; margin-top: -6px; }
+.est-feedback { font-size: 1.05rem; font-weight: 800; color: #1f2937; text-align: center; padding: 6px 14px; background: #f3f4f6; border-radius: 999px; }
+.est-hint { font-size: 0.82rem; color: #6b7280; font-style: italic; max-width: 320px; text-align: center; }
+
+/* === SUSPEITOS (eliminar) === */
+.sus-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.sus-coach { display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 12px; padding: 8px 12px; max-width: 360px; width: 100%; font-size: 0.88rem; color: #7f1d1d; font-weight: 600; }
+.sus-story { font-size: 0.95rem; color: #1f2937; max-width: 360px; text-align: center; font-weight: 600; }
+.sus-clues { list-style: '🔍  '; padding-left: 28px; margin: 4px 0; font-size: 0.86rem; color: #374151; max-width: 360px; line-height: 1.4; }
+.sus-clues li { margin-bottom: 3px; }
+.sus-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; width: min(92vw, 360px); }
+.sus-card { background: #fff; border: 2.5px solid #fbbf24; border-radius: 14px; padding: 10px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform .12s; position: relative; }
+.sus-card:hover { transform: translateY(-2px); }
+.sus-card.out { background: #f3f4f6; border-color: #d1d5db; opacity: 0.5; }
+.sus-card.pick { background: #fef3c7; border-color: #f59e0b; box-shadow: 0 0 0 3px #fde68a; }
+.sus-emoji { font-size: 2.2rem; line-height: 1; }
+.sus-name { font-size: 0.84rem; font-weight: 800; color: #1f2937; }
+.sus-state { position: absolute; top: 4px; right: 6px; font-size: 1rem; }
+
+/* === PADRÃO === */
+.pad-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.pad-coach { font-size: 0.92rem; color: #4c1d95; font-weight: 600; background: #f5f3ff; border: 1.5px solid #c4b5fd; border-radius: 12px; padding: 8px 12px; max-width: 360px; text-align: center; }
+.pad-seq { display: flex; align-items: center; gap: 4px; font-size: 1.8rem; font-weight: 800; color: #1f2937; flex-wrap: wrap; justify-content: center; max-width: 360px; }
+.pad-term { padding: 4px 10px; background: #fff; border: 2px solid #e5e7eb; border-radius: 10px; font-variant-numeric: tabular-nums; }
+.pad-term.q { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+.pad-term.q.ok { background: #d1fae5; border-color: #10b981; color: #065f46; }
+.pad-sep { color: #9ca3af; }
+.pad-numpad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 360px); }
+.pad-key { aspect-ratio: 1; border-radius: 12px; border: 2px solid #9333ea; background: #fff; color: #9333ea; font-size: 1.5rem; font-weight: 800; cursor: pointer; }
+.pad-key.pad-back { border-color: #6b7280; color: #6b7280; font-size: 1.2rem; }
+.pad-key:active { background: #faf5ff; }
+.pad-options { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 360px; }
+.pad-opt { padding: 10px 16px; border-radius: 999px; border: 2px solid #9333ea; background: #fff; color: #9333ea; font-size: 1.2rem; font-weight: 800; cursor: pointer; }
+.pad-solved { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 1.5px solid #10b981; color: #065f46; border-radius: 10px; padding: 8px 14px; font-weight: 800; font-size: 0.9rem; text-align: center; }
