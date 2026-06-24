@@ -348,6 +348,18 @@ function loadState() {
                 if (!p.subjects[k]) p.subjects[k] = { answered: 0, correct: 0, xp: 0 };
             });
             if (p.currentPeriod == null) p.currentPeriod = 1;
+            // Migração v499: a disciplina "Detetive Mental" foi totalmente
+            // refeita (todos os puzzles passaram a mini-jogos). Se o user
+            // tinha activeTopics.detetive parcial (não todos os 6 tópicos),
+            // repõe para "tudo activo" uma vez por profile. Evita o caso
+            // em que só "Sudoku & Kakuro" aparecia porque o resto fora
+            // destoggleado quando ainda eram perguntas MC.
+            if (!p._detetiveV499Done) {
+                if (p.activeTopics && p.activeTopics.detetive) {
+                    delete p.activeTopics.detetive;
+                }
+                p._detetiveV499Done = true;
+            }
             // Migração: limpar BR-PT e SVGs triviais nos exercícios MAX já guardados
             if (Array.isArray(p.maxExercises)) {
                 p.maxExercises.forEach(migrateMaxExercise);
@@ -521,7 +533,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v498';
+const APP_VERSION = 'v499';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
