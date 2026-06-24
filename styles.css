@@ -6241,7 +6241,9 @@ body.has-teacher-overlay #subject-detail-container {
 .sudoku-grid .sk-cell:nth-child(4n) { border-right: 2px solid #1f2937; }
 .sudoku-grid .sk-cell:nth-child(-n+4) { border-top: 2px solid #1f2937; }
 .sudoku-grid .sk-cell:nth-child(n+13) { border-bottom: 2px solid #1f2937; }
-.sudoku-grid .sk-cell:nth-child(4n+2) { border-left: 2px solid #1f2937; }
+/* Divisor vertical entre o bloco da esquerda (col 1-2) e o da direita (col 3-4) */
+.sudoku-grid .sk-cell:nth-child(4n+3) { border-left: 2px solid #1f2937; }
+/* Divisor horizontal entre o bloco de cima (linhas 1-2) e o de baixo (linhas 3-4) */
 .sudoku-grid .sk-cell:nth-child(n+9):nth-child(-n+12) { border-top: 2px solid #1f2937; }
 .sudoku-meta {
     display: flex;

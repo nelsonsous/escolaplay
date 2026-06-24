@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v495';
+const APP_VERSION = 'v496';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8331,7 +8331,11 @@ function _sudokuFill(n) {
     }
     s.solved = _sudokuIsSolved(s.grid);
     if (s.solved) {
-        s.coachMsg = `🎉 Brilhante! Resolveste em ${s.moves} jogadas${s.hintsUsed ? ' (com ' + s.hintsUsed + ' pista' + (s.hintsUsed === 1 ? '' : 's') + ')' : ''}.`;
+        const stars = '⭐'.repeat(Math.max(1, 3 - s.hintsUsed));
+        const hintTxt = s.hintsUsed === 0
+            ? 'sem ajudas! 🦸‍♀️'
+            : `com ${s.hintsUsed} ajuda${s.hintsUsed === 1 ? '' : 's'}.`;
+        s.coachMsg = `🎉 Resolveste em ${s.moves} jogadas ${hintTxt} ${stars}`;
         s.selected = -1;
     } else {
         const filled = s.grid.filter(v => v !== 0).length;
@@ -8496,6 +8500,13 @@ async function submitAnswer() {
         } else if (e.type === 'game' && e.game === 'sudoku4') {
             if (!sudokuState.solved) { showToast('Termina o sudoku primeiro'); return; }
             isCorrect = true;
+            // Sobrepõe a `exp` original com stats da jogada — a Eduarda vê
+            // no feedback se usou ajudas e quantas. Estrelas = 3 menos pistas.
+            const stars = '⭐'.repeat(Math.max(1, 3 - sudokuState.hintsUsed));
+            const hintsLine = sudokuState.hintsUsed === 0
+                ? '🏅 Sem ajudas — fizeste tudo sozinha!'
+                : `🤝 Usaste a Pista do Detetive ${sudokuState.hintsUsed}× (${sudokuState.hintsUsed === 1 ? 'uma' : sudokuState.hintsUsed} vez${sudokuState.hintsUsed === 1 ? '' : 'es'}).`;
+            e.exp = `${stars}  ·  ${sudokuState.moves} jogadas  ·  ${hintsLine}`;
         } else if (e.type === 'match') {
             const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
             if (!all) { showToast('Completa todas as associações'); return; }
