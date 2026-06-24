@@ -6187,3 +6187,110 @@ body.has-teacher-overlay #subject-detail-container {
     font-size: var(--fs-base);
     line-height: 1.5;
 }
+
+/* === SUDOKU 4×4 INTERATIVO — mini-jogo da Detetive Mental === */
+.sudoku-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+.sk-coach {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: #f5f3ff;
+    border: 1.5px solid #c4b5fd;
+    border-radius: 12px;
+    padding: 10px 12px;
+    max-width: 320px;
+    width: 100%;
+}
+.sk-coach-av { font-size: 1.3rem; flex-shrink: 0; }
+.sk-coach-msg { font-size: 0.85rem; color: #4c1d95; line-height: 1.35; font-weight: 600; }
+.sudoku-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 280px;
+    max-width: 90vw;
+    aspect-ratio: 1;
+    gap: 0;
+    background: #1f2937;
+    padding: 3px;
+    border-radius: 10px;
+}
+.sk-cell {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2563eb;
+    cursor: pointer;
+    transition: background .12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sk-cell.fixed { background: #f3f4f6; color: #1f2937; cursor: default; }
+.sk-cell.sel { background: #dbeafe; border-color: #2563eb; box-shadow: inset 0 0 0 2px #2563eb; }
+.sk-cell.conf { background: #fee2e2; color: #b91c1c; }
+.sk-cell.conf.sel { background: #fecaca; }
+/* Bordas grossas a dividir os blocos 2×2 */
+.sudoku-grid .sk-cell:nth-child(4n+1) { border-left: 2px solid #1f2937; }
+.sudoku-grid .sk-cell:nth-child(4n) { border-right: 2px solid #1f2937; }
+.sudoku-grid .sk-cell:nth-child(-n+4) { border-top: 2px solid #1f2937; }
+.sudoku-grid .sk-cell:nth-child(n+13) { border-bottom: 2px solid #1f2937; }
+.sudoku-grid .sk-cell:nth-child(4n+2) { border-left: 2px solid #1f2937; }
+.sudoku-grid .sk-cell:nth-child(n+9):nth-child(-n+12) { border-top: 2px solid #1f2937; }
+.sudoku-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 280px;
+    max-width: 90vw;
+    font-size: 0.76rem;
+    color: #6b7280;
+    font-weight: 600;
+}
+.sk-hint-btn {
+    background: #fef3c7;
+    border: 1.5px solid #fbbf24;
+    color: #92400e;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+.sk-hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.sudoku-picker {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+.sk-pick {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    border: 2px solid #9333ea;
+    background: #fff;
+    color: #9333ea;
+    font-size: 1.4rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform .1s;
+}
+.sk-pick:hover { transform: translateY(-2px); background: #faf5ff; }
+.sk-pick:active { transform: translateY(0); background: #ede9fe; }
+.sk-pick.sk-clear { color: #ef4444; border-color: #ef4444; font-size: 1.6rem; }
+.sk-solved {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border: 1.5px solid #10b981;
+    color: #065f46;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-weight: 800;
+    font-size: 0.88rem;
+    text-align: center;
+}

@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v493';
+const APP_VERSION = 'v494';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4692,6 +4692,7 @@ function renderQuestion() {
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div>`; setTimeout(redrawMatch, 0); }
     else if (e.type === 'speak') { area.innerHTML = renderSpeak(e); speakState = { transcript: '', listening: false, lang: e.lang || 'en-US' }; }
     else if (e.type === 'roleplay') { renderRoleplay(e); }
+    else if (e.type === 'game' && e.game === 'sudoku4') { _sudokuStartFromExercise(e); setTimeout(_sudokuRender, 0); }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -8244,7 +8245,142 @@ function matchPickRight(j) {
     redrawMatch();
 }
 
-// ========== VALIDAÇÃO IA ==========
+// ============================================================
+// SUDOKU 4×4 INTERATIVO — primeiro mini-jogo da Detetive Mental
+// Renderiza grelha clicável + picker de números + bubble do
+// "Detetive" com pistas/celebrações. Marca isCorrect quando a
+// grelha está válida segundo as regras do sudoku (linhas, colunas
+// e blocos 2×2 com 1, 2, 3, 4 cada um uma vez).
+// ============================================================
+let sudokuState = { grid: [], initial: [], selected: -1, moves: 0, solved: false, hintsUsed: 0, solution: null };
+
+function _sudokuStartFromExercise(e) {
+    const init = (e.puzzle && e.puzzle.initial) || [];
+    sudokuState = {
+        grid: [...init],
+        initial: [...init],
+        selected: -1,
+        moves: 0,
+        solved: false,
+        hintsUsed: 0,
+        solution: (e.puzzle && e.puzzle.solution) || null,
+        coachMsg: 'Lê linha por linha. Em cada uma faltam números entre 1 e 4 — começa pela que tiver menos vazios.'
+    };
+}
+
+function _sudokuRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = sudokuState;
+    const cellHtml = s.grid.map((v, i) => {
+        const fixed = s.initial[i] !== 0;
+        const sel = i === s.selected ? ' sel' : '';
+        const fx = fixed ? ' fixed' : '';
+        // Detecta conflito na linha, coluna ou bloco 2×2.
+        let conf = '';
+        if (v !== 0) {
+            const r = Math.floor(i / 4), c = i % 4;
+            for (let k = 0; k < 4; k++) {
+                if (k !== c && s.grid[r * 4 + k] === v) conf = ' conf';
+                if (k !== r && s.grid[k * 4 + c] === v) conf = ' conf';
+            }
+            const br = Math.floor(r / 2) * 2, bc = Math.floor(c / 2) * 2;
+            for (let dr = 0; dr < 2; dr++) for (let dc = 0; dc < 2; dc++) {
+                const idx = (br + dr) * 4 + (bc + dc);
+                if (idx !== i && s.grid[idx] === v) conf = ' conf';
+            }
+        }
+        return `<button class="sk-cell${fx}${sel}${conf}" onclick="_sudokuSelect(${i})">${v === 0 ? '' : v}</button>`;
+    }).join('');
+    const picker = [1, 2, 3, 4].map(n =>
+        `<button class="sk-pick" onclick="_sudokuFill(${n})">${n}</button>`
+    ).join('') + `<button class="sk-pick sk-clear" onclick="_sudokuFill(0)">×</button>`;
+    const filled = s.grid.filter(v => v !== 0).length;
+    area.innerHTML = `
+      <div class="sudoku-wrap">
+        <div class="sk-coach">
+          <span class="sk-coach-av">🕵️</span>
+          <span class="sk-coach-msg" id="sk-coach-msg">${escapeHtml(s.coachMsg || '')}</span>
+        </div>
+        <div class="sudoku-grid">${cellHtml}</div>
+        <div class="sudoku-meta">
+          <span>${filled}/16 preenchidos · ${s.moves} jogadas${s.hintsUsed ? ' · pistas: ' + s.hintsUsed : ''}</span>
+          <button class="sk-hint-btn" onclick="_sudokuHint()" ${s.solved ? 'disabled' : ''}>💡 Pista</button>
+        </div>
+        <div class="sudoku-picker">${picker}</div>
+        ${s.solved ? '<div class="sk-solved">✅ Sudoku resolvido! Carrega em Responder.</div>' : ''}
+      </div>`;
+}
+
+function _sudokuSelect(i) {
+    if (sudokuState.solved) return;
+    if (sudokuState.initial[i] !== 0) return;
+    sudokuState.selected = (sudokuState.selected === i) ? -1 : i;
+    _sudokuRender();
+}
+window._sudokuSelect = _sudokuSelect;
+
+function _sudokuFill(n) {
+    const s = sudokuState;
+    if (s.solved) return;
+    if (s.selected < 0) { showToast && showToast('Toca primeiro numa célula vazia'); return; }
+    if (s.initial[s.selected] !== 0) return;
+    if (s.grid[s.selected] !== n) {
+        s.grid[s.selected] = n;
+        s.moves += 1;
+    }
+    s.solved = _sudokuIsSolved(s.grid);
+    if (s.solved) {
+        s.coachMsg = `🎉 Brilhante! Resolveste em ${s.moves} jogadas${s.hintsUsed ? ' (com ' + s.hintsUsed + ' pista' + (s.hintsUsed === 1 ? '' : 's') + ')' : ''}.`;
+        s.selected = -1;
+    } else {
+        const filled = s.grid.filter(v => v !== 0).length;
+        if (filled === 16) {
+            s.coachMsg = '🤔 A grelha está cheia mas há conflitos. As células com fundo vermelho repetem na linha, coluna ou bloco — corrige-as.';
+        } else if (s.moves >= 6 && filled < 16) {
+            s.coachMsg = 'Boa! Vai linha a linha: qual é o número que ainda não aparece?';
+        }
+    }
+    _sudokuRender();
+}
+window._sudokuFill = _sudokuFill;
+
+function _sudokuIsSolved(g) {
+    if (g.some(v => v === 0)) return false;
+    const checkGroup = (idxs) => {
+        const seen = new Set();
+        for (const i of idxs) { if (seen.has(g[i])) return false; seen.add(g[i]); }
+        return seen.size === 4;
+    };
+    for (let r = 0; r < 4; r++) if (!checkGroup([r*4, r*4+1, r*4+2, r*4+3])) return false;
+    for (let c = 0; c < 4; c++) if (!checkGroup([c, c+4, c+8, c+12])) return false;
+    for (let br = 0; br < 2; br++) for (let bc = 0; bc < 2; bc++) {
+        const idxs = [];
+        for (let dr = 0; dr < 2; dr++) for (let dc = 0; dc < 2; dc++) idxs.push((br*2+dr)*4 + (bc*2+dc));
+        if (!checkGroup(idxs)) return false;
+    }
+    return true;
+}
+
+function _sudokuHint() {
+    const s = sudokuState;
+    if (s.solved || !s.solution) return;
+    // Procura uma célula vazia ou errada e revela o valor correcto.
+    let target = -1;
+    for (let i = 0; i < 16; i++) {
+        if (s.initial[i] === 0 && s.grid[i] !== s.solution[i]) { target = i; break; }
+    }
+    if (target === -1) return;
+    s.grid[target] = s.solution[target];
+    s.hintsUsed += 1;
+    s.coachMsg = `💡 Coloquei o número ${s.solution[target]} na célula em destaque. Foi possível porque era o único que não repetia na linha, coluna e bloco.`;
+    s.selected = target;
+    s.solved = _sudokuIsSolved(s.grid);
+    if (s.solved) s.coachMsg = '🎉 Pronto! Resolvido com pistas — para a próxima tenta sem.';
+    _sudokuRender();
+}
+window._sudokuHint = _sudokuHint;
+
 // Devolve { status: 'correct'|'partial'|'wrong', missing?: string }.
 // "partial" = resposta tem parte certa mas é incompleta — usado em
 // perguntas com vários itens ("agrupa", "indica todos", "quantos X há
@@ -8357,6 +8493,9 @@ async function submitAnswer() {
             s._speakResult = { transcript: tr, status: r.status, corrected: r.corrected, tip: r.tip };
         } else if (e.type === 'order') {
             isCorrect = orderState.every((it, i) => it === e.items[i]);
+        } else if (e.type === 'game' && e.game === 'sudoku4') {
+            if (!sudokuState.solved) { showToast('Termina o sudoku primeiro'); return; }
+            isCorrect = true;
         } else if (e.type === 'match') {
             const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
             if (!all) { showToast('Completa todas as associações'); return; }
@@ -8916,6 +9055,7 @@ function _buildDetailedExplanationPrompt(e, yr) {
     else if (e.type === 'tf') correctAns = e.ans ? 'Verdadeiro' : 'Falso';
     else if (e.type === 'order') correctAns = (e.items || []).join(' > ');
     else if (e.type === 'match' && e.pairs) correctAns = e.pairs.map(p => `${p[0]} ↔ ${p[1]}`).join('; ');
+    else if (e.type === 'game' && e.game === 'sudoku4' && e.puzzle && e.puzzle.solution) correctAns = 'Sudoku resolvido: ' + e.puzzle.solution.join(',');
     else correctAns = Array.isArray(e.ans) ? e.ans[0] : String(e.ans);
 
     let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"\nResposta CERTA: ${correctAns}`;
