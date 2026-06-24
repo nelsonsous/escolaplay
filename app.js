@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v497';
+const APP_VERSION = 'v498';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4692,7 +4692,11 @@ function renderQuestion() {
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div>`; setTimeout(redrawMatch, 0); }
     else if (e.type === 'speak') { area.innerHTML = renderSpeak(e); speakState = { transcript: '', listening: false, lang: e.lang || 'en-US' }; }
     else if (e.type === 'roleplay') { renderRoleplay(e); }
-    else if (e.type === 'game' && e.game === 'sudoku4') { _sudokuStartFromExercise(e); setTimeout(_sudokuRender, 0); }
+    else if (e.type === 'game' && e.game === 'sudoku4')   { _sudokuStartFromExercise(e); setTimeout(_sudokuRender, 0); }
+    else if (e.type === 'game' && e.game === 'cofre')     { _cofreStart(e); setTimeout(_cofreRender, 0); }
+    else if (e.type === 'game' && e.game === 'estimador') { _estStart(e);   setTimeout(_estRender, 0); }
+    else if (e.type === 'game' && e.game === 'suspeitos') { _susStart(e);   setTimeout(_susRender, 0); }
+    else if (e.type === 'game' && e.game === 'padrao')    { _padStart(e);   setTimeout(_padRender, 0); }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -8385,6 +8389,254 @@ function _sudokuHint() {
 }
 window._sudokuHint = _sudokuHint;
 
+// ============================================================
+// COFRE DOS CÓDIGOS — type:'game' game:'cofre'
+// Mostra história + pistas + N caixas para digitar um código.
+// Numpad 0-9 + backspace + pista (revela um dígito).
+// Usado para charadas matemáticas e mistérios "qual é o número?".
+// ============================================================
+let cofreState = { digits: 4, input: [], solution: '', hintsUsed: 0, solved: false, story: '', clues: [], hint: '' };
+function _cofreStart(e) {
+    cofreState = {
+        digits: e.digits || (e.solution || '').length || 1,
+        input: [],
+        solution: String(e.solution || ''),
+        hintsUsed: 0,
+        solved: false,
+        story: e.story || '',
+        clues: e.clues || [],
+        hint: e.hint || ''
+    };
+}
+function _cofreRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = cofreState;
+    const boxes = Array.from({ length: s.digits }, (_, i) => {
+        const v = s.input[i];
+        const filled = v !== undefined ? 'filled' : '';
+        const next = (s.input.length === i && !s.solved) ? 'next' : '';
+        return `<div class="cofre-box ${filled} ${next}">${v !== undefined ? v : ''}</div>`;
+    }).join('');
+    const numpad = [1,2,3,4,5,6,7,8,9,0].map(n =>
+        `<button class="cofre-key" onclick="_cofreType(${n})">${n}</button>`
+    ).join('');
+    const story = s.story ? `<div class="cofre-story">${escapeHtml(s.story)}</div>` : '';
+    const clues = s.clues.length ? `<ul class="cofre-clues">${s.clues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : '';
+    const coach = s.solved
+        ? `🎉 Cofre aberto! ${s.hintsUsed === 0 ? 'Sem ajudas! ⭐⭐⭐' : 'Usaste ' + s.hintsUsed + ' ajuda' + (s.hintsUsed===1?'':'s') + '.'}`
+        : (s.hint || 'Lê as pistas e descobre o código.');
+    area.innerHTML = `
+      <div class="cofre-wrap">
+        <div class="cofre-coach"><span class="cofre-coach-av">🕵️</span><span class="cofre-coach-msg">${escapeHtml(coach)}</span></div>
+        ${story}${clues}
+        <div class="cofre-boxes">${boxes}</div>
+        <div class="cofre-actions">
+          <button class="cofre-back" onclick="_cofreBack()" ${s.solved?'disabled':''}>⌫</button>
+          <button class="cofre-hint" onclick="_cofreHint()" ${s.solved?'disabled':''}>💡 Pista</button>
+        </div>
+        <div class="cofre-numpad">${numpad}</div>
+        ${s.solved ? '<div class="cofre-solved">✅ Código certo! Carrega Responder.</div>' : ''}
+      </div>`;
+}
+function _cofreType(n) {
+    const s = cofreState;
+    if (s.solved) return;
+    if (s.input.length >= s.digits) return;
+    s.input.push(String(n));
+    if (s.input.length === s.digits) s.solved = s.input.join('') === s.solution;
+    _cofreRender();
+}
+window._cofreType = _cofreType;
+function _cofreBack() {
+    if (cofreState.solved) return;
+    cofreState.input.pop();
+    _cofreRender();
+}
+window._cofreBack = _cofreBack;
+function _cofreHint() {
+    const s = cofreState;
+    if (s.solved) return;
+    // Preenche o próximo dígito correcto da esquerda para a direita.
+    const next = s.input.length;
+    if (next >= s.digits) return;
+    s.input.push(s.solution[next]);
+    s.hintsUsed += 1;
+    if (s.input.length === s.digits) s.solved = s.input.join('') === s.solution;
+    _cofreRender();
+}
+window._cofreHint = _cofreHint;
+
+// ============================================================
+// ESTIMADOR — type:'game' game:'estimador'
+// Slider de min..max, com "termómetro" vivo a indicar proximidade.
+// Considera acerto se |valor − resposta| <= tolerance.
+// ============================================================
+let estState = { min: 0, max: 100, value: 50, answer: 0, tolerance: 1, unit: '', story: '', moved: false };
+function _estStart(e) {
+    const mid = Math.floor(((e.min || 0) + (e.max || 100)) / 2);
+    estState = {
+        min: e.min ?? 0,
+        max: e.max ?? 100,
+        value: mid,
+        answer: e.answer,
+        tolerance: e.tolerance ?? 1,
+        unit: e.unit || '',
+        story: e.story || '',
+        hint: e.hint || '',
+        moved: false
+    };
+}
+function _estFeedback() {
+    const s = estState;
+    if (!s.moved) return '👆 Arrasta o cursor para fazer o teu palpite.';
+    const d = Math.abs(s.value - s.answer);
+    if (d <= s.tolerance) return '🥳 A QUENTE! Excelente palpite.';
+    if (d <= s.tolerance * 2) return '🙂 Morno — estás perto.';
+    if (d <= s.tolerance * 4) return '🥶 Frio. Pensa melhor.';
+    return '🧊 Muito frio. Está bem longe.';
+}
+function _estRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = estState;
+    const story = s.story ? `<div class="est-story">${escapeHtml(s.story)}</div>` : '';
+    area.innerHTML = `
+      <div class="est-wrap">
+        ${story}
+        <div class="est-value">${s.value} <span class="est-unit">${escapeHtml(s.unit)}</span></div>
+        <input class="est-slider" type="range" min="${s.min}" max="${s.max}" value="${s.value}" oninput="_estMove(this.value)">
+        <div class="est-scale"><span>${s.min}</span><span>${s.max}</span></div>
+        <div class="est-feedback">${_estFeedback()}</div>
+        ${s.hint ? `<div class="est-hint">💡 ${escapeHtml(s.hint)}</div>` : ''}
+      </div>`;
+}
+function _estMove(v) {
+    estState.value = parseInt(v, 10);
+    estState.moved = true;
+    _estRender();
+    // Mantém o foco no slider durante drag para não saltar.
+    const sl = document.querySelector('.est-slider');
+    if (sl) sl.focus();
+}
+window._estMove = _estMove;
+
+// ============================================================
+// SUSPEITOS — type:'game' game:'suspeitos'
+// Cartas de suspeitos com 3 estados (?, ❌, ✅). Tap para ciclar.
+// Acerta quando há exactamente 1 ✅ no suspeito certo.
+// ============================================================
+let susState = { suspects: [], states: {}, solution: '', clues: [], story: '', solved: false };
+function _susStart(e) {
+    const states = {};
+    (e.suspects || []).forEach(sp => { states[sp.id] = '?'; });
+    susState = {
+        suspects: e.suspects || [],
+        states,
+        solution: e.solution || '',
+        clues: e.clues || [],
+        story: e.story || '',
+        solved: false
+    };
+}
+function _susRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = susState;
+    const cards = s.suspects.map(sp => {
+        const st = s.states[sp.id] || '?';
+        const cls = st === '✅' ? 'pick' : (st === '❌' ? 'out' : '');
+        return `<button class="sus-card ${cls}" onclick="_susCycle('${sp.id}')">
+            <div class="sus-emoji">${sp.emoji || '🙂'}</div>
+            <div class="sus-name">${escapeHtml(sp.name)}</div>
+            <div class="sus-state">${st}</div>
+        </button>`;
+    }).join('');
+    const story = s.story ? `<div class="sus-story">${escapeHtml(s.story)}</div>` : '';
+    const clues = s.clues.length ? `<ul class="sus-clues">${s.clues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : '';
+    const picks = Object.values(s.states).filter(v => v === '✅').length;
+    const coach = picks === 0
+        ? 'Toca nos suspeitos: 1× = ❌ (não foi), 2× = ✅ (foi), 3× = limpa.'
+        : picks > 1 ? '⚠️ Marca SÓ UM como culpado (✅).' : 'Quando tiveres a tua escolha, carrega Responder.';
+    area.innerHTML = `
+      <div class="sus-wrap">
+        <div class="sus-coach"><span>🕵️</span><span>${escapeHtml(coach)}</span></div>
+        ${story}${clues}
+        <div class="sus-cards">${cards}</div>
+      </div>`;
+}
+function _susCycle(id) {
+    const s = susState;
+    const order = ['?', '❌', '✅'];
+    const cur = s.states[id] || '?';
+    s.states[id] = order[(order.indexOf(cur) + 1) % 3];
+    _susRender();
+}
+window._susCycle = _susCycle;
+
+// ============================================================
+// PADRÃO — type:'game' game:'padrao'
+// Mostra sequência com '?' e o user escreve o termo em falta.
+// Numpad para números, ou opções (chips) para letras/símbolos.
+// ============================================================
+let padState = { sequence: [], answer: '', input: '', options: null, solved: false };
+function _padStart(e) {
+    padState = {
+        sequence: e.sequence || [],
+        answer: String(e.answer || ''),
+        input: '',
+        options: e.options || null,
+        hint: e.hint || '',
+        solved: false
+    };
+}
+function _padRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = padState;
+    const seqHtml = s.sequence.map(x => {
+        const isQ = String(x) === '?';
+        const v = isQ && s.input ? s.input : x;
+        return `<span class="pad-term ${isQ ? 'q' : ''} ${isQ && s.solved ? 'ok' : ''}">${escapeHtml(String(v))}</span>`;
+    }).join('<span class="pad-sep">,</span>');
+    let input;
+    if (s.options) {
+        input = `<div class="pad-options">${s.options.map(o => `<button class="pad-opt" onclick="_padPick(${JSON.stringify(String(o)).replace(/"/g,'&quot;')})">${escapeHtml(String(o))}</button>`).join('')}</div>`;
+    } else {
+        const numpad = [1,2,3,4,5,6,7,8,9,0].map(n =>
+            `<button class="pad-key" onclick="_padPick('${n}')">${n}</button>`
+        ).join('');
+        input = `<div class="pad-numpad">${numpad}<button class="pad-key pad-back" onclick="_padBack()">⌫</button></div>`;
+    }
+    area.innerHTML = `
+      <div class="pad-wrap">
+        <div class="pad-coach">🧩 ${escapeHtml(s.hint || 'Descobre o padrão e completa a sequência.')}</div>
+        <div class="pad-seq">${seqHtml}</div>
+        ${input}
+        ${s.solved ? '<div class="pad-solved">✅ Acertaste! Carrega Responder.</div>' : ''}
+      </div>`;
+}
+function _padPick(v) {
+    const s = padState;
+    if (s.solved) return;
+    if (s.options) {
+        s.input = String(v);
+        s.solved = s.input === s.answer;
+    } else {
+        s.input = (s.input + String(v)).slice(0, 4);
+        // Auto-validate quando o comprimento bate.
+        if (s.input.length >= s.answer.length) s.solved = s.input === s.answer;
+    }
+    _padRender();
+}
+window._padPick = _padPick;
+function _padBack() {
+    if (padState.solved) return;
+    padState.input = padState.input.slice(0, -1);
+    _padRender();
+}
+window._padBack = _padBack;
+
 // Devolve { status: 'correct'|'partial'|'wrong', missing?: string }.
 // "partial" = resposta tem parte certa mas é incompleta — usado em
 // perguntas com vários itens ("agrupa", "indica todos", "quantos X há
@@ -8500,13 +8752,32 @@ async function submitAnswer() {
         } else if (e.type === 'game' && e.game === 'sudoku4') {
             if (!sudokuState.solved) { showToast('Termina o sudoku primeiro'); return; }
             isCorrect = true;
-            // Sobrepõe a `exp` original com stats da jogada — a Eduarda vê
-            // no feedback se usou ajudas e quantas. Estrelas = 3 menos pistas.
             const stars = '⭐'.repeat(Math.max(1, 3 - sudokuState.hintsUsed));
             const hintsLine = sudokuState.hintsUsed === 0
                 ? '🏅 Sem ajudas — fizeste tudo sozinha!'
                 : `🤝 Usaste a Pista do Detetive ${sudokuState.hintsUsed}× (${sudokuState.hintsUsed === 1 ? 'uma' : sudokuState.hintsUsed} vez${sudokuState.hintsUsed === 1 ? '' : 'es'}).`;
             e.exp = `${stars}  ·  ${sudokuState.moves} jogadas  ·  ${hintsLine}`;
+        } else if (e.type === 'game' && e.game === 'cofre') {
+            if (cofreState.input.length < cofreState.digits) { showToast('Falta(m) dígito(s)'); return; }
+            isCorrect = cofreState.solved;
+            const stars = '⭐'.repeat(Math.max(1, 3 - cofreState.hintsUsed));
+            e.exp = `${stars}  ·  Código: ${cofreState.solution}  ·  ${cofreState.hintsUsed === 0 ? '🏅 Sem pistas!' : '🤝 Usaste ' + cofreState.hintsUsed + ' pista' + (cofreState.hintsUsed===1?'':'s') + '.'}`;
+        } else if (e.type === 'game' && e.game === 'estimador') {
+            if (!estState.moved) { showToast('Move o cursor primeiro'); return; }
+            const d = Math.abs(estState.value - estState.answer);
+            isCorrect = d <= estState.tolerance;
+            e.exp = `Resposta certa: ${estState.answer} ${estState.unit}. Tu disseste ${estState.value} (diferença ${d}).`;
+        } else if (e.type === 'game' && e.game === 'suspeitos') {
+            const picks = Object.entries(susState.states).filter(([, v]) => v === '✅');
+            if (picks.length === 0) { showToast('Marca um suspeito com ✅'); return; }
+            if (picks.length > 1) { showToast('Marca SÓ UM suspeito como ✅'); return; }
+            isCorrect = picks[0][0] === susState.solution;
+            const name = (susState.suspects.find(sp => sp.id === susState.solution) || {}).name || susState.solution;
+            e.exp = (isCorrect ? '🎯 Acertaste — ' : 'O culpado era ') + name + '.';
+        } else if (e.type === 'game' && e.game === 'padrao') {
+            if (!padState.input) { showToast('Escreve o número em falta'); return; }
+            isCorrect = padState.input === padState.answer;
+            e.exp = `Termo em falta: ${padState.answer}.`;
         } else if (e.type === 'match') {
             const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
             if (!all) { showToast('Completa todas as associações'); return; }
@@ -9067,6 +9338,10 @@ function _buildDetailedExplanationPrompt(e, yr) {
     else if (e.type === 'order') correctAns = (e.items || []).join(' > ');
     else if (e.type === 'match' && e.pairs) correctAns = e.pairs.map(p => `${p[0]} ↔ ${p[1]}`).join('; ');
     else if (e.type === 'game' && e.game === 'sudoku4' && e.puzzle && e.puzzle.solution) correctAns = 'Sudoku resolvido: ' + e.puzzle.solution.join(',');
+    else if (e.type === 'game' && e.game === 'cofre' && e.solution) correctAns = 'Código: ' + e.solution;
+    else if (e.type === 'game' && e.game === 'estimador' && e.answer !== undefined) correctAns = String(e.answer) + (e.unit ? ' ' + e.unit : '');
+    else if (e.type === 'game' && e.game === 'suspeitos' && e.solution) correctAns = 'Culpado: ' + ((e.suspects || []).find(sp => sp.id === e.solution) || {}).name || e.solution;
+    else if (e.type === 'game' && e.game === 'padrao' && e.answer) correctAns = String(e.answer);
     else correctAns = Array.isArray(e.ans) ? e.ans[0] : String(e.ans);
 
     let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"\nResposta CERTA: ${correctAns}`;
