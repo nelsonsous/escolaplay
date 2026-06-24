@@ -521,7 +521,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v494';
+const APP_VERSION = 'v495';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8264,7 +8264,7 @@ function _sudokuStartFromExercise(e) {
         solved: false,
         hintsUsed: 0,
         solution: (e.puzzle && e.puzzle.solution) || null,
-        coachMsg: 'Lê linha por linha. Em cada uma faltam números entre 1 e 4 — começa pela que tiver menos vazios.'
+        coachMsg: e.hint || 'Toca numa célula vazia e escolhe 1, 2, 3 ou 4.'
     };
 }
 
