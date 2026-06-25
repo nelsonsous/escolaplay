@@ -533,7 +533,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v500';
+const APP_VERSION = 'v501';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8486,11 +8486,18 @@ window._cofreHint = _cofreHint;
 // ============================================================
 let estState = { min: 0, max: 100, value: 50, answer: 0, tolerance: 1, unit: '', story: '', moved: false };
 function _estStart(e) {
-    const mid = Math.floor(((e.min || 0) + (e.max || 100)) / 2);
+    const min = e.min ?? 0;
+    const max = e.max ?? 100;
+    // step: usa o do exercício, ou calcula um sensato — passos grandes
+    // para ranges grandes (~50 passos do início ao fim) para não soar
+    // hipersensível ao toque. Mínimo 1.
+    const step = e.step ?? Math.max(1, Math.round((max - min) / 50));
+    // Snap o ponto inicial a um múltiplo do step a partir de min.
+    const rawMid = (min + max) / 2;
+    const snapped = min + Math.round((rawMid - min) / step) * step;
     estState = {
-        min: e.min ?? 0,
-        max: e.max ?? 100,
-        value: mid,
+        min, max, step,
+        value: snapped,
         answer: e.answer,
         tolerance: e.tolerance ?? 1,
         unit: e.unit || '',
@@ -8517,7 +8524,7 @@ function _estRender() {
       <div class="est-wrap">
         ${story}
         <div class="est-value">${s.value} <span class="est-unit">${escapeHtml(s.unit)}</span></div>
-        <input class="est-slider" type="range" min="${s.min}" max="${s.max}" value="${s.value}" oninput="_estMove(this.value)">
+        <input class="est-slider" type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}" oninput="_estMove(this.value)">
         <div class="est-scale"><span>${s.min}</span><span>${s.max}</span></div>
         <div class="est-feedback">${_estFeedback()}</div>
         ${s.hint ? `<div class="est-hint">💡 ${escapeHtml(s.hint)}</div>` : ''}
