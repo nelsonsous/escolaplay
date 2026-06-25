@@ -533,7 +533,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v499';
+const APP_VERSION = 'v500';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8526,10 +8526,17 @@ function _estRender() {
 function _estMove(v) {
     estState.value = parseInt(v, 10);
     estState.moved = true;
-    _estRender();
-    // Mantém o foco no slider durante drag para não saltar.
-    const sl = document.querySelector('.est-slider');
-    if (sl) sl.focus();
+    // NÃO re-renderiza o DOM todo durante o drag — só actualiza o valor
+    // e o termómetro. Substituir o <input> em pleno drag faz o slider
+    // saltar/perder o toque em mobile.
+    const valEl = document.querySelector('.est-value');
+    const fbEl = document.querySelector('.est-feedback');
+    if (valEl) {
+        // Mantém o span da unidade.
+        const unit = estState.unit ? ` <span class="est-unit">${estState.unit}</span>` : '';
+        valEl.innerHTML = estState.value + unit;
+    }
+    if (fbEl) fbEl.textContent = _estFeedback();
 }
 window._estMove = _estMove;
 
