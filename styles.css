@@ -6392,7 +6392,6 @@ body.has-teacher-overlay #subject-detail-container {
 .qt-solved { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 1.5px solid #10b981; color: #065f46; border-radius: 10px; padding: 8px 14px; font-weight: 800; font-size: 0.9rem; }
 .qt-retry { color: #b91c1c; font-weight: 700; font-size: 0.88rem; }
 @media (max-width: 380px) { .qt-cell { width: 32px; height: 32px; } .qt-opt { width: 56px; height: 56px; } }
-
 /* === Biblioteca de Leitura — badge de dificuldade === */
 .leitura-card-diff { display: inline-block; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin: 2px 0 4px; }
 .leitura-card-diff.diff-1 { background: #dcfce7; color: #166534; }
