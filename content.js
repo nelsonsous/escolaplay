@@ -2799,9 +2799,12 @@ const EXERCISES_3 = [
     { id:'3li_tow2', s:'ingles', t:'My town', type:'fill', diff:1, q:'Biblioteca em inglês: ___', ans:['library'], exp:'Library (NÃO "livraria"!).' },
     { id:'3li_tow3', s:'ingles', t:'My town', type:'mc', diff:2, q:'➡️ "Turn left" significa:', opts:['vira à direita','vira à esquerda','vai em frente'], ans:1, exp:'Turn left = à esquerda.' },
 
-    { id:'3li_clo1', s:'ingles', t:'Clothes', type:'mc', diff:1, q:'👕 "T-shirt" significa:', opts:['casaco','t-shirt','calças'], ans:1, exp:'T-shirt.' },
-    { id:'3li_clo2', s:'ingles', t:'Clothes', type:'mc', diff:2, q:'👖 "Trousers" (UK) significa:', opts:['saia','calças','sapatos'], ans:1, exp:'Trousers = calças (sempre plural).' },
-    { id:'3li_clo3', s:'ingles', t:'Clothes', type:'fill', diff:1, q:'Sapatos em inglês: ___', ans:['shoes'], exp:'Shoes (sempre plural).' },
+    { id:'3li_clo1', s:'ingles', t:'Clothes', type:'mc', diff:1, q:'👗 "Skirt" significa:', opts:['calças','saia','casaco'], ans:1, exp:'Skirt = saia (a peça que se veste da cintura para baixo, em roda). ⚠️ Cuidado: "skirt" (saia) é muito parecido com "shirt" (camisa) — só muda o "k"!' },
+    { id:'3li_clo2', s:'ingles', t:'Clothes', type:'mc', diff:2, q:'👖 "Trousers" significa:', opts:['saia','calças','sapatos'], ans:1, exp:'Trousers = calças. É sempre plural em inglês (como "scissors", tesoura) — nunca dizemos "a trouser". Os americanos dizem "pants".' },
+    { id:'3li_clo3', s:'ingles', t:'Clothes', type:'fill', diff:1, q:'👟 Sapatos em inglês: ___', ans:['shoes'], exp:'Shoes — sempre no plural porque são dois! Um só é "a shoe".' },
+    { id:'3li_clo4', s:'ingles', t:'Clothes', type:'mc', diff:1, q:'🧥 "Jacket" significa:', opts:['meias','casaco','chapéu'], ans:1, exp:'Jacket = casaco. Para casacos mais grossos de inverno também se diz "coat".' },
+    { id:'3li_clo5', s:'ingles', t:'Clothes', type:'fill', diff:2, q:'🧦 Meias em inglês: ___', ans:['socks'], exp:'Socks — plural, tal como em português. Uma só é "a sock".' },
+    { id:'3li_clo6', s:'ingles', t:'Clothes', type:'match', diff:2, q:'🔗 Liga cada roupa em inglês à palavra portuguesa.', pairs:[['shoes','sapatos'],['skirt','saia'],['hat','chapéu'],['socks','meias']], exp:'shoes=sapatos, skirt=saia, hat=chapéu, socks=meias.' },
 
     { id:'3li_hob1', s:'ingles', t:'Hobbies and sports', type:'mc', diff:1, q:'⚽ "Football" significa:', opts:['ténis','futebol','natação'], ans:1, exp:'Football = futebol.' },
     { id:'3li_hob2', s:'ingles', t:'Hobbies and sports', type:'mc', diff:2, q:'🏊 "I like swimming" significa:', opts:['Gosto de correr','Gosto de nadar','Gosto de saltar'], ans:1, exp:'Swimming = natação.' },
@@ -5759,7 +5762,7 @@ const EXERCISES_7 = [
     { id:'7f_vi1', s:'frances', t:'La ville', type:'mc', diff:1, q:'🏥 "L\'hôpital" significa:', opts:['hospital','estação','escola'], ans:0, exp:'Hôpital = hospital.' },
     { id:'7f_vi2', s:'frances', t:'La ville', type:'mc', diff:2, q:'➡️ "Tournez à droite" significa:', opts:['vai em frente','vira à direita','vira à esquerda'], ans:1, exp:'À droite = à direita.' },
 
-    { id:'7f_ve1', s:'frances', t:'Les vêtements', type:'mc', diff:1, q:'👕 "Le t-shirt" significa:', opts:['casaco','t-shirt','calças'], ans:1, exp:'T-shirt.' },
+    { id:'7f_ve1', s:'frances', t:'Les vêtements', type:'mc', diff:1, q:'👗 "La jupe" significa:', opts:['calças','saia','casaco'], ans:1, exp:'La jupe = saia. Não confundir com "la jambe" (a perna)!' },
     { id:'7f_ve2', s:'frances', t:'Les vêtements', type:'mc', diff:2, q:'👗 "Une robe rouge" — "rouge" concorda com:', opts:['masculino','feminino','não concorda'], ans:1, exp:'Rouge é igual nos dois géneros; mas concorda em número (rouges no plural).' },
 
     { id:'7f_me1', s:'frances', t:'Les saisons et la météo', type:'mc', diff:1, q:'☀️ "Il fait beau" significa:', opts:['Está bom tempo','Faz frio','Chove'], ans:0, exp:'Bom tempo.' },
