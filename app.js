@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v504';
+const APP_VERSION = 'v505';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15463,20 +15463,27 @@ window.closeReadingTeacher = closeReadingTeacher;
 // ============================================================
 function openLeituraLibrary() {
     // Recolhe TODOS os exercícios de Leitura com passage (1 por tópico).
-    const texts = (window.EXERCISES || []).filter(e => e.s === 'leitura' && e.passage);
+    const texts = (window.EXERCISES || []).filter(e => e.s === 'leitura' && e.passage)
+        // Ordena do mais fácil para o mais difícil — a Eduarda começa
+        // pelos textos curtos e ganha confiança antes dos longos.
+        .slice().sort((a, b) => (a.diff || 2) - (b.diff || 2));
     if (texts.length === 0) {
         showToast('Sem textos de Leitura para este perfil.');
         return;
     }
     const seen = state.exerciseSeen || {};
+    const DIFF_LABEL = { 1: '⭐ Fácil', 2: '⭐⭐ Médio', 3: '⭐⭐⭐ Difícil' };
     const cards = texts.map(t => {
         const title = escapeHtml(t.t || 'Leitura');
         const preview = escapeHtml(String(t.passage || '').replace(/\n+/g, ' ').slice(0, 90));
         const wasRead = !!seen[t.id];
         const badge = wasRead ? '<span class="leitura-card-badge">✓ Lido</span>' : '';
+        const d = t.diff || 2;
+        const diffBadge = `<span class="leitura-card-diff diff-${d}">${DIFF_LABEL[d] || ''}</span>`;
         const exId = (t.id || '').replace(/'/g, "\\'");
         return `<div class="leitura-card" onclick="_openLeituraText('${exId}')">
             <div class="leitura-card-title">📖 ${title}${badge}</div>
+            ${diffBadge}
             <div class="leitura-card-preview">${preview}…</div>
             <div class="leitura-card-cta">🎓 Abrir Professor →</div>
         </div>`;
@@ -16088,6 +16095,15 @@ function _teacherStopSilenceVox() {
 async function _teacherTranscribeVoxtral(blob) {
     const status = document.getElementById('teacher-status');
     if (status) status.innerHTML = '⏳ <strong>A transcrever</strong> com o Mistral Voxtral…';
+    // Guard explícito da chave ANTES do fetch — sem isto, uma chave em
+    // falta só falhava após 25s de timeout com mensagem genérica. Agora
+    // diz logo à mãe/criança o que fazer.
+    const key = state && state.max && state.max.mistralKey;
+    if (!key) {
+        if (status) status.innerHTML = '🔑 Falta a chave Mistral. Vai a <strong>Perfil → MAX</strong> e cola a chave para o professor te ouvir.';
+        _teacher.allHeard = [];
+        return;
+    }
     try {
         const t = blob.type || '';
         const ext = (t.includes('mp4') || t.includes('aac')) ? 'm4a' : (t.includes('ogg') ? 'ogg' : 'webm');
@@ -16097,24 +16113,41 @@ async function _teacherTranscribeVoxtral(blob) {
         fd.append('language', 'pt');
         const ctrl = new AbortController();
         const to = setTimeout(() => ctrl.abort(), 25000);
-        const res = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: { 'authorization': `Bearer ${state.max.mistralKey}` },
-            body: fd, signal: ctrl.signal
-        });
-        clearTimeout(to);
+        let res;
+        try {
+            res = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
+                method: 'POST',
+                headers: { 'authorization': `Bearer ${key}` },
+                body: fd, signal: ctrl.signal
+            });
+        } finally {
+            clearTimeout(to);
+        }
+        if (res.status === 401) throw new Error('voxtral-auth');
         if (!res.ok) throw new Error('voxtral ' + res.status);
         const data = await res.json();
         const text = (data.text || '').trim();
         const heardWords = (text.match(/[^\s.,;:!?—–\-"()«»…]+/g) || []).map(_teacherNormalize).filter(Boolean);
         _teacher.allHeard = heardWords;
+        // Distingue "não percebi nada" de "correu bem mas vazio" — antes
+        // ambos davam 0% silenciosamente e a criança ficava confusa.
+        _teacher.voxEmpty = heardWords.length === 0;
         // v483: já não dump do transcrito — as cores na palavra dizem tudo.
         const liveEl = document.getElementById('teacher-live');
         if (liveEl) liveEl.innerHTML = '';
-        if (status) status.innerHTML = '';
+        if (status) {
+            status.innerHTML = _teacher.voxEmpty
+                ? '🔇 Não te ouvi bem — fala mais alto e devagar, e tenta de novo.'
+                : '';
+        }
     } catch (e) {
         console.warn('[teacher] voxtral failed', e);
-        if (status) status.innerHTML = '⚠️ Transcrição falhou. Tenta outra vez.';
+        const msg = (e && e.name === 'AbortError')
+            ? '🐢 Demorou demais. Verifica a net e tenta outra vez.'
+            : (e && e.message === 'voxtral-auth')
+                ? '🔑 A chave Mistral parece inválida. Confirma-a em Perfil → MAX.'
+                : '⚠️ Transcrição falhou. Tenta outra vez.';
+        if (status) status.innerHTML = msg;
         _teacher.allHeard = [];
     }
 }
