@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v509';
+const APP_VERSION = 'v510';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5712,7 +5712,8 @@ async function _tutorAnswerDoubt(question) {
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> O professor está a explicar…</div>`;
     const hist = tutorState.history.slice(-8).map(h => `${h.role === 'you' ? 'Student' : 'Tutor'}: ${h.text}`).join('\n');
     const ctx = topic ? `The TOPIC IN FOCUS is "${topic}". ` : '';
-    const prompt = `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${ctx}This is a FOLLOW-UP inside an ongoing lesson.
+    const _dLvl = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B1';
+    const prompt = `You are an English tutor for a Portuguese adult learner consolidating ${_dLvl}. Pitch your answer at ${_dLvl} level — clear and concrete, work and daily-life relevant. ${ctx}This is a FOLLOW-UP inside an ongoing lesson.
 
 Recent conversation:
 ${hist}
@@ -6312,6 +6313,12 @@ async function _tutorDeepDive(topic, opts) {
     const cc = focused
         ? { ov: '90-130 words', pts: '3-4', ex: '3-4', pit: '2-3', rows: '3-4', pairs: '2-3' }
         : { ov: '180-260 words', pts: '6-9', ex: '5-7', pit: '4-6', rows: '4-6', pairs: '3-4' };
+    // Nível-alvo do aluno (chip B1/B2/C1/C2). A lição passa a adaptar-se a
+    // ESTE nível em vez de assumir sempre B2→C1 — quem está a consolidar B1
+    // recebe exemplos e profundidade B1, com um passo suave para o nível
+    // seguinte. Inclui erros típicos de falantes de português nesse nível.
+    const _tgtLvl = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B1';
+    const _nextLvl = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' }[_tgtLvl] || 'B2';
     const _sDD = tutorState && tutorState.subject;
     const _subjModeDD = !!(_sDD && !_sDD.isEnglish);
     const prompt = _subjModeDD
@@ -6320,7 +6327,7 @@ Tópico: "${topic}".
 Devolve JSON ESTRITO em Português Europeu (Portugal — NUNCA brasileiro):
 {"title":"título do conceito em PT-PT","overview":"explicação que começa pela intuição, ${cc.ov}, ao nível do ${_sDD.year}.º ano","rule":"regra de ouro em PT-PT, uma frase memorável; vazio se não houver","compare":{"a":"opção A","b":"opção B","rows":[{"k":"aspeto (ex.: Quando usar, Como calcular)","a":"valor PT-PT","b":"valor PT-PT"}]},"points":[{"form":"termo/fórmula","use":"quando e como aplicar (PT-PT)"}],"contrasts":[{"a":"frase/exemplo A","am":"o que significa","b":"frase/exemplo B","bm":"o que significa"}],"examples":[{"wrong":"PT-PT errado (diferente do certo)","right":"PT-PT correto","note":"PT-PT máx 10 palavras"}],"pitfalls":["erro comum em PT-PT"],"tip":"dica rápida PT-PT para decidir depressa; vazio se nenhuma"}
 Inclui ${cc.pts} "points", ${cc.ex} "examples", ${cc.pit} "pitfalls" — qualidade > quantidade${focused ? ', mantém-te focado e de alto impacto' : ''}. Se for um tópico de comparação (X vs Y), preenche "compare" (${cc.rows} linhas) e "contrasts" (${cc.pairs} pares lado-a-lado). Se é um conceito único, usa "compare":{} e "contrasts":[].`
-        : `You are an English tutor for a Portuguese Project Manager (B2→C1) in SAP/consulting. ${styleInstr}
+        : `You are an English tutor for a Portuguese adult learner who is consolidating ${_tgtLvl} and reaching towards ${_nextLvl}. Pitch EVERY explanation and example AT ${_tgtLvl} level — clear and concrete, relevant to work and daily life, never above ${_nextLvl}. Call out mistakes Portuguese speakers typically make at ${_tgtLvl} (false friends, literal translations, wrong prepositions). ${styleInstr}
 Topic: "${topic}".
 GRAMMAR TERMS RULE (critical): all grammar term NAMES (Simple Past, Present Perfect, Past Perfect, Articles, Prepositions, Word order, Conditionals…) MUST stay in ENGLISH everywhere, including inside the Portuguese text — never translate (write "Simple Past", never "passado simples").
 Return STRICT JSON only:
