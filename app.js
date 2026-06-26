@@ -360,6 +360,19 @@ function loadState() {
                 }
                 p._detetiveV499Done = true;
             }
+            // Migração v504: novo tópico "Quantos vês?" (subitizing) entrou no
+            // início da Detetive Mental. Profiles antigos têm progress.detetive
+            // .toIndex = nº de tópicos antigo, que com o fallback legacy
+            // (slice 0..toIndex) cortaria o último tópico agora que há +1.
+            // Repõe activeTopics e toIndex para "tudo activo" uma vez.
+            if (!p._detetiveV504Done) {
+                if (p.activeTopics && p.activeTopics.detetive) delete p.activeTopics.detetive;
+                if (p.progress && p.progress.detetive) {
+                    const cd = (CURRICULUM_BY_YEAR[p.year] || {}).detetive;
+                    if (Array.isArray(cd)) p.progress.detetive.toIndex = cd.length;
+                }
+                p._detetiveV504Done = true;
+            }
             // Migração: limpar BR-PT e SVGs triviais nos exercícios MAX já guardados
             if (Array.isArray(p.maxExercises)) {
                 p.maxExercises.forEach(migrateMaxExercise);
@@ -533,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v503';
+const APP_VERSION = 'v504';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4710,6 +4723,7 @@ function renderQuestion() {
     else if (e.type === 'game' && e.game === 'estimador') { _estStart(e);   setTimeout(_estRender, 0); }
     else if (e.type === 'game' && e.game === 'suspeitos') { _susStart(e);   setTimeout(_susRender, 0); }
     else if (e.type === 'game' && e.game === 'padrao')    { _padStart(e);   setTimeout(_padRender, 0); }
+    else if (e.type === 'game' && e.game === 'quantos')   { _qtStart(e);    setTimeout(_qtRender, 0); }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -8793,6 +8807,82 @@ function _padBack() {
 }
 window._padBack = _padBack;
 
+// ============================================================
+// QUANTOS VÊS? — type:'game' game:'quantos' (SUBITIZING)
+// Treino nuclear de discalculia: ligar quantidade ↔ símbolo SEM
+// contar um a um. Mostra pontos arrumados em ten-frames (2 linhas
+// de 5 — o suporte visual padrão), a criança toca no número certo.
+// Estrutura visual (não pontos espalhados ao acaso) porque é isso
+// que constrói o "sentido de número".
+// ============================================================
+let qtState = { dots: 0, options: [], picked: null, solved: false, prompt: '' };
+function _qtStart(e) {
+    const dots = e.dots || 0;
+    // Opções: a resposta + distractores próximos (±1, ±2), baralhadas.
+    let opts = e.options;
+    if (!opts) {
+        const set = new Set([dots]);
+        let delta = 1;
+        while (set.size < 4) {
+            if (dots - delta >= 0) set.add(dots - delta);
+            if (set.size < 4) set.add(dots + delta);
+            delta++;
+        }
+        opts = Array.from(set).sort((a, b) => a - b);
+    }
+    qtState = { dots, options: opts, picked: null, solved: false, prompt: e.prompt || 'Quantos pontos vês?' };
+}
+function _qtDotsHtml(n) {
+    // Renderiza n pontos em ten-frames de 10 (5 col × 2 linhas).
+    // Para n ≤ 10 → um ten-frame; 11-20 → dois. Células vazias ficam
+    // como buraco ténue para a grelha dar referência espacial.
+    const frames = [];
+    let remaining = n;
+    const nFrames = Math.max(1, Math.ceil(n / 10));
+    for (let f = 0; f < nFrames; f++) {
+        const inThis = Math.min(10, remaining);
+        remaining -= inThis;
+        const cells = Array.from({ length: 10 }, (_, i) =>
+            `<span class="qt-cell ${i < inThis ? 'on' : ''}"></span>`
+        ).join('');
+        frames.push(`<div class="qt-frame">${cells}</div>`);
+    }
+    return frames.join('');
+}
+function _qtRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = qtState;
+    const opts = s.options.map(o => {
+        let cls = 'qt-opt';
+        if (s.picked !== null) {
+            if (o === s.dots) cls += ' correct';
+            else if (o === s.picked) cls += ' wrong';
+        }
+        return `<button class="${cls}" onclick="_qtPick(${o})" ${s.solved ? 'disabled' : ''}>${o}</button>`;
+    }).join('');
+    area.innerHTML = `
+      <div class="qt-wrap">
+        <div class="qt-coach"><span>🧠</span><span>${escapeHtml(s.prompt)}</span></div>
+        <div class="qt-frames">${_qtDotsHtml(s.dots)}</div>
+        <div class="qt-hint-tip">Olha para os grupos de 5 — não contes um a um!</div>
+        <div class="qt-options">${opts}</div>
+        ${s.solved ? '<div class="qt-solved">✅ Certo! Carrega Responder.</div>' : (s.picked !== null ? '<div class="qt-retry">Tenta outra vez 🙂</div>' : '')}
+      </div>`;
+}
+function _qtPick(n) {
+    const s = qtState;
+    if (s.solved) return;
+    s.picked = n;
+    s.solved = (n === s.dots);
+    _qtRender();
+    if (!s.solved) {
+        // Deixa ver o erro um momento e limpa para nova tentativa.
+        setTimeout(() => { if (!qtState.solved) { qtState.picked = null; _qtRender(); } }, 900);
+    }
+}
+window._qtPick = _qtPick;
+
 // Devolve { status: 'correct'|'partial'|'wrong', missing?: string }.
 // "partial" = resposta tem parte certa mas é incompleta — usado em
 // perguntas com vários itens ("agrupa", "indica todos", "quantos X há
@@ -8940,6 +9030,10 @@ async function submitAnswer() {
             if (!padState.input) { showToast('Escreve o número em falta'); return; }
             isCorrect = padState.input === padState.answer;
             e.exp = `Termo em falta: ${padState.answer}.`;
+        } else if (e.type === 'game' && e.game === 'quantos') {
+            if (!qtState.solved) { showToast('Toca no número certo primeiro'); return; }
+            isCorrect = true;
+            e.exp = `Eram ${qtState.dots} pontos. Os grupos de 5 ajudam a ver de relance!`;
         } else if (e.type === 'match') {
             const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
             if (!all) { showToast('Completa todas as associações'); return; }
@@ -9505,6 +9599,7 @@ function _buildDetailedExplanationPrompt(e, yr) {
     else if (e.type === 'game' && e.game === 'estimador' && e.answer !== undefined) correctAns = String(e.answer) + (e.unit ? ' ' + e.unit : '');
     else if (e.type === 'game' && e.game === 'suspeitos' && e.solution) correctAns = 'Culpado: ' + ((e.suspects || []).find(sp => sp.id === e.solution) || {}).name || e.solution;
     else if (e.type === 'game' && e.game === 'padrao' && e.answer) correctAns = String(e.answer);
+    else if (e.type === 'game' && e.game === 'quantos' && e.dots !== undefined) correctAns = String(e.dots) + ' pontos';
     else correctAns = Array.isArray(e.ans) ? e.ans[0] : String(e.ans);
 
     let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"\nResposta CERTA: ${correctAns}`;

@@ -6375,3 +6375,20 @@ body.has-teacher-overlay #subject-detail-container {
 .cst-step-prompt { font-size: 1.1rem; font-weight: 800; color: #c2410c; max-width: 360px; text-align: center; line-height: 1.35; padding: 6px 10px; background: #fff7ed; border-radius: 10px; border: 2px dashed #fdba74; }
 .cofre-box.shake { animation: cstShake 0.4s; border-color: #ef4444; background: #fee2e2; color: #b91c1c; }
 @keyframes cstShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* === QUANTOS VÊS? (subitizing / ten-frames) — discalculia === */
+.qt-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.qt-coach { display: flex; align-items: center; gap: 8px; background: #f0fdfa; border: 1.5px solid #5eead4; border-radius: 12px; padding: 10px 14px; max-width: 360px; font-size: 0.95rem; color: #0f766e; font-weight: 700; }
+.qt-frames { display: flex; flex-direction: column; gap: 8px; }
+.qt-frame { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 10px; padding: 7px; }
+.qt-cell { width: 38px; height: 38px; border-radius: 50%; border: 2px dashed #e2e8f0; box-sizing: border-box; }
+.qt-cell.on { background: radial-gradient(circle at 35% 30%, #38bdf8, #0284c7); border: none; box-shadow: 0 2px 4px rgba(2,132,199,0.3); }
+.qt-hint-tip { font-size: 0.8rem; color: #64748b; font-style: italic; }
+.qt-options { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.qt-opt { width: 64px; height: 64px; border-radius: 16px; border: 2.5px solid #0891b2; background: #fff; color: #0891b2; font-size: 1.9rem; font-weight: 800; cursor: pointer; transition: transform .1s; }
+.qt-opt:active { transform: scale(0.94); }
+.qt-opt.correct { background: #10b981; color: #fff; border-color: #10b981; }
+.qt-opt.wrong { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
+.qt-solved { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 1.5px solid #10b981; color: #065f46; border-radius: 10px; padding: 8px 14px; font-weight: 800; font-size: 0.9rem; }
+.qt-retry { color: #b91c1c; font-weight: 700; font-size: 0.88rem; }
+@media (max-width: 380px) { .qt-cell { width: 32px; height: 32px; } .qt-opt { width: 56px; height: 56px; } }

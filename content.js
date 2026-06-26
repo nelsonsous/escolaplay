@@ -2132,7 +2132,7 @@ const CURRICULUM_3 = {
         'Lê com as vírgulas', 'Lê um diálogo', 'Voz sobe na pergunta', 'Voz com emoção', 'Lê e descobre os sentimentos', 'Lê e descobre o que vai acontecer', 'Lê uma carta', 'Lê uma lenda'
     ],
     detetive: [
-        'Charadas matemáticas', 'Histórias-mistério', 'Padrões e sequências', 'Estimar e aproximar', 'Sudoku & Kakuro', 'Lógica pura'
+        'Quantos vês?', 'Charadas matemáticas', 'Histórias-mistério', 'Padrões e sequências', 'Estimar e aproximar', 'Sudoku & Kakuro', 'Lógica pura'
     ]
 };
 
@@ -2180,7 +2180,7 @@ const PERIODS_3 = {
         'Lê uma lenda':3
     },
     detetive: {
-        'Charadas matemáticas':1, 'Padrões e sequências':1,
+        'Quantos vês?':1, 'Charadas matemáticas':1, 'Padrões e sequências':1,
         'Histórias-mistério':2, 'Estimar e aproximar':2,
         'Sudoku & Kakuro':3, 'Lógica pura':3
     }
@@ -2557,6 +2557,17 @@ const LESSONS_3 = {
 // Engines: sudoku4, cofre (código N-dígitos), estimador (slider),
 // suspeitos (eliminar), padrao (sequência).
 const EXERCISES_3_DETETIVE = [
+    // ── QUANTOS VÊS? → Subitizing (ten-frames) ───────────────
+    // Treino nuclear de discalculia: reconhecer quantidade sem contar.
+    { id:'3dt_qt1', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:5, prompt:'Quantos pontos vês? (uma linha cheia = 5)' },
+    { id:'3dt_qt2', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:3, prompt:'Quantos pontos vês?' },
+    { id:'3dt_qt3', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:7, prompt:'Vês 5 + quantos a mais?' },
+    { id:'3dt_qt4', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:8, prompt:'Uma linha de 5 + outra começada. Quantos?' },
+    { id:'3dt_qt5', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:10, prompt:'O ten-frame cheio. Quantos?' },
+    { id:'3dt_qt6', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:6, prompt:'5 + 1. Quantos ao todo?' },
+    { id:'3dt_qt7', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:13, prompt:'Um ten-frame cheio (10) + mais alguns. Quantos?' },
+    { id:'3dt_qt8', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:16, prompt:'10 + 6. Quantos ao todo?' },
+
     // ── CHARADAS MATEMÁTICAS → Cofre dos Códigos ─────────────
     { id:'3dt_cha1', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:1, q:'🔍 Cromos do João', digits:1, solution:'6', story:'A Sara tem o DOBRO dos cromos do João. Juntos têm 18.', clues:['Quantos cromos tem o João?'], hint:'Se o João tem J, a Sara tem 2J. J + 2J = 18.', exp:'J + 2J = 3J = 18 → João tem 6.' },
     { id:'3dt_cha2', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:1, q:'🧠 Berlindes ao todo', story:'Tenho 3 caixas. Cada caixa tem 4 sacos. Cada saco tem 5 berlindes.', steps:[
