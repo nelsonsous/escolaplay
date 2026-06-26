@@ -2792,10 +2792,10 @@ const EXERCISES_3 = [
     { id:'3li_fam3', s:'ingles', t:'Family members', type:'fill', diff:2, q:'Irmã em inglês: ___', ans:['sister'], exp:'Sister.' },
 
     { id:'3li_far1', s:'ingles', t:'Farm animals', type:'mc', diff:1, q:'🐄 "Cow" significa:', opts:['galinha','vaca','porco'], ans:1, exp:'Cow = vaca.' },
-    { id:'3li_far2', s:'ingles', t:'Farm animals', type:'mc', diff:2, q:'🐑 Plural de "sheep" é:', opts:['sheeps','sheepes','sheep'], ans:2, exp:'Sheep — igual no plural.' },
+    { id:'3li_far2', s:'ingles', t:'Farm animals', type:'mc', diff:2, q:'🐑 Qual é o plural de "sheep" (ovelha)?', opts:['sheeps','sheepes','sheep'], ans:2, exp:'O plural de "sheep" é... "sheep"! É um plural IRREGULAR que não muda — uma sheep, duas sheep. Acontece o mesmo com "fish" (peixe) e "deer" (veado).' },
     { id:'3li_far3', s:'ingles', t:'Farm animals', type:'fill', diff:1, q:'Cavalo em inglês: ___', ans:['horse'], exp:'Horse.' },
 
-    { id:'3li_tow1', s:'ingles', t:'My town', type:'mc', diff:1, q:'🏥 "Hospital" significa:', opts:['hospital','escola','loja'], ans:0, exp:'Hospital = hospital.' },
+    { id:'3li_tow1', s:'ingles', t:'My town', type:'mc', diff:1, q:'🏪 "Shop" significa:', opts:['hospital','loja','rua'], ans:1, exp:'Shop = loja. 💡 Repara: "hospital" escreve-se igual nas duas línguas (chama-se palavra transparente), mas "shop" é mesmo diferente de "loja".' },
     { id:'3li_tow2', s:'ingles', t:'My town', type:'fill', diff:1, q:'Biblioteca em inglês: ___', ans:['library'], exp:'Library (NÃO "livraria"!).' },
     { id:'3li_tow3', s:'ingles', t:'My town', type:'mc', diff:2, q:'➡️ "Turn left" significa:', opts:['vira à direita','vira à esquerda','vai em frente'], ans:1, exp:'Turn left = à esquerda.' },
 
