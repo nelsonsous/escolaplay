@@ -6397,3 +6397,12 @@ body.has-teacher-overlay #subject-detail-container {
 .leitura-card-diff.diff-1 { background: #dcfce7; color: #166534; }
 .leitura-card-diff.diff-2 { background: #fef9c3; color: #854d0e; }
 .leitura-card-diff.diff-3 { background: #fee2e2; color: #991b1b; }
+/* === Blocos Base-10 (MAB) — apoio visual Mat+ p/ discalculia === */
+.ex-visual-wrap { display: flex; justify-content: center; margin: 12px 0; }
+.bt10 { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 8px; max-width: 100%; }
+.bt10-legend { width: 100%; text-align: center; margin-top: 8px; font-size: 0.85rem; font-weight: 800; color: #c2410c; }
+.bt-c { display: block; width: 9px; height: 9px; background: #fb923c; border: 0.5px solid #ea580c; box-sizing: border-box; }
+.bt-mil { width: 54px; height: 54px; border-radius: 6px; background: linear-gradient(135deg,#f97316,#c2410c); color: #fff; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.bt-cent { display: grid; grid-template-columns: repeat(10, 9px); grid-auto-rows: 9px; gap: 0; padding: 2px; background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 4px; }
+.bt-dez { display: grid; grid-template-columns: 9px; grid-auto-rows: 9px; gap: 0; padding: 2px; background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 4px; }
+.bt-uni { padding: 2px; background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 4px; }

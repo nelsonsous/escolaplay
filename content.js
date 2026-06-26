@@ -2864,6 +2864,7 @@ const EXERCISES_3 = [
     {"id":"mp3_c10","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":1,"q":"🔢 Para fazer 1 000 com placas de 100 preciso de ___:","opts":["5","10","100"],"ans":1,"exp":"10 placas."},
     {"id":"mp3_c11","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":2,"q":"🔢 6 placas + 3 barras + 4 cubos =","opts":["634","643","6 304"],"ans":0,"exp":"600 + 30 + 4 = 634."},
     {"id":"mp3_c12","s":"mat_plus","t":"Centenas com ten-frames","type":"fill","diff":2,"q":"8 barras de 10 + 5 cubos = ___","ans":["85"],"exp":"80 + 5 = 85."},
+    {"id":"mp3_c13","s":"mat_plus","t":"Centenas com ten-frames","type":"fill","diff":2,"q":"🟧 Que número mostram estes blocos?","visual":{"baseten":234},"ans":["234"],"exp":"2 placas (200) + 3 barras (30) + 4 cubos (4) = 234."},
     {"id":"mp3_d1","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":1,"q":"🔢 Em 3 472, o algarismo 4 vale:","opts":["4","40","400","4 000"],"ans":2,"exp":"4 está nas centenas."},
     {"id":"mp3_d2","s":"mat_plus","t":"Decompor até 10 000","type":"mc","diff":2,"q":"🔢 Decompõe 2 534:","opts":["2 000+500+30+4","2 000+300+50+4","20+50+30+4"],"ans":0,"exp":"2 M + 5 C + 3 D + 4 U."},
     {"id":"mp3_d3","s":"mat_plus","t":"Decompor até 10 000","type":"fill","diff":2,"q":"Em 6 089, o algarismo das centenas é ___","ans":["0"],"exp":"M=6, C=0, D=8, U=9."},
