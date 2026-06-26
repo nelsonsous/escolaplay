@@ -533,7 +533,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v502';
+const APP_VERSION = 'v503';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -15872,8 +15872,11 @@ function _teacherWatchSilenceVox(stream) {
             const rms = Math.sqrt(sum / data.length);
             const now = Date.now();
             if (rms > 0.06) { lastLoud = now; spoke = true; }
-            // 1.6s de silêncio + já tinha falado + ≥1s de gravação → auto-stop
-            if (spoke && (now - lastLoud) > 1600 && (now - start) > 1000) {
+            // 4.5s de silêncio + já tinha falado + ≥1.5s de gravação → auto-stop.
+            // Antes era 1.6s, mas para uma criança a ler devagar (ainda mais
+            // numa lição como "Lê com as vírgulas" onde pausar É o objectivo!)
+            // 1.6s estava a matar a sessão a meio do 1.º parágrafo.
+            if (spoke && (now - lastLoud) > 4500 && (now - start) > 1500) {
                 _teacherStopSilenceVox();
                 if (_teacher.voxRec && _teacher.voxRec.state !== 'inactive') {
                     try { _teacher.voxRec.stop(); } catch {}
