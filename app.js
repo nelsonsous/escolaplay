@@ -533,7 +533,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v501';
+const APP_VERSION = 'v502';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4706,6 +4706,7 @@ function renderQuestion() {
     else if (e.type === 'roleplay') { renderRoleplay(e); }
     else if (e.type === 'game' && e.game === 'sudoku4')   { _sudokuStartFromExercise(e); setTimeout(_sudokuRender, 0); }
     else if (e.type === 'game' && e.game === 'cofre')     { _cofreStart(e); setTimeout(_cofreRender, 0); }
+    else if (e.type === 'game' && e.game === 'cofre_steps') { _cstStart(e); setTimeout(_cstRender, 0); }
     else if (e.type === 'game' && e.game === 'estimador') { _estStart(e);   setTimeout(_estRender, 0); }
     else if (e.type === 'game' && e.game === 'suspeitos') { _susStart(e);   setTimeout(_susRender, 0); }
     else if (e.type === 'game' && e.game === 'padrao')    { _padStart(e);   setTimeout(_padRender, 0); }
@@ -8480,6 +8481,135 @@ function _cofreHint() {
 window._cofreHint = _cofreHint;
 
 // ============================================================
+// COFRE EM PASSOS — type:'game' game:'cofre_steps'
+// Acessibilidade discalculia: em vez de pedir o resultado final
+// (e.g. "3×4×5"), divide em passos checáveis ("3×4=?" → "12×5=?").
+// Cada passo tem o seu próprio prompt + numpad. Avança quando
+// acerta um passo. A criança nunca tem de segurar muito na cabeça.
+// ============================================================
+let cstState = { steps: [], idx: 0, input: '', solved: false, hintsUsed: 0, story: '', coachMsg: '', shake: false };
+function _cstStart(e) {
+    cstState = {
+        steps: e.steps || [],
+        idx: 0,
+        input: '',
+        solved: false,
+        hintsUsed: 0,
+        story: e.story || '',
+        coachMsg: e.intro || 'Vamos resolver passo por passo. Lê cada passo e digita o resultado.',
+        shake: false
+    };
+}
+function _cstRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = cstState;
+    const cur = s.steps[s.idx];
+    if (!cur) return;
+    const story = s.story ? `<div class="cst-story">${escapeHtml(s.story)}</div>` : '';
+    const progress = s.steps.map((_, i) => {
+        const cls = i < s.idx ? 'done' : (i === s.idx ? 'cur' : '');
+        return `<div class="cst-dot ${cls}">${i < s.idx ? '✓' : (i+1)}</div>`;
+    }).join('<div class="cst-dot-sep"></div>');
+    const ansLen = String(cur.answer).length;
+    const shakeCls = s.shake ? 'shake' : '';
+    const boxes = Array.from({ length: ansLen }, (_, i) => {
+        const v = s.input[i];
+        const filled = v !== undefined ? 'filled' : '';
+        const next = (s.input.length === i && !s.solved) ? 'next' : '';
+        return `<div class="cofre-box ${filled} ${next} ${shakeCls}">${v !== undefined ? v : ''}</div>`;
+    }).join('');
+    const numpad = [1,2,3,4,5,6,7,8,9,0].map(n =>
+        `<button class="cofre-key" onclick="_cstType(${n})">${n}</button>`
+    ).join('');
+    area.innerHTML = `
+      <div class="cofre-wrap">
+        <div class="cofre-coach"><span class="cofre-coach-av">🧠</span><span class="cofre-coach-msg">${escapeHtml(s.coachMsg)}</span></div>
+        ${story}
+        <div class="cst-progress">${progress}</div>
+        <div class="cst-step-prompt">${escapeHtml(cur.prompt)}</div>
+        <div class="cofre-boxes">${boxes}</div>
+        <div class="cofre-actions">
+          <button class="cofre-back" onclick="_cstBack()" ${s.solved?'disabled':''}>⌫</button>
+          <button class="cofre-hint" onclick="_cstHint()" ${s.solved?'disabled':''}>💡 Pista</button>
+        </div>
+        <div class="cofre-numpad">${numpad}</div>
+        ${s.solved ? '<div class="cofre-solved">✅ Resolveste tudo! Carrega Responder.</div>' : ''}
+      </div>`;
+}
+function _cstType(n) {
+    const s = cstState;
+    if (s.solved) return;
+    const cur = s.steps[s.idx];
+    const ansLen = String(cur.answer).length;
+    if (s.input.length >= ansLen) return;
+    s.input += String(n);
+    if (s.input.length >= ansLen) {
+        if (s.input === String(cur.answer)) {
+            // Acertou o passo — avança ou termina.
+            if (s.idx + 1 < s.steps.length) {
+                s.coachMsg = '✓ Boa! Vamos ao próximo passo.';
+                _cstRender();
+                setTimeout(() => {
+                    s.idx += 1;
+                    s.input = '';
+                    s.coachMsg = 'Lê o próximo passo e digita.';
+                    _cstRender();
+                }, 750);
+            } else {
+                s.solved = true;
+                s.coachMsg = `🎉 Resolveste em ${s.steps.length} passos${s.hintsUsed?' (com '+s.hintsUsed+' pista'+(s.hintsUsed===1?'':'s')+').':' — sem pistas! ⭐⭐⭐'}`;
+                _cstRender();
+            }
+        } else {
+            // Errou — pequeno feedback e limpa.
+            s.coachMsg = '😕 Não é esse. Pensa mais um bocadinho.';
+            s.shake = true;
+            _cstRender();
+            setTimeout(() => { s.input = ''; s.shake = false; _cstRender(); }, 600);
+        }
+    } else {
+        _cstRender();
+    }
+}
+window._cstType = _cstType;
+function _cstBack() {
+    if (cstState.solved) return;
+    cstState.input = cstState.input.slice(0, -1);
+    _cstRender();
+}
+window._cstBack = _cstBack;
+function _cstHint() {
+    const s = cstState;
+    if (s.solved) return;
+    const cur = s.steps[s.idx];
+    if (s.hintsUsed === 0 && cur.hint) {
+        // 1.ª pista — texto de ajuda só.
+        s.coachMsg = '💡 ' + cur.hint;
+        s.hintsUsed += 1;
+        _cstRender();
+        return;
+    }
+    // 2.ª pista (ou se não há texto) — revela a resposta do passo.
+    s.input = String(cur.answer);
+    s.coachMsg = `💡 A resposta deste passo é ${cur.answer}.`;
+    s.hintsUsed += 1;
+    _cstRender();
+    setTimeout(() => {
+        if (s.idx + 1 < s.steps.length) {
+            s.idx += 1;
+            s.input = '';
+            s.coachMsg = 'Continua. Lê o próximo passo.';
+        } else {
+            s.solved = true;
+            s.coachMsg = `🎉 Resolvido com ${s.hintsUsed} pista${s.hintsUsed===1?'':'s'}.`;
+        }
+        _cstRender();
+    }, 1200);
+}
+window._cstHint = _cstHint;
+
+// ============================================================
 // ESTIMADOR — type:'game' game:'estimador'
 // Slider de min..max, com "termómetro" vivo a indicar proximidade.
 // Considera acerto se |valor − resposta| <= tolerance.
@@ -8788,6 +8918,12 @@ async function submitAnswer() {
             isCorrect = cofreState.solved;
             const stars = '⭐'.repeat(Math.max(1, 3 - cofreState.hintsUsed));
             e.exp = `${stars}  ·  Código: ${cofreState.solution}  ·  ${cofreState.hintsUsed === 0 ? '🏅 Sem pistas!' : '🤝 Usaste ' + cofreState.hintsUsed + ' pista' + (cofreState.hintsUsed===1?'':'s') + '.'}`;
+        } else if (e.type === 'game' && e.game === 'cofre_steps') {
+            if (!cstState.solved) { showToast('Termina todos os passos primeiro'); return; }
+            isCorrect = true;
+            const stars = '⭐'.repeat(Math.max(1, 3 - cstState.hintsUsed));
+            const last = cstState.steps[cstState.steps.length - 1];
+            e.exp = `${stars}  ·  Resultado: ${last && last.answer}  ·  ${cstState.hintsUsed === 0 ? '🏅 Sem pistas!' : '🤝 Usaste ' + cstState.hintsUsed + ' pista' + (cstState.hintsUsed===1?'':'s') + '.'}`;
         } else if (e.type === 'game' && e.game === 'estimador') {
             if (!estState.moved) { showToast('Move o cursor primeiro'); return; }
             const d = Math.abs(estState.value - estState.answer);
@@ -9365,6 +9501,7 @@ function _buildDetailedExplanationPrompt(e, yr) {
     else if (e.type === 'match' && e.pairs) correctAns = e.pairs.map(p => `${p[0]} ↔ ${p[1]}`).join('; ');
     else if (e.type === 'game' && e.game === 'sudoku4' && e.puzzle && e.puzzle.solution) correctAns = 'Sudoku resolvido: ' + e.puzzle.solution.join(',');
     else if (e.type === 'game' && e.game === 'cofre' && e.solution) correctAns = 'Código: ' + e.solution;
+    else if (e.type === 'game' && e.game === 'cofre_steps' && Array.isArray(e.steps)) correctAns = 'Passos: ' + e.steps.map((s, i) => (i+1) + ') ' + s.answer).join('  ');
     else if (e.type === 'game' && e.game === 'estimador' && e.answer !== undefined) correctAns = String(e.answer) + (e.unit ? ' ' + e.unit : '');
     else if (e.type === 'game' && e.game === 'suspeitos' && e.solution) correctAns = 'Culpado: ' + ((e.suspects || []).find(sp => sp.id === e.solution) || {}).name || e.solution;
     else if (e.type === 'game' && e.game === 'padrao' && e.answer) correctAns = String(e.answer);

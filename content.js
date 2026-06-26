@@ -2559,15 +2559,34 @@ const LESSONS_3 = {
 const EXERCISES_3_DETETIVE = [
     // ── CHARADAS MATEMÁTICAS → Cofre dos Códigos ─────────────
     { id:'3dt_cha1', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:1, q:'🔍 Cromos do João', digits:1, solution:'6', story:'A Sara tem o DOBRO dos cromos do João. Juntos têm 18.', clues:['Quantos cromos tem o João?'], hint:'Se o João tem J, a Sara tem 2J. J + 2J = 18.', exp:'J + 2J = 3J = 18 → João tem 6.' },
-    { id:'3dt_cha2', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:1, q:'🔍 Berlindes ao todo', digits:2, solution:'60', story:'Tenho 3 caixas. Cada caixa tem 4 sacos. Cada saco tem 5 berlindes.', clues:['Quantos berlindes ao todo?'], hint:'Multiplica: 3 × 4 × 5.', exp:'3 × 4 × 5 = 60.' },
-    { id:'3dt_cha3', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:2, q:'🔍 Que número pensei?', digits:1, solution:'7', story:'Pensei num número, somei 5, depois dividi por 3 e deu 4.', clues:['Que número pensei?'], hint:'Trabalha de trás para a frente: 4 × 3 − 5.', exp:'4 × 3 = 12; 12 − 5 = 7.' },
+    { id:'3dt_cha2', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:1, q:'🧠 Berlindes ao todo', story:'Tenho 3 caixas. Cada caixa tem 4 sacos. Cada saco tem 5 berlindes.', steps:[
+        { prompt:'Passo 1: 3 caixas × 4 sacos cada. Quantos sacos no total?', answer:'12', hint:'Tabuada do 4: 4+4+4.' },
+        { prompt:'Passo 2: 12 sacos × 5 berlindes cada. Quantos berlindes ao todo?', answer:'60', hint:'Tabuada do 5: 12×5 é 6×10.' }
+    ], exp:'Passo 1: 12 sacos. Passo 2: 60 berlindes.' },
+    { id:'3dt_cha3', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Que número pensei?', story:'Pensei num número, somei 5, depois dividi por 3 e deu 4. Vamos descobrir trabalhando de trás para a frente.', steps:[
+        { prompt:'Passo 1: o resultado depois de dividir por 3 deu 4. Que número TINHA antes de dividir? (4 × 3)', answer:'12', hint:'Para desfazer ÷3, fazes ×3.' },
+        { prompt:'Passo 2: a esse número eu tinha somado 5. Que número pensei? (12 − 5)', answer:'7', hint:'Para desfazer +5, fazes −5.' }
+    ], exp:'Trás-para-frente: 4 → ×3 = 12 → −5 = 7.' },
     { id:'3dt_cha4', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:2, q:'🔍 O maior número par', digits:2, solution:'90', story:'Sou par. Tenho dois algarismos. Os meus algarismos somam 9.', clues:['Sou o MAIOR número que cumpre tudo. Quem sou?'], hint:'Para ser o maior, o algarismo das dezenas tem de ser o maior possível.', exp:'9 + 0 = 9, é par, é o maior → 90.' },
-    { id:'3dt_cha5', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:2, q:'🔍 Galinhas e vacas', digits:1, solution:'4', story:'Numa quinta há galinhas e vacas. Ao todo são 12 cabeças e 32 patas.', clues:['Quantas VACAS há?'], hint:'Se fossem todas galinhas eram 24 patas. Cada vaca dá 2 patas extra.', exp:'8 patas extra ÷ 2 = 4 vacas.' },
+    { id:'3dt_cha5', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Galinhas e vacas', story:'Numa quinta há 12 animais (galinhas + vacas). Ao todo têm 32 patas. Quantas vacas? Vamos por partes.', steps:[
+        { prompt:'Passo 1: imagina que SÓ HOUVESSE galinhas (2 patas cada). 12 galinhas têm quantas patas?', answer:'24', hint:'12 × 2 patas.' },
+        { prompt:'Passo 2: o problema diz 32 patas. Quantas patas FALTAM em relação ao que calculaste?', answer:'8', hint:'32 − 24.' },
+        { prompt:'Passo 3: cada vaca dá 2 patas a mais que galinha. 8 patas extra dão quantas vacas?', answer:'4', hint:'8 ÷ 2.' }
+    ], exp:'Hipótese todas galinhas (24 patas) → faltam 8 → 8÷2 = 4 vacas.' },
     { id:'3dt_cha6', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:3, q:'🔍 Partilhar amêndoas', digits:1, solution:'6', story:'Três irmãos partilham 24 amêndoas. O mais velho leva o DOBRO de cada um dos outros.', clues:['Quantas leva CADA UM dos mais novos?'], hint:'Se cada novo leva x, o velho leva 2x. x + x + 2x = 4x.', exp:'4x = 24 → x = 6.' },
     { id:'3dt_cha7', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:2, q:'🔍 Um número escondido', digits:2, solution:'13', story:'Sou um número entre 10 e 20.', clues:['Dividido por 3 sobra 1.','Dividido por 4 sobra 1.'], hint:'Os múltiplos de 12 mais 1 cabem nesta gama.', exp:'13 ÷ 3 = 4 r 1; 13 ÷ 4 = 3 r 1.' },
-    { id:'3dt_cha8', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:3, q:'🔍 Idade da mãe', digits:2, solution:'36', story:'O Tomás tem 8 anos. A irmã tem MAIS 4 anos que o Tomás. A mãe tem 3 vezes a idade da irmã.', clues:['Quantos anos tem a MÃE?'], hint:'Primeiro descobre a idade da irmã (8 + 4).', exp:'Irmã: 12. Mãe: 12 × 3 = 36.' },
-    { id:'3dt_cha9', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:2, q:'🔍 Livros que ficam', digits:2, solution:'25', story:'Numa estante há 4 prateleiras com 7 livros cada. Levas 3 livros emprestados.', clues:['Quantos livros ficam na estante?'], hint:'Total = 4 × 7. Tira 3.', exp:'28 − 3 = 25.' },
-    { id:'3dt_cha10', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:3, q:'🔍 Moedas do troco', digits:1, solution:'6', story:'Compraste um livro por 8€ e deste uma nota de 20€. Recebeste o troco em moedas de 2€.', clues:['Quantas moedas recebeste?'], hint:'Troco = 20 − 8. Divide pelo valor da moeda.', exp:'12€ ÷ 2€ = 6 moedas.' },
+    { id:'3dt_cha8', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:3, q:'🧠 Idade da mãe', story:'O Tomás tem 8 anos. A irmã tem MAIS 4 anos que o Tomás. A mãe tem 3 vezes a idade da irmã.', steps:[
+        { prompt:'Passo 1: a irmã tem 4 anos mais que o Tomás (que tem 8). Que idade tem a irmã?', answer:'12', hint:'8 + 4.' },
+        { prompt:'Passo 2: a mãe tem 3 vezes a idade da irmã (12). Que idade tem a mãe?', answer:'36', hint:'12 × 3 ou 12 + 12 + 12.' }
+    ], exp:'Irmã: 12. Mãe: 12 × 3 = 36.' },
+    { id:'3dt_cha9', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Livros que ficam', story:'Uma estante tem 4 prateleiras com 7 livros cada. Levas 3 livros emprestados.', steps:[
+        { prompt:'Passo 1: 4 prateleiras × 7 livros cada. Total de livros na estante?', answer:'28', hint:'Tabuada do 7: 7+7+7+7.' },
+        { prompt:'Passo 2: tiras 3 livros. Quantos ficam?', answer:'25', hint:'28 − 3.' }
+    ], exp:'4×7 = 28; 28−3 = 25.' },
+    { id:'3dt_cha10', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:3, q:'🧠 Moedas do troco', story:'Comprei um livro por 8€ e dei uma nota de 20€. Recebi o troco em moedas de 2€.', steps:[
+        { prompt:'Passo 1: 20€ − 8€. Quanto é o troco?', answer:'12', hint:'Conta para trás de 20 até 8 (ou 20 − 8).' },
+        { prompt:'Passo 2: 12€ dividido por moedas de 2€. Quantas moedas?', answer:'6', hint:'12 ÷ 2 (ou tabuada do 2 até chegar a 12).' }
+    ], exp:'Troco 12€ ÷ 2€ = 6 moedas.' },
 
     // ── HISTÓRIAS-MISTÉRIO → Suspeitos / Cofre ───────────────
     { id:'3dt_mis1', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:1, q:'🕵️ O bolo desapareceu!', story:'O bolo de chocolate desapareceu da cozinha. Há 3 suspeitos.', suspects:[{id:'ana',emoji:'👧',name:'Ana'},{id:'bruno',emoji:'👦',name:'Bruno'},{id:'clara',emoji:'👧🏽',name:'Clara'}], clues:['O culpado ficou com chocolate na cara.','A Ana lavou a cara antes do almoço.','O Bruno só comeu fruta no recreio.','A Clara tem manchas castanhas no queixo.'], solution:'clara', exp:'A Clara é a única com sinais de chocolate.' },
@@ -2629,7 +2648,10 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_log4', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Quem nasceu primeiro?', story:'A Maria é mais nova que a Inês. A Inês é mais nova que a Sara.', suspects:[{id:'maria',emoji:'👧',name:'Maria'},{id:'ines',emoji:'👧🏽',name:'Inês'},{id:'sara',emoji:'👩',name:'Sara'}], clues:['Maria < Inês < Sara (em idade).'], solution:'sara', exp:'A mais velha nasceu primeiro → Sara.' },
     { id:'3dt_log5', s:'detetive', t:'Lógica pura', type:'game', game:'cofre', diff:2, q:'🧠 Lápis e borrachas', digits:1, solution:'4', story:'Um lápis custa 1€. Uma borracha custa metade (0,50€).', clues:['Quanto custam 3 lápis e 2 borrachas (em €)?'], hint:'3×1€ + 2×0,50€.', exp:'3€ + 1€ = 4€.' },
     { id:'3dt_log6', s:'detetive', t:'Lógica pura', type:'game', game:'cofre', diff:3, q:'🧠 Maçãs comidas', digits:1, solution:'9', story:'Tinhas 12 maçãs. Comeste 1/4 (um quarto).', clues:['Quantas maçãs sobraram?'], hint:'1/4 de 12 é 3. 12 − 3 = ?', exp:'12 − 3 = 9 maçãs.' },
-    { id:'3dt_log7', s:'detetive', t:'Lógica pura', type:'game', game:'cofre', diff:3, q:'🧠 Olhos na sala', digits:2, solution:'14', story:'Numa sala há 4 cães e 3 gatos. Cada um tem uma coleira e uma medalha.', clues:['Quantos OLHOS há ao todo na sala?'], hint:'As coleiras não têm olhos. Conta só os animais × 2.', exp:'7 animais × 2 = 14 olhos.' },
+    { id:'3dt_log7', s:'detetive', t:'Lógica pura', type:'game', game:'cofre_steps', diff:3, q:'🧠 Olhos na sala', story:'Numa sala há 4 cães e 3 gatos. Cada um tem uma coleira e uma medalha.', steps:[
+        { prompt:'Passo 1: Quantos animais há ao todo? (cães + gatos)', answer:'7', hint:'4 + 3.' },
+        { prompt:'Passo 2: Cada animal tem 2 olhos. Quantos olhos no total? (As coleiras não têm olhos!)', answer:'14', hint:'7 × 2 ou 7 + 7.' }
+    ], exp:'7 animais × 2 olhos = 14.' },
     { id:'3dt_log8', s:'detetive', t:'Lógica pura', type:'game', game:'cofre', diff:3, q:'🧠 Caracol no poço', digits:1, solution:'8', story:'Um caracol está no fundo de um poço de 10 m. De dia sobe 3 m, de noite escorrega 2 m.', clues:['Em quantos dias chega ao topo?'], hint:'Sobe 1m por dia... MAS no dia em que chega ao topo já não escorrega.', exp:'Dia 7 fica a 7 m. Dia 8 sobe 3 m → 10 m. Sai! 8 dias.' }
 ];
 
