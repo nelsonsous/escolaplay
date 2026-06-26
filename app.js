@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v505';
+const APP_VERSION = 'v506';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4536,6 +4536,41 @@ function _shuffleMCOptions(e) {
     e._shuffled = true;
 }
 
+// Desenha um número como blocos Base-10 (material MAB) — o apoio
+// concreto padrão para discalculia: milhares, centenas (placa 10×10),
+// dezenas (barra de 10) e unidades (cubo). Ajuda a "ver" o valor
+// posicional em vez de o decorar.
+function _renderBaseTen(n) {
+    n = Math.max(0, Math.floor(n));
+    const milhares = Math.floor(n / 1000);
+    const centenas = Math.floor((n % 1000) / 100);
+    const dezenas = Math.floor((n % 100) / 10);
+    const unidades = n % 10;
+    let html = '<div class="bt10">';
+    // Milhares — bloco grande rotulado (evita 1000 cubinhos no ecrã).
+    for (let i = 0; i < milhares; i++) html += '<div class="bt-mil">1000</div>';
+    // Centenas — placa 10×10.
+    for (let i = 0; i < centenas; i++) {
+        html += '<div class="bt-cent">' + '<span class="bt-c"></span>'.repeat(100) + '</div>';
+    }
+    // Dezenas — barra vertical de 10.
+    for (let i = 0; i < dezenas; i++) {
+        html += '<div class="bt-dez">' + '<span class="bt-c"></span>'.repeat(10) + '</div>';
+    }
+    // Unidades — cubos soltos.
+    for (let i = 0; i < unidades; i++) html += '<div class="bt-uni"><span class="bt-c"></span></div>';
+    html += '</div>';
+    // Legenda de leitura posicional (reforça a ligação visual↔número).
+    const parts = [];
+    if (milhares) parts.push(milhares + ' milhar' + (milhares > 1 ? 'es' : ''));
+    if (centenas) parts.push(centenas + ' centena' + (centenas > 1 ? 's' : ''));
+    if (dezenas) parts.push(dezenas + ' dezena' + (dezenas > 1 ? 's' : ''));
+    if (unidades) parts.push(unidades + ' unidade' + (unidades > 1 ? 's' : ''));
+    if (parts.length) html += '<div class="bt10-legend">' + parts.join(' + ') + '</div>';
+    return html;
+}
+window._renderBaseTen = _renderBaseTen;
+
 function renderQuestion() {
     const s = currentSession;
     const e = s.items[s.idx];
@@ -4655,6 +4690,11 @@ function renderQuestion() {
     }
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
+    // v506: visual Base-10 (MAB) opcional — apoio concreto para discalculia.
+    // e.visual = { baseten: N } desenha placas(100)/barras(10)/cubos(1).
+    if (e.visual && typeof e.visual.baseten === 'number') {
+        qHtml += `<div class="ex-visual-wrap">${_renderBaseTen(e.visual.baseten)}</div>`;
+    }
     // Render question com markdown leve: **bold** e *italic*. Segura porque
     // escapamos HTML primeiro e só depois substituímos pelos tags <strong>/<em>.
     const renderMd = (s) => escapeHtml(s || '')
