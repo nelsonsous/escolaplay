@@ -2680,7 +2680,6 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_pad10', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Que número falta?', sequence:[1,4,9,16,'?',36], answer:'25', hint:'1=1×1, 4=2×2, 9=3×3, 16=4×4, ?=5×5', exp:'Quadrados perfeitos: 5×5 = 25.' },
     // Estimadores novos
     { id:'3dt_est8', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quantos alunos na escola?', story:'A tua escola tem 12 turmas com mais ou menos 20 alunos cada. Quantos alunos terá ao todo?', min:0, max:500, step:20, answer:240, tolerance:40, unit:'alunos', hint:'12 × 20 — estima sem contar todos.', exp:'12 × 20 = 240 alunos (aproximadamente).' },
-<<<<<<< HEAD
     { id:'3dt_est9', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda ao milhar', story:'Qual é o número 6 480 arredondado ao milhar mais próximo?', min:5000, max:8000, step:500, answer:6000, tolerance:300, unit:'', hint:'Está mais perto de 6000 ou de 7000?', exp:'6 480 está mais perto de 6 000 (faltam 480) do que de 7 000.' },
 
     // ── FASE 3 (v520): mais puzzles interativos ──────────────
@@ -2696,9 +2695,6 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_pad11', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que número falta?', sequence:[2,5,8,11,'?',17], answer:'14', hint:'Soma sempre 3.', exp:'+3 de cada vez: 11 + 3 = 14.' },
     { id:'3dt_est10', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Páginas de um livro infantil', story:'Mais ou menos quantas páginas tem um livro de histórias para crianças?', min:0, max:200, step:10, answer:40, tolerance:20, unit:'páginas', hint:'Não é um folheto (5) nem uma enciclopédia (500).', exp:'Tipicamente 30 a 50 páginas.' },
     { id:'3dt_qt9', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:12, prompt:'Um ten-frame cheio (10) + 2. Quantos?' }
-=======
-    { id:'3dt_est9', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda ao milhar', story:'Qual é o número 6 480 arredondado ao milhar mais próximo?', min:5000, max:8000, step:500, answer:6000, tolerance:300, unit:'', hint:'Está mais perto de 6000 ou de 7000?', exp:'6 480 está mais perto de 6 000 (faltam 480) do que de 7 000.' }
->>>>>>> origin/main
 ];
 
 const EXERCISES_3 = [
