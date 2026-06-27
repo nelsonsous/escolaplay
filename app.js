@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v511';
+const APP_VERSION = 'v512';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1099,6 +1099,16 @@ function renderHome() {
             <div class="qs-name">Férias</div>
         </div>
         `;
+    }
+    // SRS transversal — tile "Rever" só aparece se houver erros pendentes.
+    const _revN = (typeof _srsReviewCount === 'function') ? _srsReviewCount() : 0;
+    if (_revN > 0) {
+        qsHtml = `
+        <div class="quick-subject quick-subject-review" onclick="startReviewSession()" style="--qs-color:#7c3aed;--qs-bg:#ede9fe">
+            <div class="qs-icon-wrap"><i class="fas fa-rotate-right"></i><span class="qs-badge">${_revN}</span></div>
+            <div class="qs-name">Rever erros</div>
+        </div>
+        ` + qsHtml;
     }
     // Painel de Pais — vista read-only de progresso (agrega history/subjects/weak).
     qsHtml += `
@@ -4504,6 +4514,47 @@ function startDailyChallenge() {
     openExerciseScreen();
     renderQuestion();
 }
+
+// ============================================================
+// SRS TRANSVERSAL — repetição espaçada de erros em TODAS as
+// disciplinas. v1: recolhe exercícios cujo ÚLTIMO resultado foi
+// errado (ainda não dominados), de qualquer disciplina, e que não
+// foram respondidos hoje. Resurface-os numa sessão mista de revisão.
+// ============================================================
+function _srsReviewItems(maxItems) {
+    const p = (typeof activeProfile === 'function') ? activeProfile() : null;
+    const hist = (p && Array.isArray(p.history)) ? p.history : (state.history || []);
+    // history é append cronológico → a última ocorrência por id é a mais recente.
+    const latest = {};
+    hist.forEach(h => { if (h && h.id) latest[h.id] = h; });
+    const pool = (window.EXERCISES || []).concat(state.maxExercises || []);
+    const byId = {};
+    pool.forEach(e => { if (e && e.id) byId[e.id] = e; });
+    const today = new Date().toISOString().slice(0, 10);
+    const items = [];
+    Object.keys(latest).forEach(id => {
+        const h = latest[id];
+        if (h.c) return;                 // já dominado (último acerto)
+        if (h.d === today) return;        // não repetir no próprio dia
+        const ex = byId[id];
+        if (!ex) return;                  // exercício já não existe
+        if (ex.s === 'leitura') return;   // Leitura tem fluxo próprio
+        items.push(ex);
+    });
+    // mais antigos primeiro (esperam há mais tempo)
+    items.sort((a, b) => String(latest[a.id].d || '').localeCompare(String(latest[b.id].d || '')));
+    return items.slice(0, maxItems || 12);
+}
+function _srsReviewCount() { try { return _srsReviewItems(99).length; } catch { return 0; } }
+window._srsReviewCount = _srsReviewCount;
+function startReviewSession() {
+    const items = _srsReviewItems(12);
+    if (!items.length) { showToast('Sem erros para rever — bom trabalho! 🎉'); return; }
+    currentSession = { items: items.sort(() => Math.random() - 0.5), idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: null, isReview: true, startedAt: Date.now() };
+    openExerciseScreen();
+    renderQuestion();
+}
+window.startReviewSession = startReviewSession;
 
 function startSubjectSession(key, opts = {}) {
     let topicSet;
