@@ -6406,3 +6406,28 @@ body.has-teacher-overlay #subject-detail-container {
 .bt-cent { display: grid; grid-template-columns: repeat(10, 9px); grid-auto-rows: 9px; gap: 0; padding: 2px; background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 4px; }
 .bt-dez { display: grid; grid-template-columns: 9px; grid-auto-rows: 9px; gap: 0; padding: 2px; background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 4px; }
 .bt-uni { padding: 2px; background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 4px; }
+
+/* === PAINEL DE PAIS === */
+.quick-subject-parent .qs-icon-wrap { color: #0891b2; }
+.pd-kpis { display: flex; gap: 12px; margin: 8px 0 16px; }
+.pd-kpi { flex: 1; background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 14px; padding: 14px; text-align: center; }
+.pd-kpi-n { font-size: 1.9rem; font-weight: 900; color: #0369a1; }
+.pd-kpi-l { font-size: 0.74rem; color: #0c4a6e; font-weight: 600; }
+.pd-section-h { font-size: 0.95rem; font-weight: 800; color: #334155; margin: 18px 0 10px; }
+.pd-week { display: flex; align-items: flex-end; gap: 6px; height: 90px; background: #f8fafc; border-radius: 12px; padding: 8px; }
+.pd-day { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.pd-day-bar { width: 70%; background: linear-gradient(180deg,#38bdf8,#0284c7); border-radius: 4px 4px 0 0; min-height: 4px; }
+.pd-day-lbl { font-size: 0.66rem; color: #64748b; margin-top: 4px; font-weight: 700; }
+.pd-day-n { font-size: 0.64rem; color: #0369a1; font-weight: 800; height: 12px; }
+.pd-row { margin-bottom: 12px; }
+.pd-row-head { display: flex; align-items: center; gap: 8px; }
+.pd-ico { width: 26px; height: 26px; border-radius: 7px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
+.pd-name { flex: 1; font-weight: 700; color: #1f2937; font-size: 0.9rem; }
+.pd-pct { font-weight: 800; font-size: 0.92rem; }
+.pd-bar { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin: 5px 0 2px; }
+.pd-bar span { display: block; height: 100%; border-radius: 999px; }
+.pd-sub { font-size: 0.74rem; color: #94a3b8; font-weight: 600; }
+.pd-weak { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-weak-chip { background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; font-weight: 700; }
+.pd-empty { color: #94a3b8; font-size: 0.9rem; padding: 20px; text-align: center; }
+.pd-foot { margin-top: 22px; font-size: 0.72rem; color: #94a3b8; text-align: center; }
