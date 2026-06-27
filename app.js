@@ -546,7 +546,11 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
+<<<<<<< HEAD
 const APP_VERSION = 'v512';
+=======
+const APP_VERSION = 'v511';
+>>>>>>> origin/main
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1100,6 +1104,7 @@ function renderHome() {
         </div>
         `;
     }
+<<<<<<< HEAD
     // SRS transversal — tile "Rever" só aparece se houver erros pendentes.
     const _revN = (typeof _srsReviewCount === 'function') ? _srsReviewCount() : 0;
     if (_revN > 0) {
@@ -1110,6 +1115,8 @@ function renderHome() {
         </div>
         ` + qsHtml;
     }
+=======
+>>>>>>> origin/main
     // Painel de Pais — vista read-only de progresso (agrega history/subjects/weak).
     qsHtml += `
         <div class="quick-subject quick-subject-parent" onclick="openParentDashboard()" style="--qs-color:#0891b2;--qs-bg:#cffafe">
