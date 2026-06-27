@@ -30,4 +30,10 @@
 - Scanner node (`/tmp/audit.js`) corre sobre todos os `EXERCISES_*`; deteta tautologia, opções duplicadas (exato + normalizado), `ans` inválido, `exp` ausente/eco, `fill` vazio, IDs duplicados.
 - Falsos positivos catalogados para não reincidirem (silabação, pontuação, notação matemática).
 
-_Última atualização: Fase 1, volta 1._
+### Fase 1 — volta 2 (refinamento)
+- **Referências visuais "penduradas"** (pergunta fala de figura/tabela/gráfico sem `svg`/`table`/`visual`): 25 sinalizadas → **todas falsos positivos**. Os dados estão inline no enunciado (ex.: *"Numa tabela: cães=4, gatos=6, pássaros=2…"*) ou são perguntas conceptuais (*"num gráfico de barras, a barra maior significa…"*). Sem ação.
+- **Caracterização do Mat 5.º sem explicação (51):** é **sistemático** — 3 a 4 exercícios em cada um dos 18 tópicos (Números naturais, Divisibilidade, Primos, MMC/MDC, Potências, Operações, Frações, Dízimas, Percentagens, Sequências, Ângulos, Retas, Triângulos, Quadriláteros, Perímetros, Áreas, Volume, Estatística). Fase 2 fará tópico a tópico.
+
+**Conclusão da auditoria:** as classes de problema reais convergiram para **(1) explicações em falta no Mat 5.º** e **(2) explicações que só ecoam a resposta**. O resto do conteúdo passou os scans. A Fase 2 pode arrancar com alvos claros.
+
+_Última atualização: Fase 1, volta 2._
