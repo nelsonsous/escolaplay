@@ -2663,7 +2663,24 @@ const EXERCISES_3_DETETIVE = [
         { prompt:'Passo 1: Quantos animais há ao todo? (cães + gatos)', answer:'7', hint:'4 + 3.' },
         { prompt:'Passo 2: Cada animal tem 2 olhos. Quantos olhos no total? (As coleiras não têm olhos!)', answer:'14', hint:'7 × 2 ou 7 + 7.' }
     ], exp:'7 animais × 2 olhos = 14.' },
-    { id:'3dt_log8', s:'detetive', t:'Lógica pura', type:'game', game:'cofre', diff:3, q:'🧠 Caracol no poço', digits:1, solution:'8', story:'Um caracol está no fundo de um poço de 10 m. De dia sobe 3 m, de noite escorrega 2 m.', clues:['Em quantos dias chega ao topo?'], hint:'Sobe 1m por dia... MAS no dia em que chega ao topo já não escorrega.', exp:'Dia 7 fica a 7 m. Dia 8 sobe 3 m → 10 m. Sai! 8 dias.' }
+    { id:'3dt_log8', s:'detetive', t:'Lógica pura', type:'game', game:'cofre', diff:3, q:'🧠 Caracol no poço', digits:1, solution:'8', story:'Um caracol está no fundo de um poço de 10 m. De dia sobe 3 m, de noite escorrega 2 m.', clues:['Em quantos dias chega ao topo?'], hint:'Sobe 1m por dia... MAS no dia em que chega ao topo já não escorrega.', exp:'Dia 7 fica a 7 m. Dia 8 sobe 3 m → 10 m. Sai! 8 dias.' },
+
+    // ── FASE 3: novos puzzles interativos (v519) ─────────────
+    // Charadas em passos (cofre_steps) — discalculia: cada operação validada à parte.
+    { id:'3dt_cha11', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Lanche da turma', story:'A professora compra 5 pacotes de bolachas com 6 bolachas cada, para 30 alunos.', steps:[
+        { prompt:'Passo 1: 5 pacotes × 6 bolachas. Quantas bolachas ao todo?', answer:'30', hint:'Tabuada do 6: 6+6+6+6+6.' },
+        { prompt:'Passo 2: 30 bolachas para 30 alunos. Quantas para cada um?', answer:'1', hint:'30 ÷ 30.' }
+    ], exp:'5×6 = 30 bolachas ÷ 30 alunos = 1 cada.' },
+    { id:'3dt_cha12', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:3, q:'🧠 Poupança da Eduarda', story:'A Eduarda poupa 3€ por semana. Já tinha 5€ no mealheiro.', steps:[
+        { prompt:'Passo 1: em 4 semanas, quanto poupa? (3€ × 4)', answer:'12', hint:'Tabuada do 3 ou 3+3+3+3.' },
+        { prompt:'Passo 2: junta ao que já tinha (5€). Quanto tem agora?', answer:'17', hint:'12 + 5.' }
+    ], exp:'3×4 = 12€ poupados + 5€ = 17€.' },
+    // Padrões novos
+    { id:'3dt_pad9', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Continua a contar de 25 em 25', sequence:[25,50,75,'?',125], answer:'100', hint:'Os quartos de 100: 25, 50, 75, 100…', exp:'+25 de cada vez → 100.' },
+    { id:'3dt_pad10', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Que número falta?', sequence:[1,4,9,16,'?',36], answer:'25', hint:'1=1×1, 4=2×2, 9=3×3, 16=4×4, ?=5×5', exp:'Quadrados perfeitos: 5×5 = 25.' },
+    // Estimadores novos
+    { id:'3dt_est8', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quantos alunos na escola?', story:'A tua escola tem 12 turmas com mais ou menos 20 alunos cada. Quantos alunos terá ao todo?', min:0, max:500, step:20, answer:240, tolerance:40, unit:'alunos', hint:'12 × 20 — estima sem contar todos.', exp:'12 × 20 = 240 alunos (aproximadamente).' },
+    { id:'3dt_est9', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda ao milhar', story:'Qual é o número 6 480 arredondado ao milhar mais próximo?', min:5000, max:8000, step:500, answer:6000, tolerance:300, unit:'', hint:'Está mais perto de 6000 ou de 7000?', exp:'6 480 está mais perto de 6 000 (faltam 480) do que de 7 000.' }
 ];
 
 const EXERCISES_3 = [
