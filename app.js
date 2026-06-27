@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v513';
+const APP_VERSION = 'v514';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1949,7 +1949,7 @@ function openParentDashboard(remote) {
             <div class="pd-kpi"><div class="pd-kpi-n">${total}</div><div class="pd-kpi-l">exercícios feitos</div></div>
             <div class="pd-kpi"><div class="pd-kpi-n">${Object.keys(bySubj).length}</div><div class="pd-kpi-l">disciplinas ativas</div></div>
           </div>
-          <button class="pd-remote-btn" onclick="openRemoteParentDashboard()">🌐 Ver outro perfil à distância (código)</button>
+          <button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>
           <div class="pd-section-h">📅 Últimos 7 dias</div>
           <div class="pd-week">${last7.join('')}</div>
           <div class="pd-section-h">📚 Desempenho por disciplina</div>
@@ -1964,6 +1964,46 @@ function openParentDashboard(remote) {
     document.body.appendChild(wrap);
 }
 window.openParentDashboard = openParentDashboard;
+// Seletor de perfis — lista os perfis DESTE dispositivo (state.profiles)
+// para o pai escolher qual ver, mostra o código de cada um, e permite
+// também ver um perfil de OUTRO dispositivo pelo código (remoto).
+function openParentProfilePicker() {
+    document.getElementById('parent-picker-modal')?.remove();
+    const profs = (state.profiles || []);
+    const rows = profs.map(p => {
+        const code = p.userCode ? `<span class="pp-code">${escapeHtml(p.userCode)}</span>` : '<span class="pp-nocode">sem código</span>';
+        const yr = p.year === 99 ? 'Profissional' : (p.year + 'º ano');
+        const pj = JSON.stringify(p.id).replace(/"/g, '&quot;');
+        return `<button class="pp-row" onclick="_parentViewLocal(${pj})">
+            <span class="pp-av">${escapeHtml(p.avatar && p.avatar.emoji || '🙂')}</span>
+            <span class="pp-info"><span class="pp-name">${escapeHtml(p.name || 'Perfil')}</span><span class="pp-meta">${escapeHtml(yr)} · ${code}</span></span>
+            <span class="pp-go">ver →</span>
+        </button>`;
+    }).join('') || '<div class="pd-empty">Nenhum perfil neste dispositivo.</div>';
+    const html = `
+      <div class="modal" id="parent-picker-modal" style="align-items:center;padding:18px" onclick="if(event.target===this)this.remove()">
+        <div class="modal-content" style="max-width:460px;border-radius:18px;overflow:hidden">
+          <div style="background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;padding:18px 20px">
+            <div style="font-size:1.15rem;font-weight:900">👥 Perfis neste dispositivo</div>
+            <div style="font-size:0.78rem;opacity:0.92">Toca para ver o progresso de cada um</div>
+          </div>
+          <div class="modal-body" style="padding:16px">
+            <div class="pp-list">${rows}</div>
+            <button class="pd-remote-btn" style="margin-top:14px" onclick="document.getElementById('parent-picker-modal').remove();openRemoteParentDashboard()">🌐 Outro dispositivo — pelo código</button>
+            <p style="text-align:center;font-size:0.72rem;color:var(--text-light);margin-top:12px">O código de cada perfil aparece também na área de Duelos/Amigos (perfil partilhável).</p>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+window.openParentProfilePicker = openParentProfilePicker;
+function _parentViewLocal(id) {
+    const p = (state.profiles || []).find(x => x.id === id);
+    document.getElementById('parent-picker-modal')?.remove();
+    if (!p) { showToast('Perfil não encontrado.'); return; }
+    openParentDashboard({ profile: p, max: state.max });
+}
+window._parentViewLocal = _parentViewLocal;
 // Painel de Pais REMOTO — pede o código do perfil da criança e busca o
 // backup no Firestore (backups/{userCode}), mostrando o painel à distância.
 async function openRemoteParentDashboard() {
