@@ -2699,18 +2699,18 @@ const EXERCISES_3 = [
 
     // ============================ ESTUDO DO MEIO ===============================
     { id:'3le_pas1', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:1, q:'👨‍👩‍👧 Os pais dos teus pais são os teus:', opts:['tios','avós','primos'], ans:1, exp:'Pais dos pais = avós.' },
-    { id:'3le_pas2', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:2, q:'👶 Documento oficial para identificar uma criança em Portugal:', opts:['passaporte','cartão de cidadão','cartão de aluno'], ans:1, exp:'Cartão de cidadão.' },
+    { id:'3le_pas2', s:'estudo_meio', t:'O passado da criança', type:'mc', diff:2, q:'👶 Documento oficial para identificar uma criança em Portugal:', opts:['passaporte','cartão de cidadão','cartão de aluno'], ans:1, exp:'O cartão de cidadão substituiu o antigo bilhete de identidade e junta vários documentos num só. Toda a gente em Portugal tem um, até as crianças.' },
     { id:'3le_pas3', s:'estudo_meio', t:'O passado da criança', type:'tf', diff:1, q:'Bisavós são os pais dos avós.', ans:true, exp:'Verdadeiro.' },
 
     { id:'3le_corp1', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'🦴 O esqueleto humano tem aproximadamente ___ ossos.', opts:['50','100','206'], ans:2, exp:'≈ 206 ossos no adulto.' },
     { id:'3le_corp2', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:2, q:'🤸 As articulações servem para:', opts:['proteger os órgãos','permitir movimento','dar cor à pele'], ans:1, exp:'Articulações permitem dobrar.' },
     { id:'3le_corp3', s:'estudo_meio', t:'O corpo humano', type:'mc', diff:1, q:'❤️ O coração está localizado no:', opts:['cabeça','tronco','membros'], ans:1, exp:'Coração no tronco.' },
 
-    { id:'3le_sis1', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:1, q:'🍎 O sistema que transforma a comida em energia é o:', opts:['respiratório','digestivo','circulatório'], ans:1, exp:'Digestivo.' ,
+    { id:'3le_sis1', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:1, q:'🍎 O sistema que transforma a comida em energia é o:', opts:['respiratório','digestivo','circulatório'], ans:1, exp:'O sistema digestivo (boca, estômago, intestinos) parte os alimentos e retira deles a energia de que o corpo precisa.' ,
       intro: "No teu corpo, vários **sistemas** trabalham em conjunto. Cada um tem uma função especial. O sistema que transforma comida em energia é como uma \"fábrica\" dentro de ti.",
       hint: "Pensa: onde começa o processo? Mastigas e engoles. Para onde vai a comida depois? É esse o sistema.",
       richExp: "**Sistema digestivo — caminho da comida**:\nBoca → Esófago → Estômago → Intestino delgado → Intestino grosso → Ânus.\n\n**O que faz cada parte**:\n- **Boca**: mastiga e mistura com saliva.\n- **Estômago**: \"máquina\" que tritura e desfaz com ácido.\n- **Intestino delgado**: absorve os nutrientes (vão para o sangue).\n- **Intestino grosso**: absorve a água que sobrou.\n\n**Curiosidade**: o teu intestino delgado tem ~7 metros de comprimento (estendido)! Está enrolado dentro da barriga.\n\n**Conexão**: o sistema digestivo trabalha COM o **circulatório** (que leva os nutrientes a todas as células) e com o **excretor** (que elimina o que sobra)."},
-    { id:'3le_sis2', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:2, q:'🫁 Os pulmões fazem parte do sistema:', opts:['digestivo','respiratório','circulatório'], ans:1, exp:'Respiratório.' },
+    { id:'3le_sis2', s:'estudo_meio', t:'Os sistemas do corpo', type:'mc', diff:2, q:'🫁 Os pulmões fazem parte do sistema:', opts:['digestivo','respiratório','circulatório'], ans:1, exp:'Os pulmões pertencem ao sistema respiratório: levam o oxigénio do ar para o sangue e expulsam o dióxido de carbono.' },
     { id:'3le_sis3', s:'estudo_meio', t:'Os sistemas do corpo', type:'fill', diff:2, q:'O órgão que bombeia o sangue é o ___', ans:['coração'], exp:'Coração.' },
 
     { id:'3le_sau1', s:'estudo_meio', t:'A saúde e a prevenção', type:'mc', diff:1, q:'🥗 Para uma alimentação saudável, devemos:', opts:['comer só doces','variar os alimentos','comer só fruta'], ans:1, exp:'Variedade é a chave.' },
@@ -2722,10 +2722,10 @@ const EXERCISES_3 = [
     { id:'3le_sen3', s:'estudo_meio', t:'Os cinco sentidos', type:'fill', diff:2, q:'Sentido em que se usa a pele: ___', ans:['tato','tacto'], exp:'Tato.' },
 
     { id:'3le_loc1', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:1, q:'🏛️ Conjunto de freguesias forma um:', opts:['concelho','distrito','país'], ans:0, exp:'Freguesia → Concelho → Distrito → País.' },
-    { id:'3le_loc2', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:2, q:'🏰 Santo Tirso é conhecido pelo:', opts:['Castelo de São Jorge','Mosteiro de São Bento','Pelourinho de Sintra'], ans:1, exp:'Mosteiro de São Bento.' },
+    { id:'3le_loc2', s:'estudo_meio', t:'O passado do meio local', type:'mc', diff:2, q:'🏰 Santo Tirso é conhecido pelo:', opts:['Castelo de São Jorge','Mosteiro de São Bento','Pelourinho de Sintra'], ans:1, exp:'O Mosteiro de São Bento é o monumento mais conhecido de Santo Tirso, com muitos séculos de história.' },
     { id:'3le_loc3', s:'estudo_meio', t:'O passado do meio local', type:'fill', diff:2, q:'Órgão que governa o concelho: ___ Municipal', ans:['Câmara','câmara'], exp:'Câmara Municipal.' },
 
-    { id:'3le_sim1', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:1, q:'🇵🇹 As cores da bandeira de Portugal são:', opts:['azul e branco','verde e vermelho','vermelho e amarelo'], ans:1, exp:'Verde e vermelho.' },
+    { id:'3le_sim1', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:1, q:'🇵🇹 As cores da bandeira de Portugal são:', opts:['azul e branco','verde e vermelho','vermelho e amarelo'], ans:1, exp:'A bandeira de Portugal é verde e vermelha, com o escudo e a esfera armilar ao centro.' },
     { id:'3le_sim2', s:'estudo_meio', t:'Símbolos nacionais', type:'mc', diff:2, q:'📅 25 de Abril celebra:', opts:['Dia de Portugal','Dia da Liberdade','Implantação da República'], ans:1, exp:'25 Abril 1974 = Revolução dos Cravos.' ,
       intro: "O **25 de Abril de 1974** é a data mais importante da história recente de Portugal. Foi o dia em que Portugal recuperou a **liberdade** após 48 anos de ditadura.",
       hint: "Foi uma revolução SEM violência — chamada \"Revolução dos Cravos\". Devolveu democracia a Portugal. Como se chamará este dia?",
@@ -2734,7 +2734,7 @@ const EXERCISES_3 = [
 
     { id:'3le_ins1', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:1, q:'🚒 Em caso de incêndio chamamos:', opts:['polícia','bombeiros','correios'], ans:1, exp:'Bombeiros (112).' },
     { id:'3le_ins2', s:'estudo_meio', t:'Instituições e serviços', type:'fill', diff:1, q:'Número de emergência em Portugal e na UE: ___', ans:['112'], exp:'112.' },
-    { id:'3le_ins3', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:2, q:'📚 Instituição onde se empresta livros:', opts:['câmara','biblioteca','tribunal'], ans:1, exp:'Biblioteca.' },
+    { id:'3le_ins3', s:'estudo_meio', t:'Instituições e serviços', type:'mc', diff:2, q:'📚 Instituição onde se empresta livros:', opts:['câmara','biblioteca','tribunal'], ans:1, exp:'Na biblioteca podemos requisitar (pedir emprestados) livros e devolvê-los depois — diferente da livraria, onde se compram.' },
 
     { id:'3le_ast1', s:'estudo_meio', t:'Os astros', type:'mc', diff:1, q:'☀️ O Sol é uma:', opts:['planeta','estrela','satélite'], ans:1, exp:'Sol = estrela.' },
     { id:'3le_ast2', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌍 A Terra é o ___ planeta a contar do Sol.', opts:['1.º','2.º','3.º','4.º'], ans:2, exp:'Mercúrio → Vénus → TERRA → Marte.' ,
@@ -2745,7 +2745,7 @@ const EXERCISES_3 = [
     { id:'3le_ast4', s:'estudo_meio', t:'Os astros', type:'mc', diff:2, q:'🌐 A Terra gira sobre si própria em ___ horas:', opts:['12','24','48'], ans:1, exp:'Rotação = 24 h = 1 dia.' },
 
     { id:'3le_rel1', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:1, q:'🏔️ O ponto mais alto de Portugal é:', opts:['Serra da Estrela','Pico (Açores)','Monchique'], ans:1, exp:'Pico ≈ 2 351 m.' },
-    { id:'3le_rel2', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:2, q:'🌊 O maior rio de Portugal é o:', opts:['Tejo','Douro','Mondego'], ans:0, exp:'Tejo.' },
+    { id:'3le_rel2', s:'estudo_meio', t:'Aspetos físicos do meio', type:'mc', diff:2, q:'🌊 O maior rio de Portugal é o:', opts:['Tejo','Douro','Mondego'], ans:0, exp:'O Tejo é o maior rio de Portugal: nasce em Espanha e desagua em Lisboa, no oceano Atlântico.' },
     { id:'3le_rel3', s:'estudo_meio', t:'Aspetos físicos do meio', type:'fill', diff:2, q:'Terra plana e baixa chama-se ___', ans:['planície'], exp:'Planície.' },
 
     { id:'3le_ani1', s:'estudo_meio', t:'Animais', type:'mc', diff:1, q:'🐄 A vaca é um:', opts:['réptil','mamífero','ave'], ans:1, exp:'Vaca = mamífero.' },
