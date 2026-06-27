@@ -6434,3 +6434,7 @@ body.has-teacher-overlay #subject-detail-container {
 /* === SRS transversal — tile Rever erros === */
 .quick-subject-review .qs-icon-wrap { color: #7c3aed; position: relative; }
 .quick-subject-review .qs-badge { position: absolute; top: -6px; right: -8px; background: #ef4444; color: #fff; font-size: 0.66rem; font-weight: 800; min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px #fff; }
+/* === Painel de Pais — remoto === */
+.pd-remote-tag { font-size: 0.7rem; font-weight: 800; background: #cffafe; color: #0e7490; border-radius: 999px; padding: 2px 8px; }
+.pd-remote-btn { width: 100%; margin: 4px 0 8px; padding: 11px; border-radius: 12px; border: 1.5px dashed #0891b2; background: #f0fdff; color: #0e7490; font-weight: 800; font-size: 0.88rem; cursor: pointer; }
+.pd-remote-btn:active { background: #cffafe; }
