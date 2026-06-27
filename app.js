@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v510';
+const APP_VERSION = 'v511';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1100,6 +1100,13 @@ function renderHome() {
         </div>
         `;
     }
+    // Painel de Pais — vista read-only de progresso (agrega history/subjects/weak).
+    qsHtml += `
+        <div class="quick-subject quick-subject-parent" onclick="openParentDashboard()" style="--qs-color:#0891b2;--qs-bg:#cffafe">
+            <div class="qs-icon-wrap"><i class="fas fa-chart-line"></i></div>
+            <div class="qs-name">Pais</div>
+        </div>
+        `;
     container.innerHTML = qsHtml;
 
     // Number Talk do dia — prompt rotativo determinístico por data
@@ -1848,6 +1855,97 @@ function closeSubjectDetail() {
     renderSubjects();
     renderHome();
 }
+
+// ============================================================
+// PAINEL DE PAIS — vista read-only do progresso do perfil ativo.
+// Agrega dados que JÁ existem (history, subjects, max.tutorWeak):
+// por disciplina mostra nº respondido, % de acerto e pontos fracos,
+// + atividade dos últimos 7 dias. Não altera nada — só lê.
+// ============================================================
+function _parentStats() {
+    const p = (typeof activeProfile === 'function') ? activeProfile() : null;
+    const hist = (p && Array.isArray(p.history)) ? p.history : (state.history || []);
+    // Agrega por disciplina a partir do history (fonte mais fiável: tem s + c).
+    const bySubj = {};
+    hist.forEach(h => {
+        if (!h || !h.s) return;
+        const b = bySubj[h.s] || (bySubj[h.s] = { ans: 0, ok: 0 });
+        b.ans++; if (h.c) b.ok++;
+    });
+    // Atividade dos últimos 7 dias (por data string YYYY-MM-DD).
+    const days = {};
+    hist.forEach(h => { if (h && h.d) { const d = days[h.d] || (days[h.d] = { ans: 0, ok: 0 }); d.ans++; if (h.c) d.ok++; } });
+    // Pontos fracos do tutor de Inglês (se existirem).
+    const weakRaw = (state.max && state.max.tutorWeak) || {};
+    const weak = Object.keys(weakRaw)
+        .map(t => ({ t, net: (weakRaw[t].wrong || 0) - (weakRaw[t].right || 0) }))
+        .filter(x => x.net > 0)
+        .sort((a, b) => b.net - a.net)
+        .slice(0, 6);
+    return { bySubj, days, weak, total: hist.length };
+}
+function openParentDashboard() {
+    document.getElementById('parent-dash-container')?.remove();
+    const { bySubj, days, weak, total } = _parentStats();
+    const subjRows = Object.keys(bySubj).sort((a, b) => bySubj[b].ans - bySubj[a].ans).map(k => {
+        const s = bySubj[k];
+        const meta = (SUBJECTS && SUBJECTS[k]) || { name: k, color: '#64748b', icon: 'fa-book' };
+        const pct = s.ans ? Math.round((s.ok / s.ans) * 100) : 0;
+        const barColor = pct >= 80 ? '#16a34a' : pct >= 60 ? '#f59e0b' : '#ef4444';
+        return `<div class="pd-row">
+            <div class="pd-row-head"><span class="pd-ico" style="background:${meta.color}"><i class="fas ${meta.icon}"></i></span>
+              <span class="pd-name">${escapeHtml(meta.name)}</span>
+              <span class="pd-pct" style="color:${barColor}">${pct}%</span></div>
+            <div class="pd-bar"><span style="width:${pct}%;background:${barColor}"></span></div>
+            <div class="pd-sub">${s.ok}/${s.ans} certas</div>
+        </div>`;
+    }).join('') || '<div class="pd-empty">Ainda sem exercícios respondidos. Quando a criança praticar, o progresso aparece aqui.</div>';
+    // Últimos 7 dias
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const day = days[key] || { ans: 0, ok: 0 };
+        const label = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
+        const h = Math.min(100, day.ans * 8);
+        last7.push(`<div class="pd-day"><div class="pd-day-bar" style="height:${Math.max(4,h)}%" title="${day.ans} exercícios"></div><div class="pd-day-lbl">${label}</div><div class="pd-day-n">${day.ans||''}</div></div>`);
+    }
+    const weakHtml = weak.length
+        ? `<div class="pd-section-h">🎯 Pontos a reforçar (Inglês)</div><div class="pd-weak">${weak.map(w => `<span class="pd-weak-chip">${escapeHtml(w.t)}</span>`).join('')}</div>`
+        : '';
+    const pName = (typeof activeProfile === 'function' && activeProfile()) ? activeProfile().name : '';
+    const html = `
+      <div class="fullscreen" id="parent-dash-screen">
+        <div class="exercise-header">
+          <button class="icon-btn" onclick="closeParentDashboard()"><i class="fas fa-arrow-left"></i></button>
+          <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
+            <span style="width:32px;height:32px;border-radius:8px;background:#0891b2;color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas fa-chart-line"></i></span>
+            Progresso — ${escapeHtml(pName)}
+          </div>
+        </div>
+        <div class="exercise-body">
+          <div class="pd-kpis">
+            <div class="pd-kpi"><div class="pd-kpi-n">${total}</div><div class="pd-kpi-l">exercícios feitos</div></div>
+            <div class="pd-kpi"><div class="pd-kpi-n">${Object.keys(bySubj).length}</div><div class="pd-kpi-l">disciplinas ativas</div></div>
+          </div>
+          <div class="pd-section-h">📅 Últimos 7 dias</div>
+          <div class="pd-week">${last7.join('')}</div>
+          <div class="pd-section-h">📚 Desempenho por disciplina</div>
+          ${subjRows}
+          ${weakHtml}
+          <div class="pd-foot">Vista só de leitura, para encarregados de educação. Os dados são deste dispositivo.</div>
+        </div>
+      </div>`;
+    const wrap = document.createElement('div');
+    wrap.id = 'parent-dash-container';
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+}
+window.openParentDashboard = openParentDashboard;
+function closeParentDashboard() {
+    document.getElementById('parent-dash-container')?.remove();
+}
+window.closeParentDashboard = closeParentDashboard;
 
 // ============================================================
 // MODO CURSO — isolado para disciplina english_pm
