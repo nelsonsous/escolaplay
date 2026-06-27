@@ -2708,7 +2708,29 @@ const EXERCISES_3_DETETIVE = [
     ], exp:'24 copos ÷ 4 por garrafa = 6 garrafas.' },
     { id:'3dt_mis12', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:3, q:'🕵️ Quem comeu a última bolacha?', story:'A última bolacha do frasco desapareceu! Lê as pistas.', suspects:[{id:'rui',emoji:'🧒',name:'Rui'},{id:'mae',emoji:'👩',name:'Mãe'},{id:'avo',emoji:'👵',name:'Avó'}], clues:['A avó é diabética e não come bolachas com açúcar.','A mãe saiu de casa antes do lanche.','Sobra quem estava em casa e adora bolachas...'], solution:'rui', exp:'Avó não come açúcar, mãe estava fora → foi o Rui.' },
     { id:'3dt_pad12', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a descer)', sequence:[40,35,30,'?',20], answer:'25', hint:'Tira 5 de cada vez.', exp:'−5 de cada vez: 30 − 5 = 25.' },
-    { id:'3dt_est11', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quanto pesa uma mochila cheia?', story:'Mais ou menos quantos quilos pesa uma mochila da escola cheia de livros?', min:0, max:20, step:1, answer:5, tolerance:2, unit:'kg', hint:'Não é tão leve como um lápis nem tão pesado como tu.', exp:'Uma mochila cheia pesa tipicamente uns 4 a 6 kg.' }
+    { id:'3dt_est11', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quanto pesa uma mochila cheia?', story:'Mais ou menos quantos quilos pesa uma mochila da escola cheia de livros?', min:0, max:20, step:1, answer:5, tolerance:2, unit:'kg', hint:'Não é tão leve como um lápis nem tão pesado como tu.', exp:'Uma mochila cheia pesa tipicamente uns 4 a 6 kg.' },
+
+    // ── FASE 3 (v522): lote grande ───────
+    { id:'3dt_cha17', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Mesada', story:'Recebes 10€ de mesada. Gastas 4€ num livro e 3€ num gelado.', steps:[
+        { prompt:'Passo 1: quanto gastaste ao todo? (4€ + 3€)', answer:'7', hint:'Soma os dois gastos.' },
+        { prompt:'Passo 2: de 10€, quanto sobra?', answer:'3', hint:'10 − 7.' }
+    ], exp:'Gastaste 4+3 = 7€; sobram 10 − 7 = 3€.' },
+    { id:'3dt_cha18', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:3, q:'🧠 Bolos na feira', story:'Fazes 5 caixas com 4 bolos cada. Vendes 12 bolos.', steps:[
+        { prompt:'Passo 1: 5 caixas × 4 bolos. Quantos bolos fizeste?', answer:'20', hint:'Tabuada do 4.' },
+        { prompt:'Passo 2: vendeste 12. Quantos sobram?', answer:'8', hint:'20 − 12.' }
+    ], exp:'5×4 = 20 bolos; 20 − 12 = 8 sobram.' },
+    { id:'3dt_mis13', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:2, q:'🕵️ Quem deixou a luz acesa?', story:'A luz do quarto ficou acesa a noite toda. Quem foi o último a sair?', suspects:[{id:'ana',emoji:'👧',name:'Ana'},{id:'tó',emoji:'👦',name:'Tó'},{id:'pai',emoji:'👨',name:'Pai'}], clues:['O pai dormiu fora, em viagem.','A Ana saiu do quarto às 19h, ainda de dia.','Sobra quem ficou no quarto até tarde a jogar.'], solution:'tó', exp:'Pai fora, Ana saiu de dia → foi o Tó (ficou até tarde).' },
+    { id:'3dt_mis14', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:3, q:'🕵️ Quem ganhou a corrida?', story:'Três amigos correram. Lê as pistas e descobre o VENCEDOR.', suspects:[{id:'rui',emoji:'🏃',name:'Rui'},{id:'bea',emoji:'🏃‍♀️',name:'Bea'},{id:'leo',emoji:'🏃‍♂️',name:'Leo'}], clues:['O Leo chegou depois da Bea.','A Bea chegou depois do Rui.','Então quem chegou primeiro?'], solution:'rui', exp:'Rui antes da Bea, e Bea antes do Leo → o Rui ganhou.' },
+    { id:'3dt_pad13', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a duplicar)', sequence:[3,6,12,24,'?'], answer:'48', hint:'Cada número é o dobro do anterior.', exp:'24 × 2 = 48.' },
+    { id:'3dt_pad14', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que número falta?', sequence:[100,90,80,'?',60], answer:'70', hint:'Tira 10 de cada vez.', exp:'−10 de cada vez: 80 − 10 = 70.' },
+    { id:'3dt_est12', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Dentes de um adulto', story:'Quantos dentes tem, mais ou menos, a boca de um adulto?', min:0, max:60, step:4, answer:32, tolerance:8, unit:'dentes', hint:'Mais do que os dedos das mãos e pés juntos.', exp:'Um adulto tem cerca de 32 dentes.' },
+    { id:'3dt_est13', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Dias de um mês', story:'Mais ou menos quantos dias tem um mês?', min:0, max:60, step:1, answer:30, tolerance:2, unit:'dias', hint:'Entre 28 e 31.', exp:'Os meses têm 30 ou 31 dias (fevereiro 28/29).' },
+    { id:'3dt_qt10', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:15, prompt:'10 + 5. Quantos ao todo?' },
+    { id:'3dt_qt11', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:18, prompt:'10 + 8. Quantos?' },
+    { id:'3dt_log9', s:'detetive', t:'Lógica pura', type:'game', game:'cofre_steps', diff:2, q:'🧠 Idade do irmão', story:'A Maria tem 9 anos. O irmão tem o TRIPLO da idade dela.', steps:[
+        { prompt:'Que idade tem o irmão? (9 × 3)', answer:'27', hint:'Triplo = 3 vezes: 9 + 9 + 9.' }
+    ], exp:'Triplo de 9 = 9 × 3 = 27 anos.' },
+    { id:'3dt_log10', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Quem é o mais velho?', story:'Lê as pistas e descobre quem é o MAIS VELHO dos três.', suspects:[{id:'avo',emoji:'👴',name:'Avô'},{id:'pai',emoji:'👨',name:'Pai'},{id:'neto',emoji:'🧒',name:'Neto'}], clues:['O pai é mais novo que o avô.','O neto é mais novo que o pai.','Então quem nasceu primeiro?'], solution:'avo', exp:'Avô mais velho que o pai, e pai mais velho que o neto → o avô é o mais velho.' }
 ];
 
 const EXERCISES_3 = [
