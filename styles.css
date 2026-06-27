@@ -6438,7 +6438,6 @@ body.has-teacher-overlay #subject-detail-container {
 .pd-remote-tag { font-size: 0.7rem; font-weight: 800; background: #cffafe; color: #0e7490; border-radius: 999px; padding: 2px 8px; }
 .pd-remote-btn { width: 100%; margin: 4px 0 8px; padding: 11px; border-radius: 12px; border: 1.5px dashed #0891b2; background: #f0fdff; color: #0e7490; font-weight: 800; font-size: 0.88rem; cursor: pointer; }
 .pd-remote-btn:active { background: #cffafe; }
-
 /* === Seletor de perfis (Painel de Pais) === */
 .pp-list { display: flex; flex-direction: column; gap: 8px; }
 .pp-row { display: flex; align-items: center; gap: 12px; width: 100%; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 11px 13px; cursor: pointer; text-align: left; }
