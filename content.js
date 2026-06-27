@@ -2710,7 +2710,7 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_pad12', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a descer)', sequence:[40,35,30,'?',20], answer:'25', hint:'Tira 5 de cada vez.', exp:'−5 de cada vez: 30 − 5 = 25.' },
     { id:'3dt_est11', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quanto pesa uma mochila cheia?', story:'Mais ou menos quantos quilos pesa uma mochila da escola cheia de livros?', min:0, max:20, step:1, answer:5, tolerance:2, unit:'kg', hint:'Não é tão leve como um lápis nem tão pesado como tu.', exp:'Uma mochila cheia pesa tipicamente uns 4 a 6 kg.' },
 
-    // ── FASE 3 (v522): lote grande ("vários próximos") ───────
+    // ── FASE 3 (v522): lote grande ───────
     { id:'3dt_cha17', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Mesada', story:'Recebes 10€ de mesada. Gastas 4€ num livro e 3€ num gelado.', steps:[
         { prompt:'Passo 1: quanto gastaste ao todo? (4€ + 3€)', answer:'7', hint:'Soma os dois gastos.' },
         { prompt:'Passo 2: de 10€, quanto sobra?', answer:'3', hint:'10 − 7.' }
