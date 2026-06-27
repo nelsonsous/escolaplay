@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v512';
+const APP_VERSION = 'v513';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1872,9 +1872,12 @@ function closeSubjectDetail() {
 // por disciplina mostra nº respondido, % de acerto e pontos fracos,
 // + atividade dos últimos 7 dias. Não altera nada — só lê.
 // ============================================================
-function _parentStats() {
-    const p = (typeof activeProfile === 'function') ? activeProfile() : null;
-    const hist = (p && Array.isArray(p.history)) ? p.history : (state.history || []);
+function _parentStats(src) {
+    // src opcional = { profile, max } vindo de um backup REMOTO (Firestore).
+    // Sem src → perfil ativo local.
+    const p = src ? src.profile : ((typeof activeProfile === 'function') ? activeProfile() : null);
+    const maxObj = src ? (src.max || {}) : (state.max || {});
+    const hist = (p && Array.isArray(p.history)) ? p.history : (src ? [] : (state.history || []));
     // Agrega por disciplina a partir do history (fonte mais fiável: tem s + c).
     const bySubj = {};
     hist.forEach(h => {
@@ -1886,20 +1889,24 @@ function _parentStats() {
     const days = {};
     hist.forEach(h => { if (h && h.d) { const d = days[h.d] || (days[h.d] = { ans: 0, ok: 0 }); d.ans++; if (h.c) d.ok++; } });
     // Pontos fracos do tutor de Inglês (se existirem).
-    const weakRaw = (state.max && state.max.tutorWeak) || {};
+    const weakRaw = maxObj.tutorWeak || {};
     const weak = Object.keys(weakRaw)
         .map(t => ({ t, net: (weakRaw[t].wrong || 0) - (weakRaw[t].right || 0) }))
         .filter(x => x.net > 0)
         .sort((a, b) => b.net - a.net)
         .slice(0, 6);
-    return { bySubj, days, weak, total: hist.length };
+    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year };
 }
-function openParentDashboard() {
+function openParentDashboard(remote) {
     document.getElementById('parent-dash-container')?.remove();
-    const { bySubj, days, weak, total } = _parentStats();
+    const { bySubj, days, weak, total, name, year } = _parentStats(remote);
+    // Mapa de disciplinas: para remoto, usa o do ano do perfil remoto.
+    const SUBJ = remote
+        ? ((typeof SUBJECTS_BY_YEAR !== 'undefined' && SUBJECTS_BY_YEAR[year]) || SUBJECTS || {})
+        : (SUBJECTS || {});
     const subjRows = Object.keys(bySubj).sort((a, b) => bySubj[b].ans - bySubj[a].ans).map(k => {
         const s = bySubj[k];
-        const meta = (SUBJECTS && SUBJECTS[k]) || { name: k, color: '#64748b', icon: 'fa-book' };
+        const meta = (SUBJ && SUBJ[k]) || { name: k, color: '#64748b', icon: 'fa-book' };
         const pct = s.ans ? Math.round((s.ok / s.ans) * 100) : 0;
         const barColor = pct >= 80 ? '#16a34a' : pct >= 60 ? '#f59e0b' : '#ef4444';
         return `<div class="pd-row">
@@ -1923,14 +1930,18 @@ function openParentDashboard() {
     const weakHtml = weak.length
         ? `<div class="pd-section-h">🎯 Pontos a reforçar (Inglês)</div><div class="pd-weak">${weak.map(w => `<span class="pd-weak-chip">${escapeHtml(w.t)}</span>`).join('')}</div>`
         : '';
-    const pName = (typeof activeProfile === 'function' && activeProfile()) ? activeProfile().name : '';
+    const pName = name || ((typeof activeProfile === 'function' && activeProfile()) ? activeProfile().name : '');
+    const remoteTag = remote ? '<span class="pd-remote-tag">🌐 remoto</span>' : '';
+    const foot = remote
+        ? 'Dados sincronizados da nuvem (último backup do dispositivo da criança). Vista só de leitura.'
+        : 'Vista só de leitura. Toca em "Ver à distância" para acompanhar outro perfil pelo código.';
     const html = `
       <div class="fullscreen" id="parent-dash-screen">
         <div class="exercise-header">
           <button class="icon-btn" onclick="closeParentDashboard()"><i class="fas fa-arrow-left"></i></button>
           <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
             <span style="width:32px;height:32px;border-radius:8px;background:#0891b2;color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas fa-chart-line"></i></span>
-            Progresso — ${escapeHtml(pName)}
+            Progresso — ${escapeHtml(pName)} ${remoteTag}
           </div>
         </div>
         <div class="exercise-body">
@@ -1938,12 +1949,13 @@ function openParentDashboard() {
             <div class="pd-kpi"><div class="pd-kpi-n">${total}</div><div class="pd-kpi-l">exercícios feitos</div></div>
             <div class="pd-kpi"><div class="pd-kpi-n">${Object.keys(bySubj).length}</div><div class="pd-kpi-l">disciplinas ativas</div></div>
           </div>
+          <button class="pd-remote-btn" onclick="openRemoteParentDashboard()">🌐 Ver outro perfil à distância (código)</button>
           <div class="pd-section-h">📅 Últimos 7 dias</div>
           <div class="pd-week">${last7.join('')}</div>
           <div class="pd-section-h">📚 Desempenho por disciplina</div>
           ${subjRows}
           ${weakHtml}
-          <div class="pd-foot">Vista só de leitura, para encarregados de educação. Os dados são deste dispositivo.</div>
+          <div class="pd-foot">${foot}</div>
         </div>
       </div>`;
     const wrap = document.createElement('div');
@@ -1952,6 +1964,24 @@ function openParentDashboard() {
     document.body.appendChild(wrap);
 }
 window.openParentDashboard = openParentDashboard;
+// Painel de Pais REMOTO — pede o código do perfil da criança e busca o
+// backup no Firestore (backups/{userCode}), mostrando o painel à distância.
+async function openRemoteParentDashboard() {
+    const codeRaw = prompt('Código do perfil da criança (6–8 caracteres, ex: AB3K9X):');
+    if (!codeRaw) return;
+    const code = codeRaw.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6,8}$/.test(code)) { showToast('Código inválido (6–8 letras/números).'); return; }
+    showToast('A buscar progresso na nuvem…');
+    try {
+        const data = await fbFetchBackup(code);
+        if (!data || !data.profile) { showToast('Sem dados para esse código. Confirma que o backup está ativo no dispositivo dela.'); return; }
+        openParentDashboard({ profile: data.profile, max: data.max });
+    } catch (e) {
+        console.warn('[parent] remote fetch failed', e);
+        showToast('Erro ao buscar — verifica a ligação.');
+    }
+}
+window.openRemoteParentDashboard = openRemoteParentDashboard;
 function closeParentDashboard() {
     document.getElementById('parent-dash-container')?.remove();
 }
