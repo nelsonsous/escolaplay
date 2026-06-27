@@ -2697,7 +2697,7 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_qt9', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:12, prompt:'Um ten-frame cheio (10) + 2. Quantos?' },
 
     // ── FASE 3 (v521): mais puzzles interativos ──────────────
-    { id:'3dt_sud11', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'sudoku4', diff:2, q:'🔢 Sudoku 4×4 · médio', puzzle:{ initial:[3,0,4,0, 4,1,0,0, 0,3,0,0, 1,4,0,3], solution:[3,2,4,1, 4,1,3,2, 2,3,1,4, 1,4,2,3] }, hint:'Começa pela 1.ª coluna (3,4,_,1) — falta um número.', exp:'Solução: 3241 / 4132 / 2314 / 1423.' },
+    { id:'3dt_sud19', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'sudoku4', diff:2, q:'🔢 Sudoku 4×4 · médio', puzzle:{ initial:[3,0,4,0, 4,1,0,0, 0,3,0,0, 1,4,0,3], solution:[3,2,4,1, 4,1,3,2, 2,3,1,4, 1,4,2,3] }, hint:'Começa pela 1.ª coluna (3,4,_,1) — falta um número.', exp:'Solução: 3241 / 4132 / 2314 / 1423.' },
     { id:'3dt_cha15', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Cromos em cadernetas', story:'Tens 3 cadernetas com 8 cromos cada e ganhas mais 6 cromos.', steps:[
         { prompt:'Passo 1: 3 cadernetas × 8 cromos. Quantos cromos tens?', answer:'24', hint:'Tabuada do 8: 8+8+8.' },
         { prompt:'Passo 2: ganhas mais 6. Com quantos ficas?', answer:'30', hint:'24 + 6.' }
