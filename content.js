@@ -899,10 +899,10 @@ const EXERCISES_2 = [
     { id:'2i44', s:'ingles', t:'Body', type:'mc', diff:2, q:'Quantos olhos tens? Em inglês:', opts:['I have one eye','I have two eyes','I have three eyes','I have ten eyes'], ans:1, exp:'Two eyes = dois olhos.' },
 
     // ----- Inglês: Food (+7) -----
-    { id:'2i45', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍌 em inglês:', opts:['apple','orange','banana'], ans:2, exp:'🍌 = banana.' },
+    { id:'2i45', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍌 em inglês:', opts:['apple','orange','banana'], ans:2, exp:'Banana em inglês é banana — escreve-se igual, mas lê-se ba-NA-na.' },
     { id:'2i46', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍊 em inglês:', opts:['orange','apple','pear'], ans:0, exp:'🍊 = orange (laranja).' },
     { id:'2i47', s:'ingles', t:'Food', type:'mc', diff:1, q:'🥛 em inglês:', opts:['water','milk','juice'], ans:1, exp:'🥛 = milk (leite).' },
-    { id:'2i48', s:'ingles', t:'Food', type:'mc', diff:1, q:'💧 (água) em inglês:', opts:['milk','wine','water'], ans:2, exp:'💧 = water.' },
+    { id:'2i48', s:'ingles', t:'Food', type:'mc', diff:1, q:'💧 (água) em inglês:', opts:['milk','wine','water'], ans:2, exp:'Água em inglês é water (lê-se uó-ter).' },
     { id:'2i49', s:'ingles', t:'Food', type:'mc', diff:2, q:'"Tenho sede" em inglês:', opts:['I am hungry','I am thirsty','I am tired','I am happy'], ans:1, exp:'I am thirsty = Tenho sede. (Hungry = fome.)' },
     { id:'2i50', s:'ingles', t:'Food', type:'fill', diff:2, q:'🍞 em inglês: ___', ans:['bread'], exp:'🍞 = bread (pão).' },
     { id:'2i51', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Cheese" em inglês significa queijo.', ans:true, exp:'Verdade — cheese = queijo.' },
@@ -1049,7 +1049,7 @@ const EXERCISES_2 = [
     { id:'2m205', s:'matematica', t:'Massa', type:'tf', diff:2, q:'1000 gramas pesam o mesmo que 1 quilograma.', ans:true, exp:'Verdade — 1 kg = 1000 g.' },
 
     // ----- Matemática: Capacidade (+5 desafio) -----
-    { id:'2m206', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa grande de água tem cerca de:', opts:['15 mL','150 mL','1,5 L','15 L'], ans:2, exp:'~1,5 L.' },
+    { id:'2m206', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Uma garrafa grande de água tem cerca de:', opts:['15 mL','150 mL','1,5 L','15 L'], ans:2, exp:'Uma garrafa grande tem cerca de 1,5 litros (1500 ml). Um copo tem só uns 2 dl.' },
     { id:'2m207', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'3 L = ___ mL', opts:['30','300','3000','30000'], ans:2, exp:'3 × 1000 = 3000 mL.' },
     { id:'2m208', s:'matematica', t:'Capacidade', type:'fill', diff:2, q:'¼ L = ___ mL', ans:['250'], exp:'1 L = 1000 mL; ÷ 4 = 250 mL.' },
     { id:'2m209', s:'matematica', t:'Capacidade', type:'mc', diff:2, q:'Tens 2 L de sumo. Enche copos de 250 mL. Quantos copos enches?', opts:['4','6','8','10'], ans:2, exp:'2 L = 2000 mL. 2000 ÷ 250 = 8 copos.' },
@@ -1278,7 +1278,7 @@ const EXERCISES_2 = [
     { id:'2e99', s:'estudo_meio', t:'Transportes', type:'fill', diff:1, q:'Atravessar a estrada na ___ (faixa pintada).', ans:['passadeira'], exp:'Passadeira — local seguro para atravessar.' },
 
     // ----- Estudo do Meio: Higiene (+5 fácil) -----
-    { id:'2e100', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Antes de comer devemos:', opts:['ver TV','lavar as mãos','dormir'], ans:1, exp:'Lavar as mãos.' },
+    { id:'2e100', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Antes de comer devemos:', opts:['ver TV','lavar as mãos','dormir'], ans:1, exp:'Antes de comer lavamos as mãos para tirar os micróbios e não ficar doentes.' },
     { id:'2e101', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Devemos escovar os dentes:', opts:['1 vez por mês','todos os dias','quando dói'], ans:1, exp:'Todos os dias (várias vezes).' },
     { id:'2e102', s:'estudo_meio', t:'Higiene', type:'tf', diff:1, q:'O dentista cuida dos dentes.', ans:true, exp:'Verdade.' },
     { id:'2e103', s:'estudo_meio', t:'Higiene', type:'fill', diff:1, q:'O que se usa para escovar dentes: ___', ans:['escova','escova de dentes'], exp:'Escova de dentes.' },
@@ -1286,7 +1286,7 @@ const EXERCISES_2 = [
 
     // ----- Estudo do Meio: Saúde (+5 fácil) -----
     { id:'2e105', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'O que é mais saudável beber?', opts:['refrigerante','água','sumo açucarado'], ans:1, exp:'Água — sempre a melhor.' },
-    { id:'2e106', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Comida saudável inclui:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Fruta e legumes.' },
+    { id:'2e106', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Comida saudável inclui:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Comida saudável inclui fruta e legumes, ricos em vitaminas; os doces devem ser raros.' },
     { id:'2e107', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Devemos dormir bastantes horas.', ans:true, exp:'Verdade — 9 a 11 horas (criança).' },
     { id:'2e108', s:'estudo_meio', t:'Saúde', type:'fill', diff:2, q:'Para sermos saudáveis devemos fazer ___ (movimento).', ans:['exercício','exercicio'], exp:'Exercício físico.' },
     { id:'2e109', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Quem cuida dos doentes?', opts:['professor','médico','padeiro'], ans:1, exp:'O médico (e enfermeiros).' },
@@ -1306,13 +1306,13 @@ const EXERCISES_2 = [
     { id:'2i83', s:'ingles', t:'Alfabeto', type:'mc', diff:1, q:'Letra antes do C:', opts:['A','B','D'], ans:1, exp:'A → B → C. B vem antes.' },
 
     // ----- Inglês: Body (+5 fácil) -----
-    { id:'2i84', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ em inglês:', opts:['eye','ear','nose'], ans:0, exp:'👁️ = eye.' },
-    { id:'2i86', s:'ingles', t:'Body', type:'mc', diff:1, q:'✋ em inglês:', opts:['hand','foot','head'], ans:0, exp:'✋ = hand.' },
+    { id:'2i84', s:'ingles', t:'Body', type:'mc', diff:1, q:'👁️ em inglês:', opts:['eye','ear','nose'], ans:0, exp:'Olho em inglês é eye (lê-se ai).' },
+    { id:'2i86', s:'ingles', t:'Body', type:'mc', diff:1, q:'✋ em inglês:', opts:['hand','foot','head'], ans:0, exp:'Mão em inglês é hand.' },
     { id:'2i87', s:'ingles', t:'Body', type:'tf', diff:2, q:'"Head" significa cabeça.', ans:true, exp:'Verdade.' },
     { id:'2i88', s:'ingles', t:'Body', type:'fill', diff:1, q:'Pé em inglês: ___', ans:['foot'], exp:'Foot = pé.' },
 
     // ----- Inglês: Food (+5 fácil) -----
-    { id:'2i89', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍎 em inglês:', opts:['apple','orange','pear'], ans:0, exp:'🍎 = apple.' },
+    { id:'2i89', s:'ingles', t:'Food', type:'mc', diff:1, q:'🍎 em inglês:', opts:['apple','orange','pear'], ans:0, exp:'Maçã em inglês é apple (lê-se á-pol).' },
     { id:'2i92', s:'ingles', t:'Food', type:'tf', diff:2, q:'"Bread" significa pão.', ans:true, exp:'Verdade.' },
     { id:'2i93', s:'ingles', t:'Food', type:'fill', diff:1, q:'Água em inglês: ___', ans:['water'], exp:'Water = água.' },
 
@@ -1454,14 +1454,14 @@ const EXERCISES_2 = [
 
     // ----- Estudo do Meio: Higiene (+5 fácil) -----
     { id:'2e125', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Para tomar banho precisas de:', opts:['só água','água e sabão','só sabão'], ans:1, exp:'Água + sabão.' },
-    { id:'2e126', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Para escovar os dentes usas:', opts:['escova de dentes','garfo','colher'], ans:0, exp:'Escova de dentes.' },
+    { id:'2e126', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Para escovar os dentes usas:', opts:['escova de dentes','garfo','colher'], ans:0, exp:'Para escovar os dentes usamos a escova de dentes com pasta, de manhã e à noite.' },
     { id:'2e127', s:'estudo_meio', t:'Higiene', type:'tf', diff:1, q:'É importante lavar as mãos.', ans:true, exp:'Verdade.' },
     { id:'2e128', s:'estudo_meio', t:'Higiene', type:'fill', diff:1, q:'Quem cuida dos dentes: ___', ans:['dentista'], exp:'Dentista.' },
     { id:'2e129', s:'estudo_meio', t:'Higiene', type:'mc', diff:1, q:'Devemos cortar as:', opts:['orelhas','unhas','sobrancelhas'], ans:1, exp:'Unhas (manter limpas).' },
 
     // ----- Estudo do Meio: Saúde (+5 fácil) -----
     { id:'2e130', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Bebida mais saudável:', opts:['água','refrigerante','álcool'], ans:0, exp:'Água — sempre.' },
-    { id:'2e131', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Devemos comer:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Fruta e legumes.' },
+    { id:'2e131', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Devemos comer:', opts:['só doces','fruta e legumes','só fritos'], ans:1, exp:'Devemos comer fruta e legumes todos os dias — dão vitaminas e fibras.' },
     { id:'2e132', s:'estudo_meio', t:'Saúde', type:'tf', diff:1, q:'Dormir bem é importante.', ans:true, exp:'Verdade.' },
     { id:'2e133', s:'estudo_meio', t:'Saúde', type:'fill', diff:1, q:'Atividade que faz bem ao corpo: ___', ans:['exercício','desporto','exercicio'], exp:'Exercício / desporto.' },
     { id:'2e134', s:'estudo_meio', t:'Saúde', type:'mc', diff:1, q:'Vacinas:', opts:['fazem mal','protegem-nos','não servem'], ans:1, exp:'Vacinas protegem de doenças.' },
@@ -2820,8 +2820,8 @@ const EXERCISES_3 = [
     { id:'3lc_dir2', s:'cidadania', t:'Direitos e deveres', type:'mc', diff:2, q:'📜 A Convenção sobre os Direitos da Criança foi aprovada pela:', opts:['UE','ONU','UNESCO'], ans:1, exp:'ONU, em 1989.' },
     { id:'3lc_dir3', s:'cidadania', t:'Direitos e deveres', type:'tf', diff:1, q:'As crianças também têm deveres, não apenas direitos.', ans:true, exp:'Verdadeiro.' },
 
-    { id:'3lc_reg1', s:'cidadania', t:'Regras de convivência', type:'mc', diff:1, q:'🙋 Na sala de aula, para falar:', opts:['gritar','levantar o braço','sair do lugar'], ans:1, exp:'Levantar o braço.' },
-    { id:'3lc_reg2', s:'cidadania', t:'Regras de convivência', type:'mc', diff:2, q:'😤 Quando há um conflito, o primeiro passo é:', opts:['gritar','acalmar-se','responder à letra'], ans:1, exp:'Acalmar-se.' },
+    { id:'3lc_reg1', s:'cidadania', t:'Regras de convivência', type:'mc', diff:1, q:'🙋 Na sala de aula, para falar:', opts:['gritar','levantar o braço','sair do lugar'], ans:1, exp:'Na aula, para falar esperamos a nossa vez e levantamos o braço — assim todos se ouvem e ninguém fala por cima.' },
+    { id:'3lc_reg2', s:'cidadania', t:'Regras de convivência', type:'mc', diff:2, q:'😤 Quando há um conflito, o primeiro passo é:', opts:['gritar','acalmar-se','responder à letra'], ans:1, exp:'Perante um conflito, o primeiro passo é acalmar-se (respirar fundo); só depois se conversa para resolver.' },
 
     { id:'3lc_div1', s:'cidadania', t:'Diversidade e respeito', type:'tf', diff:1, q:'Todas as pessoas merecem respeito, independentemente da cor, religião ou capacidade.', ans:true, exp:'Verdadeiro.' },
     { id:'3lc_div2', s:'cidadania', t:'Diversidade e respeito', type:'mc', diff:2, q:'😠 "Bullying" é:', opts:['uma piada inofensiva','uma agressão repetida','um jogo de equipa'], ans:1, exp:'Agressão repetida.' },
@@ -5622,7 +5622,7 @@ const EXERCISES_7 = [
     { id:'7p_comp2', s:'portugues', t:'Complementos verbais', type:'mc', diff:2, q:'🔤 Em "Dei o livro à Ana", "à Ana" é:', opts:['CD','CI','agente'], ans:1, exp:'Substituível por "lhe" → CI.' },
     { id:'7p_comp3', s:'portugues', t:'Complementos verbais', type:'mc', diff:2, q:'🔤 Em "O livro foi escrito pelo autor", "pelo autor" é:', opts:['CD','CI','complemento agente da passiva'], ans:2, exp:'Frase passiva — agente introduzido por "por".' },
 
-    { id:'7p_poe1', s:'portugues', t:'Texto poético', type:'mc', diff:1, q:'📜 Cada linha de um poema chama-se:', opts:['estrofe','verso','estância'], ans:1, exp:'Verso.' },
+    { id:'7p_poe1', s:'portugues', t:'Texto poético', type:'mc', diff:1, q:'📜 Cada linha de um poema chama-se:', opts:['estrofe','verso','estância'], ans:1, exp:'Cada linha de um poema chama-se verso; um conjunto de versos forma uma estrofe.' },
     { id:'7p_poe2', s:'portugues', t:'Texto poético', type:'mc', diff:2, q:'📜 Esquema rimático abab é:', opts:['emparelhada','cruzada','interpolada'], ans:1, exp:'Cruzada (alternada).' },
 
     { id:'7p_mod1', s:'portugues', t:'Modificadores', type:'mc', diff:2, q:'🔤 Em "Estudei ontem", "ontem" é:', opts:['CD','modificador do GV','sujeito'], ans:1, exp:'Não é obrigatório — modificador.' },
@@ -5809,7 +5809,7 @@ const EXERCISES_7 = [
       hint: "O 1.º rei era filho de D. Henrique e D. Teresa. Combateu a própria mãe na Batalha de São Mamede (1128).",
       richExp: "**D. Afonso Henriques (1109?–1185)** — 1.º rei de Portugal.\n\n**Cronologia rápida**:\n- **1096** — D. Henrique de Borgonha recebe o Condado Portucalense.\n- **1128** — Batalha de São Mamede. Afonso vence a mãe e os galegos.\n- **1139** — Batalha de Ourique. Vence muçulmanos. Aclamado REI.\n- **1143** — Tratado de Zamora. Afonso VII de Leão reconhece a independência.\n- **1147** — Conquista LISBOA.\n- **1179** — Bula papal **Manifestis Probatum** (Papa Alexandre III) reconhece Portugal como reino independente.\n\n**Curiosidade**: o nome \"Portugal\" vem do **Condado Portucalense**, que por sua vez vem de \"Portus Cale\" (Porto + Gaia) — a região do rio Douro onde tudo começou.\n\n**Conexão**: Portugal é um dos países com fronteiras mais antigas do mundo — quase iguais há 800 anos!"},
     { id:'7h_pt2', s:'historia', t:'Formação de Portugal', type:'mc', diff:2, q:'📜 Bula papal que reconheceu Portugal (1179):', opts:['Manifestis Probatum','Aeterni Patris','Pacem in Terris'], ans:0, exp:'Manifestis Probatum, do Papa Alexandre III.' },
-    { id:'7h_pt3', s:'historia', t:'Formação de Portugal', type:'mc', diff:2, q:'📅 Conquista do Algarve por D. Afonso III (fim da Reconquista):', opts:['1147','1185','1249'], ans:2, exp:'1249.' },
+    { id:'7h_pt3', s:'historia', t:'Formação de Portugal', type:'mc', diff:2, q:'📅 Conquista do Algarve por D. Afonso III (fim da Reconquista):', opts:['1147','1185','1249'], ans:2, exp:'Em 1249, D. Afonso III conquista o Algarve, terminando a Reconquista e fixando as fronteiras de Portugal.' },
 
     { id:'7h_soc1', s:'historia', t:'Sociedade medieval portuguesa', type:'mc', diff:2, q:'⚖️ "Carta de foral" era:', opts:['mapa do reino','lei do rei que dava privilégios a um concelho','testamento'], ans:1, exp:'Direitos e deveres dos habitantes.' },
     { id:'7h_soc2', s:'historia', t:'Sociedade medieval portuguesa', type:'mc', diff:2, q:'🤝 Primeiras Cortes portuguesas em:', opts:['Leiria 1254','Lisboa 1147','Coimbra 1185'], ans:0, exp:'Leiria 1254, no reinado de D. Afonso III.' },
@@ -5820,7 +5820,7 @@ const EXERCISES_7 = [
 
     // =============== GEOGRAFIA ===============
     { id:'7g_car1', s:'geografia', t:'Representações cartográficas', type:'mc', diff:1, q:'🗺️ Representação mais fiel da Terra é o:', opts:['mapa','planta','globo'], ans:2, exp:'Globo — sem distorção.' },
-    { id:'7g_car2', s:'geografia', t:'Representações cartográficas', type:'mc', diff:2, q:'🗺️ O mapa que mostra os países e fronteiras é:', opts:['físico','político','temático'], ans:1, exp:'Político.' },
+    { id:'7g_car2', s:'geografia', t:'Representações cartográficas', type:'mc', diff:2, q:'🗺️ O mapa que mostra os países e fronteiras é:', opts:['físico','político','temático'], ans:1, exp:'O mapa político mostra países e fronteiras; o mapa físico mostra o relevo (montanhas, rios).' },
 
     { id:'7g_esc1', s:'geografia', t:'Escalas', type:'mc', diff:1, q:'📐 Numa escala 1:100 000, 1 cm no mapa = ___ na realidade:', opts:['100 m','1 km','10 km'], ans:1, exp:'100 000 cm = 1 km.' },
     { id:'7g_esc2', s:'geografia', t:'Escalas', type:'mc', diff:2, q:'📐 Escala 1:1 000 — é:', opts:['grande escala (muito detalhe)','pequena escala (vista geral)'], ans:0, exp:'Denominador pequeno → grande escala.' ,
@@ -5836,19 +5836,19 @@ const EXERCISES_7 = [
     { id:'7g_co2', s:'geografia', t:'Coordenadas geográficas', type:'mc', diff:2, q:'🌐 Meridiano de referência (longitude 0°):', opts:['Greenwich','Equador','Paris'], ans:0, exp:'Meridiano de Greenwich, em Londres.' },
     { id:'7g_co3', s:'geografia', t:'Coordenadas geográficas', type:'mc', diff:2, q:'🇵🇹 Portugal está no hemisfério:', opts:['Sul','Norte','Este (Oriental)'], ans:1, exp:'Norte (≈ 39° N).' },
 
-    { id:'7g_rel1', s:'geografia', t:'Relevo', type:'mc', diff:1, q:'🏔️ Elevação superior a 600 m:', opts:['colina','montanha','planalto'], ans:1, exp:'Montanha.' },
+    { id:'7g_rel1', s:'geografia', t:'Relevo', type:'mc', diff:1, q:'🏔️ Elevação superior a 600 m:', opts:['colina','montanha','planalto'], ans:1, exp:'Uma elevação com mais de 600 m chama-se montanha; abaixo disso é um monte ou colina.' },
     { id:'7g_rel2', s:'geografia', t:'Relevo', type:'mc', diff:2, q:'🌍 O ponto mais alto de Portugal é o:', opts:['Pico (Açores)','Serra da Estrela','Marão'], ans:0, exp:'Pico — 2 351 m, Ilha do Pico.' },
 
-    { id:'7g_cli1', s:'geografia', t:'Clima', type:'mc', diff:1, q:'🌡️ Instrumento para medir temperatura:', opts:['termómetro','barómetro','pluviómetro'], ans:0, exp:'Termómetro.' },
+    { id:'7g_cli1', s:'geografia', t:'Clima', type:'mc', diff:1, q:'🌡️ Instrumento para medir temperatura:', opts:['termómetro','barómetro','pluviómetro'], ans:0, exp:'A temperatura mede-se com o termómetro, em graus Celsius (°C).' },
     { id:'7g_cli2', s:'geografia', t:'Clima', type:'mc', diff:2, q:'🌞 Portugal continental tem clima:', opts:['equatorial','tropical','mediterrâneo'], ans:2, exp:'Verão quente e seco; inverno ameno e chuvoso.' ,
       intro: "Portugal continental tem um clima **muito agradável** — sem temperaturas extremas. Devido à posição geográfica, recebe influência do Atlântico e do Mediterrâneo.",
       hint: "Pensa: o nome do clima vem do nome do MAR junto ao qual está. Portugal está no extremo OESTE da Europa, junto ao Atlântico — mas é sul, perto do que mar?",
       richExp: "**Portugal Continental — clima MEDITERRÂNEO**\n\n**Características**:\n- **Verões quentes e secos** (julho/agosto: ~25-35°C, pouca chuva).\n- **Invernos amenos e chuvosos** (janeiro: ~10°C, mais precipitação).\n- 4 estações bem definidas.\n\n**Variações dentro do país**:\n- **Norte interior** (Trás-os-Montes): clima mais **continental** — invernos frios, neve nas serras, verões muito quentes.\n- **Norte litoral** (Minho): **atlântico** — chuva o ano todo, temperaturas amenas.\n- **Centro/Sul interior** (Alentejo, Beira Baixa): **mediterrâneo continental** — verões muito quentes, secos.\n- **Litoral sul** (Algarve): mediterrâneo típico — verões longos e quentes, invernos amenos.\n\n**Madeira**: subtropical (parecido com mediterrâneo mas mais ameno o ano todo).\n**Açores**: temperado oceânico (chuva o ano todo, temperaturas amenas).\n\n**Quem influencia o clima de Portugal**:\n- **Oceano Atlântico** (a oeste) — modera temperaturas.\n- **Corrente do Golfo** (água quente do Atlântico) — aquece o litoral.\n- **Anticiclone dos Açores** (alta pressão) — traz dias secos e ensolarados (sobretudo no verão).\n- **Norte de África** — traz \"ondas de calor\" no verão (vento sul, ar quente).\n\n**Conexão**: vais aprofundar climatologia no 8.º ano e estudar as alterações climáticas atuais — Portugal tem ficado mais quente e seco nas últimas décadas."},
 
-    { id:'7g_hid1', s:'geografia', t:'Hidrografia', type:'mc', diff:1, q:'💧 Lugar onde nasce um rio:', opts:['foz','nascente','afluente'], ans:1, exp:'Nascente.' },
+    { id:'7g_hid1', s:'geografia', t:'Hidrografia', type:'mc', diff:1, q:'💧 Lugar onde nasce um rio:', opts:['foz','nascente','afluente'], ans:1, exp:'O sítio onde um rio nasce chama-se nascente; onde desagua no mar é a foz.' },
     { id:'7g_hid2', s:'geografia', t:'Hidrografia', type:'mc', diff:2, q:'🌊 Maior oceano:', opts:['Atlântico','Pacífico','Índico'], ans:1, exp:'Pacífico — o maior.' },
 
-    { id:'7g_veg1', s:'geografia', t:'Vegetação natural', type:'mc', diff:1, q:'🌳 Vegetação da Amazónia:', opts:['savana','floresta equatorial','tundra'], ans:1, exp:'Floresta equatorial.' },
+    { id:'7g_veg1', s:'geografia', t:'Vegetação natural', type:'mc', diff:1, q:'🌳 Vegetação da Amazónia:', opts:['savana','floresta equatorial','tundra'], ans:1, exp:'A Amazónia tem floresta equatorial: densa, sempre verde, com muito calor e chuva.' },
     { id:'7g_veg2', s:'geografia', t:'Vegetação natural', type:'tf', diff:2, q:'Portugal é o maior produtor mundial de cortiça.', ans:true, exp:'Verdadeiro — sobreiro (Quercus suber).' },
 
     { id:'7g_rec1', s:'geografia', t:'Recursos naturais', type:'mc', diff:1, q:'☀️ Energia renovável:', opts:['petróleo','solar','gás natural'], ans:1, exp:'Solar, eólica, hídrica.' },
@@ -5861,7 +5861,7 @@ const EXERCISES_7 = [
     { id:'7cn_sub1', s:'ciencias_naturais', t:'Subsistemas terrestres', type:'mc', diff:1, q:'💨 Gás mais abundante na atmosfera:', opts:['oxigénio','azoto','CO₂'], ans:1, exp:'78% azoto, 21% oxigénio.' },
     { id:'7cn_sub2', s:'ciencias_naturais', t:'Subsistemas terrestres', type:'mc', diff:2, q:'💧 Percentagem de água doce na Terra:', opts:['3%','30%','50%'], ans:0, exp:'Só 3% é doce (a maior parte em glaciares).' },
 
-    { id:'7cn_es1', s:'ciencias_naturais', t:'Estrutura interna da Terra', type:'mc', diff:1, q:'🌍 As 3 camadas da Terra são:', opts:['crusta, manto, núcleo','geosfera, atmosfera, hidrosfera','interior, intermédio, exterior'], ans:0, exp:'Crusta, manto, núcleo.' },
+    { id:'7cn_es1', s:'ciencias_naturais', t:'Estrutura interna da Terra', type:'mc', diff:1, q:'🌍 As 3 camadas da Terra são:', opts:['crusta, manto, núcleo','geosfera, atmosfera, hidrosfera','interior, intermédio, exterior'], ans:0, exp:'A Terra tem 3 camadas: crusta (fina, à superfície), manto (a maior) e núcleo (central e muito quente).' },
     { id:'7cn_es2', s:'ciencias_naturais', t:'Estrutura interna da Terra', type:'mc', diff:2, q:'🌍 O núcleo externo é:', opts:['sólido','líquido','gasoso'], ans:1, exp:'Núcleo externo é LÍQUIDO; interno é sólido.' ,
       intro: "O **núcleo externo** da Terra é **líquido**! E é essa camada de metal fundido a girar que cria o **campo magnético** que protege a vida na superfície.",
       hint: "O núcleo da Terra tem 2 partes: interno e externo. O interno é mais para o centro, o externo é a camada à volta. Um é sólido (apesar do calor extremo, está sob enorme pressão). O outro é...?",
@@ -5879,10 +5879,10 @@ const EXERCISES_7 = [
     { id:'7cn_mi1', s:'ciencias_naturais', t:'Minerais', type:'mc', diff:1, q:'💎 O mineral mais duro na escala de Mohs é:', opts:['quartzo','diamante','talco'], ans:1, exp:'Diamante (dureza 10).' },
     { id:'7cn_mi2', s:'ciencias_naturais', t:'Minerais', type:'tf', diff:2, q:'O diamante e a grafite têm a mesma composição química (carbono).', ans:true, exp:'Sim — ambos C, mas estruturas cristalinas diferentes.' },
 
-    { id:'7cn_vu1', s:'ciencias_naturais', t:'Vulcanologia', type:'mc', diff:1, q:'🌋 Magma à superfície chama-se:', opts:['lava','piroclasto','cratera'], ans:0, exp:'Lava.' },
+    { id:'7cn_vu1', s:'ciencias_naturais', t:'Vulcanologia', type:'mc', diff:1, q:'🌋 Magma à superfície chama-se:', opts:['lava','piroclasto','cratera'], ans:0, exp:'O magma, ao chegar à superfície num vulcão, passa a chamar-se lava.' },
     { id:'7cn_vu2', s:'ciencias_naturais', t:'Vulcanologia', type:'mc', diff:2, q:'🌋 Em Portugal, vulcões ativos estão em:', opts:['Continente','Madeira','Açores'], ans:2, exp:'Açores (ex: Capelinhos, 1957-58).' },
 
-    { id:'7cn_si1', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:1, q:'🌍 Ponto à superfície acima do foco do sismo:', opts:['hipocentro','epicentro','falha'], ans:1, exp:'Epicentro.' },
+    { id:'7cn_si1', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:1, q:'🌍 Ponto à superfície acima do foco do sismo:', opts:['hipocentro','epicentro','falha'], ans:1, exp:'O epicentro é o ponto à superfície mesmo por cima do foco (hipocentro) do sismo.' },
     { id:'7cn_si2', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:2, q:'📈 Escala de Richter mede:', opts:['estragos','magnitude (energia)','intensidade sentida'], ans:1, exp:'Magnitude. Mercalli mede intensidade.' },
     { id:'7cn_si3', s:'ciencias_naturais', t:'Sismologia', type:'mc', diff:2, q:'📅 Grande Terramoto de Lisboa foi em:', opts:['1640','1755','1910'], ans:1, exp:'1755 — magnitude ~8,5.' },
 
@@ -5900,7 +5900,7 @@ const EXERCISES_7 = [
       intro: "O **Sistema Solar** formou-se há ~4,6 mil milhões de anos. Hoje conhecemos bem a sua estrutura — mas demorou séculos a descobrir.",
       hint: "Quantos planetas conheces? Conta com os dedos: Mercúrio, Vénus, Terra, Marte, Júpiter, Saturno, Úrano, Neptuno.",
       richExp: "**8 planetas** (desde 2006, quando Plutão foi reclassificado como planeta-anão).\n\n**Classificação**:\n- **Rochosos (telúricos)**: Mercúrio, Vénus, Terra, Marte. Pequenos, sólidos, perto do Sol.\n- **Gasosos (jovianos)**: Júpiter, Saturno, Úrano, Neptuno. Gigantes, sobretudo gás.\n\n**Outros corpos**:\n- **Cintura de asteroides** (entre Marte e Júpiter)\n- **Cometas** (gelo + poeira; cauda quando perto do Sol)\n- **Planetas-anões**: Plutão, Ceres, Éris, Makemake, Haumea\n\n**Curiosidade**: a luz do Sol demora ~8 minutos a chegar à Terra. À luz que vemos do Sol é a luz que ele emitiu há 8 minutos!\n\n**Conexão**: estás a aprender astronomia básica que historicamente mudou a forma como o ser humano se vê no universo (Copérnico, Galileu)."},
-    { id:'7fq_ss2', s:'fisico_quimica', t:'Sistema Solar', type:'mc', diff:2, q:'🪐 Maior planeta do Sistema Solar:', opts:['Saturno','Júpiter','Neptuno'], ans:1, exp:'Júpiter.' },
+    { id:'7fq_ss2', s:'fisico_quimica', t:'Sistema Solar', type:'mc', diff:2, q:'🪐 Maior planeta do Sistema Solar:', opts:['Saturno','Júpiter','Neptuno'], ans:1, exp:'Júpiter é o maior planeta do Sistema Solar — um gigante gasoso, maior que todos os outros juntos.' },
 
     { id:'7fq_tl1', s:'fisico_quimica', t:'A Terra, a Lua e as forças gravíticas', type:'mc', diff:1, q:'🌍 Tempo da rotação da Terra:', opts:['1 hora','24 horas','1 ano'], ans:1, exp:'24 h = 1 dia.' },
     { id:'7fq_tl2', s:'fisico_quimica', t:'A Terra, a Lua e as forças gravíticas', type:'mc', diff:2, q:'⚖️ Quando vais para a Lua, a tua MASSA:', opts:['fica menor','fica igual','fica maior'], ans:1, exp:'Massa é igual. Peso é que diminui (~1/6).' },
@@ -5909,7 +5909,7 @@ const EXERCISES_7 = [
     { id:'7fq_sm2', s:'fisico_quimica', t:'Substâncias e misturas', type:'mc', diff:2, q:'🧪 O ar é:', opts:['substância pura','mistura homogénea','mistura heterogénea'], ans:1, exp:'Mistura homogénea de gases.' },
     { id:'7fq_sm3', s:'fisico_quimica', t:'Substâncias e misturas', type:'mc', diff:2, q:'🧪 Para separar água + óleo usa-se:', opts:['filtração','decantação','destilação'], ans:1, exp:'Decantação (líquidos imiscíveis).' },
 
-    { id:'7fq_es1', s:'fisico_quimica', t:'Estados físicos da matéria', type:'mc', diff:1, q:'💧 Sólido → líquido é:', opts:['fusão','solidificação','vaporização'], ans:0, exp:'Fusão.' ,
+    { id:'7fq_es1', s:'fisico_quimica', t:'Estados físicos da matéria', type:'mc', diff:1, q:'💧 Sólido → líquido é:', opts:['fusão','solidificação','vaporização'], ans:0, exp:'A passagem de sólido a líquido chama-se fusão (ex.: o gelo a derreter).' ,
       intro: "Quando o gelo **derrete** e vira água, está a haver uma **mudança de estado físico**. Cada mudança tem o seu nome — é importante conhecer todos os 6.",
       hint: "Sólido → Líquido. Pensa: o gelo \"**funde**\" e vira água. O processo chama-se ___.",
       richExp: "**As 6 mudanças de estado físico**:\n\n```\n         FUSÃO\nSÓLIDO ─────────► LÍQUIDO\n       ◄─────────\n       SOLIDIFICAÇÃO\n\n         VAPORIZAÇÃO\nLÍQUIDO ────────► GASOSO\n        ◄────────\n        CONDENSAÇÃO\n\n         SUBLIMAÇÃO\nSÓLIDO ─────────► GASOSO\n       ◄─────────\n       SUBLIMAÇÃO INVERSA\n        (ou DEPOSIÇÃO)\n```\n\n**Exemplos do dia-a-dia**:\n- **Fusão**: gelo → água. Manteiga ao calor.\n- **Solidificação**: água → gelo no congelador. Vela a arrefecer.\n- **Vaporização**: água a ferver (rápida) ou roupa a secar ao sol (evaporação, lenta).\n- **Condensação**: orvalho de manhã, gotas no espelho do banho.\n- **Sublimação**: naftalina, gelo seco (CO₂ sólido), camphor.\n- **Sublimação inversa**: geada no jardim no inverno.\n\n**Durante a mudança de estado**, a temperatura mantém-se constante. A energia é usada para \"quebrar ligações\" entre partículas, não para aquecer.\n\n**Pontos característicos**:\n- Água: ponto de fusão = **0 °C** | ponto de ebulição = **100 °C** (à pressão atmosférica normal).\n\n**Conexão**: no 10.º vais aprender o conceito de **calor latente** — a energia necessária para mudar de estado sem aumentar a temperatura."},
@@ -5952,7 +5952,7 @@ const EXERCISES_7 = [
     { id:'7t_hs2', s:'tic', t:'Hardware e software', type:'mc', diff:2, q:'💾 Memória VOLÁTIL (perde-se ao desligar) é:', opts:['SSD','RAM','disco rígido'], ans:1, exp:'RAM — memória volátil.' },
     { id:'7t_hs3', s:'tic', t:'Hardware e software', type:'mc', diff:1, q:'🖱️ Rato é periférico de:', opts:['entrada','saída','ambos'], ans:0, exp:'Input — entrada de dados.' },
 
-    { id:'7t_so1', s:'tic', t:'Sistema operativo', type:'mc', diff:1, q:'💻 Sistema operativo da Microsoft:', opts:['macOS','Windows','Linux'], ans:1, exp:'Windows.' },
+    { id:'7t_so1', s:'tic', t:'Sistema operativo', type:'mc', diff:1, q:'💻 Sistema operativo da Microsoft:', opts:['macOS','Windows','Linux'], ans:1, exp:'O sistema operativo da Microsoft é o Windows (alternativas: macOS da Apple, Linux).' },
     { id:'7t_so2', s:'tic', t:'Sistema operativo', type:'mc', diff:2, q:'⌨️ Atalho para "Copiar":', opts:['Ctrl+V','Ctrl+C','Ctrl+X'], ans:1, exp:'Ctrl+C copia; Ctrl+V cola; Ctrl+X corta.' },
     { id:'7t_so3', s:'tic', t:'Sistema operativo', type:'fill', diff:2, q:'Extensão do PowerPoint: ___', ans:['.pptx','pptx'], exp:'.pptx para Microsoft PowerPoint.' },
 
