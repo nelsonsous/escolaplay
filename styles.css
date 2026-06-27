@@ -6431,3 +6431,6 @@ body.has-teacher-overlay #subject-detail-container {
 .pd-weak-chip { background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; font-weight: 700; }
 .pd-empty { color: #94a3b8; font-size: 0.9rem; padding: 20px; text-align: center; }
 .pd-foot { margin-top: 22px; font-size: 0.72rem; color: #94a3b8; text-align: center; }
+/* === SRS transversal — tile Rever erros === */
+.quick-subject-review .qs-icon-wrap { color: #7c3aed; position: relative; }
+.quick-subject-review .qs-badge { position: absolute; top: -6px; right: -8px; background: #ef4444; color: #fff; font-size: 0.66rem; font-weight: 800; min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px #fff; }
