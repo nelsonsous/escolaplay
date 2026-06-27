@@ -2694,7 +2694,21 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_mis11', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:2, q:'🕵️ Quem partiu o vaso?', story:'O vaso da sala partiu-se! Lê as pistas e descobre o culpado.', suspects:[{id:'gato',emoji:'🐈',name:'Gato'},{id:'cao',emoji:'🐕',name:'Cão'},{id:'vento',emoji:'🌬️',name:'Vento'}], clues:['O cão esteve a tarde toda preso no quintal.','A janela estava fechada — não entrou vento.','Sobra alguém ágil, que salta para os móveis...'], solution:'gato', exp:'Cão preso lá fora e janela fechada (sem vento) → só pode ter sido o gato.' },
     { id:'3dt_pad11', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que número falta?', sequence:[2,5,8,11,'?',17], answer:'14', hint:'Soma sempre 3.', exp:'+3 de cada vez: 11 + 3 = 14.' },
     { id:'3dt_est10', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Páginas de um livro infantil', story:'Mais ou menos quantas páginas tem um livro de histórias para crianças?', min:0, max:200, step:10, answer:40, tolerance:20, unit:'páginas', hint:'Não é um folheto (5) nem uma enciclopédia (500).', exp:'Tipicamente 30 a 50 páginas.' },
-    { id:'3dt_qt9', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:12, prompt:'Um ten-frame cheio (10) + 2. Quantos?' }
+    { id:'3dt_qt9', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:12, prompt:'Um ten-frame cheio (10) + 2. Quantos?' },
+
+    // ── FASE 3 (v521): mais puzzles interativos ──────────────
+    { id:'3dt_sud11', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'sudoku4', diff:2, q:'🔢 Sudoku 4×4 · médio', puzzle:{ initial:[3,0,4,0, 4,1,0,0, 0,3,0,0, 1,4,0,3], solution:[3,2,4,1, 4,1,3,2, 2,3,1,4, 1,4,2,3] }, hint:'Começa pela 1.ª coluna (3,4,_,1) — falta um número.', exp:'Solução: 3241 / 4132 / 2314 / 1423.' },
+    { id:'3dt_cha15', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Cromos em cadernetas', story:'Tens 3 cadernetas com 8 cromos cada e ganhas mais 6 cromos.', steps:[
+        { prompt:'Passo 1: 3 cadernetas × 8 cromos. Quantos cromos tens?', answer:'24', hint:'Tabuada do 8: 8+8+8.' },
+        { prompt:'Passo 2: ganhas mais 6. Com quantos ficas?', answer:'30', hint:'24 + 6.' }
+    ], exp:'3×8 = 24; 24 + 6 = 30 cromos.' },
+    { id:'3dt_cha16', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:3, q:'🧠 Sumos para a festa', story:'Numa festa há 24 crianças. Cada garrafa de sumo enche 4 copos.', steps:[
+        { prompt:'Passo 1: se cada criança bebe 1 copo, quantos copos precisas?', answer:'24', hint:'1 copo × 24 crianças.' },
+        { prompt:'Passo 2: cada garrafa dá 4 copos. Quantas garrafas precisas?', answer:'6', hint:'24 ÷ 4.' }
+    ], exp:'24 copos ÷ 4 por garrafa = 6 garrafas.' },
+    { id:'3dt_mis12', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:3, q:'🕵️ Quem comeu a última bolacha?', story:'A última bolacha do frasco desapareceu! Lê as pistas.', suspects:[{id:'rui',emoji:'🧒',name:'Rui'},{id:'mae',emoji:'👩',name:'Mãe'},{id:'avo',emoji:'👵',name:'Avó'}], clues:['A avó é diabética e não come bolachas com açúcar.','A mãe saiu de casa antes do lanche.','Sobra quem estava em casa e adora bolachas...'], solution:'rui', exp:'Avó não come açúcar, mãe estava fora → foi o Rui.' },
+    { id:'3dt_pad12', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a descer)', sequence:[40,35,30,'?',20], answer:'25', hint:'Tira 5 de cada vez.', exp:'−5 de cada vez: 30 − 5 = 25.' },
+    { id:'3dt_est11', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quanto pesa uma mochila cheia?', story:'Mais ou menos quantos quilos pesa uma mochila da escola cheia de livros?', min:0, max:20, step:1, answer:5, tolerance:2, unit:'kg', hint:'Não é tão leve como um lápis nem tão pesado como tu.', exp:'Uma mochila cheia pesa tipicamente uns 4 a 6 kg.' }
 ];
 
 const EXERCISES_3 = [
