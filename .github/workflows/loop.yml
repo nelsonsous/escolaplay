@@ -4,10 +4,13 @@ name: Loop de melhoria (autónomo)
 # que os loops avançam sozinhos. A cada disparo, o Claude faz UMA volta
 # (Analisar → Planear → Corrigir → Testar) de um dos focos e abre um PR.
 #
-# ⚙️ PRECISA (uma vez): em Settings → Secrets and variables → Actions,
-#    adicionar o secret ANTHROPIC_API_KEY com a tua chave Anthropic.
-#    E em Settings → Actions → General, permitir "Read and write
-#    permissions" + "Allow GitHub Actions to create and approve PRs".
+# ⚙️ PRECISA (UMA SÓ VEZ): em
+#    https://github.com/nelsonsous/escolaplay/settings/secrets/actions
+#    → "New repository secret" → Nome: ANTHROPIC_API_KEY,
+#    Valor: a tua chave (https://console.anthropic.com/settings/keys).
+#    Mais nada. O robô grava num branch "claude/loop-auto" que podes
+#    rever e juntar (merge) quando quiseres — não precisa de permissão
+#    de PRs.
 
 on:
   schedule:
@@ -52,7 +55,10 @@ jobs:
             3) CORRIGIR — só essa alteração.
             4) TESTAR — node --check aos ficheiros mudados, validações específicas,
                e `npm run build`. Só avança se passar.
-            Depois: bump de APP_VERSION (app.js) e CACHE_NAME (sw.js), cria um
-            branch, commit com os 4 passos na mensagem, e abre um Pull Request
-            (NÃO faças merge — deixa para revisão). Uma só volta por execução.
+            Depois: bump de APP_VERSION (app.js) e CACHE_NAME (sw.js), faz
+            commit com os 4 passos na mensagem e dá PUSH para o branch
+            "claude/loop-auto" (cria-o se não existir; faz rebase/merge de
+            origin/main antes do push para evitar conflitos). NÃO faças merge
+            para main — o utilizador revê e junta quando quiser. Uma só volta
+            por execução.
           claude_args: '--max-turns 40'
