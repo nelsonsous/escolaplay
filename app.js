@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v525';
+const APP_VERSION = 'v526';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4983,6 +4983,7 @@ function renderQuestion() {
     else if (e.type === 'game' && e.game === 'suspeitos') { _susStart(e);   setTimeout(_susRender, 0); }
     else if (e.type === 'game' && e.game === 'padrao')    { _padStart(e);   setTimeout(_padRender, 0); }
     else if (e.type === 'game' && e.game === 'quantos')   { _qtStart(e);    setTimeout(_qtRender, 0); }
+    else if (e.type === 'game' && e.game === 'cruzados')  { _cruzStart(e);  setTimeout(_cruzRender, 0); }
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         const inp = document.getElementById('fill-input');
         if (inp) {
@@ -9151,6 +9152,88 @@ function _qtPick(n) {
 }
 window._qtPick = _qtPick;
 
+// ============================================================
+// CRUZA-NÚMEROS — type:'game' game:'cruzados' (palavras-cruzadas
+// matemático / cross-sums). Encaixa números na grelha para
+// completar contas que se cruzam. Forte para discalculia: junta
+// cálculo, valor posicional e lógica espacial.
+// Formato: e.grid = matriz de strings por célula:
+//   ""        → fundo (sem célula)
+//   "8"       → número fixo
+//   "+ - × ÷ =" → operador/igual fixo
+//   "_:4"     → célula a preencher (solução 4)
+// e.bankExtra (opcional) = distratores extra no banco.
+// ============================================================
+let cruzState = { grid: [], cols: 0, blanks: [], bank: [], sel: -1, solved: false };
+function _cruzStart(e) {
+    const grid = e.grid || [];
+    const cols = grid.reduce((m, r) => Math.max(m, r.length), 0);
+    const blanks = [];
+    grid.forEach((row, r) => row.forEach((cell, c) => {
+        if (typeof cell === 'string' && cell.startsWith('_:')) {
+            blanks.push({ r, c, sol: cell.slice(2), val: null, bankIdx: null });
+        }
+    }));
+    let vals = blanks.map(b => b.sol).concat((e.bankExtra || []).map(String));
+    vals = vals.sort(() => Math.random() - 0.5);
+    cruzState = { grid, cols, blanks, bank: vals.map(v => ({ v, used: false })), sel: -1, solved: false };
+}
+function _cruzBlankAt(r, c) { return cruzState.blanks.findIndex(b => b.r === r && b.c === c); }
+function _cruzRender() {
+    const area = document.getElementById('ex-answer-area');
+    if (!area) return;
+    const s = cruzState;
+    let cells = '';
+    s.grid.forEach((row, r) => {
+        for (let c = 0; c < s.cols; c++) {
+            const cell = row[c];
+            if (cell === undefined || cell === null || cell === '') { cells += '<div class="cz-bg"></div>'; continue; }
+            if (typeof cell === 'string' && cell.startsWith('_:')) {
+                const bi = _cruzBlankAt(r, c);
+                const b = s.blanks[bi];
+                const sel = bi === s.sel ? ' sel' : '';
+                const filled = b.val != null ? ' filled' : '';
+                cells += `<button class="cz-cell blank${sel}${filled}" onclick="_cruzTapBlank(${bi})">${b.val != null ? b.val : ''}</button>`;
+            } else if ('+-×÷='.includes(cell)) {
+                cells += `<div class="cz-op">${cell}</div>`;
+            } else {
+                cells += `<div class="cz-fix">${escapeHtml(cell)}</div>`;
+            }
+        }
+    });
+    const bank = s.bank.map((b, i) =>
+        `<button class="cz-chip${b.used ? ' used' : ''}" onclick="_cruzTapChip(${i})" ${b.used ? 'disabled' : ''}>${escapeHtml(b.v)}</button>`
+    ).join('');
+    area.innerHTML = `
+      <div class="cruz-wrap">
+        <div class="cruz-coach"><span>🧩</span><span>${s.solved ? '🎉 Todas as contas certas! Carrega Responder.' : 'Toca numa célula vazia e depois no número certo. Cada conta (→ e ↓) tem de ficar correta.'}</span></div>
+        <div class="cruz-grid" style="grid-template-columns:repeat(${s.cols},1fr)">${cells}</div>
+        <div class="cruz-bank">${bank}</div>
+      </div>`;
+}
+function _cruzTapBlank(i) {
+    const s = cruzState; if (s.solved) return;
+    const b = s.blanks[i];
+    if (b.val != null) { // limpar — devolve o número ao banco
+        if (b.bankIdx != null) s.bank[b.bankIdx].used = false;
+        b.val = null; b.bankIdx = null; s.sel = i; _cruzRender(); return;
+    }
+    s.sel = (s.sel === i ? -1 : i);
+    _cruzRender();
+}
+window._cruzTapBlank = _cruzTapBlank;
+function _cruzTapChip(i) {
+    const s = cruzState; if (s.solved) return;
+    if (s.bank[i].used) return;
+    if (s.sel < 0) { showToast && showToast('Toca primeiro numa célula vazia.'); return; }
+    const b = s.blanks[s.sel];
+    if (b.bankIdx != null) s.bank[b.bankIdx].used = false; // troca
+    b.val = s.bank[i].v; b.bankIdx = i; s.bank[i].used = true; s.sel = -1;
+    s.solved = s.blanks.every(x => x.val != null && String(x.val) === String(x.sol));
+    _cruzRender();
+}
+window._cruzTapChip = _cruzTapChip;
+
 // Devolve { status: 'correct'|'partial'|'wrong', missing?: string }.
 // "partial" = resposta tem parte certa mas é incompleta — usado em
 // perguntas com vários itens ("agrupa", "indica todos", "quantos X há
@@ -9302,6 +9385,9 @@ async function submitAnswer() {
             if (!qtState.solved) { showToast('Toca no número certo primeiro'); return; }
             isCorrect = true;
             e.exp = `Eram ${qtState.dots} pontos. Os grupos de 5 ajudam a ver de relance!`;
+        } else if (e.type === 'game' && e.game === 'cruzados') {
+            if (!cruzState.solved) { showToast('Completa todas as contas da grelha primeiro'); return; }
+            isCorrect = true;
         } else if (e.type === 'match') {
             const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
             if (!all) { showToast('Completa todas as associações'); return; }
@@ -9868,6 +9954,7 @@ function _buildDetailedExplanationPrompt(e, yr) {
     else if (e.type === 'game' && e.game === 'suspeitos' && e.solution) correctAns = 'Culpado: ' + ((e.suspects || []).find(sp => sp.id === e.solution) || {}).name || e.solution;
     else if (e.type === 'game' && e.game === 'padrao' && e.answer) correctAns = String(e.answer);
     else if (e.type === 'game' && e.game === 'quantos' && e.dots !== undefined) correctAns = String(e.dots) + ' pontos';
+    else if (e.type === 'game' && e.game === 'cruzados') correctAns = 'Grelha completa com todas as contas certas';
     else correctAns = Array.isArray(e.ans) ? e.ans[0] : String(e.ans);
 
     let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"\nResposta CERTA: ${correctAns}`;
