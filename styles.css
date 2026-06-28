@@ -6449,3 +6449,19 @@ body.has-teacher-overlay #subject-detail-container {
 .pp-code { font-family: monospace; font-weight: 800; letter-spacing: 0.08em; color: #0e7490; }
 .pp-nocode { color: #94a3b8; font-style: italic; }
 .pp-go { color: #0891b2; font-weight: 800; font-size: 0.82rem; }
+
+/* === CRUZA-NÚMEROS (cross-sums) — discalculia === */
+.cruz-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.cruz-coach { display: flex; align-items: center; gap: 8px; background: #f5f3ff; border: 1.5px solid #c4b5fd; border-radius: 12px; padding: 9px 12px; max-width: 360px; font-size: 0.88rem; color: #4c1d95; font-weight: 600; }
+.cruz-grid { display: grid; gap: 4px; width: min(92vw, 360px); }
+.cruz-grid > * { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; border-radius: 7px; }
+.cz-bg { background: transparent; }
+.cz-fix { background: #fde68a; color: #92400e; border: 1.5px solid #fcd34d; }
+.cz-op { background: #fff7ed; color: #c2410c; }
+.cz-cell.blank { background: #fff; border: 2px dashed #a78bfa; color: #4c1d95; cursor: pointer; font-size: 1.2rem; }
+.cz-cell.blank.sel { border-style: solid; border-color: #7c3aed; box-shadow: 0 0 0 3px #ddd6fe; }
+.cz-cell.blank.filled { background: #ede9fe; border-style: solid; }
+.cruz-bank { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: min(92vw, 360px); }
+.cz-chip { min-width: 48px; height: 48px; border-radius: 12px; border: 2.5px solid #7c3aed; background: #fff; color: #7c3aed; font-size: 1.4rem; font-weight: 800; cursor: pointer; }
+.cz-chip:active { background: #f5f3ff; }
+.cz-chip.used { opacity: 0.25; border-style: dashed; cursor: default; }

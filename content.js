@@ -2730,7 +2730,37 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_log9', s:'detetive', t:'Lógica pura', type:'game', game:'cofre_steps', diff:2, q:'🧠 Idade do irmão', story:'A Maria tem 9 anos. O irmão tem o TRIPLO da idade dela.', steps:[
         { prompt:'Que idade tem o irmão? (9 × 3)', answer:'27', hint:'Triplo = 3 vezes: 9 + 9 + 9.' }
     ], exp:'Triplo de 9 = 9 × 3 = 27 anos.' },
-    { id:'3dt_log10', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Quem é o mais velho?', story:'Lê as pistas e descobre quem é o MAIS VELHO dos três.', suspects:[{id:'avo',emoji:'👴',name:'Avô'},{id:'pai',emoji:'👨',name:'Pai'},{id:'neto',emoji:'🧒',name:'Neto'}], clues:['O pai é mais novo que o avô.','O neto é mais novo que o pai.','Então quem nasceu primeiro?'], solution:'avo', exp:'Avô mais velho que o pai, e pai mais velho que o neto → o avô é o mais velho.' }
+    { id:'3dt_log10', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Quem é o mais velho?', story:'Lê as pistas e descobre quem é o MAIS VELHO dos três.', suspects:[{id:'avo',emoji:'👴',name:'Avô'},{id:'pai',emoji:'👨',name:'Pai'},{id:'neto',emoji:'🧒',name:'Neto'}], clues:['O pai é mais novo que o avô.','O neto é mais novo que o pai.','Então quem nasceu primeiro?'], solution:'avo', exp:'Avô mais velho que o pai, e pai mais velho que o neto → o avô é o mais velho.' },
+
+    // ── CRUZA-NÚMEROS (cross-sums) — v526 — discalculia ──────
+    { id:'3dt_cz1', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'cruzados', diff:1, q:'🧩 Cruza-números (fácil)', grid:[
+        ["8","+","_:4","=","12"],
+        ["+","","","",""],
+        ["_:2","","","",""],
+        ["=","","","",""],
+        ["10","","","",""]
+    ], bankExtra:[3,6], exp:'→ 8 + 4 = 12; ↓ 8 + 2 = 10.' },
+    { id:'3dt_cz2', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'cruzados', diff:2, q:'🧩 Cruza-números (×/−)', grid:[
+        ["9","×","_:2","=","18"],
+        ["-","","","",""],
+        ["_:5","","","",""],
+        ["=","","","",""],
+        ["4","","","",""]
+    ], bankExtra:[3,4], exp:'→ 9 × 2 = 18; ↓ 9 − 5 = 4.' },
+    { id:'3dt_cz3', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'cruzados', diff:2, q:'🧩 Cruza-números (cruzado)', grid:[
+        ["5","+","_:6","=","11"],
+        ["","","+","",""],
+        ["","","_:3","",""],
+        ["","","=","",""],
+        ["","","9","",""]
+    ], bankExtra:[4,9], exp:'→ 5 + 6 = 11; ↓ 6 + 3 = 9 (o 6 é partilhado).' },
+    { id:'3dt_cz4', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'cruzados', diff:3, q:'🧩 Cruza-números (÷/−)', grid:[
+        ["12","÷","_:3","=","4"],
+        ["-","","","",""],
+        ["_:5","","","",""],
+        ["=","","","",""],
+        ["7","","","",""]
+    ], bankExtra:[2,6], exp:'→ 12 ÷ 3 = 4; ↓ 12 − 5 = 7.' }
 ];
 
 const EXERCISES_3 = [
