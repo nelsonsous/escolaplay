@@ -2619,7 +2619,7 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_pad5', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que cor vem a seguir?', sequence:['🔴','🔵','🔴','🔵','🔴','?'], options:['🔴','🔵','🟢','🟡'], answer:'🔵', hint:'Alterna entre duas cores.', exp:'Padrão vermelho-azul.' },
     { id:'3dt_pad6', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a duplicar)', sequence:[1,2,4,8,16,'?'], answer:'32', hint:'Cada número é o dobro do anterior.', exp:'16 × 2 = 32.' },
     { id:'3dt_pad7', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que letra vem a seguir?', sequence:['A','C','E','G','?'], options:['H','I','J','K'], answer:'I', hint:'Salta sempre uma letra.', exp:'A, (B), C, (D), E, (F), G, (H), I.' },
-    { id:'3dt_pad8', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Quadrados perfeitos', sequence:[1,4,9,'?',25], answer:'16', hint:'1=1², 4=2², 9=3², ?=4², ...', exp:'4² = 16.' },
+    { id:'3dt_pad8', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Contar de 6 em 6', sequence:[6,12,18,'?',30], answer:'24', hint:'Tabuada do 6: soma 6 de cada vez.', exp:'+6 → 18 + 6 = 24.' },
 
     // ── ESTIMAR E APROXIMAR → Estimador (slider) ─────────────
     { id:'3dt_est1', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Quanto tempo?', story:'Quantos minutos demora a escovar BEM os dentes?', min:0, max:10, answer:2, tolerance:1, unit:'min', hint:'Não é tão pouco como 30 segundos, nem uma eternidade.', exp:'O ideal são cerca de 2 minutos.' },
@@ -2677,10 +2677,10 @@ const EXERCISES_3_DETETIVE = [
     ], exp:'3×4 = 12€ poupados + 5€ = 17€.' },
     // Padrões novos
     { id:'3dt_pad9', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Continua a contar de 25 em 25', sequence:[25,50,75,'?',125], answer:'100', hint:'Os quartos de 100: 25, 50, 75, 100…', exp:'+25 de cada vez → 100.' },
-    { id:'3dt_pad10', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Que número falta?', sequence:[1,4,9,16,'?',36], answer:'25', hint:'1=1×1, 4=2×2, 9=3×3, 16=4×4, ?=5×5', exp:'Quadrados perfeitos: 5×5 = 25.' },
+    { id:'3dt_pad10', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Contar de 4 em 4', sequence:[4,8,12,16,'?'], answer:'20', hint:'Tabuada do 4: soma 4 de cada vez.', exp:'+4 → 16 + 4 = 20.' },
     // Estimadores novos
-    { id:'3dt_est8', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quantos alunos na escola?', story:'A tua escola tem 12 turmas com mais ou menos 20 alunos cada. Quantos alunos terá ao todo?', min:0, max:500, step:20, answer:240, tolerance:40, unit:'alunos', hint:'12 × 20 — estima sem contar todos.', exp:'12 × 20 = 240 alunos (aproximadamente).' },
-    { id:'3dt_est9', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda ao milhar', story:'Qual é o número 6 480 arredondado ao milhar mais próximo?', min:5000, max:8000, step:500, answer:6000, tolerance:300, unit:'', hint:'Está mais perto de 6000 ou de 7000?', exp:'6 480 está mais perto de 6 000 (faltam 480) do que de 7 000.' },
+    { id:'3dt_est8', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quantos alunos na escola?', story:'A tua escola tem 10 turmas com mais ou menos 20 alunos cada. Quantos alunos terá ao todo?', min:0, max:400, step:20, answer:200, tolerance:40, unit:'alunos', hint:'10 × 20 — multiplicar por 10 é juntar um zero.', exp:'10 × 20 = 200 alunos (aproximadamente).' },
+    { id:'3dt_est9', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda à centena', story:'Qual é o número 470 arredondado à centena mais próxima?', min:300, max:700, step:50, answer:500, tolerance:25, unit:'', hint:'Está mais perto de 400 ou de 500?', exp:'470 está mais perto de 500 (faltam 30) do que de 400.' },
 
     // ── FASE 3 (v520): mais puzzles interativos ──────────────
     { id:'3dt_cha13', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Caixas de ovos', story:'Uma dúzia tem 12 ovos. Compraste 3 dúzias.', steps:[
