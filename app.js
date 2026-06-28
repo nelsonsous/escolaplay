@@ -546,7 +546,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v523';
+const APP_VERSION = 'v524';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8937,8 +8937,10 @@ function _estRender() {
         <input class="est-slider" type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}" oninput="_estMove(this.value)">
         <div class="est-scale"><span>${s.min}</span><span>${s.max}</span></div>
         <div class="est-feedback">${_estFeedback()}</div>
-        ${s.hint ? `<div class="est-hint">💡 ${escapeHtml(s.hint)}</div>` : ''}
       </div>`;
+    // NOTA: a dica NÃO é mostrada aqui — fica escondida atrás do botão
+    // "💡 Mostrar dica" no topo (e.hint). Antes aparecia sempre por baixo
+    // e muitas vezes entregava a resposta (ex.: "Entre 28 e 31").
 }
 function _estMove(v) {
     estState.value = parseInt(v, 10);
