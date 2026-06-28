@@ -3222,7 +3222,34 @@ const EXERCISES_3 = [
     {"id":"sp3_ma1","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":1,"q":"👂 Para boa memória auditiva:","opts":["ter distrações","focar-se","falar ao mesmo tempo"],"ans":1,"exp":"Foco."},
     {"id":"sp3_ma2","s":"som_plus","t":"Memória auditiva avançada","type":"tf","diff":2,"q":"Imaginar a cena ajuda a recordar.","ans":true,"exp":"Sim."},
     {"id":"sp3_ma3","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":2,"q":"👂 Inversa de \"gato, mesa, livro, sol\":","opts":["sol, livro, mesa, gato","gato, mesa, livro, sol","sol, mesa, livro, gato"],"ans":0,"exp":"Última primeiro."},
-    {"id":"sp3_ma4","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":1,"q":"👂 Repete: árvore, casa, bola. A 1.ª foi:","opts":["casa","árvore","bola"],"ans":1,"exp":"A 1.ª palavra da lista foi árvore (árvore, casa, bola)."}
+    {"id":"sp3_ma4","s":"som_plus","t":"Memória auditiva avançada","type":"mc","diff":1,"q":"👂 Repete: árvore, casa, bola. A 1.ª foi:","opts":["casa","árvore","bola"],"ans":1,"exp":"A 1.ª palavra da lista foi árvore (árvore, casa, bola)."},
+
+    // ── FASE 3 (v523): jogos interativos na Matemática 3º ────
+    { id:'3m_g1', s:'matematica', t:'Adição e subtração', type:'game', game:'cofre_steps', diff:2, q:'🧠 Clientes na loja', story:'De manhã entraram 156 clientes; à tarde mais 88. Depois saíram 100.', steps:[
+        { prompt:'Passo 1: 156 + 88. Quantos clientes ao todo?', answer:'244', hint:'Soma por colunas, transporta ao passar de 9.' },
+        { prompt:'Passo 2: saíram 100. Quantos ficaram?', answer:'144', hint:'244 − 100.' }
+    ], exp:'156 + 88 = 244; 244 − 100 = 144.' },
+    { id:'3m_g2', s:'matematica', t:'Multiplicação', type:'game', game:'cofre_steps', diff:1, q:'🧠 Caixa de ovos', story:'Uma caixa tem 6 filas com 8 ovos cada.', steps:[
+        { prompt:'Quantos ovos tem a caixa? (6 × 8)', answer:'48', hint:'Tabuada do 8: 8+8+8+8+8+8.' }
+    ], exp:'6 × 8 = 48 ovos.' },
+    { id:'3m_g3', s:'matematica', t:'Divisão', type:'game', game:'cofre_steps', diff:1, q:'🧠 Bolas nos cestos', story:'Tens 24 bolas para repartir igualmente por 4 cestos.', steps:[
+        { prompt:'Quantas bolas em cada cesto? (24 ÷ 4)', answer:'6', hint:'4 × ? = 24.' }
+    ], exp:'24 ÷ 4 = 6 bolas por cesto.' },
+    { id:'3m_g4', s:'matematica', t:'Dinheiro', type:'game', game:'cofre_steps', diff:2, q:'🧠 Compras na papelaria', story:'Compras 3 cadernos a 2€ cada e 1 caneta a 3€.', steps:[
+        { prompt:'Passo 1: 3 cadernos × 2€. Quanto custam?', answer:'6', hint:'3 × 2.' },
+        { prompt:'Passo 2: junta a caneta de 3€. Total?', answer:'9', hint:'6 + 3.' }
+    ], exp:'3×2 = 6€ + 3€ = 9€.' },
+    { id:'3m_g5', s:'matematica', t:'Tabuadas', type:'game', game:'cofre_steps', diff:1, q:'🧠 Sacos de berlindes', story:'Tens 7 sacos com 5 berlindes cada.', steps:[
+        { prompt:'Quantos berlindes ao todo? (7 × 5)', answer:'35', hint:'Tabuada do 5: conta 5, 10, 15...' }
+    ], exp:'7 × 5 = 35 berlindes.' },
+    { id:'3m_g6', s:'matematica', t:'Cálculo mental', type:'game', game:'cofre_steps', diff:2, q:'🧠 Subtrair em partes', story:'Queres calcular 50 − 18 de cabeça.', steps:[
+        { prompt:'Passo 1: tira primeiro 10. 50 − 10 = ?', answer:'40', hint:'Só os 10.' },
+        { prompt:'Passo 2: agora tira os 8 que faltam. 40 − 8 = ?', answer:'32', hint:'40 − 8.' }
+    ], exp:'50 − 18 = 50 − 10 − 8 = 32.' },
+    { id:'3m_g7', s:'matematica', t:'Números até 10 000', type:'game', game:'padrao', diff:2, q:'🧩 Conta de 1000 em 1000', sequence:[1000,2000,3000,'?',5000], answer:'4000', hint:'Soma 1000 de cada vez.', exp:'+1000 → 4000.' },
+    { id:'3m_g8', s:'matematica', t:'Múltiplos e divisores', type:'game', game:'cofre_steps', diff:1, q:'🧠 Grupos de 3', story:'Quantos grupos de 3 cabem em 18 alunos?', steps:[
+        { prompt:'18 ÷ 3 = ?', answer:'6', hint:'3 × ? = 18.' }
+    ], exp:'18 ÷ 3 = 6 grupos.' }
 ];
 
 // ============================================================
