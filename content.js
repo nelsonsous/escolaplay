@@ -2123,7 +2123,7 @@ const CURRICULUM_3 = {
         'Ambiente e sustentabilidade', 'Segurança rodoviária', 'Saúde e bem-estar'
     ],
     mat_plus: [
-        'Centenas com ten-frames', 'Decompor até 10 000', 'Linha numérica até 10 000', 'Comparar números grandes', 'Aproximar à dezena ou centena', 'Adição com transporte', 'Subtração com empréstimo', 'Tabuada do 6 visual', 'Tabuada do 7 visual', 'Tabuada do 8 visual', 'Tabuada do 9 visual', 'Famílias de factos', 'Multiplicação × 10, 100, 1000', 'Multiplicação por 1 dígito', 'Divisão por partilha', 'Divisão com resto', 'Frações — partes iguais', 'Frações — comparar', 'Modelo de barra', 'Problemas em 2 passos'
+        'Quantos vês?', 'Centenas com ten-frames', 'Decompor até 10 000', 'Linha numérica até 10 000', 'Comparar números grandes', 'Aproximar à dezena ou centena', 'Estimar e aproximar', 'Adição com transporte', 'Subtração com empréstimo', 'Tabuada do 6 visual', 'Tabuada do 7 visual', 'Tabuada do 8 visual', 'Tabuada do 9 visual', 'Famílias de factos', 'Multiplicação × 10, 100, 1000', 'Multiplicação por 1 dígito', 'Divisão por partilha', 'Divisão com resto', 'Frações — partes iguais', 'Frações — comparar', 'Modelo de barra', 'Problemas em 2 passos'
     ],
     som_plus: [
         'Rimas com palavras longas', 'Contar sílabas (3-4)', 'Sílaba tónica', 'Sílaba átona', 'Dígrafos LH, NH, CH', 'RR e SS (consoantes dobradas)', 'Encontros consonantais', 'Encontros vocálicos', 'Hiatos', 'Ditongos orais e nasais', 'Pares mínimos avançados', 'Sons que se confundem (B/V, F/V)', 'Trocar uma sílaba', 'Tirar uma sílaba', 'Trocar fonema inicial', 'Segmentar fonemas', 'Famílias de palavras', 'Palavras compostas', 'Trava-línguas', 'Memória auditiva avançada'
@@ -2132,7 +2132,7 @@ const CURRICULUM_3 = {
         'Lê com as vírgulas', 'Lê um diálogo', 'Voz sobe na pergunta', 'Voz com emoção', 'Lê e descobre os sentimentos', 'Lê e descobre o que vai acontecer', 'Lê uma carta', 'Lê uma lenda'
     ],
     detetive: [
-        'Quantos vês?', 'Charadas matemáticas', 'Histórias-mistério', 'Padrões e sequências', 'Estimar e aproximar', 'Sudoku & Kakuro', 'Lógica pura'
+        'Charadas matemáticas', 'Histórias-mistério', 'Padrões e sequências', 'Sudoku & Kakuro', 'Lógica pura'
     ]
 };
 
@@ -2167,7 +2167,7 @@ const PERIODS_3 = {
         'Diversidade e respeito':2, 'Saúde e bem-estar':2,
         'Ambiente e sustentabilidade':3, 'Segurança rodoviária':3
     },
-    mat_plus: { 'Centenas com ten-frames':1, 'Decompor até 10 000':1, 'Linha numérica até 10 000':1, 'Comparar números grandes':1, 'Aproximar à dezena ou centena':1, 'Adição com transporte':2, 'Subtração com empréstimo':2, 'Tabuada do 6 visual':2, 'Tabuada do 7 visual':2, 'Tabuada do 8 visual':2, 'Tabuada do 9 visual':2, 'Famílias de factos':2, 'Multiplicação × 10, 100, 1000':2, 'Multiplicação por 1 dígito':2, 'Divisão por partilha':3, 'Divisão com resto':3, 'Frações — partes iguais':3, 'Frações — comparar':3, 'Modelo de barra':3, 'Problemas em 2 passos':3 },
+    mat_plus: { 'Quantos vês?':1, 'Estimar e aproximar':2, 'Centenas com ten-frames':1, 'Decompor até 10 000':1, 'Linha numérica até 10 000':1, 'Comparar números grandes':1, 'Aproximar à dezena ou centena':1, 'Adição com transporte':2, 'Subtração com empréstimo':2, 'Tabuada do 6 visual':2, 'Tabuada do 7 visual':2, 'Tabuada do 8 visual':2, 'Tabuada do 9 visual':2, 'Famílias de factos':2, 'Multiplicação × 10, 100, 1000':2, 'Multiplicação por 1 dígito':2, 'Divisão por partilha':3, 'Divisão com resto':3, 'Frações — partes iguais':3, 'Frações — comparar':3, 'Modelo de barra':3, 'Problemas em 2 passos':3 },
     som_plus: { 'Rimas com palavras longas':1, 'Contar sílabas (3-4)':1, 'Sílaba tónica':1, 'Sílaba átona':1, 'Dígrafos LH, NH, CH':1, 'RR e SS (consoantes dobradas)':2, 'Encontros consonantais':2, 'Encontros vocálicos':2, 'Hiatos':2, 'Ditongos orais e nasais':2, 'Pares mínimos avançados':2, 'Sons que se confundem (B/V, F/V)':2, 'Trocar uma sílaba':3, 'Tirar uma sílaba':3, 'Trocar fonema inicial':3, 'Segmentar fonemas':3, 'Famílias de palavras':3, 'Palavras compostas':3, 'Trava-línguas':3, 'Memória auditiva avançada':3 },
     leitura: {
         'Lê com as vírgulas':1,
@@ -2180,8 +2180,8 @@ const PERIODS_3 = {
         'Lê uma lenda':3
     },
     detetive: {
-        'Quantos vês?':1, 'Charadas matemáticas':1, 'Padrões e sequências':1,
-        'Histórias-mistério':2, 'Estimar e aproximar':2,
+        'Charadas matemáticas':1, 'Padrões e sequências':1,
+        'Histórias-mistério':2,
         'Sudoku & Kakuro':3, 'Lógica pura':3
     }
 };
@@ -2559,14 +2559,14 @@ const LESSONS_3 = {
 const EXERCISES_3_DETETIVE = [
     // ── QUANTOS VÊS? → Subitizing (ten-frames) ───────────────
     // Treino nuclear de discalculia: reconhecer quantidade sem contar.
-    { id:'3dt_qt1', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:5, prompt:'Quantos pontos vês? (uma linha cheia = 5)' },
-    { id:'3dt_qt2', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:3, prompt:'Quantos pontos vês?' },
-    { id:'3dt_qt3', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:7, prompt:'Vês 5 + quantos a mais?' },
-    { id:'3dt_qt4', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:8, prompt:'Uma linha de 5 + outra começada. Quantos?' },
-    { id:'3dt_qt5', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:10, prompt:'O ten-frame cheio. Quantos?' },
-    { id:'3dt_qt6', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:6, prompt:'5 + 1. Quantos ao todo?' },
-    { id:'3dt_qt7', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:13, prompt:'Um ten-frame cheio (10) + mais alguns. Quantos?' },
-    { id:'3dt_qt8', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:16, prompt:'10 + 6. Quantos ao todo?' },
+    { id:'3dt_qt1', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:5, prompt:'Quantos pontos vês? (uma linha cheia = 5)' },
+    { id:'3dt_qt2', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:3, prompt:'Quantos pontos vês?' },
+    { id:'3dt_qt3', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:7, prompt:'Vês 5 + quantos a mais?' },
+    { id:'3dt_qt4', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:8, prompt:'Uma linha de 5 + outra começada. Quantos?' },
+    { id:'3dt_qt5', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:10, prompt:'O ten-frame cheio. Quantos?' },
+    { id:'3dt_qt6', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:6, prompt:'5 + 1. Quantos ao todo?' },
+    { id:'3dt_qt7', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:13, prompt:'Um ten-frame cheio (10) + mais alguns. Quantos?' },
+    { id:'3dt_qt8', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:16, prompt:'10 + 6. Quantos ao todo?' },
 
     // ── CHARADAS MATEMÁTICAS → Cofre dos Códigos ─────────────
     { id:'3dt_cha1', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre', diff:1, q:'🔍 Cromos do João', digits:1, solution:'6', story:'A Sara tem o DOBRO dos cromos do João. Juntos têm 18.', clues:['Quantos cromos tem o João?'], hint:'Se o João tem J, a Sara tem 2J. J + 2J = 18.', exp:'J + 2J = 3J = 18 → João tem 6.' },
@@ -2622,13 +2622,13 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_pad8', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Contar de 6 em 6', sequence:[6,12,18,'?',30], answer:'24', hint:'Tabuada do 6: soma 6 de cada vez.', exp:'+6 → 18 + 6 = 24.' },
 
     // ── ESTIMAR E APROXIMAR → Estimador (slider) ─────────────
-    { id:'3dt_est1', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Quanto tempo?', story:'Quantos minutos demora a escovar BEM os dentes?', min:0, max:10, answer:2, tolerance:1, unit:'min', hint:'Não é tão pouco como 30 segundos, nem uma eternidade.', exp:'O ideal são cerca de 2 minutos.' },
-    { id:'3dt_est2', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Lugares no autocarro', story:'Quantas pessoas cabem num autocarro escolar normal?', min:0, max:120, step:5, answer:50, tolerance:10, unit:'pessoas', hint:'Não é tão pequeno como um carro, nem tão grande como um avião.', exp:'Um autocarro escolar tem cerca de 50 lugares.' },
-    { id:'3dt_est3', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Arredonda à dezena', story:'Qual é o número 47 arredondado à dezena mais próxima?', min:30, max:70, step:1, answer:50, tolerance:2, unit:'', hint:'47 está mais perto de 50 ou de 40?', exp:'47 está mais perto de 50 (diferença 3 vs 7).' },
-    { id:'3dt_est4', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Arredonda à centena', story:'Qual é o número 348 arredondado à centena mais próxima?', min:100, max:600, step:25, answer:300, tolerance:25, unit:'', hint:'O número que termina em 0 mais próximo (centena cheia).', exp:'348 está mais perto de 300 do que de 400.' },
-    { id:'3dt_est5', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Estima a soma', story:'Sem calcular ao certo: 198 + 203 dá MAIS OU MENOS quanto?', min:100, max:700, step:25, answer:400, tolerance:30, unit:'', hint:'~200 + ~200.', exp:'201 está perto de 200, somando dois quase-200 → ~400.' },
-    { id:'3dt_est6', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Dias de leitura', story:'Um livro tem 198 páginas. Lês 19 páginas por dia. Mais ou menos quantos dias precisas?', min:1, max:30, answer:10, tolerance:2, unit:'dias', hint:'~200 ÷ ~20.', exp:'200 ÷ 20 = 10 dias.' },
-    { id:'3dt_est7', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Passos até à sala', story:'Quantos passos dás mais ou menos para ir do portão da escola até à tua sala?', min:5, max:200, step:5, answer:50, tolerance:15, unit:'passos', hint:'Algumas dezenas de passos — não 5 (curto), não 500 (longo).', exp:'Tipicamente entre 30 e 70 passos.' },
+    { id:'3dt_est1', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Quanto tempo?', story:'Quantos minutos demora a escovar BEM os dentes?', min:0, max:10, answer:2, tolerance:1, unit:'min', hint:'Não é tão pouco como 30 segundos, nem uma eternidade.', exp:'O ideal são cerca de 2 minutos.' },
+    { id:'3dt_est2', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Lugares no autocarro', story:'Quantas pessoas cabem num autocarro escolar normal?', min:0, max:120, step:5, answer:50, tolerance:10, unit:'pessoas', hint:'Não é tão pequeno como um carro, nem tão grande como um avião.', exp:'Um autocarro escolar tem cerca de 50 lugares.' },
+    { id:'3dt_est3', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Arredonda à dezena', story:'Qual é o número 47 arredondado à dezena mais próxima?', min:30, max:70, step:1, answer:50, tolerance:2, unit:'', hint:'47 está mais perto de 50 ou de 40?', exp:'47 está mais perto de 50 (diferença 3 vs 7).' },
+    { id:'3dt_est4', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Arredonda à centena', story:'Qual é o número 348 arredondado à centena mais próxima?', min:100, max:600, step:25, answer:300, tolerance:25, unit:'', hint:'O número que termina em 0 mais próximo (centena cheia).', exp:'348 está mais perto de 300 do que de 400.' },
+    { id:'3dt_est5', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Estima a soma', story:'Sem calcular ao certo: 198 + 203 dá MAIS OU MENOS quanto?', min:100, max:700, step:25, answer:400, tolerance:30, unit:'', hint:'~200 + ~200.', exp:'201 está perto de 200, somando dois quase-200 → ~400.' },
+    { id:'3dt_est6', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Dias de leitura', story:'Um livro tem 198 páginas. Lês 19 páginas por dia. Mais ou menos quantos dias precisas?', min:1, max:30, answer:10, tolerance:2, unit:'dias', hint:'~200 ÷ ~20.', exp:'200 ÷ 20 = 10 dias.' },
+    { id:'3dt_est7', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Passos até à sala', story:'Quantos passos dás mais ou menos para ir do portão da escola até à tua sala?', min:5, max:200, step:5, answer:50, tolerance:15, unit:'passos', hint:'Algumas dezenas de passos — não 5 (curto), não 500 (longo).', exp:'Tipicamente entre 30 e 70 passos.' },
 
     // ── SUDOKU 4×4 (10) + Kakuro Cofre (2) ───────────────────
     { id:'3dt_sud1', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'sudoku4', diff:1, q:'🔢 Sudoku 4×4 · fácil', puzzle:{ initial:[1,2,3,0, 3,0,1,2, 2,1,0,3, 0,3,2,1], solution:[1,2,3,4, 3,4,1,2, 2,1,4,3, 4,3,2,1] }, hint:'Toca numa célula vazia e escolhe o número. Cada linha, coluna e bloco 2×2 tem de ter 1, 2, 3 e 4.', exp:'Solução: 1234 / 3412 / 2143 / 4321.' },
@@ -2679,8 +2679,8 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_pad9', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Continua a contar de 25 em 25', sequence:[25,50,75,'?',125], answer:'100', hint:'Os quartos de 100: 25, 50, 75, 100…', exp:'+25 de cada vez → 100.' },
     { id:'3dt_pad10', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Contar de 4 em 4', sequence:[4,8,12,16,'?'], answer:'20', hint:'Tabuada do 4: soma 4 de cada vez.', exp:'+4 → 16 + 4 = 20.' },
     // Estimadores novos
-    { id:'3dt_est8', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quantos alunos na escola?', story:'A tua escola tem 10 turmas com mais ou menos 20 alunos cada. Quantos alunos terá ao todo?', min:0, max:400, step:20, answer:200, tolerance:40, unit:'alunos', hint:'10 × 20 — multiplicar por 10 é juntar um zero.', exp:'10 × 20 = 200 alunos (aproximadamente).' },
-    { id:'3dt_est9', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda à centena', story:'Qual é o número 470 arredondado à centena mais próxima?', min:300, max:700, step:50, answer:500, tolerance:25, unit:'', hint:'Está mais perto de 400 ou de 500?', exp:'470 está mais perto de 500 (faltam 30) do que de 400.' },
+    { id:'3dt_est8', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quantos alunos na escola?', story:'A tua escola tem 10 turmas com mais ou menos 20 alunos cada. Quantos alunos terá ao todo?', min:0, max:400, step:20, answer:200, tolerance:40, unit:'alunos', hint:'10 × 20 — multiplicar por 10 é juntar um zero.', exp:'10 × 20 = 200 alunos (aproximadamente).' },
+    { id:'3dt_est9', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Arredonda à centena', story:'Qual é o número 470 arredondado à centena mais próxima?', min:300, max:700, step:50, answer:500, tolerance:25, unit:'', hint:'Está mais perto de 400 ou de 500?', exp:'470 está mais perto de 500 (faltam 30) do que de 400.' },
 
     // ── FASE 3 (v520): mais puzzles interativos ──────────────
     { id:'3dt_cha13', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Caixas de ovos', story:'Uma dúzia tem 12 ovos. Compraste 3 dúzias.', steps:[
@@ -2693,8 +2693,8 @@ const EXERCISES_3_DETETIVE = [
     ], exp:'4×5 = 20€; troco 50 − 20 = 30€.' },
     { id:'3dt_mis11', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:2, q:'🕵️ Quem partiu o vaso?', story:'O vaso da sala partiu-se! Lê as pistas e descobre o culpado.', suspects:[{id:'gato',emoji:'🐈',name:'Gato'},{id:'cao',emoji:'🐕',name:'Cão'},{id:'vento',emoji:'🌬️',name:'Vento'}], clues:['O cão esteve a tarde toda preso no quintal.','A janela estava fechada — não entrou vento.','Sobra alguém ágil, que salta para os móveis...'], solution:'gato', exp:'Cão preso lá fora e janela fechada (sem vento) → só pode ter sido o gato.' },
     { id:'3dt_pad11', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que número falta?', sequence:[2,5,8,11,'?',17], answer:'14', hint:'Soma sempre 3.', exp:'+3 de cada vez: 11 + 3 = 14.' },
-    { id:'3dt_est10', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Páginas de um livro infantil', story:'Mais ou menos quantas páginas tem um livro de histórias para crianças?', min:0, max:200, step:10, answer:40, tolerance:20, unit:'páginas', hint:'Não é um folheto (5) nem uma enciclopédia (500).', exp:'Tipicamente 30 a 50 páginas.' },
-    { id:'3dt_qt9', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:12, prompt:'Um ten-frame cheio (10) + 2. Quantos?' },
+    { id:'3dt_est10', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Páginas de um livro infantil', story:'Mais ou menos quantas páginas tem um livro de histórias para crianças?', min:0, max:200, step:10, answer:40, tolerance:20, unit:'páginas', hint:'Não é um folheto (5) nem uma enciclopédia (500).', exp:'Tipicamente 30 a 50 páginas.' },
+    { id:'3dt_qt9', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:12, prompt:'Um ten-frame cheio (10) + 2. Quantos?' },
 
     // ── FASE 3 (v521): mais puzzles interativos ──────────────
     { id:'3dt_sud19', s:'detetive', t:'Sudoku & Kakuro', type:'game', game:'sudoku4', diff:2, q:'🔢 Sudoku 4×4 · médio', puzzle:{ initial:[3,0,4,0, 4,1,0,0, 0,3,0,0, 1,4,0,3], solution:[3,2,4,1, 4,1,3,2, 2,3,1,4, 1,4,2,3] }, hint:'Começa pela 1.ª coluna (3,4,_,1) — falta um número.', exp:'Solução: 3241 / 4132 / 2314 / 1423.' },
@@ -2708,7 +2708,7 @@ const EXERCISES_3_DETETIVE = [
     ], exp:'24 copos ÷ 4 por garrafa = 6 garrafas.' },
     { id:'3dt_mis12', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:3, q:'🕵️ Quem comeu a última bolacha?', story:'A última bolacha do frasco desapareceu! Lê as pistas.', suspects:[{id:'rui',emoji:'🧒',name:'Rui'},{id:'mae',emoji:'👩',name:'Mãe'},{id:'avo',emoji:'👵',name:'Avó'}], clues:['A avó é diabética e não come bolachas com açúcar.','A mãe saiu de casa antes do lanche.','Sobra quem estava em casa e adora bolachas...'], solution:'rui', exp:'Avó não come açúcar, mãe estava fora → foi o Rui.' },
     { id:'3dt_pad12', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a descer)', sequence:[40,35,30,'?',20], answer:'25', hint:'Tira 5 de cada vez.', exp:'−5 de cada vez: 30 − 5 = 25.' },
-    { id:'3dt_est11', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quanto pesa uma mochila cheia?', story:'Mais ou menos quantos quilos pesa uma mochila da escola cheia de livros?', min:0, max:20, step:1, answer:5, tolerance:2, unit:'kg', hint:'Não é tão leve como um lápis nem tão pesado como tu.', exp:'Uma mochila cheia pesa tipicamente uns 4 a 6 kg.' },
+    { id:'3dt_est11', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:2, q:'🌡️ Quanto pesa uma mochila cheia?', story:'Mais ou menos quantos quilos pesa uma mochila da escola cheia de livros?', min:0, max:20, step:1, answer:5, tolerance:2, unit:'kg', hint:'Não é tão leve como um lápis nem tão pesado como tu.', exp:'Uma mochila cheia pesa tipicamente uns 4 a 6 kg.' },
 
     // ── FASE 3 (v522): lote grande ───────
     { id:'3dt_cha17', s:'detetive', t:'Charadas matemáticas', type:'game', game:'cofre_steps', diff:2, q:'🧠 Mesada', story:'Recebes 10€ de mesada. Gastas 4€ num livro e 3€ num gelado.', steps:[
@@ -2723,10 +2723,10 @@ const EXERCISES_3_DETETIVE = [
     { id:'3dt_mis14', s:'detetive', t:'Histórias-mistério', type:'game', game:'suspeitos', diff:3, q:'🕵️ Quem ganhou a corrida?', story:'Três amigos correram. Lê as pistas e descobre o VENCEDOR.', suspects:[{id:'rui',emoji:'🏃',name:'Rui'},{id:'bea',emoji:'🏃‍♀️',name:'Bea'},{id:'leo',emoji:'🏃‍♂️',name:'Leo'}], clues:['O Leo chegou depois da Bea.','A Bea chegou depois do Rui.','Então quem chegou primeiro?'], solution:'rui', exp:'Rui antes da Bea, e Bea antes do Leo → o Rui ganhou.' },
     { id:'3dt_pad13', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Continua (a duplicar)', sequence:[3,6,12,24,'?'], answer:'48', hint:'Cada número é o dobro do anterior.', exp:'24 × 2 = 48.' },
     { id:'3dt_pad14', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que número falta?', sequence:[100,90,80,'?',60], answer:'70', hint:'Tira 10 de cada vez.', exp:'−10 de cada vez: 80 − 10 = 70.' },
-    { id:'3dt_est12', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Dentes de um adulto', story:'Quantos dentes tem, mais ou menos, a boca de um adulto?', min:0, max:60, step:4, answer:32, tolerance:8, unit:'dentes', hint:'Mais do que os dedos das mãos e pés juntos.', exp:'Um adulto tem cerca de 32 dentes.' },
-    { id:'3dt_est13', s:'detetive', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Dias de um mês', story:'Mais ou menos quantos dias tem um mês?', min:0, max:60, step:1, answer:30, tolerance:2, unit:'dias', hint:'Pensa no poema: 30 dias têm setembro, abril, junho e novembro...', exp:'Os meses têm 30 ou 31 dias (fevereiro tem 28 ou 29).' },
-    { id:'3dt_qt10', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:15, prompt:'10 + 5. Quantos ao todo?' },
-    { id:'3dt_qt11', s:'detetive', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:18, prompt:'10 + 8. Quantos?' },
+    { id:'3dt_est12', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:3, q:'🌡️ Dentes de um adulto', story:'Quantos dentes tem, mais ou menos, a boca de um adulto?', min:0, max:60, step:4, answer:32, tolerance:8, unit:'dentes', hint:'Mais do que os dedos das mãos e pés juntos.', exp:'Um adulto tem cerca de 32 dentes.' },
+    { id:'3dt_est13', s:'mat_plus', t:'Estimar e aproximar', type:'game', game:'estimador', diff:1, q:'🌡️ Dias de um mês', story:'Mais ou menos quantos dias tem um mês?', min:0, max:60, step:1, answer:30, tolerance:2, unit:'dias', hint:'Pensa no poema: 30 dias têm setembro, abril, junho e novembro...', exp:'Os meses têm 30 ou 31 dias (fevereiro tem 28 ou 29).' },
+    { id:'3dt_qt10', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:15, prompt:'10 + 5. Quantos ao todo?' },
+    { id:'3dt_qt11', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:3, q:'🧠 Quantos pontos?', dots:18, prompt:'10 + 8. Quantos?' },
     { id:'3dt_log9', s:'detetive', t:'Lógica pura', type:'game', game:'cofre_steps', diff:2, q:'🧠 Idade do irmão', story:'A Maria tem 9 anos. O irmão tem o TRIPLO da idade dela.', steps:[
         { prompt:'Que idade tem o irmão? (9 × 3)', answer:'27', hint:'Triplo = 3 vezes: 9 + 9 + 9.' }
     ], exp:'Triplo de 9 = 9 × 3 = 27 anos.' },
