@@ -373,6 +373,18 @@ function loadState() {
                 }
                 p._detetiveV504Done = true;
             }
+            // Migração v527: sentido-de-número (Estimar/Quantos) saiu da
+            // Detetive (agora foco em raciocínio lógico) e foi para o Mat+.
+            // Repõe activeTopics + toIndex de AMBAS as disciplinas para
+            // "tudo activo", senão os tópicos movidos não apareceriam.
+            if (!p._refocusV527Done) {
+                ['detetive', 'mat_plus'].forEach(k => {
+                    if (p.activeTopics && p.activeTopics[k]) delete p.activeTopics[k];
+                    const curr = (CURRICULUM_BY_YEAR[p.year] || {})[k];
+                    if (p.progress && p.progress[k] && Array.isArray(curr)) p.progress[k].toIndex = curr.length;
+                });
+                p._refocusV527Done = true;
+            }
             // Migração: limpar BR-PT e SVGs triviais nos exercícios MAX já guardados
             if (Array.isArray(p.maxExercises)) {
                 p.maxExercises.forEach(migrateMaxExercise);
@@ -546,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v526';
+const APP_VERSION = 'v527';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
