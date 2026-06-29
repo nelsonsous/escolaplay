@@ -2760,7 +2760,21 @@ const EXERCISES_3_DETETIVE = [
         ["_:5","","","",""],
         ["=","","","",""],
         ["7","","","",""]
-    ], bankExtra:[2,6], exp:'→ 12 ÷ 3 = 4; ↓ 12 − 5 = 7.' }
+    ], bankExtra:[2,6], exp:'→ 12 ÷ 3 = 4; ↓ 12 − 5 = 7.' },
+
+    // ── RACIOCÍNIO LÓGICO — tipos novos (v528) ───────────────
+    // Intruso / odd-one-out (classificação) — engine suspeitos
+    { id:'3dt_log11', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:1, q:'🧠 Qual NÃO pertence?', story:'Três destes são animais. Descobre o INTRUSO (o que não é animal).', suspects:[{id:'cao',emoji:'🐕',name:'Cão'},{id:'gato',emoji:'🐈',name:'Gato'},{id:'mesa',emoji:'🪑',name:'Mesa'},{id:'peixe',emoji:'🐟',name:'Peixe'}], clues:['Cão, gato e peixe são animais (vivos).','A mesa é um móvel, não está viva.'], solution:'mesa', exp:'Cão, gato e peixe são animais; a mesa não é — é o intruso.' },
+    { id:'3dt_log12', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Qual NÃO voa?', story:'Três destes conseguem voar. Qual é o intruso?', suspects:[{id:'passaro',emoji:'🐦',name:'Pássaro'},{id:'aviao',emoji:'✈️',name:'Avião'},{id:'borboleta',emoji:'🦋',name:'Borboleta'},{id:'carro',emoji:'🚗',name:'Carro'}], clues:['Pássaro, avião e borboleta voam.','O carro anda no chão, não voa.'], solution:'carro', exp:'O carro é o único que não voa.' },
+    { id:'3dt_log13', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Qual NÃO é fruta?', story:'Encontra o intruso: três são frutas, um não.', suspects:[{id:'maca',emoji:'🍎',name:'Maçã'},{id:'banana',emoji:'🍌',name:'Banana'},{id:'cenoura',emoji:'🥕',name:'Cenoura'},{id:'uva',emoji:'🍇',name:'Uva'}], clues:['Maçã, banana e uva são frutas.','A cenoura é um legume (raiz).'], solution:'cenoura', exp:'A cenoura é um legume, não uma fruta → é o intruso.' },
+    // Analogias (relações) — engine suspeitos
+    { id:'3dt_log14', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 Completa: dia → claro; noite → ?', story:'Dia está para CLARO assim como noite está para...?', suspects:[{id:'escuro',emoji:'🌑',name:'escuro'},{id:'frio',emoji:'❄️',name:'frio'},{id:'grande',emoji:'🐘',name:'grande'}], clues:['De dia há luz → claro.','De noite não há luz → ?'], solution:'escuro', exp:'Dia↔claro, noite↔escuro (o oposto).' },
+    { id:'3dt_log15', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:3, q:'🧠 Completa: mão → luva; pé → ?', story:'A mão usa LUVA. O que usa o pé?', suspects:[{id:'meia',emoji:'🧦',name:'meia'},{id:'chapeu',emoji:'🎩',name:'chapéu'},{id:'cachecol',emoji:'🧣',name:'cachecol'}], clues:['A luva veste-se na mão.','No pé veste-se...?'], solution:'meia', exp:'Mão↔luva, pé↔meia (peça de roupa de cada parte).' },
+    // Condicional / se→então (dedução) — engine suspeitos
+    { id:'3dt_log16', s:'detetive', t:'Lógica pura', type:'game', game:'suspeitos', diff:2, q:'🧠 O que faz o Nemo?', story:'Regra: TODOS os peixes nadam. O Nemo é um peixe.', suspects:[{id:'nada',emoji:'🏊',name:'nada'},{id:'voa',emoji:'🕊️',name:'voa'},{id:'corre',emoji:'🏃',name:'corre'}], clues:['Todos os peixes nadam.','O Nemo é um peixe → faz o quê?'], solution:'nada', exp:'Se todos os peixes nadam e o Nemo é peixe, então o Nemo nada.' },
+    // Padrão lógico com formas/tamanho — engine padrao com opções
+    { id:'3dt_pad15', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:2, q:'🧩 Que forma vem a seguir?', sequence:['🔺','🟦','🔺','🟦','🔺','?'], options:['🔺','🟦','🔵','⭐'], answer:'🟦', hint:'Alterna triângulo e quadrado.', exp:'Padrão triângulo-quadrado → segue o quadrado 🟦.' },
+    { id:'3dt_pad16', s:'detetive', t:'Padrões e sequências', type:'game', game:'padrao', diff:3, q:'🧩 Que vem a seguir?', sequence:['🌑','🌓','🌕','🌑','🌓','?'], options:['🌑','🌓','🌕','⭐'], answer:'🌕', hint:'Repete de 3 em 3: nova, meia, cheia.', exp:'Ciclo de 3 (🌑🌓🌕) → a seguir vem 🌕.' }
 ];
 
 const EXERCISES_3 = [
