@@ -6465,3 +6465,7 @@ body.has-teacher-overlay #subject-detail-container {
 .cz-chip { min-width: 48px; height: 48px; border-radius: 12px; border: 2.5px solid #7c3aed; background: #fff; color: #7c3aed; font-size: 1.4rem; font-weight: 800; cursor: pointer; }
 .cz-chip:active { background: #f5f3ff; }
 .cz-chip.used { opacity: 0.25; border-style: dashed; cursor: default; }
+
+/* ── Meetings (frases de reunião, v530) ── */
+.tutor-meet-pt { font-size: 0.82rem; color: #64748b; font-style: italic; margin: 4px 0 6px; }
+.tutor-scene-mix { border-style: dashed; }

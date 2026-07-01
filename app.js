@@ -558,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v529';
+const APP_VERSION = 'v530';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6119,6 +6119,7 @@ function _tutorRenderCoachDashboard() {
     ).join('');
     // Skill do dia — rotação por dia-do-ano para variar sem repetir.
     const skills = [
+        { id: 'meet',     emoji: '🤝', title: 'Meetings',      sub: 'Frases de reunião — ouve, diz em voz alta, domina (offline)', fn: '_tutorCoachMeeting()' },
         { id: 'writing',  emoji: '📝', title: 'Writing',       sub: '100-150 words + AI rubric (Task/Coherence/Range/Accuracy)', fn: '_tutorCoachWriting()' },
         { id: 'pron',     emoji: '🗣️', title: 'Pronunciation', sub: 'Read aloud · Voxtral STT · linking/stress feedback',         fn: '_tutorCoachPron()' },
         { id: 'vocab',    emoji: '📚', title: 'Collocations',  sub: '10 collocations + phrasal verbs at your level',              fn: '_tutorCoachVocab()' },
@@ -6164,7 +6165,7 @@ function _tutorRenderCoachDashboard() {
         <div class="tutor-coach">
           <div class="tutor-coach-head">
             <div class="tutor-coach-h">🎯 Your Coach</div>
-            <div class="tutor-coach-meta">progress ladder: <b>${escapeHtml(userLvl)}</b> · this week: <b>${doneCount}/7</b></div>
+            <div class="tutor-coach-meta">progress ladder: <b>${escapeHtml(userLvl)}</b> · this week: <b>${doneCount}/${skills.length}</b></div>
           </div>
           <div class="tutor-coach-lv-row">target level: <span class="tutor-coach-lvs">${lvChips}</span></div>
           <div class="tutor-coach-today">
@@ -6210,6 +6211,7 @@ function _tutorCoachStart(skillId) {
     }
     const rowsBefore = chat ? chat.querySelectorAll('.tutor-row').length : 0;
     const map = {
+        meet: _tutorCoachMeeting,
         writing: _tutorCoachWriting,
         pron: _tutorCoachPron,
         vocab: _tutorCoachVocab,
@@ -6331,26 +6333,60 @@ async function _tutorCoachPron() {
     const lv = _tutorTargetLevel();
     const banks = {
         B1: [
-            "If I had more time, I would learn another language.",
-            "The meeting has been postponed until next Tuesday."
+            "The meeting has been postponed until next Tuesday.",
+            "Could you send me the report before the end of the day?",
+            "We are still waiting for feedback from the client.",
+            "I think we should talk about the budget first.",
+            "Let me check the calendar and get back to you.",
+            "The team finished the first phase last week.",
+            "If I had more time, I would test everything again.",
+            "Can we move our call to Thursday morning?",
+            "There is a small problem with the latest release.",
+            "I will share my screen so everyone can see the plan."
         ],
         B2: [
             "Although the proposal looks promising, it's not without risks.",
-            "I'd rather not commit to a date before checking with the team."
+            "I'd rather not commit to a date before checking with the team.",
+            "We're slightly behind schedule, mainly because of the integration tests.",
+            "Let's take that discussion offline and focus on the agenda.",
+            "Unless something unexpected comes up, we'll deliver on Friday.",
+            "I'd like to walk you through the main findings of the audit.",
+            "The sooner we get sign-off, the sooner we can start development.",
+            "To be honest, I have some concerns about the current timeline.",
+            "Could you clarify what you mean by a soft launch?",
+            "We should weigh the benefits against the migration costs."
         ],
         C1: [
             "Had I known the deadline was so tight, I would have escalated sooner.",
-            "Not only did we hit the target, but we also exceeded our forecast."
+            "Not only did we hit the target, but we also exceeded our forecast.",
+            "What I'd suggest is that we phase the rollout across three regions.",
+            "By the time the audit concludes, we'll have addressed most findings.",
+            "Should any blockers arise, please flag them immediately in the channel.",
+            "The figures ought to have been validated before the steering committee.",
+            "Rarely have I seen a go-live proceed this smoothly.",
+            "Provided the client signs off today, we can freeze the scope tomorrow.",
+            "It's worth bearing in mind that the vendor has slipped twice already.",
+            "Having weighed both options, I'd lean towards the phased approach."
         ],
         C2: [
             "Were it not for the board's intervention, the merger would have collapsed.",
-            "It is precisely the unpredictable nature of innovation that makes it so valuable."
+            "It is precisely the unpredictable nature of innovation that makes it so valuable.",
+            "Suffice it to say, the stakeholders were less than impressed with the delay.",
+            "Far be it from me to question the strategy, but the numbers warrant scrutiny.",
+            "No sooner had we stabilised the platform than a new requirement emerged.",
+            "The proposal, however compelling on paper, glosses over the operational risks.",
+            "Under no circumstances should we commit to a date without contingency.",
+            "What the post-mortem revealed was a systemic failure of communication.",
+            "Had the dependencies been mapped earlier, the slippage could have been averted.",
+            "Seldom does a programme of this scale conclude without scope disputes."
         ]
     };
     const opts = banks[lv] || banks.B2;
     const sentence = opts[Math.floor(Math.random() * opts.length)];
     const tid = 'coach-pron-' + Date.now();
-    tutorState._pron = { tid, sentence, lv };
+    // target: alinha com o scorer local (_tutorEvalPron) — antes só guardava
+    // "sentence" e a avaliação corria contra undefined (skill partida).
+    tutorState._pron = { tid, target: sentence, reply: '', coachLv: lv };
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">🗣️</div>
         <div class="tutor-coach-task">
@@ -6364,29 +6400,22 @@ async function _tutorCoachPron() {
 }
 window._tutorCoachPron = _tutorCoachPron;
 
-// _tutorTranscribeVoxtral chama _tutorEvalPron quando tutorState._pron está activo.
-async function _tutorEvalPron(heard) {
-    if (!tutorState || !tutorState._pron) return;
-    const { sentence, lv } = tutorState._pron;
-    tutorState._pron = null;
-    const sys = `You are a CEFR examiner at level ${lv}. Compare a target sentence to a student's spoken attempt. Return ONLY JSON with keys: matchPct (0-100 estimate), correctWords (array of words present), missedWords (array missing), score (one of A2/B1/B2/C1/C2), feedback (markdown, 3 bullets about pronunciation: linking, weak forms, stress).`;
+// Feedback IA extra sobre uma leitura em voz alta (linking/stress/weak forms).
+// NOTA: antes chamava-se _tutorEvalPron e colidia com o scorer local (a segunda
+// declaração vencia), pelo que nunca corria e a skill Pronunciation avaliava
+// contra undefined. Agora o scorer local corre sempre e este é o bónus IA.
+async function _tutorCoachPronAI(heard, sentence, lv) {
+    const sys = `You are a CEFR examiner at level ${lv}. Compare a target sentence to a student's spoken attempt. Return ONLY JSON with keys: score (one of A2/B1/B2/C1/C2), feedback (markdown, 3 short bullets about pronunciation: linking, weak forms, stress — practical, encouraging).`;
     const usr = `Target: "${sentence}"\nStudent said: "${heard}"`;
-    _tutorAddTutor('🎧 Analysing your pronunciation…');
     try {
         const j = await _askMistralJSON(sys, usr);
-        const star = (n) => '★'.repeat(Math.round(n/20)) + '☆'.repeat(5 - Math.round(n/20));
-        _tutorAddTutor(`🗣️ **Pronunciation feedback** · target ${lv} · grade **${escapeHtml(j.overall || j.score || '?')}**
+        if (!j || !j.feedback) return;
+        _tutorAddTutor(`🎧 **Coach feedback** · target ${lv} · grade **${escapeHtml(j.score || '?')}**
 
-You said: _"${escapeHtml(heard)}"_
-
-**Match:** ${star(j.matchPct||0)} ${j.matchPct||0}%
-
-${j.feedback || ''}`);
-    } catch (e) {
-        _tutorAddTutor('⚠️ Could not analyse — try again.');
-    }
+${j.feedback}`);
+    } catch (e) { /* bónus opcional — silêncio se a IA falhar */ }
 }
-window._tutorEvalPron = _tutorEvalPron;
+window._tutorCoachPronAI = _tutorCoachPronAI;
 
 // === COLLOCATIONS DRILL ===
 // Pede 10 collocations ao nível, com exemplos e drills cloze.
@@ -6451,6 +6480,233 @@ async function _askMistralJSON(sys, usr) {
     return JSON.parse(txt || '{}');
 }
 window._askMistralJSON = _askMistralJSON;
+
+// === MEETINGS — frases funcionais de reunião (treino oral, 100% offline) ===
+// Banco curado de linguagem funcional: o que realmente se diz numa reunião.
+// Cada frase tem gloss PT. O treino é ouvir→dizer em voz alta→score local
+// (não precisa de chave IA para avaliar; STT usa Voxtral ou WebSpeech).
+const _TUTOR_MEETING_PHRASES = [
+    { id: 'open', icon: '🚪', label: 'Abrir a reunião', phrases: [
+        { en: "Thanks for joining, everyone. Let's get started.", pt: 'Obrigado por virem. Vamos começar.' },
+        { en: "The goal of today's meeting is to align on the timeline.", pt: 'O objetivo de hoje é alinhar o calendário.' },
+        { en: "We have thirty minutes, so let's keep it focused.", pt: 'Temos 30 minutos, vamos ser objetivos.' },
+        { en: "Before we dive in, let's do a quick round of updates.", pt: 'Antes de avançar, uma ronda rápida de updates.' },
+        { en: "Let's quickly run through the agenda.", pt: 'Vamos passar rapidamente pela agenda.' },
+        { en: "Can everyone see my screen?", pt: 'Estão todos a ver o meu ecrã?' },
+        { en: "Shall we wait two more minutes for the others?", pt: 'Esperamos mais 2 minutos pelos outros?' },
+        { en: "I'd like to keep the last five minutes for next steps.", pt: 'Quero guardar os últimos 5 min para próximos passos.' }
+    ]},
+    { id: 'interrupt', icon: '✋', label: 'Interromper com educação', phrases: [
+        { en: "Sorry to interrupt, but may I add something?", pt: 'Desculpem interromper — posso acrescentar algo?' },
+        { en: "Can I jump in here for a second?", pt: 'Posso entrar aqui um segundo?' },
+        { en: "Before we move on, I have a quick question.", pt: 'Antes de avançarmos, uma pergunta rápida.' },
+        { en: "Could I just finish my thought?", pt: 'Posso só terminar o raciocínio?' },
+        { en: "Let's take that offline — we're running short on time.", pt: 'Falamos disso à parte — estamos sem tempo.' },
+        { en: "Hold that thought — we'll come back to it.", pt: 'Guarda essa ideia — voltamos já a ela.' },
+        { en: "If I may, I'd like to go back to the budget point.", pt: 'Se me permitem, volto ao ponto do orçamento.' },
+        { en: "That's a fair point, but let me push back a little.", pt: 'É um bom ponto, mas deixa-me contrapor.' }
+    ]},
+    { id: 'clarify', icon: '🔍', label: 'Esclarecer e confirmar', phrases: [
+        { en: "Just to make sure I understood — you want this by Friday?", pt: 'Só para confirmar — queres isto até sexta?' },
+        { en: "Could you walk me through that again?", pt: 'Podes explicar-me isso outra vez, passo a passo?' },
+        { en: "What exactly do you mean by 'at risk'?", pt: 'O que queres dizer exatamente com "em risco"?' },
+        { en: "So, in other words, we need sign-off first. Correct?", pt: 'Ou seja, precisamos de aprovação primeiro. Certo?' },
+        { en: "Could you give me a concrete example?", pt: 'Podes dar-me um exemplo concreto?' },
+        { en: "When you say 'soon', do you mean this week?", pt: 'Quando dizes "em breve", é esta semana?' },
+        { en: "Let me rephrase that to check my understanding.", pt: 'Deixa-me reformular para confirmar que percebi.' },
+        { en: "To summarise: two blockers, one decision pending.", pt: 'Resumindo: dois bloqueios, uma decisão pendente.' }
+    ]},
+    { id: 'disagree', icon: '⚖️', label: 'Discordar com diplomacia', phrases: [
+        { en: "I see your point, but I have a different view.", pt: 'Percebo o teu ponto, mas vejo de outra forma.' },
+        { en: "I'm not sure I fully agree with that approach.", pt: 'Não sei se concordo totalmente com essa abordagem.' },
+        { en: "That could work; however, there's a risk we're missing.", pt: 'Pode resultar; porém, há um risco que nos escapa.' },
+        { en: "With respect, the data tells a different story.", pt: 'Com todo o respeito, os dados dizem outra coisa.' },
+        { en: "Fair enough, but have we considered the cost side?", pt: 'Justo, mas já pensámos no lado dos custos?' },
+        { en: "I hear you — my concern is the go-live date.", pt: 'Estou a ouvir-te — a minha preocupação é o go-live.' },
+        { en: "I'd challenge the assumption that users will migrate quickly.", pt: 'Questiono a ideia de que os users migram depressa.' },
+        { en: "Let's agree to disagree and test both options.", pt: 'Concordemos em discordar e testemos as duas opções.' }
+    ]},
+    { id: 'buytime', icon: '⏳', label: 'Ganhar tempo', phrases: [
+        { en: "That's a good question. Let me get back to you by tomorrow.", pt: 'Boa pergunta. Respondo-te até amanhã.' },
+        { en: "I don't have the numbers at hand — I'll follow up after the call.", pt: 'Não tenho os números à mão — envio depois da call.' },
+        { en: "Let me double-check with the team before I commit.", pt: 'Deixa-me confirmar com a equipa antes de me comprometer.' },
+        { en: "Off the top of my head, around twenty percent — I'll confirm.", pt: 'De cabeça, uns 20% — depois confirmo.' },
+        { en: "I'd rather not guess — I'll send the exact figure today.", pt: 'Prefiro não adivinhar — envio o valor exato hoje.' },
+        { en: "Give me a second to think that through.", pt: 'Dá-me um segundo para pensar nisso.' },
+        { en: "We'll need to look into it and come back with a proposal.", pt: 'Temos de analisar e voltar com uma proposta.' },
+        { en: "Can I take an action to investigate and report back?", pt: 'Fico com a ação de investigar e reportar?' }
+    ]},
+    { id: 'status', icon: '📊', label: 'Estado, prazos e números', phrases: [
+        { en: "We're on track to deliver by the end of the month.", pt: 'Estamos no bom caminho para entregar até ao fim do mês.' },
+        { en: "We're two weeks behind schedule, mainly due to testing.", pt: 'Estamos 2 semanas atrasados, sobretudo pelos testes.' },
+        { en: "We've completed roughly eighty percent of the migration.", pt: 'Concluímos cerca de 80% da migração.' },
+        { en: "The deadline has slipped from March to mid-April.", pt: 'O prazo deslizou de março para meados de abril.' },
+        { en: "The main blocker is the pending approval from finance.", pt: 'O principal bloqueio é a aprovação pendente de finanças.' },
+        { en: "The risk is under control, but I'm watching it closely.", pt: 'O risco está controlado, mas estou atento.' },
+        { en: "Costs are within budget, with a small buffer left.", pt: 'Custos dentro do orçamento, com uma pequena folga.' },
+        { en: "The next milestone is user acceptance testing, starting Monday.", pt: 'Próximo marco: testes de aceitação, a partir de 2.ª feira.' }
+    ]},
+    { id: 'close', icon: '✅', label: 'Fechar e próximos passos', phrases: [
+        { en: "Let's wrap up — here are the key takeaways.", pt: 'Vamos fechar — eis os pontos-chave.' },
+        { en: "To recap: three actions, all due by Friday.", pt: 'Recapitulando: 3 ações, todas até sexta.' },
+        { en: "I'll send the minutes and the action list today.", pt: 'Envio hoje a ata e a lista de ações.' },
+        { en: "Let's schedule a follow-up for the same time next week.", pt: 'Marcamos follow-up à mesma hora, para a semana.' },
+        { en: "Anything else before we close?", pt: 'Mais alguma coisa antes de fecharmos?' },
+        { en: "Thanks, everyone — great progress today.", pt: 'Obrigado a todos — grande progresso hoje.' },
+        { en: "John will own the follow-up on the data issue.", pt: 'O John fica dono do follow-up do tema dos dados.' },
+        { en: "If anything comes up, just ping me on Teams.", pt: 'Se surgir algo, manda-me mensagem no Teams.' }
+    ]},
+    { id: 'social', icon: '☕', label: 'Small talk profissional', phrases: [
+        { en: "How was your weekend? Did you get some rest?", pt: 'Como foi o fim de semana? Descansaste?' },
+        { en: "How's the weather over there in Munich?", pt: 'Como está o tempo aí em Munique?' },
+        { en: "Did you have a good holiday? Where did you go?", pt: 'Correram bem as férias? Onde foste?' },
+        { en: "Before we start — congratulations on the go-live!", pt: 'Antes de começarmos — parabéns pelo go-live!' },
+        { en: "Busy week? I saw the release kept everyone up.", pt: 'Semana cheia? Vi que a release deu trabalho.' },
+        { en: "It's been a while! Great to see you again.", pt: 'Há quanto tempo! Que bom ver-te outra vez.' },
+        { en: "How's the new office working out?", pt: 'Como está a correr o escritório novo?' },
+        { en: "Enjoy your evening — talk soon.", pt: 'Boa noite — falamos em breve.' }
+    ]}
+];
+function _tutorMeetMastery() {
+    if (!state.tutorMeetPhrases) state.tutorMeetPhrases = {};
+    return state.tutorMeetPhrases;
+}
+function _tutorCoachMeeting() {
+    const chat = document.getElementById('tutor-chat'); if (!chat) return;
+    const m = _tutorMeetMastery();
+    const cats = _TUTOR_MEETING_PHRASES.map(c => {
+        const done = c.phrases.filter((p, i) => (m[c.id + ':' + i] || 0) >= 1).length;
+        return `<button class="tutor-scene-btn" onclick="_tutorMeetingStart('${c.id}')"><span>${c.icon} ${escapeHtml(c.label)}</span><small>${done}/${c.phrases.length} dominadas</small></button>`;
+    }).join('');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🤝</div>
+        <div class="tutor-weak">
+          <div class="tutor-weak-h">🤝 Frases de reunião — ouve, diz em voz alta, domina</div>
+          <div class="tutor-scenes">${cats}
+            <button class="tutor-scene-btn tutor-scene-mix" onclick="_tutorMeetingStart('mix')"><span>🎲 Mistura rápida</span><small>8 frases de todas as categorias</small></button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+window._tutorCoachMeeting = _tutorCoachMeeting;
+function _tutorMeetingStart(catId) {
+    if (!tutorState) return;
+    const m = _tutorMeetMastery();
+    let pool = [];
+    if (catId === 'mix') {
+        _TUTOR_MEETING_PHRASES.forEach(c => c.phrases.forEach((p, i) =>
+            pool.push({ ...p, key: c.id + ':' + i, cat: c })));
+    } else {
+        const c = _TUTOR_MEETING_PHRASES.find(x => x.id === catId); if (!c) return;
+        c.phrases.forEach((p, i) => pool.push({ ...p, key: c.id + ':' + i, cat: c }));
+    }
+    // Menos dominadas primeiro; empates baralhados para variar entre sessões.
+    pool.forEach(p => { p._r = Math.random(); });
+    pool.sort((a, b) => ((m[a.key] || 0) - (m[b.key] || 0)) || (a._r - b._r));
+    const queue = pool.slice(0, catId === 'mix' ? 8 : 6);
+    tutorState._mq = { queue, catId, total: queue.length, firstTry: 0, attempted: 0, retried: false };
+    _tutorMeetingAsk();
+}
+window._tutorMeetingStart = _tutorMeetingStart;
+function _tutorMeetingAsk() {
+    const mq = tutorState && tutorState._mq;
+    if (!mq || !mq.queue.length) return;
+    const p = mq.queue[0];
+    mq.retried = false;
+    tutorState._pron = { target: p.en, reply: '', meeting: true };
+    const n = mq.total - mq.queue.length + 1;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">${p.cat.icon}</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">${p.cat.icon} ${escapeHtml(p.cat.label)} · ${n}/${mq.total}</div>
+          <div class="tutor-pron-target">${escapeHtml(p.en)} <button class="tutor-say" data-text="${escapeHtml(p.en)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-meet-pt">${escapeHtml(p.pt)}</div>
+          <div class="tutor-pron-hint">Ouve o modelo, toca no micro e diz a frase em voz alta.</div>
+        </div>
+      </div>`);
+    _tutorScrollToLastTop();
+    _tutorRenderPronBar();
+    if (typeof speakEN === 'function') setTimeout(() => { if (tutorState && tutorState._pron) speakEN(p.en, 'en-US'); }, 300);
+}
+function _tutorEvalMeeting(said, score, words, pron) {
+    const mq = tutorState && tutorState._mq;
+    if (!mq || !mq.queue.length) { _tutorRenderMic(); return; }
+    const p = mq.queue[0];
+    said = (said || '').trim();
+    const pass = !!said && score >= 75;
+    const wordsHtml = words.map(x => {
+        if (!x.scorable) return `<span class="tutor-pw">${escapeHtml(x.w)}</span>`;
+        const cls = x.ok ? 'ok' : (x.close ? 'close' : 'no');
+        return `<span class="tutor-pw ${cls}">${escapeHtml(x.w)}</span>`;
+    }).join(' ');
+    let verdict, cls;
+    if (!said) { verdict = 'Não ouvi nada — toca no micro e diz outra vez.'; cls = 'no'; }
+    else if (pass && score >= 90) { verdict = 'Excelente! Pronta a usar na próxima reunião.'; cls = 'ok'; }
+    else if (pass) { verdict = 'Boa! Disseste-a bem.'; cls = 'ok'; }
+    else { verdict = 'Quase — ouve o modelo e foca as palavras a vermelho.'; cls = 'mid'; }
+    if (pass) {
+        if (!mq.retried) mq.firstTry++;
+        const m = _tutorMeetMastery();
+        m[p.key] = (m[p.key] || 0) + 1;
+        try { saveState && saveState(); } catch {}
+    }
+    const btns = pass
+        ? `<button class="tutor-lbtn prac" onclick="_tutorMeetingNext()"><i class="fas fa-arrow-right"></i> Próxima frase</button>`
+        : `<button class="tutor-lbtn rep" onclick="_tutorMeetingRetry()"><i class="fas fa-repeat"></i> Ouvir e repetir</button><button class="tutor-lbtn cont" onclick="_tutorMeetingNext()"><i class="fas fa-forward"></i> Saltar</button>`;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🎯</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">🎯 Resultado ${pass ? '· ✅' : ''}</div>
+          <div class="tutor-pron-score s-${cls}">${said ? score + '%' : '—'}</div>
+          <div class="tutor-pron-words">${wordsHtml}</div>
+          ${said ? `<div class="tutor-pron-said">Ouvi: "${escapeHtml(said)}"</div>` : ''}
+          <div class="tutor-explain">${verdict}</div>
+          <div class="tutor-lesson-btns2">${btns}
+            <button class="tutor-save" data-text="${escapeHtml(p.en)}" data-note="${escapeHtml(p.pt)}" data-topic="${escapeHtml(p.cat.label)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderPronBar();
+}
+function _tutorMeetingRetry() {
+    const mq = tutorState && tutorState._mq;
+    if (!mq || !mq.queue.length) return;
+    mq.retried = true;
+    const p = mq.queue[0];
+    tutorState._pron = { target: p.en, reply: '', meeting: true };
+    if (typeof speakEN === 'function') speakEN(p.en, 'en-US');
+    _tutorRenderPronBar();
+}
+window._tutorMeetingRetry = _tutorMeetingRetry;
+function _tutorMeetingNext() {
+    const mq = tutorState && tutorState._mq;
+    if (tutorState) tutorState._pron = null;
+    if (!mq) { _tutorRenderMic(); return; }
+    mq.attempted++;
+    mq.queue.shift();
+    if (mq.queue.length) { setTimeout(() => { if (tutorState && tutorState._mq) _tutorMeetingAsk(); }, 400); return; }
+    // Fim da ronda — resumo + ponte natural para usar as frases num roleplay.
+    tutorState._mq = null;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🏁</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">🏁 Ronda terminada — ${mq.firstTry}/${mq.total} à primeira</div>
+          <div class="tutor-explain">${mq.firstTry >= mq.total * 0.75 ? 'Muito fluido! Agora usa-as numa reunião a sério:' : 'Bom treino. Repete amanhã para consolidar, ou testa já numa reunião:'}</div>
+          <div class="tutor-lesson-btns2">
+            <button class="tutor-lbtn prac" onclick="_tutorRenderRoleplayPrompt()"><i class="fas fa-comments"></i> Roleplay</button>
+            <button class="tutor-lbtn cont" onclick="_tutorCoachMeeting()"><i class="fas fa-list"></i> Outra categoria</button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderMic();
+}
+window._tutorMeetingNext = _tutorMeetingNext;
 
 function _tutorLearnTopicBtn(el) {
     const t = el && el.dataset && el.dataset.topic;
@@ -6726,6 +6982,12 @@ function _tutorEvalPron(said) {
     said = (said || '').trim();
     const { score, words, okCount, closeCount, totalCount } = _tutorPronEval(said, pron.target);
     if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
+    if (pron.meeting) { _tutorEvalMeeting(said, score, words, pron); return; }
+    // Skill Pronunciation do coach: além do resultado local, pede feedback IA
+    // (linking/stress) em fundo — se houver chave configurada.
+    if (pron.coachLv && said && typeof hasAIKey === 'function' && hasAIKey()) {
+        setTimeout(() => { try { _tutorCoachPronAI(said, pron.target, pron.coachLv); } catch {} }, 400);
+    }
     const wordsHtml = words.map(x => {
         if (!x.scorable) return `<span class="tutor-pw">${escapeHtml(x.w)}</span>`;
         const cls = x.ok ? 'ok' : (x.close ? 'close' : 'no');
@@ -6765,7 +7027,7 @@ function _tutorPronRetry() {
 function _tutorEndPron(cont) {
     const pron = tutorState && tutorState._pron;
     const reply = pron && pron.reply;
-    if (tutorState) tutorState._pron = null;
+    if (tutorState) { tutorState._pron = null; tutorState._mq = null; }
     if (cont && reply) _tutorAddTutor(reply, '', '', true);
     else _tutorRenderMic();
 }
