@@ -558,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v530';
+const APP_VERSION = 'v531';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5592,6 +5592,7 @@ function _tutorStartRoleplay(sceneId) {
     const sc = _TUTOR_SCENES.find(s => s.id === sceneId); if (!sc || !tutorState) return;
     tutorState._roleplay = sc;
     tutorState._ask = null; tutorState._pron = null; tutorState._pending = null; tutorState.drill = null;
+    tutorState._rpFixes = null;
     const chat = document.getElementById('tutor-chat');
     if (chat) {
         chat.insertAdjacentHTML('beforeend', `
@@ -5628,7 +5629,11 @@ Give a SHORT debrief in EUROPEAN PORTUGUESE (Portugal, never Brazilian). Return 
         if (tutorState) { _tutorRenderMic(); _tutorShowDebrief(sc, d); }
     } catch (e) {
         console.warn('[tutor] debrief failed', e);
-        if (tutorState) _tutorAddTutor('Boa sessão! Continuamos quando quiseres.', '', '', true);
+        if (tutorState) {
+            // Mesmo sem IA, mostra as correções acumuladas da cena.
+            if ((tutorState._rpFixes || []).length) { _tutorRenderMic(); _tutorShowDebrief(sc, {}); }
+            else _tutorAddTutor('Boa sessão! Continuamos quando quiseres.', '', '', true);
+        }
     }
 }
 window._tutorEndRoleplay = _tutorEndRoleplay;
@@ -5639,6 +5644,18 @@ function _tutorShowDebrief(sc, d) {
         : ach === 'parcial' ? '<span class="dbf-badge mid">Parcialmente</span>'
         : ach === 'não' || ach === 'nao' ? '<span class="dbf-badge no">Não cumprido</span>' : '';
     const improve = Array.isArray(d.improve) ? d.improve.slice(0, 3) : [];
+    // Correções acumuladas durante a cena (mostradas só agora, para a reunião fluir)
+    const fixes = ((tutorState && tutorState._rpFixes) || []).slice(0, 6);
+    if (tutorState) tutorState._rpFixes = null;
+    const fixesHtml = fixes.length ? `
+          <div class="tutor-ex-label">✏️ Frases corrigidas durante a reunião</div>
+          ${fixes.map(f => `<div class="dbf-fix">
+            <span class="dbf-fix-said">${escapeHtml(f.said)}</span>
+            <span class="dbf-fix-ok">→ ${escapeHtml(f.corrected)}
+              <button class="tutor-say" data-text="${escapeHtml(f.corrected)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+              <button class="tutor-save" data-text="${escapeHtml(f.corrected)}" data-note="${escapeHtml(f.explanation)}" data-topic="${escapeHtml(f.errorType)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+            </span>
+          </div>`).join('')}` : '';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">🎭</div>
@@ -5647,6 +5664,7 @@ function _tutorShowDebrief(sc, d) {
           ${d.summary ? `<div class="tutor-explain">${escapeHtml(d.summary)}</div>` : ''}
           ${d.good ? `<div class="dbf-good">✅ ${escapeHtml(d.good)}</div>` : ''}
           ${improve.length ? `<div class="tutor-ex-label">A melhorar</div><ul class="tutor-pitfalls">${improve.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : ''}
+          ${fixesHtml}
           <button class="tutor-lbtn prac full" onclick="_tutorRenderRoleplayPrompt()"><i class="fas fa-comments"></i> Nova cena</button>
         </div>
       </div>`);
@@ -7441,7 +7459,16 @@ function _tutorHandleInput(said) {
             const cont = d.pendingReply ? (' ' + d.pendingReply) : '';
             _tutorAddTutor('Perfect!' + cont, '', '', true);
         } else {
-            _tutorAddTutor(`Almost — say it like this: ${d.expected}`, '', '', true);
+            // Máximo 2 tentativas falhadas — depois a conversa segue em vez de
+            // prender o utilizador num loop de "Almost — say it like this".
+            d.tries = (d.tries || 0) + 1;
+            if (d.tries >= 2) {
+                tutorState.drill = null;
+                const cont = d.pendingReply ? (' ' + d.pendingReply) : '';
+                _tutorAddTutor("Good effort — we'll come back to that one. Let's keep going!" + cont, '', '', true);
+            } else {
+                _tutorAddTutor(`Almost — say it like this: ${d.expected}`, '', '', true);
+            }
         }
         return;
     }
@@ -7632,6 +7659,22 @@ function _tutorFluidCorrection(d) {
     if (!chat) return;
     const topic = d.lessonTitle || d.errorType || '';
     tutorState._lastRecast = d.corrected || '';
+    // Em ROLEPLAY a reunião não pára para aulas: mostra só o recast numa linha
+    // discreta e acumula a correção para o debrief no fim da cena.
+    if (tutorState._roleplay) {
+        tutorState._rpFixes = tutorState._rpFixes || [];
+        tutorState._rpFixes.push({ said: d.said || '', corrected: d.corrected || '', errorType: d.errorType || '', explanation: d.explanation || '' });
+        if (d.errorType) { try { _tutorTrackWeak(d.errorType, false); } catch {} }
+        chat.insertAdjacentHTML('beforeend', `
+          <div class="tutor-row them"><div class="tutor-bubble-av">✏️</div>
+            <div class="tutor-fix mini">
+              <span>${escapeHtml(d.corrected || '')}</span>
+              <button class="tutor-say" data-text="${escapeHtml(d.corrected || '')}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+            </div>
+          </div>`);
+        _tutorScroll();
+        return;
+    }
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">✏️</div>
         <div class="tutor-fix">
@@ -7970,10 +8013,25 @@ function _tutorReturnTopicBtn(el) { const t = el && el.dataset && el.dataset.top
 window._tutorReturnTopicBtn = _tutorReturnTopicBtn;
 async function _tutorPracticeMistake(item, chosenIdx) {
     const pq = tutorState && tutorState._pq; if (!pq) return;
+    // Travão anti-espiral (o feedback inline do exercício já explicou o erro):
+    // só há lição de reforço para erros em exercícios de topo (depth 0), no
+    // máximo 1 por tópico e 2 por sessão. Antes, cada erro num sub-exercício
+    // inseria mais 3 sub-exercícios à frente da fila — a sessão nunca acabava
+    // e o utilizador ficava preso a repetir o mesmo problema.
+    const _depth = (item && item.depth) || 0;
+    const _tKey = String((item && item.topic) || pq.topic || '').toLowerCase();
+    pq._lessons = pq._lessons || 0;
+    pq._lessonedTopics = pq._lessonedTopics || {};
+    if (_depth >= 1 || pq._lessonedTopics[_tKey] || pq._lessons >= 2) {
+        setTimeout(() => { if (tutorState && tutorState._pq) _tutorRenderPracticeItem(); }, 400);
+        return;
+    }
     // Memória: erras muito o mesmo tópico → 1.ª vez reforça (lição completa); se continuas a errar
     // depois de ensinado, o coach decide reforçar de novo ou RECUAR a um pré-requisito mais simples.
+    // (no máximo 1 desvio profundo por sessão de prática, para a sessão fluir)
     const _deepTopic = (item && item.topic) || pq.topic || '';
-    if (_deepTopic && _tutorShouldDeepTeach(_deepTopic)) {
+    if (_deepTopic && !pq._deepDone && _tutorShouldDeepTeach(_deepTopic)) {
+        pq._deepDone = true;
         const wRec = (state.max.tutorWeak && state.max.tutorWeak[_deepTopic]) || {};
         const firstTeach = (wRec.deepTimes || 0) === 0;
         _tutorMarkDeepTaught(_deepTopic);
@@ -7998,9 +8056,11 @@ async function _tutorPracticeMistake(item, chosenIdx) {
     if (!tutorState || !tutorState._pq) return;
     if (!d) { _tutorRenderPracticeItem(); return; } // falhou — segue com o que falta
     _tutorRenderMistakeLesson(d);
+    pq._lessons++;
+    pq._lessonedTopics[_tKey] = 1;
     const subs = (Array.isArray(d.exercises) ? d.exercises : [])
         .filter(it => it && it.q && Array.isArray(it.options) && it.options.length >= 2 && typeof it.answer === 'number')
-        .slice(0, 3)
+        .slice(0, 2)
         .map(it => ({ ...it, depth: (item.depth || 0) + 1 }));
     tutorState._pq.queue.unshift(...subs); // entram antes dos que faltavam
     setTimeout(() => { if (tutorState && tutorState._pq) _tutorRenderPracticeItem(); }, 700);
