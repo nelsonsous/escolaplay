@@ -6476,3 +6476,7 @@ body.has-teacher-overlay #subject-detail-container {
 .dbf-fix { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; padding: 6px 10px; background: #f8fafc; border-radius: 10px; font-size: 0.84rem; }
 .dbf-fix-said { color: #94a3b8; text-decoration: line-through; }
 .dbf-fix-ok { color: #166534; font-weight: 600; }
+
+/* ── Suspeitos modo pick (v532): botão de pista progressiva ── */
+.sus-clue-btn { display: block; margin: 6px auto; padding: 8px 16px; border: 2px dashed #f59e0b; background: #fffbeb; color: #92400e; border-radius: 12px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+.sus-clue-btn:active { background: #fef3c7; }

@@ -558,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v531';
+const APP_VERSION = 'v532';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9311,6 +9311,11 @@ function _susStart(e) {
         solution: e.solution || '',
         clues: e.clues || [],
         story: e.story || '',
+        // Modo "pick": pergunta de escolha única (intruso/analogia/condicional/
+        // dedução) — 1 toque escolhe, sem o ciclo ❌/✅ de detetive, e as pistas
+        // ficam escondidas atrás de um botão (senão entregam a resposta).
+        pick: !!e.pick,
+        cluesShown: 0,
         solved: false
     };
 }
@@ -9321,33 +9326,58 @@ function _susRender() {
     const cards = s.suspects.map(sp => {
         const st = s.states[sp.id] || '?';
         const cls = st === '✅' ? 'pick' : (st === '❌' ? 'out' : '');
+        const stIcon = s.pick ? (st === '✅' ? '✅' : '') : st;
         return `<button class="sus-card ${cls}" onclick="_susCycle('${sp.id}')">
             <div class="sus-emoji">${sp.emoji || '🙂'}</div>
             <div class="sus-name">${escapeHtml(sp.name)}</div>
-            <div class="sus-state">${st}</div>
+            <div class="sus-state">${stIcon}</div>
         </button>`;
     }).join('');
     const story = s.story ? `<div class="sus-story">${escapeHtml(s.story)}</div>` : '';
-    const clues = s.clues.length ? `<ul class="sus-clues">${s.clues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : '';
+    let clues = '';
+    if (s.clues.length) {
+        if (s.pick) {
+            const shown = s.clues.slice(0, s.cluesShown);
+            const list = shown.length ? `<ul class="sus-clues">${shown.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : '';
+            const more = s.cluesShown < s.clues.length
+                ? `<button class="sus-clue-btn" onclick="_susMoreClue()">🔍 ${s.cluesShown === 0 ? 'Preciso de uma pista' : 'Outra pista'} (${s.cluesShown}/${s.clues.length})</button>` : '';
+            clues = list + more;
+        } else {
+            clues = `<ul class="sus-clues">${s.clues.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>`;
+        }
+    }
     const picks = Object.values(s.states).filter(v => v === '✅').length;
-    const coach = picks === 0
-        ? 'Toca nos suspeitos: 1× = ❌ (não foi), 2× = ✅ (foi), 3× = limpa.'
-        : picks > 1 ? '⚠️ Marca SÓ UM como culpado (✅).' : 'Quando tiveres a tua escolha, carrega Responder.';
+    const coach = s.pick
+        ? (picks === 0 ? 'Pensa bem e toca na tua resposta.' : 'Boa! Agora carrega Responder.')
+        : (picks === 0
+            ? 'Toca nos suspeitos: 1× = ❌ (não foi), 2× = ✅ (foi), 3× = limpa.'
+            : picks > 1 ? '⚠️ Marca SÓ UM como culpado (✅).' : 'Quando tiveres a tua escolha, carrega Responder.');
     area.innerHTML = `
       <div class="sus-wrap">
-        <div class="sus-coach"><span>🕵️</span><span>${escapeHtml(coach)}</span></div>
+        <div class="sus-coach"><span>${s.pick ? '🧠' : '🕵️'}</span><span>${escapeHtml(coach)}</span></div>
         ${story}${clues}
         <div class="sus-cards">${cards}</div>
       </div>`;
 }
 function _susCycle(id) {
     const s = susState;
-    const order = ['?', '❌', '✅'];
-    const cur = s.states[id] || '?';
-    s.states[id] = order[(order.indexOf(cur) + 1) % 3];
+    if (s.pick) {
+        // Escolha única: toca = escolhe (e desmarca os outros); toca de novo = limpa.
+        const was = s.states[id] === '✅';
+        Object.keys(s.states).forEach(k => { s.states[k] = '?'; });
+        if (!was) s.states[id] = '✅';
+    } else {
+        const order = ['?', '❌', '✅'];
+        const cur = s.states[id] || '?';
+        s.states[id] = order[(order.indexOf(cur) + 1) % 3];
+    }
     _susRender();
 }
 window._susCycle = _susCycle;
+function _susMoreClue() {
+    if (susState) { susState.cluesShown = Math.min((susState.cluesShown || 0) + 1, (susState.clues || []).length); _susRender(); }
+}
+window._susMoreClue = _susMoreClue;
 
 // ============================================================
 // PADRÃO — type:'game' game:'padrao'
@@ -9708,11 +9738,11 @@ async function submitAnswer() {
             e.exp = `Resposta certa: ${estState.answer} ${estState.unit}. Tu disseste ${estState.value} (diferença ${d}).`;
         } else if (e.type === 'game' && e.game === 'suspeitos') {
             const picks = Object.entries(susState.states).filter(([, v]) => v === '✅');
-            if (picks.length === 0) { showToast('Marca um suspeito com ✅'); return; }
+            if (picks.length === 0) { showToast(susState.pick ? 'Toca na tua resposta primeiro' : 'Marca um suspeito com ✅'); return; }
             if (picks.length > 1) { showToast('Marca SÓ UM suspeito como ✅'); return; }
             isCorrect = picks[0][0] === susState.solution;
             const name = (susState.suspects.find(sp => sp.id === susState.solution) || {}).name || susState.solution;
-            e.exp = (isCorrect ? '🎯 Acertaste — ' : 'O culpado era ') + name + '.';
+            e.exp = (isCorrect ? '🎯 Acertaste — ' : (susState.pick ? 'A resposta certa era ' : 'O culpado era ')) + name + '.';
         } else if (e.type === 'game' && e.game === 'padrao') {
             if (!padState.input) { showToast('Escreve o número em falta'); return; }
             isCorrect = padState.input === padState.answer;
@@ -10287,7 +10317,7 @@ function _buildDetailedExplanationPrompt(e, yr) {
     else if (e.type === 'game' && e.game === 'cofre' && e.solution) correctAns = 'Código: ' + e.solution;
     else if (e.type === 'game' && e.game === 'cofre_steps' && Array.isArray(e.steps)) correctAns = 'Passos: ' + e.steps.map((s, i) => (i+1) + ') ' + s.answer).join('  ');
     else if (e.type === 'game' && e.game === 'estimador' && e.answer !== undefined) correctAns = String(e.answer) + (e.unit ? ' ' + e.unit : '');
-    else if (e.type === 'game' && e.game === 'suspeitos' && e.solution) correctAns = 'Culpado: ' + ((e.suspects || []).find(sp => sp.id === e.solution) || {}).name || e.solution;
+    else if (e.type === 'game' && e.game === 'suspeitos' && e.solution) correctAns = (e.pick ? 'Resposta: ' : 'Culpado: ') + (((e.suspects || []).find(sp => sp.id === e.solution) || {}).name || e.solution);
     else if (e.type === 'game' && e.game === 'padrao' && e.answer) correctAns = String(e.answer);
     else if (e.type === 'game' && e.game === 'quantos' && e.dots !== undefined) correctAns = String(e.dots) + ' pontos';
     else if (e.type === 'game' && e.game === 'cruzados') correctAns = 'Grelha completa com todas as contas certas';
