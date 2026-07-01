@@ -558,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v528';
+const APP_VERSION = 'v529';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7194,9 +7194,11 @@ async function _tutorRespond(userText) {
     const replyInstr = rp
         ? `${rp.persona}'s in-character response in natural spoken business English (max 30 words), moving the meeting forward and pushing the student toward the objective ("${rp.objective}"), ending with a question or prompt. Stay fully in character as ${rp.persona}.`
         : `ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.`;
+    const _cefrLv = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
+    const _cefrNx = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' }[_cefrLv] || 'C1';
     const persona = rp
-        ? `You are role-playing as ${rp.persona}, ${rp.personaRole}, in a "${rp.label}" work meeting (SAP project at Sonae) with a Portuguese Project Manager (B2→C1) practising business English. In the conversation below, "Tutor" lines are YOU (${rp.persona}). Stay fully in character, but STILL correct the student's English in the JSON fields.`
-        : `You are a snappy, encouraging English tutor for a Portuguese Project Manager (B2→C1) preparing to lead SAP/consulting meetings.`;
+        ? `You are role-playing as ${rp.persona}, ${rp.personaRole}, in a "${rp.label}" work meeting (SAP project at Sonae) with a Portuguese Project Manager (${_cefrLv}→${_cefrNx}) practising business English. In the conversation below, "Tutor" lines are YOU (${rp.persona}). Stay fully in character, but STILL correct the student's English in the JSON fields. Pitch your language at ${_cefrLv} level, stretching gently toward ${_cefrNx}.`
+        : `You are a snappy, encouraging English tutor for a Portuguese Project Manager (${_cefrLv}→${_cefrNx}) preparing to lead SAP/consulting meetings. Pitch your language at ${_cefrLv} level, stretching gently toward ${_cefrNx}.`;
     const _subjT = tutorState && tutorState.subject;
     const _subjectMode = !!(_subjT && !_subjT.isEnglish);
     const prompt = _subjectMode
@@ -7510,7 +7512,7 @@ QUALIDADE (crítico): exatamente UMA lacuna "___" por frase quando aplicável; u
 LÍNGUA (crítico): TUDO em Português Europeu (Portugal). "q", "options", "exp", "expPt" e "topic" em PT-PT. Linguagem adequada ao ${_sGP.year}.º ano.
 Devolve APENAS um array JSON STRICT:
 [{"q":"enunciado PT-PT","options":["A","B","C"],"answer":0,"exp":"explicação PT-PT 1 linha","expPt":"nota PT-PT curta","topic":"categoria PT-PT"}]`
-        : `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (B2→C1) in SAP/consulting meetings.
+        : `Create 3 quick multiple-choice exercises to practise "${errorType}" in English, for a Portuguese Project Manager (${(typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2'} level, working toward the next CEFR level) in SAP/consulting meetings.
 Each exercise: a short sentence with a gap (use ___) or a best-choice question, exactly 3 options, the index (0-2) of the correct one, "exp" = 1-line explanation in ENGLISH, "expPt" = the same idea as ONE short EUROPEAN PORTUGUESE note (max 12 words), and "topic" = the error category it trains.
 QUALITY RULES (critical): exactly ONE blank "___" per sentence; the correct answer must NOT already appear elsewhere in the sentence (e.g. never write "She has ___ always worked" with answer "always"); exactly ONE option is correct and reads naturally in the gap, the other two must be clearly WRONG in that sentence; once filled, the sentence must be natural, grammatical English; each option must be a distinct plausible fit for the gap.
 LANGUAGE RULES (critical): "q" and all "options" MUST be in ENGLISH (keep it immersive). "exp" in ENGLISH. "expPt" in EUROPEAN PORTUGUESE (Portugal, never Brazilian) BUT keep grammar term names in English. "topic" = the category in ENGLISH grammar terminology (e.g. "Past Simple", "Prepositions", "Connectors", "Articles", "Word order").
@@ -7745,7 +7747,7 @@ async function _tutorPracticeMistake(item, chosenIdx) {
 async function callPracticeMistake(item, chosenIdx) {
     const correct = item.options[item.answer] || '';
     const chosen = item.options[chosenIdx] || '';
-    const prompt = `A Portuguese Project Manager (B2→C1) learning English just got this practice exercise WRONG.
+    const prompt = `A Portuguese Project Manager (${(typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2'} level, working toward the next CEFR level) learning English just got this practice exercise WRONG.
 Exercise: "${item.q}"
 Options: ${item.options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join(' | ')}
 Correct option: "${correct}"
@@ -8476,7 +8478,7 @@ async function aiValidateSpeech(exercise, transcript) {
         if (localRatio >= 0.4) return { status: 'close', corrected: exercise.ans[0], tip: 'Tens metade da ideia — repete devagar a frase modelo.' };
         return { status: 'wrong', corrected: exercise.ans[0], tip: 'Ouve o modelo e tenta repetir a estrutura.' };
     }
-    const prompt = `You are an English coach evaluating a Portuguese Project Manager (B2→C1) preparing for SAP/consulting meetings.
+    const prompt = `You are an English coach evaluating a Portuguese Project Manager (${(typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2'} level, working toward the next CEFR level) preparing for SAP/consulting meetings.
 
 CONTEXT (Portuguese, what the student should say in English): "${exercise.q}"
 MODEL ANSWER(S): "${expected}"
