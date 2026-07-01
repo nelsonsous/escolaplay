@@ -6469,3 +6469,10 @@ body.has-teacher-overlay #subject-detail-container {
 /* ── Meetings (frases de reunião, v530) ── */
 .tutor-meet-pt { font-size: 0.82rem; color: #64748b; font-style: italic; margin: 4px 0 6px; }
 .tutor-scene-mix { border-style: dashed; }
+
+/* ── Fluxo do tutor (v531): recast compacto no roleplay + debrief ── */
+.tutor-fix.mini { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 0.85rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; }
+.tutor-fix.mini::before { content: '✏️ '; }
+.dbf-fix { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; padding: 6px 10px; background: #f8fafc; border-radius: 10px; font-size: 0.84rem; }
+.dbf-fix-said { color: #94a3b8; text-decoration: line-through; }
+.dbf-fix-ok { color: #166534; font-weight: 600; }
