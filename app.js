@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v551';
+const APP_VERSION = 'v552';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9848,7 +9848,15 @@ async function submitAnswer() {
         } else if (e.type === 'order') {
             isCorrect = orderState.every((it, i) => it === e.items[i]);
         } else if (e.type === 'game' && e.game === 'sudoku4') {
-            if (!sudokuState.solved) { showToast('Termina o sudoku primeiro'); return; }
+            if (!sudokuState.solved) {
+                const _full = sudokuState.grid.every(v => v !== 0);
+                // Cheio mas não resolvido = há conflitos (mesma célula repete na
+                // linha/coluna/bloco). Não digas "termina" — ela acha que terminou.
+                showToast(_full
+                    ? '🔎 Ainda há conflitos — corrige as células a vermelho (ou usa 💡 Pista)'
+                    : 'Preenche todas as células primeiro');
+                return;
+            }
             isCorrect = true;
             const stars = '⭐'.repeat(Math.max(1, 3 - sudokuState.hintsUsed));
             const hintsLine = sudokuState.hintsUsed === 0
