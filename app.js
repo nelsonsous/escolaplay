@@ -90,6 +90,39 @@ const LEVELS = [
 ];
 const XP_BY_DIFF = { 1: 10, 2: 20, 3: 30 };
 const DAILY_QUESTIONS = 5;      // 1 por disciplina (temos 5)
+
+// ── Temas de cor por perfil ("a minha cor") — personalização ─────────────
+// Cada tema define o trio de variáveis --primary/--dark/--light que pintam
+// cabeçalho, botões e barras. Guardado por perfil (state.theme).
+const THEMES = [
+    { id: 'rosa',     name: 'Rosa',     emoji: '🌸', primary: '#f472b6', dark: '#db2777', light: '#fce7f3' },
+    { id: 'azul',     name: 'Azul',     emoji: '💙', primary: '#38bdf8', dark: '#0284c7', light: '#e0f2fe' },
+    { id: 'roxo',     name: 'Roxo',     emoji: '🔮', primary: '#a78bfa', dark: '#7c3aed', light: '#ede9fe' },
+    { id: 'verde',    name: 'Verde',    emoji: '🌿', primary: '#34d399', dark: '#059669', light: '#d1fae5' },
+    { id: 'laranja',  name: 'Laranja',  emoji: '🧡', primary: '#fb923c', dark: '#ea580c', light: '#ffedd5' },
+    { id: 'turquesa', name: 'Turquesa', emoji: '🐬', primary: '#2dd4bf', dark: '#0d9488', light: '#ccfbf1' }
+];
+function applyTheme(id) {
+    const t = THEMES.find(x => x.id === id) || THEMES[0];
+    const r = document.documentElement.style;
+    r.setProperty('--primary', t.primary);
+    r.setProperty('--primary-dark', t.dark);
+    r.setProperty('--primary-light', t.light);
+    // Cor da barra do navegador (mobile) acompanha o tema.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', t.primary);
+}
+function _currentTheme() { return (state && state.theme) || 'rosa'; }
+function selectTheme(id) {
+    if (!THEMES.some(t => t.id === id)) return;
+    state.theme = id;
+    try { saveState(); } catch {}
+    applyTheme(id);
+    try { if (typeof _haptic === 'function') _haptic('ok'); } catch {}
+    if (typeof renderProfile === 'function') renderProfile();
+}
+window.selectTheme = selectTheme;
+window.applyTheme = applyTheme;
 const PRACTICE_QUESTIONS = 6;   // default — utilizador pode override via state.practiceQuestions
 const PRACTICE_QUESTIONS_PRESETS = [5, 6, 10, 15, 20];
 function getPracticeQuestions() {
@@ -160,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -558,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v543';
+const APP_VERSION = 'v544';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -705,6 +738,7 @@ function switchProfile(id) {
     setActiveYear(p.year);
     loadYearExtras(p.year); // síncrono desde v148
     selectedTopicsForMax.clear();
+    try { applyTheme(_currentTheme()); } catch {}
     saveState();
     closeProfileSwitcher();
     updateAll();
@@ -3218,6 +3252,21 @@ function renderProfile() {
     // Grupos colapsiveis
     const groupsHtml = _renderAvatarGroups('profile', curAv);
     grid.innerHTML = `${photoHtml}${cameraHtml}${customHtml}${groupsHtml}`;
+
+    // Seletor de cor-tema ("a minha cor") — logo abaixo dos avatares.
+    const themeWrap = document.getElementById('theme-picker');
+    if (themeWrap) {
+        const cur = _currentTheme();
+        themeWrap.innerHTML = `
+            <div class="theme-picker-title">🎨 A minha cor</div>
+            <div class="theme-swatches">
+                ${THEMES.map(t => `
+                    <button class="theme-swatch ${t.id === cur ? 'on' : ''}" style="--sw:${t.primary};--swd:${t.dark}" onclick="selectTheme('${t.id}')" title="${t.name}" aria-label="${t.name}">
+                        <span class="theme-swatch-emoji">${t.emoji}</span>
+                        ${t.id === cur ? '<span class="theme-swatch-check">✓</span>' : ''}
+                    </button>`).join('')}
+            </div>`;
+    }
 
     // Picker de perguntas por treino
     renderPracticeQuestionsUI();
@@ -14566,6 +14615,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('DOMContentLoaded', () => {
     // Inicializar estado agora — neste ponto PROFILE_FIELDS, AVATARS, defaultState etc. já existem.
     state = loadState();
+    try { applyTheme(_currentTheme()); } catch {}
     // Activar o ano do perfil activo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS).
     // Se não existir perfil, não carrega nada (regra: nenhum ano por defeito).
     if (typeof setActiveYear === 'function') {
