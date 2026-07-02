@@ -6480,3 +6480,7 @@ body.has-teacher-overlay #subject-detail-container {
 /* ── Suspeitos modo pick (v532): botão de pista progressiva ── */
 .sus-clue-btn { display: block; margin: 6px auto; padding: 8px 16px; border: 2px dashed #f59e0b; background: #fffbeb; color: #92400e; border-radius: 12px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
 .sus-clue-btn:active { background: #fef3c7; }
+
+/* ── Debrief: crédito por frases de reunião treinadas (v542) ── */
+.dbf-used { margin: 8px 0; padding: 8px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; font-size: 0.86rem; color: #065f46; }
+.dbf-used ul { margin: 6px 0 0; }
