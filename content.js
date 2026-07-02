@@ -2561,6 +2561,9 @@ const EXERCISES_3_DETETIVE = [
     // Treino nuclear de discalculia: reconhecer quantidade sem contar.
     { id:'3dt_qt1', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:5, prompt:'Quantos pontos vês? (uma linha cheia = 5)' },
     { id:'3dt_qt2', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:3, prompt:'Quantos pontos vês?' },
+    { id:'3dt_qt12', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:2, prompt:'Só dois — vês de relance, sem contar.' },
+    { id:'3dt_qt13', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:4, prompt:'Vês 4 sem contar um a um?' },
+    { id:'3dt_qt14', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:9, prompt:'Quase um ten-frame cheio: 10 − 1. Quantos?' },
     { id:'3dt_qt3', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:1, q:'🧠 Quantos pontos?', dots:7, prompt:'Vês 5 + quantos a mais?' },
     { id:'3dt_qt4', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:8, prompt:'Uma linha de 5 + outra começada. Quantos?' },
     { id:'3dt_qt5', s:'mat_plus', t:'Quantos vês?', type:'game', game:'quantos', diff:2, q:'🧠 Quantos pontos?', dots:10, prompt:'O ten-frame cheio. Quantos?' },
