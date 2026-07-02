@@ -3133,6 +3133,7 @@ const EXERCISES_3 = [
     {"id":"mp3_m1d8","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"fill","diff":2,"q":"207 × 4 = ___","ans":["828"],"exp":"207 × 4: 200×4=800 e 7×4=28 → 828 (o 0 do meio não soma nada)."},
     {"id":"mp3_m1d9","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"mc","diff":2,"q":"🔢 89 × 6 =","opts":["534","524","484"],"ans":0,"exp":"89 × 6 = 534. 6×9=54 (vai 5), 6×8=48+5=53. Junta → 534."},
     {"id":"mp3_m1d10","s":"mat_plus","t":"Multiplicação por 1 dígito","type":"problem","diff":2,"q":"7 dias × 24 horas. Quantas horas em 1 semana?","ans":["168","168 horas"],"exp":"7 × 24: 7×20=140 e 7×4=28 → 140+28 = 168 horas."},
+    {"id":"mp3_dp0","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":1,"q":"🍬 6 rebuçados para 2 amigos, em partes iguais. Quantos para cada um?","opts":["2","3","4"],"ans":1,"exp":"Reparte um a um: 🍬🍬🍬 | 🍬🍬🍬 → 3 para cada. 6 ÷ 2 = 3. Dividir é repartir igualmente."},
     {"id":"mp3_dp1","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":1,"q":"🔢 12 ÷ 3 =","opts":["3","4","5"],"ans":1,"exp":"12 ÷ 3 = 4. Repartes 12 em 3 grupos iguais → 4 em cada (3×4=12)."},
     {"id":"mp3_dp2","s":"mat_plus","t":"Divisão por partilha","type":"mc","diff":1,"q":"🔢 36 ÷ 6 =","opts":["5","6","7"],"ans":1,"exp":"36 ÷ 6 = 6. Quantos grupos de 6 cabem em 36? Seis (6×6=36)."},
     {"id":"mp3_dp3","s":"mat_plus","t":"Divisão por partilha","type":"problem","diff":2,"q":"24 cromos para 4 amigos. Quantos por amigo?","ans":["6","6 cromos"],"exp":"24÷4=6."},
