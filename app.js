@@ -558,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v542';
+const APP_VERSION = 'v543';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9817,6 +9817,7 @@ function recordAnswer(e, isCorrect) {
         s.wrong++;
     }
     s.xp += gained;
+    s._lastGain = gained; // para a animação de XP a saltar no feedback
     const sub = state.subjects[e.s] || { answered: 0, correct: 0, xp: 0 };
     sub.answered += 1;
     if (isCorrect) { sub.correct += 1; sub.xp += gained; }
@@ -10090,7 +10091,11 @@ function showFeedback(e, isCorrect) {
     const panel = document.getElementById('ex-feedback');
     panel.style.display = 'block';
     document.getElementById('feedback-icon').innerHTML = isCorrect ? '\u{1F389}' : (partial ? '\u{1F914}' : '\u{1F914}');
-    if (isCorrect) { try { _showConfetti(); } catch {} }
+    if (isCorrect) {
+        try { _showConfetti(); } catch {}
+        // Combo de acertos seguidos + XP a saltar — o gancho das sessões curtas.
+        try { _showCombo(currentSession ? currentSession.streak : 0, currentSession && currentSession._lastGain); } catch {}
+    }
     const txt = document.getElementById('feedback-text');
     if (partial) {
         txt.textContent = 'Incompleto…';
@@ -17309,6 +17314,38 @@ function _showConfetti(n) {
     }
 }
 window._showConfetti = _showConfetti;
+
+// Combo de acertos seguidos numa sessão + XP a saltar. O gancho de dopamina
+// das sessões curtas: cada acerto seguido sobe o nível de festa. Só aparece
+// a partir de 2 seguidas (a 1.ª já tem o "Certo!" + confetti).
+const _COMBO_TIERS = [
+    { min: 2, emoji: '🔥', label: 'em fila!', cls: 't1' },
+    { min: 3, emoji: '⚡', label: 'seguidas!', cls: 't2' },
+    { min: 5, emoji: '🌟', label: 'COMBO!', cls: 't3' },
+    { min: 8, emoji: '🚀', label: 'IMPARÁVEL!', cls: 't4' },
+    { min: 12, emoji: '👑', label: 'LENDÁRIO!', cls: 't5' }
+];
+function _showCombo(streak, gained) {
+    // XP a saltar — sempre que ganha pontos.
+    if (gained && gained > 0) {
+        const xp = document.createElement('div');
+        xp.className = 'xp-pop';
+        xp.textContent = '+' + gained + ' XP';
+        document.body.appendChild(xp);
+        setTimeout(() => xp.remove(), 1200);
+    }
+    if (!streak || streak < 2) return;
+    let tier = _COMBO_TIERS[0];
+    for (const t of _COMBO_TIERS) if (streak >= t.min) tier = t;
+    const el = document.createElement('div');
+    el.className = 'combo-pop ' + tier.cls;
+    el.innerHTML = `<span class="combo-emoji">${tier.emoji}</span><span class="combo-n">${streak}</span><span class="combo-label">${tier.label}</span>`;
+    document.body.appendChild(el);
+    if (streak >= 5) { try { _showConfetti(20); } catch {} }
+    if (typeof _haptic === 'function' && streak >= 3) _haptic('ok');
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 1100);
+}
+window._showCombo = _showCombo;
 
 // === v455: hint/richExp helpers ===
 function _toggleHint(btn) {
