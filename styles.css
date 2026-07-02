@@ -6546,3 +6546,33 @@ body.has-teacher-overlay #subject-detail-container {
 .det-chip-emoji { font-size: 1.7rem; }
 .det-chip-label { font-weight: 800; font-size: 0.86rem; color: #6d28d9; }
 .det-chip-count { position: absolute; top: 6px; right: 8px; font-size: 0.66rem; font-weight: 800; color: #a78bfa; background: #fff; border-radius: 999px; padding: 1px 6px; }
+
+/* ── Hub do Detetive Mental (v547) — ecrã de jogos dedicado ── */
+.det-hub-header { background: linear-gradient(135deg, #7c3aed, #9333ea); }
+.det-hub-body { background: linear-gradient(180deg, #faf5ff 0%, #fff 40%); }
+.det-hub-hero { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 18px; padding: 16px; box-shadow: 0 4px 18px rgba(124,58,237,0.12); margin-bottom: 16px; }
+.det-hub-hero-emoji { font-size: 2.6rem; }
+.det-hub-hero-title { font-weight: 900; font-size: 1.1rem; color: #6d28d9; }
+.det-hub-hero-sub { font-size: 0.84rem; color: #64748b; margin-top: 2px; }
+.det-game-grid { display: flex; flex-direction: column; gap: 12px; }
+.det-game-card {
+    display: flex; align-items: center; gap: 14px; width: 100%; cursor: pointer; text-align: left;
+    border: none; border-radius: 18px; padding: 16px; color: #fff;
+    background: linear-gradient(135deg, var(--gc1), var(--gc2));
+    box-shadow: 0 6px 20px -6px var(--gc2); transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.det-game-card:active { transform: scale(0.97); }
+.det-game-emoji { font-size: 2.4rem; flex-shrink: 0; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2)); }
+.det-game-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.det-game-name { font-weight: 900; font-size: 1.15rem; }
+.det-game-desc { font-size: 0.8rem; opacity: 0.92; }
+.det-game-bar { height: 6px; background: rgba(255,255,255,0.3); border-radius: 999px; overflow: hidden; margin-top: 4px; }
+.det-game-bar-fill { display: block; height: 100%; background: #fff; border-radius: 999px; transition: width 0.4s; }
+.det-game-count { font-size: 0.72rem; opacity: 0.92; font-weight: 700; }
+.det-game-play { font-size: 1.3rem; flex-shrink: 0; opacity: 0.85; }
+.det-surprise {
+    width: 100%; margin-top: 16px; cursor: pointer; border: 2px dashed #c4b5fd;
+    background: #f5f3ff; color: #6d28d9; font-weight: 800; font-size: 1rem;
+    border-radius: 16px; padding: 14px; transition: transform 0.12s ease;
+}
+.det-surprise:active { transform: scale(0.97); }
