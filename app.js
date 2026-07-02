@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v550';
+const APP_VERSION = 'v551';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9676,6 +9676,11 @@ function _cruzRender() {
     const area = document.getElementById('ex-answer-area');
     if (!area) return;
     const s = cruzState;
+    // Quando TODAS as células estão preenchidas mas o puzzle não está certo,
+    // damos feedback: célula certa fica verde, errada fica vermelha — para a
+    // criança ver o que corrigir (antes só bloqueava sem dizer o quê).
+    const allFilled = s.blanks.length > 0 && s.blanks.every(b => b.val != null);
+    const showWrong = allFilled && !s.solved;
     let cells = '';
     s.grid.forEach((row, r) => {
         for (let c = 0; c < s.cols; c++) {
@@ -9686,7 +9691,10 @@ function _cruzRender() {
                 const b = s.blanks[bi];
                 const sel = bi === s.sel ? ' sel' : '';
                 const filled = b.val != null ? ' filled' : '';
-                cells += `<button class="cz-cell blank${sel}${filled}" onclick="_cruzTapBlank(${bi})">${b.val != null ? b.val : ''}</button>`;
+                let mark = '';
+                if (showWrong && b.val != null) mark = (String(b.val) === String(b.sol)) ? ' cz-ok' : ' cz-wrong';
+                else if (s.solved) mark = ' cz-ok';
+                cells += `<button class="cz-cell blank${sel}${filled}${mark}" onclick="_cruzTapBlank(${bi})">${b.val != null ? b.val : ''}</button>`;
             } else if ('+-×÷='.includes(cell)) {
                 cells += `<div class="cz-op">${cell}</div>`;
             } else {
@@ -9699,7 +9707,7 @@ function _cruzRender() {
     ).join('');
     area.innerHTML = `
       <div class="cruz-wrap">
-        <div class="cruz-coach"><span>🧩</span><span>${s.solved ? '🎉 Todas as contas certas! Carrega Responder.' : 'Toca numa célula vazia e depois no número certo. Cada conta (→ e ↓) tem de ficar correta.'}</span></div>
+        <div class="cruz-coach"><span>${s.solved ? '🎉' : showWrong ? '🔎' : '🧩'}</span><span>${s.solved ? 'Todas as contas certas! Carrega Responder.' : showWrong ? 'Quase! Os números a <b>vermelho</b> estão trocados — toca neles para mudar, ou carrega Responder para ver a solução.' : 'Toca numa célula vazia e depois no número certo. Cada conta (→ e ↓) tem de ficar correta.'}</span></div>
         <div class="cruz-grid" style="grid-template-columns:repeat(${s.cols},1fr)">${cells}</div>
         <div class="cruz-bank">${bank}</div>
       </div>`;
@@ -9879,8 +9887,16 @@ async function submitAnswer() {
             isCorrect = true;
             e.exp = `Eram ${qtState.dots} pontos. Os grupos de 5 ajudam a ver de relance!`;
         } else if (e.type === 'game' && e.game === 'cruzados') {
-            if (!cruzState.solved) { showToast('Completa todas as contas da grelha primeiro'); return; }
-            isCorrect = true;
+            const allFilled = cruzState.blanks.every(b => b.val != null);
+            if (!allFilled) { showToast('Preenche todas as células vazias primeiro'); return; }
+            // Já pode avançar mesmo com números errados: submete e vê a solução
+            // (antes ficava presa sem perceber que os números estavam trocados).
+            isCorrect = cruzState.solved;
+            cruzState._answered = true;
+            if (!e.exp) {
+                const sols = cruzState.blanks.map(b => b.sol).join(', ');
+                e.exp = 'Os números que faltavam eram: ' + sols + '.';
+            }
         } else if (e.type === 'match') {
             const all = Object.keys(matchState.matched).length === matchState.leftItems.length;
             if (!all) { showToast('Completa todas as associações'); return; }
@@ -16239,6 +16255,7 @@ function openReadingTeacher(exId) {
                 <button data-pace="every2" class="teacher-pace-btn">de 2 em 2</button>
                 <button data-pace="end" class="teacher-pace-btn">só no fim</button>
             </div>
+            <div class="teacher-progress" id="teacher-progress" style="display:none"><div class="teacher-progress-fill" id="teacher-progress-fill"></div><span class="teacher-progress-label" id="teacher-progress-label"></span></div>
             <div class="teacher-text" id="teacher-text">${html}</div>
             <div class="teacher-status" id="teacher-status"></div>
             <div class="teacher-live" id="teacher-live"></div>
@@ -16510,6 +16527,7 @@ function _teacherSkipWord() {
     }
     _teacher.position = p + 1;
     _teacher.restartCount = 0;
+    try { _teacherUpdateProgress(); } catch {}
     // marca próxima como current
     if (_teacher.spans[p + 1]) {
         _teacher.spans.forEach(s => s.classList.remove('t-current'));
@@ -16671,6 +16689,8 @@ function _teacherHighlightAll() {
 
 // =========== Modo LER — exige chave Mistral (Voxtral) ===========
 function _teacherStartRead(resume) {
+    // Barra de progresso: mostra e atualiza (ao retomar mantém a posição).
+    try { _teacherUpdateProgress(); } catch {}
     // v482: A Leitura SÓ avança com chave Mistral configurada. Web Speech do
     // browser é demasiado fraco em vozes infantis e monossílabos — em vez de
     // fallback silencioso, mostramos mensagem clara para configurar.
@@ -17259,6 +17279,23 @@ function _teacherMarkCurrentParagraph(paraIdx) {
 }
 window._teacherMarkCurrentParagraph = _teacherMarkCurrentParagraph;
 
+// Barra de progresso de leitura — enche à medida que a criança lê (palavra a
+// palavra). Torna a leitura mais visual e dá a sensação de avanço (pedido do
+// utilizador). done: se true, fica a 100% com cor de "concluído".
+function _teacherUpdateProgress(done) {
+    const wrap = document.getElementById('teacher-progress');
+    const fill = document.getElementById('teacher-progress-fill');
+    const lbl  = document.getElementById('teacher-progress-label');
+    if (!wrap || !fill) return;
+    wrap.style.display = 'block';
+    const total = (_teacher.words && _teacher.words.length) || 0;
+    let pct = done ? 100 : (total ? Math.min(100, Math.round((_teacher.position / total) * 100)) : 0);
+    fill.style.width = pct + '%';
+    fill.classList.toggle('done', !!done || pct >= 100);
+    if (lbl) lbl.textContent = pct + '%';
+}
+window._teacherUpdateProgress = _teacherUpdateProgress;
+
 // Avalia palavras ouvidas vs esperadas.
 // Usa cursores PERSISTENTES (heardCursor + position) entre chamadas — assim
 // não voltamos a re-processar palavras já reconhecidas. Tolerância: 1 skip.
@@ -17326,6 +17363,7 @@ function _teacherMatchHeard(heard) {
     }
     _teacher.position = p;
     _teacher.heardCursor = h;
+    try { _teacherUpdateProgress(); } catch {}
     // === Perguntas por parágrafo: detetar se passámos o fim do parágrafo
     // de referência da pergunta (campo `afterParagraph`, 0-indexed). Se não
     // estiver definido, usa o índice da pergunta como default. ===
@@ -17487,6 +17525,7 @@ function _teacherFinishRead() {
     }
     const status = document.getElementById('teacher-status');
     if (status) status.textContent = '';
+    try { _teacherUpdateProgress(true); } catch {}  // barra a 100% (concluído)
     _teacher.mode = null;
     const stopBtn = document.getElementById('teacher-stop-btn');
     if (stopBtn) stopBtn.style.display = 'none';
