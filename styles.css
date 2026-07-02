@@ -6484,3 +6484,37 @@ body.has-teacher-overlay #subject-detail-container {
 /* ── Debrief: crédito por frases de reunião treinadas (v542) ── */
 .dbf-used { margin: 8px 0; padding: 8px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; font-size: 0.86rem; color: #065f46; }
 .dbf-used ul { margin: 6px 0 0; }
+
+/* ── Combo de acertos + XP a saltar (v543) — gancho das sessões curtas ── */
+.xp-pop {
+    position: fixed; left: 50%; top: 42%; transform: translateX(-50%);
+    font-size: 1.5rem; font-weight: 900; color: #10b981;
+    text-shadow: 0 2px 8px rgba(16,185,129,0.35); z-index: 9998; pointer-events: none;
+    animation: xpPop 1.2s cubic-bezier(0.2,0.9,0.3,1) forwards;
+}
+@keyframes xpPop {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.6); }
+    20%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.15); }
+    70%  { opacity: 1; transform: translateX(-50%) translateY(-52px) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-88px) scale(0.9); }
+}
+.combo-pop {
+    position: fixed; left: 50%; top: 30%; transform: translate(-50%,-50%);
+    display: flex; align-items: center; gap: 8px; z-index: 9999; pointer-events: none;
+    padding: 10px 20px; border-radius: 999px; color: #fff; font-weight: 900;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.22);
+    animation: comboIn 0.4s cubic-bezier(0.2,1.4,0.4,1) both;
+}
+.combo-pop.out { animation: comboOut 0.3s ease-in forwards; }
+.combo-pop .combo-emoji { font-size: 1.6rem; }
+.combo-pop .combo-n { font-size: 1.9rem; line-height: 1; }
+.combo-pop .combo-label { font-size: 0.95rem; letter-spacing: 0.5px; }
+.combo-pop.t1 { background: linear-gradient(135deg,#fb923c,#f97316); }
+.combo-pop.t2 { background: linear-gradient(135deg,#facc15,#f59e0b); color:#7c2d12; }
+.combo-pop.t3 { background: linear-gradient(135deg,#a78bfa,#7c3aed); }
+.combo-pop.t4 { background: linear-gradient(135deg,#22d3ee,#0891b2); }
+.combo-pop.t5 { background: linear-gradient(135deg,#f472b6,#db2777); animation: comboIn 0.4s cubic-bezier(0.2,1.4,0.4,1) both, comboPulse 0.6s ease-in-out 0.4s infinite alternate; }
+@keyframes comboIn  { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.3) rotate(-8deg); } 100% { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0); } }
+@keyframes comboOut { to { opacity: 0; transform: translate(-50%,-50%) scale(1.3); } }
+@keyframes comboPulse { to { transform: translate(-50%,-50%) scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .xp-pop, .combo-pop { animation-duration: 0.01s; } }
