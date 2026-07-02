@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v546';
+const APP_VERSION = 'v547';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1445,7 +1445,8 @@ function renderSubjects() {
 }
 
 // ========== SUBJECT DETAIL (modal fullscreen) ==========
-function openSubjectDetail(key) {
+function openSubjectDetail(key, opts) {
+    opts = opts || {};
     // Disciplina english_pm tem modo Curso dedicado (caminho linear estilo
     // path com 14 licoes e progressao). Nao interfere com outras disciplinas.
     if ((key === 'english_pm' && window.COURSE_ENGLISH_PM) ||
@@ -1456,6 +1457,12 @@ function openSubjectDetail(key) {
     // Leitura: biblioteca de textos — cada um abre o Professor de Leitura.
     if (key === 'leitura') {
         openLeituraLibrary();
+        return;
+    }
+    // Detetive Mental: hub de jogos dedicado (em vez do ecrã genérico).
+    // opts.generic força o ecrã completo (slider/IA/reiniciar) via "mais opções".
+    if (key === 'detetive' && !opts.generic) {
+        openDetetiveHub();
         return;
     }
     // Primeira vez em Mat+? Oferece o diagnóstico inicial
@@ -16356,6 +16363,91 @@ function openLeituraLibrary() {
     document.body.appendChild(container);
 }
 window.openLeituraLibrary = openLeituraLibrary;
+
+// ============================================================
+// HUB DO DETETIVE MENTAL — ecrã de jogos dedicado (não o genérico).
+// Cada tipo de jogo é um cartão grande, colorido, com o progresso.
+// A criança escolhe e joga já. Opções de adulto ficam num "⋯".
+// ============================================================
+const _DETETIVE_GAMES = [
+    { t: 'Sudoku & Kakuro',      emoji: '🔢', label: 'Sudoku',    desc: 'Preenche a grelha 1 a 4',   c1:'#a78bfa', c2:'#7c3aed' },
+    { t: 'Charadas matemáticas', emoji: '🧮', label: 'Charadas',  desc: 'Resolve o enigma dos números', c1:'#34d399', c2:'#059669' },
+    { t: 'Histórias-mistério',   emoji: '🕵️', label: 'Mistérios', desc: 'Descobre quem foi',          c1:'#fb923c', c2:'#ea580c' },
+    { t: 'Padrões e sequências', emoji: '🧩', label: 'Padrões',   desc: 'O que vem a seguir?',        c1:'#38bdf8', c2:'#0284c7' },
+    { t: 'Lógica pura',          emoji: '🧠', label: 'Lógica',    desc: 'Pensa a fundo!',             c1:'#f472b6', c2:'#db2777' }
+];
+function openDetetiveHub() {
+    currentSubjectView = 'detetive';
+    const pool = [...(window.EXERCISES || []), ...(state.maxExercises || [])].filter(e => e.s === 'detetive');
+    const seen = state.exerciseSeen || {};
+    // Resultado por exercício (último) para contar "resolvidos com sucesso".
+    const lastOk = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastOk[h.id] = h.c; });
+    const totalSolved = pool.filter(e => lastOk[e.id]).length;
+    const cards = _DETETIVE_GAMES.map(g => {
+        const items = pool.filter(e => e.t === g.t);
+        if (!items.length) return '';
+        const done = items.filter(e => seen[e.id]).length;
+        const mastered = items.filter(e => lastOk[e.id]).length;
+        const pct = items.length ? Math.round(done / items.length * 100) : 0;
+        const tEsc = g.t.replace(/'/g, "\\'");
+        return `
+            <button class="det-game-card" style="--gc1:${g.c1};--gc2:${g.c2}" onclick="startSubjectSession('detetive', { topic: '${tEsc}', bypassSeenCheck: true })">
+                <span class="det-game-emoji">${g.emoji}</span>
+                <span class="det-game-info">
+                    <span class="det-game-name">${g.label}</span>
+                    <span class="det-game-desc">${g.desc}</span>
+                    <span class="det-game-bar"><span class="det-game-bar-fill" style="width:${pct}%"></span></span>
+                    <span class="det-game-count">${mastered}/${items.length} resolvidos</span>
+                </span>
+                <span class="det-game-play">▶</span>
+            </button>`;
+    }).join('');
+    const existing = document.getElementById('subject-detail-container');
+    if (existing) existing.remove();
+    const container = document.createElement('div');
+    container.id = 'subject-detail-container';
+    container.innerHTML = `
+        <div class="fullscreen det-hub" id="subject-detail-screen">
+            <div class="exercise-header det-hub-header">
+                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
+                    <span style="font-size:1.3rem">🕵️</span> Detetive Mental
+                </div>
+                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('detetive', { generic: true })" title="Mais opções"><i class="fas fa-ellipsis"></i></button>
+            </div>
+            <div class="exercise-body det-hub-body">
+                <div class="det-hub-hero">
+                    <div class="det-hub-hero-emoji">🧠</div>
+                    <div class="det-hub-hero-txt">
+                        <div class="det-hub-hero-title">Que jogo queres hoje?</div>
+                        <div class="det-hub-hero-sub">Já resolveste <b>${totalSolved}</b> desafios. Escolhe e joga!</div>
+                    </div>
+                </div>
+                <div class="det-game-grid">${cards}</div>
+                <button class="det-surprise" onclick="_detetiveSurprise()">🎲 Surpreende-me!</button>
+                <div class="tutor-card" data-tutor-subject="detetive" data-tutor-name="Detetive Mental" onclick="openTutorFromSubjectCard(this)" style="margin:14px 0 80px">
+                  <div class="tutor-card-icon"><i class="fas fa-chalkboard-user"></i></div>
+                  <div class="tutor-card-text">
+                    <div class="tutor-card-title">Falar com o Professor</div>
+                    <div class="tutor-card-sub">Tira dúvidas sobre um desafio</div>
+                  </div>
+                  <i class="fas fa-microphone tutor-card-mic"></i>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(container);
+}
+window.openDetetiveHub = openDetetiveHub;
+// "Surpreende-me": escolhe um tipo ao acaso (com peso extra ao Sudoku, o favorito).
+function _detetiveSurprise() {
+    const pool = [...(window.EXERCISES || []), ...(state.maxExercises || [])].filter(e => e.s === 'detetive');
+    const avail = _DETETIVE_GAMES.filter(g => pool.some(e => e.t === g.t));
+    if (!avail.length) { startSubjectSession('detetive'); return; }
+    const pick = avail[Math.floor(Math.random() * avail.length)];
+    startSubjectSession('detetive', { topic: pick.t, bypassSeenCheck: true });
+}
+window._detetiveSurprise = _detetiveSurprise;
 
 function _openLeituraText(exId) {
     const ex = (window.EXERCISES || []).find(e => e.id === exId);
