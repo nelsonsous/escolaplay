@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v552';
+const APP_VERSION = 'v553';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1468,6 +1468,12 @@ function openSubjectDetail(key, opts) {
     // Primeira vez em Mat+? Oferece o diagnóstico inicial
     if (key === 'mat_plus' && !state.matPlusDiag && !state.matPlusDiagSkipped) {
         showMatPlusDiagnosticIntro();
+        return;
+    }
+    // Mat+: hub por áreas (Números / Contas / Frações & Problemas) — ecrã
+    // amigável em vez do genérico. Opções avançadas via "⋯" (opts.generic).
+    if (key === 'mat_plus' && !opts.generic) {
+        openMatPlusHub();
         return;
     }
     currentSubjectView = key;
@@ -4728,7 +4734,10 @@ window.startReviewSession = startReviewSession;
 
 function startSubjectSession(key, opts = {}) {
     let topicSet;
-    if (opts.topic) {
+    if (Array.isArray(opts.topics) && opts.topics.length) {
+        // Jogar uma ÁREA (conjunto de tópicos) — ex.: cartões do hub do Mat+.
+        topicSet = new Set(opts.topics);
+    } else if (opts.topic) {
         // Jogar UM tipo/tópico diretamente (ex.: chips de jogo do Detetive) —
         // ignora a progressão/ativação para a criança poder escolher já.
         topicSet = new Set([opts.topic]);
@@ -16477,6 +16486,90 @@ function _detetiveSurprise() {
     startSubjectSession('detetive', { topic: pick.t, bypassSeenCheck: true });
 }
 window._detetiveSurprise = _detetiveSurprise;
+
+// ============================================================
+// HUB DO MAT+ — ecrã por ÁREAS, amigável para discalculia. Em vez do
+// ecrã genérico (slider/duelo/IA), 3 cartões grandes: Números, Contas,
+// Frações & Problemas. A criança escolhe uma área e treina já.
+// ============================================================
+const _MATPLUS_AREAS = [
+    { id: 'numeros', emoji: '🔢', label: 'Números', desc: 'Contar, ver e comparar quantidades', c1:'#38bdf8', c2:'#0284c7',
+      topics: ['Quantos vês?','Centenas com ten-frames','Decompor até 10 000','Linha numérica até 10 000','Comparar números grandes','Aproximar à dezena ou centena','Estimar e aproximar'] },
+    { id: 'contas', emoji: '➕', label: 'Contas', desc: 'Somar, tirar, tabuadas e dividir', c1:'#34d399', c2:'#059669',
+      topics: ['Adição com transporte','Subtração com empréstimo','Tabuada do 6 visual','Tabuada do 7 visual','Tabuada do 8 visual','Tabuada do 9 visual','Famílias de factos','Multiplicação × 10, 100, 1000','Multiplicação por 1 dígito','Divisão por partilha','Divisão com resto'] },
+    { id: 'fracoes', emoji: '🍕', label: 'Frações & Problemas', desc: 'Partes, modelo de barra e histórias', c1:'#f472b6', c2:'#db2777',
+      topics: ['Frações — partes iguais','Frações — comparar','Modelo de barra','Problemas em 2 passos'] }
+];
+function openMatPlusHub() {
+    currentSubjectView = 'mat_plus';
+    const pool = [...(window.EXERCISES || []), ...(state.maxExercises || [])].filter(e => e.s === 'mat_plus');
+    const seen = state.exerciseSeen || {};
+    const lastOk = {};
+    (state.history || []).forEach(h => { if (h && h.id) lastOk[h.id] = h.c; });
+    const totalMastered = pool.filter(e => lastOk[e.id]).length;
+    const cards = _MATPLUS_AREAS.map(a => {
+        const items = pool.filter(e => a.topics.includes(e.t));
+        if (!items.length) return '';
+        const done = items.filter(e => seen[e.id]).length;
+        const mastered = items.filter(e => lastOk[e.id]).length;
+        const pct = items.length ? Math.round(done / items.length * 100) : 0;
+        const topicsJson = JSON.stringify(a.topics).replace(/"/g, '&quot;');
+        return `
+            <button class="det-game-card" style="--gc1:${a.c1};--gc2:${a.c2}" onclick='startSubjectSession("mat_plus", { topics: ${topicsJson}, bypassSeenCheck: true })'>
+                <span class="det-game-emoji">${a.emoji}</span>
+                <span class="det-game-info">
+                    <span class="det-game-name">${a.label}</span>
+                    <span class="det-game-desc">${a.desc}</span>
+                    <span class="det-game-bar"><span class="det-game-bar-fill" style="width:${pct}%"></span></span>
+                    <span class="det-game-count">${mastered}/${items.length} dominados</span>
+                </span>
+                <span class="det-game-play">▶</span>
+            </button>`;
+    }).join('');
+    // Banner do diagnóstico (recomendação) — se existir.
+    const diag = state.matPlusDiag;
+    const diagHtml = diag ? `
+        <div class="matplus-diag">
+            <span>🎯 Último diagnóstico: <b>${diag.score}/${diag.total}</b></span>
+            ${(diag.recommended || []).length ? `<span class="matplus-diag-rec">Foca: ${diag.recommended.slice(0,2).map(escapeHtml).join(' · ')}</span>` : ''}
+        </div>` : '';
+    const existing = document.getElementById('subject-detail-container');
+    if (existing) existing.remove();
+    const container = document.createElement('div');
+    container.id = 'subject-detail-container';
+    container.innerHTML = `
+        <div class="fullscreen det-hub" id="subject-detail-screen">
+            <div class="exercise-header matplus-hub-header">
+                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
+                    <span style="font-size:1.3rem">➕</span> Mat+
+                </div>
+                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('mat_plus', { generic: true })" title="Mais opções"><i class="fas fa-ellipsis"></i></button>
+            </div>
+            <div class="exercise-body det-hub-body">
+                <div class="det-hub-hero">
+                    <div class="det-hub-hero-emoji">🧮</div>
+                    <div class="det-hub-hero-txt">
+                        <div class="det-hub-hero-title">O que treinas hoje?</div>
+                        <div class="det-hub-hero-sub">Já dominaste <b>${totalMastered}</b> desafios. Escolhe uma área!</div>
+                    </div>
+                </div>
+                ${diagHtml}
+                <div class="det-game-grid">${cards}</div>
+                <button class="det-surprise" onclick="startSubjectSession('mat_plus', { bypassSeenCheck: true })">🎲 Treino misto (tudo)</button>
+                <div class="tutor-card" data-tutor-subject="mat_plus" data-tutor-name="Mat+" onclick="openTutorFromSubjectCard(this)" style="margin:14px 0 80px">
+                  <div class="tutor-card-icon"><i class="fas fa-chalkboard-user"></i></div>
+                  <div class="tutor-card-text">
+                    <div class="tutor-card-title">Falar com o Professor</div>
+                    <div class="tutor-card-sub">Tira dúvidas de matemática</div>
+                  </div>
+                  <i class="fas fa-microphone tutor-card-mic"></i>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(container);
+}
+window.openMatPlusHub = openMatPlusHub;
 
 function _openLeituraText(exId) {
     const ex = (window.EXERCISES || []).find(e => e.id === exId);
