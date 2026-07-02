@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v549';
+const APP_VERSION = 'v550';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -16849,6 +16849,21 @@ function _teacherStartReadVoxtral(resume) {
         rec.ondataavailable = (e) => { if (e.data && e.data.size) _teacher.voxChunks.push(e.data); };
         rec.onstop = async () => {
             _teacherStopLiveCursor();
+            // BUG FIX: assim que a gravação pára para transcrever, saímos do
+            // modo 'read' e MATAMOS o watcher + o vigia de silêncio. Senão,
+            // durante os segundos da transcrição o watcher (800ms) via
+            // mode==='read' sem ASR e RE-arrancava a leitura por cima dos
+            // resultados ("1/3 A ouvir-te" sobreposto). Também dá feedback
+            // imediato (o "demora muito" deixava de ter aviso).
+            _teacher.mode = 'scoring';
+            if (_teacher.watchInterval) { clearInterval(_teacher.watchInterval); _teacher.watchInterval = null; }
+            if (typeof _teacherStopSilenceVox === 'function') { try { _teacherStopSilenceVox(); } catch {} }
+            const _st = document.getElementById('teacher-status');
+            if (_st) _st.innerHTML = '⏳ <strong>A verificar a tua leitura…</strong> um instante 🧑‍🏫';
+            const _skB = document.getElementById('teacher-skip-btn');
+            const _stB = document.getElementById('teacher-stop-btn');
+            if (_skB) _skB.style.display = 'none';
+            if (_stB) _stB.style.display = 'none';
             try { _teacher.voxStream && _teacher.voxStream.getTracks().forEach(t => t.stop()); } catch {}
             _teacher.voxStream = null;
             const blob = new Blob(_teacher.voxChunks, { type: rec.mimeType || mime || 'audio/webm' });
