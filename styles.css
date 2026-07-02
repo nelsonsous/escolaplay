@@ -6532,3 +6532,17 @@ body.has-teacher-overlay #subject-detail-container {
 .theme-swatch:active { transform: scale(0.92); }
 .theme-swatch.on { box-shadow: 0 0 0 3px var(--sw), 0 4px 14px rgba(0,0,0,0.22); transform: scale(1.06); }
 .theme-swatch-check { position: absolute; right: -4px; top: -4px; background: #fff; color: #16a34a; border-radius: 50%; width: 20px; height: 20px; font-size: 0.8rem; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+
+/* ── Chips de escolha rápida de jogo no Detetive (v546) ── */
+.det-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.det-chip {
+    position: relative; flex: 1 1 88px; min-width: 88px; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #f5f3ff, #ede9fe); border: 2px solid #ddd6fe;
+    border-radius: 14px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.det-chip:active { transform: scale(0.94); }
+.det-chip:hover { box-shadow: 0 4px 14px rgba(124,58,237,0.2); border-color: #a78bfa; }
+.det-chip-emoji { font-size: 1.7rem; }
+.det-chip-label { font-weight: 800; font-size: 0.86rem; color: #6d28d9; }
+.det-chip-count { position: absolute; top: 6px; right: 8px; font-size: 0.66rem; font-weight: 800; color: #a78bfa; background: #fff; border-radius: 999px; padding: 1px 6px; }
