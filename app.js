@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v545';
+const APP_VERSION = 'v546';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1549,6 +1549,8 @@ function openSubjectDetail(key) {
                 </div>
                 ` : ''}
 
+                ${key === 'detetive' ? _detetiveQuickChips() : ''}
+
                 <!-- Criar duelo — visual identico a 'Comecar treino' (rosa primario) -->
                 <button class="btn btn-primary-solid btn-block" style="margin-bottom:12px" onclick="pickDuelRecipientsAndCreate('${key}')">
                     <i class="fas fa-fist-raised"></i> Criar duelo com amigos
@@ -1626,6 +1628,36 @@ function openSubjectDetail(key) {
     document.body.appendChild(container);
     renderTopicList();
 }
+
+// Chips de escolha rápida de jogo para o Detetive Mental — a criança toca
+// e joga JÁ esse tipo (ex.: Sudoku), sem depender da progressão. Cada tópico
+// do Detetive é um tipo de jogo. Mostra quantos exercícios existem por tipo.
+function _detetiveQuickChips() {
+    const meta = [
+        { t: 'Sudoku & Kakuro',      emoji: '🔢', label: 'Sudoku' },
+        { t: 'Charadas matemáticas', emoji: '🧮', label: 'Charadas' },
+        { t: 'Histórias-mistério',   emoji: '🕵️', label: 'Mistérios' },
+        { t: 'Padrões e sequências', emoji: '🧩', label: 'Padrões' },
+        { t: 'Lógica pura',          emoji: '🧠', label: 'Lógica' }
+    ];
+    const pool = [...(window.EXERCISES || []), ...(state.maxExercises || [])].filter(e => e.s === 'detetive');
+    const chips = meta.map(m => {
+        const n = pool.filter(e => e.t === m.t).length;
+        if (!n) return '';
+        return `<button class="det-chip" onclick="startSubjectSession('detetive', { topic: '${m.t.replace(/'/g, "\\'")}', bypassSeenCheck: true })">
+            <span class="det-chip-emoji">${m.emoji}</span>
+            <span class="det-chip-label">${m.label}</span>
+            <span class="det-chip-count">${n}</span>
+        </button>`;
+    }).join('');
+    return `
+        <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px">
+            <div style="font-weight:800;font-size:0.95rem;margin-bottom:2px">🎮 Escolhe um jogo</div>
+            <div style="font-size:0.76rem;color:var(--text-light);margin-bottom:10px">Toca e joga já esse tipo de desafio</div>
+            <div class="det-chips">${chips}</div>
+        </div>`;
+}
+window._detetiveQuickChips = _detetiveQuickChips;
 
 let selectedTopicsForMax = new Set();
 
@@ -4689,7 +4721,11 @@ window.startReviewSession = startReviewSession;
 
 function startSubjectSession(key, opts = {}) {
     let topicSet;
-    if (opts.useSelection && selectedTopicsForMax.size > 0) {
+    if (opts.topic) {
+        // Jogar UM tipo/tópico diretamente (ex.: chips de jogo do Detetive) —
+        // ignora a progressão/ativação para a criança poder escolher já.
+        topicSet = new Set([opts.topic]);
+    } else if (opts.useSelection && selectedTopicsForMax.size > 0) {
         topicSet = new Set(selectedTopicsForMax);
     } else {
         topicSet = activeTopicsFor(key);
