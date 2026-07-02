@@ -1,39 +1,47 @@
 # Auditoria de Exercícios — EscolaPlay
 
-> Loop de melhoria em 3 fases: **(1-10) identificar** · **(11-30) corrigir** · **(31-60) regenerar**.
-> Total auditado: **2208 exercícios** (anos 2, 3, 5, 6, 7, 11).
+> Loop de melhoria contínua. Total: **2368 exercícios** (anos 2, 3, 5, 6, 7).
 
-## Fase 1 — Achados (em curso)
+## Fase 1 — Achados iniciais (concluída)
 
-### ✅ Sem problemas (verificado por scan automático)
-- **IDs duplicados:** 0
-- **`ans` fora do intervalo das opções:** 0
-- **MC com menos de 2 opções:** 0
-- **`fill` com resposta vazia:** 0
-- **Tautologias** ("X significa X"): 0 reais (corrigidas v508/v509; restantes são silabação legítima)
-- **Opções duplicadas:** 0 reais — os 35 sinalizados são falsos positivos (exercícios de pontuação `. ! ? ,`, de maiúsculas, ou de notação matemática `3 × 6` vs `3 + 3` onde o normalizador apaga os símbolos que são o objetivo)
+### ✅ Sem problemas (scan automático)
+- IDs duplicados: 0 · `ans` fora do intervalo: 0 · MC com <2 opções: 0 · `fill` vazio: 0
+- Tautologias ("X significa X"): 0 · Opções duplicadas reais: 0
 
-### 🟠 A corrigir (Fase 2: loops 11-30)
-1. **51 exercícios de Matemática do 5.º ano sem explicação** (`EXERCISES_5/matematica`, ex.: `m200`, `m201`…).
-   Uma criança que erra não recebe qualquer ajuda. Prioridade alta.
-2. **120 explicações que só repetem a resposta** (valor pedagógico nulo). Concentração:
-   - 3.º **Mat+**: 54
-   - 3.º **Som+**: 34
-   - 3.º Estudo do Meio: 7; 7.º Geografia: 5; 2.º Inglês: 5; 2.º Estudo do Meio: 4; restantes dispersos.
-   Devem passar a explicar o *porquê* (regra, pista, mini-raciocínio), não só dizer o resultado.
+### Achados reais → todos resolvidos
+1. ~~51 exercícios de Mat 5.º sem explicação~~ → **encerrado** (todos têm `exp`/`solution`/`material`)
+2. ~~120 explicações que só repetiam a resposta~~ → **encerrado** (enriquecidas por ano)
 
-### 🔵 A regenerar (Fase 3: loops 31-60)
-- Substituir exercícios fracos por novos de alta qualidade, com mais texto e — onde fizer sentido — a lógica interativa do **Detetive Mental** (cofre, suspeitos, padrão, estimador, base-10) para serem mais fluidos e legíveis.
-- Candidatos: tópicos com muitos MC secos de memorização (Som+, Mat+, vocabulário de línguas).
+## Loop de 50 voltas (analisar → planear → corrigir → testar)
+
+Executado em 10 lotes de 5 voltas, cada um com release e PR próprios.
+
+| Voltas | Versão | Melhoria principal |
+|--------|--------|--------------------|
+| 1–5 | v533 | 45 explicações de Mat+ e 38 de Som+ passam de número/palavra seca a **estratégia** (decompor, truque do 9, dígrafos, pares mínimos) |
+| 6–10 | v534 | +4 puzzles fáceis no Detetive (entrada suave); pergunta duplicada corrigida; progressão adaptativa verificada |
+| 11–15 | v535 | 16 explicações de Estudo do Meio/Inglês/Cidadania 3.º enriquecidas; dívida do Mat 5.º encerrada; 4 giveaways equilibrados |
+| 16–20 | v536 | 12 opções "giveaway" equilibradas (anos 2/5/6/7); regressão de "vírus" apanhada e revertida |
+| 21–25 | v537 | +6 frações **concretas** diff 1 (fração desenhada no enunciado) — o ponto mais duro da discalculia |
+| 26–30 | v538 | `fill`/Leitura/Inglês verificados; +1 âncora concreta de divisão (repartir um a um) |
+| 31–35 | v539 | Integridade dos jogos: **19 sudokus com solução única**, cruzados e cofres corretos; +3 níveis de subitizing |
+| 36–40 | v540 | Ano 2 (Carolina): 30 explicações "Verdade." enriquecidas com o porquê |
+| 41–50 | v541 | Verificação final de engines (estimador, quantos, cofre) e integridade da app; este relatório |
+
+## Princípios que guiaram o loop
+
+1. **Onde a criança erra, recebe ajuda real** — a explicação diz o *porquê* (regra, pista, mini-raciocínio), nunca só o resultado.
+2. **Nada de adivinhar sem ler** — opções erradas equilibradas em comprimento com a certa.
+3. **Discalculia primeiro** — cada tópico duro (frações, divisão, valor posicional) tem uma porta de entrada **concreta e visual** no nível 1.
+4. **Jogos matematicamente sólidos** — sudokus com solução única, cofres e cruzados verificados por algoritmo.
+5. **Testar antes de cada release** — scanner de duplicados/`ans`/tautologia/eco/unicidade + `node --check` + build.
 
 ## Método
-- Scanner node (`/tmp/audit.js`) corre sobre todos os `EXERCISES_*`; deteta tautologia, opções duplicadas (exato + normalizado), `ans` inválido, `exp` ausente/eco, `fill` vazio, IDs duplicados.
-- Falsos positivos catalogados para não reincidirem (silabação, pontuação, notação matemática).
 
-### Fase 1 — volta 2 (refinamento)
-- **Referências visuais "penduradas"** (pergunta fala de figura/tabela/gráfico sem `svg`/`table`/`visual`): 25 sinalizadas → **todas falsos positivos**. Os dados estão inline no enunciado (ex.: *"Numa tabela: cães=4, gatos=6, pássaros=2…"*) ou são perguntas conceptuais (*"num gráfico de barras, a barra maior significa…"*). Sem ação.
-- **Caracterização do Mat 5.º sem explicação (51):** é **sistemático** — 3 a 4 exercícios em cada um dos 18 tópicos (Números naturais, Divisibilidade, Primos, MMC/MDC, Potências, Operações, Frações, Dízimas, Percentagens, Sequências, Ângulos, Retas, Triângulos, Quadriláteros, Perímetros, Áreas, Volume, Estatística). Fase 2 fará tópico a tópico.
+- Scanner node sobre todos os `EXERCISES_*` via `EXERCISES_BY_YEAR` (deduplicado por identidade).
+- Deteta: ids duplicados, `ans` inválido, tautologia, explicação-eco, `fill` vazio, contradições V/F, divergência exp↔resposta, giveaways por comprimento, unicidade de sudoku (backtracking), equações de cruzados, `afterParagraph` de Leitura.
+- Falsos positivos catalogados (silabação, pontuação, notação matemática, passos intermédios nas explicações, exercícios de maiúsculas).
 
-**Conclusão da auditoria:** as classes de problema reais convergiram para **(1) explicações em falta no Mat 5.º** e **(2) explicações que só ecoam a resposta**. O resto do conteúdo passou os scans. A Fase 2 pode arrancar com alvos claros.
+**Estado final:** conteúdo do 3.º ano (foco da Eduarda) convergiu para alta qualidade; anos 2/5/6/7 revistos; jogos verificados. 0 problemas sistémicos em aberto.
 
-_Última atualização: Fase 1, volta 2._
+_Última atualização: loop de 50 voltas concluído._
