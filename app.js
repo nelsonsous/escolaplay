@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v547';
+const APP_VERSION = 'v548';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -4980,12 +4980,13 @@ function renderQuestion() {
         qHtml += `<div class="ex-intro"><div class="ex-intro-tag">📖 Contexto</div><div class="ex-intro-body">${introMd}</div></div>`;
     }
     // Campo `hint` — dica progressiva via botão 💡 (não estraga a pergunta).
+    // O hint curado (do próprio exercício/jogo) mantém-se como botão 💡.
     if (e.hint) {
         const hintEsc = escapeHtml(e.hint).replace(/'/g, "&#39;").replace(/"/g, '&quot;');
         qHtml += `<div class="ex-hint-wrap"><button type="button" class="ex-hint-btn" onclick="_toggleHint(this)" aria-expanded="false">💡 Mostrar dica</button><div class="ex-hint-body" style="display:none">${escapeHtml(e.hint).replace(/\n/g,'<br>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</div></div>`;
-    } else if (state.max && state.max.mistralKey && e.s !== 'leitura' && e.s !== 'som_plus') {
-        qHtml += `<div class="ex-hint-wrap"><button type="button" class="ex-hint-btn" onclick="_askMistralHint()">🪄 Pedir dica à IA</button></div>`;
     }
+    // NOTA: removido o botão duplicado "🪄 Pedir dica à IA" do topo — fazia
+    // o mesmo que o "Professor IA — pedir pista" no fim. O e.hint curado fica.
     // Three-Reads scaffold (Mat+ problemas) — guia em 3 passos para ler problemas
     // de forma estratégica, baseado na rotina de Kelemanik/Lucenta/Creighton.
     if (e.s === 'mat_plus' && e.type === 'problem') {
@@ -5047,12 +5048,15 @@ function renderQuestion() {
     // Reabrir interação na área de resposta (foi trancada em showFeedback)
     const _aa = document.getElementById('ex-answer-area');
     if (_aa) _aa.style.pointerEvents = '';
-    // Mostrar botão Professor IA inline; resetar estado
+    // Mostrar botão Professor IA inline; resetar estado.
+    // Nos JOGOS esconde-se (e o "Tens uma dúvida" também): o jogo já tem a
+    // sua pista progressiva — evita 3-4 botões de ajuda a competir no ecrã.
+    const _isGameEx = e.type === 'game';
     const profWrap = document.getElementById('ex-prof-ia-wrap');
     const profBox  = document.getElementById('ex-prof-ia-box');
     const profBtn  = document.getElementById('ex-prof-ia-btn');
     const profTxt  = document.getElementById('ex-prof-ia-text');
-    if (profWrap) profWrap.style.display = 'block';
+    if (profWrap) profWrap.style.display = _isGameEx ? 'none' : 'block';
     if (profBox)  profBox.style.display = 'none';
     if (profTxt)  profTxt.textContent = 'A pensar…';
     if (profBtn)  { profBtn.innerHTML = '<i class="fas fa-robot"></i> Professor IA — pedir pista'; profBtn.disabled = false; }
@@ -5068,7 +5072,7 @@ function renderQuestion() {
     if (doubtPanel) doubtPanel.style.display = 'none';
     if (doubtInput) doubtInput.value = '';
     if (doubtAns)   { doubtAns.style.display = 'none'; doubtAns.innerHTML = ''; }
-    if (doubtTrig)  doubtTrig.classList.remove('open');
+    if (doubtTrig)  { doubtTrig.classList.remove('open'); doubtTrig.style.display = _isGameEx ? 'none' : ''; }
     if (doubtSugg)  { doubtSugg.style.display = 'none'; doubtSugg.innerHTML = ''; }
     selectedAnswer = null;
     matchSelection = { left: null };
