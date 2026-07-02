@@ -558,7 +558,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v541';
+const APP_VERSION = 'v542';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5593,6 +5593,7 @@ function _tutorStartRoleplay(sceneId) {
     tutorState._roleplay = sc;
     tutorState._ask = null; tutorState._pron = null; tutorState._pending = null; tutorState.drill = null;
     tutorState._rpFixes = null;
+    tutorState._rpUsedPhrases = null;
     const chat = document.getElementById('tutor-chat');
     if (chat) {
         chat.insertAdjacentHTML('beforeend', `
@@ -5630,8 +5631,8 @@ Give a SHORT debrief in EUROPEAN PORTUGUESE (Portugal, never Brazilian). Return 
     } catch (e) {
         console.warn('[tutor] debrief failed', e);
         if (tutorState) {
-            // Mesmo sem IA, mostra as correções acumuladas da cena.
-            if ((tutorState._rpFixes || []).length) { _tutorRenderMic(); _tutorShowDebrief(sc, {}); }
+            // Mesmo sem IA, mostra as correções e as frases treinadas usadas.
+            if ((tutorState._rpFixes || []).length || (tutorState._rpUsedPhrases || []).length) { _tutorRenderMic(); _tutorShowDebrief(sc, {}); }
             else _tutorAddTutor('Boa sessão! Continuamos quando quiseres.', '', '', true);
         }
     }
@@ -5656,6 +5657,12 @@ function _tutorShowDebrief(sc, d) {
               <button class="tutor-save" data-text="${escapeHtml(f.corrected)}" data-note="${escapeHtml(f.explanation)}" data-topic="${escapeHtml(f.errorType)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
             </span>
           </div>`).join('')}` : '';
+    // Crédito pelas frases de reunião treinadas que foram usadas na cena.
+    const used = ((tutorState && tutorState._rpUsedPhrases) || []).slice(0, 6);
+    if (tutorState) tutorState._rpUsedPhrases = null;
+    const usedHtml = used.length ? `
+          <div class="dbf-used"><b>🎯 Usaste ${used.length} frase${used.length === 1 ? '' : 's'} do teu treino!</b> Boa — é assim que ficam automáticas.
+          <ul class="tutor-pitfalls">${used.map(u => `<li>${escapeHtml(u.en)} <span style="color:#94a3b8">· ${escapeHtml(u.cat)}</span></li>`).join('')}</ul></div>` : '';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">🎭</div>
@@ -5663,6 +5670,7 @@ function _tutorShowDebrief(sc, d) {
           <div class="tutor-lesson-head">📋 Debrief — ${escapeHtml(sc.label)} ${badge}</div>
           ${d.summary ? `<div class="tutor-explain">${escapeHtml(d.summary)}</div>` : ''}
           ${d.good ? `<div class="dbf-good">✅ ${escapeHtml(d.good)}</div>` : ''}
+          ${usedHtml}
           ${improve.length ? `<div class="tutor-ex-label">A melhorar</div><ul class="tutor-pitfalls">${improve.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : ''}
           ${fixesHtml}
           <button class="tutor-lbtn prac full" onclick="_tutorRenderRoleplayPrompt()"><i class="fas fa-comments"></i> Nova cena</button>
@@ -7448,9 +7456,32 @@ function _tutorStartWebSpeech() {
     try { r.start(); } catch { if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; } }
 }
 
+// Deteta se o que o utilizador disse corresponde a uma frase de reunião
+// que treinou (skill Meetings). Guarda-a para dar crédito no debrief —
+// fecha o ciclo "treinas a frase → usa-la numa reunião a sério".
+function _tutorTrackMeetingUse(said) {
+    if (!tutorState || !tutorState._roleplay) return;
+    if (typeof _TUTOR_MEETING_PHRASES === 'undefined') return;
+    const saidW = normalize(said).replace(/[^a-z0-9\s']/g, '').split(/\s+/).filter(w => w.length > 2);
+    if (saidW.length < 3) return; // ignora respostas muito curtas
+    tutorState._rpUsedPhrases = tutorState._rpUsedPhrases || [];
+    for (const cat of _TUTOR_MEETING_PHRASES) {
+        for (const p of cat.phrases) {
+            // conta como "usada" se ≥70% das palavras-chave da frase treinada
+            // aparecem no que o utilizador disse (não precisa de ser literal).
+            if (_tutorWordMatch(said, p.en) >= 0.7) {
+                if (!tutorState._rpUsedPhrases.some(u => u.en === p.en)) {
+                    tutorState._rpUsedPhrases.push({ en: p.en, cat: cat.label });
+                }
+                return;
+            }
+        }
+    }
+}
 function _tutorHandleInput(said) {
     if (!tutorState) return;
     _tutorAddYou(said);
+    _tutorTrackMeetingUse(said);
     // Em modo "treino do erro": valida a repetição antes de prosseguir
     if (tutorState.drill) {
         const d = tutorState.drill;
