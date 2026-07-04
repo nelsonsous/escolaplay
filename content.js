@@ -2089,7 +2089,8 @@ const SUBJECTS_3 = {
     estudo_meio:      { name: 'Estudo do Meio',    icon: 'fa-globe',             color: '#16a34a' },
     ingles:           { name: 'Inglês',            icon: 'fa-language',          color: '#7c3aed' },
     cidadania:        { name: 'Cidadania',         icon: 'fa-people-group',      color: '#0891b2', fullName: 'Cidadania e Desenvolvimento' },
-    detetive:         { name: 'Detetive Mental',   icon: 'fa-magnifying-glass',  color: '#9333ea', fullName: 'Raciocínio, leitura activa e número-sensibilidade' }
+    detetive:         { name: 'Detetive Mental',   icon: 'fa-magnifying-glass',  color: '#9333ea', fullName: 'Raciocínio, leitura activa e número-sensibilidade' },
+    escrita:          { name: 'Escrita',           icon: 'fa-pen-fancy',         color: '#e11d48', fullName: 'Oficina de Escrita — construir frases e textos' }
 };
 
 const CURRICULUM_3 = {
@@ -2133,6 +2134,9 @@ const CURRICULUM_3 = {
     ],
     detetive: [
         'Charadas matemáticas', 'Histórias-mistério', 'Padrões e sequências', 'Sudoku & Kakuro', 'Lógica pura'
+    ],
+    escrita: [
+        'Maiúscula e ponto final', 'Frase com sentido', 'Palavras que ligam', 'Ordena a história', 'Do plano ao texto', 'Descrever com pormenor'
     ]
 };
 
@@ -2183,6 +2187,11 @@ const PERIODS_3 = {
         'Charadas matemáticas':1, 'Padrões e sequências':1,
         'Histórias-mistério':2,
         'Sudoku & Kakuro':3, 'Lógica pura':3
+    },
+    escrita: {
+        'Maiúscula e ponto final':1, 'Frase com sentido':1,
+        'Palavras que ligam':2, 'Ordena a história':2,
+        'Do plano ao texto':3, 'Descrever com pormenor':3
     }
 };
 
@@ -3020,6 +3029,56 @@ const EXERCISES_3 = [
     {"id":"rd_easy6","s":"leitura","t":"A formiga apressada","type":"mc","diff":1,"tip":"Lê devagar. Repara no que a formiga carrega.","passage":"Uma formiga pequenina carregava uma folha verde enorme.\nA folha era três vezes maior do que ela! Mas a formiga não desistia.\nChegou ao formigueiro e todas as amigas bateram palmas. Que formiga tão forte!","vocab":{"formigueiro":"casa das formigas, feita de túneis na terra","desistia":"deixava de tentar"},"q":"🐜 Porque bateram palmas as amigas?","opts":["porque a formiga era forte e não desistiu","porque estava a chover","porque a folha era pequena"],"ans":0,"exp":"A formiga carregou uma folha enorme sem desistir — as amigas ficaram admiradas.","paragraphChecks":[{"q":"O que carregava a formiga?","opts":["uma pedra","uma folha verde enorme","um grão de arroz"],"ans":1,"exp":"\"carregava uma folha verde enorme\".","afterParagraph":0},{"q":"A folha era…","opts":["três vezes maior do que a formiga","mais pequena do que a formiga","do tamanho da formiga"],"ans":0,"exp":"\"três vezes maior do que ela\".","afterParagraph":1}]},
     {"id":"rd_hard1","s":"leitura","t":"O mistério do lanche desaparecido","type":"mc","diff":3,"tip":"Texto mais comprido, de mistério! Lê como uma detetive: repara nas pistas escondidas nas frases.","passage":"Na segunda-feira, o lanche do Simão desapareceu da mochila. Na terça, aconteceu o mesmo. O Simão decidiu investigar.\nNa quarta-feira, escondeu-se atrás da porta da sala e esperou. Viu uma sombra pequena a aproximar-se da mochila... mas não era um colega. Era o Faísca, o gato da escola, que abria o fecho com a pata!\nO Simão riu-se tanto que o Faísca fugiu com o pão na boca. No dia seguinte, o Simão trouxe dois lanches: um para ele e outro, de atum, para o seu novo amigo ladrão.","vocab":{"investigar":"procurar descobrir a verdade, como um detetive","fecho":"o zíper que abre e fecha a mochila"},"q":"🕵️ Como descobriu o Simão o ladrão do lanche?","opts":["um colega contou-lhe","escondeu-se e esperou para ver","a professora viu o gato"],"ans":1,"exp":"\"escondeu-se atrás da porta da sala e esperou\" — investigou como um detetive.","paragraphChecks":[{"q":"Quando desapareceu o lanche pela primeira vez?","opts":["na segunda-feira","na quarta-feira","no sábado"],"ans":0,"exp":"\"Na segunda-feira, o lanche do Simão desapareceu\".","afterParagraph":0},{"q":"Quem era o ladrão do lanche?","opts":["um colega","o Faísca, o gato da escola","um passarinho"],"ans":1,"exp":"\"Era o Faísca, o gato da escola\".","afterParagraph":1}]},
     {"id":"rd_hard2","s":"leitura","t":"A carta da estação espacial","type":"mc","diff":3,"tip":"Texto mais difícil. Algumas respostas não estão escritas — tens de as deduzir pelas pistas!","passage":"Querida Eduarda,\nEscrevo-te a flutuar! Aqui na estação espacial não há gravidade: o meu lápis foge-me da mão e a água faz bolinhas no ar.\nDa janela vejo a Terra inteira, azul e redonda como um berlinde gigante. De noite — que aqui acontece dezasseis vezes por dia! — vejo as cidades acesas como estrelinhas.\nDaqui a três semanas volto para casa. Guarda-me um abraço (na Terra os abraços não flutuam).\nA tua tia astronauta, Marta","vocab":{"gravidade":"força que nos puxa para o chão","berlinde":"bolinha de vidro colorida de brincar"},"q":"🚀 Porque é que o lápis foge da mão da tia Marta?","opts":["porque o lápis é mágico","porque na estação não há gravidade","porque a tia o atira"],"ans":1,"exp":"Sem gravidade, nada é puxado para baixo — os objetos flutuam, incluindo o lápis.","paragraphChecks":[{"q":"Quem escreve a carta?","opts":["a tia Marta, astronauta","a mãe da Eduarda","uma amiga da escola"],"ans":0,"exp":"Assina \"A tua tia astronauta, Marta\".","afterParagraph":0},{"q":"Com que se parece a Terra vista da janela?","opts":["com um berlinde gigante","com uma estrela","com uma bola de fogo"],"ans":0,"exp":"\"azul e redonda como um berlinde gigante\".","afterParagraph":1}]},
+
+    // ============================ ESCRITA 3.º (Oficina de Escrita) ===============================
+    // Alvo directo da dificuldade da Eduarda (a professora: "deves exercitar a
+    // expressão escrita"): pontuação, construir frases, ligar ideias, e do plano
+    // ao texto. Usa engines existentes (mc/fill/tf/order/suspeitos) — 0 código novo.
+
+    // ── Maiúscula e ponto final (o erro mais visível: frases seguidas sem pontuação) ──
+    { id:'3ew_pt1', s:'escrita', t:'Maiúscula e ponto final', type:'mc', diff:1, q:'✍️ Qual frase está BEM escrita?', opts:['o gato dorme','O gato dorme.','o gato dorme'], ans:1, exp:'Uma frase começa com MAIÚSCULA e acaba com ponto final: «O gato dorme.»' },
+    { id:'3ew_pt2', s:'escrita', t:'Maiúscula e ponto final', type:'mc', diff:1, q:'✍️ O que falta em: "a maria foi à escola"?', opts:['maiúscula no início e ponto no fim','nada','só uma vírgula'], ans:0, exp:'Falta a maiúscula (A) e o ponto final: «A Maria foi à escola.»' },
+    { id:'3ew_pt3', s:'escrita', t:'Maiúscula e ponto final', type:'tf', diff:1, q:'Os nomes de pessoas escrevem-se sempre com maiúscula (Rui, Ana).', ans:true, exp:'Sim — nomes próprios (pessoas, cidades) levam sempre maiúscula.' },
+    { id:'3ew_pt4', s:'escrita', t:'Maiúscula e ponto final', type:'mc', diff:2, q:'✍️ Onde acaba a 1.ª frase? "O Rui correu muito depois bebeu água"', opts:['depois de "muito" (O Rui correu muito.)','não acaba','depois de "Rui"'], ans:0, exp:'São duas ideias → duas frases: «O Rui correu muito. Depois bebeu água.» O ponto separa-as.' },
+    { id:'3ew_pt5', s:'escrita', t:'Maiúscula e ponto final', type:'mc', diff:2, q:'✍️ Quantos pontos finais faltam? "fui ao pomar apanhei fruta fiz sumo"', opts:['3 (uma ideia, um ponto)','1','nenhum'], ans:0, exp:'São 3 ideias → 3 frases: «Fui ao pomar. Apanhei fruta. Fiz sumo.»' },
+    { id:'3ew_pt6', s:'escrita', t:'Maiúscula e ponto final', type:'fill', diff:2, q:'Escreve com maiúscula e ponto: "hoje está sol" → ___', ans:['Hoje está sol.'], exp:'«Hoje está sol.» — maiúscula no H e ponto no fim.' },
+    { id:'3ew_pt7', s:'escrita', t:'Maiúscula e ponto final', type:'game', game:'suspeitos', pick:true, diff:2, q:'🧠 Qual frase está BEM escrita?', story:'Só uma tem maiúscula no início e ponto no fim. Descobre-a!', suspects:[{id:'a',emoji:'❌',name:'a bola é vermelha'},{id:'b',emoji:'✅',name:'A bola é vermelha.'},{id:'c',emoji:'❌',name:'A bola é vermelha'}], clues:['A frase certa começa por MAIÚSCULA.','E acaba com PONTO FINAL.'], solution:'b', exp:'«A bola é vermelha.» — maiúscula no início e ponto no fim.' },
+
+    // ── Frase com sentido (construir frases: ordem das palavras) ──
+    { id:'3ew_fr1', s:'escrita', t:'Frase com sentido', type:'order', diff:1, q:'✍️ Ordena para fazer uma frase: gato / O / dorme', items:['O','gato','dorme'], exp:'«O gato dorme.» — primeiro quem (O gato), depois o que faz (dorme).' },
+    { id:'3ew_fr2', s:'escrita', t:'Frase com sentido', type:'order', diff:1, q:'✍️ Ordena: bola / a / Rui / O / chuta', items:['O','Rui','chuta','a','bola'], exp:'«O Rui chuta a bola.» — quem + o que faz + o quê.' },
+    { id:'3ew_fr3', s:'escrita', t:'Frase com sentido', type:'order', diff:2, q:'✍️ Ordena: sumo / fábrica / à / fomos / de', items:['fomos','à','fábrica','de','sumo'], exp:'«Fomos à fábrica de sumo.»' },
+    { id:'3ew_fr4', s:'escrita', t:'Frase com sentido', type:'mc', diff:1, q:'✍️ Qual é uma frase com sentido?', opts:['Come menina a maçã','A menina come a maçã.','Maçã a come menina a'], ans:1, exp:'«A menina come a maçã.» — as palavras estão pela ordem certa e faz sentido.' },
+    { id:'3ew_fr5', s:'escrita', t:'Frase com sentido', type:'game', game:'suspeitos', pick:true, diff:2, q:'🧠 Qual NÃO é uma frase a sério?', story:'Duas fazem sentido, uma é só palavras baralhadas. Encontra a baralhada.', suspects:[{id:'ok1',emoji:'✅',name:'O cão ladra.'},{id:'bad',emoji:'❌',name:'Ladra o casa cão.'},{id:'ok2',emoji:'✅',name:'A avó faz sopa.'}], clues:['Uma frase tem de FAZER SENTIDO.','«Ladra o casa cão» são só palavras baralhadas.'], solution:'bad', exp:'«Ladra o casa cão» não faz sentido — as outras duas são frases a sério.' },
+    { id:'3ew_fr6', s:'escrita', t:'Frase com sentido', type:'fill', diff:2, q:'Completa a frase: "O Sr. Júlio foi à ___ apanhar fruta."', ans:['quinta'], exp:'«O Sr. Júlio foi à quinta apanhar fruta.» — a palavra que falta é o lugar.' },
+
+    // ── Palavras que ligam (conectores: primeiro, depois, no fim, mas, porque) ──
+    { id:'3ew_lg1', s:'escrita', t:'Palavras que ligam', type:'mc', diff:1, q:'🔗 Que palavra mostra o que vem A SEGUIR? "Apanhei fruta. ___ fiz sumo."', opts:['Depois','Porque','Mas'], ans:0, exp:'«Depois» liga duas ações pela ordem do tempo: primeiro apanhei, depois fiz sumo.' },
+    { id:'3ew_lg2', s:'escrita', t:'Palavras que ligam', type:'mc', diff:2, q:'🔗 Que palavra mostra a CAUSA? "Fiquei feliz ___ ganhei um livro."', opts:['porque','depois','mas'], ans:0, exp:'«Porque» explica o motivo: fiquei feliz — a razão é ter ganho um livro.' },
+    { id:'3ew_lg3', s:'escrita', t:'Palavras que ligam', type:'mc', diff:2, q:'🔗 Que palavra mostra uma SURPRESA/oposto? "Queria brincar ___ estava a chover."', opts:['mas','e','porque'], ans:0, exp:'«Mas» liga duas ideias que se opõem: queria brincar / não pude por causa da chuva.' },
+    { id:'3ew_lg4', s:'escrita', t:'Palavras que ligam', type:'mc', diff:1, q:'🔗 Como começa uma história? "___, era uma vez um dragão."', opts:['Primeiro','No fim','Depois'], ans:0, exp:'Para começar usamos «Primeiro» (ou «Era uma vez»). «No fim» é para acabar.' },
+    { id:'3ew_lg5', s:'escrita', t:'Palavras que ligam', type:'fill', diff:2, q:'Completa com uma palavra de fim: "___, o Sr. Júlio voltou para casa feliz." (Primeiro / No fim)', ans:['No fim'], exp:'«No fim» marca o final da história.' },
+    { id:'3ew_lg6', s:'escrita', t:'Palavras que ligam', type:'game', game:'padrao', diff:2, q:'🔗 Que palavra liga na ordem do tempo?', sequence:['Primeiro','Depois','?'], options:['No fim','Porque','Mas','Grande'], answer:'No fim', hint:'Primeiro → Depois → ... como acaba uma história?', exp:'Primeiro, Depois, No fim — as palavras que marcam o princípio, o meio e o fim.' },
+
+    // ── Ordena a história (princípio, meio e fim — o que ela mais precisa: organizar) ──
+    { id:'3ew_or1', s:'escrita', t:'Ordena a história', type:'order', diff:1, q:'📖 Põe a história por ordem:', items:['O Sr. Júlio foi à quinta.','Apanhou muita fruta.','Fez sumo na fábrica.'], exp:'Princípio (foi à quinta) → meio (apanhou fruta) → fim (fez sumo). É o plano do teste!' },
+    { id:'3ew_or2', s:'escrita', t:'Ordena a história', type:'order', diff:2, q:'📖 Ordena a história do bolo:', items:['A Ana juntou os ingredientes.','Levou o bolo ao forno.','Comeu uma fatia deliciosa.'], exp:'Primeiro junta, depois leva ao forno, no fim come. Uma ação de cada vez.' },
+    { id:'3ew_or3', s:'escrita', t:'Ordena a história', type:'order', diff:2, q:'📖 Ordena o dia na praia:', items:['De manhã fomos à praia.','Fizemos um castelo de areia.','Ao fim do dia voltámos para casa.'], exp:'Manhã → durante o dia → fim do dia. As palavras de tempo ajudam a ordenar.' },
+    { id:'3ew_or4', s:'escrita', t:'Ordena a história', type:'mc', diff:2, q:'📖 Qual é o PRINCÍPIO de uma história?', opts:['E viveram felizes para sempre.','Era uma vez uma menina corajosa.','No fim, todos aplaudiram.'], ans:1, exp:'«Era uma vez…» é como se começa. As outras duas são finais.' },
+    { id:'3ew_or5', s:'escrita', t:'Ordena a história', type:'mc', diff:3, q:'📖 A história tem 3 partes. Qual é a ordem certa?', opts:['Fim → Meio → Princípio','Princípio → Meio → Fim','Meio → Princípio → Fim'], ans:1, exp:'Toda a história tem Princípio (quem/onde), Meio (o que acontece) e Fim (como acaba).' },
+
+    // ── Do plano ao texto (transformar um plano em frases — a tarefa do teste) ──
+    { id:'3ew_pl1', s:'escrita', t:'Do plano ao texto', type:'mc', diff:2, q:'📝 Do plano "apanha da fruta" — que frase escreves?', opts:['fruta apanha','O Sr. Júlio apanhou fruta madura na quinta.','fruta.'], ans:1, exp:'Um ponto do plano vira uma frase COMPLETA: quem + o que fez + pormenor.' },
+    { id:'3ew_pl2', s:'escrita', t:'Do plano ao texto', type:'mc', diff:2, q:'📝 Do plano "visita à quinta" — a melhor frase é:', opts:['No fim de semana, o Sr. Júlio visitou a quinta.','quinta visita','à quinta.'], ans:0, exp:'Uma boa frase diz QUANDO (no fim de semana), QUEM (o Sr. Júlio) e O QUÊ (visitou a quinta).' },
+    { id:'3ew_pl3', s:'escrita', t:'Do plano ao texto', type:'tf', diff:2, q:'Cada ponto do plano deve virar pelo menos uma frase completa.', ans:true, exp:'Sim — o plano é uma lista de ideias; escrever é transformar cada ideia numa frase.' },
+    { id:'3ew_pl4', s:'escrita', t:'Do plano ao texto', type:'mc', diff:3, q:'📝 Que frase liga MELHOR duas partes do plano (fruta → sumo)?', opts:['fruta sumo','Depois de apanhar a fruta, fizemos sumo na fábrica.','sumo fruta fábrica'], ans:1, exp:'Usa uma palavra que liga («Depois de…») para o texto ficar seguido e bonito.' },
+    { id:'3ew_pl5', s:'escrita', t:'Do plano ao texto', type:'fill', diff:3, q:'Escreve uma frase para o plano "fim de semana divertido": ___', ans:['Foi um fim de semana muito divertido.','foi um fim de semana divertido'], exp:'Ex.: «Foi um fim de semana muito divertido.» — uma frase de fecho para a história.' },
+
+    // ── Descrever com pormenor (enriquecer: adjetivos e detalhes) ──
+    { id:'3ew_ds1', s:'escrita', t:'Descrever com pormenor', type:'mc', diff:1, q:'🎨 Qual frase tem MAIS pormenor?', opts:['Vi um cão.','Vi um cão castanho, pequeno e brincalhão.','Cão.'], ans:1, exp:'Os adjetivos (castanho, pequeno, brincalhão) dão pormenor e tornam o texto mais rico.' },
+    { id:'3ew_ds2', s:'escrita', t:'Descrever com pormenor', type:'mc', diff:2, q:'🎨 Que palavra dá mais pormenor a "a flor"?', opts:['a flor','a flor bonita e cheirosa','flor'], ans:1, exp:'«bonita e cheirosa» são adjetivos que descrevem a flor.' },
+    { id:'3ew_ds3', s:'escrita', t:'Descrever com pormenor', type:'fill', diff:2, q:'Junta um adjetivo: "O gelado estava ___." (bom exemplo: delicioso)', ans:['delicioso','bom','doce','gelado','fresco'], exp:'Um adjetivo (delicioso, fresco…) diz COMO era o gelado.' },
+    { id:'3ew_ds4', s:'escrita', t:'Descrever com pormenor', type:'game', game:'suspeitos', pick:true, diff:2, q:'🧠 Qual frase pinta melhor a imagem na cabeça?', story:'A escrita boa faz-nos VER a cena. Qual descreve com mais pormenor?', suspects:[{id:'seca',emoji:'❌',name:'Havia uma casa.'},{id:'rica',emoji:'✅',name:'Havia uma casa velha, com telhado vermelho e uma porta azul.'},{id:'nada',emoji:'❌',name:'Casa.'}], clues:['A melhor frase dá cores e pormenores.','Faz-nos imaginar a casa.'], solution:'rica', exp:'«…casa velha, com telhado vermelho e porta azul» — os pormenores fazem-nos ver a casa.' },
 
     // ============================ MAT+ 3.º (Matemática visual) ===============================
     {"id":"mp3_c1","s":"mat_plus","t":"Centenas com ten-frames","type":"mc","diff":1,"q":"🔢 10 ten-frames cheios são:","opts":["10","100","1 000"],"ans":1,"exp":"10 × 10 = 100."},
