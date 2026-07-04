@@ -6638,3 +6638,20 @@ body.has-teacher-overlay #subject-detail-container {
 .paper-sols summary { cursor: pointer; font-weight: 700; }
 .paper-sols div { padding: 8px 0; }
 .paper-cta { border-color: #99f6e4; background: #f0fdfa; color: #0f766e; margin-top: 10px; }
+
+/* ── Ficha de Escrita (v558) ── */
+.write-plan { background: linear-gradient(135deg,#fff1f2,#ffe4e6); border: 1.5px solid #fecdd3; border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; }
+.write-plan-h { font-size: 1.05rem; font-weight: 800; color: #9f1239; }
+.write-plan-sub { font-size: 0.8rem; color: #be123c; margin: 6px 0 8px; }
+.write-plan-list { margin: 0 0 0 18px; display: flex; flex-direction: column; gap: 5px; font-size: 0.95rem; color: #881337; }
+.write-howto { background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 14px; padding: 12px 16px; font-size: 0.86rem; color: #78350f; margin-bottom: 14px; }
+.write-howto ol { margin: 6px 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
+.write-photo-btn { background: linear-gradient(135deg,#e11d48,#be123c); box-shadow: 0 6px 18px rgba(225,29,72,0.35); }
+.write-stars { text-align: center; font-size: 2rem; margin: 8px 0 12px; letter-spacing: 4px; }
+.write-transcr { background: #f8fafc; border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; color: #475569; margin-bottom: 12px; }
+.write-fb { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; border-radius: 10px; background: #fff; box-shadow: var(--shadow-sm); margin-bottom: 6px; font-size: 0.9rem; }
+.write-fb-ic { font-size: 1.1rem; flex-shrink: 0; }
+.write-tips-h { font-weight: 800; color: #b45309; margin: 12px 0 4px; font-size: 0.9rem; }
+.write-tips { margin: 0 0 0 18px; display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; color: #78350f; }
+.write-xp { text-align: center; font-weight: 900; color: #0f766e; font-size: 1.05rem; margin: 12px 0 4px; }
+.write-cta { border-color: #fecdd3; background: #fff1f2; color: #be123c; }
