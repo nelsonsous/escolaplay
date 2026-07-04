@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v553';
+const APP_VERSION = 'v554';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1986,7 +1986,110 @@ function _parentStats(src) {
         .filter(x => x.net > 0)
         .sort((a, b) => b.net - a.net)
         .slice(0, 6);
-    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year };
+    const readingLog = (p && Array.isArray(p.readingLog)) ? p.readingLog : (src ? [] : (state.readingLog || []));
+    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year, hist, readingLog, local: !src };
+}
+
+// ── "Está a melhorar?" — análise de EVOLUÇÃO a partir do histórico ──
+// Responde à pergunta que o Painel não respondia: ela está a ficar melhor?
+function _pdWeeklyAccuracy(hist) {
+    const wk = {};
+    hist.forEach(h => {
+        if (!h || !h.d) return;
+        const d = new Date(h.d + 'T00:00:00'); if (isNaN(d)) return;
+        const monday = new Date(d); const day = (d.getDay() + 6) % 7; monday.setDate(d.getDate() - day);
+        const key = monday.toISOString().slice(0, 10);
+        const w = wk[key] || (wk[key] = { ans: 0, ok: 0, key });
+        w.ans++; if (h.c) w.ok++;
+    });
+    return Object.values(wk).filter(w => w.ans >= 4).sort((a, b) => a.key.localeCompare(b.key)).slice(-6);
+}
+function _pdTopicMap(year) {
+    const m = {};
+    const bank = (window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[year]) || [];
+    bank.forEach(e => { if (e && e.id) m[e.id] = { t: e.t, s: e.s }; });
+    (state.maxExercises || []).forEach(e => { if (e && e.id && !m[e.id]) m[e.id] = { t: e.t, s: e.s }; });
+    return m;
+}
+function _pdSkillDeltas(hist, year) {
+    const map = _pdTopicMap(year);
+    const byTopic = {};
+    hist.forEach(h => {
+        const info = h && h.id && map[h.id];
+        if (!info || !info.t) return;
+        const t = byTopic[info.t] || (byTopic[info.t] = { t: info.t, s: info.s, seq: [] });
+        t.seq.push(h.c ? 1 : 0);
+    });
+    const rows = [];
+    Object.values(byTopic).forEach(t => {
+        const n = t.seq.length;
+        if (n < 6) return; // pouca amostra para tendência
+        const half = Math.floor(n / 2);
+        const earlier = t.seq.slice(0, half);
+        const recent = t.seq.slice(half);
+        const eAcc = Math.round(100 * earlier.reduce((a, b) => a + b, 0) / earlier.length);
+        const rAcc = Math.round(100 * recent.reduce((a, b) => a + b, 0) / recent.length);
+        rows.push({ t: t.t, s: t.s, delta: rAcc - eAcc, rAcc, n });
+    });
+    return rows;
+}
+// Secção "Está a melhorar?" — tendência de acerto por semana, competências
+// que subiram/desceram, e fluência de leitura ao longo do tempo.
+function _pdImprovementHtml(stats) {
+    const hist = stats.hist || [];
+    const weeks = _pdWeeklyAccuracy(hist);
+    const deltas = stats.local ? _pdSkillDeltas(hist, stats.year) : [];
+    const rlog = stats.readingLog || [];
+    if (weeks.length < 2 && deltas.length === 0 && rlog.length === 0) {
+        return `<div class="pd-improve pd-improve-empty">📈 <b>Está a melhorar?</b><br><span>Ainda a recolher dados. Depois de uns dias de prática, aparece aqui a evolução dela.</span></div>`;
+    }
+    // Tendência semanal
+    let weekHtml = '';
+    if (weeks.length >= 2) {
+        const bars = weeks.map(w => {
+            const pct = Math.round(100 * w.ok / w.ans);
+            const col = pct >= 80 ? '#16a34a' : pct >= 60 ? '#f59e0b' : '#ef4444';
+            const lbl = w.key.slice(8) + '/' + w.key.slice(5, 7);
+            return `<div class="pd-wk"><div class="pd-wk-bar" style="height:${Math.max(6, pct)}%;background:${col}" title="${pct}%"></div><div class="pd-wk-pct">${pct}%</div><div class="pd-wk-lbl">${lbl}</div></div>`;
+        }).join('');
+        const first = Math.round(100 * weeks[0].ok / weeks[0].ans);
+        const last = Math.round(100 * weeks[weeks.length - 1].ok / weeks[weeks.length - 1].ans);
+        const d = last - first;
+        const trend = d >= 6 ? `↗️ subiu ${d}%` : d <= -6 ? `↘️ desceu ${-d}%` : '→ estável';
+        weekHtml = `<div class="pd-improve-sub">Precisão por semana <b>${trend}</b></div><div class="pd-wk-row">${bars}</div>`;
+    }
+    // Competências a melhorar / a reforçar
+    let skillHtml = '';
+    if (deltas.length) {
+        const up = deltas.filter(x => x.delta >= 10).sort((a, b) => b.delta - a.delta).slice(0, 3);
+        const down = deltas.filter(x => x.rAcc < 60 || x.delta <= -10).sort((a, b) => a.rAcc - b.rAcc).slice(0, 3);
+        if (up.length) skillHtml += `<div class="pd-improve-sub">✅ A dominar melhor</div>` + up.map(x => `<div class="pd-skill up"><span>${escapeHtml(x.t)}</span><span class="pd-skill-d">+${x.delta}% → ${x.rAcc}%</span></div>`).join('');
+        if (down.length) skillHtml += `<div class="pd-improve-sub">🎯 A reforçar</div>` + down.map(x => `<div class="pd-skill down"><span>${escapeHtml(x.t)}</span><span class="pd-skill-d">${x.rAcc}% certas</span></div>`).join('');
+    }
+    // Fluência de leitura
+    let readHtml = '';
+    if (rlog.length >= 1) {
+        const recent = rlog.slice(-5);
+        const lastR = recent[recent.length - 1];
+        let trendTxt = '';
+        if (rlog.length >= 3) {
+            const early = rlog.slice(0, Math.ceil(rlog.length / 2));
+            const late = rlog.slice(-Math.ceil(rlog.length / 2));
+            const avg = a => Math.round(a.reduce((s, x) => s + (x.wpm || 0), 0) / a.length);
+            const dW = avg(late) - avg(early);
+            trendTxt = dW >= 6 ? `↗️ mais fluente (+${dW} pal/min)` : dW <= -6 ? `↘️ ${-dW} pal/min mais lenta` : '→ estável';
+        }
+        readHtml = `<div class="pd-improve-sub">📖 Leitura em voz alta ${trendTxt ? '<b>' + trendTxt + '</b>' : ''}</div>
+            <div class="pd-read-kpis">
+                <div class="pd-read-kpi"><b>${lastR.wpm || 0}</b><span>palavras/min</span></div>
+                <div class="pd-read-kpi"><b>${lastR.acc || 0}%</b><span>precisão</span></div>
+                <div class="pd-read-kpi"><b>${rlog.length}</b><span>leituras</span></div>
+            </div>`;
+    }
+    return `<div class="pd-improve">
+        <div class="pd-improve-h">📈 Está a melhorar?</div>
+        ${weekHtml}${skillHtml}${readHtml}
+    </div>`;
 }
 function openParentDashboard(remote) {
     document.getElementById('parent-dash-container')?.remove();
@@ -2041,6 +2144,7 @@ function openParentDashboard(remote) {
             <div class="pd-kpi"><div class="pd-kpi-n">${Object.keys(bySubj).length}</div><div class="pd-kpi-l">disciplinas ativas</div></div>
           </div>
           <button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>
+          ${_pdImprovementHtml(_parentStats(remote))}
           <div class="pd-section-h">📅 Últimos 7 dias</div>
           <div class="pd-week">${last7.join('')}</div>
           <div class="pd-section-h">📚 Desempenho por disciplina</div>
@@ -16200,6 +16304,7 @@ function openReadingTeacher(exId) {
     const vocab = ex.vocab || {};
 
     _teacher.text = cleanText;
+    _teacher.exId = exId;
     _teacher.words = [];
     _teacher.spans = [];
     _teacher.position = 0;
@@ -17630,6 +17735,16 @@ function _teacherFinishRead() {
     _teacher.mode = null;
     const stopBtn = document.getElementById('teacher-stop-btn');
     if (stopBtn) stopBtn.style.display = 'none';
+    // Persistir a fluência de leitura para o Painel de Pais poder mostrar a
+    // EVOLUÇÃO (a app media isto e deitava fora). Só leituras com sinal real.
+    try {
+        if (total >= 8 && correct >= 3) {
+            if (!Array.isArray(state.readingLog)) state.readingLog = [];
+            state.readingLog.push({ d: todayStr(), wpm, acc: pct, words: total, id: _teacher.exId || '' });
+            if (state.readingLog.length > 80) state.readingLog.shift();
+            saveState();
+        }
+    } catch (e) { console.warn('[teacher] readingLog', e); }
 }
 
 // ============================================================
