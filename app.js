@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v557';
+const APP_VERSION = 'v558';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1563,6 +1563,7 @@ function openSubjectDetail(key, opts) {
                 ` : ''}
 
                 ${key === 'detetive' ? _detetiveQuickChips() : ''}
+                ${key === 'escrita' ? `<button class="det-surprise paper-cta write-cta" style="margin-bottom:12px" onclick="openWriteSheet()">✍️ Ficha de Escrita — escreve um texto à mão e mostra à professora!</button>` : ''}
 
                 <!-- Criar duelo — visual identico a 'Comecar treino' (rosa primario) -->
                 <button class="btn btn-primary-solid btn-block" style="margin-bottom:12px" onclick="pickDuelRecipientsAndCreate('${key}')">
@@ -16870,6 +16871,191 @@ function _paperShowResults(j) {
         ${rows}
         ${j.elogio ? `<div class="paper-praise">💬 ${escapeHtml(j.elogio)}</div>` : ''}
         <button class="det-surprise" style="margin-top:12px" onclick="openPaperSheet(true)">📝 Nova ficha</button>`;
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ============================================================
+// FICHA DE ESCRITA — a app dá um PLANO (como no teste da escola), a
+// criança escreve o texto narrativo À MÃO numa folha, fotografa, e a
+// visão da Mistral dá feedback de professora (pontuação, frases, seguiu
+// o plano?, estrelas + 2 conselhos). Fase 2 do "papel → foto → validar".
+// ============================================================
+const _WRITE_PLANS = [
+    { titulo: 'Um dia na quinta', emoji: '🚜', pontos: ['O Sr. Júlio (personagem)', 'a quinta (onde)', 'no fim de semana (quando)', 'a apanha da fruta', 'a fábrica de sumo', 'um fim de semana divertido (fim)'] },
+    { titulo: 'Uma ida ao circo', emoji: '🎪', pontos: ['a menina Rita (personagem)', 'o circo (onde)', 'no sábado à tarde (quando)', 'o palhaço e os trapezistas', 'as pipocas', 'voltar a casa a rir (fim)'] },
+    { titulo: 'O meu fim de semana', emoji: '🏖️', pontos: ['tu (personagem)', 'onde foste', 'no sábado ou domingo', 'o que fizeste', 'com quem estiveste', 'como te sentiste no fim'] },
+    { titulo: 'Uma aventura na floresta', emoji: '🌲', pontos: ['o Tomás (personagem)', 'a floresta (onde)', 'numa manhã de sol', 'um animal que encontrou', 'uma surpresa', 'como acabou a aventura'] },
+    { titulo: 'A festa de anos', emoji: '🎂', pontos: ['a Ana faz anos (personagem)', 'em casa (onde)', 'no domingo', 'os amigos e os jogos', 'o bolo de chocolate', 'uma festa inesquecível (fim)'] },
+    { titulo: 'Um dia de chuva', emoji: '🌧️', pontos: ['tu e a família', 'em casa (onde)', 'num dia de chuva', 'o que fizeram dentro de casa', 'um jogo ou um filme', 'como passou o dia'] }
+];
+function _writePick() {
+    const i = Math.floor(Math.random() * _WRITE_PLANS.length);
+    return _WRITE_PLANS[i];
+}
+function openWriteSheet(regen) {
+    if (regen || !state.writeSheet || !state.writeSheet.plano) {
+        state.writeSheet = { plano: _writePick(), created: todayStr(), done: false };
+        try { saveState(); } catch {}
+    }
+    _writeRender();
+}
+window.openWriteSheet = openWriteSheet;
+function _writeRender() {
+    document.getElementById('write-sheet-container')?.remove();
+    const sheet = state.writeSheet;
+    if (!sheet) return;
+    const p = sheet.plano;
+    const pontos = p.pontos.map(pt => `<li>${escapeHtml(pt)}</li>`).join('');
+    const hasKey = !!(state.max && state.max.mistralKey);
+    const wrap = document.createElement('div');
+    wrap.id = 'write-sheet-container';
+    wrap.innerHTML = `
+      <div class="fullscreen" id="write-sheet-screen">
+        <div class="exercise-header" style="background:linear-gradient(135deg,#be123c,#e11d48)">
+            <button class="icon-btn" onclick="document.getElementById('write-sheet-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <div style="flex:1;font-weight:800;color:#fff">✍️ Ficha de Escrita</div>
+            <button class="icon-btn" style="color:#fff" onclick="openWriteSheet(true)" title="Outro plano"><i class="fas fa-rotate"></i></button>
+        </div>
+        <div class="exercise-body">
+            <div class="write-plan">
+                <div class="write-plan-h">${p.emoji} Escreve um texto: <b>${escapeHtml(p.titulo)}</b></div>
+                <div class="write-plan-sub">Usa este plano — cada ponto vira pelo menos uma frase:</div>
+                <ul class="write-plan-list">${pontos}</ul>
+            </div>
+            <div class="write-howto">
+                <b>Antes de escrever:</b>
+                <ol><li>Lê o plano todo. 📖</li>
+                <li>Numa folha, escreve o texto — uma <b>frase</b> por cada ponto.</li>
+                <li>Não te esqueças: <b>maiúscula</b> no início e <b>ponto final</b> no fim de cada frase.</li>
+                <li>Liga as ideias: <i>Primeiro… Depois… No fim…</i></li>
+                <li>Relê e tira uma foto! 📷</li></ol>
+            </div>
+            <label class="paper-photo-btn write-photo-btn${hasKey ? '' : ' off'}">
+                📷 Mostrar o meu texto à professora
+                <input type="file" accept="image/*" capture="environment" style="display:none" onchange="_writePhotoPick(event)" ${hasKey ? '' : 'disabled'}>
+            </label>
+            ${hasKey ? '' : '<div class="paper-nokey">🔑 Para o feedback automático, configura a chave Mistral em Perfil → MAX.</div>'}
+            <div id="write-status" class="paper-status"></div>
+            <div id="write-results"></div>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+}
+function _writePhotoPick(ev) {
+    const file = ev.target && ev.target.files && ev.target.files[0];
+    if (!file) return;
+    ev.target.value = '';
+    const st = document.getElementById('write-status');
+    if (st) st.innerHTML = '⏳ A preparar a foto…';
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        try {
+            const MAX = 1400;
+            const sc = Math.min(1, MAX / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            const dataUrl = c.toDataURL('image/jpeg', 0.82);
+            URL.revokeObjectURL(url);
+            _writeCorrect(dataUrl);
+        } catch (e) { if (st) st.innerHTML = '⚠️ Não consegui ler a foto. Tenta outra vez.'; }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); if (st) st.innerHTML = '⚠️ Foto inválida — tenta outra.'; };
+    img.src = url;
+}
+window._writePhotoPick = _writePhotoPick;
+async function _writeCorrect(dataUrl) {
+    const sheet = state.writeSheet;
+    const st = document.getElementById('write-status');
+    const key = state.max && state.max.mistralKey;
+    if (!sheet || !key) return;
+    if (st) st.innerHTML = '🧑‍🏫 A professora está a ler o teu texto… (uns segundos)';
+    const p = sheet.plano;
+    const prompt = `És uma professora do 3.º ano em Portugal, CALOROSA e encorajadora, a corrigir um TEXTO NARRATIVO escrito À MÃO por uma criança de 8 anos (pode ter dificuldades de escrita). A foto mostra a folha dela.
+
+TAREFA que a criança tinha: escrever um texto com o título "${p.titulo}", seguindo este plano:
+${p.pontos.map((x, i) => (i + 1) + '. ' + x).join('\n')}
+
+Lê o texto manuscrito com TOLERÂNCIA à caligrafia. Avalia com bondade (é uma criança a aprender).
+
+Devolve APENAS JSON estrito em PORTUGUÊS EUROPEU:
+{
+  "legivel": true,
+  "transcricao": "o texto que conseguiste ler (curto)",
+  "estrelas": 2,
+  "pontuacao": "1 frase sobre maiúsculas e pontos finais (o que fez bem OU o que falta)",
+  "frases": "1 frase sobre se as frases fazem sentido e estão bem construídas",
+  "seguiu_plano": "1 frase: seguiu o plano? que pontos do plano usou ou faltaram",
+  "conselhos": ["conselho concreto e simples 1", "conselho concreto e simples 2"],
+  "elogio": "1 frase calorosa e específica a elogiar algo real do texto dela"
+}
+REGRAS: estrelas 1 a 3 (sê generosa: 2 é o normal para uma tentativa honesta, 3 se está muito bom, 1 só se quase não escreveu). Se a foto não mostrar um texto manuscrito legível, devolve {"legivel": false}. Linguagem simples e doce, para a criança perceber. Nunca uses palavras duras.`;
+    const mkBody = (model) => JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: dataUrl }
+        ]}],
+        response_format: { type: 'json_object' },
+        temperature: 0.3
+    });
+    let json = null;
+    for (const model of ['mistral-small-latest', 'pixtral-12b-latest']) {
+        try {
+            const ctrl = new AbortController();
+            const to = setTimeout(() => ctrl.abort(), 50000);
+            let res;
+            try {
+                res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
+                    body: mkBody(model), signal: ctrl.signal
+                });
+            } finally { clearTimeout(to); }
+            if (!res.ok) throw new Error('http ' + res.status);
+            const data = await res.json();
+            json = JSON.parse(data.choices[0].message.content);
+            break;
+        } catch (e) { console.warn('[write]', model, e); }
+    }
+    if (!json) { if (st) st.innerHTML = '⚠️ O feedback falhou (rede ou chave). Tenta outra vez.'; return; }
+    if (json.legivel === false) { if (st) st.innerHTML = '📷 Não consegui ler o texto. Tira outra foto com mais luz, de cima, com a folha toda e a letra bem visível.'; return; }
+    _writeShowResults(json);
+}
+function _writeShowResults(j) {
+    const sheet = state.writeSheet;
+    const st = document.getElementById('write-status');
+    const out = document.getElementById('write-results');
+    if (!sheet || !out) return;
+    if (st) st.innerHTML = '';
+    const stars = Math.max(1, Math.min(3, +j.estrelas || 2));
+    const starHtml = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+    const conselhos = Array.isArray(j.conselhos) ? j.conselhos.slice(0, 2) : [];
+    // Regista como treino de Escrita (history + XP). Estrelas → acerto se ≥2.
+    if (!sheet.done) {
+        sheet.done = true;
+        const gained = stars * 15;
+        state.history.push({ id: 'write_' + Date.now(), s: 'escrita', c: stars >= 2, d: todayStr() });
+        if (state.history.length > 500) state.history = state.history.slice(-500);
+        const sub = state.subjects.escrita || { answered: 0, correct: 0, xp: 0 };
+        sub.answered += 1; if (stars >= 2) sub.correct += 1; sub.xp += gained;
+        state.subjects.escrita = sub;
+        state.xp += gained;
+        try { saveState(); } catch {}
+        if (stars >= 2) { try { _showConfetti(18); } catch {} }
+        try { _showCombo(0, gained); } catch {}
+    }
+    out.innerHTML = `
+        <div class="write-stars">${starHtml}</div>
+        ${j.transcricao ? `<div class="write-transcr">📄 <i>“${escapeHtml(String(j.transcricao).slice(0, 240))}”</i></div>` : ''}
+        <div class="write-fb"><span class="write-fb-ic">✏️</span><span><b>Pontuação:</b> ${escapeHtml(j.pontuacao || '')}</span></div>
+        <div class="write-fb"><span class="write-fb-ic">📝</span><span><b>Frases:</b> ${escapeHtml(j.frases || '')}</span></div>
+        <div class="write-fb"><span class="write-fb-ic">🗺️</span><span><b>Seguiu o plano:</b> ${escapeHtml(j.seguiu_plano || '')}</span></div>
+        ${conselhos.length ? `<div class="write-tips-h">💡 Para a próxima:</div><ul class="write-tips">${conselhos.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
+        ${j.elogio ? `<div class="paper-praise">💬 ${escapeHtml(j.elogio)}</div>` : ''}
+        <div class="write-xp">+${stars * 15} XP</div>
+        <button class="det-surprise" style="margin-top:12px" onclick="openWriteSheet(true)">✍️ Outro plano</button>`;
     out.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
