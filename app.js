@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v556';
+const APP_VERSION = 'v557';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -16662,6 +16662,7 @@ function openMatPlusHub() {
                 ${diagHtml}
                 <div class="det-game-grid">${cards}</div>
                 <button class="det-surprise" onclick="startSubjectSession('mat_plus', { bypassSeenCheck: true })">🎲 Treino misto (tudo)</button>
+                <button class="det-surprise paper-cta" onclick="openPaperSheet()">📝 Ficha de papel — resolve na folha e fotografa!</button>
                 <div class="tutor-card" data-tutor-subject="mat_plus" data-tutor-name="Mat+" onclick="openTutorFromSubjectCard(this)" style="margin:14px 0 80px">
                   <div class="tutor-card-icon"><i class="fas fa-chalkboard-user"></i></div>
                   <div class="tutor-card-text">
@@ -16675,6 +16676,202 @@ function openMatPlusHub() {
     document.body.appendChild(container);
 }
 window.openMatPlusHub = openMatPlusHub;
+
+// ============================================================
+// FICHA DE PAPEL — exercícios para fazer À MÃO numa folha, fotografar
+// e corrigir com a visão da Mistral. O teste da escola é em papel:
+// armar contas e escrever à mão treinam o que o ecrã não treina.
+// Fase 1: contas de matemática (números manuscritos são o que a visão
+// lê com mais fiabilidade). A foto NÃO é guardada — só o resultado.
+// ============================================================
+function _paperGen() {
+    const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+    const ex = [];
+    // 2× adição com transporte (3 dígitos, garante transporte nas unidades)
+    for (let k = 0; k < 2; k++) {
+        let a, b;
+        do { a = R(115, 489); b = R(115, 489); } while ((a % 10) + (b % 10) < 10);
+        ex.push({ q: `${a} + ${b} =`, ans: a + b, t: 'Adição com transporte' });
+    }
+    // 2× subtração com empréstimo (resultado positivo, pede empréstimo)
+    for (let k = 0; k < 2; k++) {
+        let a, b;
+        do { a = R(300, 899); b = R(115, a - 50); } while ((a % 10) >= (b % 10));
+        ex.push({ q: `${a} − ${b} =`, ans: a - b, t: 'Subtração com empréstimo' });
+    }
+    // 1× tabuada (6-9)
+    { const a = R(6, 9), b = R(3, 9); ex.push({ q: `${a} × ${b} =`, ans: a * b, t: `Tabuada do ${a} visual` }); }
+    // 1× divisão exata (via tabuada ao contrário)
+    { const a = R(6, 9), b = R(3, 9); ex.push({ q: `${a * b} ÷ ${a} =`, ans: b, t: 'Divisão por partilha' }); }
+    return ex.map((e, i) => ({ ...e, n: i + 1 }));
+}
+function openPaperSheet(regen) {
+    if (regen || !state.paperSheet || !Array.isArray(state.paperSheet.ex)) {
+        state.paperSheet = { ex: _paperGen(), created: todayStr(), done: false };
+        try { saveState(); } catch {}
+    }
+    _paperRender();
+}
+window.openPaperSheet = openPaperSheet;
+function _paperRender() {
+    document.getElementById('paper-sheet-container')?.remove();
+    const sheet = state.paperSheet;
+    if (!sheet) return;
+    const rows = sheet.ex.map(e => `
+        <div class="paper-ex"><span class="paper-ex-n">${e.n}</span><span class="paper-ex-q">${escapeHtml(e.q)}</span></div>`).join('');
+    const sols = sheet.ex.map(e => `${e.n}) ${e.q} ${e.ans}`).join('  ·  ');
+    const hasKey = !!(state.max && state.max.mistralKey);
+    const wrap = document.createElement('div');
+    wrap.id = 'paper-sheet-container';
+    wrap.innerHTML = `
+      <div class="fullscreen" id="paper-sheet-screen">
+        <div class="exercise-header" style="background:linear-gradient(135deg,#475569,#334155)">
+            <button class="icon-btn" onclick="document.getElementById('paper-sheet-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <div style="flex:1;font-weight:800;color:#fff">📝 Ficha de Papel</div>
+            <button class="icon-btn" style="color:#fff" onclick="openPaperSheet(true)" title="Nova ficha"><i class="fas fa-rotate"></i></button>
+        </div>
+        <div class="exercise-body">
+            <div class="paper-howto">
+                <b>Como funciona:</b>
+                <ol><li>Copia as contas para uma folha e <b>arma-as</b> (números em coluna).</li>
+                <li>Resolve com lápis, com calma.</li>
+                <li>Escreve o <b>número do exercício</b> ao lado de cada conta.</li>
+                <li>Tira uma foto da folha e eu corrijo! 📷</li></ol>
+            </div>
+            <div class="paper-list">${rows}</div>
+            <label class="paper-photo-btn${hasKey ? '' : ' off'}">
+                📷 Corrigir a minha folha
+                <input type="file" accept="image/*" capture="environment" style="display:none" onchange="_paperPhotoPick(event)" ${hasKey ? '' : 'disabled'}>
+            </label>
+            ${hasKey ? '' : '<div class="paper-nokey">🔑 Para a correção automática, configura a chave Mistral em Perfil → MAX. (Podes sempre corrigir com as soluções abaixo.)</div>'}
+            <div id="paper-status" class="paper-status"></div>
+            <div id="paper-results"></div>
+            <details class="paper-sols"><summary>👨‍👩‍👧 Soluções (para os pais)</summary><div>${escapeHtml(sols)}</div></details>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+}
+// Reduz a foto para ~1200px JPEG antes de enviar (mais rápido e barato).
+function _paperPhotoPick(ev) {
+    const file = ev.target && ev.target.files && ev.target.files[0];
+    if (!file) return;
+    ev.target.value = '';
+    const st = document.getElementById('paper-status');
+    if (st) st.innerHTML = '⏳ A preparar a foto…';
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        try {
+            const MAX = 1200;
+            const sc = Math.min(1, MAX / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            const dataUrl = c.toDataURL('image/jpeg', 0.82);
+            URL.revokeObjectURL(url);
+            _paperCorrect(dataUrl);
+        } catch (e) {
+            if (st) st.innerHTML = '⚠️ Não consegui ler a foto. Tenta outra vez.';
+        }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); if (st) st.innerHTML = '⚠️ Foto inválida — tenta outra.'; };
+    img.src = url;
+}
+window._paperPhotoPick = _paperPhotoPick;
+async function _paperCorrect(dataUrl) {
+    const sheet = state.paperSheet;
+    const st = document.getElementById('paper-status');
+    const key = state.max && state.max.mistralKey;
+    if (!sheet || !key) return;
+    if (st) st.innerHTML = '🧑‍🏫 A corrigir a tua folha… (uns segundos)';
+    const lista = sheet.ex.map(e => `${e.n}) ${e.q} [resposta certa: ${e.ans}]`).join('\n');
+    const prompt = `És um(a) professor(a) do 3.º ano em Portugal a corrigir uma FICHA DE CONTAS escrita À MÃO por uma criança de 8 anos. A foto mostra a folha dela.
+
+FICHA (numerada):
+${lista}
+
+REGRAS DE CORREÇÃO (importantes):
+- Sê TOLERANTE com a caligrafia infantil: se conseguires perceber o número final escrito, usa-o.
+- Interessa o RESULTADO FINAL de cada conta (o número depois do "=") — não os cálculos intermédios.
+- Se não conseguires ler a resposta de um exercício, marca "correto": null (não penalizes).
+- Se a foto não mostrar uma folha com contas legíveis, devolve "legivel": false.
+
+Devolve APENAS JSON estrito:
+{"legivel": true, "resultados": [{"n": 1, "lido": "número que leste", "correto": true}], "elogio": "uma frase curta e calorosa em PT-PT sobre o trabalho dela"}`;
+    const mkBody = (model) => JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: dataUrl }
+        ]}],
+        response_format: { type: 'json_object' },
+        temperature: 0.1
+    });
+    let json = null;
+    for (const model of ['mistral-small-latest', 'pixtral-12b-latest']) {
+        try {
+            const ctrl = new AbortController();
+            const to = setTimeout(() => ctrl.abort(), 45000);
+            let res;
+            try {
+                res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
+                    body: mkBody(model), signal: ctrl.signal
+                });
+            } finally { clearTimeout(to); }
+            if (!res.ok) throw new Error('http ' + res.status);
+            const data = await res.json();
+            json = JSON.parse(data.choices[0].message.content);
+            break;
+        } catch (e) { console.warn('[paper]', model, e); }
+    }
+    if (!json) { if (st) st.innerHTML = '⚠️ A correção falhou (rede ou chave). Tenta outra vez.'; return; }
+    if (json.legivel === false) { if (st) st.innerHTML = '📷 Não consegui ler a folha. Tira outra foto com mais luz, de cima, com a folha toda.'; return; }
+    _paperShowResults(json);
+}
+function _paperShowResults(j) {
+    const sheet = state.paperSheet;
+    const st = document.getElementById('paper-status');
+    const out = document.getElementById('paper-results');
+    if (!sheet || !out) return;
+    if (st) st.innerHTML = '';
+    const res = Array.isArray(j.resultados) ? j.resultados : [];
+    let ok = 0, wrong = 0, unread = 0;
+    const rows = sheet.ex.map(e => {
+        const r = res.find(x => x && +x.n === e.n);
+        const c = r ? r.correto : null;
+        if (c === true) ok++; else if (c === false) wrong++; else unread++;
+        const icon = c === true ? '✅' : c === false ? '❌' : '❓';
+        const detail = c === false ? ` <span class="paper-r-fix">li «${escapeHtml(String(r && r.lido || '?'))}» — a resposta certa é <b>${e.ans}</b></span>`
+            : c === null ? ' <span class="paper-r-unread">não consegui ler</span>' : '';
+        return `<div class="paper-r ${c === true ? 'ok' : c === false ? 'no' : 'un'}">${icon} <b>${e.n})</b> ${escapeHtml(e.q)} ${e.ans}${detail}</div>`;
+    }).join('');
+    // Regista no progresso (history + XP) — papel conta como treino a sério.
+    if (!sheet.done) {
+        sheet.done = true;
+        const gained = ok * 12;
+        sheet.ex.forEach(e => {
+            const r = res.find(x => x && +x.n === e.n);
+            if (!r || r.correto == null) return;
+            state.history.push({ id: 'paper_' + Date.now() + '_' + e.n, s: 'mat_plus', c: !!r.correto, d: todayStr() });
+        });
+        if (state.history.length > 500) state.history = state.history.slice(-500);
+        const sub = state.subjects.mat_plus || { answered: 0, correct: 0, xp: 0 };
+        sub.answered += ok + wrong; sub.correct += ok; sub.xp += gained;
+        state.subjects.mat_plus = sub;
+        state.xp += gained;
+        try { saveState(); } catch {}
+        if (ok >= 4) { try { _showConfetti(20); } catch {} }
+        try { _showCombo(0, gained); } catch {}
+    }
+    out.innerHTML = `
+        <div class="paper-score">${ok}/${ok + wrong || sheet.ex.length} certas ${unread ? `· ${unread} por ler` : ''} · <b>+${ok * 12} XP</b></div>
+        ${rows}
+        ${j.elogio ? `<div class="paper-praise">💬 ${escapeHtml(j.elogio)}</div>` : ''}
+        <button class="det-surprise" style="margin-top:12px" onclick="openPaperSheet(true)">📝 Nova ficha</button>`;
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function _openLeituraText(exId) {
     const ex = (window.EXERCISES || []).find(e => e.id === exId);
