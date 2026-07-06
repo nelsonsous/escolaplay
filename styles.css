@@ -6655,3 +6655,22 @@ body.has-teacher-overlay #subject-detail-container {
 .write-tips { margin: 0 0 0 18px; display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; color: #78350f; }
 .write-xp { text-align: center; font-weight: 900; color: #0f766e; font-size: 1.05rem; margin: 12px 0 4px; }
 .write-cta { border-color: #fecdd3; background: #fff1f2; color: #be123c; }
+
+/* ── Ficha de Ditado (v559) ── */
+.dict-howto { background: #ecfeff; border: 1.5px solid #a5f3fc; border-radius: 14px; padding: 12px 16px; font-size: 0.86rem; color: #155e75; margin-bottom: 14px; }
+.dict-howto ol { margin: 6px 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
+.dict-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.dict-say { display: flex; align-items: center; gap: 12px; width: 100%; cursor: pointer; text-align: left; border: 2px solid #67e8f9; background: #fff; border-radius: 14px; padding: 14px 16px; transition: transform 0.1s; }
+.dict-say:active { transform: scale(0.97); background: #ecfeff; }
+.dict-say-n { width: 30px; height: 30px; border-radius: 50%; background: #0891b2; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dict-say-ic { font-size: 1.4rem; }
+.dict-say-t { font-weight: 700; color: #0e7490; font-size: 1rem; }
+.dict-photo-btn { background: linear-gradient(135deg,#0891b2,#0e7490); box-shadow: 0 6px 18px rgba(8,145,178,0.35); }
+.dict-r { padding: 10px 12px; border-radius: 10px; margin-bottom: 6px; }
+.dict-r.ok { background: #dcfce7; }
+.dict-r.no { background: #fef9c3; }
+.dict-r.un { background: #f1f5f9; }
+.dict-r-frase { font-weight: 600; }
+.dict-errs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding-left: 26px; }
+.dict-err { font-size: 0.84rem; background: #fff; border-radius: 8px; padding: 3px 8px; color: #92400e; }
+.dict-err s { color: #b91c1c; }

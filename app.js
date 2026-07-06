@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v558';
+const APP_VERSION = 'v559';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -16501,6 +16501,7 @@ function openLeituraLibrary() {
             </div>
             <div class="exercise-body">
                 <div class="leitura-library-intro">Escolhe um texto para ler com o Professor. São ${texts.length} textos — lê devagar, ouve o professor, e responde às perguntas no fim de cada parágrafo.</div>
+                <button class="det-surprise paper-cta" style="margin:0 0 14px;border-color:#a5f3fc;background:#ecfeff;color:#0e7490" onclick="openDictationSheet()">🎧 Ditado — ouve as frases e escreve na folha!</button>
                 <div class="leitura-library-grid">${cards}</div>
             </div>
         </div>`;
@@ -17056,6 +17057,220 @@ function _writeShowResults(j) {
         ${j.elogio ? `<div class="paper-praise">💬 ${escapeHtml(j.elogio)}</div>` : ''}
         <div class="write-xp">+${stars * 15} XP</div>
         <button class="det-surprise" style="margin-top:12px" onclick="openWriteSheet(true)">✍️ Outro plano</button>`;
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+
+// ============================================================
+// FICHA DE DITADO — a app DIZ a frase (voz que já usamos na Leitura), a
+// criança escreve À MÃO, fotografa, e a visão da Mistral corrige a
+// ORTOGRAFIA. Fase 3 do "papel → foto → validar". Alvo directo dos erros
+// de escrita da Eduarda (palavras trocadas no teste). As frases NÃO
+// aparecem no ecrã — ela tem de as escrever de ouvido.
+// ============================================================
+const _DICT_BANK = [
+    'O gato dorme na cama.',
+    'A menina come uma maçã.',
+    'O pássaro voa no céu azul.',
+    'A minha avó faz uma sopa quente.',
+    'O coelho corre pela floresta.',
+    'Hoje está sol e vamos brincar.',
+    'A chuva caiu durante a noite.',
+    'O menino guarda o livro na mochila.',
+    'A borboleta pousou na flor.',
+    'Comprámos pão e queijo no mercado.',
+    'O carro passou depressa na estrada.',
+    'A galinha põe ovos todos os dias.',
+    'O peixe nada dentro do aquário.',
+    'A professora escreveu no quadro.',
+    'O cavalo galopa no campo verde.',
+    'A abelha faz mel na colmeia.',
+    'Nós fomos à quinta apanhar fruta.',
+    'O relógio marca as três horas.',
+    'A criança sorriu para a mãe.',
+    'O barco navega no mar calmo.',
+    'A chave abre a porta da casa.',
+    'O passarinho canta de manhã cedo.',
+    'A folha caiu da árvore no outono.',
+    'O bombeiro apagou o fogo com água.'
+];
+function _dictPick(n) {
+    const pool = _DICT_BANK.slice();
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    return pool.slice(0, n || 5);
+}
+function openDictationSheet(regen) {
+    if (regen || !state.dictSheet || !Array.isArray(state.dictSheet.frases)) {
+        state.dictSheet = { frases: _dictPick(5), created: todayStr(), done: false };
+        try { saveState(); } catch {}
+    }
+    _dictRender();
+}
+window.openDictationSheet = openDictationSheet;
+function _dictSay(i) {
+    const s = state.dictSheet; if (!s) return;
+    const txt = s.frases[i]; if (!txt) return;
+    try { if (typeof speakEN === 'function') speakEN(txt, 'pt-PT'); } catch (e) { console.warn('[dict] say', e); }
+}
+window._dictSay = _dictSay;
+function _dictRender() {
+    document.getElementById('dict-sheet-container')?.remove();
+    const s = state.dictSheet;
+    if (!s) return;
+    const hasKey = !!(state.max && state.max.mistralKey);
+    const rows = s.frases.map((_, i) => `
+        <button class="dict-say" onclick="_dictSay(${i})"><span class="dict-say-n">${i + 1}</span><span class="dict-say-ic">🔊</span><span class="dict-say-t">Ouvir a frase ${i + 1}</span></button>`).join('');
+    const sols = s.frases.map((f, i) => `${i + 1}) ${f}`).join('  ·  ');
+    const wrap = document.createElement('div');
+    wrap.id = 'dict-sheet-container';
+    wrap.innerHTML = `
+      <div class="fullscreen" id="dict-sheet-screen">
+        <div class="exercise-header" style="background:linear-gradient(135deg,#0891b2,#0e7490)">
+            <button class="icon-btn" onclick="document.getElementById('dict-sheet-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <div style="flex:1;font-weight:800;color:#fff">🎧 Ditado</div>
+            <button class="icon-btn" style="color:#fff" onclick="openDictationSheet(true)" title="Novo ditado"><i class="fas fa-rotate"></i></button>
+        </div>
+        <div class="exercise-body">
+            <div class="dict-howto">
+                <b>Como funciona:</b>
+                <ol><li>Carrega em <b>🔊 Ouvir</b> — a frase é dita em voz alta.</li>
+                <li>Escreve-a numa folha, com cuidado na letra. ✍️</li>
+                <li>Podes ouvir outra vez as vezes que precisares.</li>
+                <li>No fim, escreve o <b>número</b> ao lado de cada frase e tira uma foto! 📷</li></ol>
+            </div>
+            <div class="dict-list">${rows}</div>
+            <label class="paper-photo-btn dict-photo-btn${hasKey ? '' : ' off'}">
+                📷 Corrigir o meu ditado
+                <input type="file" accept="image/*" capture="environment" style="display:none" onchange="_dictPhotoPick(event)" ${hasKey ? '' : 'disabled'}>
+            </label>
+            ${hasKey ? '' : '<div class="paper-nokey">🔑 Para a correção automática, configura a chave Mistral em Perfil → MAX.</div>'}
+            <div id="dict-status" class="paper-status"></div>
+            <div id="dict-results"></div>
+            <details class="paper-sols"><summary>👨‍👩‍👧 Frases do ditado (para os pais)</summary><div>${escapeHtml(sols)}</div></details>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+}
+function _dictPhotoPick(ev) {
+    const file = ev.target && ev.target.files && ev.target.files[0];
+    if (!file) return;
+    ev.target.value = '';
+    const st = document.getElementById('dict-status');
+    if (st) st.innerHTML = '⏳ A preparar a foto…';
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        try {
+            const MAX = 1400;
+            const sc = Math.min(1, MAX / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            const dataUrl = c.toDataURL('image/jpeg', 0.82);
+            URL.revokeObjectURL(url);
+            _dictCorrect(dataUrl);
+        } catch (e) { if (st) st.innerHTML = '⚠️ Não consegui ler a foto. Tenta outra vez.'; }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); if (st) st.innerHTML = '⚠️ Foto inválida — tenta outra.'; };
+    img.src = url;
+}
+window._dictPhotoPick = _dictPhotoPick;
+async function _dictCorrect(dataUrl) {
+    const s = state.dictSheet;
+    const st = document.getElementById('dict-status');
+    const key = state.max && state.max.mistralKey;
+    if (!s || !key) return;
+    if (st) st.innerHTML = '🧑‍🏫 A corrigir o teu ditado… (uns segundos)';
+    const lista = s.frases.map((f, i) => `${i + 1}) "${f}"`).join('\n');
+    const prompt = `És um(a) professor(a) do 3.º ano em Portugal a corrigir um DITADO escrito À MÃO por uma criança de 8 anos. A foto mostra a folha dela, onde escreveu as frases que ouviu.
+
+FRASES CORRETAS do ditado (numeradas):
+${lista}
+
+Para cada frase, compara o que a criança ESCREVEU com a frase correta e conta os ERROS DE ORTOGRAFIA (letras trocadas, em falta, acentos, maiúsculas, pontuação).
+REGRAS:
+- Sê TOLERANTE com a caligrafia: se a letra permite duas leituras, escolhe a que está correta (dá o benefício da dúvida).
+- Uma frase conta como "certa" se não tiver erros de ortografia (ignora só o tamanho da letra).
+- Lista as palavras erradas com a forma correta, para ela aprender.
+- Se não conseguires ler a folha, devolve {"legivel": false}.
+
+Devolve APENAS JSON estrito em PORTUGUÊS EUROPEU:
+{"legivel": true, "resultados": [{"n": 1, "certa": true, "erros": [{"escreveu": "vista", "correto": "visita"}]}], "elogio": "1 frase curta e calorosa em PT-PT"}`;
+    const mkBody = (model) => JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: dataUrl }
+        ]}],
+        response_format: { type: 'json_object' },
+        temperature: 0.1
+    });
+    let json = null;
+    for (const model of ['mistral-small-latest', 'pixtral-12b-latest']) {
+        try {
+            const ctrl = new AbortController();
+            const to = setTimeout(() => ctrl.abort(), 50000);
+            let res;
+            try {
+                res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
+                    body: mkBody(model), signal: ctrl.signal
+                });
+            } finally { clearTimeout(to); }
+            if (!res.ok) throw new Error('http ' + res.status);
+            const data = await res.json();
+            json = JSON.parse(data.choices[0].message.content);
+            break;
+        } catch (e) { console.warn('[dict]', model, e); }
+    }
+    if (!json) { if (st) st.innerHTML = '⚠️ A correção falhou (rede ou chave). Tenta outra vez.'; return; }
+    if (json.legivel === false) { if (st) st.innerHTML = '📷 Não consegui ler a folha. Tira outra foto com mais luz, de cima, com a letra bem visível.'; return; }
+    _dictShowResults(json);
+}
+function _dictShowResults(j) {
+    const s = state.dictSheet;
+    const st = document.getElementById('dict-status');
+    const out = document.getElementById('dict-results');
+    if (!s || !out) return;
+    if (st) st.innerHTML = '';
+    const res = Array.isArray(j.resultados) ? j.resultados : [];
+    let ok = 0;
+    const rows = s.frases.map((f, i) => {
+        const r = res.find(x => x && +x.n === (i + 1));
+        const certa = r ? !!r.certa : null;
+        if (certa === true) ok++;
+        const erros = (r && Array.isArray(r.erros)) ? r.erros : [];
+        const icon = certa === true ? '✅' : certa === false ? '✏️' : '❓';
+        const errHtml = erros.length
+            ? `<div class="dict-errs">${erros.slice(0, 5).map(e => `<span class="dict-err"><s>${escapeHtml(String(e.escreveu || '?'))}</s> → <b>${escapeHtml(String(e.correto || ''))}</b></span>`).join('')}</div>`
+            : (certa === false ? '' : '');
+        return `<div class="dict-r ${certa === true ? 'ok' : certa === false ? 'no' : 'un'}">
+            <div class="dict-r-top">${icon} <b>${i + 1})</b> <span class="dict-r-frase">${escapeHtml(f)}</span></div>
+            ${errHtml}</div>`;
+    }).join('');
+    if (!s.done) {
+        s.done = true;
+        const gained = ok * 15;
+        s.frases.forEach((f, i) => {
+            const r = res.find(x => x && +x.n === (i + 1));
+            if (!r || r.certa == null) return;
+            state.history.push({ id: 'dict_' + Date.now() + '_' + i, s: 'som_plus', c: !!r.certa, d: todayStr() });
+        });
+        if (state.history.length > 500) state.history = state.history.slice(-500);
+        const sub = state.subjects.som_plus || { answered: 0, correct: 0, xp: 0 };
+        sub.answered += s.frases.length; sub.correct += ok; sub.xp += gained;
+        state.subjects.som_plus = sub;
+        state.xp += gained;
+        try { saveState(); } catch {}
+        if (ok >= 4) { try { _showConfetti(18); } catch {} }
+        try { _showCombo(0, gained); } catch {}
+    }
+    out.innerHTML = `
+        <div class="paper-score">${ok}/${s.frases.length} frases sem erros · <b>+${ok * 15} XP</b></div>
+        ${rows}
+        ${j.elogio ? `<div class="paper-praise">💬 ${escapeHtml(j.elogio)}</div>` : ''}
+        <button class="det-surprise" style="margin-top:12px" onclick="openDictationSheet(true)">🎧 Novo ditado</button>`;
     out.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
