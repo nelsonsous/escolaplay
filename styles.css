@@ -6701,3 +6701,19 @@ body.has-teacher-overlay #subject-detail-container {
 /* Barras por disciplina: ponta de dados arredondada, base reta */
 .pd-bar { height: 10px; }
 .pd-bar span { border-radius: 0 4px 4px 0; }
+
+/* ── Tooltips ricos + heatmap + comparação (v561) ── */
+.pd-chart { position: relative; }
+.pd-chart [data-tip] { cursor: pointer; }
+.pd-tipbox { position: absolute; transform: translate(-50%, -100%); background: #0f172a; color: #fff; font-size: 0.74rem; font-weight: 600; padding: 6px 10px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(15,23,42,0.25); z-index: 5; animation: pdFade 0.15s ease-out; }
+.pd-tipbox::after { content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; background: #0f172a; }
+.pd-chart-heat { text-align: center; }
+.pd-heat { display: inline-block; width: auto; max-width: 100%; }
+.pd-heat rect { transition: opacity 0.1s; }
+.pd-heat rect:active { opacity: 0.7; }
+.pd-heat-legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: 0.68rem; color: #94a3b8; margin: 2px 6px 0 0; }
+.pd-heat-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.pd-cmp-legend { display: flex; gap: 12px; margin: 2px 0 4px; }
+.pd-cmp-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #334155; }
+.pd-cmp-chip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.pd-cmp-name { font-size: 10.5px; font-weight: 800; fill: #334155; }
