@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v560';
+const APP_VERSION = 'v561';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2034,6 +2034,138 @@ function _pdSkillDeltas(hist, year) {
     });
     return rows;
 }
+// Tooltip rico ao toque (o <title> nativo é fraco em mobile): balão
+// posicionado sobre a marca tocada, auto-esconde em 2.6s.
+function _pdTip(evt) {
+    const t = evt.currentTarget || evt.target;
+    const tip = t && t.getAttribute && t.getAttribute('data-tip');
+    const chart = t && t.closest ? t.closest('.pd-chart') : null;
+    if (!tip || !chart) return;
+    chart.querySelectorAll('.pd-tipbox').forEach(x => x.remove());
+    const box = document.createElement('div');
+    box.className = 'pd-tipbox';
+    box.textContent = tip;
+    chart.appendChild(box);
+    const r = t.getBoundingClientRect(), cr = chart.getBoundingClientRect();
+    const bw = box.offsetWidth || 120;
+    let x = r.left + r.width / 2 - cr.left;
+    x = Math.max(bw / 2 + 4, Math.min(cr.width - bw / 2 - 4, x));
+    box.style.left = x + 'px';
+    box.style.top = Math.max(2, r.top - cr.top - 6) + 'px';
+    clearTimeout(_pdTip._to);
+    _pdTip._to = setTimeout(() => box.remove(), 2600);
+}
+window._pdTip = _pdTip;
+// Calendário de constância (12 semanas): sequencial, um só matiz claro→escuro.
+// É o gráfico do HÁBITO — mostra num relance se a prática é regular.
+const _PD_HEAT_RAMP = ['#eef2f6', '#c9e8f2', '#7cc4dd', '#2d9fc4', '#0b6e8d'];
+function _pdHeatmap(days) {
+    const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const DAYS_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const cell = 18, gap = 4, padL = 30, padT = 16;
+    const WEEKS = 12;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = new Date(today); start.setDate(start.getDate() - (WEEKS * 7 - 1));
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // recua até segunda
+    const W = padL + WEEKS * (cell + gap) - gap + 6;
+    const H = padT + 7 * (cell + gap) - gap + 6;
+    let cells = '', monthLabels = '', lastMonth = -1;
+    for (let w = 0; w < WEEKS; w++) {
+        const monday = new Date(start); monday.setDate(start.getDate() + w * 7);
+        if (monday.getMonth() !== lastMonth) {
+            lastMonth = monday.getMonth();
+            monthLabels += `<text x="${padL + w * (cell + gap)}" y="11" class="pd-xlab">${MONTHS[lastMonth]}</text>`;
+        }
+        for (let d = 0; d < 7; d++) {
+            const day = new Date(monday); day.setDate(monday.getDate() + d);
+            if (day > today) continue;
+            const key = day.toISOString().slice(0, 10);
+            const n = (days[key] && days[key].ans) || 0;
+            const lvl = n === 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : n <= 9 ? 3 : 4;
+            const tip = `${DAYS_PT[d]} ${key.slice(8)}/${key.slice(5, 7)} · ${n} exercício${n === 1 ? '' : 's'}`;
+            cells += `<rect x="${padL + w * (cell + gap)}" y="${padT + d * (cell + gap)}" width="${cell}" height="${cell}" rx="4" fill="${_PD_HEAT_RAMP[lvl]}" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></rect>`;
+        }
+    }
+    const dayLabels = [0, 2, 4].map(d =>
+        `<text x="${padL - 6}" y="${padT + d * (cell + gap) + cell / 2 + 3}" text-anchor="end" class="pd-xlab">${DAYS_PT[d]}</text>`).join('');
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Constância das últimas 12 semanas" xmlns="http://www.w3.org/2000/svg" class="pd-heat">${monthLabels}${dayLabels}${cells}</svg>
+    <div class="pd-heat-legend">menos ${_PD_HEAT_RAMP.map(c => `<i style="background:${c}"></i>`).join('')} mais</div>`;
+}
+// Linha multi-série (comparação de perfis): 2 séries, legenda + rótulo
+// direto no fim de cada linha (identidade nunca só pela cor).
+function _pdMultiLine(o) {
+    const labels = o.labels || [], series = o.series || [];
+    const n = labels.length;
+    if (!n || !series.length) return '';
+    const W = 340, H = 160, padL = 34, padR = 70, padT = 14, padB = 22;
+    const plotW = W - padL - padR, plotH = H - padT - padB, baseY = padT + plotH;
+    const yMax = o.yMax || 100;
+    const X = i => n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1));
+    const Y = v => baseY - (Math.max(0, Math.min(yMax, v)) / yMax) * plotH;
+    const ticks = [0, 50, 100].map(tv => {
+        const ty = Y(tv);
+        return `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W - padR}" y2="${ty.toFixed(1)}" stroke="#e8edf2" stroke-width="1"/>
+            <text x="${padL - 6}" y="${(ty + 3).toFixed(1)}" text-anchor="end" class="pd-tick">${tv}%</text>`;
+    }).join('');
+    const xLabels = labels.map((lb, i) => `<text x="${X(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="pd-xlab">${lb}</text>`).join('');
+    // Rótulos de fim: afasta-os se colidirem (mín. 14px)
+    const ends = series.map(s => {
+        const last = s.pts[s.pts.length - 1];
+        return { name: s.name, color: s.color, x: X(last.i), y: Y(last.v) };
+    });
+    if (ends.length === 2 && Math.abs(ends[0].y - ends[1].y) < 14) {
+        const mid = (ends[0].y + ends[1].y) / 2;
+        const top = ends[0].y <= ends[1].y ? 0 : 1;
+        ends[top].y = mid - 7; ends[1 - top].y = mid + 7;
+    }
+    const body = series.map((s, si) => {
+        const pts = s.pts.map(p => [X(p.i), Y(p.v)]);
+        const line = _pdSmooth(pts, padT, baseY);
+        const dots = s.pts.map((p, k) => {
+            const tip = `${s.name} — semana de ${labels[p.i]}: ${p.v}%`;
+            return `<circle cx="${X(p.i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4.5" fill="${s.color}" stroke="#fff" stroke-width="2" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></circle>`;
+        }).join('');
+        const e = ends[si];
+        const endLab = `<circle cx="${(W - padR + 10)}" cy="${e.y.toFixed(1)}" r="3.5" fill="${e.color}"/><text x="${(W - padR + 17)}" y="${(e.y + 3.5).toFixed(1)}" class="pd-cmp-name">${escapeHtml(e.name)}</text>`;
+        return `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}${endLab}`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Comparação de perfis'}" xmlns="http://www.w3.org/2000/svg">${ticks}${body}${xLabels}</svg>`;
+}
+// Secção "Lado a lado" — compara a precisão semanal de 2 perfis locais.
+function _pdCompareHtml() {
+    const profs = (state.profiles || []).filter(p => p && Array.isArray(p.history) && p.history.length >= 8);
+    if (profs.length < 2) return '';
+    // perfil ativo primeiro; depois o outro com mais história
+    const activeId = state.activeProfileId;
+    profs.sort((a, b) => (a.id === activeId ? -1 : b.id === activeId ? 1 : b.history.length - a.history.length));
+    const pair = profs.slice(0, 2);
+    // últimas 6 semanas (segundas-feiras) como eixo comum
+    const mondays = [];
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const mon0 = new Date(now); mon0.setDate(mon0.getDate() - ((mon0.getDay() + 6) % 7));
+    for (let i = 5; i >= 0; i--) { const m = new Date(mon0); m.setDate(mon0.getDate() - i * 7); mondays.push(m.toISOString().slice(0, 10)); }
+    const labels = mondays.map(k => k.slice(8) + '/' + k.slice(5, 7));
+    const COLORS = ['#0891b2', '#e11d48'];
+    const series = pair.map((p, pi) => {
+        const wk = {};
+        p.history.forEach(h => {
+            if (!h || !h.d) return;
+            const d = new Date(h.d + 'T00:00:00'); if (isNaN(d)) return;
+            const m = new Date(d); m.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+            const key = m.toISOString().slice(0, 10);
+            const w = wk[key] || (wk[key] = { ans: 0, ok: 0 });
+            w.ans++; if (h.c) w.ok++;
+        });
+        const pts = [];
+        mondays.forEach((k, i) => { const w = wk[k]; if (w && w.ans >= 3) pts.push({ i, v: Math.round(100 * w.ok / w.ans) }); });
+        return { name: p.name || 'Perfil', color: COLORS[pi], pts };
+    }).filter(s => s.pts.length >= 2);
+    if (series.length < 2) return '';
+    const legend = series.map(s => `<span class="pd-cmp-chip"><i style="background:${s.color}"></i>${escapeHtml(s.name)}</span>`).join('');
+    return `<div class="pd-section-h">👥 Lado a lado — precisão semanal</div>
+        <div class="pd-cmp-legend">${legend}</div>
+        <div class="pd-chart">${_pdMultiLine({ labels, series, aria: 'Precisão semanal dos dois perfis' })}</div>`;
+}
 // Secção "Está a melhorar?" — tendência de acerto por semana, competências
 // que subiram/desceram, e fluência de leitura ao longo do tempo.
 // ── Gráficos SVG do Painel de Pais — desenhados à mão, specs profissionais ──
@@ -2092,7 +2224,8 @@ function _pdLineChart(o) {
     // Pontos: todos com anel de superfície; o último é maior e leva o rótulo.
     const dots = pts.map((p, i) => {
         const last = i === n - 1;
-        return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${last ? 5.5 : 4.5}" fill="${color}" stroke="#fff" stroke-width="2" class="pd-dot"><title>${titles[i] || (labels[i] + ': ' + vals[i] + (o.unit || ''))}</title></circle>`;
+        const tip = titles[i] || (labels[i] + ': ' + vals[i] + (o.unit || ''));
+        return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${last ? 5.5 : 4.5}" fill="${color}" stroke="#fff" stroke-width="2" class="pd-dot" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></circle>`;
     }).join('');
     const endLabel = `<text x="${(pts[n - 1][0] + 9).toFixed(1)}" y="${(pts[n - 1][1] + 4).toFixed(1)}" class="pd-endlab">${vals[n - 1]}${o.unit || ''}</text>`;
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Evolução'}" xmlns="http://www.w3.org/2000/svg">
@@ -2131,7 +2264,7 @@ function _pdColumnChart(o) {
         // Rótulo de valor SELETIVO: só no máximo e no dia de hoje (se > 0).
         const cap = (v > 0 && (i === maxI || isToday))
             ? `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="middle" class="pd-cap">${v}</text>` : '';
-        return `<g class="pd-col">${path ? `<path d="${path}" fill="${fill}"><title>${titles[i] || (labels[i] + ': ' + v)}</title></path>` : ''}${cap}
+        return `<g class="pd-col">${path ? `<path d="${path}" fill="${fill}" data-tip="${titles[i] || (labels[i] + ': ' + v)}" onclick="_pdTip(event)"><title>${titles[i] || (labels[i] + ': ' + v)}</title></path>` : ''}${cap}
             <text x="${(padL + i * step + step / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="pd-xlab${isToday ? ' today' : ''}">${labels[i]}</text></g>`;
     }).join('');
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Atividade dos últimos 7 dias'}" xmlns="http://www.w3.org/2000/svg">
@@ -2255,8 +2388,11 @@ function openParentDashboard(remote) {
           </div>
           <button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>
           ${_pdImprovementHtml(_parentStats(remote))}
+          ${remote ? '' : _pdCompareHtml()}
           <div class="pd-section-h">📅 Últimos 7 dias</div>
           ${weekChart}
+          <div class="pd-section-h">🔥 Constância — últimas 12 semanas</div>
+          <div class="pd-chart pd-chart-heat">${_pdHeatmap(days)}</div>
           <div class="pd-section-h">📚 Desempenho por disciplina</div>
           ${subjRows}
           ${weakHtml}
