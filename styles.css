@@ -6674,3 +6674,30 @@ body.has-teacher-overlay #subject-detail-container {
 .dict-errs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding-left: 26px; }
 .dict-err { font-size: 0.84rem; background: #fff; border-radius: 8px; padding: 3px 8px; color: #92400e; }
 .dict-err s { color: #b91c1c; }
+
+/* ── Gráficos SVG do Painel de Pais (v560) ── */
+.pd-chart { margin: 4px 0 8px; }
+.pd-chart svg { display: block; width: 100%; height: auto; }
+.pd-tick { font-size: 9px; fill: #94a3b8; font-variant-numeric: tabular-nums; }
+.pd-xlab { font-size: 9.5px; fill: #94a3b8; }
+.pd-xlab.today { fill: #334155; font-weight: 700; }
+.pd-cap { font-size: 10px; font-weight: 700; fill: #334155; font-variant-numeric: tabular-nums; }
+.pd-endlab { font-size: 11.5px; font-weight: 800; fill: #334155; font-variant-numeric: tabular-nums; }
+.pd-line { stroke-dasharray: 900; stroke-dashoffset: 900; animation: pdDraw 1s ease-out forwards; }
+.pd-area { opacity: 0; animation: pdFade 0.7s ease-out 0.45s forwards; }
+.pd-dot { opacity: 0; animation: pdFade 0.4s ease-out 0.6s forwards; }
+.pd-col path { transform-box: fill-box; transform-origin: bottom; animation: pdRise 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.1) backwards; }
+.pd-col:nth-child(2) path { animation-delay: 0.05s; } .pd-col:nth-child(3) path { animation-delay: 0.1s; }
+.pd-col:nth-child(4) path { animation-delay: 0.15s; } .pd-col:nth-child(5) path { animation-delay: 0.2s; }
+.pd-col:nth-child(6) path { animation-delay: 0.25s; } .pd-col:nth-child(7) path { animation-delay: 0.3s; }
+@keyframes pdDraw { to { stroke-dashoffset: 0; } }
+@keyframes pdFade { to { opacity: 1; } }
+@keyframes pdRise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .pd-line, .pd-area, .pd-dot, .pd-col path { animation: none; opacity: 1; stroke-dashoffset: 0; } }
+.pd-chip { display: inline-block; font-size: 0.72rem; font-weight: 800; padding: 2px 9px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.pd-chip.up { background: #dcfce7; color: #15803d; }
+.pd-chip.down { background: #fee2e2; color: #b91c1c; }
+.pd-chip.flat { background: #f1f5f9; color: #64748b; }
+/* Barras por disciplina: ponta de dados arredondada, base reta */
+.pd-bar { height: 10px; }
+.pd-bar span { border-radius: 0 4px 4px 0; }

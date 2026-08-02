@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v559';
+const APP_VERSION = 'v560';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2036,6 +2036,110 @@ function _pdSkillDeltas(hist, year) {
 }
 // Secção "Está a melhorar?" — tendência de acerto por semana, competências
 // que subiram/desceram, e fluência de leitura ao longo do tempo.
+// ── Gráficos SVG do Painel de Pais — desenhados à mão, specs profissionais ──
+// Regras seguidas: linha 2px com juntas redondas; pontos ≥8px com anel de
+// superfície 2px; wash de área ~10-14%; colunas ≤24px com topo arredondado
+// 4px e base reta; grelha hairline recessiva; rótulos SELETIVOS (extremo e
+// último, nunca todos); texto sempre em tons de texto, nunca na cor da série;
+// série única → sem legenda (o título nomeia-a); <title> nativo por marca.
+const _PD_ACCENT = '#0891b2';
+let _pdGradSeq = 0;
+function _pdNiceMax(v) {
+    if (v <= 10) return 10;
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) { const c = m * p; if (c >= v) return c; }
+    return v;
+}
+// Catmull-Rom → Bézier, com controlo Y limitado ao plot (sem "overshoot"
+// acima de 100% em patamares).
+function _pdSmooth(pts, yMin, yMax) {
+    if (pts.length < 3) return 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' L');
+    const cl = y => Math.max(yMin, Math.min(yMax, y));
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+        const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = cl(p1[1] + (p2[1] - p0[1]) / 6);
+        const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = cl(p2[1] - (p3[1] - p1[1]) / 6);
+        d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+}
+// Gráfico de linha (série única): tendência ao longo do tempo.
+function _pdLineChart(o) {
+    const vals = o.vals || [], labels = o.labels || [], titles = o.titles || [];
+    const n = vals.length;
+    if (!n) return '';
+    const color = o.color || _PD_ACCENT;
+    const W = 340, H = 150, padL = 34, padR = 44, padT = 16, padB = 22;
+    const plotW = W - padL - padR, plotH = H - padT - padB, baseY = padT + plotH;
+    const yMax = o.yMax || _pdNiceMax(Math.max(...vals, 1));
+    const X = i => n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1));
+    const Y = v => baseY - (Math.max(0, Math.min(yMax, v)) / yMax) * plotH;
+    const pts = vals.map((v, i) => [X(i), Y(v)]);
+    const gid = 'pdg' + (++_pdGradSeq);
+    const line = _pdSmooth(pts, padT, baseY);
+    const area = `${line} L${pts[n - 1][0].toFixed(1)},${baseY} L${pts[0][0].toFixed(1)},${baseY} Z`;
+    // Grelha: 3 linhas limpas (0, meio, topo) + ticks à esquerda, tabulares.
+    const ticks = [0, yMax / 2, yMax].map(tv => {
+        const ty = Y(tv);
+        return `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W - padR}" y2="${ty.toFixed(1)}" stroke="#e8edf2" stroke-width="1"/>
+            <text x="${padL - 6}" y="${(ty + 3).toFixed(1)}" text-anchor="end" class="pd-tick">${Math.round(tv)}${o.unit === '%' ? '%' : ''}</text>`;
+    }).join('');
+    // Rótulos do eixo X — se muitos, salta alternados (mantém o último).
+    const skip = n > 7 ? 2 : 1;
+    const xLabels = labels.map((lb, i) => (i % skip === 0 || i === n - 1)
+        ? `<text x="${X(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="pd-xlab">${lb}</text>` : '').join('');
+    // Pontos: todos com anel de superfície; o último é maior e leva o rótulo.
+    const dots = pts.map((p, i) => {
+        const last = i === n - 1;
+        return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${last ? 5.5 : 4.5}" fill="${color}" stroke="#fff" stroke-width="2" class="pd-dot"><title>${titles[i] || (labels[i] + ': ' + vals[i] + (o.unit || ''))}</title></circle>`;
+    }).join('');
+    const endLabel = `<text x="${(pts[n - 1][0] + 9).toFixed(1)}" y="${(pts[n - 1][1] + 4).toFixed(1)}" class="pd-endlab">${vals[n - 1]}${o.unit || ''}</text>`;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Evolução'}" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="${color}" stop-opacity="0.16"/>
+            <stop offset="1" stop-color="${color}" stop-opacity="0.01"/>
+        </linearGradient></defs>
+        ${ticks}
+        <path d="${area}" fill="url(#${gid})" class="pd-area"/>
+        <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pd-line"/>
+        ${dots}${endLabel}${xLabels}
+    </svg>`;
+}
+// Gráfico de colunas (últimos 7 dias): ênfase no dia de hoje, resto recessivo.
+function _pdColumnChart(o) {
+    const vals = o.vals || [], labels = o.labels || [], titles = o.titles || [];
+    const n = vals.length;
+    if (!n) return '';
+    const accent = o.color || _PD_ACCENT, rest = '#c2dde9';
+    const W = 340, H = 116, padT = 20, padB = 20, padL = 8, padR = 8;
+    const plotH = H - padT - padB, baseY = padT + plotH;
+    const step = (W - padL - padR) / n;
+    const bw = Math.min(24, Math.round(step * 0.58));
+    const yMax = _pdNiceMax(Math.max(...vals, 1));
+    const maxI = vals.indexOf(Math.max(...vals));
+    const cols = vals.map((v, i) => {
+        const x = padL + i * step + (step - bw) / 2;
+        const h = (v / yMax) * plotH;
+        const y = baseY - h;
+        const isToday = i === n - 1;
+        const fill = isToday ? accent : rest;
+        const r = Math.min(4, h);
+        // Topo arredondado 4px, base reta (cresce da linha de base).
+        const path = h <= 0 ? '' :
+            `M${x.toFixed(1)},${baseY} L${x.toFixed(1)},${(y + r).toFixed(1)} Q${x.toFixed(1)},${y.toFixed(1)} ${(x + r).toFixed(1)},${y.toFixed(1)} L${(x + bw - r).toFixed(1)},${y.toFixed(1)} Q${(x + bw).toFixed(1)},${y.toFixed(1)} ${(x + bw).toFixed(1)},${(y + r).toFixed(1)} L${(x + bw).toFixed(1)},${baseY} Z`;
+        // Rótulo de valor SELETIVO: só no máximo e no dia de hoje (se > 0).
+        const cap = (v > 0 && (i === maxI || isToday))
+            ? `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="middle" class="pd-cap">${v}</text>` : '';
+        return `<g class="pd-col">${path ? `<path d="${path}" fill="${fill}"><title>${titles[i] || (labels[i] + ': ' + v)}</title></path>` : ''}${cap}
+            <text x="${(padL + i * step + step / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="pd-xlab${isToday ? ' today' : ''}">${labels[i]}</text></g>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Atividade dos últimos 7 dias'}" xmlns="http://www.w3.org/2000/svg">
+        <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="#dbe3ea" stroke-width="1"/>
+        ${cols}
+    </svg>`;
+}
+
 function _pdImprovementHtml(stats) {
     const hist = stats.hist || [];
     const weeks = _pdWeeklyAccuracy(hist);
@@ -2044,20 +2148,16 @@ function _pdImprovementHtml(stats) {
     if (weeks.length < 2 && deltas.length === 0 && rlog.length === 0) {
         return `<div class="pd-improve pd-improve-empty">📈 <b>Está a melhorar?</b><br><span>Ainda a recolher dados. Depois de uns dias de prática, aparece aqui a evolução dela.</span></div>`;
     }
-    // Tendência semanal
+    // Tendência semanal — linha suave com wash de área e rótulo no fim
     let weekHtml = '';
     if (weeks.length >= 2) {
-        const bars = weeks.map(w => {
-            const pct = Math.round(100 * w.ok / w.ans);
-            const col = pct >= 80 ? '#16a34a' : pct >= 60 ? '#f59e0b' : '#ef4444';
-            const lbl = w.key.slice(8) + '/' + w.key.slice(5, 7);
-            return `<div class="pd-wk"><div class="pd-wk-bar" style="height:${Math.max(6, pct)}%;background:${col}" title="${pct}%"></div><div class="pd-wk-pct">${pct}%</div><div class="pd-wk-lbl">${lbl}</div></div>`;
-        }).join('');
-        const first = Math.round(100 * weeks[0].ok / weeks[0].ans);
-        const last = Math.round(100 * weeks[weeks.length - 1].ok / weeks[weeks.length - 1].ans);
-        const d = last - first;
-        const trend = d >= 6 ? `↗️ subiu ${d}%` : d <= -6 ? `↘️ desceu ${-d}%` : '→ estável';
-        weekHtml = `<div class="pd-improve-sub">Precisão por semana <b>${trend}</b></div><div class="pd-wk-row">${bars}</div>`;
+        const vals = weeks.map(w => Math.round(100 * w.ok / w.ans));
+        const labels = weeks.map(w => w.key.slice(8) + '/' + w.key.slice(5, 7));
+        const titles = weeks.map((w, i) => `Semana de ${labels[i]}: ${vals[i]}% (${w.ok} certas em ${w.ans})`);
+        const d = vals[vals.length - 1] - vals[0];
+        const chip = d >= 6 ? `<span class="pd-chip up">▲ +${d} pontos</span>` : d <= -6 ? `<span class="pd-chip down">▼ ${d} pontos</span>` : `<span class="pd-chip flat">— estável</span>`;
+        weekHtml = `<div class="pd-improve-sub">Precisão semanal ${chip}</div>
+            <div class="pd-chart">${_pdLineChart({ vals, labels, titles, unit: '%', yMax: 100, aria: 'Precisão por semana' })}</div>`;
     }
     // Competências a melhorar / a reforçar
     let skillHtml = '';
@@ -2080,12 +2180,20 @@ function _pdImprovementHtml(stats) {
             const dW = avg(late) - avg(early);
             trendTxt = dW >= 6 ? `↗️ mais fluente (+${dW} pal/min)` : dW <= -6 ? `↘️ ${-dW} pal/min mais lenta` : '→ estável';
         }
+        let readChart = '';
+        if (rlog.length >= 2) {
+            const rl = rlog.slice(-8);
+            const rvals = rl.map(r => r.wpm || 0);
+            const rlabels = rl.map(r => (r.d || '').slice(8) + '/' + (r.d || '').slice(5, 7));
+            const rtitles = rl.map((r, i) => `Leitura de ${rlabels[i]}: ${r.wpm || 0} palavras/min · ${r.acc || 0}% precisão`);
+            readChart = `<div class="pd-chart">${_pdLineChart({ vals: rvals, labels: rlabels, titles: rtitles, unit: '', aria: 'Palavras por minuto ao longo das leituras' })}</div>`;
+        }
         readHtml = `<div class="pd-improve-sub">📖 Leitura em voz alta ${trendTxt ? '<b>' + trendTxt + '</b>' : ''}</div>
             <div class="pd-read-kpis">
                 <div class="pd-read-kpi"><b>${lastR.wpm || 0}</b><span>palavras/min</span></div>
                 <div class="pd-read-kpi"><b>${lastR.acc || 0}%</b><span>precisão</span></div>
                 <div class="pd-read-kpi"><b>${rlog.length}</b><span>leituras</span></div>
-            </div>`;
+            </div>${readChart}`;
     }
     return `<div class="pd-improve">
         <div class="pd-improve-h">📈 Está a melhorar?</div>
@@ -2112,16 +2220,17 @@ function openParentDashboard(remote) {
             <div class="pd-sub">${s.ok}/${s.ans} certas</div>
         </div>`;
     }).join('') || '<div class="pd-empty">Ainda sem exercícios respondidos. Quando a criança praticar, o progresso aparece aqui.</div>';
-    // Últimos 7 dias
-    const last7 = [];
+    // Últimos 7 dias — colunas com ênfase no dia de hoje
+    const dVals = [], dLabels = [], dTitles = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
         const key = d.toISOString().slice(0, 10);
         const day = days[key] || { ans: 0, ok: 0 };
         const label = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
-        const h = Math.min(100, day.ans * 8);
-        last7.push(`<div class="pd-day"><div class="pd-day-bar" style="height:${Math.max(4,h)}%" title="${day.ans} exercícios"></div><div class="pd-day-lbl">${label}</div><div class="pd-day-n">${day.ans||''}</div></div>`);
+        dVals.push(day.ans); dLabels.push(label);
+        dTitles.push(`${label} ${key.slice(8)}/${key.slice(5, 7)}: ${day.ans} exercício${day.ans === 1 ? '' : 's'}${day.ans ? ` (${day.ok} certos)` : ''}`);
     }
+    const weekChart = `<div class="pd-chart">${_pdColumnChart({ vals: dVals, labels: dLabels, titles: dTitles })}</div>`;
     const weakHtml = weak.length
         ? `<div class="pd-section-h">🎯 Pontos a reforçar (Inglês)</div><div class="pd-weak">${weak.map(w => `<span class="pd-weak-chip">${escapeHtml(w.t)}</span>`).join('')}</div>`
         : '';
@@ -2147,7 +2256,7 @@ function openParentDashboard(remote) {
           <button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>
           ${_pdImprovementHtml(_parentStats(remote))}
           <div class="pd-section-h">📅 Últimos 7 dias</div>
-          <div class="pd-week">${last7.join('')}</div>
+          ${weekChart}
           <div class="pd-section-h">📚 Desempenho por disciplina</div>
           ${subjRows}
           ${weakHtml}
