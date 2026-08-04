@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog'];
 
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v565';
+const APP_VERSION = 'v566';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2012,7 +2012,9 @@ function _parentStats(src) {
         .sort((a, b) => b.net - a.net)
         .slice(0, 6);
     const readingLog = (p && Array.isArray(p.readingLog)) ? p.readingLog : (src ? [] : (state.readingLog || []));
-    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year, hist, readingLog, local: !src };
+    const sessionLog = (p && Array.isArray(p.sessionLog)) ? p.sessionLog : (src ? [] : (state.sessionLog || []));
+    const lessonLog = (p && Array.isArray(p.lessonLog)) ? p.lessonLog : (src ? [] : (state.lessonLog || []));
+    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year, hist, readingLog, sessionLog, lessonLog, local: !src };
 }
 
 // ── "Está a melhorar?" — análise de EVOLUÇÃO a partir do histórico ──
@@ -2189,6 +2191,61 @@ function _pdCompareHtml() {
     return `<div class="pd-section-h">👥 Lado a lado — precisão semanal</div>
         <div class="pd-cmp-legend">${legend}</div>
         <div class="pd-chart">${_pdMultiLine({ labels, series, aria: 'Precisão semanal dos dois perfis' })}</div>`;
+}
+// ── "Dia a dia" — detalhe de UM dia: disciplinas, sessões com tempo,
+// e resumos lidos. O nível de detalhe que um pai precisa para acompanhar.
+function _pdDayDetailHtml(ctx, key) {
+    const hist = (ctx.hist || []).filter(h => h && h.d === key);
+    const sess = (ctx.sessionLog || []).filter(x => x && x.d === key);
+    const les = (ctx.lessonLog || []).filter(x => x && x.d === key);
+    if (!hist.length && !sess.length && !les.length) return '<div class="pd-empty" style="margin:8px 0 14px">Sem atividade neste dia.</div>';
+    const ok = hist.filter(h => h.c).length;
+    const pct = hist.length ? Math.round(100 * ok / hist.length) : 0;
+    const totSecs = sess.reduce((s, x) => s + (x.secs || 0), 0);
+    const fmtT = s => s >= 3600 ? Math.floor(s / 3600) + 'h' + String(Math.round((s % 3600) / 60)).padStart(2, '0') : s >= 60 ? Math.round(s / 60) + ' min' : s + ' s';
+    const by = {};
+    hist.forEach(h => { const b = by[h.s] || (by[h.s] = { n: 0, ok: 0 }); b.n++; if (h.c) b.ok++; });
+    const subjRows = Object.keys(by).sort((a, b) => by[b].n - by[a].n).map(k => {
+        const meta = (ctx.SUBJ && ctx.SUBJ[k]) || { name: k, color: '#64748b', icon: 'fa-book' };
+        const b = by[k];
+        const p2 = Math.round(100 * b.ok / b.n);
+        return `<div class="pdd-subj"><span class="pd-ico" style="background:${meta.color};width:26px;height:26px;font-size:0.72rem"><i class="fas ${meta.icon}"></i></span><span class="pdd-subj-n">${escapeHtml(meta.name)}</span><span class="pdd-subj-v"><b>${b.n}</b> feitos · ${b.ok} certas (${p2}%)</span></div>`;
+    }).join('');
+    const sessRows = sess.map(x => {
+        const meta = (ctx.SUBJ && ctx.SUBJ[x.s]) || { name: x.s, color: '#64748b' };
+        return `<div class="pdd-sess"><span class="pdd-sess-h">${escapeHtml(x.hm || '—')}</span><span class="pdd-sess-s"><i style="background:${meta.color}"></i>${escapeHtml(meta.name)}</span><span class="pdd-sess-v">${x.ok}/${x.n} certas · <b>${fmtT(x.secs || 0)}</b></span></div>`;
+    }).join('');
+    const lesHtml = les.length
+        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:#dbeafe;color:#1d4ed8">${escapeHtml(x.t || x.k || '')}</span>`).join('')}</div>`
+        : `<div class="pdd-noles">📖 Não abriu nenhum resumo neste dia.</div>`;
+    return `
+        <div class="pdd-totals"><b>${hist.length}</b> exercícios · <b>${pct}%</b> certas${totSecs ? ` · <b>${fmtT(totSecs)}</b> de estudo` : ''}</div>
+        ${subjRows ? `<div class="pdd-h">📚 Por disciplina</div>${subjRows}` : ''}
+        ${sessRows ? `<div class="pdd-h">⏱️ Sessões e testes</div>${sessRows}` : ''}
+        ${lesHtml}`;
+}
+window._pdPickDay = function (key) {
+    const ctx = window._pdDayCtx;
+    if (!ctx) return;
+    ctx.sel = key;
+    document.querySelectorAll('.pdd-chip').forEach(c => c.classList.toggle('sel', c.dataset.d === key));
+    const box = document.getElementById('pdd-detail');
+    if (box) box.innerHTML = _pdDayDetailHtml(ctx, key);
+};
+function _pdDayHtml(stats, SUBJ) {
+    const keys = [];
+    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); keys.push(d.toISOString().slice(0, 10)); }
+    const today = keys[keys.length - 1];
+    window._pdDayCtx = { hist: stats.hist || [], sessionLog: stats.sessionLog || [], lessonLog: stats.lessonLog || [], SUBJ, sel: today };
+    const DL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const chips = keys.map(k => {
+        const d = new Date(k + 'T12:00:00');
+        const has = (stats.hist || []).some(h => h && h.d === k) || (stats.sessionLog || []).some(x => x && x.d === k);
+        return `<button class="pdd-chip ${k === today ? 'sel' : ''} ${has ? 'has' : ''}" data-d="${k}" onclick="_pdPickDay('${k}')">${DL[d.getDay()]}<b>${k.slice(8)}</b></button>`;
+    }).join('');
+    return `<div class="pd-section-h">📅 Dia a dia</div>
+        <div class="pdd-chips">${chips}</div>
+        <div id="pdd-detail">${_pdDayDetailHtml(window._pdDayCtx, today)}</div>`;
 }
 // Secção "Está a melhorar?" — tendência de acerto por semana, competências
 // que subiram/desceram, e fluência de leitura ao longo do tempo.
@@ -2411,6 +2468,7 @@ function openParentDashboard(remote) {
             <div class="pd-kpi"><div class="pd-kpi-n">${Object.keys(bySubj).length}</div><div class="pd-kpi-l">disciplinas ativas</div></div>
           </div>
           <button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>
+          ${_pdDayHtml(_parentStats(remote), SUBJ)}
           ${_pdImprovementHtml(_parentStats(remote))}
           ${remote ? '' : _pdCompareHtml()}
           <div class="pd-section-h">📅 Últimos 7 dias</div>
@@ -11275,6 +11333,19 @@ function finishSession() {
     }
     // Modo Curso: regista resultado da lição (isolado, não interfere com nada)
     try { _recordCourseLessonResult(s); } catch (e) { console.warn('[course] record failed', e); }
+    // Registo detalhado da sessão (para o "Dia a dia" das Estatísticas):
+    // disciplina dominante, nº perguntas, certas, e DURAÇÃO em segundos.
+    try {
+        if (s && Array.isArray(s.items) && s.items.length > 0) {
+            const bySubjN = {};
+            s.items.forEach(it => { if (it && it.s) bySubjN[it.s] = (bySubjN[it.s] || 0) + 1; });
+            const domSubj = Object.keys(bySubjN).sort((a, b) => bySubjN[b] - bySubjN[a])[0] || 'outro';
+            const secs = s.startedAt ? Math.max(1, Math.round((Date.now() - s.startedAt) / 1000)) : 0;
+            if (!Array.isArray(state.sessionLog)) state.sessionLog = [];
+            state.sessionLog.push({ d: todayStr(), hm: new Date().toTimeString().slice(0, 5), s: domSubj, n: s.items.length, ok: s.correct || 0, secs });
+            if (state.sessionLog.length > 150) state.sessionLog.shift();
+        }
+    } catch (e) { console.warn('[sessionLog]', e); }
     let newBadges = [];
     // === STREAK (Ofensiva) ===
     // Conta QUALQUER sessão de exercícios (não só desafio diário).
@@ -14862,6 +14933,19 @@ function openLessonByKey(key) {
     const lesson = LESSONS[key] || state.maxLessons?.[key];
     const [subKey, topic] = key.split('/');
     const subName = SUBJECTS[subKey]?.name || subKey;
+    // Regista a abertura do resumo (para o "Dia a dia" — o pai quer saber se
+    // leram os resumos). 1 registo por tópico por dia.
+    try {
+        if (lesson) {
+            if (!Array.isArray(state.lessonLog)) state.lessonLog = [];
+            const d = todayStr();
+            if (!state.lessonLog.some(x => x && x.d === d && x.k === key)) {
+                state.lessonLog.push({ d, k: key, s: subKey, t: topic });
+                if (state.lessonLog.length > 120) state.lessonLog.shift();
+                saveState();
+            }
+        }
+    } catch (e) { console.warn('[lessonLog]', e); }
     document.getElementById('lesson-title').innerHTML = `<i class="fas fa-book-open"></i> ${subName} · ${topic}`;
     const body = document.getElementById('lesson-body');
     // Detectar ano para aplicar variante de leitura mais confortável aos mais novos
@@ -16319,6 +16403,9 @@ function topicStars(subjectKey, topic) {
 // ============================================================
 function _maybeShowFirstLesson(e) {
     try {
+        // Blindagem: o resumo SÓ aparece na 1ª pergunta do teste. A meio,
+        // mesmo que o tópico seja novo, nunca interrompe (pedido do pai).
+        if (currentSession && currentSession.idx > 0) return;
         const profile = activeProfile();
         if (!profile || !e || !e.s || !e.t) return;
         profile.lessonsSeen = profile.lessonsSeen || {};
