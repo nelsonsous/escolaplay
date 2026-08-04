@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v561';
+const APP_VERSION = 'v562';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1156,11 +1156,11 @@ function renderHome() {
         </div>
         ` + qsHtml;
     }
-    // Painel de Pais — vista read-only de progresso (agrega history/subjects/weak).
+    // Estatísticas — vista read-only de progresso (agrega history/subjects/weak).
     qsHtml += `
         <div class="quick-subject quick-subject-parent" onclick="openParentDashboard()" style="--qs-color:#0891b2;--qs-bg:#cffafe">
             <div class="qs-icon-wrap"><i class="fas fa-chart-line"></i></div>
-            <div class="qs-name">Pais</div>
+            <div class="qs-name">Estatísticas</div>
         </div>
         `;
     container.innerHTML = qsHtml;
@@ -2378,7 +2378,7 @@ function openParentDashboard(remote) {
           <button class="icon-btn" onclick="closeParentDashboard()"><i class="fas fa-arrow-left"></i></button>
           <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
             <span style="width:32px;height:32px;border-radius:8px;background:#0891b2;color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas fa-chart-line"></i></span>
-            Progresso — ${escapeHtml(pName)} ${remoteTag}
+            Estatísticas — ${escapeHtml(pName)} ${remoteTag}
           </div>
         </div>
         <div class="exercise-body">
@@ -2397,6 +2397,7 @@ function openParentDashboard(remote) {
           ${subjRows}
           ${weakHtml}
           <div class="pd-foot">${foot}</div>
+          ${remote ? '' : '<button class="pd-admin-link" onclick="openAdminGate()">🔐 Administrador</button>'}
         </div>
       </div>`;
     const wrap = document.createElement('div');
@@ -2467,6 +2468,126 @@ function closeParentDashboard() {
     document.getElementById('parent-dash-container')?.remove();
 }
 window.closeParentDashboard = closeParentDashboard;
+
+// ============================================================
+// ADMINISTRADOR — vê as estatísticas de TODOS os utilizadores com
+// backup na nuvem (coleção backups/ do Firestore). Protegido por PIN
+// guardado APENAS em localStorage (nunca em state.max — o max vai nos
+// backups para a nuvem e o PIN vazaria).
+// ============================================================
+const ADMIN_PIN_KEY = 'escolaplay_admin_pin';
+function openAdminGate() {
+    let pin = null;
+    try { pin = localStorage.getItem(ADMIN_PIN_KEY); } catch {}
+    if (!pin) {
+        const p1 = prompt('Primeira vez: define um PIN de administrador (mínimo 4 dígitos):');
+        if (!p1 || p1.trim().length < 4) { if (p1 !== null) showToast('PIN demasiado curto (mínimo 4).'); return; }
+        const p2 = prompt('Confirma o PIN:');
+        if (p1 !== p2) { showToast('Os PINs não coincidem.'); return; }
+        try { localStorage.setItem(ADMIN_PIN_KEY, p1.trim()); } catch {}
+        showToast('PIN definido ✓ (só neste dispositivo)');
+    } else {
+        const t = prompt('PIN de administrador:');
+        if (t === null) return;
+        if (t !== pin) { showToast('PIN errado.'); return; }
+    }
+    openAdminDashboard();
+}
+window.openAdminGate = openAdminGate;
+async function _fbListBackups() {
+    await _onFbReady();
+    const { db } = window.__fb;
+    const { collection, getDocs, query, limit } = await _fbQueryFns();
+    const snap = await getDocs(query(collection(db, 'backups'), limit(300)));
+    const rows = [];
+    snap.forEach(d => { const data = d.data(); if (data && data.profile) rows.push({ code: d.id, ...data }); });
+    return rows;
+}
+// "há 3 dias" a partir do updatedAt (Timestamp Firestore) ou do history.
+function _adminLastActive(row) {
+    let ms = 0;
+    const u = row.updatedAt;
+    if (u && typeof u.seconds === 'number') ms = u.seconds * 1000;
+    else if (u && typeof u.toMillis === 'function') { try { ms = u.toMillis(); } catch {} }
+    if (!ms && row.profile && Array.isArray(row.profile.history)) {
+        const last = row.profile.history[row.profile.history.length - 1];
+        if (last && last.d) ms = new Date(last.d + 'T12:00:00').getTime() || 0;
+    }
+    return ms;
+}
+function _adminAgo(ms) {
+    if (!ms) return 'sem registo';
+    const days = Math.floor((Date.now() - ms) / 86400000);
+    if (days <= 0) return 'hoje';
+    if (days === 1) return 'ontem';
+    if (days < 30) return `há ${days} dias`;
+    return new Date(ms).toISOString().slice(0, 10);
+}
+async function openAdminDashboard() {
+    document.getElementById('admin-dash-container')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'admin-dash-container';
+    wrap.innerHTML = `
+      <div class="fullscreen" id="admin-dash-screen">
+        <div class="exercise-header" style="background:linear-gradient(135deg,#1e293b,#334155)">
+            <button class="icon-btn" onclick="document.getElementById('admin-dash-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <div style="flex:1;font-weight:800;color:#fff">🔐 Administração — todos os utilizadores</div>
+        </div>
+        <div class="exercise-body"><div class="pd-empty" id="admin-loading">⏳ A carregar os backups da nuvem…</div><div id="admin-body"></div></div>
+      </div>`;
+    document.body.appendChild(wrap);
+    let rows;
+    try {
+        rows = await _fbListBackups();
+    } catch (e) {
+        console.warn('[admin] list failed', e);
+        const load = document.getElementById('admin-loading');
+        if (load) load.innerHTML = String(e && e.code) === 'permission-denied'
+            ? '🔒 O Firestore não permite listar a coleção <b>backups</b>.<br>Nas regras, permite <code>list</code> em <code>/backups/{code}</code> e volta a tentar.'
+            : '⚠️ Erro ao carregar da nuvem — verifica a ligação e tenta de novo.';
+        return;
+    }
+    const load = document.getElementById('admin-loading');
+    if (load) load.remove();
+    const body = document.getElementById('admin-body');
+    if (!body) return;
+    if (!rows.length) { body.innerHTML = '<div class="pd-empty">Ainda não há backups na nuvem. Cada perfil com código (Duelos/Amigos) faz backup automático.</div>'; return; }
+    rows.forEach(r => { r._ms = _adminLastActive(r); r._hist = (r.profile.history || []).length; });
+    rows.sort((a, b) => b._ms - a._ms);
+    const WEEK = Date.now() - 7 * 86400000;
+    const kActive = rows.filter(r => r._ms >= WEEK).length;
+    const kEx = rows.reduce((s, r) => s + r._hist, 0);
+    window._adminRows = rows; // para abrir o detalhe por índice
+    const list = rows.map((r, i) => {
+        const p = r.profile;
+        const yr = p.year === 99 ? 'Prof.' : (p.year === 31 ? '3º (Oc.)' : (p.year + 'º'));
+        const fresh = r._ms >= WEEK;
+        return `<button class="adm-row" onclick="_adminOpenUser(${i})">
+            <span class="adm-av">${escapeHtml((p.avatar && p.avatar.emoji) || '🙂')}</span>
+            <span class="adm-info">
+                <span class="adm-name">${escapeHtml(p.name || 'Perfil')} <span class="adm-code">${escapeHtml(r.code)}</span></span>
+                <span class="adm-meta">${escapeHtml(yr)} ano · ${r._hist} exercícios · ${p.xp || 0} XP</span>
+            </span>
+            <span class="adm-when ${fresh ? 'fresh' : ''}">${_adminAgo(r._ms)}</span>
+        </button>`;
+    }).join('');
+    body.innerHTML = `
+        <div class="pd-kpis" style="grid-template-columns:repeat(3,1fr)">
+            <div class="pd-kpi"><div class="pd-kpi-n">${rows.length}</div><div class="pd-kpi-l">utilizadores</div></div>
+            <div class="pd-kpi"><div class="pd-kpi-n">${kActive}</div><div class="pd-kpi-l">ativos (7 dias)</div></div>
+            <div class="pd-kpi"><div class="pd-kpi-n">${kEx}</div><div class="pd-kpi-l">exercícios</div></div>
+        </div>
+        <div class="pd-section-h">👥 Utilizadores (mais recentes primeiro)</div>
+        <div class="adm-list">${list}</div>
+        <div class="pd-foot">Toca num utilizador para veres as estatísticas completas dele (gráficos incluídos). Dados dos backups na nuvem.</div>`;
+}
+window.openAdminDashboard = openAdminDashboard;
+function _adminOpenUser(i) {
+    const r = (window._adminRows || [])[i];
+    if (!r) return;
+    openParentDashboard({ profile: r.profile, max: r.max || {} });
+}
+window._adminOpenUser = _adminOpenUser;
 
 // ============================================================
 // MODO CURSO — isolado para disciplina english_pm
