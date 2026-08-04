@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v562';
+const APP_VERSION = 'v563';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2494,26 +2494,23 @@ function openAdminGate() {
     openAdminDashboard();
 }
 window.openAdminGate = openAdminGate;
-async function _fbListBackups() {
+// Lista a coleção users/ (leve: só código, nome, avatar, ano, lastSeen).
+// Os BACKUPS continuam a ser lidos um a um por código (get), como sempre —
+// não é preciso abrir a listagem da coleção backups nas regras.
+async function _fbListUsers() {
     await _onFbReady();
     const { db } = window.__fb;
     const { collection, getDocs, query, limit } = await _fbQueryFns();
-    const snap = await getDocs(query(collection(db, 'backups'), limit(300)));
+    const snap = await getDocs(query(collection(db, 'users'), limit(300)));
     const rows = [];
-    snap.forEach(d => { const data = d.data(); if (data && data.profile) rows.push({ code: d.id, ...data }); });
+    snap.forEach(d => { const data = d.data() || {}; rows.push({ code: d.id, ...data }); });
     return rows;
 }
-// "há 3 dias" a partir do updatedAt (Timestamp Firestore) ou do history.
-function _adminLastActive(row) {
-    let ms = 0;
-    const u = row.updatedAt;
-    if (u && typeof u.seconds === 'number') ms = u.seconds * 1000;
-    else if (u && typeof u.toMillis === 'function') { try { ms = u.toMillis(); } catch {} }
-    if (!ms && row.profile && Array.isArray(row.profile.history)) {
-        const last = row.profile.history[row.profile.history.length - 1];
-        if (last && last.d) ms = new Date(last.d + 'T12:00:00').getTime() || 0;
-    }
-    return ms;
+function _adminLastSeenMs(row) {
+    const u = row.lastSeen;
+    if (u && typeof u.seconds === 'number') return u.seconds * 1000;
+    if (u && typeof u.toMillis === 'function') { try { return u.toMillis(); } catch {} }
+    return 0;
 }
 function _adminAgo(ms) {
     if (!ms) return 'sem registo';
@@ -2533,17 +2530,17 @@ async function openAdminDashboard() {
             <button class="icon-btn" onclick="document.getElementById('admin-dash-container').remove()"><i class="fas fa-arrow-left"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">🔐 Administração — todos os utilizadores</div>
         </div>
-        <div class="exercise-body"><div class="pd-empty" id="admin-loading">⏳ A carregar os backups da nuvem…</div><div id="admin-body"></div></div>
+        <div class="exercise-body"><div class="pd-empty" id="admin-loading">⏳ A carregar os utilizadores…</div><div id="admin-body"></div></div>
       </div>`;
     document.body.appendChild(wrap);
     let rows;
     try {
-        rows = await _fbListBackups();
+        rows = await _fbListUsers();
     } catch (e) {
         console.warn('[admin] list failed', e);
         const load = document.getElementById('admin-loading');
         if (load) load.innerHTML = String(e && e.code) === 'permission-denied'
-            ? '🔒 O Firestore não permite listar a coleção <b>backups</b>.<br>Nas regras, permite <code>list</code> em <code>/backups/{code}</code> e volta a tentar.'
+            ? '🔒 O Firestore não permite listar a coleção <b>users</b>.<br>Nas regras, troca <code>allow get</code> por <code>allow read</code> em <code>/users/{code}</code> (são só códigos e nomes) e volta a tentar.'
             : '⚠️ Erro ao carregar da nuvem — verifica a ligação e tenta de novo.';
         return;
     }
@@ -2551,41 +2548,49 @@ async function openAdminDashboard() {
     if (load) load.remove();
     const body = document.getElementById('admin-body');
     if (!body) return;
-    if (!rows.length) { body.innerHTML = '<div class="pd-empty">Ainda não há backups na nuvem. Cada perfil com código (Duelos/Amigos) faz backup automático.</div>'; return; }
-    rows.forEach(r => { r._ms = _adminLastActive(r); r._hist = (r.profile.history || []).length; });
+    if (!rows.length) { body.innerHTML = '<div class="pd-empty">Ainda não há utilizadores registados na nuvem. Cada perfil que ativa a partilha (Duelos/Amigos) aparece aqui.</div>'; return; }
+    rows.forEach(r => { r._ms = _adminLastSeenMs(r); });
     rows.sort((a, b) => b._ms - a._ms);
     const WEEK = Date.now() - 7 * 86400000;
     const kActive = rows.filter(r => r._ms >= WEEK).length;
-    const kEx = rows.reduce((s, r) => s + r._hist, 0);
-    window._adminRows = rows; // para abrir o detalhe por índice
+    window._adminRows = rows;
     const list = rows.map((r, i) => {
-        const p = r.profile;
-        const yr = p.year === 99 ? 'Prof.' : (p.year === 31 ? '3º (Oc.)' : (p.year + 'º'));
+        const emoji = (r.avatar && r.avatar.emoji) || (typeof r.avatar === 'string' ? r.avatar : '🙂');
+        const yr = r.year === 99 ? 'Prof.' : (r.year === 31 ? '3º (Oc.)' : (r.year ? r.year + 'º ano' : '—'));
         const fresh = r._ms >= WEEK;
         return `<button class="adm-row" onclick="_adminOpenUser(${i})">
-            <span class="adm-av">${escapeHtml((p.avatar && p.avatar.emoji) || '🙂')}</span>
+            <span class="adm-av">${escapeHtml(emoji)}</span>
             <span class="adm-info">
-                <span class="adm-name">${escapeHtml(p.name || 'Perfil')} <span class="adm-code">${escapeHtml(r.code)}</span></span>
-                <span class="adm-meta">${escapeHtml(yr)} ano · ${r._hist} exercícios · ${p.xp || 0} XP</span>
+                <span class="adm-name">${escapeHtml(r.name || 'Perfil')} <span class="adm-code">${escapeHtml(r.code)}</span></span>
+                <span class="adm-meta">${escapeHtml(yr)}${r.shareable === false ? ' · partilha desativada' : ''}</span>
             </span>
             <span class="adm-when ${fresh ? 'fresh' : ''}">${_adminAgo(r._ms)}</span>
         </button>`;
     }).join('');
     body.innerHTML = `
-        <div class="pd-kpis" style="grid-template-columns:repeat(3,1fr)">
+        <div class="pd-kpis">
             <div class="pd-kpi"><div class="pd-kpi-n">${rows.length}</div><div class="pd-kpi-l">utilizadores</div></div>
             <div class="pd-kpi"><div class="pd-kpi-n">${kActive}</div><div class="pd-kpi-l">ativos (7 dias)</div></div>
-            <div class="pd-kpi"><div class="pd-kpi-n">${kEx}</div><div class="pd-kpi-l">exercícios</div></div>
         </div>
         <div class="pd-section-h">👥 Utilizadores (mais recentes primeiro)</div>
         <div class="adm-list">${list}</div>
-        <div class="pd-foot">Toca num utilizador para veres as estatísticas completas dele (gráficos incluídos). Dados dos backups na nuvem.</div>`;
+        <div class="pd-foot">Toca num utilizador para abrir as estatísticas dele (busca o backup pelo código, como na vista à distância).</div>`;
 }
 window.openAdminDashboard = openAdminDashboard;
-function _adminOpenUser(i) {
+// Ao tocar: busca o backup DESSE código (get — permitido desde sempre) e abre
+// as estatísticas completas, com os gráficos todos.
+async function _adminOpenUser(i) {
     const r = (window._adminRows || [])[i];
     if (!r) return;
-    openParentDashboard({ profile: r.profile, max: r.max || {} });
+    showToast('A buscar as estatísticas de ' + (r.name || r.code) + '…');
+    try {
+        const data = await fbFetchBackup(r.code);
+        if (!data || !data.profile) { showToast('Este utilizador ainda não tem backup na nuvem.'); return; }
+        openParentDashboard({ profile: data.profile, max: data.max });
+    } catch (e) {
+        console.warn('[admin] backup fetch', e);
+        showToast('Erro ao buscar o backup — verifica a ligação.');
+    }
 }
 window._adminOpenUser = _adminOpenUser;
 
