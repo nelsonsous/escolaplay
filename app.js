@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v564';
+const APP_VERSION = 'v565';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -744,6 +744,30 @@ function switchProfile(id) {
     updateAll();
     switchTab('home');
 }
+
+// Passagem de ano do perfil ativo — mantém XP/medalhas/histórico; troca o
+// banco de conteúdo (setActiveYear + loadYearExtras) e refresca a app como
+// no switchProfile. Atualiza também o registo na nuvem (users/{code}).
+function changeActiveProfileYear() {
+    const p = activeProfile();
+    if (!p) return;
+    const sel = document.getElementById('profile-year-select');
+    const newYear = sel ? parseInt(sel.value, 10) : NaN;
+    if (!newYear || newYear === p.year) { showToast('Esse já é o ano atual.'); return; }
+    const label = newYear === 99 ? 'Profissional' : (newYear === 31 ? '3.º ano (Oceanus)' : newYear + '.º ano');
+    if (!confirm(`Mudar ${p.name || 'este perfil'} para ${label}?\n\nO XP, as medalhas e o histórico ficam guardados. Os exercícios passam a ser os do ano novo.`)) return;
+    p.year = newYear;
+    setActiveYear(newYear);
+    loadYearExtras(newYear);
+    selectedTopicsForMax.clear();
+    saveState();
+    // Refresca o registo na nuvem para o Administrador ver o ano novo.
+    try { if (state.userCode && typeof fbRegisterUser === 'function') fbRegisterUser(state.userCode, p); } catch {}
+    updateAll();
+    try { renderProfile(); } catch {}
+    showToast(`🎓 ${p.name || 'Perfil'} passou para o ${label}! Boa sorte no ano novo!`);
+}
+window.changeActiveProfileYear = changeActiveProfileYear;
 
 let _newProfileCustomAvatar = null; // foto/dataURL temporaria ao criar perfil
 
@@ -3755,6 +3779,26 @@ function renderProfile() {
                 </div>
             </div>` : '';
         pList.insertAdjacentHTML('beforeend', toggleHtml);
+        // Passagem de ano — muda o ano do perfil ativo MANTENDO XP, medalhas
+        // e histórico (passar de ano não apaga conquistas).
+        if (active) {
+            const YEAR_OPTS = [[2, '2.º ano'], [3, '3.º ano'], [31, '3.º ano (Oceanus)'], [5, '5.º ano'], [6, '6.º ano'], [7, '7.º ano'], [11, '11.º ano'], [99, 'Profissional']];
+            const opts = YEAR_OPTS.map(([v, l]) => `<option value="${v}" ${active.year === v ? 'selected' : ''}>${l}</option>`).join('');
+            pList.insertAdjacentHTML('beforeend', `
+            <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:14px;margin-top:10px">
+                <div style="display:flex;align-items:start;gap:10px">
+                    <div style="font-size:1.6rem">🎓</div>
+                    <div style="flex:1">
+                        <div style="font-weight:800;font-size:0.92rem;color:#1d4ed8">Passagem de ano</div>
+                        <div style="font-size:0.78rem;color:#1e40af;margin-top:4px;line-height:1.4">Quando ${escapeHtml(active.name || 'este perfil')} mudar de ano letivo, troca aqui — o XP, as medalhas e o histórico ficam guardados.</div>
+                        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                            <select id="profile-year-select" style="flex:1;padding:8px 10px;border:1.5px solid #bfdbfe;border-radius:10px;font-size:0.85rem;font-weight:700;color:#1e293b;background:#fff">${opts}</select>
+                            <button class="btn" style="background:#2563eb;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:0.82rem;font-weight:700" onclick="changeActiveProfileYear()">Mudar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`);
+        }
     }
 
     document.getElementById('input-name').value = state.profile.name;
