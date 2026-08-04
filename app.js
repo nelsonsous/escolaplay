@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v563';
+const APP_VERSION = 'v564';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2555,11 +2555,16 @@ async function openAdminDashboard() {
     const kActive = rows.filter(r => r._ms >= WEEK).length;
     window._adminRows = rows;
     const list = rows.map((r, i) => {
-        const emoji = (r.avatar && r.avatar.emoji) || (typeof r.avatar === 'string' ? r.avatar : '🙂');
+        // Avatar pode ser objeto {emoji} (perfis antigos) ou string de pack
+        // (vampire:damon, disney3d:stitch…) — renderAvatar resolve as imagens.
+        const av = r.avatar;
+        const avHtml = (av && typeof av === 'object')
+            ? `<span style="font-size:1.6rem;line-height:1">${escapeHtml(av.emoji || '🙂')}</span>`
+            : renderAvatar(av || '🙂', 40);
         const yr = r.year === 99 ? 'Prof.' : (r.year === 31 ? '3º (Oc.)' : (r.year ? r.year + 'º ano' : '—'));
         const fresh = r._ms >= WEEK;
         return `<button class="adm-row" onclick="_adminOpenUser(${i})">
-            <span class="adm-av">${escapeHtml(emoji)}</span>
+            <span class="adm-av">${avHtml}</span>
             <span class="adm-info">
                 <span class="adm-name">${escapeHtml(r.name || 'Perfil')} <span class="adm-code">${escapeHtml(r.code)}</span></span>
                 <span class="adm-meta">${escapeHtml(yr)}${r.shareable === false ? ' · partilha desativada' : ''}</span>
@@ -2574,7 +2579,7 @@ async function openAdminDashboard() {
         </div>
         <div class="pd-section-h">👥 Utilizadores (mais recentes primeiro)</div>
         <div class="adm-list">${list}</div>
-        <div class="pd-foot">Toca num utilizador para abrir as estatísticas dele (busca o backup pelo código, como na vista à distância).</div>`;
+        <div class="pd-foot">Toca num utilizador para abrir as estatísticas dele (busca o backup pelo código).<br><br>ℹ️ Perfis que nunca ativaram a partilha (Duelos → perfil partilhável) não têm código nem dados na nuvem — por isso não aparecem aqui. Para acompanhares a Eduarda, ativa a partilha no dispositivo dela.</div>`;
 }
 window.openAdminDashboard = openAdminDashboard;
 // Ao tocar: busca o backup DESSE código (get — permitido desde sempre) e abre
@@ -2589,7 +2594,11 @@ async function _adminOpenUser(i) {
         openParentDashboard({ profile: data.profile, max: data.max });
     } catch (e) {
         console.warn('[admin] backup fetch', e);
-        showToast('Erro ao buscar o backup — verifica a ligação.');
+        if (String(e && e.code) === 'permission-denied') {
+            alert('🔒 As regras do Firestore não permitem LER backups por código.\n\nNa consola Firebase → Firestore → Rules, no bloco /backups/{code}, acrescenta:\n\nallow get: if true;\n\n(get lê um backup de cada vez, por código — não abre a listagem da coleção). Sem isto, nem o Administrador nem a "vista à distância" conseguem mostrar estatísticas remotas.');
+        } else {
+            showToast('Erro ao buscar o backup — verifica a ligação.');
+        }
     }
 }
 window._adminOpenUser = _adminOpenUser;
