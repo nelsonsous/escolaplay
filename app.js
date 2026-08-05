@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v566';
+const APP_VERSION = 'v567';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -743,6 +743,9 @@ function switchProfile(id) {
     closeProfileSwitcher();
     updateAll();
     switchTab('home');
+    // Refresca o registo na nuvem (lastSeen/ano) — antes só acontecia no
+    // arranque, e trocar de perfil deixava o lastSeen desatualizado.
+    try { if (typeof isProfileShareable === 'function' && isProfileShareable(p) && typeof ensureUserCode === 'function') ensureUserCode(); } catch {}
 }
 
 // Passagem de ano do perfil ativo — mantém XP/medalhas/histórico; troca o
@@ -2216,7 +2219,7 @@ function _pdDayDetailHtml(ctx, key) {
         return `<div class="pdd-sess"><span class="pdd-sess-h">${escapeHtml(x.hm || '—')}</span><span class="pdd-sess-s"><i style="background:${meta.color}"></i>${escapeHtml(meta.name)}</span><span class="pdd-sess-v">${x.ok}/${x.n} certas · <b>${fmtT(x.secs || 0)}</b></span></div>`;
     }).join('');
     const lesHtml = les.length
-        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:#dbeafe;color:#1d4ed8">${escapeHtml(x.t || x.k || '')}</span>`).join('')}</div>`
+        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:#dbeafe;color:#1d4ed8">${escapeHtml(x.t || x.k || '')}${x.rt ? ` · ${x.rt}s` : ''}</span>`).join('')}</div>`
         : `<div class="pdd-noles">📖 Não abriu nenhum resumo neste dia.</div>`;
     return `
         <div class="pdd-totals"><b>${hist.length}</b> exercícios · <b>${pct}%</b> certas${totSecs ? ` · <b>${fmtT(totSecs)}</b> de estudo` : ''}</div>
@@ -5127,6 +5130,9 @@ let toastTimer;
 // (streak-guilt, secret) não fecham por acidente.
 window._modalBackdropTap = function (ev) {
     if (ev.target !== ev.currentTarget) return;
+    // O resumo com portão de leitura fecha SEMPRE via closeLessonModal
+    // (respeita o portão e regista o tempo de leitura).
+    if (ev.currentTarget.id === 'lesson-modal') { closeLessonModal(); return; }
     ev.currentTarget.style.display = 'none';
     // Limpa SpeechSynthesis se algum modal o estiver a usar
     try { if (window.speechSynthesis && window.speechSynthesis.speaking) window.speechSynthesis.cancel(); } catch {}
@@ -5502,7 +5508,7 @@ function renderQuestion() {
     }
     // Lição-primeiro: se a criança nunca viu um exercício deste tópico
     // e há lição disponível, abrir lição automaticamente.
-    if (s.idx === 0 && typeof _maybeShowFirstLesson === 'function') _maybeShowFirstLesson(e);
+    if (typeof _maybeShowFirstLesson === 'function') _maybeShowFirstLesson(e);
     // Conforto de leitura: aluno do 2.º ano em matemática (e estudo do meio) → mais espaçamento
     const yr = activeProfile()?.year;
     const screenEl = document.getElementById('exercise-screen');
@@ -11344,6 +11350,15 @@ function finishSession() {
             if (!Array.isArray(state.sessionLog)) state.sessionLog = [];
             state.sessionLog.push({ d: todayStr(), hm: new Date().toTimeString().slice(0, 5), s: domSubj, n: s.items.length, ok: s.correct || 0, secs });
             if (state.sessionLog.length > 150) state.sessionLog.shift();
+            // Backup IMEDIATO (2.5s) — o debounce de 30s perdia o backup se
+            // a app fosse fechada logo a seguir ao teste (visto nos dados
+            // reais: filhas fizeram testes e a nuvem ficou desatualizada).
+            try {
+                const bp = activeProfile();
+                if (bp && bp.userCode && typeof _doBackupPush === 'function') {
+                    setTimeout(() => _doBackupPush(bp.userCode).catch(() => {}), 2500);
+                }
+            } catch {}
         }
     } catch (e) { console.warn('[sessionLog]', e); }
     let newBadges = [];
@@ -14929,10 +14944,15 @@ function askStartPractice() {
 // Estado da dúvida actual aberta dentro da lição (para contexto da pergunta)
 let _currentLessonDoubtCtx = null;
 
-function openLessonByKey(key) {
+function openLessonByKey(key, opts) {
     const lesson = LESSONS[key] || state.maxLessons?.[key];
     const [subKey, topic] = key.split('/');
     const subName = SUBJECTS[subKey]?.name || subKey;
+    // Limpa portão anterior (abertura manual não tem portão)
+    if (_lessonGate && _lessonGate.timer) clearInterval(_lessonGate.timer);
+    _lessonGate = null;
+    document.getElementById('lesson-gate')?.remove();
+    if (opts && opts.gated && lesson) { setTimeout(() => _lessonStartGate(key, lesson), 50); }
     // Regista a abertura do resumo (para o "Dia a dia" — o pai quer saber se
     // leram os resumos). 1 registo por tópico por dia.
     try {
@@ -15025,7 +15045,47 @@ function openLessonByKey(key) {
     if (_lessonBody) _lessonBody.scrollTop = 0;
 }
 
+// ── Portão de leitura: quando o resumo abre automaticamente (tópico novo),
+// só fecha depois de um tempo mínimo proporcional ao texto — é a forma de
+// garantir que elas LEEM antes de responder. O tempo real fica registado.
+let _lessonGate = null; // {until, key, openedAt, timer}
+function _lessonGateActive() { return !!(_lessonGate && Date.now() < _lessonGate.until); }
+function _lessonStartGate(key, lesson) {
+    const words = String(lesson.body || '').split(/\s+/).filter(Boolean).length;
+    const secs = Math.max(10, Math.min(45, Math.round(words * 0.28)));
+    _lessonGate = { until: Date.now() + secs * 1000, key, openedAt: Date.now(), timer: null };
+    const modal = document.getElementById('lesson-modal');
+    const content = modal && modal.querySelector('.modal-content');
+    if (!content) return;
+    content.querySelector('#lesson-gate')?.remove();
+    content.insertAdjacentHTML('beforeend', `<div id="lesson-gate"><button id="lesson-gate-btn" disabled>📖 Lê com atenção… <b>${secs}</b>s</button></div>`);
+    const btn = document.getElementById('lesson-gate-btn');
+    _lessonGate.timer = setInterval(() => {
+        if (!_lessonGate) return;
+        const left = Math.ceil((_lessonGate.until - Date.now()) / 1000);
+        if (left > 0) { if (btn) btn.innerHTML = `📖 Lê com atenção… <b>${left}</b>s`; return; }
+        clearInterval(_lessonGate.timer);
+        if (btn) { btn.disabled = false; btn.classList.add('ready'); btn.innerHTML = '✅ Já li — vamos ao exercício!'; btn.onclick = () => closeLessonModal(); }
+    }, 500);
+}
 function closeLessonModal() {
+    if (_lessonGateActive()) {
+        const left = Math.ceil((_lessonGate.until - Date.now()) / 1000);
+        showToast(`📖 Lê o resumo até ao fim — faltam ${left}s!`);
+        return;
+    }
+    // Regista o tempo real de leitura no lessonLog (o pai vê no Dia a dia)
+    if (_lessonGate && _lessonGate.openedAt) {
+        try {
+            const rt = Math.round((Date.now() - _lessonGate.openedAt) / 1000);
+            const d = todayStr();
+            const entry = (state.lessonLog || []).find(x => x && x.d === d && x.k === _lessonGate.key);
+            if (entry && (!entry.rt || rt > entry.rt)) { entry.rt = rt; saveState(); }
+        } catch {}
+        if (_lessonGate.timer) clearInterval(_lessonGate.timer);
+        _lessonGate = null;
+    }
+    document.getElementById('lesson-gate')?.remove();
     document.getElementById('lesson-modal').style.display = 'none';
     _currentLessonDoubtCtx = null;
 }
@@ -16403,9 +16463,9 @@ function topicStars(subjectKey, topic) {
 // ============================================================
 function _maybeShowFirstLesson(e) {
     try {
-        // Blindagem: o resumo SÓ aparece na 1ª pergunta do teste. A meio,
-        // mesmo que o tópico seja novo, nunca interrompe (pedido do pai).
-        if (currentSession && currentSession.idx > 0) return;
+        // O resumo aparece SEMPRE que surge um tópico novo (mesmo a meio do
+        // teste — aparece ENTRE perguntas, antes de ela responder) e abre
+        // com PORTÃO DE LEITURA: só fecha depois do tempo mínimo de leitura.
         const profile = activeProfile();
         if (!profile || !e || !e.s || !e.t) return;
         profile.lessonsSeen = profile.lessonsSeen || {};
@@ -16424,7 +16484,7 @@ function _maybeShowFirstLesson(e) {
         // Primeira vez — abrir lição automaticamente
         if (typeof openLessonByKey === 'function') {
             setTimeout(() => {
-                openLessonByKey(key);
+                openLessonByKey(key, { gated: true });
                 profile.lessonsSeen[key] = Date.now();
                 saveState();
             }, 250);
