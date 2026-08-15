@@ -591,7 +591,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v567';
+const APP_VERSION = 'v569';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -2219,7 +2219,7 @@ function _pdDayDetailHtml(ctx, key) {
         return `<div class="pdd-sess"><span class="pdd-sess-h">${escapeHtml(x.hm || '—')}</span><span class="pdd-sess-s"><i style="background:${meta.color}"></i>${escapeHtml(meta.name)}</span><span class="pdd-sess-v">${x.ok}/${x.n} certas · <b>${fmtT(x.secs || 0)}</b></span></div>`;
     }).join('');
     const lesHtml = les.length
-        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:#dbeafe;color:#1d4ed8">${escapeHtml(x.t || x.k || '')}${x.rt ? ` · ${x.rt}s` : ''}</span>`).join('')}</div>`
+        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:${x.w === 'erro' ? '#fef3c7' : '#dbeafe'};color:${x.w === 'erro' ? '#92400e' : '#1d4ed8'}">${x.w === 'erro' ? '⚠️ ' : ''}${escapeHtml(x.t || x.k || '')}${x.rt ? ` · ${x.rt}s` : ''}</span>`).join('')}</div>`
         : `<div class="pdd-noles">📖 Não abriu nenhum resumo neste dia.</div>`;
     return `
         <div class="pdd-totals"><b>${hist.length}</b> exercícios · <b>${pct}%</b> certas${totSecs ? ` · <b>${fmtT(totSecs)}</b> de estudo` : ''}</div>
@@ -11318,7 +11318,32 @@ function _renderReasonEval(d, e) {
     </div>`;
 }
 window._renderReasonEval = _renderReasonEval;
+// Depois de ERRAR: abre o resumo do tópico com PORTÃO DE LEITURA antes de
+// deixar avançar. É aqui que a leitura é obrigatória — errar é o sinal de
+// que precisa mesmo de ler. Uma vez por tópico por sessão (não martela).
+function _maybeForceLessonAfterWrong() {
+    try {
+        const s = currentSession;
+        if (!s || !Array.isArray(s.items)) return false;
+        if (s.results && s.results[s.idx] !== false) return false; // acertou (ou sem resposta)
+        const e = s.items[s.idx];
+        if (!e || !e.s || !e.t) return false;
+        const key = e.s + '/' + e.t;
+        const lesson = (window.LESSONS && window.LESSONS[key]) || (state.maxLessons && state.maxLessons[key]);
+        if (!lesson) return false;
+        s._forcedLessons = s._forcedLessons || [];
+        if (s._forcedLessons.includes(key)) return false; // já leu por erro nesta sessão
+        s._forcedLessons.push(key);
+        // Acabou de ler → marca como visto (senão o auto-show do tópico novo
+        // reabria o mesmo resumo na pergunta seguinte).
+        try { const pr = activeProfile(); if (pr) { pr.lessonsSeen = pr.lessonsSeen || {}; pr.lessonsSeen[key] = Date.now(); saveState(); } } catch {}
+        _lessonGateOnClose = () => { nextQuestion(); };
+        openLessonByKey(key, { gated: true, why: 'erro' });
+        return true;
+    } catch (err) { console.warn('[force-lesson]', err); return false; }
+}
 function nextQuestion() {
+    if (_maybeForceLessonAfterWrong()) return; // avança quando fechar o resumo
     showEncouragement();
     currentSession.idx += 1;
     if (currentSession.idx >= currentSession.items.length) finishSession();
@@ -14952,17 +14977,21 @@ function openLessonByKey(key, opts) {
     if (_lessonGate && _lessonGate.timer) clearInterval(_lessonGate.timer);
     _lessonGate = null;
     document.getElementById('lesson-gate')?.remove();
-    if (opts && opts.gated && lesson) { setTimeout(() => _lessonStartGate(key, lesson), 50); }
+    if (opts && opts.gated && lesson) { setTimeout(() => _lessonStartGate(key, lesson, opts.why), 50); }
     // Regista a abertura do resumo (para o "Dia a dia" — o pai quer saber se
     // leram os resumos). 1 registo por tópico por dia.
     try {
         if (lesson) {
             if (!Array.isArray(state.lessonLog)) state.lessonLog = [];
             const d = todayStr();
-            if (!state.lessonLog.some(x => x && x.d === d && x.k === key)) {
-                state.lessonLog.push({ d, k: key, s: subKey, t: topic });
+            const why = (opts && opts.why) || 'livre';
+            const prev = state.lessonLog.find(x => x && x.d === d && x.k === key);
+            if (!prev) {
+                state.lessonLog.push({ d, k: key, s: subKey, t: topic, w: why });
                 if (state.lessonLog.length > 120) state.lessonLog.shift();
                 saveState();
+            } else if (why === 'erro' && prev.w !== 'erro') {
+                prev.w = 'erro'; saveState();
             }
         }
     } catch (e) { console.warn('[lessonLog]', e); }
@@ -15049,8 +15078,9 @@ function openLessonByKey(key, opts) {
 // só fecha depois de um tempo mínimo proporcional ao texto — é a forma de
 // garantir que elas LEEM antes de responder. O tempo real fica registado.
 let _lessonGate = null; // {until, key, openedAt, timer}
+let _lessonGateOnClose = null; // callback a correr depois de fechar (ex: avançar)
 function _lessonGateActive() { return !!(_lessonGate && Date.now() < _lessonGate.until); }
-function _lessonStartGate(key, lesson) {
+function _lessonStartGate(key, lesson, why) {
     const words = String(lesson.body || '').split(/\s+/).filter(Boolean).length;
     const secs = Math.max(10, Math.min(45, Math.round(words * 0.28)));
     _lessonGate = { until: Date.now() + secs * 1000, key, openedAt: Date.now(), timer: null };
@@ -15058,14 +15088,15 @@ function _lessonStartGate(key, lesson) {
     const content = modal && modal.querySelector('.modal-content');
     if (!content) return;
     content.querySelector('#lesson-gate')?.remove();
-    content.insertAdjacentHTML('beforeend', `<div id="lesson-gate"><button id="lesson-gate-btn" disabled>📖 Lê com atenção… <b>${secs}</b>s</button></div>`);
+    const why0 = why === 'erro' ? '<div class="lesson-gate-why">✋ Erraste esta — lê o resumo com calma antes de continuares.</div>' : '';
+    content.insertAdjacentHTML('beforeend', `<div id="lesson-gate">${why0}<button id="lesson-gate-btn" disabled>📖 Lê com atenção… <b>${secs}</b>s</button></div>`);
     const btn = document.getElementById('lesson-gate-btn');
     _lessonGate.timer = setInterval(() => {
         if (!_lessonGate) return;
         const left = Math.ceil((_lessonGate.until - Date.now()) / 1000);
         if (left > 0) { if (btn) btn.innerHTML = `📖 Lê com atenção… <b>${left}</b>s`; return; }
         clearInterval(_lessonGate.timer);
-        if (btn) { btn.disabled = false; btn.classList.add('ready'); btn.innerHTML = '✅ Já li — vamos ao exercício!'; btn.onclick = () => closeLessonModal(); }
+        if (btn) { btn.disabled = false; btn.classList.add('ready'); btn.innerHTML = why === 'erro' ? '✅ Já li — continuar' : '✅ Já li — vamos ao exercício!'; btn.onclick = () => closeLessonModal(); }
     }, 500);
 }
 function closeLessonModal() {
@@ -15088,6 +15119,7 @@ function closeLessonModal() {
     document.getElementById('lesson-gate')?.remove();
     document.getElementById('lesson-modal').style.display = 'none';
     _currentLessonDoubtCtx = null;
+    if (_lessonGateOnClose) { const cb = _lessonGateOnClose; _lessonGateOnClose = null; try { cb(); } catch (e) { console.warn('[lesson-close]', e); } }
 }
 
 // Extrai uma palavra-chave do tópico para o placeholder
@@ -16463,9 +16495,10 @@ function topicStars(subjectKey, topic) {
 // ============================================================
 function _maybeShowFirstLesson(e) {
     try {
-        // O resumo aparece SEMPRE que surge um tópico novo (mesmo a meio do
-        // teste — aparece ENTRE perguntas, antes de ela responder) e abre
-        // com PORTÃO DE LEITURA: só fecha depois do tempo mínimo de leitura.
+        // Tópico novo → o resumo aparece (mesmo a meio do teste, ENTRE
+        // perguntas) mas SEM portão: é informativo, fecha quando quiser.
+        // A leitura OBRIGATÓRIA só acontece quando ERRA — ver
+        // _maybeForceLessonAfterWrong().
         const profile = activeProfile();
         if (!profile || !e || !e.s || !e.t) return;
         profile.lessonsSeen = profile.lessonsSeen || {};
@@ -16484,7 +16517,7 @@ function _maybeShowFirstLesson(e) {
         // Primeira vez — abrir lição automaticamente
         if (typeof openLessonByKey === 'function') {
             setTimeout(() => {
-                openLessonByKey(key, { gated: true });
+                openLessonByKey(key);
                 profile.lessonsSeen[key] = Date.now();
                 saveState();
             }, 250);
