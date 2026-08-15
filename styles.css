@@ -6759,3 +6759,4 @@ body.has-teacher-overlay #subject-detail-container {
 #lesson-gate-btn.ready { background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; cursor: pointer; box-shadow: 0 6px 16px rgba(22,163,74,0.35); animation: gateReady 0.4s ease-out; }
 #lesson-gate-btn.ready:active { transform: scale(0.97); }
 @keyframes gateReady { from { transform: scale(0.94); } to { transform: scale(1); } }
+.lesson-gate-why { font-size: 0.84rem; font-weight: 700; color: #92400e; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; text-align: center; }
