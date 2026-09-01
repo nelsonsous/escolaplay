@@ -28,12 +28,12 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['Verdadeiro','Falso'], ans:0,
       exp:'A madeira é tirada do tronco das árvores.' },
 
-    { id:'2ee4_006', s:'estudo_meio', t:'Materiais e objetos', type:'fill', diff:1,
+    { id:'2ee4_006', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:1,
       q:'O ecoponto AZUL é para o ____.',
       opts:['papel','plástico','vidro','metal'], ans:0,
       exp:'Azul = papel e cartão. Amarelo = plástico/metal. Verde = vidro.' },
 
-    { id:'2ee4_007', s:'estudo_meio', t:'Materiais e objetos', type:'fill', diff:1,
+    { id:'2ee4_007', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:1,
       q:'O ecoponto VERDE é para o ____.',
       opts:['vidro','papel','plástico','tecido'], ans:0,
       exp:'No ecoponto verde colocam-se garrafas e frascos de vidro.' },
@@ -89,12 +89,12 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['Verdadeiro','Falso'], ans:0,
       exp:'O vidro é duro mas FRÁGIL — parte-se quando bate com força no chão.' },
 
-    { id:'2ee4_018', s:'estudo_meio', t:'Materiais e objetos', type:'fill', diff:2,
+    { id:'2ee4_018', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2,
       q:'Um material que deixa passar a luz e ver através chama-se ____.',
       opts:['transparente','opaco','áspero','flexível'], ans:0,
       exp:'Transparente = dá para ver através (vidro, água limpa). Opaco = não dá para ver através (madeira, metal).' },
 
-    { id:'2ee4_019', s:'estudo_meio', t:'Materiais e objetos', type:'fill', diff:2,
+    { id:'2ee4_019', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:2,
       q:'Uma lixa é ____ ao toque.',
       opts:['áspera','lisa','transparente','molhada'], ans:0,
       exp:'A lixa é áspera (raspa). O vidro liso é liso (escorrega).' },
@@ -125,7 +125,7 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['Fica mais brilhante','Enferruja (cor castanha-laranja)','Vira plástico','Desaparece'], ans:1,
       exp:'O ferro com água e ar enferruja — fica com uma cor castanha-laranja e estraga-se.' },
 
-    { id:'2ee4_025', s:'estudo_meio', t:'Materiais e objetos', type:'fill', diff:3,
+    { id:'2ee4_025', s:'estudo_meio', t:'Materiais e objetos', type:'mc', diff:3,
       q:'Reciclar é importante porque ajuda a poupar a ____.',
       opts:['natureza','televisão','escola','escada'], ans:0,
       exp:'Quando reciclamos, gastamos menos árvores, menos petróleo e o lixo não fica espalhado pela natureza.' },
@@ -140,7 +140,7 @@ const EXERCISES_2_E_EXTRA4 = [
     { id:'2ee4_027', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:1,
       q:'🚦 No semáforo dos peões, posso atravessar quando está…',
       opts:['Vermelho','Verde','Amarelo','Apagado'], ans:1,
-      exp:'Verde = passa. Vermelho = pára. Atravessa sempre na passadeira.' },
+      exp:'Verde = passa. Vermelho = para. Atravessa sempre na passadeira.' },
 
     { id:'2ee4_028', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:1,
       q:'🚲 Quando andas de bicicleta, deves usar…',
@@ -157,12 +157,12 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['Verdadeiro','Falso'], ans:1,
       exp:'Fósforos e isqueiros NÃO são brinquedos. Podem causar queimaduras ou incêndios.' },
 
-    { id:'2ee4_031', s:'estudo_meio', t:'Segurança e prevenção', type:'fill', diff:1,
+    { id:'2ee4_031', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:1,
       q:'Para atravessar a rua devo usar a ____.',
       opts:['passadeira','janela','escada','cadeira'], ans:0,
       exp:'Atravessa-se sempre na passadeira (riscas brancas no chão) e olhando para os dois lados.' },
 
-    { id:'2ee4_032', s:'estudo_meio', t:'Segurança e prevenção', type:'fill', diff:1,
+    { id:'2ee4_032', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:1,
       q:'Na piscina, se não souberes nadar bem, deves usar uma ____.',
       opts:['boia','toalha','almofada','mochila'], ans:0,
       exp:'A boia ajuda-te a flutuar. Mas mesmo com boia, anda sempre perto de um adulto.' },
@@ -218,12 +218,12 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['Verdadeiro','Falso'], ans:0,
       exp:'Sim — diz o teu nome, onde estás e o que se passou, com calma. Os adultos do 112 vão ajudar.' },
 
-    { id:'2ee4_043', s:'estudo_meio', t:'Segurança e prevenção', type:'fill', diff:2,
+    { id:'2ee4_043', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:2,
       q:'Na praia, a bandeira ____ quer dizer que não se pode entrar na água.',
       opts:['vermelha','verde','amarela','azul'], ans:0,
       exp:'Vermelha = perigo, não entrar. Amarela = só dar pé. Verde = pode tomar banho com cuidado.' },
 
-    { id:'2ee4_044', s:'estudo_meio', t:'Segurança e prevenção', type:'fill', diff:2,
+    { id:'2ee4_044', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:2,
       q:'Para evitar quedas em casa, o chão da casa de banho não pode estar ____.',
       opts:['molhado','seco','limpo','aquecido'], ans:0,
       exp:'O chão molhado escorrega e podes cair. Limpa logo a água e usa tapete.' },
@@ -254,7 +254,7 @@ const EXERCISES_2_E_EXTRA4 = [
       opts:['Roupa toda preta','Cores claras ou refletoras e luzes','Capuz na cabeça','Óculos escuros'], ans:1,
       exp:'Cores claras, coletes refletores e luzes ajudam os condutores a ver-te, sobretudo de noite ou com chuva.' },
 
-    { id:'2ee4_050', s:'estudo_meio', t:'Segurança e prevenção', type:'fill', diff:3,
+    { id:'2ee4_050', s:'estudo_meio', t:'Segurança e prevenção', type:'mc', diff:3,
       q:'Antes de atravessar, olho para a ____ e depois para a direita.',
       opts:['esquerda','frente','trás','cima'], ans:0,
       exp:'Olha para a esquerda, depois para a direita, e à esquerda outra vez. Em Portugal os carros vêm primeiro pela esquerda.' }

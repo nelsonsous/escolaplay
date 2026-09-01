@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak'];
 
 // Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
 // saem do dispositivo — são dados pessoais de crianças. Packs (vampire:…,
@@ -269,6 +269,8 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {})
     Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
         id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {},
+        paperSheet: null, writeSheet: null, dictSheet: null,
         name, avatar, year, currentPeriod: 1,
         xp: 0,
         streak: { days: 0, lastDate: null, best: 0 },
@@ -453,9 +455,14 @@ function loadState() {
         } else if (!s.profiles.find(p => p.id === s.activeProfileId)) {
             s.activeProfileId = s.profiles[0].id;
         }
+        if (Array.isArray(parsed.customAvatars)) s.customAvatars = parsed.customAvatars;
         return installStateProxy(s);
     } catch(e) {
         console.error('loadState', e);
+        // Não perder a única cópia: guarda o raw corrompido noutra chave
+        // antes de o próximo saveState escrever por cima.
+        try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) localStorage.setItem(STORAGE_KEY + '_corrupt_' + Date.now(), raw); } catch {}
+        setTimeout(() => { try { alert('⚠️ Não consegui ler o progresso guardado neste dispositivo (dados corrompidos). Guardei uma cópia para recuperação. Se tinhas backup na nuvem, usa "Restaurar por código".'); } catch {} }, 1500);
         return installStateProxy(defaultState());
     }
 }
@@ -597,9 +604,17 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_11_q_extra.js', varName: 'EXERCISES_11_Q_EXTRA' }
     ]
 };
+// v571: o banco BASE de cada ano saiu de content.js (que ficou só com
+// SUBJECTS/CURRICULUM/LESSONS/PERIODS) para content_y<N>.js — carregado
+// como primeiro "extra" do ano pelo mesmo mecanismo. O 3.º (Oceanus/31)
+// partilha o ficheiro do 3.º. Poupa ~1.2 MB no arranque.
+const YEAR_BASE_FILES = { 2: 'content_y2.js', 3: 'content_y3.js', 31: 'content_y3.js', 5: 'content_y5.js', 6: 'content_y6.js', 7: 'content_y7.js' };
+Object.keys(YEAR_BASE_FILES).forEach(y => {
+    YEAR_EXTRA_FILES[y] = [{ src: YEAR_BASE_FILES[y], varName: 'EXERCISES_BASE_' + y }, ...(YEAR_EXTRA_FILES[y] || [])];
+});
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v570';
+const APP_VERSION = 'v571';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -616,9 +631,13 @@ function _sanitizeExercise(e) {
         && e.ans >= 0 && e.ans < e.opts.length) {
         e.type = 'mc';
     }
+    // 'fill' com opts + ans numérico é na verdade uma escolha múltipla mal
+    // etiquetada (pedia para escrever "0") → trata como mc.
+    if ((e.type === 'fill' || e.type === 'problem') && Array.isArray(e.opts) && e.opts.length >= 2 && typeof e.ans === 'number') e.type = 'mc';
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         if (typeof e.ans === 'string' || typeof e.ans === 'number') e.ans = [String(e.ans)];
         else if (!Array.isArray(e.ans)) e.ans = [];
+        if (e.ans.length === 0) return null; // impossível de acertar — fora
     }
     if (e.type === 'order') {
         if (!Array.isArray(e.items)) {
@@ -653,6 +672,17 @@ function _sanitizeExercise(e) {
 // no DOM, não duplica (importante quando o utilizador alterna entre perfis
 // do mesmo ano).
 const _scriptLoadCache = {};
+// Escape room: escape.js/escape.css (63 KB) só quando se abre o jogo.
+function _openEscapeLazy() {
+    const args = arguments;
+    if (!document.querySelector('link[href="escape.css"]')) {
+        const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'escape.css'; document.head.appendChild(l);
+    }
+    const go = () => { if (typeof window.openEscapeRoom === 'function') window.openEscapeRoom.apply(null, args); };
+    if (typeof window.openEscapeRoom === 'function') return go();
+    _loadScript('escape.js').then(go).catch(() => showToast('Não foi possível carregar o escape room.'));
+}
+window._openEscapeLazy = _openEscapeLazy;
 function _loadScript(src) {
     if (_scriptLoadCache[src]) return _scriptLoadCache[src];
     _scriptLoadCache[src] = new Promise((resolve, reject) => {
@@ -729,10 +759,29 @@ function loadYearExtras(year) {
     return promise;
 }
 
+let _saveFailToastAt = 0;
 function saveState() {
-    // Serializar apenas { profiles, activeProfileId, max } — os getters não são enumeráveis
-    const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    // Serializar apenas { profiles, activeProfileId, max, customAvatars } — os getters não são enumeráveis
+    const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max, customAvatars: state.customAvatars || [] };
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+        // Quota cheia (iOS ~5 MB): poda o que cresce sem limite e tenta de novo.
+        // Sem isto, a exceção rebentava a meio de recordAnswer e a sessão
+        // congelava sem feedback nem progresso guardado.
+        try {
+            (state.profiles || []).forEach(p => {
+                if (Array.isArray(p.maxExercises) && p.maxExercises.length > 300) p.maxExercises = p.maxExercises.slice(-300);
+                if (p.maxLessons && typeof p.maxLessons === 'object') { const ks = Object.keys(p.maxLessons); ks.slice(0, Math.max(0, ks.length - 40)).forEach(k => delete p.maxLessons[k]); }
+                if (p.exerciseSeen && typeof p.exerciseSeen === 'object') { const cut = Date.now() - 120 * 86400000; Object.keys(p.exerciseSeen).forEach(k => { if (p.exerciseSeen[k] < cut) delete p.exerciseSeen[k]; }); }
+                if (Array.isArray(p.history) && p.history.length > 300) p.history = p.history.slice(-300);
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (e2) {
+            console.error('[saveState] quota', e2);
+            if (Date.now() - _saveFailToastAt > 60000) { _saveFailToastAt = Date.now(); try { showToast('⚠️ Memória do dispositivo cheia — o progresso pode não ficar guardado. Apaga fotos/perfis antigos.'); } catch {} }
+        }
+    }
     // v441: cloud backup com push automático debounced (30s). Só dispara se o
     // perfil ativo tem userCode (i.e. já foi "partilhado" para o Duelo) — sem
     // userCode não temos chave estável entre dispositivos.
@@ -751,9 +800,20 @@ function switchProfile(id) {
     closeProfileSwitcher();
     updateAll();
     switchTab('home');
-    // Refresca o registo na nuvem (lastSeen/ano) — antes só acontecia no
-    // arranque, e trocar de perfil deixava o lastSeen desatualizado.
-    try { if (typeof isProfileShareable === 'function' && isProfileShareable(p) && typeof ensureUserCode === 'function') ensureUserCode(); } catch {}
+    window._pdDayCtx = null;
+    // Listeners da nuvem (inbox/amigos) estavam ligados ao CÓDIGO ANTIGO — o
+    // perfil novo recebia duelos e amigos do irmão. Desliga e religa.
+    try { if (typeof _inboxUnsub === 'function') { _inboxUnsub(); } _inboxUnsub = null; } catch {}
+    try { if (typeof _myUserUnsub === 'function') { _myUserUnsub(); } _myUserUnsub = null; } catch {}
+    // Refresca o registo na nuvem (lastSeen/ano) e religa os listeners.
+    try {
+        if (typeof isProfileShareable === 'function' && isProfileShareable(p) && typeof ensureUserCode === 'function') {
+            ensureUserCode().then(() => {
+                try { if (typeof _attachInboxListener === 'function') _attachInboxListener().catch(() => {}); } catch {}
+                try { if (typeof _attachMyUserListener === 'function') _attachMyUserListener(); } catch {}
+            }).catch(() => {});
+        }
+    } catch {}
 }
 
 // Passagem de ano do perfil ativo — mantém XP/medalhas/histórico; troca o
@@ -837,7 +897,7 @@ function addProfileFromForm() {
     const nameEl = document.getElementById('new-profile-name');
     const yearEl = document.querySelector('input[name="new-profile-year"]:checked');
     const avEl   = document.querySelector('#new-profile-avatars .avatar-option.selected');
-    const name = (nameEl?.value || '').trim();
+    const name = (nameEl?.value || '').trim().slice(0, 30);
     if (!name) { showToast('Escreve um nome'); return; }
     const fallbackYear = (window.YEARS_AVAILABLE && window.YEARS_AVAILABLE[0]?.year) || 2;
     const year = parseInt(yearEl?.value || String(fallbackYear));
@@ -1626,7 +1686,7 @@ function openSubjectDetail(key, opts) {
 
                 <!-- Botão "começar treino" ANTES da lista — acesso rápido sem scroll -->
                 <button class="btn btn-primary-solid btn-block" style="margin-bottom:14px" onclick="startSubjectSession('${key}')">
-                    <i class="fas fa-play"></i> Começar treino (todos os tópicos activos)
+                    <i class="fas fa-play"></i> Começar treino (todos os tópicos ativos)
                 </button>
 
                 <div class="section-title" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1655,7 +1715,7 @@ function openSubjectDetail(key, opts) {
                     </div>
 
                     <button class="btn btn-block" style="background:rgba(255,255,255,0.18);color:#fff;border-radius:10px;padding:10px;font-weight:600;font-size:0.88rem;margin-bottom:6px" onclick="startMaxSession('${key}')">
-                        <i class="fas fa-shuffle"></i> Treino MAX (todos os tópicos activos)
+                        <i class="fas fa-shuffle"></i> Treino MAX (todos os tópicos ativos)
                     </button>
                     <button class="btn btn-block" style="background:rgba(255,255,255,0.1);color:#fbcfe8;border-radius:10px;padding:8px;font-size:0.78rem" onclick="startMaxSession('${key}', {forceNew:true})">
                         <i class="fas fa-rotate"></i> Forçar novos exercícios (consome API)
@@ -2026,7 +2086,7 @@ function _parentStats(src) {
     const days = {};
     hist.forEach(h => { if (h && h.d) { const d = days[h.d] || (days[h.d] = { ans: 0, ok: 0 }); d.ans++; if (h.c) d.ok++; } });
     // Pontos fracos do tutor de Inglês (se existirem).
-    const weakRaw = maxObj.tutorWeak || {};
+    const weakRaw = (p && p.tutorWeak) || maxObj.tutorWeak || {};
     const weak = Object.keys(weakRaw)
         .map(t => ({ t, net: (weakRaw[t].wrong || 0) - (weakRaw[t].right || 0) }))
         .filter(x => x.net > 0)
@@ -3597,7 +3657,7 @@ function openProfileSwitcher() {
             <div onclick="switchProfile('${p.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:${active ? '#fce7f3' : '#fff'};border:2px solid ${active ? '#f472b6' : 'var(--border)'};margin-bottom:8px;cursor:pointer">
                 <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#f472b6' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 42)}</div>
                 <div style="flex:1;min-width:0">
-                    <div style="font-weight:700">${p.name}</div>
+                    <div style="font-weight:700">${escapeHtml(p.name)}</div>
                     <div style="font-size:0.78rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP</div>
                 </div>
                 ${active ? '<i class="fas fa-check" style="color:#f472b6"></i>' : ''}
@@ -3871,7 +3931,7 @@ function renderProfile() {
                 <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#fce7f3' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
                     <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#f472b6' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-weight:600;font-size:0.92rem">${p.name} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(activo)</span>' : ''}${shareBadge}</div>
+                        <div style="font-weight:600;font-size:0.92rem">${escapeHtml(p.name)} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(activo)</span>' : ''}${shareBadge}</div>
                         <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
                     </div>
                     ${!active ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem" onclick="switchProfile('${p.id}')">Usar</button>` : ''}
@@ -4329,7 +4389,8 @@ async function callClaudeAPI(prompt, maxTokens = 3500, wantJson = true, opts = {
                 break;
             }
             if (res.ok) {
-                const data = await res.json();
+                let data;
+                try { data = await res.json(); } catch { lastErr = `${p.name}: resposta não-JSON (rede/proxy)`; break; }
                 const text = data.choices?.[0]?.message?.content || '';
                 if (!text) { lastErr = `${p.name}: resposta vazia`; break; }
                 // Aviso visível quando o provider preferido falha e foi usado fallback
@@ -4716,10 +4777,11 @@ async function startMaxSession(subjectKey, opts = {}) {
         // Guardar no pool offline permanente
         const existingIds = new Set((state.maxExercises || []).map(e => e.id));
         const newExs = items.filter(e => !existingIds.has(e.id));
-        state.maxExercises = [...(state.maxExercises || []), ...newExs].slice(-500);
+        state.maxExercises = [...(state.maxExercises || []), ...newExs].slice(-1000);
         // Guardar mini-lições
         Object.entries(lessons).forEach(([topic, text]) => {
             state.maxLessons[`${subjectKey}/${topic}`] = { title: topic, body: text };
+            { const ks = Object.keys(state.maxLessons); if (ks.length > 80) ks.slice(0, ks.length - 80).forEach(k => delete state.maxLessons[k]); }
         });
         state.max.totalGenerated = (state.max.totalGenerated || 0) + items.length;
         state.max.totalRequests = (state.max.totalRequests || 0) + 1;
@@ -5497,6 +5559,9 @@ function exitSession() {
         if (!confirm('Queres mesmo sair? Perdes o progresso deste treino.')) return;
     }
     currentSession = null;
+    _lessonGateOnClose = null;
+    try { if (typeof _duelTimerInterval !== 'undefined' && _duelTimerInterval) { clearInterval(_duelTimerInterval); _duelTimerInterval = null; } } catch {}
+    try { if (typeof _hideDuelTimerBar === 'function') _hideDuelTimerBar(); } catch {}
     closeExerciseScreen();
     switchTab('home');
 }
@@ -5506,18 +5571,18 @@ function exitSession() {
 // IA tem viés massivo para ans:1 (em alguns ficheiros chega aos 75%), o que
 // criava o efeito "a segunda resposta e sempre a certa". O baralhamento usa
 // Fisher-Yates e nao toca em TF (V/F tem ordem convencional).
+// Devolve uma CÓPIA baralhada (o banco nunca é mutado — antes a ordem
+// ficava congelada para sempre e a criança memorizava a posição).
 function _shuffleMCOptions(e) {
-    if (!e || e._shuffled) return;
-    if (e.type !== 'mc' || !Array.isArray(e.opts) || e.opts.length < 3) return;
-    if (typeof e.ans !== 'number' || e.ans < 0 || e.ans >= e.opts.length) return;
+    if (!e || e._shuffled) return e;
+    if (e.type !== 'mc' || !Array.isArray(e.opts) || e.opts.length < 2) return e;
+    if (typeof e.ans !== 'number' || e.ans < 0 || e.ans >= e.opts.length) return e;
     const idx = e.opts.map((_, i) => i);
     for (let i = idx.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [idx[i], idx[j]] = [idx[j], idx[i]];
     }
-    e.opts = idx.map(i => e.opts[i]);
-    e.ans = idx.indexOf(e.ans);
-    e._shuffled = true;
+    return Object.assign({}, e, { opts: idx.map(i => e.opts[i]), ans: idx.indexOf(e.ans), _shuffled: true, _srcId: e.id });
 }
 
 // Desenha um número como blocos Base-10 (material MAB) — o apoio
@@ -5557,8 +5622,8 @@ window._renderBaseTen = _renderBaseTen;
 
 function renderQuestion() {
     const s = currentSession;
-    const e = s.items[s.idx];
-    _shuffleMCOptions(e);
+    let e = s.items[s.idx];
+    if (e && e.type === 'mc' && !e._shuffled) { e = _shuffleMCOptions(e); s.items[s.idx] = e; } // cópia baralhada por sessão
     // Reset animação XP/combo no início da sessão
     if (s.idx === 0) {
         _lastSessionXP = 0;
@@ -5581,7 +5646,7 @@ function renderQuestion() {
         wrap.classList.remove('progress-compact');
         wrap.innerHTML = s.items.map((_, i) => {
             let cls = '';
-            if (i < s.idx) cls = (s.results && s.results[i]) ? 'done' : 'wrong';
+            if (i < s.idx) cls = (s.results && s.results[i] === true) ? 'done' : ((s.results && s.results[i] === false) ? 'wrong' : 'done');
             else if (i === s.idx) cls = 'current';
             return `<div class="progress-dot ${cls}"></div>`;
         }).join('');
@@ -5601,7 +5666,7 @@ function renderQuestion() {
         `;
     }
     document.getElementById('session-xp').textContent = s.xp;
-    const sub = SUBJECTS[e.s];
+    const sub = SUBJECTS[e.s] || { name: e.s, color: '#64748b', icon: 'fa-book' };
     const tag = document.getElementById('ex-subject-tag');
     tag.textContent = sub.name;
     tag.style.background = sub.color;
@@ -5741,7 +5806,7 @@ function renderQuestion() {
     if (e.type === 'mc') area.innerHTML = renderMC(e);
     else if (e.type === 'tf') area.innerHTML = renderTF(e);
     else if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') area.innerHTML = renderFill(e);
-    else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul>`; orderState = [...e.items].sort(() => Math.random() - 0.5); setTimeout(redrawOrder, 0); }
+    else if (e.type === 'order') { area.innerHTML = `<ul class="order-list" id="order-list"></ul>`; orderState = [...e.items]; for (let k = 0; k < 8; k++) { for (let i = orderState.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [orderState[i], orderState[j]] = [orderState[j], orderState[i]]; } if (orderState.length < 2 || orderState.some((it, i) => it !== e.items[i])) break; } setTimeout(redrawOrder, 0); }
     else if (e.type === 'match') { matchState = { leftItems: e.pairs.map(p=>p[0]), rightItems: [...e.pairs.map(p=>p[1])].sort(()=>Math.random()-0.5), pairs: e.pairs, matched: {} }; area.innerHTML = `<div class="match-area" id="match-area"></div>`; setTimeout(redrawMatch, 0); }
     else if (e.type === 'speak') { area.innerHTML = renderSpeak(e); speakState = { transcript: '', listening: false, lang: e.lang || 'en-US' }; }
     else if (e.type === 'roleplay') { renderRoleplay(e); }
@@ -6089,22 +6154,22 @@ function closeTutor() {
 }
 window.closeTutor = closeTutor;
 
-// ---- Erros a treinar (áreas fracas, persistidas em state.max.tutorWeak) ----
+// ---- Erros a treinar (áreas fracas, persistidas em state.tutorWeak) ----
 function _tutorTrackWeak(topic, correct) {
     if (!topic || !state.max) return;
     topic = String(topic).trim();
     if (!topic || topic.length > 44) return;
-    state.max.tutorWeak = state.max.tutorWeak || {};
-    const w = state.max.tutorWeak[topic] || { wrong: 0, right: 0, last: 0, streak: 0 };
+    state.tutorWeak = state.tutorWeak || {};
+    const w = state.tutorWeak[topic] || { wrong: 0, right: 0, last: 0, streak: 0 };
     if (correct) { w.right++; w.streak = (w.streak || 0) + 1; }
     else { w.wrong++; w.streak = 0; }
     w.lastResult = correct ? 'ok' : 'wrong';
     w.last = Date.now();
-    state.max.tutorWeak[topic] = w;
+    state.tutorWeak[topic] = w;
     saveState();
 }
 function _tutorTopWeak(n) {
-    const w = (state.max && state.max.tutorWeak) || {};
+    const w = (state.max && state.tutorWeak) || {};
     return Object.keys(w)
         .filter(k => (w[k].wrong || 0) > (w[k].right || 0) && _tutorMasteryState(k) !== 'consolidado')
         .sort((a, b) => ((w[b].wrong - w[b].right) - (w[a].wrong - w[a].right)) || (w[b].last - w[a].last))
@@ -6115,7 +6180,7 @@ function _tutorRenderWeak() {
     if (!list.length) return;
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
-    const w = state.max.tutorWeak;
+    const w = state.tutorWeak;
     const chips = list.map(t => `<span class="tutor-weak-chip">${escapeHtml(t)} <b>×${w[t].wrong - (w[t].right || 0)}</b></span>`).join('');
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
@@ -6706,7 +6771,7 @@ function _tutorSubmitText() {
     _tutorCancelAutoSend();
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} }
     if (_tutorRec && _tutorRec.state !== 'inactive') { _tutorRecAbort = true; _tutorStopMic(); }
-    const val = inp.value.trim();
+    const val = inp.value.trim().slice(0, 1200);
     if (!val) return;
     inp.value = '';
     tutorState._draft = '';
@@ -6848,7 +6913,7 @@ function _tutorRenderDailyLesson() {
     // Prioriza rever um tópico fraco se houver; senão segue a escada.
     const weak = (typeof _tutorTopWeak === 'function') ? _tutorTopWeak(1) : [];
     let topic, lvl, isReview = false;
-    if (weak.length) { topic = weak[0]; lvl = ((state.max.tutorWeak && state.max.tutorWeak[topic] && state.max.tutorWeak[topic].level) || ''); isReview = true; }
+    if (weak.length) { topic = weak[0]; lvl = ((state.tutorWeak && state.tutorWeak[topic] && state.tutorWeak[topic].level) || ''); isReview = true; }
     else { const nx = _tutorNextLadderTopic(); if (!nx) return; topic = nx.topic; lvl = nx.lvl; }
     const userLvl = _tutorUserLevel();
     chat.insertAdjacentHTML('beforeend', `
@@ -7243,9 +7308,18 @@ async function _askMistralJSON(sys, usr) {
     }
     // Fallback directo: usa o endpoint Mistral com response_format json_object
     const key = state.max && state.max.mistralKey;
-    if (!key) throw new Error('no key');
+    if (!key) {
+        // Sem Mistral mas com outro provider (Groq): usa-o e extrai o JSON.
+        if (typeof callClaudeAPI === 'function' && hasAIKey()) {
+            const { text } = await callClaudeAPI(sys + '\n\n' + usr + '\n\nResponde APENAS com JSON.', 700, true);
+            const m = String(text || '').match(/\{[\s\S]*\}/);
+            if (m) { try { return JSON.parse(m[0]); } catch {} }
+        }
+        throw new Error('no key');
+    }
+    const _ac2 = new AbortController(); const _to2 = setTimeout(() => _ac2.abort(), 30000);
     const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
+        method: 'POST', signal: _ac2.signal,
         headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
         body: JSON.stringify({
             model: 'mistral-large-latest',
@@ -7260,7 +7334,7 @@ async function _askMistralJSON(sys, usr) {
     if (!res.ok) throw new Error('mistral ' + res.status);
     const data = await res.json();
     const txt = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    return JSON.parse(txt || '{}');
+    clearTimeout(_to2); try { return JSON.parse(txt || '{}'); } catch { throw new Error('resposta IA inválida'); };
 }
 window._askMistralJSON = _askMistralJSON;
 
@@ -8718,7 +8792,7 @@ window._tutorPracticeAnswer = _tutorPracticeAnswer;
 // Erro num exercício → sub-lição focada (Mistral) + 3 sub-exercícios à frente da fila
 function _tutorShouldDeepTeach(topic) {
     if (!topic || !state.max) return false;
-    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || { wrong: 0 };
+    const w = (state.tutorWeak && state.tutorWeak[topic]) || { wrong: 0 };
     const wrong = w.wrong || 0;
     if (wrong < 3) return false;
     const given = (state.max.tutorDeepGiven && state.max.tutorDeepGiven[topic]) || 0;
@@ -8726,18 +8800,18 @@ function _tutorShouldDeepTeach(topic) {
 }
 function _tutorMarkDeepTaught(topic) {
     if (!topic || !state.max) return;
-    state.max.tutorWeak = state.max.tutorWeak || {};
-    const w = state.max.tutorWeak[topic] || { wrong: 0, right: 0 };
+    state.tutorWeak = state.tutorWeak || {};
+    const w = state.tutorWeak[topic] || { wrong: 0, right: 0 };
     state.max.tutorDeepGiven = state.max.tutorDeepGiven || {};
     state.max.tutorDeepGiven[topic] = w.wrong || 0;
     w.deepTimes = (w.deepTimes || 0) + 1;
-    state.max.tutorWeak[topic] = w;
+    state.tutorWeak[topic] = w;
     saveState();
 }
 // Estado de domínio derivado da memória: novo / a aprender / abana / preso / consolidado.
 function _tutorMasteryState(topic) {
     if (!topic || !state.max) return 'novo';
-    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || null;
+    const w = (state.tutorWeak && state.tutorWeak[topic]) || null;
     if (!w) return 'novo';
     const seen = (w.right || 0) + (w.wrong || 0);
     if (seen === 0) return 'novo';
@@ -8750,7 +8824,7 @@ function _tutorMasteryState(topic) {
 // Coach adaptativo: já ensinado e continua a errar → reforçar de novo ou recuar a um pré-requisito.
 async function _tutorCoachDecide(topic) {
     if (!topic || !state.max) return null;
-    const w = (state.max.tutorWeak && state.max.tutorWeak[topic]) || { wrong: 0, right: 0, deepTimes: 0 };
+    const w = (state.tutorWeak && state.tutorWeak[topic]) || { wrong: 0, right: 0, deepTimes: 0 };
     const prompt = `You are an adaptive English-learning coach helping a Portuguese learner reach fluency.
 The learner KEEPS failing the topic "${topic}" EVEN AFTER being taught it ${(w.deepTimes || 0)} time(s) (wrong ${(w.wrong || 0)}x, right ${(w.right || 0)}x).
 Decide the smartest next step:
@@ -8763,7 +8837,7 @@ Return STRICT JSON only:
         const d = _extractJSON(text);
         if (!d) return null;
         if (d && (d.action === 'regress' || d.action === 'reinforce')) {
-            if (d.level && state.max.tutorWeak && state.max.tutorWeak[topic]) { state.max.tutorWeak[topic].level = String(d.level).trim(); saveState(); }
+            if (d.level && state.tutorWeak && state.tutorWeak[topic]) { state.tutorWeak[topic].level = String(d.level).trim(); saveState(); }
             return d;
         }
     } catch (e) { console.warn('[tutor] coach', e); }
@@ -8820,7 +8894,7 @@ async function _tutorPracticeMistake(item, chosenIdx) {
     const _deepTopic = (item && item.topic) || pq.topic || '';
     if (_deepTopic && !pq._deepDone && _tutorShouldDeepTeach(_deepTopic)) {
         pq._deepDone = true;
-        const wRec = (state.max.tutorWeak && state.max.tutorWeak[_deepTopic]) || {};
+        const wRec = (state.tutorWeak && state.tutorWeak[_deepTopic]) || {};
         const firstTeach = (wRec.deepTimes || 0) === 0;
         _tutorMarkDeepTaught(_deepTopic);
         if (!firstTeach) {
@@ -10444,9 +10518,9 @@ Responde APENAS com JSON, um destes formatos:
                 result.missing = parsed.missing.slice(0, 200);
             }
         }
-        sessionStorage.setItem(cacheKey, JSON.stringify(result));
+        try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch {}
         return result;
-    } catch(e) { return { status: 'wrong' }; }
+    } catch(e) { return { status: 'unknown', error: String(e && e.message || e) }; }
 }
 
 // ========== SUBMIT ==========
@@ -10478,9 +10552,17 @@ async function submitAnswer() {
                 // strict: comparação exata (maiúsculas/pontuação contam — ex: 'Hoje está sol.')
                 if (e.strict) return String(val).trim() === String(a).trim();
                 const na = normalize(a);
-                // Respostas numéricas: só exato (senão '7000' passava por '700')
-                if (/^[\d\s.,]+$/.test(na)) return na.replace(/[\s.,]/g, '') === n.replace(/[\s.,]/g, '');
-                return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
+                // Respostas numéricas: compara como NÚMERO (7 000 = 7000; 1,5 = 1.5;
+                // mas 15 ≠ 1,5 e 700 ≠ 7000)
+                if (/^-?[\d\s.,]+$/.test(na) && /^-?[\d\s.,]+$/.test(n)) {
+                    const num = t => { let c = t.replace(/\s/g, ''); if (c.includes(',')) c = c.replace(/\./g, '').replace(',', '.'); else if (/^-?\d{1,3}(\.\d{3})+$/.test(c)) c = c.replace(/\./g, ''); return Number(c); };
+                    const x = num(na), y = num(n); return Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) < 1e-9;
+                }
+                if (na === n) return true;
+                // Aceita se a resposta esperada aparece INTEIRA (palavra completa) no que
+                // escreveu ('é o porto' para 'porto'); nunca o inverso ('casa' p/ 'casas').
+                if (n.length >= 3 && na.length >= 3) { const esc = na.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return new RegExp('(^|\\s)' + esc + '(\\s|$)').test(n); }
+                return false;
             });
             // Validação IA como fallback — só se não acertou no matching e há chave API.
             // Pode devolver "partial" (resposta tem parte certa mas falta completar).
@@ -10497,6 +10579,7 @@ async function submitAnswer() {
                 if (r && r.status === 'partial') {
                     s._partial = { missing: r.missing || '' };
                 }
+                if (r && r.status === 'unknown') showToast('IA indisponível — resposta avaliada pela regra simples.');
             }
         } else if (e.type === 'speak') {
             const tr = (speakState.transcript || '').trim();
@@ -10522,7 +10605,7 @@ async function submitAnswer() {
                     : 'Preenche todas as células primeiro');
                 return;
             }
-            isCorrect = true;
+            isCorrect = sudokuState.hintsUsed < 3; // 3+ pistas = resolvido pela app
             const stars = '⭐'.repeat(Math.max(1, 3 - sudokuState.hintsUsed));
             const hintsLine = sudokuState.hintsUsed === 0
                 ? '🏅 Sem ajudas — fizeste tudo sozinha!'
@@ -10530,12 +10613,12 @@ async function submitAnswer() {
             e.exp = `${stars}  ·  ${sudokuState.moves} jogadas  ·  ${hintsLine}`;
         } else if (e.type === 'game' && e.game === 'cofre') {
             if (cofreState.input.length < cofreState.digits) { showToast('Falta(m) dígito(s)'); return; }
-            isCorrect = cofreState.solved;
+            isCorrect = cofreState.solved && cofreState.hintsUsed < 3;
             const stars = '⭐'.repeat(Math.max(1, 3 - cofreState.hintsUsed));
             e.exp = `${stars}  ·  Código: ${cofreState.solution}  ·  ${cofreState.hintsUsed === 0 ? '🏅 Sem pistas!' : '🤝 Usaste ' + cofreState.hintsUsed + ' pista' + (cofreState.hintsUsed===1?'':'s') + '.'}`;
         } else if (e.type === 'game' && e.game === 'cofre_steps') {
             if (!cstState.solved) { showToast('Termina todos os passos primeiro'); return; }
-            isCorrect = true;
+            isCorrect = cstState.hintsUsed < 3;
             const stars = '⭐'.repeat(Math.max(1, 3 - cstState.hintsUsed));
             const last = cstState.steps[cstState.steps.length - 1];
             e.exp = `${stars}  ·  Resultado: ${last && last.answer}  ·  ${cstState.hintsUsed === 0 ? '🏅 Sem pistas!' : '🤝 Usaste ' + cstState.hintsUsed + ' pista' + (cstState.hintsUsed===1?'':'s') + '.'}`;
@@ -11262,7 +11345,7 @@ async function loadDetailedExplanation() {
     const lesson = LESSONS[lessonKey] || state.maxLessons?.[lessonKey];
     const showLesson = () => {
         const html = `<strong>${lesson.title}</strong><br><br>${escapeHtml(lesson.body).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}`;
-        sessionStorage.setItem(cacheKey, html);
+        try { sessionStorage.setItem(cacheKey, html); } catch {}
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
     };
 
@@ -11291,7 +11374,7 @@ async function loadDetailedExplanation() {
             }
         }
         const html = _renderDetailedExplanationHtml(clean);
-        sessionStorage.setItem(cacheKey, html);
+        try { sessionStorage.setItem(cacheKey, html); } catch {}
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
     } catch(err) {
         if (lesson) return showLesson();
@@ -11389,6 +11472,7 @@ function _maybeForceLessonAfterWrong() {
         const s = currentSession;
         if (!s || !Array.isArray(s.items)) return false;
         if (s.results && s.results[s.idx] !== false) return false; // acertou (ou sem resposta)
+        if (s.isDuel || s.fbDuelId) return false; // duelo cronometrado: nunca bloquear
         const e = s.items[s.idx];
         if (!e || !e.s || !e.t) return false;
         const key = e.s + '/' + e.t;
@@ -11406,6 +11490,7 @@ function _maybeForceLessonAfterWrong() {
     } catch (err) { console.warn('[force-lesson]', err); return false; }
 }
 function nextQuestion() {
+    if (!currentSession) return; // sessão terminada entretanto (timer de duelo, saída)
     if (_maybeForceLessonAfterWrong()) return; // avança quando fechar o resumo
     showEncouragement();
     currentSession.idx += 1;
@@ -11488,9 +11573,13 @@ function finishSession() {
         if (state.streak.days > state.streak.best) state.streak.best = state.streak.days;
     }
     if (s.isDaily) {
+        const firstToday = !(state.daily && state.daily.date === today && state.daily.completed);
         state.daily = { date: today, completed: true, correct: s.correct };
-        state.totalDailies = (state.totalDailies || 0) + 1;
-        if (s.correct === s.items.length) state.perfectDailies = (state.perfectDailies || 0) + 1;
+        // 'Repetir desafio' não volta a contar para as medalhas de consistência
+        if (firstToday) {
+            state.totalDailies = (state.totalDailies || 0) + 1;
+            if (s.correct === s.items.length) state.perfectDailies = (state.perfectDailies || 0) + 1;
+        }
     }
     // Notificações visuais ao utilizador
     if (streakSaved) {
@@ -11898,6 +11987,7 @@ function retryWrongSession() {
         wrong:   0,
         xp:      0,
         streak:  0,
+        startedAt: Date.now(),
         results: [],
         isDaily: false,
         testId:  null,
@@ -12053,8 +12143,13 @@ ${url}
 //   questions:[ids], mode:'open', responses:{ [name]: {...} } }
 
 function _fbReady() { return !!(window.__fb && window.__fb.db); }
+// Nome → chave de campo Firestore segura (sem . ~ * / [ ]) — 'Sr. João' criava
+// um caminho aninhado e a resposta nunca era encontrada.
+function _duelRespKey(name) { return String(name || 'Anónimo').replace(/[.~*\/\[\]]/g, '_').slice(0, 60); }
 function _onFbReady() {
     if (_fbReady()) return Promise.resolve();
+    // v571: o SDK só se carrega quando algo o pede (duelos/backup/admin).
+    try { if (typeof window._initFirebase === 'function') window._initFirebase(); } catch {}
     // Timeout de 10s: sem isto, se o Firebase não carregar (rede/adblocker),
     // todos os fbCreateDuel/fbSubmitDuelResult ficavam pendurados para sempre
     // e o utilizador via "A criar duelo…" eternamente, sem feedback.
@@ -12088,6 +12183,7 @@ async function fbCreateDuel({ subjectKey, questionIds, name, avatar, year, timeL
         if (!snap.exists()) break;
         tries++;
     }
+    if (tries >= 4) throw new Error('Não foi possível gerar um ID único para o duelo — tenta outra vez.');
     const ref = doc(db, 'duels', id);
     await setDoc(ref, {
         v: 1,
@@ -12145,7 +12241,7 @@ async function fbSubmitDuelResult(id, playerName, result) {
     const { db, doc, updateDoc } = window.__fb;
     const ref = doc(db, 'duels', id);
     // result = { correct, time, score, items, completedAt }
-    const path = `responses.${playerName}`;
+    const path = `responses.${_duelRespKey(playerName)}`;
     await updateDoc(ref, { [path]: result });
 }
 
@@ -12224,6 +12320,7 @@ const _duelListeners = {};
 function _attachDuelListener(entry) {
     if (!entry || !entry.id) return;
     if (_duelListeners[entry.id]) return;
+    _duelListeners[entry.id] = () => {}; // pendente — evita 2 onSnapshot no mesmo doc
     _onFbReady().then(() => {
         const { db, doc, onSnapshot } = window.__fb;
         const ref = doc(db, 'duels', entry.id);
@@ -12314,7 +12411,7 @@ async function openMyDuelsScreen() {
             const dateStr = new Date(entry.createdAt).toLocaleDateString('pt-PT', {day:'2-digit',month:'short'});
             const status = others.length === 0 ? '⏳ A aguardar respostas…' : `${others.length} ${others.length===1?'resposta':'respostas'}`;
             const othersList = others.length > 0
-                ? others.slice(0,3).map(([n, r]) => `<div style="font-size:0.78rem;color:var(--text);margin-top:2px"><strong>${escapeHtml(n)}</strong>: ${r.correct}/${data.questions.length} · ${r.score}pts</div>`).join('')
+                ? others.slice(0,3).map(([n, r]) => `<div style="font-size:0.78rem;color:var(--text);margin-top:2px"><strong>${escapeHtml(n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${Number(r.score) || 0}pts</div>`).join('')
                 : '';
             const myLine = myResp
                 ? `<div style="font-size:0.78rem;color:#d97706;margin-top:4px">✓ Tu: ${myResp.correct}/${data.questions.length} · ${myResp.score}pts</div>`
@@ -12432,7 +12529,7 @@ async function openFirestoreDuelFromUrl(id) {
     const lc = myName.trim().toLowerCase();
     let myResp = null;
     if (data.responses) {
-        myResp = data.responses[myName];
+        myResp = (data.responses[_duelRespKey(myName)] || data.responses[myName]);
         if (!myResp) {
             const k = Object.keys(data.responses).find(x => x.trim().toLowerCase() === lc);
             if (k) myResp = data.responses[k];
@@ -12469,7 +12566,7 @@ function _showFirestoreDuelIntro(data, id) {
     // Se outros ja responderam — mostrar quem
     let opponentsHtml = '';
     if (responsesCount > 0) {
-        const list = Object.entries(data.responses).slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml(n)}</strong>: ${r.correct}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
+        const list = Object.entries(data.responses).slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml(n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
         opponentsHtml = `<div style="background:#f9fafb;border-radius:12px;padding:12px;margin:14px 0;text-align:left"><div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase">Já jogaram:</div>${list}</div>`;
     }
     const html = `
@@ -12504,7 +12601,7 @@ function _showDuelAlreadyPlayed(data, id) {
     const myResp = data.responses?.[myName] || myRecord;
     const others = Object.entries(data.responses || {}).filter(([n]) => n !== myName);
     const othersHtml = others.length > 0
-        ? others.map(([n, r]) => `<tr><td style="padding:6px 4px">${escapeHtml(n)}</td><td style="text-align:right;padding:6px 4px">${r.correct}/${data.questions.length}</td><td style="text-align:right;padding:6px 4px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:6px 4px;font-weight:800;color:#dc2626">${r.score} pts</td></tr>`).join('')
+        ? others.map(([n, r]) => `<tr><td style="padding:6px 4px">${escapeHtml(n)}</td><td style="text-align:right;padding:6px 4px">${Number(r.correct) || 0}/${data.questions.length}</td><td style="text-align:right;padding:6px 4px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:6px 4px;font-weight:800;color:#dc2626">${Number(r.score) || 0} pts</td></tr>`).join('')
         : `<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-light)">Ninguém mais respondeu ainda.</td></tr>`;
     const html = `
     <div id="fb-duel-intro-modal-temp" class="modal" style="align-items:center;padding:20px">
@@ -12537,7 +12634,8 @@ async function _startFirestoreDuel(id) {
     document.getElementById('inbox-modal-temp')?.remove();
     document.getElementById('social-hub-modal-temp')?.remove();
     document.getElementById('creator-play-modal-temp')?.remove();
-    const data = await fbGetDuel(id);
+    let data;
+    try { data = await fbGetDuel(id); } catch (e) { showToast('❌ Sem ligação — tenta outra vez.'); return; }
     if (!data) { showToast('Duelo desapareceu.'); return; }
     // Resolver as questoes pelos IDs
     const items = data.questions.map(qid => _findExerciseAnyYear(qid)).filter(Boolean);
@@ -12617,7 +12715,7 @@ function _showFirestoreDuelSummary(data, myResult) {
     const rankHtml = all.map(([n, r], i) => {
         const isMe = n === myName;
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-        return `<tr style="background:${isMe ? '#fef3c7' : 'transparent'}"><td style="padding:8px 6px;font-weight:800">${medal} ${escapeHtml(n)}${isMe ? ' (tu)' : ''}</td><td style="text-align:right;padding:8px 6px">${r.correct}/${total}</td><td style="text-align:right;padding:8px 6px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:8px 6px;font-weight:900;color:#dc2626">${r.score}</td></tr>`;
+        return `<tr style="background:${isMe ? '#fef3c7' : 'transparent'}"><td style="padding:8px 6px;font-weight:800">${medal} ${escapeHtml(n)}${isMe ? ' (tu)' : ''}</td><td style="text-align:right;padding:8px 6px">${Number(r.correct) || 0}/${total}</td><td style="text-align:right;padding:8px 6px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:8px 6px;font-weight:900;color:#dc2626">${Number(r.score) || 0}</td></tr>`;
     }).join('');
     const html = `
     <div id="fb-duel-summary-modal-temp" class="modal" style="align-items:center;padding:20px">
@@ -13306,7 +13404,7 @@ async function refreshInbox() {
     catch (err) { console.warn('[inbox] fail', err); return; }
     // Filtrar duelos onde ja respondi
     const myName = activeProfile()?.name;
-    const pending = duels.filter(d => !(d.responses && d.responses[myName]));
+    const pending = duels.filter(d => !(d.responses && (d.responses[_duelRespKey(myName)] || d.responses[myName])));
     state._inboxCache = pending;
     _updateInboxBadge(pending.length);
     return pending;
@@ -13316,6 +13414,7 @@ async function refreshInbox() {
 let _inboxUnsub = null;
 async function _attachInboxListener() {
     if (!state.userCode || _inboxUnsub) return;
+    await _onFbReady();
     const { db } = window.__fb;
     const { query, collection, where, limit, onSnapshot } = await _fbQueryFns();
     // Sem orderBy para nao precisar de indice composto
@@ -13329,7 +13428,7 @@ async function _attachInboxListener() {
     _inboxUnsub = onSnapshot(q, snap => {
         const myName = activeProfile()?.name;
         const all = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-        const pending = all.filter(d => !(d.responses && d.responses[myName]));
+        const pending = all.filter(d => !(d.responses && (d.responses[_duelRespKey(myName)] || d.responses[myName])));
         _updateInboxBadge(pending.length);
         state._inboxCache = pending;
         if (firstSnapshot) {
@@ -13400,7 +13499,7 @@ async function openInboxScreen() {
     const myName = activeProfile()?.name || '';
     const hasMyResponse = d => {
         if (!d.responses) return false;
-        if (d.responses[myName]) return true;
+        if ((d.responses[_duelRespKey(myName)] || d.responses[myName])) return true;
         const lc = myName.trim().toLowerCase();
         return Object.keys(d.responses).some(k => k.trim().toLowerCase() === lc);
     };
@@ -13419,7 +13518,7 @@ async function openInboxScreen() {
         const opacity = isAnswered ? 'opacity:0.78' : '';
         let myResp = null;
         if (isAnswered && d.responses) {
-            myResp = d.responses[myName];
+            myResp = (d.responses[_duelRespKey(myName)] || d.responses[myName]);
             if (!myResp) {
                 const lc = myName.trim().toLowerCase();
                 const k = Object.keys(d.responses).find(x => x.trim().toLowerCase() === lc);
@@ -13432,7 +13531,7 @@ async function openInboxScreen() {
         });
 
         const lblTop = mine
-            ? `📤 Para ${(d.inviteNames||[]).join(', ') || (d.inviteFor||[]).length+' amigos'}`
+            ? `📤 Para ${escapeHtml((d.inviteNames||[]).join(', ')) || (d.inviteFor||[]).length+' amigos'}`
             : `📥 ${escapeHtml(d.creator?.name || 'Anónimo')}${cYear?` · ${cYear}`:''}`;
         const lblMid = `${escapeHtml(subName)} · ${d.questions.length} perguntas · ${dateStr}`;
 
@@ -13536,7 +13635,7 @@ async function _openAnyDuel(id) {
     const lc = myName.trim().toLowerCase();
     let myResp = null;
     if (data.responses) {
-        myResp = data.responses[myName];
+        myResp = (data.responses[_duelRespKey(myName)] || data.responses[myName]);
         if (!myResp) {
             const k = Object.keys(data.responses).find(x => x.trim().toLowerCase() === lc);
             if (k) myResp = data.responses[k];
@@ -14083,6 +14182,8 @@ function _startDuelSession(data, items) {
 }
 
 function _showDuelTimerBar(seconds) {
+    // Um timer de um duelo anterior (saída a meio) podia terminar ESTE duelo.
+    if (_duelTimerInterval) { clearInterval(_duelTimerInterval); _duelTimerInterval = null; }
     document.getElementById('duel-timer-bar')?.remove();
     const bar = document.createElement('div');
     bar.id = 'duel-timer-bar';
@@ -14120,7 +14221,7 @@ function _showDuelTimerBar(seconds) {
         if (remaining <= 0) {
             clearInterval(_duelTimerInterval);
             _duelTimerInterval = null;
-            _finishDuel();
+            if (currentSession && currentSession.fbDuelId) _finishFirestoreDuel(); else _finishDuel();
         }
     }, 200);
 }
@@ -14245,7 +14346,7 @@ async function sendDuelReplyResult() {
 // sem dicas, sem explicações — para quem recebe poder responder sem ver.
 // Tenta navigator.share() primeiro (iOS/Android), fallback para mailto:.
 function _buildShareText(e) {
-    const sub = SUBJECTS[e.s];
+    const sub = SUBJECTS[e.s] || { name: e.s, color: '#64748b', icon: 'fa-book' };
     const subName = sub?.fullName || sub?.name || e.s;
     const lines = [];
     lines.push(`📚 ${subName} — ${e.t}`);
@@ -14290,7 +14391,7 @@ async function shareCurrentQuestion() {
     const e = currentSession.items[currentSession.idx];
     if (!e) return;
 
-    const sub = SUBJECTS[e.s];
+    const sub = SUBJECTS[e.s] || { name: e.s, color: '#64748b', icon: 'fa-book' };
     const subName = sub?.name || e.s;
     const subject = `EscolaPlay — ${subName} · ${e.t}`;
     const body = _buildShareText(e);
@@ -14338,7 +14439,7 @@ function openLessonModal() {
 function openHintModal() {
     if (!currentSession) return;
     const e = currentSession.items[currentSession.idx];
-    const sub = SUBJECTS[e.s];
+    const sub = SUBJECTS[e.s] || { name: e.s, color: '#64748b', icon: 'fa-book' };
     document.getElementById('lesson-title').innerHTML = `<i class="fas fa-lightbulb" style="color:#2563eb"></i> Pista · ${sub?.name || e.s} · ${e.t}`;
     const body = document.getElementById('lesson-body');
     const parts = [];
@@ -14699,11 +14800,10 @@ async function loadAIHint(exerciseId) {
 
     const btn = document.getElementById('hint-ai-btn');
     const area = document.getElementById('hint-ai-area');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…'; }
-
     const cacheKey = `ai_hint_v2_${e.id}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) { if (area) area.outerHTML = _hintAiBox(cached); return; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A pensar…'; }
 
     const yr = activeProfile()?.year || 6;
     const prompt = _buildProfessorIAPrompt(e, yr);
@@ -15462,7 +15562,22 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// v571: GSAP (71 KB) fora do caminho crítico — carrega depois do load.
+window.addEventListener('load', () => { setTimeout(() => { if (!window.gsap) _loadScript('gsap.min.js').catch(() => {}); }, 1500); });
 window.addEventListener('DOMContentLoaded', () => {
+    // v571 migrações leves: tutorWeak passa a ser por perfil (estava em
+    // state.max, misturando irmãos); exerciseSeen podado a 180 dias.
+    setTimeout(() => {
+        try {
+            if (state.max && state.max.tutorWeak) {
+                (state.profiles || []).forEach(p => { if (!p.tutorWeak || !Object.keys(p.tutorWeak).length) p.tutorWeak = JSON.parse(JSON.stringify(state.max.tutorWeak)); });
+                delete state.max.tutorWeak;
+            }
+            const cut = Date.now() - 180 * 86400000;
+            (state.profiles || []).forEach(p => { if (p.exerciseSeen && typeof p.exerciseSeen === 'object') Object.keys(p.exerciseSeen).forEach(k => { if (p.exerciseSeen[k] < cut) delete p.exerciseSeen[k]; }); });
+            saveState();
+        } catch (e) { console.warn('[migr v571]', e); }
+    }, 3000);
     // Inicializar estado agora — neste ponto PROFILE_FIELDS, AVATARS, defaultState etc. já existem.
     state = loadState();
     try { applyTheme(_currentTheme()); } catch {}
@@ -15698,8 +15813,10 @@ function _setupVersionTag() {
 function openSecretModal() {
     const modal = document.getElementById('secret-modal');
     if (!modal) return;
-    renderSecretModalList();
-    modal.style.display = 'flex';
+    // content_secret.js (640 KB) só se carrega aqui — quase ninguém o usa.
+    const go = () => { renderSecretModalList(); modal.style.display = 'flex'; };
+    if (window.SECRET_PACKS) go();
+    else _loadScript('content_secret.js').then(go).catch(() => { showToast('Não foi possível carregar os packs.'); });
 }
 
 function closeSecretModal() {
@@ -15770,6 +15887,20 @@ function lockSecretPack(packId) { return removeSecretPack(packId); }
 
 function _applyAllUnlockedSecrets(profile) {
     if (!profile || !profile.unlockedSecrets) return;
+    if (Object.keys(profile.unlockedSecrets).length === 0) return;
+    // v571: injeta já a partir dos blobs guardados; o content_secret.js
+    // (640 KB) carrega em segundo plano só para o auto-refresh do payload.
+    if (!window.SECRET_PACKS) {
+        for (const id of Object.keys(profile.unlockedSecrets)) {
+            const blob = profile.unlockedSecrets[id];
+            if (blob && blob.pt) { try { _injectSecretPayload(blob.pt, profile); } catch (e) { console.warn('[secret] inject ' + id + ' failed', e); } }
+        }
+        _loadScript('content_secret.js').then(() => { try { _refreshUnlockedSecrets(profile); } catch (e) { console.warn('[secret] refresh', e); } }).catch(() => {});
+        return;
+    }
+    _refreshUnlockedSecrets(profile);
+}
+function _refreshUnlockedSecrets(profile) {
     // Auto-refresh: se o payload no content_secret.js (build novo) for diferente
     // do que está guardado no perfil (build antigo), substituir pelo novo.
     // Sem isto, fixes a exercícios secretos nunca chegam a perfis já existentes.
@@ -16784,12 +16915,15 @@ try {
     if (v > 0) _lastBackupAt = v;
 } catch {}
 
+const _backupTimers = {}; // por código — trocar de perfil não cancela o push do anterior
 function _scheduleBackupPush() {
     const p = activeProfile();
     if (!p || !p.userCode) return; // sem userCode, não há para onde enviar
-    if (_backupPushTimer) clearTimeout(_backupPushTimer);
-    _backupPushTimer = setTimeout(() => {
-        _doBackupPush(p.userCode).catch(err => console.warn('[backup] push err', err));
+    const code = p.userCode;
+    if (_backupTimers[code]) clearTimeout(_backupTimers[code]);
+    _backupTimers[code] = setTimeout(() => {
+        delete _backupTimers[code];
+        _doBackupPush(code).catch(err => console.warn('[backup] push err', err));
     }, 30000);
 }
 
@@ -16801,7 +16935,9 @@ async function _doBackupPush(userCode) {
         // Re-find o perfil no momento de enviar (pode ter mudado).
         const p = state.profiles.find(x => x.userCode === userCode);
         if (!p) return;
-        await fbBackupState(userCode, { profile: p, max: state.max });
+        // Foto da criança nunca sai do dispositivo — no backup vai o avatar público.
+        const pub = Object.assign({}, p, { avatar: _pubAvatar(p.avatar) });
+        await fbBackupState(userCode, { profile: pub, max: state.max });
         _lastBackupAt = Date.now();
         try { localStorage.setItem(BACKUP_LAST_AT_KEY, String(_lastBackupAt)); } catch {}
         _updateBackupIndicator();
@@ -16866,6 +17002,8 @@ function _applyRestoredBackup(data) {
     const p = data.profile;
     if (!p || !p.id) { showToast('Backup corrupto.'); return; }
     const idx = state.profiles.findIndex(x => x.userCode === p.userCode || x.id === p.id);
+    // O backup traz avatar público; se havia foto local, mantém-na.
+    if (idx >= 0 && (p.avatar === '👤' || !p.avatar) && state.profiles[idx].avatar) p.avatar = state.profiles[idx].avatar;
     if (idx >= 0) state.profiles[idx] = p;
     else state.profiles.push(p);
     state.activeProfileId = p.id;
@@ -17125,6 +17263,13 @@ function closeReadingTeacher() {
     // exercício vazio com o botão "Voltar a abrir o Professor".
     try {
         const cur = currentSession && currentSession.items && currentSession.items[currentSession.idx];
+        if (cur && cur.s === 'leitura' && currentSession.items.length > 1 && !currentSession.isLibrary) {
+            // Sessão mista (desafio diário): a leitura era só uma das perguntas
+            currentSession.results = currentSession.results || [];
+            if (currentSession.results[currentSession.idx] === undefined) currentSession.results[currentSession.idx] = true;
+            nextQuestion();
+            return;
+        }
         if (cur && cur.s === 'leitura') {
             currentSession = null;
             closeExerciseScreen();
@@ -19141,7 +19286,8 @@ window._renderRichExp = _renderRichExp;
 async function _askMistral(prompt, systemMsg) {
     const key = state.max && state.max.mistralKey;
     if (!key) throw new Error('Sem chave Mistral. Vai a Perfil → Configurar Mistral.');
-    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    const _ac = new AbortController(); const _to = setTimeout(() => _ac.abort(), 30000);
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', { signal: _ac.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
         body: JSON.stringify({
@@ -19154,6 +19300,7 @@ async function _askMistral(prompt, systemMsg) {
             max_tokens: 280
         })
     });
+    clearTimeout(_to);
     if (!res.ok) throw new Error('Mistral devolveu ' + res.status);
     const data = await res.json();
     return data.choices?.[0]?.message?.content?.trim() || '';
@@ -19189,7 +19336,7 @@ async function _askMistralHint() {
     try {
         const prompt = `Exercício para um aluno do ${(_currentEx()?.s || 'tópico')}:\n${e.q}\n${e.opts ? 'Opções: ' + e.opts.join(' / ') : ''}\n\nDá UMA pista curta (1-2 frases) que oriente sem dar a resposta. Sem fórmulas pesadas.`;
         const text = await _askMistral(prompt);
-        body.innerHTML = '💡 ' + text.replace(/\n/g, '<br>');
+        body.innerHTML = '💡 ' + escapeHtml(text).replace(/\n/g, '<br>');
     } catch (err) {
         body.innerHTML = '⚠️ ' + (err.message || 'Não consegui contactar a IA.');
     }
@@ -19402,7 +19549,11 @@ function _injectHolidayButton() {
         fab.title = 'Plano de Férias — ' + label;
         fab.setAttribute('aria-label', 'Plano de Férias');
         fab.innerHTML = '🌞';
-        fab.onclick = () => openHolidayPlan(targetYear);
+        fab.onclick = () => {
+            const cfg = (typeof HOLIDAY_PLANS !== 'undefined' && HOLIDAY_PLANS[targetYear]) || null;
+            const yrs = cfg && Array.isArray(cfg.fromYears) ? cfg.fromYears : [];
+            Promise.all(yrs.map(y => loadYearExtras(y).catch(() => {}))).then(() => openHolidayPlan(targetYear));
+        };
         document.body.appendChild(fab);
         console.log('[holiday] FAB injectado | year=' + year + ' | targetYear=' + targetYear);
         // Já está — para o polling (fazia reflow a cada 1.5s para sempre).
