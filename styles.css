@@ -6414,23 +6414,18 @@ body.has-teacher-overlay #subject-detail-container {
 .pd-kpi-n { font-size: 1.9rem; font-weight: 900; color: #0369a1; }
 .pd-kpi-l { font-size: 0.74rem; color: #0c4a6e; font-weight: 600; }
 .pd-section-h { font-size: 0.95rem; font-weight: 800; color: #334155; margin: 18px 0 10px; }
-.pd-week { display: flex; align-items: flex-end; gap: 6px; height: 90px; background: #f8fafc; border-radius: 12px; padding: 8px; }
-.pd-day { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
-.pd-day-bar { width: 70%; background: linear-gradient(180deg,#38bdf8,#0284c7); border-radius: 4px 4px 0 0; min-height: 4px; }
-.pd-day-lbl { font-size: 0.66rem; color: #64748b; margin-top: 4px; font-weight: 700; }
-.pd-day-n { font-size: 0.64rem; color: #0369a1; font-weight: 800; height: 12px; }
 .pd-row { margin-bottom: 12px; }
 .pd-row-head { display: flex; align-items: center; gap: 8px; }
 .pd-ico { width: 26px; height: 26px; border-radius: 7px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
 .pd-name { flex: 1; font-weight: 700; color: #1f2937; font-size: 0.9rem; }
 .pd-pct { font-weight: 800; font-size: 0.92rem; }
-.pd-bar { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin: 5px 0 2px; }
-.pd-bar span { display: block; height: 100%; border-radius: 999px; }
+.pd-bar { height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin: 5px 0 2px; }
+.pd-bar span { display: block; height: 100%; border-radius: 0 4px 4px 0; }
 .pd-sub { font-size: 0.74rem; color: #94a3b8; font-weight: 600; }
 .pd-weak { display: flex; flex-wrap: wrap; gap: 6px; }
 .pd-weak-chip { background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; font-weight: 700; }
-.pd-empty { color: #94a3b8; font-size: 0.9rem; padding: 20px; text-align: center; }
-.pd-foot { margin-top: 22px; font-size: 0.72rem; color: #94a3b8; text-align: center; }
+.pd-empty { color: #64748b; font-size: 0.9rem; padding: 20px; text-align: center; }
+.pd-foot { margin-top: 22px; font-size: 0.72rem; color: #64748b; text-align: center; }
 /* === SRS transversal — tile Rever erros === */
 .quick-subject-review .qs-icon-wrap { color: #7c3aed; position: relative; }
 .quick-subject-review .qs-badge { position: absolute; top: -6px; right: -8px; background: #ef4444; color: #fff; font-size: 0.66rem; font-weight: 800; min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px #fff; }
@@ -6599,11 +6594,6 @@ body.has-teacher-overlay #subject-detail-container {
 .pd-improve-empty span { color: #64748b; font-size: 0.8rem; }
 .pd-improve-h { font-weight: 900; font-size: 1rem; color: #0369a1; margin-bottom: 8px; }
 .pd-improve-sub { font-size: 0.8rem; font-weight: 700; color: #334155; margin: 12px 0 6px; }
-.pd-wk-row { display: flex; gap: 8px; align-items: flex-end; height: 84px; }
-.pd-wk { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
-.pd-wk-bar { width: 70%; min-height: 6px; border-radius: 6px 6px 0 0; transition: height 0.4s; }
-.pd-wk-pct { font-size: 0.66rem; font-weight: 800; color: #475569; margin-top: 3px; }
-.pd-wk-lbl { font-size: 0.62rem; color: #94a3b8; }
 .pd-skill { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; padding: 6px 10px; border-radius: 9px; margin-bottom: 4px; }
 .pd-skill.up { background: #dcfce7; color: #166534; }
 .pd-skill.down { background: #fef3c7; color: #92400e; }
@@ -6676,7 +6666,7 @@ body.has-teacher-overlay #subject-detail-container {
 .dict-err s { color: #b91c1c; }
 
 /* ── Gráficos SVG do Painel de Pais (v560) ── */
-.pd-chart { margin: 4px 0 8px; }
+.pd-chart { margin: 4px 0 8px; position: relative; }
 .pd-chart svg { display: block; width: 100%; height: auto; }
 .pd-tick { font-size: 9px; fill: #94a3b8; font-variant-numeric: tabular-nums; }
 .pd-xlab { font-size: 9.5px; fill: #94a3b8; }
@@ -6698,12 +6688,8 @@ body.has-teacher-overlay #subject-detail-container {
 .pd-chip.up { background: #dcfce7; color: #15803d; }
 .pd-chip.down { background: #fee2e2; color: #b91c1c; }
 .pd-chip.flat { background: #f1f5f9; color: #64748b; }
-/* Barras por disciplina: ponta de dados arredondada, base reta */
-.pd-bar { height: 10px; }
-.pd-bar span { border-radius: 0 4px 4px 0; }
 
 /* ── Tooltips ricos + heatmap + comparação (v561) ── */
-.pd-chart { position: relative; }
 .pd-chart [data-tip] { cursor: pointer; }
 .pd-tipbox { position: absolute; transform: translate(-50%, -100%); background: #0f172a; color: #fff; font-size: 0.74rem; font-weight: 600; padding: 6px 10px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(15,23,42,0.25); z-index: 5; animation: pdFade 0.15s ease-out; }
 .pd-tipbox::after { content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; background: #0f172a; }
@@ -6719,7 +6705,7 @@ body.has-teacher-overlay #subject-detail-container {
 .pd-cmp-name { font-size: 10.5px; font-weight: 800; fill: #334155; }
 
 /* ── Administração (v562) ── */
-.pd-admin-link { display: block; margin: 8px auto 90px; background: none; border: none; color: #94a3b8; font-size: 0.76rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.pd-admin-link { display: block; margin: 8px auto 90px; background: none; border: none; color: #64748b; font-size: 0.76rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .adm-list { display: flex; flex-direction: column; gap: 8px; }
 .adm-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; cursor: pointer; transition: transform 0.1s; }
 .adm-row:active { transform: scale(0.98); }
@@ -6733,7 +6719,7 @@ body.has-teacher-overlay #subject-detail-container {
 
 /* ── Dia a dia (v566) ── */
 .pdd-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
-.pdd-chip { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 12px; padding: 7px 12px; font-size: 0.68rem; color: #94a3b8; font-weight: 700; cursor: pointer; }
+.pdd-chip { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 12px; padding: 7px 12px; font-size: 0.68rem; color: #64748b; font-weight: 700; cursor: pointer; }
 .pdd-chip b { font-size: 0.95rem; color: #64748b; }
 .pdd-chip.has { border-color: #bae6fd; }
 .pdd-chip.has b { color: #0891b2; }
