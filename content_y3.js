@@ -1126,4 +1126,580 @@ const EXERCISES_3 = [
 ];
 window.EXERCISES_BASE_31 = EXERCISES_3_OCEANUS;
 window.EXERCISES_BASE_3 = EXERCISES_3;
+// ── Lições deste ano (v572): saíram de content.js; fundidas no objeto
+// que setActiveYear já referencia (Object.assign mantém a referência).
+const LESSONS_3_OCEANUS = {
+    // ===== PORTUGUÊS =====
+    'portugues/Ditongos e hiatos': {
+        title: 'Ditongos e hiatos',
+        body: '**Ditongo** = duas vogais juntas na **mesma sílaba**. Exemplos: p**ai**, b**oi**, m**au**, c**éu**, **ei**xo.\n\n**Hiato** = duas vogais juntas em **sílabas diferentes**. Exemplos: sa-**í**-da, le-**ão**, p**a-i**-s (= "país").\n\n**Truque**: divide a palavra em sílabas. Se as duas vogais ficam juntas → ditongo. Se ficam separadas → hiato.\n\n**❌ O que se costuma errar**\n• Confundir "leão" (hiato le-ão) com "mão" (ditongo "ão" na mesma sílaba).\n• Achar que "saída" e "saia" são iguais — "saí-da" tem hiato (acento agudo), "saia" tem ditongo.\n• Esquecer que ditongos podem ser orais (pai, boi) ou nasais (mãe, pão).'
+    },
+    'portugues/Acentuação': {
+        title: 'Acentos gráficos',
+        body: 'Existem **3 acentos** principais em português:\n\n• **Acento agudo (´)** — em vogais "abertas". Ex: caf**é**, **á**rvore, p**ó**.\n• **Acento circunflexo (^)** — em vogais "fechadas". Ex: av**ô**, p**ê**ssego, c**â**mara.\n• **Acento grave (`)** — quase só em "à" (a + a). Ex: vou **à** escola.\n\nO **til (~)** marca a nasalidade: m**ã**e, irm**ã**, p**ã**o.\n\n**❌ O que se costuma errar**\n• Trocar agudo (´) com circunflexo (^): café (´) ≠ avô (^).\n• Esquecer-se que "à" leva acento grave (a preposição "a" + o artigo "a").\n• Confundir til (~) com acento — o til marca som nasal, não a sílaba forte.'
+    },
+    'portugues/Translineação': {
+        title: 'Translineação (mudar de linha)',
+        body: 'Quando uma palavra não cabe no fim da linha, divide-se em **sílabas**. Põe-se um **hífen (-)** no fim da linha.\n\nEx: a palavra **borboleta** (4 sílabas: bor-bo-le-ta) pode dividir-se assim no fim da linha:\nbor-\nboleta\n\n**Regras**:\n• Divide-se sempre **por sílabas** completas — nunca cortar uma sílaba a meio.\n• Não deixar uma única letra no fim ou no início da linha (ex: evita "a-mor", "pen-a").\n• Não dividir ditongos.\n\n**❌ O que se costuma errar**\n• Cortar a meio de uma sílaba: "esc-ola" ✗ → "es-cola" ✓.\n• Esquecer o hífen no fim da linha.\n• Cortar ditongos: "p-ai" ✗ → "pai" fica numa só sílaba.'
+    },
+    'portugues/Nomes (próprios, comuns, coletivos)': {
+        title: 'Nomes',
+        body: 'Os **nomes** designam pessoas, animais, lugares ou coisas. Há 3 tipos:\n\n• **Comum** — nome geral. Ex: menino, gato, cidade.\n• **Próprio** — nome especial (com **maiúscula**!). Ex: João, Lisboa, Tejo.\n• **Coletivo** — designa um conjunto de seres iguais. Ex: **enxame** (de abelhas), **cardume** (de peixes), **rebanho** (de ovelhas), **floresta** (de árvores), **alcateia** (de lobos).\n\n**❌ O que se costuma errar**\n• Esquecer a maiúscula nos nomes próprios.\n• Confundir coletivos: cardume = peixes (NÃO abelhas).\n• Achar que "grupo" é um coletivo específico — é genérico. Cada animal/coisa tem o seu coletivo próprio.'
+    },
+    'portugues/Determinantes': {
+        title: 'Determinantes',
+        body: 'Os **determinantes** vêm antes dos nomes para os identificar. Tipos principais:\n\n• **Artigos definidos**: o, a, os, as (já conhecemos a coisa).\n• **Artigos indefinidos**: um, uma, uns, umas (não específica).\n• **Demonstrativos**: este/esta (perto), esse/essa (a meio), aquele/aquela (longe).\n• **Possessivos**: meu, teu, seu, nosso, vosso (a quem pertence).\n\nEx: **O** meu cão. **Este** livro. **Aquela** casa.\n\n**❌ O que se costuma errar**\n• Confundir "este" (perto) com "aquele" (longe).\n• Esquecer que os determinantes concordam com o nome em género e número (a casa, **as** casas).\n• Trocar artigo definido (o) com indefinido (um) — significam coisas diferentes.'
+    },
+    'portugues/Adjetivos': {
+        title: 'Adjetivos',
+        body: 'Os **adjetivos** dizem como é o nome (qualidades, características). Ex: cão **preto**, sopa **quente**, dia **bonito**.\n\nO adjetivo concorda com o nome em **género e número**: menin**o** alt**o** / menin**a** alt**a** / menin**os** alt**os**.\n\n**Graus do adjetivo**:\n• **Normal**: o João é alto.\n• **Comparativo**: o João é **mais alto que** o Pedro.\n• **Superlativo absoluto**: o João é **muito alto** ou **altíssimo**.\n\n**❌ O que se costuma errar**\n• Esquecer a concordância (menina alto ✗ → menina alta ✓).\n• Confundir adjetivo com nome ("o preto" pode ser nome se referir a alguém; "o cão preto" → adjetivo).\n• Trocar "altíssimo" (superlativo) com "mais alto" (comparativo).'
+    },
+    'portugues/Verbos': {
+        title: 'Verbos',
+        body: 'Os **verbos** indicam **ação** (correr, comer) ou **estado** (ser, estar). Concordam com o sujeito.\n\n**Tempos verbais** (3 principais):\n• **Presente** — agora. Ex: Eu **canto**.\n• **Passado** (pretérito perfeito) — já aconteceu. Ex: Eu **cantei**.\n• **Futuro** — vai acontecer. Ex: Eu **cantarei** / vou cantar.\n\n**Infinitivo** = forma básica do verbo (sem ninguém a fazer): **cantar**, **comer**, **partir** — terminam em -ar, -er, -ir.\n\n**❌ O que se costuma errar**\n• Confundir "comprei" (passado) com "comprou" (3.ª pessoa do passado).\n• Trocar conjugações (canta → 3.ª pessoa; canto → 1.ª pessoa).\n• Esquecer-se das 3 conjugações (-ar, -er, -ir) e fazer "comir" em vez de "comer".'
+    },
+    'portugues/Plurais e feminino': {
+        title: 'Plurais e feminino',
+        body: '**Plural** = muitos. Regra geral: acrescenta **-s**. Ex: livro → livr**os**.\n\n**Casos especiais**:\n• Palavras em -**ão** → **-ões** (lim**ão** → lim**ões**), **-ãos** (m**ão** → m**ãos**) ou **-ães** (c**ão** → c**ães**, p**ão** → p**ães**).\n• Palavras em -**l** → **-is** (animal → animais).\n• Palavras em -**s** ou -**z** sem vogal final → não muda OU acrescenta -**es** (lápis → lápis; rapaz → rapazes).\n\n**Feminino** — formas:\n• Acrescentar -a: menino → menin**a**.\n• Mudar -**o** por -**a**: avô → avó.\n• Palavra completamente diferente: cavalo → **égua**, homem → **mulher**, padre → **madre**.\n\n**❌ O que se costuma errar**\n• Plural de "cão" → "cãos" ✗ → cães ✓.\n• Plural de "pão" → "pãos" ✗ → pães ✓.\n• Achar que feminino é sempre acrescentar -a: cavalo → "cavala" ✗ → égua ✓.'
+    },
+    'portugues/Tipos de frase': {
+        title: 'Tipos de frase',
+        body: 'Há **4 tipos** de frase, conforme a intenção:\n\n• **Declarativa** — dá informação. Termina em **".".** Ex: O João está em casa.\n• **Interrogativa** — faz pergunta. Termina em **"?".** Ex: O João está em casa?\n• **Exclamativa** — exprime emoção (alegria, surpresa, espanto). Termina em **"!".** Ex: Que dia lindo!\n• **Imperativa** — dá ordem, conselho, pedido. Pode terminar em "." ou "!". Ex: Vai dormir. / Cuidado!\n\n**❌ O que se costuma errar**\n• Confundir exclamativa (emoção) com imperativa (ordem). "Que frio!" é exclamativa; "Fecha a porta." é imperativa.\n• Esquecer o ponto de interrogação (?) no fim de uma pergunta.\n• Achar que toda a frase com "!" é exclamativa — pode ser imperativa enfática.'
+    },
+    'portugues/Sinónimos e antónimos': {
+        title: 'Sinónimos e antónimos',
+        body: '**Sinónimos** = palavras com **significado parecido**. Ex: bonito ≈ lindo. casa ≈ lar. correr ≈ apressar-se.\n\n**Antónimos** = palavras com **significado oposto**. Ex: alto ↔ baixo. claro ↔ escuro. feliz ↔ triste. subir ↔ descer.\n\nUm bom escritor evita repetir a mesma palavra usando sinónimos.\n\n**❌ O que se costuma errar**\n• Confundir sinónimo (igual) com antónimo (oposto).\n• Achar que palavras parecidas são sinónimos: "casa" e "casaco" parecem-se mas são coisas diferentes.\n• Esquecer-se que sinónimos podem ter pequenas diferenças de uso (não são sempre intercambiáveis).'
+    },
+    'portugues/Família de palavras': {
+        title: 'Família de palavras',
+        body: 'Uma **família de palavras** é um grupo de palavras que vêm da **mesma palavra-base** (raiz comum) e partilham o significado.\n\nEx: família de **flor** → flor, **flor**ista, **flor**ir, **flor**ido, **flor**ação.\n\nEx: família de **pão** → pão, **pad**eiro, **pad**aria.\n\n**Atenção**: parecer-se na escrita não chega — tem de partilhar o significado. Floresta NÃO é da família de "flor" (vem de "floresta").\n\n**❌ O que se costuma errar**\n• Confundir palavras parecidas com mesma família — "casa" e "casaco" não são família.\n• Esquecer que "florista" e "floração" são da mesma família apesar de terem terminações diferentes.\n• Achar que "floresta" é da família de "flor" — não é.'
+    },
+    'portugues/Compreensão de texto': {
+        title: 'Compreensão de texto',
+        body: 'Um **texto narrativo** conta uma **história**. Tem 3 elementos principais:\n\n• **Personagens** — quem aparece (pessoas, animais, objetos personificados). Há **principais** (o herói/protagonista) e **secundárias**.\n• **Espaço** — onde acontece (lugar).\n• **Tempo** — quando acontece (horas, dias, época).\n\n**Estrutura da história** — 3 partes:\n1. **Introdução** — apresentação das personagens e cenário.\n2. **Desenvolvimento** — o que acontece (problemas, aventuras).\n3. **Conclusão** — como termina (resolução).\n\n**Quem conta a história?**\n• **Autor** = pessoa real que escreve.\n• **Narrador** = voz que conta dentro do texto.\n\n**❌ O que se costuma errar**\n• Confundir autor (real) com narrador (dentro da história).\n• Esquecer-se de uma das 3 partes (intro, desenvolvimento, conclusão).\n• Trocar protagonista (personagem principal) com narrador (voz que conta).'
+    },
+
+    // ===== MATEMÁTICA =====
+    'matematica/Números até 10 000': {
+        title: 'Números até 10 000',
+        body: 'No 3.º ano os números crescem para a casa dos **milhares**. As ordens (da direita para a esquerda):\n\n• **U** — unidades (1, 2, 3, ..., 9)\n• **D** — dezenas (10, 20, ..., 90)\n• **C** — centenas (100, 200, ..., 900)\n• **M** — milhares (1 000, 2 000, ..., 9 000)\n\nEx: **4 305** = 4 milhares + 3 centenas + 0 dezenas + 5 unidades = 4000 + 300 + 0 + 5.\n\nLê-se **"quatro mil e trezentos e cinco"**.\n\n**❌ O que se costuma errar**\n• Esquecer um zero no meio: 4 035 ≠ 4 305.\n• Trocar dezenas com centenas (em 472, o 4 vale 400, não 40).\n• Não saber escrever em algarismos: "três mil e doze" → 3 012 (não 3 0012).'
+    },
+    'matematica/Valor posicional': {
+        title: 'Valor posicional',
+        body: 'O **valor de um algarismo** depende da **posição** que ocupa no número.\n\nEx: no número **5 472**:\n• o **5** está nos milhares → vale **5 000**\n• o **4** está nas centenas → vale **400**\n• o **7** está nas dezenas → vale **70**\n• o **2** está nas unidades → vale **2**\n\nTotal: 5 000 + 400 + 70 + 2 = 5 472. ✓\n\n**❌ O que se costuma errar**\n• Achar que o algarismo vale o que mostra (no 472, o 4 não vale 4 — vale 400!).\n• Confundir ordem (posição) com classe (milhares, milhões).\n• Esquecer-se que o 0 também ocupa posição: em 502, o 0 está nas dezenas (vale 0 dezenas).'
+    },
+    'matematica/Adição e subtração': {
+        title: 'Adição e subtração',
+        body: 'Para somar ou subtrair números grandes, usa-se o **algoritmo em coluna**: alinha unidades com unidades, dezenas com dezenas...\n\n**Adição com transporte**: 248 + 132\n```\n  248\n+ 132\n-----\n  380\n```\n8+2=10 → escreve 0 e **transporta 1**. Depois 4+3+1=8. Depois 2+1=3.\n\n**Subtração com empréstimo**: 1 000 − 347 = 653.\nQuando o algarismo de cima é menor, **pede-se 1 emprestado** à ordem seguinte.\n\n**❌ O que se costuma errar**\n• Esquecer-se do transporte na adição.\n• Esquecer-se de baixar 1 ao "pedir emprestado".\n• Não alinhar bem as colunas (somar dezenas com unidades).'
+    },
+    'matematica/Multiplicação': {
+        title: 'Multiplicação',
+        body: '**Multiplicar** = somar a mesma coisa várias vezes.\n3 × 4 = 4 + 4 + 4 = 12.\n\n**Algoritmo (× 1 algarismo)**: 23 × 4\n```\n   23\n ×  4\n ----\n   92\n```\n3×4=12 → escreve 2, transporta 1. Depois 2×4=8, +1=9.\n\n**Propriedades úteis**:\n• **Comutativa**: 3 × 4 = 4 × 3.\n• Multiplicar por 10 → acrescentar um zero (ex: 7 × 10 = 70).\n• Multiplicar por 100 → acrescentar dois zeros (7 × 100 = 700).\n\n**❌ O que se costuma errar**\n• Confundir multiplicação com adição.\n• Esquecer o transporte (3×4=12 → fica 2 e transporta 1).\n• Achar que 3 × 4 ≠ 4 × 3 (são iguais!).'
+    },
+    'matematica/Tabuadas': {
+        title: 'Tabuadas',
+        body: 'A **tabuada** é a multiplicação por um número, de 0 a 10 (ou 1 a 10). Devem ser memorizadas — são a base do cálculo!\n\n**Truques**:\n• Tabuada do **2** → o número + ele próprio (3×2=6, 4×2=8).\n• Tabuada do **5** → acaba sempre em 0 ou 5 (5, 10, 15, 20, 25...).\n• Tabuada do **10** → acrescentar um zero (3×10=30, 7×10=70).\n• Tabuada do **9** → os algarismos somam sempre 9: 9, **1**8 (1+8=9), **2**7, **3**6, **4**5...\n• Tabuada do **6** → metade da do 12 (não estudada ainda) — usar a do 5: 6×3=5×3+3.\n\n**❌ O que se costuma errar**\n• Confundir 6×7=42 com 6×8=48.\n• Esquecer que 9×9=81 (não 99).\n• Trocar a tabuada do 7 (mais difícil) com a do 8.'
+    },
+    'matematica/Divisão': {
+        title: 'Divisão',
+        body: '**Divisão** = repartir igualmente.\n\nEx: 12 ÷ 4 = 3. Significa "12 partes em 4 grupos iguais → 3 em cada grupo".\n\n**Termos**:\n• **Dividendo** — o que se divide (12).\n• **Divisor** — em quantos grupos (4).\n• **Quociente** — quanto fica em cada grupo (3).\n• **Resto** — o que sobra (0 quando é divisão **exata**).\n\nEx: 23 ÷ 4 → 4 × 5 = 20, sobra 3. **Quociente 5, resto 3**. (Não é exata.)\n\nA divisão é a **operação inversa** da multiplicação: se 6 × 4 = 24, então 24 ÷ 4 = 6.\n\n**❌ O que se costuma errar**\n• Confundir dividendo com divisor (no 23 ÷ 4, o dividendo é 23!).\n• Esquecer-se do resto.\n• Achar que toda a divisão dá resto 0 — só as exatas.'
+    },
+    'matematica/Múltiplos e divisores': {
+        title: 'Múltiplos e divisores',
+        body: '**Múltiplos** de um número = resultados da tabuada desse número (incluindo 0).\nMúltiplos de 5: 0, 5, 10, 15, 20, 25, ...\n\n**Divisores** de um número = números que dividem certinho (resto 0).\nDivisores de 12: 1, 2, 3, 4, 6, 12.\n\n**M.M.C.** (Mínimo Múltiplo Comum) — o menor múltiplo que dois números têm em comum.\nEx: M.M.C.(4, 6) = 12 (porque é múltiplo de 4 e de 6).\n\n**❌ O que se costuma errar**\n• Confundir múltiplo com divisor — múltiplo é maior, divisor é menor.\n• Esquecer que 0 é múltiplo de todos os números.\n• Achar que 1 não é divisor — é divisor de qualquer número.'
+    },
+    'matematica/Frações': {
+        title: 'Frações',
+        body: 'Uma **fração** representa **partes iguais** de um todo. Tem dois números:\n\n• **Numerador** (em cima) — quantas partes tomamos.\n• **Denominador** (em baixo) — em quantas partes está dividido o todo.\n\nEx: **1/4** → 1 parte em 4 partes iguais.\n\n**Cuidado!** Quanto **maior** o denominador, **menor** cada parte:\n1/2 > 1/3 > 1/4 (uma metade é maior que um terço, que é maior que um quarto).\n\n**Frações conhecidas**:\n• 1/2 = metade\n• 1/3 = um terço\n• 1/4 = um quarto\n• 3/4 = três quartos\n\n**❌ O que se costuma errar**\n• Achar que 1/4 > 1/2 (porque 4 > 2). Errado! 1/4 é menor.\n• Trocar numerador com denominador.\n• Achar que partes desiguais formam frações — só partes iguais!'
+    },
+    'matematica/Polígonos': {
+        title: 'Polígonos',
+        body: 'Um **polígono** é uma figura plana fechada, feita só de **segmentos de reta**. Conta-se o número de **lados**:\n\n• **Triângulo** — 3 lados (tri = 3).\n• **Quadrilátero** — 4 lados (quadrado, retângulo, losango...).\n• **Pentágono** — 5 lados (penta = 5).\n• **Hexágono** — 6 lados (hexa = 6).\n• **Heptágono** — 7 lados (hepta = 7).\n• **Octógono** — 8 lados (octo = 8).\n\nFiguras com partes curvas (círculo, oval) **NÃO** são polígonos.\n\n**❌ O que se costuma errar**\n• Trocar pentágono (5) com hexágono (6).\n• Achar que o círculo é um polígono — não é (tem lado curvo).\n• Confundir polígono regular (todos os lados iguais) com irregular.'
+    },
+    'matematica/Sólidos geométricos': {
+        title: 'Sólidos geométricos',
+        body: 'Os **sólidos geométricos** são objetos a 3 dimensões (têm volume).\n\n**Poliedros** (faces planas):\n• **Cubo** — 6 faces quadradas iguais (dado).\n• **Paralelepípedo** — 6 faces retangulares (caixa de sapatos).\n• **Pirâmide** — base + faces triangulares que se juntam num ponto.\n• **Prisma** — duas bases iguais ligadas por retângulos.\n\n**Não-poliedros** (têm faces curvas):\n• **Esfera** — bola.\n• **Cilindro** — lata, copo de água.\n• **Cone** — gelado, chapéu de aniversário.\n\nElementos: **face** (parte plana), **aresta** (linha), **vértice** (ponto/canto).\n\n**❌ O que se costuma errar**\n• Confundir cubo (6 faces quadradas iguais) com paralelepípedo (faces retangulares).\n• Achar que esfera tem faces — não tem (é toda curva).\n• Trocar cone com pirâmide.'
+    },
+    'matematica/Perímetro': {
+        title: 'Perímetro',
+        body: '**Perímetro** = comprimento total da linha que rodeia uma figura. Soma-se todos os **lados**.\n\n**Quadrado** (4 lados iguais): P = 4 × lado.\nEx: lado 5 cm → P = 4 × 5 = **20 cm**.\n\n**Retângulo** (2 lados pequenos + 2 lados grandes): P = 2 × (lado + lado).\nEx: 8 cm e 3 cm → P = 2 × (8 + 3) = 22 cm.\n\nMede-se em unidades de comprimento: cm, m, km.\n\n**❌ O que se costuma errar**\n• Esquecer que o perímetro é a soma de **todos** os lados (no retângulo são 4, não 2).\n• Confundir perímetro com área (área é o que está dentro; perímetro é à volta).\n• Esquecer a unidade (cm, m).'
+    },
+    'matematica/Comprimento': {
+        title: 'Comprimento',
+        body: 'O **comprimento** mede-se em metros (m). Unidades:\n\n• **1 km (quilómetro)** = 1 000 m\n• **1 m (metro)** = 100 cm\n• **1 dm (decímetro)** = 10 cm\n• **1 cm (centímetro)** = 10 mm\n• **1 mm (milímetro)** — o mais pequeno usado em escola.\n\n**Convertir** (multiplicar/dividir por 10, 100 ou 1000):\n• 3 m → 300 cm (× 100)\n• 500 cm → 5 m (÷ 100)\n• 2 km → 2 000 m (× 1 000)\n\n**❌ O que se costuma errar**\n• Confundir cm com mm.\n• Esquecer que 1 m = 100 cm (não 10!).\n• Trocar quilo (× 1000) com cento (× 100).'
+    },
+    'matematica/Tempo': {
+        title: 'Tempo',
+        body: 'Unidades de tempo:\n\n• **1 minuto** = 60 segundos\n• **1 hora** = 60 minutos\n• **1 dia** = 24 horas (12h dia + 12h noite)\n• **1 semana** = 7 dias\n• **1 mês** = 30 ou 31 dias (28-29 em fevereiro)\n• **1 ano** = 12 meses = 365 dias (366 se ano bissexto)\n\n**Ler horas no relógio analógico**:\n• Ponteiro **pequeno** = horas. Ponteiro **grande** = minutos.\n• "9:15" lê-se "nove e um quarto" (15 min = ¼ de hora).\n• "7:30" lê-se "sete e meia" (30 min = ½ hora).\n\n**❌ O que se costuma errar**\n• Confundir ponteiro grande (minutos) com pequeno (horas).\n• Achar que 1 hora = 100 minutos — são 60!\n• Trocar fevereiro (28-29) com os outros meses.'
+    },
+    'matematica/Dinheiro': {
+        title: 'Dinheiro (€)',
+        body: 'Em Portugal usa-se o **euro (€)**. **1 € = 100 cêntimos**.\n\n**Moedas** (cêntimos): 1c, 2c, 5c, 10c, 20c, 50c.\n**Moedas** (euro): 1 €, 2 €.\n**Notas**: 5 €, 10 €, 20 €, 50 €, 100 €, 200 €, 500 €.\n\n**Escrita**:\n• 8,50 € → **oito euros e cinquenta cêntimos**.\n• 0,75 € → 75 cêntimos.\n\n**Troco**: dinheiro que volta quando se paga mais do que custa.\nEx: livro custa 8,50 €. Pago 10 €. Troco = 10 − 8,50 = **1,50 €**.\n\n**❌ O que se costuma errar**\n• Esquecer que 1 € = 100 cêntimos (não 10!).\n• Trocar a vírgula com o ponto: 8,50 (PT) ≠ 8.50 (formato inglês).\n• Calcular troco somando em vez de subtrair.'
+    },
+    'matematica/Tabelas e gráficos': {
+        title: 'Tabelas e gráficos',
+        body: '**Tabelas e gráficos** organizam dados de forma visual.\n\n**Tipos de gráfico**:\n• **De barras** — bom para comparar quantidades. Ex: votos por candidato.\n• **De linhas** — bom para mostrar evolução ao longo do tempo (temperatura ao longo da semana).\n• **Circular** ("queijinho" / pie chart) — bom para mostrar partes de um todo (% de cada cor numa caixa).\n\n**Para ler um gráfico**:\n1. Ver o título (de que fala?).\n2. Ver os eixos (o que medem?).\n3. Comparar as alturas das barras / fatias.\n\n**Frequência** = quantas vezes algo aparece. **Total** = soma de todas as frequências.\n\n**❌ O que se costuma errar**\n• Esquecer-se de somar todas as barras para o total.\n• Confundir gráfico de barras com gráfico circular.\n• Não ler o título nem os eixos antes de responder.'
+    },
+
+    // ===== SCIENCE (em inglês) =====
+    'estudo_meio/Living things': {
+        title: 'Living things',
+        body: 'All **living things** share these features:\n\n• They **grow** (they get bigger).\n• They **feed** (they need food).\n• They **breathe** (they need air/oxygen).\n• They **reproduce** (they make more of themselves).\n• They **move** (some, like animals, move from place to place; plants move slower — they grow towards light).\n• They **respond to changes** (e.g. plants turn to the Sun).\n\nNon-living things (rocks, water, fire) may do some of these — but not ALL.\n\n**❌ What students often get wrong**\n• Thinking a flame is alive because it grows — it does not feed, breathe or reproduce.\n• Forgetting that plants are living things (they grow, feed, breathe).\n• Mixing up "living" (alive now) with "non-living" (not alive — never was, or no longer alive).'
+    },
+    'estudo_meio/Plants': {
+        title: 'Plants',
+        body: '**Parts of a plant** and what they do:\n\n• **Roots** — hold the plant in the ground and absorb water and minerals.\n• **Stem** — supports the plant and carries water from roots to leaves.\n• **Leaves** — make food using sunlight (photosynthesis).\n• **Flower** — makes seeds (it later turns into the fruit).\n• **Fruit** — protects the seeds.\n\n**What plants need**: light, water, air (CO₂) and minerals from the soil.\n\n**Photosynthesis** = making food in the leaves using sunlight + water + carbon dioxide → produces glucose (food) and oxygen.\n\n**❌ What students often get wrong**\n• Saying plants make food in the roots — they make it in the LEAVES.\n• Forgetting plants need air (CO₂) too — not just light and water.\n• Thinking the fruit comes from the leaf — it comes from the FLOWER.'
+    },
+    'estudo_meio/Animals and habitats': {
+        title: 'Animals and habitats',
+        body: '**Animal groups (vertebrates)**:\n• **Mammals** — fur, give birth to live young, feed them milk (humans, dogs, dolphins).\n• **Birds** — feathers, beak, lay eggs, most can fly (eagle, sparrow).\n• **Fish** — scales, gills, live in water (salmon, shark).\n• **Reptiles** — scaly skin, cold-blooded, lay eggs (lizard, crocodile).\n• **Amphibians** — moist skin, live partly in water and partly on land (frog, salamander).\n\n**Habitat** = the natural home of an animal.\n• **Polar regions** — polar bears, penguins.\n• **Desert** — camels, lizards.\n• **Rainforest** — monkeys, parrots.\n• **Ocean** — fish, whales.\n\nAnimals have **adaptations** that help them live in their habitat (e.g. camels store fat in their hump for the desert).\n\n**❌ What students often get wrong**\n• Thinking whales and dolphins are fish — they are MAMMALS (they breathe air, feed milk).\n• Saying all birds fly — penguins and ostriches do NOT fly.\n• Confusing reptiles with amphibians — reptiles are dry-scaled and lay eggs on land; amphibians have moist skin.'
+    },
+    'estudo_meio/The human body': {
+        title: 'The human body',
+        body: 'The body has many **systems**, each doing an important job:\n\n• **Skeletal system** — about 206 bones support the body.\n• **Muscular system** — muscles work with bones to move.\n• **Circulatory system** — the **heart** pumps blood through veins and arteries.\n• **Respiratory system** — **lungs** take in air; oxygen passes into the blood.\n• **Digestive system** — mouth → stomach → intestines: turns food into energy.\n• **Nervous system** — brain and nerves: control everything.\n\n**❌ What students often get wrong**\n• Saying "I breathe with my heart" — we breathe with our LUNGS. The heart pumps blood.\n• Confusing veins with arteries.\n• Forgetting that bones grow with us — they are alive!'
+    },
+    'estudo_meio/Senses': {
+        title: 'The five senses',
+        body: 'Humans have **5 senses** to learn about the world:\n\n• **Sight** — eyes — see colours, shapes, distances.\n• **Hearing** — ears — hear sounds, music, speech.\n• **Smell** — nose — smell flowers, food, danger (smoke).\n• **Taste** — tongue — sweet, salty, sour, bitter, umami.\n• **Touch** — skin — pressure, heat, cold, pain.\n\nEach sense is connected to the **brain**, which makes sense of all the signals.\n\n**❌ What students often get wrong**\n• Saying we taste with the nose — we taste with the TONGUE (but smell helps a lot).\n• Confusing the 5 senses (counting too few or too many).\n• Forgetting that touch is not just in the fingers — it is in all the SKIN.'
+    },
+    'estudo_meio/Healthy eating': {
+        title: 'Healthy eating',
+        body: 'A balanced diet has different **food groups**:\n\n• **Carbohydrates** (bread, rice, pasta, potatoes) — main source of **energy**.\n• **Proteins** (meat, fish, eggs, beans, tofu) — for **growth** and repair.\n• **Fats** (oil, butter, nuts) — store energy and protect organs (a small amount only!).\n• **Vitamins and minerals** (fruit, vegetables) — keep us healthy.\n• **Fibre** (whole grains, fruit, vegetables) — helps digestion.\n• **Water** — every cell needs water.\n\nEat a **rainbow** of fruit and vegetables every day. Drink water. Limit sugary drinks and sweets.\n\n**❌ What students often get wrong**\n• Thinking fat is always bad — we need small amounts of healthy fats.\n• Eating only one food group (e.g. only bread) — body needs variety.\n• Forgetting water — we need 6-8 glasses a day.'
+    },
+    'estudo_meio/Materials and their properties': {
+        title: 'Materials and their properties',
+        body: 'Different **materials** have different **properties** that make them suitable for different uses.\n\nCommon materials:\n• **Wood** — strong, light, can be cut. Used for furniture, paper.\n• **Metal** — hard, strong, conducts heat and electricity. Used for tools, wires.\n• **Plastic** — light, waterproof, flexible. Used for bottles, toys.\n• **Glass** — transparent (you can see through), fragile. Used for windows, cups.\n• **Fabric** — soft, flexible. Used for clothes.\n• **Paper** — light, can be folded, absorbs water.\n\n**Properties to test**: hard/soft, transparent/opaque, flexible/rigid, magnetic/non-magnetic, waterproof/absorbent.\n\n**❌ What students often get wrong**\n• Confusing material (what something is made of) with object (what something is).\n• Saying "all metal is magnetic" — only some metals (iron, steel, nickel) are magnetic; aluminium is not.\n• Mixing up "transparent" (see clearly through) with "translucent" (light passes but blurry).'
+    },
+    'estudo_meio/Solids, liquids and gases': {
+        title: 'Solids, liquids and gases',
+        body: 'Matter exists in **3 main states**:\n\n• **Solid** — has a fixed shape and a fixed volume. Particles are tightly packed (e.g. ice, wood, rock).\n• **Liquid** — has a fixed volume but takes the shape of its container. Particles are close but can move past each other (e.g. water, milk, oil).\n• **Gas** — has no fixed shape and no fixed volume — fills all the space available. Particles move fast and are far apart (e.g. air, water vapour, helium).\n\n**Changes of state**:\n• Solid → liquid = **melting** (ice → water).\n• Liquid → gas = **evaporation** (water → water vapour).\n• Gas → liquid = **condensation** (vapour → drops on a cold glass).\n• Liquid → solid = **freezing** (water → ice).\n\n**❌ What students often get wrong**\n• Thinking gas is always invisible — water vapour is gas (mostly invisible), but mist is tiny droplets (already liquid).\n• Confusing condensation with evaporation.\n• Saying solid means "very hard" — ice is solid but breaks easily.'
+    },
+    'estudo_meio/Mixing and separating': {
+        title: 'Mixing and separating',
+        body: 'When we mix things together we make a **mixture**. Some mixtures dissolve, some don\'t.\n\n• **Dissolve** = a solid disappears into a liquid (e.g. salt or sugar in water → forms a **solution**).\n• Some things do **not** dissolve (e.g. sand in water).\n\n**Separating mixtures** — different methods for different mixtures:\n• **Sieving** — separates big pieces from small (e.g. flour from lumps).\n• **Filtering** — separates a solid from a liquid using a filter (e.g. sand from water using filter paper).\n• **Magnetism** — picks up iron pieces from sand or rice using a magnet.\n• **Evaporation** — boils away the water to leave the dissolved solid (e.g. salt from seawater).\n\n**❌ What students often get wrong**\n• Saying salt "disappears" — it actually DISSOLVES (the salt is still there, just spread out in tiny particles).\n• Trying to filter salt out of water — can\'t, it\'s dissolved. Need EVAPORATION.\n• Confusing sieve with filter.'
+    },
+    'estudo_meio/Forces (push and pull)': {
+        title: 'Forces — push and pull',
+        body: 'A **force** is a push or a pull. Forces can:\n\n• **Start** something moving.\n• **Stop** something moving.\n• Make something **speed up** or **slow down**.\n• **Change the direction** of something moving.\n• Change the **shape** of something (squashing, stretching).\n\n**Examples**:\n• Push: kicking a ball, pressing a button, pushing a swing.\n• Pull: opening a drawer, pulling a rope, gravity pulling things down.\n\n**Friction** = a force that slows things down when surfaces rub together (e.g. brakes on a bike).\n\n**Gravity** = a pull from the Earth that makes things fall down.\n\n**❌ What students often get wrong**\n• Thinking forces are only when something moves — a book on a table has gravity pulling it down (and the table pushing up).\n• Not seeing friction — it works invisibly (rolling ball stops because of friction).\n• Confusing push and pull (some forces are both — a swing is pushed away and pulled back).'
+    },
+    'estudo_meio/Magnets': {
+        title: 'Magnets',
+        body: 'A **magnet** attracts certain materials. The materials it attracts are called **magnetic**.\n\n**Magnetic materials**: iron, steel, nickel, cobalt.\n**Non-magnetic materials**: wood, plastic, paper, aluminium, copper, glass.\n\n**Poles**: every magnet has a **north pole (N)** and a **south pole (S)**.\n• Opposite poles **attract** (N and S pull together).\n• Same poles **repel** (N and N push apart).\n\n**Uses of magnets**: fridge magnets, compass (Earth itself is a giant magnet!), motors, headphones, magnetic locks.\n\n**❌ What students often get wrong**\n• Thinking all metals are magnetic — only iron, steel and a few others are.\n• Saying same poles attract — they REPEL. Opposite poles attract.\n• Forgetting that magnetism works without touching (a magnet attracts iron from a small distance).'
+    },
+    'estudo_meio/Light and shadows': {
+        title: 'Light and shadows',
+        body: 'Light comes from **sources** — things that produce their own light:\n• **Natural sources**: Sun, stars, fire, lightning, fireflies.\n• **Artificial sources**: light bulbs, torches, candles, screens.\n\nThe **Moon** is NOT a source — it reflects the Sun\'s light.\n\nObjects can be:\n• **Transparent** — light passes through (clear glass, water).\n• **Translucent** — some light passes (frosted glass, thin paper).\n• **Opaque** — no light passes (wood, metal, your body).\n\n**Shadows** form when an opaque object blocks light. Shadow is biggest when the light source is close, and longest when the source is low.\n\n**❌ What students often get wrong**\n• Saying the Moon is a light source — it just reflects sunlight.\n• Confusing transparent (clear) with translucent (blurry).\n• Forgetting that shadows change size and direction depending on where the light comes from.'
+    },
+    'estudo_meio/The Sun, Earth and Moon': {
+        title: 'The Sun, Earth and Moon',
+        body: 'The **Sun** is a giant star at the centre of our solar system. It gives us **light** and **heat**.\n\nThe **Earth** moves in two ways:\n• **Rotation** — it spins on its own axis. Takes **24 hours** = 1 day. This is what gives us **day and night**.\n• **Orbit (revolution)** — it travels around the Sun. Takes about **365 days** = 1 year. This is what gives us the **seasons**.\n\nThe **Moon** is a natural satellite — it orbits the Earth. Takes about **28 days**.\n\n**Phases of the Moon**: New Moon, Crescent, First Quarter, Gibbous, Full Moon, and back. The Moon doesn\'t change shape — we just see different parts of it lit by the Sun.\n\n**❌ What students often get wrong**\n• Saying the Sun moves around the Earth — it\'s the EARTH that moves around the SUN.\n• Confusing rotation (1 day) with orbit (1 year).\n• Thinking the Moon makes its own light — it reflects sunlight.'
+    },
+    'estudo_meio/Weather': {
+        title: 'Weather',
+        body: '**Weather** = what the air is doing now (today, this week). **Climate** = the usual weather over many years.\n\n**Types of weather**: sunny, cloudy, rainy, snowy, windy, foggy, stormy.\n\n**The water cycle** (where rain comes from):\n1. The Sun **evaporates** water from oceans and lakes (water → water vapour, a gas).\n2. The vapour rises and **condenses** into tiny droplets — this makes **clouds**.\n3. When droplets become heavy, they fall as **rain** (or snow, hail).\n4. Water flows back to the sea — and the cycle repeats.\n\n**Instruments** to measure weather:\n• **Thermometer** — temperature.\n• **Rain gauge** — how much rain falls.\n• **Anemometer** — wind speed.\n• **Barometer** — air pressure.\n\n**❌ What students often get wrong**\n• Confusing weather (now) with climate (long term).\n• Thinking clouds are made of cotton or smoke — they are tiny water DROPLETS.\n• Saying rain comes from the Sun — it comes from CLOUDS (which formed because of the Sun evaporating water).'
+    },
+
+    // ===== ENGLISH (literacy, em inglês) =====
+    'ingles/Nouns': {
+        title: 'Nouns',
+        body: 'A **noun** is a naming word. It names a person, animal, place or thing.\n\nTypes of noun:\n• **Common noun** — general name. Ex: dog, city, teacher.\n• **Proper noun** — special name of a person/place. Always starts with a CAPITAL letter. Ex: Maria, London, Tagus.\n• **Collective noun** — name for a group. Ex: a **flock** of birds, a **swarm** of bees, a **herd** of cows.\n\n**Singular and plural**:\n• Add **-s** for most nouns: cat → cat**s**.\n• Add **-es** after -s, -x, -ch, -sh: bus → bus**es**, box → box**es**.\n• -y → -ies: baby → bab**ies**.\n• Irregular: child → **children**, foot → **feet**, mouse → **mice**.\n\n**❌ What students often get wrong**\n• Forgetting capital letters for proper nouns (london ✗ → London ✓).\n• Saying "childs" or "mouses" — irregular plurals are children, mice.\n• Confusing collective nouns (a "swarm" of cows ✗ → herd of cows; swarm = bees).'
+    },
+    'ingles/Verbs': {
+        title: 'Verbs',
+        body: 'A **verb** is a doing word or being word — what someone does or is.\n\n**Action verbs**: run, eat, jump, sing, write.\n**Being verbs**: am, is, are, was, were (forms of "to be").\n**Helping verbs**: have, has, had, will, can.\n\nEvery sentence needs a verb!\n\n**Tense** — when the action happens:\n• **Present**: I play. (now)\n• **Past**: I played. (yesterday)\n• **Future**: I will play. (tomorrow)\n\n**Irregular past forms** to learn: go → went, eat → ate, see → saw, do → did, have → had, run → ran, take → took.\n\n**❌ What students often get wrong**\n• Forgetting the verb in a sentence (a sentence MUST have a verb).\n• Adding "-ed" to irregular verbs ("goed" ✗ → went).\n• Confusing "is" (singular) with "are" (plural) — He IS happy / They ARE happy.'
+    },
+    'ingles/Adjectives': {
+        title: 'Adjectives',
+        body: 'An **adjective** describes a noun — it tells us what something is like.\n\n**Examples**: a **big** house, a **red** car, a **happy** child, **cold** water.\n\nAdjectives can describe:\n• **Size**: big, small, tall, short, huge, tiny.\n• **Colour**: red, blue, yellow, green.\n• **Shape**: round, square, long, flat.\n• **Feeling**: happy, sad, angry, excited.\n• **Number**: many, few, three, several.\n\n**Comparative and superlative**:\n• **Comparative** (comparing 2): -er or "more". Ex: tall**er**, **more** beautiful.\n• **Superlative** (comparing 3+): -est or "most". Ex: tall**est**, **most** beautiful.\n\n**❌ What students often get wrong**\n• Confusing adjectives with adverbs (adverbs describe verbs: "She runs **quickly**").\n• Using "more" with -er ("more taller" ✗ → taller ✓).\n• Wrong order: "house big" ✗ → "big house" ✓ (English: adjective BEFORE noun).'
+    },
+    'ingles/Tenses': {
+        title: 'Tenses',
+        body: 'Tenses tell us **when** an action happens.\n\n**Present simple** — habits, facts, routines.\n• I **play** football every day. / She **plays** the piano.\n• Add -**s** for he/she/it: I play → He play**s**.\n\n**Past simple** — actions in the past, finished.\n• I **played** football yesterday.\n• Regular: add -**ed**. Irregular: special form (went, ate, saw, did, ran).\n\n**Future** — actions that haven\'t happened yet.\n• I **will play** football tomorrow.\n• Or "be going to": I **am going to play** football.\n\n**Time signal words**: yesterday/last week → past · now/today/usually → present · tomorrow/next week → future.\n\n**❌ What students often get wrong**\n• Forgetting the **-s** with he/she/it in present simple ("He play" ✗ → "He plays" ✓).\n• Using -ed on irregular verbs ("goed" ✗ → "went").\n• Mixing tenses in the same sentence ("Yesterday I go" ✗ → "Yesterday I went").'
+    },
+    'ingles/Punctuation': {
+        title: 'Punctuation',
+        body: 'Punctuation marks help us read and write clearly.\n\n• **Full stop (.)** — ends a statement. *I love pizza.*\n• **Question mark (?)** — ends a question. *Do you love pizza?*\n• **Exclamation mark (!)** — strong feeling. *I love pizza!*\n• **Comma (,)** — small pause / lists. *I bought apples, pears, and bananas.*\n• **Apostrophe (\')** — replaces missing letters (don\'t = do not) OR shows ownership (Maria\'s book).\n• **Quotation marks (" ")** — what someone said. *She said "Hello!"*\n\n**Capital letters** — start of every sentence + proper nouns + days/months + "I".\n\n**❌ What students often get wrong**\n• Forgetting capital letter at the start of a sentence.\n• Mixing up its (belonging) and it\'s (it is): *The dog wagged **its** tail. **It\'s** sunny today.*\n• Not putting commas between items in a list.'
+    },
+    'ingles/Sentence types': {
+        title: 'Sentence types',
+        body: 'There are **4 types of sentence** in English:\n\n• **Statement** (declarative) — gives information. Ends with **".".** *The sun is shining.*\n• **Question** (interrogative) — asks for information. Ends with **"?"**. Often starts with what/who/when/where/why/how. *Where is my book?*\n• **Command** (imperative) — tells someone what to do. Often ends with "." or "!". *Sit down. Close the door!*\n• **Exclamation** — shows strong feeling. Ends with "**!**". *What a lovely day!*\n\n**Question words** (the 5 W\'s + H): **W**ho, **W**hat, **W**hen, **W**here, **W**hy, **H**ow.\n\n**❌ What students often get wrong**\n• Forgetting the question mark in questions.\n• Confusing commands with statements (a command tells, a statement just informs).\n• Using "?" for exclamations or vice-versa.'
+    },
+    'ingles/Synonyms and antonyms': {
+        title: 'Synonyms and antonyms',
+        body: '**Synonyms** = words with the **same** or similar meaning.\n• happy ≈ glad ≈ joyful ≈ cheerful\n• big ≈ large ≈ huge ≈ enormous\n• fast ≈ quick ≈ rapid ≈ speedy\n• sad ≈ unhappy ≈ miserable\n\n**Antonyms** = words with **opposite** meaning.\n• hot ↔ cold\n• up ↔ down\n• big ↔ small\n• happy ↔ sad\n• fast ↔ slow\n• day ↔ night\n• open ↔ closed\n• begin ↔ end\n\nUsing synonyms makes writing more **interesting** — you don\'t repeat the same word.\n\n**❌ What students often get wrong**\n• Confusing synonym (same meaning) with antonym (opposite).\n• Thinking synonyms are exactly the same — they often have small differences (big vs huge).\n• Looking only for one antonym when many can work (cold has antonyms: hot, warm).'
+    },
+    'ingles/Reading comprehension': {
+        title: 'Reading comprehension',
+        body: 'Stories have key elements:\n\n• **Characters** — who is in the story (the people, animals, creatures). The MAIN character is the **protagonist**.\n• **Setting** — **where** and **when** the story happens (a forest, the year 1900).\n• **Plot** — what happens, in order. Usually: **beginning → middle → end**.\n• **Author** — the person who WROTE the story.\n• **Narrator** — the voice that TELLS the story (1st person "I" or 3rd person "she/he").\n\nWhen reading, ask yourself:\n• **Who** is in the story?\n• **Where** and **when** does it happen?\n• **What** happens? (problem and solution)\n• **Why** did the character do that?\n• **How** does it end?\n\n**❌ What students often get wrong**\n• Confusing the **author** (real person) with the **narrator** (voice in the text).\n• Mixing up the protagonist (main character) with the narrator.\n• Forgetting the order of events when retelling.'
+    }
+};
+const LESSONS_3 = {
+    ...Object.fromEntries(Object.entries(LESSONS_3_OCEANUS).filter(([k]) =>
+        k.startsWith('portugues/') || k.startsWith('matematica/')
+    )),
+
+    // ----- ESCRITA (Oficina de Escrita) -----
+    'escrita/Maiúscula e ponto final': { title:'Maiúscula e ponto final', body:'Uma **frase** é uma ideia completa. E toda a frase tem duas marcas:\n\n• Começa com letra **MAIÚSCULA** 🔠\n• Acaba com **ponto final** (.) — ou ? ou !\n\n**Exemplo**:\n❌ o gato dorme a menina brinca\n✅ **O** gato dorme**.** **A** menina brinca**.**\n\n**Truque**: lê o que escreveste em voz alta. Onde a voz PÁRA, é ali que vai o ponto. Depois do ponto, letra grande!\n\n**❌ O que se costuma errar**\n• Escrever as ideias todas seguidas sem nenhum ponto.\n• Esquecer a maiúscula depois do ponto.\n• Esquecer que nomes de pessoas (Rui, Ana) e terras (Lisboa) levam sempre maiúscula.' },
+    'escrita/Frase com sentido': { title:'Frase com sentido', body:'Uma frase tem de **fazer sentido** — as palavras têm uma ordem.\n\nA ordem mais comum:\n**QUEM** + **O QUE FAZ** + **O QUÊ**\n\n• **O Rui** (quem) **chuta** (o que faz) **a bola** (o quê).\n• **A avó** faz **sopa**.\n\n❌ «Ladra o casa cão» — palavras baralhadas, não é frase.\n✅ «O cão ladra na casa.»\n\n**Truque**: pergunta primeiro *quem?* — começa a frase por aí.\n\n**❌ O que se costuma errar**\n• Começar pela ação sem dizer quem ("foi ao pomar" — quem foi?).\n• Saltar palavras pequenas (o, a, de, à) que fazem falta.' },
+    'escrita/Palavras que ligam': { title:'Palavras que ligam', body:'Para o texto ficar **seguido e bonito**, usamos palavras que ligam as ideias:\n\n**Tempo (ordem)**:\n• **Primeiro**… • **Depois**… • **A seguir**… • **No fim**…\n\n**Causa**: **porque** — «Fiquei feliz **porque** ganhei um livro.»\n\n**Oposição**: **mas** — «Queria brincar, **mas** estava a chover.»\n\n**Exemplo de história ligada**:\n«**Primeiro**, o Sr. Júlio foi à quinta. **Depois** apanhou fruta. **No fim**, fez sumo.»\n\n**❌ O que se costuma errar**\n• Escrever tudo com "e e e" ("fui e vi e comi e…").\n• Não usar nenhuma palavra de ligação — o texto fica aos solavancos.' },
+    'escrita/Ordena a história': { title:'Ordena a história', body:'Toda a história tem **3 partes**, sempre pela mesma ordem:\n\n**1. PRINCÍPIO** 🌅 — quem? onde? quando?\n«Era uma vez… / No fim de semana, o Sr. Júlio…»\n\n**2. MEIO** 🎬 — o que acontece? (as ações, uma de cada vez)\n«Foi à quinta. Apanhou fruta. Visitou a fábrica.»\n\n**3. FIM** 🌙 — como acaba?\n«No fim, voltou para casa feliz.»\n\n**Truque**: antes de escrever, diz a história em voz alta com os dedos: 1 = princípio, 2 = meio, 3 = fim.\n\n**❌ O que se costuma errar**\n• Misturar as partes (contar o fim no princípio).\n• Esquecer o fim — a história fica "pendurada".' },
+    'escrita/Do plano ao texto': { title:'Do plano ao texto', body:'Nos testes aparece um **plano** — uma lista de ideias:\n\n_Sr. Júlio · quinta · fim de semana · apanha da fruta · fábrica de sumo_\n\nA regra de ouro: **cada ponto do plano vira (pelo menos) uma frase completa**.\n\n• "quinta" → «No fim de semana, o Sr. Júlio foi à quinta.»\n• "apanha da fruta" → «Lá, apanhou fruta madura.»\n• "fábrica de sumo" → «Depois visitou a fábrica e fez sumo.»\n\nE no fim, uma frase de fecho: «Foi um fim de semana divertido.»\n\n**Passos**: 1️⃣ lê o plano todo · 2️⃣ decide a ordem · 3️⃣ escreve uma frase por ponto · 4️⃣ liga com Primeiro/Depois/No fim · 5️⃣ relê e põe os pontos!\n\n**❌ O que se costuma errar**\n• Copiar as palavras do plano sem fazer frases.\n• Escrever tudo seguido sem pontos.\n• Esquecer pontos do plano (risca cada um quando o usares!).' },
+    'escrita/Descrever com pormenor': { title:'Descrever com pormenor', body:'A escrita boa faz o leitor **VER** a cena. O segredo são os **pormenores**:\n\n❌ «Vi um cão.»\n✅ «Vi um cão **castanho**, **pequeno** e **brincalhão**.»\n\nOs **adjetivos** dizem COMO é: cores, tamanhos, feitios.\n\n**Perguntas mágicas** para enriquecer qualquer frase:\n• De que **cor** é? • É **grande ou pequeno**? • **Como se sente**? • O que se **ouve/cheira**?\n\n«Havia uma casa.» → «Havia uma casa **velha**, com **telhado vermelho** e uma **porta azul** que rangia.»\n\n**❌ O que se costuma errar**\n• Frases só com o mínimo ("Foi bom.", "Vi coisas.").\n• Repetir sempre o mesmo adjetivo (tudo é "grande" ou "fixe").' },
+
+    // ----- PORTUGUÊS (novos do Lourdes) -----
+    'portugues/Sílabas': {
+        title: 'Sílabas',
+        body: 'Uma **sílaba** é um som que se pronuncia de uma só vez. Toda a sílaba tem PELO MENOS uma vogal.\n\nExemplos de divisão silábica:\n• **ca-sa** (2 sílabas)\n• **bor-bo-le-ta** (4 sílabas)\n• **pão** (1 sílaba — ditongo)\n• **sa-í-da** (3 sílabas — hiato)\n\n**Sílaba tónica** = a sílaba que se pronuncia com mais força. Ex: em "**ca**-sa" a sílaba tónica é "ca".\n\n**❌ O que se costuma errar**\n• Esquecer que toda a sílaba tem uma vogal.\n• Não saber que ditongos (pai, mãe) ficam numa única sílaba.\n• Trocar sílaba tónica (forte) com sílaba átona (fraca).'
+    },
+    'portugues/Pronomes pessoais': {
+        title: 'Pronomes pessoais',
+        body: 'Os **pronomes pessoais** substituem os nomes para evitar repetições.\n\n**Sujeito** (quem faz a ação):\n• 1.ª pessoa: **eu** (singular) / **nós** (plural)\n• 2.ª pessoa: **tu** (singular) / **vós** (plural)\n• 3.ª pessoa: **ele/ela** (singular) / **eles/elas** (plural)\n\nEx: "A Maria comprou um livro. **Ela** está contente." — "Ela" = Maria.\n\n**Complemento** (depois do verbo): me, te, o/a, nos, vos, os/as. Ex: "Vi-**o** ontem" (= vi ele ontem).\n\n**❌ O que se costuma errar**\n• Confundir "ele" (3.ª pessoa) com "tu" (2.ª pessoa).\n• Esquecer que "vós" é plural de "tu" (raro hoje, usa-se "vocês").\n• Achar que "o" e "a" são sempre artigos — também podem ser pronomes (vi-o = vi ele).'
+    },
+    'portugues/Texto poético': {
+        title: 'Texto poético',
+        body: 'Um **poema** é um texto escrito em **versos** (linhas) agrupados em **estrofes**.\n\n• **Verso** — cada linha do poema.\n• **Estrofe** — grupo de versos separados por uma linha em branco.\n• **Rima** — palavras com sons parecidos no fim do verso. Ex: lu**a** / ru**a**, m**ar** / cant**ar**.\n• **Ritmo** — a cadência/musicalidade.\n\nUma estrofe de 4 versos chama-se **quadra**.\n\n**❌ O que se costuma errar**\n• Confundir verso (linha) com estrofe (grupo de linhas).\n• Achar que todo o texto com rimas é um poema.\n• Contar mal as estrofes — separam-se por linhas em branco.'
+    },
+    'portugues/Banda desenhada': {
+        title: 'Banda desenhada',
+        body: 'A **banda desenhada (BD)** conta uma história com **imagens e palavras**.\n\n• **Vinheta** — cada "quadradinho" da BD.\n• **Balão** — onde se escreve o que a personagem **diz**.\n• **Pensamento** — balão em forma de nuvem (o que a personagem **pensa**).\n• **Legenda** — texto fora dos balões (narrador).\n• **Onomatopeia** — palavras que imitam sons: BOOM!, MIAU!, ZÁS!.\n\nA BD lê-se da **esquerda para a direita** e de **cima para baixo**.\n\n**❌ O que se costuma errar**\n• Confundir balão de fala com balão de pensamento (nuvem).\n• Não saber a ordem de leitura.\n• Ignorar as onomatopeias — fazem parte da narrativa.'
+    },
+
+    // ----- MATEMÁTICA (novos do Lourdes) -----
+    'matematica/Cálculo mental': {
+        title: 'Cálculo mental',
+        body: 'O **cálculo mental** é fazer contas DE CABEÇA, sem papel. Truques:\n\n• **Decompor**: 47 + 25 = (40 + 20) + (7 + 5) = 60 + 12 = 72.\n• **Arredondar**: 98 + 56 ≈ 100 + 56 − 2 = 154.\n• **Compensar** na subtração: 73 − 28 = 73 − 30 + 2 = 45.\n• Multiplicar por 10/100/1000: juntar zeros (4 × 100 = 400).\n• Metade e dobro: 8 × 5 = (8 × 10) ÷ 2 = 40.\n\nQuanto mais treinares, mais rápido fica.\n\n**❌ O que se costuma errar**\n• Esquecer de compensar (47 + 25 → arredondo a 50, esqueço-me de tirar 3).\n• Achar que tudo se decompõe igual — é preciso escolher boa estratégia.\n• Confundir "metade" com "dobro".'
+    },
+    'matematica/Massa e capacidade': {
+        title: 'Massa e capacidade',
+        body: '**Massa** mede-se em **gramas (g)** e **quilogramas (kg)**.\n• 1 **kg** = 1 000 g\n• 1 **t** (tonelada) = 1 000 kg\n\nInstrumento: a **balança**.\n\n**Capacidade** mede-se em **litros (L)** e **mililitros (mL)**.\n• 1 **L** = 1 000 mL\n• 1 **dL** = 100 mL = 1/10 L\n\nInstrumento: o **copo graduado** / **medidor**.\n\nExemplos:\n• 1 maçã ≈ 200 g; 1 saco de batatas ≈ 5 kg\n• 1 garrafa de água = 1,5 L; 1 chávena ≈ 250 mL\n\n**❌ O que se costuma errar**\n• Confundir massa (kg, g) com capacidade (L, mL).\n• Esquecer que 1 kg = 1 000 g (não 100).\n• Trocar L com mL: 500 mL = meio L, NÃO 500 L.'
+    },
+
+    // ----- ESTUDO DO MEIO (em português) -----
+    'estudo_meio/O passado da criança': {
+        title: 'O passado da criança',
+        body: 'Cada criança tem um **passado** — coisas que aconteceram na sua vida. Para o organizar usa-se uma **linha do tempo**.\n\n• **Data de nascimento** — o dia, mês e ano em que nasceste.\n• **Idade** — quantos anos tens hoje.\n• **Marcos importantes**: creche, jardim de infância, 1.º ano da escola, mudanças, viagens.\n• **Árvore genealógica** — esquema da família (pais, avós, bisavós, irmãos, tios, primos).\n\nDocumentos importantes: **cartão de cidadão**, **boletim de vacinas**.\n\n**❌ O que se costuma errar**\n• Confundir avós (pais dos teus pais) com bisavós (pais dos avós).\n• Esquecer-se de que a idade muda no dia do aniversário.\n• Não saber a diferença entre primo (filho de tio) e irmão.'
+    },
+    'estudo_meio/O corpo humano': {
+        title: 'O corpo humano',
+        body: 'O corpo humano divide-se em 3 grandes partes:\n\n• **Cabeça** — onde estão o cérebro e os 5 sentidos.\n• **Tronco** — onde estão os órgãos vitais (coração, pulmões, estômago).\n• **Membros** — superiores (braços, mãos) e inferiores (pernas, pés).\n\nO **esqueleto** (~206 ossos) dá forma ao corpo e protege os órgãos. Os **músculos** ligam-se aos ossos e fazem-nos mover. As **articulações** (joelho, cotovelo) permitem dobrar.\n\n**❌ O que se costuma errar**\n• Achar que coração e pulmões estão na cabeça — estão no tronco.\n• Confundir esqueleto (ossos) com músculos.\n• Esquecer-se que a pele é o maior órgão do corpo.'
+    },
+    'estudo_meio/Os sistemas do corpo': {
+        title: 'Os sistemas do corpo',
+        body: 'O corpo trabalha através de **sistemas**:\n\n• **Sistema digestivo** — transforma comida em energia. Boca → esófago → estômago → intestinos → ânus.\n• **Sistema respiratório** — traz oxigénio. Nariz/boca → traqueia → pulmões.\n• **Sistema circulatório** — leva sangue a todo o corpo. **Coração** + veias + artérias.\n• **Sistema urinário** — filtra o sangue e elimina urina. Rins + bexiga.\n• **Sistema reprodutor** — para ter filhos.\n• **Sistema nervoso** — controla tudo. Cérebro + medula + nervos.\n\nTodos trabalham em conjunto.\n\n**❌ O que se costuma errar**\n• Confundir digestivo (comida) com respiratório (ar).\n• Achar que o sangue circula apenas pelas artérias — também pelas veias.\n• Esquecer que o cérebro coordena tudo.'
+    },
+    'estudo_meio/A saúde e a prevenção': {
+        title: 'A saúde e a prevenção',
+        body: 'Para sermos **saudáveis** precisamos de:\n\n• **Alimentação variada e equilibrada** — fruta, vegetais, cereais, lacticínios, carne/peixe/ovos, sem excesso de doces.\n• **Roda dos Alimentos** — mostra as proporções.\n• **Exercício físico** — pelo menos 1h/dia.\n• **Higiene**: lavar as mãos antes das refeições, escovar dentes 2× por dia, banho diário.\n• **Sono** — 9–11 horas para uma criança.\n• **Vacinas** — protegem-nos de doenças graves.\n• Visitas regulares ao **médico** e ao **dentista**.\n\n**❌ O que se costuma errar**\n• Achar que basta comer fruta para ser saudável — é preciso variar.\n• Esquecer-se de lavar as mãos antes de comer.\n• Não saber que dormir mal afeta a saúde.'
+    },
+    'estudo_meio/Os cinco sentidos': {
+        title: 'Os cinco sentidos',
+        body: 'Os **5 sentidos** ajudam-nos a conhecer o mundo:\n\n• **Visão** — os **olhos** veem cores, formas, distâncias.\n• **Audição** — os **ouvidos** ouvem sons.\n• **Olfato** — o **nariz** cheira.\n• **Paladar** — a **língua** sente sabores (doce, salgado, ácido, amargo).\n• **Tato** — a **pele** sente temperatura, dor, pressão, texturas.\n\nAlgumas pessoas têm um sentido que não funciona bem (cegos, surdos) e desenvolvem mais os outros.\n\n**❌ O que se costuma errar**\n• Confundir olfato (cheiro) com paladar (sabor).\n• Esquecer que o tato está em toda a pele.\n• Achar que só vemos com luz natural.'
+    },
+    'estudo_meio/O passado do meio local': {
+        title: 'O passado do meio local',
+        body: 'O **meio local** é o sítio onde vives (a tua freguesia, vila ou cidade).\n\n• Tem um **nome**, uma **bandeira** e um **brasão**.\n• Pertence a um **concelho** (governado por uma **Câmara Municipal**).\n• O concelho pertence a um **distrito** ou **região**.\n\nO meio local tem **vestígios do passado**:\n• **Monumentos** antigos (igrejas, castelos, casas, fontes).\n• **Tradições** (festas, danças, comida típica).\n• **Personalidades** importantes que ali nasceram ou viveram.\n\nSanto Tirso é conhecido pelo **Mosteiro de São Bento** e pela indústria têxtil.\n\n**❌ O que se costuma errar**\n• Confundir concelho (município) com distrito (maior).\n• Esquecer que cada freguesia tem o seu nome próprio.\n• Achar que monumentos só estão em Lisboa.'
+    },
+    'estudo_meio/Símbolos nacionais': {
+        title: 'Símbolos nacionais',
+        body: 'Portugal tem **símbolos** que o representam:\n\n• **Bandeira** — verde (esquerda) e vermelho (direita), com o escudo. A esfera armilar lembra os Descobrimentos.\n• **Hino** — "A Portuguesa", de 1890.\n• **Língua oficial** — português.\n• **Capital** — Lisboa.\n\n**Datas nacionais importantes**:\n• **25 de Abril** (1974) — Dia da Liberdade (Revolução dos Cravos).\n• **10 de Junho** — Dia de Portugal, de Camões e das Comunidades.\n• **1 de Dezembro** (1640) — Restauração da Independência.\n• **5 de Outubro** (1910) — Implantação da República.\n\n**❌ O que se costuma errar**\n• Trocar as cores da bandeira (verde fica à ESQUERDA do mastro).\n• Confundir 25 de Abril com 10 de Junho.\n• Esquecer que a capital é Lisboa.'
+    },
+    'estudo_meio/Instituições e serviços': {
+        title: 'Instituições e serviços',
+        body: 'Há **instituições** e **serviços** que ajudam a comunidade:\n\n• **Câmara Municipal** — gere o concelho (estradas, parques, lixo).\n• **Junta de Freguesia** — gere a freguesia.\n• **Escola** — para aprender.\n• **Hospital** e **Centro de Saúde** — saúde.\n• **Bombeiros** — apagam fogos, socorrem feridos.\n• **GNR / PSP** — polícia, mantém a segurança.\n• **Correios (CTT)** — entregam cartas.\n• **Biblioteca** — empresta livros.\n• **Igreja / Centro paroquial** — apoio espiritual e social.\n\nNúmero de emergência: **112** (gratuito, válido em toda a Europa).\n\n**❌ O que se costuma errar**\n• Confundir GNR (rural) com PSP (urbana).\n• Esquecer o número de emergência (112).\n• Confundir Câmara Municipal com Junta de Freguesia.'
+    },
+    'estudo_meio/Os astros': {
+        title: 'Os astros',
+        body: 'Os **astros** são corpos celestes no espaço.\n\n• **Estrelas** — bolas de gás com luz própria. O **Sol** é a nossa estrela.\n• **Planetas** — orbitam uma estrela. A **Terra** é um planeta.\n• **Satélites naturais** — orbitam planetas. A **Lua** é o satélite da Terra.\n\n**Sistema Solar** — 8 planetas pela ordem do Sol:\nMercúrio, Vénus, **Terra**, Marte, Júpiter, Saturno, Úrano, Neptuno.\n\n**Movimentos da Terra**:\n• **Rotação** — gira sobre si própria em **24 horas** (dia/noite).\n• **Translação** — gira à volta do Sol em **365 dias** (1 ano, estações).\n\n**❌ O que se costuma errar**\n• Achar que a Lua emite luz própria — só reflete a luz do Sol.\n• Confundir rotação (24h) com translação (1 ano).\n• Trocar a ordem dos planetas (Terra é o **3.º**).'
+    },
+    'estudo_meio/Aspetos físicos do meio': {
+        title: 'Aspetos físicos do meio',
+        body: 'O **relevo** = forma da superfície da Terra:\n\n• **Montanha** — terra muito alta. Em Portugal: **Serra da Estrela** (Torre 1 993 m), **Pico** (Açores 2 351 m — o mais alto).\n• **Colina** — elevação pequena.\n• **Planície** — terra plana.\n• **Vale** — terra baixa entre montanhas.\n\n**Cursos de água**:\n• **Rio** — corre por um leito. Principais: **Tejo**, **Douro**, **Mondego**, **Guadiana**, **Minho**.\n• **Lago** / **lagoa** — água parada.\n• **Mar / oceano** — água salgada. Portugal tem costa no **Atlântico**.\n\n**❌ O que se costuma errar**\n• Confundir lago (parado) com rio (corre).\n• Esquecer que o ponto mais alto é o **Pico** (Açores).\n• Achar que o mar é doce.'
+    },
+    'estudo_meio/Animais': {
+        title: 'Animais',
+        body: 'Os **animais** classificam-se em grupos:\n\n• **Mamíferos** — pelo, mães amamentam. Ex: cão, vaca, ser humano, baleia (sim!), morcego.\n• **Aves** — penas, bico, ovos. Ex: pomba, águia, galinha, pinguim.\n• **Répteis** — escamas, sangue frio. Ex: cobra, lagarto, crocodilo, tartaruga.\n• **Anfíbios** — vivem na água e em terra. Ex: rã, sapo, salamandra.\n• **Peixes** — vivem na água, respiram por **brânquias**. Ex: sardinha, atum.\n• **Insetos** — 6 patas, 3 partes do corpo. Ex: formiga, abelha, borboleta.\n\n**Alimentação**: herbívoros (plantas), carnívoros (carne), omnívoros (tudo).\n\n**❌ O que se costuma errar**\n• Achar que a baleia é peixe — é **mamífero**.\n• Confundir réptil com anfíbio.\n• Esquecer que insetos têm 6 patas (aranhas têm 8 e NÃO são insetos).'
+    },
+    'estudo_meio/Plantas': {
+        title: 'Plantas',
+        body: 'As **plantas** são seres vivos. Têm 4 partes principais:\n\n• **Raiz** — fixa a planta e absorve água e sais minerais do solo.\n• **Caule** — sustenta a planta e leva água até às folhas.\n• **Folhas** — fazem o alimento da planta (**fotossíntese**) usando luz solar.\n• **Flor** — forma sementes; depois transforma-se em fruto.\n\nA **fotossíntese** = as folhas usam luz + água + ar (CO₂) para fazer alimento e libertam **oxigénio**.\n\nA planta precisa de: **luz**, **água**, **ar** e **sais minerais**.\n\n**❌ O que se costuma errar**\n• Achar que as plantas fazem alimento nas raízes — fazem nas **folhas**.\n• Esquecer que as plantas libertam oxigénio.\n• Confundir flor com folha.'
+    },
+    'estudo_meio/Materiais e objetos': {
+        title: 'Materiais e objetos',
+        body: 'Os **materiais** podem ser:\n\n• **Naturais** — vêm da natureza. Madeira, lã, algodão, pedra, barro.\n• **Artificiais** — feitos pelo Homem. Plástico, vidro, papel, metal trabalhado.\n\n**Propriedades**:\n• **Transparente** (deixa ver) ↔ **opaco** (não deixa).\n• **Rígido** ↔ **flexível**.\n• **Áspero** ↔ **liso**.\n• **Frágil** ↔ **resistente**.\n• **Bom** ou **mau** condutor de calor / eletricidade.\n\n**Reciclar**: papel → ecoponto **AZUL**; embalagens (plástico/metal) → **AMARELO**; vidro → **VERDE**.\n\n**❌ O que se costuma errar**\n• Trocar as cores do ecoponto.\n• Achar que tudo o que é "duro" é metal.\n• Confundir transparente com translúcido.'
+    },
+    'estudo_meio/Experiências': {
+        title: 'Experiências',
+        body: 'Para descobrir como o mundo funciona fazemos **experiências**. Passos:\n\n1. **Pergunta** — o que quero saber?\n2. **Hipótese** — o que acho que vai acontecer.\n3. **Experiência** — testar (com material).\n4. **Observação** — ver e registar.\n5. **Conclusão** — confirma ou não?\n\nExemplos clássicos do 3.º ano:\n• A **água** pode estar nos 3 estados: **sólido** (gelo), **líquido**, **gasoso** (vapor).\n• O **ar** ocupa espaço (sopra um balão!) e empurra (vento).\n• A **luz** propaga-se em linha reta e cria **sombras** atrás de objetos opacos.\n• Os **ímanes** atraem ferro mas não plástico, madeira ou alumínio.\n\n**❌ O que se costuma errar**\n• Achar que o ar não pesa — pesa muito pouco mas pesa.\n• Confundir transparente com translúcido.\n• Pensar que um íman atrai todos os metais — só ferro, níquel e cobalto.'
+    },
+
+    // ----- INGLÊS (Kid's Box [New Generation] Pupil's Book 2) -----
+    'ingles/Greetings and feelings': {
+        title: 'Greetings and feelings',
+        body: '**Saying hello and goodbye**:\n• Hello! / Hi! → Olá!\n• Good morning! → Bom dia!\n• Good afternoon! → Boa tarde!\n• Good evening! / Good night! → Boa noite!\n• Goodbye! / Bye! → Adeus!\n\n**How are you?** → Como estás?\n• I\'m fine, thank you. → Estou bem, obrigado(a).\n• I\'m happy / sad / tired.\n• I\'m hungry. → Tenho fome.\n• I\'m thirsty. → Tenho sede.\n\n**Introducing yourself**:\n• What\'s your name? → Como te chamas?\n• My name is ___. / I\'m ___.\n• How old are you? → Quantos anos tens?\n• I\'m 8 years old.\n\n**❌ Common mistakes**\n• Saying "I have hungry" → must be "I am hungry".\n• Confusing "your" (teu) with "you" (tu).\n• Forgetting the capital "I" — always uppercase.'
+    },
+    'ingles/School things': {
+        title: 'School things',
+        body: '**Things at school**:\n• pencil → lápis\n• pen → caneta\n• rubber → borracha (UK) / eraser (US)\n• ruler → régua\n• book → livro\n• notebook → caderno\n• schoolbag → mochila\n• pencil case → estojo\n• desk → secretária\n• chair → cadeira\n• board → quadro\n• window → janela\n• door → porta\n\n**At the classroom**:\n• Open your book, please.\n• Close the door.\n• Sit down. / Stand up.\n• Listen! / Look!\n• Can I go to the toilet?\n\n**❌ Common mistakes**\n• "rubber" (UK) = borracha; in the USA say "eraser".\n• Plural — add **-s**: pencil → pencil**s**.\n• "schoolbag" is one word.'
+    },
+    'ingles/Toys and playtime': {
+        title: 'Toys and playtime',
+        body: '**Toys**:\n• doll → boneca\n• teddy bear → urso de peluche\n• ball → bola\n• kite → papagaio (de papel)\n• car → carrinho\n• train → comboio\n• bike → bicicleta\n• puzzle → puzzle\n• game → jogo\n• robot → robô\n\n**Playing**:\n• Let\'s play! → Vamos brincar!\n• I like playing with ___. → Gosto de brincar com ___.\n• Whose toy is this? → De quem é este brinquedo?\n• It\'s my toy. → É o meu brinquedo.\n\n**❌ Common mistakes**\n• "play with" (NÃO "play to") — I play with dolls.\n• "I like playing" needs the **-ing** form after "like".\n• Capital letter at the start of "Let\'s".'
+    },
+    'ingles/Rooms at home': {
+        title: 'Rooms at home',
+        body: '**Rooms**:\n• kitchen → cozinha\n• living room → sala\n• bedroom → quarto\n• bathroom → casa de banho\n• dining room → sala de jantar\n• garage → garagem\n• garden → jardim\n\n**Furniture**:\n• bed, table, chair, sofa, TV, fridge, cooker, bath.\n\n**Where is...?**\n• Where is the cat? → Onde está o gato?\n• It\'s **in** the bedroom. (dentro)\n• It\'s **on** the table. (em cima)\n• It\'s **under** the chair. (debaixo)\n• It\'s **next to** the sofa. (ao lado)\n\n**❌ Common mistakes**\n• Confusing "in" (dentro) with "on" (em cima).\n• "in the table" → must be "on the table".\n• Plural: bedroom**s** (not "bedroomes").'
+    },
+    'ingles/Family members': {
+        title: 'Family members',
+        body: '**My family**:\n• mum / mother → mãe\n• dad / father → pai\n• parents → pais\n• brother → irmão\n• sister → irmã\n• grandma / grandmother → avó\n• grandpa / grandfather → avô\n• grandparents → avós\n• uncle → tio\n• aunt → tia\n• cousin → primo/prima\n• baby → bebé\n\n**This is...**\n• This is my mum.\n• These are my parents.\n• I have one brother and two sisters.\n\n**❌ Common mistakes**\n• "Cousin" — same word for primo AND prima.\n• "Brother" (singular) ≠ "brothers" (plural).\n• Possessive: **my**, **your**, **his**, **her**.'
+    },
+    'ingles/Farm animals': {
+        title: 'Farm animals',
+        body: '**Animals on the farm**:\n• cow → vaca\n• horse → cavalo\n• sheep → ovelha (plural also "sheep"!)\n• pig → porco\n• chicken → galinha\n• duck → pato\n• rabbit → coelho\n• goat → cabra\n• donkey → burro\n• dog → cão\n• cat → gato\n\n**Animal sounds (English)**:\n• cow: moo  •  dog: woof  •  cat: meow  •  duck: quack  •  sheep: baa  •  horse: neigh\n\n**Has got** / **have got**:\n• A cow **has got** four legs.\n• Chickens **have got** feathers and a beak.\n\n**❌ Common mistakes**\n• Plural of "sheep" → STAYS "sheep".\n• "chicken" = animal OR meat.\n• Use "has got" for he/she/it; "have got" for I/you/we/they.'
+    },
+    'ingles/My town': {
+        title: 'My town',
+        body: '**Places in town**:\n• school → escola\n• park → parque\n• shop → loja\n• supermarket → supermercado\n• hospital → hospital\n• library → biblioteca\n• post office → correios\n• bank → banco\n• cinema → cinema\n• restaurant → restaurante\n• café → café\n• church → igreja\n• bus stop → paragem de autocarro\n• train station → estação de comboios\n• street → rua\n• square → praça\n\n**Asking the way**:\n• Where is the park?\n• It\'s **near** the school.\n• It\'s **opposite** the bank.\n• Go straight on.\n• Turn left / right.\n\n**❌ Common mistakes**\n• "library" is BIBLIOTECA (not livraria — that\'s "bookshop").\n• Confusing "near" (perto) with "next to" (ao lado).\n• "I go to school" (without "the").'
+    },
+    'ingles/Clothes': {
+        title: 'Clothes',
+        body: '**Clothes**:\n• T-shirt → t-shirt\n• shirt → camisa\n• jumper / sweater → camisola\n• trousers (UK) / pants (US) → calças\n• jeans → jeans (always plural!)\n• shorts → calções\n• dress → vestido\n• skirt → saia\n• shoes → sapatos\n• socks → meias\n• hat → chapéu\n• coat / jacket → casaco\n• scarf → cachecol\n• gloves → luvas\n\n**Verbs**: put on (vestir), take off (despir), wear (usar).\n\n**Colours**: red, blue, green, yellow, black, white, pink, orange, purple, brown.\n\n**❌ Common mistakes**\n• Trousers, jeans, shorts, socks, shoes — ALWAYS plural in English.\n• "She wear" → WRONG. Must be "She wear**s**".\n• Order: "a big red ball" (size before colour).'
+    },
+    'ingles/Hobbies and sports': {
+        title: 'Hobbies and sports',
+        body: '**Sports**:\n• football → futebol\n• basketball → basquetebol\n• volleyball → voleibol\n• tennis → ténis\n• swimming → natação\n• running → corrida\n• cycling → ciclismo\n• dancing → dança\n• karate / judo → karaté / judo\n\n**Other hobbies**:\n• reading, drawing, painting, singing\n• playing the piano / guitar\n• playing computer games\n• watching TV\n\n**Talking about hobbies**:\n• I like ___ing. / I don\'t like ___ing.\n• I love football.\n• My favourite sport is ___.\n• Can you swim? — Yes, I can. / No, I can\'t.\n\n**❌ Common mistakes**\n• You **play** football/tennis but you **go** swimming/running.\n• Musical instruments need "the": play **the** piano.\n• "I like swim" → WRONG. Must be "I like swimm**ing**".'
+    },
+    'ingles/Numbers and colours': {
+        title: 'Numbers and colours',
+        body: '**Numbers 1–20**:\none, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen, twenty.\n\n**Tens to 100**: ten, twenty, thirty, forty, fifty, sixty, seventy, eighty, ninety, one hundred.\n\n**21 = twenty-one** (hyphen). 35 = thirty-five.\n\n**Colours**:\n• red, blue, yellow, green, orange, purple, pink, brown, black, white, grey\n• light blue (azul claro) / dark blue (azul escuro)\n\n**Asking**:\n• How many ___?\n• What colour is it?\n• It\'s red.\n\n**❌ Common mistakes**\n• "fourteen" (14) vs "forty" (40) — careful with stress.\n• "thirty" (30) — no "e" (NOT "thirthy").\n• Colour goes BEFORE the noun: a **red** car.'
+    },
+
+    // ----- CIDADANIA E DESENVOLVIMENTO -----
+    'cidadania/Direitos e deveres': {
+        title: 'Direitos e deveres',
+        body: 'Toda a criança tem **direitos**, garantidos pela **Convenção sobre os Direitos da Criança** (ONU, 1989).\n\n**Direitos principais**:\n• Direito à **vida** e a um **nome**.\n• Direito à **saúde** e à alimentação.\n• Direito à **educação**.\n• Direito ao **amor** e à família.\n• Direito a **brincar** e descansar.\n• Direito a ser **ouvida**.\n• Direito a ser protegida da violência.\n\n**Deveres**:\n• Respeitar os outros.\n• Cumprir as regras da escola e de casa.\n• Cuidar das coisas.\n• Dizer a verdade.\n• Ajudar quem precisa.\n\nDireitos e deveres caminham **juntos**.\n\n**❌ O que se costuma errar**\n• Pensar que só há direitos.\n• Achar que "ser ouvido" é "fazer sempre a sua vontade".\n• Esquecer-se que os direitos protegem TODAS as crianças.'
+    },
+    'cidadania/Regras de convivência': {
+        title: 'Regras de convivência',
+        body: 'Para vivermos bem em **grupo** precisamos de **regras**.\n\n**Na escola**:\n• Levantar o braço antes de falar.\n• Não interromper.\n• Tratar colegas e professores com respeito.\n• Não correr nos corredores.\n• Arrumar a sala antes de sair.\n\n**Em casa**:\n• Cumprimentar quem chega.\n• Pôr a mesa, arrumar o quarto.\n• Avisar antes de sair.\n\n**Conflitos** — passos:\n1. **Acalma-te** — respira fundo, conta até 10.\n2. **Fala** — explica o que sentes ("Eu sinto..." em vez de "Tu fazes...").\n3. **Ouve** o outro lado.\n4. **Procura** uma solução em conjunto.\n5. **Pede desculpa** se errares.\n\n**❌ O que se costuma errar**\n• Achar que regras são para "estragar a brincadeira".\n• Resolver conflitos com violência.\n• Esquecer que ouvir o outro é tão importante como falar.'
+    },
+    'cidadania/Diversidade e respeito': {
+        title: 'Diversidade e respeito',
+        body: 'A **diversidade** torna o mundo rico. Somos todos **diferentes**:\n\n• **Cultura** — origens, línguas, tradições.\n• **Religião** — católicos, muçulmanos, judeus, budistas, ateus...\n• **Cor da pele**, **género**, **idade**.\n• **Capacidades** — pessoas usam cadeira de rodas, óculos, aparelhos auditivos; outras têm dificuldades de aprendizagem.\n• **Famílias** — diferentes formas.\n\n**Respeitar a diferença** é:\n• Não troçar nem fazer "piadas".\n• Tratar todos com igualdade.\n• Aprender com quem é diferente.\n• Defender quem está a ser maltratado.\n\n**Bullying** = alguém é repetidamente magoado. É **errado** e deve ser **denunciado** a um adulto.\n\n**❌ O que se costuma errar**\n• Achar que "incluir" é um favor — é o mínimo.\n• Calar-se quando alguém é vítima de bullying.\n• Confundir igualdade com sermos todos iguais.'
+    },
+    'cidadania/Ambiente e sustentabilidade': {
+        title: 'Ambiente e sustentabilidade',
+        body: 'O **planeta Terra** é a nossa casa comum.\n\n**Problemas ambientais**:\n• **Poluição** — ar, água, solos.\n• **Aquecimento global** — Terra mais quente por causa do CO₂.\n• **Desflorestação**.\n• **Lixo nos oceanos** — sobretudo plástico.\n\n**O que posso fazer (regra dos 3 R)**:\n• **Reduzir** — comprar menos.\n• **Reutilizar** — dar nova vida.\n• **Reciclar** — separar no ecoponto: papel (azul), embalagens (amarelo), vidro (verde), pilhas (vermelho), orgânico (castanho).\n\n**Outros gestos**:\n• Fechar a torneira ao escovar os dentes (poupa ~6 L/min).\n• Apagar luzes ao sair.\n• Ir a pé ou de bicicleta.\n• Plantar uma árvore.\n\n**❌ O que se costuma errar**\n• Achar que reciclar é a 1.ª prioridade — primeiro vem **reduzir**.\n• Confundir as cores do ecoponto.\n• Pensar que "só um copo" não faz diferença.'
+    },
+    'cidadania/Segurança rodoviária': {
+        title: 'Segurança rodoviária',
+        body: '**Para peões**:\n• Caminhar no **passeio**, longe da estrada.\n• Atravessar na **passadeira** (zebra) ou no semáforo.\n• Olhar **esquerda → direita → esquerda** antes de atravessar.\n• Não correr a atravessar.\n• Não atravessar entre carros estacionados.\n\n**Semáforo para peões**: verde = atravessa; vermelho = espera; piscar = termina depressa.\n\n**Para passageiros** (em carro):\n• Crianças com menos de 12 anos (ou 1,35 m) vão sempre no **banco de trás**.\n• **Cadeira de criança** ou **assento elevatório** apropriado.\n• **Cinto de segurança** SEMPRE.\n• Não distrair o condutor.\n\n**Para ciclistas**:\n• **Capacete** sempre.\n• Sinalizar com o braço antes de virar.\n• **Luzes** e refletores à noite.\n\n**❌ O que se costuma errar**\n• Atravessar a correr.\n• Ir ao banco da frente.\n• Esquecer o capacete por ser "só dar uma volta".'
+    },
+    'cidadania/Saúde e bem-estar': {
+        title: 'Saúde e bem-estar',
+        body: '**Saúde** = corpo + mente + emoções, em equilíbrio.\n\n**Hábitos saudáveis**:\n• **Alimentação**: 3 refeições principais + 2 lanches. Variedade de cores no prato. Beber água em vez de sumos.\n• **Sono**: 9 a 11 horas por noite para crianças de 8-9 anos.\n• **Higiene**: lavar mãos antes de comer, escovar dentes 2× ao dia, banho diário.\n• **Atividade física**: 1 hora por dia.\n• **Tempo de ecrã**: máximo ~1 hora por dia (TV, telemóvel, tablet).\n• **Pausas**: não estar muito tempo sentado.\n\n**Bem-estar emocional**:\n• Falar sobre o que sentes.\n• Pedir ajuda quando precisas.\n• Brincar, rir, partilhar com amigos.\n• Estar com a família.\n\n**Sinais de alerta**: dor que não passa, tristeza grande, dificuldade em dormir → falar com um adulto de confiança.\n\n**❌ O que se costuma errar**\n• Pensar que "saúde" é só não estar doente.\n• Esconder o que sentes.\n• Achar que tempo de ecrã ilimitado não faz mal.'
+    },
+
+    // ===== LEITURA — 8 textos para ler com orientações =====
+    'leitura/Lê com as vírgulas': {
+        title: 'Lê com as vírgulas',
+        body: "A **vírgula** é uma pausa **curta** — como respirar um pouquinho. Dura 1 batida (a do ponto dura 2).\n\nQuando lês um texto:\n• Marca mentalmente cada **vírgula**.\n• Pára 1 segundinho.\n• Continua.\n\n**Para que servem**? Separar coisas numa lista, isolar uma explicação, antes de \"mas\"/\"porque\"/\"que\".\n\nNeste tópico vais ler um texto com **muitas vírgulas**. Treina a respirar nas paragens.\n\n**Estratégias úteis** ✨\n• Lê em voz alta — ouvir-te ajuda.\n• Bate o dedo na mesa em cada vírgula.\n• Repete o texto 2 ou 3 vezes — fica mais fluido."
+    },
+    'leitura/Lê um diálogo': {
+        title: 'Lê um diálogo',
+        body: "Num **diálogo**, as personagens falam umas com as outras. O **travessão (—)** marca o início da fala.\n\nQuando lês um diálogo:\n• **Muda a voz** ligeiramente para cada personagem.\n• Faz pausa antes do travessão.\n• Respeita a pontuação dentro da fala (?, !).\n• O narrador (texto à volta dos travessões) lê com voz neutra.\n\nNeste tópico vais ler um diálogo curto. Imagina-te a fazer de cada personagem.\n\n**Estratégias úteis** ✨\n• Lê alto — é como teatro.\n• Personagem grande → voz mais grave. Personagem pequena → voz mais aguda.\n• Se errares, recomeça."
+    },
+    'leitura/Voz sobe na pergunta': {
+        title: 'Voz sobe na pergunta',
+        body: "Quando vês um **ponto de interrogação (?)**, a voz **sobe** no fim da frase — como subires umas escadas.\n\n**Compara**:\n• \"Já chegou.\" → voz desce 🔽\n• \"Já chegou?\" → voz sobe 🔼\n\nNeste tópico vais ler um texto com várias perguntas. Repara como cada uma faz a tua voz subir.\n\n**Estratégias úteis** ✨\n• Levanta a mão à medida que dizes a pergunta — sentes a voz subir.\n• Faz pausa depois do \"?\".\n• Atenção: perguntas começam muitas vezes com Quem, O quê, Onde, Quando, Porquê, Como."
+    },
+    'leitura/Voz com emoção': {
+        title: 'Voz com emoção',
+        body: "O **ponto de exclamação (!)** diz: pões **emoção** aqui!\n\nA emoção depende da frase:\n• Alegria → \"Que dia lindo!\" 😊\n• Surpresa → \"Não acredito!\" 😲\n• Susto → \"Cuidado!\" 😨\n• Zanga → \"Pára com isso!\" 😠\n\nNeste tópico vais ler um texto cheio de exclamações. Sente a emoção e deixa-a sair na voz!\n\n**Estratégias úteis** ✨\n• ANTES de ler a frase, decide: alegria? surpresa? susto?\n• Faz o gesto que farias com essa emoção (braços no ar para alegria).\n• Não tens de gritar — basta ter expressão."
+    },
+    'leitura/Lê e descobre os sentimentos': {
+        title: 'Lê e descobre os sentimentos',
+        body: "Os textos nem sempre dizem **diretamente** o que a personagem sente. Tens de **inferir** (descobrir pelas pistas).\n\n**Pistas**:\n• O que a personagem **faz** (chora → triste, salta → contente).\n• O que **diz** (\"Que pena!\" → triste).\n• A **expressão** (\"olhos a brilhar\" → feliz).\n\nNeste tópico vais ler um texto e descobrir o que a personagem está a sentir.\n\n**Estratégias úteis** ✨\n• Imagina-te no lugar da personagem — como te sentirias?\n• Sublinha mentalmente as pistas.\n• Pergunta-te: porquê está assim?"
+    },
+    'leitura/Lê e descobre o que vai acontecer': {
+        title: 'Lê e descobre o que vai acontecer',
+        body: "**Predizer** = adivinhar o que vai acontecer a seguir, com base nas pistas do texto.\n\nÉ como ser **detetive**! As pistas estão em:\n• O título.\n• O início da história (apresenta o problema).\n• As ações das personagens.\n• O que TU sabes do mundo.\n\nNeste tópico vais ler um texto e adivinhar o desfecho.\n\n**Estratégias úteis** ✨\n• Predizer **não é estar certa** — é treinar o cérebro.\n• Pergunta-te: \"se eu fosse esta personagem, o que faria a seguir?\"\n• Compara depois com o que aconteceu — fez sentido?"
+    },
+    'leitura/Lê uma carta': {
+        title: 'Lê uma carta',
+        body: "Uma **carta** é um texto escrito de uma pessoa para outra. Tem partes específicas:\n\n• **Local e data** no topo.\n• **Saudação** (\"Olá, Carolina,\").\n• **Corpo** — a mensagem.\n• **Despedida** (\"Um beijo grande\").\n• **Assinatura** — quem escreveu.\n\nNeste tópico vais ler uma carta — repara em todas as partes.\n\n**Estratégias úteis** ✨\n• A carta é \"mais íntima\" — lê como se estivesses a falar com a pessoa.\n• Faz pausa nos parágrafos.\n• Repara nas vírgulas após saudação e despedida."
+    },
+    'leitura/Lê uma lenda': {
+        title: 'Lê uma lenda',
+        body: "Uma **lenda** conta uma história antiga, muitas vezes com elementos **fantásticos** (dragões, princesas, magia). Foi passada de geração em geração.\n\nNas lendas há:\n• **Personagens** marcantes (heróis, vilões).\n• **Espaço** mágico (castelo, floresta encantada).\n• **Acontecimento** importante.\n• **Mensagem** ou ensinamento.\n\nNeste tópico vais ler uma pequena lenda. Tem **palavras menos comuns** — vê o glossário.\n\n**Estratégias úteis** ✨\n• Lê com voz \"de contar histórias\".\n• Faz pausas dramáticas nos momentos importantes.\n• Se uma palavra te tropeça, silaba e volta atrás."
+    },
+
+    // ----- MAT+ 3.º (Matemática visual) -----
+    'mat_plus/Centenas com ten-frames': {
+        title: 'Centenas com ten-frames',
+        body: "No 3.º ano os números ficam **grandes**. Para os ver bem, organizamos em grupos de **10 e 100**.\n\n• 1 ten-frame cheio = **10**.\n• 10 ten-frames cheios = uma **centena** (100).\n• 10 centenas = um **milhar** (1 000).\n\n**Modelo visual de base 10**:\n• Cubo pequeno = unidade (1).\n• Barra de 10 cubos = dezena (10).\n• Placa 10×10 = centena (100).\n• Cubo grande 10×10×10 = milhar (1 000).\n\n**Estratégias úteis** ✨\n• Pinta um quadradinho 10×10 → vê 100 num só olhar.\n• Junta 3 placas de 100 → 300. Junta 5 barras → 50. Total: 350.\n• Quando o número é **grande**, separa em milhares + centenas + dezenas + unidades."
+    },
+    'mat_plus/Decompor até 10 000': {
+        title: 'Decompor até 10 000',
+        body: "Cada algarismo tem um **valor** diferente conforme a posição.\n\nNo número **3 472**:\n• **3** vale 3 000 (milhares)\n• **4** vale 400 (centenas)\n• **7** vale 70 (dezenas)\n• **2** vale 2 (unidades)\n\nTotal: 3 000 + 400 + 70 + 2 = **3 472**.\n\n**Tabela de valor posicional**:\n| M | C | D | U |\n| 3 | 4 | 7 | 2 |\n\n**Estratégias úteis** ✨\n• Lê o número devagar: \"três mil, quatrocentos e setenta e dois\".\n• Atenção aos zeros: 3 052 ≠ 3 502. O zero também ocupa uma posição.\n• Se vires 4 005 sabe que tem 4 milhares e 5 unidades — 0 centenas e 0 dezenas."
+    },
+    'mat_plus/Linha numérica até 10 000': {
+        title: 'Linha numérica até 10 000',
+        body: "A **linha numérica** ajuda a \"ver\" onde estão os números.\n\nMarca-se de 1 000 em 1 000:\n0 — 1 000 — 2 000 — ... — 10 000.\n\nDepois divide-se cada milhar em 10 partes (de 100 em 100) e cada centena em 10 (de 10 em 10).\n\n**Estratégias úteis** ✨\n• Para colocar 3 700 na linha: vê que está entre 3 000 e 4 000, perto do meio mas mais à direita.\n• Para 5 250: está entre 5 000 e 5 500, mais ou menos a meio.\n• Saltar de 100 em 100 ou de 10 em 10 ajuda a contar para a frente e para trás."
+    },
+    'mat_plus/Comparar números grandes': {
+        title: 'Comparar números grandes',
+        body: "Para comparar números até 10 000, vê **da esquerda para a direita**.\n\n**Regras**:\n1. Quem tem mais algarismos é maior (9 999 < 10 000).\n2. Se o número de algarismos é igual, compara o algarismo das MAIORES posições primeiro.\n\n**Símbolos**:\n• **>** maior que (a \"boca aberta\" para o maior).\n• **<** menor que.\n• **=** igual.\n\n**Estratégias úteis** ✨\n• Alinha sempre os números pela direita.\n• Se ficares baralhada, escreve um por cima do outro.\n• A \"boca\" do símbolo abre sempre para o maior."
+    },
+    'mat_plus/Aproximar à dezena ou centena': {
+        title: 'Aproximar à dezena ou centena',
+        body: "**Aproximar** = arredondar para o número certo (10, 100) mais perto.\n\n**Regra dos 5**:\n• Se o algarismo a seguir é **0, 1, 2, 3, 4** → desce.\n• Se é **5, 6, 7, 8, 9** → sobe.\n\n**Exemplos** (à dezena):\n• 47 → **50** (7 ≥ 5).\n• 42 → **40** (2 < 5).\n• 35 → **40** (regra dos 5 sobe).\n\n**À centena**:\n• 347 → **300** (4 dezenas < 5).\n• 372 → **400** (7 dezenas ≥ 5).\n\n**Estratégias úteis** ✨\n• Para aproximar à dezena, olha SÓ para as unidades.\n• Para aproximar à centena, olha SÓ para as dezenas.\n• Estimar antes ajuda a ver se a tua resposta faz sentido."
+    },
+    'mat_plus/Adição com transporte': {
+        title: 'Adição com transporte',
+        body: "Quando a soma de duas colunas dá **mais de 9**, há **transporte** para a coluna seguinte.\n\n**Exemplo**: 248 + 175\n```\n   1 1\n   2 4 8\n + 1 7 5\n ───────\n   4 2 3\n```\n• U: 8+5=13 → escreve 3, transp. 1.\n• D: 4+7+1=12 → escreve 2, transp. 1.\n• C: 2+1+1=4.\n\n**Estratégias úteis** ✨\n• Alinha SEMPRE pela direita.\n• Escreve o transporte pequenino por cima.\n• Se a soma final tiver transporte na coluna mais à esquerda, escreve-o à frente."
+    },
+    'mat_plus/Subtração com empréstimo': {
+        title: 'Subtração com empréstimo',
+        body: "Se o algarismo de cima é **menor** que o de baixo, pede-se \"emprestado\" 1 à coluna do lado esquerdo.\n\n**Exemplo**: 524 − 187 = 337\n• U: 4 < 7. Empresta 10 → 14−7=7. O 2 das dezenas vira 1.\n• D: 1 < 8. Empresta 100 → 11−8=3. O 5 vira 4.\n• C: 4−1=3.\n\n**Estratégias úteis** ✨\n• Quando emprestas, **risca** o número de cima e escreve o novo.\n• Se a coluna tem 0, tens de \"emprestar mais longe\".\n• Confirma somando: 337 + 187 deve dar 524."
+    },
+    'mat_plus/Tabuada do 6 visual': {
+        title: 'Tabuada do 6 visual',
+        body: "O 6 é o **dobro do 3**. Por isso a tabuada do 6 = dobro da tabuada do 3.\n\n**Resultados**:\n6×1=6 · 6×2=12 · 6×3=18 · 6×4=24 · 6×5=**30** · 6×6=36 · 6×7=42 · 6×8=48 · 6×9=54 · 6×10=60.\n\n**Truques visuais**:\n• Caixas de ovos (6 por caixa) → 4 caixas = 24 ovos.\n• 6×5=30 (a meio — fácil).\n• Para 6×8: pensa 6×10=60, depois −12 = 48.\n\n**Estratégias úteis** ✨\n• Aprende primeiro 6×5 e 6×10.\n• Os resultados são SEMPRE pares.\n• 6×9 = 54 — soma dos algarismos = 9!"
+    },
+    'mat_plus/Tabuada do 7 visual': {
+        title: 'Tabuada do 7 visual',
+        body: "A tabuada do **7** é a mais \"esquisita\". Mas há truques.\n\n**Resultados**:\n7×1=7 · 7×2=14 · 7×3=21 · 7×4=28 · 7×5=**35** · 7×6=42 · 7×7=**49** · 7×8=56 · 7×9=63 · 7×10=70.\n\n**Truques**:\n• Dias da semana: 1 semana = 7 dias → 4 semanas = 28 dias.\n• 7×7 = 49 (quadrado).\n• Para 7×8: 7×10−7×2 = 70−14 = 56.\n\n**Estratégias úteis** ✨\n• Decora 7×5=35, 7×10=70, 7×7=49.\n• Usa a comutativa: 7×3 = 3×7.\n• Faz fichas — escreve 10 vezes seguidas."
+    },
+    'mat_plus/Tabuada do 8 visual': {
+        title: 'Tabuada do 8 visual',
+        body: "O 8 é o **dobro do 4**. Tabuada do 8 = dobro da do 4.\n\n**Resultados**:\n8×1=8 · 8×2=16 · 8×3=24 · 8×4=32 · 8×5=**40** · 8×6=48 · 8×7=56 · 8×8=**64** · 8×9=72 · 8×10=80.\n\n**Truques**:\n• Polvo (8 patas) → 3 polvos = 24 patas.\n• 8×5 = 40 (acaba em 0).\n• 8×8 = 64 (quadrado).\n• 8×9 = 72: 8×10 − 8.\n\n**Estratégias úteis** ✨\n• Os resultados saltam de 8 em 8.\n• Todos pares.\n• 8×n = (8×(n−1)) + 8."
+    },
+    'mat_plus/Tabuada do 9 visual': {
+        title: 'Tabuada do 9 visual',
+        body: "A tabuada do **9** tem um padrão lindo: **os algarismos do resultado somam 9**.\n\n**Resultados**:\n9×1=09 · 9×2=18 · 9×3=27 · 9×4=36 · 9×5=45 · 9×6=54 · 9×7=63 · 9×8=72 · 9×9=81 · 9×10=90.\n\nNota: 18 → 1+8=9. 27 → 2+7=9. Sempre 9!\n\n**Truque dos dedos** 👋: para 9×3, baixa o 3.º dedo. À esquerda 2 dedos = 20; à direita 7 dedos = 7 → 27.\n\n**Estratégias úteis** ✨\n• 9×n = (10×n) − n.\n• O algarismo das dezenas é sempre (n − 1).\n• Pratica com os dedos."
+    },
+    'mat_plus/Famílias de factos': {
+        title: 'Famílias de factos',
+        body: "Uma **família de factos** são 4 contas relacionadas com os mesmos 3 números.\n\nCom 3, 4 e 12:\n• 3 × 4 = 12\n• 4 × 3 = 12\n• 12 ÷ 3 = 4\n• 12 ÷ 4 = 3\n\nSe sabes UMA destas, sabes TODAS. ✨\n\n**Estratégias úteis** ✨\n• Se sabes 6×7=42, sabes 7×6=42, 42÷6=7, 42÷7=6.\n• A divisão é a operação inversa da multiplicação.\n• Treina escrever as 4 contas seguidas."
+    },
+    'mat_plus/Multiplicação × 10, 100, 1000': {
+        title: 'Multiplicação × 10, 100, 1000',
+        body: "Para multiplicar por 10, 100 ou 1000 — **acrescenta zeros**.\n\n• × **10** → +1 zero. 7 × 10 = 70.\n• × **100** → +2 zeros. 7 × 100 = 700.\n• × **1 000** → +3 zeros. 7 × 1 000 = 7 000.\n\n**Exemplos**:\n• 23 × 100 = 2 300.\n• 5 × 1 000 = 5 000.\n\n**Estratégias úteis** ✨\n• Conta os zeros: × 10 tem 1 zero, × 100 tem 2 zeros.\n• Não confundir com adição: 7 + 10 = 17 (NÃO 70)."
+    },
+    'mat_plus/Multiplicação por 1 dígito': {
+        title: 'Multiplicação por 1 dígito',
+        body: "Para multiplicar um número grande por **um dígito**, usa o algoritmo em coluna.\n\n**Exemplo**: 234 × 3 = 702\n• U: 4×3=12 → 2, transp 1.\n• D: 3×3=9 + 1 = 10 → 0, transp 1.\n• C: 2×3=6 + 1 = 7.\n\n**Estratégias úteis** ✨\n• Multiplica da direita para a esquerda.\n• Não esqueças o transporte!\n• Estima primeiro: 234 × 3 ≈ 200 × 3 = 600."
+    },
+    'mat_plus/Divisão por partilha': {
+        title: 'Divisão por partilha',
+        body: "**Dividir** = repartir em partes iguais.\n\n12 ÷ 3 = ? Se tens 12 lápis e queres dar a 3 amigos, cada um leva **4**.\n\n**Modelo de barra**:\n```\n│ ▓▓▓▓ │ ▓▓▓▓ │ ▓▓▓▓ │   12 em 3 grupos → 4 por grupo.\n```\n\n**Vocabulário**:\n• Dividendo (12) — o que se divide.\n• Divisor (3) — em quantos grupos.\n• Quociente (4) — quanto fica em cada grupo.\n\n**Estratégias úteis** ✨\n• Pensa: \"quantas vezes cabe o 3 no 12?\" → 4 vezes.\n• Usa a tabuada: 3 × ? = 12 → ? = 4.\n• Desenha grupos com pontinhos quando estiver difícil."
+    },
+    'mat_plus/Divisão com resto': {
+        title: 'Divisão com resto',
+        body: "Nem sempre a divisão é **exata**. Às vezes sobra qualquer coisa — o **resto**.\n\n**Exemplo**: 23 ÷ 4\n• 4×5=20 → cabe 5 vezes.\n• 23−20 = **3** sobra.\n• Q=5; R=3.\n\nEscreve-se: **23 = 4 × 5 + 3**.\n\n**Importante**: o resto tem de ser **menor** que o divisor.\n\n**Estratégias úteis** ✨\n• Procura a maior multiplicação que cabe.\n• 23 ÷ 4: maior múltiplo de 4 abaixo de 23 → 20.\n• Confirma: Q × divisor + R = dividendo."
+    },
+    'mat_plus/Frações — partes iguais': {
+        title: 'Frações — partes iguais',
+        body: "Uma **fração** representa **partes IGUAIS** de um todo.\n\nSe divides uma piza em 4 partes iguais e comes 1, comeste **1/4**.\n\n• **Numerador** (em cima) — quantas partes tomas.\n• **Denominador** (em baixo) — em quantas partes está dividido o todo.\n\n**Cuidado!** Se as partes NÃO forem iguais, NÃO é fração.\n\n**Frações famosas**: 1/2 = metade · 1/3 = um terço · 1/4 = um quarto.\n\n**Estratégias úteis** ✨\n• Desenha o todo e divide com tracinhos.\n• Pinta as partes que tomas.\n• Se numerador = denominador → tens o **todo**."
+    },
+    'mat_plus/Frações — comparar': {
+        title: 'Frações — comparar',
+        body: "Para comparar frações com o **MESMO denominador** — quem tem maior **numerador** é maior.\n\n• 3/5 > 2/5.\n\nCom o **MESMO numerador** — quem tem MENOR denominador é maior.\n\n• 1/2 > 1/3 > 1/4.\n\n**Atenção**: quanto maior o denominador, **menores** são as partes.\n\n**Estratégias úteis** ✨\n• Pinta as duas frações em barras IGUAIS e compara visualmente.\n• 1/2 é referência: mais ou menos que metade?\n• Frações equivalentes: 1/2 = 2/4 = 3/6."
+    },
+    'mat_plus/Modelo de barra': {
+        title: 'Modelo de barra',
+        body: "O **modelo de barra** ajuda a \"ver\" um problema com retângulos.\n\n**Exemplo**: A Ana tem 5 e o Bruno 8. Quantos ao todo?\n```\nAna:   [▓▓▓▓▓]      = 5\nBruno: [▓▓▓▓▓▓▓▓]   = 8\nTotal: [▓▓▓▓▓▓▓▓▓▓▓▓▓] = 13\n```\n\n**Estratégias úteis** ✨\n• Desenha SEMPRE o problema antes de fazer a conta.\n• Cada barra representa um grupo. A largura é o tamanho.\n• \"Quanto FICA\" → subtração.\n• \"Ao TODO\" / \"JUNTOS\" → soma."
+    },
+    'mat_plus/Problemas em 2 passos': {
+        title: 'Problemas em 2 passos',
+        body: "Alguns problemas precisam de **duas contas**, uma a seguir à outra.\n\n**Exemplo**: A Carolina tem 24 €. Comprou 3 livros a 5 €. Com quanto fica?\n• Passo 1: 3 × 5 = 15 €.\n• Passo 2: 24 − 15 = 9 €.\n\n**Estratégias úteis** ✨\n• Lê o problema duas vezes.\n• Identifica os DADOS e a PERGUNTA.\n• Faz UMA conta de cada vez. Escreve o passo intermédio.\n• Confirma: faz sentido?"
+    },
+
+    // ----- SOM+ 3.º (Consciência fonológica avançada) -----
+    'som_plus/Rimas com palavras longas': {
+        title: 'Rimas com palavras longas',
+        body: "Duas palavras **rimam** quando acabam com o mesmo som. Com palavras de 3-4 sílabas, só a parte FINAL conta.\n\n**Exemplos**:\n• **bor-bo-le-ta** e **co-le-ta** → terminam em \"-eta\" → rimam!\n• **es-tu-dan-te** e **co-mer-ci-an-te** → \"-ante\" → rimam!\n• **fa-mí-lia** e **pe-ra** → não rimam.\n\n**Truque**: foca-te só na ÚLTIMA sílaba (ou nas 2 últimas).\n\n**Estratégias úteis** ✨\n• Diz em voz alta — ouvir é a melhor pista.\n• Tapa o início com o dedo e ouve só o fim.\n• Treina em poemas e canções.\n\n**❌ O que se costuma errar**\n• Confundir parecer-se com rimar — \"casa\" e \"casaco\" parecem-se mas NÃO rimam.\n• Achar que palavras curtas e longas não podem rimar.\n• Esquecer-se de ouvir o FIM."
+    },
+    'som_plus/Contar sílabas (3-4)': {
+        title: 'Contar sílabas (palavras de 3-4)',
+        body: "Uma **sílaba** é um som que se diz de uma vez. Conta com batidas.\n\n**Exemplos**:\n• **bor-bo-le-ta** → 4 sílabas.\n• **es-co-la** → 3 sílabas.\n• **pas-sa-ri-nho** → 4 sílabas.\n• **e-le-fan-te** → 4 sílabas.\n\n**Truques**:\n• Bate palmas em cada sílaba.\n• Põe a mão debaixo do queixo — desce uma vez por sílaba.\n• Cada sílaba tem PELO MENOS uma vogal.\n\n**Estratégias úteis** ✨\n• Devagar — palavras longas dão erros.\n• Atenção aos **ditongos** (ai, eu, ão) — 1 só sílaba.\n• Atenção aos **hiatos** (sa-í-da) — separam-se.\n\n**❌ O que se costuma errar**\n• Contar sílabas a mais (separar ditongos).\n• Contar sílabas a menos (não separar hiatos).\n• Esquecer-se de uma sílaba a meio."
+    },
+    'som_plus/Sílaba tónica': {
+        title: 'Sílaba tónica',
+        body: "A **sílaba tónica** é a que se pronuncia com mais FORÇA.\n\n**Exemplos** (em maiúsculas a tónica):\n• ca-DEI-ra.\n• bor-bo-LE-ta.\n• me-NI-no.\n• Por-tu-GAL.\n\n**Tipos**:\n• **Aguda** — tónica na ÚLTIMA sílaba (café, mar, Portugal).\n• **Grave** — na PENÚLTIMA (casa, mesa, menino). A maioria.\n• **Esdrúxula** — na ANTEPENÚLTIMA (árvore, médico). LEVAM SEMPRE acento.\n\n**Estratégias úteis** ✨\n• Diz a palavra alto e nota onde \"pesa\" mais.\n• Bate palmas e nota qual é mais forte.\n• Esdrúxulas têm sempre acento — fáceis.\n\n**❌ O que se costuma errar**\n• Trocar tónica com átona.\n• Achar que \"café\" é grave — é aguda.\n• Confundir esdrúxula com aguda."
+    },
+    'som_plus/Sílaba átona': {
+        title: 'Sílaba átona',
+        body: "As sílabas **átonas** são todas EXCEPTO a tónica — pronunciam-se com menos força.\n\n**Exemplo**: em \"bor-bo-LE-ta\", a tónica é \"LE\" e as outras (bor, bo, ta) são átonas.\n\nEm PT-PT, vogais átonas pronunciam-se mais fechadas:\n• \"menina\" → o \"e\" inicial soa quase \"i\".\n• \"telefone\" → \"te\" soa \"ti\".\n\nIsto chama-se **redução vocálica**.\n\n**Estratégias úteis** ✨\n• Ouve adultos a falar — nota a diferença.\n• Em textos com erros, repara como redução pode levar a trocas.\n• Escrever pode ser diferente de falar — escreve \"telefone\".\n\n**❌ O que se costuma errar**\n• Todas as sílabas com mesma força (parece robô).\n• Escrever como se fala (\"tilifone\" em vez de \"telefone\").\n• Confundir átona com tónica."
+    },
+    'som_plus/Dígrafos LH, NH, CH': {
+        title: 'Dígrafos LH, NH, CH',
+        body: "Um **dígrafo** = DUAS letras que fazem UM único som.\n\n• **LH** — som suave: ve-lho, fi-lho, mu-lher.\n• **NH** — som nasal: ni-nho, ma-nhã.\n• **CH** — som \"sh\": cha-ve, chu-va.\n\n**Atenção**: LH, NH, CH ficam SEMPRE na mesma sílaba!\n• fi-lho (NÃO fi-l-ho)\n• ma-nhã (NÃO ma-n-hã)\n• cha-ve (NÃO c-ha-ve)\n\n**Estratégias úteis** ✨\n• Decora os 3 dígrafos — são os mais comuns.\n• LH é molhado; NH é com nariz; CH é mais \"duro\".\n• Pratica com palavras curtas antes das longas.\n\n**❌ O que se costuma errar**\n• Separar o dígrafo: fi-l-ho ✗.\n• Confundir LH com L (filho ≠ filo).\n• Confundir CH com X."
+    },
+    'som_plus/RR e SS (consoantes dobradas)': {
+        title: 'RR e SS (consoantes dobradas)',
+        body: "O **RR** e o **SS** só aparecem ENTRE duas vogais.\n\n• **RR** — som FORTE: carro, ferro, terra.\n  Compara com R simples (suave): \"caro\" (1 r) ≠ \"carro\" (2 r).\n• **SS** — som \"ssss\" forte: passar, massa, professor.\n  Compara com S entre vogais (soa \"z\"): \"casa\" → \"z\"; \"cassa\" → \"ss\".\n\n**Regras**:\n• NUNCA no início de palavra.\n• NUNCA depois de consoante (com 1 só).\n• SÓ entre 2 vogais.\n\n**Estratégias úteis** ✨\n• RR e R simples têm SONS diferentes — ouve.\n• SS = forte; S entre vogais = \"z\".\n• Decora: \"passar\", \"carro\", \"professor\".\n\n**❌ O que se costuma errar**\n• Trocar \"casa\" (z) com \"cassa\" (ss).\n• Escrever \"rr\" no início.\n• Esquecer-se de dobrar onde devia."
+    },
+    'som_plus/Encontros consonantais': {
+        title: 'Encontros consonantais',
+        body: "Um **encontro consonantal** = DUAS consoantes seguidas, juntas na mesma sílaba.\n\n**Mais comuns**:\n• com R: br, cr, dr, fr, gr, pr, tr, vr — braço, creme, dragão, frio, grama, prato, treze, livro.\n• com L: bl, cl, fl, gl, pl — blusa, claro, flor, globo, plano.\n\nFicam SEMPRE na mesma sílaba.\n\n**Exemplos**:\n• bra-ço (NÃO b-ra-ço)\n• cre-me (NÃO c-re-me)\n• pla-no (NÃO p-la-no)\n\n**Estratégias úteis** ✨\n• Diz \"br\" — é UM som combinado.\n• Pratica com palavras simples: \"pra-to\", \"tre-ze\".\n• Atenção que algumas crianças trocam BR por B ou BL por BR — exercita.\n\n**❌ O que se costuma errar**\n• Separar: p-ra-to ✗ → pra-to ✓.\n• Trocar \"fl\" por \"fr\" (flor ≠ fror).\n• Saltar uma consoante (praça → paça)."
+    },
+    'som_plus/Encontros vocálicos': {
+        title: 'Encontros vocálicos',
+        body: "Um **encontro vocálico** = duas (ou mais) vogais juntas. Pode ser:\n\n• **Ditongo** — vogais na MESMA sílaba: pai, beijo, mau, céu, mãe, pão.\n• **Hiato** — vogais em sílabas DIFERENTES: sa-í-da, le-ão, ru-im, ba-ú.\n• **Tritongo** — três vogais na mesma sílaba: Pa-ra-guai.\n\n**Como distinguir**: divisão silábica.\n• Vogais juntas numa sílaba → ditongo.\n• Vogais separadas → hiato.\n\n**Estratégias úteis** ✨\n• Bate palmas em cada sílaba.\n• Hiatos costumam ter ACENTO na 2.ª vogal.\n• Pratica com ditongos famosos (pai, mãe, pão).\n\n**❌ O que se costuma errar**\n• Confundir ditongo com hiato.\n• Esquecer que ditongos podem ser nasais (mãe, pão).\n• Achar que tritongo é raro — existe (Paraguai)."
+    },
+    'som_plus/Hiatos': {
+        title: 'Hiatos',
+        body: "Um **hiato** = duas vogais em sílabas DIFERENTES.\n\n**Exemplos**:\n• sa-Í-da → \"a\" + \"í\" separados.\n• le-Ã-o → \"e\" + \"ão\" separados.\n• ba-Ú → \"a\" + \"ú\" separados.\n• po-E-ta → \"o\" + \"e\" separados.\n\n**Como reconhecer**:\n• A 2.ª vogal tem muitas vezes ACENTO (sa-í-da, ba-ú).\n• Diz devagar — se conseguires parar entre as vogais, é hiato.\n\n**Estratégias úteis** ✨\n• Acentos no meio (sa-Í-da) → quase sempre hiato.\n• Compara: \"saia\" (di-ton-go ai) vs \"sa-í-da\" (hi-a-to).\n• Acento na vogal alta (í, ú) é pista forte.\n\n**❌ O que se costuma errar**\n• Trocar hiato com ditongo.\n• Esquecer que o acento ajuda.\n• Achar que \"leão\" tem ditongo — não, é hiato."
+    },
+    'som_plus/Ditongos orais e nasais': {
+        title: 'Ditongos orais e nasais',
+        body: "Há 2 tipos de ditongo:\n\n**Orais** (sai só pela boca):\n• ai, ei, oi, ui, au, eu, iu, ou — pai, lei, boi, fui, mau, céu, viu, vou.\n\n**Nasais** (sai pela boca e nariz):\n• ão, ãe, õe, ãi — pão, mãe, põe, cãibra.\n• am, em, im, om, um (no fim) — campo, vem, ruim, com, um.\n\n**Truque**: dedo no nariz.\n• Vibração → nasal.\n• Sem vibração → oral.\n\n**Estratégias úteis** ✨\n• Símbolos ~ e m/n marcam nasalidade.\n• Pratica: \"pão\" (nasal) vs \"pau\" (oral).\n• Decora os ditongos nasais mais comuns.\n\n**❌ O que se costuma errar**\n• Achar que todos os ditongos com til (~) soam igual.\n• Confundir nasal com oral.\n• Não notar o til em \"irmã\", \"manhã\"."
+    },
+    'som_plus/Pares mínimos avançados': {
+        title: 'Pares mínimos avançados',
+        body: "**Pares mínimos** = duas palavras que se diferenciam por UM só som.\n\n**Exemplos**:\n• pato / bato (P vs B).\n• vaca / faca (V vs F).\n• rato / lato (R vs L).\n• chá / já (CH vs J).\n• selo / zelo (S vs Z).\n\nNo 3.º ano: sons mais difíceis:\n• lh vs l: filho / fio.\n• nh vs n: manhã / mana.\n• rr vs r: carro / caro.\n• ss vs s: passo / paso.\n\n**Estratégias úteis** ✨\n• Diz alto — o som faz a diferença.\n• Treina ouvindo só UM dos pares e adivinha.\n• Útil para crianças com dislalia.\n\n**❌ O que se costuma errar**\n• Trocar B/V, F/V, R/L.\n• Achar que \"pato\" e \"rato\" são pares mínimos — mudam 2 sons.\n• Confundir grafia com som."
+    },
+    'som_plus/Sons que se confundem (B/V, F/V)': {
+        title: 'Sons que se confundem',
+        body: "Alguns sons são MUITO parecidos.\n\n**B vs V** — ambos labiais:\n• B fecha lábios juntos: bola, bater.\n• V usa lábio inferior nos dentes: vela, voar.\n\n**F vs V** — ambos labio-dentais:\n• F sem voz: fada, faca, flor.\n• V com voz: vala, vaca, voo.\n\n**P vs B** — ambos bilabiais:\n• P sem voz: pato.\n• B com voz: bato.\n\n**Truque**: mão na garganta. Vibração → tem voz (B, V).\n\n**Estratégias úteis** ✨\n• Treina espelhando o adulto.\n• Dedo nos lábios para sentir o movimento.\n• Pratica pares mínimos: vaca/faca.\n\n**❌ O que se costuma errar**\n• Trocar B/V na escrita (\"vola\" ≠ \"bola\").\n• Confundir F/V ao ouvir.\n• Pensar que P/B são iguais."
+    },
+    'som_plus/Trocar uma sílaba': {
+        title: 'Trocar uma sílaba',
+        body: "Jogo: trocar UMA sílaba para fazer uma palavra nova.\n\n**Exemplos**:\n• borboleta → trocar \"bor\" por \"var\" → varboleta.\n• escola → trocar \"co\" por \"to\" → estola (palavra real!).\n• família → trocar \"fa\" por \"ja\" → jamília (inventada).\n\nNo 3.º ano: palavras LONGAS (3-4 sílabas).\n\n**Estratégias úteis** ✨\n• Identifica as sílabas (palmas).\n• Decide qual trocar.\n• Diz a palavra nova alto.\n• Por vezes sai uma palavra real!\n\n**❌ O que se costuma errar**\n• Trocar mais do que uma sílaba.\n• Trocar fonemas em vez de sílabas.\n• Esquecer-se de manter o resto igual."
+    },
+    'som_plus/Tirar uma sílaba': {
+        title: 'Tirar uma sílaba',
+        body: "Tirar = retirar uma sílaba.\n\n**Exemplos**:\n• borboleta sem \"bor\" → boleta.\n• escola sem \"es\" → cola! (palavra real).\n• trabalhar sem \"tra\" → balhar.\n\n**Posição**:\n• 1.ª (inicial): bor-boleta → boleta.\n• Meio: fa-mí-lia sem \"mí\" → falia.\n• Última: fa-mí-lia sem \"lia\" → famí.\n\n**Estratégias úteis** ✨\n• Bate palmas para identificar sílabas.\n• Pratica com palavras de 3 sílabas.\n• Tenta tirar do início, meio, fim.\n\n**❌ O que se costuma errar**\n• Tirar uma letra em vez de uma sílaba.\n• Esquecer-se de juntar o que sobra.\n• Confundir tirar sílaba com tirar fonema."
+    },
+    'som_plus/Trocar fonema inicial': {
+        title: 'Trocar fonema inicial',
+        body: "**Fonema** = o som mais pequeno (mais pequeno que a sílaba).\n\n**Trocar fonema inicial** = só o PRIMEIRO som muda.\n\n**Exemplos**:\n• pato → trocar P por B → bato.\n• mala → trocar M por F → fala.\n• rato → trocar R por L → lato.\n• casa → trocar K por T → tasa.\n\nDifícil! Tens de identificar o PRIMEIRO som separado da sílaba.\n\n**Estratégias úteis** ✨\n• Diz a palavra devagar alongando o início: \"Pppp-ato\".\n• Pratica pares: pato/bato, mala/fala.\n• Útil para preparar a leitura.\n\n**❌ O que se costuma errar**\n• Trocar a sílaba inteira em vez do fonema.\n• Confundir o som com a LETRA.\n• Esquecer que algumas letras têm vários sons."
+    },
+    'som_plus/Segmentar fonemas': {
+        title: 'Segmentar fonemas',
+        body: "**Segmentar fonemas** = separar uma palavra em sons mais pequenos.\n\n**Exemplos**:\n• PAI → /P/ /A/ /I/ → 3 fonemas.\n• CASA → /K/ /A/ /Z/ /A/ → 4 fonemas.\n• GATO → /G/ /A/ /T/ /O/ → 4 fonemas.\n\n**Sílabas ≠ fonemas**:\n• \"CASA\" tem 2 sílabas (ca-sa) mas 4 fonemas.\n\n**Importância**: melhor preditor da boa leitura.\n\n**Estratégias úteis** ✨\n• Diz a palavra alongando cada som.\n• Bate uma vez para cada fonema.\n• Pratica em palavras curtas antes das longas.\n\n**❌ O que se costuma errar**\n• Contar sílabas em vez de fonemas.\n• Confundir letras com fonemas (LH = 1 fonema, 2 letras).\n• Esquecer que ã, õ são 1 fonema."
+    },
+    'som_plus/Famílias de palavras': {
+        title: 'Famílias de palavras',
+        body: "**Família de palavras** = grupo com a mesma RAIZ (parte comum).\n\n**Exemplos**:\n• flor: flor, florista, florido, florir.\n• livro: livro, livraria, livreiro, livrinho.\n• terra: terra, terreno, terrestre, aterrar.\n\n**Atenção**: parecer-se NÃO é o mesmo que ser da família.\n• \"floresta\" parece com \"flor\" mas vem de outra raiz.\n\n**Estratégias úteis** ✨\n• Procura a parte que se repete → a raiz.\n• Vê se o SIGNIFICADO também é parecido — tem de ser!\n• Aumenta o vocabulário descobrindo famílias.\n\n**❌ O que se costuma errar**\n• Misturar famílias só por parecidas (livre/livro).\n• Não notar a raiz por causa de prefixos.\n• Confundir homófonos com família."
+    },
+    'som_plus/Palavras compostas': {
+        title: 'Palavras compostas',
+        body: "**Palavra composta** = formada por 2 ou mais palavras.\n\n**Com hífen**:\n• guarda-chuva (guarda + chuva)\n• beija-flor (beija + flor)\n• couve-flor\n• segunda-feira\n• arco-íris\n\n**Sem hífen** (juntas):\n• girassol (gira + sol)\n• passatempo (passa + tempo)\n• malmequer (mal + me + quer)\n\n**Como reconhecer**: tenta partir em 2 — se cada parte tem significado, é composta.\n\n**Estratégias úteis** ✨\n• Lê com pausa pequena: \"guarda – chuva\".\n• Procura padrões: \"guarda-\", \"porta-\", \"para-\".\n• Diverte-te a inventar compostas.\n\n**❌ O que se costuma errar**\n• Esquecer hífen.\n• Confundir composta com derivada.\n• Achar que todas levam hífen."
+    },
+    'som_plus/Trava-línguas': {
+        title: 'Trava-línguas',
+        body: "**Trava-línguas** = frase difícil de dizer rápido por ter sons parecidos.\n\n**Exemplos clássicos**:\n• \"O rato roeu a roupa do rei de Roma.\" (R-R-R).\n• \"Três pratos de trigo para três tigres tristes.\" (TR-TR).\n• \"A aranha arranha a rã. A rã arranha a aranha.\" (R-RR).\n• \"O peito do pé do Pedro é preto.\" (P-P-PR).\n\n**Para que servem**?\n• Treinam articulação.\n• Melhoram velocidade e fluência.\n• São divertidos!\n\n**Estratégias úteis** ✨\n• Começa devagar; só depois acelera.\n• Repete 3 vezes seguidas.\n• Inventa os teus próprios.\n\n**❌ O que se costuma errar**\n• Ir depressa demais — perdes os sons.\n• Trocar sons parecidos (R por L).\n• Esquecer parte da frase."
+    },
+    'som_plus/Memória auditiva avançada': {
+        title: 'Memória auditiva avançada',
+        body: "**Memória auditiva** = guardar e recordar o que se ouviu.\n\n**Jogos para treinar**:\n\n**1. Lista de palavras** — ouve 5-7 palavras, repete pela ordem.\n   Ex: gato, mesa, livro, sol, casa, árvore, bola.\n\n**2. Frase longa** — ouve uma frase, repete-a.\n   Ex: \"A Eduarda foi ao mercado e comprou pão, leite e duas maçãs.\"\n\n**3. Instruções em cadeia** — ouve várias ordens.\n   Ex: \"Levanta-te, dá 3 voltas, bate palmas e senta-te.\"\n\n**4. Trás-para-frente** — ouve e diz na ORDEM INVERSA.\n   Ex: pato-mesa-flor → flor, mesa, pato.\n\n**Estratégias úteis** ✨\n• Foca-te enquanto ouves.\n• Imagina a cena na cabeça.\n• Repete mentalmente antes de dizer alto.\n\n**❌ O que se costuma errar**\n• Não prestar atenção.\n• Querer recordar TUDO de uma vez.\n• Esquecer-se da ordem."
+    }
+};
+// Lições de leitura do 3.º também valem para o Oceanus (era feito em content.js)
+Object.entries(LESSONS_3).forEach(([k, v]) => { if (k.startsWith('leitura/')) LESSONS_3_OCEANUS[k] = v; });
+Object.assign(window.LESSONS_BY_YEAR[31], LESSONS_3_OCEANUS);
+Object.assign(window.LESSONS_BY_YEAR[3], LESSONS_3);
 })();
