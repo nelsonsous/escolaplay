@@ -1,5 +1,7 @@
-const CACHE_NAME = 'escolaplay-v569';
-const ASSETS = [
+const CACHE_NAME = 'escolaplay-v570';
+// Núcleo: TEM de existir — se falhar, o SW não instala (evita servir uma
+// app incompleta). Bump do CACHE_NAME a cada release = novo cache limpo.
+const CORE = [
     '/escolaplay/',
     '/escolaplay/index.html',
     '/escolaplay/styles.css',
@@ -12,73 +14,27 @@ const ASSETS = [
     '/escolaplay/manifest.json',
     // NOTA (v439): os ficheiros content_<ano>_*.js já não estão no precache.
     // São lazy-loaded por _loadScript() quando o utilizador ativa um perfil
-    // desse ano — fresh load fica ~2 MB mais leve. O fetch handler ainda os
-    // faz cache on-demand, por isso ficam offline depois da 1ª visita ao ano.
+    // desse ano; o fetch handler faz cache on-demand → ficam offline depois.
     '/escolaplay/content_secret.js',
     '/escolaplay/content_course_english.js',
-    '/escolaplay/content_course_ge.js',
+    '/escolaplay/content_course_ge.js'
+];
+// Opcionais: cacheados um a um; se algum faltar, a instalação NÃO falha.
+const OPTIONAL = [
     // Avatares Disney (uso pessoal)
-    '/escolaplay/icons/disney/alice.png',
-    '/escolaplay/icons/disney/anna.png',
-    '/escolaplay/icons/disney/ariel.png',
-    '/escolaplay/icons/disney/aurora.png',
-    '/escolaplay/icons/disney/aurora2.png',
-    '/escolaplay/icons/disney/belle.png',
-    '/escolaplay/icons/disney/cinderella.png',
-    '/escolaplay/icons/disney/eilonwy.png',
-    '/escolaplay/icons/disney/elsa.png',
-    '/escolaplay/icons/disney/esmeralda.png',
-    '/escolaplay/icons/disney/giselle.png',
-    '/escolaplay/icons/disney/jasmine.png',
-    '/escolaplay/icons/disney/jessica.png',
-    '/escolaplay/icons/disney/kida.png',
-    '/escolaplay/icons/disney/megara.png',
-    '/escolaplay/icons/disney/merida.png',
-    '/escolaplay/icons/disney/mirabel.png',
-    '/escolaplay/icons/disney/moana.png',
-    '/escolaplay/icons/disney/mulan.png',
-    '/escolaplay/icons/disney/pocahontas.png',
-    '/escolaplay/icons/disney/rapunzel.png',
-    '/escolaplay/icons/disney/raya.png',
-    '/escolaplay/icons/disney/snowwhite.png',
-    '/escolaplay/icons/disney/stitch.png',
-    '/escolaplay/icons/disney/tarzan.png',
-    '/escolaplay/icons/disney/tiana.png',
-    '/escolaplay/icons/disney/tinkerbell.png',
+    ...['alice','anna','ariel','aurora','aurora2','belle','cinderella','eilonwy','elsa','esmeralda','giselle','jasmine','jessica','kida','megara','merida','mirabel','moana','mulan','pocahontas','rapunzel','raya','snowwhite','stitch','tarzan','tiana','tinkerbell'].map(n => `/escolaplay/icons/disney/${n}.png`),
     // Diário de um Vampiro
-    '/escolaplay/icons/vampire/anna.png',
-    '/escolaplay/icons/vampire/bonnie.png',
-    '/escolaplay/icons/vampire/caroline.png',
-    '/escolaplay/icons/vampire/damon.png',
-    '/escolaplay/icons/vampire/elena.png',
-    '/escolaplay/icons/vampire/elijah.png',
-    '/escolaplay/icons/vampire/jeremy.png',
-    '/escolaplay/icons/vampire/klaus.png',
-    '/escolaplay/icons/vampire/matt.png',
-    '/escolaplay/icons/vampire/rebekah.png',
-    '/escolaplay/icons/vampire/stefan.png',
-    '/escolaplay/icons/vampire/tyler.png',
+    ...['anna','bonnie','caroline','damon','elena','elijah','jeremy','klaus','matt','rebekah','stefan','tyler'].map(n => `/escolaplay/icons/vampire/${n}.png`),
     // Stranger Things
-    '/escolaplay/icons/stranger/billy.png',
-    '/escolaplay/icons/stranger/dustin.png',
-    '/escolaplay/icons/stranger/eleven.png',
-    '/escolaplay/icons/stranger/erica.png',
-    '/escolaplay/icons/stranger/hopper.png',
-    '/escolaplay/icons/stranger/jonathan.png',
-    '/escolaplay/icons/stranger/joyce.png',
-    '/escolaplay/icons/stranger/lucas.png',
-    '/escolaplay/icons/stranger/max.png',
-    '/escolaplay/icons/stranger/mayor.png',
-    '/escolaplay/icons/stranger/mike.png',
-    '/escolaplay/icons/stranger/murray.png',
-    '/escolaplay/icons/stranger/nancy.png',
-    '/escolaplay/icons/stranger/robin.png',
-    '/escolaplay/icons/stranger/steve.png',
-    '/escolaplay/icons/stranger/will.png'
+    ...['billy','dustin','eleven','erica','hopper','jonathan','joyce','lucas','max','mayor','mike','murray','nancy','robin','steve','will'].map(n => `/escolaplay/icons/stranger/${n}.png`)
 ];
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+    event.waitUntil((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.addAll(CORE);
+        await Promise.all(OPTIONAL.map(u => cache.add(u).catch(() => {})));
+    })());
     self.skipWaiting();
 });
 
@@ -104,16 +60,46 @@ self.addEventListener('notificationclick', (event) => {
     })());
 });
 
+// Estratégia (v570):
+//  - Pedidos a OUTROS domínios (Firebase, fontes, CDN): não intercetar — o
+//    browser usa o seu cache HTTP normal (antes forçávamos no-store em tudo).
+//  - Navegações / index.html: network-first (para apanhar versões novas),
+//    com fallback ao cache offline.
+//  - Assets estáticos do site (JS/CSS/imagens/JSON): CACHE-FIRST. O cache é
+//    versionado pelo CACHE_NAME, por isso uma release nova instala um cache
+//    novo e limpo — sem risco de misturar versões. Antes era network-first
+//    com no-store: cada arranque voltava a descarregar ~1 MB.
 self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET') return;
+    const req = event.request;
+    if (req.method !== 'GET') return;
+    const url = new URL(req.url);
+    if (url.origin !== self.location.origin) return; // deixa o browser tratar
+    const isNav = req.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/escolaplay/';
+    if (isNav) {
+        event.respondWith((async () => {
+            try {
+                const fresh = await fetch(req, { cache: 'no-cache' });
+                const cache = await caches.open(CACHE_NAME);
+                cache.put(req, fresh.clone()).catch(() => {});
+                return fresh;
+            } catch {
+                return (await caches.match(req)) || (await caches.match('/escolaplay/index.html')) || new Response('Offline', { status: 503 });
+            }
+        })());
+        return;
+    }
     event.respondWith((async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
         try {
-            const fresh = await fetch(event.request, { cache: 'no-store' });
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(event.request, fresh.clone()).catch(() => {});
+            const fresh = await fetch(req);
+            if (fresh && fresh.ok) {
+                const cache = await caches.open(CACHE_NAME);
+                cache.put(req, fresh.clone()).catch(() => {});
+            }
             return fresh;
         } catch {
-            return (await caches.match(event.request)) || new Response('Offline', { status: 503 });
+            return new Response('Offline', { status: 503 });
         }
     })());
 });

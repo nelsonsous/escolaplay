@@ -61,7 +61,7 @@ function renderAvatar(av, sizePx = 46) {
         return `<img class="av-cartoon" src="${url}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     // Emoji ou outro texto curto — render como texto
-    return `<span style="font-size:${Math.round(sizePx * 0.55)}px;line-height:1">${s}</span>`;
+    return `<span style="font-size:${Math.round(sizePx * 0.55)}px;line-height:1">${escapeHtml(s.slice(0, 8))}</span>`;
 }
 // HTML do avatar do perfil para usar como mascote — só se for imagem
 // (Disney/Stranger/Vampire/foto/URL/dicebear). Caso contrário devolve null
@@ -195,6 +195,14 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
 const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog'];
 
+// Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
+// saem do dispositivo — são dados pessoais de crianças. Packs (vampire:…,
+// disney:…) e emojis são públicos e podem ir.
+function _pubAvatar(a) {
+    const s = (a && typeof a === 'object') ? (a.emoji || '') : String(a || '');
+    if (!s || s.startsWith('data:') || /^https?:\/\//i.test(s)) return '👤';
+    return s.slice(0, 40);
+}
 // deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
 // Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
 // "perfis Carolina e Eduarda no telemovel da mae" sao distintos dos perfis
@@ -591,7 +599,7 @@ const YEAR_EXTRA_FILES = {
 };
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v569';
+const APP_VERSION = 'v570';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -760,6 +768,16 @@ function changeActiveProfileYear() {
     const label = newYear === 99 ? 'Profissional' : (newYear === 31 ? '3.º ano (Oceanus)' : newYear + '.º ano');
     if (!confirm(`Mudar ${p.name || 'este perfil'} para ${label}?\n\nO XP, as medalhas e o histórico ficam guardados. Os exercícios passam a ser os do ano novo.`)) return;
     p.year = newYear;
+    // Os tópicos ativos e os índices de progresso são do ano ANTIGO (nomes
+    // de tópicos diferentes) — mantê-los deixava as disciplinas a 0
+    // exercícios. Reset a "tudo ativo" para o ano novo.
+    try {
+        state.activeTopics = {};
+        if (state.progress && typeof state.progress === 'object') {
+            Object.keys(state.progress).forEach(k => { if (state.progress[k] && 'toIndex' in state.progress[k]) delete state.progress[k].toIndex; });
+        }
+        state.topicFocus = null;
+    } catch {}
     setActiveYear(newYear);
     loadYearExtras(newYear);
     selectedTopicsForMax.clear();
@@ -1532,7 +1550,7 @@ function openSubjectDetail(key, opts) {
     const html = `
         <div class="fullscreen" id="subject-detail-screen">
             <div class="exercise-header">
-                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
                 <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
                     <span style="width:32px;height:32px;border-radius:8px;background:${sub.color};color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas ${sub.icon}"></i></span>
                     ${sub.fullName || sub.name}
@@ -2028,7 +2046,7 @@ function _pdWeeklyAccuracy(hist) {
         if (!h || !h.d) return;
         const d = new Date(h.d + 'T00:00:00'); if (isNaN(d)) return;
         const monday = new Date(d); const day = (d.getDay() + 6) % 7; monday.setDate(d.getDate() - day);
-        const key = monday.toISOString().slice(0, 10);
+        const key = _localDayKey(monday);
         const w = wk[key] || (wk[key] = { ans: 0, ok: 0, key });
         w.ans++; if (h.c) w.ok++;
     });
@@ -2070,7 +2088,7 @@ function _pdTip(evt) {
     const tip = t && t.getAttribute && t.getAttribute('data-tip');
     const chart = t && t.closest ? t.closest('.pd-chart') : null;
     if (!tip || !chart) return;
-    chart.querySelectorAll('.pd-tipbox').forEach(x => x.remove());
+    document.querySelectorAll('.pd-tipbox').forEach(x => x.remove());
     const box = document.createElement('div');
     box.className = 'pd-tipbox';
     box.textContent = tip;
@@ -2108,7 +2126,7 @@ function _pdHeatmap(days) {
         for (let d = 0; d < 7; d++) {
             const day = new Date(monday); day.setDate(monday.getDate() + d);
             if (day > today) continue;
-            const key = day.toISOString().slice(0, 10);
+            const key = _localDayKey(day);
             const n = (days[key] && days[key].ans) || 0;
             const lvl = n === 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : n <= 9 ? 3 : 4;
             const tip = `${DAYS_PT[d]} ${key.slice(8)}/${key.slice(5, 7)} · ${n} exercício${n === 1 ? '' : 's'}`;
@@ -2151,11 +2169,11 @@ function _pdMultiLine(o) {
         const pts = s.pts.map(p => [X(p.i), Y(p.v)]);
         const line = _pdSmooth(pts, padT, baseY);
         const dots = s.pts.map((p, k) => {
-            const tip = `${s.name} — semana de ${labels[p.i]}: ${p.v}%`;
+            const tip = escapeHtml(`${s.name} — semana de ${labels[p.i]}: ${p.v}%`);
             return `<circle cx="${X(p.i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4.5" fill="${s.color}" stroke="#fff" stroke-width="2" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></circle>`;
         }).join('');
         const e = ends[si];
-        const endLab = `<circle cx="${(W - padR + 10)}" cy="${e.y.toFixed(1)}" r="3.5" fill="${e.color}"/><text x="${(W - padR + 17)}" y="${(e.y + 3.5).toFixed(1)}" class="pd-cmp-name">${escapeHtml(e.name)}</text>`;
+        const endLab = `<circle cx="${(W - padR + 10)}" cy="${e.y.toFixed(1)}" r="3.5" fill="${e.color}"/><text x="${(W - padR + 17)}" y="${(e.y + 3.5).toFixed(1)}" class="pd-cmp-name">${escapeHtml(e.name.length > 9 ? e.name.slice(0, 8) + '…' : e.name)}</text>`;
         return `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}${endLab}`;
     }).join('');
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Comparação de perfis'}" xmlns="http://www.w3.org/2000/svg">${ticks}${body}${xLabels}</svg>`;
@@ -2172,7 +2190,7 @@ function _pdCompareHtml() {
     const mondays = [];
     const now = new Date(); now.setHours(0, 0, 0, 0);
     const mon0 = new Date(now); mon0.setDate(mon0.getDate() - ((mon0.getDay() + 6) % 7));
-    for (let i = 5; i >= 0; i--) { const m = new Date(mon0); m.setDate(mon0.getDate() - i * 7); mondays.push(m.toISOString().slice(0, 10)); }
+    for (let i = 5; i >= 0; i--) { const m = new Date(mon0); m.setDate(mon0.getDate() - i * 7); mondays.push(_localDayKey(m)); }
     const labels = mondays.map(k => k.slice(8) + '/' + k.slice(5, 7));
     const COLORS = ['#0891b2', '#e11d48'];
     const series = pair.map((p, pi) => {
@@ -2181,7 +2199,7 @@ function _pdCompareHtml() {
             if (!h || !h.d) return;
             const d = new Date(h.d + 'T00:00:00'); if (isNaN(d)) return;
             const m = new Date(d); m.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-            const key = m.toISOString().slice(0, 10);
+            const key = _localDayKey(m);
             const w = wk[key] || (wk[key] = { ans: 0, ok: 0 });
             w.ans++; if (h.c) w.ok++;
         });
@@ -2237,7 +2255,7 @@ window._pdPickDay = function (key) {
 };
 function _pdDayHtml(stats, SUBJ) {
     const keys = [];
-    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); keys.push(d.toISOString().slice(0, 10)); }
+    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); keys.push(_localDayKey(d)); }
     const today = keys[keys.length - 1];
     window._pdDayCtx = { hist: stats.hist || [], sessionLog: stats.sessionLog || [], lessonLog: stats.lessonLog || [], SUBJ, sel: today };
     const DL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -2259,6 +2277,11 @@ function _pdDayHtml(stats, SUBJ) {
 // último, nunca todos); texto sempre em tons de texto, nunca na cor da série;
 // série única → sem legenda (o título nomeia-a); <title> nativo por marca.
 const _PD_ACCENT = '#0891b2';
+// Chave de dia LOCAL (YYYY-MM-DD) — igual a todayStr(). NUNCA toISOString():
+// em UTC+1 a grelha inteira ficava deslocada um dia.
+function _localDayKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 let _pdGradSeq = 0;
 function _pdNiceMax(v) {
     if (v <= 10) return 10;
@@ -2363,7 +2386,7 @@ function _pdImprovementHtml(stats) {
     const deltas = stats.local ? _pdSkillDeltas(hist, stats.year) : [];
     const rlog = stats.readingLog || [];
     if (weeks.length < 2 && deltas.length === 0 && rlog.length === 0) {
-        return `<div class="pd-improve pd-improve-empty">📈 <b>Está a melhorar?</b><br><span>Ainda a recolher dados. Depois de uns dias de prática, aparece aqui a evolução dela.</span></div>`;
+        return `<div class="pd-improve pd-improve-empty">📈 <b>Está a melhorar?</b><br><span>Ainda a recolher dados. Depois de uns dias de prática, aparece aqui a evolução.</span></div>`;
     }
     // Tendência semanal — linha suave com wash de área e rótulo no fim
     let weekHtml = '';
@@ -2395,7 +2418,7 @@ function _pdImprovementHtml(stats) {
             const late = rlog.slice(-Math.ceil(rlog.length / 2));
             const avg = a => Math.round(a.reduce((s, x) => s + (x.wpm || 0), 0) / a.length);
             const dW = avg(late) - avg(early);
-            trendTxt = dW >= 6 ? `↗️ mais fluente (+${dW} pal/min)` : dW <= -6 ? `↘️ ${-dW} pal/min mais lenta` : '→ estável';
+            trendTxt = dW >= 6 ? `↗️ mais fluente (+${dW} pal/min)` : dW <= -6 ? `↘️ ${-dW} pal/min mais devagar` : '→ estável';
         }
         let readChart = '';
         if (rlog.length >= 2) {
@@ -2441,7 +2464,7 @@ function openParentDashboard(remote) {
     const dVals = [], dLabels = [], dTitles = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
+        const key = _localDayKey(d);
         const day = days[key] || { ans: 0, ok: 0 };
         const label = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
         dVals.push(day.ans); dLabels.push(label);
@@ -2455,11 +2478,11 @@ function openParentDashboard(remote) {
     const remoteTag = remote ? '<span class="pd-remote-tag">🌐 remoto</span>' : '';
     const foot = remote
         ? 'Dados sincronizados da nuvem (último backup do dispositivo da criança). Vista só de leitura.'
-        : 'Vista só de leitura. Toca em "Ver à distância" para acompanhar outro perfil pelo código.';
+        : 'Vista só de leitura. Toca em "Ver outro perfil" para acompanhar outro perfil pelo código.';
     const html = `
       <div class="fullscreen" id="parent-dash-screen">
         <div class="exercise-header">
-          <button class="icon-btn" onclick="closeParentDashboard()"><i class="fas fa-arrow-left"></i></button>
+          <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeParentDashboard()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
           <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
             <span style="width:32px;height:32px;border-radius:8px;background:#0891b2;color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas fa-chart-line"></i></span>
             Estatísticas — ${escapeHtml(pName)} ${remoteTag}
@@ -2470,7 +2493,7 @@ function openParentDashboard(remote) {
             <div class="pd-kpi"><div class="pd-kpi-n">${total}</div><div class="pd-kpi-l">exercícios feitos</div></div>
             <div class="pd-kpi"><div class="pd-kpi-n">${Object.keys(bySubj).length}</div><div class="pd-kpi-l">disciplinas ativas</div></div>
           </div>
-          <button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>
+          ${remote ? '' : '<button class="pd-remote-btn" onclick="openParentProfilePicker()">👥 Ver outro perfil (lista / código)</button>'}
           ${_pdDayHtml(_parentStats(remote), SUBJ)}
           ${_pdImprovementHtml(_parentStats(remote))}
           ${remote ? '' : _pdCompareHtml()}
@@ -2488,7 +2511,7 @@ function openParentDashboard(remote) {
     const wrap = document.createElement('div');
     wrap.id = 'parent-dash-container';
     wrap.innerHTML = html;
-    document.body.appendChild(wrap);
+    document.body.appendChild(wrap); _overlayPush('parent-dash-container');
 }
 window.openParentDashboard = openParentDashboard;
 // Seletor de perfis — lista os perfis DESTE dispositivo (state.profiles)
@@ -2534,14 +2557,14 @@ window._parentViewLocal = _parentViewLocal;
 // Painel de Pais REMOTO — pede o código do perfil da criança e busca o
 // backup no Firestore (backups/{userCode}), mostrando o painel à distância.
 async function openRemoteParentDashboard() {
-    const codeRaw = prompt('Código do perfil da criança (6–8 caracteres, ex: AB3K9X):');
+    const codeRaw = prompt('Código do perfil da criança (ex: AB3K9X):');
     if (!codeRaw) return;
     const code = codeRaw.trim().toUpperCase();
-    if (!/^[A-Z0-9]{6,8}$/.test(code)) { showToast('Código inválido (6–8 letras/números).'); return; }
+    if (!/^[A-Z0-9]{4,10}$/.test(code)) { showToast('Código inválido (4–10 letras/números).'); return; }
     showToast('A buscar progresso na nuvem…');
     try {
         const data = await fbFetchBackup(code);
-        if (!data || !data.profile) { showToast('Sem dados para esse código. Confirma que o backup está ativo no dispositivo dela.'); return; }
+        if (!data || !data.profile) { showToast('Sem dados para esse código. Confirma que o backup está ativo no dispositivo desse perfil.'); return; }
         openParentDashboard({ profile: data.profile, max: data.max });
     } catch (e) {
         console.warn('[parent] remote fetch failed', e);
@@ -2549,8 +2572,30 @@ async function openRemoteParentDashboard() {
     }
 }
 window.openRemoteParentDashboard = openRemoteParentDashboard;
+// ── Overlays fullscreen com HISTÓRICO: o gesto/botão "voltar" do browser
+// ou do iOS fecha o ecrã (em vez de sair da PWA). Pilha simples de ids.
+const _overlayStack = [];
+let _overlayIgnorePop = false;
+function _overlayPush(id) {
+    if (_overlayStack[_overlayStack.length - 1] === id) return; // re-render do mesmo
+    _overlayStack.push(id);
+    try { history.pushState({ ep: id }, ''); } catch {}
+}
+function _overlayClose(id) {
+    document.getElementById(id)?.remove();
+    const i = _overlayStack.lastIndexOf(id);
+    if (i < 0) return;
+    _overlayStack.splice(i, 1);
+    if (history.state && history.state.ep === id) { _overlayIgnorePop = true; try { history.back(); } catch { _overlayIgnorePop = false; } }
+}
+window._overlayClose = _overlayClose;
+window.addEventListener('popstate', () => {
+    if (_overlayIgnorePop) { _overlayIgnorePop = false; return; }
+    const id = _overlayStack.pop();
+    if (id) document.getElementById(id)?.remove();
+});
 function closeParentDashboard() {
-    document.getElementById('parent-dash-container')?.remove();
+    _overlayClose('parent-dash-container');
 }
 window.closeParentDashboard = closeParentDashboard;
 
@@ -2574,7 +2619,17 @@ function openAdminGate() {
     } else {
         const t = prompt('PIN de administrador:');
         if (t === null) return;
-        if (t !== pin) { showToast('PIN errado.'); return; }
+        if (t !== pin) {
+            openAdminGate._fails = (openAdminGate._fails || 0) + 1;
+            if (openAdminGate._fails >= 3 && confirm('PIN errado 3 vezes. Esqueceste o PIN?\n\nOK = apagar o PIN e definir um novo (não dá acesso a mais nada — os dados ficam iguais).')) {
+                try { localStorage.removeItem(ADMIN_PIN_KEY); } catch {}
+                openAdminGate._fails = 0;
+                showToast('PIN apagado — define um novo.');
+                return openAdminGate();
+            }
+            showToast('PIN errado.'); return;
+        }
+        openAdminGate._fails = 0;
     }
     openAdminDashboard();
 }
@@ -2605,27 +2660,32 @@ function _adminAgo(ms) {
     if (days < 30) return `há ${days} dias`;
     return new Date(ms).toISOString().slice(0, 10);
 }
-async function openAdminDashboard() {
+let _adminRun = 0;
+// const (não function): num script clássico, uma function de topo fica em
+// window; const fica só no escopo léxico — só openAdminGate lhe chega.
+const openAdminDashboard = async function () {
+    const run = ++_adminRun;
     document.getElementById('admin-dash-container')?.remove();
     const wrap = document.createElement('div');
     wrap.id = 'admin-dash-container';
     wrap.innerHTML = `
       <div class="fullscreen" id="admin-dash-screen">
         <div class="exercise-header" style="background:linear-gradient(135deg,#1e293b,#334155)">
-            <button class="icon-btn" onclick="document.getElementById('admin-dash-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('admin-dash-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">🔐 Administração — todos os utilizadores</div>
         </div>
         <div class="exercise-body"><div class="pd-empty" id="admin-loading">⏳ A carregar os utilizadores…</div><div id="admin-body"></div></div>
       </div>`;
-    document.body.appendChild(wrap);
+    document.body.appendChild(wrap); _overlayPush('admin-dash-container');
     let rows;
     try {
         rows = await _fbListUsers();
+        if (run !== _adminRun) return; // outra abertura mais recente ganhou
     } catch (e) {
         console.warn('[admin] list failed', e);
         const load = document.getElementById('admin-loading');
         if (load) load.innerHTML = String(e && e.code) === 'permission-denied'
-            ? '🔒 O Firestore não permite listar a coleção <b>users</b>.<br>Nas regras, troca <code>allow get</code> por <code>allow read</code> em <code>/users/{code}</code> (são só códigos e nomes) e volta a tentar.'
+            ? '🔒 O Firestore não permite listar a coleção <b>users</b>.<br>Nas regras, troca <code>allow get</code> por <code>allow read</code> em <code>/users/{code}</code> (esta coleção só tem código, nome, avatar-emoji e ano — sem fotos nem histórico) e volta a tentar.'
             : '⚠️ Erro ao carregar da nuvem — verifica a ligação e tenta de novo.';
         return;
     }
@@ -2664,9 +2724,8 @@ async function openAdminDashboard() {
         </div>
         <div class="pd-section-h">👥 Utilizadores (mais recentes primeiro)</div>
         <div class="adm-list">${list}</div>
-        <div class="pd-foot">Toca num utilizador para abrir as estatísticas dele (busca o backup pelo código).<br><br>ℹ️ Perfis que nunca ativaram a partilha (Duelos → perfil partilhável) não têm código nem dados na nuvem — por isso não aparecem aqui. Para acompanhares a Eduarda, ativa a partilha no dispositivo dela.</div>`;
-}
-window.openAdminDashboard = openAdminDashboard;
+        <div class="pd-foot">Toca num utilizador para abrir as estatísticas dele (busca o backup pelo código).<br><br>ℹ️ Perfis que nunca ativaram a partilha (Duelos → perfil partilhável) não têm código nem dados na nuvem — por isso não aparecem aqui. Para acompanhares um perfil, ativa a partilha no dispositivo dele.</div>`;
+};
 // Ao tocar: busca o backup DESSE código (get — permitido desde sempre) e abre
 // as estatísticas completas, com os gráficos todos.
 async function _adminOpenUser(i) {
@@ -2790,7 +2849,7 @@ function openCoursePath(subjectKey) {
     wrap.innerHTML = `
       <div class="fullscreen" id="subject-detail-screen">
         <div class="exercise-header">
-          <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+          <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
           <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
             <span style="width:32px;height:32px;border-radius:8px;background:${sub.color};color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas ${sub.icon}"></i></span>
             ${escapeHtml(course.title)}
@@ -4039,7 +4098,7 @@ function saveMaxConfig() {
     const mistralKey = document.getElementById('max-mistral-apikey')?.value.trim() || '';
     const enabled = document.getElementById('max-enabled').checked;
     const preferred = document.getElementById('max-preferred')?.value || 'groq';
-    if (enabled && !key && !mistralKey) { showToast('Precisas de pelo menos uma chave (Groq ou Mistral) para activar MAX'); return; }
+    if (enabled && !key && !mistralKey) { showToast('Precisas de pelo menos uma chave (Groq ou Mistral) para ativar MAX'); return; }
     if (key && !/^gsk_/.test(key)) { showToast('Chave Groq inválida — deve começar por gsk_'); return; }
     // Chaves Mistral não têm prefixo fixo. Validação mínima de comprimento para evitar
     // que um espaço ou carácter mal colado active o provedor com garbage.
@@ -5973,7 +6032,7 @@ function openTutor(opts) {
     const headerTitle = isSubjectMode ? `Professor(a) de ${escapeHtml(subj.name)}` : 'English Tutor';
     o.innerHTML = `
       <div class="tutor-header"${headerStyle}>
-        <button class="icon-btn" onclick="closeTutor()"><i class="fas fa-arrow-left"></i></button>
+        <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeTutor()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
         <div class="tutor-title"><span class="tutor-av">${av}</span> ${headerTitle}</div>
         ${isSubjectMode ? '' : `<button class="icon-btn" onclick="_tutorOpenExplore()" title="Explorar lições por nível"><i class="fas fa-layer-group"></i></button>`}
         ${isSubjectMode ? '' : `<button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>`}
@@ -6166,7 +6225,7 @@ function _tutorOpenReview() {
     o.id = 'review-overlay';
     o.innerHTML = `
       <div class="tutor-header">
-        <button class="icon-btn" onclick="_tutorCloseReview()"><i class="fas fa-arrow-left"></i></button>
+        <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_tutorCloseReview()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
         <div class="tutor-title"><span class="tutor-av">📚</span> Phrasebook & Revisão</div>
       </div>
       <div class="review-body" id="review-body"></div>`;
@@ -7496,7 +7555,7 @@ function _tutorOpenExplore() {
     ov.id = 'tutor-explore';
     ov.innerHTML = `
       <div class="tutor-header">
-        <button class="icon-btn" onclick="document.getElementById('tutor-explore').remove()"><i class="fas fa-arrow-left"></i></button>
+        <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="document.getElementById('tutor-explore').remove()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
         <div class="tutor-title">📚 Explorar lições</div>
         <button class="icon-btn" onclick="_tutorClearAllExplored()" title="Limpar progresso"><i class="fas fa-broom"></i></button>
       </div>
@@ -9163,7 +9222,7 @@ async function _geminiTTS(text, voiceName, lang) {
     const cached = await _idbGet(cacheKey);
     if (cached instanceof Blob) return cached;
     // 2) Pedido à API
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent`;
     const body = {
         contents: [{ parts: [{ text: text }] }],
         generationConfig: {
@@ -9171,7 +9230,7 @@ async function _geminiTTS(text, voiceName, lang) {
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
         }
     };
-    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
     if (!res.ok) {
         console.warn('[gemini-tts] HTTP', res.status);
         // Cooldown: durante este tempo usa-se a voz do sistema (sem martelar a API)
@@ -10416,7 +10475,11 @@ async function submitAnswer() {
             if (!val.trim()) { showToast('Escreve uma resposta'); return; }
             const n = normalize(val);
             isCorrect = (e.ans || []).some(a => {
+                // strict: comparação exata (maiúsculas/pontuação contam — ex: 'Hoje está sol.')
+                if (e.strict) return String(val).trim() === String(a).trim();
                 const na = normalize(a);
+                // Respostas numéricas: só exato (senão '7000' passava por '700')
+                if (/^[\d\s.,]+$/.test(na)) return na.replace(/[\s.,]/g, '') === n.replace(/[\s.,]/g, '');
                 return na === n || (n.length >= 3 && (na.includes(n) || n.includes(na)));
             });
             // Validação IA como fallback — só se não acertou no matching e há chave API.
@@ -11371,7 +11434,8 @@ function finishSession() {
             const bySubjN = {};
             s.items.forEach(it => { if (it && it.s) bySubjN[it.s] = (bySubjN[it.s] || 0) + 1; });
             const domSubj = Object.keys(bySubjN).sort((a, b) => bySubjN[b] - bySubjN[a])[0] || 'outro';
-            const secs = s.startedAt ? Math.max(1, Math.round((Date.now() - s.startedAt) / 1000)) : 0;
+            const rawSecs = s.startedAt ? Math.max(1, Math.round((Date.now() - s.startedAt) / 1000)) : 0;
+            const secs = Math.min(rawSecs, s.items.length * 180); // ignora tempo ocioso (app aberta e esquecida)
             if (!Array.isArray(state.sessionLog)) state.sessionLog = [];
             state.sessionLog.push({ d: todayStr(), hm: new Date().toTimeString().slice(0, 5), s: domSubj, n: s.items.length, ok: s.correct || 0, secs });
             if (state.sessionLog.length > 150) state.sessionLog.shift();
@@ -12030,7 +12094,7 @@ async function fbCreateDuel({ subjectKey, questionIds, name, avatar, year, timeL
         createdAt: serverTimestamp(),
         mode: 'open',
         subject: subjectKey || null,
-        creator: { name: name || 'Anónimo', avatar: avatar || '👤', year: year || 0, code: creatorCode || null },
+        creator: { name: name || 'Anónimo', avatar: _pubAvatar(avatar), year: year || 0, code: creatorCode || null },
         questions: questionIds,
         timeLimit: timeLimit || Math.max(60, questionIds.length * 20),
         inviteFor: Array.isArray(inviteFor) ? inviteFor : [],
@@ -12115,7 +12179,7 @@ async function createDuelFromSubject(subjectKey, opts = {}) {
             subjectKey,
             questionIds,
             name: p.name,
-            avatar: p.avatar,
+            avatar: _pubAvatar(p.avatar),
             year: p.year,
             inviteFor: opts.inviteFor || [],
             creatorCode: myCode || null
@@ -12600,7 +12664,9 @@ window._closeFbDuelSummary = _closeFbDuelSummary;
 function _genUserCode() {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = '';
-    for (let i = 0; i < 4; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const buf = new Uint8Array(6);
+    try { crypto.getRandomValues(buf); } catch { for (let i = 0; i < 6; i++) buf[i] = Math.floor(Math.random() * 256); }
+    for (let i = 0; i < 6; i++) s += alphabet[buf[i] % alphabet.length];
     return s;
 }
 
@@ -12610,9 +12676,8 @@ async function fbRegisterUser(code, profile) {
     const ref = doc(db, 'users', code);
     await setDoc(ref, {
         name: profile.name || 'Anónimo',
-        avatar: profile.avatar || '👤',
+        avatar: _pubAvatar(profile.avatar),
         year: profile.year || 0,
-        deviceId: getDeviceId(),
         shareable: true,
         lastSeen: serverTimestamp()
     }, { merge: true });
@@ -12631,13 +12696,13 @@ async function fbAddFriendBidi(myCode, myProfile, theirCode, theirProfile) {
     const { db, doc, setDoc } = window.__fb;
     const myFriendEntry = {
         name: theirProfile.name || 'Anónimo',
-        avatar: theirProfile.avatar || '👤',
+        avatar: _pubAvatar(theirProfile.avatar),
         year: theirProfile.year || 0,
         addedAt: Date.now()
     };
     const theirFriendEntry = {
         name: myProfile.name || 'Anónimo',
-        avatar: myProfile.avatar || '👤',
+        avatar: _pubAvatar(myProfile.avatar),
         year: myProfile.year || 0,
         addedAt: Date.now()
     };
@@ -12774,7 +12839,7 @@ async function fbSendFriendRequest(myCode, myProfile, targetCode) {
         requests: {
             [myCode]: {
                 name: myProfile.name || 'Anónimo',
-                avatar: myProfile.avatar || '👤',
+                avatar: _pubAvatar(myProfile.avatar),
                 year: myProfile.year || 0,
                 at: Date.now()
             }
@@ -12819,7 +12884,7 @@ async function acceptFriendRequest(fromCode) {
             state.friends.push({
                 code: fromCode,
                 name: requester.name,
-                avatar: requester.avatar,
+                avatar: _pubAvatar(requester.avatar),
                 year: requester.year,
                 addedAt: Date.now()
             });
@@ -14657,7 +14722,7 @@ async function loadAIHint(exerciseId) {
 }
 
 function escapeHtml(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 // ========== ASK AI — Query em linguagem natural ==========
 // Estado da última resposta, para os botões "praticar" usarem.
@@ -15083,10 +15148,10 @@ function _lessonGateActive() { return !!(_lessonGate && Date.now() < _lessonGate
 function _lessonStartGate(key, lesson, why) {
     const words = String(lesson.body || '').split(/\s+/).filter(Boolean).length;
     const secs = Math.max(10, Math.min(45, Math.round(words * 0.28)));
-    _lessonGate = { until: Date.now() + secs * 1000, key, openedAt: Date.now(), timer: null };
     const modal = document.getElementById('lesson-modal');
     const content = modal && modal.querySelector('.modal-content');
-    if (!content) return;
+    if (!content) { _lessonGate = null; return; }
+    _lessonGate = { until: Date.now() + secs * 1000, key, openedAt: Date.now(), timer: null };
     content.querySelector('#lesson-gate')?.remove();
     const why0 = why === 'erro' ? '<div class="lesson-gate-why">✋ Erraste esta — lê o resumo com calma antes de continuares.</div>' : '';
     content.insertAdjacentHTML('beforeend', `<div id="lesson-gate">${why0}<button id="lesson-gate-btn" disabled>📖 Lê com atenção… <b>${secs}</b>s</button></div>`);
@@ -15158,9 +15223,9 @@ function _generateLessonDoubtSuggestions(topic, subName, lesson) {
         { match: /pot[eê]ncia/i,   qs: ['Quanto é qualquer número elevado a 0?', 'Como multiplicar potências da mesma base?', 'O que é base e expoente?'] },
         { match: /(área|areas|perímetro)/i, qs: ['Diferença entre área e perímetro?', 'Como calcular a área de um triângulo?', 'O que é π (pi)?'] },
         { match: /volume/i,        qs: ['Quantos litros tem 1 m³?', 'Como calcular o volume de um cubo?', 'Diferença entre volume e capacidade?'] },
-        { match: /equil(í|i)brio/i,qs: ['O que é uma reacção reversível?', 'Como interpretar Kc?', 'Em que sentido evolui o equilíbrio?'] },
+        { match: /equil(í|i)brio/i,qs: ['O que é uma reação reversível?', 'Como interpretar Kc?', 'Em que sentido evolui o equilíbrio?'] },
         { match: /(ácido|base|pH)/i, qs: ['O que é um ácido forte?', 'Como calcular o pH?', 'Quando uma solução é neutra?'] },
-        { match: /reacc?[aã]o|le ch[aâ]telier/i, qs: ['Como aplicar Le Châtelier?', 'O que é o quociente de reacção?', 'Catalisador desloca o equilíbrio?'] },
+        { match: /reacc?[aã]o|le ch[aâ]telier/i, qs: ['Como aplicar Le Châtelier?', 'O que é o quociente de reação?', 'Catalisador desloca o equilíbrio?'] },
         { match: /(ânimal|animal|vertebrad|invertebrad)/i, qs: ['Como classificar este animal?', 'Diferença entre vivíparo e ovíparo?', 'Que classes têm coluna vertebral?'] },
         { match: /sistema (digest|circulat|respirat|excret|reprod|nervo)/i, qs: ['Quais são os principais órgãos?', 'Qual é a função principal?', 'Como funciona em poucas palavras?'] },
         { match: /microrgan|bact[eé]r|v[ií]rus|fungo/i, qs: ['Diferença entre vírus e bactéria?', 'Antibiótico funciona em vírus?', 'Que doenças causam?'] },
@@ -16728,8 +16793,9 @@ function _scheduleBackupPush() {
     }, 30000);
 }
 
+let _backupPendingCode = null;
 async function _doBackupPush(userCode) {
-    if (_backupInProgress) return;
+    if (_backupInProgress) { _backupPendingCode = userCode; return; } // reenvia no fim
     _backupInProgress = true;
     try {
         // Re-find o perfil no momento de enviar (pode ter mudado).
@@ -16741,9 +16807,23 @@ async function _doBackupPush(userCode) {
         _updateBackupIndicator();
     } finally {
         _backupInProgress = false;
+        if (_backupPendingCode) { const c = _backupPendingCode; _backupPendingCode = null; setTimeout(() => _doBackupPush(c).catch(() => {}), 800); }
     }
 }
 
+// Campos de state.max que são SEGREDOS do dispositivo e nunca podem ir
+// para a nuvem (o backup é legível por quem souber o código do perfil).
+const _MAX_SECRET_FIELDS = ['apiKey', 'geminiKey', 'mistralKey', 'adminPin'];
+function _maxForCloud(max) {
+    if (!max || typeof max !== 'object') return null;
+    const out = {};
+    Object.keys(max).forEach(k => {
+        if (_MAX_SECRET_FIELDS.includes(k)) return;
+        if (/key|token|secret|password|pin$/i.test(k)) return; // defesa extra
+        out[k] = max[k];
+    });
+    return out;
+}
 async function fbBackupState(userCode, payload) {
     await _onFbReady();
     const { db, doc, setDoc, serverTimestamp } = window.__fb;
@@ -16752,7 +16832,7 @@ async function fbBackupState(userCode, payload) {
         v: 1,
         updatedAt: serverTimestamp(),
         profile: payload.profile,
-        max: payload.max || null
+        max: _maxForCloud(payload.max)
     });
 }
 
@@ -16765,10 +16845,10 @@ async function fbFetchBackup(userCode) {
 }
 
 function openRestoreBackupDialog() {
-    const codeRaw = prompt('Indica o código do perfil (6–8 caracteres, ex: AB3K9X):');
+    const codeRaw = prompt('Indica o código do perfil (ex: AB3K9X):');
     if (!codeRaw) return;
     const code = codeRaw.trim().toUpperCase();
-    if (!/^[A-Z0-9]{6,8}$/.test(code)) { showToast('Código inválido — só letras/números (6–8 chars).'); return; }
+    if (!/^[A-Z0-9]{4,10}$/.test(code)) { showToast('Código inválido — só letras/números (4–10 chars).'); return; }
     showToast('A procurar o backup…');
     fbFetchBackup(code).then(data => {
         if (!data || !data.profile) { showToast('Sem backup para esse código.'); return; }
@@ -16789,7 +16869,13 @@ function _applyRestoredBackup(data) {
     if (idx >= 0) state.profiles[idx] = p;
     else state.profiles.push(p);
     state.activeProfileId = p.id;
-    if (data.max) state.max = data.max;
+    if (data.max) {
+        // Mantém os segredos LOCAIS (chaves de API) — o backup não os traz.
+        const local = state.max || {};
+        const merged = Object.assign({}, data.max);
+        _MAX_SECRET_FIELDS.forEach(k => { if (local[k]) merged[k] = local[k]; });
+        state.max = merged;
+    }
     saveState();
     showToast('✅ Progresso restaurado. A recarregar…');
     setTimeout(() => location.reload(), 800);
@@ -17097,7 +17183,7 @@ function openLeituraLibrary() {
     container.innerHTML = `
         <div class="fullscreen" id="subject-detail-screen">
             <div class="exercise-header">
-                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
                 <div style="flex:1;font-weight:700;display:flex;align-items:center;gap:8px">
                     <span style="width:32px;height:32px;border-radius:8px;background:${sub.color};color:#fff;display:inline-flex;align-items:center;justify-content:center"><i class="fas ${sub.icon}"></i></span>
                     Biblioteca de Leitura
@@ -17159,7 +17245,7 @@ function openDetetiveHub() {
     container.innerHTML = `
         <div class="fullscreen det-hub" id="subject-detail-screen">
             <div class="exercise-header det-hub-header">
-                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
                 <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
                     <span style="font-size:1.3rem">🕵️</span> Detetive Mental
                 </div>
@@ -17251,7 +17337,7 @@ function openMatPlusHub() {
     container.innerHTML = `
         <div class="fullscreen det-hub" id="subject-detail-screen">
             <div class="exercise-header matplus-hub-header">
-                <button class="icon-btn" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left"></i></button>
+                <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeSubjectDetail()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
                 <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
                     <span style="font-size:1.3rem">➕</span> Mat+
                 </div>
@@ -17332,7 +17418,7 @@ function _paperRender() {
     wrap.innerHTML = `
       <div class="fullscreen" id="paper-sheet-screen">
         <div class="exercise-header" style="background:linear-gradient(135deg,#475569,#334155)">
-            <button class="icon-btn" onclick="document.getElementById('paper-sheet-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('paper-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">📝 Ficha de Papel</div>
             <button class="icon-btn" style="color:#fff" onclick="openPaperSheet(true)" title="Nova ficha"><i class="fas fa-rotate"></i></button>
         </div>
@@ -17355,7 +17441,7 @@ function _paperRender() {
             <details class="paper-sols"><summary>👨‍👩‍👧 Soluções (para os pais)</summary><div>${escapeHtml(sols)}</div></details>
         </div>
       </div>`;
-    document.body.appendChild(wrap);
+    document.body.appendChild(wrap); _overlayPush('paper-sheet-container');
 }
 // Reduz a foto para ~1200px JPEG antes de enviar (mais rápido e barato).
 function _paperPhotoPick(ev) {
@@ -17454,7 +17540,9 @@ function _paperShowResults(j) {
         return `<div class="paper-r ${c === true ? 'ok' : c === false ? 'no' : 'un'}">${icon} <b>${e.n})</b> ${escapeHtml(e.q)} ${e.ans}${detail}</div>`;
     }).join('');
     // Regista no progresso (history + XP) — papel conta como treino a sério.
-    if (!sheet.done) {
+    // Só marca 'done' se a IA avaliou pelo menos uma conta (senão uma foto
+    // má bloqueava a ficha para sempre sem XP).
+    if (!sheet.done && (ok + wrong) > 0) {
         sheet.done = true;
         const gained = ok * 12;
         sheet.ex.forEach(e => {
@@ -17488,9 +17576,9 @@ function _paperShowResults(j) {
 const _WRITE_PLANS = [
     { titulo: 'Um dia na quinta', emoji: '🚜', pontos: ['O Sr. Júlio (personagem)', 'a quinta (onde)', 'no fim de semana (quando)', 'a apanha da fruta', 'a fábrica de sumo', 'um fim de semana divertido (fim)'] },
     { titulo: 'Uma ida ao circo', emoji: '🎪', pontos: ['a menina Rita (personagem)', 'o circo (onde)', 'no sábado à tarde (quando)', 'o palhaço e os trapezistas', 'as pipocas', 'voltar a casa a rir (fim)'] },
-    { titulo: 'O meu fim de semana', emoji: '🏖️', pontos: ['tu (personagem)', 'onde foste', 'no sábado ou domingo', 'o que fizeste', 'com quem estiveste', 'como te sentiste no fim'] },
+    { titulo: 'O meu fim de semana', emoji: '🏖️', pontos: ['eu (personagem)', 'onde foste', 'no sábado ou domingo', 'o que fizeste', 'com quem estiveste', 'como te sentiste no fim'] },
     { titulo: 'Uma aventura na floresta', emoji: '🌲', pontos: ['o Tomás (personagem)', 'a floresta (onde)', 'numa manhã de sol', 'um animal que encontrou', 'uma surpresa', 'como acabou a aventura'] },
-    { titulo: 'A festa de anos', emoji: '🎂', pontos: ['a Ana faz anos (personagem)', 'em casa (onde)', 'no domingo', 'os amigos e os jogos', 'o bolo de chocolate', 'uma festa inesquecível (fim)'] },
+    { titulo: 'A festa de anos', emoji: '🎂', pontos: ['a Ana (personagem)', 'em casa (onde)', 'no domingo', 'os amigos e os jogos', 'o bolo de chocolate', 'uma festa inesquecível (fim)'] },
     { titulo: 'Um dia de chuva', emoji: '🌧️', pontos: ['tu e a família', 'em casa (onde)', 'num dia de chuva', 'o que fizeram dentro de casa', 'um jogo ou um filme', 'como passou o dia'] }
 ];
 function _writePick() {
@@ -17517,7 +17605,7 @@ function _writeRender() {
     wrap.innerHTML = `
       <div class="fullscreen" id="write-sheet-screen">
         <div class="exercise-header" style="background:linear-gradient(135deg,#be123c,#e11d48)">
-            <button class="icon-btn" onclick="document.getElementById('write-sheet-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('write-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">✍️ Ficha de Escrita</div>
             <button class="icon-btn" style="color:#fff" onclick="openWriteSheet(true)" title="Outro plano"><i class="fas fa-rotate"></i></button>
         </div>
@@ -17544,7 +17632,7 @@ function _writeRender() {
             <div id="write-results"></div>
         </div>
       </div>`;
-    document.body.appendChild(wrap);
+    document.body.appendChild(wrap); _overlayPush('write-sheet-container');
 }
 function _writePhotoPick(ev) {
     const file = ev.target && ev.target.files && ev.target.files[0];
@@ -17672,40 +17760,43 @@ function _writeShowResults(j) {
 // de escrita da Eduarda (palavras trocadas no teste). As frases NÃO
 // aparecem no ecrã — ela tem de as escrever de ouvido.
 // ============================================================
+// Banco de ditado por NÍVEL (1 fácil · 2 médio · 3 difícil). Cada ditado
+// tira 2+2+1 — dificuldade progressiva e justa. Evitam-se pares que não se
+// distinguem de ouvido (as/às, compramos/comprámos sem contexto temporal).
 const _DICT_BANK = [
-    'O gato dorme na cama.',
-    'A menina come uma maçã.',
-    'O pássaro voa no céu azul.',
-    'A minha avó faz uma sopa quente.',
-    'O coelho corre pela floresta.',
-    'Hoje está sol e vamos brincar.',
-    'A chuva caiu durante a noite.',
-    'O menino guarda o livro na mochila.',
-    'A borboleta pousou na flor.',
-    'Comprámos pão e queijo no mercado.',
-    'O carro passou depressa na estrada.',
-    'A galinha põe ovos todos os dias.',
-    'O peixe nada dentro do aquário.',
-    'A professora escreveu no quadro.',
-    'O cavalo galopa no campo verde.',
-    'A abelha faz mel na colmeia.',
-    'Nós fomos à quinta apanhar fruta.',
-    'O relógio marca as três horas.',
-    'A criança sorriu para a mãe.',
-    'O barco navega no mar calmo.',
-    'A chave abre a porta da casa.',
-    'O passarinho canta de manhã cedo.',
-    'A folha caiu da árvore no outono.',
-    'O bombeiro apagou o fogo com água.'
+    { f: 'O gato dorme na cama.', l: 1 },
+    { f: 'A menina come uma maçã.', l: 1 },
+    { f: 'O pássaro voa no céu azul.', l: 1 },
+    { f: 'O coelho corre pela floresta.', l: 1 },
+    { f: 'Hoje está sol e vamos brincar.', l: 1 },
+    { f: 'A borboleta pousou na flor.', l: 1 },
+    { f: 'O peixe nada dentro do aquário.', l: 1 },
+    { f: 'A chave abre a porta da casa.', l: 1 },
+    { f: 'A minha avó faz uma sopa quente.', l: 2 },
+    { f: 'A chuva caiu durante a noite.', l: 2 },
+    { f: 'O menino guarda o livro na mochila.', l: 2 },
+    { f: 'O carro passou depressa na estrada.', l: 2 },
+    { f: 'A galinha põe ovos todos os dias.', l: 2 },
+    { f: 'A professora escreveu no quadro.', l: 2 },
+    { f: 'O cavalo galopa no campo verde.', l: 2 },
+    { f: 'A criança sorriu para a mãe.', l: 2 },
+    { f: 'O barco navega no mar calmo.', l: 2 },
+    { f: 'O passarinho canta de manhã cedo.', l: 2 },
+    { f: 'A abelha faz mel na colmeia.', l: 3 },
+    { f: 'Ontem comprámos pão e queijo no mercado.', l: 3 },
+    { f: 'Nós fomos à quinta apanhar fruta.', l: 3 },
+    { f: 'O relógio da sala marca três horas.', l: 3 },
+    { f: 'A folha caiu da árvore no outono.', l: 3 },
+    { f: 'O bombeiro apagou o fogo com água.', l: 3 }
 ];
-function _dictPick(n) {
-    const pool = _DICT_BANK.slice();
-    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-    return pool.slice(0, n || 5);
+function _dictPick() {
+    const shuf = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const byL = l => shuf(_DICT_BANK.filter(x => x.l === l)).map(x => x.f);
+    return [...byL(1).slice(0, 2), ...byL(2).slice(0, 2), ...byL(3).slice(0, 1)];
 }
 function openDictationSheet(regen) {
     if (regen || !state.dictSheet || !Array.isArray(state.dictSheet.frases)) {
-        state.dictSheet = { frases: _dictPick(5), created: todayStr(), done: false };
+        state.dictSheet = { frases: _dictPick(), created: todayStr(), done: false };
         try { saveState(); } catch {}
     }
     _dictRender();
@@ -17730,7 +17821,7 @@ function _dictRender() {
     wrap.innerHTML = `
       <div class="fullscreen" id="dict-sheet-screen">
         <div class="exercise-header" style="background:linear-gradient(135deg,#0891b2,#0e7490)">
-            <button class="icon-btn" onclick="document.getElementById('dict-sheet-container').remove()"><i class="fas fa-arrow-left"></i></button>
+            <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('dict-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">🎧 Ditado</div>
             <button class="icon-btn" style="color:#fff" onclick="openDictationSheet(true)" title="Novo ditado"><i class="fas fa-rotate"></i></button>
         </div>
@@ -17753,7 +17844,7 @@ function _dictRender() {
             <details class="paper-sols"><summary>👨‍👩‍👧 Frases do ditado (para os pais)</summary><div>${escapeHtml(sols)}</div></details>
         </div>
       </div>`;
-    document.body.appendChild(wrap);
+    document.body.appendChild(wrap); _overlayPush('dict-sheet-container');
 }
 function _dictPhotoPick(ev) {
     const file = ev.target && ev.target.files && ev.target.files[0];
@@ -17842,7 +17933,7 @@ function _dictShowResults(j) {
     let ok = 0;
     const rows = s.frases.map((f, i) => {
         const r = res.find(x => x && +x.n === (i + 1));
-        const certa = r ? !!r.certa : null;
+        const certa = (r && r.certa != null) ? !!r.certa : null;
         if (certa === true) ok++;
         const erros = (r && Array.isArray(r.erros)) ? r.erros : [];
         const icon = certa === true ? '✅' : certa === false ? '✏️' : '❓';
@@ -17853,7 +17944,8 @@ function _dictShowResults(j) {
             <div class="dict-r-top">${icon} <b>${i + 1})</b> <span class="dict-r-frase">${escapeHtml(f)}</span></div>
             ${errHtml}</div>`;
     }).join('');
-    if (!s.done) {
+    const avaliadas = res.filter(x => x && x.certa != null).length;
+    if (!s.done && avaliadas > 0) {
         s.done = true;
         const gained = ok * 15;
         s.frases.forEach((f, i) => {
@@ -17863,7 +17955,7 @@ function _dictShowResults(j) {
         });
         if (state.history.length > 500) state.history = state.history.slice(-500);
         const sub = state.subjects.som_plus || { answered: 0, correct: 0, xp: 0 };
-        sub.answered += s.frases.length; sub.correct += ok; sub.xp += gained;
+        sub.answered += avaliadas; sub.correct += ok; sub.xp += gained;
         state.subjects.som_plus = sub;
         state.xp += gained;
         try { saveState(); } catch {}
@@ -19313,6 +19405,8 @@ function _injectHolidayButton() {
         fab.onclick = () => openHolidayPlan(targetYear);
         document.body.appendChild(fab);
         console.log('[holiday] FAB injectado | year=' + year + ' | targetYear=' + targetYear);
+        // Já está — para o polling (fazia reflow a cada 1.5s para sempre).
+        try { if (_holidayInjectInterval) { clearInterval(_holidayInjectInterval); _holidayInjectInterval = null; } } catch {}
     }
     // v489: Férias agora vive como card no grid de disciplinas (renderHome
     // injecta directamente). Limpa qualquer botão inline antigo que possa
