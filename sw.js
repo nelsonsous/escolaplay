@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v570';
+const CACHE_NAME = 'escolaplay-v571';
 // Núcleo: TEM de existir — se falhar, o SW não instala (evita servir uma
 // app incompleta). Bump do CACHE_NAME a cada release = novo cache limpo.
 const CORE = [
@@ -15,12 +15,14 @@ const CORE = [
     // NOTA (v439): os ficheiros content_<ano>_*.js já não estão no precache.
     // São lazy-loaded por _loadScript() quando o utilizador ativa um perfil
     // desse ano; o fetch handler faz cache on-demand → ficam offline depois.
-    '/escolaplay/content_secret.js',
     '/escolaplay/content_course_english.js',
     '/escolaplay/content_course_ge.js'
 ];
 // Opcionais: cacheados um a um; se algum faltar, a instalação NÃO falha.
 const OPTIONAL = [
+    // Bancos base por ano (v571) + secret: em segundo plano, para offline
+    ...['y2','y3','y5','y6','y7'].map(n => `/escolaplay/content_${n}.js`),
+    '/escolaplay/content_secret.js',
     // Avatares Disney (uso pessoal)
     ...['alice','anna','ariel','aurora','aurora2','belle','cinderella','eilonwy','elsa','esmeralda','giselle','jasmine','jessica','kida','megara','merida','mirabel','moana','mulan','pocahontas','rapunzel','raya','snowwhite','stitch','tarzan','tiana','tinkerbell'].map(n => `/escolaplay/icons/disney/${n}.png`),
     // Diário de um Vampiro

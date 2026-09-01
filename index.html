@@ -15,10 +15,12 @@
     <!-- Nunito — geometric rounded sans-serif, parente próximo do Feather Bold do Duolingo -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <!-- v571: fontes e ícones sem bloquear o primeiro paint (media=print → all no onload) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="escape.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
 </head>
 <body>
 <div id="app">
@@ -656,6 +658,21 @@
 </div>
 
 <script src="content.js" defer></script>
+<!-- v571: pré-carrega o banco BASE do ano do perfil ativo em paralelo (defer,
+     ordem garantida antes de app.js) — sem isto a home abria sem exercícios
+     durante meio segundo. document.write síncrono no parse = script deferido real. -->
+<script>
+(function () {
+    try {
+        var raw = localStorage.getItem('escolaplay_v2'); if (!raw) return;
+        var st = JSON.parse(raw); var profs = st && st.profiles || [];
+        var p = null; for (var i = 0; i < profs.length; i++) if (profs[i] && profs[i].id === st.activeProfileId) p = profs[i];
+        var y = p && Number(p.year); if (!y) return;
+        var map = { 2: 'content_y2.js', 3: 'content_y3.js', 31: 'content_y3.js', 5: 'content_y5.js', 6: 'content_y6.js', 7: 'content_y7.js' };
+        if (map[y]) document.write('<script src="' + map[y] + '" defer onload="this.dataset.loaded=\'1\'"><\/script>');
+    } catch (e) {}
+})();
+</script>
 <!-- Bancos de exercícios extra carregados síncronamente — sem lazy-load.
      Elimina race conditions / falhas silenciosas que causavam tópicos com 0 exs. -->
 <!-- Tag da versão removido do canto superior — agora vive dentro da tab Perfil
@@ -671,16 +688,19 @@
     </div>
 </div>
 
-<script src="gsap.min.js" defer></script>
 <script src="mascot.js" defer></script>
-<script src="content_secret.js" defer></script>
 <script src="content_course_english.js" defer></script>
 <script src="content_course_ge.js" defer></script>
-<script src="escape.js" defer></script>
+<!-- v571: gsap.min.js, content_secret.js e escape.js carregam a pedido (app.js) -->
 <!-- Firebase Firestore (modular SDK v10, via CDN) — para duelos -->
-<script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+<script>
+// v571: Firebase (~300 KB) só se carrega quando algo o pede (_onFbReady →
+// duelos, amigos, backup, admin). Perfis privados nunca o descarregam.
+window._initFirebase = function () {
+    if (window.__fbInitStarted) return; window.__fbInitStarted = true;
+    (async () => {
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js');
+    const { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, deleteField } = await import('https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js');
     const firebaseConfig = {
         apiKey: "AIzaSyDoFI-3-V1357jIMIC4FxLhH2UNlJgGzG8",
         authDomain: "escolaplay-86fb2.firebaseapp.com",
@@ -694,6 +714,8 @@
     window.__fb = { db, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, deleteField };
     window.__fbReady = true;
     window.dispatchEvent(new Event('fbready'));
+    })().catch(e => { window.__fbInitStarted = false; console.warn('[firebase] init failed', e); });
+};
 </script>
 <script src="app.js" defer></script>
 <script>

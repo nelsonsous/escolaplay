@@ -25,7 +25,7 @@ const EXERCISES_6_H_EXTRA2 = [
       opts:['Soult','Masséna','Junot','Beresford'], ans:2,
       exp:'A 1.ª Invasão foi comandada pelo general Junot, que tomou Lisboa.' },
 
-    { id:'6he2_005', s:'hgp', t:'Invasões Francesas', type:'fill', diff:1,
+    { id:'6he2_005', s:'hgp', t:'Invasões Francesas', type:'mc', diff:1,
       q:'A família real fugiu para o ___ em 1807, levando a corte consigo.',
       opts:['Brasil','México','Cabo Verde','Açores'], ans:0,
       exp:'A família real fugiu para o Brasil, então colónia portuguesa.' },
@@ -50,7 +50,7 @@ const EXERCISES_6_H_EXTRA2 = [
       opts:['Uma proibição de comércio com Inglaterra','Um imposto sobre o vinho','Uma aliança com Portugal','Um tratado de paz'], ans:0,
       exp:'O bloqueio continental proibia os países europeus de comerciarem com Inglaterra.' },
 
-    { id:'6he2_010', s:'hgp', t:'Invasões Francesas', type:'fill', diff:1,
+    { id:'6he2_010', s:'hgp', t:'Invasões Francesas', type:'mc', diff:1,
       q:'O general francês que comandou a 1.ª Invasão chamava-se ___.',
       opts:['Junot','Soult','Masséna','Wellington'], ans:0,
       exp:'Junot comandou a 1.ª Invasão e tomou Lisboa em 1807.' },
@@ -81,7 +81,7 @@ const EXERCISES_6_H_EXTRA2 = [
       opts:['Caminhos de ferro','Linhas de fortificações para defender Lisboa','Estradas reais','Linhas telegráficas'], ans:1,
       exp:'Eram fortes, redutos e trincheiras a norte de Lisboa, mandados construir por Wellington.' },
 
-    { id:'6he2_016', s:'hgp', t:'Invasões Francesas', type:'fill', diff:2,
+    { id:'6he2_016', s:'hgp', t:'Invasões Francesas', type:'mc', diff:2,
       q:'Em 1815, o Brasil foi elevado à categoria de ___ unido a Portugal.',
       opts:['reino','província','colónia','condado'], ans:0,
       exp:'Em 1815 o Brasil tornou-se Reino Unido a Portugal e Algarves.' },
@@ -117,7 +117,7 @@ const EXERCISES_6_H_EXTRA2 = [
       opts:['A Restauração','A Revolução Liberal do Porto','A Guerra Civil','A Implantação da República'], ans:1,
       exp:'A Revolução Liberal de 1820 nasceu do descontentamento com o domínio inglês e a ausência da corte no Brasil.' },
 
-    { id:'6he2_023', s:'hgp', t:'Invasões Francesas', type:'fill', diff:3,
+    { id:'6he2_023', s:'hgp', t:'Invasões Francesas', type:'mc', diff:3,
       q:'Os primeiros sentimentos ___ em Portugal surgiram após as Invasões Francesas.',
       opts:['liberais','absolutistas','feudais','republicanos'], ans:0,
       exp:'As ideias liberais (igualdade, constituição, fim do absolutismo) ganharam força após as Invasões.' },

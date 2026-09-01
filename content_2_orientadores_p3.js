@@ -1191,7 +1191,7 @@ const EXERCISES_2_ORIENT_P3 = [
       exp:'10 de junho — Dia de Portugal, de Camões e das Comunidades.' },
     { id:'2op_pem_16', s:'estudo_meio', t:'Portugal na Europa e no mundo', type:'mc', diff:3,
       q:'🌍 Os países africanos que falam português incluem:',
-      opts:['Egipto e Líbia','Angola e Moçambique','Marrocos e Argélia','África do Sul'], ans:1,
+      opts:['Egito e Líbia','Angola e Moçambique','Marrocos e Argélia','África do Sul'], ans:1,
       exp:'Angola, Moçambique, Cabo Verde, S. Tomé e Príncipe, Guiné-Bissau são países lusófonos africanos.' },
 
     // ----- Influências de outras culturas (mais 8) -----
