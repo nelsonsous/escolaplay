@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil ativo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorSkillsDone','tutorPlan'];
 
 // Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
 // saem do dispositivo — são dados pessoais de crianças. Packs (vampire:…,
@@ -269,7 +269,7 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {})
     Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
         id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {},
+        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorSkillsDone: {}, tutorPlan: null,
         paperSheet: null, writeSheet: null, dictSheet: null,
         name, avatar, year, currentPeriod: 1,
         xp: 0,
@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v574';
+const APP_VERSION = 'v575';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6184,11 +6184,12 @@ function openTutor(opts) {
         const nm = subj.studentName ? ` ${subj.studentName}` : '';
         opener = `Olá${nm}! Sou o(a) teu/tua Professor(a) de ${subj.name}. Estou aqui para te ajudar com a matéria do ${subj.year}.º ano. Em que tema queres trabalhar? Podes escrever uma dúvida, um conceito que queres rever, ou pedir-me exercícios.`;
     } else {
-        opener = "Hi! I'm your English tutor. Let's practise for your meetings. To start: what did you work on this week?";
+        const _pd = Math.min(_tutorPlanDayIndex() + 1, TUTOR_PLAN_DAYS);
+        opener = `Hi! I'm your English tutor. **Day ${_pd} of ${TUTOR_PLAN_DAYS}** of your 3-week plan — three short steps below (about 20 minutes). Let's go!`;
     }
     _tutorAddTutor(opener, null, null);
     if (!isSubjectMode) {
-        _tutorRenderCoachDashboard();
+        _tutorPlanRender();
         _tutorUpdateReviewBadge();
     }
     _tutorRenderMic();
@@ -7038,12 +7039,16 @@ function _tutorRenderCoachDashboard() {
     ).join('');
     // Skill do dia — rotação por dia-do-ano para variar sem repetir.
     const skills = [
+        { id: 'class',    emoji: '🎓', title: 'Aula do dia',   sub: 'Grammar · Conversation · Listening — explicação, treino e quiz', fn: '_tutorCoachClass()' },
         { id: 'meet',     emoji: '🤝', title: 'Meetings',      sub: 'Frases de reunião — ouve, diz em voz alta, domina (offline)', fn: '_tutorCoachMeeting()' },
         { id: 'writing',  emoji: '📝', title: 'Writing',       sub: '100-150 words + AI rubric (Task/Coherence/Range/Accuracy)', fn: '_tutorCoachWriting()' },
         { id: 'pron',     emoji: '🗣️', title: 'Pronunciation', sub: 'Read aloud · Voxtral STT · linking/stress feedback',         fn: '_tutorCoachPron()' },
         { id: 'vocab',    emoji: '📚', title: 'Collocations',  sub: '10 collocations + phrasal verbs at your level',              fn: '_tutorCoachVocab()' },
+        { id: 'flash',    emoji: '📇', title: 'Flashcards',    sub: 'Cola até 20 palavras — cartões com exemplo e truque, no SRS', fn: '_tutorCoachFlash()' },
         { id: 'roleplay', emoji: '💬', title: 'Roleplay',      sub: 'Kickoff · Status · Escalation · Demo · 1:1 (meeting practice)', fn: '_tutorRenderRoleplayPrompt()' },
+        { id: 'immerse',  emoji: '🌍', title: 'Immersion',     sub: 'O teu texto em inglês natural + perguntas sobre ele',        fn: '_tutorCoachImmerse()' },
         { id: 'mistakes', emoji: '🎯', title: 'Mistakes',      sub: 'Drill topics where you got things wrong',                    fn: '_tutorRenderWeak()' },
+        { id: 'test',     emoji: '🧪', title: 'Progress test', sub: '10 perguntas sobre a tua semana — resultado só no fim',      fn: '_tutorCoachTest()' },
         { id: 'lesson',   emoji: '🪜', title: 'Lesson',        sub: 'Next topic on the CEFR ladder (' + lv + ')',                fn: '_tutorRenderDailyLesson()' },
         { id: 'review',   emoji: '🔁', title: 'Review',        sub: 'Spaced repetition cards in your phrasebook',                 fn: '_tutorOpenReview()' }
     ];
@@ -7055,6 +7060,8 @@ function _tutorRenderCoachDashboard() {
     const hasData = (id) => {
         if (id === 'mistakes') return (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1).length > 0;
         if (id === 'lesson')   return (typeof _tutorNextLadderTopic === 'function') && !!_tutorNextLadderTopic();
+        // O teste precisa de matéria da semana; sem ela não pode ser o foco do dia.
+        if (id === 'test')     return (typeof _tutorStudiedLast7d === 'function') && _tutorStudiedLast7d().length >= 3;
         return true;
     };
     for (let i = 0; i < skills.length && !hasData(skills[todayIdx].id); i++) {
@@ -7117,8 +7124,8 @@ function _tutorCoachStart(skillId) {
     if (!state.tutorSkillsDone[wkKey]) state.tutorSkillsDone[wkKey] = {};
     state.tutorSkillsDone[wkKey][skillId] = true;
     try { saveState && saveState(); } catch {}
-    // Move o dashboard para baixo do chat antes da skill renderizar.
-    _tutorRenderCoachDashboard();
+    // Move o plano para baixo do chat antes da skill renderizar.
+    _tutorPlanRender();
     // Pre-checks dos dois únicos casos que silenciosamente fazem nada.
     if (skillId === 'mistakes' && (typeof _tutorTopWeak !== 'function' || _tutorTopWeak(1).length === 0)) {
         _tutorAddTutor("🎯 No tracked mistakes yet — do some **Writing** or **Roleplay** first and I'll learn what to drill. (Tip: today try Writing — it auto-graded errors will feed this list.)");
@@ -7130,12 +7137,16 @@ function _tutorCoachStart(skillId) {
     }
     const rowsBefore = chat ? chat.querySelectorAll('.tutor-row').length : 0;
     const map = {
+        class: _tutorCoachClass,
         meet: _tutorCoachMeeting,
         writing: _tutorCoachWriting,
         pron: _tutorCoachPron,
         vocab: _tutorCoachVocab,
+        flash: _tutorCoachFlash,
         roleplay: _tutorRenderRoleplayPrompt,
+        immerse: _tutorCoachImmerse,
         mistakes: _tutorRenderWeak,
+        test: _tutorCoachTest,
         lesson: _tutorRenderDailyLesson,
         review: _tutorOpenReview
     };
@@ -7154,6 +7165,84 @@ function _tutorCoachStart(skillId) {
     }, 250);
 }
 window._tutorCoachStart = _tutorCoachStart;
+
+// ============================================================
+// PLANO DE 3 SEMANAS (v575) — uma estrutura simples por cima do Coach:
+// 21 dias, 3 passos por dia (revisão → aula → falar/escrever), ~20 min,
+// teste ao domingo e no dia 21. As skills todas ficam em "Mais opções".
+// ============================================================
+const TUTOR_PLAN_DAYS = 21;
+const TUTOR_SKILL_META = {
+    review:   ['🔁', 'Revisão rápida (cartões)', 3],
+    flash:    ['📇', 'Flashcards — 5 palavras novas', 5],
+    class:    ['🎓', 'Aula do dia', 8],
+    lesson:   ['🪜', 'Lição da escada CEFR', 8],
+    vocab:    ['📚', 'Collocations & phrasal verbs', 6],
+    immerse:  ['🌍', 'Imersão — o teu texto em inglês', 8],
+    test:     ['🧪', 'Teste de progresso', 8],
+    meet:     ['🤝', 'Falar — frases de reunião', 7],
+    pron:     ['🗣️', 'Falar — pronúncia em voz alta', 7],
+    roleplay: ['💬', 'Falar — roleplay de reunião', 8],
+    writing:  ['📝', 'Escrever — 100-150 palavras', 8],
+    mistakes: ['🎯', 'Treinar os teus erros', 5]
+};
+function _tutorPlanGet() {
+    if (!state.tutorPlan || !state.tutorPlan.start) { state.tutorPlan = { start: todayStr(), days: {} }; try { saveState(); } catch {} }
+    if (!state.tutorPlan.days) state.tutorPlan.days = {};
+    return state.tutorPlan;
+}
+function _tutorPlanDayIndex() { const p = _tutorPlanGet(); return Math.max(0, daysBetween(p.start, todayStr())); }
+function _tutorPlanSteps(dayIdx) {
+    const cores = ['class', 'lesson', 'vocab', 'class', 'lesson', 'immerse', 'test'];
+    const speaks = ['meet', 'pron', 'roleplay'];
+    let core = (dayIdx === TUTOR_PLAN_DAYS - 1) ? 'test' : cores[dayIdx % 7];
+    if (core === 'test' && typeof _tutorStudiedLast7d === 'function' && _tutorStudiedLast7d().length < 3) core = 'class';
+    const output = (dayIdx % 2 === 0) ? speaks[Math.floor(dayIdx / 2) % 3] : 'writing';
+    let review = 'review';
+    try { if (typeof _srsAll === 'function' && _srsAll().length < 5) review = 'flash'; } catch {}
+    return [{ slot: 'review', skill: review }, { slot: 'core', skill: core }, { slot: 'output', skill: output }];
+}
+function _tutorPlanRender() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    document.getElementById('tutor-plan-card')?.remove();
+    document.getElementById('tutor-coach-card')?.remove();
+    const plan = _tutorPlanGet();
+    const idx = _tutorPlanDayIndex();
+    const finished = idx >= TUTOR_PLAN_DAYS;
+    const done = plan.days[todayStr()] || {};
+    const steps = _tutorPlanSteps(Math.min(idx, TUTOR_PLAN_DAYS - 1));
+    const doneDays = Object.keys(plan.days).filter(k => { const d = plan.days[k]; return d && d.review && d.core && d.output; }).length;
+    const lv = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
+    const target = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
+    const tests = (state.max && state.max.tutorTests) || []; const lastT = tests[tests.length - 1];
+    const stepHtml = steps.map((st, i) => {
+        const m = TUTOR_SKILL_META[st.skill] || ['•', st.skill, 5];
+        const ok = !!done[st.slot];
+        return `<div class="tp-step ${ok ? 'done' : ''}"><span class="tp-num">${ok ? '✓' : (i + 1)}</span><span class="tp-info"><span class="tp-title">${m[0]} ${escapeHtml(m[1])}</span><span class="tp-sub">${m[2]} min</span></span><button class="tp-go" data-slot="${st.slot}" data-skill="${st.skill}" onclick="_tutorPlanStart(this)">${ok ? 'Repetir' : 'Começar'}</button></div>`;
+    }).join('');
+    const head = finished ? `🏁 Plano de 3 semanas concluído — ${doneDays} dias completos!` : `📅 Dia <b>${idx + 1}</b> de ${TUTOR_PLAN_DAYS} · <b>${doneDays}</b> dias completos`;
+    chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-plan-card"><div class="tutor-bubble-av">🎯</div><div class="tutor-coach tutor-plan">
+        <div class="tutor-coach-head"><div class="tutor-coach-h">${head}</div><div class="tutor-coach-meta">nível <b>${escapeHtml(lv)}</b> → alvo <b>${escapeHtml(target)}</b>${lastT ? ` · último teste <b>${Number(lastT.right) || 0}/${Number(lastT.total) || 0}</b>` : ''}</div></div>
+        ${finished ? `<button class="tct-start" onclick="_tutorPlanRestart()">Recomeçar 3 semanas</button>` : `<div class="tp-steps">${stepHtml}</div>`}
+        <details class="tp-more"><summary>Mais opções — todas as skills</summary></details>
+    </div></div>`);
+    const det = chat.querySelector('#tutor-plan-card details');
+    if (det) det.addEventListener('toggle', () => { if (det.open && !document.getElementById('tutor-coach-card')) _tutorRenderCoachDashboard(); });
+    _tutorScroll();
+}
+window._tutorPlanRender = _tutorPlanRender;
+function _tutorPlanStart(btn) {
+    const slot = btn && btn.dataset && btn.dataset.slot, skill = btn && btn.dataset && btn.dataset.skill;
+    if (!slot || !skill) return;
+    const plan = _tutorPlanGet(); const k = todayStr();
+    plan.days[k] = plan.days[k] || {}; plan.days[k][slot] = true;
+    try { saveState(); } catch {}
+    _tutorCoachStart(skill);
+}
+window._tutorPlanStart = _tutorPlanStart;
+function _tutorPlanRestart() { state.tutorPlan = { start: todayStr(), days: {} }; try { saveState(); } catch {} _tutorPlanRender(); }
+window._tutorPlanRestart = _tutorPlanRestart;
 
 // Alias retrocompatível com v490.
 function _tutorRenderCoachOfTheDay() { return _tutorRenderCoachDashboard(); }
@@ -7408,6 +7497,538 @@ async function _askMistralJSON(sys, usr) {
     clearTimeout(_to2); try { return JSON.parse(txt || '{}'); } catch { throw new Error('resposta IA inválida'); };
 }
 window._askMistralJSON = _askMistralJSON;
+
+// ============================================================
+// COACH · AULA DO DIA · FLASHCARDS · TESTE · IMERSÃO
+// Quatro skills que vivem TODAS dentro do tutor: reutilizam o
+// motor de prática (tutorState._pq), o phrasebook/SRS e o TTS.
+// Nada aqui toca na engine de exercícios dos anos 2–11.
+// ============================================================
+
+// JSON do provider disponível: Mistral (json_object) e, em fallback,
+// o provider genérico do MAX (Groq/Mistral) via callClaudeAPI.
+async function _tutorAskJSON(sys, usr, maxTokens) {
+    try {
+        const j = await _askMistralJSON(sys, usr);
+        if (j && typeof j === 'object') return j;
+    } catch (e) { /* sem chave Mistral ou falha — tenta o outro provider */ }
+    const { text } = await callClaudeAPI(sys + '\n\n' + usr, maxTokens || 1800, true);
+    return _extractJSON(text);
+}
+// Filtra perguntas de escolha múltipla mal formadas (o mesmo critério do
+// _tutorParseExercises, mas a partir de um array já parseado).
+function _tutorValidQuiz(arr, max) {
+    return (Array.isArray(arr) ? arr : []).filter(it =>
+        it && it.q && Array.isArray(it.options) && it.options.length >= 2 &&
+        typeof it.answer === 'number' && it.answer >= 0 && it.answer < it.options.length
+    ).slice(0, max || 10);
+}
+function _tutorBusy(msg) {
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> ${escapeHtml(msg)}</div>`;
+}
+// escapeHtml não escapa aspas — num atributo, uma aspa no texto da IA parte o
+// HTML. Os botões do tutor (_tutorSpeakBtn/_tutorSavePhraseBtn) já contam com
+// &quot;/&#39;, por isso é este o encoding certo para valores de atributo.
+function _tutorAttr(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// Tópico da aula: primeiro um erro por corrigir, senão o degrau seguinte da escada.
+function _tutorClassTopic() {
+    const weak = (typeof _tutorTopWeak === 'function') ? _tutorTopWeak(1) : [];
+    if (weak.length) return weak[0];
+    const nx = (typeof _tutorNextLadderTopic === 'function') ? _tutorNextLadderTopic() : null;
+    return (nx && nx.topic) || 'Business English essentials';
+}
+
+// === 1) AULA DO DIA ===
+// Aula focada com objetivo, 2-4 passos, exemplos, treino e quiz final.
+// Três variantes: gramática, conversação e listening (áudio via TTS).
+const _TUTOR_CLASS_FOCUS = {
+    grammar:      { emoji: '📐', label: 'Gramática',   sub: 'uma regra a fundo, com treino' },
+    conversation: { emoji: '💬', label: 'Conversação', sub: 'frases prontas para usar hoje' },
+    listening:    { emoji: '🎧', label: 'Listening',   sub: 'ouvir primeiro, ler depois' }
+};
+function _tutorCoachClass() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const topic = _tutorClassTopic();
+    const chips = Object.keys(_TUTOR_CLASS_FOCUS).map(k => {
+        const f = _TUTOR_CLASS_FOCUS[k];
+        return `<button class="tutor-class-focus" onclick="_tutorClassStart('${k}')">
+            <span class="tcf-em">${f.emoji}</span>
+            <span class="tcf-tt">${f.label}</span>
+            <span class="tcf-sub">${escapeHtml(f.sub)}</span>
+        </button>`;
+    }).join('');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🎓</div>
+        <div class="tutor-class">
+          <div class="tutor-class-h">🎓 Aula do dia · ${escapeHtml(_tutorTargetLevel())}</div>
+          <div class="tutor-class-goal">Tema de hoje: <b>${escapeHtml(topic)}</b> — escolhido a partir dos teus erros. Escolhe o foco:</div>
+          <div class="tutor-class-focuses">${chips}</div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+window._tutorCoachClass = _tutorCoachClass;
+
+async function _tutorClassStart(focus) {
+    if (!tutorState) return;
+    focus = _TUTOR_CLASS_FOCUS[focus] ? focus : 'grammar';
+    const f = _TUTOR_CLASS_FOCUS[focus];
+    const lv = _tutorTargetLevel();
+    const topic = _tutorClassTopic();
+    _tutorBusy(`A preparar a aula de ${f.label}…`);
+    const sys = `You are an English tutor building a focused ~20-minute lesson for a Portuguese Project Manager working in SAP/consulting, consolidating CEFR ${lv}. Return ONLY a JSON object.
+LANGUAGE RULES (critical): every explanation is in EUROPEAN PORTUGUESE (Portugal, never Brazilian); every example, phrase, question and option is in ENGLISH; grammar term names (Simple Past, Present Perfect, Conditionals, Prepositions…) stay in ENGLISH even inside the Portuguese text.
+Focus of this lesson: ${focus === 'grammar' ? 'GRAMMAR — one rule taught through meaning, with a mental model and a golden rule.' : focus === 'conversation' ? 'CONVERSATION — ready-to-use phrases for real meetings, with register and when to use each.' : 'LISTENING — a short spoken passage the student will hear, then comprehension.'}
+Shape:
+{"title":"lesson title in PT-PT (grammar terms in English)",
+ "goal":"PT-PT, ONE sentence: what the student will be able to do at the end",
+ "steps":[{"h":"step title PT-PT","body":"PT-PT explanation, 40-70 words","examples":["English example sentence"]}],
+ "phrases":[{"en":"English phrase worth memorising","pt":"PT-PT meaning"}],
+ "script":${focus === 'listening' ? '"a natural English passage of 70-100 words — a meeting excerpt or voicemail the student will LISTEN to; it must contain the answers to the drill questions"' : '""'},
+ "drill":[{"q":"English question or sentence with ONE gap ___","options":["English","English","English"],"answer":0,"exp":"1-line explanation in English","expPt":"nota PT-PT max 12 palavras","topic":"category in English grammar terms"}],
+ "quiz":[{"q":"…","options":["…","…","…"],"answer":0,"exp":"…","expPt":"…","topic":"…"}]}
+Include 3 "steps" (2-3 examples each), 3 "phrases", 4 "drill" items and 3 "quiz" items. The quiz closes the lesson and must mix everything taught. QUALITY: exactly ONE "___" per gapped sentence; the correct answer must not appear elsewhere in the sentence; exactly one option fits naturally, the others must be clearly wrong.${focus === 'listening' ? ' The drill and quiz questions must be answerable ONLY by having listened to "script".' : ''}`;
+    const usr = `Topic: "${topic}". Level: ${lv}. Focus: ${focus}. Build the lesson now.`;
+    let d = null;
+    try { d = await _tutorAskJSON(sys, usr, 2800); } catch (e) { console.warn('[coach] class failed', e); }
+    if (!tutorState) return;
+    const steps = Array.isArray(d && d.steps) ? d.steps.slice(0, 4) : [];
+    const phrases = Array.isArray(d && d.phrases) ? d.phrases.slice(0, 4) : [];
+    const drill = _tutorValidQuiz(d && d.drill, 4);
+    const quiz = _tutorValidQuiz(d && d.quiz, 3);
+    const script = String((d && d.script) || '').trim();
+    if (!steps.length || (!drill.length && !quiz.length)) {
+        _tutorAddTutor('Não consegui preparar a aula agora. Tentamos outra vez daqui a pouco?', '', '', true);
+        return;
+    }
+    const cid = 'cls' + Date.now();
+    const stepsHtml = steps.map((s, i) => {
+        const ex = (Array.isArray(s.examples) ? s.examples : []).slice(0, 3).map(e =>
+            `<div class="tutor-class-ex">${escapeHtml(String(e))}
+               <button class="tutor-say" data-text="${_tutorAttr(e)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+             </div>`).join('');
+        return `<div class="tutor-class-step">
+            <div class="tcs-h"><span class="tcs-n">${i + 1}</span> ${escapeHtml(String(s.h || ''))}</div>
+            <div class="tcs-b">${escapeHtml(String(s.body || ''))}</div>
+            ${ex}
+          </div>`;
+    }).join('');
+    const phrasesHtml = phrases.length ? `<div class="tutor-class-phrases">
+        <div class="tcp-h">📌 Para levar contigo</div>
+        ${phrases.map(p => `<div class="tutor-class-phrase">
+            <b>${escapeHtml(String(p.en || ''))}</b>
+            <button class="tutor-say" data-text="${_tutorAttr(p.en)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-save" data-text="${_tutorAttr(p.en)}" data-note="${_tutorAttr(p.pt)}" data-topic="${_tutorAttr(topic)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+            <span class="tcp-pt">${escapeHtml(String(p.pt || ''))}</span>
+          </div>`).join('')}
+      </div>` : '';
+    // Listening: o áudio manda. O texto fica escondido até o aluno querer confirmar.
+    const audioHtml = (focus === 'listening' && script) ? `<div class="tutor-class-audio">
+        <button class="tutor-class-play" data-text="${_tutorAttr(script)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-headphones"></i> Ouvir outra vez</button>
+        <button class="tutor-class-reveal" onclick="document.getElementById('${cid}-scr').style.display='block';this.style.display='none'">Mostrar transcrição</button>
+        <div class="tutor-class-script" id="${cid}-scr" style="display:none">${escapeHtml(script)}</div>
+      </div>` : '';
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">${f.emoji}</div>
+        <div class="tutor-class taught">
+          <div class="tutor-class-h">${f.emoji} ${escapeHtml(String(d.title || topic))} · ${escapeHtml(lv)}</div>
+          ${d.goal ? `<div class="tutor-class-goal">🎯 ${escapeHtml(String(d.goal))}</div>` : ''}
+          ${audioHtml}
+          ${stepsHtml}
+          ${phrasesHtml}
+          <div class="tutor-class-next">A seguir: ${drill.length} exercícios${quiz.length ? ` e um quiz de ${quiz.length} perguntas` : ''}.</div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    if (focus === 'listening' && script && typeof _tutorSpeak === 'function') _tutorSpeak(script);
+    drill.forEach(it => { it.depth = 0; if (!it.topic) it.topic = topic; });
+    quiz.forEach(it => { it.depth = 0; it.isQuiz = true; if (!it.topic) it.topic = topic; });
+    tutorState._pq = { queue: drill.concat(quiz), topic };
+    tutorState._lastTopic = topic;
+    try { _tutorMarkExplored(topic); } catch {}
+    _tutorRenderPracticeItem();
+}
+window._tutorClassStart = _tutorClassStart;
+
+// === 2) FLASHCARDS EM LOTE ===
+// Lista de palavras → cartões com significado, exemplo e truque de
+// memorização, guardados de uma vez no phrasebook/SRS que já existe.
+const _TUTOR_FLASH_SEED = [
+    'cut-over', 'go-live', 'milestone', 'blocker', 'scope creep', 'stakeholder',
+    'sign-off', 'workaround', 'rollout', 'handover', 'lessons learned', 'dependency',
+    'bottleneck', 'contingency', 'escalate', 'de-scope', 'baseline', 'burn rate',
+    'steering committee', 'audit trail'
+];
+function _tutorCoachFlash() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const tid = 'flash-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">📇</div>
+        <div class="tutor-coach-task">
+          <div class="tutor-coach-task-h">📇 Flashcards · até 20 de uma vez</div>
+          <div class="tutor-coach-task-p">Cola as palavras ou expressões que queres fixar — uma por linha, ou separadas por vírgulas. Faço-te um cartão com significado, exemplo de uso e um truque de memorização, e mando tudo para o teu phrasebook.</div>
+          <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="cut-over&#10;scope creep&#10;to escalate…" rows="5"></textarea>
+          <div class="tutor-coach-task-bar">
+            <button class="tutor-lbtn cont" onclick="_tutorFlashSeed('${tid}')"><i class="fas fa-wand-magic-sparkles"></i> Vocabulário SAP/PM</button>
+            <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorFlashSubmit(this.dataset.tid)">Criar flashcards →</button>
+          </div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
+window._tutorCoachFlash = _tutorCoachFlash;
+function _tutorFlashSeed(tid) {
+    const ta = document.getElementById(tid + '-ta');
+    if (ta) { ta.value = _TUTOR_FLASH_SEED.join('\n'); ta.focus(); }
+}
+window._tutorFlashSeed = _tutorFlashSeed;
+
+async function _tutorFlashSubmit(tid) {
+    const ta = document.getElementById(tid + '-ta');
+    if (!ta) return;
+    const words = String(ta.value || '').split(/[\n,;]+/).map(s => s.trim()).filter(Boolean).slice(0, 20);
+    if (!words.length) { showToast && showToast('Escreve pelo menos uma palavra'); return; }
+    const submit = document.querySelector(`button.tutor-coach-submit[data-tid="${tid}"]`);
+    if (submit) { submit.disabled = true; submit.textContent = 'A criar…'; }
+    _tutorBusy(`A criar ${words.length} flashcards…`);
+    const lv = _tutorTargetLevel();
+    const sys = `You are an English tutor making flashcards for a Portuguese Project Manager (CEFR ${lv}) working in SAP/consulting. Return ONLY a JSON object: {"cards":[{"term":"the English term exactly as given","pt":"EUROPEAN PORTUGUESE meaning, max 10 words","example":"ONE natural English sentence from project/meeting life using the term","trick":"a short memorisation trick in EUROPEAN PORTUGUESE — a cognate, false friend warning, image or word-part breakdown, max 15 words"}]}
+Keep "term" exactly as the student wrote it. One card per term, same order, no extras. Portuguese is always European Portuguese (Portugal), never Brazilian.`;
+    const usr = `Terms:\n${words.map(w => '- ' + w).join('\n')}`;
+    let cards = [];
+    try {
+        const j = await _tutorAskJSON(sys, usr, 2200);
+        cards = (Array.isArray(j && j.cards) ? j.cards : []).filter(c => c && c.term).slice(0, 20);
+    } catch (e) { console.warn('[coach] flash failed', e); }
+    if (!tutorState) return;
+    if (!cards.length) {
+        if (submit) { submit.disabled = false; submit.textContent = 'Criar flashcards →'; }
+        _tutorAddTutor('Não consegui criar os cartões agora. Tentamos outra vez?', '', '', true);
+        return;
+    }
+    tutorState._flash = { tid, cards };
+    const list = cards.map((c, i) => `
+        <label class="tutor-flash-item">
+          <input type="checkbox" checked data-i="${i}">
+          <span class="tfi-body">
+            <span class="tfi-term">${escapeHtml(String(c.term))}</span>
+            <span class="tfi-pt">${escapeHtml(String(c.pt || ''))}</span>
+            ${c.example ? `<span class="tfi-ex">“${escapeHtml(String(c.example))}”</span>` : ''}
+            ${c.trick ? `<span class="tfi-trick">💡 ${escapeHtml(String(c.trick))}</span>` : ''}
+          </span>
+        </label>`).join('');
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">📇</div>
+        <div class="tutor-coach-task">
+          <div class="tutor-coach-task-h">📇 ${cards.length} cartões prontos · desmarca os que não queres</div>
+          <div class="tutor-flash-list" id="${tid}-list">${list}</div>
+          <div class="tutor-coach-task-bar">
+            <span class="tutor-coach-count">vão para o phrasebook</span>
+            <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorFlashSave(this.dataset.tid)">Guardar no phrasebook →</button>
+          </div>
+        </div>
+      </div>`);
+    if (submit) submit.remove();
+    ta.readOnly = true;
+    _tutorRenderMic();
+    _tutorScroll();
+}
+window._tutorFlashSubmit = _tutorFlashSubmit;
+
+function _tutorFlashSave(tid) {
+    const st = tutorState && tutorState._flash;
+    const box = document.getElementById(tid + '-list');
+    if (!st || !box) return;
+    const picked = Array.from(box.querySelectorAll('input[type=checkbox]'))
+        .filter(c => c.checked)
+        .map(c => st.cards[parseInt(c.dataset.i, 10)])
+        .filter(Boolean);
+    let added = 0, dup = 0;
+    picked.forEach(c => {
+        const text = String(c.term || '').trim();
+        if (!text) return;
+        if (_srsAll().some(x => x.type === 'phrase' && x.text === text)) { dup++; return; }
+        const note = [
+            String(c.pt || '').trim(),
+            c.example ? `“${String(c.example).trim()}”` : '',
+            c.trick ? `💡 ${String(c.trick).trim()}` : ''
+        ].filter(Boolean).join('\n');
+        _srsAdd({ type: 'phrase', text, note, topic: 'Flashcards' });
+        added++;
+    });
+    const btn = document.querySelector(`#${tid}-list`)?.closest('.tutor-coach-task')?.querySelector('.tutor-coach-submit');
+    if (btn) { btn.disabled = true; btn.textContent = added ? `✓ ${added} guardados` : 'Nada novo a guardar'; }
+    _tutorUpdateReviewBadge();
+    showToast && showToast(added ? `💾 ${added} cartões no phrasebook${dup ? ` (${dup} já lá estavam)` : ''}` : 'Já tinhas todos no phrasebook');
+    if (added) _tutorAddTutor(`Guardei ${added} ${added === 1 ? 'cartão' : 'cartões'}. Aparecem na Review pela ordem certa — hoje, daqui a 3 dias, a uma semana… até ficarem colados.`, '', '', true);
+}
+window._tutorFlashSave = _tutorFlashSave;
+
+// === 3) TESTE DE PROGRESSO ===
+// 10 perguntas sobre o que foi mesmo estudado nos últimos 7 dias.
+// Sem correção pelo caminho: respondes tudo e só depois vês o resultado.
+function _tutorStudiedLast7d() {
+    const since = Date.now() - 7 * 864e5;
+    const max = (state && state.max) || {};
+    const set = new Set();
+    const add = (t) => { t = String(t || '').trim(); if (t && t.length <= 60) set.add(t); };
+    Object.keys(max.tutorExplored || {}).forEach(t => { if ((max.tutorExplored[t] || 0) >= since) add(t); });
+    Object.keys(max.tutorConsolidated || {}).forEach(t => { if ((max.tutorConsolidated[t] || 0) >= since) add(t); });
+    Object.keys(max.tutorWeak || {}).forEach(t => { if (((max.tutorWeak[t] || {}).last || 0) >= since) add(t); });
+    (Array.isArray(max.srs) ? max.srs : []).forEach(c => { if ((c.createdAt || 0) >= since) add(c.topic || c.text); });
+    ((state && state.tutorVocabHistory) || []).forEach(h => {
+        if ((h.at || 0) >= since) (h.items || []).slice(0, 4).forEach(it => add(it && it.collocation));
+    });
+    return Array.from(set).slice(0, 18);
+}
+async function _tutorCoachTest() {
+    if (!tutorState) return;
+    const topics = _tutorStudiedLast7d();
+    if (topics.length < 3) {
+        _tutorAddTutor('🧪 Ainda não tenho matéria suficiente desta semana para te testar. Faz uma Aula, um Roleplay ou uns Flashcards e volta cá — o teste é montado a partir do que estudaste mesmo.', '', '', true);
+        return;
+    }
+    const lv = _tutorTargetLevel();
+    // Anuncia ANTES do await: o dispatcher do coach tem um safety net a 250ms
+    // que avisa "nada para carregar" se nenhuma linha aparecer no chat.
+    const chatIntro = document.getElementById('tutor-chat');
+    if (chatIntro) chatIntro.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🧪</div>
+        <div class="tutor-bubble tutor-them"><span>Teste de progresso: perguntas sobre o que estudaste nos últimos 7 dias (${topics.length} ${topics.length === 1 ? 'tópico' : 'tópicos'}). Não te corrijo pelo caminho — respondes tudo e vês o resultado no fim.</span></div>
+      </div>`);
+    _tutorScroll();
+    _tutorBusy('A montar o teste dos últimos 7 dias…');
+    const sys = `You are an English examiner writing a 10-question progress test for a Portuguese Project Manager at CEFR ${lv}, working in SAP/consulting. The test must cover ONLY the topics the student studied this week, given below — spread the questions across them, hardest topics twice if needed. Return ONLY a JSON object:
+{"questions":[{"q":"English question or sentence with ONE gap ___","options":["English","English","English"],"answer":0,"exp":"1-line explanation in ENGLISH","expPt":"nota PT-PT max 12 palavras","topic":"which studied topic this tests"}]}
+Exactly 10 questions. QUALITY (critical): exactly ONE "___" per gapped sentence; the correct answer must NOT appear elsewhere in the sentence; exactly one option fits naturally and the other two must be clearly wrong; once filled, the sentence must read as natural English. "topic" must be one of the studied topics, copied verbatim. Portuguese notes in EUROPEAN PORTUGUESE (Portugal, never Brazilian), grammar term names in English.`;
+    const usr = `Topics studied in the last 7 days:\n${topics.map(t => '- ' + t).join('\n')}`;
+    let items = [];
+    try {
+        const j = await _tutorAskJSON(sys, usr, 2600);
+        items = _tutorValidQuiz(j && j.questions, 10);
+    } catch (e) { console.warn('[coach] test failed', e); }
+    if (!tutorState) return;
+    if (items.length < 4) {
+        _tutorAddTutor('Não consegui montar o teste agora. Tentamos outra vez daqui a pouco?', '', '', true);
+        return;
+    }
+    tutorState._test = { items, idx: 0, answers: [], startedAt: Date.now() };
+    _tutorTestRender();
+}
+window._tutorCoachTest = _tutorCoachTest;
+
+function _tutorTestRender() {
+    const t = tutorState && tutorState._test;
+    if (!t) return;
+    if (t.idx >= t.items.length) { _tutorTestFinish(); return; }
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const it = t.items[t.idx];
+    const qid = 'tq' + Date.now() + Math.floor(Math.random() * 1000);
+    t._el = qid;
+    const opts = it.options.map((o, i) =>
+        `<button class="tutor-qopt" onclick="_tutorTestAnswer(${i})">${String.fromCharCode(65 + i)}. ${escapeHtml(String(o))}</button>`).join('');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🧪</div>
+        <div class="tutor-quiz tutor-test" id="${qid}">
+          <div class="tutor-quiz-h"><span>Teste de progresso</span><span class="tutor-test-prog">${t.idx + 1}/${t.items.length}</span></div>
+          <div class="tutor-quiz-q">${escapeHtml(String(it.q))}</div>
+          <div class="tutor-quiz-opts">${opts}</div>
+          <div class="tutor-test-hint">Sem correção agora — vês tudo no fim.</div>
+        </div>
+      </div>`);
+    _tutorScroll();
+    const bar = document.getElementById('tutor-bar');
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar"><span>Pergunta ${t.idx + 1} de ${t.items.length}</span> <button class="tutor-quit" onclick="_tutorTestQuit()"><i class="fas fa-arrow-left"></i> desistir</button></div>`;
+}
+function _tutorTestAnswer(i) {
+    const t = tutorState && tutorState._test;
+    if (!t) return;
+    const card = document.getElementById(t._el);
+    if (!card || card.dataset.done) return;
+    card.dataset.done = '1';
+    card.querySelectorAll('.tutor-qopt').forEach((b, idx) => { b.disabled = true; if (idx === i) b.classList.add('picked'); });
+    if (typeof _haptic === 'function') _haptic('ok');
+    t.answers.push(i);
+    t.idx++;
+    setTimeout(() => { if (tutorState && tutorState._test) _tutorTestRender(); }, 260);
+}
+window._tutorTestAnswer = _tutorTestAnswer;
+function _tutorTestQuit() {
+    if (!tutorState) return;
+    tutorState._test = null;
+    _tutorAddTutor('Sem problema — o teste fica para outra altura. Continuamos a conversar?', '', '', true);
+}
+window._tutorTestQuit = _tutorTestQuit;
+
+function _tutorTestFinish() {
+    const t = tutorState && tutorState._test;
+    if (!t) return;
+    let right = 0;
+    const wrong = [];
+    const rows = t.items.map((it, k) => {
+        const a = t.answers[k];
+        const ok = a === it.answer;
+        if (ok) right++; else wrong.push(it);
+        try { _tutorTrackWeak(it.topic, ok); } catch {}
+        const yours = (typeof a === 'number' && it.options[a] !== undefined) ? String(it.options[a]) : '—';
+        return `<div class="tutor-test-row ${ok ? 'ok' : 'err'}">
+            <div class="ttr-h">${ok ? '✓' : '×'} ${k + 1}. ${escapeHtml(String(it.q))}</div>
+            ${ok ? '' : `<div class="ttr-a">Respondeste: <s>${escapeHtml(yours)}</s></div>`}
+            <div class="ttr-c">Correta: <b>${escapeHtml(String(it.options[it.answer] || ''))}</b></div>
+            ${it.exp ? `<div class="ttr-e">${escapeHtml(String(it.exp))}</div>` : ''}
+            ${it.expPt ? `<div class="ttr-e pt">${escapeHtml(String(it.expPt))}</div>` : ''}
+          </div>`;
+    }).join('');
+    const total = t.items.length;
+    const pct = Math.round((right / total) * 100);
+    const verdict = pct >= 90 ? 'Excelente — a semana ficou consolidada.'
+                  : pct >= 70 ? 'Bom — falta afinar dois ou três pontos.'
+                  : pct >= 50 ? 'Razoável — vale a pena repetir a matéria fraca.'
+                  : 'Ainda verde — vamos rever isto com calma.';
+    // Histórico: permite ver a evolução dos testes semanais.
+    if (state.max) {
+        state.max.tutorTests = Array.isArray(state.max.tutorTests) ? state.max.tutorTests : [];
+        state.max.tutorTests.push({ at: Date.now(), right, total });
+        if (state.max.tutorTests.length > 40) state.max.tutorTests.shift();
+        try { saveState(); } catch {}
+    }
+    // Erros → SRS, para voltarem sozinhos daqui a uns dias.
+    wrong.forEach(it => { try { _tutorEnqueueTopic(it.topic); } catch {} });
+    tutorState._testWrong = wrong;
+    tutorState._test = null;
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🧪</div>
+        <div class="tutor-test-res">
+          <div class="ttres-h">🧪 Resultado do teste</div>
+          <div class="ttres-score"><b>${right}</b> / ${total} <span class="ttres-pct">${pct}%</span></div>
+          <div class="ttres-verdict">${escapeHtml(verdict)}</div>
+          <div class="tutor-test-rows">${rows}</div>
+          ${wrong.length ? `<button class="tutor-lbtn prac full" onclick="_tutorTestPracticeWrong()"><i class="fas fa-dumbbell"></i> Praticar os ${wrong.length} erros</button>` : ''}
+        </div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderMic();
+}
+function _tutorTestPracticeWrong() {
+    const wrongItems = (tutorState && tutorState._testWrong) || [];
+    if (!wrongItems.length) { showToast && showToast('Sem erros para praticar 🎉'); return; }
+    const queue = wrongItems.map(it => Object.assign({}, it, { depth: 0, isQuiz: false }));
+    tutorState._pq = { queue, topic: queue[0].topic || 'Teste de progresso' };
+    tutorState._testWrong = null;
+    _tutorRenderPracticeItem();
+}
+window._tutorTestPracticeWrong = _tutorTestPracticeWrong;
+
+// === 4) MODO IMERSÃO ===
+// Texto teu (um email, uma nota de reunião) → versão inglesa natural,
+// glossário e expressões guardáveis, e perguntas sobre o próprio texto.
+function _tutorCoachImmerse() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const tid = 'imm-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🌍</div>
+        <div class="tutor-coach-task">
+          <div class="tutor-coach-task-h">🌍 Modo imersão · o teu texto</div>
+          <div class="tutor-coach-task-p">Cola um texto teu — um email de projeto, uma nota de reunião, um parágrafo qualquer. Traduzo para inglês natural, marco o vocabulário e as expressões que valem a pena, e depois faço-te perguntas sobre ele.</div>
+          <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="Cola aqui o texto (PT ou EN)…" rows="6"></textarea>
+          <div class="tutor-coach-task-bar">
+            <span id="${tid}-count" class="tutor-coach-count">0 palavras</span>
+            <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorImmerseSubmit(this.dataset.tid)">Traduzir e perguntar →</button>
+          </div>
+        </div>
+      </div>`);
+    const ta = document.getElementById(tid + '-ta');
+    const counter = document.getElementById(tid + '-count');
+    if (ta && counter) {
+        ta.addEventListener('input', () => {
+            const w = (ta.value.match(/\S+/g) || []).length;
+            counter.textContent = w + ' palavras';
+            counter.style.color = w >= 20 ? '#16a34a' : '#94a3b8';
+        });
+    }
+    _tutorScroll();
+}
+window._tutorCoachImmerse = _tutorCoachImmerse;
+
+async function _tutorImmerseSubmit(tid) {
+    const ta = document.getElementById(tid + '-ta');
+    if (!ta) return;
+    const src = String(ta.value || '').trim();
+    if (src.length < 40) { showToast && showToast('Cola um texto um pouco maior (40+ caracteres)'); return; }
+    const submit = document.querySelector(`button.tutor-coach-submit[data-tid="${tid}"]`);
+    if (submit) { submit.disabled = true; submit.textContent = 'A traduzir…'; }
+    _tutorBusy('A traduzir e a preparar as perguntas…');
+    const lv = _tutorTargetLevel();
+    const sys = `You are an English tutor working with a Portuguese Project Manager at CEFR ${lv} in SAP/consulting. The student pastes a text. If it is in Portuguese, translate it into natural, idiomatic ENGLISH at ${lv} level (professional register, not word-for-word). If it is already in English, rewrite it as a more natural, native-sounding version. Return ONLY a JSON object:
+{"translation":"the English text",
+ "glossary":[{"en":"key word/term from the translation","pt":"EUROPEAN PORTUGUESE meaning, max 8 words"}],
+ "expressions":[{"en":"idiomatic expression or collocation used","pt":"PT-PT meaning","why":"PT-PT, max 12 words: why this is the natural choice"}],
+ "questions":[{"q":"English question ABOUT THIS TEXT — vocabulary, expression or interpretation","options":["English","English","English"],"answer":0,"exp":"1-line explanation in English","expPt":"nota PT-PT max 12 palavras","topic":"Vocabulary|Expressions|Interpretation"}]}
+Include 5 glossary entries, 3 expressions and 4 questions (at least one on vocabulary, one on an expression and one on interpretation of the meaning). All Portuguese is EUROPEAN PORTUGUESE (Portugal, never Brazilian). Every question and option in ENGLISH.`;
+    let d = null;
+    try { d = await _tutorAskJSON(sys, 'Text:\n' + src, 2800); } catch (e) { console.warn('[coach] immerse failed', e); }
+    if (!tutorState) return;
+    const translation = String((d && d.translation) || '').trim();
+    const questions = _tutorValidQuiz(d && d.questions, 4);
+    if (!translation) {
+        if (submit) { submit.disabled = false; submit.textContent = 'Traduzir e perguntar →'; }
+        _tutorAddTutor('Não consegui traduzir isso agora. Tentamos outra vez?', '', '', true);
+        return;
+    }
+    const gloss = (Array.isArray(d.glossary) ? d.glossary : []).slice(0, 6);
+    const exprs = (Array.isArray(d.expressions) ? d.expressions : []).slice(0, 4);
+    const glossHtml = gloss.length ? `<div class="tutor-imm-sec"><div class="tis-h">📖 Vocabulário</div>${
+        gloss.map(g => `<div class="tutor-imm-item">
+            <b>${escapeHtml(String(g.en || ''))}</b>
+            <button class="tutor-say" data-text="${_tutorAttr(g.en)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-save" data-text="${_tutorAttr(g.en)}" data-note="${_tutorAttr(g.pt)}" data-topic="Imersão" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+            <span class="tii-pt">${escapeHtml(String(g.pt || ''))}</span>
+          </div>`).join('')}</div>` : '';
+    const exprHtml = exprs.length ? `<div class="tutor-imm-sec"><div class="tis-h">✨ Expressões</div>${
+        exprs.map(e => `<div class="tutor-imm-item">
+            <b>${escapeHtml(String(e.en || ''))}</b>
+            <button class="tutor-say" data-text="${_tutorAttr(e.en)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-save" data-text="${_tutorAttr(e.en)}" data-note="${_tutorAttr([e.pt, e.why].filter(Boolean).join(' · '))}" data-topic="Imersão" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+            <span class="tii-pt">${escapeHtml(String(e.pt || ''))}</span>
+            ${e.why ? `<span class="tii-why">${escapeHtml(String(e.why))}</span>` : ''}
+          </div>`).join('')}</div>` : '';
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">🌍</div>
+        <div class="tutor-imm">
+          <div class="tutor-imm-h">🌍 Em inglês · ${escapeHtml(lv)}
+            <button class="tutor-say" data-text="${_tutorAttr(translation)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+          </div>
+          <div class="tutor-imm-tr">${escapeHtml(translation)}</div>
+          ${glossHtml}
+          ${exprHtml}
+          ${questions.length ? `<div class="tutor-class-next">A seguir: ${questions.length} perguntas sobre este texto.</div>` : ''}
+        </div>
+      </div>`);
+    if (submit) submit.remove();
+    ta.readOnly = true;
+    _tutorScroll();
+    if (questions.length) {
+        questions.forEach(it => { it.depth = 0; if (!it.topic) it.topic = 'Imersão'; });
+        tutorState._pq = { queue: questions, topic: 'Imersão' };
+        _tutorRenderPracticeItem();
+    } else {
+        _tutorRenderMic();
+    }
+}
+window._tutorImmerseSubmit = _tutorImmerseSubmit;
 
 // === MEETINGS — frases funcionais de reunião (treino oral, 100% offline) ===
 // Banco curado de linguagem funcional: o que realmente se diz numa reunião.
@@ -8792,7 +9413,8 @@ function _tutorRenderPracticeItem() {
     const qid = 'q' + Date.now() + Math.floor(Math.random() * 1000);
     pq._el = qid;
     const depth = it.depth || 0;
-    const label = depth > 0 ? '🔁 Reforço do erro' : 'Exercício';
+    // isQuiz vem da Aula do dia: marca o quiz que fecha a lição.
+    const label = depth > 0 ? '🔁 Reforço do erro' : (it.isQuiz ? '🏁 Quiz final' : 'Exercício');
     const topic = it.topic || pq.topic || '';
     const speakQ = (it.q || '').replace(/\s*_{2,}\s*/g, ', ').replace(/\s+/g, ' ').trim();
     const opts = it.options.map((o, i) => `<button class="tutor-qopt" data-i="${i}" onclick="_tutorPracticeAnswer(${i})">${String.fromCharCode(65 + i)}. ${escapeHtml(o)}</button>`).join('');
