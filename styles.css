@@ -1306,7 +1306,7 @@ button, input, textarea, select { font-family: inherit; }
     background: #fff;
     border-top: 1px solid var(--border);
     padding: 18px 16px 16px;
-    /* Já não é sticky — flui no documento. A barra de acção (ex-action-bar)
+    /* Já não é sticky — flui no documento. A barra de ação (ex-action-bar)
        é que fica fixa no fundo com "Responder" → "Continuar". */
 }
 .feedback-icon { font-size: var(--fs-3xl); text-align: center; margin-bottom: 4px; }
@@ -2169,7 +2169,7 @@ button, input, textarea, select { font-family: inherit; }
     100% { box-shadow: 0 0 8px rgba(255,255,255,0.6); }
 }
 .reward-progress-bar-fill { animation: barShine 2.4s ease-in-out infinite; }
-/* Progress dot da pergunta actual: pulsa */
+/* Progress dot da pergunta atual: pulsa */
 .progress-dot.current {
     animation: pulseScale 1.4s ease-in-out infinite;
     transform-origin: center;
@@ -2309,7 +2309,7 @@ button, input, textarea, select { font-family: inherit; }
     color: #4338ca;
     background: #e0e7ff;
 }
-.test-grade-actual {
+.test-grade-atual {
     color: #1e40af;
     background: #dbeafe;
 }
@@ -2972,7 +2972,7 @@ button, input, textarea, select { font-family: inherit; }
 }
 
 /* ========================================================
-   Barra de acção fixa no fundo (Duolingo-style):
+   Barra de ação fixa no fundo (Duolingo-style):
    Responder → Continuar no mesmo sítio
    ======================================================== */
 .ex-action-bar {
@@ -3716,7 +3716,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 
 
 /* ========================================================
-   FILTRO DE TÓPICOS — pill "Só activos" / "Todos" (v229)
+   FILTRO DE TÓPICOS — pill "Só ativos" / "Todos" (v229)
    ======================================================== */
 
 .ep-topic-controls {
@@ -5639,7 +5639,7 @@ body.has-teacher-overlay #subject-detail-container {
     margin-bottom: 10px;
     line-height: 1.45;
 }
-/* Badge mostra se está com Voxtral activo ou se falta a chave Mistral. */
+/* Badge mostra se está com Voxtral ativo ou se falta a chave Mistral. */
 .teacher-stt-badge {
     text-align: center;
     font-size: 0.78rem;
@@ -6746,3 +6746,30 @@ body.has-teacher-overlay #subject-detail-container {
 #lesson-gate-btn.ready:active { transform: scale(0.97); }
 @keyframes gateReady { from { transform: scale(0.94); } to { transform: scale(1); } }
 .lesson-gate-why { font-size: 0.84rem; font-weight: 700; color: #92400e; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; text-align: center; }
+
+
+/* ── Acessibilidade e ergonomia (v572) ── */
+/* Certo/errado nunca só pela cor: marca ✓ / ✕ e cores com contraste AA */
+.btn-option.correct { color: #14532d; }
+.btn-option.wrong { color: #7f1d1d; }
+.btn-option.correct::after { content: ' ✓'; font-weight: 900; margin-left: auto; padding-left: 8px; }
+.btn-option.wrong::after { content: ' ✕'; font-weight: 900; margin-left: auto; padding-left: 8px; }
+.qt-opt.correct::after { content: ' ✓'; font-weight: 900; }
+.qt-opt.wrong::after { content: ' ✕'; font-weight: 900; }
+.paper-r.ok::before { content: ''; }
+/* Alvos de toque ≥44-48px para crianças */
+.order-btn { width: 48px; height: 48px; }
+.order-ctrls { gap: 10px; }
+.tutor-say, .tutor-save { width: 44px; height: 44px; font-size: 1rem; margin-left: 8px; }
+.exercise-header { gap: 12px; }
+/* Contrastes AA em texto que se lê */
+:root { --text-muted: #64748b; }
+.ex-doubt-trigger { font-size: var(--fs-sm, 0.875rem); color: #be185d; }
+:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }
+#lesson-gate-btn { color: #475569; }
+.pd-sub, .adm-when, .pdd-sess-h, .pd-heat-legend, .tutor-coach-count, .review-orlabel { color: #64748b; }
+.pdd-chip { font-size: 0.75rem; }
+.course-node-sub, .leitura-card-badge, .leitura-card-diff, .teacher-stt-badge { font-size: 0.85rem; }
+/* Cartões com role=button: cursor e foco visíveis */
+[role="button"][tabindex="0"] { cursor: pointer; }
+[role="button"][tabindex="0"]:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }

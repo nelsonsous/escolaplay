@@ -1,15 +1,12 @@
-const CACHE_NAME = 'escolaplay-v571';
+const CACHE_NAME = 'escolaplay-v572';
 // Núcleo: TEM de existir — se falhar, o SW não instala (evita servir uma
 // app incompleta). Bump do CACHE_NAME a cada release = novo cache limpo.
 const CORE = [
     '/escolaplay/',
     '/escolaplay/index.html',
     '/escolaplay/styles.css',
-    '/escolaplay/escape.css',
     '/escolaplay/app.js',
     '/escolaplay/content.js',
-    '/escolaplay/escape.js',
-    '/escolaplay/gsap.min.js',
     '/escolaplay/mascot.js',
     '/escolaplay/manifest.json',
     // NOTA (v439): os ficheiros content_<ano>_*.js já não estão no precache.
@@ -20,6 +17,8 @@ const CORE = [
 ];
 // Opcionais: cacheados um a um; se algum faltar, a instalação NÃO falha.
 const OPTIONAL = [
+    // Fora do caminho crítico desde a v571 — não bloqueiam a instalação
+    '/escolaplay/escape.js', '/escolaplay/escape.css', '/escolaplay/gsap.min.js',
     // Bancos base por ano (v571) + secret: em segundo plano, para offline
     ...['y2','y3','y5','y6','y7'].map(n => `/escolaplay/content_${n}.js`),
     '/escolaplay/content_secret.js',
@@ -44,9 +43,7 @@ self.addEventListener('activate', (event) => {
     event.waitUntil((async () => {
         const keys = await caches.keys();
         await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
-        await self.clients.claim();
-        const wins = await self.clients.matchAll({ type: 'window' });
-        wins.forEach(c => { try { c.navigate(c.url); } catch {} });
+        await self.clients.claim(); // o controllerchange na página trata do reload (num deploy)
     })());
 });
 
