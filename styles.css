@@ -6776,3 +6776,6 @@ body.has-teacher-overlay #subject-detail-container {
 
 /* ✓/✕ não herdam o risco do texto da opção errada */
 .btn-option.wrong::after, .btn-option.correct::after { display: inline-block; text-decoration: none; }
+
+/* 'Esta semana treina' (v574) */
+.pd-train-btn { margin-left: 8px; background: #0891b2; color: #fff; border: none; border-radius: 999px; padding: 4px 10px; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
