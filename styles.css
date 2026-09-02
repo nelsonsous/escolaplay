@@ -6908,6 +6908,14 @@ body.has-teacher-overlay #subject-detail-container {
 .tpw-trend.up { background: #dcfce7; color: #15803d; }
 .tpw-trend.down { background: #fee2e2; color: #b91c1c; }
 @media (prefers-reduced-motion: reduce) { .tp-step.cur .tp-num { animation: none; } }
+.tutor-md-table { border-collapse: collapse; margin: 6px 0; font-size: 0.85rem; }
+.tutor-md-table th, .tutor-md-table td { border: 1px solid #e2e8f0; padding: 3px 8px; text-align: left; }
+.tutor-md-table th { background: #f1f5f9; font-weight: 700; }
+.tutor-md-ul { margin: 4px 0 4px 18px; padding: 0; }
+.tutor-md-ul li { margin: 2px 0; }
+.tutor-rich > span { display: block; }
+.tcw-fb { margin: 6px 0; }
+.tcp-ex { display: block; font-size: 0.8rem; color: #64748b; font-style: italic; margin-top: 2px; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }

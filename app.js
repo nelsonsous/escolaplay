@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v578';
+const APP_VERSION = 'v579';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6612,6 +6612,55 @@ function _tutorSpeak(text, cbs) {
     const lang = _detectLang(text) === 'pt' ? 'pt-PT' : (tutorState ? tutorState.lang : 'en-US');
     return speakEN(text, lang, cbs);
 }
+// Markdown mínimo → HTML seguro: escapa TUDO primeiro, depois aplica
+// **negrito**, _itálico_, `código`, listas "- " e tabelas "| a | b |".
+function _tutorMd(md) {
+    let s = escapeHtml(String(md == null ? '' : md));
+    const lines = s.split('\n'); const out = []; let tbl = [];
+    const flush = () => {
+        if (!tbl.length) return;
+        const rows = tbl.filter(r => !/^\|?\s*:?-{2,}/.test(r));
+        out.push('<table class="tutor-md-table">' + rows.map((r, i) => {
+            const cells = r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+            const tag = i === 0 ? 'th' : 'td';
+            return '<tr>' + cells.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+        }).join('') + '</table>');
+        tbl = [];
+    };
+    for (const ln of lines) { if (/^\s*\|.*\|\s*$/.test(ln)) tbl.push(ln.trim()); else { flush(); out.push(ln); } }
+    flush();
+    s = out.join('\n');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+         .replace(/(^|[\s(])_([^_\n]+?)_(?=[\s.,;:!?)]|$)/g, '$1<i>$2</i>')
+         .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    s = s.replace(/(?:^|\n)((?:[ \t]*[-•*] .+(?:\n|$))+)/g, (m, block) =>
+        '\n<ul class="tutor-md-ul">' + block.trim().split('\n').map(l => '<li>' + l.replace(/^\s*[-•*] /, '') + '</li>').join('') + '</ul>\n');
+    s = s.replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
+    s = s.replace(/(?:<br>)+(<(?:ul|table))/g, '$1').replace(/(<\/(?:ul|table)>)(?:<br>)+/g, '$1');
+    return s;
+}
+window._tutorMd = _tutorMd;
+// Bolha do tutor com HTML já construído por nós (campos da IA escapados
+// pelo chamador). O TTS lê o texto sem tags.
+function _tutorAddRich(html) {
+    if (!tutorState) return;
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const plain = String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    tutorState.history.push({ role: 'tutor', text: plain });
+    const sid = 't' + Date.now() + Math.floor(Math.random() * 1000);
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them">
+        <div class="tutor-bubble-av">${_tutorAvatar()}</div>
+        <div><div class="tutor-bubble tutor-them tutor-rich" data-text="${escapeHtml(plain)}">
+            <span>${html}</span>
+            <button class="tutor-play" onclick="_tutorPlay('${sid}')" id="${sid}" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
+        </div></div>
+      </div>`);
+    _tutorScroll();
+    _tutorRenderMic();
+}
+window._tutorAddRich = _tutorAddRich;
 function _tutorAddTutor(text, corrected, tip, autoSpeak) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
@@ -6620,13 +6669,18 @@ function _tutorAddTutor(text, corrected, tip, autoSpeak) {
     let corrHtml = '';
     if (corrected) corrHtml += `<div class="tutor-correct"><b>✏️ Melhor assim:</b> ${escapeHtml(corrected)}</div>`;
     if (tip) corrHtml += `<div class="tutor-tip"><b>💡</b> ${escapeHtml(tip)}</div>`;
+    // v579: mensagens com markdown (negrito, listas, tabelas) passam por
+    // _tutorMd (escapa primeiro → seguro para texto da IA). Antes o feedback
+    // da escrita/pronúncia aparecia com ** e tags à vista.
+    const rich = /\*\*|\n\s*[-•*] |\n\s*\|/.test(String(text || ''));
+    const plain = String(text || '').replace(/\*\*/g, '').replace(/<[^>]+>/g, '');
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them">
         <div class="tutor-bubble-av">${_tutorAvatar()}</div>
         <div>
           ${corrHtml}
-          <div class="tutor-bubble tutor-them" data-text="${escapeHtml(text)}">
-            <span>${escapeHtml(text)}</span>
+          <div class="tutor-bubble tutor-them" data-text="${escapeHtml(plain)}">
+            <span>${rich ? _tutorMd(text) : escapeHtml(text)}</span>
             <button class="tutor-play" onclick="_tutorPlay('${sid}')" id="${sid}" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
           </div>
         </div>
@@ -6979,7 +7033,19 @@ function _tutorUserLevel() {
         const done = band.topics.filter(t => cons[t]).length;
         if (done >= Math.ceil(band.topics.length / 2)) level = band.lvl; else break;
     }
+    // v579: o perfil profissional não começa em "Verb to be". O chão da
+    // escada é um nível abaixo do alvo (alvo B2 → começa em B1). Os níveis
+    // inferiores continuam acessíveis em "Explorar tudo".
+    const floor = _tutorLadderFloor();
+    if (_CEFR_ORDER.indexOf(floor) > _CEFR_ORDER.indexOf(level)) level = floor;
     return level;
+}
+function _tutorLadderFloor() {
+    const p = (typeof activeProfile === 'function' && activeProfile()) || {};
+    if (p.year !== 99) return 'A1';
+    const target = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
+    const i = _CEFR_ORDER.indexOf(target === 'C2' ? 'C1' : target);
+    return _CEFR_ORDER[Math.max(0, i - 1)] || 'A1';
 }
 // Próximo tópico a explorar: 1.º NÃO-CONSOLIDADO no nível do utilizador.
 function _tutorNextLadderTopic() {
@@ -7392,14 +7458,36 @@ async function _tutorCoachWriting() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const lv = _tutorTargetLevel();
+    // v579: prompts do dia-a-dia de um PM SAP/consultoria, rodados pelo dia
+    // do plano (não repete nas 3 semanas).
     const prompts = {
-        B1: ['Describe a problem you solved at work recently.', 'A friend asks for travel tips for your city — write a reply.'],
-        B2: ['Should AI replace junior office jobs? Argue your view.', 'Write a polite email refusing a meeting and proposing an alternative.'],
-        C1: ['"Working from home erodes team culture." Discuss to what extent you agree.', 'Write a 150-word executive summary of a recent challenge you faced.'],
-        C2: ['Critique the claim that LLMs are merely "stochastic parrots".', 'Argue for or against four-day work weeks, weighing macro and micro impacts.']
+        B1: ['Write a short status email to your client: the test phase is finished, two issues remain, and go-live stays on the same date.',
+             'Describe a problem you solved in a recent project and what you learned from it.',
+             'A colleague asks you to explain what a cut-over is. Write your reply in simple words.',
+             'Write a message to your team about tomorrow\'s workshop: time, place, agenda, what to prepare.',
+             'Describe your role in your current project and your main responsibilities this month.'],
+        B2: ['Write an email to the steering committee explaining a two-week delay in the cut-over and proposing a new plan.',
+             'A client asks for a change outside the scope. Refuse politely and propose a change request.',
+             'Write the minutes of a 30-minute status meeting: decisions, open points, owners and deadlines.',
+             'Explain to a non-technical manager why data migration is the biggest risk of the project.',
+             'Write a message escalating a blocker to your director: what happened, impact, and what you need.',
+             'Describe the lessons learned from your last go-live in a short note for a new team member.',
+             'Reply to an unhappy key user who says the new system is slower than the old one.'],
+        C1: ['Write a 150-word executive summary of a go-live risk, its impact and your mitigation plan.',
+             'Argue for or against a big-bang go-live versus a phased rollout for a multi-country SAP project.',
+             'Write a diplomatic email to a vendor whose deliverable is late for the second time.',
+             'Summarise the trade-offs of standard SAP versus custom development for a sceptical CFO.',
+             'Prepare the opening statement of a steering committee where you must ask for extra budget.',
+             '"Most project delays are communication failures, not technical ones." Discuss.',
+             'Write a hand-over note for the project manager who will replace you next month.'],
+        C2: ['Critique the claim that agile methods do not work for SAP implementations.',
+             'Write a persuasive note convincing a client to postpone go-live by a month despite political pressure.',
+             'Argue for or against four-day work weeks in consulting, weighing client expectations and team retention.',
+             'Draft a 150-word post-mortem of a failed cut-over for the board: candid, but constructive.']
     };
     const opts = prompts[lv] || prompts.B2;
-    const prompt = opts[Math.floor(Math.random() * opts.length)];
+    const _di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
+    const prompt = opts[_di % opts.length];
     const tid = 'coach-write-' + Date.now();
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">📝</div>
@@ -7439,7 +7527,7 @@ async function _tutorCoachWritingSubmit(tid) {
     const usr = `Prompt: ${prompt}\n\nStudent answer:\n${text}`;
     try {
         const json = await _askMistralJSON(sys, usr);
-        _tutorAddTutor(_tutorRenderWritingFeedback(json, lv));
+        _tutorAddRich(_tutorRenderWritingFeedback(json, lv));
         if (submit) submit.remove();
         ta.readOnly = true;
         try { _tutorPlanComplete('writing'); } catch {}
@@ -7457,18 +7545,12 @@ function _tutorRenderWritingFeedback(j, lv) {
     const corrHtml = corr.map(c =>
         `<li><span class="tcw-bad">${escapeHtml(c.original || '')}</span> → <span class="tcw-good">${escapeHtml(c.better || '')}</span><br><small>${escapeHtml(c.reason || '')}</small></li>`
     ).join('');
-    return `📝 **Writing feedback** · target ${lv} · grade **${escapeHtml(j.overall || '?')}**
-
-| Criterion | Score |
-|---|---|
-| Task | ${star(+j.task||0)} |
-| Coherence | ${star(+j.coherence||0)} |
-| Range | ${star(+j.range||0)} |
-| Accuracy | ${star(+j.accuracy||0)} |
-
-${j.feedback || ''}
-
-${corr.length ? `**Upgrades:**\n<ul class="tcw-corr">${corrHtml}</ul>` : ''}`;
+    // HTML (v579): os campos da IA passam por escapeHtml/_tutorMd.
+    const row = (k, v) => `<tr><td>${k}</td><td>${star(v)}</td></tr>`;
+    return `📝 <b>Writing feedback</b> · target ${escapeHtml(lv)} · grade <b>${escapeHtml(j.overall || '?')}</b>
+<table class="tutor-md-table">${row('Task', +j.task||0)}${row('Coherence', +j.coherence||0)}${row('Range', +j.range||0)}${row('Accuracy', +j.accuracy||0)}</table>
+<div class="tcw-fb">${_tutorMd(j.feedback || '')}</div>
+${corr.length ? `<b>Upgrades:</b><ul class="tcw-corr">${corrHtml}</ul>` : ''}`;
 }
 
 // === PRONUNCIATION DRILL ===
@@ -7567,17 +7649,28 @@ window._tutorCoachPronAI = _tutorCoachPronAI;
 // Pede 10 collocations ao nível, com exemplos e drills cloze.
 async function _tutorCoachVocab() {
     const lv = _tutorTargetLevel();
-    _tutorAddTutor('📚 Generating 10 ' + lv + ' collocations for you…');
-    const sys = `You are an English teacher building a ${lv} collocations sheet. Return ONLY JSON with key "items" — an array of 10 objects: {collocation, meaning, example, register}. Avoid A1/A2 basics. Pick collocations and phrasal verbs that are notably ${lv}, varying across business, academic and conversational registers.`;
-    const usr = `Generate 10 ${lv}-level collocations now.`;
+    // v579: tema do dia (roda com o plano), contexto SAP/PM, sem repetir o
+    // que já saiu, e cada item pode ir para o phrasebook com um toque.
+    const themes = ['status updates & delays', 'negotiating scope & change requests', 'risks, issues & escalation',
+        'presenting numbers & budgets', 'professional emails', 'aligning stakeholders & steering committees', 'disagreeing diplomatically'];
+    const _di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
+    const theme = themes[_di % themes.length];
+    const seen = ((state && state.tutorVocabHistory) || []).flatMap(h => (h.items || []).map(it => String(it.collocation || '').toLowerCase())).filter(Boolean).slice(-60);
+    _tutorAddTutor(`📚 Generating 10 ${lv} collocations · theme: **${theme}**…`);
+    const sys = `You are an English teacher building a ${lv} collocations sheet for a Portuguese Project Manager working in SAP/consulting. Return ONLY JSON with key "items" — an array of 10 objects: {collocation, meaning, example, register, pt}. "pt" is the EUROPEAN PORTUGUESE meaning (max 8 words). Theme: ${theme}. Avoid A1/A2 basics. Pick collocations and phrasal verbs that are notably ${lv} and that a PM would really use in meetings, emails and reports about this theme; examples must come from project life.${seen.length ? ' Do NOT include any of these (already studied): ' + seen.join('; ') + '.' : ''}`;
+    const usr = `Generate 10 ${lv}-level collocations on "${theme}" now.`;
     try {
         const j = await _askMistralJSON(sys, usr);
         const items = (j && Array.isArray(j.items)) ? j.items.slice(0,10) : [];
         if (!items.length) throw new Error('no items');
-        const list = items.map((it,i) => `**${i+1}. ${escapeHtml(it.collocation||'')}** _(${escapeHtml(it.register||lv)})_
-   ${escapeHtml(it.meaning||'')}
-   _Example:_ ${escapeHtml(it.example||'')}`).join('\n\n');
-        _tutorAddTutor(`📚 **${lv} collocations · today's 10**\n\n${list}\n\nTry using 3 of these in your next message and I'll check.`);
+        const list = items.map((it,i) => `<div class="tutor-class-phrase">
+            <b>${i+1}. ${escapeHtml(it.collocation||'')}</b> <small>(${escapeHtml(it.register||lv)})</small>
+            <button class="tutor-say" data-text="${_tutorAttr(it.example||it.collocation)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-save" data-text="${_tutorAttr(it.collocation)}" data-note="${_tutorAttr((it.pt ? it.pt + ' — ' : '') + (it.meaning||'') + (it.example ? ' “' + it.example + '”' : ''))}" data-topic="${_tutorAttr('Collocations · ' + theme)}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+            <span class="tcp-pt">${escapeHtml(it.pt||'')}${it.pt ? ' · ' : ''}${escapeHtml(it.meaning||'')}</span>
+            <span class="tcp-ex">${escapeHtml(it.example||'')}</span>
+          </div>`).join('');
+        _tutorAddRich(`📚 <b>${escapeHtml(lv)} collocations · ${escapeHtml(theme)}</b><div class="tutor-class-phrases">${list}</div>Try using 3 of these in your next message and I'll check.`);
         // Guarda em state para uso futuro em weak/review
         if (!state.tutorVocabHistory) state.tutorVocabHistory = [];
         state.tutorVocabHistory.push({ lv, items, at: Date.now() });
@@ -7798,12 +7891,29 @@ window._tutorClassStart = _tutorClassStart;
 // === 2) FLASHCARDS EM LOTE ===
 // Lista de palavras → cartões com significado, exemplo e truque de
 // memorização, guardados de uma vez no phrasebook/SRS que já existe.
-const _TUTOR_FLASH_SEED = [
+// v579: pool de 60 termos SAP/PM; o botão dá 10 de cada vez, saltando os que
+// já estão no phrasebook — assim a skill "flash" do plano rende 3 semanas.
+const _TUTOR_FLASH_POOL = [
     'cut-over', 'go-live', 'milestone', 'blocker', 'scope creep', 'stakeholder',
     'sign-off', 'workaround', 'rollout', 'handover', 'lessons learned', 'dependency',
     'bottleneck', 'contingency', 'escalate', 'de-scope', 'baseline', 'burn rate',
-    'steering committee', 'audit trail'
+    'steering committee', 'audit trail',
+    'deliverable', 'to be on track', 'to slip (a deadline)', 'to push back', 'to sign off on',
+    'change request', 'quick win', 'ramp-up', 'hypercare', 'to roll back', 'root cause',
+    'to flag an issue', 'showstopper', 'to reach out', 'to follow up', 'to circle back',
+    'to touch base', 'bandwidth', 'to hand over', 'to take ownership',
+    'to align on', 'to walk someone through', 'to drill down', 'to weigh in', 'a heads-up',
+    'to be swamped', 'to cut corners', 'to iron out', 'to set expectations', 'to scale back',
+    'to run late', 'to bring up to speed', 'on hold', 'to pull the plug', 'a ballpark figure',
+    'to sort out', 'to fall behind', 'to ramp down', 'to play it by ear', 'a moving target'
 ];
+const _TUTOR_FLASH_SEED = _TUTOR_FLASH_POOL.slice(0, 20); // retrocompatível
+function _tutorFlashSeedPick(n) {
+    let have = new Set();
+    try { have = new Set(_srsAll().filter(x => x.type === 'phrase').map(x => String(x.text || '').toLowerCase())); } catch {}
+    const left = _TUTOR_FLASH_POOL.filter(t => !have.has(t.toLowerCase()));
+    return (left.length ? left : _TUTOR_FLASH_POOL).slice(0, n || 10);
+}
 function _tutorCoachFlash() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
@@ -7825,7 +7935,7 @@ function _tutorCoachFlash() {
 window._tutorCoachFlash = _tutorCoachFlash;
 function _tutorFlashSeed(tid) {
     const ta = document.getElementById(tid + '-ta');
-    if (ta) { ta.value = _TUTOR_FLASH_SEED.join('\n'); ta.focus(); }
+    if (ta) { ta.value = _tutorFlashSeedPick(10).join('\n'); ta.focus(); }
 }
 window._tutorFlashSeed = _tutorFlashSeed;
 
