@@ -192,7 +192,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // Estrutura nova:
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
-// Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil activo.
+// Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil ativo.
 const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak'];
 
 // Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
@@ -394,7 +394,7 @@ function loadState() {
             // Migração v499: a disciplina "Detetive Mental" foi totalmente
             // refeita (todos os puzzles passaram a mini-jogos). Se o user
             // tinha activeTopics.detetive parcial (não todos os 6 tópicos),
-            // repõe para "tudo activo" uma vez por profile. Evita o caso
+            // repõe para "tudo ativo" uma vez por profile. Evita o caso
             // em que só "Sudoku & Kakuro" aparecia porque o resto fora
             // destoggleado quando ainda eram perguntas MC.
             if (!p._detetiveV499Done) {
@@ -407,7 +407,7 @@ function loadState() {
             // início da Detetive Mental. Profiles antigos têm progress.detetive
             // .toIndex = nº de tópicos antigo, que com o fallback legacy
             // (slice 0..toIndex) cortaria o último tópico agora que há +1.
-            // Repõe activeTopics e toIndex para "tudo activo" uma vez.
+            // Repõe activeTopics e toIndex para "tudo ativo" uma vez.
             if (!p._detetiveV504Done) {
                 if (p.activeTopics && p.activeTopics.detetive) delete p.activeTopics.detetive;
                 if (p.progress && p.progress.detetive) {
@@ -419,7 +419,7 @@ function loadState() {
             // Migração v527: sentido-de-número (Estimar/Quantos) saiu da
             // Detetive (agora foco em raciocínio lógico) e foi para o Mat+.
             // Repõe activeTopics + toIndex de AMBAS as disciplinas para
-            // "tudo activo", senão os tópicos movidos não apareceriam.
+            // "tudo ativo", senão os tópicos movidos não apareceriam.
             if (!p._refocusV527Done) {
                 ['detetive', 'mat_plus'].forEach(k => {
                     if (p.activeTopics && p.activeTopics[k]) delete p.activeTopics[k];
@@ -553,7 +553,7 @@ function migrateMaxExercise(e) {
 
 // ========== Lazy-load do banco extra por ano ==========
 // Os ficheiros content_<year>_*.js só são descarregados quando o utilizador
-// activa um perfil desse ano. Cada ano tem múltiplos ficheiros (um por
+// ativa um perfil desse ano. Cada ano tem múltiplos ficheiros (um por
 // disciplina) carregados em paralelo. Cache por ano: cada conjunto carrega
 // no máximo uma vez por sessão.
 const YEAR_EXTRA_FILES = {
@@ -614,7 +614,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v571';
+const APP_VERSION = 'v572';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -673,14 +673,16 @@ function _sanitizeExercise(e) {
 // do mesmo ano).
 const _scriptLoadCache = {};
 // Escape room: escape.js/escape.css (63 KB) só quando se abre o jogo.
-function _openEscapeLazy() {
-    const args = arguments;
+function _ensureEscapeLoaded() {
     if (!document.querySelector('link[href="escape.css"]')) {
         const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'escape.css'; document.head.appendChild(l);
     }
-    const go = () => { if (typeof window.openEscapeRoom === 'function') window.openEscapeRoom.apply(null, args); };
-    if (typeof window.openEscapeRoom === 'function') return go();
-    _loadScript('escape.js').then(go).catch(() => showToast('Não foi possível carregar o escape room.'));
+    if (typeof window.openEscapeRoom === 'function') return Promise.resolve();
+    return _loadScript('escape.js');
+}
+function _openEscapeLazy() {
+    const args = arguments;
+    _ensureEscapeLoaded().then(() => { if (typeof window.openEscapeRoom === 'function') window.openEscapeRoom.apply(null, args); }).catch(() => showToast('Não foi possível carregar o escape room.'));
 }
 window._openEscapeLazy = _openEscapeLazy;
 function _loadScript(src) {
@@ -692,6 +694,7 @@ function _loadScript(src) {
             if (existing.dataset.loaded === '1') return resolve();
             existing.addEventListener('load', () => resolve(), { once: true });
             existing.addEventListener('error', () => reject(new Error('load failed: ' + src)), { once: true });
+            setTimeout(() => { delete _scriptLoadCache[src]; reject(new Error('timeout: ' + src)); }, 15000);
             return;
         }
         const s = document.createElement('script');
@@ -881,9 +884,9 @@ function _renderAvatarGroups(context, curAv) {
         const itemsHtml = open ? g.items.map(a => {
             const isSel = (curAv != null) && a === curAv;
             if (context === 'newProfile') {
-                return `<div class="avatar-option ${isSel ? 'selected' : ''}" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>`;
+                return `<div class="avatar-option ${isSel ? 'selected' : ''}" role="button" tabindex="0" data-avatar="${a}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>`;
             }
-            return `<div class="avatar-option ${isSel ? 'selected' : ''}" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>`;
+            return `<div class="avatar-option ${isSel ? 'selected' : ''}" role="button" tabindex="0" onclick="selectAvatar('${a}')">${renderAvatar(a, 56)}</div>`;
         }).join('') : '';
         const ctxEsc = context.replace(/'/g, "\\'");
         return `<button type="button" class="avatar-group-label" onclick="toggleAvatarGroup('${key}','${ctxEsc}')" aria-expanded="${open}">
@@ -897,8 +900,10 @@ function addProfileFromForm() {
     const nameEl = document.getElementById('new-profile-name');
     const yearEl = document.querySelector('input[name="new-profile-year"]:checked');
     const avEl   = document.querySelector('#new-profile-avatars .avatar-option.selected');
-    const name = (nameEl?.value || '').trim().slice(0, 30);
-    if (!name) { showToast('Escreve um nome'); return; }
+    const name = (nameEl?.value || '').trim().slice(0, 24);
+    if (!name) { showToast('Escreve o nome de quem vai usar a app.'); try { nameEl && nameEl.focus(); } catch {} return; }
+    if (!yearEl) { showToast('Escolhe o ano de escolaridade.'); return; }
+    if ((state.profiles || []).some(p => p && String(p.name || '').trim().toLowerCase() === name.toLowerCase())) { showToast('Já existe um perfil com esse nome — usa outro (ex.: nome + inicial).'); try { nameEl && nameEl.focus(); } catch {} return; }
     const fallbackYear = (window.YEARS_AVAILABLE && window.YEARS_AVAILABLE[0]?.year) || 2;
     const year = parseInt(yearEl?.value || String(fallbackYear));
     // Prefere foto custom (camera/upload) se definida
@@ -1033,7 +1038,7 @@ function _extractJSON(text) {
 function activeTopicsFor(subjectKey) {
     const topics = CURRICULUM[subjectKey] || [];
     // Se existe um array (mesmo vazio) em state.activeTopics, e a escolha
-    // explicita do utilizador — array vazio significa "nenhum activo".
+    // explicita do utilizador — array vazio significa "nenhum ativo".
     // So usa o fallback (topics 0..toIndex) se NUNCA foi customizado.
     const custom = state.activeTopics && state.activeTopics[subjectKey];
     if (Array.isArray(custom)) {
@@ -1216,7 +1221,7 @@ function renderHome() {
     // Brilho pulsante no botão quando o desafio diário ainda não foi feito
     const dailyBtn = document.getElementById('btn-start-daily');
     if (dailyBtn) dailyBtn.classList.toggle('shimmer-pulse', !dailyDone);
-    // Chama do streak fica activa quando ≥ 3 dias
+    // Chama do streak fica ativa quando ≥ 3 dias
     document.querySelectorAll('.chip-streak').forEach(el => el.classList.toggle('active', state.streak.days >= 3));
 
     // Próximo teste
@@ -1234,7 +1239,7 @@ function renderHome() {
     let qsHtml = Object.entries(SUBJECTS).map(([key, sub]) => {
         const bg = (sub.color || '#f472b6') + '1a'; // 10% opacidade
         return `
-        <div class="quick-subject" onclick="openSubjectDetail('${key}')" style="--qs-color:${sub.color};--qs-bg:${bg}">
+        <div class="quick-subject" role="button" tabindex="0" onclick="openSubjectDetail('${key}')" style="--qs-color:${sub.color};--qs-bg:${bg}">
             <div class="qs-icon-wrap"><i class="fas ${sub.icon}"></i></div>
             <div class="qs-name">${sub.name}</div>
         </div>
@@ -1245,7 +1250,7 @@ function renderHome() {
     if (_yr === 3 || _yr === 31 || _yr === 7) {
         const tgt = _yr === 7 ? 7 : 3;
         qsHtml += `
-        <div class="quick-subject quick-subject-holiday" onclick="openHolidayPlan(${tgt})" style="--qs-color:#f59e0b;--qs-bg:#fef3c7">
+        <div class="quick-subject quick-subject-holiday" role="button" tabindex="0" onclick="openHolidayPlan(${tgt})" style="--qs-color:#f59e0b;--qs-bg:#fef3c7">
             <div class="qs-icon-wrap"><i class="fas fa-umbrella-beach"></i></div>
             <div class="qs-name">Férias</div>
         </div>
@@ -1255,7 +1260,7 @@ function renderHome() {
     const _revN = (typeof _srsReviewCount === 'function') ? _srsReviewCount() : 0;
     if (_revN > 0) {
         qsHtml = `
-        <div class="quick-subject quick-subject-review" onclick="startReviewSession()" style="--qs-color:#7c3aed;--qs-bg:#ede9fe">
+        <div class="quick-subject quick-subject-review" role="button" tabindex="0" onclick="startReviewSession()" style="--qs-color:#7c3aed;--qs-bg:#ede9fe">
             <div class="qs-icon-wrap"><i class="fas fa-rotate-right"></i><span class="qs-badge">${_revN}</span></div>
             <div class="qs-name">Rever erros</div>
         </div>
@@ -1263,7 +1268,7 @@ function renderHome() {
     }
     // Estatísticas — vista read-only de progresso (agrega history/subjects/weak).
     qsHtml += `
-        <div class="quick-subject quick-subject-parent" onclick="openParentDashboard()" style="--qs-color:#0891b2;--qs-bg:#cffafe">
+        <div class="quick-subject quick-subject-parent" role="button" tabindex="0" onclick="openParentDashboard()" style="--qs-color:#0891b2;--qs-bg:#cffafe">
             <div class="qs-icon-wrap"><i class="fas fa-chart-line"></i></div>
             <div class="qs-name">Estatísticas</div>
         </div>
@@ -1277,7 +1282,14 @@ function renderHome() {
     // Journal semanal (segunda-feira ou se já aberto esta semana)
     renderMathJournal();
     // Modo Escape Room (apenas anos 2/5/6 — injeta cartão na Home)
-    try { window.renderEscapeHomeCard && window.renderEscapeHomeCard(); } catch {}
+    try {
+        if (window.renderEscapeHomeCard) window.renderEscapeHomeCard();
+        else {
+            // v572: escape.js é lazy — para os anos elegíveis carrega-o e injeta o cartão
+            const yr = Number(activeProfile() && activeProfile().year);
+            if ([2, 5, 6].includes(yr)) _ensureEscapeLoaded().then(() => { try { window.renderEscapeHomeCard && window.renderEscapeHomeCard(); } catch {} }).catch(() => {});
+        }
+    } catch {}
 }
 
 // ============================================================
@@ -1330,7 +1342,7 @@ function renderNumberTalk() {
     const promptEl  = document.getElementById('nt-prompt');
     const stratsEl  = document.getElementById('nt-strategies');
     if (!card || !promptEl) return;
-    // Só visível se o pack Mat+ estiver activo
+    // Só visível se o pack Mat+ estiver ativo
     if (!_hasSecretPack('mat-plus')) { card.style.display = 'none'; return; }
     card.style.display = '';
     const nt = NUMBER_TALKS[_todayNumberTalkIndex()];
@@ -1411,7 +1423,7 @@ function renderHeggerty() {
     const promptsEl = document.getElementById('hg-prompts');
     const titleEl = document.getElementById('hg-title');
     if (!card || !promptsEl) return;
-    // Só visível se o pack Som+ estiver activo
+    // Só visível se o pack Som+ estiver ativo
     if (!_hasSecretPack('som-plus')) { card.style.display = 'none'; return; }
     card.style.display = '';
     const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
@@ -1458,7 +1470,7 @@ function renderMathJournal() {
     const card = document.getElementById('math-journal-card');
     const promptEl = document.getElementById('mj-prompt');
     if (!card || !promptEl) return;
-    // Só visível se o pack Mat+ estiver activo
+    // Só visível se o pack Mat+ estiver ativo
     if (!_hasSecretPack('mat-plus')) { card.style.display = 'none'; return; }
     // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
     const day = new Date().getDay();
@@ -1522,27 +1534,27 @@ function renderSubjects() {
         const accPct = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : 0;
         const active = activeTopicsFor(key);
         const maxEx = state.maxExercises || [];
-        // Pool activo (apenas tópicos activos)
+        // Pool ativo (apenas tópicos ativos)
         const activePool = [
             ...EXERCISES.filter(e => e.s === key && active.has(e.t)),
             ...maxEx.filter(e => e.s === key && active.has(e.t))
         ];
         const totalActive = activePool.length;
-        // Quantos do pool activo já foram respondidos
+        // Quantos do pool ativo já foram respondidos
         const answeredInPool = activePool.filter(e => seen[e.id]).length;
-        // Barra: % do banco activo já respondido (= "evolução" verdadeira)
+        // Barra: % do banco ativo já respondido (= "evolução" verdadeira)
         const barPct = totalActive > 0 ? Math.round((answeredInPool / totalActive) * 100) : 0;
         const shadow = (sub.color || '#f472b6') + '40'; // 25% opacidade
         return `
-            <div class="subject-card" onclick="openSubjectDetail('${key}')" style="--sub-color:${sub.color};--sub-shadow:${shadow}">
-                <div class="subject-card-icon" style="background:linear-gradient(135deg, ${sub.color}, ${sub.color}dd)"><i class="fas ${sub.icon}"></i></div>
+            <div class="subject-card" role="button" tabindex="0" onclick="openSubjectDetail('${key}')" style="--sub-color:${sub.color};--sub-shadow:${shadow}">
+                <div class="subject-card-icon" role="button" tabindex="0" style="background:linear-gradient(135deg, ${sub.color}, ${sub.color}dd)"><i class="fas ${sub.icon}"></i></div>
                 <h3>${sub.name}</h3>
-                <div class="subject-card-meta">
+                <div class="subject-card-meta" role="button" tabindex="0">
                     <div>${answeredInPool}/${totalActive} respondidas</div>
                     ${stats.answered > 0 ? `<div style="font-size:0.7rem;color:var(--text-light);margin-top:2px">${accPct}% acerto · ${stats.xp} XP</div>` : ''}
                 </div>
-                <div class="subject-card-bar" title="${barPct}% do banco">
-                    <div class="subject-card-bar-fill" style="width:${barPct}%;background:linear-gradient(90deg, ${sub.color}, ${sub.color}cc)"></div>
+                <div class="subject-card-bar" role="button" tabindex="0" title="${barPct}% do banco">
+                    <div class="subject-card-bar-fill" role="button" tabindex="0" style="width:${barPct}%;background:linear-gradient(90deg, ${sub.color}, ${sub.color}cc)"></div>
                 </div>
             </div>
         `;
@@ -1800,7 +1812,7 @@ function _updateTopicFocusPill() {
     const focus = _currentTopicFocus();
     pill.classList.toggle('is-on', focus === 'active');
     pill.innerHTML = focus === 'active'
-        ? `<i class="fas fa-bullseye"></i> Só activos · ${activeN}`
+        ? `<i class="fas fa-bullseye"></i> Só ativos · ${activeN}`
         : `<i class="fas fa-layer-group"></i> Todos · ${total}`;
 }
 
@@ -1813,7 +1825,7 @@ function renderTopicList() {
     // Mantém selectedTopicsForMax em sync com active topics (para a MAX bar)
     selectedTopicsForMax = new Set(active);
     _updateTopicFocusPill();
-    // Filtro "Só activos" — quando ligado e há tópicos activos, mostra só esses
+    // Filtro "Só ativos" — quando ligado e há tópicos ativos, mostra só esses
     const focus = _currentTopicFocus();
     const useFilter = focus === 'active' && active.size > 0;
     const visibleTopics = useFilter ? allTopics.filter(t => active.has(t)) : allTopics;
@@ -1856,9 +1868,9 @@ function renderTopicList() {
         testBanner = `<div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:0.82rem;color:#1e3a8a;display:flex;align-items:center;gap:10px"><span style="font-size:1.2rem">📅</span><div style="flex:1"><div style="font-weight:800">Ainda não tens teste de Inglês</div><div style="font-size:0.72rem;margin-top:2px">Cria teste com orientadores da professora (horas, rotinas, profissões, present simple, prepositions of time)</div></div><button class="btn" style="background:#2563eb;color:#fff;border:none;padding:7px 12px;font-size:0.74rem;font-weight:800;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();setupCarolinaIngles5()">Criar</button></div>`;
     }
     const banner = (useFilter && hiddenN > 0)
-        ? `<div class="ep-topic-banner"><i class="fas fa-bullseye"></i> ${visibleTopics.length} de ${allTopics.length} tópicos activos. <button type="button" onclick="toggleTopicFocus()" class="ep-topic-banner-link">Ver todos</button></div>`
+        ? `<div class="ep-topic-banner"><i class="fas fa-bullseye"></i> ${visibleTopics.length} de ${allTopics.length} tópicos ativos. <button type="button" onclick="toggleTopicFocus()" class="ep-topic-banner-link">Ver todos</button></div>`
         : (focus === 'active' && active.size === 0 && allTopics.length > 0)
-            ? `<div class="ep-topic-banner"><i class="fas fa-circle-info"></i> Sem tópicos activos. Activa abaixo o que ela está a dar agora.</div>`
+            ? `<div class="ep-topic-banner"><i class="fas fa-circle-info"></i> Sem tópicos ativos. Ativa abaixo o que ela está a dar agora.</div>`
             : '';
     container.innerHTML = testBanner + banner + visibleTopics.map((t, vi) => {
         const i = origIndex.get(t) ?? vi;
@@ -1931,7 +1943,7 @@ function renderTopicList() {
                     </div>
                 </div>
                 <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Perguntas respondidas" style="background:#fce7f3;color:#f472b6;flex-shrink:0;width:30px;height:30px;font-size:0.78rem"><i class="fas fa-list-check"></i></button>
-                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Explicação" style="width:30px;height:30px;font-size:0.78rem"><i class="fas fa-book-open"></i></button>` : ''}
+                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Explicação" style="width:30px;height:30px;font-size:0.78rem" aria-label="Explicação" title="Explicação"><i class="fas fa-book-open" aria-hidden="true"></i></button>` : ''}
             </div>
         `;
     }).join('');
@@ -2009,7 +2021,7 @@ function toggleTopicSelection(topic) {
 }
 
 function clearTopicSelection() {
-    // Desactiva TODOS os tópicos da disciplina actual (state persistente)
+    // Desactiva TODOS os tópicos da disciplina atual (state persistente)
     const key = currentSubjectView;
     if (key) setActiveTopicsFor(key, []);
     renderTopicList();
@@ -2022,13 +2034,13 @@ function updateTopicSelBar() {
     if (maxBar) maxBar.style.display = n > 0 ? 'block' : 'none';
     if (maxCnt) maxCnt.textContent = n;
     // Sticky bar 'Treinar selecionados' já não é necessária — o botão
-    // 'Começar treino' no topo usa os mesmos tópicos activos.
+    // 'Começar treino' no topo usa os mesmos tópicos ativos.
     const selBar = document.getElementById('topic-sel-actions');
     if (selBar) selBar.style.display = 'none';
 }
 
 function selectAllTopics() {
-    // Activa TODOS os tópicos da disciplina (state persistente)
+    // Ativa TODOS os tópicos da disciplina (state persistente)
     const key = currentSubjectView;
     if (!key) return;
     const topics = CURRICULUM[key] || [];
@@ -2046,7 +2058,7 @@ function onProgressSlider(val) {
     const key = currentSubjectView;
     const n = parseInt(val);
     state.progress[key] = { toIndex: n };
-    // Slider funciona como atalho: define os tópicos 0..N como activos
+    // Slider funciona como atalho: define os tópicos 0..N como ativos
     // (sobrescreve o estado persistente).
     const topics = CURRICULUM[key] || [];
     setActiveTopicsFor(key, topics.slice(0, n));
@@ -2621,7 +2633,7 @@ async function openRemoteParentDashboard() {
     if (!codeRaw) return;
     const code = codeRaw.trim().toUpperCase();
     if (!/^[A-Z0-9]{4,10}$/.test(code)) { showToast('Código inválido (4–10 letras/números).'); return; }
-    showToast('A buscar progresso na nuvem…');
+    showToast('A procurar o progresso na nuvem…');
     try {
         const data = await fbFetchBackup(code);
         if (!data || !data.profile) { showToast('Sem dados para esse código. Confirma que o backup está ativo no dispositivo desse perfil.'); return; }
@@ -2791,7 +2803,7 @@ const openAdminDashboard = async function () {
 async function _adminOpenUser(i) {
     const r = (window._adminRows || [])[i];
     if (!r) return;
-    showToast('A buscar as estatísticas de ' + (r.name || r.code) + '…');
+    showToast('A procurar as estatísticas de ' + (r.name || r.code) + '…');
     try {
         const data = await fbFetchBackup(r.code);
         if (!data || !data.profile) { showToast('Este utilizador ainda não tem backup na nuvem.'); return; }
@@ -3021,7 +3033,7 @@ function openCourseFreePractice(subjectKey) {
 }
 window.openCourseFreePractice = openCourseFreePractice;
 
-function startCourseLesson(subjectKey, lessonId) {
+async function startCourseLesson(subjectKey, lessonId) {
     console.log('[course] startCourseLesson', subjectKey, lessonId);
     const course = _getCourseConfig(subjectKey);
     if (!course) { showToast('Curso não disponível'); return; }
@@ -3033,6 +3045,7 @@ function startCourseLesson(subjectKey, lessonId) {
     // EXERCISES global. NÃO mexe noutros anos.
     const byId = {};
     const _profYr = (typeof activeProfile === 'function' && activeProfile() && activeProfile().year) || null;
+    try { if (_profYr) await loadYearExtras(_profYr); } catch {}
     const _pools = [];
     if (window.EXERCISES_BY_YEAR) {
         if (Array.isArray(window.EXERCISES_BY_YEAR[99])) _pools.push(window.EXERCISES_BY_YEAR[99]);
@@ -3212,7 +3225,7 @@ function renderTests() {
         else if (days <= 2) cls = 'urgent';
         else if (days <= 5) cls = 'soon';
         const daysLabel = t.done ? 'Feito' : past ? `${-days}d atrás` : days === 0 ? 'Hoje!' : days === 1 ? 'Amanhã' : `em ${days}d`;
-        const topicsLabel = (t.topics && t.topics.length) ? `${t.topics.length} tópicos: ${t.topics.slice(0, 3).join(', ')}${t.topics.length > 3 ? '…' : ''}` : 'todos os tópicos activos';
+        const topicsLabel = (t.topics && t.topics.length) ? `${t.topics.length} tópicos: ${t.topics.slice(0, 3).join(', ')}${t.topics.length > 3 ? '…' : ''}` : 'todos os tópicos ativos';
         const seenCount = (t.seenEx || []).length;
         const seenLabel = seenCount > 0 ? `<div style="font-size:0.72rem;color:#f472b6;font-weight:600;margin-top:3px">📚 ${seenCount} pergunta${seenCount === 1 ? '' : 's'} vista${seenCount === 1 ? '' : 's'}</div>` : '';
         // Pílulas de nota objetivo / nota obtida. A nota obtida muda de cor
@@ -3223,7 +3236,7 @@ function renderTests() {
         }
         if (t.actualGrade != null) {
             const hit = t.targetGrade != null && t.actualGrade >= t.targetGrade;
-            const cls2 = hit ? 'test-grade-hit' : (t.targetGrade != null ? 'test-grade-miss' : 'test-grade-actual');
+            const cls2 = hit ? 'test-grade-hit' : (t.targetGrade != null ? 'test-grade-miss' : 'test-grade-atual');
             gradePills.push(`<span class="test-grade-pill ${cls2}" title="Nota obtida">${hit ? '✓' : '📝'} ${t.actualGrade}</span>`);
         }
         const gradeLabel = gradePills.length > 0 ? `<div class="test-grade-row">${gradePills.join('')}</div>` : '';
@@ -3240,8 +3253,8 @@ function renderTests() {
                 <div class="test-item-actions">
                     ${!t.done ? `<button class="practice" title="Treinar para este teste" onclick="startTestPrep('${t.id}')"><i class="fas fa-dumbbell"></i></button>` : ''}
                     ${!t.done ? `<button class="practice" style="background:linear-gradient(135deg,#f472b6,#f472b6);color:#fff" title="Treino MAX (IA) para este teste" onclick="startMaxForTest('${t.id}')"><i class="fas fa-wand-magic-sparkles"></i></button>` : ''}
-                    <button onclick="editTest('${t.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-                    <button class="del" onclick="deleteTest('${t.id}')" title="Apagar"><i class="fas fa-trash"></i></button>
+                    <button onclick="editTest('${t.id}')" title="Editar" aria-label="Editar" title="Editar"><i class="fas fa-pen" aria-hidden="true"></i></button>
+                    <button class="del" onclick="deleteTest('${t.id}')" title="Apagar" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
             </div>
         `;
@@ -3263,14 +3276,14 @@ function openAddTestModal(testId = null) {
             document.getElementById('test-date').value = t.date;
             document.getElementById('test-note').value = t.note || '';
             document.getElementById('test-target-grade').value = (t.targetGrade != null) ? t.targetGrade : '';
-            document.getElementById('test-actual-grade').value = (t.actualGrade != null) ? t.actualGrade : '';
+            document.getElementById('test-atual-grade').value = (t.actualGrade != null) ? t.actualGrade : '';
         }
     } else {
         sel.value = Object.keys(SUBJECTS)[0];
         document.getElementById('test-date').value = defaultDate;
         document.getElementById('test-note').value = '';
         document.getElementById('test-target-grade').value = '';
-        document.getElementById('test-actual-grade').value = '';
+        document.getElementById('test-atual-grade').value = '';
     }
     renderTestTopicsPicker();
     sel.onchange = renderTestTopicsPicker;
@@ -3366,14 +3379,14 @@ function renderTestTopicsPicker() {
             </label>
         `;
     }).join('');
-    // Presets visiveis para o ano activo
+    // Presets visiveis para o ano ativo
     const yearNow = activeProfile()?.year;
     const presetButtons = Object.entries(TEST_TOPIC_PRESETS)
         .filter(([_, p]) => p.year === yearNow && (p.topicsBySubject[subKey] || []).length > 0)
         .map(([id, p]) => `<button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px;margin-right:6px;margin-bottom:6px;background:linear-gradient(135deg,#facc15,#f59e0b);color:#78350f;border:none;font-weight:800" onclick="applyTestTopicPreset('${id}')">${p.label}</button>`).join('');
     const presetWrap = presetButtons ? `<div style="margin-bottom:10px;padding:10px;background:#fef3c7;border-radius:10px;border:1.5px solid #fde68a"><div style="font-size:0.72rem;font-weight:800;color:#78350f;text-transform:uppercase;margin-bottom:6px">🎯 Agrupadores rápidos</div>${presetButtons}</div>` : '';
     const wrap = document.getElementById('test-topics-picker');
-    if (wrap) wrap.innerHTML = `<p class="muted" style="margin:6px 0">Marca os tópicos que saem neste teste (se não marcares nenhum, treinamos com todos os activos).</p>${presetWrap}${list}`;
+    if (wrap) wrap.innerHTML = `<p class="muted" style="margin:6px 0">Marca os tópicos que saem neste teste (se não marcares nenhum, treinamos com todos os ativos).</p>${presetWrap}${list}`;
 }
 
 // Lê um campo numérico de nota (0-20). Devolve null se vazio/invalido.
@@ -3392,9 +3405,9 @@ function saveTest() {
     const note = document.getElementById('test-note').value.trim();
     if (!date) { showToast('Escolhe uma data'); return; }
     const target = _parseGradeInput('test-target-grade');
-    const actual = _parseGradeInput('test-actual-grade');
+    const atual = _parseGradeInput('test-atual-grade');
     if (Number.isNaN(target)) { showToast('Nota objetivo tem de ser entre 0 e 20'); return; }
-    if (Number.isNaN(actual)) { showToast('Nota obtida tem de ser entre 0 e 20'); return; }
+    if (Number.isNaN(atual)) { showToast('Nota obtida tem de ser entre 0 e 20'); return; }
     const topics = Array.from(document.querySelectorAll('#test-topics-picker input[type="checkbox"]:checked')).map(cb => cb.value);
 
     let xpGained = 0;
@@ -3406,19 +3419,19 @@ function saveTest() {
             t.note = note;
             t.topics = topics;
             t.targetGrade = target;
-            t.actualGrade = actual;
+            t.actualGrade = atual;
             // Atribuir XP só na 1.ª vez que a nota obtida é registada
-            if (actual != null && !t.gradeXPAwarded) {
-                xpGained = Math.min(200, Math.round(actual * 10));
+            if (atual != null && !t.gradeXPAwarded) {
+                xpGained = Math.min(200, Math.round(atual * 10));
                 state.xp += xpGained;
                 t.gradeXPAwarded = true;
                 t.done = true;
             }
         }
     } else {
-        const t = { id: uid(), subject, date, note, topics, done: false, targetGrade: target, actualGrade: actual };
-        if (actual != null) {
-            xpGained = Math.min(200, Math.round(actual * 10));
+        const t = { id: uid(), subject, date, note, topics, done: false, targetGrade: target, actualGrade: atual };
+        if (atual != null) {
+            xpGained = Math.min(200, Math.round(atual * 10));
             state.xp += xpGained;
             t.gradeXPAwarded = true;
             t.done = true;
@@ -3433,7 +3446,7 @@ function saveTest() {
     if (xpGained > 0) {
         showToast(`Nota guardada — +${xpGained} XP! 🎉`);
     } else {
-        showToast(wasEditing ? 'Teste actualizado' : 'Teste adicionado');
+        showToast(wasEditing ? 'Teste atualizado' : 'Teste adicionado');
     }
 }
 
@@ -3462,12 +3475,12 @@ function startTestPrep(testId, opts = {}) {
     const key = t.subject;
     const active = activeTopicsFor(key);
     const orderArr = CURRICULUM[key] || [];
-    // Tópicos do teste (por ordem curricular); se vazio, todos os activos
+    // Tópicos do teste (por ordem curricular); se vazio, todos os ativos
     const rawTopics = (t.topics && t.topics.length > 0) ? t.topics : Array.from(active);
     const topicsOrdered = rawTopics
         .filter(tp => active.has(tp))
         .sort((a, b) => orderArr.indexOf(a) - orderArr.indexOf(b));
-    if (topicsOrdered.length === 0) { showToast('Sem tópicos activos para este teste.'); return; }
+    if (topicsOrdered.length === 0) { showToast('Sem tópicos ativos para este teste.'); return; }
 
     // Construir pool por tópico, excluindo TUDO o que já foi visto neste teste
     const availableByTopic = {};
@@ -3644,7 +3657,7 @@ function openProfileSwitcher() {
             <div class="modal-content">
                 <div class="modal-header">
                     <h2><i class="fas fa-users"></i> Perfis</h2>
-                    <button class="icon-btn" onclick="closeProfileSwitcher()"><i class="fas fa-xmark"></i></button>
+                    <button class="icon-btn" onclick="closeProfileSwitcher()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
                 <div class="modal-body" id="profile-switcher-body"></div>
             </div>`;
@@ -3683,7 +3696,7 @@ function openAddProfileModal() {
             <div class="modal-content">
                 <div class="modal-header">
                     <h2><i class="fas fa-user-plus"></i> Novo perfil</h2>
-                    <button class="icon-btn" id="add-profile-close" onclick="closeAddProfileModal()"><i class="fas fa-xmark"></i></button>
+                    <button class="icon-btn" id="add-profile-close" onclick="closeAddProfileModal()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
                 <div class="modal-body">
                     <label>Nome</label>
@@ -3701,11 +3714,11 @@ function openAddProfileModal() {
     }
     // Se ainda não há nenhum perfil, esconde o X (não pode fechar sem criar)
     const closeBtn = document.getElementById('add-profile-close');
-    if (closeBtn) closeBtn.style.display = hasAnyProfile() ? '' : 'none';
+    if (closeBtn) closeBtn.style.display = ''; // sempre — sem perfis, fechar volta ao ecrã inicial (com 'Restaurar com código')
     document.getElementById('new-profile-name').value = '';
     const yearsHtml = YEARS_AVAILABLE.map((y, i) => `
         <label class="year-picker-option">
-            <input type="radio" name="new-profile-year" value="${y.year}" ${i===0?'checked':''}>
+            <input type="radio" name="new-profile-year" value="${y.year}">
             <div class="year-picker-label">
                 <div class="year-picker-year">${y.label}</div>
                 <div class="year-picker-cycle">${y.cycle}</div>
@@ -3734,14 +3747,14 @@ function renderNewProfileAvatarGrid() {
     // Bloco 1b: Camara (so se o browser suportar getUserMedia)
     const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const cameraHtml = hasCamera ? `
-        <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('newProfile')">
+        <div class="avatar-option" role="button" tabindex="0" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('newProfile')">
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
     // Avatares customizados — partilhados entre todos os perfis no dispositivo
     const customs = Array.isArray(state.customAvatars) ? state.customAvatars : [];
     const customHtml = customs.map(a => `
-        <div class="avatar-option" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
+        <div class="avatar-option" role="button" tabindex="0" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectNewProfileAvatar(this)">${renderAvatar(a, 56)}</div>
     `).join('');
     // Grupos colapsiveis. Default: primeiro aberto, restantes fechados.
     const groupsHtml = _renderAvatarGroups('newProfile', null);
@@ -3782,7 +3795,7 @@ function selectNewProfileAvatar(el) {
 }
 
 // Captura de foto via webcam — funciona em Mac/desktop e iOS.
-// context: 'newProfile' (modal de criar perfil) | 'profile' (perfil activo).
+// context: 'newProfile' (modal de criar perfil) | 'profile' (perfil ativo).
 async function openCameraForAvatar(context) {
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
         showToast('Câmara não suportada neste browser.');
@@ -3898,7 +3911,7 @@ function openUrlAvatarPrompt(context) {
         if (context === 'newProfile') {
             _newProfileCustomAvatar = trimmed;
             renderNewProfileAvatarGrid();
-            showToast('⚠️ Usando URL direto (CORS bloqueou cache local)');
+            showToast('Avatar guardado a partir do link.');
         } else {
             state.profile.avatar = trimmed;
             saveState();
@@ -3931,7 +3944,7 @@ function renderProfile() {
                 <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${active ? '#fce7f3' : '#fff'};box-shadow:var(--shadow-sm);margin-bottom:6px">
                     <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#f472b6' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-weight:600;font-size:0.92rem">${escapeHtml(p.name)} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(activo)</span>' : ''}${shareBadge}</div>
+                        <div style="font-weight:600;font-size:0.92rem">${escapeHtml(p.name)} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(ativo)</span>' : ''}${shareBadge}</div>
                         <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
                     </div>
                     ${!active ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem" onclick="switchProfile('${p.id}')">Usar</button>` : ''}
@@ -3994,14 +4007,14 @@ function renderProfile() {
     `;
     const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     const cameraHtml = hasCamera ? `
-        <div class="avatar-option" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('profile')">
+        <div class="avatar-option" role="button" tabindex="0" style="cursor:pointer" title="Tirar foto com a câmara" onclick="openCameraForAvatar('profile')">
             <span style="font-size:1.5rem">📸</span>
         </div>
     ` : '';
     // Avatares customizados — partilhados entre todos os perfis no dispositivo
     const customs = Array.isArray(state.customAvatars) ? state.customAvatars : [];
     const customHtml = customs.map(a => `
-        <div class="avatar-option ${a === curAv ? 'selected' : ''}" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectAvatar(this.dataset.avatar)">${renderAvatar(a, 56)}</div>
+        <div class="avatar-option ${a === curAv ? 'selected' : ''}" role="button" tabindex="0" data-avatar="${String(a).replace(/"/g,'&quot;')}" onclick="selectAvatar(this.dataset.avatar)">${renderAvatar(a, 56)}</div>
     `).join('');
     // Grupos colapsiveis
     const groupsHtml = _renderAvatarGroups('profile', curAv);
@@ -4048,7 +4061,7 @@ function renderProfile() {
         <div class="reward-edit-row">
             <input type="text" value="${r.name.replace(/"/g, '&quot;')}" placeholder="Nome do prémio" oninput="updateRewardName('${r.id}', this.value)">
             <input type="number" min="50" step="50" value="${r.cost}" oninput="updateRewardCost('${r.id}', this.value)">
-            <button onclick="removeReward('${r.id}')" title="Remover"><i class="fas fa-trash"></i></button>
+            <button onclick="removeReward('${r.id}')" title="Remover" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
         </div>
     `).join('');
 }
@@ -4057,7 +4070,7 @@ function selectAvatar(a) {
     saveState();
     renderProfile();
     updateHeader();
-    // Propagar para Firestore se shareable (amigos veem actualizado)
+    // Propagar para Firestore se shareable (amigos veem atualizado)
     if (isProfileShareable(activeProfile()) && state.userCode) {
         fbRegisterUser(state.userCode, activeProfile()).catch(()=>{});
     }
@@ -4100,7 +4113,7 @@ async function saveProfile() {
     saveState();
     updateHeader();
     // Se for shareable, propagar nome/avatar/year para Firestore
-    // para os amigos verem actualizado imediatamente
+    // para os amigos verem atualizado imediatamente
     if (isProfileShareable(activeProfile()) && state.userCode) {
         try { await fbRegisterUser(state.userCode, activeProfile()); }
         catch (e) { console.warn('[profile] sync fail', e); }
@@ -4130,7 +4143,7 @@ function removeReward(id) {
     renderHome();
 }
 function resetRewards() {
-    if (!confirm('Voltar aos prémios padrão? Os actuais serão substituídos.')) return;
+    if (!confirm('Voltar aos prémios padrão? Os atuais serão substituídos.')) return;
     state.rewards = JSON.parse(JSON.stringify(DEFAULT_REWARDS));
     saveState();
     renderProfile();
@@ -4141,7 +4154,7 @@ function applyRewardPreset(preset) {
     const costs = REWARD_PRESETS[preset];
     if (!costs) return;
     const labels = { facil: 'Fácil', normal: 'Normal', dificil: 'Difícil' };
-    if (!confirm(`Aplicar preset "${labels[preset]}"? Os custos actuais serão substituídos.`)) return;
+    if (!confirm(`Aplicar preset "${labels[preset]}"? Os custos atuais serão substituídos.`)) return;
     state.rewards.forEach((r, i) => { if (costs[i]) r.cost = costs[i]; });
     saveState();
     renderProfile();
@@ -4162,13 +4175,13 @@ function saveMaxConfig() {
     if (key && !/^gsk_/.test(key)) { showToast('Chave Groq inválida — deve começar por gsk_'); return; }
     // Chaves Mistral não têm prefixo fixo. Validação mínima de comprimento para evitar
     // que um espaço ou carácter mal colado active o provedor com garbage.
-    if (mistralKey && mistralKey.length < 20) { showToast('Chave Mistral parece curta demais'); return; }
+    if (mistralKey && mistralKey.length < 20) { showToast('A chave Mistral parece demasiado curta.'); return; }
     state.max.apiKey = key;
     state.max.mistralKey = mistralKey;
     state.max.preferredProvider = preferred === 'mistral' ? 'mistral' : 'groq';
     state.max.enabled = enabled;
     saveState();
-    showToast(enabled ? 'MAX activado!' : 'Configuração guardada');
+    showToast(enabled ? 'MAX ativado!' : 'Configuração guardada');
 }
 
 // ========== MAX: chamada à API de IA (Groq → Mistral fallback) ==========
@@ -4746,14 +4759,14 @@ function setMaxCache(subjectKey, topics, items) {
 
 async function startMaxSession(subjectKey, opts = {}) {
     if (!state.max.enabled || !hasAIKey()) {
-        showToast('Activa o MAX no Perfil primeiro');
+        showToast('Ativa o MAX no Perfil primeiro');
         switchTab('profile');
         return;
     }
     const active = activeTopicsFor(subjectKey);
     let topics = opts.topics && opts.topics.length > 0 ? opts.topics : Array.from(active);
     topics = topics.filter(t => active.has(t));
-    if (topics.length === 0) { showToast('Sem tópicos activos. Ajusta o progresso da disciplina.'); return; }
+    if (topics.length === 0) { showToast('Sem tópicos ativos. Ajusta o progresso da disciplina.'); return; }
     const order = CURRICULUM[subjectKey] || [];
     topics = topics.sort((a, b) => order.indexOf(a) - order.indexOf(b)).slice(0, 6);
     if (currentSubjectView) closeSubjectDetail();
@@ -4836,7 +4849,7 @@ function resetSubject(key) {
     if (p.maxLessons) delete p.maxLessons[key];
     // 7) Testes desta disciplina
     p.tests = (p.tests || []).filter(t => t.subject !== key);
-    // 8) Progress (até onde estudou) — repor para "tudo activo"
+    // 8) Progress (até onde estudou) — repor para "tudo ativo"
     if (p.progress) {
         const curr = (typeof CURRICULUM !== 'undefined' && CURRICULUM[key]) ? CURRICULUM[key] : [];
         p.progress[key] = { toIndex: curr.length };
@@ -4905,7 +4918,7 @@ let _installPromptEvent = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     _installPromptEvent = e;
-    // Actualiza a UI — o botão "Instalar" pode deixar de ficar escondido
+    // Atualiza a UI — o botão "Instalar" pode deixar de ficar escondido
     try { refreshInstallUI(); } catch {}
 });
 
@@ -4938,7 +4951,7 @@ function isSafariBrowser() {
     return /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
 }
 
-// Mostra/esconde banner e botão conforme estado actual.
+// Mostra/esconde banner e botão conforme estado atual.
 function refreshInstallUI() {
     const banner = document.getElementById('install-banner');
     const profileBtn = document.getElementById('profile-install-btn');
@@ -5188,7 +5201,7 @@ async function importQuestionsFile(input) {
             return;
         }
         if (data.year && data.year !== p.year) {
-            if (!confirm(`O ficheiro é do ${data.year}.º ano e o perfil activo é do ${p.year}.º ano. Importar mesmo assim?`)) return;
+            if (!confirm(`O ficheiro é do ${data.year}.º ano e o perfil ativo é do ${p.year}.º ano. Importar mesmo assim?`)) return;
         }
         const incoming = _flattenSections(data.sections);
         if (incoming.length === 0) { showToast('Sem perguntas no ficheiro.'); return; }
@@ -5398,7 +5411,7 @@ function startDailyChallenge() {
         const top = sorted.slice(0, Math.min(5, sorted.length));
         items.push(top[Math.floor(Math.random() * top.length)]);
     });
-    if (items.length === 0) { showToast('Activa alguns tópicos primeiro nas disciplinas.'); return; }
+    if (items.length === 0) { showToast('Ativa alguns tópicos primeiro nas disciplinas.'); return; }
     const shuffled = items.sort(() => Math.random() - 0.5).slice(0, DAILY_QUESTIONS);
     currentSession = { items: shuffled, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: true, startedAt: Date.now() };
     openExerciseScreen();
@@ -5439,7 +5452,7 @@ function _srsReviewCount() { try { return _srsReviewItems(99).length; } catch { 
 window._srsReviewCount = _srsReviewCount;
 function startReviewSession() {
     const items = _srsReviewItems(12);
-    if (!items.length) { showToast('Sem erros para rever — bom trabalho! 🎉'); return; }
+    if (!items.length) { showToast('Sem erros para rever — bom trabalho! 🎉', 'success'); return; }
     currentSession = { items: items.sort(() => Math.random() - 0.5), idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: false, subject: null, isReview: true, startedAt: Date.now() };
     openExerciseScreen();
     renderQuestion();
@@ -5769,7 +5782,7 @@ function renderQuestion() {
         } catch (err) { console.warn('[leitura] auto-open falhou', err); }
     }
     document.getElementById('ex-feedback').style.display = 'none';
-    // Repor a barra de acção em modo "Responder"
+    // Repor a barra de ação em modo "Responder"
     _setExAction('submit');
     // Reabrir interação na área de resposta (foi trancada em showFeedback)
     const _aa = document.getElementById('ex-answer-area');
@@ -5940,7 +5953,7 @@ function _rpAdvance() {
                 // 1.ª vez avanca automaticamente quando acaba; depois fica como "ouvir de novo"
                 if (!playBtn.dataset.played) {
                     playBtn.dataset.played = '1';
-                    speakEN(turn.text, st.lang, { onEnd: () => setTimeout(next, 400) }, _voiceForCurrentExercise && _voiceForCurrentExercise());
+                    speakEN(turn.text, st.lang, { onEnd: () => setTimeout(next, 1500) }, _voiceForCurrentExercise && _voiceForCurrentExercise());
                 } else {
                     speakEN(turn.text, st.lang, { onEnd: onDone }, _voiceForCurrentExercise && _voiceForCurrentExercise());
                 }
@@ -6241,7 +6254,7 @@ function _srsGrade(id, grade) {
 }
 function _tutorSavePhrase(text, note, topic) {
     text = String(text || '').trim(); if (!text) return false;
-    if (_srsAll().some(c => c.type === 'phrase' && c.text === text)) { if (typeof showToast === 'function') showToast('Já está no phrasebook'); return false; }
+    if (_srsAll().some(c => c.type === 'phrase' && c.text === text)) { if (typeof showToast === 'function') showToast('Já está no caderno de frases'); return false; }
     _srsAdd({ type: 'phrase', text, note: String(note || '').trim(), topic: String(topic || '').trim() });
     if (typeof showToast === 'function') showToast('💾 Guardado no phrasebook');
     _tutorUpdateReviewBadge();
@@ -6313,7 +6326,7 @@ function _reviewSessionHtml() {
     const head = `<div class="review-sec-h">🔁 A rever — ${remaining} ${remaining === 1 ? 'cartão' : 'cartões'}</div>`;
     if (c.type === 'phrase') {
         return head + `<div class="review-card" data-id="${c.id}">
-          <div class="review-q">${escapeHtml(c.text)} <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="review-q">${escapeHtml(c.text)} <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
           <div class="review-note" id="review-note" style="display:none">${c.note ? escapeHtml(c.note) : '<i>(sem nota)</i>'}${c.topic ? ` · <span class="review-topic">${escapeHtml(c.topic)}</span>` : ''}</div>
           <button class="review-reveal" id="review-reveal" onclick="document.getElementById('review-reveal').style.display='none';document.getElementById('review-note').style.display='block';document.getElementById('review-grades').style.display='flex'">Mostrar nota</button>
           <div class="review-grades" id="review-grades" style="display:none">
@@ -6342,7 +6355,7 @@ function _phrasebookListHtml() {
           <div class="phrase-text">${escapeHtml(c.text)}</div>
           ${c.note ? `<div class="phrase-note">${escapeHtml(c.note)}</div>` : ''}
         </div>
-        <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button>
+        <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
         <button class="phrase-del" onclick="_reviewDelete('${c.id}')" aria-label="Apagar"><i class="fas fa-trash"></i></button>
       </div>`).join('');
 }
@@ -6536,7 +6549,7 @@ function _tutorAddTutor(text, corrected, tip, autoSpeak) {
           ${corrHtml}
           <div class="tutor-bubble tutor-them" data-text="${escapeHtml(text)}">
             <span>${escapeHtml(text)}</span>
-            <button class="tutor-play" onclick="_tutorPlay('${sid}')" id="${sid}"><i class="fas fa-volume-high"></i></button>
+            <button class="tutor-play" onclick="_tutorPlay('${sid}')" id="${sid}" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>`);
@@ -7136,7 +7149,7 @@ async function _tutorCoachWritingSubmit(tid) {
     const lv = ta.dataset.lv || _tutorTargetLevel();
     const submit = document.querySelector(`button.tutor-coach-submit[data-tid="${tid}"]`);
     const text = (ta.value || '').trim();
-    if (text.length < 30) { showToast && showToast('Write at least 30 characters'); return; }
+    if (text.length < 30) { showToast && showToast('Escreve pelo menos 30 caracteres'); return; }
     if (submit) { submit.disabled = true; submit.textContent = 'Grading…'; }
     const sys = `You are a strict CEFR examiner grading writing at level ${lv}. Return ONLY a JSON object (no prose) with keys: task (0-5), coherence (0-5), range (0-5), accuracy (0-5), overall (one of A2/B1/B2/C1/C2), feedback (markdown string, 4 short bullets, in English, focused on UPGRADES to next level), corrections (array of {original, better, reason}). Pick 3 corrections max — the most impactful ones.`;
     const usr = `Prompt: ${prompt}\n\nStudent answer:\n${text}`;
@@ -7244,7 +7257,7 @@ async function _tutorCoachPron() {
         </div>
       </div>`);
     _tutorScroll();
-    showToast && showToast('Tap the mic to record');
+    showToast && showToast('Toca no micro e fala');
 }
 window._tutorCoachPron = _tutorCoachPron;
 
@@ -7478,7 +7491,7 @@ function _tutorMeetingAsk() {
       <div class="tutor-row them"><div class="tutor-bubble-av">${p.cat.icon}</div>
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">${p.cat.icon} ${escapeHtml(p.cat.label)} · ${n}/${mq.total}</div>
-          <div class="tutor-pron-target">${escapeHtml(p.en)} <button class="tutor-say" data-text="${escapeHtml(p.en)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-pron-target">${escapeHtml(p.en)} <button class="tutor-say" data-text="${escapeHtml(p.en)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
           <div class="tutor-meet-pt">${escapeHtml(p.pt)}</div>
           <div class="tutor-pron-hint">Ouve o modelo, toca no micro e diz a frase em voz alta.</div>
         </div>
@@ -7615,7 +7628,7 @@ function _tutorOpenExplore() {
             const itemBtn = `<button class="tutor-ladder-item${cls}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
               <i class="fas ${icon}"></i> <span>${escapeHtml(t)}</span>
             </button>`;
-            const clearBtn = (isCons || isSeen) ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar"><i class="fas fa-xmark"></i></button>` : '';
+            const clearBtn = (isCons || isSeen) ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>` : '';
             return `<div class="tutor-ladder-row">${itemBtn}${clearBtn}</div>`;
         }).join('');
         const doneCount = band.topics.filter(t => cons[t]).length;
@@ -7790,7 +7803,7 @@ function _tutorStartPron(target, reply) {
         <div class="tutor-bubble-av">🎤</div>
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">🎤 Treina a pronúncia</div>
-          <div class="tutor-pron-target">${escapeHtml(target)} <button class="tutor-say" data-text="${escapeHtml(target)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-pron-target">${escapeHtml(target)} <button class="tutor-say" data-text="${escapeHtml(target)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
           <div class="tutor-pron-hint">Ouve o modelo, depois toca no micro e lê em voz alta.</div>
         </div>
       </div>`);
@@ -7914,7 +7927,7 @@ function _tutorOralStart() {
       <div class="tutor-row them"><div class="tutor-bubble-av">🎤</div>
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">🎤 Diz em voz alta</div>
-          <div class="tutor-pron-target">${escapeHtml(target)} <button class="tutor-say" data-text="${escapeHtml(target)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>
+          <div class="tutor-pron-target">${escapeHtml(target)} <button class="tutor-say" data-text="${escapeHtml(target)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
           <div class="tutor-pron-hint">Ouve o modelo, toca no micro e di-la (podes prolongar a frase). Repetimos até ficar bem.</div>
         </div>
       </div>`);
@@ -8585,7 +8598,7 @@ function _tutorShowCorrection(d) {
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">📖 Vamos corrigir ${badge}</div>
           <div class="tutor-cmp-said">🗣️ Disseste: "${escapeHtml(d.said)}"</div>
-          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button> <button class="tutor-save" data-text="${escapeHtml(d.corrected)}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(d.errorType || '')}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button></div>
+          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button> <button class="tutor-save" data-text="${escapeHtml(d.corrected)}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(d.errorType || '')}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button></div>
           ${hasRule ? `<div class="tutor-lesson-rule">
             ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
             ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
@@ -8960,7 +8973,7 @@ function _tutorRenderMistakeLesson(d) {
         <div class="tutor-lesson">
           <div class="tutor-lesson-head">💡 Vamos reforçar este erro</div>
           ${d.said ? `<div class="tutor-cmp-said">🗣️ Escolheste: "${escapeHtml(d.said)}"</div>` : ''}
-          ${d.correct ? `<div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.correct)}" <button class="tutor-say" data-text="${escapeHtml(d.correct)}" onclick="_tutorSpeakBtn(this)"><i class="fas fa-volume-high"></i></button></div>` : ''}
+          ${d.correct ? `<div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.correct)}" <button class="tutor-say" data-text="${escapeHtml(d.correct)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>` : ''}
           ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
           ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
           ${_tutorPointsHtml(d.points)}
@@ -9699,8 +9712,8 @@ function redrawOrder() {
             <span class="order-item-num">${i+1}</span>
             <span style="flex:1">${it}</span>
             <span class="order-ctrls">
-                <button class="order-btn" onclick="moveOrder(${i}, -1)"><i class="fas fa-arrow-up"></i></button>
-                <button class="order-btn" onclick="moveOrder(${i}, 1)"><i class="fas fa-arrow-down"></i></button>
+                <button class="order-btn" onclick="moveOrder(${i}, -1)" aria-label="Subir" title="Subir"><i class="fas fa-arrow-up" aria-hidden="true"></i></button>
+                <button class="order-btn" onclick="moveOrder(${i}, 1)" aria-label="Descer" title="Descer"><i class="fas fa-arrow-down" aria-hidden="true"></i></button>
             </span>
         </li>
     `).join('');
@@ -10144,7 +10157,7 @@ function _estRender() {
 function _estMove(v) {
     estState.value = parseInt(v, 10);
     estState.moved = true;
-    // NÃO re-renderiza o DOM todo durante o drag — só actualiza o valor
+    // NÃO re-renderiza o DOM todo durante o drag — só atualiza o valor
     // e o termómetro. Substituir o <input> em pleno drag faz o slider
     // saltar/perder o toque em mobile.
     const valEl = document.querySelector('.est-value');
@@ -10709,7 +10722,7 @@ function recordAnswer(e, isCorrect) {
         else m['w' + d] = (m['w' + d] || 0) + 1;
         state.topicMastery[key] = m;
     }
-    // Marca pergunta como vista no teste activo (para evitar repetir em sessões futuras)
+    // Marca pergunta como vista no teste ativo (para evitar repetir em sessões futuras)
     if (s.testId) {
         const t = (state.tests || []).find(x => x.id === s.testId);
         if (t) {
@@ -11049,7 +11062,7 @@ function showFeedback(e, isCorrect) {
         reasonBtn.disabled = false;
         reasonBtn.innerHTML = '<i class="fas fa-pen-fancy"></i> Explica o teu raciocínio';
     }
-    // Barra de acção passa a "Continuar" / "Ver resultado"
+    // Barra de ação passa a "Continuar" / "Ver resultado"
     const isLast = currentSession.idx + 1 >= currentSession.items.length;
     _setExAction('continue', isLast ? 'Ver resultado' : 'Continuar');
     // Animar XP se aumentou + floating "+N XP" sobre o feedback
@@ -11975,7 +11988,7 @@ function retryWrongSession() {
     const wrongItems = s.items.filter((_, i) => s.results && s.results[i] === false);
     if (!wrongItems.length) {
         // Não há erros reais em s.results — botão não devia aparecer; volta ao início
-        showToast('Afinal não há perguntas erradas! 🎉');
+        showToast('Afinal não há perguntas erradas! 🎉', 'success');
         setTimeout(closeSummary, 1200);
         return;
     }
@@ -12039,7 +12052,7 @@ function decodeDuel(s) {
 // ----- procura exercício por id em qualquer ano carregado -----
 function _findExerciseAnyYear(id) {
     if (!id) return null;
-    // Tenta no ano activo primeiro
+    // Tenta no ano ativo primeiro
     if (Array.isArray(EXERCISES)) {
         const e = EXERCISES.find(x => x && x.id === id);
         if (e) return e;
@@ -12155,6 +12168,8 @@ function _onFbReady() {
     // e o utilizador via "A criar duelo…" eternamente, sem feedback.
     return new Promise((resolve, reject) => {
         const onReady = () => { clearTimeout(to); resolve(); };
+        const onFail = () => { clearTimeout(to); try { window.removeEventListener('fbready', onReady); } catch {} reject(new Error('Firebase não disponível (verifica ligação ou bloqueador).')); };
+        window.addEventListener('fbfail', onFail, { once: true });
         const to = setTimeout(() => {
             try { window.removeEventListener('fbready', onReady); } catch {}
             reject(new Error('Firebase não disponível (verifica ligação ou bloqueador).'));
@@ -12223,7 +12238,7 @@ async function deleteMyDuel(id) {
         showToast('❌ Erro: ' + (err?.message || err));
         // Pode ser que rule Firestore ainda esteja em allow delete: if false
         if (err?.code === 'permission-denied' || /permission/i.test(err?.message || '')) {
-            showToast('⚠️ Actualiza regras Firestore: allow delete: if true');
+            showToast('Não foi possível apagar o duelo agora.');
         }
         return;
     }
@@ -12258,7 +12273,7 @@ function _hasDuelPlayed(id) {
 // ===== CRIAR DUELO direto da disciplina (mode='open' — sem score) =====
 async function createDuelFromSubject(subjectKey, opts = {}) {
     const p = activeProfile();
-    if (!p) { showToast('Cria um perfil primeiro.'); return; }
+    if (!p) { showToast('Cria primeiro um perfil.'); return; }
     let topicSet;
     if (opts.useSelection && selectedTopicsForMax.size > 0) topicSet = new Set(selectedTopicsForMax);
     else topicSet = activeTopicsFor(subjectKey);
@@ -12429,7 +12444,7 @@ async function openMyDuelsScreen() {
                     ${!myResp
                         ? `<button class="btn" style="flex:1;padding:9px;font-size:0.84rem;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800" onclick="closeMyDuelsScreen();_startFirestoreDuel('${entry.id}')"><i class="fas fa-fist-raised"></i> Jogar</button>`
                         : `<button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_openDuelDetails('${entry.id}')"><i class="fas fa-eye"></i> Ver ranking</button>`}
-                    <button class="btn" style="padding:8px 12px;font-size:0.8rem;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca" onclick="deleteMyDuel('${entry.id}')" title="Apagar"><i class="fas fa-trash"></i></button>
+                    <button class="btn" style="padding:8px 12px;font-size:0.8rem;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca" onclick="deleteMyDuel('${entry.id}')" title="Apagar" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
             </div>`;
         }).join('');
@@ -12442,7 +12457,7 @@ async function openMyDuelsScreen() {
                     <h1 style="font-size:1.4rem;font-weight:900">🥊 Os meus duelos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${duels.length} ${duels.length===1?'criado':'criados'}</p>
                 </div>
-                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeMyDuelsScreen()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeMyDuelsScreen()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body" style="padding:18px">${content}</div>
         </div>
@@ -12522,7 +12537,7 @@ async function openFirestoreDuelFromUrl(id) {
     let data;
     try { data = await fbGetDuel(id); }
     catch (err) { console.error('[fbduel] get fail', err); showToast('❌ Erro a carregar duelo: ' + (err?.message||err)); return; }
-    if (!data) { showToast('Duelo não encontrado (ID: ' + id + ')'); return; }
+    if (!data) { showToast('Este duelo já não está disponível. Pede um novo ao teu amigo.'); return; }
     console.log('[fbduel] loaded', id, data);
     // Se ja respondi (no Firestore ou localmente), vai directo ao ranking
     const myName = activeProfile()?.name || '';
@@ -12553,7 +12568,7 @@ async function openFirestoreDuelFromUrl(id) {
 function _showFirestoreDuelIntro(data, id) {
     document.getElementById('fb-duel-intro-modal-temp')?.remove();
     if (!data || !Array.isArray(data.questions) || data.questions.length === 0) {
-        showToast('Duelo sem perguntas — pode ser dado antigo. ID: ' + id);
+        showToast('Este duelo já não tem perguntas disponíveis. Pede um novo ao teu amigo.');
         console.warn('[fbduel] bad data', data);
         return;
     }
@@ -12638,6 +12653,7 @@ async function _startFirestoreDuel(id) {
     try { data = await fbGetDuel(id); } catch (e) { showToast('❌ Sem ligação — tenta outra vez.'); return; }
     if (!data) { showToast('Duelo desapareceu.'); return; }
     // Resolver as questoes pelos IDs
+    try { const cy = Number(data.creator && data.creator.year); if (cy) await loadYearExtras(cy); } catch {}
     const items = data.questions.map(qid => _findExerciseAnyYear(qid)).filter(Boolean);
     if (items.length === 0) { showToast('Não foi possível carregar as perguntas.'); return; }
     currentSession = {
@@ -13061,6 +13077,7 @@ async function removeFriend(code) {
             await updateDoc(doc(db, 'users', myCode), { [`friends.${code}`]: deleteField() });
         } catch (e) { console.warn('[friend] remove self fail', e); }
         try {
+            await _onFbReady();
             const { db, doc, updateDoc, deleteField } = window.__fb;
             await updateDoc(doc(db, 'users', code), { [`friends.${myCode}`]: deleteField() });
         } catch (e) { console.warn('[friend] remove other fail', e); }
@@ -13116,7 +13133,7 @@ async function openSocialHub() {
                     <h1 style="font-size:1.4rem;font-weight:900">🥊 Amigos & Duelos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Código: <strong style="font-family:monospace;letter-spacing:0.1em">${escapeHtml(state.userCode||'—')}</strong></p>
                 </div>
-                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeSocialHub()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeSocialHub()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body" style="padding:18px">
                 <div onclick="closeSocialHub();openInboxScreen()" style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;box-shadow:0 6px 16px -8px rgba(6,182,212,0.5)">
@@ -13180,8 +13197,8 @@ function openFriendsScreen() {
                     <div style="font-weight:800">${escapeHtml(r.name)}</div>
                     <div style="font-size:0.74rem;color:#78350f;font-family:monospace">${escapeHtml(r.code)} · ${r.year || '?'}.º ano</div>
                 </div>
-                <button class="btn" style="background:#16a34a;color:#fff;padding:8px 12px;font-size:0.82rem;font-weight:700;border:none" onclick="acceptFriendRequest('${r.code}')"><i class="fas fa-check"></i></button>
-                <button class="btn" style="background:#fff;color:#dc2626;padding:8px 12px;font-size:0.82rem;font-weight:700;border:1.5px solid #fecaca" onclick="rejectFriendRequest('${r.code}')"><i class="fas fa-xmark"></i></button>
+                <button class="btn" style="background:#16a34a;color:#fff;padding:8px 12px;font-size:0.82rem;font-weight:700;border:none" onclick="acceptFriendRequest('${r.code}')" aria-label="Confirmar" title="Confirmar"><i class="fas fa-check" aria-hidden="true"></i></button>
+                <button class="btn" style="background:#fff;color:#dc2626;padding:8px 12px;font-size:0.82rem;font-weight:700;border:1.5px solid #fecaca" onclick="rejectFriendRequest('${r.code}')" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>`).join('')}
         </div>
     `;
@@ -13197,7 +13214,7 @@ function openFriendsScreen() {
                     <div style="font-weight:800">${escapeHtml(f.name)}${badge}</div>
                     <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
                 </div>
-                <button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="if(confirm('Remover ${escapeHtml(f.name)}?'))removeFriend('${f.code}')"><i class="fas fa-trash"></i></button>
+                <button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="if(confirm('Remover ${escapeHtml(f.name)}?'))removeFriend('${f.code}')" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
             </div>`;
         }).join('');
     const html = `
@@ -13208,7 +13225,7 @@ function openFriendsScreen() {
                     <h1 style="font-size:1.4rem;font-weight:900">👥 Os meus amigos</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">${friends.length} ${friends.length===1?'amigo':'amigos'}${pendingReq.length>0?` · ${pendingReq.length} pedido${pendingReq.length>1?'s':''}`:''}</p>
                 </div>
-                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeFriendsScreen()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeFriendsScreen()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body" style="padding:18px">
                 <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:16px;margin-bottom:18px;text-align:center">
@@ -13224,7 +13241,7 @@ function openFriendsScreen() {
                     <summary style="font-size:0.84rem;font-weight:700;cursor:pointer;color:var(--text-light)">Adicionar por código</summary>
                     <div style="display:flex;gap:8px;margin-top:10px">
                         <input type="text" id="friend-code-input" placeholder="EX: ABC4" maxlength="4" style="flex:1;padding:11px;border:1.5px solid var(--border);border-radius:10px;font-size:1.05rem;text-transform:uppercase;font-family:monospace;letter-spacing:0.1em" oninput="this.value=this.value.toUpperCase()">
-                        <button class="btn btn-primary-solid" style="padding:11px 16px" onclick="_addFriendFromInput()"><i class="fas fa-plus"></i></button>
+                        <button class="btn btn-primary-solid" style="padding:11px 16px" onclick="_addFriendFromInput()" aria-label="Adicionar" title="Adicionar"><i class="fas fa-plus" aria-hidden="true"></i></button>
                     </div>
                 </details>
                 <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:var(--text-light)">Amigos (${friends.length})</div>
@@ -13240,7 +13257,7 @@ function openFriendsScreen() {
 }
 function closeFriendsScreen() { document.getElementById('friends-modal-temp')?.remove(); }
 
-// Refresca a disponibilidade (shareable + nome+ano actualizados) de cada amigo.
+// Refresca a disponibilidade (shareable + nome+ano atualizados) de cada amigo.
 // Marca f.available no estado local.
 async function _refreshFriendsAvailability() {
     const friends = state.friends || [];
@@ -13252,7 +13269,7 @@ async function _refreshFriendsAvailability() {
             if (!fresh) { if (f.available !== false) { f.available = false; changed = true; } continue; }
             const isAvail = fresh.shareable !== false;
             if (f.available !== isAvail) { f.available = isAvail; changed = true; }
-            // Actualizar nome/avatar/year se mudaram
+            // Atualizar nome/avatar/year se mudaram
             if (fresh.name && fresh.name !== f.name) { f.name = fresh.name; changed = true; }
             if (fresh.avatar && fresh.avatar !== f.avatar) { f.avatar = fresh.avatar; changed = true; }
             if (fresh.year && fresh.year !== f.year) { f.year = fresh.year; changed = true; }
@@ -13282,7 +13299,7 @@ async function openSearchPeopleScreen() {
                     <h1 style="font-size:1.4rem;font-weight:900">🔍 Procurar pessoas</h1>
                     <p style="font-size:0.82rem;opacity:0.94;margin-top:2px">Encontra colegas e pede amizade</p>
                 </div>
-                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeSearchPeopleScreen()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeSearchPeopleScreen()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body" style="padding:18px">
                 <input type="text" id="people-search-input" placeholder="🔍 Filtrar por nome…" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:0.96rem;margin-bottom:14px" oninput="_filterPeople()">
@@ -13563,8 +13580,8 @@ async function openInboxScreen() {
 
         // Apagar: para criadores apaga do Firestore; para receptores so esconde local
         const deleteBtn = mine
-            ? `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();deleteMyDuel('${d.id}')" title="Apagar duelo"><i class="fas fa-trash"></i></button>`
-            : `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();hideReceivedDuel('${d.id}')" title="Remover da caixa"><i class="fas fa-trash"></i></button>`;
+            ? `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();deleteMyDuel('${d.id}')" title="Apagar duelo" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>`
+            : `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();hideReceivedDuel('${d.id}')" title="Remover da caixa" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>`;
 
         const cta = !isAnswered
             ? `<i class="fas fa-fist-raised" style="color:#dc2626;font-size:1rem" title="Jogar"></i>`
@@ -13610,7 +13627,7 @@ async function openInboxScreen() {
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <button style="background:#fff;color:#d97706;padding:8px 14px;border:none;border-radius:999px;font-weight:800;font-size:0.86rem;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer" onclick="closeInboxScreen();setTimeout(openRankingScreen,150)" title="Ranking">🏅 Ranking</button>
-                    <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeInboxScreen()"><i class="fas fa-xmark"></i></button>
+                    <button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeInboxScreen()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
             </div>
             <div class="modal-body" style="padding:18px">${content}</div>
@@ -13681,7 +13698,7 @@ async function openRankingScreen() {
     const myName = activeProfile()?.name || 'Tu';
     const lcMe = myName.trim().toLowerCase();
     // Loading state
-    document.body.insertAdjacentHTML('beforeend', `<div id="ranking-modal-temp" class="modal" style="align-items:flex-start;padding:0"><div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh"><div class="social-modal-header" style="background:linear-gradient(135deg,#facc15,#f59e0b,#d97706);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10"><div><h1 style="font-size:1.4rem;font-weight:900">🏅 Ranking</h1><p style="font-size:0.82rem;opacity:0.94;margin-top:2px">A calcular…</p></div><button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeRankingScreen()"><i class="fas fa-xmark"></i></button></div><div class="modal-body" id="ranking-body" style="padding:18px;text-align:center;color:var(--text-light)"><i class="fas fa-spinner fa-spin"></i> A carregar duelos…</div></div></div>`);
+    document.body.insertAdjacentHTML('beforeend', `<div id="ranking-modal-temp" class="modal" style="align-items:flex-start;padding:0"><div class="modal-content" style="max-width:560px;width:100%;border-radius:0;max-height:100vh;overflow:auto;min-height:100vh"><div class="social-modal-header" style="background:linear-gradient(135deg,#facc15,#f59e0b,#d97706);color:#fff;padding:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10"><div><h1 style="font-size:1.4rem;font-weight:900">🏅 Ranking</h1><p style="font-size:0.82rem;opacity:0.94;margin-top:2px">A calcular…</p></div><button class="icon-btn" style="background:rgba(255,255,255,0.18);color:#fff" onclick="closeRankingScreen()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button></div><div class="modal-body" id="ranking-body" style="padding:18px;text-align:center;color:var(--text-light)"><i class="fas fa-spinner fa-spin"></i> A carregar duelos…</div></div></div>`);
 
     const all = await _fetchAllMyDuelsForRanking();
 
@@ -13796,7 +13813,7 @@ window.refreshInbox = refreshInbox;
 async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
     console.log('[duel] pickDuelRecipientsAndCreate', subjectKey, opts);
     const p = activeProfile();
-    if (!p) { showToast('Sem perfil activo.'); return; }
+    if (!p) { showToast('Sem perfil ativo.'); return; }
     if (!isProfileShareable(p)) {
         console.log('[duel] not shareable — opening gate');
         _openShareableGate();
@@ -13869,9 +13886,9 @@ window._confirmDuelRecipients = _confirmDuelRecipients;
 // Executar via console no browser: setupEduarda3rdPeriod()
 function setupEduarda3rdPeriod() {
     const p = activeProfile();
-    if (!p) { console.warn('Sem perfil activo'); return; }
+    if (!p) { console.warn('Sem perfil ativo'); return; }
     if (p.year !== 2) {
-        if (!confirm(`Perfil ativo (${p.name}) e do ${p.year}.o ano. Continuar mesmo assim?`)) return;
+        if (!confirm(`O perfil ativo (${p.name}) é do ${p.year}.º ano. Continuar mesmo assim?`)) return;
     }
     const tests = [
         {
@@ -13909,7 +13926,7 @@ function setupEduarda3rdPeriod() {
             ]
         }
     ];
-    // Mat+ (pack reforco) — adiciona so se o pack estiver activo no perfil
+    // Mat+ (pack reforco) — adiciona so se o pack estiver ativo no perfil
     if (SUBJECTS && SUBJECTS.mat_plus) {
         tests.push({
             subject: 'mat_plus',
@@ -13947,9 +13964,9 @@ window.setupEduarda3rdPeriod = setupEduarda3rdPeriod;
 // Utilitario: cria teste de Ingles 5.o ano (orientadores da professora)
 function setupCarolinaIngles5() {
     const p = activeProfile();
-    if (!p) { console.warn('Sem perfil activo'); return; }
+    if (!p) { console.warn('Sem perfil ativo'); return; }
     if (p.year !== 5) {
-        if (!confirm(`Perfil ativo (${p.name}) e do ${p.year}.o ano. Continuar mesmo assim?`)) return;
+        if (!confirm(`O perfil ativo (${p.name}) é do ${p.year}.º ano. Continuar mesmo assim?`)) return;
     }
     if (!state.tests) state.tests = [];
     // Data: ~3 semanas a partir de hoje (sextas-feiras tipicamente)
@@ -14055,7 +14072,7 @@ function _checkIncomingDuel() {
         if (!data || !Array.isArray(data.q) || data.q.length === 0) return;
         // Limpa o URL para não voltar a abrir o duelo após reload
         try { history.replaceState({}, '', location.pathname); } catch (_) {}
-        // Garante que o ano do criador está carregado (se diferente do activo)
+        // Garante que o ano do criador está carregado (se diferente do ativo)
         if (data.cy && window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[data.cy] && typeof loadYearExtras === 'function') {
             loadYearExtras(data.cy).then(() => setTimeout(() => _showDuelIntro(data), 200));
         } else {
@@ -14085,7 +14102,7 @@ function _showDuelIntro(data) {
         return;
     }
     if (!activeProfile()) {
-        showToast('Cria primeiro um perfil para aceitar o desafio!');
+        showToast('Cria primeiro um perfil.');
         switchTab('profile');
         return;
     }
@@ -14094,7 +14111,7 @@ function _showDuelIntro(data) {
 
     // Banner de aviso quando aberto no browser em vez da app instalada
     const inBrowser = !_isStandaloneApp();
-    // Construir o link actual para que o utilizador possa copiá-lo e colar na app
+    // Construir o link atual para que o utilizador possa copiá-lo e colar na app
     const currentUrl = `${location.origin}${location.pathname}?duel=${encodeDuel(data)}`;
     const browserBanner = inBrowser ? `
         <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:0.85rem;color:#78350f;line-height:1.5">
@@ -14387,7 +14404,7 @@ function _buildShareText(e) {
 }
 
 async function shareCurrentQuestion() {
-    if (!currentSession) { showToast('Não há pergunta activa.'); return; }
+    if (!currentSession) { showToast('Não há pergunta ativa.'); return; }
     const e = currentSession.items[currentSession.idx];
     if (!e) return;
 
@@ -14543,7 +14560,7 @@ function useDoubtSuggestion(text) {
 
 // Expande/recolhe o painel "Tens uma dúvida?" inline no ecrã do exercício.
 // Quando expande, foca o input para escrita imediata e mostra sugestões
-// contextuais (palavras difíceis da pergunta actual).
+// contextuais (palavras difíceis da pergunta atual).
 function toggleExerciseDoubt() {
     const panel = document.getElementById('ex-doubt-panel');
     const trigger = document.getElementById('ex-doubt-trigger');
@@ -14554,7 +14571,7 @@ function toggleExerciseDoubt() {
     panel.style.display = isOpen ? 'none' : 'block';
     if (trigger) trigger.classList.toggle('open', !isOpen);
     if (!isOpen) {
-        // Construir sugestões contextuais com base na pergunta actual
+        // Construir sugestões contextuais com base na pergunta atual
         const e = currentSession?.items?.[currentSession?.idx];
         const items = buildDoubtSuggestions(e);
         if (sugg) {
@@ -14900,7 +14917,7 @@ async function askQuestion() {
     const q = (input.value || '').trim();
     if (!q) { showToast('Escreve uma dúvida primeiro'); return; }
     if (!SUBJECTS || Object.keys(SUBJECTS).length === 0) {
-        showToast('Cria um perfil primeiro');
+        showToast('Cria primeiro um perfil.');
         return;
     }
 
@@ -14933,7 +14950,7 @@ async function askQuestion() {
     }
 }
 
-// Constrói o "catálogo" de disciplinas+tópicos activos para o modelo
+// Constrói o "catálogo" de disciplinas+tópicos ativos para o modelo
 function _askBuildCatalog() {
     const out = {};
     Object.keys(SUBJECTS).forEach(key => {
@@ -15045,7 +15062,7 @@ function _askLocalResolve(q) {
     if (!answer) {
         answer = top.length > 0
             ? `Encontrei tópicos relacionados na disciplina de ${SUBJECTS[top[0].subKey].name}. Vê abaixo.`
-            : 'Não encontrei nenhum tópico no teu currículo que corresponda à pergunta. Tenta reformular, ou activa o MAX (IA) no Perfil para respostas mais amplas.';
+            : 'Não encontrei nenhum tópico no teu currículo que corresponda à pergunta. Tenta reformular, ou ativa o MAX (IA) no Perfil para respostas mais amplas.';
     }
 
     return {
@@ -15101,7 +15118,7 @@ function _renderAskResult(q, r) {
     let footer = '';
     if (r._source === 'ai') footer = 'Resposta gerada pela IA (' + (r._providerName || 'IA') + ')';
     else if (r._fallback === 'ai_error') footer = 'A IA falhou — pesquisa no currículo local';
-    else if (r._fallback === 'no_key') footer = 'Pesquisa no currículo local · activa o MAX para respostas com IA';
+    else if (r._fallback === 'no_key') footer = 'Pesquisa no currículo local · ativa o MAX para respostas com IA';
     else footer = 'Pesquisa no currículo local';
     parts.push(`<div class="ask-result-footer">${escapeHtml(footer)}</div>`);
 
@@ -15131,7 +15148,7 @@ function askStartPractice() {
     renderQuestion();
 }
 
-// Estado da dúvida actual aberta dentro da lição (para contexto da pergunta)
+// Estado da dúvida atual aberta dentro da lição (para contexto da pergunta)
 let _currentLessonDoubtCtx = null;
 
 function openLessonByKey(key, opts) {
@@ -15411,7 +15428,7 @@ async function askLessonDoubt() {
             const clean = String(text || '').trim().replace(/^["']|["']$/g, '');
             ans.innerHTML = `<div class="lesson-doubt-result"><div class="lesson-doubt-result-q"><i class="fas fa-quote-left"></i> ${escapeHtml(q)}</div><div class="lesson-doubt-result-answer">${_lessonDoubtFormat(clean)}</div></div>`;
         } else {
-            ans.innerHTML = `<div class="lesson-doubt-result"><div class="lesson-doubt-result-q"><i class="fas fa-quote-left"></i> ${escapeHtml(q)}</div><div class="lesson-doubt-result-answer">Para responder a perguntas livres preciso da chave da IA. Vai a Perfil → MAX e activa-a, ou consulta o resumo acima.</div></div>`;
+            ans.innerHTML = `<div class="lesson-doubt-result"><div class="lesson-doubt-result-q"><i class="fas fa-quote-left"></i> ${escapeHtml(q)}</div><div class="lesson-doubt-result-answer">Para responder a perguntas livres preciso da chave da IA. Vai a Perfil → MAX e ativa-a, ou consulta o resumo acima.</div></div>`;
         }
     } catch (err) {
         ans.innerHTML = `<div class="lesson-doubt-error"><i class="fas fa-triangle-exclamation"></i> Não consegui responder: ${escapeHtml(err?.message || 'erro')}</div>`;
@@ -15483,12 +15500,12 @@ function hasAnyProfile() { return state && Array.isArray(state.profiles) && stat
 function showFirstRunGate() {
     // Esconde o avatar/nome/header data e abre o modal de criar perfil sem botão de fechar.
     const av = document.getElementById('avatar');           if (av) av.textContent = '\uD83C\uDF93';
-    const nm = document.getElementById('user-name');        if (nm) nm.textContent = 'Bem-vindo!';
+    const nm = document.getElementById('user-name');        if (nm) nm.textContent = 'Olá!';
     const yr = document.getElementById('header-year');      if (yr) yr.textContent = '—';
     const lv = document.getElementById('level-name');       if (lv) lv.textContent = 'Cria o teu perfil';
     ['streak-days','xp-total','xp-into-level'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '0'; });
     const xp = document.getElementById('xp-bar-fill');      if (xp) xp.style.width = '0%';
-    // Substituir o conteúdo do tab activo por uma chamada à acção
+    // Substituir o conteúdo do tab ativo por uma chamada à ação
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     let gate = document.getElementById('first-run-gate');
     if (!gate) {
@@ -15518,7 +15535,7 @@ function showFirstRunGate() {
 function hideFirstRunGate() {
     const gate = document.getElementById('first-run-gate');
     if (gate) gate.classList.remove('active');
-    // restaurar tab activo se nenhum estiver visível
+    // restaurar tab ativo se nenhum estiver visível
     if (!document.querySelector('.tab-content.active')) {
         document.getElementById('tab-home')?.classList.add('active');
     }
@@ -15548,6 +15565,23 @@ function _unlockAudio() {
 document.addEventListener('touchstart', _unlockAudio, { once: true, capture: true, passive: true });
 document.addEventListener('click',      _unlockAudio, { once: true, capture: true });
 
+// Acessibilidade (v572): Enter/Espaço ativam elementos role="button";
+// Escape fecha o modal visível do topo (respeitando o portão de leitura)
+// ou o overlay fullscreen mais recente.
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches && e.target.matches('[role="button"][tabindex]') && !e.target.matches('button, a, input, select, textarea')) {
+        e.preventDefault(); e.target.click(); return;
+    }
+    if (e.key !== 'Escape') return;
+    const modals = [...document.querySelectorAll('.modal')].filter(m => m.style.display === 'flex' || getComputedStyle(m).display !== 'none');
+    const top = modals[modals.length - 1];
+    if (top) {
+        if (top.id === 'lesson-modal') { closeLessonModal(); return; }
+        if (top.id === 'secret-modal' || top.id === 'streak-guilt-modal') return; // modais críticos
+        top.style.display = 'none'; return;
+    }
+    if (_overlayStack.length) { _overlayClose(_overlayStack[_overlayStack.length - 1]); }
+});
 // Enter global no ecra de exercicio — dispara Responder / Continuar.
 // Inputs (text/textarea) ja tem o seu proprio handler inline.
 document.addEventListener('keydown', (e) => {
@@ -15581,7 +15615,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Inicializar estado agora — neste ponto PROFILE_FIELDS, AVATARS, defaultState etc. já existem.
     state = loadState();
     try { applyTheme(_currentTheme()); } catch {}
-    // Activar o ano do perfil activo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS).
+    // Ativar o ano do perfil ativo (troca SUBJECTS/CURRICULUM/EXERCISES/LESSONS).
     // Se não existir perfil, não carrega nada (regra: nenhum ano por defeito).
     if (typeof setActiveYear === 'function') {
         const p = activeProfile();
@@ -16126,7 +16160,7 @@ function openVoicePicker() {
                     <div style="font-weight:700;font-size:0.92rem;color:#1f2937">${escapeHtml(v.name)}</div>
                     <div style="font-size:0.72rem;color:#6b7280;margin-top:2px">${escapeHtml(v.lang)}${v.localService === false ? ' · online' : ' · offline'}</div>
                 </div>
-                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoice('${safeName}')" title="Ouvir"><i class="fas fa-volume-high"></i></button>
+                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoice('${safeName}')" title="Ouvir" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
                 <button class="btn ${isChosen ? 'btn-primary-solid' : 'btn-secondary'}" style="font-size:0.78rem;padding:6px 12px" onclick="chooseVoice('${safeName}')">${isChosen ? '✓ Escolhida' : 'Escolher'}</button>
               </div>
             `;
@@ -16331,7 +16365,7 @@ function openVoicePickerEN() {
                     <div style="font-weight:700;font-size:0.92rem;color:#1f2937">${escapeHtml(v.name)}${neural ? ' <span style="font-size:0.66rem;background:#0891b2;color:#fff;padding:1px 6px;border-radius:8px;vertical-align:middle">NEURAL</span>' : ''}</div>
                     <div style="font-size:0.72rem;color:#6b7280;margin-top:2px">${escapeHtml(v.lang)}${v.localService === false ? ' · online' : ' · offline'}</div>
                 </div>
-                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoiceEN('${safeName}')"><i class="fas fa-volume-high"></i></button>
+                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoiceEN('${safeName}')" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
                 <button class="btn ${isChosen ? 'btn-primary-solid' : 'btn-secondary'}" style="font-size:0.78rem;padding:6px 12px" onclick="chooseVoiceEN('${safeName}')">${isChosen ? '✓' : 'Escolher'}</button>
               </div>`;
         }).join('');
@@ -16373,7 +16407,7 @@ function addGeminiKey() {
     const k = prompt('Cola a tua key do Google AI Studio (aistudio.google.com → Get API key):');
     if (k === null) return;
     const key = k.trim();
-    if (key.length < 20) { showToast('Key parece curta demais'); return; }
+    if (key.length < 20) { showToast('A chave parece demasiado curta.'); return; }
     state.max = state.max || {};
     state.max.geminiKey = key;
     if (!state.geminiVoice) state.geminiVoice = 'Kore';
@@ -16984,7 +17018,7 @@ function openRestoreBackupDialog() {
     const codeRaw = prompt('Indica o código do perfil (ex: AB3K9X):');
     if (!codeRaw) return;
     const code = codeRaw.trim().toUpperCase();
-    if (!/^[A-Z0-9]{4,10}$/.test(code)) { showToast('Código inválido — só letras/números (4–10 chars).'); return; }
+    if (!/^[A-Z0-9]{4,10}$/.test(code)) { showToast('Código inválido — só letras/números (4–10 caracteres).'); return; }
     showToast('A procurar o backup…');
     fbFetchBackup(code).then(data => {
         if (!data || !data.profile) { showToast('Sem backup para esse código.'); return; }
@@ -17310,11 +17344,11 @@ function openLeituraLibrary() {
         const d = t.diff || 2;
         const diffBadge = `<span class="leitura-card-diff diff-${d}">${DIFF_LABEL[d] || ''}</span>`;
         const exId = (t.id || '').replace(/'/g, "\\'");
-        return `<div class="leitura-card" onclick="_openLeituraText('${exId}')">
-            <div class="leitura-card-title">📖 ${title}${badge}</div>
+        return `<div class="leitura-card" role="button" tabindex="0" onclick="_openLeituraText('${exId}')">
+            <div class="leitura-card-title" role="button" tabindex="0">📖 ${title}${badge}</div>
             ${diffBadge}
-            <div class="leitura-card-preview">${preview}…</div>
-            <div class="leitura-card-cta">🎓 Abrir Professor →</div>
+            <div class="leitura-card-preview" role="button" tabindex="0">${preview}…</div>
+            <div class="leitura-card-cta" role="button" tabindex="0">🎓 Abrir Professor →</div>
         </div>`;
     }).join('');
 
@@ -17394,7 +17428,7 @@ function openDetetiveHub() {
                 <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
                     <span style="font-size:1.3rem">🕵️</span> Detetive Mental
                 </div>
-                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('detetive', { generic: true })" title="Mais opções"><i class="fas fa-ellipsis"></i></button>
+                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('detetive', { generic: true })" title="Mais opções" aria-label="Mais" title="Mais"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
             </div>
             <div class="exercise-body det-hub-body">
                 <div class="det-hub-hero">
@@ -17486,7 +17520,7 @@ function openMatPlusHub() {
                 <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
                     <span style="font-size:1.3rem">➕</span> Mat+
                 </div>
-                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('mat_plus', { generic: true })" title="Mais opções"><i class="fas fa-ellipsis"></i></button>
+                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('mat_plus', { generic: true })" title="Mais opções" aria-label="Mais" title="Mais"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
             </div>
             <div class="exercise-body det-hub-body">
                 <div class="det-hub-hero">
@@ -17565,7 +17599,7 @@ function _paperRender() {
         <div class="exercise-header" style="background:linear-gradient(135deg,#475569,#334155)">
             <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('paper-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">📝 Ficha de Papel</div>
-            <button class="icon-btn" style="color:#fff" onclick="openPaperSheet(true)" title="Nova ficha"><i class="fas fa-rotate"></i></button>
+            <button class="icon-btn" style="color:#fff" onclick="openPaperSheet(true)" title="Nova ficha" aria-label="Repetir" title="Repetir"><i class="fas fa-rotate" aria-hidden="true"></i></button>
         </div>
         <div class="exercise-body">
             <div class="paper-howto">
@@ -17752,7 +17786,7 @@ function _writeRender() {
         <div class="exercise-header" style="background:linear-gradient(135deg,#be123c,#e11d48)">
             <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('write-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">✍️ Ficha de Escrita</div>
-            <button class="icon-btn" style="color:#fff" onclick="openWriteSheet(true)" title="Outro plano"><i class="fas fa-rotate"></i></button>
+            <button class="icon-btn" style="color:#fff" onclick="openWriteSheet(true)" title="Outro plano" aria-label="Repetir" title="Repetir"><i class="fas fa-rotate" aria-hidden="true"></i></button>
         </div>
         <div class="exercise-body">
             <div class="write-plan">
@@ -17968,7 +18002,7 @@ function _dictRender() {
         <div class="exercise-header" style="background:linear-gradient(135deg,#0891b2,#0e7490)">
             <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('dict-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">🎧 Ditado</div>
-            <button class="icon-btn" style="color:#fff" onclick="openDictationSheet(true)" title="Novo ditado"><i class="fas fa-rotate"></i></button>
+            <button class="icon-btn" style="color:#fff" onclick="openDictationSheet(true)" title="Novo ditado" aria-label="Repetir" title="Repetir"><i class="fas fa-rotate" aria-hidden="true"></i></button>
         </div>
         <div class="exercise-body">
             <div class="dict-howto">
@@ -18260,7 +18294,7 @@ function _teacherListen() {
     _teacher.mode = 'listen';
     // v487: o karaoke palavra-a-palavra por tempo (~380ms/word) NÃO bate certo
     // com o áudio do TTS — vozes diferentes têm pacing diferente. Em vez de
-    // tentar sincronizar, destacamos o PARÁGRAFO actual (já é claro qual é) e
+    // tentar sincronizar, destacamos o PARÁGRAFO atual (já é claro qual é) e
     // deixamos o áudio passar. Sem cursor falso.
     _teacher.paragraphCursor = 0;
     _teacherMarkCurrentParagraph(0);
@@ -18278,7 +18312,7 @@ function _teacherListen() {
         if (status) status.textContent = 'Voz não disponível neste browser.';
         return;
     }
-    // Áudio do parágrafo actual (não o texto inteiro) — avança parágrafo a
+    // Áudio do parágrafo atual (não o texto inteiro) — avança parágrafo a
     // parágrafo via TTS.onend (ou fallback de duração).
     _teacherListenPara(0);
 }
@@ -18318,7 +18352,7 @@ function _teacherListenPara(paraIdx) {
 window._teacherListen = _teacherListen;
 
 function _teacherHighlight(idx) {
-    // Marca todas as palavras até idx como "lidas" e a actual como "current".
+    // Marca todas as palavras até idx como "lidas" e a atual como "current".
     _teacher.spans.forEach((sp, i) => {
         sp.classList.remove('t-current');
         if (i < idx) sp.classList.add('t-good');
@@ -18653,7 +18687,7 @@ function _teacherStartLiveCursor() {
             }
             if (p > _teacher.cursorPosInPara) {
                 _teacher.cursorPosInPara = p;
-                // Marca palavras como "a-ler" no parágrafo actual
+                // Marca palavras como "a-ler" no parágrafo atual
                 for (let k = 0; k < expectedPara.length; k++) {
                     const sp = _teacher.spans[paraStart + k];
                     if (!sp) continue;
@@ -18674,7 +18708,7 @@ function _teacherStartLiveCursor() {
     } catch (e) { console.warn('[teacher] live cursor falhou', e); }
 }
 
-// Banner grande que mostra o estado actual de forma clara à criança.
+// Banner grande que mostra o estado atual de forma clara à criança.
 function _teacherSetModeBanner(mode) {
     const el = document.getElementById('teacher-mode-banner');
     if (!el) return;
@@ -18864,7 +18898,7 @@ function _teacherMaybeAutoEndParagraph() {
     }
 }
 
-// Termina o parágrafo actual: para o ASR/MediaRecorder, faz scoring, mostra pergunta.
+// Termina o parágrafo atual: para o ASR/MediaRecorder, faz scoring, mostra pergunta.
 function _teacherEndParagraph() {
     if (_teacher.mode !== 'read') return;
     // Modo Voxtral: pára a gravação; o resto acontece no onstop (transcribe + finalize).
@@ -18905,7 +18939,7 @@ function _teacherAdvanceParagraph() {
 }
 window._teacherAdvanceParagraph = _teacherAdvanceParagraph;
 
-// Marca visualmente o parágrafo a ler: destaca o actual, esbate os outros.
+// Marca visualmente o parágrafo a ler: destaca o atual, esbate os outros.
 // Aplica classes ao container .t-para (que envolve cada parágrafo completo,
 // incluindo pontuação), não aos word spans individuais.
 function _teacherMarkCurrentParagraph(paraIdx) {
@@ -19469,7 +19503,7 @@ function _seededShuffle(arr, seed) {
     return a;
 }
 
-function _startHolidayDay(dayIdx, targetYear) {
+async function _startHolidayDay(dayIdx, targetYear) {
     if (!targetYear) targetYear = 3;
     const cfg = HOLIDAY_PLANS[targetYear];
     if (!cfg) return;
@@ -19478,6 +19512,7 @@ function _startHolidayDay(dayIdx, targetYear) {
     const subjectsFrom = cfg.subjects;
     const subjectsTo = cfg.subjects7 || cfg.subjects;
     const seedBase = (dayIdx + 1) * 137 + (state.profile?.id?.length || 0) + targetYear * 1000;
+    try { await Promise.all([loadYearExtras(fromYear), loadYearExtras(toYear)]); } catch {}
     const exsFrom = window.EXERCISES_BY_YEAR[fromYear] || [];
     const exsTo = window.EXERCISES_BY_YEAR[toYear] || [];
     const items = [];
@@ -19492,7 +19527,6 @@ function _startHolidayDay(dayIdx, targetYear) {
         return;
     }
     closeHolidayPlan();
-    try { if (typeof loadYearExtras === 'function') { loadYearExtras(fromYear); loadYearExtras(toYear); } } catch {}
     currentSession = {
         items,
         idx: 0,
@@ -19512,10 +19546,10 @@ function _startHolidayDay(dayIdx, targetYear) {
     try {
         if (typeof openExerciseScreen === 'function') openExerciseScreen();
         if (typeof renderQuestion === 'function') renderQuestion();
-        else { console.warn('[holiday] renderQuestion não encontrado'); alert('Erro a iniciar — refresh a página por favor.'); }
+        else { console.warn('[holiday] renderQuestion não encontrado'); showToast('Não consegui começar. Fecha e volta a abrir a app.'); }
     } catch (err) {
         console.error('[holiday] erro a iniciar', err);
-        alert('Erro: ' + err.message);
+        console.warn('[holiday]', err); showToast('Não consegui começar o plano. Fecha e volta a abrir a app.');
     }
 }
 window._startHolidayDay = _startHolidayDay;

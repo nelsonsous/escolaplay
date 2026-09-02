@@ -2,7 +2,7 @@
 <html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#f472b6">
@@ -211,9 +211,7 @@
                 <div class="install-banner-title">Instalar a app no telemóvel</div>
                 <div class="install-banner-sub">Abre mais rápido e funciona sem Internet</div>
             </div>
-            <button class="install-banner-close" onclick="event.stopPropagation();dismissInstallBanner()" title="Dispensar">
-                <i class="fas fa-xmark"></i>
-            </button>
+            <button class="install-banner-close" onclick="event.stopPropagation();dismissInstallBanner()" title="Dispensar" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
         </div>
 
         <!-- Caixa de duelos (tudo: recebidos + criados por mim) -->
@@ -302,7 +300,7 @@
         <div class="section-title"><i class="fas fa-cloud-arrow-up"></i> Backup do progresso</div>
         <div class="form-card">
             <p class="muted" style="margin-bottom:8px">
-                O teu progresso é guardado <strong>automaticamente na nuvem</strong> 30 s depois de cada actividade — desde que tenhas activado a partilha (cria o código a partir do Duelo). Última sincronização: <strong id="backup-last-sync">nunca sincronizado</strong>.
+                O teu progresso é guardado <strong>automaticamente na nuvem</strong> 30 s depois de cada atividade — desde que tenhas ativado a partilha (cria o código a partir do Duelo). Última sincronização: <strong id="backup-last-sync">nunca sincronizado</strong>.
             </p>
             <button class="btn btn-secondary btn-block" style="margin-bottom:6px" onclick="openRestoreBackupDialog()">
                 <i class="fas fa-cloud-arrow-down"></i> Restaurar de outro dispositivo
@@ -318,9 +316,9 @@
             </div>
         </div>
 
-        <div class="section-title"><i class="fas fa-user"></i> Editar perfil activo</div>
+        <div class="section-title"><i class="fas fa-user"></i> Editar perfil ativo</div>
         <div class="form-card">
-            <label>Nome</label>
+            <label for="input-name">Nome</label>
             <input type="text" id="input-name" placeholder="O teu nome" maxlength="24">
             <label>Avatar</label>
             <div class="avatar-grid" id="avatar-grid"></div>
@@ -341,15 +339,15 @@
                 <input type="checkbox" id="max-enabled" onchange="toggleMax()">
                 <span>Ativar MAX</span>
             </label>
-            <label>Chave API (Groq)</label>
+            <label for="max-apikey">Chave API (Groq)</label>
             <input type="password" id="max-apikey" placeholder="gsk_..." autocomplete="off">
             <p class="muted" style="margin-bottom:8px">A chave fica guardada apenas neste dispositivo (localStorage).</p>
 
-            <label>Chave API (Mistral — opcional, fallback)</label>
+            <label for="max-mistral-apikey">Chave API (Mistral — opcional, fallback)</label>
             <input type="password" id="max-mistral-apikey" placeholder="Chave Mistral (opcional)" autocomplete="off">
             <p class="muted">Usada automaticamente quando o outro provedor atinge o limite ou está indisponível. Obtém uma chave grátis em <a href="https://console.mistral.ai/api-keys/" target="_blank" style="color:var(--primary)">console.mistral.ai</a>.</p>
 
-            <label>Provedor preferido</label>
+            <label for="max-preferred">Provedor preferido</label>
             <select id="max-preferred">
                 <option value="mistral">Mistral (recomendado — exercícios mais coerentes)</option>
                 <option value="groq">Groq (mais rápido, 14 400 pedidos/dia)</option>
@@ -379,7 +377,7 @@
             <button class="btn btn-secondary btn-block" onclick="exportQuestions()"><i class="fas fa-download"></i> Exportar perguntas</button>
             <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="importQuestionsClick()"><i class="fas fa-upload"></i> Importar perguntas</button>
             <input type="file" id="import-questions-input" accept="application/json,.json" style="display:none" onchange="importQuestionsFile(this)">
-            <p class="muted" style="margin-top:6px">As perguntas importadas são adicionadas ao banco IA do perfil activo (sem substituir as estáticas).</p>
+            <p class="muted" style="margin-top:6px">As perguntas importadas são adicionadas ao banco IA do perfil ativo (sem substituir as estáticas).</p>
         </div>
 
         <div class="section-title"><i class="fas fa-mobile-screen"></i> App</div>
@@ -468,9 +466,9 @@
                 </div>
             </div>
         </div>
-        <!-- Drawer inferior: feedback (quando aparece) + barra de acção
+        <!-- Drawer inferior: feedback (quando aparece) + barra de ação
              estilo Duolingo. Ambos colados ao fundo do ecrã. -->
-        <div class="exercise-feedback" id="ex-feedback" style="display:none">
+        <div class="exercise-feedback" id="ex-feedback" style="display:none" role="status" aria-live="polite">
             <div class="feedback-icon" id="feedback-icon"></div>
             <div class="feedback-text" id="feedback-text"></div>
             <div class="feedback-exp" id="feedback-exp"></div>
@@ -480,18 +478,18 @@
             <div id="feedback-reason-wrap" style="display:none;margin-bottom:8px"></div>
             <!-- O botão Continuar está abaixo, na ex-action-bar -->
         </div>
-        <!-- Barra de acção fixa no fundo: Responder → Continuar -->
+        <!-- Barra de ação fixa no fundo: Responder → Continuar -->
         <div id="ex-action-bar" class="ex-action-bar">
             <button id="ex-action-btn" class="btn btn-primary-solid btn-block" onclick="exActionTap()">Responder</button>
         </div>
     </div>
 
     <!-- ===== LESSON MODAL ===== -->
-    <div id="lesson-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
+    <div id="lesson-modal" class="modal" role="dialog" aria-modal="true" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="lesson-title"><i class="fas fa-book-open"></i> Explicação</h2>
-                <button class="icon-btn" onclick="closeLessonModal()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" onclick="closeLessonModal()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body" id="lesson-body"></div>
 
@@ -522,27 +520,27 @@
     </div>
 
     <!-- ===== ADD TEST MODAL ===== -->
-    <div id="test-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
+    <div id="test-modal" class="modal" role="dialog" aria-modal="true" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-calendar-plus"></i> <span id="test-modal-title">Adicionar teste</span></h2>
-                <button class="icon-btn" onclick="closeAddTestModal()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" onclick="closeAddTestModal()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body">
-                <label>Disciplina</label>
+                <label for="test-subject">Disciplina</label>
                 <select id="test-subject"></select>
-                <label>Data do teste</label>
+                <label for="test-date">Data do teste</label>
                 <input type="date" id="test-date">
-                <label>Notas (opcional)</label>
+                <label for="test-note">Notas (opcional)</label>
                 <input type="text" id="test-note" placeholder="Ex: matéria do capítulo 3" maxlength="60">
                 <div style="display:flex;gap:10px;margin-top:6px">
                     <div style="flex:1">
-                        <label>Nota objetivo (0–20)</label>
+                        <label for="test-target-grade">Nota objetivo (0–20)</label>
                         <input type="number" id="test-target-grade" min="0" max="20" step="0.5" placeholder="Ex: 16" inputmode="decimal">
                     </div>
                     <div style="flex:1">
-                        <label>Nota obtida (0–20)</label>
-                        <input type="number" id="test-actual-grade" min="0" max="20" step="0.5" placeholder="Depois do teste" inputmode="decimal">
+                        <label for="test-atual-grade">Nota obtida (0–20)</label>
+                        <input type="number" id="test-atual-grade" min="0" max="20" step="0.5" placeholder="Depois do teste" inputmode="decimal">
                     </div>
                 </div>
                 <p class="muted" style="font-size:0.74rem;margin-top:4px">A nota obtida dá XP — 10 XP por valor (máx. 200 XP). A 1.ª vez que escreveres a nota.</p>
@@ -552,11 +550,11 @@
     </div>
 
     <!-- ===== INSTALL APP MODAL ===== -->
-    <div id="install-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
+    <div id="install-modal" class="modal" role="dialog" aria-modal="true" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-mobile-screen-button"></i> Instalar a EscolaPlay</h2>
-                <button class="icon-btn" onclick="closeInstallModal()"><i class="fas fa-xmark"></i></button>
+                <button class="icon-btn" onclick="closeInstallModal()" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>
             <div class="modal-body" id="install-modal-body">
                 <!-- Conteúdo injectado em runtime conforme iOS/Android -->
@@ -565,7 +563,7 @@
     </div>
 
     <!-- ===== STREAK GUILT-TRIP MODAL ===== -->
-    <div id="streak-guilt-modal" class="modal" style="display:none">
+    <div id="streak-guilt-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
         <div class="modal-content streak-guilt-content">
             <div class="streak-guilt-mascot">
                 <div class="streak-guilt-glass"></div>
@@ -588,7 +586,7 @@
     </div>
 
     <!-- ===== REWARD UNLOCKED MODAL ===== -->
-    <div id="reward-modal" class="modal" style="display:none" onclick="_modalBackdropTap(event)">
+    <div id="reward-modal" class="modal" role="dialog" aria-modal="true" style="display:none" onclick="_modalBackdropTap(event)">
         <div class="modal-content">
             <div class="modal-body" style="text-align:center;padding:26px 20px">
                 <div style="font-size:3.6rem;margin-bottom:6px">&#127873;</div>
@@ -679,7 +677,7 @@
      no fundo (long-press 2.5s para introduzir código secreto). -->
 
 <!-- Modal de disciplinas extra (long-press na versao) -->
-<div id="secret-modal" class="modal" style="display:none;align-items:center;padding:20px;z-index:9999">
+<div id="secret-modal" class="modal" role="dialog" aria-modal="true" style="display:none;align-items:center;padding:20px;z-index:9999">
     <div class="modal-content" style="max-width:480px;border-radius:20px;padding:24px;max-height:88vh;overflow-y:auto">
         <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.01em">📚 Disciplinas extra</h2>
         <p style="font-size:0.84rem;color:var(--text-light);margin-bottom:14px;line-height:1.4">Disciplinas adicionais para perfis especiais. Toca em <strong>+ Adicionar</strong> para incluir uma disciplina neste perfil. Toca em <strong>− Remover</strong> para a esconder de novo.</p>
@@ -714,18 +712,20 @@ window._initFirebase = function () {
     window.__fb = { db, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, deleteField };
     window.__fbReady = true;
     window.dispatchEvent(new Event('fbready'));
-    })().catch(e => { window.__fbInitStarted = false; console.warn('[firebase] init failed', e); });
+    })().catch(e => { window.__fbInitStarted = false; console.warn('[firebase] init failed', e); try { window.dispatchEvent(new Event('fbfail')); } catch {} });
 };
 </script>
 <script src="app.js" defer></script>
 <script>
     if ('serviceWorker' in navigator) {
+        // v572: só recarrega quando é um DEPLOY (já havia controller). Na 1.ª
+        // visita a página já funciona sem SW; recarregar perdia o ?d=<duelo>
+        // do link de convite e provocava dupla navegação.
+        const _hadController = !!navigator.serviceWorker.controller;
         window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
-        // Quando um novo SW assume controlo, recarrega a pagina para servir os
-        // novos assets (evita ficar preso numa versao antiga apos deploy).
         let _swReloading = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (_swReloading) return;
+            if (!_hadController || _swReloading) return;
             _swReloading = true;
             location.reload();
         });
