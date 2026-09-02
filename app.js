@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v580';
+const APP_VERSION = 'v581';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7104,9 +7104,10 @@ function _tutorSetTargetLevel(lv) {
     state.tutorTargetLevel = lv;
     try { saveState && saveState(); } catch {}
     showToast && showToast('Nível-alvo: ' + lv);
-    // Re-renderiza o card do coach
+    // Re-renderiza: o plano (v581), se estiver aberto; senão o card do coach.
     document.getElementById('tutor-coach-card')?.remove();
-    _tutorRenderCoachOfTheDay();
+    if (document.getElementById('tutor-plan-card') && typeof _tutorPlanRender === 'function') _tutorPlanRender();
+    else _tutorRenderCoachOfTheDay();
 }
 window._tutorSetTargetLevel = _tutorSetTargetLevel;
 
@@ -8032,7 +8033,10 @@ function _tutorStudiedLast7d() {
     const add = (t) => { t = String(t || '').trim(); if (t && t.length <= 60) set.add(t); };
     Object.keys(max.tutorExplored || {}).forEach(t => { if ((max.tutorExplored[t] || 0) >= since) add(t); });
     Object.keys(max.tutorConsolidated || {}).forEach(t => { if ((max.tutorConsolidated[t] || 0) >= since) add(t); });
-    Object.keys(max.tutorWeak || {}).forEach(t => { if (((max.tutorWeak[t] || {}).last || 0) >= since) add(t); });
+    // v581: os erros vivem no PERFIL (state.tutorWeak), não em state.max —
+    // antes esta linha nunca encontrava nada e o teste dizia "sem matéria".
+    const weak = (state && state.tutorWeak) || max.tutorWeak || {};
+    Object.keys(weak).forEach(t => { if (((weak[t] || {}).last || 0) >= since) add(t); });
     (Array.isArray(max.srs) ? max.srs : []).forEach(c => { if ((c.createdAt || 0) >= since) add(c.topic || c.text); });
     ((state && state.tutorVocabHistory) || []).forEach(h => {
         if ((h.at || 0) >= since) (h.items || []).slice(0, 4).forEach(it => add(it && it.collocation));
@@ -8052,7 +8056,7 @@ async function _tutorCoachTest() {
     const chatIntro = document.getElementById('tutor-chat');
     if (chatIntro) chatIntro.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">🧪</div>
-        <div class="tutor-bubble tutor-them"><span>Teste de progresso: perguntas sobre o que estudaste nos últimos 7 dias (${topics.length} ${topics.length === 1 ? 'tópico' : 'tópicos'}). Não te corrijo pelo caminho — respondes tudo e vês o resultado no fim.</span></div>
+        <div class="tutor-bubble tutor-them"><span>${(() => { try { const i = _tutorPlanDayIndex(); return i < TUTOR_PLAN_DAYS ? `Teste da semana ${Math.floor(i / 7) + 1} do plano` : 'Teste de progresso'; } catch { return 'Teste de progresso'; } })()}: perguntas sobre o que estudaste nos últimos 7 dias (${topics.length} ${topics.length === 1 ? 'tópico' : 'tópicos'}). Não te corrijo pelo caminho — respondes tudo e vês o resultado no fim.</span></div>
       </div>`);
     _tutorScroll();
     _tutorBusy('A montar o teste dos últimos 7 dias…');
@@ -8145,12 +8149,20 @@ function _tutorTestFinish() {
                   : pct >= 50 ? 'Razoável — vale a pena repetir a matéria fraca.'
                   : 'Ainda verde — vamos rever isto com calma.';
     // Histórico: permite ver a evolução dos testes semanais.
+    const _lvNow = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : '';
     if (state.max) {
         state.max.tutorTests = Array.isArray(state.max.tutorTests) ? state.max.tutorTests : [];
-        state.max.tutorTests.push({ at: Date.now(), right, total });
+        state.max.tutorTests.push({ at: Date.now(), right, total, lv: _lvNow });
         if (state.max.tutorTests.length > 40) state.max.tutorTests.shift();
         try { saveState(); } catch {}
     }
+    // v581: tópico com TODAS as perguntas certas no teste → consolidado (o ✓
+    // verdadeiro da escada). Antes só a prática da aula consolidava.
+    try {
+        const byTopic = {};
+        t.items.forEach((it, k) => { const tp = String(it.topic || '').trim(); if (!tp) return; byTopic[tp] = byTopic[tp] || { n: 0, ok: 0 }; byTopic[tp].n++; if (t.answers[k] === it.answer) byTopic[tp].ok++; });
+        Object.keys(byTopic).forEach(tp => { if (byTopic[tp].n >= 1 && byTopic[tp].ok === byTopic[tp].n) _tutorMarkConsolidated(tp); });
+    } catch {}
     // Erros → SRS, para voltarem sozinhos daqui a uns dias.
     wrong.forEach(it => { try { _tutorEnqueueTopic(it.topic); } catch {} });
     tutorState._testWrong = wrong;
@@ -8169,7 +8181,42 @@ function _tutorTestFinish() {
     _tutorScroll();
     _tutorRenderMic();
     try { _tutorPlanComplete('test'); } catch {}
+    try { _tutorRenderLevelSuggestion(); } catch {}
 }
+// v581: dois testes seguidos ≥90% no alvo atual → propõe subir; dois <50% →
+// propõe descer. Devolve null quando não há nada a sugerir.
+function _tutorLevelSuggestion() {
+    const tests = ((state.max && state.max.tutorTests) || []).filter(t => t && t.total > 0);
+    if (tests.length < 2) return null;
+    const lv = _tutorTargetLevel();
+    const last2 = tests.slice(-2).filter(t => !t.lv || t.lv === lv);
+    if (last2.length < 2) return null;
+    const pcts = last2.map(t => Math.round(100 * t.right / t.total));
+    const order = ['A2', 'B1', 'B2', 'C1', 'C2'];
+    const i = order.indexOf(lv);
+    if (pcts.every(p => p >= 90) && i >= 0 && i < order.length - 1) return { dir: 'up', to: order[i + 1], pcts };
+    if (pcts.every(p => p < 50) && i > 0) return { dir: 'down', to: order[i - 1], pcts };
+    return null;
+}
+window._tutorLevelSuggestion = _tutorLevelSuggestion;
+function _tutorRenderLevelSuggestion() {
+    const s = _tutorLevelSuggestion();
+    const chat = document.getElementById('tutor-chat');
+    if (!s || !chat) return;
+    document.getElementById('tutor-lvl-card')?.remove();
+    const up = s.dir === 'up';
+    chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-lvl-card"><div class="tutor-bubble-av">${up ? '🚀' : '🧭'}</div>
+        <div class="tutor-coach-task ${up ? 'tp-lvl-up' : 'tp-lvl-down'}">
+          <div class="tutor-coach-task-h">${up ? '🚀 Pronto para subir?' : '🧭 Ajustar o alvo?'}</div>
+          <div class="tutor-coach-task-p">${up ? `Dois testes seguidos com ${s.pcts.join('% e ')}% no nível ${escapeHtml(_tutorTargetLevel())}. Subir o alvo para <b>${s.to}</b> torna as aulas, a escrita e o teste mais exigentes.` : `Dois testes seguidos com ${s.pcts.join('% e ')}%. Baixar o alvo para <b>${s.to}</b> dá aulas mais acessíveis para consolidar primeiro.`}</div>
+          <div class="tutor-coach-task-bar">
+            <button class="tutor-lbtn" onclick="document.getElementById('tutor-lvl-card')?.remove()">Ficar em ${escapeHtml(_tutorTargetLevel())}</button>
+            <button class="tutor-coach-submit" onclick="_tutorSetTargetLevel('${s.to}');document.getElementById('tutor-lvl-card')?.remove()">${up ? 'Subir' : 'Descer'} para ${s.to} →</button>
+          </div>
+        </div></div>`);
+    _tutorScroll();
+}
+window._tutorRenderLevelSuggestion = _tutorRenderLevelSuggestion;
 function _tutorTestPracticeWrong() {
     const wrongItems = (tutorState && tutorState._testWrong) || [];
     if (!wrongItems.length) { showToast && showToast('Sem erros para praticar 🎉'); return; }
