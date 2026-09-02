@@ -6920,6 +6920,16 @@ body.has-teacher-overlay #subject-detail-container {
 .tp-lvl-up { border: 1.5px solid #86efac; background: #f0fdf4; }
 .tp-lvl-down { border: 1.5px solid #fcd34d; background: #fffbeb; }
 .review-done .tct-start { margin-top: 10px; }
+/* v583: alvos de toque ≥40px e barra compacta do plano */
+.tp-go { min-height: 40px; }
+.tutor-coach-submit { min-height: 40px; }
+.tp-more summary { padding: 10px 0; }
+.tutor-class-phrase .tutor-say, .tutor-class-phrase .tutor-save, .tutor-flash-item .tutor-say { min-width: 40px; min-height: 40px; }
+.tp-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: 12px; padding: 8px 10px; font-size: 0.85rem; color: #9a3412; }
+.tp-strip-txt { flex: 1; min-width: 140px; }
+.tp-strip .tp-go { padding: 8px 12px; }
+.tp-strip-open { background: #fff; color: #9a3412; border: 1.5px solid #fed7aa; border-radius: 999px; padding: 8px 12px; font-weight: 700; font-size: 0.8rem; cursor: pointer; min-height: 40px; }
+.review-showlist { display: block; width: 100%; margin: 14px 0; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; font-weight: 700; color: #0f766e; cursor: pointer; min-height: 44px; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
