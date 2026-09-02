@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v582';
+const APP_VERSION = 'v583';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6394,6 +6394,12 @@ window._tutorCloseReview = _tutorCloseReview;
 function _tutorRenderReview() {
     const body = document.getElementById('review-body');
     if (!body) return;
+    // v583: em sessão do plano, a lista do phrasebook fica escondida — mostrava
+    // a nota (a resposta) do cartão que estava a ser revisto.
+    if (_tutorRevSession && !(_tutorRevSession.showList)) {
+        body.innerHTML = _reviewSessionHtml() + `<button class="review-showlist" onclick="_tutorRevSession.showList=true;_tutorRenderReview()">📖 Ver o phrasebook (${_srsAll().filter(c => c.type === 'phrase').length})</button>`;
+        return;
+    }
     body.innerHTML = _reviewSessionHtml() + _phrasebookListHtml();
 }
 // v582: sessão de revisão do plano — curta (máx. 10 cartões vencidos), com
@@ -7237,8 +7243,8 @@ function _tutorCoachStart(skillId) {
     if (!state.tutorSkillsDone[wkKey]) state.tutorSkillsDone[wkKey] = {};
     state.tutorSkillsDone[wkKey][skillId] = true;
     try { saveState && saveState(); } catch {}
-    // Move o plano para baixo do chat antes da skill renderizar.
-    _tutorPlanRender();
+    // Barra compacta do plano antes da skill renderizar (v583).
+    _tutorPlanRender({ compact: true });
     // Pre-checks dos dois únicos casos que silenciosamente fazem nada.
     if (skillId === 'mistakes' && (typeof _tutorTopWeak !== 'function' || _tutorTopWeak(1).length === 0)) {
         _tutorAddTutor("🎯 No tracked mistakes yet — do some **Writing** or **Roleplay** first and I'll learn what to drill. (Tip: today try Writing — it auto-graded errors will feed this list.)");
@@ -7325,7 +7331,8 @@ function _tutorPlanStreak() {
     return n;
 }
 window._tutorPlanStreak = _tutorPlanStreak;
-function _tutorPlanRender() {
+function _tutorPlanRender(opts) {
+    opts = opts || {};
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     document.getElementById('tutor-plan-card')?.remove();
@@ -7335,6 +7342,20 @@ function _tutorPlanRender() {
     const finished = idx >= TUTOR_PLAN_DAYS;
     const done = plan.days[todayStr()] || {};
     const steps = _tutorPlanSteps(Math.min(idx, TUTOR_PLAN_DAYS - 1));
+    // v583: durante uma skill, só uma barra compacta (antes o cartão inteiro
+    // do plano era repetido no chat a cada passo).
+    if (opts.compact && !finished && done.cur) {
+        const si = steps.findIndex(st => st.slot === done.cur.slot);
+        const st = steps[si] || steps[0];
+        const m = TUTOR_SKILL_META[st.skill] || ['•', st.skill, 5];
+        chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-plan-card"><div class="tutor-bubble-av">🎯</div><div class="tp-strip">
+            <span class="tp-strip-txt">📅 Dia ${idx + 1} · passo <b>${Math.max(si, 0) + 1}/3</b> · ${m[0]} ${escapeHtml(m[1])}</span>
+            <button class="tp-go tp-done-btn" onclick="_tutorPlanComplete()">Feito ✓</button>
+            <button class="tp-strip-open" onclick="_tutorPlanRender()" title="Ver o plano do dia">Plano</button>
+        </div></div>`);
+        _tutorScroll();
+        return;
+    }
     const doneDays = Object.keys(plan.days).filter(k => { const d = plan.days[k]; return d && d.review && d.core && d.output; }).length;
     const lv = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
     const target = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
@@ -7828,6 +7849,9 @@ function _tutorCoachClass() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const topic = _tutorClassTopic();
+    const _fromWeak = (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1)[0] === topic;
+    const _nx = (!_fromWeak && typeof _tutorNextLadderTopic === 'function') ? _tutorNextLadderTopic() : null;
+    const _why = _fromWeak ? 'escolhido a partir dos teus erros' : (_nx && _nx.topic === topic ? `o próximo degrau da escada (${escapeHtml(_nx.lvl)})` : 'o essencial para o teu dia-a-dia');
     const chips = Object.keys(_TUTOR_CLASS_FOCUS).map(k => {
         const f = _TUTOR_CLASS_FOCUS[k];
         return `<button class="tutor-class-focus" onclick="_tutorClassStart('${k}')">
@@ -7840,7 +7864,7 @@ function _tutorCoachClass() {
       <div class="tutor-row them"><div class="tutor-bubble-av">🎓</div>
         <div class="tutor-class">
           <div class="tutor-class-h">🎓 Aula do dia · ${escapeHtml(_tutorTargetLevel())}</div>
-          <div class="tutor-class-goal">Tema de hoje: <b>${escapeHtml(topic)}</b> — escolhido a partir dos teus erros. Escolhe o foco:</div>
+          <div class="tutor-class-goal">Tema de hoje: <b>${escapeHtml(topic)}</b> — ${_why}. Escolhe o foco:</div>
           <div class="tutor-class-focuses">${chips}</div>
         </div>
       </div>`);
