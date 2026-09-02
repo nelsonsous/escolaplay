@@ -6896,6 +6896,18 @@ body.has-teacher-overlay #subject-detail-container {
 .tp-sub { font-size: 0.72rem; color: #64748b; }
 .tp-go { background: #ea580c; color: #fff; border: none; border-radius: 999px; padding: 9px 14px; font-weight: 800; font-size: 0.8rem; cursor: pointer; flex-shrink: 0; }
 .tp-step.done .tp-go { background: #fff; color: #16a34a; border: 1.5px solid #86efac; }
+.tp-step.cur { border-color: #fb923c; background: #fff7ed; box-shadow: 0 0 0 3px rgba(251,146,60,0.18); }
+.tp-step.cur .tp-num { background: #f97316; animation: tp-pulse 1.6s ease-in-out infinite; }
+.tp-go.tp-done-btn { background: #16a34a; }
+@keyframes tp-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.tp-week { margin-top: 10px; background: #fff; border: 1.5px solid #fdba74; border-radius: 12px; padding: 10px 12px; }
+.tp-week-h { font-weight: 800; color: #9a3412; margin-bottom: 6px; }
+.tp-week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 0.82rem; color: #334155; }
+.tp-week-msg { margin-top: 8px; font-size: 0.8rem; color: #64748b; font-style: italic; }
+.tpw-trend { font-weight: 800; font-size: 0.75rem; padding: 1px 6px; border-radius: 999px; }
+.tpw-trend.up { background: #dcfce7; color: #15803d; }
+.tpw-trend.down { background: #fee2e2; color: #b91c1c; }
+@media (prefers-reduced-motion: reduce) { .tp-step.cur .tp-num { animation: none; } }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
 .tp-more summary { cursor: pointer; font-weight: 700; }
 
