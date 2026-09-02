@@ -211,7 +211,7 @@
                 <div class="install-banner-title">Instalar a app no telemóvel</div>
                 <div class="install-banner-sub">Abre mais rápido e funciona sem Internet</div>
             </div>
-            <button class="install-banner-close" onclick="event.stopPropagation();dismissInstallBanner()" title="Dispensar" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            <button class="install-banner-close" onclick="event.stopPropagation();dismissInstallBanner()" title="Dispensar" aria-label="Dispensar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
         </div>
 
         <!-- Caixa de duelos (tudo: recebidos + criados por mim) -->
@@ -667,7 +667,7 @@
         var p = null; for (var i = 0; i < profs.length; i++) if (profs[i] && profs[i].id === st.activeProfileId) p = profs[i];
         var y = p && Number(p.year); if (!y) return;
         var map = { 2: 'content_y2.js', 3: 'content_y3.js', 31: 'content_y3.js', 5: 'content_y5.js', 6: 'content_y6.js', 7: 'content_y7.js' };
-        if (map[y]) document.write('<script src="' + map[y] + '" defer onload="this.dataset.loaded=\'1\'"><\/script>');
+        if (map[y]) document.write('<script src="' + map[y] + '" defer onload="this.dataset.loaded=\'1\'" onerror="this.dataset.failed=\'1\'"><\/script>');
     } catch (e) {}
 })();
 </script>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v572';
+const CACHE_NAME = 'escolaplay-v573';
 // Núcleo: TEM de existir — se falhar, o SW não instala (evita servir uma
 // app incompleta). Bump do CACHE_NAME a cada release = novo cache limpo.
 const CORE = [
@@ -78,6 +78,7 @@ self.addEventListener('fetch', (event) => {
         event.respondWith((async () => {
             try {
                 const fresh = await fetch(req, { cache: 'no-cache' });
+                if (!fresh || !fresh.ok) throw new Error('bad status ' + (fresh && fresh.status));
                 const cache = await caches.open(CACHE_NAME);
                 cache.put(req, fresh.clone()).catch(() => {});
                 return fresh;

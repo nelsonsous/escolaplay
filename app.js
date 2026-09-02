@@ -172,7 +172,7 @@ const BADGES = [
     { id:'correct200',  icon:'\u{1F31F}', name:'Super Estrela',     desc:'200 respostas certas',  check:(s)=> totalCorrect(s) >= 200 },
     { id:'xp1000',      icon:'\u26A1',    name:'1000 XP',           desc:'1000 XP acumulados',    check:(s)=> s.xp >= 1000 },
     { id:'xp5000',      icon:'\u{1F4AB}', name:'5000 XP',           desc:'5000 XP acumulados',    check:(s)=> s.xp >= 5000 },
-    { id:'allsubjects', icon:'\u{1F393}', name:'Versátil',          desc:'1+ em todas as disciplinas', check:(s)=> Object.keys(SUBJECTS).every(k => (s.subjects[k]?.correct||0) >= 1) },
+    { id:'allsubjects', icon:'\u{1F393}', name:'Versátil',          desc:'1+ em todas as disciplinas', check:(s)=> Object.keys(SUBJECTS).length >= 3 && Object.keys(SUBJECTS).every(k => (s.subjects[k]?.correct||0) >= 1) },
     { id:'perfect',     icon:'\u{1F4AF}', name:'Perfeitinho',       desc:'Desafio diário 5/5',    check:(s)=> s.perfectDailies >= 1 },
     { id:'sub_por',     icon:'\u{1F4D6}', name:'Letrado',           desc:'20 certas em Português',check:(s)=> (s.subjects.portugues?.correct||0) >= 20 },
     { id:'sub_mat',     icon:'\u{1F9EE}', name:'Calculista',        desc:'20 certas em Matemática',check:(s)=> (s.subjects.matematica?.correct||0) >= 20 }
@@ -309,6 +309,7 @@ function pushCustomAvatar(av) {
     if (!Array.isArray(state.customAvatars)) state.customAvatars = [];
     if (state.customAvatars.includes(av)) return;
     state.customAvatars.push(av);
+    if (state.customAvatars.length > 30) state.customAvatars = state.customAvatars.slice(-30);
     saveState();
 }
 window.pushCustomAvatar = pushCustomAvatar;
@@ -614,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v572';
+const APP_VERSION = 'v573';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -633,7 +634,7 @@ function _sanitizeExercise(e) {
     }
     // 'fill' com opts + ans numérico é na verdade uma escolha múltipla mal
     // etiquetada (pedia para escrever "0") → trata como mc.
-    if ((e.type === 'fill' || e.type === 'problem') && Array.isArray(e.opts) && e.opts.length >= 2 && typeof e.ans === 'number') e.type = 'mc';
+    if ((e.type === 'fill' || e.type === 'problem') && Array.isArray(e.opts) && e.opts.length >= 2 && typeof e.ans === 'number' && e.ans >= 0 && e.ans < e.opts.length) e.type = 'mc';
     if (e.type === 'fill' || e.type === 'problem' || e.type === 'passage') {
         if (typeof e.ans === 'string' || typeof e.ans === 'number') e.ans = [String(e.ans)];
         else if (!Array.isArray(e.ans)) e.ans = [];
@@ -692,6 +693,7 @@ function _loadScript(src) {
         const existing = document.querySelector(`script[src="${src}"]`);
         if (existing) {
             if (existing.dataset.loaded === '1') return resolve();
+            if (existing.dataset.failed === '1') { delete _scriptLoadCache[src]; return reject(new Error('load failed: ' + src)); }
             existing.addEventListener('load', () => resolve(), { once: true });
             existing.addEventListener('error', () => reject(new Error('load failed: ' + src)), { once: true });
             setTimeout(() => { delete _scriptLoadCache[src]; reject(new Error('timeout: ' + src)); }, 15000);
@@ -769,10 +771,12 @@ function saveState() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
+        if (!/quota|exceed/i.test(String(e && (e.name + ' ' + e.message)))) { console.error('[saveState]', e); return; }
         // Quota cheia (iOS ~5 MB): poda o que cresce sem limite e tenta de novo.
         // Sem isto, a exceção rebentava a meio de recordAnswer e a sessão
         // congelava sem feedback nem progresso guardado.
         try {
+            if (Array.isArray(state.customAvatars) && state.customAvatars.length > 5) state.customAvatars = state.customAvatars.slice(-5); // fotos primeiro, progresso depois
             (state.profiles || []).forEach(p => {
                 if (Array.isArray(p.maxExercises) && p.maxExercises.length > 300) p.maxExercises = p.maxExercises.slice(-300);
                 if (p.maxLessons && typeof p.maxLessons === 'object') { const ks = Object.keys(p.maxLessons); ks.slice(0, Math.max(0, ks.length - 40)).forEach(k => delete p.maxLessons[k]); }
@@ -780,6 +784,7 @@ function saveState() {
                 if (Array.isArray(p.history) && p.history.length > 300) p.history = p.history.slice(-300);
             });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            if (Date.now() - _saveFailToastAt > 60000) { _saveFailToastAt = Date.now(); try { showToast('⚠️ Memória quase cheia — apaguei dados antigos (exercícios gerados/histórico mais antigo) para continuar a guardar.'); } catch {} }
         } catch (e2) {
             console.error('[saveState] quota', e2);
             if (Date.now() - _saveFailToastAt > 60000) { _saveFailToastAt = Date.now(); try { showToast('⚠️ Memória do dispositivo cheia — o progresso pode não ficar guardado. Apaga fotos/perfis antigos.'); } catch {} }
@@ -1325,7 +1330,7 @@ const NUMBER_TALKS = [
     { n: 48, q: 'Decompõe <span class="nt-number">48</span>',
       strats: ['40 + 8', '50 − 2', '24 + 24 (dobro)', '6 × 8', '4 × 12'] },
     { n: 72, q: '<span class="nt-number">72</span> — várias formas',
-      strats: ['70 + 2', '36 + 36 (dobro)', '8 × 9', '70 + 2', '80 − 8'] },
+      strats: ['70 + 2', '36 + 36 (dobro)', '8 × 9', '6 × 12', '80 − 8'] },
 ];
 function _todayNumberTalkIndex() {
     const t = new Date();
@@ -1369,7 +1374,7 @@ window.toggleNumberTalk = toggleNumberTalk;
 const HEGGERTY_DAYS = [
     // Domingo (0)
     [
-        { tag: 'Rima', text: 'Adulto diz <strong>BOLA</strong> · GATO · MOLA · FOLA · OLHO. Repete só as que rimam com BOLA.' },
+        { tag: 'Rima', text: 'Adulto diz <strong>BOLA</strong> · GATO · MOLA · FOLA (palavra-fingida!) · OLHO. Repete só as que rimam com BOLA.' },
         { tag: 'Sílaba', text: '<strong>BORBOLETA</strong> — bate palmas em cada sílaba (4: BOR-BO-LE-TA).' },
         { tag: 'Primeiro som', text: 'Qual é o primeiro som de <strong>SAPO</strong>? (resposta: /s/)' },
         { tag: 'Juntar', text: 'Junta: /m/ + /a/ + /r/ — que palavra é? (MAR)' },
@@ -1390,7 +1395,7 @@ const HEGGERTY_DAYS = [
     ],
     // Quarta (3)
     [
-        { tag: 'Onset-rime', text: '<strong>PORTA</strong> começa com /p/ e o resto é /orta/. E <strong>CASA</strong>? (/c/ + /asa/)' },
+        { tag: 'Onset-rime', text: '<strong>PORTA</strong> começa com /p/ e o resto é /orta/. E <strong>CASA</strong>? (/k/ + /asa/)' },
         { tag: 'Sílaba', text: 'Acrescenta <strong>BA</strong> antes de <strong>NANA</strong>. (BANANA)' },
         { tag: 'Som médio', text: 'Qual é o som do meio em <strong>MAR</strong>? (/a/)' },
         { tag: 'Substituir', text: 'Em <strong>SOPA</strong>, troca /s/ por /c/. Que palavra fica? (COPA)' },
@@ -1475,7 +1480,7 @@ function renderMathJournal() {
     // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
     const day = new Date().getDay();
     const isMonday = day === 1;
-    const weekKey = 'mj-week-' + _thisWeekJournalIndex();
+    const weekKey = 'mj-week-' + _thisWeekJournalIndex() + '-' + _localDayKey(new Date()).slice(0, 4) + '-' + Math.floor(Date.now() / (7 * 86400000));
     const wasOpened = state.mathJournalOpened === weekKey;
     if (!isMonday && !wasOpened) { card.style.display = 'none'; return; }
     card.style.display = 'block';
@@ -1489,7 +1494,7 @@ function toggleMathJournal() {
     body.style.display = open ? 'none' : 'block';
     card.classList.toggle('open', !open);
     if (!open) {
-        state.mathJournalOpened = 'mj-week-' + _thisWeekJournalIndex();
+        state.mathJournalOpened = 'mj-week-' + _thisWeekJournalIndex() + '-' + _localDayKey(new Date()).slice(0, 4) + '-' + Math.floor(Date.now() / (7 * 86400000));
         saveState();
     }
 }
@@ -1943,7 +1948,7 @@ function renderTopicList() {
                     </div>
                 </div>
                 <button class="icon-btn" onclick="event.stopPropagation();openTopicAnsweredModal('${key}','${tEsc}')" title="Perguntas respondidas" style="background:#fce7f3;color:#f472b6;flex-shrink:0;width:30px;height:30px;font-size:0.78rem"><i class="fas fa-list-check"></i></button>
-                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Explicação" style="width:30px;height:30px;font-size:0.78rem" aria-label="Explicação" title="Explicação"><i class="fas fa-book-open" aria-hidden="true"></i></button>` : ''}
+                ${LESSONS[`${key}/${t}`] ? `<button class="icon-btn help-btn" onclick="event.stopPropagation();openLessonByKey('${key}/${tEsc}')" title="Explicação" style="width:30px;height:30px;font-size:0.78rem" aria-label="Explicação"><i class="fas fa-book-open" aria-hidden="true"></i></button>` : ''}
             </div>
         `;
     }).join('');
@@ -2584,6 +2589,7 @@ function openParentDashboard(remote) {
     wrap.id = 'parent-dash-container';
     wrap.innerHTML = html;
     document.body.appendChild(wrap); _overlayPush('parent-dash-container');
+    try { const ch = wrap.querySelector('.pdd-chips'); if (ch) ch.scrollLeft = ch.scrollWidth; } catch {}
 }
 window.openParentDashboard = openParentDashboard;
 // Seletor de perfis — lista os perfis DESTE dispositivo (state.profiles)
@@ -2649,7 +2655,7 @@ window.openRemoteParentDashboard = openRemoteParentDashboard;
 const _overlayStack = [];
 let _overlayIgnorePop = false;
 function _overlayPush(id) {
-    if (_overlayStack[_overlayStack.length - 1] === id) return; // re-render do mesmo
+    for (let i = _overlayStack.length - 1; i >= 0; i--) { if (_overlayStack[i] === id && (i === _overlayStack.length - 1 || !document.getElementById(id))) { if (i === _overlayStack.length - 1) return; _overlayStack.splice(i, 1); } }
     _overlayStack.push(id);
     try { history.pushState({ ep: id }, ''); } catch {}
 }
@@ -3253,8 +3259,8 @@ function renderTests() {
                 <div class="test-item-actions">
                     ${!t.done ? `<button class="practice" title="Treinar para este teste" onclick="startTestPrep('${t.id}')"><i class="fas fa-dumbbell"></i></button>` : ''}
                     ${!t.done ? `<button class="practice" style="background:linear-gradient(135deg,#f472b6,#f472b6);color:#fff" title="Treino MAX (IA) para este teste" onclick="startMaxForTest('${t.id}')"><i class="fas fa-wand-magic-sparkles"></i></button>` : ''}
-                    <button onclick="editTest('${t.id}')" title="Editar" aria-label="Editar" title="Editar"><i class="fas fa-pen" aria-hidden="true"></i></button>
-                    <button class="del" onclick="deleteTest('${t.id}')" title="Apagar" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                    <button onclick="editTest('${t.id}')" title="Editar" aria-label="Editar"><i class="fas fa-pen" aria-hidden="true"></i></button>
+                    <button class="del" onclick="deleteTest('${t.id}')" title="Apagar" aria-label="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
             </div>
         `;
@@ -3420,8 +3426,11 @@ function saveTest() {
             t.topics = topics;
             t.targetGrade = target;
             t.actualGrade = atual;
-            // Atribuir XP só na 1.ª vez que a nota obtida é registada
-            if (atual != null && !t.gradeXPAwarded) {
+            if (atual == null) { t.done = false; } // nota apagada → volta a 'por fazer'
+            // Atribuir XP só na 1.ª vez que a nota obtida é registada, e só se a
+            // data do teste já passou (sem isto, criar testes falsos dava XP ilimitado)
+            const _dateOk = !t.date || String(t.date) <= todayStr();
+            if (atual != null && !t.gradeXPAwarded && _dateOk) {
                 xpGained = Math.min(200, Math.round(atual * 10));
                 state.xp += xpGained;
                 t.gradeXPAwarded = true;
@@ -3512,7 +3521,8 @@ function startTestPrep(testId, opts = {}) {
     topicsOrdered.forEach(topic => {
         const av = availableByTopic[topic];
         if (av.length === 0) return; // tópico já totalmente respondido — salta
-        const chosen = av.sort(() => Math.random() - 0.5).slice(0, perTopic);
+        const _c = av.slice(); for (let i = _c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [_c[i], _c[j]] = [_c[j], _c[i]]; }
+        const chosen = _c.slice(0, perTopic);
         items.push(...chosen);
     });
 
@@ -4061,7 +4071,7 @@ function renderProfile() {
         <div class="reward-edit-row">
             <input type="text" value="${r.name.replace(/"/g, '&quot;')}" placeholder="Nome do prémio" oninput="updateRewardName('${r.id}', this.value)">
             <input type="number" min="50" step="50" value="${r.cost}" oninput="updateRewardCost('${r.id}', this.value)">
-            <button onclick="removeReward('${r.id}')" title="Remover" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
+            <button onclick="removeReward('${r.id}')" title="Remover" aria-label="Remover"><i class="fas fa-trash" aria-hidden="true"></i></button>
         </div>
     `).join('');
 }
@@ -7628,7 +7638,7 @@ function _tutorOpenExplore() {
             const itemBtn = `<button class="tutor-ladder-item${cls}" data-topic="${escapeHtml(t)}" onclick="_tutorLearnTopicBtn(this)">
               <i class="fas ${icon}"></i> <span>${escapeHtml(t)}</span>
             </button>`;
-            const clearBtn = (isCons || isSeen) ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>` : '';
+            const clearBtn = (isCons || isSeen) ? `<button class="tutor-ladder-clear" data-topic="${escapeHtml(t)}" onclick="return _tutorClearExploredBtn(this,event)" title="Limpar" aria-label="Limpar"><i class="fas fa-xmark" aria-hidden="true"></i></button>` : '';
             return `<div class="tutor-ladder-row">${itemBtn}${clearBtn}</div>`;
         }).join('');
         const doneCount = band.topics.filter(t => cons[t]).length;
@@ -10565,16 +10575,19 @@ async function submitAnswer() {
                 // strict: comparação exata (maiúsculas/pontuação contam — ex: 'Hoje está sol.')
                 if (e.strict) return String(val).trim() === String(a).trim();
                 const na = normalize(a);
+                const strip = t => t.replace(/^[\s.,;:!?«»"']+|[\s.,;:!?«»"']+$/g, '');
+                if (na === n || strip(na) === strip(n)) return true;
                 // Respostas numéricas: compara como NÚMERO (7 000 = 7000; 1,5 = 1.5;
-                // mas 15 ≠ 1,5 e 700 ≠ 7000)
-                if (/^-?[\d\s.,]+$/.test(na) && /^-?[\d\s.,]+$/.test(n)) {
+                // mas 15 ≠ 1,5 e 700 ≠ 7000). Só decide se AMBOS forem um número.
+                if (/^-?\d[\d\s.]*(,\d+)?$/.test(na) && /^-?\d[\d\s.]*(,\d+)?$/.test(n)) {
                     const num = t => { let c = t.replace(/\s/g, ''); if (c.includes(',')) c = c.replace(/\./g, '').replace(',', '.'); else if (/^-?\d{1,3}(\.\d{3})+$/.test(c)) c = c.replace(/\./g, ''); return Number(c); };
-                    const x = num(na), y = num(n); return Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) < 1e-9;
+                    const x = num(na), y = num(n);
+                    if (Number.isFinite(x) && Number.isFinite(y)) return Math.abs(x - y) < 1e-9;
                 }
-                if (na === n) return true;
-                // Aceita se a resposta esperada aparece INTEIRA (palavra completa) no que
-                // escreveu ('é o porto' para 'porto'); nunca o inverso ('casa' p/ 'casas').
-                if (n.length >= 3 && na.length >= 3) { const esc = na.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return new RegExp('(^|\\s)' + esc + '(\\s|$)').test(n); }
+                // Aceita se a resposta esperada aparece INTEIRA (palavra completa, com
+                // pontuação à volta permitida) no que escreveu ('é o porto.' para
+                // 'porto'); nunca o inverso ('casa' p/ 'casas').
+                if (n.length >= 3 && na.length >= 3) { const esc = na.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return new RegExp('(^|[^\\p{L}\\p{N}])' + esc + '(?=$|[^\\p{L}\\p{N}])', 'u').test(n); }
                 return false;
             });
             // Validação IA como fallback — só se não acertou no matching e há chave API.
@@ -12167,11 +12180,12 @@ function _onFbReady() {
     // todos os fbCreateDuel/fbSubmitDuelResult ficavam pendurados para sempre
     // e o utilizador via "A criar duelo…" eternamente, sem feedback.
     return new Promise((resolve, reject) => {
-        const onReady = () => { clearTimeout(to); resolve(); };
-        const onFail = () => { clearTimeout(to); try { window.removeEventListener('fbready', onReady); } catch {} reject(new Error('Firebase não disponível (verifica ligação ou bloqueador).')); };
+        const cleanup = () => { try { window.removeEventListener('fbready', onReady); window.removeEventListener('fbfail', onFail); } catch {} clearTimeout(to); };
+        const onReady = () => { cleanup(); resolve(); };
+        const onFail = () => { cleanup(); reject(new Error('Firebase não disponível (verifica ligação ou bloqueador).')); };
         window.addEventListener('fbfail', onFail, { once: true });
         const to = setTimeout(() => {
-            try { window.removeEventListener('fbready', onReady); } catch {}
+            cleanup();
             reject(new Error('Firebase não disponível (verifica ligação ou bloqueador).'));
         }, 10000);
         window.addEventListener('fbready', onReady, { once: true });
@@ -12257,6 +12271,7 @@ async function fbSubmitDuelResult(id, playerName, result) {
     const ref = doc(db, 'duels', id);
     // result = { correct, time, score, items, completedAt }
     const path = `responses.${_duelRespKey(playerName)}`;
+    try { if (result && typeof result === 'object' && !result.name) result.name = String(playerName || '').slice(0, 40); } catch {}
     await updateDoc(ref, { [path]: result });
 }
 
@@ -12346,7 +12361,7 @@ function _attachDuelListener(entry) {
             const p = activeProfile();
             const myName = p?.name;
             // Excluir as proprias respostas
-            const othersNames = respNames.filter(n => n !== myName);
+            const othersNames = respNames.filter(n => n !== _duelRespKey(myName) && n !== myName);
             const cur = othersNames.length;
             const prev = entry.lastSeenResponses || 0;
             if (cur > prev) {
@@ -12421,12 +12436,12 @@ async function openMyDuelsScreen() {
             const resp = Object.entries(data.responses || {});
             const p = activeProfile();
             const myName = p?.name;
-            const others = resp.filter(([n]) => n !== myName);
+            const others = resp.filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
             const myResp = resp.find(([n]) => n === myName)?.[1];
             const dateStr = new Date(entry.createdAt).toLocaleDateString('pt-PT', {day:'2-digit',month:'short'});
             const status = others.length === 0 ? '⏳ A aguardar respostas…' : `${others.length} ${others.length===1?'resposta':'respostas'}`;
             const othersList = others.length > 0
-                ? others.slice(0,3).map(([n, r]) => `<div style="font-size:0.78rem;color:var(--text);margin-top:2px"><strong>${escapeHtml(n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${Number(r.score) || 0}pts</div>`).join('')
+                ? others.slice(0,3).map(([n, r]) => `<div style="font-size:0.78rem;color:var(--text);margin-top:2px"><strong>${escapeHtml((r && r.name) || n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${Number(r.score) || 0}pts</div>`).join('')
                 : '';
             const myLine = myResp
                 ? `<div style="font-size:0.78rem;color:#d97706;margin-top:4px">✓ Tu: ${myResp.correct}/${data.questions.length} · ${myResp.score}pts</div>`
@@ -12444,7 +12459,7 @@ async function openMyDuelsScreen() {
                     ${!myResp
                         ? `<button class="btn" style="flex:1;padding:9px;font-size:0.84rem;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800" onclick="closeMyDuelsScreen();_startFirestoreDuel('${entry.id}')"><i class="fas fa-fist-raised"></i> Jogar</button>`
                         : `<button class="btn btn-secondary" style="flex:1;padding:8px;font-size:0.8rem" onclick="_openDuelDetails('${entry.id}')"><i class="fas fa-eye"></i> Ver ranking</button>`}
-                    <button class="btn" style="padding:8px 12px;font-size:0.8rem;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca" onclick="deleteMyDuel('${entry.id}')" title="Apagar" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                    <button class="btn" style="padding:8px 12px;font-size:0.8rem;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca" onclick="deleteMyDuel('${entry.id}')" title="Apagar" aria-label="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
             </div>`;
         }).join('');
@@ -12481,7 +12496,7 @@ async function _openDuelDetails(id) {
     _socialNavReturn = () => openMyDuelsScreen();
     const p = activeProfile();
     const myName = p?.name;
-    const myResp = data.responses?.[myName];
+    const myResp = data.responses?.[_duelRespKey(myName)];
     if (myResp) {
         // Já joguei — mostra ranking
         _showFirestoreDuelSummary(data, myResp);
@@ -12581,7 +12596,7 @@ function _showFirestoreDuelIntro(data, id) {
     // Se outros ja responderam — mostrar quem
     let opponentsHtml = '';
     if (responsesCount > 0) {
-        const list = Object.entries(data.responses).slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml(n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
+        const list = Object.entries(data.responses).slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml((r && r.name) || n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
         opponentsHtml = `<div style="background:#f9fafb;border-radius:12px;padding:12px;margin:14px 0;text-align:left"><div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase">Já jogaram:</div>${list}</div>`;
     }
     const html = `
@@ -12613,10 +12628,10 @@ function _showDuelAlreadyPlayed(data, id) {
     const myRecord = state.duelsPlayed[id] || {};
     const p = activeProfile();
     const myName = p?.name || 'Tu';
-    const myResp = data.responses?.[myName] || myRecord;
-    const others = Object.entries(data.responses || {}).filter(([n]) => n !== myName);
+    const myResp = data.responses?.[_duelRespKey(myName)] || myRecord;
+    const others = Object.entries(data.responses || {}).filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
     const othersHtml = others.length > 0
-        ? others.map(([n, r]) => `<tr><td style="padding:6px 4px">${escapeHtml(n)}</td><td style="text-align:right;padding:6px 4px">${Number(r.correct) || 0}/${data.questions.length}</td><td style="text-align:right;padding:6px 4px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:6px 4px;font-weight:800;color:#dc2626">${Number(r.score) || 0} pts</td></tr>`).join('')
+        ? others.map(([n, r]) => `<tr><td style="padding:6px 4px">${escapeHtml((r && r.name) || n)}</td><td style="text-align:right;padding:6px 4px">${Number(r.correct) || 0}/${data.questions.length}</td><td style="text-align:right;padding:6px 4px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:6px 4px;font-weight:800;color:#dc2626">${Number(r.score) || 0} pts</td></tr>`).join('')
         : `<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-light)">Ninguém mais respondeu ainda.</td></tr>`;
     const html = `
     <div id="fb-duel-intro-modal-temp" class="modal" style="align-items:center;padding:20px">
@@ -12701,7 +12716,7 @@ function _showFirestoreDuelSummary(data, myResult) {
     document.getElementById('fb-duel-summary-modal-temp')?.remove();
     const p = activeProfile();
     const myName = p?.name || 'Tu';
-    const others = Object.entries(data.responses || {}).filter(([n]) => n !== myName);
+    const others = Object.entries(data.responses || {}).filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
     const total = data.questions.length;
     // Ranking
     const all = [[myName, myResult], ...others].sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
@@ -12731,7 +12746,7 @@ function _showFirestoreDuelSummary(data, myResult) {
     const rankHtml = all.map(([n, r], i) => {
         const isMe = n === myName;
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-        return `<tr style="background:${isMe ? '#fef3c7' : 'transparent'}"><td style="padding:8px 6px;font-weight:800">${medal} ${escapeHtml(n)}${isMe ? ' (tu)' : ''}</td><td style="text-align:right;padding:8px 6px">${Number(r.correct) || 0}/${total}</td><td style="text-align:right;padding:8px 6px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:8px 6px;font-weight:900;color:#dc2626">${Number(r.score) || 0}</td></tr>`;
+        return `<tr style="background:${isMe ? '#fef3c7' : 'transparent'}"><td style="padding:8px 6px;font-weight:800">${medal} ${escapeHtml((r && r.name) || n)}${isMe ? ' (tu)' : ''}</td><td style="text-align:right;padding:8px 6px">${Number(r.correct) || 0}/${total}</td><td style="text-align:right;padding:8px 6px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:8px 6px;font-weight:900;color:#dc2626">${Number(r.score) || 0}</td></tr>`;
     }).join('');
     const html = `
     <div id="fb-duel-summary-modal-temp" class="modal" style="align-items:center;padding:20px">
@@ -13214,7 +13229,7 @@ function openFriendsScreen() {
                     <div style="font-weight:800">${escapeHtml(f.name)}${badge}</div>
                     <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
                 </div>
-                <button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="if(confirm('Remover ${escapeHtml(f.name)}?'))removeFriend('${f.code}')" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                <button class="icon-btn" style="background:#fef2f2;color:#dc2626" data-name="${escapeHtml(f.name)}" data-code="${escapeHtml(f.code)}" onclick="if(confirm('Remover ' + this.dataset.name + '?'))removeFriend(this.dataset.code)" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>
             </div>`;
         }).join('');
     const html = `
@@ -13580,8 +13595,8 @@ async function openInboxScreen() {
 
         // Apagar: para criadores apaga do Firestore; para receptores so esconde local
         const deleteBtn = mine
-            ? `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();deleteMyDuel('${d.id}')" title="Apagar duelo" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>`
-            : `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();hideReceivedDuel('${d.id}')" title="Remover da caixa" aria-label="Apagar" title="Apagar"><i class="fas fa-trash" aria-hidden="true"></i></button>`;
+            ? `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();deleteMyDuel('${d.id}')" title="Apagar duelo" aria-label="Apagar duelo"><i class="fas fa-trash" aria-hidden="true"></i></button>`
+            : `<button class="icon-btn" style="background:#fef2f2;color:#dc2626" onclick="event.stopPropagation();hideReceivedDuel('${d.id}')" title="Remover da caixa" aria-label="Remover da caixa"><i class="fas fa-trash" aria-hidden="true"></i></button>`;
 
         const cta = !isAnswered
             ? `<i class="fas fa-fist-raised" style="color:#dc2626;font-size:1rem" title="Jogar"></i>`
@@ -14095,7 +14110,8 @@ async function _copyDuelLinkToClipboard(url) {
     }
 }
 
-function _showDuelIntro(data) {
+async function _showDuelIntro(data) {
+    try { const y = Number(data && (data.year || data.cy)); if (y) await loadYearExtras(y); } catch {}
     const items = data.q.map(id => _findExerciseAnyYear(id)).filter(Boolean);
     if (items.length === 0) {
         showToast('Não foi possível abrir o desafio. Talvez seja de um ano que ainda não criaste.');
@@ -15159,6 +15175,7 @@ function openLessonByKey(key, opts) {
     if (_lessonGate && _lessonGate.timer) clearInterval(_lessonGate.timer);
     _lessonGate = null;
     document.getElementById('lesson-gate')?.remove();
+    _lessonOpenInfo = lesson ? { key, at: Date.now() } : null;
     if (opts && opts.gated && lesson) { setTimeout(() => _lessonStartGate(key, lesson, opts.why), 50); }
     // Regista a abertura do resumo (para o "Dia a dia" — o pai quer saber se
     // leram os resumos). 1 registo por tópico por dia.
@@ -15261,6 +15278,7 @@ function openLessonByKey(key, opts) {
 // garantir que elas LEEM antes de responder. O tempo real fica registado.
 let _lessonGate = null; // {until, key, openedAt, timer}
 let _lessonGateOnClose = null; // callback a correr depois de fechar (ex: avançar)
+let _lessonOpenInfo = null; // {key, at} de QUALQUER abertura — para registar o tempo de leitura real
 function _lessonGateActive() { return !!(_lessonGate && Date.now() < _lessonGate.until); }
 function _lessonStartGate(key, lesson, why) {
     const words = String(lesson.body || '').split(/\s+/).filter(Boolean).length;
@@ -15287,17 +15305,19 @@ function closeLessonModal() {
         showToast(`📖 Lê o resumo até ao fim — faltam ${left}s!`);
         return;
     }
-    // Regista o tempo real de leitura no lessonLog (o pai vê no Dia a dia)
-    if (_lessonGate && _lessonGate.openedAt) {
+    // Regista o tempo real de leitura no lessonLog (o pai vê no Dia a dia) —
+    // em QUALQUER abertura, com ou sem portão ('2s' = fechou logo).
+    const info = _lessonOpenInfo || (_lessonGate && _lessonGate.openedAt ? { key: _lessonGate.key, at: _lessonGate.openedAt } : null);
+    if (info) {
         try {
-            const rt = Math.round((Date.now() - _lessonGate.openedAt) / 1000);
+            const rt = Math.max(1, Math.round((Date.now() - info.at) / 1000));
             const d = todayStr();
-            const entry = (state.lessonLog || []).find(x => x && x.d === d && x.k === _lessonGate.key);
+            const entry = (state.lessonLog || []).find(x => x && x.d === d && x.k === info.key);
             if (entry && (!entry.rt || rt > entry.rt)) { entry.rt = rt; saveState(); }
         } catch {}
-        if (_lessonGate.timer) clearInterval(_lessonGate.timer);
-        _lessonGate = null;
     }
+    _lessonOpenInfo = null;
+    if (_lessonGate) { if (_lessonGate.timer) clearInterval(_lessonGate.timer); _lessonGate = null; }
     document.getElementById('lesson-gate')?.remove();
     document.getElementById('lesson-modal').style.display = 'none';
     _currentLessonDoubtCtx = null;
@@ -15578,7 +15598,10 @@ document.addEventListener('keydown', (e) => {
     if (top) {
         if (top.id === 'lesson-modal') { closeLessonModal(); return; }
         if (top.id === 'secret-modal' || top.id === 'streak-guilt-modal') return; // modais críticos
-        top.style.display = 'none'; return;
+        const closeBtn = top.querySelector('.modal-header .icon-btn, button[aria-label="Fechar"]');
+        if (closeBtn) { closeBtn.click(); return; }
+        if (/-temp$/.test(top.id)) top.remove(); else top.style.display = 'none';
+        return;
     }
     if (_overlayStack.length) { _overlayClose(_overlayStack[_overlayStack.length - 1]); }
 });
@@ -15738,7 +15761,7 @@ function refreshNotifUI() {
     if (enabled) {
         label.textContent = 'Lembretes ativados ✓';
         btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
-        status.textContent = 'Vais receber um aviso por dia se ainda não tiveres feito um teste.';
+        status.textContent = ('TimestampTrigger' in window) ? 'Vais receber um aviso por dia se ainda não tiveres feito um teste.' : 'Lembretes ativados — recebes um aviso ao abrires a app se ainda não tiveres treinado nesse dia.';
     } else if (perm === 'denied') {
         label.textContent = 'Permissão bloqueada';
         status.textContent = 'Ativa as notificações nas definições do sistema para esta app.';
@@ -15778,8 +15801,8 @@ async function toggleNotifications() {
         const reg = await navigator.serviceWorker.ready;
         reg.showNotification('EscolaPlay', {
             body: 'Lembretes ativados! Vais ser avisada quando faltar fazer o teste 🔥',
-            icon: 'icon-192.png',
-            badge: 'icon-192.png',
+            icon: 'icons/icon-192.png',
+            badge: 'icons/icon-192.png',
             tag: 'escolaplay-welcome'
         });
     } catch {}
@@ -15799,8 +15822,8 @@ async function _scheduleStreakReminder() {
         const tag = 'escolaplay-daily-' + target.toISOString().slice(0,10);
         const opts = {
             body: 'Não te esqueças da tua ofensiva! Faz só 1 teste hoje 🔥',
-            icon: 'icon-192.png',
-            badge: 'icon-192.png',
+            icon: 'icons/icon-192.png',
+            badge: 'icons/icon-192.png',
             tag,
             requireInteraction: false
         };
@@ -16160,7 +16183,7 @@ function openVoicePicker() {
                     <div style="font-weight:700;font-size:0.92rem;color:#1f2937">${escapeHtml(v.name)}</div>
                     <div style="font-size:0.72rem;color:#6b7280;margin-top:2px">${escapeHtml(v.lang)}${v.localService === false ? ' · online' : ' · offline'}</div>
                 </div>
-                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoice('${safeName}')" title="Ouvir" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
+                <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="testVoice('${safeName}')" title="Ouvir" aria-label="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
                 <button class="btn ${isChosen ? 'btn-primary-solid' : 'btn-secondary'}" style="font-size:0.78rem;padding:6px 12px" onclick="chooseVoice('${safeName}')">${isChosen ? '✓ Escolhida' : 'Escolher'}</button>
               </div>
             `;
@@ -17428,7 +17451,7 @@ function openDetetiveHub() {
                 <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
                     <span style="font-size:1.3rem">🕵️</span> Detetive Mental
                 </div>
-                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('detetive', { generic: true })" title="Mais opções" aria-label="Mais" title="Mais"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
+                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('detetive', { generic: true })" title="Mais opções" aria-label="Mais opções"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
             </div>
             <div class="exercise-body det-hub-body">
                 <div class="det-hub-hero">
@@ -17520,7 +17543,7 @@ function openMatPlusHub() {
                 <div style="flex:1;font-weight:800;display:flex;align-items:center;gap:8px;color:#fff">
                     <span style="font-size:1.3rem">➕</span> Mat+
                 </div>
-                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('mat_plus', { generic: true })" title="Mais opções" aria-label="Mais" title="Mais"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
+                <button class="icon-btn" style="color:#fff" onclick="openSubjectDetail('mat_plus', { generic: true })" title="Mais opções" aria-label="Mais opções"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
             </div>
             <div class="exercise-body det-hub-body">
                 <div class="det-hub-hero">
@@ -17599,7 +17622,7 @@ function _paperRender() {
         <div class="exercise-header" style="background:linear-gradient(135deg,#475569,#334155)">
             <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('paper-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">📝 Ficha de Papel</div>
-            <button class="icon-btn" style="color:#fff" onclick="openPaperSheet(true)" title="Nova ficha" aria-label="Repetir" title="Repetir"><i class="fas fa-rotate" aria-hidden="true"></i></button>
+            <button class="icon-btn" style="color:#fff" onclick="openPaperSheet(true)" title="Nova ficha" aria-label="Nova ficha"><i class="fas fa-rotate" aria-hidden="true"></i></button>
         </div>
         <div class="exercise-body">
             <div class="paper-howto">
@@ -17786,7 +17809,7 @@ function _writeRender() {
         <div class="exercise-header" style="background:linear-gradient(135deg,#be123c,#e11d48)">
             <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('write-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">✍️ Ficha de Escrita</div>
-            <button class="icon-btn" style="color:#fff" onclick="openWriteSheet(true)" title="Outro plano" aria-label="Repetir" title="Repetir"><i class="fas fa-rotate" aria-hidden="true"></i></button>
+            <button class="icon-btn" style="color:#fff" onclick="openWriteSheet(true)" title="Outro plano" aria-label="Outro plano"><i class="fas fa-rotate" aria-hidden="true"></i></button>
         </div>
         <div class="exercise-body">
             <div class="write-plan">
@@ -18002,7 +18025,7 @@ function _dictRender() {
         <div class="exercise-header" style="background:linear-gradient(135deg,#0891b2,#0e7490)">
             <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="_overlayClose('dict-sheet-container')"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
             <div style="flex:1;font-weight:800;color:#fff">🎧 Ditado</div>
-            <button class="icon-btn" style="color:#fff" onclick="openDictationSheet(true)" title="Novo ditado" aria-label="Repetir" title="Repetir"><i class="fas fa-rotate" aria-hidden="true"></i></button>
+            <button class="icon-btn" style="color:#fff" onclick="openDictationSheet(true)" title="Novo ditado" aria-label="Novo ditado"><i class="fas fa-rotate" aria-hidden="true"></i></button>
         </div>
         <div class="exercise-body">
             <div class="dict-howto">
@@ -19511,7 +19534,8 @@ async function _startHolidayDay(dayIdx, targetYear) {
     const toYear = cfg.fromYears[1];
     const subjectsFrom = cfg.subjects;
     const subjectsTo = cfg.subjects7 || cfg.subjects;
-    const seedBase = (dayIdx + 1) * 137 + (state.profile?.id?.length || 0) + targetYear * 1000;
+    const _idHash = String(state.profile?.id || '').split('').reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 100000, 7);
+    const seedBase = (dayIdx + 1) * 137 + _idHash + targetYear * 1000;
     try { await Promise.all([loadYearExtras(fromYear), loadYearExtras(toYear)]); } catch {}
     const exsFrom = window.EXERCISES_BY_YEAR[fromYear] || [];
     const exsTo = window.EXERCISES_BY_YEAR[toYear] || [];
