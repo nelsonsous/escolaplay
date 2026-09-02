@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v579';
+const APP_VERSION = 'v580';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6822,7 +6822,7 @@ let _tutorRecog = null;
 function _tutorRenderMic() {
     const bar = document.getElementById('tutor-bar');
     if (!bar) return;
-    const sttOk = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+    const sttOk = (typeof _tutorCanListen === 'function') ? _tutorCanListen() : (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
     const draft = (tutorState && tutorState._draft) || '';
     const asking = !!(tutorState && tutorState._ask);
     const ph = asking
@@ -8747,10 +8747,16 @@ function _tutorRenderPronBar() {
       <div id="tutor-live" class="tutor-live" style="display:none"></div>
       <div class="tutor-pron-row">
         <button id="tutor-pron-mic" class="tutor-pron-mic"><i class="fas fa-microphone"></i> Tocar e ler</button>
+        <button class="tutor-quit" id="tutor-pron-type" title="Escrever em vez de falar"><i class="fas fa-keyboard"></i> escrever</button>
         <button class="tutor-quit" onclick="_tutorEndPron()"><i class="fas fa-arrow-left"></i> sair</button>
       </div>`;
     const mic = document.getElementById('tutor-pron-mic');
     if (mic) mic.addEventListener('click', _tutorStartMic);
+    // v580: saída de emergência quando o micro não funciona — a barra normal
+    // avalia o texto escrito contra a frase modelo (tutorState._pron).
+    const typeBtn = document.getElementById('tutor-pron-type');
+    if (typeBtn) typeBtn.addEventListener('click', () => { _tutorRenderMic(); const i = document.getElementById('tutor-text'); if (i) { try { i.focus(); } catch {} } });
+    if (typeof _tutorCanListen === 'function' && !_tutorCanListen() && mic) { mic.disabled = true; mic.title = 'Sem reconhecimento de voz — usa "escrever"'; }
 }
 function _tutorPronEval(said, target) {
     const norm = s => normalize(s).replace(/[^a-z0-9\s']/g, '');
@@ -8924,10 +8930,7 @@ function _tutorAutoListen() {
     if (!tutorState.micGranted || !_tutorHandsFreeOn()) return;
     setTimeout(() => {
         if (!tutorState || _tutorMicBusy() || (tutorState._draft || '').trim()) return;
-        const canVox = !!(state.max && state.max.mistralKey)
-            && typeof MediaRecorder !== 'undefined'
-            && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-            && state.useVoxtral !== false;
+        const canVox = _tutorCanVox();
         // Mãos-livres com Voxtral só quando o AudioContext está 'running' (foi
         // resumido num gesto anterior): só assim a deteção de silêncio funciona
         // e o Voxtral não inventa texto. Caso contrário cai no Web Speech, que
@@ -9038,18 +9041,28 @@ function _tutorBargeIn() {
 function _tutorMicBusy() {
     return !!_tutorRecog || !!(_tutorRec && _tutorRec.state !== 'inactive');
 }
+// Voxtral (Mistral) disponível para ditar? Chave + MediaRecorder + micro.
+// v580: um só sítio — antes a condição estava repetida em 3 funções e a
+// barra do chat só mostrava o micro se existisse Web Speech, o que escondia
+// o micro na PWA instalada no iOS (sem SpeechRecognition) mesmo com Voxtral.
+function _tutorCanVox() {
+    return !!(state && state.max && state.max.mistralKey)
+        && typeof MediaRecorder !== 'undefined'
+        && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        && state.useVoxtral !== false;
+}
+function _tutorHasWebSpeech() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function _tutorCanListen() { return _tutorCanVox() || _tutorHasWebSpeech(); }
+window._tutorCanVox = _tutorCanVox; window._tutorCanListen = _tutorCanListen;
 function _tutorStartMic() {
     if (!tutorState) return;
     _tutorCancelAutoSend();
     _tutorTtsPlaying = false;
     _tutorStopBargeMonitor(true);
     if (_tutorMicBusy()) { _tutorStopMic(); return; }
-    const canVox = !!(state.max && state.max.mistralKey)
-        && typeof MediaRecorder !== 'undefined'
-        && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-        && state.useVoxtral !== false;
-    if (canVox) _tutorStartVoxtral();
-    else _tutorStartWebSpeech();
+    if (_tutorCanVox()) _tutorStartVoxtral();
+    else if (_tutorHasWebSpeech()) _tutorStartWebSpeech();
+    else if (typeof showToast === 'function') showToast(_tutT('No speech recognition here — type your answer, or add a Mistral key.', 'Sem reconhecimento de voz neste browser — escreve a resposta, ou adiciona a chave Mistral.'), 'error');
 }
 function _tutorStopMic() {
     if (_tutorRecog) { try { _tutorRecog.stop(); } catch {} return; }
@@ -9106,7 +9119,22 @@ async function _tutorStartVoxtral(preStream) {
     let stream = preStream || null;
     if (!stream) {
         try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
-        catch { _tutorStartWebSpeech(); return; }
+        catch (err) {
+            // v580: diz PORQUÊ (permissão, sem micro, ocupado) em vez de cair
+            // em silêncio no Web Speech — que na PWA do iOS nem existe.
+            const name = (err && err.name) || '';
+            const msg = (name === 'NotAllowedError' || name === 'SecurityError')
+                ? _tutT('Microphone blocked. iPhone: Settings → Safari → Microphone → Allow (or the site\'s "aA" menu).', 'Microfone bloqueado. iPhone: Definições → Safari → Microfone → Permitir (ou menu "aA" do site).')
+                : (name === 'NotFoundError' || name === 'OverconstrainedError')
+                    ? _tutT('No microphone found on this device.', 'Não encontrei microfone neste dispositivo.')
+                    : (name === 'NotReadableError' || name === 'AbortError')
+                        ? _tutT('Microphone is busy in another app — close it and try again.', 'O microfone está ocupado noutra app — fecha-a e tenta de novo.')
+                        : '';
+            if (msg) { if (typeof showToast === 'function') showToast(msg, 'error'); _tutorMicIdle(); return; }
+            if (_tutorHasWebSpeech()) _tutorStartWebSpeech();
+            else if (typeof showToast === 'function') showToast(_tutT('Could not start the microphone — type your answer.', 'Não consegui ligar o microfone — escreve a resposta.'), 'error');
+            return;
+        }
     }
     if (!tutorState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} return; }
     tutorState.micGranted = true;
@@ -9130,7 +9158,7 @@ async function _tutorStartVoxtral(preStream) {
         // Não envia se: cancelado, sem áudio, ou se conseguimos analisar o som
         // e não houve fala (evita o Voxtral "inventar" texto sobre silêncio).
         if (_tutorRecAbort) { _tutorRecAbort = false; return; }
-        if (!blob.size || blob.size < 1200) return;
+        if (!blob.size || blob.size < 1200) { if (typeof showToast === 'function') showToast('Gravação demasiado curta — toca e fala'); return; }
         if (_tutorAnalysed && !_tutorSpoke) { if (typeof showToast === 'function') showToast('Não ouvi nada — toca e fala'); return; }
         _tutorTranscribeVoxtral(blob);
     };
@@ -9169,7 +9197,16 @@ async function _tutorTranscribeVoxtral(blob) {
     } catch (e) {
         console.warn('[tutor] voxtral failed', e);
         if (liveEl) liveEl.style.display = 'none';
-        if (typeof showToast === 'function') showToast('Transcrição falhou — toca para tentar ou escreve');
+        // v580: causa concreta em vez de "falhou": chave, limite, rede, tempo.
+        const m = String((e && e.message) || '');
+        const msg = /voxtral 401|voxtral 403/.test(m) ? '🔑 Chave Mistral inválida — confirma em Perfil → MAX'
+            : /voxtral 429/.test(m) ? 'Limite da API Mistral atingido — espera um minuto'
+            : /voxtral 4\d\d/.test(m) ? 'O Mistral recusou o áudio — tenta de novo ou escreve'
+            : /voxtral 5\d\d/.test(m) ? 'Mistral indisponível agora — tenta daqui a pouco ou escreve'
+            : (e && e.name === 'AbortError') ? 'A transcrição demorou demasiado — tenta de novo ou escreve'
+            : (!navigator.onLine || /Failed to fetch|NetworkError|Load failed/i.test(m)) ? 'Sem rede — a voz precisa de internet; podes escrever'
+            : 'Transcrição falhou — toca para tentar ou escreve';
+        if (typeof showToast === 'function') showToast(msg, 'error');
     }
 }
 function _tutorStartWebSpeech() {
