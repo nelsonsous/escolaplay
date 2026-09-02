@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v576';
+const APP_VERSION = 'v577';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6303,9 +6303,12 @@ function _srsRemove(id) {
 }
 function _srsDueCount() { const n = Date.now(); return _srsAll().filter(c => (c.due || 0) <= n).length; }
 function _srsDueCards() { const n = Date.now(); return _srsAll().filter(c => (c.due || 0) <= n).sort((a, b) => (a.due || 0) - (b.due || 0)); }
+let _tutorPlanRevN = 0; // cartões avaliados nesta sessão de revisão (plano)
 function _srsGrade(id, grade) {
     const c = _srsAll().find(x => x.id === id);
     if (!c) return;
+    _tutorPlanRevN++;
+    if (_tutorPlanRevN >= 5) { try { _tutorPlanComplete('review'); } catch {} }
     if (grade === 'again') { c.intervalIdx = 0; c.lapses = (c.lapses || 0) + 1; c.due = Date.now() + _SRS_INTERVALS[0] * 864e5; }
     else {
         let idx = c.intervalIdx < 0 ? 0 : c.intervalIdx + (grade === 'easy' ? 2 : 1);
@@ -6374,7 +6377,12 @@ function _tutorOpenReview() {
     _tutorRenderReview();
 }
 window._tutorOpenReview = _tutorOpenReview;
-function _tutorCloseReview() { document.getElementById('review-overlay')?.remove(); _tutorUpdateReviewBadge(); }
+function _tutorCloseReview() {
+    document.getElementById('review-overlay')?.remove(); _tutorUpdateReviewBadge();
+    // Fechar a revisão depois de avaliar pelo menos 1 cartão conta como feita.
+    if (_tutorPlanRevN > 0) { try { _tutorPlanComplete('review'); } catch {} }
+    _tutorPlanRevN = 0;
+}
 window._tutorCloseReview = _tutorCloseReview;
 function _tutorRenderReview() {
     const body = document.getElementById('review-body');
@@ -7220,15 +7228,29 @@ function _tutorPlanRender() {
     const lv = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
     const target = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
     const tests = (state.max && state.max.tutorTests) || []; const lastT = tests[tests.length - 1];
+    const cur = done.cur || null;
     const stepHtml = steps.map((st, i) => {
         const m = TUTOR_SKILL_META[st.skill] || ['•', st.skill, 5];
         const ok = !!done[st.slot];
-        return `<div class="tp-step ${ok ? 'done' : ''}"><span class="tp-num">${ok ? '✓' : (i + 1)}</span><span class="tp-info"><span class="tp-title">${m[0]} ${escapeHtml(m[1])}</span><span class="tp-sub">${m[2]} min</span></span><button class="tp-go" data-slot="${st.slot}" data-skill="${st.skill}" onclick="_tutorPlanStart(this)">${ok ? 'Repetir' : 'Começar'}</button></div>`;
+        const inProg = !ok && cur && cur.slot === st.slot;
+        const cls = ok ? 'done' : (inProg ? 'cur' : '');
+        const num = ok ? '✓' : (inProg ? '▶' : (i + 1));
+        // Em curso: o botão passa a "Feito ✓" (conclusão manual). As skills com
+        // fim claro (teste, escrita, pronúncia, revisão, flashcards, conversa)
+        // marcam-se sozinhas via _tutorPlanComplete().
+        const btn = inProg
+            ? `<button class="tp-go tp-done-btn" onclick="_tutorPlanComplete()">Feito ✓</button>`
+            : `<button class="tp-go" data-slot="${st.slot}" data-skill="${st.skill}" onclick="_tutorPlanStart(this)">${ok ? 'Repetir' : 'Começar'}</button>`;
+        return `<div class="tp-step ${cls}"><span class="tp-num">${num}</span><span class="tp-info"><span class="tp-title">${m[0]} ${escapeHtml(m[1])}</span><span class="tp-sub">${inProg ? 'em curso · ' : ''}${m[2]} min</span></span>${btn}</div>`;
     }).join('');
     const head = finished ? `🏁 Plano de 3 semanas concluído — ${doneDays} dias completos!` : `📅 Dia <b>${idx + 1}</b> de ${TUTOR_PLAN_DAYS} · <b>${doneDays}</b> dias completos`;
+    // Resumo semanal: aparece nos dias 7, 14 e 21 (e no fim do plano).
+    const weekNo = finished ? 3 : ((idx % 7 === 6) ? Math.floor(idx / 7) + 1 : 0);
+    const weekHtml = weekNo ? _tutorPlanWeekSummaryHtml(weekNo) : '';
     chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-plan-card"><div class="tutor-bubble-av">🎯</div><div class="tutor-coach tutor-plan">
         <div class="tutor-coach-head"><div class="tutor-coach-h">${head}</div><div class="tutor-coach-meta">nível <b>${escapeHtml(lv)}</b> → alvo <b>${escapeHtml(target)}</b>${lastT ? ` · último teste <b>${Number(lastT.right) || 0}/${Number(lastT.total) || 0}</b>` : ''}</div></div>
         ${finished ? `<button class="tct-start" onclick="_tutorPlanRestart()">Recomeçar 3 semanas</button>` : `<div class="tp-steps">${stepHtml}</div>`}
+        ${weekHtml}
         <details class="tp-more"><summary>Mais opções — todas as skills</summary></details>
     </div></div>`);
     const det = chat.querySelector('#tutor-plan-card details');
@@ -7240,11 +7262,67 @@ function _tutorPlanStart(btn) {
     const slot = btn && btn.dataset && btn.dataset.slot, skill = btn && btn.dataset && btn.dataset.skill;
     if (!slot || !skill) return;
     const plan = _tutorPlanGet(); const k = todayStr();
-    plan.days[k] = plan.days[k] || {}; plan.days[k][slot] = true;
+    plan.days[k] = plan.days[k] || {};
+    // v577: começar NÃO marca feito — fica "em curso" até a skill terminar
+    // (ou até o utilizador tocar em "Feito ✓").
+    plan.days[k].cur = { slot, skill, at: Date.now() };
     try { saveState(); } catch {}
     _tutorCoachStart(skill);
 }
 window._tutorPlanStart = _tutorPlanStart;
+// Skills sem "fim" próprio (aula, lição, vocabulário, imersão, roleplay,
+// erros): contam como feitas quando o utilizador responde no chat.
+const TUTOR_PLAN_CHAT_SKILLS = ['class', 'lesson', 'vocab', 'immerse', 'meet', 'roleplay', 'mistakes'];
+// Marca o passo em curso como concluído. `skill` (string ou array) limita a
+// que skill pode fechar o passo — evita que, p.ex., um teste feche uma aula.
+// Sem argumento (botão "Feito ✓"), fecha o que estiver em curso.
+function _tutorPlanComplete(skill) {
+    const plan = _tutorPlanGet(); const k = todayStr(); const d = plan.days[k];
+    const cur = d && d.cur;
+    if (!cur) return false;
+    if (skill) { const ok = Array.isArray(skill) ? skill.includes(cur.skill) : cur.skill === skill; if (!ok) return false; }
+    const already = !!d[cur.slot];
+    d[cur.slot] = true; d.cur = null;
+    try { saveState(); } catch {}
+    const steps = _tutorPlanSteps(Math.min(_tutorPlanDayIndex(), TUTOR_PLAN_DAYS - 1));
+    const n = steps.filter(st => d[st.slot]).length;
+    if (!already && typeof showToast === 'function') showToast(n >= 3 ? '🏁 Dia completo — 3/3 passos!' : `✓ Passo concluído · ${n}/3 hoje`);
+    if (document.getElementById('tutor-chat')) _tutorPlanRender();
+    const hc = document.getElementById('home-tutor-card');
+    if (hc && typeof _tutorPlanHomeCard === 'function') { try { _tutorPlanHomeCard(hc); } catch {} }
+    return true;
+}
+window._tutorPlanComplete = _tutorPlanComplete;
+// Resumo da semana N (1..3): dias completos, passos, testes (com tendência
+// face à semana anterior) e cartões guardados.
+function _tutorPlanWeekSummaryHtml(weekNo) {
+    const plan = _tutorPlanGet();
+    const range = (w) => { const a = new Date(plan.start + 'T00:00:00'); a.setDate(a.getDate() + 7 * (w - 1)); const b = new Date(a); b.setDate(b.getDate() + 6); return [a, b]; };
+    const inRange = (key, w) => { const [a, b] = range(w); const d = new Date(key + 'T00:00:00'); return d >= a && d <= b; };
+    const stats = (w) => {
+        const keys = Object.keys(plan.days).filter(k => inRange(k, w));
+        const fullDays = keys.filter(k => { const d = plan.days[k]; return d && d.review && d.core && d.output; }).length;
+        const steps = keys.reduce((s, k) => { const d = plan.days[k] || {}; return s + ['review', 'core', 'output'].filter(x => d[x]).length; }, 0);
+        const [a, b] = range(w); const t0 = a.getTime(), t1 = b.getTime() + 864e5;
+        const tests = ((state.max && state.max.tutorTests) || []).filter(t => t && t.at >= t0 && t.at < t1 && t.total > 0);
+        const best = tests.length ? Math.max(...tests.map(t => Math.round(100 * t.right / t.total))) : null;
+        return { fullDays, steps, tests: tests.length, best };
+    };
+    const cur = stats(weekNo), prev = weekNo > 1 ? stats(weekNo - 1) : null;
+    const trend = (cur.best !== null && prev && prev.best !== null) ? (cur.best - prev.best) : null;
+    const trendHtml = trend === null ? '' : ` <span class="tpw-trend ${trend >= 0 ? 'up' : 'down'}">${trend >= 0 ? '↑' : '↓'} ${Math.abs(trend)} pts</span>`;
+    let cards = 0; try { cards = _srsAll().length; } catch {}
+    const msg = cur.fullDays >= 5 ? 'Ritmo excelente — é assim que se ganha fluência.' : cur.fullDays >= 3 ? 'Bom ritmo. Tenta fechar os 3 passos em mais dias.' : 'Semana leve. Bastam 20 minutos por dia — marca uma hora fixa.';
+    return `<div class="tp-week"><div class="tp-week-h">📊 Resumo da semana ${weekNo}</div>
+        <div class="tp-week-grid">
+          <div><b>${cur.fullDays}</b>/7 dias completos</div>
+          <div><b>${cur.steps}</b> passos feitos</div>
+          <div>${cur.best === null ? 'sem teste esta semana' : `melhor teste <b>${cur.best}%</b>${trendHtml}`}</div>
+          <div><b>${cards}</b> cartões no phrasebook</div>
+        </div>
+        <div class="tp-week-msg">${escapeHtml(msg)}</div></div>`;
+}
+window._tutorPlanWeekSummaryHtml = _tutorPlanWeekSummaryHtml;
 function _tutorPlanRestart() { state.tutorPlan = { start: todayStr(), days: {} }; try { saveState(); } catch {} _tutorPlanRender(); }
 window._tutorPlanRestart = _tutorPlanRestart;
 // Cartão do ecrã inicial (perfil profissional): "Dia N de 21 · próximo passo"
@@ -7253,12 +7331,13 @@ function _tutorPlanHomeCard(card) {
     const finished = idx >= TUTOR_PLAN_DAYS;
     const done = (_tutorPlanGet().days[todayStr()]) || {};
     const steps = _tutorPlanSteps(Math.min(idx, TUTOR_PLAN_DAYS - 1));
-    const next = steps.find(st => !done[st.slot]);
+    const cur = done.cur && !done[done.cur.slot] ? steps.find(st => st.slot === done.cur.slot) : null;
+    const next = cur || steps.find(st => !done[st.slot]);
     const nDone = steps.filter(st => done[st.slot]).length;
     const m = next ? (TUTOR_SKILL_META[next.skill] || ['•', next.skill, 5]) : null;
     const title = card.querySelector('.tutor-card-title'); const sub = card.querySelector('.tutor-card-sub');
     if (title) title.textContent = finished ? 'Inglês — plano concluído 🏁' : `Inglês — Dia ${idx + 1} de ${TUTOR_PLAN_DAYS}`;
-    if (sub) sub.textContent = finished ? 'Toca para recomeçar 3 semanas' : (next ? `Próximo: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3 feitos hoje` : 'Tudo feito hoje ✓ — volta amanhã');
+    if (sub) sub.textContent = finished ? 'Toca para recomeçar 3 semanas' : (next ? `${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3 feitos hoje` : 'Tudo feito hoje ✓ — volta amanhã');
     const pct = Math.round(100 * Math.min(idx, TUTOR_PLAN_DAYS) / TUTOR_PLAN_DAYS);
     let bar = card.querySelector('.tutor-card-bar');
     if (!bar) { bar = document.createElement('div'); bar.className = 'tutor-card-bar'; bar.innerHTML = '<span></span>'; card.appendChild(bar); }
@@ -7328,6 +7407,7 @@ async function _tutorCoachWritingSubmit(tid) {
         _tutorAddTutor(_tutorRenderWritingFeedback(json, lv));
         if (submit) submit.remove();
         ta.readOnly = true;
+        try { _tutorPlanComplete('writing'); } catch {}
     } catch (e) {
         _tutorAddTutor('⚠️ Could not grade — try again.');
         if (submit) { submit.disabled = false; submit.textContent = 'Get feedback →'; }
@@ -7793,6 +7873,7 @@ function _tutorFlashSave(tid) {
     _tutorUpdateReviewBadge();
     showToast && showToast(added ? `💾 ${added} cartões no phrasebook${dup ? ` (${dup} já lá estavam)` : ''}` : 'Já tinhas todos no phrasebook');
     if (added) _tutorAddTutor(`Guardei ${added} ${added === 1 ? 'cartão' : 'cartões'}. Aparecem na Review pela ordem certa — hoje, daqui a 3 dias, a uma semana… até ficarem colados.`, '', '', true);
+    try { _tutorPlanComplete('flash'); } catch {}
 }
 window._tutorFlashSave = _tutorFlashSave;
 
@@ -7942,6 +8023,7 @@ function _tutorTestFinish() {
       </div>`);
     _tutorScroll();
     _tutorRenderMic();
+    try { _tutorPlanComplete('test'); } catch {}
 }
 function _tutorTestPracticeWrong() {
     const wrongItems = (tutorState && tutorState._testWrong) || [];
@@ -8553,6 +8635,8 @@ function _tutorEvalPron(said) {
     if (!pron) return;
     said = (said || '').trim();
     const { score, words, okCount, closeCount, totalCount } = _tutorPronEval(said, pron.target);
+    // Plano: uma leitura avaliada fecha o passo "pronúncia" / "reunião".
+    if (said && (pron.meeting || pron.coachLv)) { try { _tutorPlanComplete(pron.meeting ? 'meet' : 'pron'); } catch {} }
     if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
     if (pron.meeting) { _tutorEvalMeeting(said, score, words, pron); return; }
     // Skill Pronunciation do coach: além do resultado local, pede feedback IA
@@ -9028,6 +9112,8 @@ function _tutorHandleInput(said) {
     if (!tutorState) return;
     _tutorAddYou(said);
     _tutorTrackMeetingUse(said);
+    // Plano: responder no chat fecha o passo das skills "de conversa".
+    try { _tutorPlanComplete(TUTOR_PLAN_CHAT_SKILLS); } catch {}
     // Em modo "treino do erro": valida a repetição antes de prosseguir
     if (tutorState.drill) {
         const d = tutorState.drill;
