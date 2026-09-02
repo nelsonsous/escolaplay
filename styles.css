@@ -6773,3 +6773,6 @@ body.has-teacher-overlay #subject-detail-container {
 /* Cartões com role=button: cursor e foco visíveis */
 [role="button"][tabindex="0"] { cursor: pointer; }
 [role="button"][tabindex="0"]:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }
+
+/* ✓/✕ não herdam o risco do texto da opção errada */
+.btn-option.wrong::after, .btn-option.correct::after { display: inline-block; text-decoration: none; }
