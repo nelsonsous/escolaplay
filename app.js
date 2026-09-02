@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v575';
+const APP_VERSION = 'v576';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1163,6 +1163,8 @@ function renderHome() {
     if (_homeTutorCard) {
         const _p = (typeof activeProfile === 'function' && activeProfile()) || {};
         _homeTutorCard.style.display = (_p.year === 99) ? 'flex' : 'none';
+        // v576: o cartão mostra o plano de 3 semanas — dia, próximo passo, feitos
+        if (_p.year === 99) { try { _tutorPlanHomeCard(_homeTutorCard); } catch (e) { console.warn('[plan] home card', e); } }
     }
     const days = state.streak.days || 0;
     const { tier, emoji } = _streakTier(days);
@@ -6191,6 +6193,8 @@ function openTutor(opts) {
     if (!isSubjectMode) {
         _tutorPlanRender();
         _tutorUpdateReviewBadge();
+        // Vindo do cartão do ecrã inicial: arranca logo o próximo passo do dia
+        if (opts.autoStep) setTimeout(() => { const b = document.querySelector('#tutor-plan-card .tp-step:not(.done) .tp-go'); if (b) b.click(); }, 350);
     }
     _tutorRenderMic();
 }
@@ -7243,6 +7247,25 @@ function _tutorPlanStart(btn) {
 window._tutorPlanStart = _tutorPlanStart;
 function _tutorPlanRestart() { state.tutorPlan = { start: todayStr(), days: {} }; try { saveState(); } catch {} _tutorPlanRender(); }
 window._tutorPlanRestart = _tutorPlanRestart;
+// Cartão do ecrã inicial (perfil profissional): "Dia N de 21 · próximo passo"
+function _tutorPlanHomeCard(card) {
+    const idx = _tutorPlanDayIndex();
+    const finished = idx >= TUTOR_PLAN_DAYS;
+    const done = (_tutorPlanGet().days[todayStr()]) || {};
+    const steps = _tutorPlanSteps(Math.min(idx, TUTOR_PLAN_DAYS - 1));
+    const next = steps.find(st => !done[st.slot]);
+    const nDone = steps.filter(st => done[st.slot]).length;
+    const m = next ? (TUTOR_SKILL_META[next.skill] || ['•', next.skill, 5]) : null;
+    const title = card.querySelector('.tutor-card-title'); const sub = card.querySelector('.tutor-card-sub');
+    if (title) title.textContent = finished ? 'Inglês — plano concluído 🏁' : `Inglês — Dia ${idx + 1} de ${TUTOR_PLAN_DAYS}`;
+    if (sub) sub.textContent = finished ? 'Toca para recomeçar 3 semanas' : (next ? `Próximo: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3 feitos hoje` : 'Tudo feito hoje ✓ — volta amanhã');
+    const pct = Math.round(100 * Math.min(idx, TUTOR_PLAN_DAYS) / TUTOR_PLAN_DAYS);
+    let bar = card.querySelector('.tutor-card-bar');
+    if (!bar) { bar = document.createElement('div'); bar.className = 'tutor-card-bar'; bar.innerHTML = '<span></span>'; card.appendChild(bar); }
+    bar.querySelector('span').style.width = pct + '%';
+    card.onclick = () => openTutor({ autoStep: !finished && !!next });
+}
+window._tutorPlanHomeCard = _tutorPlanHomeCard;
 
 // Alias retrocompatível com v490.
 function _tutorRenderCoachOfTheDay() { return _tutorRenderCoachDashboard(); }
