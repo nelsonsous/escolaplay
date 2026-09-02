@@ -6908,6 +6908,8 @@ body.has-teacher-overlay #subject-detail-container {
 .tpw-trend.up { background: #dcfce7; color: #15803d; }
 .tpw-trend.down { background: #fee2e2; color: #b91c1c; }
 @media (prefers-reduced-motion: reduce) { .tp-step.cur .tp-num { animation: none; } }
+.tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
+.tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
 .tp-more summary { cursor: pointer; font-weight: 700; }
 

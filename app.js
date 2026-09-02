@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v577';
+const APP_VERSION = 'v578';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6137,7 +6137,10 @@ function _tutT(en, pt) { return _tutIsEN() ? en : pt; }
 
 function openTutor(opts) {
     opts = opts || {};
-    if (!hasAIKey()) {
+    // v577: sem chave, o tutor de inglês abre na mesma com um cartão de
+    // configuração (antes era só um toast e o cartão inicial parecia partido).
+    // Os professores por disciplina (filhas) mantêm o toast.
+    if (!hasAIKey() && opts.subject) {
         showToast('Configura uma chave IA (Mistral) no Perfil para falar com o Professor');
         return;
     }
@@ -6187,10 +6190,14 @@ function openTutor(opts) {
         opener = `Olá${nm}! Sou o(a) teu/tua Professor(a) de ${subj.name}. Estou aqui para te ajudar com a matéria do ${subj.year}.º ano. Em que tema queres trabalhar? Podes escrever uma dúvida, um conceito que queres rever, ou pedir-me exercícios.`;
     } else {
         const _pd = Math.min(_tutorPlanDayIndex() + 1, TUTOR_PLAN_DAYS);
-        opener = `Hi! I'm your English tutor. **Day ${_pd} of ${TUTOR_PLAN_DAYS}** of your 3-week plan — three short steps below (about 20 minutes). Let's go!`;
+        const _fn = String(prof.name || '').trim().split(/\s+/)[0];
+        opener = _pd > TUTOR_PLAN_DAYS - 1 && _tutorPlanDayIndex() >= TUTOR_PLAN_DAYS
+            ? `Hi${_fn ? ' ' + _fn : ''}! You finished the 3-week plan 🏁 — restart it below or pick any skill.`
+            : `Hi${_fn ? ' ' + _fn : ''}! **Day ${_pd} of ${TUTOR_PLAN_DAYS}** — three short steps below, about 20 minutes.`;
     }
     _tutorAddTutor(opener, null, null);
     if (!isSubjectMode) {
+        if (!hasAIKey()) _tutorRenderKeyCard();
         _tutorPlanRender();
         _tutorUpdateReviewBadge();
         // Vindo do cartão do ecrã inicial: arranca logo o próximo passo do dia
@@ -7128,6 +7135,9 @@ window._tutorRenderCoachDashboard = _tutorRenderCoachDashboard;
 // assim nada aparece.
 function _tutorCoachStart(skillId) {
     const chat = document.getElementById('tutor-chat');
+    // Sem chave IA: todas as skills precisam da IA → cartão de configuração
+    // em vez de N mensagens de erro diferentes.
+    if (!hasAIKey()) { _tutorPlanRender(); _tutorRenderKeyCard(); return; }
     const wkKey = (() => {
         const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
         return d.toISOString().slice(0, 10);
@@ -7337,14 +7347,39 @@ function _tutorPlanHomeCard(card) {
     const m = next ? (TUTOR_SKILL_META[next.skill] || ['•', next.skill, 5]) : null;
     const title = card.querySelector('.tutor-card-title'); const sub = card.querySelector('.tutor-card-sub');
     if (title) title.textContent = finished ? 'Inglês — plano concluído 🏁' : `Inglês — Dia ${idx + 1} de ${TUTOR_PLAN_DAYS}`;
-    if (sub) sub.textContent = finished ? 'Toca para recomeçar 3 semanas' : (next ? `${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3 feitos hoje` : 'Tudo feito hoje ✓ — volta amanhã');
+    const noKey = typeof hasAIKey === 'function' && !hasAIKey();
+    if (sub) sub.textContent = noKey ? '🔑 Falta a chave Mistral — toca para configurar' : finished ? 'Toca para recomeçar 3 semanas' : (next ? `${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3 feitos hoje` : 'Tudo feito hoje ✓ — volta amanhã');
     const pct = Math.round(100 * Math.min(idx, TUTOR_PLAN_DAYS) / TUTOR_PLAN_DAYS);
     let bar = card.querySelector('.tutor-card-bar');
     if (!bar) { bar = document.createElement('div'); bar.className = 'tutor-card-bar'; bar.innerHTML = '<span></span>'; card.appendChild(bar); }
     bar.querySelector('span').style.width = pct + '%';
-    card.onclick = () => openTutor({ autoStep: !finished && !!next });
+    card.onclick = noKey ? () => _tutorOpenKeySetup() : () => openTutor({ autoStep: !finished && !!next });
 }
 window._tutorPlanHomeCard = _tutorPlanHomeCard;
+// Cartão "falta a chave" dentro do chat — um só sítio para explicar o que
+// falta e um botão que leva direto ao campo certo.
+function _tutorRenderKeyCard() {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat || document.getElementById('tutor-key-card')) return;
+    chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-key-card"><div class="tutor-bubble-av">🔑</div>
+        <div class="tutor-coach-task tp-key">
+          <div class="tutor-coach-task-h">🔑 Falta a chave Mistral</div>
+          <div class="tutor-coach-task-p">O plano de 3 semanas usa a IA para as aulas, o feedback da escrita e a pronúncia. É grátis: cria uma chave em <b>console.mistral.ai</b>, cola-a em <b>Perfil → MAX</b> e volta aqui.</div>
+          <button class="tct-start" onclick="_tutorOpenKeySetup()">Configurar agora →</button>
+        </div></div>`);
+    _tutorScroll();
+}
+window._tutorRenderKeyCard = _tutorRenderKeyCard;
+function _tutorOpenKeySetup() {
+    try { closeTutor(); } catch {}
+    try { switchTab('profile'); } catch {}
+    setTimeout(() => {
+        const inp = document.getElementById('max-mistral-apikey');
+        if (inp) { try { inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus(); } catch {} }
+        if (typeof showToast === 'function') showToast('Cola a chave Mistral e toca em Guardar');
+    }, 250);
+}
+window._tutorOpenKeySetup = _tutorOpenKeySetup;
 
 // Alias retrocompatível com v490.
 function _tutorRenderCoachOfTheDay() { return _tutorRenderCoachDashboard(); }
