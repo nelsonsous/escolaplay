@@ -6916,6 +6916,10 @@ body.has-teacher-overlay #subject-detail-container {
 .tutor-rich > span { display: block; }
 .tcw-fb { margin: 6px 0; }
 .tcp-ex { display: block; font-size: 0.8rem; color: #64748b; font-style: italic; margin-top: 2px; }
+.tutor-card.tutor-card-due { box-shadow: 0 0 0 3px rgba(249,115,22,0.35); }
+.tp-lvl-up { border: 1.5px solid #86efac; background: #f0fdf4; }
+.tp-lvl-down { border: 1.5px solid #fcd34d; background: #fffbeb; }
+.review-done .tct-start { margin-top: 10px; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
