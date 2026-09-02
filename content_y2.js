@@ -1316,4 +1316,8 @@ const LESSONS_2 = {
 
 };
 Object.assign(window.LESSONS_BY_YEAR[2], LESSONS_2);
+// Lições em falta (v572)
+Object.assign(window.LESSONS_BY_YEAR[2], {
+    'matematica/Revisão final': { title:'Revisão final', body:'Chegou a hora de rever tudo o que aprendeste este ano! 🎉\n\n**O que vais encontrar**:\n• Números até 1000 — ler, escrever e comparar\n• Adição e subtração (com e sem transporte)\n• Tabuadas do 2, 3, 4, 5 e 10\n• Formas, medidas e tempo\n\n**Truque**: se te enganares numa pergunta, volta à lição desse tópico e tenta outra vez. Errar faz parte de aprender!\n\n**❌ O que se costuma errar**\n• Ler à pressa e responder ao que não foi perguntado.\n• Esquecer o transporte (o "vai 1") nas contas.' }
+});
 })();
