@@ -89,7 +89,7 @@ const LEVELS = [
     { min:12000, name: 'Lenda' }
 ];
 const XP_BY_DIFF = { 1: 10, 2: 20, 3: 30 };
-const DAILY_QUESTIONS = 5;      // 1 por disciplina (temos 5)
+const DAILY_QUESTIONS = 6;      // 2 mat + 1 port garantidos + revisão + outras
 
 // ── Temas de cor por perfil ("a minha cor") — personalização ─────────────
 // Cada tema define o trio de variáveis --primary/--dark/--light que pintam
@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil ativo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs'];
 
 // Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
 // saem do dispositivo — são dados pessoais de crianças. Packs (vampire:…,
@@ -269,7 +269,7 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {})
     Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
         id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {},
+        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {},
         paperSheet: null, writeSheet: null, dictSheet: null,
         name, avatar, year, currentPeriod: 1,
         xp: 0,
@@ -462,7 +462,7 @@ function loadState() {
         console.error('loadState', e);
         // Não perder a única cópia: guarda o raw corrompido noutra chave
         // antes de o próximo saveState escrever por cima.
-        try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) localStorage.setItem(STORAGE_KEY + '_corrupt_' + Date.now(), raw); } catch {}
+        try { Object.keys(localStorage).filter(k => k.startsWith(STORAGE_KEY + '_corrupt_')).forEach(k => localStorage.removeItem(k)); const raw = localStorage.getItem(STORAGE_KEY); if (raw) localStorage.setItem(STORAGE_KEY + '_corrupt_' + Date.now(), raw); } catch {}
         setTimeout(() => { try { alert('⚠️ Não consegui ler o progresso guardado neste dispositivo (dados corrompidos). Guardei uma cópia para recuperação. Se tinhas backup na nuvem, usa "Restaurar por código".'); } catch {} }, 1500);
         return installStateProxy(defaultState());
     }
@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v573';
+const APP_VERSION = 'v574';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -771,7 +771,11 @@ function saveState() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
-        if (!/quota|exceed/i.test(String(e && (e.name + ' ' + e.message)))) { console.error('[saveState]', e); return; }
+        if (!/quota|exceed/i.test(String(e && (e.name + ' ' + e.message)))) {
+            console.error('[saveState]', e);
+            if (Date.now() - _saveFailToastAt > 60000) { _saveFailToastAt = Date.now(); try { showToast('⚠️ Não consigo guardar o progresso neste browser (armazenamento bloqueado). Sai do modo privado ou permite cookies.'); } catch {} }
+            return;
+        }
         // Quota cheia (iOS ~5 MB): poda o que cresce sem limite e tenta de novo.
         // Sem isto, a exceção rebentava a meio de recordAnswer e a sessão
         // congelava sem feedback nem progresso guardado.
@@ -781,7 +785,8 @@ function saveState() {
                 if (Array.isArray(p.maxExercises) && p.maxExercises.length > 300) p.maxExercises = p.maxExercises.slice(-300);
                 if (p.maxLessons && typeof p.maxLessons === 'object') { const ks = Object.keys(p.maxLessons); ks.slice(0, Math.max(0, ks.length - 40)).forEach(k => delete p.maxLessons[k]); }
                 if (p.exerciseSeen && typeof p.exerciseSeen === 'object') { const cut = Date.now() - 120 * 86400000; Object.keys(p.exerciseSeen).forEach(k => { if (p.exerciseSeen[k] < cut) delete p.exerciseSeen[k]; }); }
-                if (Array.isArray(p.history) && p.history.length > 300) p.history = p.history.slice(-300);
+                if (Array.isArray(p.history) && p.history.length > 1500) p.history = p.history.slice(-1500);
+                if (p.srs && typeof p.srs === 'object') { const ks = Object.keys(p.srs); if (ks.length > 400) ks.slice(0, ks.length - 400).forEach(k => delete p.srs[k]); }
             });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
             if (Date.now() - _saveFailToastAt > 60000) { _saveFailToastAt = Date.now(); try { showToast('⚠️ Memória quase cheia — apaguei dados antigos (exercícios gerados/histórico mais antigo) para continuar a guardar.'); } catch {} }
@@ -1471,6 +1476,8 @@ function _thisWeekJournalIndex() {
     const weeks = Math.floor((t - yearStart) / (7 * 86400000));
     return weeks % MATH_JOURNAL_PROMPTS.length;
 }
+// Chave da semana do diário: a segunda-feira LOCAL desta semana (uma só âncora)
+function _mjWeekKey() { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return 'mj-' + _localDayKey(d); }
 function renderMathJournal() {
     const card = document.getElementById('math-journal-card');
     const promptEl = document.getElementById('mj-prompt');
@@ -1480,7 +1487,7 @@ function renderMathJournal() {
     // Só mostra à segunda-feira (dia 1) ou se já foi aberto esta semana
     const day = new Date().getDay();
     const isMonday = day === 1;
-    const weekKey = 'mj-week-' + _thisWeekJournalIndex() + '-' + _localDayKey(new Date()).slice(0, 4) + '-' + Math.floor(Date.now() / (7 * 86400000));
+    const weekKey = _mjWeekKey();
     const wasOpened = state.mathJournalOpened === weekKey;
     if (!isMonday && !wasOpened) { card.style.display = 'none'; return; }
     card.style.display = 'block';
@@ -1494,7 +1501,7 @@ function toggleMathJournal() {
     body.style.display = open ? 'none' : 'block';
     card.classList.toggle('open', !open);
     if (!open) {
-        state.mathJournalOpened = 'mj-week-' + _thisWeekJournalIndex() + '-' + _localDayKey(new Date()).slice(0, 4) + '-' + Math.floor(Date.now() / (7 * 86400000));
+        state.mathJournalOpened = _mjWeekKey();
         saveState();
     }
 }
@@ -2095,7 +2102,7 @@ function _parentStats(src) {
     // Agrega por disciplina a partir do history (fonte mais fiável: tem s + c).
     const bySubj = {};
     hist.forEach(h => {
-        if (!h || !h.s) return;
+        if (!h || !h.s || /^(__proto__|constructor|prototype)$/.test(h.s)) return;
         const b = bySubj[h.s] || (bySubj[h.s] = { ans: 0, ok: 0 });
         b.ans++; if (h.c) b.ok++;
     });
@@ -2112,7 +2119,7 @@ function _parentStats(src) {
     const readingLog = (p && Array.isArray(p.readingLog)) ? p.readingLog : (src ? [] : (state.readingLog || []));
     const sessionLog = (p && Array.isArray(p.sessionLog)) ? p.sessionLog : (src ? [] : (state.sessionLog || []));
     const lessonLog = (p && Array.isArray(p.lessonLog)) ? p.lessonLog : (src ? [] : (state.lessonLog || []));
-    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year, hist, readingLog, sessionLog, lessonLog, local: !src };
+    return { bySubj, days, weak, total: hist.length, name: p && p.name, year: p && p.year, hist, readingLog, sessionLog, lessonLog, mastery: (p && p.topicMastery) || (src ? {} : (state.topicMastery || {})), local: !src };
 }
 
 // ── "Está a melhorar?" — análise de EVOLUÇÃO a partir do histórico ──
@@ -2207,7 +2214,7 @@ function _pdHeatmap(days) {
             const n = (days[key] && days[key].ans) || 0;
             const lvl = n === 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : n <= 9 ? 3 : 4;
             const tip = `${DAYS_PT[d]} ${key.slice(8)}/${key.slice(5, 7)} · ${n} exercício${n === 1 ? '' : 's'}`;
-            cells += `<rect x="${padL + w * (cell + gap)}" y="${padT + d * (cell + gap)}" width="${cell}" height="${cell}" rx="4" fill="${_PD_HEAT_RAMP[lvl]}" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></rect>`;
+            cells += `<rect x="${padL + w * (cell + gap)}" y="${padT + d * (cell + gap)}" width="${cell}" height="${cell}" rx="4" fill="${_PD_HEAT_RAMP[lvl]}" data-tip="${escapeHtml(tip)}" onclick="_pdTip(event)"><title>${escapeHtml(tip)}</title></rect>`;
         }
     }
     const dayLabels = [0, 2, 4].map(d =>
@@ -2247,7 +2254,7 @@ function _pdMultiLine(o) {
         const line = _pdSmooth(pts, padT, baseY);
         const dots = s.pts.map((p, k) => {
             const tip = escapeHtml(`${s.name} — semana de ${labels[p.i]}: ${p.v}%`);
-            return `<circle cx="${X(p.i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4.5" fill="${s.color}" stroke="#fff" stroke-width="2" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></circle>`;
+            return `<circle cx="${X(p.i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4.5" fill="${s.color}" stroke="#fff" stroke-width="2" data-tip="${escapeHtml(tip)}" onclick="_pdTip(event)"><title>${escapeHtml(tip)}</title></circle>`;
         }).join('');
         const e = ends[si];
         const endLab = `<circle cx="${(W - padR + 10)}" cy="${e.y.toFixed(1)}" r="3.5" fill="${e.color}"/><text x="${(W - padR + 17)}" y="${(e.y + 3.5).toFixed(1)}" class="pd-cmp-name">${escapeHtml(e.name.length > 9 ? e.name.slice(0, 8) + '…' : e.name)}</text>`;
@@ -2302,7 +2309,7 @@ function _pdDayDetailHtml(ctx, key) {
     const totSecs = sess.reduce((s, x) => s + (x.secs || 0), 0);
     const fmtT = s => s >= 3600 ? Math.floor(s / 3600) + 'h' + String(Math.round((s % 3600) / 60)).padStart(2, '0') : s >= 60 ? Math.round(s / 60) + ' min' : s + ' s';
     const by = {};
-    hist.forEach(h => { const b = by[h.s] || (by[h.s] = { n: 0, ok: 0 }); b.n++; if (h.c) b.ok++; });
+    hist.forEach(h => { if (!h || !h.s || /^(__proto__|constructor|prototype)$/.test(h.s)) return; const b = by[h.s] || (by[h.s] = { n: 0, ok: 0 }); b.n++; if (h.c) b.ok++; });
     const subjRows = Object.keys(by).sort((a, b) => by[b].n - by[a].n).map(k => {
         const meta = (ctx.SUBJ && ctx.SUBJ[k]) || { name: k, color: '#64748b', icon: 'fa-book' };
         const b = by[k];
@@ -2311,10 +2318,10 @@ function _pdDayDetailHtml(ctx, key) {
     }).join('');
     const sessRows = sess.map(x => {
         const meta = (ctx.SUBJ && ctx.SUBJ[x.s]) || { name: x.s, color: '#64748b' };
-        return `<div class="pdd-sess"><span class="pdd-sess-h">${escapeHtml(x.hm || '—')}</span><span class="pdd-sess-s"><i style="background:${meta.color}"></i>${escapeHtml(meta.name)}</span><span class="pdd-sess-v">${x.ok}/${x.n} certas · <b>${fmtT(x.secs || 0)}</b></span></div>`;
+        return `<div class="pdd-sess"><span class="pdd-sess-h">${escapeHtml(x.hm || '—')}</span><span class="pdd-sess-s"><i style="background:${meta.color}"></i>${escapeHtml(meta.name)}</span><span class="pdd-sess-v">${Number(x.ok) || 0}/${Number(x.n) || 0} certas · <b>${fmtT(Number(x.secs) || 0)}</b></span></div>`;
     }).join('');
     const lesHtml = les.length
-        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:${x.w === 'erro' ? '#fef3c7' : '#dbeafe'};color:${x.w === 'erro' ? '#92400e' : '#1d4ed8'}">${x.w === 'erro' ? '⚠️ ' : ''}${escapeHtml(x.t || x.k || '')}${x.rt ? ` · ${x.rt}s` : ''}</span>`).join('')}</div>`
+        ? `<div class="pdd-h">📖 Resumos lidos (${les.length})</div><div class="pd-weak" style="margin-bottom:10px">${les.map(x => `<span class="pd-weak-chip" style="background:${x.w === 'erro' ? '#fef3c7' : '#dbeafe'};color:${x.w === 'erro' ? '#92400e' : '#1d4ed8'}">${x.w === 'erro' ? '⚠️ ' : ''}${escapeHtml(x.t || x.k || '')}${Number(x.rt) ? ` · ${Number(x.rt)}s` : ''}</span>`).join('')}</div>`
         : `<div class="pdd-noles">📖 Não abriu nenhum resumo neste dia.</div>`;
     return `
         <div class="pdd-totals"><b>${hist.length}</b> exercícios · <b>${pct}%</b> certas${totSecs ? ` · <b>${fmtT(totSecs)}</b> de estudo` : ''}</div>
@@ -2409,7 +2416,7 @@ function _pdLineChart(o) {
     const dots = pts.map((p, i) => {
         const last = i === n - 1;
         const tip = titles[i] || (labels[i] + ': ' + vals[i] + (o.unit || ''));
-        return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${last ? 5.5 : 4.5}" fill="${color}" stroke="#fff" stroke-width="2" class="pd-dot" data-tip="${tip}" onclick="_pdTip(event)"><title>${tip}</title></circle>`;
+        return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${last ? 5.5 : 4.5}" fill="${color}" stroke="#fff" stroke-width="2" class="pd-dot" data-tip="${escapeHtml(tip)}" onclick="_pdTip(event)"><title>${escapeHtml(tip)}</title></circle>`;
     }).join('');
     const endLabel = `<text x="${(pts[n - 1][0] + 9).toFixed(1)}" y="${(pts[n - 1][1] + 4).toFixed(1)}" class="pd-endlab">${vals[n - 1]}${o.unit || ''}</text>`;
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || 'Evolução'}" xmlns="http://www.w3.org/2000/svg">
@@ -2500,23 +2507,44 @@ function _pdImprovementHtml(stats) {
         let readChart = '';
         if (rlog.length >= 2) {
             const rl = rlog.slice(-8);
-            const rvals = rl.map(r => r.wpm || 0);
+            const rvals = rl.map(r => Number(r.wpm) || 0);
             const rlabels = rl.map(r => (r.d || '').slice(8) + '/' + (r.d || '').slice(5, 7));
-            const rtitles = rl.map((r, i) => `Leitura de ${rlabels[i]}: ${r.wpm || 0} palavras/min · ${r.acc || 0}% precisão`);
+            const rtitles = rl.map((r, i) => `Leitura de ${rlabels[i]}: ${Number(r.wpm) || 0} palavras/min · ${Number(r.acc) || 0}% precisão`);
             readChart = `<div class="pd-chart">${_pdLineChart({ vals: rvals, labels: rlabels, titles: rtitles, unit: '', aria: 'Palavras por minuto ao longo das leituras' })}</div>`;
         }
         readHtml = `<div class="pd-improve-sub">📖 Leitura em voz alta ${trendTxt ? '<b>' + trendTxt + '</b>' : ''}</div>
             <div class="pd-read-kpis">
-                <div class="pd-read-kpi"><b>${lastR.wpm || 0}</b><span>palavras/min</span></div>
-                <div class="pd-read-kpi"><b>${lastR.acc || 0}%</b><span>precisão</span></div>
+                <div class="pd-read-kpi"><b>${Number(lastR.wpm) || 0}</b><span>palavras/min</span></div>
+                <div class="pd-read-kpi"><b>${Number(lastR.acc) || 0}%</b><span>precisão</span></div>
                 <div class="pd-read-kpi"><b>${rlog.length}</b><span>leituras</span></div>
             </div>${readChart}`;
     }
+    // "Esta semana treina": os 3 tópicos com pior acerto (≥4 tentativas, <70%)
+    let trainHtml = '';
+    try {
+        const SUBJm = (window.SUBJECTS_BY_YEAR && window.SUBJECTS_BY_YEAR[stats.year]) || SUBJECTS || {};
+        const rows = Object.keys(stats.mastery || {}).map(k => {
+            const m = stats.mastery[k] || {}; const d = (m.d1 || 0) + (m.d2 || 0) + (m.d3 || 0), w = (m.w1 || 0) + (m.w2 || 0) + (m.w3 || 0);
+            const i = k.indexOf('/'); return { s: k.slice(0, i), t: k.slice(i + 1), n: d + w, acc: (d + w) ? Math.round(100 * d / (d + w)) : 0 };
+        }).filter(r => r.n >= 4 && r.acc < 70).sort((a, b) => a.acc - b.acc).slice(0, 3);
+        if (rows.length) trainHtml = `<div class="pd-improve-sub">🎯 Esta semana treina</div>` + rows.map(r => {
+            const meta = SUBJm[r.s] || { name: r.s };
+            return `<div class="pd-skill down"><span>${escapeHtml(meta.name)} · ${escapeHtml(r.t)}</span><span class="pd-skill-d">${r.acc}% em ${r.n}${stats.local ? ` <button class="pd-train-btn" data-s="${escapeHtml(r.s)}" data-t="${escapeHtml(r.t)}" onclick="_pdTrainWeak(this)">Treinar</button>` : ''}</span></div>`;
+        }).join('');
+    } catch (e) { console.warn('[pd] train', e); }
     return `<div class="pd-improve">
         <div class="pd-improve-h">📈 Está a melhorar?</div>
-        ${weekHtml}${skillHtml}${readHtml}
+        ${trainHtml}${weekHtml}${skillHtml}${readHtml}
     </div>`;
 }
+// Botão 'Treinar' do bloco 'Esta semana treina': sessão só desse tópico
+function _pdTrainWeak(btn) {
+    const s = btn && btn.dataset && btn.dataset.s, t = btn && btn.dataset && btn.dataset.t;
+    if (!s || !t) return;
+    closeParentDashboard();
+    setTimeout(() => { try { startSubjectSession(s, { topics: [t], bypassSeenCheck: true }); } catch (e) { showToast('Não consegui iniciar o treino desse tópico.'); } }, 150);
+}
+window._pdTrainWeak = _pdTrainWeak;
 function openParentDashboard(remote) {
     document.getElementById('parent-dash-container')?.remove();
     const { bySubj, days, weak, total, name, year } = _parentStats(remote);
@@ -2655,7 +2683,8 @@ window.openRemoteParentDashboard = openRemoteParentDashboard;
 const _overlayStack = [];
 let _overlayIgnorePop = false;
 function _overlayPush(id) {
-    for (let i = _overlayStack.length - 1; i >= 0; i--) { if (_overlayStack[i] === id && (i === _overlayStack.length - 1 || !document.getElementById(id))) { if (i === _overlayStack.length - 1) return; _overlayStack.splice(i, 1); } }
+    if (_overlayStack[_overlayStack.length - 1] === id) return; // re-render do topo
+    for (let i = _overlayStack.length - 1; i >= 0; i--) { if (_overlayStack[i] === id) _overlayStack.splice(i, 1); } // nunca duplicado na pilha
     _overlayStack.push(id);
     try { history.pushState({ ep: id }, ''); } catch {}
 }
@@ -2783,7 +2812,7 @@ const openAdminDashboard = async function () {
         const av = r.avatar;
         const avHtml = (av && typeof av === 'object')
             ? `<span style="font-size:1.6rem;line-height:1">${escapeHtml(av.emoji || '🙂')}</span>`
-            : renderAvatar(av || '🙂', 40);
+            : renderAvatar(_pubAvatar(av) === '👤' && !av ? '🙂' : _pubAvatar(av), 40);
         const yr = r.year === 99 ? 'Prof.' : (r.year === 31 ? '3º (Oc.)' : (r.year ? r.year + 'º ano' : '—'));
         const fresh = r._ms >= WEEK;
         return `<button class="adm-row" onclick="_adminOpenUser(${i})">
@@ -3426,7 +3455,7 @@ function saveTest() {
             t.topics = topics;
             t.targetGrade = target;
             t.actualGrade = atual;
-            if (atual == null) { t.done = false; } // nota apagada → volta a 'por fazer'
+            t.done = atual != null; // nota apagada → volta a 'por fazer'
             // Atribuir XP só na 1.ª vez que a nota obtida é registada, e só se a
             // data do teste já passou (sem isto, criar testes falsos dava XP ilimitado)
             const _dateOk = !t.date || String(t.date) <= todayStr();
@@ -3434,17 +3463,15 @@ function saveTest() {
                 xpGained = Math.min(200, Math.round(atual * 10));
                 state.xp += xpGained;
                 t.gradeXPAwarded = true;
-                t.done = true;
-            }
+            } else if (atual != null && !t.gradeXPAwarded) { showToast('Nota guardada — o XP é atribuído depois da data do teste.'); }
         }
     } else {
-        const t = { id: uid(), subject, date, note, topics, done: false, targetGrade: target, actualGrade: atual };
-        if (atual != null) {
+        const t = { id: uid(), subject, date, note, topics, done: atual != null, targetGrade: target, actualGrade: atual };
+        if (atual != null && (!date || String(date) <= todayStr())) {
             xpGained = Math.min(200, Math.round(atual * 10));
             state.xp += xpGained;
             t.gradeXPAwarded = true;
-            t.done = true;
-        }
+        } else if (atual != null) { showToast('Nota guardada — o XP é atribuído depois da data do teste.'); }
         state.tests.push(t);
     }
     saveState();
@@ -5403,27 +5430,40 @@ function allExercisesFor(subjectKey, activeTopics) {
 }
 
 function startDailyChallenge() {
-    const items = [];
+    // v574: ADAPTATIVO. Antes era 1 pergunta por disciplina ao acaso — com 10
+    // disciplinas a Matemática podia nem aparecer 3 dias seguidos. Agora:
+    // 2 de Matemática + 1 de Português garantidos (o currículo do teste),
+    // até 2 erros a rever (Leitner), e o resto de outras disciplinas —
+    // sempre a puxar dos tópicos onde ela mais falha (topicMastery).
     const seen = state.exerciseSeen || {};
-    Object.keys(SUBJECTS).forEach(key => {
-        const active = activeTopicsFor(key);
-        const pool = allExercisesFor(key, active);
-        if (pool.length === 0) return;
-        // Ordena por: nunca vistos primeiro, depois mais antigos
-        const sorted = [...pool].sort((a, b) => {
-            const sa = seen[a.id] || 0;
-            const sb = seen[b.id] || 0;
-            if (sa === 0 && sb !== 0) return -1;
-            if (sb === 0 && sa !== 0) return 1;
-            return sa - sb;
-        });
-        // Escolhe 1 ao acaso entre os 5 mais "frescos" para variedade
-        const top = sorted.slice(0, Math.min(5, sorted.length));
-        items.push(top[Math.floor(Math.random() * top.length)]);
-    });
+    const mastery = state.topicMastery || {};
+    const subjKeys = Object.keys(SUBJECTS);
+    const weakScore = (e) => {
+        const m = mastery[e.s + '/' + e.t]; if (!m) return 0.5;
+        const d = (m.d1 || 0) + (m.d2 || 0) + (m.d3 || 0), w = (m.w1 || 0) + (m.w2 || 0) + (m.w3 || 0);
+        return (d + w) >= 3 ? w / (d + w) : 0.5;
+    };
+    const used = new Set();
+    const pickFrom = (key, n) => {
+        const pool = allExercisesFor(key, activeTopicsFor(key)).filter(e => e && e.id && !used.has(e.id) && e.s !== 'leitura');
+        if (!pool.length) return [];
+        const scored = pool.map(e => ({ e, sc: weakScore(e) * 2 + (seen[e.id] ? 0 : 0.6) + Math.random() * 0.6 })).sort((a, b) => b.sc - a.sc);
+        return scored.slice(0, n).map(x => x.e);
+    };
+    const items = [];
+    const add = (arr) => (arr || []).forEach(e => { if (e && !used.has(e.id) && items.length < DAILY_QUESTIONS) { items.push(e); used.add(e.id); } });
+    const mathKey = subjKeys.includes('matematica') ? 'matematica' : (subjKeys.includes('mat_plus') ? 'mat_plus' : null);
+    if (mathKey) add(pickFrom(mathKey, 2));
+    if (subjKeys.includes('portugues')) add(pickFrom('portugues', 1));
+    try { add(_srsReviewItems(2)); } catch {}
+    const others = subjKeys.filter(k => k !== mathKey && k !== 'portugues' && k !== 'leitura');
+    for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [others[i], others[j]] = [others[j], others[i]]; }
+    for (const k of others) { if (items.length >= DAILY_QUESTIONS) break; add(pickFrom(k, 1)); }
+    if (items.length < DAILY_QUESTIONS && mathKey) add(pickFrom(mathKey, DAILY_QUESTIONS - items.length));
+    if (items.length < DAILY_QUESTIONS) for (const k of subjKeys) { if (items.length >= DAILY_QUESTIONS) break; add(pickFrom(k, DAILY_QUESTIONS - items.length)); }
     if (items.length === 0) { showToast('Ativa alguns tópicos primeiro nas disciplinas.'); return; }
-    const shuffled = items.sort(() => Math.random() - 0.5).slice(0, DAILY_QUESTIONS);
-    currentSession = { items: shuffled, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: true, startedAt: Date.now() };
+    for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
+    currentSession = { items, idx: 0, correct: 0, wrong: 0, xp: 0, streak: 0, isDaily: true, startedAt: Date.now() };
     openExerciseScreen();
     renderQuestion();
 }
@@ -5443,19 +5483,27 @@ function _srsReviewItems(maxItems) {
     const pool = (window.EXERCISES || []).concat(state.maxExercises || []);
     const byId = {};
     pool.forEach(e => { if (e && e.id) byId[e.id] = e; });
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayStr();
+    const srs = (p && p.srs) || state.srs || {};
     const items = [];
-    Object.keys(latest).forEach(id => {
-        const h = latest[id];
-        if (h.c) return;                 // já dominado (último acerto)
-        if (h.d === today) return;        // não repetir no próprio dia
-        const ex = byId[id];
-        if (!ex) return;                  // exercício já não existe
-        if (ex.s === 'leitura') return;   // Leitura tem fluxo próprio
-        items.push(ex);
+    const dueOf = {};
+    // 1) Leitner: perguntas cuja revisão está devida (due <= hoje)
+    Object.keys(srs).forEach(id => {
+        const r = srs[id]; if (!r || !r.due || r.due > today) return;
+        if (r.last === today) return;     // não repetir no próprio dia
+        const ex = byId[id]; if (!ex || ex.s === 'leitura') return;
+        items.push(ex); dueOf[id] = r.due;
     });
-    // mais antigos primeiro (esperam há mais tempo)
-    items.sort((a, b) => String(latest[a.id].d || '').localeCompare(String(latest[b.id].d || '')));
+    // 2) legado (perfis sem srs): último resultado errado, não respondido hoje
+    Object.keys(latest).forEach(id => {
+        if (srs[id] || dueOf[id]) return;
+        const h = latest[id];
+        if (h.c || h.d === today) return;
+        const ex = byId[id]; if (!ex || ex.s === 'leitura') return;
+        items.push(ex); dueOf[id] = h.d || '';
+    });
+    // mais atrasados primeiro
+    items.sort((a, b) => String(dueOf[a.id] || '').localeCompare(String(dueOf[b.id] || '')));
     return items.slice(0, maxItems || 12);
 }
 function _srsReviewCount() { try { return _srsReviewItems(99).length; } catch { return 0; } }
@@ -10574,20 +10622,23 @@ async function submitAnswer() {
             isCorrect = (e.ans || []).some(a => {
                 // strict: comparação exata (maiúsculas/pontuação contam — ex: 'Hoje está sol.')
                 if (e.strict) return String(val).trim() === String(a).trim();
-                const na = normalize(a);
+                const fold = t => String(t).replace(/[\u2018\u2019\u02bc\u2032´`]/g, "'");
+                const na = fold(normalize(a)); const nn = fold(n);
                 const strip = t => t.replace(/^[\s.,;:!?«»"']+|[\s.,;:!?«»"']+$/g, '');
-                if (na === n || strip(na) === strip(n)) return true;
+                if (na === nn || strip(na) === strip(nn)) return true;
+                const compact = t => strip(t).replace(/[\s\-–]/g, '').replace(/[€$%]/g, '');
+                if (compact(na) && compact(na) === compact(nn)) return true;
                 // Respostas numéricas: compara como NÚMERO (7 000 = 7000; 1,5 = 1.5;
                 // mas 15 ≠ 1,5 e 700 ≠ 7000). Só decide se AMBOS forem um número.
-                if (/^-?\d[\d\s.]*(,\d+)?$/.test(na) && /^-?\d[\d\s.]*(,\d+)?$/.test(n)) {
+                if (/^-?\d[\d\s.]*(,\d+)?$/.test(na) && /^-?\d[\d\s.]*(,\d+)?$/.test(nn)) {
                     const num = t => { let c = t.replace(/\s/g, ''); if (c.includes(',')) c = c.replace(/\./g, '').replace(',', '.'); else if (/^-?\d{1,3}(\.\d{3})+$/.test(c)) c = c.replace(/\./g, ''); return Number(c); };
-                    const x = num(na), y = num(n);
+                    const x = num(na), y = num(nn);
                     if (Number.isFinite(x) && Number.isFinite(y)) return Math.abs(x - y) < 1e-9;
                 }
                 // Aceita se a resposta esperada aparece INTEIRA (palavra completa, com
                 // pontuação à volta permitida) no que escreveu ('é o porto.' para
                 // 'porto'); nunca o inverso ('casa' p/ 'casas').
-                if (n.length >= 3 && na.length >= 3) { const esc = na.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return new RegExp('(^|[^\\p{L}\\p{N}])' + esc + '(?=$|[^\\p{L}\\p{N}])', 'u').test(n); }
+                if ((nn.length >= 3 && na.length >= 3) || /^\d+$/.test(na)) { const esc = na.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return new RegExp("(^|[^\\p{L}\\p{N}\\-'])" + esc + "(?=$|[^\\p{L}\\p{N}\\-'])", 'u').test(nn); }
                 return false;
             });
             // Validação IA como fallback — só se não acertou no matching e há chave API.
@@ -10718,7 +10769,20 @@ function recordAnswer(e, isCorrect) {
     state.subjects[e.s] = sub;
     state.xp += gained;
     state.history.push({ id: e.id, s: e.s, c: isCorrect, d: todayStr() });
-    if (state.history.length > 500) state.history.shift();
+    if (state.history.length > 3000) state.history.shift();
+    // Revisão espaçada (Leitner): um erro entra na caixa 0 e volta amanhã;
+    // cada acerto sobe de caixa (3, 7, 16, 30 dias); 5 acertos seguidos =
+    // dominado (sai). Só se acompanham perguntas que já foram erradas.
+    try {
+        state.srs = state.srs || {};
+        const cur = state.srs[e.id];
+        if (!isCorrect || cur) {
+            const INT = [1, 3, 7, 16, 30];
+            const box = isCorrect ? Math.min(5, ((cur && cur.box) || 0) + 1) : 0;
+            if (box >= 5) delete state.srs[e.id];
+            else { const due = new Date(); due.setDate(due.getDate() + INT[box]); state.srs[e.id] = { box, due: _localDayKey(due), last: todayStr() }; }
+        }
+    } catch {}
     state.recentIds = state.recentIds || [];
     state.recentIds.push(e.id);
     if (state.recentIds.length > 30) state.recentIds.shift();
@@ -11370,7 +11434,7 @@ async function loadDetailedExplanation() {
     const lessonKey = `${e.s}/${e.t}`;
     const lesson = LESSONS[lessonKey] || state.maxLessons?.[lessonKey];
     const showLesson = () => {
-        const html = `<strong>${lesson.title}</strong><br><br>${escapeHtml(lesson.body).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}`;
+        const html = `<strong>${escapeHtml(lesson.title || '')}</strong><br><br>${escapeHtml(lesson.body).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}`;
         try { sessionStorage.setItem(cacheKey, html); } catch {}
         wrap.innerHTML = html; wrap.style.display = 'block'; btn.style.display = 'none';
     };
@@ -12144,7 +12208,7 @@ async function _shareDuelUrl(url, data) {
 `🥊 ${data.c} desafia-te no EscolaPlay!
 
 ${subName} · ${data.q.length} perguntas
-${data.sb}/${data.q.length} certas em ${_formatDuelTime(data.st * 1000)}
+${Number(data.sb) || 0}/${data.q.length} certas em ${_formatDuelTime(data.st * 1000)}
 
 📲 Como aceitar:
 1. Abre a app EscolaPlay no telemóvel
@@ -12433,18 +12497,18 @@ async function openMyDuelsScreen() {
             if (!data) {
                 return `<div style="background:#fef2f2;border-radius:14px;padding:14px;margin-bottom:10px"><div style="font-weight:800">${escapeHtml(subName)}</div><div style="font-size:0.78rem;color:#991b1b">Não foi possível carregar (sem ligação?)</div></div>`;
             }
-            const resp = Object.entries(data.responses || {});
+            const resp = Object.entries(data.responses || {}).filter(([, r]) => r && typeof r === 'object');
             const p = activeProfile();
             const myName = p?.name;
             const others = resp.filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
-            const myResp = resp.find(([n]) => n === myName)?.[1];
+            const myResp = resp.find(([n]) => n === _duelRespKey(myName) || n === myName)?.[1];
             const dateStr = new Date(entry.createdAt).toLocaleDateString('pt-PT', {day:'2-digit',month:'short'});
             const status = others.length === 0 ? '⏳ A aguardar respostas…' : `${others.length} ${others.length===1?'resposta':'respostas'}`;
             const othersList = others.length > 0
                 ? others.slice(0,3).map(([n, r]) => `<div style="font-size:0.78rem;color:var(--text);margin-top:2px"><strong>${escapeHtml((r && r.name) || n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${Number(r.score) || 0}pts</div>`).join('')
                 : '';
             const myLine = myResp
-                ? `<div style="font-size:0.78rem;color:#d97706;margin-top:4px">✓ Tu: ${myResp.correct}/${data.questions.length} · ${myResp.score}pts</div>`
+                ? `<div style="font-size:0.78rem;color:#d97706;margin-top:4px">✓ Tu: ${Number(myResp.correct) || 0}/${data.questions.length} · ${Number(myResp.score) || 0}pts</div>`
                 : `<div style="font-size:0.78rem;color:var(--text-light);margin-top:4px">— Ainda não jogaste</div>`;
             return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,0.04)">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
@@ -12596,7 +12660,7 @@ function _showFirestoreDuelIntro(data, id) {
     // Se outros ja responderam — mostrar quem
     let opponentsHtml = '';
     if (responsesCount > 0) {
-        const list = Object.entries(data.responses).slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml((r && r.name) || n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
+        const list = Object.entries(data.responses || {}).filter(([, r]) => r && typeof r === 'object').slice(0, 5).map(([n, r]) => `<div style="font-size:0.85rem;color:var(--text-light);padding:4px 0"><strong>${escapeHtml((r && r.name) || n)}</strong>: ${Number(r.correct) || 0}/${data.questions.length} · ${_formatDuelTime((r.time||0)*1000)}</div>`).join('');
         opponentsHtml = `<div style="background:#f9fafb;border-radius:12px;padding:12px;margin:14px 0;text-align:left"><div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase">Já jogaram:</div>${list}</div>`;
     }
     const html = `
@@ -12629,7 +12693,7 @@ function _showDuelAlreadyPlayed(data, id) {
     const p = activeProfile();
     const myName = p?.name || 'Tu';
     const myResp = data.responses?.[_duelRespKey(myName)] || myRecord;
-    const others = Object.entries(data.responses || {}).filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
+    const others = Object.entries(data.responses || {}).filter(([, r]) => r && typeof r === 'object').filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
     const othersHtml = others.length > 0
         ? others.map(([n, r]) => `<tr><td style="padding:6px 4px">${escapeHtml((r && r.name) || n)}</td><td style="text-align:right;padding:6px 4px">${Number(r.correct) || 0}/${data.questions.length}</td><td style="text-align:right;padding:6px 4px">${_formatDuelTime((r.time||0)*1000)}</td><td style="text-align:right;padding:6px 4px;font-weight:800;color:#dc2626">${Number(r.score) || 0} pts</td></tr>`).join('')
         : `<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-light)">Ninguém mais respondeu ainda.</td></tr>`;
@@ -12716,7 +12780,7 @@ function _showFirestoreDuelSummary(data, myResult) {
     document.getElementById('fb-duel-summary-modal-temp')?.remove();
     const p = activeProfile();
     const myName = p?.name || 'Tu';
-    const others = Object.entries(data.responses || {}).filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
+    const others = Object.entries(data.responses || {}).filter(([, r]) => r && typeof r === 'object').filter(([n]) => n !== _duelRespKey(myName) && n !== myName);
     const total = data.questions.length;
     // Ranking
     const all = [[myName, myResult], ...others].sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
@@ -13044,7 +13108,7 @@ window.rejectFriendRequest = rejectFriendRequest;
 // Adicionar amigo pelo codigo — BIDIRECIONAL (escreve em ambos os users)
 async function addFriendByCode(rawCode) {
     const code = (rawCode || '').trim().toUpperCase();
-    if (!/^[A-Z2-9]{4}$/.test(code)) {
+    if (!/^[A-Z0-9]{4,10}$/.test(code)) {
         showToast('Código inválido. São 4 letras/números.');
         return false;
     }
@@ -13207,12 +13271,12 @@ function openFriendsScreen() {
         <div style="margin-bottom:18px">
             <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:var(--text-light)">Pedidos de amizade (${pendingReq.length})</div>
             ${pendingReq.map(r => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #fbbf24;border-radius:12px;margin-bottom:6px;background:linear-gradient(135deg,#fef3c7,#fde68a)">
-                <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">${renderAvatar(r.avatar || '👤', 38)}</div>
+                <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">${renderAvatar(_pubAvatar(r.avatar), 38)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:800">${escapeHtml(r.name)}</div>
                     <div style="font-size:0.74rem;color:#78350f;font-family:monospace">${escapeHtml(r.code)} · ${r.year || '?'}.º ano</div>
                 </div>
-                <button class="btn" style="background:#16a34a;color:#fff;padding:8px 12px;font-size:0.82rem;font-weight:700;border:none" onclick="acceptFriendRequest('${r.code}')" aria-label="Confirmar" title="Confirmar"><i class="fas fa-check" aria-hidden="true"></i></button>
+                <button class="btn" style="background:#16a34a;color:#fff;padding:8px 12px;font-size:0.82rem;font-weight:700;border:none" data-code="${escapeHtml(r.code)}" onclick="if(/^[A-Z0-9]{4,10}$/.test(this.dataset.code))acceptFriendRequest(this.dataset.code)" aria-label="Confirmar" title="Confirmar"><i class="fas fa-check" aria-hidden="true"></i></button>
                 <button class="btn" style="background:#fff;color:#dc2626;padding:8px 12px;font-size:0.82rem;font-weight:700;border:1.5px solid #fecaca" onclick="rejectFriendRequest('${r.code}')" aria-label="Fechar" title="Fechar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             </div>`).join('')}
         </div>
@@ -13224,7 +13288,7 @@ function openFriendsScreen() {
             const opacity = unavail ? 'opacity:0.55' : '';
             const badge = unavail ? '<span style="background:#fef2f2;color:#dc2626;font-size:0.66rem;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:6px">INDISPONÍVEL</span>' : '';
             return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff;${opacity}">
-                <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 38)}</div>
+                <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(_pubAvatar(f.avatar), 38)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:800">${escapeHtml(f.name)}${badge}</div>
                     <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace;letter-spacing:0.05em">${escapeHtml(f.code)} · ${f.year || '?'}.º ano</div>
@@ -13255,7 +13319,7 @@ function openFriendsScreen() {
                 <details style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:18px">
                     <summary style="font-size:0.84rem;font-weight:700;cursor:pointer;color:var(--text-light)">Adicionar por código</summary>
                     <div style="display:flex;gap:8px;margin-top:10px">
-                        <input type="text" id="friend-code-input" placeholder="EX: ABC4" maxlength="4" style="flex:1;padding:11px;border:1.5px solid var(--border);border-radius:10px;font-size:1.05rem;text-transform:uppercase;font-family:monospace;letter-spacing:0.1em" oninput="this.value=this.value.toUpperCase()">
+                        <input type="text" id="friend-code-input" placeholder="EX: AB3K9X" maxlength="10" style="flex:1;padding:11px;border:1.5px solid var(--border);border-radius:10px;font-size:1.05rem;text-transform:uppercase;font-family:monospace;letter-spacing:0.1em" oninput="this.value=this.value.toUpperCase()">
                         <button class="btn btn-primary-solid" style="padding:11px 16px" onclick="_addFriendFromInput()" aria-label="Adicionar" title="Adicionar"><i class="fas fa-plus" aria-hidden="true"></i></button>
                     </div>
                 </details>
@@ -13352,12 +13416,12 @@ function _renderPeopleList(filter) {
         return;
     }
     c.innerHTML = list.map(u => `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff">
-        <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(u.avatar || '👤', 38)}</div>
+        <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(_pubAvatar(u.avatar), 38)}</div>
         <div style="flex:1;min-width:0">
             <div style="font-weight:800">${escapeHtml(u.name)}</div>
             <div style="font-size:0.74rem;color:var(--text-light);font-family:monospace">${escapeHtml(u.code)} · ${u.year || '?'}.º ano</div>
         </div>
-        <button class="btn" id="req-btn-${u.code}" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:8px 14px;font-size:0.82rem;font-weight:700;border:none" onclick="_sendRequestFromList('${u.code}','${escapeHtml(u.name).replace(/'/g,"&#39;")}')"><i class="fas fa-user-plus"></i> Pedir</button>
+        <button class="btn" id="req-btn-${escapeHtml(u.code)}" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:8px 14px;font-size:0.82rem;font-weight:700;border:none" data-code="${escapeHtml(u.code)}" data-name="${escapeHtml(u.name)}" onclick="if(/^[A-Z0-9]{4,10}$/.test(this.dataset.code))_sendRequestFromList(this.dataset.code,this.dataset.name)\"><i class="fas fa-user-plus"></i> Pedir</button>
     </div>`).join('');
 }
 async function _sendRequestFromList(code, name) {
@@ -13576,22 +13640,22 @@ async function openInboxScreen() {
             const winners = sorted.filter(([_, r]) => (r.score||0) === topScore);
             const lcMine = myName.trim().toLowerCase();
             if (winners.length > 1) {
-                winnerHtml = `<div style="font-size:0.74rem;color:#0891b2;margin-top:2px;font-weight:700">🤝 Empate · ${topScore}pts</div>`;
+                winnerHtml = `<div style="font-size:0.74rem;color:#0891b2;margin-top:2px;font-weight:700">🤝 Empate · ${Number(topScore) || 0}pts</div>`;
             } else {
                 const [winName] = winners[0];
                 const iWon = winName.trim().toLowerCase() === lcMine;
-                winnerHtml = `<div style="font-size:0.74rem;color:${iWon?'#d97706':'#475569'};margin-top:2px;font-weight:700">🏆 ${iWon?'Tu ganhas':escapeHtml(winName)+' ganha'} · ${topScore}pts</div>`;
+                winnerHtml = `<div style="font-size:0.74rem;color:${iWon?'#d97706':'#475569'};margin-top:2px;font-weight:700">🏆 ${iWon?'Tu ganhas':escapeHtml(winName)+' ganha'} · ${Number(topScore) || 0}pts</div>`;
             }
         }
 
-        const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Tu: ${myResp.correct}/${d.questions.length} · ${myResp.score}pts</div>` : '';
+        const myLine = myResp ? `<div style="font-size:0.74rem;color:#15803d;margin-top:2px;font-weight:700">✓ Tu: ${Number(myResp.correct) || 0}/${d.questions.length} · ${Number(myResp.score) || 0}pts</div>` : '';
         const othersLine = !isAnswered && otherResps.length > 0
             ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">${otherResps.length} ${otherResps.length===1?'resposta':'respostas'}</div>`
             : (!isAnswered && mine ? `<div style="font-size:0.74rem;color:var(--text-light);margin-top:2px">⏳ A aguardar respostas</div>` : '');
 
         const avatarHtml = mine
             ? `<div style="width:42px;height:42px;border-radius:12px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.2rem">📤</div>`
-            : `<div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(d.creator?.avatar || '👤', 42)}</div>`;
+            : `<div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(_pubAvatar(d.creator?.avatar), 42)}</div>`;
 
         // Apagar: para criadores apaga do Firestore; para receptores so esconde local
         const deleteBtn = mine
@@ -13602,7 +13666,7 @@ async function openInboxScreen() {
             ? `<i class="fas fa-fist-raised" style="color:#dc2626;font-size:1rem" title="Jogar"></i>`
             : `<i class="fas fa-chevron-right" style="color:var(--text-light)"></i>`;
 
-        return `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:8px;cursor:pointer;${opacity}" onclick="_openAnyDuel('${d.id}')">
+        return `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:8px;cursor:pointer;${opacity}" data-id="${escapeHtml(d.id)}" onclick="if(/^[A-Z0-9]{4,12}$/.test(this.dataset.id))_openAnyDuel(this.dataset.id)">
             ${avatarHtml}
             <div style="flex:1;min-width:0">
                 <div style="font-weight:800;font-size:0.92rem">${lblTop}</div>
@@ -13761,7 +13825,7 @@ async function openRankingScreen() {
             const bg = isMe ? 'background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b' : 'background:#fff;border-color:var(--border)';
             return `<div style="display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid;border-radius:14px;margin-bottom:8px;${bg}">
                 <div style="font-size:1.6rem;width:36px;text-align:center">${medal}</div>
-                <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(t.avatar || '👤', 42)}</div>
+                <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(_pubAvatar(t.avatar), 42)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:800;font-size:0.96rem">${escapeHtml(t.name)}${isMe?' <span style="color:#d97706;font-size:0.74rem;font-weight:700">(tu)</span>':''}</div>
                     <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px">
@@ -13769,7 +13833,7 @@ async function openRankingScreen() {
                     </div>
                 </div>
                 <div style="text-align:right">
-                    <div style="font-size:1.3rem;font-weight:900;color:#d97706;line-height:1">${t.points}</div>
+                    <div style="font-size:1.3rem;font-weight:900;color:#d97706;line-height:1">${Number(t.points) || 0}</div>
                     <div style="font-size:0.66rem;color:var(--text-light);font-weight:700">PONTOS</div>
                 </div>
             </div>`;
@@ -13857,7 +13921,7 @@ async function pickDuelRecipientsAndCreate(subjectKey, opts = {}) {
         const badge = unavail ? '<span style="background:#fef2f2;color:#dc2626;font-size:0.62rem;font-weight:800;padding:2px 6px;border-radius:6px;margin-left:6px">INDISPONÍVEL</span>' : '';
         return `<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:6px;cursor:${unavail?'not-allowed':'pointer'};background:#fff;${opacity}">
             <input type="checkbox" class="dr-friend" value="${f.code}" data-name="${escapeHtml(f.name)}" style="width:20px;height:20px" ${disabled}>
-            <div style="width:34px;height:34px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(f.avatar || '👤', 34)}</div>
+            <div style="width:34px;height:34px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f9fafb">${renderAvatar(_pubAvatar(f.avatar), 34)}</div>
             <div style="flex:1;min-width:0">
                 <div style="font-weight:700">${escapeHtml(f.name)}${badge}</div>
                 <div style="font-size:0.74rem;color:var(--text-light)"><span style="font-family:monospace">${escapeHtml(f.code)}</span> · ${f.year || '?'}.º ano</div>
@@ -14168,7 +14232,7 @@ async function _showDuelIntro(data) {
                     </div>
                     <div>
                         <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">A bater</div>
-                        <div style="font-size:1.5rem;font-weight:800;color:#f97316">${data.sb}/${items.length}</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#f97316">${Number(data.sb) || 0}/${items.length}</div>
                     </div>
                 </div>
                 <p style="text-align:center;font-size:0.92rem;color:var(--text);margin-bottom:18px;line-height:1.5">
@@ -14365,7 +14429,7 @@ async function sendDuelReplyResult() {
     const { data, myScore, oppScore, myCorrect, myTime, items } = _lastDuelResult;
     const me = activeProfile();
     const verdict = myScore > oppScore ? 'venci-te!' : myScore === oppScore ? 'empatámos!' : 'venceste!';
-    const text = `🥊 Duelo respondido! ${verdict}\n\n${escapeHtml(me?.name || 'Eu')}: ${myScore} pts (${myCorrect}/${items.length}, ${_formatDuelTime(myTime*1000)})\n${escapeHtml(data.c || 'Tu')}: ${oppScore} pts (${data.sb}/${items.length}, ${_formatDuelTime((data.st||data.tl)*1000)})\n\n— EscolaPlay`;
+    const text = `🥊 Duelo respondido! ${verdict}\n\n${escapeHtml(me?.name || 'Eu')}: ${myScore} pts (${myCorrect}/${items.length}, ${_formatDuelTime(myTime*1000)})\n${escapeHtml(data.c || 'Tu')}: ${oppScore} pts (${Number(data.sb) || 0}/${items.length}, ${_formatDuelTime((data.st||data.tl)*1000)})\n\n— EscolaPlay`;
     if (navigator.share) {
         try { await navigator.share({ title: '🥊 Resultado do duelo', text }); return; }
         catch (err) { if (err && err.name === 'AbortError') return; }
@@ -15194,7 +15258,7 @@ function openLessonByKey(key, opts) {
             }
         }
     } catch (e) { console.warn('[lessonLog]', e); }
-    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-book-open"></i> ${subName} · ${topic}`;
+    document.getElementById('lesson-title').innerHTML = `<i class="fas fa-book-open"></i> ${escapeHtml(subName)} · ${escapeHtml(topic)}`;
     const body = document.getElementById('lesson-body');
     // Detectar ano para aplicar variante de leitura mais confortável aos mais novos
     const _year = activeProfile()?.year || 0;
@@ -15238,7 +15302,7 @@ function openLessonByKey(key, opts) {
         // **bold** restante
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-        body.innerHTML = `<div class="${_bodyClasses.join(' ')}"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${lesson.title}</h3>${html}</div>`;
+        body.innerHTML = `<div class="${_bodyClasses.join(' ')}"><h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:10px">${escapeHtml(lesson.title || '')}</h3>${html}</div>`;
     }
 
     // Preparar o widget "Tens uma dúvida?"
@@ -15598,9 +15662,9 @@ document.addEventListener('keydown', (e) => {
     if (top) {
         if (top.id === 'lesson-modal') { closeLessonModal(); return; }
         if (top.id === 'secret-modal' || top.id === 'streak-guilt-modal') return; // modais críticos
-        const closeBtn = top.querySelector('.modal-header .icon-btn, button[aria-label="Fechar"]');
+        const closeBtn = top.querySelector('.modal-header .icon-btn, button[aria-label="Fechar"], button[onclick*="close"], button[onclick*="Close"]');
         if (closeBtn) { closeBtn.click(); return; }
-        if (/-temp$/.test(top.id)) top.remove(); else top.style.display = 'none';
+        if (/-temp$/.test(top.id) || top.id === 'parent-picker-modal') top.remove(); else top.style.display = 'none';
         return;
     }
     if (_overlayStack.length) { _overlayClose(_overlayStack[_overlayStack.length - 1]); }
@@ -15761,7 +15825,7 @@ function refreshNotifUI() {
     if (enabled) {
         label.textContent = 'Lembretes ativados ✓';
         btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
-        status.textContent = ('TimestampTrigger' in window) ? 'Vais receber um aviso por dia se ainda não tiveres feito um teste.' : 'Lembretes ativados — recebes um aviso ao abrires a app se ainda não tiveres treinado nesse dia.';
+        status.textContent = ('TimestampTrigger' in window) ? 'Vais receber um aviso por dia se ainda não tiveres feito um teste.' : 'Este browser não permite lembretes agendados (limitação do iOS). Só verás um aviso dentro da app se a tua ofensiva estiver em risco.';
     } else if (perm === 'denied') {
         label.textContent = 'Permissão bloqueada';
         status.textContent = 'Ativa as notificações nas definições do sistema para esta app.';
@@ -15966,7 +16030,7 @@ function _refreshUnlockedSecrets(profile) {
     for (const id of Object.keys(profile.unlockedSecrets)) {
         const blob = profile.unlockedSecrets[id];
         const live = fresh.find(p => p.id === id);
-        if (live && live.payloadJSON && blob && blob.pt && live.payloadJSON !== blob.pt) {
+        if (live && live.payloadJSON && blob && (!blob.pt || live.payloadJSON !== blob.pt)) {
             blob.pt = live.payloadJSON;
             blob.refreshedAt = Date.now();
             didRefresh = true;
@@ -15997,7 +16061,13 @@ function _injectSecretPayload(plaintext, profile) {
     }
     // Merge SUBJECTS
     if (data.subjects && typeof data.subjects === 'object') {
-        Object.assign(window.SUBJECTS_BY_YEAR[year], data.subjects);
+        const safeSubj = {};
+        Object.keys(data.subjects).forEach(k => {
+            if (!/^[a-z0-9_]{1,30}$/.test(k)) return;
+            const v = data.subjects[k] || {};
+            safeSubj[k] = { name: String(v.name || k).slice(0, 40), fullName: String(v.fullName || '').slice(0, 80), icon: /^fa-[a-z0-9-]{1,40}$/.test(String(v.icon || '')) ? v.icon : 'fa-book', color: /^#[0-9a-fA-F]{3,8}$/.test(String(v.color || '')) ? v.color : '#64748b' };
+        });
+        Object.assign(window.SUBJECTS_BY_YEAR[year], safeSubj);
     }
     // Merge CURRICULUM (cada disciplina = array de tópicos)
     if (data.curriculum && typeof data.curriculum === 'object') {
@@ -16994,6 +17064,9 @@ async function _doBackupPush(userCode) {
         if (!p) return;
         // Foto da criança nunca sai do dispositivo — no backup vai o avatar público.
         const pub = Object.assign({}, p, { avatar: _pubAvatar(p.avatar) });
+        if (pub.unlockedSecrets && typeof pub.unlockedSecrets === 'object') {
+            pub.unlockedSecrets = Object.fromEntries(Object.entries(pub.unlockedSecrets).map(([k, b]) => [k, { refreshedAt: (b && b.refreshedAt) || 0 }]));
+        }
         await fbBackupState(userCode, { profile: pub, max: state.max });
         _lastBackupAt = Date.now();
         try { localStorage.setItem(BACKUP_LAST_AT_KEY, String(_lastBackupAt)); } catch {}
@@ -17059,8 +17132,11 @@ function _applyRestoredBackup(data) {
     const p = data.profile;
     if (!p || !p.id) { showToast('Backup corrupto.'); return; }
     const idx = state.profiles.findIndex(x => x.userCode === p.userCode || x.id === p.id);
-    // O backup traz avatar público; se havia foto local, mantém-na.
+    // O backup traz avatar público (nunca URLs/fotos); se havia foto local, mantém-na.
+    p.avatar = _pubAvatar(p.avatar);
     if (idx >= 0 && (p.avatar === '👤' || !p.avatar) && state.profiles[idx].avatar) p.avatar = state.profiles[idx].avatar;
+    if (!(window.SUBJECTS_BY_YEAR || {})[p.year]) p.year = (idx >= 0 && state.profiles[idx].year) || 3;
+    if (typeof p.name !== 'string') p.name = 'Perfil'; p.name = p.name.slice(0, 24);
     if (idx >= 0) state.profiles[idx] = p;
     else state.profiles.push(p);
     state.activeProfileId = p.id;
@@ -17752,7 +17828,7 @@ function _paperShowResults(j) {
             if (!r || r.correto == null) return;
             state.history.push({ id: 'paper_' + Date.now() + '_' + e.n, s: 'mat_plus', c: !!r.correto, d: todayStr() });
         });
-        if (state.history.length > 500) state.history = state.history.slice(-500);
+        if (state.history.length > 3000) state.history = state.history.slice(-3000);
         const sub = state.subjects.mat_plus || { answered: 0, correct: 0, xp: 0 };
         sub.answered += ok + wrong; sub.correct += ok; sub.xp += gained;
         state.subjects.mat_plus = sub;
@@ -17932,7 +18008,7 @@ function _writeShowResults(j) {
         sheet.done = true;
         const gained = stars * 15;
         state.history.push({ id: 'write_' + Date.now(), s: 'escrita', c: stars >= 2, d: todayStr() });
-        if (state.history.length > 500) state.history = state.history.slice(-500);
+        if (state.history.length > 3000) state.history = state.history.slice(-3000);
         const sub = state.subjects.escrita || { answered: 0, correct: 0, xp: 0 };
         sub.answered += 1; if (stars >= 2) sub.correct += 1; sub.xp += gained;
         state.subjects.escrita = sub;
@@ -18155,7 +18231,7 @@ function _dictShowResults(j) {
             if (!r || r.certa == null) return;
             state.history.push({ id: 'dict_' + Date.now() + '_' + i, s: 'som_plus', c: !!r.certa, d: todayStr() });
         });
-        if (state.history.length > 500) state.history = state.history.slice(-500);
+        if (state.history.length > 3000) state.history = state.history.slice(-3000);
         const sub = state.subjects.som_plus || { answered: 0, correct: 0, xp: 0 };
         sub.answered += avaliadas; sub.correct += ok; sub.xp += gained;
         state.subjects.som_plus = sub;

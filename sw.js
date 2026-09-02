@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v573';
+const CACHE_NAME = 'escolaplay-v574';
 // Núcleo: TEM de existir — se falhar, o SW não instala (evita servir uma
 // app incompleta). Bump do CACHE_NAME a cada release = novo cache limpo.
 const CORE = [
