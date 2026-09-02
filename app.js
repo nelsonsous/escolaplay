@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v581';
+const APP_VERSION = 'v582';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6388,7 +6388,7 @@ function _tutorCloseReview() {
     document.getElementById('review-overlay')?.remove(); _tutorUpdateReviewBadge();
     // Fechar a revisão depois de avaliar pelo menos 1 cartão conta como feita.
     if (_tutorPlanRevN > 0) { try { _tutorPlanComplete('review'); } catch {} }
-    _tutorPlanRevN = 0;
+    _tutorPlanRevN = 0; _tutorRevSession = null;
 }
 window._tutorCloseReview = _tutorCloseReview;
 function _tutorRenderReview() {
@@ -6396,12 +6396,36 @@ function _tutorRenderReview() {
     if (!body) return;
     body.innerHTML = _reviewSessionHtml() + _phrasebookListHtml();
 }
+// v582: sessão de revisão do plano — curta (máx. 10 cartões vencidos), com
+// progresso "cartão N de M" e fecho explícito. Sem cartões vencidos, o passo
+// fica feito na hora (antes o utilizador abria, via "sem revisões" e o
+// passo nunca fechava).
+let _tutorRevSession = null;
+function _tutorReviewSessionStart() {
+    const due = _srsDueCards();
+    _tutorPlanRevN = 0;
+    if (!due.length) {
+        _tutorRevSession = null;
+        try { _tutorPlanComplete('review'); } catch {}
+        _tutorAddTutor(`🔁 Phrasebook em dia — nenhum cartão vencido hoje (${_srsAll().length} guardados). Passo feito ✓`, '', '', false);
+        return;
+    }
+    _tutorRevSession = { total: Math.min(due.length, 10), startedAt: Date.now() };
+    _tutorOpenReview();
+}
+window._tutorReviewSessionStart = _tutorReviewSessionStart;
 function _reviewSessionHtml() {
     const due = _srsDueCards();
-    if (!due.length) return `<div class="review-card review-done"><div class="review-done-ic">✅</div><div>Sem revisões pendentes. Bom trabalho!</div></div>`;
+    const s = _tutorRevSession;
+    if (s && _tutorPlanRevN >= s.total) {
+        return `<div class="review-card review-done"><div class="review-done-ic">🏁</div><div>Sessão de hoje feita — ${_tutorPlanRevN} ${_tutorPlanRevN === 1 ? 'cartão revisto' : 'cartões revistos'}${due.length ? ` (${due.length} ficam para amanhã)` : ''}.</div><button class="tct-start" onclick="_tutorCloseReview()">Voltar ao plano</button></div>`;
+    }
+    if (!due.length) return `<div class="review-card review-done"><div class="review-done-ic">✅</div><div>Sem revisões pendentes. Bom trabalho!</div>${s ? '<button class="tct-start" onclick="_tutorCloseReview()">Voltar ao plano</button>' : ''}</div>`;
     const c = due[0];
     const remaining = due.length;
-    const head = `<div class="review-sec-h">🔁 A rever — ${remaining} ${remaining === 1 ? 'cartão' : 'cartões'}</div>`;
+    const head = s
+        ? `<div class="review-sec-h">🔁 Sessão de hoje — cartão ${_tutorPlanRevN + 1} de ${s.total}</div>`
+        : `<div class="review-sec-h">🔁 A rever — ${remaining} ${remaining === 1 ? 'cartão' : 'cartões'}</div>`;
     if (c.type === 'phrase') {
         return head + `<div class="review-card" data-id="${c.id}">
           <div class="review-q">${escapeHtml(c.text)} <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
@@ -7237,7 +7261,7 @@ function _tutorCoachStart(skillId) {
         mistakes: _tutorRenderWeak,
         test: _tutorCoachTest,
         lesson: _tutorRenderDailyLesson,
-        review: _tutorOpenReview
+        review: _tutorReviewSessionStart
     };
     const fn = map[skillId];
     if (typeof fn === 'function') {
@@ -7291,6 +7315,16 @@ function _tutorPlanSteps(dayIdx) {
     try { if (typeof _srsAll === 'function' && _srsAll().length < 5) review = 'flash'; } catch {}
     return [{ slot: 'review', skill: review }, { slot: 'core', skill: core }, { slot: 'output', skill: output }];
 }
+// Dias completos seguidos (3/3), a contar de hoje ou de ontem.
+function _tutorPlanStreak() {
+    const plan = _tutorPlanGet();
+    const full = (k) => { const d = plan.days[k]; return !!(d && d.review && d.core && d.output); };
+    const d = new Date(); let n = 0;
+    if (!full(_localDayKey(d))) d.setDate(d.getDate() - 1);
+    while (full(_localDayKey(d)) && n < 60) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+}
+window._tutorPlanStreak = _tutorPlanStreak;
 function _tutorPlanRender() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
@@ -7320,7 +7354,8 @@ function _tutorPlanRender() {
             : `<button class="tp-go" data-slot="${st.slot}" data-skill="${st.skill}" onclick="_tutorPlanStart(this)">${ok ? 'Repetir' : 'Começar'}</button>`;
         return `<div class="tp-step ${cls}"><span class="tp-num">${num}</span><span class="tp-info"><span class="tp-title">${m[0]} ${escapeHtml(m[1])}</span><span class="tp-sub">${inProg ? 'em curso · ' : ''}${m[2]} min</span></span>${btn}</div>`;
     }).join('');
-    const head = finished ? `🏁 Plano de 3 semanas concluído — ${doneDays} dias completos!` : `📅 Dia <b>${idx + 1}</b> de ${TUTOR_PLAN_DAYS} · <b>${doneDays}</b> dias completos`;
+    const streak = _tutorPlanStreak();
+    const head = finished ? `🏁 Plano de 3 semanas concluído — ${doneDays} dias completos!` : `📅 Dia <b>${idx + 1}</b> de ${TUTOR_PLAN_DAYS} · <b>${doneDays}</b> dias completos${streak >= 2 ? ` · 🔥 ${streak} seguidos` : ''}`;
     // Resumo semanal: aparece nos dias 7, 14 e 21 (e no fim do plano).
     const weekNo = finished ? 3 : ((idx % 7 === 6) ? Math.floor(idx / 7) + 1 : 0);
     const weekHtml = weekNo ? _tutorPlanWeekSummaryHtml(weekNo) : '';
@@ -7415,7 +7450,13 @@ function _tutorPlanHomeCard(card) {
     const title = card.querySelector('.tutor-card-title'); const sub = card.querySelector('.tutor-card-sub');
     if (title) title.textContent = finished ? 'Inglês — plano concluído 🏁' : `Inglês — Dia ${idx + 1} de ${TUTOR_PLAN_DAYS}`;
     const noKey = typeof hasAIKey === 'function' && !hasAIKey();
-    if (sub) sub.textContent = noKey ? '🔑 Falta a chave Mistral — toca para configurar' : finished ? 'Toca para recomeçar 3 semanas' : (next ? `${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3 feitos hoje` : 'Tudo feito hoje ✓ — volta amanhã');
+    // v582: streak e lembrete ao fim do dia (iOS não tem notificações
+    // agendadas em PWA — o cartão é o lembrete).
+    const streak = _tutorPlanStreak();
+    const late = !finished && !!next && new Date().getHours() >= 19;
+    const streakTxt = streak >= 2 ? ` · 🔥 ${streak}` : '';
+    if (sub) sub.textContent = noKey ? '🔑 Falta a chave Mistral — toca para configurar' : finished ? 'Toca para recomeçar 3 semanas' : (next ? `${late ? '⏰ Hoje ainda falta · ' : ''}${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3${streakTxt}` : `Tudo feito hoje ✓ — volta amanhã${streakTxt}`);
+    card.classList.toggle('tutor-card-due', late && !noKey);
     const pct = Math.round(100 * Math.min(idx, TUTOR_PLAN_DAYS) / TUTOR_PLAN_DAYS);
     let bar = card.querySelector('.tutor-card-bar');
     if (!bar) { bar = document.createElement('div'); bar.className = 'tutor-card-bar'; bar.innerHTML = '<span></span>'; card.appendChild(bar); }
