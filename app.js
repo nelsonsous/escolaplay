@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v616';
+const APP_VERSION = 'v617';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6220,12 +6220,35 @@ function closeTutor() {
     try { if (_tutorRecog) _tutorRecog.stop(); } catch {}
     try { _tutorRecAbort = true; _tutorStopSilenceWatch(); if (_tutorRec && _tutorRec.state !== 'inactive') _tutorRec.stop(); } catch {}
     try { _tutorRecStream && _tutorRecStream.getTracks().forEach(t => t.stop()); _tutorRecStream = null; } catch {}
+    // v617: nada fica a correr com o tutor fechado — barge-in (stream do micro
+    // + intervalo de 50 ms), temporizadores de espera e de auto-envio, TTS.
+    try { _tutorTtsPlaying = false; _tutorStopBargeMonitor(true); } catch {}
+    try { _tutorBusyTimers.forEach(t => clearTimeout(t)); _tutorBusyTimers = []; } catch {}
+    try { _tutorCancelAutoSend(); } catch {}
+    document.getElementById('review-overlay')?.remove();
     document.getElementById('tutor-explore')?.remove();
     document.getElementById('tutor-overlay')?.remove();
     document.body.style.overflow = '';
     tutorState = null;
 }
 window.closeTutor = closeTutor;
+// v617: app em segundo plano (iPhone: bloquear o ecrã, mudar de app) →
+// para o micro, a gravação, o barge-in e a voz, mas mantém o tutor aberto.
+function _tutorPauseForBackground() {
+    if (!tutorState) return;
+    try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
+    try { _tutorTtsPlaying = false; _tutorStopBargeMonitor(true); } catch {}
+    try { _tutorCancelAutoSend(); } catch {}
+    try { if (_tutorRecog) _tutorRecog.stop(); } catch {}
+    try { _tutorRecAbort = true; _tutorStopSilenceWatch(); if (_tutorRec && _tutorRec.state !== 'inactive') _tutorRec.stop(); } catch {}
+    try { _tutorRecStream && _tutorRecStream.getTracks().forEach(t => t.stop()); _tutorRecStream = null; } catch {}
+    try { _tutorMicIdle(); } catch {}
+}
+window._tutorPauseForBackground = _tutorPauseForBackground;
+try {
+    document.addEventListener('visibilitychange', () => { if (document.hidden) _tutorPauseForBackground(); });
+    window.addEventListener('pagehide', _tutorPauseForBackground);
+} catch {}
 
 // ---- Erros a treinar (áreas fracas, persistidas em state.tutorWeak) ----
 function _tutorTrackWeak(topic, correct) {
