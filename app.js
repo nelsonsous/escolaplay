@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v595';
+const APP_VERSION = 'v596';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7124,37 +7124,22 @@ function _tutorRenderCoachDashboard() {
     const lvChips = levels.map(l =>
         `<button class="tutor-coach-lv ${l===lv?'on':''}" onclick="_tutorSetTargetLevel('${l}')">${l}</button>`
     ).join('');
-    // Skill do dia — rotação por dia-do-ano para variar sem repetir.
+    // v596: "Mais opções" é só a lista das 12 skills (PT-PT) + nível-alvo.
+    // O "foco do dia" saiu — duplicava o plano de 3 semanas.
     const skills = [
-        { id: 'class',    emoji: '🎓', title: 'Aula do dia',   sub: 'Grammar · Conversation · Listening — explicação, treino e quiz', fn: '_tutorCoachClass()' },
-        { id: 'meet',     emoji: '🤝', title: 'Meetings',      sub: 'Frases de reunião — ouve, diz em voz alta, domina (offline)', fn: '_tutorCoachMeeting()' },
-        { id: 'writing',  emoji: '📝', title: 'Writing',       sub: '100-150 words + AI rubric (Task/Coherence/Range/Accuracy)', fn: '_tutorCoachWriting()' },
-        { id: 'pron',     emoji: '🗣️', title: 'Pronunciation', sub: 'Read aloud · Voxtral STT · linking/stress feedback',         fn: '_tutorCoachPron()' },
-        { id: 'vocab',    emoji: '📚', title: 'Collocations',  sub: '10 collocations + phrasal verbs at your level',              fn: '_tutorCoachVocab()' },
-        { id: 'flash',    emoji: '📇', title: 'Flashcards',    sub: 'Cola até 20 palavras — cartões com exemplo e truque, no SRS', fn: '_tutorCoachFlash()' },
-        { id: 'roleplay', emoji: '💬', title: 'Roleplay',      sub: 'Kickoff · Status · Escalation · Demo · 1:1 (meeting practice)', fn: '_tutorRenderRoleplayPrompt()' },
-        { id: 'immerse',  emoji: '🌍', title: 'Immersion',     sub: 'O teu texto em inglês natural + perguntas sobre ele',        fn: '_tutorCoachImmerse()' },
-        { id: 'mistakes', emoji: '🎯', title: 'Mistakes',      sub: 'Drill topics where you got things wrong',                    fn: '_tutorRenderWeak()' },
-        { id: 'test',     emoji: '🧪', title: 'Progress test', sub: '10 perguntas sobre a tua semana — resultado só no fim',      fn: '_tutorCoachTest()' },
-        { id: 'lesson',   emoji: '🪜', title: 'Lesson',        sub: 'Next topic on the CEFR ladder (' + lv + ')',                fn: '_tutorRenderDailyLesson()' },
-        { id: 'review',   emoji: '🔁', title: 'Review',        sub: 'Spaced repetition cards in your phrasebook',                 fn: '_tutorOpenReview()' }
+        { id: 'class',    emoji: '🎓', title: 'Aula do dia',        sub: 'Gramática, conversação ou listening — explicação, treino e quiz' },
+        { id: 'meet',     emoji: '🤝', title: 'Frases de reunião', sub: 'Ouve, diz em voz alta, domina (funciona offline)' },
+        { id: 'writing',  emoji: '📝', title: 'Escrita',            sub: '100-150 palavras com nota, correções e versão modelo' },
+        { id: 'pron',     emoji: '🗣️', title: 'Pronúncia',          sub: 'Sessão de 4 frases — shadowing ou leitura' },
+        { id: 'vocab',    emoji: '📚', title: 'Collocations',       sub: '10 collocations do tema do dia, com exemplos de projeto' },
+        { id: 'flash',    emoji: '📇', title: 'Flashcards',         sub: 'Cartões com significado, exemplo e truque, no phrasebook' },
+        { id: 'roleplay', emoji: '💬', title: 'Roleplay',           sub: 'Kickoff · Status · Escalação · Demo · 1:1, com debrief' },
+        { id: 'immerse',  emoji: '🌍', title: 'Imersão',            sub: 'O teu texto em inglês natural + perguntas sobre ele' },
+        { id: 'mistakes', emoji: '🎯', title: 'Erros a treinar',    sub: 'Prática dos tópicos onde erraste' },
+        { id: 'test',     emoji: '🧪', title: 'Teste de progresso', sub: '10 perguntas sobre a semana — resultado só no fim' },
+        { id: 'lesson',   emoji: '🪜', title: 'Lição da escada',    sub: 'Próximo tópico da escada CEFR (' + lv + ')' },
+        { id: 'review',   emoji: '🔁', title: 'Revisão',            sub: 'Cartões vencidos do phrasebook (repetição espaçada)' }
     ];
-    const today = new Date();
-    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
-    let todayIdx = dayOfYear % skills.length;
-    // Se a skill do dia não tiver dados ainda (mistakes sem erros, lesson no topo),
-    // roda para a próxima skill útil — senão o "Start →" parece partido.
-    const hasData = (id) => {
-        if (id === 'mistakes') return (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1).length > 0;
-        if (id === 'lesson')   return (typeof _tutorNextLadderTopic === 'function') && !!_tutorNextLadderTopic();
-        // O teste precisa de matéria da semana; sem ela não pode ser o foco do dia.
-        if (id === 'test')     return (typeof _tutorStudiedLast7d === 'function') && _tutorStudiedLast7d().length >= 3;
-        return true;
-    };
-    for (let i = 0; i < skills.length && !hasData(skills[todayIdx].id); i++) {
-        todayIdx = (todayIdx + 1) % skills.length;
-    }
-    const todaySkill = skills[todayIdx];
     // Estado: skills feitos esta semana (segunda como início)
     const wkKey = (() => {
         const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
@@ -7164,32 +7149,21 @@ function _tutorRenderCoachDashboard() {
     const doneCount = Object.keys(done).filter(k => done[k]).length;
     const userLvl = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
     const allChips = skills.map(s => {
-        const isToday = s.id === todaySkill.id;
         const isDone  = !!done[s.id];
-        const cls = isToday ? 'today' : (isDone ? 'done' : '');
-        return `<button class="tutor-coach-skill ${cls}" onclick="_tutorCoachStart('${s.id}')" title="${escapeHtml(s.sub)}">
+        return `<button class="tutor-coach-skill ${isDone ? 'done' : ''}" onclick="_tutorCoachStart('${s.id}')" title="${escapeHtml(s.sub)}" aria-label="${escapeHtml(s.title)} — ${escapeHtml(s.sub)}">
             <span class="cs-em">${s.emoji}</span>
             <span class="cs-tt">${s.title}</span>
             ${isDone ? '<span class="cs-ok">✓</span>' : ''}
         </button>`;
     }).join('');
     chat.insertAdjacentHTML('beforeend', `
-      <div class="tutor-row them" id="tutor-coach-card"><div class="tutor-bubble-av">🎯</div>
+      <div class="tutor-row them" id="tutor-coach-card"><div class="tutor-bubble-av">🧰</div>
         <div class="tutor-coach">
           <div class="tutor-coach-head">
-            <div class="tutor-coach-h">🎯 Your Coach</div>
-            <div class="tutor-coach-meta">progress ladder: <b>${escapeHtml(userLvl)}</b> · this week: <b>${doneCount}/${skills.length}</b></div>
+            <div class="tutor-coach-h">🧰 Todas as skills</div>
+            <div class="tutor-coach-meta">escada: <b>${escapeHtml(userLvl)}</b> · esta semana: <b>${doneCount}/${skills.length}</b></div>
           </div>
-          <div class="tutor-coach-lv-row">target level: <span class="tutor-coach-lvs">${lvChips}</span></div>
-          <div class="tutor-coach-today">
-            <div class="tct-em">${todaySkill.emoji}</div>
-            <div class="tct-info">
-              <div class="tct-tag">TODAY'S FOCUS</div>
-              <div class="tct-title">${todaySkill.title}</div>
-              <div class="tct-sub">${escapeHtml(todaySkill.sub)}</div>
-            </div>
-            <button class="tct-start" onclick="_tutorCoachStart('${todaySkill.id}')">Start →</button>
-          </div>
+          <div class="tutor-coach-lv-row">nível-alvo: <span class="tutor-coach-lvs">${lvChips}</span></div>
           <div class="tutor-coach-skills">${allChips}</div>
         </div>
       </div>`);

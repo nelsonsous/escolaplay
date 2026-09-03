@@ -4322,22 +4322,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 }
 .tutor-coach-lv.on { background: #ea580c; color: #fff; border-color: #ea580c; }
 /* Today's focus — destaque grande */
-.tutor-coach-today {
-    background: #fff;
-    border: 2px solid #fb923c;
-    border-radius: 12px;
-    padding: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 12px rgba(251, 146, 60, 0.15);
-}
-.tct-em { font-size: 2rem; flex-shrink: 0; }
-.tct-info { flex: 1; min-width: 0; }
-.tct-tag { font-size: 0.68rem; font-weight: 800; color: #ea580c; letter-spacing: 0.06em; }
-.tct-title { font-size: 1.02rem; font-weight: 800; color: #1f2937; line-height: 1.2; }
-.tct-sub { font-size: 0.78rem; color: #64748b; line-height: 1.35; margin-top: 2px; }
+
 .tct-start {
     background: linear-gradient(135deg, #f97316, #ea580c);
     color: #fff;
@@ -4378,10 +4363,7 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-coach-skill .cs-em { font-size: 1.1rem; }
 .tutor-coach-skill .cs-tt { font-size: 0.7rem; font-weight: 700; color: #475569; }
 .tutor-coach-skill .cs-ok { position: absolute; top: 2px; right: 4px; font-size: 0.7rem; color: #16a34a; font-weight: 800; }
-.tutor-coach-skill.today {
-    background: linear-gradient(135deg, #fff7ed, #ffedd5);
-    border-color: #ea580c;
-}
+
 .tutor-coach-skill.done {
     background: #f0fdf4;
     border-color: #86efac;
