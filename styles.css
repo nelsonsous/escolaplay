@@ -6692,6 +6692,9 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .review-cue { font-size: 1.05rem; font-weight: 800; color: #134e4a; margin-bottom: 4px; }
 .review-ask { font-size: 0.82rem; color: #0f766e; margin-bottom: 10px; }
 .review-rest { font-size: 0.85rem; color: #475569; margin-top: 4px; white-space: pre-wrap; }
+.tutor-ladder-lower { margin: 0 0 12px; }
+.tutor-ladder-lower > summary { cursor: pointer; font-weight: 700; color: #64748b; font-size: 0.85rem; padding: 10px 12px; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; min-height: 44px; display: flex; align-items: center; }
+.tutor-ladder-lower[open] > summary { margin-bottom: 8px; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
