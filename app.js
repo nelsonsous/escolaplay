@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v623';
+const APP_VERSION = 'v624';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6625,7 +6625,15 @@ function _tutorRenderRoleplayPrompt() {
       </div>`);
     _tutorScroll();
 }
-function _tutorStartRoleplay(sceneId) {
+// Cena da sessão do plano: dias 5/11/17 → sessões 0/1/2 → kickoff, status,
+// escalação (as três mais úteis para um PM); fora desses dias roda pelo dia.
+function _tutorPlanRoleplayScene() {
+    let i = 0; try { i = Math.max(0, _tutorPlanDayIndex()); } catch {}
+    const k = (i % 6 === 4) ? Math.floor(i / 6) : i;
+    return _TUTOR_SCENES[k % _TUTOR_SCENES.length].id;
+}
+window._tutorPlanRoleplayScene = _tutorPlanRoleplayScene;
+function _tutorStartRoleplay(sceneId, fromPlan) {
     const sc = _TUTOR_SCENES.find(s => s.id === sceneId); if (!sc || !tutorState) return;
     tutorState._roleplay = sc;
     tutorState._ask = null; tutorState._pron = null;
@@ -6640,6 +6648,7 @@ function _tutorStartRoleplay(sceneId) {
             <div class="tutor-role-head">
               <div class="tutor-role-title">🎭 ${escapeHtml(sc.label)} · com ${escapeHtml(sc.persona)}</div>
               <div class="tutor-role-obj">🎯 ${escapeHtml(sc.objective)}</div>
+              ${fromPlan ? `<button class="tp-strip-open tutor-role-other" onclick="_tutorRenderRoleplayPrompt()">Outra cena</button>` : ''}
             </div>
           </div>`);
     }
@@ -7323,7 +7332,9 @@ function _tutorCoachStart(skillId) {
         pron: _tutorCoachPron,
         vocab: _tutorCoachVocab,
         flash: _tutorCoachFlash,
-        roleplay: _tutorRenderRoleplayPrompt,
+        // v624: do plano, arranca logo a cena da sessão (kickoff → status →
+        // escalação nas 3 sessões); em Mais opções mantém o ecrã de cenas.
+        roleplay: () => { const fp = !!(tutorState && tutorState._fromPlan); if (tutorState) tutorState._fromPlan = false; if (fp) _tutorStartRoleplay(_tutorPlanRoleplayScene(), true); else _tutorRenderRoleplayPrompt(); },
         immerse: _tutorCoachImmerse,
         mistakes: _tutorRenderWeak,
         test: _tutorCoachTest,
