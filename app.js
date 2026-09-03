@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v605';
+const APP_VERSION = 'v606';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9295,10 +9295,13 @@ function _tutorGetCtx() {
         return _tutorPersistentCtx;
     } catch { return null; }
 }
-function _tutorHandsFreeOn() { return !(state.max && state.max.tutorHF === false); }
+// v606: mãos-livres DESLIGADO por defeito — ligado só quando o utilizador
+// o ativa (antes ligava o micro sozinho a seguir a cada resposta, o que no
+// iPhone a escrever era intrusivo e gastava transcrições Voxtral).
+function _tutorHandsFreeOn() { return !!(state.max && state.max.tutorHF === true); }
 function _tutorToggleHF() {
     if (!state.max) state.max = {};
-    state.max.tutorHF = (state.max.tutorHF === false) ? true : false;
+    state.max.tutorHF = !_tutorHandsFreeOn();
     try { saveState(); } catch {}
     if (!_tutorHandsFreeOn()) { _tutorTtsPlaying = false; _tutorStopBargeMonitor(true); }
     _tutorRenderMic();
@@ -9370,9 +9373,9 @@ function _tutorBargeIn() {
     _tutorBargeStream = null;
     _tutorTtsPlaying = false;
     try { _stopCurrentAudio && _stopCurrentAudio(); } catch {}
-    const canVox = !!(state.max && state.max.mistralKey) && typeof MediaRecorder !== 'undefined' && state.useVoxtral !== false;
+    const canVox = _tutorCanVox();
     if (canVox && stream) _tutorStartVoxtral(stream);
-    else { if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch {} } _tutorStartWebSpeech(); }
+    else { if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch {} } if (_tutorHasWebSpeech()) _tutorStartWebSpeech(); }
 }
 function _tutorMicBusy() {
     return !!_tutorRecog || !!(_tutorRec && _tutorRec.state !== 'inactive');
