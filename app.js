@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v625';
+const APP_VERSION = 'v626';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8356,7 +8356,6 @@ const _TUTOR_FLASH_POOL = [
     'to run late', 'to bring up to speed', 'on hold', 'to pull the plug', 'a ballpark figure',
     'to sort out', 'to fall behind', 'to ramp down', 'to play it by ear', 'a moving target'
 ];
-const _TUTOR_FLASH_SEED = _TUTOR_FLASH_POOL.slice(0, 20); // retrocompatível
 function _tutorFlashSeedPick(n) {
     let have = new Set();
     try { have = new Set(_srsAll().filter(x => x.type === 'phrase').map(x => String(x.text || '').toLowerCase())); } catch {}
@@ -8367,12 +8366,16 @@ function _tutorCoachFlash() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const tid = 'flash-' + Date.now();
+    // v626: do plano, a caixa já vem com os 10 termos SAP/PM que ainda não
+    // estão no phrasebook (antes eram dois toques: "Vocabulário" + "Criar").
+    const fromPlan = !!(tutorState && tutorState._fromPlan);
+    const seed = fromPlan ? _tutorFlashSeedPick(10).join('\n') : '';
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">📇</div>
         <div class="tutor-coach-task">
           <div class="tutor-coach-task-h">📇 Flashcards · até 20 de uma vez</div>
-          <div class="tutor-coach-task-p">Cola as palavras ou expressões que queres fixar — uma por linha, ou separadas por vírgulas. Faço-te um cartão com significado, exemplo de uso e um truque de memorização, e mando tudo para o teu phrasebook.</div>
-          <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="cut-over&#10;scope creep&#10;to escalate…" rows="5"></textarea>
+          <div class="tutor-coach-task-p">${fromPlan ? '10 termos SAP/PM que ainda não tens no phrasebook — apaga ou acrescenta à vontade e toca em Criar.' : 'Cola as palavras ou expressões que queres fixar — uma por linha, ou separadas por vírgulas.'} Faço-te um cartão com significado, exemplo de uso e um truque de memorização, e mando tudo para o teu phrasebook.</div>
+          <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="cut-over&#10;scope creep&#10;to escalate…" rows="5">${escapeHtml(seed)}</textarea>
           <div class="tutor-coach-task-bar">
             <button class="tutor-lbtn cont" onclick="_tutorFlashSeed('${tid}')"><i class="fas fa-wand-magic-sparkles"></i> Vocabulário SAP/PM</button>
             <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorFlashSubmit(this.dataset.tid)">Criar flashcards →</button>
