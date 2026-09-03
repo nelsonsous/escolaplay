@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v628';
+const APP_VERSION = 'v629';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3729,7 +3729,7 @@ function openProfileSwitcher() {
                 <div style="width:42px;height:42px;border-radius:50%;background:${active ? '#f472b6' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 42)}</div>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:700">${escapeHtml(p.name)}</div>
-                    <div style="font-size:0.78rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP</div>
+                    <div style="font-size:0.78rem;color:var(--text-light)">${p.year === 99 ? 'Profissional' : p.year + '.º ano'} · ${p.xp} XP</div>
                 </div>
                 ${active ? '<i class="fas fa-check" style="color:#f472b6"></i>' : ''}
             </div>`;
@@ -4003,7 +4003,7 @@ function renderProfile() {
                     <div style="width:34px;height:34px;border-radius:50%;background:${active ? '#f472b6' : '#f3f4f6'};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">${renderAvatar(p.avatar, 34)}</div>
                     <div style="flex:1;min-width:0">
                         <div style="font-weight:600;font-size:0.92rem">${escapeHtml(p.name)} ${active ? '<span style="color:#f472b6;font-size:0.7rem">(ativo)</span>' : ''}${shareBadge}</div>
-                        <div style="font-size:0.72rem;color:var(--text-light)">${p.year}.º ano · ${p.xp} XP · ${(p.tests||[]).length} testes</div>
+                        <div style="font-size:0.72rem;color:var(--text-light)">${p.year === 99 ? 'Profissional' : p.year + '.º ano'} · ${p.xp} XP${p.year === 99 ? '' : ' · ' + (p.tests||[]).length + ' testes'}</div>
                     </div>
                     ${!active ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem" onclick="switchProfile('${p.id}')">Usar</button>` : ''}
                     <button class="icon-btn" onclick="removeProfile('${p.id}')" title="Apagar perfil"><i class="fas fa-trash" style="color:#dc2626"></i></button>
