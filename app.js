@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v599';
+const APP_VERSION = 'v600';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6529,6 +6529,7 @@ function _tutorStartRoleplay(sceneId) {
     tutorState._ask = null; tutorState._pron = null; tutorState._pending = null; tutorState.drill = null;
     tutorState._rpFixes = null;
     tutorState._rpUsedPhrases = null;
+    tutorState._rpTurns = 0; tutorState._rpNudged = false;
     const chat = document.getElementById('tutor-chat');
     if (chat) {
         chat.insertAdjacentHTML('beforeend', `
@@ -9622,6 +9623,22 @@ function _tutorHandleInput(said) {
         }
         return;
     }
+    // v600: roleplay com fim à vista — ao 6.º turno sugere o debrief (uma vez).
+    if (tutorState._roleplay) {
+        tutorState._rpTurns = (tutorState._rpTurns || 0) + 1;
+        if (tutorState._rpTurns === 6 && !tutorState._rpNudged) {
+            tutorState._rpNudged = true;
+            setTimeout(() => {
+                if (!tutorState || !tutorState._roleplay) return;
+                const chat = document.getElementById('tutor-chat');
+                if (!chat || document.getElementById('tutor-rp-nudge')) return;
+                chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-rp-nudge"><div class="tutor-bubble-av">🎭</div>
+                    <div class="tutor-coach-task"><div class="tutor-coach-task-p">Já foram 6 turnos — bom ritmo. Quando quiseres, termina a reunião e vê o debrief com as correções.</div>
+                    <button class="tutor-coach-submit" onclick="_tutorEndRoleplay()">Terminar e avaliar →</button></div></div>`);
+                _tutorScroll();
+            }, 1500);
+        }
+    }
     _tutorRespond(said);
 }
 
@@ -9631,7 +9648,7 @@ async function _tutorRespond(userText) {
     const hist = tutorState.history.slice(-8).map(h => `${h.role === 'you' ? 'Student' : 'Tutor'}: ${h.text}`).join('\n');
     const rp = tutorState._roleplay;
     const replyInstr = rp
-        ? `${rp.persona}'s in-character response in natural spoken business English (max 30 words), moving the meeting forward and pushing the student toward the objective ("${rp.objective}"), ending with a question or prompt. Stay fully in character as ${rp.persona}.`
+        ? `${rp.persona}'s in-character response in natural spoken business English (max 30 words, ONE question at a time), realistic for a real meeting: sometimes push back, ask for a date, a number or an owner, or react to what was just said. Move the meeting toward the objective ("${rp.objective}") and end with a question or prompt. Stay fully in character as ${rp.persona}.`
         : `ONE short snappy English sentence to continue the conversation (max 16 words), ending with a brief question.`;
     const _cefrLv = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
     const _cefrNx = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' }[_cefrLv] || 'C1';
