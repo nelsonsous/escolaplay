@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v611';
+const APP_VERSION = 'v612';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8533,6 +8533,7 @@ function _tutorCoachImmerse() {
           <div class="tutor-coach-task-bar">
             <span id="${tid}-count" class="tutor-coach-count">0 palavras</span>
             <button class="tutor-lbtn cont" onclick="_tutorImmerseSeed('${tid}')"><i class="fas fa-wand-magic-sparkles"></i> Usar um exemplo</button>
+            ${(typeof _tutorCanListen === 'function' && _tutorCanListen()) ? `<button class="tutor-lbtn cont" onclick="_tutorDictateInto('${tid}-ta')"><i class="fas fa-microphone"></i> Ditar (PT)</button>` : ''}
             <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorImmerseSubmit(this.dataset.tid)">Traduzir e perguntar →</button>
           </div>
         </div>
@@ -8565,6 +8566,29 @@ function _tutorImmerseSeed(tid) {
     try { ta.focus(); } catch {}
 }
 window._tutorImmerseSeed = _tutorImmerseSeed;
+// v612: ditar (em PT) para uma caixa de texto — usa o mesmo micro/Voxtral do
+// chat, mas o resultado vai para a textarea indicada e não é enviado.
+function _tutorDictateInto(taId) {
+    if (!tutorState) return;
+    const ta = document.getElementById(taId);
+    if (!ta) return;
+    if (_tutorMicBusy()) { _tutorStopMic(); return; }
+    tutorState._dictate = { target: taId, lang: 'pt' };
+    if (typeof showToast === 'function') showToast('🎤 A ouvir em português — fala e faz uma pausa quando acabares');
+    _tutorStartMic();
+}
+window._tutorDictateInto = _tutorDictateInto;
+function _tutorDictateResult(text) {
+    const d = tutorState && tutorState._dictate;
+    if (tutorState) tutorState._dictate = null;
+    const t = String(text || '').trim();
+    const ta = d && document.getElementById(d.target);
+    if (!ta) return;
+    if (t) { ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + ' ' : '') + t; ta.dispatchEvent(new Event('input')); try { ta.focus(); } catch {} }
+    else if (typeof showToast === 'function') showToast('Não ouvi nada — toca em Ditar e fala');
+    _tutorRenderMic();
+}
+window._tutorDictateResult = _tutorDictateResult;
 
 async function _tutorImmerseSubmit(tid) {
     const ta = document.getElementById(tid + '-ta');
@@ -9590,7 +9614,7 @@ async function _tutorTranscribeVoxtral(blob) {
         const fd = new FormData();
         fd.append('model', 'voxtral-mini-latest');
         fd.append('file', blob, 'speech.' + ext);
-        fd.append('language', ((tutorState && tutorState.lang) || 'en').slice(0, 2));
+        fd.append('language', ((tutorState && tutorState._dictate && tutorState._dictate.lang) || (tutorState && tutorState.lang) || 'en').slice(0, 2));
         const ctrl = new AbortController();
         const to = setTimeout(() => ctrl.abort(), 25000);
         const res = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
@@ -9604,6 +9628,7 @@ async function _tutorTranscribeVoxtral(blob) {
         const text = (data.text || '').trim();
         if (liveEl) liveEl.style.display = 'none';
         if (!tutorState) return;
+        if (tutorState._dictate) { _tutorDictateResult(text); return; }
         if (tutorState._pron) { _tutorEvalPron(text); return; }
         if (!text) return;
         if (inp) { inp.value = text; tutorState._draft = text; _tutorGrow(inp); _tutorScheduleAutoSend(); }
@@ -9632,7 +9657,7 @@ function _tutorStartWebSpeech() {
     const liveEl = document.getElementById('tutor-live');
     const r = new Rec();
     // continuous=false: pára sozinho quando fazes uma pausa
-    r.lang = tutorState.lang; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+    r.lang = (tutorState._dictate && tutorState._dictate.lang === 'pt') ? 'pt-PT' : tutorState.lang; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
     _tutorRecog = r;
     let finalTxt = '';
     if (mic) { mic.classList.add('rec'); mic.innerHTML = '<i class="fas fa-stop"></i>'; }
@@ -9673,6 +9698,7 @@ function _tutorStartWebSpeech() {
         _tutorRecog = null;
         if (mic) { mic.classList.remove('rec'); mic.innerHTML = '<i class="fas fa-microphone"></i>'; }
         if (liveEl) liveEl.style.display = 'none';
+        if (tutorState && tutorState._dictate) { _tutorDictateResult((finalTxt || '').replace(/\s+/g, ' ').trim()); return; }
         if (tutorState && tutorState._pron) { _tutorEvalPron((finalTxt || '').replace(/\s+/g, ' ').trim()); return; }
         // Texto fica na barra e envia sozinho ao fim de ~1.4s (toca p/ editar)
         const inpNow = document.getElementById('tutor-text');
