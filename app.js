@@ -193,7 +193,7 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil ativo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorSkillsDone','tutorPlan','tutorTargetLevel','tutorVocabHistory'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorPlan','tutorTargetLevel','tutorVocabHistory'];
 // Definições ao nível do dispositivo (não do perfil) que têm de sobreviver
 // ao reload: vozes/TTS, Voxtral, proxy, pausa do professor de leitura, etc.
 // Guardadas em payload.settings pelo saveState (v589).
@@ -260,7 +260,7 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {})
     Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
         id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorSkillsDone: {}, tutorPlan: null, tutorTargetLevel: '', tutorVocabHistory: [],
+        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorPlan: null, tutorTargetLevel: '', tutorVocabHistory: [],
         paperSheet: null, writeSheet: null, dictSheet: null,
         name, avatar, year, currentPeriod: 1,
         xp: 0,
@@ -386,6 +386,10 @@ function loadState() {
                 if (!p.subjects[k]) p.subjects[k] = { answered: 0, correct: 0, xp: 0 };
             });
             if (p.currentPeriod == null) p.currentPeriod = 1;
+            // v618: o registo semanal de skills do tutor (tutorSkillsDone)
+            // acumulava uma chave por semana para sempre só para pôr um ✓ em
+            // "Mais opções"; o plano de 21 dias já regista o que foi feito.
+            if (p.tutorSkillsDone) delete p.tutorSkillsDone;
             // Migração v499: a disciplina "Detetive Mental" foi totalmente
             // refeita (todos os puzzles passaram a mini-jogos). Se o user
             // tinha activeTopics.detetive parcial (não todos os 6 tópicos),
@@ -609,7 +613,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v617';
+const APP_VERSION = 'v618';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7252,28 +7256,21 @@ function _tutorRenderCoachDashboard() {
         { id: 'lesson',   emoji: '🪜', title: 'Lição da escada',    sub: 'Próximo tópico da escada CEFR (' + lv + ')' },
         { id: 'review',   emoji: '🔁', title: 'Revisão',            sub: 'Cartões vencidos do phrasebook (repetição espaçada)' }
     ];
-    // Estado: skills feitos esta semana (segunda como início)
-    const wkKey = (() => {
-        const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
-        return d.toISOString().slice(0, 10);
-    })();
-    const done = (state.tutorSkillsDone && state.tutorSkillsDone[wkKey]) || {};
-    const doneCount = Object.keys(done).filter(k => done[k]).length;
+    // v618: sem marcas "feito esta semana" — o plano do dia já mostra o que
+    // está feito; a grelha é só um atalho para cada skill.
     const userLvl = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
-    const allChips = skills.map(s => {
-        const isDone  = !!done[s.id];
-        return `<button class="tutor-coach-skill ${isDone ? 'done' : ''}" onclick="_tutorCoachStart('${s.id}')" title="${escapeHtml(s.sub)}" aria-label="${escapeHtml(s.title)} — ${escapeHtml(s.sub)}">
+    const allChips = skills.map(s =>
+        `<button class="tutor-coach-skill" onclick="_tutorCoachStart('${s.id}')" title="${escapeHtml(s.sub)}" aria-label="${escapeHtml(s.title)} — ${escapeHtml(s.sub)}">
             <span class="cs-em">${s.emoji}</span>
             <span class="cs-tt">${s.title}</span>
-            ${isDone ? '<span class="cs-ok">✓</span>' : ''}
-        </button>`;
-    }).join('');
+        </button>`
+    ).join('');
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them" id="tutor-coach-card"><div class="tutor-bubble-av">🧰</div>
         <div class="tutor-coach">
           <div class="tutor-coach-head">
             <div class="tutor-coach-h">🧰 Todas as skills</div>
-            <div class="tutor-coach-meta">escada: <b>${escapeHtml(userLvl)}</b> · esta semana: <b>${doneCount}/${skills.length}</b></div>
+            <div class="tutor-coach-meta">escada: <b>${escapeHtml(userLvl)}</b></div>
           </div>
           <div class="tutor-coach-lv-row">nível-alvo: <span class="tutor-coach-lvs">${lvChips}</span></div>
           <div class="tutor-coach-skills">${allChips}</div>
@@ -7295,14 +7292,6 @@ function _tutorCoachStart(skillId) {
     // v584: "class:grammar" → aula já com foco, sem ecrã de escolha.
     const _focus = String(skillId || '').includes(':') ? skillId.split(':')[1] : '';
     skillId = String(skillId || '').split(':')[0];
-    const wkKey = (() => {
-        const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
-        return d.toISOString().slice(0, 10);
-    })();
-    if (!state.tutorSkillsDone) state.tutorSkillsDone = {};
-    if (!state.tutorSkillsDone[wkKey]) state.tutorSkillsDone[wkKey] = {};
-    state.tutorSkillsDone[wkKey][skillId] = true;
-    try { saveState && saveState(); } catch {}
     // Barra compacta do plano antes da skill renderizar (v583).
     _tutorPlanRender({ compact: true });
     // Pre-checks dos dois únicos casos que silenciosamente fazem nada.

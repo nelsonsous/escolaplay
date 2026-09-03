@@ -4362,13 +4362,6 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-coach-skill:hover { border-color: #fb923c; transform: translateY(-1px); }
 .tutor-coach-skill .cs-em { font-size: 1.1rem; }
 .tutor-coach-skill .cs-tt { font-size: 0.7rem; font-weight: 700; color: #475569; }
-.tutor-coach-skill .cs-ok { position: absolute; top: 2px; right: 4px; font-size: 0.7rem; color: #16a34a; font-weight: 800; }
-
-.tutor-coach-skill.done {
-    background: #f0fdf4;
-    border-color: #86efac;
-}
-.tutor-coach-skill.done .cs-tt { color: #166534; }
 .tutor-coach-task {
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
