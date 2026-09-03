@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v603';
+const APP_VERSION = 'v604';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6258,16 +6258,37 @@ function _tutorRenderWeak() {
         <div class="tutor-weak">
           <div class="tutor-weak-h">${_tutT('📌 Things to work on','📌 Os teus erros a treinar')}</div>
           <div class="tutor-weak-chips">${chips}</div>
+          <div class="tutor-pron-hint">${_tutT('3 exercises per topic, up to 3 topics · 2 of 3 right = consolidated','3 exercícios por tópico, até 3 tópicos · 2 em 3 certos = consolidado')}</div>
           <button class="tutor-lbtn prac" onclick="_tutorPracticeWeak()"><i class="fas fa-dumbbell"></i> ${_tutT('Practise my mistakes','Treinar os meus erros')}</button>
         </div>
       </div>`);
     _tutorScroll();
 }
-function _tutorPracticeWeak() {
+// v604: até 3 tópicos fracos, 3 exercícios validados por tópico, numa só
+// chamada (JSON validado com retry). Antes juntava os tópicos numa string
+// ("A, B, C"), que virava um "tópico" novo na escada e na consolidação.
+async function _tutorPracticeWeak() {
     const list = _tutorTopWeak(3);
-    if (!list.length) return;
+    if (!list.length || !tutorState) return;
     tutorState._practiceReply = 'Continuamos quando quiseres.';
-    _tutorGeneratePractice(list.join(', '), '');
+    const lv = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
+    _tutorBusy(`A preparar ${list.length * 3} exercícios sobre os teus erros…`);
+    const sys = `You are an English tutor for a Portuguese Project Manager (CEFR ${lv}, SAP/consulting). For EACH topic given, create exactly 3 quick multiple-choice exercises. Return ONLY a JSON object: {"items":[{"q":"English sentence with ONE gap ___ (or a best-choice question)","options":["English","English","English"],"answer":0,"exp":"1-line explanation in English","expPt":"nota PT-PT max 12 palavras","topic":"the topic name EXACTLY as given"}]}
+QUALITY: exactly ONE "___" per gapped sentence; the correct answer must not appear elsewhere in the sentence; exactly one option fits, the other two clearly wrong; sentences from project/meeting life. Portuguese notes in EUROPEAN PORTUGUESE.`;
+    const usr = `Topics:\n${list.map(t => '- ' + t).join('\n')}`;
+    let items = [];
+    try {
+        const j = await _tutorAskJSONValid(sys, usr, 2200, (x) => _tutorValidQuiz(x && x.items, 9).length >= Math.min(3, list.length * 2) ? '' : 'fewer than 3 valid items (q with ONE ___, 3 options, numeric answer, topic exactly as given)');
+        items = _tutorValidQuiz(j && j.items, 9);
+    } catch (e) { console.warn('[tutor] weak practice failed', e); }
+    if (!tutorState) return;
+    if (!items.length) { _tutorAddTutor('Não consegui preparar exercícios agora. Continuamos?', '', '', true); return; }
+    // Tópico de cada item: o nome dado (fallback: o 1.º tópico da lista).
+    items.forEach(it => { it.depth = 0; const tp = String(it.topic || '').trim(); it.topic = list.find(t => t.toLowerCase() === tp.toLowerCase()) || list[0]; });
+    tutorState._pq = { queue: items, topic: list[0] };
+    tutorState._lastTopic = list[0];
+    _tutorAddTutor(`🎯 ${items.length} exercícios sobre: ${list.join(' · ')}. Tópicos com 2 em 3 certos ficam consolidados.`, '', '', false);
+    _tutorRenderPracticeItem();
 }
 window._tutorPracticeWeak = _tutorPracticeWeak;
 
@@ -10039,6 +10060,9 @@ function _tutorPracticeAnswer(i) {
     if (i === it.answer) pq.sessionRight = (pq.sessionRight || 0) + 1;
     const ok = i === it.answer;
     _tutorTrackWeak(it.topic || pq.topic, ok);
+    // v604: resultado por tópico (sessões com vários tópicos, ex. erros a treinar)
+    const _tp = String(it.topic || pq.topic || '').trim();
+    if (_tp) { pq.byTopic = pq.byTopic || {}; const b = pq.byTopic[_tp] || (pq.byTopic[_tp] = { n: 0, ok: 0 }); b.n++; if (ok) b.ok++; }
     card.querySelectorAll('.tutor-qopt').forEach((b, idx) => {
         b.disabled = true;
         if (idx === it.answer) b.classList.add('right');
@@ -10257,6 +10281,10 @@ function _tutorPracticeDone() {
     // Consolida o tópico se a sessão teve ≥ 2/3 acertos.
     if (pq && pq.topic && (pq.sessionTotal || 0) >= 3 && (pq.sessionRight || 0) / pq.sessionTotal >= (2 / 3) - 1e-6) {
         try { _tutorMarkConsolidated(pq.topic); } catch {}
+    }
+    // v604: e cada tópico com ≥3 itens e ≥2/3 certos (sessões multi-tópico).
+    if (pq && pq.byTopic) {
+        Object.keys(pq.byTopic).forEach(tp => { const b = pq.byTopic[tp]; if (b.n >= 3 && b.ok / b.n >= (2 / 3) - 1e-6) { try { _tutorMarkConsolidated(tp); } catch {} } });
     }
     const consolMsg = (pq && pq.sessionTotal) ? ` (${pq.sessionRight || 0}/${pq.sessionTotal} certas)` : '';
     // v584: acabar a prática/quiz fecha o passo da aula/lição/erros no plano.
