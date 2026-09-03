@@ -615,7 +615,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v583';
+const APP_VERSION = 'v584';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7235,6 +7235,9 @@ function _tutorCoachStart(skillId) {
     // Sem chave IA: todas as skills precisam da IA → cartão de configuração
     // em vez de N mensagens de erro diferentes.
     if (!hasAIKey()) { _tutorPlanRender(); _tutorRenderKeyCard(); return; }
+    // v584: "class:grammar" → aula já com foco, sem ecrã de escolha.
+    const _focus = String(skillId || '').includes(':') ? skillId.split(':')[1] : '';
+    skillId = String(skillId || '').split(':')[0];
     const wkKey = (() => {
         const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day);
         return d.toISOString().slice(0, 10);
@@ -7256,7 +7259,7 @@ function _tutorCoachStart(skillId) {
     }
     const rowsBefore = chat ? chat.querySelectorAll('.tutor-row').length : 0;
     const map = {
-        class: _tutorCoachClass,
+        class: _focus ? () => { _tutorClassIntro(_focus); _tutorClassStart(_focus); } : _tutorCoachClass,
         meet: _tutorCoachMeeting,
         writing: _tutorCoachWriting,
         pron: _tutorCoachPron,
@@ -7295,6 +7298,9 @@ const TUTOR_SKILL_META = {
     review:   ['🔁', 'Revisão rápida (cartões)', 3],
     flash:    ['📇', 'Flashcards — 5 palavras novas', 5],
     class:    ['🎓', 'Aula do dia', 8],
+    'class:grammar':      ['📐', 'Aula — uma regra a fundo', 8],
+    'class:listening':    ['🎧', 'Aula — listening (ouvir primeiro)', 8],
+    'class:conversation': ['💬', 'Aula — frases para reuniões', 8],
     lesson:   ['🪜', 'Lição da escada CEFR', 8],
     vocab:    ['📚', 'Collocations & phrasal verbs', 6],
     immerse:  ['🌍', 'Imersão — o teu texto em inglês', 8],
@@ -7312,10 +7318,13 @@ function _tutorPlanGet() {
 }
 function _tutorPlanDayIndex() { const p = _tutorPlanGet(); return Math.max(0, daysBetween(p.start, todayStr())); }
 function _tutorPlanSteps(dayIdx) {
-    const cores = ['class', 'lesson', 'vocab', 'class', 'lesson', 'immerse', 'test'];
+    // v584: a aula já traz o foco escolhido (sem ecrã de escolha) — gramática,
+    // listening (input) e conversação alternam; a "Lição" da escada saiu do
+    // plano (duplicava a aula) e fica em "Mais opções".
+    const cores = ['class:grammar', 'class:listening', 'vocab', 'class:conversation', 'class:grammar', 'immerse', 'test'];
     const speaks = ['meet', 'pron', 'roleplay'];
     let core = (dayIdx === TUTOR_PLAN_DAYS - 1) ? 'test' : cores[dayIdx % 7];
-    if (core === 'test' && typeof _tutorStudiedLast7d === 'function' && _tutorStudiedLast7d().length < 3) core = 'class';
+    if (core === 'test' && typeof _tutorStudiedLast7d === 'function' && _tutorStudiedLast7d().length < 3) core = 'class:grammar';
     const output = (dayIdx % 2 === 0) ? speaks[Math.floor(dayIdx / 2) % 3] : 'writing';
     let review = 'review';
     try { if (typeof _srsAll === 'function' && _srsAll().length < 5) review = 'flash'; } catch {}
@@ -7413,7 +7422,9 @@ function _tutorPlanComplete(skill) {
     const plan = _tutorPlanGet(); const k = todayStr(); const d = plan.days[k];
     const cur = d && d.cur;
     if (!cur) return false;
-    if (skill) { const ok = Array.isArray(skill) ? skill.includes(cur.skill) : cur.skill === skill; if (!ok) return false; }
+    // Compara pela skill-base ("class:grammar" conta como "class").
+    const base = String(cur.skill || '').split(':')[0];
+    if (skill) { const ok = Array.isArray(skill) ? skill.includes(base) : base === skill; if (!ok) return false; }
     const already = !!d[cur.slot];
     d[cur.slot] = true; d.cur = null;
     try { saveState(); } catch {}
@@ -7845,13 +7856,33 @@ const _TUTOR_CLASS_FOCUS = {
     conversation: { emoji: '💬', label: 'Conversação', sub: 'frases prontas para usar hoje' },
     listening:    { emoji: '🎧', label: 'Listening',   sub: 'ouvir primeiro, ler depois' }
 };
+// Porquê este tema: erro teu, próximo degrau da escada, ou essencial.
+function _tutorClassWhy(topic) {
+    const fromWeak = (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1)[0] === topic;
+    const nx = (!fromWeak && typeof _tutorNextLadderTopic === 'function') ? _tutorNextLadderTopic() : null;
+    return fromWeak ? 'escolhido a partir dos teus erros' : (nx && nx.topic === topic ? `o próximo degrau da escada (${escapeHtml(nx.lvl)})` : 'o essencial para o teu dia-a-dia');
+}
+// v584: intro síncrona quando a aula arranca já com foco (do plano) — o
+// utilizador vê logo o tema enquanto a IA prepara a aula.
+function _tutorClassIntro(focus) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    const f = _TUTOR_CLASS_FOCUS[focus] || _TUTOR_CLASS_FOCUS.grammar;
+    const topic = _tutorClassTopic();
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">${f.emoji}</div>
+        <div class="tutor-class">
+          <div class="tutor-class-h">${f.emoji} Aula de ${escapeHtml(f.label)} · ${escapeHtml(_tutorTargetLevel())}</div>
+          <div class="tutor-class-goal">Tema: <b>${escapeHtml(topic)}</b> — ${_tutorClassWhy(topic)}. ${escapeHtml(f.sub)}.</div>
+        </div>
+      </div>`);
+    _tutorScroll();
+}
 function _tutorCoachClass() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const topic = _tutorClassTopic();
-    const _fromWeak = (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1)[0] === topic;
-    const _nx = (!_fromWeak && typeof _tutorNextLadderTopic === 'function') ? _tutorNextLadderTopic() : null;
-    const _why = _fromWeak ? 'escolhido a partir dos teus erros' : (_nx && _nx.topic === topic ? `o próximo degrau da escada (${escapeHtml(_nx.lvl)})` : 'o essencial para o teu dia-a-dia');
+    const _why = _tutorClassWhy(topic);
     const chips = Object.keys(_TUTOR_CLASS_FOCUS).map(k => {
         const f = _TUTOR_CLASS_FOCUS[k];
         return `<button class="tutor-class-focus" onclick="_tutorClassStart('${k}')">
@@ -10076,6 +10107,8 @@ function _tutorPracticeDone() {
         try { _tutorMarkConsolidated(pq.topic); } catch {}
     }
     const consolMsg = (pq && pq.sessionTotal) ? ` (${pq.sessionRight || 0}/${pq.sessionTotal} certas)` : '';
+    // v584: acabar a prática/quiz fecha o passo da aula/lição/erros no plano.
+    if (pq && (pq.sessionTotal || 0) >= 1) { try { _tutorPlanComplete(['class', 'lesson', 'mistakes']); } catch {} }
     if (tutorState) { tutorState._practiceReply = null; tutorState._pq = null; tutorState._reviewingCard = null; }
     _tutorAddTutor(`Boa! Acabámos a prática 🎉${consolMsg}${reply ? ' ' + reply : ''}`, '', '', true);
     // Se a prática veio de um cartão de revisão, decides tu se avança de nível.
