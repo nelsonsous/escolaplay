@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v630';
+const APP_VERSION = 'v631';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6207,13 +6207,15 @@ function openTutor(opts) {
         const nm = subj.studentName ? ` ${subj.studentName}` : '';
         opener = `Olá${nm}! Sou o(a) teu/tua Professor(a) de ${subj.name}. Estou aqui para te ajudar com a matéria do ${subj.year}.º ano. Em que tema queres trabalhar? Podes escrever uma dúvida, um conceito que queres rever, ou pedir-me exercícios.`;
     } else {
-        const _pd = Math.min(_tutorPlanDayIndex() + 1, TUTOR_PLAN_DAYS);
+        // v631: com o plano a decorrer, o cartão do dia é a primeira coisa —
+        // a bolha "Day N of 21" repetia o cabeçalho e o cartão. Fica só a
+        // mensagem de plano concluído.
         const _fn = String(prof.name || '').trim().split(/\s+/)[0];
-        opener = _pd > TUTOR_PLAN_DAYS - 1 && _tutorPlanDayIndex() >= TUTOR_PLAN_DAYS
+        opener = _tutorPlanDayIndex() >= TUTOR_PLAN_DAYS
             ? `Hi${_fn ? ' ' + _fn : ''}! You finished the 3-week plan 🏁 — restart it below or pick any skill.`
-            : `Hi${_fn ? ' ' + _fn : ''}! **Day ${_pd} of ${TUTOR_PLAN_DAYS}** — three short steps below, about 20 minutes.`;
+            : '';
     }
-    _tutorAddTutor(opener, null, null);
+    if (opener) _tutorAddTutor(opener, null, null);
     if (!isSubjectMode) {
         if (!hasAIKey()) _tutorRenderKeyCard();
         _tutorPlanRender();
