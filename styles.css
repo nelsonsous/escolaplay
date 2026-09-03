@@ -6708,6 +6708,9 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .tp-stats-wide { grid-column: 1 / -1; }
 .tp-stat-pill { display: inline-block; background: #fff; border: 1px solid #fdba74; color: #9a3412; border-radius: 999px; padding: 1px 7px; font-size: 0.75rem; font-weight: 700; margin: 0 2px 2px 0; }
 .tp-stat-muted { color: #94a3b8; font-size: 0.8rem; }
+.tp-fail { border: 1.5px solid #fca5a5; background: #fff1f2; }
+.tp-fail .tutor-coach-task-h { color: #991b1b; }
+.tp-fail .tutor-coach-task-bar { justify-content: flex-end; gap: 8px; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
