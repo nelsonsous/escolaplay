@@ -6702,6 +6702,12 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .pb-chip { flex-shrink: 0; background: #f1f5f9; color: #334155; border: 1.5px solid #e2e8f0; border-radius: 999px; padding: 8px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; min-height: 40px; }
 .pb-chip.on { background: #0f766e; color: #fff; border-color: #0f766e; }
 .pb-count { font-size: 0.78rem; color: #64748b; margin: 0 0 6px; }
+.tp-stats { background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
+.tp-stats-h { font-weight: 800; color: #9a3412; margin-bottom: 8px; }
+.tp-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 0.85rem; color: #334155; }
+.tp-stats-wide { grid-column: 1 / -1; }
+.tp-stat-pill { display: inline-block; background: #fff; border: 1px solid #fdba74; color: #9a3412; border-radius: 999px; padding: 1px 7px; font-size: 0.75rem; font-weight: 700; margin: 0 2px 2px 0; }
+.tp-stat-muted { color: #94a3b8; font-size: 0.8rem; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }

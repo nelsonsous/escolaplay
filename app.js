@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v612';
+const APP_VERSION = 'v613';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -3601,7 +3601,10 @@ function continueTestAnyway(testId) {
 // ========== PROGRESS ==========
 function renderProgress() {
     const list = document.getElementById('progress-list');
-    list.innerHTML = Object.entries(SUBJECTS).map(([key, sub]) => {
+    // v613: perfil profissional → bloco do plano de inglês no topo das estatísticas.
+    const _prof = (typeof activeProfile === 'function' && activeProfile()) || {};
+    const _planBlock = (_prof.year === 99 && typeof _tutorPlanStatsHtml === 'function') ? _tutorPlanStatsHtml() : '';
+    list.innerHTML = _planBlock + Object.entries(SUBJECTS).map(([key, sub]) => {
         const stats = state.subjects[key] || { answered: 0, correct: 0, xp: 0 };
         const pct = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : 0;
         return `
@@ -7512,6 +7515,38 @@ function _tutorPlanWeekSummaryHtml(weekNo) {
         <div class="tp-week-msg">${escapeHtml(msg)}</div></div>`;
 }
 window._tutorPlanWeekSummaryHtml = _tutorPlanWeekSummaryHtml;
+// v613: bloco do plano de inglês nas Estatísticas (fora do tutor).
+function _tutorPlanStatsHtml() {
+    const plan = _tutorPlanGet();
+    const idx = _tutorPlanDayIndex();
+    const finished = idx >= TUTOR_PLAN_DAYS;
+    const keys = Object.keys(plan.days).sort();
+    const fullDays = keys.filter(k => { const d = plan.days[k]; return d && d.review && d.core && d.output; }).length;
+    const streak = _tutorPlanStreak();
+    const tests = ((state.max && state.max.tutorTests) || []).filter(t => t && t.total > 0).slice(-6);
+    const testsHtml = tests.length ? tests.map(t => `<span class="tp-stat-pill">${Math.round(100 * t.right / t.total)}%</span>`).join('') : '<span class="tp-stat-muted">ainda sem testes</span>';
+    const writes = keys.map(k => plan.days[k] && plan.days[k].write).filter(w => w && w.g).slice(-6);
+    const writesHtml = writes.length ? writes.map(w => `<span class="tp-stat-pill">${escapeHtml(w.g)}</span>`).join('') : '<span class="tp-stat-muted">ainda sem textos</span>';
+    const prons = keys.map(k => plan.days[k] && plan.days[k].pronAvg).filter(v => typeof v === 'number');
+    const pronAvg = prons.length ? Math.round(prons.reduce((a, b) => a + b, 0) / prons.length) : null;
+    let cards = 0; try { cards = _srsAll().length; } catch {}
+    const lv = (typeof _tutorUserLevel === 'function') ? _tutorUserLevel() : '?';
+    const target = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
+    const head = finished ? `🏁 Plano de inglês concluído${plan.final ? ` · ${plan.final.pct}% no teste final` : ''}` : `📅 Plano de inglês · Dia ${idx + 1} de ${TUTOR_PLAN_DAYS}`;
+    return `<div class="tp-stats">
+        <div class="tp-stats-h">${head}</div>
+        <div class="tp-stats-grid">
+          <div><b>${fullDays}</b>/${TUTOR_PLAN_DAYS} dias completos</div>
+          <div>🔥 <b>${streak}</b> seguidos</div>
+          <div>escada <b>${escapeHtml(lv)}</b> → alvo <b>${escapeHtml(target)}</b></div>
+          <div>📖 <b>${cards}</b> no phrasebook</div>
+          <div>🗣️ pronúncia ${pronAvg === null ? '<span class="tp-stat-muted">—</span>' : `<b>${pronAvg}%</b> (${prons.length})`}</div>
+          <div>🧪 testes ${testsHtml}</div>
+          <div class="tp-stats-wide">📝 escrita ${writesHtml}</div>
+        </div>
+      </div>`;
+}
+window._tutorPlanStatsHtml = _tutorPlanStatsHtml;
 function _tutorPlanRestart() { state.tutorPlan = { start: todayStr(), days: {} }; try { saveState(); } catch {} _tutorPlanRender(); }
 window._tutorPlanRestart = _tutorPlanRestart;
 // Cartão do ecrã inicial (perfil profissional): "Dia N de 21 · próximo passo"
