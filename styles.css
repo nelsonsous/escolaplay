@@ -4396,7 +4396,6 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
     cursor: pointer;
 }
 .tutor-coach-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-.tutor-coach-pron-hint { font-size: 0.82rem; color: #475569; line-height: 1.45; }
 .tcw-bad { color: #c2410c; text-decoration: line-through; }
 .tcw-good { color: #15803d; font-weight: 700; }
 .tcw-corr { margin: 6px 0 0 16px; padding: 0; }
@@ -5772,16 +5771,6 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
     transition: transform .12s var(--spring-soft), box-shadow .12s var(--spring-soft);
 }
 .reading-btn:active { transform: scale(0.96); }
-.reading-btn-listen {
-    background: linear-gradient(135deg, #0891b2, #0e7490);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
-}
-.reading-btn-replay {
-    background: #fff;
-    color: #0e7490;
-    border: 2px solid #67e8f9;
-}
 
 /* ========================================================
    YEAR PICKER (modal "Novo perfil")
@@ -6178,7 +6167,6 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .est-slider::-moz-range-thumb { width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 3px solid #2563eb; cursor: pointer; }
 .est-scale { display: flex; justify-content: space-between; width: min(92vw, 360px); font-size: 0.78rem; color: #6b7280; font-weight: 700; margin-top: -6px; }
 .est-feedback { font-size: 1.05rem; font-weight: 800; color: #1f2937; text-align: center; padding: 6px 14px; background: #f3f4f6; border-radius: 999px; }
-.est-hint { font-size: 0.82rem; color: #6b7280; font-style: italic; max-width: 320px; text-align: center; }
 
 /* === SUSPEITOS (eliminar) === */
 .sus-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
