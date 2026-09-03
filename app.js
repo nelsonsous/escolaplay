@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v606';
+const APP_VERSION = 'v607';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7959,11 +7959,11 @@ function _tutorClassWhy(topic) {
 }
 // v584: intro síncrona quando a aula arranca já com foco (do plano) — o
 // utilizador vê logo o tema enquanto a IA prepara a aula.
-function _tutorClassIntro(focus) {
+function _tutorClassIntro(focus, topicOverride) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const f = _TUTOR_CLASS_FOCUS[focus] || _TUTOR_CLASS_FOCUS.grammar;
-    const topic = _tutorClassTopic();
+    const topic = String(topicOverride || '').trim() || _tutorClassTopic();
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">${f.emoji}</div>
         <div class="tutor-class">
@@ -7998,12 +7998,14 @@ function _tutorCoachClass() {
 }
 window._tutorCoachClass = _tutorCoachClass;
 
-async function _tutorClassStart(focus) {
+// v607: topicOverride — a Lição da escada e "Aprender agora" usam esta
+// mesma aula (um único caminho de aula na app), com o tópico escolhido.
+async function _tutorClassStart(focus, topicOverride) {
     if (!tutorState) return;
     focus = _TUTOR_CLASS_FOCUS[focus] ? focus : 'grammar';
     const f = _TUTOR_CLASS_FOCUS[focus];
     const lv = _tutorTargetLevel();
-    const topic = _tutorClassTopic();
+    const topic = String(topicOverride || '').trim() || _tutorClassTopic();
     _tutorBusy(`A preparar a aula de ${f.label}…`);
     const sys = `You are an English tutor building a focused ~20-minute lesson for a Portuguese Project Manager working in SAP/consulting, consolidating CEFR ${lv}. Return ONLY a JSON object.
 LANGUAGE RULES (critical): every explanation is in EUROPEAN PORTUGUESE (Portugal, never Brazilian); every example, phrase, question and option is in ENGLISH; grammar term names (Simple Past, Present Perfect, Conditionals, Prepositions…) stay in ENGLISH even inside the Portuguese text.
@@ -8845,9 +8847,14 @@ function _tutorLearnTopicBtn(el) {
     // explorado já (só fica ✓ quando a lição abrir mesmo). Para evitar marcas de cliques sem
     // querer, marca-se em _tutorDeepDive ao concluir o render.
     document.getElementById('tutor-explore')?.remove();
-    tutorState._pendingPracticeTopic = t;
+    // v607: um único caminho de aula — a mesma "Aula do dia" (foco gramática,
+    // JSON validado com retry, prática + quiz) com o tópico escolhido. O
+    // gerador antigo (_tutorDeepDive) fica só para "Mais detalhe"/dúvidas.
+    tutorState._pendingPracticeTopic = null;
     tutorState._pendingPracticeArg = '';
-    _tutorDeepDive(t, { prePractice: true });
+    try { _tutorMarkTaught(t); } catch {}
+    _tutorClassIntro('grammar', t);
+    _tutorClassStart('grammar', t);
 }
 window._tutorLearnTopicBtn = _tutorLearnTopicBtn;
 // Limpar uma marcação individual (✕ nos itens já feitos) ou todas.
