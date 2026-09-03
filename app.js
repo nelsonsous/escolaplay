@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v613';
+const APP_VERSION = 'v614';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -18461,6 +18461,26 @@ function openRestoreBackupDialog() {
     });
 }
 
+// União dos campos do tutor em state.max (v614): o restauro nunca apaga o
+// que já existe neste dispositivo.
+function _mergeTutorMax(local, incoming) {
+    local = local || {}; incoming = incoming || {};
+    const out = Object.assign({}, incoming);
+    const byId = new Map();
+    (Array.isArray(incoming.srs) ? incoming.srs : []).forEach(c => { if (c && c.id) byId.set(c.id, c); });
+    (Array.isArray(local.srs) ? local.srs : []).forEach(c => { if (c && c.id && !byId.has(c.id)) byId.set(c.id, c); });
+    if (byId.size) out.srs = [...byId.values()];
+    const seen = new Set();
+    const tests = [...(Array.isArray(incoming.tutorTests) ? incoming.tutorTests : []), ...(Array.isArray(local.tutorTests) ? local.tutorTests : [])]
+        .filter(t => t && typeof t.at === 'number' && !seen.has(t.at) && seen.add(t.at)).sort((a, b) => a.at - b.at).slice(-40);
+    if (tests.length) out.tutorTests = tests;
+    ['tutorExplored', 'tutorConsolidated'].forEach(k => {
+        const m = Object.assign({}, local[k] || {}, incoming[k] || {});
+        if (Object.keys(m).length) out[k] = m;
+    });
+    return out;
+}
+window._mergeTutorMax = _mergeTutorMax;
 function _applyRestoredBackup(data) {
     const p = data.profile;
     if (!p || !p.id) { showToast('Backup corrupto.'); return; }
@@ -18476,7 +18496,11 @@ function _applyRestoredBackup(data) {
     if (data.max) {
         // Mantém os segredos LOCAIS (chaves de API) — o backup não os traz.
         const local = state.max || {};
-        const merged = Object.assign({}, data.max);
+        // v614: os dados do tutor em state.max (phrasebook, testes, escada)
+        // são do dispositivo — um restauro (ex. de uma das filhas, ou de um
+        // backup antigo) fazia união a zero e apagava o phrasebook local.
+        // Agora faz-se UNIÃO: cartões por id, testes por data, escada por tópico.
+        const merged = _mergeTutorMax(local, data.max);
         _MAX_SECRET_FIELDS.forEach(k => { if (local[k]) merged[k] = local[k]; });
         state.max = merged;
     }
