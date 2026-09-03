@@ -6707,3 +6707,6 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 /* v622: expressões do phrasebook a reutilizar na escrita */
 .tutor-coach-task-reuse { font-size: 0.8rem; color: #475569; margin: 4px 0 8px; line-height: 1.4; }
 .tutor-coach-task-reuse b { color: #0f766e; font-weight: 700; }
+
+/* v624: roleplay do plano — trocar de cena */
+.tutor-role-other { margin-top: 6px; }
