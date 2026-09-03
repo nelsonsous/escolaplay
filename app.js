@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v615';
+const APP_VERSION = 'v616';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6275,7 +6275,7 @@ async function _tutorPracticeWeak() {
     if (!list.length || !tutorState) return;
     tutorState._practiceReply = 'Continuamos quando quiseres.';
     const lv = (typeof _tutorTargetLevel === 'function') ? _tutorTargetLevel() : 'B2';
-    _tutorBusy(`A preparar ${list.length * 3} exercícios sobre os teus erros…`);
+    _tutorBusy(`A preparar ${list.length * 3} exercícios sobre os teus erros…`, 10);
     const sys = `You are an English tutor for a Portuguese Project Manager (CEFR ${lv}, SAP/consulting). For EACH topic given, create exactly 3 quick multiple-choice exercises. Return ONLY a JSON object: {"items":[{"q":"English sentence with ONE gap ___ (or a best-choice question)","options":["English","English","English"],"answer":0,"exp":"1-line explanation in English","expPt":"nota PT-PT max 12 palavras","topic":"the topic name EXACTLY as given"}]}
 QUALITY: exactly ONE "___" per gapped sentence; the correct answer must not appear elsewhere in the sentence; exactly one option fits, the other two clearly wrong; sentences from project/meeting life. Portuguese notes in EUROPEAN PORTUGUESE.`;
     const usr = `Topics:\n${list.map(t => '- ' + t).join('\n')}`;
@@ -7882,7 +7882,7 @@ async function _tutorCoachVocab() {
     const theme = themes[_di % themes.length];
     const seen = ((state && state.tutorVocabHistory) || []).flatMap(h => (h.items || []).map(it => String(it.collocation || '').toLowerCase())).filter(Boolean).slice(-60);
     // v599: estado na barra, não uma bolha extra no chat.
-    _tutorBusy(`📚 A gerar 10 collocations · ${theme}…`);
+    _tutorBusy(`📚 A gerar 10 collocations · ${theme}…`, 8);
     const sys = `You are an English teacher building a ${lv} collocations sheet for a Portuguese Project Manager working in SAP/consulting. Return ONLY JSON with key "items" — an array of 10 objects: {collocation, meaning, example, register, pt}. "pt" is the EUROPEAN PORTUGUESE meaning (max 8 words). Theme: ${theme}. Avoid A1/A2 basics. Pick collocations and phrasal verbs that are notably ${lv} and that a PM would really use in meetings, emails and reports about this theme; examples must come from project life.${seen.length ? ' Do NOT include any of these (already studied): ' + seen.join('; ') + '.' : ''}`;
     const usr = `Generate 10 ${lv}-level collocations on "${theme}" now.`;
     try {
@@ -8049,9 +8049,20 @@ function _tutorValidQuiz(arr, max) {
         typeof it.answer === 'number' && it.answer >= 0 && it.answer < it.options.length
     ).slice(0, max || 10);
 }
-function _tutorBusy(msg) {
+// v616: estado de espera com estimativa (≈N s) e mensagens intercalares
+// aos 8 s e 20 s — a espera pela IA deixa de parecer um bloqueio.
+window._tutorBusyDelays = [8000, 20000];
+let _tutorBusyTimers = [];
+function _tutorBusy(msg, estSec) {
     const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> ${escapeHtml(msg)}</div>`;
+    _tutorBusyTimers.forEach(t => clearTimeout(t)); _tutorBusyTimers = [];
+    if (!bar) return;
+    const est = estSec ? ` <span class="tutor-busy-est">≈${Math.round(estSec)} s</span>` : '';
+    bar.innerHTML = `<div class="tutor-thinking" data-busy="1"><span class="tts-spinner"></span> <span class="tutor-busy-msg">${escapeHtml(msg)}</span>${est}<span class="tutor-busy-more"></span></div>`;
+    const more = (t) => { const el = bar.querySelector('.tutor-thinking[data-busy] .tutor-busy-more'); if (el) el.textContent = ' · ' + t; };
+    const d = window._tutorBusyDelays || [8000, 20000];
+    _tutorBusyTimers.push(setTimeout(() => more('a IA ainda está a escrever…'), d[0]));
+    _tutorBusyTimers.push(setTimeout(() => more('quase… se demorar muito, toca em Tentar de novo quando aparecer'), d[1]));
 }
 // Encoding para valores de atributo (aspas incluídas). escapeHtml também já
 // escapa aspas (v598: auditoria) — mantém-se _tutorAttr por clareza nos
@@ -8132,7 +8143,7 @@ async function _tutorClassStart(focus, topicOverride) {
     const f = _TUTOR_CLASS_FOCUS[focus];
     const lv = _tutorTargetLevel();
     const topic = String(topicOverride || '').trim() || _tutorClassTopic();
-    _tutorBusy(`A preparar a aula de ${f.label}…`);
+    _tutorBusy(`A preparar a aula de ${f.label}…`, 15);
     const sys = `You are an English tutor building a focused ~20-minute lesson for a Portuguese Project Manager working in SAP/consulting, consolidating CEFR ${lv}. Return ONLY a JSON object.
 LANGUAGE RULES (critical): every explanation is in EUROPEAN PORTUGUESE (Portugal, never Brazilian); every example, phrase, question and option is in ENGLISH; grammar term names (Simple Past, Present Perfect, Conditionals, Prepositions…) stay in ENGLISH even inside the Portuguese text.
 Focus of this lesson: ${focus === 'grammar' ? 'GRAMMAR — one rule taught through meaning, with a mental model and a golden rule.' : focus === 'conversation' ? 'CONVERSATION — ready-to-use phrases for real meetings, with register and when to use each.' : 'LISTENING — a short spoken passage the student will hear, then comprehension.'}
@@ -8276,7 +8287,7 @@ async function _tutorFlashSubmit(tid) {
     if (!words.length) { showToast && showToast('Escreve pelo menos uma palavra'); return; }
     const submit = document.querySelector(`button.tutor-coach-submit[data-tid="${tid}"]`);
     if (submit) { submit.disabled = true; submit.textContent = 'A criar…'; }
-    _tutorBusy(`A criar ${words.length} flashcards…`);
+    _tutorBusy(`A criar ${words.length} flashcards…`, 10);
     const lv = _tutorTargetLevel();
     const sys = `You are an English tutor making flashcards for a Portuguese Project Manager (CEFR ${lv}) working in SAP/consulting. Return ONLY a JSON object: {"cards":[{"term":"the English term exactly as given","pt":"EUROPEAN PORTUGUESE meaning, max 10 words","example":"ONE natural English sentence from project/meeting life using the term","trick":"a short memorisation trick in EUROPEAN PORTUGUESE — a cognate, false friend warning, image or word-part breakdown, max 15 words"}]}
 Keep "term" exactly as the student wrote it. One card per term, same order, no extras. Portuguese is always European Portuguese (Portugal), never Brazilian.`;
@@ -8394,7 +8405,7 @@ async function _tutorCoachTest() {
         <div class="tutor-bubble tutor-them"><span>${isFinal ? `🎓 <b>Teste final das 3 semanas</b>: ${nQ} perguntas sobre tudo o que estudaste (${topics.length} tópicos)` : `${(() => { try { return _di < TUTOR_PLAN_DAYS ? `Teste da semana ${Math.floor(_di / 7) + 1} do plano` : 'Teste de progresso'; } catch { return 'Teste de progresso'; } })()}: perguntas sobre o que estudaste nos últimos 7 dias (${topics.length} ${topics.length === 1 ? 'tópico' : 'tópicos'})`}. Não te corrijo pelo caminho — respondes tudo e vês o resultado no fim.</span></div>
       </div>`);
     _tutorScroll();
-    _tutorBusy(isFinal ? 'A montar o teste final das 3 semanas…' : 'A montar o teste dos últimos 7 dias…');
+    _tutorBusy(isFinal ? 'A montar o teste final das 3 semanas…' : 'A montar o teste dos últimos 7 dias…', isFinal ? 25 : 15);
     const sys = `You are an English examiner writing a ${nQ}-question progress test for a Portuguese Project Manager at CEFR ${lv}, working in SAP/consulting. The test must cover ONLY the topics the student studied ${isFinal ? 'in the last three weeks' : 'this week'}, given below — spread the questions across them, hardest topics twice if needed. Return ONLY a JSON object:
 {"questions":[{"q":"English question or sentence with ONE gap ___","options":["English","English","English"],"answer":0,"exp":"1-line explanation in ENGLISH","expPt":"nota PT-PT max 12 palavras","topic":"which studied topic this tests"}]}
 Exactly ${nQ} questions. QUALITY (critical): exactly ONE "___" per gapped sentence; the correct answer must NOT appear elsewhere in the sentence; exactly one option fits naturally and the other two must be clearly wrong; once filled, the sentence must read as natural English. "topic" must be one of the studied topics, copied verbatim. Portuguese notes in EUROPEAN PORTUGUESE (Portugal, never Brazilian), grammar term names in English.`;
@@ -8670,7 +8681,7 @@ async function _tutorImmerseSubmit(tid) {
     if (src.length < 40) { showToast && showToast('Cola um texto um pouco maior (40+ caracteres)'); return; }
     const submit = document.querySelector(`button.tutor-coach-submit[data-tid="${tid}"]`);
     if (submit) { submit.disabled = true; submit.textContent = 'A traduzir…'; }
-    _tutorBusy('A traduzir e a preparar as perguntas…');
+    _tutorBusy('A traduzir e a preparar as perguntas…', 12);
     const lv = _tutorTargetLevel();
     const sys = `You are an English tutor working with a Portuguese Project Manager at CEFR ${lv} in SAP/consulting. The student pastes a text. If it is in Portuguese, translate it into natural, idiomatic ENGLISH at ${lv} level (professional register, not word-for-word). If it is already in English, rewrite it as a more natural, native-sounding version. Return ONLY a JSON object:
 {"translation":"the English text",
