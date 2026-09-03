@@ -193,7 +193,11 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil ativo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorSkillsDone','tutorPlan'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorSkillsDone','tutorPlan','tutorTargetLevel','tutorVocabHistory'];
+// Definições ao nível do dispositivo (não do perfil) que têm de sobreviver
+// ao reload: vozes/TTS, Voxtral, proxy, pausa do professor de leitura, etc.
+// Guardadas em payload.settings pelo saveState (v589).
+const DEVICE_FIELDS = ['voicePT','useEdgeTTS','edgeVoice','useMistralTTS','mistralVoice','useGeminiTTS','geminiVoice','geminiRotateVoice','ttsProxyUrl','ttsVoiceNameEN','useVoxtral','teacherPauseMode','coursePath','tutorMeetPhrases'];
 
 // Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
 // saem do dispositivo — são dados pessoais de crianças. Packs (vampire:…,
@@ -256,7 +260,7 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {})
     Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
         id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorSkillsDone: {}, tutorPlan: null,
+        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorSkillsDone: {}, tutorPlan: null, tutorTargetLevel: '', tutorVocabHistory: [],
         paperSheet: null, writeSheet: null, dictSheet: null,
         name, avatar, year, currentPeriod: 1,
         xp: 0,
@@ -368,6 +372,9 @@ function loadState() {
         };
         if (!s.max.enabled) s.max.enabled = true;
         _migrateMaxPreferred(s.max);
+        // v589: definições do dispositivo (vozes, Voxtral, proxy TTS…) — antes
+        // viviam só em memória e voltavam ao defeito a cada arranque.
+        if (parsed.settings && typeof parsed.settings === 'object') DEVICE_FIELDS.forEach(k => { if (parsed.settings[k] !== undefined) s[k] = parsed.settings[k]; });
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
         s.profiles.forEach(p => {
             const curr = CURRICULUM_BY_YEAR[p.year];
@@ -602,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v588';
+const APP_VERSION = 'v589';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -754,7 +761,9 @@ function loadYearExtras(year) {
 let _saveFailToastAt = 0;
 function saveState() {
     // Serializar apenas { profiles, activeProfileId, max, customAvatars } — os getters não são enumeráveis
-    const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max, customAvatars: state.customAvatars || [] };
+    const settings = {};
+    DEVICE_FIELDS.forEach(k => { if (state[k] !== undefined) settings[k] = state[k]; });
+    const payload = { profiles: state.profiles, activeProfileId: state.activeProfileId, max: state.max, customAvatars: state.customAvatars || [], settings };
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
@@ -7712,7 +7721,8 @@ async function _tutorCoachVocab() {
         // Guarda em state para uso futuro em weak/review
         if (!state.tutorVocabHistory) state.tutorVocabHistory = [];
         state.tutorVocabHistory.push({ lv, items, at: Date.now() });
-        if (state.tutorVocabHistory.length > 50) state.tutorVocabHistory.shift();
+        // v589: persistido no perfil; 25 sessões chegam para as 3 semanas.
+        if (state.tutorVocabHistory.length > 25) state.tutorVocabHistory.shift();
         try { saveState && saveState(); } catch {}
     } catch (e) {
         _tutorAddTutor('⚠️ Could not generate vocab — try again.');
