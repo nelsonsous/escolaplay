@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v604';
+const APP_VERSION = 'v605';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9832,9 +9832,13 @@ function _tutorPointsHtml(points) {
 // Linha de ações de aprendizagem: tirar dúvida + pedir explicação detalhada
 function _tutorXtraRow(topic) {
     const t = escapeHtml(topic || '');
+    // v605: "Mais detalhe" (lição completa, mais uma chamada à IA) só quando o
+    // tópico ainda não foi ensinado; depois da aula basta "Tirar dúvida".
+    let showDeep = true;
+    try { showDeep = !topic || (typeof _tutorIsNewTopic === 'function' && _tutorIsNewTopic(topic)); } catch {}
     return `<div class="tutor-xtra-row">
       <button class="tutor-xtra doubt" data-topic="${t}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> ${_tutT('Ask a question','Tirar dúvida')}</button>
-      <button class="tutor-xtra deep" data-topic="${t}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> ${_tutT('More detail','Mais detalhe')}</button>
+      ${showDeep ? `<button class="tutor-xtra deep" data-topic="${t}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> ${_tutT('More detail','Mais detalhe')}</button>` : ''}
     </div>`;
 }
 function _tutorExamplesHtml(examples) {
@@ -10040,7 +10044,7 @@ function _tutorRenderPracticeItem() {
     _tutorScroll();
     const bar = document.getElementById('tutor-bar');
     const dtopic = it.topic || pq.topic || '';
-    if (bar) bar.innerHTML = `<div class="tutor-hintbar"><span>Escolhe a opção correta</span> <button class="tutor-quit ask" data-topic="${escapeHtml(dtopic)}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> tirar dúvida</button> <button class="tutor-quit deep" data-topic="${escapeHtml(dtopic)}" onclick="_tutorDeepDive(this.dataset.topic)"><i class="fas fa-book-open"></i> mais detalhe</button> <button class="tutor-quit" onclick="_tutorQuitPractice()"><i class="fas fa-arrow-left"></i> voltar à conversa</button></div>`;
+    if (bar) bar.innerHTML = `<div class="tutor-hintbar"><span>Escolhe a opção correta</span> <button class="tutor-quit ask" data-topic="${escapeHtml(dtopic)}" onclick="_tutorAskDoubt(this.dataset.topic)"><i class="fas fa-circle-question"></i> tirar dúvida</button> <button class="tutor-quit" onclick="_tutorQuitPractice()"><i class="fas fa-arrow-left"></i> voltar à conversa</button></div>`;
 }
 function _tutorQuitPractice() {
     if (!tutorState) return;
