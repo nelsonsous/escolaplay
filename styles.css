@@ -6688,6 +6688,10 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .tp-cert-score { color: #78350f; font-size: 0.95rem; margin-bottom: 8px; }
 .tp-cert-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 0.8rem; color: #334155; text-align: left; }
 .tp-cert-foot { margin-top: 8px; font-size: 0.72rem; color: #92400e; }
+.review-recall { border: 1.5px solid #99f6e4; }
+.review-cue { font-size: 1.05rem; font-weight: 800; color: #134e4a; margin-bottom: 4px; }
+.review-ask { font-size: 0.82rem; color: #0f766e; margin-bottom: 10px; }
+.review-rest { font-size: 0.85rem; color: #475569; margin-top: 4px; white-space: pre-wrap; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
