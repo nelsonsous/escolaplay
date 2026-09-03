@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v621';
+const APP_VERSION = 'v622';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7635,43 +7635,64 @@ async function _tutorCoachWriting() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const lv = _tutorTargetLevel();
-    // v579: prompts do dia-a-dia de um PM SAP/consultoria, rodados pelo dia
-    // do plano (não repete nas 3 semanas).
+    // v579: prompts do dia-a-dia de um PM SAP/consultoria. v622: 10 por
+    // nível, indexados pela SESSÃO de escrita (dias ímpares do plano → 10
+    // sessões) — antes, com 7 temas, os dias 15/17/19 repetiam os dias 1/3/5.
     const prompts = {
         B1: ['Write a short status email to your client: the test phase is finished, two issues remain, and go-live stays on the same date.',
              'Describe a problem you solved in a recent project and what you learned from it.',
              'A colleague asks you to explain what a cut-over is. Write your reply in simple words.',
              'Write a message to your team about tomorrow\'s workshop: time, place, agenda, what to prepare.',
-             'Describe your role in your current project and your main responsibilities this month.'],
+             'Describe your role in your current project and your main responsibilities this month.',
+             'Write an email asking the client for the missing test data, with a clear deadline.',
+             'Tell a new colleague how a typical week looks in your project.',
+             'Write a short note to your manager: you need one more person for two weeks, and why.',
+             'Describe the most useful SAP feature you showed a user recently and why it helps them.',
+             'Write a thank-you message to the team after a successful go-live weekend.'],
         B2: ['Write an email to the steering committee explaining a two-week delay in the cut-over and proposing a new plan.',
              'A client asks for a change outside the scope. Refuse politely and propose a change request.',
              'Write the minutes of a 30-minute status meeting: decisions, open points, owners and deadlines.',
              'Explain to a non-technical manager why data migration is the biggest risk of the project.',
              'Write a message escalating a blocker to your director: what happened, impact, and what you need.',
              'Describe the lessons learned from your last go-live in a short note for a new team member.',
-             'Reply to an unhappy key user who says the new system is slower than the old one.'],
+             'Reply to an unhappy key user who says the new system is slower than the old one.',
+             'Write a hypercare update for the client: incidents this week, what was fixed, what is still open.',
+             'Propose a go/no-go checklist for the cut-over weekend and explain the two most critical items.',
+             'Write a short note to a vendor whose consultant is underperforming: facts, impact, what you expect.'],
         C1: ['Write a 150-word executive summary of a go-live risk, its impact and your mitigation plan.',
              'Argue for or against a big-bang go-live versus a phased rollout for a multi-country SAP project.',
              'Write a diplomatic email to a vendor whose deliverable is late for the second time.',
              'Summarise the trade-offs of standard SAP versus custom development for a sceptical CFO.',
              'Prepare the opening statement of a steering committee where you must ask for extra budget.',
              '"Most project delays are communication failures, not technical ones." Discuss.',
-             'Write a hand-over note for the project manager who will replace you next month.'],
+             'Write a hand-over note for the project manager who will replace you next month.',
+             'Explain to the board why the project will exceed budget by 15% and what you propose.',
+             'Write a candid but constructive review of a team member for their annual appraisal.',
+             'Respond to a client who wants to skip user acceptance testing to save two weeks.'],
         C2: ['Critique the claim that agile methods do not work for SAP implementations.',
              'Write a persuasive note convincing a client to postpone go-live by a month despite political pressure.',
              'Argue for or against four-day work weeks in consulting, weighing client expectations and team retention.',
-             'Draft a 150-word post-mortem of a failed cut-over for the board: candid, but constructive.']
+             'Draft a 150-word post-mortem of a failed cut-over for the board: candid, but constructive.',
+             'Write a position paper: should a global template be enforced on all countries, or adapted locally?',
+             '"A project manager who never says no is not managing." Discuss with examples.',
+             'Draft the rationale for replacing a long-standing vendor mid-project, addressing the political cost.',
+             'Write a reflective note on the hardest decision you took as a project manager and what it taught you.',
+             'Argue whether AI assistants will change the consultant\'s role more than the client\'s.',
+             'Write an opinion piece for a consulting newsletter: the myth of the "standard" implementation.']
     };
     const opts = prompts[lv] || prompts.B2;
     const _di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
-    const prompt = opts[_di % opts.length];
+    const prompt = opts[Math.floor(_di / 2) % opts.length];
+    // v622: reutilizar 2 expressões que está a memorizar (recuperação ativa).
+    const reuse = _tutorRecentPhrases(2);
     const tid = 'coach-write-' + Date.now();
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">📝</div>
         <div class="tutor-coach-task">
           <div class="tutor-coach-task-h">📝 Writing · ${lv} · 100–150 words</div>
           <div class="tutor-coach-task-p">${escapeHtml(prompt)}</div>
-          <textarea class="tutor-coach-input" id="${tid}-ta" data-prompt="${escapeHtml(prompt)}" data-lv="${lv}" placeholder="Start writing here…" rows="6"></textarea>
+          ${reuse.length ? `<div class="tutor-coach-task-reuse">💡 Tenta usar: ${reuse.map(p => `<b>${escapeHtml(p)}</b>`).join(' · ')}</div>` : ''}
+          <textarea class="tutor-coach-input" id="${tid}-ta" data-prompt="${escapeHtml(prompt)}" data-lv="${lv}" data-reuse="${_tutorAttr(reuse.join(' | '))}" placeholder="Start writing here…" rows="6"></textarea>
           <div class="tutor-coach-task-bar">
             <span id="${tid}-count" class="tutor-coach-count">0 words</span>
             <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorCoachWritingSubmit(this.dataset.tid)">Get feedback →</button>
@@ -7703,7 +7724,8 @@ async function _tutorCoachWritingSubmit(tid) {
     // v592: + versão modelo (reescrita ao nível, mantendo as ideias) e uma
     // categoria gramatical por correção, para alimentar os "erros a treinar".
     const sys = `You are a strict CEFR examiner grading writing at level ${lv} for a Portuguese Project Manager in SAP/consulting. Return ONLY a JSON object (no prose) with keys: task (0-5), coherence (0-5), range (0-5), accuracy (0-5), overall (one of A2/B1/B2/C1/C2), feedback (markdown string, 4 short bullets, in English, focused on UPGRADES to next level), corrections (array of {original, better, reason, topic}) where "topic" is the English grammar/usage category (e.g. "Present Perfect", "Articles", "Prepositions", "Word order", "Collocation", "Register"), and model (string: the student's text rewritten at ${lv} level in natural professional English, 100-150 words, keeping their ideas and structure). Pick 3 corrections max — the most impactful ones.`;
-    const usr = `Prompt: ${prompt}\n\nStudent answer:\n${text}`;
+    const reuse = String(ta.dataset.reuse || '').split(' | ').filter(Boolean);
+    const usr = `Prompt: ${prompt}${reuse.length ? `\nThe student was asked to try to use these expressions: ${reuse.map(r => '"' + r + '"').join(', ')} — mention in the feedback whether they were used well.` : ''}\n\nStudent answer:\n${text}`;
     try {
         const json = await _tutorAskJSONValid(sys, usr, 1400, (j) => (j && j.overall && j.feedback && String(j.model || '').trim().length >= 40) ? '' : 'missing overall/feedback/model');
         // Erros → "erros a treinar" (a aula do dia escolhe-os primeiro).

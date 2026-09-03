@@ -6703,3 +6703,7 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .tutor-card { flex-wrap: wrap; }
 .tutor-card-bar { flex-basis: 100%; height: 6px; background: rgba(255,255,255,0.35); border-radius: 999px; margin-top: 10px; overflow: hidden; }
 .tutor-card-bar span { display: block; height: 100%; background: #fff; border-radius: 999px; transition: width 0.4s; }
+
+/* v622: expressões do phrasebook a reutilizar na escrita */
+.tutor-coach-task-reuse { font-size: 0.8rem; color: #475569; margin: 4px 0 8px; line-height: 1.4; }
+.tutor-coach-task-reuse b { color: #0f766e; font-weight: 700; }
