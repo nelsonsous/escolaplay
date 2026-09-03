@@ -602,7 +602,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v585';
+const APP_VERSION = 'v586';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8457,6 +8457,38 @@ const _TUTOR_MEETING_PHRASES = [
         { en: "Thanks, everyone — great progress today.", pt: 'Obrigado a todos — grande progresso hoje.' },
         { en: "John will own the follow-up on the data issue.", pt: 'O John fica dono do follow-up do tema dos dados.' },
         { en: "If anything comes up, just ping me on Teams.", pt: 'Se surgir algo, manda-me mensagem no Teams.' }
+    ]},
+    // v586: três categorias que faltavam a um PM SAP — pedir decisões/escalar,
+    // apresentar números e negociar âmbito (change requests).
+    { id: 'decide', icon: '🧭', label: 'Pedir decisões e escalar', phrases: [
+        { en: "We need a decision on this today, otherwise the go-live slips.", pt: 'Precisamos de uma decisão hoje, senão o go-live desliza.' },
+        { en: "There are two options on the table — which one do you prefer?", pt: 'Há duas opções em cima da mesa — qual preferes?' },
+        { en: "My recommendation is option B, because it protects the timeline.", pt: 'A minha recomendação é a opção B, porque protege o calendário.' },
+        { en: "I'd like to escalate this to the steering committee.", pt: 'Gostava de escalar isto para o steering committee.' },
+        { en: "If we don't get the resources by Monday, the risk becomes an issue.", pt: 'Se não tivermos os recursos até 2.ª feira, o risco passa a problema.' },
+        { en: "Who is the decision-maker on this?", pt: 'Quem é que decide sobre isto?' },
+        { en: "Can we agree that finance signs off by Wednesday?", pt: 'Podemos combinar que finanças aprova até 4.ª feira?' },
+        { en: "I need your support to unblock the vendor.", pt: 'Preciso do teu apoio para desbloquear o fornecedor.' }
+    ]},
+    { id: 'present', icon: '📈', label: 'Apresentar e explicar', phrases: [
+        { en: "Let me walk you through the numbers.", pt: 'Deixem-me explicar os números, passo a passo.' },
+        { en: "As you can see on this slide, testing is sixty percent complete.", pt: 'Como veem neste slide, os testes estão a 60%.' },
+        { en: "The key figure here is the number of open defects.", pt: 'O número-chave aqui é o de defeitos em aberto.' },
+        { en: "In practical terms, this means one extra week of testing.", pt: 'Em termos práticos, isto significa mais uma semana de testes.' },
+        { en: "Let me give you some context before the detail.", pt: 'Deixem-me dar contexto antes do detalhe.' },
+        { en: "This is the trend over the last three sprints.", pt: 'Esta é a tendência dos últimos três sprints.' },
+        { en: "To put it simply: the system works, the data doesn't yet.", pt: 'Em resumo: o sistema funciona, os dados ainda não.' },
+        { en: "I'll pause here — any questions so far?", pt: 'Paro aqui — alguma pergunta até agora?' }
+    ]},
+    { id: 'scope', icon: '📦', label: 'Negociar âmbito e mudanças', phrases: [
+        { en: "That's outside the current scope.", pt: 'Isso está fora do âmbito atual.' },
+        { en: "We can do it, but it will impact the timeline and the budget.", pt: 'Podemos fazê-lo, mas afeta o calendário e o orçamento.' },
+        { en: "We'd need a change request for that.", pt: 'Precisaríamos de um change request para isso.' },
+        { en: "Let's prioritise — what is a must-have for go-live?", pt: 'Vamos priorizar — o que é obrigatório para o go-live?' },
+        { en: "I suggest we park this for phase two.", pt: 'Sugiro deixarmos isto para a fase dois.' },
+        { en: "If we add this, what can we take out?", pt: 'Se acrescentamos isto, o que podemos tirar?' },
+        { en: "I understand the need; let's look at the effort first.", pt: 'Percebo a necessidade; vejamos primeiro o esforço.' },
+        { en: "Let's stick to the standard unless there's a strong business case.", pt: 'Fiquemos pelo standard, salvo um business case forte.' }
     ]},
     { id: 'social', icon: '☕', label: 'Small talk profissional', phrases: [
         { en: "How was your weekend? Did you get some rest?", pt: 'Como foi o fim de semana? Descansaste?' },
