@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v622';
+const APP_VERSION = 'v623';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7784,7 +7784,13 @@ async function _tutorCoachPron() {
             "If I had more time, I would test everything again.",
             "Can we move our call to Thursday morning?",
             "There is a small problem with the latest release.",
-            "I will share my screen so everyone can see the plan."
+            "I will share my screen so everyone can see the plan.",
+            "Sorry, I didn't catch that. Could you say it again, please?",
+            "We need two more days to finish the tests.",
+            "The client wants a short demo on Friday afternoon.",
+            "Please send me the list of open tickets before lunch.",
+            "Everything is ready for the training session tomorrow.",
+            "How long will it take to fix the interface error?"
         ],
         B2: [
             "Although the proposal looks promising, it's not without risks.",
@@ -7796,7 +7802,13 @@ async function _tutorCoachPron() {
             "The sooner we get sign-off, the sooner we can start development.",
             "To be honest, I have some concerns about the current timeline.",
             "Could you clarify what you mean by a soft launch?",
-            "We should weigh the benefits against the migration costs."
+            "We should weigh the benefits against the migration costs.",
+            "As far as I'm aware, the vendor hasn't confirmed the new date yet.",
+            "I'd appreciate it if you could give me a heads-up before the demo.",
+            "What worries me most is the number of open defects in finance.",
+            "We'll have to push the cut-over back by a week, I'm afraid.",
+            "Let me give you a quick rundown of where we stand on the migration.",
+            "Wouldn't it make more sense to test the interfaces first?"
         ],
         C1: [
             "Had I known the deadline was so tight, I would have escalated sooner.",
@@ -7808,7 +7820,13 @@ async function _tutorCoachPron() {
             "Rarely have I seen a go-live proceed this smoothly.",
             "Provided the client signs off today, we can freeze the scope tomorrow.",
             "It's worth bearing in mind that the vendor has slipped twice already.",
-            "Having weighed both options, I'd lean towards the phased approach."
+            "Having weighed both options, I'd lean towards the phased approach.",
+            "Whatever the outcome, we mustn't lose sight of the hypercare commitments.",
+            "I can't help feeling that the estimate was optimistic from the outset.",
+            "Little did we know that the data quality would become the critical path.",
+            "Were we to postpone, the licence costs alone would run into six figures.",
+            "It goes without saying that the client expects a single point of contact.",
+            "Only once the interfaces are stable can we realistically talk about go-live."
         ],
         C2: [
             "Were it not for the board's intervention, the merger would have collapsed.",
@@ -7820,17 +7838,27 @@ async function _tutorCoachPron() {
             "Under no circumstances should we commit to a date without contingency.",
             "What the post-mortem revealed was a systemic failure of communication.",
             "Had the dependencies been mapped earlier, the slippage could have been averted.",
-            "Seldom does a programme of this scale conclude without scope disputes."
+            "Seldom does a programme of this scale conclude without scope disputes.",
+            "Not for the first time, the steering committee has moved the goalposts.",
+            "So entrenched were the legacy processes that adoption stalled for months.",
+            "The very assumptions underpinning the business case have since unravelled.",
+            "Scarcely had the ink dried on the contract when the scope began to creep.",
+            "Nowhere is the gap between ambition and capacity more evident than in testing.",
+            "Much as I'd like to agree, the evidence points the other way."
         ]
     };
     const opts = banks[lv] || banks.B2;
-    // v594: sessão de 4 frases (rodam com o dia do plano), em dois modos que
-    // alternam por dia: SHADOWING (ouve o modelo e repete logo a seguir —
-    // o método com melhor evidência para ritmo e entoação) e LEITURA (lês
-    // primeiro, ouves o modelo depois). O passo do plano fecha no fim.
+    // v594: sessão de 4 frases em dois modos que alternam por dia: SHADOWING
+    // (ouve o modelo e repete logo a seguir — o método com melhor evidência
+    // para ritmo e entoação) e LEITURA (lês primeiro, ouves o modelo depois).
+    // v623: 16 frases por nível e índice pela SESSÃO do plano (dias 3/9/15/21
+    // → 4 sessões × 4 frases, sem repetir; antes, com 10, 6 frases repetiam);
+    // a 4.ª frase é uma expressão recente do phrasebook, se houver uma com
+    // 4+ palavras — treinas a dizer o que estás a memorizar.
     const di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
-    const start = (di * 4) % opts.length;
+    const start = (di % 6 === 2 ? Math.floor(di / 6) * 4 : di * 4) % opts.length;
     const queue = Array.from({ length: 4 }, (_, i) => opts[(start + i) % opts.length]);
+    try { const own = _tutorRecentPhrases(6).find(t => (t.match(/\S+/g) || []).length >= 4 && !queue.includes(t)); if (own) queue[3] = own; } catch {}
     tutorState._pronSess = { mode: di % 2 === 0 ? 'shadow' : 'read', queue, idx: 0, scores: [], lv };
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">🗣️</div>
