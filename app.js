@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v626';
+const APP_VERSION = 'v627';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1116,10 +1116,25 @@ function updateHeader() {
     const yearEl = document.getElementById('header-year');
     if (yearEl && p) {
         const cnt = state.profiles.length;
-        yearEl.innerHTML = `${p.year}.º ano${cnt > 1 ? ' <i class="fas fa-chevron-down" style="font-size:0.6rem;opacity:0.6"></i>' : ''}`;
+        yearEl.innerHTML = `${p.year === 99 ? 'Profissional' : p.year + '.º ano'}${cnt > 1 ? ' <i class="fas fa-chevron-down" style="font-size:0.6rem;opacity:0.6"></i>' : ''}`;
     }
 }
 
+// v627: qualquer passo do plano do tutor concluído conta como atividade do
+// dia para a ofensiva do cabeçalho (mesma regra dos exercícios: tolera 1 dia
+// de folga; sem escudo).
+function _touchStreakToday() {
+    try {
+        const today = todayStr();
+        if (!state.streak) state.streak = { days: 0, lastDate: null, best: 0 };
+        if (state.streak.lastDate === today) return;
+        const gap = state.streak.lastDate ? daysBetween(state.streak.lastDate, today) : 99;
+        state.streak.days = (gap >= 1 && gap <= 2) ? (state.streak.days || 0) + 1 : 1;
+        state.streak.lastDate = today;
+        if (state.streak.days > (state.streak.best || 0)) state.streak.best = state.streak.days;
+        if (typeof updateHeader === 'function') updateHeader();
+    } catch {}
+}
 function _streakTier(days) {
     if (days >= 30) return { tier: 4, emoji: '👑' };
     if (days >= 14) return { tier: 4, emoji: '⭐' };
@@ -1166,6 +1181,10 @@ function renderHome() {
     if (_homeTutorCard) {
         const _p = (typeof activeProfile === 'function' && activeProfile()) || {};
         _homeTutorCard.style.display = (_p.year === 99) ? 'flex' : 'none';
+        // v627: perfil profissional — o ecrã inicial é o plano de inglês; os
+        // blocos das filhas (desafio diário, dúvida, duelos, amigos, prémios,
+        // ofensiva de exercícios) ficam escondidos via body.pro-profile.
+        try { document.body.classList.toggle('pro-profile', _p.year === 99); } catch {}
         // v576: o cartão mostra o plano de 3 semanas — dia, próximo passo, feitos
         if (_p.year === 99) { try { _tutorPlanHomeCard(_homeTutorCard); } catch (e) { console.warn('[plan] home card', e); } }
     }
@@ -7501,6 +7520,7 @@ function _tutorPlanComplete(skill) {
     if (skill) { const ok = Array.isArray(skill) ? skill.includes(base) : base === skill; if (!ok) return false; }
     const already = !!d[cur.slot];
     d[cur.slot] = true; d.cur = null;
+    if (!already) _touchStreakToday();
     try { saveState(); } catch {}
     const steps = _tutorPlanSteps(Math.min(_tutorPlanDayIndex(), TUTOR_PLAN_DAYS - 1));
     const n = steps.filter(st => d[st.slot]).length;

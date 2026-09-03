@@ -6710,3 +6710,6 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 
 /* v624: roleplay do plano — trocar de cena */
 .tutor-role-other { margin-top: 6px; }
+
+/* v627: perfil profissional — ecrã inicial só com o plano de inglês */
+body.pro-profile .home-kids { display: none !important; }
