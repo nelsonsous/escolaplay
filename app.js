@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v602';
+const APP_VERSION = 'v603';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7790,7 +7790,12 @@ async function _tutorCoachVocab() {
         _tutorAddRich(`📚 <b>${escapeHtml(lv)} collocations · ${escapeHtml(theme)}</b><div class="tutor-class-phrases">${list}</div>Try using 3 of these in your next message and I'll check.`);
         // Guarda em state para uso futuro em weak/review
         if (!state.tutorVocabHistory) state.tutorVocabHistory = [];
-        state.tutorVocabHistory.push({ lv, items, at: Date.now() });
+        // v603: guardar só o que é usado depois (exclusão + matéria do teste):
+        // collocation e pt. Com os campos todos eram ~2 KB por sessão (43 KB
+        // em 3 semanas); assim ~150 B. Entradas antigas são encolhidas também.
+        const slim = (arr) => (Array.isArray(arr) ? arr : []).map(it => ({ collocation: String((it && it.collocation) || '').slice(0, 60), pt: String((it && it.pt) || '').slice(0, 60) }));
+        state.tutorVocabHistory = state.tutorVocabHistory.map(h => (h && h.items && h.items.some(it => it && (it.meaning || it.example))) ? { lv: h.lv, at: h.at, items: slim(h.items) } : h);
+        state.tutorVocabHistory.push({ lv, items: slim(items), at: Date.now() });
         // v589: persistido no perfil; 25 sessões chegam para as 3 semanas.
         if (state.tutorVocabHistory.length > 25) state.tutorVocabHistory.shift();
         try { saveState && saveState(); } catch {}
