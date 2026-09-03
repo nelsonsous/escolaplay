@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v589';
+const APP_VERSION = 'v590';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -12248,6 +12248,38 @@ window.exActionTap = exActionTap;
 // iOS shrink-encolhe o visualViewport mas o layout viewport não.
 // Usamos visualViewport API para subir a barra acima do teclado.
 // ============================================================
+// v590: o mesmo para os overlays do tutor (chat, revisão, explorar). São
+// position:fixed; inset:0 — no iOS o teclado encolhe o visualViewport mas
+// não o layout, e a barra de escrita ficava tapada pelo teclado. Ajusta a
+// altura/top do overlay ao viewport visível e faz scroll do chat ao fundo.
+const _TUTOR_KB_OVERLAYS = ['tutor-overlay', 'review-overlay', 'tutor-explore'];
+function _tutorKeyboardAdjust(vv) {
+    vv = vv || window.visualViewport;
+    if (!vv) return false;
+    const hidden = window.innerHeight - (vv.height + vv.offsetTop);
+    const open = hidden > 80;
+    let any = false;
+    _TUTOR_KB_OVERLAYS.forEach(id => {
+        const o = document.getElementById(id);
+        if (!o) return;
+        any = true;
+        if (open) { o.style.top = vv.offsetTop + 'px'; o.style.height = vv.height + 'px'; o.style.bottom = 'auto'; o.dataset.kb = '1'; }
+        else if (o.dataset.kb) { o.style.top = ''; o.style.height = ''; o.style.bottom = ''; delete o.dataset.kb; }
+    });
+    if (any && open && typeof _tutorScroll === 'function') _tutorScroll();
+    return open;
+}
+window._tutorKeyboardAdjust = _tutorKeyboardAdjust;
+(function _setupTutorKeyboardFix() {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const adjust = () => { try { _tutorKeyboardAdjust(); } catch {} };
+    window.visualViewport.addEventListener('resize', adjust);
+    window.visualViewport.addEventListener('scroll', adjust);
+    document.addEventListener('focusin', (e) => {
+        const t = e.target;
+        if (t && (t.id === 'tutor-text' || (t.closest && t.closest('#tutor-overlay, #review-overlay')))) { setTimeout(adjust, 100); setTimeout(adjust, 400); }
+    });
+})();
 (function _setupActionBarKeyboardFix() {
     if (typeof window === 'undefined' || !window.visualViewport) return;
     const adjust = () => {
