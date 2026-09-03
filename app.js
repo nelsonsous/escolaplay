@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v631';
+const APP_VERSION = 'v632';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6984,9 +6984,6 @@ function _tutorRenderMic() {
     const cancelLabel = _tutT('cancel','cancelar');
     const endRpLabel = _tutT('end and review','terminar e avaliar');
     const askLabel = _tutT('Ask a question','Tirar dúvida');
-    const hfLabel = _tutT('Hands-free','Mãos-livres');
-    const hfTitleOn = _tutT('Hands-free ON — tap to turn off','Mãos-livres ATIVO — toca para desligar');
-    const hfTitleOff = _tutT("Hands-free off — tap to turn on (the tutor speaks and listens on its own)",'Mãos-livres desligado — toca para ligar (o professor fala e ouve-te sozinho)');
     const speakLabel = _tutT('Speak','Falar');
     const sendLabel = _tutT('Send','Enviar');
     bar.innerHTML = `
@@ -6997,7 +6994,6 @@ function _tutorRenderMic() {
         <textarea id="tutor-text" class="tutor-text" rows="1" autocomplete="off" autocapitalize="sentences"
                placeholder="${ph}"></textarea>
         <button id="tutor-ask" class="tutor-ask-btn${asking ? ' on' : ''}" aria-label="${askLabel}" title="${askLabel}"><i class="fas fa-circle-question"></i></button>
-        ${sttOk ? `<button id="tutor-hf" class="tutor-hf-btn${_tutorHandsFreeOn() ? ' on' : ''}" aria-label="${hfLabel}" title="${_tutorHandsFreeOn() ? hfTitleOn : hfTitleOff}"><i class="fas fa-headset"></i></button>` : ''}
         ${sttOk ? `<button id="tutor-mic" class="tutor-mic-btn" aria-label="${speakLabel}"><i class="fas fa-microphone"></i></button>` : ''}
         <button id="tutor-send" class="tutor-send" aria-label="${sendLabel}"><i class="fas fa-paper-plane"></i></button>
       </div>`;
@@ -7019,8 +7015,6 @@ function _tutorRenderMic() {
     if (send) send.addEventListener('click', _tutorSubmitText);
     const mic = document.getElementById('tutor-mic');
     if (mic) mic.addEventListener('click', _tutorStartMic);
-    const hf = document.getElementById('tutor-hf');
-    if (hf) hf.addEventListener('click', _tutorToggleHF);
     const askBtn = document.getElementById('tutor-ask');
     if (askBtn) askBtn.addEventListener('click', _tutorToggleAsk);
 }
@@ -17862,6 +17856,11 @@ function openVoicePickerEN() {
         <div style="flex:1;overflow-y:auto;padding-right:4px">
           <button id="voice-test-current" onclick="previewCurrentEN()" style="width:100%;background:#0891b2;color:#fff;border:none;border-radius:12px;padding:12px;font-size:0.9rem;font-weight:800;cursor:pointer;margin-bottom:10px;min-height:44px"><i class="fas fa-play"></i> Testar a voz atual (a que o tutor usa)</button>
           ${engineNote}
+          ${(typeof _tutorCanListen === 'function' && _tutorCanListen()) ? `<div style="display:flex;align-items:center;gap:10px;background:#f1f5f9;border-radius:12px;padding:10px 12px;margin-bottom:12px">
+            <i class="fas fa-headset" style="color:#0f766e"></i>
+            <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:0.86rem;color:#0f172a">Mãos-livres</div><div style="font-size:0.72rem;color:#64748b;line-height:1.3">O professor fala e volta a ouvir-te sozinho, sem tocares no micro.</div></div>
+            <button id="voice-hf-toggle" onclick="_tutorToggleHF();openVoicePickerEN()" style="font-size:0.7rem;font-weight:800;background:${_tutorHandsFreeOn() ? '#22c55e' : '#cbd5e1'};color:#fff;border:none;padding:6px 12px;border-radius:999px;cursor:pointer">${_tutorHandsFreeOn() ? 'ON' : 'OFF'}</button>
+          </div>` : ''}
           ${mistralSection}
           ${edgeSection}
           ${gemSection}
