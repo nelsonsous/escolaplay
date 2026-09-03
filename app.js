@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v624';
+const APP_VERSION = 'v625';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7961,8 +7961,11 @@ async function _tutorCoachVocab() {
     // que já saiu, e cada item pode ir para o phrasebook com um toque.
     const themes = ['status updates & delays', 'negotiating scope & change requests', 'risks, issues & escalation',
         'presenting numbers & budgets', 'professional emails', 'aligning stakeholders & steering committees', 'disagreeing diplomatically'];
+    // v625: no plano as collocations caem nos dias 3/10/17 (dia % 7 === 2) —
+    // com "dia % 7" as três sessões davam o MESMO tema; agora rodam por
+    // sessão (0,1,2). Fora desses dias roda pelo dia.
     const _di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
-    const theme = themes[_di % themes.length];
+    const theme = themes[(_di % 7 === 2 ? Math.floor(_di / 7) : _di) % themes.length];
     const seen = ((state && state.tutorVocabHistory) || []).flatMap(h => (h.items || []).map(it => String(it.collocation || '').toLowerCase())).filter(Boolean).slice(-60);
     // v599: estado na barra, não uma bolha extra no chat.
     _tutorBusy(`📚 A gerar 10 collocations · ${theme}…`, 8);
@@ -8609,11 +8612,13 @@ function _tutorTestFinish() {
         try { saveState(); } catch {}
     }
     // v581: tópico com TODAS as perguntas certas no teste → consolidado (o ✓
-    // verdadeiro da escada). Antes só a prática da aula consolidava.
+    // verdadeiro da escada). v625: com UMA pergunta só conta se o tópico já
+    // teve aula (explorado) — uma resposta certa isolada não é domínio.
     try {
         const byTopic = {};
+        const explored = (typeof _tutorExplored === 'function') ? _tutorExplored() : {};
         t.items.forEach((it, k) => { const tp = String(it.topic || '').trim(); if (!tp) return; byTopic[tp] = byTopic[tp] || { n: 0, ok: 0 }; byTopic[tp].n++; if (t.answers[k] === it.answer) byTopic[tp].ok++; });
-        Object.keys(byTopic).forEach(tp => { if (byTopic[tp].n >= 1 && byTopic[tp].ok === byTopic[tp].n) _tutorMarkConsolidated(tp); });
+        Object.keys(byTopic).forEach(tp => { const b = byTopic[tp]; if (b.ok === b.n && (b.n >= 2 || explored[tp])) _tutorMarkConsolidated(tp); });
     } catch {}
     // Erros → SRS, para voltarem sozinhos daqui a uns dias.
     wrong.forEach(it => { try { _tutorEnqueueTopic(it.topic); } catch {} });
