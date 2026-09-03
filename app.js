@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v614';
+const APP_VERSION = 'v615';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6285,7 +6285,7 @@ QUALITY: exactly ONE "___" per gapped sentence; the correct answer must not appe
         items = _tutorValidQuiz(j && j.items, 9);
     } catch (e) { console.warn('[tutor] weak practice failed', e); }
     if (!tutorState) return;
-    if (!items.length) { _tutorAddTutor('Não consegui preparar exercícios agora. Continuamos?', '', '', true); return; }
+    if (!items.length) { _tutorAIFailCard('O treino dos erros', () => _tutorPracticeWeak()); return; }
     // Tópico de cada item: o nome dado (fallback: o 1.º tópico da lista).
     items.forEach(it => { it.depth = 0; const tp = String(it.topic || '').trim(); it.topic = list.find(t => t.toLowerCase() === tp.toLowerCase()) || list[0]; });
     tutorState._pq = { queue: items, topic: list[0] };
@@ -7693,7 +7693,7 @@ async function _tutorCoachWritingSubmit(tid) {
         try { const plan = _tutorPlanGet(); const k = todayStr(); plan.days[k] = plan.days[k] || {}; plan.days[k].write = { g: String(json.overall || ''), acc: Number(json.accuracy) || 0 }; saveState(); } catch {}
         try { _tutorPlanComplete('writing'); } catch {}
     } catch (e) {
-        _tutorAddTutor('⚠️ Could not grade — try again.');
+        _tutorLastAIErr = e; _tutorAIFailCard('O feedback da escrita', () => _tutorCoachWritingSubmit(tid));
         if (submit) { submit.disabled = false; submit.textContent = 'Get feedback →'; }
     }
 }
@@ -7909,7 +7909,7 @@ async function _tutorCoachVocab() {
         if (state.tutorVocabHistory.length > 25) state.tutorVocabHistory.shift();
         try { saveState && saveState(); } catch {}
     } catch (e) {
-        _tutorAddTutor('⚠️ Could not generate vocab — try again.');
+        _tutorLastAIErr = e; _tutorAIFailCard('As collocations', () => _tutorCoachVocab());
     }
 }
 window._tutorCoachVocab = _tutorCoachVocab;
@@ -7987,7 +7987,7 @@ async function _tutorAskJSONValid(sys, usr, maxTokens, validate) {
     for (let attempt = 0; attempt < 2; attempt++) {
         const u = attempt === 0 ? usr : `${usr}\n\nYour previous answer was invalid: ${reason}. Return the COMPLETE JSON object again, exactly in the shape requested, with every required field filled. No prose.`;
         let j = null;
-        try { j = await _tutorAskJSON(sys, u, maxTokens); } catch (e) { reason = 'no JSON returned'; last = null; continue; }
+        try { j = await _tutorAskJSON(sys, u, maxTokens); } catch (e) { _tutorLastAIErr = e; reason = 'no JSON returned'; last = null; continue; }
         last = j;
         reason = (typeof validate === 'function') ? String(validate(j) || '') : '';
         if (!reason) return j;
@@ -7996,6 +7996,44 @@ async function _tutorAskJSONValid(sys, usr, maxTokens, validate) {
     return last;
 }
 window._tutorAskJSONValid = _tutorAskJSONValid;
+// v615: UM cartão para todas as falhas da IA — motivo concreto (rede, chave,
+// limite, servidor, tempo) e "Tentar de novo" que repete a mesma ação.
+let _tutorLastAIErr = null;
+const _tutorRetryFns = {};
+function _tutorAIFailReason(err) {
+    const m = String((err && (err.message || err)) || '');
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return { k: 'net', t: 'Sem rede. A IA precisa de internet.' };
+    if (/401|403|invalid api key|unauthorized/i.test(m)) return { k: 'key', t: 'A chave Mistral parece inválida.' };
+    if (/429|rate limit|too many/i.test(m)) return { k: 'limit', t: 'Limite da API atingido — espera um minuto.' };
+    if (/5\d\d|unavailable|overloaded/i.test(m)) return { k: 'server', t: 'O Mistral está indisponível agora.' };
+    if (/abort|timeout|timed out/i.test(m)) return { k: 'time', t: 'A resposta demorou demasiado.' };
+    if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return { k: 'net', t: 'Sem rede ou ligação bloqueada.' };
+    if (/no key|Sem chave/i.test(m)) return { k: 'key', t: 'Falta a chave Mistral.' };
+    return { k: 'other', t: 'A resposta da IA veio incompleta.' };
+}
+function _tutorAIFailCard(label, retryFn) {
+    const chat = document.getElementById('tutor-chat');
+    if (!chat || !tutorState) return;
+    const r = _tutorAIFailReason(_tutorLastAIErr); _tutorLastAIErr = null;
+    const id = 'r' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+    _tutorRetryFns[id] = retryFn;
+    chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="fail-${id}"><div class="tutor-bubble-av">⚠️</div>
+        <div class="tutor-coach-task tp-fail" data-kind="${r.k}">
+          <div class="tutor-coach-task-h">⚠️ ${escapeHtml(label)} não ficou pronto</div>
+          <div class="tutor-coach-task-p">${escapeHtml(r.t)}</div>
+          <div class="tutor-coach-task-bar">
+            ${r.k === 'key' ? `<button class="tutor-lbtn" onclick="_tutorOpenKeySetup()"><i class="fas fa-key"></i> Configurar chave</button>` : ''}
+            <button class="tutor-coach-submit" onclick="_tutorRetryRun('${id}')"><i class="fas fa-rotate-right"></i> Tentar de novo</button>
+          </div>
+        </div></div>`);
+    _tutorScroll(); _tutorRenderMic();
+}
+function _tutorRetryRun(id) {
+    const fn = _tutorRetryFns[id]; delete _tutorRetryFns[id];
+    document.getElementById('fail-' + id)?.remove();
+    if (typeof fn === 'function') { try { fn(); } catch (e) { console.warn('[tutor] retry failed', e); } }
+}
+window._tutorAIFailCard = _tutorAIFailCard; window._tutorRetryRun = _tutorRetryRun; window._tutorAIFailReason = _tutorAIFailReason;
 // Frases recentes do phrasebook para reutilizar nos exemplos das aulas
 // (repetição espaçada em contexto — o que se revê em uso fixa-se melhor).
 function _tutorRecentPhrases(n) {
@@ -8127,7 +8165,7 @@ Include 3 "steps" (2-3 examples each), 3 "phrases", 4 "drill" items and 3 "quiz"
     const quiz = _tutorValidQuiz(d && d.quiz, 3);
     const script = String((d && d.script) || '').trim();
     if (!steps.length || (!drill.length && !quiz.length)) {
-        _tutorAddTutor('Não consegui preparar a aula agora. Tentamos outra vez daqui a pouco?', '', '', true);
+        _tutorAIFailCard('A aula', () => { _tutorClassIntro(focus, topic); _tutorClassStart(focus, topic); });
         return;
     }
     const cid = 'cls' + Date.now();
@@ -8251,7 +8289,7 @@ Keep "term" exactly as the student wrote it. One card per term, same order, no e
     if (!tutorState) return;
     if (!cards.length) {
         if (submit) { submit.disabled = false; submit.textContent = 'Criar flashcards →'; }
-        _tutorAddTutor('Não consegui criar os cartões agora. Tentamos outra vez?', '', '', true);
+        _tutorAIFailCard('Os flashcards', () => _tutorFlashSubmit(tid));
         return;
     }
     tutorState._flash = { tid, cards };
@@ -8369,7 +8407,7 @@ Exactly ${nQ} questions. QUALITY (critical): exactly ONE "___" per gapped senten
     } catch (e) { console.warn('[coach] test failed', e); }
     if (!tutorState) return;
     if (items.length < 4) {
-        _tutorAddTutor('Não consegui montar o teste agora. Tentamos outra vez daqui a pouco?', '', '', true);
+        _tutorAIFailCard('O teste', () => _tutorCoachTest());
         return;
     }
     tutorState._test = { items, idx: 0, answers: [], startedAt: Date.now(), final: isFinal };
@@ -8647,7 +8685,7 @@ Include 5 glossary entries, 3 expressions and 4 questions (at least one on vocab
     const questions = _tutorValidQuiz(d && d.questions, 4);
     if (!translation) {
         if (submit) { submit.disabled = false; submit.textContent = 'Traduzir e perguntar →'; }
-        _tutorAddTutor('Não consegui traduzir isso agora. Tentamos outra vez?', '', '', true);
+        _tutorAIFailCard('A imersão', () => _tutorImmerseSubmit(tid));
         return;
     }
     const gloss = (Array.isArray(d.glossary) ? d.glossary : []).slice(0, 6);
@@ -10139,7 +10177,7 @@ Return STRICT JSON array only:
         _tutorRenderPracticeItem();
     } catch (e) {
         console.warn('[tutor] practice failed', e);
-        if (tutorState) _tutorAddTutor('Não consegui preparar exercícios agora. Continuamos?', '', '', true);
+        if (tutorState) { _tutorLastAIErr = e; _tutorAIFailCard('Os exercícios', () => _tutorRunPractice(errorType, exampleCorrect)); }
     }
 }
 function _tutorParseExercises(text) {
