@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v608';
+const APP_VERSION = 'v609';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7446,7 +7446,12 @@ function _tutorPlanWeekSummaryHtml(weekNo) {
         const [a, b] = range(w); const t0 = a.getTime(), t1 = b.getTime() + 864e5;
         const tests = ((state.max && state.max.tutorTests) || []).filter(t => t && t.at >= t0 && t.at < t1 && t.total > 0);
         const best = tests.length ? Math.max(...tests.map(t => Math.round(100 * t.right / t.total))) : null;
-        return { fullDays, steps, tests: tests.length, best };
+        // v609: pronúncia (média das sessões) e escrita (última nota, n.º de textos)
+        const prons = keys.map(k => plan.days[k] && plan.days[k].pronAvg).filter(v => typeof v === 'number');
+        const pronAvg = prons.length ? Math.round(prons.reduce((a, b) => a + b, 0) / prons.length) : null;
+        const writes = keys.sort().map(k => plan.days[k] && plan.days[k].write).filter(w => w && w.g);
+        const writeLast = writes.length ? writes[writes.length - 1].g : null;
+        return { fullDays, steps, tests: tests.length, best, pronAvg, pronN: prons.length, writeLast, writeN: writes.length };
     };
     const cur = stats(weekNo), prev = weekNo > 1 ? stats(weekNo - 1) : null;
     const trend = (cur.best !== null && prev && prev.best !== null) ? (cur.best - prev.best) : null;
@@ -7459,6 +7464,8 @@ function _tutorPlanWeekSummaryHtml(weekNo) {
           <div><b>${cur.steps}</b> passos feitos</div>
           <div>${cur.best === null ? 'sem teste esta semana' : `melhor teste <b>${cur.best}%</b>${trendHtml}`}</div>
           <div><b>${cards}</b> cartões no phrasebook</div>
+          <div>${cur.pronAvg === null ? '🗣️ sem sessões de pronúncia' : `🗣️ pronúncia <b>${cur.pronAvg}%</b> (${cur.pronN} ${cur.pronN === 1 ? 'sessão' : 'sessões'})`}</div>
+          <div>${cur.writeLast === null ? '📝 sem textos escritos' : `📝 escrita <b>${escapeHtml(cur.writeLast)}</b> (${cur.writeN} ${cur.writeN === 1 ? 'texto' : 'textos'})`}</div>
         </div>
         <div class="tp-week-msg">${escapeHtml(msg)}</div></div>`;
 }
@@ -7605,6 +7612,8 @@ async function _tutorCoachWritingSubmit(tid) {
         _tutorAddRich(_tutorRenderWritingFeedback(json, lv));
         if (submit) submit.remove();
         ta.readOnly = true;
+        // v609: nota de escrita no dia do plano → resumo semanal.
+        try { const plan = _tutorPlanGet(); const k = todayStr(); plan.days[k] = plan.days[k] || {}; plan.days[k].write = { g: String(json.overall || ''), acc: Number(json.accuracy) || 0 }; saveState(); } catch {}
         try { _tutorPlanComplete('writing'); } catch {}
     } catch (e) {
         _tutorAddTutor('⚠️ Could not grade — try again.');
@@ -7740,6 +7749,8 @@ function _tutorPronFinish() {
     const sc = s.scores.filter(x => typeof x === 'number');
     const avg = sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : 0;
     const best = sc.length ? Math.max(...sc) : 0;
+    // v609: guarda a média no dia do plano → resumo semanal das 4 competências.
+    try { const plan = _tutorPlanGet(); const k = todayStr(); plan.days[k] = plan.days[k] || {}; if (sc.length) plan.days[k].pronAvg = avg; saveState(); } catch {}
     const msg = avg >= 85 ? 'Muito claro — mantém este ritmo.' : avg >= 65 ? 'Bom. Repete amanhã as frases a amarelo.' : 'Vale a pena repetir a sessão mais devagar, frase a frase.';
     _tutorAddRich(`🏁 <b>Sessão de pronúncia feita</b> · ${s.mode === 'shadow' ? 'shadowing' : 'leitura'}<br>Média <b>${avg}%</b> · melhor <b>${best}%</b> · ${sc.length} ${sc.length === 1 ? 'frase' : 'frases'}<br><span class="tutor-pron-hint">${escapeHtml(msg)}</span>`);
     try { _tutorPlanComplete('pron'); } catch {}
