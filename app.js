@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v598';
+const APP_VERSION = 'v599';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7718,6 +7718,10 @@ function _tutorPronFinish() {
     _tutorAddRich(`🏁 <b>Sessão de pronúncia feita</b> · ${s.mode === 'shadow' ? 'shadowing' : 'leitura'}<br>Média <b>${avg}%</b> · melhor <b>${best}%</b> · ${sc.length} ${sc.length === 1 ? 'frase' : 'frases'}<br><span class="tutor-pron-hint">${escapeHtml(msg)}</span>`);
     try { _tutorPlanComplete('pron'); } catch {}
     _tutorRenderMic();
+    // Uma única chamada à IA com as frases todas (padrões, não frase a frase).
+    if (Array.isArray(s.pairs) && s.pairs.length && typeof hasAIKey === 'function' && hasAIKey()) {
+        setTimeout(() => { try { _tutorCoachPronAIMulti(s.pairs, s.lv); } catch {} }, 300);
+    }
 }
 window._tutorPronFinish = _tutorPronFinish;
 
@@ -7737,6 +7741,20 @@ ${j.feedback}`);
     } catch (e) { /* bónus opcional — silêncio se a IA falhar */ }
 }
 window._tutorCoachPronAI = _tutorCoachPronAI;
+// v599: uma ÚNICA chamada à IA no fim da sessão de 4 frases (antes eram 4,
+// uma por frase, cada uma com a sua bolha no chat).
+async function _tutorCoachPronAIMulti(pairs, lv) {
+    const list = (pairs || []).filter(p => p && p.said).slice(0, 6);
+    if (!list.length) return;
+    const sys = `You are a CEFR examiner at level ${lv}. The student read several target sentences aloud; you get each target and what the speech recogniser heard. Return ONLY JSON with keys: score (one of A2/B1/B2/C1/C2), feedback (markdown, 3-4 short bullets in English about the pronunciation PATTERNS across all sentences: linking, weak forms, word stress, sounds a Portuguese speaker typically gets wrong — practical, encouraging, no bullet per sentence).`;
+    const usr = list.map((p, i) => `${i + 1}. Target: "${p.target}"\n   Heard: "${p.said}"`).join('\n');
+    try {
+        const j = await _askMistralJSON(sys, usr);
+        if (!j || !j.feedback) return;
+        _tutorAddTutor(`🎧 **Coach feedback** · ${list.length} sentences · target ${lv} · grade **${escapeHtml(j.score || '?')}**\n\n${j.feedback}`);
+    } catch (e) { /* bónus opcional — silêncio se a IA falhar */ }
+}
+window._tutorCoachPronAIMulti = _tutorCoachPronAIMulti;
 
 // === COLLOCATIONS DRILL ===
 // Pede 10 collocations ao nível, com exemplos e drills cloze.
@@ -7749,7 +7767,8 @@ async function _tutorCoachVocab() {
     const _di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
     const theme = themes[_di % themes.length];
     const seen = ((state && state.tutorVocabHistory) || []).flatMap(h => (h.items || []).map(it => String(it.collocation || '').toLowerCase())).filter(Boolean).slice(-60);
-    _tutorAddTutor(`📚 Generating 10 ${lv} collocations · theme: **${theme}**…`);
+    // v599: estado na barra, não uma bolha extra no chat.
+    _tutorBusy(`📚 A gerar 10 collocations · ${theme}…`);
     const sys = `You are an English teacher building a ${lv} collocations sheet for a Portuguese Project Manager working in SAP/consulting. Return ONLY JSON with key "items" — an array of 10 objects: {collocation, meaning, example, register, pt}. "pt" is the EUROPEAN PORTUGUESE meaning (max 8 words). Theme: ${theme}. Avoid A1/A2 basics. Pick collocations and phrasal verbs that are notably ${lv} and that a PM would really use in meetings, emails and reports about this theme; examples must come from project life.${seen.length ? ' Do NOT include any of these (already studied): ' + seen.join('; ') + '.' : ''}`;
     const usr = `Generate 10 ${lv}-level collocations on "${theme}" now.`;
     try {
@@ -9071,12 +9090,13 @@ function _tutorEvalPron(said) {
     // (v594) fecha no fim das 4 frases (_tutorPronFinish).
     if (said && (pron.meeting || (pron.coachLv && !pron.session))) { try { _tutorPlanComplete(pron.meeting ? 'meet' : 'pron'); } catch {} }
     const sess = pron.session ? (tutorState && tutorState._pronSess) : null;
-    if (sess && said) { sess.scores.push(score); sess.idx++; }
+    if (sess && said) { sess.scores.push(score); sess.idx++; sess.pairs = sess.pairs || []; sess.pairs.push({ target: pron.target, said }); }
     if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
     if (pron.meeting) { _tutorEvalMeeting(said, score, words, pron); return; }
     // Skill Pronunciation do coach: além do resultado local, pede feedback IA
-    // (linking/stress) em fundo — se houver chave configurada.
-    if (pron.coachLv && said && typeof hasAIKey === 'function' && hasAIKey()) {
+    // (linking/stress) — fora da sessão, por frase; na sessão (v599) uma só
+    // chamada no fim, com todas as frases.
+    if (!sess && pron.coachLv && said && typeof hasAIKey === 'function' && hasAIKey()) {
         setTimeout(() => { try { _tutorCoachPronAI(said, pron.target, pron.coachLv); } catch {} }, 400);
     }
     const wordsHtml = words.map(x => {
