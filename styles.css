@@ -6700,6 +6700,12 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .tcw-model-t { font-size: 0.92rem; line-height: 1.5; color: #134e4a; white-space: pre-wrap; }
 .tcw-topic { display: inline-block; background: #e2e8f0; color: #334155; border-radius: 999px; padding: 1px 7px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; }
 .tcw-corr .tutor-save { min-width: 36px; min-height: 36px; vertical-align: middle; }
+.tp-cert { background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 2px solid #f59e0b; border-radius: 14px; padding: 14px 16px; text-align: center; max-width: 92%; }
+.tp-cert-h { font-weight: 800; color: #92400e; font-size: 0.9rem; letter-spacing: 0.02em; }
+.tp-cert-name { font-size: 1.25rem; font-weight: 900; color: #1e293b; margin: 6px 0 2px; }
+.tp-cert-score { color: #78350f; font-size: 0.95rem; margin-bottom: 8px; }
+.tp-cert-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 0.8rem; color: #334155; text-align: left; }
+.tp-cert-foot { margin-top: 8px; font-size: 0.72rem; color: #92400e; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
