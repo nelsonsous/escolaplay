@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v607';
+const APP_VERSION = 'v608';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8886,7 +8886,11 @@ function _tutorOpenExplore() {
     const exp = _tutorExplored();
     const cons = _tutorConsolidated();
     const userLvl = _tutorUserLevel();
-    const bands = TUTOR_LESSON_LADDER.map(band => {
+    // v608: para o perfil profissional os níveis abaixo do chão da escada
+    // (A1/A2 com alvo B2) ficam recolhidos — a vista abre no "estás aqui".
+    const floor = (typeof _tutorLadderFloor === 'function') ? _tutorLadderFloor() : 'A1';
+    const floorIdx = Math.max(0, _CEFR_ORDER.indexOf(floor));
+    const bandHtml = (band) => {
         const items = band.topics.map(t => {
             const isCons = !!cons[t];
             const isSeen = !isCons && !!exp[t];
@@ -8903,7 +8907,9 @@ function _tutorOpenExplore() {
             <div class="tutor-ladder-h"><span class="tutor-ladder-lvl">${band.lvl}</span> <span>${doneCount}/${band.topics.length}</span>${band.lvl === userLvl ? '<span class="tutor-ladder-you">estás aqui</span>' : ''}</div>
             <div class="tutor-ladder-items">${items}</div>
           </div>`;
-    }).join('');
+    };
+    const lower = TUTOR_LESSON_LADDER.slice(0, floorIdx), upper = TUTOR_LESSON_LADDER.slice(floorIdx);
+    const bands = (lower.length ? `<details class="tutor-ladder-lower"><summary>Níveis anteriores (${lower.map(b => b.lvl).join(', ')}) — ${lower.reduce((s, b) => s + b.topics.length, 0)} tópicos de base</summary>${lower.map(bandHtml).join('')}</details>` : '') + upper.map(bandHtml).join('');
     document.getElementById('tutor-explore')?.remove();
     const ov = document.createElement('div');
     ov.id = 'tutor-explore';
