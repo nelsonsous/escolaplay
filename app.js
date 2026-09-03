@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v591';
+const APP_VERSION = 'v592';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7570,10 +7570,14 @@ async function _tutorCoachWritingSubmit(tid) {
     const text = (ta.value || '').trim();
     if (text.length < 30) { showToast && showToast('Escreve pelo menos 30 caracteres'); return; }
     if (submit) { submit.disabled = true; submit.textContent = 'Grading…'; }
-    const sys = `You are a strict CEFR examiner grading writing at level ${lv}. Return ONLY a JSON object (no prose) with keys: task (0-5), coherence (0-5), range (0-5), accuracy (0-5), overall (one of A2/B1/B2/C1/C2), feedback (markdown string, 4 short bullets, in English, focused on UPGRADES to next level), corrections (array of {original, better, reason}). Pick 3 corrections max — the most impactful ones.`;
+    // v592: + versão modelo (reescrita ao nível, mantendo as ideias) e uma
+    // categoria gramatical por correção, para alimentar os "erros a treinar".
+    const sys = `You are a strict CEFR examiner grading writing at level ${lv} for a Portuguese Project Manager in SAP/consulting. Return ONLY a JSON object (no prose) with keys: task (0-5), coherence (0-5), range (0-5), accuracy (0-5), overall (one of A2/B1/B2/C1/C2), feedback (markdown string, 4 short bullets, in English, focused on UPGRADES to next level), corrections (array of {original, better, reason, topic}) where "topic" is the English grammar/usage category (e.g. "Present Perfect", "Articles", "Prepositions", "Word order", "Collocation", "Register"), and model (string: the student's text rewritten at ${lv} level in natural professional English, 100-150 words, keeping their ideas and structure). Pick 3 corrections max — the most impactful ones.`;
     const usr = `Prompt: ${prompt}\n\nStudent answer:\n${text}`;
     try {
-        const json = await _askMistralJSON(sys, usr);
+        const json = await _tutorAskJSONValid(sys, usr, 1400, (j) => (j && j.overall && j.feedback && String(j.model || '').trim().length >= 40) ? '' : 'missing overall/feedback/model');
+        // Erros → "erros a treinar" (a aula do dia escolhe-os primeiro).
+        try { (Array.isArray(json && json.corrections) ? json.corrections : []).slice(0, 3).forEach(c => { if (c && c.topic) _tutorTrackWeak(String(c.topic), false); }); } catch {}
         _tutorAddRich(_tutorRenderWritingFeedback(json, lv));
         if (submit) submit.remove();
         ta.readOnly = true;
@@ -7589,15 +7593,24 @@ function _tutorRenderWritingFeedback(j, lv) {
     if (!j || typeof j !== 'object') return 'Feedback unavailable.';
     const star = (n) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
     const corr = Array.isArray(j.corrections) ? j.corrections.slice(0, 3) : [];
+    // v592: cada correção pode ir para o phrasebook (frase melhor + razão).
     const corrHtml = corr.map(c =>
-        `<li><span class="tcw-bad">${escapeHtml(c.original || '')}</span> → <span class="tcw-good">${escapeHtml(c.better || '')}</span><br><small>${escapeHtml(c.reason || '')}</small></li>`
+        `<li><span class="tcw-bad">${escapeHtml(c.original || '')}</span> → <span class="tcw-good">${escapeHtml(c.better || '')}</span>
+          <button class="tutor-save" data-text="${_tutorAttr(c.better || '')}" data-note="${_tutorAttr([c.reason, c.topic].filter(Boolean).join(' · '))}" data-topic="${_tutorAttr(c.topic || 'Writing')}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button>
+          <br><small>${escapeHtml(c.reason || '')}${c.topic ? ` <span class="tcw-topic">${escapeHtml(c.topic)}</span>` : ''}</small></li>`
     ).join('');
+    const model = String(j.model || '').trim();
+    const modelHtml = model ? `<div class="tcw-model"><div class="tcw-model-h">✨ Versão modelo · ${escapeHtml(lv)}
+        <button class="tutor-say" data-text="${_tutorAttr(model)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir"><i class="fas fa-volume-high"></i></button>
+        <button class="tutor-save" data-text="${_tutorAttr(model.slice(0, 240))}" data-note="${_tutorAttr('Versão modelo do meu texto (' + lv + ')')}" data-topic="Writing" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button></div>
+        <div class="tcw-model-t">${escapeHtml(model)}</div></div>` : '';
     // HTML (v579): os campos da IA passam por escapeHtml/_tutorMd.
     const row = (k, v) => `<tr><td>${k}</td><td>${star(v)}</td></tr>`;
     return `📝 <b>Writing feedback</b> · target ${escapeHtml(lv)} · grade <b>${escapeHtml(j.overall || '?')}</b>
 <table class="tutor-md-table">${row('Task', +j.task||0)}${row('Coherence', +j.coherence||0)}${row('Range', +j.range||0)}${row('Accuracy', +j.accuracy||0)}</table>
 <div class="tcw-fb">${_tutorMd(j.feedback || '')}</div>
-${corr.length ? `<b>Upgrades:</b><ul class="tcw-corr">${corrHtml}</ul>` : ''}`;
+${corr.length ? `<b>Upgrades:</b><ul class="tcw-corr">${corrHtml}</ul>` : ''}
+${modelHtml}`;
 }
 
 // === PRONUNCIATION DRILL ===
