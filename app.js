@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v619';
+const APP_VERSION = 'v620';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6628,7 +6628,7 @@ function _tutorRenderRoleplayPrompt() {
 function _tutorStartRoleplay(sceneId) {
     const sc = _TUTOR_SCENES.find(s => s.id === sceneId); if (!sc || !tutorState) return;
     tutorState._roleplay = sc;
-    tutorState._ask = null; tutorState._pron = null; tutorState._pending = null; tutorState.drill = null;
+    tutorState._ask = null; tutorState._pron = null;
     tutorState._rpFixes = null;
     tutorState._rpUsedPhrases = null;
     tutorState._rpTurns = 0; tutorState._rpNudged = false;
@@ -7935,13 +7935,6 @@ async function _tutorCoachVocab() {
     }
 }
 window._tutorCoachVocab = _tutorCoachVocab;
-
-// === ROLEPLAY ===
-// Reutiliza o existing _tutorRenderRoleplayPrompt (que já é nivelado).
-function _tutorCoachRoleplay() {
-    if (typeof _tutorRenderRoleplayPrompt === 'function') _tutorRenderRoleplayPrompt();
-}
-window._tutorCoachRoleplay = _tutorCoachRoleplay;
 
 // Helper genérico: chama Mistral pedindo JSON e devolve-o já parseado.
 async function _askMistralJSON(sys, usr) {
@@ -9844,27 +9837,6 @@ function _tutorHandleInput(said) {
     _tutorTrackMeetingUse(said);
     // Plano: responder no chat fecha o passo das skills "de conversa".
     try { _tutorPlanComplete(TUTOR_PLAN_CHAT_SKILLS); } catch {}
-    // Em modo "treino do erro": valida a repetição antes de prosseguir
-    if (tutorState.drill) {
-        const d = tutorState.drill;
-        if (_tutorWordMatch(said, d.expected) >= 0.55) {
-            tutorState.drill = null;
-            const cont = d.pendingReply ? (' ' + d.pendingReply) : '';
-            _tutorAddTutor('Perfect!' + cont, '', '', true);
-        } else {
-            // Máximo 2 tentativas falhadas — depois a conversa segue em vez de
-            // prender o utilizador num loop de "Almost — say it like this".
-            d.tries = (d.tries || 0) + 1;
-            if (d.tries >= 2) {
-                tutorState.drill = null;
-                const cont = d.pendingReply ? (' ' + d.pendingReply) : '';
-                _tutorAddTutor("Good effort — we'll come back to that one. Let's keep going!" + cont, '', '', true);
-            } else {
-                _tutorAddTutor(`Almost — say it like this: ${d.expected}`, '', '', true);
-            }
-        }
-        return;
-    }
     // v600: roleplay com fim à vista — ao 6.º turno sugere o debrief (uma vez).
     if (tutorState._roleplay) {
         tutorState._rpTurns = (tutorState._rpTurns || 0) + 1;
@@ -9960,8 +9932,7 @@ Return STRICT JSON:
         let corrected = corrected0;
         if (corrected && _sameUtterance(corrected, userText)) corrected = '';
         if (corrected) {
-            tutorState._pending = { said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples, pronunciationTips };
-            _tutorFluidCorrection(tutorState._pending);
+            _tutorFluidCorrection({ said: userText, corrected, errorType, explanation, tip, reply, lessonTitle, points, examples, pronunciationTips });
         } else {
             _tutorAddTutor(reply, '', tip, true);
             // Modo-disciplina: oferece sempre LIÇÃO completa + EXERCÍCIOS sobre o tópico em conversa.
@@ -10127,33 +10098,6 @@ function _tutorSpeakBtn(el) {
     if (t && typeof speakEN === 'function') _tutorSpeak(t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
 }
 window._tutorSpeakBtn = _tutorSpeakBtn;
-function _tutorDoContinue() {
-    const d = tutorState && tutorState._pending; if (!d) return;
-    tutorState._pending = null;
-    _tutorAddTutor(d.reply, '', '', true);
-}
-function _tutorDoRepeat() {
-    const d = tutorState && tutorState._pending; if (!d) return;
-    tutorState._pending = null;
-    tutorState.drill = { expected: d.corrected, pendingReply: d.reply };
-    _tutorAddTutor('Repeat after me: ' + d.corrected, '', '', true);
-}
-function _tutorDoPron() {
-    const d = tutorState && tutorState._pending; if (!d) return;
-    tutorState._pending = null;
-    _tutorStartPron(d.corrected, d.reply);
-}
-window._tutorDoPron = _tutorDoPron;
-function _tutorDoPractice() {
-    const d = tutorState && tutorState._pending; if (!d) return;
-    tutorState._practiceReply = d.reply;
-    tutorState._pending = null;
-    _tutorGeneratePractice(d.errorType || 'grammar', d.corrected);
-}
-window._tutorDoContinue = _tutorDoContinue;
-window._tutorDoRepeat = _tutorDoRepeat;
-window._tutorDoPractice = _tutorDoPractice;
-
 // ---- Prática em fila (stack) com sub-lições recursivas por erro ----
 // A fila começa com 3 exercícios. Acertas → próximo. Erras → o tutor gera
 // uma sub-lição focada no erro + 3 sub-exercícios que entram À FRENTE da fila
@@ -13627,31 +13571,6 @@ function _duelScore(correct, timeUsedSec, timeLimitSec) {
     return baseScore + speedBonus;
 }
 
-async function _shareDuelUrl(url, data) {
-    const sub = SUBJECTS[ data.q && _findExerciseAnyYear(data.q[0])?.s ];
-    const subName = sub?.name || 'EscolaPlay';
-    const text =
-`🥊 ${data.c} desafia-te no EscolaPlay!
-
-${subName} · ${data.q.length} perguntas
-${Number(data.sb) || 0}/${data.q.length} certas em ${_formatDuelTime(data.st * 1000)}
-
-📲 Como aceitar:
-1. Abre a app EscolaPlay no telemóvel
-2. No início, toca em "🥊 Tens um duelo?"
-3. Cola este link
-
-${url}
-
-(Se não tiveres a app, o link funciona também no browser.)`;
-    if (navigator.share) {
-        try { await navigator.share({ title: '🥊 Duelo no EscolaPlay', text }); return; }
-        catch (err) { if (err && err.name === 'AbortError') return; }
-    }
-    try { await navigator.clipboard.writeText(text); showToast('🔗 Link de duelo copiado!'); }
-    catch { prompt('Copia este link e envia ao teu amigo:', url); }
-}
-
 // ============================================================
 // DUELOS via FIRESTORE (v266+)
 // ============================================================
@@ -15495,41 +15414,6 @@ function setupCarolinaIngles5() {
     return 1;
 }
 window.setupCarolinaIngles5 = setupCarolinaIngles5;
-
-function closeAcceptDuelModal() {
-    document.getElementById('duel-paste-modal-temp')?.remove();
-}
-async function pasteDuelFromClipboard() {
-    try {
-        const text = await navigator.clipboard.readText();
-        const input = document.getElementById('duel-paste-input');
-        if (input) input.value = text;
-    } catch (_) {
-        showToast('Permissão negada — cola manualmente.');
-    }
-}
-function processPastedDuel() {
-    const input = document.getElementById('duel-paste-input');
-    if (!input) return;
-    const text = (input.value || '').trim();
-    if (!text) { showToast('Cola primeiro o link.'); return; }
-    // Procura ?duel=... no texto colado (pode vir com texto à volta)
-    const m = text.match(/[?&]duel=([A-Za-z0-9_\-=]+)/);
-    let raw = m ? m[1] : text; // se for só o código, aceita também
-    raw = raw.split(/[\s&]/)[0]; // limpa caracteres extra após o código
-    const data = decodeDuel(raw);
-    if (!data || !Array.isArray(data.q) || data.q.length === 0) {
-        showToast('Link inválido. Verifica que copiaste o link completo.');
-        return;
-    }
-    closeAcceptDuelModal();
-    // Garante que o ano do criador está carregado
-    if (data.cy && window.EXERCISES_BY_YEAR && window.EXERCISES_BY_YEAR[data.cy] && typeof loadYearExtras === 'function') {
-        loadYearExtras(data.cy).then(() => setTimeout(() => _showDuelIntro(data), 200));
-    } else {
-        setTimeout(() => _showDuelIntro(data), 200);
-    }
-}
 
 // ===== ABRIR DUELO RECEBIDO via URL =====
 function _checkIncomingDuel() {
