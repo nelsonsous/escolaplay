@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v610';
+const APP_VERSION = 'v611';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7291,7 +7291,9 @@ function _tutorCoachStart(skillId) {
     const rowsBefore = chat ? chat.querySelectorAll('.tutor-row').length : 0;
     const map = {
         class: _focus ? () => { _tutorClassIntro(_focus); _tutorClassStart(_focus); } : _tutorCoachClass,
-        meet: _tutorCoachMeeting,
+        // v611: do plano, arranca logo a mistura (8 frases, categorias menos
+        // treinadas primeiro); em Mais opções mantém o ecrã de categorias.
+        meet: () => { const fp = !!(tutorState && tutorState._fromPlan); if (tutorState) tutorState._fromPlan = false; if (fp) _tutorMeetingStart('mix'); else _tutorCoachMeeting(); },
         writing: _tutorCoachWriting,
         pron: _tutorCoachPron,
         vocab: _tutorCoachVocab,
@@ -7307,6 +7309,7 @@ function _tutorCoachStart(skillId) {
     if (typeof fn === 'function') {
         try { fn(); } catch (e) { console.warn('[coach] start failed', e); }
     }
+    if (tutorState) tutorState._fromPlan = false; // nunca "vaza" para a skill seguinte
     // Safety net: se nada visível foi renderizado E não abriu overlay (review),
     // avisa em vez de deixar o user a olhar para um dashboard sem reacção.
     setTimeout(() => {
@@ -7440,6 +7443,8 @@ function _tutorPlanStart(btn) {
     // (ou até o utilizador tocar em "Feito ✓").
     plan.days[k].cur = { slot, skill, at: Date.now() };
     try { saveState(); } catch {}
+    // v611: vindo do plano, as skills com ecrã de escolha arrancam direto.
+    if (tutorState) tutorState._fromPlan = true;
     _tutorCoachStart(skill);
 }
 window._tutorPlanStart = _tutorPlanStart;
@@ -8786,6 +8791,14 @@ function _tutorMeetingStart(catId) {
     pool.sort((a, b) => ((m[a.key] || 0) - (m[b.key] || 0)) || (a._r - b._r));
     const queue = pool.slice(0, catId === 'mix' ? 8 : 6);
     tutorState._mq = { queue, catId, total: queue.length, firstTry: 0, attempted: 0, retried: false };
+    // v611: na mistura, diz quais são as categorias menos treinadas (foco).
+    if (catId === 'mix') {
+        const ratio = (c) => c.phrases.filter((p, i) => (m[c.id + ':' + i] || 0) >= 1).length / c.phrases.length;
+        const weakest = _TUTOR_MEETING_PHRASES.slice().sort((a, b) => ratio(a) - ratio(b)).slice(0, 2).map(c => c.icon + ' ' + c.label);
+        const mastered = _TUTOR_MEETING_PHRASES.reduce((s, c) => s + c.phrases.filter((p, i) => (m[c.id + ':' + i] || 0) >= 1).length, 0);
+        const total = _TUTOR_MEETING_PHRASES.reduce((s, c) => s + c.phrases.length, 0);
+        _tutorAddTutor(`🤝 ${queue.length} frases de reunião · dominadas ${mastered}/${total} · foco de hoje: ${weakest.join(' e ')}.`, '', '', false);
+    }
     _tutorMeetingAsk();
 }
 window._tutorMeetingStart = _tutorMeetingStart;
