@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v601';
+const APP_VERSION = 'v602';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -17607,14 +17607,16 @@ function openVoicePickerEN() {
       <div class="modal-content" style="max-width:500px;max-height:85vh;padding:18px;display:flex;flex-direction:column">
         <h3 style="margin:0 0 8px;display:flex;align-items:center;gap:8px"><i class="fas fa-volume-high" style="color:#0891b2"></i> Voz inglesa</h3>
         <div style="flex:1;overflow-y:auto;padding-right:4px">
+          <button id="voice-test-current" onclick="previewCurrentEN()" style="width:100%;background:#0891b2;color:#fff;border:none;border-radius:12px;padding:12px;font-size:0.9rem;font-weight:800;cursor:pointer;margin-bottom:10px;min-height:44px"><i class="fas fa-play"></i> Testar a voz atual (a que o tutor usa)</button>
           ${engineNote}
           ${mistralSection}
           ${edgeSection}
           ${gemSection}
-          <p style="font-size:0.85rem;color:#6b7280;margin:0 0 6px;line-height:1.45">Ou usa uma voz do sistema (${enVoices.length} disponíveis). Toca em 🔊 para ouvir.</p>
+          <details class="voice-sys" style="margin-top:4px"><summary style="cursor:pointer;font-size:0.85rem;color:#6b7280;padding:8px 0;font-weight:700">Vozes do sistema (${enVoices.length}) — só se as anteriores falharem</summary>
           <p style="font-size:0.74rem;color:#9ca3af;margin:0 0 10px;line-height:1.4">ℹ️ No iPhone, o Safari não deixa as apps usar as vozes "Premium" que descarregas — ficam só para a Siri. Para voz topo, usa o Gemini acima.</p>
           ${currentName ? `<div style="background:#ecfeff;border:1px solid #0891b2;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.82rem;color:#0e7490"><strong>Atual:</strong> ${escapeHtml(currentName)}</div>` : ''}
           ${rows}
+          </details>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
           ${currentName ? `<button class="btn btn-secondary" style="flex:1" onclick="clearVoiceChoiceEN()"><i class="fas fa-rotate"></i> Auto</button>` : ''}
@@ -17634,6 +17636,21 @@ function testVoiceEN(voiceName) {
         window.speechSynthesis.speak(u);
     } catch {}
 }
+// v602: toca uma frase pela MESMA cadeia que o tutor usa (Mistral → Edge →
+// Gemini → sistema) e mostra qual motor respondeu — sem adivinhar.
+function previewCurrentEN() {
+    const btn = document.getElementById('voice-test-current');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A tocar…'; }
+    const done = () => {
+        const b = document.getElementById('voice-test-current');
+        if (!b) return;
+        b.disabled = false;
+        b.innerHTML = `<i class="fas fa-play"></i> Testar a voz atual · última: <b>${escapeHtml(_lastTTSEngine || '—')}</b>`;
+    };
+    try { speakEN('Good morning everyone, thanks for joining the meeting.', 'en-US', { onEnd: done }); } catch { done(); }
+    setTimeout(done, 6000);
+}
+window.previewCurrentEN = previewCurrentEN;
 function chooseVoiceEN(voiceName) { state.ttsVoiceNameEN = voiceName; saveState(); openVoicePickerEN(); }
 function clearVoiceChoiceEN() { delete state.ttsVoiceNameEN; saveState(); openVoicePickerEN(); }
 function closeVoicePickerEN() { try { _stopCurrentAudio(); } catch {} document.getElementById('voice-picker-en-temp')?.remove(); }
