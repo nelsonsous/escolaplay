@@ -203,19 +203,6 @@ function _pubAvatar(a) {
     if (!s || s.startsWith('data:') || /^https?:\/\//i.test(s)) return '👤';
     return s.slice(0, 40);
 }
-// deviceId persistente (UUID gerado na 1.ª utilizacao desta app neste device).
-// Partilhado entre todos os perfis no mesmo dispositivo. Permite saber que
-// "perfis Carolina e Eduarda no telemovel da mae" sao distintos dos perfis
-// "Carolina no telemovel da Carolina".
-function getDeviceId() {
-    let id = null;
-    try { id = localStorage.getItem('escolaplay_device_id'); } catch {}
-    if (!id) {
-        id = 'd_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
-        try { localStorage.setItem('escolaplay_device_id', id); } catch {}
-    }
-    return id;
-}
 
 function isProfileShareable(profile) {
     return !!(profile && profile.shareable === true);
@@ -615,7 +602,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v584';
+const APP_VERSION = 'v585';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1110,13 +1097,6 @@ function updateHeader() {
     }
 }
 
-// Tier visual + emoji do streak conforme dias seguidos
-function _streakEmojiFor(days) {
-    if (days >= 30) return '👑';
-    if (days >= 14) return '⭐';
-    if (days >= 7)  return '🏆';
-    return '🔥'; // sempre chama, mesmo a 0 (vai aparecer cinzenta via CSS .zero)
-}
 function _streakTier(days) {
     if (days >= 30) return { tier: 4, emoji: '👑' };
     if (days >= 14) return { tier: 4, emoji: '⭐' };
@@ -2026,12 +2006,6 @@ function openTopicAnsweredModal(subjectKey, topic) {
 
 function closeTopicAnsweredModal() {
     document.getElementById('topic-answered-modal-temp')?.remove();
-}
-
-function toggleTopicSelection(topic) {
-    if (selectedTopicsForMax.has(topic)) selectedTopicsForMax.delete(topic);
-    else selectedTopicsForMax.add(topic);
-    renderTopicList();
 }
 
 function clearTopicSelection() {
@@ -6356,20 +6330,6 @@ function _tutorUpdateReviewBadge() {
     b.textContent = n ? (n > 9 ? '9+' : String(n)) : '';
     b.style.display = n ? 'flex' : 'none';
 }
-function _tutorRenderReviewPrompt() {
-    const n = _srsDueCount();
-    if (!n) return;
-    const chat = document.getElementById('tutor-chat'); if (!chat) return;
-    chat.insertAdjacentHTML('beforeend', `
-      <div class="tutor-row them">
-        <div class="tutor-bubble-av">📚</div>
-        <div class="tutor-weak">
-          <div class="tutor-weak-h">${_tutT(`You have ${n} card${n === 1 ? '' : 's'} to review`, `Tens ${n} ${n === 1 ? 'cartão' : 'cartões'} para rever`)}</div>
-          <button class="tutor-lbtn prac" onclick="_tutorOpenReview()"><i class="fas fa-book"></i> ${_tutT('Review now','Rever agora')}</button>
-        </div>
-      </div>`);
-    _tutorScroll();
-}
 function _tutorOpenReview() {
     document.getElementById('review-overlay')?.remove();
     const o = document.createElement('div');
@@ -9697,42 +9657,6 @@ function _tutorRepeatRecast() {
     if (t && typeof _tutorStartPron === 'function') _tutorStartPron(t, '');
 }
 window._tutorRepeatRecast = _tutorRepeatRecast;
-// Cartão de lição: o que disseste vs o correto + tipo de erro + explicação
-function _tutorShowCorrection(d) {
-    const chat = document.getElementById('tutor-chat');
-    if (!chat) return;
-    if (d.errorType) { _tutorTrackWeak(d.errorType, false); _tutorEnqueueTopic(d.errorType); }
-    tutorState._lastTopic = d.lessonTitle || d.errorType || tutorState._lastTopic;
-    const badge = d.errorType ? `<span class="tutor-errtype">${escapeHtml(d.errorType)}</span>` : '';
-    const hasRule = d.lessonTitle || d.explanation || (d.points && d.points.length) || (d.examples && d.examples.length);
-    chat.insertAdjacentHTML('beforeend', `
-      <div class="tutor-row them">
-        <div class="tutor-bubble-av">${_tutorAvatar()}</div>
-        <div class="tutor-lesson">
-          <div class="tutor-lesson-head">📖 Vamos corrigir ${badge}</div>
-          <div class="tutor-cmp-said">🗣️ Disseste: "${escapeHtml(d.said)}"</div>
-          <div class="tutor-cmp-ok">✅ Correto: "${escapeHtml(d.corrected)}" <button class="tutor-say" data-text="${escapeHtml(d.corrected)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button> <button class="tutor-save" data-text="${escapeHtml(d.corrected)}" data-note="${escapeHtml(d.explanation || '')}" data-topic="${escapeHtml(d.errorType || '')}" onclick="_tutorSavePhraseBtn(this)" title="Guardar no phrasebook"><i class="fas fa-bookmark"></i></button></div>
-          ${hasRule ? `<div class="tutor-lesson-rule">
-            ${d.lessonTitle ? `<div class="tutor-lesson-title">${escapeHtml(d.lessonTitle)}</div>` : ''}
-            ${d.explanation ? `<div class="tutor-explain">${escapeHtml(d.explanation)}</div>` : ''}
-            ${_tutorPointsHtml(d.points)}
-            ${_tutorExamplesHtml(d.examples)}
-          </div>` : ''}
-          ${_tutorXtraRow(d.lessonTitle || d.errorType || '')}
-          <button class="tutor-lbtn prac full" onclick="_tutorDoPractice()"><i class="fas fa-dumbbell"></i> Praticar agora · 3 exercícios →</button>
-          <div class="tutor-lesson-btns2">
-            <button class="tutor-lbtn rep" onclick="_tutorDoPron()"><i class="fas fa-microphone"></i> Pronúncia</button>
-            <button class="tutor-lbtn cont" onclick="_tutorDoContinue()"><i class="fas fa-arrow-right"></i> Continuar</button>
-          </div>
-        </div>
-      </div>`);
-    _tutorScroll();
-    const bar = document.getElementById('tutor-bar');
-    if (bar) bar.innerHTML = `<div class="tutor-hintbar">Escolhe: praticar o erro, treinar a pronúncia, ou continuar</div>`;
-    if (d.corrected && typeof speakEN === 'function') {
-        setTimeout(() => { if (tutorState && tutorState._pending) speakEN(d.corrected, tutorState.lang); }, 250);
-    }
-}
 function _tutorSpeakBtn(el) {
     const t = el && el.getAttribute('data-text');
     if (t && typeof speakEN === 'function') _tutorSpeak(t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
@@ -11878,40 +11802,6 @@ function getAudioCtx() {
     return _audioCtx;
 }
 
-// Nota tipo "sino" — fundamental + harmónica oitava + ataque rápido + decay lento exponencial
-function playBellNote(freq, startOffsetMs, durationMs, peakGain) {
-    const ctx = getAudioCtx();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (_) {} }
-    const t0 = ctx.currentTime + (startOffsetMs / 1000);
-    const dur = durationMs / 1000;
-    const peak = peakGain == null ? 0.22 : peakGain;
-
-    // Fundamental — triangle dá calor, pouco harmónico desagradável
-    const oscF = ctx.createOscillator();
-    const gainF = ctx.createGain();
-    oscF.type = 'triangle';
-    oscF.frequency.value = freq;
-    gainF.gain.setValueAtTime(0.0001, t0);
-    gainF.gain.exponentialRampToValueAtTime(peak, t0 + 0.005);
-    gainF.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    oscF.connect(gainF).connect(ctx.destination);
-    oscF.start(t0);
-    oscF.stop(t0 + dur + 0.05);
-
-    // Harmónica oitava acima — sine, mais discreta, dá brilho de sino
-    const oscH = ctx.createOscillator();
-    const gainH = ctx.createGain();
-    oscH.type = 'sine';
-    oscH.frequency.value = freq * 2;
-    gainH.gain.setValueAtTime(0.0001, t0);
-    gainH.gain.exponentialRampToValueAtTime(peak * 0.35, t0 + 0.005);
-    gainH.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.75);
-    oscH.connect(gainH).connect(ctx.destination);
-    oscH.start(t0);
-    oscH.stop(t0 + dur + 0.05);
-}
-
 // ---- sons estilo Duolingo ----
 function _duoNote(ctx, freq, delayMs, durMs, peak) {
     const t0 = ctx.currentTime + delayMs / 1000;
@@ -13233,32 +13123,6 @@ function _duelScore(correct, timeUsedSec, timeLimitSec) {
     return baseScore + speedBonus;
 }
 
-// ===== CRIAR DUELO a partir da última sessão =====
-function shareLastSummaryAsDuel() {
-    if (!_lastSummary) return;
-    const { s } = _lastSummary;
-    const p = activeProfile();
-    if (!p || !s.items || s.items.length === 0) return;
-    // Tempo do criador
-    const usedSec = Math.max(1, Math.floor((Date.now() - (s.startedAt || Date.now())) / 1000));
-    // Tempo limite: 20s por pergunta, mínimo 60s
-    const timeLimit = Math.max(60, s.items.length * 20);
-    const data = {
-        v: 1,
-        c: p.name,
-        ca: p.avatar,
-        cy: p.year,
-        q: s.items.map(e => e.id),
-        tl: timeLimit,
-        sb: s.correct,                          // perguntas certas do criador
-        st: Math.min(usedSec, timeLimit),       // tempo usado pelo criador
-        ss: _duelScore(s.correct, usedSec, timeLimit), // score do criador
-        ts: Date.now()
-    };
-    const url = `${location.origin}${location.pathname}?duel=${encodeDuel(data)}`;
-    _shareDuelUrl(url, data);
-}
-
 async function _shareDuelUrl(url, data) {
     const sub = SUBJECTS[ data.q && _findExerciseAnyYear(data.q[0])?.s ];
     const subName = sub?.name || 'EscolaPlay';
@@ -13631,16 +13495,6 @@ window.openMyDuelsScreen = openMyDuelsScreen;
 window.closeMyDuelsScreen = closeMyDuelsScreen;
 window._copyDuelLink = _copyDuelLink;
 window._openDuelDetails = _openDuelDetails;
-
-async function _shareNewDuelLink(id, creatorName, subjectKey, qCount) {
-    // (mantido para backward compat - chamado se algum amigo nao usa a app)
-    const url = `${location.origin}${location.pathname}?d=${id}`;
-    const text = `🥊 ${creatorName} desafia-te no EscolaPlay! Abre: ${url}`;
-    if (navigator.share) {
-        try { await navigator.share({ title: '🥊 Duelo', text }); return; } catch (err) { if (err?.name === 'AbortError') return; }
-    }
-    try { await navigator.clipboard.writeText(text); showToast('🔗 Link copiado!'); } catch { prompt('Link:', url); }
-}
 
 // Modal pos-criacao a convidar o criador a jogar tambem
 function _promptCreatorPlay(duelId, recipientStr) {
@@ -15138,32 +14992,6 @@ function setupCarolinaIngles5() {
 }
 window.setupCarolinaIngles5 = setupCarolinaIngles5;
 
-// ===== ACEITAR DUELO via paste (para quando o link abre no browser
-//       em vez da app instalada — comum em iOS) =====
-function openAcceptDuelModal() {
-    document.getElementById('duel-paste-modal-temp')?.remove();
-    const html = `
-    <div id="duel-paste-modal-temp" class="modal" style="align-items:center;padding:20px">
-        <div class="modal-content" style="max-width:480px;border-radius:24px;max-height:92vh;overflow:hidden">
-            <div style="background:linear-gradient(135deg,#dc2626 0%,#f97316 50%,#facc15 100%);color:#fff;padding:24px 22px;text-align:center;position:relative;overflow:hidden">
-                <div style="position:absolute;top:-60px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
-                <div style="font-size:2.8rem;line-height:1;margin-bottom:6px">🥊</div>
-                <h2 style="font-size:1.3rem;font-weight:900;letter-spacing:-0.01em">Aceitar duelo</h2>
-                <p style="font-size:0.86rem;opacity:0.94;margin-top:4px">Cola aqui o link que recebeste</p>
-            </div>
-            <div class="modal-body" style="padding:20px 22px 24px">
-                <textarea id="duel-paste-input" placeholder="Cola aqui o link ou código do duelo…" style="width:100%;min-height:90px;padding:14px;border:1.5px solid var(--border);border-radius:12px;font-size:0.92rem;background:#fafafa;font-family:inherit;resize:vertical;line-height:1.4"></textarea>
-                <button class="btn btn-block btn-secondary" onclick="pasteDuelFromClipboard()" style="margin-top:10px;padding:11px"><i class="fas fa-clipboard"></i> Colar da área de transferência</button>
-                <button class="btn btn-block" onclick="processPastedDuel()" style="margin-top:10px;background:linear-gradient(135deg,#dc2626,#f97316);color:#fff;border:none;font-weight:800;padding:14px;box-shadow:0 8px 20px rgba(220,38,38,0.32)">
-                    <i class="fas fa-fist-raised"></i> Aceitar duelo
-                </button>
-                <button class="btn btn-block btn-secondary" onclick="closeAcceptDuelModal()" style="margin-top:10px;padding:11px">Cancelar</button>
-            </div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-    setTimeout(() => document.getElementById('duel-paste-input')?.focus(), 100);
-}
 function closeAcceptDuelModal() {
     document.getElementById('duel-paste-modal-temp')?.remove();
 }
@@ -19508,21 +19336,6 @@ function _teacherListenPara(paraIdx) {
 }
 window._teacherListen = _teacherListen;
 
-function _teacherHighlight(idx) {
-    // Marca todas as palavras até idx como "lidas" e a atual como "current".
-    _teacher.spans.forEach((sp, i) => {
-        sp.classList.remove('t-current');
-        if (i < idx) sp.classList.add('t-good');
-        else if (i === idx) { sp.classList.add('t-good'); sp.classList.add('t-current'); }
-    });
-    // scroll
-    const sp = _teacher.spans[idx];
-    if (sp && sp.scrollIntoView) sp.scrollIntoView({ block: 'center', behavior: 'smooth' });
-}
-function _teacherHighlightAll() {
-    _teacher.spans.forEach(sp => { sp.classList.add('t-good'); sp.classList.remove('t-current'); });
-}
-
 // =========== Modo LER — exige chave Mistral (Voxtral) ===========
 function _teacherStartRead(resume) {
     // Barra de progresso: mostra e atualiza (ao retomar mantém a posição).
@@ -20131,97 +19944,6 @@ function _teacherUpdateProgress(done) {
     if (lbl) lbl.textContent = pct + '%';
 }
 window._teacherUpdateProgress = _teacherUpdateProgress;
-
-// Avalia palavras ouvidas vs esperadas.
-// Usa cursores PERSISTENTES (heardCursor + position) entre chamadas — assim
-// não voltamos a re-processar palavras já reconhecidas. Tolerância: 1 skip.
-function _teacherMatchHeard(heard) {
-    const matches = (expected, got) => {
-        if (!expected || !got) return false;
-        if (expected === got) return true;
-        // tolerância: palavra parcial (ASR pode partir compostos)
-        if (expected.length >= 3 && got.length >= 3) {
-            if (expected.startsWith(got) || got.startsWith(expected)) return true;
-        }
-        return false;
-    };
-    let h = _teacher.heardCursor;
-    let p = _teacher.position;
-    while (p < _teacher.words.length && h < heard.length) {
-        const expected = _teacher.words[p];
-        const got = heard[h];
-        if (!got) { h++; continue; }
-        if (matches(expected, got)) {
-            _teacher.spans[p].classList.remove('t-bad', 't-current');
-            _teacher.spans[p].classList.add('t-good');
-            if (!_teacher.wordTimes[p]) _teacher.wordTimes[p] = Date.now();
-            _teacher.restartCount = 0; // há fluxo — reseta o contador
-            p++; h++;
-            if (_teacher.spans[p]) {
-                _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
-                _teacher.spans[p].classList.add('t-current');
-            }
-        } else {
-            // v478: Look-ahead — se o ASR ouviu uma palavra mais à frente
-            // (palavra "Pus" não reconhecida mas a Eduarda já leu "em cima"),
-            // saltamos as 1-2 palavras impossíveis e avançamos.
-            let jumped = false;
-            for (let lookAhead = 1; lookAhead <= 2 && (p + lookAhead) < _teacher.words.length; lookAhead++) {
-                if (matches(_teacher.words[p + lookAhead], got)) {
-                    // marcar as palavras saltadas como current → próxima
-                    for (let k = 0; k < lookAhead; k++) {
-                        const sp = _teacher.spans[p + k];
-                        if (sp) sp.classList.remove('t-current');
-                    }
-                    // a palavra que matched
-                    _teacher.spans[p + lookAhead].classList.remove('t-bad', 't-current');
-                    _teacher.spans[p + lookAhead].classList.add('t-good');
-                    if (!_teacher.wordTimes[p + lookAhead]) _teacher.wordTimes[p + lookAhead] = Date.now();
-                    p = p + lookAhead + 1;
-                    h++;
-                    _teacher.restartCount = 0;
-                    if (_teacher.spans[p]) {
-                        _teacher.spans.forEach(sp => sp.classList.remove('t-current'));
-                        _teacher.spans[p].classList.add('t-current');
-                    }
-                    jumped = true;
-                    break;
-                }
-            }
-            if (!jumped) {
-                // Não match — skipa esta palavra do heard (pode ser hesitação,
-                // pronúncia diferente do ASR, ou repetição). NÃO marca a esperada
-                // como errada — isso só acontece no _teacherFinishRead com base
-                // nas palavras que ficaram sem `t-good` no final.
-                h++;
-            }
-        }
-    }
-    _teacher.position = p;
-    _teacher.heardCursor = h;
-    try { _teacherUpdateProgress(); } catch {}
-    // === Perguntas por parágrafo: detetar se passámos o fim do parágrafo
-    // de referência da pergunta (campo `afterParagraph`, 0-indexed). Se não
-    // estiver definido, usa o índice da pergunta como default. ===
-    if (_teacher.mode === 'read' && _teacher.paragraphChecks.length > _teacher.pCheckIdx) {
-        const check = _teacher.paragraphChecks[_teacher.pCheckIdx];
-        const afterPara = (check && typeof check.afterParagraph === 'number')
-            ? check.afterParagraph : _teacher.pCheckIdx;
-        const targetEnd = _teacher.paragraphEnds[afterPara];
-        if (typeof targetEnd === 'number' && _teacher.position > targetEnd) {
-            if (check) {
-                _teacher.pCheckIdx++;
-                try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
-                _teacher.mode = 'paused-check';
-                _teacherShowParagraphCheck(check);
-                return;
-            }
-        }
-    }
-    if (_teacher.position >= _teacher.words.length) {
-        try { if (_teacher.recognition) _teacher.recognition.stop(); } catch {}
-    }
-}
 
 // Mostra uma pergunta de "percebeste?" entre parágrafos.
 // Renderiza inline no overlay. Resposta → retoma o ASR para o próximo parágrafo.
