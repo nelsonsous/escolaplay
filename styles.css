@@ -6713,3 +6713,8 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 
 /* v627: perfil profissional — ecrã inicial só com o plano de inglês */
 body.pro-profile .home-kids { display: none !important; }
+
+/* v630: pop do ícone do separador ativo em CSS (substitui a animação GSAP) */
+@keyframes tabIconPop { from { transform: scale(0.6); } 60% { transform: scale(1.15); } to { transform: scale(1); } }
+.tab.active i { animation: tabIconPop 0.45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .tab.active i { animation: none; } }

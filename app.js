@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v629';
+const APP_VERSION = 'v630';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -5305,13 +5305,8 @@ function switchTab(name) {
     if (name === 'tests') renderTests();
     if (name === 'progress') renderProgress();
     if (name === 'profile') { renderProfile(); try { refreshNotifUI(); } catch {} }
-    // Animação de transição (GSAP, degrada sem efeito se ausente)
-    if (window.gsap) {
-        const active = document.getElementById('tab-' + name);
-        if (active) window.gsap.fromTo(active, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
-        const icon = document.querySelector(`.tab[data-tab="${name}"] i`);
-        if (icon) window.gsap.fromTo(icon, { scale: 0.6 }, { scale: 1, duration: 0.45, ease: 'back.out(3)' });
-    }
+    // v630: transição só em CSS (.tab-content.active já tem tabIn; o ícone
+    // faz "pop" com tabIconPop) — antes duplicava com uma animação GSAP.
 }
 
 // ========== TOAST ==========
@@ -17076,7 +17071,12 @@ document.addEventListener('keydown', (e) => {
 });
 
 // v571: GSAP (71 KB) fora do caminho crítico — carrega depois do load.
-window.addEventListener('load', () => { setTimeout(() => { if (!window.gsap) _loadScript('gsap.min.js').catch(() => {}); }, 1500); });
+// v630: só para os perfis das filhas (percurso de curso, mascote, escape
+// room); o perfil profissional não o usa em lado nenhum.
+function _shouldPreloadGsap() {
+    try { const p = activeProfile(); return !p || Number(p.year) !== 99; } catch { return true; }
+}
+window.addEventListener('load', () => { setTimeout(() => { if (!window.gsap && _shouldPreloadGsap()) _loadScript('gsap.min.js').catch(() => {}); }, 1500); });
 window.addEventListener('DOMContentLoaded', () => {
     // v571 migrações leves: tutorWeak passa a ser por perfil (estava em
     // state.max, misturando irmãos); exerciseSeen podado a 180 dias.
