@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v596';
+const APP_VERSION = 'v597';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6402,6 +6402,29 @@ function _reviewSessionHtml() {
         ? `<div class="review-sec-h">🔁 Sessão de hoje — cartão ${_tutorPlanRevN + 1} de ${s.total}</div>`
         : `<div class="review-sec-h">🔁 A rever — ${remaining} ${remaining === 1 ? 'cartão' : 'cartões'}</div>`;
     if (c.type === 'phrase') {
+        // v597: recuperação ativa — quando o cartão tem uma pista em PT (nota
+        // dos flashcards/collocations/imersão), mostra-se a pista e pede-se a
+        // expressão em inglês; ao revelar, toca o modelo. Lembrar > reler.
+        const noteStr = String(c.note || '');
+        const cue = noteStr.split(/ — | · |\n/)[0].trim();
+        const recall = cue.length >= 3 && cue.length <= 90 && !/^[“"]/.test(cue);
+        if (recall) {
+            const rest = noteStr.slice(cue.length).replace(/^( — | · |\n)/, '').trim();
+            return head + `<div class="review-card review-recall" data-id="${c.id}">
+              <div class="review-cue">🇵🇹 ${escapeHtml(cue)}</div>
+              <div class="review-ask">Como se diz em inglês? Diz em voz alta e depois revela.</div>
+              <div class="review-note" id="review-note" style="display:none">
+                <div class="review-q">${escapeHtml(c.text)} <button class="tutor-say" data-text="${_tutorAttr(c.text)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
+                ${rest ? `<div class="review-rest">${escapeHtml(rest)}</div>` : ''}${c.topic ? ` <span class="review-topic">${escapeHtml(c.topic)}</span>` : ''}
+              </div>
+              <button class="review-reveal" id="review-reveal" data-t="${_tutorAttr(c.text)}" onclick="document.getElementById('review-reveal').style.display='none';document.getElementById('review-note').style.display='block';document.getElementById('review-grades').style.display='flex';try{speakEN(this.dataset.t,'en-US')}catch(e){}">Revelar e ouvir</button>
+              <div class="review-grades" id="review-grades" style="display:none">
+                <button class="review-grade again" onclick="_reviewGrade('${c.id}','again')">Não sabia</button>
+                <button class="review-grade good" onclick="_reviewGrade('${c.id}','good')">Sabia</button>
+                <button class="review-grade easy" onclick="_reviewGrade('${c.id}','easy')">Fácil</button>
+              </div>
+            </div>`;
+        }
         return head + `<div class="review-card" data-id="${c.id}">
           <div class="review-q">${escapeHtml(c.text)} <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
           <div class="review-note" id="review-note" style="display:none">${c.note ? escapeHtml(c.note) : '<i>(sem nota)</i>'}${c.topic ? ` · <span class="review-topic">${escapeHtml(c.topic)}</span>` : ''}</div>
