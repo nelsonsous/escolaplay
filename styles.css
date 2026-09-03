@@ -6695,6 +6695,13 @@ body.has-teacher-overlay #holiday-fab, body.has-teacher-overlay #exercise-screen
 .tutor-ladder-lower { margin: 0 0 12px; }
 .tutor-ladder-lower > summary { cursor: pointer; font-weight: 700; color: #64748b; font-size: 0.85rem; padding: 10px 12px; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; min-height: 44px; display: flex; align-items: center; }
 .tutor-ladder-lower[open] > summary { margin-bottom: 8px; }
+.pb-tools { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 10px; }
+.pb-search { width: 100%; box-sizing: border-box; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 12px; font-size: 0.95rem; min-height: 44px; background: #fff; }
+.pb-search:focus { border-color: #0d9488; outline: none; }
+.pb-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.pb-chip { flex-shrink: 0; background: #f1f5f9; color: #334155; border: 1.5px solid #e2e8f0; border-radius: 999px; padding: 8px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; min-height: 40px; }
+.pb-chip.on { background: #0f766e; color: #fff; border-color: #0f766e; }
+.pb-count { font-size: 0.78rem; color: #64748b; margin: 0 0 6px; }
 .tp-key { border: 1.5px solid #fbbf24; background: #fffbeb; }
 .tp-key .tct-start { margin-top: 8px; }
 .tp-more { margin-top: 10px; font-size: 0.8rem; color: #9a3412; }
