@@ -623,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v620';
+const APP_VERSION = 'v621';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -8088,7 +8088,33 @@ function _tutorAttr(s) {
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 // Tópico da aula: primeiro um erro por corrigir, senão o degrau seguinte da escada.
-function _tutorClassTopic() {
+// v621: gramática → o teu erro mais frequente ou o próximo degrau da escada;
+// conversação/listening → uma SITUAÇÃO real de projeto (antes usavam o tema
+// gramatical, o que dava passagens de áudio sobre "Prepositions"…). Roda
+// pelo dia do plano para não repetir na mesma semana.
+const _TUTOR_CLASS_SCENES = [
+    'Weekly status meeting with the client',
+    'Escalating a blocker to the steering committee',
+    'Cut-over weekend: plan and go/no-go',
+    'Daily stand-up during hypercare',
+    'Handling a change request from the business',
+    'Negotiating a deadline with the vendor',
+    'Kick-off call with a new client team',
+    'Explaining a production incident and the root cause',
+    'Presenting test results and open defects',
+    'Handover to the support team',
+    'Budget review: overrun and options',
+    'One-to-one with a team member who is behind'
+];
+function _tutorClassTopic(focus) {
+    if (focus === 'conversation' || focus === 'listening') {
+        let i = 0; try { i = Math.max(0, _tutorPlanDayIndex()); } catch {}
+        // No plano há 2 aulas de situação por semana (dias 2 e 4): cenas
+        // sequenciais 0,1 | 2,3 | 4,5; fora desses dias, roda pelo dia.
+        const w = Math.floor(i / 7), r = i % 7;
+        const k = r === 1 ? w * 2 : (r === 3 ? w * 2 + 1 : i);
+        return _TUTOR_CLASS_SCENES[k % _TUTOR_CLASS_SCENES.length];
+    }
     const weak = (typeof _tutorTopWeak === 'function') ? _tutorTopWeak(1) : [];
     if (weak.length) return weak[0];
     const nx = (typeof _tutorNextLadderTopic === 'function') ? _tutorNextLadderTopic() : null;
@@ -8105,6 +8131,7 @@ const _TUTOR_CLASS_FOCUS = {
 };
 // Porquê este tema: erro teu, próximo degrau da escada, ou essencial.
 function _tutorClassWhy(topic) {
+    if (_TUTOR_CLASS_SCENES.includes(topic)) return 'uma situação real de projeto';
     const fromWeak = (typeof _tutorTopWeak === 'function') && _tutorTopWeak(1)[0] === topic;
     const nx = (!fromWeak && typeof _tutorNextLadderTopic === 'function') ? _tutorNextLadderTopic() : null;
     return fromWeak ? 'escolhido a partir dos teus erros' : (nx && nx.topic === topic ? `o próximo degrau da escada (${escapeHtml(nx.lvl)})` : 'o essencial para o teu dia-a-dia');
@@ -8115,12 +8142,12 @@ function _tutorClassIntro(focus, topicOverride) {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
     const f = _TUTOR_CLASS_FOCUS[focus] || _TUTOR_CLASS_FOCUS.grammar;
-    const topic = String(topicOverride || '').trim() || _tutorClassTopic();
+    const topic = String(topicOverride || '').trim() || _tutorClassTopic(focus);
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">${f.emoji}</div>
         <div class="tutor-class">
           <div class="tutor-class-h">${f.emoji} Aula de ${escapeHtml(f.label)} · ${escapeHtml(_tutorTargetLevel())}</div>
-          <div class="tutor-class-goal">Tema: <b>${escapeHtml(topic)}</b> — ${_tutorClassWhy(topic)}. ${escapeHtml(f.sub)}.</div>
+          <div class="tutor-class-goal">${_TUTOR_CLASS_SCENES.includes(topic) ? 'Situação' : 'Tema'}: <b>${escapeHtml(topic)}</b> — ${_tutorClassWhy(topic)}. ${escapeHtml(f.sub)}.</div>
         </div>
       </div>`);
     _tutorScroll();
@@ -8128,7 +8155,8 @@ function _tutorClassIntro(focus, topicOverride) {
 function _tutorCoachClass() {
     const chat = document.getElementById('tutor-chat');
     if (!chat) return;
-    const topic = _tutorClassTopic();
+    const topic = _tutorClassTopic('grammar');
+    const scene = _tutorClassTopic('listening');
     const _why = _tutorClassWhy(topic);
     const chips = Object.keys(_TUTOR_CLASS_FOCUS).map(k => {
         const f = _TUTOR_CLASS_FOCUS[k];
@@ -8142,7 +8170,7 @@ function _tutorCoachClass() {
       <div class="tutor-row them"><div class="tutor-bubble-av">🎓</div>
         <div class="tutor-class">
           <div class="tutor-class-h">🎓 Aula do dia · ${escapeHtml(_tutorTargetLevel())}</div>
-          <div class="tutor-class-goal">Tema de hoje: <b>${escapeHtml(topic)}</b> — ${_why}. Escolhe o foco:</div>
+          <div class="tutor-class-goal">Gramática: <b>${escapeHtml(topic)}</b> — ${_why}. Conversação/listening: <b>${escapeHtml(scene)}</b>. Escolhe o foco:</div>
           <div class="tutor-class-focuses">${chips}</div>
         </div>
       </div>`);
@@ -8157,7 +8185,8 @@ async function _tutorClassStart(focus, topicOverride) {
     focus = _TUTOR_CLASS_FOCUS[focus] ? focus : 'grammar';
     const f = _TUTOR_CLASS_FOCUS[focus];
     const lv = _tutorTargetLevel();
-    const topic = String(topicOverride || '').trim() || _tutorClassTopic();
+    const topic = String(topicOverride || '').trim() || _tutorClassTopic(focus);
+    const isScene = _TUTOR_CLASS_SCENES.includes(topic);
     _tutorBusy(`A preparar a aula de ${f.label}…`, 15);
     const sys = `You are an English tutor building a focused ~20-minute lesson for a Portuguese Project Manager working in SAP/consulting, consolidating CEFR ${lv}. Return ONLY a JSON object.
 LANGUAGE RULES (critical): every explanation is in EUROPEAN PORTUGUESE (Portugal, never Brazilian); every example, phrase, question and option is in ENGLISH; grammar term names (Simple Past, Present Perfect, Conditionals, Prepositions…) stay in ENGLISH even inside the Portuguese text.
@@ -8172,7 +8201,7 @@ Shape:
  "quiz":[{"q":"…","options":["…","…","…"],"answer":0,"exp":"…","expPt":"…","topic":"…"}]}
 Include 3 "steps" (2-3 examples each), 3 "phrases", 4 "drill" items and 3 "quiz" items. The quiz closes the lesson and must mix everything taught. QUALITY: exactly ONE "___" per gapped sentence; the correct answer must not appear elsewhere in the sentence; exactly one option fits naturally, the others must be clearly wrong.${focus === 'listening' ? ' The drill and quiz questions must be answerable ONLY by having listened to "script".' : ''}`;
     const _reuse = _tutorRecentPhrases(4);
-    const usr = `Topic: "${topic}". Level: ${lv}. Focus: ${focus}. Examples must come from SAP project life (status meetings, cut-over, tickets, emails to the client, steering committees).${_reuse.length ? ` If they fit naturally, reuse 1-2 of these expressions the student is memorising inside the examples: ${_reuse.map(p => '"' + p + '"').join(', ')}.` : ''} Build the lesson now.`;
+    const usr = `${isScene ? `Situation: "${topic}" — build the whole lesson around this real project situation (the "topic" of each drill/quiz item is still the grammar or language point it tests)` : `Topic: "${topic}"`}. Level: ${lv}. Focus: ${focus}. Examples must come from SAP project life (status meetings, cut-over, tickets, emails to the client, steering committees).${_reuse.length ? ` If they fit naturally, reuse 1-2 of these expressions the student is memorising inside the examples: ${_reuse.map(p => '"' + p + '"').join(', ')}.` : ''} Build the lesson now.`;
     let d = null;
     try {
         d = await _tutorAskJSONValid(sys, usr, 2800, (j) => {
@@ -8239,7 +8268,7 @@ Include 3 "steps" (2-3 examples each), 3 "phrases", 4 "drill" items and 3 "quiz"
     quiz.forEach(it => { it.depth = 0; it.isQuiz = true; if (!it.topic) it.topic = topic; });
     tutorState._pq = { queue: drill.concat(quiz), topic };
     tutorState._lastTopic = topic;
-    try { _tutorMarkExplored(topic); } catch {}
+    if (!isScene) { try { _tutorMarkExplored(topic); } catch {} } // situações não são degraus da escada
     _tutorRenderPracticeItem();
 }
 window._tutorClassStart = _tutorClassStart;
