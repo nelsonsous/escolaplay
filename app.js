@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v597';
+const APP_VERSION = 'v598';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7877,9 +7877,9 @@ function _tutorBusy(msg) {
     const bar = document.getElementById('tutor-bar');
     if (bar) bar.innerHTML = `<div class="tutor-thinking"><span class="tts-spinner"></span> ${escapeHtml(msg)}</div>`;
 }
-// escapeHtml não escapa aspas — num atributo, uma aspa no texto da IA parte o
-// HTML. Os botões do tutor (_tutorSpeakBtn/_tutorSavePhraseBtn) já contam com
-// &quot;/&#39;, por isso é este o encoding certo para valores de atributo.
+// Encoding para valores de atributo (aspas incluídas). escapeHtml também já
+// escapa aspas (v598: auditoria) — mantém-se _tutorAttr por clareza nos
+// sítios onde o valor vai para data-* / onclick.
 function _tutorAttr(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -9746,7 +9746,7 @@ function _tutorRenderFluencyHelp(fh) {
           ${phraseHtml}
           ${connHtml}
           <div class="tutor-lesson-btns">
-            <button class="tutor-lbtn prac" data-topic="${topic}" onclick="_tutorHelpLessonBtn(this)"><i class="fas fa-book-open"></i> ${_tutT('Lesson & exercises','Lição & exercícios')}</button>
+            <button class="tutor-lbtn prac" data-topic="${_tutorAttr(topic)}" onclick="_tutorHelpLessonBtn(this)"><i class="fas fa-book-open"></i> ${_tutT('Lesson & exercises','Lição & exercícios')}</button>
             ${firstPhrase ? `<button class="tutor-lbtn" data-text="${firstPhrase}" onclick="_tutorHelpSpeakBtn(this)"><i class="fas fa-microphone"></i> ${_tutT('Practise speaking','Treinar a falar')}</button>` : ''}
           </div>
         </div>
