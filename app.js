@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v593';
+const APP_VERSION = 'v594';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7670,23 +7670,58 @@ async function _tutorCoachPron() {
         ]
     };
     const opts = banks[lv] || banks.B2;
-    const sentence = opts[Math.floor(Math.random() * opts.length)];
-    const tid = 'coach-pron-' + Date.now();
-    // target: alinha com o scorer local (_tutorEvalPron) — antes só guardava
-    // "sentence" e a avaliação corria contra undefined (skill partida).
-    tutorState._pron = { tid, target: sentence, reply: '', coachLv: lv };
+    // v594: sessão de 4 frases (rodam com o dia do plano), em dois modos que
+    // alternam por dia: SHADOWING (ouve o modelo e repete logo a seguir —
+    // o método com melhor evidência para ritmo e entoação) e LEITURA (lês
+    // primeiro, ouves o modelo depois). O passo do plano fecha no fim.
+    const di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
+    const start = (di * 4) % opts.length;
+    const queue = Array.from({ length: 4 }, (_, i) => opts[(start + i) % opts.length]);
+    tutorState._pronSess = { mode: di % 2 === 0 ? 'shadow' : 'read', queue, idx: 0, scores: [], lv };
     chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">🗣️</div>
         <div class="tutor-coach-task">
-          <div class="tutor-coach-task-h">🗣️ Pronunciation · ${lv}</div>
-          <div class="tutor-coach-task-p"><b>Read aloud:</b><br>"${escapeHtml(sentence)}"</div>
-          <div class="tutor-coach-pron-hint">Tap 🎤 below to record. I'll listen, transcribe, and give you feedback on linking, stress and weak forms.</div>
+          <div class="tutor-coach-task-h">🗣️ Pronúncia · ${escapeHtml(lv)} · ${tutorState._pronSess.mode === 'shadow' ? '🎧 Shadowing' : '📖 Leitura'}</div>
+          <div class="tutor-coach-task-p">${tutorState._pronSess.mode === 'shadow' ? 'Ouve o modelo e repete <b>logo a seguir</b>, a imitar o ritmo e a entoação. 4 frases.' : 'Lê cada frase em voz alta; depois ouves o modelo e comparas. 4 frases.'}</div>
         </div>
       </div>`);
-    _tutorScroll();
-    showToast && showToast('Toca no micro e fala');
+    _tutorPronNext();
 }
 window._tutorCoachPron = _tutorCoachPron;
+function _tutorPronNext() {
+    const s = tutorState && tutorState._pronSess;
+    if (!s) return;
+    if (s.idx >= s.queue.length) { _tutorPronFinish(); return; }
+    const sentence = s.queue[s.idx];
+    const n = s.idx + 1;
+    tutorState._pron = { target: sentence, reply: '', coachLv: s.lv, session: true };
+    const chat = document.getElementById('tutor-chat');
+    if (chat) chat.insertAdjacentHTML('beforeend', `
+      <div class="tutor-row them"><div class="tutor-bubble-av">${s.mode === 'shadow' ? '🎧' : '📖'}</div>
+        <div class="tutor-lesson">
+          <div class="tutor-lesson-head">${s.mode === 'shadow' ? '🎧 Ouve e repete' : '📖 Lê em voz alta'} · ${n}/${s.queue.length}</div>
+          <div class="tutor-pron-target">${escapeHtml(sentence)} <button class="tutor-say" data-text="${_tutorAttr(sentence)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button></div>
+          <div class="tutor-pron-hint">${s.mode === 'shadow' ? 'O modelo toca sozinho. Repete de seguida, sem pausas, e toca no micro.' : 'Toca no micro e lê. Só depois ouves o modelo.'}</div>
+        </div>
+      </div>`);
+    _tutorScrollToLastTop();
+    _tutorRenderPronBar();
+    if (s.mode === 'shadow' && typeof speakEN === 'function') setTimeout(() => { if (tutorState && tutorState._pron) speakEN(sentence, tutorState.lang); }, 300);
+}
+window._tutorPronNext = _tutorPronNext;
+function _tutorPronFinish() {
+    const s = tutorState && tutorState._pronSess;
+    if (!s) return;
+    tutorState._pronSess = null; tutorState._pron = null;
+    const sc = s.scores.filter(x => typeof x === 'number');
+    const avg = sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : 0;
+    const best = sc.length ? Math.max(...sc) : 0;
+    const msg = avg >= 85 ? 'Muito claro — mantém este ritmo.' : avg >= 65 ? 'Bom. Repete amanhã as frases a amarelo.' : 'Vale a pena repetir a sessão mais devagar, frase a frase.';
+    _tutorAddRich(`🏁 <b>Sessão de pronúncia feita</b> · ${s.mode === 'shadow' ? 'shadowing' : 'leitura'}<br>Média <b>${avg}%</b> · melhor <b>${best}%</b> · ${sc.length} ${sc.length === 1 ? 'frase' : 'frases'}<br><span class="tutor-pron-hint">${escapeHtml(msg)}</span>`);
+    try { _tutorPlanComplete('pron'); } catch {}
+    _tutorRenderMic();
+}
+window._tutorPronFinish = _tutorPronFinish;
 
 // Feedback IA extra sobre uma leitura em voz alta (linking/stress/weak forms).
 // NOTA: antes chamava-se _tutorEvalPron e colidia com o scorer local (a segunda
@@ -9000,8 +9035,11 @@ function _tutorEvalPron(said) {
     if (!pron) return;
     said = (said || '').trim();
     const { score, words, okCount, closeCount, totalCount } = _tutorPronEval(said, pron.target);
-    // Plano: uma leitura avaliada fecha o passo "pronúncia" / "reunião".
-    if (said && (pron.meeting || pron.coachLv)) { try { _tutorPlanComplete(pron.meeting ? 'meet' : 'pron'); } catch {} }
+    // Plano: reunião fecha na 1.ª leitura avaliada; a sessão de pronúncia
+    // (v594) fecha no fim das 4 frases (_tutorPronFinish).
+    if (said && (pron.meeting || (pron.coachLv && !pron.session))) { try { _tutorPlanComplete(pron.meeting ? 'meet' : 'pron'); } catch {} }
+    const sess = pron.session ? (tutorState && tutorState._pronSess) : null;
+    if (sess && said) { sess.scores.push(score); sess.idx++; }
     if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
     if (pron.meeting) { _tutorEvalMeeting(said, score, words, pron); return; }
     // Skill Pronunciation do coach: além do resultado local, pede feedback IA
@@ -9034,7 +9072,8 @@ function _tutorEvalPron(said) {
           <div class="tutor-explain">${verdict}</div>
           <div class="tutor-lesson-btns2">
             <button class="tutor-lbtn rep" onclick="_tutorPronRetry()"><i class="fas fa-repeat"></i> Ouvir e repetir</button>
-            <button class="tutor-lbtn cont" onclick="_tutorEndPron(true)"><i class="fas fa-arrow-right"></i> Continuar</button>
+            ${sess ? `<button class="tutor-lbtn cont" onclick="_tutorPronNext()"><i class="fas fa-arrow-right"></i> ${sess.idx >= sess.queue.length ? 'Terminar' : `Próxima frase (${sess.idx + 1}/${sess.queue.length})`}</button>`
+                   : `<button class="tutor-lbtn cont" onclick="_tutorEndPron(true)"><i class="fas fa-arrow-right"></i> Continuar</button>`}
           </div>
         </div>
       </div>`);
@@ -9048,7 +9087,7 @@ function _tutorPronRetry() {
 function _tutorEndPron(cont) {
     const pron = tutorState && tutorState._pron;
     const reply = pron && pron.reply;
-    if (tutorState) { tutorState._pron = null; tutorState._mq = null; }
+    if (tutorState) { tutorState._pron = null; tutorState._mq = null; tutorState._pronSess = null; }
     if (cont && reply) _tutorAddTutor(reply, '', '', true);
     else _tutorRenderMic();
 }
