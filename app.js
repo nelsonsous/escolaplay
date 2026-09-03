@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v600';
+const APP_VERSION = 'v601';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6153,15 +6153,19 @@ function openTutor(opts) {
     const o = document.createElement('div');
     o.id = 'tutor-overlay';
     const headerStyle = isSubjectMode ? ` style="background:linear-gradient(135deg,${subj.color},#0891b2)"` : '';
-    const headerTitle = isSubjectMode ? `Professor(a) de ${escapeHtml(subj.name)}` : 'English Tutor';
+    // v601: cabeçalho do tutor de inglês só com o essencial — título com o
+    // dia do plano, phrasebook e voz. O "Explorar lições" vive na Lição da
+    // escada (Mais opções) e a etiqueta "IA" não acrescentava nada.
+    let headerTitle;
+    if (isSubjectMode) headerTitle = `Professor(a) de ${escapeHtml(subj.name)}`;
+    else { try { const _i = _tutorPlanDayIndex(); headerTitle = _i >= TUTOR_PLAN_DAYS ? 'Inglês · plano concluído' : `Inglês · Dia ${_i + 1} de ${TUTOR_PLAN_DAYS}`; } catch { headerTitle = 'Inglês'; } }
     o.innerHTML = `
       <div class="tutor-header"${headerStyle}>
         <button class="icon-btn" aria-label="Voltar" title="Voltar" onclick="closeTutor()"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
         <div class="tutor-title"><span class="tutor-av">${av}</span> ${headerTitle}</div>
-        ${isSubjectMode ? '' : `<button class="icon-btn" onclick="_tutorOpenExplore()" title="Explorar lições por nível"><i class="fas fa-layer-group"></i></button>`}
-        ${isSubjectMode ? '' : `<button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>`}
-        ${isSubjectMode ? '' : `<button class="icon-btn" onclick="openVoicePickerEN()" title="Voz"><i class="fas fa-sliders"></i></button>`}
-        <span class="tutor-tag">IA</span>
+        ${isSubjectMode ? '' : `<button class="icon-btn tutor-review-btn" onclick="_tutorOpenReview()" aria-label="Phrasebook e revisão" title="Phrasebook & revisão"><i class="fas fa-book"></i><span id="tutor-review-badge" class="tutor-review-badge" style="display:none"></span></button>`}
+        ${isSubjectMode ? '' : `<button class="icon-btn" onclick="openVoicePickerEN()" aria-label="Voz" title="Voz"><i class="fas fa-sliders"></i></button>`}
+        ${isSubjectMode ? '<span class="tutor-tag">IA</span>' : ''}
       </div>
       <div class="tutor-chat" id="tutor-chat"></div>
       <div class="tutor-bar" id="tutor-bar"></div>`;
