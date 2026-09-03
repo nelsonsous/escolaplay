@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v609';
+const APP_VERSION = 'v610';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6471,10 +6471,20 @@ function _reviewSessionHtml() {
       </div>
     </div>`;
 }
-function _phrasebookListHtml() {
-    const phrases = _srsAll().filter(c => c.type === 'phrase').sort((a, b) => b.createdAt - a.createdAt);
-    if (!phrases.length) return `<div class="review-sec-h">📖 O meu phrasebook</div><div class="review-empty">Ainda não guardaste expressões. Quando o professor te corrigir, toca em <i class="fas fa-bookmark"></i> para guardar.</div>`;
-    return `<div class="review-sec-h">📖 O meu phrasebook (${phrases.length})</div>` + phrases.map(c => `
+// v610: phrasebook com pesquisa, filtro por origem (Flashcards, Collocations,
+// Imersão, Writing…) e lista limitada a 30 com "Ver mais" — em 3 semanas
+// chega às centenas e o ecrã crescia sem fim.
+let _pbUI = { q: '', topic: '', limit: 30 };
+function _pbOrigin(c) { return String((c && c.topic) || 'Outros').split(' · ')[0].trim() || 'Outros'; }
+function _pbFiltered() {
+    const all = _srsAll().filter(c => c.type === 'phrase').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const q = String(_pbUI.q || '').trim().toLowerCase();
+    return all.filter(c => (!_pbUI.topic || _pbOrigin(c) === _pbUI.topic) && (!q || (String(c.text || '') + ' ' + String(c.note || '')).toLowerCase().includes(q)));
+}
+function _pbRowsHtml() {
+    const filtered = _pbFiltered();
+    const shown = filtered.slice(0, _pbUI.limit);
+    const rows = shown.map(c => `
       <div class="phrase-row" data-id="${c.id}">
         <div class="phrase-main">
           <div class="phrase-text">${escapeHtml(c.text)}</div>
@@ -6483,6 +6493,33 @@ function _phrasebookListHtml() {
         <button class="tutor-say" data-text="${escapeHtml(c.text)}" onclick="_tutorSpeakBtn(this)" aria-label="Ouvir" title="Ouvir"><i class="fas fa-volume-high" aria-hidden="true"></i></button>
         <button class="phrase-del" onclick="_reviewDelete('${c.id}')" aria-label="Apagar"><i class="fas fa-trash"></i></button>
       </div>`).join('');
+    const more = filtered.length > shown.length ? `<button class="review-showlist" onclick="_pbMore()">Ver mais (${filtered.length - shown.length})</button>` : '';
+    const none = !filtered.length ? `<div class="review-empty">Nada encontrado.</div>` : '';
+    return `<div class="pb-count">${filtered.length} ${filtered.length === 1 ? 'expressão' : 'expressões'}</div>${rows}${none}${more}`;
+}
+function _pbRerender() {
+    const rows = document.getElementById('pb-rows'); if (rows) rows.innerHTML = _pbRowsHtml();
+    const chips = document.getElementById('pb-chips'); if (chips) chips.innerHTML = _pbChipsHtml();
+}
+function _pbChipsHtml() {
+    const all = _srsAll().filter(c => c.type === 'phrase');
+    const origins = [...new Set(all.map(_pbOrigin))].slice(0, 8);
+    if (origins.length < 2) return '';
+    return ['', ...origins].map(o => `<button class="pb-chip${_pbUI.topic === o ? ' on' : ''}" data-o="${_tutorAttr(o)}" onclick="_pbSetTopic(this.dataset.o)">${o ? escapeHtml(o) : 'Todos'}</button>`).join('');
+}
+function _pbSetTopic(o) { _pbUI.topic = o || ''; _pbUI.limit = 30; _pbRerender(); }
+function _pbSetQuery(q) { _pbUI.q = q || ''; _pbUI.limit = 30; const rows = document.getElementById('pb-rows'); if (rows) rows.innerHTML = _pbRowsHtml(); }
+function _pbMore() { _pbUI.limit += 30; _pbRerender(); }
+window._pbSetTopic = _pbSetTopic; window._pbSetQuery = _pbSetQuery; window._pbMore = _pbMore;
+function _phrasebookListHtml() {
+    const phrases = _srsAll().filter(c => c.type === 'phrase');
+    if (!phrases.length) return `<div class="review-sec-h">📖 O meu phrasebook</div><div class="review-empty">Ainda não guardaste expressões. Quando o professor te corrigir, toca em <i class="fas fa-bookmark"></i> para guardar.</div>`;
+    return `<div class="review-sec-h">📖 O meu phrasebook (${phrases.length})</div>
+      <div class="pb-tools">
+        <input id="pb-search" class="pb-search" type="search" placeholder="Pesquisar…" value="${_tutorAttr(_pbUI.q)}" oninput="_pbSetQuery(this.value)" aria-label="Pesquisar no phrasebook">
+        <div id="pb-chips" class="pb-chips">${_pbChipsHtml()}</div>
+      </div>
+      <div id="pb-rows">${_pbRowsHtml()}</div>`;
 }
 function _reviewGrade(id, grade) { _srsGrade(id, grade); _tutorRenderReview(); }
 window._reviewGrade = _reviewGrade;
