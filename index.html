@@ -56,8 +56,8 @@
 
     <nav class="tabs" role="tablist" aria-label="Secções principais">
         <button class="tab active" data-tab="home" onclick="switchTab('home')" role="tab" aria-selected="true"><i class="fas fa-house" aria-hidden="true"></i><span>Início</span></button>
-        <button class="tab" data-tab="subjects" onclick="switchTab('subjects')" role="tab" aria-selected="false"><i class="fas fa-book-open" aria-hidden="true"></i><span>Disciplinas</span></button>
-        <button class="tab" data-tab="tests" onclick="switchTab('tests')" role="tab" aria-selected="false"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Testes</span></button>
+        <button class="tab home-kids" data-tab="subjects" onclick="switchTab('subjects')" role="tab" aria-selected="false"><i class="fas fa-book-open" aria-hidden="true"></i><span>Disciplinas</span></button>
+        <button class="tab home-kids" data-tab="tests" onclick="switchTab('tests')" role="tab" aria-selected="false"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Testes</span></button>
         <button class="tab" data-tab="progress" onclick="switchTab('progress')" role="tab" aria-selected="false"><i class="fas fa-chart-line" aria-hidden="true"></i><span>Progresso</span></button>
         <button class="tab" data-tab="profile" onclick="switchTab('profile')" role="tab" aria-selected="false"><i class="fas fa-user-gear" aria-hidden="true"></i><span>Perfil</span></button>
     </nav>
@@ -275,14 +275,14 @@
 
     <!-- ===== PROGRESS TAB ===== -->
     <section class="tab-content" id="tab-progress">
-        <div class="section-title"><i class="fas fa-chart-line"></i> Evolução por disciplina</div>
+        <div class="section-title home-kids"><i class="fas fa-chart-line"></i> Evolução por disciplina</div>
         <div id="progress-list"></div>
 
-        <div class="section-title"><i class="fas fa-gift"></i> Prémios</div>
-        <div id="rewards-list"></div>
+        <div class="section-title home-kids"><i class="fas fa-gift"></i> Prémios</div>
+        <div id="rewards-list" class="home-kids"></div>
 
-        <div class="section-title"><i class="fas fa-medal"></i> Medalhas</div>
-        <div class="badges-grid" id="badges-grid"></div>
+        <div class="section-title home-kids"><i class="fas fa-medal"></i> Medalhas</div>
+        <div class="badges-grid home-kids" id="badges-grid"></div>
     </section>
 
     <!-- ===== PROFILE TAB ===== -->
