@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v594';
+const APP_VERSION = 'v595';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7361,7 +7361,7 @@ function _tutorPlanRender(opts) {
     const weekNo = finished ? 3 : ((idx % 7 === 6) ? Math.floor(idx / 7) + 1 : 0);
     const weekHtml = weekNo ? _tutorPlanWeekSummaryHtml(weekNo) : '';
     chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-plan-card"><div class="tutor-bubble-av">🎯</div><div class="tutor-coach tutor-plan">
-        <div class="tutor-coach-head"><div class="tutor-coach-h">${head}</div><div class="tutor-coach-meta">nível <b>${escapeHtml(lv)}</b> → alvo <b>${escapeHtml(target)}</b>${lastT ? ` · último teste <b>${Number(lastT.right) || 0}/${Number(lastT.total) || 0}</b>` : ''}</div></div>
+        <div class="tutor-coach-head"><div class="tutor-coach-h">${head}</div><div class="tutor-coach-meta">nível <b>${escapeHtml(lv)}</b> → alvo <b>${escapeHtml(target)}</b>${lastT && lastT.total ? ` · último teste <b>${Math.round(100 * (Number(lastT.right) || 0) / Number(lastT.total))}%</b>` : ''}</div></div>
         ${finished ? `<button class="tct-start" onclick="_tutorPlanRestart()">Recomeçar 3 semanas</button>` : `<div class="tp-steps">${stepHtml}</div>`}
         ${weekHtml}
         <details class="tp-more"><summary>Mais opções — todas as skills</summary></details>
@@ -7460,7 +7460,8 @@ function _tutorPlanHomeCard(card) {
     const streak = _tutorPlanStreak();
     const late = !finished && !!next && new Date().getHours() >= 19;
     const streakTxt = streak >= 2 ? ` · 🔥 ${streak}` : '';
-    if (sub) sub.textContent = noKey ? '🔑 Falta a chave Mistral — toca para configurar' : finished ? 'Toca para recomeçar 3 semanas' : (next ? `${late ? '⏰ Hoje ainda falta · ' : ''}${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3${streakTxt}` : `Tudo feito hoje ✓ — volta amanhã${streakTxt}`);
+    const fin = _tutorPlanGet().final;
+    if (sub) sub.textContent = noKey ? '🔑 Falta a chave Mistral — toca para configurar' : finished ? (fin ? `🎓 ${fin.pct}% no teste final · ${fin.days}/21 dias · toca para recomeçar` : 'Toca para recomeçar 3 semanas') : (next ? `${late ? '⏰ Hoje ainda falta · ' : ''}${cur ? 'Em curso' : 'Próximo'}: ${m[0]} ${m[1]} · ${m[2]} min · ${nDone}/3${streakTxt}` : `Tudo feito hoje ✓ — volta amanhã${streakTxt}`);
     card.classList.toggle('tutor-card-due', late && !noKey);
     const pct = Math.round(100 * Math.min(idx, TUTOR_PLAN_DAYS) / TUTOR_PLAN_DAYS);
     let bar = card.querySelector('.tutor-card-bar');
@@ -8179,8 +8180,10 @@ window._tutorFlashSave = _tutorFlashSave;
 // === 3) TESTE DE PROGRESSO ===
 // 10 perguntas sobre o que foi mesmo estudado nos últimos 7 dias.
 // Sem correção pelo caminho: respondes tudo e só depois vês o resultado.
-function _tutorStudiedLast7d() {
-    const since = Date.now() - 7 * 864e5;
+function _tutorStudiedLast7d() { return _tutorStudiedSince(7); }
+// v595: parametrizado — o teste final do dia 21 cobre as 3 semanas.
+function _tutorStudiedSince(days) {
+    const since = Date.now() - (days || 7) * 864e5;
     const max = (state && state.max) || {};
     const set = new Set();
     const add = (t) => { t = String(t || '').trim(); if (t && t.length <= 60) set.add(t); };
@@ -8194,11 +8197,15 @@ function _tutorStudiedLast7d() {
     ((state && state.tutorVocabHistory) || []).forEach(h => {
         if ((h.at || 0) >= since) (h.items || []).slice(0, 4).forEach(it => add(it && it.collocation));
     });
-    return Array.from(set).slice(0, 18);
+    return Array.from(set).slice(0, (days || 7) > 7 ? 30 : 18);
 }
 async function _tutorCoachTest() {
     if (!tutorState) return;
-    const topics = _tutorStudiedLast7d();
+    // v595: no dia 21 o teste é FINAL — 20 perguntas sobre as 3 semanas.
+    const _di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
+    const isFinal = _di === TUTOR_PLAN_DAYS - 1;
+    const nQ = isFinal ? 20 : 10;
+    const topics = isFinal ? _tutorStudiedSince(21) : _tutorStudiedLast7d();
     if (topics.length < 3) {
         _tutorAddTutor('🧪 Ainda não tenho matéria suficiente desta semana para te testar. Faz uma Aula, um Roleplay ou uns Flashcards e volta cá — o teste é montado a partir do que estudaste mesmo.', '', '', true);
         return;
@@ -8209,25 +8216,26 @@ async function _tutorCoachTest() {
     const chatIntro = document.getElementById('tutor-chat');
     if (chatIntro) chatIntro.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">🧪</div>
-        <div class="tutor-bubble tutor-them"><span>${(() => { try { const i = _tutorPlanDayIndex(); return i < TUTOR_PLAN_DAYS ? `Teste da semana ${Math.floor(i / 7) + 1} do plano` : 'Teste de progresso'; } catch { return 'Teste de progresso'; } })()}: perguntas sobre o que estudaste nos últimos 7 dias (${topics.length} ${topics.length === 1 ? 'tópico' : 'tópicos'}). Não te corrijo pelo caminho — respondes tudo e vês o resultado no fim.</span></div>
+        <div class="tutor-bubble tutor-them"><span>${isFinal ? `🎓 <b>Teste final das 3 semanas</b>: ${nQ} perguntas sobre tudo o que estudaste (${topics.length} tópicos)` : `${(() => { try { return _di < TUTOR_PLAN_DAYS ? `Teste da semana ${Math.floor(_di / 7) + 1} do plano` : 'Teste de progresso'; } catch { return 'Teste de progresso'; } })()}: perguntas sobre o que estudaste nos últimos 7 dias (${topics.length} ${topics.length === 1 ? 'tópico' : 'tópicos'})`}. Não te corrijo pelo caminho — respondes tudo e vês o resultado no fim.</span></div>
       </div>`);
     _tutorScroll();
-    _tutorBusy('A montar o teste dos últimos 7 dias…');
-    const sys = `You are an English examiner writing a 10-question progress test for a Portuguese Project Manager at CEFR ${lv}, working in SAP/consulting. The test must cover ONLY the topics the student studied this week, given below — spread the questions across them, hardest topics twice if needed. Return ONLY a JSON object:
+    _tutorBusy(isFinal ? 'A montar o teste final das 3 semanas…' : 'A montar o teste dos últimos 7 dias…');
+    const sys = `You are an English examiner writing a ${nQ}-question progress test for a Portuguese Project Manager at CEFR ${lv}, working in SAP/consulting. The test must cover ONLY the topics the student studied ${isFinal ? 'in the last three weeks' : 'this week'}, given below — spread the questions across them, hardest topics twice if needed. Return ONLY a JSON object:
 {"questions":[{"q":"English question or sentence with ONE gap ___","options":["English","English","English"],"answer":0,"exp":"1-line explanation in ENGLISH","expPt":"nota PT-PT max 12 palavras","topic":"which studied topic this tests"}]}
-Exactly 10 questions. QUALITY (critical): exactly ONE "___" per gapped sentence; the correct answer must NOT appear elsewhere in the sentence; exactly one option fits naturally and the other two must be clearly wrong; once filled, the sentence must read as natural English. "topic" must be one of the studied topics, copied verbatim. Portuguese notes in EUROPEAN PORTUGUESE (Portugal, never Brazilian), grammar term names in English.`;
-    const usr = `Topics studied in the last 7 days:\n${topics.map(t => '- ' + t).join('\n')}`;
+Exactly ${nQ} questions. QUALITY (critical): exactly ONE "___" per gapped sentence; the correct answer must NOT appear elsewhere in the sentence; exactly one option fits naturally and the other two must be clearly wrong; once filled, the sentence must read as natural English. "topic" must be one of the studied topics, copied verbatim. Portuguese notes in EUROPEAN PORTUGUESE (Portugal, never Brazilian), grammar term names in English.`;
+    const usr = `Topics studied in the last ${isFinal ? 21 : 7} days:\n${topics.map(t => '- ' + t).join('\n')}`;
     let items = [];
+    const minQ = Math.ceil(nQ * 0.6);
     try {
-        const j = await _tutorAskJSONValid(sys, usr, 2600, (x) => _tutorValidQuiz(x && x.questions, 10).length >= 6 ? '' : 'fewer than 6 valid questions (each needs q with ONE ___, 3 options, numeric answer, topic)');
-        items = _tutorValidQuiz(j && j.questions, 10);
+        const j = await _tutorAskJSONValid(sys, usr, isFinal ? 4200 : 2600, (x) => _tutorValidQuiz(x && x.questions, nQ).length >= minQ ? '' : `fewer than ${minQ} valid questions (each needs q with ONE ___, 3 options, numeric answer, topic)`);
+        items = _tutorValidQuiz(j && j.questions, nQ);
     } catch (e) { console.warn('[coach] test failed', e); }
     if (!tutorState) return;
     if (items.length < 4) {
         _tutorAddTutor('Não consegui montar o teste agora. Tentamos outra vez daqui a pouco?', '', '', true);
         return;
     }
-    tutorState._test = { items, idx: 0, answers: [], startedAt: Date.now() };
+    tutorState._test = { items, idx: 0, answers: [], startedAt: Date.now(), final: isFinal };
     _tutorTestRender();
 }
 window._tutorCoachTest = _tutorCoachTest;
@@ -8335,7 +8343,34 @@ function _tutorTestFinish() {
     _tutorRenderMic();
     try { _tutorPlanComplete('test'); } catch {}
     try { _tutorRenderLevelSuggestion(); } catch {}
+    // v595: teste final do dia 21 → certificado (guardado no plano e
+    // mostrado no cartão inicial quando o plano termina).
+    if (t.final) { try { _tutorRenderCertificate(right, total, _lvNow); } catch (e) { console.warn('[plan] certificado', e); } }
 }
+function _tutorRenderCertificate(right, total, lv) {
+    const plan = _tutorPlanGet();
+    const pct = total ? Math.round(100 * right / total) : 0;
+    const doneDays = Object.keys(plan.days).filter(k => { const d = plan.days[k]; return d && d.review && d.core && d.output; }).length;
+    let cards = 0; try { cards = _srsAll().length; } catch {}
+    const streak = _tutorPlanStreak();
+    plan.final = { right, total, pct, lv: lv || '', at: Date.now(), days: doneDays, cards };
+    try { saveState(); } catch {}
+    const p = (typeof activeProfile === 'function' && activeProfile()) || {};
+    const grade = pct >= 90 ? 'Excelente' : pct >= 75 ? 'Muito bom' : pct >= 60 ? 'Bom' : 'Concluído';
+    const chat = document.getElementById('tutor-chat');
+    if (!chat) return;
+    document.getElementById('tutor-cert-card')?.remove();
+    chat.insertAdjacentHTML('beforeend', `<div class="tutor-row them" id="tutor-cert-card"><div class="tutor-bubble-av">🎓</div>
+        <div class="tp-cert">
+          <div class="tp-cert-h">🎓 Certificado · Plano de 3 semanas</div>
+          <div class="tp-cert-name">${escapeHtml(String(p.name || 'Aluno'))}</div>
+          <div class="tp-cert-score"><b>${pct}%</b> no teste final · nível ${escapeHtml(lv || '')} · ${grade}</div>
+          <div class="tp-cert-grid"><div><b>${doneDays}</b>/21 dias completos</div><div><b>${streak}</b> dias seguidos</div><div><b>${cards}</b> frases no phrasebook</div><div><b>${right}</b>/${total} certas</div></div>
+          <div class="tp-cert-foot">${escapeHtml(new Date().toLocaleDateString('pt-PT'))} · EscolaPlay</div>
+        </div></div>`);
+    _tutorScroll();
+}
+window._tutorRenderCertificate = _tutorRenderCertificate;
 // v581: dois testes seguidos ≥90% no alvo atual → propõe subir; dois <50% →
 // propõe descer. Devolve null quando não há nada a sugerir.
 function _tutorLevelSuggestion() {
