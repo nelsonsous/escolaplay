@@ -602,7 +602,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v587';
+const APP_VERSION = 'v588';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -6539,6 +6539,8 @@ Give a SHORT debrief in EUROPEAN PORTUGUESE (Portugal, never Brazilian). Return 
             else _tutorAddTutor('Boa sessão! Continuamos quando quiseres.', '', '', true);
         }
     }
+    // Plano (v588): terminar o roleplay (com ou sem debrief da IA) fecha o passo.
+    try { _tutorPlanComplete('roleplay'); } catch {}
 }
 window._tutorEndRoleplay = _tutorEndRoleplay;
 function _tutorShowDebrief(sc, d) {
@@ -7374,7 +7376,9 @@ function _tutorPlanStart(btn) {
 window._tutorPlanStart = _tutorPlanStart;
 // Skills sem "fim" próprio (aula, lição, vocabulário, imersão, roleplay,
 // erros): contam como feitas quando o utilizador responde no chat.
-const TUTOR_PLAN_CHAT_SKILLS = ['class', 'lesson', 'vocab', 'immerse', 'meet', 'roleplay', 'mistakes'];
+// v588: roleplay fecha no debrief ("terminar e avaliar"), imersão no fim das
+// perguntas, reunião na leitura avaliada — já não fecham à 1.ª mensagem.
+const TUTOR_PLAN_CHAT_SKILLS = ['class', 'lesson', 'vocab', 'mistakes'];
 // Marca o passo em curso como concluído. `skill` (string ou array) limita a
 // que skill pode fechar o passo — evita que, p.ex., um teste feche uma aula.
 // Sem argumento (botão "Feito ✓"), fecha o que estiver em curso.
@@ -8298,6 +8302,7 @@ function _tutorCoachImmerse() {
           <textarea class="tutor-coach-input" id="${tid}-ta" placeholder="Cola aqui o texto (PT ou EN)…" rows="6"></textarea>
           <div class="tutor-coach-task-bar">
             <span id="${tid}-count" class="tutor-coach-count">0 palavras</span>
+            <button class="tutor-lbtn cont" onclick="_tutorImmerseSeed('${tid}')"><i class="fas fa-wand-magic-sparkles"></i> Usar um exemplo</button>
             <button class="tutor-coach-submit" data-tid="${tid}" onclick="_tutorImmerseSubmit(this.dataset.tid)">Traduzir e perguntar →</button>
           </div>
         </div>
@@ -8314,6 +8319,22 @@ function _tutorCoachImmerse() {
     _tutorScroll();
 }
 window._tutorCoachImmerse = _tutorCoachImmerse;
+// v588: sem texto à mão, a imersão do plano tem sempre um exemplo real de
+// projeto (roda com o dia do plano).
+const _TUTOR_IMMERSE_SEEDS = [
+    'Bom dia a todos. Ponto de situação do projeto: a fase de testes integrados terminou na sexta-feira com 12 defeitos em aberto, dos quais 3 são bloqueantes. A equipa de finanças ainda não validou o mapeamento das contas, o que atrasa a migração de dados em cerca de uma semana. Proponho manter a data de go-live e reforçar a equipa de testes com dois consultores durante as próximas duas semanas. Preciso da vossa decisão até quarta-feira.',
+    'Nota da reunião de hoje com o cliente: o sponsor quer incluir a nova funcionalidade de aprovação de faturas ainda nesta fase. Expliquei que está fora do âmbito contratado e que teria impacto no calendário e no orçamento. Ficou combinado que preparamos um change request com o esforço estimado e apresentamos no próximo steering committee. Ação minha: enviar a estimativa até sexta.',
+    'Olá João, obrigado pela mensagem. Percebo a preocupação com a lentidão do sistema depois da migração. Já identificámos a causa: um índice em falta na tabela de documentos. A correção entra em produção amanhã de manhã, durante a janela de manutenção. Entretanto, se houver mais utilizadores afetados, diz-me e escalamos para o suporte. Mantenho-te informado.'
+];
+function _tutorImmerseSeed(tid) {
+    const ta = document.getElementById(tid + '-ta');
+    if (!ta) return;
+    const di = (typeof _tutorPlanDayIndex === 'function') ? _tutorPlanDayIndex() : 0;
+    ta.value = _TUTOR_IMMERSE_SEEDS[Math.floor(di / 7) % _TUTOR_IMMERSE_SEEDS.length];
+    ta.dispatchEvent(new Event('input'));
+    try { ta.focus(); } catch {}
+}
+window._tutorImmerseSeed = _tutorImmerseSeed;
 
 async function _tutorImmerseSubmit(tid) {
     const ta = document.getElementById(tid + '-ta');
@@ -10064,7 +10085,7 @@ function _tutorPracticeDone() {
     }
     const consolMsg = (pq && pq.sessionTotal) ? ` (${pq.sessionRight || 0}/${pq.sessionTotal} certas)` : '';
     // v584: acabar a prática/quiz fecha o passo da aula/lição/erros no plano.
-    if (pq && (pq.sessionTotal || 0) >= 1) { try { _tutorPlanComplete(['class', 'lesson', 'mistakes']); } catch {} }
+    if (pq && (pq.sessionTotal || 0) >= 1) { try { _tutorPlanComplete(['class', 'lesson', 'mistakes', 'immerse']); } catch {} }
     if (tutorState) { tutorState._practiceReply = null; tutorState._pq = null; tutorState._reviewingCard = null; }
     _tutorAddTutor(`Boa! Acabámos a prática 🎉${consolMsg}${reply ? ' ' + reply : ''}`, '', '', true);
     // Se a prática veio de um cartão de revisão, decides tu se avança de nível.
