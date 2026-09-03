@@ -36,29 +36,29 @@ function renderAvatar(av, sizePx = 46) {
     if (!av) return '<span>🎓</span>';
     const s = String(av);
     if (s.startsWith('data:image') || /^https?:\/\//.test(s)) {
-        return `<img class="av-photo" src="${s.replace(/"/g, '&quot;')}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        return `<img class="av-photo" src="${s.replace(/"/g, '&quot;')}" alt="avatar" loading="lazy" decoding="async" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('disney3d:')) {
         const name = s.substring('disney3d:'.length).replace(/[^a-z0-9_-]/gi, '');
-        return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
+        return `<img class="av-disney3d" src="icons/disney/${name}.png" alt="avatar" loading="lazy" decoding="async" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;background:#f9fafb">`;
     }
     if (s.startsWith('disney:')) {
         const name = s.substring('disney:'.length).replace(/[^a-z0-9_-]/gi, '');
-        return `<img class="av-disney" src="icons/disney/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        return `<img class="av-disney" src="icons/disney/${name}.png" alt="avatar" loading="lazy" decoding="async" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('vampire:')) {
         const name = s.substring('vampire:'.length).replace(/[^a-z0-9_-]/gi, '');
-        return `<img class="av-vampire" src="icons/vampire/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        return `<img class="av-vampire" src="icons/vampire/${name}.png" alt="avatar" loading="lazy" decoding="async" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('stranger:')) {
         const name = s.substring('stranger:'.length).replace(/[^a-z0-9_-]/gi, '');
-        return `<img class="av-stranger" src="icons/stranger/${name}.png" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        return `<img class="av-stranger" src="icons/stranger/${name}.png" alt="avatar" loading="lazy" decoding="async" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     if (s.startsWith('dicebear:')) {
         // Cartoon — DiceBear tem padding interno, precisa de zoom (ver .avatar .av-cartoon no css)
         const [, style, seed] = s.split(':');
         const url = `https://api.dicebear.com/9.x/${encodeURIComponent(style)}/svg?seed=${encodeURIComponent(seed || 'EscolaPlay')}&backgroundColor=transparent`;
-        return `<img class="av-cartoon" src="${url}" alt="avatar" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
+        return `<img class="av-cartoon" src="${url}" alt="avatar" loading="lazy" decoding="async" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block">`;
     }
     // Emoji ou outro texto curto — render como texto
     return `<span style="font-size:${Math.round(sizePx * 0.55)}px;line-height:1">${escapeHtml(s.slice(0, 8))}</span>`;
@@ -602,7 +602,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v586';
+const APP_VERSION = 'v587';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
