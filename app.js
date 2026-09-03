@@ -609,7 +609,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v590';
+const APP_VERSION = 'v591';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -7794,6 +7794,31 @@ async function _tutorAskJSON(sys, usr, maxTokens) {
     const { text } = await callClaudeAPI(sys + '\n\n' + usr, maxTokens || 1800, true);
     return _extractJSON(text);
 }
+// v591: pede JSON e valida; se vier incompleto/mal formado, UMA segunda
+// tentativa com a razão da falha ("repair") — antes a aula/teste/imersão
+// falhavam à primeira resposta truncada e o utilizador via "tenta de novo".
+// validate(j) devolve '' quando está bem, ou a razão (string) quando não.
+async function _tutorAskJSONValid(sys, usr, maxTokens, validate) {
+    let last = null, reason = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const u = attempt === 0 ? usr : `${usr}\n\nYour previous answer was invalid: ${reason}. Return the COMPLETE JSON object again, exactly in the shape requested, with every required field filled. No prose.`;
+        let j = null;
+        try { j = await _tutorAskJSON(sys, u, maxTokens); } catch (e) { reason = 'no JSON returned'; last = null; continue; }
+        last = j;
+        reason = (typeof validate === 'function') ? String(validate(j) || '') : '';
+        if (!reason) return j;
+        console.warn('[tutor] JSON inválido (tentativa ' + (attempt + 1) + '):', reason);
+    }
+    return last;
+}
+window._tutorAskJSONValid = _tutorAskJSONValid;
+// Frases recentes do phrasebook para reutilizar nos exemplos das aulas
+// (repetição espaçada em contexto — o que se revê em uso fixa-se melhor).
+function _tutorRecentPhrases(n) {
+    try {
+        return _srsAll().filter(c => c.type === 'phrase' && c.text).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n || 4).map(c => String(c.text).slice(0, 60));
+    } catch { return []; }
+}
 // Filtra perguntas de escolha múltipla mal formadas (o mesmo critério do
 // _tutorParseExercises, mas a partir de um array já parseado).
 function _tutorValidQuiz(arr, max) {
@@ -7896,9 +7921,19 @@ Shape:
  "drill":[{"q":"English question or sentence with ONE gap ___","options":["English","English","English"],"answer":0,"exp":"1-line explanation in English","expPt":"nota PT-PT max 12 palavras","topic":"category in English grammar terms"}],
  "quiz":[{"q":"…","options":["…","…","…"],"answer":0,"exp":"…","expPt":"…","topic":"…"}]}
 Include 3 "steps" (2-3 examples each), 3 "phrases", 4 "drill" items and 3 "quiz" items. The quiz closes the lesson and must mix everything taught. QUALITY: exactly ONE "___" per gapped sentence; the correct answer must not appear elsewhere in the sentence; exactly one option fits naturally, the others must be clearly wrong.${focus === 'listening' ? ' The drill and quiz questions must be answerable ONLY by having listened to "script".' : ''}`;
-    const usr = `Topic: "${topic}". Level: ${lv}. Focus: ${focus}. Build the lesson now.`;
+    const _reuse = _tutorRecentPhrases(4);
+    const usr = `Topic: "${topic}". Level: ${lv}. Focus: ${focus}. Examples must come from SAP project life (status meetings, cut-over, tickets, emails to the client, steering committees).${_reuse.length ? ` If they fit naturally, reuse 1-2 of these expressions the student is memorising inside the examples: ${_reuse.map(p => '"' + p + '"').join(', ')}.` : ''} Build the lesson now.`;
     let d = null;
-    try { d = await _tutorAskJSON(sys, usr, 2800); } catch (e) { console.warn('[coach] class failed', e); }
+    try {
+        d = await _tutorAskJSONValid(sys, usr, 2800, (j) => {
+            const st = Array.isArray(j && j.steps) ? j.steps.length : 0;
+            const dr = _tutorValidQuiz(j && j.drill, 4).length, qz = _tutorValidQuiz(j && j.quiz, 3).length;
+            if (st < 2) return 'fewer than 2 steps';
+            if (dr + qz < 3) return 'fewer than 3 valid drill/quiz items (each needs q with ONE ___, 3 options, numeric answer)';
+            if (focus === 'listening' && !String(j.script || '').trim()) return 'missing "script" for listening';
+            return '';
+        });
+    } catch (e) { console.warn('[coach] class failed', e); }
     if (!tutorState) return;
     const steps = Array.isArray(d && d.steps) ? d.steps.slice(0, 4) : [];
     const phrases = Array.isArray(d && d.phrases) ? d.phrases.slice(0, 4) : [];
@@ -8024,7 +8059,7 @@ Keep "term" exactly as the student wrote it. One card per term, same order, no e
     const usr = `Terms:\n${words.map(w => '- ' + w).join('\n')}`;
     let cards = [];
     try {
-        const j = await _tutorAskJSON(sys, usr, 2200);
+        const j = await _tutorAskJSONValid(sys, usr, 2200, (x) => (Array.isArray(x && x.cards) ? x.cards.filter(c => c && c.term).length : 0) >= Math.min(words.length, 3) ? '' : 'missing "cards" (one per term, with term/pt/example/trick)');
         cards = (Array.isArray(j && j.cards) ? j.cards : []).filter(c => c && c.term).slice(0, 20);
     } catch (e) { console.warn('[coach] flash failed', e); }
     if (!tutorState) return;
@@ -8136,7 +8171,7 @@ Exactly 10 questions. QUALITY (critical): exactly ONE "___" per gapped sentence;
     const usr = `Topics studied in the last 7 days:\n${topics.map(t => '- ' + t).join('\n')}`;
     let items = [];
     try {
-        const j = await _tutorAskJSON(sys, usr, 2600);
+        const j = await _tutorAskJSONValid(sys, usr, 2600, (x) => _tutorValidQuiz(x && x.questions, 10).length >= 6 ? '' : 'fewer than 6 valid questions (each needs q with ONE ___, 3 options, numeric answer, topic)');
         items = _tutorValidQuiz(j && j.questions, 10);
     } catch (e) { console.warn('[coach] test failed', e); }
     if (!tutorState) return;
@@ -8362,7 +8397,7 @@ async function _tutorImmerseSubmit(tid) {
  "questions":[{"q":"English question ABOUT THIS TEXT — vocabulary, expression or interpretation","options":["English","English","English"],"answer":0,"exp":"1-line explanation in English","expPt":"nota PT-PT max 12 palavras","topic":"Vocabulary|Expressions|Interpretation"}]}
 Include 5 glossary entries, 3 expressions and 4 questions (at least one on vocabulary, one on an expression and one on interpretation of the meaning). All Portuguese is EUROPEAN PORTUGUESE (Portugal, never Brazilian). Every question and option in ENGLISH.`;
     let d = null;
-    try { d = await _tutorAskJSON(sys, 'Text:\n' + src, 2800); } catch (e) { console.warn('[coach] immerse failed', e); }
+    try { d = await _tutorAskJSONValid(sys, 'Text:\n' + src, 2800, (j) => String((j && j.translation) || '').trim().length >= 20 ? '' : 'missing or empty "translation"'); } catch (e) { console.warn('[coach] immerse failed', e); }
     if (!tutorState) return;
     const translation = String((d && d.translation) || '').trim();
     const questions = _tutorValidQuiz(d && d.questions, 4);
