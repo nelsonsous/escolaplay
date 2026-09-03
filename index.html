@@ -65,7 +65,7 @@
     <!-- ===== HOME TAB ===== -->
     <section class="tab-content active" id="tab-home">
         <!-- Streak hero compacto (Duolingo-style) -->
-        <div class="streak-hero" id="streak-hero">
+        <div class="streak-hero home-kids" id="streak-hero">
             <div class="streak-hero-flame">
                 <div class="streak-hero-flame-bg" id="streak-hero-flame-bg"></div>
                 <span class="streak-hero-emoji" id="streak-hero-emoji">🔥</span>
@@ -90,11 +90,11 @@
         </div>
 
         <!-- ============ DISCIPLINAS NO TOPO ============ -->
-        <div class="section-title"><i class="fas fa-dumbbell"></i> Começa por aqui</div>
-        <div class="quick-subjects" id="quick-subjects"></div>
+        <div class="section-title home-kids"><i class="fas fa-dumbbell"></i> Começa por aqui</div>
+        <div class="quick-subjects home-kids" id="quick-subjects"></div>
 
         <!-- Desafio diário (segunda prioridade) -->
-        <div class="hero-card" id="daily-card" style="margin-top:14px">
+        <div class="hero-card home-kids" id="daily-card" style="margin-top:14px">
             <div class="hero-card-header">
                 <div class="hero-icon"><i class="fas fa-bolt"></i></div>
                 <div style="flex:1">
@@ -108,7 +108,7 @@
         </div>
 
         <!-- Mini-stats compactas (XP / certas / medalhas) -->
-        <div class="grid-2" style="margin-top:14px">
+        <div class="grid-2 home-kids" style="margin-top:14px">
             <div class="mini-card">
                 <div class="mini-card-icon" style="background:#fef3c7;color:#d97706"><i class="fas fa-star"></i></div>
                 <div class="mini-card-body">
@@ -133,7 +133,7 @@
         </div>
 
         <!-- Pergunta em linguagem natural (IA) -->
-        <div class="ask-card" id="ask-card">
+        <div class="ask-card home-kids" id="ask-card">
             <div class="ask-card-header">
                 <div class="ask-card-icon"><i class="fas fa-circle-question"></i></div>
                 <div class="ask-card-title">
@@ -155,7 +155,7 @@
         </div>
 
         <!-- Number Talk do dia (matemática mental, conversa-com-família) -->
-        <div id="number-talk-card" class="number-talk-card" onclick="toggleNumberTalk()">
+        <div id="number-talk-card" class="number-talk-card home-kids" onclick="toggleNumberTalk()">
             <div class="nt-header">
                 <div class="nt-icon">🧠</div>
                 <div>
@@ -172,7 +172,7 @@
         </div>
 
         <!-- Rotina Heggerty do dia (consciência fonológica em 4 minutos) -->
-        <div id="heggerty-card" class="heggerty-card" onclick="toggleHeggerty()">
+        <div id="heggerty-card" class="heggerty-card home-kids" onclick="toggleHeggerty()">
             <div class="hg-header">
                 <div class="hg-icon">👂</div>
                 <div>
@@ -188,7 +188,7 @@
         </div>
 
         <!-- Diário de matemática (uma vez por semana) -->
-        <div id="math-journal-card" class="math-journal-card" onclick="toggleMathJournal()" style="display:none">
+        <div id="math-journal-card" class="math-journal-card home-kids" onclick="toggleMathJournal()" style="display:none">
             <div class="mj-header">
                 <div class="mj-icon">📔</div>
                 <div>
@@ -215,7 +215,7 @@
         </div>
 
         <!-- Caixa de duelos (tudo: recebidos + criados por mim) -->
-        <div onclick="openInboxScreen()" style="position:relative;background:linear-gradient(135deg,#06b6d4 0%,#0891b2 100%);color:#fff;padding:12px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:14px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(6,182,212,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+        <div class="home-kids" onclick="openInboxScreen()" style="position:relative;background:linear-gradient(135deg,#06b6d4 0%,#0891b2 100%);color:#fff;padding:12px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:14px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(6,182,212,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
             <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
             <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0;position:relative;z-index:1">📬</div>
             <div style="flex:1;min-width:0;position:relative;z-index:1">
@@ -227,7 +227,7 @@
         </div>
 
         <!-- Amigos -->
-        <div onclick="openFriendsScreen()" style="position:relative;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:#fff;padding:12px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:10px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(124,58,237,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
+        <div class="home-kids" onclick="openFriendsScreen()" style="position:relative;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:#fff;padding:12px 14px;border-radius:16px;display:flex;align-items:center;gap:12px;margin-top:10px;cursor:pointer;box-shadow:0 8px 20px -8px rgba(124,58,237,0.4);overflow:hidden;transition:transform .15s, box-shadow .15s">
             <div style="position:absolute;top:-40px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.10);pointer-events:none"></div>
             <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0;position:relative;z-index:1">👥</div>
             <div style="flex:1;min-width:0;position:relative;z-index:1">
@@ -239,7 +239,7 @@
         </div>
 
         <!-- Próximo teste -->
-        <div id="next-test-card" style="display:none;margin-top:14px" class="test-countdown-card" onclick="switchTab('tests')">
+        <div id="next-test-card" style="display:none;margin-top:14px" class="test-countdown-card home-kids" onclick="switchTab('tests')">
             <div class="test-countdown-icon"><i class="fas fa-calendar-day"></i></div>
             <div class="test-countdown-body">
                 <div class="test-countdown-title" id="next-test-title">Teste de Matemática</div>
@@ -249,7 +249,7 @@
         </div>
 
         <!-- Próximo prémio -->
-        <div id="next-reward-card" class="reward-progress-card" style="display:none;margin-top:10px">
+        <div id="next-reward-card" class="reward-progress-card home-kids" style="display:none;margin-top:10px">
             <div class="reward-progress-icon"><i class="fas fa-gift"></i></div>
             <div class="reward-progress-body">
                 <div class="reward-progress-name" id="next-reward-name">Próximo prémio</div>
