@@ -193,11 +193,11 @@ let currentSubjectView = null; // disciplina visível no modal de detalhes
 // state = { profiles: [profile,...], activeProfileId, max:{apiKey,enabled,...} }
 // Cada profile tem o seu xp, streak, subjects, badges, etc.
 // Para minimizar mudanças, instalamos um Proxy: state.xp, state.subjects... lê/escreve do perfil ativo.
-const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorPlan','tutorTargetLevel','tutorVocabHistory'];
+const PROFILE_FIELDS = ['profile','xp','streak','daily','subjects','badges','history','totalDailies','perfectDailies','recentIds','exerciseSeen','tests','rewards','progress','maxExercises','maxLessons','lastGuiltDate','notifEnabled','matPlusDiag','matPlusDiagSkipped','mathJournalOpened','ttsVoiceName','practiceQuestions','activeTopics','topicFocus','duelsPlayed','myDuels','userCode','friends','inboxLastChecked','shareable','duelsHiddenIds','theme','readingLog','paperSheet','writeSheet','dictSheet','sessionLog','lessonLog','topicMastery','tutorWeak','srs','tutorPlan','tutorMeetPhrases','tutorTargetLevel','tutorVocabHistory'];
 // Definições ao nível do dispositivo (não do perfil) que têm de sobreviver
 // ao reload: vozes/TTS, Voxtral, proxy, pausa do professor de leitura, etc.
 // Guardadas em payload.settings pelo saveState (v589).
-const DEVICE_FIELDS = ['voicePT','useEdgeTTS','edgeVoice','useMistralTTS','mistralVoice','useGeminiTTS','geminiVoice','geminiRotateVoice','ttsProxyUrl','ttsVoiceNameEN','useVoxtral','teacherPauseMode','coursePath','tutorMeetPhrases'];
+const DEVICE_FIELDS = ['voicePT','useEdgeTTS','edgeVoice','useMistralTTS','mistralVoice','useGeminiTTS','geminiVoice','geminiRotateVoice','ttsProxyUrl','ttsVoiceNameEN','useVoxtral','teacherPauseMode','coursePath'];
 
 // Avatar seguro para PUBLICAR na nuvem: fotos (data:image) e URLs nunca
 // saem do dispositivo — são dados pessoais de crianças. Packs (vampire:…,
@@ -260,7 +260,7 @@ function newProfile({ name = 'Aluno(a)', avatar = AVATAR_DISNEY[0], year } = {})
     Object.keys(curr).forEach(k => { prog[k] = { toIndex: curr[k].length }; });
     return {
         id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorPlan: null, tutorTargetLevel: '', tutorVocabHistory: [],
+        sessionLog: [], lessonLog: [], readingLog: [], lessonsSeen: {}, topicMastery: {}, tutorWeak: {}, srs: {}, tutorPlan: null, tutorMeetPhrases: {}, tutorTargetLevel: '', tutorVocabHistory: [],
         paperSheet: null, writeSheet: null, dictSheet: null,
         name, avatar, year, currentPeriod: 1,
         xp: 0,
@@ -375,6 +375,16 @@ function loadState() {
         // v589: definições do dispositivo (vozes, Voxtral, proxy TTS…) — antes
         // viviam só em memória e voltavam ao defeito a cada arranque.
         if (parsed.settings && typeof parsed.settings === 'object') DEVICE_FIELDS.forEach(k => { if (parsed.settings[k] !== undefined) s[k] = parsed.settings[k]; });
+        // v619: o domínio das frases de reunião passa do aparelho para o perfil
+        // (antes perdia-se num restauro / noutro iPhone). Migra uma vez para o
+        // perfil profissional (ou o ativo) e deixa de ser gravado em settings.
+        try {
+            const _mp = parsed.settings && parsed.settings.tutorMeetPhrases;
+            if (_mp && typeof _mp === 'object' && Object.keys(_mp).length) {
+                const tgt = s.profiles.find(p => Number(p.year) === 99) || s.profiles.find(p => p.id === s.activeProfileId);
+                if (tgt && !(tgt.tutorMeetPhrases && Object.keys(tgt.tutorMeetPhrases).length)) tgt.tutorMeetPhrases = _mp;
+            }
+        } catch {}
         // Garantir que cada perfil tem toIndex para todas as disciplinas do seu ano
         s.profiles.forEach(p => {
             const curr = CURRICULUM_BY_YEAR[p.year];
@@ -613,7 +623,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v618';
+const APP_VERSION = 'v619';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -9004,6 +9014,9 @@ function _tutorMeetingNext() {
     if (mq.queue.length) { setTimeout(() => { if (tutorState && tutorState._mq) _tutorMeetingAsk(); }, 400); return; }
     // Fim da ronda — resumo + ponte natural para usar as frases num roleplay.
     tutorState._mq = null;
+    // v619: o passo "Falar — frases de reunião" do plano fecha aqui, no fim
+    // da ronda (antes fechava logo à 1.ª frase avaliada).
+    try { _tutorPlanComplete('meet'); } catch {}
     const chat = document.getElementById('tutor-chat');
     if (chat) chat.insertAdjacentHTML('beforeend', `
       <div class="tutor-row them"><div class="tutor-bubble-av">🏁</div>
@@ -9311,9 +9324,9 @@ function _tutorEvalPron(said) {
     if (!pron) return;
     said = (said || '').trim();
     const { score, words, okCount, closeCount, totalCount } = _tutorPronEval(said, pron.target);
-    // Plano: reunião fecha na 1.ª leitura avaliada; a sessão de pronúncia
-    // (v594) fecha no fim das 4 frases (_tutorPronFinish).
-    if (said && (pron.meeting || (pron.coachLv && !pron.session))) { try { _tutorPlanComplete(pron.meeting ? 'meet' : 'pron'); } catch {} }
+    // Plano: a pronúncia avulsa fecha na 1.ª leitura avaliada; a sessão (v594)
+    // fecha no fim das 4 frases e a ronda de reunião (v619) no fim da ronda.
+    if (said && !pron.meeting && pron.coachLv && !pron.session) { try { _tutorPlanComplete('pron'); } catch {} }
     const sess = pron.session ? (tutorState && tutorState._pronSess) : null;
     if (sess && said) { sess.scores.push(score); sess.idx++; sess.pairs = sess.pairs || []; sess.pairs.push({ target: pron.target, said }); }
     if (pron.practiceOral) { _tutorEvalOral(said, score, words, pron); return; }
