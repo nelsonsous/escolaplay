@@ -1,4 +1,4 @@
-const CACHE_NAME = 'escolaplay-v633';
+const CACHE_NAME = 'escolaplay-v634';
 // Núcleo: TEM de existir — se falhar, o SW não instala (evita servir uma
 // app incompleta). Bump do CACHE_NAME a cada release = novo cache limpo.
 const CORE = [
@@ -19,6 +19,8 @@ const CORE = [
 const OPTIONAL = [
     // Fora do caminho crítico desde a v571 — não bloqueiam a instalação
     '/escolaplay/escape.js', '/escolaplay/escape.css', '/escolaplay/gsap.min.js',
+    // Damas (v634): carregadas a pedido; em cache para jogar offline
+    '/escolaplay/damas.js', '/escolaplay/damas.css',
     // Bancos base por ano (v571) + secret: em segundo plano, para offline
     ...['y2','y3','y5','y6','y7'].map(n => `/escolaplay/content_${n}.js`),
     '/escolaplay/content_secret.js',
