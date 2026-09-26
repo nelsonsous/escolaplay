@@ -694,38 +694,6 @@ function _openEscapeLazy() {
     _ensureEscapeLoaded().then(() => { if (typeof window.openEscapeRoom === 'function') window.openEscapeRoom.apply(null, args); }).catch(() => showToast('Não foi possível carregar o escape room.'));
 }
 window._openEscapeLazy = _openEscapeLazy;
-// Damas (v634): damas.js/damas.css só quando se abre o jogo (todos os perfis).
-// Espera também pelo CSS, para o ecrã não aparecer sem estilos.
-function _ensureDamasLoaded() {
-    const css = document.querySelector('link[href="damas.css"]') ? Promise.resolve() : new Promise(res => {
-        const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'damas.css';
-        l.onload = l.onerror = () => res();
-        document.head.appendChild(l);
-    });
-    const js = (window.DamasGame && window.DamasGame.open) ? Promise.resolve() : _loadScript('damas.js');
-    return Promise.all([css, js]);
-}
-function openDamas() {
-    _ensureDamasLoaded()
-        .then(() => { if (window.DamasGame && window.DamasGame.open) window.DamasGame.open(); })
-        .catch(() => showToast('Não foi possível carregar as damas.'));
-}
-window.openDamas = openDamas;
-// Subtítulo do cartão "Damas": partida a meio ou vitórias do perfil ativo.
-function _damasHomeCard() {
-    const sub = document.getElementById('damas-home-sub');
-    if (!sub) return;
-    const p = activeProfile() || {};
-    let saved = false;
-    try { saved = !!localStorage.getItem('escolaplay_damas_' + p.id); } catch {}
-    let wins = 0;
-    const st = p.damas && p.damas.stats;
-    if (st) Object.keys(st).forEach(k => { wins += (st[k] && st[k].w) || 0; });
-    sub.textContent = saved ? 'Tens uma partida a meio — toca para continuar'
-        : wins ? `🏆 ${wins} ${wins === 1 ? 'vitória' : 'vitórias'} contra o computador`
-        : 'Joga contra o computador · 4 níveis';
-}
-window._damasHomeCard = _damasHomeCard;
 function _loadScript(src) {
     if (_scriptLoadCache[src]) return _scriptLoadCache[src];
     _scriptLoadCache[src] = new Promise((resolve, reject) => {
@@ -1356,7 +1324,6 @@ function renderHome() {
             if ([2, 5, 6].includes(yr)) _ensureEscapeLoaded().then(() => { try { window.renderEscapeHomeCard && window.renderEscapeHomeCard(); } catch {} }).catch(() => {});
         }
     } catch {}
-    try { _damasHomeCard(); } catch {}
 }
 
 // ============================================================

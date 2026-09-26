@@ -1,6 +1,7 @@
-// EscolaPlay — Damas contra o computador.
+// Damas — damas clássicas portuguesas contra o computador. Aplicação à parte
+// (instalável: manifesto, ícones e service worker próprios nesta pasta).
 //
-// Regras das damas clássicas portuguesas (Federação Portuguesa de Damas):
+// Regras da Federação Portuguesa de Damas:
 //  · tabuleiro 8×8, 12 pedras de cada lado; o canto inferior direito de
 //    cada jogador é casa de jogo; começam as brancas;
 //  · a pedra anda uma casa na diagonal, só para a frente, e também só
@@ -9,16 +10,15 @@
 //    quantas casas quiser na diagonal e captura à distância;
 //  · tomar é obrigatório: o maior número de peças (lei da quantidade) e, em
 //    igualdade, o maior número de damas (lei da qualidade);
-//  · numa tomada múltipla as peças só saem no fim e nenhuma é saltada duas
-//    vezes;
+//  · numa tomada múltipla as peças só saem no fim do lance e nenhuma é saltada
+//    duas vezes;
 //  · perde quem fica sem peças ou sem lances; empata-se com 20 lances de
 //    cada lado sem capturas nem movimentos de pedras, ou com a mesma posição
 //    repetida 3 vezes.
 //
-// Módulo isolado, carregado a pedido por openDamas() (app.js), como o escape
-// room. A IA (alfa-beta com aprofundamento iterativo e tabela de
-// transposição) corre num Web Worker criado a partir do próprio motor, para
-// a interface não congelar enquanto o computador pensa.
+// A IA (alfa-beta com aprofundamento iterativo e tabela de transposição)
+// corre num Web Worker criado a partir do próprio motor, para a interface
+// não congelar enquanto o computador pensa.
 
 (function () {
     'use strict';
@@ -410,10 +410,10 @@
     }
 
     // =====================================================================
-    // INTERFACE
+    // APLICAÇÃO
     // =====================================================================
-    const OV_ID = 'damas-overlay';
-    const SAVE_PREFIX = 'escolaplay_damas_';
+    const STORE_KEY = 'damas_v1';        // estatísticas e preferências
+    const GAME_KEY = 'damas_v1_game';    // partida a meio
     const MIN_THINK = 450; // ms — o computador nunca responde "instantaneamente"
     const LEVEL_INFO = {
         1: { name: 'Fácil', emoji: '🙂', sub: 'Para aprender' },
@@ -432,39 +432,52 @@
         'Usa a Pista 💡 quando não souberes o que jogar.'
     ];
     const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5l4.6 4.2L12 4.5l4.4 7.2L21 7.5 19 19H5z"/><rect x="5" y="19.6" width="14" height="2" rx="1"/></svg>';
+    const ICONS = {
+        back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+        soundOn: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+        soundOff: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+        help: '<circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.4-2.8 4.3"/><path d="M12 17.6v.1"/>',
+        undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+        hint: '<path d="M9 18h6M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.7V17h6v-1c0-.7.3-1.3.8-1.7A6.5 6.5 0 0 0 12 2.5z"/>',
+        plus: '<path d="M12 5v14M5 12h14"/>',
+        play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+        chevron: '<path d="M9 6l6 6-6 6"/>',
+        install: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M5 20.5h14"/>'
+    };
+    const icon = name => `<svg class="dm-ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
     const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const sqName = sq => 'abcdefgh'[sq & 7] + (8 - (sq >> 3));
     const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+    const $ = id => document.getElementById(id);
 
-    let G = null;      // partida
-    let ui = null;     // referências do ecrã de jogo (null fora dele)
-    let observer = null, toastTimer = 0, confirmTimer = 0;
+    let G = null;         // partida
+    let ui = null;        // referências do ecrã de jogo (null fora dele)
+    let screen = '';      // 'setup' | 'game'
+    let toastTimer = 0, confirmTimer = 0, installEvt = null;
 
-    // ---------- Perfil e gravação ----------
-    function profile() {
-        try { return (typeof activeProfile === 'function' && activeProfile()) || null; } catch (e) { return null; }
+    // ---------- Gravação (localStorage; fica em memória se estiver bloqueado) ----------
+    let mem = null;
+    function store() {
+        if (mem) return mem;
+        let d = null;
+        try { d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) {}
+        if (!d || typeof d !== 'object') d = {};
+        if (!d.stats || typeof d.stats !== 'object') d.stats = {};
+        if (!d.prefs || typeof d.prefs !== 'object') d.prefs = {};
+        return (mem = d);
     }
-    function dm() {
-        const p = profile();
-        if (!p) return { stats: {}, prefs: {} };
-        if (!p.damas || typeof p.damas !== 'object') p.damas = {};
-        if (!p.damas.stats || typeof p.damas.stats !== 'object') p.damas.stats = {};
-        if (!p.damas.prefs || typeof p.damas.prefs !== 'object') p.damas.prefs = {};
-        return p.damas;
-    }
-    function persistProfile() { try { if (typeof saveState === 'function') saveState(); } catch (e) {} }
-    function saveKey() { const p = profile(); return SAVE_PREFIX + ((p && p.id) || 'anon'); }
+    function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store())); } catch (e) {} }
     function saveGame() {
         try {
-            if (!G || G.over || G.plies === 0) { localStorage.removeItem(saveKey()); return; }
-            localStorage.setItem(saveKey(), JSON.stringify({ v: 1, k: E.keyOf(G.board, G.turn), h: G.human, lv: G.level, q: G.quiet, l: G.last, n: G.plies, s: G.seed, hist: G.hist }));
+            if (!G || G.over || G.plies === 0) { localStorage.removeItem(GAME_KEY); return; }
+            localStorage.setItem(GAME_KEY, JSON.stringify({ v: 1, k: E.keyOf(G.board, G.turn), h: G.human, lv: G.level, q: G.quiet, l: G.last, n: G.plies, s: G.seed, hist: G.hist }));
         } catch (e) {}
     }
     function loadGame() {
         try {
-            const d = JSON.parse(localStorage.getItem(saveKey()) || 'null');
+            const d = JSON.parse(localStorage.getItem(GAME_KEY) || 'null');
             if (!d || d.v !== 1 || typeof d.k !== 'string' || d.k.length !== 33) return null;
             const pos = E.fromKey(d.k);
             return mkGame({
@@ -494,7 +507,7 @@
         return m;
     }
     function record(level) {
-        const s = dm().stats[level] || {};
+        const s = store().stats[level] || {};
         return { w: s.w | 0, l: s.l | 0, d: s.d | 0 };
     }
     function recordText(level) {
@@ -503,11 +516,19 @@
         return `${plural(r.w, 'vitória', 'vitórias')} · ${plural(r.l, 'derrota', 'derrotas')} · ${plural(r.d, 'empate', 'empates')}`;
     }
 
-    // ---------- Som (Web Audio da app, se houver) ----------
+    // ---------- Som (Web Audio, sem ficheiros) ----------
+    let audioCtx = null;
+    function getCtx() {
+        if (audioCtx) return audioCtx;
+        const C = window.AudioContext || window.webkitAudioContext;
+        if (!C) return null;
+        try { audioCtx = new C(); } catch (e) { return null; }
+        return audioCtx;
+    }
+    function unlockAudio() { const c = store().prefs.mute ? null : getCtx(); if (c && c.state === 'suspended') c.resume().catch(() => {}); }
     function sound(kind) {
-        if (dm().prefs.mute) return;
-        let ctx = null;
-        try { ctx = typeof getAudioCtx === 'function' ? getAudioCtx() : null; } catch (e) {}
+        if (store().prefs.mute) return;
+        const ctx = getCtx();
         if (!ctx) return;
         try {
             if (ctx.state === 'suspended') ctx.resume();
@@ -531,63 +552,100 @@
         } catch (e) {}
     }
 
-    // ---------- Overlay ----------
-    const $ = sel => document.querySelector('#' + OV_ID + ' ' + sel);
-    function overlay() { return document.getElementById(OV_ID); }
-    function body() { return document.getElementById('dm-body'); }
+    // ---------- Confettis (vitória) ----------
+    function confetti() {
+        if (reduceMotion) return;
+        const cv = document.createElement('canvas');
+        cv.className = 'dm-confetti';
+        document.body.appendChild(cv);
+        const ctx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1, W = window.innerWidth, H = window.innerHeight;
+        cv.width = W * dpr; cv.height = H * dpr;
+        ctx.scale(dpr, dpr);
+        const colors = ['#fbbf24', '#f472b6', '#22d3ee', '#a3e635', '#fb923c', '#fff7ed'];
+        const parts = [];
+        for (let i = 0; i < 150; i++) {
+            const a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 7;
+            parts.push({ x: W / 2, y: H * 0.34, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, s: 4 + Math.random() * 6, c: colors[i % colors.length], r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3 });
+        }
+        const t0 = performance.now(), dur = 2400;
+        (function frame(now) {
+            const t = now - t0;
+            ctx.clearRect(0, 0, W, H);
+            ctx.globalAlpha = Math.max(0, 1 - t / dur);
+            for (const p of parts) {
+                p.vy += 0.16; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+                ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 3, p.s, p.s * 0.66);
+                ctx.restore();
+            }
+            if (t < dur) requestAnimationFrame(frame); else cv.remove();
+        })(t0);
+    }
 
-    function open() {
-        const old = overlay();
-        if (old) old.remove();
-        cleanup();
-        const o = document.createElement('div');
-        o.id = OV_ID;
-        o.setAttribute('role', 'dialog');
-        o.setAttribute('aria-modal', 'true');
-        o.setAttribute('aria-label', 'Damas');
-        o.innerHTML = `
-            <header class="dm-top">
-                <button type="button" class="dm-ibtn" data-act="close" aria-label="Voltar"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
-                <div class="dm-top-title">Damas</div>
-                <button type="button" class="dm-ibtn" data-act="sound" id="dm-sound"></button>
-                <button type="button" class="dm-ibtn" data-act="rules" aria-label="Regras"><i class="fas fa-circle-question" aria-hidden="true"></i></button>
-            </header>
-            <div class="dm-body" id="dm-body"></div>
-            <div class="dm-toast" id="dm-toast" role="status" aria-live="polite"></div>`;
-        document.body.appendChild(o);
-        try { if (typeof _overlayPush === 'function') _overlayPush(OV_ID); } catch (e) {}
-        o.addEventListener('click', onClick);
-        document.addEventListener('keydown', onKey, true);
-        // O ecrã pode ser fechado por fora (voltar do browser, Esc): limpa tudo.
-        observer = new MutationObserver(() => { if (!document.getElementById(OV_ID)) cleanup(); });
-        observer.observe(document.body, { childList: true });
+    // ---------- Topo, navegação e instalação ----------
+    function body() { return $('dm-body'); }
+    function updateTop() {
+        const left = $('dm-left');
+        if (left) left.innerHTML = screen === 'game'
+            ? `<button type="button" class="dm-ibtn" data-act="menu" aria-label="Voltar ao menu">${icon('back')}</button>`
+            : '<span class="dm-logo" aria-hidden="true"></span>';
         updateSoundBtn();
-        const saved = loadGame();
-        if (saved) { G = saved; showGame(); }
-        else showSetup();
     }
-    function close() {
-        if (!overlay()) return;
-        try {
-            if (typeof _overlayClose === 'function') _overlayClose(OV_ID);
-        } catch (e) {}
-        const o = overlay();
-        if (o) o.remove();
-        cleanup();
+    function updateSoundBtn() {
+        const b = $('dm-sound');
+        if (!b) return;
+        const mute = !!store().prefs.mute;
+        b.innerHTML = icon(mute ? 'soundOff' : 'soundOn');
+        b.setAttribute('aria-label', mute ? 'Ligar o som' : 'Desligar o som');
+        b.setAttribute('aria-pressed', mute ? 'false' : 'true');
     }
-    function cleanup() {
-        if (G) { G.token++; G.thinking = false; G.hinting = false; }
-        cancelEngine(); killWorker();
-        ui = null;
-        clearTimeout(toastTimer); clearTimeout(confirmTimer);
-        document.removeEventListener('keydown', onKey, true);
-        if (observer) { observer.disconnect(); observer = null; }
-        try { if (typeof window._damasHomeCard === 'function') window._damasHomeCard(); } catch (e) {}
+    function toggleSound() {
+        const pr = store().prefs;
+        pr.mute = !pr.mute;
+        persist();
+        updateSoundBtn();
+        if (!pr.mute) { unlockAudio(); sound('move'); }
     }
+    // O jogo tem uma entrada própria no histórico: o botão/gesto "voltar"
+    // do telemóvel leva do tabuleiro ao menu, em vez de fechar a app.
+    function goGame() {
+        if (!(history.state && history.state.dm === 'game')) { try { history.pushState({ dm: 'game' }, ''); } catch (e) {} }
+        showGame();
+    }
+    function goMenu() {
+        if (history.state && history.state.dm === 'game') { try { history.back(); return; } catch (e) {} }
+        showSetup();
+    }
+    function onPop(e) {
+        closeDialog();
+        if (e.state && e.state.dm === 'game') {
+            if (G) showGame();
+            else { try { history.replaceState({ dm: 'menu' }, ''); } catch (x) {} showSetup(); }
+        } else if (screen !== 'setup') showSetup();
+    }
+    function isStandalone() {
+        return !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true);
+    }
+    function isIOS() {
+        return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+    function installHtml() {
+        if (isStandalone()) return '';
+        if (installEvt) return `<button type="button" class="dm-install-btn" data-act="install">${icon('install')}<span>Instalar a app no ecrã principal</span></button>`;
+        if (isIOS()) return '<p class="dm-install-tip">Para a teres como app: toca em <b>Partilhar</b> e depois em <b>Adicionar ao ecrã principal</b>.</p>';
+        return '';
+    }
+    function refreshInstall() { const el = $('dm-install'); if (el) el.innerHTML = installHtml(); }
+    async function doInstall() {
+        const ev = installEvt;
+        if (!ev) return;
+        installEvt = null;
+        try { ev.prompt(); await ev.userChoice; } catch (e) {}
+        refreshInstall();
+    }
+
     function onKey(e) {
-        if (e.key !== 'Escape' || !overlay()) return;
-        const dlg = $('.dm-dlg');
-        if (dlg) { e.stopImmediatePropagation(); e.preventDefault(); closeDialog(); }
+        if (e.key === 'Escape' && document.querySelector('.dm-dlg')) { e.preventDefault(); closeDialog(); }
     }
     function onClick(e) {
         const sqEl = e.target.closest('[data-sq]');
@@ -596,61 +654,46 @@
         if (!a || a.disabled) return;
         const v = +a.dataset.v;
         switch (a.dataset.act) {
-            case 'close': close(); break;
+            case 'menu': case 'new': goMenu(); break;
             case 'sound': toggleSound(); break;
             case 'rules': showRules(); break;
-            case 'level': dm().prefs.level = v; persistProfile(); refreshSetup(); break;
-            case 'color': dm().prefs.human = v; persistProfile(); refreshSetup(); break;
+            case 'install': doInstall(); break;
+            case 'level': store().prefs.level = v; persist(); refreshSetup(); break;
+            case 'color': store().prefs.human = v; persist(); refreshSetup(); break;
             case 'start': startFromSetup(a); break;
-            case 'resume': showGame(); break;
+            case 'resume': goGame(); break;
             case 'undo': undo(); break;
             case 'hint': hint(); break;
-            case 'new': showSetup(); break;
             case 'again': closeDialog(); G = mkGame({ level: G.level, human: G.human }); saveGame(); showGame(); break;
             case 'view': closeDialog(); break;
-            case 'setup': closeDialog(); showSetup(); break;
+            case 'setup': closeDialog(); goMenu(); break;
             case 'end': showEnd(); break;
             case 'dlg-close': closeDialog(); break;
         }
     }
     function toast(msg) {
-        const t = document.getElementById('dm-toast');
+        const t = $('dm-toast');
         if (!t) return;
         t.textContent = msg;
         t.classList.add('show');
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
     }
-    function toggleSound() {
-        const pr = dm().prefs;
-        pr.mute = !pr.mute;
-        persistProfile();
-        updateSoundBtn();
-        if (!pr.mute) sound('move');
-    }
-    function updateSoundBtn() {
-        const b = document.getElementById('dm-sound');
-        if (!b) return;
-        const mute = !!dm().prefs.mute;
-        b.innerHTML = `<i class="fas ${mute ? 'fa-volume-xmark' : 'fa-volume-high'}" aria-hidden="true"></i>`;
-        b.setAttribute('aria-label', mute ? 'Ligar o som' : 'Desligar o som');
-        b.setAttribute('aria-pressed', mute ? 'false' : 'true');
-    }
 
     // ---------- Diálogos ----------
     function showDialog(html, cls) {
         closeDialog();
-        const o = overlay();
-        if (!o) return;
+        const app = $('app');
+        if (!app) return;
         const d = document.createElement('div');
         d.className = 'dm-dlg' + (cls ? ' dm-dlg-' + cls : '');
         d.innerHTML = `<div class="dm-dlg-card" role="alertdialog" aria-modal="true">${html}</div>`;
         d.addEventListener('click', e => { if (e.target === d) closeDialog(); });
-        o.appendChild(d);
+        app.appendChild(d);
         const f = d.querySelector('.dm-btn, button');
         if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
     }
-    function closeDialog() { const d = $('.dm-dlg'); if (d) d.remove(); }
+    function closeDialog() { const d = document.querySelector('.dm-dlg'); if (d) d.remove(); }
     function showRules() {
         showDialog(`
             <h2 class="dm-dlg-h">Regras</h2>
@@ -668,7 +711,7 @@
             <button type="button" class="dm-btn dm-btn-go" data-act="dlg-close">Percebi</button>`, 'rules');
     }
 
-    // ---------- Ecrã inicial (nível e cor) ----------
+    // ---------- Menu (nível e cor) ----------
     function miniBoardHtml() {
         const b = E.initialBoard();
         b[E.DARK[21]] = 0; b[E.DARK[17]] = 1; // um lance já feito (d3-c4), para dar vida
@@ -683,7 +726,9 @@
         if (G) { G.token++; G.thinking = false; G.hinting = false; }
         cancelEngine();
         ui = null;
+        screen = 'setup';
         closeDialog();
+        updateTop();
         const bd = body();
         if (!bd) return;
         const inProgress = !!(G && !G.over && G.plies > 0);
@@ -700,9 +745,9 @@
                     <p class="dm-hero-sub">Regras portuguesas · contra o computador</p>
                 </div>
                 ${inProgress ? `<button type="button" class="dm-resume" data-act="resume">
-                    <span class="dm-resume-i" aria-hidden="true"><i class="fas fa-play"></i></span>
+                    <span class="dm-resume-i" aria-hidden="true">${icon('play')}</span>
                     <span class="dm-resume-t"><b>Continuar a partida</b><small>${LEVEL_INFO[G.level].emoji} ${LEVEL_INFO[G.level].name} · ${plural(Math.ceil(G.plies / 2), 'lance', 'lances')}</small></span>
-                    <i class="fas fa-chevron-right" aria-hidden="true"></i></button>` : ''}
+                    ${icon('chevron')}</button>` : ''}
                 <section class="dm-card">
                     <h2 class="dm-card-h" id="dm-lv-h">Nível</h2>
                     <div class="dm-levels" role="radiogroup" aria-labelledby="dm-lv-h">${levels}</div>
@@ -716,20 +761,21 @@
                     </div>
                 </section>
                 <button type="button" class="dm-btn dm-btn-go" data-act="start" id="dm-start">${inProgress ? 'Nova partida' : 'Jogar'}</button>
+                <div class="dm-install" id="dm-install">${installHtml()}</div>
             </div>`;
         refreshSetup();
     }
     function setupChoice() {
-        const pr = dm().prefs;
+        const pr = store().prefs;
         return { level: LEVEL_INFO[pr.level] ? pr.level : 2, human: pr.human === -1 ? -1 : 1 };
     }
     function refreshSetup() {
         const c = setupChoice();
-        const o = overlay();
-        if (!o) return;
-        o.querySelectorAll('.dm-level').forEach(b => { const on = +b.dataset.v === c.level; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
-        o.querySelectorAll('.dm-color').forEach(b => { const on = +b.dataset.v === c.human; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
-        const r = document.getElementById('dm-record');
+        const bd = body();
+        if (!bd) return;
+        bd.querySelectorAll('.dm-level').forEach(b => { const on = +b.dataset.v === c.level; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+        bd.querySelectorAll('.dm-color').forEach(b => { const on = +b.dataset.v === c.human; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+        const r = $('dm-record');
         if (r) r.textContent = `${LEVEL_INFO[c.level].emoji} ${LEVEL_INFO[c.level].name}: ${recordText(c.level)}`;
     }
     function startFromSetup(btn) {
@@ -745,7 +791,7 @@
         const c = setupChoice();
         G = mkGame({ level: c.level, human: c.human });
         saveGame();
-        showGame();
+        goGame();
     }
 
     // ---------- Ecrã de jogo ----------
@@ -753,10 +799,9 @@
         const bd = body();
         if (!bd || !G) return;
         closeDialog();
-        const p = profile() || {};
+        screen = 'game';
+        updateTop();
         const li = LEVEL_INFO[G.level];
-        let av = '🙂';
-        try { if (typeof renderAvatar === 'function' && p.avatar) av = renderAvatar(p.avatar, 34); } catch (e) {}
         let sqs = '';
         for (let i = 0; i < 64; i++) {
             const sq = G.human > 0 ? i : 63 - i;
@@ -779,20 +824,19 @@
                     </div>
                 </div>
                 <div class="dm-bar dm-bar-me" id="dm-bar-me">
-                    <div class="dm-av" aria-hidden="true">${av}</div>
-                    <div class="dm-who"><b>${esc(p.name || 'Tu')}</b><small>${G.human > 0 ? 'Brancas' : 'Pretas'}</small></div>
+                    <div class="dm-av" aria-hidden="true"><span class="dm-disc ${G.human > 0 ? 'w' : 'b'}"></span></div>
+                    <div class="dm-who"><b>Tu</b><small>${G.human > 0 ? 'Brancas' : 'Pretas'}</small></div>
                     <div class="dm-caps" id="dm-caps-me"></div>
                 </div>
                 <div class="dm-status" id="dm-status" aria-live="polite"></div>
                 <div class="dm-actions">
-                    <button type="button" class="dm-act" data-act="undo" id="dm-undo"><i class="fas fa-rotate-left" aria-hidden="true"></i><span>Desfazer</span></button>
-                    <button type="button" class="dm-act" data-act="hint" id="dm-hint"><i class="fas fa-lightbulb" aria-hidden="true"></i><span>Pista</span></button>
-                    <button type="button" class="dm-act" data-act="new"><i class="fas fa-plus" aria-hidden="true"></i><span>Nova</span></button>
+                    <button type="button" class="dm-act" data-act="undo" id="dm-undo">${icon('undo')}<span>Desfazer</span></button>
+                    <button type="button" class="dm-act" data-act="hint" id="dm-hint">${icon('hint')}<span>Pista</span></button>
+                    <button type="button" class="dm-act" data-act="new">${icon('plus')}<span>Nova</span></button>
                 </div>
             </div>`;
         ui = {
-            board: document.getElementById('dm-board'), pieces: document.getElementById('dm-pieces'),
-            status: document.getElementById('dm-status'), els: {}, sqs: {}
+            board: $('dm-board'), pieces: $('dm-pieces'), status: $('dm-status'), els: {}, sqs: {}
         };
         ui.board.querySelectorAll('.dm-sq.d').forEach(el => { ui.sqs[el.dataset.sq] = el; });
         buildPieces();
@@ -880,7 +924,7 @@
             el.classList.toggle('target', targets.has(sq));
         });
         // Barras: vez de jogar, a pensar, peças tomadas
-        const opp = document.getElementById('dm-bar-opp'), me = document.getElementById('dm-bar-me');
+        const opp = $('dm-bar-opp'), me = $('dm-bar-me');
         if (opp && me) {
             opp.classList.toggle('turn', !G.over && G.turn !== G.human);
             me.classList.toggle('turn', !G.over && G.turn === G.human);
@@ -888,8 +932,8 @@
             let nw = 0, nb = 0;
             for (const sq of E.DARK) { const p = G.board[sq]; if (p > 0) nw++; else if (p < 0) nb++; }
             const tookByHuman = 12 - (G.human > 0 ? nb : nw), tookByAi = 12 - (G.human > 0 ? nw : nb);
-            capsHtml(document.getElementById('dm-caps-me'), tookByHuman, G.human > 0 ? 'b' : 'w');
-            capsHtml(document.getElementById('dm-caps-opp'), tookByAi, G.human > 0 ? 'w' : 'b');
+            capsHtml($('dm-caps-me'), tookByHuman, G.human > 0 ? 'b' : 'w');
+            capsHtml($('dm-caps-opp'), tookByAi, G.human > 0 ? 'w' : 'b');
         }
         const st = statusInfo();
         if (st && ui.status) {
@@ -898,7 +942,7 @@
             if (G.over) { ui.status.dataset.act = 'end'; ui.status.setAttribute('role', 'button'); ui.status.tabIndex = 0; }
             else { delete ui.status.dataset.act; ui.status.removeAttribute('role'); ui.status.removeAttribute('tabindex'); }
         }
-        const u = document.getElementById('dm-undo'), h = document.getElementById('dm-hint');
+        const u = $('dm-undo'), h = $('dm-hint');
         if (u) u.disabled = !canUndo();
         if (h) h.disabled = !human || G.hinting;
     }
@@ -930,7 +974,7 @@
     }
 
     // ---------- Fluxo da partida ----------
-    function alive(token) { return !!(ui && overlay() && G && token === G.token); }
+    function alive(token) { return !!(ui && screen === 'game' && G && token === G.token); }
     function continueGame() {
         if (!G || !ui) return;
         const end = checkEnd();
@@ -963,16 +1007,14 @@
     function finish(end) {
         G.over = end; G.thinking = false; G.sel = null; G.legal = null; G.hintMove = null;
         saveGame(); // apaga a partida gravada
-        const st = dm().stats;
+        const st = store().stats;
         const s = st[G.level] || (st[G.level] = { w: 0, l: 0, d: 0 });
         const f = end.result === 'win' ? 'w' : end.result === 'loss' ? 'l' : 'd';
         s[f] = (s[f] | 0) + 1;
-        persistProfile();
+        persist();
         refresh();
         sound(end.result);
-        if (end.result === 'win' && typeof window.fireConfetti === 'function' && !reduceMotion) {
-            setTimeout(() => { try { window.fireConfetti({ count: 140 }); } catch (e) {} }, 200);
-        }
+        if (end.result === 'win') setTimeout(confetti, 200);
         const token = G.token;
         setTimeout(() => { if (alive(token)) showEnd(); }, 700);
     }
@@ -1070,7 +1112,7 @@
         }
     }
 
-    // ---------- Jogadas do humano ----------
+    // ---------- Jogadas do jogador ----------
     function sameEffect(list) {
         const key = m => m.to + ':' + m.caps.slice().sort((x, y) => x - y).join(',');
         const k0 = key(list[0]);
@@ -1152,5 +1194,41 @@
         continueGame();
     }
 
-    window.DamasGame = { open, close, engine: E };
+    // ---------- Arranque ----------
+    function registerSW() {
+        if (!('serviceWorker' in navigator) || !/^(https:|http:\/\/(localhost|127\.0\.0\.1)[:/])/.test(location.href)) return;
+        // Versão nova ativa → recarrega (a partida está gravada; retoma onde estava).
+        let had = !!navigator.serviceWorker.controller;
+        navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); had = true; });
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+    function init() {
+        const app = $('app');
+        if (!app) return;
+        const rules = app.querySelector('[data-act="rules"]');
+        if (rules) rules.innerHTML = icon('help');
+        app.addEventListener('click', onClick);
+        document.addEventListener('keydown', onKey);
+        window.addEventListener('popstate', onPop);
+        document.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
+        window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; refreshInstall(); });
+        window.addEventListener('appinstalled', () => { installEvt = null; refreshInstall(); });
+        const saved = loadGame();
+        const onGameEntry = !!(history.state && history.state.dm === 'game');
+        if (saved) {
+            G = saved;
+            if (onGameEntry) showGame();
+            else { try { history.replaceState({ dm: 'menu' }, ''); } catch (e) {} goGame(); }
+        } else {
+            try { history.replaceState({ dm: 'menu' }, ''); } catch (e) {}
+            showSetup();
+        }
+        registerSW();
+    }
+
+    window.DamasGame = { engine: E };
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    }
 })();

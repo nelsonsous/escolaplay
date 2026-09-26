@@ -1,10 +1,17 @@
-/* EscolaPlay — Damas (carregado a pedido, com damas.js).
-   Ecrã próprio, escuro e quente ("mesa de jogo"), igual em tema claro ou
-   escuro: as cores são explícitas e o tabuleiro de madeira sobressai. */
+/* Damas — aplicação à parte (damas clássicas portuguesas contra o computador).
+   Ecrã escuro e quente ("mesa de jogo"), igual em tema claro ou escuro: as
+   cores são explícitas e o tabuleiro de madeira sobressai. */
 
-body:has(#damas-overlay) { overflow: hidden; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: #1b120c; overscroll-behavior: none; }
+body {
+    line-height: 1.4;
+    font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
 
-#damas-overlay {
+.dm-app {
     --dm-text: #fbf3e6;
     --dm-muted: rgba(251, 243, 230, 0.68);
     --dm-card: rgba(255, 255, 255, 0.06);
@@ -18,7 +25,6 @@ body:has(#damas-overlay) { overflow: hidden; }
     --dm-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     position: fixed;
     inset: 0;
-    z-index: 9100;
     display: flex;
     flex-direction: column;
     background: radial-gradient(120% 70% at 50% 0%, #4d3322 0%, #35231a 42%, #1b120c 100%);
@@ -27,10 +33,21 @@ body:has(#damas-overlay) { overflow: hidden; }
     -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none;
     user-select: none;
-    animation: dmIn 0.22s ease-out;
+    touch-action: manipulation;
 }
-#damas-overlay button { font-family: inherit; color: inherit; }
-@keyframes dmIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.dm-app button { font-family: inherit; color: inherit; }
+.dm-setup, .dm-game { animation: dmIn 0.22s ease-out; }
+@keyframes dmIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.dm-ic {
+    width: 1.25em; height: 1.25em;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.dm-noscript { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #fbf3e6; font-weight: 700; }
 
 /* ---------- Topo ---------- */
 .dm-top {
@@ -39,6 +56,13 @@ body:has(#damas-overlay) { overflow: hidden; }
     gap: 8px;
     padding: calc(8px + env(safe-area-inset-top)) 12px 6px;
     flex-shrink: 0;
+}
+.dm-left { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dm-logo {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: url(icon.svg) center / cover no-repeat;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 .dm-top-title { flex: 1; font-weight: 900; font-size: 1.15rem; letter-spacing: 0.2px; }
 .dm-ibtn {
@@ -54,7 +78,7 @@ body:has(#damas-overlay) { overflow: hidden; }
 }
 .dm-ibtn:hover { background: rgba(255, 255, 255, 0.12); }
 .dm-ibtn:active { transform: scale(0.94); }
-#damas-overlay :focus-visible { outline: 3px solid var(--dm-gold); outline-offset: 2px; }
+.dm-app :focus-visible { outline: 3px solid var(--dm-gold); outline-offset: 2px; }
 
 .dm-body {
     flex: 1;
@@ -185,6 +209,23 @@ body:has(#damas-overlay) { overflow: hidden; }
 .dm-resume-t { flex: 1; min-width: 0; }
 .dm-resume-t b { display: block; font-weight: 900; }
 .dm-resume-t small { display: block; color: var(--dm-muted); font-weight: 700; font-size: 0.8rem; }
+.dm-resume-i .dm-ic { fill: currentColor; stroke-width: 1.5; }
+.dm-resume > .dm-ic { opacity: 0.8; }
+.dm-install:empty { display: none; }
+.dm-install-btn {
+    display: flex; align-items: center; justify-content: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 48px;
+    border-radius: 16px;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    background: rgba(251, 191, 36, 0.1);
+    font-weight: 900;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.dm-install-btn .dm-ic { color: var(--dm-gold); }
+.dm-install-tip { margin: 0; text-align: center; color: var(--dm-muted); font-weight: 700; font-size: 0.84rem; line-height: 1.45; }
 
 /* ---------- Ecrã de jogo ---------- */
 .dm-game {
@@ -225,7 +266,7 @@ body:has(#damas-overlay) { overflow: hidden; }
     overflow: hidden;
     flex-shrink: 0;
 }
-.dm-av img { width: 100% !important; height: 100% !important; }
+.dm-av .dm-disc { width: 24px; height: 24px; }
 .dm-who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
 .dm-who b { font-weight: 800; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dm-who small { font-size: 0.74rem; color: var(--dm-muted); font-weight: 700; }
@@ -268,7 +309,7 @@ body:has(#damas-overlay) { overflow: hidden; }
 .dm-sq { position: relative; border: 0; margin: 0; padding: 0; border-radius: 0; min-width: 0; min-height: 0; }
 .dm-sq.l { background: var(--dm-light); }
 .dm-sq.d { background: linear-gradient(135deg, var(--dm-dark), var(--dm-dark2)); cursor: pointer; }
-#damas-overlay .dm-sq.d:focus-visible { outline: 3px solid #fff; outline-offset: -3px; z-index: 2; }
+.dm-app .dm-sq.d:focus-visible { outline: 3px solid #fff; outline-offset: -3px; z-index: 2; }
 .dm-sq::before, .dm-sq::after { content: none; position: absolute; pointer-events: none; }
 .dm-sq.last::before { content: ''; inset: 0; background: rgba(251, 191, 36, 0.3); }
 .dm-sq.trail::before { content: ''; inset: 0; background: rgba(244, 114, 182, 0.4); }
@@ -372,7 +413,7 @@ body:has(#damas-overlay) { overflow: hidden; }
 .dm-act:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
 .dm-act:active:not(:disabled) { transform: translateY(1px); }
 .dm-act:disabled { opacity: 0.38; cursor: default; }
-.dm-act i { color: var(--dm-gold); }
+.dm-act .dm-ic { color: var(--dm-gold); width: 1.15em; height: 1.15em; }
 
 /* ---------- Diálogos (regras, fim de partida) ---------- */
 .dm-dlg {
@@ -471,8 +512,10 @@ body:has(#damas-overlay) { overflow: hidden; }
     .dm-bar, .dm-status, .dm-actions { width: 100%; }
 }
 
+.dm-confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50; }
+
 @media (prefers-reduced-motion: reduce) {
-    #damas-overlay, #damas-overlay *, #damas-overlay *::before, #damas-overlay *::after {
+    .dm-app, .dm-app *, .dm-app *::before, .dm-app *::after {
         animation: none !important;
         transition-duration: 0s !important;
     }

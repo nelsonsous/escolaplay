@@ -4269,46 +4269,6 @@ body { font-size: var(--fs-base); font-weight: var(--fw-normal); }
 .tutor-card-sub { font-size: 0.76rem; opacity: 0.9; margin-top: 2px; }
 .tutor-card-mic { font-size: 1.1rem; opacity: 0.85; }
 
-/* Cartão "Damas" no ecrã inicial (todos os perfis). O jogo em si está em
-   damas.js/damas.css, carregados só quando se abre. */
-.damas-home-card {
-    margin-top: 14px;
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, #4a2f1d 0%, #7a4d2c 55%, #a86f43 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 13px;
-    cursor: pointer;
-    box-shadow: 0 10px 26px rgba(74, 47, 29, 0.32);
-    -webkit-tap-highlight-color: rgba(255,255,255,0.1);
-    transition: transform 0.12s var(--spring, ease);
-}
-.damas-home-card:active { transform: scale(0.98); }
-.damas-home-icon {
-    position: relative;
-    width: 48px; height: 48px;
-    border-radius: 11px;
-    flex-shrink: 0;
-    /* tabuleiro 4×4 com o canto inferior direito escuro, como nas damas portuguesas */
-    background: repeating-conic-gradient(#f0dcb8 0 25%, #a4693f 0 50%) 0 0 / 50% 50%;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.35), 0 4px 10px rgba(0,0,0,0.3);
-    overflow: hidden;
-}
-.damas-home-icon::before, .damas-home-icon::after {
-    content: '';
-    position: absolute;
-    width: 20%; height: 20%;
-    border-radius: 50%;
-}
-.damas-home-icon::before { left: 2.5%; top: 2.5%; background: radial-gradient(circle at 35% 30%, #6a5752, #150f10); }
-.damas-home-icon::after { left: 52.5%; top: 52.5%; background: radial-gradient(circle at 35% 30%, #fffdf6, #d8c7a6); box-shadow: 0 1px 2px rgba(0,0,0,0.45); }
-.damas-home-text { flex: 1; min-width: 0; }
-.damas-home-title { font-size: 1.02rem; font-weight: 800; }
-.damas-home-sub { font-size: 0.76rem; opacity: 0.9; margin-top: 2px; }
-.damas-home-arrow { opacity: 0.8; }
-
 #tutor-overlay, #tutor-explore {
     position: fixed;
     inset: 0;
