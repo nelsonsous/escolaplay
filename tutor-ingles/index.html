@@ -1,15 +1,19 @@
 <title>Inglês com o Claude</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!--
   Inglês com o Claude — tutor de conversação em inglês, por voz.
 
-  App à parte da EscolaPlay, publicada como página (artifact) no claude.ai.
-  - Cérebro: o Claude da conta de quem abre a página (capacidade `sample`),
-    que gasta a quota do plano (Max). Não usa a API nem chaves: custo extra 0.
-  - Voz do tutor: sintetizador do próprio dispositivo (speechSynthesis).
-  - Voz do aluno: as páginas do claude.ai não têm acesso ao microfone, por
-    isso responde-se com o ditado do teclado/sistema (ou a escrever).
-  - Caderno e sessões: base de dados da própria página (`db`), só do dono;
-    fora do claude.ai (ou para outras pessoas) ficam no dispositivo.
+  App à parte da EscolaPlay. O mesmo ficheiro corre em dois sítios:
+  - No claude.ai (artifact): o tutor é o Claude da conta de quem abre a página
+    (capacidade `sample`, quota do plano Max, sem API nem chaves). A página não
+    pode chamar outros sites: a voz é a do dispositivo ou a do Mistral pelo
+    conector «Voz Mistral»; responde-se com o ditado do teclado.
+  - Fora do claude.ai (GitHub Pages, /escolaplay/tutor-ingles/): como na
+    EscolaPlay, basta a chave Mistral, guardada só no dispositivo — o tutor,
+    a voz (Voxtral TTS) e o microfone (Voxtral) são do Mistral.
+  - Caderno e sessões: no claude.ai, na base de dados da página (`db`, só do
+    dono); fora dele, no dispositivo.
   Ver README.md nesta pasta.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -219,6 +223,8 @@ ins{color:var(--teal);background:var(--teal-soft);text-decoration:none;border-ra
 .form{display:flex;gap:8px;align-items:flex-end}
 .mic{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink)}
 .mic[aria-expanded="true"]{background:var(--marker);border-color:var(--marker);color:var(--on-marker)}
+.mic.rec{background:var(--red);border-color:var(--red);color:#fff;animation:recpulse 1.4s ease-in-out infinite}
+@keyframes recpulse{0%,100%{box-shadow:0 0 0 0 var(--red-soft)}50%{box-shadow:0 0 0 8px var(--red-soft)}}
 .form textarea{flex:1;min-width:0;min-height:44px;max-height:160px;resize:none;border:1px solid var(--line);border-radius:22px;padding:10px 16px;background:var(--surface);font-size:16px;line-height:1.4}
 .form textarea::placeholder{color:var(--faint)}
 .send{flex:none;height:44px;padding:0 18px;border-radius:22px;border:0;background:var(--ink);color:var(--paper);font-weight:600}
@@ -492,7 +498,7 @@ const REVIEW_META = {
 /* ================================================================
    Definições (por dispositivo — as vozes mudam de aparelho para aparelho)
    ================================================================ */
-const DEFAULTS = { level: 'B1', accent: 'en-GB', engine: 'mistral', mistralVoice: '', voiceURI: '', rate: 1, autoSpeak: true, ptHelp: true, autoSend: false, tier: 'quick' };
+const DEFAULTS = { level: 'B1', accent: 'en-GB', engine: 'mistral', mistralVoice: '', voiceURI: '', rate: 1, autoSpeak: true, ptHelp: true, autoSend: false, handsFree: false, tier: 'quick' };
 const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
 if (!LEVELS[settings.level]) settings.level = DEFAULTS.level;
 if (!['quick', 'default'].includes(settings.tier)) settings.tier = DEFAULTS.tier;
@@ -504,6 +510,14 @@ const saveSettings = () => store.set('settings', settings);
    Claude (capacidades do claude.ai)
    ================================================================ */
 const hasClaude = !!(window.claude && typeof window.claude.use === 'function');
+// No claude.ai o tutor é o Claude; fora dele (ex.: GitHub Pages) o tutor, a voz e
+// o microfone são do Mistral, com a chave guardada só neste dispositivo.
+const MODE = hasClaude ? 'claude' : 'mistral';
+const ARTIFACT_URL = 'https://claude.ai/artifact/58FpZ6waEprze6M8zgMgwD';
+const PAGES_URL = 'https://nelsonsous.github.io/escolaplay/tutor-ingles/';
+const MISTRAL_API = 'https://api.mistral.ai/v1';
+const mistralKey = () => str(store.get('mistralKey', ''));
+const TUTOR_NAME = MODE === 'claude' ? 'o Claude' : 'o Mistral';
 let sampleFn = null;
 let sampleResolved = false;
 const samplePromise = (hasClaude ? window.claude.use('sample').catch(() => null) : Promise.resolve(null))
@@ -516,22 +530,98 @@ const ERR = {
   not_declared: 'Esta versão da app já não pode usar o Claude. Recarrega a página.',
   capability_disabled: 'O Claude não está disponível nesta vista. Abre a app no claude.ai, no browser ou na app Claude.',
   capability_removed: 'Esta vista é antiga demais para a app. Atualiza a app Claude ou abre no browser.',
-  rate_limited: 'Chegaste ao limite de utilização do teu plano Claude por agora. Espera um pouco e tenta de novo.',
+  rate_limited: MODE === 'claude'
+    ? 'Chegaste ao limite de utilização do teu plano Claude por agora. Espera um pouco e tenta de novo.'
+    : 'Chegaste ao limite do plano grátis do Mistral por agora. Espera um minuto e tenta de novo.',
+  no_key: 'Cola a tua chave Mistral nas definições (a mesma da EscolaPlay) para conversar aqui.',
+  bad_key: 'O Mistral recusou a chave. Confirma-a nas definições.',
+  network: 'Sem ligação à internet. Verifica a rede e tenta outra vez.',
   session_expired: 'A tua sessão no claude.ai terminou. Inicia sessão outra vez e volta aqui.',
-  refused: 'O Claude não respondeu a esta mensagem. Tenta dizê-la de outra forma.',
-  empty_completion: 'O Claude não devolveu resposta. Tenta outra vez com uma frase mais curta.',
+  refused: 'O tutor não respondeu a esta mensagem. Tenta dizê-la de outra forma.',
+  empty_completion: 'O tutor não devolveu resposta. Tenta outra vez com uma frase mais curta.',
   invalid_json: 'A resposta veio num formato inesperado. Tenta outra vez.',
   prompt_too_large: 'A conversa ficou longa demais. Termina esta sessão e começa outra.',
   cancelled: 'Resposta cancelada.',
-  upstream_error: 'A ligação ao Claude falhou. Tenta outra vez.',
+  upstream_error: 'A ligação a ' + TUTOR_NAME + ' falhou. Tenta outra vez.',
 };
-const FATAL = new Set(['no_claude', 'not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed']);
+const FATAL = new Set(['no_claude', 'not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'no_key', 'bad_key']);
 const errCode = e => (e && typeof e.code === 'string' ? e.code : 'upstream_error');
 const errText = e => ERR[errCode(e)] || ERR.upstream_error;
 async function getSample() {
   const s = await samplePromise;
   if (!s) throw { code: hasClaude ? 'capability_disabled' : 'no_claude' };
   return s;
+}
+
+/* ---------- cérebro do tutor: Claude (claude.ai) ou Mistral (chave) ---------- */
+const SYS_JSON = 'Respond ONLY with valid JSON, with no markdown and no text outside the JSON. When writing in Portuguese, always use European Portuguese (Portugal), never Brazilian Portuguese.';
+const MISTRAL_CHAT = { quick: 'mistral-small-latest', default: 'mistral-medium-latest' };
+function brainReady() { return MODE === 'claude' ? !(sampleResolved && !sampleFn) : !!mistralKey(); }
+async function brainJSON(input, { tier = 'quick', signal, cache } = {}) {
+  if (MODE === 'claude') {
+    const sample = await getSample();
+    const opts = { modelTier: tier, signal };
+    if (cache !== undefined) opts.cache = cache;
+    return sample.json(input, opts);
+  }
+  return mistralChatJSON(input, tier, signal);
+}
+// As instruções (1.ª mensagem) passam a system; o Mistral quer a conversa a
+// começar e a acabar numa mensagem do utilizador, sem papéis repetidos seguidos.
+function toMistralMessages(input) {
+  if (typeof input === 'string') return [{ role: 'system', content: SYS_JSON }, { role: 'user', content: input }];
+  const [first, ...rest] = input;
+  const msgs = [{ role: 'system', content: SYS_JSON + '\n\n' + first.content }];
+  if (!rest.length || rest[0].role !== 'user') msgs.push({ role: 'user', content: 'Start the scene now.' });
+  for (const t of rest) {
+    const last = msgs[msgs.length - 1];
+    if (last.role === t.role) last.content += '\n' + t.content;
+    else msgs.push({ role: t.role, content: t.content });
+  }
+  return msgs;
+}
+function parseLooseJSON(t) {
+  try { return JSON.parse(t); } catch {}
+  const fence = /```(?:json)?\s*([\s\S]*?)```/.exec(t);
+  if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch {} }
+  return undefined;
+}
+function netError(e) { return e && e.name === 'AbortError' ? { code: 'cancelled' } : { code: 'network', message: str(e && e.message) }; }
+function httpError(status, detail) {
+  const code = status === 401 || status === 403 ? 'bad_key' : status === 429 ? 'rate_limited' : 'upstream_error';
+  return { code, status, message: '[' + status + '] ' + str(detail).slice(0, 200) };
+}
+async function mistralChatJSON(input, tier, signal) {
+  const key = mistralKey();
+  if (!key) throw { code: 'no_key' };
+  const messages = toMistralMessages(input);
+  let model = MISTRAL_CHAT[tier] || MISTRAL_CHAT.quick;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res;
+    try {
+      res = await fetch(MISTRAL_API + '/chat/completions', {
+        method: 'POST',
+        signal,
+        headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.6, max_tokens: 1400 }),
+      });
+    } catch (e) { throw netError(e); }
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      // modelo indisponível nesta conta: volta ao pequeno uma vez
+      if ((res.status === 400 || res.status === 404) && model !== MISTRAL_CHAT.quick && attempt === 0) { model = MISTRAL_CHAT.quick; continue; }
+      throw httpError(res.status, detail);
+    }
+    const j = await res.json().catch(() => null);
+    const text = str(j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content);
+    if (!text) throw { code: 'empty_completion' };
+    const out = parseLooseJSON(text);
+    if (out === undefined) throw { code: 'invalid_json', text };
+    return out;
+  }
+  throw { code: 'upstream_error' };
 }
 
 /* ================================================================
@@ -662,7 +752,7 @@ function settingsChanged() { if (!$('#settings').hidden) renderSettings(); }
 const vm = {
   mcp: null,
   // checking | ready | ok | missing | reauth | denied | badkey | limit | error | unavailable
-  state: hasClaude ? 'checking' : 'unavailable',
+  state: MODE === 'claude' ? 'checking' : 'ready',
   cooldownUntil: 0,
   lastError: '',
   ctl: null,
@@ -670,7 +760,7 @@ const vm = {
 };
 const mcpPromise = (hasClaude ? window.claude.use('mcp').catch(() => null) : Promise.resolve(null)).then(async m => {
   vm.mcp = m;
-  if (!m) { vm.state = 'unavailable'; settingsChanged(); return m; }
+  if (!m) { if (MODE === 'claude') vm.state = 'unavailable'; settingsChanged(); return m; }
   try {
     const r = await m.listTools(MISTRAL_SERVER);
     const srv = r && Array.isArray(r.servers) ? r.servers.find(x => x.server === MISTRAL_SERVER) : null;
@@ -683,10 +773,18 @@ const mcpPromise = (hasClaude ? window.claude.use('mcp').catch(() => null) : Pro
 });
 const MISTRAL_OFF = new Set(['missing', 'reauth', 'denied', 'badkey', 'unavailable']);
 function mistralUsable() {
-  return settings.engine === 'mistral' && hasClaude && !MISTRAL_OFF.has(vm.state) && player.mode !== 'none' && Date.now() >= vm.cooldownUntil;
+  if (settings.engine !== 'mistral' || player.mode === 'none' || Date.now() < vm.cooldownUntil) return false;
+  if (MODE === 'mistral') return !!mistralKey() && vm.state !== 'badkey';
+  return !MISTRAL_OFF.has(vm.state);
 }
 function mistralVoiceId() { return settings.mistralVoice || (settings.accent === 'en-US' ? 'en_paul_neutral' : 'gb_oliver_neutral'); }
 function mistralStatus() {
+  if (MODE === 'mistral') {
+    if (!mistralKey()) return { cls: 'bad', text: 'Cola a tua chave Mistral acima para ouvires a voz Mistral.' };
+    if (vm.state === 'ok') return { cls: 'good', text: 'Voz Mistral ligada, com a tua chave.' };
+    if (vm.state === 'badkey') return { cls: 'bad', text: 'O Mistral recusou a chave. Confirma-a acima.' };
+    if (vm.state !== 'limit' && vm.state !== 'error') return { cls: '', text: 'Voz Mistral pronta: a primeira fala confirma a chave.' };
+  }
   switch (vm.state) {
     case 'ok': return { cls: 'good', text: 'Voz Mistral ligada.' };
     case 'ready': return { cls: '', text: 'Conector «Voz Mistral» encontrado. A primeira fala pede autorização para o usar.' };
@@ -708,8 +806,8 @@ function noteMistralFailure(e) {
   if (['server_not_connected', 'server_not_found', 'selection_required'].includes(code)) vm.state = 'missing';
   else if (code === 'needs_reauth') vm.state = 'reauth';
   else if (['not_in_manifest', 'blocked_by_policy', 'approval_required', 'not_granted', 'capability_disabled', 'capability_removed', 'consent_required'].includes(code)) vm.state = 'denied';
-  else if (status === 401 || status === 403) vm.state = 'badkey';
-  else if (status === 429) { vm.state = 'limit'; vm.cooldownUntil = Date.now() + 60e3; }
+  else if (code === 'bad_key' || status === 401 || status === 403) vm.state = 'badkey';
+  else if (code === 'rate_limited' || status === 429) { vm.state = 'limit'; vm.cooldownUntil = Date.now() + 60e3; }
   else { vm.state = 'error'; vm.cooldownUntil = Date.now() + 120e3; }
   settingsChanged();
   toastOnce('mistral-' + vm.state, vm.state === 'missing' ? 'Voz Mistral por ligar — uso a voz do dispositivo' : 'A voz Mistral falhou — uso a voz do dispositivo');
@@ -719,6 +817,40 @@ function audioFromResult(r) {
   if (p && typeof p === 'object' && typeof p.data === 'string' && p.data.length > 100) return { b64: p.data, mime: str(p.mimeType) || 'audio/mpeg' };
   const block = r && Array.isArray(r.content) ? r.content.find(b => b && b.type === 'audio' && typeof b.data === 'string') : null;
   return block ? { b64: block.data, mime: str(block.mimeType) || 'audio/mpeg' } : null;
+}
+// Fora do claude.ai: o mesmo pedido que a EscolaPlay faz, com a chave do dispositivo.
+async function mistralSpeechDirect(text, voice, signal) {
+  const key = mistralKey();
+  if (!key) throw { code: 'no_key' };
+  let res;
+  try {
+    res = await fetch(MISTRAL_API + '/audio/speech', {
+      method: 'POST',
+      signal,
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+      // A API rejeita campos extra: só model, input, voice_id/voice e response_format.
+      body: JSON.stringify({ model: 'voxtral-mini-tts-2603', input: text, voice_id: voice, voice, response_format: 'mp3' }),
+    });
+  } catch (e) { throw netError(e); }
+  if (!res.ok) throw httpError(res.status, await res.text().catch(() => ''));
+  const type = res.headers.get('content-type') || '';
+  if (/json|text/i.test(type)) {
+    const j = await res.json().catch(() => null);
+    const v = j && (j.audio_data || j.audio || j.audio_content || j.data || (j.output && j.output.audio));
+    const b64 = typeof v === 'string' ? v.replace(/^data:[^,]*,/, '') : '';
+    return b64 ? { b64, mime: 'audio/mpeg' } : null;
+  }
+  const blob = await res.blob();
+  if (!blob || blob.size < 200) return null;
+  return { b64: await blobToBase64(blob), mime: blob.type || 'audio/mpeg' };
+}
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).replace(/^data:[^,]*,/, ''));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
 }
 async function mistralSpeak(text, rate, cbs) {
   const clean = speakable(text).slice(0, 1000);
@@ -730,10 +862,14 @@ async function mistralSpeak(text, rate, cbs) {
     const ctl = new AbortController();
     vm.ctl = ctl;
     try {
-      const m = vm.mcp || await mcpPromise;
-      if (!m) throw { code: 'capability_disabled' };
-      audio = audioFromResult(await m.callTool(MISTRAL_SERVER, 'speak', { text: clean, voice }, { signal: ctl.signal }));
-      if (!audio) throw { code: 'tool_error', message: '[502] O conector respondeu sem áudio.' };
+      if (MODE === 'mistral') {
+        audio = await mistralSpeechDirect(clean, voice, ctl.signal);
+      } else {
+        const m = vm.mcp || await mcpPromise;
+        if (!m) throw { code: 'capability_disabled' };
+        audio = audioFromResult(await m.callTool(MISTRAL_SERVER, 'speak', { text: clean, voice }, { signal: ctl.signal }));
+      }
+      if (!audio) throw { code: 'tool_error', message: '[502] O Mistral respondeu sem áudio.' };
       vm.cache.set(key, audio);
       if (vm.cache.size > 40) vm.cache.delete(vm.cache.keys().next().value);
       if (vm.state !== 'ok') { vm.state = 'ok'; vm.lastError = ''; settingsChanged(); }
@@ -1251,7 +1387,9 @@ for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', (
 
 function renderSub() {
   const lvl = settings.level;
-  E.sub.textContent = 'Nível ' + lvl + ' · ' + (hasClaude ? 'usa a tua conta Claude, sem custos extra' : 'abre no claude.ai para praticar');
+  const tail = MODE === 'claude' ? 'tutor Claude, com a tua conta, sem custos extra'
+    : mistralKey() ? 'tutor Mistral, com a tua chave' : 'cola a chave Mistral para começar';
+  E.sub.textContent = 'Nível ' + lvl + ' · ' + tail;
 }
 
 /* ================================================================
@@ -1269,10 +1407,13 @@ function levelSeg(onChange) {
 }
 
 function statusNotice() {
-  if (!hasClaude) {
-    return h('div', { class: 'notice warn', role: 'note' }, h('span', null,
-      h('b', null, 'Abre esta app no claude.ai. '),
-      'O tutor usa o Claude da tua conta (plano Max) e só responde quando a página está aberta no claude.ai, no browser ou na app Claude. Aqui podes ver o caderno e ouvir frases.'));
+  if (MODE === 'mistral' && !mistralKey()) {
+    return h('div', { class: 'notice', role: 'note' },
+      h('span', null,
+        h('b', null, 'Falta a chave Mistral. '),
+        'Aqui, fora do claude.ai, o tutor, a voz e o microfone são do Mistral, como na EscolaPlay: cola a tua chave (a mesma) e começa. Preferes o Claude como tutor? ',
+        h('a', { href: ARTIFACT_URL, target: '_blank', rel: 'noopener' }, 'Abre a app no claude.ai'), '.'),
+      h('button', { class: 'btn small dark', type: 'button', onclick: openSettings }, 'Colar a chave'));
   }
   if (S.blocked) return h('div', { class: 'notice warn', role: 'alert' }, h('span', null, errText({ code: S.blocked })));
   if (sampleResolved && !sampleFn) return h('div', { class: 'notice warn', role: 'note' }, h('span', null, ERR.capability_disabled));
@@ -1321,7 +1462,14 @@ function renderStart() {
   for (const sc of scenes) list.append(sceneItem(sc));
   root.append(list);
 
-  root.append(h('details', { class: 'howto' },
+  root.append(MODE === 'mistral' ? h('details', { class: 'howto' },
+    h('summary', null, icon('mic'), 'Como falar com o tutor'),
+    h('ul', null,
+      h('li', null, 'Toca no microfone ao lado da caixa de resposta, fala em inglês e faz uma pausa: o Voxtral do Mistral transcreve e envia. Para parar antes, toca outra vez.'),
+      h('li', null, 'Liga «Conversa mãos-livres» nas definições e o microfone volta a ouvir sozinho sempre que o tutor acaba de falar.'),
+      h('li', null, 'Na primeira vez o browser pede autorização para usar o microfone. A chave Mistral fica só neste dispositivo.'),
+      h('li', null, 'Preferes o Claude como tutor? ', h('a', { href: ARTIFACT_URL, target: '_blank', rel: 'noopener' }, 'Abre a app no claude.ai'),
+        ' (lá respondes com o ditado do teclado, porque o claude.ai não dá microfone às páginas).'))) : h('details', { class: 'howto' },
     h('summary', null, icon('mic'), 'Como falar em vez de escrever'),
     h('ul', null,
       h('li', null, 'O claude.ai não dá acesso ao microfone a estas páginas, por isso usa o ditado do teu dispositivo com o cursor na caixa de resposta.'),
@@ -1373,7 +1521,7 @@ function sceneBrief(sc) {
   }
   box.append(h('div', null, h('span', { class: 'eyebrow' }, sc.review ? 'Do teu caderno' : 'Frases a usar'), ul));
 
-  const canStart = hasClaude && !S.blocked && !(sampleResolved && !sampleFn);
+  const canStart = brainReady() && !S.blocked;
   const prompt = voicePrompt(scene, settings.level);
   box.append(h('div', { class: 'row' },
     h('button', { class: 'btn primary', type: 'button', disabled: !canStart, onclick: () => startSession(scene) }, 'Começar conversa'),
@@ -1418,6 +1566,7 @@ function openConvo() {
 }
 
 function leaveConvo() {
+  mic.stop(true);
   tts.stop();
   if (S.ctl) S.ctl.abort();
   hideHints();
@@ -1497,7 +1646,7 @@ function fixNode(f, sceneTitle) {
   return card;
 }
 
-function speakTurn(i, mul = 1) {
+function speakTurn(i, mul = 1, auto = false) {
   const s = S.session;
   const t = s && s.turns[i];
   if (!t) return;
@@ -1511,7 +1660,10 @@ function speakTurn(i, mul = 1) {
     rate: baseRate(s.level) * mul,
     onpending: () => mark('voice-pending'),
     onstart: () => mark('speaking'),
-    onend: () => { if (node) node.classList.remove('speaking', 'voice-pending'); },
+    onend: () => {
+      if (node) node.classList.remove('speaking', 'voice-pending');
+      if (auto) mic.afterTutor();
+    },
   });
 }
 function lastTutorIndex(s) { for (let i = s.turns.length - 1; i >= 0; i--) if (s.turns[i].r === 't') return i; return -1; }
@@ -1581,8 +1733,7 @@ async function askTutor(opening) {
   S.ctl = ctl;
   let reply = null, err = null;
   try {
-    const sample = await getSample();
-    const out = await sample.json(buildTurns(sess, opening), { modelTier: settings.tier, cache: false, signal: ctl.signal });
+    const out = await brainJSON(buildTurns(sess, opening), { tier: settings.tier, cache: false, signal: ctl.signal });
     reply = normalizeReply(out);
     if (!reply) err = { code: 'invalid_json' };
   } catch (e) {
@@ -1606,7 +1757,8 @@ async function askTutor(opening) {
     E.transcript.append(turnNode(sess.turns[idx], idx));
     persist();
     scrollBottom(true);
-    if (settings.autoSpeak && S.view === 'practice' && S.mode === 'convo' && document.visibilityState === 'visible') speakTurn(idx);
+    if (settings.autoSpeak && S.view === 'practice' && S.mode === 'convo' && document.visibilityState === 'visible') speakTurn(idx, 1, true);
+    else mic.afterTutor();
     if (!isTouch && S.mode === 'convo') E.input.focus({ preventScroll: true });
   } else {
     showInlineError(err, () => askTutor(opening));
@@ -1635,6 +1787,7 @@ function sendLearner(text) {
 async function endSession() {
   const sess = S.session;
   if (!sess || sess.ended) return;
+  mic.stop(true);
   tts.stop();
   if (S.ctl) S.ctl.abort();
   hideHints();
@@ -1684,8 +1837,7 @@ async function runReport(sess, mount) {
   mount.textContent = '';
   mount.append(pending);
   try {
-    const sample = await getSample();
-    const out = await sample.json(reportPrompt(sess), { modelTier: 'default', signal: ctl.signal });
+    const out = await brainJSON(reportPrompt(sess), { tier: 'default', signal: ctl.signal });
     const rep = normalizeReport(out);
     if (!rep) throw { code: 'invalid_json' };
     sess.report = rep;
@@ -1748,8 +1900,7 @@ async function showHints() {
   E.hints.append(head, h('p', { class: 'muted' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i'))));
   E.hints.hidden = false;
   try {
-    const sample = await getSample();
-    const out = await sample.json(hintPrompt(sess, sess.turns[li].x), { modelTier: 'quick', signal: ctl.signal });
+    const out = await brainJSON(hintPrompt(sess, sess.turns[li].x), { tier: 'quick', signal: ctl.signal });
     const opts = (out && Array.isArray(out.options) ? out.options : []).map(o => ({ en: str(o && o.en), pt: str(o && o.pt) })).filter(o => o.en).slice(0, 3);
     if (!opts.length) throw { code: 'invalid_json' };
     if (S.hintCtl !== ctl) return;
@@ -1817,12 +1968,160 @@ E.input.addEventListener('input', () => {
   }
 });
 E.dictate.addEventListener('click', () => {
+  if (mic.can()) { mic.toggle(); return; }
   const open = E.tip.hidden;
   E.tip.hidden = !open;
-  E.tip.textContent = dictationTip();
+  E.tip.textContent = MODE === 'mistral' && !mistralKey() ? 'Cola a chave Mistral nas definições para falares com o microfone.' : dictationTip();
   E.dictate.setAttribute('aria-expanded', String(open));
   E.input.focus();
 });
+
+/* ---------- microfone com Voxtral (só fora do claude.ai, com a chave) ----------
+   Grava, pára sozinho depois de uma pausa (ou ao tocar outra vez) e manda o
+   áudio ao Voxtral do Mistral para transcrever, como na EscolaPlay. */
+const mic = {
+  state: 'idle', // idle | recording | transcribing
+  rec: null, stream: null, chunks: [], timer: 0, src: null, an: null,
+  abort: false, spoke: false, analysed: false, started: 0, lastLoud: 0, hands: false,
+  can() {
+    return MODE === 'mistral' && !!mistralKey() && typeof MediaRecorder !== 'undefined'
+      && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  },
+  ui() {
+    const on = this.state === 'recording';
+    E.dictate.classList.toggle('rec', on);
+    E.dictate.setAttribute('aria-label', on ? 'Parar de gravar' : this.can() ? 'Falar (gravar a resposta)' : 'Como ditar em vez de escrever');
+    E.dictate.setAttribute('aria-pressed', String(on));
+    if (this.state === 'idle') { E.tip.hidden = true; return; }
+    E.tip.hidden = false;
+    E.tip.textContent = on ? 'A ouvir… faz uma pausa quando acabares, ou toca no micro.' : 'A transcrever…';
+  },
+  toggle() {
+    if (this.state === 'recording') { this.hands = false; this.stop(false); return; }
+    if (this.state === 'idle') this.start(false);
+  },
+  // Depois de o tutor falar, com «mãos-livres» ligado, volta a ouvir sozinho.
+  afterTutor() {
+    if (!settings.handsFree || !this.can() || this.state !== 'idle') return;
+    const sess = S.session;
+    if (!sess || sess.ended || S.busy || S.blocked || S.view !== 'practice' || S.mode !== 'convo' || document.visibilityState !== 'visible') return;
+    this.start(true);
+  },
+  async start(hands) {
+    tts.stop();
+    const ctx = player.context();
+    if (ctx && ctx.state === 'suspended') { try { ctx.resume().catch(() => {}); } catch {} }
+    this.state = 'recording'; this.hands = !!hands; this.ui();
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (err) {
+      this.state = 'idle'; this.ui();
+      const name = (err && err.name) || '';
+      toast(name === 'NotAllowedError' || name === 'SecurityError' ? 'Microfone bloqueado: autoriza-o nas definições do browser para esta página'
+        : name === 'NotFoundError' ? 'Não encontrei microfone neste dispositivo'
+        : 'Não consegui ligar o microfone — podes escrever');
+      return;
+    }
+    if (this.state !== 'recording') { stream.getTracks().forEach(t => t.stop()); return; }
+    let mime = '';
+    for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg']) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) { mime = m; break; }
+    }
+    let rec;
+    try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+    catch { stream.getTracks().forEach(t => t.stop()); this.state = 'idle'; this.ui(); toast('Este browser não grava áudio — podes escrever'); return; }
+    this.stream = stream; this.rec = rec; this.chunks = []; this.abort = false; this.spoke = false; this.analysed = false;
+    rec.ondataavailable = e => { if (e.data && e.data.size) this.chunks.push(e.data); };
+    rec.onstop = () => this.finish(rec.mimeType || mime);
+    try { rec.start(); } catch { this.cleanup(); this.state = 'idle'; this.ui(); return; }
+    this.watch(ctx);
+  },
+  // Pára ao fim de ~1,4 s de silêncio depois de falar; desiste ao fim de 8 s sem voz.
+  watch(ctx) {
+    this.started = Date.now(); this.lastLoud = 0;
+    if (!ctx) { this.timer = setTimeout(() => this.stop(false), 15000); return; }
+    try {
+      this.src = ctx.createMediaStreamSource(this.stream);
+      this.an = ctx.createAnalyser();
+      this.an.fftSize = 1024;
+      this.src.connect(this.an);
+      const buf = new Uint8Array(this.an.fftSize);
+      const tick = () => {
+        if (this.state !== 'recording' || !this.an) return;
+        this.an.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+        const rms = Math.sqrt(sum / buf.length);
+        const now = Date.now();
+        this.analysed = true;
+        if (rms > 0.03) { this.spoke = true; this.lastLoud = now; }
+        if ((this.spoke && now - this.lastLoud > 1400) || (!this.spoke && now - this.started > 8000) || now - this.started > 45000) { this.stop(false); return; }
+        this.timer = setTimeout(tick, 90);
+      };
+      this.timer = setTimeout(tick, 250);
+    } catch { this.timer = setTimeout(() => this.stop(false), 15000); }
+  },
+  stop(abort) {
+    clearTimeout(this.timer);
+    this.abort = !!abort;
+    try { if (this.src) this.src.disconnect(); } catch {}
+    this.src = null; this.an = null;
+    if (this.rec && this.rec.state !== 'inactive') { try { this.rec.stop(); } catch { this.finish(''); } }
+    else if (this.state === 'recording') { this.cleanup(); this.state = 'idle'; this.ui(); }
+  },
+  cleanup() {
+    try { if (this.stream) this.stream.getTracks().forEach(t => t.stop()); } catch {}
+    this.stream = null; this.rec = null;
+  },
+  finish(mime) {
+    this.cleanup();
+    const blob = new Blob(this.chunks, { type: mime || 'audio/webm' });
+    this.chunks = [];
+    if (this.abort) { this.state = 'idle'; this.ui(); return; }
+    // Sem voz: não manda nada ao Voxtral (inventaria texto sobre o silêncio).
+    if (blob.size < 1200 || (this.analysed && !this.spoke)) {
+      this.state = 'idle'; this.ui();
+      toast(this.hands ? 'Mãos-livres em pausa — toca no micro quando quiseres responder' : 'Não ouvi nada — toca no micro e fala');
+      this.hands = false;
+      return;
+    }
+    this.transcribe(blob);
+  },
+  async transcribe(blob) {
+    this.state = 'transcribing'; this.ui();
+    const t = blob.type || '';
+    const ext = /mp4|aac|m4a/.test(t) ? 'm4a' : /ogg/.test(t) ? 'ogg' : 'webm';
+    const fd = new FormData();
+    fd.append('model', 'voxtral-mini-latest');
+    fd.append('file', blob, 'speech.' + ext);
+    fd.append('language', 'en');
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 30000);
+    try {
+      let res;
+      try { res = await fetch(MISTRAL_API + '/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + mistralKey() }, body: fd, signal: ctl.signal }); }
+      catch (e) { throw netError(e); }
+      if (!res.ok) throw httpError(res.status, await res.text().catch(() => ''));
+      const j = await res.json().catch(() => null);
+      const text = str(j && j.text);
+      if (!text) { toast('Não percebi — toca no micro e tenta outra vez'); return; }
+      if (S.busy || !S.session || S.session.ended || S.blocked) { E.input.value = text; autosize(); return; }
+      sendLearner(text);
+    } catch (e) {
+      const code = errCode(e);
+      toast(code === 'bad_key' ? 'O Mistral recusou a chave — confirma-a nas definições'
+        : code === 'rate_limited' ? 'Limite do Mistral atingido — espera um minuto ou escreve'
+        : code === 'cancelled' ? 'A transcrição demorou demasiado — tenta outra vez ou escreve'
+        : code === 'network' ? 'Sem rede — podes escrever a resposta'
+        : 'A transcrição falhou — tenta outra vez ou escreve');
+    } finally {
+      clearTimeout(to);
+      this.state = 'idle'; this.ui();
+    }
+  },
+};
+mic.ui();
 E.qRepeat.addEventListener('click', () => { const i = lastTutorIndex(S.session); if (i >= 0) speakTurn(i); });
 E.qSlow.addEventListener('click', () => { const i = lastTutorIndex(S.session); if (i >= 0) speakTurn(i, 0.75); });
 E.qHint.addEventListener('click', showHints);
@@ -1838,7 +2137,7 @@ async function wakeOn() {
 }
 function wakeOff() { const l = S.wake; S.wake = null; if (l) { try { l.release(); } catch {} } }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') { tts.stop(); return; }
+  if (document.visibilityState === 'hidden') { tts.stop(); mic.stop(true); return; }
   if (S.mode === 'convo' && S.session && !S.session.ended) wakeOn();
 });
 
@@ -1895,7 +2194,7 @@ function renderNotebook() {
   } else {
     if (all.length >= 3) {
       root.append(h('div', { class: 'row' },
-        h('button', { class: 'btn primary small', type: 'button', disabled: !hasClaude, onclick: () => { S.reviewPick = pickReview(); startSession(resolveScene(REVIEW_META)); } }, 'Praticar estas frases numa conversa'),
+        h('button', { class: 'btn primary small', type: 'button', disabled: !brainReady(), onclick: () => { S.reviewPick = pickReview(); startSession(resolveScene(REVIEW_META)); } }, 'Praticar estas frases numa conversa'),
         h('span', { class: 'muted' }, plural(all.length, 'frase', 'frases'))));
     }
     if (!shown.length) root.append(h('p', { class: 'empty' }, 'Nada neste filtro.'));
@@ -2059,7 +2358,7 @@ function sessionRow(s) {
         h('button', { class: 'chip', type: 'button', 'aria-expanded': String(open), onclick: () => { S.histOpen = open ? null : s.id; renderHistory(); } }, open ? 'Fechar' : 'Ver'),
         S.session && S.session.id === s.id && !S.session.ended
           ? h('button', { class: 'chip', type: 'button', onclick: () => openConvo() }, 'Continuar')
-          : !s.report && learnerCount(s) >= 2 && hasClaude ? h('button', { class: 'chip', type: 'button', onclick: () => { S.histOpen = s.id; renderHistory(); const m = $('#rep-' + s.id); if (m) runReport(asSession(s), m); } }, 'Avaliar') : null,
+          : !s.report && learnerCount(s) >= 2 && brainReady() ? h('button', { class: 'chip', type: 'button', onclick: () => { S.histOpen = s.id; renderHistory(); const m = $('#rep-' + s.id); if (m) runReport(asSession(s), m); } }, 'Avaliar') : null,
         S.confirmDel === s.id
           ? h('button', { class: 'chip danger', type: 'button', onclick: () => { S.confirmDel = null; if (S.session && S.session.id === s.id) closeSession(); data.removeSession(s.id); } }, 'Apagar?')
           : h('button', { class: 'chip', type: 'button', 'aria-label': 'Apagar sessão', onclick: () => { S.confirmDel = s.id; renderHistory(); } }, icon('trash')))));
@@ -2116,10 +2415,14 @@ function renderSettings() {
   sh.append(field('Sotaque', radioChoice('accent', [['en-GB', 'Britânico', 'Mais comum em projetos na Europa'], ['en-US', 'Americano', '']], settings.accent,
     v => { settings.accent = v; settings.voiceURI = ''; saveSettings(); renderSettings(); })));
 
-  // Voz do tutor: Mistral pelo conector, com a do dispositivo como alternativa
+  if (MODE === 'mistral') sh.append(keyField());
+
+  // Voz do tutor: Mistral (chave ou conector), com a do dispositivo como alternativa
   const st = mistralStatus();
   const engineField = field('Voz do tutor', radioChoice('engine', [
-    ['mistral', 'Mistral (Voxtral)', 'Voz natural do Mistral, pelo teu conector «Voz Mistral». Se falhar, uso a voz do dispositivo.'],
+    ['mistral', 'Mistral (Voxtral)', MODE === 'mistral'
+      ? 'Voz natural do Mistral, com a tua chave. Se falhar, uso a voz do dispositivo.'
+      : 'Voz natural do Mistral, pelo teu conector «Voz Mistral». Se falhar, uso a voz do dispositivo.'],
     ['device', 'Voz do dispositivo', 'O sintetizador do telemóvel ou do computador. Funciona sempre, sem configurar nada.'],
   ], settings.engine, v => { settings.engine = v; saveSettings(); tts.stop(); renderSettings(); }));
   if (settings.engine === 'mistral') {
@@ -2142,14 +2445,19 @@ function renderSettings() {
     loadBtn.addEventListener('click', () => loadMistralVoices(loadBtn));
     const row = h('div', { class: 'row' },
       h('button', { class: 'chip', type: 'button', onclick: () => sayPhrase(SAMPLE_LINE) }, icon('play'), 'Ouvir exemplo'), loadBtn);
-    if (hasClaude && (MISTRAL_OFF.has(vm.state) || vm.state === 'limit' || vm.state === 'error') && vm.state !== 'unavailable') {
+    if ((MISTRAL_OFF.has(vm.state) || vm.state === 'limit' || vm.state === 'error') && vm.state !== 'unavailable' && (MODE === 'claude' || mistralKey())) {
       row.append(h('button', { class: 'chip', type: 'button', onclick: () => {
         vm.state = 'ready'; vm.cooldownUntil = 0; vm.lastError = ''; shownOnce.clear();
         sayPhrase(SAMPLE_LINE);
         renderSettings();
       } }, 'Tentar outra vez'));
     }
-    engineField.append(mv, row, setupSteps());
+    engineField.append(mv, row);
+    if (MODE === 'claude') {
+      engineField.append(setupSteps(), h('p', { class: 'hint-txt' },
+        'Só com a chave, sem conector: abre ', h('a', { href: PAGES_URL, target: '_blank', rel: 'noopener' }, 'a versão fora do claude.ai'),
+        '. Lá, como na EscolaPlay, basta colar a chave Mistral; o tutor, a voz e o microfone passam a ser do Mistral.'));
+    }
   }
   sh.append(engineField);
 
@@ -2175,22 +2483,51 @@ function renderSettings() {
   sh.append(h('div', { class: 'field' },
     switchRow('sw-speak', 'Ler as respostas em voz alta', 'O tutor fala assim que responde.', settings.autoSpeak, v => { settings.autoSpeak = v; saveSettings(); if (!v) tts.stop(); }),
     switchRow('sw-pt', 'Explicações em português', 'O porquê de cada correção vem em português de Portugal.', settings.ptHelp, v => { settings.ptHelp = v; saveSettings(); }),
-    switchRow('sw-auto', 'Enviar sozinho depois do ditado', 'Envia 3 segundos depois de parares de falar. Útil para responder só com a voz.', settings.autoSend, v => { settings.autoSend = v; saveSettings(); })));
+    switchRow('sw-auto', 'Enviar sozinho depois do ditado', 'Envia 3 segundos depois de parares de falar. Útil para responder só com a voz.', settings.autoSend, v => { settings.autoSend = v; saveSettings(); }),
+    MODE === 'mistral' ? switchRow('sw-hands', 'Conversa mãos-livres', 'Depois de o tutor falar, o microfone liga-se sozinho. Se não disseres nada, fica em pausa.', settings.handsFree, v => { settings.handsFree = v; saveSettings(); }) : null));
 
-  sh.append(field('Modelo do Claude', radioChoice('tier', [
+  sh.append(field(MODE === 'claude' ? 'Modelo do Claude' : 'Modelo do Mistral', radioChoice('tier', MODE === 'claude' ? [
     ['quick', 'Rápido', 'Responde em 1 a 3 segundos. O melhor para conversar.'],
     ['default', 'Profundo', 'Mais cuidadoso, mas cada resposta demora 5 a 60 segundos.'],
+  ] : [
+    ['quick', 'Rápido (mistral-small)', 'Responde em 1 a 3 segundos. O melhor para conversar.'],
+    ['default', 'Profundo (mistral-medium)', 'Mais cuidadoso e um pouco mais lento; gasta mais do limite grátis.'],
   ], settings.tier, v => { settings.tier = v; saveSettings(); })));
 
   sh.append(h('div', { class: 'about' },
-    h('p', null, h('b', null, 'Custos: '), 'a app usa o Claude da tua conta e gasta a quota do teu plano, como uma conversa normal. Não usa a API nem chaves, por isso não há custos extra. A voz Mistral passa pelo teu conector (um Worker grátis na Cloudflare) e usa o plano grátis do Mistral.'),
+    h('p', null, h('b', null, 'Custos: '), MODE === 'claude'
+      ? 'a app usa o Claude da tua conta e gasta a quota do teu plano, como uma conversa normal. Não usa a API nem chaves, por isso não há custos extra. A voz Mistral passa pelo teu conector (um Worker grátis na Cloudflare) e usa o plano grátis do Mistral.'
+      : 'esta versão usa a tua chave Mistral no plano grátis, para o tutor, a voz e o microfone. Não há custos extra. Para teres o Claude como tutor, abre a app no claude.ai.'),
     h('p', null, h('b', null, 'Dados: '), data.synced
       ? 'o caderno e as sessões ficam guardados nesta app do claude.ai, só para ti, e aparecem em todos os teus dispositivos.'
       : 'o caderno e as sessões estão guardados só neste dispositivo.'),
-    h('p', null, h('b', null, 'Avaliação: '), 'no fim de cada sessão o Claude usa o modelo normal (mais cuidadoso) para rever a conversa inteira.')));
+    h('p', null, h('b', null, 'Avaliação: '), MODE === 'claude'
+      ? 'no fim de cada sessão o Claude usa o modelo normal (mais cuidadoso) para rever a conversa inteira.'
+      : 'no fim de cada sessão o Mistral usa o modelo maior (mistral-medium) para rever a conversa inteira.')));
   sh.scrollTop = keepScroll;
 }
 const SAMPLE_LINE = "Good morning, everyone. Let's walk through the standard process first, and then we'll look at the gaps.";
+// Fora do claude.ai: a chave Mistral, como na EscolaPlay (fica só neste dispositivo).
+function keyField() {
+  const has = !!mistralKey();
+  const input = h('input', { type: 'password', id: 'mistral-key', autocomplete: 'off', spellcheck: 'false', placeholder: has ? '•••••••• (guardada)' : 'Cola aqui a chave Mistral', 'aria-label': 'Chave Mistral' });
+  const saveKey = () => {
+    const v = str(input.value);
+    if (!v) { input.focus(); return false; }
+    store.set('mistralKey', v);
+    vm.state = 'ready'; vm.cooldownUntil = 0; vm.lastError = ''; shownOnce.clear();
+    if (S.blocked === 'no_key' || S.blocked === 'bad_key') S.blocked = null;
+    mic.ui(); updateComposer(); renderSub();
+    return true;
+  };
+  const row = h('div', { class: 'row' },
+    h('button', { class: 'btn small dark', type: 'button', onclick: () => { if (saveKey()) { toast('Chave guardada neste dispositivo'); renderSettings(); } } }, 'Guardar'),
+    has ? h('button', { class: 'chip', type: 'button', onclick: () => sayPhrase(SAMPLE_LINE) }, icon('play'), 'Testar a voz') : null,
+    has ? h('button', { class: 'chip danger', type: 'button', onclick: () => { store.del('mistralKey'); vm.state = 'ready'; mic.ui(); renderSub(); toast('Chave apagada deste dispositivo'); renderSettings(); } }, 'Apagar a chave') : null);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (saveKey()) { toast('Chave guardada neste dispositivo'); renderSettings(); } } });
+  return field('Chave Mistral', input, row,
+    h('span', { class: 'hint-txt' }, has ? 'Chave guardada. ' : '', 'É a mesma da EscolaPlay (console.mistral.ai › API Keys; o plano grátis chega). Fica só neste dispositivo e só é enviada para api.mistral.ai. Com ela, o tutor, a voz e o microfone são do Mistral.'));
+}
 function setupSteps() {
   return h('details', { class: 'setup' },
     h('summary', null, 'Como ligar a voz Mistral (uma vez, cerca de 5 minutos)'),
@@ -2207,10 +2544,22 @@ function setupSteps() {
 async function loadMistralVoices(btn) {
   btn.disabled = true;
   try {
-    const m = vm.mcp || await mcpPromise;
-    if (!m) throw { code: 'capability_disabled' };
-    const r = await m.callTool(MISTRAL_SERVER, 'voices', {});
-    const raw = r && r.payload && Array.isArray(r.payload.voices) ? r.payload.voices : [];
+    let raw;
+    if (MODE === 'mistral') {
+      if (!mistralKey()) throw { code: 'no_key' };
+      let res;
+      try { res = await fetch(MISTRAL_API + '/audio/voices', { headers: { Authorization: 'Bearer ' + mistralKey() } }); }
+      catch (e) { throw netError(e); }
+      if (!res.ok) throw httpError(res.status, await res.text().catch(() => ''));
+      const j = await res.json().catch(() => null);
+      const arr = Array.isArray(j) ? j : (j && (j.data || j.voices || j.items)) || [];
+      raw = arr.map(v => (typeof v === 'string' ? { id: v } : v && { id: v.id || v.voice_id || v.name, name: v.name || v.display_name, language: v.language || v.lang || v.locale }));
+    } else {
+      const m = vm.mcp || await mcpPromise;
+      if (!m) throw { code: 'capability_disabled' };
+      const r = await m.callTool(MISTRAL_SERVER, 'voices', {});
+      raw = r && r.payload && Array.isArray(r.payload.voices) ? r.payload.voices : [];
+    }
     const list = raw.map(v => ({ id: str(v && v.id), name: str(v && v.name), language: str(v && v.language) }))
       .filter(v => /^[A-Za-z0-9_.-]{1,64}$/.test(v.id)).slice(0, 200);
     if (!list.length) throw { code: 'tool_error', message: 'A conta Mistral não devolveu vozes.' };
@@ -2218,7 +2567,9 @@ async function loadMistralVoices(btn) {
     if (vm.state !== 'ok') { vm.state = 'ok'; vm.lastError = ''; }
     toast(plural(list.length, 'voz carregada', 'vozes carregadas'));
   } catch (e) {
-    if (errCode(e) === 'tool_error' || errCode(e) === 'server_unavailable' || errCode(e) === 'upstream_error') {
+    if (errCode(e) === 'no_key') {
+      toast('Cola primeiro a chave Mistral acima');
+    } else if (['tool_error', 'server_unavailable', 'upstream_error', 'network'].includes(errCode(e))) {
       toast('Não consegui carregar as vozes' + (str(e && e.message) ? ': ' + str(e.message).slice(0, 90) : ''));
     } else {
       noteMistralFailure(e);

@@ -1,61 +1,87 @@
 # Inglês com o Claude
 
-Tutor de conversação em inglês, por voz, com o Claude como professor. É uma
-app à parte da EscolaPlay. Complementa o *English for PMs*: a EscolaPlay treina
-com exercícios e roleplays guiados, aqui conversas livremente com o Claude
-numa cena de trabalho, recebes correções na hora e uma avaliação no fim.
+Tutor de conversação em inglês, por voz, e app à parte da EscolaPlay.
+Complementa o *English for PMs*: a EscolaPlay treina com exercícios e roleplays
+guiados; aqui conversas livremente numa cena de trabalho, recebes correções na
+hora e uma avaliação no fim.
 
-**App publicada:** <https://claude.ai/artifact/58FpZ6waEprze6M8zgMgwD>. Quem
-pode abrir a página decide-se no menu Partilhar; o caderno e as sessões são
-sempre só teus.
+## Duas maneiras de a usar (o mesmo ficheiro)
 
-## Custo: zero além do plano Claude
-
-A app é uma página publicada no claude.ai e usa a capacidade `sample`: cada
-resposta do tutor é um pedido ao Claude **da conta de quem abre a página** e
-gasta a quota do plano (Max), como uma conversa normal. Não usa a API da
-Anthropic, não precisa de chaves e não tem custos extra.
-
-| Pedido | Modelo | Tempo típico |
+| | No claude.ai | Só com a chave Mistral |
 |---|---|---|
-| Cada resposta do tutor | `quick` (rápido, sem pensar antes) | 1–3 s |
-| «Ideias» (sugestões de resposta) | `quick` | 1–3 s |
-| Avaliação no fim da sessão | `default` (mais cuidadoso) | 5–60 s |
+| Endereço | <https://claude.ai/artifact/58FpZ6waEprze6M8zgMgwD> | <https://nelsonsous.github.io/escolaplay/tutor-ingles/> |
+| Tutor | Claude, com a tua conta (plano Max) | Mistral (`mistral-small`; avaliação com `mistral-medium`) |
+| Voz do tutor | do dispositivo, ou Mistral pelo conector [«Voz Mistral»](voz-mistral/README.md) | Mistral Voxtral, com a chave |
+| Como respondes | ditado do teclado ou do sistema | microfone, transcrito pelo Voxtral, com mãos-livres |
+| Configurar | nada (aceitar o pedido de acesso) | colar a chave Mistral, a mesma da EscolaPlay |
+| Caderno e sessões | na base de dados da página, sincronizados entre dispositivos | só no dispositivo |
+| Custo | 0 €: gasta a quota do plano Max | 0 €: plano grátis do Mistral |
 
-Nas definições há a opção «Profundo», que usa o modelo `default` em todas as
-respostas: dá correções mais finas, mas cada resposta demora mais.
+Há duas versões por duas limitações:
+
+- **A chave não serve no claude.ai.** As páginas publicadas no claude.ai não
+  podem ligar-se a outros sites nem usar o microfone. Por isso não funciona lá
+  como na EscolaPlay. A voz Mistral só lá chega pelo conector.
+- **Fora do claude.ai não há Claude grátis.** Sem ele, a versão com a chave
+  usa o Mistral como tutor, como a EscolaPlay já faz.
+
+Em ambas, a primeira vez pede autorização: no claude.ai para usar o Claude (e o
+conector), fora dele para usar o microfone.
+
+## Custo
+
+- **No claude.ai:** cada resposta é um pedido ao Claude da conta de quem abre a
+  página (capacidade `sample`) e gasta a quota do plano, como uma conversa
+  normal. Não usa a API da Anthropic nem chaves.
+- **Com a chave:** os pedidos vão diretamente para `api.mistral.ai` com a tua
+  chave, no plano grátis. A chave fica só no dispositivo (`localStorage`), como
+  na EscolaPlay.
+
+| Pedido | No claude.ai | Com a chave | Tempo típico |
+|---|---|---|---|
+| Resposta do tutor | `quick` | `mistral-small-latest` | 1–3 s |
+| «Ideias» | `quick` | `mistral-small-latest` | 1–3 s |
+| Avaliação no fim | `default` | `mistral-medium-latest` | 5–60 s |
+| Voz do tutor | conector ou dispositivo | `voxtral-mini-tts-2603` | 1–2 s |
+| O teu microfone | — (ditado) | `voxtral-mini-latest` | 1–2 s |
+
+A opção «Profundo» nas definições usa o modelo maior em todas as respostas:
+corrige melhor, mas é mais lenta. Se a conta Mistral não tiver o
+`mistral-medium`, a app volta sozinha ao `mistral-small`.
 
 ## Voz
 
-- **O tutor fala com a voz Voxtral do Mistral**, através do conector
-  [«Voz Mistral»](voz-mistral/README.md). É um Cloudflare Worker teu, com a tua
-  chave Mistral guardada como segredo. As páginas do claude.ai não podem chamar
-  o Mistral diretamente, mas podem chamar os conectores da tua conta. O custo é
-  zero, com o plano grátis da Cloudflare e o do Mistral. Tem vozes britânicas e
-  americanas (Oliver, Jane, Paul…) e a mesma frase só é gerada uma vez (fica em
-  cache).
-- **Sem o conector, ou se ele falhar**, a app usa o sintetizador do próprio
-  dispositivo (`speechSynthesis`), que é grátis. Nesse caso escolhe a melhor voz
-  inglesa que encontrar (dá preferência às «Natural», «Premium», «Enhanced»,
-  Siri e Google), a uma velocidade ajustada ao nível. O motivo da falha aparece
-  nas definições. Para uma voz do dispositivo mais natural:
+- **Voz Mistral:** vozes britânicas e americanas (Oliver, Jane, Paul…).
+  «Carregar vozes da conta» junta as restantes, e cada frase fica em cache,
+  por isso repetir não faz novo pedido.
+  - Com a chave: pedido direto, com os mesmos campos da EscolaPlay (`model`,
+    `input`, `voice_id`/`voice`, `response_format`).
+  - No claude.ai: pelo conector «Voz Mistral», um Cloudflare Worker teu com a
+    chave guardada como segredo.
+- **Sem Mistral, ou se ele falhar**, a app usa o sintetizador do dispositivo
+  (`speechSynthesis`) e diz o motivo nas definições. Para uma voz do
+  dispositivo mais natural:
   - **iPhone e Mac:** descarrega uma voz inglesa «Melhorada» ou «Premium» em
     Acessibilidade › Conteúdo falado › Vozes;
-  - **Windows:** abre o claude.ai no Microsoft Edge, que tem vozes «Natural».
-- **Tu falas por ditado.** O claude.ai não dá acesso ao microfone às páginas
-  publicadas, por isso usa-se o ditado do sistema com o cursor na caixa de
-  resposta:
+  - **Windows:** usa o Microsoft Edge, que tem vozes «Natural».
+- **Microfone (versão com a chave):**
+  - toca no micro, fala e faz uma pausa: a gravação pára sozinha depois de
+    1,4 s de silêncio;
+  - o Voxtral transcreve em inglês e a resposta segue;
+  - sem voz, não manda nada, para o Voxtral não inventar texto sobre o
+    silêncio;
+  - com «Conversa mãos-livres», o micro volta a ouvir sempre que o tutor acaba
+    de falar.
+- **Ditado (claude.ai):** com o cursor na caixa de resposta, usa o ditado do
+  sistema:
   - **iPhone:** microfone do teclado, com o teclado English ativo;
   - **Android:** microfone do Gboard;
   - **Mac:** duas vezes a tecla do microfone (ou Fn);
   - **Windows:** Win + H.
 
-  Com «Enviar sozinho» ligado, a resposta segue 3 segundos depois de parares de
-  falar.
-- **A voz do próprio Claude:** o botão «Com a voz do Claude» de cada cena copia
-  um guião e abre uma conversa nova no Claude. Cola-o (se não aparecer
-  sozinho), envia e toca no botão de voz da app Claude. Assim usas o modo de voz
-  real do Claude, com microfone, também incluído no plano.
+  «Enviar sozinho» envia 3 segundos depois de parares de falar.
+- **A voz do próprio Claude:** «Com a voz do Claude» copia o guião da cena e
+  abre uma conversa nova no Claude. Continua-a com o botão de voz da app Claude.
 
 ## O que tem
 
@@ -90,12 +116,14 @@ respostas: dá correções mais finas, mas cada resposta demora mais.
 
 ## Dados
 
-- O caderno e as sessões ficam na base de dados da própria página (capacidade
-  `db`), com a regra *só o dono lê e escreve*, e sincronizam entre
+- **No claude.ai:** o caderno e as sessões ficam na base de dados da página
+  (capacidade `db`), com a regra *só o dono lê e escreve*, e sincronizam entre
   dispositivos. Se a página for partilhada, quem a abrir usa o Claude da sua
   própria conta e guarda os dados só no seu dispositivo.
-- As definições (nível, voz, velocidade) ficam em cada dispositivo, porque as
-  vozes disponíveis mudam de aparelho para aparelho.
+- **Com a chave:** ficam no dispositivo. Para passar o caderno de uma versão
+  para a outra, usa **Caderno › Importar e exportar** («Copiar tudo» numa,
+  colar na outra).
+- **Definições** (nível, vozes, velocidade, chave): ficam em cada dispositivo.
 - **Importar** aceita:
   - uma frase por linha (`inglês = português`);
   - o JSON exportado por esta app;
@@ -106,26 +134,29 @@ respostas: dá correções mais finas, mas cada resposta demora mais.
 
 ## Técnica
 
-- Um único ficheiro, `index.html`, em HTML, CSS e JavaScript simples, sem build
-  e sem dependências. Só carrega as fontes Newsreader e Schibsted Grotesk do
-  Google Fonts.
-- Capacidades declaradas na publicação:
+- **Ficheiro:** um único `index.html`, em HTML, CSS e JavaScript simples, sem
+  dependências. Só carrega as fontes Newsreader e Schibsted Grotesk do Google
+  Fonts.
+- **Modo:** decide-se pelo `window.claude`. Com ele, a página corre no
+  claude.ai; sem ele, corre com a chave Mistral.
+- **Tutor:** as mesmas instruções servem os dois modos. No Mistral, a primeira
+  mensagem passa a `system` e as respostas pedem-se em modo JSON.
+- **Capacidades declaradas no claude.ai:**
   - `sample`: o Claude;
   - `db`: só o dono lê e escreve;
   - `user`;
   - `mcp`: o servidor `Voz Mistral`, com as ferramentas `speak` e `voices`.
-- O áudio do conector chega em base64. Toca num elemento `<audio>` (com
-  `preservesPitch` para a velocidade 0,75×) ou, se a página não o deixar, por
-  Web Audio. No iPhone é desbloqueado no primeiro toque.
-- `voz-mistral/` é o Worker do conector, com deploy próprio (`wrangler`).
-- Aberto fora do claude.ai (por exemplo, pelo GitHub Pages), mostra um aviso a
-  dizer que o tutor só responde no claude.ai. O caderno local continua a dar
-  para ouvir.
-- Fica de fora do `build.mjs` da EscolaPlay, tal como o `tts-proxy`.
+- **Áudio:** toca num elemento `<audio>` (com `preservesPitch` para a
+  velocidade 0,75×) ou, se a página não o deixar, por Web Audio. No iPhone é
+  desbloqueado no primeiro toque.
+- **Conector:** `voz-mistral/` é o Worker, com deploy próprio (`wrangler`).
+- **Build:** o `build.mjs` da EscolaPlay deixa de fora `voz-mistral/`, como o
+  `tts-proxy`; a página entra no `dist` como as Damas.
 
-### Atualizar a app publicada
+### Atualizar
 
-Edita `index.html` e volta a publicar a partir de uma sessão do Claude Code com
-o URL da app, para manter o mesmo endereço, os dados e as capacidades (`sample`,
-`db` só do dono, `user`, `mcp` com o servidor `Voz Mistral`). Publicar sem o
-URL cria uma app nova e vazia.
+- **Versão com a chave (GitHub Pages):** sai com cada merge no `main`.
+- **Versão do claude.ai:** edita `index.html` e volta a publicar a partir de
+  uma sessão do Claude Code com o URL da app. Assim mantém o mesmo endereço, os
+  dados e as capacidades (`sample`, `db` só do dono, `user`, `mcp` com o
+  servidor `Voz Mistral`). Publicar sem o URL cria uma app nova e vazia.

@@ -1,5 +1,10 @@
 # Voz Mistral — conector para a app «Inglês com o Claude»
 
+> Só precisas deste conector para ouvires a voz Mistral **dentro do claude.ai**
+> (com o Claude como tutor). Na versão fora do claude.ai
+> (<https://nelsonsous.github.io/escolaplay/tutor-ingles/>) basta colar a chave
+> Mistral nas definições, como na EscolaPlay; ver o [README da app](../README.md).
+
 Cloudflare Worker que dá à app [Inglês com o Claude](../README.md) a voz
 Voxtral do Mistral. As páginas publicadas no claude.ai não podem chamar sites
 externos, mas podem chamar os conectores MCP da tua conta. Este Worker é um
