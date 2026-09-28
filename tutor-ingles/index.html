@@ -188,6 +188,8 @@ p{margin:0}
 .msg-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .bars{display:none;align-items:flex-end;gap:2px;height:14px;margin-left:2px}
 .speaking .bars{display:inline-flex}
+.voice-pending .bars{display:inline-flex;opacity:.35}
+.voice-pending .bars i{animation-duration:1.6s}
 .bars i{width:3px;height:100%;background:var(--teal);border-radius:2px;transform-origin:bottom;animation:eq .9s ease-in-out infinite}
 .bars i:nth-child(2){animation-delay:-.3s}.bars i:nth-child(3){animation-delay:-.6s}.bars i:nth-child(4){animation-delay:-.15s}
 @keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
@@ -259,8 +261,8 @@ ins{color:var(--teal);background:var(--teal-soft);text-decoration:none;border-ra
 
 /* ---------- definições ---------- */
 .overlay{position:fixed;inset:0;z-index:20;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
-.sheet{width:100%;max-width:560px;max-height:100%;overflow-y:auto;background:var(--surface);border-radius:18px;padding:6px 18px 18px;box-shadow:var(--shadow)}
-.sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.sheet{width:100%;max-width:560px;max-height:100%;overflow-y:auto;background:var(--surface);border-radius:18px;padding:0 18px 18px;box-shadow:var(--shadow)}
+.sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 0 10px;background:var(--surface);border-bottom:1px solid var(--line)}
 .sheet-head h2{margin:0;font:600 21px/1.2 var(--serif)}
 .sheet-head .icon-btn{margin-left:0}
 .field{display:grid;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}
@@ -281,6 +283,13 @@ ins{color:var(--teal);background:var(--teal-soft);text-decoration:none;border-ra
 .choice input{margin:3px 0 0;accent-color:var(--ink);grid-row:1 / span 2}
 .choice small{color:var(--muted);font-size:13px}
 .about{display:grid;gap:8px;padding-top:14px;font-size:13.5px;color:var(--muted)}
+.status-line{font-size:13.5px;padding:9px 12px;border-radius:10px;background:var(--sunken);color:var(--ink)}
+.status-line.good{background:var(--teal-soft);color:var(--teal);font-weight:600}
+.status-line.bad{background:var(--red-soft)}
+.setup summary{cursor:pointer;font-weight:600;font-size:14px}
+.setup ol{margin:10px 0 0;padding-left:20px;display:grid;gap:10px;font-size:13.5px;max-width:62ch}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--sunken);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+.cmd{display:block;margin-top:6px;padding:8px 10px;white-space:pre-wrap;line-height:1.6}
 
 @media (max-width:480px){
   .brand h1{font-size:21px}
@@ -483,10 +492,12 @@ const REVIEW_META = {
 /* ================================================================
    Definições (por dispositivo — as vozes mudam de aparelho para aparelho)
    ================================================================ */
-const DEFAULTS = { level: 'B1', accent: 'en-GB', voiceURI: '', rate: 1, autoSpeak: true, ptHelp: true, autoSend: false, tier: 'quick' };
+const DEFAULTS = { level: 'B1', accent: 'en-GB', engine: 'mistral', mistralVoice: '', voiceURI: '', rate: 1, autoSpeak: true, ptHelp: true, autoSend: false, tier: 'quick' };
 const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
 if (!LEVELS[settings.level]) settings.level = DEFAULTS.level;
 if (!['quick', 'default'].includes(settings.tier)) settings.tier = DEFAULTS.tier;
+if (!['mistral', 'device'].includes(settings.engine)) settings.engine = DEFAULTS.engine;
+if (!/^[A-Za-z0-9_.-]{0,64}$/.test(String(settings.mistralVoice || ''))) settings.mistralVoice = '';
 const saveSettings = () => store.set('settings', settings);
 
 /* ================================================================
@@ -628,9 +639,218 @@ function voicePrompt(scene, level) {
 }
 
 /* ================================================================
-   Voz do tutor (speechSynthesis do dispositivo)
+   Voz do tutor
+   1) Mistral Voxtral, através do conector MCP «Voz Mistral» da conta
+      (a página não pode chamar o Mistral diretamente; os conectores sim);
+   2) o sintetizador do dispositivo (speechSynthesis) quando o conector
+      não está ligado, falha ou chega ao limite do plano grátis.
    ================================================================ */
+const MISTRAL_SERVER = 'Voz Mistral';
+const MISTRAL_VOICES = [
+  { id: 'gb_oliver_neutral', name: 'Oliver — britânico' },
+  { id: 'gb_jane_neutral', name: 'Jane — britânica' },
+  { id: 'gb_oliver_confident', name: 'Oliver, confiante — britânico' },
+  { id: 'en_paul_neutral', name: 'Paul — americano' },
+];
+const SILENT_WAV = 'data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
 const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|kathy|ralph|grandma|grandpa/i;
+const shownOnce = new Set();
+function toastOnce(key, msg) { if (shownOnce.has(key)) return; shownOnce.add(key); toast(msg); }
+function settingsChanged() { if (!$('#settings').hidden) renderSettings(); }
+
+/* ---------- conector «Voz Mistral» ---------- */
+const vm = {
+  mcp: null,
+  // checking | ready | ok | missing | reauth | denied | badkey | limit | error | unavailable
+  state: hasClaude ? 'checking' : 'unavailable',
+  cooldownUntil: 0,
+  lastError: '',
+  ctl: null,
+  cache: new Map(),
+};
+const mcpPromise = (hasClaude ? window.claude.use('mcp').catch(() => null) : Promise.resolve(null)).then(async m => {
+  vm.mcp = m;
+  if (!m) { vm.state = 'unavailable'; settingsChanged(); return m; }
+  try {
+    const r = await m.listTools(MISTRAL_SERVER);
+    const srv = r && Array.isArray(r.servers) ? r.servers.find(x => x.server === MISTRAL_SERVER) : null;
+    if (vm.state === 'checking') vm.state = !srv ? 'missing' : srv.authStatus === 'needs_reauth' ? 'reauth' : 'ready';
+  } catch {
+    if (vm.state === 'checking') vm.state = 'ready'; // decide-se na primeira fala
+  }
+  settingsChanged();
+  return m;
+});
+const MISTRAL_OFF = new Set(['missing', 'reauth', 'denied', 'badkey', 'unavailable']);
+function mistralUsable() {
+  return settings.engine === 'mistral' && hasClaude && !MISTRAL_OFF.has(vm.state) && player.mode !== 'none' && Date.now() >= vm.cooldownUntil;
+}
+function mistralVoiceId() { return settings.mistralVoice || (settings.accent === 'en-US' ? 'en_paul_neutral' : 'gb_oliver_neutral'); }
+function mistralStatus() {
+  switch (vm.state) {
+    case 'ok': return { cls: 'good', text: 'Voz Mistral ligada.' };
+    case 'ready': return { cls: '', text: 'Conector «Voz Mistral» encontrado. A primeira fala pede autorização para o usar.' };
+    case 'checking': return { cls: '', text: 'A procurar o conector «Voz Mistral»…' };
+    case 'missing': return { cls: 'bad', text: 'Falta o conector «Voz Mistral» no teu claude.ai (o nome tem de ser exatamente este). Por agora uso a voz do dispositivo.' };
+    case 'reauth': return { cls: 'bad', text: 'O conector «Voz Mistral» precisa de ser ligado outra vez em Personalizar › Conectores.' };
+    case 'denied': return { cls: 'bad', text: 'Esta página não tem autorização para usar o conector «Voz Mistral». Recarrega-a e aceita o pedido.' };
+    case 'badkey': return { cls: 'bad', text: 'O Mistral recusou a chave guardada no Worker (MISTRAL_API_KEY).' };
+    case 'limit': return { cls: 'bad', text: 'Limite do plano grátis do Mistral atingido. Volto a tentar daqui a um minuto; até lá uso a voz do dispositivo.' };
+    case 'error': return { cls: 'bad', text: 'A voz Mistral falhou' + (vm.lastError ? ' (' + vm.lastError.slice(0, 140) + ')' : '') + '. Volto a tentar daqui a dois minutos.' };
+    default: return { cls: 'bad', text: hasClaude ? 'Os conectores não estão disponíveis nesta vista do claude.ai.' : 'A voz Mistral só funciona com a app aberta no claude.ai.' };
+  }
+}
+function noteMistralFailure(e) {
+  const code = errCode(e);
+  const msg = str(e && e.message);
+  const status = Number((/\[(\d{3})\]/.exec(msg) || [])[1] || 0);
+  vm.lastError = msg;
+  if (['server_not_connected', 'server_not_found', 'selection_required'].includes(code)) vm.state = 'missing';
+  else if (code === 'needs_reauth') vm.state = 'reauth';
+  else if (['not_in_manifest', 'blocked_by_policy', 'approval_required', 'not_granted', 'capability_disabled', 'capability_removed', 'consent_required'].includes(code)) vm.state = 'denied';
+  else if (status === 401 || status === 403) vm.state = 'badkey';
+  else if (status === 429) { vm.state = 'limit'; vm.cooldownUntil = Date.now() + 60e3; }
+  else { vm.state = 'error'; vm.cooldownUntil = Date.now() + 120e3; }
+  settingsChanged();
+  toastOnce('mistral-' + vm.state, vm.state === 'missing' ? 'Voz Mistral por ligar — uso a voz do dispositivo' : 'A voz Mistral falhou — uso a voz do dispositivo');
+}
+function audioFromResult(r) {
+  const p = r && r.payload;
+  if (p && typeof p === 'object' && typeof p.data === 'string' && p.data.length > 100) return { b64: p.data, mime: str(p.mimeType) || 'audio/mpeg' };
+  const block = r && Array.isArray(r.content) ? r.content.find(b => b && b.type === 'audio' && typeof b.data === 'string') : null;
+  return block ? { b64: block.data, mime: str(block.mimeType) || 'audio/mpeg' } : null;
+}
+async function mistralSpeak(text, rate, cbs) {
+  const clean = speakable(text).slice(0, 1000);
+  const voice = mistralVoiceId();
+  const key = voice + '|' + clean;
+  let audio = vm.cache.get(key);
+  if (!audio) {
+    if (cbs.onpending) cbs.onpending();
+    const ctl = new AbortController();
+    vm.ctl = ctl;
+    try {
+      const m = vm.mcp || await mcpPromise;
+      if (!m) throw { code: 'capability_disabled' };
+      audio = audioFromResult(await m.callTool(MISTRAL_SERVER, 'speak', { text: clean, voice }, { signal: ctl.signal }));
+      if (!audio) throw { code: 'tool_error', message: '[502] O conector respondeu sem áudio.' };
+      vm.cache.set(key, audio);
+      if (vm.cache.size > 40) vm.cache.delete(vm.cache.keys().next().value);
+      if (vm.state !== 'ok') { vm.state = 'ok'; vm.lastError = ''; settingsChanged(); }
+    } catch (e) {
+      if (vm.ctl === ctl) vm.ctl = null;
+      if (errCode(e) === 'cancelled' || !cbs.alive()) return;
+      noteMistralFailure(e);
+      cbs.onfail();
+      return;
+    }
+    if (vm.ctl === ctl) vm.ctl = null;
+  }
+  if (!cbs.alive()) return;
+  player.play(audio, Math.min(1.5, Math.max(0.6, rate)), {
+    alive: cbs.alive,
+    onstart: cbs.onstart,
+    onend: () => { if (cbs.alive()) cbs.onend(); },
+    onfail: reason => {
+      if (!cbs.alive()) return;
+      if (reason === 'gesture') { toastOnce('gesture', 'Toca em «Ouvir» para ouvir a resposta'); cbs.onend(); }
+      else cbs.onfail();
+    },
+  });
+}
+
+/* ---------- leitor de áudio (MP3 em base64) ---------- */
+const player = {
+  el: null,
+  ctx: null,
+  src: null,
+  mode: 'element', // element | webaudio | none
+  element() {
+    if (!this.el) {
+      const a = new Audio();
+      a.preload = 'auto';
+      try { a.preservesPitch = true; a.webkitPreservesPitch = true; } catch {}
+      this.el = a;
+    }
+    return this.el;
+  },
+  context() {
+    if (!this.ctx) {
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (C) { try { this.ctx = new C(); } catch { this.ctx = null; } }
+    }
+    return this.ctx;
+  },
+  // Chamado num toque: deixa o iPhone tocar áudio mais tarde, depois de esperas.
+  unlock() {
+    try {
+      const a = this.element();
+      a.src = SILENT_WAV;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch {}
+    const c = this.context();
+    if (c && c.state === 'suspended') { try { c.resume().catch(() => {}); } catch {} }
+  },
+  stop() {
+    if (this.el) {
+      this.el.onended = this.el.onerror = this.el.onplaying = null;
+      try { this.el.pause(); } catch {}
+    }
+    if (this.src) { const s = this.src; this.src = null; s.onended = null; try { s.stop(); } catch {} }
+  },
+  play(audio, rate, cbs) {
+    if (this.mode === 'webaudio') { this.playWebAudio(audio, rate, cbs); return; }
+    const a = this.element();
+    let settled = false, started = false;
+    const clear = () => { a.onended = a.onerror = a.onplaying = null; };
+    const toWebAudio = () => { settled = true; clear(); this.mode = 'webaudio'; this.playWebAudio(audio, rate, cbs); };
+    a.onplaying = () => { if (!started) { started = true; if (cbs.onstart) cbs.onstart(); } };
+    a.onended = () => { if (settled) return; settled = true; clear(); cbs.onend(); };
+    // Se a página não deixar tocar o áudio por data: URL, passa para Web Audio.
+    a.onerror = () => { if (settled) return; if (started) { settled = true; clear(); cbs.onend(); } else toWebAudio(); };
+    try {
+      a.src = 'data:' + audio.mime + ';base64,' + audio.b64;
+      a.defaultPlaybackRate = rate;
+      a.playbackRate = rate;
+      const p = a.play();
+      if (p && p.catch) {
+        p.catch(err => {
+          if (settled || !cbs.alive()) return;
+          const name = err && err.name;
+          if (name === 'AbortError') return; // outra fala substituiu esta
+          if (name === 'NotAllowedError') { settled = true; clear(); cbs.onfail('gesture'); return; }
+          toWebAudio();
+        });
+      }
+    } catch { toWebAudio(); }
+  },
+  async playWebAudio(audio, rate, cbs) {
+    const c = this.context();
+    if (!c) { this.mode = 'none'; cbs.onfail('noaudio'); return; }
+    try {
+      if (c.state === 'suspended') await c.resume();
+      const bin = atob(audio.b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const buf = await new Promise((res, rej) => { const p = c.decodeAudioData(bytes.buffer, res, rej); if (p && p.then) p.then(res, rej); });
+      if (!cbs.alive()) return;
+      const s = c.createBufferSource();
+      s.buffer = buf;
+      s.playbackRate.value = rate;
+      s.connect(c.destination);
+      s.onended = () => { if (this.src === s) this.src = null; cbs.onend(); };
+      this.src = s;
+      s.start();
+      if (cbs.onstart) cbs.onstart();
+    } catch {
+      this.mode = 'none';
+      cbs.onfail('noaudio');
+    }
+  },
+};
+
+/* ---------- voz do dispositivo e encaminhamento ---------- */
 const tts = {
   ok: 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function',
   voices: [],
@@ -659,27 +879,42 @@ const tts = {
     if (settings.voiceURI) { const v = this.voices.find(x => x.voiceURI === settings.voiceURI); if (v) return v; }
     return this.ranked()[0] || null;
   },
-  // O iOS só deixa falar depois de um gesto; uma frase muda no 1.º toque desbloqueia o resto.
+  // O iOS só deixa tocar som depois de um gesto: desbloqueia as duas vozes no primeiro toque.
   unlock() {
-    if (!this.ok || this.unlocked) return;
+    if (this.unlocked) return;
     this.unlocked = true;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch {}
+    player.unlock();
+    if (this.ok) { try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch {} }
   },
   stop() {
     this.token++;
+    if (vm.ctl) { try { vm.ctl.abort(); } catch {} vm.ctl = null; }
+    player.stop();
     if (this.ok) { try { speechSynthesis.cancel(); } catch {} }
     const f = this.end; this.end = null;
     if (f) f();
   },
-  speak(text, { rate = 1, onstart, onend } = {}) {
-    if (!this.ok || !str(text)) { if (onend) onend(); return; }
+  // engine: 'device' força a voz do dispositivo (pré-visualização das vozes do sistema).
+  speak(text, { rate = 1, onstart, onend, onpending, engine } = {}) {
+    text = str(text);
+    if (!text) { if (onend) onend(); return; }
     this.stop();
     const my = this.token;
+    const alive = () => my === this.token;
+    const finish = () => { if (this.end === finish) this.end = null; if (onend) onend(); };
+    this.end = finish;
+    const device = () => { if (alive()) this.deviceSpeak(text, rate, my, onstart, finish); };
+    if (engine !== 'device' && mistralUsable()) {
+      mistralSpeak(text, rate, { alive, onpending, onstart, onend: finish, onfail: device });
+      return;
+    }
+    device();
+  },
+  deviceSpeak(text, rate, my, onstart, finish) {
+    if (!this.ok) { finish(); return; }
     const parts = chunkSpeech(text);
     const voice = this.pick();
     let i = 0;
-    const finish = () => { if (this.end === finish) this.end = null; if (onend) onend(); };
-    this.end = finish;
     const next = () => {
       if (my !== this.token) return;
       if (i >= parts.length) { finish(); return; }
@@ -711,15 +946,17 @@ function chunkSpeech(text) {
   if (cur) out.push(cur);
   return out;
 }
-const speakable = s => str(s).replace(/\s*…\s*/g, ' ').replace(/\s+/g, ' ').trim();
+const speakable = s => str(s).replace(/[*_#`]/g, '').replace(/\s*…\s*/g, ' ').replace(/\s+/g, ' ').trim();
 function baseRate(level) { return settings.rate * ((LEVELS[level || settings.level] || LEVELS.B1).rate); }
-function sayPhrase(text, mul = 1) { tts.unlock(); tts.speak(speakable(text), { rate: baseRate() * mul }); }
+function sayPhrase(text, mul = 1, engine) { tts.unlock(); tts.speak(speakable(text), { rate: baseRate() * mul, engine }); }
 if (tts.ok) {
   tts.load();
-  try { speechSynthesis.addEventListener('voiceschanged', () => { tts.load(); if (!$('#settings').hidden) renderSettings(); }); } catch {}
+  try { speechSynthesis.addEventListener('voiceschanged', () => { tts.load(); settingsChanged(); }); } catch {}
 }
-document.addEventListener('pointerdown', () => tts.unlock(), { once: true, capture: true });
-document.addEventListener('keydown', () => tts.unlock(), { once: true, capture: true });
+// Só estes eventos contam como gesto para o áudio (no iPhone, pointerdown não conta).
+const unlockEvents = ['touchend', 'click', 'keydown'];
+const unlockOnGesture = () => { tts.unlock(); for (const ev of unlockEvents) document.removeEventListener(ev, unlockOnGesture, true); };
+for (const ev of unlockEvents) document.addEventListener(ev, unlockOnGesture, true);
 
 /* ================================================================
    Diferenças palavra a palavra (o que disseste vs. a versão melhor)
@@ -1266,10 +1503,15 @@ function speakTurn(i, mul = 1) {
   if (!t) return;
   tts.unlock();
   const node = E.transcript.querySelector('.msg[data-i="' + i + '"]');
+  const mark = cls => {
+    for (const n of E.transcript.querySelectorAll('.speaking, .voice-pending')) n.classList.remove('speaking', 'voice-pending');
+    if (node && cls) node.classList.add(cls);
+  };
   tts.speak(t.x, {
     rate: baseRate(s.level) * mul,
-    onstart: () => { for (const n of E.transcript.querySelectorAll('.speaking')) n.classList.remove('speaking'); if (node) node.classList.add('speaking'); },
-    onend: () => { if (node) node.classList.remove('speaking'); },
+    onpending: () => mark('voice-pending'),
+    onstart: () => mark('speaking'),
+    onend: () => { if (node) node.classList.remove('speaking', 'voice-pending'); },
   });
 }
 function lastTutorIndex(s) { for (let i = s.turns.length - 1; i >= 0; i--) if (s.turns[i].r === 't') return i; return -1; }
@@ -1853,17 +2095,54 @@ function renderSettings() {
   sh.append(field('Sotaque', radioChoice('accent', [['en-GB', 'Britânico', 'Mais comum em projetos na Europa'], ['en-US', 'Americano', '']], settings.accent,
     v => { settings.accent = v; settings.voiceURI = ''; saveSettings(); renderSettings(); })));
 
-  const select = h('select', { id: 'voice-select', 'aria-label': 'Voz do tutor' });
+  // Voz do tutor: Mistral pelo conector, com a do dispositivo como alternativa
+  const st = mistralStatus();
+  const engineField = field('Voz do tutor', radioChoice('engine', [
+    ['mistral', 'Mistral (Voxtral)', 'Voz natural do Mistral, pelo teu conector «Voz Mistral». Se falhar, uso a voz do dispositivo.'],
+    ['device', 'Voz do dispositivo', 'O sintetizador do telemóvel ou do computador. Funciona sempre, sem configurar nada.'],
+  ], settings.engine, v => { settings.engine = v; saveSettings(); tts.stop(); renderSettings(); }));
+  if (settings.engine === 'mistral') {
+    engineField.append(h('p', { class: 'status-line ' + st.cls, role: 'status' }, st.text));
+    const mv = h('select', { id: 'mistral-voice', 'aria-label': 'Voz Mistral' });
+    mv.append(h('option', { value: '' }, 'Automática — ' + (settings.accent === 'en-US' ? 'Paul, americano' : 'Oliver, britânico')));
+    const seen = new Set();
+    const addVoice = (id, label) => {
+      if (!/^[A-Za-z0-9_.-]{1,64}$/.test(id) || seen.has(id)) return;
+      seen.add(id);
+      const o = h('option', { value: id }, label);
+      if (id === settings.mistralVoice) o.selected = true;
+      mv.append(o);
+    };
+    for (const v of MISTRAL_VOICES) addVoice(v.id, v.name);
+    const loaded = store.get('mistralVoices', []);
+    for (const v of Array.isArray(loaded) ? loaded : []) addVoice(str(v && v.id), [str(v && v.id), str(v && v.name), str(v && v.language)].filter(Boolean).join(' · '));
+    mv.addEventListener('change', () => { settings.mistralVoice = mv.value; saveSettings(); sayPhrase(SAMPLE_LINE); });
+    const loadBtn = h('button', { class: 'chip', type: 'button' }, 'Carregar vozes da conta');
+    loadBtn.addEventListener('click', () => loadMistralVoices(loadBtn));
+    const row = h('div', { class: 'row' },
+      h('button', { class: 'chip', type: 'button', onclick: () => sayPhrase(SAMPLE_LINE) }, icon('play'), 'Ouvir exemplo'), loadBtn);
+    if (hasClaude && (MISTRAL_OFF.has(vm.state) || vm.state === 'limit' || vm.state === 'error') && vm.state !== 'unavailable') {
+      row.append(h('button', { class: 'chip', type: 'button', onclick: () => {
+        vm.state = 'ready'; vm.cooldownUntil = 0; vm.lastError = ''; shownOnce.clear();
+        sayPhrase(SAMPLE_LINE);
+        renderSettings();
+      } }, 'Tentar outra vez'));
+    }
+    engineField.append(mv, row, setupSteps());
+  }
+  sh.append(engineField);
+
+  const select = h('select', { id: 'voice-select', 'aria-label': 'Voz do dispositivo' });
   select.append(h('option', { value: '' }, 'Automática — a melhor disponível'));
   for (const v of tts.ranked()) {
     const o = h('option', { value: v.voiceURI }, v.name + ' (' + v.lang + ')');
     if (v.voiceURI === settings.voiceURI) o.selected = true;
     select.append(o);
   }
-  select.addEventListener('change', () => { settings.voiceURI = select.value; saveSettings(); sayPhrase('Hi! Shall we practise for a few minutes?'); });
+  select.addEventListener('change', () => { settings.voiceURI = select.value; saveSettings(); sayPhrase('Hi! Shall we practise for a few minutes?', 1, 'device'); });
   const picked = tts.pick();
-  sh.append(field('Voz do tutor',
-    tts.ok && tts.voices.length ? select : h('span', { class: 'hint-txt' }, tts.ok ? 'Este dispositivo ainda não mostrou vozes em inglês. Se não aparecer nenhuma, instala uma voz inglesa nas definições do sistema.' : 'Este browser não tem síntese de voz; as respostas ficam só em texto.'),
+  sh.append(field(settings.engine === 'mistral' ? 'Voz do dispositivo (alternativa)' : 'Voz do dispositivo',
+    tts.ok && tts.voices.length ? select : h('span', { class: 'hint-txt' }, tts.ok ? 'Este dispositivo ainda não mostrou vozes em inglês. Se não aparecer nenhuma, instala uma voz inglesa nas definições do sistema.' : 'Este browser não tem síntese de voz; sem a voz Mistral, as respostas ficam só em texto.'),
     h('span', { class: 'hint-txt' }, (picked ? 'A usar: ' + picked.name + '. ' : '') + 'Para uma voz mais natural: no iPhone e no Mac descarrega uma voz inglesa «Melhorada» ou «Premium» (Acessibilidade › Conteúdo falado › Vozes); no Windows, abre o claude.ai no Microsoft Edge, que tem vozes «Natural».')));
 
   const out = h('output', { for: 'rate' }, settings.rate.toFixed(2).replace('.', ',') + '×');
@@ -1883,12 +2162,48 @@ function renderSettings() {
   ], settings.tier, v => { settings.tier = v; saveSettings(); })));
 
   sh.append(h('div', { class: 'about' },
-    h('p', null, h('b', null, 'Custos: '), 'a app usa o Claude da tua conta e gasta a quota do teu plano, como uma conversa normal. Não usa a API nem chaves, por isso não há custos extra.'),
+    h('p', null, h('b', null, 'Custos: '), 'a app usa o Claude da tua conta e gasta a quota do teu plano, como uma conversa normal. Não usa a API nem chaves, por isso não há custos extra. A voz Mistral passa pelo teu conector (um Worker grátis na Cloudflare) e usa o plano grátis do Mistral.'),
     h('p', null, h('b', null, 'Dados: '), data.synced
       ? 'o caderno e as sessões ficam guardados nesta app do claude.ai, só para ti, e aparecem em todos os teus dispositivos.'
       : 'o caderno e as sessões estão guardados só neste dispositivo.'),
     h('p', null, h('b', null, 'Avaliação: '), 'no fim de cada sessão o Claude usa o modelo normal (mais cuidadoso) para rever a conversa inteira.')));
   sh.scrollTop = keepScroll;
+}
+const SAMPLE_LINE = "Good morning, everyone. Let's walk through the standard process first, and then we'll look at the gaps.";
+function setupSteps() {
+  return h('details', { class: 'setup' },
+    h('summary', null, 'Como ligar a voz Mistral (uma vez, cerca de 5 minutos)'),
+    h('ol', null,
+      h('li', null, 'Publica o Worker que está em ', h('code', null, 'tutor-ingles/voz-mistral'), ' no repositório escolaplay, como fizeste com o tts-proxy:',
+        h('code', { class: 'cmd' }, 'npx wrangler login\nnpx wrangler secret put MISTRAL_API_KEY\nnpx wrangler secret put ACCESS_TOKEN\nnpx wrangler deploy')),
+      h('li', null, 'Em MISTRAL_API_KEY cola a tua chave Mistral (a mesma da EscolaPlay). Em ACCESS_TOKEN inventa um código longo, só com letras e números: é ele que protege o conector.'),
+      h('li', null, 'No claude.ai: Personalizar › Conectores › Adicionar conector personalizado. Nome: ', h('b', null, 'Voz Mistral'),
+        '. URL: ', h('code', null, 'https://tutor-voz-mistral.<a-tua-conta>.workers.dev/mcp/<ACCESS_TOKEN>'),
+        '. Autenticação: sem início de sessão (No sign-in).'),
+      h('li', null, 'Volta aqui, toca em «Ouvir exemplo» e aceita o pedido de acesso ao conector.')),
+    h('p', { class: 'hint-txt' }, 'A chave Mistral fica guardada no Worker e nunca passa por esta página.'));
+}
+async function loadMistralVoices(btn) {
+  btn.disabled = true;
+  try {
+    const m = vm.mcp || await mcpPromise;
+    if (!m) throw { code: 'capability_disabled' };
+    const r = await m.callTool(MISTRAL_SERVER, 'voices', {});
+    const raw = r && r.payload && Array.isArray(r.payload.voices) ? r.payload.voices : [];
+    const list = raw.map(v => ({ id: str(v && v.id), name: str(v && v.name), language: str(v && v.language) }))
+      .filter(v => /^[A-Za-z0-9_.-]{1,64}$/.test(v.id)).slice(0, 200);
+    if (!list.length) throw { code: 'tool_error', message: 'A conta Mistral não devolveu vozes.' };
+    store.set('mistralVoices', list);
+    if (vm.state !== 'ok') { vm.state = 'ok'; vm.lastError = ''; }
+    toast(plural(list.length, 'voz carregada', 'vozes carregadas'));
+  } catch (e) {
+    if (errCode(e) === 'tool_error' || errCode(e) === 'server_unavailable' || errCode(e) === 'upstream_error') {
+      toast('Não consegui carregar as vozes' + (str(e && e.message) ? ': ' + str(e.message).slice(0, 90) : ''));
+    } else {
+      noteMistralFailure(e);
+    }
+  }
+  renderSettings();
 }
 let lastFocus = null;
 function openSettings() { lastFocus = document.activeElement; tts.load(); renderSettings(); E.settings.hidden = false; const c = E.sheet.querySelector('.sheet-head .icon-btn'); if (c) c.focus(); }

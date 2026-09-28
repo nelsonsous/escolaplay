@@ -5,8 +5,9 @@ app à parte da EscolaPlay. Complementa o *English for PMs*: a EscolaPlay treina
 com exercícios e roleplays guiados, aqui conversas livremente com o Claude
 numa cena de trabalho, recebes correções na hora e uma avaliação no fim.
 
-**App publicada:** <https://claude.ai/artifact/58FpZ6waEprze6M8zgMgwD>
-(privada; só abre com a tua conta).
+**App publicada:** <https://claude.ai/artifact/58FpZ6waEprze6M8zgMgwD>. Quem
+pode abrir a página decide-se no menu Partilhar; o caderno e as sessões são
+sempre só teus.
 
 ## Custo: zero além do plano Claude
 
@@ -26,11 +27,18 @@ respostas: dá correções mais finas, mas cada resposta demora mais.
 
 ## Voz
 
-- **O tutor fala** com o sintetizador do próprio dispositivo (`speechSynthesis`),
-  que é grátis. A app escolhe a melhor voz inglesa que encontrar (dá
-  preferência às «Natural», «Premium», «Enhanced», Siri e Google), com sotaque
-  britânico ou americano, a uma velocidade ajustada ao nível. Para uma voz mais
-  natural:
+- **O tutor fala com a voz Voxtral do Mistral**, através do conector
+  [«Voz Mistral»](voz-mistral/README.md). É um Cloudflare Worker teu, com a tua
+  chave Mistral guardada como segredo. As páginas do claude.ai não podem chamar
+  o Mistral diretamente, mas podem chamar os conectores da tua conta. O custo é
+  zero, com o plano grátis da Cloudflare e o do Mistral. Tem vozes britânicas e
+  americanas (Oliver, Jane, Paul…) e a mesma frase só é gerada uma vez (fica em
+  cache).
+- **Sem o conector, ou se ele falhar**, a app usa o sintetizador do próprio
+  dispositivo (`speechSynthesis`), que é grátis. Nesse caso escolhe a melhor voz
+  inglesa que encontrar (dá preferência às «Natural», «Premium», «Enhanced»,
+  Siri e Google), a uma velocidade ajustada ao nível. O motivo da falha aparece
+  nas definições. Para uma voz do dispositivo mais natural:
   - **iPhone e Mac:** descarrega uma voz inglesa «Melhorada» ou «Premium» em
     Acessibilidade › Conteúdo falado › Vozes;
   - **Windows:** abre o claude.ai no Microsoft Edge, que tem vozes «Natural».
@@ -99,6 +107,15 @@ respostas: dá correções mais finas, mas cada resposta demora mais.
 - Um único ficheiro, `index.html`, em HTML, CSS e JavaScript simples, sem build
   e sem dependências. Só carrega as fontes Newsreader e Schibsted Grotesk do
   Google Fonts.
+- Capacidades declaradas na publicação:
+  - `sample`: o Claude;
+  - `db`: só o dono lê e escreve;
+  - `user`;
+  - `mcp`: o servidor `Voz Mistral`, com as ferramentas `speak` e `voices`.
+- O áudio do conector chega em base64. Toca num elemento `<audio>` (com
+  `preservesPitch` para a velocidade 0,75×) ou, se a página não o deixar, por
+  Web Audio. No iPhone é desbloqueado no primeiro toque.
+- `voz-mistral/` é o Worker do conector, com deploy próprio (`wrangler`).
 - Aberto fora do claude.ai (por exemplo, pelo GitHub Pages), mostra um aviso a
   dizer que o tutor só responde no claude.ai. O caderno local continua a dar
   para ouvir.
@@ -108,4 +125,5 @@ respostas: dá correções mais finas, mas cada resposta demora mais.
 
 Edita `index.html` e volta a publicar a partir de uma sessão do Claude Code com
 o URL da app, para manter o mesmo endereço, os dados e as capacidades (`sample`,
-`db` só do dono, `user`). Publicar sem o URL cria uma app nova e vazia.
+`db` só do dono, `user`, `mcp` com o servidor `Voz Mistral`). Publicar sem o
+URL cria uma app nova e vazia.
