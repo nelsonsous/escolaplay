@@ -1,0 +1,1916 @@
+<title>Inglês com o Claude</title>
+<!--
+  Inglês com o Claude — tutor de conversação em inglês, por voz.
+
+  App à parte da EscolaPlay, publicada como página (artifact) no claude.ai.
+  - Cérebro: o Claude da conta de quem abre a página (capacidade `sample`),
+    que gasta a quota do plano (Max). Não usa a API nem chaves: custo extra 0.
+  - Voz do tutor: sintetizador do próprio dispositivo (speechSynthesis).
+  - Voz do aluno: as páginas do claude.ai não têm acesso ao microfone, por
+    isso responde-se com o ditado do teclado/sistema (ou a escrever).
+  - Caderno e sessões: base de dados da própria página (`db`), só do dono;
+    fora do claude.ai (ou para outras pessoas) ficam no dispositivo.
+  Ver README.md nesta pasta.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400&family=Schibsted+Grotesk:wght@400..700&display=swap">
+<style>
+:root{
+  --paper:#F1F3F8;
+  --surface:#FFFFFF;
+  --sunken:#E6EAF2;
+  --ink:#131C33;
+  --muted:#56617B;
+  --faint:#838DA3;
+  --line:#D3D9E5;
+  --tutor:#E1E7F4;
+  --marker:#FFD23F;
+  --marker-hl:rgba(255,210,63,.6);
+  --on-marker:#131C33;
+  --red:#BF2F39;
+  --red-soft:rgba(191,47,57,.09);
+  --teal:#08775F;
+  --teal-soft:rgba(8,119,95,.11);
+  --focus:#2D64E0;
+  --scrim:rgba(11,17,30,.46);
+  --logo-bg:#131C33;
+  --logo-fg:#FFD23F;
+  --shadow:0 1px 2px rgba(19,28,51,.05),0 8px 24px rgba(19,28,51,.08);
+  --serif:"Newsreader","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0B111E;
+    --surface:#131B2C;
+    --sunken:#0F1626;
+    --ink:#E5EAF4;
+    --muted:#9CA6BE;
+    --faint:#6E7993;
+    --line:#253049;
+    --tutor:#1A2541;
+    --marker:#FFD23F;
+    --marker-hl:rgba(255,210,63,.3);
+    --on-marker:#131C33;
+    --red:#FF7C82;
+    --red-soft:rgba(255,124,130,.13);
+    --teal:#45D4B4;
+    --teal-soft:rgba(69,212,180,.13);
+    --focus:#88AAFF;
+    --scrim:rgba(0,0,0,.6);
+    --logo-bg:#1B2746;
+    --logo-fg:#FFD23F;
+    --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0B111E;
+  --surface:#131B2C;
+  --sunken:#0F1626;
+  --ink:#E5EAF4;
+  --muted:#9CA6BE;
+  --faint:#6E7993;
+  --line:#253049;
+  --tutor:#1A2541;
+  --marker:#FFD23F;
+  --marker-hl:rgba(255,210,63,.3);
+  --on-marker:#131C33;
+  --red:#FF7C82;
+  --red-soft:rgba(255,124,130,.13);
+  --teal:#45D4B4;
+  --teal-soft:rgba(69,212,180,.13);
+  --focus:#88AAFF;
+  --scrim:rgba(0,0,0,.6);
+  --logo-bg:#1B2746;
+  --logo-fg:#FFD23F;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.3);
+}
+
+html{box-sizing:border-box;height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{height:100%;margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+p{margin:0}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ic{display:inline-grid;place-items:center;flex:none;line-height:0}
+.ic svg{display:block}
+
+/* ---------- estrutura ---------- */
+.app{height:100%;display:flex;flex-direction:column;max-width:760px;margin:0 auto;padding-inline:16px}
+.top{flex:none;padding-block:14px 0}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:var(--logo-bg);color:var(--logo-fg);box-shadow:inset 0 0 0 1px var(--line);display:grid;place-items:center;flex:none}
+.brand h1{margin:0;font:600 23px/1.1 var(--serif);letter-spacing:-.01em;text-wrap:balance}
+.brand .sub{margin-top:3px;color:var(--muted);font-size:13px}
+.icon-btn{margin-left:auto;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink);flex:none}
+.tabs{display:flex;gap:2px;margin-top:12px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{appearance:none;border:0;background:none;padding:10px 12px 9px;font-weight:600;font-size:14.5px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--marker)}
+.count{font-size:12px;font-variant-numeric:tabular-nums;background:var(--sunken);color:var(--muted);border-radius:999px;padding:1px 7px}
+.main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-block:16px 28px;-webkit-overflow-scrolling:touch}
+.composer{flex:none;padding-block:10px 12px;border-top:1px solid var(--line);background:var(--paper)}
+
+/* ---------- elementos comuns ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;font-size:14.5px;text-decoration:none;white-space:nowrap}
+.btn.primary{background:var(--marker);border-color:var(--marker);color:var(--on-marker)}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn.small{min-height:34px;padding:0 13px;font-size:13.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap}
+.chip:disabled{opacity:.45;cursor:not-allowed}
+.chip.done{color:var(--teal);border-color:var(--teal-soft);background:var(--teal-soft)}
+.chip.danger{color:var(--red)}
+.round{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.eyebrow{display:block;font:600 11.5px/1.2 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.hl{background:linear-gradient(transparent 58%,var(--marker-hl) 58%);-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:0 1px}
+.seg{display:inline-flex;background:var(--sunken);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:none;min-height:34px;padding:0 14px;border-radius:999px;font-weight:600;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--sunken);font-size:14px;line-height:1.45}
+.notice.warn{background:var(--red-soft)}
+.notice b{font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:30;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- ecrã inicial ---------- */
+.start{display:grid;gap:18px}
+.today{display:grid;gap:10px}
+.dateline{font:italic 400 17px/1.3 var(--serif);color:var(--muted)}
+.level-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.level-row .lbl{font-weight:600;font-size:14px}
+.level-name{color:var(--muted);font-size:13.5px}
+.stats{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--muted);font-size:13.5px;font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink);font-weight:600}
+.resume{display:grid;gap:10px;padding:14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.resume-title{font:600 17px/1.3 var(--serif)}
+.agenda{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.scene{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.scene.open{box-shadow:var(--shadow)}
+.scene-head{display:grid;grid-template-columns:58px 1fr auto;gap:14px;align-items:center;width:100%;padding:14px;border:0;background:none;text-align:left;color:inherit;border-radius:14px}
+.slot{display:grid;justify-items:center;gap:1px;padding-right:12px;border-right:1px dashed var(--line);color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.slot b{font:500 24px/1 var(--serif);letter-spacing:0;color:var(--ink);font-variant-numeric:tabular-nums}
+.scene-main{display:grid;gap:2px;min-width:0}
+.scene-title{font:600 18px/1.25 var(--serif)}
+.scene-who{color:var(--muted);font-size:13.5px}
+.chev{color:var(--faint);transition:transform .2s}
+.scene.open .chev{transform:rotate(90deg)}
+.brief{display:grid;gap:14px;padding:4px 14px 16px 86px}
+.brief-goal{font-size:14.5px}
+.phrases{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.phrases li{display:flex;align-items:center;gap:10px;font:400 17px/1.35 var(--serif)}
+.phrases .pt{display:block;font:400 13px/1.3 var(--sans);color:var(--muted)}
+.voice-note{font-size:13px;color:var(--muted);max-width:60ch}
+.howto{border-top:1px solid var(--line);padding-top:14px}
+.howto summary{cursor:pointer;font-weight:600;display:flex;align-items:center;gap:8px;list-style:none}
+.howto summary::-webkit-details-marker{display:none}
+.howto ul{margin:10px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px;max-width:65ch}
+
+/* ---------- conversa ---------- */
+.scene-bar{position:sticky;top:-16px;z-index:2;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:-16px 0 14px;padding:12px 0;background:var(--paper);border-bottom:1px solid var(--line)}
+.scene-bar .t{font:600 17px/1.2 var(--serif)}
+.scene-bar .s{font-size:12.5px;color:var(--muted)}
+.transcript{display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;flex-direction:column;gap:6px;max-width:88%}
+.msg.tutor{align-self:flex-start}
+.msg.me{align-self:flex-end;align-items:flex-end}
+.who{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.bubble{padding:11px 14px;border-radius:16px;overflow-wrap:anywhere}
+.tutor .bubble{background:var(--tutor);font:400 18.5px/1.45 var(--serif);border-top-left-radius:5px}
+.me .bubble{background:var(--surface);border:1px solid var(--line);border-top-right-radius:5px;font-size:15.5px}
+.msg-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.bars{display:none;align-items:flex-end;gap:2px;height:14px;margin-left:2px}
+.speaking .bars{display:inline-flex}
+.bars i{width:3px;height:100%;background:var(--teal);border-radius:2px;transform-origin:bottom;animation:eq .9s ease-in-out infinite}
+.bars i:nth-child(2){animation-delay:-.3s}.bars i:nth-child(3){animation-delay:-.6s}.bars i:nth-child(4){animation-delay:-.15s}
+@keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.dots{display:inline-flex;gap:4px;align-items:center;min-height:26px}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.fix{display:grid;gap:5px;max-width:100%;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
+.fix-label{font:600 11px/1.2 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--red)}
+.fix-line{font:400 17.5px/1.5 var(--serif)}
+.fix-said{font-size:13.5px;color:var(--muted)}
+.fix-why{font-size:13.5px;color:var(--muted)}
+del{color:var(--red);background:var(--red-soft);text-decoration:line-through;text-decoration-thickness:1.5px;border-radius:3px;padding:0 2px}
+ins{color:var(--teal);background:var(--teal-soft);text-decoration:none;border-radius:3px;padding:0 2px;font-weight:600}
+.inline-err{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;border:1px dashed var(--red);background:var(--red-soft);font-size:14px}
+.report{display:grid;gap:12px;padding:16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.report h3{margin:0;font:600 21px/1.25 var(--serif);text-wrap:balance}
+.report h4{margin:4px 0 0;font:600 11.5px/1.2 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.report ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.report .fix{box-shadow:none}
+.report .phrases li{font-size:17px}
+.saved-note{font-size:13.5px;color:var(--teal);font-weight:600}
+.end-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding-top:4px}
+
+/* ---------- compositor ---------- */
+.quick{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none}
+.form{display:flex;gap:8px;align-items:flex-end}
+.mic{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink)}
+.mic[aria-expanded="true"]{background:var(--marker);border-color:var(--marker);color:var(--on-marker)}
+.form textarea{flex:1;min-width:0;min-height:44px;max-height:160px;resize:none;border:1px solid var(--line);border-radius:22px;padding:10px 16px;background:var(--surface);font-size:16px;line-height:1.4}
+.form textarea::placeholder{color:var(--faint)}
+.send{flex:none;height:44px;padding:0 18px;border-radius:22px;border:0;background:var(--ink);color:var(--paper);font-weight:600}
+.send:disabled{opacity:.45;cursor:not-allowed}
+.dictate-tip{margin-top:8px;font-size:13px;color:var(--muted);max-width:65ch}
+.hints{display:grid;gap:10px;margin-bottom:10px;padding:12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);max-height:38vh;overflow-y:auto}
+.hints-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hint{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.hint-en{font:400 17px/1.35 var(--serif)}
+.hint-pt{font-size:13px;color:var(--muted)}
+.hint .row{grid-row:1 / span 2;grid-column:2}
+
+/* ---------- caderno e sessões ---------- */
+.list-head{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between;margin-bottom:6px}
+.list-head h2{margin:0;font:600 22px/1.2 var(--serif)}
+.notes{list-style:none;margin:0;padding:0}
+.note{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.note-en{font:400 18.5px/1.35 var(--serif)}
+.note-pt{font-size:14px;color:var(--muted)}
+.note-meta{font-size:12.5px;color:var(--faint);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.note-tools{grid-column:2;grid-row:1 / span 3;display:flex;gap:6px;align-items:flex-start}
+.tag{display:inline-block;font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:4px 6px;border-radius:6px;background:var(--sunken);color:var(--muted)}
+.tag.fix-tag{color:var(--red);background:var(--red-soft)}
+.tag.ex{color:var(--on-marker);background:var(--marker)}
+.panel{display:grid;gap:10px;margin-top:20px;padding:14px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
+.panel summary{cursor:pointer;font-weight:600}
+.panel input[type="text"],.panel textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--paper);font-size:16px}
+.panel textarea{min-height:110px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sess{display:grid;grid-template-columns:62px 1fr;gap:4px 14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.sess-date{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.3}
+.sess-date b{display:block;font:500 17px/1.2 var(--serif);color:var(--ink)}
+.sess-title{font:600 17px/1.3 var(--serif)}
+.sess-head{font-size:14px;color:var(--muted)}
+.sess .row{margin-top:6px}
+.sess-body{grid-column:1 / -1;display:grid;gap:12px;margin-top:8px}
+.transcript-mini{display:grid;gap:6px;font-size:14px;padding:12px;border-radius:12px;background:var(--sunken)}
+.transcript-mini b{font-weight:600}
+.empty{display:grid;gap:10px;padding:18px 0;color:var(--muted);max-width:60ch}
+
+/* ---------- definições ---------- */
+.overlay{position:fixed;inset:0;z-index:20;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet{width:100%;max-width:560px;max-height:100%;overflow-y:auto;background:var(--surface);border-radius:18px;padding:6px 18px 18px;box-shadow:var(--shadow)}
+.sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.sheet-head h2{margin:0;font:600 21px/1.2 var(--serif)}
+.sheet-head .icon-btn{margin-left:0}
+.field{display:grid;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}
+.field>.lbl{font-weight:600;font-size:14px}
+.field .hint-txt{font-size:13px;color:var(--muted);max-width:60ch}
+.field select{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:var(--paper);font-size:15px}
+.range{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.range input{flex:1;min-width:140px;accent-color:var(--ink)}
+.range output{font-variant-numeric:tabular-nums;font-weight:600;min-width:3.5em}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer}
+.switch span{display:grid;gap:2px}
+.switch input{appearance:none;-webkit-appearance:none;width:46px;height:28px;margin:0;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .2s;cursor:pointer}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked{background:var(--teal)}
+.switch input:checked::after{transform:translateX(18px)}
+.choice{display:grid;gap:8px}
+.choice label{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.choice input{margin:3px 0 0;accent-color:var(--ink);grid-row:1 / span 2}
+.choice small{color:var(--muted);font-size:13px}
+.about{display:grid;gap:8px;padding-top:14px;font-size:13.5px;color:var(--muted)}
+
+@media (max-width:480px){
+  .brand h1{font-size:21px}
+  .scene-head{grid-template-columns:48px 1fr auto;gap:12px;padding:12px}
+  .slot{padding-right:10px}
+  .brief{padding:4px 12px 14px}
+  .msg{max-width:94%}
+  .two{grid-template-columns:1fr}
+  .send{padding:0 14px}
+}
+@media (min-width:700px){.overlay{align-items:center}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="9.5" width="2.2" height="5" rx="1.1" fill="currentColor"/><rect x="7.2" y="6.5" width="2.2" height="11" rx="1.1" fill="currentColor"/><rect x="11.4" y="3" width="2.2" height="18" rx="1.1" fill="currentColor"/><rect x="15.6" y="7" width="2.2" height="10" rx="1.1" fill="currentColor"/><rect x="19.8" y="10" width="2.2" height="4" rx="1.1" fill="currentColor"/></svg></span>
+      <div>
+        <h1>Inglês com o Claude</h1>
+        <p class="sub" id="sub">Tutor de conversação em inglês</p>
+      </div>
+      <button class="icon-btn" id="btn-settings" type="button" aria-label="Definições" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Secções">
+      <button class="tab" role="tab" type="button" id="tab-practice" data-view="practice" aria-controls="view-practice" aria-selected="true">Praticar</button>
+      <button class="tab" role="tab" type="button" id="tab-notebook" data-view="notebook" aria-controls="view-notebook" aria-selected="false">Caderno <span class="count" id="nb-count">0</span></button>
+      <button class="tab" role="tab" type="button" id="tab-history" data-view="history" aria-controls="view-history" aria-selected="false">Sessões</button>
+    </nav>
+  </header>
+
+  <main class="main" id="main">
+    <section id="view-practice" role="tabpanel" aria-labelledby="tab-practice">
+      <div id="start" class="start"></div>
+      <div id="convo" hidden>
+        <div class="scene-bar" id="scene-bar"></div>
+        <div class="transcript" id="transcript" aria-live="polite"></div>
+      </div>
+    </section>
+    <section id="view-notebook" role="tabpanel" aria-labelledby="tab-notebook" hidden></section>
+    <section id="view-history" role="tabpanel" aria-labelledby="tab-history" hidden></section>
+  </main>
+
+  <footer class="composer" id="composer" hidden>
+    <div class="hints" id="hints" hidden></div>
+    <div class="quick">
+      <button class="chip" type="button" id="q-repeat"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3M20 5H9a5 5 0 0 0-5 5M7 22l-3-3 3-3M4 19h11a5 5 0 0 0 5-5"/></svg>Repetir</button>
+      <button class="chip" type="button" id="q-slow">0,75× Devagar</button>
+      <button class="chip" type="button" id="q-hint"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1V16h5v-.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z"/></svg>Ideias</button>
+    </div>
+    <form class="form" id="form" autocomplete="off">
+      <button class="mic" type="button" id="btn-dictate" aria-label="Como ditar em vez de escrever" aria-controls="dictate-tip" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <label class="sr" for="input">A tua resposta em inglês</label>
+      <textarea id="input" rows="1" placeholder="Responde em inglês…" enterkeyhint="send" spellcheck="false" autocorrect="off" autocapitalize="sentences"></textarea>
+      <button class="send" type="submit" id="btn-send">Enviar</button>
+    </form>
+    <p class="dictate-tip" id="dictate-tip" hidden></p>
+  </footer>
+</div>
+
+<div class="overlay" id="settings" hidden>
+  <div class="sheet" id="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+document.documentElement.lang = 'pt-PT';
+
+/* ================================================================
+   Utilidades
+   ================================================================ */
+const $ = (sel, root = document) => root.querySelector(sel);
+function h(tag, props, ...kids) {
+  const n = document.createElement(tag);
+  if (props) {
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? '' : String(v));
+    }
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    n.append(kid instanceof Node ? kid : String(kid));
+  }
+  return n;
+}
+const ICONS = {
+  play: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  back: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  close: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  save: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4h10v16l-5-4-5 4z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>',
+  ext: '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+};
+function icon(name) { const s = document.createElement('span'); s.className = 'ic'; s.innerHTML = ICONS[name] || ''; return s; }
+function bars() { return h('span', { class: 'bars', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('i')); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v)).trim();
+const normKey = s => str(s).toLowerCase().replace(/[’‘`]/g, "'").replace(/[^\p{L}\p{N}' ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+const isTouch = matchMedia('(pointer: coarse)').matches;
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('icc:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('icc:' + k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem('icc:' + k); } catch {} },
+};
+
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = h('div', { id: 'toast', class: 'toast', role: 'status' }); document.body.append(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function copyText(text) {
+  try {
+    const p = navigator.clipboard && navigator.clipboard.writeText(text);
+    if (p && p.then) { p.then(() => toast('Copiado'), () => toast('Não deu para copiar — seleciona o texto à mão')); return; }
+  } catch {}
+  toast('Não deu para copiar — seleciona o texto à mão');
+}
+
+/* ================================================================
+   Conteúdo: níveis e cenas
+   ================================================================ */
+const LEVELS = {
+  A2: { name: 'Elementar', rate: 0.85, guide: 'Use very simple, short sentences and everyday words, and speak slowly and clearly. Only correct mistakes that make the meaning unclear.' },
+  B1: { name: 'Intermédio', rate: 0.92, guide: 'Use clear, simple professional English and short sentences. Avoid idioms unless you explain them. Correct the most important mistake.' },
+  B2: { name: 'Intermédio alto', rate: 1, guide: 'Use natural professional English, including common idioms and phrasal verbs. Correct grammar and unnatural phrasing.' },
+  C1: { name: 'Avançado', rate: 1.05, guide: 'Use rich, idiomatic English at natural speed. Point out subtle issues too: register, collocations, tone and nuance.' },
+};
+
+const SCENES = [
+  { id: 'free', mins: 5, title: 'Conversa livre', titleEn: 'Free conversation',
+    who: 'Alex · colega do escritório de Londres',
+    goal: 'Falar uns minutos sobre o teu dia, o fim de semana ou o que quiseres, sem deixar a conversa morrer.',
+    role: 'Alex, a friendly and curious colleague from the London office who enjoys a relaxed chat about work, travel, food and weekend plans',
+    aim: 'keep a relaxed conversation going for a few minutes about everyday topics',
+    phrases: ['To be honest, …', 'What I mean is …', 'That reminds me of …', 'Anyway, …'] },
+  { id: 'standup', mins: 5, title: 'Daily stand-up', titleEn: 'Daily stand-up meeting',
+    who: 'Sophie · delivery lead do rollout S/4HANA',
+    goal: 'Dizer o que fizeste ontem, o que vais fazer hoje e o que te está a bloquear, em cerca de um minuto.',
+    role: 'Sophie, the delivery lead running the daily stand-up of an S/4HANA rollout; friendly but keeps it short, and asks sharp follow-up questions about blockers and dates',
+    aim: 'give a concise stand-up update: yesterday, today and blockers',
+    phrases: ['Yesterday I wrapped up …', "Today I'm focusing on …", 'The main blocker is …', "I'll need input from … by …"] },
+  { id: 'steerco', mins: 10, title: 'Steering committee', titleEn: 'Steering committee meeting',
+    who: 'Mark · diretor de programa do cliente',
+    goal: 'Apresentar o estado (amber), explicar o risco principal e a mitigação, e sair com uma decisão.',
+    role: "Mark, the client's programme director at a steering committee: senior, direct and short of time; he challenges vague answers and wants facts, dates and options",
+    aim: 'report an amber status, explain the key risk and the mitigation, and get a decision',
+    phrases: ["We're currently amber on …", 'The key risk is …', 'To mitigate this, we propose …', 'We need a decision on … by …'] },
+  { id: 'scope', mins: 8, title: 'Pedido fora do âmbito', titleEn: 'Out-of-scope request from the client',
+    who: 'Laura · diretora financeira do cliente',
+    goal: 'Dizer que não com diplomacia, explicar o impacto e propor alternativas (change request, fase 2).',
+    role: "Laura, the client's finance director: warm but persistent; she wants a new custom report added before go-live without moving the date or the budget",
+    aim: 'push back politely on out-of-scope work, explain the impact and offer options such as a change request or a phase 2',
+    phrases: ["I see where you're coming from, but …", 'That would have an impact on …', 'One option would be to …', "Let's raise a change request so we can assess it properly."] },
+  { id: 'delay', mins: 8, title: 'Anunciar um atraso', titleEn: 'Announcing a delay',
+    who: 'Daniel · IT manager do cliente',
+    goal: 'Anunciar que o cut-over atrasa duas semanas: assumir, explicar a causa e apresentar o plano de recuperação.',
+    role: "Daniel, the client's IT manager: disappointed and a little frustrated by the news; he asks why it wasn't flagged earlier and what guarantees there are now",
+    aim: 'announce a two-week delay to the cut-over, take ownership, explain the cause and present a recovery plan',
+    phrases: ["I'm afraid I have some bad news.", 'This is mainly due to …', "Here's what we're doing about it.", 'The revised date is …'] },
+  { id: 'workshop', mins: 10, title: 'Workshop fit-to-standard', titleEn: 'Fit-to-standard workshop',
+    who: 'Priya · key user de contas a pagar',
+    goal: 'Conduzir o workshop pelo processo standard, registar os gaps reais e evitar desenvolvimentos à medida.',
+    role: 'Priya, a key user from accounts payable in a fit-to-standard workshop: helpful but used to the old system, she keeps asking for custom fields and extra approval steps',
+    aim: 'lead the workshop through the standard SAP process, capture real gaps and steer away from unnecessary customisation',
+    phrases: ["Let's walk through the standard process first.", 'Could you give me an example?', 'Is this a must-have or a nice-to-have?', "Let's park that and come back to it."] },
+  { id: 'coffee', mins: 5, title: 'Café antes da reunião', titleEn: 'Small talk before a meeting',
+    who: 'Tom · consultor britânico de visita a Lisboa',
+    goal: 'Conversa de circunstância — viagem, tempo, comida, planos — e depois entrar na reunião.',
+    role: 'Tom, a British consultant you meet at the coffee machine before a workshop in Lisbon: chatty, polite and curious about Portugal',
+    aim: 'make natural small talk for a few minutes and then move into the meeting',
+    phrases: ['How was your flight?', 'Is this your first time in Lisbon?', 'You should definitely try …', 'Shall we head in?'] },
+  { id: 'interview', mins: 10, title: 'Entrevista de emprego', titleEn: 'Job interview',
+    who: 'Emma · hiring manager numa consultora internacional',
+    goal: 'Falar da tua experiência, contar um projeto difícil com estrutura e explicar como geres stakeholders.',
+    role: 'Emma, a hiring manager at an international consultancy interviewing for a Senior SAP Project Manager role: professional and friendly, she asks behavioural questions ("tell me about a time when…")',
+    aim: 'present their experience clearly, tell a structured story about a difficult project and explain how they manage stakeholders',
+    phrases: ["I've been working as … for … years.", 'One of the toughest projects I led was …', 'What I learned from that was …', "I'd describe my style as …"] },
+];
+
+const REVIEW_META = {
+  id: 'review', mins: 5, title: 'Rever o meu caderno', titleEn: 'Review of the learner’s own phrasebook',
+  who: 'Claude · o teu tutor',
+  goal: 'Usar as frases do teu caderno em mini-situações do dia de trabalho, uma de cada vez.',
+  role: "Claude, a friendly English coach who sets up quick, realistic mini-situations from a project manager's working day",
+  aim: 'use each target expression correctly in a realistic sentence',
+  review: true,
+};
+
+/* ================================================================
+   Definições (por dispositivo — as vozes mudam de aparelho para aparelho)
+   ================================================================ */
+const DEFAULTS = { level: 'B1', accent: 'en-GB', voiceURI: '', rate: 1, autoSpeak: true, ptHelp: true, autoSend: false, tier: 'quick' };
+const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
+if (!LEVELS[settings.level]) settings.level = DEFAULTS.level;
+if (!['quick', 'default'].includes(settings.tier)) settings.tier = DEFAULTS.tier;
+const saveSettings = () => store.set('settings', settings);
+
+/* ================================================================
+   Claude (capacidades do claude.ai)
+   ================================================================ */
+const hasClaude = !!(window.claude && typeof window.claude.use === 'function');
+let sampleFn = null;
+let sampleResolved = false;
+const samplePromise = (hasClaude ? window.claude.use('sample').catch(() => null) : Promise.resolve(null))
+  .then(s => { sampleFn = s; sampleResolved = true; renderStartIfVisible(); return s; });
+
+const ERR = {
+  no_claude: 'O tutor só responde dentro do claude.ai, com a tua sessão iniciada. Abre a app a partir do teu claude.ai.',
+  not_granted: 'Esta página não tem autorização para usar o Claude. Recarrega-a e aceita o pedido de acesso para praticar.',
+  sampling_disabled: 'O Claude não está disponível para esta conta.',
+  not_declared: 'Esta versão da app já não pode usar o Claude. Recarrega a página.',
+  capability_disabled: 'O Claude não está disponível nesta vista. Abre a app no claude.ai, no browser ou na app Claude.',
+  capability_removed: 'Esta vista é antiga demais para a app. Atualiza a app Claude ou abre no browser.',
+  rate_limited: 'Chegaste ao limite de utilização do teu plano Claude por agora. Espera um pouco e tenta de novo.',
+  session_expired: 'A tua sessão no claude.ai terminou. Inicia sessão outra vez e volta aqui.',
+  refused: 'O Claude não respondeu a esta mensagem. Tenta dizê-la de outra forma.',
+  empty_completion: 'O Claude não devolveu resposta. Tenta outra vez com uma frase mais curta.',
+  invalid_json: 'A resposta veio num formato inesperado. Tenta outra vez.',
+  prompt_too_large: 'A conversa ficou longa demais. Termina esta sessão e começa outra.',
+  cancelled: 'Resposta cancelada.',
+  upstream_error: 'A ligação ao Claude falhou. Tenta outra vez.',
+};
+const FATAL = new Set(['no_claude', 'not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed']);
+const errCode = e => (e && typeof e.code === 'string' ? e.code : 'upstream_error');
+const errText = e => ERR[errCode(e)] || ERR.upstream_error;
+async function getSample() {
+  const s = await samplePromise;
+  if (!s) throw { code: hasClaude ? 'capability_disabled' : 'no_claude' };
+  return s;
+}
+
+/* ================================================================
+   Prompts
+   ================================================================ */
+const OPENING = 'Start now: open the scene in your role with a short, natural greeting and your first question. "fix" must be null.';
+
+function convoRules(scene, level) {
+  const L = LEVELS[level] || LEVELS.B1;
+  const why = settings.ptHelp
+    ? 'a short reason in European Portuguese (Portugal, never Brazilian Portuguese), at most 15 words'
+    : 'a short reason in simple English, at most 15 words';
+  const lines = [
+    'You are Claude, working as a spoken-English coach through a role-play.',
+    'The learner is Portuguese (from Portugal) and works as an SAP project manager: S/4HANA rollouts, cut-overs, steering committees, international clients.',
+    'This is a voice conversation. Your "say" text is read aloud by a text-to-speech voice, and the learner answers by voice dictation, so ignore missing punctuation, capital letters and obvious dictation slips such as wrong homophones.',
+    '',
+    'Scene: ' + scene.titleEn,
+    'Your role: ' + scene.role,
+    'The learner wants to: ' + scene.aim,
+    'Expressions to encourage (weave them in naturally, never force them): ' + scene.phrases.join(' | '),
+    'Learner level: ' + level + ' (CEFR). ' + L.guide,
+  ];
+  if (scene.review) {
+    lines.push('This is a review session. Work through the target expressions one at a time: set up a short, realistic situation from a project manager\'s day where the expression fits, ask the learner to respond, react briefly, then move on to the next one. If they do not use the expression, show it in "fix" as the better version.');
+  }
+  lines.push(
+    '',
+    'For every reply:',
+    '- "say": stay in your role and keep the scene moving. One to three short spoken sentences, then one clear question or prompt for the learner. Plain spoken English only: no lists, no markdown, no emoji, no stage directions, no translations.',
+    '- "fix": look only at the learner\'s last message. If it contains a mistake that matters (grammar, wrong word, unnatural or Portuguese-sounding phrasing), return {"you": the words they used, "better": the natural way to say it, "why": ' + why + '}. Pick only the single most useful correction. If the message is fine, "fix" is null.',
+    '- If the learner writes in Portuguese or asks how to say something, reply in role in English and use "fix" to give them the English version ("why": ' + (settings.ptHelp ? '"Em inglês diz-se assim."' : '"This is how you say it in English."') + ').',
+    '- If the learner drifts off topic, follow briefly, then steer back to the scene. If they want to stop, close the scene warmly in role.',
+    '',
+    'Reply with only one JSON object and nothing else, in this shape:',
+    '{"say": "...", "fix": null}',
+    'or',
+    '{"say": "...", "fix": {"you": "...", "better": "...", "why": "..."}}'
+  );
+  return lines.join('\n');
+}
+
+const MAX_CONTEXT_TURNS = 30;
+function buildTurns(sess, opening) {
+  const out = [{ role: 'user', content: convoRules(sess.scene, sess.level) + (opening ? '\n\n' + OPENING : '') }];
+  const all = sess.turns;
+  const from = Math.max(0, all.length - MAX_CONTEXT_TURNS);
+  for (let i = from; i < all.length; i++) {
+    const t = all[i];
+    if (t.r === 't') {
+      const prev = all[i - 1];
+      const fix = prev && prev.r === 'm' && prev.f ? prev.f : null;
+      out.push({ role: 'assistant', content: JSON.stringify({ say: t.x, fix }) });
+    } else {
+      out.push({ role: 'user', content: t.x });
+    }
+  }
+  return out;
+}
+
+function hintPrompt(sess, lastSay) {
+  const s = sess.scene;
+  return [
+    'A Portuguese learner of English (CEFR ' + sess.level + '), who works as an SAP project manager, is stuck in a spoken role-play and needs ideas for what to say next.',
+    'Scene: ' + s.titleEn + '. They want to: ' + s.aim + '.',
+    'The other person just said: "' + lastSay + '"',
+    'Suggest 3 different, natural replies they could say out loud next, at most 22 words each, at their level. Where it fits, use expressions like: ' + s.phrases.join(' | ') + '.',
+    'Reply with only JSON: {"options": [{"en": "...", "pt": "tradução em português de Portugal"}]}',
+  ].join('\n');
+}
+
+function reportPrompt(sess) {
+  const s = sess.scene;
+  const lines = sess.turns.map(t => (t.r === 't' ? 'COACH: ' : 'LEARNER: ') + t.x);
+  let transcript = lines.join('\n');
+  if (transcript.length > 40000) transcript = transcript.slice(-40000);
+  const shown = sess.turns.filter(t => t.r === 'm' && t.f).map(t => '- ' + t.f.you + ' -> ' + t.f.better).join('\n');
+  return [
+    'You are an English speaking coach. Below is the transcript of a spoken role-play practice. The learner used voice dictation, so ignore punctuation, capitalisation and obvious dictation slips.',
+    'Learner: Portuguese SAP project manager, CEFR ' + sess.level + '. Scene: ' + s.titleEn + '. Goal: ' + s.aim + '.',
+    '',
+    'Transcript:',
+    transcript,
+    '',
+    shown ? 'Corrections already shown during the session:\n' + shown + '\n' : '',
+    'Write the feedback in European Portuguese (Portugal, never Brazilian Portuguese); English examples stay in English.',
+    'Give 3 to 5 fixes (the most useful across the whole session; prefer repeated patterns) and 5 phrases at their level that fit this scene and that they did not use.',
+    'Reply with only this JSON:',
+    '{"headline": "one sentence on how it went", "went_well": ["2 or 3 specific things they did well"], "fixes": [{"you": "their words", "better": "natural English", "why": "reason, max 15 words"}], "phrases": [{"en": "useful expression", "pt": "tradução"}], "focus": "one thing to practise next time, max 25 words"}',
+  ].join('\n');
+}
+
+function voicePrompt(scene, level) {
+  const L = LEVELS[level] || LEVELS.B1;
+  return [
+    "Let's practise my spoken English in voice mode. You are my English coach and my role-play partner.",
+    "About me: I'm Portuguese and I work as an SAP project manager. My level is " + level + ' (CEFR).',
+    'Scene: ' + scene.titleEn + '. You play ' + scene.role + '.',
+    'My goal: ' + scene.aim + '.',
+    'Help me use these expressions: ' + scene.phrases.join(' | ') + '.',
+    'Rules: stay in role, keep your turns short (one to three sentences) and ask one question at a time. ' + L.guide + ' When I make an important mistake, repeat my sentence the right way, naturally, and carry on. If I get stuck or speak Portuguese, tell me how to say it in English.',
+    'When I say "feedback", step out of the role and give me my three most important corrections and three useful expressions, with short explanations in European Portuguese.',
+    'Start now, in role, with a short greeting and your first question.',
+  ].join('\n');
+}
+
+/* ================================================================
+   Voz do tutor (speechSynthesis do dispositivo)
+   ================================================================ */
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|kathy|ralph|grandma|grandpa/i;
+const tts = {
+  ok: 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function',
+  voices: [],
+  token: 0,
+  unlocked: false,
+  end: null,
+  load() {
+    if (!this.ok) return;
+    try { this.voices = (speechSynthesis.getVoices() || []).filter(v => /^en([-_]|$)/i.test(v.lang || '')); }
+    catch { this.voices = []; }
+  },
+  score(v) {
+    const n = (v.name || '').toLowerCase();
+    const lang = (v.lang || '').replace('_', '-').toLowerCase();
+    let s = 0;
+    if (lang === settings.accent.toLowerCase()) s += 6; else if (lang.startsWith('en')) s += 1;
+    if (/natural|neural|premium|enhanced|online/.test(n)) s += 5;
+    if (/siri/.test(n)) s += 4;
+    if (/google/.test(n)) s += 3;
+    if (NOVELTY.test(n)) s -= 20;
+    if (v.default) s += 0.5;
+    return s;
+  },
+  ranked() { return this.voices.slice().sort((a, b) => this.score(b) - this.score(a)); },
+  pick() {
+    if (settings.voiceURI) { const v = this.voices.find(x => x.voiceURI === settings.voiceURI); if (v) return v; }
+    return this.ranked()[0] || null;
+  },
+  // O iOS só deixa falar depois de um gesto; uma frase muda no 1.º toque desbloqueia o resto.
+  unlock() {
+    if (!this.ok || this.unlocked) return;
+    this.unlocked = true;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch {}
+  },
+  stop() {
+    this.token++;
+    if (this.ok) { try { speechSynthesis.cancel(); } catch {} }
+    const f = this.end; this.end = null;
+    if (f) f();
+  },
+  speak(text, { rate = 1, onstart, onend } = {}) {
+    if (!this.ok || !str(text)) { if (onend) onend(); return; }
+    this.stop();
+    const my = this.token;
+    const parts = chunkSpeech(text);
+    const voice = this.pick();
+    let i = 0;
+    const finish = () => { if (this.end === finish) this.end = null; if (onend) onend(); };
+    this.end = finish;
+    const next = () => {
+      if (my !== this.token) return;
+      if (i >= parts.length) { finish(); return; }
+      const u = new SpeechSynthesisUtterance(parts[i++]);
+      if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = settings.accent; }
+      u.rate = Math.min(1.6, Math.max(0.5, rate));
+      let done = false, dog = 0;
+      const advance = () => { if (done) return; done = true; clearTimeout(dog); next(); };
+      u.onend = advance;
+      u.onerror = advance;
+      // alguns browsers nunca disparam onend: segue em frente ao fim de um tempo razoável
+      dog = setTimeout(() => { if (my === this.token) advance(); }, 5000 + u.text.length * 120 / u.rate);
+      try { speechSynthesis.resume(); speechSynthesis.speak(u); } catch { advance(); }
+    };
+    if (onstart) onstart();
+    setTimeout(next, 60);
+  },
+};
+function chunkSpeech(text) {
+  const clean = str(text).replace(/[*_#`]/g, '').replace(/…/g, '...').replace(/\s+/g, ' ');
+  let sentences;
+  try { sentences = clean.split(new RegExp('(?<=[.!?]["\'”’)\\]]?)\\s+')); } catch { sentences = [clean]; }
+  const out = [];
+  let cur = '';
+  for (const s of sentences) {
+    if (cur && (cur + ' ' + s).length > 180) { out.push(cur); cur = s; }
+    else cur = cur ? cur + ' ' + s : s;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+const speakable = s => str(s).replace(/\s*…\s*/g, ' ').replace(/\s+/g, ' ').trim();
+function baseRate(level) { return settings.rate * ((LEVELS[level || settings.level] || LEVELS.B1).rate); }
+function sayPhrase(text, mul = 1) { tts.unlock(); tts.speak(speakable(text), { rate: baseRate() * mul }); }
+if (tts.ok) {
+  tts.load();
+  try { speechSynthesis.addEventListener('voiceschanged', () => { tts.load(); if (!$('#settings').hidden) renderSettings(); }); } catch {}
+}
+document.addEventListener('pointerdown', () => tts.unlock(), { once: true, capture: true });
+document.addEventListener('keydown', () => tts.unlock(), { once: true, capture: true });
+
+/* ================================================================
+   Diferenças palavra a palavra (o que disseste vs. a versão melhor)
+   ================================================================ */
+const wordKey = w => w.toLowerCase().replace(/[’‘`]/g, "'").replace(/[^\p{L}\p{N}']/gu, '');
+function diffWords(a, b) {
+  const A = str(a).split(/\s+/).filter(Boolean);
+  const B = str(b).split(/\s+/).filter(Boolean);
+  const n = A.length, m = B.length;
+  if (!n || !m || n * m > 40000) return null;
+  const KA = A.map(wordKey), KB = B.map(wordKey);
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = KA[i] === KB[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const ops = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (KA[i] === KB[j]) { ops.push(['=', B[j]]); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push(['-', A[i]]); i++; }
+    else { ops.push(['+', B[j]]); j++; }
+  }
+  while (i < n) ops.push(['-', A[i++]]);
+  while (j < m) ops.push(['+', B[j++]]);
+  return { ops, ratio: dp[0][0] / Math.max(n, m) };
+}
+function diffNode(you, better) {
+  const frag = document.createDocumentFragment();
+  const d = diffWords(you, better);
+  if (!d || d.ratio < 0.34) {
+    frag.append(h('span', { class: 'fix-line', lang: 'en' }, h('ins', null, better)));
+    if (str(you)) frag.append(h('span', { class: 'fix-said' }, 'Disseste: ', h('del', { lang: 'en' }, you)));
+    return frag;
+  }
+  const line = h('span', { class: 'fix-line', lang: 'en' });
+  let dels = [], adds = [];
+  const flush = () => {
+    if (dels.length) line.append(h('del', null, dels.join(' ')), ' ');
+    if (adds.length) line.append(h('ins', null, adds.join(' ')), ' ');
+    dels = []; adds = [];
+  };
+  for (const [op, w] of d.ops) {
+    if (op === '=') { flush(); line.append(w + ' '); }
+    else if (op === '-') dels.push(w);
+    else adds.push(w);
+  }
+  flush();
+  frag.append(line);
+  return frag;
+}
+
+/* ================================================================
+   Dados: caderno e sessões.
+   Na app publicada no claude.ai vão para a base de dados da página
+   (só o dono lê e escreve, sincroniza entre dispositivos). Sem isso,
+   ficam neste dispositivo.
+   ================================================================ */
+const MAX_SESSIONS = 60;
+const data = {
+  db: null,
+  notebook: [],
+  sessions: [],
+  queue: new Map(),
+  migrated: false,
+  get synced() { return !!this.db; },
+  loadLocal() {
+    const nb = store.get('notebook', []);
+    const ss = store.get('sessions', []);
+    this.notebook = Array.isArray(nb) ? nb : [];
+    this.sessions = Array.isArray(ss) ? ss : [];
+  },
+  saveLocal() {
+    store.set('notebook', this.notebook);
+    store.set('sessions', this.sessions.slice(0, 40));
+  },
+  attach(db) {
+    this.db = db;
+    let gotNotes = false, gotSessions = false;
+    const localNotes = this.notebook.slice(), localSessions = this.sessions.slice();
+    const maybeMigrate = () => { if (gotNotes && gotSessions) this.migrate(localNotes, localSessions); };
+    try {
+      db.collection('notebook').orderBy('createdAt', 'desc').limit(1000).onSnapshot(snap => {
+        this.notebook = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+        if (!snap.metadata || !snap.metadata.fromCache) { gotNotes = true; maybeMigrate(); }
+        dataChanged();
+      }, e => { console.warn('[caderno]', e); });
+      db.collection('sessions').orderBy('updatedAt', 'desc').limit(MAX_SESSIONS + 20).onSnapshot(snap => {
+        this.sessions = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+        if (!snap.metadata || !snap.metadata.fromCache) { gotSessions = true; maybeMigrate(); }
+        dataChanged();
+      }, e => { console.warn('[sessões]', e); });
+    } catch (e) {
+      console.warn('[db]', e);
+      this.db = null;
+    }
+    dataChanged();
+  },
+  // O que ficou guardado localmente antes de a base de dados responder passa para lá.
+  async migrate(notes, sessions) {
+    if (this.migrated || !this.db) return;
+    this.migrated = true;
+    const haveN = new Set(this.notebook.map(n => normKey(n.en)));
+    for (const n of notes) {
+      if (haveN.has(normKey(n.en))) continue;
+      try { const { id, ...body } = n; await this.db.doc('notebook/' + (id || uid())).set(body); } catch (e) { this.fail(e); return; }
+    }
+    const haveS = new Set(this.sessions.map(s => s.id));
+    for (const s of sessions) {
+      if (haveS.has(s.id)) continue;
+      try { const { id, ...body } = s; await this.db.doc('sessions/' + id).set(body); } catch (e) { this.fail(e); return; }
+    }
+    store.del('notebook');
+    store.del('sessions');
+  },
+  // Uma escrita recusada (ex.: quem abre não é o dono) volta ao modo local.
+  fail(e) {
+    console.warn('[db] escrita recusada', e);
+    if (errCode(e) === 'invalid_argument' || errCode(e) === 'revoked' || errCode(e) === 'not_granted') {
+      this.db = null;
+      this.loadLocal();
+      dataChanged();
+      toast('Sem acesso à base de dados — a guardar só neste dispositivo');
+    }
+  },
+  hasNote(en) { const k = normKey(en); return !!k && this.notebook.some(n => normKey(n.en) === k); },
+  async addNotes(items) {
+    const seen = new Set(this.notebook.map(n => normKey(n.en)));
+    const fresh = [];
+    for (const it of items) {
+      const en = str(it.en).slice(0, 400);
+      const k = normKey(en);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      fresh.push({
+        id: uid(), en, pt: str(it.pt).slice(0, 400), you: str(it.you).slice(0, 400), why: str(it.why).slice(0, 300),
+        kind: it.kind === 'fix' ? 'fix' : 'phrase', scene: str(it.scene).slice(0, 80), createdAt: Date.now() + fresh.length,
+      });
+    }
+    if (!fresh.length) return 0;
+    if (this.db) {
+      for (const n of fresh) {
+        const { id, ...body } = n;
+        try { await this.db.doc('notebook/' + id).set(body); }
+        catch (e) { this.fail(e); if (!this.db) return this.addNotes(fresh); throw e; }
+      }
+    } else {
+      this.notebook = fresh.slice().reverse().concat(this.notebook);
+      this.saveLocal();
+      dataChanged();
+    }
+    return fresh.length;
+  },
+  async removeNote(id) {
+    if (this.db) {
+      try { await this.db.doc('notebook/' + id).delete(); } catch (e) { this.fail(e); }
+    } else {
+      this.notebook = this.notebook.filter(n => n.id !== id);
+      this.saveLocal();
+      dataChanged();
+    }
+  },
+  sessionBody(s) {
+    return {
+      scene: s.scene, level: s.level, startedAt: s.startedAt, updatedAt: s.updatedAt,
+      ended: !!s.ended, report: s.report || null, turns: s.turns.slice(-120),
+    };
+  },
+  saveSession(s) {
+    const body = this.sessionBody(s);
+    if (this.db) {
+      const db = this.db;
+      const prev = this.queue.get(s.id) || Promise.resolve();
+      const next = prev.then(() => db.doc('sessions/' + s.id).set(body)).catch(e => this.fail(e));
+      this.queue.set(s.id, next);
+      next.then(() => { if (this.queue.get(s.id) === next) this.queue.delete(s.id); this.prune(); });
+    } else {
+      this.sessions = [Object.assign({}, body, { id: s.id })].concat(this.sessions.filter(x => x.id !== s.id))
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 40);
+      this.saveLocal();
+      dataChanged();
+    }
+  },
+  async prune() {
+    if (!this.db || this.sessions.length <= MAX_SESSIONS) return;
+    const old = this.sessions.slice(MAX_SESSIONS);
+    for (const s of old) { try { await this.db.doc('sessions/' + s.id).delete(); } catch { return; } }
+  },
+  async removeSession(id) {
+    if (this.db) {
+      try { await this.db.doc('sessions/' + id).delete(); } catch (e) { this.fail(e); }
+    } else {
+      this.sessions = this.sessions.filter(s => s.id !== id);
+      this.saveLocal();
+      dataChanged();
+    }
+  },
+};
+data.loadLocal();
+
+if (hasClaude) {
+  (async () => {
+    const [db, user] = await Promise.all([
+      window.claude.use('db').catch(() => null),
+      window.claude.use('user').catch(() => null),
+    ]);
+    if (!db) return;
+    let owner = true;
+    if (user) { try { owner = await user.isOwner(); } catch { owner = true; } }
+    if (owner) data.attach(db);
+  })();
+}
+
+/* ================================================================
+   Estado da interface
+   ================================================================ */
+const S = {
+  view: 'practice',
+  mode: 'start',
+  session: null,
+  busy: false,
+  ctl: null,
+  blocked: null,
+  openScene: null,
+  reviewPick: null,
+  nbFilter: 'all',
+  nbIoOpen: false,
+  histOpen: null,
+  confirmDel: null,
+  hintCtl: null,
+  wake: null,
+};
+const E = {
+  main: $('#main'), start: $('#start'), convo: $('#convo'), sceneBar: $('#scene-bar'), transcript: $('#transcript'),
+  notebook: $('#view-notebook'), history: $('#view-history'), composer: $('#composer'), form: $('#form'),
+  input: $('#input'), send: $('#btn-send'), hints: $('#hints'), tip: $('#dictate-tip'), dictate: $('#btn-dictate'),
+  qRepeat: $('#q-repeat'), qSlow: $('#q-slow'), qHint: $('#q-hint'), nbCount: $('#nb-count'), sub: $('#sub'),
+  settings: $('#settings'), sheet: $('#settings-sheet'),
+};
+
+function dataChanged() {
+  E.nbCount.textContent = String(data.notebook.length);
+  if (S.view === 'practice' && S.mode === 'start') renderStart();
+  if (S.view === 'notebook') renderNotebook();
+  if (S.view === 'history') renderHistory();
+}
+function renderStartIfVisible() { if (S.view === 'practice' && S.mode === 'start') renderStart(); }
+
+/* ---------- datas ---------- */
+const fmtDay = new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+const fmtShort = new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short' });
+const fmtTime = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit' });
+const dayKey = t => { const d = new Date(t); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); };
+function ago(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return 'agora mesmo';
+  if (m < 60) return 'há ' + m + ' min';
+  const hr = Math.round(m / 60);
+  if (hr < 24) return 'há ' + hr + ' h';
+  if (hr < 48) return 'ontem';
+  return fmtShort.format(new Date(t));
+}
+const learnerCount = s => (s && Array.isArray(s.turns) ? s.turns.filter(t => t.r === 'm').length : 0);
+function streak() {
+  const days = new Set(data.sessions.filter(s => learnerCount(s) >= 2).map(s => dayKey(s.startedAt)));
+  const d = new Date();
+  if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (days.has(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+
+/* ================================================================
+   Navegação
+   ================================================================ */
+function setView(v) {
+  S.view = v;
+  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v));
+  $('#view-practice').hidden = v !== 'practice';
+  E.notebook.hidden = v !== 'notebook';
+  E.history.hidden = v !== 'history';
+  if (v !== 'practice') tts.stop();
+  if (v === 'practice') { if (S.mode === 'start') renderStart(); }
+  if (v === 'notebook') renderNotebook();
+  if (v === 'history') renderHistory();
+  updateComposer();
+  E.main.scrollTop = v === 'practice' && S.mode === 'convo' ? E.main.scrollHeight : 0;
+}
+for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => setView(t.dataset.view));
+
+function renderSub() {
+  const lvl = settings.level;
+  E.sub.textContent = 'Nível ' + lvl + ' · ' + (hasClaude ? 'usa a tua conta Claude, sem custos extra' : 'abre no claude.ai para praticar');
+}
+
+/* ================================================================
+   Ecrã inicial: nível, resumo e agenda de conversas
+   ================================================================ */
+function levelSeg(onChange) {
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Nível de inglês' });
+  for (const k of Object.keys(LEVELS)) {
+    seg.append(h('button', {
+      type: 'button', 'aria-pressed': String(settings.level === k), title: LEVELS[k].name,
+      onclick: () => { settings.level = k; saveSettings(); renderSub(); if (onChange) onChange(); },
+    }, k));
+  }
+  return seg;
+}
+
+function statusNotice() {
+  if (!hasClaude) {
+    return h('div', { class: 'notice warn', role: 'note' }, h('span', null,
+      h('b', null, 'Abre esta app no claude.ai. '),
+      'O tutor usa o Claude da tua conta (plano Max) e só responde quando a página está aberta no claude.ai, no browser ou na app Claude. Aqui podes ver o caderno e ouvir frases.'));
+  }
+  if (S.blocked) return h('div', { class: 'notice warn', role: 'alert' }, h('span', null, errText({ code: S.blocked })));
+  if (sampleResolved && !sampleFn) return h('div', { class: 'notice warn', role: 'note' }, h('span', null, ERR.capability_disabled));
+  return null;
+}
+
+function currentResumable() {
+  const s = S.session;
+  return s && !s.ended && learnerCount(s) >= 1 ? s : null;
+}
+
+function renderStart() {
+  renderSub();
+  const root = E.start;
+  root.textContent = '';
+  const notice = statusNotice();
+  if (notice) root.append(notice);
+
+  const sessions = data.sessions;
+  const today = h('div', { class: 'today' },
+    h('p', { class: 'dateline' }, fmtDay.format(new Date())),
+    h('div', { class: 'level-row' }, h('span', { class: 'lbl' }, 'Nível'), levelSeg(renderStart),
+      h('span', { class: 'level-name' }, LEVELS[settings.level].name)),
+    h('p', { class: 'stats' },
+      h('span', null, h('b', null, String(sessions.length)), sessions.length === 1 ? ' sessão' : ' sessões'),
+      h('span', null, h('b', null, String(data.notebook.length)), data.notebook.length === 1 ? ' frase no caderno' : ' frases no caderno'),
+      h('span', null, h('b', null, String(streak())), ' dias seguidos'),
+      h('span', null, data.synced ? 'sincronizado entre dispositivos' : 'guardado neste dispositivo')));
+  root.append(today);
+
+  const resumable = currentResumable();
+  if (resumable) {
+    root.append(h('div', { class: 'resume' },
+      h('span', { class: 'eyebrow' }, 'Conversa a meio · ' + ago(resumable.updatedAt)),
+      h('p', { class: 'resume-title' }, resumable.scene.title + ' — ' + plural(learnerCount(resumable), 'resposta tua', 'respostas tuas')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn dark small', type: 'button', onclick: () => openConvo() }, 'Continuar'),
+        learnerCount(resumable) >= 2 ? h('button', { class: 'btn small', type: 'button', onclick: () => { openConvo(); endSession(); } }, 'Terminar e avaliar') : null,
+        h('button', { class: 'btn small', type: 'button', onclick: () => { closeSession(); renderStart(); } }, 'Descartar'))));
+  }
+
+  root.append(h('span', { class: 'eyebrow' }, 'Agenda de conversas'));
+  const list = h('ol', { class: 'agenda' });
+  const scenes = SCENES.slice();
+  if (data.notebook.length >= 3) scenes.push(REVIEW_META);
+  for (const sc of scenes) list.append(sceneItem(sc));
+  root.append(list);
+
+  root.append(h('details', { class: 'howto' },
+    h('summary', null, icon('mic'), 'Como falar em vez de escrever'),
+    h('ul', null,
+      h('li', null, 'O claude.ai não dá acesso ao microfone a estas páginas, por isso usa o ditado do teu dispositivo com o cursor na caixa de resposta.'),
+      h('li', null, h('b', null, 'iPhone/iPad: '), 'toca no microfone do teclado. Para ditar em inglês, junta o teclado English (Definições › Geral › Teclado › Teclados) e muda para ele com a tecla do globo.'),
+      h('li', null, h('b', null, 'Android: '), 'toca no microfone do Gboard; junta English às línguas de ditado.'),
+      h('li', null, h('b', null, 'Mac: '), 'carrega duas vezes na tecla do microfone (ou Fn). A língua escolhe-se em Definições do Sistema › Teclado › Ditado.'),
+      h('li', null, h('b', null, 'Windows: '), 'carrega em Win + H, com o idioma de entrada em inglês.'),
+      h('li', null, 'Liga «Enviar sozinho» nas definições para responder só com a voz: a resposta segue 3 segundos depois de parares de falar.'))));
+}
+
+function sceneItem(sc) {
+  const open = S.openScene === sc.id;
+  const li = h('li', { class: 'scene' + (open ? ' open' : '') });
+  li.append(h('button', {
+    class: 'scene-head', type: 'button', 'aria-expanded': String(open),
+    onclick: () => {
+      S.openScene = open ? null : sc.id;
+      if (!open && sc.review) S.reviewPick = pickReview();
+      renderStart();
+    },
+  },
+  h('span', { class: 'slot' }, h('b', null, String(sc.mins)), 'min'),
+  h('span', { class: 'scene-main' }, h('span', { class: 'scene-title' }, sc.title), h('span', { class: 'scene-who' }, sc.who)),
+  h('span', { class: 'chev' }, icon('chev'))));
+  if (open) li.append(sceneBrief(sc));
+  return li;
+}
+
+function pickReview() {
+  const pool = data.notebook.slice(0, 40).map(n => [Math.random(), n]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  return pool.slice(0, 6);
+}
+function resolveScene(sc) {
+  if (!sc.review) return sc;
+  const items = S.reviewPick && S.reviewPick.length ? S.reviewPick : pickReview();
+  return Object.assign({}, sc, { phrases: items.map(n => n.en), phraseItems: items });
+}
+
+function sceneBrief(sc) {
+  const scene = resolveScene(sc);
+  const box = h('div', { class: 'brief' });
+  box.append(h('p', { class: 'brief-goal' }, scene.goal));
+  const ul = h('ul', { class: 'phrases', 'aria-label': 'Frases a usar' });
+  const items = scene.phraseItems || scene.phrases.map(en => ({ en }));
+  for (const it of items) {
+    ul.append(h('li', null,
+      h('button', { class: 'round', type: 'button', 'aria-label': 'Ouvir: ' + it.en, onclick: () => sayPhrase(it.en) }, icon('play')),
+      h('span', { lang: 'en' }, h('span', { class: 'hl' }, it.en), it.pt ? h('span', { class: 'pt', lang: 'pt-PT' }, it.pt) : null)));
+  }
+  box.append(h('div', null, h('span', { class: 'eyebrow' }, sc.review ? 'Do teu caderno' : 'Frases a usar'), ul));
+
+  const canStart = hasClaude && !S.blocked && !(sampleResolved && !sampleFn);
+  const prompt = voicePrompt(scene, settings.level);
+  box.append(h('div', { class: 'row' },
+    h('button', { class: 'btn primary', type: 'button', disabled: !canStart, onclick: () => startSession(scene) }, 'Começar conversa'),
+    h('a', {
+      class: 'btn', href: 'https://claude.ai/new?q=' + encodeURIComponent(prompt), target: '_blank', rel: 'noopener',
+      onclick: () => copyText(prompt),
+    }, icon('ext'), 'Com a voz do Claude')));
+  box.append(h('p', { class: 'voice-note' },
+    '«Com a voz do Claude» copia o guião desta cena e abre uma conversa nova no Claude. Se o texto não aparecer, cola-o e envia; depois toca no botão de voz. Assim falas com a voz real do Claude e com o microfone, também sem custos extra no plano Max.'));
+  return box;
+}
+
+/* ================================================================
+   Conversa
+   ================================================================ */
+function whoShort(sess) { return str((sess || S.session).scene.who).split('·')[0].trim() || 'Tutor'; }
+
+function startSession(scene) {
+  tts.unlock();
+  if (S.session && !S.session.ended && learnerCount(S.session) >= 1) data.saveSession(S.session);
+  const snap = {
+    id: scene.id, title: scene.title, titleEn: scene.titleEn, who: scene.who, role: scene.role,
+    aim: scene.aim, goal: scene.goal, phrases: scene.phrases.slice(0, 8), review: !!scene.review,
+  };
+  S.session = { id: uid(), scene: snap, level: settings.level, startedAt: Date.now(), updatedAt: Date.now(), turns: [], report: null, ended: false };
+  S.openScene = null;
+  saveCurrent();
+  openConvo();
+  askTutor(true);
+}
+
+function openConvo() {
+  if (!S.session) return;
+  S.mode = 'convo';
+  $('#start').hidden = true;
+  E.convo.hidden = false;
+  if (S.view !== 'practice') setView('practice');
+  renderSceneBar();
+  renderTranscript();
+  updateComposer();
+  wakeOn();
+}
+
+function leaveConvo() {
+  tts.stop();
+  if (S.ctl) S.ctl.abort();
+  hideHints();
+  S.mode = 'start';
+  E.convo.hidden = true;
+  $('#start').hidden = false;
+  wakeOff();
+  renderStart();
+  updateComposer();
+  E.main.scrollTop = 0;
+}
+
+function closeSession() {
+  S.session = null;
+  store.del('current');
+  S.blocked = S.blocked && FATAL.has(S.blocked) ? S.blocked : null;
+}
+
+function saveCurrent() { if (S.session) store.set('current', S.session); }
+function persist() {
+  const s = S.session;
+  if (!s) return;
+  s.updatedAt = Date.now();
+  saveCurrent();
+  if (learnerCount(s) >= 1 || s.report) data.saveSession(s);
+}
+
+function renderSceneBar() {
+  const s = S.session;
+  E.sceneBar.textContent = '';
+  E.sceneBar.append(
+    h('button', { class: 'round', type: 'button', 'aria-label': 'Voltar à agenda', onclick: leaveConvo }, icon('back')),
+    h('div', null, h('div', { class: 't' }, s.scene.title), h('div', { class: 's' }, s.scene.who + ' · ' + s.level)),
+    s.ended ? h('span') : h('button', { class: 'btn small', type: 'button', onclick: endSession }, 'Terminar'));
+}
+
+function renderTranscript() {
+  const s = S.session;
+  E.transcript.textContent = '';
+  s.turns.forEach((t, i) => E.transcript.append(turnNode(t, i)));
+  if (s.report) E.transcript.append(reportNode(s.report, s, null));
+  if (s.ended) E.transcript.append(endActions(s));
+  scrollBottom(true);
+}
+
+function turnNode(t, i) {
+  if (t.r === 't') {
+    return h('div', { class: 'msg tutor', 'data-i': i },
+      h('span', { class: 'who' }, whoShort()),
+      h('p', { class: 'bubble', lang: 'en' }, t.x),
+      h('div', { class: 'msg-tools' },
+        h('button', { class: 'chip', type: 'button', onclick: () => speakTurn(i) }, icon('play'), 'Ouvir'),
+        h('button', { class: 'chip', type: 'button', 'aria-label': 'Ouvir mais devagar', onclick: () => speakTurn(i, 0.75) }, '0,75×'),
+        bars()));
+  }
+  const wrap = h('div', { class: 'msg me', 'data-i': i }, h('p', { class: 'bubble', lang: 'en' }, t.x));
+  if (t.f) wrap.append(fixNode(t.f, S.session.scene.title));
+  return wrap;
+}
+
+function fixNode(f, sceneTitle) {
+  const card = h('div', { class: 'fix' }, h('span', { class: 'fix-label' }, 'Melhor assim'), diffNode(f.you, f.better));
+  if (f.why) card.append(h('span', { class: 'fix-why' }, f.why));
+  const saved = data.hasNote(f.better);
+  const save = h('button', { class: 'chip' + (saved ? ' done' : ''), type: 'button', disabled: saved }, icon(saved ? 'check' : 'save'), saved ? 'No caderno' : 'Guardar');
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    try {
+      await data.addNotes([{ kind: 'fix', en: f.better, you: f.you, why: f.why, scene: sceneTitle }]);
+      save.className = 'chip done';
+      save.textContent = '';
+      save.append(icon('check'), 'No caderno');
+    } catch { save.disabled = false; toast('Não consegui guardar. Tenta outra vez.'); }
+  });
+  card.append(h('div', { class: 'msg-tools' },
+    h('button', { class: 'chip', type: 'button', onclick: () => sayPhrase(f.better) }, icon('play'), 'Ouvir'), save));
+  return card;
+}
+
+function speakTurn(i, mul = 1) {
+  const s = S.session;
+  const t = s && s.turns[i];
+  if (!t) return;
+  tts.unlock();
+  const node = E.transcript.querySelector('.msg[data-i="' + i + '"]');
+  tts.speak(t.x, {
+    rate: baseRate(s.level) * mul,
+    onstart: () => { for (const n of E.transcript.querySelectorAll('.speaking')) n.classList.remove('speaking'); if (node) node.classList.add('speaking'); },
+    onend: () => { if (node) node.classList.remove('speaking'); },
+  });
+}
+function lastTutorIndex(s) { for (let i = s.turns.length - 1; i >= 0; i--) if (s.turns[i].r === 't') return i; return -1; }
+
+function scrollBottom(force) {
+  requestAnimationFrame(() => {
+    const m = E.main;
+    if (force || m.scrollHeight - m.scrollTop - m.clientHeight < 200) m.scrollTop = m.scrollHeight;
+  });
+}
+
+function clearInlineError() { const e = $('#inline-err'); if (e) e.remove(); }
+function showInlineError(err, retry) {
+  clearInlineError();
+  const code = errCode(err);
+  const box = h('div', { class: 'inline-err', id: 'inline-err', role: 'alert' }, h('span', null, errText(err)));
+  if (retry && !FATAL.has(code)) {
+    box.append(h('button', { class: 'btn small', type: 'button', onclick: () => { clearInlineError(); retry(); } }, code === 'cancelled' ? 'Pedir resposta' : 'Tentar de novo'));
+  }
+  E.transcript.append(box);
+  if (FATAL.has(code)) { S.blocked = code; }
+  updateComposer();
+  scrollBottom(true);
+}
+
+function normalizeReply(o) {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+  const say = str(o.say || o.reply || o.text).replace(/[*_#`]/g, '').replace(/\s+/g, ' ').trim();
+  if (!say) return null;
+  let fix = null;
+  const f = o.fix;
+  if (f && typeof f === 'object' && str(f.better)) {
+    fix = { you: str(f.you).slice(0, 500), better: str(f.better).slice(0, 500), why: str(f.why).slice(0, 300) };
+    if (normKey(fix.you) === normKey(fix.better)) fix = null;
+  }
+  return { say, fix };
+}
+// Se o JSON vier estragado, aproveita pelo menos a fala.
+function salvage(raw) {
+  raw = str(raw);
+  if (!raw) return null;
+  const m = raw.match(/"say"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (m) { try { return normalizeReply({ say: JSON.parse('"' + m[1] + '"') }); } catch {} }
+  if (!/[{}]/.test(raw)) return normalizeReply({ say: raw });
+  return null;
+}
+
+function typingNode() {
+  const stop = h('button', { class: 'chip', type: 'button', hidden: true, onclick: () => { if (S.ctl) S.ctl.abort(); } }, 'Parar');
+  setTimeout(() => { stop.hidden = false; }, 5000);
+  return h('div', { class: 'msg tutor', id: 'typing' },
+    h('span', { class: 'who' }, whoShort()),
+    h('div', { class: 'bubble', 'aria-label': 'A pensar' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i'))),
+    h('div', { class: 'msg-tools' }, stop));
+}
+
+async function askTutor(opening) {
+  const sess = S.session;
+  if (!sess || S.busy || sess.ended) return;
+  clearInlineError();
+  S.busy = true;
+  updateComposer();
+  const typing = typingNode();
+  E.transcript.append(typing);
+  scrollBottom(true);
+  const ctl = new AbortController();
+  S.ctl = ctl;
+  let reply = null, err = null;
+  try {
+    const sample = await getSample();
+    const out = await sample.json(buildTurns(sess, opening), { modelTier: settings.tier, cache: false, signal: ctl.signal });
+    reply = normalizeReply(out);
+    if (!reply) err = { code: 'invalid_json' };
+  } catch (e) {
+    if (errCode(e) === 'invalid_json') reply = salvage(e && e.text);
+    if (!reply) err = e;
+  } finally {
+    typing.remove();
+    S.busy = false;
+    if (S.ctl === ctl) S.ctl = null;
+  }
+  if (S.session !== sess) return;
+  if (reply) {
+    const last = sess.turns[sess.turns.length - 1];
+    if (!opening && last && last.r === 'm' && reply.fix) {
+      last.f = reply.fix;
+      const node = E.transcript.querySelector('.msg[data-i="' + (sess.turns.length - 1) + '"]');
+      if (node) node.append(fixNode(reply.fix, sess.scene.title));
+    }
+    sess.turns.push({ r: 't', x: reply.say });
+    const idx = sess.turns.length - 1;
+    E.transcript.append(turnNode(sess.turns[idx], idx));
+    persist();
+    scrollBottom(true);
+    if (settings.autoSpeak && S.view === 'practice' && S.mode === 'convo' && document.visibilityState === 'visible') speakTurn(idx);
+    if (!isTouch && S.mode === 'convo') E.input.focus({ preventScroll: true });
+  } else {
+    showInlineError(err, () => askTutor(opening));
+  }
+  updateComposer();
+}
+
+function sendLearner(text) {
+  text = str(text);
+  const sess = S.session;
+  if (!text || !sess || S.busy || sess.ended || S.blocked) return;
+  tts.stop();
+  tts.unlock();
+  hideHints();
+  clearInlineError();
+  sess.turns.push({ r: 'm', x: text.slice(0, 2000) });
+  const idx = sess.turns.length - 1;
+  E.transcript.append(turnNode(sess.turns[idx], idx));
+  E.input.value = '';
+  autosize();
+  persist();
+  scrollBottom(true);
+  askTutor(false);
+}
+
+async function endSession() {
+  const sess = S.session;
+  if (!sess || sess.ended) return;
+  tts.stop();
+  if (S.ctl) S.ctl.abort();
+  hideHints();
+  clearInlineError();
+  sess.ended = true;
+  persist();
+  renderSceneBar();
+  updateComposer();
+  wakeOff();
+  if (learnerCount(sess) >= 2) {
+    const mount = h('div');
+    E.transcript.append(mount);
+    scrollBottom(true);
+    await runReport(sess, mount);
+  } else {
+    E.transcript.append(h('p', { class: 'notice' }, 'Conversa terminada. Com pelo menos duas respostas tuas, o Claude faz uma avaliação no fim.'));
+  }
+  if (S.session === sess) { E.transcript.append(endActions(sess)); scrollBottom(true); }
+}
+
+function endActions(sess) {
+  const scene = sess.scene;
+  return h('div', { class: 'end-actions' },
+    h('button', { class: 'btn dark', type: 'button', onclick: () => { closeSession(); leaveConvo(); } }, 'Voltar à agenda'),
+    scene.review ? null : h('button', { class: 'btn', type: 'button', onclick: () => { const sc = SCENES.find(x => x.id === scene.id); if (sc) startSession(sc); } }, 'Repetir esta cena'));
+}
+
+function normalizeReport(o) {
+  if (!o || typeof o !== 'object') return null;
+  const arr = v => (Array.isArray(v) ? v : []);
+  const rep = {
+    headline: str(o.headline),
+    went_well: arr(o.went_well).map(str).filter(Boolean).slice(0, 4),
+    fixes: arr(o.fixes).map(f => ({ you: str(f && f.you), better: str(f && f.better), why: str(f && f.why) })).filter(f => f.better).slice(0, 6),
+    phrases: arr(o.phrases).map(p => ({ en: str(p && p.en), pt: str(p && p.pt) })).filter(p => p.en).slice(0, 6),
+    focus: str(o.focus),
+  };
+  return rep.headline || rep.fixes.length || rep.phrases.length ? rep : null;
+}
+
+async function runReport(sess, mount) {
+  const ctl = new AbortController();
+  const pending = h('div', { class: 'report' },
+    h('span', { class: 'eyebrow' }, 'Avaliação da sessão'),
+    h('p', null, h('span', { class: 'dots' }, h('i'), h('i'), h('i')), ' O Claude está a rever a conversa. Pode demorar até um minuto.'),
+    h('div', null, h('button', { class: 'btn small', type: 'button', onclick: () => ctl.abort() }, 'Cancelar')));
+  mount.textContent = '';
+  mount.append(pending);
+  try {
+    const sample = await getSample();
+    const out = await sample.json(reportPrompt(sess), { modelTier: 'default', signal: ctl.signal });
+    const rep = normalizeReport(out);
+    if (!rep) throw { code: 'invalid_json' };
+    sess.report = rep;
+    if (S.session === sess) persist(); else data.saveSession(sess);
+    let saved = 0;
+    try {
+      saved = await data.addNotes([
+        ...rep.fixes.map(f => ({ kind: 'fix', en: f.better, you: f.you, why: f.why, scene: sess.scene.title })),
+        ...rep.phrases.map(p => ({ kind: 'phrase', en: p.en, pt: p.pt, scene: sess.scene.title })),
+      ]);
+    } catch { saved = -1; }
+    mount.textContent = '';
+    mount.append(reportNode(rep, sess, saved));
+    return true;
+  } catch (e) {
+    mount.textContent = '';
+    mount.append(h('div', { class: 'inline-err', role: 'alert' },
+      h('span', null, errCode(e) === 'cancelled' ? 'Avaliação cancelada.' : errText(e)),
+      FATAL.has(errCode(e)) ? null : h('button', { class: 'btn small', type: 'button', onclick: () => runReport(sess, mount) }, 'Avaliar agora')));
+    return false;
+  }
+}
+
+function reportNode(rep, sess, saved) {
+  const box = h('section', { class: 'report', 'aria-label': 'Avaliação da sessão' },
+    h('span', { class: 'eyebrow' }, 'Avaliação da sessão'),
+    h('h3', null, rep.headline || 'Sessão terminada'));
+  if (rep.went_well.length) box.append(h('h4', null, 'Correu bem'), h('ul', null, rep.went_well.map(x => h('li', null, x))));
+  if (rep.fixes.length) box.append(h('h4', null, 'A corrigir'), rep.fixes.map(f => fixNode(f, sess.scene.title)));
+  if (rep.phrases.length) {
+    box.append(h('h4', null, 'Frases para a próxima'), h('ul', { class: 'phrases' }, rep.phrases.map(p => h('li', null,
+      h('button', { class: 'round', type: 'button', 'aria-label': 'Ouvir: ' + p.en, onclick: () => sayPhrase(p.en) }, icon('play')),
+      h('span', { lang: 'en' }, h('span', { class: 'hl' }, p.en), p.pt ? h('span', { class: 'pt', lang: 'pt-PT' }, p.pt) : null)))));
+  }
+  if (rep.focus) box.append(h('h4', null, 'Foco para a próxima vez'), h('p', null, rep.focus));
+  if (saved != null) {
+    box.append(h('p', { class: 'saved-note' }, saved > 0 ? 'Guardei ' + plural(saved, 'frase nova', 'frases novas') + ' no teu caderno.'
+      : saved === 0 ? 'Estas frases já estavam no teu caderno.' : 'Não consegui guardar as frases no caderno.'));
+  }
+  return box;
+}
+
+/* ---------- ideias para responder ---------- */
+function hideHints() {
+  if (S.hintCtl) { S.hintCtl.abort(); S.hintCtl = null; }
+  E.hints.hidden = true;
+  E.hints.textContent = '';
+}
+async function showHints() {
+  const sess = S.session;
+  if (!sess || sess.ended) return;
+  const li = lastTutorIndex(sess);
+  if (li < 0) return;
+  if (!E.hints.hidden) { hideHints(); return; }
+  const ctl = new AbortController();
+  S.hintCtl = ctl;
+  const head = h('div', { class: 'hints-head' }, h('span', { class: 'eyebrow' }, 'Ideias para responder'),
+    h('button', { class: 'round', type: 'button', 'aria-label': 'Fechar ideias', onclick: hideHints }, icon('close')));
+  E.hints.textContent = '';
+  E.hints.append(head, h('p', { class: 'muted' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i'))));
+  E.hints.hidden = false;
+  try {
+    const sample = await getSample();
+    const out = await sample.json(hintPrompt(sess, sess.turns[li].x), { modelTier: 'quick', signal: ctl.signal });
+    const opts = (out && Array.isArray(out.options) ? out.options : []).map(o => ({ en: str(o && o.en), pt: str(o && o.pt) })).filter(o => o.en).slice(0, 3);
+    if (!opts.length) throw { code: 'invalid_json' };
+    if (S.hintCtl !== ctl) return;
+    E.hints.textContent = '';
+    E.hints.append(head);
+    for (const o of opts) {
+      E.hints.append(h('div', { class: 'hint' },
+        h('span', { class: 'hint-en', lang: 'en' }, o.en),
+        o.pt ? h('span', { class: 'hint-pt' }, o.pt) : h('span'),
+        h('div', { class: 'row' },
+          h('button', { class: 'round', type: 'button', 'aria-label': 'Ouvir: ' + o.en, onclick: () => sayPhrase(o.en) }, icon('play')),
+          h('button', { class: 'chip', type: 'button', onclick: () => { E.input.value = o.en; autosize(); hideHints(); E.input.focus(); } }, 'Usar'))));
+    }
+    E.hints.append(h('p', { class: 'hint-pt' }, 'Dica: ouve, repete em voz alta e só depois dita a tua versão.'));
+  } catch (e) {
+    if (S.hintCtl !== ctl || errCode(e) === 'cancelled') return;
+    E.hints.textContent = '';
+    E.hints.append(head, h('p', { class: 'muted' }, errText(e)));
+  } finally {
+    if (S.hintCtl === ctl) S.hintCtl = null;
+  }
+}
+
+/* ---------- compositor ---------- */
+function updateComposer() {
+  const s = S.session;
+  const show = S.view === 'practice' && S.mode === 'convo' && !!s && !s.ended;
+  E.composer.hidden = !show;
+  if (!show) return;
+  const hasTutor = lastTutorIndex(s) >= 0;
+  E.send.disabled = S.busy || !!S.blocked;
+  E.qRepeat.disabled = !hasTutor;
+  E.qSlow.disabled = !hasTutor;
+  E.qHint.disabled = !hasTutor || !!S.blocked;
+}
+function autosize() {
+  E.input.style.height = 'auto';
+  E.input.style.height = Math.min(E.input.scrollHeight, 160) + 'px';
+}
+function dictationTip() {
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'No iPhone/iPad: toca no microfone do teclado e fala. Para ditar em inglês, muda para o teclado English com a tecla do globo.';
+  if (/Android/i.test(ua)) return 'No Android: toca no microfone do teclado (Gboard) e fala. Junta English às línguas de ditado do Gboard.';
+  if (/Macintosh|Mac OS/i.test(ua)) return 'No Mac: carrega duas vezes na tecla do microfone (ou Fn) e fala. A língua do ditado muda-se em Definições do Sistema › Teclado.';
+  if (/Windows/i.test(ua)) return 'No Windows: carrega em Win + H e fala, com o idioma de entrada em inglês.';
+  return 'Usa o ditado do teu sistema (tecla ou botão de microfone) com o cursor nesta caixa.';
+}
+
+let autoTimer = 0;
+E.form.addEventListener('submit', e => { e.preventDefault(); clearTimeout(autoTimer); sendLearner(E.input.value); });
+E.input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); clearTimeout(autoTimer); sendLearner(E.input.value); }
+});
+E.input.addEventListener('input', () => {
+  autosize();
+  if (tts.end) tts.stop(); // não deixes o ditado apanhar a voz do tutor
+  clearTimeout(autoTimer);
+  if (settings.autoSend && str(E.input.value)) {
+    const fire = () => {
+      if (!str(E.input.value)) return;
+      if (S.busy) { autoTimer = setTimeout(fire, 1000); return; }
+      sendLearner(E.input.value);
+    };
+    autoTimer = setTimeout(fire, 3000);
+  }
+});
+E.dictate.addEventListener('click', () => {
+  const open = E.tip.hidden;
+  E.tip.hidden = !open;
+  E.tip.textContent = dictationTip();
+  E.dictate.setAttribute('aria-expanded', String(open));
+  E.input.focus();
+});
+E.qRepeat.addEventListener('click', () => { const i = lastTutorIndex(S.session); if (i >= 0) speakTurn(i); });
+E.qSlow.addEventListener('click', () => { const i = lastTutorIndex(S.session); if (i >= 0) speakTurn(i, 0.75); });
+E.qHint.addEventListener('click', showHints);
+
+/* ---------- ecrã sempre ligado durante a conversa ---------- */
+async function wakeOn() {
+  if (S.wake || !('wakeLock' in navigator)) return;
+  try {
+    const lock = await navigator.wakeLock.request('screen');
+    S.wake = lock;
+    lock.addEventListener('release', () => { if (S.wake === lock) S.wake = null; });
+  } catch { S.wake = null; }
+}
+function wakeOff() { const l = S.wake; S.wake = null; if (l) { try { l.release(); } catch {} } }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { tts.stop(); return; }
+  if (S.mode === 'convo' && S.session && !S.session.ended) wakeOn();
+});
+
+/* ================================================================
+   Caderno
+   ================================================================ */
+const EXAMPLES = [
+  { kind: 'fix', en: "I've been working on this project since March.", you: 'I am working in this project since March.', why: 'Ação que começou no passado e continua: present perfect continuous.' },
+  { kind: 'phrase', en: "Let's take this offline.", pt: 'Vamos falar disto fora da reunião.' },
+  { kind: 'phrase', en: 'Can we put a date on that?', pt: 'Conseguimos pôr uma data nisso?' },
+];
+
+function noteRow(n, example) {
+  const confirming = S.confirmDel === n.id;
+  const tools = h('div', { class: 'note-tools' },
+    h('button', { class: 'round', type: 'button', 'aria-label': 'Ouvir: ' + n.en, onclick: () => sayPhrase(n.en) }, icon('play')));
+  if (!example) {
+    tools.append(confirming
+      ? h('button', { class: 'chip danger', type: 'button', onclick: () => { S.confirmDel = null; data.removeNote(n.id); } }, 'Apagar?')
+      : h('button', { class: 'round', type: 'button', 'aria-label': 'Apagar do caderno', onclick: () => { S.confirmDel = n.id; renderNotebook(); } }, icon('trash')));
+  }
+  const li = h('li', { class: 'note' }, h('span', { class: 'note-en', lang: 'en' }, h('span', { class: 'hl' }, n.en)));
+  if (n.kind === 'fix' && n.you) li.append(h('span', { class: 'note-pt' }, 'Disseste: ', h('del', { lang: 'en' }, n.you), n.why ? ' — ' + n.why : ''));
+  else if (n.pt || n.why) li.append(h('span', { class: 'note-pt' }, n.pt || n.why));
+  li.append(h('span', { class: 'note-meta' },
+    example ? h('span', { class: 'tag ex' }, 'Exemplo') : h('span', { class: 'tag' + (n.kind === 'fix' ? ' fix-tag' : '') }, n.kind === 'fix' ? 'Correção' : 'Expressão'),
+    n.scene ? h('span', null, n.scene) : null,
+    n.createdAt ? h('span', null, ago(n.createdAt)) : null));
+  li.append(tools);
+  return li;
+}
+
+function renderNotebook() {
+  const root = E.notebook;
+  const keep = {};
+  for (const id of ['add-en', 'add-pt', 'import-text']) { const f = $('#' + id); if (f) keep[id] = f.value; }
+  const focusId = document.activeElement && root.contains(document.activeElement) ? document.activeElement.id : '';
+  root.textContent = '';
+  const all = data.notebook;
+  const shown = all.filter(n => S.nbFilter === 'all' || n.kind === S.nbFilter);
+  const filter = h('div', { class: 'seg', role: 'group', 'aria-label': 'Filtrar' });
+  for (const [k, label] of [['all', 'Tudo'], ['fix', 'Correções'], ['phrase', 'Expressões']]) {
+    filter.append(h('button', { type: 'button', 'aria-pressed': String(S.nbFilter === k), onclick: () => { S.nbFilter = k; renderNotebook(); } }, label));
+  }
+  root.append(h('div', { class: 'list-head' },
+    h('h2', null, 'Caderno'),
+    h('div', { class: 'row' }, filter)));
+
+  if (!all.length) {
+    root.append(h('div', { class: 'empty' },
+      h('p', null, 'O caderno enche-se sozinho: as correções e frases úteis de cada avaliação vêm para aqui, e podes guardar qualquer correção durante a conversa. Com 3 ou mais frases aparece a cena «Rever o meu caderno».'),
+      h('p', null, 'Assim ficam as entradas:')));
+    root.append(h('ul', { class: 'notes' }, EXAMPLES.map(n => noteRow(n, true))));
+  } else {
+    if (all.length >= 3) {
+      root.append(h('div', { class: 'row' },
+        h('button', { class: 'btn primary small', type: 'button', disabled: !hasClaude, onclick: () => { S.reviewPick = pickReview(); startSession(resolveScene(REVIEW_META)); } }, 'Praticar estas frases numa conversa'),
+        h('span', { class: 'muted' }, plural(all.length, 'frase', 'frases'))));
+    }
+    if (!shown.length) root.append(h('p', { class: 'empty' }, 'Nada neste filtro.'));
+    root.append(h('ul', { class: 'notes' }, shown.map(n => noteRow(n, false))));
+  }
+
+  // acrescentar à mão, importar e exportar
+  const en = h('input', { type: 'text', id: 'add-en', placeholder: "Em inglês — ex.: Let's take this offline", lang: 'en', autocomplete: 'off' });
+  const pt = h('input', { type: 'text', id: 'add-pt', placeholder: 'Tradução (opcional)', autocomplete: 'off' });
+  const addBtn = h('button', { class: 'btn small dark', type: 'button' }, 'Juntar ao caderno');
+  addBtn.addEventListener('click', async () => {
+    const vEn = str(en.value), vPt = str(pt.value);
+    if (!vEn) { en.focus(); return; }
+    en.value = ''; pt.value = '';
+    try {
+      const n = await data.addNotes([{ kind: 'phrase', en: vEn, pt: vPt, scene: 'Juntada por mim' }]);
+      toast(n ? 'Juntei ao caderno' : 'Essa frase já lá estava');
+    } catch {
+      const a = $('#add-en'), b = $('#add-pt');
+      if (a) a.value = vEn;
+      if (b) b.value = vPt;
+      toast('Não consegui guardar. Tenta outra vez.');
+    }
+  });
+  root.append(h('div', { class: 'panel' },
+    h('span', { class: 'eyebrow' }, 'Ouviste uma expressão numa reunião? Junta-a'),
+    h('div', { class: 'two' }, en, pt),
+    h('div', null, addBtn)));
+
+  const area = h('textarea', { id: 'import-text', placeholder: "Uma frase por linha: inglês = português\nLet's circle back on this = Voltamos a isto mais tarde\n\nOu cola aqui o JSON exportado.", 'aria-label': 'Frases a importar' });
+  const file = h('input', { type: 'file', id: 'import-file', accept: '.json,.txt,.csv,application/json,text/plain' });
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { area.value = String(r.result || ''); };
+    r.readAsText(f);
+  });
+  const impBtn = h('button', { class: 'btn small dark', type: 'button' }, 'Importar');
+  impBtn.addEventListener('click', async () => {
+    const raw = area.value;
+    const items = parseImport(raw);
+    if (!items.length) { toast('Não encontrei frases nesse texto'); return; }
+    area.value = '';
+    file.value = '';
+    try {
+      const n = await data.addNotes(items);
+      toast(n ? 'Importei ' + plural(n, 'frase', 'frases') : 'Já tinhas todas estas frases');
+    } catch {
+      const a = $('#import-text');
+      if (a) a.value = raw;
+      toast('Não consegui importar. Tenta outra vez.');
+    }
+  });
+  const expBtn = h('button', { class: 'btn small', type: 'button', disabled: !all.length }, 'Copiar tudo (JSON)');
+  expBtn.addEventListener('click', () => copyText(JSON.stringify({
+    app: 'ingles-com-o-claude', version: 1, exportedAt: new Date().toISOString(),
+    notebook: all.map(n => ({ en: n.en, pt: n.pt || '', you: n.you || '', why: n.why || '', kind: n.kind, scene: n.scene || '', createdAt: n.createdAt || 0 })),
+  }, null, 1)));
+  const io = h('details', { class: 'panel', open: !!S.nbIoOpen },
+    h('summary', null, 'Importar e exportar'),
+    h('p', { class: 'muted' }, 'Aceita uma frase por linha (inglês = português), o JSON copiado daqui, ou uma cópia de segurança da EscolaPlay (as frases do phrasebook e os termos das flashcards).'),
+    area, file,
+    h('div', { class: 'row' }, impBtn, expBtn));
+  io.addEventListener('toggle', () => { S.nbIoOpen = io.open; });
+  root.append(io);
+
+  for (const [id, v] of Object.entries(keep)) { const f = $('#' + id); if (f && v) f.value = v; }
+  if (focusId) { const f = document.getElementById(focusId); if (f && f.focus) f.focus({ preventScroll: true }); }
+}
+
+// Aceita: linhas "inglês = português", o JSON desta app, ou JSON de outra app
+// (ex.: cópia de segurança da EscolaPlay) — procura listas de pares en/pt.
+const EN_KEYS = ['en', 'english', 'phrase', 'expression', 'term', 'front', 'better', 'eng', 'text_en', 'en_text'];
+const PT_KEYS = ['pt', 'portuguese', 'translation', 'traducao', 'tradução', 'back', 'meaning', 'pt_text', 'text_pt', 'definition'];
+function pickKey(o, keys) {
+  for (const k of keys) { if (typeof o[k] === 'string' && str(o[k])) return str(o[k]); }
+  return '';
+}
+function collectPairs(v, out, depth) {
+  if (v == null || depth > 7 || out.length >= 3000) return;
+  if (Array.isArray(v)) { for (const x of v) collectPairs(x, out, depth + 1); return; }
+  if (typeof v !== 'object') return;
+  const en = pickKey(v, EN_KEYS);
+  if (en && en.length <= 300) {
+    out.push({ kind: str(v.kind) === 'fix' || str(v.you) ? 'fix' : 'phrase', en, pt: pickKey(v, PT_KEYS), you: str(v.you), why: str(v.why), scene: str(v.scene) || 'Importado' });
+    return;
+  }
+  for (const k of Object.keys(v)) collectPairs(v[k], out, depth + 1);
+}
+function parseImport(text) {
+  const t = str(text);
+  const out = [];
+  if (!t) return out;
+  if (/^[\[{]/.test(t)) {
+    try { collectPairs(JSON.parse(t), out, 0); } catch {}
+    if (out.length) return out;
+  }
+  for (const line of t.split(/\r?\n/)) {
+    const l = line.trim();
+    if (!l || l.startsWith('#') || /^[\[{]/.test(l)) continue;
+    const parts = l.split(/\s*(?:=|\t|;|\|)\s*|\s+[—–]\s+/);
+    const en = str(parts[0]);
+    if (en) out.push({ kind: 'phrase', en, pt: str(parts.slice(1).join(' — ')), scene: 'Importado' });
+  }
+  return out;
+}
+
+/* ================================================================
+   Sessões
+   ================================================================ */
+function renderHistory() {
+  const root = E.history;
+  root.textContent = '';
+  const list = data.sessions;
+  root.append(h('div', { class: 'list-head' }, h('h2', null, 'Sessões'),
+    h('span', { class: 'muted' }, list.length ? plural(list.length, 'sessão', 'sessões') + ' · ' + streak() + ' dias seguidos' : '')));
+  if (!list.length) {
+    root.append(h('div', { class: 'empty' },
+      h('p', null, 'Ainda não há sessões. Cada conversa fica aqui com a transcrição e, se a terminares, com a avaliação do Claude: o que correu bem, o que corrigir e as frases para a próxima.'),
+      h('div', null, h('button', { class: 'btn primary small', type: 'button', onclick: () => setView('practice') }, 'Ir para a agenda'))));
+    return;
+  }
+  const ul = h('div', null);
+  for (const s of list) ul.append(sessionRow(s));
+  root.append(ul);
+}
+
+function sessionRow(s) {
+  const open = S.histOpen === s.id;
+  const d = new Date(s.startedAt || s.updatedAt || Date.now());
+  const scene = s.scene || {};
+  const row = h('div', { class: 'sess' },
+    h('div', { class: 'sess-date' }, h('b', null, fmtShort.format(d)), fmtTime.format(d)),
+    h('div', null,
+      h('div', { class: 'sess-title' }, (scene.title || 'Conversa') + ' · ' + (s.level || '')),
+      h('div', { class: 'sess-head' }, s.report && s.report.headline ? s.report.headline
+        : plural(learnerCount(s), 'resposta tua', 'respostas tuas') + (s.ended ? ' · sem avaliação' : ' · a meio')),
+      h('div', { class: 'row' },
+        h('button', { class: 'chip', type: 'button', 'aria-expanded': String(open), onclick: () => { S.histOpen = open ? null : s.id; renderHistory(); } }, open ? 'Fechar' : 'Ver'),
+        S.session && S.session.id === s.id && !S.session.ended
+          ? h('button', { class: 'chip', type: 'button', onclick: () => openConvo() }, 'Continuar')
+          : !s.report && learnerCount(s) >= 2 && hasClaude ? h('button', { class: 'chip', type: 'button', onclick: () => { S.histOpen = s.id; renderHistory(); const m = $('#rep-' + s.id); if (m) runReport(asSession(s), m); } }, 'Avaliar') : null,
+        S.confirmDel === s.id
+          ? h('button', { class: 'chip danger', type: 'button', onclick: () => { S.confirmDel = null; if (S.session && S.session.id === s.id) closeSession(); data.removeSession(s.id); } }, 'Apagar?')
+          : h('button', { class: 'chip', type: 'button', 'aria-label': 'Apagar sessão', onclick: () => { S.confirmDel = s.id; renderHistory(); } }, icon('trash')))));
+  if (open) {
+    const body = h('div', { class: 'sess-body' });
+    const repMount = h('div', { id: 'rep-' + s.id });
+    if (s.report) repMount.append(reportNode(s.report, asSession(s), null));
+    body.append(repMount);
+    const mini = h('div', { class: 'transcript-mini' });
+    for (const t of (s.turns || [])) {
+      mini.append(h('p', { lang: 'en' }, h('b', null, t.r === 't' ? whoShort(asSession(s)) + ': ' : 'Tu: '), t.x));
+      if (t.r === 'm' && t.f) mini.append(h('p', { class: 'fix-why' }, '→ ', h('span', { lang: 'en' }, t.f.better), t.f.why ? ' — ' + t.f.why : ''));
+    }
+    body.append(mini);
+    row.append(body);
+  }
+  return row;
+}
+function asSession(s) {
+  return { id: s.id, scene: s.scene || { title: 'Conversa', titleEn: 'Conversation', who: 'Tutor', aim: '', phrases: [] }, level: s.level || 'B1', turns: Array.isArray(s.turns) ? s.turns : [], startedAt: s.startedAt, updatedAt: s.updatedAt, ended: true, report: s.report || null };
+}
+
+/* ================================================================
+   Definições
+   ================================================================ */
+function switchRow(id, label, hintTxt, checked, onChange) {
+  const input = h('input', { type: 'checkbox', id, role: 'switch' });
+  input.checked = !!checked;
+  input.addEventListener('change', () => onChange(input.checked));
+  return h('label', { class: 'switch', for: id }, h('span', null, h('b', null, label), hintTxt ? h('small', { class: 'muted' }, hintTxt) : null), input);
+}
+function radioChoice(name, options, value, onChange) {
+  const box = h('div', { class: 'choice', role: 'radiogroup' });
+  for (const [v, label, note] of options) {
+    const input = h('input', { type: 'radio', name, id: name + '-' + v, value: v });
+    input.checked = value === v;
+    input.addEventListener('change', () => { if (input.checked) onChange(v); });
+    box.append(h('label', { for: name + '-' + v }, input, h('b', null, label), note ? h('small', null, note) : h('small')));
+  }
+  return box;
+}
+function field(label, ...content) { return h('div', { class: 'field' }, h('span', { class: 'lbl' }, label), content); }
+
+function renderSettings() {
+  const sh = E.sheet;
+  const keepScroll = sh.scrollTop;
+  sh.textContent = '';
+  sh.append(h('div', { class: 'sheet-head' }, h('h2', { id: 'settings-title' }, 'Definições'),
+    h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Fechar definições', onclick: closeSettings }, icon('close'))));
+
+  sh.append(field('Nível de inglês', levelSeg(renderSettings),
+    h('span', { class: 'hint-txt' }, LEVELS[settings.level].name + '. O nível muda o vocabulário, a velocidade da voz e o rigor das correções.')));
+
+  sh.append(field('Sotaque', radioChoice('accent', [['en-GB', 'Britânico', 'Mais comum em projetos na Europa'], ['en-US', 'Americano', '']], settings.accent,
+    v => { settings.accent = v; settings.voiceURI = ''; saveSettings(); renderSettings(); })));
+
+  const select = h('select', { id: 'voice-select', 'aria-label': 'Voz do tutor' });
+  select.append(h('option', { value: '' }, 'Automática — a melhor disponível'));
+  for (const v of tts.ranked()) {
+    const o = h('option', { value: v.voiceURI }, v.name + ' (' + v.lang + ')');
+    if (v.voiceURI === settings.voiceURI) o.selected = true;
+    select.append(o);
+  }
+  select.addEventListener('change', () => { settings.voiceURI = select.value; saveSettings(); sayPhrase('Hi! Shall we practise for a few minutes?'); });
+  const picked = tts.pick();
+  sh.append(field('Voz do tutor',
+    tts.ok && tts.voices.length ? select : h('span', { class: 'hint-txt' }, tts.ok ? 'Este dispositivo ainda não mostrou vozes em inglês. Se não aparecer nenhuma, instala uma voz inglesa nas definições do sistema.' : 'Este browser não tem síntese de voz; as respostas ficam só em texto.'),
+    h('span', { class: 'hint-txt' }, (picked ? 'A usar: ' + picked.name + '. ' : '') + 'Para uma voz mais natural: no iPhone e no Mac descarrega uma voz inglesa «Melhorada» ou «Premium» (Acessibilidade › Conteúdo falado › Vozes); no Windows, abre o claude.ai no Microsoft Edge, que tem vozes «Natural».')));
+
+  const out = h('output', { for: 'rate' }, settings.rate.toFixed(2).replace('.', ',') + '×');
+  const range = h('input', { type: 'range', id: 'rate', min: '0.7', max: '1.3', step: '0.05', value: String(settings.rate), 'aria-label': 'Velocidade da voz' });
+  range.addEventListener('input', () => { settings.rate = Number(range.value) || 1; out.textContent = settings.rate.toFixed(2).replace('.', ',') + '×'; saveSettings(); });
+  sh.append(field('Velocidade da voz', h('div', { class: 'range' }, range, out,
+    h('button', { class: 'chip', type: 'button', onclick: () => sayPhrase("Let's walk through the standard process first, and then we'll look at the gaps.") }, icon('play'), 'Ouvir exemplo'))));
+
+  sh.append(h('div', { class: 'field' },
+    switchRow('sw-speak', 'Ler as respostas em voz alta', 'O tutor fala assim que responde.', settings.autoSpeak, v => { settings.autoSpeak = v; saveSettings(); if (!v) tts.stop(); }),
+    switchRow('sw-pt', 'Explicações em português', 'O porquê de cada correção vem em português de Portugal.', settings.ptHelp, v => { settings.ptHelp = v; saveSettings(); }),
+    switchRow('sw-auto', 'Enviar sozinho depois do ditado', 'Envia 3 segundos depois de parares de falar. Útil para responder só com a voz.', settings.autoSend, v => { settings.autoSend = v; saveSettings(); })));
+
+  sh.append(field('Modelo do Claude', radioChoice('tier', [
+    ['quick', 'Rápido', 'Responde em 1 a 3 segundos. O melhor para conversar.'],
+    ['default', 'Profundo', 'Mais cuidadoso, mas cada resposta demora 5 a 60 segundos.'],
+  ], settings.tier, v => { settings.tier = v; saveSettings(); })));
+
+  sh.append(h('div', { class: 'about' },
+    h('p', null, h('b', null, 'Custos: '), 'a app usa o Claude da tua conta e gasta a quota do teu plano, como uma conversa normal. Não usa a API nem chaves, por isso não há custos extra.'),
+    h('p', null, h('b', null, 'Dados: '), data.synced
+      ? 'o caderno e as sessões ficam guardados nesta app do claude.ai, só para ti, e aparecem em todos os teus dispositivos.'
+      : 'o caderno e as sessões estão guardados só neste dispositivo.'),
+    h('p', null, h('b', null, 'Avaliação: '), 'no fim de cada sessão o Claude usa o modelo normal (mais cuidadoso) para rever a conversa inteira.')));
+  sh.scrollTop = keepScroll;
+}
+let lastFocus = null;
+function openSettings() { lastFocus = document.activeElement; tts.load(); renderSettings(); E.settings.hidden = false; const c = E.sheet.querySelector('.sheet-head .icon-btn'); if (c) c.focus(); }
+function closeSettings() { E.settings.hidden = true; renderSub(); if (S.view === 'practice' && S.mode === 'start') renderStart(); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+$('#btn-settings').addEventListener('click', openSettings);
+E.settings.addEventListener('click', e => { if (e.target === E.settings) closeSettings(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !E.settings.hidden) closeSettings(); });
+
+/* ================================================================
+   Arranque
+   ================================================================ */
+(function boot() {
+  const cur = store.get('current', null);
+  if (cur && typeof cur === 'object' && cur.id && cur.scene && Array.isArray(cur.turns) && !cur.ended && Date.now() - (cur.updatedAt || 0) < 3 * 864e5) {
+    S.session = cur;
+  } else if (cur) {
+    store.del('current');
+  }
+  E.nbCount.textContent = String(data.notebook.length);
+  renderSub();
+  renderStart();
+  updateComposer();
+})();
+})();
+</script>

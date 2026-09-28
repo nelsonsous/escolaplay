@@ -40,6 +40,7 @@ async function listFiles(dir, predicate) {
   for (const ent of await fs.readdir(dir, { withFileTypes: true })) {
     if (ent.name === 'dist' || ent.name === 'node_modules' || ent.name.startsWith('.')) continue;
     if (ent.name === 'tts-proxy') continue; // o worker tem o seu próprio deploy
+    if (ent.name === 'tutor-ingles') continue; // app à parte, publicada no claude.ai
     const full = path.join(dir, ent.name);
     if (ent.isDirectory()) {
       const sub = await listFiles(full, predicate);
