@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2b1b12">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Damas clássicas portuguesas contra o computador: 4 níveis, pistas, desfazer, funciona sem Internet.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Damas">
+    <title>Damas</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <!-- Nunito sem bloquear o primeiro paint; sem Internet fica a letra do sistema -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="damas.css">
+</head>
+<body>
+    <div id="app" class="dm-app">
+        <header class="dm-top">
+            <div class="dm-left" id="dm-left"><span class="dm-logo" aria-hidden="true"></span></div>
+            <div class="dm-top-title">Damas</div>
+            <button type="button" class="dm-ibtn" data-act="sound" id="dm-sound" aria-label="Som"></button>
+            <button type="button" class="dm-ibtn" data-act="rules" aria-label="Regras"></button>
+        </header>
+        <main class="dm-body" id="dm-body"></main>
+        <div class="dm-toast" id="dm-toast" role="status" aria-live="polite"></div>
+    </div>
+    <noscript><div class="dm-noscript">As Damas precisam de JavaScript para funcionar.</div></noscript>
+    <script src="damas.js"></script>
+</body>
+</html>
