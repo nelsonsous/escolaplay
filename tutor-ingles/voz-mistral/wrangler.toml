@@ -1,0 +1,8 @@
+name = "tutor-voz-mistral"
+main = "src/worker.js"
+compatibility_date = "2026-06-01"
+
+# Opcional: voz e modelo por omissão (a app envia a voz escolhida em cada pedido).
+# [vars]
+# DEFAULT_VOICE = "gb_oliver_neutral"
+# MISTRAL_TTS_MODEL = "voxtral-mini-tts-2603"
