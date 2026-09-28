@@ -99,8 +99,10 @@ respostas: dá correções mais finas, mas cada resposta demora mais.
 - **Importar** aceita:
   - uma frase por linha (`inglês = português`);
   - o JSON exportado por esta app;
-  - uma cópia de segurança da EscolaPlay (lê as listas de pares
-    inglês/português que encontrar).
+  - o ficheiro `escolaplay-backup-….json` da EscolaPlay (Perfil › Backup do
+    progresso › Exportar). Lê só as frases do phrasebook (`max.srs`, flashcards
+    incluídas), com a tradução e a origem; os perfis e as chaves de API do
+    ficheiro ficam de fora, e as frases repetidas não se duplicam.
 
 ## Técnica
 

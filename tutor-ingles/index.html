@@ -1957,7 +1957,7 @@ function renderNotebook() {
   }, null, 1)));
   const io = h('details', { class: 'panel', open: !!S.nbIoOpen },
     h('summary', null, 'Importar e exportar'),
-    h('p', { class: 'muted' }, 'Aceita uma frase por linha (inglês = português), o JSON copiado daqui, ou uma cópia de segurança da EscolaPlay (as frases do phrasebook e os termos das flashcards).'),
+    h('p', { class: 'muted' }, 'Aceita uma frase por linha (inglês = português), o JSON copiado daqui, ou o ficheiro escolaplay-backup-….json da EscolaPlay (Perfil › Backup do progresso › Exportar). Da EscolaPlay leio só as frases do phrasebook, flashcards incluídas; os perfis e as chaves de API do ficheiro ficam de fora.'),
     area, file,
     h('div', { class: 'row' }, impBtn, expBtn));
   io.addEventListener('toggle', () => { S.nbIoOpen = io.open; });
@@ -1986,13 +1986,34 @@ function collectPairs(v, out, depth) {
   }
   for (const k of Object.keys(v)) collectPairs(v[k], out, depth + 1);
 }
+// Cópia de segurança da EscolaPlay (escolaplay-backup-*.json): o phrasebook está
+// em max.srs, cartões {type: 'phrase', text, note, topic}. Aceita também só o
+// objeto max ou só a lista srs. Lê apenas as frases: os perfis e as chaves de
+// API que vêm no mesmo ficheiro ficam de fora.
+function escolaPlayCards(v) {
+  const srs = Array.isArray(v) ? v
+    : v && typeof v === 'object' ? (Array.isArray(v.srs) ? v.srs : v.max && Array.isArray(v.max.srs) ? v.max.srs : null)
+    : null;
+  const isBackup = !!(v && typeof v === 'object' && !Array.isArray(v) && (v.ep_export_v || v.max));
+  if (!srs) return isBackup ? [] : null;
+  if (!srs.some(c => c && (c.type === 'phrase' || c.type === 'topic'))) return isBackup ? [] : null;
+  return srs
+    .filter(c => c && c.type === 'phrase' && typeof c.text === 'string' && str(c.text))
+    .map(c => ({ kind: 'phrase', en: str(c.text).slice(0, 300), pt: str(c.note).slice(0, 400), scene: 'EscolaPlay' + (str(c.topic) ? ' · ' + str(c.topic).slice(0, 60) : '') }));
+}
 function parseImport(text) {
   const t = str(text);
   const out = [];
   if (!t) return out;
   if (/^[\[{]/.test(t)) {
-    try { collectPairs(JSON.parse(t), out, 0); } catch {}
-    if (out.length) return out;
+    let parsed, ok = false;
+    try { parsed = JSON.parse(t); ok = true; } catch {}
+    if (ok) {
+      const ep = escolaPlayCards(parsed);
+      if (ep) return ep;
+      collectPairs(parsed, out, 0);
+      if (out.length) return out;
+    }
   }
   for (const line of t.split(/\r?\n/)) {
     const l = line.trim();
