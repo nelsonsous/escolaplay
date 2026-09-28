@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b452a"/><stop offset="1" stop-color="#23150d"/></linearGradient>
+    <radialGradient id="iv" cx="0.38" cy="0.32" r="0.72"><stop offset="0" stop-color="#fffdf7"/><stop offset="0.5" stop-color="#efe2c6"/><stop offset="1" stop-color="#c9b28a"/></radialGradient>
+    <radialGradient id="eb" cx="0.38" cy="0.32" r="0.72"><stop offset="0" stop-color="#6c5954"/><stop offset="0.5" stop-color="#2d2224"/><stop offset="1" stop-color="#0f0a0b"/></radialGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.45"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g transform="rotate(-8 256 256)" filter="url(#sh)">
+    <rect x="90" y="90" width="332" height="332" rx="18" fill="#6d4428"/>
+    <g transform="translate(104 104)">
+      <rect width="304" height="304" fill="#f0dcb8"/>
+      <rect x="0" y="0" width="76" height="76" fill="#a4693f"/><rect x="152" y="0" width="76" height="76" fill="#a4693f"/><rect x="76" y="76" width="76" height="76" fill="#a4693f"/><rect x="228" y="76" width="76" height="76" fill="#a4693f"/><rect x="0" y="152" width="76" height="76" fill="#a4693f"/><rect x="152" y="152" width="76" height="76" fill="#a4693f"/><rect x="76" y="228" width="76" height="76" fill="#a4693f"/><rect x="228" y="228" width="76" height="76" fill="#a4693f"/>
+      <circle cx="38" cy="38" r="29" fill="url(#eb)"/>
+      <circle cx="38" cy="38" r="18" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="3"/>
+    </g>
+  </g>
+  <g filter="url(#sh)">
+    <circle cx="276" cy="286" r="104" fill="#b39c75"/>
+    <circle cx="276" cy="276" r="104" fill="url(#iv)"/>
+    <circle cx="276" cy="276" r="77" fill="none" stroke="#78562c" stroke-opacity="0.22" stroke-width="5"/>
+    <g transform="translate(204 198) scale(6)" fill="#c0841a"><path d="M3 7.5l4.6 4.2L12 4.5l4.4 7.2L21 7.5 19 19H5z"/><rect x="5" y="19.6" width="14" height="2" rx="1"/></g>
+  </g>
+</svg>

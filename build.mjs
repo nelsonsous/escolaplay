@@ -154,6 +154,17 @@ async function main() {
   if (existsSync(path.join(ROOT, 'icons'))) {
     await copyDir(path.join(ROOT, 'icons'), path.join(DIST, 'icons'));
   }
+  // 5) Apps à parte (damas/): manifest e ícones — JS/CSS/HTML já foram acima
+  for (const app of ['damas']) {
+    const dir = path.join(ROOT, app);
+    if (!existsSync(dir)) continue;
+    await ensureDir(path.join(DIST, app));
+    for (const ent of await fs.readdir(dir, { withFileTypes: true })) {
+      if (ent.isFile() && /\.(png|svg|webmanifest|ico)$/i.test(ent.name)) {
+        await fs.copyFile(path.join(dir, ent.name), path.join(DIST, app, ent.name));
+      }
+    }
+  }
 
   // Sumário
   const totalBefore = stats.reduce((s, x) => s + x.before, 0);
