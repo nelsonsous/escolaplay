@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 65 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). Próxima: 66 (redução com vários acumuladores, para o AVX-512 também a acelerar; e `F i`/várias fontes).
+Estado: **iteração 66 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). Próxima: 66 (redução com vários acumuladores, para o AVX-512 também a acelerar; e `F i`/várias fontes).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1443,3 +1443,17 @@ C gcc -O3 -march=native:      415 ms
 **O achado honesto.** Na **redução**, o AVX-512 **não** acelerou (437 vs 429 ms do AVX2): o gargalo é a cadeia dependente do acumulador (`acc += ...`), que é limitada pela latência, não pela largura. Para a largura valer é preciso **vários acumuladores independentes** — o próximo passo.
 
 **Próxima.** Redução com 2–4 acumuladores independentes (para o AVX-512 a acelerar também); depois o tipo float32 e/ou mais formas (`F i`, várias fontes).
+
+## Iteração 66: a GPU no Safari — o campo da Onda em WebGL2, e o "melhor que o WASM"
+
+**Pergunta (do utilizador, num Mac).** Multiplataforma para iPhone+Mac, a correr no Safari; "podes inventar algo melhor que o WASM?"
+
+**A verdade honesta.** Um browser só executa **JavaScript e WebAssembly** — não dá para inventar um terceiro alvo que o Safari corra. Para código de CPU, o **WASM+SIMD** é o teto. Mas "melhor que o WASM" existe mesmo para trabalho data-parallel (o que uma linguagem de IA faz): a **GPU**, via WebGL2 (Safari 15+) / WebGPU (Safari 18). E a Onda já gera GPU — a forma `-g` (GLSL).
+
+**O que foi feito.** `web/gpu-safari.html`: uma página autónoma que corre o **GLSL gerado pelo `ondac -g px`** em WebGL2 — cada pixel é uma avaliação do campo `px` da Onda (a fractal de Julia), milhares em paralelo na GPU. Ao lado, o **mesmo `px` portado para JS** corre na CPU, e a página mede e compara os débitos (campos/s). Fractal animada ao vivo como prova visual de que a GPU está mesmo a computar o campo.
+
+**Prova.** Verifiquei a página num Chromium headless (WebGL2/SwiftShader, via playwright, como o `test/gpu.test.js`): o shader da Onda **compila e liga sem erros**, a fractal **renderiza com variação** (97 cores distintas na linha central), e mede **GPU 48,6 M campos/s vs CPU-JS 5,2 M/s = 6× — e isto no SwiftShader (GPU emulada em CPU)**; no GPU real do Mac o rácio é muito maior (dezenas a centenas de ×).
+
+**O limite honesto.** Esta é a forma `D` (campo 2D, função do índice/coordenada) — já é paralelismo geral por-elemento, mas **não lê um array de entrada**. Para o GPGPU completo de uma linguagem de IA (ler pesos/dados), falta um modelo de memória em GLSL: `@f + a i` → *texture fetch* de uma textura de entrada, e assinaturas de elemento gerais (hoje o `-g` só aceita a assinatura de pixel `fffff>i`). É a próxima camada.
+
+**Próxima.** (a) SIMD no WASM (`f64x2`, teto do CPU no Safari) — o utilizador quer os dois; depois, o GPGPU com leitura de array por textura.
