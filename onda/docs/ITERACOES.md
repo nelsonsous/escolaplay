@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 58 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Foco novo (pedido do utilizador): deixar de empatar com o C e passar a **ser mais rápido** que ele, no x86. Próxima: 59 (ligar os codificadores AVX — vetorizar os mapas de campo e medir contra o gcc -O2).
+Estado: **iteração 59 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Foco novo (pedido do utilizador): deixar de empatar com o C e passar a **ser mais rápido** que ele, no x86. Próxima: 60 (emitir o laço AVX empacotado em `xvmap` — o walker que percorre a AST do elemento — e re-medir contra o C).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1276,3 +1276,24 @@ Ou seja: se o emissor x86 passar a escrever AVX de 256 bits (4 doubles de cada v
 **Prova.** `./build.sh` fecha o ponto fixo nas três formas com os codificadores já emitidos (hash C `776f5d5b9572e284`; o WebAssembly cresceu de 236248 para 237303 bytes — logo os codificadores entram mesmo no compilador, não são removidos). `node --test`: **80 testes, todos a passar**. Os codificadores ainda não estão ligados à geração de código (vêm na 59), por isso o comportamento não muda — este é o alicerce verificado.
 
 **Próxima.** Ligar: detetar um mapa de campo (`E`) cujo elemento seja aritmética pura de floats (sem ramos nem chamadas), e emitir um laço AVX empacotado (4 de cada vez) com uma cauda escalar para o resto. Medir a Onda x86 contra o `gcc -O2` no mesmo núcleo — e provar, com números, que a Onda é mais rápida.
+
+## Iteração 59: o banco de ensaio vetorizável, e a base honesta
+
+**Pergunta.** Para provar com números que a Onda é mais rápida que o C preciso de um núcleo que *seja* vetorizável e de uma referência ao bit que a vetorização tenha de preservar. Qual núcleo, e quanto vale a base de hoje?
+
+**O que foi feito.** `ex/vecmap.onda`: um mapa de campo `E b n g a` onde `g a[i]` é um polinómio de grau 7 (Horner) — fonte única, aritmética pura de floats, sem ramos nem chamadas: exatamente a forma que o emissor x86 vai saber vetorizar. `test/vecmap.test.js` fixa a referência ao bit: C, x86 e WebAssembly têm de dar a **mesma soma, bit a bit**.
+
+**Prova** (`node --test`: **82 testes**, todos a passar). As três formas dão `soma = 8.56665324969217e+16`, bits `1131611540 510256455` — iguais ao bit. O mapa é por-elemento independente e a soma de conferência é em série, por isso a igualdade é total (ao contrário das reduções de floats em paralelo da it.56).
+
+**A base honesta** (rep=200000, n=8192, limitado por cálculo):
+
+```
+Onda x86 (escalar de hoje):          ~3090 ms
+C gerado pela Onda, gcc -O2 (serie): ~3460 ms   (chama g por elemento)
+C idiomatico inline, gcc -O2:         1312 ms   (o scal.c da it.58)
+teto AVX bit-seguro (mulpd+addpd):     841 ms
+```
+
+Dois factos. Primeiro: o x86 da Onda **já bate** o C que a própria Onda gera (3090 vs 3460 ms), porque a Onda mete o elemento em linha e o C gerado chama-o por índice. Segundo, e mais exigente: contra o C *idiomático* (tudo em linha, escrito por uma pessoa), a Onda está **2,4× atrás** — 3090 vs 1312 ms. Logo "igual ao gcc -O2" era só verdade em núcleos leves (o π, poucas constantes); num Horner com 8 constantes, o alocador da Onda recarrega-as e paga. O teto AVX bit-seguro é 841 ms: o vetorizador da próxima iteração tem de lá chegar para bater **também** o C idiomático, não só o C gerado.
+
+**Próxima.** Emitir o AVX: em `ce`, quando o elemento é vetorizável (`xvan`), chamar `lowEv` em vez de `lowE`; o `xvmap` no backend percorre a AST do elemento e emite um laço empacotado de 4 em 4 (com as constantes difundidas uma só vez) mais uma cauda escalar para o resto. Gerir `ymm0-7` à mão, sem tocar no alocador (que o `src/` não usa campos, por isso o ponto fixo é imune). Depois re-medir e pôr o número.
