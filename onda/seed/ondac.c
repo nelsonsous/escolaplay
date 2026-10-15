@@ -13966,7 +13966,7 @@ t138=1;
 op(t138);
 t139=0;
 op(t139);
-t140=1024;
+t140=32;
 t141=f_wu(t140);
 t142=5;
 t143=v_a;
@@ -14165,7 +14165,7 @@ return t288;
 }
 static I f_wrt(void){
 I t0=0;
-os("\n: _fl >i { Y 0 @ -4 @ -3 ! -3 0 }\n: _op i>i b { = s @ -2 ? s { ! @ s b ! s + @ s 1 b } { = n @ -3 ! + @ -4 n b ! -3 + n 1 ? >= + n 1 4096 _fl 0 b } }\n: _os ii>i p n { = j 0 W < j n { _op @ + p j = j + j 1 } 0 }\n: _on i>i n { = u n ? < n 0 { _op 45 = u - 0 n } 0 = b @ -5 = i 0 W { ! + b i + 48 % u 10 = i + i 1 = u / u 10 != u 0 } 0 W > i 0 { = i - i 1 _op @ + b i } n }\n: _oa i>i n { = p @ -1 ! -1 + p n p }\n: _ini >i { ! -4 _oa 4096 ! -5 _oa 32 0 }\n: _ex i>i c { _fl Y 2 c 0 }\n: _go >i { _ini _ex main }\n: _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 _os @ -5 n x }\n: _ph ii>i w h { _op 80 _op 54 _op 10 _on w _op 32 _on h _op 10 _op 50 _op 53 _op 53 _op 10 }\n");
+os("\n: _fl >i { Y 0 @ -4 @ -3 ! -3 0 }\n: _op i>i b { = s @ -2 ? s { ! @ s b ! s + @ s 1 b } { = n @ -3 ! + @ -4 n b ! -3 + n 1 ? >= + n 1 4096 _fl 0 b } }\n: _os ii>i p n { = j 0 W < j n { _op @ + p j = j + j 1 } 0 }\n: _on i>i n { = u n ? < n 0 { _op 45 = u - 0 n } 0 = b @ -5 = i 0 W { ! + b i + 48 % u 10 = i + i 1 = u / u 10 != u 0 } 0 W > i 0 { = i - i 1 _op @ + b i } n }\n: _oa i>i n { = p @ -1 = q + p n ! -1 q ? > q @ -7 ! -7 Y 7 q 0 0 p }\n: _ini >i { ! -7 Y 7 0 0 ! -4 _oa 4096 ! -5 _oa 32 0 }\n: _ex i>i c { _fl Y 2 c 0 }\n: _go >i { _ini _ex main }\n: _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 _os @ -5 n x }\n: _ph ii>i w h { _op 80 _op 54 _op 10 _on w _op 32 _on h _op 10 _op 50 _op 53 _op 53 _op 10 }\n");
 t0=0;
 return t0;
 }

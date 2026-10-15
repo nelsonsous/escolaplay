@@ -232,7 +232,7 @@
   W <= k nf { wu + 3 k = k + k 1 }
   wend 3 a
   = a wbeg
-  P 1 P 0 wu 1024
+  P 1 P 0 wu 32
   wend 5 a
   = a wbeg
   wu 2
@@ -265,8 +265,8 @@
 : _op i>i b { = s @ -2 ? s { ! @ s b ! s + @ s 1 b } { = n @ -3 ! + @ -4 n b ! -3 + n 1 ? >= + n 1 4096 _fl 0 b } }
 : _os ii>i p n { = j 0 W < j n { _op @ + p j = j + j 1 } 0 }
 : _on i>i n { = u n ? < n 0 { _op 45 = u - 0 n } 0 = b @ -5 = i 0 W { ! + b i + 48 % u 10 = i + i 1 = u / u 10 != u 0 } 0 W > i 0 { = i - i 1 _op @ + b i } n }
-: _oa i>i n { = p @ -1 ! -1 + p n p }
-: _ini >i { ! -4 _oa 4096 ! -5 _oa 32 0 }
+: _oa i>i n { = p @ -1 = q + p n ! -1 q ? > q @ -7 ! -7 Y 7 q 0 0 p }
+: _ini >i { ! -7 Y 7 0 0 ! -4 _oa 4096 ! -5 _oa 32 0 }
 : _ex i>i c { _fl Y 2 c 0 }
 : _go >i { _ini _ex main }
 : _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 _os @ -5 n x }
