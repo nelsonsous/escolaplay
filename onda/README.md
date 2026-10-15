@@ -16,7 +16,7 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
 node test/viva.test.js      # testes da Onda Viva
-wasm/build-wasm.sh          # compilador em WebAssembly (precisa de clang e wasm-ld)
+node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
 ```
 
@@ -26,10 +26,10 @@ python3 web/montar.py       # monta as duas paginas em build/
 |---|---|
 | `SPEC.md` | a linguagem inteira, escrita para IAs |
 | `src/*.onda` | o compilador, em Onda, com saída para C, GLSL e JavaScript |
-| `seed/ondac.c` | semente C, gerada pela própria Onda |
+| `seed/ondac.c`, `seed/ondac.wasm` | sementes: C e WebAssembly, ambas geradas pela própria Onda |
 | `boot/` | arranque em Rust (estágio 0), usado uma vez |
 | `rt/prelude.c` | runtime C mínimo |
-| `wasm/` | libc mínima e script para WebAssembly |
+| `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
 | `ex/` | exemplos: fractal, ondas, Grover, π, fib |
 | `bench/` | comparações com C, JavaScript e Python |

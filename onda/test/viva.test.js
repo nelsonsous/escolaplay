@@ -7,7 +7,7 @@ const W = 960, H = 540;
 let falhou = 0;
 const ok = (nome, f) => Promise.resolve().then(f).then(() => console.log('ok   ' + nome), e => { falhou++; console.log('FALHA ' + nome + ': ' + e.message); });
 (async () => {
-  await OndaC.load(fs.readFileSync(R + '/web/ondac.wasm'));
+  await OndaC.load(fs.readFileSync(R + '/seed/ondac.wasm'));
   for (const [ex, t] of [['julia', 2.0], ['ondas', 1.0]]) {
     const src = fs.readFileSync(R + '/ex/' + ex + '.onda', 'utf8');
     const sig = Significado.funcao(src, 'px');

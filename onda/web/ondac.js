@@ -1,29 +1,51 @@
-// Carrega o compilador Onda (WebAssembly) e compila codigo Onda -> C ou GLSL. Funciona no browser e no Node.
+// Carrega o compilador Onda (WebAssembly escrito pela propria Onda) e compila codigo Onda para C, GLSL ou JavaScript.
+// O anfitriao so oferece tres portas: sys (sistema), m1 e m2 (funcoes matematicas). Funciona no browser e no Node.
 const OndaC = (() => {
   let mod = null;
-  const fmtg = x => { if (!isFinite(x)) return isNaN(x) ? 'nan' : (x < 0 ? '-inf' : 'inf'); return String(parseFloat(x.toPrecision(15))); };
+  const enc = new TextEncoder();
+  function cfmt(x) {
+    if (Number.isNaN(x)) return 'nan';
+    if (!Number.isFinite(x)) return x < 0 ? '-inf' : 'inf';
+    if (x === 0) return Object.is(x, -0) ? '-0' : '0';
+    const tira = t => (t.includes('.') ? t.replace(/0+$/, '').replace(/\.$/, '') : t);
+    const [m, ex] = x.toExponential(14).split('e'), e = Number(ex);
+    if (e >= -4 && e < 15) return tira(x.toFixed(14 - e));
+    return tira(m) + 'e' + (e < 0 ? '-' : '+') + String(Math.abs(e)).padStart(2, '0');
+  }
   async function load(bytes) { mod = await WebAssembly.compile(bytes); return mod; }
   async function compile(src, entry, mode) {
-    let mem, code = 0; const out = [], err = [];
-    const env = {
-      jw: (fd, p, n) => (fd === 2 ? err : out).push(new Uint8Array(mem.buffer, p, n).slice()),
-      jx: c => { code = c; throw { ondaExit: c }; },
-      jg: (x, b, n) => { const s = new TextEncoder().encode(fmtg(x)).slice(0, n - 1); const m = new Uint8Array(mem.buffer, b, n); m.set(s); m[s.length] = 0; return s.length; },
-      jm: (f, x, y) => f === 0 ? Math.sin(x) : f === 1 ? Math.cos(x) : f === 2 ? Math.exp(x) : f === 3 ? Math.log(x) : f === 4 ? Math.pow(x, y) : Math.atan2(x, y),
-      jt: () => (typeof performance !== 'undefined' ? performance.timeOrigin + performance.now() : Date.now()),
+    const input = enc.encode(src);
+    const args = ['ondac'].concat(entry ? ['-' + (mode === 'j' ? 'j' : 'g'), entry] : []).map(s => enc.encode(s));
+    const out = [];
+    let ip = 0, code = 0, mem = null;
+    const words = (a, n) => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n);
+    const sys = (c, a, b) => {
+      switch (Number(c)) {
+        case 0: { const n = Number(b), v = words(a, n), u = new Uint8Array(n); for (let i = 0; i < n; i++) u[i] = Number(v[i] & 255n); out.push(u); return 0n; }
+        case 1: return ip < input.length ? BigInt(input[ip++]) : -1n;
+        case 2: code = Number(a); throw { ondaExit: code };
+        case 3: return BigInt(args.length);
+        case 4: { const s = args[Number(a)], j = Number(b); return s && j >= 0 && j < s.length ? BigInt(s[j]) : 0n; }
+        case 5: { const x = new Float64Array(new BigInt64Array([a]).buffer)[0], t = cfmt(x), v = words(b, t.length); for (let i = 0; i < t.length; i++) v[i] = BigInt(t.charCodeAt(i)); return BigInt(t.length); }
+        case 6: return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000));
+        case 7: { const need = (Number(a) + 16) * 8, cur = mem.buffer.byteLength; if (need > cur) mem.grow(Math.ceil((need - cur) / 65536)); return BigInt(mem.buffer.byteLength / 8 - 16); }
+      }
+      return 0n;
     };
-    const inst = await WebAssembly.instantiate(mod, { env });
+    const m1 = (c, x) => [Math.sin, Math.cos, Math.exp, Math.log][Number(c)](x);
+    const m2 = (c, x, y) => (c === 0n ? Math.pow(x, y) : Math.atan2(x, y));
+    const inst = await WebAssembly.instantiate(mod, { env: { sys, m1, m2 } });
     mem = inst.exports.memory;
-    const s = new TextEncoder().encode(src);
-    new Uint8Array(mem.buffer, inst.exports.inbuf(), s.length).set(s);
-    const a = new Uint8Array(mem.buffer, inst.exports.argbuf(), 256); a.fill(0); if (entry) a.set(new TextEncoder().encode(entry).slice(0, 255));
-    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-    try { code = inst.exports.run(s.length, entry ? (mode === 'j' ? 2 : 1) : 0); } catch (x) { if (x.ondaExit === undefined) throw x; }
-    const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
-    let n = 0; for (const c of out) n += c.length;
-    const all = new Uint8Array(n); let o = 0; for (const c of out) { all.set(c, o); o += c.length; }
+    const t0 = performance.now();
+    try { inst.exports._start(); } catch (x) { if (x.ondaExit === undefined) throw x; }
+    const ms = performance.now() - t0;
+    let n = 0;
+    for (const c of out) n += c.length;
+    const all = new Uint8Array(n);
+    let o = 0;
+    for (const c of out) { all.set(c, o); o += c.length; }
     return { code, ms, text: new TextDecoder().decode(all) };
   }
-  return { load, compile };
+  return { load, compile, cfmt };
 })();
 if (typeof module !== 'undefined') module.exports = OndaC;

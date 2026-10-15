@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 5 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 6 (as páginas passam a usar o compilador em WebAssembly escrito pela Onda, sem clang).
+Estado: **iteração 6 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 7 (x86-64 nativo com ELF, sem C: primeiro executável).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -130,3 +130,23 @@ Há um único emissor de texto para C, GLSL e JavaScript. Os próximos emissores
 - `test/w/correr.sh`: C igual a WebAssembly em todos os testes. Os 6 testes da Onda Viva passaram.
 
 **O que isto muda.** A cadeia já não depende de C para chegar ao browser nem a qualquer motor de WebAssembly. O C passa a ser só uma das saídas possíveis, e não a base.
+
+---
+
+## Iteração 6: as páginas deixam o clang
+
+**Pergunta.** Se o compilador já se gera a si próprio em WebAssembly, para que serve ainda o clang no browser?
+
+**O que foi feito.**
+- **Carregador novo:** o `web/ondac.js` passou a carregar a semente `seed/ondac.wasm`, escrita pela Onda, com o anfitrião de três portas. É o mesmo do Node, adaptado ao browser.
+- **Páginas:** o `montar.py` usa essa semente nas duas páginas e passa a montá-las a partir de diretórios limpos.
+- **Ficheiros mostrados:** a página da linguagem mostra o `host.js` em vez da libc para clang.
+
+**Prova.**
+- Os 6 testes da Onda Viva passaram com a semente da Onda.
+- No Chromium (sem GPU física):
+  - na página da linguagem, o compilador compila-se a si próprio em 37,8 ms e o SHA-256 bate certo (`1fc0bb26…a7ba`);
+  - na Onda Viva, o compilador é verificado em 34,9 ms e a forma CPU é promovida (16×);
+  - o erro injetado é rejeitado e a forma GPU é promovida (98% dentro da tolerância);
+  - zero erros na consola e nenhum transbordo a 400 px.
+- As duas páginas foram republicadas (versão 2) e já correm o compilador escrito pela Onda.
