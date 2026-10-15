@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 26 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 27 (o diário como registo contínuo: cada página escrita uma só vez).
+Estado: **iteração 27 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 28 (a convenção de registos, feita com cuidado: encontrar a função de parsing que o save/restore ainda gera mal).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -746,3 +746,23 @@ A comparação não é justa para o SQLite, e é preciso dizê-lo: ele tem trans
 Agora a comparação já é justa na garantia principal, a atomicidade face a quedas. Escrever ficou cerca de 5 vezes mais caro do que sem diário, porque cada página vai duas vezes ao disco. Mesmo assim fica no dobro da velocidade do SQLite a escrever e a 7 vezes a ler.
 
 **Próxima.** O diário como registo contínuo (WAL): as páginas ficam só no diário e passam ao ficheiro de vez em quando. Cada página escrita uma só vez.
+
+## Iteração 27: porque é que a recursão é 4× mais lenta (e porque a correção fácil não chega)
+
+**Pergunta.** O `README` diz que o `fib` nativo é 4× mais lento que o `gcc`. Porquê, e qual é o remédio?
+
+**Medição.** Na mesma máquina, `fib(35)`: o x86 da Onda faz 57 ms, o `gcc -O2` faz 14 ms. Mas em instruções executadas (cachegrind) a diferença é só 1,5× (463 M contra 302 M). O tempo é 4× porque cada instrução custa mais: o argumento `n` faz uma ida e volta à pilha a cada chamada.
+
+**Diagnóstico.** O código gerado para o `fib` lê `n` de `[rbp+16]` três vezes e, como `n` vive através das duas chamadas recursivas, o alocador é obrigado a mantê-lo na memória. A regra, escrita no próprio alocador, é: *só vai para registo o que não atravessa chamadas.* Não há registos reservados que uma chamada preserve, por isso tudo o que sobrevive a uma chamada cai na pilha. O `gcc` guarda `n` num registo salvo (`rbx`) e não lhe toca mais.
+
+**O que já existe.** A convenção System V reserva `rbx`, `r12`–`r15` como *callee-saved*: a função que os usa guarda-os à entrada e repõe-nos à saída. É o que falta à Onda.
+
+**O que foi tentado.** Dar aos valores que atravessam chamadas um registo salvo (`rbx`, `r12`–`r14`, porque o `r15` é a base da memória), empilhado no prólogo e reposto no único `ret` de cada função.
+- **Resultado parcial:** o `fib` isolado passou a manter `n` em `rbx` e deu o resultado certo. Mas o compilador a compilar-se a si próprio em x86 entrou em ciclo.
+- **Primeira correção:** restringir a otimização a funções sem ciclos (a recursão não tem ciclos; é nos ciclos que a promoção disputa os mesmos registos). O ciclo desapareceu, mas o ponto fixo x86 continuou a falhar: o `x1` deixou de conseguir ler a própria fonte (*"fora de definição, token 0"*). Uma função de parsing, sem ciclos mas com um valor que atravessa chamadas, ainda é gerada de forma errada.
+
+**Decisão.** Não entregar um compilador que não se compila. O código foi revertido: os três pontos fixos voltam a fechar e os 38 testes passam. A convenção de registos é o remédio certo e fica identificada, mas precisa de resolver a interação exata entre o save/restore e o resto do gerador — trabalho para a próxima iteração, feito a comparar byte a byte o que as duas formas geram para a função que quebra, e não às cegas.
+
+**Lição.** O auto-alojamento é a rede de segurança: uma otimização que parecia correta num exemplo (`fib`) foi apanhada de imediato pela exigência de a Onda se compilar a si própria, bit a bit. É mais exigente do que qualquer teste de unidade.
+
+**Próxima.** A convenção de registos com cuidado: isolar a função de parsing que o save/restore gera mal, perceber que invariante do alocador é quebrada, e só então reativar a otimização.
