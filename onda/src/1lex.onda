@@ -74,6 +74,12 @@
   X 1 }
 : ew ii>i s l { = j 0 W < j l { P @ + s j = j + j 1 } 0 }
 : etx i>i i ew tks i tkl i
+# nome de um local no texto: pelo token do nome, ou um nome sintetico v_L<indice> se for anonimo (token 0, criado
+# por newl). Os locais anonimos so aparecem em lacos gerados (lowS/E/D, cb); o compilador nao os usa em si proprio.
+: elnm ii>i nm j ? == nm 0 { "v_L" N j } { "v_" etx nm }
+# operador de uma instrucao binaria/comparacao: por token (cbin/ccmp, campo>0) ou sintetico (binx/cmpx, campo<0
+# = codigo do caractere negado). Os sinteticos so vem dos lacos gerados (lowS/E/D, cb), nunca do compilador em si.
+: eop i>i a ? < a 0 { P - 0 a } { etx a }
 : et i>i t { "t" N t }
 : eq i>i r { et r "=" }
 : isjs >i == @ 12 2

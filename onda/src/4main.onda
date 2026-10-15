@@ -104,6 +104,56 @@
         ? && && == c 'K ini || || == + p 1 e isws @ + p 1 && == @ + p 1 'c || == + p 2 e isws @ + p 2 = r 1 0 }
     = p + p 1 }
   r }
+# --- autodiff: diferenciacao simbolica automatica do elemento de um mapa (numeros duais) ---
+# xdiff anda a arvore do resultado (a mesma que o xvan valida: + - * / sobre x e constantes float) e devolve o
+# INDICE de um local float com o valor do no; escreve em *dp o no-RI da derivada d(no)/dx. Regras dos duais:
+# c->(c,0); x->(x,1); A+B->(a+b,da+db); A-B->(a-b,da-db); A*B->(a*b,da*b+a*db); A/B->(a/b,(da*b-a*db)/(b*b)).
+: xdiff ii>i xvl dp {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { ! dp zer 1 = lv newl 1 setl lv lit i 1 lv }
+  ? == kk 0 { ! dp conv lit1 1 1 xvl }
+  { = o tcode i
+    = da A 1
+    = db A 1
+    = la xdiff xvl da
+    = lb xdiff xvl db
+    = dra @ da
+    = drb @ db
+    = lv newl 1
+    ? == o '+ { ! dp binx '+ 1 dra drb setl lv binx '+ 1 getl la getl lb }
+    ? == o '- { ! dp binx '- 1 dra drb setl lv binx '- 1 getl la getl lb }
+    ? == o '* { ! dp binx '+ 1 binx '* 1 dra getl lb binx '* 1 getl la drb setl lv binx '* 1 getl la getl lb }
+    { = num binx '- 1 binx '* 1 dra getl lb binx '* 1 getl la drb = den binx '* 1 getl lb getl lb ! dp binx '/ 1 num den setl lv binx '/ 1 getl la getl lb }
+    lv } }
+# B d n f a : mapa de retropropagacao -- d[i] = f'(a[i]), a derivada do elemento, gerada por xdiff.
+# Compila para um laco em RI (sem macro), logo corre em C, x86 e WASM, determinista ao bit onde o forward e.
+: cb >i {
+  = d cx
+  = n cx
+  ckint d
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  ? == @ fe k 3 0 { ebeg "elemento deve devolver real" eend } 0
+  = a cargs k 1
+  ? == xvan k 0 { ebeg "elemento nao diferenciavel (forma de mapa vetorizavel)" eend } 0
+  = src @ a
+  = iv newl 0
+  = xvl newl 1
+  lpbeg iv n 0
+  = xld nt 1
+  ir 26 xld binx '+ 0 src getl iv 0 0 0 0
+  setl xvl xld
+  = dp A 1
+  = sv @ 7
+  ! 7 + @ fe k 5 7
+  xdiff xvl dp
+  ! 7 sv
+  ir 27 0 binx '+ 0 d getl iv @ dp 0 0 0
+  lpend iv
+  d }
 : cop i>i i {
   = o tcode i
   ? isar o cbin i 2
@@ -149,6 +199,7 @@
   ? == o 'E ce
   ? == o 'S cs
   ? == o 'D cd
+  ? == o 'B cb
   ? == o 'Y csys
   ? == o 'K ? isx cki k3 '_ 'k 'o ckst
   ? == o k2 'K 'c ? isx ckc0 ckcm

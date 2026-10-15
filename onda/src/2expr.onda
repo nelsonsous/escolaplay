@@ -48,7 +48,7 @@
   = j 0
   W < j @ 11 { ety tty j " " et j "=" ez tty j ";\n" = j + j 1 }
   = j np
-  W < j @ 9 { ety lty j " v_" etx lnm j "=" ez lty j ";\n" = j + j 1 }
+  W < j @ 9 { ety lty j " " elnm lnm j j "=" ez lty j ";\n" = j + j 1 }
   ! fe k 7 @ 17
   O 0 }
 : lit ii>i i y { = r nt y ir 1 r i 0 0 0 0 r }

@@ -43,11 +43,11 @@
   ? == k 2 { eq d N a ";\n" }
   ? == k 3 { ? @ 12 "\n#error onda: texto so em CPU\n" 0 "os(\"" escs a "\");\n" }
   ? == k 4 { eq d ez tty d ";\n" }
-  ? == k 5 { eq d "v_" etx a ";\n" }
-  ? == k 6 { "v_" etx a "=" et b ";\n" }
+  ? == k 5 { eq d elnm a b ";\n" }
+  ? == k 6 { elnm a c "=" et b ";\n" }
   ? == k 7 { eq d "f_" etx @ fe a 0 "(" eargs b c 0 ");\n" }
-  ? == k 8 { ? && isjs && == tty d 0 == tcode a '/ { eq d "Math.trunc(" et b "/" et c ");\n" } { eq d et b etx a et c ";\n" } }
-  ? == k 9 { eq d "(" et b etx a et c ")?1:0;\n" }
+  ? == k 8 { ? && isjs && == tty d 0 == tcode a '/ { eq d "Math.trunc(" et b "/" et c ");\n" } { eq d et b eop a et c ";\n" } }
+  ? == k 9 { eq d "(" et b eop a et c ")?1:0;\n" }
   ? == k 10 { eq d "0;\nif(" et a "!=0){\n" }
   ? || == k 11 == k 13 { eq d "(" et a "!=0)?1:0;\n}\n" }
   ? == k 12 { eq d "1;\nif(" et a "==0){\n" }

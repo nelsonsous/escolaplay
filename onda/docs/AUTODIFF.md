@@ -74,9 +74,15 @@ gradiente de um mapa da Onda é, literalmente, um mapa da Onda que corre em AVX/
   reverso, escrito com as operações de campo (forward = mapa `pred` + redução da perda; backward = reduções
   que são os adjuntos). Conferido contra diferenças finitas centradas (bate a ~10 dígitos) e **bit a bit igual
   em C, x86 e WASM** (`test/autodiff.test.js`). Prova que a matemática e a dualidade mapa/redução estão certas.
-- **it.70 (próxima)** — diferenciação simbólica automática da árvore do elemento do mapa: dado `f` validado por
-  `xvan`, gerar o elemento adjunto `λx,ȳ. f'(x)·ȳ` e emiti-lo como um novo mapa. Verificar contra diferenças
-  finitas e contra o gradiente escrito à mão desta iteração.
+- **it.70 (feito)** — diferenciação simbólica automática. Operador novo **`B d n f a`** (backward): dado `f`
+  validado por `xvan`, gera `d[i] = f'(a[i])` por números duais (`xdiff` anda a árvore e devolve `(valor,
+  derivada)` por nó: `c→(c,0)`, `x→(x,1)`, e as regras de `+ − × ÷`). A derivada de uma árvore de `+ − × ÷` é
+  outra árvore de `+ − × ÷`, por isso `B` compila para um laço em RI que corre em **C, x86 e WASM**. Para isso
+  o emissor de C passou a aceitar locais anónimos (`elnm`) e operadores sintéticos (`eop`) — o que o x86 e o
+  WASM já faziam; agora a geração de laços em RI é verdadeiramente igual nos três. `ex/grad.onda` +
+  `test/grad.test.js`: o `f'` automático é **exato** (as diferenças finitas é que têm erro `O(e²)`) e **bit a
+  bit igual** em C/x86/WASM. Princípio da folha mantido: `B`/`xdiff`/`binx`/locais anónimos nunca são usados
+  pelo compilador em si, logo não podem partir o ponto fixo.
 - **depois** — acumulação de adjuntos em arrays de parâmetros (pesos), um grafo de operações de campo
   encadeadas, e treinar um modelo pequeno (regressão → uma camada → MLP minúsculo) de ponta a ponta, medindo o
   determinismo entre backends.

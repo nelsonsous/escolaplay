@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 69 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, 22 instr. `.2d` com `fmla`). **Autodiff (preparação):** fundação do modo reverso verificada — gradiente de regressão linear via operações de campo, igual às diferenças finitas e **bit a bit igual em C/x86/WASM** (`docs/AUTODIFF.md`). Próxima: diferenciação simbólica automática da árvore do elemento (it.70).
+Estado: **iteração 70 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso verificado (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)` de um elemento de mapa, exato e **bit a bit igual em C/x86/WASM** (`docs/AUTODIFF.md`). Próxima: a derivada composta (`×ȳ`) e acumular gradientes em arrays de parâmetros, rumo a treinar um modelo pequeno de ponta a ponta.
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1518,3 +1518,23 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Isto ainda não é autodiff *automático* — o elemento adjunto foi escrito à mão, para fixar a matemática e o arnês de teste (diferenças finitas como verdade de terreno). Mas prova as duas coisas que interessam: a dualidade mapa/redução está correta, e o gradiente é determinista entre backends (o que as bibliotecas não garantem). A automatização vem a seguir.
 
 **Próxima.** Diferenciação **simbólica automática** da árvore do elemento do mapa: dado `f` já validado por `xvan` (uma árvore de `+ - * /` sobre `x`), aplicar as regras adjuntas à árvore e **gerar** o elemento adjunto `λx,ȳ. f'(x)·ȳ` — que é outra árvore de `+ - * /`, logo outro mapa vetorizável (AVX/NEON/WASM/GPU). Verificar contra as diferenças finitas e contra o gradiente à mão desta iteração.
+
+---
+
+## Iteração 70: autodiff automático — o operador `B` diferencia o elemento sozinho
+
+**Pergunta.** A it.69 escreveu os adjuntos à mão. Dá para a Onda **gerar** a derivada de um elemento de mapa sozinha, e correr em todos os backends?
+
+**O que já existe.** O analisador `xvan` valida a árvore exata do elemento (`= x @f+a i <árvore de + - * / sobre x e constantes>`). As regras da derivada dessa árvore são mecânicas.
+
+**A ideia.** Números duais: andar a árvore uma vez devolvendo o par `(valor, derivada)` por nó — `c→(c,0)`, `x→(x,1)`, `A+B→(a+b, da+db)`, `A·B→(a·b, da·b+a·db)`, `A/B→(a/b, (da·b−a·db)/b²)`. Com uma só entrada `x` e `dx=1`, isto dá `f'(x)` em modo direto, que para um mapa por-elemento é a diagonal da jacobiana — exatamente o que o VJP do mapa precisa. A derivada de uma árvore de `+ − × ÷` é **outra árvore de `+ − × ÷`**, logo o resultado volta a ser um mapa vetorizável.
+
+**O que foi feito.** Um operador novo — **`B d n f a`** (backward) — que gera `d[i] = f'(a[i])`. `xdiff` (em `src/4main.onda`) anda a árvore do elemento e constrói a RI da derivada; `cb` embrulha-a num laço (`lpbeg`/`lpend`, carga/escrita de float). É construído em RI pura, sem macro, por isso corre em **C, x86 e WASM**. Para o C aceitar esta RI gerada (que o x86 e o WASM já aceitavam), o emissor de texto passou a tratar **locais anónimos** (`elnm`: `v_L<índice>` quando o local não tem token de nome) e **operadores sintéticos** (`eop`: quando o operando é o código do caractere negado, como os que `binx`/`cmpx` produzem). Isto também faz os lowerings `lowS`/`lowE`/`lowD` passarem a compilar em C — ficavam só no x86.
+
+**O bug (e a lição).** A primeira versão da carga do `x` tinha a RI `ir 26 xld <end> 0 0 0` — **só 6 argumentos** em vez de 7. O parser, faminto, engoliu a instrução seguinte (`setl xvl xld`) como o 7.º argumento, emitindo o `setl` **antes** da carga → o `x` lia um valor velho. O x86 mascarou-o (registos), o C e o WASM mostraram a derivada deslocada uma posição. Lição: numa linguagem prefixa sem parênteses, a aridade é tudo — contar os argumentos de `ir` ao dedo.
+
+**Prova (comando e resultado).** `./build.sh` fecha o ponto fixo bit a bit (hash C `56b9ba0b0378d43d`), e as sementes WASM/x86 geram a semente C exata. `node --test`: **93 testes** (91 + 2 novos). A derivada automática do polinómio de grau 7 é **exata**: `g'(1)=16,8`, `g'(2)=563`, `g'(4)=28156,2` — batem as diferenças finitas centradas (que têm erro `O(e²)`), e são **bit a bit iguais** em C, x86 e WASM (`ex/grad.onda`, `test/grad.test.js`, com `n = 8, 256, 1000`). Princípio da folha mantido: `B`/`xdiff`/`binx`/locais anónimos nunca entram no compilador em si, logo não podem partir o ponto fixo.
+
+**O balanço honesto.** Agora a derivada é gerada, não escrita à mão — é autodiff a sério, em modo direto, para o elemento de um mapa. Falta compor (`f'(x)·ȳ`, a regra da cadeia a montante) e acumular gradientes em arrays de parâmetros, para encadear camadas e treinar. Mas a peça difícil — diferenciar código e manter o determinismo multi-plataforma — está feita e provada.
+
+**Próxima.** A derivada composta `B` com `×ȳ` (o VJP completo do mapa), e a acumulação de gradientes nos parâmetros, rumo a treinar um modelo pequeno de ponta a ponta medindo o determinismo entre backends.
