@@ -154,6 +154,37 @@
   ir 27 0 binx '+ 0 d getl iv @ dp 0 0 0
   lpend iv
   d }
+# V d n f a y : derivada composta (VJP do mapa). d[i] = f'(a[i]) * y[i], a regra da cadeia a montante.
+# E a base do backward: dado o gradiente y que chega do passo seguinte, propaga-o para a entrada do mapa.
+: cv >i {
+  = d cx
+  = n cx
+  ckint d
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  ? == @ fe k 3 0 { ebeg "elemento deve devolver real" eend } 0
+  = a cargs k 1
+  = y cx
+  ckint y
+  ? == xvan k 0 { ebeg "elemento nao diferenciavel (forma de mapa vetorizavel)" eend } 0
+  = src @ a
+  = iv newl 0
+  = xvl newl 1
+  lpbeg iv n 0
+  = xld nt 1
+  ir 26 xld binx '+ 0 src getl iv 0 0 0 0
+  setl xvl xld
+  = dp A 1
+  = sv @ 7
+  ! 7 + @ fe k 5 7
+  xdiff xvl dp
+  ! 7 sv
+  = gy nt 1
+  ir 26 gy binx '+ 0 y getl iv 0 0 0 0
+  ir 27 0 binx '+ 0 d getl iv binx '* 1 @ dp gy 0 0 0
+  lpend iv
+  d }
 : cop i>i i {
   = o tcode i
   ? isar o cbin i 2
@@ -200,6 +231,7 @@
   ? == o 'S cs
   ? == o 'D cd
   ? == o 'B cb
+  ? == o 'V cv
   ? == o 'Y csys
   ? == o 'K ? isx cki k3 '_ 'k 'o ckst
   ? == o k2 'K 'c ? isx ckc0 ckcm

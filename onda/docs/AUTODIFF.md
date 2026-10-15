@@ -83,6 +83,11 @@ gradiente de um mapa da Onda é, literalmente, um mapa da Onda que corre em AVX/
   `test/grad.test.js`: o `f'` automático é **exato** (as diferenças finitas é que têm erro `O(e²)`) e **bit a
   bit igual** em C/x86/WASM. Princípio da folha mantido: `B`/`xdiff`/`binx`/locais anónimos nunca são usados
   pelo compilador em si, logo não podem partir o ponto fixo.
-- **depois** — acumulação de adjuntos em arrays de parâmetros (pesos), um grafo de operações de campo
-  encadeadas, e treinar um modelo pequeno (regressão → uma camada → MLP minúsculo) de ponta a ponta, medindo o
-  determinismo entre backends.
+- **it.74 (feito)** — derivada composta (o VJP completo do mapa). Operador novo **`V d n f a y`**: `d[i] =
+  f'(a[i]) · y[i]`, a regra da cadeia que propaga o gradiente a montante (`y`) para a entrada do mapa. Reaproveita
+  o `xdiff` (gera `f'`) e multiplica pela pista de `y`. `ex/vjp.onda` + `test/vjp.test.js`: bate as diferenças
+  finitas (é o gradiente de `L = Σ y·f(a)` em ordem a `a`) e é **bit a bit igual** em C/x86/WASM. Corre também em
+  ARM64 (`-a`), pela mesma RI. Com o `V`, o passo backward de uma camada-mapa está completo.
+- **depois** — acumulação de adjuntos em arrays de parâmetros (pesos), encadear várias operações de campo, e
+  treinar um modelo pequeno (regressão → uma camada → MLP minúsculo) de ponta a ponta, medindo o determinismo
+  entre backends.

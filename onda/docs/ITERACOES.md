@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 73 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 74 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1596,3 +1596,19 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Agora a Onda escreve o seu **próprio NEON** para o mapa, bit-exato, pela mesma fonte que dá o AVX no x86. A **velocidade real** mede-se no Mac do utilizador (o `qemu` emula, não mede) — mas o código SIMD está lá e é o que bate o escalar/C em hardware ARM. Ainda faltam, para a vecmap completa correr em `-a`: **chamadas entre funções** (para o `encher`/`natoi`) e **impressão** (o runtime via syscalls) — por isso os testes embutem no `main` e devolvem pelo código de saída.
 
 **Próxima.** Chamadas (kind 7) e impressão no `-a`, para a `vecmap.onda` correr tal e qual e se medir o tempo; e, a pedido do utilizador, a **derivada composta** do autodiff (o VJP completo `f'(x)·ȳ`).
+
+---
+
+## Iteração 74: a derivada composta — o VJP do mapa (a regra da cadeia do backward)
+
+**Pergunta (do utilizador).** A seguir aos reais e ao NEON, a **derivada composta**. O operador `B` (it.70) dá `f'(x)`; falta compor com o gradiente que chega de cima (a regra da cadeia), que é o que o backward de verdade precisa.
+
+**A ideia.** No modo reverso, cada operação recebe o adjunto `ȳ` (o gradiente da perda em ordem à sua saída) e produz o adjunto da sua entrada. Para um mapa `y[i] = f(a[i])`, o VJP (vector-Jacobian product) é `ā[i] = f'(a[i]) · ȳ[i]` — elemento a elemento, porque a jacobiana de um mapa é diagonal. É exatamente o gradiente de `L = Σ_j ȳ[j]·f(a[j])` em ordem a `a[i]`.
+
+**O que foi feito.** Operador novo — **`V d n f a y`** — que gera `d[i] = f'(a[i]) · y[i]`. Reaproveita o `xdiff` (it.70, diferenciação simbólica por números duais) para `f'` e multiplica pela pista de `y`. Compila para um laço em RI (sem macro), logo corre em **C, x86, WASM e ARM64** (`-a`), pela mesma fonte. `ex/vjp.onda` + `test/vjp.test.js`.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `0f5d599a8750b118`). `node --test`: **98 testes** (96 + 2). O VJP bate as **diferenças finitas** centradas a ~6–7 dígitos: `d[0] = 67,2 = g'(1)·y[0] = 16,8·4`, e assim por diante até `d[6] = 3 686 880`. E é **bit a bit igual** em C, x86 e WASM (`n = 8, 64, 101`) — operações de campo deterministas, o mesmo gradiente em qualquer máquina.
+
+**O que isto fecha.** Com o `B` (a derivada) e o `V` (a derivada composta), o passo backward de uma **camada-mapa** está completo e verificado — e herda o SIMD/determinismo de todos os backends, a tese contra o PyTorch/JAX. Falta encadear camadas, acumular gradientes nos pesos e treinar um modelo pequeno de ponta a ponta.
+
+**Próxima.** Acumular adjuntos em arrays de parâmetros e encadear operações de campo (mapa→redução→mapa), rumo a treinar uma regressão/uma camada de ponta a ponta; e, no `-a`, chamadas e impressão para medir o NEON no Mac real.
