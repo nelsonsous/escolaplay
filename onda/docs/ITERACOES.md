@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 19 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 20 (do circuito ao quântico: o AIG tornado reversível, em OpenQASM).
+Estado: **iteração 20 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 21 (provar que um ciclo acabou: simulação exaustiva do predicado "vivo").
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -537,3 +537,29 @@ Com `: bit >i 8`, o somador tem 64 portas, o multiplicador 234 e a contagem de b
 **O que correu mal.** O primeiro MDC (entradas de 6 bits, `: lim >i 200`) deu 713 mil portas, e o teste rebentou o buffer de 1 MB do node.
 - **Causa:** o predicado "vivo" nunca fica estruturalmente 0, mesmo quando todas as entradas já terminaram. Por isso o ciclo desenrola sempre até ao limite.
 - **Solução para mais tarde:** provar que "vivo" é 0, por simulação exaustiva quando depende de poucas entradas, ou com um resolvedor SAT. Por agora, o limite tem de ser o número real de voltas.
+
+## Iteração 20: a mesma função é teste clássico, circuito e programa quântico
+
+**Pergunta.** O exemplo do Grover da iteração 1 simulava o algoritmo. Pode uma função Onda virar o próprio programa quântico?
+
+**O que já existe.**
+- Os compiladores de oráculos (o RevKit, o Qiskit com `PhaseOracle`, o Q# com `Microsoft.Quantum.Arithmetic`) partem de expressões lógicas ou de bibliotecas próprias.
+- O método de Bennett (1973), calcular, copiar e descalcular, é a forma clássica de tornar reversível um cálculo irreversível.
+
+**O que foi feito.**
+- **`ondac -q f`:** o AIG da função vira um oráculo |x⟩|y⟩ → |x⟩|y ⊕ f(x)⟩ em OpenQASM 3. Cada porta E útil é um Toffoli num auxiliar, os inversores são portas X à volta, as saídas copiam-se com CNOT, e o cálculo repete-se ao contrário. O cabeçalho dá os qubits, os Toffoli e uma estimativa de portas T (7 por Toffoli).
+- **`: gro >i 1`:** para um predicado, o programa é a busca de Grover completa. São 804 iterações para 20 qubits, com `y[0]` em |−⟩, difusão com `ctrl(19) @ z` e medição.
+- **Reduções em árvore:** a igualdade e o "≠ 0" passaram a reduções em árvore equilibrada. A comparação de 20 bits desceu da profundidade 19 para 5, o que conta em quântico, onde a profundidade é tempo de coerência.
+- **`ex/oraculo.onda`:** o mesmo `: alvo i>i x == x 777777` é o teste clássico (`onda run`, que conta 1 solução), o circuito (19 portas E) e o programa quântico.
+
+**Prova** (`node --test test/circ.test.js`, 23 testes):
+- **Simulação clássica exata:** um circuito só com X, CNOT e Toffoli é uma permutação dos estados de base, por isso simula-se classicamente sem erro.
+- **Oráculos da maioria, da soma, da diferença absoluta e da divisão:** y = y₀ ⊕ f(x) em 256 vetores, com as entradas intactas e todos os auxiliares de volta a 0.
+- **Oráculo de Grover:** foi simulado nas 2²⁰ entradas de uma vez, com cada qubit a ser um número de 2²⁰ bits. Marca exatamente x = 777 777, e os 19 auxiliares ficam limpos. É uma prova exaustiva, não uma amostra.
+
+| oráculo | qubits (entrada + auxiliares + saída) | Toffoli |
+|---|---|---|
+| Grover, `x == 777777` em 20 bits | 20 + 19 + 20 | 38 por iteração |
+| maioria de 64 bits | 192 + 320 + 64 | 640 |
+
+**Limite honesto:** o programa quântico só ganha velocidade em hardware quântico. Aqui a correção é provada classicamente, e o ganho do Grover (√N consultas em vez de N) é o da teoria e o do simulador da iteração 1.

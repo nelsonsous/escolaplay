@@ -81,3 +81,61 @@ test('Verilog (-v) igual ao AIGER (-c) em maj, soma, mul e dv', () => {
     for (let i = 0; i < 64; i++) assert.strictEqual(b[i], a[i], f + ': saida ' + i);
   }
 });
+
+// oraculo quantico (onda -q f) em OpenQASM 3: so X, CNOT e Toffoli, por isso e uma permutacao dos estados de base
+// e simula-se classicamente, exato. Prova: y = y0 xor f(x), auxiliares voltam a 0, entradas intactas.
+function simulaQasm(q, regs) {
+  const tudo = (1n << BigInt(N)) - 1n;
+  const v = new Map();
+  const g = s => { const m = s.trim().match(/^([a-z_][a-z0-9_]*)\[(\d+)\]$/); return m[1] + '#' + m[2]; };
+  for (const [nome, vals] of Object.entries(regs)) vals.forEach((w, i) => v.set(nome + '#' + i, w));
+  const get = k => v.get(k) || 0n;
+  let toff = 0;
+  for (const l of q.split('\n')) {
+    let m = l.match(/^x (.+);$/); if (m) { const k = g(m[1]); v.set(k, get(k) ^ tudo); continue; }
+    m = l.match(/^cx (.+), (.+);$/); if (m) { const a = g(m[1]), b = g(m[2]); v.set(b, get(b) ^ get(a)); continue; }
+    m = l.match(/^ccx (.+), (.+), (.+);$/); if (m) { const a = g(m[1]), b = g(m[2]), c = g(m[3]); v.set(c, get(c) ^ (get(a) & get(b))); toff++; continue; }
+  }
+  return { v, toff };
+}
+test('oraculo quantico (-q): y = y0 xor f(x), auxiliares a 0, entradas intactas (maj, soma, dif, dv)', () => {
+  const src = fs.readFileSync(path.join(R, 'test/c/portas.onda'), 'utf8');
+  for (const [f, nomes] of [['maj', ['a', 'b', 'c']], ['soma', ['a', 'b']], ['dif', ['a', 'b']], ['dv', ['a', 'b']]]) {
+    const q = execFileSync(ondac, ['-q', f], { input: src, maxBuffer: 1 << 28 }).toString();
+    assert.match(q, /^OPENQASM 3\.0;/);
+    const regs = {}, ent = [];
+    for (const nm of nomes) { regs[nm] = []; for (let i = 0; i < 64; i++) { const w = rnd64() | (rnd64() << 64n) | (rnd64() << 128n) | (rnd64() << 192n); regs[nm].push(w); ent.push(w); } }
+    regs.y = []; for (let i = 0; i < 64; i++) regs.y.push(rnd64() | (rnd64() << 64n) | (rnd64() << 128n) | (rnd64() << 192n));
+    const fx = simula(execFileSync(ondac, ['-c', f], { input: src, maxBuffer: 1 << 28 }).toString(), ent);
+    const { v } = simulaQasm(q, regs);
+    for (let i = 0; i < 64; i++) assert.strictEqual(v.get('y#' + i), regs.y[i] ^ fx[i], f + ': y[' + i + ']');
+    for (const nm of nomes) for (let i = 0; i < 64; i++) assert.strictEqual(v.get(nm + '#' + i), regs[nm][i], f + ': entrada ' + nm + '[' + i + '] mudou');
+    for (const [k, w] of v) if (k.startsWith('t#')) assert.strictEqual(w, 0n, f + ': auxiliar ' + k + ' ficou sujo');
+  }
+});
+
+// o programa de Grover de ex/oraculo.onda (: gro >i 1): estrutura e oraculo verificados nas 2^20 entradas de uma vez
+test('Grover (-q com : gro): 804 iteracoes, difusao, e o oraculo marca so x = 777777 em todas as 2^20 entradas', () => {
+  const src = fs.readFileSync(path.join(R, 'ex/oraculo.onda'), 'utf8');
+  const q = execFileSync(ondac, ['-q', 'alvo'], { input: src, maxBuffer: 1 << 28 }).toString();
+  assert.match(q, /for uint i in \[0:803\] \{/);
+  assert.match(q, /ctrl\(19\) @ z x\[0\], x\[1\],[^;]*x\[19\];/);
+  assert.match(q, /r_x = measure x;/);
+  const corpo = q.slice(q.indexOf('// calcular'), q.indexOf('// difusao'));
+  const T = 1 << 20, tudo = (1n << BigInt(T)) - 1n;
+  const v = new Map();
+  for (let i = 0; i < 20; i++) {           // x[i] nas 2^20 colunas: bit j de x[i] = bit i de j
+    let w = ((1n << (1n << BigInt(i))) - 1n) << (1n << BigInt(i)), len = 1 << (i + 1);
+    while (len < T) { w |= w << BigInt(len); len *= 2; }
+    v.set('x#' + i, w);
+  }
+  const g = s => { const m = s.trim().match(/^([a-z_][a-z0-9_]*)\[(\d+)\]$/); return m[1] + '#' + m[2]; };
+  const get = k => v.get(k) || 0n;
+  for (const l of corpo.split('\n')) {
+    let m = l.match(/^x (.+);$/); if (m) { const k = g(m[1]); v.set(k, get(k) ^ tudo); continue; }
+    m = l.match(/^cx (.+), (.+);$/); if (m) { const a = g(m[1]), b = g(m[2]); v.set(b, get(b) ^ get(a)); continue; }
+    m = l.match(/^ccx (.+), (.+), (.+);$/); if (m) { const a = g(m[1]), b = g(m[2]), c = g(m[3]); v.set(c, get(c) ^ (get(a) & get(b))); }
+  }
+  assert.strictEqual(get('y#0'), 1n << 777777n, 'o oraculo tem de marcar exatamente x = 777777');
+  for (const [k, w] of v) if (k.startsWith('t#')) assert.strictEqual(w, 0n, 'auxiliar ' + k + ' ficou sujo');
+});

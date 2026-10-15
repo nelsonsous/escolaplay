@@ -16,7 +16,11 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ./onda run ex/grover.onda   # compila e corre, com cache por hash
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
-node test/viva.test.js      # testes da Onda Viva
+build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pela Onda, sem C nem assembler
+./onda circ ex/oraculo.onda alvo                  # a funcao vira um circuito (AIGER); -v da Verilog
+build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
+node --test test/           # todos os testes: Onda Viva, matematica bit a bit, circuitos e oraculos
+sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
 ```
@@ -26,7 +30,8 @@ python3 web/montar.py       # monta as duas paginas em build/
 | Caminho | Conteúdo |
 |---|---|
 | `SPEC.md` | a linguagem inteira, escrita para IAs |
-| `src/*.onda` | o compilador, em Onda, com saída para C, GLSL e JavaScript |
+| `src/*.onda` | o compilador, em Onda: C, GLSL, JavaScript, WebAssembly e x86-64 escritos byte a byte, circuitos (AIGER, Verilog) e oráculos quânticos (OpenQASM 3) |
+| `src/9mat.onda` | a matemática (seno, coseno, exp, log, atan2, pow) escrita em Onda, gerada por `tools/gerar_mat.py` |
 | `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) |
 | `boot/` | arranque em Rust (estágio 0), usado uma vez |
 | `rt/prelude.c` | runtime C mínimo |
@@ -42,6 +47,11 @@ python3 web/montar.py       # monta as duas paginas em build/
 - **GPU igual à CPU:** 100% dos píxeis dentro de ±8/255.
 - **Velocidade (4 núcleos):** fib(35) em 15 ms (C: 16 ms); π com 200 milhões de termos em 68 ms (C sequencial: 246 ms, C com OpenMP à mão: 67 ms); fractal 960×540 em 13 ms (C sequencial: 31 ms).
 - **Grover com 20 qubits:** o alvo fica com probabilidade 0,9999998.
+- **Três pontos fixos:** em C, WebAssembly e x86-64, o compilador compila-se a si próprio bit a bit, e as três sementes geram o mesmo C.
+- **x86 nativo** (sem C, assembler nem linker): π ao nível do `gcc -O2` e Grover a 2% dele.
+- **Matemática igual ao bit:** `Sn Cs Ex Lg At Pw` dão os mesmos bits em C, WebAssembly, x86, JavaScript e no significado (`test/mat.test.js`). O `Pw` é o pow do fdlibm, conferido com o `StrictMath` do Java.
+- **Circuitos:** cada circuito é simulado e comparado com a função compilada, e o Verilog com o AIGER (`test/circ.test.js`).
+- **Oráculos quânticos:** são reversíveis e limpos (auxiliares a 0). O de Grover foi verificado nas 2²⁰ entradas de uma vez.
 - **Onda Viva:**
   - a forma CPU dá os mesmos bits que o significado e é 17 a 20 vezes mais rápida;
   - a forma GPU cumpre a tolerância declarada;
@@ -50,8 +60,8 @@ python3 web/montar.py       # monta as duas paginas em build/
 
 ## Limites
 
-- A Onda não é mais rápida do que C, porque gera C. O ganho vem do paralelismo automático (`E`, `S`, `D`) e da GPU.
-- "Quântico" é o modelo de paralelismo. Aceleração quântica verdadeira só existe em hardware quântico.
+- Na forma C, a velocidade é a do gcc. Na forma x86 própria, a Onda chega ao gcc em ciclos numéricos, mas ainda perde nas chamadas recursivas (fib 4× mais lento) e na otimização entre funções.
+- "Quântico" tem dois sentidos: o modelo de paralelismo dos campos, e programas OpenQASM reais gerados a partir de funções Onda. Estes só ganham velocidade em hardware quântico, e aqui são verificados classicamente.
 - Versão 0:
   - a memória só cresce;
   - não há verificação de limites nem módulos;

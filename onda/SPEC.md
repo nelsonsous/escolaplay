@@ -69,6 +69,14 @@ Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 - `ondac -v f` escreve o mesmo circuito em Verilog estrutural (`module f(input [W-1:0] i_a, ..., output [W-1:0] o)`).
 - O comentário final dá as portas úteis e a profundidade. `test/circ.test.js` simula cada circuito e compara-o com a função compilada.
 
+## Quântico
+`ondac -q f` escreve um oráculo reversível |x⟩|y⟩ → |x⟩|y ⊕ f(x)⟩ em OpenQASM 3, pelo método de Bennett:
+1. cada porta E útil do circuito é um Toffoli num qubit auxiliar;
+2. as saídas são copiadas com CNOT;
+3. os Toffoli repetem-se ao contrário, e os auxiliares voltam a |0⟩.
+
+Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Grover completa: Hadamard, ⌊π/4·√2ⁿ⌋ iterações de oráculo (retrocesso de fase em `y[0]`) e difusão, e medição. Ver `ex/oraculo.onda`.
+
 ## Ferramentas
 - `./build.sh` faz o arranque: Rust → ondac1 → ondac2 → ondac3. Exige `ondac1.c == ondac2.c == ondac3.c`. `--semente` arranca só a partir de `seed/ondac.c`.
 - `./onda run f.onda`: compila e corre, com cache por hash. O que já foi compilado nunca se recompila.
