@@ -13,7 +13,7 @@ Não há runtime, GC nem VM. O compilador gera C (e daí código nativo ou WebAs
 
 ## Programa
 `: nome ASSIN p1 .. pn CORPO`, onde ASSIN é `[if]*>[if]` (tipos dos parâmetros > tipo de retorno; `i` = int64, `f` = float64).
-O CORPO é uma única expressão. O ponto de entrada é `: main >i`, cujo valor é o código de saída.
+O CORPO é uma única expressão. O ponto de entrada é `: main >i`, cujo valor é o código de saída (um programa que acaba com `P ...` sai com esse byte; termina o `main` com `0` para sair limpo).
 Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 
 ## Expressões (prefixas, aridade fixa, sem parênteses)

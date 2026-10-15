@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 49 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 50 (a meio das 100: um resumo honesto do estado da Onda).
+Estado: **iteração 50 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 51 (atacar uma das pontas soltas do `docs/ESTADO.md` — provavelmente funções na mini-linguagem, ou o inline do `S` no emissor C).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1144,3 +1144,15 @@ Um objeto útil de verdade — content-addressable storage, a base do git, do IP
 (Mais um caso do mesmo detalhe que o CAS apanhou: o `main` saía com o código do último `P`; um `0` final repõe a saída limpa.)
 
 **Próxima.** Chegámos a meio das 100 iterações. A próxima é um resumo honesto: o que a Onda é hoje, o que está provado, e o que falta.
+
+## Iteração 50: a meio das 100 — o estado da Onda
+
+**O que é.** Chegámos a meio. Em vez de mais uma peça, um balanço honesto, em `docs/ESTADO.md`: o que a Onda é, o que está provado (a cada corrida dos 68 testes), os detalhes úteis para quem a escreve, e o que falta.
+
+**O retrato.** A Onda compila-se a si própria bit a bit em três formas (C, WebAssembly, x86-64 nativo — as duas últimas escritas byte a byte, sem C nem linker); todos os programas dão o mesmo resultado nas três, prova que são a mesma máquina (o SHA-256 é a mais exigente); iguala o `gcc -O2` em tempo no código numérico e limitado pela memória, perdendo só na recursão com muitas chamadas; faz matemática ao bit, gráficos na GPU, circuitos, programas quânticos reais (gerados e simulados dentro da Onda), e um armazenamento onde a memória é o disco, atómico e partilhável. E corre uma dezena de programas a sério — de um interpretador de Brainfuck a uma mini-linguagem Turing-completa — iguais em todas as formas.
+
+**Também documentado:** três *gotchas* da linguagem que estas iterações destaparam — o código de saída do `main`, o `~` lógico (complemento de bits é `^ x mascara`), e o custo da chamada por índice num campo em C/WebAssembly. O `SPEC.md` passou a avisar do primeiro.
+
+**O que falta** (as pontas para 50–100): inline das reduções no emissor C, o custo das chamadas no x86, o armazém multi-processo no x86/WebAssembly, funções na mini-linguagem, e a redução de Payne–Hanek.
+
+**Próxima.** Atacar uma dessas pontas. Provavelmente dar funções (com recursão) à mini-linguagem, fechando-a como linguagem hospedada completa.
