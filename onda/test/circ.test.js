@@ -139,3 +139,16 @@ test('Grover (-q com : gro): 804 iteracoes, difusao, e o oraculo marca so x = 77
   assert.strictEqual(get('y#0'), 1n << 777777n, 'o oraculo tem de marcar exatamente x = 777777');
   for (const [k, w] of v) if (k.startsWith('t#')) assert.strictEqual(w, 0n, 'auxiliar ' + k + ' ficou sujo');
 });
+
+// fim provado: o predicado "vivo" de um ciclo e simulado em todas as combinacoes das suas entradas (ate 16 bits);
+// quando da 0 em todas, o ciclo acabou de facto. O limite declarado deixa de mudar o circuito.
+test('ciclos: com : lim >i 1000 o circuito e o mesmo que com 24 (o fim e provado, nao truncado)', () => {
+  const src = fs.readFileSync(path.join(R, 'test/c/portas.onda'), 'utf8');
+  assert.match(src, /: lim >i 24/);
+  for (const f of ['mdc', 'col']) {
+    const a = execFileSync(ondac, ['-c', f], { input: src, maxBuffer: 1 << 28 }).toString();
+    const b = execFileSync(ondac, ['-c', f], { input: src.replace(': lim >i 24', ': lim >i 1000'), maxBuffer: 1 << 28 }).toString();
+    assert.strictEqual(b, a, f + ': o limite mudou o circuito');
+    assert.doesNotMatch(a, /truncado/, f + ': ciclo truncado');
+  }
+});

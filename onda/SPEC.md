@@ -64,7 +64,7 @@ Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 - `& | ^`, as comparações, `Mn`/`Mx`, `&&`, `||`, `~` e `?` (multiplexador) também existem.
 - `/ %` usam divisão com restauro sobre os valores absolutos, truncada como no C. A divisão por zero dá um valor não especificado.
 - As chamadas são expandidas.
-- Os ciclos são desenrolados com um predicado "vivo": a condição e o corpo só mudam o estado das entradas que ainda estão no ciclo. Um ciclo cujo número de voltas depende das entradas precisa de `: lim >i N`, o número máximo de voltas que o circuito cobre.
+- Os ciclos são desenrolados com um predicado "vivo": a condição e o corpo só mudam o estado das entradas que ainda estão no ciclo. Em cada volta, o compilador tenta provar que o predicado já é 0: se depende de no máximo 16 bits de entrada, simula-o em todas as combinações. Se a prova sai, o ciclo acaba aí. Se não sai, um ciclo cujo número de voltas depende das entradas precisa de `: lim >i N`, o número máximo de voltas que o circuito cobre.
 - `: rap >i 1` troca os somadores em cadeia por somadores de prefixos (Kogge-Stone): a soma de 64 bits passa de 568 portas e profundidade 128 para 1 327 portas e profundidade 15.
 - `ondac -v f` escreve o mesmo circuito em Verilog estrutural (`module f(input [W-1:0] i_a, ..., output [W-1:0] o)`).
 - O comentário final dá as portas úteis e a profundidade. `test/circ.test.js` simula cada circuito e compara-o com a função compilada.

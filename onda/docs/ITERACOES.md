@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 20 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 21 (provar que um ciclo acabou: simulação exaustiva do predicado "vivo").
+Estado: **iteração 21 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 22 (otimizar o AIG: reescrita local e equivalências provadas por simulação).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -563,3 +563,28 @@ Com `: bit >i 8`, o somador tem 64 portas, o multiplicador 234 e a contagem de b
 | maioria de 64 bits | 192 + 320 + 64 | 640 |
 
 **Limite honesto:** o programa quântico só ganha velocidade em hardware quântico. Aqui a correção é provada classicamente, e o ganho do Grover (√N consultas em vez de N) é o da teoria e o do simulador da iteração 1.
+
+## Iteração 21: provar que um ciclo acabou
+
+**Pergunta.** Na iteração 19, um ciclo de voltas variáveis desenrolava sempre até `: lim`, porque o predicado "vivo" nunca fica estruturalmente 0. Como saber que todas as entradas já saíram?
+
+**O que já existe.** A verificação formal usa SAT ou BDD para provar que um sinal é constante, e o "SAT sweeping" do ABC junta nós equivalentes. São ferramentas grandes.
+
+**O que foi feito.** Quando "vivo" depende de no máximo 16 bits de entrada, o compilador simula o seu cone em todas as 2ⁿ combinações. Usa 64 combinações por palavra, com os padrões 0x5555…, 0x3333… para as seis primeiras variáveis e palavras inteiras para as outras.
+- Se dá 0 em todas, isso é uma prova: o ciclo acabou e o desenrolamento para ali.
+- O cone é recolhido por uma busca em pós-ordem, que é uma ordem topológica.
+
+**O que correu mal.** A primeira versão marcava cada nó ao empilhá-lo, e não ao expandi-lo. Um nó marcado mas ainda por calcular podia ficar depois de quem o usava, e a simulação lia o valor da palavra anterior.
+- Com uma palavra o erro quase não se via: a prova saía uma volta tarde.
+- Com quatro palavras, a prova nunca saía.
+- Encontrei-o com uma cópia do compilador que escrevia cada tentativa de prova: suporte, cone e resultado. Com suporte 7, a prova saía na 12.ª tentativa em vez da 8.ª.
+
+**Prova.**
+- Com `: lim >i 1000`, o circuito é byte a byte igual ao de `: lim >i 24`, sem aviso de truncagem (`test/circ.test.js`, 24 testes).
+- Os 30 testes passam.
+
+| ciclo | antes (truncado no limite) | agora (fim provado) |
+|---|---|---|
+| MDC, entradas de 4 bits | 52 673 portas (lim 24), 137 777 (lim 60) | **31 589** com qualquer limite |
+| MDC, entradas de 6 bits (lim 200) | 713 031 criadas | **145 178** portas (156 ms) |
+| Collatz, x ≤ 32 (lim 200) | 548 407 portas, truncado | **281 350** portas, 111 voltas provadas |

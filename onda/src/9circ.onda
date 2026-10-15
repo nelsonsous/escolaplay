@@ -4,6 +4,7 @@
 # bloco 62: 0 W 1 proximo no 2/3 entradas de cada E 4 dispersao 5 tamanho 6 fios dos temporarios 7 fios das variaveis
 #           8 pilha de estados 9 topo 10 n de entradas 11 fios da saida 12 voltas 13 fim de cada ciclo 14 rascunho 15 inicio de cada ciclo
 #           16 pilha de ciclos 17 topo 18 limite de voltas (-1 sem limite declarado) 19 ciclo truncado 20 somador rapido 23/24 G e P
+#           27 carimbos da prova 28 contador 29 lista do cone 30 pilha da prova 31 valores simulados
 : zq i>i k @ + @ 62 k
 : zqs ii>i k v ! + @ 62 k v
 : zw >i zq 0
@@ -234,7 +235,7 @@
   ? == k 22
     { = f zltop
       zlmux @ f + f 2
-      = q zand @ f znz a
+      = q zprova zand @ f znz a
       ! f q
       ? == q 0 { zqs 17 - zq 17 1 = nx + @ + zq 13 @ + zq 15 i 1 } { zlsave + + f 2 * @ 9 zw }
       0 }
@@ -285,6 +286,10 @@
   zqs 18 zdec k3 'l 'i 'm -1
   zqs 20 zdec k3 'r 'a 'p 0
   zqs 26 zdec k3 'g 'r 'o 0
+  zqs 27 A 1000008
+  zqs 29 A 1000008
+  zqs 30 A 2000016
+  zqs 31 A 1000008
   zqs 16 A 4000000
   zqs 23 A 64
   zqs 24 A 64
@@ -438,3 +443,58 @@
       "}\n"
       = j 0 W < j np { "r_" etx + @ fe k 4 j " = measure " etx + @ fe k 4 j ";\n" = j + j 1 } } 0
   0 }
+# prova de que um fio e sempre 0: se depende de no maximo 16 entradas, simula-se o cone em todas as 2^n combinacoes
+# (64 de cada vez, em paralelo nos bits de uma palavra). O cone vem de uma busca em pos-ordem, que e uma ordem topologica:
+# cada no marca-se ao ser expandido, nao ao ser empilhado (senao um no por calcular podia vir depois de quem o usa).
+: zpat ii>i k w ? < k 6 ? == k 0 0x5555555555555555 ? == k 1 0x3333333333333333 ? == k 2 0x0F0F0F0F0F0F0F0F ? == k 3 0x00FF00FF00FF00FF ? == k 4 0x0000FFFF0000FFFF 0x00000000FFFFFFFF ? & >> w - k 6 1 -1 0
+: zprova i>i l {
+  ? <= l 1 l
+  { zqs 28 + zq 28 1
+    = st zq 28
+    = mk zq 27
+    = ls zq 29
+    = pk zq 30
+    = nl 0
+    = ns 0
+    = sp 0
+    = ok 1
+    = r >> l 1
+    ! pk r
+    ! + pk 1 0
+    = sp 1
+    W && ok > sp 0 {
+      = q + pk * 2 - sp 1
+      = n @ q
+      ? <= n zq 10
+        { ? != @ + mk n st { ! + mk n st ? == ns 16 = ok 0 { ! + zq 31 n ns = ns + ns 1 } } 0 = sp - sp 1 }
+        ? @ + q 1
+          { ! + ls nl n = nl + nl 1 = sp - sp 1 ? > nl 999000 = ok 0 0 }
+          ? == @ + mk n st
+            = sp - sp 1
+            { ! + mk n st
+              ! + q 1 1
+              = x >> @ + zq 2 n 1
+              = y >> @ + zq 3 n 1
+              ? > x 0 { ! + pk * 2 sp x ! + pk + * 2 sp 1 0 = sp + sp 1 } 0
+              ? > y 0 { ! + pk * 2 sp y ! + pk + * 2 sp 1 0 = sp + sp 1 } 0 } }
+    = nw ? < ns 6 1 << 1 - ns 6
+    ? > * nl nw 30000000 = ok 0 0
+    ? ok
+      { = v zq 31
+        = w 0
+        = zero 1
+        W && zero < w nw {
+          = j 0
+          W < j nl {
+            = n @ + ls j
+            = a @ + zq 2 n
+            = b @ + zq 3 n
+            ! + v n & ^ zpv a w ? & a 1 -1 0 ^ zpv b w ? & b 1 -1 0
+            = j + j 1 }
+          = res ^ zpv l w ? & l 1 -1 0
+          = mask ? < ns 6 - << 1 << 1 ns 1 -1
+          ? & res mask = zero 0 0
+          = w + w 1 }
+        ? zero 0 l }
+      l } }
+: zpv ii>i a w { = n >> a 1 ? == n 0 0 ? <= n zq 10 zpat @ + zq 31 n w @ + zq 31 n }
