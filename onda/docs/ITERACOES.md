@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 16 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 17 (textos empacotados, 8 caracteres por palavra, no WebAssembly e no x86).
+Estado: **iteração 17 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 18 (circuitos: uma função Onda vira portas lógicas).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -445,3 +445,26 @@ Ninguém faz a matemática fazer parte da própria linguagem, escrita nela e igu
 **O que correu mal.** Dei o mesmo nome (`LG2`) a duas constantes: ao coeficiente do log e ao ln 2 do pow. O dicionário do Python ficou com a segunda sem aviso, e o log passou a errar no 5.º algarismo. O teste do log apanhou-o logo, e o gerador passou a recusar nomes repetidos.
 
 **Mudança de plano.** Os campos em vários núcleos ficam para mais tarde. A seguir vêm os textos empacotados, que poupam cerca de 60 KB a cada compilador, e depois os circuitos.
+
+## Iteração 17: textos empacotados, compiladores com metade do tamanho
+
+**Pergunta.** Porque é que o compilador nativo tem 286 KB, se o código de máquina é bem menos?
+
+**Diagnóstico.** No WebAssembly e no x86, cada carácter de um texto ocupava uma palavra de 8 bytes. O compilador carrega o prelúdio do C, o runtime e a biblioteca de matemática como texto, e esses 7 bytes vazios por carácter eram mais de metade do binário.
+
+**O que foi feito.**
+- **Empacotamento:** os textos passam a ter 8 caracteres por palavra (bytes em little-endian), alinhados à palavra seguinte. O `sreg` reserva ⌈n/8⌉ palavras, e o escritor de dados escreve os bytes.
+- **Impressão:** o `_os` extrai cada byte com `& >> @ + p >> j 3 * 8 & j 7 255`, em Onda pura, igual nas duas formas.
+- **Reais no WebAssembly:** o `_og`, que imprime reais formatados pelo host num buffer de palavras, deixou de passar pelo `_os`.
+
+**Prova.**
+
+| compilador | antes | depois |
+|---|---|---|
+| WebAssembly | 326 931 bytes | **171 279 bytes** |
+| x86-64 nativo | 286 472 bytes | **130 736 bytes** |
+
+- Os três pontos fixos continuam fechados.
+- `inteiros`, `reais`, `imagem` e `fluxo` dão o mesmo resultado em C, WebAssembly e x86, e os sete testes de matemática e da Onda Viva passam.
+- **No browser,** a página da Onda Viva verifica o compilador: ele compila-se a si próprio em 49 ms e dá o SHA-256 da semente C. A forma JavaScript sai igual ao bit ao significado, e o erro injetado é rejeitado.
+- A autocompilação nativa continua em 13 a 25 ms.
