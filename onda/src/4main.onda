@@ -323,5 +323,5 @@
   ? isc outz
     { = k 0
       W < k @ 6 { ? isi rifun k cfun k = k + k 1 }
-      ? isx outx ? isw outw ? isa ? ismo outm outa ? isd 0 ? isi outc ? isjs outj ? @ 12 outg outc }
+      ? isx outx ? isw outw ? isa ? ismo outm outa ? isd 0 ? isjs outj ? @ 12 outg outc }
   0 }

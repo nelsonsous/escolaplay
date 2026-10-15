@@ -87,7 +87,7 @@
 : isx >i == @ 12 4
 : isa >i == @ 12 8
 : isd >i == @ 12 9
-: isi >i && == Av 1 0 '- == Av 1 1 'i
+: isi >i && == Av 1 0 '- || == Av 1 1 'i == Av 1 2 'i
 : isc >i && >= @ 12 5 <= @ 12 7
 : ety i>i y ? @ 12 ? isjs "let" ? y "float" "int" ? y "F" "I"
 : ez i>i y ? y "0.0" "0"
