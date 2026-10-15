@@ -52,6 +52,16 @@ test('vecmap: o modo -xf (FMA) da o mesmo valor que o -x, a ~15 digitos', () => 
   assert.ok(Math.abs(sf - sx) / sx < 1e-12, 'FMA divergiu: -x=' + sx + ' -xf=' + sf);
 });
 
+// modo WASM SIMD (-wf): f64x2 (2 doubles/instr), corre no Safari 16.4+. Por-lane = escalar, logo BIT A BIT
+// igual ao WASM escalar (-w) e ao C. Exercita tambem a cauda (n impar).
+test('vecmap: WASM SIMD (-wf) e bit a bit igual ao WASM escalar e ao C', () => {
+  fs.writeFileSync(path.join(t, 'v.wf.wasm'), execFileSync(ondac, ['-wf'], { input: src }));
+  const WF = (...a) => execFileSync('node', [path.join(R, 'wasm/host.js'), path.join(t, 'v.wf.wasm'), ...a]).toString();
+  assert.strictEqual(bits(WF()), bits(W()), '-wf vs -w');
+  assert.strictEqual(bits(WF()), bits(C()), '-wf vs C');
+  for (const n of ['8191', '3', '1']) assert.strictEqual(bits(WF(n, '1')), bits(execFileSync(path.join(t, 'vc'), [n, '1']).toString()), 'cauda n=' + n);
+});
+
 // modo AVX-512 (-x5): 8 doubles por instrucao; valor igual ao -x a ~15 digitos (apanha erros de EVEX).
 test('vecmap: o modo -x5 (AVX-512) da o mesmo valor que o -x, a ~15 digitos', () => {
   fs.writeFileSync(path.join(t, 'vx5'), execFileSync(ondac, ['-x5'], { input: src }), { mode: 0o755 });

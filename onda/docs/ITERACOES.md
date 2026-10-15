@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 66 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). Próxima: 66 (redução com vários acumuladores, para o AVX-512 também a acelerar; e `F i`/várias fontes).
+Estado: **iteração 67 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). Próxima: 66 (redução com vários acumuladores, para o AVX-512 também a acelerar; e `F i`/várias fontes).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1457,3 +1457,17 @@ C gcc -O3 -march=native:      415 ms
 **O limite honesto.** Esta é a forma `D` (campo 2D, função do índice/coordenada) — já é paralelismo geral por-elemento, mas **não lê um array de entrada**. Para o GPGPU completo de uma linguagem de IA (ler pesos/dados), falta um modelo de memória em GLSL: `@f + a i` → *texture fetch* de uma textura de entrada, e assinaturas de elemento gerais (hoje o `-g` só aceita a assinatura de pixel `fffff>i`). É a próxima camada.
 
 **Próxima.** (a) SIMD no WASM (`f64x2`, teto do CPU no Safari) — o utilizador quer os dois; depois, o GPGPU com leitura de array por textura.
+
+## Iteração 67: SIMD no WASM (f64x2) — o teto do CPU no Safari
+
+**Pergunta.** Além da GPU, o WASM é o que o Safari corre em CPU. Dá para o vetorizar?
+
+**O que foi feito.** Um caminho SIMD no emissor WASM (`-wf`): o mapa de campo vetorizável passa a usar `v128`/`f64x2` (2 doubles por instrução) em vez de chamar o elemento por índice. Reaproveita o **mesmo analisador `xvan`** do x86. Como o WASM é máquina de pilha, o walker (`wvem`) é pós-fixo e **recarrega o `x` por uso** (`v128.load`), evitando declarar locais `v128` novos (que obrigariam a mexer no cabeçalho da função). Gated em `-wf`; em `-w` fica escalar (compatível com engines sem SIMD). Laço de pares + cauda escalar para `n` ímpar.
+
+**O bug (e a lição).** A primeira versão trocou o opcode do `f64x2.splat`: usei `0x94`, que é afinal `f64x2.nearest` (o validador do node queixou-se: "expected v128, found f64"). O `splat` é `0x14` (20). Corrigido.
+
+**Prova.** Ponto fixo fecha (hash C `f4595ec12b56196d`). `node --test`: **89 testes** — o `-wf` é **bit a bit igual** ao WASM escalar (`-w`) e ao C (f64x2 por-lane = escalar f64), incluindo a cauda com `n` ímpar. Velocidade no node (rep=20000): **-w 725 ms → -wf 532 ms (1,36×)**. Corre no Safari 16.4+ (Mac e iPhone).
+
+**O balanço honesto (Mac/Safari).** Dois níveis, ambos no Safari: **WASM+SIMD** (CPU, ~1,3–1,5×, bit-exato) e **GPU** (WebGL2). No GPU real de um Mac, o mesmo campo da Onda corre a **~760–850 M campos/s, ~130–166× a CPU-JS** (medido pelo utilizador no Safari). A GPU é a alavanca a sério para data-parallel; o WASM SIMD é o teto do CPU no browser. Nenhum destes resultados é novo para a ciência (GPU >> CPU em paralelo, SIMD > escalar são conhecidos) — o valor é a **unificação correta e verificada**: uma só fonte → CPU, browser e GPU, iguais ao bit onde é determinista.
+
+**Próxima.** GPGPU com leitura de array por textura (para a GPU ler dados de entrada, não só função do índice); e, no x86, reduções com vários acumuladores.

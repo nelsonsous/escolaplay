@@ -76,18 +76,48 @@
   wtest 0 a
   wg d wgx 0 wxargs c x P 16 wu + 3 b P ? tty d 160 124 wsx d
   wnext 0 }
+# --- WASM SIMD (v128 / f64x2): mapa vetorizado, 2 doubles por instrucao (so em -wf). Bit-exato (por lane). ---
+# walker pos-fixo do elemento: recarrega x por uso (v128.load), sem locais v128 novos. 0xFD = prefixo SIMD.
+: wvem iii>i xt sb cj {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { wf64 fltval i P 253 wu 20 0 }
+  ? == kk 0 { wg sb wgx cj P 124 wadr P 253 wu 0 wu 3 wu 0 }
+  { = o tcode i wvem xt sb cj wvem xt sb cj P 253 wu ? == o '+ 240 ? == o '- 241 ? == o '* 242 243 0 } }
+: wEv iiiii>i a b c x y {
+  = sb @ x
+  = bod @ fe c 5
+  = xt + bod 2
+  = rs + bod 7
+  = sv @ 7
+  wg b wi64 -2 P 131 wsxx 1
+  wloop0 0
+  wgx 0 wgx 1 P 89 P 13 P 1
+  wg a wgx 0 P 124 wadr
+  ! 7 rs wvem xt sb 0
+  P 253 wu 11 wu 3 wu 0
+  wgx 0 wi64 2 P 124 wsxx 0 P 12 P 0 P 11 P 11
+  P 2 P 64 P 3 P 64
+  wgx 0 wg b P 89 P 13 P 1
+  wg a wgx 0 P 124 wadr
+  wgx 0 wxargs x y P 16 wu + 3 c
+  ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
+  wgx 0 wi64 1 P 124 wsxx 0 P 12 P 0 P 11 P 11
+  ! 7 sv }
 : wE i>i p {
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
   = x @ + p 5
   = y @ + p 6
-  wloop0 0
-  wtest 0 b
-  wg a wgx 0 P 124 wadr
-  wgx 0 wxargs x y P 16 wu + 3 c
-  ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
-  wnext 0 }
+  ? && fastf xvan c wEv a b c x y {
+    wloop0 0
+    wtest 0 b
+    wg a wgx 0 P 124 wadr
+    wgx 0 wxargs x y P 16 wu + 3 c
+    ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
+    wnext 0 } }
 : wbyte ii>i j s { wgx j wi64 s P 135 wi64 255 P 131 wrf k3 '_ 'o 'p P 26 }
 : wD i>i p {
   = d @ + p 1
