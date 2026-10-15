@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 51 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 52 (uma ponta de desempenho — o inline do `S` no emissor C, ou o custo das chamadas no x86).
+Estado: **iteração 52 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 53 (continuar a alargar a biblioteca de programas verificados, ou uma ponta de desempenho).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1175,3 +1175,17 @@ F impar n = ? (n == 0) 0 (par (n - 1))                     par 7  = 0 (impar)
 Recursão simples, dupla (fib) e **mútua** (par/ímpar). Uma linguagem imperativa completa — variáveis, condicional, ciclos, blocos, funções recursivas — escrita em Onda, compilada pela Onda para três formas, dando o mesmo resultado em todas.
 
 **Próxima.** Voltar ao desempenho: o inline das reduções (`S`) no emissor de C, ou o custo das chamadas no x86.
+
+## Iteração 52: expressões regulares (o matcher do Kernighan)
+
+**Pergunta.** Depois de uma linguagem interpretada, falta o outro clássico do processamento de texto: casar padrões. O matcher recursivo de Kernighan (de *The Practice of Programming*) cabe em meia dúzia de funções — escreve-se em Onda?
+
+**O que foi feito.** `ex/regex.onda`: `.` (qualquer caratere), `*` (zero ou mais), `^` (início), `$` (fim), pela recursão mútua de `aqui` (matchhere) e `estrela` (matchstar). Lê o padrão do argumento e o texto do stdin, linha a linha.
+
+**Dois erros instrutivos sobre a sintaxe prefixa.**
+- Os ciclos de leitura tinham três condições mas um só `&&` (que é binário): `W && >= c 0 != c 10 < n ...` lia o corpo como `< n ...` e girava para sempre. Faltava um `&&` (`&& && ...`).
+- O `estrela` escrevia `r=1` ao casar e logo a seguir um segundo `?` punha `r=2`, apagando o sucesso. A correção foi pôr o avanço no `else` do casamento, não numa instrução à parte.
+
+**Prova** (`test/regex.test.js`; 70 testes no total, todos a passar). Casos conhecidos — `a*b`, `^ab.d$`, `.*c`, `^a*$`, `c.t` — todos com o veredicto certo e igual em C, x86-64 e WebAssembly.
+
+**Próxima.** Continuar a alargar a biblioteca de programas verificados (a Onda a fazer coisas a sério), ou atacar uma ponta de desempenho.
