@@ -519,10 +519,10 @@ void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0]
 
   // --- estado ---
   var state='start', score=0, best=0, dist=0, speed=0, spawnT=0, orbT=0;
-  var bars=[], orbs=[], parts=[], px=0.5, tpx=0.5, shake=0, flash=0;
+  var bars=[], orbs=[], parts=[], trail=[], pops=[], px=0.5, tpx=0.5, shake=0, flash=0;
   try{ best=parseInt(localStorage.getItem('ondadash_best')||'0',10)||0; }catch(e){} bestEl.textContent=best;
 
-  function reset(){ state='play'; score=0; dist=0; speed=0.34; spawnT=0; orbT=0; bars=[]; orbs=[]; parts=[]; px=tpx=0.5; shake=0; flash=0;
+  function reset(){ state='play'; score=0; dist=0; speed=0.34; spawnT=0; orbT=0; bars=[]; orbs=[]; parts=[]; trail=[]; pops=[]; px=tpx=0.5; shake=0; flash=0;
     startS.hidden=true; overS.hidden=true; scoreEl.textContent='0'; }
   function gameOver(){ state='over'; flash=1; for(var i=0;i<28;i++) burst(px,0.8,['#f472b6','#f59e0b','#5ad1c6'][i%3]);
     if(score>best){best=score;try{localStorage.setItem('ondadash_best',String(best));}catch(e){}} bestEl.textContent=best;
@@ -545,6 +545,7 @@ void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0]
     dist+=speed*dt; speed=Math.min(0.34+dist*0.012,0.95);
     score=Math.floor(dist*10); scoreEl.textContent=score;
     px+=(tpx-px)*Math.min(1,dt*14);
+    trail.push(px); if(trail.length>20) trail.shift();
     // portões
     spawnT-=dt; if(spawnT<=0){ spawnT=Math.max(0.62,1.25-dist*0.02); var gw=Math.max(0.14,0.26-dist*0.004);
       bars.push({y:-0.05, gx:0.12+Math.random()*0.76, gw:gw, done:false}); }
@@ -554,9 +555,10 @@ void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0]
     // energias
     orbT-=dt; if(orbT<=0){ orbT=0.9+Math.random()*0.8; orbs.push({x:0.1+Math.random()*0.8,y:-0.05}); }
     for(var j=orbs.length-1;j>=0;j--){ var o=orbs[j]; o.y+=speed*dt;
-      if(Math.abs(o.y-PY)<0.045 && Math.abs(o.x-px)<0.06){ score+=25; scoreEl.textContent=score; burst(o.x,o.y,'#5ad1c6'); orbs.splice(j,1); continue; }
+      if(Math.abs(o.y-PY)<0.045 && Math.abs(o.x-px)<0.06){ score+=25; scoreEl.textContent=score; burst(o.x,o.y,'#5ad1c6'); pops.push({x:o.x,y:o.y,life:1}); orbs.splice(j,1); continue; }
       if(o.y>1.1) orbs.splice(j,1); }
     for(var k=parts.length-1;k>=0;k--){ var p=parts[k]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=dt*0.6; p.life-=dt*1.6; if(p.life<=0) parts.splice(k,1); }
+    for(var m=pops.length-1;m>=0;m--){ pops[m].y-=dt*0.2; pops[m].life-=dt*1.1; if(pops[m].life<=0) pops.splice(m,1); }
     if(shake>0) shake=Math.max(0,shake-dt*3); if(flash>0) flash=Math.max(0,flash-dt*2.2);
   }
 
@@ -564,8 +566,16 @@ void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0]
     ctx.clearRect(0,0,W,H);
     var ox=(Math.random()-0.5)*shake*22*dpr, oy=(Math.random()-0.5)*shake*22*dpr;
     ctx.save(); ctx.translate(ox,oy);
-    // portões
     ctx.lineCap='round';
+    // linhas de velocidade (sensação de movimento)
+    if(state==='play'){ ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=2*dpr;
+      for(var si=0;si<16;si++){ var lx=((si*61.803)%1)*W, ly=((dist*0.9+si*0.137)%1)*H, ll=Math.min(70,20+speed*70)*dpr;
+        ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(lx,ly+ll); ctx.stroke(); } }
+    // rasto da nave
+    if(trail.length>1){ ctx.strokeStyle='rgba(90,209,198,0.45)'; ctx.lineWidth=5*dpr; ctx.shadowBlur=14*dpr; ctx.shadowColor='#5ad1c6';
+      ctx.beginPath(); for(var ti=0;ti<trail.length;ti++){ var tX=trail[ti]*W, tY=(PY+(trail.length-1-ti)*0.013)*H; if(ti===0)ctx.moveTo(tX,tY); else ctx.lineTo(tX,tY); }
+      ctx.stroke(); ctx.shadowBlur=0; }
+    // portões
     for(var i=0;i<bars.length;i++){ var b=bars[i], y=b.y*H, gl1=(b.gx-b.gw)*W, gr=(b.gx+b.gw)*W;
       ctx.lineWidth=7*dpr; ctx.shadowBlur=18*dpr; ctx.shadowColor='#f472b6'; ctx.strokeStyle=b.done?'#5ad1c6':'#ff7fc4';
       ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(gl1,y); ctx.moveTo(gr,y); ctx.lineTo(W,y); ctx.stroke();
@@ -579,6 +589,10 @@ void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0]
     // partículas
     for(var k=0;k<parts.length;k++){ var p=parts[k]; ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c;
       ctx.beginPath(); ctx.arc(p.x*W,p.y*H,3*dpr*p.life,0,6.28); ctx.fill(); } ctx.globalAlpha=1;
+    // popups de pontos
+    if(pops.length){ ctx.font='800 '+(15*dpr)+'px -apple-system,system-ui,sans-serif'; ctx.textAlign='center';
+      for(var pp=0;pp<pops.length;pp++){ var q=pops[pp]; ctx.globalAlpha=Math.max(0,q.life); ctx.fillStyle='#5ad1c6'; ctx.fillText('+25',q.x*W,q.y*H); }
+      ctx.globalAlpha=1; ctx.textAlign='left'; }
     // nave
     if(state!=='over'){ var X=px*W, Y=PY*H, s=15*dpr;
       ctx.shadowBlur=22*dpr; ctx.shadowColor='#5ad1c6';
