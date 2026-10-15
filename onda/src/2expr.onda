@@ -63,7 +63,8 @@
 : eargs iii>i a n ld { = j 0 W < j n { ? || > j 0 ld "," 0 et @ + a j = j + j 1 } 0 }
 : ccall i>i k { = a cargs k 0 ? > @ 33 0 ccallt k a ncall k a }
 : ncall ii>i k a { = r nt @ fe k 3 ir 7 r k a @ fe k 2 0 0 edge k r }
-: ccallt ii>i k a ? && && isx @ fe k 11 < @ 33 4 cinl k a ncall k a
+: ccallt ii>i k a ? && && isx == @ fe k 11 1 < @ 33 4 cinl k a ncall k a
+: ccallf ii>i k a ? && && isx @ fe k 11 < @ 33 4 cinl k a ncall k a
 : cinl ii>i k a {
   = sv @ 32
   = s7 @ 7
@@ -71,7 +72,7 @@
   ! 33 + @ 33 1
   = np @ fe k 2
   = j 0
-  W < j np { addl + @ fe k 4 j fpt k j ir 6 0 0 @ + a j - @ 9 1 0 0 = j + j 1 }
+  W < j np { = n + @ fe k 4 j ? xro k n addl n + 2 @ + a j { addl n fpt k j ir 6 0 0 @ + a j - @ 9 1 0 0 } = j + j 1 }
   ! 7 @ fe k 5
   = r cx
   ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
@@ -81,6 +82,13 @@
   ! 32 sv
   ! 33 - @ 33 1
   r }
+: xro ii>i k n {
+  = s @ fe k 5
+  = e ? < + k 1 @ 6 - @ fe + k 1 0 1 @ 4
+  = r 1
+  = j s
+  W && r < j - e 1 { ? && == tcode j '= && == tkl j 1 teq + j 1 n = r 0 0 = j + j 1 }
+  r }
 : inlf >i {
   = k 0
   W < k @ 6 {
@@ -89,7 +97,7 @@
     = r 0
     = j s
     W < j e { ? teq j @ fe k 0 = r 1 0 = j + j 1 }
-    ! fe k 11 && <= - e s 80 ~ r
+    ! fe k 11 ? r 0 ? <= - e s 80 1 2
     = k + k 1 }
   0 }
 : newl i>i y { addl 0 y - @ 9 1 }
@@ -100,7 +108,6 @@
 : binx iiii>i o y a b { = r nt y ir 8 r - 0 o a b 0 0 r }
 : cmpx iii>i o a b { = r nt 0 ir 9 r - 0 o a b 0 0 r }
 : rcall iii>i k a n { = r nt @ fe k 3 ir 7 r k a n 0 0 r }
-: rput i>i t { = q A 1 ! q t rcall fby k3 '_ 'o 'p q 1 }
 : lpbeg iii>i iv n z { setl iv zer 0 ir 21 0 0 0 0 0 0 = c cmpx '< getl iv n ir 22 0 c 0 0 0 0 z }
 : lpend i>i iv { setl iv binx '+ 0 getl iv lit1 1 ir 23 0 0 0 0 0 0 }
 : fargs iiii>i k a i0 i1 { = n @ fe k 2 = q A + n 1 ! q i0 = s ? < i1 0 1 2 ? < i1 0 0 ! + q 1 i1 = j s W < j n { ! + q j @ + a - j s = j + j 1 } q }
@@ -110,14 +117,14 @@
   = iv newl 0
   setl ac zer y
   lpbeg iv n 0
-  = fr ccallt k fargs k a getl iv -1
+  = fr ccallf k fargs k a getl iv -1
   setl ac binx '+ y getl ac fr
   lpend iv
   getl ac }
 : lowE iiii>i d n k a {
   = iv newl 0
   lpbeg iv n 0
-  = fr ccallt k fargs k a getl iv -1
+  = fr ccallf k fargs k a getl iv -1
   = ad binx '+ 0 d getl iv
   ? @ fe k 3 { ir 27 0 ad fr 0 0 0 } { ir 25 0 ad fr 0 0 0 }
   lpend iv
@@ -129,21 +136,26 @@
   ! q w
   ! + q 1 h
   rcall fby k3 '_ 'p 'h q 2
+  = nb binx '* 0 w h
+  = bf nt 0
+  ir 28 bf nb 0 0 0 0
   = yv newl 0
   = xv newl 0
   lpbeg yv h 0
   lpbeg xv w 0
-  = c ccallt k fargs k a conv getl xv f conv getl yv f
-  rput binx '& 0 binx k2 '> '> 0 c lit1 16 lit1 255
-  rput binx '& 0 binx k2 '> '> 0 c lit1 8 lit1 255
-  rput binx '& 0 c lit1 255
+  = c ccallf k fargs k a conv getl xv f conv getl yv f
+  ir 25 0 binx '+ 0 bf binx '+ 0 binx '* 0 getl yv w getl xv c 0 0 0
   lpend xv
   lpend yv
+  = q2 A 2
+  ! q2 bf
+  ! + q2 1 nb
+  rcall fby k3 '_ 'p 'd q2 2
   zer 0 }
 : cid i>i i {
   = j floc i
   ? >= j 0
-    { = r nt lty j ir 5 r i j 0 0 0 r }
+    ? >= lty j 2 - lty j 2 { = r nt lty j ir 5 r i j 0 0 0 r }
     { = k ffun i ? < k 0 { ! 7 i ebeg "nome desconhecido" eend } 0 ccall k } }
 : cx >i {
   ? >= @ 7 @ 4 { ebeg "fim inesperado" eend } 0

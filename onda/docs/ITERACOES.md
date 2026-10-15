@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 13 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 14 (invariantes fora dos ciclos e constantes reais na memória).
+Estado: **iteração 14 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 15 (matemática própria: seno, coseno, exp e log escritos em Onda, iguais em todas as formas).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -350,3 +350,33 @@ A causa é a geração ingénua: cada valor passa pela memória e cada chamada e
 - **fib:** o resto vem das chamadas. O gcc transforma a recursão.
 - Os três pontos fixos continuam fechados, e o compilador nativo tem 147 824 bytes.
 - `fluxo`, `inteiros`, `reais` e `imagem` dão o mesmo resultado em C, WebAssembly e x86. O fractal sai igual ao byte.
+
+## Iteração 14: invariantes fora dos ciclos, e o campo inteiro numa só função
+
+**Pergunta.** No fractal, porque é que cada píxel recalcula `Cs * 0.3 t`, se `t` é igual em todos os píxeis?
+
+**O que foi feito.**
+- **LICM** (`src/8xlicm.onda`): uma instrução pura cujos operandos vêm de fora do ciclo sobe para antes do ciclo mais exterior onde continua invariante. São literais, aritmética (menos a divisão inteira, que pode falhar), conversões, `Sn`/`Cs`/`Lg`/`Pw` e leituras de variáveis que o ciclo não escreve. A representação intermédia é reordenada antes da atribuição de registos.
+- **Parâmetros só de leitura:** num corpo expandido, um parâmetro que nunca é atribuído passa a ser o próprio temporário do argumento, sem variável nem cópia. É isso que torna a invariância visível.
+- **A função do campo expande-se sempre:** a função de um `E`, `S` ou `D` é expandida no ciclo qualquer que seja o tamanho, desde que não seja recursiva. O limite de 80 tokens fica só para as chamadas aninhadas.
+- **`D` com buffer:** no x86, o ciclo dos píxeis escreve as cores num buffer, sem chamadas, e no fim `_pd` escreve os bytes de uma vez. Assim, o ciclo do píxel pode ter tudo em registos.
+
+**Prova** (mínimo de 7 corridas; C = gcc -O2 sem OpenMP):
+
+| programa | it. 13 | it. 14 | C |
+|---|---|---|---|
+| fractal (julia) | 129 ms | **84 ms** | 35 ms |
+| ondas | 118 ms | **76 ms** | 30 ms |
+| π | 409–490 ms | 434 ms | 438 ms |
+| Grover | 1 209 ms | 1 136 ms | 1 118 ms |
+| fib(35) | 60–69 ms | 62 ms | 16 ms |
+
+- O ciclo do π tem agora 14 instruções: constantes, `F n` e o limite saíram do ciclo, e é o mesmo trabalho que o gcc faz.
+- Os três pontos fixos continuam fechados.
+- As provas e os dois fractais saem iguais ao C, byte a byte.
+
+**O que falta, e uma ideia maior.** Hoje, cada píxel do ondas paga três `fsin` do x87 (de 50 a 120 ciclos cada), e o gcc usa o seno do glibc (cerca de 20 ciclos).
+
+Mais importante: cada forma usa uma matemática diferente. O C usa o glibc, o WebAssembly e o significado usam o `Math.sin` do JavaScript, e o x86 usa o x87. Podem diferir no último bit.
+
+**Próximo passo:** a matemática deixa de ser primitiva. Seno, coseno, exp e log passam a ser escritos em Onda, só com `+ - * /`, `Sq` e acesso aos bits. Assim, ficam iguais bit a bit em todas as formas por construção, incluindo o significado, que os interpreta.

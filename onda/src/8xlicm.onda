@@ -1,0 +1,58 @@
+# x86-64: invariantes fora dos ciclos. Uma instrucao pura cujos operandos vem de fora do ciclo passa para antes dele
+# (do ciclo mais exterior onde continua invariante). A RI e reordenada antes da atribuicao de registos.
+# bloco 61: 8 copia da RI 9 instrucao que define cada temporario 10 ciclo para onde sobe cada instrucao (-1 fica)
+# 11 carimbo de escrita de cada variavel 12 contador 13 fim do ciclo que comeca em cada instrucao 14 inicios 15 n 16 pilha
+: xle i>i i { = h @ + xq 10 i ? >= h 0 - * 2 h 1 * 2 i }
+: xlinv ii>i t ls < xle @ + xq 9 t * 2 ls
+: xlpure i>i p {
+  = k @ p
+  ? || || == k 1 == k 2 == k 4 1
+  ? == k 8 || tty @ + p 1 && != opof @ + p 2 '/ != opof @ + p 2 '%
+  || || == k 14 == k 15 || == k 16 == k 17 }
+: xlok iii>i p ls st {
+  = k @ p
+  = f @ + @ 50 k
+  = r || xlpure p == k 5
+  ? && r & f 1 = r xlinv @ + p 2 ls 0
+  ? && r & f 2 = r xlinv @ + p 3 ls 0
+  ? && r & f 4 = r xlinv @ + p 4 ls 0
+  ? && r == k 5 = r != @ + xq 11 @ + p 3 st 0
+  r }
+: xlicm >i {
+  = n @ 19
+  = i 0
+  xqs 15 0
+  = sp 0
+  W < i n {
+    = p + @ 18 * i 8
+    = k @ p
+    ! + xq 10 i -1
+    ? & @ + @ 50 k 8 ! + xq 9 @ + p 1 i 0
+    ? == k 21 { ! + xq 14 xq 15 i xqs 15 + xq 15 1 ! + xq 16 sp i = sp + sp 1 } 0
+    ? == k 23 { = sp - sp 1 ! + xq 13 @ + xq 16 sp i } 0
+    = i + i 1 }
+  = h 0
+  = mv 0
+  W < h xq 15 {
+    = ls @ + xq 14 h
+    = le @ + xq 13 ls
+    xqs 12 + xq 12 1
+    = st xq 12
+    = i ls
+    W <= i le { = p + @ 18 * i 8 ? == @ p 6 ! + xq 11 @ + p 4 st 0 = i + i 1 }
+    = i + ls 1
+    W < i le { ? && < @ + xq 10 i 0 xlok + @ 18 * i 8 ls st { ! + xq 10 i ls = mv 1 } 0 = i + i 1 }
+    = h + h 1 }
+  ? mv xlre 0 }
+: xlcp ii>i q i { = s + @ 18 * i 8 = j 0 W < j 8 { ! + q j @ + s j = j + j 1 } + q 8 }
+: xlre >i {
+  = q xq 8
+  = i 0
+  W < i @ 19 {
+    ? == @ + @ 18 * i 8 21 { = le @ + xq 13 i = h + i 1 W < h le { ? == @ + xq 10 h i = q xlcp q h 0 = h + h 1 } } 0
+    ? < @ + xq 10 i 0 = q xlcp q i 0
+    = i + i 1 }
+  = j 0
+  = t * 8 @ 19
+  W < j t { ! + @ 18 j @ + xq 8 j = j + j 1 }
+  0 }

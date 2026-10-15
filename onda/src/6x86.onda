@@ -76,6 +76,7 @@
 : xfun i>i k {
   ! 25 @ fe k 2
   ! 27 0
+  xlicm
   xra
   O 16
   xali
