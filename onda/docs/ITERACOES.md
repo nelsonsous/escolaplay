@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 27 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 28 (a convenção de registos, feita com cuidado: encontrar a função de parsing que o save/restore ainda gera mal).
+Estado: **iteração 28 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 29 (voltar ao que rende: o `fib` perde no tempo das chamadas, não nas instruções — medir onde o x86 ainda gasta a mais fora da recursão).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -766,3 +766,29 @@ Agora a comparação já é justa na garantia principal, a atomicidade face a qu
 **Lição.** O auto-alojamento é a rede de segurança: uma otimização que parecia correta num exemplo (`fib`) foi apanhada de imediato pela exigência de a Onda se compilar a si própria, bit a bit. É mais exigente do que qualquer teste de unidade.
 
 **Próxima.** A convenção de registos com cuidado: isolar a função de parsing que o save/restore gera mal, perceber que invariante do alocador é quebrada, e só então reativar a otimização.
+
+## Iteração 28: a convenção de registos salvos — feita, medida, e revertida
+
+**Pergunta.** A iteração 27 deixou a convenção *callee-saved* a meio: o `fib` isolado funcionava, mas o compilador a compilar-se em x86 gerava mal uma função. Qual era o erro, e vale a pena acabar?
+
+**O erro.** Isolei-o reduzindo o caso que quebrava até ao mínimo:
+```
+: g i>i n + n 1
+: main >i { N + g 5 g 6 0 }   # esperado 13; dava 14
+```
+O `main` guarda o resultado de `g 5` num registo salvo (`rbx`) enquanto chama `g 6`. Mas o `g`, que não atravessa chamada nenhuma, usava o `rbx` como temporário (é o primeiro registo do banco) **sem o guardar**. A regra certa é a da System V: *qualquer* função que escreva num registo salvo tem de o repor, não só as que têm valores a atravessar chamadas.
+
+**A correção.** A máscara dos registos salvos a guardar deixou de ser por-valor e passou a ser varrida do mapa de ocupação depois da promoção (que também usa registos): a união de todos os bits usados, limitada a `rbx`, `r12`, `r13`, `r14`. Com isto, os três pontos fixos voltaram a fechar (o x86 até encolheu de 175 736 para 159 352 bytes) e os 38 testes passaram. A convenção estava **correta**.
+
+**A medição — e a surpresa.** O `fib(35)` ficou **mais lento**, não mais rápido:
+
+| `fib(35)` | tempo | instruções executadas |
+|---|---|---|
+| iteração 26 (sem a convenção) | ~57 ms | 463 M |
+| iteração 28 (com a convenção) | ~78 ms | 582 M |
+
+Porquê? O `fib` mantém dois valores através das chamadas (o `n` e o resultado da primeira chamada recursiva). A convenção põe ambos em registos salvos, por isso cada chamada empilha e desempilha dois registos: quatro acessos à pilha a substituir as três leituras de antes. A ida e volta à pilha custa tanto como os acessos à memória que elimina. E como o `rbx` é o primeiro registo do banco, quase todas as funções passaram a pagar o guardar/repor.
+
+**A lição, e a decisão.** A diferença real para o `gcc` no `fib` (14 ms) não está em manter valores em registos — o `gcc` também empilha o `rbx`. Está numa transformação de nível mais alto (desdobrar a recursão), que é outra discussão. A convenção *callee-saved*, sozinha, não rende aqui: troca três leituras por quatro escritas. **Revertida.** Fica a prova de que o caminho óbvio não era o certo, que é uma resposta tão útil como uma otimização — e o compilador continua verde.
+
+**Próxima.** Voltar ao que rende: o `fib` só perde 1,5× em instruções mas 4× em tempo. O gasto está no protocolo de chamada (a pilha), não na conta. Medir onde o x86 gasta a mais fora da recursão, onde não há o custo irredutível de guardar o estado vivo.
