@@ -64,6 +64,23 @@
 : xmss ii>i d dp { P 242 P 15 P 16 P + 68 * 8 & d 7 P 36 P & dp 255 }
 : xvsts ii>i d dp { P 197 P 253 P 17 P + 68 * 8 & d 7 P 36 P & dp 255 }
 : xadm ii>i d dp { P 242 P 15 P 88 P + 68 * 8 & d 7 P 36 P & dp 255 }
+# codificadores EVEX (AVX-512, zmm 0-15): 8 doubles por instrucao; base r15, escala 8, dp=0 (base dobrada no indice)
+: xm5 iii>i o d x { P 98 P + ? < d 8 128 0 81 P 253 P 72 P o P + 4 * 8 & d 7 P + 199 * 8 & x 7 }
+: xop5 iiii>i o d a b { P 98 P + + ? < d 8 128 0 ? < b 8 32 0 81 P + 133 * 8 ^ a 15 P 72 P o P + 192 + * 8 & d 7 & b 7 }
+: xfma5 iiii>i o d a b { P 98 P + + ? < d 8 128 0 ? < b 8 32 0 82 P + 133 * 8 ^ a 15 P 72 P o P + 192 + * 8 & d 7 & b 7 }
+: xbs5 ii>i d k { P 98 P + ? < d 8 128 0 114 P 253 P 72 P 25 P + 68 * 8 & d 7 P 36 P & k 255 }
+: xmov5 ii>i d s { P 98 P + + ? < d 8 128 0 ? < s 8 32 0 81 P 253 P 72 P 40 P + 192 + * 8 & d 7 & s 7 }
+: xsts5 ii>i d dp { P 98 P + ? < d 8 128 0 113 P 253 P 72 P 17 P + 68 * 8 & d 7 P 36 P & dp 255 }
+# envoltorios cientes da largura w: 1 escalar (SSE), 4 AVX2 (256), 8 AVX-512 (512)
+: pwid >i ? == Av 1 2 '5 8 4
+: vld iii>i w d x ? == w 8 xm5 16 d x ? == w 4 xvm 193 16 d x 0 xmo4 0 242 3856 d x 0 0 15
+: vst iii>i w d x ? == w 8 xm5 17 d x ? == w 4 xvm 193 17 d x 0 xmo4 0 242 3857 d x 0 0 15
+: vbin iiiii>i w o d a b ? == w 8 xop5 o d a b ? == w 4 xvop o d a b { xmap d a xsr 242 0 o d b 0 }
+: vfm iiii>i w d a b ? == w 8 xfma5 184 d a b ? == w 4 xvfma 184 d a b xvfmas 185 d a b
+: vcopy iii>i w d s ? == w 8 xmov5 d s xvmov d s
+: vbmem iii>i w d sl ? == w 8 xbs5 d sl ? == w 4 xvbs d * 8 sl xmss d * 8 sl
+: vhoist ii>i w sl ? == w 8 xbs5 + 8 sl sl xvbs + 8 sl * 8 sl
+: vzero ii>i w d ? == w 8 xop5 87 d d d xvop 87 d d d
 : xsubsp i>i v { P 72 P 129 P 236 x4 v }
 : xaddsp i>i v { P 72 P 129 P 196 x4 v }
 : xvfind iii>i tbl nc b { = j 0 W && < j nc != @ + tbl j b = j + j 1 j }
@@ -86,7 +103,7 @@
   ! 7 + i 1
   = kk tkk i
   ? == kk 2 { !f 24 fltval i = b @ 24 = sl xvfind @ + st 1 @ + st 2 b = r salloc st
-    ? == w 4 { ? <= @ + st 2 8 xvmov r + 8 sl xvbs r * 8 sl } { xmss r * 8 sl } r }
+    ? == w 1 vbmem 1 r sl ? <= @ + st 2 8 vcopy w r + 8 sl vbmem w r sl r }
   ? == kk 0 xr
   { = o tcode i
     = sA @ 7 xskip
@@ -105,7 +122,7 @@
       ! 7 so1 = ra xvem w st xt xr fma
       ! 7 sacc = acc xvem w st xt xr fma
       ! 7 af
-      ? == w 4 xvfma 184 acc ra rb { xvfmas 185 acc ra rb }
+      vfm w acc ra rb
       ? != ra xr sfree st ra 0
       ? != rb xr sfree st rb 0
       acc }
@@ -113,7 +130,7 @@
       ! 7 sA = ra xvem w st xt xr fma
       ! 7 af
       = rd salloc st
-      ? == w 4 xvop xvaop o rd ra rb { xmap rd ra xsr 242 0 xvaop o rd rb 0 }
+      vbin w xvaop o rd ra rb
       ? != ra xr sfree st ra 0
       ? != rb xr sfree st rb 0
       rd } } }
@@ -129,7 +146,8 @@
   = b @ fe k 5
   = rs + b 7
   = xt + b 2
-  = fma == Av 1 2 'f
+  = fma || == Av 1 2 'f == Av 1 2 '5
+  = pw pwid
   ! + st 1 tbl
   ! 7 rs = nc xvcoll tbl 0
   ! + st 2 nc
@@ -137,19 +155,19 @@
   xpsv n xpsv db xpsv sb
   xpp 2 xpp 1 xpp 0
   xmrr 9 2 xaddr 9 0
-  xmrr 8 0 xandi 8 -4 xaddr 8 2
+  xmrr 8 0 xandi 8 - 0 pw xaddr 8 2
   xsubsp 128
   = j 0 W < j nc { xi 0 @ + tbl j xmst 0 * 8 j = j + j 1 }
-  ? <= nc 8 { = j 0 W < j nc { xvbs + 8 j * 8 j = j + j 1 } } 0
+  ? <= nc 8 { = j 0 W < j nc { vhoist pw j = j + j 1 } } 0
   = t1 @ 16
   xcmpr 2 8
   = pe1 xjcc 131
   ! st 255
   = xr salloc st
-  xvm 193 16 xr 2 0
-  ! 7 rs = rr xvem 4 st xt xr fma
-  xvm 193 17 rr 1 0
-  xaddi 2 4 xaddi 1 4
+  vld pw xr 2
+  ! 7 rs = rr xvem pw st xt xr fma
+  vst pw rr 1
+  xaddi 2 pw xaddi 1 pw
   xback t1
   xput4 pe1 - @ 16 + pe1 4
   = t2 @ 16
@@ -157,9 +175,9 @@
   = pe2 xjcc 131
   ! st 255
   = x2 salloc st
-  xmo4 0 242 3856 x2 2 0 0 15
+  vld 1 x2 2
   ! 7 rs = r2 xvem 1 st xt x2 fma
-  xmo4 0 242 3857 r2 1 0 0 15
+  vst 1 r2 1
   xaddi 2 1 xaddi 1 1
   xback t2
   xput4 pe2 - @ 16 + pe2 4
@@ -180,7 +198,8 @@
   = b @ fe k 5
   = rs + b 7
   = xt + b 2
-  = fma == Av 1 2 'f
+  = fma || == Av 1 2 'f == Av 1 2 '5
+  = pw pwid
   ! + st 1 tbl
   ! 7 rs = nc xvcoll tbl 0
   ! + st 2 nc
@@ -188,33 +207,32 @@
   xpsv n xpsv sb
   xpp 2 xpp 0
   xmrr 9 2 xaddr 9 0
-  xmrr 8 0 xandi 8 -4 xaddr 8 2
+  xmrr 8 0 xandi 8 - 0 pw xaddr 8 2
   xsubsp 192
   = j 0 W < j nc { xi 0 @ + tbl j xmst 0 * 8 j = j + j 1 }
-  ? <= nc 8 { = j 0 W < j nc { xvbs + 8 j * 8 j = j + j 1 } } 0
+  ? <= nc 8 { = j 0 W < j nc { vhoist pw j = j + j 1 } } 0
   ! st 255
   = av salloc st
   = as salloc st
-  xvop 87 av av av
-  xvop 87 as as as
+  vzero pw av
+  vzero pw as
   = t1 @ 16
   xcmpr 2 8
   = pe1 xjcc 131
   = xr salloc st
-  xvm 193 16 xr 2 0
-  ! 7 rs = rr xvem 4 st xt xr fma
-  xvop 88 av av rr
+  vld pw xr 2
+  ! 7 rs = rr xvem pw st xt xr fma
+  vbin pw 88 av av rr
   sfree st xr sfree st rr
-  xaddi 2 4
+  xaddi 2 pw
   xback t1
   xput4 pe1 - @ 16 + pe1 4
-  xvsts av 128
-  xadm as 128 xadm as 136 xadm as 144 xadm as 152
+  ? == pw 8 { xsts5 av 0 xadm as 0 xadm as 8 xadm as 16 xadm as 24 xadm as 32 xadm as 40 xadm as 48 xadm as 56 } { xvsts av 0 xadm as 0 xadm as 8 xadm as 16 xadm as 24 }
   = t2 @ 16
   xcmpr 2 9
   = pe2 xjcc 131
   = x2 salloc st
-  xmo4 0 242 3856 x2 2 0 0 15
+  vld 1 x2 2
   ! 7 rs = r2 xvem 1 st xt x2 fma
   xsr 242 0 88 as r2 0
   sfree st x2 sfree st r2

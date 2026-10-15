@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 64 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate o `gcc -O2`: 1,76× nos mapas (bit-exato); e nas reduções o modo `-xf` EMPATA com o `gcc -O3 -march=native` (o melhor C), sendo 3,5× o `-O2`.** Próxima: 65 (alargar o vetorizador a mais formas — `F i`, várias fontes — para o ganho valer em mais núcleos).
+Estado: **iteração 65 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). Próxima: 66 (redução com vários acumuladores, para o AVX-512 também a acelerar; e `F i`/várias fontes).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1414,3 +1414,32 @@ REDUCAO Σ poly(a[i]):
 **O marco.** Nas reduções, a Onda `-xf` **iguala o melhor C possível** (`gcc -O3 -march=native`, com FMA, vetorização e desenrolamento) — 487 vs 483 ms — e é 3,5× o `-O2`. Nos mapas, o modo bit-exato `-x` é **1,76× o `-O2`** (sem trocar um único bit), e o `-xf` fica a um passo do `-O3`. A pergunta do utilizador — "ser mais rápido que o C" — está respondida com folga: no nível com que as pessoas compilam (`-O2`), a Onda ganha sempre que o código é vetorizável; e no máximo do C (`-O3 -march=native`), empata nas reduções.
 
 **Próxima.** Alargar o vetorizador para além da forma `{ = x @f+a i <expr> }`: suportar `F i` (mapas função do índice) e várias fontes (`c[i]=a[i]*s+b[i]`), para o ganho valer em mais núcleos reais.
+
+## Iteração 65: AVX-512 (-x5) — o mapa empata com o melhor C; e os mitos da "numeração"
+
+**Pergunta (do utilizador).** "E usar binário/hexadecimal, ou numeração mais eficiente? Porque não AVX-512, ou ARM NEON?"
+
+**A parte honesta primeiro.** A base é só notação: o processador **já é binário**, e hex/decimal/binário no código compilam para os mesmos bits — zero efeito no tempo. O que dá velocidade é a **largura** e o **tipo** do número, não a base. Daí:
+- **float32** daria 8 por instrução AVX2 (2×), mas precisa de um **tipo de 32 bits novo** na linguagem (léxico, tipos, armazenamento, 4 backends) — fica para mais tarde.
+- **AVX-512** dá 8 doubles por instrução sem tipo novo — e este CPU tem (`avx512f/dq/vl`). Medido em C: 512-bit ~2× o 256-bit, **sem downclocking** (é um Xeon de servidor). Logo vale a pena, e foi o que fiz.
+- **ARM NEON** precisaria de um **backend ARM** inteiro (o emissor escreve máquina x86 byte a byte). Mas a análise do vetorizador (`xvan`/`xvem`) é agnóstica ao backend — só os codificadores de bytes são x86 — por isso um backend NEON reaproveitaria a lógica. Fica como forma futura; em ARM, o backend C já corre e o `gcc -O3` auto-vetoriza.
+
+**O que foi feito.** Codificadores EVEX (`xm5`, `xop5`, `xfma5`, `xbs5`, `xmov5`, `xsts5`, registos `zmm0-15`) e envoltórios cientes da largura (`vld`/`vst`/`vbin`/`vfm`/`vcopy`/`vbmem`/`vhoist`/`vzero`) para a largura `w` ∈ {1 escalar, 4 AVX2, 8 AVX-512}. O walker e os dois macros passaram a ser parametrizados por `pw` (4 ou 8). Nova flag `-x5` (AVX-512, implica FMA). Apanhei e corrigi um bug: a soma horizontal da redução derramava no deslocamento 128, que excede o `disp8` com sinal (→ −128); no AVX2 funcionava por acaso (store e read ambos em `[rsp−128]`), no EVEX o store (disp8×64) e o read (SSE) divergiam. Passou a derramar no deslocamento 0 (reaproveita a zona das constantes, já não precisas delas após o laço).
+
+**Prova.** Ponto fixo fecha (hash C `d853d8f2c13ceb58`). `node --test`: **88 testes** — o `-x` continua bit a bit igual ao C; o `-xf` e o `-x5` dão o mesmo valor a ~15 dígitos (incluindo a cauda com `n` não-múltiplo-de-8). No binário `-x5` confirmam-se `zmm0..zmm15`.
+
+**Os números** (mapa, min de 5, rep=200000, n=8192):
+
+```
+Onda -x  (AVX2, bit-exato):   806 ms   (1,64x sobre o gcc -O2)
+Onda -xf (AVX2+FMA):          473 ms
+Onda -x5 (AVX-512+FMA):       413 ms   <- EMPATA com o melhor C
+C gcc -O2:                   1323 ms
+C gcc -O3 -march=native:      415 ms
+```
+
+**O marco.** O mapa `-x5` faz **413 ms contra os 415 ms do `gcc -O3 -march=native`** — a Onda **empata com o melhor C possível** (vetorizado, com FMA e `-march=native`), e é **3,2× o `gcc -O2`**. Com a redução da it.64 (que já empatava o `-O3`), a Onda iguala agora o topo do C nos dois grandes padrões numéricos.
+
+**O achado honesto.** Na **redução**, o AVX-512 **não** acelerou (437 vs 429 ms do AVX2): o gargalo é a cadeia dependente do acumulador (`acc += ...`), que é limitada pela latência, não pela largura. Para a largura valer é preciso **vários acumuladores independentes** — o próximo passo.
+
+**Próxima.** Redução com 2–4 acumuladores independentes (para o AVX-512 a acelerar também); depois o tipo float32 e/ou mais formas (`F i`, várias fontes).

@@ -51,3 +51,17 @@ test('vecmap: o modo -xf (FMA) da o mesmo valor que o -x, a ~15 digitos', () => 
   const sf = Number(soma(execFileSync(path.join(t, 'vxf')).toString()));
   assert.ok(Math.abs(sf - sx) / sx < 1e-12, 'FMA divergiu: -x=' + sx + ' -xf=' + sf);
 });
+
+// modo AVX-512 (-x5): 8 doubles por instrucao; valor igual ao -x a ~15 digitos (apanha erros de EVEX).
+test('vecmap: o modo -x5 (AVX-512) da o mesmo valor que o -x, a ~15 digitos', () => {
+  fs.writeFileSync(path.join(t, 'vx5'), execFileSync(ondac, ['-x5'], { input: src }), { mode: 0o755 });
+  const sx = Number(soma(execFileSync(path.join(t, 'vx')).toString()));
+  const s5 = Number(soma(execFileSync(path.join(t, 'vx5')).toString()));
+  assert.ok(Math.abs(s5 - sx) / sx < 1e-12, 'AVX-512 divergiu: -x=' + sx + ' -x5=' + s5);
+  // e a cauda (n nao-multiplo-de-8) tem de continuar certa
+  for (const n of ['8191', '8185', '5', '3']) {
+    const v = Number(soma(execFileSync(path.join(t, 'vx5'), [n, '1']).toString()));
+    const r = Number(soma(execFileSync(path.join(t, 'vx'), [n, '1']).toString()));
+    assert.ok(Math.abs(v - r) / r < 1e-12, 'x5 cauda n=' + n + ': ' + v + ' vs ' + r);
+  }
+});

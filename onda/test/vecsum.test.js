@@ -26,3 +26,9 @@ test('vecsum: modo -xf (AVX, reassocia) da o mesmo valor a ~15 digitos', () => {
   const sx = Number(soma(run('sx'))), sf = Number(soma(run('sxf')));
   assert.ok(Math.abs(sf - sx) / sx < 1e-12, '-xf divergiu: -x=' + sx + ' -xf=' + sf);
 });
+
+test('vecsum: modo -x5 (AVX-512) da o mesmo valor a ~15 digitos', () => {
+  fs.writeFileSync(path.join(t, 'sx5'), execFileSync(ondac, ['-x5'], { input: src }), { mode: 0o755 });
+  const sx = Number(soma(run('sx'))), s5 = Number(soma(run('sx5')));
+  assert.ok(Math.abs(s5 - sx) / sx < 1e-12, '-x5 divergiu: -x=' + sx + ' -x5=' + s5);
+});
