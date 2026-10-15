@@ -1,7 +1,8 @@
 # x86-64: escolha de instrucoes com operandos diretos (registo, moldura [rbp+m] ou imediato).
 # local -2 = imediato de 32 bits: um literal inteiro nao ocupa registo e cada leitura usa o valor (51 valores 52 marcas)
-# 53 salto pendente: uma comparacao seguida do seu unico uso num salto funde-se em cmp + jcc
-: xm i>i t ? == tlc t -2 @ + @ 51 t xdt t
+# 53 salto pendente (jcc se verdadeiro) de uma comparacao fundida com o seu unico uso: um salto, ou um && / || fundido
+# 54/55 cadeias "falso" e "verdadeiro" de um && / || cujo unico uso e o salto seguinte; 56 marca os fundidos (sem local)
+: xm i>i t ? == tlc t -2 @ + @ 51 xfin t xdt t
 : xgr i>i d { = l tlc d ? && >= l 0 < l 16 l 0 }
 : xxr i>i d { = l tlc d ? >= l 16 - l 16 0 }
 : xrex iii>i w r l { = x + + * w 8 ? >= & r 15 8 4 0 ? && >= l 0 >= & l 15 8 1 0 ? x P + 64 x 0 }
@@ -76,23 +77,43 @@
   ? == r 0 xldg 0 lb xm b 0
   ? == lc -2 { xrex 1 0 r P 129 P + 248 & r 7 x4 xm c } { xrex 1 r lc P 59 xmodrm r lc xm c } }
 : xucom ii>i x y { = lx tlc x = r ? >= lx 16 - lx 16 { xldx 0 lx xdt x 0 } xsr 102 0 46 r tlc y xdt y }
-: xfu i>i p {
+: xfu9 i>i p {
   = q + p 8
   = d @ + p 1
   = i / - p @ 18 8
-  && < + i 1 @ 19 && || == @ q 18 == @ q 22 && == @ + q 2 d == @ + @ 37 d + * 2 + i 1 2 }
+  = o opof @ + p 2
+  = r 0
+  ? && < + i 1 @ 19 && == @ + q 2 d == @ + @ 37 d + * 2 + i 1 2 {
+    = k @ q
+    = r || || == k 18 == k 22 && && >= k 10 <= k 13 @ + @ 56 @ + q 1
+    ? && tty @ + p 3 || == o k2 '= '= == o k2 '! '= = r 0 0 } 0
+  r }
+: xfa i>i p {
+  = d @ + p 1
+  = e @ + @ 37 d
+  = u / - e 2 2
+  = q + @ 18 * u 8
+  && == & e 1 0 && < u @ 19 && || == @ q 18 == @ q 22 && == @ + q 2 d && == @ - q 8 + @ p 1 == @ + - q 8 1 d }
+: xfz >i {
+  = i 0
+  W < i @ 19 { = p + @ 18 * i 8 = k @ p ? && || == k 10 == k 12 xfa p { ! + @ 56 @ + p 1 1 ! + @ 51 @ + p 1 0 } 0 = i + i 1 }
+  = i 0
+  W < i @ 19 { = p + @ 18 * i 8 ? && == @ p 9 xfu9 p { ! + @ 56 @ + p 1 1 ! + @ 51 @ + p 1 0 } 0 = i + i 1 }
+  0 }
 : xcmp i>i p {
   = d @ + p 1
   = o opof @ + p 2
   = b @ + p 3
   = c @ + p 4
-  = f xfu p
+  = f @ + @ 56 d
   ? tty b
-    { ? && f || || == o '< == o '> || == o k2 '< '= == o k2 '> '=
-        { ? || == o '< == o k2 '< '= xucom c b xucom b c ! 53 ? || == o '< == o '> 134 130 }
+    { ? f
+        { ? || == o '< == o k2 '< '= xucom c b xucom b c ! 53 ? || == o '< == o '> 135 131 }
         { xfcmp o b c xst 0 d } }
-    { xcmpi b c ? f ! 53 ^ - xcc o 16 1 { xsetb xcc o xst 0 d } } }
-: xjz i>i a ? @ 53 { = c @ 53 ! 53 0 xpsh xjcc c } { xtst a xpsh xjcc 132 }
+    { xcmpi b c ? f ! 53 - xcc o 16 { xsetb xcc o xst 0 d } } }
+: xjf2 ii>i a h { = p ? @ 53 { = c ^ @ 53 1 ! 53 0 xjcc c } { xtst a xjcc 132 } ! p h p }
+: xjt2 ii>i a h { = p ? @ 53 { = c @ 53 ! 53 0 xjcc c } { xtst a xjcc 133 } ! p h p }
+: xjz i>i a ? @ 54 { xpsh @ 54 ! 54 0 ? @ 55 { xpat @ 55 ! 55 0 } 0 } xpsh xjf2 a 0
 # conversoes e raiz direto nos registos
 : xcvf ii>i d a {
   = x xxr d

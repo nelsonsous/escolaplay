@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 12 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 13 (vida dividida dos resultados de `?`, `&&` e `||`; o chamado retira os argumentos).
+Estado: **iteração 13 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 14 (invariantes fora dos ciclos e constantes reais na memória).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -314,3 +314,39 @@ A causa é a geração ingénua: cada valor passa pela memória e cada chamada e
 - **fib:** o resultado de um `?` fica na memória porque o seu intervalo atravessa as chamadas do outro ramo, mas ele nunca está vivo nesse ramo. A solução é a vida dividida.
 - **Chamadas:** cada chamada ainda gasta um `add rsp` (o chamado pode retirar os argumentos com `ret n`).
 - **julia:** o `&&` da condição do ciclo materializa 0/1 três vezes antes do salto.
+
+## Iteração 13: saltos em cadeia, aliases e promoção nos ciclos (o Grover chega ao C)
+
+**Pergunta.** O que resta entre o x86 da Onda e o gcc, depois dos registos e dos operandos diretos?
+
+**O que foi feito.**
+- **Saltos em cadeia:** um salto por corrigir guarda no seu rel32 o próximo salto da mesma cadeia. Assim, `&&` e `||` numa condição viram só saltos, sem materializar 0/1, e as comparações fundem-se com eles.
+- **Vida dividida:** o resultado de `?`, `&&` ou `||` só ocupa o registo no instante em que é escrito antes do salto para o fim. Já não atravessa as chamadas do outro ramo.
+- **O chamado retira os argumentos:** a função termina com `ret n`, e cada chamada poupa um `add rsp`.
+- **Aliases (propagação de cópias):**
+  - uma variável escrita uma só vez lê direto o valor que recebeu. No π, `n` passou a ser o imediato 200 000 000;
+  - uma leitura de variável lê o local da própria variável, sem cópia;
+  - um resultado cujo único uso é a escrita numa variável é calculado já no local dela, e `= i + i 1` vira `add rbx, 1`.
+- **Promoção:** num ciclo sem chamadas, o que vive na memória (porque atravessa chamadas noutro sítio) é carregado num registo livre antes do ciclo e escrito depois.
+- **Alinhamento:** ciclos e funções começam em múltiplos de 16 bytes. Na iteração 12, o mesmo ciclo do Grover, deslocado 5 bytes, ficou 12% mais lento.
+
+**O que correu mal, e porquê.**
+- As primeiras variáveis de estado da promoção ficaram nas células 64 a 68. No runtime C, o monte começa em 64 (`HP=64`), por isso essas variáveis escreviam por cima do texto do programa, e o compilador deixava de encontrar o `main`.
+- Os testes não apanharam o erro, porque os programas de teste são maiores e o texto estragado caía noutro sítio.
+- **Correção:** o estado passou para um bloco apontado pela célula 61. A regra fica escrita no código: as globais acabam em 63.
+- **Novo teste `fluxo.onda`:** ciclos com variáveis na memória, `&&`/`||` nas condições, `?` que atravessa chamadas, `= x ? c 1 x`, variáveis lidas antes de escritas e divisões negativas.
+
+**Prova** (mínimo de 5 a 10 corridas, a mesma máquina; C = gcc -O2 sem OpenMP):
+
+| programa | it. 12 | it. 13 | C |
+|---|---|---|---|
+| Grover (20 qubits) | 1 742 ms | **1 209 ms** | 1 170 ms |
+| fractal (julia) | 152 ms | 129 ms | 36 ms |
+| π | 409–442 ms | 409–419 ms | 402 ms |
+| fib(35) | 63–67 ms | 60–69 ms | 17 ms |
+
+- **Grover:** o ciclo do `S` passou de 14 para 8 instruções, e fica a 3% do gcc.
+- **π:** está ao nível do gcc. Ambos estão limitados pelas duas divisões por iteração.
+- **fib:** o resto vem das chamadas. O gcc transforma a recursão.
+- Os três pontos fixos continuam fechados, e o compilador nativo tem 147 824 bytes.
+- `fluxo`, `inteiros`, `reais` e `imagem` dão o mesmo resultado em C, WebAssembly e x86. O fractal sai igual ao byte.
