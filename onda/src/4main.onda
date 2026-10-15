@@ -31,17 +31,14 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  ir 38 0 d n k a - @ fe k 2 1
-  d }
+  ? isx lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
 : cs >i {
   = n cx
   ckint n
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  = r nt @ fe k 3
-  ir 39 r n k a - @ fe k 2 1 0
-  r }
+  ? isx lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
 : cd >i {
   = w cx
   = h cx
@@ -50,9 +47,7 @@
   = k fref 2
   ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
   = a cargs k 2
-  = r nt 0
-  ir 40 r w h k a - @ fe k 2 2
-  r }
+  ? isx lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
 : cop i>i i {
   = o tcode i
   ? isar o cbin i 2
@@ -171,6 +166,7 @@
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
   ? || m && && != @ 12 0 ~ isw ~ isx 0 { ebeg "falta : main >i" eend }
+  ? isx inlf 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0
   = k 0
   W < k @ 6 { cfun k = k + k 1 }

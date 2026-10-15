@@ -49,11 +49,11 @@
   ? == k 2 { xi 0 a xst 0 d }
   ? == k 3 { = n slen a = q sreg a P 104 x4 n P 104 x4 q xrt k3 '_ 'o 's xadd 16 }
   ? == k 4 { P 49 P 192 xst 0 d }
-  ? == k 5 { xlv 0 floc a xst 0 d }
-  ? == k 6 { xlt 0 b xsv 0 floc a }
+  ? == k 5 { xlv 0 b xst 0 d }
+  ? == k 6 { xlt 0 b xsv 0 c }
   ? == k 7 { = j - c 1 W >= j 0 { xpush xdt @ + b j = j - j 1 } xcall a xadd * 8 c xst 0 d }
-  ? == k 8 { ? tty d { xfl b xfl1 c xfbin tcode a d } { xlt 0 b xlt 1 c xbop tcode a xst 0 d } }
-  ? == k 9 { ? tty b { xfcmp tcode a b c xst 0 d } { xlt 0 b xlt 1 c P 72 P 57 P 200 xsetb xcc tcode a xst 0 d } }
+  ? == k 8 { ? tty d { xfl b xfl1 c xfbin opof a d } { xlt 0 b xlt 1 c xbop opof a xst 0 d } }
+  ? == k 9 { ? tty b { xfcmp opof a b c xst 0 d } { xlt 0 b xlt 1 c P 72 P 57 P 200 xsetb xcc opof a xst 0 d } }
   ? == k 10 { P 49 P 192 xst 0 d xlt 0 a xtest xpsh xjcc 132 }
   ? || == k 11 == k 13 { xlt 0 a xtest xsetb 149 xst 0 d xpat xpop }
   ? == k 12 { xi 0 1 xst 0 d xlt 0 a xtest xpsh xjcc 133 }

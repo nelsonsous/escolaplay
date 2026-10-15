@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 9 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 10 (otimização das formas próprias: inlining e dobragem de constantes na representação intermédia).
+Estado: **iteração 10 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 11 (atribuição de registos no x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -227,3 +227,25 @@ A causa é a geração ingénua: cada valor passa pela memória e cada chamada e
 - `./build.sh --semente-x86`: a semente nativa recompila-se a si própria, bit a bit.
 
 **Estado da independência.** Há três caminhos fechados (C, WebAssembly e código de máquina), e cada um é capaz de reconstruir os outros. O C deixou de ser obrigatório.
+
+---
+
+## Iteração 10: inlining e ciclos explícitos, e uma descoberta sobre o V8
+
+**Pergunta.** Onde se perde o tempo nas formas próprias, e o inlining resolve?
+
+**O que foi feito.**
+- **Inlining:** as funções pequenas (até 80 tokens) e não recursivas passam a ser expandidas no sítio, com ambitos próprios para os nomes. GETV e SETV guardam o índice do local, para que as expansões não se confundam.
+- **Ciclos explícitos:** os campos `E`, `S` e `D` passam a ser ciclos escritos na representação intermédia, com a função de cada elemento expandida lá dentro (e o que ela chamar, até 4 níveis).
+- **C, GLSL e JavaScript não mudam:** quem os otimiza é o gcc ou o motor de JavaScript. O C do arranque em Rust continua igual ao da Onda.
+
+**Prova.**
+- Os três pontos fixos continuam fechados. `inteiros`, `reais` e `imagem` dão o mesmo resultado em C, WebAssembly e x86, e os fractais continuam iguais ao C.
+- **x86:** o π passou de 7,9 s para 5,1 s (1,56× mais rápido); o fractal de 274 ms para 256 ms.
+
+**O que correu mal, e porquê.**
+- **Inlining em todo o lado:** com inlining em todas as chamadas, as funções do compilador incharam e o compilador em WebAssembly rebentou a pilha. Por isso o inlining passou a fazer-se só dentro dos campos.
+- **WebAssembly mais lento:** π de 990 para 1191 ms e Grover de 6,7 para 8,7 s. A causa: o V8 não faz substituição a meio da execução (OSR) em WebAssembly. Um ciclo dentro de uma função chamada uma só vez, como o `main`, fica no nível básico (Liftoff) do princípio ao fim. Antes, a função de cada elemento era chamada milhões de vezes e subia de nível depressa.
+- **Decisão:** no WebAssembly, a função de cada elemento fica separada (π 1039 ms, Grover 6,9 s); o inlining e os ciclos explícitos ficam só no x86.
+
+**Conclusão:** o x86 continua lento porque cada valor passa pela memória. A próxima peça é atribuir registos.

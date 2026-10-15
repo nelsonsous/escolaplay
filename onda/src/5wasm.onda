@@ -106,6 +106,7 @@
   wnext 0
   wnext 1
   wi64 0 wsx d }
+: opof i>i a ? < a 0 - 0 a tcode a
 : wbop ii>i o y ? y { ? == o '+ 160 ? == o '- 161 ? == o '* 162 163 }
   { ? == o '+ 124 ? == o '- 125 ? == o '* 126 ? == o '/ 127 ? == o '% 129 ? == o '& 131 ? == o '| 132 ? == o '^ 133 ? == o k2 '< '< 134 135 }
 : wcop ii>i o y {
@@ -147,11 +148,11 @@
   ? == k 2 { wi64 a wsx d }
   ? == k 3 { wstr a }
   ? == k 4 { ? tty d wf0 wi64 0 wsx d }
-  ? == k 5 { wgv floc a wsx d }
-  ? == k 6 { wg b wsv floc a }
+  ? == k 5 { wgv b wsx d }
+  ? == k 6 { wg b wsv c }
   ? == k 7 { = j 0 W < j c { wg @ + b j = j + j 1 } P 16 wu + 3 a wsx d }
-  ? == k 8 { wg b wg c P wbop tcode a tty d wsx d }
-  ? == k 9 { wg b wg c P wcop tcode a tty b wb2i wsx d }
+  ? == k 8 { wg b wg c P wbop opof a tty d wsx d }
+  ? == k 9 { wg b wg c P wcop opof a tty b wb2i wsx d }
   ? == k 10 { wi64 0 wsx d wcond a P 4 P 64 }
   ? || == k 11 == k 13 { wcond a wb2i wsx d P 11 }
   ? == k 12 { wi64 1 wsx d wg a P 80 P 4 P 64 }
