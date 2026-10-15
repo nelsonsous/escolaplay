@@ -45,37 +45,43 @@
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
-  ? == k 1 { ? tty d { P 15 P 11 } { xi 0 tokval a xst 0 d } }
+  ? == k 1 { ? tty d { !f 24 fltval a xi 0 @ 24 xst 0 d } { xi 0 tokval a xst 0 d } }
   ? == k 2 { xi 0 a xst 0 d }
   ? == k 3 { = n slen a = q sreg a P 104 x4 n P 104 x4 q xrt k3 '_ 'o 's xadd 16 }
   ? == k 4 { P 49 P 192 xst 0 d }
   ? == k 5 { xlv 0 floc a xst 0 d }
   ? == k 6 { xlt 0 b xsv 0 floc a }
   ? == k 7 { = j - c 1 W >= j 0 { xpush xdt @ + b j = j - j 1 } xcall a xadd * 8 c xst 0 d }
-  ? == k 8 { ? tty d { P 15 P 11 } { xlt 0 b xlt 1 c xbop tcode a xst 0 d } }
-  ? == k 9 { ? tty b { P 15 P 11 } { xlt 0 b xlt 1 c P 72 P 57 P 200 xsetb xcc tcode a xst 0 d } }
+  ? == k 8 { ? tty d { xfl b xfl1 c xfbin tcode a d } { xlt 0 b xlt 1 c xbop tcode a xst 0 d } }
+  ? == k 9 { ? tty b { xfcmp tcode a b c xst 0 d } { xlt 0 b xlt 1 c P 72 P 57 P 200 xsetb xcc tcode a xst 0 d } }
   ? == k 10 { P 49 P 192 xst 0 d xlt 0 a xtest xpsh xjcc 132 }
   ? || == k 11 == k 13 { xlt 0 a xtest xsetb 149 xst 0 d xpat xpop }
   ? == k 12 { xi 0 1 xst 0 d xlt 0 a xtest xpsh xjcc 133 }
   ? == k 14 { xlt 0 a xtest xsetb 148 xst 0 d }
-  ? == k 17 { ? tty b { P 15 P 11 } { xlt 0 b xlt 1 c P 72 P 57 P 200 P 72 P 15 P ? a 78 77 P 193 xst 0 d } }
+  ? == k 15 { xun a d b }
+  ? == k 16 { xbf a d b c }
+  ? == k 17 { ? tty b { xfl b xfl1 c P 242 P 15 P ? a 95 93 P 193 xfs d } { xlt 0 b xlt 1 c P 72 P 57 P 200 P 72 P 15 P ? a 78 77 P 193 xst 0 d } }
   ? == k 18 { xlt 0 a xtest xpsh xjcc 132 }
   ? == k 19 { xlt 0 a xst 0 d = j xjmp xpat xpop xpsh j }
   ? == k 20 { xlt 0 a xst 0 d xpat xpop }
   ? == k 21 { xpsh @ 16 }
   ? == k 22 { xlt 0 a xtest xpsh xjcc 132 }
   ? == k 23 { = j xpop xback xpop xpat j }
-  ? == k 24 { xlt 0 a P 73 P 139 P 4 P 199 xst 0 d }
-  ? == k 25 { xlt 0 a xlt 1 b P 73 P 137 P 12 P 199 }
+  ? || == k 24 == k 26 { xlt 0 a P 73 P 139 P 4 P 199 xst 0 d }
+  ? || == k 25 == k 27 { xlt 0 a xlt 1 b P 73 P 137 P 12 P 199 }
   ? == k 28 { xpush xdt a xrt k3 '_ 'o 'a xadd 8 xst 0 d }
   ? == k 29 { xpush xdt a xrt k3 '_ 'o 'p xadd 8 }
   ? == k 30 { xsy3 1 0 0 xst 0 d }
   ? == k 31 { xpush xdt a xrt k3 '_ 'o 'n xadd 8 }
+  ? == k 32 { xpush xdt a xrt k3 '_ 'o 'f xadd 8 }
   ? == k 33 { xlt 0 a P 73 P 137 P 71 P 240 }
   ? == k 34 { xsy3 3 0 0 xst 0 d }
   ? == k 35 { xpush xdt b xpush xdt a P 106 P 4 xcall -1 xadd 24 xst 0 d }
   ? == k 36 { xpush xdt a xrt k3 '_ 'e 'x xadd 8 }
   ? == k 37 { xsy3 6 0 0 xst 0 d }
+  ? == k 38 { xE p }
+  ? == k 39 { xS p }
+  ? == k 40 { xD p }
   ? == k 42 { xpush xdt c xpush xdt b xpush xdt a xcall -1 xadd 24 xst 0 d }
   ? == k 41 { xlt 0 a P 201 P 195 }
   { P 15 P 11 } }

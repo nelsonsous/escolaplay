@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 7 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 8 (reais SSE2, funções matemáticas x87 e campos no x86).
+Estado: **iteração 8 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 9 (o compilador compila-se a si próprio como executável nativo, sem C).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -180,3 +180,31 @@ Há um único emissor de texto para C, GLSL e JavaScript. Os próximos emissores
 - O ponto fixo em C e em WebAssembly mantém-se.
 
 **Ponto fraco, para otimizar:** fib(35) demora 481 ms no nativo da Onda contra 15 ms em C -O3, porque guarda tudo na pilha e não atribui registos. Fica para as iterações de otimização.
+
+---
+
+## Iteração 8: reais, matemática e campos no x86 nativo
+
+**Pergunta.** Sem libm nem printf, o executável nativo consegue fazer contas com reais como o C?
+
+**O que foi feito.**
+- **Reais em SSE2:** `addsd`/`subsd`/`mulsd`/`divsd`, `ucomisd` com o tratamento correto de NaN nas comparações (`seta`/`setae`, e `setnp`/`setp` para `==` e `!=`), `cvtsi2sd`/`cvttsd2si`, `sqrtsd`, `roundsd` para o chão, `btr` para o módulo, e `minsd`/`maxsd`.
+- **Funções transcendentes em x87:** `fsin`, `fcos`, `fyl2x` para o log e `fpatan` para atan2. A exponencial e a potência usam `f2xm1` + `fscale`.
+- **Campos `E`, `S` e `D`:** ciclos em código de máquina que usam lugares extra da pilha.
+- **`%.15g` escrito em Onda** (`_of`, `_od`, `_om`): procura do expoente, mantissa de 15 algarismos com potências de 10 exatas e escolha entre notação fixa e exponencial como no C.
+
+**Prova.**
+- **Testes exatos:** `inteiros`, `reais` e `imagem` dão saída idêntica à do C, tanto no WebAssembly como no x86 nativo. Inclui 0.3, 1e+21 e 1.5e-06 formatados exatamente como o printf.
+- **Exemplos reais:** os fractais `julia` e `ondas` são iguais nos 1 555 215 bytes, o que mostra que o x87 bateu certo com a libm nestes casos. O π dá 3.14159265359048 e Grover dá P(alvo) = 0.999999757396816, iguais ao C.
+- **Erro do runtime apanhado pelo compilador:** um `?` com um ramo real e outro inteiro em `_of`.
+
+**Ponto fraco (a seguir):** o código nativo é muito lento.
+
+| Programa | Nativo da Onda | C -O3 sequencial |
+|---|---|---|
+| π | 7,9 s | 0,26 s |
+| Grover | 23,7 s | — |
+| fib(35) | 387 ms | 15 ms |
+| fractal | 274 ms | 46 ms |
+
+A causa é a geração ingénua: cada valor passa pela memória e cada chamada empilha todos os argumentos.

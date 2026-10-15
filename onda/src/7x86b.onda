@@ -1,0 +1,99 @@
+# x86-64: reais (SSE2), funcoes matematicas (x87) e campos E/S/D
+: xde i>i e * -8 + + + - @ 9 @ 25 @ 11 e 1
+: xmo ii>i op d { P 242 P 15 P op P 133 x4 d }
+: xfl i>i t xmo 16 xdt t
+: xfl1 i>i t { P 242 P 15 P 16 P 141 x4 xdt t }
+: xfs i>i t xmo 17 xdt t
+: xfld i>i t { P 221 P 133 x4 xdt t }
+: xfstp i>i t { P 221 P 157 x4 xdt t }
+: x2pow >i { P 217 P 192 P 217 P 252 P 220 P 233 P 217 P 201 P 217 P 240 P 217 P 232 P 222 P 193 P 217 P 253 P 221 P 217 }
+: xfbin ii>i o d { P 242 P 15 P ? == o '+ 88 ? == o '- 92 ? == o '* 89 94 P 193 xfs d }
+: xfcmp iii>i o a b {
+  xfl a xfl1 b
+  ? == o '< { P 102 P 15 P 46 P 200 xsetb 151 }
+  ? == o k2 '< '= { P 102 P 15 P 46 P 200 xsetb 147 }
+  ? == o '> { P 102 P 15 P 46 P 193 xsetb 151 }
+  ? == o k2 '> '= { P 102 P 15 P 46 P 193 xsetb 147 }
+  ? == o k2 '= '= { P 102 P 15 P 46 P 193 P 15 P 148 P 192 P 15 P 155 P 193 P 32 P 200 P 15 P 182 P 192 }
+  { P 102 P 15 P 46 P 193 P 15 P 149 P 192 P 15 P 154 P 193 P 8 P 200 P 15 P 182 P 192 } }
+: xun iii>i c d a {
+  ? == c 0 { xlt 0 a P 242 P 72 P 15 P 42 P 192 xfs d }
+  ? == c 1 { xfl a P 242 P 72 P 15 P 44 P 192 xst 0 d }
+  ? == c 2 { xfl a P 242 P 15 P 81 P 192 xfs d }
+  ? == c 7 { xfl a P 102 P 15 P 58 P 11 P 192 P 9 xfs d }
+  ? == c 8 { xlt 0 a P 72 P 15 P 186 P 240 P 63 xst 0 d }
+  ? == c 3 { xfld a P 217 P 254 xfstp d }
+  ? == c 4 { xfld a P 217 P 255 xfstp d }
+  ? == c 5 { P 217 P 234 xfld a P 222 P 201 x2pow xfstp d }
+  { P 217 P 237 xfld a P 217 P 241 xfstp d } }
+: xbf iiii>i c d a b ? == c 9 { xfld b xfld a P 217 P 241 x2pow xfstp d } { xfld a xfld b P 217 P 243 xfstp d }
+: xcntz i>i e { P 49 P 192 xrm 0 xde e }
+: xcmpn ii>i e n { xmr 0 xde e P 72 P 59 P 133 x4 xdt n xjcc 141 }
+: xinc i>i e { xmr 0 xde e P 72 P 255 P 192 xrm 0 xde e }
+: xpargs ii>i a n { = j - n 1 W >= j 0 { xpush xdt @ + a j = j - j 1 } 0 }
+: xpidx ii>i e f { xmr 0 xde e ? f { P 242 P 72 P 15 P 42 P 192 P 102 P 72 P 15 P 126 P 192 } 0 P 80 }
+: xS i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  P 49 P 192 xst 0 d
+  xcntz 0
+  = l @ 16
+  = j xcmpn 0 a
+  xpargs c x
+  xpidx 0 0
+  xcall b
+  xadd * 8 + x 1
+  ? tty d { P 102 P 72 P 15 P 110 P 200 xfl d P 242 P 15 P 88 P 193 xfs d } { xlt 1 d P 72 P 1 P 193 xst 1 d }
+  xinc 0
+  xback l
+  xpat j }
+: xE i>i p {
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  xcntz 0
+  = l @ 16
+  = j xcmpn 0 b
+  xpargs x y
+  xpidx 0 0
+  xcall c
+  xadd * 8 + y 1
+  xlt 1 a P 72 P 3 P 141 x4 xde 0 P 73 P 137 P 4 P 207
+  xinc 0
+  xback l
+  xpat j }
+: xbyte ii>i e s { xmr 0 xde e ? s { P 72 P 193 P 248 P s } 0 P 37 x4 255 P 80 xrt k3 '_ 'o 'p xadd 8 }
+: xD i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  = f fpt c 0
+  xpush xdt b xpush xdt a xrt k3 '_ 'p 'h xadd 16
+  xcntz 1
+  = ly @ 16
+  = jy xcmpn 1 b
+  xcntz 0
+  = lx @ 16
+  = jx xcmpn 0 a
+  xpargs x y
+  xpidx 1 f
+  xpidx 0 f
+  xcall c
+  xadd * 8 + y 2
+  xrm 0 xde 2
+  xbyte 2 16 xbyte 2 8 xbyte 2 0
+  xinc 0
+  xback lx
+  xpat jx
+  xinc 1
+  xback ly
+  xpat jy
+  P 49 P 192 xst 0 d }
