@@ -1,12 +1,24 @@
-: nn fffffffffffffffffffffffffffffffffff>i x y w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 {
-  = z0 Mx 0.0 + + * w0 x * w1 y w16
-  = z1 Mx 0.0 + + * w2 x * w3 y w17
-  = z2 Mx 0.0 + + * w4 x * w5 y w18
-  = z3 Mx 0.0 + + * w6 x * w7 y w19
-  = z4 Mx 0.0 + + * w8 x * w9 y w20
-  = z5 Mx 0.0 + + * w10 x * w11 y w21
-  = z6 Mx 0.0 + + * w12 x * w13 y w22
-  = z7 Mx 0.0 + + * w14 x * w15 y w23
-  = s + * w24 z0 + * w25 z1 + * w26 z2 + * w27 z3 + * w28 z4 + * w29 z5 + * w30 z6 + * w31 z7 w32
+: nn fffffffffffffffffffffffffffffffffffffffffff>i x y w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 {
+  = q0 + + * w0 x * w1 y w20
+  = z0 ? > q0 0.0 q0 * 0.01 q0
+  = q1 + + * w2 x * w3 y w21
+  = z1 ? > q1 0.0 q1 * 0.01 q1
+  = q2 + + * w4 x * w5 y w22
+  = z2 ? > q2 0.0 q2 * 0.01 q2
+  = q3 + + * w6 x * w7 y w23
+  = z3 ? > q3 0.0 q3 * 0.01 q3
+  = q4 + + * w8 x * w9 y w24
+  = z4 ? > q4 0.0 q4 * 0.01 q4
+  = q5 + + * w10 x * w11 y w25
+  = z5 ? > q5 0.0 q5 * 0.01 q5
+  = q6 + + * w12 x * w13 y w26
+  = z6 ? > q6 0.0 q6 * 0.01 q6
+  = q7 + + * w14 x * w15 y w27
+  = z7 ? > q7 0.0 q7 * 0.01 q7
+  = q8 + + * w16 x * w17 y w28
+  = z8 ? > q8 0.0 q8 * 0.01 q8
+  = q9 + + * w18 x * w19 y w29
+  = z9 ? > q9 0.0 q9 * 0.01 q9
+  = s + * w30 z0 + * w31 z1 + * w32 z2 + * w33 z3 + * w34 z4 + * w35 z5 + * w36 z6 + * w37 z7 + * w38 z8 + * w39 z9 w40
   = o / 1.0 + 1.0 Ex * -1.0 s
   I * o 16777215.0 }

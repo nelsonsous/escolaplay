@@ -1,0 +1,129 @@
+: rnd i>f j { = h * Sn * F + j 1 12.9898 43758.5453 - - h Fl h 0.5 }
+: main >i {
+  = n 160
+  = dx A n = dy A n = dl A n
+  = i 0
+  W < i n {
+    = th * 3.14159265 / F i F - n 1
+    = c % i 2
+    = cs Cs th = sn Sn th
+    = xr ? == c 0 cs - 1.0 cs
+    = yr ? == c 0 sn - - 1.0 sn 0.5
+    = nx * 0.1 rnd * i 3
+    = ny * 0.1 rnd + * i 3 1
+    !f + dx i + nx * - xr 0.5 1.3
+    !f + dy i + ny * - yr 0.15 1.3
+    !f + dl i F c
+    = i + i 1 }
+  = w A 41 = g A 41
+  = i 0 W < i 41 { !f + w i * 1.4 rnd i = i + i 1 }
+  = lr 0.6
+  = ep 0
+  W < ep 1500 {
+    = i 0 W < i 41 { !f + g i 0.0 = i + i 1 }
+    = loss 0.0 = nc 0
+    = k 0
+    W < k n {
+      = xx @f + dx k = yy @f + dy k = tt @f + dl k
+      = z0 + + * @f + w 0 xx * @f + w 1 yy @f + w 20
+      = a0 ? > z0 0.0 z0 * 0.01 z0
+      = m0 ? > z0 0.0 1.0 0.01
+      = z1 + + * @f + w 2 xx * @f + w 3 yy @f + w 21
+      = a1 ? > z1 0.0 z1 * 0.01 z1
+      = m1 ? > z1 0.0 1.0 0.01
+      = z2 + + * @f + w 4 xx * @f + w 5 yy @f + w 22
+      = a2 ? > z2 0.0 z2 * 0.01 z2
+      = m2 ? > z2 0.0 1.0 0.01
+      = z3 + + * @f + w 6 xx * @f + w 7 yy @f + w 23
+      = a3 ? > z3 0.0 z3 * 0.01 z3
+      = m3 ? > z3 0.0 1.0 0.01
+      = z4 + + * @f + w 8 xx * @f + w 9 yy @f + w 24
+      = a4 ? > z4 0.0 z4 * 0.01 z4
+      = m4 ? > z4 0.0 1.0 0.01
+      = z5 + + * @f + w 10 xx * @f + w 11 yy @f + w 25
+      = a5 ? > z5 0.0 z5 * 0.01 z5
+      = m5 ? > z5 0.0 1.0 0.01
+      = z6 + + * @f + w 12 xx * @f + w 13 yy @f + w 26
+      = a6 ? > z6 0.0 z6 * 0.01 z6
+      = m6 ? > z6 0.0 1.0 0.01
+      = z7 + + * @f + w 14 xx * @f + w 15 yy @f + w 27
+      = a7 ? > z7 0.0 z7 * 0.01 z7
+      = m7 ? > z7 0.0 1.0 0.01
+      = z8 + + * @f + w 16 xx * @f + w 17 yy @f + w 28
+      = a8 ? > z8 0.0 z8 * 0.01 z8
+      = m8 ? > z8 0.0 1.0 0.01
+      = z9 + + * @f + w 18 xx * @f + w 19 yy @f + w 29
+      = a9 ? > z9 0.0 z9 * 0.01 z9
+      = m9 ? > z9 0.0 1.0 0.01
+      = s @f + w 40
+      = s + s * @f + w 30 a0
+      = s + s * @f + w 31 a1
+      = s + s * @f + w 32 a2
+      = s + s * @f + w 33 a3
+      = s + s * @f + w 34 a4
+      = s + s * @f + w 35 a5
+      = s + s * @f + w 36 a6
+      = s + s * @f + w 37 a7
+      = s + s * @f + w 38 a8
+      = s + s * @f + w 39 a9
+      = p / 1.0 + 1.0 Ex * -1.0 s
+      = ds - p tt
+      !f + g 40 + @f + g 40 ds
+      !f + g 30 + @f + g 30 * ds a0
+      = dz0 * * ds @f + w 30 m0
+      !f + g 0 + @f + g 0 * dz0 xx
+      !f + g 1 + @f + g 1 * dz0 yy
+      !f + g 20 + @f + g 20 dz0
+      !f + g 31 + @f + g 31 * ds a1
+      = dz1 * * ds @f + w 31 m1
+      !f + g 2 + @f + g 2 * dz1 xx
+      !f + g 3 + @f + g 3 * dz1 yy
+      !f + g 21 + @f + g 21 dz1
+      !f + g 32 + @f + g 32 * ds a2
+      = dz2 * * ds @f + w 32 m2
+      !f + g 4 + @f + g 4 * dz2 xx
+      !f + g 5 + @f + g 5 * dz2 yy
+      !f + g 22 + @f + g 22 dz2
+      !f + g 33 + @f + g 33 * ds a3
+      = dz3 * * ds @f + w 33 m3
+      !f + g 6 + @f + g 6 * dz3 xx
+      !f + g 7 + @f + g 7 * dz3 yy
+      !f + g 23 + @f + g 23 dz3
+      !f + g 34 + @f + g 34 * ds a4
+      = dz4 * * ds @f + w 34 m4
+      !f + g 8 + @f + g 8 * dz4 xx
+      !f + g 9 + @f + g 9 * dz4 yy
+      !f + g 24 + @f + g 24 dz4
+      !f + g 35 + @f + g 35 * ds a5
+      = dz5 * * ds @f + w 35 m5
+      !f + g 10 + @f + g 10 * dz5 xx
+      !f + g 11 + @f + g 11 * dz5 yy
+      !f + g 25 + @f + g 25 dz5
+      !f + g 36 + @f + g 36 * ds a6
+      = dz6 * * ds @f + w 36 m6
+      !f + g 12 + @f + g 12 * dz6 xx
+      !f + g 13 + @f + g 13 * dz6 yy
+      !f + g 26 + @f + g 26 dz6
+      !f + g 37 + @f + g 37 * ds a7
+      = dz7 * * ds @f + w 37 m7
+      !f + g 14 + @f + g 14 * dz7 xx
+      !f + g 15 + @f + g 15 * dz7 yy
+      !f + g 27 + @f + g 27 dz7
+      !f + g 38 + @f + g 38 * ds a8
+      = dz8 * * ds @f + w 38 m8
+      !f + g 16 + @f + g 16 * dz8 xx
+      !f + g 17 + @f + g 17 * dz8 yy
+      !f + g 28 + @f + g 28 dz8
+      !f + g 39 + @f + g 39 * ds a9
+      = dz9 * * ds @f + w 39 m9
+      !f + g 18 + @f + g 18 * dz9 xx
+      !f + g 19 + @f + g 19 * dz9 yy
+      !f + g 29 + @f + g 29 dz9
+      = loss + loss * -1.0 + * tt Lg + p 0.000000001 * - 1.0 tt Lg + - 1.0 p 0.000000001
+      = nc + nc ? > p 0.5 ? == 1 I tt 1 0 ? == 0 I tt 1 0
+      = k + k 1 }
+    = i 0 W < i 41 { !f + w i - @f + w i * lr / @f + g i F n = i + i 1 }
+    ? == % ep 60 0 { "ep " N ep " perda " G / loss F n " precisao " G / F nc F n "\n" } 0
+    ? == % ep 60 0 { "@" = si 0 W < si 41 { " " G @f + w si = si + si 1 } "\n" } 0
+    = ep + ep 1 }
+  "final precisao " G / F nc F n "\n" 0 }
