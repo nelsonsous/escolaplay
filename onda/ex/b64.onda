@@ -1,0 +1,31 @@
+# Base64 (RFC 4648) em Onda: "e" codifica o stdin, "d" descodifica. Empacotamento de grupos de 6 bits.
+# uso: ./onda run ex/b64.onda e < ficheiro ; ./onda run ex/b64.onda d < texto_base64
+: tab i>i i ? < i 26 + 'A i ? < i 52 + 'a - i 26 ? < i 62 + '0 - i 52 ? == i 62 '+ '/
+: des i>i c ? && >= c 'A <= c 'Z - c 'A ? && >= c 'a <= c 'z + 26 - c 'a ? && >= c '0 <= c '9 + 52 - c '0 ? == c '+ 62 ? == c '/ 63 -1
+: main >i {
+  = modo ? >= Ac 2 Av 1 0 'e
+  = buf A 3000000
+  = n 0 = c R
+  W && >= c 0 < n 2999000 { ! + buf n & c 255 = n + n 1 = c R }
+  ? == modo 'e {
+    = i 0
+    W < i n {
+      = b0 @ + buf i
+      = b1 ? < + i 1 n @ + buf + i 1 0
+      = b2 ? < + i 2 n @ + buf + i 2 0
+      P tab >> b0 2
+      P tab & | << b0 4 >> b1 4 63
+      P ? < + i 1 n tab & | << b1 2 >> b2 6 63 '=
+      P ? < + i 2 n tab & b2 63 '=
+      = i + i 3 }
+    P 10 }
+  ? == modo 'd {
+    = i 0 = bits 0 = acc 0
+    W < i n {
+      = v des @ + buf i
+      ? >= v 0 {
+        = acc | << acc 6 v
+        = bits + bits 6
+        ? >= bits 8 { = bits - bits 8 P & >> acc bits 255 } 0 } 0
+      = i + i 1 } }
+  0 0 }

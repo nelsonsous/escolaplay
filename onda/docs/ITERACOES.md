@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 48 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 49 (coletar o lixo do armazém endereçado por conteúdo, ou um resumo do estado a meio das 100).
+Estado: **iteração 49 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 50 (a meio das 100: um resumo honesto do estado da Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1129,3 +1129,18 @@ O x86 da Onda fica a ~1,3× do C neste trabalho. Encaixa no retrato das iteraç�
 Um objeto útil de verdade — content-addressable storage, a base do git, do IPFS, dos sistemas de cópia de segurança — escrito em Onda em ~70 linhas, a juntar a criptografia e o armazenamento que a própria Onda implementa, igual nas três formas.
 
 **Próxima.** Dar-lhe recolha de lixo (libertar blobs sem referências), ou um resumo honesto do estado a meio das 100 iterações.
+
+## Iteração 49: base64 — um codec bit a bit
+
+**Pergunta.** Depois do SHA-256 e do armazém endereçado por conteúdo, falta a peça que os acompanha sempre: transformar dados binários em texto. A base64 é o teste perfeito de empacotamento de bits a atravessar fronteiras de bytes.
+
+**O que foi feito.** `ex/b64.onda`: codifica (`e`) e descodifica (`d`) em base64 (RFC 4648), com o enchimento `=`. A codificação lê três bytes e escreve quatro caracteres de 6 bits; a descodificação acumula 6 bits de cada vez e emite um byte quando junta oito.
+
+**Prova** (`test/b64.test.js`; 68 testes no total, todos a passar).
+- Os vetores clássicos da RFC 4648 (`f`→`Zg==`, `fo`→`Zm8=`, … `foobar`→`Zm9vYmFy`) batem certo.
+- Round-trip de **todos os 256 valores de byte**: codificar e descodificar devolve os mesmos bytes.
+- C, x86-64 e WebAssembly codificam igual.
+
+(Mais um caso do mesmo detalhe que o CAS apanhou: o `main` saía com o código do último `P`; um `0` final repõe a saída limpa.)
+
+**Próxima.** Chegámos a meio das 100 iterações. A próxima é um resumo honesto: o que a Onda é hoje, o que está provado, e o que falta.
