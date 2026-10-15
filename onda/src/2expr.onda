@@ -129,6 +129,38 @@
   ? @ fe k 3 { ir 27 0 ad fr 0 0 0 } { ir 25 0 ad fr 0 0 0 }
   lpend iv
   d }
+# --- vetorizacao de mapas de campo (so x86): detetar um elemento vetorizavel e emitir um no-macro (tipo 41) ---
+# token do nome do parametro j da funcao k
+: xpe ii>i k j + @ fe k 4 j
+# pressao de registos da expressao do resultado em @7 (modelo direita-primeiro): max(p(B),1+p(A)); -1 se invalida.
+# so permite: literal float, o local x (teq com xt) e + - * / sobre eles.
+: xvp i>i xt {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 1
+  ? == kk 0 ? teq i xt 1 -1
+  { = o tcode i
+    ? isar o { = pa xvp xt = pb xvp xt ? || < pa 0 < pb 0 -1 ? > pb + 1 pa pb + 1 pa } -1 } }
+# a funcao k e um mapa vetorizavel? forma exata: : g ii>f i a { = x @f + a i <expr de + - * / sobre x e floats> }
+: xvan i>i k {
+  ? == @ fe k 3 0 0
+  ? != @ fe k 2 2 0
+  = b @ fe k 5
+  ? ~ == tcode b '{ 0
+  ? ~ == tcode + b 1 '= 0
+  ? ~ == tkk + b 2 0 0
+  ? ~ == tcode + b 3 k2 '@ 'f 0
+  ? ~ == tcode + b 4 '+ 0
+  ? ~ teq + b 5 xpe k 1 0
+  ? ~ teq + b 6 xpe k 0 0
+  { = sv @ 7
+    ! 7 + b 7
+    = p xvp + b 2
+    = r && && >= p 0 <= p 6 == tcode @ 7 '}
+    ! 7 sv
+    r } }
+: lowEv iiii>i d n k a { ir 51 0 n d @ a k 0 d }
 : conv ii>i t f ? f { = r nt 1 ir 15 r 0 t 0 0 0 r } t
 : lowD iiii>i w h k a {
   = f fpt k 0

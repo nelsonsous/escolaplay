@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 59 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Foco novo (pedido do utilizador): deixar de empatar com o C e passar a **ser mais rápido** que ele, no x86. Próxima: 60 (emitir o laço AVX empacotado em `xvmap` — o walker que percorre a AST do elemento — e re-medir contra o C).
+Estado: **iteração 60 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Foco novo (pedido do utilizador): deixar de empatar com o C e passar a **ser mais rápido** que ele, no x86. Próxima: 61 (difundir as constantes do mapa uma só vez — tirar o `movabs`+`vmovq`+`vbroadcastsd` de cada uso — para chegar ao teto AVX e bater o C idiomático).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1297,3 +1297,28 @@ teto AVX bit-seguro (mulpd+addpd):     841 ms
 Dois factos. Primeiro: o x86 da Onda **já bate** o C que a própria Onda gera (3090 vs 3460 ms), porque a Onda mete o elemento em linha e o C gerado chama-o por índice. Segundo, e mais exigente: contra o C *idiomático* (tudo em linha, escrito por uma pessoa), a Onda está **2,4× atrás** — 3090 vs 1312 ms. Logo "igual ao gcc -O2" era só verdade em núcleos leves (o π, poucas constantes); num Horner com 8 constantes, o alocador da Onda recarrega-as e paga. O teto AVX bit-seguro é 841 ms: o vetorizador da próxima iteração tem de lá chegar para bater **também** o C idiomático, não só o C gerado.
 
 **Próxima.** Emitir o AVX: em `ce`, quando o elemento é vetorizável (`xvan`), chamar `lowEv` em vez de `lowE`; o `xvmap` no backend percorre a AST do elemento e emite um laço empacotado de 4 em 4 (com as constantes difundidas uma só vez) mais uma cauda escalar para o resto. Gerir `ymm0-7` à mão, sem tocar no alocador (que o `src/` não usa campos, por isso o ponto fixo é imune). Depois re-medir e pôr o número.
+
+## Iteração 60: o vetorizador AVX ligado — a Onda emite SIMD que o gcc -O2 não emite
+
+**Pergunta.** Ligar os codificadores da it.58: detetar um mapa de campo vetorizável e emitir um laço AVX de 4 em 4. Fica bit a bit igual ao escalar? E fica mais rápido?
+
+**O que foi feito.** Um vetorizador completo, só no x86:
+- `xvan` (`2expr`): analisa a função do elemento. Aceita a forma `: g ii>f i a { = x @f + a i <expr de + - * / sobre x e floats> }` — fonte única, aritmética pura, sem ramos nem chamadas — e calcula a pressão de registos (modelo direita-primeiro); rejeita (cai no escalar) se passar de 6.
+- `lowEv` emite um nó-macro novo (tipo **51**, que o `41` já é o retorno) só quando `isx` e `xvan`; em C/WebAssembly continua o `E` normal (tipo 38).
+- `xvmap` (`6x86`): o `xins` do tipo 51 percorre a AST do elemento e emite **um laço empacotado** (`vmovupd`/`vmulpd`/`vaddpd` em `ymm`, 4 doubles de cada vez, `vbroadcastsd` para as constantes) **mais uma cauda escalar** (`movsd`/`mulsd`) para o resto de `n`. Gere `ymm0-7` com um alocador de bitmask; os GPR do laço são `rax/rcx/rdx` (que o alocador nunca usa) mais `r8/r9` salvos à pilha. As entradas (`n`, base destino, base fonte) são lidas com `xpsv` de onde o alocador as pôs. **Não toca no alocador** — e como o `src/` não usa campos, o ponto fixo é imune a bugs disto.
+
+**Prova.** `./build.sh` fecha o ponto fixo nas três formas (hash C `e6978159804a0dc8`; o x86 cresceu de 179984 para 184080 bytes — o vetorizador entra mesmo). `node --test`: **82 testes**, todos a passar — incluindo o `vecmap` (que exige C, x86 e WebAssembly **iguais ao bit**) e o `matmul`/`life` (o analisador rejeita-os, por terem laço interno ou serem inteiros, e cai no escalar, correto). No binário confirma-se o AVX: 7× `vmulpd ymm`, 7× `vaddpd ymm`, `vmovupd ymm`, `vbroadcastsd`.
+
+**Os números** (rep=200000, n=8192):
+
+```
+Onda x86 ESCALAR (it.59):     ~3090 ms
+Onda x86 VETORIZADO (agora):   2073 ms   → 1,49x mais rapido que o proprio escalar
+C que a Onda gera, gcc -O2:    3101 ms   → a Onda x86 bate o seu proprio C
+C idiomatico inline, gcc -O2:  1312 ms   → ainda a frente da Onda
+teto AVX bit-seguro:            841 ms
+```
+
+**O estado honesto.** A Onda já emite SIMD que o `gcc -O2` não emite, é bit a bit igual, e é 1,5× mais rápida que o seu escalar e que o C que ela própria gera. Mas ainda **não** bate o C *idiomático* (1312 ms): está a 2073. A culpa é da difusão das constantes — faço `movabs`+`vmovq`+`vbroadcastsd` a cada uso (24 instruções por iteração só para as 8 constantes), quando elas são invariantes do laço. O teto é 841 ms.
+
+**Próxima.** Difundir as 8 constantes **uma só vez** antes do laço (numa tabela na pilha, e depois `vbroadcastsd ymm, [rsp+k]` por uso — uma instrução em vez de três), para tirar o peso do laço e chegar perto do teto, passando à frente também do C idiomático.

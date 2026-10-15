@@ -49,6 +49,79 @@
 : xvm iiiii>i b1 o d x dp { P 196 P b1 P 125 P o P + ? dp 64 0 + * 8 & d 7 4 P + 192 + * 8 & x 7 7 ? dp { P & dp 255 } 0 }
 : xvmq ii>i x g { P 196 P 225 P 249 P 110 P + 192 + * 8 & x 7 & g 7 }
 : xvbx ii>i d x { P 196 P 226 P 125 P 25 P + 192 + * 8 & d 7 & x 7 }
+# ajudas de GPR para o laco vetorial (rax/rcx/rdx livres; r8/r9 salvos)
+: xaddr ii>i d s { P + + 72 ? >= s 8 4 0 ? >= d 8 1 0 P 1 P + + 192 * 8 & s 7 & d 7 }
+: xaddi ii>i d v { P + 72 ? >= d 8 1 0 P 131 P + 192 & d 7 P & v 255 }
+: xandi ii>i d v { P + 72 ? >= d 8 1 0 P 131 P + + 192 32 & d 7 P & v 255 }
+: xcmpr ii>i a b { P + + 72 ? >= b 8 4 0 ? >= a 8 1 0 P 57 P + + 192 * 8 & b 7 & a 7 }
+: xpp i>i r { ? >= r 8 P 65 0 P + 88 & r 7 }
+# alocador simples de ymm/xmm 0-7 (bit livre em st): bit posto = livre
+: sbit i>i r << 1 r
+: salloc i>i st { = m @ st = r 0 W && < r 8 == 0 & m sbit r = r + r 1 ? < r 8 { ! st & m ^ sbit r -1 r } -1 }
+: sfree ii>i st r ! st | @ st sbit r
+# salta uma expressao em @7 (forma validada: so + - * / e folhas)
+: xskip >i { = i @ 7 ! 7 + i 1 ? == tkk i 5 { ? isar tcode i { xskip xskip } 0 } 0 }
+: xvaop i>i o ? == o '+ 88 ? == o '- 92 ? == o '* 89 94
+# emite a expressao do resultado em @7 -> registo (w=4 empacotado, w=1 escalar). xr = registo do local x.
+: xvem iiii>i w st xt xr {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { !f 24 fltval i = r salloc st xi 0 @ 24 xvmq r 0 ? == w 4 xvbx r r 0 r }
+  ? == kk 0 xr
+  { = o tcode i
+    = sA @ 7 xskip
+    = sB @ 7 xskip
+    = af @ 7
+    ! 7 sB = rb xvem w st xt xr
+    ! 7 sA = ra xvem w st xt xr
+    ! 7 af
+    = rd salloc st
+    ? == w 4 xvop xvaop o rd ra rb { xmap rd ra xsr 242 0 xvaop o rd rb 0 }
+    ? != ra xr sfree st ra 0
+    ? != rb xr sfree st rb 0
+    rd } }
+# macro do mapa vetorizado: campos n=a dst=b src=c k=x. rdx=psrc rcx=pdst rax=n; r8/r9 = fins; ymm0-7.
+: xvmap i>i p {
+  = n @ + p 2
+  = db @ + p 3
+  = sb @ + p 4
+  = k @ + p 5
+  = sv @ 7
+  = st A 1
+  = b @ fe k 5
+  = rs + b 7
+  = xt + b 2
+  xpr 8 xpr 9
+  xpsv n xpsv db xpsv sb
+  xpp 2 xpp 1 xpp 0
+  xmrr 9 2 xaddr 9 0
+  xmrr 8 0 xandi 8 -4 xaddr 8 2
+  = t1 @ 16
+  xcmpr 2 8
+  = pe1 xjcc 131
+  ! st 255
+  = xr salloc st
+  xvm 193 16 xr 2 0
+  ! 7 rs = rr xvem 4 st xt xr
+  xvm 193 17 rr 1 0
+  xaddi 2 4 xaddi 1 4
+  xback t1
+  xput4 pe1 - @ 16 + pe1 4
+  = t2 @ 16
+  xcmpr 2 9
+  = pe2 xjcc 131
+  ! st 255
+  = x2 salloc st
+  xmo4 0 242 3856 x2 2 0 0 15
+  ! 7 rs = r2 xvem 1 st xt x2
+  xmo4 0 242 3857 r2 1 0 0 15
+  xaddi 2 1 xaddi 1 1
+  xback t2
+  xput4 pe2 - @ 16 + pe2 4
+  xpp 9 xpp 8
+  ! 7 sv
+  0 }
 : xins i>i p {
   = k @ p
   = d @ + p 1
@@ -96,6 +169,7 @@
   ? == k 44 xcst d | << a 32 b
   ? == k 45 0
   ? == k 41 { xlt 0 a P 201 ? @ 25 { P 194 P & * 8 @ 25 255 P >> * 8 @ 25 8 } P 195 }
+  ? == k 51 xvmap p
   { P 15 P 11 } }
 : xfun i>i k {
   ! 25 @ fe k 2
