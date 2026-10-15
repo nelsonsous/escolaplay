@@ -1,0 +1,128 @@
+# x86-64: escolha de instrucoes com operandos diretos (registo, moldura [rbp+m] ou imediato).
+# local -2 = imediato de 32 bits: um literal inteiro nao ocupa registo e cada leitura usa o valor (51 valores 52 marcas)
+# 53 salto pendente: uma comparacao seguida do seu unico uso num salto funde-se em cmp + jcc
+: xm i>i t ? == tlc t -2 @ + @ 51 t xdt t
+: xgr i>i d { = l tlc d ? && >= l 0 < l 16 l 0 }
+: xxr i>i d { = l tlc d ? >= l 16 - l 16 0 }
+: xrex iii>i w r l { = x + + * w 8 ? >= & r 15 8 4 0 ? && >= l 0 >= & l 15 8 1 0 ? x P + 64 x 0 }
+: xmodrm iii>i r l m ? < l 0 { P + 133 * 8 & r 7 x4 m } P + + 192 * 8 & r 7 & l 7
+: xsr iiiiii>i p w o x l m { ? p P p 0 xrex w x l P 15 P o xmodrm x l m }
+: xcon ii>i r v
+  ? && >= v 0 < v 4294967296 { ? >= r 8 P 65 0 P + 184 & r 7 x4 v }
+  ? && < v 0 >= v -2147483648 { xrex 1 0 r P 199 P + 192 & r 7 x4 v } xi r v
+: xlim i>i p {
+  = d @ + p 1
+  = k @ p
+  ? tty d 0 {
+    = v ? == k 1 tokval @ + p 2 ? == k 2 @ + p 2 0
+    ? && >= v -2147483648 <= v 2147483647 { ! + @ 51 d v ! + @ 52 d 1 } 0 } }
+: xcst ii>i d v {
+  = l tlc d
+  ? == l -2 0
+  ? && >= l 0 < l 16 xcon l v
+  ? >= l 16 { ? v { xcon 0 v xmgq - l 16 0 } xzr l }
+  ? && >= v -2147483648 <= v 2147483647 { P 72 P 199 P 133 x4 xdt d x4 v } { xi 0 v xrm 0 xdt d } }
+: xmv iiii>i dl dm sl sm {
+  ? && >= dl 0 == dl sl 0
+  ? == sl -2 { ? < dl 0 { P 72 P 199 P 133 x4 dm x4 sm } ? < dl 16 xcon dl sm { xcon 0 sm xmgq - dl 16 0 } }
+  ? < dl 0
+    { ? < sl 0 { xmr 0 sm xrm 0 dm } ? < sl 16 xrm sl dm xmsd 17 - sl 16 dm }
+  ? < dl 16
+    { ? < sl 0 xmr dl sm ? < sl 16 xmrr dl sl xmqg dl - sl 16 }
+    { ? < sl 0 xmsd 16 - dl 16 sm ? < sl 16 xmgq - dl 16 sl xmap - dl 16 - sl 16 } }
+: xtst i>i a { = l tlc a ? && >= l 0 < l 16 { xrex 1 l l P 133 P + + 192 * 8 & l 7 & l 7 } { xlt 0 a xtest } }
+: isco i>i o || || == o '+ == o '* || || == o '& == o '| == o '^
+: xaop i>i o ? == o '+ 3 ? == o '- 43 ? == o '& 35 ? == o '| 11 ? == o '^ 51 4015
+: xain i>i o ? == o '+ 0 ? == o '- 5 ? == o '& 4 ? == o '| 1 6
+: xopr iiii>i o r l m
+  ? == l -2
+    ? == o '* { xrex 1 r r P 105 P + + 192 * 8 & r 7 & r 7 x4 m } { xrex 1 0 r P 129 P + 192 + * 8 xain o & r 7 x4 m }
+    { = q xaop o xrex 1 r l ? > q 255 { P 15 P 175 } { P q } xmodrm r l m }
+# inteiros: d = b o c, calculado no registo de d quando ha um
+: xib iiii>i o d b c {
+  = ld tlc d
+  = lb tlc b
+  = lc tlc c
+  = mb xm b
+  = mc xm c
+  = r ? && >= ld 0 < ld 16 ld 0
+  ? || == o '/ == o '%
+    { xldg 0 lb mb P 72 P 153 ? == lc -2 { xcon 1 mc P 72 P 247 P 249 } { xrex 1 0 lc P 247 xmodrm 7 lc mc } xstg ? == o '/ 0 2 ld xdt d }
+    { ? || == o k2 '< '< == o k2 '> '>
+        { = s ? == o k2 '< '< 4 7
+          ? == lc -2
+            { xldg r lb mb xrex 1 0 r P 193 P + + 192 * 8 s & r 7 P & mc 63 }
+            { xldg 1 lc mc xldg r lb mb xrex 1 0 r P 211 P + + 192 * 8 s & r 7 } }
+        { ? && == r lc != r lb
+            ? isco o xopr o r lb mb { xldg 0 lb mb xopr o 0 lc mc = r 0 }
+            { xldg r lb mb xopr o r lc mc } }
+      ? == r 0 xstg 0 ld xdt d 0 } }
+# reais: d = b o c no registo xmm de d quando ha um
+: xfb iiii>i o d b c {
+  = ld tlc d
+  = lb tlc b
+  = lc tlc c
+  = q ? == o '+ 88 ? == o '- 92 ? == o '* 89 94
+  = x ? >= ld 16 - ld 16 0
+  ? && >= ld 16 && == ld lc != ld lb
+    ? || == o '+ == o '* xsr 242 0 q x lb xdt b { xldx 0 lb xdt b xsr 242 0 q 0 lc xdt c = x 0 }
+    { xldx x lb xdt b xsr 242 0 q x lc xdt c }
+  ? == x 0 xstx 0 ld xdt d 0 }
+# comparacoes: cmp direto; se o unico uso e o salto seguinte, o salto usa as flags (53)
+: xcmpi ii>i b c {
+  = lb tlc b
+  = lc tlc c
+  = r ? && >= lb 0 < lb 16 lb 0
+  ? == r 0 xldg 0 lb xm b 0
+  ? == lc -2 { xrex 1 0 r P 129 P + 248 & r 7 x4 xm c } { xrex 1 r lc P 59 xmodrm r lc xm c } }
+: xucom ii>i x y { = lx tlc x = r ? >= lx 16 - lx 16 { xldx 0 lx xdt x 0 } xsr 102 0 46 r tlc y xdt y }
+: xfu i>i p {
+  = q + p 8
+  = d @ + p 1
+  = i / - p @ 18 8
+  && < + i 1 @ 19 && || == @ q 18 == @ q 22 && == @ + q 2 d == @ + @ 37 d + * 2 + i 1 2 }
+: xcmp i>i p {
+  = d @ + p 1
+  = o opof @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = f xfu p
+  ? tty b
+    { ? && f || || == o '< == o '> || == o k2 '< '= == o k2 '> '=
+        { ? || == o '< == o k2 '< '= xucom c b xucom b c ! 53 ? || == o '< == o '> 134 130 }
+        { xfcmp o b c xst 0 d } }
+    { xcmpi b c ? f ! 53 ^ - xcc o 16 1 { xsetb xcc o xst 0 d } } }
+: xjz i>i a ? @ 53 { = c @ 53 ! 53 0 xpsh xjcc c } { xtst a xpsh xjcc 132 }
+# conversoes e raiz direto nos registos
+: xcvf ii>i d a {
+  = x xxr d
+  = la tlc a
+  = l ? == la -2 { xcon 0 xm a 0 } la
+  xzr + 16 x
+  xsr 242 1 42 x l xm a
+  ? == x 0 xstx 0 tlc d xdt d 0 }
+: xcvi ii>i d a { = r xgr d xsr 242 1 44 r tlc a xdt a ? == r 0 xstg 0 tlc d xdt d 0 }
+: xsqr ii>i d a { = x xxr d xldx x tlc a xdt a xsr 242 0 81 x + 16 x 0 ? == x 0 xstx 0 tlc d xdt d 0 }
+# memoria M: [r15 + indice*8] ou [r15 + 8*imediato]
+: xadr ii>i l m ? && == l -2 && < m 268435456 > m -268435456 -2 ? && >= l 0 < l 16 l { xldg 0 l m 0 }
+: xmo2 iiiiii>i w p o r l m {
+  ? p P p 0
+  P + + + 65 * w 8 ? >= & r 15 8 4 0 ? >= l 8 2 0
+  ? > o 255 { P >> o 8 P & o 255 } { P o }
+  ? == l -2 { P + 135 * 8 & r 7 x4 * 8 m } { P + 4 * 8 & r 7 P + 199 * 8 & l 7 } }
+: xld i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = f == @ p 26
+  = r ? f xxr d xgr d
+  = l xadr tlc a xm a
+  ? f xmo2 0 242 3856 r l xm a xmo2 1 0 139 r l xm a
+  ? == r 0 ? f xfs d xst 0 d 0 }
+: xsto i>i p {
+  = a @ + p 2
+  = b @ + p 3
+  = lb tlc b
+  = f == @ p 27
+  = v ? f ? >= lb 16 - lb 16 { xldx 0 lb xdt b 0 } ? && >= lb 0 < lb 16 lb { xldg 1 lb xm b 1 }
+  = l xadr tlc a xm a
+  ? f xmo2 0 242 3857 v l xm a xmo2 1 0 137 v l xm a }

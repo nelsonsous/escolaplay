@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 11 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 12 (operandos diretos em registo no x86).
+Estado: **iteração 12 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 13 (vida dividida dos resultados de `?`, `&&` e `||`; o chamado retira os argumentos).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -281,3 +281,36 @@ A causa é a geração ingénua: cada valor passa pela memória e cada chamada e
 - `inteiros`, `reais` e `imagem` dão o mesmo resultado em C, WebAssembly e x86.
 
 **O que falta, e porquê.** O π continua 13× mais lento do que o C. O código ainda passa todos os operandos pelos registos de rascunho. Pior, cada leitura de uma variável real faz a ida e volta xmm → rax → xmm, e isso fica na cadeia do acumulador. A seguir: operandos diretos em registo, movimentos reais sem passar pelo rax, e comparação fundida com o salto.
+
+## Iteração 12: operandos diretos, e o x86 da Onda passa o gcc no π
+
+**Pergunta.** Com os valores em registos, porque é que o π continuava 13× mais lento do que o C?
+
+**Diagnóstico** (desmontagem do ciclo com `objdump`). Cada operação passava pelos registos de rascunho: `mov rax,b; mov rcx,c; op; mov d,rax`. Pior, cada leitura de uma variável real fazia a ida e volta xmm → rax → xmm. São cerca de 6 ciclos a mais na cadeia do acumulador, em cada iteração.
+
+**O que foi feito** (`src/9xsel.onda`, 128 linhas em Onda):
+- **Operandos diretos:** as operações inteiras e reais são calculadas no registo do destino, com o segundo operando em registo, na moldura ou imediato (`add r, [rbp+m]`, `addsd x, x`, `imul r, r, imm`).
+- **Imediatos:** um literal inteiro de 32 bits já não ocupa registo; cada leitura usa o valor (`cmp r, 200`, `push 72`, `mov [r15+8*9], r`).
+- **Movimentos:** cópias entre variáveis e temporários vão direto entre registos (`mov`, `movaps`), sem passar pelo rax.
+- **Comparação fundida:** uma comparação cujo único uso é o salto seguinte vira `cmp` + `jcc` (para os reais, `ucomisd` + `jbe`/`jb`, correto com NaN).
+- **Memória:** `@`, `!`, `@f` e `!f` endereçam `[r15 + r*8]` ou `[r15 + 8*imediato]` diretamente.
+- **Conversões:** `F`, `I` e `Sq` operam direto nos registos. O `xorps` antes de `cvtsi2sd` evita a falsa dependência.
+
+**Prova** (a mesma máquina; C = gcc -O2 sem OpenMP):
+
+| programa | it. 11 | it. 12 | C (gcc -O2) | WebAssembly (V8) |
+|---|---|---|---|---|
+| π (200 milhões de pontos) | 3 480 ms | **403 ms** | 478 ms | 919 ms |
+| Grover (20 qubits) | 6 761 ms | **1 767 ms** | 1 224 ms | 7 051 ms |
+| fractal (julia) | 186 ms | 162 ms | 43 ms | — |
+| fib(35) | 72 ms | 75 ms | 17 ms | 55 ms |
+| autocompilação nativa | 29 ms | **14 ms** | — | — |
+
+- **O π nativo da Onda é mais rápido do que o gcc -O2:** é o mesmo programa, compilado pela Onda, sem C, sem assembler e sem linker.
+- O compilador nativo desceu de 221 552 para 168 304 bytes.
+- Os três pontos fixos continuam fechados, e as três provas dão o mesmo resultado em C, WebAssembly e x86. O fractal sai igual ao byte.
+
+**O que falta.**
+- **fib:** o resultado de um `?` fica na memória porque o seu intervalo atravessa as chamadas do outro ramo, mas ele nunca está vivo nesse ramo. A solução é a vida dividida.
+- **Chamadas:** cada chamada ainda gasta um `add rsp` (o chamado pode retirar os argumentos com `ret n`).
+- **julia:** o `&&` da condição do ciclo materializa 0/1 três vezes antes do salto.

@@ -32,6 +32,7 @@
   = k @ p
   = f @ + @ 50 k
   ? == k 21 { ! + @ 47 @ 49 i ! 49 + @ 49 1 ! 44 + @ 44 1 } 0
+  ? || || == k 1 == k 2 == k 4 xlim p 0
   ? & f 1 xu @ + p 2 0
   ? & f 2 xu @ + p 3 0
   ? & f 4 xu @ + p 4 0
@@ -64,7 +65,8 @@
   = z ? f 32 10
   W && < r 0 < j z { = g ? f j xgpr j ? & >> m g 1 0 = r g = j + j 1 }
   r }
-: xal i>i v {
+: xal i>i v ? && < v @ 11 @ + @ 52 v ! + @ 34 v -2 xal2 v
+: xal2 i>i v {
   = s @ + @ 36 v
   = e @ + @ 37 v
   = nt @ 11
@@ -84,7 +86,7 @@
   = nt @ 11
   = nv + nt @ 9
   = v 0
-  W < v nv { ! + @ 36 v -1 ! + @ 37 v -1 ! + @ 38 v 0 ! + @ 42 v 0 = v + v 1 }
+  W < v nv { ! + @ 36 v -1 ! + @ 37 v -1 ! + @ 38 v 0 ! + @ 42 v 0 ! + @ 52 v 0 = v + v 1 }
   = p 0
   W < p + * 2 n 4 { ! + @ 39 p 0 = p + p 1 }
   ! 41 0
@@ -115,12 +117,12 @@
 : xmgq ii>i x g { P 102 P + + 72 ? >= x 8 4 0 ? >= g 8 1 0 P 15 P 110 P + + 192 * 8 & x 7 & g 7 }
 : xmsd iii>i o x d { P 242 ? >= x 8 P 68 0 P 15 P o P + 133 * 8 & x 7 x4 d }
 : xmap ii>i d s ? == d s 0 { ? || >= d 8 >= s 8 P + + 64 ? >= d 8 4 0 ? >= s 8 1 0 0 P 15 P 40 P + + 192 * 8 & d 7 & s 7 }
-: xldg iii>i r l m ? < l 0 xmr r m ? < l 16 xmrr r l xmqg r - l 16
+: xldg iii>i r l m ? == l -2 xcon r m ? < l 0 xmr r m ? < l 16 xmrr r l xmqg r - l 16
 : xstg iii>i r l m ? < l 0 xrm r m ? < l 16 xmrr l r xmgq - l 16 r
-: xldx iii>i x l m ? < l 0 xmsd 16 x m ? < l 16 xmgq x l xmap x - l 16
+: xldx iii>i x l m ? == l -2 { xcon 0 m xmgq x 0 } ? < l 0 xmsd 16 x m ? < l 16 xmgq x l xmap x - l 16
 : xstx iii>i x l m ? < l 0 xmsd 17 x m ? < l 16 xmqg l x xmap - l 16 x
 : xpr i>i r { ? >= r 8 P 65 0 P + 80 & r 7 }
-: xpsv i>i t { = l tlc t ? < l 0 xpush xdt t ? < l 16 xpr l { xmqg 0 - l 16 P 80 } }
+: xpsv i>i t { = l tlc t ? == l -2 { P 104 x4 xm t } ? < l 0 xpush xdt t ? < l 16 xpr l { xmqg 0 - l 16 P 80 } }
 : xzr i>i l { = r & l 15 ? >= r 8 P 69 0 ? >= l 16 P 15 0 P ? >= l 16 87 49 P + 192 * 9 & r 7 }
 # prologo: zera as variaveis que podem ser lidas antes de escritas, carrega os parametros que vivem em registos
 : xzer >i {

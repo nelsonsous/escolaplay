@@ -8,7 +8,6 @@
 : xfld i>i t { = l tlc t ? < l 0 0 xspl l P 221 P 133 x4 ? < l 0 xdt t xde 0 }
 : xfstp i>i t { = l tlc t P 221 P 157 x4 ? < l 0 xdt t xde 0 ? < l 0 0 xfil l }
 : x2pow >i { P 217 P 192 P 217 P 252 P 220 P 233 P 217 P 201 P 217 P 240 P 217 P 232 P 222 P 193 P 217 P 253 P 221 P 217 }
-: xfbin ii>i o d { P 242 P 15 P ? == o '+ 88 ? == o '- 92 ? == o '* 89 94 P 193 xfs d }
 : xfcmp iii>i o a b {
   xfl a xfl1 b
   ? == o '< { P 102 P 15 P 46 P 200 xsetb 151 }
@@ -18,9 +17,9 @@
   ? == o k2 '= '= { P 102 P 15 P 46 P 193 P 15 P 148 P 192 P 15 P 155 P 193 P 32 P 200 P 15 P 182 P 192 }
   { P 102 P 15 P 46 P 193 P 15 P 149 P 192 P 15 P 154 P 193 P 8 P 200 P 15 P 182 P 192 } }
 : xun iii>i c d a {
-  ? == c 0 { xlt 0 a P 242 P 72 P 15 P 42 P 192 xfs d }
-  ? == c 1 { xfl a P 242 P 72 P 15 P 44 P 192 xst 0 d }
-  ? == c 2 { xfl a P 242 P 15 P 81 P 192 xfs d }
+  ? == c 0 xcvf d a
+  ? == c 1 xcvi d a
+  ? == c 2 xsqr d a
   ? == c 7 { xfl a P 102 P 15 P 58 P 11 P 192 P 9 xfs d }
   ? == c 8 { xlt 0 a P 72 P 15 P 186 P 240 P 63 xst 0 d }
   ? == c 3 { xfld a P 217 P 254 xfstp d }

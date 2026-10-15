@@ -8,7 +8,7 @@
 : xdt i>i t * -8 + + - @ 9 @ 25 t 1
 : xmr ii>i r d { P ? >= r 8 76 72 P 139 P + 133 * 8 & r 7 x4 d }
 : xrm ii>i r d { P ? >= r 8 76 72 P 137 P + 133 * 8 & r 7 x4 d }
-: xlt ii>i r t xldg r tlc t xdt t
+: xlt ii>i r t xldg r tlc t xm t
 : xst ii>i r t xstg r tlc t xdt t
 : xlv ii>i r j xldg r vlc j xdisp j
 : xsv ii>i r j xstg r vlc j xdisp j
@@ -27,17 +27,6 @@
 : xrt i>i c xcall fby c
 : xsy3 iii>i c a b { P 106 P b P 106 P a P 106 P c xcall -1 xadd 24 }
 : xsetb i>i cc { P 15 P cc P 192 P 15 P 182 P 192 }
-: xbop i>i o {
-  ? == o '+ { P 72 P 1 P 200 }
-  ? == o '- { P 72 P 41 P 200 }
-  ? == o '* { P 72 P 15 P 175 P 193 }
-  ? == o '/ { P 72 P 153 P 72 P 247 P 249 }
-  ? == o '% { P 72 P 153 P 72 P 247 P 249 P 72 P 137 P 208 }
-  ? == o '& { P 72 P 33 P 200 }
-  ? == o '| { P 72 P 9 P 200 }
-  ? == o '^ { P 72 P 49 P 200 }
-  ? == o k2 '< '< { P 72 P 211 P 224 }
-  { P 72 P 211 P 248 } }
 : xcc i>i o ? == o '< 156 ? == o '> 159 ? == o k2 '< '= 158 ? == o k2 '> '= 157 ? == o k2 '= '= 148 149
 : xins i>i p {
   = k @ p
@@ -45,30 +34,30 @@
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
-  ? == k 1 { ? tty d { !f 24 fltval a xi 0 @ 24 xst 0 d } { xi 0 tokval a xst 0 d } }
-  ? == k 2 { xi 0 a xst 0 d }
+  ? == k 1 { ? tty d { !f 24 fltval a xcst d @ 24 } xcst d tokval a }
+  ? == k 2 xcst d a
   ? == k 3 { = n slen a = q sreg a P 104 x4 n P 104 x4 q xrt k3 '_ 'o 's xadd 16 }
-  ? == k 4 { P 49 P 192 xst 0 d }
-  ? == k 5 { xlv 0 b xst 0 d }
-  ? == k 6 { xlt 0 b xsv 0 c }
+  ? == k 4 xcst d 0
+  ? == k 5 xmv tlc d xdt d vlc b xdisp b
+  ? == k 6 xmv vlc c xdisp c tlc b xm b
   ? == k 7 { = j - c 1 W >= j 0 { xpsv @ + b j = j - j 1 } xcall a xadd * 8 c xst 0 d }
-  ? == k 8 { ? tty d { xfl b xfl1 c xfbin opof a d } { xlt 0 b xlt 1 c xbop opof a xst 0 d } }
-  ? == k 9 { ? tty b { xfcmp opof a b c xst 0 d } { xlt 0 b xlt 1 c P 72 P 57 P 200 xsetb xcc opof a xst 0 d } }
-  ? == k 10 { xlt 0 a xtest P 185 x4 0 xst 1 d xpsh xjcc 132 }
-  ? || == k 11 == k 13 { xlt 0 a xtest xsetb 149 xst 0 d xpat xpop }
-  ? == k 12 { xlt 0 a xtest P 185 x4 1 xst 1 d xpsh xjcc 133 }
-  ? == k 14 { xlt 0 a xtest xsetb 148 xst 0 d }
+  ? == k 8 { ? tty d xfb opof a d b c xib opof a d b c }
+  ? == k 9 xcmp p
+  ? == k 10 { xtst a P 185 x4 0 xst 1 d xpsh xjcc 132 }
+  ? || == k 11 == k 13 { xtst a xsetb 149 xst 0 d xpat xpop }
+  ? == k 12 { xtst a P 185 x4 1 xst 1 d xpsh xjcc 133 }
+  ? == k 14 { xtst a xsetb 148 xst 0 d }
   ? == k 15 { xun a d b }
   ? == k 16 { xbf a d b c }
   ? == k 17 { ? tty b { xfl b xfl1 c P 242 P 15 P ? a 95 93 P 193 xfs d } { xlt 0 b xlt 1 c P 72 P 57 P 200 P 72 P 15 P ? a 78 77 P 193 xst 0 d } }
-  ? == k 18 { xlt 0 a xtest xpsh xjcc 132 }
-  ? == k 19 { xlt 0 a xst 0 d = j xjmp xpat xpop xpsh j }
-  ? == k 20 { xlt 0 a xst 0 d xpat xpop }
+  ? == k 18 xjz a
+  ? == k 19 { xmv tlc d xdt d tlc a xm a = j xjmp xpat xpop xpsh j }
+  ? == k 20 { xmv tlc d xdt d tlc a xm a xpat xpop }
   ? == k 21 { xpsh @ 16 }
-  ? == k 22 { xlt 0 a xtest xpsh xjcc 132 }
+  ? == k 22 xjz a
   ? == k 23 { = j xpop xback xpop xpat j }
-  ? || == k 24 == k 26 { xlt 0 a P 73 P 139 P 4 P 199 xst 0 d }
-  ? || == k 25 == k 27 { xlt 0 a xlt 1 b P 73 P 137 P 12 P 199 }
+  ? || == k 24 == k 26 xld p
+  ? || == k 25 == k 27 xsto p
   ? == k 28 { xpsv a xrt k3 '_ 'o 'a xadd 8 xst 0 d }
   ? == k 29 { xpsv a xrt k3 '_ 'o 'p xadd 8 }
   ? == k 30 { xsy3 1 0 0 xst 0 d }
