@@ -5,6 +5,7 @@
 #include <time.h>
 #if defined(__unix__)||defined(__APPLE__)
 #include <sys/mman.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -28,7 +29,7 @@ static void on(I n){char b[24];int i=0;unsigned long long u=n<0?0ULL-(unsigned l
 static void og(F x){char b[40];snprintf(b,40,"%.15g",x);os(b);}
 static I ir(void){if(IP==IL){IL=(int)fread(IB,1,65536,stdin);IP=0;if(IL<=0){IL=0;return -1;}}return IB[IP++];}
 static void odie(const char*m){oflush();fputs(m,stderr);exit(2);}
-static I*KP;static size_t KZ;static int KS,KD=-1;static unsigned char*KR;static char KJ[4200];
+static I*KP;static size_t KZ;static int KS,KD=-1;static unsigned char*KB;static char KJ[4200];
 #define KPG 4096
 #define KMAG 0x314E524A41444E4FULL
 static unsigned long long kfnv(unsigned long long s,const void*p,size_t n){const unsigned char*b=(const unsigned char*)p;size_t i;for(i=0;i<n;i+=8){unsigned long long w;memcpy(&w,b+i,8);s=(s^w)*1099511628211ULL;}return s;}
@@ -47,7 +48,7 @@ if(KP)return (I)(((char*)KP-(char*)M)/8);
 {int d=-1;void*p;struct stat s;if(f){if(strlen(f)>4000)odie("onda: armazem: nome comprido demais\n");strcpy(KJ,f);strcat(KJ,".j");d=open(f,O_RDWR|O_CREAT,0644);if(d<0)odie("onda: armazem indisponivel\n");krec(d);if(fstat(d,&s))odie("onda: armazem indisponivel\n");
 if((size_t)s.st_size>z)z=((size_t)s.st_size+KPG-1)/KPG*KPG;if((size_t)s.st_size<z&&ftruncate(d,(off_t)z))odie("onda: armazem indisponivel\n");KS=1;KD=d;}
 p=mmap(0,z,PROT_READ|PROT_WRITE,f?MAP_PRIVATE:(MAP_PRIVATE|MAP_ANONYMOUS),d,0);if(p==MAP_FAILED)odie("onda: armazem indisponivel\n");KP=(I*)p;
-if(f){KR=(unsigned char*)mmap(0,z,PROT_READ,MAP_SHARED,d,0);if(KR==MAP_FAILED)odie("onda: armazem indisponivel\n");}}
+if(f){KB=(unsigned char*)malloc(z);if(!KB)odie("onda: armazem indisponivel\n");memcpy(KB,p,z);}}
 #else
 {FILE*h=f?fopen(f,"rb"):0;long l=0;if(h){fseek(h,0,SEEK_END);l=ftell(h);fseek(h,0,SEEK_SET);if((size_t)l>z)z=((size_t)l+KPG-1)/KPG*KPG;}KP=(I*)calloc(z,1);if(!KP)odie("onda: armazem indisponivel\n");if(h){if(fread(KP,1,(size_t)l,h)){}fclose(h);}KS=f!=0;}
 #endif
@@ -55,15 +56,15 @@ KZ=z;return (I)(((char*)KP-(char*)M)/8);}
 static I kcommit(void){
 #ifdef OKMAP
 size_t i,n=0,np;int j=-1;unsigned long long s=0xcbf29ce484222325ULL;const char*fl=getenv("ONDA_ARM_FALHA");
-if(!KS)return 0;np=KZ/KPG;
-for(i=0;i<np;i++)if(memcmp((char*)KP+i*KPG,KR+i*KPG,KPG)){unsigned long long x=i;
+if(!KS)return 0;np=KZ/KPG;flock(KD,LOCK_EX);
+for(i=0;i<np;i++)if(memcmp((char*)KP+i*KPG,KB+i*KPG,KPG)){unsigned long long x=i;
 if(j<0){j=open(KJ,O_WRONLY|O_CREAT|O_TRUNC,0644);if(j<0)odie("onda: armazem: sem diario\n");}
 kwr(j,&x,8,-1);kwr(j,(char*)KP+i*KPG,KPG,-1);s=kfnv(s,&x,8);s=kfnv(s,(char*)KP+i*KPG,KPG);n++;if(fl&&*fl=='2')_exit(9);}
-if(!n)return 0;
+if(!n){flock(KD,LOCK_UN);return 0;}
 {unsigned long long f[3];f[0]=n;f[1]=s;f[2]=KMAG;kwr(j,f,24,-1);}
 fsync(j);close(j);if(fl&&*fl=='1')_exit(9);
-for(i=0;i<np;i++)if(memcmp((char*)KP+i*KPG,KR+i*KPG,KPG))kwr(KD,(char*)KP+i*KPG,KPG,(long long)(i*KPG));
-fsync(KD);unlink(KJ);return (I)n;
+for(i=0;i<np;i++)if(memcmp((char*)KP+i*KPG,KB+i*KPG,KPG)){kwr(KD,(char*)KP+i*KPG,KPG,(long long)(i*KPG));memcpy(KB+i*KPG,(char*)KP+i*KPG,KPG);}
+fsync(KD);unlink(KJ);flock(KD,LOCK_UN);return (I)n;
 #else
 if(KS){FILE*h=fopen(getenv("ONDA_ARM"),"wb");if(h){fwrite(KP,1,KZ,h);fclose(h);}}return 0;
 #endif

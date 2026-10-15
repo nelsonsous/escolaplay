@@ -21,7 +21,7 @@ build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pe
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
 ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
-node --test test/*.test.js  # todos os testes (42): Onda Viva, matematica, circuitos, oraculos, armazem e GPU
+node --test test/*.test.js  # todos os testes (43): Onda Viva, matematica, circuitos, oraculos, armazem e GPU
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -67,7 +67,8 @@ python3 web/montar.py       # monta as duas paginas em build/
 - "Quântico" tem dois sentidos: o modelo de paralelismo dos campos, e programas OpenQASM reais gerados a partir de funções Onda. Estes só ganham velocidade em hardware quântico, e aqui são verificados classicamente.
 - Versão 0:
   - a memória só cresce;
-  - o armazém é de um só processo de cada vez (sem trincos), e cada `Kc` escreve as páginas duas vezes (diário e ficheiro);
+  - na forma C, vários processos podem partilhar o armazém com segurança (trinco `flock` e confirmação por páginas: escritores em páginas diferentes não se apagam; na mesma página ganha o último); nas formas x86 e WebAssembly isto ainda é de um processo de cada vez (o formato é o mesmo);
+  - cada `Kc` escreve as páginas mudadas duas vezes (diário e ficheiro);
   - não há verificação de limites nem módulos;
   - na GPU os números têm 32 bits;
   - em JavaScript os inteiros têm 53 bits e as operações de bits usam 32.

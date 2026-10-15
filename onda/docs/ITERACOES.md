@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 34 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 35 (vários processos a partilhar o armazém: reler sob trinco — uma transação, não só um trinco).
+Estado: **iteração 35 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 36 (levar o mesmo trinco e confirmação por páginas ao x86 nativo, com a porta de chamadas ao sistema crua).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -890,3 +890,21 @@ O limiar é apertado (distância ≤ 1 para nomes curtos, ≤ 2 para os longos),
 **Um erro apanhado — outra vez — pelos diagnósticos.** Ao preparar a versão CPU na resolução do teste, gerei `px 2` onde devia ser `px 2.0` (o `2.0` do JavaScript virou `"2"`). O compilador apontou logo: `argumento com tipo errado (linha 21, coluna 26)`, com o sinal debaixo do `2`. As iterações 29–30 e 33 continuam a pagar-se.
 
 **Próxima.** Vários processos a partilhar o mesmo armazém. Como a iteração 33 notou, não basta um trinco: é preciso reler o ficheiro sob o trinco antes de confirmar, porque o mapa privado de cada processo não vê as escritas dos outros. Uma transação.
+
+## Iteração 35: dois processos no mesmo armazém sem se apagarem
+
+**Pergunta.** As iterações 33 e 34 deixaram a dívida: o armazém era de um processo de cada vez. Dois escritores no mesmo ficheiro apagavam-se, porque cada um mapeia o ficheiro em privado e, ao confirmar, reescrevia tudo. Como partilhar sem corromper, e sem obrigar o programa a pensar em concorrência?
+
+**A observação que resolve.** Já havia a peça certa: o `Kc` só escreve as páginas que mudaram. Faltava medir a mudança contra a base certa. Antes comparava com uma vista partilhada do ficheiro (que podia já ter as escritas de outros, e dependia de semântica de cópia-em-escrita não garantida). Agora compara com um **instantâneo privado do ficheiro tirado à abertura** (`KB`): a diferença são exatamente as páginas que *este* processo mudou.
+
+**O que foi feito** (na forma C, a de referência).
+- À abertura, guarda-se um instantâneo `KB` do conteúdo do ficheiro.
+- O `Kc` segura um trinco exclusivo (`flock`), escreve pelo diário só as páginas onde o mapa difere de `KB`, e no fim atualiza `KB`.
+- Resultado: dois processos que escrevem em páginas diferentes **ambos sobrevivem**; na mesma página, ganha o último a confirmar. O programa não muda — continua a usar `@` e `!`.
+- O formato do ficheiro não muda, por isso o x86 e o WebAssembly continuam a ler o que o C escreve.
+
+**Prova** (`test/conc.test.js`; 43 testes no total, todos a passar). Oito processos em paralelo, cada um a escrever 200 vezes (com `Kc`) o seu próprio slot em páginas diferentes do mesmo ficheiro. No fim, os oito valores estão lá, todos certos. Sem o trinco e o instantâneo, sete dos oito desapareceriam.
+
+**O que fica por fazer.** O x86 e o WebAssembly ainda confirmam como um só processo. O passo seguinte é levar-lhes o mesmo trinco e a confirmação por páginas — no x86, pela porta de chamadas ao sistema crua (`flock` é a chamada 73).
+
+**Próxima.** O mesmo trinco e instantâneo no x86 nativo, escritos em Onda sobre o `Y 10`.
