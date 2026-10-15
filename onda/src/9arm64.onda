@@ -85,24 +85,42 @@
 : vfbin iiiii>i w o rd rn rm ? == w 2
   { ? == o '+ x4 | | | 0x4E60D400 << rm 16 << rn 5 rd ? == o '- x4 | | | 0x4EE0D400 << rm 16 << rn 5 rd ? == o '* x4 | | | 0x6E60DC00 << rm 16 << rn 5 rd x4 | | | 0x6E60FC00 << rm 16 << rn 5 rd }
   { ? == o '+ afadd rd rn rm ? == o '- afsub rd rn rm ? == o '* afmul rd rn rm afdiv rd rn rm }
-: avreg i>i s + salloc s 2
-: avfree ii>i s r ? >= r 2 sfree s - r 2 0
-: avem ii>i w s {
+# alocador de registos NEON parametrizado: banco com base tb (p/ dois bancos independentes no desenrolamento)
+: avreg ii>i s tb + salloc s tb
+: avfree iii>i s tb r ? >= r tb sfree s - r tb 0
+# FMA fundido (rd += rn*rm): fmla vd.2d (par) ou fmadd dd (escalar). Um so arredondamento -> NEON==escalar.
+: afmla iiii>i w rd rn rm ? == w 2 x4 | | | 0x4E60CC00 << rm 16 << rn 5 rd x4 | | | | 0x1F400000 << rm 16 << rd 10 << rn 5 rd
+# o no na posicao p e um operador '*'? (constante=tkk 2, variavel=tkk 0, operador=o resto)
+: ismul i>i p ? && && != tkk p 2 != tkk p 0 == tcode p '* 1 0
+# avalia o elemento no banco (xr = registo de x; tb = base dos temporarios). Funde '+ a (* x y)' em fmla.
+: avem iiii>i w s xr tb {
   = i @ 7
   ! 7 + i 1
   = kk tkk i
-  ? == kk 2 { = r avreg s vfb w r afbits i r }
-  ? == kk 0 1
+  ? == kk 2 { = r avreg s tb vfb w r afbits i r }
+  ? == kk 0 xr
   { = o tcode i
     = sA @ 7 xskip = sB @ 7 xskip = af @ 7
-    ! 7 sB = rb avem w s
-    ! 7 sA = ra avem w s
-    ! 7 af
-    = rd avreg s
-    vfbin w o rd ra rb
-    avfree s ra avfree s rb
-    rd } }
-# mapa vetorizado NEON: dst(a) count(b) elemento(c) fonte(x). Laco de pares (passo 2) + cauda escalar (n impar).
+    = mp ? == o '+ ? ismul sB sB ? ismul sA sA -1 -1
+    = ad ? == mp sA sB sA
+    ? && >= mp 0 != tkk ad 0
+      { ! 7 ad = ra avem w s xr tb
+        ! 7 + mp 1 = sX @ 7 xskip = sY @ 7 xskip
+        ! 7 sY = ry avem w s xr tb
+        ! 7 sX = rx avem w s xr tb
+        ! 7 af
+        afmla w ra rx ry
+        avfree s tb rx avfree s tb ry
+        ra }
+      { ! 7 sB = rb avem w s xr tb
+        ! 7 sA = ra avem w s xr tb
+        ! 7 af
+        = rd avreg s tb
+        vfbin w o rd ra rb
+        avfree s tb ra avfree s tb rb
+        rd } } }
+# mapa vetorizado NEON: dst(a) count(b) elemento(c) fonte(x). Desenrolado 2x (4 doubles/iter, dois bancos de
+# registos independentes -> esconde a latencia da cadeia de FMA dependente) + par + cauda escalar (restos).
 : amap i>i p {
   = d @ + p 2
   = n @ + p 3
@@ -111,20 +129,35 @@
   = rs + @ fe k 5 7
   = s7 @ 7
   = stw A 1
+  = stB A 1
   agT 13 d agT 14 n agT 15 sb aimm 9 0
+  # laco desenrolado 2x: banco A (x=v1, temps v2-9), banco B (x=v16, temps v17-24) -- cadeias independentes
+  = l0 @ 16
+  aaddi 10 9 3 acmp 10 14
+  = p0 @ 16 abcc 0xA 0
+  aadd 10 15 9 aaddlsl 11 28 10 3 vfld 2 1 11
+  aadd 10 15 9 aaddi 10 10 2 aaddlsl 11 28 10 3 vfld 2 16 11
+  ! stw 255 ! 7 rs = rrA avem 2 stw 1 2
+  ! stB 255 ! 7 rs = rrB avem 2 stB 16 17
+  aadd 10 13 9 aaddlsl 11 28 10 3 vfst 2 rrA 11
+  aadd 10 13 9 aaddi 10 10 2 aaddlsl 11 28 10 3 vfst 2 rrB 11
+  aaddi 9 9 4 ab - l0 @ 16
+  xput4 p0 | | 0x54000000 << & / - @ 16 p0 4 0x7FFFF 5 0xA
+  # par que sobra (passo 2)
   = l1 @ 16
   aaddi 10 9 1 acmp 10 14
   = p1 @ 16 abcc 0xA 0
   aadd 10 15 9 aaddlsl 11 28 10 3 vfld 2 1 11
-  ! stw 255 ! 7 rs = rr avem 2 stw
+  ! stw 255 ! 7 rs = rr avem 2 stw 1 2
   aadd 10 13 9 aaddlsl 11 28 10 3 vfst 2 rr 11
   aaddi 9 9 2 ab - l1 @ 16
   xput4 p1 | | 0x54000000 << & / - @ 16 p1 4 0x7FFFF 5 0xA
+  # cauda escalar (n impar)
   = l2 @ 16
   acmp 9 14
   = p2 @ 16 abcc 0xA 0
   aadd 10 15 9 aaddlsl 11 28 10 3 vfld 1 1 11
-  ! stw 255 ! 7 rs = rr2 avem 1 stw
+  ! stw 255 ! 7 rs = rr2 avem 1 stw 1 2
   aadd 10 13 9 aaddlsl 11 28 10 3 vfst 1 rr2 11
   aaddi 9 9 1 ab - l2 @ 16
   xput4 p2 | | 0x54000000 << & / - @ 16 p2 4 0x7FFFF 5 0xA

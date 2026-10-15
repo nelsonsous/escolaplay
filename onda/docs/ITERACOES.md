@@ -1723,3 +1723,17 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **Prova.** `./build.sh` fecha o ponto fixo (o `-m` é folha). `node --test`: **107 testes**. E — a verificação que faltava — o objeto **linka de facto**: com o `ld64.lld` (a mesma família do linker do Mac) `demo.o` e `bench.o` produzem um **executável Mach-O arm64 válido, PIE, NOUNDEFS** (o `llvm-objdump` confirma a secção `__text` e o símbolo `_main`). Não corre aqui (sem kernel macOS), mas o objeto é estruturalmente válido e linkável — o passo que o executável à mão falhava.
 
 **Próxima.** Confirmar no Mac do utilizador (`clang demo.o -o demo; ./demo`); depois strings/`Ac`/`Av`/`T` no `-a`/`-m` para a `vecmap.onda` literal.
+
+---
+
+## Iteração 82: FMA + desenrolamento 2x no vetorizador ARM64 — a caça ao C
+
+**O número (do utilizador, no Mac real).** No benchmark do polinómio de grau 7, o C (clang -O2) fez ~0.013 s de `user`, o ARM64-Onda ~0.042 s — **o C ~3× mais rápido**. Razão conhecida: o clang usa **FMA** (`fmla`, multiplica-e-soma fundido) e **desenrola**; o NEON da Onda fazia `fmul.2d`+`fadd.2d` em separado e 2 doubles de cada vez, com a cadeia de Horner **dependente** (limitada pela latência).
+
+**O que foi feito.** Duas otimizações no vetorizador NEON (`avem`/`amap`), sem C:
+- **FMA**: o `avem` deteta `+ a (* x y)` e funde num só `fmla.2d` (`vd += vn*vm`, um só arredondamento). O núcleo de grau 7 passou de **14 instruções** (7 `fmul`+7 `fadd`) para **7 `fmla.2d`** — metade. A cauda escalar usa `fmadd` (também fundido), por isso **NEON == escalar** continua a valer.
+- **Desenrolamento 2x**: o `avem` ficou parametrizado por banco de registos (x + temporários), e o `amap` processa agora **4 doubles por iteração** em **dois bancos independentes** (A: v1,v2-9; B: v16,v17-24). Como a cadeia de Horner é dependente (latência ~4 ciclos por `fmla`), duas cadeias independentes **escondem a latência** — é o ganho real para este núcleo. Restos tratados por um laço de par + cauda escalar.
+
+**Prova.** `./build.sh` fecha o ponto fixo (o `-a`/`-m` são folha). `node --test`: **107 testes**. O mapa `-a` continua **bit a bit igual ao C** (via soma inteira) para n = 64, 63, 100, 7, 1 e a `vecmap` completa (n=256) — o FMA não partiu a identidade (o clang também funde, e o truncamento para int absorve o ULP). O binário emitido mostra **21 `fmla.2d`** em dois bancos (14 em A, 7 em B). Falta medir no Mac: o `user` deve cair de ~0.042 s para perto (ou abaixo) do C.
+
+**Próxima.** Medir no Mac real; se preciso, desenrolar mais (4x) ou afinar o agendamento. Depois strings/`Ac`/`Av`/`T` para a `vecmap.onda` literal.

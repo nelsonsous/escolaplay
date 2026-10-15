@@ -24,8 +24,8 @@ test('macho: o mapa vetorizado leva NEON (.2d) no Mach-O, como no ELF', () => {
               ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 } = b A n E b n g a I @f + b 0 }\n';
   const b = macho(src);
   assert.strictEqual(b.readUInt32LE(0), 0xFEEDFACF);
-  // fmul v?.2d (6E??DC??) ou fadd v?.2d (4E??D4??) nos bytes do codigo -- o nucleo NEON do mapa
+  // o nucleo funde em fmla v?.2d (4E??CC??); conta tambem fmul/fadd .2d caso algo nao funda
   let neon = 0;
-  for (let i = 0; i + 4 <= b.length; i += 4) { const w = b.readUInt32LE(i); if ((w & 0xFFE0FC00) === 0x6E60DC00 || (w & 0xFFE0FC00) === 0x4E60D400) neon++; }
+  for (let i = 0; i + 4 <= b.length; i += 4) { const m = b.readUInt32LE(i) & 0xFFE0FC00; if (m === 0x4E60CC00 || m === 0x6E60DC00 || m === 0x4E60D400) neon++; }
   assert.ok(neon >= 3, 'tem instrucoes NEON .2d no Mach-O (encontrou ' + neon + ')');
 });
