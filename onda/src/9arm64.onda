@@ -268,6 +268,9 @@
   abl 0
   aimm 16 1 asvc80
   blp }
+# -m emite um OBJETO Mach-O (MH_OBJECT) com o MESMO codigo-maquina do -a (entrada mmap + funcoes), e um simbolo
+# _main na entrada. O clang linka-o num executavel valido do Mac: `clang prog.o -o prog` -- a validacao estrita,
+# a assinatura e o __LINKEDIT ficam a cargo da toolchain do sistema; o codigo continua todo escrito pela Onda.
 : outm >i {
   = mi fby k3 '_ 'g 'o
   O 16
@@ -275,34 +278,34 @@
   = blp aentm
   = elen - @ 16 estart
   O 0
-  # offset de main no codigo = entrada + funcoes antes de main; corrige o bl do stub
+  # corrige o bl da entrada -> _go
   = moff elen
   = k 0 W < k mi { = moff + moff - @ fe k 9 @ fe k 8 = k + k 1 }
   xput4 blp | 0x94000000 & / - moff - blp estart 4 0x3FFFFFF
+  # corrige os bl entre funcoes (@64): posicoes no buffer 16, relativas -> preservadas na saida
+  = nc @ @ 64
+  = c 0
+  W < c nc { = pos @ + @ 64 + 1 * c 2 = fi @ + @ 64 + 2 * c 2 xput4 pos | 0x94000000 & / - @ fe fi 8 pos 4 0x3FFFFFF = c + c 1 }
   = clen elen
   = k 0 W < k @ 6 { = clen + clen - @ fe k 9 @ fe k 8 = k + k 1 }
-  = cmds 512
-  = coff + 32 cmds
-  = tvm & + + coff clen 16383 -16384
-  = entry + 4294967296 coff
-  # cabecalho Mach-O 64 (32 bytes)
-  x4 0xFEEDFACF x4 0x0100000C x4 0 x4 2 x4 3 x4 cmds x4 0 x4 0
-  # LC_SEGMENT_64 __PAGEZERO (72)
-  x4 0x19 x4 72 P '_ P '_ P 'P P 'A P 'G P 'E P 'Z P 'E P 'R P 'O az 6
-  x8 0 x8 4294967296 x8 0 x8 0 x4 0 x4 0 x4 0 x4 0
-  # LC_SEGMENT_64 __TEXT (152, 1 seccao)
-  x4 0x19 x4 152 P '_ P '_ P 'T P 'E P 'X P 'T az 10
-  x8 4294967296 x8 tvm x8 0 x8 tvm x4 5 x4 5 x4 1 x4 0
+  = coff 208
+  = so + coff clen
+  = sto + so 16
+  # cabecalho (32): magic, arm64, subtype 0, filetype 1 (OBJECT), ncmds 2, sizeofcmds 176
+  x4 0xFEEDFACF x4 0x0100000C x4 0 x4 1 x4 2 x4 176 x4 0 x4 0
+  # LC_SEGMENT_64 (72) sem nome + 1 seccao __text,__TEXT (80)
+  x4 0x19 x4 152 az 16
+  x8 0 x8 clen x8 coff x8 clen x4 7 x4 7 x4 1 x4 0
   P '_ P '_ P 't P 'e P 'x P 't az 10 P '_ P '_ P 'T P 'E P 'X P 'T az 10
-  x8 entry x8 clen x4 coff x4 2 x4 0 x4 0 x4 0x80000400 x4 0 x4 0 x4 0
-  # LC_UNIXTHREAD (288): ARM_THREAD_STATE64, pc = entry
-  x4 5 x4 288 x4 6 x4 68
-  = j 0 W < j 32 { x8 0 = j + j 1 }
-  x8 entry x8 0
-  # codigo: stub de entrada + corpo de cada funcao, depois enchimento ate a pagina (filesize = tvm)
+  x8 0 x8 clen x4 coff x4 2 x4 0 x4 0 x4 0x80000400 x4 0 x4 0 x4 0
+  # LC_SYMTAB (24): symoff, nsyms 1, stroff, strsize 7
+  x4 2 x4 24 x4 so x4 1 x4 sto x4 7
+  # codigo: entrada + corpo de cada funcao
   ew estart elen
   = k 0 W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }
-  az - tvm + coff clen
+  # simbolo _main (externo, seccao 1, valor 0) + tabela de strings "\0_main\0"
+  x4 1 P 15 P 1 P 0 P 0 x8 0
+  P 0 P '_ P 'm P 'a P 'i P 'n P 0
   0 }
 : outa >i {
   = mi fby k3 '_ 'g 'o

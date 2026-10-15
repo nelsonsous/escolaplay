@@ -1711,3 +1711,15 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Falta a impressão de **strings** (kind 3 — precisam de um segmento de dados inicializado em M) e os `Ac`/`Av` (argumentos) e `T` (tempo), que no `-a` devolvem 0 por agora. É o que falta para a `vecmap.onda` *literal* correr tal e qual (ela imprime um cabeçalho com strings e lê `n`/`rep` do argv). O núcleo — cálculo + impressão de números + leitura — está feito e provado pelo juiz. O lado Mach-O (`-m`) partilha todo o código (só muda o `svc`/registo); foi emitido às cegas (sem macOS aqui), mas o `-a` gémeo corre no qemu e o juiz confirma-o.
 
 **Próxima.** Strings no `-a`/`-m` (segmento de dados + `_os`) e `Ac`/`Av`/`T`, para a `vecmap.onda` literal correr em ARM64 e o juiz a cobrir de ponta a ponta.
+
+---
+
+## Iteração 81: Mach-O como objeto (`.o`) linkado pelo clang — passa a validação estrita do Apple Silicon
+
+**O sinal (do utilizador, no Mac real).** O executável Mach-O feito à mão (it.79) deu **"main executable failed strict validation"** no Apple Silicon — o carregador do macOS exige assinatura de código, `__LINKEDIT` e uma validação estrita que não dá para testar daqui (não há macOS; o qemu só corre ELF).
+
+**O que foi feito.** O `-m` passou a emitir um **objeto** Mach-O (`MH_OBJECT`) em vez de um executável: a mesma secção `__TEXT,__text` com o código-máquina aarch64 da Onda (entrada `mmap` + funções) e um símbolo `_main` na entrada. O `clang`/`ld` do Mac linka-o num executável válido (`clang prog.o -o prog`) — a validação estrita, a assinatura ad-hoc e o `__LINKEDIT` ficam a cargo da toolchain do sistema, que é exatamente quem sabe fazê-los. O código continua 100% escrito pela Onda; o linker só o embrulha (é assim que quase todos os compiladores funcionam). De caminho, o `outm` ganhou a correção dos `bl` entre funções (`@64`) que o caminho executável não fazia.
+
+**Prova.** `./build.sh` fecha o ponto fixo (o `-m` é folha). `node --test`: **107 testes**. E — a verificação que faltava — o objeto **linka de facto**: com o `ld64.lld` (a mesma família do linker do Mac) `demo.o` e `bench.o` produzem um **executável Mach-O arm64 válido, PIE, NOUNDEFS** (o `llvm-objdump` confirma a secção `__text` e o símbolo `_main`). Não corre aqui (sem kernel macOS), mas o objeto é estruturalmente válido e linkável — o passo que o executável à mão falhava.
+
+**Próxima.** Confirmar no Mac do utilizador (`clang demo.o -o demo; ./demo`); depois strings/`Ac`/`Av`/`T` no `-a`/`-m` para a `vecmap.onda` literal.
