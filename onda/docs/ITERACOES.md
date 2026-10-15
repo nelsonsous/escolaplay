@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 47 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 48 (um resumo do estado a meio das 100, ou funções na mini-linguagem).
+Estado: **iteração 48 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 49 (coletar o lixo do armazém endereçado por conteúdo, ou um resumo do estado a meio das 100).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1110,3 +1110,22 @@ E um **ciclo dentro de outro**: contar os primos abaixo de 20 (`W (n<20) { ... W
 O x86 da Onda fica a ~1,3× do C neste trabalho. Encaixa no retrato das iterações 24–31: paridade no código limitado pela memória, ~1,3× num misto de cálculo e memória, e só a recursão com muitas chamadas (o `fib`) fica a 4×, por causa do protocolo de chamada. Para código numérico e de dados — o que a maioria dos programas faz — a Onda está ao nível do `gcc -O2`, sem C, assembler nem linker.
 
 **Próxima.** Estamos a meio das 100 iterações: um resumo honesto do que a Onda é hoje e do que falta. Ou dar funções à mini-linguagem.
+
+## Iteração 48: um armazém endereçado por conteúdo (cripto + armazenamento)
+
+**Pergunta.** Dois grandes fios desta sessão — o SHA-256 (iteração 40) e o armazém persistente (iterações 25–35) — encontram-se? Um armazém onde a chave de cada objeto é o seu próprio hash (como os objetos do git) junta-os num só.
+
+**O que foi feito.** `ex/cas.onda`: o SHA-256 e o armazém `K` num só programa.
+- `put`: lê um blob do stdin, calcula o seu SHA-256, guarda-o (se novo) num índice hash→posição mais uma região de blobs, e imprime o hash.
+- `get <hash>`: encontra o blob pelo hash (64 hex → 8 palavras) e devolve-o.
+
+**Um erro instrutivo sobre o armazém.** O `K` devolve a base do armazém como um deslocamento em palavras desde `M` — e como o armazém é um `mmap` à parte, num endereço mais baixo, esse deslocamento é **negativo**. Os offsets dos blobs (base + x) ficavam negativos, e o `get` tratava "negativo" como "não encontrado". A correção: guardar os offsets relativos à base (positivos). Outro: o `main` saía com o código do último `P` (10); um `0` final repôs a saída limpa.
+
+**Prova** (`test/cas.test.js`; 65 testes no total, todos a passar).
+- `put` de "abc", "hello world", 5000 bytes, 200 bytes zero → o hash é o SHA-256 correto e o `get` devolve o blob igual.
+- **Deduplicação por conteúdo:** guardar o mesmo blob duas vezes deixa uma só entrada.
+- **Entre formas:** o que o x86 guarda, o C e o WebAssembly recuperam do mesmo ficheiro.
+
+Um objeto útil de verdade — content-addressable storage, a base do git, do IPFS, dos sistemas de cópia de segurança — escrito em Onda em ~70 linhas, a juntar a criptografia e o armazenamento que a própria Onda implementa, igual nas três formas.
+
+**Próxima.** Dar-lhe recolha de lixo (libertar blobs sem referências), ou um resumo honesto do estado a meio das 100 iterações.
