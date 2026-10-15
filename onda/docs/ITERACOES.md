@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 68 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). **Mac (Apple Silicon):** o C que a Onda gera para o mapa de campo passou a autovetorizar para **NEON** no `clang -O3` (22 instr. `.2d`, com `fmla` fundido) — antes dava **0**. Próxima: autodiff (modo reverso), que é o que falta para a liga do PyTorch/JAX.
+Estado: **iteração 69 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, 22 instr. `.2d` com `fmla`). **Autodiff (preparação):** fundação do modo reverso verificada — gradiente de regressão linear via operações de campo, igual às diferenças finitas e **bit a bit igual em C/x86/WASM** (`docs/AUTODIFF.md`). Próxima: diferenciação simbólica automática da árvore do elemento (it.70).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1500,3 +1500,21 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Isto não inventa nada novo em CPU — NEON e autovetorização são conhecidos. O valor é a **mesma fonte Onda** (um só `: g ...` + `E`) cobrir agora x86 (AVX), WASM (f64x2), GPU (WebGL2) **e** Apple Silicon (NEON), iguais ao bit onde é determinista. O nível mais baixo do Mac está a andar com o SIMD da máquina, sem escrever uma linha de assembly ARM (o `clang` fá-lo porque lhe demos C que *pode* vetorizar).
 
 **Próxima.** Preparar o **autodiff** (modo reverso): as regras adjuntas das operações de campo (o adjunto de um `map` é um `map`; o de uma redução-soma é um *broadcast*). É a peça que falta para a liga do PyTorch/JAX — e é o que o utilizador pediu a seguir ("podes já preparar para esse autodiff").
+
+---
+
+## Iteração 69: autodiff — a fundação do modo reverso (o que falta para a liga do PyTorch/JAX)
+
+**Pergunta.** O que falta à Onda para a liga do PyTorch/JAX é o **autodiff** (o motor dos gradientes, o backprop). Como é que ele encaixa nas operações de campo da Onda, e dá para o fazer de forma determinista e multi-plataforma — ao contrário das bibliotecas?
+
+**O que já existe.** O forward: mapas (`E`), reduções (`S`), e o analisador `xvan` que valida a árvore exata do elemento de um mapa (`+ - * /` sobre `x` e constantes). Não existe cálculo de gradientes.
+
+**A ideia central (a dualidade).** O autodiff em modo reverso propaga o adjunto `v̄ = ∂L/∂v` de trás para a frente. Nas operações de campo vale uma dualidade limpa: **o adjunto de um mapa é um mapa** (`y[i]=f(x[i])` → `x̄[i]=f'(x[i])·ȳ[i]`); **o adjunto de uma redução-soma é um broadcast**, e o de um broadcast é uma redução-soma (`dL/db = Σ ȳ[i]`). Ou seja, o *backward é feito das mesmas operações de campo que o forward* — logo herda de graça o AVX, o NEON (it.68), o f64x2 do WASM e a GPU, e é **determinista ao bit** onde o forward é. É exatamente aqui que uma linguagem desenhada para IA pode ganhar à biblioteca: o PyTorch/JAX fazem o backward com kernels CUDA separados e somas atómicas não-deterministas; a Onda faz o backward com a mesma fonte, igual ao bit em qualquer máquina.
+
+**O que foi feito.** A fundação, verificada: `ex/autodiff.onda` calcula o gradiente de uma **regressão linear** (`pred[i]=w·x[i]+b`, perda = média de `(pred−y)²`) por **modo reverso**, escrito com as operações de campo — forward = um mapa (`pred`) + uma redução (a perda); backward = as reduções que *são* os adjuntos (`dL/dw = (2/n)Σ g[i]·x[i]`, `dL/db = (2/n)Σ g[i]`, esta última a soma que é o adjunto do broadcast de `b`). O desenho completo (regras adjuntas de cada primitiva, a opção source-to-source, e a tese contra o PyTorch/JAX) ficou em `docs/AUTODIFF.md`.
+
+**Prova (comando e resultado).** `node --test`: **91 testes** (os 89 + 2 novos). (1) O gradiente adjunto bate o **numérico** (diferenças finitas centradas) a ~10 dígitos: `dL/dw = −67,3671875` vs `−67,36718750001`; `dL/db = −13,9296875` vs `−13,92968749999`. (2) O gradiente adjunto é **bit a bit igual em C, x86 e WebAssembly** — o backward são operações de campo deterministas, dá os mesmos bits em qualquer backend (testado com `n = 256, 1000, 777`). Corre nos três: `./build/ondac ex/autodiff.onda` (C), `-x` (x86), `-w` (WASM).
+
+**O balanço honesto.** Isto ainda não é autodiff *automático* — o elemento adjunto foi escrito à mão, para fixar a matemática e o arnês de teste (diferenças finitas como verdade de terreno). Mas prova as duas coisas que interessam: a dualidade mapa/redução está correta, e o gradiente é determinista entre backends (o que as bibliotecas não garantem). A automatização vem a seguir.
+
+**Próxima.** Diferenciação **simbólica automática** da árvore do elemento do mapa: dado `f` já validado por `xvan` (uma árvore de `+ - * /` sobre `x`), aplicar as regras adjuntas à árvore e **gerar** o elemento adjunto `λx,ȳ. f'(x)·ȳ` — que é outra árvore de `+ - * /`, logo outro mapa vetorizável (AVX/NEON/WASM/GPU). Verificar contra as diferenças finitas e contra o gradiente à mão desta iteração.
