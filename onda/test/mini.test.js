@@ -22,6 +22,9 @@ const casos = [
   ['a = 2\nb = a*a*a\nb\nc = b - a\nc\n', '8 6'],
   ['area = 3 * 4\narea + area\n', '24'],
   ['x = 5\nx = x + 1\nx = x * x\nx\n', '36'],
+  ['x = 5\n? x < 10 100 200\n? x > 10 100 200\n', '100 200'],
+  ['x = 5\nmax = ? x > 3 x 3\nmax\n? x == 5 1 0\nx <= 5\nx != 5\n', '5 1 1 0'],
+  ['a = -7\nabs = ? a < 0 (0 - a) a\nabs\n', '7'],
 ];
 
 test('mini: programas com variaveis (forma C)', () => {

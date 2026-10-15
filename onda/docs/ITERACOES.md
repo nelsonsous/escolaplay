@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 44 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 45 (dar condicionais e comparações à mini-linguagem, ou um novo campo verificado contra o significado na Onda Viva).
+Estado: **iteração 45 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 46 (ciclos na mini-linguagem — com condicionais e ciclos fica Turing-completa, interpretada em Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1057,3 +1057,18 @@ A reatribuição (`x = x + 1`), a precedência e os parênteses funcionam, e a s
 **Prova.** `node --test test/*.test.js` passou de 55 para 60 testes, todos a passar. A auto-verificação deixou de ser uma promessa num script solto e passou a ser uma condição da suite: se a Onda Viva deixar de apanhar um erro, ou se o compilador deixar de se reproduzir no WebAssembly, o conjunto fica vermelho.
 
 **Próxima.** Dar condicionais e comparações à mini-linguagem (`? c a b`, `<`, `==`), ou pôr um campo novo a ser verificado contra o significado dentro da própria Onda Viva.
+
+## Iteração 45: condicionais e comparações na mini-linguagem
+
+**Pergunta.** A mini-linguagem da iteração 43 só tinha contas e variáveis. Sem decidir, não é linguagem. Dá-lhe ramos.
+
+**O que foi feito.** `ex/mini.onda` ganhou dois níveis novos de gramática:
+- **comparações** (`< > <= >= == !=`), um nível abaixo do `+ -`, que valem 0 ou 1;
+- **condicional** `? c a b` (prefixo, como na própria Onda), no topo: avalia `c` e dá `a` ou `b`.
+Assim escreve-se `max = ? x > 3 x 3`, `abs = ? a < 0 (0 - a) a`, `? x == 5 1 0`. As gramáticas antigas continuam a valer (os programas da iteração 43 dão o mesmo).
+
+**Prova** (`test/mini.test.js`, agora com casos de condicionais; 60 testes no total, todos a passar). `? x < 10 100 200` dá 100 para x=5; `max = ? x > 3 x 3` dá 5; `abs` de −7 dá 7; e tudo igual em C, x86-64 e WebAssembly.
+
+A mini-linguagem já decide. Falta-lhe repetir — com condicionais e um ciclo, uma linguagem interpretada em Onda fica Turing-completa.
+
+**Próxima.** Dar-lhe um ciclo (`while`), fechando a Turing-completude: uma pequena linguagem imperativa, escrita em Onda, compilada pela Onda para três formas.

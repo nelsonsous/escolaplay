@@ -11,20 +11,34 @@
 : numero >i { espaco = v 0 W && >= ch '0 <= ch '9 { = v + * v 10 - ch '0 adianta } v }
 : fator >i {
   espaco
-  ? == ch '( { adianta = v soma espaco ? == ch ') adianta 0 v }
+  ? == ch '( { adianta = v cond espaco ? == ch ') adianta 0 v }
   ? == ch '- { adianta - 0 fator }
   ? letra ch busca nome
   numero }
 : termo >i { = v fator espaco W || || == ch '* == ch '/ == ch '% { = o ch adianta = r fator ? == o '* = v * v r ? == o '/ = v / v r = v % v r espaco } v }
 : soma >i { = v termo espaco W || == ch '+ == ch '- { = o ch adianta = r termo ? == o '+ = v + v r = v - v r espaco } v }
+: prox >i @ + @ 1 + @ 3 1
+: comp >i {
+  = v soma
+  espaco
+  ? || || || == ch '< == ch '> && == ch '= == prox '= && == ch '! == prox '= {
+    = o ch adianta
+    = eq ? == ch '= { adianta 1 } 0
+    = r soma
+    espaco
+    ? == o '< ? eq <= v r < v r
+    ? == o '> ? eq >= v r > v r
+    ? == o '= == v r
+    != v r } v }
+: cond >i { espaco ? == ch '? { adianta = c cond = a cond = b cond ? c a b } comp }
 : linha >i {
   espaco
   # atribuicao? um nome seguido de '='  (e nao '==')
   = p @ 3
   ? letra ch {
     = h nome espaco
-    ? && == ch '= != @ + @ 1 + @ 3 1 '= { adianta poe h soma -2147483648 } { ! 3 p soma }
-  } soma }
+    ? && == ch '= != @ + @ 1 + @ 3 1 '= { adianta poe h cond -2147483648 } { ! 3 p cond }
+  } cond }
 : main >i {
   ! 1 A 10000 ! 4 A 2000 ! 5 0
   = n 0 = c R
