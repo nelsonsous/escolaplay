@@ -1,0 +1,12 @@
+: nn fffffffffffffffffffffffffffffffffff>i x y w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 {
+  = z0 Mx 0.0 + + * w0 x * w1 y w16
+  = z1 Mx 0.0 + + * w2 x * w3 y w17
+  = z2 Mx 0.0 + + * w4 x * w5 y w18
+  = z3 Mx 0.0 + + * w6 x * w7 y w19
+  = z4 Mx 0.0 + + * w8 x * w9 y w20
+  = z5 Mx 0.0 + + * w10 x * w11 y w21
+  = z6 Mx 0.0 + + * w12 x * w13 y w22
+  = z7 Mx 0.0 + + * w14 x * w15 y w23
+  = s + * w24 z0 + * w25 z1 + * w26 z2 + * w27 z3 + * w28 z4 + * w29 z5 + * w30 z6 + * w31 z7 w32
+  = o / 1.0 + 1.0 Ex * -1.0 s
+  I * o 16777215.0 }
