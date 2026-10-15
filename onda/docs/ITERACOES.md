@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 35 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 36 (levar o mesmo trinco e confirmação por páginas ao x86 nativo, com a porta de chamadas ao sistema crua).
+Estado: **iteração 36 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 37 (um programa Onda maior a sério — talvez o próprio interpretador a correr-se — ou levar o trinco do armazém ao x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -908,3 +908,17 @@ O limiar é apertado (distância ≤ 1 para nomes curtos, ≤ 2 para os longos),
 **O que fica por fazer.** O x86 e o WebAssembly ainda confirmam como um só processo. O passo seguinte é levar-lhes o mesmo trinco e a confirmação por páginas — no x86, pela porta de chamadas ao sistema crua (`flock` é a chamada 73).
 
 **Próxima.** O mesmo trinco e instantâneo no x86 nativo, escritos em Onda sobre o `Y 10`.
+
+## Iteração 36: a linguagem corre programas não triviais, igual em todas as formas
+
+**Pergunta.** A Onda compila-se a si própria, mas isso é um programa muito especial. Ela corre programas quaisquer, não triviais, e dá o mesmo resultado nas três formas que gera?
+
+**O que foi feito.** `ex/bf.onda`: um interpretador de Brainfuck escrito em Onda. O Brainfuck é minúsculo (oito comandos) mas Turing-completo, por isso é a prova clássica de que uma linguagem corre tudo. O interpretador lê o programa do stdin, pré-calcula os pares de parênteses `[ ]`, e executa com um apontador sobre 30 000 células.
+
+**Prova** (`test/bf.test.js`; 45 testes no total, todos a passar).
+- O "Hello World!" clássico do Brainfuck dá exatamente `Hello World!\n` nas três formas: C, x86-64 nativo e WebAssembly.
+- Um laço de multiplicação (6×7) dá o byte 42 nas três formas.
+
+A mesma lógica, com laços, memória e aritmética de bytes, compilada para C (via gcc), para código máquina x86 escrito pela Onda, e para WebAssembly, dá o mesmo byte a byte. Não é só o compilador que se reproduz igual entre formas: qualquer programa o faz.
+
+**Próxima.** Subir a parada: um programa Onda maior e mais sério (por exemplo um interpretador que se corra a si mesmo, ou um pequeno motor de expressões), ou fechar a dívida do armazém no x86 (o trinco e a confirmação por páginas da iteração 35, pela porta de chamadas ao sistema crua).
