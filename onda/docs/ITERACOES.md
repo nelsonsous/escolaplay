@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 40 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 41 (um programa com estado e E/S a sério — um verificador ou um pequeno servidor de linha de comandos — ou a correção de fundo do `S` no emissor C).
+Estado: **iteração 41 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 42 (o Jogo da Vida na GPU, ou um stencil mais pesado — desfoque de imagem — a comparar CPU e GPU).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -998,3 +998,15 @@ O `lowS` (a baixa que mete a função em linha, via `ccallf`) só é usado **no 
 É a prova mais forte até agora de que as três formas são a mesma máquina: 256 bits que, se um só operador de bits divergisse numa forma, não bateriam.
 
 **Próxima.** Subir outra vez a parada de "programa a sério": algo com estado e entrada/saída (um verificador de ficheiros com o SHA, ou um pequeno servidor de linha de comandos), ou enfim a correção de fundo do `S` no emissor C que a iteração 39 localizou.
+
+## Iteração 41: um stencil no paradigma de campo — o Jogo da Vida
+
+**Pergunta.** Os campos da Onda brilham no paralelismo independente (cada píxel do fractal por si). E quando cada elemento precisa de **ler os vizinhos** — um stencil, com estado que evolui? O modelo campo+colapso aguenta um autómato celular?
+
+**O que foi feito.** `ex/life.onda`: o Jogo da Vida de Conway. Cada geração é um `E` sobre todas as células ao mesmo tempo, e a função de elemento lê os 8 vizinhos (grelha toroidal: os bordos dão a volta). O estado evolui trocando duas grelhas a cada geração. A regra da sobreposição permite-o: o elemento só **lê** o estado atual e escreve no seguinte, nunca no que está a ler.
+
+**Prova** (`test/life.test.js`; 51 testes no total, todos a passar). Com um planador no canto, a grelha ao fim de 0, 1, 4 e 8 gerações é exatamente igual à de uma referência em JavaScript (o planador move-se uma diagonal a cada 4 gerações, como deve). E a grelha é igual em C, x86-64 e WebAssembly a cada geração.
+
+Ao contrário do fractal, onde cada píxel é independente, aqui cada célula depende de uma vizinhança — e o `E` continua a dar o paralelismo de borla, porque a leitura dos vizinhos não viola a regra da sobreposição.
+
+**Próxima.** Levar o stencil à GPU (o Jogo da Vida como shader, conferido contra a CPU), ou um stencil mais pesado — um desfoque de imagem — a comparar CPU e GPU píxel a píxel.
