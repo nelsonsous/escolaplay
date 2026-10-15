@@ -32,5 +32,6 @@ Uma linguagem de programação escrita por IAs, para IAs. Cada valor é um campo
 
 - Meter em linha a função de um `S`/`E`/`D` no emissor de C, para as reduções chegarem ao C justo sem um laço à mão.
 - Reduzir o custo do protocolo de chamada no x86 (a recursão a 4×).
+- Uma redução de floats determinística (soma de ordem fixa no emissor) para o campo bater ao bit também com floats, não só ao valor.
 - Levar o trinco e a confirmação por páginas do armazém ao x86 e ao WebAssembly (hoje só em C).
 - Redução de argumento de Payne–Hanek para `sin`/`cos` de argumentos enormes.

@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 56 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 57 (uma redução de floats determinística — soma por árvore de ordem fixa — para o campo bater ao bit também com floats).
+Estado: **iteração 57 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 58 (continuar a biblioteca verificada; a redução de floats determinística fica como trabalho de compilador no ESTADO).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1242,3 +1242,15 @@ Também refresquei o `docs/ESTADO.md`: a mini-linguagem já tem funções recurs
 **O achado honesto.** Ao contrário do SHA-256, os **bits** da redução de floats **não** são iguais entre todas as formas: o `S` paraleliza em C (OpenMP) e soma noutra ordem que o x86 e o WebAssembly (que são em série). Como a soma de vírgula flutuante não é associativa, os últimos bits de C diferem — mas o x86 e o WebAssembly, ambos em série, batem ao bit. O valor concorda a ~15 dígitos. Isto delimita com honestidade a afirmação de "a mesma máquina em todas as formas": vale ao bit para código inteiro e determinístico (como o SHA-256); para reduções de floats em paralelo, vale ao valor, não ao último bit. O `README` e o `ESTADO.md` passaram a dizê-lo.
 
 **Próxima.** Uma redução de floats determinística — uma soma por árvore de ordem fixa, independente do número de núcleos — para o campo bater ao bit também com floats, em todas as formas.
+
+## Iteração 57: CRC-32
+
+**Pergunta.** Depois do SHA-256 (hash criptográfico) falta a outra família de verificação: um checksum rápido com tabela. O CRC-32 (o do zip, do PNG, do Ethernet) é inteiro e determinista — bate ao bit em todas as formas?
+
+**O que foi feito.** `ex/crc.onda`: constrói a tabela de 256 entradas com o polinómio refletido (0xEDB88320) e processa o stdin byte a byte. Imprime o CRC em hexadecimal.
+
+**Prova** (`test/crc.test.js`; 80 testes no total, todos a passar). Os valores canónicos batem certo — `"123456789"` → `cbf43926`, vazio → `00000000`, a frase da raposa → `414fa339` — conferidos também contra o `zlib` do Node, e **iguais bit a bit** em C, x86-64 e WebAssembly. Ao contrário das reduções de floats da iteração 56, aqui é tudo inteiro, por isso a identidade ao bit é total.
+
+(A redução de floats determinística — para o campo bater ao bit também com floats — fica como trabalho de compilador no `docs/ESTADO.md`: precisa de uma soma de ordem fixa no emissor, sem perder o paralelismo.)
+
+**Próxima.** Continuar a biblioteca verificada.
