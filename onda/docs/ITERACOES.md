@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 33 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 34 (vários processos a partilhar o armazém: o mapa privado de hoje perde escritas de outros, por isso é preciso reler sob trinco — uma transação, não só um trinco).
+Estado: **iteração 34 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 35 (vários processos a partilhar o armazém: reler sob trinco — uma transação, não só um trinco).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -878,3 +878,15 @@ O limiar é apertado (distância ≤ 1 para nomes curtos, ≤ 2 para os longos),
 **Prova.** Os três pontos fixos fecham e os 41 testes passam. `som` sugere `soma`, `fibo` sugere `fib`, `xyzzy` não sugere nada.
 
 **Próxima.** Vários processos a partilhar o mesmo armazém. Não basta um trinco: hoje cada processo mapeia o ficheiro em privado, por isso não vê as escritas dos outros. É preciso reler sob o trinco antes de confirmar — uma transação, não só exclusão mútua. É essa a próxima.
+
+## Iteração 34: a forma gráfica entra na rede de testes
+
+**Pergunta.** O utilizador pediu, desde o início, que a computação fosse também gráfica. A Onda gera GLSL (`ondac -g px`) e isso estava verificado — mas só por uma ferramenta à parte, à mão. Porque não no `node --test`, com tudo o resto?
+
+**O que foi feito.** `test/gpu.test.js`: gera o shader GLSL de `ex/julia.onda`, renderiza-o em WebGL2 dentro do Chromium (SwiftShader, por software, sem placa gráfica) e compara píxel a píxel com a imagem da forma CPU (`D`). O limiar não é inventado no teste: lê-se do próprio exemplo (`: tol >i 8`, `: aceita >i 95`), a tolerância que a Onda declara para as formas de 32 bits. Se não houver browser na máquina, o teste salta em vez de falhar.
+
+**Prova.** 100% dos píxeis dentro de ±8/255 (erro médio 0,01/255). São 42 testes, todos a passar. A mesma função de Julia, escrita uma vez, dá a mesma imagem na CPU (float64) e na GPU (float32), e isso é agora reconferido a cada corrida da suite.
+
+**Um erro apanhado — outra vez — pelos diagnósticos.** Ao preparar a versão CPU na resolução do teste, gerei `px 2` onde devia ser `px 2.0` (o `2.0` do JavaScript virou `"2"`). O compilador apontou logo: `argumento com tipo errado (linha 21, coluna 26)`, com o sinal debaixo do `2`. As iterações 29–30 e 33 continuam a pagar-se.
+
+**Próxima.** Vários processos a partilhar o mesmo armazém. Como a iteração 33 notou, não basta um trinco: é preciso reler o ficheiro sob o trinco antes de confirmar, porque o mapa privado de cada processo não vê as escritas dos outros. Uma transação.

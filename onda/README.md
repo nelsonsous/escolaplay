@@ -21,7 +21,7 @@ build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pe
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
 ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
-node --test test/*.test.js  # todos os testes (41): Onda Viva, matematica bit a bit, circuitos e oraculos
+node --test test/*.test.js  # todos os testes (42): Onda Viva, matematica, circuitos, oraculos, armazem e GPU
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -46,7 +46,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 ## O que está verificado
 
 - **Ponto fixo:** `ondac1.c`, `ondac2.c` e `ondac3.c` são iguais bit a bit (81 581 bytes, SHA-256 `3d642bfb…4326`), e o arranque em Rust gera o mesmo C.
-- **GPU igual à CPU:** 100% dos píxeis dentro de ±8/255.
+- **GPU igual à CPU:** o shader GLSL da Onda renderiza em WebGL2 (Chromium/SwiftShader) e dá a mesma imagem que a forma CPU — 100% dos píxeis dentro de ±8/255. Agora dentro do `node --test` (`test/gpu.test.js`), não só numa ferramenta à parte.
 - **Velocidade (4 núcleos):** fib(35) em 15 ms (C: 16 ms); π com 200 milhões de termos em 68 ms (C sequencial: 246 ms, C com OpenMP à mão: 67 ms); fractal 960×540 em 13 ms (C sequencial: 31 ms).
 - **Grover com 20 qubits:** o alvo fica com probabilidade 0,9999998.
 - **Três pontos fixos:** em C, WebAssembly e x86-64, o compilador compila-se a si próprio bit a bit, e as três sementes geram o mesmo C.
