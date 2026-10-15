@@ -19,6 +19,17 @@
   = j 1
   W < j - l 1 { = c @ + s j ? == c 10 "\\n" ? == c 9 "\\t" ? == c 13 "\\r" P c = j + j 1 }
   0 }
+# --- mapa de campo vetorizavel em C: emitir a expressao do elemento EM LINHA, com _s[i] no lugar de x.
+# a indirecao ldf/stf (memcpy) e o M partilhado matam a autovetorizacao; com restrict + expr direta,
+# o clang -O3 no Mac gera NEON (.2d, fmla) e o gcc/clang no x86 gera SSE/AVX -- bit a bit igual ao escalar.
+: cvem >i {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { etx i }
+  ? == kk 0 { "v_" etx i }
+  { = o tcode i "(" cvem ? == o '+ "+" ? == o '- "-" ? == o '* "*" "/" cvem ")" } }
+: cvans i>i c { = sv @ 7 ! 7 + @ fe c 5 7 cvem ! 7 sv }
 : emi i>i p {
   = k @ p
   = d @ + p 1
@@ -64,7 +75,7 @@
   ? == k 35 { eq d "av(" et a "," et b ");\n" }
   ? == k 36 { "oexit(" et a ");\n" }
   ? == k 37 { eq d "onow();\n" }
-  ? == k 38 { "#pragma omp parallel for\nfor(I i=0;i<" et b ";i++)" ? @ fe c 3 { "stf(" et a "+i,f_" etx @ fe c 0 "(i" eargs x y 1 "));\n" } { "M[" et a "+i]=f_" etx @ fe c 0 "(i" eargs x y 1 ");\n" } }
+  ? == k 38 { ? xvan c { "{const F*restrict _s=(const F*)M+" et @ x ";F*restrict _o=(F*)M+" et a ";\n#pragma omp parallel for simd\nfor(I i=0;i<" et b ";i++){F v_" etx + @ fe c 5 2 "=_s[i];_o[i]=" cvans c ";}}\n" } { "#pragma omp parallel for\nfor(I i=0;i<" et b ";i++)" ? @ fe c 3 { "stf(" et a "+i,f_" etx @ fe c 0 "(i" eargs x y 1 "));\n" } { "M[" et a "+i]=f_" etx @ fe c 0 "(i" eargs x y 1 ");\n" } } }
   ? == k 39 { eq d ez tty d ";\n" ? @ 12 { "for(" ety 0 " i=0;i<" } { "#pragma omp parallel for reduction(+:" et d ")\nfor(I i=0;i<" } et a ";i++)" et d "+=f_" etx @ fe b 0 "(i" eargs c x 1 ");\n" }
   ? == k 40 { eq d "0;\n{unsigned char*g=oimg0(" et a "," et b ");\n#pragma omp parallel for\nfor(I y=0;y<" et b ";y++)for(I x=0;x<" et a ";x++){I c=f_" etx @ fe c 0 ? fpt c 0 "((F)x,(F)y" "(x,y" eargs x y 1 ");unsigned char*q=g+3*(y*" et a "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et a "," et b ");}\n" }
   ? == k 41 { "return " et a ";\n}\n" }

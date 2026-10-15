@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 67 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). Próxima: 66 (redução com vários acumuladores, para o AVX-512 também a acelerar; e `F i`/várias fontes).
+Estado: **iteração 68 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. Três modos: `-x` (AVX2 bit-exato), `-xf` (AVX2+FMA), `-x5` (AVX-512+FMA). **Mac (Apple Silicon):** o C que a Onda gera para o mapa de campo passou a autovetorizar para **NEON** no `clang -O3` (22 instr. `.2d`, com `fmla` fundido) — antes dava **0**. Próxima: autodiff (modo reverso), que é o que falta para a liga do PyTorch/JAX.
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1471,3 +1471,32 @@ C gcc -O3 -march=native:      415 ms
 **O balanço honesto (Mac/Safari).** Dois níveis, ambos no Safari: **WASM+SIMD** (CPU, ~1,3–1,5×, bit-exato) e **GPU** (WebGL2). No GPU real de um Mac, o mesmo campo da Onda corre a **~760–850 M campos/s, ~130–166× a CPU-JS** (medido pelo utilizador no Safari). A GPU é a alavanca a sério para data-parallel; o WASM SIMD é o teto do CPU no browser. Nenhum destes resultados é novo para a ciência (GPU >> CPU em paralelo, SIMD > escalar são conhecidos) — o valor é a **unificação correta e verificada**: uma só fonte → CPU, browser e GPU, iguais ao bit onde é determinista.
 
 **Próxima.** GPGPU com leitura de array por textura (para a GPU ler dados de entrada, não só função do índice); e, no x86, reduções com vários acumuladores.
+
+---
+
+## Iteração 68: o Mac de baixo nível — o C da Onda passa a gerar NEON (Apple Silicon)
+
+**Pergunta.** No Mac (Apple Silicon = ARM64) não corre AVX; o caminho rápido é o C que a Onda gera + `clang -O3`, que devia autovetorizar para **NEON**. Mas não vetorizava nada. Porquê, e como pôr o nível mais baixo do Mac a andar?
+
+**O que já existe.** O x86 tem o seu próprio vetorizador (AVX2/AVX-512); o WASM tem f64x2. O Mac não tem nenhum destes — depende do autovetorizador do `clang`. O analisador `xvan` (que reconhece um mapa de campo vetorizável: `: g ii>f i a { = x @f+a i <polinómio de + - * / sobre x e floats> }`) já existe e é partilhado.
+
+**O diagnóstico (porque dava 0 NEON).** O C que a Onda gerava para o mapa era `for(i)stf(dst+i, f_g(i, src))`, e `ldf`/`stf` fazem `memcpy` sobre um **único array global `M`**. Duas coisas matam a autovetorização do `clang`: (1) a indireção `memcpy` por elemento, e (2) `M` ser partilhado entre leitura e escrita — o compilador tem de assumir que `dst` e `src` **podem sobrepor-se** (*aliasing*), por isso não arrisca carregar/guardar em blocos de 2 doubles. Resultado medido: **0** instruções `.2d`.
+
+**O que foi feito.** Quando `xvan` aprova o elemento, o emissor de C (`src/3emit.onda`, tipo 38) deixa de chamar `f_g` e passa a emitir o **laço direto com `restrict`**, com a expressão do elemento **em linha** (um walker novo, `cvem`, análogo ao `xvem`/`wvem`, que anda a expressão prefixa e emite C infixo com `_s[i]` no lugar do `x`):
+```c
+{const F*restrict _s=(const F*)M+SRC; F*restrict _o=(F*)M+DST;
+#pragma omp parallel for simd
+for(I i=0;i<N;i++){F v_x=_s[i]; _o[i]=(0.1+(v_x*(0.2+(v_x*(...+(v_x*0.8))))));}}
+```
+O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: são arrays distintos, e um mapa por-elemento seria correto mesmo se não fossem — cada `_o[i]` só depende de `_s[i]`). O `omp parallel for simd` pede **multicore + SIMD** ao mesmo tempo. Princípio da segurança-da-folha mantido: o código do compilador (`src/*.onda`) não usa operadores de campo, por isso o vetorizador é "folha" — um erro aqui falha testes mas **não pode** partir o ponto fixo.
+
+**Prova (comando e resultado).**
+- Ponto fixo fecha, bit a bit: `./build.sh` → hash C `f53d6f4495462f48`, e as sementes WASM (258016 B) e x86-64 (192480 B) geram a semente C exata.
+- `node --test`: **89 testes**, todos a passar. O C vetorizado é **bit a bit igual** ao escalar: o `-O2` (gcc/clang) não reassocia nem contrai sem `-ffast-math`, logo o mapa por-lane dá exatamente os mesmos bits que C, x86 (`-x`) e WASM (`-w`).
+- Cross-compile do C gerado para ARM64 (`clang --target=aarch64-linux-gnu -O3 -fopenmp-simd -S`):
+  - padrão **antigo** (`ldf`/`stf` sobre `M` partilhado): `.2d` = **0**.
+  - padrão **novo** (`restrict` em linha): `.2d` = **22** (inclui `fmla ...2d` — multiplicação-soma fundida em pares de doubles). O Horner de grau 8 vira uma cadeia de `fmla.2d`.
+
+**O balanço honesto.** Isto não inventa nada novo em CPU — NEON e autovetorização são conhecidos. O valor é a **mesma fonte Onda** (um só `: g ...` + `E`) cobrir agora x86 (AVX), WASM (f64x2), GPU (WebGL2) **e** Apple Silicon (NEON), iguais ao bit onde é determinista. O nível mais baixo do Mac está a andar com o SIMD da máquina, sem escrever uma linha de assembly ARM (o `clang` fá-lo porque lhe demos C que *pode* vetorizar).
+
+**Próxima.** Preparar o **autodiff** (modo reverso): as regras adjuntas das operações de campo (o adjunto de um `map` é um `map`; o de uma redução-soma é um *broadcast*). É a peça que falta para a liga do PyTorch/JAX — e é o que o utilizador pediu a seguir ("podes já preparar para esse autodiff").
