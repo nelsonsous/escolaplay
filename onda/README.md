@@ -12,6 +12,7 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ```sh
 ./build.sh                  # arranque: Rust -> ondac1 -> ondac2 -> ondac3, exige ponto fixo bit a bit
 ./build.sh --semente        # sem Rust: arranca so da semente C (seed/ondac.c)
+./build.sh --semente-x86    # sem Rust, sem C e sem Node: so a semente nativa x86-64
 ./onda run ex/grover.onda   # compila e corre, com cache por hash
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
@@ -26,7 +27,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 |---|---|
 | `SPEC.md` | a linguagem inteira, escrita para IAs |
 | `src/*.onda` | o compilador, em Onda, com saída para C, GLSL e JavaScript |
-| `seed/ondac.c`, `seed/ondac.wasm` | sementes: C e WebAssembly, ambas geradas pela própria Onda |
+| `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) |
 | `boot/` | arranque em Rust (estágio 0), usado uma vez |
 | `rt/prelude.c` | runtime C mínimo |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |

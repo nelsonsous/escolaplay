@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 8 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 9 (o compilador compila-se a si próprio como executável nativo, sem C).
+Estado: **iteração 9 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 10 (otimização das formas próprias: inlining e dobragem de constantes na representação intermédia).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -208,3 +208,22 @@ Há um único emissor de texto para C, GLSL e JavaScript. Os próximos emissores
 | fractal | 274 ms | 46 ms |
 
 A causa é a geração ingénua: cada valor passa pela memória e cada chamada empilha todos os argumentos.
+
+---
+
+## Iteração 9: três pontos fixos e três sementes
+
+**Pergunta.** O executável nativo é bom o suficiente para ser o próprio compilador?
+
+**O que foi feito.**
+- **Ponto fixo nativo no `build.sh`:** `ondac -x` gera `x1`; `x1` compila-se a si próprio e dá `x2`; `x2` dá `x3`.
+- **Terceira semente:** `seed/ondac-x86-64`, um ELF de 258 240 bytes.
+- **Novo arranque `./build.sh --semente-x86`:** usa só a semente nativa, sem Rust, sem compilador de C e sem Node.
+- **Limpeza:** o `ondac.wasm` feito com clang e uma ferramenta antiga foram removidos, porque as páginas já usam a semente da Onda.
+
+**Prova.**
+- `x1 == x2 == x3`, bit a bit (SHA-256 `b44ebe9e…`).
+- `x2` gera a semente C exata (em 37 ms) e a semente WebAssembly exata. O GLSL e o JavaScript são idênticos aos do compilador original.
+- `./build.sh --semente-x86`: a semente nativa recompila-se a si própria, bit a bit.
+
+**Estado da independência.** Há três caminhos fechados (C, WebAssembly e código de máquina), e cada um é capaz de reconstruir os outros. O C deixou de ser obrigatório.

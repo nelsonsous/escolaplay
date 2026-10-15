@@ -6,6 +6,13 @@ CC="${CC:-cc}"
 mkdir -p build seed
 { printf ': prel >i "'; sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' rt/prelude.c; printf '"\n'; } > src/0prel.onda
 cat src/*.onda > build/ondac.onda
+if [ "$1" = "--semente-x86" ]; then
+  echo "[0] a partir da semente nativa (sem Rust, sem C, sem Node)"
+  seed/ondac-x86-64 < build/ondac.onda > build/ondac0.c
+  seed/ondac-x86-64 -x < build/ondac.onda > build/x0 && chmod +x build/x0
+  build/x0 -x < build/ondac.onda | cmp - seed/ondac-x86-64 && echo "[ok] a semente nativa recompila-se a si propria, bit a bit"
+  exit 0
+fi
 if [ "$1" = "--semente" ] || ! command -v cargo >/dev/null; then
   echo "[0] a partir da semente C (sem Rust)"; cp seed/ondac.c build/ondac0.c
 else
@@ -33,4 +40,15 @@ if command -v node >/dev/null; then
   node wasm/host.js build/w2.wasm < build/ondac.onda | cmp - seed/ondac.c
   echo "[ok] ponto fixo em WebAssembly: $(wc -c < build/w2.wasm) bytes escritos pela Onda, e geram a semente C exata"
   cp build/w2.wasm seed/ondac.wasm
+fi
+# ponto fixo nativo x86-64: executavel ELF escrito pela Onda (sem C, assembler nem linker): x1 -> x2 -> x3
+if [ "$(uname -s)-$(uname -m)" = "Linux-x86_64" ]; then
+  build/ondac -x < build/ondac.onda > build/x1 && chmod +x build/x1
+  build/x1 -x < build/ondac.onda > build/x2 && chmod +x build/x2
+  build/x2 -x < build/ondac.onda > build/x3
+  cmp build/x1 build/x2
+  cmp build/x2 build/x3
+  build/x2 < build/ondac.onda | cmp - seed/ondac.c
+  echo "[ok] ponto fixo nativo x86-64: $(wc -c < build/x2) bytes de maquina escritos pela Onda, e geram a semente C exata"
+  cp build/x2 seed/ondac-x86-64
 fi
