@@ -422,12 +422,12 @@
   = nx 0
   W < n zq 1 { ? @ + m n { ! + zq 25 n na = na + na 1 ? @ + zq 21 n = nx + nx 1 0 } 0 = n + n 1 }
   "OPENQASM 3.0;\ninclude \"stdgates.inc\";\n// gerado pela Onda (-q): " etx @ fe k 0 " em " N zw " bits, oraculo |x>|y> -> |x>|y xor f(x)>\n"
-  "// " N ni " qubits de entrada, " N na " auxiliares (calculados e descalculados), " N zw " de saida: " N * 2 - na nx " Toffoli, cerca de " N * 14 - na nx " portas T, " N * 4 nx " CNOT dos ou-exclusivos\n"
+  "// " N ni " qubits de entrada, " N na " auxiliares (calculados e descalculados), " N ? zq 26 1 zw " de saida: " N * 2 - na nx " Toffoli, cerca de " N * 14 - na nx " portas T, " N * 4 nx " CNOT dos ou-exclusivos\n"
   = np @ fe k 2
   = j 0
   W < j np { "qubit[" N zw "] " etx + @ fe k 4 j ";\n" = j + j 1 }
   ? na { "qubit[" N na "] t;\n" } 0
-  "qubit[" N zw "] y;\n"
+  "qubit[" N ? zq 26 1 zw "] y;\n"
   = it 0
   ? zq 26
     { = j 1 W < j zw { ? ztv r j { ebeg "grover: a funcao tem de devolver 0 ou 1" eend } 0 = j + j 1 }
@@ -440,7 +440,7 @@
   W < n zq 1 { ? @ + m n zqg k n 0 = n + n 1 }
   "// copiar\n"
   = j 0
-  W < j zw {
+  W < j ? zq 26 1 zw {
     = l ztv r j
     ? == l 1 { "x y[" N j "];\n" } 0
     ? > l 1 { ? & l 1 { "x " zqq k >> l 1 ";\n" } 0 "cx " zqq k >> l 1 ", y[" N j "];\n" ? & l 1 { "x " zqq k >> l 1 ";\n" } 0 } 0

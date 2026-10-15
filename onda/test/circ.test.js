@@ -140,6 +140,20 @@ test('Grover (-q com : gro): 804 iteracoes, difusao, e o oraculo marca so x = 77
   for (const [k, w] of v) if (k.startsWith('t#')) assert.strictEqual(w, 0n, 'auxiliar ' + k + ' ficou sujo');
 });
 
+// o ciclo quantico fechado na propria Onda: predicado -> programa de Grover (-q) -> simulador de vetor de estado
+// escrito em Onda (ex/qasm.onda, compilado para x86-64) -> mede o alvo com a probabilidade exata de Grover
+test('simulador Onda (ex/qasm.onda em x86-64) corre o Grover de 8 bits: alvo com p = sin^2(25 asin(1/16)), auxiliares limpos', () => {
+  const q = execFileSync(ondac, ['-q', 'alvo'], { input: ': bit >i 8\n: gro >i 1\n: alvo i>i x == x 177\n' }).toString();
+  const sim = path.join(t, 'qasm');
+  fs.writeFileSync(sim, execFileSync(ondac, ['-x'], { input: fs.readFileSync(path.join(R, 'ex/qasm.onda')) }), { mode: 0o755 });
+  const out = execFileSync(sim, [], { input: q }).toString();
+  assert.match(out, /^simulado: 16 qubits/m);
+  assert.match(out, / t 0 y 0\.5/, 'auxiliares sujos ou y fora de |->');
+  const m = out.match(/^  (\d+)  p=(\S+)$/m);
+  assert.strictEqual(+m[1], 177);
+  assert.ok(Math.abs(+m[2] - Math.sin(25 * Math.asin(1 / 16)) ** 2) < 1e-12, out);
+});
+
 // fim provado: o predicado "vivo" de um ciclo e simulado em todas as combinacoes das suas entradas (ate 16 bits);
 // quando da 0 em todas, o ciclo acabou de facto. O limite declarado deixa de mudar o circuito.
 test('ciclos: com : lim >i 1000 o circuito e o mesmo que com 24 (o fim e provado, nao truncado)', () => {

@@ -19,7 +19,8 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pela Onda, sem C nem assembler
 ./onda circ ex/oraculo.onda alvo                  # a funcao vira um circuito (AIGER); -v da Verilog
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
-node --test test/*.test.js  # todos os testes (30): Onda Viva, matematica bit a bit, circuitos e oraculos
+./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
+node --test test/*.test.js  # todos os testes (32): Onda Viva, matematica bit a bit, circuitos e oraculos
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -37,7 +38,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `rt/prelude.c` | runtime C mínimo |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
-| `ex/` | exemplos: fractal, ondas, Grover, π, fib |
+| `ex/` | exemplos: fractal, ondas, Grover, π, fib, e um simulador de OpenQASM (`qasm.onda`) |
 | `bench/` | comparações com C, JavaScript e Python |
 | `test/`, `tools/` | testes e ferramentas de verificação (GPU, WebAssembly, páginas) |
 

@@ -75,7 +75,7 @@ Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 2. as saídas são copiadas com CNOT;
 3. os Toffoli repetem-se ao contrário, e os auxiliares voltam a |0⟩.
 
-Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Grover completa: Hadamard, ⌊π/4·√2ⁿ⌋ iterações de oráculo (retrocesso de fase em `y[0]`) e difusão, e medição. Ver `ex/oraculo.onda`.
+Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Grover completa: Hadamard, ⌊π/4·√2ⁿ⌋ iterações de oráculo (retrocesso de fase em `y[0]`) e difusão, e medição. Ver `ex/oraculo.onda`. O programa corre no simulador de vetor de estado escrito em Onda, `ex/qasm.onda` (até 23 qubits).
 
 ## Ferramentas
 - `./build.sh` faz o arranque: Rust → ondac1 → ondac2 → ondac3. Exige `ondac1.c == ondac2.c == ondac3.c`. `--semente` arranca só a partir de `seed/ondac.c`.

@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 22 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 23 (ou-exclusivos no lugar, sem auxiliares, e menos qubits nos oráculos).
+Estado: **iteração 23 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 24 (o x86 da Onda está 1,6× atrás do C num campo `E` com escolhas por elemento: ver porquê).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -615,3 +615,29 @@ Com `: bit >i 8`, o somador tem 64 portas, o multiplicador 234 e a contagem de b
 | divisão | 48 578 | **10 780** | 75 460 |
 
 A soma fica com 2 × 63 Toffoli, o mínimo para um somador em cadeia de 64 bits: uma porta E por transporte, sem o último.
+
+## Iteração 23: correr o programa quântico dentro da própria Onda
+
+**Pergunta.** O programa de Grover que a Onda gera está mesmo certo? Até aqui só o oráculo era verificado, e classicamente (como permutação). A parte quântica (Hadamard, interferência, difusão) nunca tinha corrido.
+
+**O que já existe.** Simuladores de vetor de estado como o Qiskit Aer ou o qsim, em C++ e Python, fora da linguagem que gera o circuito.
+
+**O que foi feito.**
+- **`ex/qasm.onda`:** um simulador de vetor de estado escrito em Onda (cerca de 150 linhas). Lê o OpenQASM 3 que a Onda gera, e cada porta é um campo `E` sobre as 2ⁿ amplitudes, em paralelo no C com OpenMP.
+- **Amplitudes reais:** h, x, cx, ccx e ctrl@z nunca criam fase complexa, por isso cada amplitude é um só real (metade da memória).
+- **As portas x não custam passagens:** ficam num quadro de Pauli (uma máscara) que as portas seguintes leem ao indexar. Um H sobre um qubit com um x pendente faz H·X = Z·H na mesma passagem.
+- **No fim, mede:** a distribuição do registo medido e P(registo ≠ 0) de cada registo. Auxiliares limpos dão 0 exato.
+- **Grover só com `y[0]`:** a saída de um predicado tem 1 bit, mas o programa reservava W qubits de saída. No exemplo de 10 bits passa de 29 para 20 qubits, o que o torna simulável.
+
+**Prova.**
+- **10 bits** (20 qubits, 1 048 576 amplitudes, 1 011 passagens): p(777) = 0,999461244744476. A teoria, sin²(51·asin(1/32)), dá 0,9994612447444079: diferença de 7·10⁻¹⁴. Os auxiliares `t` dão 0 exato e `y` dá 0,5 (o estado |−⟩ do retrocesso de fase).
+- **Mutação:** com um ccx do descálculo apagado, a busca cai para a distribuição uniforme (p = 1/256) e P(t ≠ 0) deixa de ser 0.
+- **Teste novo** (8 bits, simulador compilado para x86-64 nativo): p(177) igual a sin²(25·asin(1/16)) a menos de 10⁻¹². São 32 testes, todos a passar.
+
+| 10 bits, 20 qubits | tempo |
+|---|---|
+| C com OpenMP (4 núcleos) | 369 ms |
+| C `gcc -O2`, 1 núcleo | 1,1 s |
+| x86-64 da Onda, 1 núcleo | 1,8 s |
+
+**Próxima.** O x86 da Onda fica 1,6× atrás do C neste laço: um campo `E` com uma função de 7 parâmetros e escolhas por elemento. Ver porquê.
