@@ -35,7 +35,7 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  ? || isx isa ? && isx xvan k lowEv d n k a lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
+  ? || isx isa ? && isx xvan k lowEv d n k a ? && isa xvan k lowEa d n k a lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
 : cs >i {
   = n cx
   ckint n

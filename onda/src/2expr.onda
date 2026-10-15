@@ -165,6 +165,7 @@
     ! 7 sv
     r } }
 : lowEv iiii>i d n k a { ir 51 0 n d @ a k 0 d }
+: lowEa iiii>i d n k a { ir 53 0 d n k @ a 0 d }
 : fastf >i || == Av 1 2 'f == Av 1 2 '5
 : lowSv iii>i n k a { = r nt @ fe k 3 ir 52 r n 0 @ a k 0 r }
 : conv ii>i t f ? f { = r nt 1 ir 15 r 0 t 0 0 0 r } t

@@ -55,8 +55,10 @@ test('arm64: reais, arrays e o mapa (-a) dao o mesmo que o C', { skip: qemu ? fa
   const soma = ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 }\n' +
                '  = s 0.0 = i 0 W < i n { = x @f + a i = s + s + * 2.0 x 1.0 = i + i 1 } I s }\n';
   assert.strictEqual(run(soma), runC(soma));
-  const mapa = ': g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }\n' +
-               ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 }\n' +
+  // o mapa E usa o caminho NEON (fmul.2d/fadd.2d, 2 doubles por instrucao) + cauda escalar para n impar.
+  // Por-lane = escalar, logo bit-exato -> o codigo de saida tem de bater o C para n par e impar.
+  const mapa = n => ': g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }\n' +
+               ': main >i { = n ' + n + ' = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 }\n' +
                '  = b A n E b n g a = s 0.0 = i 0 W < i n { = s + s @f + b i = i + i 1 } I s }\n';
-  assert.strictEqual(run(mapa), runC(mapa));
+  for (const n of [64, 63, 100, 7, 1]) assert.strictEqual(run(mapa(n)), runC(mapa(n)), 'mapa n=' + n);
 });

@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 72 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 73 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1577,3 +1577,22 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O que falta (honesto).** O mapa é **escalar** (1 real por instrução) — ainda não é NEON, logo ainda não é "mais rápido que o C". Faltam também as **chamadas entre funções** (kind 7) — por isso os programas de teste embutem o `encher`/`natoi` no `main` e devolvem pelo código de saída (sem impressão). Reduções (`S`) e impressão também faltam.
 
 **Próxima.** O **NEON** no `-a`: o mapa vetorizado a 2 doubles (`ldr q`/`fadd.2d`/`fmul.2d` ou `fmla.2d`) + cauda escalar — é aí que ataca o "mais rápido que o C" no chip do Mac. Depois, chamadas e impressão; e, a pedido, a **derivada composta** do autodiff.
+
+---
+
+## Iteração 73: NEON no `-a` — o mapa vetorizado, escrito pela própria Onda em ARM
+
+**Pergunta.** O mapa em `-a` era escalar (it.72). Dá para o vetorizar em **NEON** (2 doubles por instrução, o SIMD do ARM), escrito pela própria Onda — o equivalente ARM do que o `-x` faz com AVX?
+
+**O que foi feito.** Um caminho NEON no `-a` para o mapa de campo vetorizável (quando o `xvan` aprova o elemento). Reaproveita o **mesmo analisador `xvan`** e o **mesmo alocador `salloc`/`sfree`** do x86. Peças novas (`src/9arm64.onda`):
+- Codificadores NEON: `ldr q`/`str q` (128 bits = 2 doubles), `fadd/fsub/fmul/fdiv .2d`, `dup v.2d, Xn` (difundir uma constante às duas pistas).
+- Um walker consciente da largura, `avem` (análogo ao `xvem`/`wvem`): anda a árvore do elemento e emite ou NEON `.2d` (w=2) ou escalar `d` (w=1), usando ops de 3 operandos (`vd = vn op vm`), com o `x` fixo em `v1` e as constantes/temporários em `v2..v9`. Avalia o operando direito primeiro (como o x86), para a pressão de registos ficar ≤6.
+- `amap`: laço de **pares** (passo 2) com `ldr q`→`avem(2)`→`str q`, mais **cauda escalar** (mesmo `avem` com w=1) para `n` ímpar. Endereço por `add xA, x28, idx, lsl #3`. Ligado via uma RI nova (tipo 53) que o `ce` emite para `isa`+`xvan`, como o `lowEv` faz para o x86.
+
+**O bug (e a lição).** Tudo saía no registo `v1`: o `salloc` usa a convenção **1 = livre**, e eu inicializei o estado a `0` (tudo ocupado) → devolvia sempre `-1` → `v1`. O x86 inicializa-o a `255` (`! st 255`). Lição: reusar um utilitário é também reusar a sua convenção — li o `salloc` ao contrário.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `304931f361c6c610`; o `-a` é folha). `node --test`: **96 testes**. O mapa do polinómio de grau 7 compilado com `-a` (NEON) e corrido no `qemu-aarch64-static` dá **exatamente o mesmo código de saída que o backend C nativo**, para `n` par (64, 100) e ímpar (63, 7, 1 — exercita a cauda escalar). O `llvm-objdump` confirma o SIMD: `dup v2.2d, x12`, `fmul v3.2d, v1.2d, v2.2d`, `fadd v4.2d, ...` — Horner a 2 doubles por instrução. Por-lane = escalar, por isso é bit-exato (sem `fmla`, que fundiria e mudaria o último bit — fica para um modo opcional).
+
+**O balanço honesto.** Agora a Onda escreve o seu **próprio NEON** para o mapa, bit-exato, pela mesma fonte que dá o AVX no x86. A **velocidade real** mede-se no Mac do utilizador (o `qemu` emula, não mede) — mas o código SIMD está lá e é o que bate o escalar/C em hardware ARM. Ainda faltam, para a vecmap completa correr em `-a`: **chamadas entre funções** (para o `encher`/`natoi`) e **impressão** (o runtime via syscalls) — por isso os testes embutem no `main` e devolvem pelo código de saída.
+
+**Próxima.** Chamadas (kind 7) e impressão no `-a`, para a `vecmap.onda` correr tal e qual e se medir o tempo; e, a pedido do utilizador, a **derivada composta** do autodiff (o VJP completo `f'(x)·ȳ`).
