@@ -156,7 +156,7 @@
   = j floc i
   ? >= j 0
     ? >= lty j 2 - lty j 2 { = r nt lty j ir 5 r i j 0 0 0 r }
-    { = k ffun i ? < k 0 { ! 7 i ebeg "nome desconhecido" eend } 0 ccall k } }
+    { = k ffun i ? < k 0 { ! 7 i ebeg "nome desconhecido" = g esug i ? >= g 0 { ", quis dizer " ew tks g tkl g "?" } 0 eend } 0 ccall k } }
 : cx >i {
   ? >= @ 7 @ 4 { ebeg "fim inesperado" eend } 0
   = i @ 7

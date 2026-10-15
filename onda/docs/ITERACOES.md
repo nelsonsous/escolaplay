@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 32 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 33 (um só ficheiro de armazém partilhado por vários processos ao mesmo tempo, com um trinco, sem corromper).
+Estado: **iteração 33 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 34 (vários processos a partilhar o armazém: o mapa privado de hoje perde escritas de outros, por isso é preciso reler sob trinco — uma transação, não só um trinco).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -864,3 +864,17 @@ A indentação do sinal copia os espaços e tabulações da linha, por isso alin
 **A lição.** O `fib` do `gcc` em 14 ms não interessa quando a resposta já está no armazém. A Onda não precisa de ganhar todas as corridas de cálculo se o seu modelo — a memória é o armazenamento — deixa guardar o trabalho feito, de uma forma que o SQLite faria com uma tabela e dez vezes o tempo.
 
 **Próxima.** Um só ficheiro de armazém partilhado por vários processos ao mesmo tempo. Hoje o armazém é de um processo de cada vez; falta um trinco para dois escritores não se corromperem.
+
+## Iteração 33: o erro diz "quis dizer...?"
+
+**Pergunta.** A Onda é escrita por IAs. Um nome mal escrito (`som` em vez de `soma`, `fibo` em vez de `fib`) dava só "nome desconhecido". Dá para sugerir o que se queria, como fazem o `gcc` e o `rustc`?
+
+**O que foi feito.** O erro de nome desconhecido passa a comparar o nome que falhou com todos os nomes de funções definidas, por distância de edição (Levenshtein, escrita em Onda), e sugere o mais próximo quando está perto:
+```
+#error onda: nome desconhecido, quis dizer soma? (linha 2, coluna 15)
+```
+O limiar é apertado (distância ≤ 1 para nomes curtos, ≤ 2 para os longos), por isso um nome sem parecença — `xyzzy` — não gera sugestão nenhuma, em vez de apontar para algo errado. Continua tudo no caminho de erro: o código gerado não muda.
+
+**Prova.** Os três pontos fixos fecham e os 41 testes passam. `som` sugere `soma`, `fibo` sugere `fib`, `xyzzy` não sugere nada.
+
+**Próxima.** Vários processos a partilhar o mesmo armazém. Não basta um trinco: hoje cada processo mapeia o ficheiro em privado, por isso não vê as escritas dos outros. É preciso reler sob o trinco antes de confirmar — uma transação, não só exclusão mútua. É essa a próxima.

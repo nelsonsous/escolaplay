@@ -92,3 +92,4 @@ Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Gro
     zzz x
     ^
   ```
+  Num nome desconhecido perto de uma função existente, sugere: `nome desconhecido, quis dizer soma?`.

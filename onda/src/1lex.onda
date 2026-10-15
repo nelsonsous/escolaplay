@@ -27,6 +27,40 @@
     W && r < j l { ? != @ + sa j @ + sb j = r 0 0 = j + j 1 }
     r } }
 : ebeg >i { O 0 "\n#error onda: " }
+# distancia de edicao (Levenshtein) entre dois textos (apontador, comprimento), para sugerir nomes parecidos
+: edist iiii>i p a q b {
+  = pr A + b 1
+  = cu A + b 1
+  = j 0 W <= j b { ! + pr j j = j + j 1 }
+  = i 1
+  W <= i a {
+    ! cu 0 i
+    = j 1
+    W <= j b {
+      = c ? == @ + p - i 1 @ + q - j 1 0 1
+      = d1 + @ + pr j 1
+      = d2 + @ + cu - j 1 1
+      = d3 + @ + pr - j 1 c
+      = mn ? < d1 d2 d1 d2
+      = mn ? < d3 mn d3 mn
+      ! + cu j mn
+      = j + j 1 }
+    = tmp pr = pr cu = cu tmp
+    = i + i 1 }
+  @ + pr b }
+# o nome de funcao mais parecido com o token i; -1 se nenhum esta perto
+: esug i>i i {
+  = pa tks i
+  = la tkl i
+  = best -1
+  = bd 999
+  = k 0
+  W < k @ 6 {
+    = t @ fe k 0
+    = d edist pa la tks t tkl t
+    ? < d bd { = bd d = best t 0 } 0
+    = k + k 1 }
+  ? && >= best 0 <= bd ? < la 4 1 2 best -1 }
 : etp >i ? < @ 7 @ 4 tks @ 7 + @ 1 @ 2
 : eln >i { = p @ 1 = e etp = n 1 W < p e { ? == @ p 10 = n + n 1 0 = p + p 1 } n }
 : els >i { = s etp W && > s @ 1 != @ - s 1 10 = s - s 1 s }
