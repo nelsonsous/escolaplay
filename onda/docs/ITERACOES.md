@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 38 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 39 (a correção de fundo: fazer o `S` (e o `E`, `D`) entrar em linha a função também em C e WebAssembly, não só no x86).
+Estado: **iteração 39 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 40 (o emissor C a fundir o corpo do elemento no laço de redução OpenMP, a correção de fundo que esta iteração localizou).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -963,3 +963,19 @@ O `E` deu o paralelismo de borla: a mesma função, sem uma linha sobre threads,
 O laço explícito fica a ~1,17× do C justo — paridade, na prática. O `ex/matmul.onda` passou a usá-lo, com um comentário a explicar que o `S` seria a forma elegante mas paga a chamada até o compilador a meter em linha. Os 47 testes continuam a passar e o resultado é igual bit a bit nas três formas.
 
 **Próxima.** A correção de fundo: fazer o `cinl` meter em linha a função de um `S`/`E`/`D` também em C e WebAssembly. Como a tentativa desta iteração mostrou, não basta tirar a guarda — é preciso perceber porque é que o `ccallf` não inlina os elementos de campo fora do x86.
+
+## Iteração 39: a raiz do custo do `S` — e porque não é uma guarda
+
+**Pergunta.** A iteração 38 deixou em aberto: porque é que o `cinl` não mete em linha a função de um `S`/`E`/`D` em C, mesmo tirando a guarda `isx`?
+
+**A caça à raiz.** Forcei o `cinl` a correr sempre no `ccallf`, com o build completo — e a função `f_dot` continuou a ser chamada. Logo o `cinl` nem sequer estava a ser chamado. A razão está em `cs`, `ce` e `cd` (os operadores `S`, `E`, `D`), em `src/4main.onda`:
+```
+: cs >i { ... ? isx lowS n k a { ir 39 r n k a ... } }
+```
+O `lowS` (a baixa que mete a função em linha, via `ccallf`) só é usado **no x86**. Em C e WebAssembly, o `S` emite um nó nativo (kind 39) que o emissor transforma num laço `#pragma omp parallel for reduction` que **chama** a função de elemento a cada índice. Ou seja: o `ccallf` e o `cinl` nunca entram no caminho de C/WebAssembly. Não era uma guarda a mais; eram dois mundos.
+
+**Porque é que são dois mundos.** O x86 nativo da Onda não tem OpenMP, por isso colapsa o campo em série e ganha o que pode metendo o elemento em linha. O C delega o paralelismo no OpenMP, e o preço é uma chamada por índice dentro do laço paralelo. Tentei a saída fácil — marcar a função de elemento `__attribute__((always_inline))` no C gerado — e o `gcc` continua a não a meter no laço paralelo (o OpenMP tira o laço para fora antes de inliná-la). Não compensa.
+
+**A conclusão.** A correção de fundo não é no front-end nem numa guarda: é o **emissor de C** a escrever o corpo do elemento dentro do laço de redução OpenMP, com os parâmetros substituídos, em vez de o chamar. É real e localizável, mas não trivial, e não vale arriscá-la às cegas. O atalho da iteração 38 (laço explícito no elemento) já dá a velocidade do C quando é preciso. O `SPEC.md` passou a documentar este custo, para quem escreve Onda saber quando usar um `S` (clareza) e quando um laço (velocidade).
+
+**Próxima.** O emissor de C a fundir o corpo do elemento no laço OpenMP — a correção que esta iteração localizou com precisão.

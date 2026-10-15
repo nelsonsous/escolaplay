@@ -54,6 +54,8 @@ Matemática: `Sn Cs Ex Lg At Pw` são definidas por uma biblioteca escrita em On
 
 Regra da sobreposição: uma função usada em `E`, `S` ou `D` não pode escrever na memória nem fazer E/S, porque a ordem dos índices não existe.
 
+Desempenho: em C e WebAssembly, `E`/`S`/`D` colapsam em paralelo (OpenMP) mas **chamam** a função de elemento uma vez por índice. No x86 nativo, a função é metida em linha. Para um produto interno quente dentro de um elemento (p. ex. `S` dentro de `E`), escrever o laço à mão dentro do elemento evita a chamada por iteração e chega à velocidade do C — ver `ex/matmul.onda`.
+
 ## Armazém
 O ficheiro só muda num `Kc` (ou à saída), e sempre de forma atómica. As páginas de 4096 bytes que mudaram vão primeiro para `ficheiro.j`: índice e página, e um rodapé com o número de páginas, a soma FNV-1a das palavras e a marca `ONDAJRN1`. Depois há `fsync`, e só então as páginas são escritas no ficheiro, com outro `fsync`. Ao abrir, um diário completo é reaplicado e um incompleto é apagado. Uma queda deixa o armazém no último `Kc`. O formato (palavras de 64 bits em little-endian) é o mesmo em C, x86 e WebAssembly. Na forma C, o `Kc` segura um trinco `flock` exclusivo e escreve só as páginas que o processo mudou desde que abriu, por isso vários processos partilham o mesmo ficheiro sem se apagarem (na mesma página ganha o último a confirmar).
 
