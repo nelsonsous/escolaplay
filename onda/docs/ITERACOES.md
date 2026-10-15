@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 31 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 32 (atacar o protocolo de chamada em si: passar o primeiro argumento num registo, a mudança mínima que o fib precisa, com o ponto fixo como rede).
+Estado: **iteração 32 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 33 (um só ficheiro de armazém partilhado por vários processos ao mesmo tempo, com um trinco, sem corromper).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -845,3 +845,22 @@ A indentação do sinal copia os espaços e tabulações da linha, por isso alin
 **Onde fica mesmo a distância.** Só no código limitado pelo cálculo com muitas chamadas, como o `fib`. E aí, as iterações 27–28 provaram que a causa não é a conta nem manter valores em registos (o gcc também empilha), mas o protocolo de chamada: cada argumento vai à pilha e é relido. É aí que a próxima iteração ataca, com a mudança mínima.
 
 **Próxima.** Passar o primeiro argumento de cada chamada num registo, em vez de na pilha. É o que o `fib` precisa (um só argumento), muito mais pequeno do que a convenção inteira que a iteração 28 reverteu, e o ponto fixo bit a bit continua a ser a rede de segurança.
+
+## Iteração 32: o armazém torna a recursão lenta irrelevante
+
+**Pergunta.** As iterações 27–31 mostraram que o `fib` ingénuo é 4× mais lento que o gcc, e que a convenção de registos não compensa. Em vez de ganhar a conta, dá para não a fazer duas vezes? É aqui que o armazém da iteração 25 se encontra com o problema do desempenho.
+
+**O que já existe.** A memoização é antiga. O que não é comum é a tabela de memoização ser *persistente de graça*: fica no armazém e sobrevive entre execuções, sem serialização nem base de dados.
+
+**O que foi feito.** `ex/memo.onda`: o `fib` ingénuo, mas cada resultado é guardado em `K` (o armazém). A segunda vez que se pede o mesmo `fib`, lê-se; e com `ONDA_ARM=ficheiro`, essa tabela sobrevive ao fim do programa. O `fib(92)` calculado uma vez em C fica no ficheiro, e a seguir o x86 e o WebAssembly leem-no do mesmo ficheiro, sem recalcular.
+
+**Um erro apanhado pelos diagnósticos da iteração 29–30.** A primeira versão usava `= N 93`, e o compilador respondeu logo `= precisa de nome (linha 16, coluna 5)`: `N` é o operador de imprimir, não pode ser nome. A seguir, um `@ -16` para um global deu segmentation fault em C (fora dos limites da memória): os globais do programa vivem abaixo de 64, por isso a base do armazém passou a ficar em `M[8]`. Os diagnósticos novos pouparam tempo real.
+
+**Prova** (`test/memo.test.js`, 3 testes; 41 no total, todos a passar).
+- Volátil (sem `ONDA_ARM`), o `fib` dá os valores certos (conferidos: `fib(90) = 2880067194370816120`).
+- Com o ficheiro: o C calcula até 92, e o x86 e o WebAssembly leem `fib(90)` do mesmo ficheiro sem o reescrever.
+- O armazém guarda cada `fib` intermédio, não só o pedido: `fib(50) = 12586269025` está lá gravado.
+
+**A lição.** O `fib` do `gcc` em 14 ms não interessa quando a resposta já está no armazém. A Onda não precisa de ganhar todas as corridas de cálculo se o seu modelo — a memória é o armazenamento — deixa guardar o trabalho feito, de uma forma que o SQLite faria com uma tabela e dez vezes o tempo.
+
+**Próxima.** Um só ficheiro de armazém partilhado por vários processos ao mesmo tempo. Hoje o armazém é de um processo de cada vez; falta um trinco para dois escritores não se corromperem.
