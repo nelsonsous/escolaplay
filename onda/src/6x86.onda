@@ -71,6 +71,8 @@
   ? == k 36 { xpsv a xrt k3 '_ 'e 'x }
   ? == k 37 { xsy3 6 0 0 xst 0 d }
   ? == k 42 { xpsv c xpsv b xpsv a xcall -1 xst 0 d }
+  ? == k 43 { xlt 0 a P 72 P 193 P 224 P 32 xlt 1 b P 137 P 201 P 72 P 9 P 200 xst 0 d }
+  ? == k 44 xcst d | << a 32 b
   ? == k 41 { xlt 0 a P 201 ? @ 25 { P 194 P & * 8 @ 25 255 P >> * 8 @ 25 8 } P 195 }
   { P 15 P 11 } }
 : xfun i>i k {

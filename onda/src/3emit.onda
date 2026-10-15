@@ -1,5 +1,5 @@
 # emissor de texto da RI: C, GLSL (-g) e JavaScript (-j)
-: mname i>i c ? isjs { ? == c 0 "+" ? == c 1 "Math.trunc" { "Math." ? == c 2 "sqrt" ? == c 3 "sin" ? == c 4 "cos" ? == c 5 "exp" ? == c 6 "log" ? == c 7 "floor" ? == c 8 "abs" ? == c 9 "pow" "atan2" } } {
+: mname i>i c ? isjs { ? == c 0 "+" ? == c 1 "Math.trunc" ? == c 11 "obh" ? == c 12 "obl" { "Math." ? == c 2 "sqrt" ? == c 3 "sin" ? == c 4 "cos" ? == c 5 "exp" ? == c 6 "log" ? == c 7 "floor" ? == c 8 "abs" ? == c 9 "pow" "atan2" } } {
   ? == c 0 ? @ 12 "float" "(F)"
   ? == c 1 ? @ 12 "int" "(I)"
   ? == c 2 "sqrt"
@@ -10,6 +10,8 @@
   ? == c 7 "floor"
   ? == c 8 ? @ 12 "abs" "fabs"
   ? == c 9 "pow"
+  ? == c 11 "obh"
+  ? == c 12 "obl"
   ? @ 12 "atan" "atan2" }
 : escs i>i i {
   = s tks i
@@ -67,4 +69,6 @@
   ? == k 40 { eq d "0;\n{unsigned char*g=oimg0(" et a "," et b ");\n#pragma omp parallel for\nfor(I y=0;y<" et b ";y++)for(I x=0;x<" et a ";x++){I c=f_" etx @ fe c 0 ? fpt c 0 "((F)x,(F)y" "(x,y" eargs x y 1 ");unsigned char*q=g+3*(y*" et a "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et a "," et b ");}\n" }
   ? == k 41 { "return " et a ";\n}\n" }
   ? == k 42 { eq d "osys(" et a "," et b "," et c ");\n" }
+  ? == k 43 { eq d "obw(" et a "," et b ");\n" }
+  ? == k 44 { eq d ? == @ 12 1 { "obw(int(" N a "u),int(" N b "u));\n" } { "obw(" N a "," N b ");\n" } }
   0 }

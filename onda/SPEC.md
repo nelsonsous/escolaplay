@@ -28,6 +28,8 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `Sq Sn Cs Ex Lg Fl Ab` | 1 | sqrt sin cos exp log floor abs (reais) |
 | `Pw At` | 2 | pow, atan2 |
 | `Mn Mx` | 2 | mínimo, máximo |
+| `Bh` / `Bl` | 1 | palavra alta (com sinal) / baixa (0..2³²-1) dos 64 bits de um real |
+| `Bw h l` | 2 | real com esses 64 bits (`Bw` de dois literais é uma constante exata) |
 | `? c a b` | 3 | se c≠0 então a senão b (a e b do mesmo tipo) |
 | `W c b` | 2 | enquanto c≠0 faz b; vale 0 |
 | `{ e1 .. en }` | n | sequência; vale en (vazio vale 0) |
@@ -45,6 +47,8 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | **`E d n f a..`** | campo | M[d+i] = f(i, a..) para todo o i<n, em paralelo; vale d |
 | **`S n f a..`** | campo | Σ f(i, a..) para i<n, redução paralela |
 | **`D w h f a..`** | campo | imagem w×h com o píxel f(x, y, a..) = 0xRRGGBB (PPM no stdout) |
+
+Matemática: `Sn Cs Ex Lg` são definidas por uma biblioteca escrita em Onda (`src/9mat.onda`, o algoritmo fdlibm, o mesmo do `Math` do JavaScript). Em C, WebAssembly e x86 dão os mesmos bits, e os mesmos que o significado; na GPU usam as funções nativas, com a tolerância declarada. Os nomes começados por `_` são do runtime.
 
 Regra da sobreposição: uma função usada em `E`, `S` ou `D` não pode escrever na memória nem fazer E/S, porque a ordem dos índices não existe.
 

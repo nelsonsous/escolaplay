@@ -54,6 +54,8 @@
   ? == c 2 { wg t P 159 }
   ? == c 7 { wg t P 156 }
   ? == c 8 { wg t P 153 }
+  ? == c 11 { wg t P 189 wi64 32 P 135 }
+  ? == c 12 { wg t P 189 wi64 4294967295 P 131 }
   { wi64 - c 3 wg t P 16 P 1 } }
 : wxl i>i j + + @ 9 @ 11 j
 : wgx i>i j { P 32 wu wxl j }
@@ -184,6 +186,8 @@
   ? == k 39 { wS p }
   ? == k 40 { wD p }
   ? == k 42 { wg a wg b wg c P 16 P 0 wsx d }
+  ? == k 43 { wg a wi64 32 P 134 wg b wi64 4294967295 P 131 P 132 P 191 wsx d }
+  ? == k 44 { P 68 wword b 4 wword a 4 wsx d }
   ? == k 41 { wg a }
   { ebeg "operacao ainda nao suportada em -w" eend } }
 : wfun i>i k {

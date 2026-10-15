@@ -22,6 +22,8 @@
   ? == c 2 xsqr d a
   ? == c 7 { xfl a P 102 P 15 P 58 P 11 P 192 P 9 xfs d }
   ? == c 8 { xlt 0 a P 72 P 15 P 186 P 240 P 63 xst 0 d }
+  ? == c 11 { xlt 0 a P 72 P 193 P 248 P 32 xst 0 d }
+  ? == c 12 { xlt 0 a P 137 P 192 xst 0 d }
   ? == c 3 { xfld a P 217 P 254 xfstp d }
   ? == c 4 { xfld a P 217 P 255 xfstp d }
   ? == c 5 { P 217 P 234 xfld a P 222 P 201 x2pow xfstp d }

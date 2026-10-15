@@ -23,6 +23,9 @@ static I ir(void){if(IP==IL){IL=(int)fread(IB,1,65536,stdin);IP=0;if(IL<=0){IL=0
 static void odie(const char*m){oflush();fputs(m,stderr);exit(2);}
 static I oa(I n){I p=HP;HP+=n;if(n<0||HP>ONDA_MEM)odie("onda: memoria esgotada\n");return p;}
 static F ldf(I p){F d;memcpy(&d,M+p,8);return d;}
+static I obh(F x){unsigned long long u;memcpy(&u,&x,8);return (I)(int)(unsigned)(u>>32);}
+static I obl(F x){unsigned long long u;memcpy(&u,&x,8);return (I)(u&0xffffffffULL);}
+static F obw(I h,I l){unsigned long long u=((unsigned long long)(unsigned)h<<32)|(unsigned)l;F d;memcpy(&d,&u,8);return d;}
 static void stf(I p,F d){memcpy(M+p,&d,8);}
 static void osink(I p){OS=p;}
 static I av(I i,I j){I k;const char*s;if(i<0||i>=AC||j<0)return 0;s=AV[i];for(k=0;k<j;k++)if(!s[k])return 0;return (unsigned char)s[j];}

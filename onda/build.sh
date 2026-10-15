@@ -19,11 +19,11 @@ else
   echo "[0] estagio 0 em Rust"; cargo build --release -q --manifest-path boot/Cargo.toml
   boot/target/release/onda-boot < build/ondac.onda > build/ondac0.c
 fi
-$CC -O2 -w build/ondac0.c -o build/ondac1 -lm
+$CC -O2 -fwrapv -w build/ondac0.c -o build/ondac1 -lm
 build/ondac1 < build/ondac.onda > build/ondac1.c
-$CC -O2 -w build/ondac1.c -o build/ondac2 -lm
+$CC -O2 -fwrapv -w build/ondac1.c -o build/ondac2 -lm
 build/ondac2 < build/ondac.onda > build/ondac2.c
-$CC -O2 -w build/ondac2.c -o build/ondac3 -lm
+$CC -O2 -fwrapv -w build/ondac2.c -o build/ondac3 -lm
 build/ondac3 < build/ondac.onda > build/ondac3.c
 cmp build/ondac1.c build/ondac2.c
 cmp build/ondac2.c build/ondac3.c

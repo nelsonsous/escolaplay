@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 14 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 15 (matemática própria: seno, coseno, exp e log escritos em Onda, iguais em todas as formas).
+Estado: **iteração 15 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 16 (campos em vários núcleos no x86, sem biblioteca de threads).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -380,3 +380,33 @@ A causa é a geração ingénua: cada valor passa pela memória e cada chamada e
 Mais importante: cada forma usa uma matemática diferente. O C usa o glibc, o WebAssembly e o significado usam o `Math.sin` do JavaScript, e o x86 usa o x87. Podem diferir no último bit.
 
 **Próximo passo:** a matemática deixa de ser primitiva. Seno, coseno, exp e log passam a ser escritos em Onda, só com `+ - * /`, `Sq` e acesso aos bits. Assim, ficam iguais bit a bit em todas as formas por construção, incluindo o significado, que os interpreta.
+
+## Iteração 15: a matemática deixa de ser primitiva
+
+**Pergunta.** Porque é que `Sn x` havia de dar resultados diferentes conforme a forma? Nenhuma linguagem garante isso. O C usa a libm da plataforma, o x87 tem o seu `fsin`, e os motores de JavaScript usam o fdlibm.
+
+**O que já existe.**
+- O fdlibm (Sun, 1993) é a base do `Math` do V8 e do `StrictMath` do Java.
+- O CORE-MATH (2022) dá funções corretamente arredondadas.
+
+Ninguém faz a matemática fazer parte da própria linguagem, escrita nela e igual em todas as formas por construção.
+
+**O que foi feito.**
+- **Três primitivas de bits:** `Bh x` (palavra alta, com sinal), `Bl x` (palavra baixa) e `Bw h l` (monta o real). São palavras de 32 bits, como no fdlibm, para serem exatas também nos números do JavaScript. Existem nas seis formas: C, GLSL, JavaScript, WebAssembly, x86 e significado.
+- **Constantes exatas:** `Bw` de dois literais é dobrado pelo compilador numa constante real exata (no x86, um `movabs`; no WebAssembly, um `f64.const`).
+- **A biblioteca** (`src/9mat.onda`, gerada por `tools/gerar_mat.py`) é o porte fiel do fdlibm para seno, coseno, exp e log. Inclui a redução de argumento em três passos de Cody-Waite até 2¹⁹·π/2.
+- **Quando entra:** é acrescentada ao programa só quando ele usa essas operações (o compilador procura-as fora dos textos e comentários). `Sn x` passa a ser uma chamada a `_sn`.
+- **Exceções:** na GPU e no JavaScript continuam as funções nativas; o `Math` do JavaScript já é o fdlibm.
+- **`-fwrapv`:** o C é compilado com `-fwrapv`, porque a aritmética da Onda dá a volta nos 64 bits sem comportamento indefinido.
+
+**Prova** (`node --test test/mat.test.js`). Em 22 028 entradas, incluindo 0, -0, infinitos, NaN, subnormais e os limites de transbordo do exp, o C, o WebAssembly e o x86 dão os mesmos bits que o `Math` do node: zero diferenças nas quatro funções.
+
+**Efeitos.**
+- **x86:** o fractal passou de 84 para 64 ms e o ondas de 76 para 53 ms, porque o `fsin` do x87 saiu.
+- **C:** está mais lento (julia de 35 para 51 ms), porque o seno do glibc é mais rápido do que o fdlibm. Em troca, as formas passam a dar os mesmos bits. As imagens do x86 e do C são iguais ao byte.
+- Os três pontos fixos continuam fechados.
+
+**Limites.**
+- Acima de 2¹⁹·π/2 ≈ 823 550, o seno e o coseno ainda usam a função da plataforma. A redução de Payne-Hanek em Onda fica para mais tarde.
+- `Pw` e `At` continuam primitivas.
+- No WebAssembly e no x86, os textos ocupam uma palavra de 8 bytes por carácter, e os 7,5 KB da biblioteca custam cerca de 60 KB ao compilador. Empacotar os textos fica anotado.

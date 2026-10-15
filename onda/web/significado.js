@@ -37,6 +37,9 @@ const Significado = (() => {
   const num = x => (x[0] === '-' ? -Number(x.slice(1)) : Number(x));
   const M1 = { Sq: Math.sqrt, Sn: Math.sin, Cs: Math.cos, Ex: Math.exp, Lg: Math.log, Fl: Math.floor, Ab: Math.abs };
   const M2 = { Pw: Math.pow, At: Math.atan2 };
+  const BV = new DataView(new ArrayBuffer(8));
+  const BI = { Bh: x => { BV.setFloat64(0, x); return BV.getInt32(0); }, Bl: x => { BV.setFloat64(0, x); return BV.getUint32(4); } };
+  const BW = (h, l) => { BV.setInt32(0, h); BV.setUint32(4, l); return BV.getFloat64(0); };
   const BIN = { '+': 10, '-': 11, '*': 12, '/': 13, '%': 15, '&': 16, '|': 17, '^': 18, '<<': 19, '>>': 20 };
   const CMP = { '<': 21, '>': 22, '<=': 23, '>=': 24, '==': 25, '!=': 26 };
   const CPU = new Set(['@', '!', '@f', '!f', 'A', 'P', 'R', 'N', 'G', 'O', 'Ac', 'Av', 'X', 'T', 'E', 'D', 'Y']);
@@ -104,6 +107,8 @@ const Significado = (() => {
         if (x in CMP) { const a = ex(), b = ex(); mesmo(a, b); return { o: CMP[x], y: 0, a, b }; }
         if (x in M1) { const a = ex(); real(a); return { o: 32, y: 1, f: M1[x], a }; }
         if (x in M2) { const a = ex(), b = ex(); real(a); real(b); return { o: 33, y: 1, f: M2[x], a, b }; }
+        if (x in BI) { const a = ex(); real(a); return { o: 41, y: 0, f: BI[x], a }; }
+        if (x === 'Bw') { const a = ex(), b = ex(); int(a); int(b); return { o: 42, y: 1, a, b }; }
         if (CPU.has(x)) throw erro('operacao so de CPU: ' + x);
         switch (x) {
           case '&&': case '||': { const a = ex(); int(a); const b = ex(); int(b); return { o: x === '&&' ? 27 : 28, y: 0, a, b }; }
@@ -184,6 +189,8 @@ const Significado = (() => {
       case 37: { while (ev(n.c, e) !== 0) ev(n.b, e); return 0; }
       case 38: { let r = 0; for (let j = 0; j < n.xs.length; j++) r = ev(n.xs[j], e); return r; }
       case 39: return (e[n.s] = ev(n.e, e));
+      case 41: return n.f(ev(n.a, e));
+      case 42: { const a = ev(n.a, e); return BW(a, ev(n.b, e)); }
       case 40: {
         const nn = ev(n.n, e), ex = n.a.map(x => ev(x, e)), f = n.f;
         let acc = 0;

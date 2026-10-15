@@ -48,6 +48,40 @@
   ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
   = a cargs k 2
   ? isx lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
+: mlib >i && || || == @ 12 0 isw isx != tc @ fe @ 13 0 0 '_
+: cml i>i c { = a cx ckflt a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 rcall k q 1 }
+: litv i>i p ? == @ p 2 @ + p 2 tokval @ + p 2
+: blit ii>i p t && == @ + p 1 t || == @ p 2 && == @ p 1 ~ tty t
+: cbw >i {
+  = a cx
+  = b cx
+  ckint a
+  ckint b
+  = r nt 1
+  = p + @ 18 * - @ 19 1 8
+  = q - p 8
+  ? && && >= @ 19 2 blit p b blit q a
+    { = vb litv p = va litv q ! 19 - @ 19 2 ir 44 r & va 4294967295 & vb 4294967295 0 0 0 }
+    { ir 43 r a b 0 0 0 }
+  r }
+: usesm >i {
+  = p @ 1
+  = e + @ 1 @ 2
+  = r 0
+  = st 0
+  W && ~ r < + p 1 e {
+    = c @ p
+    = d @ + p 1
+    = ini || == p @ 1 isws @ - p 1
+    ? st
+      { ? == c 92 = p + p 1 ? == c 34 = st 0 0 }
+      { ? && == c 39 ini = p + p 1
+        ? == c 34 = st 1
+        ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
+        ? && || || && == c 'S == d 'n && == c 'C == d 's || && == c 'E == d 'x && == c 'L == d 'g
+             && ini || == + p 2 e isws @ + p 2 = r 1 0 }
+    = p + p 1 }
+  r }
 : cop i>i i {
   = o tcode i
   ? isar o cbin i 2
@@ -59,10 +93,13 @@
   ? == o 'F cun 0 0 1
   ? == o 'I cun 1 1 0
   ? == o k2 'S 'q cun 2 1 1
-  ? == o k2 'S 'n cun 3 1 1
-  ? == o k2 'C 's cun 4 1 1
-  ? == o k2 'E 'x cun 5 1 1
-  ? == o k2 'L 'g cun 6 1 1
+  ? == o k2 'S 'n ? mlib cml k3 '_ 's 'n cun 3 1 1
+  ? == o k2 'C 's ? mlib cml k3 '_ 'c 's cun 4 1 1
+  ? == o k2 'E 'x ? mlib cml k3 '_ 'x 'p cun 5 1 1
+  ? == o k2 'L 'g ? mlib cml k3 '_ 'l 'g cun 6 1 1
+  ? == o k2 'B 'h cun 11 1 0
+  ? == o k2 'B 'l cun 12 1 0
+  ? == o k2 'B 'w cbw
   ? == o k2 'F 'l cun 7 1 1
   ? == o k2 'A 'b cun 8 1 1
   ? == o k2 'P 'w cbf 9
@@ -133,11 +170,14 @@
 : outj >i {
   = e reach
   = k 0
+  "const obv=new DataView(new ArrayBuffer(8));function obh(x){obv.setFloat64(0,x);return obv.getInt32(0);}"
+  "function obl(x){obv.setFloat64(0,x);return obv.getUint32(4);}function obw(h,l){obv.setInt32(0,h);obv.setUint32(4,l);return obv.getFloat64(0);}\n"
   W < k @ 6 { ? @ fe k 10 emitf k 0 = k + k 1 }
   "return f_" etx @ fe e 0 ";\n" }
 : outg >i {
   = e reach
   "#version 300 es\nprecision highp float;\nprecision highp int;\nuniform float u[8];\nout vec4 oc;\n"
+  "int obh(float x){return floatBitsToInt(x);}\nint obl(float x){return 0;}\nfloat obw(int h,int l){return intBitsToFloat(h);}\n"
   = k 0
   W < k @ 6 { ? @ fe k 10 { sighdr k ";\n" } 0 = k + k 1 }
   = k 0
@@ -152,6 +192,7 @@
   ! 1 A 1000000
   rdall
   ? || isw isx { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
+  ? && || || == @ 12 0 isw isx usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
   ! 3 A + 3 * 3 @ 2
   ! 5 A 120000
   ! 8 A 40000
