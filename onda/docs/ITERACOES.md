@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 36 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 37 (um programa Onda maior a sério — talvez o próprio interpretador a correr-se — ou levar o trinco do armazém ao x86).
+Estado: **iteração 37 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 38 (reduzir a sobrecarga do produto interno: por a função do S a entrar em linha no laço de redução, para o matmul chegar ao C justo).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -922,3 +922,24 @@ O limiar é apertado (distância ≤ 1 para nomes curtos, ≤ 2 para os longos),
 A mesma lógica, com laços, memória e aritmética de bytes, compilada para C (via gcc), para código máquina x86 escrito pela Onda, e para WebAssembly, dá o mesmo byte a byte. Não é só o compilador que se reproduz igual entre formas: qualquer programa o faz.
 
 **Próxima.** Subir a parada: um programa Onda maior e mais sério (por exemplo um interpretador que se corra a si mesmo, ou um pequeno motor de expressões), ou fechar a dívida do armazém no x86 (o trinco e a confirmação por páginas da iteração 35, pela porta de chamadas ao sistema crua).
+
+## Iteração 37: álgebra linear pelo paradigma de campo
+
+**Pergunta.** O paradigma da Onda — campo + colapso — foi feito para o paralelismo. Fora dos fractais e do Grover, aguenta matemática a sério, como a multiplicação de matrizes, e paraleliza mesmo?
+
+**O que foi feito.** `ex/matmul.onda`: C = A·B pelo campo. Uma só linha de cálculo — `E c (n*n) mm a b n` — diz "cada elemento de C ao mesmo tempo", e cada elemento é um produto interno `S n dot ...`. Não há laço escrito à mão sobre a saída; o `E` é que decide como colapsar (OpenMP na CPU, ou GPU). Um `S` dentro de um `E` é exatamente a estrutura de uma redução dentro de um mapa.
+
+**Prova** (`test/matmul.test.js`; 47 testes no total, todos a passar). O resultado completo (n=40, a matriz inteira, não só um resumo) é igual ao de um triplo laço ingénuo, e igual bit a bit entre C, x86-64 e WebAssembly.
+
+**Medição** (512×512, 4 núcleos):
+
+| forma | tempo |
+|---|---|
+| Onda, forma C (OpenMP pelo `E`) | ~151 ms |
+| C à mão, OpenMP, `n` variável | ~110 ms |
+| C à mão, OpenMP, `N` constante (vetoriza) | ~52 ms |
+| Onda, x86 nativo (série) | ~514 ms |
+
+O `E` deu o paralelismo de borla: a mesma função, sem uma linha sobre threads, usa os quatro núcleos. Fica a ~1,4× do C justo (com `n` variável, a comparação honesta). A outra metade da distância para o C mais rápido é a vetorização que só acontece quando o tamanho é uma constante de compilação — a Onda passa `n` como variável. O que resta (1,4×) é a sobrecarga do produto interno: a função do `S` não entra em linha no laço de redução.
+
+**Próxima.** Pôr a função do `S` a entrar em linha no laço, para o produto interno não pagar uma chamada por iteração. Deve aproximar o matmul do C justo.

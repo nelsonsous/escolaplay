@@ -1,0 +1,16 @@
+# matmul por campo, com a base da linha e da coluna içadas para fora do produto interno
+: dot iiiii>f k ra b n col * @f + ra k @f + b + * k n col
+: mm iiii>f idx a b n { = row / idx n S n dot + a * row n b n % idx n }
+: encher ii>i p n { = i 0 W < i n { !f + p i F + % i 7 1 = i + i 1 } p }
+: traco iii>f i a n @f + a + * i n i
+: main >i {
+  = n 256
+  = a encher A * n n * n n
+  = b encher A * n n * n n
+  = c A * n n
+  = t T
+  E c * n n mm a b n
+  = ms / - T t 1000
+  = s S n traco c n
+  "matmul " N n "x" N n " em " N ms " ms; traco = " G s "\n"
+  0 }
