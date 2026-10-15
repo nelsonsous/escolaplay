@@ -177,6 +177,56 @@
   ! fe k 9 @ 16
   O 0 }
 : amain >i { = k 0 = r -1 W < k @ 6 { ? ismain k = r k 0 = k + k 1 } r }
+# --- Mach-O (-m): o MESMO codigo-maquina do -a, mas num executavel nativo do Mac (Apple Silicon). M vem de um
+# mmap no arranque (sem segmento fixo). Syscalls do macOS: numero em x16, svc #0x80 (write 4, exit 1, mmap 197).
+: ismo >i && == Av 1 0 '- == Av 1 1 'm
+: amovr ii>i rd rn x4 | | 0xAA0003E0 << rn 16 rd
+: asvc80 >i x4 0xD4001001
+: az i>i n { = j 0 W < j n { P 0 = j + j 1 } 0 }
+# emite o stub de entrada (mmap M -> x28; x27=0; bl main; exit(x0)) e devolve a posicao do bl no buffer
+: aentm >i {
+  aimm 0 0 aimm 1 268435456 aimm 2 3 aimm 3 4098 aimm 4 -1 aimm 5 0 aimm 16 197 asvc80
+  amovr 28 0 aimm 27 0
+  = blp @ 16
+  abl 0
+  aimm 16 1 asvc80
+  blp }
+: outm >i {
+  = mi amain
+  O 16
+  = estart @ 16
+  = blp aentm
+  = elen - @ 16 estart
+  O 0
+  # offset de main no codigo = entrada + funcoes antes de main; corrige o bl do stub
+  = moff elen
+  = k 0 W < k mi { = moff + moff - @ fe k 9 @ fe k 8 = k + k 1 }
+  xput4 blp | 0x94000000 & / - moff - blp estart 4 0x3FFFFFF
+  = clen elen
+  = k 0 W < k @ 6 { = clen + clen - @ fe k 9 @ fe k 8 = k + k 1 }
+  = cmds 512
+  = coff + 32 cmds
+  = tvm & + + coff clen 16383 -16384
+  = entry + 4294967296 coff
+  # cabecalho Mach-O 64 (32 bytes)
+  x4 0xFEEDFACF x4 0x0100000C x4 0 x4 2 x4 3 x4 cmds x4 0 x4 0
+  # LC_SEGMENT_64 __PAGEZERO (72)
+  x4 0x19 x4 72 P '_ P '_ P 'P P 'A P 'G P 'E P 'Z P 'E P 'R P 'O az 6
+  x8 0 x8 4294967296 x8 0 x8 0 x4 0 x4 0 x4 0 x4 0
+  # LC_SEGMENT_64 __TEXT (152, 1 seccao)
+  x4 0x19 x4 152 P '_ P '_ P 'T P 'E P 'X P 'T az 10
+  x8 4294967296 x8 tvm x8 0 x8 tvm x4 5 x4 5 x4 1 x4 0
+  P '_ P '_ P 't P 'e P 'x P 't az 10 P '_ P '_ P 'T P 'E P 'X P 'T az 10
+  x8 entry x8 clen x4 coff x4 2 x4 0 x4 0 x4 0x80000400 x4 0 x4 0 x4 0
+  # LC_UNIXTHREAD (288): ARM_THREAD_STATE64, pc = entry
+  x4 5 x4 288 x4 6 x4 68
+  = j 0 W < j 32 { x8 0 = j + j 1 }
+  x8 entry x8 0
+  # codigo: stub de entrada + corpo de cada funcao, depois enchimento ate a pagina (filesize = tvm)
+  ew estart elen
+  = k 0 W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }
+  az - tvm + coff clen
+  0 }
 : outa >i {
   = mi amain
   # o stub de entrada ocupa 44 bytes (2 aimm = 8 instr + bl + mov + svc); o bl esta no byte 32

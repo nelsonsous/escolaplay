@@ -1673,3 +1673,21 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** A ingestão cobre o **núcleo sem ponteiros** (uma função: inteiros, reais, `+ − × ÷ %`, bits, ciclos, `if`, arrays, literais). Falta serializar os campos que são ponteiros — a lista de argumentos das **chamadas** (kind 7) e dos **mapas/reduções** (38/39/51–53) — e as **strings**; é o que fecha o round-trip de programas multi-função. Mas o essencial está provado: a IA pode emitir o grafo, e o juiz confere-o contra o significado.
 
 **Próxima.** O pedido do utilizador: **impressão no `-a`** (o runtime via syscalls), para a `vecmap.onda` literal correr em ARM64; e, depois, estender a ingestão aos campos-ponteiro (chamadas/mapas) para o round-trip completo.
+
+---
+
+## Iteração 79: Mach-O nativo (`-m`) — a Onda corre no Mac sem Docker
+
+**Pergunta (do utilizador: "As duas, Mach-O já").** A tentativa de benchmark no Mac falhou: sem clone do repo e sem Docker, o ELF `-a` não corria no macOS. Faltava um executável que arranque direto no Apple Silicon.
+
+**O que foi feito.** Um modo novo, **`-m`**, que emite o **mesmo código-máquina aarch64 do `-a`** mas embrulhado num executável **Mach-O** (o formato do macOS), em vez de ELF. É só o invólucro que muda — o NEON, as chamadas, os arrays, tudo igual:
+- **Cabeçalho Mach-O 64**: `MH_MAGIC_64` (`0xFEEDFACF`), cputype `ARM64` (`0x0100000C`), filetype `MH_EXECUTE`, 3 load commands.
+- **`LC_SEGMENT_64`** `__PAGEZERO` (4 GiB não mapeados) + `__TEXT` (o segmento com o código).
+- **`LC_UNIXTHREAD`** (flavor `ARM_THREAD_STATE64`): define o `pc` de arranque, que aponta para o trampolim de entrada.
+- **Trampolim de entrada**: faz `mmap` da memória `M` em runtime (`x16=197`, `svc #0x80` — a convenção de syscall do macOS, `x16`=número, `svc #0x80`), põe a base em `x28`, chama o `main` (`bl` corrigido no fim) e sai com `exit` (`x16=1`). Sem segmento `M` de tamanho fixo — pede-se ao SO, como manda o Apple Silicon.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `07249544d435ca5a`; o `-m` é folha — a fonte do compilador nunca o usa, por isso um bug aqui parte testes mas **não** pode partir o ponto fixo). `node --test`: **104 testes**. Não se consegue *correr* um Mach-O aqui (não há macOS), por isso `test/macho.test.js` valida a **estrutura**: o `-m` produz um Mach-O arm64 válido (mágico, cputype, filetype, 3 comandos) e o núcleo do mapa leva o **mesmo NEON `.2d`** (4 instruções `fmul.2d`/`fadd.2d`) que o ELF `-a` — confirmado byte a byte contra o `-a` para o mesmo programa. Validado também com `llvm-objdump --macho` (reconhecido como *"Mach-O 64-bit arm64 executable"*, entrada/`UNIXTHREAD`/stub do `mmap`/`bl main` todos corretos).
+
+**O balanço honesto.** O Mach-O foi emitido **às cegas**: aqui não há como executá-lo, só inspecioná-lo. A estrutura está certa e o código é bit-idêntico ao ELF que corre no qemu, mas a primeira execução real é no Mac do utilizador (`build/ondac -m ... > bench_arm; codesign -s - bench_arm; ./bench_arm` — a assinatura ad-hoc que o Apple Silicon exige). `ex/arm-bench.onda` já traz a receita nativa, sem Docker. Se falhar a correr, é sinal para afinar o invólucro.
+
+**Próxima.** A **impressão no `-a`/`-m`** (o runtime via syscalls — `N`, `G`, strings) para a `vecmap.onda` literal correr tal e qual em ARM64 e o juiz confirmá-la contra o significado; e estender a ingestão de RI aos campos-ponteiro (chamadas/mapas) para o round-trip multi-função.
