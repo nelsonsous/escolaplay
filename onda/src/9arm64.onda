@@ -36,6 +36,8 @@
 : asubsp i>i imm x4 | | | 0xD1000000 << imm 10 << 31 5 31
 : aaddsp i>i imm x4 | | | 0x91000000 << imm 10 << 31 5 31
 : aret >i x4 0xD65F03C0
+: aprol >i x4 0xA9BF7BFD
+: aepil >i x4 0xA8C17BFD
 : ab i>i off x4 | 0x14000000 & / off 4 0x3FFFFFF
 : abl i>i off x4 | 0x94000000 & / off 4 0x3FFFFFF
 : afs >i & + * 8 + @ 9 @ 11 15 -16
@@ -121,6 +123,8 @@
 : a22 i>i a { agT 9 a = f afrm - adep 1 ! + f 1 @ 16 x4 0xB4000009 }
 : a23 >i { = f afrm - adep 1 ab - @ f @ 16 = cp @ + f 1 xput4 cp | | 0xB4000000 << & / - @ 16 cp 4 0x7FFFF 5 9 ! @ 63 - adep 1 }
 
+# tabela de chamadas: @64[0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
+: acsrec ii>i pos fi { = c @ @ 64 = b + @ 64 + 1 * c 2 ! b pos ! + b 1 fi ! @ 64 + c 1 }
 : ains i>i p {
   = k @ p
   = d @ + p 1
@@ -149,17 +153,25 @@
   ? == k 26 { agT 9 a aldrdx 0 28 9 asTf 0 d }
   ? == k 27 { agT 9 a agTf 0 b astrdx 0 28 9 }
   ? == k 28 { agT 9 a asT 27 d aadd 27 27 9 }
+  ? == k 7 {
+    = xc 0 = dc 0 = j 0
+    W < j c { = arg @ + b j ? fpt a j { agTf dc arg = dc + dc 1 } { agT xc arg = xc + xc 1 } = j + j 1 }
+    acsrec @ 16 a
+    abl 0
+    ? @ fe a 3 { asTf 0 d } { asT 0 d } }
   ? == k 53 amap p
-  ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aaddsp afs aret }
+  ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aaddsp afs aepil aret }
   { ebeg "operacao ainda nao suportada em -a" eend } }
 : afun i>i k {
   = np @ fe k 2
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
   O 16
   ! fe k 8 @ 16
-  asubsp afs
+  aprol asubsp afs
+  = xc 0
+  = dc 0
   = j 0
-  W < j np { asL j j = j + j 1 }
+  W < j np { ? fpt k j { asLf dc j = dc + dc 1 } { asL xc j = xc + xc 1 } = j + j 1 }
   = j 0
   W < j @ 19 { ains + @ 18 * j 8 = j + j 1 }
   ! fe k 9 @ 16
@@ -193,6 +205,11 @@
   abl - moff 32
   x4 | | 0xD2800000 << 93 5 8
   x4 0xD4000001
+  # corrigir os bl: offset (bytes) = inicio da funcao alvo - posicao do bl (ambos no buffer; a entrada e o
+  # base cancelam porque o corpo e contiguo e sai todo a seguir a entrada)
+  = nc @ @ 64
+  = c 0
+  W < c nc { = pos @ + @ 64 + 1 * c 2 = fi @ + @ 64 + 2 * c 2 xput4 pos | 0x94000000 & / - @ fe fi 8 pos 4 0x3FFFFFF = c + c 1 }
   # corpo de cada funcao
   = k 0
   W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }

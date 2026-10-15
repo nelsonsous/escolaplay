@@ -62,3 +62,19 @@ test('arm64: reais, arrays e o mapa (-a) dao o mesmo que o C', { skip: qemu ? fa
                '  = b A n E b n g a = s 0.0 = i 0 W < i n { = s + s @f + b i = i + i 1 } I s }\n';
   for (const n of [64, 63, 100, 7, 1]) assert.strictEqual(run(mapa(n)), runC(mapa(n)), 'mapa n=' + n);
 });
+
+// chamadas entre funcoes (convencao aarch64: args em x0-x7/d0-d7, bl corrigido no outa, x30 salvo, retorno
+// inteiro em x0 / real em d0). Verificado contra o C. Inclui a vecmap completa (encher + mapa NEON + soma).
+test('arm64: chamadas entre funcoes (-a) dao o mesmo que o C', { skip: qemu ? false : 'qemu-aarch64 nao instalado' }, () => {
+  const intcall = ': dobro i>i x * x 2\n: main >i { = s 0 = i 0 W < i 10 { = s + s dobro i = i + i 1 } s }\n';
+  assert.strictEqual(run(intcall), runC(intcall)); // 90
+  const fltcall = ': media ii>f p n { = s 0.0 = i 0 W < i n { = s + s @f + p i = i + i 1 } / s F n }\n' +
+                  ': main >i { = n 8 = a A n = i 0 W < i n { !f + a i F + i 1 = i + i 1 } I media a n }\n';
+  assert.strictEqual(run(fltcall), runC(fltcall)); // 4
+  // a vecmap completa a correr em ARM64: encher + mapa (NEON) + soma, tudo com chamadas reais
+  const vm = ': g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }\n' +
+             ': encher ii>i p n { = i 0 W < i n { !f + p i F + % i 7 1 = i + i 1 } p }\n' +
+             ': soma ii>f p n { = s 0.0 = i 0 W < i n { = s + s @f + p i = i + i 1 } s }\n' +
+             ': main >i { = n 256 = a encher A n n = b A n E b n g a I soma b n }\n';
+  assert.strictEqual(run(vm), runC(vm)); // 99
+});

@@ -315,7 +315,7 @@
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
   ? || m && && && != @ 12 0 ~ isw ~ isx ~ isa 0 { ebeg "falta : main >i" eend }
-  ? isa { ! 63 A 1000 ! @ 63 0 } 0
+  ? isa { ! 63 A 1000 ! @ 63 0 ! 64 A 8000 ! @ 64 0 } 0
   ? || || isx isc isa inlf 0
   ? isc ! 50 xtab 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0

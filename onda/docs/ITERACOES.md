@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 76 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 77 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1640,3 +1640,20 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Isto é o passo 1 (expor o grafo). O passo 2 — a **ingestão** (a IA emitir o grafo e o compilador lê-lo direto, sem parser, e o juiz conferir contra o significado) — é o que torna a Onda "sem sintaxe" de verdade, e fica a seguir. Mas já se vê o essencial: um programa é um punhado de instruções de 7 números; a sintaxe em texto é só a pele humana.
 
 **Próxima.** A ingestão de RI (fechar a frente direta); e o pedido do utilizador: chamadas + impressão no `-a` para a `vecmap.onda` correr em ARM64 e medir-se o NEON no Mac real.
+
+---
+
+## Iteração 77: chamadas entre funções no `-a` — a vecmap completa a correr em ARM64
+
+**Pergunta (do utilizador: "o 2").** O `-a` já faz reais, arrays e o mapa NEON, mas embutia tudo no `main`. Falta a convenção de **chamadas** para a `vecmap` correr com os seus `encher`/`soma`/`natoi`.
+
+**O que foi feito.** A convenção de chamada aarch64 (AAPCS) no `-a`:
+- **Prólogo/epílogo**: `stp x29,x30,[sp,#-16]!` à entrada e `ldp x29,x30,[sp],#16` + `ret` à saída — salva o registo de ligação (`x30`), para uma chamada aninhada não o perder.
+- **Argumentos**: inteiros em `x0–x7`, reais em `d0–d7` (contadores separados, como manda o AAPCS); carregados dos slots da moldura antes do `bl`. Retorno inteiro em `x0`, real em `d0`.
+- **`bl` corrigido no fim**: cada chamada regista (posição, índice da função alvo) numa tabela; no `outa`, com todas as funções dispostas, cada `bl` é corrigido para o offset certo (como o `xcall` do x86).
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `6ec5dbf6bfe45422`). `node --test`: **101 testes**. Programas com chamadas, compilados com `-a` e corridos no `qemu-aarch64-static`, dão **o mesmo código de saída que o C**: chamada inteira (`Σ 2i = 90`), chamada com retorno real (média → `4`), e — o grande — a **`vecmap` completa** (`encher` + mapa NEON + `soma`, tudo com chamadas reais): `int` da soma = `99`, igual ao C. O cálculo inteiro da vecmap corre agora em ARM64 escrito pela própria Onda.
+
+**O que falta para a `vecmap.onda` literal + o benchmark.** A **impressão** (`N`, `G`, strings) — o runtime em Onda via syscalls — é a última peça do "o 2". É uma reformulação maior (o modelo de memória do runtime usa índices negativos `M[-1..-7]` e o `Y`/syscall), por isso fica para a it.78. Para medir o NEON no Mac real: ou um contentor Linux-ARM (Docker, que corre o ELF à velocidade nativa do chip) depois da impressão, ou emitir Mach-O (peça à parte).
+
+**Próxima.** Impressão no `-a` (fechar "o 2"): o runtime + `Y`/syscalls + strings + `Ac`/`Av`, para a `vecmap.onda` correr tal e qual em ARM64 e o juiz a confirmar contra o significado.
