@@ -95,7 +95,9 @@ static I f_tc(I v_i,I v_j);
 static I f_tcode(I v_i);
 static I f_teq(I v_a,I v_b);
 static I f_ebeg(void);
-static I f_eline(void);
+static I f_etp(void);
+static I f_eln(void);
+static I f_els(void);
 static I f_eend(void);
 static I f_ew(I v_s,I v_l);
 static I f_etx(I v_i);
@@ -840,7 +842,148 @@ os("\n#error onda: ");
 t1=0;
 return t1;
 }
-static I f_eline(void){
+static I f_etp(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+t0=7;
+t1=M[t0];
+t2=4;
+t3=M[t2];
+t4=(t1<t3)?1:0;
+if(t4!=0){
+t6=7;
+t7=M[t6];
+t8=f_tks(t7);
+t5=t8;
+}else{
+t9=1;
+t10=M[t9];
+t11=2;
+t12=M[t11];
+t13=t10+t12;
+t5=t13;
+}
+return t5;
+}
+static I f_eln(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I t17=0;
+I t18=0;
+I t19=0;
+I t20=0;
+I v_p=0;
+I v_e=0;
+I v_n=0;
+t0=1;
+t1=M[t0];
+v_p=t1;
+t2=f_etp();
+v_e=t2;
+t3=1;
+v_n=t3;
+while(1){
+t4=v_p;
+t5=v_e;
+t6=(t4<t5)?1:0;
+if(t6==0)break;
+t7=v_p;
+t8=M[t7];
+t9=10;
+t10=(t8==t9)?1:0;
+if(t10!=0){
+t12=v_n;
+t13=1;
+t14=t12+t13;
+v_n=t14;
+t11=t14;
+}else{
+t15=0;
+t11=t15;
+}
+t16=v_p;
+t17=1;
+t18=t16+t17;
+v_p=t18;
+}
+t19=0;
+t20=v_n;
+return t20;
+}
+static I f_els(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I v_s=0;
+t0=f_etp();
+v_s=t0;
+while(1){
+t1=v_s;
+t2=1;
+t3=M[t2];
+t4=(t1>t3)?1:0;
+t5=0;
+if(t4!=0){
+t6=v_s;
+t7=1;
+t8=t6-t7;
+t9=M[t8];
+t10=10;
+t11=(t9!=t10)?1:0;
+t5=(t11!=0)?1:0;
+}
+if(t5==0)break;
+t12=v_s;
+t13=1;
+t14=t12-t13;
+v_s=t14;
+}
+t15=0;
+t16=v_s;
+return t16;
+}
+static I f_eend(void){
 I t0=0;
 I t1=0;
 I t2=0;
@@ -874,82 +1017,124 @@ I t29=0;
 I t30=0;
 I t31=0;
 I t32=0;
+I t33=0;
+I t34=0;
+I t35=0;
+I t36=0;
+I t37=0;
+I t38=0;
+I t39=0;
+I t40=0;
+I t41=0;
+I t42=0;
+I t43=0;
+I t44=0;
+I t45=0;
+I t46=0;
+I t47=0;
+I t48=0;
+I t49=0;
+I t50=0;
+I t51=0;
+I t52=0;
+I t53=0;
+I t54=0;
+I t55=0;
+I v_tp=0;
+I v_ls=0;
+I v_le=0;
 I v_p=0;
-I v_e=0;
-I v_n=0;
-t0=1;
-t1=M[t0];
-v_p=t1;
-t2=7;
-t3=M[t2];
-t4=4;
-t5=M[t4];
-t6=(t3<t5)?1:0;
-if(t6!=0){
-t8=7;
-t9=M[t8];
-t10=f_tks(t9);
-t7=t10;
-}else{
-t11=v_p;
-t12=2;
-t13=M[t12];
-t14=t11+t13;
-t7=t14;
-}
-v_e=t7;
-t15=1;
-v_n=t15;
+t0=f_etp();
+v_tp=t0;
+t1=f_els();
+v_ls=t1;
+t2=v_tp;
+v_le=t2;
 while(1){
-t16=v_p;
-t17=v_e;
-t18=(t16<t17)?1:0;
-if(t18==0)break;
-t19=v_p;
-t20=M[t19];
-t21=10;
-t22=(t20==t21)?1:0;
-if(t22!=0){
-t24=v_n;
+t3=v_le;
+t4=1;
+t5=M[t4];
+t6=2;
+t7=M[t6];
+t8=t5+t7;
+t9=(t3<t8)?1:0;
+t10=0;
+if(t9!=0){
+t11=v_le;
+t12=M[t11];
+t13=10;
+t14=(t12!=t13)?1:0;
+t10=(t14!=0)?1:0;
+}
+if(t10==0)break;
+t15=v_le;
+t16=1;
+t17=t15+t16;
+v_le=t17;
+}
+t18=0;
+os(" (linha ");
+t19=0;
+t20=f_eln();
+on(t20);
+os(", coluna ");
+t21=0;
+t22=v_tp;
+t23=v_ls;
+t24=t22-t23;
 t25=1;
 t26=t24+t25;
-v_n=t26;
-t23=t26;
-}else{
-t27=0;
-t23=t27;
-}
-t28=v_p;
-t29=1;
-t30=t28+t29;
-v_p=t30;
-}
-t31=0;
-t32=v_n;
-return t32;
-}
-static I f_eend(void){
-I t0=0;
-I t1=0;
-I t2=0;
-I t3=0;
-I t4=0;
-I t5=0;
-I t6=0;
-os(" (linha ");
-t0=0;
-t1=f_eline();
-on(t1);
-os(", token ");
-t2=0;
-t3=7;
-t4=M[t3];
-on(t4);
+on(t26);
 os(")\n");
-t5=0;
-t6=1;
-oexit(t6);
-return t6;
+t27=0;
+t28=v_ls;
+v_p=t28;
+while(1){
+t29=v_p;
+t30=v_le;
+t31=(t29<t30)?1:0;
+if(t31==0)break;
+t32=v_p;
+t33=M[t32];
+op(t33);
+t34=v_p;
+t35=1;
+t36=t34+t35;
+v_p=t36;
+}
+t37=0;
+os("\n");
+t38=0;
+t39=v_ls;
+v_p=t39;
+while(1){
+t40=v_p;
+t41=v_tp;
+t42=(t40<t41)?1:0;
+if(t42==0)break;
+t43=v_p;
+t44=M[t43];
+t45=9;
+t46=(t44==t45)?1:0;
+if(t46!=0){
+t48=9;
+t47=t48;
+}else{
+t49=32;
+t47=t49;
+}
+op(t47);
+t50=v_p;
+t51=1;
+t52=t50+t51;
+v_p=t52;
+}
+t53=0;
+os("^\n");
+t54=0;
+t55=1;
+oexit(t55);
+return t55;
 }
 static I f_ew(I v_s,I v_l){
 I t0=0;

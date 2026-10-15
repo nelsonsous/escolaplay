@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 29 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 30 (o erro apontar a coluna e mostrar a linha da fonte, não só o número).
+Estado: **iteração 30 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 31 (voltar ao desempenho com dados a sério: medir o x86 num programa que mexe muito em memória, onde os ponteiros-base da it.24 deviam render mais).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -810,3 +810,19 @@ São duas linhas de Onda novas (`eline`), só no caminho de erro: não tocam no 
 **Prova.** Os três pontos fixos continuam a fechar e os 38 testes passam (o caminho normal não mudou). Erros de exemplo apontam a linha certa: um nome desconhecido na linha 1 dá `linha 1`, na linha 4 dá `linha 4`.
 
 **Próxima.** Ir mais longe: a coluna dentro da linha, e imprimir a própria linha da fonte com um sinal por baixo do token, como fazem os compiladores modernos.
+
+## Iteração 30: o erro mostra a linha e aponta o sítio
+
+**Pergunta.** A iteração 29 deu o número da linha. Os compiladores modernos vão mais longe: mostram a própria linha e põem um sinal debaixo do sítio exato. Porque não a Onda?
+
+**O que foi feito.** O relato de erro passou a dar a coluna, a imprimir a linha da fonte e a pôr um `^` sob o token que falhou:
+```
+#error onda: nome desconhecido (linha 4, coluna 3)
+  zzz x
+  ^
+```
+A indentação do sinal copia os espaços e tabulações da linha, por isso alinha mesmo quando o código usa tabulações. Continua tudo no caminho de erro, sem tocar no código gerado.
+
+**Prova.** Os três pontos fixos fecham e os 38 testes passam. Um nome desconhecido no meio de uma linha com tabulação dá a coluna certa e o `^` debaixo do nome.
+
+**Próxima.** Voltar ao desempenho, agora com uma carga a sério de memória: medir o x86 num programa que percorre e escreve muito (o simulador, ou uma travessia de estruturas), onde os ponteiros-base içados da iteração 24 deviam render mais do que num laço aritmético.
