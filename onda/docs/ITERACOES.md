@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 70 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C:** mapa `-x5` (AVX-512) 413 ms ≈ `gcc -O3 -march=native` 415 ms (3,2× o `-O2`); redução `-xf` empata com o `-O3`. **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso verificado (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)` de um elemento de mapa, exato e **bit a bit igual em C/x86/WASM** (`docs/AUTODIFF.md`). Próxima: a derivada composta (`×ȳ`) e acumular gradientes em arrays de parâmetros, rumo a treinar um modelo pequeno de ponta a ponta.
+Estado: **iteração 71 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1538,3 +1538,23 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Agora a derivada é gerada, não escrita à mão — é autodiff a sério, em modo direto, para o elemento de um mapa. Falta compor (`f'(x)·ȳ`, a regra da cadeia a montante) e acumular gradientes em arrays de parâmetros, para encadear camadas e treinar. Mas a peça difícil — diferenciar código e manter o determinismo multi-plataforma — está feita e provada.
 
 **Próxima.** A derivada composta `B` com `×ȳ` (o VJP completo do mapa), e a acumulação de gradientes nos parâmetros, rumo a treinar um modelo pequeno de ponta a ponta medindo o determinismo entre backends.
+
+---
+
+## Iteração 71: ARM64 nativo — a Onda escreve o seu próprio código-máquina aarch64 (não C)
+
+**Pergunta.** A it.68 pôs o Mac a andar, mas através do *C* que o `clang` vetoriza. O utilizador quer o mesmo que o `-x` faz no x86 — a Onda a escrever o **seu próprio código-máquina**, agora para ARM64 (o chip do Mac/iPhone), sem C nem assembler. Dá?
+
+**O que já existe.** O `-x` escreve um ELF x86-64 nativo (instruções, AVX, syscalls), e o `-w` escreve WebAssembly. Para ARM não havia nada próprio — só o C+clang.
+
+**A descoberta que destravou isto.** Não há ARM real nesta máquina (x86 Linux), mas instalou-se o **`qemu-aarch64-static`** (emulação user-mode): executáveis aarch64 estáticos e *freestanding* (syscalls, sem libc) correm aqui. Como a Onda emite exatamente isso, dá para **verificar a correção ao bit** (o `qemu` não mede velocidade real — isso é no Mac do utilizador).
+
+**O que foi feito.** Um backend nativo novo — **`-a`** (aarch64) — em `src/9arm64.onda`. A Onda escreve o ELF estático byte a byte e o código-máquina ARM64 instrução a instrução (cada uma 4 bytes little-endian). Primeira fatia: o **núcleo inteiro** — literais (movz/movk), `+ − × ÷ %` (add/sub/mul/sdiv/msub), `& | ^ << >>`, comparações (cmp/cset), locais e temporários (tudo em slots da moldura, `ldr`/`str` relativos ao `sp`, sem alocar registos — simples e correto primeiro), e ciclos `W` (cbz + branch com *back-patching* numa pilha de ciclos). Caminha a MESMA RI que o C/x86/WASM consomem. Dois emissores de texto do C tiveram de passar a aceitar o que o x86/WASM já aceitavam (e que estes laços geram): locais **anónimos** (`elnm`) e operadores **sintéticos** (`eop`). **FOLHA:** o `-a` nunca compila o próprio compilador (o ponto fixo faz-se em C/WASM/x86), por isso um erro no `-a` falha testes mas **não pode** partir o ponto fixo.
+
+**A lição (nomes).** Primeiro chamei ao teste `arm.test.js` — e **esmaguei** um teste que já existia com esse nome: o do *armazém* persistente (`K n`), onde "arm" = armazém, não ARM. Reposto, e o backend ficou `arm64`/`-a` sem ambiguidade.
+
+**Prova (comando e resultado).** `./build.sh` fecha o ponto fixo bit a bit (hash C `5c7a5d098b0a0f28`); as sementes WASM/x86 geram a semente C exata (o `-a` não lhes mexe). `node --test`: **95 testes** (os 93 + 2 do `arm64`). Programas inteiros compilados com `-a` e corridos no `qemu-aarch64-static` dão o resultado certo no código de saída: `7×6=42`, `100%7=2`, `0xF0|0x0F=255`, `Σ0..99=4950` (&255=86), `5!=120`, e `ex/arm64.onda` faz o algoritmo de Euclides `gcd(1071,462)=21`. O `llvm-objdump` confirma que os bytes são aarch64 válido (movz/movk, sdiv, cbz, ret, svc).
+
+**O balanço honesto.** Isto ainda é o núcleo **inteiro** — faltam reais, NEON, chamadas entre funções, impressão (o runtime em Onda via syscalls) e Mach-O para correr direto no Mac (hoje é ELF de Linux ARM, que corre no qemu ou em Linux-ARM). Mas o difícil está provado: a Onda escreve o seu **próprio** código-máquina ARM64, correto ao bit, pela mesma fonte que dá x86/WASM/GPU. Não é "mais rápido que o C" ainda (o próximo passo, o NEON em `-a`, é que ataca isso) — é a **base** para o ser, em ARM, sem depender do C.
+
+**Próxima.** Reais (`fmov`/`fadd`/`fmul`/`scvtf`) e o **NEON** (`fmla.2d`, 2 doubles por instrução) no `-a` — o mapa vetorizado em ARM escrito pela própria Onda, para então medir contra o C no Mac real.
