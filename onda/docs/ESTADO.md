@@ -26,6 +26,7 @@ Uma linguagem de programação escrita por IAs, para IAs. Cada valor é um campo
 - `~` é o **não lógico** (0/1); o complemento de bits faz-se com `^ x mascara`.
 - `&&` e `||` são binários: três condições precisam de dois deles (`&& && a b c`), senão a terceira fica solta como outro argumento — um erro que apanhou três programas desta sessão.
 - Num campo (`E`/`S`/`D`), em C e WebAssembly a função de elemento é **chamada** por índice; para um produto interno quente, um laço explícito dentro do elemento chega à velocidade do C.
+- Uma redução de **floats** com `S` paraleliza em C e soma noutra ordem que o x86/WebAssembly (série); como `+` de floats não é associativo, os últimos bits diferem entre paralelo e série (o valor concorda a ~15 dígitos). A identidade ao bit entre formas vale para código inteiro/determinístico.
 
 ## O que falta (ideias para 50–100)
 

@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 55 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 56 (continuar a biblioteca verificada, ou uma ponta de desempenho/compilador).
+Estado: **iteração 56 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 57 (uma redução de floats determinística — soma por árvore de ordem fixa — para o campo bater ao bit também com floats).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1230,3 +1230,15 @@ A Onda transcende o seu próprio limite de 64 bits com uma estrutura escrita em 
 Também refresquei o `docs/ESTADO.md`: a mini-linguagem já tem funções recursivas (iteração 51), e a lista de programas de uso geral está completa.
 
 **Próxima.** Continuar a biblioteca verificada, ou uma ponta de desempenho/compilador.
+
+## Iteração 56: integração numérica, e os limites da identidade ao bit
+
+**Pergunta.** O paradigma de campo serve a análise numérica? E os floats de uma redução dão os mesmos bits em todas as formas, como os inteiros?
+
+**O que foi feito.** `ex/integra.onda`: a regra de Simpson como uma soma de campo (`S` sobre os pontos). Calcula ∫₀^π sin x dx e ∫₀¹ 4/(1+x²) dx.
+
+**Prova** (`test/integra.test.js`; 78 testes no total, todos a passar). Com um milhão de intervalos: a primeira dá 1,99999999999999 (= 2) e a segunda 3,14159265358973 (= π), em todas as formas, dentro de 10⁻¹⁰.
+
+**O achado honesto.** Ao contrário do SHA-256, os **bits** da redução de floats **não** são iguais entre todas as formas: o `S` paraleliza em C (OpenMP) e soma noutra ordem que o x86 e o WebAssembly (que são em série). Como a soma de vírgula flutuante não é associativa, os últimos bits de C diferem — mas o x86 e o WebAssembly, ambos em série, batem ao bit. O valor concorda a ~15 dígitos. Isto delimita com honestidade a afirmação de "a mesma máquina em todas as formas": vale ao bit para código inteiro e determinístico (como o SHA-256); para reduções de floats em paralelo, vale ao valor, não ao último bit. O `README` e o `ESTADO.md` passaram a dizê-lo.
+
+**Próxima.** Uma redução de floats determinística — uma soma por árvore de ordem fixa, independente do número de núcleos — para o campo bater ao bit também com floats, em todas as formas.

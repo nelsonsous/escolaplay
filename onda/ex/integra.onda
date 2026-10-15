@@ -1,0 +1,17 @@
+# Integracao numerica (regra de Simpson) pelo paradigma de campo: a soma dos pesos e um S sobre os pontos.
+# Mostra o modelo campo+colapso na analise numerica, e os floats dao os mesmos bits em todas as formas.
+# Calcula ∫0^pi sin x dx (= 2) e ∫0^1 4/(1+x^2) dx (= pi).
+: pit >f 3.14159265358979323846
+# termo de Simpson para o i-esimo ponto de f=sin em [0,pi] com n intervalos (n par)
+: wsin iif>f i n h { = x * F i h = p ? || == i 0 == i n 1.0 ? == % i 2 1 4.0 2.0 * p Sn x }
+: watan iif>f i n h { = x * F i h = v / 4.0 + 1.0 * x x = p ? || == i 0 == i n 1.0 ? == % i 2 1 4.0 2.0 * p v }
+: main >i {
+  = n 1000000
+  = hs / pit F n
+  = is * / hs 3.0 S + n 1 wsin n hs
+  = ha / 1.0 F n
+  = ia * / ha 3.0 S + n 1 watan n ha
+  "integral de sin em [0,pi] = " G is "  (esperado 2)\n"
+  "integral de 4/(1+x^2) em [0,1] = " G ia "  (esperado pi)\n"
+  "bits: " N Bh is " " N Bl is " / " N Bh ia " " N Bl ia "\n"
+  0 }

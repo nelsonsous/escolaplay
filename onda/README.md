@@ -21,7 +21,7 @@ build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pe
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
 ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
-node --test test/*.test.js  # todos os testes (76): + quicksort e BFS num labirinto
+node --test test/*.test.js  # todos os testes (78): + BFS num labirinto e integracao numerica
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -39,7 +39,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `rt/prelude.c` | runtime C mínimo |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
-| `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem Turing-completa (`mini.onda`) um crivo de Eratóstenes (`crivo.onda`) um armazém endereçado por conteúdo (`cas.onda`), base64 (`b64.onda`) um matcher de expressões regulares (`regex.onda`) aritmética de precisão arbitrária (`big.onda`) quicksort (`qsort.onda`) e BFS num labirinto (`maze.onda`) |
+| `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem Turing-completa (`mini.onda`) um crivo de Eratóstenes (`crivo.onda`) um armazém endereçado por conteúdo (`cas.onda`), base64 (`b64.onda`) um matcher de expressões regulares (`regex.onda`) aritmética de precisão arbitrária (`big.onda`) quicksort (`qsort.onda`) BFS num labirinto (`maze.onda`) e integração de Simpson (`integra.onda`) |
 | `bench/` | comparações com C, JavaScript e Python |
 | `test/`, `tools/` | testes e ferramentas de verificação (GPU, WebAssembly, páginas) |
 
@@ -63,6 +63,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 
 ## Limites
 
+- A identidade bit a bit entre formas vale para código inteiro e determinístico (p. ex. o SHA-256). Uma **redução de floats** (`S`) paraleliza em C (OpenMP) e soma noutra ordem que o x86/WebAssembly (série); como a soma de vírgula flutuante não é associativa, os últimos bits podem diferir entre a forma paralela e a série (o valor concorda a ~15 dígitos). O x86 e o WebAssembly, ambos em série, batem ao bit.
 - Na forma C, a velocidade é a do gcc. Na forma x86 própria, a Onda iguala o gcc em tempo nos ciclos numéricos **e** no código limitado pela memória (uma travessia de 400 milhões de nós: 1 486 ms contra 1 481 ms do gcc, apesar de executar 1,4× as instruções — a latência da memória esconde-as). A distância em tempo fica só no código limitado pelo cálculo com muitas chamadas: `fib` é 4× mais lento, por causa do protocolo de chamada (os argumentos vão à pilha), não da conta.
 - "Quântico" tem dois sentidos: o modelo de paralelismo dos campos, e programas OpenQASM reais gerados a partir de funções Onda. Estes só ganham velocidade em hardware quântico, e aqui são verificados classicamente.
 - Versão 0:
