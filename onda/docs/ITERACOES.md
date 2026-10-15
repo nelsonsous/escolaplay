@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 24 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 25 (menos saltos tomados por volta: rodar os ciclos e duplicar caudas curtas).
+Estado: **iteração 25 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 26 (escritas atómicas no armazém: sobreviver a uma queda a meio).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -671,3 +671,38 @@ A soma fica com 2 × 63 Toffoli, o mínimo para um somador em cadeia de 64 bits:
 O tempo do simulador de 10 bits desceu de 1 624 para cerca de 1 500 ms, contra 1 030–1 080 ms do C. A distância em instruções é 1,16×, mas no tempo ainda é 1,4×. O que falta são saltos tomados: cada caso do `?` acaba num `jmp` para o bloco comum, e o ciclo ainda salta para o teste no topo.
 
 **Próxima.** Menos saltos tomados por volta: rodar os ciclos (teste no fim) e duplicar caudas curtas nos ramos.
+
+## Iteração 25: a memória é o armazenamento
+
+**Pergunta.** No início pediste um armazenamento novo, "um pouco de todos, o melhor de todos, muito rápido", sem precisares de saber como fica organizado. Até aqui a Onda não tinha nenhum: a memória morria com o programa. Porque é que guardar dados tem de ser diferente de os ter em memória?
+
+**O que já existe.**
+- **Bases de dados (SQLite, Postgres):** copiam cada valor entre a memória e um formato em disco, e pagam por isso em cada leitura e escrita.
+- **O LMDB:** mostrou que um ficheiro mapeado em memória dá leituras à velocidade da RAM, sem cópias.
+- **As imagens do Smalltalk e o armazenamento de nível único do IBM System/38:** fazem da memória o próprio armazenamento.
+
+**O que foi feito.**
+- **Operador `K n`:** devolve o endereço-base de n palavras que sobrevivem entre execuções. O programa usa-as com `@` e `!`, como qualquer memória. Não há formato, serialização nem carregamento ao arrancar.
+- **A persistência é uma decisão de instalação, não de código:** com `ONDA_ARM=ficheiro`, o armazém é esse ficheiro. Sem ele, é memória volátil, e o programa é o mesmo.
+- **C:** `mmap` partilhado do ficheiro e `msync` à saída. Fora do POSIX, usa leitura e escrita do ficheiro inteiro.
+- **x86-64:** as mesmas chamadas ao sistema escritas byte a byte (`open`, `lseek`, `ftruncate`, `mmap` fixo em 0x100000000, `close` e `msync` na saída). Procura `ONDA_ARM` no ambiente do processo, sem biblioteca.
+- **WebAssembly:** o anfitrião reserva o armazém no monte, carrega o ficheiro e grava-o à saída de forma atómica (`.tmp` e `rename`). No browser fica volátil.
+- **Um formato só:** palavras de 64 bits em little-endian. O ficheiro escrito por uma forma é lido pelas outras.
+- **`ex/arm.onda`:** uma tabela de dispersão chave → valor (dispersão de Fibonacci e sondagem linear) que vive no armazém.
+
+**Prova** (`test/arm.test.js`, 3 testes novos; 35 no total, todos a passar).
+- Sem `ONDA_ARM`, cada execução começa vazia.
+- O x86 escreve 5 000 chaves, o C lê-as, o WebAssembly junta mais, e o x86 e o C voltam a ler. Tudo certo.
+- As três formas, com as mesmas operações, escrevem ficheiros **iguais bit a bit**.
+- O `strace` do x86 mostra a sequência esperada: `open`, `lseek`, `mmap(0x100000000, …, MAP_SHARED|MAP_FIXED)`, `close` e `msync(…, MS_SYNC)` antes do `exit_group`.
+
+| 1 milhão de chaves (melhor de 5) | escrever | ler todas |
+|---|---|---|
+| Onda em C | **41 ms** | **20 ms** |
+| Onda em x86-64 | 66 ms | 23 ms |
+| Onda em WebAssembly (Node) | 92 ms | 53 ms |
+| SQLite 3.45 (WAL, tudo dentro do SQL) | 480 ms | 200 ms |
+
+A comparação não é justa para o SQLite, e é preciso dizê-lo: ele tem transações e sobrevive a uma queda a meio, e o armazém da Onda ainda não. É isso que a próxima iteração resolve.
+
+**Próxima.** Escritas atómicas: um programa que cai a meio de uma atualização tem de encontrar o armazém como estava antes ou como ficou depois, nunca a meio.

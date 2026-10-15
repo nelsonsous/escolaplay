@@ -42,7 +42,7 @@ const Significado = (() => {
   const BW = (h, l) => { BV.setInt32(0, h); BV.setUint32(4, l); return BV.getFloat64(0); };
   const BIN = { '+': 10, '-': 11, '*': 12, '/': 13, '%': 15, '&': 16, '|': 17, '^': 18, '<<': 19, '>>': 20 };
   const CMP = { '<': 21, '>': 22, '<=': 23, '>=': 24, '==': 25, '!=': 26 };
-  const CPU = new Set(['@', '!', '@f', '!f', 'A', 'P', 'R', 'N', 'G', 'O', 'Ac', 'Av', 'X', 'T', 'E', 'D', 'Y']);
+  const CPU = new Set(['@', '!', '@f', '!f', 'A', 'P', 'R', 'N', 'G', 'O', 'Ac', 'Av', 'X', 'T', 'E', 'D', 'Y', 'K']);
 
   function definicoes(T) {
     const F = new Map();

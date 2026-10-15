@@ -44,6 +44,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `Ac` / `Av i j` | 0/2 | número de argumentos / byte j do argumento i |
 | `X c` | 1 | sai com o código c |
 | `T` | 0 | relógio em microssegundos |
+| **`K n`** | 1 | armazém: endereço-base de n palavras que sobrevivem entre execuções (o ficheiro de `ONDA_ARM`, mapeado em memória); sem `ONDA_ARM` é memória volátil |
 | **`E d n f a..`** | campo | M[d+i] = f(i, a..) para todo o i<n, em paralelo; vale d |
 | **`S n f a..`** | campo | Σ f(i, a..) para i<n, redução paralela |
 | **`D w h f a..`** | campo | imagem w×h com o píxel f(x, y, a..) = 0xRRGGBB (PPM no stdout) |

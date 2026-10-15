@@ -13,6 +13,7 @@
 : cav >i { = a cx = b cx ckint a ckint b = r nt 0 ir 35 r a b 0 0 0 r }
 : cex >i { = c cx ckint c ir 36 0 c 0 0 0 0 c }
 : ctm >i { = r nt 0 ir 37 r 0 0 0 0 0 r }
+: ckst >i { = n cx ckint n = c lit1 8 = z lit1 0 = r nt 0 ir 42 r c n z 0 0 r }
 : csys >i { = c cx = a cx = b cx ckint c ckint a ckint b = r nt 0 ir 42 r c a b 0 0 r }
 : fref i>i m {
   = i @ 7
@@ -130,6 +131,7 @@
   ? == o 'S cs
   ? == o 'D cd
   ? == o 'Y csys
+  ? == o 'K ckst
   { ! 7 i ebeg "operacao desconhecida" eend } }
 : rdall >i {
   = s @ 1
@@ -152,7 +154,7 @@
   W < k @ 6 { sighdr k ";\n" = k + k 1 }
   = k 0
   W < k @ 6 { emitf k = k + k 1 }
-  "int main(int c,char**v){oinit(c,v);I r=f_main();oflush();return (int)r;}\n" }
+  "int main(int c,char**v){oinit(c,v);I r=f_main();oflush();okend();return (int)r;}\n" }
 : reach >i {
   = e -1
   = k 0

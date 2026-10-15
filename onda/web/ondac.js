@@ -17,7 +17,7 @@ const OndaC = (() => {
     const input = enc.encode(src);
     const args = ['ondac'].concat(entry ? ['-' + (mode === 'j' ? 'j' : 'g'), entry] : []).map(s => enc.encode(s));
     const out = [];
-    let ip = 0, code = 0, mem = null;
+    let ip = 0, code = 0, mem = null, kb = -1n;
     const words = (a, n) => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n);
     const sys = (c, a, b) => {
       switch (Number(c)) {
@@ -29,6 +29,7 @@ const OndaC = (() => {
         case 5: { const x = new Float64Array(new BigInt64Array([a]).buffer)[0], t = cfmt(x), v = words(b, t.length); for (let i = 0; i < t.length; i++) v[i] = BigInt(t.charCodeAt(i)); return BigInt(t.length); }
         case 6: return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000));
         case 7: { const need = (Number(a) + 16) * 8, cur = mem.buffer.byteLength; if (need > cur) mem.grow(Math.ceil((need - cur) / 65536)); return BigInt(mem.buffer.byteLength / 8 - 16); }
+        case 8: { if (kb < 0n) { const z = Math.max(Number(a), 1); kb = words(-1, 1)[0]; const top = Number(kb) + z, need = (top + 16) * 8, cur = mem.buffer.byteLength; if (need > cur) mem.grow(Math.ceil((need - cur) / 65536)); words(-1, 1)[0] = BigInt(top); words(-7, 1)[0] = BigInt(mem.buffer.byteLength / 8 - 16); } return kb; }
       }
       return 0n;
     };

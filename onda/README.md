@@ -20,7 +20,8 @@ build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pe
 ./onda circ ex/oraculo.onda alvo                  # a funcao vira um circuito (AIGER); -v da Verilog
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
-node --test test/*.test.js  # todos os testes (32): Onda Viva, matematica bit a bit, circuitos e oraculos
+ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
+node --test test/*.test.js  # todos os testes (35): Onda Viva, matematica bit a bit, circuitos e oraculos
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -38,7 +39,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `rt/prelude.c` | runtime C mínimo |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
-| `ex/` | exemplos: fractal, ondas, Grover, π, fib, e um simulador de OpenQASM (`qasm.onda`) |
+| `ex/` | exemplos: fractal, ondas, Grover, π, fib, um simulador de OpenQASM (`qasm.onda`) e um armazém chave-valor persistente (`arm.onda`) |
 | `bench/` | comparações com C, JavaScript e Python |
 | `test/`, `tools/` | testes e ferramentas de verificação (GPU, WebAssembly, páginas) |
 
@@ -53,6 +54,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 - **Matemática igual ao bit:** `Sn Cs Ex Lg At Pw` dão os mesmos bits em C, WebAssembly, x86, JavaScript e no significado (`test/mat.test.js`). O `Pw` é o pow do fdlibm, conferido com o `StrictMath` do Java.
 - **Circuitos:** cada circuito é simulado e comparado com a função compilada, e o Verilog com o AIGER (`test/circ.test.js`).
 - **Oráculos quânticos:** são reversíveis e limpos (auxiliares a 0). O de Grover foi verificado nas 2²⁰ entradas de uma vez.
+- **Armazém persistente (`K n`):** a memória é o armazenamento. Com `ONDA_ARM=ficheiro` o armazém é esse ficheiro mapeado em memória, e C, x86 e WebAssembly escrevem ficheiros iguais bit a bit (`test/arm.test.js`). Um milhão de chaves numa tabela de dispersão (`ex/arm.onda`): 41 ms a escrever e 20 ms a ler em C (66 e 23 ms no x86), contra cerca de 480 e 200 ms do SQLite.
 - **Onda Viva:**
   - a forma CPU dá os mesmos bits que o significado e é 17 a 20 vezes mais rápida;
   - a forma GPU cumpre a tolerância declarada;
@@ -65,6 +67,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 - "Quântico" tem dois sentidos: o modelo de paralelismo dos campos, e programas OpenQASM reais gerados a partir de funções Onda. Estes só ganham velocidade em hardware quântico, e aqui são verificados classicamente.
 - Versão 0:
   - a memória só cresce;
+  - o armazém é durável na saída normal (`msync`), mas uma queda a meio pode deixar escritas por acabar; não há transações (o SQLite tem-nas, e isso explica parte da diferença);
   - não há verificação de limites nem módulos;
   - na GPU os números têm 32 bits;
   - em JavaScript os inteiros têm 53 bits e as operações de bits usam 32.
