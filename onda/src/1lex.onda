@@ -33,6 +33,7 @@
 : et i>i t { "t" N t }
 : eq i>i r { et r "=" }
 : isjs >i == @ 12 2
+: isw >i == @ 12 3
 : ety i>i y ? @ 12 ? isjs "let" ? y "float" "int" ? y "F" "I"
 : ez i>i y ? y "0.0" "0"
 : cpu >i ? @ 12 "\n#error onda: operacao so de CPU\n" 0

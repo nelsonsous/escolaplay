@@ -25,7 +25,7 @@
   = c @ + p 4
   = x @ + p 5
   = y @ + p 6
-  ? && && >= k 24 <= k 40 != k 39 cpu 0
+  ? || && && >= k 24 <= k 40 != k 39 == k 42 cpu 0
   ? == k 1 { eq d etx a ";\n" }
   ? == k 2 { eq d N a ";\n" }
   ? == k 3 { ? @ 12 "\n#error onda: texto so em CPU\n" 0 "os(\"" escs a "\");\n" }
@@ -66,4 +66,5 @@
   ? == k 39 { eq d ez tty d ";\n" ? @ 12 { "for(" ety 0 " i=0;i<" } { "#pragma omp parallel for reduction(+:" et d ")\nfor(I i=0;i<" } et a ";i++)" et d "+=f_" etx @ fe b 0 "(i" eargs c x 1 ");\n" }
   ? == k 40 { eq d "0;\n{unsigned char*g=oimg0(" et a "," et b ");\n#pragma omp parallel for\nfor(I y=0;y<" et b ";y++)for(I x=0;x<" et a ";x++){I c=f_" etx @ fe c 0 ? fpt c 0 "((F)x,(F)y" "(x,y" eargs x y 1 ");unsigned char*q=g+3*(y*" et a "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et a "," et b ");}\n" }
   ? == k 41 { "return " et a ";\n}\n" }
+  ? == k 42 { eq d "osys(" et a "," et b "," et c ");\n" }
   0 }

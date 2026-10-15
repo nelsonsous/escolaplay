@@ -13,6 +13,7 @@
 : cav >i { = a cx = b cx ckint a ckint b = r nt 0 ir 35 r a b 0 0 0 r }
 : cex >i { = c cx ckint c ir 36 0 c 0 0 0 0 c }
 : ctm >i { = r nt 0 ir 37 r 0 0 0 0 0 r }
+: csys >i { = c cx = a cx = b cx ckint c ckint a ckint b = r nt 0 ir 42 r c a b 0 0 r }
 : fref i>i m {
   = i @ 7
   ? >= i @ 4 { ebeg "falta funcao" eend } 0
@@ -94,6 +95,7 @@
   ? == o 'E ce
   ? == o 'S cs
   ? == o 'D cd
+  ? == o 'Y csys
   { ! 7 i ebeg "operacao desconhecida" eend } }
 : rdall >i {
   = s @ 1
@@ -151,9 +153,10 @@
   W < j @ fe e 2 { ? fpt e j { ",u[" N - j 2 "]" } { ",int(u[" N - j 2 "])" } = j + j 1 }
   ");oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}\n" }
 : main >i {
-  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 0
+  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 0
   ! 1 A 1000000
   rdall
+  ? isw { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
   ! 3 A + 3 * 3 @ 2
   ! 5 A 120000
   ! 8 A 40000
@@ -167,8 +170,8 @@
   = m 0
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
-  ? || m @ 12 0 { ebeg "falta : main >i" eend }
+  ? || m && != @ 12 0 ~ isw 0 { ebeg "falta : main >i" eend }
   = k 0
   W < k @ 6 { cfun k = k + k 1 }
-  ? isjs outj ? @ 12 outg outc
+  ? isw outw ? isjs outj ? @ 12 outg outc
   0 }
