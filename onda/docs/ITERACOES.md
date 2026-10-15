@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 39 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 40 (o emissor C a fundir o corpo do elemento no laço de redução OpenMP, a correção de fundo que esta iteração localizou).
+Estado: **iteração 40 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 41 (um programa com estado e E/S a sério — um verificador ou um pequeno servidor de linha de comandos — ou a correção de fundo do `S` no emissor C).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -979,3 +979,22 @@ O `lowS` (a baixa que mete a função em linha, via `ccallf`) só é usado **no 
 **A conclusão.** A correção de fundo não é no front-end nem numa guarda: é o **emissor de C** a escrever o corpo do elemento dentro do laço de redução OpenMP, com os parâmetros substituídos, em vez de o chamar. É real e localizável, mas não trivial, e não vale arriscá-la às cegas. O atalho da iteração 38 (laço explícito no elemento) já dá a velocidade do C quando é preciso. O `SPEC.md` passou a documentar este custo, para quem escreve Onda saber quando usar um `S` (clareza) e quando um laço (velocidade).
 
 **Próxima.** O emissor de C a fundir o corpo do elemento no laço OpenMP — a correção que esta iteração localizou com precisão.
+
+## Iteração 40: SHA-256 em Onda, bit a bit igual nas três formas
+
+**Pergunta.** Os operadores de bits da Onda (`& | ^ << >>`) dão mesmo o mesmo resultado em C, x86 e WebAssembly, até ao último bit, num programa que vive de os torcer? A criptografia é o teste mais exigente: um bit errado e o resumo muda por completo.
+
+**O que foi feito.** `ex/sha256.onda`: o SHA-256 completo escrito em Onda — preparação da mensagem, as 64 rondas, as funções Σ/σ/Ch/Maj com rotações, e as 64 constantes. Lê a mensagem do stdin e imprime o resumo em hexadecimal.
+
+**Um erro que ensina a linguagem.** A primeira versão dava um resumo errado. A causa: usei `~ x` para o complemento de bits na função `Ch`. Mas em Onda o `~` é o **não lógico** (dá 0 ou 1), não o complemento de bits. O complemento de 32 bits faz-se com `^ x mascara` (XOR com todos-os-uns). Trocado isso, bateu certo à primeira. O `SPEC.md` passou a avisar.
+
+**Prova** (`test/sha.test.js`; 49 testes no total, todos a passar). Seis vetores — vazio, "abc", 55 e 56 bytes (o limite de um bloco e o que força um segundo só para o preenchimento), 100 bytes (dois blocos) e a frase da raposa — todos conferidos contra o `crypto` do Node, e todos **iguais bit a bit** em C, x86-64 e WebAssembly.
+
+| mensagem | SHA-256 |
+|---|---|
+| "" | e3b0c442…7852b855 |
+| "abc" | ba7816bf…f20015ad |
+
+É a prova mais forte até agora de que as três formas são a mesma máquina: 256 bits que, se um só operador de bits divergisse numa forma, não bateriam.
+
+**Próxima.** Subir outra vez a parada de "programa a sério": algo com estado e entrada/saída (um verificador de ficheiros com o SHA, ou um pequeno servidor de linha de comandos), ou enfim a correção de fundo do `S` no emissor C que a iteração 39 localizou.

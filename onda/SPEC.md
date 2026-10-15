@@ -23,7 +23,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `% & \| ^ << >>` | 2 | só inteiros |
 | `< > <= >= == !=` | 2 | comparação → 0/1 |
 | `&& \|\|` | 2 | lógica com curto-circuito → 0/1 |
-| `~` | 1 | não lógico |
+| `~` | 1 | não **lógico** (0/1); o complemento de bits de x em N bits faz-se com `^ x mascara` |
 | `F` / `I` | 1 | int→real / real→int (sem conversões implícitas) |
 | `Sq Sn Cs Ex Lg Fl Ab` | 1 | sqrt sin cos exp log floor abs (reais) |
 | `Pw At` | 2 | pow, atan2 |
