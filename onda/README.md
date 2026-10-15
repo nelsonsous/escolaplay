@@ -21,7 +21,7 @@ build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pe
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
 ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
-node --test test/*.test.js  # todos os testes (51): Onda Viva, matematica, circuitos, oraculos, armazem, GPU, Brainfuck, matmul, SHA-256 e Vida
+node --test test/*.test.js  # todos os testes (53): Onda Viva, matematica, circuitos, armazem, GPU, Brainfuck, matmul, SHA-256, Vida e calc
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -39,7 +39,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `rt/prelude.c` | runtime C mínimo |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
-| `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`) e o Jogo da Vida (`life.onda`) |
+| `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) e um avaliador de expressões (`calc.onda`) |
 | `bench/` | comparações com C, JavaScript e Python |
 | `test/`, `tools/` | testes e ferramentas de verificação (GPU, WebAssembly, páginas) |
 

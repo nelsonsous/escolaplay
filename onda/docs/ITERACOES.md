@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 41 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 42 (o Jogo da Vida na GPU, ou um stencil mais pesado — desfoque de imagem — a comparar CPU e GPU).
+Estado: **iteração 42 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 43 (dar ao avaliador variáveis e chamadas — um passo na direção de uma linguagem pequena interpretada em Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1010,3 +1010,15 @@ O `lowS` (a baixa que mete a função em linha, via `ccallf`) só é usado **no 
 Ao contrário do fractal, onde cada píxel é independente, aqui cada célula depende de uma vizinhança — e o `E` continua a dar o paralelismo de borla, porque a leitura dos vizinhos não viola a regra da sobreposição.
 
 **Próxima.** Levar o stencil à GPU (o Jogo da Vida como shader, conferido contra a CPU), ou um stencil mais pesado — um desfoque de imagem — a comparar CPU e GPU píxel a píxel.
+
+## Iteração 42: a Onda a analisar — um avaliador de expressões
+
+**Pergunta.** A Onda nasceu para compilar (a si própria). Fora disso, escreve-se nela um analisador a sério — com recursão e precedência — de forma natural?
+
+**O que foi feito.** `ex/calc.onda`: um avaliador de expressões aritméticas por descida recursiva. Três funções que se chamam em cadeia — `expr` → `termo` → `fator` → (de volta a) `expr` nos parênteses — dão a precedência certa: `+ -` por baixo, `* / %` por cima, parênteses a toda a volta, e menos unário. Um cursor global percorre o texto.
+
+**Prova** (`test/calc.test.js`; 53 testes no total, todos a passar). Dez expressões conferidas: `3+4*2 = 11` (precedência), `(3+4)*2 = 14` (parênteses), `2*(3+4*(5-1)) = 38` (recursão aninhada), `-5+3 = -2` (menos unário), `2*-3+10 = 4`, e todas iguais em C, x86-64 e WebAssembly. A divisão e o resto são inteiros, como na Onda.
+
+A recursão mútua entre `expr`, `termo` e `fator` — o padrão clássico de um analisador — compila e corre igual nas três formas. É mais um passo a mostrar que a Onda é uma linguagem de uso geral, não só um compilador que se reproduz.
+
+**Próxima.** Dar ao avaliador variáveis (`x = 3; x*x`) e talvez chamadas, aproximando-o de uma pequena linguagem interpretada escrita em Onda — um interpretador de expressões com ambiente.
