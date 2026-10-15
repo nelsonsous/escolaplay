@@ -7,6 +7,18 @@ const bytes = fs.readFileSync(process.argv[2]);
 const args = ['prog', ...process.argv.slice(3)].map(s => Buffer.from(s));
 let mem = null, inbuf = null, ip = 0;
 const W = a => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8);
+// imita o printf("%.15g") do C
+function cfmt(x) {
+  if (Number.isNaN(x)) return 'nan';
+  if (!Number.isFinite(x)) return x < 0 ? '-inf' : 'inf';
+  if (x === 0) return Object.is(x, -0) ? '-0' : '0';
+  const e = Number(x.toExponential(14).split('e')[1]);
+  const tira = t => (t.includes('.') ? t.replace(/0+$/, '').replace(/\.$/, '') : t);
+  if (e >= -4 && e < 15) return tira(x.toFixed(14 - e));
+  let [m, ex] = x.toExponential(14).split('e');
+  const n = Number(ex);
+  return tira(m) + 'e' + (n < 0 ? '-' : '+') + String(Math.abs(n)).padStart(2, '0');
+}
 function sys(c, a, b) {
   switch (Number(c)) {
     case 0: { const n = Number(b), v = new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n), u = Buffer.alloc(n); for (let i = 0; i < n; i++) u[i] = Number(v[i] & 255n); fs.writeSync(1, u); return 0n; }
@@ -14,7 +26,7 @@ function sys(c, a, b) {
     case 2: process.exit(Number(a));
     case 3: return BigInt(args.length);
     case 4: { const s = args[Number(a)]; const j = Number(b); return s && j >= 0 && j < s.length ? BigInt(s[j]) : 0n; }
-    case 5: { const x = new Float64Array(new BigInt64Array([a]).buffer)[0], t = String(parseFloat(x.toPrecision(15))), v = W(b); for (let i = 0; i < t.length; i++) v[i] = BigInt(t.charCodeAt(i)); return BigInt(t.length); }
+    case 5: { const x = new Float64Array(new BigInt64Array([a]).buffer)[0], t = cfmt(x), v = W(b); for (let i = 0; i < t.length; i++) v[i] = BigInt(t.charCodeAt(i)); return BigInt(t.length); }
     case 6: return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000));
   }
   return 0n;

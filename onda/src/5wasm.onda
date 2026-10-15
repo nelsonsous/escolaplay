@@ -34,6 +34,78 @@
     { = j + j 2 W < j l { = c @ + s j = v + * v 16 ? isdg c - c '0 ? && >= c 'a <= c 'f + 10 - c 'a + 10 - c 'A = j + j 1 } }
     { W < j l { = v + * v 10 - @ + s j '0 = j + j 1 } }
   ? neg - 0 v v }
+: p10 i>f k { = r 1.0 = j 0 W < j k { = r * r 10.0 = j + j 1 } r }
+: fltval i>f i {
+  = s tks i
+  = l tkl i
+  = j 0
+  = neg 0
+  ? == @ s '- { = neg 1 = j 1 } 0
+  = m 0.0
+  = k 0
+  = fr 0
+  W < j l { = c @ + s j ? == c '. = fr 1 { = m + * m 10.0 F - c '0 ? fr = k + k 1 0 } = j + j 1 }
+  = v / m p10 k
+  ? neg * -1.0 v v }
+: wf64 f>i v { !f 24 v P 68 wword @ 24 8 }
+: wun ii>i c t {
+  ? == c 0 { wg t P 185 }
+  ? == c 1 { wg t P 252 P 6 }
+  ? == c 2 { wg t P 159 }
+  ? == c 7 { wg t P 156 }
+  ? == c 8 { wg t P 153 }
+  { wi64 - c 3 wg t P 16 P 1 } }
+: wxl i>i j + + @ 9 @ 11 j
+: wgx i>i j { P 32 wu wxl j }
+: wsxx i>i j { P 33 wu wxl j }
+: wloop0 i>i j { wi64 0 wsxx j P 2 P 64 P 3 P 64 }
+: wtest ii>i j n { wgx j wg n P 89 P 13 P 1 }
+: wnext i>i j { wgx j wi64 1 P 124 wsxx j P 12 P 0 P 11 P 11 }
+: wxargs ii>i a n { = j 0 W < j n { wg @ + a j = j + j 1 } 0 }
+: wS i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  ? tty d wf0 wi64 0
+  wsx d
+  wloop0 0
+  wtest 0 a
+  wg d wgx 0 wxargs c x P 16 wu + 3 b P ? tty d 160 124 wsx d
+  wnext 0 }
+: wE i>i p {
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  wloop0 0
+  wtest 0 b
+  wg a wgx 0 P 124 wadr
+  wgx 0 wxargs x y P 16 wu + 3 c
+  ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
+  wnext 0 }
+: wbyte ii>i j s { wgx j wi64 s P 135 wi64 255 P 131 wrf k3 '_ 'o 'p P 26 }
+: wD i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  wg a wg b wrf k3 '_ 'p 'h P 26
+  wloop0 1
+  wtest 1 b
+  wloop0 0
+  wtest 0 a
+  wgx 0 ? fpt c 0 P 185 0
+  wgx 1 ? fpt c 0 P 185 0
+  wxargs x y P 16 wu + 3 c wsxx 2
+  wbyte 2 16 wbyte 2 8 wbyte 2 0
+  wnext 0
+  wnext 1
+  wi64 0 wsx d }
 : wbop ii>i o y ? y { ? == o '+ 160 ? == o '- 161 ? == o '* 162 163 }
   { ? == o '+ 124 ? == o '- 125 ? == o '* 126 ? == o '/ 127 ? == o '% 129 ? == o '& 131 ? == o '| 132 ? == o '^ 133 ? == o k2 '< '< 134 135 }
 : wcop ii>i o y {
@@ -62,7 +134,7 @@
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
-  ? == k 1 { ? tty d { ebeg "reais ainda nao suportados em -w" eend } 0 wi64 tokval a wsx d }
+  ? == k 1 { ? tty d { wf64 fltval a } { wi64 tokval a } wsx d }
   ? == k 2 { wi64 a wsx d }
   ? == k 3 { wstr a }
   ? == k 4 { ? tty d wf0 wi64 0 wsx d }
@@ -75,6 +147,8 @@
   ? || == k 11 == k 13 { wcond a wb2i wsx d P 11 }
   ? == k 12 { wi64 1 wsx d wg a P 80 P 4 P 64 }
   ? == k 14 { wg a P 80 wb2i wsx d }
+  ? == k 15 { wun a b wsx d }
+  ? == k 16 { wi64 - a 9 wg b wg c P 16 P 2 wsx d }
   ? == k 17 { wg b wg c wg b wg c P ? a ? tty b 100 85 ? tty b 99 83 P 27 wsx d }
   ? == k 18 { wcond a P 4 P 64 }
   ? == k 19 { wg a wsx d P 5 }
@@ -90,11 +164,15 @@
   ? == k 29 { wg a wrf k3 '_ 'o 'p P 26 }
   ? == k 30 { wsys 1 0 0 wsx d }
   ? == k 31 { wg a wrf k3 '_ 'o 'n P 26 }
+  ? == k 32 { wg a wrf k3 '_ 'o 'g P 26 }
   ? == k 33 { wi64 -2 wadr wg a P 55 P 3 P 0 }
   ? == k 34 { wsys 3 0 0 wsx d }
   ? == k 35 { wi64 4 wg a wg b P 16 P 0 wsx d }
   ? == k 36 { wg a wrf k3 '_ 'e 'x P 26 }
   ? == k 37 { wsys 6 0 0 wsx d }
+  ? == k 38 { wE p }
+  ? == k 39 { wS p }
+  ? == k 40 { wD p }
   ? == k 42 { wg a wg b wg c P 16 P 0 wsx d }
   ? == k 41 { wg a }
   { ebeg "operacao ainda nao suportada em -w" eend } }
@@ -102,11 +180,12 @@
   = np @ fe k 2
   O 16
   ! fe k 8 @ 16
-  wu + - @ 9 np @ 11
+  wu + + - @ 9 np @ 11 3
   = j np
   W < j @ 9 { P 1 P ? lty j 124 126 = j + j 1 }
   = j 0
   W < j @ 11 { P 1 P ? tty j 124 126 = j + j 1 }
+  P 1 P 126 P 1 P 126 P 1 P 126
   = j 0
   W < j @ 19 { wins + @ 18 * j 8 = j + j 1 }
   P 11
@@ -190,4 +269,6 @@
 : _ini >i { ! -4 _oa 4096 ! -5 _oa 32 0 }
 : _ex i>i c { _fl Y 2 c 0 }
 : _go >i { _ini _ex main }
+: _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 _os @ -5 n x }
+: _ph ii>i w h { _op 80 _op 54 _op 10 _on w _op 32 _on h _op 10 _op 50 _op 53 _op 53 _op 10 }
 "
