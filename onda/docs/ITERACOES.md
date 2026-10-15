@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 75 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 76 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1626,3 +1626,17 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **A IA precisa desta sintaxe toda? (a resposta honesta.)** **Não.** A sintaxe em texto (`: g ii>f i a { … }`) existe por três razões: o arranque (o estágio-0 em Rust lê texto), a auto-compilação (o compilador está escrito nela), e a leitura humana. A *essência* da Onda são três coisas: a **RI** (o grafo de instruções `[k d a b c x y]`), as **formas** (os backends) e o **juiz**. Uma IA que gera programas não precisa do texto — pode emitir a RI diretamente, saltando o *lexer* e o *parser* (mais rápido, mais "fluido"). É a próxima grande peça: uma **frente de RI direta** (a IA emite o grafo; o juiz confere contra o significado), que torna a Onda, para quem a escreve de verdade (as IAs), uma linguagem sem sintaxe de superfície.
 
 **Próxima.** A frente de RI direta (emitir/ingerir o grafo sem texto) — a Onda "sem sintaxe" para IAs; e, em paralelo, chamadas+impressão no `-a` e o encadear/treinar do autodiff.
+
+---
+
+## Iteração 76: a frente de RI direta (passo 1) — o grafo exposto, sem sintaxe
+
+**Pergunta.** Se a essência da Onda é a RI (não a sintaxe), então mostra-a: qual é mesmo o grafo que uma IA emitiria?
+
+**O que foi feito.** Um modo novo, **`-d`**, que compila o programa e, em vez de gerar código, imprime o **grafo da RI** — por função, a assinatura e as suas instruções `[k d a b c x y]`, com os literais anotados (`; lit 0.1`). É a forma que uma IA emitiria diretamente, saltando o lexer e o parser. Para o gcd (`ex/arm64.onda`): 19 instruções de 7 números. Para o elemento do mapa (polinómio de grau 7): 15 instruções — a cadeia de Horner como grafo (cargas `@f` = kind 26, aritmética = kind 8, literais = kind 1). `test/ri.test.js` confere que o dump é bem formado (cabeçalho com a contagem, uma linha por instrução, o retorno) e determinista.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `14541f17aeea227d`; o `-d` é folha). `node --test`: **101 testes**.
+
+**O balanço honesto.** Isto é o passo 1 (expor o grafo). O passo 2 — a **ingestão** (a IA emitir o grafo e o compilador lê-lo direto, sem parser, e o juiz conferir contra o significado) — é o que torna a Onda "sem sintaxe" de verdade, e fica a seguir. Mas já se vê o essencial: um programa é um punhado de instruções de 7 números; a sintaxe em texto é só a pele humana.
+
+**Próxima.** A ingestão de RI (fechar a frente direta); e o pedido do utilizador: chamadas + impressão no `-a` para a `vecmap.onda` correr em ARM64 e medir-se o NEON no Mac real.

@@ -83,3 +83,16 @@
   ? == k 43 { eq d "obw(" et a "," et b ");\n" }
   ? == k 44 { eq d ? == @ 12 1 { "obw(int(" N a "u),int(" N b "u));\n" } { "obw(" N a "," N b ");\n" } }
   0 }
+# --- frente de RI direta (-d): a Onda NAO precisa da sintaxe de texto. A essencia de um programa e o GRAFO da
+# RI (instrucoes [k d a b c x y]); a sintaxe e so uma pele humana. Isto despe-a: para cada funcao, imprime a
+# assinatura e as suas instrucoes -- o que uma IA emitiria diretamente, saltando o lexer e o parser.
+: dsig i>i k { = np @ fe k 2 = j 0 W < j np { P ? fpt k j 'f 'i = j + j 1 } P '> P ? @ fe k 3 'f 'i }
+: dins i>i p {
+  = k @ p
+  N k P 32 N @ + p 1 P 32 N @ + p 2 P 32 N @ + p 3 P 32 N @ + p 4 P 32 N @ + p 5 P 32 N @ + p 6
+  ? == k 1 { "    ; lit " ? @ + @ 10 @ + p 1 { G fltval @ + p 2 0 } { N tokval @ + p 2 0 } } 0
+  P 10 0 }
+: dfun i>i k {
+  ": " etx @ fe k 0 P 32 dsig k "   # " N @ 9 " locais, " N @ 11 " temp, " N @ 19 " instrucoes [k d a b c x y]" P 10
+  = j 0 W < j @ 19 { dins + @ 18 * j 8 = j + j 1 }
+  P 10 0 }
