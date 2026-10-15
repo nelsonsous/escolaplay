@@ -58,7 +58,52 @@ K = {
   'LG6': (1.531383769920937332e-01, 0x3FC39A09, 0xD078C69F),
   'LG7': (1.479819860511658591e-01, 0x3FC2F112, 0xDF3E5244),
   'THIRD': (0.33333333333333333, 0x3FD55555, 0x55555555),
+  'ATANHI0': (4.63647609000806093515e-01, 0x3FDDAC67, 0x0561BB4F),
+  'ATANHI1': (7.85398163397448278999e-01, 0x3FE921FB, 0x54442D18),
+  'ATANHI2': (9.82793723247329054082e-01, 0x3FEF730B, 0xD281F69B),
+  'ATANHI3': (1.57079632679489655800e+00, 0x3FF921FB, 0x54442D18),
+  'ATANLO0': (2.26987774529616870924e-17, 0x3C7A2B7F, 0x222F65E2),
+  'ATANLO1': (3.06161699786838301793e-17, 0x3C81A626, 0x33145C07),
+  'ATANLO2': (1.39033110312309984516e-17, 0x3C700788, 0x7AF0CBBD),
+  'ATANLO3': (6.12323399573676603587e-17, 0x3C91A626, 0x33145C07),
+  'AT0': (3.33333333333329318027e-01, 0x3FD55555, 0x5555550D),
+  'AT1': (-1.99999999998764832476e-01, 0xBFC99999, 0x9998EBC4),
+  'AT2': (1.42857142725034663711e-01, 0x3FC24924, 0x920083FF),
+  'AT3': (-1.11111104054623557880e-01, 0xBFBC71C6, 0xFE231671),
+  'AT4': (9.09088713343650656196e-02, 0x3FB745CD, 0xC54C206E),
+  'AT5': (-7.69187620504482999495e-02, 0xBFB3B0F2, 0xAF749A6D),
+  'AT6': (6.66107313738753120669e-02, 0x3FB10D66, 0xA0D03D51),
+  'AT7': (-5.83357013379057348645e-02, 0xBFADDE2D, 0x52DEFD9A),
+  'AT8': (4.97687799461593236017e-02, 0x3FA97B4B, 0x24760DEB),
+  'AT9': (-3.65315727442169155270e-02, 0xBFA2B444, 0x2C6A6C2F),
+  'AT10': (1.62858201153657823623e-02, 0x3F90AD3A, 0xE322DA11),
+  'PIO4': (7.8539816339744827900e-01, 0x3FE921FB, 0x54442D18),
+  'PI': (3.1415926535897931160e+00, 0x400921FB, 0x54442D18),
+  'PILO': (1.2246467991473531772e-16, 0x3CA1A626, 0x33145C07),
+  'TINY': (1.0e-300, None, None),
+  'DP_H1': (5.84962487220764160156e-01, 0x3FE2B803, 0x40000000),
+  'DP_L1': (1.35003920212974897128e-08, 0x3E4CFDEB, 0x43CFD006),
+  'TWO53': (9007199254740992.0, 0x43400000, 0x00000000),
+  'L1': (5.99999999999994648725e-01, 0x3FE33333, 0x33333303),
+  'L2': (4.28571428578550184252e-01, 0x3FDB6DB6, 0xDB6FABFF),
+  'L3': (3.33333329818377432918e-01, 0x3FD55555, 0x518F264D),
+  'L4': (2.72728123808534006489e-01, 0x3FD17460, 0xA91D4101),
+  'L5': (2.30660745775561754067e-01, 0x3FCD864A, 0x93C9DB65),
+  'L6': (2.06975017800338417784e-01, 0x3FCA7E28, 0x4A454EEF),
+  'LN2P': (6.93147180559945286227e-01, 0x3FE62E42, 0xFEFA39EF),
+  'LN2P_H': (6.93147182464599609375e-01, 0x3FE62E43, 0x00000000),
+  'LN2P_L': (-1.90465429995776804525e-09, 0xBE205C61, 0x0CA86C39),
+  'OVT': (8.0085662595372944372e-17, None, None),
+  'CP': (9.61796693925975554329e-01, 0x3FEEC709, 0xDC3A03FD),
+  'CP_H': (9.61796700954437255859e-01, 0x3FEEC709, 0xE0000000),
+  'CP_L': (-7.02846165095275826516e-09, 0xBE3E2FE0, 0x145B01F5),
+  'IVLN2_H': (1.44269502162933349609e+00, 0x3FF71547, 0x60000000),
+  'IVLN2_L': (1.92596299112661746887e-08, 0x3E54AE0B, 0xF85DDF44),
+  'TWOM54': (5.5511151231257827e-17, 0x3C900000, 0x00000000),
 }
+# um nome repetido no dicionario apagaria a primeira constante sem aviso (aconteceu com LG2): recusa-se
+_nomes = re.findall(r"^  '([A-Z0-9_]+)':", open(__file__, encoding='utf-8').read(), re.M)
+assert len(_nomes) == len(set(_nomes)), sorted(n for n in set(_nomes) if _nomes.count(n) > 1)
 for n, (v, h, l) in K.items():
     hh, ll = bits(v)
     if h is not None:
@@ -212,6 +257,159 @@ SRC = '''# matematica da Onda em Onda (fdlibm): igual ao bit em C, WebAssembly e
             { = hfsq * * 0.5 f f
               ? == k 0 - f - hfsq * s + hfsq rv - * dk $LN2HI - - hfsq + * s + hfsq rv * dk $LN2LO f }
             ? == k 0 - f * s - f rv - * dk $LN2HI - - * s - f rv * dk $LN2LO f } } } }
+: _mat f>f x0 {
+  = x x0
+  = hx Bh x
+  = ix & hx 0x7fffffff
+  ? >= ix 0x44100000
+    ? || > ix 0x7ff00000 && == ix 0x7ff00000 != Bl x 0 + x x
+    ? > hx 0 + $ATANHI3 $ATANLO3 - * -1.0 $ATANHI3 $ATANLO3
+  ? < ix 0x3e400000 x
+  { = id -1
+    ? >= ix 0x3fdc0000
+      { = x Ab x
+        ? < ix 0x3ff30000
+          ? < ix 0x3fe60000 { = id 0 = x / - * 2.0 x 1.0 + 2.0 x } { = id 1 = x / - x 1.0 + x 1.0 }
+          ? < ix 0x40038000 { = id 2 = x / - x 1.5 + 1.0 * 1.5 x } { = id 3 = x / -1.0 x } } 0.0
+    = z * x x
+    = w * z z
+    = s1 * z + $AT0 * w + $AT2 * w + $AT4 * w + $AT6 * w + $AT8 * w $AT10
+    = s2 * w + $AT1 * w + $AT3 * w + $AT5 * w + $AT7 * w $AT9
+    ? < id 0 - x * x + s1 s2
+    { = ah ? == id 0 $ATANHI0 ? == id 1 $ATANHI1 ? == id 2 $ATANHI2 $ATANHI3
+      = al ? == id 0 $ATANLO0 ? == id 1 $ATANLO1 ? == id 2 $ATANLO2 $ATANLO3
+      = z - ah - - * x + s1 s2 al x
+      ? < hx 0 * -1.0 z z } } }
+: _at ff>f y x {
+  ? || != x x != y y + x y
+  { = hx Bh x
+    = ix & hx 0x7fffffff
+    = lx Bl x
+    = hy Bh y
+    = iy & hy 0x7fffffff
+    = ly Bl y
+    ? == | - hx 0x3ff00000 lx 0 _mat y
+    { = m | & >> hy 31 1 & >> hx 30 2
+      ? == | iy ly 0 ? < m 2 y ? == m 2 + $PI $TINY - * -1.0 $PI $TINY
+      ? == | ix lx 0 ? < hy 0 - * -1.0 $PIO2 $TINY + $PIO2 $TINY
+      ? == ix 0x7ff00000
+        ? == iy 0x7ff00000
+          ? == m 0 + $PIO4 $TINY ? == m 1 - * -1.0 $PIO4 $TINY ? == m 2 + * 3.0 $PIO4 $TINY - * -3.0 $PIO4 $TINY
+          ? == m 0 0.0 ? == m 1 * -1.0 0.0 ? == m 2 + $PI $TINY - * -1.0 $PI $TINY
+      ? == iy 0x7ff00000 ? < hy 0 - * -1.0 $PIO2 $TINY + $PIO2 $TINY
+      { = k >> - iy ix 20
+        = z 0.0
+        ? > k 60 { = z + $PIO2 * 0.5 $PILO = m & m 1 }
+          ? && < hx 0 < k -60 { = z 0.0 0 } { = z _mat Ab / y x 0 }
+        ? == m 0 z ? == m 1 * -1.0 z ? == m 2 - $PI - z $PILO - - z $PILO $PI } } } }
+: _msc fi>f z n ? >= n -1022 * z Bw + 0x3FF00000 << n 20 0 * * z Bw + 0x3FF00000 << + n 54 20 0 $TWOM54
+: _pw ff>f x y {
+  = hx Bh x
+  = lx Bl x
+  = hy Bh y
+  = ly Bl y
+  = ix & hx 0x7fffffff
+  = iy & hy 0x7fffffff
+  ? == | iy ly 0 1.0
+  ? || || > ix 0x7ff00000 && == ix 0x7ff00000 != lx 0 || > iy 0x7ff00000 && == iy 0x7ff00000 != ly 0 + x y
+  { = yisint 0
+    = k 0
+    = j 0
+    ? < hx 0
+      ? >= iy 0x43400000 = yisint 2
+      ? >= iy 0x3ff00000 ? == Fl y y ? == Fl * 0.5 y * 0.5 y = yisint 2 = yisint 1 0 0
+      0
+    = ax Ab x
+    ? && == ly 0 == iy 0x7ff00000
+      ? == | - ix 0x3ff00000 lx 0 - y y ? >= ix 0x3ff00000 ? >= hy 0 y 0.0 ? < hy 0 * -1.0 y 0.0
+    ? && == ly 0 == iy 0x3ff00000 ? < hy 0 / 1.0 x x
+    ? && == ly 0 == hy 0x40000000 * x x
+    ? && && == ly 0 == hy 0x3fe00000 >= hx 0 Sq x
+    ? && == lx 0 || || == ix 0x7ff00000 == ix 0 == ix 0x3ff00000
+      { = z ax
+        ? < hy 0 = z / 1.0 z 0.0
+        ? < hx 0 ? == | - ix 0x3ff00000 yisint 0 = z / - z z - z z ? == yisint 1 = z * -1.0 z 0.0 0.0
+        z }
+    { = n + >> hx 31 1
+      ? == | n yisint 0 / - x x - x x
+      { = s ? == | n - yisint 1 0 -1.0 1.0
+        ? && > iy 0x43f00000 <= ix 0x3fefffff ? < hy 0 * $HUGE $HUGE * $TINY $TINY
+        ? && > iy 0x43f00000 >= ix 0x3ff00000 ? > hy 0 * $HUGE $HUGE * $TINY $TINY
+        ? && > iy 0x41e00000 < ix 0x3fefffff ? < hy 0 * * s $HUGE $HUGE * * s $TINY $TINY
+        ? && > iy 0x41e00000 > ix 0x3ff00000 ? > hy 0 * * s $HUGE $HUGE * * s $TINY $TINY
+        { = t1 0.0
+          = t2 0.0
+          ? > iy 0x41e00000
+            { = t - ax 1.0
+              = w * * t t - 0.5 * t - $THIRD * t 0.25
+              = u * $IVLN2_H t
+              = v - * t $IVLN2_L * w $INVLN2
+              = t1 Bw Bh + u v 0
+              = t2 - v - t1 u 0 }
+            { = n 0
+              ? < ix 0x00100000 { = ax * ax $TWO53 = n - n 53 = ix Bh ax } 0
+              = n + n - >> ix 20 0x3ff
+              = j & ix 0x000fffff
+              = ix | j 0x3ff00000
+              = k 0
+              ? <= j 0x3988E = k 0 ? < j 0xBB67A = k 1 { = k 0 = n + n 1 = ix - ix 0x00100000 }
+              = ax Bw ix Bl ax
+              = bk ? k 1.5 1.0
+              = u - ax bk
+              = v / 1.0 + ax bk
+              = ss * u v
+              = sh Bw Bh ss 0
+              = th Bw + + | >> ix 1 0x20000000 0x00080000 << k 18 0
+              = tl - ax - th bk
+              = sl * v - - u * sh th * sh tl
+              = s2 * ss ss
+              = r * * s2 s2 + $L1 * s2 + $L2 * s2 + $L3 * s2 + $L4 * s2 + $L5 * s2 $L6
+              = r + r * sl + sh ss
+              = s2 * sh sh
+              = th Bw Bh + + 3.0 s2 r 0
+              = tl - r - - th 3.0 s2
+              = u * sh th
+              = v + * sl th * tl ss
+              = ph Bw Bh + u v 0
+              = pl - v - ph u
+              = zh * $CP_H ph
+              = zl + + * $CP_L ph * pl $CP ? k $DP_L1 0.0
+              = t F n
+              = dh ? k $DP_H1 0.0
+              = t1 Bw Bh + + + zh zl dh t 0
+              = t2 - zl - - - t1 t dh zh 0 }
+          = y1 Bw Bh y 0
+          = pl + * - y y1 t1 * y t2
+          = ph * y1 t1
+          = z + pl ph
+          = j Bh z
+          = i Bl z
+          = ovf && >= j 0x40900000 || || != j 0x40900000 != i 0 > + pl $OVT - z ph
+          = unf && < j 0x40900000 && >= & j 0x7fffffff 0x4090cc00 || || != j -1064252416 != i 0 <= pl - z ph
+          ? ovf * * s $HUGE $HUGE
+          ? unf * * s $TINY $TINY
+          { = i & j 0x7fffffff
+            = k - >> i 20 0x3ff
+            = n 0
+            ? > i 0x3fe00000
+              { = n + j >> 0x00100000 + k 1
+                = k - >> & n 0x7fffffff 20 0x3ff
+                = t Bw & n ^ >> 0x000fffff k -1 0
+                = n >> | & n 0x000fffff 0x00100000 - 20 k
+                ? < j 0 = n - 0 n 0
+                = ph - ph t 0 } 0
+            = t Bw Bh + pl ph 0
+            = u * t $LN2P_H
+            = v + * - pl - t ph $LN2P * t $LN2P_L
+            = z + u v
+            = w - v - z u
+            = t * z z
+            = t1 - z * t + $P1 * t + $P2 * t + $P3 * t + $P4 * t $P5
+            = r - / * z t1 - t1 2.0 + w * z w
+            = z - 1.0 - r z
+            = j + Bh z << n 20
+            = z ? <= >> j 20 0 _msc z n Bw j Bl z
+            * s z } } } } } }
 '''
 
 def expand(s):
@@ -225,6 +423,13 @@ out = expand(SRC)
 assert '"' not in out and '\\' not in out
 d = os.path.join(os.path.dirname(__file__), '..', 'src', '9mat.onda')
 with open(d, 'w', encoding='utf-8') as f:
-    f.write('# gerado por tools/gerar_mat.py: a matematica (seno, coseno, exp, log) escrita em Onda, acrescentada quando o programa a usa\n')
+    f.write('# gerado por tools/gerar_mat.py: a matematica (seno, coseno, exp, log, atan2, pow) escrita em Onda, acrescentada quando o programa a usa\n')
     f.write(': wmat >i "' + out + '"\n')
 print('escrito', os.path.normpath(d), len(out), 'bytes')
+sj = os.path.join(os.path.dirname(__file__), '..', 'web', 'significado.js')
+t = open(sj, encoding='utf-8').read()
+i = t.index('  // <mat>\n'); j = t.index('  // </mat>\n')
+lit = out.replace('\n', '\\n')
+t = t[:i] + '  // <mat>\n  const MAT = "' + lit + '";\n' + t[j:]
+open(sj, 'w', encoding='utf-8').write(t)
+print('escrito', os.path.normpath(sj))

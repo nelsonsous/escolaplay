@@ -48,7 +48,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | **`S n f a..`** | campo | Σ f(i, a..) para i<n, redução paralela |
 | **`D w h f a..`** | campo | imagem w×h com o píxel f(x, y, a..) = 0xRRGGBB (PPM no stdout) |
 
-Matemática: `Sn Cs Ex Lg` são definidas por uma biblioteca escrita em Onda (`src/9mat.onda`, o algoritmo fdlibm, o mesmo do `Math` do JavaScript). Em C, WebAssembly e x86 dão os mesmos bits, e os mesmos que o significado; na GPU usam as funções nativas, com a tolerância declarada. Os nomes começados por `_` são do runtime.
+Matemática: `Sn Cs Ex Lg At Pw` são definidas por uma biblioteca escrita em Onda (`src/9mat.onda`, o algoritmo fdlibm). Em C, WebAssembly e x86 dão os mesmos bits, e os mesmos que o significado. `Sn Cs Ex Lg At` são iguais ao `Math` do JavaScript. `Pw` é o pow do fdlibm 5.3 (o `StrictMath.pow` do Java), também na forma JavaScript e no significado, que usam o mesmo `_pw`. Na GPU usam as funções nativas, com a tolerância declarada. Os nomes começados por `_` são do runtime.
 
 Regra da sobreposição: uma função usada em `E`, `S` ou `D` não pode escrever na memória nem fazer E/S, porque a ordem dos índices não existe.
 

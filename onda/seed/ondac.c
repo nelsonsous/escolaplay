@@ -148,6 +148,8 @@ static I f_ce(void);
 static I f_cs(void);
 static I f_cd(void);
 static I f_mlib(void);
+static I f_mlibp(void);
+static I f_cml2(I v_c);
 static I f_cml(I v_c);
 static I f_litv(I v_p);
 static I f_blit(I v_p,I v_t);
@@ -9435,6 +9437,143 @@ t8=(t17!=0)?1:0;
 }
 return t8;
 }
+static I f_mlibp(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I t17=0;
+I t18=0;
+I t19=0;
+t0=12;
+t1=M[t0];
+t2=0;
+t3=(t1==t2)?1:0;
+t4=1;
+if(t3==0){
+t5=f_isw();
+t4=(t5!=0)?1:0;
+}
+t6=1;
+if(t4==0){
+t7=f_isx();
+t6=(t7!=0)?1:0;
+}
+t8=1;
+if(t6==0){
+t9=f_isjs();
+t8=(t9!=0)?1:0;
+}
+t10=0;
+if(t8!=0){
+t11=13;
+t12=M[t11];
+t13=0;
+t14=f_fe(t12,t13);
+t15=M[t14];
+t16=0;
+t17=f_tc(t15,t16);
+t18=95;
+t19=(t17!=t18)?1:0;
+t10=(t19!=0)?1:0;
+}
+return t10;
+}
+static I f_cml2(I v_c){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I t17=0;
+I t18=0;
+I t19=0;
+I t20=0;
+I t21=0;
+I t22=0;
+I t23=0;
+I t24=0;
+I t25=0;
+I t26=0;
+I t27=0;
+I t28=0;
+I t29=0;
+I t30=0;
+I v_a=0;
+I v_b=0;
+I v_q=0;
+I v_k=0;
+I v_r=0;
+t0=f_cx();
+v_a=t0;
+t1=f_cx();
+v_b=t1;
+t2=v_a;
+t3=f_ckflt(t2);
+t4=v_b;
+t5=f_ckflt(t4);
+t6=2;
+t7=oa(t6);
+v_q=t7;
+t8=v_q;
+t9=v_a;
+M[t8]=t9;
+t10=v_q;
+t11=1;
+t12=t10+t11;
+t13=v_b;
+M[t12]=t13;
+t14=v_c;
+t15=f_fby(t14);
+v_k=t15;
+t16=v_k;
+t17=0;
+t18=(t16<t17)?1:0;
+if(t18!=0){
+t20=f_ebeg();
+os("falta a matematica");
+t21=0;
+t22=f_eend();
+t19=t22;
+}else{
+t23=0;
+t19=t23;
+}
+t24=v_k;
+t25=v_q;
+t26=2;
+t27=f_rcall(t24,t25,t26);
+v_r=t27;
+t28=v_k;
+t29=f_edge(t28);
+t30=v_r;
+return t30;
+}
 static I f_cml(I v_c){
 I t0=0;
 I t1=0;
@@ -9457,9 +9596,13 @@ I t17=0;
 I t18=0;
 I t19=0;
 I t20=0;
+I t21=0;
+I t22=0;
+I t23=0;
 I v_a=0;
 I v_q=0;
 I v_k=0;
+I v_r=0;
 t0=f_cx();
 v_a=t0;
 t1=v_a;
@@ -9490,7 +9633,11 @@ t17=v_k;
 t18=v_q;
 t19=1;
 t20=f_rcall(t17,t18,t19);
-return t20;
+v_r=t20;
+t21=v_k;
+t22=f_edge(t21);
+t23=v_r;
+return t23;
 }
 static I f_litv(I v_p){
 I t0=0;
@@ -9867,6 +10014,22 @@ I t129=0;
 I t130=0;
 I t131=0;
 I t132=0;
+I t133=0;
+I t134=0;
+I t135=0;
+I t136=0;
+I t137=0;
+I t138=0;
+I t139=0;
+I t140=0;
+I t141=0;
+I t142=0;
+I t143=0;
+I t144=0;
+I t145=0;
+I t146=0;
+I t147=0;
+I t148=0;
 I v_p=0;
 I v_e=0;
 I v_r=0;
@@ -10052,40 +10215,68 @@ t107=(t110!=0)?1:0;
 }
 t103=(t107!=0)?1:0;
 }
-t95=(t103!=0)?1:0;
-}
-t111=0;
-if(t95!=0){
-t112=v_ini;
-t113=0;
-if(t112!=0){
-t114=v_p;
-t115=2;
-t116=t114+t115;
-t117=v_e;
+t111=1;
+if(t103==0){
+t112=v_c;
+t113=80;
+t114=(t112==t113)?1:0;
+t115=0;
+if(t114!=0){
+t116=v_d;
+t117=119;
 t118=(t116==t117)?1:0;
+t115=(t118!=0)?1:0;
+}
 t119=1;
-if(t118==0){
-t120=v_p;
-t121=2;
-t122=t120+t121;
-t123=M[t122];
-t124=f_isws(t123);
-t119=(t124!=0)?1:0;
+if(t115==0){
+t120=v_c;
+t121=65;
+t122=(t120==t121)?1:0;
+t123=0;
+if(t122!=0){
+t124=v_d;
+t125=116;
+t126=(t124==t125)?1:0;
+t123=(t126!=0)?1:0;
 }
-t113=(t119!=0)?1:0;
+t119=(t123!=0)?1:0;
 }
-t111=(t113!=0)?1:0;
+t111=(t119!=0)?1:0;
 }
-if(t111!=0){
-t126=1;
-v_r=t126;
-t125=t126;
-}else{
+t95=(t111!=0)?1:0;
+}
 t127=0;
-t125=t127;
+if(t95!=0){
+t128=v_ini;
+t129=0;
+if(t128!=0){
+t130=v_p;
+t131=2;
+t132=t130+t131;
+t133=v_e;
+t134=(t132==t133)?1:0;
+t135=1;
+if(t134==0){
+t136=v_p;
+t137=2;
+t138=t136+t137;
+t139=M[t138];
+t140=f_isws(t139);
+t135=(t140!=0)?1:0;
 }
-t67=t125;
+t129=(t135!=0)?1:0;
+}
+t127=(t129!=0)?1:0;
+}
+if(t127!=0){
+t142=1;
+v_r=t142;
+t141=t142;
+}else{
+t143=0;
+t141=t143;
+}
+t67=t141;
 }
 t60=t67;
 }
@@ -10093,14 +10284,14 @@ t53=t60;
 }
 t34=t53;
 }
-t128=v_p;
-t129=1;
-t130=t128+t129;
-v_p=t130;
+t144=v_p;
+t145=1;
+t146=t144+t145;
+v_p=t146;
 }
-t131=0;
-t132=v_r;
-return t132;
+t147=0;
+t148=v_r;
+return t148;
 }
 static I f_cop(I v_i){
 I t0=0;
@@ -10437,6 +10628,20 @@ I t330=0;
 I t331=0;
 I t332=0;
 I t333=0;
+I t334=0;
+I t335=0;
+I t336=0;
+I t337=0;
+I t338=0;
+I t339=0;
+I t340=0;
+I t341=0;
+I t342=0;
+I t343=0;
+I t344=0;
+I t345=0;
+I t346=0;
+I t347=0;
 I v_o=0;
 t0=v_i;
 t1=f_tcode(t0);
@@ -10676,260 +10881,282 @@ t181=119;
 t182=f_k2(t180,t181);
 t183=(t179==t182)?1:0;
 if(t183!=0){
-t185=9;
-t186=f_cbf(t185);
+t185=f_mlibp();
+if(t185!=0){
+t187=95;
+t188=112;
+t189=119;
+t190=f_k3(t187,t188,t189);
+t191=f_cml2(t190);
+t186=t191;
+}else{
+t192=9;
+t193=f_cbf(t192);
+t186=t193;
+}
 t184=t186;
 }else{
-t187=v_o;
-t188=65;
-t189=116;
-t190=f_k2(t188,t189);
-t191=(t187==t190)?1:0;
-if(t191!=0){
-t193=10;
-t194=f_cbf(t193);
-t192=t194;
+t194=v_o;
+t195=65;
+t196=116;
+t197=f_k2(t195,t196);
+t198=(t194==t197)?1:0;
+if(t198!=0){
+t200=f_mlib();
+if(t200!=0){
+t202=95;
+t203=97;
+t204=116;
+t205=f_k3(t202,t203,t204);
+t206=f_cml2(t205);
+t201=t206;
 }else{
-t195=v_o;
-t196=77;
-t197=110;
-t198=f_k2(t196,t197);
-t199=(t195==t198)?1:0;
-if(t199!=0){
-t201=0;
-t202=f_cmm(t201);
-t200=t202;
+t207=10;
+t208=f_cbf(t207);
+t201=t208;
+}
+t199=t201;
 }else{
-t203=v_o;
-t204=77;
-t205=120;
-t206=f_k2(t204,t205);
-t207=(t203==t206)?1:0;
-if(t207!=0){
-t209=1;
-t210=f_cmm(t209);
-t208=t210;
-}else{
-t211=v_o;
-t212=63;
-t213=(t211==t212)?1:0;
+t209=v_o;
+t210=77;
+t211=110;
+t212=f_k2(t210,t211);
+t213=(t209==t212)?1:0;
 if(t213!=0){
-t215=f_cif();
-t214=t215;
+t215=0;
+t216=f_cmm(t215);
+t214=t216;
 }else{
-t216=v_o;
-t217=87;
-t218=(t216==t217)?1:0;
-if(t218!=0){
-t220=f_cwh();
-t219=t220;
+t217=v_o;
+t218=77;
+t219=120;
+t220=f_k2(t218,t219);
+t221=(t217==t220)?1:0;
+if(t221!=0){
+t223=1;
+t224=f_cmm(t223);
+t222=t224;
 }else{
-t221=v_o;
-t222=123;
-t223=(t221==t222)?1:0;
-if(t223!=0){
-t225=f_cblk();
-t224=t225;
+t225=v_o;
+t226=63;
+t227=(t225==t226)?1:0;
+if(t227!=0){
+t229=f_cif();
+t228=t229;
 }else{
-t226=v_o;
-t227=61;
-t228=(t226==t227)?1:0;
-if(t228!=0){
-t230=f_cset();
-t229=t230;
+t230=v_o;
+t231=87;
+t232=(t230==t231)?1:0;
+if(t232!=0){
+t234=f_cwh();
+t233=t234;
 }else{
-t231=v_o;
-t232=64;
-t233=(t231==t232)?1:0;
-if(t233!=0){
-t235=f_cld();
-t234=t235;
+t235=v_o;
+t236=123;
+t237=(t235==t236)?1:0;
+if(t237!=0){
+t239=f_cblk();
+t238=t239;
 }else{
-t236=v_o;
-t237=33;
-t238=(t236==t237)?1:0;
-if(t238!=0){
-t240=f_cst();
-t239=t240;
+t240=v_o;
+t241=61;
+t242=(t240==t241)?1:0;
+if(t242!=0){
+t244=f_cset();
+t243=t244;
 }else{
-t241=v_o;
-t242=64;
-t243=102;
-t244=f_k2(t242,t243);
-t245=(t241==t244)?1:0;
-if(t245!=0){
-t247=f_cldf();
-t246=t247;
+t245=v_o;
+t246=64;
+t247=(t245==t246)?1:0;
+if(t247!=0){
+t249=f_cld();
+t248=t249;
 }else{
-t248=v_o;
-t249=33;
-t250=102;
-t251=f_k2(t249,t250);
-t252=(t248==t251)?1:0;
+t250=v_o;
+t251=33;
+t252=(t250==t251)?1:0;
 if(t252!=0){
-t254=f_cstf();
+t254=f_cst();
 t253=t254;
 }else{
 t255=v_o;
-t256=65;
-t257=(t255==t256)?1:0;
-if(t257!=0){
-t259=f_calc();
-t258=t259;
+t256=64;
+t257=102;
+t258=f_k2(t256,t257);
+t259=(t255==t258)?1:0;
+if(t259!=0){
+t261=f_cldf();
+t260=t261;
 }else{
-t260=v_o;
-t261=80;
-t262=(t260==t261)?1:0;
-if(t262!=0){
-t264=f_cput();
-t263=t264;
+t262=v_o;
+t263=33;
+t264=102;
+t265=f_k2(t263,t264);
+t266=(t262==t265)?1:0;
+if(t266!=0){
+t268=f_cstf();
+t267=t268;
 }else{
-t265=v_o;
-t266=82;
-t267=(t265==t266)?1:0;
-if(t267!=0){
-t269=f_crd();
-t268=t269;
+t269=v_o;
+t270=65;
+t271=(t269==t270)?1:0;
+if(t271!=0){
+t273=f_calc();
+t272=t273;
 }else{
-t270=v_o;
-t271=78;
-t272=(t270==t271)?1:0;
-if(t272!=0){
-t274=f_cnum();
-t273=t274;
+t274=v_o;
+t275=80;
+t276=(t274==t275)?1:0;
+if(t276!=0){
+t278=f_cput();
+t277=t278;
 }else{
-t275=v_o;
-t276=71;
-t277=(t275==t276)?1:0;
-if(t277!=0){
-t279=f_cgf();
-t278=t279;
+t279=v_o;
+t280=82;
+t281=(t279==t280)?1:0;
+if(t281!=0){
+t283=f_crd();
+t282=t283;
 }else{
-t280=v_o;
-t281=79;
-t282=(t280==t281)?1:0;
-if(t282!=0){
-t284=f_csnk();
-t283=t284;
+t284=v_o;
+t285=78;
+t286=(t284==t285)?1:0;
+if(t286!=0){
+t288=f_cnum();
+t287=t288;
 }else{
-t285=v_o;
-t286=65;
-t287=99;
-t288=f_k2(t286,t287);
-t289=(t285==t288)?1:0;
-if(t289!=0){
-t291=f_cac();
-t290=t291;
+t289=v_o;
+t290=71;
+t291=(t289==t290)?1:0;
+if(t291!=0){
+t293=f_cgf();
+t292=t293;
 }else{
-t292=v_o;
-t293=65;
-t294=118;
-t295=f_k2(t293,t294);
-t296=(t292==t295)?1:0;
+t294=v_o;
+t295=79;
+t296=(t294==t295)?1:0;
 if(t296!=0){
-t298=f_cav();
+t298=f_csnk();
 t297=t298;
 }else{
 t299=v_o;
-t300=88;
-t301=(t299==t300)?1:0;
-if(t301!=0){
-t303=f_cex();
-t302=t303;
+t300=65;
+t301=99;
+t302=f_k2(t300,t301);
+t303=(t299==t302)?1:0;
+if(t303!=0){
+t305=f_cac();
+t304=t305;
 }else{
-t304=v_o;
-t305=84;
-t306=(t304==t305)?1:0;
-if(t306!=0){
-t308=f_ctm();
-t307=t308;
+t306=v_o;
+t307=65;
+t308=118;
+t309=f_k2(t307,t308);
+t310=(t306==t309)?1:0;
+if(t310!=0){
+t312=f_cav();
+t311=t312;
 }else{
-t309=v_o;
-t310=69;
-t311=(t309==t310)?1:0;
-if(t311!=0){
-t313=f_ce();
-t312=t313;
+t313=v_o;
+t314=88;
+t315=(t313==t314)?1:0;
+if(t315!=0){
+t317=f_cex();
+t316=t317;
 }else{
-t314=v_o;
-t315=83;
-t316=(t314==t315)?1:0;
-if(t316!=0){
-t318=f_cs();
-t317=t318;
+t318=v_o;
+t319=84;
+t320=(t318==t319)?1:0;
+if(t320!=0){
+t322=f_ctm();
+t321=t322;
 }else{
-t319=v_o;
-t320=68;
-t321=(t319==t320)?1:0;
-if(t321!=0){
-t323=f_cd();
-t322=t323;
+t323=v_o;
+t324=69;
+t325=(t323==t324)?1:0;
+if(t325!=0){
+t327=f_ce();
+t326=t327;
 }else{
-t324=v_o;
-t325=89;
-t326=(t324==t325)?1:0;
-if(t326!=0){
-t328=f_csys();
-t327=t328;
+t328=v_o;
+t329=83;
+t330=(t328==t329)?1:0;
+if(t330!=0){
+t332=f_cs();
+t331=t332;
 }else{
-t329=7;
-t330=v_i;
-M[t329]=t330;
-t331=f_ebeg();
+t333=v_o;
+t334=68;
+t335=(t333==t334)?1:0;
+if(t335!=0){
+t337=f_cd();
+t336=t337;
+}else{
+t338=v_o;
+t339=89;
+t340=(t338==t339)?1:0;
+if(t340!=0){
+t342=f_csys();
+t341=t342;
+}else{
+t343=7;
+t344=v_i;
+M[t343]=t344;
+t345=f_ebeg();
 os("operacao desconhecida");
-t332=0;
-t333=f_eend();
-t327=t333;
+t346=0;
+t347=f_eend();
+t341=t347;
 }
-t322=t327;
+t336=t341;
 }
-t317=t322;
+t331=t336;
 }
-t312=t317;
+t326=t331;
 }
-t307=t312;
+t321=t326;
 }
-t302=t307;
+t316=t321;
 }
-t297=t302;
+t311=t316;
 }
-t290=t297;
+t304=t311;
 }
-t283=t290;
+t297=t304;
 }
-t278=t283;
+t292=t297;
 }
-t273=t278;
+t287=t292;
 }
-t268=t273;
+t282=t287;
 }
-t263=t268;
+t277=t282;
 }
-t258=t263;
+t272=t277;
 }
-t253=t258;
+t267=t272;
 }
-t246=t253;
+t260=t267;
 }
-t239=t246;
+t253=t260;
 }
-t234=t239;
+t248=t253;
 }
-t229=t234;
+t243=t248;
 }
-t224=t229;
+t238=t243;
 }
-t219=t224;
+t233=t238;
 }
-t214=t219;
+t228=t233;
 }
-t208=t214;
+t222=t228;
 }
-t200=t208;
+t214=t222;
 }
-t192=t200;
+t199=t214;
 }
-t184=t192;
+t184=t199;
 }
 t174=t184;
 }
@@ -12202,6 +12429,8 @@ I t333=0;
 I t334=0;
 I t335=0;
 I t336=0;
+I t337=0;
+I t338=0;
 I v_m=0;
 I v_k=0;
 t0=12;
@@ -12347,357 +12576,362 @@ if(t89==0){
 t92=f_isx();
 t91=(t92!=0)?1:0;
 }
-t93=0;
-if(t91!=0){
-t94=f_usesm();
+t93=1;
+if(t91==0){
+t94=f_isjs();
 t93=(t94!=0)?1:0;
 }
+t95=0;
 if(t93!=0){
-t96=23;
-t97=1;
-t98=M[t97];
-t99=2;
+t96=f_usesm();
+t95=(t96!=0)?1:0;
+}
+if(t95!=0){
+t98=23;
+t99=1;
 t100=M[t99];
-t101=t98+t100;
-M[t96]=t101;
-t102=23;
-osink(t102);
-t103=f_wmat();
-t104=0;
+t101=2;
+t102=M[t101];
+t103=t100+t102;
+M[t98]=t103;
+t104=23;
 osink(t104);
-t105=2;
-t106=23;
-t107=M[t106];
-t108=1;
+t105=f_wmat();
+t106=0;
+osink(t106);
+t107=2;
+t108=23;
 t109=M[t108];
-t110=t107-t109;
-M[t105]=t110;
-t95=t110;
+t110=1;
+t111=M[t110];
+t112=t109-t111;
+M[t107]=t112;
+t97=t112;
 }else{
-t111=0;
-t95=t111;
+t113=0;
+t97=t113;
 }
-t112=3;
-t113=3;
 t114=3;
-t115=2;
-t116=M[t115];
-t117=t114*t116;
-t118=t113+t117;
-t119=oa(t118);
-M[t112]=t119;
-t120=5;
-t121=120000;
-t122=oa(t121);
-M[t120]=t122;
-t123=8;
-t124=40000;
-t125=oa(t124);
-M[t123]=t125;
-t126=10;
-t127=400000;
-t128=oa(t127);
-M[t126]=t128;
-t129=14;
-t130=400000;
-t131=oa(t130);
-M[t129]=t131;
-t132=16;
-t133=3000000;
-t134=oa(t133);
-M[t132]=t134;
-t135=17;
-t136=1500000;
-t137=oa(t136);
-M[t135]=t137;
-t138=18;
-t139=800000;
-t140=oa(t139);
-M[t138]=t140;
-t141=f_lex();
-t142=f_pre();
-t143=0;
-v_m=t143;
-t144=0;
-v_k=t144;
+t115=3;
+t116=3;
+t117=2;
+t118=M[t117];
+t119=t116*t118;
+t120=t115+t119;
+t121=oa(t120);
+M[t114]=t121;
+t122=5;
+t123=120000;
+t124=oa(t123);
+M[t122]=t124;
+t125=8;
+t126=40000;
+t127=oa(t126);
+M[t125]=t127;
+t128=10;
+t129=400000;
+t130=oa(t129);
+M[t128]=t130;
+t131=14;
+t132=400000;
+t133=oa(t132);
+M[t131]=t133;
+t134=16;
+t135=3000000;
+t136=oa(t135);
+M[t134]=t136;
+t137=17;
+t138=1500000;
+t139=oa(t138);
+M[t137]=t139;
+t140=18;
+t141=800000;
+t142=oa(t141);
+M[t140]=t142;
+t143=f_lex();
+t144=f_pre();
+t145=0;
+v_m=t145;
+t146=0;
+v_k=t146;
 while(1){
-t145=v_k;
-t146=6;
-t147=M[t146];
-t148=(t145<t147)?1:0;
-if(t148==0)break;
-t149=v_k;
-t150=f_ismain(t149);
-t151=0;
-if(t150!=0){
-t152=v_k;
-t153=2;
-t154=f_fe(t152,t153);
-t155=M[t154];
-t156=0;
-t157=(t155==t156)?1:0;
+t147=v_k;
+t148=6;
+t149=M[t148];
+t150=(t147<t149)?1:0;
+if(t150==0)break;
+t151=v_k;
+t152=f_ismain(t151);
+t153=0;
+if(t152!=0){
+t154=v_k;
+t155=2;
+t156=f_fe(t154,t155);
+t157=M[t156];
 t158=0;
-if(t157!=0){
-t159=v_k;
-t160=3;
-t161=f_fe(t159,t160);
-t162=M[t161];
-t163=0;
-t164=(t162==t163)?1:0;
-t158=(t164!=0)?1:0;
+t159=(t157==t158)?1:0;
+t160=0;
+if(t159!=0){
+t161=v_k;
+t162=3;
+t163=f_fe(t161,t162);
+t164=M[t163];
+t165=0;
+t166=(t164==t165)?1:0;
+t160=(t166!=0)?1:0;
 }
-t151=(t158!=0)?1:0;
+t153=(t160!=0)?1:0;
 }
-if(t151!=0){
-t166=1;
-v_m=t166;
-t165=t166;
+if(t153!=0){
+t168=1;
+v_m=t168;
+t167=t168;
 }else{
-t167=0;
-t165=t167;
+t169=0;
+t167=t169;
 }
-t168=v_k;
-t169=1;
-t170=t168+t169;
-v_k=t170;
+t170=v_k;
+t171=1;
+t172=t170+t171;
+v_k=t172;
 }
-t171=0;
-t172=v_m;
-t173=1;
-if(t172==0){
-t174=12;
-t175=M[t174];
-t176=0;
-t177=(t175!=t176)?1:0;
+t173=0;
+t174=v_m;
+t175=1;
+if(t174==0){
+t176=12;
+t177=M[t176];
 t178=0;
-if(t177!=0){
-t179=f_isw();
-t180=(t179==0)?1:0;
-t178=(t180!=0)?1:0;
+t179=(t177!=t178)?1:0;
+t180=0;
+if(t179!=0){
+t181=f_isw();
+t182=(t181==0)?1:0;
+t180=(t182!=0)?1:0;
 }
-t181=0;
-if(t178!=0){
-t182=f_isx();
-t183=(t182==0)?1:0;
-t181=(t183!=0)?1:0;
+t183=0;
+if(t180!=0){
+t184=f_isx();
+t185=(t184==0)?1:0;
+t183=(t185!=0)?1:0;
 }
-t173=(t181!=0)?1:0;
+t175=(t183!=0)?1:0;
 }
-if(t173!=0){
-t185=0;
-t184=t185;
-}else{
-t186=f_ebeg();
-os("falta : main >i");
+if(t175!=0){
 t187=0;
-t188=f_eend();
-t184=t188;
-}
-t189=f_isx();
-if(t189!=0){
-t191=f_inlf();
-t190=t191;
+t186=t187;
 }else{
-t192=0;
-t190=t192;
+t188=f_ebeg();
+os("falta : main >i");
+t189=0;
+t190=f_eend();
+t186=t190;
 }
-t193=f_isx();
-if(t193!=0){
-t195=26;
-t196=10000;
-t197=oa(t196);
-M[t195]=t197;
-t198=28;
-t199=400000;
-t200=oa(t199);
-M[t198]=t200;
-t201=29;
-t202=0;
-M[t201]=t202;
-t203=f_xpre();
-t194=t203;
+t191=f_isx();
+if(t191!=0){
+t193=f_inlf();
+t192=t193;
 }else{
+t194=0;
+t192=t194;
+}
+t195=f_isx();
+if(t195!=0){
+t197=26;
+t198=10000;
+t199=oa(t198);
+M[t197]=t199;
+t200=28;
+t201=400000;
+t202=oa(t201);
+M[t200]=t202;
+t203=29;
 t204=0;
-t194=t204;
-}
-t205=f_isx();
-if(t205!=0){
-t207=34;
-t208=420000;
-t209=oa(t208);
-M[t207]=t209;
-t210=35;
-t211=20000;
-t212=oa(t211);
-M[t210]=t212;
-t213=36;
-t214=420000;
-t215=oa(t214);
-M[t213]=t215;
-t216=37;
-t217=420000;
-t218=oa(t217);
-M[t216]=t218;
-t219=38;
-t220=420000;
-t221=oa(t220);
-M[t219]=t221;
-t222=39;
-t223=200008;
-t224=oa(t223);
-M[t222]=t224;
-t225=40;
-t226=20000;
-t227=oa(t226);
-M[t225]=t227;
-t228=42;
-t229=420000;
-t230=oa(t229);
-M[t228]=t230;
-t231=43;
-t232=420000;
-t233=oa(t232);
-M[t231]=t233;
-t234=46;
-t235=10000;
-t236=oa(t235);
-M[t234]=t236;
-t237=47;
-t238=10000;
-t239=oa(t238);
-M[t237]=t239;
-t240=50;
-t241=f_xtab();
-M[t240]=t241;
-t242=51;
-t243=420000;
-t244=oa(t243);
-M[t242]=t244;
-t245=52;
-t246=420000;
-t247=oa(t246);
-M[t245]=t247;
-t248=56;
-t249=420000;
-t250=oa(t249);
-M[t248]=t250;
-t251=57;
-t252=420000;
-t253=oa(t252);
-M[t251]=t253;
-t254=58;
-t255=420000;
-t256=oa(t255);
-M[t254]=t256;
-t257=59;
-t258=420000;
-t259=oa(t258);
-M[t257]=t259;
-t260=60;
-t261=420000;
-t262=oa(t261);
-M[t260]=t262;
-t263=61;
-t264=32;
-t265=oa(t264);
-M[t263]=t265;
-t266=0;
-t267=1680000;
-t268=oa(t267);
-t269=f_xqs(t266,t268);
-t270=1;
-t271=100000;
-t272=oa(t271);
-t273=f_xqs(t270,t272);
-t274=2;
-t275=420000;
-t276=oa(t275);
-t277=f_xqs(t274,t276);
-t278=6;
-t279=420000;
-t280=oa(t279);
-t281=f_xqs(t278,t280);
-t282=8;
-t283=800000;
-t284=oa(t283);
-t285=f_xqs(t282,t284);
-t286=9;
-t287=420000;
-t288=oa(t287);
-t289=f_xqs(t286,t288);
-t290=10;
-t291=100000;
-t292=oa(t291);
-t293=f_xqs(t290,t292);
-t294=11;
-t295=20000;
-t296=oa(t295);
-t297=f_xqs(t294,t296);
-t298=13;
-t299=100000;
-t300=oa(t299);
-t301=f_xqs(t298,t300);
-t302=14;
-t303=20000;
-t304=oa(t303);
-t305=f_xqs(t302,t304);
-t306=16;
-t307=20000;
-t308=oa(t307);
-t309=f_xqs(t306,t308);
-t206=t309;
+M[t203]=t204;
+t205=f_xpre();
+t196=t205;
 }else{
-t310=0;
-t206=t310;
+t206=0;
+t196=t206;
 }
-t311=0;
-v_k=t311;
+t207=f_isx();
+if(t207!=0){
+t209=34;
+t210=420000;
+t211=oa(t210);
+M[t209]=t211;
+t212=35;
+t213=20000;
+t214=oa(t213);
+M[t212]=t214;
+t215=36;
+t216=420000;
+t217=oa(t216);
+M[t215]=t217;
+t218=37;
+t219=420000;
+t220=oa(t219);
+M[t218]=t220;
+t221=38;
+t222=420000;
+t223=oa(t222);
+M[t221]=t223;
+t224=39;
+t225=200008;
+t226=oa(t225);
+M[t224]=t226;
+t227=40;
+t228=20000;
+t229=oa(t228);
+M[t227]=t229;
+t230=42;
+t231=420000;
+t232=oa(t231);
+M[t230]=t232;
+t233=43;
+t234=420000;
+t235=oa(t234);
+M[t233]=t235;
+t236=46;
+t237=10000;
+t238=oa(t237);
+M[t236]=t238;
+t239=47;
+t240=10000;
+t241=oa(t240);
+M[t239]=t241;
+t242=50;
+t243=f_xtab();
+M[t242]=t243;
+t244=51;
+t245=420000;
+t246=oa(t245);
+M[t244]=t246;
+t247=52;
+t248=420000;
+t249=oa(t248);
+M[t247]=t249;
+t250=56;
+t251=420000;
+t252=oa(t251);
+M[t250]=t252;
+t253=57;
+t254=420000;
+t255=oa(t254);
+M[t253]=t255;
+t256=58;
+t257=420000;
+t258=oa(t257);
+M[t256]=t258;
+t259=59;
+t260=420000;
+t261=oa(t260);
+M[t259]=t261;
+t262=60;
+t263=420000;
+t264=oa(t263);
+M[t262]=t264;
+t265=61;
+t266=32;
+t267=oa(t266);
+M[t265]=t267;
+t268=0;
+t269=1680000;
+t270=oa(t269);
+t271=f_xqs(t268,t270);
+t272=1;
+t273=100000;
+t274=oa(t273);
+t275=f_xqs(t272,t274);
+t276=2;
+t277=420000;
+t278=oa(t277);
+t279=f_xqs(t276,t278);
+t280=6;
+t281=420000;
+t282=oa(t281);
+t283=f_xqs(t280,t282);
+t284=8;
+t285=800000;
+t286=oa(t285);
+t287=f_xqs(t284,t286);
+t288=9;
+t289=420000;
+t290=oa(t289);
+t291=f_xqs(t288,t290);
+t292=10;
+t293=100000;
+t294=oa(t293);
+t295=f_xqs(t292,t294);
+t296=11;
+t297=20000;
+t298=oa(t297);
+t299=f_xqs(t296,t298);
+t300=13;
+t301=100000;
+t302=oa(t301);
+t303=f_xqs(t300,t302);
+t304=14;
+t305=20000;
+t306=oa(t305);
+t307=f_xqs(t304,t306);
+t308=16;
+t309=20000;
+t310=oa(t309);
+t311=f_xqs(t308,t310);
+t208=t311;
+}else{
+t312=0;
+t208=t312;
+}
+t313=0;
+v_k=t313;
 while(1){
-t312=v_k;
-t313=6;
-t314=M[t313];
-t315=(t312<t314)?1:0;
-if(t315==0)break;
-t316=v_k;
-t317=f_cfun(t316);
+t314=v_k;
+t315=6;
+t316=M[t315];
+t317=(t314<t316)?1:0;
+if(t317==0)break;
 t318=v_k;
-t319=1;
-t320=t318+t319;
-v_k=t320;
+t319=f_cfun(t318);
+t320=v_k;
+t321=1;
+t322=t320+t321;
+v_k=t322;
 }
-t321=0;
-t322=f_isx();
-if(t322!=0){
-t324=f_outx();
-t323=t324;
+t323=0;
+t324=f_isx();
+if(t324!=0){
+t326=f_outx();
+t325=t326;
 }else{
-t325=f_isw();
-if(t325!=0){
-t327=f_outw();
-t326=t327;
+t327=f_isw();
+if(t327!=0){
+t329=f_outw();
+t328=t329;
 }else{
-t328=f_isjs();
-if(t328!=0){
-t330=f_outj();
-t329=t330;
+t330=f_isjs();
+if(t330!=0){
+t332=f_outj();
+t331=t332;
 }else{
-t331=12;
-t332=M[t331];
-if(t332!=0){
-t334=f_outg();
-t333=t334;
+t333=12;
+t334=M[t333];
+if(t334!=0){
+t336=f_outg();
+t335=t336;
 }else{
-t335=f_outc();
-t333=t335;
+t337=f_outc();
+t335=t337;
 }
-t329=t333;
+t331=t335;
 }
-t326=t329;
+t328=t331;
 }
-t323=t326;
+t325=t328;
 }
-t336=0;
-return t336;
+t338=0;
+return t338;
 }
 static I f_k3(I v_a,I v_b,I v_c){
 I t0=0;
@@ -29899,7 +30133,7 @@ return t3;
 }
 static I f_wmat(void){
 I t0=0;
-os("# matematica da Onda em Onda (fdlibm): igual ao bit em C, WebAssembly e x86, e igual ao Math do JavaScript\n: _mks ffi>f x y iy {\n  = ix & Bh x 0x7fffffff\n  ? && < ix 0x3e400000 == I x 0 x\n  { = z * x x\n    = v * z x\n    = r + Bw 0x3F811111 0x1110F8A6 * z + Bw 0xBF2A01A0 0x19C161D5 * z + Bw 0x3EC71DE3 0x57B1FE7D * z + Bw 0xBE5AE5E6 0x8A2B9CEB * z Bw 0x3DE5D93A 0x5ACFD57C\n    ? == iy 0 + x * v + Bw 0xBFC55555 0x55555549 * z r - x - - * z - * 0.5 y * v r y * v Bw 0xBFC55555 0x55555549 } }\n: _mkc ff>f x y {\n  = ix & Bh x 0x7fffffff\n  ? && < ix 0x3e400000 == I x 0 1.0\n  { = z * x x\n    = r * z + Bw 0x3FA55555 0x5555554C * z + Bw 0xBF56C16C 0x16C15177 * z + Bw 0x3EFA01A0 0x19CB1590 * z + Bw 0xBE927E4F 0x809C52AD * z + Bw 0x3E21EE9E 0xBDB4B1C4 * z Bw 0xBDA8FAE9 0xBE8838D4\n    ? < ix 0x3FD33333 - 1.0 - * 0.5 z - * z r * x y\n    { = qx ? > ix 0x3fe90000 0.28125 Bw - ix 0x00200000 0\n      = hz - * 0.5 z qx\n      = a - 1.0 qx\n      - a - hz - * z r * x y } } }\n: _sn f>f x {\n  = hx Bh x\n  = ix & hx 0x7fffffff\n  ? <= ix 0x3FE921FB _mks x 0.0 0\n  ? >= ix 0x7FF00000 - x x\n  ? > ix 0x413921FB Sn x\n  { = n 0\n    = y0 0.0\n    = y1 0.0\n    ? < ix 0x4002D97C { ? > hx 0\n        { = z - x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 - z Bw 0x3DD0B461 0x1A626331 = y1 - - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z - z Bw 0x3DD0B461 0x1A600000 = y0 - z Bw 0x3BA3198A 0x2E037073 = y1 - - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n 1 }\n        { = z + x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 + z Bw 0x3DD0B461 0x1A626331 = y1 + - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z + z Bw 0x3DD0B461 0x1A600000 = y0 + z Bw 0x3BA3198A 0x2E037073 = y1 + - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n -1 } } { = t Ab x\n      = n I + * t Bw 0x3FE45F30 0x6DC9C883 0.5\n      = fn F n\n      = r - t * fn Bw 0x3FF921FB 0x54400000\n      = w * fn Bw 0x3DD0B461 0x1A626331\n      ? && < n 32 != ix Bh * fn Bw 0x3FF921FB 0x54442D18\n        { = y0 - r w 0 }\n        { = j >> ix 20\n          = y0 - r w\n          = i - j & >> Bh y0 20 0x7FF\n          ? > i 16\n            { = t r\n              = w * fn Bw 0x3DD0B461 0x1A600000\n              = r - t w\n              = w - * fn Bw 0x3BA3198A 0x2E037073 - - t r w\n              = y0 - r w\n              = i - j & >> Bh y0 20 0x7FF\n              ? > i 49\n                { = t r\n                  = w * fn Bw 0x3BA3198A 0x2E000000\n                  = r - t w\n                  = w - * fn Bw 0x397B839A 0x252049C1 - - t r w\n                  = y0 - r w 0 } 0 } 0 }\n      = y1 - - r y0 w\n      ? < hx 0 { = y0 * -1.0 y0 = y1 * -1.0 y1 = n - 0 n } 0 }\n    = m & n 3\n    ? == m 0 _mks y0 y1 1 ? == m 1 _mkc y0 y1 ? == m 2 * -1.0 _mks y0 y1 1 * -1.0 _mkc y0 y1 } }\n: _cs f>f x {\n  = hx Bh x\n  = ix & hx 0x7fffffff\n  ? <= ix 0x3FE921FB _mkc x 0.0\n  ? >= ix 0x7FF00000 - x x\n  ? > ix 0x413921FB Cs x\n  { = n 0\n    = y0 0.0\n    = y1 0.0\n    ? < ix 0x4002D97C { ? > hx 0\n        { = z - x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 - z Bw 0x3DD0B461 0x1A626331 = y1 - - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z - z Bw 0x3DD0B461 0x1A600000 = y0 - z Bw 0x3BA3198A 0x2E037073 = y1 - - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n 1 }\n        { = z + x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 + z Bw 0x3DD0B461 0x1A626331 = y1 + - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z + z Bw 0x3DD0B461 0x1A600000 = y0 + z Bw 0x3BA3198A 0x2E037073 = y1 + - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n -1 } } { = t Ab x\n      = n I + * t Bw 0x3FE45F30 0x6DC9C883 0.5\n      = fn F n\n      = r - t * fn Bw 0x3FF921FB 0x54400000\n      = w * fn Bw 0x3DD0B461 0x1A626331\n      ? && < n 32 != ix Bh * fn Bw 0x3FF921FB 0x54442D18\n        { = y0 - r w 0 }\n        { = j >> ix 20\n          = y0 - r w\n          = i - j & >> Bh y0 20 0x7FF\n          ? > i 16\n            { = t r\n              = w * fn Bw 0x3DD0B461 0x1A600000\n              = r - t w\n              = w - * fn Bw 0x3BA3198A 0x2E037073 - - t r w\n              = y0 - r w\n              = i - j & >> Bh y0 20 0x7FF\n              ? > i 49\n                { = t r\n                  = w * fn Bw 0x3BA3198A 0x2E000000\n                  = r - t w\n                  = w - * fn Bw 0x397B839A 0x252049C1 - - t r w\n                  = y0 - r w 0 } 0 } 0 }\n      = y1 - - r y0 w\n      ? < hx 0 { = y0 * -1.0 y0 = y1 * -1.0 y1 = n - 0 n } 0 }\n    = m & n 3\n    ? == m 0 _mkc y0 y1 ? == m 1 * -1.0 _mks y0 y1 1 ? == m 2 * -1.0 _mkc y0 y1 _mks y0 y1 1 } }\n: _xp f>f x {\n  = hx Bh x\n  = xsb & >> hx 31 1\n  = ax & hx 0x7fffffff\n  ? && >= ax 0x7FF00000 != | & ax 0xfffff Bl x 0 + x x\n  ? >= ax 0x7FF00000 ? == xsb 0 x 0.0\n  ? && >= ax 0x40862E42 > x Bw 0x40862E42 0xFEFA39EF * Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C\n  ? && >= ax 0x40862E42 < x Bw 0xC0874910 0xD52D3051 * Bw 0x01700000 0x00000000 Bw 0x01700000 0x00000000\n  ? < ax 0x3E300000 + 1.0 x\n  ? == x 1.0 Bw 0x4005BF0A 0x8B145769\n  { = k 0\n    = hi 0.0\n    = lo 0.0\n    = y x\n    ? > ax 0x3FD62E42\n      { ? < ax 0x3FF0A2B2\n          { = hi - x ? xsb Bw 0xBFE62E42 0xFEE00000 Bw 0x3FE62E42 0xFEE00000\n            = lo ? xsb Bw 0xBDEA39EF 0x35793C76 Bw 0x3DEA39EF 0x35793C76\n            = k - - 1 xsb xsb }\n          { = k I + * Bw 0x3FF71547 0x652B82FE x ? xsb -0.5 0.5\n            = t F k\n            = hi - x * t Bw 0x3FE62E42 0xFEE00000\n            = lo * t Bw 0x3DEA39EF 0x35793C76 0 }\n        = y - hi lo 0 } 0\n    = t * y y\n    = twopk ? >= k -1021 Bw + 0x3FF00000 << k 20 0 Bw + 0x3FF00000 << + k 1000 20 0\n    = c - y * t + Bw 0x3FC55555 0x5555553E * t + Bw 0xBF66C16C 0x16BEBD93 * t + Bw 0x3F11566A 0xAF25DE2C * t + Bw 0xBEBBBD41 0xC5D26BF1 * t Bw 0x3E663769 0x72BEA4D0\n    ? == k 0 - 1.0 - / * y c - c 2.0 y\n    { = yy - 1.0 - - lo / * y c - 2.0 c hi\n      ? >= k -1021 ? == k 1024 * * yy 2.0 Bw 0x7FE00000 0x00000000 * yy twopk * * yy twopk Bw 0x01700000 0x00000000 } } }\n: _lg f>f x0 {\n  = x x0\n  = hx Bh x\n  = lx Bl x\n  = k 0\n  ? && < hx 0x00100000 == | & hx 0x7fffffff lx 0 / * -1.0 Bw 0x43500000 0x00000000 0.0\n  ? && < hx 0x00100000 < hx 0 / - x x 0.0\n  { ? < hx 0x00100000 { = k - k 54 = x * x Bw 0x43500000 0x00000000 = hx Bh x } 0\n    ? >= hx 0x7FF00000 + x x\n    { = k + k - >> hx 20 1023\n      = hx & hx 0x000FFFFF\n      = i & + hx 0x95F64 0x100000\n      = x Bw | hx ^ i 0x3FF00000 Bl x\n      = k + k >> i 20\n      = f - x 1.0\n      ? < & 0x000FFFFF + 2 hx 3\n        { ? == f 0.0\n            ? == k 0 0.0 { = dk F k + * dk Bw 0x3FE62E42 0xFEE00000 * dk Bw 0x3DEA39EF 0x35793C76 }\n            { = rv * * f f - 0.5 * Bw 0x3FD55555 0x55555555 f\n              ? == k 0 - f rv { = dk F k - * dk Bw 0x3FE62E42 0xFEE00000 - - rv * dk Bw 0x3DEA39EF 0x35793C76 f } } }\n        { = s / f + 2.0 f\n          = dk F k\n          = z * s s\n          = i - hx 0x6147A\n          = w * z z\n          = j - 0x6B851 hx\n          = t1 * w + Bw 0x3FD99999 0x9997FA04 * w + Bw 0x3FCC71C5 0x1D8E78AF * w Bw 0x3FC39A09 0xD078C69F\n          = t2 * z + Bw 0x3FE55555 0x55555593 * w + Bw 0x3FD24924 0x94229359 * w + Bw 0x3FC74664 0x96CB03DE * w Bw 0x3FC2F112 0xDF3E5244\n          = i | i j\n          = rv + t2 t1\n          ? > i 0\n            { = hfsq * * 0.5 f f\n              ? == k 0 - f - hfsq * s + hfsq rv - * dk Bw 0x3FE62E42 0xFEE00000 - - hfsq + * s + hfsq rv * dk Bw 0x3DEA39EF 0x35793C76 f }\n            ? == k 0 - f * s - f rv - * dk Bw 0x3FE62E42 0xFEE00000 - - * s - f rv * dk Bw 0x3DEA39EF 0x35793C76 f } } } }\n");
+os("# matematica da Onda em Onda (fdlibm): igual ao bit em C, WebAssembly e x86, e igual ao Math do JavaScript\n: _mks ffi>f x y iy {\n  = ix & Bh x 0x7fffffff\n  ? && < ix 0x3e400000 == I x 0 x\n  { = z * x x\n    = v * z x\n    = r + Bw 0x3F811111 0x1110F8A6 * z + Bw 0xBF2A01A0 0x19C161D5 * z + Bw 0x3EC71DE3 0x57B1FE7D * z + Bw 0xBE5AE5E6 0x8A2B9CEB * z Bw 0x3DE5D93A 0x5ACFD57C\n    ? == iy 0 + x * v + Bw 0xBFC55555 0x55555549 * z r - x - - * z - * 0.5 y * v r y * v Bw 0xBFC55555 0x55555549 } }\n: _mkc ff>f x y {\n  = ix & Bh x 0x7fffffff\n  ? && < ix 0x3e400000 == I x 0 1.0\n  { = z * x x\n    = r * z + Bw 0x3FA55555 0x5555554C * z + Bw 0xBF56C16C 0x16C15177 * z + Bw 0x3EFA01A0 0x19CB1590 * z + Bw 0xBE927E4F 0x809C52AD * z + Bw 0x3E21EE9E 0xBDB4B1C4 * z Bw 0xBDA8FAE9 0xBE8838D4\n    ? < ix 0x3FD33333 - 1.0 - * 0.5 z - * z r * x y\n    { = qx ? > ix 0x3fe90000 0.28125 Bw - ix 0x00200000 0\n      = hz - * 0.5 z qx\n      = a - 1.0 qx\n      - a - hz - * z r * x y } } }\n: _sn f>f x {\n  = hx Bh x\n  = ix & hx 0x7fffffff\n  ? <= ix 0x3FE921FB _mks x 0.0 0\n  ? >= ix 0x7FF00000 - x x\n  ? > ix 0x413921FB Sn x\n  { = n 0\n    = y0 0.0\n    = y1 0.0\n    ? < ix 0x4002D97C { ? > hx 0\n        { = z - x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 - z Bw 0x3DD0B461 0x1A626331 = y1 - - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z - z Bw 0x3DD0B461 0x1A600000 = y0 - z Bw 0x3BA3198A 0x2E037073 = y1 - - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n 1 }\n        { = z + x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 + z Bw 0x3DD0B461 0x1A626331 = y1 + - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z + z Bw 0x3DD0B461 0x1A600000 = y0 + z Bw 0x3BA3198A 0x2E037073 = y1 + - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n -1 } } { = t Ab x\n      = n I + * t Bw 0x3FE45F30 0x6DC9C883 0.5\n      = fn F n\n      = r - t * fn Bw 0x3FF921FB 0x54400000\n      = w * fn Bw 0x3DD0B461 0x1A626331\n      ? && < n 32 != ix Bh * fn Bw 0x3FF921FB 0x54442D18\n        { = y0 - r w 0 }\n        { = j >> ix 20\n          = y0 - r w\n          = i - j & >> Bh y0 20 0x7FF\n          ? > i 16\n            { = t r\n              = w * fn Bw 0x3DD0B461 0x1A600000\n              = r - t w\n              = w - * fn Bw 0x3BA3198A 0x2E037073 - - t r w\n              = y0 - r w\n              = i - j & >> Bh y0 20 0x7FF\n              ? > i 49\n                { = t r\n                  = w * fn Bw 0x3BA3198A 0x2E000000\n                  = r - t w\n                  = w - * fn Bw 0x397B839A 0x252049C1 - - t r w\n                  = y0 - r w 0 } 0 } 0 }\n      = y1 - - r y0 w\n      ? < hx 0 { = y0 * -1.0 y0 = y1 * -1.0 y1 = n - 0 n } 0 }\n    = m & n 3\n    ? == m 0 _mks y0 y1 1 ? == m 1 _mkc y0 y1 ? == m 2 * -1.0 _mks y0 y1 1 * -1.0 _mkc y0 y1 } }\n: _cs f>f x {\n  = hx Bh x\n  = ix & hx 0x7fffffff\n  ? <= ix 0x3FE921FB _mkc x 0.0\n  ? >= ix 0x7FF00000 - x x\n  ? > ix 0x413921FB Cs x\n  { = n 0\n    = y0 0.0\n    = y1 0.0\n    ? < ix 0x4002D97C { ? > hx 0\n        { = z - x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 - z Bw 0x3DD0B461 0x1A626331 = y1 - - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z - z Bw 0x3DD0B461 0x1A600000 = y0 - z Bw 0x3BA3198A 0x2E037073 = y1 - - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n 1 }\n        { = z + x Bw 0x3FF921FB 0x54400000\n          ? != ix 0x3FF921FB\n            { = y0 + z Bw 0x3DD0B461 0x1A626331 = y1 + - z y0 Bw 0x3DD0B461 0x1A626331 }\n            { = z + z Bw 0x3DD0B461 0x1A600000 = y0 + z Bw 0x3BA3198A 0x2E037073 = y1 + - z y0 Bw 0x3BA3198A 0x2E037073 }\n          = n -1 } } { = t Ab x\n      = n I + * t Bw 0x3FE45F30 0x6DC9C883 0.5\n      = fn F n\n      = r - t * fn Bw 0x3FF921FB 0x54400000\n      = w * fn Bw 0x3DD0B461 0x1A626331\n      ? && < n 32 != ix Bh * fn Bw 0x3FF921FB 0x54442D18\n        { = y0 - r w 0 }\n        { = j >> ix 20\n          = y0 - r w\n          = i - j & >> Bh y0 20 0x7FF\n          ? > i 16\n            { = t r\n              = w * fn Bw 0x3DD0B461 0x1A600000\n              = r - t w\n              = w - * fn Bw 0x3BA3198A 0x2E037073 - - t r w\n              = y0 - r w\n              = i - j & >> Bh y0 20 0x7FF\n              ? > i 49\n                { = t r\n                  = w * fn Bw 0x3BA3198A 0x2E000000\n                  = r - t w\n                  = w - * fn Bw 0x397B839A 0x252049C1 - - t r w\n                  = y0 - r w 0 } 0 } 0 }\n      = y1 - - r y0 w\n      ? < hx 0 { = y0 * -1.0 y0 = y1 * -1.0 y1 = n - 0 n } 0 }\n    = m & n 3\n    ? == m 0 _mkc y0 y1 ? == m 1 * -1.0 _mks y0 y1 1 ? == m 2 * -1.0 _mkc y0 y1 _mks y0 y1 1 } }\n: _xp f>f x {\n  = hx Bh x\n  = xsb & >> hx 31 1\n  = ax & hx 0x7fffffff\n  ? && >= ax 0x7FF00000 != | & ax 0xfffff Bl x 0 + x x\n  ? >= ax 0x7FF00000 ? == xsb 0 x 0.0\n  ? && >= ax 0x40862E42 > x Bw 0x40862E42 0xFEFA39EF * Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C\n  ? && >= ax 0x40862E42 < x Bw 0xC0874910 0xD52D3051 * Bw 0x01700000 0x00000000 Bw 0x01700000 0x00000000\n  ? < ax 0x3E300000 + 1.0 x\n  ? == x 1.0 Bw 0x4005BF0A 0x8B145769\n  { = k 0\n    = hi 0.0\n    = lo 0.0\n    = y x\n    ? > ax 0x3FD62E42\n      { ? < ax 0x3FF0A2B2\n          { = hi - x ? xsb Bw 0xBFE62E42 0xFEE00000 Bw 0x3FE62E42 0xFEE00000\n            = lo ? xsb Bw 0xBDEA39EF 0x35793C76 Bw 0x3DEA39EF 0x35793C76\n            = k - - 1 xsb xsb }\n          { = k I + * Bw 0x3FF71547 0x652B82FE x ? xsb -0.5 0.5\n            = t F k\n            = hi - x * t Bw 0x3FE62E42 0xFEE00000\n            = lo * t Bw 0x3DEA39EF 0x35793C76 0 }\n        = y - hi lo 0 } 0\n    = t * y y\n    = twopk ? >= k -1021 Bw + 0x3FF00000 << k 20 0 Bw + 0x3FF00000 << + k 1000 20 0\n    = c - y * t + Bw 0x3FC55555 0x5555553E * t + Bw 0xBF66C16C 0x16BEBD93 * t + Bw 0x3F11566A 0xAF25DE2C * t + Bw 0xBEBBBD41 0xC5D26BF1 * t Bw 0x3E663769 0x72BEA4D0\n    ? == k 0 - 1.0 - / * y c - c 2.0 y\n    { = yy - 1.0 - - lo / * y c - 2.0 c hi\n      ? >= k -1021 ? == k 1024 * * yy 2.0 Bw 0x7FE00000 0x00000000 * yy twopk * * yy twopk Bw 0x01700000 0x00000000 } } }\n: _lg f>f x0 {\n  = x x0\n  = hx Bh x\n  = lx Bl x\n  = k 0\n  ? && < hx 0x00100000 == | & hx 0x7fffffff lx 0 / * -1.0 Bw 0x43500000 0x00000000 0.0\n  ? && < hx 0x00100000 < hx 0 / - x x 0.0\n  { ? < hx 0x00100000 { = k - k 54 = x * x Bw 0x43500000 0x00000000 = hx Bh x } 0\n    ? >= hx 0x7FF00000 + x x\n    { = k + k - >> hx 20 1023\n      = hx & hx 0x000FFFFF\n      = i & + hx 0x95F64 0x100000\n      = x Bw | hx ^ i 0x3FF00000 Bl x\n      = k + k >> i 20\n      = f - x 1.0\n      ? < & 0x000FFFFF + 2 hx 3\n        { ? == f 0.0\n            ? == k 0 0.0 { = dk F k + * dk Bw 0x3FE62E42 0xFEE00000 * dk Bw 0x3DEA39EF 0x35793C76 }\n            { = rv * * f f - 0.5 * Bw 0x3FD55555 0x55555555 f\n              ? == k 0 - f rv { = dk F k - * dk Bw 0x3FE62E42 0xFEE00000 - - rv * dk Bw 0x3DEA39EF 0x35793C76 f } } }\n        { = s / f + 2.0 f\n          = dk F k\n          = z * s s\n          = i - hx 0x6147A\n          = w * z z\n          = j - 0x6B851 hx\n          = t1 * w + Bw 0x3FD99999 0x9997FA04 * w + Bw 0x3FCC71C5 0x1D8E78AF * w Bw 0x3FC39A09 0xD078C69F\n          = t2 * z + Bw 0x3FE55555 0x55555593 * w + Bw 0x3FD24924 0x94229359 * w + Bw 0x3FC74664 0x96CB03DE * w Bw 0x3FC2F112 0xDF3E5244\n          = i | i j\n          = rv + t2 t1\n          ? > i 0\n            { = hfsq * * 0.5 f f\n              ? == k 0 - f - hfsq * s + hfsq rv - * dk Bw 0x3FE62E42 0xFEE00000 - - hfsq + * s + hfsq rv * dk Bw 0x3DEA39EF 0x35793C76 f }\n            ? == k 0 - f * s - f rv - * dk Bw 0x3FE62E42 0xFEE00000 - - * s - f rv * dk Bw 0x3DEA39EF 0x35793C76 f } } } }\n: _mat f>f x0 {\n  = x x0\n  = hx Bh x\n  = ix & hx 0x7fffffff\n  ? >= ix 0x44100000\n    ? || > ix 0x7ff00000 && == ix 0x7ff00000 != Bl x 0 + x x\n    ? > hx 0 + Bw 0x3FF921FB 0x54442D18 Bw 0x3C91A626 0x33145C07 - * -1.0 Bw 0x3FF921FB 0x54442D18 Bw 0x3C91A626 0x33145C07\n  ? < ix 0x3e400000 x\n  { = id -1\n    ? >= ix 0x3fdc0000\n      { = x Ab x\n        ? < ix 0x3ff30000\n          ? < ix 0x3fe60000 { = id 0 = x / - * 2.0 x 1.0 + 2.0 x } { = id 1 = x / - x 1.0 + x 1.0 }\n          ? < ix 0x40038000 { = id 2 = x / - x 1.5 + 1.0 * 1.5 x } { = id 3 = x / -1.0 x } } 0.0\n    = z * x x\n    = w * z z\n    = s1 * z + Bw 0x3FD55555 0x5555550D * w + Bw 0x3FC24924 0x920083FF * w + Bw 0x3FB745CD 0xC54C206E * w + Bw 0x3FB10D66 0xA0D03D51 * w + Bw 0x3FA97B4B 0x24760DEB * w Bw 0x3F90AD3A 0xE322DA11\n    = s2 * w + Bw 0xBFC99999 0x9998EBC4 * w + Bw 0xBFBC71C6 0xFE231671 * w + Bw 0xBFB3B0F2 0xAF749A6D * w + Bw 0xBFADDE2D 0x52DEFD9A * w Bw 0xBFA2B444 0x2C6A6C2F\n    ? < id 0 - x * x + s1 s2\n    { = ah ? == id 0 Bw 0x3FDDAC67 0x0561BB4F ? == id 1 Bw 0x3FE921FB 0x54442D18 ? == id 2 Bw 0x3FEF730B 0xD281F69B Bw 0x3FF921FB 0x54442D18\n      = al ? == id 0 Bw 0x3C7A2B7F 0x222F65E2 ? == id 1 Bw 0x3C81A626 0x33145C07 ? == id 2 Bw 0x3C700788 0x7AF0CBBD Bw 0x3C91A626 0x33145C07\n      = z - ah - - * x + s1 s2 al x\n      ? < hx 0 * -1.0 z z } } }\n: _at ff>f y x {\n  ? || != x x != y y + x y\n  { = hx Bh x\n    = ix & hx 0x7fffffff\n    = lx Bl x\n    = hy Bh y\n    = iy & hy 0x7fffffff\n    = ly Bl y\n    ? == | - hx 0x3ff00000 lx 0 _mat y\n    { = m | & >> hy 31 1 & >> hx 30 2\n      ? == | iy ly 0 ? < m 2 y ? == m 2 + Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 - * -1.0 Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359\n      ? == | ix lx 0 ? < hy 0 - * -1.0 Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 + Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359\n      ? == ix 0x7ff00000\n        ? == iy 0x7ff00000\n          ? == m 0 + Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 ? == m 1 - * -1.0 Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 ? == m 2 + * 3.0 Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 - * -3.0 Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359\n          ? == m 0 0.0 ? == m 1 * -1.0 0.0 ? == m 2 + Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 - * -1.0 Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359\n      ? == iy 0x7ff00000 ? < hy 0 - * -1.0 Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 + Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359\n      { = k >> - iy ix 20\n        = z 0.0\n        ? > k 60 { = z + Bw 0x3FF921FB 0x54442D18 * 0.5 Bw 0x3CA1A626 0x33145C07 = m & m 1 }\n          ? && < hx 0 < k -60 { = z 0.0 0 } { = z _mat Ab / y x 0 }\n        ? == m 0 z ? == m 1 * -1.0 z ? == m 2 - Bw 0x400921FB 0x54442D18 - z Bw 0x3CA1A626 0x33145C07 - - z Bw 0x3CA1A626 0x33145C07 Bw 0x400921FB 0x54442D18 } } } }\n: _msc fi>f z n ? >= n -1022 * z Bw + 0x3FF00000 << n 20 0 * * z Bw + 0x3FF00000 << + n 54 20 0 Bw 0x3C900000 0x00000000\n: _pw ff>f x y {\n  = hx Bh x\n  = lx Bl x\n  = hy Bh y\n  = ly Bl y\n  = ix & hx 0x7fffffff\n  = iy & hy 0x7fffffff\n  ? == | iy ly 0 1.0\n  ? || || > ix 0x7ff00000 && == ix 0x7ff00000 != lx 0 || > iy 0x7ff00000 && == iy 0x7ff00000 != ly 0 + x y\n  { = yisint 0\n    = k 0\n    = j 0\n    ? < hx 0\n      ? >= iy 0x43400000 = yisint 2\n      ? >= iy 0x3ff00000 ? == Fl y y ? == Fl * 0.5 y * 0.5 y = yisint 2 = yisint 1 0 0\n      0\n    = ax Ab x\n    ? && == ly 0 == iy 0x7ff00000\n      ? == | - ix 0x3ff00000 lx 0 - y y ? >= ix 0x3ff00000 ? >= hy 0 y 0.0 ? < hy 0 * -1.0 y 0.0\n    ? && == ly 0 == iy 0x3ff00000 ? < hy 0 / 1.0 x x\n    ? && == ly 0 == hy 0x40000000 * x x\n    ? && && == ly 0 == hy 0x3fe00000 >= hx 0 Sq x\n    ? && == lx 0 || || == ix 0x7ff00000 == ix 0 == ix 0x3ff00000\n      { = z ax\n        ? < hy 0 = z / 1.0 z 0.0\n        ? < hx 0 ? == | - ix 0x3ff00000 yisint 0 = z / - z z - z z ? == yisint 1 = z * -1.0 z 0.0 0.0\n        z }\n    { = n + >> hx 31 1\n      ? == | n yisint 0 / - x x - x x\n      { = s ? == | n - yisint 1 0 -1.0 1.0\n        ? && > iy 0x43f00000 <= ix 0x3fefffff ? < hy 0 * Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359\n        ? && > iy 0x43f00000 >= ix 0x3ff00000 ? > hy 0 * Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359\n        ? && > iy 0x41e00000 < ix 0x3fefffff ? < hy 0 * * s Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * * s Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359\n        ? && > iy 0x41e00000 > ix 0x3ff00000 ? > hy 0 * * s Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * * s Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359\n        { = t1 0.0\n          = t2 0.0\n          ? > iy 0x41e00000\n            { = t - ax 1.0\n              = w * * t t - 0.5 * t - Bw 0x3FD55555 0x55555555 * t 0.25\n              = u * Bw 0x3FF71547 0x60000000 t\n              = v - * t Bw 0x3E54AE0B 0xF85DDF44 * w Bw 0x3FF71547 0x652B82FE\n              = t1 Bw Bh + u v 0\n              = t2 - v - t1 u 0 }\n            { = n 0\n              ? < ix 0x00100000 { = ax * ax Bw 0x43400000 0x00000000 = n - n 53 = ix Bh ax } 0\n              = n + n - >> ix 20 0x3ff\n              = j & ix 0x000fffff\n              = ix | j 0x3ff00000\n              = k 0\n              ? <= j 0x3988E = k 0 ? < j 0xBB67A = k 1 { = k 0 = n + n 1 = ix - ix 0x00100000 }\n              = ax Bw ix Bl ax\n              = bk ? k 1.5 1.0\n              = u - ax bk\n              = v / 1.0 + ax bk\n              = ss * u v\n              = sh Bw Bh ss 0\n              = th Bw + + | >> ix 1 0x20000000 0x00080000 << k 18 0\n              = tl - ax - th bk\n              = sl * v - - u * sh th * sh tl\n              = s2 * ss ss\n              = r * * s2 s2 + Bw 0x3FE33333 0x33333303 * s2 + Bw 0x3FDB6DB6 0xDB6FABFF * s2 + Bw 0x3FD55555 0x518F264D * s2 + Bw 0x3FD17460 0xA91D4101 * s2 + Bw 0x3FCD864A 0x93C9DB65 * s2 Bw 0x3FCA7E28 0x4A454EEF\n              = r + r * sl + sh ss\n              = s2 * sh sh\n              = th Bw Bh + + 3.0 s2 r 0\n              = tl - r - - th 3.0 s2\n              = u * sh th\n              = v + * sl th * tl ss\n              = ph Bw Bh + u v 0\n              = pl - v - ph u\n              = zh * Bw 0x3FEEC709 0xE0000000 ph\n              = zl + + * Bw 0xBE3E2FE0 0x145B01F5 ph * pl Bw 0x3FEEC709 0xDC3A03FD ? k Bw 0x3E4CFDEB 0x43CFD006 0.0\n              = t F n\n              = dh ? k Bw 0x3FE2B803 0x40000000 0.0\n              = t1 Bw Bh + + + zh zl dh t 0\n              = t2 - zl - - - t1 t dh zh 0 }\n          = y1 Bw Bh y 0\n          = pl + * - y y1 t1 * y t2\n          = ph * y1 t1\n          = z + pl ph\n          = j Bh z\n          = i Bl z\n          = ovf && >= j 0x40900000 || || != j 0x40900000 != i 0 > + pl Bw 0x3C971547 0x652B82FE - z ph\n          = unf && < j 0x40900000 && >= & j 0x7fffffff 0x4090cc00 || || != j -1064252416 != i 0 <= pl - z ph\n          ? ovf * * s Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C\n          ? unf * * s Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359\n          { = i & j 0x7fffffff\n            = k - >> i 20 0x3ff\n            = n 0\n            ? > i 0x3fe00000\n              { = n + j >> 0x00100000 + k 1\n                = k - >> & n 0x7fffffff 20 0x3ff\n                = t Bw & n ^ >> 0x000fffff k -1 0\n                = n >> | & n 0x000fffff 0x00100000 - 20 k\n                ? < j 0 = n - 0 n 0\n                = ph - ph t 0 } 0\n            = t Bw Bh + pl ph 0\n            = u * t Bw 0x3FE62E43 0x00000000\n            = v + * - pl - t ph Bw 0x3FE62E42 0xFEFA39EF * t Bw 0xBE205C61 0x0CA86C39\n            = z + u v\n            = w - v - z u\n            = t * z z\n            = t1 - z * t + Bw 0x3FC55555 0x5555553E * t + Bw 0xBF66C16C 0x16BEBD93 * t + Bw 0x3F11566A 0xAF25DE2C * t + Bw 0xBEBBBD41 0xC5D26BF1 * t Bw 0x3E663769 0x72BEA4D0\n            = r - / * z t1 - t1 2.0 + w * z w\n            = z - 1.0 - r z\n            = j + Bh z << n 20\n            = z ? <= >> j 20 0 _msc z n Bw j Bl z\n            * s z } } } } } }\n");
 t0=0;
 return t0;
 }

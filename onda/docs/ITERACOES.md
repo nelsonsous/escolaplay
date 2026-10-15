@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 15 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 16 (campos em vários núcleos no x86, sem biblioteca de threads).
+Estado: **iteração 16 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 17 (textos empacotados, 8 caracteres por palavra, no WebAssembly e no x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -410,3 +410,38 @@ Ninguém faz a matemática fazer parte da própria linguagem, escrita nela e igu
 - Acima de 2¹⁹·π/2 ≈ 823 550, o seno e o coseno ainda usam a função da plataforma. A redução de Payne-Hanek em Onda fica para mais tarde.
 - `Pw` e `At` continuam primitivas.
 - No WebAssembly e no x86, os textos ocupam uma palavra de 8 bytes por carácter, e os 7,5 KB da biblioteca custam cerca de 60 KB ao compilador. Empacotar os textos fica anotado.
+
+## Iteração 16: `atan2` e `pow` também em Onda, e qual é a referência
+
+**Pergunta.** Se `Sn` já é igual ao bit em todas as formas, o que falta para nenhuma operação real depender da plataforma?
+
+**O que foi feito.**
+- **`At` (atan2):** porte do `atan` e do `atan2` do fdlibm, na variante FreeBSD que o V8 usa.
+- **`Pw` (pow):** porte do `e_pow.c` do fdlibm 5.3, cerca de 120 linhas de Onda, com o `scalbn` para resultados subnormais.
+- **O pow deixou de usar deslocamentos de palavras de 32 bits sem sinal:** o teste de "y é inteiro ímpar" passou a usar `Fl`. Assim, a biblioteca corre também com os inteiros de 32 bits do JavaScript.
+- **Forma JavaScript:** passa a compilar a mesma biblioteca para o `Pw`.
+- **Significado:** o `web/significado.js` recebe o texto da biblioteca (escrito pelo `tools/gerar_mat.py`) e interpreta o mesmo `_pw`.
+
+**A descoberta.** O primeiro teste deu 301 diferenças de 1 ulp no `pow` contra o `Math.pow` do node. Era o meu porte que estava errado, ou o V8?
+- A referência definitiva do fdlibm é o `StrictMath` do Java, que é obrigado a dar os resultados do fdlibm 5.3, e o Java 21 estava instalado.
+- Contra o Java, o pow da Onda deu zero diferenças em 10 961 pares.
+- O `Math.pow` do V8 é que usa outro algoritmo e difere do fdlibm nesses 301 casos.
+- No `atan2`, é ao contrário: a Onda e o V8 seguem a variante FreeBSD e diferem do fdlibm 5.3 original em 38 casos (|y/x| > 2⁶⁰ com x < 0).
+
+**Decisão.** O `Pw` da Onda é o pow do fdlibm 5.3, em todas as formas, incluindo o JavaScript. O `Math.pow` do motor de JavaScript deixa de ser a definição.
+
+**Prova** (10 961 pares com casos especiais, subnormais, transbordos e potências perto de 1):
+
+| forma | `Pw` contra o fdlibm (Java) | `At` contra o V8 |
+|---|---|---|
+| C | 0 diferenças | 0 diferenças |
+| WebAssembly | 0 | 0 |
+| x86 | 0 | 0 |
+| forma JavaScript | 0 | 0 |
+| significado | 0 | 0 |
+
+- `node --test test/mat.test.js`: seis testes, com 24 âncoras do fdlibm tiradas do Java para o significado, por isso não é preciso Java para os correr.
+
+**O que correu mal.** Dei o mesmo nome (`LG2`) a duas constantes: ao coeficiente do log e ao ln 2 do pow. O dicionário do Python ficou com a segunda sem aviso, e o log passou a errar no 5.º algarismo. O teste do log apanhou-o logo, e o gerador passou a recusar nomes repetidos.
+
+**Mudança de plano.** Os campos em vários núcleos ficam para mais tarde. A seguir vêm os textos empacotados, que poupam cerca de 60 KB a cada compilador, e depois os circuitos.

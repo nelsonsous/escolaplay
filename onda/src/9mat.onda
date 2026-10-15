@@ -1,4 +1,4 @@
-# gerado por tools/gerar_mat.py: a matematica (seno, coseno, exp, log) escrita em Onda, acrescentada quando o programa a usa
+# gerado por tools/gerar_mat.py: a matematica (seno, coseno, exp, log, atan2, pow) escrita em Onda, acrescentada quando o programa a usa
 : wmat >i "# matematica da Onda em Onda (fdlibm): igual ao bit em C, WebAssembly e x86, e igual ao Math do JavaScript
 : _mks ffi>f x y iy {
   = ix & Bh x 0x7fffffff
@@ -173,4 +173,157 @@
             { = hfsq * * 0.5 f f
               ? == k 0 - f - hfsq * s + hfsq rv - * dk Bw 0x3FE62E42 0xFEE00000 - - hfsq + * s + hfsq rv * dk Bw 0x3DEA39EF 0x35793C76 f }
             ? == k 0 - f * s - f rv - * dk Bw 0x3FE62E42 0xFEE00000 - - * s - f rv * dk Bw 0x3DEA39EF 0x35793C76 f } } } }
+: _mat f>f x0 {
+  = x x0
+  = hx Bh x
+  = ix & hx 0x7fffffff
+  ? >= ix 0x44100000
+    ? || > ix 0x7ff00000 && == ix 0x7ff00000 != Bl x 0 + x x
+    ? > hx 0 + Bw 0x3FF921FB 0x54442D18 Bw 0x3C91A626 0x33145C07 - * -1.0 Bw 0x3FF921FB 0x54442D18 Bw 0x3C91A626 0x33145C07
+  ? < ix 0x3e400000 x
+  { = id -1
+    ? >= ix 0x3fdc0000
+      { = x Ab x
+        ? < ix 0x3ff30000
+          ? < ix 0x3fe60000 { = id 0 = x / - * 2.0 x 1.0 + 2.0 x } { = id 1 = x / - x 1.0 + x 1.0 }
+          ? < ix 0x40038000 { = id 2 = x / - x 1.5 + 1.0 * 1.5 x } { = id 3 = x / -1.0 x } } 0.0
+    = z * x x
+    = w * z z
+    = s1 * z + Bw 0x3FD55555 0x5555550D * w + Bw 0x3FC24924 0x920083FF * w + Bw 0x3FB745CD 0xC54C206E * w + Bw 0x3FB10D66 0xA0D03D51 * w + Bw 0x3FA97B4B 0x24760DEB * w Bw 0x3F90AD3A 0xE322DA11
+    = s2 * w + Bw 0xBFC99999 0x9998EBC4 * w + Bw 0xBFBC71C6 0xFE231671 * w + Bw 0xBFB3B0F2 0xAF749A6D * w + Bw 0xBFADDE2D 0x52DEFD9A * w Bw 0xBFA2B444 0x2C6A6C2F
+    ? < id 0 - x * x + s1 s2
+    { = ah ? == id 0 Bw 0x3FDDAC67 0x0561BB4F ? == id 1 Bw 0x3FE921FB 0x54442D18 ? == id 2 Bw 0x3FEF730B 0xD281F69B Bw 0x3FF921FB 0x54442D18
+      = al ? == id 0 Bw 0x3C7A2B7F 0x222F65E2 ? == id 1 Bw 0x3C81A626 0x33145C07 ? == id 2 Bw 0x3C700788 0x7AF0CBBD Bw 0x3C91A626 0x33145C07
+      = z - ah - - * x + s1 s2 al x
+      ? < hx 0 * -1.0 z z } } }
+: _at ff>f y x {
+  ? || != x x != y y + x y
+  { = hx Bh x
+    = ix & hx 0x7fffffff
+    = lx Bl x
+    = hy Bh y
+    = iy & hy 0x7fffffff
+    = ly Bl y
+    ? == | - hx 0x3ff00000 lx 0 _mat y
+    { = m | & >> hy 31 1 & >> hx 30 2
+      ? == | iy ly 0 ? < m 2 y ? == m 2 + Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 - * -1.0 Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359
+      ? == | ix lx 0 ? < hy 0 - * -1.0 Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 + Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359
+      ? == ix 0x7ff00000
+        ? == iy 0x7ff00000
+          ? == m 0 + Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 ? == m 1 - * -1.0 Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 ? == m 2 + * 3.0 Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 - * -3.0 Bw 0x3FE921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359
+          ? == m 0 0.0 ? == m 1 * -1.0 0.0 ? == m 2 + Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 - * -1.0 Bw 0x400921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359
+      ? == iy 0x7ff00000 ? < hy 0 - * -1.0 Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359 + Bw 0x3FF921FB 0x54442D18 Bw 0x01A56E1F 0xC2F8F359
+      { = k >> - iy ix 20
+        = z 0.0
+        ? > k 60 { = z + Bw 0x3FF921FB 0x54442D18 * 0.5 Bw 0x3CA1A626 0x33145C07 = m & m 1 }
+          ? && < hx 0 < k -60 { = z 0.0 0 } { = z _mat Ab / y x 0 }
+        ? == m 0 z ? == m 1 * -1.0 z ? == m 2 - Bw 0x400921FB 0x54442D18 - z Bw 0x3CA1A626 0x33145C07 - - z Bw 0x3CA1A626 0x33145C07 Bw 0x400921FB 0x54442D18 } } } }
+: _msc fi>f z n ? >= n -1022 * z Bw + 0x3FF00000 << n 20 0 * * z Bw + 0x3FF00000 << + n 54 20 0 Bw 0x3C900000 0x00000000
+: _pw ff>f x y {
+  = hx Bh x
+  = lx Bl x
+  = hy Bh y
+  = ly Bl y
+  = ix & hx 0x7fffffff
+  = iy & hy 0x7fffffff
+  ? == | iy ly 0 1.0
+  ? || || > ix 0x7ff00000 && == ix 0x7ff00000 != lx 0 || > iy 0x7ff00000 && == iy 0x7ff00000 != ly 0 + x y
+  { = yisint 0
+    = k 0
+    = j 0
+    ? < hx 0
+      ? >= iy 0x43400000 = yisint 2
+      ? >= iy 0x3ff00000 ? == Fl y y ? == Fl * 0.5 y * 0.5 y = yisint 2 = yisint 1 0 0
+      0
+    = ax Ab x
+    ? && == ly 0 == iy 0x7ff00000
+      ? == | - ix 0x3ff00000 lx 0 - y y ? >= ix 0x3ff00000 ? >= hy 0 y 0.0 ? < hy 0 * -1.0 y 0.0
+    ? && == ly 0 == iy 0x3ff00000 ? < hy 0 / 1.0 x x
+    ? && == ly 0 == hy 0x40000000 * x x
+    ? && && == ly 0 == hy 0x3fe00000 >= hx 0 Sq x
+    ? && == lx 0 || || == ix 0x7ff00000 == ix 0 == ix 0x3ff00000
+      { = z ax
+        ? < hy 0 = z / 1.0 z 0.0
+        ? < hx 0 ? == | - ix 0x3ff00000 yisint 0 = z / - z z - z z ? == yisint 1 = z * -1.0 z 0.0 0.0
+        z }
+    { = n + >> hx 31 1
+      ? == | n yisint 0 / - x x - x x
+      { = s ? == | n - yisint 1 0 -1.0 1.0
+        ? && > iy 0x43f00000 <= ix 0x3fefffff ? < hy 0 * Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359
+        ? && > iy 0x43f00000 >= ix 0x3ff00000 ? > hy 0 * Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359
+        ? && > iy 0x41e00000 < ix 0x3fefffff ? < hy 0 * * s Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * * s Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359
+        ? && > iy 0x41e00000 > ix 0x3ff00000 ? > hy 0 * * s Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C * * s Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359
+        { = t1 0.0
+          = t2 0.0
+          ? > iy 0x41e00000
+            { = t - ax 1.0
+              = w * * t t - 0.5 * t - Bw 0x3FD55555 0x55555555 * t 0.25
+              = u * Bw 0x3FF71547 0x60000000 t
+              = v - * t Bw 0x3E54AE0B 0xF85DDF44 * w Bw 0x3FF71547 0x652B82FE
+              = t1 Bw Bh + u v 0
+              = t2 - v - t1 u 0 }
+            { = n 0
+              ? < ix 0x00100000 { = ax * ax Bw 0x43400000 0x00000000 = n - n 53 = ix Bh ax } 0
+              = n + n - >> ix 20 0x3ff
+              = j & ix 0x000fffff
+              = ix | j 0x3ff00000
+              = k 0
+              ? <= j 0x3988E = k 0 ? < j 0xBB67A = k 1 { = k 0 = n + n 1 = ix - ix 0x00100000 }
+              = ax Bw ix Bl ax
+              = bk ? k 1.5 1.0
+              = u - ax bk
+              = v / 1.0 + ax bk
+              = ss * u v
+              = sh Bw Bh ss 0
+              = th Bw + + | >> ix 1 0x20000000 0x00080000 << k 18 0
+              = tl - ax - th bk
+              = sl * v - - u * sh th * sh tl
+              = s2 * ss ss
+              = r * * s2 s2 + Bw 0x3FE33333 0x33333303 * s2 + Bw 0x3FDB6DB6 0xDB6FABFF * s2 + Bw 0x3FD55555 0x518F264D * s2 + Bw 0x3FD17460 0xA91D4101 * s2 + Bw 0x3FCD864A 0x93C9DB65 * s2 Bw 0x3FCA7E28 0x4A454EEF
+              = r + r * sl + sh ss
+              = s2 * sh sh
+              = th Bw Bh + + 3.0 s2 r 0
+              = tl - r - - th 3.0 s2
+              = u * sh th
+              = v + * sl th * tl ss
+              = ph Bw Bh + u v 0
+              = pl - v - ph u
+              = zh * Bw 0x3FEEC709 0xE0000000 ph
+              = zl + + * Bw 0xBE3E2FE0 0x145B01F5 ph * pl Bw 0x3FEEC709 0xDC3A03FD ? k Bw 0x3E4CFDEB 0x43CFD006 0.0
+              = t F n
+              = dh ? k Bw 0x3FE2B803 0x40000000 0.0
+              = t1 Bw Bh + + + zh zl dh t 0
+              = t2 - zl - - - t1 t dh zh 0 }
+          = y1 Bw Bh y 0
+          = pl + * - y y1 t1 * y t2
+          = ph * y1 t1
+          = z + pl ph
+          = j Bh z
+          = i Bl z
+          = ovf && >= j 0x40900000 || || != j 0x40900000 != i 0 > + pl Bw 0x3C971547 0x652B82FE - z ph
+          = unf && < j 0x40900000 && >= & j 0x7fffffff 0x4090cc00 || || != j -1064252416 != i 0 <= pl - z ph
+          ? ovf * * s Bw 0x7E37E43C 0x8800759C Bw 0x7E37E43C 0x8800759C
+          ? unf * * s Bw 0x01A56E1F 0xC2F8F359 Bw 0x01A56E1F 0xC2F8F359
+          { = i & j 0x7fffffff
+            = k - >> i 20 0x3ff
+            = n 0
+            ? > i 0x3fe00000
+              { = n + j >> 0x00100000 + k 1
+                = k - >> & n 0x7fffffff 20 0x3ff
+                = t Bw & n ^ >> 0x000fffff k -1 0
+                = n >> | & n 0x000fffff 0x00100000 - 20 k
+                ? < j 0 = n - 0 n 0
+                = ph - ph t 0 } 0
+            = t Bw Bh + pl ph 0
+            = u * t Bw 0x3FE62E43 0x00000000
+            = v + * - pl - t ph Bw 0x3FE62E42 0xFEFA39EF * t Bw 0xBE205C61 0x0CA86C39
+            = z + u v
+            = w - v - z u
+            = t * z z
+            = t1 - z * t + Bw 0x3FC55555 0x5555553E * t + Bw 0xBF66C16C 0x16BEBD93 * t + Bw 0x3F11566A 0xAF25DE2C * t + Bw 0xBEBBBD41 0xC5D26BF1 * t Bw 0x3E663769 0x72BEA4D0
+            = r - / * z t1 - t1 2.0 + w * z w
+            = z - 1.0 - r z
+            = j + Bh z << n 20
+            = z ? <= >> j 20 0 _msc z n Bw j Bl z
+            * s z } } } } } }
 "

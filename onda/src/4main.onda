@@ -49,7 +49,9 @@
   = a cargs k 2
   ? isx lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
 : mlib >i && || || == @ 12 0 isw isx != tc @ fe @ 13 0 0 '_
-: cml i>i c { = a cx ckflt a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 rcall k q 1 }
+: mlibp >i && || || || == @ 12 0 isw isx isjs != tc @ fe @ 13 0 0 '_
+: cml2 i>i c { = a cx = b cx ckflt a ckflt b = q A 2 ! q a ! + q 1 b = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 = r rcall k q 2 edge k r }
+: cml i>i c { = a cx ckflt a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 = r rcall k q 1 edge k r }
 : litv i>i p ? == @ p 2 @ + p 2 tokval @ + p 2
 : blit ii>i p t && == @ + p 1 t || == @ p 2 && == @ p 1 ~ tty t
 : cbw >i {
@@ -78,7 +80,7 @@
       { ? && == c 39 ini = p + p 1
         ? == c 34 = st 1
         ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
-        ? && || || && == c 'S == d 'n && == c 'C == d 's || && == c 'E == d 'x && == c 'L == d 'g
+        ? && || || && == c 'S == d 'n && == c 'C == d 's || || && == c 'E == d 'x && == c 'L == d 'g || && == c 'P == d 'w && == c 'A == d 't
              && ini || == + p 2 e isws @ + p 2 = r 1 0 }
     = p + p 1 }
   r }
@@ -102,8 +104,8 @@
   ? == o k2 'B 'w cbw
   ? == o k2 'F 'l cun 7 1 1
   ? == o k2 'A 'b cun 8 1 1
-  ? == o k2 'P 'w cbf 9
-  ? == o k2 'A 't cbf 10
+  ? == o k2 'P 'w ? mlibp cml2 k3 '_ 'p 'w cbf 9
+  ? == o k2 'A 't ? mlib cml2 k3 '_ 'a 't cbf 10
   ? == o k2 'M 'n cmm 0
   ? == o k2 'M 'x cmm 1
   ? == o '? cif
@@ -192,7 +194,7 @@
   ! 1 A 1000000
   rdall
   ? || isw isx { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
-  ? && || || == @ 12 0 isw isx usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
+  ? && || || || == @ 12 0 isw isx isjs usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
   ! 3 A + 3 * 3 @ 2
   ! 5 A 120000
   ! 8 A 40000
