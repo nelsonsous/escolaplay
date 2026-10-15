@@ -1691,3 +1691,23 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** O Mach-O foi emitido **às cegas**: aqui não há como executá-lo, só inspecioná-lo. A estrutura está certa e o código é bit-idêntico ao ELF que corre no qemu, mas a primeira execução real é no Mac do utilizador (`build/ondac -m ... > bench_arm; codesign -s - bench_arm; ./bench_arm` — a assinatura ad-hoc que o Apple Silicon exige). `ex/arm-bench.onda` já traz a receita nativa, sem Docker. Se falhar a correr, é sinal para afinar o invólucro.
 
 **Próxima.** A **impressão no `-a`/`-m`** (o runtime via syscalls — `N`, `G`, strings) para a `vecmap.onda` literal correr tal e qual em ARM64 e o juiz confirmá-la contra o significado; e estender a ingestão de RI aos campos-ponteiro (chamadas/mapas) para o round-trip multi-função.
+
+---
+
+## Iteração 80: impressão e leitura no `-a`/`-m` — o ARM64 fala sozinho, sem C
+
+**Pergunta (do utilizador: "e depois a impressão").** O `-a` já fazia o cálculo (NEON, chamadas, arrays), mas para *imprimir* um resultado ainda tinha de passar pelo C. Faltava o I/O — a última peça para a Onda em ARM64 ser autónoma.
+
+**O que foi feito.** O runtime em Onda (`wrt` — `_op`/`_on`/`_of`/`_fl`/`_oa`/`_go`/`_ex`, o mesmo que o x86 e o WASM usam) passou a ser prefixado também no `-a`. Para o compilar e correr, o backend aarch64 ganhou tudo o que faltava:
+- **Syscalls (`Y`, kind 42)** — um despacho em linha (`asc`): **escrever** (byte a byte para fd 1), **ler** (1 byte de fd 0, ou −1 em EOF), **sair**, e **brk** (devolve o limite fixo de M). Linux: `svc #0` com `x8`; macOS: `svc #0x80` com `x16` (números BSD: write 4, read 3, exit 1). Os mesmos registos servem os dois.
+- **Controlo de fluxo**: `if`/`else` (kinds 18–20) e `&&`/`||`/`!` (10–14) com salto curto-circuito e correção de ramos (pilha `@65`), `v`/`^` mínimo/máximo (17, via `csel`/`fcsel`), e **comparação de reais** (kind 9 com `fcmp` + condições FP).
+- **Memória como o x86**: a base de M em `x28` passou a `mbase+128`, reservando 16 slots negativos (`M[-16..-1]`) para o runtime; o `A` (kind 28) passou a chamar `_oa` (o mesmo alocador de bump que o runtime usa); a entrada (ELF e Mach-O) passou a saltar para `_go` (que faz `_ini` → `main` → `_ex`), não direto ao `main`.
+- **I/O do utilizador**: `N` (inteiro), `G` (real), `P` (char), `R` (ler), e saída — tudo ligado ao runtime.
+
+**O bug (e a lição).** O despacho de kinds no `ains` é uma cadeia de `?` (if-else encadeados), que tem de ser **uma só expressão**. Escrevi `? || || == k 30 == k 34 == k 35 == k 37` — **dois** `||` para **quatro** termos. O `== k 37` ficou pendurado, foi comido como o *then* do `?`, e o `{bloco}` como o *else* — o `?` fechou ali e a cadeia partiu-se em duas. A segunda metade (com o `fallback`) passou a correr **para todas as instruções**, por isso até o kind 1 (o primeiro literal do `main`) caía no "não suportado". Lição: numa cadeia-expressão, conta os operandos dos operadores n-ários — um `||` a menos não dá erro de sintaxe, corrompe a estrutura em silêncio.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `9d46f5cc782ba90f`; o `-a`/`-m` são folha — não tocam no auto-compilador). `node --test`: **107 testes** (3 novos em `test/arm64-print.test.js`: inteiros/reais, controlo+FizzBuzz, leitura de stdin — todos corridos no `qemu-aarch64-static` e **byte a byte iguais ao C**). E — o grande salto — **o juiz agora corre o `-a` também**: o **SHA-256** (`ex/sha256.onda`, que exercita todos os bits + leitura de stdin) dá, em ARM64 escrito pela própria Onda, **exatamente o mesmo resumo que o C, o x86 e o WASM**, ao bit. O juiz salta o `-a` com elegância nos programas que ele ainda não cobre ("o -a ainda nao suporta este programa"), sem dar divergência.
+
+**O balanço honesto.** Falta a impressão de **strings** (kind 3 — precisam de um segmento de dados inicializado em M) e os `Ac`/`Av` (argumentos) e `T` (tempo), que no `-a` devolvem 0 por agora. É o que falta para a `vecmap.onda` *literal* correr tal e qual (ela imprime um cabeçalho com strings e lê `n`/`rep` do argv). O núcleo — cálculo + impressão de números + leitura — está feito e provado pelo juiz. O lado Mach-O (`-m`) partilha todo o código (só muda o `svc`/registo); foi emitido às cegas (sem macOS aqui), mas o `-a` gémeo corre no qemu e o juiz confirma-o.
+
+**Próxima.** Strings no `-a`/`-m` (segmento de dados + `_os`) e `Ac`/`Av`/`T`, para a `vecmap.onda` literal correr em ARM64 e o juiz a cobrir de ponta a ponta.

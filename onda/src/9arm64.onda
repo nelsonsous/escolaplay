@@ -63,6 +63,20 @@
 : aaddi iii>i rd rn imm x4 | | | 0x91000000 << imm 10 << rn 5 rd
 : aaddlsl iiii>i rd rn rm sh x4 | | | | 0x8B000000 << rm 16 << sh 10 << rn 5 rd
 : abcc ii>i cc off x4 | | 0x54000000 << & / off 4 0x7FFFF 5 cc
+# --- impressao/runtime: cmp imediato, fcmp (compara reais), condicao de reais, chamar funcao do runtime ---
+: acmpi ii>i rn imm x4 | | | 0xF1000000 << imm 10 << rn 5 31
+: afcmp ii>i rn rm x4 | | 0x1E602000 << rm 16 << rn 5
+: afcc i>i o ? == o '< 0x4 ? == o '> 0xC ? == o k2 '< '= 0x9 ? == o k2 '> '= 0xA ? == o k2 '= '= 0 1
+: acallf i>i fi { acsrec @ 16 fi abl 0 }
+: aro i>i o fby k3 '_ 'o o
+# pilha de ramos (if/else e &&/|| curto-circuito): @65[0]=n; cada entrada = posicao de um salto a corrigir
+: aipush i>i p { = n @ @ 65 ! + @ 65 + 1 n p ! @ 65 + n 1 }
+: aipop >i { = n - @ @ 65 1 ! @ 65 n @ + @ 65 + 1 n }
+: apcbz i>i p xput4 p | | 0xB4000000 << & / - @ 16 p 4 0x7FFFF 5 9
+: apcbnz i>i p xput4 p | | 0xB5000000 << & / - @ 16 p 4 0x7FFFF 5 9
+: apb i>i p xput4 p | 0x14000000 & / - @ 16 p 4 0x3FFFFFF
+: acsel iiii>i rd rn rm cc x4 | | | | 0x9A800000 << rm 16 << cc 12 << rn 5 rd
+: astod ii>i d a ? tty d { agTf 0 a asTf 0 d } { agT 9 a asT 9 d }
 # --- NEON (v.2d, 2 doubles por instrucao): o mapa vetorizado. x em v1; constantes em v2..v9 (via salloc); x12 rascunho ---
 # emissores conscientes da largura w: 2 = par (q/.2d), 1 = escalar (d). Por-lane = escalar, logo bit-exato.
 : vfld iii>i w rt rn ? == w 2 x4 | | 0x3DC00000 << rn 5 rt x4 | | 0xFD400000 << rn 5 rt
@@ -125,6 +139,50 @@
 
 # tabela de chamadas: @64[0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
 : acsrec ii>i pos fi { = c @ @ 64 = b + @ 64 + 1 * c 2 ! b pos ! + b 1 fi ! @ 64 + c 1 }
+# despacho de syscall em linha (Y a b c): a=numero logico, b/c=args; resultado em d. 0=escrever, 2=sair,
+# 7=brk (devolve o limite fixo de M). svc #0 x8 no Linux (-a); svc #0x80 x16 no macOS (-m). Escreve byte a
+# byte (o byte vai para M[-8]) -- simples e correto; o benchmark usa o codigo de saida, nao a impressao.
+: asc >i {
+  = wn ? ismo 4 64
+  = rn2 ? ismo 3 63
+  = en ? ismo 1 93
+  = nr ? ismo 16 8
+  acmpi 0 0 = jw @ 16 abcc 0 0
+  acmpi 0 1 = jr @ 16 abcc 0 0
+  acmpi 0 2 = je @ 16 abcc 0 0
+  acmpi 0 7 = jk @ 16 abcc 0 0
+  aimm 0 0 = jd1 @ 16 ab 0
+  # escrever(fd, M[arg1..], arg2): byte a byte (cada char vai p/ M[-8]) em fd 1
+  xput4 jw | | 0x54000000 << & / - @ 16 jw 4 0x7FFFF 5 0
+  amovr 19 1 amovr 20 2 aimm 21 0
+  = wl @ 16
+  acmp 21 20 = pw @ 16 abcc 0xA 0
+  aadd 10 19 21 aldrx 11 28 10
+  aimm 10 -8 astrx 11 28 10 aaddlsl 1 28 10 3
+  aimm 0 1 aimm 2 1 aimm nr wn ? ismo asvc80 x4 0xD4000001
+  aaddi 21 21 1 ab - wl @ 16
+  xput4 pw | | 0x54000000 << & / - @ 16 pw 4 0x7FFFF 5 0xA
+  amovr 0 20 = jd2 @ 16 ab 0
+  # ler 1 byte de fd 0 p/ M[-8]; devolve o byte (0..255) ou -1 em EOF
+  xput4 jr | | 0x54000000 << & / - @ 16 jr 4 0x7FFFF 5 0
+  aimm 0 0 aimm 10 -8 aaddlsl 1 28 10 3 aimm 2 1 aimm nr rn2 ? ismo asvc80 x4 0xD4000001
+  acmpi 0 0 = jre @ 16 abcc 0 0
+  aimm 10 -8 aldrx 11 28 10 aimm 10 255 aand 0 11 10 = jd4 @ 16 ab 0
+  xput4 jre | | 0x54000000 << & / - @ 16 jre 4 0x7FFFF 5 0
+  aimm 0 -1 = jd5 @ 16 ab 0
+  # sair(arg1)
+  xput4 je | | 0x54000000 << & / - @ 16 je 4 0x7FFFF 5 0
+  amovr 0 1 aimm nr en ? ismo asvc80 x4 0xD4000001
+  # brk: devolve o limite fixo (M = 256 MiB = 33554432 slots)
+  xput4 jk | | 0x54000000 << & / - @ 16 jk 4 0x7FFFF 5 0
+  aimm 0 33554432 = jd3 @ 16 ab 0
+  # done:
+  xput4 jd1 | 0x14000000 & / - @ 16 jd1 4 0x3FFFFFF
+  xput4 jd2 | 0x14000000 & / - @ 16 jd2 4 0x3FFFFFF
+  xput4 jd3 | 0x14000000 & / - @ 16 jd3 4 0x3FFFFFF
+  xput4 jd4 | 0x14000000 & / - @ 16 jd4 4 0x3FFFFFF
+  xput4 jd5 | 0x14000000 & / - @ 16 jd5 4 0x3FFFFFF
+  0 }
 : ains i>i p {
   = k @ p
   = d @ + p 1
@@ -143,7 +201,7 @@
       ? == o '% { asdiv 11 9 10 amsub 9 11 10 9 } ? == o '& aand 9 9 10 ? == o '| aorr 9 9 10
       ? == o '^ aeor 9 9 10 ? == o k2 '< '< alsl 9 9 10 ? == o k2 '> '> alsr 9 9 10
       { ebeg "operador ainda nao em -a" eend } asT 9 d } }
-  ? == k 9 { ? tty b { ebeg "comparacao de reais ainda nao em -a" eend } 0 agT 9 b agT 10 c acmp 9 10 acset 9 ^ acc opof a 1 asT 9 d }
+  ? == k 9 { ? tty b { agTf 0 b agTf 1 c afcmp 0 1 acset 9 ^ afcc opof a 1 asT 9 d } { agT 9 b agT 10 c acmp 9 10 acset 9 ^ acc opof a 1 asT 9 d } }
   ? == k 15 { ? == a 0 { agT 9 b ascvtf 0 9 asTf 0 d } ? == a 1 { agTf 0 b afcvtzs 9 0 asT 9 d } { ebeg "funcao matematica ainda nao em -a" eend } }
   ? == k 21 a21
   ? == k 22 a22 a
@@ -152,7 +210,26 @@
   ? == k 25 { agT 9 a agT 10 b astrx 10 28 9 }
   ? == k 26 { agT 9 a aldrdx 0 28 9 asTf 0 d }
   ? == k 27 { agT 9 a agTf 0 b astrdx 0 28 9 }
-  ? == k 28 { agT 9 a asT 27 d aadd 27 27 9 }
+  ? == k 10 { aimm 9 0 asT 9 d agT 9 a = p @ 16 x4 0xB4000009 aipush p }
+  ? == k 11 { agT 9 a acmpi 9 0 acset 9 0 asT 9 d apcbz aipop }
+  ? == k 12 { aimm 9 1 asT 9 d agT 9 a = p @ 16 x4 0xB5000009 aipush p }
+  ? == k 13 { agT 9 a acmpi 9 0 acset 9 0 asT 9 d apcbnz aipop }
+  ? == k 14 { agT 9 a acmpi 9 0 acset 9 1 asT 9 d }
+  ? == k 17 { ? tty b { agTf 0 b agTf 1 c afcmp 0 1 x4 | | 0x1E600C00 << 1 16 << ? a 0xC 0x4 12 asTf 0 d } { agT 9 b agT 10 c acmp 9 10 acsel 9 9 10 ? a 0xC 0xB asT 9 d } }
+  ? == k 18 { agT 9 a = p @ 16 x4 0xB4000009 aipush p }
+  ? == k 19 { astod d a = p @ 16 ab 0 apcbz aipop aipush p }
+  ? == k 20 { astod d a apb aipop }
+  ? == k 28 { agT 0 a acallf aro 'a asT 0 d }
+  ? == k 29 { agT 0 a acallf aro 'p }
+  ? == k 31 { agT 0 a acallf aro 'n }
+  ? == k 32 { agTf 0 a acallf aro 'f }
+  ? == k 33 { agT 9 a aimm 10 -2 astrx 9 28 10 }
+  ? == k 36 { agT 0 a acallf fby k3 '_ 'e 'x }
+  ? == k 30 { aimm 0 1 asc asT 0 d }
+  ? == k 34 { aimm 0 3 asc asT 0 d }
+  ? == k 35 { agT 1 a agT 2 b aimm 0 4 asc asT 0 d }
+  ? == k 37 { aimm 0 6 asc asT 0 d }
+  ? == k 42 { agT 0 a agT 1 b agT 2 c asc asT 0 d }
   ? == k 7 {
     = xc 0 = dc 0 = j 0
     W < j c { = arg @ + b j ? fpt a j { agTf dc arg = dc + dc 1 } { agT xc arg = xc + xc 1 } = j + j 1 }
@@ -161,7 +238,7 @@
     ? @ fe a 3 { asTf 0 d } { asT 0 d } }
   ? == k 53 amap p
   ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aaddsp afs aepil aret }
-  { ebeg "operacao ainda nao suportada em -a" eend } }
+  { ebeg "operacao ainda nao suportada em -a (kind " N k ")" eend } }
 : afun i>i k {
   = np @ fe k 2
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
@@ -186,13 +263,13 @@
 # emite o stub de entrada (mmap M -> x28; x27=0; bl main; exit(x0)) e devolve a posicao do bl no buffer
 : aentm >i {
   aimm 0 0 aimm 1 268435456 aimm 2 3 aimm 3 4098 aimm 4 -1 aimm 5 0 aimm 16 197 asvc80
-  amovr 28 0 aimm 27 0
+  amovr 28 0 aaddi 28 28 128 aimm 27 0
   = blp @ 16
   abl 0
   aimm 16 1 asvc80
   blp }
 : outm >i {
-  = mi amain
+  = mi fby k3 '_ 'g 'o
   O 16
   = estart @ 16
   = blp aentm
@@ -228,7 +305,7 @@
   az - tvm + coff clen
   0 }
 : outa >i {
-  = mi amain
+  = mi fby k3 '_ 'g 'o
   # o stub de entrada ocupa 44 bytes (2 aimm = 8 instr + bl + mov + svc); o bl esta no byte 32
   = moff 44
   = k 0
@@ -249,8 +326,8 @@
   x4 1 x4 5 x8 0 x8 base x8 base x8 fsz x8 fsz x8 4096
   # segmento 2 (56 bytes): PT_LOAD RW -- M (heap), BSS puro (filesz 0, memsz 256 MiB) em mbase
   x4 1 x4 6 x8 0 x8 mbase x8 mbase x8 0 x8 mbase x8 4096
-  # stub de entrada: x28 = base de M ; x27 = bump = 0 ; bl main ; exit(x0)
-  aimm 28 mbase
+  # stub de entrada: x28 = base de M + 128 (16 slots negativos p/ o runtime) ; bl _go ; exit(x0) de reserva
+  aimm 28 + mbase 128
   aimm 27 0
   abl - moff 32
   x4 | | 0xD2800000 << 93 5 8
