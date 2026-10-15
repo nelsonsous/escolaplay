@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 45 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 46 (ciclos na mini-linguagem — com condicionais e ciclos fica Turing-completa, interpretada em Onda).
+Estado: **iteração 46 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 47 (uma função nova verificada bit a bit em todas as formas — ou dar nomes/funcoes à mini-linguagem).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1072,3 +1072,22 @@ Assim escreve-se `max = ? x > 3 x 3`, `abs = ? a < 0 (0 - a) a`, `? x == 5 1 0`.
 A mini-linguagem já decide. Falta-lhe repetir — com condicionais e um ciclo, uma linguagem interpretada em Onda fica Turing-completa.
 
 **Próxima.** Dar-lhe um ciclo (`while`), fechando a Turing-completude: uma pequena linguagem imperativa, escrita em Onda, compilada pela Onda para três formas.
+
+## Iteração 46: a mini-linguagem fica Turing-completa (ciclos)
+
+**Pergunta.** Faltava à mini-linguagem repetir. Com um ciclo, uma linguagem com variáveis, condicional e repetição é Turing-completa. Escreve-se um interpretador de ciclos em Onda, que por sua vez lê e executa ao mesmo tempo?
+
+**O que foi feito.** `ex/mini.onda` ganhou blocos `{ e ; e ; ... }` (sequência, vale o último) e o ciclo `W (cond) { corpo }`. O truque, num interpretador que lê e executa de uma vez: o ciclo guarda a posição do `(cond)`, e a cada volta **recua e re-lê** a condição e o corpo; quando a condição é falsa, salta o corpo contando chavetas (`saltabloco`), sem o executar, para o cursor ficar no sítio certo.
+
+**Prova** (`test/mini.test.js`, agora com ciclos; 60 testes no total, todos a passar). Programas com ciclos, todos iguais em C, x86-64 e WebAssembly:
+```
+n = 5                              a = 0; b = 1; i = 0
+f = 1                              W (i < 10) { t=a+b; a=b; b=t; i=i+1 }
+W (n > 0) { f=f*n; n=n-1 }         a            -> 55 (fib)
+f            -> 120 (fatorial)
+```
+E um **ciclo dentro de outro**: contar os primos abaixo de 20 (`W (n<20) { ... W (d<n) { ... } ... }`) dá 8. A mini-linguagem, escrita em Onda e compilada pela Onda para três formas, corre programas Turing-completos.
+
+**O arco fechado.** A Onda — uma linguagem para IAs — hospeda uma pequena linguagem imperativa completa (variáveis, `?`, `W`, blocos), e essa linguagem dá o mesmo resultado nas três formas que a Onda gera. Das iterações 42 a 46: de uma conta a uma linguagem.
+
+**Próxima.** Dar-lhe funções (definição e chamada), ou voltar ao núcleo com uma função matemática nova verificada bit a bit em todas as formas.

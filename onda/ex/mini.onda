@@ -1,7 +1,9 @@
-# Mini-linguagem interpretada em Onda: expressoes com variaveis. Cada linha e "nome = expr" ou "expr";
-# imprime o valor de cada expressao que nao seja atribuicao. Mostra um interpretador com ambiente, escrito em Onda.
-# @1 texto @2 tamanho @3 posicao @4 ambiente (pares nome-empacotado, valor) @5 n de variaveis
+# Mini-linguagem imperativa interpretada em Onda: variaveis, condicional ? c a b, comparacoes, blocos { e ; ... }
+# e ciclo W (cond) { corpo }. Com condicional e ciclo e Turing-completa. Cada linha de topo que nao e atribuicao
+# imprime-se. O interpretador le e executa ao mesmo tempo; o ciclo re-le a condicao e o corpo a cada volta.
+# @1 texto @2 tamanho @3 posicao @4 ambiente (nome empacotado, valor) @5 n variaveis
 : ch >i ? < @ 3 @ 2 @ + @ 1 @ 3 -1
+: prox >i @ + @ 1 + @ 3 1
 : adianta >i { ! 3 + @ 3 1 0 }
 : espaco >i W || == ch 32 == ch 9 adianta
 : letra i>i c || || && >= c 'a <= c 'z && >= c 'A <= c 'Z == c '_
@@ -9,45 +11,46 @@
 : busca i>i h { = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? < j @ 5 @ + @ 4 + * 2 j 1 0 }
 : poe ii>i h v { = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? >= j @ 5 { ! + @ 4 * 2 j h ! 5 + @ 5 1 } 0 ! + @ 4 + * 2 j 1 v v }
 : numero >i { espaco = v 0 W && >= ch '0 <= ch '9 { = v + * v 10 - ch '0 adianta } v }
+# salta um bloco { ... } sem o executar (para quando a condicao do ciclo e falsa)
+: saltabloco >i { espaco ? == ch 123 { adianta = d 1 W && > d 0 >= ch 0 { ? == ch 123 = d + d 1 0 ? == ch 125 = d - d 1 0 adianta } } 0 0 }
 : fator >i {
   espaco
-  ? == ch '( { adianta = v cond espaco ? == ch ') adianta 0 v }
+  ? == ch '( { adianta = v atr espaco ? == ch ') adianta 0 v }
+  ? == ch 123 { adianta = v 0 espaco W && >= ch 0 != ch 125 { = v atr espaco ? == ch '; { adianta espaco } 0 } adianta v }
   ? == ch '- { adianta - 0 fator }
   ? letra ch busca nome
   numero }
 : termo >i { = v fator espaco W || || == ch '* == ch '/ == ch '% { = o ch adianta = r fator ? == o '* = v * v r ? == o '/ = v / v r = v % v r espaco } v }
 : soma >i { = v termo espaco W || == ch '+ == ch '- { = o ch adianta = r termo ? == o '+ = v + v r = v - v r espaco } v }
-: prox >i @ + @ 1 + @ 3 1
 : comp >i {
-  = v soma
-  espaco
+  = v soma espaco
   ? || || || == ch '< == ch '> && == ch '= == prox '= && == ch '! == prox '= {
-    = o ch adianta
-    = eq ? == ch '= { adianta 1 } 0
-    = r soma
-    espaco
-    ? == o '< ? eq <= v r < v r
-    ? == o '> ? eq >= v r > v r
-    ? == o '= == v r
-    != v r } v }
-: cond >i { espaco ? == ch '? { adianta = c cond = a cond = b cond ? c a b } comp }
-: linha >i {
+    = o ch adianta = eq ? == ch '= { adianta 1 } 0 = r soma espaco
+    ? == o '< ? eq <= v r < v r ? == o '> ? eq >= v r > v r ? == o '= == v r != v r } v }
+: cond >i {
   espaco
-  # atribuicao? um nome seguido de '='  (e nao '==')
-  = p @ 3
-  ? letra ch {
-    = h nome espaco
-    ? && == ch '= != @ + @ 1 + @ 3 1 '= { adianta poe h cond -2147483648 } { ! 3 p cond }
-  } cond }
+  ? == ch '? { adianta = c cond = a cond = b cond ? c a b }
+  ? == ch 'W {
+    adianta espaco
+    = cs @ 3
+    = go 1
+    W go { ! 3 cs = c fator espaco ? c { fator espaco } { = go 0 saltabloco espaco } }
+    0 }
+  comp }
+: atr >i {
+  espaco = p @ 3
+  ? letra ch { = h nome espaco ? && == ch '= != prox '= { adianta = v atr poe h v } { ! 3 p cond } } cond }
+# a linha de topo e atribuicao? (um nome seguido de '=' que nao seja '==')
+: ehatr >i { = p @ 3 espaco = r 0 ? letra ch { nome espaco = r && == ch '= != prox '= } 0 ! 3 p r }
 : main >i {
-  ! 1 A 10000 ! 4 A 2000 ! 5 0
-  = n 0 = c R
-  W && >= c 0 < n 9999 { ! + @ 1 n c = n + n 1 = c R }
+  ! 1 A 20000 ! 4 A 4000 ! 5 0
+  = n 0 = c R W && >= c 0 < n 19999 { ! + @ 1 n c = n + n 1 = c R }
   ! 2 n ! 3 0
   W < @ 3 @ 2 {
     espaco
-    ? >= @ 3 @ 2 0 {
-      = v linha
-      ? != v -2147483648 { N v P 10 } 0
-      espaco ? || == ch 10 == ch '; adianta 0 } }
+    ? < @ 3 @ 2 {
+      = calado || ehatr == ch 'W
+      = v atr
+      ? calado 0 { N v P 10 }
+      espaco ? || || == ch 10 == ch '; == ch 13 adianta 0 } 0 }
   0 }

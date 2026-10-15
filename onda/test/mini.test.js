@@ -25,6 +25,10 @@ const casos = [
   ['x = 5\n? x < 10 100 200\n? x > 10 100 200\n', '100 200'],
   ['x = 5\nmax = ? x > 3 x 3\nmax\n? x == 5 1 0\nx <= 5\nx != 5\n', '5 1 1 0'],
   ['a = -7\nabs = ? a < 0 (0 - a) a\nabs\n', '7'],
+  ['n = 5\nf = 1\nW (n > 0) { f = f * n ; n = n - 1 }\nf\n', '120'],
+  ['a = 0\nb = 1\ni = 0\nW (i < 10) { t = a + b ; a = b ; b = t ; i = i + 1 }\na\n', '55'],
+  ['s = 0\nk = 1\nW (k <= 100) { s = s + k ; k = k + 1 }\ns\n', '5050'],
+  ['n = 2\nc = 0\nW (n < 20) { d = 2 ; e = 1 ; W (d < n) { e = ? n % d == 0 0 e ; d = d + 1 } ; c = c + e ; n = n + 1 }\nc\n', '8'],
 ];
 
 test('mini: programas com variaveis (forma C)', () => {
