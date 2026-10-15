@@ -1,0 +1,602 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Onda Dash</title>
+<style>
+  /* Jogo arcada: mundo = campo fluido da Onda na GPU; nave + portões de neon por cima. Tema escuro deliberado. */
+  :root{
+    --bg:#0a0612; --panel:#180d26cc; --line:#321c48; --fg:#f6ecfb; --mut:#c3a4d9;
+    --pink:#f472b6; --amber:#f59e0b; --cyan:#5ad1c6; --green:#34d399;
+    color-scheme:dark;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--sans);overflow:hidden}
+  .wrap{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;
+    padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));
+    padding-block:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-bottom,0px))}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex:0 0 auto}
+  .brand{font:800 18px/1 var(--sans);letter-spacing:-.01em;background:linear-gradient(100deg,var(--cyan),var(--pink) 60%,var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .brand small{display:block;font:700 9px/1.4 var(--mono);letter-spacing:.12em;color:var(--cyan);-webkit-text-fill-color:var(--cyan)}
+  .hud{display:flex;gap:8px}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 11px;text-align:center;min-width:62px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .pill .k{font:700 9px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+  .pill .v{font:800 19px/1.1 var(--sans);margin-top:3px;font-variant-numeric:tabular-nums}
+  #best .v{color:var(--amber)}
+  .stage{position:relative;flex:1 1 auto;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:#000;min-height:0;
+    box-shadow:0 24px 70px -30px #000,0 0 44px -22px var(--pink)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #fg{touch-action:none}
+  .vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 35%,transparent 40%,#0a0612cc 100%)}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;text-align:center;padding:28px;
+    background:radial-gradient(90% 70% at 50% 42%,#180d26e0,#0a0612f2);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:5}
+  .screen h1{margin:0;font:800 clamp(36px,12vw,56px)/1 var(--sans);letter-spacing:-.02em;background:linear-gradient(100deg,var(--cyan),var(--pink) 55%,var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .screen p{margin:0;color:var(--mut);max-width:28ch;font-size:15px}
+  .screen .big{font:800 58px/1 var(--sans);color:var(--fg);font-variant-numeric:tabular-nums}
+  .screen .big small{display:block;font:700 11px/1 var(--mono);letter-spacing:.1em;color:var(--mut);text-transform:uppercase;margin-bottom:6px}
+  button{font:800 18px var(--sans);color:#160a12;background:linear-gradient(120deg,var(--cyan),var(--pink) 70%,var(--amber));border:0;border-radius:16px;padding:14px 32px;cursor:pointer;box-shadow:0 10px 30px -10px var(--pink);-webkit-tap-highlight-color:transparent}
+  button:active{transform:scale(.96)}
+  .foot{flex:0 0 auto;text-align:center;color:var(--mut);font-size:11.5px;margin-top:9px}
+  .foot b{color:var(--pink)}
+  [hidden]{display:none!important}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">Onda&nbsp;Dash<small>GPU · Onda</small></div>
+    <div class="hud">
+      <div class="pill"><div class="k">Pontos</div><div class="v" id="score">0</div></div>
+      <div class="pill" id="best"><div class="k">Recorde</div><div class="v" id="bestv">0</div></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="bg"></canvas>
+    <canvas id="fg"></canvas>
+    <div class="vig"></div>
+    <div class="screen" id="startS">
+      <h1>Onda Dash</h1>
+      <p>Arrasta o dedo para voar. Passa pelas aberturas dos portões, apanha as energias. A velocidade sobe.</p>
+      <button id="startB">Jogar</button>
+    </div>
+    <div class="screen" id="overS" hidden>
+      <div class="big"><small>Pontos</small><span id="finalScore">0</span></div>
+      <p id="bestLine">Recorde: 0</p>
+      <button id="againB">Outra vez</button>
+    </div>
+  </div>
+  <div class="foot">Mundo: campo <b>Onda</b> → <code>ondac -g</code> → GLSL → GPU</div>
+</div>
+
+<script id="frag" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+precision highp int;
+uniform float u[8];
+out vec4 oc;
+int obh(float x){return floatBitsToInt(x);}
+int obl(float x){return 0;}
+float obw(int h,int l){return intBitsToFloat(h);}
+int f_c8(float v_v);
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty);
+int f_c8(float v_v){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+int t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=int(t6);
+return t7;
+}
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+float t7=0.0;
+float t8=0.0;
+float t9=0.0;
+float t10=0.0;
+float t11=0.0;
+float t12=0.0;
+float t13=0.0;
+float t14=0.0;
+float t15=0.0;
+float t16=0.0;
+float t17=0.0;
+float t18=0.0;
+float t19=0.0;
+float t20=0.0;
+float t21=0.0;
+float t22=0.0;
+float t23=0.0;
+float t24=0.0;
+float t25=0.0;
+float t26=0.0;
+float t27=0.0;
+float t28=0.0;
+float t29=0.0;
+float t30=0.0;
+float t31=0.0;
+float t32=0.0;
+float t33=0.0;
+float t34=0.0;
+float t35=0.0;
+float t36=0.0;
+float t37=0.0;
+float t38=0.0;
+float t39=0.0;
+float t40=0.0;
+float t41=0.0;
+float t42=0.0;
+float t43=0.0;
+float t44=0.0;
+float t45=0.0;
+float t46=0.0;
+float t47=0.0;
+float t48=0.0;
+float t49=0.0;
+float t50=0.0;
+float t51=0.0;
+float t52=0.0;
+float t53=0.0;
+float t54=0.0;
+float t55=0.0;
+float t56=0.0;
+float t57=0.0;
+float t58=0.0;
+float t59=0.0;
+float t60=0.0;
+float t61=0.0;
+float t62=0.0;
+float t63=0.0;
+float t64=0.0;
+float t65=0.0;
+float t66=0.0;
+float t67=0.0;
+float t68=0.0;
+float t69=0.0;
+float t70=0.0;
+float t71=0.0;
+float t72=0.0;
+float t73=0.0;
+float t74=0.0;
+float t75=0.0;
+float t76=0.0;
+float t77=0.0;
+float t78=0.0;
+float t79=0.0;
+float t80=0.0;
+float t81=0.0;
+float t82=0.0;
+float t83=0.0;
+float t84=0.0;
+float t85=0.0;
+float t86=0.0;
+float t87=0.0;
+float t88=0.0;
+float t89=0.0;
+float t90=0.0;
+float t91=0.0;
+float t92=0.0;
+float t93=0.0;
+float t94=0.0;
+float t95=0.0;
+float t96=0.0;
+float t97=0.0;
+float t98=0.0;
+float t99=0.0;
+float t100=0.0;
+float t101=0.0;
+float t102=0.0;
+float t103=0.0;
+float t104=0.0;
+float t105=0.0;
+float t106=0.0;
+float t107=0.0;
+float t108=0.0;
+float t109=0.0;
+float t110=0.0;
+float t111=0.0;
+float t112=0.0;
+float t113=0.0;
+float t114=0.0;
+float t115=0.0;
+float t116=0.0;
+float t117=0.0;
+float t118=0.0;
+float t119=0.0;
+float t120=0.0;
+float t121=0.0;
+float t122=0.0;
+float t123=0.0;
+float t124=0.0;
+float t125=0.0;
+float t126=0.0;
+float t127=0.0;
+float t128=0.0;
+float t129=0.0;
+float t130=0.0;
+float t131=0.0;
+float t132=0.0;
+float t133=0.0;
+float t134=0.0;
+float t135=0.0;
+float t136=0.0;
+float t137=0.0;
+float t138=0.0;
+float t139=0.0;
+float t140=0.0;
+float t141=0.0;
+float t142=0.0;
+float t143=0.0;
+float t144=0.0;
+float t145=0.0;
+float t146=0.0;
+float t147=0.0;
+float t148=0.0;
+float t149=0.0;
+float t150=0.0;
+float t151=0.0;
+float t152=0.0;
+float t153=0.0;
+float t154=0.0;
+float t155=0.0;
+float t156=0.0;
+float t157=0.0;
+float t158=0.0;
+float t159=0.0;
+float t160=0.0;
+float t161=0.0;
+float t162=0.0;
+float t163=0.0;
+float t164=0.0;
+float t165=0.0;
+float t166=0.0;
+float t167=0.0;
+int t168=0;
+int t169=0;
+int t170=0;
+float t171=0.0;
+int t172=0;
+int t173=0;
+int t174=0;
+int t175=0;
+float t176=0.0;
+int t177=0;
+int t178=0;
+float v_u=0.0;
+float v_v=0.0;
+float v_w1=0.0;
+float v_w2=0.0;
+float v_pu=0.0;
+float v_pv=0.0;
+float v_ux=0.0;
+float v_uy=0.0;
+float v_dr=0.0;
+float v_ripp=0.0;
+float v_a=0.0;
+float v_b=0.0;
+float v_cc=0.0;
+float v_e=0.0;
+float v_g=0.0;
+float v_rr=0.0;
+float v_gg=0.0;
+float v_bb=0.0;
+t0=v_x;
+t1=0.5;
+t2=v_w;
+t3=t1*t2;
+t4=t0-t3;
+t5=v_h;
+t6=t4/t5;
+v_u=t6;
+t7=v_y;
+t8=0.5;
+t9=v_h;
+t10=t8*t9;
+t11=t7-t10;
+t12=v_h;
+t13=t11/t12;
+v_v=t13;
+t14=3.0;
+t15=v_u;
+t16=t14*t15;
+t17=0.7;
+t18=v_t;
+t19=t17*t18;
+t20=t16+t19;
+t21=sin(t20);
+v_w1=t21;
+t22=3.0;
+t23=v_v;
+t24=t22*t23;
+t25=0.6;
+t26=v_t;
+t27=t25*t26;
+t28=t24+t27;
+t29=cos(t28);
+v_w2=t29;
+t30=v_u;
+t31=0.45;
+t32=v_w2;
+t33=t31*t32;
+t34=t30+t33;
+v_pu=t34;
+t35=v_v;
+t36=0.45;
+t37=v_w1;
+t38=t36*t37;
+t39=t35+t38;
+v_pv=t39;
+t40=v_tx;
+t41=0.5;
+t42=v_w;
+t43=t41*t42;
+t44=t40-t43;
+t45=v_h;
+t46=t44/t45;
+v_ux=t46;
+t47=v_ty;
+t48=0.5;
+t49=v_h;
+t50=t48*t49;
+t51=t47-t50;
+t52=v_h;
+t53=t51/t52;
+v_uy=t53;
+t54=v_pu;
+t55=v_ux;
+t56=t54-t55;
+t57=v_pu;
+t58=v_ux;
+t59=t57-t58;
+t60=t56*t59;
+t61=v_pv;
+t62=v_uy;
+t63=t61-t62;
+t64=v_pv;
+t65=v_uy;
+t66=t64-t65;
+t67=t63*t66;
+t68=t60+t67;
+t69=sqrt(t68);
+v_dr=t69;
+t70=16.0;
+t71=v_dr;
+t72=t70*t71;
+t73=5.0;
+t74=v_t;
+t75=t73*t74;
+t76=t72-t75;
+t77=sin(t76);
+v_ripp=t77;
+t78=6.0;
+t79=v_pu;
+t80=t78*t79;
+t81=5.0;
+t82=v_pv;
+t83=t81*t82;
+t84=t80+t83;
+t85=1.3;
+t86=v_t;
+t87=t85*t86;
+t88=t84+t87;
+t89=sin(t88);
+v_a=t89;
+t90=5.0;
+t91=v_pu;
+t92=t90*t91;
+t93=6.0;
+t94=v_pv;
+t95=t93*t94;
+t96=t92-t95;
+t97=1.1;
+t98=v_t;
+t99=t97*t98;
+t100=t96+t99;
+t101=sin(t100);
+v_b=t101;
+t102=7.0;
+t103=v_pu;
+t104=v_pu;
+t105=t103*t104;
+t106=v_pv;
+t107=v_pv;
+t108=t106*t107;
+t109=t105+t108;
+t110=sqrt(t109);
+t111=t102*t110;
+t112=-2.0;
+t113=v_t;
+t114=t112*t113;
+t115=t111+t114;
+t116=sin(t115);
+v_cc=t116;
+t117=0.38;
+t118=v_a;
+t119=t117*t118;
+t120=0.32;
+t121=v_b;
+t122=t120*t121;
+t123=t119+t122;
+t124=0.42;
+t125=v_cc;
+t126=t124*t125;
+t127=0.5;
+t128=v_ripp;
+t129=t127*t128;
+t130=t126+t129;
+t131=t123+t130;
+v_e=t131;
+t132=0.5;
+t133=0.5;
+t134=v_e;
+t135=t133*t134;
+t136=t132+t135;
+v_g=t136;
+t137=0.60;
+t138=0.40;
+t139=6.283;
+t140=v_g;
+t141=t139*t140;
+t142=0.1;
+t143=t141+t142;
+t144=sin(t143);
+t145=t138*t144;
+t146=t137+t145;
+v_rr=t146;
+t147=0.42;
+t148=0.34;
+t149=6.283;
+t150=v_g;
+t151=t149*t150;
+t152=1.7;
+t153=t151+t152;
+t154=sin(t153);
+t155=t148*t154;
+t156=t147+t155;
+v_gg=t156;
+t157=0.58;
+t158=0.40;
+t159=6.283;
+t160=v_g;
+t161=t159*t160;
+t162=3.2;
+t163=t161+t162;
+t164=sin(t163);
+t165=t158*t164;
+t166=t157+t165;
+v_bb=t166;
+t167=v_rr;
+t168=f_c8(t167);
+t169=65536;
+t170=t168*t169;
+t171=v_gg;
+t172=f_c8(t171);
+t173=256;
+t174=t172*t173;
+t175=t170+t174;
+t176=v_bb;
+t177=f_c8(t176);
+t178=t175+t177;
+return t178;
+}
+void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0],u[1],u[2],u[3],u[4]);oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}
+</script>
+<script>
+(function(){
+  var stage=document.getElementById('stage'), bg=document.getElementById('bg'), fg=document.getElementById('fg');
+  var ctx=fg.getContext('2d');
+  var scoreEl=document.getElementById('score'), bestEl=document.getElementById('bestv');
+  var startS=document.getElementById('startS'), overS=document.getElementById('overS');
+
+  // fundo: campo da Onda na GPU
+  var gl=bg.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'}), uLoc=null, GW=1;
+  if(gl){ var VS='#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.0-1.0,0.0,1.0);}';
+    function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+    var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,document.getElementById('frag').textContent));gl.linkProgram(pr);
+    if(gl.getProgramParameter(pr,gl.LINK_STATUS)){gl.useProgram(pr);uLoc=gl.getUniformLocation(pr,'u');gl.bindVertexArray(gl.createVertexArray());}else gl=null;
+  }
+  if(!gl) stage.style.background='radial-gradient(circle at 50% 35%,#3a1550,#0a0612)';
+
+  var W=1,H=1,dpr=1;
+  function resize(){ var r=stage.getBoundingClientRect(); dpr=Math.min(window.devicePixelRatio||1,2);
+    W=Math.round(r.width*dpr); H=Math.round(r.height*dpr); fg.width=W; fg.height=H;
+    if(gl){ var s=Math.min(Math.max(Math.round(Math.min(r.width,r.height)*dpr),64),760); if(s!==GW){GW=s;bg.width=s;bg.height=s;gl.viewport(0,0,s,s);} } }
+  resize(); window.addEventListener('resize',resize,{passive:true});
+
+  // --- estado ---
+  var state='start', score=0, best=0, dist=0, speed=0, spawnT=0, orbT=0;
+  var bars=[], orbs=[], parts=[], px=0.5, tpx=0.5, shake=0, flash=0;
+  try{ best=parseInt(localStorage.getItem('ondadash_best')||'0',10)||0; }catch(e){} bestEl.textContent=best;
+
+  function reset(){ state='play'; score=0; dist=0; speed=0.34; spawnT=0; orbT=0; bars=[]; orbs=[]; parts=[]; px=tpx=0.5; shake=0; flash=0;
+    startS.hidden=true; overS.hidden=true; scoreEl.textContent='0'; }
+  function gameOver(){ state='over'; flash=1; for(var i=0;i<28;i++) burst(px,0.8,['#f472b6','#f59e0b','#5ad1c6'][i%3]);
+    if(score>best){best=score;try{localStorage.setItem('ondadash_best',String(best));}catch(e){}} bestEl.textContent=best;
+    document.getElementById('finalScore').textContent=score; document.getElementById('bestLine').textContent='Recorde: '+best; overS.hidden=false; }
+  document.getElementById('startB').onclick=reset; document.getElementById('againB').onclick=reset;
+
+  function burst(x,y,c){ for(var i=0;i<6;i++){ var a=Math.random()*6.28,s=0.1+Math.random()*0.5;
+    parts.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,c:c}); } }
+
+  // input: o dedo controla o X da nave
+  function setX(e){ var r=stage.getBoundingClientRect(), p=(e.touches&&e.touches[0])||e;
+    tpx=Math.max(0.04,Math.min(0.96,(p.clientX-r.left)/r.width)); }
+  fg.addEventListener('pointerdown',function(e){fg.setPointerCapture&&fg.setPointerCapture(e.pointerId);setX(e);},{passive:true});
+  fg.addEventListener('pointermove',function(e){if(e.buttons||e.pointerType==='touch')setX(e);},{passive:true});
+
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t0=performance.now(), last=t0, PY=0.80;
+
+  function update(dt){
+    dist+=speed*dt; speed=Math.min(0.34+dist*0.012,0.95);
+    score=Math.floor(dist*10); scoreEl.textContent=score;
+    px+=(tpx-px)*Math.min(1,dt*14);
+    // portões
+    spawnT-=dt; if(spawnT<=0){ spawnT=Math.max(0.62,1.25-dist*0.02); var gw=Math.max(0.14,0.26-dist*0.004);
+      bars.push({y:-0.05, gx:0.12+Math.random()*0.76, gw:gw, done:false}); }
+    for(var i=bars.length-1;i>=0;i--){ var b=bars[i], py0=b.y; b.y+=speed*dt;
+      if(!b.done && py0<PY && b.y>=PY){ b.done=true; if(Math.abs(px-b.gx)>b.gw){ gameOver(); return; } else { score+=5; } }
+      if(b.y>1.1) bars.splice(i,1); }
+    // energias
+    orbT-=dt; if(orbT<=0){ orbT=0.9+Math.random()*0.8; orbs.push({x:0.1+Math.random()*0.8,y:-0.05}); }
+    for(var j=orbs.length-1;j>=0;j--){ var o=orbs[j]; o.y+=speed*dt;
+      if(Math.abs(o.y-PY)<0.045 && Math.abs(o.x-px)<0.06){ score+=25; scoreEl.textContent=score; burst(o.x,o.y,'#5ad1c6'); orbs.splice(j,1); continue; }
+      if(o.y>1.1) orbs.splice(j,1); }
+    for(var k=parts.length-1;k>=0;k--){ var p=parts[k]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=dt*0.6; p.life-=dt*1.6; if(p.life<=0) parts.splice(k,1); }
+    if(shake>0) shake=Math.max(0,shake-dt*3); if(flash>0) flash=Math.max(0,flash-dt*2.2);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var ox=(Math.random()-0.5)*shake*22*dpr, oy=(Math.random()-0.5)*shake*22*dpr;
+    ctx.save(); ctx.translate(ox,oy);
+    // portões
+    ctx.lineCap='round';
+    for(var i=0;i<bars.length;i++){ var b=bars[i], y=b.y*H, gl1=(b.gx-b.gw)*W, gr=(b.gx+b.gw)*W;
+      ctx.lineWidth=7*dpr; ctx.shadowBlur=18*dpr; ctx.shadowColor='#f472b6'; ctx.strokeStyle=b.done?'#5ad1c6':'#ff7fc4';
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(gl1,y); ctx.moveTo(gr,y); ctx.lineTo(W,y); ctx.stroke();
+      ctx.shadowBlur=0; ctx.fillStyle='#ffffff'; ctx.globalAlpha=.9;
+      ctx.beginPath(); ctx.arc(gl1,y,4*dpr,0,6.28); ctx.arc(gr,y,4*dpr,0,6.28); ctx.fill(); ctx.globalAlpha=1; }
+    // energias
+    for(var j=0;j<orbs.length;j++){ var o=orbs[j]; ctx.shadowBlur=16*dpr; ctx.shadowColor='#5ad1c6';
+      var grd=ctx.createRadialGradient(o.x*W,o.y*H,0,o.x*W,o.y*H,10*dpr); grd.addColorStop(0,'#fff'); grd.addColorStop(.5,'#5ad1c6'); grd.addColorStop(1,'rgba(90,209,198,0)');
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(o.x*W,o.y*H,10*dpr,0,6.28); ctx.fill(); }
+    ctx.shadowBlur=0;
+    // partículas
+    for(var k=0;k<parts.length;k++){ var p=parts[k]; ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c;
+      ctx.beginPath(); ctx.arc(p.x*W,p.y*H,3*dpr*p.life,0,6.28); ctx.fill(); } ctx.globalAlpha=1;
+    // nave
+    if(state!=='over'){ var X=px*W, Y=PY*H, s=15*dpr;
+      ctx.shadowBlur=22*dpr; ctx.shadowColor='#5ad1c6';
+      var g2=ctx.createLinearGradient(X,Y-s,X,Y+s); g2.addColorStop(0,'#eafcff'); g2.addColorStop(1,'#5ad1c6');
+      ctx.fillStyle=g2; ctx.beginPath(); ctx.moveTo(X,Y-s); ctx.lineTo(X+s*0.8,Y+s*0.7); ctx.lineTo(X,Y+s*0.3); ctx.lineTo(X-s*0.8,Y+s*0.7); ctx.closePath(); ctx.fill();
+      ctx.shadowBlur=0; }
+    ctx.restore();
+    if(flash>0){ ctx.fillStyle='rgba(255,120,190,'+(flash*0.5)+')'; ctx.fillRect(0,0,W,H); }
+  }
+
+  function frame(now){
+    var dt=Math.min(0.05,(now-last)/1000); last=now;
+    resize();
+    if(gl){ var t=(now-t0)/1000*(reduce?0.4:1); gl.uniform1fv(uLoc,[t,GW,GW,GW*0.5,GW*(1-(state==='play'?(dist*0.1%1):0.5)),0,0,0]); gl.drawArrays(gl.TRIANGLES,0,3); }
+    if(state==='play') update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
