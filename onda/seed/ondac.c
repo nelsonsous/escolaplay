@@ -113,6 +113,7 @@ static I f_isw(void);
 static I f_isx(void);
 static I f_isa(void);
 static I f_isd(void);
+static I f_isi(void);
 static I f_isc(void);
 static I f_ety(I v_y);
 static I f_ez(I v_y);
@@ -200,6 +201,11 @@ static I f_emi(I v_p);
 static I f_dsig(I v_k);
 static I f_dins(I v_p);
 static I f_dfun(I v_k);
+static I f_rinum(void);
+static I f_ritok(void);
+static I f_ritype(void);
+static I f_riread(I v_k);
+static I f_rifun(I v_k);
 static I f_cld(void);
 static I f_cst(void);
 static I f_cldf(void);
@@ -1840,6 +1846,34 @@ t1=M[t0];
 t2=9;
 t3=(t1==t2)?1:0;
 return t3;
+}
+static I f_isi(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+t0=1;
+t1=0;
+t2=av(t0,t1);
+t3=45;
+t4=(t2==t3)?1:0;
+t5=0;
+if(t4!=0){
+t6=1;
+t7=1;
+t8=av(t6,t7);
+t9=105;
+t10=(t8==t9)?1:0;
+t5=(t10!=0)?1:0;
+}
+return t5;
 }
 static I f_isc(void){
 I t0=0;
@@ -10581,7 +10615,7 @@ I t47=0;
 I t48=0;
 I t49=0;
 I t50=0;
-F t51=0.0;
+I t51=0;
 I t52=0;
 I t53=0;
 I t54=0;
@@ -10592,6 +10626,10 @@ I t58=0;
 I t59=0;
 I t60=0;
 I t61=0;
+I t62=0;
+I t63=0;
+I t64=0;
+I t65=0;
 I v_k=0;
 t0=v_p;
 t1=M[t0];
@@ -10607,81 +10645,93 @@ t7=M[t6];
 on(t7);
 t8=32;
 op(t8);
-t9=v_p;
-t10=2;
-t11=t9+t10;
-t12=M[t11];
-on(t12);
-t13=32;
-op(t13);
-t14=v_p;
-t15=3;
-t16=t14+t15;
-t17=M[t16];
-on(t17);
-t18=32;
-op(t18);
-t19=v_p;
-t20=4;
-t21=t19+t20;
-t22=M[t21];
-on(t22);
-t23=32;
-op(t23);
-t24=v_p;
-t25=5;
-t26=t24+t25;
-t27=M[t26];
-on(t27);
-t28=32;
-op(t28);
-t29=v_p;
-t30=6;
-t31=t29+t30;
-t32=M[t31];
-on(t32);
-t33=v_k;
+t9=v_k;
+t10=1;
+t11=(t9==t10)?1:0;
+if(t11!=0){
+t13=v_p;
+t14=2;
+t15=t13+t14;
+t16=M[t15];
+t17=f_etx(t16);
+t12=t17;
+}else{
+t18=v_k;
+t19=8;
+t20=(t18==t19)?1:0;
+t21=1;
+if(t20==0){
+t22=v_k;
+t23=9;
+t24=(t22==t23)?1:0;
+t21=(t24!=0)?1:0;
+}
+if(t21!=0){
+t26=v_p;
+t27=2;
+t28=t26+t27;
+t29=M[t28];
+t30=f_eop(t29);
+t25=t30;
+}else{
+t31=v_k;
+t32=5;
+t33=(t31==t32)?1:0;
 t34=1;
-t35=(t33==t34)?1:0;
-if(t35!=0){
-os("    ; lit ");
-t37=0;
-t38=10;
-t39=M[t38];
+if(t33==0){
+t35=v_k;
+t36=6;
+t37=(t35==t36)?1:0;
+t34=(t37!=0)?1:0;
+}
+if(t34!=0){
+t39=0;
+on(t39);
+t38=t39;
+}else{
 t40=v_p;
-t41=1;
+t41=2;
 t42=t40+t41;
 t43=M[t42];
-t44=t39+t43;
-t45=M[t44];
-if(t45!=0){
-t47=v_p;
-t48=2;
-t49=t47+t48;
-t50=M[t49];
-t51=f_fltval(t50);
-og(t51);
-t52=0;
-t46=t52;
-}else{
-t53=v_p;
-t54=2;
-t55=t53+t54;
-t56=M[t55];
-t57=f_tokval(t56);
-on(t57);
-t58=0;
-t46=t58;
+on(t43);
+t38=t43;
 }
-t36=t46;
-}else{
-t59=0;
-t36=t59;
+t25=t38;
 }
-t60=10;
-op(t60);
-t61=0;
-return t61;
+t12=t25;
+}
+t44=32;
+op(t44);
+t45=v_p;
+t46=3;
+t47=t45+t46;
+t48=M[t47];
+on(t48);
+t49=32;
+op(t49);
+t50=v_p;
+t51=4;
+t52=t50+t51;
+t53=M[t52];
+on(t53);
+t54=32;
+op(t54);
+t55=v_p;
+t56=5;
+t57=t55+t56;
+t58=M[t57];
+on(t58);
+t59=32;
+op(t59);
+t60=v_p;
+t61=6;
+t62=t60+t61;
+t63=M[t62];
+on(t63);
+t64=10;
+op(t64);
+t65=0;
+return t65;
 }
 static I f_dfun(I v_k){
 I t0=0;
@@ -10722,6 +10772,50 @@ I t34=0;
 I t35=0;
 I t36=0;
 I t37=0;
+I t38=0;
+I t39=0;
+I t40=0;
+I t41=0;
+I t42=0;
+I t43=0;
+I t44=0;
+I t45=0;
+I t46=0;
+I t47=0;
+I t48=0;
+I t49=0;
+I t50=0;
+I t51=0;
+I t52=0;
+I t53=0;
+I t54=0;
+I t55=0;
+I t56=0;
+I t57=0;
+I t58=0;
+I t59=0;
+I t60=0;
+I t61=0;
+I t62=0;
+I t63=0;
+I t64=0;
+I t65=0;
+I t66=0;
+I t67=0;
+I t68=0;
+I t69=0;
+I t70=0;
+I t71=0;
+I t72=0;
+I t73=0;
+I t74=0;
+I t75=0;
+I t76=0;
+I t77=0;
+I t78=0;
+I t79=0;
+I t80=0;
+I v_np=0;
 I v_j=0;
 os(": ");
 t0=0;
@@ -10734,50 +10828,481 @@ t6=32;
 op(t6);
 t7=v_k;
 t8=f_dsig(t7);
-os("   # ");
-t9=0;
-t10=9;
-t11=M[t10];
-on(t11);
-os(" locais, ");
-t12=0;
-t13=11;
-t14=M[t13];
-on(t14);
-os(" temp, ");
-t15=0;
-t16=19;
-t17=M[t16];
-on(t17);
-os(" instrucoes [k d a b c x y]");
-t18=0;
-t19=10;
-op(t19);
-t20=0;
-v_j=t20;
+t9=v_k;
+t10=2;
+t11=f_fe(t9,t10);
+t12=M[t11];
+v_np=t12;
+t13=0;
+v_j=t13;
 while(1){
-t21=v_j;
-t22=19;
-t23=M[t22];
-t24=(t21<t23)?1:0;
-if(t24==0)break;
-t25=18;
-t26=M[t25];
-t27=v_j;
-t28=8;
-t29=t27*t28;
-t30=t26+t29;
-t31=f_dins(t30);
-t32=v_j;
-t33=1;
-t34=t32+t33;
-v_j=t34;
+t14=v_j;
+t15=v_np;
+t16=(t14<t15)?1:0;
+if(t16==0)break;
+t17=32;
+op(t17);
+t18=112;
+op(t18);
+t19=v_j;
+on(t19);
+t20=v_j;
+t21=1;
+t22=t20+t21;
+v_j=t22;
 }
-t35=0;
-t36=10;
-op(t36);
-t37=0;
-return t37;
+t23=0;
+t24=10;
+op(t24);
+t25=9;
+t26=M[t25];
+t27=v_np;
+t28=t26-t27;
+on(t28);
+t29=v_np;
+v_j=t29;
+while(1){
+t30=v_j;
+t31=9;
+t32=M[t31];
+t33=(t30<t32)?1:0;
+if(t33==0)break;
+t34=32;
+op(t34);
+t35=v_j;
+t36=f_lty(t35);
+if(t36!=0){
+t38=102;
+t37=t38;
+}else{
+t39=105;
+t37=t39;
+}
+op(t37);
+t40=v_j;
+t41=1;
+t42=t40+t41;
+v_j=t42;
+}
+t43=0;
+t44=10;
+op(t44);
+t45=11;
+t46=M[t45];
+on(t46);
+t47=0;
+v_j=t47;
+while(1){
+t48=v_j;
+t49=11;
+t50=M[t49];
+t51=(t48<t50)?1:0;
+if(t51==0)break;
+t52=32;
+op(t52);
+t53=v_j;
+t54=f_tty(t53);
+if(t54!=0){
+t56=102;
+t55=t56;
+}else{
+t57=105;
+t55=t57;
+}
+op(t55);
+t58=v_j;
+t59=1;
+t60=t58+t59;
+v_j=t60;
+}
+t61=0;
+t62=10;
+op(t62);
+t63=0;
+v_j=t63;
+while(1){
+t64=v_j;
+t65=19;
+t66=M[t65];
+t67=(t64<t66)?1:0;
+if(t67==0)break;
+t68=18;
+t69=M[t68];
+t70=v_j;
+t71=8;
+t72=t70*t71;
+t73=t69+t72;
+t74=f_dins(t73);
+t75=v_j;
+t76=1;
+t77=t75+t76;
+v_j=t77;
+}
+t78=0;
+t79=10;
+op(t79);
+t80=0;
+return t80;
+}
+static I f_rinum(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I v_t=0;
+t0=7;
+t1=M[t0];
+v_t=t1;
+t2=7;
+t3=v_t;
+t4=1;
+t5=t3+t4;
+M[t2]=t5;
+t6=v_t;
+t7=f_tokval(t6);
+return t7;
+}
+static I f_ritok(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I v_t=0;
+t0=7;
+t1=M[t0];
+v_t=t1;
+t2=7;
+t3=v_t;
+t4=1;
+t5=t3+t4;
+M[t2]=t5;
+t6=v_t;
+return t6;
+}
+static I f_ritype(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I v_t=0;
+t0=7;
+t1=M[t0];
+v_t=t1;
+t2=7;
+t3=v_t;
+t4=1;
+t5=t3+t4;
+M[t2]=t5;
+t6=v_t;
+t7=0;
+t8=f_tc(t6,t7);
+t9=102;
+t10=(t8==t9)?1:0;
+if(t10!=0){
+t12=1;
+t11=t12;
+}else{
+t13=0;
+t11=t13;
+}
+return t11;
+}
+static I f_riread(I v_k){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I t17=0;
+I t18=0;
+I t19=0;
+I t20=0;
+I t21=0;
+I t22=0;
+I t23=0;
+I t24=0;
+I t25=0;
+I t26=0;
+I t27=0;
+I t28=0;
+I t29=0;
+I t30=0;
+I t31=0;
+I t32=0;
+I t33=0;
+I t34=0;
+I t35=0;
+I t36=0;
+I t37=0;
+I t38=0;
+I t39=0;
+I t40=0;
+I t41=0;
+I t42=0;
+I t43=0;
+I t44=0;
+I t45=0;
+I t46=0;
+I t47=0;
+I t48=0;
+I t49=0;
+I t50=0;
+I t51=0;
+I t52=0;
+I t53=0;
+I t54=0;
+I t55=0;
+I t56=0;
+I t57=0;
+I t58=0;
+I t59=0;
+I t60=0;
+I t61=0;
+I t62=0;
+I t63=0;
+I v_ne=0;
+I v_j=0;
+I v_nn=0;
+I v_kk=0;
+I v_d=0;
+I v_a=0;
+I v_b=0;
+I v_c=0;
+I v_x=0;
+I v_y=0;
+t0=f_rinum();
+v_ne=t0;
+t1=0;
+v_j=t1;
+while(1){
+t2=v_j;
+t3=v_ne;
+t4=(t2<t3)?1:0;
+if(t4==0)break;
+t5=0;
+t6=f_ritype();
+t7=f_addl(t5,t6);
+t8=v_j;
+t9=1;
+t10=t8+t9;
+v_j=t10;
+}
+t11=0;
+t12=f_rinum();
+v_nn=t12;
+t13=0;
+v_j=t13;
+while(1){
+t14=v_j;
+t15=v_nn;
+t16=(t14<t15)?1:0;
+if(t16==0)break;
+t17=f_ritype();
+t18=f_nt(t17);
+t19=v_j;
+t20=1;
+t21=t19+t20;
+v_j=t21;
+}
+t22=0;
+while(1){
+t23=7;
+t24=M[t23];
+t25=4;
+t26=M[t25];
+t27=(t24<t26)?1:0;
+t28=0;
+if(t27!=0){
+t29=7;
+t30=M[t29];
+t31=f_tcode(t30);
+t32=58;
+t33=(t31!=t32)?1:0;
+t28=(t33!=0)?1:0;
+}
+if(t28==0)break;
+t34=f_rinum();
+v_kk=t34;
+t35=f_rinum();
+v_d=t35;
+t36=v_kk;
+t37=1;
+t38=(t36==t37)?1:0;
+t39=1;
+if(t38==0){
+t40=v_kk;
+t41=8;
+t42=(t40==t41)?1:0;
+t43=1;
+if(t42==0){
+t44=v_kk;
+t45=9;
+t46=(t44==t45)?1:0;
+t43=(t46!=0)?1:0;
+}
+t39=(t43!=0)?1:0;
+}
+if(t39!=0){
+t48=f_ritok();
+t47=t48;
+}else{
+t49=f_rinum();
+t47=t49;
+}
+v_a=t47;
+t50=f_rinum();
+v_b=t50;
+t51=f_rinum();
+v_c=t51;
+t52=f_rinum();
+v_x=t52;
+t53=f_rinum();
+v_y=t53;
+t54=v_kk;
+t55=v_d;
+t56=v_a;
+t57=v_b;
+t58=v_c;
+t59=v_x;
+t60=v_y;
+t61=f_ir(t54,t55,t56,t57,t58,t59,t60);
+}
+t62=0;
+t63=0;
+return t63;
+}
+static I f_rifun(I v_k){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I t17=0;
+I t18=0;
+I t19=0;
+I t20=0;
+I t21=0;
+I t22=0;
+I t23=0;
+I t24=0;
+I t25=0;
+I t26=0;
+I t27=0;
+I t28=0;
+I t29=0;
+I t30=0;
+I t31=0;
+I t32=0;
+I t33=0;
+I t34=0;
+I t35=0;
+I t36=0;
+I t37=0;
+I t38=0;
+I t39=0;
+I t40=0;
+I t41=0;
+I t42=0;
+I v_np=0;
+I v_j=0;
+t0=13;
+t1=v_k;
+M[t0]=t1;
+t2=9;
+t3=0;
+M[t2]=t3;
+t4=11;
+t5=0;
+M[t4]=t5;
+t6=19;
+t7=0;
+M[t6]=t7;
+t8=32;
+t9=0;
+M[t8]=t9;
+t10=33;
+t11=0;
+M[t10]=t11;
+t12=v_k;
+t13=2;
+t14=f_fe(t12,t13);
+t15=M[t14];
+v_np=t15;
+t16=0;
+v_j=t16;
+while(1){
+t17=v_j;
+t18=v_np;
+t19=(t17<t18)?1:0;
+if(t19==0)break;
+t20=v_k;
+t21=4;
+t22=f_fe(t20,t21);
+t23=M[t22];
+t24=v_j;
+t25=t23+t24;
+t26=v_k;
+t27=v_j;
+t28=f_fpt(t26,t27);
+t29=f_addl(t25,t28);
+t30=v_j;
+t31=1;
+t32=t30+t31;
+v_j=t32;
+}
+t33=0;
+t34=7;
+t35=v_k;
+t36=5;
+t37=f_fe(t35,t36);
+t38=M[t37];
+M[t34]=t38;
+t39=v_k;
+t40=f_riread(t39);
+t41=v_k;
+t42=f_tfun(t41);
+return t42;
 }
 static I f_cld(void){
 I t0=0;
@@ -16501,6 +17026,13 @@ I t472=0;
 I t473=0;
 I t474=0;
 I t475=0;
+I t476=0;
+I t477=0;
+I t478=0;
+I t479=0;
+I t480=0;
+I t481=0;
+I t482=0;
 I v_m=0;
 I v_k=0;
 t0=12;
@@ -17163,62 +17695,77 @@ t446=6;
 t447=M[t446];
 t448=(t445<t447)?1:0;
 if(t448==0)break;
-t449=v_k;
-t450=f_cfun(t449);
+t449=f_isi();
+if(t449!=0){
 t451=v_k;
-t452=1;
-t453=t451+t452;
-v_k=t453;
+t452=f_rifun(t451);
+t450=t452;
+}else{
+t453=v_k;
+t454=f_cfun(t453);
+t450=t454;
 }
-t454=0;
-t455=f_isx();
-if(t455!=0){
-t457=f_outx();
-t456=t457;
+t455=v_k;
+t456=1;
+t457=t455+t456;
+v_k=t457;
+}
+t458=0;
+t459=f_isx();
+if(t459!=0){
+t461=f_outx();
+t460=t461;
 }else{
-t458=f_isw();
-if(t458!=0){
-t460=f_outw();
-t459=t460;
+t462=f_isw();
+if(t462!=0){
+t464=f_outw();
+t463=t464;
 }else{
-t461=f_isa();
-if(t461!=0){
-t463=f_outa();
-t462=t463;
+t465=f_isa();
+if(t465!=0){
+t467=f_outa();
+t466=t467;
 }else{
-t464=f_isd();
-if(t464!=0){
-t466=0;
-t465=t466;
+t468=f_isd();
+if(t468!=0){
+t470=0;
+t469=t470;
 }else{
-t467=f_isjs();
-if(t467!=0){
-t469=f_outj();
-t468=t469;
-}else{
-t470=12;
-t471=M[t470];
+t471=f_isi();
 if(t471!=0){
-t473=f_outg();
+t473=f_outc();
 t472=t473;
 }else{
-t474=f_outc();
-t472=t474;
+t474=f_isjs();
+if(t474!=0){
+t476=f_outj();
+t475=t476;
+}else{
+t477=12;
+t478=M[t477];
+if(t478!=0){
+t480=f_outg();
+t479=t480;
+}else{
+t481=f_outc();
+t479=t481;
 }
-t468=t472;
+t475=t479;
 }
-t465=t468;
+t472=t475;
 }
-t462=t465;
+t469=t472;
 }
-t459=t462;
+t466=t469;
 }
-t456=t459;
+t463=t466;
 }
-t442=t456;
+t460=t463;
 }
-t475=0;
-return t475;
+t442=t460;
+}
+t482=0;
+return t482;
 }
 static I f_k3(I v_a,I v_b,I v_c){
 I t0=0;

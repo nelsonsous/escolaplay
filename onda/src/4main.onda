@@ -322,6 +322,6 @@
   ? isx { ! 34 A 420000 ! 35 A 20000 ! 36 A 420000 ! 37 A 420000 ! 38 A 420000 ! 39 A 200008 ! 40 A 20000 ! 42 A 420000 ! 43 A 420000 ! 46 A 10000 ! 47 A 10000 ! 50 xtab ! 51 A 420000 ! 52 A 420000 ! 56 A 420000 ! 57 A 420000 ! 58 A 420000 ! 59 A 420000 ! 60 A 420000 ! 61 A 32 xqs 0 A 1680000 xqs 1 A 100000 xqs 2 A 420000 xqs 6 A 420000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 xqs 17 A 200000 xqs 19 A 420000 xqs 20 A 420000 xqs 21 A 192 } 0
   ? isc outz
     { = k 0
-      W < k @ 6 { cfun k = k + k 1 }
-      ? isx outx ? isw outw ? isa outa ? isd 0 ? isjs outj ? @ 12 outg outc }
+      W < k @ 6 { ? isi rifun k cfun k = k + k 1 }
+      ? isx outx ? isw outw ? isa outa ? isd 0 ? isi outc ? isjs outj ? @ 12 outg outc }
   0 }

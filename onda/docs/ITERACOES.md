@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 77 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 78 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1657,3 +1657,19 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O que falta para a `vecmap.onda` literal + o benchmark.** A **impressão** (`N`, `G`, strings) — o runtime em Onda via syscalls — é a última peça do "o 2". É uma reformulação maior (o modelo de memória do runtime usa índices negativos `M[-1..-7]` e o `Y`/syscall), por isso fica para a it.78. Para medir o NEON no Mac real: ou um contentor Linux-ARM (Docker, que corre o ELF à velocidade nativa do chip) depois da impressão, ou emitir Mach-O (peça à parte).
 
 **Próxima.** Impressão no `-a` (fechar "o 2"): o runtime + `Y`/syscalls + strings + `Ac`/`Av`, para a `vecmap.onda` correr tal e qual em ARM64 e o juiz a confirmar contra o significado.
+
+---
+
+## Iteração 78: a frente de RI direta (passo 2) — a ingestão, a Onda sem sintaxe
+
+**Pergunta (do utilizador).** Fecha a frente de RI direta: a IA emite o grafo e o compilador lê-o **sem parser**.
+
+**O que foi feito.** Um modo novo, **`-i`** (ingestão), que lê o grafo do `-d` e reconstrói a RI diretamente — sem análise sintática, sem inferência de tipos, sem resolução de nomes — e emite C. O `-d` passou a um formato auto-contido e re-ingerível: por função, `: nome assinatura`, depois os tipos dos locais e dos temporários, depois as instruções `[k d a b c x y]` com os **literais como valor**, os **operadores como texto** e os nomes anonimizados. A ingestão reaproveita o lexer (os tokens dos literais/operadores já ficam criados) e um leitor minúsculo (`riread`) que anda os tokens e chama `ir` — o parser inteiro (`cx`, `cfun`) é saltado.
+
+**O bug (e a lição).** Pus a bandeira de ingestão num slot de módulo (`@66`); lia sempre 0 (o slot não sobrevivia até ao laço de emissão). Troquei para ler o `argv` diretamente (`-i`), como o `@12` já faz. Lição: para um sinal que tem de valer durante toda a compilação, lê a fonte (o argumento), não um slot que outra fase pode tocar.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `32ed68014af4d05e`; o `-d`/`-i` são folha). `node --test`: **102 testes**. Round-trip verificado (`test/ri.test.js`): **texto → `-d` → `-i` → C** dá exatamente o mesmo que **texto → C**, para programas de uma função do núcleo — soma de ciclo, soma real→int, `if`, arrays, o algoritmo de Euclides. O grafo re-ingerido computa igual ao original: **a sintaxe de texto não acrescenta nada à semântica; é só a pele humana.**
+
+**O balanço honesto.** A ingestão cobre o **núcleo sem ponteiros** (uma função: inteiros, reais, `+ − × ÷ %`, bits, ciclos, `if`, arrays, literais). Falta serializar os campos que são ponteiros — a lista de argumentos das **chamadas** (kind 7) e dos **mapas/reduções** (38/39/51–53) — e as **strings**; é o que fecha o round-trip de programas multi-função. Mas o essencial está provado: a IA pode emitir o grafo, e o juiz confere-o contra o significado.
+
+**Próxima.** O pedido do utilizador: **impressão no `-a`** (o runtime via syscalls), para a `vecmap.onda` literal correr em ARM64; e, depois, estender a ingestão aos campos-ponteiro (chamadas/mapas) para o round-trip completo.
