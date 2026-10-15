@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 21 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 22 (otimizar o AIG: reescrita local e equivalências provadas por simulação).
+Estado: **iteração 22 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 23 (ou-exclusivos no lugar, sem auxiliares, e menos qubits nos oráculos).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -588,3 +588,30 @@ Com `: bit >i 8`, o somador tem 64 portas, o multiplicador 234 e a contagem de b
 | MDC, entradas de 4 bits | 52 673 portas (lim 24), 137 777 (lim 60) | **31 589** com qualquer limite |
 | MDC, entradas de 6 bits (lim 200) | 713 031 criadas | **145 178** portas (156 ms) |
 | Collatz, x ≤ 32 (lim 200) | 548 407 portas, truncado | **281 350** portas, 111 voltas provadas |
+
+## Iteração 22: o custo quântico certo (grafos E–ou-exclusivo)
+
+**Pergunta.** Porque é que o oráculo de uma simples soma de 64 bits custava 1 136 Toffoli?
+
+**Diagnóstico.** No AIG, cada ou-exclusivo custa 3 portas E, e no método de Bennett cada porta E vale 2 Toffoli (calcular e descalcular). Os Toffoli são o recurso caro: cerca de 7 portas T cada, e são as portas T que dominam o custo de um computador quântico com correção de erros. Já um ou-exclusivo é quase grátis: dois CNOT.
+
+**O que já existe.** A compilação quântica baseada em XAG (Meuli, Soeken e De Micheli, 2019–2022) otimiza exatamente o número de portas E, a chamada multiplicative complexity.
+
+**O que foi feito.**
+- **Nós ou-exclusivo nativos:** com dispersão estrutural e forma normal. Os complementos saem das entradas e acumulam-se na saída, e `a ⊕ a`, `a ⊕ 0` e `a ⊕ 1` dobram na criação.
+- **Fórmulas que poupam portas E:**
+  - o multiplexador é `b ⊕ (s ∧ (a ⊕ b))`, com 1 porta E em vez de 3;
+  - o transporte do somador é a maioria `((a⊕c) ∧ (b⊕c)) ⊕ c`, com 1 porta E em vez de 3.
+- **Onde se aplicam:** as escolhas valem em `-v` (Verilog, que tem `^`) e em `-q` (onde cada ou-exclusivo são dois CNOT). O AIGER continua a ser um AIG puro.
+- **A prova, o Verilog e o oráculo** passaram a conhecer o ou-exclusivo.
+
+**Prova** (`node --test test/circ.test.js`, 24 testes). Os oráculos com os novos CNOT continuam a dar y = y₀ ⊕ f(x) com os auxiliares limpos, o Verilog com `^` é igual ao AIGER, e o Grover exaustivo passa.
+
+| oráculo (64 bits) | Toffoli antes | Toffoli agora | portas T agora |
+|---|---|---|---|
+| soma | 1 136 | **126** | 882 |
+| diferença absoluta | 2 296 | **380** | 2 660 |
+| multiplicação | 39 444 | **8 066** | 56 462 |
+| divisão | 48 578 | **10 780** | 75 460 |
+
+A soma fica com 2 × 63 Toffoli, o mínimo para um somador em cadeia de 64 bits: uma porta E por transporte, sem o último.

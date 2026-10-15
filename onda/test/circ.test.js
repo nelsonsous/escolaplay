@@ -63,8 +63,8 @@ function simulaVerilog(v, np, entradas) {
   for (const l of v.split('\n')) {
     let m = l.match(/assign w\[(\d+)\] = (i_[a-z0-9_]+)\[(\d+)\];/);
     if (m) { w.set(+m[1], entradas[ent.get(m[2]) * 64 + +m[3]]); continue; }
-    m = l.match(/assign w\[(\d+)\] = (.+) & (.+);/);
-    if (m) { w.set(+m[1], ref(m[2]) & ref(m[3])); continue; }
+    m = l.match(/assign w\[(\d+)\] = (.+) ([&^]) (.+);/);
+    if (m) { w.set(+m[1], m[3] === '&' ? ref(m[2]) & ref(m[4]) : ref(m[2]) ^ ref(m[4])); continue; }
     m = l.match(/assign o\[(\d+)\] = (.+);/);
     if (m) out[+m[1]] = ref(m[2]);
   }

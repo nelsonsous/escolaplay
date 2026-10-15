@@ -66,12 +66,12 @@ Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 - As chamadas são expandidas.
 - Os ciclos são desenrolados com um predicado "vivo": a condição e o corpo só mudam o estado das entradas que ainda estão no ciclo. Em cada volta, o compilador tenta provar que o predicado já é 0: se depende de no máximo 16 bits de entrada, simula-o em todas as combinações. Se a prova sai, o ciclo acaba aí. Se não sai, um ciclo cujo número de voltas depende das entradas precisa de `: lim >i N`, o número máximo de voltas que o circuito cobre.
 - `: rap >i 1` troca os somadores em cadeia por somadores de prefixos (Kogge-Stone): a soma de 64 bits passa de 568 portas e profundidade 128 para 1 327 portas e profundidade 15.
-- `ondac -v f` escreve o mesmo circuito em Verilog estrutural (`module f(input [W-1:0] i_a, ..., output [W-1:0] o)`).
+- `ondac -v f` escreve o mesmo circuito em Verilog estrutural (`module f(input [W-1:0] i_a, ..., output [W-1:0] o)`). Em `-v` e `-q` o circuito é um grafo E–ou-exclusivo (XAG): o multiplexador é `b ⊕ (s ∧ (a ⊕ b))` e o transporte do somador é `((a⊕c) ∧ (b⊕c)) ⊕ c`, com uma só porta E. No AIGER (`-c`) cada ou-exclusivo vale 3 portas E.
 - O comentário final dá as portas úteis e a profundidade. `test/circ.test.js` simula cada circuito e compara-o com a função compilada.
 
 ## Quântico
 `ondac -q f` escreve um oráculo reversível |x⟩|y⟩ → |x⟩|y ⊕ f(x)⟩ em OpenQASM 3, pelo método de Bennett:
-1. cada porta E útil do circuito é um Toffoli num qubit auxiliar;
+1. cada porta E útil do circuito é um Toffoli num qubit auxiliar, e cada ou-exclusivo são dois CNOT;
 2. as saídas são copiadas com CNOT;
 3. os Toffoli repetem-se ao contrário, e os auxiliares voltam a |0⟩.
 
