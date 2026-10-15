@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 30 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 31 (voltar ao desempenho com dados a sério: medir o x86 num programa que mexe muito em memória, onde os ponteiros-base da it.24 deviam render mais).
+Estado: **iteração 31 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 32 (atacar o protocolo de chamada em si: passar o primeiro argumento num registo, a mudança mínima que o fib precisa, com o ponto fixo como rede).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -826,3 +826,22 @@ A indentação do sinal copia os espaços e tabulações da linha, por isso alin
 **Prova.** Os três pontos fixos fecham e os 38 testes passam. Um nome desconhecido no meio de uma linha com tabulação dá a coluna certa e o `^` debaixo do nome.
 
 **Próxima.** Voltar ao desempenho, agora com uma carga a sério de memória: medir o x86 num programa que percorre e escreve muito (o simulador, ou uma travessia de estruturas), onde os ponteiros-base içados da iteração 24 deviam render mais do que num laço aritmético.
+
+## Iteração 31: onde a distância para o gcc desaparece (e porquê)
+
+**Pergunta.** As iterações 27 e 28 mostraram o `fib` 4× mais lento que o gcc mas só 1,5× em instruções. Essa distância aparece em todo o código, ou só na recursão? Valia a pena micro-otimizar os ciclos?
+
+**A medição.** Um programa limitado pela memória: construir uma lista ligada de 200 000 nós e percorrê-la 2 000 vezes (400 milhões de saltos de apontador), a somar um campo de cada nó.
+
+| travessia de 400 M de nós | tempo | instruções executadas |
+|---|---|---|
+| x86 da Onda | ~1 486 ms | 2,80 G |
+| C (`gcc -O2`) | ~1 481 ms | 2,00 G |
+
+**A surpresa.** O x86 executa **1,4× as instruções** do gcc, mas o **tempo é igual**. Porquê? A travessia é limitada pela latência da memória: cada `@ c` é uma leitura que depende da anterior (percorrer a lista é uma cadeia de leituras que não se podem adiantar). Enquanto o processador espera pela memória, tem ranhuras de execução livres, e as instruções a mais da Onda cabem lá dentro, sem custar tempo. São de borla.
+
+**A conclusão que muda o rumo.** A distância de instruções para o gcc só se paga em tempo quando o código é limitado pelo cálculo, não pela memória. A maior parte do trabalho a sério — árvores, grafos, tabelas de dispersão, o armazém da Onda — é limitado pela memória, e aí o x86 da Onda já iguala o gcc no tempo. Micro-otimizar estes ciclos seria esforço perdido: o relógio não mexia. O `README` foi corrigido para dizer isto com números.
+
+**Onde fica mesmo a distância.** Só no código limitado pelo cálculo com muitas chamadas, como o `fib`. E aí, as iterações 27–28 provaram que a causa não é a conta nem manter valores em registos (o gcc também empilha), mas o protocolo de chamada: cada argumento vai à pilha e é relido. É aí que a próxima iteração ataca, com a mudança mínima.
+
+**Próxima.** Passar o primeiro argumento de cada chamada num registo, em vez de na pilha. É o que o `fib` precisa (um só argumento), muito mais pequeno do que a convenção inteira que a iteração 28 reverteu, e o ponto fixo bit a bit continua a ser a rede de segurança.

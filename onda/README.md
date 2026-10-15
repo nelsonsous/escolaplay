@@ -63,7 +63,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 
 ## Limites
 
-- Na forma C, a velocidade é a do gcc. Na forma x86 própria, a Onda chega ao gcc em ciclos numéricos, mas ainda perde nas chamadas recursivas (fib 4× mais lento) e na otimização entre funções.
+- Na forma C, a velocidade é a do gcc. Na forma x86 própria, a Onda iguala o gcc em tempo nos ciclos numéricos **e** no código limitado pela memória (uma travessia de 400 milhões de nós: 1 486 ms contra 1 481 ms do gcc, apesar de executar 1,4× as instruções — a latência da memória esconde-as). A distância em tempo fica só no código limitado pelo cálculo com muitas chamadas: `fib` é 4× mais lento, por causa do protocolo de chamada (os argumentos vão à pilha), não da conta.
 - "Quântico" tem dois sentidos: o modelo de paralelismo dos campos, e programas OpenQASM reais gerados a partir de funções Onda. Estes só ganham velocidade em hardware quântico, e aqui são verificados classicamente.
 - Versão 0:
   - a memória só cresce;
