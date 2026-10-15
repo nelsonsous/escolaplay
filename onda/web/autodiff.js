@@ -89,6 +89,47 @@ function emitOnda(fnname,out,varOrder,gradVars,extra){
   return L.join('\n');
 }
 
+// ---- emissores array-capazes (pesos por ponteiro de array -> escala para redes grandes) ----
+function opExpr(n,t){ switch(n.op){
+  case '+': return '+ '+t(n.a)+' '+t(n.b);  case '-': return '- '+t(n.a)+' '+t(n.b);
+  case '*': return '* '+t(n.a)+' '+t(n.b);  case '/': return '/ '+t(n.a)+' '+t(n.b);
+  case 'exp': return 'Ex '+t(n.a);  case 'log': return 'Lg '+t(n.a);
+  case 'sin': return 'Sn '+t(n.a);  case 'cos': return 'Cs '+t(n.a);
+  case 'relu': return '? > '+t(n.a)+' 0.0 '+t(n.a)+' 0.0';
+  case 'lrelu': return '? > '+t(n.a)+' 0.0 '+t(n.a)+' * 0.01 '+t(n.a);
+  case 'neg': return '* -1.0 '+t(n.a); } }
+function reachOf(out){ const R=new Set(), st=[out]; while(st.length){ const i=st.pop(); if(R.has(i))continue; R.add(i);
+  const n=nodes[i]; if(n.a>=0)st.push(n.a); if(n.b>=0)st.push(n.b); } return R; }
+function fwdBody(arrVars,reach){ const t=i=>'t'+i, L=[];
+  for(let i=0;i<nodes.length;i++){ if(reach&&!reach.has(i))continue; const n=nodes[i]; let e;
+    if(n.op==='var'){ const av=arrVars[n.val]; e=av?('@f + '+av.arr+' '+av.idx):n.val; }
+    else if(n.op==='con') e=fl(n.val); else e=opExpr(n,t);
+    L.push('  = '+t(i)+' '+e); } return L; }
+// gradiente: bwd(gp, <params...>) escreve gp[idx]=dL/dw ; pesos lidos via arrVars
+function emitGrad(fnname,out,params,gradVars,extra,arrVars){ extra=extra||[]; arrVars=arrVars||{};
+  const t=i=>'t'+i; const reach=reachOf(out); const L=fwdBody(arrVars,reach);
+  L.unshift(': '+fnname+' i'+params.map(p=>p.type).join('')+'>i gp '+params.map(p=>p.name).join(' ')+' {');
+  const contrib=nodes.map(()=>[]); contrib[out].push('1.0');
+  const sum=a=>{ if(!a.length)return '0.0'; let s=a[0]; for(let k=1;k<a.length;k++)s='+ '+a[k]+' '+s; return s; };
+  for(let i=nodes.length-1;i>=0;i--){ if(!reach.has(i))continue; const n=nodes[i], ai='a'+i; L.push('  = '+ai+' '+sum(contrib[i]));
+    switch(n.op){
+      case '+': contrib[n.a].push(ai); contrib[n.b].push(ai); break;
+      case '-': contrib[n.a].push(ai); contrib[n.b].push('* -1.0 '+ai); break;
+      case '*': contrib[n.a].push('* '+ai+' '+t(n.b)); contrib[n.b].push('* '+ai+' '+t(n.a)); break;
+      case '/': contrib[n.a].push('/ '+ai+' '+t(n.b)); contrib[n.b].push('* -1.0 / * '+ai+' '+t(n.a)+' * '+t(n.b)+' '+t(n.b)); break;
+      case 'exp': contrib[n.a].push('* '+ai+' '+t(i)); break;  case 'log': contrib[n.a].push('/ '+ai+' '+t(n.a)); break;
+      case 'sin': contrib[n.a].push('* '+ai+' Cs '+t(n.a)); break;  case 'cos': contrib[n.a].push('* -1.0 * '+ai+' Sn '+t(n.a)); break;
+      case 'relu': contrib[n.a].push('* '+ai+' ? > '+t(n.a)+' 0.0 1.0 0.0'); break;
+      case 'lrelu': contrib[n.a].push('* '+ai+' ? > '+t(n.a)+' 0.0 1.0 0.01'); break;
+      case 'neg': contrib[n.a].push('* -1.0 '+ai); break; } }
+  for(const gv of gradVars){ L.push('  !f + gp '+gv.idx+' a'+cons.get('var|-1|-1|'+gv.name)); }
+  for(const ex of extra){ L.push('  !f + gp '+ex.idx+' '+t(ex.node)); }
+  L.push('  0 }'); return L.join('\n'); }
+// forward: val(<params...>)>i devolve prob*16777215 (para desenhar)
+function emitVal(fnname,node,params,arrVars){ arrVars=arrVars||{}; const t=i=>'t'+i; const L=fwdBody(arrVars,reachOf(node));
+  L.unshift(': '+fnname+' '+params.map(p=>p.type).join('')+'>i '+params.map(p=>p.name).join(' ')+' {');
+  L.push('  I * '+t(node)+' 16777215.0 }'); return L.join('\n'); }
+
 // ---- verificação: 4 funções aleatórias, gradiente reverso vs diferenças finitas ----
 function reset(){ nodes=[]; cons=new Map(); }
 function fdcheck(buildFn, vars){ reset(); const out=buildFn();
@@ -110,4 +151,4 @@ if(require.main===module){ let worst=0;
   for(const [name,fn,vars] of tests){ const e=fdcheck(fn,vars); worst=Math.max(worst,e);
     console.log(name.padEnd(40), 'erro vs dif.finitas:', e.toExponential(2)); }
   console.log(worst<1e-4 ? 'MOTOR AUTODIFF CORRETO ✓' : 'DIVERGE'); }
-module.exports={node,Var,Con,add,sub,mul,div,exp,log,sin,cos,relu,neg,lrelu,grad,evalAll,emitOnda,get nodes(){return nodes;},reset};
+module.exports={node,Var,Con,add,sub,mul,div,exp,log,sin,cos,relu,neg,lrelu,grad,evalAll,emitOnda,emitGrad,emitVal,get nodes(){return nodes;},reset};
