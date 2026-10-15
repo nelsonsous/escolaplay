@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 74 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 75 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1612,3 +1612,17 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O que isto fecha.** Com o `B` (a derivada) e o `V` (a derivada composta), o passo backward de uma **camada-mapa** está completo e verificado — e herda o SIMD/determinismo de todos os backends, a tese contra o PyTorch/JAX. Falta encadear camadas, acumular gradientes nos pesos e treinar um modelo pequeno de ponta a ponta.
 
 **Próxima.** Acumular adjuntos em arrays de parâmetros e encadear operações de campo (mapa→redução→mapa), rumo a treinar uma regressão/uma camada de ponta a ponta; e, no `-a`, chamadas e impressão para medir o NEON no Mac real.
+
+---
+
+## Iteração 75: o juiz único, como comando — e o que a IA precisa mesmo da Onda
+
+**Pergunta (do utilizador).** "A lógica do juiz e de auto-compilar? A IA precisa desta sintaxe toda do Onda? Não dá para ser mais rápido e fluido?"
+
+**Auto-compilar (o que já há).** O ponto fixo **já** é auto-compilação, provado a cada `./build.sh`: o compilador em C, em WASM e em x86-64 regenera-se a si próprio, bit a bit, e as três sementes dão o mesmo C. É a espinha dorsal desde a it.5. (O `-a`/ARM ainda não se auto-compila — é folha, só faz programas do utilizador; falta-lhe chamadas, strings e todas as formas da RI.)
+
+**O juiz (o que foi feito).** O manifesto (it.1) diz: *juiz único — cada forma tem de concordar com o significado antes de ser usada*. Estava nos testes (cada programa é conferido entre formas); agora é um **comando**: `node tools/juiz.mjs <programa.onda> [args]` compila o programa por **todas as formas** — C (`cc`), x86-64 nativo (`-x`), WebAssembly (`-w`) e ARM64 nativo (`-a`, no `qemu`) — corre-as e verifica que a saída concorda **ao bit** com o significado (o C de referência). Normaliza o tempo de parede (`em N ms`) dos benchmarks, mostra onde diverge, e salta a forma que ainda não suporta o programa (o `-a` em programas com impressão/chamadas). Prova: no SHA-256, crivo, base64, regex, vecmap — `x86` e `WASM` concordam com o significado ao bit (`test/juiz.test.js`). É "melhor que o que há" no sentido literal: **um só programa, vários geradores de código independentes — dois deles escritos byte a byte pela própria Onda, sem assembler — a dar o mesmo resultado, verificável com um comando.**
+
+**A IA precisa desta sintaxe toda? (a resposta honesta.)** **Não.** A sintaxe em texto (`: g ii>f i a { … }`) existe por três razões: o arranque (o estágio-0 em Rust lê texto), a auto-compilação (o compilador está escrito nela), e a leitura humana. A *essência* da Onda são três coisas: a **RI** (o grafo de instruções `[k d a b c x y]`), as **formas** (os backends) e o **juiz**. Uma IA que gera programas não precisa do texto — pode emitir a RI diretamente, saltando o *lexer* e o *parser* (mais rápido, mais "fluido"). É a próxima grande peça: uma **frente de RI direta** (a IA emite o grafo; o juiz confere contra o significado), que torna a Onda, para quem a escreve de verdade (as IAs), uma linguagem sem sintaxe de superfície.
+
+**Próxima.** A frente de RI direta (emitir/ingerir o grafo sem texto) — a Onda "sem sintaxe" para IAs; e, em paralelo, chamadas+impressão no `-a` e o encadear/treinar do autodiff.
