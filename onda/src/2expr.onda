@@ -1,3 +1,5 @@
+# compilacao para a representacao intermedia (RI): instrucoes de 8 palavras [k d a b c x y -]
+# 18 base da RI 19 n de instrucoes
 : lnm i>i j @ + @ 8 * j 2
 : lty i>i j @ + + @ 8 * j 2 1
 : addl ii>i n y { = p + @ 8 * @ 9 2 ! p n ! + p 1 y ! 9 + @ 9 1 }
@@ -5,6 +7,7 @@
 : nt i>i y { = r @ 11 ! + @ 10 r y ! 11 + r 1 r }
 : tty i>i t @ + @ 10 t
 : edge i>i k { = p + @ 14 * @ 15 2 ! p @ 13 ! + p 1 k ! 15 + @ 15 1 }
+: ir iiiiiii>i k d a b c x y { = p + @ 18 * @ 19 8 ! p k ! + p 1 d ! + p 2 a ! + p 3 b ! + p 4 c ! + p 5 x ! + p 6 y ! 19 + @ 19 1 }
 : sighdr i>i k {
   ? @ 12 0 "static "
   ? isjs "function" ety @ fe k 3
@@ -20,16 +23,22 @@
   ! 13 k
   ! 9 0
   ! 11 0
+  ! 19 0
   = np @ fe k 2
   = j 0
   W < j np { addl + @ fe k 4 j fpt k j = j + j 1 }
   ! 7 @ fe k 5
-  O 16
-  ! fe k 8 @ 16
   = r cx
   ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
   ? && < @ 7 @ 4 != tcode @ 7 ': { ebeg "tokens a mais" eend } 0
-  "return " et r ";\n}\n"
+  ir 41 0 r 0 0 0 0
+  tfun k }
+: tfun i>i k {
+  = np @ fe k 2
+  O 16
+  ! fe k 8 @ 16
+  = j 0
+  W < j @ 19 { emi + @ 18 * j 8 = j + j 1 }
   ! fe k 9 @ 16
   O 17
   ! fe k 6 @ 17
@@ -40,19 +49,9 @@
   W < j @ 9 { ety lty j " v_" etx lnm j "=" ez lty j ";\n" = j + j 1 }
   ! fe k 7 @ 17
   O 0 }
-: lit ii>i i y { = r nt y eq r etx i ";\n" r }
-: clit i>i i { ? < tkl i 2 { ebeg "caracter invalido" eend } 0 = r nt 0 eq r N tc i 1 ";\n" r }
-: cstr i>i i {
-  ? @ 12 "\n#error onda: texto so em CPU\n" 0
-  "os(\""
-  = s tks i
-  = l tkl i
-  = j 1
-  W < j - l 1 { = c @ + s j ? == c 10 "\\n" ? == c 9 "\\t" ? == c 13 "\\r" P c = j + j 1 }
-  "\");\n"
-  = r nt 0
-  eq r "0;\n"
-  r }
+: lit ii>i i y { = r nt y ir 1 r i 0 0 0 0 r }
+: clit i>i i { ? < tkl i 2 { ebeg "caracter invalido" eend } 0 = r nt 0 ir 2 r tc i 1 0 0 0 0 r }
+: cstr i>i i { ir 3 0 i 0 0 0 0 = r nt 0 ir 4 r 0 0 0 0 0 r }
 : cargs ii>i k sk {
   = n - @ fe k 2 sk
   = a A + n 1
@@ -63,15 +62,13 @@
 : ccall i>i k {
   = a cargs k 0
   = r nt @ fe k 3
-  eq r "f_" etx @ fe k 0 "("
-  eargs a @ fe k 2 0
-  ");\n"
+  ir 7 r k a @ fe k 2 0 0
   edge k
   r }
 : cid i>i i {
   = j floc i
   ? >= j 0
-    { = r nt lty j eq r "v_" etx i ";\n" r }
+    { = r nt lty j ir 5 r i 0 0 0 0 r }
     { = k ffun i ? < k 0 { ! 7 i ebeg "nome desconhecido" eend } 0 ccall k } }
 : cx >i {
   ? >= @ 7 @ 4 { ebeg "fim inesperado" eend } 0
@@ -90,18 +87,6 @@
 : ckint i>i t ? tty t { ebeg "esperava inteiro" eend } 0
 : ckflt i>i t ? tty t 0 { ebeg "esperava real" eend }
 : ckc i>i t ? tty t { ebeg "condicao deve ser inteira" eend } 0
-: mname i>i c ? isjs { ? == c 0 "+" ? == c 1 "Math.trunc" { "Math." ? == c 2 "sqrt" ? == c 3 "sin" ? == c 4 "cos" ? == c 5 "exp" ? == c 6 "log" ? == c 7 "floor" ? == c 8 "abs" ? == c 9 "pow" "atan2" } } {
-  ? == c 0 ? @ 12 "float" "(F)"
-  ? == c 1 ? @ 12 "int" "(I)"
-  ? == c 2 "sqrt"
-  ? == c 3 "sin"
-  ? == c 4 "cos"
-  ? == c 5 "exp"
-  ? == c 6 "log"
-  ? == c 7 "floor"
-  ? == c 8 ? @ 12 "abs" "fabs"
-  ? == c 9 "pow"
-  ? @ 12 "atan" "atan2" }
 : cbin ii>i i m {
   = a cx
   = b cx
@@ -109,59 +94,59 @@
   ? != y tty b { ebeg "tipos diferentes" eend } 0
   ? && == m 0 != y 0 { ebeg "operacao so para inteiros" eend } 0
   = r nt y
-  ? && isjs && == y 0 == tcode i '/ { eq r "Math.trunc(" et a "/" et b ");\n" } { eq r et a etx i et b ";\n" }
+  ir 8 r i a b 0 0
   r }
 : ccmp i>i i {
   = a cx
   = b cx
   ? != tty a tty b { ebeg "tipos diferentes" eend } 0
   = r nt 0
-  eq r "(" et a etx i et b ")?1:0;\n"
+  ir 9 r i a b 0 0
   r }
-: cand >i { = a cx ckc a = r nt 0 eq r "0;\nif(" et a "!=0){\n" = b cx ckc b eq r "(" et b "!=0)?1:0;\n}\n" r }
-: cor >i { = a cx ckc a = r nt 0 eq r "1;\nif(" et a "==0){\n" = b cx ckc b eq r "(" et b "!=0)?1:0;\n}\n" r }
-: cnot >i { = a cx ckc a = r nt 0 eq r "(" et a "==0)?1:0;\n" r }
+: cand >i { = a cx ckc a = r nt 0 ir 10 r a 0 0 0 0 = b cx ckc b ir 11 r b 0 0 0 0 r }
+: cor >i { = a cx ckc a = r nt 0 ir 12 r a 0 0 0 0 = b cx ckc b ir 13 r b 0 0 0 0 r }
+: cnot >i { = a cx ckc a = r nt 0 ir 14 r a 0 0 0 0 r }
 : cun iii>i c ti to {
   = a cx
   ? != tty a ti { ebeg ? ti "esperava real" "esperava inteiro" eend } 0
   = r nt to
-  eq r mname c "(" et a ");\n"
+  ir 15 r c a 0 0 0
   r }
-: cbf i>i c { = a cx = b cx ckflt a ckflt b = r nt 1 eq r mname c "(" et a "," et b ");\n" r }
+: cbf i>i c { = a cx = b cx ckflt a ckflt b = r nt 1 ir 16 r c a b 0 0 r }
 : cmm i>i m {
   = a cx
   = b cx
   ? != tty a tty b { ebeg "tipos diferentes" eend } 0
   = r nt tty a
-  eq r "(" et a ? m ">" "<" et b ")?" et a ":" et b ";\n"
+  ir 17 r m a b 0 0
   r }
 : cif >i {
   = c cx
   ckc c
   = r nt 0
-  "if(" et c "!=0){\n"
+  ir 18 0 c 0 0 0 0
   = a cx
-  eq r et a ";\n}else{\n"
+  ir 19 r a 0 0 0 0
   = b cx
-  eq r et b ";\n}\n"
+  ir 20 r b 0 0 0 0
   ? != tty a tty b { ebeg "ramos com tipos diferentes" eend } 0
   ! + @ 10 r tty a
   r }
 : cwh >i {
-  ? @ 12 "while(true){\n" "while(1){\n"
+  ir 21 0 0 0 0 0 0
   = c cx
   ckc c
-  "if(" et c "==0)break;\n"
+  ir 22 0 c 0 0 0 0
   cx
-  "}\n"
+  ir 23 0 0 0 0 0 0
   = r nt 0
-  eq r "0;\n"
+  ir 4 r 0 0 0 0 0
   r }
 : cblk >i {
   = r -1
   W { ? >= @ 7 @ 4 { ebeg "falta }" eend } 0 != tcode @ 7 '} } = r cx
   ! 7 + @ 7 1
-  ? < r 0 { = r nt 0 eq r "0;\n" r } r }
+  ? < r 0 { = r nt 0 ir 4 r 0 0 0 0 0 r } r }
 : cset >i {
   = n @ 7
   ? || >= n @ 4 tkk n { ebeg "= precisa de nome" eend } 0
@@ -170,5 +155,5 @@
   = y tty e
   = j floc n
   ? < j 0 addl n y ? != lty j y { ebeg "tipo de variavel mudou" eend } 0
-  "v_" etx n "=" et e ";\n"
+  ir 6 0 n e 0 0 0
   e }

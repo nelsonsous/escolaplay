@@ -1,0 +1,69 @@
+# emissor de texto da RI: C, GLSL (-g) e JavaScript (-j)
+: mname i>i c ? isjs { ? == c 0 "+" ? == c 1 "Math.trunc" { "Math." ? == c 2 "sqrt" ? == c 3 "sin" ? == c 4 "cos" ? == c 5 "exp" ? == c 6 "log" ? == c 7 "floor" ? == c 8 "abs" ? == c 9 "pow" "atan2" } } {
+  ? == c 0 ? @ 12 "float" "(F)"
+  ? == c 1 ? @ 12 "int" "(I)"
+  ? == c 2 "sqrt"
+  ? == c 3 "sin"
+  ? == c 4 "cos"
+  ? == c 5 "exp"
+  ? == c 6 "log"
+  ? == c 7 "floor"
+  ? == c 8 ? @ 12 "abs" "fabs"
+  ? == c 9 "pow"
+  ? @ 12 "atan" "atan2" }
+: escs i>i i {
+  = s tks i
+  = l tkl i
+  = j 1
+  W < j - l 1 { = c @ + s j ? == c 10 "\\n" ? == c 9 "\\t" ? == c 13 "\\r" P c = j + j 1 }
+  0 }
+: emi i>i p {
+  = k @ p
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  ? && && >= k 24 <= k 40 != k 39 cpu 0
+  ? == k 1 { eq d etx a ";\n" }
+  ? == k 2 { eq d N a ";\n" }
+  ? == k 3 { ? @ 12 "\n#error onda: texto so em CPU\n" 0 "os(\"" escs a "\");\n" }
+  ? == k 4 { eq d ez tty d ";\n" }
+  ? == k 5 { eq d "v_" etx a ";\n" }
+  ? == k 6 { "v_" etx a "=" et b ";\n" }
+  ? == k 7 { eq d "f_" etx @ fe a 0 "(" eargs b c 0 ");\n" }
+  ? == k 8 { ? && isjs && == tty d 0 == tcode a '/ { eq d "Math.trunc(" et b "/" et c ");\n" } { eq d et b etx a et c ";\n" } }
+  ? == k 9 { eq d "(" et b etx a et c ")?1:0;\n" }
+  ? == k 10 { eq d "0;\nif(" et a "!=0){\n" }
+  ? || == k 11 == k 13 { eq d "(" et a "!=0)?1:0;\n}\n" }
+  ? == k 12 { eq d "1;\nif(" et a "==0){\n" }
+  ? == k 14 { eq d "(" et a "==0)?1:0;\n" }
+  ? == k 15 { eq d mname a "(" et b ");\n" }
+  ? == k 16 { eq d mname a "(" et b "," et c ");\n" }
+  ? == k 17 { eq d "(" et b ? a ">" "<" et c ")?" et b ":" et c ";\n" }
+  ? == k 18 { "if(" et a "!=0){\n" }
+  ? == k 19 { eq d et a ";\n}else{\n" }
+  ? == k 20 { eq d et a ";\n}\n" }
+  ? == k 21 { ? @ 12 "while(true){\n" "while(1){\n" }
+  ? == k 22 { "if(" et a "==0)break;\n" }
+  ? == k 23 "}\n"
+  ? == k 24 { eq d "M[" et a "];\n" }
+  ? == k 25 { "M[" et a "]=" et b ";\n" }
+  ? == k 26 { eq d "ldf(" et a ");\n" }
+  ? == k 27 { "stf(" et a "," et b ");\n" }
+  ? == k 28 { eq d "oa(" et a ");\n" }
+  ? == k 29 { "op(" et a ");\n" }
+  ? == k 30 { eq d "ir();\n" }
+  ? == k 31 { "on(" et a ");\n" }
+  ? == k 32 { "og(" et a ");\n" }
+  ? == k 33 { "osink(" et a ");\n" }
+  ? == k 34 { eq d "AC;\n" }
+  ? == k 35 { eq d "av(" et a "," et b ");\n" }
+  ? == k 36 { "oexit(" et a ");\n" }
+  ? == k 37 { eq d "onow();\n" }
+  ? == k 38 { "#pragma omp parallel for\nfor(I i=0;i<" et b ";i++)" ? @ fe c 3 { "stf(" et a "+i,f_" etx @ fe c 0 "(i" eargs x y 1 "));\n" } { "M[" et a "+i]=f_" etx @ fe c 0 "(i" eargs x y 1 ");\n" } }
+  ? == k 39 { eq d ez tty d ";\n" ? @ 12 { "for(" ety 0 " i=0;i<" } { "#pragma omp parallel for reduction(+:" et d ")\nfor(I i=0;i<" } et a ";i++)" et d "+=f_" etx @ fe b 0 "(i" eargs c x 1 ");\n" }
+  ? == k 40 { eq d "0;\n{unsigned char*g=oimg0(" et a "," et b ");\n#pragma omp parallel for\nfor(I y=0;y<" et b ";y++)for(I x=0;x<" et a ";x++){I c=f_" etx @ fe c 0 ? fpt c 0 "((F)x,(F)y" "(x,y" eargs x y 1 ");unsigned char*q=g+3*(y*" et a "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et a "," et b ");}\n" }
+  ? == k 41 { "return " et a ";\n}\n" }
+  0 }

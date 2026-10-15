@@ -2,7 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const W = 960, H = 540;
-  const SEMENTE = '3d642bfb440145f1e3b63d79c12b82f576f2ca7cc9b2030dd3da294144584326';
+  const SEMENTE = '__SEMENTE__';
   const nf = new Intl.NumberFormat('pt-PT');
   const f1 = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const f2 = new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 2 });

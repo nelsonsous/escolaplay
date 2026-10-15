@@ -4,7 +4,7 @@
   const nf = new Intl.NumberFormat('pt-PT');
   const n1 = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const n2 = new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 2 });
-  const HASH = '3d642bfb440145f1e3b63d79c12b82f576f2ca7cc9b2030dd3da294144584326';
+  const HASH = '__SEMENTE__';
   const EX = {
     julia: { src: $('s-julia').textContent, glsl: $('g-julia').textContent, t0: 2.0 },
     ondas: { src: $('s-ondas').textContent, glsl: $('g-ondas').textContent, t0: 1.0 },

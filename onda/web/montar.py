@@ -3,12 +3,22 @@
 import os, json, html, shutil, subprocess, sys
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rd = lambda p: open(os.path.join(R, p), encoding='utf-8').read()
+import hashlib
+H = hashlib.sha256(open(os.path.join(R, 'seed/ondac.c'), 'rb').read()).hexdigest()
+fmt = lambda n: f"{n:,}".replace(',', ' ')
+VARS = {'__SEMENTE__': H, '__H8__': H[:8], '__H4__': H[-4:], '__N_ONDA__': fmt(os.path.getsize(os.path.join(R, 'build/ondac.onda'))),
+        '__N_C__': fmt(os.path.getsize(os.path.join(R, 'seed/ondac.c'))), '__KB_WASM__': str(round(os.path.getsize(os.path.join(R, 'web/ondac.wasm')) / 1000))}
+def fill(t):
+    for k, v in VARS.items(): t = t.replace(k, v)
+    return t
 def put(dst, rel, src):
-    d = os.path.join(R, dst, rel); os.makedirs(os.path.dirname(d), exist_ok=True); shutil.copy(os.path.join(R, src), d)
+    d = os.path.join(R, dst, rel); os.makedirs(os.path.dirname(d), exist_ok=True)
+    if src.endswith(('.js', '.html')): open(d, 'w', encoding='utf-8').write(fill(open(os.path.join(R, src), encoding='utf-8').read()))
+    else: shutil.copy(os.path.join(R, src), d)
 # Onda Viva
 h = rd('web/viva.src.html').replace('<!--SRC_JULIA-->', rd('ex/julia.onda')).replace('<!--SRC_ONDAS-->', rd('ex/ondas.onda'))
 os.makedirs(os.path.join(R, 'build/site-viva'), exist_ok=True)
-open(os.path.join(R, 'build/site-viva/index.html'), 'w', encoding='utf-8').write(h)
+open(os.path.join(R, 'build/site-viva/index.html'), 'w', encoding='utf-8').write(fill(h))
 for f in ['significado.js', 'ondac.js', 'viva.js', 'viva-app.js', 'ondac.wasm']: put('build/site-viva', f, 'web/' + f)
 put('build/site-viva', 'f/ondac.onda', 'build/ondac.onda')
 # Onda
@@ -28,7 +38,7 @@ h = rd('web/onda/index.src.html')
 for k, v in {'<!--SRC_JULIA-->': rd('ex/julia.onda'), '<!--SRC_ONDAS-->': rd('ex/ondas.onda'), '<!--GLSL_JULIA-->': g('julia'), '<!--GLSL_ONDAS-->': g('ondas'),
              '<!--GROVER-->': html.escape(grover), '<!--FILES-->': json.dumps(fl, ensure_ascii=False)}.items():
     h = h.replace(k, v)
-open(os.path.join(R, 'build/site-onda/index.html'), 'w', encoding='utf-8').write(h)
+open(os.path.join(R, 'build/site-onda/index.html'), 'w', encoding='utf-8').write(fill(h))
 for f in ['app.js', 'julia.png']: put('build/site-onda', f, 'web/onda/' + f)
 put('build/site-onda', 'ondac.wasm', 'web/ondac.wasm')
 print('build/site-onda e build/site-viva montados')

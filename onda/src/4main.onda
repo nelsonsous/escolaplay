@@ -1,17 +1,18 @@
-: cld >i { = p cx ckint p = r nt 0 eq r "M[" et p "];\n" r }
-: cst >i { = p cx = v cx ckint p ckint v "M[" et p "]=" et v ";\n" v }
-: cldf >i { = p cx ckint p = r nt 1 eq r "ldf(" et p ");\n" r }
-: cstf >i { = p cx = v cx ckint p ckflt v "stf(" et p "," et v ");\n" v }
-: calc >i { = n cx ckint n = r nt 0 eq r "oa(" et n ");\n" r }
-: cput >i { = x cx ckint x "op(" et x ");\n" x }
-: crd >i { = r nt 0 eq r "ir();\n" r }
-: cnum >i { = x cx ckint x "on(" et x ");\n" x }
-: cgf >i { = x cx ckflt x "og(" et x ");\n" x }
-: csnk >i { = p cx ckint p "osink(" et p ");\n" p }
-: cac >i { = r nt 0 eq r "AC;\n" r }
-: cav >i { = a cx = b cx ckint a ckint b = r nt 0 eq r "av(" et a "," et b ");\n" r }
-: cex >i { = c cx ckint c "oexit(" et c ");\n" c }
-: ctm >i { = r nt 0 eq r "onow();\n" r }
+# operacoes de memoria, E/S e campos (produzem RI), despacho e saida
+: cld >i { = p cx ckint p = r nt 0 ir 24 r p 0 0 0 0 r }
+: cst >i { = p cx = v cx ckint p ckint v ir 25 0 p v 0 0 0 v }
+: cldf >i { = p cx ckint p = r nt 1 ir 26 r p 0 0 0 0 r }
+: cstf >i { = p cx = v cx ckint p ckflt v ir 27 0 p v 0 0 0 v }
+: calc >i { = n cx ckint n = r nt 0 ir 28 r n 0 0 0 0 r }
+: cput >i { = x cx ckint x ir 29 0 x 0 0 0 0 x }
+: crd >i { = r nt 0 ir 30 r 0 0 0 0 0 r }
+: cnum >i { = x cx ckint x ir 31 0 x 0 0 0 0 x }
+: cgf >i { = x cx ckflt x ir 32 0 x 0 0 0 0 x }
+: csnk >i { = p cx ckint p ir 33 0 p 0 0 0 0 p }
+: cac >i { = r nt 0 ir 34 r 0 0 0 0 0 r }
+: cav >i { = a cx = b cx ckint a ckint b = r nt 0 ir 35 r a b 0 0 0 r }
+: cex >i { = c cx ckint c ir 36 0 c 0 0 0 0 c }
+: ctm >i { = r nt 0 ir 37 r 0 0 0 0 0 r }
 : fref i>i m {
   = i @ 7
   ? >= i @ 4 { ebeg "falta funcao" eend } 0
@@ -29,10 +30,7 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  "#pragma omp parallel for\nfor(I i=0;i<" et n ";i++)"
-  ? @ fe k 3
-    { "stf(" et d "+i,f_" etx @ fe k 0 "(i" eargs a - @ fe k 2 1 1 "));\n" }
-    { "M[" et d "+i]=f_" etx @ fe k 0 "(i" eargs a - @ fe k 2 1 1 ");\n" }
+  ir 38 0 d n k a - @ fe k 2 1
   d }
 : cs >i {
   = n cx
@@ -40,11 +38,8 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  = y @ fe k 3
-  = r nt y
-  eq r ez y ";\n"
-  ? @ 12 { "for(" ety 0 " i=0;i<" } { "#pragma omp parallel for reduction(+:" et r ")\nfor(I i=0;i<" }
-  et n ";i++)" et r "+=f_" etx @ fe k 0 "(i" eargs a - @ fe k 2 1 1 ");\n"
+  = r nt @ fe k 3
+  ir 39 r n k a - @ fe k 2 1 0
   r }
 : cd >i {
   = w cx
@@ -55,10 +50,7 @@
   ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
   = a cargs k 2
   = r nt 0
-  eq r "0;\n{unsigned char*g=oimg0(" et w "," et h ");\n#pragma omp parallel for\nfor(I y=0;y<" et h ";y++)for(I x=0;x<" et w ";x++){I c=f_" etx @ fe k 0
-  ? fpt k 0 "((F)x,(F)y" "(x,y"
-  eargs a - @ fe k 2 2 1
-  ");unsigned char*q=g+3*(y*" et w "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et w "," et h ");}\n"
+  ir 40 r w h k a - @ fe k 2 2
   r }
 : cop i>i i {
   = o tcode i
@@ -85,23 +77,23 @@
   ? == o 'W cwh
   ? == o '{ cblk
   ? == o '= cset
-  ? == o '@ { cpu cld }
-  ? == o '! { cpu cst }
-  ? == o k2 '@ 'f { cpu cldf }
-  ? == o k2 '! 'f { cpu cstf }
-  ? == o 'A { cpu calc }
-  ? == o 'P { cpu cput }
-  ? == o 'R { cpu crd }
-  ? == o 'N { cpu cnum }
-  ? == o 'G { cpu cgf }
-  ? == o 'O { cpu csnk }
-  ? == o k2 'A 'c { cpu cac }
-  ? == o k2 'A 'v { cpu cav }
-  ? == o 'X { cpu cex }
-  ? == o 'T { cpu ctm }
-  ? == o 'E { cpu ce }
+  ? == o '@ cld
+  ? == o '! cst
+  ? == o k2 '@ 'f cldf
+  ? == o k2 '! 'f cstf
+  ? == o 'A calc
+  ? == o 'P cput
+  ? == o 'R crd
+  ? == o 'N cnum
+  ? == o 'G cgf
+  ? == o 'O csnk
+  ? == o k2 'A 'c cac
+  ? == o k2 'A 'v cav
+  ? == o 'X cex
+  ? == o 'T ctm
+  ? == o 'E ce
   ? == o 'S cs
-  ? == o 'D { cpu cd }
+  ? == o 'D cd
   { ! 7 i ebeg "operacao desconhecida" eend } }
 : rdall >i {
   = s @ 1
@@ -167,8 +159,9 @@
   ! 8 A 40000
   ! 10 A 400000
   ! 14 A 400000
-  ! 16 A 5000000
+  ! 16 A 3000000
   ! 17 A 1500000
+  ! 18 A 800000
   lex
   pre
   = m 0

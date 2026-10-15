@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 1 de 50 concluída**. Próxima: 2 (WebAssembly binário escrito pela própria Onda).
+Estado: **iteração 2 de 50 concluída**. Próxima: 3 (emissor WebAssembly binário a partir da RI: inteiros, controlo e chamadas).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -50,3 +50,26 @@ As peças existem em separado. Que eu saiba, ninguém as juntou numa linguagem p
 - Bambu: https://github.com/ferrandi/PandA-bambu/ · Calyx: https://www.cs.cornell.edu/~asampson/media/calyx-pose-proposal.pdf · CIRCT/Calyx num fluxo completo: https://accml.dcs.gla.ac.uk/papers/2026/8th_AccML_paper_7.pdf
 - Bitslicing: https://timtaubert.de/blog/2018/08/bitslicing-an-introduction/ · https://arxiv.org/pdf/2302.10083
 - Oráculos reversíveis: https://si2.epfl.ch/demichel/publications/archive/2021/DATE_2021_IBM.pdf · https://arxiv.org/html/2501.05237v1
+
+---
+
+## Iteração 2: o grafo de sinais (representação intermédia)
+
+**Pergunta.** Como é que um só compilador gera C, GLSL e JavaScript hoje, e WebAssembly binário, x86 e circuitos amanhã, sem repetir a lógica em cada emissor?
+
+**O que já existe.** O LLVM IR, o MLIR, o CLIF do Cranelift e o QBE. O próprio WebAssembly é uma representação intermédia com controlo estruturado.
+
+**O que foi feito.** O compilador passou a gerar primeiro uma representação intermédia e só depois a emite:
+- 41 tipos de instrução de 8 palavras cada;
+- `if`/`else`/`loop` estruturados, como no WebAssembly;
+- cada temporário com o seu tipo.
+
+Há um único emissor de texto para C, GLSL e JavaScript. Os próximos emissores (WebAssembly binário, x86, portas lógicas) leem a mesma representação.
+
+**Prova.**
+- Ponto fixo atingido (SHA-256 `efc954ef…`). O C do arranque em Rust continua idêntico ao que a Onda gera para si própria.
+- 11 saídas idênticas, bit a bit, às da versão anterior: o C dos 6 exemplos e do compilador, e o GLSL e o JavaScript dos 2 exemplos de GPU. As mensagens de erro também são as mesmas.
+- O compilador ficou mais pequeno: 80 KB em WebAssembly (eram 114 KB) e 38 KB nativo.
+- 6 de 6 testes da Onda Viva passaram.
+
+**Problema encontrado e corrigido.** Com o novo buffer da representação intermédia, a versão WebAssembly ultrapassou a memória disponível (72 MB): a saída vinha vazia e 5 testes falharam. Reduzi o buffer de saída de 5 para 3 milhões de palavras, que continua com folga, e os testes voltaram a passar.
