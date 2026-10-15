@@ -10,8 +10,7 @@ const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-mm-'));
 
 // o exemplo com n fixo e a imprimir toda a matriz resultado (para conferir por completo, nao so o traco)
 const src = `
-: dot iiiii>f k ra b n col * @f + ra k @f + b + * k n col
-: mm iiii>f idx a b n { = row / idx n S n dot + a * row n b n % idx n }
+: mm iiii>f idx a b n { = row * / idx n n = col % idx n = s 0.0 = k 0 W < k n { = s + s * @f + a + row k @f + b + * k n col = k + k 1 } s }
 : encher ii>i p n { = i 0 W < i n { !f + p i F + % i 13 1 = i + i 1 } p }
 : main >i {
   = n 40

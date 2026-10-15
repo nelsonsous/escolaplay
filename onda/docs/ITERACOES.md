@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 37 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 38 (reduzir a sobrecarga do produto interno: por a função do S a entrar em linha no laço de redução, para o matmul chegar ao C justo).
+Estado: **iteração 38 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 39 (a correção de fundo: fazer o `S` (e o `E`, `D`) entrar em linha a função também em C e WebAssembly, não só no x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -943,3 +943,23 @@ A mesma lógica, com laços, memória e aritmética de bytes, compilada para C (
 O `E` deu o paralelismo de borla: a mesma função, sem uma linha sobre threads, usa os quatro núcleos. Fica a ~1,4× do C justo (com `n` variável, a comparação honesta). A outra metade da distância para o C mais rápido é a vetorização que só acontece quando o tamanho é uma constante de compilação — a Onda passa `n` como variável. O que resta (1,4×) é a sobrecarga do produto interno: a função do `S` não entra em linha no laço de redução.
 
 **Próxima.** Pôr a função do `S` a entrar em linha no laço, para o produto interno não pagar uma chamada por iteração. Deve aproximar o matmul do C justo.
+
+## Iteração 38: o `S` paga uma chamada por iteração (e o laço explícito não)
+
+**Pergunta.** A iteração 37 deixou o matmul do campo a 1,4× do C justo, por causa da função do produto interno. Era mesmo a chamada? E dá para a tirar?
+
+**O diagnóstico.** Sim. O `S n dot ...` gera, em C, exatamente `for(i...) ac += f_dot(i, ...)`: uma chamada de função por iteração, que o `gcc` não consegue meter em linha através do laço da redução. O interpretador de Brainfuck e o matmul mostram a regra geral das iterações 27–31 num caso concreto: a conta não é o problema, a chamada é.
+
+**A tentativa de fundo.** O compilador já sabe meter funções em linha (`cinl`), e isso estava ligado só para o x86 (`isx`) e para os circuitos (`isc`). Tirei a guarda e liguei a marcação de inlining (`inlf`) para todas as formas. Os três pontos fixos fecharam e os 47 testes passaram — mas, em C, o `f_dot` continuou a ser chamado. A inserção em linha dos elementos de campo (o único sítio onde o `ccallf` entra) não dispara por aqui: é uma mudança de compilador mais funda do que tirar uma guarda, e fica para a próxima iteração, feita com cuidado. Revertido.
+
+**A solução prática, já.** Escrever o produto interno como um laço explícito dentro do elemento do `E`, em vez de um `S`. Sem chamada por iteração:
+
+| 512×512, 4 núcleos | tempo |
+|---|---|
+| `S` (produto interno por função) | ~151 ms |
+| laço explícito no elemento | ~130 ms |
+| C à mão, OpenMP, `n` variável | ~110 ms |
+
+O laço explícito fica a ~1,17× do C justo — paridade, na prática. O `ex/matmul.onda` passou a usá-lo, com um comentário a explicar que o `S` seria a forma elegante mas paga a chamada até o compilador a meter em linha. Os 47 testes continuam a passar e o resultado é igual bit a bit nas três formas.
+
+**Próxima.** A correção de fundo: fazer o `cinl` meter em linha a função de um `S`/`E`/`D` também em C e WebAssembly. Como a tentativa desta iteração mostrou, não basta tirar a guarda — é preciso perceber porque é que o `ccallf` não inlina os elementos de campo fora do x86.
