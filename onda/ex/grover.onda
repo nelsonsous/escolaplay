@@ -1,0 +1,31 @@
+# Busca quantica de Grover: amplitudes = campo em sobreposicao, E = evolucao, S = colapso
+: amp ii>f i a @f + a i
+: uni if>f i q q
+: step iiif>f i a w m { = v @f + a i - * 2.0 m ? == i w - 0.0 v v }
+: sq ii>f i a { = v @f + a i * v v }
+: main >i {
+  = q 20
+  = n << 1 q
+  = w 777777
+  = a A n
+  = b A n
+  = t T
+  E a n uni / 1.0 Sq F n
+  = k I * 0.785398163397448 Sq F n
+  = j 0
+  W < j k {
+    = m / - S n amp a * 2.0 @f + a w F n
+    E b n step a w m
+    = c a = a b = b c
+    = j + j 1 }
+  = p sq w a
+  = r / F % T 1000003 1000003.0
+  = i 0
+  = acc 0.0
+  W && < i - n 1 < + acc sq i a r { = acc + acc sq i a = i + i 1 }
+  "Grover: " N q " qubits, " N n " estados em sobreposicao\n"
+  "iteracoes: " N k " (busca classica: ~" N / n 2 " tentativas)\n"
+  "P(alvo " N w ") = " G p "\n"
+  "medicao colapsou em " N i ? == i w " (correto)\n" " (errado)\n"
+  "tempo: " N / - T t 1000 " ms\n"
+  0 }

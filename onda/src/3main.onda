@@ -1,0 +1,181 @@
+: cld >i { = p cx ckint p = r nt 0 eq r "M[" et p "];\n" r }
+: cst >i { = p cx = v cx ckint p ckint v "M[" et p "]=" et v ";\n" v }
+: cldf >i { = p cx ckint p = r nt 1 eq r "ldf(" et p ");\n" r }
+: cstf >i { = p cx = v cx ckint p ckflt v "stf(" et p "," et v ");\n" v }
+: calc >i { = n cx ckint n = r nt 0 eq r "oa(" et n ");\n" r }
+: cput >i { = x cx ckint x "op(" et x ");\n" x }
+: crd >i { = r nt 0 eq r "ir();\n" r }
+: cnum >i { = x cx ckint x "on(" et x ");\n" x }
+: cgf >i { = x cx ckflt x "og(" et x ");\n" x }
+: csnk >i { = p cx ckint p "osink(" et p ");\n" p }
+: cac >i { = r nt 0 eq r "AC;\n" r }
+: cav >i { = a cx = b cx ckint a ckint b = r nt 0 eq r "av(" et a "," et b ");\n" r }
+: cex >i { = c cx ckint c "oexit(" et c ");\n" c }
+: ctm >i { = r nt 0 eq r "onow();\n" r }
+: fref i>i m {
+  = i @ 7
+  ? >= i @ 4 { ebeg "falta funcao" eend } 0
+  ! 7 + i 1
+  = k ? tkk i -1 ffun i
+  ? < k 0 { ! 7 i ebeg "esperava funcao" eend } 0
+  ? < @ fe k 2 m { ebeg "funcao com poucos parametros" eend } 0
+  edge k
+  k }
+: ce >i {
+  = d cx
+  = n cx
+  ckint d
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  = a cargs k 1
+  "#pragma omp parallel for\nfor(I i=0;i<" et n ";i++)"
+  ? @ fe k 3
+    { "stf(" et d "+i,f_" etx @ fe k 0 "(i" eargs a - @ fe k 2 1 1 "));\n" }
+    { "M[" et d "+i]=f_" etx @ fe k 0 "(i" eargs a - @ fe k 2 1 1 ");\n" }
+  d }
+: cs >i {
+  = n cx
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  = a cargs k 1
+  = y @ fe k 3
+  = r nt y
+  eq r ez y ";\n"
+  ? @ 12 { "for(" ety 0 " i=0;i<" } { "#pragma omp parallel for reduction(+:" et r ")\nfor(I i=0;i<" }
+  et n ";i++)" et r "+=f_" etx @ fe k 0 "(i" eargs a - @ fe k 2 1 1 ");\n"
+  r }
+: cd >i {
+  = w cx
+  = h cx
+  ckint w
+  ckint h
+  = k fref 2
+  ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
+  = a cargs k 2
+  = r nt 0
+  eq r "0;\n{unsigned char*g=oimg0(" et w "," et h ");\n#pragma omp parallel for\nfor(I y=0;y<" et h ";y++)for(I x=0;x<" et w ";x++){I c=f_" etx @ fe k 0
+  ? fpt k 0 "((F)x,(F)y" "(x,y"
+  eargs a - @ fe k 2 2 1
+  ");unsigned char*q=g+3*(y*" et w "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et w "," et h ");}\n"
+  r }
+: cop i>i i {
+  = o tcode i
+  ? isar o cbin i 2
+  ? isbi o cbin i 0
+  ? iscm o ccmp i
+  ? == o k2 '& '& cand
+  ? == o k2 '| '| cor
+  ? == o '~ cnot
+  ? == o 'F cun 0 0 1
+  ? == o 'I cun 1 1 0
+  ? == o k2 'S 'q cun 2 1 1
+  ? == o k2 'S 'n cun 3 1 1
+  ? == o k2 'C 's cun 4 1 1
+  ? == o k2 'E 'x cun 5 1 1
+  ? == o k2 'L 'g cun 6 1 1
+  ? == o k2 'F 'l cun 7 1 1
+  ? == o k2 'A 'b cun 8 1 1
+  ? == o k2 'P 'w cbf 9
+  ? == o k2 'A 't cbf 10
+  ? == o k2 'M 'n cmm 0
+  ? == o k2 'M 'x cmm 1
+  ? == o '? cif
+  ? == o 'W cwh
+  ? == o '{ cblk
+  ? == o '= cset
+  ? == o '@ { cpu cld }
+  ? == o '! { cpu cst }
+  ? == o k2 '@ 'f { cpu cldf }
+  ? == o k2 '! 'f { cpu cstf }
+  ? == o 'A { cpu calc }
+  ? == o 'P { cpu cput }
+  ? == o 'R { cpu crd }
+  ? == o 'N { cpu cnum }
+  ? == o 'G { cpu cgf }
+  ? == o 'O { cpu csnk }
+  ? == o k2 'A 'c { cpu cac }
+  ? == o k2 'A 'v { cpu cav }
+  ? == o 'X { cpu cex }
+  ? == o 'T { cpu ctm }
+  ? == o 'E { cpu ce }
+  ? == o 'S cs
+  ? == o 'D { cpu cd }
+  { ! 7 i ebeg "operacao desconhecida" eend } }
+: rdall >i {
+  = s @ 1
+  = n 0
+  = c R
+  W >= c 0 { ? >= n 1000000 { ebeg "fonte grande demais" eend } 0 ! + s n c = n + n 1 = c R }
+  ! 2 n }
+: ismain i>i k { = t @ fe k 0 && == tkl t 4 && && == tc t 0 'm == tc t 1 'a && == tc t 2 'i == tc t 3 'n }
+: argeq i>i k {
+  = t @ fe k 0
+  = l tkl t
+  = j 0
+  = r 1
+  W && r < j l { ? != tc t j Av 2 j = r 0 0 = j + j 1 }
+  && r == Av 2 l 0 }
+: emitf i>i k { ew @ fe k 6 - @ fe k 7 @ fe k 6 ew @ fe k 8 - @ fe k 9 @ fe k 8 }
+: outc >i {
+  prel
+  = k 0
+  W < k @ 6 { sighdr k ";\n" = k + k 1 }
+  = k 0
+  W < k @ 6 { emitf k = k + k 1 }
+  "int main(int c,char**v){oinit(c,v);I r=f_main();oflush();return (int)r;}\n" }
+: reach >i {
+  = e -1
+  = k 0
+  W < k @ 6 { ? argeq k = e k 0 = k + k 1 }
+  ? < e 0 { ebeg "funcao de entrada desconhecida" eend } 0
+  ? || || < @ fe e 2 2 != fpt e 0 fpt e 1 @ fe e 3 { ebeg "funcao de pixel invalida" eend } 0
+  ! fe e 10 1
+  = ch 1
+  W ch {
+    = ch 0
+    = j 0
+    W < j @ 15 {
+      = p + @ 14 * j 2
+      ? && @ fe @ p 10 ~ @ fe @ + p 1 10 { ! fe @ + p 1 10 1 = ch 1 } 0
+      = j + j 1 } }
+  e }
+: outj >i {
+  = e reach
+  = k 0
+  W < k @ 6 { ? @ fe k 10 emitf k 0 = k + k 1 }
+  "return f_" etx @ fe e 0 ";\n" }
+: outg >i {
+  = e reach
+  "#version 300 es\nprecision highp float;\nprecision highp int;\nuniform float u[8];\nout vec4 oc;\n"
+  = k 0
+  W < k @ 6 { ? @ fe k 10 { sighdr k ";\n" } 0 = k + k 1 }
+  = k 0
+  W < k @ 6 { ? @ fe k 10 emitf k 0 = k + k 1 }
+  "void main(){int c=f_" etx @ fe e 0
+  ? fpt e 0 "(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y)" "(int(gl_FragCoord.x),int(u[2])-1-int(gl_FragCoord.y)"
+  = j 2
+  W < j @ fe e 2 { ? fpt e j { ",u[" N - j 2 "]" } { ",int(u[" N - j 2 "])" } = j + j 1 }
+  ");oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}\n" }
+: main >i {
+  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 0
+  ! 1 A 1000000
+  rdall
+  ! 3 A + 3 * 3 @ 2
+  ! 5 A 120000
+  ! 8 A 40000
+  ! 10 A 400000
+  ! 14 A 400000
+  ! 16 A 5000000
+  ! 17 A 1500000
+  lex
+  pre
+  = m 0
+  = k 0
+  W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
+  ? || m @ 12 0 { ebeg "falta : main >i" eend }
+  = k 0
+  W < k @ 6 { cfun k = k + k 1 }
+  ? isjs outj ? @ 12 outg outc
+  0 }
