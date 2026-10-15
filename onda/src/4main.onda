@@ -153,10 +153,10 @@
   W < j @ fe e 2 { ? fpt e j { ",u[" N - j 2 "]" } { ",int(u[" N - j 2 "])" } = j + j 1 }
   ");oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}\n" }
 : main >i {
-  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 0
+  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 ? && == Av 1 0 '- == Av 1 1 'x 4 0
   ! 1 A 1000000
   rdall
-  ? isw { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
+  ? || isw isx { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
   ! 3 A + 3 * 3 @ 2
   ! 5 A 120000
   ! 8 A 40000
@@ -170,8 +170,9 @@
   = m 0
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
-  ? || m && != @ 12 0 ~ isw 0 { ebeg "falta : main >i" eend }
+  ? || m && && != @ 12 0 ~ isw ~ isx 0 { ebeg "falta : main >i" eend }
+  ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0
   = k 0
   W < k @ 6 { cfun k = k + k 1 }
-  ? isw outw ? isjs outj ? @ 12 outg outc
+  ? isx outx ? isw outw ? isjs outj ? @ 12 outg outc
   0 }

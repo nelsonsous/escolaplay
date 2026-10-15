@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 6 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 7 (x86-64 nativo com ELF, sem C: primeiro executável).
+Estado: **iteração 7 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 8 (reais SSE2, funções matemáticas x87 e campos no x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -150,3 +150,33 @@ Há um único emissor de texto para C, GLSL e JavaScript. Os próximos emissores
   - o erro injetado é rejeitado e a forma GPU é promovida (98% dentro da tolerância);
   - zero erros na consola e nenhum transbordo a 400 px.
 - As duas páginas foram republicadas (versão 2) e já correm o compilador escrito pela Onda.
+
+---
+
+## Iteração 7: um executável x86-64 nativo escrito pela Onda
+
+**Pergunta.** Dá para chegar ao processador sem C, sem assembler e sem linker?
+
+**O que já existe.** O TCC e o chibicc geram código de máquina diretamente, mas são escritos em C. O Go tem assembler e linker próprios, mas é um projeto enorme.
+
+**O que foi feito.**
+- **Emissor `ondac -x`:** lê a representação intermédia e escreve as instruções x86-64 byte a byte. Cada temporário vive num lugar da pilha (`[rbp+d]`). Os saltos estruturados são corrigidos no fim com uma pilha de controlo, e as chamadas com uma lista de correções.
+- **Executável ELF64 escrito pela Onda:**
+  - dois segmentos: código (RX) e memória M (RW, 512 MB reservados de forma preguiçosa);
+  - entrada em `0x4000b0`;
+  - M[0] em `0x10000080`, guardado no registo r15.
+- **Rotina do sistema** (cerca de 300 bytes de máquina escritos pela Onda), com chamadas diretas ao Linux:
+  - escrever (convertendo palavras em bytes);
+  - ler com buffer;
+  - sair;
+  - argc e argv a partir da pilha inicial;
+  - relógio (`clock_gettime`);
+  - capacidade da memória.
+- **Runtime:** o mesmo runtime escrito em Onda do WebAssembly.
+
+**Prova.**
+- O "olá mundo" nativo tem 9 024 bytes. O `readelf` confirma um ELF64 x86-64 válido, e o programa corre e sai com 0.
+- `test/w/inteiros.onda` dá a mesma saída que o C (41 linhas) e o mesmo código de saída (3). Corre com `test/w/correr.sh`.
+- O ponto fixo em C e em WebAssembly mantém-se.
+
+**Ponto fraco, para otimizar:** fib(35) demora 481 ms no nativo da Onda contra 15 ms em C -O3, porque guarda tudo na pilha e não atribui registos. Fica para as iterações de otimização.

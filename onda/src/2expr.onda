@@ -32,7 +32,7 @@
   ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
   ? && < @ 7 @ 4 != tcode @ 7 ': { ebeg "tokens a mais" eend } 0
   ir 41 0 r 0 0 0 0
-  ? isw wfun k tfun k }
+  ? isw wfun k ? isx xfun k tfun k }
 : tfun i>i k {
   = np @ fe k 2
   O 16
