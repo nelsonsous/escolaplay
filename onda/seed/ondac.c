@@ -95,6 +95,7 @@ static I f_tc(I v_i,I v_j);
 static I f_tcode(I v_i);
 static I f_teq(I v_a,I v_b);
 static I f_ebeg(void);
+static I f_eline(void);
 static I f_eend(void);
 static I f_ew(I v_s,I v_l);
 static I f_etx(I v_i);
@@ -839,22 +840,116 @@ os("\n#error onda: ");
 t1=0;
 return t1;
 }
+static I f_eline(void){
+I t0=0;
+I t1=0;
+I t2=0;
+I t3=0;
+I t4=0;
+I t5=0;
+I t6=0;
+I t7=0;
+I t8=0;
+I t9=0;
+I t10=0;
+I t11=0;
+I t12=0;
+I t13=0;
+I t14=0;
+I t15=0;
+I t16=0;
+I t17=0;
+I t18=0;
+I t19=0;
+I t20=0;
+I t21=0;
+I t22=0;
+I t23=0;
+I t24=0;
+I t25=0;
+I t26=0;
+I t27=0;
+I t28=0;
+I t29=0;
+I t30=0;
+I t31=0;
+I t32=0;
+I v_p=0;
+I v_e=0;
+I v_n=0;
+t0=1;
+t1=M[t0];
+v_p=t1;
+t2=7;
+t3=M[t2];
+t4=4;
+t5=M[t4];
+t6=(t3<t5)?1:0;
+if(t6!=0){
+t8=7;
+t9=M[t8];
+t10=f_tks(t9);
+t7=t10;
+}else{
+t11=v_p;
+t12=2;
+t13=M[t12];
+t14=t11+t13;
+t7=t14;
+}
+v_e=t7;
+t15=1;
+v_n=t15;
+while(1){
+t16=v_p;
+t17=v_e;
+t18=(t16<t17)?1:0;
+if(t18==0)break;
+t19=v_p;
+t20=M[t19];
+t21=10;
+t22=(t20==t21)?1:0;
+if(t22!=0){
+t24=v_n;
+t25=1;
+t26=t24+t25;
+v_n=t26;
+t23=t26;
+}else{
+t27=0;
+t23=t27;
+}
+t28=v_p;
+t29=1;
+t30=t28+t29;
+v_p=t30;
+}
+t31=0;
+t32=v_n;
+return t32;
+}
 static I f_eend(void){
 I t0=0;
 I t1=0;
 I t2=0;
 I t3=0;
 I t4=0;
-os(" (token ");
+I t5=0;
+I t6=0;
+os(" (linha ");
 t0=0;
-t1=7;
-t2=M[t1];
-on(t2);
+t1=f_eline();
+on(t1);
+os(", token ");
+t2=0;
+t3=7;
+t4=M[t3];
+on(t4);
 os(")\n");
-t3=0;
-t4=1;
-oexit(t4);
-return t4;
+t5=0;
+t6=1;
+oexit(t6);
+return t6;
 }
 static I f_ew(I v_s,I v_l){
 I t0=0;

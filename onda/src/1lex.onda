@@ -27,7 +27,8 @@
     W && r < j l { ? != @ + sa j @ + sb j = r 0 0 = j + j 1 }
     r } }
 : ebeg >i { O 0 "\n#error onda: " }
-: eend >i { " (token " N @ 7 ")\n" X 1 }
+: eline >i { = p @ 1 = e ? < @ 7 @ 4 tks @ 7 + p @ 2 = n 1 W < p e { ? == @ p 10 = n + n 1 0 = p + p 1 } n }
+: eend >i { " (linha " N eline ", token " N @ 7 ")\n" X 1 }
 : ew ii>i s l { = j 0 W < j l { P @ + s j = j + j 1 } 0 }
 : etx i>i i ew tks i tkl i
 : et i>i t { "t" N t }

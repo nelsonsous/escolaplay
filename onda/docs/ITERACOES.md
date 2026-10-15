@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 28 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 29 (voltar ao que rende: o `fib` perde no tempo das chamadas, não nas instruções — medir onde o x86 ainda gasta a mais fora da recursão).
+Estado: **iteração 29 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 30 (o erro apontar a coluna e mostrar a linha da fonte, não só o número).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -792,3 +792,21 @@ Porquê? O `fib` mantém dois valores através das chamadas (o `n` e o resultado
 **A lição, e a decisão.** A diferença real para o `gcc` no `fib` (14 ms) não está em manter valores em registos — o `gcc` também empilha o `rbx`. Está numa transformação de nível mais alto (desdobrar a recursão), que é outra discussão. A convenção *callee-saved*, sozinha, não rende aqui: troca três leituras por quatro escritas. **Revertida.** Fica a prova de que o caminho óbvio não era o certo, que é uma resposta tão útil como uma otimização — e o compilador continua verde.
 
 **Próxima.** Voltar ao que rende: o `fib` só perde 1,5× em instruções mas 4× em tempo. O gasto está no protocolo de chamada (a pilha), não na conta. Medir onde o x86 gasta a mais fora da recursão, onde não há o custo irredutível de guardar o estado vivo.
+
+## Iteração 29: o erro diz em que linha
+
+**Pergunta.** Até agora um erro do compilador dizia só `(token 14)`. Para quem escreve Onda (uma IA, ou eu a pedir uma linha), que token é o 14? Dá para dizer a linha?
+
+**O que já existe.** Qualquer compilador sério aponta a linha e a coluna. A Onda não o fazia porque nasceu a pensar só no caminho feliz.
+
+**O que foi feito.** Cada token já guarda o seu sítio na fonte (o compilador tem de o saber para ler o texto). O relato de erro passa a contar as mudanças de linha do início da fonte até ao token que falhou:
+```
+#error onda: nome desconhecido (linha 4, token 14)
+```
+São duas linhas de Onda novas (`eline`), só no caminho de erro: não tocam no código gerado.
+
+**Um erro apanhado pela própria mudança.** A primeira versão dava sempre o dobro da linha. A causa: o campo de posição de cada token não é um deslocamento, é já um apontador absoluto para dentro da fonte (`@1 + deslocamento`). Eu estava a somar `@1` outra vez, e a contagem percorria o dobro do intervalo. Visto isso, a correção foi trivial: usar o apontador tal como está.
+
+**Prova.** Os três pontos fixos continuam a fechar e os 38 testes passam (o caminho normal não mudou). Erros de exemplo apontam a linha certa: um nome desconhecido na linha 1 dá `linha 1`, na linha 4 dá `linha 4`.
+
+**Próxima.** Ir mais longe: a coluna dentro da linha, e imprimir a própria linha da fonte com um sinal por baixo do token, como fazem os compiladores modernos.
