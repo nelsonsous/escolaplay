@@ -1,0 +1,39 @@
+# Mini-linguagem interpretada em Onda: expressoes com variaveis. Cada linha e "nome = expr" ou "expr";
+# imprime o valor de cada expressao que nao seja atribuicao. Mostra um interpretador com ambiente, escrito em Onda.
+# @1 texto @2 tamanho @3 posicao @4 ambiente (pares nome-empacotado, valor) @5 n de variaveis
+: ch >i ? < @ 3 @ 2 @ + @ 1 @ 3 -1
+: adianta >i { ! 3 + @ 3 1 0 }
+: espaco >i W || == ch 32 == ch 9 adianta
+: letra i>i c || || && >= c 'a <= c 'z && >= c 'A <= c 'Z == c '_
+: nome >i { espaco = h 0 = k 0 W || letra ch && > k 0 && >= ch '0 <= ch '9 { ? < k 8 = h | h << ch * 8 k 0 = k + k 1 adianta } h }
+: busca i>i h { = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? < j @ 5 @ + @ 4 + * 2 j 1 0 }
+: poe ii>i h v { = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? >= j @ 5 { ! + @ 4 * 2 j h ! 5 + @ 5 1 } 0 ! + @ 4 + * 2 j 1 v v }
+: numero >i { espaco = v 0 W && >= ch '0 <= ch '9 { = v + * v 10 - ch '0 adianta } v }
+: fator >i {
+  espaco
+  ? == ch '( { adianta = v soma espaco ? == ch ') adianta 0 v }
+  ? == ch '- { adianta - 0 fator }
+  ? letra ch busca nome
+  numero }
+: termo >i { = v fator espaco W || || == ch '* == ch '/ == ch '% { = o ch adianta = r fator ? == o '* = v * v r ? == o '/ = v / v r = v % v r espaco } v }
+: soma >i { = v termo espaco W || == ch '+ == ch '- { = o ch adianta = r termo ? == o '+ = v + v r = v - v r espaco } v }
+: linha >i {
+  espaco
+  # atribuicao? um nome seguido de '='  (e nao '==')
+  = p @ 3
+  ? letra ch {
+    = h nome espaco
+    ? && == ch '= != @ + @ 1 + @ 3 1 '= { adianta poe h soma -2147483648 } { ! 3 p soma }
+  } soma }
+: main >i {
+  ! 1 A 10000 ! 4 A 2000 ! 5 0
+  = n 0 = c R
+  W && >= c 0 < n 9999 { ! + @ 1 n c = n + n 1 = c R }
+  ! 2 n ! 3 0
+  W < @ 3 @ 2 {
+    espaco
+    ? >= @ 3 @ 2 0 {
+      = v linha
+      ? != v -2147483648 { N v P 10 } 0
+      espaco ? || == ch 10 == ch '; adianta 0 } }
+  0 }

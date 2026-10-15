@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 42 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 43 (dar ao avaliador variáveis e chamadas — um passo na direção de uma linguagem pequena interpretada em Onda).
+Estado: **iteração 43 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 44 (fechar o círculo: a mini-linguagem a correr no interpretador que também é compilado para x86 e WebAssembly — ou dar-lhe condicionais).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1022,3 +1022,24 @@ Ao contrário do fractal, onde cada píxel é independente, aqui cada célula de
 A recursão mútua entre `expr`, `termo` e `fator` — o padrão clássico de um analisador — compila e corre igual nas três formas. É mais um passo a mostrar que a Onda é uma linguagem de uso geral, não só um compilador que se reproduz.
 
 **Próxima.** Dar ao avaliador variáveis (`x = 3; x*x`) e talvez chamadas, aproximando-o de uma pequena linguagem interpretada escrita em Onda — um interpretador de expressões com ambiente.
+
+## Iteração 43: uma mini-linguagem com variáveis, interpretada em Onda
+
+**Pergunta.** O avaliador da iteração 42 só fazia contas. Com variáveis e um ambiente, torna-se uma pequena linguagem. A Onda escreve um interpretador com estado de forma natural?
+
+**O que foi feito.** `ex/mini.onda`: estende o avaliador com nomes e atribuição. Cada linha é `nome = expr` (guarda no ambiente, não imprime) ou `expr` (avalia e imprime). O ambiente é uma tabela de pares (nome empacotado em 8 bytes, valor); `busca` e `poe` lêem e escrevem. O analisador distingue uma atribuição de uma comparação olhando se o `=` é seguido de outro `=`.
+
+**Prova** (`test/mini.test.js`; 55 testes no total, todos a passar). Programas conferidos e iguais nas três formas:
+```
+x = 3        n = 10           x = 5
+y = 4        f = 1            x = x + 1
+x*x + y*y    f = f * n        x = x * x
+(x+y)*2      n = n - 1        x          -> 36
+-> 25 14     f = f * n
+             f  -> 90
+```
+A reatribuição (`x = x + 1`), a precedência e os parênteses funcionam, e a saída é igual bit a bit em C, x86-64 e WebAssembly.
+
+É a Onda a hospedar uma linguagem — um interpretador com ambiente — que por sua vez é compilada pela Onda para três formas. A linguagem para IAs começa a hospedar linguagens.
+
+**Próxima.** Dar-lhe condicionais (um `? :` ou um `se`) e talvez ciclos, ou fechar o círculo mostrando o mesmo interpretador a correr nas três formas sobre o mesmo programa de entrada.

@@ -1,0 +1,37 @@
+// Mini-linguagem interpretada em Onda (ex/mini.onda): expressoes com variaveis e atribuicao, ambiente proprio.
+// Confere programas conhecidos e exige a mesma saida em C, x86 e WebAssembly.
+const { test } = require('node:test');
+const assert = require('node:assert');
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+const R = path.join(__dirname, '..');
+const ondac = path.join(R, 'build/ondac');
+const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-mini-'));
+const src = fs.readFileSync(path.join(R, 'ex/mini.onda'));
+fs.writeFileSync(path.join(t, 'm.c'), execFileSync(ondac, [], { input: src }));
+execFileSync('cc', ['-O2', '-fwrapv', '-w', path.join(t, 'm.c'), '-o', path.join(t, 'mc'), '-lm']);
+fs.writeFileSync(path.join(t, 'mx'), execFileSync(ondac, ['-x'], { input: src }), { mode: 0o755 });
+fs.writeFileSync(path.join(t, 'm.wasm'), execFileSync(ondac, ['-w'], { input: src }));
+const C = p => execFileSync(path.join(t, 'mc'), [], { input: p }).toString().trim().split('\n').join(' ');
+const X = p => execFileSync(path.join(t, 'mx'), [], { input: p }).toString().trim().split('\n').join(' ');
+const W = p => execFileSync('node', [path.join(R, 'wasm/host.js'), path.join(t, 'm.wasm')], { input: p }).toString().trim().split('\n').join(' ');
+
+const casos = [
+  ['x = 3\ny = 4\nx*x + y*y\n(x+y)*2\n', '25 14'],
+  ['n = 10\nf = 1\nf = f * n\nn = n - 1\nf = f * n\nf\n', '90'],
+  ['a = 2\nb = a*a*a\nb\nc = b - a\nc\n', '8 6'],
+  ['area = 3 * 4\narea + area\n', '24'],
+  ['x = 5\nx = x + 1\nx = x * x\nx\n', '36'],
+];
+
+test('mini: programas com variaveis (forma C)', () => {
+  for (const [p, v] of casos) assert.strictEqual(C(p), v, JSON.stringify(p));
+});
+
+test('mini: C, x86 e WebAssembly dao a mesma saida', () => {
+  for (const [p] of casos) {
+    const c = C(p);
+    assert.strictEqual(X(p), c, 'x86: ' + JSON.stringify(p));
+    assert.strictEqual(W(p), c, 'wasm: ' + JSON.stringify(p));
+  }
+});
