@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 18 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 19 (circuitos: Verilog, divisão, ciclos de voltas variáveis e somadores rápidos).
+Estado: **iteração 19 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 20 (do circuito ao quântico: o AIG tornado reversível, em OpenQASM).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -508,3 +508,32 @@ Com `: bit >i 8`, o somador tem 64 portas, o multiplicador 234 e a contagem de b
   - ciclos com número de voltas variável (desenrolados com predicados até um limite);
   - saída em Verilog;
   - a ponte para o quântico: o mesmo AIG, tornado reversível, é um oráculo de Grover.
+
+## Iteração 19: circuitos com divisão, ciclos variáveis, somadores rápidos e Verilog
+
+**Pergunta.** O que impede uma função Onda qualquer (com divisão e ciclos que dependem dos dados) de virar hardware?
+
+**O que foi feito.**
+- **Divisão e resto:** circuito de divisão com restauro sobre os valores absolutos (W andares de subtração e multiplexador). O sinal é corrigido no fim, truncado como no C.
+- **Ciclos com voltas variáveis:** são desenrolados com um predicado "vivo". Cada volta guarda o estado antes da condição e antes do corpo, e no fim mistura-o com o novo através do predicado. Assim, uma entrada que já saiu do ciclo fica congelada, mesmo que a condição tenha efeitos.
+  - Nos ciclos com número fixo de voltas, o predicado é a constante 1 e os multiplexadores desaparecem na criação, por isso não custam nada.
+  - Um ciclo variável precisa de `: lim >i N`.
+- **Somador de prefixos** (`: rap >i 1`): Kogge-Stone feito em lugar, em log₂ W andares.
+- **Verilog estrutural** (`ondac -v f`): um fio por porta útil.
+
+**Prova** (`node --test test/circ.test.js`, 21 testes). Cada circuito é simulado em 256 vetores e comparado com a função compilada em C:
+- divisão e resto com divisores positivos e negativos;
+- máximo divisor comum por subtrações e Collatz, ambos com ciclos de voltas variáveis;
+- a soma, a subtração e as comparações com Kogge-Stone;
+- o Verilog avaliado e comparado com o AIGER.
+
+| circuito | portas E | profundidade |
+|---|---|---|
+| soma de 64 bits, em cadeia | 568 | 128 |
+| soma de 64 bits, Kogge-Stone | 1 327 | **15** |
+| divisão de 64 bits | cerca de 55 000 | — |
+| MDC por subtrações (entradas de 4 bits, até 24 voltas) | 52 727 | 3 176 |
+
+**O que correu mal.** O primeiro MDC (entradas de 6 bits, `: lim >i 200`) deu 713 mil portas, e o teste rebentou o buffer de 1 MB do node.
+- **Causa:** o predicado "vivo" nunca fica estruturalmente 0, mesmo quando todas as entradas já terminaram. Por isso o ciclo desenrola sempre até ao limite.
+- **Solução para mais tarde:** provar que "vivo" é 0, por simulação exaustiva quando depende de poucas entradas, ou com um resolvedor SAT. Por agora, o limite tem de ser o número real de voltas.

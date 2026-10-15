@@ -3,6 +3,7 @@
 # os ramos fundem as variaveis com multiplexadores; os ciclos com numero fixo de voltas sao desenrolados.
 # bloco 62: 0 W 1 proximo no 2/3 entradas de cada E 4 dispersao 5 tamanho 6 fios dos temporarios 7 fios das variaveis
 #           8 pilha de estados 9 topo 10 n de entradas 11 fios da saida 12 voltas 13 fim de cada ciclo 14 rascunho 15 inicio de cada ciclo
+#           16 pilha de ciclos 17 topo 18 limite de voltas (-1 sem limite declarado) 19 ciclo truncado 20 somador rapido 23/24 G e P
 : zq i>i k @ + @ 62 k
 : zqs ii>i k v ! + @ 62 k v
 : zw >i zq 0
@@ -47,7 +48,8 @@
     ! ztp d i ? == o '& zand x y ? == o '| zor x y zxor x y
     = i + i 1 }
   0 }
-: zadd iiii>i d b c s {
+: zadd iiii>i d b c s ? zq 20 zaddk d b c s zaddr d b c s
+: zaddr iiii>i d b c s {
   = cy s
   = i 0
   W < i zw {
@@ -58,6 +60,32 @@
     = cy zor zand x y zand cy h
     = i + i 1 }
   cy }
+: zaddk iiii>i d b c s {
+  = gb zq 23
+  = pb zq 24
+  = i 0
+  W < i zw {
+    = x ztv b i
+    = y ? s znot ztv c i ztv c i
+    ! + gb i zand x y
+    ! + pb i zxor x y
+    ! + zq 14 i @ + pb i
+    = i + i 1 }
+  ? s ! gb zor @ gb @ pb 0
+  = dd 1
+  W < dd zw {
+    = i - zw 1
+    W >= i dd {
+      = g @ + gb i
+      = p @ + pb i
+      ! + gb i zor g zand p @ + gb - i dd
+      ! + pb i zand p @ + pb - i dd
+      = i - i 1 }
+    = dd * 2 dd }
+  ! ztp d 0 zxor @ zq 14 s
+  = i 1
+  W < i zw { ! ztp d i zxor @ + zq 14 i @ + gb - i 1 = i + i 1 }
+  @ + gb - zw 1 }
 : zmul iii>i d b c {
   = i 0
   W < i zw { ! ztp d i 0 = i + i 1 }
@@ -93,6 +121,36 @@
         = i 0
         W < i zw { ! ztp d i @ + zq 14 i = i + i 1 }
         = s + s 1 } 0 } }
+: zabs iii>i t s n {
+  = cy n
+  = i 0
+  W < i zw { = x zxor ztv s i n ! ztp t i zxor x cy = cy zand x cy = i + i 1 }
+  0 }
+: zudiv iiii>i q r a b {
+  zcst r 0
+  = tt + @ 11 4
+  = i - zw 1
+  W >= i 0 {
+    = j - zw 1
+    W > j 0 { ! ztp r j ztv r - j 1 = j - j 1 }
+    ! ztp r 0 ztv a i
+    = ge zaddr tt r b 1
+    ! ztp q i ge
+    = j 0
+    W < j zw { ! ztp r j zmux ge ztv tt j ztv r j = j + j 1 }
+    = i - i 1 }
+  0 }
+: zdiv iiii>i o d b c {
+  = sa ztv b - zw 1
+  = sb ztv c - zw 1
+  = ua + @ 11 1
+  = ub + @ 11 2
+  = qq + @ 11 3
+  = rr + @ 11 5
+  zabs ua b sa
+  zabs ub c sb
+  zudiv qq rr ua ub
+  ? == o '/ zabs d qq zxor sa sb zabs d rr sa }
 : zlt ii>i a b {
   = t @ 11
   zadd t a b 1
@@ -152,7 +210,7 @@
       ? == o '* zmul d b c
       ? || || == o '& == o '| == o '^ zbw o d b c
       ? || == o k2 '< '< == o k2 '> '> zsh o d b c
-      { ebeg "circuito: sem divisao (ainda)" eend } }
+      zdiv o d b c }
   ? == k 9 zcmp opof a d b c
   ? == k 10 zbit d zpush znz a
   ? == k 11 { = q ztop zbit d zand q znz a zjoin 1 }
@@ -163,15 +221,36 @@
   ? == k 18 zpush znz a
   ? == k 19 { zcpy d a zthen }
   ? == k 20 { = q ztop = j 0 W < j zw { ! ztp d j zmux q ztv d j ztv a j = j + j 1 } zjoin 2 }
-  ? == k 21 0
+  ? == k 21 { = f zlpush zlsave + f 2 + f 2 }
   ? == k 22
-    { = q znz a
-      ? > q 1 { ebeg "circuito: ciclo com numero de voltas variavel" eend } 0
-      ? == q 0 = nx + @ + zq 13 @ + zq 15 i 1 0 }
-  ? == k 23 { zqs 12 + zq 12 1 ? > zq 12 1000000 { ebeg "circuito: ciclo grande demais" eend } 0 = nx + @ + zq 15 i 1 }
+    { = f zltop
+      zlmux @ f + f 2
+      = q zand @ f znz a
+      ! f q
+      ? == q 0 { zqs 17 - zq 17 1 = nx + @ + zq 13 @ + zq 15 i 1 } { zlsave + + f 2 * @ 9 zw }
+      0 }
+  ? == k 23
+    { = f zltop
+      zlmux @ f + + f 2 * @ 9 zw
+      ! + f 1 + @ + f 1 1
+      zqs 12 + zq 12 1
+      ? > zq 12 4000000 { ebeg "circuito: ciclo grande demais" eend } 0
+      ? && > @ f 1 >= @ + f 1 ? < zq 18 0 4096 zq 18
+        { ? < zq 18 0 { ebeg "circuito: ciclo com voltas variaveis: declara : lim >i N" eend } 0
+          zqs 19 1
+          zqs 17 - zq 17 1
+          = nx + @ + zq 13 @ + zq 15 i 1 }
+        { zlsave + f 2 = nx + @ + zq 15 i 1 }
+      0 }
   ? == k 41 zqs 11 a
   { ebeg "circuito: operacao sem circuito" eend }
   nx }
+# moldura de ciclo: [vivo, voltas, estado antes da condicao, estado antes do corpo]
+: zlf >i + 2 * 2 * @ 9 zw
+: zlpush >i { = f + zq 16 * zq 17 zlf ! f 1 ! + f 1 0 zqs 17 + zq 17 1 f }
+: zltop >i + zq 16 * - zq 17 1 zlf
+: zlsave i>i g { = n * @ 9 zw = j 0 W < j n { ! + g j @ + zq 7 j = j + j 1 } 0 }
+: zlmux ii>i s g { = n * @ 9 zw = j 0 W < j n { = q + zq 7 j ! q zmux s @ q @ + g j = j + j 1 } 0 }
 # ciclos: 13 fim de cada inicio, 15 inicio de cada 22 e 23
 : zloops >i {
   = sp 0
@@ -184,15 +263,21 @@
     ? == k 23 { = sp - sp 1 = s @ + q sp ! + zq 13 s i ! + zq 15 i s } 0
     = i + i 1 }
   0 }
-: zbits >i { = k fby k3 'b 'i 't = r 64 ? && >= k 0 == tkk @ fe k 5 1 = r Mn 64 Mx 1 tokval @ fe k 5 0 r }
+: zdec ii>i c v { = k fby c ? && >= k 0 == tkk @ fe k 5 1 tokval @ fe k 5 v }
+: zbits >i Mn 64 Mx 1 zdec k3 'b 'i 't 64
 : outz >i {
   = e -1
   = k 0
   W < k @ 6 { ? argeq k = e k 0 = k + k 1 }
   ? < e 0 { ebeg "funcao de entrada desconhecida" eend } 0
   ? @ fe e 3 { ebeg "circuito: so inteiros" eend } 0
-  ! 62 A 16
+  ! 62 A 32
   zqs 0 zbits
+  zqs 18 zdec k3 'l 'i 'm -1
+  zqs 20 zdec k3 'r 'a 'p 0
+  zqs 16 A 4000000
+  zqs 23 A 64
+  zqs 24 A 64
   zqs 5 2097152
   zqs 4 A zq 5
   zqs 2 A 1000008
@@ -206,7 +291,9 @@
   0 }
 : zfn i>i k {
   = np @ fe k 2
-  zqs 6 A * + @ 11 2 zw
+  zqs 6 A * + @ 11 6 zw
+  zqs 17 0
+  zqs 19 0
   zqs 7 A * + @ 9 1 zw
   zqs 9 0
   zqs 12 0
@@ -217,7 +304,7 @@
   zloops
   = i 0
   W < i @ 19 { = i zins i }
-  zaiger k }
+  ? == @ 12 6 zveri k zaiger k }
 # AIGER ascii: aag M I L O A, entradas, saidas, portas, nomes
 : zmark i>i r {
   = m A zq 1
@@ -266,4 +353,23 @@
   = j 0
   W < j zw { "o" N j " " etx @ fe k 0 "[" N j "]\n" = j + j 1 }
   "c\nOnda: " etx @ fe k 0 " em " N zw " bits: " N vivos " portas E uteis (" N na " criadas), profundidade " N zdepth m "\n"
+  ? zq 19 "Onda: ciclo truncado no limite declarado (: lim)\n" 0
   0 }
+# Verilog estrutural: um fio por porta util, entradas i_<parametro>, saida o
+: zvlit i>i l { ? & l 1 "~" 0 "w[" N >> l 1 "]" }
+: zveri i>i k {
+  = r zq 11
+  = ni zq 10
+  = m zmark r
+  "// gerado pela Onda (-v): " etx @ fe k 0 " em " N zw " bits\nmodule " etx @ fe k 0 "("
+  = np @ fe k 2
+  = j 0
+  W < j np { "input [" N - zw 1 ":0] i_" etx + @ fe k 4 j ", " = j + j 1 }
+  "output [" N - zw 1 ":0] o);\n  wire [" N - zq 1 1 ":0] w;\n  assign w[0] = 1'b0;\n"
+  = j 0
+  W < j ni { "  assign w[" N + j 1 "] = i_" etx + @ fe k 4 / j zw "[" N % j zw "];\n" = j + j 1 }
+  = n + ni 1
+  W < n zq 1 { ? @ + m n { "  assign w[" N n "] = " zvlit @ + zq 2 n " & " zvlit @ + zq 3 n ";\n" } 0 = n + n 1 }
+  = j 0
+  W < j zw { "  assign o[" N j "] = " zvlit ztv r j ";\n" = j + j 1 }
+  "endmodule\n" }

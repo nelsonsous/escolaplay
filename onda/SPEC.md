@@ -62,8 +62,11 @@ Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 - Cada inteiro é um vetor de W fios. W = 64 por omissão, ou o valor de `: bit >i N` (aritmética de W bits).
 - `+ -` são somadores; `*` é um multiplicador de deslocamento e soma; os deslocamentos por constante são só fios, e os outros são um deslocador em barril.
 - `& | ^`, as comparações, `Mn`/`Mx`, `&&`, `||`, `~` e `?` (multiplexador) também existem.
-- As chamadas são expandidas. Os ciclos com número fixo de voltas são desenrolados.
-- Ainda não há divisão nem ciclos com número de voltas variável.
+- `/ %` usam divisão com restauro sobre os valores absolutos, truncada como no C. A divisão por zero dá um valor não especificado.
+- As chamadas são expandidas.
+- Os ciclos são desenrolados com um predicado "vivo": a condição e o corpo só mudam o estado das entradas que ainda estão no ciclo. Um ciclo cujo número de voltas depende das entradas precisa de `: lim >i N`, o número máximo de voltas que o circuito cobre.
+- `: rap >i 1` troca os somadores em cadeia por somadores de prefixos (Kogge-Stone): a soma de 64 bits passa de 568 portas e profundidade 128 para 1 327 portas e profundidade 15.
+- `ondac -v f` escreve o mesmo circuito em Verilog estrutural (`module f(input [W-1:0] i_a, ..., output [W-1:0] o)`).
 - O comentário final dá as portas úteis e a profundidade. `test/circ.test.js` simula cada circuito e compara-o com a função compilada.
 
 ## Ferramentas
