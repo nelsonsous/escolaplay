@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 43 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 44 (fechar o círculo: a mini-linguagem a correr no interpretador que também é compilado para x86 e WebAssembly — ou dar-lhe condicionais).
+Estado: **iteração 44 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 45 (dar condicionais e comparações à mini-linguagem, ou um novo campo verificado contra o significado na Onda Viva).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1043,3 +1043,17 @@ A reatribuição (`x = x + 1`), a precedência e os parênteses funcionam, e a s
 É a Onda a hospedar uma linguagem — um interpretador com ambiente — que por sua vez é compilada pela Onda para três formas. A linguagem para IAs começa a hospedar linguagens.
 
 **Próxima.** Dar-lhe condicionais (um `? :` ou um `se`) e talvez ciclos, ou fechar o círculo mostrando o mesmo interpretador a correr nas três formas sobre o mesmo programa de entrada.
+
+## Iteração 44: a Onda Viva entra na rede de testes
+
+**Pergunta.** A Onda Viva — o coração do projeto, o sistema que verifica cada forma rápida contra o seu significado — era testada por um script à parte (`node test/viva.test.js`), fora do `node --test`. Se partisse, o `node --test` não dava por isso. Porque não está no mesmo sítio que tudo o resto?
+
+**O que foi feito.** Reescrevi `test/viva.test.js` para usar o `node:test`, como os outros 54 testes. As seis verificações da Onda Viva passam a ser subtestes de verdade, e uma falha de qualquer uma falha o `node --test test/*.test.js`:
+- a forma CPU do fractal de Julia e das ondas dá os mesmos bits que o significado, em 3000 píxeis;
+- um erro injetado numa constante é apanhado pelo significado;
+- o significado recusa um programa mal tipado;
+- o compilador verifica-se a si próprio dentro do WebAssembly (o ponto fixo: o `.wasm` gera a semente C exata).
+
+**Prova.** `node --test test/*.test.js` passou de 55 para 60 testes, todos a passar. A auto-verificação deixou de ser uma promessa num script solto e passou a ser uma condição da suite: se a Onda Viva deixar de apanhar um erro, ou se o compilador deixar de se reproduzir no WebAssembly, o conjunto fica vermelho.
+
+**Próxima.** Dar condicionais e comparações à mini-linguagem (`? c a b`, `<`, `==`), ou pôr um campo novo a ser verificado contra o significado dentro da própria Onda Viva.
