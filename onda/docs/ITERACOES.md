@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 53 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 54 (continuar a biblioteca verificada, ou uma ponta de desempenho/compilador).
+Estado: **iteração 54 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 55 (continuar a biblioteca verificada, ou uma ponta de desempenho/compilador).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1206,3 +1206,15 @@ E igual em C, x86-64 e WebAssembly. O `200!` tem 375 dígitos, todos certos, nas
 A Onda transcende o seu próprio limite de 64 bits com uma estrutura escrita em Onda — e, como tudo o resto, dá o mesmo em todas as formas.
 
 **Próxima.** Continuar a biblioteca verificada, ou atacar uma ponta de desempenho/compilador.
+
+## Iteração 54: quicksort
+
+**Pergunta.** Falta um algoritmo fundamental de manipulação de vetores: ordenar. Um quicksort recursivo in-place, em Onda, dá o mesmo que a ordenação de referência, mesmo em grande?
+
+**O que foi feito.** `ex/qsort.onda`: quicksort recursivo in-place (pivô no fim, partição de Lomuto). Lê inteiros (com sinal) do stdin, ordena, imprime.
+
+**O mesmo erro de sintaxe prefixa, outra vez.** A condição de leitura `? && >= c '0 <= c '9 == c '-` deixava `== c '-` solto (o `&&` é binário), e uma linha em branco caía no ramo de leitura, gerando um `0` espúrio. A condição certa é `? || && >= c '0 <= c '9 == c '-` (dígito **ou** sinal). É o terceiro programa desta série a tropeçar no mesmo sítio — vale a nota no `docs/ESTADO.md`.
+
+**Prova** (`test/qsort.test.js`; 74 testes no total, todos a passar). Vetores vazios, de um elemento, repetidos, invertidos, e **2000 inteiros aleatórios** (com negativos e repetidos) — todos iguais à ordenação do JavaScript, e iguais entre C, x86-64 e WebAssembly (3000 elementos).
+
+**Próxima.** Continuar a biblioteca verificada, ou uma ponta de desempenho/compilador.

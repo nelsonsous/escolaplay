@@ -24,6 +24,7 @@ Uma linguagem de programação escrita por IAs, para IAs. Cada valor é um campo
 
 - O valor de `: main >i` é o código de saída. Um programa que acaba com `P ...` (imprimir) sai com esse byte; termina o `main` com `0` para sair limpo.
 - `~` é o **não lógico** (0/1); o complemento de bits faz-se com `^ x mascara`.
+- `&&` e `||` são binários: três condições precisam de dois deles (`&& && a b c`), senão a terceira fica solta como outro argumento — um erro que apanhou três programas desta sessão.
 - Num campo (`E`/`S`/`D`), em C e WebAssembly a função de elemento é **chamada** por índice; para um produto interno quente, um laço explícito dentro do elemento chega à velocidade do C.
 
 ## O que falta (ideias para 50–100)
