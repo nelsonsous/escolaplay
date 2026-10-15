@@ -42,3 +42,12 @@ test('vecmap: a cauda escalar (n nao multiplo de 4) bate o C ao bit', () => {
     assert.strictEqual(bits(x), bits(c), 'n=' + n + ' x86 vs C');
   }
 });
+
+// modo FMA opcional (-xf): nao e bit a bit (funde a*b+c num so arredondamento) mas tem de dar o MESMO valor
+// que o modo bit-exato a ~15 digitos -- se divergir muito, a fusao FMA esta mal (ex. registos a mais).
+test('vecmap: o modo -xf (FMA) da o mesmo valor que o -x, a ~15 digitos', () => {
+  fs.writeFileSync(path.join(t, 'vxf'), execFileSync(ondac, ['-xf'], { input: src }), { mode: 0o755 });
+  const sx = Number(soma(execFileSync(path.join(t, 'vx')).toString()));
+  const sf = Number(soma(execFileSync(path.join(t, 'vxf')).toString()));
+  assert.ok(Math.abs(sf - sx) / sx < 1e-12, 'FMA divergiu: -x=' + sx + ' -xf=' + sf);
+});

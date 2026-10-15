@@ -46,6 +46,7 @@
 # cada formula confere byte a byte com a saida do objdump (ver docs/ITERACOES.md it.58).
 : xvop iiii>i o d a b { P 197 P + 128 + * 8 ^ a 15 5 P o P + 192 + * 8 & d 7 & b 7 }
 : xvfma iiii>i o d a b { P 196 P 226 P + 128 + * 8 ^ a 15 5 P o P + 192 + * 8 & d 7 & b 7 }
+: xvfmas iiii>i o d a b { P 196 P 226 P + 128 + * 8 ^ a 15 1 P o P + 192 + * 8 & d 7 & b 7 }
 : xvm iiiii>i b1 o d x dp { P 196 P b1 P 125 P o P + ? dp 64 0 + * 8 & d 7 4 P + 192 + * 8 & x 7 7 ? dp { P & dp 255 } 0 }
 : xvmq ii>i x g { P 196 P 225 P 249 P 110 P + 192 + * 8 & x 7 & g 7 }
 : xvbx ii>i d x { P 196 P 226 P 125 P 25 P + 192 + * 8 & d 7 & x 7 }
@@ -76,7 +77,7 @@
 : xskip >i { = i @ 7 ! 7 + i 1 ? == tkk i 5 { ? isar tcode i { xskip xskip } 0 } 0 }
 : xvaop i>i o ? == o '+ 88 ? == o '- 92 ? == o '* 89 94
 # emite a expressao do resultado em @7 -> registo (w=4 empacotado, w=1 escalar). xr = registo do local x.
-: xvem iiii>i w st xt xr {
+: xvem iiiii>i w st xt xr fma {
   = i @ 7
   ! 7 + i 1
   = kk tkk i
@@ -86,14 +87,31 @@
     = sA @ 7 xskip
     = sB @ 7 xskip
     = af @ 7
-    ! 7 sB = rb xvem w st xt xr
-    ! 7 sA = ra xvem w st xt xr
-    ! 7 af
-    = rd salloc st
-    ? == w 4 xvop xvaop o rd ra rb { xmap rd ra xsr 242 0 xvaop o rd rb 0 }
-    ? != ra xr sfree st ra 0
-    ? != rb xr sfree st rb 0
-    rd } }
+    # FMA opcional: + com um operando produto e o outro nao-identificador -> vfmadd231 (acc = acc + a*b).
+    # avalia-se o operando profundo do produto primeiro (para a pressao ficar baixa), o acumulador por ultimo.
+    = bp && && fma == o '+ && == tcode sB '* != tkk sA 0
+    = ap && && && fma == o '+ ~ bp && == tcode sA '* != tkk sB 0
+    ? || bp ap {
+      = pstar ? bp sB sA
+      = sacc ? bp sA sB
+      = so1 + pstar 1
+      ! 7 so1 xskip = so2 @ 7
+      ! 7 so2 = rb xvem w st xt xr fma
+      ! 7 so1 = ra xvem w st xt xr fma
+      ! 7 sacc = acc xvem w st xt xr fma
+      ! 7 af
+      ? == w 4 xvfma 184 acc ra rb { xvfmas 185 acc ra rb }
+      ? != ra xr sfree st ra 0
+      ? != rb xr sfree st rb 0
+      acc }
+    { ! 7 sB = rb xvem w st xt xr fma
+      ! 7 sA = ra xvem w st xt xr fma
+      ! 7 af
+      = rd salloc st
+      ? == w 4 xvop xvaop o rd ra rb { xmap rd ra xsr 242 0 xvaop o rd rb 0 }
+      ? != ra xr sfree st ra 0
+      ? != rb xr sfree st rb 0
+      rd } } }
 # macro do mapa vetorizado: campos n=a dst=b src=c k=x. rdx=psrc rcx=pdst rax=n; r8/r9 = fins; ymm0-7.
 : xvmap i>i p {
   = n @ + p 2
@@ -106,6 +124,7 @@
   = b @ fe k 5
   = rs + b 7
   = xt + b 2
+  = fma == Av 1 2 'f
   ! + st 1 tbl
   ! 7 rs = nc xvcoll tbl 0
   ! + st 2 nc
@@ -122,7 +141,7 @@
   ! st 255
   = xr salloc st
   xvm 193 16 xr 2 0
-  ! 7 rs = rr xvem 4 st xt xr
+  ! 7 rs = rr xvem 4 st xt xr fma
   xvm 193 17 rr 1 0
   xaddi 2 4 xaddi 1 4
   xback t1
@@ -133,7 +152,7 @@
   ! st 255
   = x2 salloc st
   xmo4 0 242 3856 x2 2 0 0 15
-  ! 7 rs = r2 xvem 1 st xt x2
+  ! 7 rs = r2 xvem 1 st xt x2 fma
   xmo4 0 242 3857 r2 1 0 0 15
   xaddi 2 1 xaddi 1 1
   xback t2

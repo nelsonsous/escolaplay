@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 61 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **Marco: a Onda x86 é 1,55× mais rápida que o `gcc -O2`, bit a bit igual, num núcleo vetorizável** — porque emite AVX que o `-O2` não emite. Próxima: 62 (um modo FMA opcional para fechar a distância ao `gcc -O3 -march=native`, e alargar o vetorizador a mais formas: `F i`, reduções `S`).
+Estado: **iteração 62 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **Marco: a Onda x86 é 1,55× mais rápida que o `gcc -O2`, bit a bit igual**; com o modo FMA opcional (`-xf`) é ~1,8×. Próxima: 63 (desenrolar o laço vetorial para esconder a latência da cadeia FMA e aproximar o `gcc -O3`; depois alargar o vetorizador a `F i` e às reduções `S`).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1345,3 +1345,26 @@ gcc -O3 -march=native (com FMA):  428 ms
 **O que falta para o teto.** O `gcc -O3 -march=native` (428 ms) ainda ganha: usa **FMA** (funde `a*b+c` num só arredondamento, o dobro do débito) e escalona melhor. Fundir com FMA mudaria o último bit (como já acontece nas reduções paralelas), por isso fica como **modo opcional** da próxima iteração — para quem quer a velocidade máxima e aceita a diferença no último bit, mantendo o modo bit-exato por omissão.
 
 **Próxima.** (1) Modo FMA opcional (`vfmadd231pd`) para aproximar os 428 ms. (2) Alargar o vetorizador: `F i` (índice→float, para mapas que usam o índice) e as reduções `S` (produto interno), onde o `gcc -O2` também não vetoriza.
+
+## Iteração 62: modo FMA opcional (-xf), e um bug de pressão de registos apanhado
+
+**Pergunta.** O `gcc -O3 -march=native` (428 ms) ganha à Onda (955 ms) porque usa FMA. Dá para a Onda usar FMA também, sem perder o modo bit-exato por omissão?
+
+**O que foi feito.** Uma flag `-xf` (x86 com FMA), lida no emissor por `Av` (sem slot global novo). Quando ligada, `xvem` funde `+ c (* a b)` num `vfmadd231pd` (e `vfmadd231sd` na cauda escalar) — um só arredondamento em vez de dois. Por omissão (`-x`) nada muda: continua `vmulpd`+`vaddpd`, bit a bit igual.
+
+**O bug (e a lição).** A primeira versão da fusão avaliava o **acumulador primeiro** e mantinha-o vivo durante a recursão do produto — logo a pressão de registos era igual ao **grau** do polinómio (8 para grau 7), o `salloc` esgotava os 8 `ymm` e escrevia num registo inválido. O resultado vinha 0,14% errado (e não "no último bit"). A correção: avaliar o **operando profundo do produto primeiro** e o acumulador por último, mantendo a pressão em ~3. Confirmado: agora o `-xf` bate um C com `fma()` real (8.56665324969217e+16, ~15 dígitos), e o `-x` continua exatamente igual.
+
+**Prova.** Ponto fixo fecha (hash C `c9ef85525cd0857b`). `node --test`: **84 testes** — o `vecmap` ganhou um quarto: o `-xf` tem de dar o mesmo valor que o `-x` a ~15 dígitos (apanha a fusão mal feita). O `-x` bit-exato está intacto (os outros três testes do `vecmap` passam na mesma).
+
+**Os números** (rep=200000, n=8192):
+
+```
+Onda -x  (AVX, bit-exato):         ~1000 ms   (1,5x sobre o gcc -O2)
+Onda -xf (AVX+FMA, opcional):      ~820 ms    (1,8x sobre o gcc -O2)
+C idiomatico, gcc -O2:             ~1483 ms
+gcc -O3 -march=native (FMA+desenrola): 428 ms
+```
+
+**O estado honesto.** O `-xf` já usa FMA e é ~1,8× mais rápido que o `gcc -O2`, com o mesmo valor do C a 15 dígitos. Mas ainda não bate o `gcc -O3 -march=native` (428 ms): a cadeia de 7 FMA dependentes (`p = fma(x,p,c)`) tem ~28 ciclos de latência por vetor, e o `gcc -O3` **desenrola** o laço para processar vários vetores ao mesmo tempo e esconder essa latência. O meu laço faz um vetor de cada vez.
+
+**Próxima.** Desenrolar o laço vetorial (processar 2–4 grupos de 4 por volta, com acumuladores independentes) para esconder a latência da cadeia e aproximar os 428 ms — ainda com FMA opcional e o bit-exato por omissão.
