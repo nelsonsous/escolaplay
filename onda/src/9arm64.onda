@@ -37,7 +37,27 @@
 : aaddsp i>i imm x4 | | | 0x91000000 << imm 10 << 31 5 31
 : aret >i x4 0xD65F03C0
 : ab i>i off x4 | 0x14000000 & / off 4 0x3FFFFFF
+: abl i>i off x4 | 0x94000000 & / off 4 0x3FFFFFF
 : afs >i & + * 8 + @ 9 @ 11 15 -16
+# --- reais (registos d) e arrays em M (base pinada em x28, bump em x27) ---
+: aldfr ii>i rt off x4 | | | 0xFD400000 << / off 8 10 << 31 5 rt
+: astfr ii>i rt off x4 | | | 0xFD000000 << / off 8 10 << 31 5 rt
+: agTf ii>i rt t aldfr rt aslt t
+: asTf ii>i rt t astfr rt aslt t
+: agLf ii>i rt j aldfr rt asll j
+: asLf ii>i rt j astfr rt asll j
+: afadd iii>i rd rn rm x4 | | | 0x1E602800 << rm 16 << rn 5 rd
+: afsub iii>i rd rn rm x4 | | | 0x1E603800 << rm 16 << rn 5 rd
+: afmul iii>i rd rn rm x4 | | | 0x1E600800 << rm 16 << rn 5 rd
+: afdiv iii>i rd rn rm x4 | | | 0x1E601800 << rm 16 << rn 5 rd
+: afmovxd ii>i rd rn x4 | | 0x9E670000 << rn 5 rd
+: ascvtf ii>i rd rn x4 | | 0x9E620000 << rn 5 rd
+: afcvtzs ii>i rd rn x4 | | 0x9E780000 << rn 5 rd
+: aldrx iii>i rt rn rm x4 | | | 0xF8607800 << rm 16 << rn 5 rt
+: astrx iii>i rt rn rm x4 | | | 0xF8207800 << rm 16 << rn 5 rt
+: aldrdx iii>i rt rn rm x4 | | | 0xFC607800 << rm 16 << rn 5 rt
+: astrdx iii>i rt rn rm x4 | | | 0xFC207800 << rm 16 << rn 5 rt
+: afbits i>i tok { !f 24 fltval tok @ 24 }
 
 # --- pilha de ciclos (nested W): @63 = array; [0] = profundidade; cada moldura = (inicio, pos_do_cbz) ---
 : adep >i @ @ 63
@@ -46,32 +66,38 @@
 : a22 i>i a { agT 9 a = f afrm - adep 1 ! + f 1 @ 16 x4 0xB4000009 }
 : a23 >i { = f afrm - adep 1 ab - @ f @ 16 = cp @ + f 1 xput4 cp | | 0xB4000000 << & / - @ 16 cp 4 0x7FFFF 5 9 ! @ 63 - adep 1 }
 
-: aflt i>i d ? tty d { ebeg "reais ainda nao em -a (so o nucleo inteiro)" eend } 0
 : ains i>i p {
   = k @ p
   = d @ + p 1
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
-  ? == k 1 { aflt d aimm 9 tokval a asT 9 d }
+  ? == k 1 { ? tty d { aimm 9 afbits a afmovxd 0 9 asTf 0 d } { aimm 9 tokval a asT 9 d } }
   ? == k 2 { aimm 9 a asT 9 d }
-  ? == k 4 { aimm 9 0 asT 9 d }
-  ? == k 5 { aflt d agL 9 b asT 9 d }
-  ? == k 6 { agT 9 b asL 9 c }
-  ? == k 8 { aflt d agT 9 b agT 10 c = o opof a
-    ? == o '+ aadd 9 9 10 ? == o '- asub 9 9 10 ? == o '* amul 9 9 10 ? == o '/ asdiv 9 9 10
-    ? == o '% { asdiv 11 9 10 amsub 9 11 10 9 } ? == o '& aand 9 9 10 ? == o '| aorr 9 9 10
-    ? == o '^ aeor 9 9 10 ? == o k2 '< '< alsl 9 9 10 ? == o k2 '> '> alsr 9 9 10
-    { ebeg "operador ainda nao em -a" eend } asT 9 d }
-  ? == k 9 { agT 9 b agT 10 c acmp 9 10 acset 9 ^ acc opof a 1 asT 9 d }
+  ? == k 4 { ? tty d { afmovxd 0 31 asTf 0 d } { aimm 9 0 asT 9 d } }
+  ? == k 5 { ? tty d { agLf 0 b asTf 0 d } { agL 9 b asT 9 d } }
+  ? == k 6 { ? tty b { agTf 0 b asLf 0 c } { agT 9 b asL 9 c } }
+  ? == k 8 { = o opof a ? tty d
+    { agTf 0 b agTf 1 c ? == o '+ afadd 0 0 1 ? == o '- afsub 0 0 1 ? == o '* afmul 0 0 1 ? == o '/ afdiv 0 0 1 { ebeg "operador real ainda nao em -a" eend } asTf 0 d }
+    { agT 9 b agT 10 c
+      ? == o '+ aadd 9 9 10 ? == o '- asub 9 9 10 ? == o '* amul 9 9 10 ? == o '/ asdiv 9 9 10
+      ? == o '% { asdiv 11 9 10 amsub 9 11 10 9 } ? == o '& aand 9 9 10 ? == o '| aorr 9 9 10
+      ? == o '^ aeor 9 9 10 ? == o k2 '< '< alsl 9 9 10 ? == o k2 '> '> alsr 9 9 10
+      { ebeg "operador ainda nao em -a" eend } asT 9 d } }
+  ? == k 9 { ? tty b { ebeg "comparacao de reais ainda nao em -a" eend } 0 agT 9 b agT 10 c acmp 9 10 acset 9 ^ acc opof a 1 asT 9 d }
+  ? == k 15 { ? == a 0 { agT 9 b ascvtf 0 9 asTf 0 d } ? == a 1 { agTf 0 b afcvtzs 9 0 asT 9 d } { ebeg "funcao matematica ainda nao em -a" eend } }
   ? == k 21 a21
   ? == k 22 a22 a
   ? == k 23 a23
-  ? == k 41 { agT 0 a aaddsp afs aret }
+  ? == k 24 { agT 9 a aldrx 10 28 9 asT 10 d }
+  ? == k 25 { agT 9 a agT 10 b astrx 10 28 9 }
+  ? == k 26 { agT 9 a aldrdx 0 28 9 asTf 0 d }
+  ? == k 27 { agT 9 a agTf 0 b astrdx 0 28 9 }
+  ? == k 28 { agT 9 a asT 27 d aadd 27 27 9 }
+  ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aaddsp afs aret }
   { ebeg "operacao ainda nao suportada em -a" eend } }
 : afun i>i k {
   = np @ fe k 2
-  ? @ fe k 3 { ebeg "funcao real ainda nao em -a" eend } 0
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
   O 16
   ! fe k 8 @ 16
@@ -85,24 +111,30 @@
 : amain >i { = k 0 = r -1 W < k @ 6 { ? ismain k = r k 0 = k + k 1 } r }
 : outa >i {
   = mi amain
-  # offset (em bytes) de cada funcao no codigo; o stub de entrada ocupa 12 bytes
-  = moff 12
+  # o stub de entrada ocupa 44 bytes (2 aimm = 8 instr + bl + mov + svc); o bl esta no byte 32
+  = moff 44
   = k 0
   W < k mi { = moff + moff - @ fe k 9 @ fe k 8 = k + k 1 }
-  = clen 12
+  = clen 44
   = k 0
   W < k @ 6 { = clen + clen - @ fe k 9 @ fe k 8 = k + k 1 }
-  = fsz + 120 clen
+  # 2 cabecalhos de programa (2*56) a seguir ao cabecalho ELF (64) -> codigo no byte 176
+  = fsz + 176 clen
   = base 4194304
-  # cabecalho ELF (64 bytes): aarch64, ET_EXEC, entry = base+120
+  = mbase 268435456
+  # cabecalho ELF (64 bytes): aarch64, ET_EXEC, 2 segmentos, entry = base+176
   P 127 P 'E P 'L P 'F P 2 P 1 P 1 P 0 x8 0
-  wword 2 2 wword 183 2 x4 1 x8 + base 120
+  wword 2 2 wword 183 2 x4 1 x8 + base 176
   x8 64 x8 0 x4 0
-  x4 | 64 << 56 16 x4 | 1 << 0 16 x4 0
-  # program header (56 bytes): PT_LOAD, RX, cobre o ficheiro todo
+  x4 | 64 << 56 16 x4 2 x4 0
+  # segmento 1 (56 bytes): PT_LOAD RX -- cabecalhos + codigo
   x4 1 x4 5 x8 0 x8 base x8 base x8 fsz x8 fsz x8 4096
-  # stub de entrada: bl main ; mov x8,#93 (exit) ; svc #0
-  x4 | 0x94000000 & / moff 4 0x3FFFFFF
+  # segmento 2 (56 bytes): PT_LOAD RW -- M (heap), BSS puro (filesz 0, memsz 256 MiB) em mbase
+  x4 1 x4 6 x8 0 x8 mbase x8 mbase x8 0 x8 mbase x8 4096
+  # stub de entrada: x28 = base de M ; x27 = bump = 0 ; bl main ; exit(x0)
+  aimm 28 mbase
+  aimm 27 0
+  abl - moff 32
   x4 | | 0xD2800000 << 93 5 8
   x4 0xD4000001
   # corpo de cada funcao

@@ -64,7 +64,7 @@
 : ccall i>i k { = a cargs k 0 ? || > @ 33 0 isc ccallt k a ncall k a }
 : ncall ii>i k a { = r nt @ fe k 3 ir 7 r k a @ fe k 2 0 0 edge k r }
 : ccallt ii>i k a ? || && && isx == @ fe k 11 1 < @ 33 4 && && isc @ fe k 11 < @ 33 16 cinl k a ncall k a
-: ccallf ii>i k a ? && && isx @ fe k 11 < @ 33 4 cinl k a ncall k a
+: ccallf ii>i k a ? && && || isx isa @ fe k 11 < @ 33 4 cinl k a ncall k a
 : cinl ii>i k a {
   = sv @ 32
   = s7 @ 7

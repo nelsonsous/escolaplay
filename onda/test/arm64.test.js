@@ -22,6 +22,14 @@ const run = (src) => {
   try { execFileSync(qemu, [exe]); return 0; }
   catch (e) { if (typeof e.status === 'number') return e.status; throw e; }
 };
+// verdade de terreno: o mesmo programa pelo backend C, corrido nativamente, devolve o seu codigo de saida
+const runC = (src) => {
+  const c = path.join(t, 'g.c'), exe = path.join(t, 'gc');
+  fs.writeFileSync(c, execFileSync(ondac, [], { input: Buffer.from(src) }));
+  execFileSync('cc', ['-O2', '-fwrapv', '-w', c, '-o', exe, '-lm']);
+  try { execFileSync(exe); return 0; }
+  catch (e) { if (typeof e.status === 'number') return e.status; throw e; }
+};
 
 test('arm64: o -a produz um ELF aarch64 valido', { skip: qemu ? false : 'qemu-aarch64 nao instalado' }, () => {
   const b = execFileSync(ondac, ['-a'], { input: Buffer.from(': main >i 0\n') });
@@ -39,4 +47,16 @@ test('arm64: aritmetica e ciclos inteiros corridos no qemu dao o resultado certo
   assert.strictEqual(run(': main >i { = s 0 = i 0 W < i 100 { = s + s i = i + i 1 } s }\n'), 4950 & 255); // 86
   assert.strictEqual(run(': main >i { = r 1 = i 1 W < i 6 { = r * r i = i + i 1 } r }\n'), 120); // 5!
   assert.strictEqual(run(': main >i { = s 0 = i 1 W < i 11 { = s + s * i i = i + i 1 } % s 200 }\n'), 185); // 385%200
+});
+
+// reais (registos d, ldr/str, fadd/fmul/fdiv, scvtf/fcvtzs), arrays em M (A, @f/!f) e o operador de mapa E
+// (elemento embutido). Tudo verificado contra o backend C nativo -- o -a tem de dar o mesmo codigo de saida.
+test('arm64: reais, arrays e o mapa (-a) dao o mesmo que o C', { skip: qemu ? false : 'qemu-aarch64 nao instalado' }, () => {
+  const soma = ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 }\n' +
+               '  = s 0.0 = i 0 W < i n { = x @f + a i = s + s + * 2.0 x 1.0 = i + i 1 } I s }\n';
+  assert.strictEqual(run(soma), runC(soma));
+  const mapa = ': g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }\n' +
+               ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 }\n' +
+               '  = b A n E b n g a = s 0.0 = i 0 W < i n { = s + s @f + b i = i + i 1 } I s }\n';
+  assert.strictEqual(run(mapa), runC(mapa));
 });

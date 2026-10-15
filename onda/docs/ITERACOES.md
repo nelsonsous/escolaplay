@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 71 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
+Estado: **iteração 72 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate ou empata o melhor C** (mapa `-x5`/AVX-512 ≈ `gcc -O3 -march=native`). **Mac (Apple Silicon):** o C do mapa autovetoriza para **NEON** (`clang -O3`, `fmla.2d`). **Autodiff:** modo reverso (it.69) e **diferenciação simbólica automática** (it.70) — o operador `B` gera `f'(x)`, exato e bit-a-bit igual em C/x86/WASM. **ARM64 nativo próprio (it.71):** backend `-a` novo — a Onda escreve o seu próprio código-máquina aarch64 (ELF estático), como o `-x` faz para x86, sem C nem clang; núcleo inteiro verificado no `qemu-aarch64-static`. Próxima: reais + NEON no backend `-a` (o mapa vetorizado em ARM, escrito pela própria Onda).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1558,3 +1558,22 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **O balanço honesto.** Isto ainda é o núcleo **inteiro** — faltam reais, NEON, chamadas entre funções, impressão (o runtime em Onda via syscalls) e Mach-O para correr direto no Mac (hoje é ELF de Linux ARM, que corre no qemu ou em Linux-ARM). Mas o difícil está provado: a Onda escreve o seu **próprio** código-máquina ARM64, correto ao bit, pela mesma fonte que dá x86/WASM/GPU. Não é "mais rápido que o C" ainda (o próximo passo, o NEON em `-a`, é que ataca isso) — é a **base** para o ser, em ARM, sem depender do C.
 
 **Próxima.** Reais (`fmov`/`fadd`/`fmul`/`scvtf`) e o **NEON** (`fmla.2d`, 2 doubles por instrução) no `-a` — o mapa vetorizado em ARM escrito pela própria Onda, para então medir contra o C no Mac real.
+
+---
+
+## Iteração 72: reais e arrays no `-a` — e o mapa a correr em ARM (escalar)
+
+**Pergunta.** O núcleo inteiro do `-a` (it.71) já corria. Falta o que interessa para a IA: **reais**, **arrays** e o **mapa**. Dá para os pôr a andar em ARM, pela mesma RI?
+
+**O que foi feito.** Estendido o backend `-a` (`src/9arm64.onda`):
+- **Reais** (registos `d`): `ldr`/`str` de double na moldura, `fadd`/`fsub`/`fmul`/`fdiv`, `fmov d,x` (bits de um literal float via `!f`/`@`), `scvtf` (inteiro→real) e `fcvtzs` (real→inteiro, o `F`/`I`).
+- **Memória `M`**: um 2.º segmento no ELF — `PT_LOAD` RW, BSS puro (`filesz` 0, `memsz` 256 MiB) em `0x10000000`. O stub de entrada fixa `x28` = base de `M` e `x27` = ponteiro de alocação (bump); o `A n` devolve `x27` e avança-o. Acesso a array por registo: `ldr/str [x28, idx, lsl #3]`.
+- **Mapa `E`**: para o `-a`, passa pelo mesmo `lowE` do x86 (laço em RI) com o elemento **embutido** (`cinl`, agora ligado também para `isa`) — nada de chamadas, a aritmética do elemento fica em linha. A mesma RI que o C/x86/WASM, compilada para ARM pelo `ains`.
+
+**O bug (e a lição).** O acesso a array por registo saía com `S=0` (índice tratado como byte, não escalado): `ldr d0,[x28,x9]` em vez de `[x28,x9,lsl#3]`. O `llvm-objdump` mostrou `[x28, x9]` sem o `lsl #3` — o bit `S` da codificação de load/store com registo-offset é o que escala pelo tamanho; `0x6800`→`0x7800`. Lição: desassemblar sempre e ler o *operando*, não só o mnemónico.
+
+**Prova.** `./build.sh` fecha o ponto fixo bit a bit (hash C `97aa0ede3449bd63`; o `-a` é folha, não lhe mexe). `node --test`: **96 testes**. Programas com reais, arrays e o mapa `E`, compilados com `-a` e corridos no `qemu-aarch64-static`, dão **o mesmo código de saída que o backend C nativo**: a soma `Σ(2·a[i]+1)` e o mapa do polinómio de grau 7 (`int` da soma) batem o C ao bit.
+
+**O que falta (honesto).** O mapa é **escalar** (1 real por instrução) — ainda não é NEON, logo ainda não é "mais rápido que o C". Faltam também as **chamadas entre funções** (kind 7) — por isso os programas de teste embutem o `encher`/`natoi` no `main` e devolvem pelo código de saída (sem impressão). Reduções (`S`) e impressão também faltam.
+
+**Próxima.** O **NEON** no `-a`: o mapa vetorizado a 2 doubles (`ldr q`/`fadd.2d`/`fmul.2d` ou `fmla.2d`) + cauda escalar — é aí que ataca o "mais rápido que o C" no chip do Mac. Depois, chamadas e impressão; e, a pedido, a **derivada composta** do autodiff.
