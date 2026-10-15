@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 2 de 50 concluída**. Próxima: 3 (emissor WebAssembly binário a partir da RI: inteiros, controlo e chamadas).
+Estado: **iteração 2 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 3 (emissor WebAssembly binário a partir da RI: inteiros, controlo e chamadas).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
