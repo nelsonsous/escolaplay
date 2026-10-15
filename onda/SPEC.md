@@ -45,6 +45,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `X c` | 1 | sai com o código c |
 | `T` | 0 | relógio em microssegundos |
 | **`K n`** | 1 | armazém: endereço-base de n palavras que sobrevivem entre execuções (o ficheiro de `ONDA_ARM`, mapeado em memória); sem `ONDA_ARM` é memória volátil |
+| `Kc` | 0 | confirma o armazém de forma atómica (também à saída); vale o número de páginas escritas |
 | **`E d n f a..`** | campo | M[d+i] = f(i, a..) para todo o i<n, em paralelo; vale d |
 | **`S n f a..`** | campo | Σ f(i, a..) para i<n, redução paralela |
 | **`D w h f a..`** | campo | imagem w×h com o píxel f(x, y, a..) = 0xRRGGBB (PPM no stdout) |
@@ -52,6 +53,9 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 Matemática: `Sn Cs Ex Lg At Pw` são definidas por uma biblioteca escrita em Onda (`src/9mat.onda`, o algoritmo fdlibm). Em C, WebAssembly e x86 dão os mesmos bits, e os mesmos que o significado. `Sn Cs Ex Lg At` são iguais ao `Math` do JavaScript. `Pw` é o pow do fdlibm 5.3 (o `StrictMath.pow` do Java), também na forma JavaScript e no significado, que usam o mesmo `_pw`. Na GPU usam as funções nativas, com a tolerância declarada. Os nomes começados por `_` são do runtime.
 
 Regra da sobreposição: uma função usada em `E`, `S` ou `D` não pode escrever na memória nem fazer E/S, porque a ordem dos índices não existe.
+
+## Armazém
+O ficheiro só muda num `Kc` (ou à saída), e sempre de forma atómica. As páginas de 4096 bytes que mudaram vão primeiro para `ficheiro.j`: índice e página, e um rodapé com o número de páginas, a soma FNV-1a das palavras e a marca `ONDAJRN1`. Depois há `fsync`, e só então as páginas são escritas no ficheiro, com outro `fsync`. Ao abrir, um diário completo é reaplicado e um incompleto é apagado. Uma queda deixa o armazém no último `Kc`. O formato (palavras de 64 bits em little-endian) é o mesmo em C, x86 e WebAssembly.
 
 ## GPU
 `ondac -g px` gera GLSL ES 3.0 para a função `px` e para tudo o que ela chama.

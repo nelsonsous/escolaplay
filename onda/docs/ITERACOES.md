@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 25 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 26 (escritas atómicas no armazém: sobreviver a uma queda a meio).
+Estado: **iteração 26 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 27 (o diário como registo contínuo: cada página escrita uma só vez).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -706,3 +706,43 @@ O tempo do simulador de 10 bits desceu de 1 624 para cerca de 1 500 ms, contra 1
 A comparação não é justa para o SQLite, e é preciso dizê-lo: ele tem transações e sobrevive a uma queda a meio, e o armazém da Onda ainda não. É isso que a próxima iteração resolve.
 
 **Próxima.** Escritas atómicas: um programa que cai a meio de uma atualização tem de encontrar o armazém como estava antes ou como ficou depois, nunca a meio.
+
+## Iteração 26: um armazém que sobrevive a uma queda
+
+**Pergunta.** Na iteração 25, um `kill -9` a meio de uma atualização podia deixar o ficheiro com metade das escritas. O SQLite não deixa. Dá para ter essa garantia sem pedir ao programa transações, registos ou um formato?
+
+**O que já existe.**
+- **O diário de reversão do SQLite e o WAL do Postgres:** escrevem primeiro um registo e só depois os dados.
+- **O LMDB:** consegue o mesmo com páginas copiadas e duas raízes, mas obriga as estruturas de dados a nunca escrever por cima.
+- **A persistência ortogonal (PJama, Grasshopper):** queria isto de forma transparente, e ficou na investigação.
+
+**O que foi feito.**
+- **Mapeamento privado:** o armazém passa a ser mapeado em privado (copy-on-write). O que o programa escreve fica só na memória e nunca chega sozinho ao ficheiro.
+- **`Kc`, ou a saída, confirma:**
+  - compara cada página de 4096 bytes com uma segunda vista do ficheiro, só de leitura;
+  - escreve as páginas que mudaram em `ficheiro.j` (índice e página);
+  - fecha o diário com um rodapé (número de páginas, soma FNV-1a e a marca `ONDAJRN1`) e faz `fsync`;
+  - só então escreve as páginas no ficheiro, faz outro `fsync` e apaga o diário.
+- **Ao abrir:** um diário completo é reaplicado (refazer é idempotente) e um incompleto é deitado fora.
+- **O programa não muda:** usa `@` e `!` como sempre. `Kc` é opcional, para confirmar a meio de um programa longo.
+- **Três implementações do mesmo protocolo:**
+  - **C:** `mmap`, `pwrite` e `fsync`.
+  - **x86-64:** escrita em Onda (cerca de 60 linhas) sobre uma porta nova de chamadas ao sistema cruas, `Y 10`. Por exemplo, procura `ONDA_ARM` lendo o ambiente a partir do `rsp` inicial, byte a byte.
+  - **WebAssembly:** feita pelo anfitrião em JavaScript.
+- **Um diário escrito por uma forma é recuperado por qualquer outra.**
+
+**Prova** (3 testes novos; 38 no total, todos a passar).
+- **Queda logo depois do diário** (injetada no C): o ficheiro ainda tem o estado antigo. O x86 abre, reaplica o diário e vê as 3 000 chaves.
+- **Queda a meio do diário:** o WebAssembly deita-o fora e fica o estado anterior, com 1 000 chaves.
+- **`kill -9` a sério, aos 250 ms, três vezes, em x86 e em C:** um programa incrementa dois contadores em páginas diferentes e confirma a cada milhão. Depois de cada morte, os dois são iguais e múltiplos de um milhão, e vão crescendo (67, 142 e 212 milhões numa corrida à mão). O `strace` do x86 mostra o diário escrito e sincronizado antes de qualquer `pwrite64` no ficheiro.
+
+| 1 milhão de chaves, processo inteiro (melhor de 5) | escrever (com diário e `fsync`) | ler todas |
+|---|---|---|
+| Onda em C | **213 ms** | **30 ms** |
+| Onda em x86-64 | 272 ms | 43 ms |
+| Onda em WebAssembly (Node) | 473 ms | 137 ms |
+| SQLite 3.45 (WAL, tudo dentro do SQL) | 406 ms | 228 ms |
+
+Agora a comparação já é justa na garantia principal, a atomicidade face a quedas. Escrever ficou cerca de 5 vezes mais caro do que sem diário, porque cada página vai duas vezes ao disco. Mesmo assim fica no dobro da velocidade do SQLite a escrever e a 7 vezes a ler.
+
+**Próxima.** O diário como registo contínuo (WAL): as páginas ficam só no diário e passam ao ficheiro de vez em quando. Cada página escrita uma só vez.

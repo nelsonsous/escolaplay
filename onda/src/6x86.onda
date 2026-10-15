@@ -133,7 +133,7 @@
   = j4 xcje 4
   = j6 xcje 6
   = j7 xcje 7
-  = j8 xcje 8
+  = j10 xcje 10
   xret0
   xpat j0
   xmr 6 24
@@ -189,15 +189,7 @@
   P 72 P 199 P 192 x4 -1
   xr24
   xpat j2
-  xi 1 805306496
-  P 72 P 131 P 121 P 40 P 0
-  = js xjcc 132
-  xi 7 4294967296
-  P 72 P 139 P 113 P 32
-  P 186 x4 4
-  P 184 x4 26
-  P 15 P 5
-  xpat js
+  ? >= fby k3 '_ 'k 'c 0 xrt k3 '_ 'k 'c 0
   xmr 7 24
   P 184 x4 231
   P 15 P 5
@@ -252,100 +244,117 @@
   xpat j7
   xi 0 67108864
   xr24
-  xpat j8
-  xkst
-  0 }
-# armazem (Y 8 n 0): o ficheiro de ONDA_ARM (ou memoria anonima) mapeado em 0x100000000, partilhado; msync na saida.
-# area do sistema +32 tamanho em bytes, +40 1 se e um ficheiro. Devolve o indice de palavra da base.
-: xkst >i {
-  xi 1 805306496
-  P 72 P 139 P 65 P 32
-  xtest
-  = d1 xjcc 133
-  P 72 P 139 P 17
-  P 72 P 139 P 2
-  P 72 P 141 P 84 P 194 P 16
-  = sc @ 16
-  P 72 P 139 P 50
-  P 72 P 133 P 246
-  = jn xjcc 132
-  xi 0 5571587566383418959
-  P 72 P 57 P 6
-  = n1 xjcc 133
-  P 128 P 126 P 8 P 61
-  = n2 xjcc 133
-  P 72 P 141 P 126 P 9
-  = jh xjmp
-  xpat n1
-  xpat n2
-  P 72 P 131 P 194 P 8
-  xback sc
-  xpat jn
-  xi 7 4294967296
-  xmr 6 24
-  P 72 P 193 P 230 P 3
-  P 186 x4 3
-  P 65 P 186 x4 50
-  P 73 P 199 P 192 x4 -1
-  P 69 P 49 P 201
-  P 184 x4 9
-  P 86
+  xpat j10
+  xmr 1 24
+  P 73 P 141 P 12 P 207
+  P 72 P 139 P 1
+  P 72 P 139 P 121 P 8
+  P 72 P 139 P 113 P 16
+  P 72 P 139 P 81 P 24
+  P 76 P 139 P 81 P 32
+  P 76 P 139 P 65 P 40
+  P 76 P 139 P 73 P 48
   P 15 P 5
-  P 94
-  P 72 P 57 P 248
-  = f1 xjcc 133
-  xi 1 805306496
-  P 72 P 137 P 113 P 32
-  = d2 xjmp
-  xpat jh
-  P 190 x4 66
-  P 186 x4 420
-  P 184 x4 2
-  P 15 P 5
-  xtest
-  = f2 xjcc 136
-  P 73 P 137 P 192
-  P 76 P 137 P 199
-  P 49 P 246
-  P 186 x4 2
-  P 184 x4 8
-  P 15 P 5
-  xmr 6 24
-  P 72 P 193 P 230 P 3
-  P 72 P 57 P 240
-  = jb xjcc 141
-  P 76 P 137 P 199
-  P 184 x4 77
-  P 86
-  P 15 P 5
-  P 88
-  xpat jb
-  P 72 P 137 P 198
-  xi 7 4294967296
-  P 186 x4 3
-  P 65 P 186 x4 17
-  P 69 P 49 P 201
-  P 184 x4 9
-  P 86
-  P 15 P 5
-  P 94
-  P 72 P 57 P 248
-  = f3 xjcc 133
-  xi 1 805306496
-  P 72 P 137 P 113 P 32
-  P 72 P 199 P 65 P 40 x4 1
-  P 76 P 137 P 199
-  P 184 x4 3
-  P 15 P 5
-  xpat d1
-  xpat d2
-  xi 0 503316464
   xr24
-  xpat f1
-  xpat f2
-  xpat f3
-  P 72 P 199 P 192 x4 -1
-  xr24 }
+  0 }
+# armazem no x86 (K n, Kc): escrito em Onda sobre chamadas ao sistema cruas (Y 10 p 0: rax = M[p], rdi rsi rdx r10 r8 r9 = M[p+1..p+6]).
+# Mapeado em privado em 0x100000000; o ficheiro (mapeado so para leitura em 0x4000000000) so muda no Kc ou a saida, pelo diario.
+# M[-8] base, -9 bloco das chamadas, -10 descritor, -11 bytes, -12 nome do diario, -13 rodape
+: xkrt >i "
+: _ksc iiiiiii>i n a b c d e f { = p @ -9 ? p 0 { = p _oa 8 ! -9 p } ! p n ! + p 1 a ! + p 2 b ! + p 3 c ! + p 4 d ! + p 5 e ! + p 6 f Y 10 p 0 }
+: _kad i>i w + 268435584 << w 3
+: _kwi i>i a >> - a 268435584 3
+: _kby i>i a { = d - a 268435584 & >> @ >> d 3 << & d 7 3 255 }
+: _kfc iii>i s w n { = j 0 W < j n { = s * ^ s @ + w j 1099511628211 = j + j 1 } s }
+: _kdf ii>i x y { = j 0 W && < j 512 == @ + x j @ + y j = j + j 1 < j 512 }
+: _kmo >i { \"onda: armazem indisponivel\\n\" _ex 2 }
+: _kwr iiii>i f a l o { W > l 0 { = r ? < o 0 _ksc 1 f a l 0 0 0 _ksc 18 f a l o 0 0 ? <= r 0 _kmo 0 = a + a r = l - l r ? >= o 0 = o + o r 0 } 0 }
+: _kev >i {
+  = w _kwi @ 67108864
+  = e + + w @ w 2
+  = r 0
+  W && ~ r != @ e 0 {
+    = a @ e
+    = j 0
+    W && < j 8 == _kby + a j & >> 5571587566383418959 << j 3 255 = j + j 1
+    ? && == j 8 == _kby + a 8 61 = r + a 9 0
+    = e + e 1 }
+  r }
+: _kjp i>i f {
+  = b _oa 520
+  = i 0
+  W && < i 4150 != _kby + f i 0 { = w + b >> i 3 ! w | @ w << _kby + f i << & i 7 3 = i + i 1 }
+  = w + b >> i 3 ! w | @ w << 46 << & i 7 3
+  = i + i 1
+  = w + b >> i 3 ! w | @ w << 106 << & i 7 3
+  b }
+: _kre ii>i d jp {
+  = j _ksc 2 _kad jp 0 0 0 0 0
+  ? < j 0 0 {
+    = l _ksc 8 j 0 2 0 0 0
+    ? && >= l 24 == % - l 24 4104 0 {
+      = m _ksc 9 549755813888 l 1 18 j 0
+      = w 68685922288
+      = n / - l 24 4104
+      = ft + w >> - l 24 3
+      ? && == m 549755813888 && == @ ft n && == @ + ft 2 3552867634917953103 == @ + ft 1 _kfc -3750763034362895579 w >> - l 24 3 {
+        = i 0
+        W < i n { = r + w * i 513 _kwr d _kad + r 1 4096 << @ r 12 = i + i 1 }
+        _ksc 74 d 0 0 0 0 0 } 0
+      ? == m 549755813888 _ksc 11 549755813888 l 0 0 0 0 0 } 0
+    _ksc 3 j 0 0 0 0 0
+    _ksc 87 _kad jp 0 0 0 0 0 } }
+: _ko i>i n ? @ -8 @ -8 {
+  = z << >> + << Mx n 1 3 4095 12 12
+  = f _kev
+  = d -1
+  ! -13 _oa 4
+  ? f {
+    = jp _kjp f
+    ! -12 jp
+    = d _ksc 2 f 66 420 0 0 0
+    ? < d 0 _kmo 0
+    _kre d jp
+    = sz _ksc 8 d 0 2 0 0 0
+    = z Mx z << >> + sz 4095 12 12
+    ? < sz z _ksc 77 d z 0 0 0 0 0
+    0 } 0
+  ? != _ksc 9 4294967296 z 3 ? f 18 50 d 0 4294967296 _kmo 0
+  ? && f != _ksc 9 274877906944 z 1 17 d 0 274877906944 _kmo 0
+  ! -10 ? f d -1
+  ! -11 z
+  ! -8 503316464
+  @ -8 }
+: _kc >i ? < @ -10 3 0 {
+  = d @ -10
+  = np >> @ -11 12
+  = jp @ -12
+  = t @ -13
+  = j -1
+  = s -3750763034362895579
+  = n 0
+  = i 0
+  W < i np {
+    = pa + 503316464 << i 9
+    ? _kdf pa + 34326183920 << i 9 {
+      ? < j 0 { = j _ksc 2 _kad jp 577 420 0 0 0 ? < j 0 _kmo 0 } 0
+      ! t i
+      _kwr j _kad t 8 -1
+      _kwr j _kad pa 4096 -1
+      = s _kfc * ^ s i 1099511628211 pa 512
+      = n + n 1 } 0
+    = i + i 1 }
+  ? n {
+    ! t n ! + t 1 s ! + t 2 3552867634917953103
+    _kwr j _kad t 24 -1
+    _ksc 74 j 0 0 0 0 0
+    _ksc 3 j 0 0 0 0 0
+    = i 0
+    W < i np { = pa + 503316464 << i 9 ? _kdf pa + 34326183920 << i 9 _kwr d _kad pa 4096 << i 12 0 = i + i 1 }
+    _ksc 74 d 0 0 0 0 0
+    _ksc 87 _kad jp 0 0 0 0 0 } 0
+  n }
+"
 : xpre >i {
   O 16
   ! 31 @ 16

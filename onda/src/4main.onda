@@ -13,6 +13,9 @@
 : cav >i { = a cx = b cx ckint a ckint b = r nt 0 ir 35 r a b 0 0 0 r }
 : cex >i { = c cx ckint c ir 36 0 c 0 0 0 0 c }
 : ctm >i { = r nt 0 ir 37 r 0 0 0 0 0 r }
+: ckcm >i { = c lit1 9 = z lit1 0 = r nt 0 ir 42 r c z z 0 0 r }
+: cki i>i c { = a cx ckint a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta o armazem" eend } 0 = r rcall k q 1 edge k r }
+: ckc0 >i { = k fby k3 '_ 'k 'c ? < k 0 { ebeg "falta o armazem" eend } 0 = r rcall k 0 0 edge k r }
 : ckst >i { = n cx ckint n = c lit1 8 = z lit1 0 = r nt 0 ir 42 r c n z 0 0 r }
 : csys >i { = c cx = a cx = b cx ckint c ckint a ckint b = r nt 0 ir 42 r c a b 0 0 r }
 : fref i>i m {
@@ -85,6 +88,22 @@
              && ini || == + p 2 e isws @ + p 2 = r 1 0 }
     = p + p 1 }
   r }
+: usesk >i {
+  = p @ 1
+  = e + @ 1 @ 2
+  = r 0
+  = st 0
+  W && ~ r < p e {
+    = c @ p
+    = ini || == p @ 1 isws @ - p 1
+    ? st
+      { ? == c 92 = p + p 1 ? == c 34 = st 0 0 }
+      { ? && == c 39 ini = p + p 1
+        ? == c 34 = st 1
+        ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
+        ? && && == c 'K ini || || == + p 1 e isws @ + p 1 && == @ + p 1 'c || == + p 2 e isws @ + p 2 = r 1 0 }
+    = p + p 1 }
+  r }
 : cop i>i i {
   = o tcode i
   ? isar o cbin i 2
@@ -131,7 +150,8 @@
   ? == o 'S cs
   ? == o 'D cd
   ? == o 'Y csys
-  ? == o 'K ckst
+  ? == o 'K ? isx cki k3 '_ 'k 'o ckst
+  ? == o k2 'K 'c ? isx ckc0 ckcm
   { ! 7 i ebeg "operacao desconhecida" eend } }
 : rdall >i {
   = s @ 1
@@ -197,6 +217,7 @@
   rdall
   ? || isw isx { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
   ? && || || || == @ 12 0 isw isx isjs usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
+  ? && isx usesk { ! 23 + @ 1 @ 2 O 23 xkrt O 0 ! 2 - @ 23 @ 1 } 0
   ! 3 A + 3 * 3 @ 2
   ! 5 A 120000
   ! 8 A 40000
