@@ -57,6 +57,15 @@ Regra da sobreposição: uma função usada em `E`, `S` ou `D` não pode escreve
 Assinatura: `ii..>i` ou `ff..>i`. Os parâmetros extra recebem u[0]=tempo, u[1]=largura, u[2]=altura, u[3..4]=rato.
 Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 
+## Circuitos
+`ondac -c f` (ou `./onda circ f.onda f`) transforma a função inteira e pura `f` num circuito de portas E com inversores (AIG), escrito em AIGER (`aag`), o formato lido por ferramentas de síntese como o ABC e o Yosys.
+- Cada inteiro é um vetor de W fios. W = 64 por omissão, ou o valor de `: bit >i N` (aritmética de W bits).
+- `+ -` são somadores; `*` é um multiplicador de deslocamento e soma; os deslocamentos por constante são só fios, e os outros são um deslocador em barril.
+- `& | ^`, as comparações, `Mn`/`Mx`, `&&`, `||`, `~` e `?` (multiplexador) também existem.
+- As chamadas são expandidas. Os ciclos com número fixo de voltas são desenrolados.
+- Ainda não há divisão nem ciclos com número de voltas variável.
+- O comentário final dá as portas úteis e a profundidade. `test/circ.test.js` simula cada circuito e compara-o com a função compilada.
+
 ## Ferramentas
 - `./build.sh` faz o arranque: Rust → ondac1 → ondac2 → ondac3. Exige `ondac1.c == ondac2.c == ondac3.c`. `--semente` arranca só a partir de `seed/ondac.c`.
 - `./onda run f.onda`: compila e corre, com cache por hash. O que já foi compilado nunca se recompila.

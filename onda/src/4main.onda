@@ -190,7 +190,7 @@
   W < j @ fe e 2 { ? fpt e j { ",u[" N - j 2 "]" } { ",int(u[" N - j 2 "])" } = j + j 1 }
   ");oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}\n" }
 : main >i {
-  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 ? && == Av 1 0 '- == Av 1 1 'x 4 0
+  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 ? && == Av 1 0 '- == Av 1 1 'x 4 ? && == Av 1 0 '- == Av 1 1 'c 5 0
   ! 1 A 1000000
   rdall
   ? || isw isx { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
@@ -209,10 +209,12 @@
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
   ? || m && && != @ 12 0 ~ isw ~ isx 0 { ebeg "falta : main >i" eend }
-  ? isx inlf 0
+  ? || isx isc inlf 0
+  ? isc ! 50 xtab 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0
   ? isx { ! 34 A 420000 ! 35 A 20000 ! 36 A 420000 ! 37 A 420000 ! 38 A 420000 ! 39 A 200008 ! 40 A 20000 ! 42 A 420000 ! 43 A 420000 ! 46 A 10000 ! 47 A 10000 ! 50 xtab ! 51 A 420000 ! 52 A 420000 ! 56 A 420000 ! 57 A 420000 ! 58 A 420000 ! 59 A 420000 ! 60 A 420000 ! 61 A 32 xqs 0 A 1680000 xqs 1 A 100000 xqs 2 A 420000 xqs 6 A 420000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 } 0
-  = k 0
-  W < k @ 6 { cfun k = k + k 1 }
-  ? isx outx ? isw outw ? isjs outj ? @ 12 outg outc
+  ? isc outz
+    { = k 0
+      W < k @ 6 { cfun k = k + k 1 }
+      ? isx outx ? isw outw ? isjs outj ? @ 12 outg outc }
   0 }

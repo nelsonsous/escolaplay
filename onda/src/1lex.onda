@@ -35,6 +35,7 @@
 : isjs >i == @ 12 2
 : isw >i == @ 12 3
 : isx >i == @ 12 4
+: isc >i == @ 12 5
 : ety i>i y ? @ 12 ? isjs "let" ? y "float" "int" ? y "F" "I"
 : ez i>i y ? y "0.0" "0"
 : cpu >i ? @ 12 "\n#error onda: operacao so de CPU\n" 0

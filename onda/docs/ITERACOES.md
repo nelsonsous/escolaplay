@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 17 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 18 (circuitos: uma função Onda vira portas lógicas).
+Estado: **iteração 18 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 19 (circuitos: Verilog, divisão, ciclos de voltas variáveis e somadores rápidos).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -468,3 +468,43 @@ Ninguém faz a matemática fazer parte da própria linguagem, escrita nela e igu
 - `inteiros`, `reais`, `imagem` e `fluxo` dão o mesmo resultado em C, WebAssembly e x86, e os sete testes de matemática e da Onda Viva passam.
 - **No browser,** a página da Onda Viva verifica o compilador: ele compila-se a si próprio em 49 ms e dá o SHA-256 da semente C. A forma JavaScript sai igual ao bit ao significado, e o erro injetado é rejeitado.
 - A autocompilação nativa continua em 13 a 25 ms.
+
+## Iteração 18: de uma função Onda a portas lógicas
+
+**Pergunta.** Porque não descer até aos 0 e 1, aos sinais elétricos? O que é preciso para uma função Onda virar um circuito?
+
+**O que já existe.**
+- A síntese de alto nível (Vivado HLS, Bambu, CIRCT/Calyx) transforma C em hardware, mas precisa de anotações e de ferramentas pesadas.
+- Os grafos E-inversor (AIG) são a forma comum das ferramentas de síntese (ABC, Yosys), e o AIGER é o formato onde se trocam.
+
+**O que foi feito** (`src/9circ.onda`, cerca de 280 linhas em Onda). O modo `ondac -c f` (ou `./onda circ prog.onda f`) faz bit-blasting da representação intermédia de `f`:
+- **Fios:** cada inteiro é um vetor de W fios (W = 64, ou `: bit >i N`).
+- **Portas:** E com dispersão estrutural, de modo que a mesma porta nunca se cria duas vezes, e constantes propagadas na criação.
+- **Aritmética:** `+`/`-` são somadores em cadeia; `*` é um multiplicador de deslocamento e soma, que salta os produtos parciais nulos de uma constante.
+- **Deslocamentos:** por constante são só fios; os outros são um deslocador em barril de 6 andares.
+- **Comparações:** com sinal, com transbordo correto.
+- **Ramos:** `?`, `&&` e `||` fundem as variáveis com multiplexadores no fim de cada ramo.
+- **Chamadas e ciclos:** as chamadas são expandidas, e os ciclos com número fixo de voltas são desenrolados.
+- **Saída:** AIGER ascii com nomes dos fios e um comentário com as portas úteis (cone das saídas) e a profundidade.
+
+**Prova** (`node --test test/circ.test.js`). Cada circuito é simulado bit a bit em paralelo, com cada fio a ser um número de 256 bits e um bit por vetor de teste. O resultado é comparado com a mesma função compilada em C: os dez são iguais em todos os 256 vetores, incluindo 0, -1, o mínimo de 64 bits e deslocamentos de 63 e 64.
+
+| função | portas E (64 bits) | profundidade |
+|---|---|---|
+| `soma a b` | 568 | 128 |
+| `maj` (maioria bit a bit) | 320 | 3 |
+| xorshift (3 deslocamentos e ou-exclusivos) | 480 | 6 |
+| contagem de bits (ciclo de 64 voltas) | 8 064 | 188 |
+| `* a b` | 19 722 | 373 |
+| `<< a b` (barril) | 1 026 | 12 |
+| máximo de três | 1 170 | 272 |
+
+Com `: bit >i 8`, o somador tem 64 portas, o multiplicador 234 e a contagem de bits 112.
+
+**O que falta, e porquê.**
+- **Profundidade:** o somador em cadeia é pequeno mas lento (128 níveis). Um somador de prefixos (Kogge-Stone) desce para cerca de 14.
+- **Falta ainda:**
+  - divisão;
+  - ciclos com número de voltas variável (desenrolados com predicados até um limite);
+  - saída em Verilog;
+  - a ponte para o quântico: o mesmo AIG, tornado reversível, é um oráculo de Grover.

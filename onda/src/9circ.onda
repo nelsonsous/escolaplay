@@ -1,0 +1,269 @@
+# circuitos (-c f): a funcao f vira um grafo de portas E com inversores (AIG), escrito em AIGER ascii.
+# cada inteiro e um vetor de W fios (W = : bit >i N, por omissao 64). literais: 0 falso, 1 verdadeiro, 2n o no n, 2n+1 o inverso.
+# os ramos fundem as variaveis com multiplexadores; os ciclos com numero fixo de voltas sao desenrolados.
+# bloco 62: 0 W 1 proximo no 2/3 entradas de cada E 4 dispersao 5 tamanho 6 fios dos temporarios 7 fios das variaveis
+#           8 pilha de estados 9 topo 10 n de entradas 11 fios da saida 12 voltas 13 fim de cada ciclo 14 rascunho 15 inicio de cada ciclo
+: zq i>i k @ + @ 62 k
+: zqs ii>i k v ! + @ 62 k v
+: zw >i zq 0
+: znot i>i a ^ a 1
+: zand ii>i x y {
+  = a Mn x y
+  = b Mx x y
+  ? == a 0 0
+  ? == a 1 b
+  ? == a b a
+  ? == a ^ b 1 0
+  zhash a b }
+: zhash ii>i a b {
+  = m - zq 5 1
+  = h & + * a 1000003 * b 7919 m
+  = t zq 4
+  = r -1
+  W < r 0 {
+    = e @ + t h
+    ? == e 0
+      { = n zq 1 ? > n 1000000 { ebeg "circuito: portas demais" eend } 0 ! + zq 2 n a ! + zq 3 n b zqs 1 + n 1 ! + t h + n 1 = r * 2 n }
+      { ? && == @ + zq 2 - e 1 a == @ + zq 3 - e 1 b = r * 2 - e 1 = h & + h 1 m } }
+  r }
+: zor ii>i a b znot zand znot a znot b
+: zxor ii>i a b zor zand a znot b zand znot a b
+: zmux iii>i s a b zor zand s a zand znot s b
+: ztp ii>i t i + + zq 6 * t zw i
+: zlp ii>i j i + + zq 7 * j zw i
+: ztv ii>i t i @ ztp t i
+: zlv ii>i j i @ zlp j i
+: zcst ii>i d v { = i 0 W < i zw { ! ztp d i & >> v Mn i 63 1 = i + i 1 } 0 }
+: zcpy ii>i d s { = i 0 W < i zw { ! ztp d i ztv s i = i + i 1 } 0 }
+: zbit ii>i d v { ! ztp d 0 v = i 1 W < i zw { ! ztp d i 0 = i + i 1 } 0 }
+: znz i>i t { = r 0 = i 0 W < i zw { = r zor r ztv t i = i + i 1 } r }
+: zcon i>i t { = r 1 = i 0 W && r < i zw { ? > ztv t i 1 = r 0 0 = i + i 1 } r }
+: zval i>i t { = v 0 = i 0 W < i zw { = v | v << ztv t i i = i + i 1 } ? && < zw 64 ztv t - zw 1 | v << -1 zw v }
+: zbw iiii>i o d b c {
+  = i 0
+  W < i zw {
+    = x ztv b i
+    = y ztv c i
+    ! ztp d i ? == o '& zand x y ? == o '| zor x y zxor x y
+    = i + i 1 }
+  0 }
+: zadd iiii>i d b c s {
+  = cy s
+  = i 0
+  W < i zw {
+    = x ztv b i
+    = y ? s znot ztv c i ztv c i
+    = h zxor x y
+    ! ztp d i zxor h cy
+    = cy zor zand x y zand cy h
+    = i + i 1 }
+  cy }
+: zmul iii>i d b c {
+  = i 0
+  W < i zw { ! ztp d i 0 = i + i 1 }
+  = j 0
+  W < j zw {
+    = cj ztv c j
+    ? != cj 0
+      { = cy 0
+        = i j
+        W < i zw {
+          = x ztv d i
+          = y zand cj ztv b - i j
+          = h zxor x y
+          ! ztp d i zxor h cy
+          = cy zor zand x y zand cy h
+          = i + i 1 } } 0
+    = j + j 1 }
+  0 }
+: zsb iiii>i e t i k ? e ? >= i k ztv t - i k 0 ? < + i k zw ztv t + i k ztv t - zw 1
+: zsh iiii>i o d b c {
+  = e == o k2 '< '<
+  ? zcon c
+    { = k & zval c 63
+      = i 0
+      W < i zw { ! ztp d i ? >= k zw ? e 0 ztv b - zw 1 zsb e b i k = i + i 1 } 0 }
+    { zcpy d b
+      = s 0
+      W < s 6 {
+        = sb ztv c s
+        = k << 1 s
+        = i 0
+        W < i zw { ! + zq 14 i zmux sb ? >= k zw ? e 0 ztv d - zw 1 zsb e d i k ztv d i = i + i 1 }
+        = i 0
+        W < i zw { ! ztp d i @ + zq 14 i = i + i 1 }
+        = s + s 1 } 0 } }
+: zlt ii>i a b {
+  = t @ 11
+  zadd t a b 1
+  = sa ztv a - zw 1
+  = sd ztv t - zw 1
+  zxor sd zand zxor sa ztv b - zw 1 zxor sd sa }
+: zcmp iiii>i o d b c {
+  = r ? || == o k2 '= '= == o k2 '! '=
+        { = e 1 = i 0 W < i zw { = e zand e znot zxor ztv b i ztv c i = i + i 1 } ? == o k2 '= '= e znot e }
+        ? == o '< zlt b c ? == o '> zlt c b ? == o k2 '< '= znot zlt c b znot zlt b c
+  zbit d r }
+# estados das variaveis nos ramos: [condicao, estado do ramo entao, estado antes]
+: zfr >i + 1 * 2 * @ 9 zw
+: zpush i>i q {
+  = f + zq 8 * zq 9 zfr
+  ! f q
+  = n * @ 9 zw
+  = j 0
+  W < j n { ! + + f 1 + n j @ + zq 7 j = j + j 1 }
+  zqs 9 + zq 9 1
+  q }
+: ztop >i @ + zq 8 * - zq 9 1 zfr
+: zthen >i {
+  = f + zq 8 * - zq 9 1 zfr
+  = n * @ 9 zw
+  = j 0
+  W < j n { = q + zq 7 j ! + + f 1 j @ q ! q @ + + f 1 + n j = j + j 1 }
+  0 }
+: zjoin i>i m {
+  = f + zq 8 * - zq 9 1 zfr
+  = s @ f
+  = n * @ 9 zw
+  = j 0
+  W < j n {
+    = q + zq 7 j
+    ! q ? == m 2 zmux s @ + + f 1 j @ q ? == m 1 zmux s @ q @ + + f 1 + n j zmux s @ + + f 1 + n j @ q
+    = j + j 1 }
+  zqs 9 - zq 9 1
+  0 }
+: zins i>i i {
+  = p + @ 18 * i 8
+  = k @ p
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = nx + i 1
+  ? && & @ + @ 50 k 8 tty d { ebeg "circuito: so inteiros" eend } 0
+  ? == k 1 zcst d tokval a
+  ? == k 2 zcst d a
+  ? == k 4 zcst d 0
+  ? == k 5 { = j 0 W < j zw { ! ztp d j zlv b j = j + j 1 } 0 }
+  ? == k 6 { = j 0 W < j zw { ! zlp c j ztv b j = j + j 1 } 0 }
+  ? == k 8
+    { = o opof a
+      ? || == o '+ == o '- zadd d b c == o '-
+      ? == o '* zmul d b c
+      ? || || == o '& == o '| == o '^ zbw o d b c
+      ? || == o k2 '< '< == o k2 '> '> zsh o d b c
+      { ebeg "circuito: sem divisao (ainda)" eend } }
+  ? == k 9 zcmp opof a d b c
+  ? == k 10 zbit d zpush znz a
+  ? == k 11 { = q ztop zbit d zand q znz a zjoin 1 }
+  ? == k 12 zbit d zpush znz a
+  ? == k 13 { = q ztop zbit d zor q znz a zjoin 0 }
+  ? == k 14 zbit d znot znz a
+  ? == k 17 { = l zlt b c = j 0 W < j zw { ! ztp d j ? a zmux l ztv c j ztv b j zmux l ztv b j ztv c j = j + j 1 } 0 }
+  ? == k 18 zpush znz a
+  ? == k 19 { zcpy d a zthen }
+  ? == k 20 { = q ztop = j 0 W < j zw { ! ztp d j zmux q ztv d j ztv a j = j + j 1 } zjoin 2 }
+  ? == k 21 0
+  ? == k 22
+    { = q znz a
+      ? > q 1 { ebeg "circuito: ciclo com numero de voltas variavel" eend } 0
+      ? == q 0 = nx + @ + zq 13 @ + zq 15 i 1 0 }
+  ? == k 23 { zqs 12 + zq 12 1 ? > zq 12 1000000 { ebeg "circuito: ciclo grande demais" eend } 0 = nx + @ + zq 15 i 1 }
+  ? == k 41 zqs 11 a
+  { ebeg "circuito: operacao sem circuito" eend }
+  nx }
+# ciclos: 13 fim de cada inicio, 15 inicio de cada 22 e 23
+: zloops >i {
+  = sp 0
+  = q A 1000
+  = i 0
+  W < i @ 19 {
+    = k @ + @ 18 * i 8
+    ? == k 21 { ! + q sp i = sp + sp 1 } 0
+    ? == k 22 ! + zq 15 i @ + q - sp 1 0
+    ? == k 23 { = sp - sp 1 = s @ + q sp ! + zq 13 s i ! + zq 15 i s } 0
+    = i + i 1 }
+  0 }
+: zbits >i { = k fby k3 'b 'i 't = r 64 ? && >= k 0 == tkk @ fe k 5 1 = r Mn 64 Mx 1 tokval @ fe k 5 0 r }
+: outz >i {
+  = e -1
+  = k 0
+  W < k @ 6 { ? argeq k = e k 0 = k + k 1 }
+  ? < e 0 { ebeg "funcao de entrada desconhecida" eend } 0
+  ? @ fe e 3 { ebeg "circuito: so inteiros" eend } 0
+  ! 62 A 16
+  zqs 0 zbits
+  zqs 5 2097152
+  zqs 4 A zq 5
+  zqs 2 A 1000008
+  zqs 3 A 1000008
+  zqs 14 A 64
+  zqs 13 A 100000
+  zqs 15 A 100000
+  zqs 8 A 4000000
+  ! 13 e
+  cfun e
+  0 }
+: zfn i>i k {
+  = np @ fe k 2
+  zqs 6 A * + @ 11 2 zw
+  zqs 7 A * + @ 9 1 zw
+  zqs 9 0
+  zqs 12 0
+  zqs 10 * np zw
+  zqs 1 + 1 zq 10
+  = j 0
+  W < j np { ? fpt k j { ebeg "circuito: so inteiros" eend } 0 = i 0 W < i zw { ! zlp j i * 2 + 1 + * j zw i = i + i 1 } = j + j 1 }
+  zloops
+  = i 0
+  W < i @ 19 { = i zins i }
+  zaiger k }
+# AIGER ascii: aag M I L O A, entradas, saidas, portas, nomes
+: zmark i>i r {
+  = m A zq 1
+  = s A zq 1
+  = sp 0
+  = j 0
+  W < j zw { = n >> ztv r j 1 ? && > n zq 10 ~ @ + m n { ! + m n 1 ! + s sp n = sp + sp 1 } 0 = j + j 1 }
+  W > sp 0 {
+    = sp - sp 1
+    = n @ + s sp
+    = x >> @ + zq 2 n 1
+    = y >> @ + zq 3 n 1
+    ? && > x zq 10 ~ @ + m x { ! + m x 1 ! + s sp x = sp + sp 1 } 0
+    ? && > y zq 10 ~ @ + m y { ! + m y 1 ! + s sp y = sp + sp 1 } 0 }
+  m }
+: zdepth i>i m {
+  = dp A zq 1
+  = best 0
+  = n + zq 10 1
+  W < n zq 1 {
+    ? @ + m n
+      { = x >> @ + zq 2 n 1 = y >> @ + zq 3 n 1
+        = v + 1 Mx @ + dp x @ + dp y
+        ! + dp n v
+        = best Mx best v } 0
+    = n + n 1 }
+  best }
+: zaiger i>i k {
+  = r zq 11
+  = ni zq 10
+  = na - - zq 1 1 ni
+  = m zmark r
+  = vivos 0
+  = n + ni 1
+  W < n zq 1 { ? @ + m n = vivos + vivos 1 0 = n + n 1 }
+  "aag " N - zq 1 1 " " N ni " 0 " N zw " " N na "\n"
+  = j 0
+  W < j ni { N * 2 + j 1 "\n" = j + j 1 }
+  = j 0
+  W < j zw { N ztv r j "\n" = j + j 1 }
+  = n + ni 1
+  W < n zq 1 { N * 2 n " " N Mx @ + zq 2 n @ + zq 3 n " " N Mn @ + zq 2 n @ + zq 3 n "\n" = n + n 1 }
+  = np @ fe k 2
+  = j 0
+  W < j ni { "i" N j " " etx + @ fe k 4 / j zw "[" N % j zw "]\n" = j + j 1 }
+  = j 0
+  W < j zw { "o" N j " " etx @ fe k 0 "[" N j "]\n" = j + j 1 }
+  "c\nOnda: " etx @ fe k 0 " em " N zw " bits: " N vivos " portas E uteis (" N na " criadas), profundidade " N zdepth m "\n"
+  0 }
