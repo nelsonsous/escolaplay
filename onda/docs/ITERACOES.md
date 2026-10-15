@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 54 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 55 (continuar a biblioteca verificada, ou uma ponta de desempenho/compilador).
+Estado: **iteração 55 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 56 (continuar a biblioteca verificada, ou uma ponta de desempenho/compilador).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1216,5 +1216,17 @@ A Onda transcende o seu próprio limite de 64 bits com uma estrutura escrita em 
 **O mesmo erro de sintaxe prefixa, outra vez.** A condição de leitura `? && >= c '0 <= c '9 == c '-` deixava `== c '-` solto (o `&&` é binário), e uma linha em branco caía no ramo de leitura, gerando um `0` espúrio. A condição certa é `? || && >= c '0 <= c '9 == c '-` (dígito **ou** sinal). É o terceiro programa desta série a tropeçar no mesmo sítio — vale a nota no `docs/ESTADO.md`.
 
 **Prova** (`test/qsort.test.js`; 74 testes no total, todos a passar). Vetores vazios, de um elemento, repetidos, invertidos, e **2000 inteiros aleatórios** (com negativos e repetidos) — todos iguais à ordenação do JavaScript, e iguais entre C, x86-64 e WebAssembly (3000 elementos).
+
+**Próxima.** Continuar a biblioteca verificada, ou uma ponta de desempenho/compilador.
+
+## Iteração 55: busca em largura num labirinto
+
+**Pergunta.** Falta um domínio: grafos e busca. O caminho mais curto num labirinto por BFS exercita uma fila e uma grelha — escreve-se em Onda?
+
+**O que foi feito.** `ex/maze.onda`: lê uma grelha (`#` parede, `S` início, `E` fim), faz BFS com uma fila explícita e um vetor de distâncias, e imprime o número de passos (ou −1). As quatro direções saem de um `dir` 0–3 com `dy`/`dx` explícitos.
+
+**Prova** (`test/maze.test.js`; 76 testes no total, todos a passar). Seis labirintos conferidos contra uma BFS de referência em JavaScript — incluindo sem caminho (−1), adjacente (`SE`→1) e um labirinto 5×5 — todos iguais em C, x86-64 e WebAssembly.
+
+Também refresquei o `docs/ESTADO.md`: a mini-linguagem já tem funções recursivas (iteração 51), e a lista de programas de uso geral está completa.
 
 **Próxima.** Continuar a biblioteca verificada, ou uma ponta de desempenho/compilador.

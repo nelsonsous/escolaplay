@@ -16,7 +16,7 @@ Uma linguagem de programação escrita por IAs, para IAs. Cada valor é um campo
 - **Quântica, por dentro.** `ondac -q` gera programas de Grover em OpenQASM 3; um simulador de vetor de estado escrito em Onda corre-os e mede o alvo com a probabilidade teórica.
 - **Circuitos.** Qualquer função vira um circuito (AIGER, Verilog), com o fim dos ciclos provado por simulação exaustiva.
 - **Armazenamento.** A memória é o armazenamento (`K`): com `ONDA_ARM=ficheiro`, um ficheiro mapeado em memória. Cada confirmação (`Kc`) é atómica (diário de páginas, sobrevive a `kill -9`); na forma C, vários processos partilham-no em segurança. Escreve 1 M de chaves em 213 ms, contra ~406 ms do SQLite.
-- **É uma linguagem de uso geral.** Em Onda correm, iguais nas três formas: um interpretador de Brainfuck, o SHA-256, a multiplicação de matrizes pelo paradigma de campo, o Jogo da Vida, um avaliador de expressões, uma mini-linguagem imperativa Turing-completa (variáveis, `?`, `W`, blocos), um crivo de Eratóstenes, um armazém endereçado por conteúdo e a base64.
+- **É uma linguagem de uso geral.** Em Onda correm, iguais nas três formas: um interpretador de Brainfuck, o SHA-256, a multiplicação de matrizes pelo paradigma de campo, o Jogo da Vida, um avaliador de expressões, uma mini-linguagem imperativa Turing-completa (variáveis, `?`, `W`, blocos, **funções recursivas**), um crivo de Eratóstenes, um armazém endereçado por conteúdo, base64, um matcher de expressões regulares, aritmética de precisão arbitrária, quicksort e BFS num labirinto.
 - **Diagnósticos.** Os erros mostram a linha, apontam a coluna com `^` e sugerem o nome mais próximo.
 - **Onda Viva.** O intérprete de referência (o significado) e o núcleo que gera, verifica e promove formas rápidas — integrado no `node --test`.
 
@@ -32,5 +32,4 @@ Uma linguagem de programação escrita por IAs, para IAs. Cada valor é um campo
 - Meter em linha a função de um `S`/`E`/`D` no emissor de C, para as reduções chegarem ao C justo sem um laço à mão.
 - Reduzir o custo do protocolo de chamada no x86 (a recursão a 4×).
 - Levar o trinco e a confirmação por páginas do armazém ao x86 e ao WebAssembly (hoje só em C).
-- Funções na mini-linguagem (recursão na linguagem hospedada).
 - Redução de argumento de Payne–Hanek para `sin`/`cos` de argumentos enormes.
