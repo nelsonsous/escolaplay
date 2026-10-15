@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 52 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 53 (continuar a alargar a biblioteca de programas verificados, ou uma ponta de desempenho).
+Estado: **iteração 53 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 54 (continuar a biblioteca verificada, ou uma ponta de desempenho/compilador).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1189,3 +1189,20 @@ Recursão simples, dupla (fib) e **mútua** (par/ímpar). Uma linguagem imperati
 **Prova** (`test/regex.test.js`; 70 testes no total, todos a passar). Casos conhecidos — `a*b`, `^ab.d$`, `.*c`, `^a*$`, `c.t` — todos com o veredicto certo e igual em C, x86-64 e WebAssembly.
 
 **Próxima.** Continuar a alargar a biblioteca de programas verificados (a Onda a fazer coisas a sério), ou atacar uma ponta de desempenho.
+
+## Iteração 53: aritmética de precisão arbitrária
+
+**Pergunta.** Os inteiros da Onda têm 64 bits — a `fib(93)` dá a volta. Dá para ir além, com números tão grandes quanto a memória, escritos em Onda?
+
+**O que foi feito.** `ex/big.onda`: um número grande é um vetor de "dígitos" na base 10⁹ (do menos para o mais significativo). `mulp` multiplica-o por um inteiro pequeno com transporte; o `main` calcula N! multiplicando de 2 a N. A impressão junta o dígito mais significativo sem zeros à esquerda e os outros com 9 casas.
+
+**Prova** (`test/big.test.js`; 72 testes no total, todos a passar). N! exato contra o `BigInt` do JavaScript para N = 0, 1, 5, 20, 50, 100, 200:
+```
+20!  = 2432902008176640000
+100! = 933262154439441526816992388562667004907159682643816214685929...000000 (158 dígitos)
+```
+E igual em C, x86-64 e WebAssembly. O `200!` tem 375 dígitos, todos certos, nas três formas.
+
+A Onda transcende o seu próprio limite de 64 bits com uma estrutura escrita em Onda — e, como tudo o resto, dá o mesmo em todas as formas.
+
+**Próxima.** Continuar a biblioteca verificada, ou atacar uma ponta de desempenho/compilador.
