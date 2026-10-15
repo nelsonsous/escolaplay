@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 57 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 58 (continuar a biblioteca verificada; a redução de floats determinística fica como trabalho de compilador no ESTADO).
+Estado: **iteração 58 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Foco novo (pedido do utilizador): deixar de empatar com o C e passar a **ser mais rápido** que ele, no x86. Próxima: 59 (ligar os codificadores AVX — vetorizar os mapas de campo e medir contra o gcc -O2).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1254,3 +1254,25 @@ Também refresquei o `docs/ESTADO.md`: a mini-linguagem já tem funções recurs
 (A redução de floats determinística — para o campo bater ao bit também com floats — fica como trabalho de compilador no `docs/ESTADO.md`: precisa de uma soma de ordem fixa no emissor, sem perder o paralelismo.)
 
 **Próxima.** Continuar a biblioteca verificada.
+
+## Iteração 58: para bater o C, o SIMD — medir o teto e lançar os codificadores AVX
+
+**Pergunta.** O utilizador apertou: *"a memória não é mais rápida? Continua no baixo nível enquanto não fores melhor e mais rápido que o C."* Até aqui a honestidade era "igual ao gcc -O2". Igualar não chega. Onde é que o x86 da Onda pode mesmo **passar à frente** do C?
+
+**O que já existe.** O emissor x86 gera código escalar: um `double` por instrução SSE (`mulsd`, `addsd`). O `gcc -O2` — o "C normal" com que nos comparámos — faz exatamente o mesmo. Por isso empatávamos.
+
+**O achado.** O `gcc -O2` **não auto-vetoriza** (preciso de `-O3 -march=native`, que quase ninguém usa como baseline). Medi o teto num núcleo limitado por cálculo (mapa polinomial de grau 7, Horner, 8192 doubles em L2, 200000 repetições):
+
+```
+gcc -O2 escalar (o C normal):              1312 ms   (0 registos ymm — confirmado escalar)
+AVX mulpd+addpd, SEM fma (bits idênticos):  841 ms   → 1,56× mais rápido, mesmo resultado ao bit
+AVX+FMA (último bit diferente):             470 ms   → 2,79× mais rápido
+```
+
+Ou seja: se o emissor x86 passar a escrever AVX de 256 bits (4 doubles de cada vez), a Onda fica **mais rápida que o C** nos núcleos numéricos vetorizáveis — e com `mulpd+addpd` (sem FMA) o resultado é **bit a bit igual** ao escalar, por isso não se perde a identidade entre formas. O FMA dá 2,8× mas muda o último bit (fundе a multiplicação e a soma com um só arredondamento), como já acontece com as reduções de floats em paralelo.
+
+**O que foi feito.** Lancei no `src/6x86.onda` os codificadores das instruções AVX2 que vou precisar, em VEX de 2 e 3 bytes: `xvop` (mul/add/sub/div/xor empacotados), `xvfma` (fmadd231/213), `xvm` (vmovupd carga/armazém e vbroadcastsd de memória), `xvmq` (mover GPR→xmm) e `xvbx` (broadcast de xmm). Cada fórmula de bytes foi conferida **byte a byte** contra a saída do `objdump` — 14 instruções, todas certas (ver `scratchpad`: `c5 f5 59 c2` = `vmulpd ymm0,ymm1,ymm2`, etc.). Restrição deliberada para simplicidade e segurança: registos `ymm0..ymm7`, base sempre `r15`, índice num GPR baixo, escala 8.
+
+**Prova.** `./build.sh` fecha o ponto fixo nas três formas com os codificadores já emitidos (hash C `776f5d5b9572e284`; o WebAssembly cresceu de 236248 para 237303 bytes — logo os codificadores entram mesmo no compilador, não são removidos). `node --test`: **80 testes, todos a passar**. Os codificadores ainda não estão ligados à geração de código (vêm na 59), por isso o comportamento não muda — este é o alicerce verificado.
+
+**Próxima.** Ligar: detetar um mapa de campo (`E`) cujo elemento seja aritmética pura de floats (sem ramos nem chamadas), e emitir um laço AVX empacotado (4 de cada vez) com uma cauda escalar para o resto. Medir a Onda x86 contra o `gcc -O2` no mesmo núcleo — e provar, com números, que a Onda é mais rápida.

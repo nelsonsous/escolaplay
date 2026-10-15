@@ -42,6 +42,13 @@
 : xsy3 iii>i c a b { P 106 P b P 106 P a P 106 P c xcall -1 }
 : xsetb i>i cc { P 15 P cc P 192 P 15 P 182 P 192 }
 : xcc i>i o ? == o '< 156 ? == o '> 159 ? == o k2 '< '= 158 ? == o k2 '> '= 157 ? == o k2 '= '= 148 149
+# codificadores AVX2 (VEX de 2 e 3 bytes): ymm 0-7, L=256, pp=66 (pd); base sempre r15, indice num GPR baixo, escala 8.
+# cada formula confere byte a byte com a saida do objdump (ver docs/ITERACOES.md it.58).
+: xvop iiii>i o d a b { P 197 P + 128 + * 8 ^ a 15 5 P o P + 192 + * 8 & d 7 & b 7 }
+: xvfma iiii>i o d a b { P 196 P 226 P + 128 + * 8 ^ a 15 5 P o P + 192 + * 8 & d 7 & b 7 }
+: xvm iiiii>i b1 o d x dp { P 196 P b1 P 125 P o P + ? dp 64 0 + * 8 & d 7 4 P + 192 + * 8 & x 7 7 ? dp { P & dp 255 } 0 }
+: xvmq ii>i x g { P 196 P 225 P 249 P 110 P + 192 + * 8 & x 7 & g 7 }
+: xvbx ii>i d x { P 196 P 226 P 125 P 25 P + 192 + * 8 & d 7 & x 7 }
 : xins i>i p {
   = k @ p
   = d @ + p 1
