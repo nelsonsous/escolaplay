@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 46 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 47 (uma função nova verificada bit a bit em todas as formas — ou dar nomes/funcoes à mini-linguagem).
+Estado: **iteração 47 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 48 (um resumo do estado a meio das 100, ou funções na mini-linguagem).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1091,3 +1091,22 @@ E um **ciclo dentro de outro**: contar os primos abaixo de 20 (`W (n<20) { ... W
 **O arco fechado.** A Onda — uma linguagem para IAs — hospeda uma pequena linguagem imperativa completa (variáveis, `?`, `W`, blocos), e essa linguagem dá o mesmo resultado nas três formas que a Onda gera. Das iterações 42 a 46: de uma conta a uma linguagem.
 
 **Próxima.** Dar-lhe funções (definição e chamada), ou voltar ao núcleo com uma função matemática nova verificada bit a bit em todas as formas.
+
+## Iteração 47: um crivo — a eficiência com um número
+
+**Pergunta.** O utilizador pediu a linguagem "mais eficiente alguma vez usada". As iterações 24–31 mediram casos extremos (π, travessia, fib). Falta um trabalho clássico, compute + memória, sem chamadas no laço quente: o crivo de Eratóstenes.
+
+**O que foi feito.** `ex/crivo.onda`: conta os primos até N marcando os múltiplos. É escrita e leitura intensa de um vetor grande, com o laço interno a saltar de `i` em `i`.
+
+**Prova** (`test/crivo.test.js`; 62 testes no total, todos a passar). As contagens batem certo — 4 até 10, 25 até 100, 168 até 1000, 9592 até 100 000, e 664 579 até 10 milhões — e são iguais em C, x86-64 e WebAssembly.
+
+**Medição** (10 milhões):
+
+| forma | tempo |
+|---|---|
+| C (`gcc -O2`) | ~166 ms |
+| x86 nativo da Onda | ~212 ms |
+
+O x86 da Onda fica a ~1,3× do C neste trabalho. Encaixa no retrato das iterações 24–31: paridade no código limitado pela memória, ~1,3× num misto de cálculo e memória, e só a recursão com muitas chamadas (o `fib`) fica a 4×, por causa do protocolo de chamada. Para código numérico e de dados — o que a maioria dos programas faz — a Onda está ao nível do `gcc -O2`, sem C, assembler nem linker.
+
+**Próxima.** Estamos a meio das 100 iterações: um resumo honesto do que a Onda é hoje e do que falta. Ou dar funções à mini-linguagem.

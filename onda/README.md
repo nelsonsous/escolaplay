@@ -21,7 +21,7 @@ build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pe
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
 ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
-node --test test/*.test.js  # todos os testes (60): Onda Viva, matematica, circuitos, armazem, GPU, Brainfuck, matmul, SHA-256, Vida, calc e mini
+node --test test/*.test.js  # todos os testes (62): Onda Viva, matematica, circuitos, armazem, GPU, Brainfuck, matmul, SHA-256, Vida, calc, mini e crivo
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -39,7 +39,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `rt/prelude.c` | runtime C mínimo |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
-| `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem com variáveis (`mini.onda`) |
+| `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem Turing-completa (`mini.onda`) e um crivo de Eratóstenes (`crivo.onda`) |
 | `bench/` | comparações com C, JavaScript e Python |
 | `test/`, `tools/` | testes e ferramentas de verificação (GPU, WebAssembly, páginas) |
 
@@ -50,7 +50,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 - **Velocidade (4 núcleos):** fib(35) em 15 ms (C: 16 ms); π com 200 milhões de termos em 68 ms (C sequencial: 246 ms, C com OpenMP à mão: 67 ms); fractal 960×540 em 13 ms (C sequencial: 31 ms).
 - **Grover com 20 qubits:** o alvo fica com probabilidade 0,9999998.
 - **Três pontos fixos:** em C, WebAssembly e x86-64, o compilador compila-se a si próprio bit a bit, e as três sementes geram o mesmo C.
-- **x86 nativo** (sem C, assembler nem linker): π ao nível do `gcc -O2` e Grover a 2% dele.
+- **x86 nativo** (sem C, assembler nem linker): π ao nível do `gcc -O2`, Grover a 2% dele, crivo de 10 M a ~1,3× do C.
 - **Matemática igual ao bit:** `Sn Cs Ex Lg At Pw` dão os mesmos bits em C, WebAssembly, x86, JavaScript e no significado (`test/mat.test.js`). O `Pw` é o pow do fdlibm, conferido com o `StrictMath` do Java.
 - **Circuitos:** cada circuito é simulado e comparado com a função compilada, e o Verilog com o AIGER (`test/circ.test.js`).
 - **Oráculos quânticos:** são reversíveis e limpos (auxiliares a 0). O de Grover foi verificado nas 2²⁰ entradas de uma vez.
