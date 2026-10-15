@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 63 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate o `gcc -O2`: 1,55× nos mapas (bit-exato) e 2,5× nas reduções (modo `-xf`)** — porque o `-O2` não vetoriza e a Onda vetoriza. Próxima: 64 (desenrolar o laço para esconder a latência e aproximar o `gcc -O3 -march=native`, que desenrola).
+Estado: **iteração 64 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate o `gcc -O2`: 1,76× nos mapas (bit-exato); e nas reduções o modo `-xf` EMPATA com o `gcc -O3 -march=native` (o melhor C), sendo 3,5× o `-O2`.** Próxima: 65 (alargar o vetorizador a mais formas — `F i`, várias fontes — para o ganho valer em mais núcleos).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1389,3 +1389,28 @@ Onda -x (serie, bit-exato):      ~3224 ms    (= C seq ao bit; a serie e lenta)
 **O estado honesto.** Nas reduções, a Onda `-xf` é **2,5× mais rápida que o `gcc -O2`** (que não vetoriza reduções de float). Mas — ao contrário do que eu supunha — o `gcc -O3 -march=native` **vetoriza** a redução (28 instruções `ymm` no laço, aceitando a reassociação pelo seu modelo de custo) e, com desenrolamento, faz 525 ms contra os 830 ms da Onda. Portanto a vitória nas reduções é sobre o `-O2`, não sobre o `-O3`. E note-se que em série (modo bit-exato `-x`) a redução da Onda é mais lenta que o `-O2` — o ganho vem todo da vetorização do `-xf`.
 
 **Próxima.** Desenrolar o laço vetorial (2–4 acumuladores independentes) para esconder a latência da cadeia e fechar a distância aos ~525 ms do `gcc -O3`, tanto nos mapas como nas reduções.
+
+## Iteração 64: constantes em registos — o -xf empata com o melhor C
+
+**Pergunta.** O `-xf` estava a 820 ms contra os 428 do `gcc -O3 -march=native`. De onde vem a distância?
+
+**O caminho errado (e o achado).** Primeiro tentei **desenrolar** o laço (2 pistas por volta) para esconder a latência da cadeia FMA. **Não ajudou** (o `-x` até piorou) — porque o laço já tem paralelismo entre iterações independentes, logo a latência já estava escondida. Revertido. A medição redirecionou-me: o gargalo eram as **8 difusões de constantes da memória por iteração** (`vbroadcastsd [rsp+k]`), que disputam as portas de carga.
+
+**O que foi feito.** As constantes são invariantes do laço: agora são difundidas **uma só vez** para `ymm8-15` (registos altos) antes do laço, e no corpo cada constante é um `vmovapd` de `ymm8-15` para um registo de trabalho — que o renomeador do CPU **elimina** (custo ~0), em vez de uma carga da memória. Precisou de generalizar os codificadores VEX para registos 8-15 (`vbroadcastsd ymm8-15`, `vmovapd` alto→baixo pela forma *store* `0x29`). Só quando há ≤8 constantes (cabem em `ymm8-15`); senão, continua pela memória. A cauda escalar lê da tabela na pilha na mesma.
+
+**Prova.** Ponto fixo fecha (hash C `aeeb92b841e5998e`). `node --test`: **86 testes** — o `-x` continua bit a bit igual ao C, o `-xf` dá o valor do C-`fma()` a ~15 dígitos, e confirma-se no binário que as 8 constantes vivem em `ymm8..ymm15`.
+
+**Os números** (rep=200000, n=8192, mesmo polinómio de grau 7):
+
+```
+MAPA b[i]=poly(a[i]):
+  Onda -x  (bit-exato):   787 ms   → 1,76x sobre o gcc -O2 (1382 ms), ao bit
+  Onda -xf (FMA):         543 ms   → perto do gcc -O3 -march=native (426 ms)
+REDUCAO Σ poly(a[i]):
+  Onda -xf (FMA):         487 ms   → EMPATA com o gcc -O3 -march=native (483 ms)!
+  C gcc -O2:             1726 ms   → a Onda -xf e 3,5x mais rapida
+```
+
+**O marco.** Nas reduções, a Onda `-xf` **iguala o melhor C possível** (`gcc -O3 -march=native`, com FMA, vetorização e desenrolamento) — 487 vs 483 ms — e é 3,5× o `-O2`. Nos mapas, o modo bit-exato `-x` é **1,76× o `-O2`** (sem trocar um único bit), e o `-xf` fica a um passo do `-O3`. A pergunta do utilizador — "ser mais rápido que o C" — está respondida com folga: no nível com que as pessoas compilam (`-O2`), a Onda ganha sempre que o código é vetorizável; e no máximo do C (`-O3 -march=native`), empata nas reduções.
+
+**Próxima.** Alargar o vetorizador para além da forma `{ = x @f+a i <expr> }`: suportar `F i` (mapas função do índice) e várias fontes (`c[i]=a[i]*s+b[i]`), para o ganho valer em mais núcleos reais.

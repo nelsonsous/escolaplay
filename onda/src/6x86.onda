@@ -58,7 +58,9 @@
 : xpp i>i r { ? >= r 8 P 65 0 P + 88 & r 7 }
 # tabela de constantes na pilha: as constantes do mapa, difundidas uma so vez, lidas por [rsp+k*8]
 : xmst ii>i r dp { P + 72 ? >= r 8 4 0 P 137 P + 68 * 8 & r 7 P 36 P & dp 255 }
-: xvbs ii>i d dp { P 196 P 226 P 125 P 25 P + 68 * 8 & d 7 P 36 P & dp 255 }
+: xvbs ii>i d dp { P 196 P + ? < d 8 128 0 98 P 125 P 25 P + 68 * 8 & d 7 P 36 P & dp 255 }
+# vmovapd ymm_d <- ymm_s (forma store 0x29; o renomeador elimina a copia). Para difundir constantes de ymm8-15.
+: xvmov ii>i d s { P 197 P + ? < s 8 128 0 125 P 41 P + 192 + * 8 & s 7 & d 7 }
 : xmss ii>i d dp { P 242 P 15 P 16 P + 68 * 8 & d 7 P 36 P & dp 255 }
 : xvsts ii>i d dp { P 197 P 253 P 17 P + 68 * 8 & d 7 P 36 P & dp 255 }
 : xadm ii>i d dp { P 242 P 15 P 88 P + 68 * 8 & d 7 P 36 P & dp 255 }
@@ -83,7 +85,8 @@
   = i @ 7
   ! 7 + i 1
   = kk tkk i
-  ? == kk 2 { !f 24 fltval i = b @ 24 = sl xvfind @ + st 1 @ + st 2 b = r salloc st ? == w 4 xvbs r * 8 sl { xmss r * 8 sl } r }
+  ? == kk 2 { !f 24 fltval i = b @ 24 = sl xvfind @ + st 1 @ + st 2 b = r salloc st
+    ? == w 4 { ? <= @ + st 2 8 xvmov r + 8 sl xvbs r * 8 sl } { xmss r * 8 sl } r }
   ? == kk 0 xr
   { = o tcode i
     = sA @ 7 xskip
@@ -137,6 +140,7 @@
   xmrr 8 0 xandi 8 -4 xaddr 8 2
   xsubsp 128
   = j 0 W < j nc { xi 0 @ + tbl j xmst 0 * 8 j = j + j 1 }
+  ? <= nc 8 { = j 0 W < j nc { xvbs + 8 j * 8 j = j + j 1 } } 0
   = t1 @ 16
   xcmpr 2 8
   = pe1 xjcc 131
@@ -187,6 +191,7 @@
   xmrr 8 0 xandi 8 -4 xaddr 8 2
   xsubsp 192
   = j 0 W < j nc { xi 0 @ + tbl j xmst 0 * 8 j = j + j 1 }
+  ? <= nc 8 { = j 0 W < j nc { xvbs + 8 j * 8 j = j + j 1 } } 0
   ! st 255
   = av salloc st
   = as salloc st
