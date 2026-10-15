@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 23 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 24 (o x86 da Onda está 1,6× atrás do C num campo `E` com escolhas por elemento: ver porquê).
+Estado: **iteração 24 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 25 (menos saltos tomados por volta: rodar os ciclos e duplicar caudas curtas).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -641,3 +641,33 @@ A soma fica com 2 × 63 Toffoli, o mínimo para um somador em cadeia de 64 bits:
 | x86-64 da Onda, 1 núcleo | 1,8 s |
 
 **Próxima.** O x86 da Onda fica 1,6× atrás do C neste laço: um campo `E` com uma função de 7 parâmetros e escolhas por elemento. Ver porquê.
+
+## Iteração 24: porque é que o x86 da Onda perdia 1,6× num campo `E`
+
+**Pergunta.** No simulador da iteração 23, o x86-64 da Onda gastava 1,6× o tempo do `gcc -O2`. Porquê, se o laço é o mesmo?
+
+**Diagnóstico.** Comparei o código máquina dos dois laços e contei instruções executadas com o cachegrind, porque o tempo nesta máquina varia ±15%. Por elemento, a Onda executava cerca de 25 instruções e o C 13,5. Havia três causas:
+- **Cada acesso `@f + s i` custava 3 instruções:** ler `s` da pilha, somar `i` e só depois ler `[r15 + t*8]`.
+- **Cada `? & a b` custava 4 instruções:** copiar, fazer o `and`, testar e saltar.
+- **Saltos para saltos:** o fim de um `?` dentro de outro saltava para um `jmp` que saltava outra vez.
+
+**O que já existe.** São otimizações clássicas: modos de endereçamento com deslocamento, ponteiros-base içados para fora dos ciclos (redução de força), `test` em vez de `and` e encadeamento de saltos (jump threading).
+
+**O que foi feito** (tudo no x86, antes da atribuição de registos).
+- **Deslocamentos dobrados:** `@ + p 3` passa a ser `[r15 + p*8 + 24]` e a soma desaparece. É o acesso mais comum do próprio compilador.
+- **Ponteiros-base:** num ciclo, `@ + a i` com `a` invariante passa a `lea t, [r15 + a*8]`. Uma segunda passagem de invariantes iça o `lea` para fora do ciclo, e cada acesso fica `[t + i*8]`, uma só instrução. As bases que leem a mesma variável, ou que são o mesmo temporário, no mesmo ciclo partilham um só `lea`: sem isto, o simulador gastava 5 registos com o mesmo ponteiro.
+- **`test` fundido:** um `&` cujo único uso é o salto seguinte passa a ser `test a, b` e não ocupa registo.
+- **Saltos para saltos:** no fim de cada função, cada salto que cai num `jmp` passa a ir direto ao destino final.
+
+**Prova.** Os 3 pontos fixos continuam bit a bit, os 32 testes passam e a Onda Viva também. As saídas de π, fib, julia, ondas e Grover são iguais às de antes.
+
+| instruções executadas | antes | agora | gcc -O2 |
+|---|---|---|---|
+| simulador quântico (Grover de 8 bits) | 666,4 M | **474,7 M** (−29%) | 408,4 M |
+| laço de campo `E` (micro-teste) | 760,2 M | **571,5 M** (−25%) | 406,6 M |
+| compilador a compilar-se para C | 142,0 M | 139,8 M (−1,6%) | |
+| compilador a compilar-se para x86 | 196,7 M | 191,8 M (−2,5%) | |
+
+O tempo do simulador de 10 bits desceu de 1 624 para cerca de 1 500 ms, contra 1 030–1 080 ms do C. A distância em instruções é 1,16×, mas no tempo ainda é 1,4×. O que falta são saltos tomados: cada caso do `?` acaba num `jmp` para o bloco comum, e o ciclo ainda salta para o teste no topo.
+
+**Próxima.** Menos saltos tomados por volta: rodar os ciclos (teste no fim) e duplicar caudas curtas nos ramos.

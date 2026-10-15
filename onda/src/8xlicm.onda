@@ -8,7 +8,7 @@
   = k @ p
   ? || || == k 1 == k 2 == k 4 1
   ? == k 8 || tty @ + p 1 && != opof @ + p 2 '/ != opof @ + p 2 '%
-  || || == k 14 == k 15 || || == k 16 == k 17 || == k 43 == k 44 }
+  || || == k 14 == k 15 || || == k 16 == k 17 || || == k 43 == k 44 == k 46 }
 : xlok iii>i p ls st {
   = k @ p
   = f @ + @ 50 k
@@ -56,3 +56,87 @@
   = t * 8 @ 19
   W < j t { ! + @ 18 j @ + xq 8 j = j + j 1 }
   0 }
+# enderecos com deslocamento constante: @ + p 3 vira [r15 + p*8 + 24] e a soma desaparece (fica o tipo 45, nada)
+# 19 usos de cada temporario 20 instrucao que o define
+: xfuse i>i t { ! + xq 19 t + @ + xq 19 t 1 0 }
+: xlitk i>i t { = j @ + xq 20 t ? < j 0 0 { = q + @ 18 * j 8 = k @ q ? && == k 1 ~ tty t 1 ? == k 2 2 ? && == k 4 ~ tty t 4 0 } }
+: xlitv i>i t { = q + @ 18 * @ + xq 20 t 8 = k @ q ? == k 1 tokval @ + q 2 ? == k 2 @ + q 2 0 }
+: xslit i>i t ? xlitk t { = v xlitv t && < v 268435456 > v -268435456 } 0
+: xfdu >i {
+  = n @ 19
+  = nv + @ 11 @ 9
+  = v 0
+  W < v nv { ! + xq 19 v 0 ! + xq 20 v -1 = v + v 1 }
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    = k @ p
+    = f @ + @ 50 k
+    ? & f 1 xfuse @ + p 2 0
+    ? & f 2 xfuse @ + p 3 0
+    ? & f 4 xfuse @ + p 4 0
+    ? == k 7 { = b @ + p 3 = j 0 W < j @ + p 4 { xfuse @ + b j = j + j 1 } } 0
+    ? & f 8 ! + xq 20 @ + p 1 i 0
+    = i + i 1 }
+  0 }
+: xfold >i {
+  xfdu
+  = n @ 19
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    = k @ p
+    = go && >= k 24 <= k 27
+    W go {
+      = t @ + p 2
+      = j @ + xq 20 t
+      = go 0
+      ? && >= j 0 == @ + xq 19 t 1 {
+        = q + @ 18 * j 8
+        ? && == @ q 8 == opof @ + q 2 '+ {
+          = x @ + q 3
+          = y @ + q 4
+          = b ? xslit y x ? xslit x y -1
+          ? >= b 0 { ! + p 5 + @ + p 5 xlitv ? == b x y x ! + p 2 b ! q 45 = go 1 } 0 } 0 } 0 }
+    = i + i 1 }
+  0 }
+# ponteiros-base: num ciclo, @ + a i com a invariante e i variavel vira lea t, [r15 + a*8] (a segunda passagem de
+# invariantes iça-o para fora do ciclo) e o acesso passa a [t + i*8]: uma instrucao por acesso em vez de tres
+# tipos 46 lea, 47 48 49 50 = 24 25 26 27 com o ponteiro-base no campo 4. Bases que leem a mesma variavel no mesmo
+# ciclo, ou que sao o mesmo temporario, partilham um so lea (21 tabela ciclo, chave, temporario; 22 quantos)
+: xbvar i>i b { = j @ + xq 20 b ? < j 0 - -2 b { = q + @ 18 * j 8 ? == @ q 5 @ + q 3 - -2 b } }
+: xbold ii>i ls v { = r -1 = j 0 W && < r 0 < j xq 22 { = e + xq 21 * 3 j ? && == @ e ls == @ + e 1 v = r @ + e 2 0 = j + j 1 } r }
+: xbase >i {
+  xfdu
+  = n @ 19
+  = sp 0
+  = mv 0
+  xqs 22 0
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    = k @ p
+    ? == k 21 { ! + xq 16 sp i = sp + sp 1 } 0
+    ? == k 23 = sp - sp 1 0
+    ? && > sp 0 && >= k 24 <= k 27 {
+      = ls @ + xq 16 - sp 1
+      = t @ + p 2
+      = j @ + xq 20 t
+      ? && >= j 0 == @ + xq 19 t 1 {
+        = q + @ 18 * j 8
+        ? && == @ q 8 == opof @ + q 2 '+ {
+          = x @ + q 3
+          = y @ + q 4
+          = dx @ + xq 20 x
+          = dy @ + xq 20 y
+          = b ? && < dx ls >= dy ls x ? && < dy ls >= dx ls y -1
+          ? >= b 0 {
+            = v xbvar b
+            = t0 xbold ls v
+            ! p + k 23
+            ! + p 2 ? == b x y x
+            ? >= t0 0 { ! + p 4 t0 ! q 45 } { ! + p 4 t ! q 46 ! + q 2 b ! + q 3 0 ! + q 4 0 }
+            ? && < t0 0 < xq 22 64 { = e + xq 21 * 3 xq 22 ! e ls ! + e 1 v ! + e 2 t xqs 22 + xq 22 1 } 0
+            = mv 1 } 0 } 0 } 0 } 0
+    = i + i 1 }
+  mv }
