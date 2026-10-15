@@ -143,6 +143,8 @@
   { = o tcode i
     ? isar o { = pa xvp xt = pb xvp xt ? || < pa 0 < pb 0 -1 ? > pb + 1 pa pb + 1 pa } -1 } }
 # a funcao k e um mapa vetorizavel? forma exata: : g ii>f i a { = x @f + a i <expr de + - * / sobre x e floats> }
+# conta os literais float da expressao em @7 (para a tabela de constantes caber em disp8)
+: xvnc >i { = i @ 7 ! 7 + i 1 ? == tkk i 2 1 ? == tkk i 0 0 { ? isar tcode i + xvnc xvnc 0 } }
 : xvan i>i k {
   ? == @ fe k 3 0 0
   ? != @ fe k 2 2 0
@@ -157,7 +159,9 @@
   { = sv @ 7
     ! 7 + b 7
     = p xvp + b 2
-    = r && && >= p 0 <= p 6 == tcode @ 7 '}
+    ! 7 + b 7
+    = nc xvnc
+    = r && && && >= p 0 <= p 6 <= nc 15 == tcode @ 7 '}
     ! 7 sv
     r } }
 : lowEv iiii>i d n k a { ir 51 0 n d @ a k 0 d }

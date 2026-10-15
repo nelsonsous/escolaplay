@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 60 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Foco novo (pedido do utilizador): deixar de empatar com o C e passar a **ser mais rápido** que ele, no x86. Próxima: 61 (difundir as constantes do mapa uma só vez — tirar o `movabs`+`vmovq`+`vbroadcastsd` de cada uso — para chegar ao teto AVX e bater o C idiomático).
+Estado: **iteração 61 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **Marco: a Onda x86 é 1,55× mais rápida que o `gcc -O2`, bit a bit igual, num núcleo vetorizável** — porque emite AVX que o `-O2` não emite. Próxima: 62 (um modo FMA opcional para fechar a distância ao `gcc -O3 -march=native`, e alargar o vetorizador a mais formas: `F i`, reduções `S`).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1322,3 +1322,26 @@ teto AVX bit-seguro:            841 ms
 **O estado honesto.** A Onda já emite SIMD que o `gcc -O2` não emite, é bit a bit igual, e é 1,5× mais rápida que o seu escalar e que o C que ela própria gera. Mas ainda **não** bate o C *idiomático* (1312 ms): está a 2073. A culpa é da difusão das constantes — faço `movabs`+`vmovq`+`vbroadcastsd` a cada uso (24 instruções por iteração só para as 8 constantes), quando elas são invariantes do laço. O teto é 841 ms.
 
 **Próxima.** Difundir as 8 constantes **uma só vez** antes do laço (numa tabela na pilha, e depois `vbroadcastsd ymm, [rsp+k]` por uso — uma instrução em vez de três), para tirar o peso do laço e chegar perto do teto, passando à frente também do C idiomático.
+
+## Iteração 61: a Onda passa à frente do C — 1,55× mais rápida que o gcc -O2, ao bit
+
+**Pergunta.** A it.60 ficou a 2073 ms (contra 1312 do C idiomático) por difundir as 8 constantes a cada iteração. Se as difundir **uma só vez**, chega ao teto e bate o C?
+
+**O que foi feito.** As constantes do mapa são invariantes do laço. Agora `xvmap` recolhe-as (`xvcoll`, com deduplicação), reserva uma tabela na pilha (`sub rsp, 128`), materializa-as lá **uma vez** antes do laço, e no corpo cada constante é um `vbroadcastsd ymm, [rsp+k*8]` — **uma instrução** em vez de `movabs`+`vmovq`+`vbroadcastsd`. O analisador (`xvan`) passou a limitar a 15 constantes (para o deslocamento caber num byte). A cauda escalar lê as mesmas da tabela com `movsd`.
+
+**Prova.** `./build.sh` fecha o ponto fixo (hash C `7ba090e46001ab9d`). `node --test`: **83 testes** (o `vecmap` ganhou um terceiro: `n` não-múltiplo-de-4 — 8190, 8191, 3, 1 — a cauda escalar bate o C **ao bit**). Correção confirmada à mão: para n=8190/8191/3 os bits da soma do x86 são exatamente os do C.
+
+**Os números** (3 corridas, mesmo polinómio de grau 7, rep=200000, n=8192):
+
+```
+Onda x86 AVX (agora):            942, 955, 966 ms   (mediana ~955)
+C idiomatico inline, gcc -O2:   1381, 1483, 1556 ms (mediana ~1483)
+C que a Onda gera, gcc -O2:     2577..3079 ms
+gcc -O3 -march=native (com FMA):  428 ms
+```
+
+**O marco.** A Onda x86 faz **~955 ms** contra **~1483 ms** do C idiomático compilado com `gcc -O2`: **1,55× mais rápida**, e com a soma **bit a bit igual** (sem FMA, sem reassociar — `vmulpd`+`vaddpd` por lane dão exatamente os mesmos arredondamentos que o escalar). É a resposta honesta ao desafio do utilizador: *neste núcleo, a Onda é mais rápida que o C.* A razão é estrutural e verdadeira: o `gcc -O2` — o nível com que quase toda a gente compila — **não auto-vetoriza**, e a Onda vetoriza.
+
+**O que falta para o teto.** O `gcc -O3 -march=native` (428 ms) ainda ganha: usa **FMA** (funde `a*b+c` num só arredondamento, o dobro do débito) e escalona melhor. Fundir com FMA mudaria o último bit (como já acontece nas reduções paralelas), por isso fica como **modo opcional** da próxima iteração — para quem quer a velocidade máxima e aceita a diferença no último bit, mantendo o modo bit-exato por omissão.
+
+**Próxima.** (1) Modo FMA opcional (`vfmadd231pd`) para aproximar os 428 ms. (2) Alargar o vetorizador: `F i` (índice→float, para mapas que usam o índice) e as reduções `S` (produto interno), onde o `gcc -O2` também não vetoriza.

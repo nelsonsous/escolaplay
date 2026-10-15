@@ -33,3 +33,12 @@ test('vecmap: a soma tem o valor esperado', () => {
   const v = Number(soma(X()));
   assert.ok(v > 8.5e16 && v < 8.6e16, 'soma fora do esperado: ' + v);
 });
+
+// o laco AVX processa grupos de 4; n nao-multiplo-de-4 exercita a cauda escalar. Tem de bater o C ao bit.
+test('vecmap: a cauda escalar (n nao multiplo de 4) bate o C ao bit', () => {
+  for (const n of ['8190', '8191', '3', '1']) {
+    const x = execFileSync(path.join(t, 'vx'), [n, '1']).toString();
+    const c = execFileSync(path.join(t, 'vc'), [n, '1']).toString();
+    assert.strictEqual(bits(x), bits(c), 'n=' + n + ' x86 vs C');
+  }
+});
