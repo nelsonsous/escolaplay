@@ -42,7 +42,7 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  ? isx lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
+  ? isx ? && fastf xvan k lowSv n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
 : cd >i {
   = w cx
   = h cx

@@ -1,0 +1,19 @@
+# Reducao de campo vetorizavel: soma de um polinomio de grau 7 sobre a[i]. S = Σ poly(a[i]).
+# O gcc NAO auto-vetoriza reducoes de float em NENHUM nivel (-O2 nem -O3, sem -ffast-math), porque a soma
+# de floats nao e associativa. No modo -xf a Onda vetoriza na mesma (acumulador de 4 em ymm + soma horizontal),
+# aceitando a reassociacao -- por isso bate o C em todos os niveis. No modo -x fica em serie (bit-exato).
+# uso: ./onda run ex/vecsum.onda [n] [rep]
+: g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }
+: encher ii>i p n { = i 0 W < i n { !f + p i F + % i 100 1 = i + i 1 } p }
+: natoi i>i a { = v 0 = j 0 = c Av a 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = j + j 1 = c Av a j } v }
+: main >i {
+  = n ? >= Ac 2 natoi 1 8192
+  = rep ? >= Ac 3 natoi 2 1
+  = a encher A n n
+  = t T
+  = s 0.0
+  = r 0
+  W < r rep { = s S n g a = r + r 1 }
+  = ms / - T t 1000
+  "vecsum n=" N n " rep=" N rep " em " N ms " ms; soma = " G s " bits " N Bh s " " N Bl s "\n"
+  0 }

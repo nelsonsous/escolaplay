@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 62 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **Marco: a Onda x86 é 1,55× mais rápida que o `gcc -O2`, bit a bit igual**; com o modo FMA opcional (`-xf`) é ~1,8×. Próxima: 63 (desenrolar o laço vetorial para esconder a latência da cadeia FMA e aproximar o `gcc -O3`; depois alargar o vetorizador a `F i` e às reduções `S`).
+Estado: **iteração 63 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). **A Onda x86 bate o `gcc -O2`: 1,55× nos mapas (bit-exato) e 2,5× nas reduções (modo `-xf`)** — porque o `-O2` não vetoriza e a Onda vetoriza. Próxima: 64 (desenrolar o laço para esconder a latência e aproximar o `gcc -O3 -march=native`, que desenrola).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1368,3 +1368,24 @@ gcc -O3 -march=native (FMA+desenrola): 428 ms
 **O estado honesto.** O `-xf` já usa FMA e é ~1,8× mais rápido que o `gcc -O2`, com o mesmo valor do C a 15 dígitos. Mas ainda não bate o `gcc -O3 -march=native` (428 ms): a cadeia de 7 FMA dependentes (`p = fma(x,p,c)`) tem ~28 ciclos de latência por vetor, e o `gcc -O3` **desenrola** o laço para processar vários vetores ao mesmo tempo e esconder essa latência. O meu laço faz um vetor de cada vez.
 
 **Próxima.** Desenrolar o laço vetorial (processar 2–4 grupos de 4 por volta, com acumuladores independentes) para esconder a latência da cadeia e aproximar os 428 ms — ainda com FMA opcional e o bit-exato por omissão.
+
+## Iteração 63: vetorizar também as reduções (S) — 2,5× sobre o gcc -O2
+
+**Pergunta.** O mapa (`E`) já bate o C. E a redução (`S`, o produto interno / soma)? É o outro grande padrão numérico — e o `gcc -O2` também não a vetoriza.
+
+**O que foi feito.** `xvsmap`: o macro da redução (tipo **52**, só em modo `-xf`). Acumula de 4 em 4 num registo `ymm` (`vaddpd`), reduz no fim as 4 pistas a um escalar (guarda na pilha e soma), e trata o resto com uma cauda escalar; o resultado vai para o valor do `S`. Reaproveita o **mesmo** analisador (`xvan`) e walker (`xvem`) dos mapas — a função do elemento tem a mesma forma. Como reassocia a soma (as 4 pistas somam noutra ordem que a série), fica **gated no `-xf`**: em `-x` a redução continua em série, bit a bit igual ao C sequencial. `ex/vecsum.onda` é o banco de ensaio.
+
+**Prova.** Ponto fixo fecha (hash C `5b2cd610f2ce8191`). `node --test`: **86 testes** — `vecsum` com dois: o `-x` em série bate o C sequencial **ao bit**, e o `-xf` dá o mesmo valor a ~15 dígitos (8.56665324969212e+16 vs ...217).
+
+**Os números** (reducao Σ poly(a[i]), rep=200000, n=8192):
+
+```
+Onda -xf (AVX, acumulador de 4):  ~830 ms    → 2,5x sobre o gcc -O2
+C gcc -O2:                       ~2070 ms    (nao vetoriza a reducao)
+C gcc -O3 -march=native:          ~525 ms    (vetoriza + desenrola + FMA)
+Onda -x (serie, bit-exato):      ~3224 ms    (= C seq ao bit; a serie e lenta)
+```
+
+**O estado honesto.** Nas reduções, a Onda `-xf` é **2,5× mais rápida que o `gcc -O2`** (que não vetoriza reduções de float). Mas — ao contrário do que eu supunha — o `gcc -O3 -march=native` **vetoriza** a redução (28 instruções `ymm` no laço, aceitando a reassociação pelo seu modelo de custo) e, com desenrolamento, faz 525 ms contra os 830 ms da Onda. Portanto a vitória nas reduções é sobre o `-O2`, não sobre o `-O3`. E note-se que em série (modo bit-exato `-x`) a redução da Onda é mais lenta que o `-O2` — o ganho vem todo da vetorização do `-xf`.
+
+**Próxima.** Desenrolar o laço vetorial (2–4 acumuladores independentes) para esconder a latência da cadeia e fechar a distância aos ~525 ms do `gcc -O3`, tanto nos mapas como nas reduções.
