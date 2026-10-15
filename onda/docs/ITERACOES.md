@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 50 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 51 (atacar uma das pontas soltas do `docs/ESTADO.md` — provavelmente funções na mini-linguagem, ou o inline do `S` no emissor C).
+Estado: **iteração 51 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 52 (uma ponta de desempenho — o inline do `S` no emissor C, ou o custo das chamadas no x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -1156,3 +1156,22 @@ Um objeto útil de verdade — content-addressable storage, a base do git, do IP
 **O que falta** (as pontas para 50–100): inline das reduções no emissor C, o custo das chamadas no x86, o armazém multi-processo no x86/WebAssembly, funções na mini-linguagem, e a redução de Payne–Hanek.
 
 **Próxima.** Atacar uma dessas pontas. Provavelmente dar funções (com recursão) à mini-linguagem, fechando-a como linguagem hospedada completa.
+
+## Iteração 51: funções e recursão na mini-linguagem
+
+**Pergunta.** A mini-linguagem já decidia e repetia. Faltava-lhe o que faz dela uma linguagem de verdade: definir funções e chamá-las, com recursão.
+
+**O que foi feito.** `ex/mini.onda` ganhou `F nome param = corpo` (definição) e a chamada `nome arg`. Uma tabela de funções guarda, por nome, o parâmetro e a **posição do corpo** na fonte; na chamada, liga-se o parâmetro ao argumento (guardando o valor anterior, para a recursão), salta-se o cursor para o corpo, avalia-se, e repõe-se tudo.
+
+**O erro que tudo destravou.** A recursão entrava em ciclo infinito. A causa não era a chamada — era o `?`: num interpretador que lê-e-executa, o `? c a b` avaliava **os dois ramos** ao analisá-los, por isso o caso base da recursão também executava a chamada recursiva. A correção é a técnica clássica: uma flag "executar" (`@8`). O ramo não tomado continua a ser **analisado** (para o cursor avançar), mas inerte — não escreve, não chama, não divide por zero. Com o `?` preguiçoso, a recursão termina.
+
+**Prova** (`test/mini.test.js`, agora com recursão; 68 testes no total, todos a passar). Tudo igual em C, x86-64 e WebAssembly:
+```
+F fat n = ? (n < 2) 1 (n * fat (n - 1))                 -> fat 6  = 720
+F fib n = ? (n < 2) n (fib (n - 1) + fib (n - 2))       -> fib 15 = 610
+F par n = ? (n == 0) 1 (impar (n - 1))                  -> par 10 = 1 (par)
+F impar n = ? (n == 0) 0 (par (n - 1))                     par 7  = 0 (impar)
+```
+Recursão simples, dupla (fib) e **mútua** (par/ímpar). Uma linguagem imperativa completa — variáveis, condicional, ciclos, blocos, funções recursivas — escrita em Onda, compilada pela Onda para três formas, dando o mesmo resultado em todas.
+
+**Próxima.** Voltar ao desempenho: o inline das reduções (`S`) no emissor de C, ou o custo das chamadas no x86.

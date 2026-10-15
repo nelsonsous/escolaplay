@@ -29,6 +29,9 @@ const casos = [
   ['a = 0\nb = 1\ni = 0\nW (i < 10) { t = a + b ; a = b ; b = t ; i = i + 1 }\na\n', '55'],
   ['s = 0\nk = 1\nW (k <= 100) { s = s + k ; k = k + 1 }\ns\n', '5050'],
   ['n = 2\nc = 0\nW (n < 20) { d = 2 ; e = 1 ; W (d < n) { e = ? n % d == 0 0 e ; d = d + 1 } ; c = c + e ; n = n + 1 }\nc\n', '8'],
+  ['F fat n = ? (n < 2) 1 (n * fat (n - 1))\nfat 6\n', '720'],
+  ['F fib n = ? (n < 2) n (fib (n - 1) + fib (n - 2))\nfib 15\n', '610'],
+  ['F par n = ? (n == 0) 1 (impar (n - 1))\nF impar n = ? (n == 0) 0 (par (n - 1))\npar 10\npar 7\n', '1 0'],
 ];
 
 test('mini: programas com variaveis (forma C)', () => {

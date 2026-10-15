@@ -9,7 +9,8 @@
 : letra i>i c || || && >= c 'a <= c 'z && >= c 'A <= c 'Z == c '_
 : nome >i { espaco = h 0 = k 0 W || letra ch && > k 0 && >= ch '0 <= ch '9 { ? < k 8 = h | h << ch * 8 k 0 = k + k 1 adianta } h }
 : busca i>i h { = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? < j @ 5 @ + @ 4 + * 2 j 1 0 }
-: poe ii>i h v { = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? >= j @ 5 { ! + @ 4 * 2 j h ! 5 + @ 5 1 } 0 ! + @ 4 + * 2 j 1 v v }
+: poe ii>i h v { ? @ 8 0 v = j 0 W && < j @ 5 != @ + @ 4 * 2 j h = j + j 1 ? >= j @ 5 { ! + @ 4 * 2 j h ! 5 + @ 5 1 } 0 ! + @ 4 + * 2 j 1 v v }
+: achafn i>i h { = j 0 W && < j @ 7 != @ + @ 6 * 3 j h = j + j 1 ? < j @ 7 j -1 }
 : numero >i { espaco = v 0 W && >= ch '0 <= ch '9 { = v + * v 10 - ch '0 adianta } v }
 # salta um bloco { ... } sem o executar (para quando a condicao do ciclo e falsa)
 : saltabloco >i { espaco ? == ch 123 { adianta = d 1 W && > d 0 >= ch 0 { ? == ch 123 = d + d 1 0 ? == ch 125 = d - d 1 0 adianta } } 0 0 }
@@ -18,9 +19,9 @@
   ? == ch '( { adianta = v atr espaco ? == ch ') adianta 0 v }
   ? == ch 123 { adianta = v 0 espaco W && >= ch 0 != ch 125 { = v atr espaco ? == ch '; { adianta espaco } 0 } adianta v }
   ? == ch '- { adianta - 0 fator }
-  ? letra ch busca nome
+  ? letra ch { = h nome = fi achafn h ? >= fi 0 { = arg fator ? @ 8 { = ph @ + @ 6 + * 3 fi 1 = bp @ + @ 6 + * 3 fi 2 = velho busca ph poe ph arg = ret @ 3 ! 3 bp = r cond ! 3 ret poe ph velho r } 0 } busca h }
   numero }
-: termo >i { = v fator espaco W || || == ch '* == ch '/ == ch '% { = o ch adianta = r fator ? == o '* = v * v r ? == o '/ = v / v r = v % v r espaco } v }
+: termo >i { = v fator espaco W || || == ch '* == ch '/ == ch '% { = o ch adianta = r fator ? == o '* = v * v r ? == o '/ = v ? r / v r 0 = v ? r % v r 0 espaco } v }
 : soma >i { = v termo espaco W || == ch '+ == ch '- { = o ch adianta = r termo ? == o '+ = v + v r = v - v r espaco } v }
 : comp >i {
   = v soma espaco
@@ -29,12 +30,11 @@
     ? == o '< ? eq <= v r < v r ? == o '> ? eq >= v r > v r ? == o '= == v r != v r } v }
 : cond >i {
   espaco
-  ? == ch '? { adianta = c cond = a cond = b cond ? c a b }
+  ? == ch '? { adianta = sa @ 8 = c cond ! 8 && sa c = a cond ! 8 && sa ~ c = b cond ! 8 sa ? c a b }
   ? == ch 'W {
     adianta espaco
     = cs @ 3
-    = go 1
-    W go { ! 3 cs = c fator espaco ? c { fator espaco } { = go 0 saltabloco espaco } }
+    ? @ 8 { = go 1 W go { ! 3 cs = c fator espaco ? c { fator espaco } { = go 0 saltabloco espaco } } } { fator espaco saltabloco espaco }
     0 }
   comp }
 : atr >i {
@@ -43,14 +43,14 @@
 # a linha de topo e atribuicao? (um nome seguido de '=' que nao seja '==')
 : ehatr >i { = p @ 3 espaco = r 0 ? letra ch { nome espaco = r && == ch '= != prox '= } 0 ! 3 p r }
 : main >i {
-  ! 1 A 20000 ! 4 A 4000 ! 5 0
+  ! 1 A 20000 ! 4 A 4000 ! 5 0 ! 6 A 3000 ! 7 0
   = n 0 = c R W && >= c 0 < n 19999 { ! + @ 1 n c = n + n 1 = c R }
-  ! 2 n ! 3 0
+  ! 2 n ! 3 0 ! 8 1
   W < @ 3 @ 2 {
     espaco
     ? < @ 3 @ 2 {
-      = calado || ehatr == ch 'W
-      = v atr
-      ? calado 0 { N v P 10 }
+      ? == ch 'F
+        { adianta espaco = nm nome espaco = pm nome espaco ? == ch '= adianta 0 = e + @ 6 * 3 @ 7 ! e nm ! + e 1 pm ! + e 2 @ 3 ! 7 + @ 7 1 W && >= ch 0 != ch 10 adianta 0 }
+        { = calado || ehatr == ch 'W = v atr ? calado 0 { N v P 10 } }
       espaco ? || || == ch 10 == ch '; == ch 13 adianta 0 } 0 }
   0 }
