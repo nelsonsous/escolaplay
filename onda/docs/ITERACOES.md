@@ -1,6 +1,6 @@
 # Diário das 50 iterações
 
-Estado: **iteração 10 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 11 (atribuição de registos no x86).
+Estado: **iteração 11 de 100 concluída** (as 50 pedidas e mais 50 seguidas: o utilizador pediu para não parar). Próxima: 12 (operandos diretos em registo no x86).
 
 Regra de cada iteração: uma pergunta, o que já existe, o que foi feito, a prova (comando e resultado) e a próxima.
 
@@ -249,3 +249,35 @@ A causa é a geração ingénua: cada valor passa pela memória e cada chamada e
 - **Decisão:** no WebAssembly, a função de cada elemento fica separada (π 1039 ms, Grover 6,9 s); o inlining e os ciclos explícitos ficam só no x86.
 
 **Conclusão:** o x86 continua lento porque cada valor passa pela memória. A próxima peça é atribuir registos.
+
+## Iteração 11: os valores passam a viver em registos
+
+**Pergunta.** Se cada valor do x86 vai à memória e volta, quanto se ganha a guardá-los nos registos do processador?
+
+**O que já existe.** Os compiladores clássicos usam coloração de grafos (Chaitin) ou varrimento linear (Poletto e Sarkar, usado nos JIT por ser rápido). Escolhi o varrimento linear, mas com uma ocupação exata por posição em vez de uma lista de intervalos ativos.
+
+**O que foi feito** (`src/8xreg.onda`, 139 linhas em Onda):
+- **Vida de cada valor:** cada temporário e cada variável tem um intervalo de posições. Os usos da instrução i ficam em 2i+2 e as definições em 2i+3, para que um valor que morre e outro que nasce na mesma instrução possam partilhar o registo.
+- **Ciclos:** quem vive à entrada de um ciclo fica com o registo até ao fim do ciclo.
+- **Variáveis lidas antes de escritas:** uma variável escrita num ramo e lida depois dele pode ser lida sem ter sido escrita. Deteto esse caso contando os fechos de cada nível de condição. Só essas variáveis são postas a zero no início da função; antes, a função zerava a moldura toda com `rep stosq`.
+- **Prioridade:** os valores dos ciclos mais fundos escolhem registo primeiro.
+- **Registos usados:** 10 inteiros (rbx, rsi, rdi, r8 a r14) e 14 reais (xmm2 a xmm15). Os registos rax, rcx, rdx, xmm0 e xmm1 ficam de rascunho, e o r15 é a memória.
+- **Chamadas:** um valor que atravessa uma chamada fica na memória, porque nenhum registo é preservado. Assim a convenção de chamada continua simples.
+- **Movimentos:** cada leitura e escrita escolhe o movimento certo (memória, registo inteiro, xmm, ou `movq` entre os dois). A matemática x87 passa por uma palavra de rascunho.
+- **Limpeza:** o código antigo dos campos no x86 saiu, porque os campos já chegam como ciclos explícitos.
+
+**Prova** (a mesma máquina, a iteração 10 contra a 11):
+
+| programa | antes | depois | ganho |
+|---|---|---|---|
+| fib(35) | 407 ms | 72 ms | 5,6× |
+| autocompilação do compilador nativo | 87 ms | 29 ms | 3,0× |
+| fractal (julia) | 306 ms | 186 ms | 1,6× |
+| Grover (20 qubits) | 9,6 s | 6,8 s | 1,4× |
+| π (200 milhões de pontos) | 4,8 s | 3,5 s | 1,4× |
+
+- Os três pontos fixos continuam fechados.
+- O compilador nativo encolheu de 274 800 para 221 552 bytes.
+- `inteiros`, `reais` e `imagem` dão o mesmo resultado em C, WebAssembly e x86.
+
+**O que falta, e porquê.** O π continua 13× mais lento do que o C. O código ainda passa todos os operandos pelos registos de rascunho. Pior, cada leitura de uma variável real faz a ida e volta xmm → rax → xmm, e isso fica na cadeia do acumulador. A seguir: operandos diretos em registo, movimentos reais sem passar pelo rax, e comparação fundida com o salto.

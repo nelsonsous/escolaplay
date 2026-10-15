@@ -168,6 +168,7 @@
   ? || m && && != @ 12 0 ~ isw ~ isx 0 { ebeg "falta : main >i" eend }
   ? isx inlf 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0
+  ? isx { ! 34 A 420000 ! 35 A 20000 ! 36 A 420000 ! 37 A 420000 ! 38 A 420000 ! 39 A 200008 ! 40 A 20000 ! 42 A 420000 ! 43 A 420000 ! 46 A 10000 ! 47 A 10000 ! 50 xtab } 0
   = k 0
   W < k @ 6 { cfun k = k + k 1 }
   ? isx outx ? isw outw ? isjs outj ? @ 12 outg outc
