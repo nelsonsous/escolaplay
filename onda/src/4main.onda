@@ -185,6 +185,61 @@
   ir 27 0 binx '+ 0 d getl iv binx '* 1 @ dp gy 0 0 0
   lpend iv
   d }
+# --- J g f a : gradiente GENERICO (autodiff interno). f(v0..vK-1) escalar sobre + - * / exp log sin cos;
+# a = array com os K valores de entrada; escreve g[j] = dL/dv_j. Modo forward (K passagens), reusa a RI dual.
+# monx: no de RI unario matematico (15); jdiff: diferencia a arvore do corpo de f em ordem a UMA variavel (xt).
+: monx ii>i c t { = r nt 1 ir 15 r c t 0 0 0 r }
+: jdiff iiii>i k base xt dp {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { ! dp zer 1 = lv newl 1 setl lv lit i 1 lv }
+  ? == kk 0 {
+    = m 0 = loc 0
+    W < m @ fe k 2 { ? teq i xpe k m = loc m 0 = m + m 1 }
+    ! dp ? teq i xt conv lit1 1 1 zer 1
+    = lv newl 1 setl lv getl + base loc lv }
+  { = o tcode i
+    ? == o k2 'E 'x { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 5 getl la ! dp binx '* 1 @ da getl lv lv }
+    ? == o k2 'L 'g { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 6 getl la ! dp binx '/ 1 @ da getl la lv }
+    ? == o k2 'S 'n { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 3 getl la ! dp binx '* 1 @ da monx 4 getl la lv }
+    ? == o k2 'C 's { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 4 getl la ! dp binx '- 1 zer 1 binx '* 1 @ da monx 3 getl la lv }
+    { = da A 1 = db A 1
+      = la jdiff k base xt da
+      = lb jdiff k base xt db
+      = dra @ da = drb @ db
+      = lv newl 1
+      ? == o '+ { ! dp binx '+ 1 dra drb setl lv binx '+ 1 getl la getl lb }
+      ? == o '- { ! dp binx '- 1 dra drb setl lv binx '- 1 getl la getl lb }
+      ? == o '* { ! dp binx '+ 1 binx '* 1 dra getl lb binx '* 1 getl la drb setl lv binx '* 1 getl la getl lb }
+      { = num binx '- 1 binx '* 1 dra getl lb binx '* 1 getl la drb = den binx '* 1 getl lb getl lb ! dp binx '/ 1 num den setl lv binx '/ 1 getl la getl lb }
+      lv } } }
+: cj >i {
+  = g cx
+  ckint g
+  = k fref 1
+  ? == @ fe k 3 0 { ebeg "funcao deve devolver real" eend } 0
+  = a cx
+  ckint a
+  = np @ fe k 2
+  = base @ 9
+  = j 0
+  W < j np {
+    = lj newl 1
+    = ld nt 1
+    ir 26 ld binx '+ 0 a lit1 j 0 0 0 0
+    setl lj ld
+    = j + j 1 }
+  = j 0
+  W < j np {
+    = dp A 1
+    = sv @ 7
+    ! 7 @ fe k 5
+    jdiff k base xpe k j dp
+    ! 7 sv
+    ir 27 0 binx '+ 0 g lit1 j @ dp 0 0 0
+    = j + j 1 }
+  g }
 : cop i>i i {
   = o tcode i
   ? isar o cbin i 2
@@ -232,6 +287,7 @@
   ? == o 'D cd
   ? == o 'B cb
   ? == o 'V cv
+  ? == o 'J cj
   ? == o 'Y csys
   ? == o 'K ? isx cki k3 '_ 'k 'o ckst
   ? == o k2 'K 'c ? isx ckc0 ckcm
