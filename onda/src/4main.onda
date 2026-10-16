@@ -190,6 +190,7 @@
 # monx: no de RI unario matematico (15); jdiff: diferencia a arvore do corpo de f em ordem a UMA variavel (xt).
 : monx ii>i c t { = r nt 1 ir 15 r c t 0 0 0 r }
 : bfx iii>i c a b { = r nt 1 ir 16 r c a b 0 0 r }
+: mmx iii>i m a b { = r nt 1 ir 17 r m a b 0 0 r }
 : jdiff iiii>i k base xt dp {
   = i @ 7
   ! 7 + i 1
@@ -215,6 +216,8 @@
       ? == o '- { ! dp binx '- 1 dra drb setl lv binx '- 1 getl la getl lb }
       ? == o '* { ! dp binx '+ 1 binx '* 1 dra getl lb binx '* 1 getl la drb setl lv binx '* 1 getl la getl lb }
       ? == o k2 'P 'w { setl lv bfx 9 getl la getl lb ! dp binx '+ 1 binx '* 1 binx '* 1 getl lb binx '/ 1 getl lv getl la dra binx '* 1 binx '* 1 getl lv monx 6 getl la drb }
+      ? == o k2 'M 'x { setl lv mmx 1 getl la getl lb ! dp binx '+ 1 drb binx '* 1 monx 0 cmpx '> getl la getl lb binx '- 1 dra drb }
+      ? == o k2 'M 'n { setl lv mmx 0 getl la getl lb ! dp binx '+ 1 drb binx '* 1 monx 0 cmpx '< getl la getl lb binx '- 1 dra drb }
       { = num binx '- 1 binx '* 1 dra getl lb binx '* 1 getl la drb = den binx '* 1 getl lb getl lb ! dp binx '/ 1 num den setl lv binx '/ 1 getl la getl lb }
       lv } } }
 : cj >i {

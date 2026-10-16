@@ -93,10 +93,11 @@ gradiente de um mapa da Onda é, literalmente, um mapa da Onda que corre em AVX/
   entre backends.
 - **J g f a (operador interno genérico)** — gradiente de uma função escalar `f(v0..vK-1)` em ordem a TODAS as
   entradas de uma só vez: `g[j] = ∂f/∂v_j`. Generaliza o `B` (uma variável) para multi-variável e acrescenta as
-  transcendentais: diferencia `+ − × ÷ sqrt pow exp log sin cos` e composições (p.ex. a sigmoide `1/(1+e^-x)`, ou
-  a norma L2 `√(Σx²)` para LayerNorm/RMSNorm — `d(√a)=da/(2√a)`, conferido em `ex/jsqrt.onda`; e a potência
-  `a^b`, `d(a^b)=b·a^{b-1}·da + a^b·ln(a)·db`, em `ex/jpow.onda`). (min/max precisariam de um nó de seleção na
-  árvore adjunta, ainda por fazer.) Modo
+  transcendentais e os seletores: diferencia `+ − × ÷ sqrt pow exp log sin cos min max` e composições (p.ex. a
+  sigmoide `1/(1+e^-x)`; a norma L2 `√(Σx²)` para LayerNorm/RMSNorm — `d(√a)=da/(2√a)`, em `ex/jsqrt.onda`; a
+  potência `a^b`, `d(a^b)=b·a^{b-1}·da + a^b·ln(a)·db`, em `ex/jpow.onda`; e a **ReLU** `max(0,x)` — o adjunto do
+  min/max é *sem ramo*, `d(max a b)=db+[a>b]·(da−db)` com `[a>b]` um nó de comparação, logo determinista ao bit,
+  em `ex/jrelu.onda`). Modo
   forward (K passagens) reusando a RI dual (`binx`/`monx`), logo corre em C/x86/WASM determinista ao bit. `f` é
   uma função de corpo-expressão (sem chavetas). Verificado contra diferenças finitas a ~1e-9 (`ex/jgrad.onda`).
   Princípio da folha mantido: o compilador nunca usa `J`, logo **o ponto-fixo não parte**. (Modo reverso, mais
