@@ -1,0 +1,28 @@
+# aprende-j: rede 2->6->1 treinada pelo operador interno J; emite dados (#) e pesos por epoca (@).
+: loss ffffffffffffffffffffffffffff>f w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 x y t * -1.0 + * t Lg + / 1.0 + 1.0 Ex * -1.0 + * w23 / 1.0 + 1.0 Ex * -1.0 + + * w10 x * w11 y w17 + * w22 / 1.0 + 1.0 Ex * -1.0 + + * w8 x * w9 y w16 + * w21 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w15 + * w20 / 1.0 + 1.0 Ex * -1.0 + + * w4 x * w5 y w14 + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w2 x * w3 y w13 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w12 w24 0.000000001 * - 1.0 t Lg + - 1.0 / 1.0 + 1.0 Ex * -1.0 + * w23 / 1.0 + 1.0 Ex * -1.0 + + * w10 x * w11 y w17 + * w22 / 1.0 + 1.0 Ex * -1.0 + + * w8 x * w9 y w16 + * w21 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w15 + * w20 / 1.0 + 1.0 Ex * -1.0 + + * w4 x * w5 y w14 + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w2 x * w3 y w13 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w12 w24 0.000000001
+: pred fffffffffffffffffffffffffff>f w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 x y / 1.0 + 1.0 Ex * -1.0 + * w23 / 1.0 + 1.0 Ex * -1.0 + + * w10 x * w11 y w17 + * w22 / 1.0 + 1.0 Ex * -1.0 + + * w8 x * w9 y w16 + * w21 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w15 + * w20 / 1.0 + 1.0 Ex * -1.0 + + * w4 x * w5 y w14 + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w2 x * w3 y w13 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w12 w24
+: main >i {
+  = n 120 = dx A n = dy A n = dl A n
+  = i 0 W < i n {
+    = c % i 2 = th * 3.14159265 / F i F - n 1 = cs Cs th = sn Sn th
+    = xr ? == c 0 cs - 1.0 cs = yr ? == c 0 sn - - 1.0 sn 0.5
+    !f + dx i + * 0.08 - - * Sn * F + i 1 12.9898 43758.5453 Fl * Sn * F + i 1 12.9898 43758.5453 0.5 * - xr 0.5 1.3  !f + dy i + * 0.08 - - * Sn * F + i 2 12.9898 43758.5453 Fl * Sn * F + i 2 12.9898 43758.5453 0.5 * - yr 0.15 1.3  !f + dl i F c = i + i 1 }
+  "#" = i 0 W < i n { " " G @f + dx i " " G @f + dy i " " N I @f + dl i = i + i 1 } "\n"
+  = w A 25 = g A 25 = pa A 28 = gg A 28
+  = i 0 W < i 25 { !f + w i * 1.5 - - * Sn * F + i 1 12.9898 43758.5453 Fl * Sn * F + i 1 12.9898 43758.5453 0.5 = i + i 1 }
+  = lr 2.0 = ep 0
+  W < ep 2400 {
+    = i 0 W < i 25 { !f + g i 0.0 = i + i 1 }
+    = nc 0 = k 0
+    W < k n {
+      = xx @f + dx k = yy @f + dy k = tt @f + dl k
+      = i 0 W < i 25 { !f + pa i @f + w i = i + i 1 }
+      !f + pa 25 xx !f + pa 26 yy !f + pa 27 tt
+      J gg loss pa
+      = i 0 W < i 25 { !f + g i + @f + g i @f + gg i = i + i 1 }
+      = pp pred @f + w 0 @f + w 1 @f + w 2 @f + w 3 @f + w 4 @f + w 5 @f + w 6 @f + w 7 @f + w 8 @f + w 9 @f + w 10 @f + w 11 @f + w 12 @f + w 13 @f + w 14 @f + w 15 @f + w 16 @f + w 17 @f + w 18 @f + w 19 @f + w 20 @f + w 21 @f + w 22 @f + w 23 @f + w 24 xx yy
+      = nc + nc ? > pp 0.5 ? == 1 I tt 1 0 ? == 0 I tt 1 0  = k + k 1 }
+    = i 0 W < i 25 { !f + w i - @f + w i * lr / @f + g i F n = i + i 1 }
+    ? == % ep 120 0 { "@" = si 0 W < si 25 { " " G @f + w si = si + si 1 } " " N ep " " N nc "\n" } 0
+    = ep + ep 1 }
+  "fim " N nc "\n" 0 }
