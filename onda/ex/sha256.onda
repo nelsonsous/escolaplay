@@ -1,0 +1,58 @@
+# SHA-256 escrito em Onda: le a mensagem do stdin e imprime o resumo em hex. Exercita todos os operadores de bits
+# (& | ^ << >>), e tem de dar os mesmos 32 bytes em C, x86 e WebAssembly. Trabalha em palavras de 32 bits (mascara M32).
+: m32 >i 4294967295
+: rotr ii>i x n & | >> x n << x - 32 n m32
+: shr ii>i x n >> x n
+: ch iii>i x y z ^ & x y & ^ x m32 z
+: maj iii>i x y z ^ ^ & x y & x z & y z
+: bs0 i>i x ^ ^ rotr x 2 rotr x 13 rotr x 22
+: bs1 i>i x ^ ^ rotr x 6 rotr x 11 rotr x 25
+: ss0 i>i x ^ ^ rotr x 7 rotr x 18 shr x 3
+: ss1 i>i x ^ ^ rotr x 17 rotr x 19 shr x 10
+# constantes K (64) e estado inicial H (8) ficam em memoria, postas por kput/hput
+: kv ii>i i v ! + @ 10 i v
+: setk >i {
+  ! 10 A 64
+  kv 0 1116352408 kv 1 1899447441 kv 2 3049323471 kv 3 3921009573 kv 4 961987163 kv 5 1508970993 kv 6 2453635748 kv 7 2870763221
+  kv 8 3624381080 kv 9 310598401 kv 10 607225278 kv 11 1426881987 kv 12 1925078388 kv 13 2162078206 kv 14 2614888103 kv 15 3248222580
+  kv 16 3835390401 kv 17 4022224774 kv 18 264347078 kv 19 604807628 kv 20 770255983 kv 21 1249150122 kv 22 1555081692 kv 23 1996064986
+  kv 24 2554220882 kv 25 2821834349 kv 26 2952996808 kv 27 3210313671 kv 28 3336571891 kv 29 3584528711 kv 30 113926993 kv 31 338241895
+  kv 32 666307205 kv 33 773529912 kv 34 1294757372 kv 35 1396182291 kv 36 1695183700 kv 37 1986661051 kv 38 2177026350 kv 39 2456956037
+  kv 40 2730485921 kv 41 2820302411 kv 42 3259730800 kv 43 3345764771 kv 44 3516065817 kv 45 3600352804 kv 46 4094571909 kv 47 275423344
+  kv 48 430227734 kv 49 506948616 kv 50 659060556 kv 51 883997877 kv 52 958139571 kv 53 1322822218 kv 54 1537002063 kv 55 1747873779
+  kv 56 1955562222 kv 57 2024104815 kv 58 2227730452 kv 59 2361852424 kv 60 2428436474 kv 61 2756734187 kv 62 3204031479 kv 63 3329325298
+  0 }
+: hex1 i>i d P ? < d 10 + '0 d + 'a - d 10
+: main >i {
+  setk
+  = h A 8
+  ! + h 0 1779033703 ! + h 1 3144134277 ! + h 2 1013904242 ! + h 3 2773480762
+  ! + h 4 1359893119 ! + h 5 2600822924 ! + h 6 528734635 ! + h 7 1541459225
+  = buf A 100000
+  = n 0
+  = c R
+  W && >= c 0 < n 99000 { ! + buf n & c 255 = n + n 1 = c R }
+  # preenchimento: 0x80, zeros, e o comprimento em bits (64 bits big-endian) ate multiplo de 64 bytes
+  = bits * n 8
+  ! + buf n 128
+  = n + n 1
+  W != % n 64 56 { ! + buf n 0 = n + n 1 }
+  = i 0 W < i 8 { ! + buf + n i & >> bits * 8 - 7 i 255 = i + i 1 }
+  = n + n 8
+  = w A 64
+  = b 0
+  W < b n {
+    = i 0 W < i 16 { ! + w i & | | | << @ + buf + b + * i 4 0 24 << @ + buf + b + * i 4 1 16 << @ + buf + b + * i 4 2 8 @ + buf + b + * i 4 3 m32 = i + i 1 }
+    = i 16 W < i 64 { ! + w i & + + + ss1 @ + w - i 2 @ + w - i 7 ss0 @ + w - i 15 @ + w - i 16 m32 = i + i 1 }
+    = a0 @ + h 0 = a1 @ + h 1 = a2 @ + h 2 = a3 @ + h 3 = a4 @ + h 4 = a5 @ + h 5 = a6 @ + h 6 = a7 @ + h 7
+    = i 0
+    W < i 64 {
+      = t1 & + + + + a7 bs1 a4 ch a4 a5 a6 @ + @ 10 i @ + w i m32
+      = t2 & + bs0 a0 maj a0 a1 a2 m32
+      = a7 a6 = a6 a5 = a5 a4 = a4 & + a3 t1 m32 = a3 a2 = a2 a1 = a1 a0 = a0 & + t1 t2 m32
+      = i + i 1 }
+    ! + h 0 & + @ + h 0 a0 m32 ! + h 1 & + @ + h 1 a1 m32 ! + h 2 & + @ + h 2 a2 m32 ! + h 3 & + @ + h 3 a3 m32
+    ! + h 4 & + @ + h 4 a4 m32 ! + h 5 & + @ + h 5 a5 m32 ! + h 6 & + @ + h 6 a6 m32 ! + h 7 & + @ + h 7 a7 m32
+    = b + b 64 }
+  = i 0 W < i 8 { = v @ + h i = j 7 W >= j 0 { hex1 & >> v * 4 j 15 = j - j 1 } = i + i 1 }
+  P 10 0 }

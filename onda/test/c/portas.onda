@@ -1,0 +1,19 @@
+# funcoes inteiras puras que viram circuitos (onda -c nome): o teste compara o circuito com a funcao compilada
+: soma ii>i a b + a b
+: maj iii>i a b c | | & a b & b c & a c
+: mx3 iii>i a b c Mx a Mx b c
+: xs i>i x0 { = x ^ x0 << x0 13 = x ^ x >> x 7 = x ^ x << x 17 x }
+: pc i>i x { = c 0 = i 0 W < i 64 { = c + c & >> x i 1 = i + i 1 } c }
+: mul ii>i a b * a b
+: dif ii>i a b ? < a b - b a - a b
+: sh ii>i a b << a & b 63
+: sr ii>i a b >> a & b 63
+: cmp ii>i a b + + * 4 < a b * 2 == a b >= a b
+: dv ii>i a b / a + 2 & b 1023
+: md ii>i a b % a + 2 & b 1023
+: dn ii>i a b / a - -2 & b 1023
+: mn ii>i a b % a - -2 & b 1023
+: mdc ii>i a0 b0 { = a + 1 & a0 15 = b + 1 & b0 15 W != a b ? > a b = a - a b = b - b a a }
+: col i>i x0 { = x + 1 & x0 7 = n 0 W && != x 1 < n 20 { = x ? & x 1 + * 3 x 1 >> x 1 = n + n 1 } n }
+# ciclos de voltas variaveis: desenrolados ate : lim voltas (aqui, mais do que as 16 que estes precisam)
+: lim >i 24

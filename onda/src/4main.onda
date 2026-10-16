@@ -1,0 +1,389 @@
+# operacoes de memoria, E/S e campos (produzem RI), despacho e saida
+: cld >i { = p cx ckint p = r nt 0 ir 24 r p 0 0 0 0 r }
+: cst >i { = p cx = v cx ckint p ckint v ir 25 0 p v 0 0 0 v }
+: cldf >i { = p cx ckint p = r nt 1 ir 26 r p 0 0 0 0 r }
+: cstf >i { = p cx = v cx ckint p ckflt v ir 27 0 p v 0 0 0 v }
+: calc >i { = n cx ckint n = r nt 0 ir 28 r n 0 0 0 0 r }
+: cput >i { = x cx ckint x ir 29 0 x 0 0 0 0 x }
+: crd >i { = r nt 0 ir 30 r 0 0 0 0 0 r }
+: cnum >i { = x cx ckint x ir 31 0 x 0 0 0 0 x }
+: cgf >i { = x cx ckflt x ir 32 0 x 0 0 0 0 x }
+: csnk >i { = p cx ckint p ir 33 0 p 0 0 0 0 p }
+: cac >i { = r nt 0 ir 34 r 0 0 0 0 0 r }
+: cav >i { = a cx = b cx ckint a ckint b = r nt 0 ir 35 r a b 0 0 0 r }
+: cex >i { = c cx ckint c ir 36 0 c 0 0 0 0 c }
+: ctm >i { = r nt 0 ir 37 r 0 0 0 0 0 r }
+: ckcm >i { = c lit1 9 = z lit1 0 = r nt 0 ir 42 r c z z 0 0 r }
+: cki i>i c { = a cx ckint a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta o armazem" eend } 0 = r rcall k q 1 edge k r }
+: ckc0 >i { = k fby k3 '_ 'k 'c ? < k 0 { ebeg "falta o armazem" eend } 0 = r rcall k 0 0 edge k r }
+: ckst >i { = n cx ckint n = c lit1 8 = z lit1 0 = r nt 0 ir 42 r c n z 0 0 r }
+: csys >i { = c cx = a cx = b cx ckint c ckint a ckint b = r nt 0 ir 42 r c a b 0 0 r }
+: fref i>i m {
+  = i @ 7
+  ? >= i @ 4 { ebeg "falta funcao" eend } 0
+  ! 7 + i 1
+  = k ? tkk i -1 ffun i
+  ? < k 0 { ! 7 i ebeg "esperava funcao" eend } 0
+  ? < @ fe k 2 m { ebeg "funcao com poucos parametros" eend } 0
+  edge k
+  k }
+: ce >i {
+  = d cx
+  = n cx
+  ckint d
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  = a cargs k 1
+  ? || isx isa ? && isx xvan k lowEv d n k a ? && isa xvan k lowEa d n k a lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
+: cs >i {
+  = n cx
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  = a cargs k 1
+  ? isx ? && fastf xvan k lowSv n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
+: cd >i {
+  = w cx
+  = h cx
+  ckint w
+  ckint h
+  = k fref 2
+  ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
+  = a cargs k 2
+  ? isx lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
+: mlib >i && || || == @ 12 0 isw isx != tc @ fe @ 13 0 0 '_
+: mlibp >i && || || || == @ 12 0 isw isx isjs != tc @ fe @ 13 0 0 '_
+: cml2 i>i c { = a cx = b cx ckflt a ckflt b = q A 2 ! q a ! + q 1 b = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 = r rcall k q 2 edge k r }
+: cml i>i c { = a cx ckflt a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 = r rcall k q 1 edge k r }
+: litv i>i p ? == @ p 2 @ + p 2 tokval @ + p 2
+: blit ii>i p t && == @ + p 1 t || == @ p 2 && == @ p 1 ~ tty t
+: cbw >i {
+  = a cx
+  = b cx
+  ckint a
+  ckint b
+  = r nt 1
+  = p + @ 18 * - @ 19 1 8
+  = q - p 8
+  ? && && >= @ 19 2 blit p b blit q a
+    { = vb litv p = va litv q ! 19 - @ 19 2 ir 44 r & va 4294967295 & vb 4294967295 0 0 0 }
+    { ir 43 r a b 0 0 0 }
+  r }
+: usesm >i {
+  = p @ 1
+  = e + @ 1 @ 2
+  = r 0
+  = st 0
+  W && ~ r < + p 1 e {
+    = c @ p
+    = d @ + p 1
+    = ini || == p @ 1 isws @ - p 1
+    ? st
+      { ? == c 92 = p + p 1 ? == c 34 = st 0 0 }
+      { ? && == c 39 ini = p + p 1
+        ? == c 34 = st 1
+        ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
+        ? && || || && == c 'S == d 'n && == c 'C == d 's || || && == c 'E == d 'x && == c 'L == d 'g || && == c 'P == d 'w && == c 'A == d 't
+             && ini || == + p 2 e isws @ + p 2 = r 1 0 }
+    = p + p 1 }
+  r }
+: usesk >i {
+  = p @ 1
+  = e + @ 1 @ 2
+  = r 0
+  = st 0
+  W && ~ r < p e {
+    = c @ p
+    = ini || == p @ 1 isws @ - p 1
+    ? st
+      { ? == c 92 = p + p 1 ? == c 34 = st 0 0 }
+      { ? && == c 39 ini = p + p 1
+        ? == c 34 = st 1
+        ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
+        ? && && == c 'K ini || || == + p 1 e isws @ + p 1 && == @ + p 1 'c || == + p 2 e isws @ + p 2 = r 1 0 }
+    = p + p 1 }
+  r }
+# --- autodiff: diferenciacao simbolica automatica do elemento de um mapa (numeros duais) ---
+# xdiff anda a arvore do resultado (a mesma que o xvan valida: + - * / sobre x e constantes float) e devolve o
+# INDICE de um local float com o valor do no; escreve em *dp o no-RI da derivada d(no)/dx. Regras dos duais:
+# c->(c,0); x->(x,1); A+B->(a+b,da+db); A-B->(a-b,da-db); A*B->(a*b,da*b+a*db); A/B->(a/b,(da*b-a*db)/(b*b)).
+: xdiff ii>i xvl dp {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { ! dp zer 1 = lv newl 1 setl lv lit i 1 lv }
+  ? == kk 0 { ! dp conv lit1 1 1 xvl }
+  { = o tcode i
+    = da A 1
+    = db A 1
+    = la xdiff xvl da
+    = lb xdiff xvl db
+    = dra @ da
+    = drb @ db
+    = lv newl 1
+    ? == o '+ { ! dp binx '+ 1 dra drb setl lv binx '+ 1 getl la getl lb }
+    ? == o '- { ! dp binx '- 1 dra drb setl lv binx '- 1 getl la getl lb }
+    ? == o '* { ! dp binx '+ 1 binx '* 1 dra getl lb binx '* 1 getl la drb setl lv binx '* 1 getl la getl lb }
+    { = num binx '- 1 binx '* 1 dra getl lb binx '* 1 getl la drb = den binx '* 1 getl lb getl lb ! dp binx '/ 1 num den setl lv binx '/ 1 getl la getl lb }
+    lv } }
+# B d n f a : mapa de retropropagacao -- d[i] = f'(a[i]), a derivada do elemento, gerada por xdiff.
+# Compila para um laco em RI (sem macro), logo corre em C, x86 e WASM, determinista ao bit onde o forward e.
+: cb >i {
+  = d cx
+  = n cx
+  ckint d
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  ? == @ fe k 3 0 { ebeg "elemento deve devolver real" eend } 0
+  = a cargs k 1
+  ? == xvan k 0 { ebeg "elemento nao diferenciavel (forma de mapa vetorizavel)" eend } 0
+  = src @ a
+  = iv newl 0
+  = xvl newl 1
+  lpbeg iv n 0
+  = xld nt 1
+  ir 26 xld binx '+ 0 src getl iv 0 0 0 0
+  setl xvl xld
+  = dp A 1
+  = sv @ 7
+  ! 7 + @ fe k 5 7
+  xdiff xvl dp
+  ! 7 sv
+  ir 27 0 binx '+ 0 d getl iv @ dp 0 0 0
+  lpend iv
+  d }
+# V d n f a y : derivada composta (VJP do mapa). d[i] = f'(a[i]) * y[i], a regra da cadeia a montante.
+# E a base do backward: dado o gradiente y que chega do passo seguinte, propaga-o para a entrada do mapa.
+: cv >i {
+  = d cx
+  = n cx
+  ckint d
+  ckint n
+  = k fref 1
+  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  ? == @ fe k 3 0 { ebeg "elemento deve devolver real" eend } 0
+  = a cargs k 1
+  = y cx
+  ckint y
+  ? == xvan k 0 { ebeg "elemento nao diferenciavel (forma de mapa vetorizavel)" eend } 0
+  = src @ a
+  = iv newl 0
+  = xvl newl 1
+  lpbeg iv n 0
+  = xld nt 1
+  ir 26 xld binx '+ 0 src getl iv 0 0 0 0
+  setl xvl xld
+  = dp A 1
+  = sv @ 7
+  ! 7 + @ fe k 5 7
+  xdiff xvl dp
+  ! 7 sv
+  = gy nt 1
+  ir 26 gy binx '+ 0 y getl iv 0 0 0 0
+  ir 27 0 binx '+ 0 d getl iv binx '* 1 @ dp gy 0 0 0
+  lpend iv
+  d }
+# --- J g f a : gradiente GENERICO (autodiff interno). f(v0..vK-1) escalar sobre + - * / exp log sin cos;
+# a = array com os K valores de entrada; escreve g[j] = dL/dv_j. Modo forward (K passagens), reusa a RI dual.
+# monx: no de RI unario matematico (15); jdiff: diferencia a arvore do corpo de f em ordem a UMA variavel (xt).
+: monx ii>i c t { = r nt 1 ir 15 r c t 0 0 0 r }
+: bfx iii>i c a b { = r nt 1 ir 16 r c a b 0 0 r }
+: mmx iii>i m a b { = r nt 1 ir 17 r m a b 0 0 r }
+: jdiff iiii>i k base xt dp {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { ! dp zer 1 = lv newl 1 setl lv lit i 1 lv }
+  ? == kk 0 {
+    = m 0 = loc 0
+    W < m @ fe k 2 { ? teq i xpe k m = loc m 0 = m + m 1 }
+    ! dp ? teq i xt conv lit1 1 1 zer 1
+    = lv newl 1 setl lv getl + base loc lv }
+  { = o tcode i
+    ? == o k2 'E 'x { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 5 getl la ! dp binx '* 1 @ da getl lv lv }
+    ? == o k2 'L 'g { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 6 getl la ! dp binx '/ 1 @ da getl la lv }
+    ? == o k2 'S 'q { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 2 getl la ! dp binx '/ 1 @ da binx '+ 1 getl lv getl lv lv }
+    ? == o k2 'S 'n { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 3 getl la ! dp binx '* 1 @ da monx 4 getl la lv }
+    ? == o k2 'C 's { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 4 getl la ! dp binx '- 1 zer 1 binx '* 1 @ da monx 3 getl la lv }
+    { = da A 1 = db A 1
+      = la jdiff k base xt da
+      = lb jdiff k base xt db
+      = dra @ da = drb @ db
+      = lv newl 1
+      ? == o '+ { ! dp binx '+ 1 dra drb setl lv binx '+ 1 getl la getl lb }
+      ? == o '- { ! dp binx '- 1 dra drb setl lv binx '- 1 getl la getl lb }
+      ? == o '* { ! dp binx '+ 1 binx '* 1 dra getl lb binx '* 1 getl la drb setl lv binx '* 1 getl la getl lb }
+      ? == o k2 'P 'w { setl lv bfx 9 getl la getl lb ! dp binx '+ 1 binx '* 1 binx '* 1 getl lb binx '/ 1 getl lv getl la dra binx '* 1 binx '* 1 getl lv monx 6 getl la drb }
+      ? == o k2 'M 'x { setl lv mmx 1 getl la getl lb ! dp binx '+ 1 drb binx '* 1 monx 0 cmpx '> getl la getl lb binx '- 1 dra drb }
+      ? == o k2 'M 'n { setl lv mmx 0 getl la getl lb ! dp binx '+ 1 drb binx '* 1 monx 0 cmpx '< getl la getl lb binx '- 1 dra drb }
+      { = num binx '- 1 binx '* 1 dra getl lb binx '* 1 getl la drb = den binx '* 1 getl lb getl lb ! dp binx '/ 1 num den setl lv binx '/ 1 getl la getl lb }
+      lv } } }
+: cj >i {
+  = g cx
+  ckint g
+  = k fref 1
+  ? == @ fe k 3 0 { ebeg "funcao deve devolver real" eend } 0
+  = a cx
+  ckint a
+  = np @ fe k 2
+  = base @ 9
+  = j 0
+  W < j np {
+    = lj newl 1
+    = ld nt 1
+    ir 26 ld binx '+ 0 a lit1 j 0 0 0 0
+    setl lj ld
+    = j + j 1 }
+  = j 0
+  W < j np {
+    = dp A 1
+    = sv @ 7
+    ! 7 @ fe k 5
+    jdiff k base xpe k j dp
+    ! 7 sv
+    ir 27 0 binx '+ 0 g lit1 j @ dp 0 0 0
+    = j + j 1 }
+  g }
+: cop i>i i {
+  = o tcode i
+  ? isar o cbin i 2
+  ? isbi o cbin i 0
+  ? iscm o ccmp i
+  ? == o k2 '& '& cand
+  ? == o k2 '| '| cor
+  ? == o '~ cnot
+  ? == o 'F cun 0 0 1
+  ? == o 'I cun 1 1 0
+  ? == o k2 'S 'q cun 2 1 1
+  ? == o k2 'S 'n ? mlib cml k3 '_ 's 'n cun 3 1 1
+  ? == o k2 'C 's ? mlib cml k3 '_ 'c 's cun 4 1 1
+  ? == o k2 'E 'x ? mlib cml k3 '_ 'x 'p cun 5 1 1
+  ? == o k2 'L 'g ? mlib cml k3 '_ 'l 'g cun 6 1 1
+  ? == o k2 'B 'h cun 11 1 0
+  ? == o k2 'B 'l cun 12 1 0
+  ? == o k2 'B 'w cbw
+  ? == o k2 'F 'l cun 7 1 1
+  ? == o k2 'A 'b cun 8 1 1
+  ? == o k2 'P 'w ? mlibp cml2 k3 '_ 'p 'w cbf 9
+  ? == o k2 'A 't ? mlib cml2 k3 '_ 'a 't cbf 10
+  ? == o k2 'M 'n cmm 0
+  ? == o k2 'M 'x cmm 1
+  ? == o '? cif
+  ? == o 'W cwh
+  ? == o '{ cblk
+  ? == o '= cset
+  ? == o '@ cld
+  ? == o '! cst
+  ? == o k2 '@ 'f cldf
+  ? == o k2 '! 'f cstf
+  ? == o 'A calc
+  ? == o 'P cput
+  ? == o 'R crd
+  ? == o 'N cnum
+  ? == o 'G cgf
+  ? == o 'O csnk
+  ? == o k2 'A 'c cac
+  ? == o k2 'A 'v cav
+  ? == o 'X cex
+  ? == o 'T ctm
+  ? == o 'E ce
+  ? == o 'S cs
+  ? == o 'D cd
+  ? == o 'B cb
+  ? == o 'V cv
+  ? == o 'J cj
+  ? == o 'Y csys
+  ? == o 'K ? isx cki k3 '_ 'k 'o ckst
+  ? == o k2 'K 'c ? isx ckc0 ckcm
+  { ! 7 i ebeg "operacao desconhecida" eend } }
+: rdall >i {
+  = s @ 1
+  = n 0
+  = c R
+  W >= c 0 { ? >= n 1000000 { ebeg "fonte grande demais" eend } 0 ! + s n c = n + n 1 = c R }
+  ! 2 n }
+: ismain i>i k { = t @ fe k 0 && == tkl t 4 && && == tc t 0 'm == tc t 1 'a && == tc t 2 'i == tc t 3 'n }
+: argeq i>i k {
+  = t @ fe k 0
+  = l tkl t
+  = j 0
+  = r 1
+  W && r < j l { ? != tc t j Av 2 j = r 0 0 = j + j 1 }
+  && r == Av 2 l 0 }
+: emitf i>i k { ew @ fe k 6 - @ fe k 7 @ fe k 6 ew @ fe k 8 - @ fe k 9 @ fe k 8 }
+: outc >i {
+  prel
+  = k 0
+  W < k @ 6 { sighdr k ";\n" = k + k 1 }
+  = k 0
+  W < k @ 6 { emitf k = k + k 1 }
+  "int main(int c,char**v){oinit(c,v);I r=f_main();oflush();okend();return (int)r;}\n" }
+: reach >i {
+  = e -1
+  = k 0
+  W < k @ 6 { ? argeq k = e k 0 = k + k 1 }
+  ? < e 0 { ebeg "funcao de entrada desconhecida" eend } 0
+  ? || || < @ fe e 2 2 != fpt e 0 fpt e 1 @ fe e 3 { ebeg "funcao de pixel invalida" eend } 0
+  ! fe e 10 1
+  = ch 1
+  W ch {
+    = ch 0
+    = j 0
+    W < j @ 15 {
+      = p + @ 14 * j 2
+      ? && @ fe @ p 10 ~ @ fe @ + p 1 10 { ! fe @ + p 1 10 1 = ch 1 } 0
+      = j + j 1 } }
+  e }
+: outj >i {
+  = e reach
+  = k 0
+  "const obv=new DataView(new ArrayBuffer(8));function obh(x){obv.setFloat64(0,x);return obv.getInt32(0);}"
+  "function obl(x){obv.setFloat64(0,x);return obv.getUint32(4);}function obw(h,l){obv.setInt32(0,h);obv.setUint32(4,l);return obv.getFloat64(0);}\n"
+  W < k @ 6 { ? @ fe k 10 emitf k 0 = k + k 1 }
+  "return f_" etx @ fe e 0 ";\n" }
+: outg >i {
+  = e reach
+  "#version 300 es\nprecision highp float;\nprecision highp int;\nuniform float u[8];\nout vec4 oc;\n"
+  "int obh(float x){return floatBitsToInt(x);}\nint obl(float x){return 0;}\nfloat obw(int h,int l){return intBitsToFloat(h);}\n"
+  = k 0
+  W < k @ 6 { ? @ fe k 10 { sighdr k ";\n" } 0 = k + k 1 }
+  = k 0
+  W < k @ 6 { ? @ fe k 10 emitf k 0 = k + k 1 }
+  "void main(){int c=f_" etx @ fe e 0
+  ? fpt e 0 "(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y)" "(int(gl_FragCoord.x),int(u[2])-1-int(gl_FragCoord.y)"
+  = j 2
+  W < j @ fe e 2 { ? fpt e j { ",u[" N - j 2 "]" } { ",int(u[" N - j 2 "])" } = j + j 1 }
+  ");oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}\n" }
+: main >i {
+  ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 ? && == Av 1 0 '- == Av 1 1 'x 4 ? && == Av 1 0 '- == Av 1 1 'c 5 ? && == Av 1 0 '- == Av 1 1 'v 6 ? && == Av 1 0 '- == Av 1 1 'q 7 ? && == Av 1 0 '- == Av 1 1 'a 8 ? && == Av 1 0 '- == Av 1 1 'm 8 ? && == Av 1 0 '- == Av 1 1 'd 9 0
+  ! 1 A 1000000
+  rdall
+  ? || || isw isx isa { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
+  ? && || || || == @ 12 0 isw isx isjs usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
+  ? && isx usesk { ! 23 + @ 1 @ 2 O 23 xkrt O 0 ! 2 - @ 23 @ 1 } 0
+  ! 3 A + 3 * 3 @ 2
+  ! 5 A 120000
+  ! 8 A 40000
+  ! 10 A 400000
+  ! 14 A 400000
+  ! 16 A 3000000
+  ! 17 A 1500000
+  ! 18 A 800000
+  lex
+  pre
+  = m 0
+  = k 0
+  W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
+  ? || m && && && != @ 12 0 ~ isw ~ isx ~ isa 0 { ebeg "falta : main >i" eend }
+  ? isa { ! 63 A 1000 ! @ 63 0 ! 64 A 8000 ! @ 64 0 ! 65 A 2000 ! @ 65 0 } 0
+  ? || || isx isc isa inlf 0
+  ? isc ! 50 xtab 0
+  ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0
+  ? isx { ! 34 A 420000 ! 35 A 20000 ! 36 A 420000 ! 37 A 420000 ! 38 A 420000 ! 39 A 200008 ! 40 A 20000 ! 42 A 420000 ! 43 A 420000 ! 46 A 10000 ! 47 A 10000 ! 50 xtab ! 51 A 420000 ! 52 A 420000 ! 56 A 420000 ! 57 A 420000 ! 58 A 420000 ! 59 A 420000 ! 60 A 420000 ! 61 A 32 xqs 0 A 1680000 xqs 1 A 100000 xqs 2 A 420000 xqs 6 A 420000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 xqs 17 A 200000 xqs 19 A 420000 xqs 20 A 420000 xqs 21 A 192 } 0
+  ? isc outz
+    { = k 0
+      W < k @ 6 { ? isi rifun k cfun k = k + k 1 }
+      ? isx outx ? isw outw ? isa ? ismo outm outa ? isd 0 ? isjs outj ? @ 12 outg outc }
+  0 }

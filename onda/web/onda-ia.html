@@ -1,0 +1,378 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Motor de IA · Onda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap">
+<style>
+  :root{--ink:#eef2fb;--mut:#9fb0d8;--card:#141a2e;--line:#283255;--a:#7ee0ff;--b:#b98cff;
+    --f:"Baloo 2","Arial Rounded MT Bold",system-ui,sans-serif;color-scheme:dark}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%}
+  body{background:radial-gradient(900px 600px at 50% -10%,#1a2350,transparent 60%),linear-gradient(180deg,#0a0e1c,#0d1228);
+    color:var(--ink);font:15px/1.45 var(--f);-webkit-tap-highlight-color:transparent;min-height:100vh}
+  .wrap{max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:13px;
+    padding:max(16px,env(safe-area-inset-top,0px)) 16px max(18px,env(safe-area-inset-bottom,0px))}
+  h1{margin:0;text-align:center;font-size:23px;font-weight:800}
+  h1 small{display:block;font-size:12.5px;font-weight:700;color:var(--mut)}
+  .art{position:relative;aspect-ratio:1;border-radius:20px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 24px 60px -30px rgba(120,130,255,.5);background:#05070f}
+  .art canvas{position:absolute;inset:0;width:100%;height:100%}
+  .done{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:3;font-weight:800;font-size:13px;color:#06121a;
+    background:var(--a);padding:5px 14px;border-radius:999px;opacity:0;transition:opacity .4s}
+  .done.on{opacity:1}
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .st{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
+  .st b{display:block;font-size:20px;font-weight:800}.st span{font-size:10.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+  .flow{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 15px;color:var(--mut);font-weight:700;font-size:13px;line-height:1.5}
+  .flow b{color:var(--ink)}
+  button{border:0;border-radius:16px;color:#071018;font:800 16px var(--f);padding:13px 0;cursor:pointer;
+    background:linear-gradient(120deg,var(--a),var(--b));box-shadow:0 12px 26px -12px var(--b)}
+  button:active{transform:translateY(2px)}
+</style>
+<div class="wrap">
+  <h1>Motor de IA · Onda <small>uma rede neural que aprende ao vivo</small></h1>
+  <div class="art"><canvas id="cv" width="150" height="150"></canvas><div class="done" id="done">✓ aprendeu!</div></div>
+  <div class="stats">
+    <div class="st"><b id="ep">0</b><span>época</span></div>
+    <div class="st"><b id="ac">—</b><span>precisão</span></div>
+    <div class="st"><b id="ls">—</b><span>perda</span></div>
+  </div>
+  <div class="flow">Inferência: rede <b>2→8→1</b> (ReLU+sigmoide) <b>compilada pela Onda</b> — o campo de cores é a rede a classificar cada ponto do plano. Treino: gradiente simples. Os pontos são os exemplos (duas luas).</div>
+  <button id="again">🔄 Recomeçar</button>
+</div>
+
+<script>
+(function(){
+  var f_nn=(function(){const obv=new DataView(new ArrayBuffer(8));function obh(x){obv.setFloat64(0,x);return obv.getInt32(0);}function obl(x){obv.setFloat64(0,x);return obv.getUint32(4);}function obw(h,l){obv.setInt32(0,h);obv.setUint32(4,l);return obv.getFloat64(0);}
+function f_nn(v_x,v_y,v_w0,v_w1,v_w2,v_w3,v_w4,v_w5,v_w6,v_w7,v_w8,v_w9,v_w10,v_w11,v_w12,v_w13,v_w14,v_w15,v_w16,v_w17,v_w18,v_w19,v_w20,v_w21,v_w22,v_w23,v_w24,v_w25,v_w26,v_w27,v_w28,v_w29,v_w30,v_w31,v_w32){
+let t0=0.0;
+let t1=0.0;
+let t2=0.0;
+let t3=0.0;
+let t4=0.0;
+let t5=0.0;
+let t6=0.0;
+let t7=0.0;
+let t8=0.0;
+let t9=0.0;
+let t10=0.0;
+let t11=0.0;
+let t12=0.0;
+let t13=0.0;
+let t14=0.0;
+let t15=0.0;
+let t16=0.0;
+let t17=0.0;
+let t18=0.0;
+let t19=0.0;
+let t20=0.0;
+let t21=0.0;
+let t22=0.0;
+let t23=0.0;
+let t24=0.0;
+let t25=0.0;
+let t26=0.0;
+let t27=0.0;
+let t28=0.0;
+let t29=0.0;
+let t30=0.0;
+let t31=0.0;
+let t32=0.0;
+let t33=0.0;
+let t34=0.0;
+let t35=0.0;
+let t36=0.0;
+let t37=0.0;
+let t38=0.0;
+let t39=0.0;
+let t40=0.0;
+let t41=0.0;
+let t42=0.0;
+let t43=0.0;
+let t44=0.0;
+let t45=0.0;
+let t46=0.0;
+let t47=0.0;
+let t48=0.0;
+let t49=0.0;
+let t50=0.0;
+let t51=0.0;
+let t52=0.0;
+let t53=0.0;
+let t54=0.0;
+let t55=0.0;
+let t56=0.0;
+let t57=0.0;
+let t58=0.0;
+let t59=0.0;
+let t60=0.0;
+let t61=0.0;
+let t62=0.0;
+let t63=0.0;
+let t64=0.0;
+let t65=0.0;
+let t66=0.0;
+let t67=0.0;
+let t68=0.0;
+let t69=0.0;
+let t70=0.0;
+let t71=0.0;
+let t72=0.0;
+let t73=0.0;
+let t74=0.0;
+let t75=0.0;
+let t76=0.0;
+let t77=0.0;
+let t78=0.0;
+let t79=0.0;
+let t80=0.0;
+let t81=0.0;
+let t82=0.0;
+let t83=0.0;
+let t84=0.0;
+let t85=0.0;
+let t86=0.0;
+let t87=0.0;
+let t88=0.0;
+let t89=0.0;
+let t90=0.0;
+let t91=0.0;
+let t92=0.0;
+let t93=0.0;
+let t94=0.0;
+let t95=0.0;
+let t96=0.0;
+let t97=0.0;
+let t98=0.0;
+let t99=0.0;
+let t100=0.0;
+let t101=0.0;
+let t102=0.0;
+let t103=0.0;
+let t104=0.0;
+let t105=0.0;
+let t106=0.0;
+let t107=0.0;
+let t108=0.0;
+let t109=0.0;
+let t110=0.0;
+let t111=0.0;
+let t112=0.0;
+let t113=0.0;
+let t114=0.0;
+let t115=0.0;
+let t116=0.0;
+let t117=0.0;
+let t118=0.0;
+let t119=0.0;
+let t120=0.0;
+let t121=0.0;
+let t122=0.0;
+let t123=0.0;
+let t124=0.0;
+let t125=0.0;
+let t126=0.0;
+let t127=0.0;
+let t128=0.0;
+let t129=0.0;
+let t130=0.0;
+let t131=0.0;
+let t132=0;
+let v_z0=0.0;
+let v_z1=0.0;
+let v_z2=0.0;
+let v_z3=0.0;
+let v_z4=0.0;
+let v_z5=0.0;
+let v_z6=0.0;
+let v_z7=0.0;
+let v_s=0.0;
+let v_o=0.0;
+t0=0.0;
+t1=v_w0;
+t2=v_x;
+t3=t1*t2;
+t4=v_w1;
+t5=v_y;
+t6=t4*t5;
+t7=t3+t6;
+t8=v_w16;
+t9=t7+t8;
+t10=(t0>t9)?t0:t9;
+v_z0=t10;
+t11=0.0;
+t12=v_w2;
+t13=v_x;
+t14=t12*t13;
+t15=v_w3;
+t16=v_y;
+t17=t15*t16;
+t18=t14+t17;
+t19=v_w17;
+t20=t18+t19;
+t21=(t11>t20)?t11:t20;
+v_z1=t21;
+t22=0.0;
+t23=v_w4;
+t24=v_x;
+t25=t23*t24;
+t26=v_w5;
+t27=v_y;
+t28=t26*t27;
+t29=t25+t28;
+t30=v_w18;
+t31=t29+t30;
+t32=(t22>t31)?t22:t31;
+v_z2=t32;
+t33=0.0;
+t34=v_w6;
+t35=v_x;
+t36=t34*t35;
+t37=v_w7;
+t38=v_y;
+t39=t37*t38;
+t40=t36+t39;
+t41=v_w19;
+t42=t40+t41;
+t43=(t33>t42)?t33:t42;
+v_z3=t43;
+t44=0.0;
+t45=v_w8;
+t46=v_x;
+t47=t45*t46;
+t48=v_w9;
+t49=v_y;
+t50=t48*t49;
+t51=t47+t50;
+t52=v_w20;
+t53=t51+t52;
+t54=(t44>t53)?t44:t53;
+v_z4=t54;
+t55=0.0;
+t56=v_w10;
+t57=v_x;
+t58=t56*t57;
+t59=v_w11;
+t60=v_y;
+t61=t59*t60;
+t62=t58+t61;
+t63=v_w21;
+t64=t62+t63;
+t65=(t55>t64)?t55:t64;
+v_z5=t65;
+t66=0.0;
+t67=v_w12;
+t68=v_x;
+t69=t67*t68;
+t70=v_w13;
+t71=v_y;
+t72=t70*t71;
+t73=t69+t72;
+t74=v_w22;
+t75=t73+t74;
+t76=(t66>t75)?t66:t75;
+v_z6=t76;
+t77=0.0;
+t78=v_w14;
+t79=v_x;
+t80=t78*t79;
+t81=v_w15;
+t82=v_y;
+t83=t81*t82;
+t84=t80+t83;
+t85=v_w23;
+t86=t84+t85;
+t87=(t77>t86)?t77:t86;
+v_z7=t87;
+t88=v_w24;
+t89=v_z0;
+t90=t88*t89;
+t91=v_w25;
+t92=v_z1;
+t93=t91*t92;
+t94=v_w26;
+t95=v_z2;
+t96=t94*t95;
+t97=v_w27;
+t98=v_z3;
+t99=t97*t98;
+t100=v_w28;
+t101=v_z4;
+t102=t100*t101;
+t103=v_w29;
+t104=v_z5;
+t105=t103*t104;
+t106=v_w30;
+t107=v_z6;
+t108=t106*t107;
+t109=v_w31;
+t110=v_z7;
+t111=t109*t110;
+t112=v_w32;
+t113=t111+t112;
+t114=t108+t113;
+t115=t105+t114;
+t116=t102+t115;
+t117=t99+t116;
+t118=t96+t117;
+t119=t93+t118;
+t120=t90+t119;
+v_s=t120;
+t121=1.0;
+t122=1.0;
+t123=-1.0;
+t124=v_s;
+t125=t123*t124;
+t126=Math.exp(t125);
+t127=t122+t126;
+t128=t121/t127;
+v_o=t128;
+t129=v_o;
+t130=16777215.0;
+t131=t129*t130;
+t132=Math.trunc(t131);
+return t132;
+}
+return f_nn;
+})();
+  var H=8, cv=document.getElementById('cv'), ctx=cv.getContext('2d'), RES=150, img=ctx.createImageData(RES,RES), dd=img.data;
+  var SC=2.0; // vista [-2,2]
+  var epEl=document.getElementById('ep'),acEl=document.getElementById('ac'),lsEl=document.getElementById('ls'),doneEl=document.getElementById('done');
+  var W,data,ep;
+
+  function makeData(n){var P=[];for(var i=0;i<n;i++){var th=Math.PI*(i/(n-1)),c=i%2,x,y;
+    if(c===0){x=Math.cos(th);y=Math.sin(th);}else{x=1-Math.cos(th);y=1-Math.sin(th)-0.5;}
+    x+=(Math.random()-.5)*0.18;y+=(Math.random()-.5)*0.18;x=(x-0.5)*1.3;y=(y-0.15)*1.3;P.push([x,y,c]);}return P;}
+  function reset(){ W=[];for(var i=0;i<33;i++)W.push((Math.random()-.5)*1.4); data=makeData(160); ep=0; doneEl.classList.remove('on'); }
+
+  function fwd(x,y){var a=[],s=W[32];for(var h=0;h<H;h++){var z=W[2*h]*x+W[2*h+1]*y+W[16+h],r=z>0?z:0;a.push([z,r]);s+=W[24+h]*r;}return[1/(1+Math.exp(-s)),a];}
+  function train(lr){var g=new Array(33).fill(0),L=0;for(var k=0;k<data.length;k++){var x=data[k][0],y=data[k][1],t=data[k][2];
+    var o=fwd(x,y),p=o[0],a=o[1];L+=-(t*Math.log(p+1e-9)+(1-t)*Math.log(1-p+1e-9));var ds=p-t;g[32]+=ds;
+    for(var h=0;h<H;h++){g[24+h]+=ds*a[h][1];var dz=ds*W[24+h]*(a[h][0]>0?1:0);g[2*h]+=dz*x;g[2*h+1]+=dz*y;g[16+h]+=dz;}}
+    for(var i=0;i<33;i++)W[i]-=lr*g[i]/data.length;return L/data.length;}
+  function acc(){var c=0;for(var k=0;k<data.length;k++)if((fwd(data[k][0],data[k][1])[0]>0.5?1:0)===data[k][2])c++;return c/data.length;}
+
+  function render(){
+    for(var j=0;j<RES;j++)for(var i=0;i<RES;i++){
+      var X=(i/(RES-1)*2-1)*SC, Y=(j/(RES-1)*2-1)*SC;
+      var p=(f_nn(X,Y,W[0],W[1],W[2],W[3],W[4],W[5],W[6],W[7],W[8],W[9],W[10],W[11],W[12],W[13],W[14],W[15],W[16],W[17],W[18],W[19],W[20],W[21],W[22],W[23],W[24],W[25],W[26],W[27],W[28],W[29],W[30],W[31],W[32])>>>0)/16777215;
+      var r=70+(255-70)*p, gg=120+(110-120)*p, b=255+(90-255)*p;
+      var gl=1-Math.abs(p-0.5)*8; if(gl<0)gl=0; r+=gl*110;gg+=gl*110;b+=gl*110;
+      var o=(j*RES+i)*4; dd[o]=r>255?255:r; dd[o+1]=gg>255?255:gg; dd[o+2]=b>255?255:b; dd[o+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+    // pontos
+    for(var k=0;k<data.length;k++){var px=(data[k][0]/SC*0.5+0.5)*RES, py=(data[k][1]/SC*0.5+0.5)*RES;
+      ctx.beginPath();ctx.arc(px,py,2.4,0,6.28);ctx.fillStyle=data[k][2]?'#5a1020':'#0a1c4a';ctx.fill();
+      ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.75)';ctx.stroke();}
+  }
+
+  document.getElementById('again').onclick=reset;
+  reset();
+  function loop(){ requestAnimationFrame(loop);
+    var L=0; for(var s=0;s<4;s++){ L=train(0.6); ep++; }
+    render();
+    var a=acc(); epEl.textContent=ep; acEl.textContent=(a*100).toFixed(0)+'%'; lsEl.textContent=L.toFixed(3);
+    if(a>=0.995) doneEl.classList.add('on');
+  }
+  requestAnimationFrame(loop);
+})();
+</script>

@@ -1,0 +1,28 @@
+#!/bin/sh
+# onda: corre programas Onda. Cache por hash: o que ja foi compilado nunca se recompila.
+set -e
+D=$(cd "$(dirname "$0")" && pwd)
+OC="$D/build/ondac"
+[ -x "$OC" ] || { echo "onda: falta build/ondac (corre ./build.sh)" >&2; exit 1; }
+K="${ONDA_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/onda}"
+CC="${CC:-cc}"
+FL="${ONDA_CFLAGS:--O3 -march=native -fopenmp -fwrapv -w}"
+h() { if command -v sha256sum >/dev/null; then sha256sum | cut -c1-32; else shasum -a 256 | cut -c1-32; fi; }
+c="$1"; [ $# -gt 0 ] && shift
+case "$c" in
+  run|build)
+    f="$1"; shift
+    k=$( { cat "$f"; cat "$OC"; echo "$CC $FL"; } | h )
+    b="$K/$k"
+    if [ ! -x "$b" ]; then
+      mkdir -p "$K"
+      "$OC" < "$f" > "$b.c" || { cat "$b.c" >&2; rm -f "$b.c"; exit 1; }
+      $CC $FL "$b.c" -o "$b" -lm 2>/dev/null || $CC -O3 -fwrapv -w "$b.c" -o "$b" -lm
+    fi
+    [ "$c" = build ] && { echo "$b"; exit 0; }
+    exec "$b" "$@";;
+  c) exec "$OC" < "$1";;
+  gpu) exec "$OC" -g "$2" < "$1";;
+  circ) exec "$OC" -c "$2" < "$1";;
+  *) echo "uso: onda run f.onda [args] | onda build f.onda | onda c f.onda | onda gpu f.onda funcao | onda circ f.onda funcao" >&2; exit 1;;
+esac

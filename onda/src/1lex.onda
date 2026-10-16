@@ -1,0 +1,154 @@
+# ondac: o compilador da Onda, escrito em Onda.
+# memoria: 1 fonte 2 tamanho 3 tokens 4 ntokens 5 funcoes 6 nfuncoes 7 cursor
+# 8 locais 9 nlocais 10 temporarios 11 ntemp 12 gpu 13 funcao atual 14 arestas 15 narestas
+# 16 cursor do corpo 17 cursor do cabecalho
+: k2 ii>i a b + a * 256 b
+: isws i>i c || || == c 32 == c 10 || == c 9 == c 13
+: isdg i>i c && >= c '0 <= c '9
+: tk i>i i + @ 3 * i 3
+: tkk i>i i @ tk i
+: tks i>i i @ + tk i 1
+: tkl i>i i @ + tk i 2
+: tc ii>i i j @ + tks i j
+: tcode i>i i {
+  = l tkl i
+  = s tks i
+  ? > l 3 -1
+  ? == l 1 @ s
+  ? == l 2 + @ s * 256 @ + s 1
+  + + @ s * 256 @ + s 1 * 65536 @ + s 2 }
+: teq ii>i a b {
+  = l tkl a
+  ? != l tkl b 0
+  { = sa tks a
+    = sb tks b
+    = j 0
+    = r 1
+    W && r < j l { ? != @ + sa j @ + sb j = r 0 0 = j + j 1 }
+    r } }
+: ebeg >i { O 0 "\n#error onda: " }
+# distancia de edicao (Levenshtein) entre dois textos (apontador, comprimento), para sugerir nomes parecidos
+: edist iiii>i p a q b {
+  = pr A + b 1
+  = cu A + b 1
+  = j 0 W <= j b { ! + pr j j = j + j 1 }
+  = i 1
+  W <= i a {
+    ! cu 0 i
+    = j 1
+    W <= j b {
+      = c ? == @ + p - i 1 @ + q - j 1 0 1
+      = d1 + @ + pr j 1
+      = d2 + @ + cu - j 1 1
+      = d3 + @ + pr - j 1 c
+      = mn ? < d1 d2 d1 d2
+      = mn ? < d3 mn d3 mn
+      ! + cu j mn
+      = j + j 1 }
+    = tmp pr = pr cu = cu tmp
+    = i + i 1 }
+  @ + pr b }
+# o nome de funcao mais parecido com o token i; -1 se nenhum esta perto
+: esug i>i i {
+  = pa tks i
+  = la tkl i
+  = best -1
+  = bd 999
+  = k 0
+  W < k @ 6 {
+    = t @ fe k 0
+    = d edist pa la tks t tkl t
+    ? < d bd { = bd d = best t 0 } 0
+    = k + k 1 }
+  ? && >= best 0 <= bd ? < la 4 1 2 best -1 }
+: etp >i ? < @ 7 @ 4 tks @ 7 + @ 1 @ 2
+: eln >i { = p @ 1 = e etp = n 1 W < p e { ? == @ p 10 = n + n 1 0 = p + p 1 } n }
+: els >i { = s etp W && > s @ 1 != @ - s 1 10 = s - s 1 s }
+: eend >i {
+  = tp etp
+  = ls els
+  = le tp W && < le + @ 1 @ 2 != @ le 10 = le + le 1
+  " (linha " N eln ", coluna " N + - tp ls 1 ")\n"
+  = p ls W < p le { P @ p = p + p 1 } "\n"
+  = p ls W < p tp { P ? == @ p 9 9 32 = p + p 1 } "^\n"
+  X 1 }
+: ew ii>i s l { = j 0 W < j l { P @ + s j = j + j 1 } 0 }
+: etx i>i i ew tks i tkl i
+# nome de um local no texto: pelo token do nome, ou um nome sintetico v_L<indice> se for anonimo (token 0, criado
+# por newl). Os locais anonimos so aparecem em lacos gerados (lowS/E/D, cb); o compilador nao os usa em si proprio.
+: elnm ii>i nm j ? == nm 0 { "v_L" N j } { "v_" etx nm }
+# operador de uma instrucao binaria/comparacao: por token (cbin/ccmp, campo>0) ou sintetico (binx/cmpx, campo<0
+# = codigo do caractere negado). Os sinteticos so vem dos lacos gerados (lowS/E/D, cb), nunca do compilador em si.
+: eop i>i a ? < a 0 { P - 0 a } { etx a }
+: et i>i t { "t" N t }
+: eq i>i r { et r "=" }
+: isjs >i == @ 12 2
+: isw >i == @ 12 3
+: isx >i == @ 12 4
+: isa >i == @ 12 8
+: isd >i == @ 12 9
+: isi >i && == Av 1 0 '- || == Av 1 1 'i == Av 1 2 'i
+: isc >i && >= @ 12 5 <= @ 12 7
+: ety i>i y ? @ 12 ? isjs "let" ? y "float" "int" ? y "F" "I"
+: ez i>i y ? y "0.0" "0"
+: cpu >i ? @ 12 "\n#error onda: operacao so de CPU\n" 0
+: hasdot ii>i s l { = j 0 = r 0 W < j l { ? == @ + s j '. = r 1 0 = j + j 1 } r }
+: kindof ii>i s l {
+  = c @ s
+  ? || isdg c && && == c '- > l 1 isdg @ + s 1
+    ? hasdot s l 2 1
+  ? == c 39 4
+  ? || && >= c 'a <= c 'z == c '_ 0
+  5 }
+: addtok iii>i k s l { = p tk @ 4 ! p k ! + p 1 s ! + p 2 l ! 4 + @ 4 1 }
+: lex >i {
+  = i 0
+  = n @ 2
+  = b @ 1
+  W < i n {
+    = c @ + b i
+    ? isws c = i + i 1
+    ? == c '# { W && < i n != @ + b i 10 = i + i 1 i }
+    ? == c '" {
+        = s i
+        = i + i 1
+        W && < i n != @ + b i '" { ? == @ + b i 92 = i + i 1 0 = i + i 1 }
+        ? >= i n { ebeg "texto sem fim" eend } 0
+        = i + i 1
+        addtok 3 + b s - i s }
+    { = s i
+      W && < i n ~ isws @ + b i = i + i 1
+      addtok kindof + b s - i s + b s - i s } }
+  0 }
+: fe ii>i k j + + @ 5 * k 12 j
+: fpt ii>i k j ? == @ + tks @ fe k 1 j 'f 1 0
+: ffun i>i i { = k 0 = r -1 W && < r 0 < k @ 6 { ? teq i @ fe k 0 = r k 0 = k + k 1 } r }
+: defn i>i i {
+  ? >= + i 2 @ 4 { ! 7 i ebeg "definicao incompleta" eend } 0
+  = k @ 6
+  = s tks + i 2
+  = l tkl + i 2
+  = g 0
+  W && < g l != @ + s g '> = g + g 1
+  ? != l + g 2 { ! 7 + i 2 ebeg "assinatura invalida" eend } 0
+  = j 0
+  W < j g { ? && != @ + s j 'i != @ + s j 'f { ! 7 + i 2 ebeg "tipo invalido" eend } 0 = j + j 1 }
+  = rt @ + s + g 1
+  ? && != rt 'i != rt 'f { ! 7 + i 2 ebeg "tipo invalido" eend } 0
+  ? != tkk + i 1 0 { ! 7 + i 1 ebeg "nome invalido" eend } 0
+  ? >= ffun + i 1 0 { ! 7 + i 1 ebeg "funcao repetida" eend } 0
+  ! fe k 0 + i 1
+  ! fe k 1 + i 2
+  ! fe k 2 g
+  ! fe k 3 ? == rt 'f 1 0
+  ! fe k 4 + i 3
+  ! fe k 5 + + i 3 g
+  ! 6 + k 1
+  + + i 3 g }
+: pre >i {
+  = i 0
+  W < i @ 4 {
+    ? == tcode i ':
+      = i defn i
+      { ? == @ 6 0 { ! 7 i ebeg "fora de definicao" eend } 0 = i + i 1 } }
+  0 }

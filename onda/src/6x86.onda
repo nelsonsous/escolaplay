@@ -1,0 +1,597 @@
+# emissor x86-64 nativo (-x): executavel ELF escrito byte a byte pela Onda, sem C, assembler nem linker.
+# memoria: M[-16] em 0x10000000, M[0] em 0x10000080 (r15), 64M palavras; area do sistema em 0x30000080.
+# convencao propria: argumentos empilhados da direita para a esquerda, resultado em rax.
+# 25 n de parametros 26 pilha de controlo 27 topo 28 chamadas a corrigir 29 n 30 rotina do sistema 31 inicio do codigo
+: x4 i>i v { P & v 255 P & >> v 8 255 P & >> v 16 255 P & >> v 24 255 }
+: x8 i>i v wword v 8
+: xdisp i>i j ? < j @ 25 + 16 * 8 j * -8 + - j @ 25 1
+: xdt0 i>i t * -8 + + - @ 9 @ 25 t 1
+: xdt i>i t xvmd t
+: xmr ii>i r d { P ? >= r 8 76 72 P 139 P + 133 * 8 & r 7 x4 d }
+: xrm ii>i r d { P ? >= r 8 76 72 P 137 P + 133 * 8 & r 7 x4 d }
+: xlt ii>i r t xldg r tlc t xm t
+: xst ii>i r t xstg r tlc t xdt t
+: xlv ii>i r j xldg r vlc j xvmd + @ 11 j
+: xsv ii>i r j xstg r vlc j xvmd + @ 11 j
+: xi ii>i r v { P ? >= r 8 73 72 P + 184 & r 7 x8 v }
+: xpush i>i d { P 255 P 181 x4 d }
+: xadd i>i v ? v { P 72 P 129 P 196 x4 v } 0
+: xtest >i { P 72 P 133 P 192 }
+: xjcc i>i c { P 15 P c = p @ 16 x4 0 p }
+: xjmp >i { P 233 = p @ 16 x4 0 p }
+: xput4 ii>i p v { ! p & v 255 ! + p 1 & >> v 8 255 ! + p 2 & >> v 16 255 ! + p 3 & >> v 24 255 }
+: xpat i>i p { W p { = n @ p xput4 p - @ 16 + p 4 xjrec p = p n } 0 }
+: xback i>i t { P 233 xjrec @ 16 x4 - t + @ 16 4 }
+# saltos para saltos: no fim de cada funcao, cada salto que cai num jmp passa a ir direto ao destino final
+: xjrec i>i p ? < xq 18 200000 { ! + xq 17 xq 18 p xqs 18 + xq 18 1 } 0
+: xrel i>i p { = v | | | @ p << @ + p 1 8 << @ + p 2 16 << @ + p 3 24 ? & v 2147483648 - v 4294967296 v }
+: xthr >i {
+  = j 0
+  W < j xq 18 {
+    = f @ + xq 17 j
+    = t + + f 4 xrel f
+    = h 0
+    W && < h 8 == @ t 233 { = t + + t 5 xrel + t 1 = h + h 1 }
+    ? h xput4 f - t + f 4 0
+    = j + j 1 }
+  xqs 18 0 }
+: xpsh i>i v { ! + @ 26 @ 27 v ! 27 + @ 27 1 v }
+: xpop >i { ! 27 - @ 27 1 @ + @ 26 @ 27 }
+: xcall i>i k { P 232 = p @ 16 x4 0 = q + @ 28 * @ 29 2 ! q p ! + q 1 k ! 29 + @ 29 1 p }
+: xrt i>i c xcall fby c
+: xsy3 iii>i c a b { P 106 P b P 106 P a P 106 P c xcall -1 }
+: xsetb i>i cc { P 15 P cc P 192 P 15 P 182 P 192 }
+: xcc i>i o ? == o '< 156 ? == o '> 159 ? == o k2 '< '= 158 ? == o k2 '> '= 157 ? == o k2 '= '= 148 149
+# codificadores AVX2 (VEX de 2 e 3 bytes): ymm 0-7, L=256, pp=66 (pd); base sempre r15, indice num GPR baixo, escala 8.
+# cada formula confere byte a byte com a saida do objdump (ver docs/ITERACOES.md it.58).
+: xvop iiii>i o d a b { P 197 P + 128 + * 8 ^ a 15 5 P o P + 192 + * 8 & d 7 & b 7 }
+: xvfma iiii>i o d a b { P 196 P 226 P + 128 + * 8 ^ a 15 5 P o P + 192 + * 8 & d 7 & b 7 }
+: xvfmas iiii>i o d a b { P 196 P 226 P + 128 + * 8 ^ a 15 1 P o P + 192 + * 8 & d 7 & b 7 }
+: xvm iiiii>i b1 o d x dp { P 196 P b1 P 125 P o P + ? dp 64 0 + * 8 & d 7 4 P + 192 + * 8 & x 7 7 ? dp { P & dp 255 } 0 }
+: xvmq ii>i x g { P 196 P 225 P 249 P 110 P + 192 + * 8 & x 7 & g 7 }
+: xvbx ii>i d x { P 196 P 226 P 125 P 25 P + 192 + * 8 & d 7 & x 7 }
+# ajudas de GPR para o laco vetorial (rax/rcx/rdx livres; r8/r9 salvos)
+: xaddr ii>i d s { P + + 72 ? >= s 8 4 0 ? >= d 8 1 0 P 1 P + + 192 * 8 & s 7 & d 7 }
+: xaddi ii>i d v { P + 72 ? >= d 8 1 0 P 131 P + 192 & d 7 P & v 255 }
+: xandi ii>i d v { P + 72 ? >= d 8 1 0 P 131 P + + 192 32 & d 7 P & v 255 }
+: xcmpr ii>i a b { P + + 72 ? >= b 8 4 0 ? >= a 8 1 0 P 57 P + + 192 * 8 & b 7 & a 7 }
+: xpp i>i r { ? >= r 8 P 65 0 P + 88 & r 7 }
+# tabela de constantes na pilha: as constantes do mapa, difundidas uma so vez, lidas por [rsp+k*8]
+: xmst ii>i r dp { P + 72 ? >= r 8 4 0 P 137 P + 68 * 8 & r 7 P 36 P & dp 255 }
+: xvbs ii>i d dp { P 196 P + ? < d 8 128 0 98 P 125 P 25 P + 68 * 8 & d 7 P 36 P & dp 255 }
+# vmovapd ymm_d <- ymm_s (forma store 0x29; o renomeador elimina a copia). Para difundir constantes de ymm8-15.
+: xvmov ii>i d s { P 197 P + ? < s 8 128 0 125 P 41 P + 192 + * 8 & s 7 & d 7 }
+: xmss ii>i d dp { P 242 P 15 P 16 P + 68 * 8 & d 7 P 36 P & dp 255 }
+: xvsts ii>i d dp { P 197 P 253 P 17 P + 68 * 8 & d 7 P 36 P & dp 255 }
+: xadm ii>i d dp { P 242 P 15 P 88 P + 68 * 8 & d 7 P 36 P & dp 255 }
+# codificadores EVEX (AVX-512, zmm 0-15): 8 doubles por instrucao; base r15, escala 8, dp=0 (base dobrada no indice)
+: xm5 iii>i o d x { P 98 P + ? < d 8 128 0 81 P 253 P 72 P o P + 4 * 8 & d 7 P + 199 * 8 & x 7 }
+: xop5 iiii>i o d a b { P 98 P + + ? < d 8 128 0 ? < b 8 32 0 81 P + 133 * 8 ^ a 15 P 72 P o P + 192 + * 8 & d 7 & b 7 }
+: xfma5 iiii>i o d a b { P 98 P + + ? < d 8 128 0 ? < b 8 32 0 82 P + 133 * 8 ^ a 15 P 72 P o P + 192 + * 8 & d 7 & b 7 }
+: xbs5 ii>i d k { P 98 P + ? < d 8 128 0 114 P 253 P 72 P 25 P + 68 * 8 & d 7 P 36 P & k 255 }
+: xmov5 ii>i d s { P 98 P + + ? < d 8 128 0 ? < s 8 32 0 81 P 253 P 72 P 40 P + 192 + * 8 & d 7 & s 7 }
+: xsts5 ii>i d dp { P 98 P + ? < d 8 128 0 113 P 253 P 72 P 17 P + 68 * 8 & d 7 P 36 P & dp 255 }
+# envoltorios cientes da largura w: 1 escalar (SSE), 4 AVX2 (256), 8 AVX-512 (512)
+: pwid >i ? == Av 1 2 '5 8 4
+: vld iii>i w d x ? == w 8 xm5 16 d x ? == w 4 xvm 193 16 d x 0 xmo4 0 242 3856 d x 0 0 15
+: vst iii>i w d x ? == w 8 xm5 17 d x ? == w 4 xvm 193 17 d x 0 xmo4 0 242 3857 d x 0 0 15
+: vbin iiiii>i w o d a b ? == w 8 xop5 o d a b ? == w 4 xvop o d a b { xmap d a xsr 242 0 o d b 0 }
+: vfm iiii>i w d a b ? == w 8 xfma5 184 d a b ? == w 4 xvfma 184 d a b xvfmas 185 d a b
+: vcopy iii>i w d s ? == w 8 xmov5 d s xvmov d s
+: vbmem iii>i w d sl ? == w 8 xbs5 d sl ? == w 4 xvbs d * 8 sl xmss d * 8 sl
+: vhoist ii>i w sl ? == w 8 xbs5 + 8 sl sl xvbs + 8 sl * 8 sl
+: vzero ii>i w d ? == w 8 xop5 87 d d d xvop 87 d d d
+: xsubsp i>i v { P 72 P 129 P 236 x4 v }
+: xaddsp i>i v { P 72 P 129 P 196 x4 v }
+: xvfind iii>i tbl nc b { = j 0 W && < j nc != @ + tbl j b = j + j 1 j }
+: xvcoll ii>i tbl nc {
+  = i @ 7 ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { !f 24 fltval i = b @ 24 ? == xvfind tbl nc b nc { ! + tbl nc b + nc 1 } nc }
+  ? == kk 0 nc
+  { ? isar tcode i { = nc xvcoll tbl nc xvcoll tbl nc } nc } }
+# alocador simples de ymm/xmm 0-7 (bit livre em st): bit posto = livre
+: sbit i>i r << 1 r
+: salloc i>i st { = m @ st = r 0 W && < r 8 == 0 & m sbit r = r + r 1 ? < r 8 { ! st & m ^ sbit r -1 r } -1 }
+: sfree ii>i st r ! st | @ st sbit r
+# salta uma expressao em @7 (forma validada: so + - * / e folhas)
+: xskip >i { = i @ 7 ! 7 + i 1 ? == tkk i 5 { ? isar tcode i { xskip xskip } 0 } 0 }
+: xvaop i>i o ? == o '+ 88 ? == o '- 92 ? == o '* 89 94
+# emite a expressao do resultado em @7 -> registo (w=4 empacotado, w=1 escalar). xr = registo do local x.
+: xvem iiiii>i w st xt xr fma {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { !f 24 fltval i = b @ 24 = sl xvfind @ + st 1 @ + st 2 b = r salloc st
+    ? == w 1 vbmem 1 r sl ? <= @ + st 2 8 vcopy w r + 8 sl vbmem w r sl r }
+  ? == kk 0 xr
+  { = o tcode i
+    = sA @ 7 xskip
+    = sB @ 7 xskip
+    = af @ 7
+    # FMA opcional: + com um operando produto e o outro nao-identificador -> vfmadd231 (acc = acc + a*b).
+    # avalia-se o operando profundo do produto primeiro (para a pressao ficar baixa), o acumulador por ultimo.
+    = bp && && fma == o '+ && == tcode sB '* != tkk sA 0
+    = ap && && && fma == o '+ ~ bp && == tcode sA '* != tkk sB 0
+    ? || bp ap {
+      = pstar ? bp sB sA
+      = sacc ? bp sA sB
+      = so1 + pstar 1
+      ! 7 so1 xskip = so2 @ 7
+      ! 7 so2 = rb xvem w st xt xr fma
+      ! 7 so1 = ra xvem w st xt xr fma
+      ! 7 sacc = acc xvem w st xt xr fma
+      ! 7 af
+      vfm w acc ra rb
+      ? != ra xr sfree st ra 0
+      ? != rb xr sfree st rb 0
+      acc }
+    { ! 7 sB = rb xvem w st xt xr fma
+      ! 7 sA = ra xvem w st xt xr fma
+      ! 7 af
+      = rd salloc st
+      vbin w xvaop o rd ra rb
+      ? != ra xr sfree st ra 0
+      ? != rb xr sfree st rb 0
+      rd } } }
+# macro do mapa vetorizado: campos n=a dst=b src=c k=x. rdx=psrc rcx=pdst rax=n; r8/r9 = fins; ymm0-7.
+: xvmap i>i p {
+  = n @ + p 2
+  = db @ + p 3
+  = sb @ + p 4
+  = k @ + p 5
+  = sv @ 7
+  = st A 3
+  = tbl A 16
+  = b @ fe k 5
+  = rs + b 7
+  = xt + b 2
+  = fma || == Av 1 2 'f == Av 1 2 '5
+  = pw pwid
+  ! + st 1 tbl
+  ! 7 rs = nc xvcoll tbl 0
+  ! + st 2 nc
+  xpr 8 xpr 9
+  xpsv n xpsv db xpsv sb
+  xpp 2 xpp 1 xpp 0
+  xmrr 9 2 xaddr 9 0
+  xmrr 8 0 xandi 8 - 0 pw xaddr 8 2
+  xsubsp 128
+  = j 0 W < j nc { xi 0 @ + tbl j xmst 0 * 8 j = j + j 1 }
+  ? <= nc 8 { = j 0 W < j nc { vhoist pw j = j + j 1 } } 0
+  = t1 @ 16
+  xcmpr 2 8
+  = pe1 xjcc 131
+  ! st 255
+  = xr salloc st
+  vld pw xr 2
+  ! 7 rs = rr xvem pw st xt xr fma
+  vst pw rr 1
+  xaddi 2 pw xaddi 1 pw
+  xback t1
+  xput4 pe1 - @ 16 + pe1 4
+  = t2 @ 16
+  xcmpr 2 9
+  = pe2 xjcc 131
+  ! st 255
+  = x2 salloc st
+  vld 1 x2 2
+  ! 7 rs = r2 xvem 1 st xt x2 fma
+  vst 1 r2 1
+  xaddi 2 1 xaddi 1 1
+  xback t2
+  xput4 pe2 - @ 16 + pe2 4
+  xaddsp 128
+  xpp 9 xpp 8
+  ! 7 sv
+  0 }
+# macro da reducao S vetorizada (so em modo -xf): campos d=resultado n=a src=c k=x. rdx=psrc; r8/r9=fins.
+# acumulador de 4 em ymm (av), reduzido no fim a escalar (as) + a cauda escalar. Reassocia (float).
+: xvsmap i>i p {
+  = d @ + p 1
+  = n @ + p 2
+  = sb @ + p 4
+  = k @ + p 5
+  = sv @ 7
+  = st A 3
+  = tbl A 16
+  = b @ fe k 5
+  = rs + b 7
+  = xt + b 2
+  = fma || == Av 1 2 'f == Av 1 2 '5
+  = pw pwid
+  ! + st 1 tbl
+  ! 7 rs = nc xvcoll tbl 0
+  ! + st 2 nc
+  xpr 8 xpr 9
+  xpsv n xpsv sb
+  xpp 2 xpp 0
+  xmrr 9 2 xaddr 9 0
+  xmrr 8 0 xandi 8 - 0 pw xaddr 8 2
+  xsubsp 192
+  = j 0 W < j nc { xi 0 @ + tbl j xmst 0 * 8 j = j + j 1 }
+  ? <= nc 8 { = j 0 W < j nc { vhoist pw j = j + j 1 } } 0
+  ! st 255
+  = av salloc st
+  = as salloc st
+  vzero pw av
+  vzero pw as
+  = t1 @ 16
+  xcmpr 2 8
+  = pe1 xjcc 131
+  = xr salloc st
+  vld pw xr 2
+  ! 7 rs = rr xvem pw st xt xr fma
+  vbin pw 88 av av rr
+  sfree st xr sfree st rr
+  xaddi 2 pw
+  xback t1
+  xput4 pe1 - @ 16 + pe1 4
+  ? == pw 8 { xsts5 av 0 xadm as 0 xadm as 8 xadm as 16 xadm as 24 xadm as 32 xadm as 40 xadm as 48 xadm as 56 } { xvsts av 0 xadm as 0 xadm as 8 xadm as 16 xadm as 24 }
+  = t2 @ 16
+  xcmpr 2 9
+  = pe2 xjcc 131
+  = x2 salloc st
+  vld 1 x2 2
+  ! 7 rs = r2 xvem 1 st xt x2 fma
+  xsr 242 0 88 as r2 0
+  sfree st x2 sfree st r2
+  xaddi 2 1
+  xback t2
+  xput4 pe2 - @ 16 + pe2 4
+  xaddsp 192
+  xpp 9 xpp 8
+  xstx as tlc d xdt d
+  ! 7 sv
+  0 }
+: xins i>i p {
+  = k @ p
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  ? == k 1 { ? tty d { !f 24 fltval a xcst d @ 24 } xcst d tokval a }
+  ? == k 2 xcst d a
+  ? == k 3 { = n slen a = q sreg a P 104 x4 n P 104 x4 q xrt k3 '_ 'o 's }
+  ? == k 4 xcst d 0
+  ? == k 5 ? @ + @ 58 d 0 xmv tlc d xdt d xvlc + @ 11 b xvmd + @ 11 b
+  ? == k 6 ? || @ + @ 58 + @ 11 c == xfin b xfin + @ 11 c 0 xmv xvlc + @ 11 c xvmd + @ 11 c tlc b xm b
+  ? == k 7 { = j - c 1 W >= j 0 { xpsv @ + b j = j - j 1 } xcall a xst 0 d }
+  ? == k 8 { ? tty d xfb opof a d b c ? @ + @ 56 d { xtsti b c ! 53 133 } xib opof a d b c }
+  ? == k 9 xcmp p
+  ? == k 10 ? @ + @ 56 d xpsh xjf2 a 0 { xtst a P 185 x4 0 xst 1 d xpsh xjcc 132 }
+  ? == k 11 ? @ + @ 56 d ! 54 xjf2 a xpop { xtst a xsetb 149 xst 0 d xpat xpop }
+  ? == k 12 ? @ + @ 56 d xpsh xjt2 a 0 { xtst a P 185 x4 1 xst 1 d xpsh xjcc 133 }
+  ? == k 13 ? @ + @ 56 d { ! 55 xpop ! 54 xjf2 a 0 } { xtst a xsetb 149 xst 0 d xpat xpop }
+  ? == k 14 { xtst a xsetb 148 xst 0 d }
+  ? == k 15 { xun a d b }
+  ? == k 16 { xbf a d b c }
+  ? == k 17 { ? tty b { xfl b xfl1 c P 242 P 15 P ? a 95 93 P 193 xfs d } { xlt 0 b xlt 1 c P 72 P 57 P 200 P 72 P 15 P ? a 78 77 P 193 xst 0 d } }
+  ? == k 18 xjz a
+  ? == k 19 { xmv tlc d xdt d tlc a xm a = j xjmp xpat xpop xpsh j }
+  ? == k 20 { xmv tlc d xdt d tlc a xm a xpat xpop }
+  ? == k 21 { = h @ + xq 1 / - p @ 18 8 xprlo h xali xpsh h xpsh @ 16 }
+  ? == k 22 xjz a
+  ? == k 23 { = j xpop xback xpop xpat j xprst xpop }
+  ? || || == k 24 == k 26 || == k 47 == k 49 xld p
+  ? || || == k 25 == k 27 || == k 48 == k 50 xsto p
+  ? == k 46 { = r xgr d = l xadr tlc a xm a 0 xmo4 1 0 141 r l xm a 0 15 ? == r 0 xst 0 d 0 }
+  ? == k 28 { xpsv a xrt k3 '_ 'o 'a xst 0 d }
+  ? == k 29 { xpsv a xrt k3 '_ 'o 'p }
+  ? == k 30 { xsy3 1 0 0 xst 0 d }
+  ? == k 31 { xpsv a xrt k3 '_ 'o 'n }
+  ? == k 32 { xpsv a xrt k3 '_ 'o 'f }
+  ? == k 33 { xlt 0 a P 73 P 137 P 71 P 240 }
+  ? == k 34 { xsy3 3 0 0 xst 0 d }
+  ? == k 35 { xpsv b xpsv a P 106 P 4 xcall -1 xst 0 d }
+  ? == k 36 { xpsv a xrt k3 '_ 'e 'x }
+  ? == k 37 { xsy3 6 0 0 xst 0 d }
+  ? == k 42 { xpsv c xpsv b xpsv a xcall -1 xst 0 d }
+  ? == k 43 { xlt 0 a P 72 P 193 P 224 P 32 xlt 1 b P 137 P 201 P 72 P 9 P 200 xst 0 d }
+  ? == k 44 xcst d | << a 32 b
+  ? == k 45 0
+  ? == k 41 { xlt 0 a P 201 ? @ 25 { P 194 P & * 8 @ 25 255 P >> * 8 @ 25 8 } P 195 }
+  ? == k 51 xvmap p
+  ? == k 52 xvsmap p
+  { P 15 P 11 } }
+: xfun i>i k {
+  ! 25 @ fe k 2
+  ! 27 0
+  xfold
+  xlicm
+  ? xbase xlicm 0
+  xra
+  O 16
+  xali
+  ! fe k 8 @ 16
+  P 85 P 72 P 137 P 229
+  = s + + - @ 9 @ 25 @ 11 3
+  P 72 P 129 P 236 x4 * 8 s
+  xzer
+  = j 0
+  W < j @ 19 { xins + @ 18 * j 8 = j + j 1 }
+  xthr
+  ! fe k 9 @ 16
+  O 0 }
+: xnop i>i n {
+  ? >= n 8 { P 15 P 31 P 132 P 0 x4 0 xnop - n 8 }
+  ? == n 7 { P 15 P 31 P 128 x4 0 }
+  ? == n 6 { P 102 P 15 P 31 P 68 P 0 P 0 }
+  ? == n 5 { P 15 P 31 P 68 P 0 P 0 }
+  ? == n 4 { P 15 P 31 P 64 P 0 }
+  ? == n 3 { P 15 P 31 P 0 }
+  ? == n 2 { P 102 P 144 }
+  ? == n 1 P 144 0 }
+: xali >i xnop & - 16 & - @ 16 @ 31 15 15
+: xcje i>i v { P 72 P 131 P 248 P v xjcc 132 }
+: xr24 >i { P 201 P 194 P 24 P 0 }
+: xret0 >i { P 49 P 192 xr24 }
+: xsys >i {
+  ! 30 @ 16
+  P 85 P 72 P 137 P 229
+  xmr 0 16
+  = j0 xcje 0
+  = j1 xcje 1
+  = j2 xcje 2
+  = j3 xcje 3
+  = j4 xcje 4
+  = j6 xcje 6
+  = j7 xcje 7
+  = j10 xcje 10
+  xret0
+  xpat j0
+  xmr 6 24
+  xmr 1 32
+  P 73 P 141 P 52 P 247
+  xi 7 805306560
+  P 49 P 210
+  = l @ 16
+  P 72 P 57 P 202
+  = jw xjcc 141
+  P 138 P 4 P 214
+  P 136 P 4 P 23
+  P 72 P 255 P 194
+  xback l
+  xpat jw
+  P 72 P 137 P 202
+  xi 6 805306560
+  = wl @ 16
+  P 72 P 133 P 210
+  = jd1 xjcc 142
+  P 191 x4 1
+  P 184 x4 1
+  P 15 P 5
+  P 72 P 133 P 192
+  = jd2 xjcc 142
+  P 72 P 1 P 198
+  P 72 P 41 P 194
+  xback wl
+  xpat jd1
+  xpat jd2
+  xret0
+  xpat j1
+  xi 1 805306496
+  P 72 P 139 P 65 P 8
+  P 72 P 59 P 65 P 16
+  = jh xjcc 140
+  P 49 P 255
+  P 72 P 141 P 177 x4 4160
+  P 186 x4 65536
+  P 49 P 192
+  P 81 P 15 P 5 P 89
+  P 72 P 133 P 192
+  = je xjcc 142
+  P 72 P 137 P 65 P 16
+  P 49 P 192
+  P 72 P 137 P 65 P 8
+  xpat jh
+  P 72 P 141 P 80 P 1
+  P 72 P 137 P 81 P 8
+  P 15 P 182 P 132 P 1 x4 4160
+  xr24
+  xpat je
+  P 72 P 199 P 192 x4 -1
+  xr24
+  xpat j2
+  ? >= fby k3 '_ 'k 'c 0 xrt k3 '_ 'k 'c 0
+  xmr 7 24
+  P 184 x4 231
+  P 15 P 5
+  xpat j3
+  xi 0 805306496
+  P 72 P 139 P 0
+  P 72 P 139 P 0
+  xr24
+  xpat j4
+  xi 1 805306496
+  P 72 P 139 P 9
+  xmr 0 24
+  xtest
+  = z1 xjcc 140
+  P 72 P 59 P 1
+  = z2 xjcc 141
+  P 72 P 139 P 116 P 193 P 8
+  xmr 2 32
+  P 72 P 133 P 210
+  = z3 xjcc 140
+  P 49 P 201
+  = sl @ 16
+  P 72 P 57 P 209
+  = jg xjcc 141
+  P 128 P 60 P 14 P 0
+  = z4 xjcc 132
+  P 72 P 255 P 193
+  xback sl
+  xpat jg
+  P 15 P 182 P 4 P 22
+  xr24
+  xpat z1
+  xpat z2
+  xpat z3
+  xpat z4
+  xret0
+  xpat j6
+  P 72 P 131 P 236 P 16
+  P 191 x4 1
+  P 72 P 137 P 230
+  P 184 x4 228
+  P 15 P 5
+  P 72 P 139 P 4 P 36
+  P 72 P 105 P 192 x4 1000000
+  P 73 P 137 P 192
+  P 72 P 139 P 68 P 36 P 8
+  P 49 P 210
+  P 185 x4 1000
+  P 72 P 247 P 241
+  P 76 P 1 P 192
+  xr24
+  xpat j7
+  xi 0 67108864
+  xr24
+  xpat j10
+  xmr 1 24
+  P 73 P 141 P 12 P 207
+  P 72 P 139 P 1
+  P 72 P 139 P 121 P 8
+  P 72 P 139 P 113 P 16
+  P 72 P 139 P 81 P 24
+  P 76 P 139 P 81 P 32
+  P 76 P 139 P 65 P 40
+  P 76 P 139 P 73 P 48
+  P 15 P 5
+  xr24
+  0 }
+# armazem no x86 (K n, Kc): escrito em Onda sobre chamadas ao sistema cruas (Y 10 p 0: rax = M[p], rdi rsi rdx r10 r8 r9 = M[p+1..p+6]).
+# Mapeado em privado em 0x100000000; o ficheiro (mapeado so para leitura em 0x4000000000) so muda no Kc ou a saida, pelo diario.
+# M[-8] base, -9 bloco das chamadas, -10 descritor, -11 bytes, -12 nome do diario, -13 rodape
+: xkrt >i "
+: _ksc iiiiiii>i n a b c d e f { = p @ -9 ? p 0 { = p _oa 8 ! -9 p } ! p n ! + p 1 a ! + p 2 b ! + p 3 c ! + p 4 d ! + p 5 e ! + p 6 f Y 10 p 0 }
+: _kad i>i w + 268435584 << w 3
+: _kwi i>i a >> - a 268435584 3
+: _kby i>i a { = d - a 268435584 & >> @ >> d 3 << & d 7 3 255 }
+: _kfc iii>i s w n { = j 0 W < j n { = s * ^ s @ + w j 1099511628211 = j + j 1 } s }
+: _kdf ii>i x y { = j 0 W && < j 512 == @ + x j @ + y j = j + j 1 < j 512 }
+: _kmo >i { \"onda: armazem indisponivel\\n\" _ex 2 }
+: _kwr iiii>i f a l o { W > l 0 { = r ? < o 0 _ksc 1 f a l 0 0 0 _ksc 18 f a l o 0 0 ? <= r 0 _kmo 0 = a + a r = l - l r ? >= o 0 = o + o r 0 } 0 }
+: _kev >i {
+  = w _kwi @ 67108864
+  = e + + w @ w 2
+  = r 0
+  W && ~ r != @ e 0 {
+    = a @ e
+    = j 0
+    W && < j 8 == _kby + a j & >> 5571587566383418959 << j 3 255 = j + j 1
+    ? && == j 8 == _kby + a 8 61 = r + a 9 0
+    = e + e 1 }
+  r }
+: _kjp i>i f {
+  = b _oa 520
+  = i 0
+  W && < i 4150 != _kby + f i 0 { = w + b >> i 3 ! w | @ w << _kby + f i << & i 7 3 = i + i 1 }
+  = w + b >> i 3 ! w | @ w << 46 << & i 7 3
+  = i + i 1
+  = w + b >> i 3 ! w | @ w << 106 << & i 7 3
+  b }
+: _kre ii>i d jp {
+  = j _ksc 2 _kad jp 0 0 0 0 0
+  ? < j 0 0 {
+    = l _ksc 8 j 0 2 0 0 0
+    ? && >= l 24 == % - l 24 4104 0 {
+      = m _ksc 9 549755813888 l 1 18 j 0
+      = w 68685922288
+      = n / - l 24 4104
+      = ft + w >> - l 24 3
+      ? && == m 549755813888 && == @ ft n && == @ + ft 2 3552867634917953103 == @ + ft 1 _kfc -3750763034362895579 w >> - l 24 3 {
+        = i 0
+        W < i n { = r + w * i 513 _kwr d _kad + r 1 4096 << @ r 12 = i + i 1 }
+        _ksc 74 d 0 0 0 0 0 } 0
+      ? == m 549755813888 _ksc 11 549755813888 l 0 0 0 0 0 } 0
+    _ksc 3 j 0 0 0 0 0
+    _ksc 87 _kad jp 0 0 0 0 0 } }
+: _ko i>i n ? @ -8 @ -8 {
+  = z << >> + << Mx n 1 3 4095 12 12
+  = f _kev
+  = d -1
+  ! -13 _oa 4
+  ? f {
+    = jp _kjp f
+    ! -12 jp
+    = d _ksc 2 f 66 420 0 0 0
+    ? < d 0 _kmo 0
+    _kre d jp
+    = sz _ksc 8 d 0 2 0 0 0
+    = z Mx z << >> + sz 4095 12 12
+    ? < sz z _ksc 77 d z 0 0 0 0 0
+    0 } 0
+  ? != _ksc 9 4294967296 z 3 ? f 18 50 d 0 4294967296 _kmo 0
+  ? && f != _ksc 9 274877906944 z 1 17 d 0 274877906944 _kmo 0
+  ! -10 ? f d -1
+  ! -11 z
+  ! -8 503316464
+  @ -8 }
+: _kc >i ? < @ -10 3 0 {
+  = d @ -10
+  = np >> @ -11 12
+  = jp @ -12
+  = t @ -13
+  = j -1
+  = s -3750763034362895579
+  = n 0
+  = i 0
+  W < i np {
+    = pa + 503316464 << i 9
+    ? _kdf pa + 34326183920 << i 9 {
+      ? < j 0 { = j _ksc 2 _kad jp 577 420 0 0 0 ? < j 0 _kmo 0 } 0
+      ! t i
+      _kwr j _kad t 8 -1
+      _kwr j _kad pa 4096 -1
+      = s _kfc * ^ s i 1099511628211 pa 512
+      = n + n 1 } 0
+    = i + i 1 }
+  ? n {
+    ! t n ! + t 1 s ! + t 2 3552867634917953103
+    _kwr j _kad t 24 -1
+    _ksc 74 j 0 0 0 0 0
+    _ksc 3 j 0 0 0 0 0
+    = i 0
+    W < i np { = pa + 503316464 << i 9 ? _kdf pa + 34326183920 << i 9 _kwr d _kad pa 4096 << i 12 0 = i + i 1 }
+    _ksc 74 d 0 0 0 0 0
+    _ksc 87 _kad jp 0 0 0 0 0 } 0
+  n }
+"
+: xpre >i {
+  O 16
+  ! 31 @ 16
+  P 73 P 191 x8 268435584
+  xi 0 805306496
+  P 72 P 137 P 32
+  xrt k3 '_ 'g 'o
+  P 72 P 137 P 199 P 184 x4 231 P 15 P 5
+  xsys
+  O 0 }
+: outx >i {
+  = j 0
+  W < j @ 29 { = q + @ 28 * j 2 = p @ q = k @ + q 1 = t ? < k 0 @ 30 @ fe k 8 xput4 p - t + p 4 = j + j 1 }
+  = cb @ 31
+  = cs - @ 16 cb
+  = fs + 176 cs
+  = mo * 4096 / + fs 4095 4096
+  = dw + 80 - @ 20 64
+  P 127 P 'E P 'L P 'F P 2 P 1 P 1 P 0 x4 0 x4 0
+  P 2 P 0 P 62 P 0 x4 1
+  x8 + 4194304 176
+  x8 64 x8 0 x4 0
+  P 64 P 0 P 56 P 0 P 2 P 0 P 64 P 0 P 0 P 0 P 0 P 0
+  x4 1 x4 5 x8 0 x8 4194304 x8 4194304 x8 fs x8 fs x8 4096
+  x4 1 x4 6 x8 mo x8 268435456 x8 268435456 x8 * 8 dw x8 + + 128 536870912 69696 x8 4096
+  ew cb cs
+  = j fs
+  W < j mo { P 0 = j + j 1 }
+  = j 0
+  W < j 15 { x8 0 = j + j 1 }
+  x8 @ 20
+  = j 0
+  W < j 64 { x8 0 = j + j 1 }
+  = j 0
+  W < j @ 22 { wchr @ + @ 21 * j 2 = j + j 1 }
+  0 }

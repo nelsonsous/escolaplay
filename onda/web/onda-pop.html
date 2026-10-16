@@ -1,0 +1,550 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Onda Pop</title>
+<style>
+  /* Jogo de arcada: o campo da Onda (GPU) é o palco vivo; orbes por cima. Tema único escuro — o campo brilha. */
+  :root{
+    --bg:#140a1e; --panel:#1d1030cc; --line:#3a2152;
+    --fg:#fbe9f4; --mut:#c8a0d2;
+    --pink:#f472b6; --amber:#f59e0b; --cyan:#5ad1c6; --green:#34d399;
+    color-scheme:dark;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(130% 90% at 50% -8%,#311451 0%,var(--bg) 58%) fixed;color:var(--fg);font:16px/1.5 var(--sans);overflow:hidden}
+  .wrap{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;
+    padding-left:max(12px,env(safe-area-inset-left,0px));
+    padding-right:max(12px,env(safe-area-inset-right,0px));
+    padding-block:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-bottom,0px))}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex:0 0 auto}
+  .brand{font:800 18px/1 var(--sans);letter-spacing:-.01em;
+    background:linear-gradient(100deg,var(--pink),var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .brand small{display:block;font:600 9.5px/1.4 var(--mono);letter-spacing:.12em;color:var(--cyan);-webkit-text-fill-color:var(--cyan)}
+  .hud{display:flex;gap:8px}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 11px;text-align:center;min-width:58px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .pill .k{font:700 9px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+  .pill .v{font:800 19px/1.1 var(--sans);margin-top:3px;font-variant-numeric:tabular-nums}
+  #time .v{color:var(--cyan)} #combo .v{color:var(--amber)}
+  .stage{position:relative;flex:1 1 auto;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:#000;min-height:0;
+    box-shadow:0 24px 70px -30px #000,0 0 44px -20px var(--pink)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #orbs{position:absolute;inset:0;touch-action:none}
+  .orb{position:absolute;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;will-change:transform,opacity;
+    box-shadow:0 0 18px 4px var(--g,#fff),inset 0 0 10px 2px #ffffffcc;
+    background:radial-gradient(circle at 38% 34%,#fff 0 22%,var(--g,#fff) 60%,transparent 72%)}
+  .score-fx{position:absolute;transform:translate(-50%,-50%);font:800 18px var(--sans);color:#fff;text-shadow:0 1px 6px #000;pointer-events:none;animation:rise .7s ease-out forwards}
+  @keyframes rise{to{transform:translate(-50%,-150%);opacity:0}}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:28px;
+    background:radial-gradient(90% 70% at 50% 40%,#1d1030e6,#140a1ef2);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:5}
+  .screen h1{margin:0;font:800 clamp(34px,11vw,52px)/1 var(--sans);letter-spacing:-.02em;
+    background:linear-gradient(100deg,var(--pink),var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .screen p{margin:0;color:var(--mut);max-width:30ch;font-size:15px}
+  .screen .big{font:800 56px/1 var(--sans);color:var(--fg);font-variant-numeric:tabular-nums}
+  .screen .big small{display:block;font:700 11px/1 var(--mono);letter-spacing:.1em;color:var(--mut);text-transform:uppercase;margin-bottom:6px}
+  button{font:800 18px var(--sans);color:#1a0a12;background:linear-gradient(120deg,var(--pink),var(--amber));border:0;border-radius:16px;padding:14px 30px;cursor:pointer;
+    box-shadow:0 10px 30px -10px var(--pink);-webkit-tap-highlight-color:transparent}
+  button:active{transform:scale(.96)}
+  .foot{flex:0 0 auto;text-align:center;color:var(--mut);font-size:11.5px;margin-top:9px}
+  .foot b{color:var(--pink)}
+  [hidden]{display:none!important}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">Onda&nbsp;Pop<small>GPU · Onda</small></div>
+    <div class="hud">
+      <div class="pill" id="scoreP"><div class="k">Pontos</div><div class="v" id="score">0</div></div>
+      <div class="pill" id="combo"><div class="k">Combo</div><div class="v" id="comboV">×1</div></div>
+      <div class="pill" id="time"><div class="k">Tempo</div><div class="v" id="timev">30</div></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div id="orbs"></div>
+
+    <div class="screen" id="startS">
+      <h1>Onda Pop</h1>
+      <p>Toca nas bolhas antes que desapareçam. Encadeia-as para combos. O campo todo é a <b>Onda</b> a correr na tua GPU.</p>
+      <button id="startB">Jogar</button>
+    </div>
+
+    <div class="screen" id="overS" hidden>
+      <div class="big"><small>Pontos</small><span id="finalScore">0</span></div>
+      <p id="bestLine">Recorde: 0</p>
+      <button id="againB">Outra vez</button>
+    </div>
+  </div>
+
+  <div class="foot">Motor gráfico: função <b>Onda</b> → <code>ondac -g</code> → GLSL → GPU · ~500 mil campos/frame</div>
+</div>
+
+<script id="frag" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+precision highp int;
+uniform float u[8];
+out vec4 oc;
+int obh(float x){return floatBitsToInt(x);}
+int obl(float x){return 0;}
+float obw(int h,int l){return intBitsToFloat(h);}
+int f_c8(float v_v);
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty,float v_tg);
+int f_c8(float v_v){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+int t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=int(t6);
+return t7;
+}
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty,float v_tg){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+float t7=0.0;
+float t8=0.0;
+float t9=0.0;
+float t10=0.0;
+float t11=0.0;
+float t12=0.0;
+float t13=0.0;
+float t14=0.0;
+float t15=0.0;
+float t16=0.0;
+float t17=0.0;
+float t18=0.0;
+float t19=0.0;
+float t20=0.0;
+float t21=0.0;
+float t22=0.0;
+float t23=0.0;
+float t24=0.0;
+float t25=0.0;
+float t26=0.0;
+float t27=0.0;
+float t28=0.0;
+float t29=0.0;
+float t30=0.0;
+float t31=0.0;
+float t32=0.0;
+float t33=0.0;
+float t34=0.0;
+float t35=0.0;
+float t36=0.0;
+float t37=0.0;
+float t38=0.0;
+float t39=0.0;
+float t40=0.0;
+float t41=0.0;
+float t42=0.0;
+float t43=0.0;
+float t44=0.0;
+float t45=0.0;
+float t46=0.0;
+float t47=0.0;
+float t48=0.0;
+float t49=0.0;
+float t50=0.0;
+float t51=0.0;
+float t52=0.0;
+float t53=0.0;
+float t54=0.0;
+float t55=0.0;
+float t56=0.0;
+float t57=0.0;
+float t58=0.0;
+float t59=0.0;
+float t60=0.0;
+float t61=0.0;
+float t62=0.0;
+float t63=0.0;
+float t64=0.0;
+float t65=0.0;
+float t66=0.0;
+float t67=0.0;
+float t68=0.0;
+float t69=0.0;
+float t70=0.0;
+float t71=0.0;
+float t72=0.0;
+float t73=0.0;
+float t74=0.0;
+float t75=0.0;
+float t76=0.0;
+float t77=0.0;
+float t78=0.0;
+float t79=0.0;
+float t80=0.0;
+float t81=0.0;
+float t82=0.0;
+float t83=0.0;
+float t84=0.0;
+float t85=0.0;
+float t86=0.0;
+float t87=0.0;
+float t88=0.0;
+float t89=0.0;
+float t90=0.0;
+float t91=0.0;
+float t92=0.0;
+float t93=0.0;
+float t94=0.0;
+float t95=0.0;
+float t96=0.0;
+float t97=0.0;
+float t98=0.0;
+float t99=0.0;
+float t100=0.0;
+float t101=0.0;
+float t102=0.0;
+float t103=0.0;
+float t104=0.0;
+float t105=0.0;
+float t106=0.0;
+float t107=0.0;
+float t108=0.0;
+float t109=0.0;
+float t110=0.0;
+float t111=0.0;
+float t112=0.0;
+float t113=0.0;
+float t114=0.0;
+float t115=0.0;
+float t116=0.0;
+float t117=0.0;
+float t118=0.0;
+float t119=0.0;
+float t120=0.0;
+float t121=0.0;
+float t122=0.0;
+float t123=0.0;
+float t124=0.0;
+float t125=0.0;
+float t126=0.0;
+float t127=0.0;
+float t128=0.0;
+float t129=0.0;
+float t130=0.0;
+float t131=0.0;
+float t132=0.0;
+float t133=0.0;
+float t134=0.0;
+float t135=0.0;
+float t136=0.0;
+float t137=0.0;
+float t138=0.0;
+float t139=0.0;
+float t140=0.0;
+int t141=0;
+int t142=0;
+int t143=0;
+float t144=0.0;
+int t145=0;
+int t146=0;
+int t147=0;
+int t148=0;
+float t149=0.0;
+int t150=0;
+int t151=0;
+float v_u=0.0;
+float v_v=0.0;
+float v_d0=0.0;
+float v_base=0.0;
+float v_sw=0.0;
+float v_ux=0.0;
+float v_uy=0.0;
+float v_dr=0.0;
+float v_rw=0.0;
+float v_fade=0.0;
+float v_pop=0.0;
+float v_e=0.0;
+float v_g=0.0;
+float v_rr=0.0;
+float v_gg=0.0;
+float v_bb=0.0;
+t0=v_x;
+t1=0.5;
+t2=v_w;
+t3=t1*t2;
+t4=t0-t3;
+t5=v_h;
+t6=t4/t5;
+v_u=t6;
+t7=v_y;
+t8=0.5;
+t9=v_h;
+t10=t8*t9;
+t11=t7-t10;
+t12=v_h;
+t13=t11/t12;
+v_v=t13;
+t14=v_u;
+t15=v_u;
+t16=t14*t15;
+t17=v_v;
+t18=v_v;
+t19=t17*t18;
+t20=t16+t19;
+t21=sqrt(t20);
+v_d0=t21;
+t22=7.0;
+t23=v_d0;
+t24=t22*t23;
+t25=1.6;
+t26=v_t;
+t27=t25*t26;
+t28=t24-t27;
+t29=sin(t28);
+v_base=t29;
+t30=5.0;
+t31=v_u;
+t32=t30*t31;
+t33=1.1;
+t34=v_t;
+t35=t33*t34;
+t36=t32+t35;
+t37=sin(t36);
+v_sw=t37;
+t38=v_tx;
+t39=0.5;
+t40=v_w;
+t41=t39*t40;
+t42=t38-t41;
+t43=v_h;
+t44=t42/t43;
+v_ux=t44;
+t45=v_ty;
+t46=0.5;
+t47=v_h;
+t48=t46*t47;
+t49=t45-t48;
+t50=v_h;
+t51=t49/t50;
+v_uy=t51;
+t52=v_u;
+t53=v_ux;
+t54=t52-t53;
+t55=v_u;
+t56=v_ux;
+t57=t55-t56;
+t58=t54*t57;
+t59=v_v;
+t60=v_uy;
+t61=t59-t60;
+t62=v_v;
+t63=v_uy;
+t64=t62-t63;
+t65=t61*t64;
+t66=t58+t65;
+t67=sqrt(t66);
+v_dr=t67;
+t68=26.0;
+t69=v_dr;
+t70=1.3;
+t71=v_tg;
+t72=t70*t71;
+t73=t69-t72;
+t74=t68*t73;
+t75=sin(t74);
+v_rw=t75;
+t76=0.0;
+t77=1.0;
+t78=v_tg;
+t79=t77-t78;
+t80=(t76>t79)?t76:t79;
+v_fade=t80;
+t81=v_rw;
+t82=v_fade;
+t83=t81*t82;
+t84=0.0;
+t85=1.0;
+t86=1.8;
+t87=v_dr;
+t88=t86*t87;
+t89=t85-t88;
+t90=(t84>t89)?t84:t89;
+t91=t83*t90;
+v_pop=t91;
+t92=0.30;
+t93=v_base;
+t94=t92*t93;
+t95=0.15;
+t96=v_sw;
+t97=t95*t96;
+t98=1.2;
+t99=v_pop;
+t100=t98*t99;
+t101=t97+t100;
+t102=t94+t101;
+t103=0.0;
+t104=t102+t103;
+v_e=t104;
+t105=0.5;
+t106=0.5;
+t107=v_e;
+t108=t106*t107;
+t109=t105+t108;
+v_g=t109;
+t110=0.62;
+t111=0.38;
+t112=6.283;
+t113=v_g;
+t114=t112*t113;
+t115=0.15;
+t116=t114+t115;
+t117=sin(t116);
+t118=t111*t117;
+t119=t110+t118;
+v_rr=t119;
+t120=0.40;
+t121=0.34;
+t122=6.283;
+t123=v_g;
+t124=t122*t123;
+t125=1.7;
+t126=t124+t125;
+t127=sin(t126);
+t128=t121*t127;
+t129=t120+t128;
+v_gg=t129;
+t130=0.56;
+t131=0.40;
+t132=6.283;
+t133=v_g;
+t134=t132*t133;
+t135=3.1;
+t136=t134+t135;
+t137=sin(t136);
+t138=t131*t137;
+t139=t130+t138;
+v_bb=t139;
+t140=v_rr;
+t141=f_c8(t140);
+t142=65536;
+t143=t141*t142;
+t144=v_gg;
+t145=f_c8(t144);
+t146=256;
+t147=t145*t146;
+t148=t143+t147;
+t149=v_bb;
+t150=f_c8(t149);
+t151=t148+t150;
+return t151;
+}
+void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0],u[1],u[2],u[3],u[4],u[5]);oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}
+</script>
+<script>
+(function(){
+  var cv=document.getElementById('c'), stage=document.getElementById('stage'), orbsEl=document.getElementById('orbs');
+  var gl=cv.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'});
+  var scoreEl=document.getElementById('score'), comboEl=document.getElementById('comboV'), timeEl=document.getElementById('timev');
+  var startS=document.getElementById('startS'), overS=document.getElementById('overS');
+
+  // ---- WebGL: shader da Onda ----
+  var hasGL=!!gl, uLoc=null, W=1,H=1;
+  if(hasGL){
+    var VS='#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.0-1.0,0.0,1.0);}';
+    var FS=document.getElementById('frag').textContent;
+    function sh(ty,s){var o=gl.createShader(ty);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+    var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){hasGL=false;} else { gl.useProgram(pr); uLoc=gl.getUniformLocation(pr,'u'); gl.bindVertexArray(gl.createVertexArray()); }
+  }
+  if(!hasGL){ stage.style.background='radial-gradient(circle at 50% 40%,#3a1550,#140a1e)'; }
+  function resize(){ if(!hasGL) return; var r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+    var s=Math.max(64,Math.min(Math.round(Math.min(r.width,r.height)*dpr),860)); if(s!==W){W=H=s;cv.width=W;cv.height=H;gl.viewport(0,0,W,H);} }
+  window.addEventListener('resize',resize,{passive:true});
+
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // ripple do último toque (em fração 0..1 do palco)
+  var rx=0.5, ry=0.5, rt=-9;
+
+  // ---- Estado do jogo ----
+  var state='start', score=0, combo=1, comboUntil=0, tEnd=0, lastSpawn=0, orbs=[], best=0;
+  try{ best=parseInt(localStorage.getItem('ondapop_best')||'0',10)||0; }catch(e){}
+  function fmtBest(){ document.getElementById('bestLine').textContent='Recorde: '+best; }
+
+  function start(){
+    score=0;combo=1;comboUntil=0;state='play';tEnd=performance.now()+30000;lastSpawn=0;
+    orbs.forEach(function(o){o.el.remove();}); orbs=[];
+    startS.hidden=true; overS.hidden=true; scoreEl.textContent='0'; comboEl.textContent='×1';
+  }
+  function over(){
+    state='over'; orbs.forEach(function(o){o.el.remove();}); orbs=[];
+    if(score>best){best=score;try{localStorage.setItem('ondapop_best',String(best));}catch(e){}}
+    document.getElementById('finalScore').textContent=score; fmtBest(); overS.hidden=false;
+  }
+  document.getElementById('startB').onclick=start;
+  document.getElementById('againB').onclick=start;
+  fmtBest();
+
+  var HUES=['#f472b6','#f59e0b','#5ad1c6','#34d399','#a78bfa'];
+  function spawn(now){
+    var o={ x:0.12+0.76*Math.random(), y:0.12+0.76*Math.random(),
+            r:0.5+Math.random()*0.5, born:now, life:1500+Math.random()*900,
+            g:HUES[(Math.random()*HUES.length)|0] };
+    var el=document.createElement('div'); el.className='orb'; el.style.setProperty('--g',o.g);
+    orbsEl.appendChild(el); o.el=el; orbs.push(o);
+  }
+  function orbPx(o){ var r=stage.getBoundingClientRect(); return {cx:o.x*r.width, cy:o.y*r.height, R:Math.min(r.width,r.height)*0.09*o.r}; }
+
+  function popAt(fx,fy){
+    rx=fx;ry=fy;rt=performance.now();
+    if(state!=='play') return;
+    var rct=stage.getBoundingClientRect(), px=fx*rct.width, py=fy*rct.height, hit=-1, hd=1e9;
+    for(var i=0;i<orbs.length;i++){ var p=orbPx(orbs[i]); var d=Math.hypot(px-p.cx,py-p.cy); if(d<p.R+22 && d<hd){hd=d;hit=i;} }
+    if(hit>=0){
+      var o=orbs[hit], now=performance.now();
+      combo = now<comboUntil ? Math.min(combo+1,9) : 1; comboUntil=now+1400;
+      var pts=10*combo; score+=pts;
+      scoreEl.textContent=score; comboEl.textContent='×'+combo;
+      var fx2=document.createElement('div'); fx2.className='score-fx'; fx2.textContent='+'+pts;
+      fx2.style.left=(o.x*100)+'%'; fx2.style.top=(o.y*100)+'%'; fx2.style.color=o.g; orbsEl.appendChild(fx2);
+      setTimeout(function(){fx2.remove();},700);
+      o.el.remove(); orbs.splice(hit,1);
+    } else { combo=1; comboEl.textContent='×1'; }
+  }
+  orbsEl.addEventListener('pointerdown',function(e){ var r=stage.getBoundingClientRect();
+    popAt((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height); },{passive:true});
+
+  // ---- Loop ----
+  var t0=performance.now();
+  function frame(now){
+    resize();
+    if(hasGL){ var t=(now-t0)/1000*(reduce?0.3:1), age=(now-rt)/1000;
+      gl.uniform1fv(uLoc,[t,W,H,rx*W,ry*H,age,0,0]); gl.drawArrays(gl.TRIANGLES,0,3); }
+    if(state==='play'){
+      var left=Math.max(0,(tEnd-now)/1000); timeEl.textContent=Math.ceil(left);
+      if(left<=0){ over(); }
+      else{
+        if(now-lastSpawn > (reduce?820:560)){ lastSpawn=now; if(orbs.length<7) spawn(now); }
+        for(var i=orbs.length-1;i>=0;i--){ var o=orbs[i], a=(now-o.born)/o.life;
+          if(a>=1){ o.el.remove(); orbs.splice(i,1); combo=1; comboEl.textContent='×1'; continue; }
+          var pop=a<0.18? a/0.18 : 1, sc=pop*(1-0.15*Math.max(0,(a-0.7)/0.3)), op=a>0.8?(1-a)/0.2:1;
+          var p=orbPx(o); o.el.style.left=(o.x*100)+'%'; o.el.style.top=(o.y*100)+'%';
+          var d=p.R*2; o.el.style.width=d+'px'; o.el.style.height=d+'px';
+          o.el.style.transform='translate(-50%,-50%) scale('+sc.toFixed(3)+')'; o.el.style.opacity=op.toFixed(2);
+        }
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>

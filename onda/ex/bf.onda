@@ -1,0 +1,34 @@
+# Interpretador de Brainfuck escrito em Onda: le o programa do stdin e corre-o. Mostra que a linguagem
+# corre programas nao triviais (Turing-completos), e da o mesmo resultado em C, x86 e WebAssembly.
+# Os 8 comandos: > < + - . , [ ]   (tudo o resto e comentario). A entrada do programa BF vem depois de um \0.
+# @1 programa @2 tamanho @3 saltos (fecho de cada [) @4 celulas
+: ler ii>i p max { = n 0 = c R W && >= c 0 < n max { ! + p n c = n + n 1 = c R } n }
+: casa i>i n {
+  = s A n
+  = topo 0
+  = i 0
+  W < i n {
+    = c @ + @ 1 i
+    ? == c '[ { ! + s topo i = topo + topo 1 } 0
+    ? == c '] { = topo - topo 1 = j @ + s topo ! + @ 3 j i ! + @ 3 i j } 0
+    = i + i 1 }
+  0 }
+: main >i {
+  ! 1 A 100000
+  ! 2 ler @ 1 100000
+  ! 3 A @ 2
+  casa @ 2
+  = cel A 30000
+  = cab 0
+  = ip 0
+  W < ip @ 2 {
+    = c @ + @ 1 ip
+    ? == c '> { = cab + cab 1 } 0
+    ? == c '< { = cab - cab 1 } 0
+    ? == c '+ { = q + cel cab ! q & + @ q 1 255 } 0
+    ? == c '- { = q + cel cab ! q & + + @ q 255 0 255 } 0
+    ? == c '. P @ + cel cab 0
+    ? == c '[ ? == @ + cel cab 0 = ip @ + @ 3 ip 0 0
+    ? == c '] ? != @ + cel cab 0 = ip @ + @ 3 ip 0 0
+    = ip + ip 1 }
+  0 }

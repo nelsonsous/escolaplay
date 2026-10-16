@@ -1,0 +1,54 @@
+# Autodiff (preparacao): gradiente de uma regressao linear por modo-reverso, conferido por diferencas finitas.
+# Mostra a dualidade das operacoes de campo de que o autodiff precisa:
+#   forward : um MAPA  (pred[i] = w*x[i] + b)  e uma REDUCAO (perda = media de (pred-y)^2).
+#   backward: a REDUCAO e o adjunto do BROADCAST -> dL/db = Σ g[i];  dL/dw = Σ g[i]*x[i].
+# Regra: o adjunto de um mapa e um mapa; o adjunto de uma soma e um broadcast (e vice-versa). Aqui ve-se os
+# dois lados. O gradiente analitico (adjunto) tem de bater o numerico (dif. finitas centradas) a ~6 digitos.
+# uso: ./onda run ex/autodiff.onda [n]
+
+: fwd iiff>f i xb w b + * w @f + xb i b                 # pred[i] = w*x[i] + b         (elemento do mapa)
+: sq iii>f i pb yb { = d - @f + pb i @f + yb i * d d }  # (pred[i]-y[i])^2             (nucleo da reducao)
+: res iii>f i pb yb - @f + pb i @f + yb i               # pred[i]-y[i]  (grad a montante, sem o 2/n)
+: wgt iii>f i gb xb * @f + gb i @f + xb i               # g[i]*x[i]
+: idf ii>f i gb @f + gb i                               # g[i]        (a soma e o adjunto do broadcast de b)
+
+: fill iii>i xb yb n {
+  = i 0
+  W < i n {
+    = xi F + % i 7 1
+    !f + xb i xi
+    !f + yb i + * 2.0 xi 1.0                             # y[i] = 2*x[i] + 1 (w,b verdadeiros = 2,1)
+    = i + i 1 }
+  0 }
+
+# perda(w,b) = media de (w*x[i]+b - y[i])^2 -- reconstroi o forward (mapa + reducao) para as diferencas finitas
+: perda iiiff>f n xb yb w b {
+  = p A n
+  E p n fwd xb w b
+  / S n sq p yb F n }
+
+: natoi i>i a { = v 0 = j 0 = c Av a 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = j + j 1 = c Av a j } v }
+
+: main >i {
+  = n ? >= Ac 2 natoi 1 256
+  = xb A n
+  = yb A n
+  fill xb yb n
+  = w 0.5                                                # ponto onde avaliamos o gradiente (longe do otimo)
+  = b 0.0
+  # --- backward: modo reverso (adjunto) ---
+  = p A n
+  E p n fwd xb w b                                      # forward: pred (um mapa)
+  = g A n
+  E g n res p yb                                        # g[i] = pred[i]-y[i]  (adjunto da perda, sem 2/n)
+  = k / 2.0 F n
+  = gw * k S n wgt g xb                                 # dL/dw = (2/n) Σ g[i]·x[i]   (reducao)
+  = gb * k S n idf g                                    # dL/db = (2/n) Σ g[i]        (reducao = adj. broadcast)
+  # --- numerico: diferencas finitas centradas (verdade de terreno) ---
+  = e 0.001
+  = fdw / - perda n xb yb + w e b perda n xb yb - w e b * 2.0 e
+  = fdb / - perda n xb yb w + b e perda n xb yb w - b e * 2.0 e
+  "autodiff n=" N n "\n"
+  "dL/dw adjunto=" G gw " numerico=" G fdw "\n"
+  "dL/db adjunto=" G gb " numerico=" G fdb "\n"
+  0 }
