@@ -93,7 +93,8 @@ gradiente de um mapa da Onda é, literalmente, um mapa da Onda que corre em AVX/
   entre backends.
 - **J g f a (operador interno genérico)** — gradiente de uma função escalar `f(v0..vK-1)` em ordem a TODAS as
   entradas de uma só vez: `g[j] = ∂f/∂v_j`. Generaliza o `B` (uma variável) para multi-variável e acrescenta as
-  transcendentais: diferencia `+ − × ÷ exp log sin cos` e composições (p.ex. a sigmoide `1/(1+e^-x)`). Modo
+  transcendentais: diferencia `+ − × ÷ sqrt exp log sin cos` e composições (p.ex. a sigmoide `1/(1+e^-x)`, ou
+  a norma L2 `√(Σx²)` para LayerNorm/RMSNorm — `d(√a)=da/(2√a)`, conferido em `ex/jsqrt.onda`). Modo
   forward (K passagens) reusando a RI dual (`binx`/`monx`), logo corre em C/x86/WASM determinista ao bit. `f` é
   uma função de corpo-expressão (sem chavetas). Verificado contra diferenças finitas a ~1e-9 (`ex/jgrad.onda`).
   Princípio da folha mantido: o compilador nunca usa `J`, logo **o ponto-fixo não parte**. (Modo reverso, mais

@@ -202,6 +202,7 @@
   { = o tcode i
     ? == o k2 'E 'x { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 5 getl la ! dp binx '* 1 @ da getl lv lv }
     ? == o k2 'L 'g { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 6 getl la ! dp binx '/ 1 @ da getl la lv }
+    ? == o k2 'S 'q { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 2 getl la ! dp binx '/ 1 @ da binx '+ 1 getl lv getl lv lv }
     ? == o k2 'S 'n { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 3 getl la ! dp binx '* 1 @ da monx 4 getl la lv }
     ? == o k2 'C 's { = da A 1 = la jdiff k base xt da = lv newl 1 setl lv monx 4 getl la ! dp binx '- 1 zer 1 binx '* 1 @ da monx 3 getl la lv }
     { = da A 1 = db A 1
