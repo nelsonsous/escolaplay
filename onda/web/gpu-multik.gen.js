@@ -5,19 +5,23 @@ const fs=require('fs'), cp=require('child_process');
 const ROOT='/home/user/escolaplay/onda';
 const K=+process.argv[2]||6, H=+process.argv[3]||24, TW=2.4, SC=1.3, EP=+process.argv[4]||9000, LR=+process.argv[5]||5.0, NPER=70;
 const NAME=process.argv[6]||'gpu-flor';
+const ACT=process.argv[7]||'sig';                          // 'sig' | 'relu' (ReLU = fronteiras poligonais)
+const TITLE=ACT==='relu'?'Onda · GPU ReLU':'Onda · GPU Flor';
 function rnd(j){var h=Math.sin(j*12.9898)*43758.5453;return (h-Math.floor(h))-0.5;}
 const D=[]; for(let c=0;c<K;c++)for(let i=0;i<NPER;i++){const t=i/(NPER-1),r=0.12+0.98*t;
   const ang=t*TW*Math.PI+c*2*Math.PI/K+0.14*rnd(c*911+i+1); D.push([r*Math.cos(ang),r*Math.sin(ang),c]);}
 let Wx=[],Wy=[],B=[],V=[],C=[]; for(let c=0;c<K;c++){V.push([]);C.push(0);}
 for(let i=0;i<H;i++){Wx[i]=rnd(i+1)*2.4;Wy[i]=rnd(i+101)*2.4;B[i]=rnd(i+201)*0.5;for(let c=0;c<K;c++)V[c][i]=rnd(c*57+i+301)*1.1;}
 const sig=z=>1/(1+Math.exp(-z));
-function logits(x,y){const h=[];for(let i=0;i<H;i++)h[i]=sig(Wx[i]*x+Wy[i]*y+B[i]);
-  return {h,z:C.map((c0,c)=>{let s=c0;for(let i=0;i<H;i++)s+=V[c][i]*h[i];return s;})};}
+const act=ACT==='relu'?(z=>Math.max(0,z)):sig;
+function logits(x,y){const h=[],pre=[];for(let i=0;i<H;i++){pre[i]=Wx[i]*x+Wy[i]*y+B[i];h[i]=act(pre[i]);}
+  return {h,pre,z:C.map((c0,c)=>{let s=c0;for(let i=0;i<H;i++)s+=V[c][i]*h[i];return s;})};}
 function soft(z){const m=Math.max(...z),e=z.map(v=>Math.exp(v-m)),S=e.reduce((a,b)=>a+b,0);return e.map(v=>v/S);}
 for(let ep=0;ep<EP;ep++){let gWx=Array(H).fill(0),gWy=Array(H).fill(0),gB=Array(H).fill(0),gV=V.map(_=>Array(H).fill(0)),gC=Array(K).fill(0);
-  for(const [x,y,c] of D){const {h,z}=logits(x,y),p=soft(z),dz=p.slice();dz[c]-=1;
+  for(const [x,y,c] of D){const {h,pre,z}=logits(x,y),p=soft(z),dz=p.slice();dz[c]-=1;
     for(let cc=0;cc<K;cc++){gC[cc]+=dz[cc];for(let i=0;i<H;i++)gV[cc][i]+=dz[cc]*h[i];}
-    for(let i=0;i<H;i++){let dh=0;for(let cc=0;cc<K;cc++)dh+=dz[cc]*V[cc][i];const dp=dh*h[i]*(1-h[i]);gWx[i]+=dp*x;gWy[i]+=dp*y;gB[i]+=dp;}}
+    for(let i=0;i<H;i++){let dh=0;for(let cc=0;cc<K;cc++)dh+=dz[cc]*V[cc][i];
+      const dact=ACT==='relu'?(pre[i]>0?1:0):h[i]*(1-h[i]);const dp=dh*dact;gWx[i]+=dp*x;gWy[i]+=dp*y;gB[i]+=dp;}}
   const n=D.length,lr=LR/n;for(let i=0;i<H;i++){Wx[i]-=lr*gWx[i];Wy[i]-=lr*gWy[i];B[i]-=lr*gB[i];for(let c=0;c<K;c++)V[c][i]-=lr*gV[c][i];}for(let c=0;c<K;c++)C[c]-=lr*gC[c];}
 let nc=0;for(const [x,y,c] of D){const p=soft(logits(x,y).z);if(p.indexOf(Math.max(...p))===c)nc++;}
 const ACC=(nc/D.length*100).toFixed(1); console.error('K='+K+' H='+H+' treino JS: precisao='+ACC+'%');
@@ -32,7 +36,8 @@ const PAL=[],HEX=[]; for(let c=0;c<K;c++){const[r,g,b]=hsv(c/K,0.68,1.0);PAL.pus
 const fl=x=>{let s=(+x).toFixed(7).replace(/0+$/,'').replace(/\.$/,'.0');return s;};
 const mapLines=()=>['  = xn * '+fl(SC)+' - * 2.0 / x - w 1.0 1.0','  = yn * '+fl(SC)+' - * 2.0 / y - h 1.0 1.0'];
 function coreLines(){let L=[];
-  for(let i=0;i<H;i++) L.push('  = h'+i+' / 1.0 + 1.0 Ex * -1.0 + + * '+fl(Wx[i])+' xn * '+fl(Wy[i])+' yn '+fl(B[i]));
+  for(let i=0;i<H;i++){const pre='+ + * '+fl(Wx[i])+' xn * '+fl(Wy[i])+' yn '+fl(B[i]);
+    L.push('  = h'+i+' '+(ACT==='relu'?('Mx 0.0 '+pre):('/ 1.0 + 1.0 Ex * -1.0 '+pre)));}
   for(let c=0;c<K;c++){let s=fl(C[c]);for(let i=0;i<H;i++)s='+ * '+fl(V[c][i])+' h'+i+' '+s;L.push('  = z'+c+' '+s);}
   return L;}
 function argmaxLines(){let L=['  = bi 0','  = bv z0'];for(let c=1;c<K;c++){L.push('  = bi ? > z'+c+' bv '+c+' bi');L.push('  = bv Mx bv z'+c);}return L;}
@@ -68,7 +73,7 @@ const pts=JSON.stringify(D.map(([x,y,c])=>[+x.toFixed(4),+y.toFixed(4),c]));
 const leg=HEX.map((h,c)=>'<span><i style="background:'+h+'"></i>'+c+'</span>').join('');
 const html=`<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
-<title>Onda · GPU Flor</title>
+<title>${TITLE}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap">
 <style>
@@ -94,7 +99,7 @@ const html=`<meta name="viewport" content="width=device-width,initial-scale=1,vi
  .flow b{color:var(--ink)}.flow .k{color:var(--a)}
 </style>
 <div class="wrap">
- <h1>Onda · GPU Flor <small>${K} classes classificadas na GPU, pixel a pixel</small></h1>
+ <h1>${TITLE} <small>${K} classes na GPU${ACT==='relu'?' · ocultos ReLU (fronteiras poligonais)':''}, pixel a pixel</small></h1>
  <div class="art"><canvas id="gl" width="300" height="300"></canvas><canvas id="ov" width="300" height="300"></canvas></div>
  <div class="leg">${leg}</div>
  <div class="stats">
