@@ -137,12 +137,30 @@ if (typeof module !== 'undefined') module.exports = OndaC;
    var hdr=enc.encode(W+'\n'), inp=new Uint8Array(hdr.length+buf.length); inp.set(hdr,0); inp.set(buf,hdr.length);
    return OndaC.run(bytes,inp).then(function(r){ return {text:r.text.replace(/\n+$/,''), ms:r.ms, W:W, row:row}; });
  }
+ // --- camada de CONTEXTO: corrige a saida bruta contra um vocabulario + padroes (email/numeros) ---
+ var DICT='clica clicar carrega no na nos nas botao botoes azul azuis email emails nelson inetum com preco precos euro euros iniciar iniciada sessao senha palavra passe entrar sair login ok okay cancelar confirmar guardar gravar voltar seguinte anterior ficheiro ficheiros pasta pastas utilizador conta nome apelido data hora total valor numero codigo cliente clientes fatura faturas documento documentos enviar receber pesquisar procurar menu definicoes ajuda sim nao abrir fechar novo editar apagar copiar colar imprimir descarregar atualizar continuar terminar selecionar campo formulario tabela linha coluna titulo pagina ecra aplicacao'.split(' ');
+ var CONF={'i':'l1|!j','l':'i1|','1':'il|!','o':'0','0':'o','e':'cn','c':'eo','n':'mhe','m':'nw','t':'r+f','r':'t*','s':'5$','5':'s','g':'q9','b':'6','6':'b','u':'vy','v':'u','a':'o','@':'a','h':'n'};
+ function sc(a,b){return a===b?0:(CONF[a]&&CONF[a].indexOf(b)>=0?0.35:1);}
+ function ed(a,b){var m=a.length,n=b.length,D=[];for(var i=0;i<=m;i++){D[i]=[];for(var j=0;j<=n;j++)D[i][j]=i===0?j:(j===0?i:0);}
+   for(var i=1;i<=m;i++)for(var j=1;j<=n;j++)D[i][j]=Math.min(D[i-1][j]+1,D[i][j-1]+1,D[i-1][j-1]+sc(a[i-1],b[j-1]));return D[m][n];}
+ function near(w){var lo=w.toLowerCase(),best=null,bd=0.45*lo.length+0.6;for(var k=0;k<DICT.length;k++){var d=DICT[k];if(Math.abs(d.length-lo.length)>2)continue;var dd=ed(lo,d);if(dd<bd){bd=dd;best=d;}}return best;}
+ function kc(src,fix){return src[0]===src[0].toUpperCase()&&src[0]!==src[0].toLowerCase()?fix[0].toUpperCase()+fix.slice(1):fix;}
+ function toletra(t){return t.replace(/\*/g,'r').replace(/\+/g,'t').replace(/[|!]/g,'i');}  // simbolos que o olho gera a meio de palavras
+ function corrigir(line){return line.replace(/[A-Za-z0-9@._%+*|!\-]+/g,function(t){
+   if(t.indexOf('@')>=0){var p=t.split('@'),dom=(p[1]||'').split('.');var tld=dom.length>1?dom.pop():'';
+     var d0=dom.map(function(s){return near(toletra(s))||toletra(s).replace(/[1]/g,'i').replace(/0/g,'o');}).join('.');
+     return (near(toletra(p[0]))||p[0])+'@'+d0+(tld?'.'+tld.replace(/[0]/g,'o').replace(/[1]/g,'i'):'');}
+   if(/[0-9]/.test(t)&&/^[0-9lioObBsS.,:]+$/.test(t))return t.replace(/[lI!|]/g,'1').replace(/[oO]/g,'0').replace(/[bB]/g,'6').replace(/[sS]/g,'5');
+   if(/[A-Za-z]/.test(t)){var nl=toletra(t); if(/^[A-Za-z]{2,}$/.test(nl)){var f=near(nl);return f?kc(t,f):nl;}}
+   return t;});}
  function run(){ if(!bytes)return; stat.textContent='a ler…'; var ls=lines();
    var jobs=ls.map(function(l,r){return ocrLine(l.length?l:' ',r);});
    Promise.all(jobs).then(function(res){ var ms=0,boxes=[],txt='';
      res.forEach(function(R){ ms+=R.ms; txt+=(txt?'\n':'')+R.text;
        for(var ci=0;ci<R.text.length;ci++){ if(R.text[ci]===' ')continue; var x0=Math.round(ci*AW+2); boxes.push([x0,R.row*CH+2,Math.round(AW),CH-2]); } });
-     draw(boxes); out.textContent=txt; stat.textContent='lido em '+ms.toFixed(1)+' ms · '+txt.replace(/\n/g,'').length+' caracteres · inserção ⟶ fim de cada linha';
+     var corr=txt.split('\n').map(corrigir).join('\n'); var esc=function(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+     draw(boxes); out.innerHTML='<div>'+esc(corr)+'</div>'+(corr!==txt?'<div style="color:var(--mut);font-size:12px;margin-top:9px;border-top:1px solid var(--line);padding-top:7px">bruto (olho): '+esc(txt)+'</div>':'');
+     stat.textContent='lido em '+ms.toFixed(1)+' ms · bruto→contexto corrigido · '+txt.replace(/\n/g,'').length+' caracteres';
    }); }
  go.onclick=run; q.addEventListener('input',function(){if(AW)draw();});
 })();
