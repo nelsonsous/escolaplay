@@ -6,15 +6,23 @@ const G=JSON.parse(fs.readFileSync('/tmp/claude-0/ocr.json','utf8'));
 const CHARS=G.CHARS, CW=G.CW, CH=G.CH, aw=G.aw, FS=G.FS, V=CHARS.length, IN=CW*CH, HID=128;
 function rnd(j){var h=Math.sin(j*12.9898)*43758.5453;return (h-Math.floor(h))-0.5;}
 function shift(v,dx,dy){const o=new Array(IN).fill(0);for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const sx=x-dx,sy=y-dy;if(sx>=0&&sx<CW&&sy>=0&&sy<CH)o[y*CW+x]=v[sy*CW+sx];}return o;}
+function centroid(v){let sx=0,sy=0,sw=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const p=v[y*CW+x];if(p>0.3){sx+=x*p;sy+=y*p;sw+=p;}}return sw<0.5?null:[sx/sw,sy/sw];}
+function align(v){const c=centroid(v);if(!c)return v.slice();return shift(v,Math.round(CW/2-c[0]),Math.round(CH/2-c[1]));}  // re-centra pela tinta -> invariante ao renderizador
+function blur(v){const o=new Array(IN).fill(0);for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){let s=0,n=0;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const yy=y+a,xx=x+b;if(yy>=0&&yy<CH&&xx>=0&&xx<CW){s+=v[yy*CW+xx];n++;}}o[y*CW+x]=s/n;}return o;}
 let X=[],Y=[];
-CHARS.split('').forEach((ch,ci)=>{const base=G.data[ch];for(const dx of[-1,0,1])for(const dy of[-1,0,1]){X.push(shift(base,dx,dy));Y.push(ci);}});
+CHARS.split('').forEach((ch,ci)=>{const base=align(G.data[ch]);               // treina sobre glifos re-centrados
+  const vars=[base];
+  for(const dx of[-1,0,1])for(const dy of[-1,0,1])vars.push(shift(base,dx,dy));
+  for(const s of[0.6,0.8])vars.push(base.map(p=>Math.min(1,p*s)));            // intensidade (tinta + leve / + forte)
+  const bl=blur(base); vars.push(base.map((p,i)=>p*0.55+bl[i]*0.45));          // um desfoque suave (AA diferente)
+  vars.forEach(v=>{X.push(v);Y.push(ci);});});
 let W1=Array.from({length:HID},(_,h)=>Array.from({length:IN},(_,i)=>rnd(h*191+i+1)*0.1)),b1=Array(HID).fill(0);
 let W2=Array.from({length:V},(_,c)=>Array.from({length:HID},(_,h)=>rnd(c*83+h+1)*0.1)),b2=Array(V).fill(0);
 const th=Math.tanh;
 function fwd(x){const h=new Float64Array(HID);for(let hh=0;hh<HID;hh++){let s=b1[hh];for(let i=0;i<IN;i++)s+=W1[hh][i]*x[i];h[hh]=th(s);}
   const z=new Float64Array(V);for(let c=0;c<V;c++){let s=b2[c];for(let hh=0;hh<HID;hh++)s+=W2[c][hh]*h[hh];z[c]=s;}
   let m=-1e9;for(const v of z)if(v>m)m=v;let S=0;const p=new Float64Array(V);for(let c=0;c<V;c++){p[c]=Math.exp(z[c]-m);S+=p[c];}for(let c=0;c<V;c++)p[c]/=S;return{h,p};}
-for(let ep=0;ep<70;ep++){for(let n=0;n<X.length;n++){const x=X[n],{h,p}=fwd(x),dz=p.slice();dz[Y[n]]-=1;const LR=0.06;
+for(let ep=0;ep<110;ep++){for(let n=0;n<X.length;n++){const x=X[n],{h,p}=fwd(x),dz=p.slice();dz[Y[n]]-=1;const LR=0.06;
   for(let c=0;c<V;c++){b2[c]-=LR*dz[c];const w=W2[c];for(let hh=0;hh<HID;hh++)w[hh]-=LR*dz[c]*h[hh];}
   const dh=new Float64Array(HID);for(let hh=0;hh<HID;hh++){let g=0;for(let c=0;c<V;c++)g+=dz[c]*W2[c][hh];dh[hh]=g*(1-h[hh]*h[hh]);}
   for(let hh=0;hh<HID;hh++){b1[hh]-=LR*dh[hh];const w=W1[hh];for(let i=0;i<IN;i++)w[i]-=LR*dh[hh]*x[i];}}}
@@ -47,7 +55,10 @@ L.push('  W < ci ncol {');
 L.push('    = x0 I + * F ci aw 0.5');
 L.push('    ? <= + x0 '+CW+' w {');
 L.push('      = xv A '+IN+' = yy 0 W < yy '+CH+' { = xx 0 W < xx '+CW+' { !f + xv + * yy '+CW+' xx / F @ + pix + * yy w + x0 xx 255.0 = xx + xx 1 } = yy + yy 1 }');
-L.push('      = hdn A '+HID+' = hh 0 W < hh '+HID+' { = s @f + b1 hh = i 0 W < i '+IN+' { = s + s * @f + w1 + * hh '+IN+' i @f + xv i = i + i 1 } !f + hdn hh tanhf s = hh + hh 1 }');
+L.push('      = sx 0.0 = sy 0.0 = sw 0.0 = yy 0 W < yy '+CH+' { = xx 0 W < xx '+CW+' { = v @f + xv + * yy '+CW+' xx ? > v 0.3 { = sx + sx * F xx v = sy + sy * F yy v = sw + sw v 0 } 0 = xx + xx 1 } = yy + yy 1 }');
+L.push('      = dx 0 = dy 0 ? > sw 0.5 { = dx I + - / F '+CW+' 2.0 / sx sw 0.5 = dy I + - / F '+CH+' 2.0 / sy sw 0.5 } 0');
+L.push('      = xv2 A '+IN+' = yy 0 W < yy '+CH+' { = xx 0 W < xx '+CW+' { = sxx - xx dx = syy - yy dy !f + xv2 + * yy '+CW+' xx ? && && >= sxx 0 < sxx '+CW+' && >= syy 0 < syy '+CH+' @f + xv + * syy '+CW+' sxx 0.0 = xx + xx 1 } = yy + yy 1 }');
+L.push('      = hdn A '+HID+' = hh 0 W < hh '+HID+' { = s @f + b1 hh = i 0 W < i '+IN+' { = s + s * @f + w1 + * hh '+IN+' i @f + xv2 i = i + i 1 } !f + hdn hh tanhf s = hh + hh 1 }');
 L.push('      = bi 0 = bv -1000000.0 = c 0 W < c '+V+' { = z @f + b2 c = hh 0 W < hh '+HID+' { = z + z * @f + w2 + * c '+HID+' hh @f + hdn hh = hh + hh 1 } ? > z bv { = bv z = bi c } 0 = c + c 1 }');
 L.push('      P @ + cs bi } 0');
 L.push('    = ci + ci 1 }');
