@@ -9,12 +9,18 @@ function shift(v,dx,dy){const o=new Array(IN).fill(0);for(let y=0;y<CH;y++)for(l
 function centroid(v){let sx=0,sy=0,sw=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const p=v[y*CW+x];if(p>0.3){sx+=x*p;sy+=y*p;sw+=p;}}return sw<0.5?null:[sx/sw,sy/sw];}
 function align(v){const c=centroid(v);if(!c)return v.slice();return shift(v,Math.round(CW/2-c[0]),Math.round(CH/2-c[1]));}  // re-centra pela tinta -> invariante ao renderizador
 function blur(v){const o=new Array(IN).fill(0);for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){let s=0,n=0;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const yy=y+a,xx=x+b;if(yy>=0&&yy<CH&&xx>=0&&xx<CW){s+=v[yy*CW+xx];n++;}}o[y*CW+x]=s/n;}return o;}
+function dil(v){const o=new Array(IN).fill(0);for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){let m=0;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const yy=y+a,xx=x+b;if(yy>=0&&yy<CH&&xx>=0&&xx<CW&&v[yy*CW+xx]>m)m=v[yy*CW+xx];}o[y*CW+x]=m;}return o;}
+function ero(v){const o=new Array(IN).fill(0);for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){let m=1;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const yy=y+a,xx=x+b;if(yy>=0&&yy<CH&&xx>=0&&xx<CW){if(v[yy*CW+xx]<m)m=v[yy*CW+xx];}else m=0;}o[y*CW+x]=m;}return o;}
 let X=[],Y=[];
 CHARS.split('').forEach((ch,ci)=>{const base=align(G.data[ch]);               // treina sobre glifos re-centrados
   const vars=[base];
   for(const dx of[-1,0,1])for(const dy of[-1,0,1])vars.push(shift(base,dx,dy));
-  for(const s of[0.6,0.8])vars.push(base.map(p=>Math.min(1,p*s)));            // intensidade (tinta + leve / + forte)
-  const bl=blur(base); vars.push(base.map((p,i)=>p*0.55+bl[i]*0.45));          // um desfoque suave (AA diferente)
+  const bl=blur(base),dl=dil(base),er=ero(base);
+  for(const s of[0.55,0.75])vars.push(base.map(p=>Math.min(1,p*s)));          // intensidade
+  vars.push(base.map((p,i)=>p*0.55+bl[i]*0.45));                               // desfoque (AA + suave)
+  vars.push(base.map((p,i)=>Math.min(1,Math.max(0,p*1.5-bl[i]*0.5))));         // agucado (AA + nitido)
+  vars.push(base.map((p,i)=>Math.min(1,p*0.6+dl[i]*0.4)));                     // traco + grosso (peso/hinting)
+  vars.push(base.map((p,i)=>p*0.6+er[i]*0.4));                                 // traco + fino
   vars.forEach(v=>{X.push(v);Y.push(ci);});});
 let W1=Array.from({length:HID},(_,h)=>Array.from({length:IN},(_,i)=>rnd(h*191+i+1)*0.1)),b1=Array(HID).fill(0);
 let W2=Array.from({length:V},(_,c)=>Array.from({length:HID},(_,h)=>rnd(c*83+h+1)*0.1)),b2=Array(V).fill(0);
