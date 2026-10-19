@@ -50,7 +50,7 @@ const OndaC = (() => {
   }
   // corre um programa Onda ja compilado para WASM (bytes), com o mesmo anfitriao de 3 portas; devolve a saida.
   async function run(bytes, stdin) {
-    const input = enc.encode(stdin || '');
+    const input = stdin instanceof Uint8Array ? stdin : enc.encode(stdin || '');
     const out = []; let ip = 0, code = 0, mem = null, kb = -1n;
     const words = (a, n) => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n);
     const sys = (c, a, b) => {
