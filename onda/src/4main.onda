@@ -42,7 +42,7 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  ? isx ? && fastf xvan k lowSv n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
+  ? || isx isa ? && && isx fastf xvan k lowSv n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
 : cd >i {
   = w cx
   = h cx
@@ -51,9 +51,9 @@
   = k fref 2
   ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
   = a cargs k 2
-  ? isx lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
-: mlib >i && || || == @ 12 0 isw isx != tc @ fe @ 13 0 0 '_
-: mlibp >i && || || || == @ 12 0 isw isx isjs != tc @ fe @ 13 0 0 '_
+  ? || isx isa lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
+: mlib >i && || || || == @ 12 0 isw isx isa != tc @ fe @ 13 0 0 '_
+: mlibp >i && || || || || == @ 12 0 isw isx isjs isa != tc @ fe @ 13 0 0 '_
 : cml2 i>i c { = a cx = b cx ckflt a ckflt b = q A 2 ! q a ! + q 1 b = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 = r rcall k q 2 edge k r }
 : cml i>i c { = a cx ckflt a = q A 1 ! q a = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 = r rcall k q 1 edge k r }
 : litv i>i p ? == @ p 2 @ + p 2 tokval @ + p 2
@@ -361,7 +361,7 @@
   ! 1 A 1000000
   rdall
   ? || || isw isx isa { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
-  ? && || || || == @ 12 0 isw isx isjs usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
+  ? && || || || || == @ 12 0 isw isx isjs isa usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
   ? && isx usesk { ! 23 + @ 1 @ 2 O 23 xkrt O 0 ! 2 - @ 23 @ 1 } 0
   ! 3 A + 3 * 3 @ 2
   ! 5 A 120000
@@ -377,7 +377,7 @@
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
   ? || m && && && != @ 12 0 ~ isw ~ isx ~ isa 0 { ebeg "falta : main >i" eend }
-  ? isa { ! 63 A 1000 ! @ 63 0 ! 64 A 8000 ! @ 64 0 ! 65 A 2000 ! @ 65 0 } 0
+  ? isa { ! 63 A 1000 ! @ 63 0 ! 64 A 400000 ! @ 64 0 ! 65 A 2000 ! @ 65 0 ! 34 A 500000 ! 36 A 500000 ! 37 A 500000 ! 38 A 500000 ! 39 A 110000 ! 40 A 20000 ! 43 A 10000 ! 50 xtab } 0
   ? || || isx isc isa inlf 0
   ? isc ! 50 xtab 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0

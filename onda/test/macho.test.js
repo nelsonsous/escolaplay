@@ -14,9 +14,17 @@ test('macho: -m produz um objeto Mach-O arm64 valido (linkavel pelo clang)', () 
   assert.strictEqual(b.readUInt32LE(0), 0xFEEDFACF, 'MH_MAGIC_64');
   assert.strictEqual(b.readUInt32LE(4), 0x0100000C, 'CPU_TYPE_ARM64');
   assert.strictEqual(b.readUInt32LE(12), 1, 'MH_OBJECT');
-  assert.strictEqual(b.readUInt32LE(16), 2, '2 load commands (SEGMENT_64, SYMTAB)');
+  assert.strictEqual(b.readUInt32LE(16), 3, '3 load commands (SEGMENT_64, SYMTAB, BUILD_VERSION)');
   // o simbolo _main tem de estar na tabela de strings
   assert.ok(b.includes(Buffer.from('_main\0')), 'simbolo _main presente');
+});
+
+test('macho: no Mac M1 o objeto linka e corre (gcd, strings, Av, reais)', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-'));
+  fs.writeFileSync(path.join(t, 'p.o'), macho(': main >i { = a 1071 = b 462 W b { = r % a b = a b = b r } "gcd " N a " " N Av 1 0 " " G Sq 2.0 "\\n" 0 }\n'));
+  execFileSync('cc', [path.join(t, 'p.o'), '-o', path.join(t, 'p')]);
+  assert.strictEqual(execFileSync(path.join(t, 'p'), ['z']).toString(), 'gcd 21 122 1.4142135623731\n');
 });
 
 test('macho: o mapa vetorizado leva NEON (.2d) no Mach-O, como no ELF', () => {

@@ -12,11 +12,13 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ```sh
 ./build.sh                  # arranque 100% Onda: semente WASM (so Node) -> ponto fixo bit a bit, sem Rust nem C
 ./build.sh --semente-x86    # ainda mais puro: so a semente nativa x86-64, sem Node
+./build.sh --semente-arm64  # no Mac M1: so a semente nativa arm64 (codigo-maquina da Onda; o clang so linka)
 ./build.sh --c              # ponte C opcional: so para portar a um CPU sem backend nativo (seed/ondac.c)
 ./onda run ex/grover.onda   # compila e corre, com cache por hash
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
 build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pela Onda, sem C nem assembler
+build/ondac -m < ex/pi.onda > pi.o && cc pi.o -o pi # Mac M1: codigo-maquina arm64 escrito pela Onda (o cc so linka)
 ./onda circ ex/oraculo.onda alvo                  # a funcao vira um circuito (AIGER); -v da Verilog
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
@@ -34,7 +36,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `SPEC.md` | a linguagem inteira, escrita para IAs |
 | `src/*.onda` | o compilador, em Onda: C, GLSL, JavaScript, WebAssembly e x86-64 escritos byte a byte, circuitos (AIGER, Verilog) e oráculos quânticos (OpenQASM 3) |
 | `src/9mat.onda` | a matemática (seno, coseno, exp, log, atan2, pow) escrita em Onda, gerada por `tools/gerar_mat.py` |
-| `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) — a Onda arranca de qualquer uma, sem Rust nem C |
+| `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64`, `seed/ondac-arm64` | quatro sementes geradas pela própria Onda: C, WebAssembly, executável x86-64 (ELF) e executável arm64 (Mach-O, Apple Silicon) — a Onda arranca de qualquer uma, sem Rust nem C |
 | `boot/` | arranque em Rust do estágio 0 — **desativado**, mantido só como histórico: a Onda já arranca das suas próprias sementes |
 | `rt/prelude.c` | runtime C mínimo (só para o alvo C opcional) |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`) |
@@ -50,6 +52,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 - **Velocidade (4 núcleos):** fib(35) em 15 ms (C: 16 ms); π com 200 milhões de termos em 68 ms (C sequencial: 246 ms, C com OpenMP à mão: 67 ms); fractal 960×540 em 13 ms (C sequencial: 31 ms).
 - **Grover com 20 qubits:** o alvo fica com probabilidade 0,9999998.
 - **Três pontos fixos:** em C, WebAssembly e x86-64, o compilador compila-se a si próprio bit a bit, e as três sementes geram o mesmo C.
+- **arm64 nativo no Mac M1** (`-m`, sem C nem assembler; o `cc` só linka): o compilador compila-se a si próprio em arm64 até ao ponto fixo (objeto de 326 KB) e gera exatamente o mesmo C, WebAssembly, x86-64 e Mach-O que a semente WASM. Tempos contra C→clang -O3 (melhor de 5): fib(35) 0,04 s vs 0,04 s; π 0,44 s vs 0,21 s; julia 0,13 s vs 0,05 s (imagem igual ao byte).
 - **x86 nativo** (sem C, assembler nem linker): π ao nível do `gcc -O2`, Grover a 2% dele, crivo de 10 M a ~1,3× do C.
 - **Matemática igual ao bit:** `Sn Cs Ex Lg At Pw` dão os mesmos bits em C, WebAssembly, x86, JavaScript e no significado (`test/mat.test.js`). O `Pw` é o pow do fdlibm, conferido com o `StrictMath` do Java.
 - **Circuitos:** cada circuito é simulado e comparado com a função compilada, e o Verilog com o AIGER (`test/circ.test.js`).

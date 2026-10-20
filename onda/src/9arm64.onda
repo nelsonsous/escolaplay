@@ -9,17 +9,22 @@
 # --- codificadores de instrucoes (hex = encoding exato, conferido com o llvm-objdump) ---
 : aslt i>i t * + @ 9 t 8
 : asll i>i j * j 8
-: ald ii>i rt off x4 | | | 0xF9400000 << / off 8 10 << 31 5 rt
-: ast ii>i rt off x4 | | | 0xF9000000 << / off 8 10 << 31 5 rt
-: agT ii>i rt t ald rt aslt t
-: asT ii>i rt t ast rt aslt t
-: agL ii>i rt j ald rt asll j
-: asL ii>i rt j ast rt asll j
-: aimm ii>i rd v {
+: ald ii>i rt off ? < off 32768 x4 | | | 0xF9400000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xF8607800 << 12 16 << 31 5 rt }
+: ast ii>i rt off ? < off 32768 x4 | | | 0xF9000000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xF8207800 << 12 16 << 31 5 rt }
+: agT ii>i rt t agV rt t
+: asT ii>i rt t asV rt t
+: agL ii>i rt j agV rt + @ 11 j
+: asL ii>i rt j asV rt + @ 11 j
+: aimm4 ii>i rd v {
   x4 | | 0xD2800000 << & v 0xffff 5 rd
   x4 | | | 0xF2800000 << 1 21 << & >> v 16 0xffff 5 rd
   x4 | | | 0xF2800000 << 2 21 << & >> v 32 0xffff 5 rd
   x4 | | | 0xF2800000 << 3 21 << & >> v 48 0xffff 5 rd }
+: aimm ii>i rd v {
+  x4 | | 0xD2800000 << & v 0xffff 5 rd
+  ? & >> v 16 0xffff x4 | | | 0xF2800000 << 1 21 << & >> v 16 0xffff 5 rd 0
+  ? & >> v 32 0xffff x4 | | | 0xF2800000 << 2 21 << & >> v 32 0xffff 5 rd 0
+  ? & >> v 48 0xffff x4 | | | 0xF2800000 << 3 21 << & >> v 48 0xffff 5 rd 0 }
 : aadd iii>i rd rn rm x4 | | | 0x8B000000 << rm 16 << rn 5 rd
 : asub iii>i rd rn rm x4 | | | 0xCB000000 << rm 16 << rn 5 rd
 : amul iii>i rd rn rm x4 | | | 0x9B007C00 << rm 16 << rn 5 rd
@@ -30,24 +35,133 @@
 : aeor iii>i rd rn rm x4 | | | 0xCA000000 << rm 16 << rn 5 rd
 : alsl iii>i rd rn rm x4 | | | 0x9AC02000 << rm 16 << rn 5 rd
 : alsr iii>i rd rn rm x4 | | | 0x9AC02400 << rm 16 << rn 5 rd
+: aasr iii>i rd rn rm x4 | | | 0x9AC02800 << rm 16 << rn 5 rd
 : acmp ii>i rn rm x4 | | | 0xEB000000 << rm 16 << rn 5 31
 : acset ii>i rd cc x4 | | 0x9A9F07E0 << cc 12 rd
 : acc i>i o ? == o '< 0xB ? == o '> 0xC ? == o k2 '< '= 0xD ? == o k2 '> '= 0xA ? == o k2 '= '= 0 1
-: asubsp i>i imm x4 | | | 0xD1000000 << imm 10 << 31 5 31
-: aaddsp i>i imm x4 | | | 0x91000000 << imm 10 << 31 5 31
+: asubsp i>i imm ? < imm 4096 x4 | | | 0xD1000000 << imm 10 << 31 5 31 { aimm 12 imm x4 | | | 0xCB206000 << 12 16 << 31 5 31 }
+: aaddsp i>i imm ? < imm 4096 x4 | | | 0x91000000 << imm 10 << 31 5 31 { aimm 12 imm x4 | | | 0x8B206000 << 12 16 << 31 5 31 }
 : aret >i x4 0xD65F03C0
 : aprol >i x4 0xA9BF7BFD
 : aepil >i x4 0xA8C17BFD
 : ab i>i off x4 | 0x14000000 & / off 4 0x3FFFFFF
 : abl i>i off x4 | 0x94000000 & / off 4 0x3FFFFFF
-: afs >i & + * 8 + @ 9 @ 11 15 -16
+: afs >i & + * 8 + + @ 9 @ 11 14 15 -16
+# --- atribuicao de registos (-a/-m): varrimento linear com prioridade aos ciclos mais fundos ---
+# valor v: temporario t (v = t) ou variavel j (v = @11 + j). local: -1 moldura; 0..10 registo inteiro (0..7 = x19..x26,
+# guardados pelo chamado; 8..10 = x13..x15, so para o que nao atravessa chamadas); 32+i real (0..5 = d10..d15 guardados;
+# 6..21 = d16..d31 sem chamadas). 34 local 36 inicio 37 fim 38 profundidade 39 ocupacao por posicao (entrada 0, instrucao i em i+1; bits 0..10
+# inteiros, 16..37 reais, 40 chamada, 41 chamada que tambem le os operandos em x13..x15: o mapa NEON) 40 ciclos (inicio,
+# fim) 41 n de ciclos 42 registos guardados usados 43 pilha de ciclos 44 profundidade atual
+: aloc i>i v @ + @ 34 v
+: arx i>i l ? < l 8 + 19 l + 5 l
+: ard i>i l ? < l 6 + 10 l + 10 l
+: avs i>i v ? < v @ 11 aslt v asll - v @ 11
+: aty i>i v ? < v @ 11 tty v { = l lty - v @ 11 ? >= l 2 tty - l 2 l }
+: amov ii>i rd rn ? == rd rn 0 amovr rd rn
+: afmovdd ii>i rd rn ? == rd rn 0 x4 | | 0x1E604000 << rn 5 rd
+: agV ii>i rt v { = l aloc v ? < l 0 ald rt avs v ? < l 32 amov rt arx l x4 | | 0x9E660000 << ard - l 32 5 rt }
+: asV ii>i rt v { = l aloc v ? < l 0 ast rt avs v ? < l 32 amov arx l rt afmovxd ard - l 32 rt }
+: agVf ii>i rt v { = l aloc v ? < l 0 aldfr rt avs v ? >= l 32 afmovdd rt ard - l 32 afmovxd rt arx l }
+: asVf ii>i rt v { = l aloc v ? < l 0 astfr rt avs v ? >= l 32 afmovdd ard - l 32 rt x4 | | 0x9E660000 << rt 5 arx l }
+# operando no seu registo (sem copia) ou carregado no rascunho r; destino: o registo do valor ou o rascunho r
+: aox ii>i r v { = l aloc v ? && >= l 0 < l 32 arx l { agV r v r } }
+: aod ii>i r v { = l aloc v ? >= l 32 ard - l 32 { agVf r v r } }
+: adx ii>i r v { = l aloc v ? && >= l 0 < l 32 arx l r }
+: adf ii>i r v { = l aloc v ? >= l 32 ard - l 32 r }
+: afx ii>i r v ? < aloc v 0 ast r avs v 0
+: afd ii>i r v ? < aloc v 0 astfr r avs v 0
+: amvv ii>i dv sv ? aty dv { = r aod 0 sv asVf r dv } { = r aox 9 sv asV r dv }
+# instrucoes que chamam funcoes (estragam x13..x15 e d16..d31): 1 = normal, 2 = o mapa NEON (le em x13..x15)
+: acall i>i p { = k @ p ? || || || == k 7 == k 3 || == k 28 == k 29 || || == k 31 == k 32 == k 36 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? == k 53 2 0 }
+: arf ii>i v i { = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 }
+: aext i>i v {
+  = s @ + @ 36 v
+  = e @ + @ 37 v
+  = l 0
+  W && >= s 0 < l @ 41 {
+    = q + @ 40 * l 2
+    = a @ q
+    = b @ + q 1
+    ? && && <= s b >= e a || < s a > e b { = s Mn s a = e Mx e b } 0
+    = l + l 1 }
+  ! + @ 36 v s
+  ! + @ 37 v e }
+: afree iii>i m lo hi { = r -1 = j lo W && < r 0 < j hi { ? & >> m j 1 0 = r j = j + j 1 } r }
+: aal i>i v {
+  = s @ + @ 36 v
+  = e @ + @ 37 v
+  ? >= s 0 {
+    = m 0
+    = cs 0
+    = p s
+    W <= p e { = o @ + @ 39 p = m | m o ? && > p s || && < p e & o << 1 40 & o << 1 41 = cs 1 0 = p + p 1 }
+    = fl aty v
+    = r ? fl { = r ? cs -1 afree m 22 38 ? < r 0 afree m 16 22 r } { = r ? cs -1 afree m 8 11 ? < r 0 afree m 0 8 r }
+    ? >= r 0 {
+      = b << 1 r
+      = p s W <= p e { = q + @ 39 p ! q | @ q b = p + p 1 }
+      ? || < r 8 && >= r 16 < r 22 ! 42 | @ 42 b 0
+      ! + @ 34 v ? fl + 32 - r 16 r } 0 } 0 }
+: ara i>i kf {
+  = n @ 19
+  = nt @ 11
+  = nv + nt @ 9
+  = v 0
+  W < v nv { ! + @ 34 v -1 ! + @ 36 v -1 ! + @ 37 v -1 ! + @ 38 v 0 = v + v 1 }
+  = i 0
+  W <= i n { ! + @ 39 i 0 = i + i 1 }
+  ! 41 0
+  ! 44 0
+  = sp 0
+  = j 0
+  W < j @ fe kf 2 { arf + nt j 0 = j + j 1 }
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    = k @ p
+    = ps + i 1
+    ? == k 21 { ! + @ 43 sp ps = sp + sp 1 ! 44 + @ 44 1 } 0
+    = f @ + @ 50 k
+    ? & f 1 arf @ + p 2 ps 0
+    ? & f 2 arf @ + p 3 ps 0
+    ? & f 4 arf @ + p 4 ps 0
+    ? & f 8 arf @ + p 1 ps 0
+    ? == k 5 arf + nt @ + p 3 ps 0
+    ? == k 6 arf + nt @ + p 4 ps 0
+    ? == k 7 { = b @ + p 3 = j 0 W < j @ + p 4 { arf @ + b j ps = j + j 1 } } 0
+    ? == k 53 { arf @ + p 2 ps arf @ + p 3 ps arf @ + p 5 ps } 0
+    = c acall p
+    ? c { = q + @ 39 ps ! q | @ q << 1 + 39 c } 0
+    ? == k 23 { = sp - sp 1 = q + @ 40 * @ 41 2 ! q @ + @ 43 sp ! + q 1 ps ! 41 + @ 41 1 ! 44 - @ 44 1 } 0
+    = i + i 1 }
+  # variaveis: vivas desde a entrada (podem ser lidas antes de escritas, p.ex. o valor da volta anterior de um ciclo)
+  = v nt
+  W < v nv { ? >= @ + @ 36 v 0 ! + @ 36 v 0 0 = v + v 1 }
+  = v 0
+  W < v nv { aext v = v + v 1 }
+  ! 42 0
+  = md 0
+  = v 0
+  W < v nv { = md Mx md @ + @ 38 v = v + v 1 }
+  W >= md 0 {
+    = v nt
+    W < v nv { ? == @ + @ 38 v md aal v 0 = v + v 1 }
+    = v 0
+    W < v nt { ? == @ + @ 38 v md aal v 0 = v + v 1 }
+    = md - md 1 }
+  0 }
+# guardar/repor os registos do chamado que esta funcao usa (slots @9+@11 .. +13 da moldura)
+: asvb i>i i * 8 + + @ 9 @ 11 i
+: asave >i { = j 0 W < j 8 { ? & >> @ 42 j 1 ast + 19 j asvb j 0 = j + j 1 } = j 0 W < j 6 { ? & >> @ 42 + 16 j 1 astfr + 10 j asvb + 8 j 0 = j + j 1 } 0 }
+: arest >i { = j 0 W < j 8 { ? & >> @ 42 j 1 ald + 19 j asvb j 0 = j + j 1 } = j 0 W < j 6 { ? & >> @ 42 + 16 j 1 aldfr + 10 j asvb + 8 j 0 = j + j 1 } 0 }
 # --- reais (registos d) e arrays em M (base pinada em x28, bump em x27) ---
-: aldfr ii>i rt off x4 | | | 0xFD400000 << / off 8 10 << 31 5 rt
-: astfr ii>i rt off x4 | | | 0xFD000000 << / off 8 10 << 31 5 rt
-: agTf ii>i rt t aldfr rt aslt t
-: asTf ii>i rt t astfr rt aslt t
-: agLf ii>i rt j aldfr rt asll j
-: asLf ii>i rt j astfr rt asll j
+: aldfr ii>i rt off ? < off 32768 x4 | | | 0xFD400000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xFC607800 << 12 16 << 31 5 rt }
+: astfr ii>i rt off ? < off 32768 x4 | | | 0xFD000000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xFC207800 << 12 16 << 31 5 rt }
+: agTf ii>i rt t agVf rt t
+: asTf ii>i rt t asVf rt t
+: agLf ii>i rt j agVf rt + @ 11 j
+: asLf ii>i rt j asVf rt + @ 11 j
 : afadd iii>i rd rn rm x4 | | | 0x1E602800 << rm 16 << rn 5 rd
 : afsub iii>i rd rn rm x4 | | | 0x1E603800 << rm 16 << rn 5 rd
 : afmul iii>i rd rn rm x4 | | | 0x1E600800 << rm 16 << rn 5 rd
@@ -63,6 +177,7 @@
 : aaddi iii>i rd rn imm x4 | | | 0x91000000 << imm 10 << rn 5 rd
 : aaddlsl iiii>i rd rn rm sh x4 | | | | 0x8B000000 << rm 16 << sh 10 << rn 5 rd
 : abcc ii>i cc off x4 | | 0x54000000 << & / off 4 0x7FFFF 5 cc
+# Sn/Cs nativos (so os pede a biblioteca em Onda, para |x| enorme): reduz x mod 2pi (Cody-Waite) e chama _sn/_cs.
 # --- impressao/runtime: cmp imediato, fcmp (compara reais), condicao de reais, chamar funcao do runtime ---
 : acmpi ii>i rn imm x4 | | | 0xF1000000 << imm 10 << rn 5 31
 : afcmp ii>i rn rm x4 | | 0x1E602000 << rm 16 << rn 5
@@ -72,9 +187,10 @@
 # pilha de ramos (if/else e &&/|| curto-circuito): @65[0]=n; cada entrada = posicao de um salto a corrigir
 : aipush i>i p { = n @ @ 65 ! + @ 65 + 1 n p ! @ 65 + n 1 }
 : aipop >i { = n - @ @ 65 1 ! @ 65 n @ + @ 65 + 1 n }
-: apcbz i>i p xput4 p | | 0xB4000000 << & / - @ 16 p 4 0x7FFFF 5 9
-: apcbnz i>i p xput4 p | | 0xB5000000 << & / - @ 16 p 4 0x7FFFF 5 9
+: apcbz i>i p xput4 p | | 0xB4000000 << & / - @ 16 p 4 0x7FFFF 5 & @ p 31
+: apcbnz i>i p xput4 p | | 0xB5000000 << & / - @ 16 p 4 0x7FFFF 5 & @ p 31
 : apb i>i p xput4 p | 0x14000000 & / - @ 16 p 4 0x3FFFFFF
+: apbc ii>i p cc xput4 p | | 0x54000000 << & / - @ 16 p 4 0x7FFFF 5 cc
 : acsel iiii>i rd rn rm cc x4 | | | | 0x9A800000 << rm 16 << cc 12 << rn 5 rd
 : astod ii>i d a ? tty d { agTf 0 a asTf 0 d } { agT 9 a asT 9 d }
 # --- NEON (v.2d, 2 doubles por instrucao): o mapa vetorizado. x em v1; constantes em v2..v9 (via salloc); x12 rascunho ---
@@ -167,14 +283,15 @@
 : adep >i @ @ 63
 : afrm i>i i + @ 63 + 1 * i 2
 : a21 >i { = d adep = f afrm d ! f @ 16 ! + f 1 0 ! @ 63 + d 1 }
-: a22 i>i a { agT 9 a = f afrm - adep 1 ! + f 1 @ 16 x4 0xB4000009 }
-: a23 >i { = f afrm - adep 1 ab - @ f @ 16 = cp @ + f 1 xput4 cp | | 0xB4000000 << & / - @ 16 cp 4 0x7FFFF 5 9 ! @ 63 - adep 1 }
+: a22 i>i a { = x aox 9 a = f afrm - adep 1 ! + f 1 @ 16 x4 | 0xB4000000 x }
+: a23 >i { = f afrm - adep 1 ab - @ f @ 16 = cp @ + f 1 xput4 cp | | 0xB4000000 << & / - @ 16 cp 4 0x7FFFF 5 & @ cp 31 ! @ 63 - adep 1 }
 
 # tabela de chamadas: @64[0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
 : acsrec ii>i pos fi { = c @ @ 64 = b + @ 64 + 1 * c 2 ! b pos ! + b 1 fi ! @ 64 + c 1 }
 # despacho de syscall em linha (Y a b c): a=numero logico, b/c=args; resultado em d. 0=escrever, 2=sair,
 # 7=brk (devolve o limite fixo de M). svc #0 x8 no Linux (-a); svc #0x80 x16 no macOS (-m). Escreve byte a
 # byte (o byte vai para M[-8]) -- simples e correto; o benchmark usa o codigo de saida, nao a impressao.
+: arb >i 33553408
 : asc >i {
   = wn ? ismo 4 64
   = rn2 ? ismo 3 63
@@ -184,37 +301,80 @@
   acmpi 0 1 = jr @ 16 abcc 0 0
   acmpi 0 2 = je @ 16 abcc 0 0
   acmpi 0 7 = jk @ 16 abcc 0 0
+  acmpi 0 3 = ja @ 16 abcc 0 0
+  acmpi 0 4 = jv @ 16 abcc 0 0
+  acmpi 0 6 = jt @ 16 abcc 0 0
   aimm 0 0 = jd1 @ 16 ab 0
-  # escrever(fd, M[arg1..], arg2): byte a byte (cada char vai p/ M[-8]) em fd 1
-  xput4 jw | | 0x54000000 << & / - @ 16 jw 4 0x7FFFF 5 0
-  amovr 19 1 amovr 20 2 aimm 21 0
-  = wl @ 16
-  acmp 21 20 = pw @ 16 abcc 0xA 0
-  aadd 10 19 21 aldrx 11 28 10
-  aimm 10 -8 astrx 11 28 10 aaddlsl 1 28 10 3
-  aimm 0 1 aimm 2 1 aimm nr wn ? ismo asvc80 x4 0xD4000001
-  aaddi 21 21 1 ab - wl @ 16
-  xput4 pw | | 0x54000000 << & / - @ 16 pw 4 0x7FFFF 5 0xA
-  amovr 0 20 = jd2 @ 16 ab 0
-  # ler 1 byte de fd 0 p/ M[-8]; devolve o byte (0..255) ou -1 em EOF
-  xput4 jr | | 0x54000000 << & / - @ 16 jr 4 0x7FFFF 5 0
-  aimm 0 0 aimm 10 -8 aaddlsl 1 28 10 3 aimm 2 1 aimm nr rn2 ? ismo asvc80 x4 0xD4000001
-  acmpi 0 0 = jre @ 16 abcc 0 0
-  aimm 10 -8 aldrx 11 28 10 aimm 10 255 aand 0 11 10 = jd4 @ 16 ab 0
-  xput4 jre | | 0x54000000 << & / - @ 16 jre 4 0x7FFFF 5 0
+  # escrever(fd 1, M[arg1..], arg2): cada char ocupa um slot; junta-os em blocos de ate 4096 bytes na pilha
+  apbc jw 0
+  amovr 3 1 amovr 4 2 aimm 5 0
+  asubsp 4096
+  = wo @ 16
+  acmp 5 4 = pwe @ 16 abcc 0xA 0
+  aimm 6 0
+  = wi @ 16
+  aimm 10 4096 acmp 6 10 = pf1 @ 16 abcc 0xA 0
+  acmp 5 4 = pf2 @ 16 abcc 0xA 0
+  aadd 10 3 5 aldrx 11 28 10 x4 0x38266BEB
+  aaddi 6 6 1 aaddi 5 5 1 ab - wi @ 16
+  apbc pf1 0xA apbc pf2 0xA
+  aimm 0 1 aaddi 1 31 0 amovr 2 6 aimm nr wn ? ismo asvc80 x4 0xD4000001
+  ab - wo @ 16
+  apbc pwe 0xA
+  aaddsp 4096
+  amovr 0 4 = jd2 @ 16 ab 0
+  # ler 1 byte de fd 0: buffer de 4096 bytes no fim de M (slot arb); posicao/comprimento em M[-13]/M[-14]
+  apbc jr 0
+  aimm 10 -13 aldrx 11 28 10 aimm 10 -14 aldrx 12 28 10
+  acmp 11 12 = rh @ 16 abcc 0xB 0
+  aimm 0 0 aimm 10 arb aaddlsl 1 28 10 3 aimm 2 4096 aimm nr rn2 ? ismo asvc80 x4 0xD4000001
+  acmpi 0 0 = rz @ 16 abcc 0xD 0
+  aimm 10 -14 astrx 0 28 10 aimm 11 0
+  apbc rh 0xB
+  aimm 10 arb aaddlsl 12 28 10 3 x4 0x386B6980
+  aaddi 11 11 1 aimm 10 -13 astrx 11 28 10
+  = jd4 @ 16 ab 0
+  apbc rz 0xD
   aimm 0 -1 = jd5 @ 16 ab 0
   # sair(arg1)
   xput4 je | | 0x54000000 << & / - @ 16 je 4 0x7FFFF 5 0
   amovr 0 1 aimm nr en ? ismo asvc80 x4 0xD4000001
-  # brk: devolve o limite fixo (M = 256 MiB = 33554432 slots)
+  # brk: devolve o limite fixo (M = 256 MiB = 33554432 slots, menos 1024 no fim: o buffer de leitura)
   xput4 jk | | 0x54000000 << & / - @ 16 jk 4 0x7FFFF 5 0
-  aimm 0 33554432 = jd3 @ 16 ab 0
+  aimm 0 arb = jd3 @ 16 ab 0
+  # argc (guardado no arranque em M[-9])
+  apbc ja 0
+  aimm 10 -9 aldrx 0 28 10 = jd6 @ 16 ab 0
+  # Av i j: byte j do argumento i (0 fora dos limites ou depois do fim); argv em M[-10]
+  apbc jv 0
+  aimm 0 0 aimm 10 -9 aldrx 11 28 10
+  acmpi 1 0 = v1 @ 16 abcc 0xB 0
+  acmp 1 11 = v2 @ 16 abcc 0xA 0
+  acmpi 2 0 = v3 @ 16 abcc 0xB 0
+  aimm 10 -10 aldrx 11 28 10 aldrx 11 11 1
+  aimm 10 0
+  = vl @ 16
+  acmp 10 2 = v4 @ 16 abcc 0xA 0
+  x4 0x386A696C = v5 @ 16 x4 0xB400000C
+  aaddi 10 10 1 ab - vl @ 16
+  apbc v4 0xA
+  x4 0x38626960
+  apbc v1 0xB apbc v2 0xA apbc v3 0xB xput4 v5 | | 0xB4000000 << & / - @ 16 v5 4 0x7FFFF 5 12
+  = jd7 @ 16 ab 0
+  # T: microssegundos (gettimeofday: 116 no macOS, 169 no Linux) -> struct em M[-12..-11]
+  apbc jt 0
+  aimm 10 -12 aaddlsl 0 28 10 3 aimm 1 0 aimm 2 0
+  ? ismo { aimm 16 116 asvc80 } { aimm 8 169 x4 0xD4000001 }
+  aimm 10 -12 aldrx 11 28 10 aimm 10 -11 aldrx 12 28 10 x4 0x2A0C03EC
+  aimm 10 1000000 amul 11 11 10 aadd 0 11 12
+  = jd8 @ 16 ab 0
   # done:
   xput4 jd1 | 0x14000000 & / - @ 16 jd1 4 0x3FFFFFF
   xput4 jd2 | 0x14000000 & / - @ 16 jd2 4 0x3FFFFFF
   xput4 jd3 | 0x14000000 & / - @ 16 jd3 4 0x3FFFFFF
   xput4 jd4 | 0x14000000 & / - @ 16 jd4 4 0x3FFFFFF
   xput4 jd5 | 0x14000000 & / - @ 16 jd5 4 0x3FFFFFF
+  apb jd6 apb jd7 apb jd8
   0 }
 : ains i>i p {
   = k @ p
@@ -222,34 +382,45 @@
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
-  ? == k 1 { ? tty d { aimm 9 afbits a afmovxd 0 9 asTf 0 d } { aimm 9 tokval a asT 9 d } }
-  ? == k 2 { aimm 9 a asT 9 d }
-  ? == k 4 { ? tty d { afmovxd 0 31 asTf 0 d } { aimm 9 0 asT 9 d } }
-  ? == k 5 { ? tty d { agLf 0 b asTf 0 d } { agL 9 b asT 9 d } }
-  ? == k 6 { ? tty b { agTf 0 b asLf 0 c } { agT 9 b asL 9 c } }
+  ? == k 1 { ? tty d { aimm 9 afbits a = r adf 0 d afmovxd r 9 afd r d } { = r adx 9 d aimm r tokval a afx r d } }
+  ? == k 2 { = r adx 9 d aimm r a afx r d }
+  ? == k 4 { ? tty d { = r adf 0 d afmovxd r 31 afd r d } { = r adx 9 d aimm r 0 afx r d } }
+  ? == k 5 amvv d + @ 11 b
+  ? == k 6 amvv + @ 11 c b
   ? == k 8 { = o opof a ? tty d
-    { agTf 0 b agTf 1 c ? == o '+ afadd 0 0 1 ? == o '- afsub 0 0 1 ? == o '* afmul 0 0 1 ? == o '/ afdiv 0 0 1 { ebeg "operador real ainda nao em -a" eend } asTf 0 d }
-    { agT 9 b agT 10 c
-      ? == o '+ aadd 9 9 10 ? == o '- asub 9 9 10 ? == o '* amul 9 9 10 ? == o '/ asdiv 9 9 10
-      ? == o '% { asdiv 11 9 10 amsub 9 11 10 9 } ? == o '& aand 9 9 10 ? == o '| aorr 9 9 10
-      ? == o '^ aeor 9 9 10 ? == o k2 '< '< alsl 9 9 10 ? == o k2 '> '> alsr 9 9 10
-      { ebeg "operador ainda nao em -a" eend } asT 9 d } }
-  ? == k 9 { ? tty b { agTf 0 b agTf 1 c afcmp 0 1 acset 9 ^ afcc opof a 1 asT 9 d } { agT 9 b agT 10 c acmp 9 10 acset 9 ^ acc opof a 1 asT 9 d } }
-  ? == k 15 { ? == a 0 { agT 9 b ascvtf 0 9 asTf 0 d } ? == a 1 { agTf 0 b afcvtzs 9 0 asT 9 d } { ebeg "funcao matematica ainda nao em -a" eend } }
+    { = x aod 0 b = y aod 1 c = r adf 0 d
+      ? == o '+ afadd r x y ? == o '- afsub r x y ? == o '* afmul r x y ? == o '/ afdiv r x y { ebeg "operador real ainda nao em -a" eend } afd r d }
+    { = x aox 9 b = y aox 10 c = r adx 9 d
+      ? == o '+ aadd r x y ? == o '- asub r x y ? == o '* amul r x y ? == o '/ asdiv r x y
+      ? == o '% { asdiv 11 x y amsub r 11 y x } ? == o '& aand r x y ? == o '| aorr r x y
+      ? == o '^ aeor r x y ? == o k2 '< '< alsl r x y ? == o k2 '> '> aasr r x y
+      { ebeg "operador ainda nao em -a" eend } afx r d } }
+  ? == k 9 { ? tty b { = x aod 0 b = y aod 1 c afcmp x y = r adx 9 d acset r ^ afcc opof a 1 afx r d } { = x aox 9 b = y aox 10 c acmp x y = r adx 9 d acset r ^ acc opof a 1 afx r d } }
+  ? == k 15 { ? == a 0 { agT 9 b ascvtf 0 9 asTf 0 d } ? == a 1 { agTf 0 b afcvtzs 9 0 asT 9 d }
+    ? == a 2 { agTf 0 b x4 0x1E61C000 asTf 0 d } ? == a 7 { agTf 0 b x4 0x1E654000 asTf 0 d } ? == a 8 { agTf 0 b x4 0x1E60C000 asTf 0 d }
+    ? == a 11 { agT 9 b x4 0x9360FD29 asT 9 d } ? == a 12 { agT 9 b x4 0x2A0903E9 asT 9 d }
+    ? || == a 3 == a 4 { agTf 0 b aimm 9 0x3FC45F306DC9C883 afmovxd 1 9 afmul 2 0 1 x4 0x1E644042
+      aimm 9 0x401921FB54442D18 afmovxd 1 9 x4 0x1F418040 aimm 9 0x3CB1A62633145C07 afmovxd 1 9 x4 0x1F418040
+      acallf fby ? == a 3 k3 '_ 's 'n k3 '_ 'c 's asTf 0 d }
+    { ebeg "funcao matematica ainda nao em -a: " N a eend } }
+  ? == k 43 { agT 9 a agT 10 b x4 0x2A0A03EA x4 0xD3607D29 aorr 9 9 10 asT 9 d }
+  ? == k 44 { aimm 9 | << a 32 b asT 9 d }
+  ? == k 45 0
+  ? == k 3 { = q sreg a aimm 0 q aimm 1 slen a acallf aro 's }
   ? == k 21 a21
   ? == k 22 a22 a
   ? == k 23 a23
-  ? == k 24 { agT 9 a aldrx 10 28 9 asT 10 d }
-  ? == k 25 { agT 9 a agT 10 b astrx 10 28 9 }
-  ? == k 26 { agT 9 a aldrdx 0 28 9 asTf 0 d }
-  ? == k 27 { agT 9 a agTf 0 b astrdx 0 28 9 }
-  ? == k 10 { aimm 9 0 asT 9 d agT 9 a = p @ 16 x4 0xB4000009 aipush p }
+  ? == k 24 { = x aox 9 a = r adx 10 d aldrx r 28 x afx r d }
+  ? == k 25 { = x aox 9 a = y aox 10 b astrx y 28 x }
+  ? == k 26 { = x aox 9 a = r adf 0 d aldrdx r 28 x afd r d }
+  ? == k 27 { = x aox 9 a = y aod 0 b astrdx y 28 x }
+  ? == k 10 { aimm 9 0 asT 9 d = x aox 9 a = p @ 16 x4 | 0xB4000000 x aipush p }
   ? == k 11 { agT 9 a acmpi 9 0 acset 9 0 asT 9 d apcbz aipop }
-  ? == k 12 { aimm 9 1 asT 9 d agT 9 a = p @ 16 x4 0xB5000009 aipush p }
+  ? == k 12 { aimm 9 1 asT 9 d = x aox 9 a = p @ 16 x4 | 0xB5000000 x aipush p }
   ? == k 13 { agT 9 a acmpi 9 0 acset 9 0 asT 9 d apcbnz aipop }
-  ? == k 14 { agT 9 a acmpi 9 0 acset 9 1 asT 9 d }
+  ? == k 14 { = x aox 9 a acmpi x 0 = r adx 9 d acset r 1 afx r d }
   ? == k 17 { ? tty b { agTf 0 b agTf 1 c afcmp 0 1 x4 | | 0x1E600C00 << 1 16 << ? a 0xC 0x4 12 asTf 0 d } { agT 9 b agT 10 c acmp 9 10 acsel 9 9 10 ? a 0xC 0xB asT 9 d } }
-  ? == k 18 { agT 9 a = p @ 16 x4 0xB4000009 aipush p }
+  ? == k 18 { = x aox 9 a = p @ 16 x4 | 0xB4000000 x aipush p }
   ? == k 19 { astod d a = p @ 16 ab 0 apcbz aipop aipush p }
   ? == k 20 { astod d a apb aipop }
   ? == k 28 { agT 0 a acallf aro 'a asT 0 d }
@@ -270,14 +441,15 @@
     abl 0
     ? @ fe a 3 { asTf 0 d } { asT 0 d } }
   ? == k 53 amap p
-  ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aaddsp afs aepil aret }
+  ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } arest aaddsp afs aepil aret }
   { ebeg "operacao ainda nao suportada em -a (kind " N k ")" eend } }
 : afun i>i k {
   = np @ fe k 2
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
+  ara k
   O 16
   ! fe k 8 @ 16
-  aprol asubsp afs
+  aprol asubsp afs asave
   = xc 0
   = dc 0
   = j 0
@@ -293,39 +465,72 @@
 : amovr ii>i rd rn x4 | | 0xAA0003E0 << rn 16 rd
 : asvc80 >i x4 0xD4001001
 : az i>i n { = j 0 W < j n { P 0 = j + j 1 } 0 }
-# emite o stub de entrada (mmap M -> x28; x27=0; bl main; exit(x0)) e devolve a posicao do bl no buffer
-: aentm >i {
-  aimm 0 0 aimm 1 268435456 aimm 2 3 aimm 3 4098 aimm 4 -1 aimm 5 0 aimm 16 197 asvc80
-  amovr 28 0 aaddi 28 28 128 aimm 27 0
-  = blp @ 16
-  abl 0
-  aimm 16 1 asvc80
-  blp }
-# -m emite um OBJETO Mach-O (MH_OBJECT) com o MESMO codigo-maquina do -a (entrada mmap + funcoes), e um simbolo
-# _main na entrada. O clang linka-o num executavel valido do Mac: `clang prog.o -o prog` -- a validacao estrita,
-# a assinatura e o __LINKEDIT ficam a cargo da toolchain do sistema; o codigo continua todo escrito pela Onda.
-: outm >i {
+# arranque comum (depois de x28 = base de M): guarda argc/argv (x21/x22) em M[-9]/M[-10], poe o ponteiro de
+# alocacao M[-1] a seguir as strings (@20, como o x86) e copia o bloco de dados (as strings, M[64..@20)) que vai
+# no fim do codigo para M. O endereco do bloco e relativo ao pc (bl +4 -> x30), logo vale em qualquer endereco.
+# Devolve a posicao do aimm a corrigir com (inicio do bloco - posicao do mov x9,x30).
+: apimm iii>i p rd v {
+  xput4 p | | 0xD2800000 << & v 0xffff 5 rd
+  xput4 + p 4 | | | 0xF2800000 << 1 21 << & >> v 16 0xffff 5 rd
+  xput4 + p 8 | | | 0xF2800000 << 2 21 << & >> v 32 0xffff 5 rd
+  xput4 + p 12 | | | 0xF2800000 << 3 21 << & >> v 48 0xffff 5 rd }
+: ainit >i {
+  aimm 10 -9 astrx 21 28 10
+  aimm 10 -10 astrx 22 28 10
+  aimm 9 @ 20 aimm 10 -1 astrx 9 28 10
+  abl 4
+  amovr 9 30
+  = dp @ 16
+  aimm4 10 0
+  aadd 9 9 10
+  aimm 10 512 aadd 10 28 10
+  aimm 11 - @ 20 64
+  = l @ 16
+  = pc @ 16 x4 0xB400000B
+  x4 0xF840852C x4 0xF800854C x4 0xD100056B
+  ab - l @ 16
+  xput4 pc | 0xB400000B << & / - @ 16 pc 4 0x7FFFF 5
+  dp }
+# bloco de dados: as strings registadas (sreg), cada uma em palavras de 8 bytes, pela ordem dos enderecos
+: adata >i { = j 0 W < j @ 22 { wchr @ + @ 21 * j 2 = j + j 1 } 0 }
+: aftot >i { = t 0 = k 0 W < k @ 6 { = t + t - @ fe k 9 @ fe k 8 = k + k 1 } t }
+# corrige o bl da entrada para _go e os bl entre funcoes (@64; posicoes no buffer 16, contiguas na saida)
+: abls iii>i estart elen blp {
   = mi fby k3 '_ 'g 'o
-  O 16
-  = estart @ 16
-  = blp aentm
-  = elen - @ 16 estart
-  O 0
-  # corrige o bl da entrada -> _go
   = moff elen
   = k 0 W < k mi { = moff + moff - @ fe k 9 @ fe k 8 = k + k 1 }
   xput4 blp | 0x94000000 & / - moff - blp estart 4 0x3FFFFFF
-  # corrige os bl entre funcoes (@64): posicoes no buffer 16, relativas -> preservadas na saida
   = nc @ @ 64
   = c 0
   W < c nc { = pos @ + @ 64 + 1 * c 2 = fi @ + @ 64 + 2 * c 2 xput4 pos | 0x94000000 & / - @ fe fi 8 pos 4 0x3FFFFFF = c + c 1 }
-  = clen elen
-  = k 0 W < k @ 6 { = clen + clen - @ fe k 9 @ fe k 8 = k + k 1 }
-  = coff 208
+  0 }
+# entrada -m: argc/argv (x0/x1 do _main) -> x21/x22; mmap M -> x28; arranque comum; bl _go; exit(x0)
+: aentm >i {
+  amovr 21 0 amovr 22 1
+  aimm 0 0 aimm 1 268435456 aimm 2 3 aimm 3 4098 aimm 4 -1 aimm 5 0 aimm 16 197 asvc80
+  amovr 28 0 aaddi 28 28 128 aimm 27 0
+  = dp ainit
+  abl 0
+  aimm4 16 1 asvc80
+  dp }
+# -m emite um OBJETO Mach-O (MH_OBJECT) com o MESMO codigo-maquina do -a (entrada mmap + funcoes + dados), e um
+# simbolo _main na entrada. O clang linka-o num executavel valido do Mac: `clang prog.o -o prog` -- a validacao
+# estrita, a assinatura e o __LINKEDIT ficam a cargo da toolchain do sistema; o codigo e todo escrito pela Onda.
+: outm >i {
+  O 16
+  = estart @ 16
+  = dp aentm
+  = elen - @ 16 estart
+  O 0
+  abls estart elen - + estart elen 24
+  = ft aftot
+  apimm dp 10 - + elen ft - - dp 4 estart
+  = clen + + elen ft * 8 - @ 20 64
+  = coff 232
   = so + coff clen
   = sto + so 16
-  # cabecalho (32): magic, arm64, subtype 0, filetype 1 (OBJECT), ncmds 2, sizeofcmds 176
-  x4 0xFEEDFACF x4 0x0100000C x4 0 x4 1 x4 2 x4 176 x4 0 x4 0
+  # cabecalho (32): magic, arm64, subtype 0, filetype 1 (OBJECT), ncmds 3, sizeofcmds 200
+  x4 0xFEEDFACF x4 0x0100000C x4 0 x4 1 x4 3 x4 200 x4 0 x4 0
   # LC_SEGMENT_64 (72) sem nome + 1 seccao __text,__TEXT (80)
   x4 0x19 x4 152 az 16
   x8 0 x8 clen x8 coff x8 clen x4 7 x4 7 x4 1 x4 0
@@ -333,47 +538,48 @@
   x8 0 x8 clen x4 coff x4 2 x4 0 x4 0 x4 0x80000400 x4 0 x4 0 x4 0
   # LC_SYMTAB (24): symoff, nsyms 1, stroff, strsize 7
   x4 2 x4 24 x4 so x4 1 x4 sto x4 7
-  # codigo: entrada + corpo de cada funcao
+  # LC_BUILD_VERSION (24): macOS, minos 11.0, sdk 11.0, sem ferramentas (o ld deixa de avisar)
+  x4 0x32 x4 24 x4 1 x4 0x000B0000 x4 0x000B0000 x4 0
+  # codigo: entrada + corpo de cada funcao + dados
   ew estart elen
   = k 0 W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }
+  adata
   # simbolo _main (externo, seccao 1, valor 0) + tabela de strings "\0_main\0"
   x4 1 P 15 P 1 P 0 P 0 x8 0
   P 0 P '_ P 'm P 'a P 'i P 'n P 0
   0 }
 : outa >i {
-  = mi fby k3 '_ 'g 'o
-  # o stub de entrada ocupa 44 bytes (2 aimm = 8 instr + bl + mov + svc); o bl esta no byte 32
-  = moff 44
-  = k 0
-  W < k mi { = moff + moff - @ fe k 9 @ fe k 8 = k + k 1 }
-  = clen 44
-  = k 0
-  W < k @ 6 { = clen + clen - @ fe k 9 @ fe k 8 = k + k 1 }
-  # 2 cabecalhos de programa (2*56) a seguir ao cabecalho ELF (64) -> codigo no byte 176
-  = fsz + 176 clen
   = base 4194304
   = mbase 268435456
+  # entrada (ELF Linux): argc em [sp], argv em sp+8; x28 = base de M + 128 (16 slots negativos p/ o runtime)
+  O 16
+  = estart @ 16
+  ald 21 0 aaddi 22 31 8
+  aimm 28 + mbase 128
+  aimm 27 0
+  = dp ainit
+  = blp @ 16 abl 0
+  x4 | | 0xD2800000 << 93 5 8
+  x4 0xD4000001
+  = elen - @ 16 estart
+  O 0
+  abls estart elen blp
+  = ft aftot
+  apimm dp 10 - + elen ft - - dp 4 estart
+  = clen + + elen ft * 8 - @ 20 64
+  # 2 cabecalhos de programa (2*56) a seguir ao cabecalho ELF (64) -> codigo no byte 176
+  = fsz + 176 clen
   # cabecalho ELF (64 bytes): aarch64, ET_EXEC, 2 segmentos, entry = base+176
   P 127 P 'E P 'L P 'F P 2 P 1 P 1 P 0 x8 0
   wword 2 2 wword 183 2 x4 1 x8 + base 176
   x8 64 x8 0 x4 0
   x4 | 64 << 56 16 x4 2 x4 0
-  # segmento 1 (56 bytes): PT_LOAD RX -- cabecalhos + codigo
+  # segmento 1 (56 bytes): PT_LOAD RX -- cabecalhos + codigo + dados
   x4 1 x4 5 x8 0 x8 base x8 base x8 fsz x8 fsz x8 4096
   # segmento 2 (56 bytes): PT_LOAD RW -- M (heap), BSS puro (filesz 0, memsz 256 MiB) em mbase
   x4 1 x4 6 x8 0 x8 mbase x8 mbase x8 0 x8 mbase x8 4096
-  # stub de entrada: x28 = base de M + 128 (16 slots negativos p/ o runtime) ; bl _go ; exit(x0) de reserva
-  aimm 28 + mbase 128
-  aimm 27 0
-  abl - moff 32
-  x4 | | 0xD2800000 << 93 5 8
-  x4 0xD4000001
-  # corrigir os bl: offset (bytes) = inicio da funcao alvo - posicao do bl (ambos no buffer; a entrada e o
-  # base cancelam porque o corpo e contiguo e sai todo a seguir a entrada)
-  = nc @ @ 64
-  = c 0
-  W < c nc { = pos @ + @ 64 + 1 * c 2 = fi @ + @ 64 + 2 * c 2 xput4 pos | 0x94000000 & / - @ fe fi 8 pos 4 0x3FFFFFF = c + c 1 }
-  # corpo de cada funcao
+  ew estart elen
   = k 0
   W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }
+  adata
   0 }

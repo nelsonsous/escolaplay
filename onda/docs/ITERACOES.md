@@ -1737,3 +1737,40 @@ O `restrict` promete ao compilador que `_s` e `_o` não se sobrepõem (verdade: 
 **Prova.** `./build.sh` fecha o ponto fixo (o `-a`/`-m` são folha). `node --test`: **107 testes**. O mapa `-a` continua **bit a bit igual ao C** (via soma inteira) para n = 64, 63, 100, 7, 1 e a `vecmap` completa (n=256) — o FMA não partiu a identidade (o clang também funde, e o truncamento para int absorve o ULP). O binário emitido mostra **21 `fmla.2d`** em dois bancos (14 em A, 7 em B). Falta medir no Mac: o `user` deve cair de ~0.042 s para perto (ou abaixo) do C.
 
 **Próxima.** Medir no Mac real; se preciso, desenrolar mais (4x) ou afinar o agendamento. Depois strings/`Ac`/`Av`/`T` para a `vecmap.onda` literal.
+
+---
+
+## Iteração 97: arm64 nativo no M1 — a Onda compila-se a si própria em código-máquina arm64, com registos
+
+**Pergunta (do utilizador).** Comparar no M1 o π/fib/julia pelos dois caminhos (C→clang e arm64 escrito pela Onda), fazer uma semente nativa arm64 com ponto fixo e um ramo `--semente-arm64` no `build.sh`.
+
+**O ponto de partida.** O `-m` era folha e só cobria uma parte da linguagem: nenhum dos três exemplos compilava (faltavam a redução `S`, o `D`, strings, `T`, `Ac`/`Av`, a matemática). O caminho C também falhava aqui, por o `onda` escrever a cache em `~/.cache` (bloqueado pela sandbox; `ONDA_CACHE` resolve).
+
+**O que foi feito.**
+- **Cobertura** (`src/9arm64.onda`, `src/4main.onda`): `S` e `D` baixados para ciclos (como no x86); a matemática em Onda (`9mat`) ligada também no arm64 (o `Sn`/`Cs` nativo, só pedido para |x| enorme, reduz módulo 2π e chama `_sn`/`_cs`); `Sq`/`Fl`/`Ab`/`Bh`/`Bl`/`Bw`; strings (bloco de dados no fim do código, copiado para `M[64..]` no arranque, endereço relativo ao pc); `T` (gettimeofday: 116 no macOS, 169 no Linux); `Ac`/`Av` (argc/argv guardados em `M[-9]`/`M[-10]`); o ponteiro de alocação começa a seguir às strings (como no x86).
+- **Erros corrigidos:** `>>` passava por `lsr` (lógico) — é `asr`, como o `sar` do x86 e o `>>` do C; molduras com mais de 4095 bytes e slots acima de 4095 tinham codificações que transbordavam; a tabela de chamadas (`@64`) tinha 4000 entradas, pouco para o compilador.
+- **E/S:** a escrita junta até 4096 bytes por syscall (era um byte por syscall: o julia passava 2,4 s no núcleo); a leitura tem um buffer de 4 KiB no fim de M.
+- **Registos:** um alocador próprio do arm64 (varrimento linear, prioridade aos ciclos mais fundos). Cada variável e temporário tem um intervalo de vida, estendido aos ciclos que atravessa; o que atravessa chamadas só pode ir para x19–x26 / d10–d15 (cada função guarda e repõe os que usa), o resto também para x13–x15 / d16–d31. A aritmética, as comparações, as cargas/escritas em M e os saltos usam os registos diretamente. Imediatos pequenos já não gastam 4 instruções.
+- **Mach-O:** o objeto leva `LC_BUILD_VERSION` (o `ld` deixa de avisar).
+- **Arranque:** `seed/ondac-arm64` (quarta semente); `./build.sh --semente-arm64`; e o `./build.sh` padrão, no Darwin-arm64, deixa um `build/ondac` nativo em vez do invólucro Node.
+
+**Prova.**
+- O compilador arm64 compila-se a si próprio até ao ponto fixo (`a2.o == a3.o`, 326 091 bytes; antes do alocador eram 560 KB). O C, o WebAssembly, o x86-64, o ELF arm64 e o Mach-O que ele gera são iguais ao byte aos da semente WASM, e as quatro sementes estão alinhadas (C `3aa51a2675edcec3`).
+- O julia em arm64 dá a mesma imagem que o C, byte a byte; π, fib, SHA-256 e crivo dão o mesmo resultado.
+- `node --test`: as mesmas 34 falhas que o HEAD anterior tem neste Mac (testes que correm binários x86/qemu, o `-fopenmp` que o clang da Apple recusa, e 37 valores em que o `Math` deste Node difere do fdlibm). Um teste novo (`test/macho.test.js`) linka e corre o Mach-O no M1.
+
+**Os números (M1, melhor de 5, tempo total do processo).**
+
+| | C → clang -O3 | arm64 da Onda (stack) | arm64 da Onda (registos) |
+|---|---|---|---|
+| π (200 M termos) | 0,21 s | 2,46 s | 0,44 s |
+| fib(35) | 0,04 s | 0,11 s | 0,04 s |
+| julia 960×540 | 0,05 s | 0,58 s | 0,13 s |
+| auto-compilação | — | — | 0,04 s (WASM via Node: 0,10 s) |
+
+Tamanhos: objetos de 10 KB (π, fib) e 34 KB (julia); executáveis de 17 KB e 50 KB (os do C: ~34 KB).
+
+**O balanço.** O fib já empata com o clang. O π e o julia ficam a 2–2,6×: o clang vetoriza a soma do π (NEON, 2 `fdiv` em paralelo) e funde multiplicações e somas; aqui o ciclo é escalar, e ainda há cópias entre registos e constantes rematerializadas a cada volta. Nota à parte: o `ex/ocr.onda` (4,3 MB de C) já saía com bytes binários pelo meio no HEAD anterior (transbordo de um buffer do compilador); não é deste trabalho, mas fica registado.
+
+**Próxima.** Constantes e invariantes fora dos ciclos (LICM), `fmadd`/`fmsub` no escalar, e a redução `S` vetorizada em NEON (é onde o clang ganha no π).
+
