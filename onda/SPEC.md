@@ -87,7 +87,7 @@ Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Gro
 ## Ferramentas
 - `./build.sh` faz o arranque 100% em Onda, a partir da semente WASM (só Node) ou nativa (`--semente-x86`), e exige ponto fixo bit a bit. `--c` usa a ponte C (`seed/ondac.c`), só para portar a um CPU sem backend nativo.
 - `./onda run f.onda`: compila e corre, com cache por hash. O que já foi compilado nunca se recompila.
-- `./onda c f.onda` gera C portátil; `./onda gpu f.onda px` gera GLSL; `web/ondac.wasm` é o compilador para o browser.
+- `./onda c f.onda` gera C portátil; `./onda gpu f.onda px` gera GLSL; `seed/ondac.wasm` é o compilador para o browser.
 - Os erros do compilador trazem a linha e a coluna, e mostram a linha da fonte com um sinal (`^`) sob o token, p. ex.:
   ```
   #error onda: nome desconhecido (linha 4, coluna 3)

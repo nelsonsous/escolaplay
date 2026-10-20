@@ -37,7 +37,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) — a Onda arranca de qualquer uma, sem Rust nem C |
 | `boot/` | arranque em Rust do estágio 0 — **desativado**, mantido só como histórico: a Onda já arranca das suas próprias sementes |
 | `rt/prelude.c` | runtime C mínimo (só para o alvo C opcional) |
-| `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
+| `wasm/` | anfitrião WebAssembly de três portas (`host.js`) |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
 | `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem Turing-completa (`mini.onda`) um crivo de Eratóstenes (`crivo.onda`) um armazém endereçado por conteúdo (`cas.onda`), base64 (`b64.onda`) um matcher de expressões regulares (`regex.onda`) aritmética de precisão arbitrária (`big.onda`) quicksort (`qsort.onda`) BFS num labirinto (`maze.onda`) integração de Simpson (`integra.onda`) e CRC-32 (`crc.onda`) |
 | `bench/` | comparações com C, JavaScript e Python |

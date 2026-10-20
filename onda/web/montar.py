@@ -1,5 +1,5 @@
 # Monta as duas paginas (Onda e Onda Viva) em build/site-onda e build/site-viva.
-# Uso: python3 web/montar.py   (depois de ./build.sh e wasm/build-wasm.sh)
+# Uso: python3 web/montar.py   (depois de ./build.sh)
 import os, json, html, shutil, subprocess, sys
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rd = lambda p: open(os.path.join(R, p), encoding='utf-8').read()
