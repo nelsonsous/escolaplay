@@ -29,7 +29,7 @@ g = lambda e: subprocess.run([oc, '-g', 'px'], stdin=open(os.path.join(R, 'ex', 
 grover = subprocess.run([os.path.join(R, 'onda'), 'run', os.path.join(R, 'ex/grover.onda')], capture_output=True, text=True).stdout.rstrip('\n')
 files = [('f/SPEC.md', 'SPEC.md', 'especificação, escrita para IAs'), ('f/ondac.onda', 'build/ondac.onda', 'o compilador, escrito em Onda'),
          ('f/ondac.c', 'seed/ondac.c', 'semente C, gerada pela própria Onda'), ('f/build.sh', 'build.sh', 'arranque e prova do ponto fixo'),
-         ('f/onda.sh', 'onda', 'comando com cache por hash'), ('f/boot.rs', 'boot/src/main.rs', 'arranque em Rust, usado uma vez'),
+         ('f/onda.sh', 'onda', 'comando com cache por hash'),
          ('f/prelude.c', 'rt/prelude.c', 'runtime C mínimo'), ('ondac.js', 'web/ondac.js', 'carrega o compilador WebAssembly'),
          ('f/host.js', 'wasm/host.js', 'anfitrião WebAssembly de três portas')] + \
         [('f/ex/%s.onda' % e, 'ex/%s.onda' % e, d) for e, d in [('julia', 'fractal de Julia, CPU e GPU'), ('ondas', 'interferência de ondas, CPU e GPU'), ('grover', 'busca quântica de Grover'), ('pi', 'π com redução paralela'), ('fib', 'recursão sequencial'), ('ola', 'olá mundo')]]

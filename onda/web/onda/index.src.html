@@ -225,12 +225,12 @@ pre.term{background:var(--screen);color:var(--screen-ink);border-color:var(--scr
     <div class="proof">
       <h3>Compila-se a si própria, bit a bit</h3>
       <ol class="chain">
-        <li><span>onda-boot</span><small>Rust, usado só no arranque</small></li>
+        <li><span>semente Onda</span><small>WASM/x86, escrita pela própria Onda</small></li>
         <li><span>ondac1.c</span><small>gerado pelo arranque</small></li>
         <li><span>ondac2.c</span><small>gerado pela própria Onda</small></li>
         <li><span>ondac3.c</span><small>gerado outra vez</small></li>
       </ol>
-      <p>Os três ficheiros C são idênticos: __N_C__ bytes, SHA-256 <code>__H8__…__H4__</code>. Depois do arranque, o Rust deixa de ser preciso. Basta um compilador de C e a semente, que já foi gerada pela própria Onda.</p>
+      <p>Os três ficheiros C são idênticos: __N_C__ bytes, SHA-256 <code>__H8__…__H4__</code>. Não é preciso Rust nem compilador de C: a Onda arranca da sua própria semente (WebAssembly ou x86-64) e recompila-se até ao ponto fixo.</p>
       <div class="verify">
         <button id="verify" class="primary" type="button">Verificar no teu browser</button>
         <span id="vres" role="status">O teu browser vai compilar os __N_ONDA__ bytes do compilador e comparar o resultado.</span>

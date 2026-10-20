@@ -10,9 +10,9 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ## Começar
 
 ```sh
-./build.sh                  # arranque: Rust -> ondac1 -> ondac2 -> ondac3, exige ponto fixo bit a bit
-./build.sh --semente        # sem Rust: arranca so da semente C (seed/ondac.c)
-./build.sh --semente-x86    # sem Rust, sem C e sem Node: so a semente nativa x86-64
+./build.sh                  # arranque 100% Onda: semente WASM (so Node) -> ponto fixo bit a bit, sem Rust nem C
+./build.sh --semente-x86    # ainda mais puro: so a semente nativa x86-64, sem Node
+./build.sh --c              # ponte C opcional: so para portar a um CPU sem backend nativo (seed/ondac.c)
 ./onda run ex/grover.onda   # compila e corre, com cache por hash
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
@@ -34,9 +34,8 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `SPEC.md` | a linguagem inteira, escrita para IAs |
 | `src/*.onda` | o compilador, em Onda: C, GLSL, JavaScript, WebAssembly e x86-64 escritos byte a byte, circuitos (AIGER, Verilog) e oráculos quânticos (OpenQASM 3) |
 | `src/9mat.onda` | a matemática (seno, coseno, exp, log, atan2, pow) escrita em Onda, gerada por `tools/gerar_mat.py` |
-| `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) |
-| `boot/` | arranque em Rust (estágio 0), usado uma vez |
-| `rt/prelude.c` | runtime C mínimo |
+| `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) — a Onda arranca de qualquer uma, sem Rust nem C |
+| `rt/prelude.c` | runtime C mínimo (só para o alvo C opcional) |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
 | `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem Turing-completa (`mini.onda`) um crivo de Eratóstenes (`crivo.onda`) um armazém endereçado por conteúdo (`cas.onda`), base64 (`b64.onda`) um matcher de expressões regulares (`regex.onda`) aritmética de precisão arbitrária (`big.onda`) quicksort (`qsort.onda`) BFS num labirinto (`maze.onda`) integração de Simpson (`integra.onda`) e CRC-32 (`crc.onda`) |
@@ -45,7 +44,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 
 ## O que está verificado
 
-- **Ponto fixo:** `ondac1.c`, `ondac2.c` e `ondac3.c` são iguais bit a bit (81 581 bytes, SHA-256 `3d642bfb…4326`), e o arranque em Rust gera o mesmo C.
+- **Ponto fixo:** `ondac1.c`, `ondac2.c` e `ondac3.c` são iguais bit a bit (81 581 bytes, SHA-256 `3d642bfb…4326`), e as três sementes da própria Onda (C, WebAssembly, x86-64) geram o mesmo C.
 - **GPU igual à CPU:** o shader GLSL da Onda renderiza em WebGL2 (Chromium/SwiftShader) e dá a mesma imagem que a forma CPU — 100% dos píxeis dentro de ±8/255. Agora dentro do `node --test` (`test/gpu.test.js`), não só numa ferramenta à parte.
 - **Velocidade (4 núcleos):** fib(35) em 15 ms (C: 16 ms); π com 200 milhões de termos em 68 ms (C sequencial: 246 ms, C com OpenMP à mão: 67 ms); fractal 960×540 em 13 ms (C sequencial: 31 ms).
 - **Grover com 20 qubits:** o alvo fica com probabilidade 0,9999998.

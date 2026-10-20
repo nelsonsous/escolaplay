@@ -4,7 +4,7 @@
 # repetido `rep` vezes. Devolve int(soma)&255 -- igual nas duas formas (confirma que o NEON esta certo).
 #
 # Como medir no teu Mac (Apple Silicon) -- NATIVO, sem Docker. Primeiro constroi o compilador no Mac
-# (git clone ..., cd onda, ./build.sh -- precisa de cargo/Rust para o arranque stage0), depois:
+# (git clone ..., cd onda, ./build.sh -- arranque 100% Onda, sem Rust nem C), depois:
 #   build/ondac -m < ex/arm-bench.onda > bench_arm && chmod +x bench_arm && codesign -s - bench_arm
 #   build/ondac    < ex/arm-bench.onda > bench.c && clang -O2 -fwrapv -w bench.c -o bench_c -lm
 #   echo ARM-Onda:; time ./bench_arm; echo; echo C:; time ./bench_c

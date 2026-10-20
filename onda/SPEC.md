@@ -85,7 +85,7 @@ Na GPU, `i` é int32 e `f` é float32. Memória e E/S são só de CPU.
 Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Grover completa: Hadamard, ⌊π/4·√2ⁿ⌋ iterações de oráculo (retrocesso de fase em `y[0]`) e difusão, e medição. Ver `ex/oraculo.onda`. O programa corre no simulador de vetor de estado escrito em Onda, `ex/qasm.onda` (até 23 qubits).
 
 ## Ferramentas
-- `./build.sh` faz o arranque: Rust → ondac1 → ondac2 → ondac3. Exige `ondac1.c == ondac2.c == ondac3.c`. `--semente` arranca só a partir de `seed/ondac.c`.
+- `./build.sh` faz o arranque 100% em Onda, a partir da semente WASM (só Node) ou nativa (`--semente-x86`), e exige ponto fixo bit a bit. `--c` usa a ponte C (`seed/ondac.c`), só para portar a um CPU sem backend nativo.
 - `./onda run f.onda`: compila e corre, com cache por hash. O que já foi compilado nunca se recompila.
 - `./onda c f.onda` gera C portátil; `./onda gpu f.onda px` gera GLSL; `web/ondac.wasm` é o compilador para o browser.
 - Os erros do compilador trazem a linha e a coluna, e mostram a linha da fonte com um sinal (`^`) sob o token, p. ex.:
