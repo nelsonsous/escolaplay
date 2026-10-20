@@ -53,10 +53,11 @@
 # 6..21 = d16..d31 sem chamadas). 34 local 36 inicio 37 fim 38 profundidade 39 ocupacao por posicao (entrada 0, instrucao i em i+1; bits 0..10
 # inteiros, 16..37 reais, 40 chamada, 41 chamada que tambem le os operandos em x13..x15: o mapa NEON) 40 ciclos (inicio,
 # fim) 41 n de ciclos 42 registos guardados usados 43 pilha de ciclos 44 profundidade atual
-: aloc i>i v @ + @ 34 v
+: arep i>i v @ + @ 35 v
+: aloc i>i v @ + @ 34 arep v
 : arx i>i l ? < l 8 + 19 l + 5 l
 : ard i>i l ? < l 6 + 10 l + 10 l
-: avs i>i v ? < v @ 11 aslt v asll - v @ 11
+: avs i>i v { = v arep v ? < v @ 11 aslt v asll - v @ 11 }
 : aty i>i v ? < v @ 11 tty v { = l lty - v @ 11 ? >= l 2 tty - l 2 l }
 : amov ii>i rd rn ? == rd rn 0 amovr rd rn
 : afmovdd ii>i rd rn ? == rd rn 0 x4 | | 0x1E604000 << rn 5 rd
@@ -71,10 +72,10 @@
 : adf ii>i r v { = l aloc v ? >= l 32 ard - l 32 r }
 : afx ii>i r v ? < aloc v 0 ast r avs v 0
 : afd ii>i r v ? < aloc v 0 astfr r avs v 0
-: amvv ii>i dv sv ? aty dv { = r aod 0 sv asVf r dv } { = r aox 9 sv asV r dv }
+: amvv ii>i dv sv ? == arep dv arep sv 0 ? aty dv { = r aod 0 sv asVf r dv } { = r aox 9 sv asV r dv }
 # instrucoes que chamam funcoes (estragam x13..x15 e d16..d31): 1 = normal, 2 = o mapa NEON (le em x13..x15)
-: acall i>i p { = k @ p ? || || || == k 7 == k 3 || == k 28 == k 29 || || == k 31 == k 32 == k 36 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? == k 53 2 0 }
-: arf ii>i v i { = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 }
+: acall i>i p { = k @ p ? || || || == k 7 == k 3 || == k 28 == k 29 || || == k 31 == k 32 == k 36 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || == k 53 == k 54 2 0 }
+: arf ii>i v i { = v arep v = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 }
 : aext i>i v {
   = s @ + @ 36 v
   = e @ + @ 37 v
@@ -103,6 +104,106 @@
       = p s W <= p e { = q + @ 39 p ! q | @ q b = p + p 1 }
       ? || < r 8 && >= r 16 < r 22 ! 42 | @ 42 b 0
       ! + @ 34 v ? fl + 32 - r 16 r } 0 } 0 }
+: aopn ii>i p q {
+  = k @ p
+  = f @ + @ 50 k
+  = n 0
+  ? & f 1 { ! + q n @ + p 2 = n + n 1 } 0
+  ? & f 2 { ! + q n @ + p 3 = n + n 1 } 0
+  ? & f 4 { ! + q n @ + p 4 = n + n 1 } 0
+  ? == k 7 { = b @ + p 3 = j 0 W < j @ + p 4 { ! + q n @ + b j = n + n 1 = j + j 1 } } 0
+  ? == k 53 { ! q @ + p 2 ! + q 1 @ + p 3 ! + q 2 @ + p 5 = n 3 } 0
+  ? == k 54 { ! q @ + p 2 = n 1 = b @ + p 4 = j 0 W < j - @ fe @ + p 3 2 1 { ! + q n @ + b j = n + n 1 = j + j 1 } } 0
+  n }
+# o intervalo ]a,b] e uma reta (sem inicio/fim de ciclo) onde a variavel j nao e escrita (nem lida, se rd)?
+: aclr iiiii>i a b j rd q {
+  = ok 1
+  = nt @ 11
+  = i + a 1
+  W && ok <= i b {
+    = p + @ 18 * i 8
+    = k @ p
+    ? || == k 21 == k 23 = ok 0 0
+    ? && == k 6 == @ + p 4 j = ok 0 0
+    ? && rd && == k 5 == @ + p 3 j = ok 0 0
+    ? rd { = c aopn p q = h 0 W < h c { ? == @ + @ 35 @ + q h + nt j = ok 0 0 = h + h 1 } } 0
+    = i + i 1 }
+  ok }
+: aali i>i q {
+  = n @ 19
+  = nt @ 11
+  = nv + nt @ 9
+  = v 0
+  W < v nv { ! + @ 35 v v = v + v 1 }
+  = t 0
+  W < t nt { ! + @ 45 t 0 ! + @ 46 t 0 ! + @ 47 t -1 ! + @ 48 t -1 = t + t 1 }
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    = c aopn p q
+    = h 0 W < h c { = t @ + q h ! + @ 45 t + @ + @ 45 t 1 ! + @ 48 t i = h + h 1 }
+    ? & @ + @ 50 @ p 8 { = d @ + p 1 ! + @ 46 d + @ + @ 46 d 1 ! + @ 47 d i } 0
+    = i + i 1 }
+  # a) t = variavel j: partilha o registo de j se j nao muda enquanto t vive
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    ? == @ p 5 { = d @ + p 1 = j @ + p 3 ? && && == @ + @ 46 d 1 >= @ + @ 48 d 0 aclr i @ + @ 48 d j 0 q ! + @ 35 d + nt j 0 } 0
+    = i + i 1 }
+  # b) variavel j = t, com t usado so aqui: t calcula-se ja no registo de j (se j nao e lida entretanto)
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    ? == @ p 6 {
+      = t @ + p 3
+      = j @ + p 4
+      = s @ + @ 47 t
+      ? && && && == @ + @ 46 t 1 == @ + @ 45 t 1 == @ + @ 35 t t && >= s 0 == aty t aty + nt j
+        ? aclr s - i 1 j 1 q ! + @ 35 t + nt j 0 0 } 0
+    = i + i 1 }
+  0 }
+# fusao a*b+c (fmadd/fmsub/fnmsub): um '*' real usado so por um '+'/'-' na mesma reta, sem os operandos mudarem
+# entretanto. So com -mf/-af (como o FMA do -xf no x86): um so arredondamento muda os ultimos bits, e o -m/-a tem de dar
+# os mesmos bits que o C, o WebAssembly e o x86. Nunca na biblioteca (funcoes _...), que fica igual ao bit ao fdlibm.
+# 51 por instrucao: -1 normal; -2 '*' absorvido; m >= 0 a soma que absorve o '*' da instrucao m
+: afmc ii>i t i {
+  = j @ + @ 47 t
+  = r -1
+  ? && && >= j 0 == @ + @ 46 t 1 == @ + @ 45 t 1 {
+    = q + @ 18 * j 8
+    ? && && == @ q 8 == opof @ + q 2 '* == @ + @ 51 j -1 {
+      = x arep @ + q 3
+      = y arep @ + q 4
+      = nt @ 11
+      = ok 1
+      = h + j 1
+      W && ok < h i {
+        = p + @ 18 * h 8
+        = k @ p
+        ? || || && >= k 10 <= k 13 && >= k 18 <= k 23 == k 41 = ok 0 0
+        ? && == k 6 || == + nt @ + p 4 x == + nt @ + p 4 y = ok 0 0
+        ? && & @ + @ 50 k 8 || == arep @ + p 1 x == arep @ + p 1 y = ok 0 0
+        = h + h 1 }
+      ? ok = r j 0 } 0 } 0
+  r }
+: afm >i {
+  = n @ 19
+  = i 0
+  W < i n { ! + @ 51 i -1 = i + i 1 }
+  ? || ~ fastf == tc @ fe @ 13 0 0 '_ 0 {
+    = i 0
+    W < i n {
+      = p + @ 18 * i 8
+      ? && && == @ p 8 tty @ + p 1 || == opof @ + p 2 '+ == opof @ + p 2 '- {
+        = m afmc @ + p 4 i
+        = m ? < m 0 afmc @ + p 3 i m
+        ? >= m 0 { ! + @ 51 i m ! + @ 51 m -2 } 0 } 0
+      = i + i 1 } } }
+# comparacao seguida do salto que e o seu unico uso: cmp + b.cond (sem cset/cbz). 48 do bloco de cima nao serve aqui:
+# a condicao pendente vive em @49 (-1 nenhuma)
+: afz i>i p { = q + p 8 = d @ + p 1 && && < / - q @ 18 8 @ 19 || == @ q 22 == @ q 18 && == @ + q 2 d == @ + @ 45 d 1 }
+: abr i>i x ? >= @ 49 0 { x4 | 0x54000000 ^ @ 49 1 ! 49 -1 } x4 | 0xB4000000 x
+: ap19 i>i p { = w | | | @ p << @ + p 1 8 << @ + p 2 16 << @ + p 3 24 xput4 p | & w 0xFF00001F << & / - @ 16 p 4 0x7FFFF 5 }
 : ara i>i kf {
   = n @ 19
   = nt @ 11
@@ -111,6 +212,10 @@
   W < v nv { ! + @ 34 v -1 ! + @ 36 v -1 ! + @ 37 v -1 ! + @ 38 v 0 = v + v 1 }
   = i 0
   W <= i n { ! + @ 39 i 0 = i + i 1 }
+  = qo A 64
+  aali qo
+  afm
+  ! 49 -1
   ! 41 0
   ! 44 0
   = sp 0
@@ -123,14 +228,13 @@
     = ps + i 1
     ? == k 21 { ! + @ 43 sp ps = sp + sp 1 ! 44 + @ 44 1 } 0
     = f @ + @ 50 k
-    ? & f 1 arf @ + p 2 ps 0
-    ? & f 2 arf @ + p 3 ps 0
-    ? & f 4 arf @ + p 4 ps 0
     ? & f 8 arf @ + p 1 ps 0
     ? == k 5 arf + nt @ + p 3 ps 0
     ? == k 6 arf + nt @ + p 4 ps 0
-    ? == k 7 { = b @ + p 3 = j 0 W < j @ + p 4 { arf @ + b j ps = j + j 1 } } 0
-    ? == k 53 { arf @ + p 2 ps arf @ + p 3 ps arf @ + p 5 ps } 0
+    = c aopn p qo
+    = h 0 W < h c { arf @ + qo h ps = h + h 1 }
+    = m @ + @ 51 i
+    ? >= m 0 { = q2 + @ 18 * m 8 arf @ + q2 3 ps arf @ + q2 4 ps } 0
     = c acall p
     ? c { = q + @ 39 ps ! q | @ q << 1 + 39 c } 0
     ? == k 23 { = sp - sp 1 = q + @ 40 * @ 41 2 ! q @ + @ 43 sp ! + q 1 ps ! 41 + @ 41 1 ! 44 - @ 44 1 } 0
@@ -187,8 +291,8 @@
 # pilha de ramos (if/else e &&/|| curto-circuito): @65[0]=n; cada entrada = posicao de um salto a corrigir
 : aipush i>i p { = n @ @ 65 ! + @ 65 + 1 n p ! @ 65 + n 1 }
 : aipop >i { = n - @ @ 65 1 ! @ 65 n @ + @ 65 + 1 n }
-: apcbz i>i p xput4 p | | 0xB4000000 << & / - @ 16 p 4 0x7FFFF 5 & @ p 31
-: apcbnz i>i p xput4 p | | 0xB5000000 << & / - @ 16 p 4 0x7FFFF 5 & @ p 31
+: apcbz i>i p ap19 p
+: apcbnz i>i p ap19 p
 : apb i>i p xput4 p | 0x14000000 & / - @ 16 p 4 0x3FFFFFF
 : apbc ii>i p cc xput4 p | | 0x54000000 << & / - @ 16 p 4 0x7FFFF 5 cc
 : acsel iiii>i rd rn rm cc x4 | | | | 0x9A800000 << rm 16 << cc 12 << rn 5 rd
@@ -279,12 +383,167 @@
   xput4 p2 | | 0x54000000 << & / - @ 16 p2 4 0x7FFFF 5 0xA
   ! 7 s7 }
 
+# --- S vetorizado em NEON (so com -mf/-af: reassocia a soma, como o -xf do x86; o -m/-a soma em serie, igual ao C) ---
+# elemento f ii..>f i ...: corpo { = l E ... E } ou E, com + - * /, literais reais, parametros reais, F do indice ou de
+# um parametro inteiro, e ate 2 locais. 4 elementos por volta (bancos A e B, 2 doubles cada, acumuladores proprios),
+# constantes difundidas antes do ciclo (v25..v31), FMA, cauda escalar. Bancos: A indice v0, acumulador v1, locais v2-3,
+# temporarios v4-7; B v16, v17, v18-19, v20-23; passo v24. 52 locais [n, tokens..., 15 = folhas] 53 modo (0 pre-carga,
+# 1 codigo) 54 constantes [n, (tipo, chave, registo)...]
+: asvl i>i i { = r -1 = j 0 W && < r 0 < j @ @ 52 { ? teq i @ + @ 52 + 1 j = r j 0 = j + j 1 } r }
+: asvp ii>i k i { = r -1 = j 0 W && < r 0 < j @ fe k 2 { ? teq i xpe k j = r j 0 = j + j 1 } r }
+: asop i>i i && == tkk i 5 isar tcode i
+: asfF i>i i && == tkk i 5 == tcode i 'F
+: asfl >i { = q + @ 52 15 ! q + @ q 1 0 }
+# validacao: devolve pressao*4 + (no e '*')*2 + (no ocupa temporario), ou -1
+: asvx i>i k {
+  = i @ 7
+  ? >= i @ 4 -1 {
+    ! 7 + i 1
+    = kk tkk i
+    ? == kk 2 { asfl 0 }
+    ? == kk 0 ? >= asvl i 0 0 { = j asvp k i ? && > j 0 fpt k j { asfl 0 } -1 }
+    ? asfF i { = t @ 7 ! 7 + t 1 ? != tkk t 0 -1 { = j asvp k t ? < j 0 -1 ? fpt k j -1 ? > j 0 { asfl 0 } 0 } }
+    ? asop i {
+      = ra asvx k
+      ? < ra 0 -1 {
+        = rb asvx k
+        ? < rb 0 -1 {
+          = pa >> ra 2 = ta & ra 1 = pb >> rb 2 = tb & rb 1
+          = p Mx Mx pb + tb pa + + ta tb 1
+          = p ? && == tcode i '+ || & ra 2 & rb 2 Mx p + 2 Mx pa pb p
+          | | << p 2 << == tcode i '* 1 1 } } }
+    -1 } }
+: asva i>i k {
+  ? || || != @ fe k 3 1 < @ fe k 2 1 fpt k 0 0 {
+    = sv @ 7
+    ! @ 52 0
+    ! + @ 52 15 0
+    = b @ fe k 5
+    = ok 1
+    = mp 0
+    ? == tcode b '{ {
+      ! 7 + b 1
+      W && ok && == tcode @ 7 '= == tkl @ 7 1 {
+        = nm + @ 7 1
+        ? || || != tkk nm 0 >= asvp k nm 0 || >= asvl nm 0 >= @ @ 52 2 = ok 0 {
+          ! 7 + nm 1
+          = r asvx k
+          ? < r 0 = ok 0 { = mp Mx mp >> r 2 ! + @ 52 + 1 @ @ 52 nm ! @ 52 + @ @ 52 1 } } }
+      ? ok { = r asvx k ? < r 0 = ok 0 { = mp Mx mp >> r 2 ? != tcode @ 7 '} = ok 0 0 } } 0 }
+      { ! 7 b = r asvx k ? < r 0 = ok 0 = mp Mx mp >> r 2 }
+    ! 7 sv
+    && && ok <= mp 4 <= @ + @ 52 15 7 } }
+: lowSa iii>i n k a { = r nt 1 ir 54 r n k a 0 0 r }
+# geracao
+: asvk >i { = i @ 7 ! 7 + i 1 ? asfF i { ! 7 + @ 7 1 0 } ? asop i { asvk asvk } 0 }
+: asmul i>i s && asop s == tcode s '*
+: astmp ii>i r tb && >= r tb < r + tb 4
+: asfr iii>i st tb r ? astmp r tb sfree st - r tb 0
+: asal ii>i st tb + salloc st tb
+: avmov ii>i d r x4 | | | 0x4EA01C00 << r 16 << r 5 d
+: ascst iii>i kd key src {
+  = n @ @ 54
+  = r -1
+  = j 0
+  W && < r 0 < j n { = e + @ 54 + 1 * j 3 ? && == @ e kd == @ + e 1 key = r @ + e 2 0 = j + j 1 }
+  ? >= r 0 r {
+    = r + 25 n
+    = e + @ 54 + 1 * n 3
+    ! e kd ! + e 1 key ! + e 2 r ! @ 54 + n 1
+    ? == kd 0 { aimm 9 key x4 | | 0x4E080C00 << 9 5 r }
+    ? == kd 1 { agTf 0 src x4 | 0x4E080400 r }
+    { agT 9 src ascvtf 0 9 x4 | 0x4E080400 r }
+    r } }
+: asve iiiiiii>i k a w lb tb vx st {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 ascst 0 afbits i 0
+  ? == kk 0 { = l asvl i ? >= l 0 + lb l { = j asvp k i ascst 1 j @ + a - j 1 } }
+  ? asfF i { = t @ 7 ! 7 + t 1 = j asvp k t ? == j 0 vx ascst 2 j @ + a - j 1 }
+  { = o tcode i
+    = sA @ 7 asvk
+    = sB @ 7 asvk
+    = af @ 7
+    ? == @ 53 0 { ! 7 sA asve k a w lb tb vx st ! 7 sB asve k a w lb tb vx st ! 7 af 0 }
+    { ? && == o '+ || asmul sA asmul sB
+        { = ad ? asmul sB sA sB
+          = ml ? asmul sB sB sA
+          ! 7 ad
+          = r0 asve k a w lb tb vx st
+          = rt ? astmp r0 tb r0 { = q asal st tb avmov q r0 q }
+          ! 7 + ml 1
+          = sX @ 7 asvk
+          = sY @ 7
+          ! 7 sY = ry asve k a w lb tb vx st
+          ! 7 sX = rx asve k a w lb tb vx st
+          ! 7 af
+          afmla w rt rx ry
+          asfr st tb rx asfr st tb ry
+          rt }
+        { ! 7 sB = rb asve k a w lb tb vx st
+          ! 7 sA = ra asve k a w lb tb vx st
+          ! 7 af
+          asfr st tb ra asfr st tb rb
+          = rd asal st tb
+          vfbin w o rd ra rb
+          rd } } } }
+: asbody iiiiiii>i k a w lb tb vx st {
+  ! @ 52 0
+  = b @ fe k 5
+  ? == tcode b '{ {
+    ! 7 + b 1
+    W && == tcode @ 7 '= == tkl @ 7 1 {
+      = nm + @ 7 1
+      ! 7 + nm 1
+      = r asve k a w lb tb vx st
+      = l @ @ 52
+      ! + @ 52 + 1 l nm
+      ! @ 52 + l 1
+      ? @ 53 { avmov + lb l r asfr st tb r } 0 }
+    asve k a w lb tb vx st }
+    { ! 7 b asve k a w lb tb vx st } }
+: asum i>i p {
+  = d @ + p 1
+  = n @ + p 2
+  = k @ + p 3
+  = a @ + p 4
+  = s7 @ 7
+  = st A 1
+  ! @ 54 0
+  ! 53 0 ! st 15 asbody k a 2 2 4 0 st
+  ! 53 1
+  agT 14 n
+  aimm 9 0
+  afmovxd 0 31 aimm 10 0x3FF0000000000000 afmovxd 24 10 x4 0x6E180700
+  aimm 10 0x4000000000000000 x4 | | 0x4E080C00 << 10 5 24
+  vfbin 2 '+ 16 0 24
+  aimm 10 0x4010000000000000 x4 | | 0x4E080C00 << 10 5 24
+  x4 0x6F00E401 x4 0x6F00E411
+  = l0 @ 16
+  aaddi 10 9 4 acmp 10 14 = pe @ 16 abcc 0xC 0
+  ! st 15 = r asbody k a 2 2 4 0 st vfbin 2 '+ 1 1 r
+  ! st 15 = r asbody k a 2 18 20 16 st vfbin 2 '+ 17 17 r
+  vfbin 2 '+ 0 0 24 vfbin 2 '+ 16 16 24
+  aaddi 9 9 4 ab - l0 @ 16
+  apbc pe 0xC
+  vfbin 2 '+ 1 1 17 x4 0x7E70D821
+  = l1 @ 16
+  acmp 9 14 = pt @ 16 abcc 0xA 0
+  ascvtf 0 9
+  ! st 15 = r asbody k a 1 2 4 0 st afadd 1 1 r
+  aaddi 9 9 1 ab - l1 @ 16
+  apbc pt 0xA
+  asTf 1 d
+  ! 7 s7
+  0 }
+
 # --- pilha de ciclos (nested W): @63 = array; [0] = profundidade; cada moldura = (inicio, pos_do_cbz) ---
 : adep >i @ @ 63
 : afrm i>i i + @ 63 + 1 * i 2
 : a21 >i { = d adep = f afrm d ! f @ 16 ! + f 1 0 ! @ 63 + d 1 }
-: a22 i>i a { = x aox 9 a = f afrm - adep 1 ! + f 1 @ 16 x4 | 0xB4000000 x }
-: a23 >i { = f afrm - adep 1 ab - @ f @ 16 = cp @ + f 1 xput4 cp | | 0xB4000000 << & / - @ 16 cp 4 0x7FFFF 5 & @ cp 31 ! @ 63 - adep 1 }
+: a22 i>i a { = x ? >= @ 49 0 0 aox 9 a = f afrm - adep 1 ! + f 1 @ 16 abr x }
+: a23 >i { = f afrm - adep 1 ab - @ f @ 16 = cp @ + f 1 ap19 cp ! @ 63 - adep 1 }
 
 # tabela de chamadas: @64[0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
 : acsrec ii>i pos fi { = c @ @ 64 = b + @ 64 + 1 * c 2 ! b pos ! + b 1 fi ! @ 64 + c 1 }
@@ -388,15 +647,25 @@
   ? == k 5 amvv d + @ 11 b
   ? == k 6 amvv + @ 11 c b
   ? == k 8 { = o opof a ? tty d
-    { = x aod 0 b = y aod 1 c = r adf 0 d
-      ? == o '+ afadd r x y ? == o '- afsub r x y ? == o '* afmul r x y ? == o '/ afdiv r x y { ebeg "operador real ainda nao em -a" eend } afd r d }
+    { = ii / - p @ 18 8
+      = m @ + @ 51 ii
+      ? == m -2 0
+      ? >= m 0 {
+        = q + @ 18 * m 8
+        = mt @ + q 1
+        = ad ? == c mt b c
+        = x aod 0 @ + q 3 = y aod 1 @ + q 4 = z aod 2 ad = r adf 0 d
+        x4 | | | | ? == o '+ 0x1F400000 ? == ad c 0x1F608000 0x1F408000 << y 16 << z 10 << x 5 r
+        afd r d }
+      { = x aod 0 b = y aod 1 c = r adf 0 d
+      ? == o '+ afadd r x y ? == o '- afsub r x y ? == o '* afmul r x y ? == o '/ afdiv r x y { ebeg "operador real ainda nao em -a" eend } afd r d } }
     { = x aox 9 b = y aox 10 c = r adx 9 d
       ? == o '+ aadd r x y ? == o '- asub r x y ? == o '* amul r x y ? == o '/ asdiv r x y
       ? == o '% { asdiv 11 x y amsub r 11 y x } ? == o '& aand r x y ? == o '| aorr r x y
       ? == o '^ aeor r x y ? == o k2 '< '< alsl r x y ? == o k2 '> '> aasr r x y
       { ebeg "operador ainda nao em -a" eend } afx r d } }
-  ? == k 9 { ? tty b { = x aod 0 b = y aod 1 c afcmp x y = r adx 9 d acset r ^ afcc opof a 1 afx r d } { = x aox 9 b = y aox 10 c acmp x y = r adx 9 d acset r ^ acc opof a 1 afx r d } }
-  ? == k 15 { ? == a 0 { agT 9 b ascvtf 0 9 asTf 0 d } ? == a 1 { agTf 0 b afcvtzs 9 0 asT 9 d }
+  ? == k 9 { = z afz p ? tty b { = x aod 0 b = y aod 1 c afcmp x y ? z ! 49 afcc opof a { = r adx 9 d acset r ^ afcc opof a 1 afx r d } } { = x aox 9 b = y aox 10 c acmp x y ? z ! 49 acc opof a { = r adx 9 d acset r ^ acc opof a 1 afx r d } } }
+  ? == k 15 { ? == a 0 { = x aox 9 b = r adf 0 d ascvtf r x afd r d } ? == a 1 { = x aod 0 b = r adx 9 d afcvtzs r x afx r d }
     ? == a 2 { agTf 0 b x4 0x1E61C000 asTf 0 d } ? == a 7 { agTf 0 b x4 0x1E654000 asTf 0 d } ? == a 8 { agTf 0 b x4 0x1E60C000 asTf 0 d }
     ? == a 11 { agT 9 b x4 0x9360FD29 asT 9 d } ? == a 12 { agT 9 b x4 0x2A0903E9 asT 9 d }
     ? || == a 3 == a 4 { agTf 0 b aimm 9 0x3FC45F306DC9C883 afmovxd 1 9 afmul 2 0 1 x4 0x1E644042
@@ -420,7 +689,7 @@
   ? == k 13 { agT 9 a acmpi 9 0 acset 9 0 asT 9 d apcbnz aipop }
   ? == k 14 { = x aox 9 a acmpi x 0 = r adx 9 d acset r 1 afx r d }
   ? == k 17 { ? tty b { agTf 0 b agTf 1 c afcmp 0 1 x4 | | 0x1E600C00 << 1 16 << ? a 0xC 0x4 12 asTf 0 d } { agT 9 b agT 10 c acmp 9 10 acsel 9 9 10 ? a 0xC 0xB asT 9 d } }
-  ? == k 18 { = x aox 9 a = p @ 16 x4 | 0xB4000000 x aipush p }
+  ? == k 18 { = x ? >= @ 49 0 0 aox 9 a = p @ 16 abr x aipush p }
   ? == k 19 { astod d a = p @ 16 ab 0 apcbz aipop aipush p }
   ? == k 20 { astod d a apb aipop }
   ? == k 28 { agT 0 a acallf aro 'a asT 0 d }
@@ -441,11 +710,14 @@
     abl 0
     ? @ fe a 3 { asTf 0 d } { asT 0 d } }
   ? == k 53 amap p
+  ? == k 54 asum p
   ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } arest aaddsp afs aepil aret }
   { ebeg "operacao ainda nao suportada em -a (kind " N k ")" eend } }
 : afun i>i k {
   = np @ fe k 2
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
+  # invariantes fora dos ciclos (a mesma passagem de RI do x86) e depois os registos
+  xlicm
   ara k
   O 16
   ! fe k 8 @ 16

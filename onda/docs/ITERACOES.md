@@ -1774,3 +1774,34 @@ Tamanhos: objetos de 10 KB (π, fib) e 34 KB (julia); executáveis de 17 KB e 50
 
 **Próxima.** Constantes e invariantes fora dos ciclos (LICM), `fmadd`/`fmsub` no escalar, e a redução `S` vetorizada em NEON (é onde o clang ganha no π).
 
+---
+
+## Iteração 98: LICM, fmadd e a soma `S` em NEON no arm64 — o π passa o clang
+
+**Pedido.** Avançar com as três coisas que a it.97 deixou como próximas: invariantes fora dos ciclos, `fmadd` no escalar e a redução `S` vetorizada em NEON.
+
+**O que foi feito** (`src/9arm64.onda`, `src/4main.onda`, `src/8xreg.onda`):
+- **LICM:** o `-a`/`-m` corre a mesma passagem de RI do x86 (`xlicm`) antes de atribuir registos; as constantes e os cálculos invariantes saem dos ciclos.
+- **Fusão de cópias no alocador:** o temporário que lê uma variável partilha o registo dela enquanto ela não muda; o resultado cujo único uso é `= var t` calcula-se já no registo da variável. Comparação seguida do salto que é o seu único uso: `cmp` + `b.cond` (sem `cset`/`cbz`). Conversões inteiro↔real direto nos registos. O ciclo do π passou de 25 para 11 instruções.
+- **fmadd/fmsub/fnmsub:** um `*` real usado só por um `+`/`-` na mesma reta funde-se. **Só com `-mf`/`-af`**, como o FMA do `-xf` no x86. Primeiro liguei-o por omissão e a verificação cruzada apanhou o custo: o compilador nativo lia `3.14159265358979323846` com 1 ulp de diferença do WASM (o `fltval` acumula `r*10 + d`, e o `fmadd` arredonda uma vez em vez de duas). O `-m` tem de dar os mesmos bits que o C, o WebAssembly e o x86. Nunca nas funções `_…` (a biblioteca fica igual ao fdlibm).
+- **`S` em NEON (`-mf`/`-af`):** novo nó de RI 54. Para um elemento `f ii..>f i …` com corpo `{ = l E … E }` ou `E` (`+ - * /`, literais reais, parâmetros reais, `F` do índice ou de um parâmetro inteiro, até 2 locais), o analisador valida os tokens e a pressão de registos. O gerador faz 4 elementos por volta (dois bancos `.2d` com acumuladores próprios), com as constantes difundidas antes do ciclo, `fmla`, e uma cauda escalar com o mesmo avaliador. Sem `-mf`, o `S` continua em série, igual ao C ao bit.
+- O `K` (armazém) é recusado à compilação no `-a`/`-m` (antes dava valores errados em silêncio).
+
+**Prova.**
+- Os pontos fixos fecham (C `d7bddcb8f0d13ed3`, WASM, arm64 com objeto de 311 867 bytes). As quatro sementes estão alinhadas, e o compilador nativo gera o mesmo que o WASM em `-c/-w/-x/-a/-m/-mf`, também para todos os exemplos.
+- Os exemplos em `-m` dão a mesma saída que o C: julia, crivo, life, mini, calc, big, crc, b64, maze, sha256, qsort, matmul, regex, bf, grover. O `integra` dá os mesmos bits que o WASM; o C do clang local difere em 2 ulp.
+- `-mf` contra `-m`: igual para n = 0..10 (todos os restos); a 10⁶ termos concorda em 13–14 algarismos.
+- `node --test`: as mesmas 34 falhas de ambiente; um teste novo no `test/macho.test.js` (restos do `S` vetorizado e `fadd .2d` presentes).
+
+**Números (M1, melhor de 5, processo inteiro).**
+
+| | C → clang -O3 | `-m` (it.97) | `-m` | `-mf` |
+|---|---|---|---|---|
+| π (200 M termos) | 0,21 s | 0,44 s | 0,19 s | **0,06 s** |
+| fib(35) | 0,04 s | 0,04 s | 0,04 s | 0,04 s |
+| julia 960×540 | 0,06 s | 0,13 s | 0,11 s | 0,11 s |
+
+O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma do C); com `-mf` é 3,5× mais rápido que o C sequencial, o mesmo que o C com OpenMP em 4 núcleos noutra máquina (68 ms). No fib o tempo interno é 41 ms contra 27 ms (o protocolo de chamada ainda guarda tudo na moldura). O julia fica a ~2×: os ciclos têm chamadas à biblioteca matemática (`_lg`, `_cs`), que obrigam os valores a ir à memória.
+
+**Próxima.** Passar argumentos e valores entre chamadas sem os forçar à moldura (o fib e o julia), e o `E`/`D` com elementos gerais em NEON pelo mesmo analisador do `S`.
+

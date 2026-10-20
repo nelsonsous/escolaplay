@@ -27,6 +27,17 @@ test('macho: no Mac M1 o objeto linka e corre (gcd, strings, Av, reais)', { skip
   assert.strictEqual(execFileSync(path.join(t, 'p'), ['z']).toString(), 'gcd 21 122 1.4142135623731\n');
 });
 
+test('macho: S vetorizado em NEON (-mf) da o mesmo que o -m em serie nos restos, e usa .2d', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-s-'));
+  const src = ': g ifi>f i a m { = u * a F i = v + u F m - * u v / v 3.0 }\n: main >i { = k 0 W < k 11 { G S k g 0.5 k " " = k + k 1 } 0 }\n';
+  const run = f => { fs.writeFileSync(path.join(t, f + '.o'), execFileSync(ondac, [f], { input: Buffer.from(src) })); execFileSync('cc', [path.join(t, f + '.o'), '-o', path.join(t, f)]); return execFileSync(path.join(t, f)).toString(); };
+  assert.strictEqual(run('-mf'), run('-m'));
+  const o = execFileSync(ondac, ['-mf'], { input: Buffer.from(src) });
+  let n = 0; for (let i = 0; i + 4 <= o.length; i += 4) if ((o.readUInt32LE(i) & 0xFFE0FC00) >>> 0 === 0x4E60D400) n++;
+  assert.ok(n >= 4, 'fadd .2d no ciclo vetorial (' + n + ')');
+});
+
 test('macho: o mapa vetorizado leva NEON (.2d) no Mach-O, como no ELF', () => {
   const src = ': g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x 0.3 }\n' +
               ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 } = b A n E b n g a I @f + b 0 }\n';
