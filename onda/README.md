@@ -35,6 +35,7 @@ python3 web/montar.py       # monta as duas paginas em build/
 | `src/*.onda` | o compilador, em Onda: C, GLSL, JavaScript, WebAssembly e x86-64 escritos byte a byte, circuitos (AIGER, Verilog) e oráculos quânticos (OpenQASM 3) |
 | `src/9mat.onda` | a matemática (seno, coseno, exp, log, atan2, pow) escrita em Onda, gerada por `tools/gerar_mat.py` |
 | `seed/ondac.c`, `seed/ondac.wasm`, `seed/ondac-x86-64` | três sementes geradas pela própria Onda: C, WebAssembly e executável x86-64 (ELF) — a Onda arranca de qualquer uma, sem Rust nem C |
+| `boot/` | arranque em Rust do estágio 0 — **desativado**, mantido só como histórico: a Onda já arranca das suas próprias sementes |
 | `rt/prelude.c` | runtime C mínimo (só para o alvo C opcional) |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`); a libc para o clang ficou só como alternativa |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
