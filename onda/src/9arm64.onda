@@ -1044,15 +1044,85 @@
 
 # --- pilha de ciclos (nested W): @63 = array; [0] = profundidade; cada moldura = (inicio, pos_do_cbz) ---
 : adep >i @ @ 63
-: afrm i>i i + @ 63 + 1 * i 3
-: a21 >i { = d adep = f afrm d ! f @ 16 ! + f 1 -1 ! + f 2 -1 ! @ 63 + d 1 }
+: afrm i>i i + @ 63 + 1 * i 4
+: a21 >i { = d adep = f afrm d ! f @ 16 ! + f 1 -1 ! + f 2 -1 ! + f 3 -1 ! @ 63 + d 1 }
 : a22 i>i p {
   = a @ + p 2
   = f afrm - adep 1
   ? afl p
     { ? == @ - p 8 11 { ! + f 1 aipop ! + f 2 aipop } { ! + f 1 aipop ap19 aipop ! + f 2 -1 } }
-    { = x ? >= @ 49 0 0 aox 9 a ! + f 1 @ 16 abr x ! + f 2 -1 } }
-: a23 >i { = f afrm - adep 1 ab - @ f @ 16 = c1 @ + f 1 ? >= c1 0 ap19 c1 0 = c2 @ + f 2 ? >= c2 0 ap19 c2 0 ! @ 63 - adep 1 }
+    { = x ? >= @ 49 0 0 aox 9 a ! + f 1 @ 16 abr x ! + f 2 -1 }
+  ! + f 3 @ 16 }
+: a23 >i {
+  = f afrm - adep 1
+  = c1 @ + f 1
+  = c2 @ + f 2
+  = e1 -1
+  = e2 -1
+  ? arotok f { = r arot f = e1 @ r = e2 @ + r 1 } ? atdup @ f 0 ab - @ f @ 16
+  ? >= c1 0 ap19 c1 0
+  ? >= c2 0 ap19 c2 0
+  ? >= e1 0 ap19 e1 0
+  ? >= e2 0 ap19 e2 0
+  ! @ 63 - adep 1 }
+# duplicacao da cauda num salto para tras: o salto vai dar a poucas instrucoes e a um salto condicional ja resolvido
+# -- copiam-se, e so a saida paga um salto (no ciclo da recursao com acumulador)
+: atdup i>i t {
+  = p t
+  W && < p + t 32 && == abk arw p 0 ~ amau arw p = p + p 4
+  = w arw p
+  ? || || != abk w 1 >= p + t 32 == abim w 0 0 {
+    = g + p * 4 abim w
+    ? && >= g t <= g p 0 {
+      = j t
+      W < j p { x4 arw j = j + j 4 }
+      x4 abset w / - g @ 16 4
+      ab - + p 4 @ 16
+      1 } } }
+# rotacao dos ciclos: em vez de saltar para o teste no inicio, o fim do ciclo repete o teste (curto, sem nada relativo
+# ao pc alem dos saltos) e volta ao corpo com a condicao invertida -- um salto por volta em vez de dois
+: arw i>i p | | | @ p << @ + p 1 8 << @ + p 2 16 << @ + p 3 24
+: abk i>i w ? == & w 0xFF000010 0x54000000 1 ? == & w 0x7E000000 0x34000000 1 ? == & w 0xFC000000 0x14000000 2 0
+: abim i>i w ? == abk w 2 { = v & w 0x3FFFFFF ? >= v 0x2000000 - v 0x4000000 v } { = v & >> w 5 0x7FFFF ? >= v 0x40000 - v 0x80000 v }
+: abset ii>i w o ? == abk w 2 | & w 0xFC000000 & o 0x3FFFFFF | & w 0xFF00001F << & o 0x7FFFF 5
+: amau i>i w || || || == & w 0x3B000000 0x18000000 == & w 0x1F000000 0x10000000 || == & w 0xFC000000 0x94000000 == & w 0xFE000000 0xD6000000 || == & w 0xFFE0001F 0xD4000001 == & w 0x7E000000 0x36000000
+: arotok i>i f {
+  = t @ f
+  = b @ + f 3
+  = c1 @ + f 1
+  = c2 @ + f 2
+  = ok && > b t <= - b t 64
+  ? ok = ok || == - b 4 c1 == - b 4 c2 0
+  = p t
+  W && ok < p b {
+    = w arw p
+    ? || == p c1 == p c2 = ok == abk w 1 { ? amau w = ok 0 { ? > abk w 0 = ok != abim w 0 0 } }
+    = p + p 4 }
+  ok }
+: arot i>i f {
+  = t @ f
+  = b @ + f 3
+  = c1 @ + f 1
+  = c2 @ + f 2
+  = r A 2
+  ! r -1
+  ! + r 1 -1
+  = q0 @ 16
+  = p t
+  W < p b {
+    = w arw p
+    = q @ 16
+    ? == p - b 4
+      { = v ? == & w 0xFF000000 0x54000000 ^ w 1 ^ w 0x01000000 x4 abset v / - b q 4 }
+      { ? || == p c1 == p c2
+          { x4 w ? < @ r 0 ! r q ! + r 1 q }
+          { ? > abk w 0
+              { = g + p * 4 abim w
+                = ng ? && >= g t < g b + q0 - g t g
+                x4 abset w / - ng q 4 }
+              x4 w } }
+    = p + p 4 }
+  r }
 
 # tabela de chamadas: @64[0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
 : acsrec ii>i pos fi { = c @ @ 64 = b + @ 64 + 1 * c 2 ! b pos ! + b 1 fi ! @ 64 + c 1 }
@@ -1217,7 +1287,7 @@
   ? == k 54 asum p
   ? == k 59 aemap p
   ? == k 56 ! 57 @ 16
-  ? == k 55 ab - @ 57 @ 16
+  ? == k 55 ? atdup @ 57 0 ab - @ 57 @ 16
   ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aepilog }
   { ebeg "operacao ainda nao suportada em -a (kind " N k ")" eend } }
 # chamada a uma funcao pura da biblioteca matematica (_sn _cs _xp _lg _at _pw): a LICM pode tira-la de um ciclo

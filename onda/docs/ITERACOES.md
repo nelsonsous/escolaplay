@@ -2097,3 +2097,13 @@ Medido e revertido nesta iteração: expandir a matemática também nos ciclos g
 **Lição de método.** Os tempos desta máquina variam com a frequência (o mesmo binário deu 34 e 17 ms). As únicas medições que contam são as feitas lado a lado, na mesma sessão, depois de aquecer.
 
 **O que falta.** No julia e no fib, valores que atravessam chamadas esgotam os registos guardados. Falta a eliminação de saltos para saltos e o `?` sem ramos (`fcsel`/`csel`). As páginas `web/` ainda têm o formatador antigo. O `-a` (ELF Linux) recebe todas estas mudanças mas não pôde ser corrido aqui.
+
+---
+
+## Iteração 120: ciclos rodados: o fib passa o clang
+
+Medicao justa primeiro: contra clang -O3 -ffast-math (o par do -mf) o pi e o grover empatam (72/73 ms, 458/485 ms); o julia perde (34 vs 62 ms) e a diferenca esta na biblioteca matematica, nao no ciclo de fuga.
+
+Rotacao dos ciclos no arm64: o fim de um W repete o teste (ate 16 instrucoes sem nada relativo ao pc alem de saltos, que se recolocam) e volta ao corpo com a condicao invertida; as saidas do teste copiado corrigem-se com as originais. Quando o W nao tem teste (o ? esta no inicio do corpo, como no ciclo da recursao com acumulador), duplica-se a cauda: copia-se o teste ate ao primeiro salto condicional ja resolvido, e so a saida paga um salto.
+
+fib(35), tempo interno: 32 -> 26 ms (clang -O3: 27 ms). Primeira vez que o -m passa o C no fib.
