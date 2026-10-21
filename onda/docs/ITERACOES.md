@@ -1855,3 +1855,11 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 **Prova.** Pontos fixos e sementes alinhadas (compilador arm64 de 257 507 bytes); o compilador nativo é igual ao WASM em todos os modos e exemplos; 18 exemplos em `-m` dão o mesmo que o WASM.
 
 **Números.** 3 M de `Lg`+`Cs`: 44 → 37 ms (C: 29). julia: 0,07 → 0,06 s (C: 0,04).
+
+---
+
+## Iteração 102: syscalls especializadas no arm64
+
+**O que foi feito.** O `asc` (as syscalls do `-a`/`-m`) era copiado inteiro, com os 7 casos e as comparações, para cada `R`, `T`, `Ac`, `Av` e `Y`. Agora cada operação é uma rotina própria (`aswr`, `asrd`, `asex`, `asbk`, `asac`, `asav`, `astm`). Quando a operação é conhecida à compilação (todos os casos menos um `Y` com número variável), só essa rotina é emitida; o despachante completo fica para o caso variável.
+
+**Prova.** Pontos fixos e sementes alinhadas; o compilador nativo é igual ao WASM em todos os modos e exemplos; os exemplos que leem do stdin (sha256, qsort) e imprimem dão o mesmo que o WASM. O compilador arm64 encolheu de 257 507 para 236 639 bytes (−8 %). Os tempos não mudam (estas rotinas não estão nos ciclos quentes).
