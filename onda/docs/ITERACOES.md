@@ -1949,3 +1949,19 @@ Tentativa medida e descartada: expandir também as chamadas comuns dentro de cic
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; os resultados matemáticos são os mesmos bits (expandir não muda as contas).
 
 **Números** (3 M de chamadas, mesma sessão, antes → depois): Lg 16 → 14 ms, Cs 20 → 16, Sn 20 → 16, Ex 19 → 17. O compilador quase não cresce (238 927 bytes).
+
+---
+
+## Iteração 110: escrita de imagens (D) em codigo nativo no arm64
+
+**O que foi feito.** No `-a`/`-m`, a função do runtime `_pd` (escreve os píxeis do `D` como bytes RGB) tem um corpo nativo em vez do código Onda, que chamava o `_op` 3 vezes por píxel e mexia em `M[-3]`/`M[-4]` a cada byte. O corpo nativo esvazia o buffer de saída (`_fl`, para manter a ordem), converte os píxeis em bytes num bloco de 4 KiB na pilha (`lsr` + `strb`) e escreve cada bloco com uma syscall. O resultado é o mesmo, byte a byte.
+
+Medido e revertido nesta iteração:
+- expandir a biblioteca matemática em todas as funções do utilizador (não só em ciclos);
+- expandir funções pequenas chamadas em ciclos.
+
+Nenhum dos dois mudou o julia, e o segundo aumentava o compilador.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; o julia dá a mesma imagem.
+
+**Números** (10 execuções, lado a lado): só a escrita de 960×540 píxeis: 5 → 1 ms por execução (C: 1–2 ms); julia completo: 69 → 65 ms (C: 44 ms).

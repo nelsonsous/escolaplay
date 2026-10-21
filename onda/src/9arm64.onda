@@ -1207,7 +1207,40 @@
   ? == k 55 ab - @ 57 @ 16
   ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aepilog }
   { ebeg "operacao ainda nao suportada em -a (kind " N k ")" eend } }
+: aisnm iiiii>i k n a b c { = t @ fe k 0 && == tkl t n && && == tc t 0 a == tc t 1 b == tc t 2 c }
+# _pd (escrever a imagem do D) em codigo nativo no arm64: esvazia o buffer de saida (_fl), passa os pixeis a bytes num
+# bloco de 4 KiB na pilha e escreve-o com uma syscall por bloco (o _pd em Onda chamava o _op 3 vezes por pixel)
+: apdn i>i k {
+  O 16
+  ! fe k 8 @ 16
+  x4 0xA9BE7BFD x4 0xA90153F3
+  amovr 19 0 amovr 20 1
+  acallf fby k3 '_ 'f 'l
+  aimm 12 4096 x4 0xCB2C63FF
+  aimm 3 0
+  = lo @ 16
+  acmp 3 20 = pd @ 16 abcc 0xA 0
+  aimm 6 0
+  = li @ 16
+  acmp 3 20 = pf1 @ 16 abcc 0xA 0
+  acmpi 6 4093 = pf2 @ 16 abcc 0xC 0
+  aadd 10 19 3 aldrx 11 28 10
+  x4 0xD350FD6C x4 0x38266BEC aaddi 6 6 1
+  x4 0xD348FD6C x4 0x38266BEC aaddi 6 6 1
+  x4 0x38266BEB aaddi 6 6 1
+  aaddi 3 3 1 ab - li @ 16
+  apbc pf1 0xA apbc pf2 0xC
+  aimm 0 1 aaddi 1 31 0 amovr 2 6 ascn ? ismo 4 64
+  ab - lo @ 16
+  apbc pd 0xA
+  aimm 12 4096 x4 0x8B2C63FF
+  aimm 0 0
+  x4 0xA94153F3 x4 0xA8C27BFD aret
+  ! fe k 9 @ 16
+  O 0 }
 : afun i>i k {
+  ? && isa aisnm k 3 '_ 'p 'd apdn k afun0 k }
+: afun0 i>i k {
   = np @ fe k 2
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
   # invariantes fora dos ciclos (a mesma passagem de RI do x86) e depois os registos
