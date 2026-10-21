@@ -1842,3 +1842,16 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 **O que foi feito.** Uma passagem de RI (`acse`, em `src/9arm64.onda`) antes da LICM: cada instrução pura (literais, leituras de variáveis com versão, `+ - * /` e comparações, unárias, min/max, `Bw`) igual a outra que a domina passa a usar o resultado dessa, e a RI é compactada. A tabela limpa-se nas junções (início/fim de ciclo, `else`, fim de `?`/`&&`/`||`), exceto no fim de um `&&` seguido do salto sobre ele: o lado que continua só é alcançado com as duas partes verdadeiras. As operações comutativas normalizam a ordem dos operandos. Não muda nenhum valor (são as mesmas contas sobre os mesmos operandos), por isso o `-m` continua igual ao bit.
 
 **Prova.** Pontos fixos e as quatro sementes alinhadas (compilador arm64 de 261 955 bytes); o compilador nativo gera o mesmo que o WASM em todos os modos e exemplos; 18 exemplos em `-m` dão a mesma saída que o WASM. O ciclo interior do julia desceu de 17 para 13 instruções (já não calcula `zr²` e `zi²` duas vezes). O tempo total do julia fica nos 0,07 s: o resto está na biblioteca matemática.
+
+---
+
+## Iteração 101: resultados de ? sem copias e literais a esquerda como imediatos
+
+**O que foi feito** (`src/9arm64.onda`):
+- O valor de um ramo do `?` calculado mesmo antes do fim do ramo nasce já no registo do resultado (de trás para a frente, para os `?` encaixados irem todos para o registo do mais exterior). No `else`, o buraco do intervalo encolhe até essa definição, e o fib mantém o resultado fora dos registos guardados.
+- A CSE passa os literais da esquerda para a direita nas operações inteiras comutativas e nas comparações (invertendo-as), e assim viram imediatos (`& 0xFFFFF x`, `< 3 x`).
+- O erro desta iteração ficou registado: a condição da fusão tinha um `&&` a menos e o bloco caía no ramo "senão". O ponto fixo arm64 apanhou-o (o compilador nativo deixou de reconhecer o `main`).
+
+**Prova.** Pontos fixos e sementes alinhadas (compilador arm64 de 257 507 bytes); o compilador nativo é igual ao WASM em todos os modos e exemplos; 18 exemplos em `-m` dão o mesmo que o WASM.
+
+**Números.** 3 M de `Lg`+`Cs`: 44 → 37 ms (C: 29). julia: 0,07 → 0,06 s (C: 0,04).

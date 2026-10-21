@@ -153,6 +153,20 @@
     = h 0 W < h c { = t @ + q h ! + @ 45 t + @ + @ 45 t 1 ! + @ 48 t i = h + h 1 }
     ? & @ + @ 50 @ p 8 { = d @ + p 1 ! + @ 46 d + @ + @ 46 d 1 ! + @ 47 d i ? < @ + @ 55 d 0 ! + @ 55 d i 0 } 0
     = i + i 1 }
+  # ?) o valor de um ramo calculado mesmo antes do fim do ramo (19/20) nasce ja no registo do resultado do ?
+  # (de tras para a frente, para os ? encaixados apontarem para o mais exterior); no else encolhe o buraco
+  = i - n 1
+  W > i 0 {
+    = p + @ 18 * i 8
+    ? || == @ p 19 == @ p 20 {
+      = d @ + p 1
+      = a @ + p 2
+      = pv - p 8
+      ? && && && < a nt == arep a a && == @ + @ 45 a 1 == @ + @ 48 a i
+        || && == @ + @ 46 a 1 == @ + @ 47 a - i 1 && && == @ + @ 46 a 2 == @ + @ 47 a - i 1 == @ pv 20 {
+        ! + @ 35 a arep d
+        ? == @ p 20 ! + @ 47 d - i 1 0 } 0 } 0
+    = i - i 1 }
   # a) t = variavel j: partilha o registo de j se j nao muda enquanto t vive
   = i 0
   W < i n {
@@ -621,11 +635,12 @@
 # a tabela limpa-se nas juncoes -- inicio/fim de ciclo, else, fim de ?/&&/||) passa a usar o resultado da primeira.
 # As leituras de variaveis tem versao (cada escrita incrementa). 48 renomeacao dos temporarios, 58 versoes, 56 tabela.
 : acsr i>i t @ + @ 48 t
+: acslit i>i t { = j @ + @ 47 t ? < j 0 0 { = q + @ 18 * j 8 || == @ q 2 && == @ q 1 ~ tty t } }
 : acse >i {
   = n @ 19
   = nt @ 11
   = t 0
-  W < t nt { ! + @ 48 t t = t + t 1 }
+  W < t nt { ! + @ 48 t t ! + @ 47 t -1 = t + t 1 }
   = j 0
   W < j @ 9 { ! + @ 58 j 0 = j + j 1 }
   = ne 0
@@ -645,6 +660,16 @@
     ? && ~ aj || || || == k 21 == k 23 || == k 11 == k 13 || || == k 19 == k 20 || == k 55 == k 56 = ne 0 0
     ? == k 6 { = q + @ 58 @ + p 4 ! q + @ q 1 } 0
     = d @ + p 1
+    # literal a esquerda de uma operacao inteira: passa para a direita (vira imediato)
+    ? && || == k 8 == k 9 ~ tty @ + p 3 {
+      = o opof @ + p 2
+      ? && acslit @ + p 3 ~ acslit @ + p 4 {
+        = nb @ + p 4 = nc @ + p 3
+        ? == k 8
+          { ? || || == o '+ == o '* || || == o '& == o '| == o '^ { ! + p 3 nb ! + p 4 nc } 0 }
+          { = no ? == o '< '> ? == o '> '< ? == o k2 '< '= k2 '> '= ? == o k2 '> '= k2 '< '= o
+            ! + p 3 nb ! + p 4 nc ! + p 2 - 0 no } } 0 } 0
+    ? & f 8 ! + @ 47 d i 0
     = ck 0 = ka 0 = kb 0 = kc 0
     ? == k 1 { = ck 1 = ka ? tty d afbits @ + p 2 tokval @ + p 2 = kb tty d } 0
     ? == k 2 { = ck 1 = ka @ + p 2 } 0
