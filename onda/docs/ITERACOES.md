@@ -1923,3 +1923,17 @@ Um mapa não reassocia nada: cada elemento faz as mesmas contas IEEE pela mesma 
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos.
 
 **Números.** No fib, o caso base (a maior parte das chamadas) passou a `cmp; b.ge; add x0, acc, n; ldp; ldp; ret`, o mesmo número de instruções do clang. Tempo: 32 → 31 ms (clang: 27 ms).
+
+---
+
+## Iteração 108: mais registos sem custo: x8/x16/x17 e d3-d7
+
+**O que foi feito.** O alocador do arm64 ganhou registos que não precisam de ser guardados:
+- **x8, x16, x17**, em funções sem syscalls. São os únicos sítios que os usam: o número da syscall em Linux e no macOS. O destino do mapa vetorizado (x17) está em instruções tratadas como chamada.
+- **d3–d7**, que só são pisados nos argumentos de chamadas e no código NEON (também tratados como chamadas, com a regra inclusiva para os operandos).
+
+As marcas de chamada na ocupação passaram dos bits 40/41 para 50/51, para os novos registos caberem. Menos funções-folha precisam de guardar x19.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos.
+
+**Números.** 3 M de Lg+Cs: 37 → 36 ms (C: 29). O resto sem mudança.

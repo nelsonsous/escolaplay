@@ -55,11 +55,11 @@
 # fim) 41 n de ciclos 42 registos guardados usados 43 pilha de ciclos 44 profundidade atual
 : arep i>i v @ + @ 35 v
 : aloc i>i v @ + @ 34 arep v
-: arx i>i l ? >= l 64 - l 64 ? < l 8 + 19 l + 5 l
+: arx i>i l ? >= l 64 - l 64 ? < l 8 + 19 l ? < l 11 + 5 l ? == l 11 8 + 4 l
 : aisx i>i l || && >= l 0 < l 32 && >= l 64 < l 96
 : aisd i>i l || && >= l 32 < l 64 >= l 96
 : ardl i>i l ? >= l 96 - l 96 ard - l 32
-: ard i>i l ? < l 6 + 10 l + 10 l
+: ard i>i l ? < l 6 + 10 l ? < l 22 + 10 l - l 19
 : avs i>i v + xq 4 * 8 @ + @ 56 arep v
 : aty i>i v ? < v @ 11 tty v { = l lty - v @ 11 ? >= l 2 tty - l 2 l }
 : amov ii>i rd rn ? == rd rn 0 amovr rd rn
@@ -108,9 +108,9 @@
       = k0 @ + @ 18 * @ + @ 55 v 8
       ? || || == k0 10 == k0 12 == k0 19 { = h0 + @ + @ 55 v 1 = h1 + @ + @ 47 v 1 } 0 } 0
     = p s
-    W <= p e { ? && > p h0 < p h1 0 { = o @ + @ 39 p = m | m o ? && > p s || && < p e & o << 1 40 & o << 1 41 = cs 1 0 } = p + p 1 }
+    W <= p e { ? && > p h0 < p h1 0 { = o @ + @ 39 p = m | m o ? && > p s || && < p e & o << 1 50 & o << 1 51 = cs 1 0 } = p + p 1 }
     = fl aty v
-    = r ? fl { = r ? cs -1 afree m 22 38 ? < r 0 afree m 16 22 r } { = r ? cs -1 afree m 8 11 ? < r 0 afree m 0 8 r }
+    = r ? fl { = r ? cs -1 afree m 22 43 ? < r 0 afree m 16 22 r } { = r ? cs -1 afree m 8 ? xq 5 11 14 ? < r 0 afree m 0 8 r }
     ? >= r 0 {
       = b << 1 r
       = p s W <= p e { ? && > p h0 < p h1 0 { = q + @ 39 p ! q | @ q b } = p + p 1 }
@@ -290,6 +290,7 @@
   W < v nv { ! + @ 34 v -1 ! + @ 36 v -1 ! + @ 37 v -1 ! + @ 38 v 0 = v + v 1 }
   = i 0
   W <= i n { ! + @ 39 i 0 = i + i 1 }
+  xqs 5 0
   = qo A 64
   aali qo
   afm
@@ -316,7 +317,8 @@
     = m @ + @ 51 i
     ? >= m 0 { = q2 + @ 18 * m 8 arf @ + q2 3 ps arf @ + q2 4 ps } 0
     = c acall p
-    ? c { = q + @ 39 ps ! q | @ q << 1 + 39 c } 0
+    ? c { = q + @ 39 ps ! q | @ q << 1 + 49 c } 0
+    ? || || == k 30 == k 34 || || == k 35 == k 37 == k 42 xqs 5 1 0
     ? || == k 23 == k 55 { = sp - sp 1 = q + @ 40 * @ 41 2 ! q @ + @ 43 sp ! + q 1 ps ! 41 + @ 41 1 ! 44 - @ 44 1 } 0
     = i + i 1 }
   # variaveis: vivas desde a entrada (podem ser lidas antes de escritas, p.ex. o valor da volta anterior de um ciclo)
