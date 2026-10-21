@@ -209,7 +209,9 @@
       = j + j 1 }
     ! fe k 13 ? r 1 2
     r } }
-: ppar i>i k && && isa ismo ppok k 0
+# so fora de funcoes puras e das condutoras (onde as puras sao expandidas): uma pura pode correr dentro de uma
+# condutora, e os slots sao um so conjunto
+: ppar i>i k && && && isa ismo ppok k 0 ~ || != @ fe @ 13 12 0 ppok @ 13 0
 : pnew ii>i code kf { = k @ 6 = j 0 W < j 14 { ! fe k j 0 = j + j 1 } ! fe k 0 @ fe kf 0 ! fe k 1 @ fe kf 0 ! fe k 2 2 ! fe k 12 code ! 6 + k 1 k }
 : pfind i>i code { = r -1 = k 0 W && < r 0 < k @ 6 { ? == @ fe k 12 code = r k 0 = k + k 1 } r }
 : pdrv ii>i kf mode { = code + + 2 * kf 4 mode = r pfind code ? >= r 0 r pnew code kf }

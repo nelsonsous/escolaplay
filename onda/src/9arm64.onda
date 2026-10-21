@@ -1372,6 +1372,8 @@
   astsl 22 38
   ap19 ph
   acmpi 22 1 = ps4 @ 16 abcc 0xD 0
+  aldsl 23 42
+  = pp @ 16 x4 | 0xB5000000 23
   aimm 23 1
   = lc @ 16
   acmp 23 22 = pc1 @ 16 abcc 0xA 0
@@ -1382,16 +1384,23 @@
   aextc 1
   aaddi 23 23 1 ab - lc @ 16
   ap19 pc1
+  asubi 23 22 1 astsl 23 42
+  ap19 pp
+  aimm 10 pjs 40 aaddlsl 9 28 10 3
+  aldsl 10 40 aaddi 10 10 1 x4 | | 0xC89FFC00 << 9 5 10
+  aimm 10 pjs 43 aaddlsl 9 28 10 3
+  x4 | | 0xC8DFFC00 << 9 5 10
+  = pz2 @ 16 x4 | 0xB4000000 10
+  aimm 0 0x101 aimm 10 pjs 40 aaddlsl 1 28 10 3 aimm 2 0 aextc 4
+  ap19 pz2
   amovr 0 28
   = pbl @ 16 x4 0x94000000
-  aimm 23 1
+  aimm 10 pjs 40 aaddlsl 9 28 10 3
+  aldsl 10 40 aaddi 10 10 1 x4 | | 0xC89FFC00 << 9 5 10
+  aimm 10 pjs 41 aaddlsl 9 28 10 3
   = lj @ 16
-  acmp 23 22 = pj1 @ 16 abcc 0xA 0
-  aimm 10 pjs 22 aadd 10 10 23 aldrx 0 28 10
-  aimm 1 0
-  aextc 2
-  aaddi 23 23 1 ab - lj @ 16
-  ap19 pj1
+  x4 | | 0xC8DFFC00 << 9 5 10
+  x4 | | 0xB5000000 << & / - lj @ 16 4 0x7FFFF 5 10
   = dn @ 16
   aimm 0 0
   apair 0xA9400000 19 20 16
@@ -1401,9 +1410,8 @@
   aret
   ap19 ps1 ap19 ps2 ap19 ps3 ap19 ps4
   amovr 0 28 = pb2 @ 16 x4 0x94000000 ab - dn @ 16
-  # _pwk(x0 = base de M): a funcao de cada thread (convencao do C: guarda x19..x21 e x28)
-  = o - @ 16 pad
-  xput4 pad | | 0x10000002 << & o 3 29 << & >> o 2 0x7FFFF 5
+  # _pwk(x0 = base de M): tira blocos do contador ate acabar (convencao do C: guarda x19..x21 e x28)
+  = pwk @ 16
   xput4 pbl | 0x94000000 & / - @ 16 pbl 4 0x3FFFFFF
   xput4 pb2 | 0x94000000 & / - @ 16 pb2 4 0x3FFFFFF
   apair 0xA9800000 29 30 -48
@@ -1425,6 +1433,54 @@
   apair 0xA8C00000 29 30 48
   aimm 0 0
   aret
+  # _pwt(x0 = base de M): cada thread do conjunto vive o programa todo (criadas so na 1a chamada paralela; 42 =
+  # quantas). Geracao (40) impar = trabalho aberto, par = fechado. A thread espera em wfe ate ~100 us (chamadas
+  # seguidas: acorda em microssegundos); depois dorme no sistema (__ulock_wait sobre a geracao; 43 = quantas dormem,
+  # a principal so chama __ulock_wake se houver). Com trabalho novo entra (41 = ativas), confirma que a geracao nao
+  # mudou (senao sai) e corre _pwk. A principal abre, faz a sua parte, fecha e so espera pelas ativas.
+  = o - @ 16 pad
+  xput4 pad | | 0x10000002 << & o 3 29 << & >> o 2 0x7FFFF 5
+  apair 0xA9800000 29 30 -48
+  apair 0xA9000000 19 20 16
+  apair 0xA9000000 21 28 32
+  amovr 28 0
+  aimm 19 0
+  = lt @ 16
+  x4 | 0xD53BE040 20 aaddi 20 20 2400
+  aimm 10 pjs 40 aaddlsl 9 28 10 3
+  x4 0xD50320BF
+  = lv @ 16
+  x4 0xD503205F
+  x4 | | 0xC85FFC00 << 9 5 10
+  = pt @ 16 x4 0x3600000A
+  acmp 10 19 = pg @ 16 abcc 0x1 0
+  xput4 pt | 0x3600000A << & / - @ 16 pt 4 0x3FFF 5
+  x4 | 0xD53BE040 11 acmp 11 20 abcc 0x3 - lv @ 16
+  aimm 11 1 aimm 10 pjs 43 aaddlsl 12 28 10 3 x4 | | | 0xF8E00000 << 11 16 << 12 5 13
+  aimm 10 pjs 40 aaddlsl 1 28 10 3
+  x4 | | 0xC8DFFC00 << 1 5 2
+  = pt2 @ 16 x4 0x36000002
+  acmp 2 19 = ps5 @ 16 abcc 0x1 0
+  xput4 pt2 | 0x36000002 << & / - @ 16 pt2 4 0x3FFF 5
+  x4 0x2A0203E2 aimm 0 1 aimm 3 0 aextc 3
+  ap19 ps5
+  aimm 11 -1 aimm 10 pjs 43 aaddlsl 12 28 10 3 x4 | | | 0xF8E00000 << 11 16 << 12 5 13
+  ab - lt @ 16
+  ap19 pg
+  amovr 19 10
+  aimm 11 1
+  aimm 10 pjs 41 aaddlsl 9 28 10 3
+  x4 | | | 0xF8E00000 << 11 16 << 9 5 12
+  aimm 10 pjs 40 aaddlsl 9 28 10 3
+  x4 | | 0xC8DFFC00 << 9 5 10
+  acmp 10 19 = pq @ 16 abcc 0x1 0
+  amovr 0 28
+  x4 | 0x94000000 & / - pwk @ 16 4 0x3FFFFFF
+  ap19 pq
+  aimm 11 -1
+  aimm 10 pjs 41 aaddlsl 9 28 10 3
+  x4 | | | 0xF8E00000 << 11 16 << 9 5 12
+  ab - lt @ 16
   ! fe k 9 @ 16
   O 0 }
 : afun i>i k {
@@ -1536,7 +1592,7 @@
   = so + rel * 8 nr
   = pad ? nr & so 7 0
   = so + so pad
-  = ns ? nr 4 1
+  = ns ? nr 6 1
   = sto + so * 16 ns
   # cabecalho (32): magic, arm64, subtype 0, filetype 1 (OBJECT), ncmds 3, sizeofcmds 200
   x4 0xFEEDFACF x4 0x0100000C x4 0 x4 1 x4 3 x4 200 x4 0 x4 0
@@ -1546,22 +1602,22 @@
   P '_ P '_ P 't P 'e P 'x P 't az 10 P '_ P '_ P 'T P 'E P 'X P 'T az 10
   x8 0 x8 clen x4 coff x4 2 x4 ? nr rel 0 x4 nr x4 0x80000400 x4 0 x4 0 x4 0
   # LC_SYMTAB (24): symoff, nsyms 1, stroff, strsize 7
-  x4 2 x4 24 x4 so x4 ns x4 sto x4 ? nr 46 7
+  x4 2 x4 24 x4 so x4 ns x4 sto x4 ? nr 74 7
   # LC_BUILD_VERSION (24): macOS, minos 11.0, sdk 11.0, sem ferramentas (o ld deixa de avisar)
   x4 0x32 x4 24 x4 1 x4 0x000B0000 x4 0x000B0000 x4 0
   # codigo: entrada + corpo de cada funcao + dados
   ew estart elen
   = k 0 W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }
   adata
-  # relocacoes BRANCH26 (pcrel, 4 bytes, externas) das chamadas a libSystem: simbolos 1 _sysconf 2 _pthread_create 3 _pthread_join
+  # relocacoes BRANCH26 (pcrel, 4 bytes, externas) das chamadas a libSystem: simbolos 1 _sysconf 2 _pthread_create 3 _pthread_join 4 ___ulock_wait 5 ___ulock_wake
   = j 0
   W < j nr { x4 - + elen @ + @ 66 + 1 * j 2 @ fe 0 8 x4 | + 1 @ + @ 66 + 2 * j 2 0x2D000000 = j + j 1 }
   ? pad x4 0 0
   # simbolo _main (externo, seccao 1, valor 0) + tabela de strings "\0_main\0"
   x4 1 P 15 P 1 P 0 P 0 x8 0
-  ? nr { x4 7 P 1 P 0 P 0 P 0 x8 0 x4 16 P 1 P 0 P 0 P 0 x8 0 x4 32 P 1 P 0 P 0 P 0 x8 0 } 0
+  ? nr { x4 7 P 1 P 0 P 0 P 0 x8 0 x4 16 P 1 P 0 P 0 P 0 x8 0 x4 32 P 1 P 0 P 0 P 0 x8 0 x4 46 P 1 P 0 P 0 P 0 x8 0 x4 60 P 1 P 0 P 0 P 0 x8 0 } 0
   P 0 P '_ P 'm P 'a P 'i P 'n P 0
-  ? nr { "_sysconf" P 0 "_pthread_create" P 0 "_pthread_join" P 0 } 0
+  ? nr { "_sysconf" P 0 "_pthread_create" P 0 "_pthread_join" P 0 "___ulock_wait" P 0 "___ulock_wake" P 0 } 0
   0 }
 : outa >i {
   = base 4194304

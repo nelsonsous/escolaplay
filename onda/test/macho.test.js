@@ -100,3 +100,18 @@ test('macho: S real em threads com -mf reparte em blocos fixos: o mesmo resultad
   assert.match(r, /^3\.14159265358\d* 3\.14\d+\n$/);
   for (let k = 0; k < 4; k++) assert.strictEqual(execFileSync(path.join(t, 'p')).toString(), r);
 });
+
+test('macho: S dentro de uma funcao pura chamada por um E paralelo fica em serie (os slots sao um so conjunto); 300 chamadas seguidas reutilizam as threads', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-pn-'));
+  const src = ': q ii>i i k * - i k + i 3\n: h ii>f i a F S 5000 q i\n' +
+              ': main >i { = n 5000 = a A n = b A n E b n h a = s 0.0 = i 0 W < i n { = s + s @f + b i = i + i 1 } G s " "\n' +
+              '  = u 0 = r 0 W < r 300 { = u + u S 20000 q r = r + r 1 } N u "\\n" 0 }\n';
+  const o = execFileSync(ondac, ['-m'], { input: Buffer.from(src) });
+  assert.ok(o.includes(Buffer.from('___ulock_wait\0')), 'as threads dormem no sistema quando nao ha trabalho');
+  fs.writeFileSync(path.join(t, 'p.o'), o);
+  execFileSync('cc', [path.join(t, 'p.o'), '-o', path.join(t, 'p')]);
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')]);
+  for (let k = 0; k < 3; k++) assert.ok(execFileSync(path.join(t, 'p')).equals(w), 'corrida ' + k);
+});

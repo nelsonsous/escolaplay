@@ -2117,3 +2117,12 @@ Pureza por tokens (nao escreve, nao aloca, nao imprime, tambem nas funcoes chama
 Por execucao, com o arranque (C -O3 / C -O3 -ffast-math / -m / -mf, ms): pi 218/78/210/18; grover 1183/481/1050/314; fib(35) interno 28/-/26; julia 53/35/17/16. Outros: ondas 28,5 -> 12,9 (C 28,5), matmul 21 -> 9,8, life 11,4 -> 7,3.
 
 Tentado e desfeito: expandir tambem os nucleos _mkc/_mks dentro do Cs expandido (16 -> 21 ms: os registos esgotam-se).
+
+---
+
+## Iteração 122: threads que ficam vivas: sem criar/juntar por chamada; corrige o paralelo dentro do paralelo
+
+- **Regressão do it.121 corrigida:** o `arm-bench` (2000 `E` de 8192) criava e juntava 9 threads por chamada: 346 ms contra 34 em série. Agora as threads são criadas uma vez (`_pwt`) e esperam por uma geração (slot 40; ímpar = aberto, par = fechado): primeiro ~100 µs em `wfe`, depois dormem no sistema com `__ulock_wait` (slot 43 conta as que dormem; a principal só chama `__ulock_wake` se houver). A principal abre, faz a sua parte, fecha e só espera pelas ativas (slot 41), por isso uma thread que o sistema ainda não pôs a correr não atrasa ninguém.
+- **Lição:** uma thread em `wfe` conta como a correr para o macOS: com espera só em `wfe` ficou 3× pior (as threads tiravam núcleos à principal).
+- **Bug corrigido:** um `S` dentro de uma função pura chamada por um `E` paralelo usava os mesmos slots e dava o resultado errado. O `ppar` passa a exigir que a função onde está não seja pura nem uma condutora (onde as puras são expandidas).
+- **Números (ms, com arranque):** arm-bench 346 → 26; grover `-mf` 314 → 268; matmul 9,8 → ~12–14 (agora com o arranque medido igual); julia 17–20; π `-mf` 19. Sem regressões no life e no vecmap (série).
