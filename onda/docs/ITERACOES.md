@@ -1805,3 +1805,32 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 
 **Próxima.** Passar argumentos e valores entre chamadas sem os forçar à moldura (o fib e o julia), e o `E`/`D` com elementos gerais em NEON pelo mesmo analisador do `S`.
 
+---
+
+## Iteração 99: chamadas sem pilha no arm64 — o fib e a biblioteca matemática
+
+**Pedido.** Atacar o custo das chamadas, que era o que ainda separava o fib e o julia do clang.
+
+**O que foi feito** (`src/9arm64.onda`, `src/4main.onda`):
+- **Funções-folha sem pilha:** quem não faz `bl` não guarda `x29/x30`, e a moldura só tem os registos guardados (agora aos pares, `stp`/`ldp`) e os valores que ficaram mesmo na memória. Antes cada função reservava um slot por variável e por temporário.
+- **Recursão com acumulador** (a mesma transformação do clang): numa função inteira cuja devolução é `X + f(...)`, a chamada final vira `acc += X; parâmetros = argumentos; salta para o início`. É feita na RI, com um rótulo e um salto novos (tipos 56/55), e o alocador trata o par como um ciclo. O fib passa a fazer metade das chamadas, com o mesmo código que o clang emite.
+- **Pré-coloração:** o argumento calculado mesmo antes da chamada nasce já em `x_j`/`d_j`; o resultado inteiro usado só pela instrução seguinte fica em `x0`. Os reais não, porque `d0`/`d1` são os rascunhos dos operandos na memória; a primeira versão fazia-o e a verificação cruzada apanhou o julia errado.
+- **Intervalos com buraco:** o resultado de `?`/`&&`/`||` não está vivo no outro ramo, logo deixa de "atravessar" as chamadas do `else` e de gastar um registo guardado.
+- **`&&`/`||` nas condições** de `W` e `?`: saltam direto para o destino, com a comparação fundida (`cmp` + `b.cond`), sem materializar 0/1.
+- **Imediatos:** `add/sub/cmp #imm12` (também `lsl #12`), `lsl/asr #imm`, `and/orr/eor` com máscaras contíguas (imediatos lógicos), e `fmov d, #imm8`. Um literal com todos os usos imediatos não chega a ocupar registo.
+- **Bloco de literais por função:** constantes reais e inteiros grandes vêm de `ldr d/x, =const` (1 instrução em vez de 3 a 5). O `_lg`/`_cs`/`_xp` da biblioteca usam-no centenas de vezes.
+- `Bh`/`Bl`/`Bw` e min/max direto nos registos.
+
+**Prova.** Os pontos fixos fecham (C `fa10faa4b15a3756`; compilador arm64 de 264 227 bytes, antes 311 867). As quatro sementes estão alinhadas, e o compilador nativo gera o mesmo que o WASM em todos os modos e para todos os exemplos. Em `-m`, 16 exemplos dão a mesma saída que o WASM (incluindo julia, integra, sha256, qsort e matmul). `node --test` dá as mesmas 34 falhas de ambiente de sempre.
+
+**Números (M1, tempo de CPU, melhor de 5).**
+
+| | C → clang -O3 | `-m` (it.98) | `-m` agora |
+|---|---|---|---|
+| fib(35), tempo interno | 27 ms | 41 ms | 33 ms |
+| 3 M de `Lg` + `Cs` | 29 ms | 58 ms | 43 ms |
+| julia 960×540 | 0,04 s | 0,10 s | 0,07 s |
+| π (série / `-mf`) | 0,19 s | 0,19 / 0,06 s | 0,18 / 0,06 s |
+
+**O que ainda falta.** O fib tem a forma do clang mas ainda há cópias de registo à volta da chamada (o resultado não vai direto para o acumulador). A biblioteca matemática fica a ~1,5× porque não há eliminação de subexpressões comuns (o `_lg` carrega a mesma constante duas vezes, e o julia calcula `zr²` e `zi²` duas vezes por volta), e os resultados do `?` ainda passam por uma cópia. O próximo passo natural é uma CSE por valor (numeração de valores sobre a RI, respeitando as escritas nas variáveis).
+
