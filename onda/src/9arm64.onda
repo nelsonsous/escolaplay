@@ -55,7 +55,7 @@
 # fim) 41 n de ciclos 42 registos guardados usados 43 pilha de ciclos 44 profundidade atual
 : arep i>i v @ + @ 35 v
 : aloc i>i v @ + @ 34 arep v
-: arx i>i l ? >= l 64 - l 64 ? < l 8 + 19 l ? < l 11 + 5 l ? == l 11 8 + 4 l
+: arx i>i l ? >= l 64 - l 64 ? < l 8 + 19 l ? < l 11 + 5 l ? == l 11 8 ? == l 14 27 + 4 l
 : aisx i>i l || && >= l 0 < l 32 && >= l 64 < l 96
 : aisd i>i l || && >= l 32 < l 64 >= l 96
 : ardl i>i l ? >= l 96 - l 96 ard - l 32
@@ -110,11 +110,11 @@
     = p s
     W <= p e { ? && > p h0 < p h1 0 { = o @ + @ 39 p = m | m o ? && > p s || && < p e & o << 1 50 & o << 1 51 = cs 1 0 } = p + p 1 }
     = fl aty v
-    = r ? fl { = r ? cs -1 afree m 22 43 ? < r 0 afree m 16 22 r } { = r ? cs -1 afree m 8 ? xq 5 11 14 ? < r 0 afree m 0 8 r }
+    = r ? fl { = r ? cs -1 afree m 22 43 = r ? < r 0 afree m 16 22 r ? < r 0 afree m 43 45 r } { = r ? cs -1 afree m 8 ? xq 5 11 14 = r ? < r 0 afree m 0 8 r ? < r 0 afree m 14 15 r }
     ? >= r 0 {
       = b << 1 r
       = p s W <= p e { ? && > p h0 < p h1 0 { = q + @ 39 p ! q | @ q b } = p + p 1 }
-      ? || < r 8 && >= r 16 < r 22 ! 42 | @ 42 b 0
+      ? || || < r 8 == r 14 || && >= r 16 < r 22 >= r 43 ! 42 | @ 42 b 0
       ! + @ 34 v ? fl + 32 - r 16 r } 0 } 0 }
 : aopn ii>i p q {
   = k @ p
@@ -346,7 +346,7 @@
   = nv + nt @ 9
   = c 0
   = j 0
-  W < j 22 { ? & >> @ 42 j 1 = c + c 1 0 = j + j 1 }
+  W < j 45 { ? & >> @ 42 j 1 = c + c 1 0 = j + j 1 }
   = v 0
   W < v nt { ? && && == arep v v == @ + @ 34 v -1 && >= @ + @ 36 v 0 arem v ! + @ 34 v -3 0 = v + v 1 }
   = ns 0
@@ -358,7 +358,7 @@
   W < i @ 19 { ? == acall + @ 18 * i 8 1 = lf 0 0 = i + i 1 }
   ! 60 lf
   0 }
-: asreg i>i j ? < j 8 + 19 j + 10 - j 16
+: asreg i>i j ? < j 8 + 19 j ? == j 14 27 ? < j 22 + 10 - j 16 - j 35
 : asv1 iiii>i ld fl r off ? fl { ? ld aldfr r off astfr r off } { ? ld ald r off ast r off }
 : asv2 iiiii>i ld fl r1 r2 i x4 | | | | ? fl ? ld 0x6D400000 0x6D000000 ? ld 0xA9400000 0xA9000000 << i 15 << r2 10 << 31 5 r1
 : asave i>i ld {
@@ -366,7 +366,7 @@
   = pr -1
   = pf 0
   = j 0
-  W < j 22 {
+  W < j 45 {
     ? & >> @ 42 j 1 {
       = r asreg j
       = fl >= j 16
@@ -551,6 +551,8 @@
   = s7 @ 7
   = stw A 1
   = stB A 1
+  # d8/d9 sao guardados pelo chamado no alocador; o banco A usa v8/v9, por isso guardam-se aqui
+  x4 0x6DBF27E8
   agT 13 d agT 14 n agT 15 sb aimm 9 0
   # laco desenrolado 2x: banco A (x=v1, temps v2-9), banco B (x=v16, temps v17-24) -- cadeias independentes
   = l0 @ 16
@@ -582,6 +584,7 @@
   aadd 10 13 9 aaddlsl 11 28 10 3 vfst 1 rr2 11
   aaddi 9 9 1 ab - l2 @ 16
   xput4 p2 | | 0x54000000 << & / - @ 16 p2 4 0x7FFFF 5 0xA
+  x4 0x6CC127E8
   ! 7 s7 }
 
 # --- recursao com acumulador (como o clang): numa funcao inteira cujo valor devolvido e X + f(...) (a propria f),

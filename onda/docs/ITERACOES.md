@@ -1979,3 +1979,17 @@ O erro desta iteração ficou registado: a primeira versão acrescentou a regra 
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos (incluindo o `-x`); a imagem do julia é igual byte a byte.
 
 **Números** (10 execuções, lado a lado): julia 69 → **52 ms** por execução (C → clang: 42–45 ms).
+
+---
+
+## Iteração 112: x27 e d8/d9 como registos guardados
+
+**O que foi feito.** O alocador do arm64 ganhou três registos guardados pelo chamado:
+- **x27**, que só era posto a zero no arranque e nunca usado;
+- **d8/d9**, que o mapa NEON antigo (`amap`) usa no banco A e agora guarda e repõe à volta do ciclo (`stp/ldp d8, d9`).
+
+Ficam 9 inteiros e 8 reais que atravessam chamadas, como no ABI do Apple Silicon.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; o julia dá a mesma imagem.
+
+**Números.** Sem ganho mensurável. No julia ainda há derrames para a pilha na parte das cores: os valores que atravessam as chamadas a `Lg`/`Cs` são mais do que os registos guardados, o mesmo limite que o clang tem. Fica registado como uma mudança de folga, não de velocidade.
