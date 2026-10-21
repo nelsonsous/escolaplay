@@ -2061,3 +2061,39 @@ Medido e revertido nesta iteração: expandir a matemática também nos ciclos g
 **Prova.** 0 erradas em 20 000 contra a referência exata (`%.15g` do Python sobre os mesmos bits); o WASM e o arm64 imprimem agora exatamente o mesmo texto nos 20 000. Extremos iguais ao `printf`. Verificação cruzada completa e `node --test` com as mesmas 34 falhas de ambiente.
 
 **Pendente.** As páginas em `web/` têm cópias próprias do formatador antigo, embutidas em cada página. Ficam como estavam: atualizá-las implica regenerar as páginas.
+
+---
+
+## Iteração 119: balanco das 20 iteracoes seguidas (it.100-118)
+
+**O ciclo.** Vinte iterações seguidas de melhoria, cada uma com verificação completa e o seu commit: pontos fixos C/WASM/arm64, as quatro sementes alinhadas, o compilador nativo igual ao WASM em todos os modos e exemplos, e os exemplos em `-m` com a mesma saída que o WASM.
+
+| it. | o quê | efeito |
+|---|---|---|
+| 100 | CSE por numeração de valores | ciclo do julia 17 → 13 instruções |
+| 101 | resultados de `?` sem cópias; literais à esquerda como imediatos | Lg+Cs 44 → 37 ms |
+| 102 | syscalls especializadas | compilador 257 → 237 KB |
+| 103 | literais rematerializados; ponteiros-base (`xbase`) | menos instruções no grover |
+| 104 | `S` em NEON lê vetores | grover `-mf` 1,34 → 0,76 s |
+| 105 | mapa `E` em NEON com `?` (também no `-m`, bit-exato) | grover `-m` 1,34 → 1,05 s |
+| 106 | molduras numa só instrução; retorno em x0/d0 | — |
+| 107 | cauda do `return` duplicada | fib 32 → 31 ms |
+| 108 | x8/x16/x17 e d3–d7 sem custo | Lg+Cs 37 → 36 ms |
+| 109 | matemática expandida dentro de `W` | Lg/Cs/Sn/Ex −10 a −20 % |
+| 110 | `_pd` (imagens) nativo | julia 69 → 65 ms |
+| 111 | chamadas matemáticas puras saem dos ciclos (LICM) | julia 65 → 52 ms |
+| 112 | x27 e d8/d9 guardados | folga, sem ganho medido |
+| 113 | transbordo do buffer de código (`ocr`) corrigido | C sem lixo |
+| 114 | janela `str`+`ldr` | julia 52 → 50 ms |
+| 115 | `onda m`/`mf`/`build-m`; C sem `-fopenmp` onde não existe | usabilidade |
+| 116 | `amap` só com FMA em `-mf` | `-m` volta a ser bit-exato |
+| 117 | `_od` exato (inteiros grandes); ponto fixo WASM `w2 == w3` | 858 → 0 reais mal impressos |
+| 118 | `cfmt` do WASM exato | 42 → 0; todas as formas imprimem igual |
+
+**Medido e descartado** (registado nas iterações): expandir em linha as chamadas comuns (compilador 4× maior, sem ganho); expandir a matemática nos ciclos gerados por `S`/`E`/`D` (o julia piorou, porque perdia a LICM das chamadas puras).
+
+**Números finais** (M1, por execução, máquina aquecida; C → clang -O3 / `-m` / `-mf`): π 0,20 / 0,19 / 0,07 s · grover 1,09 / 1,04 / 0,45 s · fib(35) 26 / 31 ms · julia 42 / 56 / 54 ms · auto-compilação do compilador nativo 0,05 s.
+
+**Lição de método.** Os tempos desta máquina variam com a frequência (o mesmo binário deu 34 e 17 ms). As únicas medições que contam são as feitas lado a lado, na mesma sessão, depois de aquecer.
+
+**O que falta.** No julia e no fib, valores que atravessam chamadas esgotam os registos guardados. Falta a eliminação de saltos para saltos e o `?` sem ramos (`fcsel`/`csel`). As páginas `web/` ainda têm o formatador antigo. O `-a` (ELF Linux) recebe todas estas mudanças mas não pôde ser corrido aqui.
