@@ -2003,3 +2003,15 @@ Ficam 9 inteiros e 8 reais que atravessam chamadas, como no ABI do Apple Silicon
 **O que foi feito** (`src/4main.onda`). Os dois buffers passam a crescer com a fonte: `@16` com 8× o tamanho da fonte e `@17` com 2×, mantendo os mínimos antigos.
 
 **Prova.** O C do `ocr` sai sem nenhum byte de controlo, igual entre o compilador WASM e o nativo, e compila com o clang. A verificação cruzada deixou de excluir o `ocr`: todos os exemplos, em todos os modos, dão o mesmo no compilador nativo e no WASM. Pontos fixos e sementes alinhados.
+
+---
+
+## Iteração 114: janela de cargas redundantes depois de escritas
+
+**O que foi feito.** Uma otimização de janela no emissor arm64. Uma carga de um slot da moldura (`ldr x/d, [sp, #off]`) emitida logo a seguir à escrita do mesmo slot desaparece, ou vira `mov`/`fmov` se o registo for outro. Isto acontece sempre que um valor derramado é calculado e usado de seguida. Para não saltar por cima de uma junção, o emissor guarda a posição do último alvo de salto (`xq 7`): no início de cada função e depois de qualquer instrução que crie rótulos (ciclos, `?`, `&&`/`||`, `return`, syscalls, NEON, salto da recursão). Só elimina se a escrita estiver depois desse rótulo.
+
+Medido e revertido nesta iteração: expandir a matemática também nos ciclos gerados por `S`/`E`/`D`. O julia piorou de 52 para 85 ms, porque o `Cs(0.3·t)` expandido deixa de ser uma chamada pura que a LICM tira do ciclo.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; o julia dá a mesma imagem.
+
+**Números** (10 execuções, lado a lado): julia 52 → 50 ms por execução (C: 42–45).

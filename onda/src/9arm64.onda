@@ -9,7 +9,17 @@
 # --- codificadores de instrucoes (hex = encoding exato, conferido com o llvm-objdump) ---
 : aslt i>i t * + @ 9 t 8
 : asll i>i j * j 8
-: ald ii>i rt off ? < off 32768 x4 | | | 0xF9400000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xF8607800 << 12 16 << 31 5 rt }
+# janela: uma carga de um slot logo a seguir a escrita do mesmo slot (sem rotulo pelo meio: xq 7 = ultimo alvo de
+# salto) nao se repete -- some, ou vira mov se o registo e outro
+: apeep ii>i w rt {
+  = p - @ 16 4
+  ? < p xq 7 0 {
+    = pw | | | @ p << @ + p 1 8 << @ + p 2 16 << @ + p 3 24
+    ? == & pw 0xFFFFFFE0 & ^ w 0x00400000 0xFFFFFFE0
+      { = sr & pw 31 ? != sr rt { ? & w 0x04000000 afmovdd rt sr amov rt sr } 0 1 } 0 } }
+: alab i>i k || && >= k 10 <= k 13 || && >= k 18 <= k 23 || == k 41 || == k 53 || == k 54 || == k 59 || == k 55 || == k 56 || == k 30 || == k 34 || == k 35 || == k 37 == k 42
+: ains i>i p { ains0 p ? alab @ p xqs 7 @ 16 0 }
+: ald ii>i rt off ? < off 32768 { = w | | | 0xF9400000 << / off 8 10 << 31 5 rt ? apeep w rt 0 x4 w } { aimm 12 / off 8 x4 | | | 0xF8607800 << 12 16 << 31 5 rt }
 : ast ii>i rt off ? < off 32768 x4 | | | 0xF9000000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xF8207800 << 12 16 << 31 5 rt }
 : agT ii>i rt t agV rt t
 : asT ii>i rt t asV rt t
@@ -461,7 +471,7 @@
     = b6 & >> b 61 1
     ? && == g * b6 255 == & >> b 62 1 ^ b6 1 | | << & >> b 63 1 7 << b6 6 & >> b 48 0x3F -1 } }
 # --- reais (registos d) e arrays em M (base pinada em x28, bump em x27) ---
-: aldfr ii>i rt off ? < off 32768 x4 | | | 0xFD400000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xFC607800 << 12 16 << 31 5 rt }
+: aldfr ii>i rt off ? < off 32768 { = w | | | 0xFD400000 << / off 8 10 << 31 5 rt ? apeep w rt 0 x4 w } { aimm 12 / off 8 x4 | | | 0xFC607800 << 12 16 << 31 5 rt }
 : astfr ii>i rt off ? < off 32768 x4 | | | 0xFD000000 << / off 8 10 << 31 5 rt { aimm 12 / off 8 x4 | | | 0xFC207800 << 12 16 << 31 5 rt }
 : agTf ii>i rt t agVf rt t
 : asTf ii>i rt t asVf rt t
@@ -1123,7 +1133,7 @@
     = c 0
     W < c 8 { apb @ + e c = c + c 1 }
     0 } }
-: ains i>i p {
+: ains0 i>i p {
   = k @ p
   = d @ + p 1
   = a @ + p 2
@@ -1260,6 +1270,7 @@
   ara k
   O 16
   ! fe k 8 @ 16
+  xqs 7 @ 16
   aprolog
   = xc 0
   = dc 0
