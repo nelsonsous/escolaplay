@@ -6,6 +6,7 @@
 : xlinv ii>i t ls < xle @ + xq 9 t * 2 ls
 : xlpure i>i p {
   = k @ p
+  ? && isa == k 7 apurec p
   ? || || == k 1 == k 2 == k 4 1
   ? == k 8 || tty @ + p 1 && != opof @ + p 2 '/ != opof @ + p 2 '%
   || || == k 14 == k 15 || || == k 16 == k 17 || || == k 43 == k 44 == k 46 }
@@ -17,6 +18,7 @@
   ? && r & f 2 = r xlinv @ + p 3 ls 0
   ? && r & f 4 = r xlinv @ + p 4 ls 0
   ? && r == k 5 = r != @ + xq 11 @ + p 3 st 0
+  ? && r == k 7 { = b @ + p 3 = j 0 W && r < j @ + p 4 { = r xlinv @ + b j ls = j + j 1 } } 0
   r }
 : xlicm >i {
   = n @ 19

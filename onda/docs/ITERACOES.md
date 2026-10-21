@@ -1965,3 +1965,17 @@ Nenhum dos dois mudou o julia, e o segundo aumentava o compilador.
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; o julia dá a mesma imagem.
 
 **Números** (10 execuções, lado a lado): só a escrita de 960×540 píxeis: 5 → 1 ms por execução (C: 1–2 ms); julia completo: 69 → 65 ms (C: 44 ms).
+
+---
+
+## Iteração 111: chamadas puras a biblioteca matematica saem dos ciclos
+
+**O que foi feito.** No `-a`/`-m`, a LICM (`xlicm`, partilhada com o x86) passa a tratar como puras as chamadas a `_sn _cs _xp _lg _at _pw`: dependem só dos argumentos e não escrevem memória. Uma chamada com argumentos invariantes (verificados um a um) sobe para fora do ciclo. No x86 nada muda (a regra só vale com `isa`; a verificação cruzada do `-x` confirma-o).
+
+No julia, o `px` é expandido no ciclo do `D` e calculava `Cs(0.3·t)` e `Sn(0.3·t)` em cada um dos 518 400 píxeis, com `t` constante. Agora são calculados uma vez. O clang fazia o mesmo depois de expandir o `px`.
+
+O erro desta iteração ficou registado: a primeira versão acrescentou a regra ao `xlpure` fora da cadeia de `?`, e o valor era descartado. A medição lado a lado mostrou que nada tinha mudado.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos (incluindo o `-x`); a imagem do julia é igual byte a byte.
+
+**Números** (10 execuções, lado a lado): julia 69 → **52 ms** por execução (C → clang: 42–45 ms).

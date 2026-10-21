@@ -1207,6 +1207,10 @@
   ? == k 55 ab - @ 57 @ 16
   ? == k 41 { ? tty a { agTf 0 a } { agT 0 a } aepilog }
   { ebeg "operacao ainda nao suportada em -a (kind " N k ")" eend } }
+# chamada a uma funcao pura da biblioteca matematica (_sn _cs _xp _lg _at _pw): a LICM pode tira-la de um ciclo
+: apurec i>i p {
+  = k @ + p 2
+  || || || || || aisnm k 3 '_ 's 'n aisnm k 3 '_ 'c 's aisnm k 3 '_ 'x 'p aisnm k 3 '_ 'l 'g aisnm k 3 '_ 'a 't aisnm k 3 '_ 'p 'w }
 : aisnm iiiii>i k n a b c { = t @ fe k 0 && == tkl t n && && == tc t 0 a == tc t 1 b == tc t 2 c }
 # _pd (escrever a imagem do D) em codigo nativo no arm64: esvazia o buffer de saida (_fl), passa os pixeis a bytes num
 # bloco de 4 KiB na pilha e escreve-o com uma syscall por bloco (o _pd em Onda chamava o _op 3 vezes por pixel)
