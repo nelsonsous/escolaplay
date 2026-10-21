@@ -313,7 +313,7 @@
 : _os ii>i p n { = j 0 W < j n { _op & >> @ + p >> j 3 * 8 & j 7 255 = j + j 1 } 0 }
 : _on i>i n { = u n ? < n 0 { _op 45 = u - 0 n } 0 = b @ -5 = i 0 W { ! + b i + 48 % u 10 = i + i 1 = u / u 10 != u 0 } 0 W > i 0 { = i - i 1 _op @ + b i } n }
 : _oa i>i n { = p @ -1 = q + p n ! -1 q ? > q @ -7 ! -7 Y 7 q 0 0 p }
-: _ini >i { ! -7 Y 7 0 0 ! -4 _oa 4096 ! -5 _oa 32 0 }
+: _ini >i { ! -7 Y 7 0 0 ! -4 _oa 4096 ! -5 _oa 300 0 }
 : _ex i>i c { _fl Y 2 c 0 }
 : _go >i { _ini _ex main }
 : _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 = j 0 W < j n { _op @ + @ -5 j = j + j 1 } x }
@@ -321,17 +321,65 @@
 : _ph ii>i w h { _op 80 _op 54 _op 10 _on w _op 32 _on h _op 10 _op 50 _op 53 _op 53 _op 10 }
 : _pt i>f k { = r 1.0 = j 0 W < j k { = r * r 10.0 = j + j 1 } r }
 : _om fi>i v e { = s - 14 e ? >= s 0 ? <= s 22 I + * v _pt s 0.5 I + * * v _pt 22 _pt - s 22 0.5 ? >= s -22 I + / v _pt - 0 s 0.5 I + / / v _pt 22 _pt - - 0 s 22 0.5 }
+: _bz ii>i b v { ! b 0 ? v { ! + b 1 & v 4294967295 ! b 1 ? >> v 32 { ! + b 2 >> v 32 ! b 2 } 0 } 0 0 }
+: _bm ii>i b k { = n @ b = c 0 = i 0 W < i n { = t + * @ + b + 1 i k c ! + b + 1 i & t 4294967295 = c >> t 32 = i + i 1 } ? c { ! + b + 1 n c ! b + n 1 } 0 0 }
+: _bsh ii>i b s {
+  = w / s 32
+  = r % s 32
+  = n @ b
+  ? r { = c 0 = i 0 W < i n { = t | << @ + b + 1 i r c ! + b + 1 i & t 4294967295 = c >> t 32 = i + i 1 } ? c { ! + b + 1 n c = n + n 1 } 0 } 0
+  ? && w n { = i - n 1 W >= i 0 { ! + b + 1 + i w @ + b + 1 i = i - i 1 } = i 0 W < i w { ! + b + 1 i 0 = i + i 1 } = n + n w } 0
+  ! b n
+  0 }
+: _bc ii>i a b {
+  = na @ a
+  = nb @ b
+  ? != na nb ? > na nb 1 -1
+    { = r 0 = i - na 1 W && == r 0 >= i 0 { = x @ + a + 1 i = y @ + b + 1 i ? != x y = r ? > x y 1 -1 0 = i - i 1 } r } }
+: _bs ii>i a b {
+  = n @ a
+  = nb @ b
+  = c 0
+  = i 0
+  W < i n { = t - - @ + a + 1 i ? < i nb @ + b + 1 i 0 c = c ? < t 0 1 0 ? c = t + t 4294967296 0 ! + a + 1 i t = i + i 1 }
+  W && > n 0 == @ + a n 0 = n - n 1
+  ! a n
+  0 }
+: _bcp ii>i a b { = n @ b ! a n = i 0 W < i n { ! + a + 1 i @ + b + 1 i = i + i 1 } 0 }
+# _od: os 15 algarismos significativos de v > 0, exatos e arredondados ao mais proximo (empate: par), como o printf.
+# v = mt * 2^q; razao exata na/nb em inteiros grandes (limbs de 32 bits no bloco @-5), escalada para 1 <= na/nb < 10.
 : _od f>i v {
+  = hx Bh v
+  = lx Bl v
+  = ex & >> hx 20 2047
+  = mt | << & hx 1048575 32 lx
+  = q ? ex - ex 1075 -1074
+  = mt ? ex | mt 4503599627370496 mt
+  = b @ -5
+  = na + b 40
+  = nb + b 120
+  = nc + b 200
+  _bz na mt
+  _bz nb 1
+  ? >= q 0 _bsh na q _bsh nb - 0 q
   = e 0
   = w v
   W >= w 10.0 { = w / w 10.0 = e + e 1 }
   W < w 1.0 { = w * w 10.0 = e - e 1 }
-  = m _om v e
-  ? >= m 1000000000000000 { = e + e 1 = m _om v e } 0
-  ? < m 100000000000000 { = e - e 1 = m _om v e } 0
-  = b @ -5
-  = j 14
-  W >= j 0 { ! + b j + 48 % m 10 = m / m 10 = j - j 1 }
+  ? >= e 0 { = j 0 W < j e { _bm nb 10 = j + j 1 } } { = j 0 W < j - 0 e { _bm na 10 = j + j 1 } }
+  ? < _bc na nb 0 { _bm na 10 = e - e 1 } 0
+  _bcp nc nb
+  _bm nc 10
+  ? >= _bc na nc 0 { _bm nb 10 = e + e 1 } 0
+  = j 0
+  W < j 15 { = d 0 W >= _bc na nb 0 { _bs na nb = d + d 1 } ! + b j + 48 d ? < j 14 _bm na 10 0 = j + j 1 }
+  _bm na 2
+  = c _bc na nb
+  ? || > c 0 && == c 0 & - @ + b 14 48 1 {
+    = j 14
+    = k 1
+    W && k >= j 0 { = t + @ + b j 1 ? > t 57 { ! + b j 48 = j - j 1 } { ! + b j t = k 0 } }
+    ? k { ! b 49 = e + e 1 } 0 } 0
   = nd 15
   W && > nd 1 == @ + b - nd 1 48 = nd - nd 1
   ? && >= e -4 < e 15

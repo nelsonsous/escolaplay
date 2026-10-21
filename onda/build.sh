@@ -60,7 +60,7 @@ echo "[0] a partir da semente WASM escrita pela Onda (sem Rust, sem C)"
 node wasm/host.js seed/ondac.wasm -w < build/ondac.onda > build/w1.wasm
 node wasm/host.js build/w1.wasm   -w < build/ondac.onda > build/w2.wasm
 node wasm/host.js build/w2.wasm   -w < build/ondac.onda > build/w3.wasm
-cmp build/w1.wasm build/w2.wasm
+# o ponto fixo e w2 == w3 (o w1 ainda leva o runtime embutido da semente anterior quando este muda)
 cmp build/w2.wasm build/w3.wasm
 cp build/w2.wasm seed/ondac.wasm
 echo "[ok] ponto fixo WASM (so Onda, sem C): $(wc -c < build/w2.wasm) bytes"

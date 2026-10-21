@@ -2037,3 +2037,15 @@ Medido e revertido nesta iteração: expandir a matemática também nos ciclos g
 **Prova.** No polinómio de grau 7 sobre 37 elementos (restos incluídos), os bits de cada resultado (`Bh`/`Bl`) do `-m` são iguais aos do WASM; o `-mf` continua com 21 `fmla` e difere, como esperado. Novo teste no `test/macho.test.js`. Pontos fixos, sementes e verificação cruzada como sempre.
 
 **Notas, anteriores a esta mudança.** O C compilado pelo clang difere em bits neste caso (o clang funde por conta própria). O 15.º algarismo impresso pelo `G` pode diferir entre o WASM (formata pelo anfitrião) e o x86/arm64 (formatam pelo `_of` em Onda) quando o valor está numa fronteira de arredondamento.
+
+---
+
+## Iteração 117: reais impressos com os 15 algarismos exatos no x86 e no arm64
+
+**O erro.** O `G` do x86 e do arm64 usa o `_of`/`_od` do runtime em Onda, que calculava os 15 algarismos com multiplicações em vírgula flutuante (`_om`). Em 20 000 reais aleatórios entre 1e-20 e 1e20, 858 (4,3 %) saíam com o último algarismo errado (por exemplo 6.25492977444083 em vez de …082), ao contrário do C (`printf`).
+
+**O que foi feito** (`src/5wasm.onda`, o runtime; `build.sh`).
+- O `_od` passa a ser exato. O real escreve-se `mt·2^q` e a razão `na/nb` guarda-se em inteiros grandes (limbs de 32 bits num bloco de rascunho, `@-5`, agora com 300 slots), com `_bz/_bm/_bsh/_bc/_bs/_bcp`. Escala-se exatamente por 10^e até 1 ≤ na/nb < 10, extraem-se 15 algarismos por subtrações, e arredonda-se ao mais próximo (empate: par) comparando 2·resto com `nb`, com transporte (9,999… → 10).
+- O `build.sh` exigia que `w1 == w2` no ponto fixo WASM. Quando o runtime embutido muda, o `w1` ainda leva o da semente anterior, por isso o ponto fixo verdadeiro é `w2 == w3`. Antes falhava em silêncio e deixava o compilador anterior no lugar (foi assim que este erro me apareceu).
+
+**Prova.** 0 erradas em 20 000, com os bits de cada valor confirmados iguais entre C e arm64 e a referência exata do Python (`%.15g`). Extremos iguais ao `printf`: 4.94e-324, 1.79e308, 2.2250738585072e-308, 1e+15, 1e-05, 9.9999999999999995 → 10. Pontos fixos, sementes alinhadas, verificação cruzada completa; `node --test` com as mesmas 34 falhas de ambiente.
