@@ -1901,3 +1901,15 @@ Um mapa não reassocia nada: cada elemento faz as mesmas contas IEEE pela mesma 
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos. Novo teste: `E` com `?` e comparações, n = 0..11, dá os mesmos bits que o WASM.
 
 **Números.** grover: `-m` 1,34 → **1,05 s** (C → clang: 1,08 s), com a probabilidade igual ao bit à do C (0,999999757396816); `-mf` 0,76 → **0,47 s**.
+
+---
+
+## Iteração 106: molduras numa so instrucao e retorno direto em x0/d0
+
+**O que foi feito.**
+- Nas funções que chamam outras e têm moldura pequena (≤ 488 bytes), o prólogo passa a ser um só `stp x29, x30, [sp, #-(f+16)]!`, e o epílogo um só `ldp x29, x30, [sp], #(f+16)`; os slots e os registos guardados ficam 16 bytes acima.
+- O valor devolvido, quando é calculado pela instrução anterior e só usado no `return`, nasce já em `x0`/`d0`.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos (compilador arm64 de 232 611 bytes).
+
+**Números.** O fib tem agora quase instrução a instrução o código do clang (2 `stp`, 2 `ldp`, `add x0` direto), mas o tempo fica nos 32 ms (clang: 27 ms). A diferença está no caso base: o resultado do `?` (`n`) passa por uma cópia e um salto, e o clang devolve direto. Fica registado como próximo alvo.

@@ -60,7 +60,7 @@
 : aisd i>i l || && >= l 32 < l 64 >= l 96
 : ardl i>i l ? >= l 96 - l 96 ard - l 32
 : ard i>i l ? < l 6 + 10 l + 10 l
-: avs i>i v * 8 @ + @ 56 arep v
+: avs i>i v + xq 4 * 8 @ + @ 56 arep v
 : aty i>i v ? < v @ 11 tty v { = l lty - v @ 11 ? >= l 2 tty - l 2 l }
 : amov ii>i rd rn ? == rd rn 0 amovr rd rn
 : afmovdd ii>i rd rn ? == rd rn 0 x4 | | 0x1E604000 << rn 5 rd
@@ -264,6 +264,10 @@
       W < j @ + p 4 {
         ? fpt kf j { ? == @ + b j t ! + @ 34 t + 96 dc 0 = dc + dc 1 } { ? == @ + b j t ! + @ 34 t + 64 xc 0 = xc + xc 1 }
         = j + j 1 } } 0
+    ? == @ p 41 {
+      = t @ + p 2
+      ? && && & @ + @ 50 @ pv 8 && < t @ 11 == arep t t && && == @ + @ 46 t 1 == @ + @ 45 t 1 && == @ + @ 58 t 0 < @ + @ 34 t 0
+        ! + @ 34 t ? tty t 96 64 0 } 0
     ? && == @ p 7 < + i 1 n {
       = t @ + p 1
       = q + p 8
@@ -364,12 +368,17 @@
     ? & >> @ 42 j 1 {
       = r asreg j
       = fl >= j 16
-      ? && >= pr 0 == pf fl { asv2 ld fl pr r - c 1 = pr -1 } { ? >= pr 0 asv1 ld pf pr * 8 - c 1 0 = pr r = pf fl }
+      ? && >= pr 0 == pf fl { asv2 ld fl pr r + / xq 4 8 - c 1 = pr -1 } { ? >= pr 0 asv1 ld pf pr + xq 4 * 8 - c 1 0 = pr r = pf fl }
       = c + c 1 } 0
     = j + j 1 }
-  ? >= pr 0 asv1 ld pf pr * 8 - c 1 0 }
-: aprolog >i { ? @ 60 0 aprol ? @ 59 asubsp @ 59 0 asave 0 }
-: aepilog >i { asave 1 ? @ 59 aaddsp @ 59 0 ? @ 60 0 aepil aret }
+  ? >= pr 0 asv1 ld pf pr + xq 4 * 8 - c 1 0 }
+: amrg >i && ~ @ 60 <= + @ 59 16 504
+# com bl e moldura pequena: uma so instrucao (stp x29, x30, [sp, #-(f+16)]!); os slots ficam 16 bytes acima (xq 4)
+: aprolog >i {
+  xqs 4 0
+  ? amrg { x4 | 0xA9807BFD << & / - 0 + @ 59 16 8 0x7F 15 xqs 4 16 } { ? @ 60 0 aprol ? @ 59 asubsp @ 59 0 }
+  asave 0 }
+: aepilog >i { asave 1 ? amrg x4 | 0xA8C07BFD << / + @ 59 16 8 15 { ? @ 59 aaddsp @ 59 0 ? @ 60 0 aepil } aret }
 # literais inteiros como imediatos: add/sub #imm12, cmp #imm12, lsl/asr #imm6. 58: o literal so tem usos imediatos (nao se
 # materializa nem ocupa registo)
 : alit i>i t { = j @ + @ 47 t ? || < j 0 != @ + @ 46 t 1 0 { = q + @ 18 * j 8 = k @ q || == k 2 && == k 1 ~ tty t } }
