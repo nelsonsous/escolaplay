@@ -711,6 +711,56 @@
     = i + i 1 }
   ! 19 w
   0 }
+# --- cauda do return duplicada no ramo then: ? c A B seguido de poucas instrucoes puras e do return -> o then devolve
+# logo (sem copia para o resultado nem salto para a juncao). A copia usa temporarios novos; o original fica inalcancavel.
+: atpure i>i k || || || == k 1 == k 2 || == k 5 == k 8 || || == k 9 == k 14 || == k 15 == k 17
+: atail >i {
+  = n @ 19
+  = ul - n 1
+  = pl + @ 18 * ul 8
+  ? != @ pl 41 0 {
+    = j - ul 1
+    W && >= j 0 && atpure @ + @ 18 * j 8 > j - ul 7 = j - j 1
+    = pj + @ 18 * j 8
+    ? || < j 1 != @ pj 20 0 {
+      = d @ + pj 1
+      = h - j 1
+      = dep 0
+      = i19 -1
+      W && < i19 0 >= h 0 {
+        = q + @ 18 * h 8
+        ? == @ q 20 = dep + dep 1 0
+        ? == @ q 19 { ? && == dep 0 == @ + q 1 d = i19 h = dep - dep 1 } 0
+        = h - h 1 }
+      ? < i19 0 0 {
+        = a19 @ + + @ 18 * i19 8 2
+        = mp A + - ul j 2
+        = w xq 8
+        = q w
+        = i 0
+        W < i i19 { = q airp q + @ 18 * i 8 = i + i 1 }
+        = i + j 1
+        W <= i ul {
+          = ps + @ 18 * i 8
+          = q0 q
+          = q airp q ps
+          = f @ + @ 50 @ ps
+          = c 0
+          W < c 3 {
+            = fl ? == c 0 1 ? == c 1 2 4
+            = fo + q0 + 2 c
+            ? & f fl { = v @ fo ? == v d ! fo a19 { = m 0 W < m - i + j 1 { ? == v @ + mp * m 2 ! fo @ + + mp * m 2 1 0 = m + m 1 } } } 0
+            = c + c 1 }
+          ? & f 8 { = nd nt tty @ + ps 1 = e - i + j 1 ! + mp * e 2 @ + ps 1 ! + + mp * e 2 1 nd ! + q0 1 nd } 0
+          ? == @ ps 5 0 0
+          = i + i 1 }
+        = i i19
+        W < i n { = q airp q + @ 18 * i 8 = i + i 1 }
+        = m / - q w 8
+        = i 0
+        W < i * m 8 { ! + @ 18 i @ + w i = i + i 1 }
+        ! 19 m
+        0 } } } }
 # --- S vetorizado em NEON (so com -mf/-af: reassocia a soma, como o -xf do x86; o -m/-a soma em serie, igual ao C) ---
 # elemento f ii..>f i ...: corpo { = l E ... E } ou E, com + - * /, literais reais, parametros reais, F do indice ou de
 # um parametro inteiro, e ate 2 locais. 4 elementos por volta (bancos A e B, 2 doubles cada, acumuladores proprios),
@@ -1160,6 +1210,7 @@
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
   # invariantes fora dos ciclos (a mesma passagem de RI do x86) e depois os registos
   atre k
+  atail
   acse
   xlicm
   # ponteiros-base (a mesma passagem do x86: 46 = base, 47..50 = acessos [base + i*8]) e outra vez a LICM

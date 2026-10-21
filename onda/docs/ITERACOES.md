@@ -1913,3 +1913,13 @@ Um mapa não reassocia nada: cada elemento faz as mesmas contas IEEE pela mesma 
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos (compilador arm64 de 232 611 bytes).
 
 **Números.** O fib tem agora quase instrução a instrução o código do clang (2 `stp`, 2 `ldp`, `add x0` direto), mas o tempo fica nos 32 ms (clang: 27 ms). A diferença está no caso base: o resultado do `?` (`n`) passa por uma cópia e um salto, e o clang devolve direto. Fica registado como próximo alvo.
+
+---
+
+## Iteração 107: cauda do return duplicada no ramo then
+
+**O que foi feito.** Uma passagem de RI (`atail`, depois da recursão com acumulador) para funções que acabam em `? c A B` seguido de até 6 instruções puras e do `return`. A cauda é copiada para dentro do ramo `then`, com `d` (o resultado do `?`) trocado pelo valor do ramo e temporários novos para as cópias; o `then` devolve logo. O original fica inalcançável e o alocador não lhe dá registos guardados (o buraco do `?` já o separava).
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos.
+
+**Números.** No fib, o caso base (a maior parte das chamadas) passou a `cmp; b.ge; add x0, acc, n; ldp; ldp; ret`, o mesmo número de instruções do clang. Tempo: 32 → 31 ms (clang: 27 ms).
