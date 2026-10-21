@@ -1885,3 +1885,19 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos. `-mf` e `-m` dão o mesmo para somas de vetores com n = 0..11 (todos os restos); novo caso no `test/macho.test.js`.
 
 **Números.** O grover, cujo `S n amp a` soma um vetor de 2²⁰ amplitudes 804 vezes: `-m` 1,34 s, **`-mf` 0,76 s** (C → clang: 1,08 s). A probabilidade do alvo concorda em 9 algarismos (0,99999975…), o esperado ao reassociar a soma 804 vezes.
+
+---
+
+## Iteração 105: mapa E vetorizado em NEON, com ? como selecao, tambem no -m
+
+**O que foi feito.** Um novo nó de RI (59) para `E d n f …` no `-a`/`-m`, com o mesmo analisador e gerador do `S` vetorizado:
+- leituras `@f + a i`, parâmetros, `F`, locais;
+- agora também `? cond A B` como seleção: a condição compara índice, parâmetros inteiros, literais inteiros ou expressões reais (`fcmeq/fcmgt/fcmge`, com troca para `<`/`<=` e `not` para `!=`), os dois ramos são avaliados (são puros) e `bsl` escolhe.
+
+São 4 elementos por volta em dois bancos, com escrita `str q` no destino (base em x17) e cauda escalar.
+
+Um mapa não reassocia nada: cada elemento faz as mesmas contas IEEE pela mesma ordem, por isso o `-m` continua igual ao bit e o mapa vetorizado vale por omissão. O FMA dentro destes corpos passou a ser só do `-mf` (antes estava sempre no gerador do `S`, que só corria em `-mf`).
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos. Novo teste: `E` com `?` e comparações, n = 0..11, dá os mesmos bits que o WASM.
+
+**Números.** grover: `-m` 1,34 → **1,05 s** (C → clang: 1,08 s), com a probabilidade igual ao bit à do C (0,999999757396816); `-mf` 0,76 → **0,47 s**.

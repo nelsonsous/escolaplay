@@ -38,6 +38,17 @@ test('macho: S vetorizado em NEON (-mf) da o mesmo que o -m em serie nos restos,
   assert.ok(n >= 4, 'fadd .2d no ciclo vetorial (' + n + ')');
 });
 
+test('macho: E vetorizado (com ? e comparacoes) da os mesmos bits que o WebAssembly em todos os restos', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-e-'));
+  const src = ': st iiif>f i a w m { = v @f + a i - * 2.0 m ? == i w - 0.0 v v }\n: cl iif>f i a s ? < @f + a i s s ? >= i 5 * 2.0 @f + a i / @f + a i 3.0\n: main >i { = a A 16 = b A 16 = i 0 W < i 16 { !f + a i + 0.5 F * i i = i + i 1 } = k 0 W < k 12 { E b k st a 3 1.25 E b k cl a 7.5 = j 0 W < j k { G @f + b j " " = j + j 1 } = k + k 1 } 0 }\n';
+  fs.writeFileSync(path.join(t, 'p.o'), execFileSync(ondac, ['-m'], { input: Buffer.from(src) }));
+  execFileSync('cc', [path.join(t, 'p.o'), '-o', path.join(t, 'p')]);
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')]).toString();
+  assert.strictEqual(execFileSync(path.join(t, 'p')).toString(), w);
+});
+
 test('macho: o mapa vetorizado leva NEON (.2d) no Mach-O, como no ELF', () => {
   const src = ': g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x 0.3 }\n' +
               ': main >i { = n 64 = a A n = i 0 W < i n { !f + a i F + % i 7 1 = i + i 1 } = b A n E b n g a I @f + b 0 }\n';
