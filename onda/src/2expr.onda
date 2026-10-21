@@ -19,7 +19,8 @@
   = j 0
   W < j np { ? > j 0 "," 0 ? isjs "v_" { ety fpt k j " v_" } etx + @ fe k 4 j = j + j 1 }
   ")" }
-: cfun i>i k {
+: cfun i>i k ? == @ fe k 12 1 aprn k ? > @ fe k 12 1 cdrv k cfun0 k
+: cfun0 i>i k {
   ! 13 k
   ! 9 0
   ! 11 0
@@ -65,7 +66,7 @@
 # -a/-m: dentro de um ciclo W, uma chamada a biblioteca matematica (nao recursiva, ate 600 tokens) expande-se em linha,
 # um nivel, como o clang faz com as funcoes estaticas; nunca dentro da propria biblioteca (funcoes _...)
 : ailp i>i k {
-  = e ? < + k 1 @ 6 - @ fe + k 1 0 1 @ 4
+  = e fend k
   && && > xq 6 0 == @ 33 0 && && != @ fe k 11 0 <= - e @ fe k 5 600 != tc @ fe @ 13 0 0 '_ }
 : ncall ii>i k a { = r nt @ fe k 3 ir 7 r k a @ fe k 2 0 0 edge k r }
 : ccallt ii>i k a ? || && && isx == @ fe k 11 1 < @ 33 4 && && isc @ fe k 11 < @ 33 16 cinl k a ncall k a
@@ -89,7 +90,7 @@
   r }
 : xro ii>i k n {
   = s @ fe k 5
-  = e ? < + k 1 @ 6 - @ fe + k 1 0 1 @ 4
+  = e fend k
   = r 1
   = j s
   W && r < j - e 1 { ? && == tcode j '= && == tkl j 1 teq + j 1 n = r 0 0 = j + j 1 }
@@ -98,7 +99,7 @@
   = k 0
   W < k @ 6 {
     = s @ fe k 5
-    = e ? < + k 1 @ 6 - @ fe + k 1 0 1 @ 4
+    = e fend k
     = r 0
     = j s
     W < j e { ? teq j @ fe k 0 = r 1 0 = j + j 1 }
@@ -174,6 +175,142 @@
 : fastf >i || == Av 1 2 'f == Av 1 2 '5
 : lowSv iii>i n k a { = r nt @ fe k 3 ir 52 r n 0 @ a k 0 r }
 : conv ii>i t f ? f { = r nt 1 ir 15 r 0 t 0 0 0 r } t
+# --- paralelo (-m, Mac): um E ou D cuja funcao e pura reparte-se por threads (pthread da libSystem). A funcao condutora
+# (sintetica: campo 12 = 2 + 4*funcao + modo; 0 D, 1 E, 2 S) corre um intervalo [lo, hi) com a funcao expandida, como o lowE/lowD; a
+# rotina _pr (campo 12 = 1, codigo-maquina) cria as threads, que vao buscando blocos com um contador atomico. Cada
+# elemento escreve so o seu lugar, logo o resultado e o mesmo, bit a bit, em qualquer ordem. Os argumentos passam por
+# slots fixos no fim de M (pjs): 0 condutora 1 n 2 contador 3 bloco 4 destino 5 largura 6..13 inteiros 14..21 reais
+# 22..37 threads 38 n de cpus 39 n de blocos 64.. somas parciais do S (uma por bloco, somadas por ordem: o resultado nao
+# depende do numero de threads)
+: pjs i>i j + 33553920 j
+: ppbad i>i o {
+  = b 0
+  ? || == o '! == o k2 '! 'f = b 1 0
+  ? || == o 'A == o 'P = b 1 0
+  ? || == o 'R == o 'N = b 1 0
+  ? || == o 'G == o 'O = b 1 0
+  ? || == o 'X == o 'E = b 1 0
+  ? || == o 'D == o 'V = b 1 0
+  ? || == o 'J == o 'Y = b 1 0
+  ? || == o 'K == o k2 'K 'c = b 1 0
+  ? == o 'B = b 1 0
+  b }
+# pura: nao escreve na memoria, nao aloca, nao imprime nem le (tambem nas funcoes que chama); 13 = memo
+: ppok ii>i k d {
+  = m @ fe k 13
+  ? == m 1 1 ? == m 2 0 ? == m 3 1 ? > d 60 0 ? == tc @ fe k 0 0 '_ 1 {
+    ! fe k 13 3
+    = e fend k
+    = r 1
+    = j @ fe k 5
+    W && r < j e {
+      = kk tkk j
+      ? == kk 3 = r 0 { ? == kk 0 { = f ffun j ? && >= f 0 != f k = r ppok f + d 1 0 } { ? == kk 5 = r ~ ppbad tcode j 0 } }
+      = j + j 1 }
+    ! fe k 13 ? r 1 2
+    r } }
+: ppar i>i k && && isa ismo ppok k 0
+: pnew ii>i code kf { = k @ 6 = j 0 W < j 14 { ! fe k j 0 = j + j 1 } ! fe k 0 @ fe kf 0 ! fe k 1 @ fe kf 0 ! fe k 2 2 ! fe k 12 code ! 6 + k 1 k }
+: pfind i>i code { = r -1 = k 0 W && < r 0 < k @ 6 { ? == @ fe k 12 code = r k 0 = k + k 1 } r }
+: pdrv ii>i kf mode { = code + + 2 * kf 4 mode = r pfind code ? >= r 0 r pnew code kf }
+: pprk i>i kf { = r pfind 1 ? >= r 0 r pnew 1 kf }
+: pslot iii>i s v fl { ? fl { ir 27 0 lit1 pjs s v 0 0 0 } { ir 25 0 lit1 pjs s v 0 0 0 } 0 }
+: pargs iii>i k a s {
+  = np @ fe k 2 = ni 0 = nf 0 = j s
+  W < j np { ? fpt k j { pslot + 14 nf @ + a - j s 1 = nf + nf 1 } { pslot + 6 ni @ + a - j s 0 = ni + ni 1 } = j + j 1 }
+  ni }
+: lowDp iiii>i w h k a {
+  = q A 2
+  ! q w
+  ! + q 1 h
+  rcall fby k3 '_ 'p 'h q 2
+  = nb binx '* 0 w h
+  = bf nt 0
+  ir 28 bf nb 0 0 0 0
+  pslot 4 bf 0
+  pslot 5 w 0
+  pargs k a 2
+  pprk k
+  ir 60 0 h pdrv k 0 0 0 0
+  = q2 A 2
+  ! q2 bf
+  ! + q2 1 nb
+  rcall fby k3 '_ 'p 'd q2 2
+  zer 0 }
+: lowEp iiii>i d n k a {
+  pslot 4 d 0
+  = ni pargs k a 1
+  pprk k
+  ir 60 0 n pdrv k 1 + 1 * 2 ni 0 0
+  d }
+: lowSp iii>i n k a {
+  = y @ fe k 3
+  pargs k a 1
+  pprk k
+  ir 60 0 n pdrv k 2 1 0 0
+  = ac newl y
+  setl ac zer y
+  = nc ldslot 39 0
+  = cv newl 0
+  lpbeg cv nc 0
+  = pv nt y
+  ir ? y 26 24 pv binx '+ 0 lit1 pjs 64 getl cv 0 0 0 0
+  setl ac binx '+ y getl ac pv
+  lpend cv
+  getl ac }
+: ldslot ii>i s fl { = r nt fl ir ? fl 26 24 r lit1 pjs s 0 0 0 0 r }
+: lpfrom iii>i iv lo hl { setl iv lo ir 21 0 0 0 0 0 0 = c cmpx '< getl iv getl hl ir 22 0 c 0 0 0 0 0 }
+: cdrv i>i kd {
+  = code @ fe kd 12
+  = kf >> - code 2 2
+  = mode & - code 2 3
+  ! 13 kd
+  ! 9 0
+  ! 11 0
+  ! 19 0
+  ! 32 0
+  ! 33 0
+  = lo newl 0
+  = hi newl 0
+  = dd ldslot 4 0
+  = s ? mode 1 2
+  = a A 9
+  = np @ fe kf 2 = ni 0 = nf 0 = j s
+  W < j np { ? fpt kf j { ! + a - j s ldslot + 14 nf 1 = nf + nf 1 } { ! + a - j s ldslot + 6 ni 0 = ni + ni 1 } = j + j 1 }
+  ? == mode 2 {
+      = y @ fe kf 3
+      = r ? && && y fastf asva kf
+        { = r nt 1 ir 54 r getl hi kf a + 1 getl lo 0 r }
+        { = ac newl y
+          setl ac zer y
+          = iv newl 0
+          lpfrom iv getl lo hi
+          = fr ccallf kf fargs kf a getl iv -1
+          setl ac binx '+ y getl ac fr
+          lpend iv
+          getl ac }
+      = ad binx '+ 0 lit1 pjs 64 binx '/ 0 getl lo ldslot 3 0
+      ? y { ir 27 0 ad r 0 0 0 } { ir 25 0 ad r 0 0 0 } }
+  ? mode {
+      ? asva kf { ir 59 0 dd getl hi kf a + 1 getl lo 0 } ? xvan kf { ir 53 0 dd getl hi kf @ a + 1 getl lo 0 } {
+      = iv newl 0
+      lpfrom iv getl lo hi
+      = fr ccallf kf fargs kf a getl iv -1
+      = ad binx '+ 0 dd getl iv
+      ? @ fe kf 3 { ir 27 0 ad fr 0 0 0 } { ir 25 0 ad fr 0 0 0 }
+      lpend iv } }
+    { = f fpt kf 0
+      = w ldslot 5 0
+      = yv newl 0
+      = xv newl 0
+      lpfrom yv getl lo hi
+      lpbeg xv w 0
+      = c ccallf kf fargs kf a conv getl xv f conv getl yv f
+      ir 25 0 binx '+ 0 dd binx '+ 0 binx '* 0 getl yv w getl xv c 0 0 0
+      lpend xv
+      lpend yv }
+  ir 41 0 lit1 0 0 0 0 0
+  afun kd }
 : lowD iiii>i w h k a {
   = f fpt k 0
   = q A 2

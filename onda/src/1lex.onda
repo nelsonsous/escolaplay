@@ -120,8 +120,10 @@
       W && < i n ~ isws @ + b i = i + i 1
       addtok kindof + b s - i s + b s - i s } }
   0 }
-: fe ii>i k j + + @ 5 * k 12 j
-: fpt ii>i k j ? == @ + tks @ fe k 1 j 'f 1 0
+: fe ii>i k j + + @ 5 * k 14 j
+# fim dos tokens do corpo da funcao k (as funcoes sinteticas -- campo 12 -- vem no fim e nao tem tokens)
+: fend i>i k ? && < + k 1 @ 6 == @ fe + k 1 12 0 - @ fe + k 1 0 1 @ 4
+: fpt ii>i k j ? > @ fe k 12 0 0 ? == @ + tks @ fe k 1 j 'f 1 0
 : ffun i>i i { = k 0 = r -1 W && < r 0 < k @ 6 { ? teq i @ fe k 0 = r k 0 = k + k 1 } r }
 : defn i>i i {
   ? >= + i 2 @ 4 { ! 7 i ebeg "definicao incompleta" eend } 0

@@ -70,3 +70,33 @@ test('macho: o mapa vetorizado leva NEON (.2d) no Mach-O, como no ELF', () => {
   for (let i = 0; i + 4 <= b.length; i += 4) { const m = b.readUInt32LE(i) & 0xFFE0FC00; if (m === 0x4E60CC00 || m === 0x6E60DC00 || m === 0x4E60D400) neon++; }
   assert.ok(neon >= 3, 'tem instrucoes NEON .2d no Mach-O (encontrou ' + neon + ')');
 });
+
+test('macho: E, D e S inteiro em threads (funcoes puras) dao os mesmos bits que o WebAssembly; E no proprio vetor fica em serie', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-p-'));
+  const src = ': px ffff>i x y t w { = v Sn + * 0.01 * x y t I * 1000.0 + v / w 7.0 }\n' +
+              ': st iiif>f i a w m { = v @f + a i - * 2.0 m ? == i w - 0.0 v v }\n' +
+              ': ant iii>f i a n ? == i 0 @f + a 0 + @f + a i * 0.5 @f + a - i 1\n' +
+              ': q ii>i i k * - i k + i 3\n' +
+              ': main >i { = n 50000 = a A n = b A n = i 0 W < i n { !f + a i / F % * i 7919 1009 1009.0 = i + i 1 }\n' +
+              '  E b n st a 4242 0.25 E a n ant a n = s 0.0 = i 0 W < i n { = s + s + @f + a i @f + b i = i + i 1 }\n' +
+              '  G s " " N S 100000 q 17 "\\n" D 300 200 px 0.5 300.0 0 }\n';
+  const o = execFileSync(ondac, ['-m'], { input: Buffer.from(src) });
+  assert.ok(o.includes(Buffer.from('_pthread_create\0')), 'chama o pthread_create');
+  fs.writeFileSync(path.join(t, 'p.o'), o);
+  execFileSync('cc', [path.join(t, 'p.o'), '-o', path.join(t, 'p')]);
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')]);
+  for (let k = 0; k < 3; k++) assert.ok(execFileSync(path.join(t, 'p')).equals(w), 'corrida ' + k);
+});
+
+test('macho: S real em threads com -mf reparte em blocos fixos: o mesmo resultado em todas as corridas', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-ps-'));
+  const src = ': f ii>f i n { = x / + F i 0.5 F n / 4.0 + 1.0 * x x }\n: main >i { = n 3000000 G / S n f n F n " " G / S 7 f 7 7.0 "\\n" 0 }\n';
+  fs.writeFileSync(path.join(t, 'p.o'), execFileSync(ondac, ['-mf'], { input: Buffer.from(src) }));
+  execFileSync('cc', [path.join(t, 'p.o'), '-o', path.join(t, 'p')]);
+  const r = execFileSync(path.join(t, 'p')).toString();
+  assert.match(r, /^3\.14159265358\d* 3\.14\d+\n$/);
+  for (let k = 0; k < 4; k++) assert.strictEqual(execFileSync(path.join(t, 'p')).toString(), r);
+});

@@ -35,14 +35,14 @@
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  ? || isx isa ? && isx xvan k lowEv d n k a ? && isa asva k lowEg d n k a ? && isa xvan k lowEa d n k a lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
+  ? ppar k lowEp d n k a ? || isx isa ? && isx xvan k lowEv d n k a ? && isa asva k lowEg d n k a ? && isa xvan k lowEa d n k a lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
 : cs >i {
   = n cx
   ckint n
   = k fref 1
   ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
-  ? || isx isa ? && && isx fastf xvan k lowSv n k a ? && && isa fastf asva k lowSa n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
+  ? && ppar k || fastf ~ @ fe k 3 lowSp n k a ? || isx isa ? && && isx fastf xvan k lowSv n k a ? && && isa fastf asva k lowSa n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
 : cd >i {
   = w cx
   = h cx
@@ -51,7 +51,7 @@
   = k fref 2
   ? || != fpt k 0 fpt k 1 @ fe k 3 { ebeg "funcao de pixel invalida" eend } 0
   = a cargs k 2
-  ? || isx isa lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
+  ? ppar k lowDp w h k a ? || isx isa lowD w h k a { = r nt 0 ir 40 r w h k a - @ fe k 2 2 r } }
 : mlib >i && || || || == @ 12 0 isw isx isa != tc @ fe @ 13 0 0 '_
 : mlibp >i && || || || || == @ 12 0 isw isx isjs isa != tc @ fe @ 13 0 0 '_
 : cml2 i>i c { = a cx = b cx ckflt a ckflt b = q A 2 ! q a ! + q 1 b = k fby c ? < k 0 { ebeg "falta a matematica" eend } 0 ? && isa ailp k cinl k q { = r rcall k q 2 edge k r } }
@@ -377,7 +377,7 @@
   = k 0
   W < k @ 6 { ? && ismain k && == @ fe k 2 0 == @ fe k 3 0 = m 1 0 = k + k 1 }
   ? || m && && && != @ 12 0 ~ isw ~ isx ~ isa 0 { ebeg "falta : main >i" eend }
-  ? isa { ! 63 A 1000 ! @ 63 0 ! 64 A 400000 ! @ 64 0 ! 65 A 2000 ! @ 65 0 ! 34 A 500000 ! 36 A 500000 ! 37 A 500000 ! 38 A 500000 ! 39 A 110000 ! 40 A 20000 ! 43 A 10000 ! 35 A 500000 ! 45 A 500000 ! 46 A 500000 ! 47 A 500000 ! 48 A 500000 ! 51 A 110000 ! 52 A 16 ! 54 A 32 ! 55 A 500000 ! 56 A 500000 ! 58 A 500000 ! 50 xtab ! 61 A 32 xqs 0 A 8192 xqs 2 A 40000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 xqs 19 A 420000 xqs 20 A 420000 xqs 21 A 192 } 0
+  ? isa { ! 66 A 64 ! @ 66 0 ! 63 A 1000 ! @ 63 0 ! 64 A 400000 ! @ 64 0 ! 65 A 2000 ! @ 65 0 ! 34 A 500000 ! 36 A 500000 ! 37 A 500000 ! 38 A 500000 ! 39 A 110000 ! 40 A 20000 ! 43 A 10000 ! 35 A 500000 ! 45 A 500000 ! 46 A 500000 ! 47 A 500000 ! 48 A 500000 ! 51 A 110000 ! 52 A 16 ! 54 A 32 ! 55 A 500000 ! 56 A 500000 ! 58 A 500000 ! 50 xtab ! 61 A 32 xqs 0 A 8192 xqs 2 A 40000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 xqs 19 A 420000 xqs 20 A 420000 xqs 21 A 192 } 0
   ? || || isx isc isa inlf 0
   ? isc ! 50 xtab 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0

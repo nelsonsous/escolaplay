@@ -2107,3 +2107,13 @@ Medicao justa primeiro: contra clang -O3 -ffast-math (o par do -mf) o pi e o gro
 Rotacao dos ciclos no arm64: o fim de um W repete o teste (ate 16 instrucoes sem nada relativo ao pc alem de saltos, que se recolocam) e volta ao corpo com a condicao invertida; as saidas do teste copiado corrigem-se com as originais. Quando o W nao tem teste (o ? esta no inicio do corpo, como no ciclo da recursao com acumulador), duplica-se a cauda: copia-se o teste ate ao primeiro salto condicional ja resolvido, e so a saida paga um salto.
 
 fib(35), tempo interno: 32 -> 26 ms (clang -O3: 27 ms). Primeira vez que o -m passa o C no fib.
+
+---
+
+## Iteração 121: threads no -m: E, D e S puros por todos os nucleos; a Onda passa o C nos quatro
+
+Pureza por tokens (nao escreve, nao aloca, nao imprime, tambem nas funcoes chamadas). Um E/D/S com funcao pura gera uma funcao condutora sintetica (campo 12 da tabela de funcoes) que corre [lo, hi) pelo caminho normal (expansao, LICM, NEON: os nos 53/54/59 ganharam um inicio). A rotina _pr, em codigo-maquina, cria cpus-1 threads com o pthread_create da libSystem (o objeto Mach-O passou a ter simbolos externos e relocacoes BRANCH26); todas, a principal incluida, tiram blocos de max(1, n/64) de um contador com ldaddal. Os argumentos passam por slots no fim de M. E/D escrevem so o seu lugar: mesmos bits que o WebAssembly. O S inteiro e exato em qualquer ordem (tambem no -m); o S real so com -mf, com uma soma parcial por bloco somada por ordem: o resultado nao depende do numero de threads. Em serie quando e pouco (E/S com menos de 4096, D com menos de 2 linhas) ou quando o destino do E e um argumento inteiro (pode ler o que escreve).
+
+Por execucao, com o arranque (C -O3 / C -O3 -ffast-math / -m / -mf, ms): pi 218/78/210/18; grover 1183/481/1050/314; fib(35) interno 28/-/26; julia 53/35/17/16. Outros: ondas 28,5 -> 12,9 (C 28,5), matmul 21 -> 9,8, life 11,4 -> 7,3.
+
+Tentado e desfeito: expandir tambem os nucleos _mkc/_mks dentro do Cs expandido (16 -> 21 ms: os registos esgotam-se).
