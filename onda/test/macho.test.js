@@ -30,7 +30,7 @@ test('macho: no Mac M1 o objeto linka e corre (gcd, strings, Av, reais)', { skip
 test('macho: S vetorizado em NEON (-mf) da o mesmo que o -m em serie nos restos, e usa .2d', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
   const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
   const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-s-'));
-  const src = ': g ifi>f i a m { = u * a F i = v + u F m - * u v / v 3.0 }\n: main >i { = k 0 W < k 11 { G S k g 0.5 k " " = k + k 1 } 0 }\n';
+  const src = ': g ifi>f i a m { = u * a F i = v + u F m - * u v / v 3.0 }\n: el iif>f i a s * s @f + a i\n: main >i { = a A 16 = i 0 W < i 16 { !f + a i + 0.5 F * i i = i + i 1 } = k 0 W < k 11 { G S k g 0.5 k " " G S k el a 1.5 " " = k + k 1 } 0 }\n';
   const run = f => { fs.writeFileSync(path.join(t, f + '.o'), execFileSync(ondac, [f], { input: Buffer.from(src) })); execFileSync('cc', [path.join(t, f + '.o'), '-o', path.join(t, f)]); return execFileSync(path.join(t, f)).toString(); };
   assert.strictEqual(run('-mf'), run('-m'));
   const o = execFileSync(ondac, ['-mf'], { input: Buffer.from(src) });

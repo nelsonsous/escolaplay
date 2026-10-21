@@ -711,6 +711,22 @@
 : asop i>i i && == tkk i 5 isar tcode i
 : asfF i>i i && == tkk i 5 == tcode i 'F
 : asfl >i { = q + @ 52 15 ! q + @ q 1 0 }
+# leitura de vetor @f + a i (a parametro inteiro, i o indice): o registo base (x11/x13/x15) calcula-se antes do ciclo
+: asld i>i i && == tkk i 5 == tcode i k2 '@ 'f
+: asldok ii>i k i {
+  ? || ~ asop + i 1 != tcode + i 1 '+ 0 {
+    = ja asvp k + i 2
+    = jb asvp k + i 3
+    || && == ja 0 && > jb 0 ~ fpt k jb && == jb 0 && > ja 0 ~ fpt k ja } }
+: asbr i>i c ? == c 0 11 ? == c 1 13 15
+: asbase ii>i j src {
+  = q + @ 52 8
+  = n @ q
+  = r -1
+  = c 0
+  W && < r 0 < c n { ? == @ + q + 1 c j = r c 0 = c + c 1 }
+  ? < r 0 { ! + q + 1 n j ! q + n 1 = r n agT 10 src aaddlsl asbr n 28 10 3 } 0
+  asbr r }
 # validacao: devolve pressao*4 + (no e '*')*2 + (no ocupa temporario), ou -1
 : asvx i>i k {
   = i @ 7
@@ -720,6 +736,7 @@
     ? == kk 2 { asfl 0 }
     ? == kk 0 ? >= asvl i 0 0 { = j asvp k i ? && > j 0 fpt k j { asfl 0 } -1 }
     ? asfF i { = t @ 7 ! 7 + t 1 ? != tkk t 0 -1 { = j asvp k t ? < j 0 -1 ? fpt k j -1 ? > j 0 { asfl 0 } 0 } }
+    ? asld i ? asldok k i { ! 7 + i 4 = q + @ 52 12 ! q + @ q 1 5 } -1
     ? asop i {
       = ra asvx k
       ? < ra 0 -1 {
@@ -735,6 +752,7 @@
     = sv @ 7
     ! @ 52 0
     ! + @ 52 15 0
+    ! + @ 52 12 0
     = b @ fe k 5
     = ok 1
     = mp 0
@@ -749,10 +767,10 @@
       ? ok { = r asvx k ? < r 0 = ok 0 { = mp Mx mp >> r 2 ? != tcode @ 7 '} = ok 0 0 } } 0 }
       { ! 7 b = r asvx k ? < r 0 = ok 0 = mp Mx mp >> r 2 }
     ! 7 sv
-    && && ok <= mp 4 <= @ + @ 52 15 7 } }
+    && && && ok <= mp 4 <= @ + @ 52 15 7 <= @ + @ 52 12 3 } }
 : lowSa iii>i n k a { = r nt 1 ir 54 r n k a 0 0 r }
 # geracao
-: asvk >i { = i @ 7 ! 7 + i 1 ? asfF i { ! 7 + @ 7 1 0 } ? asop i { asvk asvk } 0 }
+: asvk >i { = i @ 7 ! 7 + i 1 ? asfF i { ! 7 + @ 7 1 0 } ? asld i { ! 7 + i 4 0 } ? asop i { asvk asvk } 0 }
 : asmul i>i s && asop s == tcode s '*
 : astmp ii>i r tb && >= r tb < r + tb 4
 : asfr iii>i st tb r ? astmp r tb sfree st - r tb 0
@@ -778,6 +796,15 @@
   ? == kk 2 ascst 0 afbits i 0
   ? == kk 0 { = l asvl i ? >= l 0 + lb l { = j asvp k i ascst 1 j @ + a - j 1 } }
   ? asfF i { = t @ 7 ! 7 + t 1 = j asvp k t ? == j 0 vx ascst 2 j @ + a - j 1 }
+  ? asld i {
+    ! 7 + i 4
+    = ja asvp k + i 2
+    = j ? == ja 0 asvp k + i 3 ja
+    ? == @ 53 0 { asbase j @ + a - j 1 0 }
+      { = xb asbase j 0
+        = r asal st tb
+        ? == w 2 { aaddlsl 12 xb 9 3 x4 | | | 0x3DC00000 << ? == vx 16 1 0 10 << 12 5 r } { aldrdx r xb 9 }
+        r } }
   { = o tcode i
     = sA @ 7 asvk
     = sB @ 7 asvk
@@ -828,6 +855,7 @@
   = s7 @ 7
   = st A 1
   ! @ 54 0
+  ! + @ 52 8 0
   ! 53 0 ! st 15 asbody k a 2 2 4 0 st
   ! 53 1
   agT 14 n

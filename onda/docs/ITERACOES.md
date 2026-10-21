@@ -1875,3 +1875,13 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 - Tentativa revertida: expandir em linha as funções pequenas também no arm64. Correto, mas o compilador nativo passava a 1 MB e a auto-compilação de 0,04 s para 2,5 s, sem ganho mensurável.
 
 **Prova.** Pontos fixos e sementes alinhadas (compilador arm64 de 231 735 bytes, antes 236 639); o compilador nativo é igual ao WASM em todos os modos e exemplos; 18 exemplos em `-m` dão o mesmo que o WASM. No grover, o ciclo do `S` passou de 6 para 5 instruções e o do `E` de 12 para 10. O tempo fica em 1,31 s (C: 1,08 s): a soma em série está presa à latência do `fadd`, tal como no C, e o clang ganha por vetorizar o mapa `E`.
+
+---
+
+## Iteração 104: S vetorizado em NEON le vetores (@f + a i)
+
+**O que foi feito.** O analisador e o gerador do `S` vetorizado (`-mf`/`-af`) passam a aceitar a folha `@f + a i` (ou `@f + i a`), com `a` um parâmetro inteiro (o vetor) e `i` o índice. A base `M + a*8` calcula-se antes do ciclo num registo inteiro (x11/x13/x15, até 3 vetores). Cada banco lê 2 doubles com `ldr q` (`[x12]` ou `[x12, #16]`), e a cauda escalar usa `ldr d, [base, i, lsl #3]`. Conta como uma folha que ocupa um temporário na validação da pressão.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos. `-mf` e `-m` dão o mesmo para somas de vetores com n = 0..11 (todos os restos); novo caso no `test/macho.test.js`.
+
+**Números.** O grover, cujo `S n amp a` soma um vetor de 2²⁰ amplitudes 804 vezes: `-m` 1,34 s, **`-mf` 0,76 s** (C → clang: 1,08 s). A probabilidade do alvo concorda em 9 algarismos (0,99999975…), o esperado ao reassociar a soma 804 vezes.
