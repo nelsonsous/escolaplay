@@ -2025,3 +2025,15 @@ Medido e revertido nesta iteração: expandir a matemática também nos ciclos g
 - As flags do C: o `run` usava sempre `-fopenmp` e, quando falhava (o clang da Apple não aceita), recompilava sem ele. Eram duas compilações por programa novo no Mac. Agora testa uma vez se o compilador aceita OpenMP e guarda a escolha na cache (`.cflags-<cc>`). `ONDA_CFLAGS` continua a mandar.
 
 **Prova.** `onda run`, `onda m`, `onda mf` e `onda build-m` testados com fib e π; um erro de compilação devolve o código 1 com a mensagem; `X 3` devolve 3. `node --test`: as mesmas 34 falhas de ambiente de sempre, 58 a passar.
+
+---
+
+## Iteração 116: o mapa NEON antigo so usa FMA com -mf
+
+**O erro.** O mapa NEON antigo (`amap`, it.73/82) fundia sempre `a + x*y` em `fmla`/`fmadd`, também no `-m`. Hoje só é usado quando o analisador novo recusa por pressão de registos (por exemplo, um polinómio de grau 7). Um só arredondamento muda o último bit, e assim o `-m` deixava de dar os mesmos bits que o WebAssembly e o x86, ao contrário do que o resto do backend garante.
+
+**O que foi feito.** A fusão do `avem` fica sob `-mf`/`-af`, como todo o FMA desde a it.98.
+
+**Prova.** No polinómio de grau 7 sobre 37 elementos (restos incluídos), os bits de cada resultado (`Bh`/`Bl`) do `-m` são iguais aos do WASM; o `-mf` continua com 21 `fmla` e difere, como esperado. Novo teste no `test/macho.test.js`. Pontos fixos, sementes e verificação cruzada como sempre.
+
+**Notas, anteriores a esta mudança.** O C compilado pelo clang difere em bits neste caso (o clang funde por conta própria). O 15.º algarismo impresso pelo `G` pode diferir entre o WASM (formata pelo anfitrião) e o x86/arm64 (formatam pelo `_of` em Onda) quando o valor está numa fronteira de arredondamento.

@@ -532,7 +532,7 @@
   ? == kk 0 xr
   { = o tcode i
     = sA @ 7 xskip = sB @ 7 xskip = af @ 7
-    = mp ? == o '+ ? ismul sB sB ? ismul sA sA -1 -1
+    = mp ? && fastf == o '+ ? ismul sB sB ? ismul sA sA -1 -1
     = ad ? == mp sA sB sA
     ? && >= mp 0 != tkk ad 0
       { ! 7 ad = ra avem w s xr tb
