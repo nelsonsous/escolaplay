@@ -64,18 +64,21 @@
 : aty i>i v ? < v @ 11 tty v { = l lty - v @ 11 ? >= l 2 tty - l 2 l }
 : amov ii>i rd rn ? == rd rn 0 amovr rd rn
 : afmovdd ii>i rd rn ? == rd rn 0 x4 | | 0x1E604000 << rn 5 rd
-: agV ii>i rt v { = l aloc v ? < l 0 ald rt avs v ? aisx l amov rt arx l x4 | | 0x9E660000 << ardl l 5 rt }
-: asV ii>i rt v { = l aloc v ? < l 0 ast rt avs v ? aisx l amov arx l rt afmovxd ardl l rt }
-: agVf ii>i rt v { = l aloc v ? < l 0 aldfr rt avs v ? aisd l afmovdd rt ardl l afmovxd rt arx l }
-: asVf ii>i rt v { = l aloc v ? < l 0 astfr rt avs v ? aisd l afmovdd ardl l rt x4 | | 0x9E660000 << rt 5 arx l }
+# local -3: literal rematerializado (sem registo nem moldura: recalcula-se em cada uso)
+: aremb i>i v { = q + @ 18 * @ + @ 47 arep v 8 = k @ q ? == k 2 @ + q 2 ? == k 44 | << @ + q 2 32 @ + q 3 ? tty @ + q 1 afbits @ + q 2 tokval @ + q 2 }
+: arem i>i v { = j @ + @ 47 v ? || < j 0 != @ + @ 46 v 1 0 { = k @ + @ 18 * j 8 || || == k 1 == k 2 == k 44 } }
+: agV ii>i rt v { = l aloc v ? == l -3 aic rt aremb v ? < l 0 ald rt avs v ? aisx l amov rt arx l x4 | | 0x9E660000 << ardl l 5 rt }
+: asV ii>i rt v { = l aloc v ? == l -3 0 ? < l 0 ast rt avs v ? aisx l amov arx l rt afmovxd ardl l rt }
+: agVf ii>i rt v { = l aloc v ? == l -3 afc rt aremb v ? < l 0 aldfr rt avs v ? aisd l afmovdd rt ardl l afmovxd rt arx l }
+: asVf ii>i rt v { = l aloc v ? == l -3 0 ? < l 0 astfr rt avs v ? aisd l afmovdd ardl l rt x4 | | 0x9E660000 << rt 5 arx l }
 # operando no seu registo (sem copia) ou carregado no rascunho r; destino: o registo do valor ou o rascunho r
 : aox ii>i r v { = l aloc v ? aisx l arx l { agV r v r } }
 : aod ii>i r v { = l aloc v ? aisd l ardl l { agVf r v r } }
 : adx ii>i r v { = l aloc v ? aisx l arx l r }
 : adf ii>i r v { = l aloc v ? aisd l ardl l r }
-: afx ii>i r v ? < aloc v 0 ast r avs v 0
-: afd ii>i r v ? < aloc v 0 astfr r avs v 0
-: amvv ii>i dv sv ? == arep dv arep sv 0 ? aty dv { = r aod 0 sv asVf r dv } { = r aox 9 sv asV r dv }
+: afx ii>i r v ? == aloc v -1 ast r avs v 0
+: afd ii>i r v ? == aloc v -1 astfr r avs v 0
+: amvv ii>i dv sv ? == arep dv arep sv 0 ? aty dv ? aisd aloc dv agVf ardl aloc dv sv { = r aod 0 sv asVf r dv } ? aisx aloc dv agV arx aloc dv sv { = r aox 9 sv asV r dv }
 # instrucoes que chamam funcoes (estragam x13..x15 e d16..d31): 1 = normal, 2 = o mapa NEON (le em x13..x15)
 : acall i>i p { = k @ p ? || || || == k 7 == k 3 || == k 28 == k 29 || || == k 31 == k 32 == k 36 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || == k 53 == k 54 2 0 }
 : arf ii>i v i { = v arep v ? @ + @ 58 v 0 { = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 } }
@@ -337,9 +340,11 @@
   = c 0
   = j 0
   W < j 22 { ? & >> @ 42 j 1 = c + c 1 0 = j + j 1 }
+  = v 0
+  W < v nt { ? && && == arep v v == @ + @ 34 v -1 && >= @ + @ 36 v 0 arem v ! + @ 34 v -3 0 = v + v 1 }
   = ns 0
   = v 0
-  W < v nv { ? && && == arep v v < @ + @ 34 v 0 >= @ + @ 36 v 0 { ! + @ 56 v + c ns = ns + ns 1 } 0 = v + v 1 }
+  W < v nv { ? && && == arep v v == @ + @ 34 v -1 >= @ + @ 36 v 0 { ! + @ 56 v + c ns = ns + ns 1 } 0 = v + v 1 }
   ! 59 & + * 8 + c ns 15 -16
   = lf 1
   = i 0
@@ -947,8 +952,8 @@
   = a @ + p 2
   = b @ + p 3
   = c @ + p 4
-  ? == k 1 ? @ + @ 58 d 0 { ? tty d { = r adf 0 d afc r afbits a afd r d } { = r adx 9 d aic r tokval a afx r d } }
-  ? == k 2 ? @ + @ 58 d 0 { = r adx 9 d aic r a afx r d }
+  ? == k 1 ? || @ + @ 58 d == aloc d -3 0 { ? tty d { = r adf 0 d afc r afbits a afd r d } { = r adx 9 d aic r tokval a afx r d } }
+  ? == k 2 ? || @ + @ 58 d == aloc d -3 0 { = r adx 9 d aic r a afx r d }
   ? == k 4 { ? tty d { = r adf 0 d afmovxd r 31 afd r d } { = r adx 9 d aimm r 0 afx r d } }
   ? == k 5 amvv d + @ 11 b
   ? == k 6 amvv + @ 11 c b
@@ -980,13 +985,18 @@
       acallf fby ? == a 3 k3 '_ 's 'n k3 '_ 'c 's asTf 0 d }
     { ebeg "funcao matematica ainda nao em -a: " N a eend } }
   ? == k 43 { = x aox 9 a = y aox 10 b x4 | 0x2A0003EA << y 16 x4 | | 0xAA008149 << x 16 0 asV 9 d }
-  ? == k 44 { = bt | << a 32 b ? tty d { = r adf 0 d afc r bt afd r d } { = r adx 9 d aic r bt afx r d } }
+  ? == k 44 ? == aloc d -3 0 { = bt | << a 32 b ? tty d { = r adf 0 d afc r bt afd r d } { = r adx 9 d aic r bt afx r d } }
   ? == k 45 0
   ? == k 3 { = q sreg a aimm 0 q aimm 1 slen a acallf aro 's }
   ? == k 21 a21
   ? == k 22 a22 p
   ? == k 23 a23
   ? == k 24 { = x aox 9 a = r adx 10 d aldrx r 28 x afx r d }
+  ? == k 46 { = x aox 9 a = r adx 9 d aaddlsl r 28 x 3 afx r d }
+  ? == k 47 { = x aox 9 a = bb aox 11 c = r adx 10 d aldrx r bb x afx r d }
+  ? == k 48 { = x aox 9 a = y aox 10 b = bb aox 11 c astrx y bb x }
+  ? == k 49 { = x aox 9 a = bb aox 11 c = r adf 0 d aldrdx r bb x afd r d }
+  ? == k 50 { = x aox 9 a = y aod 0 b = bb aox 11 c astrdx y bb x }
   ? == k 25 { = x aox 9 a = y aox 10 b astrx y 28 x }
   ? == k 26 { = x aox 9 a = r adf 0 d aldrdx r 28 x afd r d }
   ? == k 27 { = x aox 9 a = y aod 0 b astrdx y 28 x }
@@ -1029,6 +1039,8 @@
   atre k
   acse
   xlicm
+  # ponteiros-base (a mesma passagem do x86: 46 = base, 47..50 = acessos [base + i*8]) e outra vez a LICM
+  ? xbase xlicm 0
   ara k
   O 16
   ! fe k 8 @ 16

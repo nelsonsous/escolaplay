@@ -1863,3 +1863,15 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 **O que foi feito.** O `asc` (as syscalls do `-a`/`-m`) era copiado inteiro, com os 7 casos e as comparações, para cada `R`, `T`, `Ac`, `Av` e `Y`. Agora cada operação é uma rotina própria (`aswr`, `asrd`, `asex`, `asbk`, `asac`, `asav`, `astm`). Quando a operação é conhecida à compilação (todos os casos menos um `Y` com número variável), só essa rotina é emitida; o despachante completo fica para o caso variável.
 
 **Prova.** Pontos fixos e sementes alinhadas; o compilador nativo é igual ao WASM em todos os modos e exemplos; os exemplos que leem do stdin (sha256, qsort) e imprimem dão o mesmo que o WASM. O compilador arm64 encolheu de 257 507 para 236 639 bytes (−8 %). Os tempos não mudam (estas rotinas não estão nos ciclos quentes).
+
+---
+
+## Iteração 103: literais rematerializados e ponteiros-base no arm64
+
+**O que foi feito** (`src/9arm64.onda`, `src/4main.onda`):
+- **Rematerialização:** um literal (inteiro, real ou `Bw`) que fique sem registo não vai para a moldura (`str` + `ldr` a cada uso). Recalcula-se em cada uso (`mov`/`fmov #imm`/`ldr =const`, uma instrução). Acontecia sobretudo com os literais tirados dos ciclos pela LICM.
+- **Cópias:** uma cópia de um valor na memória para um registo carrega direto para o destino.
+- **Ponteiros-base:** o `-a`/`-m` corre a passagem `xbase` do x86 seguida de outra LICM. `@ + a i` num ciclo, com `a` invariante, vira `add b, x28, a, lsl #3` fora do ciclo mais `ldr/str [b, i, lsl #3]` (tipos 46–50 da RI, os mesmos do x86).
+- Tentativa revertida: expandir em linha as funções pequenas também no arm64. Correto, mas o compilador nativo passava a 1 MB e a auto-compilação de 0,04 s para 2,5 s, sem ganho mensurável.
+
+**Prova.** Pontos fixos e sementes alinhadas (compilador arm64 de 231 735 bytes, antes 236 639); o compilador nativo é igual ao WASM em todos os modos e exemplos; 18 exemplos em `-m` dão o mesmo que o WASM. No grover, o ciclo do `S` passou de 6 para 5 instruções e o do `E` de 12 para 10. O tempo fica em 1,31 s (C: 1,08 s): a soma em série está presa à latência do `fadd`, tal como no C, e o clang ganha por vetorizar o mapa `E`.
