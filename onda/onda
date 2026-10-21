@@ -6,7 +6,15 @@ OC="$D/build/ondac"
 [ -x "$OC" ] || { echo "onda: falta build/ondac (corre ./build.sh)" >&2; exit 1; }
 K="${ONDA_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/onda}"
 CC="${CC:-cc}"
-FL="${ONDA_CFLAGS:--O3 -march=native -fopenmp -fwrapv -w}"
+# flags do C: OpenMP so se o compilador o aceitar (o clang da Apple nao aceita); a escolha fica guardada na cache
+if [ -n "$ONDA_CFLAGS" ]; then FL="$ONDA_CFLAGS"; else
+  mkdir -p "$K"; fk="$K/.cflags-$(echo "$CC" | tr -c 'a-zA-Z0-9' _)"
+  if [ ! -f "$fk" ]; then
+    if echo 'int main(void){return 0;}' | $CC -O3 -march=native -fopenmp -x c - -o "$K/.probe" 2>/dev/null; then echo "-O3 -march=native -fopenmp -fwrapv -w" > "$fk"
+    else echo "-O3 -fwrapv -w" > "$fk"; fi; rm -f "$K/.probe"
+  fi
+  FL=$(cat "$fk")
+fi
 h() { if command -v sha256sum >/dev/null; then sha256sum | cut -c1-32; else shasum -a 256 | cut -c1-32; fi; }
 c="$1"; [ $# -gt 0 ] && shift
 case "$c" in
@@ -21,8 +29,25 @@ case "$c" in
     fi
     [ "$c" = build ] && { echo "$b"; exit 0; }
     exec "$b" "$@";;
+  m|mf|build-m)
+    # codigo-maquina arm64 escrito pela propria Onda: Mach-O (-m, o cc so linka) no Mac; ELF (-a) em Linux-aarch64
+    f="$1"; shift
+    o="-m"; [ "$c" = mf ] && o="-mf"
+    case "$(uname -s)-$(uname -m)" in
+      Darwin-arm64) ;; Linux-aarch64) o=$(echo "$o" | sed 's/m/a/');;
+      *) echo "onda: o arm64 nativo precisa de um Mac M1 ou de Linux-aarch64" >&2; exit 1;;
+    esac
+    k=$( { cat "$f"; cat "$OC"; echo "$o $CC"; } | h )
+    b="$K/$k$o"
+    if [ ! -x "$b" ]; then
+      mkdir -p "$K"
+      "$OC" $o < "$f" > "$b.o" || { cat "$b.o" >&2; rm -f "$b.o"; exit 1; }
+      case "$o" in -a*) mv "$b.o" "$b"; chmod +x "$b";; *) $CC "$b.o" -o "$b";; esac
+    fi
+    [ "$c" = build-m ] && { echo "$b"; exit 0; }
+    exec "$b" "$@";;
   c) exec "$OC" < "$1";;
   gpu) exec "$OC" -g "$2" < "$1";;
   circ) exec "$OC" -c "$2" < "$1";;
-  *) echo "uso: onda run f.onda [args] | onda build f.onda | onda c f.onda | onda gpu f.onda funcao | onda circ f.onda funcao" >&2; exit 1;;
+  *) echo "uso: onda run f.onda [args] | onda m f.onda [args] (arm64 da Onda; mf: + NEON/FMA) | onda build f.onda | onda build-m f.onda | onda c f.onda | onda gpu f.onda funcao | onda circ f.onda funcao" >&2; exit 1;;
 esac

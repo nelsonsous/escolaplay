@@ -2015,3 +2015,13 @@ Medido e revertido nesta iteração: expandir a matemática também nos ciclos g
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; o julia dá a mesma imagem.
 
 **Números** (10 execuções, lado a lado): julia 52 → 50 ms por execução (C: 42–45).
+
+---
+
+## Iteração 115: onda m: correr pelo arm64 da Onda, e C sem tentar OpenMP onde nao existe
+
+**O que foi feito** (`onda`, `README.md`):
+- `./onda m f.onda [args]` compila pelo código-máquina arm64 escrito pela Onda e corre, com a mesma cache por hash que o `run`. No Mac usa `-m` e o `cc` só liga; em Linux-aarch64 usa `-a` (ELF direto). `./onda mf` acrescenta o NEON que reassocia e o FMA; `./onda build-m` só compila e devolve o caminho. Os erros de compilação aparecem como no `run`.
+- As flags do C: o `run` usava sempre `-fopenmp` e, quando falhava (o clang da Apple não aceita), recompilava sem ele. Eram duas compilações por programa novo no Mac. Agora testa uma vez se o compilador aceita OpenMP e guarda a escolha na cache (`.cflags-<cc>`). `ONDA_CFLAGS` continua a mandar.
+
+**Prova.** `onda run`, `onda m`, `onda mf` e `onda build-m` testados com fib e π; um erro de compilação devolve o código 1 com a mensagem; `X 3` devolve 3. `node --test`: as mesmas 34 falhas de ambiente de sempre, 58 a passar.

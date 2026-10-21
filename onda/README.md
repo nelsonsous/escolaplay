@@ -15,6 +15,7 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ./build.sh --semente-arm64  # no Mac M1: so a semente nativa arm64 (codigo-maquina da Onda; o clang so linka)
 ./build.sh --c              # ponte C opcional: so para portar a um CPU sem backend nativo (seed/ondac.c)
 ./onda run ex/grover.onda   # compila e corre, com cache por hash
+./onda m ex/grover.onda     # o mesmo, por codigo-maquina arm64 escrito pela Onda (Mac M1; mf: + NEON que reassocia e FMA)
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
 build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pela Onda, sem C nem assembler
