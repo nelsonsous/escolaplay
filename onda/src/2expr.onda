@@ -209,6 +209,20 @@
       = j + j 1 }
     ! fe k 13 ? r 1 2
     r } }
+# custo estimado por elemento (para o limiar do paralelo): tokens do corpo, +1000 por ciclo ou recursao, +40 por
+# Sn/Cs/Ex/Lg/At/Pw, e o custo das funcoes que chama. Acordar as threads custa uns microssegundos: so compensa
+# quando n * custo e grande. Limiar = 600000/custo elementos, entre 4096 e 2^20.
+: pheavy i>i c || || == c k2 'S 'n == c k2 'C 's || || == c k2 'E 'x == c k2 'L 'g || == c k2 'A 't == c k2 'P 'w
+: pcost ii>i k d {
+  = e fend k = j @ fe k 5 = c 0
+  W && < j e < d 8 {
+    = kk tkk j
+    ? == kk 0 { = f ffun j ? >= f 0 { ? == f k { = c + c 1000 } { = c + + c 20 pcost f + d 1 } } 0 } 0
+    ? == kk 5 { = o tcode j ? == o 'W = c + c 1000 0 ? pheavy o = c + c 40 0 } 0
+    = c + c 1
+    = j + j 1 }
+  c }
+: pthr i>i k { = c pcost k 0 = t / 600000 ? < c 1 1 c ? < t 4096 4096 ? > t 1048576 1048576 t }
 # so fora de funcoes puras e das condutoras (onde as puras sao expandidas): uma pura pode correr dentro de uma
 # condutora, e os slots sao um so conjunto
 : ppar i>i k && && && isa ismo ppok k 0 ~ || != @ fe @ 13 12 0 ppok @ 13 0
@@ -243,13 +257,13 @@
   pslot 4 d 0
   = ni pargs k a 1
   pprk k
-  ir 60 0 n pdrv k 1 + 1 * 2 ni 0 0
+  ir 60 0 n pdrv k 1 + + 1 * 2 ni << pthr k 10 0 0
   d }
 : lowSp iii>i n k a {
   = y @ fe k 3
   pargs k a 1
   pprk k
-  ir 60 0 n pdrv k 2 1 0 0
+  ir 60 0 n pdrv k 2 + 513 << pthr k 10 0 0
   = ac newl y
   setl ac zer y
   = nc ldslot 39 0

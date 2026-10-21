@@ -2126,3 +2126,12 @@ Tentado e desfeito: expandir tambem os nucleos _mkc/_mks dentro do Cs expandido 
 - **Lição:** uma thread em `wfe` conta como a correr para o macOS: com espera só em `wfe` ficou 3× pior (as threads tiravam núcleos à principal).
 - **Bug corrigido:** um `S` dentro de uma função pura chamada por um `E` paralelo usava os mesmos slots e dava o resultado errado. O `ppar` passa a exigir que a função onde está não seja pura nem uma condutora (onde as puras são expandidas).
 - **Números (ms, com arranque):** arm-bench 346 → 26; grover `-mf` 314 → 268; matmul 9,8 → ~12–14 (agora com o arranque medido igual); julia 17–20; π `-mf` 19. Sem regressões no life e no vecmap (série).
+
+---
+
+## Iteração 123: E pequenos sem custo fixo, limiar do paralelo pelo custo, mapa NEON 4 vetores por volta
+
+- **Bug de desempenho:** o bloco era n/64, por isso um `E` de 40 elementos chamava a condutora 40 vezes (com guardar d8–d15 e carregar constantes de cada vez). Em série, o `E`/`D` fazem agora uma só chamada; o bloco do `E`/`S` tem pelo menos 256 elementos. O `S` (bit 9 do modo) mantém os mesmos blocos em série e em paralelo, para o `-mf` não depender das threads. `E` de 40 elementos ×400000: 163 → 23 ms.
+- **Limiar do paralelo pelo custo:** `pcost` estima o custo por elemento (tokens, +1000 por ciclo/recursão, +40 por Sn/Cs/Ex/Lg/At/Pw, mais as funções chamadas); o limiar é 600000/custo, entre 4096 e 2^20, e vai nos bits 10+ do modo. Um polinómio barato só usa threads a partir de dezenas de milhares de elementos.
+- **Mapa NEON (amap):** constantes carregadas uma vez antes do ciclo (v26–v31, v10–v15); 4 vetores (8 doubles) por volta com 4 bancos de registos, intercalados instrução a instrução como no clang (se faltarem temporários, recua e usa 2 bancos); endereços com `ldp`/`stp`.
+- **Números (ms):** arm-bench `-mf` 26 → 15,8 (C 14,5; o C -O3 do Mac já usa FMA, por isso a comparação justa é com o `-mf`); grover `-mf` 268 → 186; julia 16; matmul 11; ondas 12.

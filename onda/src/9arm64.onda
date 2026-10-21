@@ -517,8 +517,8 @@
   { ? == o '+ x4 | | | 0x4E60D400 << rm 16 << rn 5 rd ? == o '- x4 | | | 0x4EE0D400 << rm 16 << rn 5 rd ? == o '* x4 | | | 0x6E60DC00 << rm 16 << rn 5 rd x4 | | | 0x6E60FC00 << rm 16 << rn 5 rd }
   { ? == o '+ afadd rd rn rm ? == o '- afsub rd rn rm ? == o '* afmul rd rn rm afdiv rd rn rm }
 # alocador de registos NEON parametrizado: banco com base tb (p/ dois bancos independentes no desenrolamento)
-: avreg ii>i s tb + salloc s tb
-: avfree iii>i s tb r ? >= r tb sfree s - r tb 0
+: avreg ii>i s tb { = r salloc s ? < r 0 { ! + s 1 | @ + s 1 1 tb } + r tb }
+: avfree iii>i s tb r ? && >= r tb < r + tb 8 sfree s - r tb 0
 # FMA fundido (rd += rn*rm): fmla vd.2d (par) ou fmadd dd (escalar). Um so arredondamento -> NEON==escalar.
 : afmla iiii>i w rd rn rm ? == w 2 x4 | | | 0x4E60CC00 << rm 16 << rn 5 rd x4 | | | | 0x1F400000 << rm 16 << rd 10 << rn 5 rd
 # o no na posicao p e um operador '*'? (constante=tkk 2, variavel=tkk 0, operador=o resto)
@@ -528,7 +528,7 @@
   = i @ 7
   ! 7 + i 1
   = kk tkk i
-  ? == kk 2 { = r avreg s tb vfb w r afbits i r }
+  ? == kk 2 { = r ascq afbits i ? >= r 0 r { ! + s 1 | @ + s 1 2 = r avreg s tb vfb w r afbits i r } }
   ? == kk 0 xr
   { = o tcode i
     = sA @ 7 xskip = sB @ 7 xskip = af @ 7
@@ -540,6 +540,7 @@
         ! 7 sY = ry avem w s xr tb
         ! 7 sX = rx avem w s xr tb
         ! 7 af
+        ? || >= ra 26 && >= ra 10 <= ra 15 { = q avreg s tb avmov q ra = ra q } 0
         afmla w ra rx ry
         avfree s tb rx avfree s tb ry
         ra }
@@ -552,6 +553,41 @@
         rd } } }
 # mapa vetorizado NEON: dst(a) count(b) elemento(c) fonte(x). Desenrolado 2x (4 doubles/iter, dois bancos de
 # registos independentes -> esconde a latencia da cadeia de FMA dependente) + par + cauda escalar (restos).
+: ail ii>i b0 ln {
+  = nw / ln 4
+  = t A * 4 nw
+  = j 0 W < j nw { = q 0 W < q 4 { ! + t + * j 4 q arw + + b0 * q ln * j 4 = q + q 1 } = j + j 1 }
+  = j 0 W < j * 4 nw { xput4 + b0 * j 4 @ + t j = j + j 1 } }
+: amap2 iiii>i k rs stw stB {
+  # laco desenrolado 2x: banco A (x=v1, temps v2-9), banco B (x=v16, temps v17-24) -- cadeias independentes
+  = l0 @ 16
+  aaddi 10 9 3 acmp 10 14
+  = p0 @ 16 abcc 0xA 0
+  aaddlsl 11 15 9 3 x4 | | 0xAD404000 << 11 5 1
+  ! stw 255 ! 7 rs = rrA avem 2 stw 1 2
+  ! stB 255 ! 7 rs = rrB avem 2 stB 16 17
+  aaddlsl 11 13 9 3 x4 | | | 0xAD000000 << rrB 10 << 11 5 rrA
+  aaddi 9 9 4 ab - l0 @ 16
+  xput4 p0 | | 0x54000000 << & / - @ 16 p0 4 0x7FFFF 5 0xA
+  # par que sobra (passo 2)
+  = l1 @ 16
+  aaddi 10 9 1 acmp 10 14
+  = p1 @ 16 abcc 0xA 0
+  aaddlsl 11 15 9 3 vfld 2 1 11
+  ! stw 255 ! 7 rs = rr avem 2 stw 1 2
+  aaddlsl 11 13 9 3 vfst 2 rr 11
+  aaddi 9 9 2 ab - l1 @ 16
+  xput4 p1 | | 0x54000000 << & / - @ 16 p1 4 0x7FFFF 5 0xA
+  # cauda escalar (n impar)
+  = l2 @ 16
+  acmp 9 14
+  = p2 @ 16 abcc 0xA 0
+  aaddlsl 11 15 9 3 vfld 1 1 11
+  ! stw 255 ! 7 rs = rr2 avem 1 stw 1 2
+  aaddlsl 11 13 9 3 vfst 1 rr2 11
+  aaddi 9 9 1 ab - l2 @ 16
+  xput4 p2 | | 0x54000000 << & / - @ 16 p2 4 0x7FFFF 5 0xA
+  0 }
 : amap i>i p {
   = d @ + p 2
   = n @ + p 3
@@ -559,42 +595,55 @@
   = sb @ + p 5
   = rs + @ fe k 5 7
   = s7 @ 7
-  = stw A 1
-  = stB A 1
-  # d8/d9 sao guardados pelo chamado no alocador; o banco A usa v8/v9, por isso guardam-se aqui
-  x4 0x6DBF27E8
+  = stw A 2
+  = stB A 2
+  # d8..d15 sao guardados pelo chamado; o banco A usa v8/v9 e as constantes v10..v15, por isso guardam-se aqui
+  x4 0x6DBF27E8 x4 0x6DBF2FEA x4 0x6DBF37EC x4 0x6DBF3FEE
+  # as constantes do corpo vao uma so vez para v26..v31 e v10..v15 (antes do ciclo); as que nao cabem fazem-se no sitio
+  ! @ 54 0
+  = j @ fe k 5 = je fend k
+  W < j je { ? && == tkk j 2 < @ @ 54 12 ascst 0 afbits j 0 0 = j + j 1 }
+  # fonte (x15) e destino (x13) passam a enderecos: cada acesso e add + ldp/stp
   agT 13 d agT 14 n agT 15 sb ? > @ + p 6 0 agT 9 - @ + p 6 1 aimm 9 0
-  # laco desenrolado 2x: banco A (x=v1, temps v2-9), banco B (x=v16, temps v17-24) -- cadeias independentes
+  aaddlsl 15 28 15 3 aaddlsl 13 28 13 3
+  # 1a tentativa: 4 vetores (8 doubles) por volta, 4 bancos de 4 temporarios (x v0/v5/v16/v21; temps v1-4, v6-9,
+  # v17-20, v22-25) -- mais cadeias independentes escondem a latencia das contas dependentes. Se o corpo precisar de
+  # mais temporarios (stw[1] = 1), recua o codigo emitido e usa 2 bancos de 8.
+  = pos @ 16
   = l0 @ 16
-  aaddi 10 9 3 acmp 10 14
+  aaddi 10 9 7 acmp 10 14
   = p0 @ 16 abcc 0xA 0
-  aadd 10 15 9 aaddlsl 11 28 10 3 vfld 2 1 11
-  aadd 10 15 9 aaddi 10 10 2 aaddlsl 11 28 10 3 vfld 2 16 11
-  ! stw 255 ! 7 rs = rrA avem 2 stw 1 2
-  ! stB 255 ! 7 rs = rrB avem 2 stB 16 17
-  aadd 10 13 9 aaddlsl 11 28 10 3 vfst 2 rrA 11
-  aadd 10 13 9 aaddi 10 10 2 aaddlsl 11 28 10 3 vfst 2 rrB 11
-  aaddi 9 9 4 ab - l0 @ 16
+  aaddlsl 11 15 9 3 x4 | | 0xAD401400 << 11 5 0 x4 | | 0xAD415400 << 11 5 16
+  = b0 @ 16 ! stw 15 ! + stw 1 0 ! 7 rs = r0 avem 2 stw 0 1
+  = b1 @ 16 ! stw 15 ! 7 rs = r1 avem 2 stw 5 6
+  = b2 @ 16 ! stw 15 ! 7 rs = r2 avem 2 stw 16 17
+  = b3 @ 16 ! stw 15 ! 7 rs = r3 avem 2 stw 21 22
+  = b4 @ 16
+  = bad & @ + stw 1 1
+  # as 4 cadeias intercaladas instrucao a instrucao (como o clang): cada banco so toca os seus registos e as
+  # constantes; nao ha saltos. Nao se faz se alguma constante foi feita no sitio (x12 e partilhado).
+  ? && && ~ bad ~ & @ + stw 1 2 && && == - b1 b0 - b2 b1 == - b2 b1 - b3 b2 == - b3 b2 - b4 b3 ail b0 - b1 b0 0
+  aaddlsl 11 13 9 3 x4 | | | 0xAD000000 << r1 10 << 11 5 r0 x4 | | | 0xAD010000 << r3 10 << 11 5 r2
+  aaddi 9 9 8 ab - l0 @ 16
   xput4 p0 | | 0x54000000 << & / - @ 16 p0 4 0x7FFFF 5 0xA
-  # par que sobra (passo 2)
+  ? bad { ! 16 pos amap2 k rs stw stB } {
   = l1 @ 16
   aaddi 10 9 1 acmp 10 14
   = p1 @ 16 abcc 0xA 0
-  aadd 10 15 9 aaddlsl 11 28 10 3 vfld 2 1 11
-  ! stw 255 ! 7 rs = rr avem 2 stw 1 2
-  aadd 10 13 9 aaddlsl 11 28 10 3 vfst 2 rr 11
+  aaddlsl 11 15 9 3 vfld 2 0 11
+  ! stw 15 ! 7 rs = rr avem 2 stw 0 1
+  aaddlsl 11 13 9 3 vfst 2 rr 11
   aaddi 9 9 2 ab - l1 @ 16
   xput4 p1 | | 0x54000000 << & / - @ 16 p1 4 0x7FFFF 5 0xA
-  # cauda escalar (n impar)
   = l2 @ 16
   acmp 9 14
   = p2 @ 16 abcc 0xA 0
-  aadd 10 15 9 aaddlsl 11 28 10 3 vfld 1 1 11
-  ! stw 255 ! 7 rs = rr2 avem 1 stw 1 2
-  aadd 10 13 9 aaddlsl 11 28 10 3 vfst 1 rr2 11
+  aaddlsl 11 15 9 3 vfld 1 0 11
+  ! stw 15 ! 7 rs = rr2 avem 1 stw 0 1
+  aaddlsl 11 13 9 3 vfst 1 rr2 11
   aaddi 9 9 1 ab - l2 @ 16
-  xput4 p2 | | 0x54000000 << & / - @ 16 p2 4 0x7FFFF 5 0xA
-  x4 0x6CC127E8
+  xput4 p2 | | 0x54000000 << & / - @ 16 p2 4 0x7FFFF 5 0xA }
+  x4 0x6CC13FEE x4 0x6CC137EC x4 0x6CC12FEA x4 0x6CC127E8
   ! 7 s7 }
 
 # --- recursao com acumulador (como o clang): numa funcao inteira cujo valor devolvido e X + f(...) (a propria f),
@@ -870,13 +919,15 @@
 : asfr iii>i st tb r ? astmp r tb sfree st - r tb 0
 : asal ii>i st tb + salloc st tb
 : avmov ii>i d r x4 | | | 0x4EA01C00 << r 16 << r 5 d
+# constante ja carregada num registo (tabela do ascst em @54, kd 0)? -1 se nao. Nao emite nada.
+: ascq i>i key { = r -1 = j 0 W && < r 0 < j @ @ 54 { = e + @ 54 + 1 * j 3 ? && == @ e 0 == @ + e 1 key = r @ + e 2 0 = j + j 1 } r }
 : ascst iii>i kd key src {
   = n @ @ 54
   = r -1
   = j 0
   W && < r 0 < j n { = e + @ 54 + 1 * j 3 ? && == @ e kd == @ + e 1 key = r @ + e 2 0 = j + j 1 }
   ? >= r 0 r {
-    = r + 25 n
+    = r ? < n 6 + 26 n + 4 n
     = e + @ 54 + 1 * n 3
     ! e kd ! + e 1 key ! + e 2 r ! @ 54 + n 1
     ? == kd 0 { aimm 9 key x4 | | 0x4E080C00 << 9 5 r }
@@ -1330,7 +1381,7 @@
   x4 0xA94153F3 x4 0xA8C27BFD aret
   ! fe k 9 @ 16
   O 0 }
-# --- _pr (paralelo, so -m): x0 = condutora, x1 = n, x2 = modo (bit 0: E; bits 1..: n de inteiros). Em serie se for
+# --- _pr (paralelo, so -m): x0 = condutora, x1 = n, x2 = modo (bit 0: E ou S; bits 1..8: n de inteiros; bit 9: S; bits 10..: limiar). Em serie se for
 # pouco (E com menos de 4096, D com menos de 2 linhas), se o destino do E for um dos argumentos inteiros (pode ler o
 # que escreve) ou se houver 1 cpu. Senao cria cpus-1 threads (pthread_create) e todas correm _pwk: blocos de max(1,
 # n/64) tirados de um contador com ldaddal, ate acabar; depois pthread_join. As chamadas a libSystem vao para @66.
@@ -1350,12 +1401,16 @@
   amovr 19 0 amovr 20 1 amovr 21 2
   astsl 19 0 astsl 20 1
   aimm 9 0 astsl 9 2
-  aasri 9 20 6 acmpi 9 1 aimm 10 1 acsel 9 10 9 0xB astsl 9 3
+  aasri 9 20 6 acmpi 9 1 aimm 10 1 acsel 9 10 9 0xB
+  x4 | | 0x92400000 << 21 5 10 = pmn @ 16 x4 | 0xB4000000 10
+  acmpi 9 256 aimm 10 256 acsel 9 10 9 0xB
+  ap19 pmn
+  astsl 9 3
   aadd 11 20 9 asubi 11 11 1 asdiv 11 11 9 astsl 11 39
   x4 | | 0x92400000 << 21 5 9
   = pz @ 16 x4 | 0xB4000000 9
-  aimm 10 4096 acmp 20 10 = ps1 @ 16 abcc 0xB 0
-  aldsl 11 4 aasri 12 21 1 aimm 13 0
+  aasri 10 21 10 acmp 20 10 = ps1 @ 16 abcc 0xB 0
+  aldsl 11 4 aasri 12 21 1 x4 0x92401D8C aimm 13 0
   = la @ 16
   acmp 13 12 = pa1 @ 16 abcc 0xA 0
   aimm 10 pjs 6 aadd 10 10 13 aldrx 14 28 10
@@ -1409,6 +1464,10 @@
   apair 0xA8C00000 29 30 64
   aret
   ap19 ps1 ap19 ps2 ap19 ps3 ap19 ps4
+  # em serie o E e o D fazem uma so chamada (bloco = n); o S (bit 9) fica com os mesmos blocos do paralelo
+  = p9 @ 16 x4 0x374800B5
+  astsl 20 3
+  xput4 p9 | 0x37480015 << & / - @ 16 p9 4 0x3FFF 5
   amovr 0 28 = pb2 @ 16 x4 0x94000000 ab - dn @ 16
   # _pwk(x0 = base de M): tira blocos do contador ate acabar (convencao do C: guarda x19..x21 e x28)
   = pwk @ 16
