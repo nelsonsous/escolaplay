@@ -617,6 +617,59 @@
       W < j * m 8 { ! + @ 18 j @ + w j = j + j 1 }
       ! 19 m
       0 } } }
+# --- CSE: numeracao de valores sobre a RI (so -a/-m). Uma instrucao pura igual a outra que a domina (na mesma regiao:
+# a tabela limpa-se nas juncoes -- inicio/fim de ciclo, else, fim de ?/&&/||) passa a usar o resultado da primeira.
+# As leituras de variaveis tem versao (cada escrita incrementa). 48 renomeacao dos temporarios, 58 versoes, 56 tabela.
+: acsr i>i t @ + @ 48 t
+: acse >i {
+  = n @ 19
+  = nt @ 11
+  = t 0
+  W < t nt { ! + @ 48 t t = t + t 1 }
+  = j 0
+  W < j @ 9 { ! + @ 58 j 0 = j + j 1 }
+  = ne 0
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    = k @ p
+    = f @ + @ 50 k
+    ? & f 1 ! + p 2 acsr @ + p 2 0
+    ? & f 2 ! + p 3 acsr @ + p 3 0
+    ? & f 4 ! + p 4 acsr @ + p 4 0
+    ? == k 7 { = b @ + p 3 = j 0 W < j @ + p 4 { ! + b j acsr @ + b j = j + j 1 } } 0
+    ? == k 54 { ! + p 2 acsr @ + p 2 = b @ + p 4 = j 0 W < j - @ fe @ + p 3 2 1 { ! + b j acsr @ + b j = j + j 1 } } 0
+    ? == k 53 { ! + p 2 acsr @ + p 2 ! + p 3 acsr @ + p 3 ! + p 5 acsr @ + p 5 } 0
+    # o fim de um && seguido do salto sobre ele nao e juncao para o lado que continua (so la se chega com A e B)
+    = aj && == k 11 && < + i 1 n && || == @ + p 8 22 == @ + p 8 18 == @ + p 10 @ + p 1
+    ? && ~ aj || || || == k 21 == k 23 || == k 11 == k 13 || || == k 19 == k 20 || == k 55 == k 56 = ne 0 0
+    ? == k 6 { = q + @ 58 @ + p 4 ! q + @ q 1 } 0
+    = d @ + p 1
+    = ck 0 = ka 0 = kb 0 = kc 0
+    ? == k 1 { = ck 1 = ka ? tty d afbits @ + p 2 tokval @ + p 2 = kb tty d } 0
+    ? == k 2 { = ck 1 = ka @ + p 2 } 0
+    ? == k 5 { = ck 1 = ka @ + p 3 = kb @ + @ 58 @ + p 3 } 0
+    ? || == k 8 == k 9 {
+      = ck 1 = o opof @ + p 2 = ka o = kb @ + p 3 = kc @ + p 4
+      ? && || || == o '+ == o '* || || == o '& == o '| == o '^ > kb kc { = z kb = kb kc = kc z } 0 } 0
+    ? == k 14 { = ck 1 = ka @ + p 2 } 0
+    ? || == k 15 == k 17 { = ck 1 = ka @ + p 2 = kb @ + p 3 = kc @ + p 4 } 0
+    ? || == k 43 == k 44 { = ck 1 = ka @ + p 2 = kb @ + p 3 } 0
+    ? ck {
+      = r -1
+      = e 0
+      W && < r 0 < e ne { = q + @ 56 * e 5 ? && && == @ q k == @ + q 1 ka && == @ + q 2 kb == @ + q 3 kc = r @ + q 4 0 = e + e 1 }
+      ? >= r 0 { ! + @ 48 d r ! p 45 }
+        { ? < ne 99000 { = q + @ 56 * ne 5 ! q k ! + q 1 ka ! + q 2 kb ! + q 3 kc ! + q 4 d = ne + ne 1 } 0 } } 0
+    = i + i 1 }
+  = w 0
+  = i 0
+  W < i n {
+    = p + @ 18 * i 8
+    ? != @ p 45 { ? != w i { = q + @ 18 * w 8 = j 0 W < j 8 { ! + q j @ + p j = j + j 1 } } 0 = w + w 1 } 0
+    = i + i 1 }
+  ! 19 w
+  0 }
 # --- S vetorizado em NEON (so com -mf/-af: reassocia a soma, como o -xf do x86; o -m/-a soma em serie, igual ao C) ---
 # elemento f ii..>f i ...: corpo { = l E ... E } ou E, com + - * /, literais reais, parametros reais, F do indice ou de
 # um parametro inteiro, e ate 2 locais. 4 elementos por volta (bancos A e B, 2 doubles cada, acumuladores proprios),
@@ -960,6 +1013,7 @@
   ? > np 8 { ebeg "mais de 8 parametros ainda nao em -a" eend } 0
   # invariantes fora dos ciclos (a mesma passagem de RI do x86) e depois os registos
   atre k
+  acse
   xlicm
   ara k
   O 16

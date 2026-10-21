@@ -1834,3 +1834,11 @@ O π em série já empata com o clang (o limite é a cadeia de `fadd`, a mesma d
 
 **O que ainda falta.** O fib tem a forma do clang mas ainda há cópias de registo à volta da chamada (o resultado não vai direto para o acumulador). A biblioteca matemática fica a ~1,5× porque não há eliminação de subexpressões comuns (o `_lg` carrega a mesma constante duas vezes, e o julia calcula `zr²` e `zi²` duas vezes por volta), e os resultados do `?` ainda passam por uma cópia. O próximo passo natural é uma CSE por valor (numeração de valores sobre a RI, respeitando as escritas nas variáveis).
 
+
+---
+
+## Iteração 100: CSE (numeracao de valores) no arm64
+
+**O que foi feito.** Uma passagem de RI (`acse`, em `src/9arm64.onda`) antes da LICM: cada instrução pura (literais, leituras de variáveis com versão, `+ - * /` e comparações, unárias, min/max, `Bw`) igual a outra que a domina passa a usar o resultado dessa, e a RI é compactada. A tabela limpa-se nas junções (início/fim de ciclo, `else`, fim de `?`/`&&`/`||`), exceto no fim de um `&&` seguido do salto sobre ele: o lado que continua só é alcançado com as duas partes verdadeiras. As operações comutativas normalizam a ordem dos operandos. Não muda nenhum valor (são as mesmas contas sobre os mesmos operandos), por isso o `-m` continua igual ao bit.
+
+**Prova.** Pontos fixos e as quatro sementes alinhadas (compilador arm64 de 261 955 bytes); o compilador nativo gera o mesmo que o WASM em todos os modos e exemplos; 18 exemplos em `-m` dão a mesma saída que o WASM. O ciclo interior do julia desceu de 17 para 13 instruções (já não calcula `zr²` e `zi²` duas vezes). O tempo total do julia fica nos 0,07 s: o resto está na biblioteca matemática.
