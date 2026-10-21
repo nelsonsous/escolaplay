@@ -115,3 +115,16 @@ test('macho: S dentro de uma funcao pura chamada por um E paralelo fica em serie
   const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')]);
   for (let k = 0; k < 3; k++) assert.ok(execFileSync(path.join(t, 'p')).equals(w), 'corrida ' + k);
 });
+
+test('macho: S real no -m (sem -mf) calcula os termos em threads e soma pela ordem: os bits do WebAssembly; num ciclo nao gasta memoria', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-sq-'));
+  const src = ': f ii>f i k { * Sn F + i k 0.001 }\n: g ii>f i k F + i k\n' +
+              ': main >i { = t 0.0 = j 0 W < j 40 { = t + t S 300000 f j = j + j 1 } = u 0.0 = j 0 W < j 500 { = u + u S 7 g j = j + j 1 }\n' +
+              '  N Bh t " " N Bl t " " N Bh u " " N Bl u " " N Bl S 4300000 g 1 "\\n" 0 }\n';
+  fs.writeFileSync(path.join(t, 'p.o'), execFileSync(ondac, ['-m'], { input: Buffer.from(src) }));
+  execFileSync('cc', [path.join(t, 'p.o'), '-o', path.join(t, 'p')]);
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')]);
+  for (let k = 0; k < 3; k++) assert.ok(execFileSync(path.join(t, 'p')).equals(w), 'corrida ' + k);
+});

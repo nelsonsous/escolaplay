@@ -2135,3 +2135,17 @@ Tentado e desfeito: expandir tambem os nucleos _mkc/_mks dentro do Cs expandido 
 - **Limiar do paralelo pelo custo:** `pcost` estima o custo por elemento (tokens, +1000 por ciclo/recursão, +40 por Sn/Cs/Ex/Lg/At/Pw, mais as funções chamadas); o limiar é 600000/custo, entre 4096 e 2^20, e vai nos bits 10+ do modo. Um polinómio barato só usa threads a partir de dezenas de milhares de elementos.
 - **Mapa NEON (amap):** constantes carregadas uma vez antes do ciclo (v26–v31, v10–v15); 4 vetores (8 doubles) por volta com 4 bancos de registos, intercalados instrução a instrução como no clang (se faltarem temporários, recua e usa 2 bancos); endereços com `ldp`/`stp`.
 - **Números (ms):** arm-bench `-mf` 26 → 15,8 (C 14,5; o C -O3 do Mac já usa FMA, por isso a comparação justa é com o `-mf`); grover `-mf` 268 → 186; julia 16; matmul 11; ondas 12.
+
+---
+
+## Iteração 124: S real em threads no -m com os bits do WebAssembly
+
+**Problema:** no `-m` (sem `-mf`), um `S` de reais corria em série, porque a soma tem de seguir a ordem 0..n-1 para dar os mesmos bits do WebAssembly. O `integra` (1M senos) perdia para o C: 17,2 contra 14,9 ms.
+
+**Solução (`lowSb`/`lowSq` em `src/2expr.onda`):** os termos calculam-se em paralelo (um `E` pelo conjunto de threads para um buffer temporário) e somam-se depois em série, pela mesma ordem. Os bits são os mesmos. O topo do heap (`M[-1]`) é guardado antes e reposto depois, para um `S` num ciclo não gastar memória.
+
+**Só quando compensa:** a função tem de ser cara (custo estimado ≥ 40: seno, exp, chamada ou ciclo), `n` tem de passar o limiar do paralelo, e o buffer tem de caber em 32 MiB. Senão fica o `S` em série. Um termo que é só uma leitura (o `amp` do grover) ficava 6% mais lento com o buffer.
+
+**Números:** integra 17,2 → 13,3 ms (C: 15,3); 300 `S` de 1M senos: 3730 → 776 ms (C: 2317); S pequenos e grover iguais.
+
+**Teste:** `macho`: S real em threads com os bits do WASM, num ciclo, mais S pequenos e um S acima do limite.

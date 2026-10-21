@@ -274,6 +274,35 @@
   setl ac binx '+ y getl ac pv
   lpend cv
   getl ac }
+# S real sem -mf: os bits tem de ser os do WASM (soma pela ordem 0..n-1). Os termos calculam-se em paralelo (um E
+# para um buffer temporario) e somam-se depois em serie, pela mesma ordem. O topo do heap (M[-1]) e reposto no fim,
+# para um S num ciclo nao gastar memoria. Para n enorme (buffer > 32 MiB) fica o S em serie.
+: lowSb iii>i n k a {
+  = hp nt 0
+  ir 24 hp lit1 -1 0 0 0 0
+  = d nt 0
+  ir 28 d n 0 0 0 0
+  lowEp d n k a
+  = ac newl 1
+  setl ac zer 1
+  = iv newl 0
+  lpbeg iv n 0
+  = pv nt 1
+  ir 26 pv binx '+ 0 d getl iv 0 0 0 0
+  setl ac binx '+ 1 getl ac pv
+  lpend iv
+  ir 25 0 lit1 -1 hp 0 0 0
+  getl ac }
+: lowSq iii>i n k a {
+  ? < pcost k 0 40 lowS n k a {
+  = c binx '& 0 cmpx '< n lit1 4194304 cmpx '< lit1 - pthr k 1 n
+  = r nt 1
+  ir 18 0 c 0 0 0 0
+  = x lowSb n k a
+  ir 19 r x 0 0 0 0
+  = y lowS n k a
+  ir 20 r y 0 0 0 0
+  r } }
 : ldslot ii>i s fl { = r nt fl ir ? fl 26 24 r lit1 pjs s 0 0 0 0 r }
 : lpfrom iii>i iv lo hl { setl iv lo ir 21 0 0 0 0 0 0 = c cmpx '< getl iv getl hl ir 22 0 c 0 0 0 0 0 }
 : cdrv i>i kd {
