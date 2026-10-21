@@ -1993,3 +1993,13 @@ Ficam 9 inteiros e 8 reais que atravessam chamadas, como no ABI do Apple Silicon
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; o julia dá a mesma imagem.
 
 **Números.** Sem ganho mensurável. No julia ainda há derrames para a pilha na parte das cores: os valores que atravessam as chamadas a `Lg`/`Cs` são mais do que os registos guardados, o mesmo limite que o clang tem. Fica registado como uma mudança de folga, não de velocidade.
+
+---
+
+## Iteração 113: corrigido o transbordo do buffer de codigo em programas grandes
+
+**O erro (registado na it.97).** O `ex/ocr.onda` (825 KB de fonte, 4,3 MB de C) saía com 254 linhas de bytes binários no C gerado, e o lixo variava entre o compilador WASM e o nativo. O buffer onde se juntam os corpos das funções (`@16`) tinha um tamanho fixo de 3 M e transbordava para as tabelas seguintes; o dos cabeçalhos (`@17`, 1,5 M) estava no mesmo caso.
+
+**O que foi feito** (`src/4main.onda`). Os dois buffers passam a crescer com a fonte: `@16` com 8× o tamanho da fonte e `@17` com 2×, mantendo os mínimos antigos.
+
+**Prova.** O C do `ocr` sai sem nenhum byte de controlo, igual entre o compilador WASM e o nativo, e compila com o clang. A verificação cruzada deixou de excluir o `ocr`: todos os exemplos, em todos os modos, dão o mesmo no compilador nativo e no WASM. Pontos fixos e sementes alinhados.
