@@ -7,17 +7,35 @@ const bytes = fs.readFileSync(process.argv[2]);
 const args = ['prog', ...process.argv.slice(3)].map(s => Buffer.from(s));
 let mem = null, inbuf = null, ip = 0, kb = -1n;
 const W = a => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8);
-// imita o printf("%.15g") do C
+// imita o printf("%.15g") do C, exatamente: os 15 algarismos sao calculados sobre o valor exato do real (BigInt) e
+// arredondados ao mais proximo com empate para o par, como o printf (o toFixed/toExponential do JS arredonda os
+// empates para cima). E o mesmo metodo do _od do runtime em Onda (x86/arm64), logo as tres formas imprimem igual.
+function dig15(x) {
+  const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, x);
+  const hi = dv.getUint32(0), lo = dv.getUint32(4), ex = (hi >>> 20) & 2047;
+  let mt = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo), q;
+  if (ex) { mt |= 1n << 52n; q = ex - 1075; } else q = -1074;
+  let na = mt, nb = 1n;
+  if (q >= 0) na <<= BigInt(q); else nb <<= BigInt(-q);
+  let e = Number(x.toExponential(14).split('e')[1]);
+  if (e >= 0) nb *= 10n ** BigInt(e); else na *= 10n ** BigInt(-e);
+  if (na < nb) { na *= 10n; e--; }
+  if (na >= 10n * nb) { nb *= 10n; e++; }
+  const num = na * 10n ** 14n;
+  let D = num / nb; const r = num % nb;
+  if (2n * r > nb || (2n * r === nb && (D & 1n))) D += 1n;
+  if (D >= 10n ** 15n) { D /= 10n; e++; }
+  return [D.toString(), e];
+}
 function cfmt(x) {
   if (Number.isNaN(x)) return 'nan';
   if (!Number.isFinite(x)) return x < 0 ? '-inf' : 'inf';
   if (x === 0) return Object.is(x, -0) ? '-0' : '0';
-  const e = Number(x.toExponential(14).split('e')[1]);
+  const sg = x < 0 ? '-' : '';
+  const [d, e] = dig15(Math.abs(x));
   const tira = t => (t.includes('.') ? t.replace(/0+$/, '').replace(/\.$/, '') : t);
-  if (e >= -4 && e < 15) return tira(x.toFixed(14 - e));
-  let [m, ex] = x.toExponential(14).split('e');
-  const n = Number(ex);
-  return tira(m) + 'e' + (n < 0 ? '-' : '+') + String(Math.abs(n)).padStart(2, '0');
+  if (e >= -4 && e < 15) return sg + tira(e >= 0 ? d.slice(0, e + 1) + '.' + d.slice(e + 1) : '0.' + '0'.repeat(-e - 1) + d);
+  return sg + tira(d[0] + '.' + d.slice(1)) + 'e' + (e < 0 ? '-' : '+') + String(Math.abs(e)).padStart(2, '0');
 }
 function sys(c, a, b) {
   switch (Number(c)) {

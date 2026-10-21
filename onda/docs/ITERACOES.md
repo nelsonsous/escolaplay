@@ -2049,3 +2049,15 @@ Medido e revertido nesta iteração: expandir a matemática também nos ciclos g
 - O `build.sh` exigia que `w1 == w2` no ponto fixo WASM. Quando o runtime embutido muda, o `w1` ainda leva o da semente anterior, por isso o ponto fixo verdadeiro é `w2 == w3`. Antes falhava em silêncio e deixava o compilador anterior no lugar (foi assim que este erro me apareceu).
 
 **Prova.** 0 erradas em 20 000, com os bits de cada valor confirmados iguais entre C e arm64 e a referência exata do Python (`%.15g`). Extremos iguais ao `printf`: 4.94e-324, 1.79e308, 2.2250738585072e-308, 1e+15, 1e-05, 9.9999999999999995 → 10. Pontos fixos, sementes alinhadas, verificação cruzada completa; `node --test` com as mesmas 34 falhas de ambiente.
+
+---
+
+## Iteração 118: o WASM imprime reais como o printf (empates para o par)
+
+**O erro.** O anfitrião WASM (`wasm/host.js`, syscall 5) imitava o `printf("%.15g")` com `toFixed`/`toExponential` do JavaScript, que arredondam os empates exatos para cima. Um real binário exatamente a meio (por exemplo 18237435724586,25) saía …586,3, onde o `printf` dá …586,2. Eram 42 em 20 000 no mesmo teste da it.117.
+
+**O que foi feito.** O `cfmt` do anfitrião calcula os 15 algarismos sobre o valor exato do real com BigInt (razão `mt·2^q`, escala por 10^e, empate para o par), o mesmo método do `_od` em Onda. A formatação fixa/exponencial e o corte de zeros ficam como antes.
+
+**Prova.** 0 erradas em 20 000 contra a referência exata (`%.15g` do Python sobre os mesmos bits); o WASM e o arm64 imprimem agora exatamente o mesmo texto nos 20 000. Extremos iguais ao `printf`. Verificação cruzada completa e `node --test` com as mesmas 34 falhas de ambiente.
+
+**Pendente.** As páginas em `web/` têm cópias próprias do formatador antigo, embutidas em cada página. Ficam como estavam: atualizá-las implica regenerar as páginas.
