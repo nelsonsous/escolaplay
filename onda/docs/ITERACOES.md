@@ -1937,3 +1937,15 @@ As marcas de chamada na ocupação passaram dos bits 40/41 para 50/51, para os n
 **Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos.
 
 **Números.** 3 M de Lg+Cs: 37 → 36 ms (C: 29). O resto sem mudança.
+
+---
+
+## Iteração 109: funcoes matematicas expandidas em linha dentro de ciclos
+
+**O que foi feito.** No `-a`/`-m`, uma chamada à biblioteca matemática (`Sn`, `Cs`, `Ex`, `Lg`, `At`, `Pw`) dentro de um ciclo `W` expande-se em linha, a um só nível, com o mesmo mecanismo (`cinl`) que o frontend já usava. Assim o alocador, a CSE e a LICM veem o corpo dentro do ciclo, e as constantes do polinómio saem do ciclo. O clang faz o mesmo com as funções estáticas. Nunca se expande dentro da própria biblioteca (funções `_…`), por isso a recursão interna (`Sn` para |x| enorme) continua a ser uma chamada. O frontend passou a contar a profundidade de `W` durante a análise (`xq 6`, só no arm64).
+
+Tentativa medida e descartada: expandir também as chamadas comuns dentro de ciclos. Não mudou nada: as chamadas à biblioteca passam por outro caminho (`rcall`). Fica registado que os tempos desta máquina variam com a frequência: as medições boas são as feitas lado a lado, depois de aquecer.
+
+**Prova.** Pontos fixos, sementes alinhadas, compilador nativo igual ao WASM em todos os modos e exemplos; os resultados matemáticos são os mesmos bits (expandir não muda as contas).
+
+**Números** (3 M de chamadas, mesma sessão, antes → depois): Lg 16 → 14 ms, Cs 20 → 16, Sn 20 → 16, Ex 19 → 17. O compilador quase não cresce (238 927 bytes).
