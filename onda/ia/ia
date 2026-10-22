@@ -33,13 +33,15 @@ fi
 # o motor, compilado pela Onda para executavel do Mac (sem clang); recompila se o qwen.onda ou o compilador mudarem
 B="$C/qwen"
 if [ ! -x "$B" ] || [ "$D/qwen.onda" -nt "$B" ] || [ "$OC" -nt "$B" ]; then "$OC" -mfx < "$D/qwen.onda" > "$B.tmp" && chmod +x "$B.tmp" && mv "$B.tmp" "$B"; fi
-# cache: o modelo ja quantizado (feita da primeira vez, e de novo se o motor mudar); arranca em segundos.
+# cache: o modelo ja quantizado (feita da primeira vez); arranca em segundos.
 # 8 bits por omissao; o 7b vai a 4 bits (como o Q4_0: ~4,5 bits por peso) para caber com folga em 16 GB.
 # ONDA_IA_BITS=4 ou 8 escolhe.
 bits="${ONDA_IA_BITS:-$([ "$m" = 7b ] && echo 4 || echo 8)}"
 K="$C/qwen.q$bits"
-if [ ! -s "$K" ] || [ "$B" -nt "$K" ]; then
+if [ ! -s "$K" ]; then
   echo "a preparar o modelo em $bits bits (so da primeira vez)..." >&2
   cat "$C/qwen.prep" "$C"/model*.safetensors | "$B" --guarda "$bits" > "$K.part" && mv "$K.part" "$K"
 fi
-exec sh -c 'cat "$1" - | "$2" "$3"' ia "$K" "$B" "$@"
+# o que lhe foi ensinado (ia/ensina), se houver
+Lf="$C/ensinado.lora"; [ -s "$Lf" ] || Lf=/dev/null
+exec sh -c 'cat "$1" "$2" - | "$3" ${4:+"$4"}' ia "$K" "$Lf" "$B" "$@"

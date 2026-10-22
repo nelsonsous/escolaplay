@@ -176,9 +176,9 @@
   W < l @ 2 {
     ! 32 l
     rms @ 14 @ 13 tens l 0
-    mvm tens l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
-    mvm tens l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
-    mvm tens l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
+    mvm tens l 1 @ 14 @ 15 lfw l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
+    mvm tens l 3 @ 14 @ 16 lfw l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
+    mvm tens l 5 @ 14 @ 17 lfw l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
     rope @ 15 nh hh
     rope @ 16 @ 4 kvd
     # guarda k e v do lote na cache desta camada
@@ -188,20 +188,404 @@
     E @ 29 * pp nh flse
     E @ 45 * * pp nh np fpro
     E @ 18 * pp hh fatt
-    mvm tens l 7 @ 18 @ 19
+    mvm tens l 7 @ 18 @ 19 lfw l 7 @ 18 @ 19
     acum @ 13 @ 19 hh
     # MLP (SwiGLU)
     rms @ 14 @ 13 tens l 8
-    mvm tens l 9 @ 14 @ 20
-    mvm tens l 10 @ 14 @ 21
+    mvm tens l 9 @ 14 @ 20 lfw l 9 @ 14 @ 20
+    mvm tens l 10 @ 14 @ 21 lfw l 10 @ 14 @ 21
     E @ 22 * pp ff fsilu
-    mvm tens l 11 @ 22 @ 23
+    mvm tens l 11 @ 22 @ 23 lfw l 11 @ 22 @ 23
     acum @ 13 @ 23 hh
     = l + l 1 }
   # so o ultimo token do lote precisa dos logits
   ! 37 1
   rms @ 14 + @ 13 * - pp 1 hh @ 12
   mvm @ 36 @ 14 @ 27
+  0 }
+# ===================== LoRA: ensinar o modelo com exemplos =====================
+# Os pesos do modelo ficam congelados; aprende-se, em cada uma das 7 matrizes de cada camada (q, k, v, o, gate, up,
+# down), um ajuste W + escala * B A, com A (r x c) e B (R x r) pequenos. O modelo original nao muda; o que se aprende
+# fica num ficheiro a parte. O treino: avanco com as ativacoes guardadas, perda (entropia cruzada so nas respostas),
+# retropropagacao por todas as camadas (as matrizes congeladas passam o gradiente pelas suas transpostas, tambem a
+# 8 bits com o Qd) e Adam. Tudo em campos E (os nucleos todos).
+# @63: tabela de estado (A 64): 0 r 1 escala (real) 2 registos LoRA (camada*7) 3 transpostas (camada*12)
+#   4 ativacoes (camada*16) 5 T maximo 6 alvos 7 mascara 8 LoRA ligado 9 parametros 10 n parametros 11 gradientes
+#   12 m 13 v 14 U 15 Vb 16 tmp 17 x 18 dX 19 dXn 20 dy (transitorio) 21 gA 22 gG 23 gU 24 gAtt 25 gQ 26 gK 27 gV
+#   28 dP 29 dS 30 xf 31 xnf 32 logits (pedaco) 33 lse 34 dlogits 35 rs 36 tmp2 37 transposta da saida
+#   38 n de tokens com perda 39 perda (real) 40 inicio do pedaco
+: ts i>i k @ + @ 63 k
+: tss ii>i k v ! + @ 63 k v
+: lki i>i k ? == k 1 0 ? == k 3 1 ? == k 5 2 ? == k 7 3 ? == k 9 4 ? == k 10 5 6
+: lrec ii>i l k @ + ts 2 + * l 7 lki k
+# produto interno de reais (8 somas parciais)
+: dotf iii>f a b n {
+  = s0 0.0 = s1 0.0 = s2 0.0 = s3 0.0 = s4 0.0 = s5 0.0 = s6 0.0 = s7 0.0
+  = j 0 = m - n 7
+  W < j m {
+    = s0 + s0 * @f + a j @f + b j
+    = s1 + s1 * @f + a + j 1 @f + b + j 1
+    = s2 + s2 * @f + a + j 2 @f + b + j 2
+    = s3 + s3 * @f + a + j 3 @f + b + j 3
+    = s4 + s4 * @f + a + j 4 @f + b + j 4
+    = s5 + s5 * @f + a + j 5 @f + b + j 5
+    = s6 + s6 * @f + a + j 6 @f + b + j 6
+    = s7 + s7 * @f + a + j 7 @f + b + j 7
+    = j + j 8 }
+  W < j n { = s0 + s0 * @f + a j @f + b j = j + j 1 }
+  + + + s0 s1 + s2 s3 + + s4 s5 + s6 s7 }
+# parametros LoRA: um bloco seguido (A e B de cada matriz); A ao acaso (+-1/sqrt(c)), B = 0 (comeca igual ao modelo)
+: loraaloca ii>i r tmax {
+  = nl @ 2
+  tss 0 r
+  ! + @ 63 1 0 !f + @ 63 1 2.0
+  tss 2 A * nl 7
+  = n 0 = l 0
+  W < l nl { = j 0 W < j 7 { = k ? < j 4 + * j 2 1 + j 5 = m tens l k = n + n * r + @ m @ + m 1 = j + j 1 } = l + l 1 }
+  tss 10 n
+  tss 9 A n tss 11 A n tss 12 A n tss 13 A n
+  = o 0 = l 0
+  W < l nl {
+    = j 0
+    W < j 7 {
+      = k ? < j 4 + * j 2 1 + j 5 = m tens l k = rr @ m = c @ + m 1
+      = rc A 6 ! + ts 2 + * l 7 j rc
+      ! rc + ts 9 o ! + rc 1 + + ts 9 o * r c ! + rc 2 + ts 11 o ! + rc 3 + + ts 11 o * r c ! + rc 4 rr ! + rc 5 c
+      = b / 1.0 Sq F c
+      = i 0 W < i * r c { !f + @ rc i * b - * 2.0 unif 1.0 = i + i 1 }
+      = o + o * r + rr c
+      = j + j 1 }
+    = l + l 1 }
+  # buffers do LoRA (lote ate tmax tokens)
+  = mx Mx @ 5 @ 1
+  tss 14 A * tmax r tss 15 A * tmax r tss 16 A * tmax mx tss 36 A * tmax mx
+  tss 8 1
+  0 }
+# u = A x (por token), y += escala * B u
+: flu i>f i { = rc @ 60 = r ts 0 = c @ + rc 5 = t / i r = k % i r dotf + @ rc * k c + @ 61 * t c c }
+: flb i>f i {
+  = rc @ 60 = r ts 0 = rr @ + rc 4 = t / i rr = q % i rr = b + @ + rc 1 * q r = u + ts 14 * t r
+  = s 0.0 = k 0 W < k r { = s + s * @f + b k @f + u k = k + k 1 }
+  * s @f + @ 63 1 }
+: lfw iiii>i l k x y {
+  ? ts 8 {
+    = rc lrec l k ! 60 rc ! 61 x
+    = pp @ 37
+    E ts 14 * pp ts 0 flu
+    E ts 16 * pp @ + rc 4 flb
+    acum y ts 16 @ + rc 4 0 } 0 }
+# para tras: v = B^T dy; dB = escala * dy u^T; dA = escala * v x^T; dx += escala * A^T v
+: flv i>f i {
+  = rc @ 60 = r ts 0 = rr @ + rc 4 = t / i r = k % i r = b @ + rc 1 = dy + ts 20 * t rr
+  = s 0.0 = q 0 W < q rr { = s + s * @f + b + * q r k @f + dy q = q + q 1 } s }
+: fdbl i>f i {
+  = rc @ 60 = r ts 0 = rr @ + rc 4 = q / i r = k % i r
+  = s 0.0 = t 0 W < t @ 37 { = s + s * @f + ts 20 + * t rr q @f + ts 14 + * t r k = t + t 1 }
+  * s @f + @ 63 1 }
+: fdal i>f i {
+  = rc @ 60 = r ts 0 = c @ + rc 5 = k / i c = j % i c
+  = s 0.0 = t 0 W < t @ 37 { = s + s * @f + ts 15 + * t r k @f + @ 61 + * t c j = t + t 1 }
+  * s @f + @ 63 1 }
+: fdxl i>f i {
+  = rc @ 60 = r ts 0 = c @ + rc 5 = t / i c = j % i c = a @ rc
+  = s 0.0 = k 0 W < k r { = s + s * @f + a + * k c j @f + ts 15 + * t r k = k + k 1 }
+  * s @f + @ 63 1 }
+: lbk iiiii>i l k x dy dx {
+  = rc lrec l k ! 60 rc ! 61 x tss 20 dy
+  = pp @ 37 = r ts 0 = rr @ + rc 4 = c @ + rc 5
+  E ts 14 * pp r flu
+  E ts 15 * pp r flv
+  E @ + rc 3 * rr r fdbl
+  E @ + rc 2 * r c fdal
+  E ts 16 * pp c fdxl
+  acum dx ts 16 c
+  0 }
+# transposta a 8 bits de uma matriz a 8 bits (para o gradiente passar para tras): linha k = coluna k do original
+: qat ii>f r k { = m @ 60 = c @ + m 1 = w @ + + @ + m 3 * r / c 8 / k 8 * @f + @ + m 2 r F >> << w - 56 * 8 % k 8 56 }
+: ftsc i>f k { = rr @ @ 60 = m 0.0 = r 0 W < r rr { = m Mx m Ab qat r k = r + r 1 } ? > m 0.0 / m 127.0 1.0 }
+: ftq i>i i {
+  = rr @ @ 60 = r8 / rr 8 = k / i r8 = j * % i r8 8 = s @f + @ 61 k
+  = w 0 = b 0
+  W < b 8 { = v / qat + j b k s = q ? < v 0.0 I - v 0.5 I + v 0.5 = q Mx -127 Mn 127 q = w | w << & q 255 * 8 b = b + b 1 }
+  w }
+: transp i>i m {
+  = rr @ m = c @ + m 1
+  = t A 5 ! t c ! + t 1 rr ! + t 4 8
+  = sc A c ! + t 2 sc
+  ! 60 m ! 61 sc
+  E sc c ftsc
+  = d A / * rr c 8 ! + t 3 d
+  E d / * rr c 8 ftq
+  t }
+: tensT ii>i l k @ + ts 3 + * l 12 k
+# RMSNorm para tras: y = x * inv * w; dx = inv * w * dy - x * inv^3 / n * soma(w * dy * x)
+: rmsb iiii>i dx x w dy {
+  = n @ 1 = t 0
+  W < t @ 37 {
+    = xt + x * t n = dt + dy * t n = ot + dx * t n
+    = s 0.0 = j 0 W < j n { = v @f + xt j = s + s * v v = j + j 1 }
+    = inv / 1.0 Sq + / s F n 0.000001
+    = g 0.0 = j 0 W < j n { = g + g * * @f + w j @f + dt j @f + xt j = j + j 1 }
+    = f / * * inv inv * inv g F n
+    = j 0 W < j n { !f + ot j - * * inv @f + w j @f + dt j * @f + xt j f = j + j 1 }
+    = t + t 1 }
+  0 }
+# RoPE para tras (a rotacao inversa)
+: ropeb iii>i v nh n {
+  = hd @ 7 = h2 / hd 2 = t 0
+  W < t @ 37 {
+    = h 0
+    W < h nh {
+      = b + + v * t n * h hd = i 0
+      W < i h2 {
+        = a @f + b i = c @f + b + i h2 = co @f + @ 30 + * t h2 i = si @f + @ 31 + * t h2 i
+        !f + b i + * a co * c si
+        !f + b + i h2 - * c co * a si
+        = i + i 1 }
+      = h + h 1 }
+    = t + t 1 }
+  0 }
+# atencao para tras (causal, GQA). P = probabilidades guardadas (t, h, j); q, k, v as do avanco (depois do RoPE)
+: fdp i>f i {
+  = tt @ 37 = nh @ 3 = hd @ 7 = kvd @ 8 = hh @ 1
+  = t / i * nh tt = h % / i tt nh = j % i tt
+  ? > j t 0.0 {
+    = g / h / nh @ 4 = ac @ + ts 4 * @ 32 16
+    dotf + + ts 24 * t hh * h hd + + @ + ac 4 * j kvd * g hd hd } }
+: frs i>f i {
+  = tt @ 37 = nh @ 3 = t / i nh = ac @ + ts 4 * @ 32 16
+  = p + @ + ac 5 * i tt = d + ts 28 * i tt
+  = s 0.0 = j 0 W <= j t { = s + s * @f + p j @f + d j = j + j 1 } s }
+: fds i>f i {
+  = tt @ 37 = r / i tt = ac @ + ts 4 * @ 32 16
+  / * @f + @ + ac 5 i - @f + ts 28 i @f + ts 35 r Sq F @ 7 }
+: fdq i>f i {
+  = tt @ 37 = nh @ 3 = hd @ 7 = kvd @ 8 = hh @ 1 = ac @ + ts 4 * @ 32 16
+  = t / i hh = e % i hh = h / e hd = d % e hd = g / h / nh @ 4
+  = ds + ts 29 * + * t nh h tt = k + + @ + ac 3 * g hd d
+  = s 0.0 = j 0 W <= j t { = s + s * @f + ds j @f + k * j kvd = j + j 1 } s }
+: fdk i>f i {
+  = tt @ 37 = nh @ 3 = hd @ 7 = kvd @ 8 = hh @ 1 = ac @ + ts 4 * @ 32 16
+  = j / i kvd = e % i kvd = g / e hd = d % e hd = gs / nh @ 4
+  = s 0.0 = h * g gs
+  W < h * + g 1 gs {
+    = q + + @ + ac 2 * h hd d
+    = t j W < t tt { = s + s * @f + ts 29 + * + * t nh h tt j @f + q * t hh = t + t 1 }
+    = h + h 1 }
+  s }
+: fdv i>f i {
+  = tt @ 37 = nh @ 3 = hd @ 7 = kvd @ 8 = hh @ 1 = ac @ + ts 4 * @ 32 16
+  = j / i kvd = e % i kvd = g / e hd = d % e hd = gs / nh @ 4
+  = s 0.0 = h * g gs
+  W < h * + g 1 gs {
+    = o + + ts 24 * h hd d
+    = t j W < t tt { = s + s * @f + @ + ac 5 + * + * t nh h tt j @f + o * t hh = t + t 1 }
+    = h + h 1 }
+  s }
+# SwiGLU para tras: a = silu(g) * u
+: fdg i>f i { = ac @ + ts 4 * @ 32 16 = g @f + @ + ac 9 i = sg / 1.0 + 1.0 Ex - 0.0 g * * @f + ts 21 i @f + @ + ac 10 i * sg + 1.0 * g - 1.0 sg }
+: fdu i>f i { = ac @ + ts 4 * @ 32 16 = g @f + @ + ac 9 i * @f + ts 21 i / g + 1.0 Ex - 0.0 g }
+# perda e gradiente da saida, em pedacos de 32 tokens (os logits de 151936 por token sao grandes)
+: flg i>f t {
+  = vv @ 6 = r + ts 32 * t vv
+  = mx @f r = j 1 W < j vv { = mx Mx mx @f + r j = j + j 1 }
+  = s 0.0 = j 0 W < j vv { = s + s Ex - @f + r j mx = j + j 1 }
+  + mx Lg s }
+: fdlg i>f i {
+  = vv @ 6 = t / i vv = j % i vv = tg + ts 40 t
+  ? @ + ts 7 tg {
+    = p Ex - @f + ts 32 i @f + ts 33 t
+    / - p ? == j @ + ts 6 tg 1.0 0.0 F ts 38 } 0.0 }
+: copia iii>i d s n { = j 0 W < j n { ! + d j @ + s j = j + j 1 } 0 }
+: zera ii>i d n { = j 0 W < j n { ! + d j 0 = j + j 1 } 0 }
+: mvt iiiii>i l k x y n { ! 37 n mvm tensT l k x y 0 }
+# um passo de treino com os tt tokens em @35 (alvos e mascara em ts 6 / ts 7): devolve a perda media
+: treinapasso i>f tt {
+  = hh @ 1 = kvd @ 8 = nh @ 3 = ff @ 5 = hd @ 7 = h2 / hd 2 = nl @ 2 = vv @ 6
+  ! 37 tt ! 38 0 ! 33 tt
+  ! 13 ts 17
+  E @ 13 * tt hh fem
+  = t 0 W < t tt { = i 0 W < i h2 { = a * F t @f + @ 34 i !f + @ 30 + * t h2 i Cs a !f + @ 31 + * t h2 i Sn a = i + i 1 } = t + t 1 }
+  # avanco, com as ativacoes de cada camada guardadas
+  = l 0
+  W < l nl {
+    ! 32 l = ac @ + ts 4 * l 16
+    copia @ ac @ 13 * tt hh
+    ! 14 @ + ac 1 rms @ 14 @ 13 tens l 0
+    ! 15 @ + ac 2 mvm tens l 1 @ 14 @ 15 lfw l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
+    ! 16 @ + ac 3 mvm tens l 3 @ 14 @ 16 lfw l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
+    ! 17 @ + ac 4 mvm tens l 5 @ 14 @ 17 lfw l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
+    rope @ 15 nh hh
+    rope @ 16 @ 4 kvd
+    = kc + @ 24 * * l @ 26 kvd = vc + @ 25 * * l @ 26 kvd
+    copia kc @ 16 * tt kvd copia vc @ 17 * tt kvd
+    E @ 28 * * tt nh tt fsco
+    E @ 29 * tt nh flse
+    ! 45 @ + ac 5 E @ 45 * * tt nh tt fpro
+    ! 18 @ + ac 6 E @ 18 * tt hh fatt
+    ! 19 ts 36 mvm tens l 7 @ 18 @ 19 lfw l 7 @ 18 @ 19 acum @ 13 @ 19 hh
+    copia @ + ac 7 @ 13 * tt hh
+    ! 14 @ + ac 8 rms @ 14 @ 13 tens l 8
+    ! 20 @ + ac 9 mvm tens l 9 @ 14 @ 20 lfw l 9 @ 14 @ 20
+    ! 21 @ + ac 10 mvm tens l 10 @ 14 @ 21 lfw l 10 @ 14 @ 21
+    ! 22 @ + ac 11 E @ 22 * tt ff fsilu
+    ! 23 ts 36 mvm tens l 11 @ 22 @ 23 lfw l 11 @ 22 @ 23 acum @ 13 @ 23 hh
+    = l + l 1 }
+  copia ts 30 @ 13 * tt hh
+  rms ts 31 @ 13 @ 12
+  # perda e d(logits) por pedacos -> d(xnf) em ts 19
+  = perda 0.0 = t0 0
+  W < t0 tt {
+    = n Mn 32 - tt t0
+    ! 37 n tss 40 t0
+    mvm @ 36 + ts 31 * t0 hh ts 32
+    E ts 33 n flg
+    = t 0 W < t n { ? @ + ts 7 + t0 t { = perda + perda - @f + ts 33 t @f + ts 32 + * t vv @ + ts 6 + t0 t 0 } 0 = t + t 1 }
+    E ts 34 * n vv fdlg
+    ! 37 n mvm ts 37 ts 34 + ts 19 * t0 hh
+    = t0 + t0 n }
+  ! 37 tt
+  # para tras
+  rmsb ts 18 ts 30 @ 12 ts 19
+  = l - nl 1
+  W >= l 0 {
+    ! 32 l = ac @ + ts 4 * l 16
+    # MLP
+    mvt l 11 ts 18 ts 21 tt lbk l 11 @ + ac 11 ts 18 ts 21
+    E ts 22 * tt ff fdg
+    E ts 23 * tt ff fdu
+    mvt l 9 ts 22 ts 19 tt mvt l 10 ts 23 ts 36 tt acum ts 19 ts 36 hh
+    lbk l 9 @ + ac 8 ts 22 ts 19 lbk l 10 @ + ac 8 ts 23 ts 19
+    rmsb ts 36 @ + ac 7 tens l 8 ts 19 acum ts 18 ts 36 hh
+    # atencao
+    mvt l 7 ts 18 ts 24 tt lbk l 7 @ + ac 6 ts 18 ts 24
+    E ts 28 * * tt nh tt fdp
+    E ts 35 * tt nh frs
+    E ts 29 * * tt nh tt fds
+    E ts 25 * tt hh fdq
+    E ts 26 * tt kvd fdk
+    E ts 27 * tt kvd fdv
+    ropeb ts 25 nh hh ropeb ts 26 @ 4 kvd
+    mvt l 1 ts 25 ts 19 tt mvt l 3 ts 26 ts 36 tt acum ts 19 ts 36 hh mvt l 5 ts 27 ts 36 tt acum ts 19 ts 36 hh
+    lbk l 1 @ + ac 1 ts 25 ts 19 lbk l 3 @ + ac 1 ts 26 ts 19 lbk l 5 @ + ac 1 ts 27 ts 19
+    rmsb ts 36 @ ac tens l 0 ts 19 acum ts 18 ts 36 hh
+    = l - l 1 }
+  / perda F Mx 1 ts 38 }
+# Adam (em serie: o bloco dos parametros LoRA)
+: adam iff>f t lr cl {
+  = n ts 10 = p ts 9 = g ts 11 = m ts 12 = v ts 13
+  # corte da norma do gradiente
+  = s 0.0 = j 0 W < j n { = x @f + g j = s + s * x x = j + j 1 }
+  = nr Sq s = f ? > nr cl / cl nr 1.0
+  = b1 - 1.0 Pw 0.9 F t = b2 - 1.0 Pw 0.999 F t
+  = j 0
+  W < j n {
+    = x * @f + g j f
+    = mm + * 0.9 @f + m j * 0.1 x = vv + * 0.999 @f + v j * 0.001 * x x
+    !f + m j mm !f + v j vv
+    !f + p j - @f + p j / * lr / mm b1 + Sq / vv b2 0.00000001
+    = j + j 1 }
+  nr }
+
+# --- o treino: le os exemplos (">>> pergunta" / "<<< resposta", varias linhas cada) do resto do stdin, aprende o
+# LoRA e escreve-o (depois de "\1ONDALORA\n"): r, n e os n parametros crus ---
+: treino iii>i passadas pm cbuf {
+  = hh @ 1 = nl @ 2 = nh @ 3 = ff @ 5 = vv @ 6 = kvd @ 8 = ia 151644 = fim 151645
+  # texto dos exemplos
+  = tx A 4000000 = nt 0 = c R W && >= c 0 < nt 3999990 { ! + tx nt c = nt + nt 1 = c R }
+  # exemplos -> tokens; mascara = tokens da resposta (o que o modelo deve aprender a dizer)
+  = et A 3000000 = em A 3000000 = eo A 20000 = ne 0 = tot 0
+  = toks A 100000 = mk A 100000
+  = q A 400000 = nq 0 = a A 400000 = na 0 = modo 0
+  = i 0
+  W <= i nt {
+    # inicio de linha?
+    = ini || == i 0 == @ + tx - i 1 10
+    = mq && && && ini < + i 2 nt == @ + tx i '> && == @ + tx + i 1 '> == @ + tx + i 2 '>
+    = ma && && && ini < + i 2 nt == @ + tx i '< && == @ + tx + i 1 '< == @ + tx + i 2 '<
+    # fecha o exemplo anterior quando comeca uma pergunta nova (ou no fim)
+    ? && && > na 0 > nq 0 || mq >= i nt {
+      ! 57 0
+      ! + toks @ 57 ia ! 57 + @ 57 1
+      codifica + cbuf 1 @ cbuf toks
+      ! + toks @ 57 fim ! 57 + @ 57 1
+      = b2 A + + nq na 64
+      ! 58 0 poe b2 10 codifica b2 @ 58 toks
+      ! + toks @ 57 ia ! 57 + @ 57 1
+      ! 58 0 poe b2 'u poe b2 's poe b2 'e poe b2 'r poe b2 10 = j 0 W < j nq { poe b2 @ + q j = j + j 1 } codifica b2 @ 58 toks
+      ! + toks @ 57 fim ! 57 + @ 57 1
+      ! 58 0 poe b2 10 codifica b2 @ 58 toks
+      ! + toks @ 57 ia ! 57 + @ 57 1
+      ! 58 0 poe b2 'a poe b2 's poe b2 's poe b2 'i poe b2 's poe b2 't poe b2 'a poe b2 'n poe b2 't poe b2 10 codifica b2 @ 58 toks
+      = r0 @ 57
+      ! 58 0 = j 0 W < j na { poe b2 @ + a j = j + j 1 } codifica b2 @ 58 toks
+      ! + toks @ 57 fim ! 57 + @ 57 1
+      = r1 @ 57
+      = n Mn @ 57 pm
+      ! + eo * ne 2 tot ! + + eo * ne 2 1 n
+      = j 0 W < j n { ! + et + tot j @ + toks j ! + em + tot j && >= + j 1 r0 < + j 1 r1 = j + j 1 }
+      = tot + tot n = ne + ne 1
+      = nq 0 = na 0 = modo 0 0 } 0
+    ? < i nt {
+      ? mq { = modo 1 = i + i 3 ? == @ + tx i 32 = i + i 1 0 0 }
+        { ? ma { = modo 2 = i + i 3 ? == @ + tx i 32 = i + i 1 0 0 }
+          { = c @ + tx i
+            ? == modo 1 { ? || > nq 0 != c 10 { ! + q nq c = nq + nq 1 } 0 0 } { ? == modo 2 { ? || > na 0 != c 10 { ! + a na c = na + na 1 } 0 0 } 0 }
+            = i + i 1 0 } } 0 } { = i + i 1 0 } }
+  "exemplos: " N ne " (" N tot " tokens)\n" sai
+  ? == ne 0 { "nenhum exemplo: escreve linhas >>> pergunta e <<< resposta\n" X 1 } 0
+  # LoRA, transpostas das matrizes congeladas, ativacoes e buffers
+  = r 16
+  loraaloca r pm
+  "a preparar as transpostas... " sai
+  = t0 T
+  tss 3 A * nl 12
+  = l 0 W < l nl { = j 0 W < j 7 { = k ? < j 4 + * j 2 1 + j 5 ! + ts 3 + * l 12 k transp tens l k = j + j 1 } = l + l 1 }
+  tss 37 transp @ 36
+  N / - T t0 1000 " ms\n"
+  tss 4 A * nl 16
+  = l 0
+  W < l nl {
+    = ac A 16 ! + ts 4 * l 16 ac
+    ! ac A * pm hh ! + ac 1 A * pm hh ! + ac 2 A * pm hh ! + ac 3 A * pm kvd ! + ac 4 A * pm kvd
+    ! + ac 5 A * * pm nh pm ! + ac 6 A * pm hh ! + ac 7 A * pm hh ! + ac 8 A * pm hh
+    ! + ac 9 A * pm ff ! + ac 10 A * pm ff ! + ac 11 A * pm ff
+    = l + l 1 }
+  tss 6 A pm tss 7 A pm
+  tss 17 A * pm hh tss 18 A * pm hh tss 19 A * pm hh
+  tss 21 A * pm ff tss 22 A * pm ff tss 23 A * pm ff
+  tss 24 A * pm hh tss 25 A * pm hh tss 26 A * pm kvd tss 27 A * pm kvd
+  tss 28 A * * pm nh pm tss 29 A * * pm nh pm tss 30 A * pm hh tss 31 A * pm hh
+  tss 32 A * 32 vv tss 33 A 32 tss 34 A * 32 vv tss 35 A * pm nh
+  # treino: cada exemplo e um passo (Adam, taxa 0,0002, corte da norma em 1)
+  "a aprender: " N passadas " passadas por " N ne " exemplos\n"
+  = t0 T = st 0 = e 0
+  W < e passadas {
+    = sp 0.0 = x 0
+    W < x ne {
+      = o @ + eo * x 2 = n @ + + eo * x 2 1
+      = j 0 W < j n { ! + @ 35 j @ + et + o j = j + j 1 }
+      = nk 0
+      = j 0 W < j - n 1 { ! + ts 6 j @ + et + + o j 1 ! + ts 7 j @ + em + o j ? @ + em + o j = nk + nk 1 0 = j + j 1 }
+      tss 38 nk
+      = pd treinapasso - n 1
+      = st + st 1
+      = nr adam st 0.0002 1.0
+      = sp + sp pd
+      = x + x 1 }
+    = e + e 1
+    "passada " N e "/" N passadas ": perda media " G / sp F ne "  (" N / - T t0 1000000 " s)\n" sai }
+  P 1 "ONDALORA\n"
+  = h A 2 ! h r ! + h 1 ts 10
+  Pb h 16
+  Pb ts 9 * ts 10 8
+  0 }
+# le um LoRA (o "\1" ja lido)
+: lelora i>i pm {
+  = c R = c R = c R = c R = c R = c R = c R = c R = c R
+  = h A 2 Rp h 16
+  loraaloca @ h pm
+  Rp ts 9 * @ + h 1 8
   0 }
 # --- tokenizador (BPE de bytes): @50 inicio dos bytes de cada token, @51 tamanho, @52 bytes, @53 especial,
 #     @54 tabela das fusoes (chave, prioridade, resultado), @55 token de cada byte, @56 n de tokens ---
@@ -267,6 +651,9 @@
   = u * unif s = c -1 = a 0.0 = j 0
   W && < j vv < c 0 { = l @f + r j ? >= l lim { = a + a Ex / - l mx temp ? >= a u = c j 0 } 0 = j + j 1 }
   ? < c 0 0 c }
+# despeja ja o que esta no buffer de saida (num terminal, cada palavra aparece logo): o Pb esvazia-o antes de escrever
+: sai >i Pb 1040000 0
+: numa i>i a { = v 0 = j 0 = c Av a 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = j + j 1 = c Av a j } v }
 : numc i>i c { W && >= c 0 || < c '0 > c '9 { = c R } = v 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = c R } v }
 # carrega o modelo a partir do ficheiro do prep.py e dos safetensors (o 1.o byte ja lido em c0)
 : carregaprep i>i c0 {
@@ -340,23 +727,27 @@
   # o heap do modelo comeca num sitio fixo: a cache guarda-o tal e qual e os enderecos continuam certos ao ler
   ! -1 1048576
   = t0 T
-  = gm && == Av 1 0 '- == Av 1 1 '-
+  # modos: --guarda [bits] (escreve a cache), --treina [passadas] ["sistema"] (aprende um LoRA), ou conversa
+  = gm && && == Av 1 0 '- == Av 1 1 '- == Av 1 2 'g
+  = tm && && == Av 1 0 '- == Av 1 1 '- == Av 1 2 't
   ! 59 ? && gm == Av 2 0 '4 4 8
-  ? gm 0 { "a carregar o modelo... " 0 }
+  ? || gm tm 0 { "a carregar o modelo... " sai 0 }
   = c0 R
   ? == c0 'O lecache carregaprep c0
   ? gm { guarda X 0 } 0
-  "pronto (" N / - T t0 1000 " ms)\n"
+  ? tm 0 { "pronto (" N / - T t0 1000 " ms)\n" sai 0 }
   = hh @ 1 = nl @ 2 = nh @ 3 = ff @ 5 = th @ 9
+  ! 63 A 64
   # vetores do passo, caches, frequencias do RoPE
-  = hd @ 7 = kvd @ 8 = pm 64 ! 46 pm
+  = hd @ 7 = kvd @ 8 = pm ? tm 256 64 ! 46 pm
   ! 13 A * pm hh ! 14 A * pm hh ! 15 A * pm hh ! 16 A * pm kvd ! 17 A * pm kvd ! 18 A * pm hh ! 19 A * pm hh
   ! 20 A * pm ff ! 21 A * pm ff ! 22 A * pm ff ! 23 A * pm hh
   = mt 4096 ! 26 mt
   ! 24 A * * nl mt kvd ! 25 A * * nl mt kvd
   ! 27 A @ 6 ! 28 A * * pm nh mt ! 45 A * * pm nh mt ! 29 A * pm nh ! 30 A * pm hd ! 31 A * pm hd ! 34 A hd
-  ! 49 + + / Mx ff hh 8 / Mx ff hh 32 1 ! 48 A * pm @ 49
-  ! 39 A * pm Mx ff hh ! 35 A pm
+  = mxr ? tm Mx @ 6 Mx ff hh Mx ff hh
+  ! 49 + + / mxr 8 / mxr 32 1 ! 48 A * pm @ 49
+  ! 39 A Mx * pm Mx ff hh ? tm * 32 @ 6 0 ! 35 A pm
   = i 0 W < i / hd 2 { !f + @ 34 i / 1.0 Pw F th / * 2.0 F i F hd = i + i 1 }
   ! 47 + T 12345
   # conversa: instrucoes de sistema (1.o argumento) e depois uma mensagem por linha do stdin
@@ -364,19 +755,24 @@
   ! 58 0
   = pos 0
   = ia 151644 = fim 151645
-  # prefixo de sistema
+  # prefixo de sistema: "system\n" + instrucoes (na conversa o 1.o argumento, no treino o 3.o; senao as do Qwen)
+  = sa ? tm 3 1
+  = cb A 100000
+  ! 58 0 poe + cb 1 's poe + cb 1 'y poe + cb 1 's poe + cb 1 't poe + cb 1 'e poe + cb 1 'm poe + cb 1 10
+  = j 0 = c Av sa 0
+  ? > Ac sa { W > c 0 { poe + cb 1 c = j + j 1 = c Av sa j } 0 }
+    { ! 59 + + cb 1 @ 58 O 59 "You are Qwen, created by Alibaba Cloud. You are a helpful assistant." O 0 ! 58 - @ 59 + cb 1 0 }
+  ! cb @ 58
+  ? tm { treino ? > Ac 2 Mx 1 numa 2 3 pm cb X 0 } 0
   ! 57 0
   ! + toks @ 57 ia ! 57 + @ 57 1
-  ! 58 0 poe buf 's poe buf 'y poe buf 's poe buf 't poe buf 'e poe buf 'm poe buf 10
-  = j 0 = c Av 1 0
-  ? > Ac 1 { W > c 0 { poe buf c = j + j 1 = c Av 1 j } 0 }
-    { ! 59 + buf @ 58 O 59 "You are Qwen, created by Alibaba Cloud. You are a helpful assistant." O 0 ! 58 - @ 59 buf 0 }
-  codifica buf @ 58 + toks @ 57
+  codifica + cb 1 @ cb toks
   ! + toks @ 57 fim ! 57 + @ 57 1
   ! 58 0 poe buf 10 codifica buf @ 58 toks
   = vez 0
-  "\n> "
+  "\n> " sai
   = c R
+  ? == c 1 { lelora pm "(com o que aprendeu)\n> " sai = c R 0 } 0
   W >= c 0 {
     # uma mensagem
     ! 58 0
@@ -405,11 +801,11 @@
         ! @ 35 tk2 passa 1 pos = pos + pos 1
         = tk2 escolhe 0.7
         ! + toks @ 57 tk2 ! 57 + @ 57 1
-        ? && != tk2 fim != tk2 151643 diz tk2 0
+        ? && != tk2 fim != tk2 151643 { diz tk2 sai } 0
         = ger + ger 1 }
       ? != tk2 fim { ! + toks @ 57 fim ! 57 + @ 57 1 } 0
       ! 58 0 poe b2 10 codifica b2 @ 58 toks
       = t3 T
-      "\n[pergunta: " N np0 " tokens em " N / - t2 t1 1000 " ms; resposta: " N ger " tokens, " G / F * ger 1000 F Mx 1 / - t3 t2 1000 " por segundo]\n> " 0 } 0
+      "\n[pergunta: " N np0 " tokens em " N / - t2 t1 1000 " ms; resposta: " N ger " tokens, " G / F * ger 1000 F Mx 1 / - t3 t2 1000 " por segundo]\n> " sai 0 } 0
     = c R }
   0 }

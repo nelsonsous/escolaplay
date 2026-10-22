@@ -2271,3 +2271,25 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 **Números:** 7B em 4 bits com cache de 4,3 GB, ~9,4 tokens/s e respostas certas em português. O 1.5B em 4 bits dá ~30 tokens/s.
 
 **Teste:** `Qe` contra a conta direta.
+
+---
+
+## Iteração 131: IA: ensinar o modelo (fine-tuning LoRA em Onda) e respostas a aparecer logo no terminal
+
+**Correção:** num terminal, as respostas só apareciam no fim (Ctrl+D), porque a saída da Onda vai para um buffer de 4096 bytes. O motor passa a despejá-la a cada palavra e a cada `>` (`sai` = `Pb` de 0 bytes, que esvazia o buffer).
+
+**Ensinar (`ia/ensina [1.5b|3b] exemplos.txt [passadas] ["sistema"]`):** fine-tuning LoRA no próprio Mac, todo em Onda.
+- Adaptadores de rank 16 (escala 2) nas 7 matrizes de cada camada (q, k, v, o, gate, up, down). O modelo original fica congelado e o que aprende vai para `ensinado.lora`, que o `ia/ia` carrega sozinho. `--esquece` apaga-o.
+- Avanço com as ativações guardadas por camada.
+- Perda de entropia cruzada só nos tokens da resposta, com os logits em pedaços de 32 tokens.
+- Retropropagação por todas as camadas:
+  - SwiGLU, atenção causal GQA (dP, dS, dq, dk, dv), RoPE inversa e RMSNorm;
+  - as matrizes congeladas passam o gradiente pelas suas transpostas a 8 bits, com o `Qd`.
+- Adam (taxa 0,0002, corte da norma em 1). Tudo em campos `E`.
+
+**Teste com 10 exemplos (1.5B, 6 passadas):**
+- A perda desce de 3,08 para 0,008.
+- O modelo responde com os factos ensinados (o que é a Onda, quem a criou, quem é ele), generaliza para chinês e não esquece o resto (a capital de França continua a ser Paris).
+- Cada exemplo de ~64 tokens leva ~4 s.
+
+**Lançador:** a cache já não se refaz quando o motor muda. Sem instruções de sistema, usa as por omissão em vez de instruções vazias.
