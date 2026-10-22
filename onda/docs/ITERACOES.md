@@ -2165,3 +2165,21 @@ Tentado e desfeito: expandir tambem os nucleos _mkc/_mks dentro do Cs expandido 
 O caminho rápido fica com 6 instruções.
 
 **Números:** contar bytes e linhas de 27 MB: 73 → 46 ms (~590 MB/s; C 20 ms); memória 1,4 MB. Um `cat` em Onda copia os 27 MB sem alterar um byte.
+
+---
+
+## Iteração 126: sem clang no Mac: a Onda escreve o executavel Mach-O ja assinado (-mx)
+
+**Camada tirada:** no Mac, o `-m` gerava um objeto e precisava do clang para o ligar. O `-mx`/`-mfx` escreve logo o executável final, já assinado.
+
+**O executável (`outmx` em `src/9arm64.onda`):**
+- segmentos `__PAGEZERO`, `__TEXT`, `__DATA` (`__got`, só com threads) e `__LINKEDIT`;
+- o dyld e a libSystem, com a entrada por `LC_MAIN`;
+- as 5 funções da libSystem (`sysconf`, `pthread_create`/`join`, `__ulock_wait`/`wake`) são chamadas por stubs `adrp`/`ldr`/`br` que leem o `__got`, preenchido pelo dyld (opcodes de bind);
+- a assinatura ad-hoc obrigatória no arm64: um CodeDirectory com o SHA-256 de cada página de 4 KiB, calculado pela própria Onda.
+
+**Construção:** o `build.sh` e o `--semente-arm64` passam a fechar o ponto fixo com `-mx`, por isso construir a Onda no Mac já não precisa do clang. O `./onda m` também usa o `-mx`.
+
+**Números:** compilar e ligar o grover: 60 → 21 ms; o compilador: 120 → 80 ms. O executável fica ~300 bytes mais pequeno e os tempos de execução são os mesmos.
+
+**Testes:** `macho`: o `-mx` passa no `codesign -v` e dá o mesmo que o `-m` ligado pelo clang, com e sem threads. O `verif` compara o `-mx` do compilador nativo com o da semente WASM.

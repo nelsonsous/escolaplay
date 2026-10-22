@@ -39,18 +39,17 @@ if [ "$1" = "--semente-x86" ]; then
   exit 0
 fi
 
-# --- arranque a partir da semente NATIVA arm64 (Apple Silicon), sem Node: o codigo-maquina e todo da Onda,
-# o clang so linka o objeto Mach-O (-m). Ponto fixo: a2 (feito por a1) e a3 (feito por a2) iguais ao byte.
+# --- arranque a partir da semente NATIVA arm64 (Apple Silicon), sem Node nem clang: a Onda escreve o executavel
+# Mach-O ja assinado (-mx). Ponto fixo: a2 (feito por a1) e a3 (feito por a2) iguais ao byte.
 if [ "$1" = "--semente-arm64" ]; then
-  echo "[0] a partir da semente nativa arm64 (sem Rust, sem C, sem Node; o clang so linka)"
-  LD="${CC:-cc}"
-  seed/ondac-arm64 -m < build/ondac.onda > build/a1.o && $LD build/a1.o -o build/a1
-  build/a1 -m < build/ondac.onda > build/a2.o && $LD build/a2.o -o build/a2
-  build/a2 -m < build/ondac.onda > build/a3.o
-  cmp build/a2.o build/a3.o
+  echo "[0] a partir da semente nativa arm64 (sem Rust, sem C, sem Node, sem clang)"
+  seed/ondac-arm64 -mx < build/ondac.onda > build/a1 && chmod +x build/a1
+  build/a1 -mx < build/ondac.onda > build/a2 && chmod +x build/a2
+  build/a2 -mx < build/ondac.onda > build/a3
+  cmp build/a2 build/a3
   cp build/a2 build/ondac
   cp build/a2 seed/ondac-arm64
-  echo "[ok] ponto fixo nativo arm64 (so Onda): objeto de $(wc -c < build/a2.o) bytes"
+  echo "[ok] ponto fixo nativo arm64 (so Onda, sem clang): $(wc -c < build/a2) bytes"
   exit 0
 fi
 
@@ -74,17 +73,17 @@ if [ "$(uname -s)-$(uname -m)" = "Linux-x86_64" ]; then
   cmp build/x2 build/x3
   cp build/x2 seed/ondac-x86-64
   echo "[ok] ponto fixo nativo x86-64 (so Onda): $(wc -c < build/x2) bytes"
-elif [ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ] && command -v "${CC:-cc}" >/dev/null; then
-  # no Mac M1: compilador nativo arm64 escrito pela Onda (-m), a partir da semente WASM acabada de fechar
-  LD="${CC:-cc}"
-  node wasm/host.js seed/ondac.wasm -m < build/ondac.onda > build/a1.o && $LD build/a1.o -o build/a1
-  build/a1 -m < build/ondac.onda > build/a2.o && $LD build/a2.o -o build/a2
-  build/a2 -m < build/ondac.onda > build/a3.o
-  cmp build/a1.o build/a2.o
-  cmp build/a2.o build/a3.o
+elif [ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ]; then
+  # no Mac M1: compilador nativo arm64 escrito pela Onda, ja executavel e assinado (-mx, sem clang nem linker),
+  # a partir da semente WASM acabada de fechar
+  node wasm/host.js seed/ondac.wasm -mx < build/ondac.onda > build/a1 && chmod +x build/a1
+  build/a1 -mx < build/ondac.onda > build/a2 && chmod +x build/a2
+  build/a2 -mx < build/ondac.onda > build/a3
+  cmp build/a1 build/a2
+  cmp build/a2 build/a3
   cp build/a2 build/ondac
   cp build/a2 seed/ondac-arm64
-  echo "[ok] ponto fixo nativo arm64 (so Onda; o clang so linka): objeto de $(wc -c < build/a2.o) bytes"
+  echo "[ok] ponto fixo nativo arm64 (so Onda, sem clang): $(wc -c < build/a2) bytes"
 else
   printf '#!/bin/sh\nexec node "%s/wasm/host.js" "%s/seed/ondac.wasm" "$@"\n' "$PWD" "$PWD" > build/ondac && chmod +x build/ondac
   echo "[i] build/ondac corre a semente WASM via Node (plataforma nao-Linux-x86_64, p.ex. o M1)"

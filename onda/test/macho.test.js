@@ -128,3 +128,20 @@ test('macho: S real no -m (sem -mf) calcula os termos em threads e soma pela ord
   const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')]);
   for (let k = 0; k < 3; k++) assert.ok(execFileSync(path.join(t, 'p')).equals(w), 'corrida ' + k);
 });
+
+test('macho: -mx escreve o executavel do Mac ja assinado (sem clang): corre, passa no codesign e da o mesmo que o -m ligado pelo clang, com e sem threads', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-mx-'));
+  const progs = [': main >i { "ola" P 10 N Ac P 10 7 }\n',
+                 ': q ii>i i k * - i k + i 3\n: f ii>f i k { * Sn F + i k 0.001 }\n: main >i { = n 100000 = a A n E a n q 5 N @ + a 777 " " N Bl S 300000 f 2 " " N S 200000 q 1 "\\n" 0 }\n'];
+  progs.forEach((src, i) => {
+    const x = path.join(t, 'x' + i), c = path.join(t, 'c' + i);
+    fs.writeFileSync(x, execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+    assert.equal(fs.readFileSync(x).readUInt32LE(12), 2, 'MH_EXECUTE');
+    execFileSync('codesign', ['-v', x]);
+    fs.writeFileSync(c + '.o', execFileSync(ondac, ['-m'], { input: Buffer.from(src) }));
+    execFileSync('cc', [c + '.o', '-o', c]);
+    const run = p => { try { return execFileSync(p, ['a', 'b']); } catch (e) { return Buffer.concat([e.stdout, Buffer.from(' st=' + e.status)]); } };
+    assert.ok(run(x).equals(run(c)), 'programa ' + i);
+  });
+});

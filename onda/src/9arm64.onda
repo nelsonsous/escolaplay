@@ -1681,6 +1681,164 @@
   P 0 P '_ P 'm P 'a P 'i P 'n P 0
   ? nr { "_sysconf" P 0 "_pthread_create" P 0 "_pthread_join" P 0 "___ulock_wait" P 0 "___ulock_wake" P 0 } 0
   0 }
+# -mx / -mfx: o EXECUTAVEL do Mac escrito pela Onda, sem o clang. O mesmo codigo do -m, mais: __PAGEZERO, __TEXT,
+# __DATA (__got, so com threads), __LINKEDIT; o dyld e a libSystem (LC_LOAD_DYLINKER/LC_LOAD_DYLIB, entrada por
+# LC_MAIN); as chamadas a libSystem vao a stubs (adrp/ldr/br) que leem o __got, preenchido pelo dyld (opcodes de
+# bind); e a assinatura ad-hoc (CodeDirectory SHA-256 por pagina de 4 KiB), obrigatoria no arm64.
+: ismx >i && ismo || == Av 1 2 'x == Av 1 3 'x
+: al4 ii>i x a * / + x - a 1 a a
+: xb4 i>i v { P & >> v 24 255 P & >> v 16 255 P & >> v 8 255 P & v 255 }
+: xb8 i>i v { xb4 >> v 32 xb4 & v 4294967295 }
+: hsr ii>i x n & | >> x n << x - 32 n 4294967295
+: hsk >i {
+  = k A 64
+  ! k 1116352408 ! + k 1 1899447441 ! + k 2 3049323471 ! + k 3 3921009573 ! + k 4 961987163 ! + k 5 1508970993 ! + k 6 2453635748 ! + k 7 2870763221
+  ! + k 8 3624381080 ! + k 9 310598401 ! + k 10 607225278 ! + k 11 1426881987 ! + k 12 1925078388 ! + k 13 2162078206 ! + k 14 2614888103 ! + k 15 3248222580
+  ! + k 16 3835390401 ! + k 17 4022224774 ! + k 18 264347078 ! + k 19 604807628 ! + k 20 770255983 ! + k 21 1249150122 ! + k 22 1555081692 ! + k 23 1996064986
+  ! + k 24 2554220882 ! + k 25 2821834349 ! + k 26 2952996808 ! + k 27 3210313671 ! + k 28 3336571891 ! + k 29 3584528711 ! + k 30 113926993 ! + k 31 338241895
+  ! + k 32 666307205 ! + k 33 773529912 ! + k 34 1294757372 ! + k 35 1396182291 ! + k 36 1695183700 ! + k 37 1986661051 ! + k 38 2177026350 ! + k 39 2456956037
+  ! + k 40 2730485921 ! + k 41 2820302411 ! + k 42 3259730800 ! + k 43 3345764771 ! + k 44 3516065817 ! + k 45 3600352804 ! + k 46 4094571909 ! + k 47 275423344
+  ! + k 48 430227734 ! + k 49 506948616 ! + k 50 659060556 ! + k 51 883997877 ! + k 52 958139571 ! + k 53 1322822218 ! + k 54 1537002063 ! + k 55 1747873779
+  ! + k 56 1955562222 ! + k 57 2024104815 ! + k 58 2227730452 ! + k 59 2361852424 ! + k 60 2428436474 ! + k 61 2756734187 ! + k 62 3204031479 ! + k 63 3329325298
+  k }
+# bloco de 64 bytes (um byte por palavra) a partir de s+b -> w[0..15] (big-endian)
+: hsld iii>i w s b { = i 0 W < i 16 { = p + s + b * i 4 ! + w i | | | << & @ p 255 24 << & @ + p 1 255 16 << & @ + p 2 255 8 & @ + p 3 255 = i + i 1 } 0 }
+: hsblk iii>i h w k {
+  = i 16
+  W < i 64 {
+    = u @ + w - i 15 = v @ + w - i 2
+    ! + w i & + + + ^ ^ hsr v 17 hsr v 19 >> v 10 @ + w - i 7 ^ ^ hsr u 7 hsr u 18 >> u 3 @ + w - i 16 4294967295
+    = i + i 1 }
+  = a0 @ h = a1 @ + h 1 = a2 @ + h 2 = a3 @ + h 3 = a4 @ + h 4 = a5 @ + h 5 = a6 @ + h 6 = a7 @ + h 7
+  = i 0
+  W < i 64 {
+    = e1 ^ ^ hsr a4 6 hsr a4 11 hsr a4 25
+    = cg ^ & a4 a5 & ^ a4 4294967295 a6
+    = t1 & + + + + a7 e1 cg @ + k i @ + w i 4294967295
+    = e0 ^ ^ hsr a0 2 hsr a0 13 hsr a0 22
+    = mj ^ ^ & a0 a1 & a0 a2 & a1 a2
+    = t2 & + e0 mj 4294967295
+    = a7 a6 = a6 a5 = a5 a4 = a4 & + a3 t1 4294967295 = a3 a2 = a2 a1 = a1 a0 = a0 & + t1 t2 4294967295
+    = i + i 1 }
+  ! h & + @ h a0 4294967295 ! + h 1 & + @ + h 1 a1 4294967295 ! + h 2 & + @ + h 2 a2 4294967295 ! + h 3 & + @ + h 3 a3 4294967295
+  ! + h 4 & + @ + h 4 a4 4294967295 ! + h 5 & + @ + h 5 a5 4294967295 ! + h 6 & + @ + h 6 a6 4294967295 ! + h 7 & + @ + h 7 a7 4294967295
+  0 }
+# SHA-256 de n bytes em s (um por palavra); escreve os 32 bytes do resumo
+: hsha iii>i s n k {
+  = h A 8
+  ! h 1779033703 ! + h 1 3144134277 ! + h 2 1013904242 ! + h 3 2773480762
+  ! + h 4 1359893119 ! + h 5 2600822924 ! + h 6 528734635 ! + h 7 1541459225
+  = w A 64
+  = t A 128
+  = b 0
+  W <= + b 64 n { hsld w s b hsblk h w k = b + b 64 }
+  = r - n b
+  = i 0 W < i r { ! + t i @ + s + b i = i + i 1 }
+  ! + t r 128
+  = m ? < r 56 64 128
+  = i + r 1 W < i - m 8 { ! + t i 0 = i + i 1 }
+  = bits * n 8
+  = i 0 W < i 8 { ! + t + - m 8 i & >> bits * 8 - 7 i 255 = i + i 1 }
+  hsld w t 0 hsblk h w k
+  ? == m 128 { hsld w t 64 hsblk h w k } 0
+  = i 0 W < i 8 { xb4 @ + h i = i + i 1 }
+  0 }
+: outmx >i {
+  O 16
+  = estart @ 16
+  = dp aentm
+  = elen - @ 16 estart
+  O 0
+  abls estart elen - + estart elen 24
+  = ft aftot
+  apimm dp 10 - + elen ft - - dp 4 estart
+  = clen + + elen ft * 8 - @ 20 64
+  = nr ? > @ 66 0 @ @ 66 0
+  = ni ? nr 5 0
+  = bse 4294967296
+  # disposicao: cabecalho+comandos | codigo (+ stubs) | __got | __LINKEDIT (bind, strings, assinatura)
+  = st0 al4 clen 4
+  = cl + st0 * 12 ni
+  = nseg ? ni 4 3
+  = cmds + + * 72 nseg 80 ? ni 80 0
+  = cmds + + + + cmds 48 24 80 32
+  = cmds + + + + cmds 24 56 24 16
+  = tof al4 + 32 cmds 16
+  = tsz al4 + tof cl 16384
+  = dsz ? ni 16384 0
+  = lof + tsz dsz
+  = bl ? ni 104 8
+  = syo + lof bl
+  = cso al4 + syo 2 16
+  = nsl / + cso 4095 4096
+  = cdl + 93 * 32 nsl
+  = sbl + 20 cdl
+  = les - + cso sbl lof
+  # cada bl externo passa a ir ao stub do seu simbolo (0 _sysconf .. 4 ___ulock_wake)
+  = j 0
+  W < j nr {
+    = q @ + @ 66 + 1 * j 2
+    = s @ + @ 66 + 2 * j 2
+    = ro - + elen q @ fe 0 8
+    xput4 q | 0x94000000 & / - + st0 * 12 s ro 4 0x3FFFFFF
+    = j + j 1 }
+  # o ficheiro ate a assinatura vai para a memoria (um byte por palavra), para se fazer o SHA-256 das paginas
+  = fb A + cso 64
+  = cur A 1
+  ! cur fb
+  O cur
+  x4 0xFEEDFACF x4 0x0100000C x4 0 x4 2 x4 + nseg 8 x4 cmds x4 0x200085 x4 0
+  x4 0x19 x4 72 "__PAGEZERO" az 6 x8 0 x8 bse x8 0 x8 0 x4 0 x4 0 x4 0 x4 0
+  x4 0x19 x4 152 "__TEXT" az 10 x8 bse x8 tsz x8 0 x8 tsz x4 5 x4 5 x4 1 x4 0
+  "__text" az 10 "__TEXT" az 10 x8 + bse tof x8 cl x4 tof x4 2 x4 0 x4 0 x4 0x80000400 x4 0 x4 0 x4 0
+  ? ni {
+    x4 0x19 x4 152 "__DATA" az 10 x8 + bse tsz x8 dsz x8 tsz x8 dsz x4 3 x4 3 x4 1 x4 0
+    "__got" az 11 "__DATA" az 10 x8 + bse tsz x8 40 x4 tsz x4 3 x4 0 x4 0 x4 0 x4 0 x4 0 x4 0 } 0
+  x4 0x19 x4 72 "__LINKEDIT" az 6 x8 + bse lof x8 al4 les 16384 x8 lof x8 les x4 1 x4 1 x4 0 x4 0
+  x4 0x80000022 x4 48 x4 0 x4 0 x4 lof x4 bl x4 0 x4 0 x4 0 x4 0 x4 0 x4 0
+  x4 2 x4 24 x4 syo x4 0 x4 syo x4 2
+  x4 0xB x4 80 az 72
+  x4 0xE x4 32 x4 12 "/usr/lib/dyld" az 7
+  x4 0x80000028 x4 24 x8 tof x8 0
+  x4 0xC x4 56 x4 24 x4 2 x4 0x05000000 x4 0x00010000 "/usr/lib/libSystem.B.dylib" az 6
+  x4 0x32 x4 24 x4 1 x4 0x000B0000 x4 0x000B0000 x4 0
+  x4 0x1D x4 16 x4 cso x4 sbl
+  az - tof + 32 cmds
+  ew estart elen
+  = k 0 W < k @ 6 { ew @ fe k 8 - @ fe k 9 @ fe k 8 = k + k 1 }
+  adata
+  az - st0 clen
+  = s 0
+  W < s ni {
+    = pc + + bse tof + st0 * 12 s
+    = tg + + bse tsz * 8 s
+    = pg - >> tg 12 >> pc 12
+    x4 | | 0x90000010 << & pg 3 29 << & >> pg 2 0x7FFFF 5
+    x4 | 0xF9400210 << / & tg 0xFFF 8 10
+    x4 0xD61F0200
+    = s + s 1 }
+  az - tsz + tof cl
+  az dsz
+  ? ni {
+    P 0x11 P 0x40 "_sysconf" P 0 P 0x51 P 0x72 P 0 P 0x90
+    P 0x11 P 0x40 "_pthread_create" P 0 P 0x51 P 0x72 P 8 P 0x90
+    P 0x11 P 0x40 "_pthread_join" P 0 P 0x51 P 0x72 P 16 P 0x90
+    P 0x11 P 0x40 "___ulock_wait" P 0 P 0x51 P 0x72 P 24 P 0x90
+    P 0x11 P 0x40 "___ulock_wake" P 0 P 0x51 P 0x72 P 32 P 0x90
+    az 7 } { az 8 }
+  P 32 P 0
+  az - cso + syo 2
+  O 0
+  ew fb cso
+  # assinatura: SuperBlob com um CodeDirectory (big-endian): ad-hoc + linker-signed, SHA-256, paginas de 4 KiB
+  xb4 0xFADE0CC0 xb4 sbl xb4 1 xb4 0 xb4 20
+  xb4 0xFADE0C02 xb4 cdl xb4 0x20400 xb4 0x20002 xb4 93 xb4 88 xb4 0 xb4 nsl xb4 cso
+  P 32 P 2 P 0 P 12 xb4 0 xb4 0 xb4 0 xb4 0 xb8 0 xb8 0 xb8 tsz xb8 1
+  "onda" P 0
+  = hk hsk
+  = p 0
+  W < p nsl { = o * p 4096 = ln ? > + o 4096 cso - cso o 4096 hsha + fb o ln hk = p + p 1 }
+  0 }
 : outa >i {
   = base 4194304
   = mbase 268435456
