@@ -29,11 +29,15 @@ baixa() { [ -s "$C/$1" ] && return 0; echo "a descarregar $1 ..." >&2; curl -fL 
 baixa config.json
 baixa tokenizer.json
 baixa tokenizer_config.json || true
-if [ -s "$C/model.safetensors.index.json" ] || { [ ! -s "$C/model.safetensors" ] && curl -fsI "$u/model.safetensors.index.json" >/dev/null 2>&1; }; then
-  baixa model.safetensors.index.json
-  for f in $(python3 -c "import json,sys; print(' '.join(sorted(set(json.load(open(sys.argv[1]))['weight_map'].values()))))" "$C/model.safetensors.index.json"); do baixa "$f"; done
-else
-  baixa model.safetensors
+# os pesos originais (safetensors, GB) so se descarregam quando ainda nao ha nenhuma cache quantizada; depois de
+# existir uma, podem apagar-se para libertar espaco (a cache basta para conversar e so o treino precisa de 8 bits).
+if ! ls "$C"/qwen.q* >/dev/null 2>&1; then
+  if [ -s "$C/model.safetensors.index.json" ] || { [ ! -s "$C/model.safetensors" ] && curl -fsI "$u/model.safetensors.index.json" >/dev/null 2>&1; }; then
+    baixa model.safetensors.index.json
+    for f in $(python3 -c "import json,sys; print(' '.join(sorted(set(json.load(open(sys.argv[1]))['weight_map'].values()))))" "$C/model.safetensors.index.json"); do baixa "$f"; done
+  else
+    baixa model.safetensors
+  fi
 fi
 grep -q prep-dois "$C/qwen.prep" 2>/dev/null || { python3 "$D/prep.py" "$C" > "$C/qwen.prep.part" && mv "$C/qwen.prep.part" "$C/qwen.prep"; }
 # o motor, compilado pela Onda para executavel do Mac (sem clang); recompila se o qwen.onda ou o compilador mudarem
@@ -46,6 +50,9 @@ grande=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print(1 if
 bits="${ONDA_IA_BITS:-$([ "$grande" = 1 ] && echo 4 || echo 8)}"
 K="$C/qwen.q$bits"
 if [ ! -s "$K" ]; then
+  if ! ls "$C"/model*.safetensors >/dev/null 2>&1; then
+    echo "ia: falta a cache de $bits bits e os pesos originais foram apagados. Apaga a pasta $C e corre de novo para descarregar." >&2; exit 1
+  fi
   echo "a preparar o modelo em $bits bits (so da primeira vez)..." >&2
   cat "$C/qwen.prep" "$C"/model*.safetensors | "$B" --guarda "$bits" > "$K.part" && mv "$K.part" "$K"
 fi
