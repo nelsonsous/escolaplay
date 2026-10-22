@@ -92,11 +92,14 @@
   = pp @ 37 = r / i pp = t % i pp = m @ 40 = c @ + m 1 = x + @ 48 * t @ 49
   ? == @ + m 4 4 Qe + @ + m 3 * r + / c 16 / c 128 x c * @f + @ + m 2 r Qd + @ + m 3 * r / c 8 x c }
 : ftrb i>f i { = rr @ 43 = t / i rr = r % i rr @f + @ 39 + * r @ 37 t }
-: mvm iii>i m x y {
-  = c @ + m 1 = pp @ 37 = rr @ m
-  = t 0 W < t pp { qx + x * t c c + @ 48 * t @ 49 = t + t 1 }
+# quantiza o vetor de entrada (uma vez por token) para @48; o @46 guarda a dimensao quantizada atual
+: qxv ii>i x c { = pp @ 37 = t 0 W < t pp { qx + x * t c c + @ 48 * t @ 49 = t + t 1 } ! 44 c 0 }
+# matriz x vetor ja quantizado em @48 (nao requantiza): para q/k/v e gate/up, que partilham a entrada
+: mvmq ii>i m y {
+  = pp @ 37 = rr @ m
   ! 40 m
   ? == pp 1 { E y rr mvb 0 } { E @ 39 * rr pp mvb ! 43 rr E y * pp rr ftrb 0 } }
+: mvm iii>i m x y { qxv x @ + m 1 mvmq m y }
 : tens ii>i l k @ + @ 10 + * l 12 k
 # configuracao de cada modelo (@62; as caches antigas do Qwen nao a tem: valores do Qwen): 0 epsilon x 1e9
 # 1 RoPE do Llama 3 2 fator 3 baixa 4 alta (x 1000) 5 contexto original 6 <|im_start|> 7 <|im_end|> 8 outro fim
@@ -181,9 +184,10 @@
   W < l @ 2 {
     ! 32 l
     rms @ 14 @ 13 tens l 0
-    mvm tens l 1 @ 14 @ 15 lfw l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
-    mvm tens l 3 @ 14 @ 16 lfw l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
-    mvm tens l 5 @ 14 @ 17 lfw l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
+    qxv @ 14 hh
+    mvmq tens l 1 @ 15 lfw l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
+    mvmq tens l 3 @ 16 lfw l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
+    mvmq tens l 5 @ 17 lfw l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
     rope @ 15 nh hh
     rope @ 16 @ 4 kvd
     # guarda k e v do lote na cache desta camada
@@ -197,8 +201,9 @@
     acum @ 13 @ 19 hh
     # MLP (SwiGLU)
     rms @ 14 @ 13 tens l 8
-    mvm tens l 9 @ 14 @ 20 lfw l 9 @ 14 @ 20
-    mvm tens l 10 @ 14 @ 21 lfw l 10 @ 14 @ 21
+    qxv @ 14 hh
+    mvmq tens l 9 @ 20 lfw l 9 @ 14 @ 20
+    mvmq tens l 10 @ 21 lfw l 10 @ 14 @ 21
     E @ 22 * pp ff fsilu
     mvm tens l 11 @ 22 @ 23 lfw l 11 @ 22 @ 23
     acum @ 13 @ 23 hh

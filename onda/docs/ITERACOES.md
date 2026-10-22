@@ -2327,3 +2327,13 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 **Resultado:** o Hermes 3 (4,5 GB) carrega em ~0-30 ms (eram ~2000 ms) e a memoria e partilhada/a-pedido. As respostas sao as mesmas.
 
 **Teste:** `Fm` mapeia um ficheiro e le as suas palavras.
+
+---
+
+## Iteração 134: IA: quantizar a entrada uma so vez para q/k/v e gate/up (menos trabalho por token)
+
+**Ponto 6 (fusao parcial):** o motor quantizava o mesmo vetor de entrada a 8 bits tres vezes (para q, k, v) e duas vezes (para gate, up), porque partilham a entrada. Agora quantiza-se uma vez (`qxv`) e cada projecao usa o resultado (`mvmq`). A matematica e identica; faz-se menos ~40% das quantizacoes de ativacoes por camada.
+
+O `mvm` continua a existir (quantiza + multiplica) para as projecoes com entrada propria (saida da atencao, down) e para o treino.
+
+Ganho modesto (~5-10%) porque a geracao esta limitada pela largura de banda da memoria, nao pelo calculo: cada token le todos os pesos do modelo uma vez. O salto grande e a GPU.
