@@ -1417,6 +1417,19 @@
   ? == k 19 { astod d a = q @ 16 ab 0 = m - 0 aipop W > m 0 { ap19 aipop = m - m 1 } aipush q }
   ? == k 20 { astod d a apb aipop }
   ? == k 28 { agT 0 a acallf aro 'a asT 0 d }
+  ? == k 66 {
+    # Qe: x9 = &w (nibbles), x1 = escalas bf16 de w (depois dos n/2 bytes), x10 = &x, x11 = escalas de x, x12 = blocos
+    = ra aox 9 a aaddlsl 9 28 ra 3
+    = rb aox 10 b aaddlsl 10 28 rb 3
+    = rc aox 11 c aasri 12 rc 5 aasri 1 rc 1 aadd 1 9 1 aadd 11 10 rc
+    x4 0x9E6703E0 x4 0x4F00E507
+    = lq @ 16
+    x4 0x3CC10521 x4 0x4F0C5422 x4 0x6F0C0442 x4 0x6F0C0423 x4 0x6E278442 x4 0x6E278463 x4 0xACC11544
+    x4 0x6F00E406 x4 0x4E849446 x4 0x4E859466 x4 0x4EB1B8C6 x4 0x0F20A4C6 x4 0x5E61D8C6
+    x4 0x78402422 x4 0x53103C42 x4 0x1E270041 x4 0x1E22C021 x4 0x1E6108C6
+    x4 0xFC408561 x4 0x1F4100C0 x4 0xF100058C
+    abcc 0x1 - lq @ 16
+    = r adf 0 d ? != r 0 x4 | 0x1E604000 r 0 afd r d }
   ? == k 64 {
     # Qd: x9 = &w, x10 = &x, x11 = escalas (depois dos n bytes de x), x12 = n/32 blocos; soma em d0
     = ra aox 9 a aaddlsl 9 28 ra 3

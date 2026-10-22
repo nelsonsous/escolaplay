@@ -204,3 +204,11 @@ test('macho: Pb escreve bytes crus da memoria pela ordem certa (depois do texto 
   assert.ok(execFileSync(path.join(t, 'c'), { input: inp }).equals(want), 'C');
   assert.ok(execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')], { input: inp }).equals(want), 'WASM');
 });
+
+test('macho: Qe (pesos de 4 bits com escala bf16 por bloco, x de 8 bits) da o mesmo que a conta direta', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const src = ': bfd i>f b { = e & >> b 7 255 ? == e 0 0.0 Bw | | << >> b 15 31 << + e 896 20 << & b 127 13 0 }\n: main >i {\n  = n 64 = c16 / n 16\n  = w A + c16 1 = x A + / n 8 / n 32\n  # pesos: nibble do peso g = (g*5+3) % 16; escalas bf16 0x3F80 (1.0) e 0x4000 (2.0)\n  = g 0 W < g n { = b / g 32 = j % g 32 = by + * b 16 % j 16 = sh + * 8 % by 8 ? < j 16 0 4\n    ! + w / by 8 | @ + w / by 8 << % + * g 5 3 16 sh = g + g 1 }\n  ! + w c16 | 16256 << 16384 16\n  = j 0 W < j n { ! + x / j 8 | @ + x / j 8 << & - % * j 7 11 5 255 * 8 % j 8 = j + j 1 }\n  !f + x / n 8 0.5 !f + + x / n 8 1 3.0\n  = ref 0.0 = g 0 W < g n { = b / g 32 = wv - % + * g 5 3 16 8 = xv - % * g 7 11 5\n    = sw ? == b 0 1.0 2.0 = sx ? == b 0 0.5 3.0 = ref + ref * * sw sx F * wv xv = g + g 1 }\n  G Qe w x n " " G ref "\\n" 0 }\n';
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-qe-'));
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  assert.equal(execFileSync(path.join(t, 'x')).toString(), '238 238\n');
+});

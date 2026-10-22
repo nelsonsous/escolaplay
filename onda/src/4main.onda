@@ -51,6 +51,13 @@
   = w cx = x cx = n cx ckint w ckint x ckint n
   ? ~ isa { ebeg "Qd so no -a/-m (arm64)" eend } 0
   = r nt 1 ir 64 r w x n 0 0 r }
+# Qe w x n: como o Qd, mas os pesos tem 4 bits (como o Q4_0 do llama.cpp): por cada bloco de 32, 16 bytes (nibble
+# baixo = pesos 0..15, alto = 16..31, guardados com +8) e, depois dos n/2 bytes da linha, uma escala bf16 por bloco.
+# Vale soma_b escala_w_b * escala_x_b * (w.x)_b. So no -a/-m (NEON: and/ushr, sub 8 e sdot).
+: cqe >i {
+  = w cx = x cx = n cx ckint w ckint x ckint n
+  ? ~ isa { ebeg "Qe so no -a/-m (arm64)" eend } 0
+  = r nt 1 ir 66 r w x n 0 0 r }
 # Rb p n: le ate n bytes do stdin para M[p..] (um byte por palavra); vale quantos leu (menos de n so no fim). No arm64
 # e a rotina _rb (copia do buffer do R); nas outras formas, um ciclo de R.
 : crb >i {
@@ -348,6 +355,7 @@
   ? == o k2 'R 'b crb
   ? == o k2 'R 'p crp
   ? == o k2 'Q 'd cqd
+  ? == o k2 'Q 'e cqe
   ? == o k2 'P 'b cpb
   ? == o 'N cnum
   ? == o 'G cgf

@@ -2249,3 +2249,25 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 **Compilador:** `Pb p n` (nova) escreve n bytes crus da memória no stdout.
 - No arm64 é a rotina `_pb`, que faz `write()` direto e esvazia antes o buffer do `P`, para a ordem ficar certa.
 - Nas outras formas é um ciclo de `P`. Há teste com arm64 = C = WASM.
+
+---
+
+## Iteração 130: IA: modelo 7B em 4 bits (Qe: nibbles + sdot) a ~9 tokens/s em 5 GB
+
+**Problema:** o Qwen2.5-7B em 8 bits ocupa ~9 GB. Num Mac de 16 GB com outras aplicações abertas ia ao swap: respondia certo, mas a 0,1 tokens/s.
+
+**`Qe w x n` (operação nova):** produto interno de pesos de 4 bits por blocos de 32 (16 bytes de nibbles guardados com +8; nibble baixo = pesos 0..15, alto = 16..31) com ativações de 8 bits.
+- Cada linha tem a seguir uma escala bf16 por bloco, como o Q4_0 do llama.cpp, a 4,5 bits por peso.
+- No arm64 é um ciclo NEON em linha:
+  - `shl`/`ushr` separam os nibbles e `sub 8` tira o desvio;
+  - dois `sdot` fazem as 32 multiplicações;
+  - a escala bf16 passa a real com `ldrh` + `lsl 16` + `fcvt`.
+
+**Motor:**
+- `--guarda 4` quantiza a 4 bits, num `E` sobre as palavras de cada linha, com escala = max/7 truncada para bf16.
+- O registo de cada matriz guarda o formato; o produto e o embedding escolhem entre 8 e 4 bits.
+- O `ia/ia` usa 4 bits no 7b e 8 bits nos outros (`ONDA_IA_BITS` escolhe).
+
+**Números:** 7B em 4 bits com cache de 4,3 GB, ~9,4 tokens/s e respostas certas em português. O 1.5B em 4 bits dá ~30 tokens/s.
+
+**Teste:** `Qe` contra a conta direta.

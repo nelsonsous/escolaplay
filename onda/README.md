@@ -19,7 +19,8 @@ A **Onda Viva** vai mais longe: um programa com o compilador embutido que gera v
 ./onda c ex/fib.onda        # C portatil
 ./onda gpu ex/julia.onda px # GLSL para a GPU
 build/ondac -x < ex/pi.onda > pi && chmod +x pi   # executavel x86-64 escrito pela Onda, sem C nem assembler
-build/ondac -m < ex/pi.onda > pi.o && cc pi.o -o pi # Mac M1: codigo-maquina arm64 escrito pela Onda (o cc so linka)
+build/ondac -mx < ex/pi.onda > pi && chmod +x pi   # Mac M1: executavel arm64 assinado, escrito pela Onda (sem clang)
+ia/ia 3b                    # IA no Mac: conversa com um modelo aberto (Qwen2.5) num motor escrito em Onda
 ./onda circ ex/oraculo.onda alvo                  # a funcao vira um circuito (AIGER); -v da Verilog
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
@@ -29,6 +30,26 @@ sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesm
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
 ```
+
+## IA no Mac (`ia/`)
+
+`ia/ia [1.5b|3b|7b] ["instruções de sistema"]` conversa com um modelo de linguagem aberto (Qwen2.5 Instruct) no próprio Mac, sem servidor nem GPU. Fala português, inglês, chinês e muitas outras línguas.
+
+- **Da primeira vez:** descarrega o modelo do Hugging Face para `~/.cache/onda-ia`, prepara-o (`ia/prep.py`), compila o motor e guarda o modelo em 8 bits.
+- **Depois:** arranca em ~1 s; escreve-se uma mensagem por linha e o `ctrl-D` sai.
+- **Instruções de sistema:** dizem ao modelo quem ele é e como deve responder.
+
+O motor (`ia/qwen.onda`) está todo em Onda:
+- **Pesos:** passam de bf16 a 8 bits por linha. O 7b vai a 4 bits por blocos de 32 com escala bf16, como o Q4_0 (`ONDA_IA_BITS` escolhe), e o produto usa o `Qe`.
+- **Camadas:** RMSNorm, RoPE, atenção GQA causal com cache k/v, MLP SwiGLU.
+- **Texto:** tokenizador BPE de bytes e modelo de conversa ChatML.
+- **Paralelo:** cada passo é um campo. Os produtos matriz×vetor são `E` sobre as linhas, com `Qd` (`sdot` do NEON, 16 multiplicações por instrução), e a pergunta é lida em lotes de 64 tokens.
+
+| modelo | download | memória | resposta (M1 Pro) |
+|---|---|---|---|
+| 1.5b | 3 GB | ~2 GB | ~26 tokens/s |
+| 3b | 6 GB | ~4 GB | ~15 tokens/s |
+| 7b | 15 GB | ~5 GB (4 bits) | ~9 tokens/s |
 
 ## Estrutura
 

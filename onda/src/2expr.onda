@@ -213,13 +213,13 @@
 # custo estimado por elemento (para o limiar do paralelo): tokens do corpo, +1000 por ciclo ou recursao, +40 por
 # Sn/Cs/Ex/Lg/At/Pw, e o custo das funcoes que chama. Acordar as threads custa uns microssegundos: so compensa
 # quando n * custo e grande. Limiar = 600000/custo elementos, entre 4096 e 2^20.
-: pheavy i>i c || || || == c k2 'Q 'd == c k2 'S 'n == c k2 'C 's || || == c k2 'E 'x == c k2 'L 'g || == c k2 'A 't == c k2 'P 'w
+: pheavy i>i c || || || || == c k2 'Q 'd == c k2 'Q 'e == c k2 'S 'n == c k2 'C 's || || == c k2 'E 'x == c k2 'L 'g || == c k2 'A 't == c k2 'P 'w
 : pcost ii>i k d {
   = e fend k = j @ fe k 5 = c 0
   W && < j e < d 8 {
     = kk tkk j
     ? == kk 0 { = f ffun j ? >= f 0 { ? == f k { = c + c 1000 } { = c + + c 20 pcost f + d 1 } } 0 } 0
-    ? == kk 5 { = o tcode j ? || == o 'W == o k2 'Q 'd = c + c 1000 0 ? pheavy o = c + c 40 0 } 0
+    ? == kk 5 { = o tcode j ? || || == o 'W == o k2 'Q 'd == o k2 'Q 'e = c + c 1000 0 ? pheavy o = c + c 40 0 } 0
     = c + c 1
     = j + j 1 }
   c }
