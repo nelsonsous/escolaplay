@@ -1,0 +1,11 @@
+# Conta bytes e linhas do stdin, como o `wc -c -l`, pelo paradigma de campo: le blocos de 256 Ki bytes com Rb (de uma
+# vez, sem um R por byte) e conta as quebras de linha de cada bloco com um S, que no -m corre em todos os nucleos.
+# A memoria fica fixa (o bloco: 2 MiB) seja qual for o tamanho do ficheiro: 100 GB leem-se com os mesmos 2 MiB.
+: nl ii>i i b == @ + b i 10
+: main >i {
+  = z 262144
+  = b A z
+  = n 0 = l 0
+  = k Rb b z
+  W > k 0 { = n + n k = l + l S k nl b = k Rb b z }
+  N n " " N l "\n" 0 }

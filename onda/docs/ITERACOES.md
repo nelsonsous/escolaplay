@@ -2183,3 +2183,26 @@ O caminho rápido fica com 6 instruções.
 **Números:** compilar e ligar o grover: 60 → 21 ms; o compilador: 120 → 80 ms. O executável fica ~300 bytes mais pequeno e os tempos de execução são os mesmos.
 
 **Testes:** `macho`: o `-mx` passa no `codesign -v` e dá o mesmo que o `-m` ligado pelo clang, com e sem threads. O `verif` compara o `-mx` do compilador nativo com o da semente WASM.
+
+---
+
+## Iteração 127: leitura mais rapida que o C: R sem saltos tomados e Rb (blocos com NEON)
+
+**R byte a byte (arm64):**
+- a posição do buffer fica no `x27`, fora do alocador, em programas com `R` ou `Y` (marca no slot 67, só no `-a`/`-m`);
+- o fim do buffer fica em `M[-14]`, porque só muda quando o buffer é recarregado;
+- o caminho rápido é `adr`, `ldur`, `cmp`, `b.hs` (não tomado) e `ldrb` com pós-incremento;
+- o enchimento do buffer vai para uma rotina partilhada fora de linha (`_rs`, campo 12 = -2), que volta por `x17`;
+- o patcher de chamadas passou a corrigir também os `b.cond`.
+
+Contar bytes e linhas de 27 MB: 46 → 30 ms.
+
+**`Rb p n` (operação nova):** lê até n bytes do stdin para `M[p..]`, um byte por palavra, e vale quantos leu.
+- No arm64 é a rotina `_rb` (campo 12 = -3), que copia do buffer do `R` e alarga 16 bytes de cada vez em NEON (`ldr q`, três níveis de `uxtl`, `st1` de 64 bytes).
+- Nas outras formas é um ciclo de `R`, com o mesmo resultado (há teste: arm64 = C = WASM).
+
+**Exemplo novo (`ex/conta.onda`):** lê blocos de 256 Ki com `Rb` e conta as linhas com um `S` paralelo.
+- 270 MB em 90 ms (~3 GB/s), com 3,6 MB de memória para qualquer tamanho de ficheiro;
+- o `wc` em C (`clang -O3`) faz 127 ms, o mesmo programa compilado para C faz 176 ms e o `wc` do sistema 278 ms.
+
+**Correção:** o buffer de 64 KiB do it.125 invadia os slots das threads (`pjs`). O `arb` passa para 33545728, a acabar onde os slots começam.

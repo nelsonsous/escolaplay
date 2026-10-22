@@ -145,3 +145,19 @@ test('macho: -mx escreve o executavel do Mac ja assinado (sem clang): corre, pas
     assert.ok(run(x).equals(run(c)), 'programa ' + i);
   });
 });
+
+test('macho: Rb le blocos do stdin (NEON no -m) e da o mesmo que o C e o WebAssembly, com R pelo meio e blocos de todos os restos', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-rb-'));
+  const src = ': nl ii>i i b == @ + b i 10\n: sb ii>i i b * + i 1 @ + b i\n' +
+              ': main >i { = b A 1000 = n 0 = l 0 = h 0 = z 1 = c R W >= c 0 { = h + h c = k Rb b z = n + n k = l + l S k nl b = h + h S k sb b = z + % * z 7 997 1 = c ? > k 0 R -1 }\n' +
+              '  N n " " N l " " N h "\\n" 0 }\n';
+  let inp = ''; for (let i = 0; i < 70000; i++) inp += String.fromCharCode(32 + (i * 7919) % 90) + (i % 61 === 0 ? '\n' : '');
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  fs.writeFileSync(path.join(t, 'p.c'), execFileSync(ondac, [], { input: Buffer.from(src) }));
+  execFileSync('cc', ['-O2', '-w', path.join(t, 'p.c'), '-o', path.join(t, 'c'), '-lm']);
+  const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')], { input: inp });
+  assert.ok(execFileSync(path.join(t, 'x'), { input: inp }).equals(w), 'arm64 = WASM');
+  assert.ok(execFileSync(path.join(t, 'c'), { input: inp }).equals(w), 'C = WASM');
+});

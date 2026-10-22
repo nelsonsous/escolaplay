@@ -19,7 +19,7 @@
   = j 0
   W < j np { ? > j 0 "," 0 ? isjs "v_" { ety fpt k j " v_" } etx + @ fe k 4 j = j + j 1 }
   ")" }
-: cfun i>i k ? == @ fe k 12 1 aprn k ? > @ fe k 12 1 cdrv k cfun0 k
+: cfun i>i k ? == @ fe k 12 -2 arsn k ? == @ fe k 12 -3 arbn k ? == @ fe k 12 1 aprn k ? > @ fe k 12 1 cdrv k cfun0 k
 : cfun0 i>i k {
   ! 13 k
   ! 9 0
@@ -188,6 +188,7 @@
   ? || == o '! == o k2 '! 'f = b 1 0
   ? || == o 'A == o 'P = b 1 0
   ? || == o 'R == o 'N = b 1 0
+  ? == o k2 'R 'b = b 1 0
   ? || == o 'G == o 'O = b 1 0
   ? || == o 'X == o 'E = b 1 0
   ? || == o 'D == o 'V = b 1 0
