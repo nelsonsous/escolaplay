@@ -40,6 +40,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `A n` | 1 | reserva n palavras a zero; devolve o endereço |
 | `P x` `N x` `G x` | 1 | imprime um byte / um inteiro / um real |
 | `R` | 0 | lê um byte (-1 no fim) |
+| `Rb p n` | 2 | lê até n bytes do stdin para M[p..] (um byte por palavra); vale quantos leu (menos de n só no fim) |
 | `O p` | 1 | desvia a saída para a memória (M[p] = cursor); `O 0` repõe o stdout |
 | `Ac` / `Av i j` | 0/2 | número de argumentos / byte j do argumento i |
 | `X c` | 1 | sai com o código c |
