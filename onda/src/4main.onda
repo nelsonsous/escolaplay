@@ -30,6 +30,20 @@
     ir 20 t lit1 0 0 0 0 0
     ir 23 0 0 0 0 0 0
     getl c } }
+# Pb p n: escreve no stdout n bytes crus da memoria a partir de M[p] (8 por palavra, little-endian); vale n. No arm64 e
+# a rotina _pb (write() direto da memoria); nas outras formas, um ciclo de P.
+: cpb >i {
+  = p cx = n cx ckint p ckint n
+  ? isa { = r nt 0 ir 65 r p n 0 0 0 r } {
+    = c newl 0 setl c lit1 0
+    ir 21 0 0 0 0 0 0
+    ir 22 0 cmpx '< getl c n 0 0 0 0 0
+    = ve nt 0
+    ir 24 ve binx '+ 0 p binx k2 '> '> 0 getl c lit1 3 0 0 0 0
+    ir 29 0 binx '& 0 binx k2 '> '> 0 ve binx k2 '< '< 0 binx '& 0 getl c lit1 7 lit1 3 lit1 255 0 0 0 0
+    setl c binx '+ 0 getl c lit1 1
+    ir 23 0 0 0 0 0 0
+    n } }
 # Qd w x n: produto interno de n inteiros de 8 bits (n multiplo de 32, > 0): w e x sao enderecos de palavras com 8
 # bytes cada (com sinal); a seguir aos n bytes de x vem uma escala real por bloco de 32. Vale soma_b escala_b * (w.x)_b
 # (como o Q8_0 do llama.cpp). So no -a/-m, onde e um ciclo NEON com sdot (16 multiplicacoes por instrucao).
@@ -334,6 +348,7 @@
   ? == o k2 'R 'b crb
   ? == o k2 'R 'p crp
   ? == o k2 'Q 'd cqd
+  ? == o k2 'P 'b cpb
   ? == o 'N cnum
   ? == o 'G cgf
   ? == o 'O csnk

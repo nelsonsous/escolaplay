@@ -44,10 +44,12 @@
     E d / * r c 8 fq
     m }
   { = v A r E v r fv v } }
-# --- produto matriz (8 bits) x vetor (8 bits, por blocos de 32 com escala, como o Q8_0 do llama.cpp):
-# y[r] = escala[r] * Qd(linha r, x quantizado); o Qd e um ciclo NEON com sdot (16 multiplicacoes por instrucao) ---
-: qx ii>i x n {
-  = q @ 48 = sc + q / n 8 = b 0
+# --- um lote de P tokens (@37) nas posicoes pos0 (@38) .. pos0+P-1; a geracao e um lote de 1. Os vetores do lote
+# estao por token: x[t*n + j]. Produto matriz (8 bits) x vetor (8 bits por blocos de 32 com escala, como o Q8_0 do
+# llama.cpp): y[r] = escala[r] * Qd(linha r, x_t); o Qd e um ciclo NEON com sdot (16 multiplicacoes por instrucao).
+# Num lote, o E corre linha a linha e cada linha serve os P tokens seguidos (le-se da memoria uma vez so). ---
+: qx iii>i x n q {
+  = sc + q / n 8 = b 0
   W < b / n 32 {
     = m 0.0 = j 0 W < j 32 { = m Mx m Ab @f + x + * b 32 j = j + j 1 }
     = e ? > m 0.0 / m 127.0 1.0
@@ -64,52 +66,82 @@
       = k + k 1 }
     = b + b 1 }
   q }
-: mv i>f r { = m @ 40 = c @ + m 1 * @f + @ + m 2 r Qd + @ + m 3 * r / c 8 @ 41 c }
-: mvm iii>i m x y { ! 41 qx x @ + m 1 ! 40 m E y @ m mv 0 }
+# x quantizado do token t em @48 + t * @49
+: mvb i>f i { = pp @ 37 = r / i pp = t % i pp = m @ 40 = c @ + m 1 * @f + @ + m 2 r Qd + @ + m 3 * r / c 8 + @ 48 * t @ 49 c }
+: ftrb i>f i { = rr @ 43 = t / i rr = r % i rr @f + @ 39 + * r @ 37 t }
+: mvm iii>i m x y {
+  = c @ + m 1 = pp @ 37 = rr @ m
+  = t 0 W < t pp { qx + x * t c c + @ 48 * t @ 49 = t + t 1 }
+  ! 40 m
+  ? == pp 1 { E y rr mvb 0 } { E @ 39 * rr pp mvb ! 43 rr E y * pp rr ftrb 0 } }
 : tens ii>i l k @ + @ 10 + * l 12 k
-# soma um vetor (vies) e normaliza (RMSNorm)
-: soma iii>i y b n { = j 0 W < j n { !f + y j + @f + y j @f + b j = j + j 1 } 0 }
+# vies (b, n por token) somado a cada token; residuo; RMSNorm de cada token
+: soma iii>i y b n { = t 0 W < t @ 37 { = yt + y * t n = j 0 W < j n { !f + yt j + @f + yt j @f + b j = j + j 1 } = t + t 1 } 0 }
+: acum iii>i y x n { = j 0 W < j * @ 37 n { !f + y j + @f + y j @f + x j = j + j 1 } 0 }
 : rms iii>i y x w {
-  = n @ 1 = s 0.0 = j 0 W < j n { = v @f + x j = s + s * v v = j + j 1 }
-  = r / 1.0 Sq + / s F n 0.000001
-  = j 0 W < j n { !f + y j * * @f + x j r @f + w j = j + j 1 } 0 }
-# RoPE (metades, como no Qwen2): pares (i, i+64) de cada cabeca, com o cos/sin da posicao em @30/@31
-: rope ii>i v nh {
-  = hd @ 7 = h2 / hd 2 = h 0
-  W < h nh {
-    = b + v * h hd = i 0
-    W < i h2 {
-      = a @f + b i = c @f + b + i h2 = co @f + @ 30 i = si @f + @ 31 i
-      !f + b i - * a co * c si
-      !f + b + i h2 + * c co * a si
-      = i + i 1 }
-    = h + h 1 }
+  = n @ 1 = t 0
+  W < t @ 37 {
+    = xt + x * t n = yt + y * t n
+    = s 0.0 = j 0 W < j n { = v @f + xt j = s + s * v v = j + j 1 }
+    = r / 1.0 Sq + / s F n 0.000001
+    = j 0 W < j n { !f + yt j * * @f + xt j r @f + w j = j + j 1 }
+    = t + t 1 }
   0 }
-# atencao: pontuacao[h, t] = q_h . k_t / sqrt(hd); depois a soma pesada dos v
+# RoPE (metades, como no Qwen2): pares (i, i+hd/2) de cada cabeca; cos/sin da posicao de cada token em @30/@31
+: rope iii>i v nh n {
+  = hd @ 7 = h2 / hd 2 = t 0
+  W < t @ 37 {
+    = h 0
+    W < h nh {
+      = b + + v * t n * h hd = i 0
+      W < i h2 {
+        = a @f + b i = c @f + b + i h2 = co @f + @ 30 + * t h2 i = si @f + @ 31 + * t h2 i
+        !f + b i - * a co * c si
+        !f + b + i h2 + * c co * a si
+        = i + i 1 }
+      = h + h 1 }
+    = t + t 1 }
+  0 }
+# atencao causal: pontuacao[t, h, j] = q_t,h . k_j / sqrt(hd) para j <= pos0 + t (as outras ficam de fora);
+# logsumexp de cada (t, h) e a soma pesada dos v com exp(pontuacao - lse)
 : fsco i>f i {
-  = np @ 33 = h / i np = t % i np = hd @ 7 = kvd @ 8
-  = g / h / @ 3 @ 4
-  = q + @ 15 * h hd
-  = k + + @ 24 * * @ 32 @ 26 kvd + * t kvd * g hd
-  = s 0.0 = j 0 W < j hd { = s + s * @f + q j @f + k j = j + j 1 }
-  / s Sq F hd }
+  = np @ 33 = nh @ 3 = hd @ 7 = kvd @ 8 = hh @ 1
+  = t / i * nh np = h % / i np nh = j % i np
+  ? > j + @ 38 t -1000000000.0 {
+    = g / h / nh @ 4
+    = q + + @ 15 * t hh * h hd
+    = k + + @ 24 * * @ 32 @ 26 kvd + * j kvd * g hd
+    = s 0.0 = d 0 W < d hd { = s + s * @f + q d @f + k d = d + d 1 }
+    / s Sq F hd } }
+: flse i>f i {
+  = np @ 33 = r + @ 28 * i np = t / i @ 3 = n + + @ 38 t 1
+  = mx @f r = j 1 W < j n { = mx Mx mx @f + r j = j + j 1 }
+  = s 0.0 = j 0 W < j n { = s + s Ex - @f + r j mx = j + j 1 }
+  + mx Lg s }
+: fpro i>f i { = np @ 33 = r / i np = j % i np = t / r @ 3 ? > j + @ 38 t 0.0 Ex - @f + @ 28 i @f + @ 29 r }
 : fatt i>f i {
-  = np @ 33 = hd @ 7 = kvd @ 8 = h / i hd = d % i hd
-  = g / h / @ 3 @ 4
-  = p + @ 28 * h np
+  = np @ 33 = hd @ 7 = kvd @ 8 = hh @ 1 = nh @ 3
+  = t / i hh = e % i hh = h / e hd = d % e hd
+  = g / h / nh @ 4
+  = p + @ 45 * + * t nh h np
   = v + + + @ 25 * * @ 32 @ 26 kvd * g hd d
-  = s 0.0 = t 0 W < t np { = s + s * @f + p t @f + v * t kvd = t + t 1 }
+  = n + + @ 38 t 1
+  = s 0.0 = j 0 W < j n { = s + s * @f + p j @f + v * j kvd = j + j 1 }
   s }
 : fsilu i>f i { = g @f + @ 20 i * / g + 1.0 Ex - 0.0 g @f + @ 21 i }
-# um token na posicao pos: deixa os logits em @27
-: fem i>f k { = m @ 11 = t @ 35 = w @ + + @ + m 3 * t / @ + m 1 8 / k 8 * @f + @ + m 2 t F >> << w - 56 * 8 % k 8 56 }
-: passo ii>i tok pos {
-  = hh @ 1 = hd @ 7 = kvd @ 8 = nh @ 3 = ff @ 5
-  ! 35 tok
-  E @ 13 hh fem
-  # cos/sin desta posicao
-  = i 0 W < i / hd 2 { = a * F pos @f + @ 34 i !f + @ 30 i Cs a !f + @ 31 i Sn a = i + i 1 }
-  ! 33 + pos 1
+: fem i>f i {
+  = m @ 11 = hh @ 1 = tt / i hh = k % i hh = t @ + @ 35 tt
+  = w @ + + @ + m 3 * t / @ + m 1 8 / k 8
+  * @f + @ + m 2 t F >> << w - 56 * 8 % k 8 56 }
+# um lote: os P tokens em @35 nas posicoes pos0..; deixa os logits do ultimo token em @27
+: passa ii>i pp pos0 {
+  = hh @ 1 = hd @ 7 = kvd @ 8 = nh @ 3 = ff @ 5 = h2 / hd 2
+  ! 37 pp ! 38 pos0
+  E @ 13 * pp hh fem
+  # cos/sin das posicoes do lote
+  = t 0 W < t pp { = i 0 W < i h2 { = a * F + pos0 t @f + @ 34 i !f + @ 30 + * t h2 i Cs a !f + @ 31 + * t h2 i Sn a = i + i 1 } = t + t 1 }
+  = np + pos0 pp
+  ! 33 np
   = l 0
   W < l @ 2 {
     ! 32 l
@@ -117,33 +149,28 @@
     mvm tens l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
     mvm tens l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
     mvm tens l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
-    rope @ 15 nh
-    rope @ 16 @ 4
-    # guarda k e v na cache desta camada
-    = kc + @ 24 * + * l @ 26 pos kvd = vc + @ 25 * + * l @ 26 pos kvd
-    = i 0 W < i kvd { !f + kc i @f + @ 16 i !f + vc i @f + @ 17 i = i + i 1 }
-    # pontuacoes, softmax por cabeca, soma pesada
-    = np @ 33
-    E @ 28 * nh np fsco
-    = h 0
-    W < h nh {
-      = p + @ 28 * h np
-      = mx @f p = t 1 W < t np { = mx Mx mx @f + p t = t + t 1 }
-      = s 0.0 = t 0 W < t np { = e Ex - @f + p t mx !f + p t e = s + s e = t + t 1 }
-      = t 0 W < t np { !f + p t / @f + p t s = t + t 1 }
-      = h + h 1 }
-    E @ 18 hh fatt
+    rope @ 15 nh hh
+    rope @ 16 @ 4 kvd
+    # guarda k e v do lote na cache desta camada
+    = kc + @ 24 * + * l @ 26 pos0 kvd = vc + @ 25 * + * l @ 26 pos0 kvd
+    = i 0 W < i * pp kvd { !f + kc i @f + @ 16 i !f + vc i @f + @ 17 i = i + i 1 }
+    E @ 28 * * pp nh np fsco
+    E @ 29 * pp nh flse
+    E @ 45 * * pp nh np fpro
+    E @ 18 * pp hh fatt
     mvm tens l 7 @ 18 @ 19
-    soma @ 13 @ 19 hh
+    acum @ 13 @ 19 hh
     # MLP (SwiGLU)
     rms @ 14 @ 13 tens l 8
     mvm tens l 9 @ 14 @ 20
     mvm tens l 10 @ 14 @ 21
-    E @ 22 ff fsilu
+    E @ 22 * pp ff fsilu
     mvm tens l 11 @ 22 @ 23
-    soma @ 13 @ 23 hh
+    acum @ 13 @ 23 hh
     = l + l 1 }
-  rms @ 14 @ 13 @ 12
+  # so o ultimo token do lote precisa dos logits
+  ! 37 1
+  rms @ 14 + @ 13 * - pp 1 hh @ 12
   mvm @ 36 @ 14 @ 27
   0 }
 # --- tokenizador (BPE de bytes): @50 inicio dos bytes de cada token, @51 tamanho, @52 bytes, @53 especial,
@@ -210,9 +237,10 @@
   = u * unif s = c -1 = a 0.0 = j 0
   W && < j vv < c 0 { = l @f + r j ? >= l lim { = a + a Ex / - l mx temp ? >= a u = c j 0 } 0 = j + j 1 }
   ? < c 0 0 c }
-: main >i {
-  # configuracao e tensores
-  = hh num = nl num = nh num = nkv num = ff num = vo num = th num = tie num
+: numc i>i c { W && >= c 0 || < c '0 > c '9 { = c R } = v 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = c R } v }
+# carrega o modelo a partir do ficheiro do prep.py e dos safetensors (o 1.o byte ja lido em c0)
+: carregaprep i>i c0 {
+  = hh numc c0 = nl num = nh num = nkv num = ff num = vo num = th num = tie num
   ! 1 hh ! 2 nl ! 3 nh ! 4 nkv ! 5 ff ! 6 vo ! 7 / hh nh ! 8 * nkv / hh nh ! 9 th
   # tensores de cada ficheiro (um ou varios safetensors): tipo, camada, inicio, linhas, colunas
   = nsh num
@@ -235,11 +263,10 @@
   = nm num
   = j 0 W < j nm { = a num = b num = c num hput + * a 262144 b j c = j + j 1 }
   = c R W && >= c 0 != c 10 { = c R }
-  # pesos: o safetensors todo, tensor a tensor (pela ordem do ficheiro); cada um passa a 8 bits
-  = t0 T
-  "a carregar o modelo... "
+  # pesos: tensor a tensor (pela ordem dos ficheiros); cada um passa a 8 bits. Os bf16 crus de cada tensor vao
+  # para um sitio fixo no alto da memoria (fora do heap, para a cache guardar so o modelo)
   = big 0 = j 0 W < j ntt { = big Mx big * @ + tr j @ + tc j = j + j 1 }
-  = cru A + / * big 2 8 1
+  = cru - - 2147483648 65536 + / * big 2 8 1
   ! 10 A * nl 12
   ! 36 0
   = g 0 = f 0
@@ -260,14 +287,45 @@
   # a saida: o lm_head, ou os proprios embeddings quando estao atados
   ? == @ 36 0 ! 36 @ 11 0
   ! 6 @ @ 36
+  0 }
+# a cache: "ONDAQ8\n", o inicio e o fim do heap do modelo, os slots 1..63 e depois as palavras do heap, cruas
+: guarda >i {
+  = h 1040000
+  ! h 1048576 ! + h 1 @ -1
+  = j 1 W < j 64 { ! + h + j 1 @ j = j + j 1 }
+  "ONDAQ8\n"
+  Pb h * 65 8
+  Pb 1048576 * - @ -1 1048576 8
+  0 }
+: lecache >i {
+  = c R = c R = c R = c R = c R = c R
+  = h 1040000
+  Rp h * 65 8
+  = s @ h = e @ + h 1
+  Rp s * - e s 8
+  ! -1 e
+  = j 1 W < j 64 { ! j @ + h + j 1 = j + j 1 }
+  0 }
+: main >i {
+  # o heap do modelo comeca num sitio fixo: a cache guarda-o tal e qual e os enderecos continuam certos ao ler
+  ! -1 1048576
+  = t0 T
+  = gm && == Av 1 0 '- == Av 1 1 '-
+  ? gm 0 { "a carregar o modelo... " 0 }
+  = c0 R
+  ? == c0 'O lecache carregaprep c0
+  ? gm { guarda X 0 } 0
   "pronto (" N / - T t0 1000 " ms)\n"
+  = hh @ 1 = nl @ 2 = nh @ 3 = ff @ 5 = th @ 9
   # vetores do passo, caches, frequencias do RoPE
-  = hd @ 7 = kvd @ 8
-  ! 13 A hh ! 14 A hh ! 15 A hh ! 16 A kvd ! 17 A kvd ! 18 A hh ! 19 A hh ! 20 A ff ! 21 A ff ! 22 A ff ! 23 A hh
+  = hd @ 7 = kvd @ 8 = pm 64 ! 46 pm
+  ! 13 A * pm hh ! 14 A * pm hh ! 15 A * pm hh ! 16 A * pm kvd ! 17 A * pm kvd ! 18 A * pm hh ! 19 A * pm hh
+  ! 20 A * pm ff ! 21 A * pm ff ! 22 A * pm ff ! 23 A * pm hh
   = mt 4096 ! 26 mt
   ! 24 A * * nl mt kvd ! 25 A * * nl mt kvd
-  ! 27 A @ 6 ! 28 A * nh mt ! 30 A hd ! 31 A hd ! 34 A hd
-  ! 48 A + + / Mx ff hh 8 / Mx ff hh 32 8
+  ! 27 A @ 6 ! 28 A * * pm nh mt ! 45 A * * pm nh mt ! 29 A * pm nh ! 30 A * pm hd ! 31 A * pm hd ! 34 A hd
+  ! 49 + + / Mx ff hh 8 / Mx ff hh 32 1 ! 48 A * pm @ 49
+  ! 39 A * pm Mx ff hh ! 35 A pm
   = i 0 W < i / hd 2 { !f + @ 34 i / 1.0 Pw F th / * 2.0 F i F hd = i + i 1 }
   ! 47 + T 12345
   # conversa: instrucoes de sistema (1.o argumento) e depois uma mensagem por linha do stdin
@@ -306,11 +364,14 @@
       codifica b2 @ 58 toks
       # le o que falta do historico e responde
       = t1 T = np0 - - @ 57 1 pos
-      W < pos - @ 57 1 { passo @ + toks pos pos = pos + pos 1 }
+      W < pos - @ 57 1 {
+        = pp Mn @ 46 - - @ 57 1 pos
+        = i 0 W < i pp { ! + @ 35 i @ + toks + pos i = i + i 1 }
+        passa pp pos = pos + pos pp }
       = t2 T
       = ger 0 = tk2 @ + toks pos
       W && != tk2 fim && != tk2 151643 && < ger 1000 < + pos 2 mt {
-        passo tk2 pos = pos + pos 1
+        ! @ 35 tk2 passa 1 pos = pos + pos 1
         = tk2 escolhe 0.7
         ! + toks @ 57 tk2 ! 57 + @ 57 1
         ? && != tk2 fim != tk2 151643 diz tk2 0

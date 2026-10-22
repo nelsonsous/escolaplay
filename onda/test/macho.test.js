@@ -189,3 +189,18 @@ test('macho: Qd (produto interno de 8 bits com sdot, escala por bloco de 32) da 
   fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
   assert.equal(execFileSync(path.join(t, 'x')).toString(), '0\n');
 });
+
+test('macho: Pb escreve bytes crus da memoria pela ordem certa (depois do texto ja impresso) no arm64, no C e no WebAssembly', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-pb-'));
+  const src = ': main >i { = p A 20000 = n Rp p 100003 "<" Pb p n ">" 0 }\n';
+  let inp = Buffer.alloc(100003); for (let i = 0; i < inp.length; i++) inp[i] = (i * 131 + 7) & 255;
+  const want = Buffer.concat([Buffer.from('<'), inp, Buffer.from('>')]);
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  fs.writeFileSync(path.join(t, 'p.c'), execFileSync(ondac, [], { input: Buffer.from(src) }));
+  execFileSync('cc', ['-O2', '-w', path.join(t, 'p.c'), '-o', path.join(t, 'c'), '-lm']);
+  assert.ok(execFileSync(path.join(t, 'x'), { input: inp }).equals(want), 'arm64');
+  assert.ok(execFileSync(path.join(t, 'c'), { input: inp }).equals(want), 'C');
+  assert.ok(execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')], { input: inp }).equals(want), 'WASM');
+});

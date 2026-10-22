@@ -3,7 +3,8 @@
 # proprio Mac, sem servidor nem GPU. Fala portugues, ingles, chines e muitas outras linguas.
 #   ia/ia [1.5b|3b|7b] ["instrucoes de sistema"]
 # Da primeira vez descarrega o modelo do Hugging Face (1.5b: 3 GB, 3b: 6 GB, 7b: 15 GB) para ~/.cache/onda-ia (ou
-# $ONDA_IA), prepara-o (ia/prep.py) e compila o motor. Depois escreve-se uma mensagem por linha; ctrl-D sai.
+# $ONDA_IA), prepara-o (ia/prep.py), compila o motor e guarda o modelo em 8 bits (arranques seguintes: ~1 s).
+# Depois escreve-se uma mensagem por linha; ctrl-D sai.
 # As instrucoes de sistema dizem ao modelo quem ele e e como deve responder (por omissao, as do proprio Qwen).
 set -e
 D=$(cd "$(dirname "$0")" && pwd)
@@ -22,7 +23,7 @@ u="https://huggingface.co/$r/resolve/main"
 baixa() { [ -s "$C/$1" ] && return 0; echo "a descarregar $1 ..." >&2; curl -fL --progress-bar --retry 5 -C - -o "$C/$1.part" "$u/$1" && mv "$C/$1.part" "$C/$1"; }
 baixa config.json
 baixa tokenizer.json
-if [ ! -s "$C/model.safetensors" ] && curl -fsI "$u/model.safetensors.index.json" >/dev/null 2>&1; then
+if [ -s "$C/model.safetensors.index.json" ] || { [ ! -s "$C/model.safetensors" ] && curl -fsI "$u/model.safetensors.index.json" >/dev/null 2>&1; }; then
   baixa model.safetensors.index.json
   for f in $(python3 -c "import json,sys; print(' '.join(sorted(set(json.load(open(sys.argv[1]))['weight_map'].values()))))" "$C/model.safetensors.index.json"); do baixa "$f"; done
 else
@@ -32,4 +33,10 @@ fi
 # o motor, compilado pela Onda para executavel do Mac (sem clang); recompila se o qwen.onda ou o compilador mudarem
 B="$C/qwen"
 if [ ! -x "$B" ] || [ "$D/qwen.onda" -nt "$B" ] || [ "$OC" -nt "$B" ]; then "$OC" -mfx < "$D/qwen.onda" > "$B.tmp" && chmod +x "$B.tmp" && mv "$B.tmp" "$B"; fi
-exec sh -c 'cat "$1/qwen.prep" "$1"/model*.safetensors - | "$2" "$3"' ia "$C" "$B" "$@"
+# cache: o modelo ja em 8 bits (feita da primeira vez, e de novo se o motor mudar); arranca em ~1 s
+K="$C/qwen.q8"
+if [ ! -s "$K" ] || [ "$B" -nt "$K" ]; then
+  echo "a preparar o modelo em 8 bits (so da primeira vez)..." >&2
+  cat "$C/qwen.prep" "$C"/model*.safetensors | "$B" --guarda > "$K.part" && mv "$K.part" "$K"
+fi
+exec sh -c 'cat "$1" - | "$2" "$3"' ia "$K" "$B" "$@"

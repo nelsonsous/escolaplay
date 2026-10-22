@@ -2231,3 +2231,21 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 - Correções: a tabela de flags das operações (`xtab`) tinha só 64 entradas; os operadores sintéticos de dois caracteres saíam cortados no C (`eop`).
 
 **Testes:** `Rp` (arm64 = C = WASM) e `Qd` (igual à conta direta num `E` paralelo).
+
+---
+
+## Iteração 129: IA: arranque em 1 s (cache em 8 bits), perguntas em lotes de 64, Pb (escrita crua)
+
+**Cache do modelo:** `ia/qwen.onda --guarda` escreve o modelo já em 8 bits.
+- O heap do modelo começa num sítio fixo (`M[-1] = 2^20`) e a cache é esse heap tal e qual: os endereços continuam certos ao ler. Os bf16 crus de cada tensor vão para o alto da memória, fora do heap.
+- O motor reconhece a cache (`ONDAQ8`) e lê-a com um só `Rp`. O 1.5B arranca em 0,9 s (eram 6 s).
+- O `ia/ia` cria a cache da primeira vez e refá-la quando o motor muda. Já não vai à rede se o modelo estiver descarregado.
+
+**Perguntas em lotes:** o passo do modelo processa até 64 tokens de uma vez.
+- Cada linha de pesos serve os tokens todos do lote.
+- A atenção é causal com máscara; logsumexp e probabilidades são `E` paralelos, e as probabilidades são calculadas uma só vez.
+- Ler a pergunta ficou ~2× mais rápido. A geração (lote de 1) usa o mesmo código, a ~26 tokens/s no 1.5B e ~15 no 3B.
+
+**Compilador:** `Pb p n` (nova) escreve n bytes crus da memória no stdout.
+- No arm64 é a rotina `_pb`, que faz `write()` direto e esvazia antes o buffer do `P`, para a ordem ficar certa.
+- Nas outras formas é um ciclo de `P`. Há teste com arm64 = C = WASM.
