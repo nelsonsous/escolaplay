@@ -224,3 +224,14 @@ test('macho: Fm mapeia um ficheiro em M e le as suas palavras sem copia', { skip
   fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
   assert.equal(execFileSync(path.join(t, 'x'), [dados]).toString(), '24 111 222 333\n');
 });
+
+test('macho: Gd inicia a GPU (Metal) por dlopen/dlsym a partir do codigo-maquina da Onda', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-gd-'));
+  // dlopen objc+Metal, dlsym das funcoes, cria o device e regista os seletores -- tudo em codigo-maquina da Onda.
+  // O device pode ser nulo num contexto sem GPU (p.ex. dentro do executor de testes); aqui confirma-se so que o
+  // codigo corre ate ao fim sem crashar e devolve uma das respostas validas.
+  const src = ': main >i { = gs A 256 = d Gd gs ? d { ? @ + gs 7 { ? @ + gs 10 "ok\\n" "s\\n" } "q\\n" } "sem-gpu\\n" 0 }\n';
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  assert.ok(['ok\n', 's\n', 'q\n', 'sem-gpu\n'].includes(execFileSync(path.join(t, 'x')).toString()));
+});

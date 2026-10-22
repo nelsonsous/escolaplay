@@ -90,7 +90,7 @@
 : afd ii>i r v ? == aloc v -1 astfr r avs v 0
 : amvv ii>i dv sv ? == arep dv arep sv 0 ? aty dv ? aisd aloc dv agVf ardl aloc dv sv { = r aod 0 sv asVf r dv } ? aisx aloc dv agV arx aloc dv sv { = r aox 9 sv asV r dv }
 # instrucoes que chamam funcoes (estragam x13..x15 e d16..d31): 1 = normal, 2 = o mapa NEON (le em x13..x15)
-: acall i>i p { = k @ p ? || || || == k 7 == k 3 || || || || || == k 28 == k 62 == k 63 == k 65 == k 67 == k 29 || || == k 31 == k 32 || == k 36 == k 60 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || || == k 53 == k 54 == k 59 2 0 }
+: acall i>i p { = k @ p ? || || || == k 7 == k 3 || || || || || || == k 28 == k 62 == k 63 == k 65 == k 67 == k 68 == k 29 || || == k 31 == k 32 || == k 36 == k 60 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || || == k 53 == k 54 == k 59 2 0 }
 : arf ii>i v i { = v arep v ? @ + @ 58 v 0 { = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 } }
 : aext i>i v {
   = s @ + @ 36 v
@@ -490,6 +490,9 @@
 : astrdx iii>i rt rn rm x4 | | | 0xFC207800 << rm 16 << rn 5 rt
 : afbits i>i tok { !f 24 fltval tok @ 24 }
 : aaddi iii>i rd rn imm x4 | | | 0x91000000 << imm 10 << rn 5 rd
+: aldi iii>i t n imm x4 | | | 0xF9400000 << / imm 8 10 << n 5 t
+: asti iii>i t n imm x4 | | | 0xF9000000 << / imm 8 10 << n 5 t
+: alsli iii>i d n kk x4 | | | | 0xD3400000 << & - 64 kk 63 16 << - 63 kk 10 << n 5 d
 : aaddlsl iiii>i rd rn rm sh x4 | | | | 0x8B000000 << rm 16 << sh 10 << rn 5 rd
 : abcc ii>i cc off x4 | | 0x54000000 << & / off 4 0x7FFFF 5 cc
 # Sn/Cs nativos (so os pede a biblioteca em Onda, para |x| enorme): reduz x mod 2pi (Cody-Waite) e chama _sn/_cs.
@@ -1233,6 +1236,76 @@
   aimm 0 -1 x4 0xD61F0220
   ! fe k 9 @ 16
   O 0 }
+# --- GPU (Metal) por dlopen/dlsym: o executavel nao liga frameworks; busca-os em tempo de execucao a libSystem ---
+# _gd (campo 12 = -7): Gd gs. Carrega objc e Metal, resolve as 4 funcoes C, cria o device e a fila de comandos e
+# regista todos os seletores Objective-C precisos, guardando tudo em M[gs..]. Devolve o device (0 se falhar).
+#   gs: 0 objc 1 Metal 2 msgSend 3 selreg 4 getcls 5 mkdev 6 device 7 queue 8 classe NSString 9.. seletores 30.. livre
+: agdn i>i k {
+  O 16
+  ! fe k 8 @ 16
+  = fs @ 16
+  x4 0xA9BC7BFD x4 0xA90153F3 x4 0xA9025BF5
+  aaddlsl 19 28 0 3
+  = pa @ 16 x4 0
+  = pbr @ 16 x4 0
+  = base @ 16
+  = o0 - @ 16 base "/usr/lib/libobjc.A.dylib" P 0
+  = o1 - @ 16 base "/System/Library/Frameworks/Metal.framework/Metal" P 0
+  = o2 - @ 16 base "objc_msgSend" P 0
+  = o3 - @ 16 base "sel_registerName" P 0
+  = o4 - @ 16 base "objc_getClass" P 0
+  = o5 - @ 16 base "MTLCreateSystemDefaultDevice" P 0
+  = o6 - @ 16 base "NSString" P 0
+  = o7 - @ 16 base "stringWithUTF8String:" P 0
+  = o8 - @ 16 base "newLibraryWithSource:options:error:" P 0
+  = o9 - @ 16 base "newFunctionWithName:" P 0
+  = o10 - @ 16 base "newComputePipelineStateWithFunction:error:" P 0
+  = o11 - @ 16 base "newBufferWithBytes:length:options:" P 0
+  = o12 - @ 16 base "newBufferWithLength:options:" P 0
+  = o13 - @ 16 base "commandBuffer" P 0
+  = o14 - @ 16 base "computeCommandEncoder" P 0
+  = o15 - @ 16 base "setComputePipelineState:" P 0
+  = o16 - @ 16 base "setBuffer:offset:atIndex:" P 0
+  = o17 - @ 16 base "dispatchThreads:threadsPerThreadgroup:" P 0
+  = o18 - @ 16 base "endEncoding" P 0
+  = o19 - @ 16 base "commit" P 0
+  = o20 - @ 16 base "waitUntilCompleted" P 0
+  = o21 - @ 16 base "contents" P 0
+  = o22 - @ 16 base "newCommandQueue" P 0
+  W & - @ 16 fs 3 { P 0 }
+  = bend @ 16
+  = off - base pa
+  xput4 pa | | | 0x10000000 << & off 3 29 << & >> off 2 0x7FFFF 5 20
+  xput4 pbr | 0x14000000 & / - bend pbr 4 0x3FFFFFF
+  aaddi 0 20 o0 aimm 1 2 aextc 5 astur 0 19 0
+  aaddi 0 20 o1 aimm 1 2 aextc 5 astur 0 19 8
+  aldur 0 19 0 aaddi 1 20 o2 aextc 6 astur 0 19 16
+  aldur 0 19 0 aaddi 1 20 o3 aextc 6 astur 0 19 24
+  aldur 0 19 0 aaddi 1 20 o4 aextc 6 astur 0 19 32
+  aldur 0 19 8 aaddi 1 20 o5 aextc 6 astur 0 19 40
+  aldur 9 19 40 x4 0xD63F0120 astur 0 19 48
+  aaddi 0 20 o6 aldur 9 19 32 x4 0xD63F0120 astur 0 19 64
+  aaddi 0 20 o7 aldur 9 19 24 x4 0xD63F0120 astur 0 19 72
+  aaddi 0 20 o8 aldur 9 19 24 x4 0xD63F0120 astur 0 19 80
+  aaddi 0 20 o9 aldur 9 19 24 x4 0xD63F0120 astur 0 19 88
+  aaddi 0 20 o10 aldur 9 19 24 x4 0xD63F0120 astur 0 19 96
+  aaddi 0 20 o11 aldur 9 19 24 x4 0xD63F0120 astur 0 19 104
+  aaddi 0 20 o12 aldur 9 19 24 x4 0xD63F0120 astur 0 19 112
+  aaddi 0 20 o13 aldur 9 19 24 x4 0xD63F0120 astur 0 19 120
+  aaddi 0 20 o14 aldur 9 19 24 x4 0xD63F0120 astur 0 19 128
+  aaddi 0 20 o15 aldur 9 19 24 x4 0xD63F0120 astur 0 19 136
+  aaddi 0 20 o16 aldur 9 19 24 x4 0xD63F0120 astur 0 19 144
+  aaddi 0 20 o17 aldur 9 19 24 x4 0xD63F0120 astur 0 19 152
+  aaddi 0 20 o18 aldur 9 19 24 x4 0xD63F0120 astur 0 19 160
+  aaddi 0 20 o19 aldur 9 19 24 x4 0xD63F0120 astur 0 19 168
+  aaddi 0 20 o20 aldur 9 19 24 x4 0xD63F0120 astur 0 19 176
+  aaddi 0 20 o21 aldur 9 19 24 x4 0xD63F0120 astur 0 19 184
+  aaddi 0 20 o22 aldur 9 19 24 x4 0xD63F0120 astur 0 19 192
+  aldur 0 19 48 aldur 1 19 192 aldur 9 19 16 x4 0xD63F0120 astur 0 19 56
+  aldur 0 19 48
+  x4 0xA9425BF5 x4 0xA94153F3 x4 0xA8C47BFD x4 0xD65F03C0
+  ! fe k 9 @ 16
+  O 0 }
 # _fm (campo 12 = -6): Fm p o. Abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e
 # mapeia-o inteiro (mmap, so leitura) em M a partir da palavra o (tem de ser multiplo de 2048 = uma pagina). Devolve o
 # tamanho em bytes, ou -1. As paginas carregam a pedido: um modelo de GB fica disponivel sem copia nem espera.
@@ -1467,6 +1540,7 @@
     x4 0xFC408566 x4 0x1F4600A0 x4 0xF100058C
     abcc 0x1 - lq @ 16
     = r adf 0 d ? != r 0 x4 | 0x1E604000 r 0 afd r d }
+  ? == k 68 { = fi pfind -7 ? < fi 0 { = fi pnew -7 @ 13 } 0 agT 0 a acallf fi asT 0 d }
   ? == k 67 { = fi pfind -6 ? < fi 0 { = fi pnew -6 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }
   ? == k 65 { = fi pfind -5 ? < fi 0 { = fi pnew -5 @ 13 } 0 agT 0 a agT 1 b x4 0xA9BF07E0 acallf fby k3 '_ 'f 'l x4 0xA8C107E0 acallf fi asT 0 d }
   ? == k 62 { = fi pfind -3 ? < fi 0 { = fi pnew -3 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }
@@ -1902,7 +1976,7 @@
   apimm dp 10 - + elen ft - - dp 4 estart
   = clen + + elen ft * 8 - @ 20 64
   = nr ? > @ 66 0 @ @ 66 0
-  = ni ? nr 5 0
+  = ni ? nr ? @ 68 7 5 0
   = bse 4294967296
   # disposicao: cabecalho+comandos | codigo (+ stubs) | __got | __LINKEDIT (bind, strings, assinatura)
   = st0 al4 clen 4
@@ -1915,7 +1989,7 @@
   = tsz al4 + tof cl 16384
   = dsz ? ni 16384 0
   = lof + tsz dsz
-  = bl ? ni 104 8
+  = bl ? ni ? @ 68 128 104 8
   = syo + lof bl
   = cso al4 + syo 2 16
   = nsl / + cso 4095 4096
@@ -1941,7 +2015,7 @@
   "__text" az 10 "__TEXT" az 10 x8 + bse tof x8 cl x4 tof x4 2 x4 0 x4 0 x4 0x80000400 x4 0 x4 0 x4 0
   ? ni {
     x4 0x19 x4 152 "__DATA" az 10 x8 + bse tsz x8 dsz x8 tsz x8 dsz x4 3 x4 3 x4 1 x4 0
-    "__got" az 11 "__DATA" az 10 x8 + bse tsz x8 40 x4 tsz x4 3 x4 0 x4 0 x4 0 x4 0 x4 0 x4 0 } 0
+    "__got" az 11 "__DATA" az 10 x8 + bse tsz x8 * ni 8 x4 tsz x4 3 x4 0 x4 0 x4 0 x4 0 x4 0 x4 0 } 0
   x4 0x19 x4 72 "__LINKEDIT" az 6 x8 + bse lof x8 al4 les 16384 x8 lof x8 les x4 1 x4 1 x4 0 x4 0
   x4 0x80000022 x4 48 x4 0 x4 0 x4 lof x4 bl x4 0 x4 0 x4 0 x4 0 x4 0 x4 0
   x4 2 x4 24 x4 syo x4 0 x4 syo x4 2
@@ -1973,7 +2047,7 @@
     P 0x11 P 0x40 "_pthread_join" P 0 P 0x51 P 0x72 P 16 P 0x90
     P 0x11 P 0x40 "___ulock_wait" P 0 P 0x51 P 0x72 P 24 P 0x90
     P 0x11 P 0x40 "___ulock_wake" P 0 P 0x51 P 0x72 P 32 P 0x90
-    az 7 } { az 8 }
+    ? @ 68 { P 0x11 P 0x40 "_dlopen" P 0 P 0x51 P 0x72 P 40 P 0x90 P 0x11 P 0x40 "_dlsym" P 0 P 0x51 P 0x72 P 48 P 0x90 az 4 } { az 7 } } { az 8 }
   P 32 P 0
   az - cso + syo 2
   O 0

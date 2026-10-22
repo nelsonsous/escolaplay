@@ -51,6 +51,9 @@
   = w cx = x cx = n cx ckint w ckint x ckint n
   ? ~ isa { ebeg "Qd so no -a/-m (arm64)" eend } 0
   = r nt 1 ir 64 r w x n 0 0 r }
+# Gd gs: inicia a GPU (Metal) por dlopen/dlsym e guarda os handles em M[gs..]; devolve o device (0 se falhar).
+# So no -mx/-mfx (executavel do Mac).
+: cgd >i { = g cx ckint g ? ~ ismx { ebeg "a GPU precisa de -mx/-mfx" eend } 0 = r nt 0 ir 68 r g 0 0 0 0 r }
 # Fm p o: abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e mapeia-o (mmap, so
 # leitura) em M a partir da palavra o (o endereco x28+o*8 tem de ficar numa pagina: o congruente com 2032 mod 2048,
 # p.ex. 1046512). Devolve o
@@ -362,6 +365,7 @@
   ? == o k2 'Q 'd cqd
   ? == o k2 'Q 'e cqe
   ? == o k2 'F 'm cfm
+  ? == o k2 'G 'd cgd
   ? == o k2 'P 'b cpb
   ? == o 'N cnum
   ? == o 'G cgf
@@ -461,6 +465,7 @@
   ? || m && && && != @ 12 0 ~ isw ~ isx ~ isa 0 { ebeg "falta : main >i" eend }
   # so no -a/-m (como os slots 63..66: no arm64 os dados comecam em M[64], e o primeiro e o preludio C, que ai nao se usa)
   ? isa { ! 67 0 = j 0 W < j @ 4 { ? && == tkk j 5 || || || == tcode j 'R == tcode j k2 'R 'b == tcode j k2 'R 'p == tcode j 'Y ! 67 1 0 = j + j 1 } } 0
+  ? isa { ! 68 0 = j 0 W < j @ 4 { ? && && == tkk j 5 == tc j 0 'G > tkl j 1 ! 68 1 0 = j + j 1 } } 0
   ? isa { ! 66 A 64 ! @ 66 0 ! 63 A 1000 ! @ 63 0 ! 64 A 400000 ! @ 64 0 ! 65 A 2000 ! @ 65 0 ! 34 A 500000 ! 36 A 500000 ! 37 A 500000 ! 38 A 500000 ! 39 A 110000 ! 40 A 20000 ! 43 A 10000 ! 35 A 500000 ! 45 A 500000 ! 46 A 500000 ! 47 A 500000 ! 48 A 500000 ! 51 A 110000 ! 52 A 16 ! 54 A 32 ! 55 A 500000 ! 56 A 500000 ! 58 A 500000 ! 50 xtab ! 61 A 32 xqs 0 A 8192 xqs 2 A 40000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 xqs 19 A 420000 xqs 20 A 420000 xqs 21 A 192 } 0
   ? || || isx isc isa inlf 0
   ? isc ! 50 xtab 0

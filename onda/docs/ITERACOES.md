@@ -2337,3 +2337,18 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 O `mvm` continua a existir (quantiza + multiplica) para as projecoes com entrada propria (saida da atencao, down) e para o treino.
 
 Ganho modesto (~5-10%) porque a geracao esta limitada pela largura de banda da memoria, nao pelo calculo: cada token le todos os pesos do modelo uma vez. O salto grande e a GPU.
+
+---
+
+## Iteração 135: GPU acessivel a partir da Onda: inicia o Metal (device, fila, seletores) por dlopen/dlsym
+
+**Marco:** o codigo-maquina que a Onda escreve a mao passa a conseguir falar com a GPU (Metal), sem ligar frameworks na linkagem e sem clang. Esta era a parte mais dificil do caminho para a GPU.
+
+**Como:**
+- O executavel (-mx) ganha `_dlopen`/`_dlsym` como simbolos da libSystem (dois stubs e entradas GOT a mais), so quando o programa usa uma operacao de GPU (flag no slot 68; os outros programas, incluindo o compilador, ficam identicos byte a byte, por isso o ponto fixo nao muda).
+- A operacao `Gd gs` (rotina em codigo-maquina): `dlopen` da libobjc e do Metal, `dlsym` de `objc_msgSend`, `sel_registerName`, `objc_getClass` e `MTLCreateSystemDefaultDevice`, cria o device e a fila de comandos, e regista os 16 seletores Objective-C precisos (compilar kernel, criar buffers, codificar e despachar), guardando tudo em M[gs..].
+- Ajuste no emissor: um bloco de dados (strings) dentro de uma funcao alinha-se agora ao inicio da funcao, nao ao `@16` global.
+
+**Testado:** no terminal, `Gd` cria o device, a fila, a classe NSString e os seletores (ponteiros validos). O teste do `macho` confirma que a rotina corre ate ao fim sem crashar.
+
+**Em falta:** despachar os kernels de calculo (soma de vetores -> produto matriz-vetor do LLM). A rotina de despacho completa esbarrou num limite de auto-compilacao do compilador nativo ao acrescentar mais um caso ao emissor; fica para a proxima, com esse limite resolvido primeiro. Por isso a IA ainda corre so no processador.
