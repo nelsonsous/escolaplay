@@ -51,6 +51,11 @@
   = w cx = x cx = n cx ckint w ckint x ckint n
   ? ~ isa { ebeg "Qd so no -a/-m (arm64)" eend } 0
   = r nt 1 ir 64 r w x n 0 0 r }
+# Fm p o: abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e mapeia-o (mmap, so
+# leitura) em M a partir da palavra o (o endereco x28+o*8 tem de ficar numa pagina: o congruente com 2032 mod 2048,
+# p.ex. 1046512). Devolve o
+# tamanho em bytes (-1 se falhar). So no -m (arm64 do Mac). As paginas carregam a pedido, sem copia.
+: cfm >i { = p cx = o cx ckint p ckint o ? ~ isa { ebeg "Fm so no -m (arm64)" eend } 0 = r nt 0 ir 67 r p o 0 0 0 r }
 # Qe w x n: como o Qd, mas os pesos tem 4 bits (como o Q4_0 do llama.cpp): por cada bloco de 32, 16 bytes (nibble
 # baixo = pesos 0..15, alto = 16..31, guardados com +8) e, depois dos n/2 bytes da linha, uma escala bf16 por bloco.
 # Vale soma_b escala_w_b * escala_x_b * (w.x)_b. So no -a/-m (NEON: and/ushr, sub 8 e sdot).
@@ -356,6 +361,7 @@
   ? == o k2 'R 'p crp
   ? == o k2 'Q 'd cqd
   ? == o k2 'Q 'e cqe
+  ? == o k2 'F 'm cfm
   ? == o k2 'P 'b cpb
   ? == o 'N cnum
   ? == o 'G cgf

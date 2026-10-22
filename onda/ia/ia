@@ -49,6 +49,7 @@ if [ ! -s "$K" ]; then
   echo "a preparar o modelo em $bits bits (so da primeira vez)..." >&2
   cat "$C/qwen.prep" "$C"/model*.safetensors | "$B" --guarda "$bits" > "$K.part" && mv "$K.part" "$K"
 fi
-# o que lhe foi ensinado (ia/ensina), se houver
+# o que lhe foi ensinado (ia/ensina), se houver, vai pelo stdin antes das mensagens
 Lf="$C/ensinado.lora"; [ -s "$Lf" ] || Lf=/dev/null
-exec sh -c 'cat "$1" "$2" - | "$3" ${4:+"$4"}' ia "$K" "$Lf" "$B" "$@"
+# o modelo carrega por mmap do ficheiro da cache (argv[1]); as mensagens (e o LoRA) vem pelo stdin.
+exec sh -c 'cat "$1" - | "$3" "$2" ${4:+"$4"}' ia "$Lf" "$K" "$B" "$@"

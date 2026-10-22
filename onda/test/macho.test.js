@@ -212,3 +212,15 @@ test('macho: Qe (pesos de 4 bits com escala bf16 por bloco, x de 8 bits) da o me
   fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
   assert.equal(execFileSync(path.join(t, 'x')).toString(), '238 238\n');
 });
+
+test('macho: Fm mapeia um ficheiro em M e le as suas palavras sem copia', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-fm-'));
+  const dados = path.join(t, 'd.bin');
+  const buf = Buffer.alloc(24); buf.writeBigInt64LE(111n,0); buf.writeBigInt64LE(222n,8); buf.writeBigInt64LE(333n,16);
+  fs.writeFileSync(dados, buf);
+  const src = ': main >i { = pb A 4100 = j 0 = c Av 1 0 W != c 0 { ! + pb j c = j + j 1 = c Av 1 j } ! + pb j 0\n' +
+              '  = b 1046512 = sz Fm pb b N sz " " N @ b " " N @ + b 1 " " N @ + b 2 "\\n" 0 }\n';
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  assert.equal(execFileSync(path.join(t, 'x'), [dados]).toString(), '24 111 222 333\n');
+});

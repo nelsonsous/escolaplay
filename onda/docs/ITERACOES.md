@@ -2312,3 +2312,18 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 - 4 bits automáticos para modelos grandes.
 
 **Hermes 3 em 4 bits:** ~12 tokens/s, arranca em 2 s e responde diretamente a perguntas que o Qwen evita.
+
+---
+
+## Iteração 133: Fm: mapear ficheiros (mmap) — o modelo de IA carrega instantaneo e ocupa menos memoria
+
+**Operacao nova `Fm p o` (so -m, arm64):** abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e mapeia-o em M a partir da palavra o, so leitura. As paginas carregam a pedido do disco, sem copia. Rotina `_fm` (campo 12 = -6): open, lseek (tamanho), mmap MAP_FIXED, close. O endereco x28+o*8 tem de cair numa pagina (o ≡ 2032 mod 2048; 1046512 serve, porque o x28 esta 128 bytes acima da base alinhada).
+
+**Motor de IA:**
+- A cache (`--guarda`) passa a ter um cabecalho de 16512 bytes alinhado a pagina (magica, inicio/fim do heap, slots 1..63) seguido do heap. Assim o heap do ficheiro cai exatamente na palavra 1048576 quando mapeado na 1046512, e os enderecos absolutos do modelo continuam validos.
+- O arranque mapeia a cache (`mapeia`) em vez de a copiar do stdin. O topo de alocacao fica alinhado a pagina acima da regiao mapeada (so-leitura), para as alocacoes novas irem para a memoria anonima gravavel.
+- O lancador passa o caminho da cache como argumento (argv[1]); as mensagens e o LoRA vem pelo stdin.
+
+**Resultado:** o Hermes 3 (4,5 GB) carrega em ~0-30 ms (eram ~2000 ms) e a memoria e partilhada/a-pedido. As respostas sao as mesmas.
+
+**Teste:** `Fm` mapeia um ficheiro e le as suas palavras.

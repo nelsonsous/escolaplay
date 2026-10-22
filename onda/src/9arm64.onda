@@ -90,7 +90,7 @@
 : afd ii>i r v ? == aloc v -1 astfr r avs v 0
 : amvv ii>i dv sv ? == arep dv arep sv 0 ? aty dv ? aisd aloc dv agVf ardl aloc dv sv { = r aod 0 sv asVf r dv } ? aisx aloc dv agV arx aloc dv sv { = r aox 9 sv asV r dv }
 # instrucoes que chamam funcoes (estragam x13..x15 e d16..d31): 1 = normal, 2 = o mapa NEON (le em x13..x15)
-: acall i>i p { = k @ p ? || || || == k 7 == k 3 || || || || == k 28 == k 62 == k 63 == k 65 == k 29 || || == k 31 == k 32 || == k 36 == k 60 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || || == k 53 == k 54 == k 59 2 0 }
+: acall i>i p { = k @ p ? || || || == k 7 == k 3 || || || || || == k 28 == k 62 == k 63 == k 65 == k 67 == k 29 || || == k 31 == k 32 || == k 36 == k 60 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || || == k 53 == k 54 == k 59 2 0 }
 : arf ii>i v i { = v arep v ? @ + @ 58 v 0 { = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 } }
 : aext i>i v {
   = s @ + @ 36 v
@@ -1233,6 +1233,32 @@
   aimm 0 -1 x4 0xD61F0220
   ! fe k 9 @ 16
   O 0 }
+# _fm (campo 12 = -6): Fm p o. Abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e
+# mapeia-o inteiro (mmap, so leitura) em M a partir da palavra o (tem de ser multiplo de 2048 = uma pagina). Devolve o
+# tamanho em bytes, ou -1. As paginas carregam a pedido: um modelo de GB fica disponivel sem copia nem espera.
+: afmn i>i k {
+  O 16
+  ! fe k 8 @ 16
+  amovr 9 1
+  x4 0xD11003FF
+  aaddlsl 2 28 0 3
+  aaddi 3 31 0
+  = lpk @ 16
+  x4 0xF8408445 x4 0x38001465
+  x4 | | 0xB5000000 << & / - lpk @ 16 4 0x7FFFF 5 5
+  aaddi 0 31 0 aimm 1 0 aimm 2 0 ascn ? ismo 5 5
+  = ferr @ 16 abcc 0x2 0
+  amovr 10 0
+  amovr 0 10 aimm 1 0 aimm 2 2 ascn ? ismo 199 199
+  amovr 11 0
+  aaddlsl 0 28 9 3 amovr 1 11 aimm 2 1 aimm 3 18 amovr 4 10 aimm 5 0 ascn ? ismo 197 197
+  = merr @ 16 abcc 0x2 0
+  amovr 0 10 ascn ? ismo 6 6
+  x4 0x911003FF amovr 0 11 x4 0xD65F03C0
+  apbc ferr 0x2 apbc merr 0x2
+  x4 0x911003FF aimm 0 -1 x4 0xD65F03C0
+  ! fe k 9 @ 16
+  O 0 }
 # _pb (campo 12 = -5): Pb p n. write(1, &M[p], n) ate escrever tudo (em pedacos de ate 1 GiB); x0 = p, x1 = n.
 : apbn i>i k {
   O 16
@@ -1441,6 +1467,7 @@
     x4 0xFC408566 x4 0x1F4600A0 x4 0xF100058C
     abcc 0x1 - lq @ 16
     = r adf 0 d ? != r 0 x4 | 0x1E604000 r 0 afd r d }
+  ? == k 67 { = fi pfind -6 ? < fi 0 { = fi pnew -6 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }
   ? == k 65 { = fi pfind -5 ? < fi 0 { = fi pnew -5 @ 13 } 0 agT 0 a agT 1 b x4 0xA9BF07E0 acallf fby k3 '_ 'f 'l x4 0xA8C107E0 acallf fi asT 0 d }
   ? == k 62 { = fi pfind -3 ? < fi 0 { = fi pnew -3 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }
   ? == k 63 { = fi pfind -4 ? < fi 0 { = fi pnew -4 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }

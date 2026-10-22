@@ -721,6 +721,27 @@
   Pb h * 65 8
   Pb 1048576 * - @ -1 1048576 8
   0 }
+: guardamap >i {
+  = h 1030000
+  ! h 1313166924 ! + h 1 1048576 ! + h 2 @ -1
+  = j 1 W < j 64 { ! + h + j 2 @ j = j + j 1 }
+  Pb h * 2064 8
+  Pb 1048576 * - @ -1 1048576 8
+  0 }
+# mapeia (mmap) o ficheiro de cache cujo caminho esta no argumento a; reconstroi o modelo sem copia (paginas a pedido)
+: mapeia i>i a {
+  = pb A 4100
+  = j 0 = c Av a 0 W != c 0 { ! + pb j c = j + j 1 = c Av a j } ! + pb j 0
+  = b 1046512
+  = sz Fm pb b
+  ? < sz 0 { "nao consegui abrir o modelo
+" X 1 } 0
+  ? != @ b 1313166924 { "ficheiro de modelo invalido
+" X 1 } 0
+  # alocacoes novas acima da regiao mapeada (so-leitura): topo alinhado a pagina, logo acima do fim do ficheiro
+  ! -1 * 2048 / + + b / + sz 7 8 2047 2048
+  = j 1 W < j 64 { ! j @ + b + j 2 = j + j 1 }
+  0 }
 : lecache >i {
   = c R = c R = c R = c R = c R = c R
   = h 1040000
@@ -739,9 +760,11 @@
   = tm && && == Av 1 0 '- == Av 1 1 '- == Av 1 2 't
   ! 59 ? && gm == Av 2 0 '4 4 8
   ? || gm tm 0 { "a carregar o modelo... " sai 0 }
-  = c0 R
-  ? == c0 'O lecache carregaprep c0
-  ? gm { guarda X 0 } 0
+  = mp == Av 1 0 '/
+  ? mp mapeia 1 {
+    = c0 R
+    ? == c0 'O lecache carregaprep c0
+    ? gm { guardamap X 0 } 0 }
   ? tm 0 { "pronto (" N / - T t0 1000 " ms)\n" sai 0 }
   = hh @ 1 = nl @ 2 = nh @ 3 = ff @ 5 = th @ 9
   ! 63 A 64
@@ -772,7 +795,7 @@
   = pos 0
   = ia cfg 6 151644 = fim cfg 7 151645 = fim2 cfg 8 151643
   # prefixo de sistema: "system\n" + instrucoes (na conversa o 1.o argumento, no treino o 3.o; senao as do Qwen)
-  = sa ? tm 3 1
+  = sa ? tm 3 ? mp 2 1
   = cb A 100000
   ! 58 0 poe + cb 1 's poe + cb 1 'y poe + cb 1 's poe + cb 1 't poe + cb 1 'e poe + cb 1 'm poe + cb 1 10
   = j 0 = c Av sa 0
