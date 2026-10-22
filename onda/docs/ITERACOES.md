@@ -2206,3 +2206,28 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 - o `wc` em C (`clang -O3`) faz 127 ms, o mesmo programa compilado para C faz 176 ms e o `wc` do sistema 278 ms.
 
 **Correção:** o buffer de 64 KiB do it.125 invadia os slots das threads (`pjs`). O `arb` passa para 33545728, a acabar onde os slots começam.
+
+---
+
+## Iteração 128: IA no Mac em Onda: motor de LLM (Qwen2.5) em 3 linguas; Qd com sdot, Rp, 16 GiB de memoria
+
+**Aplicação nova (`ia/`):** um motor de modelos de linguagem abertos (Qwen2 / Qwen2.5 Instruct, do Hugging Face) escrito em Onda. Conversa em português, inglês, chinês e outras línguas, no próprio Mac, sem servidor nem GPU.
+- `ia/ia [1.5b|3b|7b] ["instruções de sistema"]` descarrega o modelo, prepara-o, compila o motor e abre a conversa (uma mensagem por linha).
+- `ia/prep.py` (só a biblioteca padrão) lê o `config`, o `tokenizer.json` e os cabeçalhos dos safetensors (um ou vários ficheiros).
+- `ia/qwen.onda` é o motor:
+  - lê os pesos bf16 e passa-os a 8 bits por linha;
+  - RMSNorm, RoPE, atenção GQA com cache k/v, MLP SwiGLU, `lm_head` próprio ou atado;
+  - tokenizador BPE de bytes;
+  - modelo de conversa ChatML e amostragem com temperatura e corte min-p.
+- Cada passo é um campo: os produtos matriz×vetor são `E` sobre as linhas (todos os núcleos) e a atenção é um `E` sobre cabeças × posições.
+
+**1.5B:** carrega em ~6 s e responde a 23–34 tokens/s (era 10 antes do `Qd`). O 3B (dois ficheiros) também funciona.
+
+**Compilador:**
+- `Qd w x n` (nova): produto interno de 8 bits com escala por bloco de 32, como o Q8_0. No arm64 é um ciclo NEON em linha com `sdot` (16 multiplicações por instrução), e uma matriz 8960×1536 leva 79 µs (~170 GB/s).
+- `Rp p n` (nova): lê bytes crus, 8 por palavra. No arm64 vai do `read()` direto para o destino; nas outras formas é um ciclo de `R`.
+- Memória do `-m`: 2³¹ palavras (16 GiB virtuais, só se ocupa o que se usa). O `-a` mantém 2²⁵ palavras.
+- Limiar do paralelo: as funções com ciclos (incluindo `Qd`) já vão para as threads a partir de 32 elementos, com blocos de `min(256, limiar)`.
+- Correções: a tabela de flags das operações (`xtab`) tinha só 64 entradas; os operadores sintéticos de dois caracteres saíam cortados no C (`eop`).
+
+**Testes:** `Rp` (arm64 = C = WASM) e `Qd` (igual à conta direta num `E` paralelo).

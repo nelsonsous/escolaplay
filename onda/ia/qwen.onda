@@ -1,0 +1,323 @@
+# qwen: motor de um modelo de linguagem aberto (Qwen2 / Qwen2.5, Hugging Face) escrito em Onda, para conversar em
+# portugues, ingles, chines e outras linguas. Corre no Mac M1 com os nucleos todos.
+#   cat modelo/qwen.prep modelo/model.safetensors - | ./qwen ["instrucoes de sistema"]
+# Le do stdin: o ficheiro do ia/prep.py (configuracao, tensores, vocabulario, fusoes do BPE), o safetensors (os pesos
+# em bf16, que passam a 8 bits por linha ao carregar: ~1 byte por parametro) e depois as mensagens, uma por linha.
+# Cada passo e um campo: o produto matriz x vetor e um E sobre as linhas (todas em paralelo), a atencao um E sobre
+# cabecas x posicoes. As funcoes dos E so leem a memoria (os enderecos vem nos slots).
+#
+# slots: 1 H 2 camadas 3 cabecas 4 cabecas kv 5 FF 6 vocabulario (saida) 7 dim. da cabeca 8 dim. kv 9 theta
+#   10 tabela dos tensores por camada (12 por camada) 11 embeddings 12 norma final 13..23 vetores do passo
+#   24/25 caches k e v 26 posicoes maximas 27 logits 28 pontuacoes da atencao 29 posicao 30 cos 31 sin
+#   32 camada atual 33 n de posicoes 35 token atual 40/41 matriz e vetor do mv 42..44 quantizacao
+#   36 matriz de saida 48 vetor quantizado 47 gerador aleatorio 50.. tokenizador
+#
+# --- numeros do ficheiro de preparacao ---
+: num >i { = c R W && >= c 0 || < c '0 > c '9 { = c R } = v 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = c R } v }
+# --- bf16 -> real: o elemento g dos dados crus em @42 (4 por palavra) ---
+: bfd i>f b { = e & >> b 7 255 ? == e 0 0.0 Bw | | << >> b 15 31 << + e 896 20 << & b 127 13 0 }
+: bfat i>f g { = w @ + @ 42 >> g 2 bfd & >> w * 16 & g 3 65535 }
+# escala de cada linha (max |w| / 127) e os pesos a 8 bits (8 por palavra); @43 colunas, @44 escalas
+: fsc i>f r { = c @ 43 = m 0.0 = j 0 W < j c { = m Mx m Ab bfat + * r c j = j + j 1 } ? > m 0.0 / m 127.0 1.0 }
+: fq i>i i {
+  = c @ 43 = c8 / c 8 = r / i c8 = j * % i c8 8 = s @f + @ 44 r
+  = w 0 = k 0
+  W < k 8 {
+    = v / bfat + * r c + j k s
+    = q ? < v 0.0 I - v 0.5 I + v 0.5
+    = q Mx -127 Mn 127 q
+    = w | w << & q 255 * 8 k
+    = k + k 1 }
+  w }
+: fv i>f i bfat i
+# le n bytes (le e deita fora o que nao interessa)
+: salta i>i n { ? > n 0 { = b A + / n 8 1 Rp b n 0 } 0 }
+# um tensor: matriz r x c -> registo [linhas, colunas, escalas, pesos]; vetor -> reais
+: carrega iii>i r c cru {
+  Rp cru * * r c 2
+  ! 42 cru
+  ? > c 1 {
+    = m A 4 ! m r ! + m 1 c
+    = sc A r ! + m 2 sc ! 43 c ! 44 sc
+    E sc r fsc
+    = d A / * r c 8 ! + m 3 d
+    E d / * r c 8 fq
+    m }
+  { = v A r E v r fv v } }
+# --- produto matriz (8 bits) x vetor (8 bits, por blocos de 32 com escala, como o Q8_0 do llama.cpp):
+# y[r] = escala[r] * Qd(linha r, x quantizado); o Qd e um ciclo NEON com sdot (16 multiplicacoes por instrucao) ---
+: qx ii>i x n {
+  = q @ 48 = sc + q / n 8 = b 0
+  W < b / n 32 {
+    = m 0.0 = j 0 W < j 32 { = m Mx m Ab @f + x + * b 32 j = j + j 1 }
+    = e ? > m 0.0 / m 127.0 1.0
+    !f + sc b e
+    = k 0
+    W < k 4 {
+      = w 0 = j 0
+      W < j 8 {
+        = v / @f + x + + * b 32 * k 8 j e
+        = t ? < v 0.0 I - v 0.5 I + v 0.5
+        = w | w << & t 255 * 8 j
+        = j + j 1 }
+      ! + q + * b 4 k w
+      = k + k 1 }
+    = b + b 1 }
+  q }
+: mv i>f r { = m @ 40 = c @ + m 1 * @f + @ + m 2 r Qd + @ + m 3 * r / c 8 @ 41 c }
+: mvm iii>i m x y { ! 41 qx x @ + m 1 ! 40 m E y @ m mv 0 }
+: tens ii>i l k @ + @ 10 + * l 12 k
+# soma um vetor (vies) e normaliza (RMSNorm)
+: soma iii>i y b n { = j 0 W < j n { !f + y j + @f + y j @f + b j = j + j 1 } 0 }
+: rms iii>i y x w {
+  = n @ 1 = s 0.0 = j 0 W < j n { = v @f + x j = s + s * v v = j + j 1 }
+  = r / 1.0 Sq + / s F n 0.000001
+  = j 0 W < j n { !f + y j * * @f + x j r @f + w j = j + j 1 } 0 }
+# RoPE (metades, como no Qwen2): pares (i, i+64) de cada cabeca, com o cos/sin da posicao em @30/@31
+: rope ii>i v nh {
+  = hd @ 7 = h2 / hd 2 = h 0
+  W < h nh {
+    = b + v * h hd = i 0
+    W < i h2 {
+      = a @f + b i = c @f + b + i h2 = co @f + @ 30 i = si @f + @ 31 i
+      !f + b i - * a co * c si
+      !f + b + i h2 + * c co * a si
+      = i + i 1 }
+    = h + h 1 }
+  0 }
+# atencao: pontuacao[h, t] = q_h . k_t / sqrt(hd); depois a soma pesada dos v
+: fsco i>f i {
+  = np @ 33 = h / i np = t % i np = hd @ 7 = kvd @ 8
+  = g / h / @ 3 @ 4
+  = q + @ 15 * h hd
+  = k + + @ 24 * * @ 32 @ 26 kvd + * t kvd * g hd
+  = s 0.0 = j 0 W < j hd { = s + s * @f + q j @f + k j = j + j 1 }
+  / s Sq F hd }
+: fatt i>f i {
+  = np @ 33 = hd @ 7 = kvd @ 8 = h / i hd = d % i hd
+  = g / h / @ 3 @ 4
+  = p + @ 28 * h np
+  = v + + + @ 25 * * @ 32 @ 26 kvd * g hd d
+  = s 0.0 = t 0 W < t np { = s + s * @f + p t @f + v * t kvd = t + t 1 }
+  s }
+: fsilu i>f i { = g @f + @ 20 i * / g + 1.0 Ex - 0.0 g @f + @ 21 i }
+# um token na posicao pos: deixa os logits em @27
+: fem i>f k { = m @ 11 = t @ 35 = w @ + + @ + m 3 * t / @ + m 1 8 / k 8 * @f + @ + m 2 t F >> << w - 56 * 8 % k 8 56 }
+: passo ii>i tok pos {
+  = hh @ 1 = hd @ 7 = kvd @ 8 = nh @ 3 = ff @ 5
+  ! 35 tok
+  E @ 13 hh fem
+  # cos/sin desta posicao
+  = i 0 W < i / hd 2 { = a * F pos @f + @ 34 i !f + @ 30 i Cs a !f + @ 31 i Sn a = i + i 1 }
+  ! 33 + pos 1
+  = l 0
+  W < l @ 2 {
+    ! 32 l
+    rms @ 14 @ 13 tens l 0
+    mvm tens l 1 @ 14 @ 15 soma @ 15 tens l 2 hh
+    mvm tens l 3 @ 14 @ 16 soma @ 16 tens l 4 kvd
+    mvm tens l 5 @ 14 @ 17 soma @ 17 tens l 6 kvd
+    rope @ 15 nh
+    rope @ 16 @ 4
+    # guarda k e v na cache desta camada
+    = kc + @ 24 * + * l @ 26 pos kvd = vc + @ 25 * + * l @ 26 pos kvd
+    = i 0 W < i kvd { !f + kc i @f + @ 16 i !f + vc i @f + @ 17 i = i + i 1 }
+    # pontuacoes, softmax por cabeca, soma pesada
+    = np @ 33
+    E @ 28 * nh np fsco
+    = h 0
+    W < h nh {
+      = p + @ 28 * h np
+      = mx @f p = t 1 W < t np { = mx Mx mx @f + p t = t + t 1 }
+      = s 0.0 = t 0 W < t np { = e Ex - @f + p t mx !f + p t e = s + s e = t + t 1 }
+      = t 0 W < t np { !f + p t / @f + p t s = t + t 1 }
+      = h + h 1 }
+    E @ 18 hh fatt
+    mvm tens l 7 @ 18 @ 19
+    soma @ 13 @ 19 hh
+    # MLP (SwiGLU)
+    rms @ 14 @ 13 tens l 8
+    mvm tens l 9 @ 14 @ 20
+    mvm tens l 10 @ 14 @ 21
+    E @ 22 ff fsilu
+    mvm tens l 11 @ 22 @ 23
+    soma @ 13 @ 23 hh
+    = l + l 1 }
+  rms @ 14 @ 13 @ 12
+  mvm @ 36 @ 14 @ 27
+  0 }
+# --- tokenizador (BPE de bytes): @50 inicio dos bytes de cada token, @51 tamanho, @52 bytes, @53 especial,
+#     @54 tabela das fusoes (chave, prioridade, resultado), @55 token de cada byte, @56 n de tokens ---
+: hsh i>i k & >> * k 7046029254386353131 40 524287
+: hput iii>i key r res {
+  = t @ 54 = h hsh key
+  W != @ + t * h 3 0 { = h & + h 1 524287 }
+  ! + t * h 3 + key 1 ! + + t * h 3 1 r ! + + t * h 3 2 res 0 }
+: hget i>i key {
+  = t @ 54 = h hsh key = r -1
+  W && < r 0 != @ + t * h 3 0 { ? == @ + t * h 3 + key 1 = r h = h & + h 1 524287 }
+  r }
+# BPE de um pedaco (bytes em s, n) -> tokens acrescentados a out (o n em @57); devolve 0
+: bpe iii>i s n out {
+  = ids A n = j 0 W < j n { ! + ids j @ + @ 55 @ + s j = j + j 1 }
+  = m n
+  = go 1
+  W go {
+    = br 1000000000 = bi -1 = br2 0
+    = j 0
+    W < j - m 1 {
+      = h hget + * @ + ids j 262144 @ + ids + j 1
+      ? >= h 0 { = rk @ + + @ 54 * h 3 1 ? < rk br { = br rk = bi j = br2 @ + + @ 54 * h 3 2 0 } 0 } 0
+      = j + j 1 }
+    ? < bi 0 = go 0 {
+      ! + ids bi br2
+      = j + bi 1 W < j - m 1 { ! + ids j @ + ids + j 1 = j + j 1 }
+      = m - m 1 0 } }
+  = j 0 W < j m { ! + out @ 57 @ + ids j ! 57 + @ 57 1 = j + j 1 }
+  0 }
+: letra i>i c || || && >= c 'a <= c 'z && >= c 'A <= c 'Z >= c 128
+: digito i>i c && >= c '0 <= c '9
+: espaco i>i c || || == c 32 == c 9 || == c 10 == c 13
+: quebra i>i c || == c 10 == c 13
+# texto (bytes em s, n) -> tokens em out; divide em pedacos como o Qwen (letras com o caractere antes, digitos um a
+# um, pontuacao com o espaco antes, espacos) e aplica o BPE a cada um
+: codifica iii>i s n out {
+  = i 0
+  W < i n {
+    = c @ + s i = j + i 1
+    = nx ? < j n @ + s j 0
+    ? letra c { W && < j n letra @ + s j = j + j 1 0 }
+    { ? && && ~ quebra c ~ digito c && < j n letra nx { W && < j n letra @ + s j = j + j 1 0 }
+      { ? digito c 0
+        { ? || && ~ espaco c ~ letra c && == c 32 && < j n && && ~ espaco nx ~ letra nx ~ digito nx
+            { = j ? == c 32 + i 2 j W && < j n && && ~ espaco @ + s j ~ letra @ + s j ~ digito @ + s j = j + j 1 W && < j n quebra @ + s j = j + j 1 0 }
+            { W && < j n espaco @ + s j = j + j 1
+              ? && < j n && > - j i 1 == @ + s - j 1 32 = j - j 1 0 } } } }
+    bpe + s i - j i out
+    = i j }
+  0 }
+: diz i>i t { = o @ + @ 50 t = n @ + @ 51 t = j 0 W < j n { P @ + @ 52 + o j = j + j 1 } 0 }
+# acrescenta o texto de uma string a um buffer de bytes (para o modelo de conversa)
+: poe ii>i b c { ! + b @ 58 c ! 58 + @ 58 1 0 }
+: rnd >i { = x + * @ 47 6364136223846793005 1442695040888963407 ! 47 x & >> x 33 2147483647 }
+: unif >f / F rnd 2147483648.0
+# escolhe o token seguinte: temperatura e corte min-p (so os tokens com prob >= 5% da maior)
+: escolhe f>i temp {
+  = vv @ 6 = r @ 27
+  = mx @f r = j 1 W < j vv { = mx Mx mx @f + r j = j + j 1 }
+  = lim + mx * temp Lg 0.05
+  = s 0.0 = j 0 W < j vv { = l @f + r j ? >= l lim { = s + s Ex / - l mx temp 0 } 0 = j + j 1 }
+  = u * unif s = c -1 = a 0.0 = j 0
+  W && < j vv < c 0 { = l @f + r j ? >= l lim { = a + a Ex / - l mx temp ? >= a u = c j 0 } 0 = j + j 1 }
+  ? < c 0 0 c }
+: main >i {
+  # configuracao e tensores
+  = hh num = nl num = nh num = nkv num = ff num = vo num = th num = tie num
+  ! 1 hh ! 2 nl ! 3 nh ! 4 nkv ! 5 ff ! 6 vo ! 7 / hh nh ! 8 * nkv / hh nh ! 9 th
+  # tensores de cada ficheiro (um ou varios safetensors): tipo, camada, inicio, linhas, colunas
+  = nsh num
+  = fh A nsh = fn A nsh = ntt 0
+  = tk A 4096 = tl A 4096 = to A 4096 = tr A 4096 = tc A 4096
+  = f 0
+  W < f nsh {
+    ! + fh f num ! + fn f num
+    = j 0 W < j @ + fn f { ! + tk ntt num ! + tl ntt num ! + to ntt num ! + tr ntt num ! + tc ntt num = ntt + ntt 1 = j + j 1 }
+    = f + f 1 }
+  # vocabulario
+  = nv num ! 56 nv
+  ! 50 A nv ! 51 A nv ! 53 A nv ! 52 A 2000000
+  = p 0 = j 0
+  W < j nv { ! + @ 53 j num = n num ! + @ 50 j p ! + @ 51 j n = k 0 W < k n { ! + @ 52 + p k num = k + k 1 } = p + p n = j + j 1 }
+  ! 55 A 256
+  = j 0 W < j nv { ? && == @ + @ 51 j 1 ~ @ + @ 53 j ! + @ 55 @ + @ 52 @ + @ 50 j j 0 = j + j 1 }
+  # fusoes
+  ! 54 A * 524288 3
+  = nm num
+  = j 0 W < j nm { = a num = b num = c num hput + * a 262144 b j c = j + j 1 }
+  = c R W && >= c 0 != c 10 { = c R }
+  # pesos: o safetensors todo, tensor a tensor (pela ordem do ficheiro); cada um passa a 8 bits
+  = t0 T
+  "a carregar o modelo... "
+  = big 0 = j 0 W < j ntt { = big Mx big * @ + tr j @ + tc j = j + j 1 }
+  = cru A + / * big 2 8 1
+  ! 10 A * nl 12
+  ! 36 0
+  = g 0 = f 0
+  W < f nsh {
+    = hdr @ + fh f
+    salta hdr
+    = pos hdr = j 0
+    W < j @ + fn f {
+      = o + hdr @ + to g
+      salta - o pos
+      = r @ + tr g = c @ + tc g
+      = m carrega r c cru
+      = pos + o * * r c 2
+      = k @ + tk g
+      ? < k 20 ! + @ 10 + * @ + tl g 12 k m { ? == k 20 ! 11 m ? == k 21 ! 12 m ! 36 m }
+      = g + g 1 = j + j 1 }
+    = f + f 1 }
+  # a saida: o lm_head, ou os proprios embeddings quando estao atados
+  ? == @ 36 0 ! 36 @ 11 0
+  ! 6 @ @ 36
+  "pronto (" N / - T t0 1000 " ms)\n"
+  # vetores do passo, caches, frequencias do RoPE
+  = hd @ 7 = kvd @ 8
+  ! 13 A hh ! 14 A hh ! 15 A hh ! 16 A kvd ! 17 A kvd ! 18 A hh ! 19 A hh ! 20 A ff ! 21 A ff ! 22 A ff ! 23 A hh
+  = mt 4096 ! 26 mt
+  ! 24 A * * nl mt kvd ! 25 A * * nl mt kvd
+  ! 27 A @ 6 ! 28 A * nh mt ! 30 A hd ! 31 A hd ! 34 A hd
+  ! 48 A + + / Mx ff hh 8 / Mx ff hh 32 8
+  = i 0 W < i / hd 2 { !f + @ 34 i / 1.0 Pw F th / * 2.0 F i F hd = i + i 1 }
+  ! 47 + T 12345
+  # conversa: instrucoes de sistema (1.o argumento) e depois uma mensagem por linha do stdin
+  = buf A 200000 = toks A 100000
+  ! 58 0
+  = pos 0
+  = ia 151644 = fim 151645
+  # prefixo de sistema
+  ! 57 0
+  ! + toks @ 57 ia ! 57 + @ 57 1
+  ! 58 0 poe buf 's poe buf 'y poe buf 's poe buf 't poe buf 'e poe buf 'm poe buf 10
+  = j 0 = c Av 1 0
+  ? > Ac 1 { W > c 0 { poe buf c = j + j 1 = c Av 1 j } 0 }
+    { ! 59 + buf @ 58 O 59 "You are Qwen, created by Alibaba Cloud. You are a helpful assistant." O 0 ! 58 - @ 59 buf 0 }
+  codifica buf @ 58 + toks @ 57
+  ! + toks @ 57 fim ! 57 + @ 57 1
+  ! 58 0 poe buf 10 codifica buf @ 58 toks
+  = vez 0
+  "\n> "
+  = c R
+  W >= c 0 {
+    # uma mensagem
+    ! 58 0
+    W && >= c 0 != c 10 { poe buf c = c R }
+    ? > @ 58 0 {
+      = n0 @ 57
+      ! + toks @ 57 ia ! 57 + @ 57 1
+      = b2 A + @ 58 8 = q @ 58 ! 58 0
+      poe b2 'u poe b2 's poe b2 'e poe b2 'r poe b2 10
+      = j 0 W < j q { poe b2 @ + buf j = j + j 1 }
+      codifica b2 @ 58 toks
+      ! + toks @ 57 fim ! 57 + @ 57 1
+      ! 58 0 poe b2 10 codifica b2 @ 58 toks
+      ! + toks @ 57 ia ! 57 + @ 57 1
+      ! 58 0 poe b2 'a poe b2 's poe b2 's poe b2 'i poe b2 's poe b2 't poe b2 'a poe b2 'n poe b2 't poe b2 10
+      codifica b2 @ 58 toks
+      # le o que falta do historico e responde
+      = t1 T = np0 - - @ 57 1 pos
+      W < pos - @ 57 1 { passo @ + toks pos pos = pos + pos 1 }
+      = t2 T
+      = ger 0 = tk2 @ + toks pos
+      W && != tk2 fim && != tk2 151643 && < ger 1000 < + pos 2 mt {
+        passo tk2 pos = pos + pos 1
+        = tk2 escolhe 0.7
+        ! + toks @ 57 tk2 ! 57 + @ 57 1
+        ? && != tk2 fim != tk2 151643 diz tk2 0
+        = ger + ger 1 }
+      ? != tk2 fim { ! + toks @ 57 fim ! 57 + @ 57 1 } 0
+      ! 58 0 poe b2 10 codifica b2 @ 58 toks
+      = t3 T
+      "\n[pergunta: " N np0 " tokens em " N / - t2 t1 1000 " ms; resposta: " N ger " tokens, " G / F * ger 1000 F Mx 1 / - t3 t2 1000 " por segundo]\n> " 0 } 0
+    = c R }
+  0 }

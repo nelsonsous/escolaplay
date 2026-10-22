@@ -19,7 +19,7 @@
   = j 0
   W < j np { ? > j 0 "," 0 ? isjs "v_" { ety fpt k j " v_" } etx + @ fe k 4 j = j + j 1 }
   ")" }
-: cfun i>i k ? == @ fe k 12 -2 arsn k ? == @ fe k 12 -3 arbn k ? == @ fe k 12 1 aprn k ? > @ fe k 12 1 cdrv k cfun0 k
+: cfun i>i k ? == @ fe k 12 -2 arsn k ? == @ fe k 12 -3 arbn k ? == @ fe k 12 -4 arpn k ? == @ fe k 12 1 aprn k ? > @ fe k 12 1 cdrv k cfun0 k
 : cfun0 i>i k {
   ! 13 k
   ! 9 0
@@ -182,13 +182,13 @@
 # slots fixos no fim de M (pjs): 0 condutora 1 n 2 contador 3 bloco 4 destino 5 largura 6..13 inteiros 14..21 reais
 # 22..37 threads 38 n de cpus 39 n de blocos 64.. somas parciais do S (uma por bloco, somadas por ordem: o resultado nao
 # depende do numero de threads)
-: pjs i>i j + 33553920 j
+: pjs i>i j + - amw 512 j
 : ppbad i>i o {
   = b 0
   ? || == o '! == o k2 '! 'f = b 1 0
   ? || == o 'A == o 'P = b 1 0
   ? || == o 'R == o 'N = b 1 0
-  ? == o k2 'R 'b = b 1 0
+  ? || == o k2 'R 'b == o k2 'R 'p = b 1 0
   ? || == o 'G == o 'O = b 1 0
   ? || == o 'X == o 'E = b 1 0
   ? || == o 'D == o 'V = b 1 0
@@ -213,17 +213,17 @@
 # custo estimado por elemento (para o limiar do paralelo): tokens do corpo, +1000 por ciclo ou recursao, +40 por
 # Sn/Cs/Ex/Lg/At/Pw, e o custo das funcoes que chama. Acordar as threads custa uns microssegundos: so compensa
 # quando n * custo e grande. Limiar = 600000/custo elementos, entre 4096 e 2^20.
-: pheavy i>i c || || == c k2 'S 'n == c k2 'C 's || || == c k2 'E 'x == c k2 'L 'g || == c k2 'A 't == c k2 'P 'w
+: pheavy i>i c || || || == c k2 'Q 'd == c k2 'S 'n == c k2 'C 's || || == c k2 'E 'x == c k2 'L 'g || == c k2 'A 't == c k2 'P 'w
 : pcost ii>i k d {
   = e fend k = j @ fe k 5 = c 0
   W && < j e < d 8 {
     = kk tkk j
     ? == kk 0 { = f ffun j ? >= f 0 { ? == f k { = c + c 1000 } { = c + + c 20 pcost f + d 1 } } 0 } 0
-    ? == kk 5 { = o tcode j ? == o 'W = c + c 1000 0 ? pheavy o = c + c 40 0 } 0
+    ? == kk 5 { = o tcode j ? || == o 'W == o k2 'Q 'd = c + c 1000 0 ? pheavy o = c + c 40 0 } 0
     = c + c 1
     = j + j 1 }
   c }
-: pthr i>i k { = c pcost k 0 = t / 600000 ? < c 1 1 c ? < t 4096 4096 ? > t 1048576 1048576 t }
+: pthr i>i k { = c pcost k 0 = t / 600000 ? < c 1 1 c = lo ? >= c 1000 32 4096 ? < t lo lo ? > t 1048576 1048576 t }
 # so fora de funcoes puras e das condutoras (onde as puras sao expandidas): uma pura pode correr dentro de uma
 # condutora, e os slots sao um so conjunto
 : ppar i>i k && && && isa ismo ppok k 0 ~ || != @ fe @ 13 12 0 ppok @ 13 0

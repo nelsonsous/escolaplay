@@ -161,3 +161,31 @@ test('macho: Rb le blocos do stdin (NEON no -m) e da o mesmo que o C e o WebAsse
   assert.ok(execFileSync(path.join(t, 'x'), { input: inp }).equals(w), 'arm64 = WASM');
   assert.ok(execFileSync(path.join(t, 'c'), { input: inp }).equals(w), 'C = WASM');
 });
+
+test('macho: Rp le bytes crus (8 por palavra) igual no arm64, no C e no WebAssembly, depois de um Rb', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-rp-'));
+  const src = ': main >i { = b A 8 = k Rb b 5 = p A 20000 = n Rp p 70001 = s 0 = j 0 W < j / + n 7 8 { = s ^ * s 31 @ + p j = j + j 1 } N k " " N n " " N s "\\n" 0 }\n';
+  let inp = Buffer.alloc(90000); for (let i = 0; i < inp.length; i++) inp[i] = (i * 7919 + 13) & 255;
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  fs.writeFileSync(path.join(t, 'p.wasm'), execFileSync(ondac, ['-w'], { input: Buffer.from(src) }));
+  fs.writeFileSync(path.join(t, 'p.c'), execFileSync(ondac, [], { input: Buffer.from(src) }));
+  execFileSync('cc', ['-O2', '-w', path.join(t, 'p.c'), '-o', path.join(t, 'c'), '-lm']);
+  const w = execFileSync('node', [path.join(__dirname, '..', 'wasm/host.js'), path.join(t, 'p.wasm')], { input: inp });
+  assert.ok(execFileSync(path.join(t, 'x'), { input: inp }).equals(w), 'arm64 = WASM');
+  assert.ok(execFileSync(path.join(t, 'c'), { input: inp }).equals(w), 'C = WASM');
+});
+
+test('macho: Qd (produto interno de 8 bits com sdot, escala por bloco de 32) da o mesmo que a conta direta, num E paralelo', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const src = ': pk ii>i v k << & v 255 * 8 k\n' +
+    ': mv i>f r { = c @ 3 Qd + @ 1 * r / c 8 @ 2 c }\n' +
+    ': rf i>f r { = c @ 3 = s 0.0 = j 0 W < j c { = a >> << @ + + @ 1 * r / c 8 / j 8 - 56 * 8 % j 8 56 = b >> << @ + @ 2 / j 8 - 56 * 8 % j 8 56 = s + s * @f + + @ 2 / c 8 / j 32 F * a b = j + j 1 } s }\n' +
+    ': main >i { = rr 300 = c 160 ! 3 c ! 1 A / * rr c 8 ! 2 A + / c 8 / c 32\n' +
+    '  = j 0 W < j / * rr c 8 { ! + @ 1 j * + j 1 2654435761 = j + j 1 }\n' +
+    '  = j 0 W < j / c 8 { ! + @ 2 j * + j 7 40503 = j + j 1 } = j 0 W < j / c 32 { !f + + @ 2 / c 8 j * 0.25 F + j 1 = j + j 1 }\n' +
+    '  = y A rr = z A rr E y rr mv E z rr rf = d 0 = r 0 W < r rr { ? != @f + y r @f + z r = d + d 1 0 = r + r 1 } N d "\\n" 0 }\n';
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-qd-'));
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  assert.equal(execFileSync(path.join(t, 'x')).toString(), '0\n');
+});

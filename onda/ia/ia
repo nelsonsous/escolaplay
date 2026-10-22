@@ -1,0 +1,35 @@
+#!/bin/sh
+# ia: conversa com um modelo de linguagem aberto (Qwen2.5 Instruct) que corre no motor em Onda (ia/qwen.onda), no
+# proprio Mac, sem servidor nem GPU. Fala portugues, ingles, chines e muitas outras linguas.
+#   ia/ia [1.5b|3b|7b] ["instrucoes de sistema"]
+# Da primeira vez descarrega o modelo do Hugging Face (1.5b: 3 GB, 3b: 6 GB, 7b: 15 GB) para ~/.cache/onda-ia (ou
+# $ONDA_IA), prepara-o (ia/prep.py) e compila o motor. Depois escreve-se uma mensagem por linha; ctrl-D sai.
+# As instrucoes de sistema dizem ao modelo quem ele e e como deve responder (por omissao, as do proprio Qwen).
+set -e
+D=$(cd "$(dirname "$0")" && pwd)
+OC="$D/../build/ondac"
+[ -x "$OC" ] || { echo "ia: falta o compilador (corre ./build.sh na pasta onda)" >&2; exit 1; }
+m="${1:-3b}"; [ $# -gt 0 ] && shift
+case "$m" in
+  1.5b) r=Qwen/Qwen2.5-1.5B-Instruct;;
+  3b)   r=Qwen/Qwen2.5-3B-Instruct;;
+  7b)   r=Qwen/Qwen2.5-7B-Instruct;;
+  *) echo "uso: ia/ia [1.5b|3b|7b] [\"instrucoes de sistema\"]" >&2; exit 1;;
+esac
+C="${ONDA_IA:-$HOME/.cache/onda-ia}/$m"
+mkdir -p "$C"
+u="https://huggingface.co/$r/resolve/main"
+baixa() { [ -s "$C/$1" ] && return 0; echo "a descarregar $1 ..." >&2; curl -fL --progress-bar --retry 5 -C - -o "$C/$1.part" "$u/$1" && mv "$C/$1.part" "$C/$1"; }
+baixa config.json
+baixa tokenizer.json
+if [ ! -s "$C/model.safetensors" ] && curl -fsI "$u/model.safetensors.index.json" >/dev/null 2>&1; then
+  baixa model.safetensors.index.json
+  for f in $(python3 -c "import json,sys; print(' '.join(sorted(set(json.load(open(sys.argv[1]))['weight_map'].values()))))" "$C/model.safetensors.index.json"); do baixa "$f"; done
+else
+  baixa model.safetensors
+fi
+[ -s "$C/qwen.prep" ] || python3 "$D/prep.py" "$C" > "$C/qwen.prep"
+# o motor, compilado pela Onda para executavel do Mac (sem clang); recompila se o qwen.onda ou o compilador mudarem
+B="$C/qwen"
+if [ ! -x "$B" ] || [ "$D/qwen.onda" -nt "$B" ] || [ "$OC" -nt "$B" ]; then "$OC" -mfx < "$D/qwen.onda" > "$B.tmp" && chmod +x "$B.tmp" && mv "$B.tmp" "$B"; fi
+exec sh -c 'cat "$1/qwen.prep" "$1"/model*.safetensors - | "$2" "$3"' ia "$C" "$B" "$@"
