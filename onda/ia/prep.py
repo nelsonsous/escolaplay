@@ -14,10 +14,26 @@ shards = sorted(glob.glob(os.path.join(d, 'model*.safetensors')))
 out = []
 w = out.append
 
-# configuracao
+# configuracao (a 1.a linha marca o formato: o ia/ia refaz os ficheiros antigos)
+w('#prep-dois')
 H, L, NH, NKV, FF = cfg['hidden_size'], cfg['num_hidden_layers'], cfg['num_attention_heads'], cfg['num_key_value_heads'], cfg['intermediate_size']
 w('%d %d %d %d %d %d %d %d' % (H, L, NH, NKV, FF, cfg['vocab_size'], int(cfg['rope_theta']), 1 if cfg.get('tie_word_embeddings') else 0))
-
+# mais: epsilon do RMSNorm (x 1e9), RoPE escalado do Llama 3 (tipo, fator, baixa, alta x 1000, contexto original),
+# tokens especiais (<|im_start|>, <|im_end|>, outro fim, inicio do texto) e se e um Qwen (para as instrucoes por omissao)
+rs = cfg.get('rope_scaling') or {}
+l3 = 1 if rs.get('rope_type') == 'llama3' else 0
+esp = {a['content']: a['id'] for a in tok.get('added_tokens', [])}
+tc = {}
+try: tc = json.load(open(os.path.join(d, 'tokenizer_config.json')))
+except Exception: pass
+ct = tc.get('chat_template', '')
+if isinstance(ct, list): ct = ' '.join(x.get('template', '') for x in ct)
+bos = esp.get(tc.get('bos_token') or '', 0) if 'bos_token' in ct else 0
+eos2 = esp.get('<|endoftext|>', esp.get('<|eot_id|>', esp.get('<|end_of_text|>', 0)))
+w('%d %d %d %d %d %d %d %d %d %d %d' % (round(cfg.get('rms_norm_eps', 1e-6) * 1e9), l3, round(rs.get('factor', 1) * 1000),
+  round(rs.get('low_freq_factor', 1) * 1000), round(rs.get('high_freq_factor', 4) * 1000),
+  rs.get('original_max_position_embeddings', 8192), esp['<|im_start|>'], esp['<|im_end|>'], eos2, bos,
+  1 if cfg.get('model_type') == 'qwen2' else 0))
 # tensores: tipo, camada, inicio (bytes, a partir do inicio dos dados), linhas, colunas
 kinds = {'input_layernorm.weight': 0, 'self_attn.q_proj.weight': 1, 'self_attn.q_proj.bias': 2,
          'self_attn.k_proj.weight': 3, 'self_attn.k_proj.bias': 4, 'self_attn.v_proj.weight': 5,

@@ -98,15 +98,20 @@
   ! 40 m
   ? == pp 1 { E y rr mvb 0 } { E @ 39 * rr pp mvb ! 43 rr E y * pp rr ftrb 0 } }
 : tens ii>i l k @ + @ 10 + * l 12 k
+# configuracao de cada modelo (@62; as caches antigas do Qwen nao a tem: valores do Qwen): 0 epsilon x 1e9
+# 1 RoPE do Llama 3 2 fator 3 baixa 4 alta (x 1000) 5 contexto original 6 <|im_start|> 7 <|im_end|> 8 outro fim
+# 9 inicio do texto 10 e um Qwen
+: cfg ii>i k d ? @ 62 @ + @ 62 k d
+: eps >f / F cfg 0 1000 1000000000.0
 # vies (b, n por token) somado a cada token; residuo; RMSNorm de cada token
-: soma iii>i y b n { = t 0 W < t @ 37 { = yt + y * t n = j 0 W < j n { !f + yt j + @f + yt j @f + b j = j + j 1 } = t + t 1 } 0 }
+: soma iii>i y b n { ? == b 0 0 { = t 0 W < t @ 37 { = yt + y * t n = j 0 W < j n { !f + yt j + @f + yt j @f + b j = j + j 1 } = t + t 1 } 0 } }
 : acum iii>i y x n { = j 0 W < j * @ 37 n { !f + y j + @f + y j @f + x j = j + j 1 } 0 }
 : rms iii>i y x w {
   = n @ 1 = t 0
   W < t @ 37 {
     = xt + x * t n = yt + y * t n
     = s 0.0 = j 0 W < j n { = v @f + xt j = s + s * v v = j + j 1 }
-    = r / 1.0 Sq + / s F n 0.000001
+    = r / 1.0 Sq + / s F n eps
     = j 0 W < j n { !f + yt j * * @f + xt j r @f + w j = j + j 1 }
     = t + t 1 }
   0 }
@@ -324,7 +329,7 @@
   W < t @ 37 {
     = xt + x * t n = dt + dy * t n = ot + dx * t n
     = s 0.0 = j 0 W < j n { = v @f + xt j = s + s * v v = j + j 1 }
-    = inv / 1.0 Sq + / s F n 0.000001
+    = inv / 1.0 Sq + / s F n eps
     = g 0.0 = j 0 W < j n { = g + g * * @f + w j @f + dt j @f + xt j = j + j 1 }
     = f / * * inv inv * inv g F n
     = j 0 W < j n { !f + ot j - * * inv @f + w j @f + dt j * @f + xt j f = j + j 1 }
@@ -490,7 +495,7 @@
 # --- o treino: le os exemplos (">>> pergunta" / "<<< resposta", varias linhas cada) do resto do stdin, aprende o
 # LoRA e escreve-o (depois de "\1ONDALORA\n"): r, n e os n parametros crus ---
 : treino iii>i passadas pm cbuf {
-  = hh @ 1 = nl @ 2 = nh @ 3 = ff @ 5 = vv @ 6 = kvd @ 8 = ia 151644 = fim 151645
+  = hh @ 1 = nl @ 2 = nh @ 3 = ff @ 5 = vv @ 6 = kvd @ 8 = ia cfg 6 151644 = fim cfg 7 151645
   # texto dos exemplos
   = tx A 4000000 = nt 0 = c R W && >= c 0 < nt 3999990 { ! + tx nt c = nt + nt 1 = c R }
   # exemplos -> tokens; mascara = tokens da resposta (o que o modelo deve aprender a dizer)
@@ -506,6 +511,7 @@
     # fecha o exemplo anterior quando comeca uma pergunta nova (ou no fim)
     ? && && > na 0 > nq 0 || mq >= i nt {
       ! 57 0
+      ? cfg 9 0 { ! + toks @ 57 cfg 9 0 ! 57 + @ 57 1 0 } 0
       ! + toks @ 57 ia ! 57 + @ 57 1
       codifica + cbuf 1 @ cbuf toks
       ! + toks @ 57 fim ! 57 + @ 57 1
@@ -629,7 +635,7 @@
     = nx ? < j n @ + s j 0
     ? letra c { W && < j n letra @ + s j = j + j 1 0 }
     { ? && && ~ quebra c ~ digito c && < j n letra nx { W && < j n letra @ + s j = j + j 1 0 }
-      { ? digito c 0
+      { ? digito c { ? cfg 10 1 0 { W && && < j n digito @ + s j < - j i 3 = j + j 1 0 } }
         { ? || && ~ espaco c ~ letra c && == c 32 && < j n && && ~ espaco nx ~ letra nx ~ digito nx
             { = j ? == c 32 + i 2 j W && < j n && && ~ espaco @ + s j ~ letra @ + s j ~ digito @ + s j = j + j 1 W && < j n quebra @ + s j = j + j 1 0 }
             { W && < j n espaco @ + s j = j + j 1
@@ -659,6 +665,7 @@
 : carregaprep i>i c0 {
   = hh numc c0 = nl num = nh num = nkv num = ff num = vo num = th num = tie num
   ! 1 hh ! 2 nl ! 3 nh ! 4 nkv ! 5 ff ! 6 vo ! 7 / hh nh ! 8 * nkv / hh nh ! 9 th
+  ! 62 A 16 = j 0 W < j 11 { ! + @ 62 j num = j + j 1 }
   # tensores de cada ficheiro (um ou varios safetensors): tipo, camada, inicio, linhas, colunas
   = nsh num
   = fh A nsh = fn A nsh = ntt 0
@@ -742,29 +749,39 @@
   = hd @ 7 = kvd @ 8 = pm ? tm 256 64 ! 46 pm
   ! 13 A * pm hh ! 14 A * pm hh ! 15 A * pm hh ! 16 A * pm kvd ! 17 A * pm kvd ! 18 A * pm hh ! 19 A * pm hh
   ! 20 A * pm ff ! 21 A * pm ff ! 22 A * pm ff ! 23 A * pm hh
-  = mt 4096 ! 26 mt
+  = mt ? > * nl kvd 16384 2048 4096 ! 26 mt
   ! 24 A * * nl mt kvd ! 25 A * * nl mt kvd
   ! 27 A @ 6 ! 28 A * * pm nh mt ! 45 A * * pm nh mt ! 29 A * pm nh ! 30 A * pm hd ! 31 A * pm hd ! 34 A hd
   = mxr ? tm Mx @ 6 Mx ff hh Mx ff hh
   ! 49 + + / mxr 8 / mxr 32 1 ! 48 A * pm @ 49
   ! 39 A Mx * pm Mx ff hh ? tm * 32 @ 6 0 ! 35 A pm
-  = i 0 W < i / hd 2 { !f + @ 34 i / 1.0 Pw F th / * 2.0 F i F hd = i + i 1 }
+  = i 0
+  W < i / hd 2 {
+    = f / 1.0 Pw F th / * 2.0 F i F hd
+    # RoPE do Llama 3: as frequencias baixas sao divididas pelo fator, com uma transicao suave
+    ? cfg 1 0 {
+      = fa / F cfg 2 1000 1000.0 = lo / F cfg 3 1000 1000.0 = hi / F cfg 4 4000 1000.0 = oc F cfg 5 8192
+      = wl / 6.283185307179586 f
+      = f ? < wl / oc hi f ? > wl / oc lo / f fa { = sm / - / oc wl lo - hi lo + * - 1.0 sm / f fa * sm f } 0 } 0
+    !f + @ 34 i f
+    = i + i 1 }
   ! 47 + T 12345
   # conversa: instrucoes de sistema (1.o argumento) e depois uma mensagem por linha do stdin
   = buf A 200000 = toks A 100000
   ! 58 0
   = pos 0
-  = ia 151644 = fim 151645
+  = ia cfg 6 151644 = fim cfg 7 151645 = fim2 cfg 8 151643
   # prefixo de sistema: "system\n" + instrucoes (na conversa o 1.o argumento, no treino o 3.o; senao as do Qwen)
   = sa ? tm 3 1
   = cb A 100000
   ! 58 0 poe + cb 1 's poe + cb 1 'y poe + cb 1 's poe + cb 1 't poe + cb 1 'e poe + cb 1 'm poe + cb 1 10
   = j 0 = c Av sa 0
   ? > Ac sa { W > c 0 { poe + cb 1 c = j + j 1 = c Av sa j } 0 }
-    { ! 59 + + cb 1 @ 58 O 59 "You are Qwen, created by Alibaba Cloud. You are a helpful assistant." O 0 ! 58 - @ 59 + cb 1 0 }
+    { ! 59 + + cb 1 @ 58 O 59 ? cfg 10 1 { "You are Qwen, created by Alibaba Cloud. You are a helpful assistant." 0 } { "You are a helpful assistant." 0 } O 0 ! 58 - @ 59 + cb 1 0 }
   ! cb @ 58
   ? tm { treino ? > Ac 2 Mx 1 numa 2 3 pm cb X 0 } 0
   ! 57 0
+  ? cfg 9 0 { ! + toks @ 57 cfg 9 0 ! 57 + @ 57 1 0 } 0
   ! + toks @ 57 ia ! 57 + @ 57 1
   codifica + cb 1 @ cb toks
   ! + toks @ 57 fim ! 57 + @ 57 1
@@ -797,11 +814,11 @@
         passa pp pos = pos + pos pp }
       = t2 T
       = ger 0 = tk2 @ + toks pos
-      W && != tk2 fim && != tk2 151643 && < ger 1000 < + pos 2 mt {
+      W && != tk2 fim && != tk2 fim2 && < ger 1000 < + pos 2 mt {
         ! @ 35 tk2 passa 1 pos = pos + pos 1
         = tk2 escolhe 0.7
         ! + toks @ 57 tk2 ! 57 + @ 57 1
-        ? && != tk2 fim != tk2 151643 { diz tk2 sai } 0
+        ? && != tk2 fim != tk2 fim2 { diz tk2 sai } 0
         = ger + ger 1 }
       ? != tk2 fim { ! + toks @ 57 fim ! 57 + @ 57 1 } 0
       ! 58 0 poe b2 10 codifica b2 @ 58 toks

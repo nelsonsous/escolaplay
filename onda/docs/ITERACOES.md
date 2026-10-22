@@ -2293,3 +2293,22 @@ Contar bytes e linhas de 27 MB: 46 → 30 ms.
 - Cada exemplo de ~64 tokens leva ~4 s.
 
 **Lançador:** a cache já não se refaz quando o motor muda. Sem instruções de sistema, usa as por omissão em vez de instruções vazias.
+
+---
+
+## Iteração 132: IA: Hermes 3 (Llama 3.1 8B) e qualquer modelo Qwen2/Llama do Hugging Face
+
+**Modelos:** o `ia/ia` aceita `hermes` (Hermes 3, da Nous Research, sobre o Llama 3.1 8B: sem a censura política do Qwen e segue as instruções de sistema). Aceita também qualquer `organização/modelo` do Hugging Face com a arquitetura Qwen2 ou Llama em safetensors bf16.
+
+**Motor genérico:**
+- `prep.py` (formato `#prep-dois`, que o lançador refaz sozinho) passa o epsilon do RMSNorm, o RoPE escalado do Llama 3 (fator, frequências baixa/alta, contexto original), os tokens especiais (`<|im_start|>`, `<|im_end|>`, outro fim, início do texto) e se o modelo é um Qwen.
+- O motor guarda essa configuração no slot 62; as caches antigas do Qwen, que não a têm, usam os valores do Qwen.
+- Sem vieses q/k/v (Llama), o `soma` não faz nada.
+- RoPE do Llama 3: as frequências baixas são divididas pelo fator, com transição suave.
+- Algarismos em grupos de até 3 no tokenizador (Llama 3).
+- `<|begin_of_text|>` no início da conversa e de cada exemplo de treino.
+- Instruções por omissão: as do Qwen só no Qwen.
+- Memória da conversa: 2048 posições quando é grande (32 camadas × 1024).
+- 4 bits automáticos para modelos grandes.
+
+**Hermes 3 em 4 bits:** ~12 tokens/s, arranca em 2 s e responde diretamente a perguntas que o Qwen evita.

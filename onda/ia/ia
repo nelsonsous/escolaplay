@@ -1,7 +1,10 @@
 #!/bin/sh
 # ia: conversa com um modelo de linguagem aberto (Qwen2.5 Instruct) que corre no motor em Onda (ia/qwen.onda), no
 # proprio Mac, sem servidor nem GPU. Fala portugues, ingles, chines e muitas outras linguas.
-#   ia/ia [1.5b|3b|7b] ["instrucoes de sistema"]
+#   ia/ia [1.5b|3b|7b|hermes|organizacao/modelo] ["instrucoes de sistema"]
+# 1.5b/3b/7b: Qwen2.5 Instruct (Alibaba); hermes: Hermes 3 (Nous Research, Llama 3.1 8B: sem a censura politica do
+# Qwen e segue as instrucoes de sistema). Tambem aceita o nome de qualquer modelo do Hugging Face com a arquitetura
+# Qwen2 ou Llama em safetensors bf16 (a escolha e a responsabilidade do modelo sao de quem o usa).
 # Da primeira vez descarrega o modelo do Hugging Face (1.5b: 3 GB, 3b: 6 GB, 7b: 15 GB) para ~/.cache/onda-ia (ou
 # $ONDA_IA), prepara-o (ia/prep.py), compila o motor e guarda o modelo em 8 bits (arranques seguintes: ~1 s).
 # Depois escreve-se uma mensagem por linha; ctrl-D sai.
@@ -15,7 +18,9 @@ case "$m" in
   1.5b) r=Qwen/Qwen2.5-1.5B-Instruct;;
   3b)   r=Qwen/Qwen2.5-3B-Instruct;;
   7b)   r=Qwen/Qwen2.5-7B-Instruct;;
-  *) echo "uso: ia/ia [1.5b|3b|7b] [\"instrucoes de sistema\"]" >&2; exit 1;;
+  hermes) r=NousResearch/Hermes-3-Llama-3.1-8B;;
+  */*)  r="$m"; m=$(echo "$m" | tr '/' '_');;
+  *) echo "uso: ia/ia [1.5b|3b|7b|hermes|organizacao/modelo] [\"instrucoes de sistema\"]" >&2; exit 1;;
 esac
 C="${ONDA_IA:-$HOME/.cache/onda-ia}/$m"
 mkdir -p "$C"
@@ -23,20 +28,22 @@ u="https://huggingface.co/$r/resolve/main"
 baixa() { [ -s "$C/$1" ] && return 0; echo "a descarregar $1 ..." >&2; curl -fL --progress-bar --retry 5 -C - -o "$C/$1.part" "$u/$1" && mv "$C/$1.part" "$C/$1"; }
 baixa config.json
 baixa tokenizer.json
+baixa tokenizer_config.json || true
 if [ -s "$C/model.safetensors.index.json" ] || { [ ! -s "$C/model.safetensors" ] && curl -fsI "$u/model.safetensors.index.json" >/dev/null 2>&1; }; then
   baixa model.safetensors.index.json
   for f in $(python3 -c "import json,sys; print(' '.join(sorted(set(json.load(open(sys.argv[1]))['weight_map'].values()))))" "$C/model.safetensors.index.json"); do baixa "$f"; done
 else
   baixa model.safetensors
 fi
-[ -s "$C/qwen.prep" ] || python3 "$D/prep.py" "$C" > "$C/qwen.prep"
+grep -q prep-dois "$C/qwen.prep" 2>/dev/null || { python3 "$D/prep.py" "$C" > "$C/qwen.prep.part" && mv "$C/qwen.prep.part" "$C/qwen.prep"; }
 # o motor, compilado pela Onda para executavel do Mac (sem clang); recompila se o qwen.onda ou o compilador mudarem
 B="$C/qwen"
 if [ ! -x "$B" ] || [ "$D/qwen.onda" -nt "$B" ] || [ "$OC" -nt "$B" ]; then "$OC" -mfx < "$D/qwen.onda" > "$B.tmp" && chmod +x "$B.tmp" && mv "$B.tmp" "$B"; fi
 # cache: o modelo ja quantizado (feita da primeira vez); arranca em segundos.
-# 8 bits por omissao; o 7b vai a 4 bits (como o Q4_0: ~4,5 bits por peso) para caber com folga em 16 GB.
+# 8 bits por omissao; os modelos grandes (7b, hermes) vao a 4 bits (como o Q4_0: ~4,5 bits por peso) para caber com folga em 16 GB.
 # ONDA_IA_BITS=4 ou 8 escolhe.
-bits="${ONDA_IA_BITS:-$([ "$m" = 7b ] && echo 4 || echo 8)}"
+grande=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print(1 if c['hidden_size']*c['num_hidden_layers'] > 90000 else 0)" "$C/config.json")
+bits="${ONDA_IA_BITS:-$([ "$grande" = 1 ] && echo 4 || echo 8)}"
 K="$C/qwen.q$bits"
 if [ ! -s "$K" ]; then
   echo "a preparar o modelo em $bits bits (so da primeira vez)..." >&2
