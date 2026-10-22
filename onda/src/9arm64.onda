@@ -1184,7 +1184,7 @@
 # despacho de syscall em linha (Y a b c): a=numero logico, b/c=args; resultado em d. 0=escrever, 2=sair,
 # 7=brk (devolve o limite fixo de M). svc #0 x8 no Linux (-a); svc #0x80 x16 no macOS (-m). Escreve byte a
 # byte (o byte vai para M[-8]) -- simples e correto; o benchmark usa o codigo de saida, nao a impressao.
-: arb >i 33553408
+: arb >i 33546224
 : ascn i>i r ? ismo { aimm 16 r asvc80 } { aimm 8 r x4 0xD4000001 }
 # escrever(fd 1, M[arg1..], arg2): cada char ocupa um slot; junta-os em blocos de ate 4096 bytes na pilha
 : aswr >i {
@@ -1204,16 +1204,19 @@
   apbc pwe 0xA
   aaddsp 4096
   amovr 0 4 }
-# ler 1 byte de fd 0: buffer de 4096 bytes no fim de M (slot arb); posicao/comprimento em M[-13]/M[-14]
+# ler 1 byte de fd 0: buffer de 64 KiB no fim de M (slot arb). M[-13]/M[-14] = ponteiros absolutos da posicao e do
+# fim (0/0 no arranque: o primeiro R enche o buffer). Caminho rapido: 2 ldur, cmp, ldrb com pos-incremento, stur.
+: aldur iii>i rt rn off x4 | | | 0xF8400000 << & off 0x1FF 12 << rn 5 rt
+: astur iii>i rt rn off x4 | | | 0xF8000000 << & off 0x1FF 12 << rn 5 rt
 : asrd >i {
-  aimm 10 -13 aldrx 11 28 10 aimm 10 -14 aldrx 12 28 10
+  aldur 11 28 -104 aldur 12 28 -112
   acmp 11 12 = rh @ 16 abcc 0xB 0
-  aimm 0 0 aimm 10 arb aaddlsl 1 28 10 3 aimm 2 4096 ascn ? ismo 3 63
+  aimm 0 0 aimm 10 arb aaddlsl 1 28 10 3 aimm 2 65536 ascn ? ismo 3 63
   acmpi 0 0 = rz @ 16 abcc 0xD 0
-  aimm 10 -14 astrx 0 28 10 aimm 11 0
+  aimm 10 arb aaddlsl 11 28 10 3 aadd 12 11 0 astur 12 28 -112
   apbc rh 0xB
-  aimm 10 arb aaddlsl 12 28 10 3 x4 0x386B6980
-  aaddi 11 11 1 aimm 10 -13 astrx 11 28 10
+  x4 0x38401560
+  astur 11 28 -104
   = j1 @ 16 ab 0
   apbc rz 0xD
   aimm 0 -1

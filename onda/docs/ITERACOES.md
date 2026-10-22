@@ -2149,3 +2149,19 @@ Tentado e desfeito: expandir tambem os nucleos _mkc/_mks dentro do Cs expandido 
 **Números:** integra 17,2 → 13,3 ms (C: 15,3); 300 `S` de 1M senos: 3730 → 776 ms (C: 2317); S pequenos e grover iguais.
 
 **Teste:** `macho`: S real em threads com os bits do WASM, num ciclo, mais S pequenos e um S acima do limite.
+
+---
+
+## Iteração 125: leitura em fluxo 1,6x mais rapida (buffer de 64 KiB, ponteiros, ldur/stur)
+
+**Objetivo:** processar ficheiros enormes com memória constante. A Onda já lia o stdin em blocos (a memória fica em ~1,4 MB para qualquer tamanho de entrada), mas cada byte custava ~2,7 ns.
+
+**Mudanças no `R` do arm64 (`asrd`):**
+- buffer de 4 KiB para 64 KiB (16× menos chamadas ao sistema; o `arb` desce para 33546224);
+- `M[-13]`/`M[-14]` passam a guardar ponteiros absolutos (posição e fim) em vez de índices;
+- o acesso usa `ldur`/`stur` com deslocamento negativo (1 instrução em vez de 5);
+- o byte lê-se com `ldrb` com pós-incremento.
+
+O caminho rápido fica com 6 instruções.
+
+**Números:** contar bytes e linhas de 27 MB: 73 → 46 ms (~590 MB/s; C 20 ms); memória 1,4 MB. Um `cat` em Onda copia os 27 MB sem alterar um byte.
