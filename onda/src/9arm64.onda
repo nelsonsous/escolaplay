@@ -90,7 +90,7 @@
 : afd ii>i r v ? == aloc v -1 astfr r avs v 0
 : amvv ii>i dv sv ? == arep dv arep sv 0 ? aty dv ? aisd aloc dv agVf ardl aloc dv sv { = r aod 0 sv asVf r dv } ? aisx aloc dv agV arx aloc dv sv { = r aox 9 sv asV r dv }
 # instrucoes que chamam funcoes (estragam x13..x15 e d16..d31): 1 = normal, 2 = o mapa NEON (le em x13..x15)
-: acall i>i p { = k @ p ? || || || == k 7 == k 3 || || || || || || == k 28 == k 62 == k 63 == k 65 == k 67 == k 68 == k 29 || || == k 31 == k 32 || == k 36 == k 60 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || || == k 53 == k 54 == k 59 2 0 }
+: acall i>i p { = k @ p ? || || || == k 7 == k 3 || || || || || || || == k 28 == k 62 == k 63 == k 65 == k 67 == k 68 == k 69 == k 29 || || == k 31 == k 32 || == k 36 == k 60 1 ? && == k 15 || == @ + p 2 3 == @ + p 2 4 1 ? || || == k 53 == k 54 == k 59 2 0 }
 : arf ii>i v i { = v arep v ? @ + @ 58 v 0 { = q + @ 36 v ? || < @ q 0 > @ q i ! q i 0 = q + @ 37 v ? < @ q i ! q i 0 = q + @ 38 v ? < @ q @ 44 ! q @ 44 0 } }
 : aext i>i v {
   = s @ + @ 36 v
@@ -1306,6 +1306,32 @@
   x4 0xA9425BF5 x4 0xA94153F3 x4 0xA8C47BFD x4 0xD65F03C0
   ! fe k 9 @ 16
   O 0 }
+: agva i>i k {
+  O 16
+  ! fe k 8 @ 16
+  = fs @ 16
+  x4 0xD10403FF x4 0xA90053F3 x4 0xA9025BF5 x4 0xA90463F7 x4 0xA9066BF9 x4 0xF90023FE
+  aaddlsl 19 28 0 3
+  aaddlsl 20 28 1 3
+  = pa @ 16 x4 0
+  = pbr @ 16 x4 0
+  = base @ 16
+  = kq - @ 16 base "#include <metal_stdlib>
+using namespace metal;
+kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer(1)]], device uint* c[[buffer(2)]], uint i[[thread_position_in_grid]]){ c[i]=a[i]+b[i]; }
+" P 0
+  = kr - @ 16 base "vadd" P 0
+  W & - @ 16 fs 3 { P 0 }
+  = bend @ 16
+  = off - base pa
+  xput4 pa | | | 0x10000000 << & off 3 29 << & >> off 2 0x7FFFF 5 21
+  xput4 pbr | 0x14000000 & / - bend pbr 4 0x3FFFFFF
+  aaddi 9 21 kq asti 9 31 232
+  aaddi 9 21 kr asti 9 31 240
+  x4 0xF9402260 x4 0xF9402661 x4 0xF94077E2 x4 0xF9400A69 x4 0xD63F0120 x4 0xAA0003F6 x4 0xF9401A60 x4 0xF9402A61 x4 0xAA1603E2 x4 0xD2800003 x4 0x910203E4 x4 0xF9400A69 x4 0xD63F0120 x4 0xAA0003F7 x4 0xF9402260 x4 0xF9402661 x4 0xF9407BE2 x4 0xF9400A69 x4 0xD63F0120 x4 0xAA0003F8 x4 0xAA1703E0 x4 0xF9402E61 x4 0xAA1803E2 x4 0xF9400A69 x4 0xD63F0120 x4 0xAA0003F6 x4 0xF9401A60 x4 0xF9403261 x4 0xAA1603E2 x4 0x910203E3 x4 0xF9400A69 x4 0xD63F0120 x4 0xF9005FE0 x4 0xF9400E96 x4 0xF9401A60 x4 0xF9403661 x4 0xF9400289 x4 0x8B090F82 x4 0xD37EF6C3 x4 0xD2800004 x4 0xF9400A69 x4 0xD63F0120 x4 0xF90063E0 x4 0xF9401A60 x4 0xF9403661 x4 0xF9400689 x4 0x8B090F82 x4 0xD37EF6C3 x4 0xD2800004 x4 0xF9400A69 x4 0xD63F0120 x4 0xF90067E0 x4 0xF9401A60 x4 0xF9403A61 x4 0xD37EF6C2 x4 0xD2800003 x4 0xF9400A69 x4 0xD63F0120 x4 0xF9006BE0 x4 0xF9401E60 x4 0xF9403E61 x4 0xF9400A69 x4 0xD63F0120 x4 0xF9006FE0 x4 0xF9406FE0 x4 0xF9404261 x4 0xF9400A69 x4 0xD63F0120 x4 0xF90073E0 x4 0xF94073E0 x4 0xF9404661 x4 0xF9405FE2 x4 0xF9400A69 x4 0xD63F0120 x4 0xF94073E0 x4 0xF9404A61 x4 0xF94063E2 x4 0xD2800003 x4 0xD2800004 x4 0xF9400A69 x4 0xD63F0120 x4 0xF94073E0 x4 0xF9404A61 x4 0xF94067E2 x4 0xD2800003 x4 0xD2800024 x4 0xF9400A69 x4 0xD63F0120 x4 0xF94073E0 x4 0xF9404A61 x4 0xF9406BE2 x4 0xD2800003 x4 0xD2800044 x4 0xF9400A69 x4 0xD63F0120 x4 0xF90047F6 x4 0xD2800029 x4 0xF9004BE9 x4 0xF9004FE9 x4 0xF90053F6 x4 0xF90057E9 x4 0xF9005BE9 x4 0xF94073E0 x4 0xF9404E61 x4 0x910223E2 x4 0x910283E3 x4 0xF9400A69 x4 0xD63F0120 x4 0xF94073E0 x4 0xF9405261 x4 0xF9400A69 x4 0xD63F0120 x4 0xF9406FE0 x4 0xF9405661 x4 0xF9400A69 x4 0xD63F0120 x4 0xF9406FE0 x4 0xF9405A61 x4 0xF9400A69 x4 0xD63F0120 x4 0xF9406BE0 x4 0xF9405E61 x4 0xF9400A69 x4 0xD63F0120 x4 0xAA0003F7 x4 0xF9400A89 x4 0x8B090F99 x4 0xD37EF6D8 x4 0xD280001A x4 0xEB18035F x4 0x540000AA x4 0x387A6AED x4 0x383A6B2D x4 0x9100075A x4 0x17FFFFFB x4 0xD2800000
+  x4 0xF94023FE x4 0xA94053F3 x4 0xA9425BF5 x4 0xA94463F7 x4 0xA9466BF9 x4 0x910403FF x4 0xD65F03C0
+  ! fe k 9 @ 16
+  O 0 }
 # _fm (campo 12 = -6): Fm p o. Abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e
 # mapeia-o inteiro (mmap, so leitura) em M a partir da palavra o (tem de ser multiplo de 2048 = uma pagina). Devolve o
 # tamanho em bytes, ou -1. As paginas carregam a pedido: um modelo de GB fica disponivel sem copia nem espera.
@@ -1540,6 +1566,7 @@
     x4 0xFC408566 x4 0x1F4600A0 x4 0xF100058C
     abcc 0x1 - lq @ 16
     = r adf 0 d ? != r 0 x4 | 0x1E604000 r 0 afd r d }
+  ? == k 69 { = fi pfind -8 ? < fi 0 { = fi pnew -8 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }
   ? == k 68 { = fi pfind -7 ? < fi 0 { = fi pnew -7 @ 13 } 0 agT 0 a acallf fi asT 0 d }
   ? == k 67 { = fi pfind -6 ? < fi 0 { = fi pnew -6 @ 13 } 0 agT 0 a agT 1 b acallf fi asT 0 d }
   ? == k 65 { = fi pfind -5 ? < fi 0 { = fi pnew -5 @ 13 } 0 agT 0 a agT 1 b x4 0xA9BF07E0 acallf fby k3 '_ 'f 'l x4 0xA8C107E0 acallf fi asT 0 d }

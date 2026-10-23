@@ -54,6 +54,8 @@
 # Gd gs: inicia a GPU (Metal) por dlopen/dlsym e guarda os handles em M[gs..]; devolve o device (0 se falhar).
 # So no -mx/-mfx (executavel do Mac).
 : cgd >i { = g cx ckint g ? ~ ismx { ebeg "a GPU precisa de -mx/-mfx" eend } 0 = r nt 0 ir 68 r g 0 0 0 0 r }
+# Gv gs p: soma de vetores na GPU (prova do calculo). p -> M[a,b,c,n] (offsets, uint32); c=a+b. So -mx.
+: cgv >i { = g cx = q cx ckint g ckint q ? ~ ismx { ebeg "a GPU precisa de -mx/-mfx" eend } 0 = r nt 0 ir 69 r g q 0 0 0 r }
 # Fm p o: abre o ficheiro cujo caminho esta em M[p..] (um byte por palavra, terminado por 0) e mapeia-o (mmap, so
 # leitura) em M a partir da palavra o (o endereco x28+o*8 tem de ficar numa pagina: o congruente com 2032 mod 2048,
 # p.ex. 1046512). Devolve o
@@ -365,6 +367,7 @@
   ? == o k2 'Q 'd cqd
   ? == o k2 'Q 'e cqe
   ? == o k2 'F 'm cfm
+  ? == o k2 'G 'v cgv
   ? == o k2 'G 'd cgd
   ? == o k2 'P 'b cpb
   ? == o 'N cnum

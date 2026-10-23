@@ -235,3 +235,17 @@ test('macho: Gd inicia a GPU (Metal) por dlopen/dlsym a partir do codigo-maquina
   fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
   assert.ok(['ok\n', 's\n', 'q\n', 'sem-gpu\n'].includes(execFileSync(path.join(t, 'x')).toString()));
 });
+
+test('macho: Gv soma vetores na GPU (compila o kernel, cria buffers, despacha) e da o mesmo que o CPU', { skip: process.platform !== 'darwin' || process.arch !== 'arm64' }, () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'onda-macho-gv-'));
+  // soma 256 uint32 na GPU; se nao houver GPU no contexto do teste, aceita "sem-gpu"
+  const src = ': main >i { = gs A 256 = d Gd gs ? ~ d { "sem-gpu\\n" X 0 } 0\n' +
+    '  = n 256 = a A 200 = b A 200 = c A 200\n' +
+    '  = i 0 W < i n { = lo * i 3 = hi * + i 1 3 ! + a / i 2 | & lo 4294967295 << hi 32 = lo + i 5 = hi + + i 1 5 ! + b / i 2 | & lo 4294967295 << hi 32 = i + i 2 }\n' +
+    '  = p A 4 ! p a ! + p 1 b ! + p 2 c ! + p 3 n Gv gs p\n' +
+    '  = e 0 = i 0 W < i n { = w @ + c / i 2 ? != & >> w * 32 % i 2 4294967295 + * i 3 + i 5 = e + e 1 0 = i + i 1 } ? == e 0 "ok\\n" "falha\\n" 0 }\n';
+  fs.writeFileSync(path.join(t, 'x'), execFileSync(ondac, ['-mx'], { input: Buffer.from(src) }), { mode: 0o755 });
+  const out = execFileSync(path.join(t, 'x')).toString();
+  assert.ok(out === 'ok\n' || out === 'sem-gpu\n', 'saida: ' + out);
+});

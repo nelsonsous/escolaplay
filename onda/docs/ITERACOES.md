@@ -2352,3 +2352,22 @@ Ganho modesto (~5-10%) porque a geracao esta limitada pela largura de banda da m
 **Testado:** no terminal, `Gd` cria o device, a fila, a classe NSString e os seletores (ponteiros validos). O teste do `macho` confirma que a rotina corre ate ao fim sem crashar.
 
 **Em falta:** despachar os kernels de calculo (soma de vetores -> produto matriz-vetor do LLM). A rotina de despacho completa esbarrou num limite de auto-compilacao do compilador nativo ao acrescentar mais um caso ao emissor; fica para a proxima, com esse limite resolvido primeiro. Por isso a IA ainda corre so no processador.
+
+---
+
+## Iteração 136: GPU a fazer contas a partir da Onda: soma de vetores em Metal, igual ao CPU
+
+**Marco:** um programa Onda corre um kernel de calculo na GPU (Metal) e le o resultado -- tudo a partir do codigo-maquina que a Onda escreve, sem clang nem frameworks ligados.
+
+**`Gv gs p` (prova):** soma de vetores na GPU. `p` aponta para [a, b, c, n] (offsets de M, uint32 empacotados 2 por palavra); calcula c[i] = a[i] + b[i]. A rotina (`agva`, em codigo-maquina):
+- compila o kernel MSL com `newLibraryWithSource:options:error:` e cria o `MTLComputePipelineState`;
+- cria os buffers (`newBufferWithBytes:length:options:` para a e b, `newBufferWithLength:options:` para c);
+- codifica o despacho (`computeCommandEncoder`, `setBuffer:offset:atIndex:`) e lanca `dispatchThreads:threadsPerThreadgroup:` (o `MTLSize` vai por ponteiro, como o clang faz);
+- `commit` + `waitUntilCompleted`, e copia o resultado de `contents` de volta para M.
+- Todas as chamadas Objective-C usam os ponteiros e seletores que o `Gd` guardou em M.
+
+**Testado:** soma de 1000 (e 256) uint32 na GPU, bit a bit igual ao CPU, zero erros.
+
+**Correcoes pelo caminho:** a cadeia `||` do `acall` tinha de incluir o op novo (senao partia o emissor e o compilador nao se auto-compilava); o contador da copia de volta incrementava 0; um bloco de dados dentro de uma funcao alinha-se ao inicio da funcao.
+
+**A seguir:** o kernel do produto matriz-vetor de 4 bits do LLM, para a IA correr na GPU.
