@@ -1,0 +1,26 @@
+# Derivada composta (VJP do mapa): V d n f a y  ->  d[i] = f'(a[i]) * y[i], a regra da cadeia do backward.
+# E a peca do autodiff que propaga o gradiente que chega do passo seguinte (y) para a entrada do mapa (a).
+# O f' e gerado por diferenciacao simbolica (o mesmo xdiff do operador B). Corre em C, x86, WASM e ARM64.
+# Conferimos contra diferencas finitas centradas: d[i] e o gradiente de L = sum(y[j]*f(a[j])) em ordem a a[i].
+# uso: ./onda run ex/vjp.onda [n]
+: g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }
+: encher iii>i p q n { = i 0 W < i n { !f + p i F + % i 7 1 !f + q i F + % + i 3 5 1 = i + i 1 } 0 }
+: lossf iii>f n a y { = p A n E p n g a = s 0.0 = i 0 W < i n { = s + s * @f + y i @f + p i = i + i 1 } s }
+: natoi i>i a { = v 0 = j 0 = c Av a 0 W && >= c '0 <= c '9 { = v + * v 10 - c '0 = j + j 1 = c Av a j } v }
+: main >i {
+  = n ? >= Ac 2 natoi 1 8
+  = a A n = y A n
+  encher a y n
+  = d A n
+  V d n g a y                                          # <- derivada composta automatica: d[i] = g'(a[i]) * y[i]
+  = e 0.0001
+  = i 0
+  W < i n {
+    = sv @f + a i
+    !f + a i + sv e = lp lossf n a y
+    !f + a i - sv e = lm lossf n a y
+    !f + a i sv
+    = fd / - lp lm * 2.0 e
+    "i=" N i " vjp=" G @f + d i " fd=" G fd "\n"
+    = i + i 1 }
+  0 }

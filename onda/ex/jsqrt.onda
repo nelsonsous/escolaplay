@@ -1,0 +1,21 @@
+# J com raiz quadrada: valida o operador interno (jdiff) a diferenciar Sq (sqrt), d(Vx)=dx/(2Vx).
+# Sq e a peca que faltava para normalizacao em IA (LayerNorm/RMSNorm, distancias L2).
+# f(u,v) = sqrt(u*u + v*v) + 3*sqrt(u). Confere o J contra diferencas finitas centradas.
+: f ff>f u v + Sq + * u u * v v * 3.0 Sq u
+: main >i {
+  = a A 2 !f + a 0 0.7 !f + a 1 1.3
+  = g A 2
+  J g f a
+  = e 0.0001
+  "var   J (autodiff interno)   diferencas finitas\n"
+  = j 0
+  W < j 2 {
+    = ap A 2 = am A 2
+    = i 0 W < i 2 { !f + ap i @f + a i !f + am i @f + a i = i + i 1 }
+    !f + ap j + @f + a j e
+    !f + am j - @f + a j e
+    = fp f @f + ap 0 @f + ap 1
+    = fm f @f + am 0 @f + am 1
+    " " N j "    " G @f + g j "        " G / - fp fm * 2.0 e "\n"
+    = j + j 1 }
+  0 }

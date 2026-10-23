@@ -1,0 +1,4 @@
+# imagem 64x48 com D: a mesma funcao de pixel em C e em WebAssembly tem de dar os mesmos bytes
+: c8 f>i v I * 255.0 Mx 0.0 Mn 1.0 v
+: px fff>i x y s { = u / x 64.0 = v / y 48.0 = r Sq + * u u * v v + + * c8 u 65536 * c8 * v s 256 c8 / r 1.5 }
+: main >i D 64 48 px 0.9

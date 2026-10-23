@@ -1,0 +1,398 @@
+# emissor WebAssembly binario (-w): a Onda escreve o modulo byte a byte, sem C nem assembler.
+# memoria: M[p] fica no byte (p+16)*8; M[-16..-1] e o estado do runtime (escrito em Onda, abaixo).
+# 20 cursor dos dados 21 tabela de textos 22 n de textos 23 cursor para anexar o runtime
+: k3 iii>i a b c + + a * 256 b * 65536 c
+: wu i>i v { = go 1 W go { = b & v 127 = v >> v 7 ? == v 0 { P b = go 0 } { P | b 128 } } 0 }
+: ws i>i v {
+  = go 1
+  W go {
+    = b & v 127
+    = v >> v 7
+    ? || && == v 0 == & b 64 0 && == v -1 != & b 64 0 { P b = go 0 } { P | b 128 } }
+  0 }
+: wl i>i t + @ 9 t
+: wg i>i t { P 32 wu wl t }
+: wsx i>i t { P 33 wu wl t }
+: wgv i>i j { P 32 wu j }
+: wsv i>i j { P 33 wu j }
+: wi64 i>i v { P 66 ws v }
+: wcond i>i t { wg t P 80 P 69 }
+: wb2i >i P 173
+: wadr >i { wi64 16 P 124 wi64 3 P 134 P 167 }
+: wf0 >i { P 68 = j 0 W < j 8 { P 0 = j + j 1 } 0 }
+: wsys iii>i c a b { wi64 c wi64 a wi64 b P 16 P 0 }
+: fby i>i c { = k 0 = r -1 W && < r 0 < k @ 6 { ? == tcode @ fe k 0 c = r k 0 = k + k 1 } r }
+: wrf i>i c { = k fby c ? < k 0 { ebeg "runtime sem funcao" eend } 0 P 16 wu + 3 k }
+: tokval i>i i {
+  = s tks i
+  = l tkl i
+  = j 0
+  = neg 0
+  ? == @ s '- { = neg 1 = j 1 } 0
+  = v 0
+  ? && == @ + s j '0 && < + j 1 l || == @ + s + j 1 'x == @ + s + j 1 'X
+    { = j + j 2 W < j l { = c @ + s j = v + * v 16 ? isdg c - c '0 ? && >= c 'a <= c 'f + 10 - c 'a + 10 - c 'A = j + j 1 } }
+    { W < j l { = v + * v 10 - @ + s j '0 = j + j 1 } }
+  ? neg - 0 v v }
+: p10 i>f k { = r 1.0 = j 0 W < j k { = r * r 10.0 = j + j 1 } r }
+: fltval i>f i {
+  = s tks i
+  = l tkl i
+  = j 0
+  = neg 0
+  ? == @ s '- { = neg 1 = j 1 } 0
+  = m 0.0
+  = k 0
+  = fr 0
+  W < j l { = c @ + s j ? == c '. = fr 1 { = m + * m 10.0 F - c '0 ? fr = k + k 1 0 } = j + j 1 }
+  = v / m p10 k
+  ? neg * -1.0 v v }
+: wf64 f>i v { !f 24 v P 68 wword @ 24 8 }
+: wun ii>i c t {
+  ? == c 0 { wg t P 185 }
+  ? == c 1 { wg t P 252 P 6 }
+  ? == c 2 { wg t P 159 }
+  ? == c 7 { wg t P 156 }
+  ? == c 8 { wg t P 153 }
+  ? == c 11 { wg t P 189 wi64 32 P 135 }
+  ? == c 12 { wg t P 189 wi64 4294967295 P 131 }
+  { wi64 - c 3 wg t P 16 P 1 } }
+: wxl i>i j + + @ 9 @ 11 j
+: wgx i>i j { P 32 wu wxl j }
+: wsxx i>i j { P 33 wu wxl j }
+: wloop0 i>i j { wi64 0 wsxx j P 2 P 64 P 3 P 64 }
+: wtest ii>i j n { wgx j wg n P 89 P 13 P 1 }
+: wnext i>i j { wgx j wi64 1 P 124 wsxx j P 12 P 0 P 11 P 11 }
+: wxargs ii>i a n { = j 0 W < j n { wg @ + a j = j + j 1 } 0 }
+: wS i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  ? tty d wf0 wi64 0
+  wsx d
+  wloop0 0
+  wtest 0 a
+  wg d wgx 0 wxargs c x P 16 wu + 3 b P ? tty d 160 124 wsx d
+  wnext 0 }
+# --- WASM SIMD (v128 / f64x2): mapa vetorizado, 2 doubles por instrucao (so em -wf). Bit-exato (por lane). ---
+# walker pos-fixo do elemento: recarrega x por uso (v128.load), sem locais v128 novos. 0xFD = prefixo SIMD.
+: wvem iii>i xt sb cj {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { wf64 fltval i P 253 wu 20 0 }
+  ? == kk 0 { wg sb wgx cj P 124 wadr P 253 wu 0 wu 3 wu 0 }
+  { = o tcode i wvem xt sb cj wvem xt sb cj P 253 wu ? == o '+ 240 ? == o '- 241 ? == o '* 242 243 0 } }
+: wEv iiiii>i a b c x y {
+  = sb @ x
+  = bod @ fe c 5
+  = xt + bod 2
+  = rs + bod 7
+  = sv @ 7
+  wg b wi64 -2 P 131 wsxx 1
+  wloop0 0
+  wgx 0 wgx 1 P 89 P 13 P 1
+  wg a wgx 0 P 124 wadr
+  ! 7 rs wvem xt sb 0
+  P 253 wu 11 wu 3 wu 0
+  wgx 0 wi64 2 P 124 wsxx 0 P 12 P 0 P 11 P 11
+  P 2 P 64 P 3 P 64
+  wgx 0 wg b P 89 P 13 P 1
+  wg a wgx 0 P 124 wadr
+  wgx 0 wxargs x y P 16 wu + 3 c
+  ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
+  wgx 0 wi64 1 P 124 wsxx 0 P 12 P 0 P 11 P 11
+  ! 7 sv }
+: wE i>i p {
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  ? && fastf xvan c wEv a b c x y {
+    wloop0 0
+    wtest 0 b
+    wg a wgx 0 P 124 wadr
+    wgx 0 wxargs x y P 16 wu + 3 c
+    ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
+    wnext 0 } }
+: wbyte ii>i j s { wgx j wi64 s P 135 wi64 255 P 131 wrf k3 '_ 'o 'p P 26 }
+: wD i>i p {
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  wg a wg b wrf k3 '_ 'p 'h P 26
+  wloop0 1
+  wtest 1 b
+  wloop0 0
+  wtest 0 a
+  wgx 0 ? fpt c 0 P 185 0
+  wgx 1 ? fpt c 0 P 185 0
+  wxargs x y P 16 wu + 3 c wsxx 2
+  wbyte 2 16 wbyte 2 8 wbyte 2 0
+  wnext 0
+  wnext 1
+  wi64 0 wsx d }
+: opof i>i a ? < a 0 - 0 a tcode a
+: wbop ii>i o y ? y { ? == o '+ 160 ? == o '- 161 ? == o '* 162 163 }
+  { ? == o '+ 124 ? == o '- 125 ? == o '* 126 ? == o '/ 127 ? == o '% 129 ? == o '& 131 ? == o '| 132 ? == o '^ 133 ? == o k2 '< '< 134 135 }
+: wcop ii>i o y {
+  = q ? == o '< 0 ? == o '> 1 ? == o k2 '< '= 2 ? == o k2 '> '= 3 ? == o k2 '= '= 4 5
+  ? y ? == q 0 99 ? == q 1 100 ? == q 2 101 ? == q 3 102 ? == q 4 97 98
+      ? == q 0 83 ? == q 1 85 ? == q 2 87 ? == q 3 89 ? == q 4 81 82 }
+: slen i>i i {
+  = s tks i
+  = l tkl i
+  = j 1
+  = n 0
+  W < j - l 1 { ? == @ + s j 92 = j + j 2 = j + j 1 = n + n 1 }
+  n }
+: wstr i>i i {
+  = n slen i
+  = adr @ 20
+  ! 20 + adr / + n 7 8
+  = q + @ 21 * @ 22 2
+  ! q i
+  ! + q 1 adr
+  ! 22 + @ 22 1
+  wi64 adr wi64 n wrf k3 '_ 'o 's P 26 }
+: sreg i>i i {
+  = n slen i
+  = adr @ 20
+  ! 20 + adr / + n 7 8
+  = q + @ 21 * @ 22 2
+  ! q i
+  ! + q 1 adr
+  ! 22 + @ 22 1
+  adr }
+: wins i>i p {
+  = k @ p
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  ? == k 1 { ? tty d { wf64 fltval a } { wi64 tokval a } wsx d }
+  ? == k 2 { wi64 a wsx d }
+  ? == k 3 { wstr a }
+  ? == k 4 { ? tty d wf0 wi64 0 wsx d }
+  ? == k 5 { wgv b wsx d }
+  ? == k 6 { wg b wsv c }
+  ? == k 7 { = j 0 W < j c { wg @ + b j = j + j 1 } P 16 wu + 3 a wsx d }
+  ? == k 8 { wg b wg c P wbop opof a tty d wsx d }
+  ? == k 9 { wg b wg c P wcop opof a tty b wb2i wsx d }
+  ? == k 10 { wi64 0 wsx d wcond a P 4 P 64 }
+  ? || == k 11 == k 13 { wcond a wb2i wsx d P 11 }
+  ? == k 12 { wi64 1 wsx d wg a P 80 P 4 P 64 }
+  ? == k 14 { wg a P 80 wb2i wsx d }
+  ? == k 15 { wun a b wsx d }
+  ? == k 16 { wi64 - a 9 wg b wg c P 16 P 2 wsx d }
+  ? == k 17 { wg b wg c wg b wg c P ? a ? tty b 100 85 ? tty b 99 83 P 27 wsx d }
+  ? == k 18 { wcond a P 4 P 64 }
+  ? == k 19 { wg a wsx d P 5 }
+  ? == k 20 { wg a wsx d P 11 }
+  ? == k 21 { P 2 P 64 P 3 P 64 }
+  ? == k 22 { wg a P 80 P 13 P 1 }
+  ? == k 23 { P 12 P 0 P 11 P 11 }
+  ? == k 24 { wg a wadr P 41 P 3 P 0 wsx d }
+  ? == k 25 { wg a wadr wg b P 55 P 3 P 0 }
+  ? == k 26 { wg a wadr P 43 P 3 P 0 wsx d }
+  ? == k 27 { wg a wadr wg b P 57 P 3 P 0 }
+  ? == k 28 { wg a wrf k3 '_ 'o 'a wsx d }
+  ? == k 29 { wg a wrf k3 '_ 'o 'p P 26 }
+  ? == k 30 { wsys 1 0 0 wsx d }
+  ? == k 31 { wg a wrf k3 '_ 'o 'n P 26 }
+  ? == k 32 { wg a wrf k3 '_ 'o 'g P 26 }
+  ? == k 33 { wi64 -2 wadr wg a P 55 P 3 P 0 }
+  ? == k 34 { wsys 3 0 0 wsx d }
+  ? == k 35 { wi64 4 wg a wg b P 16 P 0 wsx d }
+  ? == k 36 { wg a wrf k3 '_ 'e 'x P 26 }
+  ? == k 37 { wsys 6 0 0 wsx d }
+  ? == k 38 { wE p }
+  ? == k 39 { wS p }
+  ? == k 40 { wD p }
+  ? == k 42 { wg a wg b wg c P 16 P 0 wsx d }
+  ? == k 43 { wg a wi64 32 P 134 wg b wi64 4294967295 P 131 P 132 P 191 wsx d }
+  ? == k 44 { P 68 wword b 4 wword a 4 wsx d }
+  ? == k 41 { wg a }
+  { ebeg "operacao ainda nao suportada em -w" eend } }
+: wfun i>i k {
+  = np @ fe k 2
+  O 16
+  ! fe k 8 @ 16
+  wu + + - @ 9 np @ 11 3
+  = j np
+  W < j @ 9 { P 1 P ? lty j 124 126 = j + j 1 }
+  = j 0
+  W < j @ 11 { P 1 P ? tty j 124 126 = j + j 1 }
+  P 1 P 126 P 1 P 126 P 1 P 126
+  = j 0
+  W < j @ 19 { wins + @ 18 * j 8 = j + j 1 }
+  P 11
+  ! fe k 9 @ 16
+  O 0 }
+: wbeg >i { O 17 @ 17 }
+: wend ii>i id a { = z @ 17 O 0 P id wu - z a ew a - z a ! 17 a 0 }
+: wty i>i y P ? y 124 126
+: wnm i>i c { wu 3 P & c 255 P & >> c 8 255 P >> c 16 }
+: wword ii>i v n { = j 0 W < j n { P & v 255 = v >> v 8 = j + j 1 } 0 }
+: wchr i>i i {
+  = s tks i
+  = l tkl i
+  = j 1
+  = n 0
+  W < j - l 1 {
+    = c @ + s j
+    ? == c 92
+      { = j + j 1 = e @ + s j = c ? == e 'n 10 ? == e 't 9 ? == e 'r 13 ? == e '0 0 e }
+      0
+    P c
+    = n + n 1
+    = j + j 1 }
+  W & n 7 { P 0 = n + n 1 }
+  0 }
+: outw >i {
+  = nf @ 6
+  P 0 P 97 P 115 P 109 P 1 P 0 P 0 P 0
+  = a wbeg
+  wu + 4 nf
+  P 96 P 3 P 126 P 126 P 126 P 1 P 126
+  P 96 P 2 P 126 P 124 P 1 P 124
+  P 96 P 3 P 126 P 124 P 124 P 1 P 124
+  = k 0
+  W < k nf { P 96 = np @ fe k 2 wu np = j 0 W < j np { wty fpt k j = j + j 1 } P 1 wty @ fe k 3 = k + k 1 }
+  P 96 P 0 P 0
+  wend 1 a
+  = a wbeg
+  wu 3
+  wnm k3 'e 'n 'v wnm k3 's 'y 's P 0 wu 0
+  wnm k3 'e 'n 'v wu 2 P 'm P '1 P 0 wu 1
+  wnm k3 'e 'n 'v wu 2 P 'm P '2 P 0 wu 2
+  wend 2 a
+  = a wbeg
+  wu + nf 1
+  = k 0
+  W <= k nf { wu + 3 k = k + k 1 }
+  wend 3 a
+  = a wbeg
+  P 1 P 0 wu 32
+  wend 5 a
+  = a wbeg
+  wu 2
+  wu 6 P 'm P 'e P 'm P 'o P 'r P 'y P 2 wu 0
+  wu 6 P '_ P 's P 't P 'a P 'r P 't P 0 wu + 3 nf
+  wend 7 a
+  = a wbeg
+  wu + nf 1
+  = k 0
+  W < k nf { = s @ fe k 8 = z @ fe k 9 wu - z s ew s - z s = k + k 1 }
+  = g + 3 fby k3 '_ 'g 'o
+  wu + 4 ? < g 128 1 2
+  P 0 P 16 wu g P 26 P 11
+  wend 10 a
+  = a wbeg
+  wu + @ 22 1
+  P 0 P 65 ws 120 P 11 wu 8 wword + @ 20 8 8
+  = j 0
+  W < j @ 22 {
+    = q + @ 21 * j 2
+    = i @ q
+    P 0 P 65 ws * + @ + q 1 16 8 P 11
+    wu * 8 / + slen i 7 8
+    wchr i
+    = j + j 1 }
+  wend 11 a
+  0 }
+: wrt >i "
+: _fl >i { Y 0 @ -4 @ -3 ! -3 0 }
+: _op i>i b { = s @ -2 ? s { ! @ s b ! s + @ s 1 b } { = n @ -3 ! + @ -4 n b ! -3 + n 1 ? >= + n 1 4096 _fl 0 b } }
+: _os ii>i p n { = j 0 W < j n { _op & >> @ + p >> j 3 * 8 & j 7 255 = j + j 1 } 0 }
+: _on i>i n { = u n ? < n 0 { _op 45 = u - 0 n } 0 = b @ -5 = i 0 W { ! + b i + 48 % u 10 = i + i 1 = u / u 10 != u 0 } 0 W > i 0 { = i - i 1 _op @ + b i } n }
+: _oa i>i n { = p @ -1 = q + p n ! -1 q ? > q @ -7 ! -7 Y 7 q 0 0 p }
+: _ini >i { ! -7 Y 7 0 0 ! -4 _oa 4096 ! -5 _oa 300 0 }
+: _ex i>i c { _fl Y 2 c 0 }
+: _go >i { _ini _ex main }
+: _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 = j 0 W < j n { _op @ + @ -5 j = j + j 1 } x }
+: _pd ii>i p n { = j 0 W < j n { = c @ + p j _op & >> c 16 255 _op & >> c 8 255 _op & c 255 = j + j 1 } 0 }
+: _ph ii>i w h { _op 80 _op 54 _op 10 _on w _op 32 _on h _op 10 _op 50 _op 53 _op 53 _op 10 }
+: _pt i>f k { = r 1.0 = j 0 W < j k { = r * r 10.0 = j + j 1 } r }
+: _om fi>i v e { = s - 14 e ? >= s 0 ? <= s 22 I + * v _pt s 0.5 I + * * v _pt 22 _pt - s 22 0.5 ? >= s -22 I + / v _pt - 0 s 0.5 I + / / v _pt 22 _pt - - 0 s 22 0.5 }
+: _bz ii>i b v { ! b 0 ? v { ! + b 1 & v 4294967295 ! b 1 ? >> v 32 { ! + b 2 >> v 32 ! b 2 } 0 } 0 0 }
+: _bm ii>i b k { = n @ b = c 0 = i 0 W < i n { = t + * @ + b + 1 i k c ! + b + 1 i & t 4294967295 = c >> t 32 = i + i 1 } ? c { ! + b + 1 n c ! b + n 1 } 0 0 }
+: _bsh ii>i b s {
+  = w / s 32
+  = r % s 32
+  = n @ b
+  ? r { = c 0 = i 0 W < i n { = t | << @ + b + 1 i r c ! + b + 1 i & t 4294967295 = c >> t 32 = i + i 1 } ? c { ! + b + 1 n c = n + n 1 } 0 } 0
+  ? && w n { = i - n 1 W >= i 0 { ! + b + 1 + i w @ + b + 1 i = i - i 1 } = i 0 W < i w { ! + b + 1 i 0 = i + i 1 } = n + n w } 0
+  ! b n
+  0 }
+: _bc ii>i a b {
+  = na @ a
+  = nb @ b
+  ? != na nb ? > na nb 1 -1
+    { = r 0 = i - na 1 W && == r 0 >= i 0 { = x @ + a + 1 i = y @ + b + 1 i ? != x y = r ? > x y 1 -1 0 = i - i 1 } r } }
+: _bs ii>i a b {
+  = n @ a
+  = nb @ b
+  = c 0
+  = i 0
+  W < i n { = t - - @ + a + 1 i ? < i nb @ + b + 1 i 0 c = c ? < t 0 1 0 ? c = t + t 4294967296 0 ! + a + 1 i t = i + i 1 }
+  W && > n 0 == @ + a n 0 = n - n 1
+  ! a n
+  0 }
+: _bcp ii>i a b { = n @ b ! a n = i 0 W < i n { ! + a + 1 i @ + b + 1 i = i + i 1 } 0 }
+# _od: os 15 algarismos significativos de v > 0, exatos e arredondados ao mais proximo (empate: par), como o printf.
+# v = mt * 2^q; razao exata na/nb em inteiros grandes (limbs de 32 bits no bloco @-5), escalada para 1 <= na/nb < 10.
+: _od f>i v {
+  = hx Bh v
+  = lx Bl v
+  = ex & >> hx 20 2047
+  = mt | << & hx 1048575 32 lx
+  = q ? ex - ex 1075 -1074
+  = mt ? ex | mt 4503599627370496 mt
+  = b @ -5
+  = na + b 40
+  = nb + b 120
+  = nc + b 200
+  _bz na mt
+  _bz nb 1
+  ? >= q 0 _bsh na q _bsh nb - 0 q
+  = e 0
+  = w v
+  W >= w 10.0 { = w / w 10.0 = e + e 1 }
+  W < w 1.0 { = w * w 10.0 = e - e 1 }
+  ? >= e 0 { = j 0 W < j e { _bm nb 10 = j + j 1 } } { = j 0 W < j - 0 e { _bm na 10 = j + j 1 } }
+  ? < _bc na nb 0 { _bm na 10 = e - e 1 } 0
+  _bcp nc nb
+  _bm nc 10
+  ? >= _bc na nc 0 { _bm nb 10 = e + e 1 } 0
+  = j 0
+  W < j 15 { = d 0 W >= _bc na nb 0 { _bs na nb = d + d 1 } ! + b j + 48 d ? < j 14 _bm na 10 0 = j + j 1 }
+  _bm na 2
+  = c _bc na nb
+  ? || > c 0 && == c 0 & - @ + b 14 48 1 {
+    = j 14
+    = k 1
+    W && k >= j 0 { = t + @ + b j 1 ? > t 57 { ! + b j 48 = j - j 1 } { ! + b j t = k 0 } }
+    ? k { ! b 49 = e + e 1 } 0 } 0
+  = nd 15
+  W && > nd 1 == @ + b - nd 1 48 = nd - nd 1
+  ? && >= e -4 < e 15
+    { ? >= e 0
+        { = j 0 W <= j e { _op @ + b j = j + j 1 } ? > nd + e 1 { _op 46 W < j nd { _op @ + b j = j + j 1 } } 0 }
+        { _op 48 _op 46 = j 1 W < j - 0 e { _op 48 = j + j 1 } = j 0 W < j nd { _op @ + b j = j + j 1 } } }
+    { _op @ b ? > nd 1 { _op 46 = j 1 W < j nd { _op @ + b j = j + j 1 } } 0
+      _op 101 ? < e 0 { _op 45 = e - 0 e } _op 43 ? < e 10 _op 48 0 _on e }
+  0 }
+: _of f>f x {
+  ? != x x { _op 110 _op 97 _op 110 }
+  { = v x
+    ? || < v 0.0 && == v 0.0 < / 1.0 v 0.0 { _op 45 = v * -1.0 v 0 } 0
+    ? && == v * v 2.0 != v 0.0 { _op 105 _op 110 _op 102 } ? == v 0.0 _op 48 _od v }
+  x }
+"

@@ -1,0 +1,725 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Onda · Camadas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap">
+<style>
+  :root{--ink:#eaf0ff;--mut:#9fb0d8;--card:#141a2e;--line:#283255;
+    --f:"Baloo 2","Arial Rounded MT Bold",system-ui,sans-serif;color-scheme:dark}
+  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  body{background:linear-gradient(180deg,#0a0e1c,#0f1430);color:var(--ink);font:15px/1.4 var(--f);
+    -webkit-tap-highlight-color:transparent;overflow:hidden}
+  .wrap{height:100%;display:flex;flex-direction:column;gap:8px;
+    padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
+  h1{margin:0;text-align:center;font-size:19px;font-weight:800}
+  h1 small{display:block;font-size:12px;font-weight:700;color:var(--mut)}
+  .panel{flex:1;position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000;min-height:0}
+  .panel canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #cpu{image-rendering:pixelated}
+  .tag{position:absolute;left:10px;top:9px;z-index:2;font-weight:800;font-size:13px;
+    background:rgba(8,12,26,.6);padding:5px 10px;border-radius:999px;backdrop-filter:blur(4px)}
+  .tag.gpu{color:#7ee0ff}.tag.cpu{color:#ffcf6b}
+  .mx{position:absolute;right:10px;bottom:9px;z-index:2;text-align:right;font-weight:800;
+    background:rgba(8,12,26,.55);padding:6px 11px;border-radius:12px;backdrop-filter:blur(4px)}
+  .mx b{font-size:20px}.mx span{font-size:11px;color:var(--mut);font-weight:700}
+  .bar{text-align:center;font-weight:800;font-size:15px;color:var(--ink);padding:2px}
+  .bar b{color:#7ee0ff;font-size:22px}
+  .note{text-align:center;color:var(--mut);font-size:12px;font-weight:700;line-height:1.3}
+</style>
+<div class="wrap">
+  <h1>A mesma função Onda <small>uma camada muda tudo · fractal de Julia, 200 iter/pixel</small></h1>
+  <div class="panel"><span class="tag gpu">⚡ GPU · camada mais baixa</span><canvas id="gpu"></canvas>
+    <div class="mx"><b id="gmx">—</b> <span>Mpx/s</span></div></div>
+  <div class="panel"><span class="tag cpu">🐢 CPU · 1 núcleo</span><canvas id="cpu"></canvas>
+    <div class="mx"><b id="cmx">—</b> <span>Mpx/s</span></div></div>
+  <div class="bar">GPU <b id="ratio">—</b> mais rápida</div>
+  <div class="note">O mesmo campo compilado pela Onda: na GPU corre em milhares de núcleos em paralelo; no CPU, um pixel de cada vez. Eliminar camadas = compilar para onde é mais rápido.</div>
+</div>
+
+<script id="frag" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+precision highp int;
+uniform float u[8];
+out vec4 oc;
+int obh(float x){return floatBitsToInt(x);}
+int obl(float x){return 0;}
+float obw(int h,int l){return intBitsToFloat(h);}
+int f_c8(float v_v);
+int f_rgb(float v_r,float v_g,float v_b);
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h);
+int f_c8(float v_v){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+int t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=int(t6);
+return t7;
+}
+int f_rgb(float v_r,float v_g,float v_b){
+float t0=0.0;
+int t1=0;
+int t2=0;
+int t3=0;
+float t4=0.0;
+int t5=0;
+int t6=0;
+int t7=0;
+int t8=0;
+float t9=0.0;
+int t10=0;
+int t11=0;
+t0=v_r;
+t1=f_c8(t0);
+t2=65536;
+t3=t1*t2;
+t4=v_g;
+t5=f_c8(t4);
+t6=256;
+t7=t5*t6;
+t8=t3+t7;
+t9=v_b;
+t10=f_c8(t9);
+t11=t8+t10;
+return t11;
+}
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+float t7=0.0;
+float t8=0.0;
+float t9=0.0;
+float t10=0.0;
+float t11=0.0;
+float t12=0.0;
+float t13=0.0;
+float t14=0.0;
+float t15=0.0;
+float t16=0.0;
+float t17=0.0;
+float t18=0.0;
+float t19=0.0;
+float t20=0.0;
+float t21=0.0;
+float t22=0.0;
+float t23=0.0;
+float t24=0.0;
+float t25=0.0;
+float t26=0.0;
+float t27=0.0;
+float t28=0.0;
+int t29=0;
+int t30=0;
+int t31=0;
+int t32=0;
+int t33=0;
+float t34=0.0;
+float t35=0.0;
+float t36=0.0;
+float t37=0.0;
+float t38=0.0;
+float t39=0.0;
+float t40=0.0;
+float t41=0.0;
+int t42=0;
+float t43=0.0;
+float t44=0.0;
+float t45=0.0;
+float t46=0.0;
+float t47=0.0;
+float t48=0.0;
+float t49=0.0;
+float t50=0.0;
+float t51=0.0;
+float t52=0.0;
+float t53=0.0;
+float t54=0.0;
+float t55=0.0;
+float t56=0.0;
+float t57=0.0;
+float t58=0.0;
+float t59=0.0;
+int t60=0;
+int t61=0;
+int t62=0;
+int t63=0;
+int t64=0;
+int t65=0;
+int t66=0;
+int t67=0;
+int t68=0;
+float t69=0.0;
+float t70=0.0;
+float t71=0.0;
+float t72=0.0;
+float t73=0.0;
+float t74=0.0;
+float t75=0.0;
+int t76=0;
+float t77=0.0;
+float t78=0.0;
+float t79=0.0;
+float t80=0.0;
+float t81=0.0;
+float t82=0.0;
+float t83=0.0;
+float t84=0.0;
+float t85=0.0;
+float t86=0.0;
+float t87=0.0;
+float t88=0.0;
+float t89=0.0;
+float t90=0.0;
+float t91=0.0;
+float t92=0.0;
+float t93=0.0;
+float t94=0.0;
+float t95=0.0;
+float t96=0.0;
+float t97=0.0;
+float t98=0.0;
+float t99=0.0;
+float t100=0.0;
+float t101=0.0;
+float t102=0.0;
+float t103=0.0;
+float t104=0.0;
+float t105=0.0;
+float t106=0.0;
+float t107=0.0;
+float t108=0.0;
+float t109=0.0;
+float t110=0.0;
+float t111=0.0;
+float t112=0.0;
+float t113=0.0;
+int t114=0;
+float v_s=0.0;
+float v_zr=0.0;
+float v_zi=0.0;
+float v_cr=0.0;
+float v_ci=0.0;
+int v_k=0;
+float v_q=0.0;
+float v_m=0.0;
+float v_v=0.0;
+float v_a=0.0;
+t0=3.0;
+t1=v_h;
+t2=t0/t1;
+v_s=t2;
+t3=v_x;
+t4=0.5;
+t5=v_w;
+t6=t4*t5;
+t7=t3-t6;
+t8=v_s;
+t9=t7*t8;
+v_zr=t9;
+t10=v_y;
+t11=0.5;
+t12=v_h;
+t13=t11*t12;
+t14=t10-t13;
+t15=v_s;
+t16=t14*t15;
+v_zi=t16;
+t17=0.7885;
+t18=0.3;
+t19=v_t;
+t20=t18*t19;
+t21=cos(t20);
+t22=t17*t21;
+v_cr=t22;
+t23=0.7885;
+t24=0.3;
+t25=v_t;
+t26=t24*t25;
+t27=sin(t26);
+t28=t23*t27;
+v_ci=t28;
+t29=0;
+v_k=t29;
+while(true){
+t30=v_k;
+t31=200;
+t32=(t30<t31)?1:0;
+t33=0;
+if(t32!=0){
+t34=v_zr;
+t35=v_zr;
+t36=t34*t35;
+t37=v_zi;
+t38=v_zi;
+t39=t37*t38;
+t40=t36+t39;
+t41=64.0;
+t42=(t40<t41)?1:0;
+t33=(t42!=0)?1:0;
+}
+if(t33==0)break;
+t43=v_zr;
+t44=v_zr;
+t45=t43*t44;
+t46=v_zi;
+t47=v_zi;
+t48=t46*t47;
+t49=t45-t48;
+t50=v_cr;
+t51=t49+t50;
+v_q=t51;
+t52=2.0;
+t53=v_zr;
+t54=v_zi;
+t55=t53*t54;
+t56=t52*t55;
+t57=v_ci;
+t58=t56+t57;
+v_zi=t58;
+t59=v_q;
+v_zr=t59;
+t60=v_k;
+t61=1;
+t62=t60+t61;
+v_k=t62;
+}
+t63=0;
+t64=v_k;
+t65=200;
+t66=(t64>=t65)?1:0;
+if(t66!=0){
+t68=0;
+t67=t68;
+}else{
+t69=v_zr;
+t70=v_zr;
+t71=t69*t70;
+t72=v_zi;
+t73=v_zi;
+t74=t72*t73;
+t75=t71+t74;
+v_m=t75;
+t76=v_k;
+t77=float(t76);
+t78=1.0;
+t79=t77+t78;
+t80=0.5;
+t81=v_m;
+t82=log(t81);
+t83=t80*t82;
+t84=log(t83);
+t85=2.0;
+t86=log(t85);
+t87=t84/t86;
+t88=t79-t87;
+v_v=t88;
+t89=v_v;
+t90=0.15;
+t91=t89*t90;
+v_a=t91;
+t92=0.5;
+t93=0.5;
+t94=v_a;
+t95=cos(t94);
+t96=t93*t95;
+t97=t92+t96;
+t98=0.5;
+t99=0.5;
+t100=v_a;
+t101=2.1;
+t102=t100+t101;
+t103=cos(t102);
+t104=t99*t103;
+t105=t98+t104;
+t106=0.5;
+t107=0.5;
+t108=v_a;
+t109=4.2;
+t110=t108+t109;
+t111=cos(t110);
+t112=t107*t111;
+t113=t106+t112;
+t114=f_rgb(t97,t105,t113);
+t67=t114;
+}
+return t67;
+}
+void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0],u[1],u[2]);oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}
+</script>
+<script>
+(function(){
+  // ---- GPU ----
+  var gc=document.getElementById('gpu'), gl=gc.getContext('webgl2',{antialias:false,alpha:false,preserveDrawingBuffer:false});
+  var okGPU=!!gl, prog,uLoc,GW,GH;
+  if(okGPU){
+    var frag=document.getElementById('frag').textContent, vs='#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+    function sh(t,s){var x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x;}
+    prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,frag));
+    gl.bindAttribLocation(prog,0,'p');gl.linkProgram(prog);gl.useProgram(prog);
+    var bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+    uLoc=gl.getUniformLocation(prog,'u');
+  }
+  var _px1=new Uint8Array(4);
+  // ---- CPU (a MESMA funcao Onda, compilada para JS) ----
+  var f_px=(function(){const obv=new DataView(new ArrayBuffer(8));function obh(x){obv.setFloat64(0,x);return obv.getInt32(0);}function obl(x){obv.setFloat64(0,x);return obv.getUint32(4);}function obw(h,l){obv.setInt32(0,h);obv.setUint32(4,l);return obv.getFloat64(0);}
+function f_c8(v_v){
+let t0=0.0;
+let t1=0.0;
+let t2=0.0;
+let t3=0.0;
+let t4=0.0;
+let t5=0.0;
+let t6=0.0;
+let t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=Math.trunc(t6);
+return t7;
+}
+function f_rgb(v_r,v_g,v_b){
+let t0=0.0;
+let t1=0;
+let t2=0;
+let t3=0;
+let t4=0.0;
+let t5=0;
+let t6=0;
+let t7=0;
+let t8=0;
+let t9=0.0;
+let t10=0;
+let t11=0;
+t0=v_r;
+t1=f_c8(t0);
+t2=65536;
+t3=t1*t2;
+t4=v_g;
+t5=f_c8(t4);
+t6=256;
+t7=t5*t6;
+t8=t3+t7;
+t9=v_b;
+t10=f_c8(t9);
+t11=t8+t10;
+return t11;
+}
+function f_px(v_x,v_y,v_t,v_w,v_h){
+let t0=0.0;
+let t1=0.0;
+let t2=0.0;
+let t3=0.0;
+let t4=0.0;
+let t5=0.0;
+let t6=0.0;
+let t7=0.0;
+let t8=0.0;
+let t9=0.0;
+let t10=0.0;
+let t11=0.0;
+let t12=0.0;
+let t13=0.0;
+let t14=0.0;
+let t15=0.0;
+let t16=0.0;
+let t17=0.0;
+let t18=0.0;
+let t19=0.0;
+let t20=0.0;
+let t21=0.0;
+let t22=0.0;
+let t23=0.0;
+let t24=0.0;
+let t25=0.0;
+let t26=0.0;
+let t27=0.0;
+let t28=0.0;
+let t29=0;
+let t30=0;
+let t31=0;
+let t32=0;
+let t33=0;
+let t34=0.0;
+let t35=0.0;
+let t36=0.0;
+let t37=0.0;
+let t38=0.0;
+let t39=0.0;
+let t40=0.0;
+let t41=0.0;
+let t42=0;
+let t43=0.0;
+let t44=0.0;
+let t45=0.0;
+let t46=0.0;
+let t47=0.0;
+let t48=0.0;
+let t49=0.0;
+let t50=0.0;
+let t51=0.0;
+let t52=0.0;
+let t53=0.0;
+let t54=0.0;
+let t55=0.0;
+let t56=0.0;
+let t57=0.0;
+let t58=0.0;
+let t59=0.0;
+let t60=0;
+let t61=0;
+let t62=0;
+let t63=0;
+let t64=0;
+let t65=0;
+let t66=0;
+let t67=0;
+let t68=0;
+let t69=0.0;
+let t70=0.0;
+let t71=0.0;
+let t72=0.0;
+let t73=0.0;
+let t74=0.0;
+let t75=0.0;
+let t76=0;
+let t77=0.0;
+let t78=0.0;
+let t79=0.0;
+let t80=0.0;
+let t81=0.0;
+let t82=0.0;
+let t83=0.0;
+let t84=0.0;
+let t85=0.0;
+let t86=0.0;
+let t87=0.0;
+let t88=0.0;
+let t89=0.0;
+let t90=0.0;
+let t91=0.0;
+let t92=0.0;
+let t93=0.0;
+let t94=0.0;
+let t95=0.0;
+let t96=0.0;
+let t97=0.0;
+let t98=0.0;
+let t99=0.0;
+let t100=0.0;
+let t101=0.0;
+let t102=0.0;
+let t103=0.0;
+let t104=0.0;
+let t105=0.0;
+let t106=0.0;
+let t107=0.0;
+let t108=0.0;
+let t109=0.0;
+let t110=0.0;
+let t111=0.0;
+let t112=0.0;
+let t113=0.0;
+let t114=0;
+let v_s=0.0;
+let v_zr=0.0;
+let v_zi=0.0;
+let v_cr=0.0;
+let v_ci=0.0;
+let v_k=0;
+let v_q=0.0;
+let v_m=0.0;
+let v_v=0.0;
+let v_a=0.0;
+t0=3.0;
+t1=v_h;
+t2=t0/t1;
+v_s=t2;
+t3=v_x;
+t4=0.5;
+t5=v_w;
+t6=t4*t5;
+t7=t3-t6;
+t8=v_s;
+t9=t7*t8;
+v_zr=t9;
+t10=v_y;
+t11=0.5;
+t12=v_h;
+t13=t11*t12;
+t14=t10-t13;
+t15=v_s;
+t16=t14*t15;
+v_zi=t16;
+t17=0.7885;
+t18=0.3;
+t19=v_t;
+t20=t18*t19;
+t21=Math.cos(t20);
+t22=t17*t21;
+v_cr=t22;
+t23=0.7885;
+t24=0.3;
+t25=v_t;
+t26=t24*t25;
+t27=Math.sin(t26);
+t28=t23*t27;
+v_ci=t28;
+t29=0;
+v_k=t29;
+while(true){
+t30=v_k;
+t31=200;
+t32=(t30<t31)?1:0;
+t33=0;
+if(t32!=0){
+t34=v_zr;
+t35=v_zr;
+t36=t34*t35;
+t37=v_zi;
+t38=v_zi;
+t39=t37*t38;
+t40=t36+t39;
+t41=64.0;
+t42=(t40<t41)?1:0;
+t33=(t42!=0)?1:0;
+}
+if(t33==0)break;
+t43=v_zr;
+t44=v_zr;
+t45=t43*t44;
+t46=v_zi;
+t47=v_zi;
+t48=t46*t47;
+t49=t45-t48;
+t50=v_cr;
+t51=t49+t50;
+v_q=t51;
+t52=2.0;
+t53=v_zr;
+t54=v_zi;
+t55=t53*t54;
+t56=t52*t55;
+t57=v_ci;
+t58=t56+t57;
+v_zi=t58;
+t59=v_q;
+v_zr=t59;
+t60=v_k;
+t61=1;
+t62=t60+t61;
+v_k=t62;
+}
+t63=0;
+t64=v_k;
+t65=200;
+t66=(t64>=t65)?1:0;
+if(t66!=0){
+t68=0;
+t67=t68;
+}else{
+t69=v_zr;
+t70=v_zr;
+t71=t69*t70;
+t72=v_zi;
+t73=v_zi;
+t74=t72*t73;
+t75=t71+t74;
+v_m=t75;
+t76=v_k;
+t77=+(t76);
+t78=1.0;
+t79=t77+t78;
+t80=0.5;
+t81=v_m;
+t82=Math.log(t81);
+t83=t80*t82;
+t84=Math.log(t83);
+t85=2.0;
+t86=Math.log(t85);
+t87=t84/t86;
+t88=t79-t87;
+v_v=t88;
+t89=v_v;
+t90=0.15;
+t91=t89*t90;
+v_a=t91;
+t92=0.5;
+t93=0.5;
+t94=v_a;
+t95=Math.cos(t94);
+t96=t93*t95;
+t97=t92+t96;
+t98=0.5;
+t99=0.5;
+t100=v_a;
+t101=2.1;
+t102=t100+t101;
+t103=Math.cos(t102);
+t104=t99*t103;
+t105=t98+t104;
+t106=0.5;
+t107=0.5;
+t108=v_a;
+t109=4.2;
+t110=t108+t109;
+t111=Math.cos(t110);
+t112=t107*t111;
+t113=t106+t112;
+t114=f_rgb(t97,t105,t113);
+t67=t114;
+}
+return t67;
+}
+return f_px;
+})();
+  var cc=document.getElementById('cpu'), ctx=cc.getContext('2d');
+  var CW=120,CH=120; cc.width=CW;cc.height=CH; var img=ctx.createImageData(CW,CH), dat=img.data;
+
+  function sizeGPU(){var d=Math.min(window.devicePixelRatio||1,2);var r=gc.getBoundingClientRect();
+    GW=gc.width=Math.max(2,Math.round(r.width*d));GH=gc.height=Math.max(2,Math.round(r.height*d));if(okGPU)gl.viewport(0,0,GW,GH);}
+  addEventListener('resize',sizeGPU);setTimeout(sizeGPU,60);
+
+  var gmx=document.getElementById('gmx'),cmx=document.getElementById('cmx'),ratio=document.getElementById('ratio');
+  var gAcc=0,gN=0,cAcc=0,cN=0,lastHUD=0,gRate=0,cRate=0;
+
+  function renderGPU(t){ if(!okGPU||!GW)return; var t0=performance.now();
+    gl.uniform1fv(uLoc,[t,GW,GH,0,0,0,0,0]); gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,_px1); // forca a GPU a terminar (medicao honesta)
+    gAcc+=performance.now()-t0; gN++; }
+  function renderCPU(t){ var t0=performance.now();
+    for(var y=0;y<CH;y++)for(var x=0;x<CW;x++){ var c=f_px(x,y,t,CW,CH)>>>0, o=(y*CW+x)*4;
+      dat[o]=(c>>16)&255;dat[o+1]=(c>>8)&255;dat[o+2]=c&255;dat[o+3]=255; }
+    ctx.putImageData(img,0,0); cAcc+=performance.now()-t0; cN++; }
+
+  function loop(ms){ requestAnimationFrame(loop); var t=ms/1000;
+    renderGPU(t); renderCPU(t);
+    if(ms-lastHUD>400){
+      if(gN){ var gms=gAcc/gN; gRate=(GW*GH)/gms/1000; gmx.textContent=gRate.toFixed(0); gAcc=0;gN=0; }
+      if(cN){ var cms=cAcc/cN; cRate=(CW*CH)/cms/1000; cmx.textContent=cRate.toFixed(1); cAcc=0;cN=0; }
+      if(cRate>0&&gRate>0) ratio.textContent=(gRate/cRate>=100?Math.round(gRate/cRate):(gRate/cRate).toFixed(0))+'×';
+      lastHUD=ms;
+    }
+  }
+  if(!okGPU){document.querySelector('.tag.gpu').textContent='GPU indisponivel';}
+  requestAnimationFrame(loop);
+})();
+</script>

@@ -1,0 +1,19 @@
+# CRC-32 (IEEE 802.3) em Onda: constroi a tabela de 256 entradas e processa o stdin byte a byte. Imprime o CRC em hex.
+# Inteiro e determinista -> igual bit a bit em todas as formas. Complementa o SHA-256 (outra familia de verificacao).
+: m32 >i 4294967295
+: hex1 i>i d P ? < d 10 + '0 d + 'a - d 10
+: main >i {
+  = tab A 256
+  = n 0
+  W < n 256 {
+    = c n
+    = k 0
+    W < k 8 { = c ? & c 1 ^ 3988292384 >> c 1 >> c 1 = k + k 1 }
+    ! + tab n c
+    = n + n 1 }
+  = crc m32
+  = c R
+  W >= c 0 { = crc & ^ >> crc 8 @ + tab & ^ crc c 255 m32 = c R }
+  = crc ^ crc m32
+  = j 7 W >= j 0 { hex1 & >> crc * 4 j 15 = j - j 1 }
+  P 10 0 }

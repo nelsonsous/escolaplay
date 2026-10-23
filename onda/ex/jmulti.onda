@@ -1,0 +1,27 @@
+# jmulti : rede 2->3->3 MULTI-CLASSE, treinada pelo operador interno J (softmax + entropia cruzada).
+# loss = log(Se^zc) - Sum(t_c z_c) ; so usa exp/log/+/*/- que o J ja deriva. Gerado por web/jmulti.gen.js.
+: loss ffffffffffffffffffffffffff>f w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 x y t0 t1 t2 - Lg + + Ex + * w11 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w10 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w9 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w12 Ex + * w15 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w14 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w13 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w16 Ex + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w17 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w20 + + * t0 + * w11 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w10 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w9 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w12 * t1 + * w15 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w14 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w13 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w16 * t2 + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w17 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w20
+: cls fffffffffffffffffffffff>f w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 x y ? > + * w11 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w10 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w9 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w12 + * w15 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w14 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w13 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w16 ? > + * w11 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w10 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w9 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w12 + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w17 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w20 0.0 2.0 ? > + * w15 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w14 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w13 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w16 + * w19 / 1.0 + 1.0 Ex * -1.0 + + * w6 x * w7 y w8 + * w18 / 1.0 + 1.0 Ex * -1.0 + + * w3 x * w4 y w5 + * w17 / 1.0 + 1.0 Ex * -1.0 + + * w0 x * w1 y w2 w20 1.0 2.0
+: main >i {
+  = n 180 = dx A n = dy A n = dl A n
+  = i 0 W < i n {
+    = c % i 3 = ang * 2.0943951 F c = cx * 0.6 Cs ang = cy * 0.6 Sn ang
+    !f + dx i + cx * 0.26 - - * Sn * F + i 1 12.9898 43758.5453 Fl * Sn * F + i 1 12.9898 43758.5453 0.5  !f + dy i + cy * 0.26 - - * Sn * F + i 2 12.9898 43758.5453 Fl * Sn * F + i 2 12.9898 43758.5453 0.5  !f + dl i F c = i + i 1 }
+  = w A 21 = g A 21 = pa A 26 = gg A 26
+  = i 0 W < i 21 { !f + w i * 1.0 - - * Sn * F + i 1 12.9898 43758.5453 Fl * Sn * F + i 1 12.9898 43758.5453 0.5 = i + i 1 }
+  = lr 1.2 = ep 0
+  W < ep 5000 {
+    = i 0 W < i 21 { !f + g i 0.0 = i + i 1 }
+    = loss 0.0 = nc 0 = k 0
+    W < k n {
+      = xx @f + dx k = yy @f + dy k = ci I @f + dl k
+      = i 0 W < i 21 { !f + pa i @f + w i = i + i 1 }
+      !f + pa 21 xx !f + pa 22 yy
+      !f + pa 23 ? == ci 0 1.0 0.0  !f + pa 24 ? == ci 1 1.0 0.0  !f + pa 25 ? == ci 2 1.0 0.0
+      J gg loss pa
+      = i 0 W < i 21 { !f + g i + @f + g i @f + gg i = i + i 1 }
+      = pc cls @f + w 0 @f + w 1 @f + w 2 @f + w 3 @f + w 4 @f + w 5 @f + w 6 @f + w 7 @f + w 8 @f + w 9 @f + w 10 @f + w 11 @f + w 12 @f + w 13 @f + w 14 @f + w 15 @f + w 16 @f + w 17 @f + w 18 @f + w 19 @f + w 20 xx yy
+      = nc + nc ? == I pc ci 1 0  = k + k 1 }
+    = i 0 W < i 21 { !f + w i - @f + w i * lr / @f + g i F n = i + i 1 }
+    ? == % ep 1000 0 { "ep " N ep " precisao " G / F nc F n "\n" } 0  = ep + ep 1 }
+  "final " G / F nc F n "\n" 0 }

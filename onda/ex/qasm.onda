@@ -1,0 +1,174 @@
+# Simulador de vetor de estado, escrito em Onda, para o OpenQASM 3 que a propria Onda gera (ondac -q).
+# Le o programa do stdin, aplica cada porta como um campo E sobre as 2^n amplitudes e mostra as medicoes
+# mais provaveis. As portas geradas (h x cx ccx ctrl@z) so dao amplitudes reais. As portas x nao custam
+# passagens: ficam num quadro de Pauli (a mascara @17), que as portas seguintes leem ao indexar.
+# uso: build/ondac -q alvo < f.onda > f.qasm ; ./onda run ex/qasm.onda < f.qasm
+# @1 texto @2 tamanho @3 posicao @4 registos (nome, primeiro qubit, tamanho) @5 quantos @6 qubits
+# @7 @8 amplitudes (atual, seguinte) @9 pilha dos ciclos @10 profundidade @13 @14 argumento (qubit, quantos)
+# @15 @16 registo medido @17 quadro X @18 passagens @19 portas
+: amp iiiiiii>f i s t m a b q {
+  = v @f + s i
+  = j ^ i q
+  ? == t 2 ? & i m * 0.7071067811865476 ? & q m - v @f + s ^ i m - @f + s ^ i m v * 0.7071067811865476 + v @f + s | i m
+  ? == t 3 ? && & j a & j b @f + s ^ i m v
+  ? == & j m m - 0.0 v v }
+: pnz iiiii>f i s q o k ? & >> ^ i q o k { = v @f + s i * v v } 0.0
+: ch >i ? < @ 3 @ 2 @ + @ 1 @ 3 -1
+: av >i { ! 3 + @ 3 1 0 }
+: esp >i W || || == ch 32 == ch 9 == ch 13 av
+: linha >i { W && >= ch 0 != ch 10 av av }
+: falha >i { " (posicao " N @ 3 ")\n" X 1 }
+: tem i>i c { esp ? == ch c av { "simulador: esperava " P c falha } }
+: idc i>i c || || && >= c 'a <= c 'z && >= c '0 <= c '9 || == c '_ && >= c 'A <= c 'Z
+: ident >i { esp = h 0 = k 0 W idc ch { ? < k 8 = h | h << ch * 8 k 0 = k + k 1 av } h }
+: kw iiiiiii>i a b c d e f g | | | | | | a << b 8 << c 16 << d 24 << e 32 << f 40 << g 48
+: pnome i>i w W w { P & w 255 = w >> w 8 }
+: num >i { esp = v 0 W && >= ch '0 <= ch '9 { = v - + * v 10 ch '0 av } v }
+: reg i>i w {
+  = j 0
+  W && < j @ 5 != @ + @ 4 * 3 j w = j + j 1
+  ? < j @ 5 0 { "simulador: registo desconhecido" falha }
+  + @ 4 * 3 j }
+: arg >i {
+  = e reg ident
+  esp
+  ? == ch '[
+    { av = k num tem '] ? >= k @ + e 2 { "simulador: qubit fora do registo" falha } 0 ! 13 + @ + e 1 k ! 14 1 0 }
+    { ! 13 @ + e 1 ! 14 @ + e 2 0 } }
+: um >i { arg ? != @ 14 1 { "simulador: esperava um qubit" falha } 0 << 1 @ 13 }
+: est >i ? @ 7 0 {
+  ? > @ 6 23 { "simulador: " N @ 6 " qubits sao demais para o vetor de estado (maximo 23)" falha } 0
+  ! 7 A << 1 @ 6
+  ! 8 A << 1 @ 6
+  !f @ 7 1.0
+  0 }
+: passa iiii>i t m a b {
+  est
+  E @ 8 << 1 @ 6 amp @ 7 t m a b @ 17
+  = c @ 7
+  ! 7 @ 8
+  ! 8 c
+  ! 18 + @ 18 1
+  0 }
+: qreg >i {
+  ? @ 7 { "simulador: qubits declarados depois das portas" falha } 0
+  tem '[
+  = n num
+  tem ']
+  = w ident
+  ? >= @ 5 64 { "simulador: registos demais" falha } 0
+  = e + @ 4 * 3 @ 5
+  ! e w
+  ! + e 1 @ 6
+  ! + e 2 n
+  ! 5 + @ 5 1
+  ! 6 + @ 6 n
+  tem '; }
+: gh >i {
+  arg
+  = q @ 13
+  W < q + @ 13 @ 14 { = m << 1 q passa 2 m 0 0 ! 17 ^ @ 17 & @ 17 m = q + q 1 }
+  ! 19 + @ 19 @ 14
+  tem '; }
+: gx >i {
+  arg
+  = q @ 13
+  W < q + @ 13 @ 14 { ! 17 ^ @ 17 << 1 q = q + q 1 }
+  ! 19 + @ 19 @ 14
+  tem '; }
+: gcx >i { = a um tem ', = m um tem '; ! 19 + @ 19 1 passa 3 m a a }
+: gccx >i { = a um tem ', = b um tem ', = m um tem '; ! 19 + @ 19 1 passa 3 m a b }
+: gcz >i {
+  tem '(
+  = k num
+  tem ')
+  tem '@
+  ? != ident 'z { "simulador: so ctrl(k) @ z" falha } 0
+  = m um
+  = j 0
+  W < j k { tem ', = m | m um = j + j 1 }
+  tem ';
+  ! 19 + @ 19 1
+  passa 5 m 0 0 }
+: gfor >i {
+  ident
+  ident
+  ident
+  tem '[
+  = a num
+  tem ':
+  = b num
+  tem ']
+  tem 123
+  ? >= @ 10 64 { "simulador: ciclos encaixados demais" falha } 0
+  = p + @ 9 * 2 @ 10
+  ! p @ 3
+  ! + p 1 + - b a 1
+  ! 10 + @ 10 1
+  0 }
+: gfim >i {
+  av
+  ? < @ 10 1 { "simulador: fecho sem for" falha } 0
+  = p + @ 9 * 2 - @ 10 1
+  ! + p 1 - @ + p 1 1
+  ? > @ + p 1 0 ! 3 @ p ! 10 - @ 10 1
+  0 }
+: gmed >i { tem '= ident arg ! 15 @ 13 ! 16 @ 14 tem '; }
+: frase >i {
+  esp
+  = c ch
+  ? < c 0 0
+  ? || == c 10 == c '; { av 1 }
+  ? == c '/ { linha 1 }
+  ? == c 125 { gfim 1 }
+  ? && >= c 'A <= c 'Z { linha 1 }
+  {
+    = w ident
+    ? == w kw 'q 'u 'b 'i 't 0 0 qreg
+    ? || == w kw 'b 'i 't 0 0 0 0 == w kw 'i 'n 'c 'l 'u 'd 'e linha
+    ? == w 'h gh
+    ? == w 'x gx
+    ? == w kw 'c 'x 0 0 0 0 0 gcx
+    ? == w kw 'c 'c 'x 0 0 0 0 gccx
+    ? == w kw 'c 't 'r 'l 0 0 0 gcz
+    ? == w kw 'f 'o 'r 0 0 0 0 gfor
+    { esp ? == ch '= gmed { "simulador: instrucao desconhecida" falha } }
+    1 } }
+: main >i {
+  = t T
+  = cap 2000000
+  ! 1 A cap
+  = n 0
+  = c R
+  W && >= c 0 < n cap { ! + @ 1 n c = n + n 1 = c R }
+  ? >= c 0 { "simulador: programa grande demais" falha } 0
+  ! 2 n
+  ! 4 A 192
+  ! 9 A 128
+  W frase 0
+  est
+  = s @ 7
+  = nn << 1 @ 6
+  = q @ 17
+  ? == @ 16 0 ! 16 @ 6 0
+  = o @ 15
+  = w @ 16
+  = mk - << 1 w 1
+  = h A + mk 1
+  = i 0
+  W < i nn { = v @f + s i = k & >> ^ i q o mk !f + h k + @f + h k * v v = i + i 1 }
+  "simulado: " N @ 6 " qubits, " N @ 19 " portas em " N @ 18 " passagens sobre " N nn " amplitudes\n"
+  "P(registo != 0):"
+  = r 0
+  W < r @ 5 { = e + @ 4 * 3 r " " pnome @ e " " G S nn pnz s q @ + e 1 - << 1 @ + e 2 1 = r + r 1 }
+  "\nmedicao (" N w " qubits a partir do " N o "):\n"
+  = r 0
+  W < r Mn 3 + mk 1 {
+    = b 0
+    = j 1
+    W <= j mk { ? > @f + h j @f + h b = b j 0 = j + j 1 }
+    "  " N b "  p=" G @f + h b "\n"
+    !f + h b -1.0
+    = r + r 1 }
+  "tempo: " N / - T t 1000 " ms\n"
+  0 }

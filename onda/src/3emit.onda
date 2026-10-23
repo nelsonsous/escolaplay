@@ -1,0 +1,132 @@
+# emissor de texto da RI: C, GLSL (-g) e JavaScript (-j)
+: mname i>i c ? isjs { ? == c 0 "+" ? == c 1 "Math.trunc" ? == c 11 "obh" ? == c 12 "obl" { "Math." ? == c 2 "sqrt" ? == c 3 "sin" ? == c 4 "cos" ? == c 5 "exp" ? == c 6 "log" ? == c 7 "floor" ? == c 8 "abs" ? == c 9 "pow" "atan2" } } {
+  ? == c 0 ? @ 12 "float" "(F)"
+  ? == c 1 ? @ 12 "int" "(I)"
+  ? == c 2 "sqrt"
+  ? == c 3 "sin"
+  ? == c 4 "cos"
+  ? == c 5 "exp"
+  ? == c 6 "log"
+  ? == c 7 "floor"
+  ? == c 8 ? @ 12 "abs" "fabs"
+  ? == c 9 "pow"
+  ? == c 11 "obh"
+  ? == c 12 "obl"
+  ? @ 12 "atan" "atan2" }
+: escs i>i i {
+  = s tks i
+  = l tkl i
+  = j 1
+  W < j - l 1 { = c @ + s j ? == c 10 "\\n" ? == c 9 "\\t" ? == c 13 "\\r" P c = j + j 1 }
+  0 }
+# --- mapa de campo vetorizavel em C: emitir a expressao do elemento EM LINHA, com _s[i] no lugar de x.
+# a indirecao ldf/stf (memcpy) e o M partilhado matam a autovetorizacao; com restrict + expr direta,
+# o clang -O3 no Mac gera NEON (.2d, fmla) e o gcc/clang no x86 gera SSE/AVX -- bit a bit igual ao escalar.
+: cvem >i {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 { etx i }
+  ? == kk 0 { "v_" etx i }
+  { = o tcode i "(" cvem ? == o '+ "+" ? == o '- "-" ? == o '* "*" "/" cvem ")" } }
+: cvans i>i c { = sv @ 7 ! 7 + @ fe c 5 7 cvem ! 7 sv }
+: emi i>i p {
+  = k @ p
+  = d @ + p 1
+  = a @ + p 2
+  = b @ + p 3
+  = c @ + p 4
+  = x @ + p 5
+  = y @ + p 6
+  ? || && && >= k 24 <= k 40 != k 39 == k 42 cpu 0
+  ? == k 1 { eq d etx a ";\n" }
+  ? == k 2 { eq d N a ";\n" }
+  ? == k 3 { ? @ 12 "\n#error onda: texto so em CPU\n" 0 "os(\"" escs a "\");\n" }
+  ? == k 4 { eq d ez tty d ";\n" }
+  ? == k 5 { eq d elnm a b ";\n" }
+  ? == k 6 { elnm a c "=" et b ";\n" }
+  ? == k 7 { eq d "f_" etx @ fe a 0 "(" eargs b c 0 ");\n" }
+  ? == k 8 { ? && isjs && == tty d 0 == tcode a '/ { eq d "Math.trunc(" et b "/" et c ");\n" } { eq d et b eop a et c ";\n" } }
+  ? == k 9 { eq d "(" et b eop a et c ")?1:0;\n" }
+  ? == k 10 { eq d "0;\nif(" et a "!=0){\n" }
+  ? || == k 11 == k 13 { eq d "(" et a "!=0)?1:0;\n}\n" }
+  ? == k 12 { eq d "1;\nif(" et a "==0){\n" }
+  ? == k 14 { eq d "(" et a "==0)?1:0;\n" }
+  ? == k 15 { eq d mname a "(" et b ");\n" }
+  ? == k 16 { eq d mname a "(" et b "," et c ");\n" }
+  ? == k 17 { eq d "(" et b ? a ">" "<" et c ")?" et b ":" et c ";\n" }
+  ? == k 18 { "if(" et a "!=0){\n" }
+  ? == k 19 { eq d et a ";\n}else{\n" }
+  ? == k 20 { eq d et a ";\n}\n" }
+  ? == k 21 { ? @ 12 "while(true){\n" "while(1){\n" }
+  ? == k 22 { "if(" et a "==0)break;\n" }
+  ? == k 23 "}\n"
+  ? == k 24 { eq d "M[" et a "];\n" }
+  ? == k 25 { "M[" et a "]=" et b ";\n" }
+  ? == k 26 { eq d "ldf(" et a ");\n" }
+  ? == k 27 { "stf(" et a "," et b ");\n" }
+  ? == k 28 { eq d "oa(" et a ");\n" }
+  ? == k 29 { "op(" et a ");\n" }
+  ? == k 30 { eq d "ir();\n" }
+  ? == k 31 { "on(" et a ");\n" }
+  ? == k 32 { "og(" et a ");\n" }
+  ? == k 33 { "osink(" et a ");\n" }
+  ? == k 34 { eq d "AC;\n" }
+  ? == k 35 { eq d "av(" et a "," et b ");\n" }
+  ? == k 36 { "oexit(" et a ");\n" }
+  ? == k 37 { eq d "onow();\n" }
+  ? == k 38 { ? xvan c { "{const F*restrict _s=(const F*)M+" et @ x ";F*restrict _o=(F*)M+" et a ";\n#pragma omp parallel for simd\nfor(I i=0;i<" et b ";i++){F v_" etx + @ fe c 5 2 "=_s[i];_o[i]=" cvans c ";}}\n" } { "#pragma omp parallel for\nfor(I i=0;i<" et b ";i++)" ? @ fe c 3 { "stf(" et a "+i,f_" etx @ fe c 0 "(i" eargs x y 1 "));\n" } { "M[" et a "+i]=f_" etx @ fe c 0 "(i" eargs x y 1 ");\n" } } }
+  ? == k 39 { eq d ez tty d ";\n" ? @ 12 { "for(" ety 0 " i=0;i<" } { "#pragma omp parallel for reduction(+:" et d ")\nfor(I i=0;i<" } et a ";i++)" et d "+=f_" etx @ fe b 0 "(i" eargs c x 1 ");\n" }
+  ? == k 40 { eq d "0;\n{unsigned char*g=oimg0(" et a "," et b ");\n#pragma omp parallel for\nfor(I y=0;y<" et b ";y++)for(I x=0;x<" et a ";x++){I c=f_" etx @ fe c 0 ? fpt c 0 "((F)x,(F)y" "(x,y" eargs x y 1 ");unsigned char*q=g+3*(y*" et a "+x);q[0]=(unsigned char)(c>>16);q[1]=(unsigned char)(c>>8);q[2]=(unsigned char)c;}\noimg1(g," et a "," et b ");}\n" }
+  ? == k 41 { "return " et a ";\n}\n" }
+  ? == k 42 { eq d "osys(" et a "," et b "," et c ");\n" }
+  ? == k 43 { eq d "obw(" et a "," et b ");\n" }
+  ? == k 44 { eq d ? == @ 12 1 { "obw(int(" N a "u),int(" N b "u));\n" } { "obw(" N a "," N b ");\n" } }
+  0 }
+# --- frente de RI direta (-d): a Onda NAO precisa da sintaxe de texto. A essencia de um programa e o GRAFO da
+# RI (instrucoes [k d a b c x y]); a sintaxe e so uma pele humana. Isto despe-a: para cada funcao, imprime a
+# assinatura e as suas instrucoes -- o que uma IA emitiria diretamente, saltando o lexer e o parser.
+: dsig i>i k { = np @ fe k 2 = j 0 W < j np { P ? fpt k j 'f 'i = j + j 1 } P '> P ? @ fe k 3 'f 'i }
+# dump de uma instrucao: k d <campo-a> b c x y. O campo a sai como VALOR (literal), TEXTO (operador) ou 0 (nome
+# anonimo), para o grafo ser auto-contido e re-ingerivel (o -i volta a lexar e reconstroi a RI sem parser).
+: dins i>i p {
+  = k @ p
+  N k P 32 N @ + p 1 P 32
+  ? == k 1 { etx @ + p 2 } ? || == k 8 == k 9 { eop @ + p 2 } ? || == k 5 == k 6 { N 0 } { N @ + p 2 }
+  P 32 N @ + p 3 P 32 N @ + p 4 P 32 N @ + p 5 P 32 N @ + p 6 P 10 0 }
+: dfun i>i k {
+  ": " etx @ fe k 0 P 32 dsig k
+  = np @ fe k 2
+  = j 0 W < j np { P 32 P 'p N j = j + j 1 }
+  P 10
+  N - @ 9 np = j np W < j @ 9 { P 32 P ? lty j 'f 'i = j + j 1 } P 10
+  N @ 11 = j 0 W < j @ 11 { P 32 P ? tty j 'f 'i = j + j 1 } P 10
+  = j 0 W < j @ 19 { dins + @ 18 * j 8 = j + j 1 }
+  P 10 0 }
+# --- ingestao de RI (-i): le o grafo (o dump do -d) e reconstroi a RI SEM parser, depois emite C. Prova que a
+# IA so precisa do grafo, nao da sintaxe. Le tokens direto; o lexer ja criou os tokens dos literais/operadores.
+: rinum >i { = t @ 7 ! 7 + t 1 tokval t }
+: ritok >i { = t @ 7 ! 7 + t 1 t }
+: ritype >i { = t @ 7 ! 7 + t 1 ? == tc t 0 'f 1 0 }
+: riread i>i k {
+  = ne rinum
+  = j 0 W < j ne { addl 0 ritype = j + j 1 }
+  = nn rinum
+  = j 0 W < j nn { nt ritype = j + j 1 }
+  W && < @ 7 @ 4 != tcode @ 7 ': {
+    = kk rinum
+    = d rinum
+    = a ? || == kk 1 || == kk 8 == kk 9 ritok rinum
+    = b rinum
+    = c rinum
+    = x rinum
+    = y rinum
+    ir kk d a b c x y }
+  0 }
+: rifun i>i k {
+  ! 13 k ! 9 0 ! 11 0 ! 19 0 ! 32 0 ! 33 0
+  = np @ fe k 2
+  = j 0 W < j np { addl + @ fe k 4 j fpt k j = j + j 1 }
+  ! 7 @ fe k 5
+  riread k
+  tfun k }
