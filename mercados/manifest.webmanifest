@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Mercados",
+  "short_name": "Mercados",
+  "description": "Petróleo, combustíveis, cripto e ações em tempo real, com destaques do dia, notícias e análise técnica simples.",
+  "lang": "pt-PT",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1017",
+  "theme_color": "#0b1017",
+  "categories": ["finance", "news"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
