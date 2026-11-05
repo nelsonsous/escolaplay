@@ -76,13 +76,15 @@ async function yahoo(path, init) {
 const round = (x) => (x == null || !Number.isFinite(x)) ? null : Number(x.toPrecision(7));
 
 // ---------- /quotes ----------
-export function parseChart(data, range) {
+export function parseChart(data, range, adj) {
     const res = data && data.chart && data.chart.result && data.chart.result[0];
     if (!res) throw new Error((data && data.chart && data.chart.error && data.chart.error.description) || 'sem dados');
     const m = res.meta || {};
     const ts = res.timestamp || [];
     const q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
-    const closes = q.close || [];
+    // adj: preço ajustado a dividendos e desdobramentos (para o teste no passado)
+    const ac = res.indicators && res.indicators.adjclose && res.indicators.adjclose[0] && res.indicators.adjclose[0].adjclose;
+    const closes = (adj && ac && ac.length === ts.length ? ac : q.close) || [];
     const series = [];
     for (let i = 0; i < ts.length; i++) {
         const c = closes[i];
@@ -126,7 +128,7 @@ async function quotes(url) {
     const out = await Promise.all(symbols.map(async (s) => {
         try {
             const d = await yahoo(`/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`);
-            return parseChart(d, range);
+            return parseChart(d, range, url.searchParams.get('adj') === '1');
         } catch (e) {
             return { symbol: s, error: String(e.message || e) };
         }

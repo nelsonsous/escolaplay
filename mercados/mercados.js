@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '2.1.0';
+    const VERSION = '2.2.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -379,11 +379,11 @@
     }
 
     // ---------- Yahoo via conector ----------
-    async function quotesBatch(keys, range) {
+    async function quotesBatch(keys, range, extra = '') {
         const out = [];
         for (let i = 0; i < keys.length; i += 40) {
             const part = keys.slice(i, i + 40);
-            out.push(px(`/quotes?symbols=${encodeURIComponent(part.join(','))}&range=${range}`, 20000));
+            out.push(px(`/quotes?symbols=${encodeURIComponent(part.join(','))}&range=${range}${extra}`, 30000));
         }
         const res = await Promise.all(out);
         return res.flatMap((r) => r.quotes || []);
@@ -504,14 +504,20 @@
             const ykeys = keys.filter((k) => REG[k].kind !== 'crypto');
             const day = (t) => new Date(t * 1000).toISOString().slice(0, 10);
             const assets = [];
-            const list = await quotesBatch(ykeys, '2y');
-            for (const q of list) if (!q.error && q.series && q.series.length > 260) assets.push({ key: q.symbol, kind: REG[q.symbol] ? REG[q.symbol].kind : 'stock', closes: q.series.map((x) => x[1]), days: q.series.map((x) => day(x[0])) });
-            for (const c of CRYPTO) {
-                try { const k = await bnGet(`/api/v3/klines?symbol=${pairOf(c.id)}&interval=1d&limit=730`); assets.push({ key: 'c:' + c.id, kind: 'crypto', closes: k.map((x) => +x[4]), days: k.map((x) => day(x[0] / 1000)) }); } catch { /* sem cripto */ }
+            // 5 anos de fechos diários ajustados (dividendos incluídos); cripto pelo Yahoo em EUR
+            const cmap = Object.fromEntries(CRYPTO.map((c) => [c.id + '-EUR', 'c:' + c.id]));
+            const list = await quotesBatch(ykeys.concat(Object.keys(cmap)), '5y', '&interval=1d&adj=1');
+            for (const q of list) {
+                if (q.error || !q.series || q.series.length < 300) continue;
+                const key = cmap[q.symbol] || q.symbol;
+                assets.push({ key, kind: REG[key] ? REG[key].kind : 'stock', closes: q.series.map((x) => x[1]), days: q.series.map((x) => day(x[0])) });
             }
             const bench = assets.find((a) => a.key === 'VWCE.DE');
             const bf = A.benchFn(bench), acc = {}, per = [];
-            for (const a of assets) { per.push(A.backtestAsset(a, bf, acc)); await sleep(0); }
+            // comissão: 1 € por ordem manual (ações e cripto) num valor típico de satélite; ETF por plano de poupança = 0
+            const ticket = Math.max(50, (+cfg.budget || 900) * Math.max(0.05, (+cfg.cryptoPct || 10) / 100));
+            const cost = (k) => (REG[k] && REG[k].kind === 'fund' ? 0 : 1 / ticket);
+            for (const a of assets) { per.push(A.backtestAsset(a, bf, acc, { cost: cost(a.key) })); await sleep(0); }
             const byKind = {};
             for (const a of assets) {
                 if (!bf || a.key === 'VWCE.DE') continue;
@@ -519,7 +525,8 @@
                 for (let i = 200; i + 63 < a.closes.length; i += 5) { const b = bf(a.days[i], a.days[i + 63]); if (b != null) { K.s += a.closes[i + 63] / a.closes[i] - 1 - b; K.n++; } }
             }
             const buys = per.filter((x) => x.buyN >= 3).map((x) => ({ k: x.key, a: x.buyS / x.buyN })).sort((a, b) => a.a - b.a);
-            BT = { at: now(), n: assets.length, sum: A.summarize(acc), worst: buys.slice(0, 3), best: buys.slice(-3).reverse(), byKind };
+            const yrs = bench ? Math.round(bench.closes.length / 252 * 10) / 10 : null;
+            BT = { at: now(), n: assets.length, yrs, ticket, sum: A.summarize(acc), worst: buys.slice(0, 3), best: buys.slice(-3).reverse(), byKind };
         } catch (e) { BT = { error: e.message || String(e) }; }
         btBusy = false; render();
     }
@@ -1101,15 +1108,15 @@
             bt = `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${rows}</tbody></table>
                 ${kinds ? `<p class="note">Em média, face ao VWCE a 3 meses: ${kinds}.</p>` : ''}
                 ${BT.worst.length ? `<p class="note">Onde "comprar" correu pior: ${BT.worst.map((x) => `${esc(nameOf(x.k))} <span class="${tone(x.a)}-t">${pc(x.a)}</span>`).join(', ')}. Melhor: ${BT.best.map((x) => `${esc(nameOf(x.k))} <span class="${tone(x.a)}-t">${pc(x.a)}</span>`).join(', ')}.</p>` : ''}
-                <p class="note"><b>Leitura:</b> nenhum sinal técnico bateu o VWCE de forma consistente. Por isso o plano põe a maior parte no ETF e usa os sinais para escolher <i>quando</i> e <i>quanto</i> pôr nos satélites, não para tentar bater o mercado.</p>`;
-        } else bt = `<button type="button" class="btn" data-act="backtest" ${cfg.proxy ? '' : 'disabled'}>Testar as regras nos últimos 2 anos</button>`;
+                <p class="note"><b>Leitura:</b> a lista são as empresas que hoje são grandes (viés de sobrevivência), por isso quase tudo parece bater o VWCE a olhar para trás. O que conta é a diferença entre sugestões: se "Evitar" corre tão bem ou melhor do que "Comprar", as regras não preveem nada. Por isso o núcleo é o VWCE e as decisões são do Claude, com o diário real a medir se acerta.</p>`;
+        } else bt = `<button type="button" class="btn" data-act="backtest" ${cfg.proxy ? '' : 'disabled'}>Testar as regras nos últimos 5 anos</button>`;
         return `<section class="sec"><div class="sec-h"><h2>Como têm corrido as sugestões</h2></div>
             <div class="box"><h3>Diário real</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para guardar o diário.</div>' : !ev ? '<div class="note">A ler o diário…</div>'
                 : !jrows ? `<div class="note">A app guarda as sugestões de cada dia em que a abres (${ev.days || 0} dia${ev.days === 1 ? '' : 's'} até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>`
                 : `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${jrows}</tbody></table><p class="note">Desde ${esc(ev.since)} · ${ev.days} dias guardados. "Acerto": comprar → subiu; evitar → desceu.</p>`}
             </div>
-            <div class="box"><h3>Teste no passado (regras atuais)</h3>${bt}</div></section>`;
+            <div class="box"><h3>Teste no passado (regras atuais)</h3>${BT && BT.sum ? `<p class="note" style="margin-top:0">${BT.n} ativos · ${BT.yrs || 5} anos · preços ajustados (dividendos incluídos) · comissão de 1 € por compra manual de ${fmtPx(BT.ticket, { decimals: 0 }, 'EUR')} (${(100 / BT.ticket).toFixed(1).replace('.', ',')}%); ETF por plano de poupança, sem comissão. Não inclui impostos.</p>` : ''}${bt}</div></section>`;
     }
 
     function viewAnalysis() {

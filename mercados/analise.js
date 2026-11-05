@@ -462,7 +462,8 @@
             const A = acc[k] || (acc[k] = newAcc());
             for (const h of [21, 63]) {
                 if (i + h >= n) continue;
-                const f = c[i + h] / c[i] - 1;
+                // retorno líquido: preço ajustado (dividendos incluídos) menos o custo de comprar
+                const f = c[i + h] / c[i] - 1 - (opt.cost || 0);
                 A['n' + h]++; A['s' + h] += f;
                 if ((BUYISH[k] && f > 0) || (k === 'avoid' && f < 0)) A['h' + h]++;
                 const b = benchByDay && a.days && benchByDay(a.days[i], a.days[i + h]);
