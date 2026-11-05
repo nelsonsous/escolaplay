@@ -159,7 +159,7 @@
             risk: riskOf(vol),
             reasons: sorted,
             metrics,
-            horizons: { short: shortTerm(v, metrics), mid, long: longTerm(v, metrics) },
+            horizons: { short: shortTerm(v, metrics), mid, long: longTerm(v, metrics, opts.kind) },
             discount: discountOf(v, metrics, score),
             levels: levels(v, p),
         };
@@ -334,7 +334,7 @@
     }
 
     // ---- Longo prazo (anos): tendência de fundo e desconto ----
-    function longTerm(v, mt) {
+    function longTerm(v, mt, kind) {
         if (v.length < 120) return null;
         const p = mt.price;
         const n = Math.min(200, v.length - 20);
@@ -354,6 +354,17 @@
         else if (dd <= -0.25 && !up) add(-6, `${pct(dd)} abaixo do máximo do ano e ainda em queda prolongada`);
         else if (dd > -0.03) reasons.push({ pts: 0, txt: 'Perto do máximo do ano (sem desconto)' });
         else reasons.push({ pts: 0, txt: `${pct(dd)} abaixo do máximo do ano` });
+        // a prazo, o risco conta: quanto mais oscila, mais difícil é aguentar anos (e pior foi no teste de 2 anos)
+        if (mt.vol != null) {
+            const vp = Math.round(mt.vol * 100);
+            if (mt.vol < 0.2) add(6, `Pouco volátil (${vp}%/ano): fácil de manter anos`);
+            else if (mt.vol > 0.7) add(-14, `Muito volátil (${vp}%/ano): difícil de aguentar a prazo`);
+            else if (mt.vol > 0.4) add(-8, `Volátil (${vp}%/ano): exige estômago a prazo`);
+        }
+        // diversificação: um ETF reparte o risco; uma empresa ou uma cripto não (no teste: ações −2,3 pp e cripto −4,6 pp face ao VWCE)
+        if (kind === 'fund') add(4, 'Diversificado (ETF): sem risco de uma só empresa');
+        else if (kind === 'stock') add(-4, 'Uma só empresa: risco específico a prazo');
+        else if (kind === 'crypto') add(-4, 'Especulativo: sem lucros nem dividendos por trás');
         const sc = Math.round(clamp(s, 0, 100));
         return { score: sc, ...labelOf(sc, 'long'), reasons: reasons.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts)), discount: dd };
     }
