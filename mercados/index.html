@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1017">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Petróleo, combustíveis, cripto e ações em tempo real, com destaques do dia, notícias e uma análise técnica simples.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mercados">
+    <title>Mercados</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="stylesheet" href="mercados.css">
+</head>
+<body>
+    <div id="app" class="mk-app">
+        <header class="mk-top">
+            <span class="mk-logo" aria-hidden="true"></span>
+            <div class="mk-top-title">Mercados</div>
+            <div class="mk-status" id="mk-status" aria-live="polite"></div>
+            <button type="button" class="mk-ibtn" data-act="refresh" aria-label="Atualizar">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+            </button>
+        </header>
+        <main class="mk-body" id="mk-body"></main>
+        <nav class="mk-nav" id="mk-nav" aria-label="Secções">
+            <button type="button" data-tab="painel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z"/></svg><span>Painel</span></button>
+            <button type="button" data-tab="destaques"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Destaques</span></button>
+            <button type="button" data-tab="analise"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>Análise</span></button>
+            <button type="button" data-tab="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Ajustes</span></button>
+        </nav>
+        <div class="mk-sheet" id="mk-sheet" hidden>
+            <div class="mk-sheet-bg" data-act="close"></div>
+            <section class="mk-sheet-card" role="dialog" aria-modal="true" aria-labelledby="mk-sheet-title" id="mk-sheet-card"></section>
+        </div>
+        <div class="mk-toast" id="mk-toast" role="status" aria-live="polite"></div>
+    </div>
+    <noscript><div class="mk-noscript">A app Mercados precisa de JavaScript.</div></noscript>
+    <script src="analise.js"></script>
+    <script src="mercados.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+name = "mercados-proxy"
+main = "src/worker.js"
+compatibility_date = "2026-06-01"
+
+# Opcional: só aceitar pedidos vindos da tua app (separar por vírgulas)
+# [vars]
+# ALLOWED_ORIGINS = "https://nelsonsous.github.io"

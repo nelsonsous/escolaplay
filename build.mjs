@@ -41,6 +41,7 @@ async function listFiles(dir, predicate) {
     if (ent.name === 'dist' || ent.name === 'node_modules' || ent.name.startsWith('.')) continue;
     if (ent.name === 'tts-proxy') continue; // o worker tem o seu próprio deploy
     if (ent.name === 'voz-mistral') continue; // conector do tutor-ingles/: Worker com deploy próprio
+    if (path.basename(dir) === 'mercados' && (ent.name === 'proxy' || ent.name === 'tests')) continue; // Worker com deploy próprio e testes
     const full = path.join(dir, ent.name);
     if (ent.isDirectory()) {
       const sub = await listFiles(full, predicate);
@@ -155,8 +156,8 @@ async function main() {
   if (existsSync(path.join(ROOT, 'icons'))) {
     await copyDir(path.join(ROOT, 'icons'), path.join(DIST, 'icons'));
   }
-  // 5) Apps à parte (damas/): manifest e ícones — JS/CSS/HTML já foram acima
-  for (const app of ['damas']) {
+  // 5) Apps à parte (damas/, mercados/): manifest e ícones — JS/CSS/HTML já foram acima
+  for (const app of ['damas', 'mercados']) {
     const dir = path.join(ROOT, app);
     if (!existsSync(dir)) continue;
     await ensureDir(path.join(DIST, app));

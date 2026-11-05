@@ -1,0 +1,993 @@
+// Mercados — app (sem dependências)
+//
+// Fontes:
+//  - Cripto: Binance (WebSocket em tempo real; REST e CoinGecko de recurso).
+//    Funciona logo, sem configurar nada.
+//  - Petróleo, combustíveis, índices, ações e notícias: o conector próprio
+//    (Cloudflare Worker em proxy/), que lê o Yahoo Finance, o Google Notícias
+//    e a DGEG. O endereço do conector fica nos Ajustes (ou ?proxy=URL).
+(() => {
+    'use strict';
+    const A = window.Analise;
+    const VERSION = '1.0.0';
+
+    // ---------- utilitários ----------
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fin = (x) => typeof x === 'number' && Number.isFinite(x);
+    const now = () => Date.now();
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const safeUrl = (u) => /^https?:\/\//i.test(String(u || '')) ? String(u) : '#';
+
+    // ---------- ativos ----------
+    const CRYPTO = [
+        { id: 'BTC', name: 'Bitcoin', cg: 'bitcoin' },
+        { id: 'ETH', name: 'Ether', cg: 'ethereum' },
+        { id: 'SOL', name: 'Solana', cg: 'solana' },
+        { id: 'XRP', name: 'XRP', cg: 'ripple' },
+    ];
+    const ENERGY = [
+        { sym: 'BZ=F', name: 'Petróleo Brent', unit: 'barril', news: ['petróleo Brent preço', 'oil prices Brent'] },
+        { sym: 'CL=F', name: 'Petróleo WTI', unit: 'barril', news: ['petróleo WTI preço', 'WTI crude oil'] },
+        { sym: 'RB=F', name: 'Gasolina (RBOB)', unit: 'galão', perLitre: true, news: ['preço gasolina', 'gasoline futures'] },
+        { sym: 'HO=F', name: 'Gasóleo (ULSD)', unit: 'galão', perLitre: true, news: ['preço gasóleo', 'diesel prices'] },
+        { sym: 'NG=F', name: 'Gás natural', unit: 'MMBtu', news: ['gás natural preço', 'natural gas prices'] },
+    ];
+    const INDICES = [
+        { sym: '^GSPC', name: 'S&P 500', points: true },
+        { sym: '^IXIC', name: 'Nasdaq', points: true },
+        { sym: '^STOXX50E', name: 'Euro Stoxx 50', points: true },
+        { sym: 'PSI20.LS', name: 'PSI (Lisboa)', points: true },
+        { sym: '^VIX', name: 'VIX (medo)', points: true },
+        { sym: 'EURUSD=X', name: 'EUR/USD', points: true, decimals: 4 },
+        { sym: 'GC=F', name: 'Ouro', unit: 'onça' },
+    ];
+    const NAMES = {
+        'EDP.LS': 'EDP', 'GALP.LS': 'Galp', 'JMT.LS': 'Jerónimo Martins', 'BCP.LS': 'BCP', 'EDPR.LS': 'EDP Renováveis', 'NOS.LS': 'NOS',
+        'NVG.LS': 'Navigator', 'SON.LS': 'Sonae', 'CTT.LS': 'CTT', 'ASML.AS': 'ASML', 'SAP.DE': 'SAP', 'MC.PA': 'LVMH', 'SIE.DE': 'Siemens',
+        'NOVO-B.CO': 'Novo Nordisk', 'RHM.DE': 'Rheinmetall', NVDA: 'Nvidia', AAPL: 'Apple', MSFT: 'Microsoft', AMZN: 'Amazon',
+        GOOGL: 'Alphabet (Google)', META: 'Meta', TSLA: 'Tesla', AMD: 'AMD', PLTR: 'Palantir', NFLX: 'Netflix', AVGO: 'Broadcom',
+        COIN: 'Coinbase', MSTR: 'Strategy',
+    };
+    const DEFAULT_WATCH = Object.keys(NAMES);
+
+    // ---------- configuração ----------
+    const KEY = 'mercados:v1', SNAP = 'mercados:snap';
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all' };
+    const store = {
+        get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
+        set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
+    };
+    const cfg = { ...DEFAULTS, ...(store.get(KEY) || {}) };
+    if (!Array.isArray(cfg.watch)) cfg.watch = DEFAULT_WATCH.slice();
+    const saveCfg = () => store.set(KEY, cfg);
+    {
+        const p = new URLSearchParams(location.search).get('proxy');
+        if (p && /^https:\/\//.test(p)) { cfg.proxy = p.replace(/\/+$/, ''); saveCfg(); history.replaceState(null, '', location.pathname); }
+    }
+
+    // registo de ativos: chave → definição
+    const REG = {};
+    function buildReg() {
+        for (const k of Object.keys(REG)) if (!REG[k].temp) delete REG[k];
+        CRYPTO.forEach((c) => { REG['c:' + c.id] = { key: 'c:' + c.id, kind: 'crypto', sym: c.id, name: c.name, cg: c.cg }; });
+        ENERGY.forEach((e) => { REG[e.sym] = { key: e.sym, kind: 'energy', ...e }; });
+        INDICES.forEach((e) => { REG[e.sym] = { key: e.sym, kind: 'index', ...e }; });
+        cfg.watch.forEach((s) => { if (!REG[s] || REG[s].temp) REG[s] = { key: s, kind: 'stock', sym: s, name: NAMES[s] || s }; });
+    }
+    buildReg();
+    const yahooKeys = () => Object.values(REG).filter((a) => a.kind !== 'crypto' && !a.temp).map((a) => a.key);
+    const nameOf = (k) => (REG[k] && REG[k].name !== REG[k].sym ? REG[k].name : null) || (Q[k] && Q[k].name) || (REG[k] && REG[k].name) || k;
+
+    // ---------- estado ----------
+    const Q = {};       // chave → cotação ao vivo + série do dia
+    const D = {};       // chave → fechos diários [[t, v]]
+    const AN = {};      // chave → análise
+    const NEWS = {};    // chave → { at, items }
+    let FUEL = null, MOVERS = null, DISTRITOS = null;
+    const st = { ws: 'off', wsSince: 0, cryptoAt: 0, cryptoSrc: '', yahooAt: 0, yahooErr: '', fuelErr: '', moversErr: '', firstPoll: true };
+    const fired = new Set(store.get('mercados:fired') || []);
+
+    // instantâneo: mostrar logo os últimos valores ao abrir
+    {
+        const s = store.get(SNAP);
+        if (s && s.Q) {
+            for (const [k, v] of Object.entries(s.Q)) Q[k] = { ...v, stale: true };
+            FUEL = s.FUEL || null;
+            st.yahooAt = s.yahooAt || 0;
+        }
+    }
+    let snapT = 0;
+    function saveSnap() {
+        if (now() - snapT < 15000) return;
+        snapT = now();
+        const q = {};
+        for (const [k, v] of Object.entries(Q)) if (REG[k] && !REG[k].temp) q[k] = { ...v, series: (v.series || []).slice(-120), stale: undefined };
+        store.set(SNAP, { Q: q, FUEL, yahooAt: st.yahooAt });
+    }
+
+    // ---------- formatação ----------
+    const nf = {};
+    const NF = (o) => { const k = JSON.stringify(o); return nf[k] || (nf[k] = new Intl.NumberFormat('pt-PT', o)); };
+    function decimalsFor(v, a) {
+        if (a && a.decimals != null) return a.decimals;
+        const x = Math.abs(v);
+        return x < 1 ? 4 : x < 10 ? 3 : x >= 10000 ? 0 : 2;
+    }
+    function fmtPx(v, a, cur) {
+        if (!fin(v)) return '—';
+        const d = decimalsFor(v, a);
+        const c = a && a.points ? null : (cur || (Q[a && a.key] && Q[a.key].currency) || (a && a.kind === 'crypto' ? cfg.fiat : null));
+        const o = { minimumFractionDigits: d, maximumFractionDigits: d };
+        if (c && /^[A-Z]{3}$/.test(c)) { o.style = 'currency'; o.currency = c; }
+        try { return NF(o).format(v) + (c === 'GBp' ? ' p' : ''); } catch { return v.toFixed(d); }
+    }
+    const fmtPct = (v) => fin(v) ? (v > 0 ? '+' : v < 0 ? '−' : '') + NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v)) + '%' : '—';
+    const fmtBig = (v) => fin(v) ? NF({ notation: 'compact', maximumFractionDigits: 1 }).format(v) : '—';
+    const toneOf = (v) => !fin(v) ? 'flat' : v > 0.005 ? 'up' : v < -0.005 ? 'down' : 'flat';
+    const chg = (v) => `<span class="chg ${toneOf(v)}">${fmtPct(v)}</span>`;
+    function ago(ms) {
+        if (!ms) return '—';
+        const s = Math.round((now() - ms) / 1000);
+        if (s < 5) return 'agora';
+        if (s < 60) return `há ${s} s`;
+        if (s < 3600) return `há ${Math.round(s / 60)} min`;
+        return new Date(ms).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+    const hhmm = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
+    const dateLbl = (sec, withTime) => new Date(sec * 1000).toLocaleString('pt-PT', withTime ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
+
+    // ---------- rede ----------
+    async function getJSON(url, ms = 12000) {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), ms);
+        try {
+            const r = await fetch(url, { signal: ctl.signal, cache: 'no-store' });
+            const body = await r.json().catch(() => null);
+            if (!r.ok) throw new Error((body && body.error) || `HTTP ${r.status}`);
+            return body;
+        } finally { clearTimeout(t); }
+    }
+    const px = (path, ms) => {
+        if (!cfg.proxy) return Promise.reject(new Error('Conector por configurar'));
+        return getJSON(cfg.proxy.replace(/\/+$/, '') + path, ms);
+    };
+
+    // ---------- cripto (Binance) ----------
+    const BN_REST = ['https://data-api.binance.vision', 'https://api.binance.com'];
+    const BN_WS = ['wss://data-stream.binance.vision/stream', 'wss://stream.binance.com:9443/stream'];
+    const quoteCur = () => cfg.fiat === 'EUR' ? 'EUR' : 'USDT';
+    const pairOf = (id) => id + quoteCur();
+    const idOfPair = (p) => p.replace(/(EUR|USDT)$/, '');
+    let ws = null, wsTry = 0, wsHost = 0, restTimer = null, wsOpened = false;
+
+    async function bnGet(path) {
+        let err;
+        for (const b of BN_REST) { try { return await getJSON(b + path, 10000); } catch (e) { err = e; } }
+        throw err;
+    }
+
+    function applyCrypto(id, d) {
+        const k = 'c:' + id;
+        const q = Q[k] || (Q[k] = { series: [] });
+        const prev = q.price;
+        Object.assign(q, d, { currency: cfg.fiat, stale: false, open: true });
+        const t = Math.floor(now() / 1000);
+        const s = q.series || (q.series = []);
+        if (s.length && t - s[s.length - 1][0] < 900) s[s.length - 1][1] = q.price; else s.push([t, q.price]);
+        if (s.length > 200) s.splice(0, s.length - 200);
+        st.cryptoAt = now();
+        patchLive(k, prev);
+    }
+
+    function startWS() {
+        if (ws) { try { ws.onclose = null; ws.close(); } catch { /* já fechado */ } ws = null; }
+        if (!('WebSocket' in window)) { startCryptoREST(); return; }
+        const streams = CRYPTO.map((c) => pairOf(c.id).toLowerCase() + '@ticker').join('/');
+        const sock = new WebSocket(`${BN_WS[wsHost % BN_WS.length]}?streams=${streams}`);
+        ws = sock;
+        st.ws = 'connecting';
+        sock.onopen = () => { wsTry = 0; wsOpened = true; st.ws = 'on'; st.wsSince = now(); st.cryptoSrc = 'Binance (tempo real)'; stopCryptoREST(); renderStatus(); };
+        sock.onmessage = (ev) => {
+            let m; try { m = JSON.parse(ev.data); } catch { return; }
+            const d = m && m.data;
+            if (!d || !d.s) return;
+            applyCrypto(idOfPair(d.s), {
+                price: +d.c, changePct: +d.P, change: +d.p, prevClose: +d.x || null, dayHigh: +d.h, dayLow: +d.l, volume: +d.q, time: Math.floor(d.E / 1000),
+            });
+        };
+        sock.onclose = () => {
+            if (ws !== sock) return;
+            ws = null; st.ws = 'off'; renderStatus();
+            wsTry++; wsHost++;
+            if (wsTry >= 2) startCryptoREST(); // enquanto o WebSocket não volta, preço por REST a cada 10 s
+            setTimeout(() => { if (!ws) startWS(); }, Math.min(30000, 2000 * 2 ** Math.min(wsTry, 4)));
+        };
+        sock.onerror = () => { try { sock.close(); } catch { /* ignora */ } };
+    }
+
+    async function cryptoREST() {
+        try {
+            const pairs = CRYPTO.map((c) => pairOf(c.id));
+            const arr = await bnGet(`/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(pairs))}`);
+            for (const t of arr) applyCrypto(idOfPair(t.symbol), { price: +t.lastPrice, changePct: +t.priceChangePercent, change: +t.priceChange, prevClose: +t.prevClosePrice || null, dayHigh: +t.highPrice, dayLow: +t.lowPrice, volume: +t.quoteVolume, time: Math.floor(t.closeTime / 1000) });
+            st.cryptoSrc = 'Binance (a cada 10 s)';
+        } catch {
+            try { // último recurso: CoinGecko
+                const cur = cfg.fiat.toLowerCase();
+                const d = await getJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${CRYPTO.map((c) => c.cg).join(',')}&vs_currencies=${cur}&include_24hr_change=true&include_24hr_vol=true`);
+                for (const c of CRYPTO) {
+                    const x = d[c.cg];
+                    if (x && fin(x[cur])) applyCrypto(c.id, { price: x[cur], changePct: x[cur + '_24h_change'], volume: x[cur + '_24h_vol'] });
+                }
+                st.cryptoSrc = 'CoinGecko';
+            } catch { st.cryptoSrc = ''; }
+        }
+        renderStatus();
+    }
+    function startCryptoREST() { if (!restTimer) { cryptoREST(); restTimer = setInterval(cryptoREST, 10000); } }
+    function stopCryptoREST() { if (restTimer) { clearInterval(restTimer); restTimer = null; } }
+
+    const KL = { '1d': ['15m', 96], '5d': ['1h', 120], '1mo': ['4h', 180], '6mo': ['1d', 183], '1y': ['1d', 365], '5y': ['1w', 260] };
+    async function klines(id, range) {
+        const [iv, n] = KL[range];
+        const arr = await bnGet(`/api/v3/klines?symbol=${pairOf(id)}&interval=${iv}&limit=${n}`);
+        return arr.map((k) => [Math.floor(k[0] / 1000), +k[4]]);
+    }
+    async function loadCryptoSeries() {
+        await Promise.all(CRYPTO.map(async (c) => {
+            try {
+                const s = await klines(c.id, '1d');
+                const k = 'c:' + c.id;
+                Q[k] = Q[k] || {};
+                Q[k].series = s;
+                if (!fin(Q[k].price) || Q[k].stale) { Q[k].price = s[s.length - 1][1]; Q[k].currency = cfg.fiat; }
+            } catch { /* sem série */ }
+        }));
+        drawSparks();
+    }
+    async function loadCryptoDaily() {
+        await Promise.all(CRYPTO.map(async (c) => { try { D['c:' + c.id] = await klines(c.id, '1y'); } catch { /* sem histórico */ } }));
+    }
+
+    // ---------- Yahoo via conector ----------
+    async function quotesBatch(keys, range) {
+        const out = [];
+        for (let i = 0; i < keys.length; i += 40) {
+            const part = keys.slice(i, i + 40);
+            out.push(px(`/quotes?symbols=${encodeURIComponent(part.join(','))}&range=${range}`, 20000));
+        }
+        const res = await Promise.all(out);
+        return res.flatMap((r) => r.quotes || []);
+    }
+
+    let pollBusy = false;
+    async function pollYahoo() {
+        if (!cfg.proxy || pollBusy) return;
+        pollBusy = true;
+        try {
+            const list = await quotesBatch(yahooKeys(), '1d');
+            let ok = 0;
+            for (const q of list) {
+                if (q.error || !fin(q.price)) continue;
+                ok++;
+                const k = q.symbol in REG ? q.symbol : (yahooKeys().find((x) => x.toUpperCase() === String(q.symbol).toUpperCase()) || q.symbol);
+                const prev = Q[k] && Q[k].price;
+                Q[k] = { ...q, stale: false };
+                if (prev != null && prev !== q.price) patchLive(k, prev);
+            }
+            if (!ok) throw new Error('O conector não devolveu cotações');
+            st.yahooAt = now(); st.yahooErr = '';
+            checkAlerts();
+            saveSnap();
+        } catch (e) {
+            st.yahooErr = e.message || String(e);
+        } finally {
+            pollBusy = false;
+            scheduleRender();
+        }
+    }
+
+    async function loadDaily() {
+        const jobs = [loadCryptoDaily()];
+        if (cfg.proxy) {
+            jobs.push(quotesBatch(yahooKeys(), '1y').then((list) => {
+                for (const q of list) if (!q.error && q.series && q.series.length) D[q.symbol] = q.series;
+            }).catch(() => {}));
+        }
+        await Promise.all(jobs);
+        analyseAll();
+        scheduleRender();
+    }
+
+    function closesFor(k) {
+        const d = D[k];
+        if (!d || !d.length) return null;
+        const c = d.map((x) => x[1]);
+        const live = Q[k] && Q[k].price;
+        if (fin(live) && !Q[k].stale) c[c.length - 1] = live; // a última vela diária é o dia de hoje
+        return c;
+    }
+    function analyseAll() {
+        for (const k of Object.keys(REG)) {
+            const c = closesFor(k);
+            if (!c) continue;
+            const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
+            if (r) AN[k] = r;
+        }
+    }
+
+    async function loadFuel() {
+        if (!cfg.proxy) return;
+        try {
+            FUEL = await px(`/fuel?distrito=${encodeURIComponent(cfg.distrito || '')}`, 30000);
+            st.fuelErr = '';
+            saveSnap();
+        } catch (e) { st.fuelErr = e.message; }
+        scheduleRender();
+    }
+
+    async function loadMovers() {
+        if (!cfg.proxy) return;
+        try { MOVERS = await px('/movers', 20000); st.moversErr = ''; } catch (e) { st.moversErr = e.message; }
+        scheduleRender();
+    }
+
+    // notícias: pesquisa em PT e em EN, junta, tira repetidas
+    function newsQueries(k) {
+        const a = REG[k] || {};
+        const n = nameOf(k).replace(/,?\s+(Inc\.?|Corp(oration)?\.?|S\.?A\.?|SGPS|plc|N\.?V\.?|SE|AG|Ltd\.?|Holdings?|Class [A-C])\b\.?/gi, '').trim();
+        if (a.news) return [[a.news[0], 'pt'], [a.news[1], 'en']];
+        if (a.kind === 'crypto') return [[`${n} criptomoeda`, 'pt'], [`${n} crypto`, 'en']];
+        if (a.kind === 'index') return [[n, 'pt'], [`${n} index`, 'en']];
+        if (/\.LS$/.test(k)) return [[`${n} ações`, 'pt'], [`${n} bolsa`, 'pt']];
+        return [[`${n} ações`, 'pt'], [`${n} stock`, 'en']];
+    }
+    const newsBusy = {};
+    async function loadNews(k, force) {
+        if (!cfg.proxy) return null;
+        if (!force && NEWS[k] && now() - NEWS[k].at < 10 * 60 * 1000) return NEWS[k];
+        if (newsBusy[k]) return newsBusy[k];
+        newsBusy[k] = (async () => {
+            const res = await Promise.all(newsQueries(k).map(([q, lang]) => px(`/news?q=${encodeURIComponent(q)}&lang=${lang}`).catch(() => ({ items: [] }))));
+            const seen = new Set();
+            const items = [];
+            for (const it of res.flatMap((r) => r.items || [])) {
+                const key = String(it.title || '').toLowerCase().replace(/[^a-z0-9à-ú]+/g, ' ').slice(0, 60);
+                if (!it.title || seen.has(key)) continue;
+                seen.add(key);
+                items.push({ ...it, tone: A.sentiment(it.title) });
+            }
+            items.sort((a, b) => (b.time || 0) - (a.time || 0));
+            NEWS[k] = { at: now(), items: items.slice(0, 12) };
+            delete newsBusy[k];
+            return NEWS[k];
+        })();
+        return newsBusy[k];
+    }
+
+    // ---------- alertas ----------
+    const today = () => new Date().toISOString().slice(0, 10);
+    function checkAlerts() {
+        const lim = +cfg.alertPct || 0;
+        if (!lim) return;
+        const hits = [];
+        for (const [k, q] of Object.entries(Q)) {
+            if (!REG[k] || REG[k].temp || !fin(q.changePct) || Math.abs(q.changePct) < lim) continue;
+            const id = `${today()}|${k}|${q.changePct > 0 ? '+' : '-'}`;
+            if (fired.has(id)) continue;
+            fired.add(id);
+            if (!st.firstPoll) hits.push({ k, q });
+        }
+        st.firstPoll = false;
+        store.set('mercados:fired', [...fired].filter((x) => x.startsWith(today())));
+        for (const { k, q } of hits.slice(0, 3)) {
+            const msg = `${nameOf(k)} ${q.changePct > 0 ? 'sobe' : 'cai'} ${fmtPct(q.changePct)} hoje`;
+            toast(msg);
+            if (cfg.notify && 'Notification' in window && Notification.permission === 'granted') {
+                const opts = { body: `${fmtPx(q.price, REG[k])} · toca para ver`, tag: 'mk-' + k, icon: 'icon-192.png' };
+                navigator.serviceWorker && navigator.serviceWorker.ready
+                    ? navigator.serviceWorker.ready.then((r) => r.showNotification(msg, opts)).catch(() => {})
+                    : new Notification(msg, opts);
+            }
+        }
+    }
+
+    // ---------- gráficos (canvas) ----------
+    const COL = {};
+    function colors() {
+        const cs = getComputedStyle(document.documentElement);
+        for (const n of ['up', 'down', 'flat', 'line', 'muted', 'text', 'accent']) COL[n] = cs.getPropertyValue('--' + n).trim();
+    }
+    function setupCanvas(cv) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 3);
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (!w || !h) return null;
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+        const g = cv.getContext('2d');
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, w, h);
+        return { g, w, h };
+    }
+    function drawLine(cv, pts, opt = {}) {
+        const c = setupCanvas(cv);
+        if (!c || !pts || pts.length < 2) return null;
+        const { g, w, h } = c;
+        const vals = pts.map((p) => p[1]);
+        let lo = Math.min(...vals), hi = Math.max(...vals);
+        if (fin(opt.base)) { lo = Math.min(lo, opt.base); hi = Math.max(hi, opt.base); }
+        if (hi === lo) { hi += 1; lo -= 1; }
+        const padT = opt.pad ?? 3, padB = opt.pad ?? 3;
+        const t0 = pts[0][0], t1 = pts[pts.length - 1][0];
+        const X = opt.byIndex || t1 === t0 ? (i) => (i / (pts.length - 1)) * w : (i) => ((pts[i][0] - t0) / (t1 - t0)) * w;
+        const Y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (h - padT - padB);
+        const col = COL[opt.tone || 'flat'];
+        if (fin(opt.base)) {
+            g.setLineDash([3, 3]); g.strokeStyle = COL.line; g.lineWidth = 1;
+            g.beginPath(); g.moveTo(0, Y(opt.base)); g.lineTo(w, Y(opt.base)); g.stroke(); g.setLineDash([]);
+        }
+        g.beginPath();
+        pts.forEach((p, i) => (i ? g.lineTo(X(i), Y(p[1])) : g.moveTo(X(i), Y(p[1]))));
+        g.strokeStyle = col; g.lineWidth = opt.width || 1.6; g.lineJoin = 'round'; g.stroke();
+        if (opt.fill !== false) {
+            const gr = g.createLinearGradient(0, 0, 0, h);
+            gr.addColorStop(0, col + '40'); gr.addColorStop(1, col + '00');
+            g.lineTo(X(pts.length - 1), h); g.lineTo(0, h); g.closePath(); g.fillStyle = gr; g.fill();
+        }
+        return { X, Y, w, h, g, lo, hi };
+    }
+    function drawSparks() {
+        for (const cv of $$('canvas.spark')) {
+            const k = cv.dataset.key;
+            const q = Q[k];
+            if (!q || !q.series || q.series.length < 2) continue;
+            drawLine(cv, q.series, { tone: toneOf(q.changePct), base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose, pad: 3 });
+        }
+    }
+
+    // ---------- atualização ao vivo de um cartão ----------
+    function patchLive(k, prev) {
+        const q = Q[k];
+        for (const el of $$(`[data-key="${CSS.escape(k)}"]`)) {
+            const p = el.querySelector('.px');
+            if (p) {
+                p.textContent = fmtPx(q.price, REG[k]);
+                if (fin(prev) && prev !== q.price) {
+                    const cls = q.price > prev ? 'flash-up' : 'flash-down';
+                    p.classList.remove('flash-up', 'flash-down'); void p.offsetWidth; p.classList.add(cls);
+                    clearTimeout(p._t); p._t = setTimeout(() => p.classList.remove(cls), 700);
+                }
+            }
+            const c = el.querySelector('.chg');
+            if (c) { c.className = 'chg ' + toneOf(q.changePct); c.textContent = fmtPct(q.changePct); }
+        }
+        if (sheetKey === k) renderSheetPrice();
+        sparkSoon();
+    }
+    let sparkT = 0;
+    function sparkSoon() { if (!sparkT) sparkT = setTimeout(() => { sparkT = 0; drawSparks(); }, 3000); }
+
+    // ---------- render ----------
+    let renderPending = false;
+    function scheduleRender() {
+        if (renderPending) return;
+        renderPending = true;
+        requestAnimationFrame(() => { renderPending = false; render(); });
+    }
+
+    function render() {
+        renderStatus();
+        $$('#mk-nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === cfg.tab));
+        const body = $('#mk-body');
+        // não destruir o campo onde se está a escrever
+        const act = document.activeElement;
+        if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
+        const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? viewAnalysis() : cfg.tab === 'ajustes' ? viewSettings() : viewDashboard();
+        body.innerHTML = html;
+        drawSparks();
+    }
+
+    function renderStatus() {
+        const el = $('#mk-status');
+        if (!el) return;
+        const live = st.ws === 'on';
+        const cTxt = live ? '<span class="dot on"></span><b>Cripto ao vivo</b>' : st.cryptoAt ? `<span class="dot warn"></span>Cripto ${esc(ago(st.cryptoAt))}` : '<span class="dot"></span>Cripto a ligar…';
+        let yTxt;
+        if (!cfg.proxy) yTxt = '<span class="dot off"></span>Ações: sem conector';
+        else if (st.yahooErr && !st.yahooAt) yTxt = '<span class="dot off"></span>Ações: erro';
+        else yTxt = `<span class="dot ${st.yahooErr ? 'warn' : 'on'}"></span>Ações ${esc(ago(st.yahooAt))}`;
+        el.innerHTML = `<span>${cTxt}</span><span>${yTxt}</span>`;
+    }
+
+    // cartão (grelha)
+    function card(k, extra = '') {
+        const a = REG[k] || { key: k, name: k };
+        const q = Q[k] || {};
+        const sub = a.kind === 'crypto' ? '24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? hhmm(q.time) : '');
+        return `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
+            <div class="c-top"><span class="c-name">${esc(nameOf(k))}</span>${a.kind === 'crypto' ? `<span class="c-sym">${esc(a.sym)}</span>` : ''}</div>
+            <div class="c-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a)}</span></div>
+            <div class="c-row">${chg(q.changePct)}<span class="c-sub">${esc(sub)}</span></div>
+            ${extra ? `<div class="c-note">${esc(extra)}</div>` : ''}
+            <canvas class="spark" data-key="${esc(k)}"></canvas>
+        </button>`;
+    }
+
+    // linha (lista)
+    function row(k, opt = {}) {
+        const a = REG[k] || { key: k, name: k, sym: k };
+        const q = Q[k] || {};
+        const sub = opt.sub ?? [a.sym, q.exchange, q.open === false ? 'fechado' : ''].filter(Boolean).join(' · ');
+        return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
+            <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(sub)}</div></div>
+            ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
+            <div class="r-px num"><span class="px">${fmtPx(q.price, a)}</span>${chg(q.changePct)}</div>
+        </button>`;
+    }
+
+    function setupBanner() {
+        return `<div class="banner">
+            <h3>Falta ligar o conector de dados</h3>
+            <p>As cripto já estão em tempo real. Para o petróleo, combustíveis, índices, ações e notícias, a app precisa do teu conector (um Cloudflare Worker grátis, 2 minutos a publicar).</p>
+            <div class="btns"><button type="button" class="btn pri" data-tab="ajustes">Configurar</button>
+            <a class="btn" href="https://github.com/nelsonsous/escolaplay/tree/main/mercados#conector" target="_blank" rel="noopener">Como publicar</a></div>
+        </div>`;
+    }
+
+    function viewDashboard() {
+        const eurusd = Q['EURUSD=X'] && Q['EURUSD=X'].price;
+        const energy = ENERGY.map((e) => {
+            const q = Q[e.sym];
+            const l = e.perLitre && q ? A.usdGalToEurL(q.price, eurusd) : null;
+            return card(e.sym, l ? `≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L sem impostos` : '');
+        }).join('');
+        const stocks = cfg.watch.slice();
+        if (cfg.sort === 'chg') stocks.sort((a, b) => ((Q[b] && Q[b].changePct) ?? -999) - ((Q[a] && Q[a].changePct) ?? -999));
+        else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
+        return `${cfg.proxy ? '' : setupBanner()}
+        <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
+            <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
+        <section class="sec"><div class="sec-h"><h2>Petróleo e energia</h2><span class="sub">futuros, USD</span></div>
+            <div class="grid g3">${energy}</div></section>
+        ${viewFuel()}
+        <section class="sec"><div class="sec-h"><h2>Índices, câmbio e ouro</h2></div>
+            <div class="list">${INDICES.map((i) => row(i.sym, { sub: i.sym })).join('')}</div></section>
+        <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${cfg.watch.length}</span>
+            <div class="right seg" role="group" aria-label="Ordenar">
+                <button type="button" data-sort="chg" class="${cfg.sort === 'chg' ? 'on' : ''}">Variação</button>
+                <button type="button" data-sort="name" class="${cfg.sort === 'name' ? 'on' : ''}">Nome</button>
+                <button type="button" data-sort="mine" class="${cfg.sort === 'mine' ? 'on' : ''}">Minha</button></div></div>
+            ${stocks.length ? `<div class="list">${stocks.map((s) => row(s)).join('')}</div>` : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}
+            <p class="note">Cripto em tempo real. Ações, índices e petróleo: dados gratuitos do Yahoo Finance, que podem ter até 15 min de atraso nalgumas bolsas. Atualiza a cada 30 s.</p></section>`;
+    }
+
+    function viewFuel() {
+        if (!cfg.proxy) return '';
+        const dname = cfg.distrito && DISTRITOS ? (DISTRITOS.find((d) => String(d.id) === String(cfg.distrito)) || {}).name : '';
+        let inner;
+        if (!FUEL || !FUEL.fuels) inner = st.fuelErr ? `<div class="empty">Não deu para ler a DGEG: ${esc(st.fuelErr)}</div>` : '<div class="empty">A carregar os preços da DGEG…</div>';
+        else {
+            inner = `<div class="grid g3" style="grid-template-columns:repeat(2,minmax(0,1fr))">${FUEL.fuels.map((f) => f.error ? `<div class="card fuel"><div class="c-name">${esc(f.name)}</div><div class="c-sub">${esc(f.error)}</div></div>` : `
+                <div class="card fuel" style="cursor:default">
+                    <div class="c-top"><span class="c-name">${esc(f.name)}</span></div>
+                    <div class="f-avg num">${fmtPx(f.median, { decimals: 3 }, 'EUR')}<span class="c-unit">/L</span></div>
+                    <div class="c-note">mediana · média ${fmtPx(f.avg, { decimals: 3 }, 'EUR')}<br>${NF({}).format(f.n)} postos · máx. ${fmtPx(f.max, { decimals: 3 }, 'EUR')}</div>
+                    ${f.cheapest && f.cheapest[0] ? `<div class="f-min">Mais barato: <b class="num">${fmtPx(f.cheapest[0].price, { decimals: 3 }, 'EUR')}</b><br>${esc([f.cheapest[0].brand, f.cheapest[0].name].filter(Boolean).join(' — '))}${f.cheapest[0].place ? '<br>' + esc(f.cheapest[0].place) : ''}</div>` : ''}
+                </div>`).join('')}</div>
+                <p class="note">Fonte: DGEG — Preços dos Combustíveis Online. Preço mediano por litro${dname ? ' no distrito de ' + esc(dname) : ' em Portugal'}${FUEL.fuels[0] && FUEL.fuels[0].updated ? ' · última atualização ' + esc(FUEL.fuels[0].updated) : ''}.</p>`;
+        }
+        return `<section class="sec"><div class="sec-h"><h2>Combustíveis em Portugal</h2><span class="sub">bombas, com impostos</span></div>${inner}</section>`;
+    }
+
+    function moverRow(k, q, isTemp) {
+        const n = NEWS[k] && NEWS[k].items && NEWS[k].items[0];
+        const nt = NEWS[k] ? A.newsTone(NEWS[k].items) : null;
+        let why = '';
+        if (nt != null && fin(q.changePct)) {
+            const up = q.changePct > 0, good = nt > 0.15, bad = nt < -0.15;
+            why = up ? (good ? 'Sobe com boas notícias' : bad ? 'Sobe apesar de notícias negativas' : 'Sobe sem notícia clara')
+                : (bad ? 'Cai com más notícias' : good ? 'Cai apesar de notícias positivas' : 'Cai sem notícia clara');
+        }
+        const a = REG[k] || { sym: k };
+        return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}" ${isTemp ? `data-name="${esc(q.name || '')}"` : ''}>
+            <div class="r-main mv-main">
+                <div class="r-name">${esc(isTemp ? (q.name || k) : nameOf(k))}</div>
+                <div class="r-sub">${esc([a.sym || k, q.exchange || (isTemp ? 'EUA' : '')].filter(Boolean).join(' · '))}${fin(q.volume) ? ' · vol. ' + fmtBig(q.volume) : ''}</div>
+                ${n ? `<div class="news1"><span class="tone ${n.tone.tone}">${esc(n.tone.label)}</span>${esc(n.title)}</div>` : ''}
+                ${why ? `<div class="mv-why">${esc(why)}</div>` : ''}
+            </div>
+            <div class="r-px num"><span class="px">${fmtPx(q.price, REG[k] || { key: k }, q.currency)}</span>${chg(q.changePct)}</div>
+        </button>`;
+    }
+
+    function viewHighlights() {
+        const lim = +cfg.alertPct || 4;
+        const all = Object.keys(REG).filter((k) => !REG[k].temp && REG[k].kind !== 'index' && Q[k] && fin(Q[k].changePct));
+        const ups = all.filter((k) => Q[k].changePct >= lim).sort((a, b) => Q[b].changePct - Q[a].changePct);
+        const downs = all.filter((k) => Q[k].changePct <= -lim).sort((a, b) => Q[a].changePct - Q[b].changePct);
+        const big = [...ups, ...downs];
+        // notícias para os grandes movimentos (até 8)
+        big.slice(0, 8).forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
+        const topAll = all.slice().sort((a, b) => Math.abs(Q[b].changePct) - Math.abs(Q[a].changePct)).slice(0, 6);
+        if (!big.length) topAll.forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
+
+        const block = (title, keys, emptyTxt) => `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">${keys.length}</span></div>
+            ${keys.length ? `<div class="list">${keys.map((k) => moverRow(k, Q[k])).join('')}</div>` : `<div class="empty">${emptyTxt}</div>`}</section>`;
+
+        const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA</span></div>
+            <div class="list">${arr.slice(0, 8).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
+
+        return `${cfg.proxy ? '' : setupBanner()}
+        <div class="chips" role="group" aria-label="Limite">${[2, 3, 4, 5, 8, 10].map((p) => `<button type="button" data-lim="${p}" class="${lim === p ? 'on' : ''}">±${p}%</button>`).join('')}</div>
+        ${block(`Grandes subidas hoje (≥ ${lim}%)`, ups, 'Nada do que segues sobe tanto hoje.')}
+        ${block(`Grandes descidas hoje (≤ −${lim}%)`, downs, 'Nada do que segues cai tanto hoje.')}
+        ${!big.length && topAll.length ? `<section class="sec"><div class="sec-h"><h2>Maiores movimentos do que sigo</h2></div><div class="list">${topAll.map((k) => moverRow(k, Q[k])).join('')}</div></section>` : ''}
+        ${MOVERS ? usBlock('Mais sobem — mercado todo', MOVERS.gainers) + usBlock('Mais caem — mercado todo', MOVERS.losers) + usBlock('Mais negociadas', MOVERS.actives) : (cfg.proxy ? `<p class="note">${st.moversErr ? 'Lista global indisponível: ' + esc(st.moversErr) : 'A carregar a lista global…'}</p>` : '')}
+        <p class="note">O tom das notícias (boa / má) é calculado por palavras-chave nos títulos — é uma pista rápida, não substitui ler a notícia. Toca numa linha para ver o gráfico e todas as notícias.</p>`;
+    }
+
+    function scoreBar(r) {
+        return `<div class="score"><div class="bar"><i class="${r.tone}" style="width:${r.score}%"></i></div><span class="val num ${r.tone}-t">${r.score}</span></div>`;
+    }
+
+    function viewAnalysis() {
+        const keys = Object.keys(AN).filter((k) => REG[k] && !REG[k].temp && (REG[k].kind !== 'index' || k === 'GC=F'));
+        const f = cfg.filter;
+        const shown = keys.filter((k) => f === 'all' || REG[k].kind === f || (f === 'energy' && k === 'GC=F')).sort((a, b) => AN[b].score - AN[a].score);
+        const breadth = keys.length ? keys.filter((k) => AN[k].score >= 58).length / keys.length : NaN;
+        const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
+        const top = shown.slice(0, 3);
+        const chips = [['all', 'Tudo'], ['stock', 'Ações'], ['crypto', 'Cripto'], ['energy', 'Energia e ouro']];
+        return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
+            <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
+        <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+        ${!shown.length ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
+        <section class="sec"><div class="sec-h"><h2>Mais fortes agora</h2><span class="sub">tendência + momento</span></div>
+            <div class="top3">${top.map((k, i) => `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
+                <div class="medal">${['1.º', '2.º', '3.º'][i]} lugar</div>
+                <div class="c-top" style="margin-top:4px"><span class="c-name">${esc(nameOf(k))}</span><span class="c-sym">${esc(REG[k].sym)}</span></div>
+                <div class="c-row" style="margin-top:8px">${scoreBar(AN[k])}</div>
+                <div class="c-sub ${AN[k].tone}-t" style="margin-top:6px">${esc(AN[k].label)} · ${esc(AN[k].risk.label)}</div>
+                <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((AN[k].reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
+            </button>`).join('')}</div></section>
+        <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${shown.length} ativos · 0 a 100</span></div>
+            <div class="list">${shown.map((k, i) => `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
+                <span class="rk">${i + 1}</span>
+                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(AN[k].risk.label)} · ${fmtPct(Q[k] && Q[k].changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
+                <div class="r-score">${scoreBar(AN[k])}<div class="lbl ${AN[k].tone}-t">${esc(AN[k].label)}</div></div>
+            </button>`).join('')}</div></section>`}
+        <details class="how"><summary>Como é calculada a pontuação?</summary><ul>
+            <li><b>Tendência</b>: preço face às médias de 20 e 50 dias, e se a média de 50 dias está a subir.</li>
+            <li><b>Momento</b>: variação do último mês e dos últimos 3 meses; MACD (aceleração).</li>
+            <li><b>RSI</b>: acima de 70 está "esticado" (risco de correção); abaixo de 30 está muito castigado (pode ressaltar).</li>
+            <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>
+            <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li>
+            <li>50 = neutro. Acima de 58 a tendência é positiva; acima de 70 é forte.</li></ul></details>
+        <div class="disc"><b>Isto não é aconselhamento financeiro.</b> A pontuação mede a tendência e o momento recentes — o que já aconteceu. Ninguém consegue garantir o que vai subir. Antes de investir: diversifica, não ponhas dinheiro de que precisas, prefere investir aos poucos, e lembra-te que cripto e ações pequenas podem cair 50% ou mais.</div>`;
+    }
+
+    function viewSettings() {
+        const lim = +cfg.alertPct || 0;
+        const notifState = !('Notification' in window) ? 'não suportado neste browser' : Notification.permission === 'denied' ? 'bloqueado nas definições do browser' : '';
+        if (cfg.proxy && !DISTRITOS) px('/fuel/distritos').then((d) => { DISTRITOS = d.items || []; scheduleRender(); }).catch(() => { DISTRITOS = []; });
+        return `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div>
+            <div class="form">
+                <div><label for="f-proxy">Endereço do teu Worker</label>
+                    <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://mercados-proxy.<conta>.workers.dev" value="${esc(cfg.proxy)}">
+                    <button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
+                    <div class="hint" id="f-proxy-msg">${cfg.proxy ? (st.yahooErr ? 'Último erro: ' + esc(st.yahooErr) : st.yahooAt ? 'Ligado. Última leitura ' + esc(ago(st.yahooAt)) + '.' : 'A testar…') : 'Publica o Worker da pasta <code>mercados/proxy</code> (<code>npx wrangler deploy</code>) e cola aqui o URL.'}</div></div>
+            </div></section>
+        <section class="sec"><div class="sec-h"><h2>Preferências</h2></div>
+            <div class="form">
+                <div class="sw"><span>Moeda das cripto</span><div class="seg"><button type="button" data-fiat="EUR" class="${cfg.fiat === 'EUR' ? 'on' : ''}">EUR</button><button type="button" data-fiat="USD" class="${cfg.fiat === 'USD' ? 'on' : ''}">USD</button></div></div>
+                <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
+                    <select id="f-lim" class="inp" data-cfg="alertPct">${[0, 2, 3, 4, 5, 8, 10].map((p) => `<option value="${p}" ${lim === p ? 'selected' : ''}>${p ? '±' + p + '% no dia' : 'Não avisar'}</option>`).join('')}</select></div>
+                <div class="sw"><span>Notificações no telemóvel${notifState ? ` <small class="hint">(${notifState})</small>` : ''}</span><button type="button" class="btn sm" data-act="notify">${cfg.notify && 'Notification' in window && Notification.permission === 'granted' ? 'Ligadas' : 'Ligar'}</button></div>
+                <div><label for="f-dist">Combustíveis: zona</label>
+                    <select id="f-dist" class="inp" data-cfg="distrito"><option value="">Portugal (todos os postos)</option>${(DISTRITOS || []).map((d) => `<option value="${esc(d.id)}" ${String(d.id) === String(cfg.distrito) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
+            </div></section>
+        <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${cfg.watch.length}</span><button type="button" class="right btn sm" data-act="reset-watch">Repor lista</button></div>
+            <div class="form">
+                <div><label for="f-add">Juntar ação, ETF ou índice</label>
+                    <input id="f-add" class="inp" type="search" autocomplete="off" placeholder="ex.: Mota-Engil, Ferrari, VWCE, AAPL…" ${cfg.proxy ? '' : 'disabled'}>
+                    <div class="res" id="f-res"></div>
+                    <div class="hint">Também podes escrever o símbolo do Yahoo Finance (ex.: <code>EGL.LS</code>, <code>RACE.MI</code>) e carregar Enter.</div></div>
+                <div class="wl">${cfg.watch.map((s) => `<div class="wl-i"><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')}</div>
+            </div></section>
+        <div class="disc"><b>Mercados ${VERSION}.</b> Cripto: Binance. Ações, índices, petróleo e notícias: Yahoo Finance e Google Notícias, através do teu conector. Combustíveis: DGEG. Os dados podem ter atrasos ou falhas; confirma sempre na tua corretora antes de comprar ou vender. Não é aconselhamento financeiro.</div>`;
+    }
+
+    // ---------- folha de detalhe ----------
+    let sheetKey = null, sheetRange = '1d', sheetPts = null, sheetDraw = null, sheetLoadId = 0;
+    const RANGE_LBL = [['1d', '1D'], ['5d', '5D'], ['1mo', '1M'], ['6mo', '6M'], ['1y', '1A'], ['5y', '5A']];
+
+    function openSheet(k, tempName) {
+        if (!REG[k]) REG[k] = { key: k, kind: 'stock', sym: k, name: tempName || k, temp: true };
+        sheetKey = k; sheetRange = '1d'; sheetPts = null;
+        const sh = $('#mk-sheet');
+        sh.hidden = false;
+        document.body.style.overflow = 'hidden';
+        renderSheet();
+        loadSheetChart();
+        if (!AN[k]) ensureAnalysis(k);
+        loadNews(k).then(() => { if (sheetKey === k) { analyseOne(k); renderSheet(true); } }).catch(() => {});
+        if (!Q[k] || Q[k].stale) {
+            const a = REG[k];
+            if (a.kind !== 'crypto' && cfg.proxy) px(`/quotes?symbols=${encodeURIComponent(k)}&range=1d`).then((r) => { const q = r.quotes && r.quotes[0]; if (q && !q.error) { Q[k] = { ...q, stale: false }; if (sheetKey === k) renderSheet(true); } }).catch(() => {});
+        }
+    }
+    function closeSheet() {
+        $('#mk-sheet').hidden = true; document.body.style.overflow = ''; sheetKey = null;
+        scheduleRender();
+    }
+    function analyseOne(k) {
+        const c = closesFor(k);
+        if (!c) return;
+        const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
+        if (r) AN[k] = r;
+    }
+    async function ensureAnalysis(k) {
+        try {
+            if (REG[k].kind === 'crypto') D[k] = await klines(REG[k].sym, '1y');
+            else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=1y`); const q = r.quotes && r.quotes[0]; if (q && q.series) D[k] = q.series; }
+            analyseOne(k);
+            if (sheetKey === k) renderSheet(true);
+        } catch { /* sem análise */ }
+    }
+    async function loadSheetChart() {
+        const k = sheetKey, range = sheetRange, id = ++sheetLoadId;
+        const a = REG[k];
+        sheetPts = null; drawSheetChart();
+        try {
+            let pts;
+            if (a.kind === 'crypto') pts = range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 20 ? Q[k].series : await klines(a.sym, range);
+            else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1 && !Q[k].stale) pts = Q[k].series;
+            else if (range === '1y' && D[k]) pts = D[k];
+            else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range}`, 20000); const q = r.quotes && r.quotes[0]; if (!q || q.error) throw new Error(q && q.error || 'sem dados'); pts = q.series; }
+            if (id !== sheetLoadId) return;
+            sheetPts = pts;
+        } catch (e) {
+            if (id !== sheetLoadId) return;
+            sheetPts = [];
+            const l = $('#d-load'); if (l) l.textContent = cfg.proxy || a.kind === 'crypto' ? 'Sem dados para este período' : 'Liga o conector para ver o gráfico';
+            return;
+        }
+        drawSheetChart();
+    }
+    function drawSheetChart(hover) {
+        const cv = $('#d-cv');
+        if (!cv) return;
+        const l = $('#d-load');
+        if (!sheetPts) { if (l) { l.hidden = false; l.textContent = 'A carregar…'; } setupCanvas(cv); return; }
+        if (sheetPts.length < 2) return;
+        if (l) l.hidden = true;
+        const first = sheetPts[0][1], lastv = sheetPts[sheetPts.length - 1][1];
+        const q = Q[sheetKey] || {};
+        const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
+        const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
+        sheetDraw = drawLine(cv, sheetPts, { tone, base, width: 2, pad: 10, byIndex: sheetRange !== '1d' });
+        const tip = $('#d-tip');
+        if (hover != null && sheetDraw) {
+            const { g, X, Y, h } = sheetDraw;
+            const p = sheetPts[hover];
+            g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(X(hover), 0); g.lineTo(X(hover), h); g.stroke();
+            g.fillStyle = COL[tone]; g.beginPath(); g.arc(X(hover), Y(p[1]), 4, 0, 7); g.fill();
+            if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
+        } else if (tip) {
+            const ch = (lastv / first - 1) * 100;
+            tip.innerHTML = sheetRange === '1d' ? 'Hoje · arrasta no gráfico para ver valores' : `No período: <span class="${toneOf(ch)}-t">${fmtPct(ch)}</span> · arrasta no gráfico`;
+        }
+    }
+    function renderSheetPrice() {
+        const k = sheetKey; const q = Q[k] || {}; const a = REG[k];
+        const el = $('#d-px'); if (!el) return;
+        const eurusd = Q['EURUSD=X'] && Q['EURUSD=X'].price;
+        const l = a.perLitre ? A.usdGalToEurL(q.price, eurusd) : null;
+        el.innerHTML = `<span class="px num">${fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}<span class="alt num">${fin(q.change) ? (q.change > 0 ? '+' : '') + fmtPx(q.change, a, q.currency) : ''}${l ? ` · ≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L` : ''}</span>`;
+    }
+    function renderSheet() {
+        const k = sheetKey; if (!k) return;
+        const a = REG[k], q = Q[k] || {}, r = AN[k], n = NEWS[k];
+        const following = cfg.watch.includes(k);
+        const stat = (l, v) => `<div><small>${l}</small><b class="num">${v}</b></div>`;
+        const box = $('#mk-sheet-card');
+        const scroll = box.scrollTop;
+        box.innerHTML = `<div class="grab"></div>
+            <div class="d-head"><div><h2 id="mk-sheet-title">${esc(nameOf(k))}</h2><div class="d-sub">${esc([a.kind === 'crypto' ? a.sym + '/' + cfg.fiat : a.sym, q.exchange, q.open === false ? 'mercado fechado' : q.open ? 'mercado aberto' : ''].filter(Boolean).join(' · '))}</div></div>
+                <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+            <div class="d-px" id="d-px"></div>
+            <div class="d-tip" id="d-tip"></div>
+            <div class="d-chart"><canvas id="d-cv"></canvas><div class="loading" id="d-load">A carregar…</div></div>
+            <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+            <div class="stats">
+                ${stat('Máx. do dia', fmtPx(q.dayHigh, a, q.currency))}${stat('Mín. do dia', fmtPx(q.dayLow, a, q.currency))}
+                ${a.kind === 'crypto' ? stat('Volume 24 h', fmtBig(q.volume) + ' ' + cfg.fiat) : stat('Fecho anterior', fmtPx(q.prevClose, a, q.currency))}
+                ${a.kind === 'crypto' ? stat('Variação 24 h', fmtPct(q.changePct)) : stat('Volume', fmtBig(q.volume))}
+                ${fin(q.high52) ? stat('Máx. 52 sem.', fmtPx(q.high52, a, q.currency)) + stat('Mín. 52 sem.', fmtPx(q.low52, a, q.currency)) : ''}
+                ${r ? stat('RSI (14)', fin(r.metrics.rsi) ? Math.round(r.metrics.rsi) : '—') + stat('Volatilidade', fin(r.metrics.vol) ? Math.round(r.metrics.vol * 100) + '%/ano' : '—') : ''}
+            </div>
+            <div class="box"><h3>Análise técnica ${r ? `<span class="chip-s">${esc(r.risk.label)}</span>` : ''}</h3>
+                ${r ? `${scoreBar(r)}<div class="${r.tone}-t" style="font-weight:700;margin-top:6px">${esc(r.label)}</div>
+                <ul class="reasons">${r.reasons.map((x) => `<li><span class="p ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : 'flat'}-t">${x.pts > 0 ? '+' : ''}${x.pts || '·'}</span><span>${esc(x.txt)}</span></li>`).join('')}</ul>
+                <p class="note">Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
+            </div>
+            <div class="box"><h3>Notícias</h3>
+                ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
+                : `<ul class="news">${n.items.map((it) => `<li><a href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer"><span class="tone ${it.tone.tone}">${esc(it.tone.label)}</span>${esc(it.title)}</a>
+                    <div class="meta">${esc([it.source, it.time ? ago(it.time * 1000) : ''].filter(Boolean).join(' · '))}</div></li>`).join('')}</ul>`}
+            </div>
+            <div class="d-actions">
+                ${a.kind === 'stock' ? `<button type="button" class="btn ${following ? '' : 'pri'}" data-act="follow">${following ? 'Deixar de seguir' : '+ Seguir'}</button>` : ''}
+                <a class="btn" href="${a.kind === 'crypto' ? `https://www.binance.com/pt/trade/${esc(a.sym)}_${cfg.fiat === 'EUR' ? 'EUR' : 'USDT'}` : `https://finance.yahoo.com/quote/${encodeURIComponent(k)}`}" target="_blank" rel="noopener">Ver na ${a.kind === 'crypto' ? 'Binance' : 'Yahoo Finance'}</a>
+            </div>`;
+        box.scrollTop = scroll;
+        renderSheetPrice();
+        requestAnimationFrame(() => drawSheetChart());
+        bindChartHover();
+    }
+    function bindChartHover() {
+        const cv = $('#d-cv');
+        if (!cv) return;
+        const at = (ev) => {
+            if (!sheetPts || sheetPts.length < 2 || !sheetDraw) return;
+            const x = ev.clientX - cv.getBoundingClientRect().left;
+            let best = 0, bd = Infinity;
+            for (let i = 0; i < sheetPts.length; i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }
+            drawSheetChart(best);
+        };
+        cv.addEventListener('pointermove', at);
+        cv.addEventListener('pointerdown', at);
+        cv.addEventListener('pointerleave', () => drawSheetChart());
+    }
+
+    // ---------- avisos ----------
+    let toastT = 0;
+    function toast(msg) {
+        const t = $('#mk-toast');
+        t.textContent = msg; t.classList.add('show');
+        clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    // ---------- ações do utilizador ----------
+    function refreshAll() {
+        const b = $('[data-act="refresh"]');
+        b.classList.add('spin');
+        Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null])
+            .finally(() => { b.classList.remove('spin'); scheduleRender(); });
+    }
+
+    function watchChanged() {
+        saveCfg(); buildReg();
+        pollYahoo();
+        loadDaily();
+        scheduleRender();
+    }
+
+    let searchT = 0;
+    async function doSearch(q) {
+        const res = $('#f-res');
+        if (!res) return;
+        if (q.length < 2) { res.innerHTML = ''; return; }
+        try {
+            const d = await px(`/search?q=${encodeURIComponent(q)}`);
+            if (($('#f-add') || {}).value !== q) return;
+            res.innerHTML = (d.items || []).slice(0, 8).map((i) => `<button type="button" data-add="${esc(i.symbol)}" data-name="${esc(i.name)}">${esc(i.name)} <small>${esc([i.symbol, i.exchange, i.type].filter(Boolean).join(' · '))}</small></button>`).join('') || '<div class="hint">Sem resultados.</div>';
+        } catch (e) { res.innerHTML = `<div class="hint">Erro: ${esc(e.message)}</div>`; }
+    }
+    function addWatch(sym, name) {
+        sym = String(sym || '').trim().toUpperCase();
+        if (!sym) return;
+        if (!cfg.watch.includes(sym)) cfg.watch.push(sym);
+        if (name && !NAMES[sym]) NAMES[sym] = name;
+        if (REG[sym] && REG[sym].temp) delete REG[sym];
+        toast(`${name || sym} junto à lista`);
+        watchChanged();
+    }
+
+    document.addEventListener('click', (ev) => {
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add]');
+        if (!t) return;
+        const d = t.dataset;
+        if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
+        if (d.open) { openSheet(d.open, d.name); return; }
+        if (d.sort) { cfg.sort = d.sort; saveCfg(); render(); return; }
+        if (d.filter) { cfg.filter = d.filter; saveCfg(); render(); return; }
+        if (d.lim) { cfg.alertPct = +d.lim; saveCfg(); render(); return; }
+        if (d.range) { sheetRange = d.range; $$('.ranges button').forEach((b) => b.classList.toggle('on', b.dataset.range === d.range)); loadSheetChart(); return; }
+        if (d.fiat) {
+            if (cfg.fiat === d.fiat) return;
+            cfg.fiat = d.fiat; saveCfg();
+            CRYPTO.forEach((c) => { delete Q['c:' + c.id]; delete D['c:' + c.id]; delete AN['c:' + c.id]; });
+            wsTry = 0; startWS(); loadCryptoSeries(); loadCryptoDaily().then(() => { analyseAll(); scheduleRender(); });
+            render(); return;
+        }
+        if (d.rm) { cfg.watch = cfg.watch.filter((s) => s !== d.rm); delete Q[d.rm]; delete AN[d.rm]; watchChanged(); return; }
+        if (d.add) { addWatch(d.add, d.name); return; }
+        switch (d.act) {
+            case 'refresh': refreshAll(); break;
+            case 'close': closeSheet(); break;
+            case 'follow': {
+                const k = sheetKey;
+                if (cfg.watch.includes(k)) { cfg.watch = cfg.watch.filter((s) => s !== k); toast('Retirado da lista'); }
+                else { cfg.watch.push(k); if (REG[k]) delete REG[k].temp; toast('Junto à lista'); }
+                watchChanged(); renderSheet(true); break;
+            }
+            case 'save-proxy': {
+                const v = ($('#f-proxy').value || '').trim().replace(/\/+$/, '');
+                if (v && !/^https:\/\/[^\s/]+/.test(v)) { toast('O endereço tem de começar por https://'); return; }
+                cfg.proxy = v; saveCfg(); st.yahooErr = ''; st.yahooAt = 0; DISTRITOS = null;
+                $('#f-proxy').blur();
+                if (!v) { render(); return; }
+                const msg = $('#f-proxy-msg'); if (msg) msg.textContent = 'A testar…';
+                px('/health').then(() => { toast('Conector ligado ✓'); pollYahoo(); loadDaily(); loadFuel(); loadMovers(); })
+                    .catch((e) => { st.yahooErr = e.message; toast('Não respondeu: ' + e.message); scheduleRender(); });
+                break;
+            }
+            case 'notify': {
+                if (!('Notification' in window)) { toast('Este browser não suporta notificações'); return; }
+                Notification.requestPermission().then((p) => { cfg.notify = p === 'granted'; saveCfg(); toast(cfg.notify ? 'Notificações ligadas' : 'Notificações não autorizadas'); render(); });
+                break;
+            }
+            case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); watchChanged(); break;
+        }
+    });
+
+    document.addEventListener('change', (ev) => {
+        const t = ev.target;
+        if (t.dataset && t.dataset.cfg) {
+            cfg[t.dataset.cfg] = t.dataset.cfg === 'alertPct' ? +t.value : t.value;
+            saveCfg();
+            if (t.dataset.cfg === 'distrito') { FUEL = null; loadFuel(); }
+            t.blur(); render();
+        }
+    });
+    document.addEventListener('input', (ev) => {
+        if (ev.target.id === 'f-add') { clearTimeout(searchT); const v = ev.target.value.trim(); searchT = setTimeout(() => doSearch(v), 300); }
+    });
+    document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && sheetKey) closeSheet();
+        if (ev.key === 'Enter' && ev.target.id === 'f-add') {
+            const v = ev.target.value.trim();
+            if (/^[\^A-Za-z0-9.=\-]{1,15}$/.test(v)) { ev.target.value = ''; ev.target.blur(); addWatch(v); }
+        }
+        if (ev.key === 'Enter' && ev.target.id === 'f-proxy') { ev.preventDefault(); $('[data-act="save-proxy"]').click(); }
+    });
+    window.addEventListener('resize', () => { drawSparks(); drawSheetChart(); });
+
+    // ---------- ciclo ----------
+    let yTimer = 0;
+    function schedule() {
+        clearInterval(yTimer);
+        yTimer = setInterval(() => { if (!document.hidden) { pollYahoo(); if (!cfg.proxy) checkAlerts(); } }, 30000);
+    }
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) { pollYahoo(); if (!ws) startWS(); renderStatus(); }
+    });
+    setInterval(renderStatus, 5000);
+    setInterval(() => { if (!document.hidden) { analyseAll(); if (cfg.tab === 'analise') scheduleRender(); } }, 60000);
+    setInterval(() => { if (!document.hidden) loadCryptoSeries(); }, 5 * 60000);
+    setInterval(() => { if (!document.hidden) loadDaily(); }, 15 * 60000);
+    setInterval(() => { if (!document.hidden && cfg.tab === 'destaques') loadMovers(); }, 3 * 60000);
+    setInterval(() => { if (!document.hidden) loadFuel(); }, 60 * 60000);
+
+    async function boot() {
+        colors();
+        render();
+        startWS();
+        // se o WebSocket demorar, mostra logo um preço por REST
+        sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
+        loadCryptoSeries();
+        if (cfg.proxy) { await pollYahoo(); loadFuel(); if (cfg.tab === 'destaques') loadMovers(); }
+        schedule();
+        loadDaily();
+    }
+
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+
+    // para os testes
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, version: VERSION };
+    boot();
+})();
