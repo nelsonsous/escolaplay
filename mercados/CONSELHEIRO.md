@@ -9,6 +9,11 @@ Este ficheiro é o procedimento que a tarefa agendada segue todos os dias úteis
 - Perfil por omissão: **prudente** (≈90% ETF, ≈10% satélites, 0% cripto) — mudar só se o diário mostrar que os satélites estão a acrescentar valor. Ordens manuais na TR custam 1 €; planos de poupança são grátis.
 - Valida sempre antes de investir: escrever como conselheiro direto e honesto, sem rodeios, mas sem prometer resultados.
 
+## Universo
+
+- **Só analisar e recomendar o que se compra na Trade Republic.** Por omissão: grandes empresas mundiais (EUA, Europa, Ásia), os ETF de `FUNDS` e BTC/ETH/SOL/XRP. Ações portuguesas ficam de fora (não confirmado que estejam na TR); só entram se o investidor as juntar na app (aparecem no diário).
+- Índices (S&P 500, PSI…), futuros (petróleo, ouro) e combustíveis servem só de contexto, nunca de recomendação.
+
 ## O que a análise mostrou até agora (não ignorar)
 
 - Teste de 2 anos (39 ativos, regras técnicas da app): **nenhum sinal bateu o VWCE de forma consistente**; ações escolhidas uma a uma −2,3 pp e cripto −4,6 pp face ao VWCE a 3 meses. "Evitar" identifica ativos ainda piores (−2,7 pp), por isso serve sobretudo para **não cair em armadilhas**.

@@ -12,8 +12,8 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 
 function rnd(seed) { let s = seed % 2147483647 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 const hash = (str) => [...str].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-const BASE = { BTCEUR: 88000, ETHEUR: 3100, SOLEUR: 160, XRPEUR: 2.18, 'BZ=F': 64.2, 'CL=F': 60.1, 'RB=F': 1.98, 'HO=F': 2.31, 'NG=F': 3.4, '^GSPC': 6850, '^IXIC': 23500, '^STOXX50E': 5650, 'PSI20.LS': 8100, '^VIX': 17.2, 'EURUSD=X': 1.152, 'GC=F': 3980, 'GALP.LS': 17.4, 'NVDA': 196, 'TSLA': 455, 'VWCE.DE': 165.98, 'VWCE.MU': 163.8, 'EURDKK=X': 7.4742 };
-const DAYCHG = { 'VWCE.DE': -2.28, 'VWCE.MU': -3.9, 'EURUSD=X': 0, 'EURDKK=X': 0, 'GALP.LS': 6.8, 'NVDA': 5.2, 'TSLA': -7.4, 'BCP.LS': -4.6, 'BZ=F': 1.3 };
+const BASE = { BTCEUR: 88000, ETHEUR: 3100, SOLEUR: 160, XRPEUR: 2.18, 'BZ=F': 64.2, 'CL=F': 60.1, 'RB=F': 1.98, 'HO=F': 2.31, 'NG=F': 3.4, '^GSPC': 6850, '^IXIC': 23500, '^STOXX50E': 5650, 'PSI20.LS': 8100, '^VIX': 17.2, 'EURUSD=X': 1.152, 'GC=F': 3980, 'ALV.DE': 17.4, 'NVDA': 196, 'TSLA': 455, 'VWCE.DE': 165.98, 'VWCE.MU': 163.8, 'EURDKK=X': 7.4742 };
+const DAYCHG = { 'VWCE.DE': -2.28, 'VWCE.MU': -3.9, 'EURUSD=X': 0, 'EURDKK=X': 0, 'ALV.DE': 6.8, 'NVDA': 5.2, 'TSLA': -7.4, 'TTE.PA': -4.6, 'BZ=F': 1.3 };
 
 function series(sym, n, stepSec, drift) {
     const r = rnd(hash(sym) + n);
@@ -120,9 +120,10 @@ function proxyBody(u) {
     const brent = await page.locator('[data-key="BZ=F"] .px').first().textContent();
     assert.match(brent, /64,20/);
     assert.match(await page.locator('[data-key="RB=F"]').first().textContent(), /€.*\/L|\/L/);
-    assert.equal(await page.locator('.sec:has(h2:text("Ações que sigo")) .row').count(), 28);
+    assert.equal(await page.locator('.sec:has(h2:text("Ações que sigo")) .row').count(), 23);
     const firstStock = await page.locator('.sec:has(h2:text("Ações que sigo")) .row .r-name').first().textContent();
-    assert.equal(firstStock, 'Galp', 'ordenado pela maior subida');
+    assert.equal(firstStock, 'Allianz', 'ordenado pela maior subida');
+    assert.equal(await page.locator('.sec:has(h2:text("Ações que sigo")) .row[data-key$=".LS"]').count(), 0, 'sem ações portuguesas por omissão');
     console.log('✓ painel: Brent', brent, '| 1.ª ação', firstStock);
     await page.waitForSelector('.brief .idea', { timeout: 15000 });
     assert.match(await page.locator('.brief summary').textContent(), /Resumo do dia/);
@@ -156,9 +157,9 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelectorAll('.news1').length >= 2);
     const ups = await page.locator('.sec:has(h2:text("Grandes subidas")) .row .r-name').allTextContents();
     const downs = await page.locator('.sec:has(h2:text("Grandes descidas")) .row .r-name').allTextContents();
-    assert.ok(ups.includes('Galp') && ups.includes('Nvidia'), 'subidas: ' + ups);
-    assert.ok(downs.includes('Tesla') && downs.includes('BCP'), 'descidas: ' + downs);
-    assert.ok(ups.indexOf('Galp') < ups.indexOf('Nvidia'));
+    assert.ok(ups.includes('Allianz') && ups.includes('Nvidia'), 'subidas: ' + ups);
+    assert.ok(downs.includes('Tesla') && downs.includes('TotalEnergies'), 'descidas: ' + downs);
+    assert.ok(ups.indexOf('Allianz') < ups.indexOf('Nvidia'));
     await page.waitForSelector('text=Xyz Therapeutics');
     console.log('✓ destaques: sobem', ups.join(', '), '| caem', downs.join(', '));
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '2-destaques.png') });
@@ -312,6 +313,14 @@ function proxyBody(u) {
     // largura: sem scroll horizontal
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     assert.equal(overflow, false, 'sem scroll horizontal');
+
+    // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
+    await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
+    await page.reload();
+    await page.waitForFunction(() => window.__mk && window.__mk.cfg.watchVer === 3);
+    const w = await page.evaluate(() => window.__mk.cfg.watch);
+    assert.ok(!w.includes('EDP.LS') && w.includes('EGL.LS') && w.includes('JPM'), 'migração: ' + w.join(','));
+    console.log('✓ migração da lista: sai EDP, fica Mota-Engil, entra JPMorgan');
 
     assert.deepEqual(errors, [], 'sem erros na consola');
     console.log('✓ sem erros na consola');

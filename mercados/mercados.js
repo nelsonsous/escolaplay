@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.7.1';
+    const VERSION = '1.8.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -43,14 +43,20 @@
         { sym: 'EURUSD=X', name: 'EUR/USD', points: true, decimals: 4 },
         { sym: 'GC=F', name: 'Ouro', unit: 'onça' },
     ];
+    // Universo por omissão: grandes empresas mundiais que se compram na Trade Republic (EUA, Europa, Ásia).
+    // Ações portuguesas ficam de fora até se confirmar que estão na TR (o utilizador pode juntá-las em Ajustes).
     const NAMES = {
-        'EDP.LS': 'EDP', 'GALP.LS': 'Galp', 'JMT.LS': 'Jerónimo Martins', 'BCP.LS': 'BCP', 'EDPR.LS': 'EDP Renováveis', 'NOS.LS': 'NOS',
-        'NVG.LS': 'Navigator', 'SON.LS': 'Sonae', 'CTT.LS': 'CTT', 'ASML.AS': 'ASML', 'SAP.DE': 'SAP', 'MC.PA': 'LVMH', 'SIE.DE': 'Siemens',
-        'NOVO-B.CO': 'Novo Nordisk', 'RHM.DE': 'Rheinmetall', NVDA: 'Nvidia', AAPL: 'Apple', MSFT: 'Microsoft', AMZN: 'Amazon',
-        GOOGL: 'Alphabet (Google)', META: 'Meta', TSLA: 'Tesla', AMD: 'AMD', PLTR: 'Palantir', NFLX: 'Netflix', AVGO: 'Broadcom',
-        COIN: 'Coinbase', MSTR: 'Strategy',
+        AAPL: 'Apple', MSFT: 'Microsoft', NVDA: 'Nvidia', AMZN: 'Amazon', GOOGL: 'Alphabet (Google)', META: 'Meta', TSLA: 'Tesla',
+        AVGO: 'Broadcom', JPM: 'JPMorgan', V: 'Visa', LLY: 'Eli Lilly', 'BRK-B': 'Berkshire Hathaway', PLTR: 'Palantir', AMD: 'AMD',
+        'ASML.AS': 'ASML', 'SAP.DE': 'SAP', 'MC.PA': 'LVMH', 'SIE.DE': 'Siemens', 'NOVO-B.CO': 'Novo Nordisk', 'ALV.DE': 'Allianz',
+        'TTE.PA': 'TotalEnergies', 'RHM.DE': 'Rheinmetall', TSM: 'TSMC (Taiwan)',
     };
     const DEFAULT_WATCH = Object.keys(NAMES);
+    // lista antiga (até à 1.7): ao migrar, saem as que não estão na nova; ficam as que o utilizador juntou
+    const OLD_DEFAULT = ['EDP.LS', 'GALP.LS', 'JMT.LS', 'BCP.LS', 'EDPR.LS', 'NOS.LS', 'NVG.LS', 'SON.LS', 'CTT.LS', 'ASML.AS', 'SAP.DE', 'MC.PA', 'SIE.DE',
+        'NOVO-B.CO', 'RHM.DE', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD', 'PLTR', 'NFLX', 'AVGO', 'COIN', 'MSTR'];
+    Object.assign(NAMES, { 'EDP.LS': 'EDP', 'GALP.LS': 'Galp', 'JMT.LS': 'Jerónimo Martins', 'BCP.LS': 'BCP', 'EDPR.LS': 'EDP Renováveis', 'NOS.LS': 'NOS',
+        'NVG.LS': 'Navigator', 'SON.LS': 'Sonae', 'CTT.LS': 'CTT', NFLX: 'Netflix', COIN: 'Coinbase', MSTR: 'Strategy' });
     // Fundos/ETF: histórico da bolsa principal; preço da noite de Munique (gettex, até às 22 h),
     // que fica perto do que a Trade Republic mostra (LS Exchange, até às 23 h)
     // ETF muito usados na Trade Republic (planos de poupança), cotados na Xetra em euros
@@ -74,6 +80,11 @@
     if (!Array.isArray(cfg.funds)) cfg.funds = DEFAULT_FUNDS.slice();
     if (!cfg.jid) { cfg.jid = (crypto.randomUUID ? crypto.randomUUID() : 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).toLowerCase(); store.set(KEY, cfg); }
     if (!Array.isArray(cfg.saveDays) || !cfg.saveDays.length) cfg.saveDays = [2];
+    if ((cfg.watchVer || 1) < 3) {
+        const mine = (cfg.watch || []).filter((x) => !OLD_DEFAULT.includes(x));
+        cfg.watch = DEFAULT_WATCH.concat(mine.filter((x) => !DEFAULT_WATCH.includes(x)));
+        cfg.watchVer = 3;
+    }
     if ((cfg.fundsVer || 1) < 2) { for (const f of DEFAULT_FUNDS) if (!cfg.funds.includes(f)) cfg.funds.push(f); cfg.fundsVer = 2; }
     const saveCfg = () => store.set(KEY, cfg);
     {
