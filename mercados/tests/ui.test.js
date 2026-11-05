@@ -184,8 +184,10 @@ function proxyBody(u) {
     const allKeys = await page.locator('.list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(!allKeys.some((k) => /=F$|^\^/.test(k)), '"Tudo" só com o que se compra na TR: ' + allKeys.filter((k) => /=F$|^\^/.test(k)));
     assert.ok(allKeys.includes('SXR8.DE') && allKeys.includes('c:BTC'));
-    assert.ok(await page.locator('.ideas .idea').count() > 0, 'cartão de ideias para a TR');
-    console.log('✓ ideias TR:', (await page.locator('.ideas .i-h').allTextContents()).map((t) => t.split(/[a-z]{3,}\s/)[0]).length, 'blocos');
+    assert.ok(await page.locator('.ideas.cl').count(), 'leitura do Claude em cima');
+    assert.match(await page.locator('.ideas.cl').textContent(), /Bitcoin/);
+    assert.equal(await page.locator('details.auto:not([open])').count(), 1, 'algoritmo fechado quando há Claude');
+    console.log('✓ leitura do Claude na Análise; algoritmo como referência');
     await page.click('.chips [data-filter="crypto"]');
     assert.equal(await page.locator('.list .row').count(), 4);
     await page.click('.chips [data-filter="all"]');
@@ -215,7 +217,9 @@ function proxyBody(u) {
     assert.equal(await page.locator('.box:has-text("Análise técnica") .hzb').count(), 3, 'três prazos na folha');
     assert.ok(await page.locator('.disc-box .range52 .bar i').count(), 'barra mínimo–máximo do ano');
     assert.ok(await page.locator('.advice .adv-act').count(), 'o que fazer na TR');
-    assert.match(await page.locator('.advice .adv-claude').textContent(), /Claude: Esperar/);
+    assert.match(await page.locator('.advice .adv-src').textContent(), /Análise do Claude/);
+    assert.match(await page.locator('.advice .adv-act').textContent(), /Esperar/);
+    assert.ok(await page.locator('.advice details.algo').count(), 'algoritmo como referência');
     assert.match(await page.locator('.advice').textContent(), /€/);
     assert.ok(await page.locator('.levels li').count() >= 2, 'níveis-chave');
     console.log('✓ conselho BTC:', await page.locator('.advice .adv-act').textContent(), '| níveis', await page.locator('.levels li').count());
