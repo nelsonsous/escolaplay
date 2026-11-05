@@ -142,9 +142,9 @@ function proxyBody(u) {
     assert.equal(await page.locator('.claude .i-blk:has-text("plano deste mês") .idea').count(), 2);
     console.log('✓ análise do Claude no painel');
     console.log('✓ resumo do dia:', (await page.locator('.brief .idea .i-n').allTextContents()).map((t) => t.split('núcleo')[0].split('satélite')[0].split('cripto')[0]).join(', '));
-    const fund = await page.locator('.card[data-key="VWCE.DE"] .px').textContent();
+    const fund = await page.locator('.card[data-key="VWCE.DE"] .px').first().textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
-    assert.match(await page.locator('.card[data-key="VWCE.DE"] .chg').textContent(), /−3,5\d%/);
+    assert.match(await page.locator('.card[data-key="VWCE.DE"] .chg').first().textContent(), /−3,5\d%/);
     const nv = await page.locator('.row[data-key="NVDA"] .px').first().textContent();
     assert.match(nv, /€/, 'ações americanas em euros: ' + nv);
     assert.match(await page.locator('.row[data-key="NOVO-B.CO"] .px').first().textContent(), /€/, 'coroas dinamarquesas em euros');
@@ -155,8 +155,11 @@ function proxyBody(u) {
     // destaques
     await page.click('#mk-nav [data-tab="destaques"]');
     await page.waitForFunction(() => document.querySelectorAll('.news1').length >= 2);
-    const ups = await page.locator('.sec:has(h2:text("Grandes subidas")) .row .r-name').allTextContents();
-    const downs = await page.locator('.sec:has(h2:text("Grandes descidas")) .row .r-name').allTextContents();
+    assert.equal(await page.locator('[data-lim]').count(), 0, 'sem filtros de ±X%');
+    const mineH = await page.locator('.sec:has(h2:text("Os meus ativos hoje")) .row .r-name').allTextContents();
+    assert.ok(mineH.some((t) => /VWCE/.test(t)) && mineH.includes('Bitcoin'), 'os meus ativos: ' + mineH);
+    const ups = await page.locator('.sec:has(h2:text("Mais sobem hoje")) .row .r-name').allTextContents();
+    const downs = await page.locator('.sec:has(h2:text("Mais caem hoje")) .row .r-name').allTextContents();
     assert.ok(ups.includes('Allianz') && ups.includes('Nvidia'), 'subidas: ' + ups);
     assert.ok(downs.includes('Tesla') && downs.includes('TotalEnergies'), 'descidas: ' + downs);
     assert.ok(ups.indexOf('Allianz') < ups.indexOf('Nvidia'));
@@ -166,6 +169,10 @@ function proxyBody(u) {
 
     // análise
     await page.click('#mk-nav [data-tab="analise"]');
+    await page.waitForSelector('.chips [data-filter="plan"].on');
+    const planRows = await page.locator('.list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
+    assert.ok(planRows.length >= 8 && planRows.every((k) => /^c:|\.DE$/.test(k)), 'filtro ETF + cripto: ' + planRows);
+    await page.click('.chips [data-filter="all"]');
     await page.waitForFunction(() => document.querySelectorAll('.sec:has(h2) .list .row').length > 20);
     assert.ok(await page.locator('.mood').isVisible());
     const scores = await page.locator('.r-score .val').allTextContents();
@@ -197,7 +204,7 @@ function proxyBody(u) {
 
     // detalhe da Bitcoin
     await page.click('#mk-nav [data-tab="painel"]');
-    await page.click('.card[data-open="c:BTC"]');
+    await page.locator('.card[data-open="c:BTC"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .news li');
     await page.waitForFunction(() => { const c = document.querySelector('#d-cv'); return c && c.width > 0 && document.querySelector('#d-load').hidden; });
     const inked = await page.evaluate(() => { const c = document.querySelector('#d-cv'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
@@ -236,7 +243,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
     console.log('✓ puxar para baixo fecha a folha');
     // puxar pouco não fecha
-    await page.click('.card[data-open="c:ETH"]');
+    await page.locator('.card[data-open="c:ETH"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden])');
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(g.y + 2) });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(g.y + 40) });
@@ -254,7 +261,7 @@ function proxyBody(u) {
         assert.ok(wide <= 0, `${tab}: página mais larga que o ecrã (${wide}px)`);
     }
     await page.click('#mk-nav [data-tab="painel"]');
-    await page.click('.card[data-open="c:BTC"]');
+    await page.locator('.card[data-open="c:BTC"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .news li');
     const sheetOver = await page.evaluate(() => { const c = document.querySelector('#mk-sheet-card').getBoundingClientRect(); const x = document.querySelector('#mk-sheet-card [data-act="close"]').getBoundingClientRect(); return { c: c.right - innerWidth, x: x.right - innerWidth }; });
     assert.ok(sheetOver.c <= 0 && sheetOver.x <= 0, 'folha e botão fechar dentro do ecrã ' + JSON.stringify(sheetOver));
@@ -279,11 +286,13 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.fill('#f-budget', '900');
     await page.locator('#f-budget').dispatchEvent('change');
-    await page.click('[data-prof="bal"]');
     await page.click('#mk-nav [data-tab="painel"]');
     const amounts = await page.locator('.brief .i-blk:has-text("Plano do mês") .idea .i-t').allTextContents();
     const total = amounts.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(total - 900) <= 3, 'plano soma 900 €: ' + amounts.join(' + '));
+    assert.deepEqual(amounts.map((t) => t.replace(/\s/g, '')), ['810€', '90€'], 'VWCE 810 € + Bitcoin 90 €');
+    assert.match(await page.locator('.brief .i-blk:has-text("Plano do mês")').textContent(), /Bitcoin/);
+    assert.equal(await page.locator('details.stocks-fold:not([open])').count(), 1, 'ações fechadas, só informação');
     console.log('✓ plano do mês 900 €:', amounts.join(' + '));
     // dias de execução: com 2 e 16, cada execução leva metade
     await page.click('#mk-nav [data-tab="ajustes"]');
