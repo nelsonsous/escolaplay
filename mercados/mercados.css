@@ -302,3 +302,14 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .hzb .hz-s { flex: 1; min-width: 0; }
 .hzb .hz-s .lbl { font-size: 12px; font-weight: 650; margin-top: 3px; }
 .hzb.na { display: flex; gap: 10px; align-items: center; }
+
+/* desconto */
+.seg.hz { grid-template-columns: repeat(4, 1fr); }
+.disc-box .dd-big { font-size: 26px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.disc-box .dd-big small { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.range52 { margin: 12px 0 8px; }
+.range52 .bar { position: relative; height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--down), var(--flat) 50%, var(--up)); opacity: .85; }
+.range52 .bar i { position: absolute; top: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--text); border: 3px solid var(--bg2); transform: translateY(-50%); }
+.range52 .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.disc-box .verdict { font-weight: 700; font-size: 14px; line-height: 1.35; margin: 4px 0 6px; }
+.dnotes { margin: 0; padding-left: 18px; font-size: 12.5px; color: #c9d5e4; display: grid; gap: 3px; }

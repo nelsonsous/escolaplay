@@ -155,6 +155,12 @@ function proxyBody(u) {
     const longScores = (await page.locator('.r-score .val').allTextContents()).map(Number);
     assert.deepEqual(longScores, [...longScores].sort((a, b) => b - a), 'ordenado pelo longo prazo');
     console.log('✓ análise por prazo: longo, n =', longScores.length);
+    await page.click('.seg.hz [data-hz="disc"]');
+    await page.waitForSelector('h2:text("Maiores oportunidades (desconto)")');
+    const dScores = (await page.locator('.r-score .val').allTextContents()).map(Number);
+    assert.deepEqual(dScores, [...dScores].sort((a, b) => b - a), 'ordenado pela oportunidade');
+    assert.match(await page.locator('.list .row .r-sub').first().textContent(), /do máx\./);
+    console.log('✓ modo desconto: n =', dScores.length);
     await page.click('.seg.hz [data-hz="mid"]');
 
     // detalhe da Bitcoin
@@ -168,6 +174,9 @@ function proxyBody(u) {
     assert.equal(await page.locator('.news img').count(), 0, 'HTML das notícias escapado');
     assert.ok(await page.locator('.box:has-text("Análise técnica") .reasons li').count() >= 4);
     assert.equal(await page.locator('.box:has-text("Análise técnica") .hzb').count(), 3, 'três prazos na folha');
+    assert.ok(await page.locator('.disc-box .range52 .bar i').count(), 'barra mínimo–máximo do ano');
+    assert.match(await page.locator('.disc-box .dd-big').textContent(), /%/);
+    assert.ok((await page.locator('.disc-box .verdict').textContent()).length > 10);
     const box = await page.locator('#d-cv').boundingBox();
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 3 });

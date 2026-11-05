@@ -160,7 +160,45 @@
             reasons: sorted,
             metrics,
             horizons: { short: shortTerm(v, metrics), mid, long: longTerm(v, metrics) },
+            discount: discountOf(v, metrics),
         };
+    }
+
+    // ---- Desconto: quanto está abaixo do máximo do ano e se a descida é oportunidade ----
+    function discountOf(v, mt) {
+        const p = mt.price;
+        const yr = v.slice(-252);
+        const hi = Math.max(...yr, p), lo = Math.min(...yr, p);
+        const dd = p / hi - 1;
+        const pos = hi > lo ? (p - lo) / (hi - lo) : 1;
+        const n = Math.min(200, v.length - 20);
+        const sL = v.length >= 120 ? sma(v, n) : null;
+        const sLp = v.length >= 120 ? sma(v.slice(0, -20), n) : null;
+        const longUp = sL != null && sLp != null ? sL > sLp : null;
+        const r = mt.rsi;
+        const level = dd > -0.05 ? 'none' : dd > -0.15 ? 'small' : dd > -0.3 ? 'good' : 'deep';
+        const LV = { none: 'Sem desconto', small: 'Desconto pequeno', good: 'Bom desconto', deep: 'Desconto grande' };
+        const notes = [`${pct(dd)} face ao máximo do último ano`];
+        if (sL != null) notes.push(p < sL ? `${pct(p / sL - 1)} abaixo da média de ${n} dias` : `Acima da média de ${n} dias`);
+        if (r != null) {
+            const rr = Math.round(r);
+            notes.push(r < 30 ? `RSI ${rr}: sobrevendido (vendeu-se demais)` : r < 40 ? `RSI ${rr}: perto de sobrevendido` : r > 70 ? `RSI ${rr}: sobrecomprado` : `RSI ${rr}: normal`);
+        }
+        if (longUp != null) notes.push(longUp ? 'Tendência longa ainda a subir' : 'Tendência longa a descer');
+        let verdict, tone, tag, opp = false;
+        if (level === 'none') {
+            verdict = 'Perto do máximo do ano: sem desconto especial agora (num plano mensal não faz mal, conta a média)'; tone = 'flat'; tag = 'Sem desconto';
+        } else if (longUp === false && dd <= -0.15) {
+            verdict = 'Está barato, mas continua a cair: melhor esperar que pare (risco de apanhar a faca a cair)'; tone = 'down'; tag = 'Barato, mas a cair';
+        } else if (longUp !== false && (dd <= -0.08 || (r != null && r < 35))) {
+            opp = true; tone = 'up'; tag = 'Oportunidade';
+            verdict = r != null && r < 30 ? 'Oportunidade: com desconto e sobrevendido — bom para ir comprando aos poucos' : 'Oportunidade para ir comprando aos poucos';
+        } else {
+            verdict = longUp ? 'Pequena correção dentro de uma tendência positiva' : 'Pequeno desconto, sem pressa'; tone = 'flat'; tag = LV[level];
+        }
+        // 0–100: quanto maior, melhor a oportunidade (desconto + sobrevenda, com a tendência longa a favor)
+        const score = Math.round(clamp(clamp(-dd * 200, 0, 60) + (r != null ? clamp((50 - r) * 1.2, -15, 25) : 0) + (longUp === true ? 15 : longUp === false ? -20 : 0), 0, 100));
+        return { dd, pos, hi, lo, level, levelLabel: LV[level], verdict, tone, tag, opp, score, notes, longUp };
     }
 
     // ---- Curto prazo (dias a 2 semanas): momento e excessos ----
