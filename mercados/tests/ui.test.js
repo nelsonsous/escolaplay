@@ -90,6 +90,10 @@ function proxyBody(u) {
     });
     await ctx.route(/binance\.(vision|com)\/api\/v3\/ticker/, (route) => route.fulfill({ json: [], headers: { 'Access-Control-Allow-Origin': '*' } }));
     await ctx.route(/coingecko|fonts\./, (route) => route.abort());
+    let fhSubs = 0;
+    await ctx.routeWebSocket(/finnhub/, (ws) => {
+        ws.onMessage((m) => { const d = JSON.parse(m); if (d.type === 'subscribe') { fhSubs++; if (d.symbol === 'NVDA') ws.send(JSON.stringify({ type: 'trade', data: [{ s: 'NVDA', p: 250, t: Date.now() + 60000, v: 10 }] })); } });
+    });
     await ctx.routeWebSocket(/binance/, (ws) => {
         const px = { BTCEUR: 88123.45, ETHEUR: 3120.5, SOLEUR: 161.2, XRPEUR: 2.1873 };
         const send = () => { for (const [s, p] of Object.entries(px)) { const v = p * (1 + (Math.random() - 0.5) * 0.001); ws.send(JSON.stringify({ stream: s.toLowerCase() + '@ticker', data: { e: '24hrTicker', E: Date.now(), s, c: String(v), P: s === 'SOLEUR' ? '-5.12' : '2.31', p: '10', x: String(p * 0.98), h: String(p * 1.02), l: String(p * 0.97), q: '123456789' } })); wsMsgs++; } };
@@ -312,6 +316,14 @@ function proxyBody(u) {
     const icsPath = await dl.path(); const ics = fs.readFileSync(icsPath, 'utf8');
     assert.match(ics, /RRULE:FREQ=MONTHLY;BYMONTHDAY=1\r\n/); assert.match(ics, /BYMONTHDAY=15/);
     console.log('✓ execução', ex.join(' + '), '| lembretes .ics dias 1 e 15');
+
+    // Finnhub: chave guardada → ações dos EUA em tempo real
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.fill('#f-fh', 'chave-teste');
+    await page.click('[data-act="save-fh"]');
+    await page.waitForFunction(() => window.__mk.Q.NVDA && window.__mk.Q.NVDA.price === 250, null, { timeout: 10000 });
+    assert.ok(fhSubs >= 10, 'subscreveu as ações dos EUA: ' + fhSubs);
+    console.log('✓ Finnhub: Nvidia em tempo real (', fhSubs, 'subscrições)');
 
     // ajustes: juntar uma ação
     await page.click('#mk-nav [data-tab="ajustes"]');

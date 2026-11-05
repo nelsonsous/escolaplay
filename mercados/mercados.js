@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '2.0.1';
+    const VERSION = '2.1.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -319,6 +319,43 @@
     function startCryptoREST() { if (!restTimer) { cryptoREST(); restTimer = setInterval(cryptoREST, 10000); } }
     function stopCryptoREST() { if (restTimer) { clearInterval(restTimer); restTimer = null; } }
 
+    // ---------- ações dos EUA em tempo real (Finnhub, WebSocket grátis com chave do utilizador) ----------
+    let fws = null, fwsTry = 0;
+    const fhSym = (k) => k.replace('-', '.'); // BRK-B → BRK.B
+    const usStocks = () => Object.keys(REG).filter((k) => REG[k].kind === 'stock' && !REG[k].temp && /^[A-Z]{1,5}(-[A-Z])?$/.test(k));
+    function startFinnhub() {
+        if (fws) { try { fws.onclose = null; fws.close(); } catch { /* já fechado */ } fws = null; }
+        st.fh = '';
+        if (!cfg.finnhub || !('WebSocket' in window)) return;
+        const sock = new WebSocket('wss://ws.finnhub.io?token=' + encodeURIComponent(cfg.finnhub));
+        fws = sock;
+        sock.onopen = () => { fwsTry = 0; st.fh = 'on'; for (const k of usStocks()) sock.send(JSON.stringify({ type: 'subscribe', symbol: fhSym(k) })); renderStatus(); };
+        sock.onmessage = (ev) => {
+            let m; try { m = JSON.parse(ev.data); } catch { return; }
+            if (m.type === 'error') { st.fh = 'erro: ' + (m.msg || ''); renderStatus(); return; }
+            if (m.type !== 'trade' || !Array.isArray(m.data)) return;
+            const last = {};
+            for (const t of m.data) last[t.s] = t;
+            for (const t of Object.values(last)) {
+                const k = usStocks().find((x) => fhSym(x) === t.s);
+                const q = k && Q[k];
+                if (!q || !fin(t.p)) continue;
+                const prev = q.price;
+                q.price = t.p; q.time = Math.floor(t.t / 1000); q.live = true;
+                if (fin(q.prevClose) && q.prevClose) { q.change = t.p - q.prevClose; q.changePct = (t.p / q.prevClose - 1) * 100; }
+                if (prev !== t.p) patchLive(k, prev);
+            }
+            st.fhAt = now();
+        };
+        sock.onclose = () => {
+            if (fws !== sock) return;
+            fws = null; if (st.fh === 'on') st.fh = ''; renderStatus();
+            fwsTry++;
+            setTimeout(() => { if (!fws && cfg.finnhub) startFinnhub(); }, Math.min(60000, 3000 * 2 ** Math.min(fwsTry, 4)));
+        };
+        sock.onerror = () => { try { sock.close(); } catch { /* ignora */ } };
+    }
+
     const KL = { '1d': ['15m', 96], '5d': ['1h', 120], '1mo': ['4h', 180], '6mo': ['1d', 183], '1y': ['1d', 365], '5y': ['1w', 260] };
     async function klines(id, range) {
         const [iv, n] = KL[range];
@@ -364,7 +401,12 @@
                 ok++;
                 const k = q.symbol in REG ? q.symbol : (yahooKeys().find((x) => x.toUpperCase() === String(q.symbol).toUpperCase()) || q.symbol);
                 const prev = Q[k] && Q[k].price;
-                Q[k] = { ...q, stale: false };
+                const o = Q[k];
+                // preço em tempo real (Finnhub) mais recente do que o do Yahoo: fica o mais recente
+                if (o && o.live && (o.time || 0) > (q.time || 0)) {
+                    const pc = q.prevClose;
+                    Q[k] = { ...q, price: o.price, time: o.time, live: true, stale: false, change: fin(pc) ? o.price - pc : q.change, changePct: fin(pc) && pc ? (o.price / pc - 1) * 100 : q.changePct };
+                } else Q[k] = { ...q, stale: false };
                 if (prev != null && prev !== q.price && listed(k)) patchLive(k, prev);
             }
             if (!ok) throw new Error('O conector não devolveu cotações');
@@ -725,6 +767,7 @@
         if (!cfg.proxy) yTxt = '<span class="dot off"></span>Ações: sem conector';
         else if (st.yahooErr && !st.yahooAt) yTxt = '<span class="dot off"></span>Ações: erro';
         else yTxt = `<span class="dot ${st.yahooErr ? 'warn' : 'on'}"></span>Ações ${esc(ago(st.yahooAt))}`;
+        if (st.fh === 'on' && st.fhAt && now() - st.fhAt < 120000) yTxt = '<span class="dot on"></span><b>Ações EUA ao vivo</b>';
         el.innerHTML = `<span>${cTxt}</span><span>${yTxt}</span>`;
     }
 
@@ -1119,7 +1162,12 @@
         const lim = +cfg.alertPct || 0;
         const notifState = !('Notification' in window) ? 'não suportado neste browser' : Notification.permission === 'denied' ? 'bloqueado nas definições do browser' : '';
         if (cfg.proxy && !DISTRITOS) px('/fuel/distritos').then((d) => { DISTRITOS = d.items || []; scheduleRender(); }).catch(() => { DISTRITOS = []; });
-        return `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div>
+        const fhState = !cfg.finnhub ? '' : st.fh === 'on' ? 'Ligado: ações dos EUA em tempo real.' : st.fh ? 'Finnhub: ' + st.fh : 'A ligar…';
+        return `<section class="sec"><div class="sec-h"><h2>Ações dos EUA em tempo real</h2></div>
+            <div class="form"><div><label for="f-fh">Chave Finnhub (grátis)</label>
+                <div class="inl"><input id="f-fh" class="inp" type="password" autocomplete="off" spellcheck="false" placeholder="cola aqui a chave" value="${esc(cfg.finnhub || '')}"><button type="button" class="btn pri" data-act="save-fh">Guardar</button></div>
+                <div class="hint">${fhState ? esc(fhState) + ' ' : ''}Cria uma conta grátis em finnhub.io e copia a "API key". Fica só neste telemóvel. Cobre ações dos EUA (Apple, Nvidia…); ETF europeus e o VWCE continuam pelo conector, com até 15 min de atraso. Cripto já é em tempo real.</div></div></div></section>
+        <section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div>
             <div class="form">
                 <div><label for="f-proxy">Endereço do teu Worker</label>
                     <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://mercados-proxy.<conta>.workers.dev" value="${esc(cfg.proxy)}">
@@ -1490,6 +1538,11 @@
                 Notification.requestPermission().then((p) => { cfg.notify = p === 'granted'; saveCfg(); toast(cfg.notify ? 'Notificações ligadas' : 'Notificações não autorizadas'); render(); });
                 break;
             }
+            case 'save-fh': {
+                cfg.finnhub = ($('#f-fh').value || '').trim(); saveCfg(); $('#f-fh').blur();
+                fwsTry = 0; startFinnhub(); toast(cfg.finnhub ? 'A ligar à Finnhub…' : 'Tempo real das ações desligado');
+                setTimeout(render, 2500); break;
+            }
             case 'backtest': runBacktest(); break;
             case 'ics': downloadIcs(); break;
             case 'jid': {
@@ -1547,6 +1600,7 @@
         colors();
         render();
         startWS();
+        startFinnhub();
         // se o WebSocket demorar, mostra logo um preço por REST
         sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
         loadCryptoSeries();
