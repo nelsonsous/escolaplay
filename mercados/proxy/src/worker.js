@@ -13,11 +13,13 @@
 //   GET /calendar?symbols=AAPL,GALP.LS        → próximos resultados e dividendos (Yahoo)
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
+//   GET  /journal?id=…                        → diário de sugestões (KV)
+//   POST /journal  { id, date, items }        → guardar as sugestões do dia
 //
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -31,12 +33,13 @@ const RANGES = {
     '1mo': { interval: '60m', ttl: 300 },
     '6mo': { interval: '1d', ttl: 900 },
     '1y': { interval: '1d', ttl: 1800 },
+    '2y': { interval: '1d', ttl: 3600 },
     '5y': { interval: '1wk', ttl: 3600 },
 };
 
 const cors = (origin) => ({
     'Access-Control-Allow-Origin': origin || '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
@@ -339,6 +342,43 @@ async function distritos() {
     return { body: { items: (rows || []).map((r) => ({ id: r.Id, name: r.Descritivo })).sort((a, b) => a.name.localeCompare(b.name, 'pt')) }, ttl: 86400 };
 }
 
+// ---------- /journal: diário das sugestões (um registo por id, um dia por chave) ----------
+const JID = /^[a-z0-9-]{8,40}$/;
+const JDATE = /^\d{4}-\d{2}-\d{2}$/;
+const JMAX_DAYS = 800;
+export function upsertJournal(doc, date, items) {
+    const days = (doc && doc.days) || {};
+    days[date] = items;
+    const keys = Object.keys(days).sort();
+    while (keys.length > JMAX_DAYS) delete days[keys.shift()];
+    return { v: 1, days };
+}
+export function cleanItems(items) {
+    if (!Array.isArray(items)) return null;
+    return items.slice(0, 120).map((x) => ({
+        s: String(x.s || '').slice(0, 24), p: Number(x.p), a: String(x.a || '').slice(0, 12),
+        l: Number.isFinite(x.l) ? x.l : null, m: Number.isFinite(x.m) ? x.m : null, sh: Number.isFinite(x.sh) ? x.sh : null, o: x.o ? 1 : 0,
+    })).filter((x) => x.s && Number.isFinite(x.p) && x.p > 0);
+}
+async function journal(request, url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'diário por configurar (KV JOURNAL)' } };
+    if (request.method === 'GET') {
+        const id = url.searchParams.get('id') || '';
+        if (!JID.test(id)) return { status: 400, body: { error: 'id inválido' } };
+        const doc = await env.JOURNAL.get('j:' + id, 'json');
+        return { body: doc || { v: 1, days: {} } };
+    }
+    const text = await request.text();
+    if (text.length > 40000) return { status: 413, body: { error: 'demasiado grande' } };
+    let b;
+    try { b = JSON.parse(text); } catch { return { status: 400, body: { error: 'JSON inválido' } }; }
+    const items = cleanItems(b && b.items);
+    if (!b || !JID.test(b.id || '') || !JDATE.test(b.date || '') || !items || !items.length) return { status: 400, body: { error: 'dados inválidos' } };
+    const doc = upsertJournal(await env.JOURNAL.get('j:' + b.id, 'json'), b.date, items);
+    await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc));
+    return { body: { ok: true, days: Object.keys(doc.days).length } };
+}
+
 // ---------- router ----------
 const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos };
 
@@ -349,10 +389,15 @@ export default {
         const origin = allowed.length ? (allowed.includes(reqOrigin) ? reqOrigin : null) : '*';
         if (allowed.length && reqOrigin && !origin) return json({ error: 'origem não autorizada' }, 403, 0, allowed[0]);
         if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(origin) });
-        if (request.method !== 'GET') return json({ error: 'só GET' }, 405, 0, origin);
-
         const url = new URL(request.url);
         const path = url.pathname.replace(/\/+$/, '') || '/';
+        if (path === '/journal' && (request.method === 'GET' || request.method === 'POST')) {
+            try {
+                const { status = 200, body } = await journal(request, url, env);
+                return json(body, status, 0, origin);
+            } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
+        }
+        if (request.method !== 'GET') return json({ error: 'só GET' }, 405, 0, origin);
         if (path === '/' || path === '/health') return json({ ok: true, name: 'mercados-proxy', version: VERSION }, 200, 0, origin);
         const handler = ROUTES[path];
         if (!handler) return json({ error: 'não encontrado' }, 404, 0, origin);

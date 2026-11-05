@@ -41,8 +41,15 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/search?q=mota` | procurar símbolos | 1 h |
 | `/fuel?distrito=11` | mediana, média, mín./máx. e postos mais baratos (DGEG) | 1 h |
 | `/fuel/distritos` | distritos da DGEG | 24 h |
+| `GET/POST /journal` | diário das sugestões (KV `JOURNAL`) | — |
 
 O plano grátis da Cloudflare dá 100 000 pedidos/dia; com a app aberta a atualizar a cada 30 s são uns 3 000 por hora de uso.
+
+## Diário e teste no passado
+
+- A app guarda **uma vez por dia** as sugestões de cada ativo (ação, pontuações, preço) no KV `JOURNAL` do conector (`POST /journal`), com um código anónimo gerado no telemóvel (visível em Ajustes, para recuperar o histórico).
+- **Análise → Como têm corrido as sugestões** compara cada sugestão guardada com o preço de hoje e com o VWCE no mesmo período.
+- **Teste no passado**: aplica as regras atuais aos últimos 2 anos (a cada 5 sessões, a partir dos 200 dias de histórico) e mede o resultado a 1 e 3 meses face ao VWCE. Em novembro de 2026, nenhum sinal técnico bateu o VWCE de forma consistente (ações −2,3 pp e cripto −4,6 pp a 3 meses, em média); por isso o plano dá prioridade ao núcleo em ETF.
 
 ## Dados e limites
 
