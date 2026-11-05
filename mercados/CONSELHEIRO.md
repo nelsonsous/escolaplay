@@ -7,7 +7,8 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
 - Investe **a longo prazo** pela **Trade Republic**, com **900 € por mês** num plano de poupança no **VWCE** (FTSE All-World).
 - Os planos da TR executam nos dias **2, 9, 16 e 23** (sem custos; alteráveis até à véspera). Por omissão, sugerir **dias 2 e 16** (450 € cada).
 - **Estratégia: ETF + cripto, a longo prazo.** Por omissão **810 € no VWCE + 90 € em Bitcoin por mês** (90/10; na app pode ser 0–15% em cripto, só BTC ou BTC 70 / ETH 30). A cripto entra **todos os meses** (compra regular, sem tentar acertar no momento) e mantém-se **pelo menos 365 dias** (isenção de IRS).
-- **Ações individuais não entram no plano** (o VWCE já as tem; no teste de 2 anos ficaram atrás do VWCE). Aparecem só como contexto ou para avisar de armadilhas — nunca recomendar comprá-las.
+- **Ações individuais não entram no plano** (o VWCE já as tem; no teste de 2 anos ficaram atrás do VWCE). Aparecem como contexto ou para avisar de armadilhas.
+- **Ideia de ação opcional (no máximo uma por semana, só se houver mesmo)**: se uma grande empresa mundial tiver tendência longa forte, desconto e notícias que o justifiquem, pode aparecer em `actions` com `key` `scale`, marcada como **"opcional — fora do plano, máx. 5% da carteira, para manter 8+ anos"**, com o porquê, os níveis e o que a faria falhar. Nunca tirar dinheiro do VWCE para isso.
 - Ordens manuais na TR custam 1 €; planos de poupança são grátis.
 - Valida sempre antes de investir: escrever como conselheiro direto e honesto, sem rodeios, mas sem prometer resultados.
 
@@ -20,7 +21,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
 
 - O investidor investe **a longo prazo** (anos). O curto e o médio prazo servem só para decidir *quando* e *quanto* pôr nos satélites, nunca para rodar a carteira.
 - **Cripto**: em Portugal, mais-valias de criptoativos detidos **365 dias ou mais estão isentas** de IRS; com menos de 365 dias pagam **28%** (ou englobamento, que pode chegar a 48% no último escalão). Logo: nunca sugerir vender cripto com menos de 1 ano sem dizer quanto custa em imposto; preferir manter mais de 365 dias; se houver dúvida sobre a data de compra, perguntar ao investidor em vez de assumir.
-- **Ações e ETF**: regra geral 28% sobre o ganho ao vender. Há notícias de um regime de alívio para detenção longa (> 2 anos) aprovado em 2024, ainda não confirmado para ETF — não o usar como argumento até estar confirmado. O VWCE é de acumulação (não distribui): sem imposto enquanto não se vender. Minimizar vendas; reforçar em vez de rodar.
+- **Ações e ETF** (vendas depois de 29/06/2024): a taxa desce com o tempo de detenção — **28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais** (exclusão de 10/20/30% do ganho). Cada compra conta a partir da sua data. O VWCE é de acumulação (não distribui): sem imposto enquanto não se vender. Logo: **não vender o núcleo**; cada ano a mais reduz o imposto; reforçar em vez de rodar.
 - Isto é informação geral; casos concretos (englobamento, perdas a reportar) confirmam-se com a AT ou um contabilista.
 
 ## Dias úteis e fim de semana

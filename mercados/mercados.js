@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.9.0';
+    const VERSION = '1.9.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -880,7 +880,7 @@
                 : `<b>Ex-dividendo ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`).join('')}
             ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
             ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}
-            <div class="adv-meta">Impostos (PT): ${REG[k].kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%. A prazo, manter mais de 1 ano.' : REG[k].kind === 'fund' ? 'regra geral 28% sobre o ganho só quando venderes (há notícia de alívio para detenção longa, a confirmar); um ETF de acumulação não paga nada enquanto o tiveres.' : '28% sobre o ganho quando venderes; os dividendos também pagam 28%.'}</div>
+            <div class="adv-meta">Impostos (PT): ${REG[k].kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%. A prazo, manter mais de 1 ano.' : REG[k].kind === 'fund' ? 'só pagas quando venderes, e menos quanto mais tempo o tiveres: 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais. Um ETF de acumulação não paga nada enquanto o tiveres.' : 'ao vender, 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais; os dividendos pagam 28%.'}</div>
             <div class="adv-meta faint">Automático, a partir da tendência, do desconto e dos níveis — valida antes de comprar.</div></div>`;
     }
     function levelsBox(k, q) {
