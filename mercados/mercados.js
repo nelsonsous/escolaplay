@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '2.2.1';
+    const VERSION = '2.3.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'] };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {} };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -84,6 +84,8 @@
     if (!Array.isArray(cfg.saveDays) || !cfg.saveDays.length) cfg.saveDays = [2];
     // 1.9: a estratégia passa a ETF + cripto a longo prazo (o que o teste de 2 anos e o investidor indicaram)
     if (!Array.isArray(cfg.holdings) || !cfg.holdings.length) cfg.holdings = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
+    if (!cfg.lots || typeof cfg.lots !== 'object' || Array.isArray(cfg.lots)) cfg.lots = {};
+    if (!cfg.seen || typeof cfg.seen !== 'object') cfg.seen = {};
     if ((cfg.stratVer || 0) < 1) { cfg.hz = 'long'; cfg.filter = 'plan'; cfg.stratVer = 1; store.set(KEY, cfg); }
     if ((cfg.watchVer || 1) < 3) {
         const mine = (cfg.watch || []).filter((x) => !OLD_DEFAULT.includes(x));
@@ -463,7 +465,44 @@
         const keys = Object.keys(AN).filter((k) => investable(k) && AN[k].advice && fin(qv(k).price));
         if (keys.length < 5) return;
         const items = keys.map((k) => { const r = AN[k]; return { s: k, p: +qv(k).price.toPrecision(8), a: r.advice.key, l: r.horizons.long ? r.horizons.long.score : null, m: r.horizons.mid.score, sh: r.horizons.short.score, o: r.discount && r.discount.opp ? 1 : 0 }; });
-        try { await pxPost('/journal', { id: cfg.jid, date: day, items }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
+        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: cfg.lots, saveDays: cfg.saveDays }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
+    }
+    // ---------- datas de compra de cripto (isenção de IRS aos 365 dias) ----------
+    const lotOf = (k) => cfg.lots[k] || { plan: '', buys: [] };
+    const lotsOf = (k) => { const L = lotOf(k); return (L.buys || []).concat(A.planLots(L.plan, cfg.saveDays, todayLocal())); };
+    const taxOf = (k) => A.cryptoTax(lotsOf(k), todayLocal());
+    const dmy = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '';
+    function taxLine(k) {
+        const t = taxOf(k);
+        if (!t.n) return 'data de compra por indicar';
+        if (t.all) return 'isenta de IRS (tudo com 1 ano ou mais)';
+        const nx = `isenta a ${dmy(t.next.free)} (faltam ${t.next.days} d)`;
+        return t.exempt ? `${t.exempt} de ${t.n} compras isentas · próxima ${nx.slice(7)}` : nx;
+    }
+    function setLots(k, L) {
+        if (!L.plan && !(L.buys || []).length) delete cfg.lots[k]; else cfg.lots[k] = L;
+        saveCfg();
+        if (cfg.proxy) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
+        if (sheetKey === k) renderSheet();
+        scheduleRender();
+    }
+    function taxBox(k) {
+        if (!REG[k] || REG[k].kind !== 'crypto') return '';
+        const L = lotOf(k), t = taxOf(k);
+        const plan = t.lots.filter((x) => x.plan);
+        const planFree = plan.filter((x) => x.ok).length;
+        const eurOk = t.eur > 0 && t.lots.every((x) => x.e > 0);
+        const head = !t.n ? 'Indica quando compraste para saberes a partir de que dia vender fica isento de IRS.'
+            : t.all ? `Todas as ${t.n} compras têm 1 ano ou mais: uma venda hoje fica isenta de IRS${eurOk ? ` (${fmtPx(t.eur, { decimals: 0 }, 'EUR')} investidos)` : ''}.`
+            : `${t.exempt} de ${t.n} compras já isentas${eurOk ? ` (${fmtPx(t.eurExempt, { decimals: 0 }, 'EUR')} de ${fmtPx(t.eur, { decimals: 0 }, 'EUR')})` : ''}. A próxima fica isenta a <b>${dmy(t.next.free)}</b> — faltam ${t.next.days} dias.`;
+        const manual = (L.buys || []).map((x, i) => ({ ...x, i })).sort((a, b) => (a.d < b.d ? -1 : 1));
+        return `<div class="box tax-box"><h3>Imposto — regra dos 365 dias ${t.n ? `<span class="chip-s">${t.all ? 'isenta' : t.exempt ? 'em parte' : 'ainda não'}</span>` : ''}</h3>
+            <p class="tx-head">${head}</p>
+            ${manual.length ? `<ul class="lots">${manual.map((x) => { const r = t.lots.find((y) => y.d === x.d && !y.plan); const ok = r ? r.ok : false; return `<li><span class="num">${dmy(x.d)}</span><span class="num">${+x.e > 0 ? fmtPx(+x.e, { decimals: 0 }, 'EUR') : ''}</span><span class="${ok ? 'up' : 'flat'}-t">${ok ? 'isenta' : r ? `isenta a ${dmy(r.free)}` : ''}</span><button type="button" class="mk-ibtn sm" data-lotrm="${x.i}" aria-label="Apagar compra de ${dmy(x.d)}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></li>`; }).join('')}</ul>` : ''}
+            ${plan.length ? `<p class="note">Plano mensal desde ${dmy(L.plan)}: ${plan.length} compras nos dias ${cfg.saveDays.join(' e ')}, ${planFree} já isentas.</p>` : ''}
+            <div class="lot-add"><input id="lot-d" class="inp" type="date" max="${todayLocal()}" aria-label="Data da compra"><input id="lot-e" class="inp" type="number" inputmode="decimal" min="0" step="10" placeholder="€ (opcional)" aria-label="Valor em euros"><button type="button" class="btn sm" data-act="lot-add">Juntar compra</button></div>
+            <div class="lot-add"><label for="lot-plan">Compro todos os meses pelo plano desde</label><input id="lot-plan" class="inp" type="date" max="${todayLocal()}" value="${esc(L.plan || '')}"><button type="button" class="btn sm" data-act="lot-plan">${L.plan ? 'Mudar' : 'Guardar'}</button></div>
+            <p class="note">Com menos de 365 dias, o ganho paga 28%. Cada compra conta a partir da sua data e, numa venda, contam primeiro as compras mais antigas. Os dados ficam no teu iPhone e no teu conector, para o Claude ter em conta. Informação geral: casos concretos confirmam-se com a AT ou um contabilista.</p></div>`;
     }
     async function loadJournal() {
         if (!cfg.proxy) return;
@@ -549,6 +588,17 @@
         const day = next.getDate() === n.getDate() ? 'hoje' : 'amanhã';
         return `${made} · próxima ${day} às ${String(CL_HOUR).padStart(2, '0')}:${String(CL_MIN).padStart(2, '0')}`;
     }
+    // Cartões do Painel: abertos na primeira vez que aparecem (dia novo / análise nova); depois condensados
+    function firstView(name, key) {
+        if (!key) return true;
+        st.open = st.open || {};
+        const o = st.open[name];
+        if (o && o.key === key) return o.v;
+        const unread = cfg.seen[name] !== key;
+        st.open[name] = { key, v: unread };
+        if (unread && document.visibilityState !== 'hidden') { cfg.seen[name] = key; saveCfg(); }
+        return unread;
+    }
     const claudeFor = (k) => CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
     function claudeCard() {
         if (!CLAUDE || CLAUDE.missing || !CLAUDE.headline) return '';
@@ -557,7 +607,8 @@
         const acts = (c.actions || []).filter((a) => REG[a.s]).slice(0, 8);
         const plan = Array.isArray(c.plan) ? c.plan : [];
         const old = c.date && c.date < todayLocal();
-        return `<details class="claude" open><summary><span>Análise do Claude</span><small>${esc(clWhen())}${old ? ' · atrasada' : ''}</small></summary>
+        const open = firstView('claude', c.generatedAt || c.date);
+        return `<details class="claude fold" data-fold="claude" ${open ? 'open' : ''}><summary><span>Análise do Claude</span><small>${esc(clWhen())}${old ? ' · atrasada' : ''}</small><em class="teaser">${esc(c.headline)}</em></summary>
             <div class="cl-head">${esc(c.headline)}</div>
             ${c.market ? `<p>${esc(c.market)}</p>` : ''}
             ${plan.length ? `<div class="i-blk"><div class="i-h">O que fazer com o plano deste mês<small>${esc(c.planNote || '')}</small></div>${plan.map((x) => `<${REG[x.s] ? `button type="button" data-open="${esc(x.s)}"` : 'div'} class="idea"><span class="i-n">${esc(x.name || nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t num">${esc(x.amount || '')}</span></${REG[x.s] ? 'button' : 'div'}>`).join('')}</div>` : ''}
@@ -836,7 +887,7 @@
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o que tenho</span></div>
-            ${holdingKeys().length ? `<div class="grid g3">${holdingKeys().map((k) => card(k, AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '')).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
+            ${holdingKeys().length ? `<div class="grid g3">${holdingKeys().map((k) => card(k, [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '))).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
         ${claudeCard()}
         ${briefCard()}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
@@ -1038,7 +1089,8 @@
             if (!sats.length && pSat) notes.push('Sem ações em boa altura: a parte dos satélites fica no núcleo este mês.');
             if (!cryp.length && pCry) notes.push('Cripto sem sinal de compra: essa parte fica no núcleo este mês.');
         } else if (cC) notes.push('Cripto: em Portugal, vender ao fim de 365 dias ou mais está isento de IRS — manter pelo menos 1 ano.');
-        return `<details class="brief" ${cfg.brief ? 'open' : ''}><summary><span>Resumo do dia</span>${mood ? `<b class="${mood.tone}-t">${esc(mood.label)}</b>` : ''}</summary>
+        const teaser = next ? `${isExec ? 'Hoje executam os planos' : isDeadline ? 'Hoje é o último dia para ajustar os planos' : 'Próxima execução na TR: ' + next.toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })} · ${execLines.map(([k, f]) => `${amtX(f)} ${nameOf(k)}`).join(' + ')}` : '';
+        return `<details class="brief fold" data-fold="brief" ${firstView('brief', todayLocal()) ? 'open' : ''}><summary><span>Resumo do dia</span>${mood ? `<b class="${mood.tone}-t">${esc(mood.label)}</b>` : ''}${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
             ${idx.length ? `<p>${idx.join(' · ')}${fin(vix) ? ` · VIX ${Math.round(vix)}${vix > 25 ? ' (medo)' : vix < 16 ? ' (calma)' : ''}` : ''}</p>` : ''}
             ${btc && fin(btc.price) ? `<p>Bitcoin ${fmtPx(btc.price, REG['c:BTC'], btc.currency)} <span class="${toneOf(btc.changePct)}-t">${fmtPct(btc.changePct)}</span> em 24 h.</p>` : ''}
             ${mood ? `<p class="muted">${esc(mood.hint)}</p>` : ''}
@@ -1331,7 +1383,7 @@
     }
     function drawSheetChart(hover) {
         const cv = $('#d-cv');
-        if (!cv) return;
+        if (!cv || !sheetKey || !REG[sheetKey]) return;
         const l = $('#d-load');
         if (!sheetPts) { if (l) { l.hidden = false; l.textContent = 'A carregar…'; } setupCanvas(cv); return; }
         if (sheetPts.length < 2) return;
@@ -1402,6 +1454,7 @@
             ${a.kind === 'energy' || k === 'GC=F' ? '<p class="note" style="margin:-4px 2px 14px">Contrato de futuros (referência). Na Trade Republic não se compra diretamente; existem ETC, com custos de rolagem a prazo.</p>' : ''}
             ${levelsBox(k, q)}
             ${discountBox(k, q)}
+            ${taxBox(k)}
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
                 : `<ul class="news">${n.items.map((it) => `<li><a href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer"><span class="tone ${it.tone.tone}">${esc(it.tone.label)}</span>${esc(it.title)}</a>
@@ -1500,7 +1553,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1524,6 +1577,7 @@
         if (d.strat) { cfg.strategy = d.strat; saveCfg(); render(); return; }
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
+        if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
         if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
@@ -1563,6 +1617,20 @@
             }
             case 'backtest': runBacktest(); break;
             case 'ics': downloadIcs(); break;
+            case 'lot-add': {
+                const k = sheetKey, dt = ($('#lot-d') || {}).value || '', e = +(($('#lot-e') || {}).value || 0);
+                if (!k || !/^\d{4}-\d{2}-\d{2}$/.test(dt) || dt > todayLocal()) { toast('Escolhe a data da compra'); break; }
+                const L = lotOf(k);
+                setLots(k, { plan: L.plan || '', buys: (L.buys || []).concat({ d: dt, e: e > 0 ? e : 0 }) });
+                toast('Compra guardada'); break;
+            }
+            case 'lot-plan': {
+                const k = sheetKey, dt = ($('#lot-plan') || {}).value || '';
+                if (!k || (dt && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || dt > todayLocal()))) { toast('Data inválida'); break; }
+                const L = lotOf(k);
+                setLots(k, { plan: dt, buys: L.buys || [] });
+                toast(dt ? 'Plano mensal guardado' : 'Plano mensal apagado'); break;
+            }
             case 'jid': {
                 const v = ($('#f-jid').value || '').trim().toLowerCase();
                 if (!/^[a-z0-9-]{8,40}$/.test(v)) { toast('Código inválido'); return; }
@@ -1593,7 +1661,8 @@
         if (ev.key === 'Enter' && ev.target.id === 'f-proxy') { ev.preventDefault(); $('[data-act="save-proxy"]').click(); }
     });
     window.addEventListener('resize', () => { drawSparks(); drawSheetChart(); });
-    document.addEventListener('toggle', (ev) => { if (ev.target.classList && ev.target.classList.contains('brief') && cfg.brief !== ev.target.open) { cfg.brief = ev.target.open; saveCfg(); } }, true);
+    // lembra na sessão o que abriste ou fechaste (para não mudar a cada atualização)
+    document.addEventListener('toggle', (ev) => { const f = ev.target.dataset && ev.target.dataset.fold; if (f && st.open && st.open[f]) st.open[f].v = ev.target.open; }, true);
 
     // ---------- ciclo ----------
     let yTimer = 0;

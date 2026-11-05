@@ -72,10 +72,11 @@ function proxyBody(u) {
 
     const JDOC = { v: 1, days: { '2026-10-01': [{ s: 'NVDA', p: 150, a: 'buy' }, { s: 'TSLA', p: 500, a: 'avoid' }, { s: 'VWCE.DE', p: 150, a: 'buy' }] } };
     let jPosts = 0;
+    const lotPosts = [];
     await ctx.route(/proxy\.test/, (route) => {
         const u = new URL(route.request().url());
         if (u.pathname === '/journal') {
-            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); JDOC.days[b.date] = b.items; jPosts++; return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
+            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); if (b.date) { JDOC.days[b.date] = b.items; jPosts++; } if (b.lots) lotPosts.push(b.lots); return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
             return route.fulfill({ json: JDOC, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
         const body = proxyBody(u);
@@ -114,7 +115,7 @@ function proxyBody(u) {
     // 2) com conector
     await ctx.addInitScript(() => { const c = JSON.parse(localStorage.getItem('mercados:v1') || '{}'); if (!c.proxySet) { c.proxy = 'https://proxy.test'; c.proxySet = 1; localStorage.setItem('mercados:v1', JSON.stringify(c)); } });
     page = await ctx.newPage();
-    page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+    page.on('pageerror', (e) => { errors.push('pageerror: ' + e.message); if (process.env.STACK) console.log(e.stack); });
     page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::/.test(m.text())) errors.push('console: ' + m.text()); });
     page.on('dialog', (d) => { errors.push('dialog (XSS?): ' + d.message()); d.dismiss(); });
     await page.goto(url);
@@ -132,7 +133,13 @@ function proxyBody(u) {
     const firstSec = await page.locator('#mk-body .sec h2').first().textContent();
     assert.equal(firstSec, 'Os meus ativos', 'os meus ativos em primeiro');
     assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .card').count(), 5, 'VWCE + 4 cripto');
+    // o resumo já apareceu hoje (sem conector): fica condensado numa linha; toca-se para abrir
+    await page.waitForSelector('.brief summary', { timeout: 15000 });
+    assert.equal(await page.locator('details.brief[open]').count(), 0, 'resumo já lido hoje → condensado');
+    assert.match(await page.locator('.brief .teaser').textContent(), /execução|planos/);
+    await page.click('.brief summary');
     await page.waitForSelector('.brief .idea', { timeout: 15000 });
+    console.log('✓ resumo lido hoje fica condensado:', (await page.locator('.brief .teaser').textContent()).slice(0, 60));
     assert.match(await page.locator('.brief summary').textContent(), /Resumo do dia/);
     assert.ok(await page.locator('.brief .i-h:has-text("Plano do mês")').count());
     await page.waitForSelector('.brief .i-h:has-text("Agenda")');
@@ -145,6 +152,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ aviso de resultados no conselho');
     await page.waitForSelector('.claude .cl-head');
+    assert.equal(await page.locator('details.claude[open]').count(), 1, 'análise nova → aberta');
     assert.match(await page.locator('.claude').textContent(), /manter o plano no VWCE/);
     assert.match(await page.locator('.claude > summary').textContent(), /feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às 07:14/);
     assert.equal(await page.locator('.claude .i-blk:has-text("plano deste mês") .idea').count(), 2);
@@ -343,10 +351,38 @@ function proxyBody(u) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     assert.equal(overflow, false, 'sem scroll horizontal');
 
+    // compras de cripto: isenção de IRS aos 365 dias
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.click('.sec:has(h2:text("Os meus ativos")) [data-open="c:SOL"]');
+    await page.waitForSelector('.tax-box');
+    assert.match(await page.locator('.tax-box').textContent(), /Indica quando compraste/);
+    const iso = (n) => { const d = new Date(Date.now() - n * 864e5); return d.toISOString().slice(0, 10); };
+    await page.fill('#lot-d', iso(400)); await page.fill('#lot-e', '200'); await page.click('[data-act="lot-add"]');
+    await page.fill('#lot-d', iso(100)); await page.fill('#lot-e', '100'); await page.click('[data-act="lot-add"]');
+    await page.waitForSelector('.tax-box .lots li >> nth=1');
+    const tx = await page.locator('.tax-box .tx-head').textContent();
+    assert.match(tx, /1 de 2 compras já isentas \(200\s€ de 300\s€\)\. A próxima fica isenta a \d\d\/\d\d\/\d{4} — faltam 26\d dias/, tx);
+    assert.ok(lotPosts.length >= 2 && lotPosts.at(-1)['c:SOL'].buys.length === 2, 'compras enviadas ao conector (para o Claude)');
+    await page.click('.tax-box [data-lotrm] >> nth=0');
+    await page.waitForFunction(() => document.querySelectorAll('.tax-box .lots li').length === 1);
+    await page.fill('#lot-plan', iso(500)); await page.click('[data-act="lot-plan"]');
+    await page.waitForFunction(() => /Plano mensal desde/.test(document.querySelector('.tax-box').textContent));
+    if (SHOTS) { await page.locator('.tax-box').scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, '6-compras-cripto.png') }); }
+    console.log('✓ compras de cripto:', (await page.locator('.tax-box .tx-head').textContent()).trim());
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .c-note').textContent(), /isentas|isenta a/);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .c-note').textContent(), /data de compra por indicar/);
+
     // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
     await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
     await page.reload();
     await page.waitForFunction(() => window.__mk && window.__mk.cfg.watchVer === 3);
+    await page.waitForSelector('.claude .cl-head', { state: 'attached' });
+    assert.equal(await page.locator('details.claude[open]').count(), 0, 'análise já lida → condensada');
+    assert.match(await page.locator('.claude .teaser').textContent(), /manter o plano no VWCE/);
+    if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, '7-painel-condensado.png') }); }
+    console.log('✓ análise do Claude lida fica condensada');
     const w = await page.evaluate(() => window.__mk.cfg.watch);
     assert.ok(!w.includes('EDP.LS') && w.includes('EGL.LS') && w.includes('JPM'), 'migração: ' + w.join(','));
     console.log('✓ migração da lista: sai EDP, fica Mota-Engil, entra JPMorgan');

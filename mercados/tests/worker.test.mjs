@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal, cleanLots } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -201,4 +201,21 @@ test('/advice lê a análise do Claude do KV', async () => {
     assert.equal((await worker.fetch(new Request('https://w.test/advice?date=2026-01-01'), env)).status, 404);
     assert.equal((await worker.fetch(new Request('https://w.test/advice?date=x'), env)).status, 400);
     assert.equal((await worker.fetch(new Request('https://w.test/advice', { method: 'POST', body: '{}' }), env)).status, 405, 'só leitura');
+});
+
+test('/journal guarda as compras de cripto sem apagar o diário', async () => {
+    const store = new Map();
+    const env = { JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null), put: async (k, v) => { store.set(k, v); } } };
+    const id = 'abcdefgh-1234';
+    const post = (b) => worker.fetch(new Request('https://w.test/journal', { method: 'POST', body: JSON.stringify(b) }), env);
+    assert.equal((await post({ id, date: '2026-11-05', items: [{ s: 'VWCE.DE', p: 160, a: 'hold' }] })).status, 200);
+    assert.equal((await post({ id, lots: { 'c:BTC': { plan: '2025-01-02', buys: [{ d: '2025-03-01', e: '90' }, { d: 'mau' }] }, 'x': {}, 'c:SOL': {} }, saveDays: [2, 16, 5] })).status, 200);
+    const doc = JSON.parse(store.get('j:' + id));
+    assert.deepEqual(Object.keys(doc.days), ['2026-11-05'], 'diário mantém-se');
+    assert.deepEqual(doc.lots, { 'c:BTC': { plan: '2025-01-02', buys: [{ d: '2025-03-01', e: 90 }] } });
+    assert.deepEqual(doc.saveDays, [2, 16]);
+    await post({ id, date: '2026-11-06', items: [{ s: 'VWCE.DE', p: 161, a: 'hold' }] });
+    assert.ok(JSON.parse(store.get('j:' + id)).lots['c:BTC'], 'compras mantêm-se ao gravar o dia seguinte');
+    assert.equal((await post({ id })).status, 400);
+    assert.equal(cleanLots([]), null);
 });

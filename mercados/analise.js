@@ -494,7 +494,39 @@
         return (d0, d1) => { const a = near(d0), b = near(d1); return a && b ? b / a - 1 : null; };
     }
 
-    const api = { sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf, backtestAsset, summarize, benchFn, newAcc };
+    // ---------- Cripto em Portugal: mais-valias isentas com 365 dias ou mais (cada compra conta da sua data) ----------
+    const ISO = /^\d{4}-\d{2}-\d{2}$/;
+    const addDaysISO = (iso, n) => new Date(Date.parse(iso + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    // compras do plano de poupança: uma em cada dia de execução, desde `since` até hoje
+    function planLots(since, days, today) {
+        const out = [];
+        if (!ISO.test(since || '') || !ISO.test(today || '')) return out;
+        const dd = (days || []).map(Number).filter((d) => d >= 1 && d <= 28).sort((a, b) => a - b);
+        let y = +since.slice(0, 4), m = +since.slice(5, 7);
+        for (let i = 0; i < 360 && dd.length; i++) {
+            const ym = `${y}-${String(m).padStart(2, '0')}`;
+            if (ym > today.slice(0, 7)) break;
+            for (const d of dd) { const iso = `${ym}-${String(d).padStart(2, '0')}`; if (iso >= since && iso <= today) out.push({ d: iso, plan: 1 }); }
+            if (++m > 12) { m = 1; y++; }
+        }
+        return out;
+    }
+    function cryptoTax(lots, today) {
+        const L = (lots || []).filter((x) => x && ISO.test(x.d) && x.d <= today).sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+        const res = { n: L.length, exempt: 0, eur: 0, eurExempt: 0, first: L.length ? L[0].d : null, next: null, all: false, lots: [] };
+        for (const x of L) {
+            const free = addDaysISO(x.d, 365);
+            const days = Math.round((Date.parse(free) - Date.parse(today)) / 864e5);
+            const ok = days <= 0, e = +x.e > 0 ? +x.e : 0;
+            res.eur += e;
+            if (ok) { res.exempt++; res.eurExempt += e; } else if (!res.next) res.next = { d: x.d, free, days };
+            res.lots.push({ d: x.d, e, free, days: Math.max(0, days), ok, plan: !!x.plan });
+        }
+        res.all = res.n > 0 && res.exempt === res.n;
+        return res;
+    }
+
+    const api = { sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf, backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.Analise = api;
 })(typeof self !== 'undefined' ? self : this);

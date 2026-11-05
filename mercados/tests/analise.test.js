@@ -134,3 +134,20 @@ test('níveis-chave e conselho para a TR', () => {
     assert.ok(['scale', 'wait'].includes(dip.advice.key), dip.advice.key);
     if (dip.advice.key === 'scale') assert.equal(dip.advice.plan[0].t, '⅓ agora');
 });
+
+test('cripto: isenção de IRS aos 365 dias, compra a compra', () => {
+    const today = '2026-11-05';
+    const t = A.cryptoTax([{ d: '2025-11-05', e: 200 }, { d: '2026-02-01', e: 100 }, { d: '2025-11-06' }, { d: '2027-01-01' }, { d: 'x' }], today);
+    assert.equal(t.n, 3, 'ignora datas futuras e inválidas');
+    assert.equal(t.exempt, 1, '365 dias certos já conta');
+    assert.equal(t.eurExempt, 200);
+    assert.deepEqual(t.next, { d: '2025-11-06', free: '2026-11-06', days: 1 });
+    assert.equal(t.all, false);
+    assert.equal(A.cryptoTax([], today).n, 0);
+    assert.ok(A.cryptoTax([{ d: '2024-01-01' }], today).all);
+    // plano mensal nos dias 2 e 16
+    const p = A.planLots('2026-09-10', [16, 2], today);
+    assert.deepEqual(p.map((x) => x.d), ['2026-09-16', '2026-10-02', '2026-10-16', '2026-11-02']);
+    assert.deepEqual(A.planLots('', [2], today), []);
+    assert.equal(A.planLots('2020-01-01', [2], today).length, 83);
+});
