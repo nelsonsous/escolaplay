@@ -10,13 +10,14 @@
 //   GET /news?q=Galp&lang=pt&sym=GALP.LS      → notícias (Google, Bing ou Yahoo, por esta ordem)
 //   GET /movers                               → maiores subidas/descidas/volume nos EUA (Yahoo)
 //   GET /search?q=tesla                       → procurar símbolos
+//   GET /calendar?symbols=AAPL,GALP.LS        → próximos resultados e dividendos (Yahoo)
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
 //
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -233,6 +234,41 @@ async function movers() {
     return { body: { at: Math.floor(Date.now() / 1000), gainers: gainers || [], losers: losers || [], actives: actives || [] }, ttl: 120 };
 }
 
+// ---------- /calendar (resultados e dividendos; precisa de cookie + crumb) ----------
+const rawTs = (x) => (x && typeof x === 'object' ? x.raw : x) ?? null;
+export function parseCalendar(d, symbol) {
+    const c = d && d.quoteSummary && d.quoteSummary.result && d.quoteSummary.result[0] && d.quoteSummary.result[0].calendarEvents;
+    if (!c) return { symbol, earnings: null, exDividend: null, dividend: null };
+    const e = (c.earnings && c.earnings.earningsDate) || [];
+    return {
+        symbol,
+        earnings: e.length ? rawTs(e[0]) : null,
+        earningsEnd: e.length > 1 ? rawTs(e[1]) : null,
+        exDividend: rawTs(c.exDividendDate),
+        dividend: rawTs(c.dividendDate),
+    };
+}
+
+async function calendar(url) {
+    const symbols = [...new Set((url.searchParams.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean))];
+    if (!symbols.length) return { status: 400, body: { error: 'falta symbols' } };
+    if (symbols.length > MAX_SYMBOLS) return { status: 400, body: { error: `máximo ${MAX_SYMBOLS} símbolos por pedido` } };
+    let auth = null;
+    try { auth = await getCrumb(); } catch { /* tenta sem */ }
+    const items = await Promise.all(symbols.map(async (s) => {
+        try {
+            const qs = `modules=calendarEvents${auth ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
+            const r = await fetch(`${YH[1]}/v10/finance/quoteSummary/${encodeURIComponent(s)}?${qs}`, { headers: { 'User-Agent': UA, ...(auth ? { Cookie: auth.cookie } : {}) } });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return parseCalendar(await r.json(), s);
+        } catch (e) {
+            return { symbol: s, error: String(e.message || e) };
+        }
+    }));
+    if (items.every((i) => i.error)) { crumbCache = null; return { status: 502, body: { error: 'Yahoo recusou a agenda', items } }; }
+    return { body: { at: Math.floor(Date.now() / 1000), items }, ttl: 6 * 3600 };
+}
+
 // ---------- /search ----------
 async function search(url) {
     const q = (url.searchParams.get('q') || '').trim().slice(0, 60);
@@ -304,7 +340,7 @@ async function distritos() {
 }
 
 // ---------- router ----------
-const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos };
+const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos };
 
 export default {
     async fetch(request, env = {}, ctx) {

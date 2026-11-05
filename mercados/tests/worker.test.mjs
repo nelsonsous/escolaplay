@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -149,4 +149,22 @@ test('/news recorre ao Bing quando o Google recusa, e tira o link verdadeiro', a
     mockFetch((u) => u.includes('finance/search') ? (u.includes('q=GALP.LS') ? res({ news: [{ title: 'Galp news', link: 'https://y/1' }] }) : res({ news: [] })) : res('', 503));
     const y = await call('/news?q=Galp%20a%C3%A7%C3%B5es&lang=en&sym=GALP.LS');
     assert.equal(y.body.items[0].title, 'Galp news', 'Yahoo pesquisa pelo símbolo');
+});
+
+test('/calendar: resultados e dividendos com crumb', async () => {
+    assert.deepEqual(parseCalendar({}, 'X'), { symbol: 'X', earnings: null, exDividend: null, dividend: null });
+    mockFetch((u, init) => {
+        if (u.startsWith('https://fc.yahoo.com')) return res('', 404, { 'Set-Cookie': 'A3=abc; Path=/' });
+        if (u.includes('getcrumb')) return res('crumb1');
+        if (u.includes('quoteSummary/AAPL')) {
+            assert.ok(u.includes('crumb=') && init.headers.Cookie.includes('A3=abc'), 'pedido com crumb e cookie');
+            return res({ quoteSummary: { result: [{ calendarEvents: { earnings: { earningsDate: [{ raw: 1795000000 }, { raw: 1795100000 }] }, exDividendDate: { raw: 1794000000 }, dividendDate: { raw: 1794500000 } } }] } });
+        }
+        return res({ quoteSummary: { result: null, error: { description: 'Not Found' } } }, 404);
+    });
+    const r = await call('/calendar?symbols=AAPL,BAD');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.items[0].earnings, 1795000000);
+    assert.equal(r.body.items[0].exDividend, 1794000000);
+    assert.ok(r.body.items[1].error);
 });
