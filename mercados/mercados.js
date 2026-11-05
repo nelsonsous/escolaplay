@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.9.3';
+    const VERSION = '2.0.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -875,11 +875,18 @@
         if (!r || !r.advice || !investable(k)) return '';
         const a = r.advice, A_ = REG[k];
         const fmt = (price) => fmtPx(lvPx(k, q, price), A_, q.currency);
-        return `<div class="box advice ${a.tone}"><h3>O que fazer na Trade Republic</h3>
+        const c = claudeFor(k);
+        const cTone = c ? (CL_TONE[c.key] || 'flat') : a.tone;
+        const algoPlan = a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : '';
+        return `<div class="box advice ${cTone}"><h3>O que fazer na Trade Republic</h3>
+            ${c ? `<div class="adv-src">Análise do Claude · ${esc(CLAUDE.date || '')}</div>
+            <div class="adv-act ${cTone}-t">${esc(c.action || '')}</div>
+            <div class="adv-txt">${esc(c.why || '')}</div>
+            ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}
+            <details class="algo"><summary>Sinal automático (algoritmo): <b class="${a.tone}-t">${esc(a.action)}</b></summary><div class="adv-txt">${esc(a.text)}</div>${algoPlan}</details>`
+            : `<div class="adv-src">Sinal automático (algoritmo) — ${CLAUDE && !CLAUDE.missing ? 'o Claude não comentou este ativo hoje' : 'ainda sem análise do Claude'}</div>
             <div class="adv-act ${a.tone}-t">${esc(a.action)}</div>
-            <div class="adv-txt">${esc(a.text)}</div>
-            ${(() => { const c = claudeFor(k); return c ? `<div class="adv-claude"><b>Claude: ${esc(c.action || '')}</b>${c.why ? ' — ' + esc(c.why) : ''}${c.plan ? `<div>${esc(c.plan)}</div>` : ''}</div>` : ''; })()}
-            ${a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : ''}
+            <div class="adv-txt">${esc(a.text)}</div>${algoPlan}`}
             ${eventsOf(k).filter((e) => inDays(e.ms) <= 21).map((e) => `<div class="adv-ev">${e.type === 'earnings'
                 ? `<b>Resultados ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Nesses dias a ação costuma mexer ±5–10%. Se fores comprar, compra só metade antes e o resto depois.`
                 : `<b>Ex-dividendo ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`).join('')}
@@ -1002,6 +1009,23 @@
         return `<div class="score"><div class="bar"><i class="${r.tone}" style="width:${r.score}%"></i></div><span class="val num ${r.tone}-t">${r.score}</span></div>`;
     }
 
+    const CL_TONE = { buy: 'up', scale: 'up', hold: 'flat', wait: 'flat', neutral: 'flat', turn: 'flat', avoid: 'down', sell: 'down' };
+    function claudeReading() {
+        if (!CLAUDE || CLAUDE.missing || !Array.isArray(CLAUDE.actions)) {
+            return `<div class="ideas cl"><div class="m-l">Leitura do Claude</div><p class="note">${cfg.proxy ? 'Ainda sem análise do Claude. A próxima chega às 7h14; até lá, os sinais automáticos abaixo servem de referência.' : 'Liga o conector para ver a análise do Claude.'}</p></div>`;
+        }
+        const hold = holdingKeys();
+        const acts = CLAUDE.actions.filter((x) => REG[x.s]);
+        const mine = hold.map((k) => acts.find((x) => x.s === k)).filter(Boolean);
+        const others = acts.filter((x) => !hold.includes(x.s));
+        const item = (x) => `<button type="button" class="idea" data-open="${esc(x.s)}"><span class="i-n">${esc(nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t ${CL_TONE[x.key] || 'flat'}-t">${esc(x.action || '')}</span></button>`;
+        const old = CLAUDE.date && CLAUDE.date < todayLocal();
+        return `<div class="ideas cl"><div class="m-l">Leitura do Claude · ${esc(CLAUDE.date || '')}${old ? ' (de um dia anterior)' : ''}</div>
+            ${CLAUDE.headline ? `<p class="cl-h">${esc(CLAUDE.headline)}</p>` : ''}
+            ${mine.length ? `<div class="i-blk"><div class="i-h">O que tenho<small>o que fazer com cada um</small></div>${mine.map(item).join('')}</div>` : ''}
+            ${others.length ? `<div class="i-blk"><div class="i-h">Outros a seguir</div>${others.map(item).join('')}</div>` : ''}</div>`;
+    }
+
     function ideasCard(inv) {
         const L = (k) => hzOf(k, 'long'), M = (k) => hzOf(k, 'mid'), D = (k) => AN[k] && AN[k].discount;
         const base = inv.filter((k) => REG[k].kind === 'fund' && L(k)).sort((a, b) => L(b).score - L(a).score).slice(0, 3);
@@ -1011,11 +1035,11 @@
         if (!base.length && !opps.length && !avoid.length) return '';
         const item = (k, txt, tone) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}</span><span class="i-t ${tone}-t">${esc(txt)}</span></button>`;
         const blk = (title, sub, items) => items.length ? `<div class="i-blk"><div class="i-h">${title}<small>${sub}</small></div>${items.join('')}</div>` : '';
-        return `<div class="ideas"><div class="m-l">Ideias para a Trade Republic</div>
+        return `<div class="ideas"><div class="m-l">Sinais automáticos</div>
             ${blk('Base de longo prazo', 'ETF para o plano mensal', base.map((k) => item(k, `${L(k).score} · ${D(k) ? D(k).tag.toLowerCase() : ''}`, L(k).tone)))}
             ${blk('Oportunidades agora', 'desconto com a tendência longa a subir — comprar aos poucos', opps.map((k) => item(k, `${fmtPct(D(k).dd * 100)} do máx.`, 'up')))}
             ${blk('Evitar por agora', 'a descer a médio e a longo prazo', avoid.map((k) => item(k, `${L(k).score} · ${L(k).label.toLowerCase()}`, 'down')))}
-            <p class="note">Gerado a partir das tendências e do desconto; confirma o preço na app da TR antes de comprar.</p></div>`;
+            <p class="note">Regras fixas (tendência, desconto, RSI). No teste de 2 anos não bateram o VWCE: servem de referência e de dado para o Claude, não de recomendação.</p></div>`;
     }
 
     function trackSection() {
@@ -1057,7 +1081,8 @@
         const chips = [['plan', 'ETF + cripto'], ['all', 'Tudo'], ['fund', 'ETF'], ['crypto', 'Cripto'], ['stock', 'Ações'], ['energy', 'Futuros (referência)']];
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
-        ${ideasCard(inv)}
+        ${claudeReading()}
+        <details class="auto" ${CLAUDE && !CLAUDE.missing ? '' : 'open'}><summary>Sinais automáticos (algoritmo) — referência</summary>${ideasCard(inv)}</details>
         <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l}${v === 'disc' ? '' : ' prazo'}</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         ${f === 'energy' ? '<p class="note" style="margin:0 2px 12px">Petróleo, gasóleo, gás e ouro aparecem aqui como contratos de futuros, só para referência. Na Trade Republic não se compram futuros: há ETC, que ao fim de anos perdem com os custos de rolagem. Para ouro, o ETC físico (Xetra-Gold, nos ETF) é a forma habitual.</p>' : ''}
