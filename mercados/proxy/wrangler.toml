@@ -5,3 +5,8 @@ compatibility_date = "2026-06-01"
 # Opcional: só aceitar pedidos vindos da tua app (separar por vírgulas)
 # [vars]
 # ALLOWED_ORIGINS = "https://nelsonsous.github.io"
+
+# Diário das sugestões (criado com: npx wrangler kv namespace create JOURNAL)
+[[kv_namespaces]]
+binding = "JOURNAL"
+id = "7e442625c6b6499ab20d553824304411"

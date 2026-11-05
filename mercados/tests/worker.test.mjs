@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -167,4 +167,26 @@ test('/calendar: resultados e dividendos com crumb', async () => {
     assert.equal(r.body.items[0].earnings, 1795000000);
     assert.equal(r.body.items[0].exDividend, 1794000000);
     assert.ok(r.body.items[1].error);
+});
+
+test('/journal guarda e lê o diário (KV simulado)', async () => {
+    const store = new Map();
+    const env = { JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null), put: async (k, v) => { store.set(k, v); } } };
+    const post = (body) => worker.fetch(new Request('https://w.test/journal', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }), env);
+    const id = 'abc12345-test';
+    let r = await post({ id, date: '2026-11-05', items: [{ s: 'NVDA', p: 181.6, a: 'neutral', l: 56, m: 6, sh: 48, o: 0 }, { s: '', p: 1 }] });
+    assert.equal(r.status, 200);
+    r = await post({ id, date: '2026-11-06', items: [{ s: 'NVDA', p: 185, a: 'scale', o: 1 }] });
+    assert.equal((await r.json()).days, 2);
+    assert.equal((await post({ id: 'x', date: '2026-11-06', items: [{ s: 'A', p: 1 }] })).status, 400, 'id inválido');
+    assert.equal((await post({ id, date: 'ontem', items: [{ s: 'A', p: 1 }] })).status, 400, 'data inválida');
+    const g = await worker.fetch(new Request('https://w.test/journal?id=' + id), env);
+    const doc = await g.json();
+    assert.deepEqual(Object.keys(doc.days), ['2026-11-05', '2026-11-06']);
+    assert.equal(doc.days['2026-11-05'].length, 1, 'item sem símbolo descartado');
+    assert.equal((await worker.fetch(new Request('https://w.test/journal?id=' + id), {})).status, 501, 'sem KV');
+    // limite de dias
+    let d = null;
+    for (let i = 0; i < 805; i++) d = upsertJournal(d, `2026-01-01#${String(i).padStart(4, '0')}`, []);
+    assert.equal(Object.keys(d.days).length, 800);
 });

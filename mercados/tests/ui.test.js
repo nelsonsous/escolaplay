@@ -25,7 +25,7 @@ function series(sym, n, stepSec, drift) {
 function quote(sym, range) {
     const daily = range !== '1d';
     const drift = ((hash(sym) % 9) - 4) / 1500;
-    const s = daily ? series(sym, range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
+    const s = daily ? series(sym, range === '2y' ? 505 : range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
     const chgPct = DAYCHG[sym] ?? (((hash(sym) % 600) - 300) / 100);
     const price = BASE[sym] || s[s.length - 1][1];
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
@@ -69,8 +69,15 @@ function proxyBody(u) {
     const errors = [];
     let wsMsgs = 0;
 
+    const JDOC = { v: 1, days: { '2026-10-01': [{ s: 'NVDA', p: 150, a: 'buy' }, { s: 'TSLA', p: 500, a: 'avoid' }, { s: 'VWCE.DE', p: 150, a: 'buy' }] } };
+    let jPosts = 0;
     await ctx.route(/proxy\.test/, (route) => {
-        const body = proxyBody(new URL(route.request().url()));
+        const u = new URL(route.request().url());
+        if (u.pathname === '/journal') {
+            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); JDOC.days[b.date] = b.items; jPosts++; return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
+            return route.fulfill({ json: JDOC, headers: { 'Access-Control-Allow-Origin': '*' } });
+        }
+        const body = proxyBody(u);
         return body ? route.fulfill({ json: body, headers: { 'Access-Control-Allow-Origin': '*' } }) : route.fulfill({ status: 404, json: { error: 'x' } });
     });
     await ctx.route(/binance\.(vision|com)\/api\/v3\/klines/, (route) => {
@@ -100,7 +107,7 @@ function proxyBody(u) {
     await page.close();
 
     // 2) com conector
-    await ctx.addInitScript(() => { if (!localStorage.getItem('mercados:v1')) localStorage.setItem('mercados:v1', JSON.stringify({ proxy: 'https://proxy.test' })); });
+    await ctx.addInitScript(() => { const c = JSON.parse(localStorage.getItem('mercados:v1') || '{}'); if (!c.proxySet) { c.proxy = 'https://proxy.test'; c.proxySet = 1; localStorage.setItem('mercados:v1', JSON.stringify(c)); } });
     page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -248,6 +255,19 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ letra larga: nada sai do ecrã');
 
+    // diário: guardou as sugestões de hoje e avalia as antigas
+    await page.waitForFunction(() => window.__mk.cfg.jLast, null, { timeout: 15000 });
+    assert.ok(jPosts >= 1, 'diário gravado');
+    await page.click('#mk-nav [data-tab="analise"]');
+    await page.waitForSelector('.box:has-text("Diário real") .tt');
+    const jt = await page.locator('.box:has-text("Diário real") .tt').textContent();
+    assert.match(jt, /Comprar/); assert.match(jt, /Evitar/);
+    console.log('✓ diário: gravado e avaliado');
+    await page.click('[data-act="backtest"]');
+    await page.waitForSelector('.box:has-text("Teste no passado") .tt', { timeout: 30000 });
+    assert.match(await page.locator('.box:has-text("Teste no passado")').textContent(), /vs VWCE/);
+    console.log('✓ teste no passado:', await page.locator('.box:has-text("Teste no passado") .tt tbody tr').count(), 'linhas');
+
     // plano: orçamento mensal reparte-se em euros
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.fill('#f-budget', '900');
@@ -258,6 +278,17 @@ function proxyBody(u) {
     const total = amounts.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(total - 900) <= 3, 'plano soma 900 €: ' + amounts.join(' + '));
     console.log('✓ plano do mês 900 €:', amounts.join(' + '));
+    // dias de execução: com 2 e 16, cada execução leva metade
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.click('[data-sday="16"]');
+    await page.click('#mk-nav [data-tab="painel"]');
+    const ex = await page.locator('.brief .exec .idea .i-t').allTextContents();
+    const exTot = ex.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
+    assert.ok(Math.abs(exTot - 450) <= 3, 'execução = 450 €: ' + ex.join(' + '));
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="ics"]')]);
+    const icsPath = await dl.path(); const ics = fs.readFileSync(icsPath, 'utf8');
+    assert.match(ics, /RRULE:FREQ=MONTHLY;BYMONTHDAY=1\r\n/); assert.match(ics, /BYMONTHDAY=15/);
+    console.log('✓ execução', ex.join(' + '), '| lembretes .ics dias 1 e 15');
 
     // ajustes: juntar uma ação
     await page.click('#mk-nav [data-tab="ajustes"]');

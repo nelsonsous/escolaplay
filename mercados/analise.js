@@ -437,7 +437,52 @@
         return usdGal / GALLON_L / eurusd;
     }
 
-    const api = { sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf };
+    // ---- Teste no passado: o que as regras atuais teriam dito em cada dia e o que aconteceu depois ----
+    // assets: [{ key, kind, closes: [...], days: ['AAAA-MM-DD', ...] }]; bench: key do ativo de referência (ex.: VWCE)
+    const BUYISH = { buy: 1, scale: 1 };
+    function newAcc() { return { n21: 0, s21: 0, h21: 0, x21: 0, nx21: 0, n63: 0, s63: 0, h63: 0, x63: 0, nx63: 0 }; }
+    function backtestAsset(a, benchByDay, acc, opt = {}) {
+        const c = a.closes, n = c.length, warm = opt.warm || 200, step = opt.step || 5;
+        const per = { key: a.key, n: 0, s63: 0, buyN: 0, buyS: 0, avoidN: 0, avoidS: 0 };
+        for (let i = warm; i < n - 21; i += step) {
+            const r = analyse(c.slice(0, i + 1), { crypto: a.kind === 'crypto', kind: a.kind });
+            if (!r || !r.advice) continue;
+            const k = r.advice.key;
+            const A = acc[k] || (acc[k] = newAcc());
+            for (const h of [21, 63]) {
+                if (i + h >= n) continue;
+                const f = c[i + h] / c[i] - 1;
+                A['n' + h]++; A['s' + h] += f;
+                if ((BUYISH[k] && f > 0) || (k === 'avoid' && f < 0)) A['h' + h]++;
+                const b = benchByDay && a.days && benchByDay(a.days[i], a.days[i + h]);
+                if (b != null) { A['x' + h] += f - b; A['nx' + h]++; }
+                if (h === 63) {
+                    if (BUYISH[k]) { per.buyN++; per.buyS += f; }
+                    if (k === 'avoid') { per.avoidN++; per.avoidS += f; }
+                }
+            }
+        }
+        return per;
+    }
+    function summarize(acc) {
+        const out = {};
+        for (const [k, A] of Object.entries(acc)) {
+            out[k] = {
+                n: A.n21, avg21: A.n21 ? A.s21 / A.n21 : null, hit21: A.n21 ? A.h21 / A.n21 : null, ex21: A.nx21 ? A.x21 / A.nx21 : null,
+                n63: A.n63, avg63: A.n63 ? A.s63 / A.n63 : null, hit63: A.n63 ? A.h63 / A.n63 : null, ex63: A.nx63 ? A.x63 / A.nx63 : null,
+            };
+        }
+        return out;
+    }
+    // índice data → fecho do ativo de referência
+    function benchFn(bench) {
+        if (!bench) return null;
+        const m = new Map(bench.days.map((d, i) => [d, bench.closes[i]]));
+        const near = (d) => { if (m.has(d)) return m.get(d); let best = null; for (const [k, v] of m) { if (k <= d) best = v; else break; } return best; };
+        return (d0, d1) => { const a = near(d0), b = near(d1); return a && b ? b / a - 1 : null; };
+    }
+
+    const api = { sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf, backtestAsset, summarize, benchFn, newAcc };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.Analise = api;
 })(typeof self !== 'undefined' ? self : this);
