@@ -59,7 +59,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -683,6 +683,12 @@
         <p class="note">O tom das notícias (boa / má) é calculado por palavras-chave nos títulos — é uma pista rápida, não substitui ler a notícia. Toca numa linha para ver o gráfico e todas as notícias.</p>`;
     }
 
+    const HZ = [['short', 'Curto', 'dias a 2 semanas'], ['mid', 'Médio', 'semanas a 3 meses'], ['long', 'Longo', 'anos']];
+    const hzOf = (k, hz) => AN[k] && AN[k].horizons && AN[k].horizons[hz || cfg.hz];
+    function reasonList(list) {
+        return `<ul class="reasons">${list.map((x) => `<li><span class="p ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : 'flat'}-t">${x.pts > 0 ? '+' : ''}${x.pts || '·'}</span><span>${esc(x.txt)}</span></li>`).join('')}</ul>`;
+    }
+
     function scoreBar(r) {
         return `<div class="score"><div class="bar"><i class="${r.tone}" style="width:${r.score}%"></i></div><span class="val num ${r.tone}-t">${r.score}</span></div>`;
     }
@@ -690,32 +696,35 @@
     function viewAnalysis() {
         const keys = Object.keys(AN).filter((k) => listed(k) && (REG[k].kind !== 'index' || k === 'GC=F'));
         const f = cfg.filter;
-        const shown = keys.filter((k) => f === 'all' || REG[k].kind === f || (f === 'energy' && k === 'GC=F')).sort((a, b) => AN[b].score - AN[a].score);
+        const hz = cfg.hz;
+        const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' || REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
         const breadth = keys.length ? keys.filter((k) => AN[k].score >= 58).length / keys.length : NaN;
         const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
         const top = shown.slice(0, 3);
         const chips = [['all', 'Tudo'], ['stock', 'Ações'], ['fund', 'Fundos'], ['crypto', 'Cripto'], ['energy', 'Energia e ouro']];
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
+        <div class="seg hz" role="group" aria-label="Prazo">${HZ.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l} prazo</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         ${!shown.length ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
-        <section class="sec"><div class="sec-h"><h2>Mais fortes agora</h2><span class="sub">tendência + momento</span></div>
+        <section class="sec"><div class="sec-h"><h2>Mais fortes a ${{ short: 'curto', mid: 'médio', long: 'longo' }[hz]} prazo</h2></div>
             <div class="top3">${top.map((k, i) => `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
                 <div class="medal">${['1.º', '2.º', '3.º'][i]} lugar</div>
                 <div class="c-top" style="margin-top:4px"><span class="c-name">${esc(nameOf(k))}</span><span class="c-sym">${esc(REG[k].sym)}</span></div>
-                <div class="c-row" style="margin-top:8px">${scoreBar(AN[k])}</div>
-                <div class="c-sub ${AN[k].tone}-t" style="margin-top:6px">${esc(AN[k].label)} · ${esc(AN[k].risk.label)}</div>
-                <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((AN[k].reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
+                <div class="c-row" style="margin-top:8px">${scoreBar(hzOf(k, hz))}</div>
+                <div class="c-sub ${hzOf(k, hz).tone}-t" style="margin-top:6px;white-space:normal">${esc(hzOf(k, hz).label)} · ${esc(AN[k].risk.label)}</div>
+                <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((hzOf(k, hz).reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
             </button>`).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${shown.length} ativos · 0 a 100</span></div>
             <div class="list">${shown.map((k, i) => `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
                 <span class="rk">${i + 1}</span>
                 <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
-                <div class="r-score">${scoreBar(AN[k])}<div class="lbl ${AN[k].tone}-t">${esc(AN[k].label)}</div></div>
+                <div class="r-score">${scoreBar(hzOf(k, hz))}<div class="lbl ${hzOf(k, hz).tone}-t">${esc(hzOf(k, hz).label)}</div></div>
             </button>`).join('')}</div></section>`}
         <details class="how"><summary>Como é calculada a pontuação?</summary><ul>
-            <li><b>Tendência</b>: preço face às médias de 20 e 50 dias, e se a média de 50 dias está a subir.</li>
-            <li><b>Momento</b>: variação do último mês e dos últimos 3 meses; MACD (aceleração).</li>
+            <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>
+            <li><b>Médio prazo</b> (semanas a 3 meses): médias de 20 e 50 dias, variação de 1 e 3 meses, MACD e RSI.</li>
+            <li><b>Longo prazo</b> (anos): média de 200 dias e se está a subir, variação de 1 ano e desconto face ao máximo. Uma descida com a tendência longa a subir conta como oportunidade para ir comprando aos poucos.</li>
             <li><b>RSI</b>: acima de 70 está "esticado" (risco de correção); abaixo de 30 está muito castigado (pode ressaltar).</li>
             <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>
             <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li>
@@ -915,9 +924,11 @@
                 ${r ? stat('RSI (14)', fin(r.metrics.rsi) ? Math.round(r.metrics.rsi) : '—') + stat('Volatilidade', fin(r.metrics.vol) ? Math.round(r.metrics.vol * 100) + '%/ano' : '—') : ''}
             </div>
             <div class="box"><h3>Análise técnica ${r ? `<span class="chip-s">${esc(r.risk.label)}</span>` : ''}</h3>
-                ${r ? `${scoreBar(r)}<div class="${r.tone}-t" style="font-weight:700;margin-top:6px">${esc(r.label)}</div>
-                <ul class="reasons">${r.reasons.map((x) => `<li><span class="p ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : 'flat'}-t">${x.pts > 0 ? '+' : ''}${x.pts || '·'}</span><span>${esc(x.txt)}</span></li>`).join('')}</ul>
-                <p class="note">Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
+                ${r ? `${HZ.map(([hz, l, d]) => { const h = r.horizons && r.horizons[hz]; return h ? `<details class="hzb" ${hz === cfg.hz ? 'open' : ''}><summary>
+                    <div class="hz-t"><b>${l} prazo</b><small>${d}</small></div>
+                    <div class="hz-s">${scoreBar(h)}<div class="lbl ${h.tone}-t">${esc(h.label)}</div></div></summary>
+                    ${reasonList(h.reasons)}</details>` : `<div class="hzb na"><div class="hz-t"><b>${l} prazo</b><small>${d}</small></div><div class="note">Histórico curto demais.</div></div>`; }).join('')}
+                <p class="note">Toca num prazo para ver as razões. Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
             </div>
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
@@ -994,7 +1005,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1013,6 +1024,7 @@
         if (d.rm) { cfg.watch = cfg.watch.filter((s) => s !== d.rm); cfg.funds = cfg.funds.filter((s) => s !== d.rm); delete REG[d.rm]; delete Q[d.rm]; delete AN[d.rm]; watchChanged(); return; }
         if (d.add) { addWatch(d.add, d.name, d.type); return; }
         if (d.eur) { cfg.eur = d.eur === '1'; saveCfg(); render(); return; }
+        if (d.hz) { cfg.hz = d.hz; saveCfg(); render(); return; }
         switch (d.act) {
             case 'refresh': refreshAll(); break;
             case 'close': closeSheet(true); break;

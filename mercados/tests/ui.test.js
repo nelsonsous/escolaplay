@@ -149,6 +149,13 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '3-analise.png') });
     await page.click('.chips [data-filter="crypto"]');
     assert.equal(await page.locator('.list .row').count(), 4);
+    await page.click('.chips [data-filter="all"]');
+    await page.click('.seg.hz [data-hz="long"]');
+    await page.waitForSelector('h2:text("Mais fortes a longo prazo")');
+    const longScores = (await page.locator('.r-score .val').allTextContents()).map(Number);
+    assert.deepEqual(longScores, [...longScores].sort((a, b) => b - a), 'ordenado pelo longo prazo');
+    console.log('✓ análise por prazo: longo, n =', longScores.length);
+    await page.click('.seg.hz [data-hz="mid"]');
 
     // detalhe da Bitcoin
     await page.click('#mk-nav [data-tab="painel"]');
@@ -160,6 +167,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('.news a[href^="javascript"]').count(), 0, 'links javascript: bloqueados');
     assert.equal(await page.locator('.news img').count(), 0, 'HTML das notícias escapado');
     assert.ok(await page.locator('.box:has-text("Análise técnica") .reasons li').count() >= 4);
+    assert.equal(await page.locator('.box:has-text("Análise técnica") .hzb').count(), 3, 'três prazos na folha');
     const box = await page.locator('#d-cv').boundingBox();
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 3 });

@@ -285,3 +285,20 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .sw > span { flex: 1; min-width: 0; }
 .ranges button { min-width: 0; }
 .grab { width: 44px; height: 5px; margin: 4px auto 12px; }
+
+/* análise por prazo */
+.seg.hz { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; margin-bottom: 10px; }
+.seg.hz button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px; }
+.seg.hz button b { font-size: 13px; font-weight: 650; }
+.seg.hz button small { font-size: 10.5px; color: var(--faint); }
+.seg.hz button.on small { color: var(--muted); }
+.hzb { border-top: 1px solid var(--line); padding: 10px 0 6px; }
+.hzb:first-of-type { border-top: 0; padding-top: 2px; }
+.hzb summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.hzb summary::-webkit-details-marker { display: none; }
+.hzb .hz-t { width: 92px; flex: none; display: flex; flex-direction: column; }
+.hzb .hz-t b { font-size: 13.5px; }
+.hzb .hz-t small { font-size: 11px; color: var(--muted); }
+.hzb .hz-s { flex: 1; min-width: 0; }
+.hzb .hz-s .lbl { font-size: 12px; font-weight: 650; margin-top: 3px; }
+.hzb.na { display: flex; gap: 10px; align-items: center; }
