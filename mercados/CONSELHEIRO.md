@@ -68,7 +68,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
    - `plan`: o que fazer com os 900 € **deste mês** (soma = 900 €): **só VWCE e cripto** (por omissão 810 € VWCE + 90 € BTC). Mudar a divisão só com motivo forte e explicado (ex.: reforço extra no VWCE perto do suporte); a cripto não se suspende por quedas de curto prazo. Se a próxima execução for amanhã, dizê-lo.
    - `actions`: até 10 ativos que merecem atenção hoje — **primeiro VWCE, Bitcoin e Ether**, depois outros ETF; ações só para contexto (`key` `neutral`/`avoid`, nunca `buy`/`scale`).
    - Português de Portugal, frases curtas, números concretos.
-5. Publicar (valida e grava `advice:<data>`, `advice:latest` e as lições no KV; a app mostra no cartão "Análise do Claude"):
+5. Publicar (valida e grava `advice:<data>`, `advice:latest` e as lições no KV; a app mostra no cartão "Hoje" do Painel e no conselho de cada ativo):
    ```bash
    NODE_USE_ENV_PROXY=1 node mercados/conselheiro/publicar.mjs /tmp/conselheiro/analise.json
    ```

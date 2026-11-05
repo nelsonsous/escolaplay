@@ -49,7 +49,7 @@ function proxyBody(u) {
         { id: 2101, name: 'Gasóleo simples', n: 3012, avg: 1.611, median: 1.599, min: 1.449, max: 1.899, cheapest: [{ price: 1.449, name: 'Intermarché', brand: 'Intermarché', place: 'Leiria, Leiria' }], updated: '2026-11-05 09:30' },
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
-    if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'AMZN', amount: '90 €', why: 'tendência forte' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
+    if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
     if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
     return null;
@@ -132,35 +132,38 @@ function proxyBody(u) {
     console.log('✓ painel: Brent', brent, '| 1.ª ação', firstStock);
     const firstSec = await page.locator('#mk-body .sec h2').first().textContent();
     assert.equal(firstSec, 'Os meus ativos', 'os meus ativos em primeiro');
-    assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .card').count(), 5, 'VWCE + 4 cripto');
-    // o resumo já apareceu hoje (sem conector): fica condensado numa linha; toca-se para abrir
-    await page.waitForSelector('.brief summary', { timeout: 15000 });
-    assert.equal(await page.locator('details.brief[open]').count(), 0, 'resumo já lido hoje → condensado');
-    assert.match(await page.locator('.brief .teaser').textContent(), /execução|planos/);
-    await page.click('.brief summary');
-    await page.waitForSelector('.brief .idea', { timeout: 15000 });
-    console.log('✓ resumo lido hoje fica condensado:', (await page.locator('.brief .teaser').textContent()).slice(0, 60));
-    assert.match(await page.locator('.brief summary').textContent(), /Resumo do dia/);
-    assert.ok(await page.locator('.brief .i-h:has-text("Plano do mês")').count());
-    await page.waitForSelector('.brief .i-h:has-text("Agenda")');
-    assert.match(await page.locator('.brief').textContent(), /Nvidia: apresenta resultados/);
-    console.log('✓ agenda no resumo:', (await page.locator('.brief .i-blk:has-text("Agenda") .idea').allTextContents()).length, 'eventos');
-    await page.click('.brief button.idea:has-text("Nvidia")');
+    assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .row').count(), 5, 'VWCE + 4 cripto');
+    // "Hoje": a análise do Claude e o resumo num só cartão; análise nova → aberto
+    await page.waitForSelector('.today .cl-head', { timeout: 15000 });
+    assert.equal(await page.locator('details.today[open]').count(), 1, 'análise nova do Claude → aberto');
+    assert.equal(await page.locator('.claude, .brief, .ideas.cl').count(), 0, 'sem cartões repetidos');
+    assert.match(await page.locator('.today > summary').textContent(), /Hoje/);
+    assert.equal(await page.locator('.today .i-h:has-text("Plano do mês")').count(), 1, 'um só plano do mês');
+    await page.waitForSelector('.today .i-h:has-text("Agenda")');
+    assert.match(await page.locator('.today').textContent(), /Nvidia: apresenta resultados/);
+    console.log('✓ agenda no Hoje:', (await page.locator('.today .i-blk:has-text("Agenda") .idea').allTextContents()).length, 'eventos');
+    await page.click('.today button.idea:has-text("Nvidia")');
     await page.waitForSelector('.advice .adv-ev');
     assert.match(await page.locator('.advice .adv-ev').textContent(), /Resultados daqui a 5 dias/);
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ aviso de resultados no conselho');
-    await page.waitForSelector('.claude .cl-head');
-    assert.equal(await page.locator('details.claude[open]').count(), 1, 'análise nova → aberta');
-    assert.match(await page.locator('.claude').textContent(), /manter o plano no VWCE/);
-    assert.match(await page.locator('.claude > summary').textContent(), /feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às 07:14/);
-    assert.equal(await page.locator('.claude .i-blk:has-text("plano deste mês") .idea').count(), 2);
-    console.log('✓ análise do Claude no painel');
-    console.log('✓ resumo do dia:', (await page.locator('.brief .idea .i-n').allTextContents()).map((t) => t.split('núcleo')[0].split('satélite')[0].split('cripto')[0]).join(', '));
-    const fund = await page.locator('.card[data-key="VWCE.DE"] .px').first().textContent();
+    assert.match(await page.locator('.today').textContent(), /manter o plano no VWCE/);
+    assert.match(await page.locator('.today > summary').textContent(), /Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às 07:14/);
+    assert.equal(await page.locator('.today .plan-blk .idea').count(), 2, 'plano do Claude');
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .badge').textContent(), /Esperar/, 'conselho do Claude no ativo');
+    assert.equal(await page.locator('.sec:has(h2:text("Cripto"))').count(), 0, 'cripto que tenho não se repete');
+    assert.equal(await page.locator('#mk-body h1.pg-t').textContent(), 'Painel');
+    console.log('✓ Hoje: análise do Claude + plano | conselho nos meus ativos');
+    // letra: texto principal ≥ 16 px e notas ≥ 12,5 px (no iPhone a base é 17 px, aqui é 16 px)
+    const fsz = await page.evaluate(() => Object.fromEntries([['nome', '.row .r-name'], ['nota', '.note'], ['título', 'h1.pg-t'], ['secção', '.sec-h h2']].map(([n, q]) => [n, parseFloat(getComputedStyle(document.querySelector(q)).fontSize)])));
+    assert.ok(fsz.nome >= 16 && fsz.nota >= 12.5 && fsz['título'] >= 30, JSON.stringify(fsz));
+    console.log('✓ tamanhos de letra (px):', JSON.stringify(fsz));
+    const narrow = await page.evaluate(() => [...document.querySelectorAll('.sec .row')].filter((r) => r.offsetParent).map((r) => [r.dataset.key, Math.round(r.querySelector('.r-main').getBoundingClientRect().width)]).filter(([, w]) => w < 100));
+    assert.deepEqual(narrow, [], 'nome com espaço suficiente nas linhas: ' + JSON.stringify(narrow));
+    const fund = await page.locator('.row[data-key="VWCE.DE"] .px').first().textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
-    assert.match(await page.locator('.card[data-key="VWCE.DE"] .chg').first().textContent(), /−3,5\d%/);
+    assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,5\d%/);
     const nv = await page.locator('.row[data-key="NVDA"] .px').first().textContent();
     assert.match(nv, /€/, 'ações americanas em euros: ' + nv);
     assert.match(await page.locator('.row[data-key="NOVO-B.CO"] .px').first().textContent(), /€/, 'coroas dinamarquesas em euros');
@@ -183,6 +186,7 @@ function proxyBody(u) {
     console.log('✓ destaques: sobem', ups.join(', '), '| caem', downs.join(', '));
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '2-destaques.png') });
 
+    assert.ok(await page.locator('.mood').isVisible(), 'sentimento do mercado nos Destaques');
     // análise
     await page.click('#mk-nav [data-tab="analise"]');
     await page.waitForSelector('.chips [data-filter="plan"].on');
@@ -190,20 +194,21 @@ function proxyBody(u) {
     assert.ok(planRows.length >= 8 && planRows.every((k) => /^c:|\.DE$/.test(k)), 'filtro ETF + cripto: ' + planRows);
     await page.click('.chips [data-filter="all"]');
     await page.waitForFunction(() => document.querySelectorAll('.sec:has(h2) .list .row').length > 20);
-    assert.ok(await page.locator('.mood').isVisible());
+    assert.equal(await page.locator('.mood').count(), 0, 'sentimento só nos Destaques');
     const scores = await page.locator('.r-score .val').allTextContents();
     const nums = scores.map(Number);
     assert.deepEqual(nums, [...nums].sort((a, b) => b - a), 'classificação ordenada');
     assert.ok(nums.every((n) => n >= 0 && n <= 100));
-    console.log('✓ análise:', await page.locator('.mood .m-v').textContent(), '| top', (await page.locator('.top3 .c-name').allTextContents()).join(', '), '| n =', nums.length);
+    console.log('✓ análise: top', (await page.locator('.top3 .c-name').allTextContents()).join(', '), '| n =', nums.length);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '3-analise.png') });
     const allKeys = await page.locator('.list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(!allKeys.some((k) => /=F$|^\^/.test(k)), '"Tudo" só com o que se compra na TR: ' + allKeys.filter((k) => /=F$|^\^/.test(k)));
     assert.ok(allKeys.includes('SXR8.DE') && allKeys.includes('c:BTC'));
-    assert.ok(await page.locator('.ideas.cl').count(), 'leitura do Claude em cima');
-    assert.match(await page.locator('.ideas.cl').textContent(), /Bitcoin/);
-    assert.equal(await page.locator('details.auto:not([open])').count(), 1, 'algoritmo fechado quando há Claude');
-    console.log('✓ leitura do Claude na Análise; algoritmo como referência');
+    assert.deepEqual(await page.locator('h2.grp').allTextContents(), ['Comparar ativos', 'Resultados']);
+    assert.match(await page.locator('.cl-box').textContent(), /Primeiro dia/);
+    assert.match(await page.locator('.cl-box').textContent(), /aprendeu até agora \(1\)/);
+    assert.equal(await page.locator('details.auto:not([open])').count(), 1, 'algoritmo fechado');
+    console.log('✓ análise: comparar ativos + resultados (conselhos do Claude, diário, teste)');
     await page.click('.chips [data-filter="crypto"]');
     assert.equal(await page.locator('.list .row').count(), 4);
     await page.click('.chips [data-filter="all"]');
@@ -222,7 +227,7 @@ function proxyBody(u) {
 
     // detalhe da Bitcoin
     await page.click('#mk-nav [data-tab="painel"]');
-    await page.locator('.card[data-open="c:BTC"]').first().click();
+    await page.locator('.row[data-open="c:BTC"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .news li');
     await page.waitForFunction(() => { const c = document.querySelector('#d-cv'); return c && c.width > 0 && document.querySelector('#d-load').hidden; });
     const inked = await page.evaluate(() => { const c = document.querySelector('#d-cv'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
@@ -263,7 +268,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
     console.log('✓ puxar para baixo fecha a folha');
     // puxar pouco não fecha
-    await page.locator('.card[data-open="c:ETH"]').first().click();
+    await page.locator('.row[data-open="c:ETH"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden])');
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(g.y + 2) });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(g.y + 40) });
@@ -275,19 +280,23 @@ function proxyBody(u) {
 
     // letra mais larga (como a do iOS): nada pode passar da largura do ecrã
     await page.addStyleTag({ content: 'body *{letter-spacing:.07em !important}' });
+    // e com a letra "Muito grande"
+    await page.click('#mk-nav [data-tab="ajustes"]'); await page.click('[data-fs="xl"]');
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.fs), 'xl');
     for (const tab of ['painel', 'destaques', 'analise', 'ajustes']) {
         await page.click(`#mk-nav [data-tab="${tab}"]`); await page.waitForTimeout(250);
         const wide = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
         assert.ok(wide <= 0, `${tab}: página mais larga que o ecrã (${wide}px)`);
     }
     await page.click('#mk-nav [data-tab="painel"]');
-    await page.locator('.card[data-open="c:BTC"]').first().click();
+    await page.locator('.row[data-open="c:BTC"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .news li');
     const sheetOver = await page.evaluate(() => { const c = document.querySelector('#mk-sheet-card').getBoundingClientRect(); const x = document.querySelector('#mk-sheet-card [data-act="close"]').getBoundingClientRect(); return { c: c.right - innerWidth, x: x.right - innerWidth }; });
     assert.ok(sheetOver.c <= 0 && sheetOver.x <= 0, 'folha e botão fechar dentro do ecrã ' + JSON.stringify(sheetOver));
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
-    console.log('✓ letra larga: nada sai do ecrã');
+    await page.click('#mk-nav [data-tab="ajustes"]'); await page.click('[data-fs="n"]');
+    console.log('✓ letra larga e "Muito grande": nada sai do ecrã');
 
     // diário: guardou as sugestões de hoje e avalia as antigas
     await page.waitForFunction(() => window.__mk.cfg.jLast, null, { timeout: 15000 });
@@ -307,18 +316,19 @@ function proxyBody(u) {
     await page.fill('#f-budget', '900');
     await page.locator('#f-budget').dispatchEvent('change');
     await page.click('#mk-nav [data-tab="painel"]');
-    const amounts = await page.locator('.brief .i-blk:has-text("Plano do mês") .idea .i-t').allTextContents();
+    const amounts = await page.locator('.today .plan-blk .idea .i-t').allTextContents();
     const total = amounts.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(total - 900) <= 3, 'plano soma 900 €: ' + amounts.join(' + '));
     assert.deepEqual(amounts.map((t) => t.replace(/\s/g, '')), ['810€', '90€'], 'VWCE 810 € + Bitcoin 90 €');
-    assert.match(await page.locator('.brief .i-blk:has-text("Plano do mês")').textContent(), /Bitcoin/);
+    assert.match(await page.locator('.today .plan-blk').textContent(), /Bitcoin/);
     assert.equal(await page.locator('details.stocks-fold:not([open])').count(), 1, 'ações fechadas, só informação');
     console.log('✓ plano do mês 900 €:', amounts.join(' + '));
     // dias de execução: com 2 e 16, cada execução leva metade
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.click('[data-sday="16"]');
     await page.click('#mk-nav [data-tab="painel"]');
-    const ex = await page.locator('.brief .exec .idea .i-t').allTextContents();
+    const exTxt = await page.locator('.today .exec .ex-a').textContent();
+    const ex = [...exTxt.matchAll(/(\d[\d\s\u00a0\u202f]*)\s*€/g)].map((m) => m[0].trim());
     const exTot = ex.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(exTot - 450) <= 3, 'execução = 450 €: ' + ex.join(' + '));
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="ics"]')]);
@@ -371,16 +381,16 @@ function proxyBody(u) {
     console.log('✓ compras de cripto:', (await page.locator('.tax-box .tx-head').textContent()).trim());
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .c-note').textContent(), /isentas|isenta a/);
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .c-note').textContent(), /data de compra por indicar/);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .r-note').textContent(), /isentas|isenta a/);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-note').textContent(), /data de compra por indicar/);
 
     // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
     await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
     await page.reload();
     await page.waitForFunction(() => window.__mk && window.__mk.cfg.watchVer === 3);
-    await page.waitForSelector('.claude .cl-head', { state: 'attached' });
-    assert.equal(await page.locator('details.claude[open]').count(), 0, 'análise já lida → condensada');
-    assert.match(await page.locator('.claude .teaser').textContent(), /manter o plano no VWCE/);
+    await page.waitForSelector('.today .cl-head', { state: 'attached' });
+    assert.equal(await page.locator('details.today[open]').count(), 0, 'análise já lida → condensada');
+    assert.match(await page.locator('.today .teaser').textContent(), /manter o plano no VWCE/);
     if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, '7-painel-condensado.png') }); }
     console.log('✓ análise do Claude lida fica condensada');
     const w = await page.evaluate(() => window.__mk.cfg.watch);
