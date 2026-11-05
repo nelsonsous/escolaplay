@@ -15,11 +15,13 @@
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
 //   GET  /journal?id=…                        → diário de sugestões (KV)
 //   POST /journal  { id, date, items }        → guardar as sugestões do dia
+//   GET  /advice[?date=AAAA-MM-DD]            → análise diária escrita pelo Claude (KV, só leitura;
+//                                               a tarefa agendada escreve-a pela API da Cloudflare)
 //
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -379,6 +381,16 @@ async function journal(request, url, env) {
     return { body: { ok: true, days: Object.keys(doc.days).length } };
 }
 
+// ---------- /advice: análise do Claude (escrita pela tarefa agendada, aqui só se lê) ----------
+async function advice(url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    const date = url.searchParams.get('date') || '';
+    if (date && !JDATE.test(date)) return { status: 400, body: { error: 'data inválida' } };
+    const doc = await env.JOURNAL.get(date ? 'advice:' + date : 'advice:latest', 'json');
+    if (!doc) return { status: 404, body: { error: 'ainda sem análise' } };
+    return { body: doc };
+}
+
 // ---------- router ----------
 const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos };
 
@@ -398,6 +410,9 @@ export default {
             } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
         }
         if (request.method !== 'GET') return json({ error: 'só GET' }, 405, 0, origin);
+        if (path === '/advice') {
+            try { const { status = 200, body } = await advice(url, env); return json(body, status, status === 200 ? 60 : 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
+        }
         if (path === '/' || path === '/health') return json({ ok: true, name: 'mercados-proxy', version: VERSION }, 200, 0, origin);
         const handler = ROUTES[path];
         if (!handler) return json({ error: 'não encontrado' }, 404, 0, origin);

@@ -42,8 +42,13 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/fuel?distrito=11` | mediana, média, mín./máx. e postos mais baratos (DGEG) | 1 h |
 | `/fuel/distritos` | distritos da DGEG | 24 h |
 | `GET/POST /journal` | diário das sugestões (KV `JOURNAL`) | — |
+| `GET /advice[?date=]` | análise do Claude (só leitura) | 60 s |
 
 O plano grátis da Cloudflare dá 100 000 pedidos/dia; com a app aberta a atualizar a cada 30 s são uns 3 000 por hora de uso.
+
+## Conselheiro diário (Claude)
+
+Todos os dias úteis de manhã, uma tarefa agendada do Claude segue [`CONSELHEIRO.md`](CONSELHEIRO.md): corre `conselheiro/dados.mjs` (preços, análise técnica, agenda, notícias, diário e avaliação dos conselhos anteriores), escreve a análise do dia com o plano do mês e as lições aprendidas, e publica-a com `conselheiro/publicar.mjs` no KV (`advice:<data>`, `advice:latest`, `advice:lessons`). A app mostra-a no cartão **Análise do Claude** (lida em `GET /advice`). Não é preciso merge diário: só a base de dados muda; alterações às regras chegam como PR em rascunho, à sexta.
 
 ## Diário e teste no passado
 
