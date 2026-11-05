@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '2.2.0';
+    const VERSION = '2.2.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -538,6 +538,17 @@
         try { CLAUDE = await px('/advice'); } catch (e) { CLAUDE = { missing: true, error: e.message }; }
         scheduleRender();
     }
+    // "feita às 07:16 de 06/11 · próxima amanhã às 07:14" (a tarefa corre todos os dias às 07:14 de Lisboa)
+    const CL_HOUR = 7, CL_MIN = 14;
+    function clWhen() {
+        const c = CLAUDE || {};
+        const g = c.generatedAt ? new Date(c.generatedAt) : null;
+        const made = g && !isNaN(g) ? `feita às ${g.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} de ${g.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}` : (c.date || '');
+        const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate(), CL_HOUR, CL_MIN);
+        if (next <= n) next.setDate(next.getDate() + 1);
+        const day = next.getDate() === n.getDate() ? 'hoje' : 'amanhã';
+        return `${made} · próxima ${day} às ${String(CL_HOUR).padStart(2, '0')}:${String(CL_MIN).padStart(2, '0')}`;
+    }
     const claudeFor = (k) => CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
     function claudeCard() {
         if (!CLAUDE || CLAUDE.missing || !CLAUDE.headline) return '';
@@ -546,7 +557,7 @@
         const acts = (c.actions || []).filter((a) => REG[a.s]).slice(0, 8);
         const plan = Array.isArray(c.plan) ? c.plan : [];
         const old = c.date && c.date < todayLocal();
-        return `<details class="claude" open><summary><span>Análise do Claude</span><small>${esc(c.date || '')}${old ? ' · de um dia anterior' : ''}</small></summary>
+        return `<details class="claude" open><summary><span>Análise do Claude</span><small>${esc(clWhen())}${old ? ' · atrasada' : ''}</small></summary>
             <div class="cl-head">${esc(c.headline)}</div>
             ${c.market ? `<p>${esc(c.market)}</p>` : ''}
             ${plan.length ? `<div class="i-blk"><div class="i-h">O que fazer com o plano deste mês<small>${esc(c.planNote || '')}</small></div>${plan.map((x) => `<${REG[x.s] ? `button type="button" data-open="${esc(x.s)}"` : 'div'} class="idea"><span class="i-n">${esc(x.name || nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t num">${esc(x.amount || '')}</span></${REG[x.s] ? 'button' : 'div'}>`).join('')}</div>` : ''}
@@ -929,7 +940,7 @@
         const cTone = c ? (CL_TONE[c.key] || 'flat') : a.tone;
         const algoPlan = a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : '';
         return `<div class="box advice ${cTone}"><h3>O que fazer na Trade Republic</h3>
-            ${c ? `<div class="adv-src">Análise do Claude · ${esc(CLAUDE.date || '')}</div>
+            ${c ? `<div class="adv-src">Análise do Claude · ${esc(clWhen().split(' · ')[0])}</div>
             <div class="adv-act ${cTone}-t">${esc(c.action || '')}</div>
             <div class="adv-txt">${esc(c.why || '')}</div>
             ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}
@@ -1062,7 +1073,7 @@
     const CL_TONE = { buy: 'up', scale: 'up', hold: 'flat', wait: 'flat', neutral: 'flat', turn: 'flat', avoid: 'down', sell: 'down' };
     function claudeReading() {
         if (!CLAUDE || CLAUDE.missing || !Array.isArray(CLAUDE.actions)) {
-            return `<div class="ideas cl"><div class="m-l">Leitura do Claude</div><p class="note">${cfg.proxy ? 'Ainda sem análise do Claude. A próxima chega às 7h14; até lá, os sinais automáticos abaixo servem de referência.' : 'Liga o conector para ver a análise do Claude.'}</p></div>`;
+            return `<div class="ideas cl"><div class="m-l">Leitura do Claude</div><p class="note">${cfg.proxy ? 'Ainda sem análise do Claude. A próxima chega às 07:14; até lá, os sinais automáticos abaixo servem de referência.' : 'Liga o conector para ver a análise do Claude.'}</p></div>`;
         }
         const hold = holdingKeys();
         const acts = CLAUDE.actions.filter((x) => REG[x.s]);
@@ -1070,7 +1081,7 @@
         const others = acts.filter((x) => !hold.includes(x.s));
         const item = (x) => `<button type="button" class="idea" data-open="${esc(x.s)}"><span class="i-n">${esc(nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t ${CL_TONE[x.key] || 'flat'}-t">${esc(x.action || '')}</span></button>`;
         const old = CLAUDE.date && CLAUDE.date < todayLocal();
-        return `<div class="ideas cl"><div class="m-l">Leitura do Claude · ${esc(CLAUDE.date || '')}${old ? ' (de um dia anterior)' : ''}</div>
+        return `<div class="ideas cl"><div class="m-l">Leitura do Claude</div><div class="note" style="margin:2px 0 0">${esc(clWhen())}${old ? ' · atrasada' : ''}</div>
             ${CLAUDE.headline ? `<p class="cl-h">${esc(CLAUDE.headline)}</p>` : ''}
             ${mine.length ? `<div class="i-blk"><div class="i-h">O que tenho<small>o que fazer com cada um</small></div>${mine.map(item).join('')}</div>` : ''}
             ${others.length ? `<div class="i-blk"><div class="i-h">Outros a seguir</div>${others.map(item).join('')}</div>` : ''}</div>`;
