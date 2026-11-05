@@ -313,3 +313,16 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .range52 .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
 .disc-box .verdict { font-weight: 700; font-size: 14px; line-height: 1.35; margin: 4px 0 6px; }
 .dnotes { margin: 0; padding-left: 18px; font-size: 12.5px; color: #c9d5e4; display: grid; gap: 3px; }
+
+/* ideias para a Trade Republic */
+.ideas { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin-bottom: 16px; }
+.ideas .m-l { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.i-blk { margin-top: 12px; }
+.i-h { font-weight: 700; font-size: 14px; display: flex; flex-direction: column; margin-bottom: 4px; }
+.i-h small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
+.idea { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-top: 1px solid var(--line); background: none; padding: 9px 0; text-align: left; cursor: pointer; font-size: 13.5px; }
+.idea:first-of-type { border-top: 0; }
+.idea .i-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.idea .i-t { flex: none; font-size: 12.5px; font-weight: 650; }
+.seg.hz { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 520px) { .seg.hz { grid-template-columns: repeat(4, 1fr); } }

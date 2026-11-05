@@ -147,6 +147,11 @@ function proxyBody(u) {
     assert.ok(nums.every((n) => n >= 0 && n <= 100));
     console.log('✓ análise:', await page.locator('.mood .m-v').textContent(), '| top', (await page.locator('.top3 .c-name').allTextContents()).join(', '), '| n =', nums.length);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '3-analise.png') });
+    const allKeys = await page.locator('.list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
+    assert.ok(!allKeys.some((k) => /=F$|^\^/.test(k)), '"Tudo" só com o que se compra na TR: ' + allKeys.filter((k) => /=F$|^\^/.test(k)));
+    assert.ok(allKeys.includes('SXR8.DE') && allKeys.includes('c:BTC'));
+    assert.ok(await page.locator('.ideas .idea').count() > 0, 'cartão de ideias para a TR');
+    console.log('✓ ideias TR:', (await page.locator('.ideas .i-h').allTextContents()).map((t) => t.split(/[a-z]{3,}\s/)[0]).length, 'blocos');
     await page.click('.chips [data-filter="crypto"]');
     assert.equal(await page.locator('.list .row').count(), 4);
     await page.click('.chips [data-filter="all"]');
