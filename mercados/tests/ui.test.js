@@ -115,6 +115,10 @@ function proxyBody(u) {
     const firstStock = await page.locator('.sec:has(h2:text("Ações que sigo")) .row .r-name').first().textContent();
     assert.equal(firstStock, 'Galp', 'ordenado pela maior subida');
     console.log('✓ painel: Brent', brent, '| 1.ª ação', firstStock);
+    await page.waitForSelector('.brief .idea', { timeout: 15000 });
+    assert.match(await page.locator('.brief summary').textContent(), /Resumo do dia/);
+    assert.ok(await page.locator('.brief .i-h:has-text("Plano do mês")').count());
+    console.log('✓ resumo do dia:', (await page.locator('.brief .idea .i-n').allTextContents()).map((t) => t.split('núcleo')[0].split('satélite')[0].split('cripto')[0]).join(', '));
     const fund = await page.locator('.card[data-key="VWCE.DE"] .px').textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
     assert.match(await page.locator('.card[data-key="VWCE.DE"] .chg').textContent(), /−3,5\d%/);
@@ -180,6 +184,10 @@ function proxyBody(u) {
     assert.ok(await page.locator('.box:has-text("Análise técnica") .reasons li').count() >= 4);
     assert.equal(await page.locator('.box:has-text("Análise técnica") .hzb').count(), 3, 'três prazos na folha');
     assert.ok(await page.locator('.disc-box .range52 .bar i').count(), 'barra mínimo–máximo do ano');
+    assert.ok(await page.locator('.advice .adv-act').count(), 'o que fazer na TR');
+    assert.match(await page.locator('.advice').textContent(), /€/);
+    assert.ok(await page.locator('.levels li').count() >= 2, 'níveis-chave');
+    console.log('✓ conselho BTC:', await page.locator('.advice .adv-act').textContent(), '| níveis', await page.locator('.levels li').count());
     assert.match(await page.locator('.disc-box .dd-big').textContent(), /%/);
     assert.ok((await page.locator('.disc-box .verdict').textContent()).length > 10);
     const box = await page.locator('#d-cv').boundingBox();
@@ -229,6 +237,17 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ letra larga: nada sai do ecrã');
+
+    // plano: orçamento mensal reparte-se em euros
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.fill('#f-budget', '900');
+    await page.locator('#f-budget').dispatchEvent('change');
+    await page.click('[data-prof="bal"]');
+    await page.click('#mk-nav [data-tab="painel"]');
+    const amounts = await page.locator('.brief .idea .i-t').allTextContents();
+    const total = amounts.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
+    assert.ok(Math.abs(total - 900) <= 3, 'plano soma 900 €: ' + amounts.join(' + '));
+    console.log('✓ plano do mês 900 €:', amounts.join(' + '));
 
     // ajustes: juntar uma ação
     await page.click('#mk-nav [data-tab="ajustes"]');

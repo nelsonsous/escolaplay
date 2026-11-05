@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.3.0';
+    const VERSION = '1.4.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -64,7 +64,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -369,7 +369,7 @@
         for (const k of Object.keys(REG)) {
             const c = closesFor(k);
             if (!c) continue;
-            const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
+            const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', kind: REG[k].kind, news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
             if (r) AN[k] = r;
         }
     }
@@ -607,6 +607,7 @@
         if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
+        ${briefCard()}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
@@ -701,6 +702,85 @@
         const d = r.discount;
         return d && { score: d.score, tone: d.tone, label: d.tag, reasons: [{ pts: 1, txt: d.verdict }] };
     }
+    // preço na mesma moeda/escala do que se mostra (euros, preço da noite)
+    const lvPx = (k, q, price) => price * (q.fx || 1);
+    function adviceBox(k, q) {
+        const r = AN[k];
+        if (!r || !r.advice || !investable(k)) return '';
+        const a = r.advice, A_ = REG[k];
+        const fmt = (price) => fmtPx(lvPx(k, q, price), A_, q.currency);
+        return `<div class="box advice ${a.tone}"><h3>O que fazer na Trade Republic</h3>
+            <div class="adv-act ${a.tone}-t">${esc(a.action)}</div>
+            <div class="adv-txt">${esc(a.text)}</div>
+            ${a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : ''}
+            ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
+            ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}
+            <div class="adv-meta faint">Automático, a partir da tendência, do desconto e dos níveis — valida antes de comprar.</div></div>`;
+    }
+    function levelsBox(k, q) {
+        const r = AN[k];
+        if (!r || !r.levels) return '';
+        const A_ = REG[k], cur = fin(q.price) ? q.price : null;
+        const row = (l, kind) => {
+            const px = lvPx(k, q, l.price);
+            const dist = cur ? (px / cur - 1) * 100 : l.dist * 100;
+            return `<li><span class="lv-k ${kind}">${kind === 'res' ? 'R' : 'S'}</span><span class="lv-n">${esc(l.label)}${l.strong ? ' <small>forte</small>' : ''}</span><b class="num">${fmtPx(px, A_, q.currency)}</b><span class="lv-d num ${kind === 'res' ? 'up' : 'down'}-t">${fmtPct(dist)}</span></li>`;
+        };
+        const res = r.levels.resistances.slice().reverse(), sup = r.levels.supports;
+        return `<div class="box"><h3>Níveis-chave</h3>
+            <ul class="levels">${res.map((l) => row(l, 'res')).join('')}
+            <li class="lv-now"><span class="lv-k now">•</span><span class="lv-n">Preço agora</span><b class="num">${fmtPx(q.price, A_, q.currency)}</b><span class="lv-d"></span></li>
+            ${sup.map((l) => row(l, 'sup')).join('')}</ul>
+            <p class="note">R = resistência (onde costuma travar a subir) · S = suporte (onde costuma travar a descer). Calculados das médias, máximos/mínimos do ano e topos/fundos recentes.</p></div>`;
+    }
+
+    // ---------- Resumo do dia (Painel) ----------
+    const PROFILES = { prud: ['Prudente', 0.9, 0.1, 0], bal: ['Equilibrado', 0.7, 0.2, 0.1], dyn: ['Dinâmico', 0.55, 0.3, 0.15] };
+    function briefCard() {
+        const inv = Object.keys(AN).filter(investable);
+        if (!inv.length) return '';
+        const V = (k) => qv(k);
+        const idx = [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq'], ['^STOXX50E', 'Euro Stoxx 50'], ['PSI20.LS', 'PSI']]
+            .filter(([k]) => Q[k] && fin(Q[k].changePct)).map(([k, n]) => `${n} <span class="${toneOf(Q[k].changePct)}-t">${fmtPct(Q[k].changePct)}</span>`);
+        const vix = Q['^VIX'] && Q['^VIX'].price;
+        const breadth = inv.filter((k) => AN[k].score >= 58).length / inv.length;
+        const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix, breadth });
+        const btc = V('c:BTC');
+        const movers = inv.filter((k) => fin(V(k).changePct)).sort((a, b) => V(b).changePct - V(a).changePct);
+        const up = movers.slice(0, 2).filter((k) => V(k).changePct > 1), dn = movers.slice(-2).reverse().filter((k) => V(k).changePct < -1);
+        const adv = (k) => AN[k].advice;
+        // plano do mês
+        const [pName, pCore, pSat, pCry] = PROFILES[cfg.profile] || PROFILES.bal;
+        const L = (k) => (AN[k].horizons.long || AN[k].horizons.mid).score;
+        const funds = inv.filter((k) => REG[k].kind === 'fund' && L(k) >= 50).sort((a, b) => (b === 'VWCE.DE') - (a === 'VWCE.DE') || L(b) - L(a));
+        const core = funds[0];
+        const sats = inv.filter((k) => k !== core && REG[k].kind !== 'crypto' && ['buy', 'scale'].includes(adv(k).key))
+            .sort((a, b) => (adv(b).key === 'scale' ? AN[b].discount.score : L(b)) - (adv(a).key === 'scale' ? AN[a].discount.score : L(a))).slice(0, 2);
+        const cryp = ['c:BTC', 'c:ETH'].filter((k) => AN[k] && ['buy', 'scale'].includes(adv(k).key));
+        const avoid = inv.filter((k) => adv(k).key === 'avoid').sort((a, b) => L(a) - L(b)).slice(0, 4);
+        let cS = sats.length ? pSat : 0, cC = cryp.length ? pCry : 0;
+        const cCore = 1 - cS - cC;
+        const B = +cfg.budget || 0;
+        const amt = (f) => B ? fmtPx(B * f, { decimals: 0 }, 'EUR') : Math.round(f * 100) + '%';
+        const line = (k, share, extra) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}<small>${esc(extra)}</small></span><span class="i-t num">${amt(share)}</span></button>`;
+        const plan = [];
+        if (core) plan.push(line(core, cCore, `núcleo · ${adv(core).action.toLowerCase()}`));
+        sats.forEach((k) => plan.push(line(k, cS / sats.length, `satélite · ${adv(k).action.toLowerCase()}`)));
+        cryp.forEach((k) => plan.push(line(k, cC / cryp.length, `cripto · ${adv(k).action.toLowerCase()}`)));
+        const notes = [];
+        if (!sats.length && pSat) notes.push('Sem ações em boa altura: a parte dos satélites fica no núcleo este mês.');
+        if (!cryp.length && pCry) notes.push('Cripto sem sinal de compra: essa parte fica no núcleo este mês.');
+        return `<details class="brief" ${cfg.brief ? 'open' : ''}><summary><span>Resumo do dia</span>${mood ? `<b class="${mood.tone}-t">${esc(mood.label)}</b>` : ''}</summary>
+            ${idx.length ? `<p>${idx.join(' · ')}${fin(vix) ? ` · VIX ${Math.round(vix)}${vix > 25 ? ' (medo)' : vix < 16 ? ' (calma)' : ''}` : ''}</p>` : ''}
+            ${btc && fin(btc.price) ? `<p>Bitcoin ${fmtPx(btc.price, REG['c:BTC'], btc.currency)} <span class="${toneOf(btc.changePct)}-t">${fmtPct(btc.changePct)}</span> em 24 h.</p>` : ''}
+            ${mood ? `<p class="muted">${esc(mood.hint)}</p>` : ''}
+            ${up.length || dn.length ? `<p>${up.length ? 'Sobem: ' + up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}${up.length && dn.length ? '<br>' : ''}${dn.length ? 'Caem: ' + dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
+            <div class="i-blk"><div class="i-h">Plano do mês na Trade Republic<small>perfil ${esc(pName.toLowerCase())}${B ? ` · ${fmtPx(B, { decimals: 0 }, 'EUR')}/mês` : ' · define o valor em Ajustes'}</small></div>${plan.join('')}</div>
+            ${notes.map((n) => `<p class="note">${esc(n)}</p>`).join('')}
+            ${avoid.length ? `<p class="note">Evitar por agora: ${avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
+            <p class="note">Toca num nome para ver o plano de compra em preços. Automático — valida antes de investir.</p></details>`;
+    }
+
     function discountBox(k, q) {
         const d = AN[k] && AN[k].discount;
         if (!d) return '';
@@ -789,6 +869,13 @@
                     <button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
                     <div class="hint" id="f-proxy-msg">${cfg.proxy ? (st.yahooErr ? 'Último erro: ' + esc(st.yahooErr) : st.yahooAt ? 'Ligado. Última leitura ' + esc(ago(st.yahooAt)) + '.' : 'A testar…') : 'Publica o Worker da pasta <code>mercados/proxy</code> (<code>npx wrangler deploy</code>) e cola aqui o URL.'}</div></div>
             </div></section>
+        <section class="sec"><div class="sec-h"><h2>O teu plano na Trade Republic</h2></div>
+            <div class="form">
+                <div><label for="f-budget">Quanto investes por mês (€)</label>
+                    <input id="f-budget" class="inp" type="number" inputmode="decimal" min="0" step="50" data-cfg="budget" value="${+cfg.budget || ''}" placeholder="ex.: 900"></div>
+                <div><label>Perfil de risco</label><div class="seg prof">${Object.entries(PROFILES).map(([v, [n, c, s, cr]]) => `<button type="button" data-prof="${v}" class="${cfg.profile === v ? 'on' : ''}"><b>${n}</b><small>${Math.round(c * 100)}/${Math.round(s * 100)}/${Math.round(cr * 100)}</small></button>`).join('')}</div>
+                    <div class="hint">Núcleo (ETF) / satélites (ações) / cripto. O Resumo do dia divide o valor do mês por estas partes, conforme os sinais de cada ativo.</div></div>
+            </div></section>
         <section class="sec"><div class="sec-h"><h2>Preferências</h2></div>
             <div class="form">
                 <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="${cfg.eur ? 'on' : ''}">EUR</button><button type="button" data-eur="0" class="${cfg.eur ? '' : 'on'}">Moeda local</button></div></div>
@@ -875,7 +962,7 @@
     function analyseOne(k) {
         const c = closesFor(k);
         if (!c) return;
-        const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
+        const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', kind: REG[k].kind, news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
         if (r) AN[k] = r;
     }
     async function ensureAnalysis(k) {
@@ -962,6 +1049,7 @@
             <div class="d-tip" id="d-tip"></div>
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+            ${adviceBox(k, q)}
             <div class="stats">
                 ${stat('Máx. do dia', fmtPx(q.dayHigh, a, q.currency))}${stat('Mín. do dia', fmtPx(q.dayLow, a, q.currency))}
                 ${a.kind === 'crypto' ? stat('Volume 24 h', fmtBig(q.volume) + ' ' + cfg.fiat) : stat('Fecho anterior', fmtPx(q.prevClose, a, q.currency))}
@@ -977,6 +1065,7 @@
                 <p class="note">Toca num prazo para ver as razões. Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
             </div>
             ${a.kind === 'energy' || k === 'GC=F' ? '<p class="note" style="margin:-4px 2px 14px">Contrato de futuros (referência). Na Trade Republic não se compra diretamente; existem ETC, com custos de rolagem a prazo.</p>' : ''}
+            ${levelsBox(k, q)}
             ${discountBox(k, q)}
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
@@ -1053,7 +1142,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1073,6 +1162,7 @@
         if (d.add) { addWatch(d.add, d.name, d.type); return; }
         if (d.eur) { cfg.eur = d.eur === '1'; saveCfg(); render(); return; }
         if (d.hz) { cfg.hz = d.hz; saveCfg(); render(); return; }
+        if (d.prof) { cfg.profile = d.prof; saveCfg(); render(); return; }
         switch (d.act) {
             case 'refresh': refreshAll(); break;
             case 'close': closeSheet(true); break;
@@ -1105,7 +1195,7 @@
     document.addEventListener('change', (ev) => {
         const t = ev.target;
         if (t.dataset && t.dataset.cfg) {
-            cfg[t.dataset.cfg] = t.dataset.cfg === 'alertPct' ? +t.value : t.value;
+            cfg[t.dataset.cfg] = ['alertPct', 'budget'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.value;
             saveCfg();
             if (t.dataset.cfg === 'distrito') { FUEL = null; loadFuel(); }
             t.blur(); render();
@@ -1123,6 +1213,7 @@
         if (ev.key === 'Enter' && ev.target.id === 'f-proxy') { ev.preventDefault(); $('[data-act="save-proxy"]').click(); }
     });
     window.addEventListener('resize', () => { drawSparks(); drawSheetChart(); });
+    document.addEventListener('toggle', (ev) => { if (ev.target.classList && ev.target.classList.contains('brief') && cfg.brief !== ev.target.open) { cfg.brief = ev.target.open; saveCfg(); } }, true);
 
     // ---------- ciclo ----------
     let yTimer = 0;
