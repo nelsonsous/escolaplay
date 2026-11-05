@@ -25,7 +25,7 @@ function series(sym, n, stepSec, drift) {
 function quote(sym, range) {
     const daily = range !== '1d';
     const drift = ((hash(sym) % 9) - 4) / 1500;
-    const s = daily ? series(sym, range === '2y' ? 505 : range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
+    const s = daily ? series(sym, range === '5y' ? 1260 : range === '2y' ? 505 : range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
     const chgPct = DAYCHG[sym] ?? (((hash(sym) % 600) - 300) / 100);
     const price = BASE[sym] || s[s.length - 1][1];
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
