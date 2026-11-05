@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.1.0';
+    const VERSION = '1.2.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -684,7 +684,26 @@
     }
 
     const HZ = [['short', 'Curto', 'dias a 2 semanas'], ['mid', 'Médio', 'semanas a 3 meses'], ['long', 'Longo', 'anos']];
-    const hzOf = (k, hz) => AN[k] && AN[k].horizons && AN[k].horizons[hz || cfg.hz];
+    const MODES = HZ.concat([['disc', 'Desconto', 'face ao máximo']]);
+    function hzOf(k, hz) {
+        const r = AN[k];
+        if (!r) return null;
+        const h = hz || cfg.hz;
+        if (h !== 'disc') return r.horizons && r.horizons[h];
+        const d = r.discount;
+        return d && { score: d.score, tone: d.tone, label: d.tag, reasons: [{ pts: 1, txt: d.verdict }] };
+    }
+    function discountBox(k, q) {
+        const d = AN[k] && AN[k].discount;
+        if (!d) return '';
+        const a = REG[k], f = q.fx || 1;
+        return `<div class="box disc-box"><h3>Desconto <span class="chip-s">${esc(d.levelLabel)}</span></h3>
+            <div class="dd-big num ${d.dd <= -0.05 ? 'down' : 'flat'}-t">${fmtPct(d.dd * 100)}<small>face ao máximo do ano</small></div>
+            <div class="range52" aria-label="Posição entre o mínimo e o máximo do ano"><div class="bar"><i style="left:${(d.pos * 100).toFixed(1)}%"></i></div>
+                <div class="ends num"><span>mín. ${fmtPx(d.lo * f, a, q.currency)}</span><span>máx. ${fmtPx(d.hi * f, a, q.currency)}</span></div></div>
+            <div class="verdict ${d.tone}-t">${esc(d.verdict)}</div>
+            <ul class="dnotes">${d.notes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>`;
+    }
     function reasonList(list) {
         return `<ul class="reasons">${list.map((x) => `<li><span class="p ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : 'flat'}-t">${x.pts > 0 ? '+' : ''}${x.pts || '·'}</span><span>${esc(x.txt)}</span></li>`).join('')}</ul>`;
     }
@@ -704,10 +723,10 @@
         const chips = [['all', 'Tudo'], ['stock', 'Ações'], ['fund', 'Fundos'], ['crypto', 'Cripto'], ['energy', 'Energia e ouro']];
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
-        <div class="seg hz" role="group" aria-label="Prazo">${HZ.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l} prazo</b><small>${d}</small></button>`).join('')}</div>
+        <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l} prazo</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         ${!shown.length ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
-        <section class="sec"><div class="sec-h"><h2>Mais fortes a ${{ short: 'curto', mid: 'médio', long: 'longo' }[hz]} prazo</h2></div>
+        <section class="sec"><div class="sec-h"><h2>${hz === 'disc' ? 'Maiores oportunidades (desconto)' : `Mais fortes a ${{ short: 'curto', mid: 'médio', long: 'longo' }[hz]} prazo`}</h2></div>
             <div class="top3">${top.map((k, i) => `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
                 <div class="medal">${['1.º', '2.º', '3.º'][i]} lugar</div>
                 <div class="c-top" style="margin-top:4px"><span class="c-name">${esc(nameOf(k))}</span><span class="c-sym">${esc(REG[k].sym)}</span></div>
@@ -718,13 +737,14 @@
         <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${shown.length} ativos · 0 a 100</span></div>
             <div class="list">${shown.map((k, i) => `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
                 <span class="rk">${i + 1}</span>
-                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
+                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${hz === 'disc' && AN[k].discount ? esc(fmtPct(AN[k].discount.dd * 100) + ' do máx. · ') : ''}${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
                 <div class="r-score">${scoreBar(hzOf(k, hz))}<div class="lbl ${hzOf(k, hz).tone}-t">${esc(hzOf(k, hz).label)}</div></div>
             </button>`).join('')}</div></section>`}
         <details class="how"><summary>Como é calculada a pontuação?</summary><ul>
             <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>
             <li><b>Médio prazo</b> (semanas a 3 meses): médias de 20 e 50 dias, variação de 1 e 3 meses, MACD e RSI.</li>
             <li><b>Longo prazo</b> (anos): média de 200 dias e se está a subir, variação de 1 ano e desconto face ao máximo. Uma descida com a tendência longa a subir conta como oportunidade para ir comprando aos poucos.</li>
+            <li><b>Desconto</b>: quanto o preço está abaixo do máximo do último ano, com o RSI e a tendência longa. "Oportunidade" quando há desconto e a tendência longa ainda sobe; "Barato, mas a cair" quando a tendência longa desce (melhor esperar).</li>
             <li><b>RSI</b>: acima de 70 está "esticado" (risco de correção); abaixo de 30 está muito castigado (pode ressaltar).</li>
             <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>
             <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li>
@@ -930,6 +950,7 @@
                     ${reasonList(h.reasons)}</details>` : `<div class="hzb na"><div class="hz-t"><b>${l} prazo</b><small>${d}</small></div><div class="note">Histórico curto demais.</div></div>`; }).join('')}
                 <p class="note">Toca num prazo para ver as razões. Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
             </div>
+            ${discountBox(k, q)}
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
                 : `<ul class="news">${n.items.map((it) => `<li><a href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer"><span class="tone ${it.tone.tone}">${esc(it.tone.label)}</span>${esc(it.title)}</a>
