@@ -384,6 +384,11 @@ code.sel { user-select: all; -webkit-user-select: all; font-size: 11.5px; word-b
 .claude > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; font-weight: 750; font-size: 15px; }
 .claude > summary::-webkit-details-marker { display: none; }
 .claude > summary small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
+/* cartões condensados depois de lidos: uma linha com o essencial */
+.fold > summary { flex-wrap: wrap; }
+.fold .teaser { display: none; flex-basis: 100%; font-style: normal; font-weight: 500; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold:not([open]) .teaser { display: block; }
+.fold:not([open]) { padding-top: 9px; padding-bottom: 9px; margin-bottom: 10px; }
 .claude .cl-head { font-weight: 700; font-size: 15px; margin-top: 8px; color: #f3d9cd; }
 .claude p { margin: 8px 0 0; }
 .claude .muted { color: var(--muted); }
@@ -410,3 +415,12 @@ details.auto { margin-bottom: 16px; }
 details.auto > summary { cursor: pointer; list-style: none; font-weight: 700; font-size: 13.5px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); color: var(--muted); }
 details.auto > summary::-webkit-details-marker { display: none; }
 details.auto[open] > summary { margin-bottom: 10px; }
+
+/* imposto da cripto (365 dias) */
+.tax-box .tx-head { margin: 0 0 8px; font-size: 13.5px; line-height: 1.45; }
+.tax-box .lots { list-style: none; margin: 0 0 8px; padding: 0; }
+.tax-box .lots li { display: grid; grid-template-columns: 92px 64px 1fr 32px; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.tax-box .lot-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.tax-box .lot-add label { flex-basis: 100%; font-size: 12.5px; color: var(--muted); }
+.tax-box .lot-add .inp { flex: 1 1 120px; min-width: 0; }
+.mk-ibtn.sm { width: 28px; height: 28px; }

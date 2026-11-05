@@ -14,7 +14,7 @@
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
 //   GET  /journal?id=…                        → diário de sugestões (KV)
-//   POST /journal  { id, date, items }        → guardar as sugestões do dia
+//   POST /journal  { id, date, items, lots }  → guardar as sugestões do dia e as datas de compra de cripto
 //   GET  /advice[?date=AAAA-MM-DD]            → análise diária escrita pelo Claude (KV, só leitura;
 //                                               a tarefa agendada escreve-a pela API da Cloudflare)
 //
@@ -352,10 +352,26 @@ const JDATE = /^\d{4}-\d{2}-\d{2}$/;
 const JMAX_DAYS = 800;
 export function upsertJournal(doc, date, items) {
     const days = (doc && doc.days) || {};
-    days[date] = items;
+    if (date && items) days[date] = items;
     const keys = Object.keys(days).sort();
     while (keys.length > JMAX_DAYS) delete days[keys.shift()];
-    return { v: 1, days };
+    const out = { v: 1, days };
+    if (doc && doc.lots) out.lots = doc.lots;
+    if (doc && doc.saveDays) out.saveDays = doc.saveDays;
+    return out;
+}
+// compras de cripto (para a isenção de 365 dias): { 'c:BTC': { plan: 'AAAA-MM-DD', buys: [{ d, e }] } }
+export function cleanLots(l) {
+    if (!l || typeof l !== 'object' || Array.isArray(l)) return null;
+    const out = {};
+    for (const k of Object.keys(l).slice(0, 12)) {
+        if (!/^c:[A-Z0-9]{2,8}$/.test(k) || !l[k] || typeof l[k] !== 'object') continue;
+        const buys = (Array.isArray(l[k].buys) ? l[k].buys : []).slice(0, 400)
+            .filter((x) => x && JDATE.test(x.d || '')).map((x) => ({ d: x.d, e: Number.isFinite(+x.e) && +x.e > 0 ? Math.round(+x.e * 100) / 100 : 0 }));
+        const plan = JDATE.test(l[k].plan || '') ? l[k].plan : '';
+        if (buys.length || plan) out[k] = { plan, buys };
+    }
+    return out;
 }
 export function cleanItems(items) {
     if (!Array.isArray(items)) return null;
@@ -377,8 +393,13 @@ async function journal(request, url, env) {
     let b;
     try { b = JSON.parse(text); } catch { return { status: 400, body: { error: 'JSON inválido' } }; }
     const items = cleanItems(b && b.items);
-    if (!b || !JID.test(b.id || '') || !JDATE.test(b.date || '') || !items || !items.length) return { status: 400, body: { error: 'dados inválidos' } };
-    const doc = upsertJournal(await env.JOURNAL.get('j:' + b.id, 'json'), b.date, items);
+    const lots = cleanLots(b && b.lots);
+    const hasItems = items && items.length && JDATE.test((b && b.date) || '');
+    if (!b || !JID.test(b.id || '') || (!hasItems && !lots)) return { status: 400, body: { error: 'dados inválidos' } };
+    const old = await env.JOURNAL.get('j:' + b.id, 'json');
+    const doc = upsertJournal(old, hasItems ? b.date : null, hasItems ? items : null);
+    if (lots) doc.lots = lots;
+    if (Array.isArray(b.saveDays)) doc.saveDays = b.saveDays.map(Number).filter((d) => [2, 9, 16, 23].includes(d)).slice(0, 4);
     await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc));
     return { body: { ok: true, days: Object.keys(doc.days).length } };
 }

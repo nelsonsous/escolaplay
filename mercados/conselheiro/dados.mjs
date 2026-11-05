@@ -29,7 +29,7 @@ const tryOr = async (f, fb, what) => { try { return await f(); } catch (e) { war
 // 1) Diário (para incluir ações que o utilizador juntou na app)
 const jKeys = await tryOr(() => kvKeys('j:'), [], 'diário (lista)');
 const journals = [];
-for (const k of jKeys) { const d = await tryOr(() => kvGet(k), null, 'diário ' + k); if (d && d.days) journals.push({ id: k.slice(2), days: d.days }); }
+for (const k of jKeys) { const d = await tryOr(() => kvGet(k), null, 'diário ' + k); if (d && d.days) journals.push({ id: k.slice(2), days: d.days, lots: d.lots, saveDays: d.saveDays }); }
 // ações juntadas pelo utilizador: só as do dia mais recente de cada diário (a lista da app pode ter mudado)
 const extra = new Set();
 for (const j of journals) { const last = Object.keys(j.days).sort().pop(); for (const it of (last ? j.days[last] : [])) if (!CRYPTO[it.s] && !FUNDS[it.s] && !STOCKS[it.s]) extra.add(it.s); }
@@ -130,8 +130,18 @@ for (const j of journals) {
     }
 }
 const lessons = (await tryOr(() => kvGet('advice:lessons'), null, 'lições')) || [];
+// datas de compra de cripto que o investidor pôs na app (isenção de IRS aos 365 dias)
+const cryptoTax = {};
+for (const j of journals) {
+    const lots = j.lots || {}, sd = j.saveDays || [2];
+    for (const k of Object.keys(CRYPTO)) {
+        const L = lots[k] || {};
+        const t = A.cryptoTax((L.buys || []).concat(A.planLots(L.plan, sd, today)), today);
+        cryptoTax[k] = { ...t, lots: t.lots.filter((x) => !x.ok).slice(0, 12), plan: L.plan || '' };
+    }
+}
 
-const data = { date: today, generatedAt: new Date().toISOString(), market, rows, news, pastAdvice, ruleEval, lessons, prefs: journals.map((j) => j.id), warnings: warn };
+const data = { date: today, generatedAt: new Date().toISOString(), market, rows, news, pastAdvice, ruleEval, lessons, cryptoTax, prefs: journals.map((j) => j.id), warnings: warn };
 writeFileSync(path.join(OUT, 'dados.json'), JSON.stringify(data, null, 1));
 
 // Resumo legível
@@ -146,6 +156,11 @@ if (!pastAdvice.length) L.push('- (ainda nenhum)');
 for (const a of pastAdvice.slice(-15)) L.push(`- ${a.date} "${a.headline}" | VWCE ${pc(a.vwce)} | ` + a.actions.map((x) => `${x.s} ${x.action}: ${pc(x.ret)} (vs VWCE ${pc(x.vsVWCE)})`).join('; '));
 L.push('## Sugestões automáticas do diário (média desde cada dia)');
 for (const [k, E] of Object.entries(ruleEval)) L.push(`- ${k}: n=${E.n} média ${pc(E.sum / E.n)} vs VWCE ${pc(E.nex ? E.ex / E.nex : null)}`);
+L.push('## Cripto: datas de compra e isenção de IRS (365 dias)');
+for (const [k, t] of Object.entries(cryptoTax)) {
+    if (!t.n) { L.push(`- ${k}: data de compra por indicar na app → perguntar ao investidor antes de falar em vender`); continue; }
+    L.push(`- ${k}: ${t.n} compras desde ${t.first}${t.plan ? ` (plano mensal desde ${t.plan})` : ''}; ${t.exempt} isentas${t.eur ? ` (${Math.round(t.eurExempt)} € de ${Math.round(t.eur)} €)` : ''}${t.next ? `; próxima isenta a ${t.next.free} (faltam ${t.next.days} dias)` : '; todas isentas'}`);
+}
 L.push('## Lições guardadas'); for (const l of lessons) L.push(`- ${l}`);
 if (warn.length) { L.push('## Avisos'); for (const w of warn) L.push(`- ${w}`); }
 writeFileSync(path.join(OUT, 'dados.md'), L.join('\n'));
