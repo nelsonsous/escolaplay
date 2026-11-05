@@ -5,6 +5,7 @@ App à parte (PWA instalável) para acompanhar, num só ecrã do telemóvel:
 - **Cripto em tempo real** — Bitcoin, Ether, Solana e XRP (Binance, WebSocket; em EUR ou USD).
 - **Petróleo e energia** — Brent, WTI, gasolina (RBOB), gasóleo (ULSD) e gás natural, com a conversão aproximada para €/litro.
 - **Combustíveis em Portugal** — preço mediano do gasóleo simples e da gasolina 95 nas bombas e o posto mais barato (DGEG), no país ou por distrito.
+- **Fundos e ETF** — vem com o Vanguard FTSE All-World (VWCE); à noite usa o preço de Munique (gettex, até às 22 h), perto do que a Trade Republic mostra. Ações e fundos em euros, como na TR.
 - **Índices, câmbio e ouro** — S&P 500, Nasdaq, Euro Stoxx 50, PSI, VIX, EUR/USD.
 - **Ações que segues** — lista editável (vem com PSI, Europa e EUA; procura e junta outras).
 - **Destaques** — o que sobe ou cai mais do que ±X % hoje, com a notícia do dia e se é **boa ou má notícia**; e as maiores subidas/descidas do mercado americano.
@@ -34,7 +35,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | Pedido | Devolve | Cache no CDN |
 |---|---|---|
 | `/quotes?symbols=BZ=F,AAPL&range=1d` | cotação, variação, máx./mín., série (até 40 símbolos; `range` = 1d, 5d, 1mo, 6mo, 1y, 5y) | 15 s a 1 h |
-| `/news?q=Galp&lang=pt` | notícias dos últimos 3 dias (Google Notícias; Yahoo de recurso) | 10 min |
+| `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/search?q=mota` | procurar símbolos | 1 h |
 | `/fuel?distrito=11` | mediana, média, mín./máx. e postos mais baratos (DGEG) | 1 h |
