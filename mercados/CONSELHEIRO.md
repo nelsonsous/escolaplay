@@ -6,7 +6,9 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
 
 - Investe **a longo prazo** pela **Trade Republic**, com **900 € por mês** num plano de poupança no **VWCE** (FTSE All-World).
 - Os planos da TR executam nos dias **2, 9, 16 e 23** (sem custos; alteráveis até à véspera). Por omissão, sugerir **dias 2 e 16** (450 € cada).
-- Perfil por omissão: **prudente** (≈90% ETF, ≈10% satélites, 0% cripto) — mudar só se o diário mostrar que os satélites estão a acrescentar valor. Ordens manuais na TR custam 1 €; planos de poupança são grátis.
+- **Estratégia: ETF + cripto, a longo prazo.** Por omissão **810 € no VWCE + 90 € em Bitcoin por mês** (90/10; na app pode ser 0–15% em cripto, só BTC ou BTC 70 / ETH 30). A cripto entra **todos os meses** (compra regular, sem tentar acertar no momento) e mantém-se **pelo menos 365 dias** (isenção de IRS).
+- **Ações individuais não entram no plano** (o VWCE já as tem; no teste de 2 anos ficaram atrás do VWCE). Aparecem só como contexto ou para avisar de armadilhas — nunca recomendar comprá-las.
+- Ordens manuais na TR custam 1 €; planos de poupança são grátis.
 - Valida sempre antes de investir: escrever como conselheiro direto e honesto, sem rodeios, mas sem prometer resultados.
 
 ## Universo
@@ -18,7 +20,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
 
 - O investidor investe **a longo prazo** (anos). O curto e o médio prazo servem só para decidir *quando* e *quanto* pôr nos satélites, nunca para rodar a carteira.
 - **Cripto**: em Portugal, mais-valias de criptoativos detidos **365 dias ou mais estão isentas** de IRS; com menos de 365 dias pagam **28%** (ou englobamento, que pode chegar a 48% no último escalão). Logo: nunca sugerir vender cripto com menos de 1 ano sem dizer quanto custa em imposto; preferir manter mais de 365 dias; se houver dúvida sobre a data de compra, perguntar ao investidor em vez de assumir.
-- **Ações e ETF**: 28% sobre o ganho ao vender, seja qual for o prazo. O VWCE é de acumulação (não distribui): sem imposto enquanto não se vender. Minimizar vendas; reforçar em vez de rodar.
+- **Ações e ETF**: regra geral 28% sobre o ganho ao vender. Há notícias de um regime de alívio para detenção longa (> 2 anos) aprovado em 2024, ainda não confirmado para ETF — não o usar como argumento até estar confirmado. O VWCE é de acumulação (não distribui): sem imposto enquanto não se vender. Minimizar vendas; reforçar em vez de rodar.
 - Isto é informação geral; casos concretos (englobamento, perdas a reportar) confirmam-se com a AT ou um contabilista.
 
 ## Dias úteis e fim de semana
@@ -60,8 +62,8 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
    ```
    - `s` usa as chaves da app: símbolos do Yahoo (`VWCE.DE`, `AMZN`, `EDP.LS`…) e `c:BTC`, `c:ETH`, `c:SOL`, `c:XRP` para cripto.
    - `key` ∈ `buy`, `scale`, `hold`, `wait`, `neutral`, `turn`, `avoid`, `sell`.
-   - `plan`: o que fazer com os 900 € **deste mês** (soma = 900 €). O VWCE fica sempre com a maior parte. Se a próxima execução for amanhã, dizê-lo.
-   - `actions`: até 10 ativos que merecem atenção hoje (os que o investidor pode ter ou querer: ETF, ações seguidas, cripto). Incluir os que têm resultados ou ex-dividendo próximos.
+   - `plan`: o que fazer com os 900 € **deste mês** (soma = 900 €): **só VWCE e cripto** (por omissão 810 € VWCE + 90 € BTC). Mudar a divisão só com motivo forte e explicado (ex.: reforço extra no VWCE perto do suporte); a cripto não se suspende por quedas de curto prazo. Se a próxima execução for amanhã, dizê-lo.
+   - `actions`: até 10 ativos que merecem atenção hoje — **primeiro VWCE, Bitcoin e Ether**, depois outros ETF; ações só para contexto (`key` `neutral`/`avoid`, nunca `buy`/`scale`).
    - Português de Portugal, frases curtas, números concretos.
 5. Publicar (valida e grava `advice:<data>`, `advice:latest` e as lições no KV; a app mostra no cartão "Análise do Claude"):
    ```bash

@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.8.1';
+    const VERSION = '1.9.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -70,7 +70,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -80,6 +80,8 @@
     if (!Array.isArray(cfg.funds)) cfg.funds = DEFAULT_FUNDS.slice();
     if (!cfg.jid) { cfg.jid = (crypto.randomUUID ? crypto.randomUUID() : 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).toLowerCase(); store.set(KEY, cfg); }
     if (!Array.isArray(cfg.saveDays) || !cfg.saveDays.length) cfg.saveDays = [2];
+    // 1.9: a estratégia passa a ETF + cripto a longo prazo (o que o teste de 2 anos e o investidor indicaram)
+    if ((cfg.stratVer || 0) < 1) { cfg.hz = 'long'; cfg.filter = 'plan'; cfg.stratVer = 1; store.set(KEY, cfg); }
     if ((cfg.watchVer || 1) < 3) {
         const mine = (cfg.watch || []).filter((x) => !OLD_DEFAULT.includes(x));
         cfg.watch = DEFAULT_WATCH.concat(mine.filter((x) => !DEFAULT_WATCH.includes(x)));
@@ -110,6 +112,10 @@
     const listed = (k) => !!REG[k] && !REG[k].temp && REG[k].kind !== 'aux';
     // o que se compra diretamente numa corretora como a Trade Republic (futuros e índices não)
     const investable = (k) => listed(k) && ['stock', 'fund', 'crypto'].includes(REG[k].kind);
+    const etfCrypto = () => cfg.strategy !== 'mix';
+    // ativos do plano: o fundo núcleo e a cripto escolhida
+    const planKeys = () => [cfg.coreFund].concat(cfg.cryptoMix === 'btceth' ? ['c:BTC', 'c:ETH'] : ['c:BTC']).filter((k) => REG[k]);
+    const inPlan = (k) => REG[k] && (REG[k].kind === 'fund' || REG[k].kind === 'crypto');
     const yahooKeys = () => Object.values(REG).filter((a) => a.kind !== 'crypto' && !a.temp).map((a) => a.key);
     const nameOf = (k) => (REG[k] && REG[k].name !== REG[k].sym ? REG[k].name : null) || (Q[k] && Q[k].name) || (REG[k] && REG[k].name) || k;
 
@@ -765,6 +771,8 @@
         return `${cfg.proxy ? '' : setupBanner()}
         ${claudeCard()}
         ${briefCard()}
+        ${etfCrypto() ? `<section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o plano</span></div>
+            <div class="grid g3">${planKeys().map((k) => card(k, AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '')).join('')}</div></section>` : ''}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
@@ -774,13 +782,15 @@
         ${viewFuel()}
         <section class="sec"><div class="sec-h"><h2>Índices, câmbio e ouro</h2></div>
             <div class="list">${INDICES.map((i) => row(i.sym, { sub: i.sym })).join('')}</div></section>
+        ${etfCrypto() ? `<details class="stocks-fold"><summary>Ações (só informação — não fazem parte do plano) <span class="sub">${cfg.watch.length}</span></summary>` : ''}
         <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${cfg.watch.length}</span>
             <div class="right seg" role="group" aria-label="Ordenar">
                 <button type="button" data-sort="chg" class="${cfg.sort === 'chg' ? 'on' : ''}">Variação</button>
                 <button type="button" data-sort="name" class="${cfg.sort === 'name' ? 'on' : ''}">Nome</button>
                 <button type="button" data-sort="mine" class="${cfg.sort === 'mine' ? 'on' : ''}">Minha</button></div></div>
             ${stocks.length ? `<div class="list">${stocks.map((s) => row(s)).join('')}</div>` : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}
-            <p class="note">Cripto em tempo real. Ações, índices e petróleo: dados gratuitos do Yahoo Finance, que podem ter até 15 min de atraso nalgumas bolsas. Atualiza a cada 30 s.</p></section>`;
+            </section>${etfCrypto() ? '</details>' : ''}
+            <p class="note">Cripto em tempo real. Ações, índices e petróleo: dados gratuitos do Yahoo Finance, que podem ter até 15 min de atraso nalgumas bolsas. Atualiza a cada 30 s.</p>`;
     }
 
     function viewFuel() {
@@ -823,30 +833,24 @@
     }
 
     function viewHighlights() {
-        const lim = +cfg.alertPct || 4;
         const V = {};
         const all = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && fin((V[k] = qv(k)).changePct));
-        const ups = all.filter((k) => V[k].changePct >= lim).sort((a, b) => V[b].changePct - V[a].changePct);
-        const downs = all.filter((k) => V[k].changePct <= -lim).sort((a, b) => V[a].changePct - V[b].changePct);
-        const big = [...ups, ...downs];
-        // notícias para os grandes movimentos (até 8)
-        big.slice(0, 8).forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
-        const topAll = all.slice().sort((a, b) => Math.abs(V[b].changePct) - Math.abs(V[a].changePct)).slice(0, 6);
-        if (!big.length) topAll.forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
-
-        const block = (title, keys, emptyTxt) => `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">${keys.length}</span></div>
+        const mine = (etfCrypto() ? planKeys() : cfg.funds.slice(0, 1).concat(['c:BTC'])).filter((k) => V[k] || fin((V[k] = qv(k)).changePct));
+        const rest = all.filter((k) => !mine.includes(k));
+        const ups = rest.filter((k) => V[k].changePct > 0).sort((a, b) => V[b].changePct - V[a].changePct).slice(0, 6);
+        const downs = rest.filter((k) => V[k].changePct < 0).sort((a, b) => V[a].changePct - V[b].changePct).slice(0, 6);
+        // notícias: os meus ativos e os maiores movimentos
+        mine.concat(ups.slice(0, 3), downs.slice(0, 3)).forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
+        const block = (title, sub, keys, emptyTxt) => `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">${sub}</span></div>
             ${keys.length ? `<div class="list">${keys.map((k) => moverRow(k, V[k])).join('')}</div>` : `<div class="empty">${emptyTxt}</div>`}</section>`;
-
-        const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA</span></div>
-            <div class="list">${arr.slice(0, 8).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
-
+        const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA · informação</span></div>
+            <div class="list">${arr.slice(0, 6).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
         return `${cfg.proxy ? '' : setupBanner()}
-        <div class="chips" role="group" aria-label="Limite">${[2, 3, 4, 5, 8, 10].map((p) => `<button type="button" data-lim="${p}" class="${lim === p ? 'on' : ''}">±${p}%</button>`).join('')}</div>
-        ${block(`Grandes subidas hoje (≥ ${lim}%)`, ups, 'Nada do que segues sobe tanto hoje.')}
-        ${block(`Grandes descidas hoje (≤ −${lim}%)`, downs, 'Nada do que segues cai tanto hoje.')}
-        ${!big.length && topAll.length ? `<section class="sec"><div class="sec-h"><h2>Maiores movimentos do que sigo</h2></div><div class="list">${topAll.map((k) => moverRow(k, V[k])).join('')}</div></section>` : ''}
-        ${MOVERS ? usBlock('Mais sobem — mercado todo', MOVERS.gainers) + usBlock('Mais caem — mercado todo', MOVERS.losers) + usBlock('Mais negociadas', MOVERS.actives) : (cfg.proxy ? `<p class="note">${st.moversErr ? 'Lista global indisponível: ' + esc(st.moversErr) : 'A carregar a lista global…'}</p>` : '')}
-        <p class="note">O tom das notícias (boa / má) é calculado por palavras-chave nos títulos — é uma pista rápida, não substitui ler a notícia. Toca numa linha para ver o gráfico e todas as notícias.</p>`;
+        ${block('Os meus ativos hoje', 'o plano', mine, 'A carregar…')}
+        ${block('Mais sobem hoje', 'do que sigo · informação', ups, 'Nada a subir hoje.')}
+        ${block('Mais caem hoje', 'do que sigo · informação', downs, 'Nada a cair hoje.')}
+        ${MOVERS ? usBlock('Mais sobem — mercado todo', MOVERS.gainers) + usBlock('Mais caem — mercado todo', MOVERS.losers) : (cfg.proxy ? `<p class="note">${st.moversErr ? 'Lista global indisponível: ' + esc(st.moversErr) : 'A carregar a lista global…'}</p>` : '')}
+        <p class="note">${etfCrypto() ? 'A longo prazo, os movimentos de um dia não mudam o plano: servem para perceber o mercado. ' : ''}O tom das notícias (boa / má) é calculado por palavras-chave nos títulos. Toca numa linha para ver o gráfico e todas as notícias. Os avisos de subidas/descidas fortes configuram-se em Ajustes.</p>`;
     }
 
     const HZ = [['short', 'Curto', 'dias a 2 semanas'], ['mid', 'Médio', 'semanas a 3 meses'], ['long', 'Longo', 'anos']];
@@ -876,7 +880,7 @@
                 : `<b>Ex-dividendo ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`).join('')}
             ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
             ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}
-            <div class="adv-meta">Impostos (PT): ${REG[k].kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%. A prazo, manter mais de 1 ano.' : REG[k].kind === 'fund' ? '28% sobre o ganho só quando venderes (ETF de acumulação não paga nada enquanto o tiveres).' : '28% sobre o ganho quando venderes; os dividendos também pagam 28%.'}</div>
+            <div class="adv-meta">Impostos (PT): ${REG[k].kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%. A prazo, manter mais de 1 ano.' : REG[k].kind === 'fund' ? 'regra geral 28% sobre o ganho só quando venderes (há notícia de alívio para detenção longa, a confirmar); um ETF de acumulação não paga nada enquanto o tiveres.' : '28% sobre o ganho quando venderes; os dividendos também pagam 28%.'}</div>
             <div class="adv-meta faint">Automático, a partir da tendência, do desconto e dos níveis — valida antes de comprar.</div></div>`;
     }
     function levelsBox(k, q) {
@@ -910,25 +914,34 @@
         const btc = V('c:BTC');
         const movers = inv.filter((k) => fin(V(k).changePct)).sort((a, b) => V(b).changePct - V(a).changePct);
         const up = movers.slice(0, 2).filter((k) => V(k).changePct > 1), dn = movers.slice(-2).reverse().filter((k) => V(k).changePct < -1);
-        const adv = (k) => AN[k].advice;
+        const adv = (k) => (AN[k] && AN[k].advice) || { key: '', action: '' };
         // plano do mês
         const [pName, pCore, pSat, pCry] = PROFILES[cfg.profile] || PROFILES.bal;
         const L = (k) => (AN[k].horizons.long || AN[k].horizons.mid).score;
         const funds = inv.filter((k) => REG[k].kind === 'fund' && L(k) >= 50).sort((a, b) => (b === 'VWCE.DE') - (a === 'VWCE.DE') || L(b) - L(a));
-        const core = funds[0];
+        let core = funds[0];
         const sats = inv.filter((k) => k !== core && REG[k].kind !== 'crypto' && ['buy', 'scale'].includes(adv(k).key))
             .sort((a, b) => (adv(b).key === 'scale' ? AN[b].discount.score : L(b)) - (adv(a).key === 'scale' ? AN[a].discount.score : L(a))).slice(0, 2);
         const cryp = ['c:BTC', 'c:ETH'].filter((k) => AN[k] && ['buy', 'scale'].includes(adv(k).key));
         const avoid = inv.filter((k) => adv(k).key === 'avoid').sort((a, b) => L(a) - L(b)).slice(0, 4);
         let cS = sats.length ? pSat : 0, cC = cryp.length ? pCry : 0;
-        const cCore = 1 - cS - cC;
+        let cCore = 1 - cS - cC;
+        if (etfCrypto()) {
+            // ETF + cripto: o núcleo e a cripto entram todos os meses (sem tentar acertar no momento); ações não entram
+            core = REG[cfg.coreFund] ? cfg.coreFund : core;
+            sats.length = 0; cS = 0;
+            cryp.length = 0; cryp.push(...(cfg.cryptoMix === 'btceth' ? ['c:BTC', 'c:ETH'] : ['c:BTC']));
+            cC = (+cfg.cryptoPct || 0) / 100; cCore = 1 - cC;
+            if (!cC) cryp.length = 0;
+        }
         const B = +cfg.budget || 0;
         const amt = (f) => B ? fmtPx(B * f, { decimals: 0 }, 'EUR') : Math.round(f * 100) + '%';
         const line = (k, share, extra) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}<small>${esc(extra)}</small></span><span class="i-t num">${amt(share)}</span></button>`;
         const plan = [];
         if (core) plan.push(line(core, cCore, `núcleo · ${adv(core).action.toLowerCase()}`));
         sats.forEach((k) => plan.push(line(k, cS / sats.length, `satélite · ${adv(k).action.toLowerCase()}`)));
-        cryp.forEach((k) => plan.push(line(k, cC / cryp.length, `cripto · ${adv(k).action.toLowerCase()}`)));
+        const cShare = (k) => cfg.cryptoMix === 'btceth' && cryp.length === 2 ? cC * (k === 'c:BTC' ? 0.7 : 0.3) : cC / cryp.length;
+        cryp.forEach((k) => plan.push(line(k, cShare(k), etfCrypto() ? 'cripto · todos os meses, manter ≥ 1 ano' : `cripto · ${adv(k).action.toLowerCase()}`)));
         const notes = [];
         // próxima execução dos planos de poupança na TR (dias 2, 9, 16, 23)
         const days = cfg.saveDays.slice().sort((a, b) => a - b);
@@ -941,20 +954,22 @@
         const execLines = [];
         if (core) execLines.push([core, cCore]);
         sats.forEach((k) => execLines.push([k, cS / sats.length]));
-        cryp.forEach((k) => execLines.push([k, cC / cryp.length]));
+        cryp.forEach((k) => execLines.push([k, cC && cryp.length ? (cfg.cryptoMix === 'btceth' && cryp.length === 2 ? cC * (k === 'c:BTC' ? 0.7 : 0.3) : cC / cryp.length) : 0]));
         const isDeadline = dl && dl.getTime() === t0.getTime(), isExec = next && next.getTime() === t0.getTime();
         const execBlock = next ? `<div class="i-blk exec ${isDeadline ? 'hot' : ''}"><div class="i-h">${isExec ? 'Hoje executam os planos' : isDeadline ? 'Hoje é o último dia para ajustar os planos' : 'Próxima execução na TR'}<small>${next.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}${isExec || isDeadline ? '' : ` · ajustar até ${dm(dl.getTime())}`}${days.length > 1 ? ` · ${days.length} execuções por mês` : ''}</small></div>
             ${execLines.map(([k, f]) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">Plano ${esc(nameOf(k))}</span><span class="i-t num">${amtX(f)}</span></button>`).join('')}
             <div class="ex-btns"><button type="button" class="btn sm" data-act="ics">Lembretes no calendário</button></div></div>` : '';
-        if (!sats.length && pSat) notes.push('Sem ações em boa altura: a parte dos satélites fica no núcleo este mês.');
-        if (!cryp.length && pCry) notes.push('Cripto sem sinal de compra: essa parte fica no núcleo este mês.');
+        if (!etfCrypto()) {
+            if (!sats.length && pSat) notes.push('Sem ações em boa altura: a parte dos satélites fica no núcleo este mês.');
+            if (!cryp.length && pCry) notes.push('Cripto sem sinal de compra: essa parte fica no núcleo este mês.');
+        } else if (cC) notes.push('Cripto: em Portugal, vender ao fim de 365 dias ou mais está isento de IRS — manter pelo menos 1 ano.');
         return `<details class="brief" ${cfg.brief ? 'open' : ''}><summary><span>Resumo do dia</span>${mood ? `<b class="${mood.tone}-t">${esc(mood.label)}</b>` : ''}</summary>
             ${idx.length ? `<p>${idx.join(' · ')}${fin(vix) ? ` · VIX ${Math.round(vix)}${vix > 25 ? ' (medo)' : vix < 16 ? ' (calma)' : ''}` : ''}</p>` : ''}
             ${btc && fin(btc.price) ? `<p>Bitcoin ${fmtPx(btc.price, REG['c:BTC'], btc.currency)} <span class="${toneOf(btc.changePct)}-t">${fmtPct(btc.changePct)}</span> em 24 h.</p>` : ''}
             ${mood ? `<p class="muted">${esc(mood.hint)}</p>` : ''}
             ${up.length || dn.length ? `<p>${up.length ? 'Sobem: ' + up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}${up.length && dn.length ? '<br>' : ''}${dn.length ? 'Caem: ' + dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
             ${execBlock}
-            <div class="i-blk"><div class="i-h">Plano do mês na Trade Republic<small>perfil ${esc(pName.toLowerCase())}${B ? ` · ${fmtPx(B, { decimals: 0 }, 'EUR')}/mês` : ' · define o valor em Ajustes'}</small></div>${plan.join('')}</div>
+            <div class="i-blk"><div class="i-h">Plano do mês na Trade Republic<small>${etfCrypto() ? `ETF + cripto (${100 - (+cfg.cryptoPct || 0)}/${+cfg.cryptoPct || 0})` : 'perfil ' + esc(pName.toLowerCase())}${B ? ` · ${fmtPx(B, { decimals: 0 }, 'EUR')}/mês` : ' · define o valor em Ajustes'}</small></div>${plan.join('')}</div>
             ${notes.map((n) => `<p class="note">${esc(n)}</p>`).join('')}
             ${(() => { const ag = agenda(14).slice(0, 7); return ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''; })()}
             ${avoid.length ? `<p class="note">Evitar por agora: ${avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
@@ -983,8 +998,9 @@
     function ideasCard(inv) {
         const L = (k) => hzOf(k, 'long'), M = (k) => hzOf(k, 'mid'), D = (k) => AN[k] && AN[k].discount;
         const base = inv.filter((k) => REG[k].kind === 'fund' && L(k)).sort((a, b) => L(b).score - L(a).score).slice(0, 3);
-        const opps = inv.filter((k) => D(k) && D(k).opp).sort((a, b) => D(b).score - D(a).score).slice(0, 5);
-        const avoid = inv.filter((k) => L(k) && L(k).score < 42 && M(k) && M(k).score < 42).sort((a, b) => L(a).score - L(b).score).slice(0, 4);
+        const pool = etfCrypto() ? inv.filter(inPlan) : inv;
+        const opps = pool.filter((k) => D(k) && D(k).opp).sort((a, b) => D(b).score - D(a).score).slice(0, 5);
+        const avoid = pool.filter((k) => L(k) && L(k).score < 42 && M(k) && M(k).score < 42).sort((a, b) => L(a).score - L(b).score).slice(0, 4);
         if (!base.length && !opps.length && !avoid.length) return '';
         const item = (k, txt, tone) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}</span><span class="i-t ${tone}-t">${esc(txt)}</span></button>`;
         const blk = (title, sub, items) => items.length ? `<div class="i-blk"><div class="i-h">${title}<small>${sub}</small></div>${items.join('')}</div>` : '';
@@ -1027,11 +1043,11 @@
         const inv = keys.filter(investable);
         const f = cfg.filter;
         const hz = cfg.hz;
-        const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' ? investable(k) : REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
+        const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' ? investable(k) : f === 'plan' ? investable(k) && inPlan(k) : REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
         const breadth = inv.length ? inv.filter((k) => AN[k].score >= 58).length / inv.length : NaN;
         const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
         const top = shown.slice(0, 3);
-        const chips = [['all', 'Tudo'], ['fund', 'ETF'], ['stock', 'Ações'], ['crypto', 'Cripto'], ['energy', 'Futuros (referência)']];
+        const chips = [['plan', 'ETF + cripto'], ['all', 'Tudo'], ['fund', 'ETF'], ['crypto', 'Cripto'], ['stock', 'Ações'], ['energy', 'Futuros (referência)']];
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
         ${ideasCard(inv)}
@@ -1082,7 +1098,13 @@
             <div class="form">
                 <div><label for="f-budget">Quanto investes por mês (€)</label>
                     <input id="f-budget" class="inp" type="number" inputmode="decimal" min="0" step="50" data-cfg="budget" value="${+cfg.budget || ''}" placeholder="ex.: 900"></div>
-                <div><label>Perfil de risco</label><div class="seg prof">${Object.entries(PROFILES).map(([v, [n, c, s, cr]]) => `<button type="button" data-prof="${v}" class="${cfg.profile === v ? 'on' : ''}"><b>${n}</b><small>${Math.round(c * 100)}/${Math.round(s * 100)}/${Math.round(cr * 100)}</small></button>`).join('')}</div>
+                <div><label>Estratégia</label><div class="seg prof two"><button type="button" data-strat="etfcrypto" class="${etfCrypto() ? 'on' : ''}"><b>ETF + cripto</b><small>recomendado</small></button><button type="button" data-strat="mix" class="${etfCrypto() ? '' : 'on'}"><b>ETF + ações + cripto</b><small>com satélites</small></button></div>
+                    <div class="hint">${etfCrypto() ? 'O plano do mês vai todo para o ETF núcleo e para a cripto, todos os meses. As ações ficam só como informação (o VWCE já as tem).' : 'O plano inclui ações como satélites, conforme os sinais.'}</div></div>
+                ${etfCrypto() ? `<div><label>Fundo núcleo</label><select class="inp" data-cfg="coreFund">${cfg.funds.map((f) => `<option value="${esc(f)}" ${cfg.coreFund === f ? 'selected' : ''}>${esc(nameOf(f))}</option>`).join('')}</select></div>
+                <div><label>Parte em cripto</label><div class="chips days">${[0, 5, 10, 15].map((v) => `<button type="button" data-cpct="${v}" class="${+cfg.cryptoPct === v ? 'on' : ''}">${v}%</button>`).join('')}</div>
+                    <div class="seg prof two" style="margin-top:8px"><button type="button" data-cmix="btc" class="${cfg.cryptoMix !== 'btceth' ? 'on' : ''}"><b>Só Bitcoin</b></button><button type="button" data-cmix="btceth" class="${cfg.cryptoMix === 'btceth' ? 'on' : ''}"><b>Bitcoin 70 / Ether 30</b></button></div>
+                    <div class="hint">Cripto entra todos os meses (sem tentar acertar no momento). Em Portugal, vender ao fim de 365 dias ou mais está isento de IRS.</div></div>` : ''}
+                <div ${etfCrypto() ? 'hidden' : ''}><label>Perfil de risco</label><div class="seg prof">${Object.entries(PROFILES).map(([v, [n, c, s, cr]]) => `<button type="button" data-prof="${v}" class="${cfg.profile === v ? 'on' : ''}"><b>${n}</b><small>${Math.round(c * 100)}/${Math.round(s * 100)}/${Math.round(cr * 100)}</small></button>`).join('')}</div>
                     <div class="hint">Núcleo (ETF) / satélites (ações) / cripto. O Resumo do dia divide o valor do mês por estas partes, conforme os sinais de cada ativo. No teste de 2 anos, as ações escolhidas uma a uma ficaram em média atrás do VWCE: quanto mais núcleo, menos risco de ficar para trás.</div></div>
                 <div><label>Dias de execução dos planos na TR</label><div class="chips days">${[2, 9, 16, 23].map((d) => `<button type="button" data-sday="${d}" class="${cfg.saveDays.includes(d) ? 'on' : ''}">dia ${d}</button>`).join('')}</div>
                     <div class="hint">A TR executa os planos de poupança nos dias 2, 9, 16 e 23 (sem custos; dá para alterar até à véspera). Com 2 dias, o valor do mês divide-se a meio${+cfg.budget ? ` (${fmtPx(+cfg.budget / cfg.saveDays.length, { decimals: 0 }, 'EUR')} por execução)` : ''}. Na véspera, o Resumo do dia diz quanto pôr em cada plano.</div></div>
@@ -1378,7 +1400,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1399,6 +1421,9 @@
         if (d.eur) { cfg.eur = d.eur === '1'; saveCfg(); render(); return; }
         if (d.hz) { cfg.hz = d.hz; saveCfg(); render(); return; }
         if (d.prof) { cfg.profile = d.prof; saveCfg(); render(); return; }
+        if (d.strat) { cfg.strategy = d.strat; saveCfg(); render(); return; }
+        if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
+        if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
             cfg.saveDays = cfg.saveDays.includes(n) ? cfg.saveDays.filter((x) => x !== n) : cfg.saveDays.concat(n).sort((a, b) => a - b);
