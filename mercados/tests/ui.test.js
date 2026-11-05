@@ -125,6 +125,9 @@ function proxyBody(u) {
     assert.equal(firstStock, 'Allianz', 'ordenado pela maior subida');
     assert.equal(await page.locator('.sec:has(h2:text("Ações que sigo")) .row[data-key$=".LS"]').count(), 0, 'sem ações portuguesas por omissão');
     console.log('✓ painel: Brent', brent, '| 1.ª ação', firstStock);
+    const firstSec = await page.locator('#mk-body .sec h2').first().textContent();
+    assert.equal(firstSec, 'Os meus ativos', 'os meus ativos em primeiro');
+    assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .card').count(), 5, 'VWCE + 4 cripto');
     await page.waitForSelector('.brief .idea', { timeout: 15000 });
     assert.match(await page.locator('.brief summary').textContent(), /Resumo do dia/);
     assert.ok(await page.locator('.brief .i-h:has-text("Plano do mês")').count());
