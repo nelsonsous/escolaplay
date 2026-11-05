@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.9.2';
+    const VERSION = '1.9.3';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'] };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -83,6 +83,7 @@
     if (!cfg.jid) { cfg.jid = (crypto.randomUUID ? crypto.randomUUID() : 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).toLowerCase(); store.set(KEY, cfg); }
     if (!Array.isArray(cfg.saveDays) || !cfg.saveDays.length) cfg.saveDays = [2];
     // 1.9: a estratégia passa a ETF + cripto a longo prazo (o que o teste de 2 anos e o investidor indicaram)
+    if (!Array.isArray(cfg.holdings) || !cfg.holdings.length) cfg.holdings = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
     if ((cfg.stratVer || 0) < 1) { cfg.hz = 'long'; cfg.filter = 'plan'; cfg.stratVer = 1; store.set(KEY, cfg); }
     if ((cfg.watchVer || 1) < 3) {
         const mine = (cfg.watch || []).filter((x) => !OLD_DEFAULT.includes(x));
@@ -117,6 +118,8 @@
     const etfCrypto = () => cfg.strategy !== 'mix';
     // ativos do plano: o fundo núcleo e a cripto escolhida
     const planKeys = () => [cfg.coreFund].concat(cfg.cryptoMix === 'btceth' ? ['c:BTC', 'c:ETH'] : ['c:BTC']).filter((k) => REG[k]);
+    // o que o investidor tem (acompanhar e avisar), além do que compra todos os meses (planKeys)
+    const holdingKeys = () => cfg.holdings.filter((k) => REG[k]);
     const inPlan = (k) => REG[k] && (REG[k].kind === 'fund' || REG[k].kind === 'crypto');
     const yahooKeys = () => Object.values(REG).filter((a) => a.kind !== 'crypto' && !a.temp).map((a) => a.key);
     const nameOf = (k) => (REG[k] && REG[k].name !== REG[k].sym ? REG[k].name : null) || (Q[k] && Q[k].name) || (REG[k] && REG[k].name) || k;
@@ -773,8 +776,8 @@
         return `${cfg.proxy ? '' : setupBanner()}
         ${claudeCard()}
         ${briefCard()}
-        ${etfCrypto() ? `<section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o plano</span></div>
-            <div class="grid g3">${planKeys().map((k) => card(k, AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '')).join('')}</div></section>` : ''}
+        ${etfCrypto() ? `<section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o que tenho</span></div>
+            <div class="grid g3">${holdingKeys().map((k) => card(k, AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '')).join('')}</div></section>` : ''}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
@@ -837,7 +840,7 @@
     function viewHighlights() {
         const V = {};
         const all = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && fin((V[k] = qv(k)).changePct));
-        const mine = (etfCrypto() ? planKeys() : cfg.funds.slice(0, 1).concat(['c:BTC'])).filter((k) => V[k] || fin((V[k] = qv(k)).changePct));
+        const mine = holdingKeys().filter((k) => V[k] || fin((V[k] = qv(k)).changePct));
         const rest = all.filter((k) => !mine.includes(k));
         const ups = rest.filter((k) => V[k].changePct > 0).sort((a, b) => V[b].changePct - V[a].changePct).slice(0, 6);
         const downs = rest.filter((k) => V[k].changePct < 0).sort((a, b) => V[a].changePct - V[b].changePct).slice(0, 6);
@@ -848,7 +851,7 @@
         const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA · informação</span></div>
             <div class="list">${arr.slice(0, 6).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
         return `${cfg.proxy ? '' : setupBanner()}
-        ${block('Os meus ativos hoje', 'o plano', mine, 'A carregar…')}
+        ${block('Os meus ativos hoje', 'o que tenho', mine, 'A carregar…')}
         ${block('Mais sobem hoje', 'do que sigo · informação', ups, 'Nada a subir hoje.')}
         ${block('Mais caem hoje', 'do que sigo · informação', downs, 'Nada a cair hoje.')}
         ${MOVERS ? usBlock('Mais sobem — mercado todo', MOVERS.gainers) + usBlock('Mais caem — mercado todo', MOVERS.losers) : (cfg.proxy ? `<p class="note">${st.moversErr ? 'Lista global indisponível: ' + esc(st.moversErr) : 'A carregar a lista global…'}</p>` : '')}
@@ -1108,6 +1111,8 @@
                 <div><label>Parte em cripto</label><div class="chips days">${[0, 5, 10, 15].map((v) => `<button type="button" data-cpct="${v}" class="${+cfg.cryptoPct === v ? 'on' : ''}">${v}%</button>`).join('')}</div>
                     <div class="seg prof two" style="margin-top:8px"><button type="button" data-cmix="btc" class="${cfg.cryptoMix !== 'btceth' ? 'on' : ''}"><b>Só Bitcoin</b></button><button type="button" data-cmix="btceth" class="${cfg.cryptoMix === 'btceth' ? 'on' : ''}"><b>Bitcoin 70 / Ether 30</b></button></div>
                     <div class="hint">Cripto entra todos os meses (sem tentar acertar no momento). Em Portugal, vender ao fim de 365 dias ou mais está isento de IRS.</div></div>` : ''}
+                <div><label>O que tenho</label><div class="chips days">${cfg.funds.concat(CRYPTO.map((c) => 'c:' + c.id)).map((k) => `<button type="button" data-hold="${esc(k)}" class="${cfg.holdings.includes(k) ? 'on' : ''}">${esc(nameOf(k))}</button>`).join('')}</div>
+                    <div class="hint">A app acompanha e avisa sobre estes; o conselheiro analisa-os todos os dias.</div></div>
                 <div ${etfCrypto() ? 'hidden' : ''}><label>Perfil de risco</label><div class="seg prof">${Object.entries(PROFILES).map(([v, [n, c, s, cr]]) => `<button type="button" data-prof="${v}" class="${cfg.profile === v ? 'on' : ''}"><b>${n}</b><small>${Math.round(c * 100)}/${Math.round(s * 100)}/${Math.round(cr * 100)}</small></button>`).join('')}</div>
                     <div class="hint">Núcleo (ETF) / satélites (ações) / cripto. O Resumo do dia divide o valor do mês por estas partes, conforme os sinais de cada ativo. No teste de 2 anos, as ações escolhidas uma a uma ficaram em média atrás do VWCE: quanto mais núcleo, menos risco de ficar para trás.</div></div>
                 <div><label>Dias de execução dos planos na TR</label><div class="chips days">${[2, 9, 16, 23].map((d) => `<button type="button" data-sday="${d}" class="${cfg.saveDays.includes(d) ? 'on' : ''}">dia ${d}</button>`).join('')}</div>
@@ -1404,7 +1409,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1428,6 +1433,7 @@
         if (d.strat) { cfg.strategy = d.strat; saveCfg(); render(); return; }
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
+        if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
             cfg.saveDays = cfg.saveDays.includes(n) ? cfg.saveDays.filter((x) => x !== n) : cfg.saveDays.concat(n).sort((a, b) => a - b);
