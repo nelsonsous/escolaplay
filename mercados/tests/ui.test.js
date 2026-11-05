@@ -49,6 +49,7 @@ function proxyBody(u) {
         { id: 2101, name: 'Gasóleo simples', n: 3012, avg: 1.611, median: 1.599, min: 1.449, max: 1.899, cheapest: [{ price: 1.449, name: 'Intermarché', brand: 'Intermarché', place: 'Leiria, Leiria' }], updated: '2026-11-05 09:30' },
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
+    if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
     return null;
 }
@@ -118,6 +119,15 @@ function proxyBody(u) {
     await page.waitForSelector('.brief .idea', { timeout: 15000 });
     assert.match(await page.locator('.brief summary').textContent(), /Resumo do dia/);
     assert.ok(await page.locator('.brief .i-h:has-text("Plano do mês")').count());
+    await page.waitForSelector('.brief .i-h:has-text("Agenda")');
+    assert.match(await page.locator('.brief').textContent(), /Nvidia: apresenta resultados/);
+    console.log('✓ agenda no resumo:', (await page.locator('.brief .i-blk:has-text("Agenda") .idea').allTextContents()).length, 'eventos');
+    await page.click('.brief button.idea:has-text("Nvidia")');
+    await page.waitForSelector('.advice .adv-ev');
+    assert.match(await page.locator('.advice .adv-ev').textContent(), /Resultados daqui a 5 dias/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ aviso de resultados no conselho');
     console.log('✓ resumo do dia:', (await page.locator('.brief .idea .i-n').allTextContents()).map((t) => t.split('núcleo')[0].split('satélite')[0].split('cripto')[0]).join(', '));
     const fund = await page.locator('.card[data-key="VWCE.DE"] .px').textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
@@ -244,7 +254,7 @@ function proxyBody(u) {
     await page.locator('#f-budget').dispatchEvent('change');
     await page.click('[data-prof="bal"]');
     await page.click('#mk-nav [data-tab="painel"]');
-    const amounts = await page.locator('.brief .idea .i-t').allTextContents();
+    const amounts = await page.locator('.brief .i-blk:has-text("Plano do mês") .idea .i-t').allTextContents();
     const total = amounts.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(total - 900) <= 3, 'plano soma 900 €: ' + amounts.join(' + '));
     console.log('✓ plano do mês 900 €:', amounts.join(' + '));

@@ -37,6 +37,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/quotes?symbols=BZ=F,AAPL&range=1d` | cotação, variação, máx./mín., série (até 40 símbolos; `range` = 1d, 5d, 1mo, 6mo, 1y, 5y) | 15 s a 1 h |
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
+| `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
 | `/search?q=mota` | procurar símbolos | 1 h |
 | `/fuel?distrito=11` | mediana, média, mín./máx. e postos mais baratos (DGEG) | 1 h |
 | `/fuel/distritos` | distritos da DGEG | 24 h |

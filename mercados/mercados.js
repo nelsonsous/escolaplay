@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.4.0';
+    const VERSION = '1.5.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -106,6 +106,12 @@
     const AN = {};      // chave → análise
     const NEWS = {};    // chave → { at, items }
     let FUEL = null, MOVERS = null, DISTRITOS = null;
+    const CAL = {};     // símbolo → { earnings, exDividend, dividend } (segundos)
+    // Decisões de juros (dia do anúncio). Atualizar uma vez por ano: federalreserve.gov e ecb.europa.eu
+    const MACRO = [
+        ...['2026-01-28', '2026-03-18', '2026-04-29', '2026-06-17', '2026-07-29', '2026-09-16', '2026-10-28', '2026-12-09'].map((d) => ({ d, t: 'Fed decide os juros (EUA)' })),
+        ...['2026-02-05', '2026-03-19', '2026-04-30', '2026-06-11', '2026-07-23', '2026-09-10', '2026-10-29', '2026-12-17'].map((d) => ({ d, t: 'BCE decide os juros (zona euro)' })),
+    ];
     const st = { ws: 'off', wsSince: 0, cryptoAt: 0, cryptoSrc: '', yahooAt: 0, yahooErr: '', fuelErr: '', moversErr: '', firstPoll: true };
     const fired = new Set(store.get('mercados:fired') || []);
 
@@ -382,6 +388,39 @@
             saveSnap();
         } catch (e) { st.fuelErr = e.message; }
         scheduleRender();
+    }
+
+    async function loadCalendar() {
+        if (!cfg.proxy) return;
+        const syms = Object.keys(REG).filter((k) => listed(k) && REG[k].kind === 'stock');
+        for (let i = 0; i < syms.length; i += 40) {
+            try {
+                const r = await px(`/calendar?symbols=${encodeURIComponent(syms.slice(i, i + 40).join(','))}`, 30000);
+                for (const it of r.items || []) if (!it.error) CAL[it.symbol] = it;
+            } catch { /* sem agenda */ }
+        }
+        scheduleRender();
+    }
+    const DAY = 86400000;
+    const dm = (ms) => new Date(ms).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+    const inDays = (ms) => Math.ceil((ms - now()) / DAY);
+    const whenTxt = (n) => n <= 0 ? 'hoje' : n === 1 ? 'amanhã' : `daqui a ${n} dias`;
+    function eventsOf(k) {
+        const c = CAL[k];
+        if (!c) return [];
+        const out = [];
+        if (c.earnings && c.earnings * 1000 > now() - DAY) out.push({ type: 'earnings', ms: c.earnings * 1000 });
+        if (c.exDividend && c.exDividend * 1000 > now() - DAY) out.push({ type: 'exdiv', ms: c.exDividend * 1000 });
+        return out;
+    }
+    function agenda(days) {
+        const lim = now() + days * DAY, out = [];
+        for (const m of MACRO) { const ms = Date.parse(m.d + 'T12:00:00Z'); if (ms > now() - DAY && ms <= lim) out.push({ ms, txt: m.t }); }
+        for (const k of Object.keys(CAL)) {
+            if (!listed(k)) continue;
+            for (const e of eventsOf(k)) if (e.ms <= lim) out.push({ ms: e.ms, k, txt: `${nameOf(k)}: ${e.type === 'earnings' ? 'apresenta resultados' : 'ex-dividendo'}` });
+        }
+        return out.sort((a, b) => a.ms - b.ms);
     }
 
     async function loadMovers() {
@@ -713,6 +752,9 @@
             <div class="adv-act ${a.tone}-t">${esc(a.action)}</div>
             <div class="adv-txt">${esc(a.text)}</div>
             ${a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : ''}
+            ${eventsOf(k).filter((e) => inDays(e.ms) <= 21).map((e) => `<div class="adv-ev">${e.type === 'earnings'
+                ? `<b>Resultados ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Nesses dias a ação costuma mexer ±5–10%. Se fores comprar, compra só metade antes e o resto depois.`
+                : `<b>Ex-dividendo ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`).join('')}
             ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
             ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}
             <div class="adv-meta faint">Automático, a partir da tendência, do desconto e dos níveis — valida antes de comprar.</div></div>`;
@@ -777,6 +819,7 @@
             ${up.length || dn.length ? `<p>${up.length ? 'Sobem: ' + up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}${up.length && dn.length ? '<br>' : ''}${dn.length ? 'Caem: ' + dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
             <div class="i-blk"><div class="i-h">Plano do mês na Trade Republic<small>perfil ${esc(pName.toLowerCase())}${B ? ` · ${fmtPx(B, { decimals: 0 }, 'EUR')}/mês` : ' · define o valor em Ajustes'}</small></div>${plan.join('')}</div>
             ${notes.map((n) => `<p class="note">${esc(n)}</p>`).join('')}
+            ${(() => { const ag = agenda(14).slice(0, 7); return ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''; })()}
             ${avoid.length ? `<p class="note">Evitar por agora: ${avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
             <p class="note">Toca num nome para ver o plano de compra em preços. Automático — valida antes de investir.</p></details>`;
     }
@@ -1113,7 +1156,7 @@
     }
 
     function watchChanged() {
-        saveCfg(); buildReg();
+        saveCfg(); buildReg(); loadCalendar();
         pollYahoo();
         loadDaily();
         scheduleRender();
@@ -1179,7 +1222,7 @@
                 $('#f-proxy').blur();
                 if (!v) { render(); return; }
                 const msg = $('#f-proxy-msg'); if (msg) msg.textContent = 'A testar…';
-                px('/health').then(() => { toast('Conector ligado ✓'); pollYahoo(); loadDaily(); loadFuel(); loadMovers(); })
+                px('/health').then(() => { toast('Conector ligado ✓'); pollYahoo(); loadDaily(); loadFuel(); loadMovers(); loadCalendar(); })
                     .catch((e) => { st.yahooErr = e.message; toast('Não respondeu: ' + e.message); scheduleRender(); });
                 break;
             }
@@ -1230,6 +1273,7 @@
     setInterval(() => { if (!document.hidden) loadDaily(); }, 15 * 60000);
     setInterval(() => { if (!document.hidden && cfg.tab === 'destaques') loadMovers(); }, 3 * 60000);
     setInterval(() => { if (!document.hidden) loadFuel(); }, 60 * 60000);
+    setInterval(() => { if (!document.hidden) loadCalendar(); }, 6 * 60 * 60000);
 
     async function boot() {
         colors();
@@ -1238,7 +1282,7 @@
         // se o WebSocket demorar, mostra logo um preço por REST
         sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
         loadCryptoSeries();
-        if (cfg.proxy) { await pollYahoo(); loadFuel(); if (cfg.tab === 'destaques') loadMovers(); }
+        if (cfg.proxy) { await pollYahoo(); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
         schedule();
         loadDaily();
     }
