@@ -12,8 +12,8 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 
 function rnd(seed) { let s = seed % 2147483647 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 const hash = (str) => [...str].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-const BASE = { BTCEUR: 88000, ETHEUR: 3100, SOLEUR: 160, XRPEUR: 2.18, 'BZ=F': 64.2, 'CL=F': 60.1, 'RB=F': 1.98, 'HO=F': 2.31, 'NG=F': 3.4, '^GSPC': 6850, '^IXIC': 23500, '^STOXX50E': 5650, 'PSI20.LS': 8100, '^VIX': 17.2, 'EURUSD=X': 1.152, 'GC=F': 3980, 'GALP.LS': 17.4, 'NVDA': 196, 'TSLA': 455 };
-const DAYCHG = { 'GALP.LS': 6.8, 'NVDA': 5.2, 'TSLA': -7.4, 'BCP.LS': -4.6, 'BZ=F': 1.3 };
+const BASE = { BTCEUR: 88000, ETHEUR: 3100, SOLEUR: 160, XRPEUR: 2.18, 'BZ=F': 64.2, 'CL=F': 60.1, 'RB=F': 1.98, 'HO=F': 2.31, 'NG=F': 3.4, '^GSPC': 6850, '^IXIC': 23500, '^STOXX50E': 5650, 'PSI20.LS': 8100, '^VIX': 17.2, 'EURUSD=X': 1.152, 'GC=F': 3980, 'GALP.LS': 17.4, 'NVDA': 196, 'TSLA': 455, 'VWCE.DE': 165.98, 'VWCE.MU': 163.8, 'EURDKK=X': 7.4742 };
+const DAYCHG = { 'VWCE.DE': -2.28, 'VWCE.MU': -3.9, 'EURUSD=X': 0, 'EURDKK=X': 0, 'GALP.LS': 6.8, 'NVDA': 5.2, 'TSLA': -7.4, 'BCP.LS': -4.6, 'BZ=F': 1.3 };
 
 function series(sym, n, stepSec, drift) {
     const r = rnd(hash(sym) + n);
@@ -30,8 +30,8 @@ function quote(sym, range) {
     const price = BASE[sym] || s[s.length - 1][1];
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
     const prev = +(price / (1 + chgPct / 100)).toFixed(4);
-    return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
-        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: 1762300000, open: true, series: s };
+    return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
+        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : 1762300000, open: true, series: s };
 }
 const NEWS = (q) => ({ q, items: [
     { title: `${q}: ações disparam após lucros recorde`, link: 'https://news.example/1', source: 'Jornal de Negócios', time: 1762299000 },
@@ -115,6 +115,13 @@ function proxyBody(u) {
     const firstStock = await page.locator('.sec:has(h2:text("Ações que sigo")) .row .r-name').first().textContent();
     assert.equal(firstStock, 'Galp', 'ordenado pela maior subida');
     console.log('✓ painel: Brent', brent, '| 1.ª ação', firstStock);
+    const fund = await page.locator('.card[data-key="VWCE.DE"] .px').textContent();
+    assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
+    assert.match(await page.locator('.card[data-key="VWCE.DE"] .chg').textContent(), /−3,5\d%/);
+    const nv = await page.locator('.row[data-key="NVDA"] .px').first().textContent();
+    assert.match(nv, /€/, 'ações americanas em euros: ' + nv);
+    assert.match(await page.locator('.row[data-key="NOVO-B.CO"] .px').first().textContent(), /€/, 'coroas dinamarquesas em euros');
+    console.log('✓ fundos e euros: VWCE', fund, '| Nvidia', nv);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1b-painel-completo.png'), fullPage: true });
 
@@ -142,6 +149,13 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '3-analise.png') });
     await page.click('.chips [data-filter="crypto"]');
     assert.equal(await page.locator('.list .row').count(), 4);
+    await page.click('.chips [data-filter="all"]');
+    await page.click('.seg.hz [data-hz="long"]');
+    await page.waitForSelector('h2:text("Mais fortes a longo prazo")');
+    const longScores = (await page.locator('.r-score .val').allTextContents()).map(Number);
+    assert.deepEqual(longScores, [...longScores].sort((a, b) => b - a), 'ordenado pelo longo prazo');
+    console.log('✓ análise por prazo: longo, n =', longScores.length);
+    await page.click('.seg.hz [data-hz="mid"]');
 
     // detalhe da Bitcoin
     await page.click('#mk-nav [data-tab="painel"]');
@@ -153,6 +167,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('.news a[href^="javascript"]').count(), 0, 'links javascript: bloqueados');
     assert.equal(await page.locator('.news img').count(), 0, 'HTML das notícias escapado');
     assert.ok(await page.locator('.box:has-text("Análise técnica") .reasons li').count() >= 4);
+    assert.equal(await page.locator('.box:has-text("Análise técnica") .hzb').count(), 3, 'três prazos na folha');
     const box = await page.locator('#d-cv').boundingBox();
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 3 });
@@ -161,7 +176,45 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '4-detalhe-btc.png') });
     await page.click('.ranges [data-range="6mo"]');
     await page.waitForFunction(() => document.querySelector('#d-load').hidden);
+    assert.match(await page.locator('#d-px .alt').textContent(), /6 meses/, 'variação do período escolhido');
+
+    // puxar para baixo fecha a folha
+    const cdp = await ctx.newCDPSession(page);
+    await page.evaluate(() => { document.querySelector('#mk-sheet-card').scrollTop = 0; });
+    await page.waitForTimeout(100);
+    const g = await page.locator('#mk-sheet-card .grab').boundingBox();
+    const tp = (y) => [{ x: g.x + g.width / 2, y }];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(g.y + 2) });
+    for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(g.y + 2 + i * 25) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
+    console.log('✓ puxar para baixo fecha a folha');
+    // puxar pouco não fecha
+    await page.click('.card[data-open="c:ETH"]');
+    await page.waitForSelector('#mk-sheet:not([hidden])');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(g.y + 2) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(g.y + 40) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(400);
+    assert.equal(await page.locator('#mk-sheet').isHidden(), false, 'puxão curto não fecha');
     await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+
+    // letra mais larga (como a do iOS): nada pode passar da largura do ecrã
+    await page.addStyleTag({ content: 'body *{letter-spacing:.07em !important}' });
+    for (const tab of ['painel', 'destaques', 'analise', 'ajustes']) {
+        await page.click(`#mk-nav [data-tab="${tab}"]`); await page.waitForTimeout(250);
+        const wide = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+        assert.ok(wide <= 0, `${tab}: página mais larga que o ecrã (${wide}px)`);
+    }
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.click('.card[data-open="c:BTC"]');
+    await page.waitForSelector('#mk-sheet:not([hidden]) .news li');
+    const sheetOver = await page.evaluate(() => { const c = document.querySelector('#mk-sheet-card').getBoundingClientRect(); const x = document.querySelector('#mk-sheet-card [data-act="close"]').getBoundingClientRect(); return { c: c.right - innerWidth, x: x.right - innerWidth }; });
+    assert.ok(sheetOver.c <= 0 && sheetOver.x <= 0, 'folha e botão fechar dentro do ecrã ' + JSON.stringify(sheetOver));
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ letra larga: nada sai do ecrã');
 
     // ajustes: juntar uma ação
     await page.click('#mk-nav [data-tab="ajustes"]');

@@ -76,3 +76,20 @@ test('USD/galão → €/litro', () => {
     assert.ok(Math.abs(A.usdGalToEurL(2.5, 1.1) - 0.6004) < 0.001);
     assert.equal(A.usdGalToEurL(2.5, null), null);
 });
+
+test('três prazos: curto, médio e longo', () => {
+    const up = A.analyse(walk(300, 0.003));
+    assert.ok(up.horizons.short && up.horizons.mid && up.horizons.long);
+    assert.equal(up.horizons.mid.score, up.score, 'médio = pontuação geral');
+    assert.ok(up.horizons.long.score >= 70, 'subida longa: favorável');
+    const down = A.analyse(walk(300, -0.003));
+    assert.ok(down.horizons.long.score <= 30, 'descida longa: desfavorável');
+    // queda de um mês dentro de uma subida longa: médio fraco, longo positivo com desconto
+    const base = walk(270, 0.003);
+    const dip = A.analyse(base.concat(walk(30, -0.008, base[base.length - 1], 9)));
+    assert.ok(dip.horizons.mid.score < 42, 'médio prazo fraco');
+    assert.ok(dip.horizons.long.score >= 58, 'longo prazo positivo: ' + dip.horizons.long.score);
+    assert.ok(dip.horizons.long.reasons.some((r) => /desconto/.test(r.txt)));
+    // pouco histórico: sem longo prazo
+    assert.equal(A.analyse(walk(80, 0.002)).horizons.long, null);
+});

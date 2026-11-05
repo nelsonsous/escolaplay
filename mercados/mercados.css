@@ -268,3 +268,37 @@ details.how ul { padding-left: 18px; margin: 8px 0 0; color: #c9d5e4; }
 @keyframes sk { to { background-position: -200% 0; } }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* iPhone: a letra do iOS é mais larga; nada pode alargar a página (senão a folha de detalhe fica cortada) */
+html, body { overflow-x: hidden; max-width: 100%; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
+.sec-h { flex-wrap: wrap; row-gap: 6px; }
+.mk-top-title { flex: none; }
+.mk-status { flex: 1 1 auto; overflow: hidden; }
+.mk-status > span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-sheet { overflow: hidden; }
+.mk-sheet-card { width: 100%; overflow-x: hidden; overscroll-behavior: contain; will-change: transform; }
+.d-head > div:first-child { flex: 1; min-width: 0; }
+.d-head h2 { overflow-wrap: anywhere; }
+.d-head .d-sub { overflow-wrap: anywhere; }
+.d-px .alt { overflow-wrap: anywhere; }
+.sw > span { flex: 1; min-width: 0; }
+.ranges button { min-width: 0; }
+.grab { width: 44px; height: 5px; margin: 4px auto 12px; }
+
+/* análise por prazo */
+.seg.hz { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; margin-bottom: 10px; }
+.seg.hz button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px; }
+.seg.hz button b { font-size: 13px; font-weight: 650; }
+.seg.hz button small { font-size: 10.5px; color: var(--faint); }
+.seg.hz button.on small { color: var(--muted); }
+.hzb { border-top: 1px solid var(--line); padding: 10px 0 6px; }
+.hzb:first-of-type { border-top: 0; padding-top: 2px; }
+.hzb summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.hzb summary::-webkit-details-marker { display: none; }
+.hzb .hz-t { width: 92px; flex: none; display: flex; flex-direction: column; }
+.hzb .hz-t b { font-size: 13.5px; }
+.hzb .hz-t small { font-size: 11px; color: var(--muted); }
+.hzb .hz-s { flex: 1; min-width: 0; }
+.hzb .hz-s .lbl { font-size: 12px; font-weight: 650; margin-top: 3px; }
+.hzb.na { display: flex; gap: 10px; align-items: center; }

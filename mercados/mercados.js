@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -51,16 +51,22 @@
         COIN: 'Coinbase', MSTR: 'Strategy',
     };
     const DEFAULT_WATCH = Object.keys(NAMES);
+    // Fundos/ETF: histórico da bolsa principal; preço da noite de Munique (gettex, até às 22 h),
+    // que fica perto do que a Trade Republic mostra (LS Exchange, até às 23 h)
+    const FUND_NAMES = { 'VWCE.DE': 'FTSE All-World (VWCE)' };
+    const LIVE = { 'VWCE.DE': 'VWCE.MU' };
+    const DEFAULT_FUNDS = Object.keys(FUND_NAMES);
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
     };
     const cfg = { ...DEFAULTS, ...(store.get(KEY) || {}) };
     if (!Array.isArray(cfg.watch)) cfg.watch = DEFAULT_WATCH.slice();
+    if (!Array.isArray(cfg.funds)) cfg.funds = DEFAULT_FUNDS.slice();
     const saveCfg = () => store.set(KEY, cfg);
     {
         const p = new URLSearchParams(location.search).get('proxy');
@@ -75,8 +81,14 @@
         ENERGY.forEach((e) => { REG[e.sym] = { key: e.sym, kind: 'energy', ...e }; });
         INDICES.forEach((e) => { REG[e.sym] = { key: e.sym, kind: 'index', ...e }; });
         cfg.watch.forEach((s) => { if (!REG[s] || REG[s].temp) REG[s] = { key: s, kind: 'stock', sym: s, name: NAMES[s] || s }; });
+        cfg.funds.forEach((s) => { if (!REG[s] || REG[s].temp || REG[s].kind !== 'fund') REG[s] = { key: s, kind: 'fund', sym: s, name: FUND_NAMES[s] || NAMES[s] || s, live: LIVE[s] }; });
+        // auxiliares (não aparecem nas listas): preço da noite e câmbios para euros
+        for (const a of Object.values(REG)) if (a.live && !REG[a.live]) REG[a.live] = { key: a.live, kind: 'aux', sym: a.live, name: a.live };
+        for (const c of fxNeeded) { const k = 'EUR' + c + '=X'; if (!REG[k]) REG[k] = { key: k, kind: 'aux', sym: k, name: k }; }
     }
-    buildReg();
+    const fxNeeded = new Set();
+    const isHolding = (k) => !!REG[k] && (REG[k].kind === 'stock' || REG[k].kind === 'fund');
+    const listed = (k) => !!REG[k] && !REG[k].temp && REG[k].kind !== 'aux';
     const yahooKeys = () => Object.values(REG).filter((a) => a.kind !== 'crypto' && !a.temp).map((a) => a.key);
     const nameOf = (k) => (REG[k] && REG[k].name !== REG[k].sym ? REG[k].name : null) || (Q[k] && Q[k].name) || (REG[k] && REG[k].name) || k;
 
@@ -88,6 +100,8 @@
     let FUEL = null, MOVERS = null, DISTRITOS = null;
     const st = { ws: 'off', wsSince: 0, cryptoAt: 0, cryptoSrc: '', yahooAt: 0, yahooErr: '', fuelErr: '', moversErr: '', firstPoll: true };
     const fired = new Set(store.get('mercados:fired') || []);
+
+    buildReg();
 
     // instantâneo: mostrar logo os últimos valores ao abrir
     {
@@ -105,6 +119,37 @@
         const q = {};
         for (const [k, v] of Object.entries(Q)) if (REG[k] && !REG[k].temp) q[k] = { ...v, series: (v.series || []).slice(-120), stale: undefined };
         store.set(SNAP, { Q: q, FUEL, yahooAt: st.yahooAt });
+    }
+
+    // ---------- vista da cotação: preço da noite e conversão para euros ----------
+    function fxFactor(cur, prev) {
+        if (!cur || cur === 'EUR') return 1;
+        let c = cur, div = 1;
+        if (c === 'GBp' || c === 'GBX') { c = 'GBP'; div = 100; }
+        const fx = Q['EUR' + c + '=X'];
+        const r = fx && (prev ? fx.prevClose || fx.price : fx.price);
+        return fin(r) && r > 0 ? 1 / (r * div) : null;
+    }
+    function qv(k) {
+        const q0 = Q[k];
+        const a = REG[k];
+        if (!q0 || !a || !isHolding(k) || a.temp) return q0 || {};
+        let q = q0;
+        const lv = a.live && Q[a.live];
+        if (lv && fin(lv.price) && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) {
+            const series = (q0.series || []).slice();
+            if (lv.time) series.push([lv.time, lv.price]);
+            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: 'Munique (gettex)',
+                change: fin(q0.prevClose) ? lv.price - q0.prevClose : null, changePct: fin(q0.prevClose) ? (lv.price / q0.prevClose - 1) * 100 : q0.changePct };
+        }
+        if (!cfg.eur || !q.currency || q.currency === 'EUR') return q;
+        const f = fxFactor(q.currency), fp = fxFactor(q.currency, true);
+        if (!f || !fp) return q;
+        const m = (v) => fin(v) ? v * f : v;
+        const price = q.price * f, prev = fin(q.prevClose) ? q.prevClose * fp : null;
+        return { ...q, price, prevClose: prev, change: prev ? price - prev : null, changePct: prev ? (price / prev - 1) * 100 : q.changePct,
+            dayHigh: m(q.dayHigh), dayLow: m(q.dayLow), high52: m(q.high52), low52: m(q.low52),
+            series: q.series && q.series.map(([t, v]) => [t, v * f]), currency: 'EUR', origCurrency: q.currency, origPrice: q.price, fx: f };
     }
 
     // ---------- formatação ----------
@@ -275,10 +320,13 @@
                 const k = q.symbol in REG ? q.symbol : (yahooKeys().find((x) => x.toUpperCase() === String(q.symbol).toUpperCase()) || q.symbol);
                 const prev = Q[k] && Q[k].price;
                 Q[k] = { ...q, stale: false };
-                if (prev != null && prev !== q.price) patchLive(k, prev);
+                if (prev != null && prev !== q.price && listed(k)) patchLive(k, prev);
             }
             if (!ok) throw new Error('O conector não devolveu cotações');
             st.yahooAt = now(); st.yahooErr = '';
+            const nfx = fxNeeded.size;
+            for (const k of Object.keys(REG)) { const c = isHolding(k) && Q[k] && Q[k].currency; if (c && c !== 'EUR') fxNeeded.add(c === 'GBp' || c === 'GBX' ? 'GBP' : c); }
+            if (fxNeeded.size > nfx) { buildReg(); setTimeout(() => { pollBusy = false; pollYahoo(); }, 50); }
             checkAlerts();
             saveSnap();
         } catch (e) {
@@ -350,7 +398,9 @@
         if (!force && NEWS[k] && now() - NEWS[k].at < 10 * 60 * 1000) return NEWS[k];
         if (newsBusy[k]) return newsBusy[k];
         newsBusy[k] = (async () => {
-            const res = await Promise.all(newsQueries(k).map(([q, lang]) => px(`/news?q=${encodeURIComponent(q)}&lang=${lang}`).catch(() => ({ items: [] }))));
+            const a = REG[k] || {};
+            const sym = a.kind === 'stock' ? k : a.kind === 'crypto' ? a.sym + '-USD' : '';
+            const res = await Promise.all(newsQueries(k).map(([q, lang]) => px(`/news?q=${encodeURIComponent(q)}&lang=${lang}${sym ? '&sym=' + encodeURIComponent(sym) : ''}`).catch(() => ({ items: [] }))));
             const seen = new Set();
             const items = [];
             for (const it of res.flatMap((r) => r.items || [])) {
@@ -373,8 +423,10 @@
         const lim = +cfg.alertPct || 0;
         if (!lim) return;
         const hits = [];
-        for (const [k, q] of Object.entries(Q)) {
-            if (!REG[k] || REG[k].temp || !fin(q.changePct) || Math.abs(q.changePct) < lim) continue;
+        for (let [k, q] of Object.entries(Q)) {
+            if (!listed(k)) continue;
+            q = qv(k);
+            if (!fin(q.changePct) || Math.abs(q.changePct) < lim) continue;
             const id = `${today()}|${k}|${q.changePct > 0 ? '+' : '-'}`;
             if (fired.has(id)) continue;
             fired.add(id);
@@ -386,7 +438,7 @@
             const msg = `${nameOf(k)} ${q.changePct > 0 ? 'sobe' : 'cai'} ${fmtPct(q.changePct)} hoje`;
             toast(msg);
             if (cfg.notify && 'Notification' in window && Notification.permission === 'granted') {
-                const opts = { body: `${fmtPx(q.price, REG[k])} · toca para ver`, tag: 'mk-' + k, icon: 'icon-192.png' };
+                const opts = { body: `${fmtPx(q.price, REG[k], q.currency)} · toca para ver`, tag: 'mk-' + k, icon: 'icon-192.png' };
                 navigator.serviceWorker && navigator.serviceWorker.ready
                     ? navigator.serviceWorker.ready.then((r) => r.showNotification(msg, opts)).catch(() => {})
                     : new Notification(msg, opts);
@@ -440,7 +492,7 @@
     function drawSparks() {
         for (const cv of $$('canvas.spark')) {
             const k = cv.dataset.key;
-            const q = Q[k];
+            const q = qv(k);
             if (!q || !q.series || q.series.length < 2) continue;
             drawLine(cv, q.series, { tone: toneOf(q.changePct), base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose, pad: 3 });
         }
@@ -448,13 +500,14 @@
 
     // ---------- atualização ao vivo de um cartão ----------
     function patchLive(k, prev) {
-        const q = Q[k];
+        const raw = Q[k];
+        const q = qv(k);
         for (const el of $$(`[data-key="${CSS.escape(k)}"]`)) {
             const p = el.querySelector('.px');
             if (p) {
-                p.textContent = fmtPx(q.price, REG[k]);
-                if (fin(prev) && prev !== q.price) {
-                    const cls = q.price > prev ? 'flash-up' : 'flash-down';
+                p.textContent = fmtPx(q.price, REG[k], q.currency);
+                if (fin(prev) && prev !== raw.price) {
+                    const cls = raw.price > prev ? 'flash-up' : 'flash-down';
                     p.classList.remove('flash-up', 'flash-down'); void p.offsetWidth; p.classList.add(cls);
                     clearTimeout(p._t); p._t = setTimeout(() => p.classList.remove(cls), 700);
                 }
@@ -503,11 +556,11 @@
     // cartão (grelha)
     function card(k, extra = '') {
         const a = REG[k] || { key: k, name: k };
-        const q = Q[k] || {};
-        const sub = a.kind === 'crypto' ? '24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? hhmm(q.time) : '');
+        const q = qv(k);
+        const sub = a.kind === 'crypto' ? '24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? 'às ' + hhmm(q.time) : '');
         return `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
             <div class="c-top"><span class="c-name">${esc(nameOf(k))}</span>${a.kind === 'crypto' ? `<span class="c-sym">${esc(a.sym)}</span>` : ''}</div>
-            <div class="c-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a)}</span></div>
+            <div class="c-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span></div>
             <div class="c-row">${chg(q.changePct)}<span class="c-sub">${esc(sub)}</span></div>
             ${extra ? `<div class="c-note">${esc(extra)}</div>` : ''}
             <canvas class="spark" data-key="${esc(k)}"></canvas>
@@ -517,12 +570,12 @@
     // linha (lista)
     function row(k, opt = {}) {
         const a = REG[k] || { key: k, name: k, sym: k };
-        const q = Q[k] || {};
+        const q = qv(k);
         const sub = opt.sub ?? [a.sym, q.exchange, q.open === false ? 'fechado' : ''].filter(Boolean).join(' · ');
         return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
             <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(sub)}</div></div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
-            <div class="r-px num"><span class="px">${fmtPx(q.price, a)}</span>${chg(q.changePct)}</div>
+            <div class="r-px num"><span class="px">${fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
         </button>`;
     }
 
@@ -543,11 +596,13 @@
             return card(e.sym, l ? `≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L sem impostos` : '');
         }).join('');
         const stocks = cfg.watch.slice();
-        if (cfg.sort === 'chg') stocks.sort((a, b) => ((Q[b] && Q[b].changePct) ?? -999) - ((Q[a] && Q[a].changePct) ?? -999));
+        if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
+        <section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
+            ${cfg.funds.length ? `<div class="grid">${cfg.funds.map((s) => card(s)).join('')}</div>` : '<div class="empty">Sem fundos. Junta em Ajustes (ex.: VWCE, IWDA).</div>'}</section>
         <section class="sec"><div class="sec-h"><h2>Petróleo e energia</h2><span class="sub">futuros, USD</span></div>
             <div class="grid g3">${energy}</div></section>
         ${viewFuel()}
@@ -603,17 +658,18 @@
 
     function viewHighlights() {
         const lim = +cfg.alertPct || 4;
-        const all = Object.keys(REG).filter((k) => !REG[k].temp && REG[k].kind !== 'index' && Q[k] && fin(Q[k].changePct));
-        const ups = all.filter((k) => Q[k].changePct >= lim).sort((a, b) => Q[b].changePct - Q[a].changePct);
-        const downs = all.filter((k) => Q[k].changePct <= -lim).sort((a, b) => Q[a].changePct - Q[b].changePct);
+        const V = {};
+        const all = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && fin((V[k] = qv(k)).changePct));
+        const ups = all.filter((k) => V[k].changePct >= lim).sort((a, b) => V[b].changePct - V[a].changePct);
+        const downs = all.filter((k) => V[k].changePct <= -lim).sort((a, b) => V[a].changePct - V[b].changePct);
         const big = [...ups, ...downs];
         // notícias para os grandes movimentos (até 8)
         big.slice(0, 8).forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
-        const topAll = all.slice().sort((a, b) => Math.abs(Q[b].changePct) - Math.abs(Q[a].changePct)).slice(0, 6);
+        const topAll = all.slice().sort((a, b) => Math.abs(V[b].changePct) - Math.abs(V[a].changePct)).slice(0, 6);
         if (!big.length) topAll.forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
 
         const block = (title, keys, emptyTxt) => `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">${keys.length}</span></div>
-            ${keys.length ? `<div class="list">${keys.map((k) => moverRow(k, Q[k])).join('')}</div>` : `<div class="empty">${emptyTxt}</div>`}</section>`;
+            ${keys.length ? `<div class="list">${keys.map((k) => moverRow(k, V[k])).join('')}</div>` : `<div class="empty">${emptyTxt}</div>`}</section>`;
 
         const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA</span></div>
             <div class="list">${arr.slice(0, 8).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
@@ -622,9 +678,15 @@
         <div class="chips" role="group" aria-label="Limite">${[2, 3, 4, 5, 8, 10].map((p) => `<button type="button" data-lim="${p}" class="${lim === p ? 'on' : ''}">±${p}%</button>`).join('')}</div>
         ${block(`Grandes subidas hoje (≥ ${lim}%)`, ups, 'Nada do que segues sobe tanto hoje.')}
         ${block(`Grandes descidas hoje (≤ −${lim}%)`, downs, 'Nada do que segues cai tanto hoje.')}
-        ${!big.length && topAll.length ? `<section class="sec"><div class="sec-h"><h2>Maiores movimentos do que sigo</h2></div><div class="list">${topAll.map((k) => moverRow(k, Q[k])).join('')}</div></section>` : ''}
+        ${!big.length && topAll.length ? `<section class="sec"><div class="sec-h"><h2>Maiores movimentos do que sigo</h2></div><div class="list">${topAll.map((k) => moverRow(k, V[k])).join('')}</div></section>` : ''}
         ${MOVERS ? usBlock('Mais sobem — mercado todo', MOVERS.gainers) + usBlock('Mais caem — mercado todo', MOVERS.losers) + usBlock('Mais negociadas', MOVERS.actives) : (cfg.proxy ? `<p class="note">${st.moversErr ? 'Lista global indisponível: ' + esc(st.moversErr) : 'A carregar a lista global…'}</p>` : '')}
         <p class="note">O tom das notícias (boa / má) é calculado por palavras-chave nos títulos — é uma pista rápida, não substitui ler a notícia. Toca numa linha para ver o gráfico e todas as notícias.</p>`;
+    }
+
+    const HZ = [['short', 'Curto', 'dias a 2 semanas'], ['mid', 'Médio', 'semanas a 3 meses'], ['long', 'Longo', 'anos']];
+    const hzOf = (k, hz) => AN[k] && AN[k].horizons && AN[k].horizons[hz || cfg.hz];
+    function reasonList(list) {
+        return `<ul class="reasons">${list.map((x) => `<li><span class="p ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : 'flat'}-t">${x.pts > 0 ? '+' : ''}${x.pts || '·'}</span><span>${esc(x.txt)}</span></li>`).join('')}</ul>`;
     }
 
     function scoreBar(r) {
@@ -632,34 +694,37 @@
     }
 
     function viewAnalysis() {
-        const keys = Object.keys(AN).filter((k) => REG[k] && !REG[k].temp && (REG[k].kind !== 'index' || k === 'GC=F'));
+        const keys = Object.keys(AN).filter((k) => listed(k) && (REG[k].kind !== 'index' || k === 'GC=F'));
         const f = cfg.filter;
-        const shown = keys.filter((k) => f === 'all' || REG[k].kind === f || (f === 'energy' && k === 'GC=F')).sort((a, b) => AN[b].score - AN[a].score);
+        const hz = cfg.hz;
+        const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' || REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
         const breadth = keys.length ? keys.filter((k) => AN[k].score >= 58).length / keys.length : NaN;
         const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
         const top = shown.slice(0, 3);
-        const chips = [['all', 'Tudo'], ['stock', 'Ações'], ['crypto', 'Cripto'], ['energy', 'Energia e ouro']];
+        const chips = [['all', 'Tudo'], ['stock', 'Ações'], ['fund', 'Fundos'], ['crypto', 'Cripto'], ['energy', 'Energia e ouro']];
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
+        <div class="seg hz" role="group" aria-label="Prazo">${HZ.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l} prazo</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         ${!shown.length ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
-        <section class="sec"><div class="sec-h"><h2>Mais fortes agora</h2><span class="sub">tendência + momento</span></div>
+        <section class="sec"><div class="sec-h"><h2>Mais fortes a ${{ short: 'curto', mid: 'médio', long: 'longo' }[hz]} prazo</h2></div>
             <div class="top3">${top.map((k, i) => `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
                 <div class="medal">${['1.º', '2.º', '3.º'][i]} lugar</div>
                 <div class="c-top" style="margin-top:4px"><span class="c-name">${esc(nameOf(k))}</span><span class="c-sym">${esc(REG[k].sym)}</span></div>
-                <div class="c-row" style="margin-top:8px">${scoreBar(AN[k])}</div>
-                <div class="c-sub ${AN[k].tone}-t" style="margin-top:6px">${esc(AN[k].label)} · ${esc(AN[k].risk.label)}</div>
-                <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((AN[k].reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
+                <div class="c-row" style="margin-top:8px">${scoreBar(hzOf(k, hz))}</div>
+                <div class="c-sub ${hzOf(k, hz).tone}-t" style="margin-top:6px;white-space:normal">${esc(hzOf(k, hz).label)} · ${esc(AN[k].risk.label)}</div>
+                <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((hzOf(k, hz).reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
             </button>`).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${shown.length} ativos · 0 a 100</span></div>
             <div class="list">${shown.map((k, i) => `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
                 <span class="rk">${i + 1}</span>
-                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(AN[k].risk.label)} · ${fmtPct(Q[k] && Q[k].changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
-                <div class="r-score">${scoreBar(AN[k])}<div class="lbl ${AN[k].tone}-t">${esc(AN[k].label)}</div></div>
+                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
+                <div class="r-score">${scoreBar(hzOf(k, hz))}<div class="lbl ${hzOf(k, hz).tone}-t">${esc(hzOf(k, hz).label)}</div></div>
             </button>`).join('')}</div></section>`}
         <details class="how"><summary>Como é calculada a pontuação?</summary><ul>
-            <li><b>Tendência</b>: preço face às médias de 20 e 50 dias, e se a média de 50 dias está a subir.</li>
-            <li><b>Momento</b>: variação do último mês e dos últimos 3 meses; MACD (aceleração).</li>
+            <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>
+            <li><b>Médio prazo</b> (semanas a 3 meses): médias de 20 e 50 dias, variação de 1 e 3 meses, MACD e RSI.</li>
+            <li><b>Longo prazo</b> (anos): média de 200 dias e se está a subir, variação de 1 ano e desconto face ao máximo. Uma descida com a tendência longa a subir conta como oportunidade para ir comprando aos poucos.</li>
             <li><b>RSI</b>: acima de 70 está "esticado" (risco de correção); abaixo de 30 está muito castigado (pode ressaltar).</li>
             <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>
             <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li>
@@ -680,6 +745,7 @@
             </div></section>
         <section class="sec"><div class="sec-h"><h2>Preferências</h2></div>
             <div class="form">
+                <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="${cfg.eur ? 'on' : ''}">EUR</button><button type="button" data-eur="0" class="${cfg.eur ? '' : 'on'}">Moeda local</button></div></div>
                 <div class="sw"><span>Moeda das cripto</span><div class="seg"><button type="button" data-fiat="EUR" class="${cfg.fiat === 'EUR' ? 'on' : ''}">EUR</button><button type="button" data-fiat="USD" class="${cfg.fiat === 'USD' ? 'on' : ''}">USD</button></div></div>
                 <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
                     <select id="f-lim" class="inp" data-cfg="alertPct">${[0, 2, 3, 4, 5, 8, 10].map((p) => `<option value="${p}" ${lim === p ? 'selected' : ''}>${p ? '±' + p + '% no dia' : 'Não avisar'}</option>`).join('')}</select></div>
@@ -687,13 +753,13 @@
                 <div><label for="f-dist">Combustíveis: zona</label>
                     <select id="f-dist" class="inp" data-cfg="distrito"><option value="">Portugal (todos os postos)</option>${(DISTRITOS || []).map((d) => `<option value="${esc(d.id)}" ${String(d.id) === String(cfg.distrito) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
             </div></section>
-        <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${cfg.watch.length}</span><button type="button" class="right btn sm" data-act="reset-watch">Repor lista</button></div>
+        <section class="sec"><div class="sec-h"><h2>Ações e fundos que sigo</h2><span class="sub">${cfg.watch.length + cfg.funds.length}</span><button type="button" class="right btn sm" data-act="reset-watch">Repor lista</button></div>
             <div class="form">
-                <div><label for="f-add">Juntar ação, ETF ou índice</label>
-                    <input id="f-add" class="inp" type="search" autocomplete="off" placeholder="ex.: Mota-Engil, Ferrari, VWCE, AAPL…" ${cfg.proxy ? '' : 'disabled'}>
+                <div><label for="f-add">Juntar ação ou fundo/ETF</label>
+                    <input id="f-add" class="inp" type="search" autocomplete="off" placeholder="ex.: Mota-Engil, Ferrari, IWDA, AAPL…" ${cfg.proxy ? '' : 'disabled'}>
                     <div class="res" id="f-res"></div>
                     <div class="hint">Também podes escrever o símbolo do Yahoo Finance (ex.: <code>EGL.LS</code>, <code>RACE.MI</code>) e carregar Enter.</div></div>
-                <div class="wl">${cfg.watch.map((s) => `<div class="wl-i"><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')}</div>
+                <div class="wl">${cfg.funds.concat(cfg.watch).map((s) => `<div class="wl-i"><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')}</div>
             </div></section>
         <div class="disc"><b>Mercados ${VERSION}.</b> Cripto: Binance. Ações, índices, petróleo e notícias: Yahoo Finance e Google Notícias, através do teu conector. Combustíveis: DGEG. Os dados podem ter atrasos ou falhas; confirma sempre na tua corretora antes de comprar ou vender. Não é aconselhamento financeiro.</div>`;
     }
@@ -706,6 +772,8 @@
         if (!REG[k]) REG[k] = { key: k, kind: 'stock', sym: k, name: tempName || k, temp: true };
         sheetKey = k; sheetRange = '1d'; sheetPts = null;
         const sh = $('#mk-sheet');
+        const cardEl = $('#mk-sheet-card');
+        cardEl.style.transition = ''; cardEl.style.transform = ''; $('.mk-sheet-bg').style.opacity = '';
         sh.hidden = false;
         document.body.style.overflow = 'hidden';
         renderSheet();
@@ -717,10 +785,47 @@
             if (a.kind !== 'crypto' && cfg.proxy) px(`/quotes?symbols=${encodeURIComponent(k)}&range=1d`).then((r) => { const q = r.quotes && r.quotes[0]; if (q && !q.error) { Q[k] = { ...q, stale: false }; if (sheetKey === k) renderSheet(true); } }).catch(() => {});
         }
     }
-    function closeSheet() {
-        $('#mk-sheet').hidden = true; document.body.style.overflow = ''; sheetKey = null;
-        scheduleRender();
+    function closeSheet(animated) {
+        const done = () => { $('#mk-sheet').hidden = true; document.body.style.overflow = ''; sheetKey = null; scheduleRender(); };
+        if (!animated) { done(); return; }
+        const c = $('#mk-sheet-card');
+        c.style.transition = 'transform .22s ease-in'; c.style.transform = 'translateY(105%)';
+        $('.mk-sheet-bg').style.transition = 'opacity .22s'; $('.mk-sheet-bg').style.opacity = '0';
+        setTimeout(done, 220);
     }
+    // puxar a folha para baixo para fechar (como nas apps de bolsa)
+    (function swipeToClose() {
+        const c = $('#mk-sheet-card'), bg = $('.mk-sheet-bg');
+        let y0 = null, dy = 0, t0 = 0, drag = false;
+        c.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1 || e.target.closest('#d-cv')) { y0 = null; return; }
+            y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); drag = false;
+        }, { passive: true });
+        c.addEventListener('touchmove', (e) => {
+            if (y0 == null) return;
+            dy = e.touches[0].clientY - y0;
+            if (!drag) {
+                if (dy > 6 && c.scrollTop <= 0) drag = true;
+                else if (dy < -6 || c.scrollTop > 0) { y0 = null; return; }
+                else return;
+            }
+            e.preventDefault();
+            const d = Math.max(0, dy);
+            c.style.transition = 'none'; c.style.transform = `translateY(${d}px)`;
+            bg.style.transition = 'none'; bg.style.opacity = String(Math.max(0.15, 1 - d / 500));
+        }, { passive: false });
+        const end = () => {
+            if (y0 == null) return;
+            const was = drag; y0 = null; drag = false;
+            if (!was) return;
+            const v = dy / Math.max(1, Date.now() - t0);
+            if (dy > 110 || (dy > 30 && v > 0.5)) { closeSheet(true); return; }
+            c.style.transition = 'transform .2s ease-out'; c.style.transform = '';
+            bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
+        };
+        c.addEventListener('touchend', end);
+        c.addEventListener('touchcancel', end);
+    })();
     function analyseOne(k) {
         const c = closesFor(k);
         if (!c) return;
@@ -747,6 +852,7 @@
             else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range}`, 20000); const q = r.quotes && r.quotes[0]; if (!q || q.error) throw new Error(q && q.error || 'sem dados'); pts = q.series; }
             if (id !== sheetLoadId) return;
             sheetPts = pts;
+            renderSheetPrice();
         } catch (e) {
             if (id !== sheetLoadId) return;
             sheetPts = [];
@@ -762,15 +868,17 @@
         if (!sheetPts) { if (l) { l.hidden = false; l.textContent = 'A carregar…'; } setupCanvas(cv); return; }
         if (sheetPts.length < 2) return;
         if (l) l.hidden = true;
-        const first = sheetPts[0][1], lastv = sheetPts[sheetPts.length - 1][1];
-        const q = Q[sheetKey] || {};
+        const q = qv(sheetKey);
+        const f = q.fx || 1;
+        const pts = f === 1 ? sheetPts : sheetPts.map(([t, v]) => [t, v * f]);
+        const first = pts[0][1], lastv = pts[pts.length - 1][1];
         const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
-        sheetDraw = drawLine(cv, sheetPts, { tone, base, width: 2, pad: 10, byIndex: sheetRange !== '1d' });
+        sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 10, byIndex: sheetRange !== '1d' });
         const tip = $('#d-tip');
         if (hover != null && sheetDraw) {
             const { g, X, Y, h } = sheetDraw;
-            const p = sheetPts[hover];
+            const p = pts[hover];
             g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(X(hover), 0); g.lineTo(X(hover), h); g.stroke();
             g.fillStyle = COL[tone]; g.beginPath(); g.arc(X(hover), Y(p[1]), 4, 0, 7); g.fill();
             if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
@@ -779,22 +887,30 @@
             tip.innerHTML = sheetRange === '1d' ? 'Hoje · arrasta no gráfico para ver valores' : `No período: <span class="${toneOf(ch)}-t">${fmtPct(ch)}</span> · arrasta no gráfico`;
         }
     }
+    const PERIOD = { '1d': 'hoje', '5d': '5 dias', '1mo': '1 mês', '6mo': '6 meses', '1y': '1 ano', '5y': '5 anos' };
     function renderSheetPrice() {
-        const k = sheetKey; const q = Q[k] || {}; const a = REG[k];
+        const k = sheetKey; const q = qv(k); const a = REG[k];
         const el = $('#d-px'); if (!el) return;
         const eurusd = Q['EURUSD=X'] && Q['EURUSD=X'].price;
         const l = a.perLitre ? A.usdGalToEurL(q.price, eurusd) : null;
-        el.innerHTML = `<span class="px num">${fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}<span class="alt num">${fin(q.change) ? (q.change > 0 ? '+' : '') + fmtPx(q.change, a, q.currency) : ''}${l ? ` · ≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L` : ''}</span>`;
+        let pct = q.changePct, diff = q.change, lbl = a.kind === 'crypto' ? '24 h' : 'hoje';
+        if (sheetRange !== '1d' && sheetPts && sheetPts.length > 1 && fin(q.price)) {
+            const f = q.fx || 1;
+            const first = sheetPts[0][1] * f;
+            pct = (q.price / first - 1) * 100; diff = q.price - first; lbl = PERIOD[sheetRange];
+        }
+        const orig = q.origCurrency ? ` · ${fmtPx(q.origPrice, a, q.origCurrency)}` : '';
+        el.innerHTML = `<span class="px num">${fmtPx(q.price, a, q.currency)}</span>${chg(pct)}<span class="alt num">${fin(diff) ? (diff > 0 ? '+' : '') + fmtPx(diff, a, q.currency) : ''} ${esc(lbl)}${orig}${l ? ` · ≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L` : ''}</span>`;
     }
     function renderSheet() {
         const k = sheetKey; if (!k) return;
-        const a = REG[k], q = Q[k] || {}, r = AN[k], n = NEWS[k];
-        const following = cfg.watch.includes(k);
+        const a = REG[k], q = qv(k), r = AN[k], n = NEWS[k];
+        const following = cfg.watch.includes(k) || cfg.funds.includes(k);
         const stat = (l, v) => `<div><small>${l}</small><b class="num">${v}</b></div>`;
         const box = $('#mk-sheet-card');
         const scroll = box.scrollTop;
         box.innerHTML = `<div class="grab"></div>
-            <div class="d-head"><div><h2 id="mk-sheet-title">${esc(nameOf(k))}</h2><div class="d-sub">${esc([a.kind === 'crypto' ? a.sym + '/' + cfg.fiat : a.sym, q.exchange, q.open === false ? 'mercado fechado' : q.open ? 'mercado aberto' : ''].filter(Boolean).join(' · '))}</div></div>
+            <div class="d-head"><div><h2 id="mk-sheet-title">${esc(nameOf(k))}</h2><div class="d-sub">${esc([a.kind === 'crypto' ? a.sym + '/' + cfg.fiat : a.sym, q.venue || q.exchange, q.open === false ? 'mercado fechado' : q.open ? 'mercado aberto' : ''].filter(Boolean).join(' · '))}</div></div>
                 <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
             <div class="d-px" id="d-px"></div>
             <div class="d-tip" id="d-tip"></div>
@@ -808,9 +924,11 @@
                 ${r ? stat('RSI (14)', fin(r.metrics.rsi) ? Math.round(r.metrics.rsi) : '—') + stat('Volatilidade', fin(r.metrics.vol) ? Math.round(r.metrics.vol * 100) + '%/ano' : '—') : ''}
             </div>
             <div class="box"><h3>Análise técnica ${r ? `<span class="chip-s">${esc(r.risk.label)}</span>` : ''}</h3>
-                ${r ? `${scoreBar(r)}<div class="${r.tone}-t" style="font-weight:700;margin-top:6px">${esc(r.label)}</div>
-                <ul class="reasons">${r.reasons.map((x) => `<li><span class="p ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : 'flat'}-t">${x.pts > 0 ? '+' : ''}${x.pts || '·'}</span><span>${esc(x.txt)}</span></li>`).join('')}</ul>
-                <p class="note">Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
+                ${r ? `${HZ.map(([hz, l, d]) => { const h = r.horizons && r.horizons[hz]; return h ? `<details class="hzb" ${hz === cfg.hz ? 'open' : ''}><summary>
+                    <div class="hz-t"><b>${l} prazo</b><small>${d}</small></div>
+                    <div class="hz-s">${scoreBar(h)}<div class="lbl ${h.tone}-t">${esc(h.label)}</div></div></summary>
+                    ${reasonList(h.reasons)}</details>` : `<div class="hzb na"><div class="hz-t"><b>${l} prazo</b><small>${d}</small></div><div class="note">Histórico curto demais.</div></div>`; }).join('')}
+                <p class="note">Toca num prazo para ver as razões. Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
             </div>
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
@@ -818,7 +936,7 @@
                     <div class="meta">${esc([it.source, it.time ? ago(it.time * 1000) : ''].filter(Boolean).join(' · '))}</div></li>`).join('')}</ul>`}
             </div>
             <div class="d-actions">
-                ${a.kind === 'stock' ? `<button type="button" class="btn ${following ? '' : 'pri'}" data-act="follow">${following ? 'Deixar de seguir' : '+ Seguir'}</button>` : ''}
+                ${isHolding(k) ? `<button type="button" class="btn ${following ? '' : 'pri'}" data-act="follow">${following ? 'Deixar de seguir' : '+ Seguir'}</button>` : ''}
                 <a class="btn" href="${a.kind === 'crypto' ? `https://www.binance.com/pt/trade/${esc(a.sym)}_${cfg.fiat === 'EUR' ? 'EUR' : 'USDT'}` : `https://finance.yahoo.com/quote/${encodeURIComponent(k)}`}" target="_blank" rel="noopener">Ver na ${a.kind === 'crypto' ? 'Binance' : 'Yahoo Finance'}</a>
             </div>`;
         box.scrollTop = scroll;
@@ -872,13 +990,14 @@
         try {
             const d = await px(`/search?q=${encodeURIComponent(q)}`);
             if (($('#f-add') || {}).value !== q) return;
-            res.innerHTML = (d.items || []).slice(0, 8).map((i) => `<button type="button" data-add="${esc(i.symbol)}" data-name="${esc(i.name)}">${esc(i.name)} <small>${esc([i.symbol, i.exchange, i.type].filter(Boolean).join(' · '))}</small></button>`).join('') || '<div class="hint">Sem resultados.</div>';
+            res.innerHTML = (d.items || []).slice(0, 8).map((i) => `<button type="button" data-add="${esc(i.symbol)}" data-name="${esc(i.name)}" data-type="${esc(i.type || '')}">${esc(i.name)} <small>${esc([i.symbol, i.exchange, i.type].filter(Boolean).join(' · '))}</small></button>`).join('') || '<div class="hint">Sem resultados.</div>';
         } catch (e) { res.innerHTML = `<div class="hint">Erro: ${esc(e.message)}</div>`; }
     }
-    function addWatch(sym, name) {
+    function addWatch(sym, name, type) {
         sym = String(sym || '').trim().toUpperCase();
         if (!sym) return;
-        if (!cfg.watch.includes(sym)) cfg.watch.push(sym);
+        const fund = /etf|fund|fundo/i.test(type || '');
+        if (!cfg.watch.includes(sym) && !cfg.funds.includes(sym)) (fund ? cfg.funds : cfg.watch).push(sym);
         if (name && !NAMES[sym]) NAMES[sym] = name;
         if (REG[sym] && REG[sym].temp) delete REG[sym];
         toast(`${name || sym} junto à lista`);
@@ -886,7 +1005,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -902,15 +1021,17 @@
             wsTry = 0; startWS(); loadCryptoSeries(); loadCryptoDaily().then(() => { analyseAll(); scheduleRender(); });
             render(); return;
         }
-        if (d.rm) { cfg.watch = cfg.watch.filter((s) => s !== d.rm); delete Q[d.rm]; delete AN[d.rm]; watchChanged(); return; }
-        if (d.add) { addWatch(d.add, d.name); return; }
+        if (d.rm) { cfg.watch = cfg.watch.filter((s) => s !== d.rm); cfg.funds = cfg.funds.filter((s) => s !== d.rm); delete REG[d.rm]; delete Q[d.rm]; delete AN[d.rm]; watchChanged(); return; }
+        if (d.add) { addWatch(d.add, d.name, d.type); return; }
+        if (d.eur) { cfg.eur = d.eur === '1'; saveCfg(); render(); return; }
+        if (d.hz) { cfg.hz = d.hz; saveCfg(); render(); return; }
         switch (d.act) {
             case 'refresh': refreshAll(); break;
-            case 'close': closeSheet(); break;
+            case 'close': closeSheet(true); break;
             case 'follow': {
                 const k = sheetKey;
-                if (cfg.watch.includes(k)) { cfg.watch = cfg.watch.filter((s) => s !== k); toast('Retirado da lista'); }
-                else { cfg.watch.push(k); if (REG[k]) delete REG[k].temp; toast('Junto à lista'); }
+                if (cfg.watch.includes(k) || cfg.funds.includes(k)) { cfg.watch = cfg.watch.filter((s) => s !== k); cfg.funds = cfg.funds.filter((s) => s !== k); toast('Retirado da lista'); }
+                else { (REG[k] && REG[k].kind === 'fund' ? cfg.funds : cfg.watch).push(k); if (REG[k]) delete REG[k].temp; toast('Junto à lista'); }
                 watchChanged(); renderSheet(true); break;
             }
             case 'save-proxy': {
@@ -929,7 +1050,7 @@
                 Notification.requestPermission().then((p) => { cfg.notify = p === 'granted'; saveCfg(); toast(cfg.notify ? 'Notificações ligadas' : 'Notificações não autorizadas'); render(); });
                 break;
             }
-            case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); watchChanged(); break;
+            case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
         }
     });
 
@@ -946,7 +1067,7 @@
         if (ev.target.id === 'f-add') { clearTimeout(searchT); const v = ev.target.value.trim(); searchT = setTimeout(() => doSearch(v), 300); }
     });
     document.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape' && sheetKey) closeSheet();
+        if (ev.key === 'Escape' && sheetKey) closeSheet(true);
         if (ev.key === 'Enter' && ev.target.id === 'f-add') {
             const v = ev.target.value.trim();
             if (/^[\^A-Za-z0-9.=\-]{1,15}$/.test(v)) { ev.target.value = ''; ev.target.blur(); addWatch(v); }

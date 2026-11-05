@@ -83,12 +83,18 @@
         return { key: 'xhigh', label: 'Risco muito alto' };
     }
 
-    function labelOf(score) {
-        if (score >= 70) return { key: 'strong', tone: 'up', label: 'Sinal forte de subida' };
-        if (score >= 58) return { key: 'pos', tone: 'up', label: 'Positivo' };
-        if (score > 42) return { key: 'neutral', tone: 'flat', label: 'Neutro' };
-        if (score > 30) return { key: 'neg', tone: 'down', label: 'Negativo' };
-        return { key: 'weak', tone: 'down', label: 'Fraco — evitar por agora' };
+    const LABELS = {
+        mid: ['Sinal forte de subida', 'Positivo', 'Neutro', 'Negativo', 'Fraco — evitar por agora'],
+        short: ['Bom momento no curto prazo', 'Positivo', 'Neutro', 'Negativo', 'Pressão de venda'],
+        long: ['Favorável para investir a prazo', 'Positivo', 'Neutro', 'Cautela', 'Desfavorável a prazo'],
+    };
+    function labelOf(score, hz = 'mid') {
+        const L = LABELS[hz] || LABELS.mid;
+        if (score >= 70) return { key: 'strong', tone: 'up', label: L[0] };
+        if (score >= 58) return { key: 'pos', tone: 'up', label: L[1] };
+        if (score > 42) return { key: 'neutral', tone: 'flat', label: L[2] };
+        if (score > 30) return { key: 'neg', tone: 'down', label: L[3] };
+        return { key: 'weak', tone: 'down', label: L[4] };
     }
 
     // closes: fechos diários do mais antigo para o mais recente.
@@ -144,13 +150,76 @@
         }
 
         const score = Math.round(clamp(s, 0, 100));
+        const sorted = reasons.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts));
+        const mid = { score, ...labelOf(score, 'mid'), reasons: sorted };
+        const metrics = { price: p, sma20: s20, sma50: s50, rsi: r, macd: m, ret1m: r1m, ret3m: r3m, vol, drawdown: dd };
         return {
             score,
             ...labelOf(score),
             risk: riskOf(vol),
-            reasons: reasons.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts)),
-            metrics: { price: p, sma20: s20, sma50: s50, rsi: r, macd: m, ret1m: r1m, ret3m: r3m, vol, drawdown: dd },
+            reasons: sorted,
+            metrics,
+            horizons: { short: shortTerm(v, metrics), mid, long: longTerm(v, metrics) },
         };
+    }
+
+    // ---- Curto prazo (dias a 2 semanas): momento e excessos ----
+    function shortTerm(v, mt) {
+        const p = mt.price;
+        let s = 50;
+        const reasons = [];
+        const add = (pts, txt) => { s += pts; reasons.push({ pts: Math.round(pts), txt }); };
+        const r = mt.rsi;
+        if (r != null) {
+            const rr = Math.round(r);
+            if (r < 30) add(10, `RSI ${rr}: sobrevendido, ressalto provável`);
+            else if (r < 45) add(-2, `RSI ${rr}: sem força`);
+            else if (r <= 65) add(4, `RSI ${rr}: momento saudável`);
+            else if (r <= 75) add(-4, `RSI ${rr}: a ficar esticado`);
+            else add(-10, `RSI ${rr}: sobrecomprado, correção provável`);
+        }
+        const m = mt.macd;
+        if (m) {
+            if (m.hist > 0 && m.hist > m.histPrev) add(8, 'MACD positivo e a acelerar');
+            else if (m.hist > 0) add(3, 'MACD positivo mas a abrandar');
+            else if (m.hist < m.histPrev) add(-8, 'MACD negativo e a piorar');
+            else add(2, 'MACD negativo mas a melhorar (pode virar)');
+        }
+        if (mt.sma20 != null) {
+            const gap = p / mt.sma20 - 1;
+            if (gap < -0.08) add(4, `${pct(gap)} abaixo da média de 20 dias: muito esticado para baixo`);
+            else if (gap > 0.1) add(-4, `${pct(gap)} acima da média de 20 dias: muito esticado para cima`);
+            else add(gap > 0 ? 6 : -6, gap > 0 ? 'Acima da média de 20 dias' : 'Abaixo da média de 20 dias');
+        }
+        const r5 = ret(v, 5);
+        if (r5 != null) add(clamp(r5 * 100 * 0.8, -8, 8), `Últimos 5 dias: ${pct(r5)}`);
+        const sc = Math.round(clamp(s, 0, 100));
+        return { score: sc, ...labelOf(sc, 'short'), reasons: reasons.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts)) };
+    }
+
+    // ---- Longo prazo (anos): tendência de fundo e desconto ----
+    function longTerm(v, mt) {
+        if (v.length < 120) return null;
+        const p = mt.price;
+        const n = Math.min(200, v.length - 20);
+        const sL = sma(v, n), sLprev = sma(v.slice(0, -20), n);
+        const nm = n >= 200 ? 'média de 200 dias' : `média de ${n} dias`;
+        let s = 50;
+        const reasons = [];
+        const add = (pts, txt) => { s += pts; reasons.push({ pts: Math.round(pts), txt }); };
+        const up = sLprev != null && sL > sLprev;
+        add(p > sL ? 12 : -12, p > sL ? `Acima da ${nm}: tendência longa positiva` : `Abaixo da ${nm}: tendência longa negativa`);
+        if (sLprev != null) add(up ? 8 : -8, up ? `A ${nm} continua a subir` : `A ${nm} está a descer`);
+        const r1y = ret(v, Math.min(252, v.length - 1));
+        if (r1y != null) add(clamp(r1y * 100 * 0.15, -10, 10), `Último ano: ${pct(r1y)}`);
+        const hi = Math.max(...v.slice(-252));
+        const dd = p / hi - 1;
+        if (dd <= -0.1 && up) add(8, `${pct(dd)} abaixo do máximo do ano com a tendência longa a subir: desconto para ir comprando aos poucos`);
+        else if (dd <= -0.25 && !up) add(-6, `${pct(dd)} abaixo do máximo do ano e ainda em queda prolongada`);
+        else if (dd > -0.03) reasons.push({ pts: 0, txt: 'Perto do máximo do ano (sem desconto)' });
+        else reasons.push({ pts: 0, txt: `${pct(dd)} abaixo do máximo do ano` });
+        const sc = Math.round(clamp(s, 0, 100));
+        return { score: sc, ...labelOf(sc, 'long'), reasons: reasons.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts)), discount: dd };
     }
 
     // ---- Tom das notícias por palavras-chave (PT + EN) ----

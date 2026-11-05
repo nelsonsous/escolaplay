@@ -7,7 +7,7 @@
 //
 //   GET /health                               → { ok, version }
 //   GET /quotes?symbols=BZ=F,AAPL&range=1d    → cotações + série (até 40 símbolos)
-//   GET /news?q=Galp&lang=pt                  → notícias (Google Notícias; Yahoo de recurso)
+//   GET /news?q=Galp&lang=pt&sym=GALP.LS      → notícias (Google, Bing ou Yahoo, por esta ordem)
 //   GET /movers                               → maiores subidas/descidas/volume nos EUA (Yahoo)
 //   GET /search?q=tesla                       → procurar símbolos
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
@@ -147,10 +147,14 @@ export function parseRSS(xml, max = 12) {
     while ((m = re.exec(xml)) && items.length < max) {
         const x = m[1];
         let title = tag(x, 'title');
-        const source = tag(x, 'source');
+        const source = tag(x, 'source') || tag(x, 'News:Source');
+        let link = tag(x, 'link');
+        // o Bing embrulha o link num redirecionamento: tirar o endereço verdadeiro
+        const real = link.match(/[?&]url=([^&]+)/);
+        if (real && /bing\.com/.test(link)) { try { link = decodeURIComponent(real[1]); } catch { /* fica o do Bing */ } }
         if (source && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3));
         const t = Date.parse(tag(x, 'pubDate'));
-        items.push({ title, link: tag(x, 'link'), source: source || null, time: Number.isFinite(t) ? Math.floor(t / 1000) : null });
+        items.push({ title, link, source: source || null, time: Number.isFinite(t) ? Math.floor(t / 1000) : null });
     }
     return items;
 }
@@ -161,18 +165,34 @@ async function news(url) {
     const en = url.searchParams.get('lang') === 'en';
     const loc = en ? 'hl=en-US&gl=US&ceid=US:en' : 'hl=pt-PT&gl=PT&ceid=PT:pt-150';
     let items = [];
+    const diag = {};
     try {
         const r = await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(q + ' when:3d')}&${loc}`, { headers: { 'User-Agent': UA } });
-        if (r.ok) items = parseRSS(await r.text());
-    } catch { /* recurso abaixo */ }
+        const txt = await r.text();
+        diag.google = `${r.status} ${txt.length}B`;
+        if (r.ok) items = parseRSS(txt);
+    } catch (e) { diag.google = String(e.message || e); }
     if (!items.length) {
+        // o Google recusa pedidos vindos da Cloudflare: Bing Notícias (também em PT)
+        const bloc = en ? 'setlang=en-US&cc=US' : 'setlang=pt-PT&cc=PT';
         try {
-            const d = await yahoo(`/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=0&newsCount=10`);
+            const r = await fetch(`https://www.bing.com/news/search?q=${encodeURIComponent(q)}&format=rss&${bloc}`, { headers: { 'User-Agent': UA } });
+            const txt = await r.text();
+            diag.bing = `${r.status} ${txt.length}B`;
+            if (r.ok) items = parseRSS(txt);
+        } catch (e) { diag.bing = String(e.message || e); }
+    }
+    if (!items.length) {
+        const sym = (url.searchParams.get('sym') || '').trim().slice(0, 20);
+        try {
+            const d = await yahoo(`/v1/finance/search?q=${encodeURIComponent(sym || q)}&quotesCount=0&newsCount=10`);
             items = (d.news || []).map((n) => ({ title: n.title, link: n.link, source: n.publisher || null, time: n.providerPublishTime || null }));
-        } catch { /* sem notícias */ }
+            diag.yahoo = `${items.length} notícias`;
+        } catch (e) { diag.yahoo = String(e.message || e); }
     }
     items.sort((a, b) => (b.time || 0) - (a.time || 0));
-    return { body: { q, items }, ttl: 600 };
+    // sem notícias: cache curta e o motivo, para se perceber o que falhou
+    return items.length ? { body: { q, items }, ttl: 600 } : { body: { q, items, diag }, ttl: 60 };
 }
 
 // ---------- /movers (precisa de cookie + crumb do Yahoo) ----------

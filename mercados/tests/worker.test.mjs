@@ -137,3 +137,16 @@ test('CORS, saúde, rotas e origens permitidas', async () => {
     assert.equal(good.status, 200);
     assert.equal(good.headers.get('access-control-allow-origin'), 'https://ok.example');
 });
+
+test('/news recorre ao Bing quando o Google recusa, e tira o link verdadeiro', async () => {
+    const BING = `<rss><channel><item><title>Galp sobe em Lisboa</title><link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;url=https%3a%2f%2fjornal.pt%2fgalp&amp;c=1</link><pubDate>Thu, 05 Nov 2026 10:00:00 GMT</pubDate><News:Source>Jornal</News:Source></item></channel></rss>`;
+    const calls = mockFetch((u) => u.includes('news.google.com') ? res('blocked', 503) : u.includes('bing.com') ? res(BING) : res({ news: [] }));
+    const r = await call('/news?q=Galp%20a%C3%A7%C3%B5es&lang=pt&sym=GALP.LS');
+    assert.equal(r.body.items.length, 1);
+    assert.equal(r.body.items[0].link, 'https://jornal.pt/galp');
+    assert.equal(r.body.items[0].source, 'Jornal');
+    assert.ok(calls.some((c) => c.includes('setlang=pt-PT')));
+    mockFetch((u) => u.includes('finance/search') ? (u.includes('q=GALP.LS') ? res({ news: [{ title: 'Galp news', link: 'https://y/1' }] }) : res({ news: [] })) : res('', 503));
+    const y = await call('/news?q=Galp%20a%C3%A7%C3%B5es&lang=en&sym=GALP.LS');
+    assert.equal(y.body.items[0].title, 'Galp news', 'Yahoo pesquisa pelo símbolo');
+});
