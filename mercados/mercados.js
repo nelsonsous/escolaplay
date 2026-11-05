@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '2.0.0';
+    const VERSION = '2.0.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -774,10 +774,10 @@
         if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
+        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o que tenho</span></div>
+            ${holdingKeys().length ? `<div class="grid g3">${holdingKeys().map((k) => card(k, AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '')).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
         ${claudeCard()}
         ${briefCard()}
-        ${etfCrypto() ? `<section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o que tenho</span></div>
-            <div class="grid g3">${holdingKeys().map((k) => card(k, AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '')).join('')}</div></section>` : ''}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
@@ -1543,6 +1543,7 @@
     setInterval(() => { if (!document.hidden) loadClaude(); }, 60 * 60000);
 
     async function boot() {
+        cfg.tab = 'painel';
         colors();
         render();
         startWS();
