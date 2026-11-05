@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '2.3.0';
+    const VERSION = '3.0.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {} };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -588,37 +588,19 @@
         const day = next.getDate() === n.getDate() ? 'hoje' : 'amanhã';
         return `${made} · próxima ${day} às ${String(CL_HOUR).padStart(2, '0')}:${String(CL_MIN).padStart(2, '0')}`;
     }
-    // Cartões do Painel: abertos na primeira vez que aparecem (dia novo / análise nova); depois condensados
-    function firstView(name, key) {
-        if (!key) return true;
+    // Cartão "Hoje": aberto na primeira vez (dia novo / análise nova do Claude); depois condensado numa linha
+    function firstView(name, parts) {
+        const key = parts.join('|');
         st.open = st.open || {};
         const o = st.open[name];
         if (o && o.key === key) return o.v;
-        const unread = cfg.seen[name] !== key;
-        st.open[name] = { key, v: unread };
-        if (unread && document.visibilityState !== 'hidden') { cfg.seen[name] = key; saveCfg(); }
-        return unread;
+        const unread = parts.some((x, i) => x && cfg.seen[name + i] !== x);
+        const v = unread || !!(o && o.v); // se já estava aberto nesta sessão, não fecha sozinho
+        st.open[name] = { key, v };
+        if (unread && document.visibilityState !== 'hidden') { parts.forEach((x, i) => { if (x) cfg.seen[name + i] = x; }); saveCfg(); }
+        return v;
     }
     const claudeFor = (k) => CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
-    function claudeCard() {
-        if (!CLAUDE || CLAUDE.missing || !CLAUDE.headline) return '';
-        const c = CLAUDE;
-        const t = { buy: 'up', scale: 'up', avoid: 'down', sell: 'down' };
-        const acts = (c.actions || []).filter((a) => REG[a.s]).slice(0, 8);
-        const plan = Array.isArray(c.plan) ? c.plan : [];
-        const old = c.date && c.date < todayLocal();
-        const open = firstView('claude', c.generatedAt || c.date);
-        return `<details class="claude fold" data-fold="claude" ${open ? 'open' : ''}><summary><span>Análise do Claude</span><small>${esc(clWhen())}${old ? ' · atrasada' : ''}</small><em class="teaser">${esc(c.headline)}</em></summary>
-            <div class="cl-head">${esc(c.headline)}</div>
-            ${c.market ? `<p>${esc(c.market)}</p>` : ''}
-            ${plan.length ? `<div class="i-blk"><div class="i-h">O que fazer com o plano deste mês<small>${esc(c.planNote || '')}</small></div>${plan.map((x) => `<${REG[x.s] ? `button type="button" data-open="${esc(x.s)}"` : 'div'} class="idea"><span class="i-n">${esc(x.name || nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t num">${esc(x.amount || '')}</span></${REG[x.s] ? 'button' : 'div'}>`).join('')}</div>` : ''}
-            ${acts.length ? `<div class="i-blk"><div class="i-h">Ativos a seguir de perto</div>${acts.map((a) => `<button type="button" class="idea" data-open="${esc(a.s)}"><span class="i-n">${esc(nameOf(a.s))}<small>${esc(a.why || '')}</small></span><span class="i-t ${t[a.key] || 'flat'}-t">${esc(a.action || '')}</span></button>`).join('')}</div>` : ''}
-            ${Array.isArray(c.risks) && c.risks.length ? `<div class="i-blk"><div class="i-h">Riscos a vigiar</div><ul class="dnotes">${c.risks.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></div>` : ''}
-            ${c.review ? `<div class="i-blk"><div class="i-h">Como correram os conselhos anteriores</div><p class="muted">${esc(c.review)}</p></div>` : ''}
-            ${Array.isArray(c.lessons) && c.lessons.length ? `<details class="how in"><summary>O que o Claude aprendeu até agora (${c.lessons.length})</summary><ul>${c.lessons.map((l) => `<li>${esc(l)}</li>`).join('')}</ul></details>` : ''}
-            <p class="note">Escrita todos os dias úteis por uma tarefa agendada do Claude, com os dados do teu conector e o diário de sugestões. Valida antes de investir.</p></details>`;
-    }
-
     async function loadFuel() {
         if (!cfg.proxy) return;
         try {
@@ -823,7 +805,8 @@
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
         const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? viewAnalysis() : cfg.tab === 'ajustes' ? viewSettings() : viewDashboard();
-        body.innerHTML = html;
+        const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
+        body.innerHTML = `<h1 class="pg-t">${title}</h1>` + html;
         drawSparks();
     }
 
@@ -840,18 +823,19 @@
         el.innerHTML = `<span>${cTxt}</span><span>${yTxt}</span>`;
     }
 
-    // cartão (grelha)
-    function card(k, extra = '') {
+    // ativo numa linha da lista (com o subtítulo do tipo de ativo)
+    function card(k, extra = '', badge = null) {
         const a = REG[k] || { key: k, name: k };
         const q = qv(k);
-        const sub = a.kind === 'fund' && FUND_TYPE[k] ? ({ acc: 'Acc · sem dividendos', dist: 'Dist · dividendos', etc: 'ETC' }[FUND_TYPE[k]]) : a.kind === 'crypto' ? '24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? 'às ' + hhmm(q.time) : '');
-        return `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
-            <div class="c-top"><span class="c-name">${esc(nameOf(k))}</span>${a.kind === 'crypto' ? `<span class="c-sym">${esc(a.sym)}</span>` : ''}</div>
-            <div class="c-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span></div>
-            <div class="c-row">${chg(q.changePct)}<span class="c-sub">${esc(sub)}</span></div>
-            ${extra ? `<div class="c-note">${esc(extra)}</div>` : ''}
-            <canvas class="spark" data-key="${esc(k)}"></canvas>
-        </button>`;
+        const sub = a.kind === 'fund' && FUND_TYPE[k] ? ({ acc: 'Acc · sem dividendos', dist: 'Dist · dividendos', etc: 'ETC' }[FUND_TYPE[k]]) : a.kind === 'crypto' ? a.sym + ' · 24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? 'às ' + hhmm(q.time) : '');
+        return row(k, { sub, note: extra, badge });
+    }
+    // ícone redondo com as iniciais (cor fixa por ativo)
+    function ico(k) {
+        const a = REG[k] || {};
+        const t = a.kind === 'crypto' ? a.sym : nameOf(k).replace(/[^A-Za-zÀ-ÿ0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('') || '?';
+        let h = 0; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) % 360;
+        return `<span class="r-ico" style="--h:${h}" aria-hidden="true">${esc(t.slice(0, 4).toUpperCase())}</span>`;
     }
 
     // linha (lista)
@@ -860,9 +844,9 @@
         const q = qv(k);
         const sub = opt.sub ?? [a.sym, q.exchange, q.open === false ? 'fechado' : ''].filter(Boolean).join(' · ');
         return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
-            <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(sub)}</div></div>
+            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(sub)}</div>${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
-            <div class="r-px num"><span class="px">${fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
+            <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
         </button>`;
     }
 
@@ -882,20 +866,22 @@
             const l = e.perLitre && q ? A.usdGalToEurL(q.price, eurusd) : null;
             return card(e.sym, l ? `≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L sem impostos` : '');
         }).join('');
+        const hold = holdingKeys();
+        const crypt = CRYPTO.map((c) => 'c:' + c.id).filter((k) => !hold.includes(k));
+        const funds = cfg.funds.filter((k) => !hold.includes(k));
         const stocks = cfg.watch.slice();
         if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
-        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">o que tenho</span></div>
-            ${holdingKeys().length ? `<div class="grid g3">${holdingKeys().map((k) => card(k, [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máximo do ano` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '))).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
-        ${claudeCard()}
-        ${briefCard()}
-        <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
-            <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
-        <section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
-            ${cfg.funds.length ? `<div class="grid">${cfg.funds.map((s) => card(s)).join('')}</div>` : '<div class="empty">Sem fundos. Junta em Ajustes (ex.: VWCE, IWDA).</div>'}</section>
+        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">${CLAUDE && !CLAUDE.missing && CLAUDE.headline ? 'com o conselho do Claude' : 'o que tenho'}</span></div>
+            ${hold.length ? `<div class="list">${hold.map((k) => { const cl = claudeFor(k); return card(k, [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máx. do ano` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '), cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
+        ${todayCard()}
+        ${crypt.length ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
+            <div class="list">${crypt.map((k) => card(k)).join('')}</div></section>` : ''}
+        ${funds.length || !cfg.funds.length ? `<section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
+            ${funds.length ? `<div class="list">${funds.map((s) => card(s)).join('')}</div>` : '<div class="empty">Sem fundos. Junta em Ajustes (ex.: VWCE, IWDA).</div>'}</section>` : ''}
         <section class="sec"><div class="sec-h"><h2>Petróleo e energia</h2><span class="sub">futuros, USD</span></div>
-            <div class="grid g3">${energy}</div></section>
+            <div class="list">${energy}</div></section>
         ${viewFuel()}
         <section class="sec"><div class="sec-h"><h2>Índices, câmbio e ouro</h2></div>
             <div class="list">${INDICES.map((i) => row(i.sym, { sub: i.sym })).join('')}</div></section>
@@ -949,6 +935,13 @@
         </button>`;
     }
 
+    function moodBox() {
+        const inv = Object.keys(AN).filter((k) => listed(k) && investable(k));
+        const breadth = inv.length ? inv.filter((k) => AN[k].score >= 58).length / inv.length : NaN;
+        const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
+        return mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
+            <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : '';
+    }
     function viewHighlights() {
         const V = {};
         const all = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && fin((V[k] = qv(k)).changePct));
@@ -963,6 +956,7 @@
         const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA · informação</span></div>
             <div class="list">${arr.slice(0, 6).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
         return `${cfg.proxy ? '' : setupBanner()}
+        ${moodBox()}
         ${block('Os meus ativos hoje', 'o que tenho', mine, 'A carregar…')}
         ${block('Mais sobem hoje', 'do que sigo · informação', ups, 'Nada a subir hoje.')}
         ${block('Mais caem hoje', 'do que sigo · informação', downs, 'Nada a cair hoje.')}
@@ -1028,21 +1022,30 @@
 
     // ---------- Resumo do dia (Painel) ----------
     const PROFILES = { prud: ['Prudente', 0.9, 0.1, 0], bal: ['Equilibrado', 0.7, 0.2, 0.1], dyn: ['Dinâmico', 0.55, 0.3, 0.15] };
-    function briefCard() {
+    // próxima execução dos planos de poupança na TR (dias 2, 9, 16, 23)
+    function nextExec() {
+        const days = cfg.saveDays.slice().sort((a, b) => a - b);
+        const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+        let next = null;
+        for (let m = 0; m < 2 && !next; m++) for (const d of days) { const dt = new Date(t0.getFullYear(), t0.getMonth() + m, d); if (dt >= t0) { next = dt; break; } }
+        const dl = next ? new Date(next.getTime() - DAY) : null;
+        return { days, next, dl, isExec: !!next && next.getTime() === t0.getTime(), isDeadline: !!dl && dl.getTime() === t0.getTime() };
+    }
+    // dados do dia (mercado, plano automático, agenda) para o cartão "Hoje"
+    function briefParts() {
         const inv = Object.keys(AN).filter(investable);
-        if (!inv.length) return '';
+        if (!inv.length) return null;
         const V = (k) => qv(k);
         const idx = [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq'], ['^STOXX50E', 'Euro Stoxx 50'], ['PSI20.LS', 'PSI']]
             .filter(([k]) => Q[k] && fin(Q[k].changePct)).map(([k, n]) => `${n} <span class="${toneOf(Q[k].changePct)}-t">${fmtPct(Q[k].changePct)}</span>`);
         const vix = Q['^VIX'] && Q['^VIX'].price;
         const breadth = inv.filter((k) => AN[k].score >= 58).length / inv.length;
         const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix, breadth });
-        const btc = V('c:BTC');
         const movers = inv.filter((k) => fin(V(k).changePct)).sort((a, b) => V(b).changePct - V(a).changePct);
         const up = movers.slice(0, 2).filter((k) => V(k).changePct > 1), dn = movers.slice(-2).reverse().filter((k) => V(k).changePct < -1);
         const adv = (k) => (AN[k] && AN[k].advice) || { key: '', action: '' };
-        // plano do mês
-        const [pName, pCore, pSat, pCry] = PROFILES[cfg.profile] || PROFILES.bal;
+        // plano do mês automático (enquanto não há análise do Claude)
+        const [pName, , pSat, pCry] = PROFILES[cfg.profile] || PROFILES.bal;
         const L = (k) => (AN[k].horizons.long || AN[k].horizons.mid).score;
         const funds = inv.filter((k) => REG[k].kind === 'fund' && L(k) >= 50).sort((a, b) => (b === 'VWCE.DE') - (a === 'VWCE.DE') || L(b) - L(a));
         let core = funds[0];
@@ -1061,46 +1064,64 @@
             if (!cC) cryp.length = 0;
         }
         const B = +cfg.budget || 0;
+        const nE = Math.max(1, cfg.saveDays.length);
         const amt = (f) => B ? fmtPx(B * f, { decimals: 0 }, 'EUR') : Math.round(f * 100) + '%';
-        const line = (k, share, extra) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}<small>${esc(extra)}</small></span><span class="i-t num">${amt(share)}</span></button>`;
-        const plan = [];
-        if (core) plan.push(line(core, cCore, `núcleo · ${adv(core).action.toLowerCase()}`));
-        sats.forEach((k) => plan.push(line(k, cS / sats.length, `satélite · ${adv(k).action.toLowerCase()}`)));
+        const amtX = (f) => B ? fmtPx(B / nE * f, { decimals: 0 }, 'EUR') : Math.round(f * 100) + '%';
         const cShare = (k) => cfg.cryptoMix === 'btceth' && cryp.length === 2 ? cC * (k === 'c:BTC' ? 0.7 : 0.3) : cC / cryp.length;
-        cryp.forEach((k) => plan.push(line(k, cShare(k), etfCrypto() ? 'cripto · todos os meses, manter ≥ 1 ano' : `cripto · ${adv(k).action.toLowerCase()}`)));
+        const lines = [];
+        if (core) lines.push([core, cCore, `núcleo · ${adv(core).action.toLowerCase()}`]);
+        sats.forEach((k) => lines.push([k, cS / sats.length, `satélite · ${adv(k).action.toLowerCase()}`]));
+        cryp.forEach((k) => lines.push([k, cShare(k), etfCrypto() ? 'cripto · todos os meses, manter ≥ 1 ano' : `cripto · ${adv(k).action.toLowerCase()}`]));
+        const plan = lines.map(([k, f, extra]) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}<small>${esc(extra)}</small></span><span class="i-t num">${amt(f)}</span></button>`);
+        const exec = lines.map(([k, f]) => `${amtX(f)} ${nameOf(k)}`).join(' + ');
         const notes = [];
-        // próxima execução dos planos de poupança na TR (dias 2, 9, 16, 23)
-        const days = cfg.saveDays.slice().sort((a, b) => a - b);
-        const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-        let next = null;
-        for (let m = 0; m < 2 && !next; m++) for (const d of days) { const dt = new Date(t0.getFullYear(), t0.getMonth() + m, d); if (dt >= t0) { next = dt; break; } }
-        const dl = next ? new Date(next.getTime() - DAY) : null;
-        const per = B ? B / days.length : 0;
-        const amtX = (f) => B ? fmtPx(per * f, { decimals: 0 }, 'EUR') : Math.round(f * 100) + '%';
-        const execLines = [];
-        if (core) execLines.push([core, cCore]);
-        sats.forEach((k) => execLines.push([k, cS / sats.length]));
-        cryp.forEach((k) => execLines.push([k, cC && cryp.length ? (cfg.cryptoMix === 'btceth' && cryp.length === 2 ? cC * (k === 'c:BTC' ? 0.7 : 0.3) : cC / cryp.length) : 0]));
-        const isDeadline = dl && dl.getTime() === t0.getTime(), isExec = next && next.getTime() === t0.getTime();
-        const execBlock = next ? `<div class="i-blk exec ${isDeadline ? 'hot' : ''}"><div class="i-h">${isExec ? 'Hoje executam os planos' : isDeadline ? 'Hoje é o último dia para ajustar os planos' : 'Próxima execução na TR'}<small>${next.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}${isExec || isDeadline ? '' : ` · ajustar até ${dm(dl.getTime())}`}${days.length > 1 ? ` · ${days.length} execuções por mês` : ''}</small></div>
-            ${execLines.map(([k, f]) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">Plano ${esc(nameOf(k))}</span><span class="i-t num">${amtX(f)}</span></button>`).join('')}
-            <div class="ex-btns"><button type="button" class="btn sm" data-act="ics">Lembretes no calendário</button></div></div>` : '';
         if (!etfCrypto()) {
             if (!sats.length && pSat) notes.push('Sem ações em boa altura: a parte dos satélites fica no núcleo este mês.');
             if (!cryp.length && pCry) notes.push('Cripto sem sinal de compra: essa parte fica no núcleo este mês.');
-        } else if (cC) notes.push('Cripto: em Portugal, vender ao fim de 365 dias ou mais está isento de IRS — manter pelo menos 1 ano.');
-        const teaser = next ? `${isExec ? 'Hoje executam os planos' : isDeadline ? 'Hoje é o último dia para ajustar os planos' : 'Próxima execução na TR: ' + next.toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })} · ${execLines.map(([k, f]) => `${amtX(f)} ${nameOf(k)}`).join(' + ')}` : '';
-        return `<details class="brief fold" data-fold="brief" ${firstView('brief', todayLocal()) ? 'open' : ''}><summary><span>Resumo do dia</span>${mood ? `<b class="${mood.tone}-t">${esc(mood.label)}</b>` : ''}${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
-            ${idx.length ? `<p>${idx.join(' · ')}${fin(vix) ? ` · VIX ${Math.round(vix)}${vix > 25 ? ' (medo)' : vix < 16 ? ' (calma)' : ''}` : ''}</p>` : ''}
-            ${btc && fin(btc.price) ? `<p>Bitcoin ${fmtPx(btc.price, REG['c:BTC'], btc.currency)} <span class="${toneOf(btc.changePct)}-t">${fmtPct(btc.changePct)}</span> em 24 h.</p>` : ''}
-            ${mood ? `<p class="muted">${esc(mood.hint)}</p>` : ''}
-            ${up.length || dn.length ? `<p>${up.length ? 'Sobem: ' + up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}${up.length && dn.length ? '<br>' : ''}${dn.length ? 'Caem: ' + dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
-            ${execBlock}
-            <div class="i-blk"><div class="i-h">Plano do mês na Trade Republic<small>${etfCrypto() ? `ETF + cripto (${100 - (+cfg.cryptoPct || 0)}/${+cfg.cryptoPct || 0})` : 'perfil ' + esc(pName.toLowerCase())}${B ? ` · ${fmtPx(B, { decimals: 0 }, 'EUR')}/mês` : ' · define o valor em Ajustes'}</small></div>${plan.join('')}</div>
-            ${notes.map((n) => `<p class="note">${esc(n)}</p>`).join('')}
-            ${(() => { const ag = agenda(14).slice(0, 7); return ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''; })()}
-            ${avoid.length ? `<p class="note">Evitar por agora: ${avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
-            <p class="note">Toca num nome para ver o plano de compra em preços. Automático — valida antes de investir.</p></details>`;
+        }
+        const planSub = `${etfCrypto() ? `ETF + cripto (${100 - (+cfg.cryptoPct || 0)}/${+cfg.cryptoPct || 0})` : 'perfil ' + esc(pName.toLowerCase())}${B ? ` · ${fmtPx(B, { decimals: 0 }, 'EUR')}/mês` : ' · define o valor em Ajustes'}`;
+        return { idx, vix, mood, up, dn, V, plan, exec, notes, avoid, planSub, cC };
+    }
+    const eurNum = (s) => { const m = String(s || '').replace(/[\s  ]/g, '').replace(/\./g, '').match(/(\d+(?:,\d+)?)€/); return m ? +m[1].replace(',', '.') : NaN; };
+    // ---------- Hoje: a análise do Claude e o resumo do dia num só cartão ----------
+    function todayCard() {
+        const b = briefParts();
+        const c = CLAUDE && !CLAUDE.missing && CLAUDE.headline ? CLAUDE : null;
+        if (!b && !c) return '';
+        const x = nextExec();
+        const old = c && c.date && c.date < todayLocal();
+        const nE = Math.max(1, x.days.length);
+        // plano do mês: o do Claude; o automático só enquanto não há análise
+        const cplan = c && Array.isArray(c.plan) && c.plan.length ? c.plan : null;
+        let planHtml = '', execTxt = '';
+        if (cplan) {
+            planHtml = cplan.map((p) => `<${REG[p.s] ? `button type="button" data-open="${esc(p.s)}"` : 'div'} class="idea"><span class="i-n">${esc(p.name || nameOf(p.s))}<small>${esc(p.why || '')}</small></span><span class="i-t num">${esc(p.amount || '')}</span></${REG[p.s] ? 'button' : 'div'}>`).join('');
+            const per = cplan.map((p) => [p.s, eurNum(p.amount) / nE]).filter(([, v]) => fin(v) && v > 0);
+            execTxt = per.map(([s, v]) => `${fmtPx(v, { decimals: 0 }, 'EUR')} ${nameOf(s)}`).join(' + ');
+        } else if (b) { planHtml = b.plan.join(''); execTxt = b.exec; }
+        const when = x.next ? x.next.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+        const exTitle = x.isExec ? 'Hoje executam os planos' : x.isDeadline ? 'Hoje é o último dia para ajustar os planos' : 'Próxima execução';
+        const ex = x.next ? `<div class="exec ${x.isDeadline ? 'hot' : ''}"><div class="ex-t">${exTitle}: <b>${esc(when)}</b>${x.isExec || x.isDeadline ? '' : ` · ajustar até ${dm(x.dl.getTime())}`}</div>
+            ${execTxt ? `<div class="ex-a num">${esc(execTxt)}${nE > 1 ? `<small>por execução · ${nE} por mês</small>` : ''}</div>` : ''}
+            <div class="ex-btns"><button type="button" class="btn sm" data-act="ics">Lembretes no calendário</button></div></div>` : '';
+        const hold = holdingKeys();
+        const others = c && Array.isArray(c.actions) ? c.actions.filter((a) => REG[a.s] && !hold.includes(a.s)).slice(0, 6) : [];
+        const head = b ? b.idx.concat(fin(b.vix) ? [`VIX ${Math.round(b.vix)}${b.vix > 25 ? ' (medo)' : b.vix < 16 ? ' (calma)' : ''}`] : []).join(' · ') : '';
+        const ag = agenda(14).slice(0, 7);
+        const teaser = c ? c.headline : x.next ? `${exTitle}: ${when}${execTxt ? ' · ' + execTxt : ''}` : '';
+        const open = firstView('hoje', [todayLocal(), c ? (c.generatedAt || c.date || '') : '']);
+        return `<details class="today fold" data-fold="hoje" ${open ? 'open' : ''}><summary><span>Hoje</span>${b && b.mood ? `<b class="${b.mood.tone}-t">${esc(b.mood.label)}</b>` : ''}
+                <small>${c ? `Análise do Claude · ${esc(clWhen())}${old ? ' · atrasada' : ''}` : 'Resumo automático · a análise do Claude chega às 07:14'}</small>${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
+            ${head ? `<p class="t-mk">${head}</p>` : ''}
+            ${c ? `<div class="cl-head">${esc(c.headline)}</div>${c.market ? `<p>${esc(c.market)}</p>` : ''}` : b && b.mood ? `<p class="muted">${esc(b.mood.hint)}</p>` : ''}
+            ${!c && b && (b.up.length || b.dn.length) ? `<p>${b.up.length ? 'Sobem: ' + b.up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}${b.up.length && b.dn.length ? '<br>' : ''}${b.dn.length ? 'Caem: ' + b.dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
+            <div class="i-blk plan-blk"><div class="i-h">Plano do mês na Trade Republic<small>${c && c.planNote ? esc(c.planNote) : b ? b.planSub : ''}</small></div>${planHtml}${ex}</div>
+            ${others.length ? `<div class="i-blk"><div class="i-h">Também a seguir<small>fora do que tens</small></div>${others.map((a) => `<button type="button" class="idea" data-open="${esc(a.s)}"><span class="i-n">${esc(nameOf(a.s))}<small>${esc(a.why || '')}</small></span><span class="i-t ${CL_TONE[a.key] || 'flat'}-t">${esc(a.action || '')}</span></button>`).join('')}</div>` : ''}
+            ${c && Array.isArray(c.risks) && c.risks.length ? `<div class="i-blk"><div class="i-h">Riscos a vigiar</div><ul class="dnotes">${c.risks.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></div>` : ''}
+            ${ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''}
+            ${b ? b.notes.map((n) => `<p class="note">${esc(n)}</p>`).join('') : ''}
+            ${!c && b && b.avoid.length ? `<p class="note">Evitar por agora: ${b.avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
+            <p class="note">${c ? 'Escrita todos os dias às 07:14 por uma tarefa agendada do Claude, com os teus dados e o diário de sugestões. Como têm corrido os conselhos: Análise → Resultados.' : 'Plano automático até chegar a análise do Claude.'} Toca num nome para ver o detalhe. Valida antes de investir.</p></details>`;
     }
 
     function discountBox(k, q) {
@@ -1123,22 +1144,6 @@
     }
 
     const CL_TONE = { buy: 'up', scale: 'up', hold: 'flat', wait: 'flat', neutral: 'flat', turn: 'flat', avoid: 'down', sell: 'down' };
-    function claudeReading() {
-        if (!CLAUDE || CLAUDE.missing || !Array.isArray(CLAUDE.actions)) {
-            return `<div class="ideas cl"><div class="m-l">Leitura do Claude</div><p class="note">${cfg.proxy ? 'Ainda sem análise do Claude. A próxima chega às 07:14; até lá, os sinais automáticos abaixo servem de referência.' : 'Liga o conector para ver a análise do Claude.'}</p></div>`;
-        }
-        const hold = holdingKeys();
-        const acts = CLAUDE.actions.filter((x) => REG[x.s]);
-        const mine = hold.map((k) => acts.find((x) => x.s === k)).filter(Boolean);
-        const others = acts.filter((x) => !hold.includes(x.s));
-        const item = (x) => `<button type="button" class="idea" data-open="${esc(x.s)}"><span class="i-n">${esc(nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t ${CL_TONE[x.key] || 'flat'}-t">${esc(x.action || '')}</span></button>`;
-        const old = CLAUDE.date && CLAUDE.date < todayLocal();
-        return `<div class="ideas cl"><div class="m-l">Leitura do Claude</div><div class="note" style="margin:2px 0 0">${esc(clWhen())}${old ? ' · atrasada' : ''}</div>
-            ${CLAUDE.headline ? `<p class="cl-h">${esc(CLAUDE.headline)}</p>` : ''}
-            ${mine.length ? `<div class="i-blk"><div class="i-h">O que tenho<small>o que fazer com cada um</small></div>${mine.map(item).join('')}</div>` : ''}
-            ${others.length ? `<div class="i-blk"><div class="i-h">Outros a seguir</div>${others.map(item).join('')}</div>` : ''}</div>`;
-    }
-
     function ideasCard(inv) {
         const L = (k) => hzOf(k, 'long'), M = (k) => hzOf(k, 'mid'), D = (k) => AN[k] && AN[k].discount;
         const base = inv.filter((k) => REG[k].kind === 'fund' && L(k)).sort((a, b) => L(b).score - L(a).score).slice(0, 3);
@@ -1173,8 +1178,13 @@
                 ${BT.worst.length ? `<p class="note">Onde "comprar" correu pior: ${BT.worst.map((x) => `${esc(nameOf(x.k))} <span class="${tone(x.a)}-t">${pc(x.a)}</span>`).join(', ')}. Melhor: ${BT.best.map((x) => `${esc(nameOf(x.k))} <span class="${tone(x.a)}-t">${pc(x.a)}</span>`).join(', ')}.</p>` : ''}
                 <p class="note"><b>Leitura:</b> a lista são as empresas que hoje são grandes (viés de sobrevivência), por isso quase tudo parece bater o VWCE a olhar para trás. O que conta é a diferença entre sugestões: se "Evitar" corre tão bem ou melhor do que "Comprar", as regras não preveem nada. Por isso o núcleo é o VWCE e as decisões são do Claude, com o diário real a medir se acerta.</p>`;
         } else bt = `<button type="button" class="btn" data-act="backtest" ${cfg.proxy ? '' : 'disabled'}>Testar as regras nos últimos 5 anos</button>`;
-        return `<section class="sec"><div class="sec-h"><h2>Como têm corrido as sugestões</h2></div>
-            <div class="box"><h3>Diário real</h3>
+        const c = CLAUDE && !CLAUDE.missing ? CLAUDE : null;
+        return `<section class="sec res-sec">
+            <div class="box cl-box"><h3>Conselhos do Claude</h3>
+                ${c && c.review ? `<p class="muted">${esc(c.review)}</p>` : `<div class="note">${cfg.proxy ? 'Ainda sem revisão: o Claude compara os conselhos com o que aconteceu a partir do segundo dia.' : 'Liga o conector para ver a análise do Claude.'}</div>`}
+                ${c && Array.isArray(c.lessons) && c.lessons.length ? `<details class="how in"><summary>O que o Claude aprendeu até agora (${c.lessons.length})</summary><ul>${c.lessons.map((l) => `<li>${esc(l)}</li>`).join('')}</ul></details>` : ''}
+            </div>
+            <div class="box"><h3>Diário real (regras automáticas)</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para guardar o diário.</div>' : !ev ? '<div class="note">A ler o diário…</div>'
                 : !jrows ? `<div class="note">A app guarda as sugestões de cada dia em que a abres (${ev.days || 0} dia${ev.days === 1 ? '' : 's'} até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>`
                 : `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${jrows}</tbody></table><p class="note">Desde ${esc(ev.since)} · ${ev.days} dias guardados. "Acerto": comprar → subiu; evitar → desceu.</p>`}
@@ -1188,14 +1198,10 @@
         const f = cfg.filter;
         const hz = cfg.hz;
         const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' ? investable(k) : f === 'plan' ? investable(k) && inPlan(k) : REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
-        const breadth = inv.length ? inv.filter((k) => AN[k].score >= 58).length / inv.length : NaN;
-        const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
         const top = shown.slice(0, 3);
         const chips = [['plan', 'ETF + cripto'], ['all', 'Tudo'], ['fund', 'ETF'], ['crypto', 'Cripto'], ['stock', 'Ações'], ['energy', 'Futuros (referência)']];
-        return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
-            <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
-        ${claudeReading()}
-        <details class="auto" ${CLAUDE && !CLAUDE.missing ? '' : 'open'}><summary>Sinais automáticos (algoritmo) — referência</summary>${ideasCard(inv)}</details>
+        return `<h2 class="grp">Comparar ativos</h2>
+        <p class="note grp-n">Pontuações automáticas (tendência, momento, desconto): servem para comparar, não dizem o que comprar. O conselho para o que tens está no Painel.</p>
         <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l}${v === 'disc' ? '' : ' prazo'}</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         ${f === 'energy' ? '<p class="note" style="margin:0 2px 12px">Petróleo, gasóleo, gás e ouro aparecem aqui como contratos de futuros, só para referência. Na Trade Republic não se compram futuros: há ETC, que ao fim de anos perdem com os custos de rolagem. Para ouro, o ETC físico (Xetra-Gold, nos ETF) é a forma habitual.</p>' : ''}
@@ -1209,13 +1215,13 @@
                 <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((hzOf(k, hz).reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
             </button>`).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${shown.length} ativos · 0 a 100</span></div>
-            <p class="note" style="margin:-4px 2px 10px">Mede só a tendência e o momento de cada ativo, não diz o que comprar: no teste de 2 anos, comprar os primeiros desta lista não bateu o VWCE. Para decidir, usa a Análise do Claude e as Ideias para a TR.</p>
+            <p class="note" style="margin:-4px 2px 10px">Mede só a tendência e o momento de cada ativo: no teste no passado, comprar os primeiros desta lista não bateu o VWCE.</p>
             <div class="list">${shown.map((k, i) => `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
                 <span class="rk">${i + 1}</span>
                 <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${hz === 'disc' && AN[k].discount ? esc(fmtPct(AN[k].discount.dd * 100) + ' do máx. · ') : ''}${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
                 <div class="r-score">${scoreBar(hzOf(k, hz))}<div class="lbl ${hzOf(k, hz).tone}-t">${esc(hzOf(k, hz).label)}</div></div>
             </button>`).join('')}</div></section>`}
-        ${trackSection()}
+        <details class="auto"><summary>Sinais automáticos (algoritmo) — referência</summary>${ideasCard(inv)}</details>
         <details class="how"><summary>Como é calculada a pontuação?</summary><ul>
             <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>
             <li><b>Médio prazo</b> (semanas a 3 meses): médias de 20 e 50 dias, variação de 1 e 3 meses, MACD e RSI.</li>
@@ -1225,6 +1231,9 @@
             <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>
             <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li>
             <li>50 = neutro. Acima de 58 a tendência é positiva; acima de 70 é forte.</li></ul></details>
+        <h2 class="grp">Resultados</h2>
+        <p class="note grp-n">Como têm corrido os conselhos do Claude e as regras automáticas.</p>
+        ${trackSection()}
         <div class="disc"><b>Isto não é aconselhamento financeiro.</b> A pontuação mede a tendência e o momento recentes — o que já aconteceu. Ninguém consegue garantir o que vai subir. Antes de investir: diversifica, não ponhas dinheiro de que precisas, prefere investir aos poucos, e lembra-te que cripto e ações pequenas podem cair 50% ou mais.</div>`;
     }
 
@@ -1265,6 +1274,8 @@
             </div></section>
         <section class="sec"><div class="sec-h"><h2>Preferências</h2></div>
             <div class="form">
+                <div><label>Tamanho da letra</label><div class="seg prof">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}"><b>${l}</b></button>`).join('')}</div>
+                    <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
                 <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="${cfg.eur ? 'on' : ''}">EUR</button><button type="button" data-eur="0" class="${cfg.eur ? '' : 'on'}">Moeda local</button></div></div>
                 <div class="sw"><span>Moeda das cripto</span><div class="seg"><button type="button" data-fiat="EUR" class="${cfg.fiat === 'EUR' ? 'on' : ''}">EUR</button><button type="button" data-fiat="USD" class="${cfg.fiat === 'USD' ? 'on' : ''}">USD</button></div></div>
                 <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
@@ -1553,7 +1564,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1578,6 +1589,7 @@
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
+        if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
         if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
@@ -1682,8 +1694,10 @@
     setInterval(() => { if (!document.hidden) loadCalendar(); }, 6 * 60 * 60000);
     setInterval(() => { if (!document.hidden) loadClaude(); }, 60 * 60000);
 
+    function applyFs() { document.documentElement.dataset.fs = ['n', 'l', 'xl'].includes(cfg.fs) ? cfg.fs : 'n'; }
     async function boot() {
         cfg.tab = 'painel';
+        applyFs();
         colors();
         render();
         startWS();
