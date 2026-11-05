@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.9.1';
+    const VERSION = '1.9.2';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -65,6 +65,8 @@
         'SXRV.DE': 'Nasdaq-100 (iShares)', 'IS3N.DE': 'Mercados emergentes (iShares)', 'EXSA.DE': 'Europa 600 (iShares)',
         '4GLD.DE': 'Ouro físico (Xetra-Gold)',
     };
+    // Acumulação: sem dividendos (nada a declarar até vender). Distribuição: dividendos a declarar todos os anos.
+    const FUND_TYPE = { 'VWCE.DE': 'acc', 'EUNL.DE': 'acc', 'SXR8.DE': 'acc', 'SXRV.DE': 'acc', 'IS3N.DE': 'acc', 'EXSA.DE': 'dist', '4GLD.DE': 'etc' };
     const LIVE = { 'VWCE.DE': 'VWCE.MU', 'EUNL.DE': 'EUNL.MU', 'SXR8.DE': 'SXR8.MU', 'SXRV.DE': 'SXRV.MU', 'IS3N.DE': 'IS3N.MU' };
     const DEFAULT_FUNDS = Object.keys(FUND_NAMES);
 
@@ -727,7 +729,7 @@
     function card(k, extra = '') {
         const a = REG[k] || { key: k, name: k };
         const q = qv(k);
-        const sub = a.kind === 'crypto' ? '24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? 'às ' + hhmm(q.time) : '');
+        const sub = a.kind === 'fund' && FUND_TYPE[k] ? ({ acc: 'Acc · sem dividendos', dist: 'Dist · dividendos', etc: 'ETC' }[FUND_TYPE[k]]) : a.kind === 'crypto' ? '24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? 'às ' + hhmm(q.time) : '');
         return `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
             <div class="c-top"><span class="c-name">${esc(nameOf(k))}</span>${a.kind === 'crypto' ? `<span class="c-sym">${esc(a.sym)}</span>` : ''}</div>
             <div class="c-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span></div>
@@ -880,6 +882,8 @@
                 : `<b>Ex-dividendo ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`).join('')}
             ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
             ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}
+            ${REG[k].kind === 'fund' && FUND_TYPE[k] ? `<div class="adv-meta"><b>${{ acc: 'Acumulação', dist: 'Distribuição', etc: 'ETC (sem dividendos)' }[FUND_TYPE[k]]}</b> — ${{ acc: 'não paga dividendos: nada a declarar no IRS até venderes.', dist: 'paga dividendos: 28% e declaração no IRS (Anexo J) todos os anos. Para o plano, prefere a versão de acumulação.', etc: 'não paga dividendos; só declaras quando venderes.' }[FUND_TYPE[k]]}</div>` : ''}
+            ${REG[k].kind === 'stock' ? '<div class="adv-meta"><b>Dividendos</b> — se a empresa pagar, são 28% e entram na declaração de IRS (Anexo J) todos os anos.</div>' : ''}
             <div class="adv-meta">Impostos (PT): ${REG[k].kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%. A prazo, manter mais de 1 ano.' : REG[k].kind === 'fund' ? 'só pagas quando venderes, e menos quanto mais tempo o tiveres: 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais. Um ETF de acumulação não paga nada enquanto o tiveres.' : 'ao vender, 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais; os dividendos pagam 28%.'}</div>
             <div class="adv-meta faint">Automático, a partir da tendência, do desconto e dos níveis — valida antes de comprar.</div></div>`;
     }
