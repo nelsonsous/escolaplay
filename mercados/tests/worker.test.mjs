@@ -190,3 +190,15 @@ test('/journal guarda e lê o diário (KV simulado)', async () => {
     for (let i = 0; i < 805; i++) d = upsertJournal(d, `2026-01-01#${String(i).padStart(4, '0')}`, []);
     assert.equal(Object.keys(d.days).length, 800);
 });
+
+test('/advice lê a análise do Claude do KV', async () => {
+    const store = new Map([['advice:latest', JSON.stringify({ date: '2026-11-06', headline: 'Teste' })], ['advice:2026-11-05', JSON.stringify({ date: '2026-11-05' })]]);
+    const env = { JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null) } };
+    let r = await worker.fetch(new Request('https://w.test/advice'), env);
+    assert.equal((await r.json()).headline, 'Teste');
+    r = await worker.fetch(new Request('https://w.test/advice?date=2026-11-05'), env);
+    assert.equal((await r.json()).date, '2026-11-05');
+    assert.equal((await worker.fetch(new Request('https://w.test/advice?date=2026-01-01'), env)).status, 404);
+    assert.equal((await worker.fetch(new Request('https://w.test/advice?date=x'), env)).status, 400);
+    assert.equal((await worker.fetch(new Request('https://w.test/advice', { method: 'POST', body: '{}' }), env)).status, 405, 'só leitura');
+});

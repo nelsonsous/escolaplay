@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.6.0';
+    const VERSION = '1.7.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -460,6 +460,32 @@
         btBusy = false; render();
     }
 
+    // ---------- análise diária escrita pelo Claude (tarefa agendada → KV → /advice) ----------
+    let CLAUDE = null;
+    async function loadClaude() {
+        if (!cfg.proxy) return;
+        try { CLAUDE = await px('/advice'); } catch (e) { CLAUDE = { missing: true, error: e.message }; }
+        scheduleRender();
+    }
+    const claudeFor = (k) => CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
+    function claudeCard() {
+        if (!CLAUDE || CLAUDE.missing || !CLAUDE.headline) return '';
+        const c = CLAUDE;
+        const t = { buy: 'up', scale: 'up', avoid: 'down', sell: 'down' };
+        const acts = (c.actions || []).filter((a) => REG[a.s]).slice(0, 8);
+        const plan = Array.isArray(c.plan) ? c.plan : [];
+        const old = c.date && c.date < todayLocal();
+        return `<details class="claude" open><summary><span>Análise do Claude</span><small>${esc(c.date || '')}${old ? ' · de um dia anterior' : ''}</small></summary>
+            <div class="cl-head">${esc(c.headline)}</div>
+            ${c.market ? `<p>${esc(c.market)}</p>` : ''}
+            ${plan.length ? `<div class="i-blk"><div class="i-h">O que fazer com o plano deste mês<small>${esc(c.planNote || '')}</small></div>${plan.map((x) => `<${REG[x.s] ? `button type="button" data-open="${esc(x.s)}"` : 'div'} class="idea"><span class="i-n">${esc(x.name || nameOf(x.s))}<small>${esc(x.why || '')}</small></span><span class="i-t num">${esc(x.amount || '')}</span></${REG[x.s] ? 'button' : 'div'}>`).join('')}</div>` : ''}
+            ${acts.length ? `<div class="i-blk"><div class="i-h">Ativos a seguir de perto</div>${acts.map((a) => `<button type="button" class="idea" data-open="${esc(a.s)}"><span class="i-n">${esc(nameOf(a.s))}<small>${esc(a.why || '')}</small></span><span class="i-t ${t[a.key] || 'flat'}-t">${esc(a.action || '')}</span></button>`).join('')}</div>` : ''}
+            ${Array.isArray(c.risks) && c.risks.length ? `<div class="i-blk"><div class="i-h">Riscos a vigiar</div><ul class="dnotes">${c.risks.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></div>` : ''}
+            ${c.review ? `<div class="i-blk"><div class="i-h">Como correram os conselhos anteriores</div><p class="muted">${esc(c.review)}</p></div>` : ''}
+            ${Array.isArray(c.lessons) && c.lessons.length ? `<details class="how in"><summary>O que o Claude aprendeu até agora (${c.lessons.length})</summary><ul>${c.lessons.map((l) => `<li>${esc(l)}</li>`).join('')}</ul></details>` : ''}
+            <p class="note">Escrita todos os dias úteis por uma tarefa agendada do Claude, com os dados do teu conector e o diário de sugestões. Valida antes de investir.</p></details>`;
+    }
+
     async function loadFuel() {
         if (!cfg.proxy) return;
         try {
@@ -726,6 +752,7 @@
         if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
+        ${claudeCard()}
         ${briefCard()}
         <section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="grid">${CRYPTO.map((c) => card('c:' + c.id)).join('')}</div></section>
@@ -831,6 +858,7 @@
         return `<div class="box advice ${a.tone}"><h3>O que fazer na Trade Republic</h3>
             <div class="adv-act ${a.tone}-t">${esc(a.action)}</div>
             <div class="adv-txt">${esc(a.text)}</div>
+            ${(() => { const c = claudeFor(k); return c ? `<div class="adv-claude"><b>Claude: ${esc(c.action || '')}</b>${c.why ? ' — ' + esc(c.why) : ''}${c.plan ? `<div>${esc(c.plan)}</div>` : ''}</div>` : ''; })()}
             ${a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : ''}
             ${eventsOf(k).filter((e) => inDays(e.ms) <= 21).map((e) => `<div class="adv-ev">${e.type === 'earnings'
                 ? `<b>Resultados ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Nesses dias a ação costuma mexer ±5–10%. Se fores comprar, compra só metade antes e o resto depois.`
@@ -1380,7 +1408,7 @@
                 $('#f-proxy').blur();
                 if (!v) { render(); return; }
                 const msg = $('#f-proxy-msg'); if (msg) msg.textContent = 'A testar…';
-                px('/health').then(() => { toast('Conector ligado ✓'); pollYahoo(); loadDaily(); loadFuel(); loadMovers(); loadCalendar(); })
+                px('/health').then(() => { toast('Conector ligado ✓'); pollYahoo(); loadDaily(); loadFuel(); loadMovers(); loadCalendar(); loadClaude(); })
                     .catch((e) => { st.yahooErr = e.message; toast('Não respondeu: ' + e.message); scheduleRender(); });
                 break;
             }
@@ -1439,6 +1467,7 @@
     setInterval(() => { if (!document.hidden && cfg.tab === 'destaques') loadMovers(); }, 3 * 60000);
     setInterval(() => { if (!document.hidden) loadFuel(); }, 60 * 60000);
     setInterval(() => { if (!document.hidden) loadCalendar(); }, 6 * 60 * 60000);
+    setInterval(() => { if (!document.hidden) loadClaude(); }, 60 * 60000);
 
     async function boot() {
         colors();
@@ -1447,7 +1476,7 @@
         // se o WebSocket demorar, mostra logo um preço por REST
         sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
         loadCryptoSeries();
-        if (cfg.proxy) { await pollYahoo(); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
+        if (cfg.proxy) { loadClaude(); await pollYahoo(); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
         schedule();
         loadDaily();
     }

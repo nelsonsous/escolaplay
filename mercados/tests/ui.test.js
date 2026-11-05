@@ -49,6 +49,7 @@ function proxyBody(u) {
         { id: 2101, name: 'Gasóleo simples', n: 3012, avg: 1.611, median: 1.599, min: 1.449, max: 1.899, cheapest: [{ price: 1.449, name: 'Intermarché', brand: 'Intermarché', place: 'Leiria, Leiria' }], updated: '2026-11-05 09:30' },
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
+    if (p === '/advice') return { date: '2026-11-06', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'AMZN', amount: '90 €', why: 'tendência forte' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
     if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
     return null;
@@ -135,6 +136,10 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ aviso de resultados no conselho');
+    await page.waitForSelector('.claude .cl-head');
+    assert.match(await page.locator('.claude').textContent(), /manter o plano no VWCE/);
+    assert.equal(await page.locator('.claude .i-blk:has-text("plano deste mês") .idea').count(), 2);
+    console.log('✓ análise do Claude no painel');
     console.log('✓ resumo do dia:', (await page.locator('.brief .idea .i-n').allTextContents()).map((t) => t.split('núcleo')[0].split('satélite')[0].split('cripto')[0]).join(', '));
     const fund = await page.locator('.card[data-key="VWCE.DE"] .px').textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
@@ -202,6 +207,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('.box:has-text("Análise técnica") .hzb').count(), 3, 'três prazos na folha');
     assert.ok(await page.locator('.disc-box .range52 .bar i').count(), 'barra mínimo–máximo do ano');
     assert.ok(await page.locator('.advice .adv-act').count(), 'o que fazer na TR');
+    assert.match(await page.locator('.advice .adv-claude').textContent(), /Claude: Esperar/);
     assert.match(await page.locator('.advice').textContent(), /€/);
     assert.ok(await page.locator('.levels li').count() >= 2, 'níveis-chave');
     console.log('✓ conselho BTC:', await page.locator('.advice .adv-act').textContent(), '| níveis', await page.locator('.levels li').count());
