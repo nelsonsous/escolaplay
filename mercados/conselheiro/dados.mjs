@@ -30,8 +30,9 @@ const tryOr = async (f, fb, what) => { try { return await f(); } catch (e) { war
 const jKeys = await tryOr(() => kvKeys('j:'), [], 'diário (lista)');
 const journals = [];
 for (const k of jKeys) { const d = await tryOr(() => kvGet(k), null, 'diário ' + k); if (d && d.days) journals.push({ id: k.slice(2), days: d.days }); }
+// ações juntadas pelo utilizador: só as do dia mais recente de cada diário (a lista da app pode ter mudado)
 const extra = new Set();
-for (const j of journals) for (const items of Object.values(j.days)) for (const it of items) if (!CRYPTO[it.s] && !FUNDS[it.s] && !STOCKS[it.s]) extra.add(it.s);
+for (const j of journals) { const last = Object.keys(j.days).sort().pop(); for (const it of (last ? j.days[last] : [])) if (!CRYPTO[it.s] && !FUNDS[it.s] && !STOCKS[it.s]) extra.add(it.s); }
 
 const assets = [...Object.keys(FUNDS), ...Object.keys(STOCKS), ...extra, ...Object.keys(CRYPTO)];
 const all = [...assets, ...Object.keys(MARKET)];

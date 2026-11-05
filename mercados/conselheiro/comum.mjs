@@ -61,12 +61,13 @@ export async function kvPut(key, value) {
 export const todayLisbon = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
 
 // Universo seguido (as mesmas listas da app; a chave é a da app)
+// Só ativos que se compram na Trade Republic: grandes empresas mundiais (as mesmas da app).
+// Ações portuguesas não entram por omissão (não confirmado que estejam na TR).
 export const STOCKS = {
-    'EDP.LS': 'EDP', 'GALP.LS': 'Galp', 'JMT.LS': 'Jerónimo Martins', 'BCP.LS': 'BCP', 'EDPR.LS': 'EDP Renováveis', 'NOS.LS': 'NOS',
-    'NVG.LS': 'Navigator', 'SON.LS': 'Sonae', 'CTT.LS': 'CTT', 'ASML.AS': 'ASML', 'SAP.DE': 'SAP', 'MC.PA': 'LVMH', 'SIE.DE': 'Siemens',
-    'NOVO-B.CO': 'Novo Nordisk', 'RHM.DE': 'Rheinmetall', NVDA: 'Nvidia', AAPL: 'Apple', MSFT: 'Microsoft', AMZN: 'Amazon',
-    GOOGL: 'Alphabet (Google)', META: 'Meta', TSLA: 'Tesla', AMD: 'AMD', PLTR: 'Palantir', NFLX: 'Netflix', AVGO: 'Broadcom',
-    COIN: 'Coinbase', MSTR: 'Strategy',
+    AAPL: 'Apple', MSFT: 'Microsoft', NVDA: 'Nvidia', AMZN: 'Amazon', GOOGL: 'Alphabet (Google)', META: 'Meta', TSLA: 'Tesla',
+    AVGO: 'Broadcom', JPM: 'JPMorgan', V: 'Visa', LLY: 'Eli Lilly', 'BRK-B': 'Berkshire Hathaway', PLTR: 'Palantir', AMD: 'AMD',
+    'ASML.AS': 'ASML', 'SAP.DE': 'SAP', 'MC.PA': 'LVMH', 'SIE.DE': 'Siemens', 'NOVO-B.CO': 'Novo Nordisk', 'ALV.DE': 'Allianz',
+    'TTE.PA': 'TotalEnergies', 'RHM.DE': 'Rheinmetall', TSM: 'TSMC (Taiwan)',
 };
 export const FUNDS = {
     'VWCE.DE': 'FTSE All-World (VWCE)', 'EUNL.DE': 'MSCI World (iShares)', 'SXR8.DE': 'S&P 500 (iShares)', 'SXRV.DE': 'Nasdaq-100 (iShares)',
