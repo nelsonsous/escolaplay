@@ -160,12 +160,12 @@
             reasons: sorted,
             metrics,
             horizons: { short: shortTerm(v, metrics), mid, long: longTerm(v, metrics) },
-            discount: discountOf(v, metrics),
+            discount: discountOf(v, metrics, score),
         };
     }
 
     // ---- Desconto: quanto está abaixo do máximo do ano e se a descida é oportunidade ----
-    function discountOf(v, mt) {
+    function discountOf(v, mt, midScore) {
         const p = mt.price;
         const yr = v.slice(-252);
         const hi = Math.max(...yr, p), lo = Math.min(...yr, p);
@@ -193,11 +193,16 @@
         } else if (longUp !== false && (dd <= -0.08 || (r != null && r < 35))) {
             opp = true; tone = 'up'; tag = 'Oportunidade';
             verdict = r != null && r < 30 ? 'Oportunidade: com desconto e sobrevendido — bom para ir comprando aos poucos' : 'Oportunidade para ir comprando aos poucos';
+            if (midScore != null && midScore < 25) {
+                tag = 'Oportunidade (com cautela)'; tone = 'flat';
+                verdict = 'Desconto com a tendência longa a subir, mas a queda ainda está forte: comprar só aos bocadinhos ou esperar que estabilize';
+                notes.push('Médio prazo ainda muito fraco');
+            }
         } else {
             verdict = longUp ? 'Pequena correção dentro de uma tendência positiva' : 'Pequeno desconto, sem pressa'; tone = 'flat'; tag = LV[level];
         }
         // 0–100: quanto maior, melhor a oportunidade (desconto + sobrevenda, com a tendência longa a favor)
-        const score = Math.round(clamp(clamp(-dd * 200, 0, 60) + (r != null ? clamp((50 - r) * 1.2, -15, 25) : 0) + (longUp === true ? 15 : longUp === false ? -20 : 0), 0, 100));
+        const score = Math.round(clamp(clamp(-dd * 200, 0, 60) + (r != null ? clamp((50 - r) * 1.2, -15, 25) : 0) + (longUp === true ? 15 : longUp === false ? -20 : 0) - (midScore != null && midScore < 25 ? 15 : 0), 0, 100));
         return { dd, pos, hi, lo, level, levelLabel: LV[level], verdict, tone, tag, opp, score, notes, longUp };
     }
 

@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.2.0';
+    const VERSION = '1.3.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -53,8 +53,13 @@
     const DEFAULT_WATCH = Object.keys(NAMES);
     // Fundos/ETF: histórico da bolsa principal; preço da noite de Munique (gettex, até às 22 h),
     // que fica perto do que a Trade Republic mostra (LS Exchange, até às 23 h)
-    const FUND_NAMES = { 'VWCE.DE': 'FTSE All-World (VWCE)' };
-    const LIVE = { 'VWCE.DE': 'VWCE.MU' };
+    // ETF muito usados na Trade Republic (planos de poupança), cotados na Xetra em euros
+    const FUND_NAMES = {
+        'VWCE.DE': 'FTSE All-World (VWCE)', 'EUNL.DE': 'MSCI World (iShares)', 'SXR8.DE': 'S&P 500 (iShares)',
+        'SXRV.DE': 'Nasdaq-100 (iShares)', 'IS3N.DE': 'Mercados emergentes (iShares)', 'EXSA.DE': 'Europa 600 (iShares)',
+        '4GLD.DE': 'Ouro físico (Xetra-Gold)',
+    };
+    const LIVE = { 'VWCE.DE': 'VWCE.MU', 'EUNL.DE': 'EUNL.MU', 'SXR8.DE': 'SXR8.MU', 'SXRV.DE': 'SXRV.MU', 'IS3N.DE': 'IS3N.MU' };
     const DEFAULT_FUNDS = Object.keys(FUND_NAMES);
 
     // ---------- configuração ----------
@@ -67,6 +72,7 @@
     const cfg = { ...DEFAULTS, ...(store.get(KEY) || {}) };
     if (!Array.isArray(cfg.watch)) cfg.watch = DEFAULT_WATCH.slice();
     if (!Array.isArray(cfg.funds)) cfg.funds = DEFAULT_FUNDS.slice();
+    if ((cfg.fundsVer || 1) < 2) { for (const f of DEFAULT_FUNDS) if (!cfg.funds.includes(f)) cfg.funds.push(f); cfg.fundsVer = 2; }
     const saveCfg = () => store.set(KEY, cfg);
     {
         const p = new URLSearchParams(location.search).get('proxy');
@@ -89,6 +95,8 @@
     const fxNeeded = new Set();
     const isHolding = (k) => !!REG[k] && (REG[k].kind === 'stock' || REG[k].kind === 'fund');
     const listed = (k) => !!REG[k] && !REG[k].temp && REG[k].kind !== 'aux';
+    // o que se compra diretamente numa corretora como a Trade Republic (futuros e índices não)
+    const investable = (k) => listed(k) && ['stock', 'fund', 'crypto'].includes(REG[k].kind);
     const yahooKeys = () => Object.values(REG).filter((a) => a.kind !== 'crypto' && !a.temp).map((a) => a.key);
     const nameOf = (k) => (REG[k] && REG[k].name !== REG[k].sym ? REG[k].name : null) || (Q[k] && Q[k].name) || (REG[k] && REG[k].name) || k;
 
@@ -712,19 +720,37 @@
         return `<div class="score"><div class="bar"><i class="${r.tone}" style="width:${r.score}%"></i></div><span class="val num ${r.tone}-t">${r.score}</span></div>`;
     }
 
+    function ideasCard(inv) {
+        const L = (k) => hzOf(k, 'long'), M = (k) => hzOf(k, 'mid'), D = (k) => AN[k] && AN[k].discount;
+        const base = inv.filter((k) => REG[k].kind === 'fund' && L(k)).sort((a, b) => L(b).score - L(a).score).slice(0, 3);
+        const opps = inv.filter((k) => D(k) && D(k).opp).sort((a, b) => D(b).score - D(a).score).slice(0, 5);
+        const avoid = inv.filter((k) => L(k) && L(k).score < 42 && M(k) && M(k).score < 42).sort((a, b) => L(a).score - L(b).score).slice(0, 4);
+        if (!base.length && !opps.length && !avoid.length) return '';
+        const item = (k, txt, tone) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}</span><span class="i-t ${tone}-t">${esc(txt)}</span></button>`;
+        const blk = (title, sub, items) => items.length ? `<div class="i-blk"><div class="i-h">${title}<small>${sub}</small></div>${items.join('')}</div>` : '';
+        return `<div class="ideas"><div class="m-l">Ideias para a Trade Republic</div>
+            ${blk('Base de longo prazo', 'ETF para o plano mensal', base.map((k) => item(k, `${L(k).score} · ${D(k) ? D(k).tag.toLowerCase() : ''}`, L(k).tone)))}
+            ${blk('Oportunidades agora', 'desconto com a tendência longa a subir — comprar aos poucos', opps.map((k) => item(k, `${fmtPct(D(k).dd * 100)} do máx.`, 'up')))}
+            ${blk('Evitar por agora', 'a descer a médio e a longo prazo', avoid.map((k) => item(k, `${L(k).score} · ${L(k).label.toLowerCase()}`, 'down')))}
+            <p class="note">Gerado a partir das tendências e do desconto; confirma o preço na app da TR antes de comprar.</p></div>`;
+    }
+
     function viewAnalysis() {
         const keys = Object.keys(AN).filter((k) => listed(k) && (REG[k].kind !== 'index' || k === 'GC=F'));
+        const inv = keys.filter(investable);
         const f = cfg.filter;
         const hz = cfg.hz;
-        const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' || REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
-        const breadth = keys.length ? keys.filter((k) => AN[k].score >= 58).length / keys.length : NaN;
+        const shown = keys.filter((k) => hzOf(k, hz) && (f === 'all' ? investable(k) : REG[k].kind === f || (f === 'energy' && k === 'GC=F'))).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score);
+        const breadth = inv.length ? inv.filter((k) => AN[k].score >= 58).length / inv.length : NaN;
         const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
         const top = shown.slice(0, 3);
-        const chips = [['all', 'Tudo'], ['stock', 'Ações'], ['fund', 'Fundos'], ['crypto', 'Cripto'], ['energy', 'Energia e ouro']];
+        const chips = [['all', 'Tudo'], ['fund', 'ETF'], ['stock', 'Ações'], ['crypto', 'Cripto'], ['energy', 'Futuros (referência)']];
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
+        ${ideasCard(inv)}
         <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l} prazo</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+        ${f === 'energy' ? '<p class="note" style="margin:0 2px 12px">Petróleo, gasóleo, gás e ouro aparecem aqui como contratos de futuros, só para referência. Na Trade Republic não se compram futuros: há ETC, que ao fim de anos perdem com os custos de rolagem. Para ouro, o ETC físico (Xetra-Gold, nos ETF) é a forma habitual.</p>' : ''}
         ${!shown.length ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
         <section class="sec"><div class="sec-h"><h2>${hz === 'disc' ? 'Maiores oportunidades (desconto)' : `Mais fortes a ${{ short: 'curto', mid: 'médio', long: 'longo' }[hz]} prazo`}</h2></div>
             <div class="top3">${top.map((k, i) => `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
@@ -950,6 +976,7 @@
                     ${reasonList(h.reasons)}</details>` : `<div class="hzb na"><div class="hz-t"><b>${l} prazo</b><small>${d}</small></div><div class="note">Histórico curto demais.</div></div>`; }).join('')}
                 <p class="note">Toca num prazo para ver as razões. Descreve o passado recente, não garante o futuro.</p>` : `<div class="note">${cfg.proxy || a.kind === 'crypto' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para ver a análise.'}</div>`}
             </div>
+            ${a.kind === 'energy' || k === 'GC=F' ? '<p class="note" style="margin:-4px 2px 14px">Contrato de futuros (referência). Na Trade Republic não se compra diretamente; existem ETC, com custos de rolagem a prazo.</p>' : ''}
             ${discountBox(k, q)}
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'

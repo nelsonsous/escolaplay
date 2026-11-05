@@ -102,10 +102,17 @@ test('desconto: oportunidade, sem desconto e barato mas a cair', () => {
     const dip = A.analyse(base.concat(walk(30, -0.008, base[base.length - 1], 9))).discount;
     assert.ok(dip.dd < -0.15, 'queda de ' + dip.dd);
     assert.equal(dip.opp, true);
-    assert.equal(dip.tag, 'Oportunidade');
+    assert.match(dip.tag, /^Oportunidade/);
     assert.ok(dip.pos >= 0 && dip.pos <= 1);
     const falling = A.analyse(walk(300, -0.004)).discount;
     assert.equal(falling.opp, false);
     assert.equal(falling.tag, 'Barato, mas a cair');
     assert.ok(dip.score > falling.score && dip.score > top.score, 'a oportunidade fica à frente');
+});
+
+test('desconto em queda livre a médio prazo: oportunidade com cautela', () => {
+    const base = walk(270, 0.004);
+    const crash = A.analyse(base.concat(walk(30, -0.012, base[base.length - 1], 11)));
+    assert.ok(crash.horizons.mid.score < 25);
+    if (crash.discount.opp) assert.equal(crash.discount.tag, 'Oportunidade (com cautela)');
 });
