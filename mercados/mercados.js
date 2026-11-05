@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '1.7.0';
+    const VERSION = '1.7.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1023,7 +1023,7 @@
         return `${mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
             <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : ''}
         ${ideasCard(inv)}
-        <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l} prazo</b><small>${d}</small></button>`).join('')}</div>
+        <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l}${v === 'disc' ? '' : ' prazo'}</b><small>${d}</small></button>`).join('')}</div>
         <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         ${f === 'energy' ? '<p class="note" style="margin:0 2px 12px">Petróleo, gasóleo, gás e ouro aparecem aqui como contratos de futuros, só para referência. Na Trade Republic não se compram futuros: há ETC, que ao fim de anos perdem com os custos de rolagem. Para ouro, o ETC físico (Xetra-Gold, nos ETF) é a forma habitual.</p>' : ''}
         ${!shown.length ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
@@ -1036,6 +1036,7 @@
                 <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((hzOf(k, hz).reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
             </button>`).join('')}</div></section>
         <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${shown.length} ativos · 0 a 100</span></div>
+            <p class="note" style="margin:-4px 2px 10px">Mede só a tendência e o momento de cada ativo, não diz o que comprar: no teste de 2 anos, comprar os primeiros desta lista não bateu o VWCE. Para decidir, usa a Análise do Claude e as Ideias para a TR.</p>
             <div class="list">${shown.map((k, i) => `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
                 <span class="rk">${i + 1}</span>
                 <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${hz === 'disc' && AN[k].discount ? esc(fmtPct(AN[k].discount.dd * 100) + ' do máx. · ') : ''}${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
