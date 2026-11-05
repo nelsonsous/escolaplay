@@ -152,8 +152,8 @@
         const score = Math.round(clamp(s, 0, 100));
         const sorted = reasons.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts));
         const mid = { score, ...labelOf(score, 'mid'), reasons: sorted };
-        const metrics = { price: p, sma20: s20, sma50: s50, rsi: r, macd: m, ret1m: r1m, ret3m: r3m, vol, drawdown: dd };
-        return {
+        const metrics = { price: p, sma20: s20, sma50: s50, sma200: v.length >= 200 ? sma(v, 200) : null, rsi: r, macd: m, ret1m: r1m, ret3m: r3m, vol, drawdown: dd };
+        const res = {
             score,
             ...labelOf(score),
             risk: riskOf(vol),
@@ -161,7 +161,100 @@
             metrics,
             horizons: { short: shortTerm(v, metrics), mid, long: longTerm(v, metrics) },
             discount: discountOf(v, metrics, score),
+            levels: levels(v, p),
         };
+        res.advice = advise(res, opts.kind);
+        return res;
+    }
+
+    // ---- Níveis-chave: suportes (abaixo do preço) e resistências (acima) ----
+    function levels(v, p) {
+        const raw = [];
+        const add = (price, label, w) => { if (Number.isFinite(price) && price > 0) raw.push({ price, label, w }); };
+        if (v.length >= 20) add(sma(v, 20), 'Média de 20 dias', 1);
+        if (v.length >= 50) add(sma(v, 50), 'Média de 50 dias', 2);
+        if (v.length >= 200) add(sma(v, 200), 'Média de 200 dias', 3);
+        const yr = v.slice(-252);
+        add(Math.max(...yr), 'Máximo do ano', 3);
+        add(Math.min(...yr), 'Mínimo do ano', 3);
+        // topos e fundos recentes: extremos locais (±5 sessões) nos últimos ~6 meses
+        for (let i = Math.max(5, v.length - 130); i < v.length - 5; i++) {
+            const w = v.slice(i - 5, i + 6);
+            if (v[i] === Math.max(...w)) add(v[i], 'Topo recente', 1);
+            if (v[i] === Math.min(...w)) add(v[i], 'Fundo recente', 1);
+        }
+        // juntar níveis a menos de 1,5% uns dos outros (fica o mais importante)
+        raw.sort((a, b) => a.price - b.price);
+        const merged = [];
+        for (const l of raw) {
+            const m = merged[merged.length - 1];
+            if (m && Math.abs(l.price / m.price - 1) < 0.015) {
+                if (l.w > m.top) { m.price = l.price; m.label = l.label; m.top = l.w; }
+                m.w += l.w;
+            } else merged.push({ ...l, top: l.w });
+        }
+        const out = (l) => ({ price: l.price, label: l.label, strong: l.w >= 4, dist: l.price / p - 1 });
+        return {
+            supports: merged.filter((l) => l.price < p * 0.995).sort((a, b) => b.price - a.price).slice(0, 3).map(out),
+            resistances: merged.filter((l) => l.price > p * 1.005).sort((a, b) => a.price - b.price).slice(0, 3).map(out),
+        };
+    }
+
+    // ---- O que fazer na Trade Republic: ação, plano em preços, quando a ideia falha e tamanho ----
+    const SIZE = { low: 'Pode ser o núcleo da carteira', mid: 'Até ~10% da carteira', high: 'Até ~5% da carteira', xhigh: 'Até ~2–3% da carteira' };
+    function advise(r, kind) {
+        const L = r.horizons.long ? r.horizons.long.score : r.score;
+        const M = r.horizons.mid.score;
+        const d = r.discount, mt = r.metrics, lv = r.levels;
+        const p = mt.price, rsi = mt.rsi;
+        const s1 = lv.supports[0], s2 = lv.supports[1], r1 = lv.resistances[0];
+        const fund = kind === 'fund';
+        let key, action, tone, text, plan = [], invalid = null;
+        if (L >= 58 && M >= 58) {
+            if (rsi != null && rsi > 72) {
+                key = 'hold'; action = 'Manter — não perseguir'; tone = 'flat';
+                text = `Tendência forte, mas esticado (RSI ${Math.round(rsi)}). Melhor comprar num recuo.`;
+                if (s1) plan.push({ t: 'Comprar num recuo para', price: s1.price });
+            } else {
+                key = 'buy'; action = 'Comprar'; tone = 'up';
+                text = 'Tendência a favor no médio e no longo prazo.';
+                plan.push({ t: 'Compra agora', price: p });
+                if (s1) plan.push({ t: 'Reforçar se recuar para', price: s1.price });
+            }
+            invalid = s2 || s1;
+        } else if (L >= 58 && d.opp && M >= 25) {
+            key = 'scale'; action = 'Comprar aos poucos'; tone = 'up';
+            text = `Desconto de ${pct(d.dd)} face ao máximo com a tendência longa a subir.`;
+            plan.push({ t: '⅓ agora', price: p });
+            if (s1) plan.push({ t: '⅓ se descer para', price: s1.price });
+            if (s2) plan.push({ t: '⅓ se descer para', price: s2.price });
+            else if (r1) plan.push({ t: '⅓ quando passar', price: r1.price });
+            invalid = lv.supports[2] || s2 || s1;
+        } else if (L >= 58) {
+            key = 'wait'; action = M < 25 ? 'Esperar que estabilize' : 'Manter, reforçar nos suportes'; tone = 'flat';
+            text = M < 25 ? 'A tendência longa sobe, mas a queda atual ainda é forte.' : 'Tendência longa positiva, médio prazo indeciso.';
+            if (s1) plan.push({ t: M < 25 ? 'Só um bocadinho perto de' : 'Reforçar perto de', price: s1.price });
+            if (mt.sma20 && mt.sma20 > p) plan.push({ t: 'Entrar a sério quando voltar acima de', price: mt.sma20 });
+            invalid = s2 || s1;
+        } else if (L >= 42) {
+            key = 'neutral'; action = 'Manter, sem reforçar'; tone = 'flat';
+            text = 'Sem tendência clara a longo prazo.';
+            if (s1) plan.push({ t: 'Rever se perder', price: s1.price });
+            if (r1) plan.push({ t: 'Mais interessante se passar', price: r1.price });
+        } else if (M >= 42) {
+            key = 'turn'; action = 'Esperar confirmação'; tone = 'flat';
+            text = 'Tendência longa negativa, mas o médio prazo pode estar a virar.';
+            const conf = mt.sma200 && mt.sma200 > p ? mt.sma200 : r1 && r1.price;
+            if (conf) plan.push({ t: 'Comprar só se passar', price: conf });
+        } else {
+            key = 'avoid'; action = 'Evitar'; tone = 'down';
+            text = 'A descer a médio e a longo prazo: está barato porque continua a cair.';
+            const conf = mt.sma50 && mt.sma50 > p ? mt.sma50 : r1 && r1.price;
+            if (conf) plan.push({ t: 'Só reconsiderar acima de', price: conf });
+            if (s1) plan.push({ t: 'Se já tens: considerar reduzir se perder', price: s1.price });
+        }
+        if (fund && L >= 50) text += ' Bom para plano de poupança mensal na TR.';
+        return { key, action, tone, text, plan, invalid: invalid ? invalid.price : null, size: SIZE[r.risk.key] || '' };
     }
 
     // ---- Desconto: quanto está abaixo do máximo do ano e se a descida é oportunidade ----

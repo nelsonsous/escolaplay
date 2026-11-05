@@ -116,3 +116,21 @@ test('desconto em queda livre a médio prazo: oportunidade com cautela', () => {
     assert.ok(crash.horizons.mid.score < 25);
     if (crash.discount.opp) assert.equal(crash.discount.tag, 'Oportunidade (com cautela)');
 });
+
+test('níveis-chave e conselho para a TR', () => {
+    const r = A.analyse(walk(300, 0.003), { kind: 'fund' });
+    const p = r.metrics.price;
+    assert.ok(r.levels.supports.every((l) => l.price < p) && r.levels.resistances.every((l) => l.price > p));
+    assert.ok(r.levels.supports.length >= 1);
+    for (let i = 1; i < r.levels.supports.length; i++) assert.ok(r.levels.supports[i].price < r.levels.supports[i - 1].price, 'suportes do mais perto para o mais longe');
+    assert.ok(['buy', 'hold'].includes(r.advice.key), r.advice.key);
+    assert.match(r.advice.text, /plano de poupança/);
+    assert.ok(r.advice.plan.length >= 1 && r.advice.plan.every((x) => Number.isFinite(x.price)));
+    const down = A.analyse(walk(300, -0.004), { kind: 'stock' });
+    assert.equal(down.advice.key, 'avoid');
+    assert.equal(down.advice.action, 'Evitar');
+    const base = walk(270, 0.003);
+    const dip = A.analyse(base.concat(walk(30, -0.006, base[base.length - 1], 9)), { kind: 'stock' });
+    assert.ok(['scale', 'wait'].includes(dip.advice.key), dip.advice.key);
+    if (dip.advice.key === 'scale') assert.equal(dip.advice.plan[0].t, '⅓ agora');
+});
