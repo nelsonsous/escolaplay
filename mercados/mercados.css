@@ -472,6 +472,9 @@ h2.grp:first-child, .pg-t + h2.grp { margin-top: 0; }
 /* nomes compridos em duas linhas em vez de cortados */
 .row .r-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
 .r-sub .nb { white-space: nowrap; }
+.badge.auto { color: var(--muted); background: transparent; border: 1px dashed var(--faint); }
+.badge.auto::after { content: ' · auto'; font-weight: 500; }
+.seg.per button { padding: 4px 9px; font-weight: 650; }
 .row canvas.spark { align-self: center; }
 .row .r-px .px { font-size: calc(1rem * var(--k)); font-weight: 600; }
 .row .r-px .chg { margin-top: 2px; }

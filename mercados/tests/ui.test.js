@@ -425,7 +425,18 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .r-sub').textContent(), /isentas · próxima em \d+ d|isenta em \d+ d/);
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /^[−+]?\d+,\d% do máximo$/, 'sem datas de compra: não há texto');
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /[−+]?\d+,\d% do máximo$/, 'sem datas de compra: não há texto');
+    // sem conselho do Claude: sinal automático marcado "auto"
+    assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:XRP"] .badge.auto').count(), 1, 'XRP com sinal automático');
+    // período: 1M muda a variação (dados diários) e volta a 1D
+    const d1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
+    await page.click('[data-per="1m"]');
+    const m1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
+    const expM = await page.evaluate(() => { const mk = window.__mk, d = mk.D['c:BTC'], from = Date.now() / 1000 - 30 * 86400; let i = d.findIndex((p) => p[0] > from); if (i < 0) i = d.length; const ref = d[Math.max(0, i - 1)][1]; return (mk.Q['c:BTC'].price / ref - 1) * 100; });
+    assert.notEqual(m1, d1, '1M diferente de 1D');
+    assert.equal(Number(m1.replace('−', '-').replace('%', '').replace(',', '.')).toFixed(1), expM.toFixed(1), '1M calculado dos fechos diários');
+    await page.click('[data-per="1d"]');
+    console.log('✓ período da variação: 1D', d1, '| 1M', m1);
     // os gráficos pequenos ficam todos na mesma coluna
     const sparkX = await page.evaluate(() => [...document.querySelectorAll('.sec:first-of-type .sw-list canvas.spark')].map((c) => Math.round(c.getBoundingClientRect().right)));
     assert.ok(sparkX.length >= 4 && new Set(sparkX).size === 1, 'gráficos alinhados: ' + sparkX);

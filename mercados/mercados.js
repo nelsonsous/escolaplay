@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.7.0';
+    const VERSION = '3.8.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [] };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -584,6 +584,23 @@
             store.set('mercados:clmem', mem);
         }
         scheduleRender();
+        loadClaudeHistory();
+    }
+    async function loadClaudeHistory() {
+        if (st.clHist || !CLAUDE || CLAUDE.missing) return;
+        st.clHist = true;
+        const mem = store.get('mercados:clmem') || {};
+        let miss = holdingKeys().filter((k) => !claudeFor(k));
+        for (let d = 1; d <= 7 && miss.length; d++) {
+            const dt = new Date(); dt.setDate(dt.getDate() - d);
+            const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            let a = null;
+            try { a = await px(`/advice?date=${iso}`); } catch { continue; }
+            for (const x of (a && a.actions) || []) if (miss.includes(x.s) && (!mem[x.s] || mem[x.s].date < (a.date || iso))) mem[x.s] = { ...x, date: a.date || iso };
+            store.set('mercados:clmem', mem);
+            miss = miss.filter((k) => !claudeFor(k));
+        }
+        scheduleRender();
     }
     // "feita às 07:16 de 06/11 · próxima amanhã às 07:14" (a tarefa corre todos os dias às 07:14 de Lisboa)
     const CL_HOUR = 7, CL_MIN = 14;
@@ -781,17 +798,34 @@
         g.strokeStyle = col; g.lineWidth = opt.width || 1.6; g.lineJoin = 'round'; g.stroke();
         if (opt.fill !== false) {
             const gr = g.createLinearGradient(0, 0, 0, h);
-            gr.addColorStop(0, col + '40'); gr.addColorStop(1, col + '00');
+            gr.addColorStop(0, col + (opt.width === 1.5 ? '2a' : '40')); gr.addColorStop(1, col + '00');
             g.lineTo(X(pts.length - 1), h); g.lineTo(0, h); g.closePath(); g.fillStyle = gr; g.fill();
         }
         return { X, Y, w, h, g, lo, hi };
     }
+    const PER_DAYS = { '1w': 7, '1m': 30, '1y': 365 };
+    const PER_LBL = [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A']];
+    function perData(k) {
+        const q = qv(k);
+        const days = PER_DAYS[cfg.per];
+        const day = { pct: q.changePct, series: q.series, base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose };
+        if (!days || !D[k] || D[k].length < 2 || !fin(q.price)) return day;
+        const f = q.fx || 1, from = now() / 1000 - days * 86400;
+        let i = D[k].findIndex((p) => p[0] > from);
+        if (i < 0) i = D[k].length;
+        const ref = D[k][Math.max(0, i - 1)][1] * f;
+        const series = D[k].slice(Math.max(0, i - 1)).map(([t, v]) => [t, v * f]);
+        const tq = q.time || now() / 1000;
+        if (!series.length || tq > series[series.length - 1][0]) series.push([tq, q.price]);
+        return { pct: (q.price / ref - 1) * 100, series, base: ref };
+    }
     function drawSparks() {
         for (const cv of $$('canvas.spark')) {
             const k = cv.dataset.key;
-            const q = qv(k);
-            if (!q || !q.series || q.series.length < 2) continue;
-            drawLine(cv, q.series, { tone: toneOf(q.changePct), base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose, pad: 3 });
+            const p = perData(k);
+            if (!p.series || p.series.length < 2) continue;
+            // poucos pontos: por ordem, para não desenhar retas longas
+            drawLine(cv, p.series, { tone: toneOf(p.pct), base: p.base, pad: 3, width: 1.5, byIndex: cfg.per !== '1d' || p.series.length < 12 });
         }
     }
 
@@ -810,7 +844,7 @@
                 }
             }
             const c = el.querySelector('.chg');
-            if (c) { c.className = 'chg ' + toneOf(q.changePct); c.textContent = fmtPct(q.changePct); }
+            if (c) { const pc = perData(k).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
         }
         if (sheetKey === k) renderSheetPrice();
         sparkSoon();
@@ -877,7 +911,7 @@
         const html = `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
             ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${(Array.isArray(sub) ? sub.length : sub) || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${Array.isArray(sub) ? sub.map((x) => `<span class="nb">${esc(x)}</span>`).join('<span class="dotsep"> · </span>') : esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
-            <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
+            <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(perData(k).pct)}</div>
         </button>`;
         // arrastar para a esquerda mostra "Retirar" (só no Painel)
         return opt.swipe ? `<div class="sw-wrap${st.swipe === k ? ' open' : ''}" data-swk="${esc(k)}" data-grp="${opt.swipe}"><button type="button" class="sw-del" data-hide="${esc(k)}" data-grp="${opt.swipe}" tabindex="-1">Retirar</button>${html}</div>` : html;
@@ -910,8 +944,8 @@
         if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
-        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">${CLAUDE && !CLAUDE.missing && CLAUDE.headline ? 'com o conselho do Claude' : 'o que tenho'}</span></div>
-            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
+        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><div class="right seg per" role="group" aria-label="Período da variação">${PER_LBL.map(([v, l]) => `<button type="button" data-per="${v}" class="${(cfg.per || '1d') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : AN[k] && AN[k].advice ? [ACT[AN[k].advice.key] || AN[k].advice.action, 'auto'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
         ${todayCard()}
         ${crypt.length || nHid(cryAll) ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="list sw-list">${crypt.map((k) => card(k)).join('')}</div>${foot('', nHid(cryAll) ? ['crypto', nHid(cryAll)] : null)}</section>` : ''}
@@ -1663,7 +1697,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide],[data-per]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1688,6 +1722,7 @@
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
+        if (d.per) { cfg.per = d.per; saveCfg(); render(); return; }
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
         if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }
         if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
