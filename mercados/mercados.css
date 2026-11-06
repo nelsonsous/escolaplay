@@ -483,8 +483,10 @@ button.card.fuel { font: inherit; color: inherit; text-align: left; cursor: poin
 a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
-.badge.auto { color: var(--muted); background: transparent; border: 1px dashed var(--faint); }
-.badge.auto::after { content: ' · auto'; font-weight: 500; }
+.badge { white-space: nowrap; }
+/* sinal automático (sem conselho do Claude): mais discreto */
+.badge.auto { color: var(--muted); background: rgba(142, 142, 147, .1); font-weight: 600; }
+.badge.auto::after { content: 'auto'; margin-left: 5px; font-size: .78em; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .04em; }
 .seg.per button { padding: 4px 9px; font-weight: 650; }
 .row canvas.spark { align-self: center; }
 .row .r-px .px { font-size: calc(1rem * var(--k)); font-weight: 600; }
