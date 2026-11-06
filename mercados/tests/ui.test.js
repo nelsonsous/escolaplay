@@ -398,6 +398,7 @@ function proxyBody(u) {
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .r-sub').textContent(), /isentas · próxima em \d+ d|isenta em \d+ d/);
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /^sem data de compra$|−?[\d,]+% do máx\. · sem data de compra/);
     assert.doesNotMatch(await page.locator('.sec:has(h2:text("Os meus ativos"))').textContent(), /24 h|Acc · sem dividendos/, 'sem texto que não interessa');
+    assert.equal(await page.locator('.sec:has(h2:text("Índices")) .row .r-sub').count(), 0, 'listas só com nome, preço e variação');
 
     // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
     await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
