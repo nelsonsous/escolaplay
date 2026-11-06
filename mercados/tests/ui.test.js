@@ -164,6 +164,20 @@ function proxyBody(u) {
     const fund = await page.locator('.row[data-key="VWCE.DE"] .px').first().textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
     assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,5\d%/);
+    // ficha do VWCE: gráfico do dia = o do Painel (Munique), e no mês o "no período" bate com o número de cima
+    await page.locator('.row[data-open="VWCE.DE"]').first().click();
+    await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
+    const dayEnd = await page.evaluate(() => { const mk = window.__mk; const s = mk.Q['VWCE.MU'].series; return [s[s.length - 1][1], mk.Q['VWCE.MU'].price]; });
+    assert.ok(Math.abs(dayEnd[0] - dayEnd[1]) < 0.01, 'gráfico do dia acaba no preço de Munique');
+    await page.click('.ranges [data-range="1mo"]');
+    await page.waitForFunction(() => /No período/.test(document.querySelector('#d-tip').textContent));
+    const top = (await page.locator('#d-px .chg').textContent()).trim();
+    const per = (await page.locator('#d-tip .up-t, #d-tip .down-t, #d-tip .flat-t').first().textContent()).trim();
+    assert.equal(per, top, 'no período = variação de cima');
+    assert.doesNotMatch(await page.locator('#d-px .alt').textContent(), /-\d|,\d{3}\s*€/, 'diferença com sinal − e 2 casas');
+    console.log('✓ ficha VWCE: 1 mês', top, '| diferença', (await page.locator('#d-px .alt').textContent()).trim());
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     const nv = await page.locator('.row[data-key="NVDA"] .px').first().textContent();
     assert.match(nv, /€/, 'ações americanas em euros: ' + nv);
     assert.match(await page.locator('.row[data-key="NOVO-B.CO"] .px').first().textContent(), /€/, 'coroas dinamarquesas em euros');
