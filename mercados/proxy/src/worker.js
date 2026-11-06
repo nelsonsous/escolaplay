@@ -13,6 +13,7 @@
 //   GET /calendar?symbols=AAPL,GALP.LS        → próximos resultados e dividendos (Yahoo)
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
+//   GET /fuel/municipios?distrito=13          → concelhos de um distrito (DGEG); /fuel?municipio=… filtra por concelho
 //   GET  /journal?id=…                        → diário de sugestões (KV)
 //   POST /journal  { id, date, items, lots }  → guardar as sugestões do dia e as datas de compra de cripto
 //   GET  /advice[?date=AAAA-MM-DD]            → análise diária escrita pelo Claude (KV, só leitura;
@@ -329,20 +330,27 @@ async function dgeg(path) {
 
 async function fuel(url) {
     const distrito = /^\d{1,3}$/.test(url.searchParams.get('distrito') || '') ? url.searchParams.get('distrito') : '';
+    const municipio = /^\d{1,5}$/.test(url.searchParams.get('municipio') || '') ? url.searchParams.get('municipio') : '';
     const ids = (url.searchParams.get('tipos') || '2101,3201').split(',').filter((i) => FUELS[i]).slice(0, 4);
     const out = await Promise.all(ids.map(async (id) => {
         try {
-            const rows = await dgeg(`PesquisarPostos?idsTiposComb=${id}&idMarca=&idTipoPosto=&idDistrito=${distrito}&idsMunicipios=&qtdPorPagina=9999&pagina=1`);
+            const rows = await dgeg(`PesquisarPostos?idsTiposComb=${id}&idMarca=&idTipoPosto=&idDistrito=${distrito}&idsMunicipios=${municipio}&qtdPorPagina=9999&pagina=1`);
             return { id: Number(id), name: FUELS[id], ...(fuelStats(rows) || { error: 'sem preços' }) };
         } catch (e) {
             return { id: Number(id), name: FUELS[id], error: String(e.message || e) };
         }
     }));
-    return { body: { distrito: distrito || null, source: 'DGEG — Preços dos Combustíveis Online', at: Math.floor(Date.now() / 1000), fuels: out }, ttl: 3600 };
+    return { body: { distrito: distrito || null, municipio: municipio || null, source: 'DGEG — Preços dos Combustíveis Online', at: Math.floor(Date.now() / 1000), fuels: out }, ttl: 3600 };
 }
 
 async function distritos() {
     const rows = await dgeg('GetDistritos');
+    return { body: { items: (rows || []).map((r) => ({ id: r.Id, name: r.Descritivo })).sort((a, b) => a.name.localeCompare(b.name, 'pt')) }, ttl: 86400 };
+}
+async function municipios(url) {
+    const d = url.searchParams.get('distrito') || '';
+    if (!/^\d{1,3}$/.test(d)) return { status: 400, body: { error: 'distrito inválido' } };
+    const rows = await dgeg(`GetMunicipios?idDistrito=${d}`);
     return { body: { items: (rows || []).map((r) => ({ id: r.Id, name: r.Descritivo })).sort((a, b) => a.name.localeCompare(b.name, 'pt')) }, ttl: 86400 };
 }
 
@@ -415,7 +423,7 @@ async function advice(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos };
+const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios };
 
 export default {
     async fetch(request, env = {}, ctx) {
