@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.0.0';
+    const VERSION = '3.1.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -686,7 +686,17 @@
     }
 
     // ---------- alertas ----------
-    const today = () => new Date().toISOString().slice(0, 10);
+    // dia local (antes era UTC: à meia-noite os mesmos movimentos da cripto voltavam a ser avisados)
+    const today = () => todayLocal();
+    const QUIET_FROM = 22, QUIET_TO = 8;
+    function sendNote(t, tag) {
+        if (!t || !cfg.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+        const opts = { body: t.body, tag, icon: 'icon-192.png' };
+        navigator.serviceWorker && navigator.serviceWorker.ready
+            ? navigator.serviceWorker.ready.then((r) => r.showNotification(t.title, opts)).catch(() => {})
+            : new Notification(t.title, opts);
+    }
+    const alertItem = (k) => { const q = qv(k); return { k, name: nameOf(k), pct: q.changePct, pctTxt: fmtPct(q.changePct), px: fmtPx(q.price, REG[k], q.currency) }; };
     function checkAlerts() {
         const lim = +cfg.alertPct || 0;
         if (!lim) return;
@@ -702,15 +712,20 @@
         }
         st.firstPoll = false;
         store.set('mercados:fired', [...fired].filter((x) => x.startsWith(today())));
-        for (const { k, q } of hits.slice(0, 3)) {
-            const msg = `${nameOf(k)} ${q.changePct > 0 ? 'sobe' : 'cai'} ${fmtPct(q.changePct)} hoje`;
-            toast(msg);
-            if (cfg.notify && 'Notification' in window && Notification.permission === 'granted') {
-                const opts = { body: `${fmtPx(q.price, REG[k], q.currency)} · toca para ver`, tag: 'mk-' + k, icon: 'icon-192.png' };
-                navigator.serviceWorker && navigator.serviceWorker.ready
-                    ? navigator.serviceWorker.ready.then((r) => r.showNotification(msg, opts)).catch(() => {})
-                    : new Notification(msg, opts);
-            }
+        const quiet = cfg.quiet !== false && A.isQuiet(new Date().getHours(), QUIET_FROM, QUIET_TO);
+        let held = store.get('mercados:held', []);
+        if (!Array.isArray(held)) held = [];
+        if (hits.length) {
+            const t = A.groupAlert(hits.map(({ k }) => alertItem(k)));
+            toast(t.title);
+            // à noite: guarda para a manhã; de dia: uma só notificação com todos
+            if (quiet) { held = [...new Set(held.concat(hits.map((h) => h.k)))]; store.set('mercados:held', held); } else sendNote(t, 'mk-alerts');
+        }
+        // de manhã: um só resumo do que mexeu durante a noite (com os valores de agora)
+        if (!quiet && held.length) {
+            const items = held.filter((k) => REG[k] && fin(qv(k).changePct)).map(alertItem);
+            store.set('mercados:held', []);
+            sendNote(A.groupAlert(items, true), 'mk-noite');
         }
     }
 
@@ -1281,6 +1296,7 @@
                 <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
                     <select id="f-lim" class="inp" data-cfg="alertPct">${[0, 2, 3, 4, 5, 8, 10].map((p) => `<option value="${p}" ${lim === p ? 'selected' : ''}>${p ? '±' + p + '% no dia' : 'Não avisar'}</option>`).join('')}</select></div>
                 <div class="sw"><span>Notificações no telemóvel${notifState ? ` <small class="hint">(${notifState})</small>` : ''}</span><button type="button" class="btn sm" data-act="notify">${cfg.notify && 'Notification' in window && Notification.permission === 'granted' ? 'Ligadas' : 'Ligar'}</button></div>
+                <div class="sw"><span>Silêncio à noite (22h às 8h)<br><small class="hint">os avisos da noite chegam juntos de manhã, numa só notificação</small></span><div class="seg"><button type="button" data-act="quiet" data-v="1" class="${cfg.quiet !== false ? 'on' : ''}">Sim</button><button type="button" data-act="quiet" data-v="0" class="${cfg.quiet === false ? 'on' : ''}">Não</button></div></div>
                 <div><label for="f-dist">Combustíveis: zona</label>
                     <select id="f-dist" class="inp" data-cfg="distrito"><option value="">Portugal (todos os postos)</option>${(DISTRITOS || []).map((d) => `<option value="${esc(d.id)}" ${String(d.id) === String(cfg.distrito) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
             </div></section>
@@ -1629,6 +1645,7 @@
             }
             case 'backtest': runBacktest(); break;
             case 'ics': downloadIcs(); break;
+            case 'quiet': cfg.quiet = t.dataset.v === '1'; saveCfg(); render(); break;
             case 'lot-add': {
                 const k = sheetKey, dt = ($('#lot-d') || {}).value || '', e = +(($('#lot-e') || {}).value || 0);
                 if (!k || !/^\d{4}-\d{2}-\d{2}$/.test(dt) || dt > todayLocal()) { toast('Escolhe a data da compra'); break; }
@@ -1715,6 +1732,6 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
     boot();
 })();
