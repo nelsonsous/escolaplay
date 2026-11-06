@@ -484,6 +484,10 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* hora do último preço (ações e fundos fora do ao vivo) */
+.row .r-px { position: relative; }
+.row .r-t { display: block; order: 3; color: var(--faint); font-size: calc(.68rem * var(--k)); font-weight: 500; line-height: 1.2; }
+.row .r-px { display: flex; flex-direction: column; align-items: flex-end; }
 /* sem barra fixa: o estado fica por baixo do título; atualizar = puxar para baixo */
 .mk-top { display: none; }
 .mk-body { padding-top: calc(var(--safe-t) + 14px); transition: transform .25s ease; }

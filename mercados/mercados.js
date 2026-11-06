@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.11.1';
+    const VERSION = '3.11.2';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -224,6 +224,19 @@
         if (s < 60) return `há ${s} s`;
         if (s < 3600) return `há ${Math.round(s / 60)} min`;
         return new Date(ms).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+    // hora do último preço quando não é ao vivo (mais de 15 min): "22:00" hoje, "5/11" noutro dia
+    function pxWhen(k, q) {
+        if (!q || !q.time || (REG[k] && REG[k].kind === 'crypto')) return '';
+        if (now() / 1000 - q.time < 15 * 60) return '';
+        const d = new Date(q.time * 1000), t = new Date();
+        return d.toDateString() === t.toDateString() ? hhmm(q.time) : `${d.getDate()}/${d.getMonth() + 1}`;
+    }
+    function pxWhenLong(k, q) {
+        if (!q || !q.time || (REG[k] && REG[k].kind === 'crypto')) return '';
+        const d = new Date(q.time * 1000), t = new Date();
+        const when = d.toDateString() === t.toDateString() ? `às ${hhmm(q.time)}` : `às ${hhmm(q.time)} de ${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
+        return `Último preço ${when}${q.open === false ? ' · mercado fechado' : now() / 1000 - q.time < 15 * 60 ? ' · atualiza a cada 30 s' : ''}`;
     }
     const hhmm = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
     const dateLbl = (sec, withTime) => new Date(sec * 1000).toLocaleString('pt-PT', withTime ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
@@ -920,7 +933,7 @@
         const html = `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
             ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${(Array.isArray(sub) ? sub.length : sub) || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${Array.isArray(sub) ? sub.map((x) => `<span class="nb">${esc(x)}</span>`).join('<span class="dotsep"> · </span>') : esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
-            <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(perData(k).pct)}</div>
+            <div class="r-px num">${pxWhen(k, q) ? `<span class="r-t">${pxWhen(k, q)}</span>` : ''}<span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(perData(k).pct)}</div>
         </button>`;
         // arrastar para a esquerda mostra "Retirar" (só no Painel)
         return opt.swipe ? `<div class="sw-wrap${st.swipe === k ? ' open' : ''}" data-swk="${esc(k)}" data-grp="${opt.swipe}"><button type="button" class="sw-del" data-hide="${esc(k)}" data-grp="${opt.swipe}" tabindex="-1">Retirar</button>${html}</div>` : html;
@@ -1563,7 +1576,8 @@
             if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
         } else if (tip) {
             const ch = (lastv / first - 1) * 100;
-            tip.innerHTML = sheetRange === '1d' ? 'Hoje · arrasta no gráfico para ver valores' : `No período: <span class="${toneOf(ch)}-t">${fmtPct(ch)}</span> · arrasta no gráfico`;
+            const lw = pxWhenLong(sheetKey, q);
+            tip.innerHTML = sheetRange === '1d' ? (lw ? esc(lw) + ' · arrasta no gráfico' : 'Hoje · arrasta no gráfico para ver valores') : `No período: <span class="${toneOf(ch)}-t">${fmtPct(ch)}</span> · arrasta no gráfico`;
         }
     }
     const PERIOD = { '1d': 'hoje', '5d': '5 dias', '1mo': '1 mês', '6mo': '6 meses', '1y': '1 ano', '5y': '5 anos' };
