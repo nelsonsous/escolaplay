@@ -182,7 +182,7 @@ function proxyBody(u) {
     assert.deepEqual(narrow, [], 'nome com espaço suficiente nas linhas: ' + JSON.stringify(narrow));
     const fund = await page.locator('.row[data-key="VWCE.DE"] .px').first().textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
-    assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,5\d%/);
+    assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,90%/, "variação face ao fecho de Munique (como a TR)");
     // ficha do VWCE: gráfico do dia = o do Painel (Munique), e no mês o "no período" bate com o número de cima
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
@@ -209,7 +209,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelectorAll('.news1').length >= 2);
     assert.equal(await page.locator('[data-lim]').count(), 0, 'sem filtros de ±X%');
     const mineH = await page.locator('.sec:has(h2:text("Os meus ativos hoje")) .row .r-name').allTextContents();
-    assert.ok(mineH.some((t) => /VWCE/.test(t)) && mineH.includes('Bitcoin'), 'os meus ativos: ' + mineH);
+    assert.ok(mineH.some((t) => /FTSE All-World/.test(t)) && mineH.includes('Bitcoin'), 'os meus ativos: ' + mineH);
     const ups = await page.locator('.sec:has(h2:text("Mais sobem hoje")) .row .r-name').allTextContents();
     const downs = await page.locator('.sec:has(h2:text("Mais caem hoje")) .row .r-name').allTextContents();
     assert.ok(ups.includes('Allianz') && ups.includes('Nvidia'), 'subidas: ' + ups);

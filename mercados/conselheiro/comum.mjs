@@ -70,7 +70,7 @@ export const STOCKS = {
     'TTE.PA': 'TotalEnergies', 'RHM.DE': 'Rheinmetall', TSM: 'TSMC (Taiwan)',
 };
 export const FUNDS = {
-    'VWCE.DE': 'FTSE All-World (VWCE)', 'EUNL.DE': 'MSCI World (iShares)', 'SXR8.DE': 'S&P 500 (iShares)', 'SXRV.DE': 'Nasdaq-100 (iShares)',
+    'VWCE.DE': 'FTSE All-World USD (Acc) · VWCE', 'EUNL.DE': 'MSCI World (iShares)', 'SXR8.DE': 'S&P 500 (iShares)', 'SXRV.DE': 'Nasdaq-100 (iShares)',
     'IS3N.DE': 'Mercados emergentes (iShares)', 'EXSA.DE': 'Europa 600 (iShares)', '4GLD.DE': 'Ouro físico (Xetra-Gold)',
 };
 export const CRYPTO = { 'c:BTC': ['BTC-EUR', 'Bitcoin'], 'c:ETH': ['ETH-EUR', 'Ether'], 'c:SOL': ['SOL-EUR', 'Solana'], 'c:XRP': ['XRP-EUR', 'XRP'] };
