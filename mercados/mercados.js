@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.20.0';
+    const VERSION = '3.20.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -172,6 +172,16 @@
         const r = fx && (prev ? fx.prevClose || fx.price : fx.price);
         return fin(r) && r > 0 ? 1 / (r * div) : null;
     }
+    // gráfico do dia dos fundos: Xetra (muitos negócios, até às 17h30) e depois Munique (poucos negócios, até às 22h)
+    function mergeDay(xetra, gettex) {
+        const x = Array.isArray(xetra) ? xetra : [], g = Array.isArray(gettex) ? gettex : [];
+        if (!g.length) return x.slice();
+        if (x.length < 5) return g.slice();
+        const day = (p) => new Date(p[0] * 1000).toDateString();
+        if (day(x[x.length - 1]) !== day(g[g.length - 1])) return g.slice(); // Xetra ainda com o dia anterior
+        const lx = x[x.length - 1][0];
+        return x.concat(g.filter((p) => p[0] > lx));
+    }
     function qv(k) {
         const q0 = Q[k];
         const a = REG[k];
@@ -179,7 +189,7 @@
         let q = q0;
         const lv = a.live && Q[a.live];
         if (lv && fin(lv.price) && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) {
-            const series = lv.series && lv.series.length > 1 ? lv.series.slice() : (q0.series || []).slice();
+            const series = mergeDay(q0.series, lv.series);
             if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
             // variação face ao fecho da véspera na mesma bolsa (como a Trade Republic), não ao fecho da Xetra
             const pcl = fin(lv.prevClose) ? lv.prevClose : q0.prevClose;
@@ -1637,7 +1647,7 @@
     // série do dia sem conversão de moeda: a de Munique (gettex) quando é a mais recente, como no Painel
     function daySeries(k) {
         const a = REG[k], q0 = Q[k], lv = a && a.live && Q[a.live];
-        if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) return lv.series;
+        if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) return mergeDay(q0.series, lv.series);
         return q0.series;
     }
     async function loadSheetChart() {
@@ -2121,6 +2131,6 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
     boot();
 })();

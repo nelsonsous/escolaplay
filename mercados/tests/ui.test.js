@@ -207,6 +207,9 @@ function proxyBody(u) {
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
     assert.match(await page.locator('#d-tip').textContent(), /Último preço (de ontem )?às \d\d:\d\d/, 'ficha: hora do último preço');
+    // gráfico do dia dos fundos: Xetra (denso) + Munique depois do fecho da Xetra
+    const md = await page.evaluate(() => { const t0 = Math.floor(new Date().setHours(9, 0, 0, 0) / 1000); const x = Array.from({ length: 10 }, (_, i) => [t0 + i * 300, 160 + i]); const g = [[t0 + 600, 161], [t0 + 9 * 3600, 170], [t0 + 12 * 3600, 171]]; return window.__mk.mergeDay(x, g).map((p) => p[1]); });
+    assert.deepEqual(md, [160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171], 'Xetra até ao fecho e depois Munique');
     const dayEnd = await page.evaluate(() => { const mk = window.__mk; const s = mk.Q['VWCE.MU'].series; return [s[s.length - 1][1], mk.Q['VWCE.MU'].price]; });
     assert.ok(Math.abs(dayEnd[0] - dayEnd[1]) < 0.01, 'gráfico do dia acaba no preço de Munique');
     await page.click('.ranges [data-range="1mo"]');
