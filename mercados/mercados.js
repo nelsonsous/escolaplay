@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.6.1';
+    const VERSION = '3.7.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [] };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [] };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -133,6 +133,7 @@
     const AN = {};      // chave → análise
     const NEWS = {};    // chave → { at, items }
     let FUEL = null, MOVERS = null, DISTRITOS = null;
+    const MUNIC = {};
     const CAL = {};     // símbolo → { earnings, exDividend, dividend } (segundos)
     // Decisões de juros (dia do anúncio). Atualizar uma vez por ano: federalreserve.gov e ecb.europa.eu
     const MACRO = [
@@ -617,7 +618,7 @@
     async function loadFuel() {
         if (!cfg.proxy) return;
         try {
-            FUEL = await px(`/fuel?distrito=${encodeURIComponent(cfg.distrito || '')}`, 30000);
+            FUEL = await px(`/fuel?distrito=${encodeURIComponent(cfg.distrito || '')}${cfg.distrito && cfg.municipio ? '&municipio=' + encodeURIComponent(cfg.municipio) : ''}`, 30000);
             st.fuelErr = '';
             saveSnap();
         } catch (e) { st.fuelErr = e.message; }
@@ -935,6 +936,7 @@
     function viewFuel() {
         if (!cfg.proxy) return '';
         const dname = cfg.distrito && DISTRITOS ? (DISTRITOS.find((d) => String(d.id) === String(cfg.distrito)) || {}).name : '';
+        const mname = cfg.municipio && MUNIC[cfg.distrito] ? (MUNIC[cfg.distrito].find((m) => String(m.id) === String(cfg.municipio)) || {}).name : '';
         let inner;
         if (!FUEL || !FUEL.fuels) inner = st.fuelErr ? `<div class="empty">Não deu para ler a DGEG: ${esc(st.fuelErr)}</div>` : '<div class="empty">A carregar os preços da DGEG…</div>';
         else {
@@ -945,9 +947,9 @@
                     <div class="c-note">mediana · média ${fmtPx(f.avg, { decimals: 3 }, 'EUR')}<br>${NF({}).format(f.n)} postos · máx. ${fmtPx(f.max, { decimals: 3 }, 'EUR')}</div>
                     ${f.cheapest && f.cheapest[0] ? `<div class="f-min">Mais barato: <b class="num">${fmtPx(f.cheapest[0].price, { decimals: 3 }, 'EUR')}</b><br>${esc([f.cheapest[0].brand, f.cheapest[0].name].filter(Boolean).join(' — '))}${f.cheapest[0].place ? '<br>' + esc(f.cheapest[0].place) : ''}</div>` : ''}
                 </div>`).join('')}</div>
-                <p class="note">Fonte: DGEG — Preços dos Combustíveis Online. Preço mediano por litro${dname ? ' no distrito de ' + esc(dname) : ' em Portugal'}${FUEL.fuels[0] && FUEL.fuels[0].updated ? ' · última atualização ' + esc(FUEL.fuels[0].updated) : ''}.</p>`;
+                <p class="note">Fonte: DGEG — Preços dos Combustíveis Online. Preço mediano por litro${mname ? ' no concelho de ' + esc(mname) : dname ? ' no distrito de ' + esc(dname) : ' em Portugal'}${FUEL.fuels[0] && FUEL.fuels[0].updated ? ' · última atualização ' + esc(FUEL.fuels[0].updated) : ''}.</p>`;
         }
-        return `<section class="sec"><div class="sec-h"><h2>Combustíveis em Portugal</h2><span class="sub">bombas, com impostos</span></div>${inner}</section>`;
+        return `<section class="sec"><div class="sec-h"><h2>Combustíveis${mname ? ' em ' + esc(mname) : dname ? ' em ' + esc(dname) : ' em Portugal'}</h2><span class="sub">bombas, com impostos</span></div>${inner}</section>`;
     }
 
     function moverRow(k, q, isTemp) {
@@ -1277,6 +1279,7 @@
     function viewSettings() {
         const lim = +cfg.alertPct || 0;
         const notifState = !('Notification' in window) ? 'não suportado neste browser' : Notification.permission === 'denied' ? 'bloqueado nas definições do browser' : '';
+        if (cfg.proxy && cfg.distrito && !MUNIC[cfg.distrito]) { MUNIC[cfg.distrito] = []; px(`/fuel/municipios?distrito=${encodeURIComponent(cfg.distrito)}`).then((d) => { MUNIC[cfg.distrito] = d.items || []; scheduleRender(); }).catch(() => { delete MUNIC[cfg.distrito]; }); }
         if (cfg.proxy && !DISTRITOS) px('/fuel/distritos').then((d) => { DISTRITOS = d.items || []; scheduleRender(); }).catch(() => { DISTRITOS = []; });
         const fhState = !cfg.finnhub ? '' : st.fh === 'on' ? 'Ligado: ações dos EUA em tempo real.' : st.fh ? 'Finnhub: ' + st.fh : 'A ligar…';
         return `<section class="sec"><div class="sec-h"><h2>Ações dos EUA em tempo real</h2></div>
@@ -1320,7 +1323,8 @@
                 <div class="sw"><span>Notificações no telemóvel${notifState ? ` <small class="hint">(${notifState})</small>` : ''}</span><button type="button" class="btn sm" data-act="notify">${cfg.notify && 'Notification' in window && Notification.permission === 'granted' ? 'Ligadas' : 'Ligar'}</button></div>
                 <div class="sw"><span>Silêncio à noite (22h às 10h)<br><small class="hint">os avisos da noite chegam juntos de manhã, numa só notificação</small></span><div class="seg"><button type="button" data-act="quiet" data-v="1" class="${cfg.quiet !== false ? 'on' : ''}">Sim</button><button type="button" data-act="quiet" data-v="0" class="${cfg.quiet === false ? 'on' : ''}">Não</button></div></div>
                 <div><label for="f-dist">Combustíveis: zona</label>
-                    <select id="f-dist" class="inp" data-cfg="distrito"><option value="">Portugal (todos os postos)</option>${(DISTRITOS || []).map((d) => `<option value="${esc(d.id)}" ${String(d.id) === String(cfg.distrito) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
+                    <select id="f-dist" class="inp" data-cfg="distrito"><option value="">Portugal (todos os postos)</option>${(DISTRITOS || []).map((d) => `<option value="${esc(d.id)}" ${String(d.id) === String(cfg.distrito) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>
+                    ${cfg.distrito ? `<select id="f-mun" class="inp" data-cfg="municipio" style="margin-top:8px" aria-label="Concelho"><option value="">Todo o distrito</option>${(MUNIC[cfg.distrito] || []).map((m) => `<option value="${esc(m.id)}" ${String(m.id) === String(cfg.municipio) ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select>` : ''}</div>
             </div></section>
         <section class="sec"><div class="sec-h"><h2>Ações e fundos que sigo</h2><span class="sub">${cfg.watch.length + cfg.funds.length}</span><button type="button" class="right btn sm" data-act="reset-watch">Repor lista</button></div>
             <div class="form">
@@ -1757,7 +1761,8 @@
         if (t.dataset && t.dataset.cfg) {
             cfg[t.dataset.cfg] = ['alertPct', 'budget'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.value;
             saveCfg();
-            if (t.dataset.cfg === 'distrito') { FUEL = null; loadFuel(); }
+            if (t.dataset.cfg === 'distrito') { cfg.municipio = ''; saveCfg(); FUEL = null; loadFuel(); render(); }
+            if (t.dataset.cfg === 'municipio') { FUEL = null; loadFuel(); }
             t.blur(); render();
         }
     });

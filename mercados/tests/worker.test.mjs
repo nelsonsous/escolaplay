@@ -219,3 +219,14 @@ test('/journal guarda as compras de cripto sem apagar o diário', async () => {
     assert.equal((await post({ id })).status, 400);
     assert.equal(cleanLots([]), null);
 });
+
+test('/fuel/municipios e /fuel?municipio=… (concelho)', async () => {
+    const calls = mockFetch((u) => u.includes('GetMunicipios') ? res({ status: true, resultado: [{ Id: 1316, Descritivo: 'Santo Tirso' }, { Id: 1301, Descritivo: 'Amarante' }] }) : u.includes('PesquisarPostos') ? res({ status: true, resultado: STATIONS }) : res({ status: false, mensagem: 'x' }));
+    let r = await worker.fetch(new Request('https://w.test/fuel/municipios?distrito=13'), {});
+    assert.deepEqual((await r.json()).items.map((x) => x.name), ['Amarante', 'Santo Tirso']);
+    assert.ok(calls.some((u) => u.includes('GetMunicipios?idDistrito=13')));
+    assert.equal((await worker.fetch(new Request('https://w.test/fuel/municipios?distrito=x'), {})).status, 400);
+    r = await worker.fetch(new Request('https://w.test/fuel?distrito=13&municipio=1316'), {});
+    assert.equal((await r.json()).municipio, '1316');
+    assert.ok(calls.some((u) => u.includes('idDistrito=13&idsMunicipios=1316')));
+});

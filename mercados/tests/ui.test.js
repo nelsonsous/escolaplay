@@ -49,6 +49,7 @@ function proxyBody(u) {
         { id: 2101, name: 'Gasóleo simples', n: 3012, avg: 1.611, median: 1.599, min: 1.449, max: 1.899, cheapest: [{ price: 1.449, name: 'Intermarché', brand: 'Intermarché', place: 'Leiria, Leiria' }], updated: '2026-11-05 09:30' },
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
+    if (p === '/fuel/municipios') return { items: [{ id: 1316, name: 'Santo Tirso' }, { id: 1312, name: 'Porto' }] };
     if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
     if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
@@ -485,6 +486,18 @@ function proxyBody(u) {
     assert.match(notes.out[1], /^XRP cai −12,5\d?% hoje \|/);
     assert.equal(notes.out.length, 2);
     console.log('✓ avisos:', notes.out.map((x) => x.split(' | ')[0]).join(' / '));
+
+    // combustíveis por concelho (ex.: Santo Tirso)
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.waitForSelector('#f-dist option[value="13"]', { state: 'attached' });
+    const fuelReq = page.waitForRequest((r) => /\/fuel\?distrito=13&municipio=1316/.test(r.url()), { timeout: 10000 });
+    await page.selectOption('#f-dist', '13');
+    await page.waitForSelector('#f-mun option[value="1316"]', { state: 'attached' });
+    await page.selectOption('#f-mun', '1316');
+    await fuelReq;
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.waitForSelector('h2:text("Combustíveis em Santo Tirso")');
+    console.log('✓ combustíveis no concelho de Santo Tirso');
 
     assert.deepEqual(errors, [], 'sem erros na consola');
     console.log('✓ sem erros na consola');
