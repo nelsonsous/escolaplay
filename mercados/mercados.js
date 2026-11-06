@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.10.1';
+    const VERSION = '3.10.2';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -61,7 +61,7 @@
     // que fica perto do que a Trade Republic mostra (LS Exchange, até às 23 h)
     // ETF muito usados na Trade Republic (planos de poupança), cotados na Xetra em euros
     const FUND_NAMES = {
-        'VWCE.DE': 'FTSE All-World (VWCE)', 'EUNL.DE': 'MSCI World (iShares)', 'SXR8.DE': 'S&P 500 (iShares)',
+        'VWCE.DE': 'FTSE All-World USD (Acc)', 'EUNL.DE': 'MSCI World (iShares)', 'SXR8.DE': 'S&P 500 (iShares)',
         'SXRV.DE': 'Nasdaq-100 (iShares)', 'IS3N.DE': 'Mercados emergentes (iShares)', 'EXSA.DE': 'Europa 600 (iShares)',
         '4GLD.DE': 'Ouro físico (Xetra-Gold)',
     };
@@ -181,8 +181,10 @@
         if (lv && fin(lv.price) && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) {
             const series = lv.series && lv.series.length > 1 ? lv.series.slice() : (q0.series || []).slice();
             if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
-            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: 'Munique (gettex)',
-                change: fin(q0.prevClose) ? lv.price - q0.prevClose : null, changePct: fin(q0.prevClose) ? (lv.price / q0.prevClose - 1) * 100 : q0.changePct };
+            // variação face ao fecho da véspera na mesma bolsa (como a Trade Republic), não ao fecho da Xetra
+            const pcl = fin(lv.prevClose) ? lv.prevClose : q0.prevClose;
+            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: 'Munique (gettex)', prevClose: pcl,
+                change: fin(pcl) ? lv.price - pcl : null, changePct: fin(pcl) ? (lv.price / pcl - 1) * 100 : q0.changePct };
         }
         if (!cfg.eur || !q.currency || q.currency === 'EUR') return q;
         const f = fxFactor(q.currency), fp = fxFactor(q.currency, true);
