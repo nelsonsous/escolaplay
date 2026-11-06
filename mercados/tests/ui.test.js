@@ -186,6 +186,7 @@ function proxyBody(u) {
     // ficha do VWCE: gráfico do dia = o do Painel (Munique), e no mês o "no período" bate com o número de cima
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
+    assert.match(await page.locator('#d-tip').textContent(), /Último preço às \d\d:\d\d/, 'ficha: hora do último preço');
     const dayEnd = await page.evaluate(() => { const mk = window.__mk; const s = mk.Q['VWCE.MU'].series; return [s[s.length - 1][1], mk.Q['VWCE.MU'].price]; });
     assert.ok(Math.abs(dayEnd[0] - dayEnd[1]) < 0.01, 'gráfico do dia acaba no preço de Munique');
     await page.click('.ranges [data-range="1mo"]');
@@ -197,6 +198,10 @@ function proxyBody(u) {
     console.log('✓ ficha VWCE: 1 mês', top, '| diferença', (await page.locator('#d-px .alt').textContent()).trim());
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    // preço que não é ao vivo: mostra a hora (ou o dia) do último preço; a cripto ao vivo não
+    const tIdx = await page.locator('.sec:has(h2:text("Índices")) .row .r-t').first().textContent();
+    assert.match(tIdx, /^\d{1,2}:\d{2}$|^\d{1,2}\/\d{1,2}$/, 'hora do último preço: ' + tIdx);
+    assert.equal(await page.locator('.row[data-key="c:BTC"] .r-t').count(), 0, 'cripto ao vivo sem hora');
     const nv = await page.locator('.row[data-key="NVDA"] .px').first().textContent();
     assert.match(nv, /€/, 'ações americanas em euros: ' + nv);
     assert.match(await page.locator('.row[data-key="NOVO-B.CO"] .px').first().textContent(), /€/, 'coroas dinamarquesas em euros');
