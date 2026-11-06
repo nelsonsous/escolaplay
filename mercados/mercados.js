@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.2.0';
+    const VERSION = '3.2.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -688,7 +688,7 @@
     // ---------- alertas ----------
     // dia local (antes era UTC: à meia-noite os mesmos movimentos da cripto voltavam a ser avisados)
     const today = () => todayLocal();
-    const QUIET_FROM = 22, QUIET_TO = 8;
+    const QUIET_FROM = 22, QUIET_TO = 10;
     function sendNote(t, tag) {
         if (!t || !cfg.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
         const opts = { body: t.body, tag, icon: 'icon-192.png' };
@@ -1296,7 +1296,7 @@
                 <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
                     <select id="f-lim" class="inp" data-cfg="alertPct">${[0, 2, 3, 4, 5, 8, 10].map((p) => `<option value="${p}" ${lim === p ? 'selected' : ''}>${p ? '±' + p + '% no dia' : 'Não avisar'}</option>`).join('')}</select></div>
                 <div class="sw"><span>Notificações no telemóvel${notifState ? ` <small class="hint">(${notifState})</small>` : ''}</span><button type="button" class="btn sm" data-act="notify">${cfg.notify && 'Notification' in window && Notification.permission === 'granted' ? 'Ligadas' : 'Ligar'}</button></div>
-                <div class="sw"><span>Silêncio à noite (22h às 8h)<br><small class="hint">os avisos da noite chegam juntos de manhã, numa só notificação</small></span><div class="seg"><button type="button" data-act="quiet" data-v="1" class="${cfg.quiet !== false ? 'on' : ''}">Sim</button><button type="button" data-act="quiet" data-v="0" class="${cfg.quiet === false ? 'on' : ''}">Não</button></div></div>
+                <div class="sw"><span>Silêncio à noite (22h às 10h)<br><small class="hint">os avisos da noite chegam juntos de manhã, numa só notificação</small></span><div class="seg"><button type="button" data-act="quiet" data-v="1" class="${cfg.quiet !== false ? 'on' : ''}">Sim</button><button type="button" data-act="quiet" data-v="0" class="${cfg.quiet === false ? 'on' : ''}">Não</button></div></div>
                 <div><label for="f-dist">Combustíveis: zona</label>
                     <select id="f-dist" class="inp" data-cfg="distrito"><option value="">Portugal (todos os postos)</option>${(DISTRITOS || []).map((d) => `<option value="${esc(d.id)}" ${String(d.id) === String(cfg.distrito) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
             </div></section>
