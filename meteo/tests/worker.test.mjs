@@ -1,8 +1,8 @@
 // Rotas do Worker com fetch e KV simulados.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../src/index.js';
-import { validateAnalysis, ANALYSIS_SCHEMA } from '../public/lib/analysis.js';
+import worker from '../proxy/src/worker.js';
+import { validateAnalysis, ANALYSIS_SCHEMA } from '../lib/analysis.js';
 
 const ORIGIN = 'https://meteo.example.workers.dev';
 function kv() {
@@ -18,20 +18,20 @@ beforeEach(() => {
 });
 const call = (path, init = {}) => worker.fetch(new Request(ORIGIN + path, init), env, ctx);
 
-test('estado e ficheiros estáticos', async () => {
+test('estado, CORS e endereço da app', async () => {
     const r = await call('/api/status');
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
     assert.deepEqual(j.schedule, ['07:34', '13:34', '20:34']);
-    const idx = await call('/');
-    assert.equal(idx.status, 200);
-    assert.match(idx.headers.get('content-type'), /text\/html/);
-    assert.equal(idx.headers.get('cache-control'), 'no-cache');
-    const lib = await call('/lib/engine.js');
-    assert.match(await lib.text(), /buildForecast/);
-    assert.equal((await call('/lib/engine.js', { headers: { 'if-none-match': lib.headers.get('etag') } })).status, 304);
+    assert.equal(r.headers.get('access-control-allow-origin'), '*');
+    const root = await call('/');
+    assert.equal(root.status, 302);
+    assert.equal(root.headers.get('location'), 'https://nelsonsous.github.io/escolaplay/meteo/');
     assert.equal((await call('/nada.txt')).status, 404);
+    const pre = await call('/api/places', { method: 'OPTIONS', headers: { origin: 'https://nelsonsous.github.io' } });
+    assert.equal(pre.status, 204);
+    assert.match(pre.headers.get('access-control-allow-methods'), /POST/);
 });
 
 test('proxies só para as fontes previstas', async () => {
@@ -52,6 +52,11 @@ test('proxies só para as fontes previstas', async () => {
 test('locais: só da própria origem, máximo 5, sem duplicados, e apagar', async () => {
     const post = (b, origin = ORIGIN) => call('/api/places', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(b) });
     assert.equal((await post({ name: 'Casa', lat: 38.72, lon: -9.14 }, 'https://evil.example')).status, 403);
+    assert.equal((await post({ name: 'Pages', lat: 40, lon: -8 }, 'https://nelsonsous.github.io')).status, 403, 'sem ALLOWED_ORIGINS só o próprio conector grava');
+    env.ALLOWED_ORIGINS = 'https://nelsonsous.github.io';
+    const pg = await post({ name: 'Pages', lat: 40, lon: -8 }, 'https://nelsonsous.github.io');
+    assert.equal(pg.status, 201);
+    await call('/api/places/pages', { method: 'DELETE', headers: { origin: 'https://nelsonsous.github.io' } });
     const r = await post({ name: 'Casa', lat: 38.72, lon: -9.14 });
     assert.equal(r.status, 201);
     assert.equal((await r.json()).id, 'casa');

@@ -2,9 +2,9 @@
 //   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo]
 // Mostra as regras, o resumo numérico, a análise anterior, as lições e o observado; grava imagens de satélite.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { loadForecast, buildSummary, perModelTable } from '../public/lib/data.js';
-import { satUrl, FOGOS_URL } from '../public/lib/sources.js';
-import { SYSTEM_PROMPT } from '../public/lib/analysis.js';
+import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
+import { satUrl, FOGOS_URL } from '../lib/sources.js';
+import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { WORKER, getJSON, kvGet, kvPut, arg } from './comum.mjs';
 
 const OUT = arg('--out', '/tmp/meteo');

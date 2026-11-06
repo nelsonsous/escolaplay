@@ -7,6 +7,12 @@ import { haversine } from './stats.js';
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 const isMock = () => isBrowser && new URLSearchParams(location.search).has('mock');
 
+// Conector de dados (Cloudflare Worker), como na app Mercados: muda-se nos Ajustes ou com ?proxy=URL
+export const DEFAULT_PROXY = 'https://meteo.mercados-proxy.workers.dev';
+let PROXY = DEFAULT_PROXY;
+export function setProxy(url) { PROXY = String(url || '').trim().replace(/\/+$/, '') || DEFAULT_PROXY; return PROXY; }
+export const getProxy = () => PROXY;
+
 // ---------- cache simples (localStorage no browser, memória no Node) ----------
 const mem = new Map();
 function cacheGet(key, maxAgeMs) {
@@ -94,11 +100,11 @@ export async function loadForecast(o = {}) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error('Coordenadas inválidas.');
     if (isMock()) {
         const q = new URLSearchParams({ lat, lon, ...(o.name ? { name: o.name } : {}) });
-        const r = await fetch('/api/forecast?' + q);
+        const r = await fetch(new URL('api/forecast?' + q, location.href));
         if (!r.ok) throw new Error('Não foi possível obter a previsão (mock).');
         return r.json();
     }
-    const ctx = { base: o.base ?? '', preferProxy: !!o.preferProxy };
+    const ctx = { base: o.base ?? PROXY, preferProxy: !!o.preferProxy };
     const pt = inPortugal(lat, lon), eu = inEuropeFirms(lat, lon);
     const q = omQueries(lat, lon);
     const B = ctx.base;
@@ -150,7 +156,7 @@ export async function loadForecast(o = {}) {
 }
 
 // Pede uma análise imediata ao Claude (só funciona se o Worker tiver chave da API)
-export async function requestAnalysis(fc, { base = '', det } = {}) {
+export async function requestAnalysis(fc, { base = PROXY, det } = {}) {
     const summary = buildSummary(fc, det ? { perModel: perModelTable(det) } : {});
     const r = await fetch(`${base}/api/analysis/refresh?lat=${fc.location.lat}&lon=${fc.location.lon}`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ summary, name: fc.location.name }) });

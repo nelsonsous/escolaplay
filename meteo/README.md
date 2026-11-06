@@ -3,7 +3,7 @@
 App à parte (PWA instalável) com a previsão do tempo mais exata possível para um local preciso, a curto prazo
 (próximas horas e dias) e a médio prazo (até 16 dias), com análise escrita pelo Claude.
 
-Endereço: **https://meteo.mercados-proxy.workers.dev** (no telemóvel: iPhone *Partilhar → Adicionar ao ecrã
+Endereço: **https://nelsonsous.github.io/escolaplay/meteo/** (no telemóvel: iPhone *Partilhar → Adicionar ao ecrã
 principal*; Android *⋮ → Instalar app*).
 
 ## O que junta
@@ -35,25 +35,35 @@ Na app, **Análise diária do Claude para este local** regista o local (máx. 5;
 Opcional — análise imediata para qualquer local, pela API do Claude (paga à parte):
 
 ```bash
-cd meteo && npx wrangler secret put ANTHROPIC_API_KEY
+cd meteo/proxy && npx wrangler secret put ANTHROPIC_API_KEY
 ```
 
 Ou no painel da Cloudflare: *Workers & Pages → meteo → Settings → Variables and Secrets → Add → Secret*.
 
-## Como está feito
+## Conector
 
-- `public/` — a PWA (HTML/CSS/JS sem dependências). `public/lib/` é o **motor**: junta as fontes e calcula tudo;
-  corre no telemóvel e na tarefa agendada (o plano gratuito da Cloudflare só dá 10 ms de CPU por pedido).
-- `src/index.js` — o Worker: serve a PWA (embutida por `scripts/build-static.mjs`), faz cache das fontes que o
-  browser não pode ler diretamente (METAR, FIRMS, fogos.pt, imagens EUMETSAT), guarda locais e análises no KV.
-- `analista/` — scripts da tarefa agendada (`dados.mjs` recolhe, `publicar.mjs` valida e grava).
-- `docs/API.md` — formato de todas as respostas.
+Como nos Mercados, a app é estática (GitHub Pages) e o que o browser não pode ler diretamente (METAR, NASA FIRMS,
+fogos.pt, imagens EUMETSAT) passa por um Cloudflare Worker próprio, grátis, na pasta `proxy/` — que também guarda os
+locais e as análises do Claude (KV). Já está publicado em `https://meteo.mercados-proxy.workers.dev` e a app usa-o
+por omissão; para usar outro: **Ajustes → Conector de dados**, ou abrir a app com `…/meteo/?proxy=https://…`.
 
 ```bash
-cd meteo
+cd meteo/proxy
 npm install
-npm test          # motor com dados reais de Lisboa + rotas do Worker
 npx wrangler deploy
+```
+
+## Como está feito
+
+- `index.html`, `meteo.css`, `meteo.js` (+ módulos) — a PWA, sem dependências.
+- `lib/` — o **motor**: junta as fontes e calcula tudo. Corre no telemóvel e na tarefa agendada (o plano gratuito
+  da Cloudflare só dá 10 ms de CPU por pedido, por isso o Worker não faz contas).
+- `proxy/` — o conector (Worker). `analista/` — scripts da tarefa agendada (`dados.mjs` recolhe, `publicar.mjs`
+  valida e grava). `docs/API.md` — formato de todas as respostas.
+- `tests/` — motor com dados reais de Lisboa, rotas do conector e a app no Chromium com a rede simulada:
+
+```bash
+node --test meteo/tests/*.test.mjs
 ```
 
 ## Fontes e licenças

@@ -1,11 +1,6 @@
 name = "meteo"
-main = "src/index.js"
+main = "src/worker.js"
 compatibility_date = "2026-10-01"
-
-# A PWA (public/) é embutida no Worker por scripts/build-static.mjs (corre antes de cada deploy/dev)
-[build]
-command = "node scripts/build-static.mjs"
-watch_dir = "public"
 
 # Locais, análises do Claude, lições e histórico de observações
 # (criado com: POST /accounts/:id/storage/kv/namespaces {"title":"meteo-METEO"})
@@ -14,6 +9,9 @@ binding = "KV"
 id = "df3dfce3ae1b40cdb97071b58df3e7b0"
 
 [vars]
+# Origens que podem gravar (locais, análise imediata); a leitura é livre
+ALLOWED_ORIGINS = "https://nelsonsous.github.io"
+APP_URL = "https://nelsonsous.github.io/escolaplay/meteo/"
 CLAUDE_MODEL = "claude-opus-5-5"
 
 # Opcional — análise imediata pela API do Claude (botão "Analisar agora"):

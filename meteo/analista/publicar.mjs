@@ -3,7 +3,7 @@
 // Grava analysis:<id> (a app lê-a em /api/analysis), o arquivo analysis:<id>:<data-hora> (30 dias) e lessons:<id>.
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { validateAnalysis } from '../public/lib/analysis.js';
+import { validateAnalysis } from '../lib/analysis.js';
 import { WORKER, getJSON, kvPut, arg } from './comum.mjs';
 
 const file = process.argv[2];

@@ -1,11 +1,15 @@
-# Meteo — contrato da API (Worker `meteo`)
+# Meteo — contrato dos dados
 
-Base: `https://meteo.mercados-proxy.workers.dev`. Tudo JSON (UTF-8), exceto `/api/sat` (PNG).
+A app (GitHub Pages) calcula a previsão no telemóvel com `lib/data.js` e usa o conector (Worker `meteo`,
+`https://meteo.mercados-proxy.workers.dev`, configurável) para o resto. Tudo JSON (UTF-8), exceto `/api/sat` (PNG).
+O conector responde com CORS aberto para leitura; gravar só a partir de `ALLOWED_ORIGINS`.
 Horas locais em ISO sem fuso (`2026-11-06T15:00`), no fuso do local (`location.timezone`).
 Unidades: °C, mm, km/h, hPa, %, m. Números arredondados a 1 casa (temp), inteiros (%, km/h).
 `null` = sem dado. Erros: `{ "error": "codigo", "message": "texto PT" }` com HTTP 4xx/5xx.
 
-## GET /api/forecast?lat=38.7223&lon=-9.1393[&name=Casa]
+## Previsão — `await loadForecast({ lat, lon, name })` em `lib/data.js`
+
+Calculada no telemóvel (não é um pedido ao conector). Formato:
 
 ```jsonc
 {
@@ -136,6 +140,10 @@ Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`)
 
 `{ "version": "1.0.0", "onDemand": false, "places": 1, "schedule": ["07:12","13:12","19:42"] }`
 
-## GET /api/summary?lat=..&lon=..
+## Fontes em bruto (passagem com cache)
 
-Texto compacto (PT) com todos os números da previsão, para o Claude ler (`text/plain`).
+`/api/raw/om/<forecast|ensemble|previous|archive|elevation|geocoding>?…` (Open-Meteo), `/api/raw/metar?lat&lon`,
+`/api/raw/metar-history?id=LPPT`, `/api/raw/firms?sat=n20|n21|snpp|modis`, `/api/raw/fogos` (com cópia da tarefa agendada
+quando o fogos.pt recusa o Worker), `/api/obs-history?station=<id IPMA>`.
+
+O resumo para o Claude é `buildSummary(fc)` em `lib/engine.js`.

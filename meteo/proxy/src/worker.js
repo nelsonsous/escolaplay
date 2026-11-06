@@ -1,26 +1,35 @@
-// Worker "meteo": serve a PWA, faz de cache/proxy das fontes sem CORS, guarda locais e análises do Claude (KV).
-// Plano gratuito (10 ms de CPU por pedido): aqui não se faz cálculo pesado — o motor corre no telemóvel.
+// Conector da app Meteo (Cloudflare Worker), como o mercados/proxy: cache/proxy das fontes que o browser não lê
+// diretamente, imagens de satélite, locais e análises do Claude (KV). A app em si está no GitHub Pages.
+// Plano gratuito (10 ms de CPU por pedido): aqui não se faz cálculo pesado — o motor (../../lib) corre no telemóvel.
 import Anthropic from '@anthropic-ai/sdk';
-import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl } from '../public/lib/sources.js';
-import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../public/lib/analysis.js';
-import { FILES, BUILD } from './static.gen.js';
+import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl } from '../../lib/sources.js';
+import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 
 const VERSION = '1.0.0';
 const SCHEDULE = ['07:34', '13:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const MAX_PLACES = 5;
+// Dados públicos: qualquer origem pode ler; escrever (locais, análise imediata) só a app (ALLOWED_ORIGINS) ou o próprio conector
+const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'x-sat-layer, x-sat-bbox, x-cache' };
 const OM_TTL = { forecast: 900, ensemble: 3600, previous: 3600, archive: 2592000, elevation: 2592000, geocoding: 86400 };
 
 export default {
     async fetch(req, env, ctx) {
         const url = new URL(req.url);
-        if (!url.pathname.startsWith('/api/')) return serveStatic(req, url);
+        if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...CORS, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+            'access-control-allow-headers': 'content-type', 'access-control-max-age': '86400' } });
+        // a app está no GitHub Pages; quem abrir o endereço do conector vai lá parar
+        if (url.pathname === '/' && req.method === 'GET') return Response.redirect(env.APP_URL || 'https://nelsonsous.github.io/escolaplay/meteo/', 302);
+        let res;
         try {
-            return await route(req, env, ctx, url);
+            res = url.pathname.startsWith('/api/') ? await route(req, env, ctx, url) : json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
         } catch (e) {
             console.error(e);
-            return json({ error: 'interno', message: 'Erro interno do servidor.' }, 500);
+            res = json({ error: 'interno', message: 'Erro interno do servidor.' }, 500);
         }
+        const out = new Response(res.body, res);
+        for (const [k, v] of Object.entries(CORS)) out.headers.set(k, v);
+        return out;
     },
 };
 
@@ -99,28 +108,6 @@ async function route(req, env, ctx, url) {
     return json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
 }
 
-// ---------- ficheiros da PWA (embutidos no Worker) ----------
-const decoded = new Map();
-function serveStatic(req, url) {
-    if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Método não permitido', { status: 405 });
-    let p = url.pathname;
-    if (p.endsWith('/')) p += 'index.html';
-    const f = FILES[p];
-    if (!f) return new Response('Não encontrado', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
-    const etag = `"${f.e}"`;
-    // index, service worker e manifesto revalidam sempre; o resto fica 1 h em cache (o sw.js trata das versões)
-    const fresh = p === '/index.html' || p === '/sw.js' || p.endsWith('.webmanifest');
-    const headers = { 'content-type': f.t, etag, 'cache-control': fresh ? 'no-cache' : 'public, max-age=3600', 'x-build': BUILD,
-        'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin' };
-    if (req.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers });
-    let body = f.d;
-    if (f.b) {
-        if (!decoded.has(p)) decoded.set(p, Uint8Array.from(atob(f.d), (c) => c.charCodeAt(0)));
-        body = decoded.get(p);
-    }
-    return new Response(req.method === 'HEAD' ? null : body, { headers });
-}
-
 // ---------- utilitários ----------
 function json(body, status = 200, headers = {}) {
     return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
@@ -135,7 +122,10 @@ function distKm(a, b, c, d) {
     const t = Math.PI / 180, x = Math.sin(((c - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin(((d - b) * t) / 2) ** 2;
     return 12742 * Math.asin(Math.sqrt(x));
 }
-const sameOrigin = (req, url) => req.headers.get('origin') === url.origin;
+function trusted(req, env, url) {
+    const o = req.headers.get('origin');
+    return !!o && [url.origin, ...String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)].includes(o);
+}
 
 async function passthrough(ctx, upstream, { ttl, type, headers = {}, ua = UA }) {
     const cache = typeof caches !== 'undefined' ? caches.default : null;
@@ -161,7 +151,7 @@ const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().rep
 
 async function addPlace(req, env, url) {
     if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
-    if (!sameOrigin(req, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
     const b = await req.json().catch(() => null);
     const lat = Number(b?.lat), lon = Number(b?.lon), name = String(b?.name || '').trim().slice(0, 40);
     if (!name || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return bad('Dados do local inválidos.');
@@ -178,7 +168,7 @@ async function addPlace(req, env, url) {
 
 async function deletePlace(req, env, url, id) {
     if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
-    if (!sameOrigin(req, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
     const places = await getPlaces(env);
     if (!places.some((x) => x.id === id)) return json({ error: 'nao_encontrado', message: 'Local não encontrado.' }, 404);
     await env.KV.put('places', JSON.stringify(places.filter((x) => x.id !== id)));
@@ -200,7 +190,7 @@ async function findAnalysis(env, lat, lon) {
 // ---------- análise imediata pela API do Claude (opcional: precisa do segredo ANTHROPIC_API_KEY) ----------
 async function refresh(req, env, url) {
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'sem_chave', message: 'A análise imediata precisa de uma chave da API do Claude no Worker. As análises agendadas continuam a funcionar.' }, 503);
-    if (!sameOrigin(req, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
     const c = coords(url.searchParams);
     const b = await req.json().catch(() => null);
     const summary = typeof b?.summary === 'string' ? b.summary : '';

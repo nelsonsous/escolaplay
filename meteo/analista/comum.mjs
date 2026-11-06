@@ -1,7 +1,7 @@
 // Utilitários da tarefa agendada: Worker, base de dados (KV) pela API da Cloudflare.
 import { readFileSync } from 'node:fs';
 
-const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
+const toml = readFileSync(new URL('../proxy/wrangler.toml', import.meta.url), 'utf8');
 export const WORKER = process.env.METEO_WORKER || 'https://meteo.mercados-proxy.workers.dev';
 export const ACCOUNT = process.env.CF_ACCOUNT_ID || 'e5f9f94050228b1fa9f74443667b20a6';
 export const KV_NS = (toml.match(/binding = "KV"\s*\nid = "([0-9a-f]+)"/) || [])[1];

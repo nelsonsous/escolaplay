@@ -2,8 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildForecast, buildSummary, perModelTable, parseEns, nowcastText, pickStation } from '../public/lib/engine.js';
-import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../public/lib/stats.js';
+import { buildForecast, buildSummary, perModelTable, parseEns, nowcastText, pickStation } from '../lib/engine.js';
+import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../lib/stats.js';
 
 const raw = JSON.parse(readFileSync(new URL('./fixtures/lisboa-2026-11-06.json', import.meta.url), 'utf8'));
 const NOW = '2026-11-06T15:45:00Z';

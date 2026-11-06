@@ -2,7 +2,7 @@
 
 Procedimento que a tarefa agendada segue **três vezes por dia: 07:34, 13:34 e 20:34 (hora de Lisboa)**, a seguir
 às corridas das 00, 06 e 12 UTC dos modelos. Para mudar o comportamento muda-se este ficheiro, os scripts em
-`meteo/analista/` e as regras em `meteo/public/lib/analysis.js`, e faz-se merge — o agendamento usa sempre o `main`.
+`meteo/analista/` e as regras em `meteo/lib/analysis.js`, e faz-se merge — o agendamento usa sempre o `main`.
 
 Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código nem abras PR nesta tarefa.
 
