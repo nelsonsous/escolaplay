@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.3.0';
+    const VERSION = '3.4.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -841,7 +841,8 @@
     function card(k, extra = '', badge = null) {
         const a = REG[k] || { key: k, name: k };
         const q = qv(k);
-        const sub = a.kind === 'fund' && FUND_TYPE[k] ? ({ acc: 'Acc · sem dividendos', dist: 'Dist · dividendos', etc: 'ETC' }[FUND_TYPE[k]]) : a.kind === 'crypto' ? a.sym + ' · 24 h' : a.unit ? 'por ' + a.unit : q.open === false ? 'fechado' : (q.time ? 'às ' + hhmm(q.time) : '');
+        // como na Trade Republic: só nome, preço e variação (a unidade fica quando é por litro, por barril…)
+        const sub = a.unit ? 'por ' + a.unit : '';
         return row(k, { sub, note: extra, badge });
     }
     // ícone redondo com as iniciais (cor fixa por ativo)
@@ -856,9 +857,9 @@
     function row(k, opt = {}) {
         const a = REG[k] || { key: k, name: k, sym: k };
         const q = qv(k);
-        const sub = opt.sub ?? [a.sym, q.exchange, q.open === false ? 'fechado' : ''].filter(Boolean).join(' · ');
+        const sub = opt.sub ?? '';
         return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
-            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${esc(sub)}</div>${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
+            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${sub || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
             <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
         </button>`;
@@ -898,7 +899,7 @@
             <div class="list">${energy}</div></section>
         ${viewFuel()}
         <section class="sec"><div class="sec-h"><h2>Índices, câmbio e ouro</h2></div>
-            <div class="list">${INDICES.map((i) => row(i.sym, { sub: i.sym })).join('')}</div></section>
+            <div class="list">${INDICES.map((i) => row(i.sym)).join('')}</div></section>
         ${etfCrypto() ? `<details class="stocks-fold"><summary>Ações (só informação — não fazem parte do plano) <span class="sub">${cfg.watch.length}</span></summary>` : ''}
         <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${cfg.watch.length}</span>
             <div class="right seg" role="group" aria-label="Ordenar">
