@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Previsão do tempo para a tua localização exata: 9 modelos, mais de 200 cenários, observações, satélite, incêndios e análise do Claude.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Meteo">
+    <title>Meteo</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="stylesheet" href="meteo.css">
+</head>
+<body>
+    <div id="app" class="mt-app">
+        <div class="mt-ptr" id="mt-ptr" aria-hidden="true"><span></span></div>
+        <main class="mt-body" id="mt-body"></main>
+        <nav class="mt-nav" id="mt-nav" aria-label="Secções">
+            <button type="button" data-tab="agora"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><path d="M9 2.5v1.3M2.5 9h1.3M4.4 4.4l.9.9M13.6 4.4l-.9.9"/><path d="M8 20h9.5a3.5 3.5 0 0 0 .5-7 5 5 0 0 0-9.4 1.3A2.9 2.9 0 0 0 8 20z"/></svg><span>Agora</span></button>
+            <button type="button" data-tab="dias"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2"/></svg><span>Dias</span></button>
+            <button type="button" data-tab="satelite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8.5l3-3 7 7-3 3z"/><path d="M5.5 5.5l3 3M15.5 15.5l3 3M3 8l5-5M16 21l5-5"/><path d="M5 14a5 5 0 0 0 5 5"/></svg><span>Satélite</span></button>
+            <button type="button" data-tab="analise"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z"/></svg><span>Análise</span></button>
+            <button type="button" data-tab="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Ajustes</span></button>
+        </nav>
+        <div class="mt-sheet" id="mt-sheet" hidden>
+            <div class="mt-sheet-bg" data-act="close"></div>
+            <section class="mt-sheet-card" role="dialog" aria-modal="true" aria-labelledby="mt-sheet-title" id="mt-sheet-card"></section>
+        </div>
+        <div class="mt-toast" id="mt-toast" role="status" aria-live="polite"></div>
+    </div>
+    <noscript><div class="mt-noscript">A app Meteo precisa de JavaScript.</div></noscript>
+    <script type="module" src="meteo.js"></script>
+</body>
+</html>

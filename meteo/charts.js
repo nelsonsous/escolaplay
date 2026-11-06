@@ -180,8 +180,8 @@ export function renderHourly(root, hourly, { todayIso } = {}) {
   // eixo fixo (escalas)
   let ax = '';
   for (let v = ts.lo; v <= ts.hi + 1e-9; v += ts.step) ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yT(v) + 4)}" text-anchor="end">${esc(num(v) + '°')}</text>`;
-  ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yP(pTop) + 4)}" text-anchor="end">${esc(num(pTop))}</text><text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(yP(pTop) + 15)}" text-anchor="end">mm</text>`;
-  ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yW(wTop) + 4)}" text-anchor="end">${esc(num(wTop))}</text><text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(yW(wTop) + 15)}" text-anchor="end">km/h</text>`;
+  ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yP(pTop) + 4)}" text-anchor="end">${esc(num(pTop))}</text><text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(yP(pTop) + 18)}" text-anchor="end">mm</text>`;
+  ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yW(wTop) + 4)}" text-anchor="end">${esc(num(wTop))}</text><text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(yW(wTop) + 18)}" text-anchor="end">km/h</text>`;
 
   root.innerHTML = `
     <div class="legend" aria-hidden="true">

@@ -1,4 +1,4 @@
-// Gera os PNG da app a partir de public/icons/icon.svg (Playwright/Chromium).
+// Gera os PNG da app (na pasta meteo/, com os nomes da app Mercados) a partir de icon.svg.
 //   node meteo/scripts/make-icons.mjs
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
-const master = readFileSync(dir('../public/icons/icon.svg'), 'utf8');
-const fav = readFileSync(dir('../public/favicon.svg'), 'utf8');
+const master = readFileSync(dir('../icon.svg'), 'utf8');
+
 
 // [ficheiro, tamanho, escala do desenho] — maskable: desenho dentro da zona segura (círculo de 80%)
 const TARGETS = [
@@ -16,7 +16,6 @@ const TARGETS = [
   ['icon-512.png', 512, 0.92, master],
   ['icon-maskable-512.png', 512, 0.76, master],
   ['apple-touch-icon.png', 180, 0.9, master],
-  ['favicon-32.png', 32, 1, fav],
 ];
 const scaled = (svg, s) => (s === 1 ? svg : svg.replace('<g id="art">', `<g id="art" transform="translate(256 256) scale(${s}) translate(-256 -256)">`));
 
@@ -27,7 +26,7 @@ for (const [name, size, s, svg] of TARGETS) {
   await page.setViewportSize({ width: size, height: size });
   await page.setContent(`<html><body style="margin:0;background:#0d2a5c"><img src="${src}" width="${size}" height="${size}" style="display:block"></body></html>`);
   await page.waitForFunction(() => document.images[0].complete);
-  await page.screenshot({ path: dir(`../public/icons/${name}`), clip: { x: 0, y: 0, width: size, height: size } });
+  await page.screenshot({ path: dir(`../${name}`), clip: { x: 0, y: 0, width: size, height: size } });
   console.log('✓', name);
 }
 await browser.close();
