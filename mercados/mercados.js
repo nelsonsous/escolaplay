@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.10.0';
+    const VERSION = '3.10.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -211,7 +211,7 @@
         try { return NF(o).format(v) + (c === 'GBp' ? ' p' : ''); } catch { return v.toFixed(d); }
     }
     const fmtPct1 = (v) => fin(v) ? (v > 0.05 ? '+' : v < -0.05 ? '−' : '') + NF({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(v)) + '%' : '—';
-    const fmtPct = (v) => fin(v) ? (v > 0 ? '+' : v < 0 ? '−' : '') + NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v)) + '%' : '—';
+    const fmtPct = (v) => fin(v) ? (v >= 0.005 ? '+' : v <= -0.005 ? '−' : '') + NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v)) + '%' : '—';
     const fmtBig = (v) => fin(v) ? NF({ notation: 'compact', maximumFractionDigits: 1 }).format(v) : '—';
     const toneOf = (v) => !fin(v) ? 'flat' : v > 0.005 ? 'up' : v < -0.005 ? 'down' : 'flat';
     const chg = (v) => `<span class="chg ${toneOf(v)}">${fmtPct(v)}</span>`;
@@ -1278,7 +1278,15 @@
             <div class="box"><h3>Diário real (regras automáticas)</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para guardar o diário.</div>' : !ev ? '<div class="note">A ler o diário…</div>'
                 : !jrows ? `<div class="note">A app guarda as sugestões de cada dia em que a abres (${ev.days || 0} dia${ev.days === 1 ? '' : 's'} até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>`
-                : `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${jrows}</tbody></table><p class="note">Desde ${esc(ev.since)} · ${ev.days} dias guardados. "Acerto": comprar → subiu; evitar → desceu.</p>`}
+                : `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${jrows}</tbody></table><p class="note">Desde ${esc(ev.since)} · ${ev.days} dia${ev.days === 1 ? '' : 's'} guardado${ev.days === 1 ? '' : 's'}.</p>
+                ${ev.days < 20 ? `<p class="adv-ev">Ainda é cedo (${ev.days} dia${ev.days === 1 ? '' : 's'}): diferenças de décimas não querem dizer nada. A tabela começa a valer ao fim de 1 a 3 meses.</p>` : ''}
+                <details class="how in"><summary>Como ler esta tabela</summary><ul>
+                    <li>Todos os dias a app guarda o que as regras automáticas sugeriam para cada ativo e o preço desse dia.</li>
+                    <li><b>Casos</b>: quantas vezes a regra sugeriu isto (um ativo num dia conta 1).</li>
+                    <li><b>Desde então</b>: quanto esses ativos subiram ou desceram, em média, desde o dia da sugestão até agora.</li>
+                    <li><b>Acerto</b>: em "Comprar", a % de vezes em que o preço subiu depois; em "Evitar", a % em que desceu. 80% = acertou 4 em 5.</li>
+                    <li><b>vs VWCE</b>: o mesmo resultado menos o que o VWCE fez no mesmo tempo. Positivo = teria sido melhor do que pôr o dinheiro no VWCE; negativo = pior.</li>
+                    <li>Uma regra só vale a pena se "Comprar" ficar acima do VWCE e "Evitar" abaixo, durante meses.</li></ul></details>`}
             </div>
             <div class="box"><h3>Teste no passado (regras atuais)</h3>${BT && BT.sum ? `<p class="note" style="margin-top:0">${BT.n} ativos · ${BT.yrs || 5} anos · preços ajustados (dividendos incluídos) · comissão de 1 € por compra manual de ${fmtPx(BT.ticket, { decimals: 0 }, 'EUR')} (${(100 / BT.ticket).toFixed(1).replace('.', ',')}%); ETF por plano de poupança, sem comissão. Não inclui impostos.</p>` : ''}${bt}</div></section>`;
     }
