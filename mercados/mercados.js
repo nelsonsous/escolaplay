@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.4.0';
+    const VERSION = '3.5.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -474,7 +474,7 @@
     const dmy = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '';
     function taxLine(k) {
         const t = taxOf(k);
-        if (!t.n) return 'sem data de compra';
+        if (!t.n) return ''; // sem datas: não ocupa espaço
         if (t.all) return 'isenta de IRS';
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
@@ -574,6 +574,12 @@
     async function loadClaude() {
         if (!cfg.proxy) return;
         try { CLAUDE = await px('/advice'); } catch (e) { CLAUDE = { missing: true, error: e.message }; }
+        // guarda o último conselho do Claude de cada ativo (se num dia não o comentar, fica o anterior)
+        if (CLAUDE && Array.isArray(CLAUDE.actions) && CLAUDE.date) {
+            const mem = store.get('mercados:clmem') || {};
+            for (const x of CLAUDE.actions) if (x && x.s && (!mem[x.s] || mem[x.s].date <= CLAUDE.date)) mem[x.s] = { ...x, date: CLAUDE.date };
+            store.set('mercados:clmem', mem);
+        }
         scheduleRender();
     }
     // "feita às 07:16 de 06/11 · próxima amanhã às 07:14" (a tarefa corre todos os dias às 07:14 de Lisboa)
@@ -599,7 +605,13 @@
         if (unread && document.visibilityState !== 'hidden') { parts.forEach((x, i) => { if (x) cfg.seen[name + i] = x; }); saveCfg(); }
         return v;
     }
-    const claudeFor = (k) => CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
+    function claudeFor(k) {
+        const now1 = CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
+        if (now1) return now1;
+        const m = (store.get('mercados:clmem') || {})[k];
+        // conselho anterior, até 14 dias
+        return m && m.date && (Date.parse(todayLocal()) - Date.parse(m.date)) / DAY <= 14 ? { ...m, old: true } : null;
+    }
     async function loadFuel() {
         if (!cfg.proxy) return;
         try {
@@ -1000,7 +1012,7 @@
         const cTone = c ? (CL_TONE[c.key] || 'flat') : a.tone;
         const algoPlan = a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : '';
         return `<div class="box advice ${cTone}"><h3>O que fazer na Trade Republic</h3>
-            ${c ? `<div class="adv-src">Análise do Claude · ${esc(clWhen().split(' · ')[0])}</div>
+            ${c ? `<div class="adv-src">${c.old ? `Análise do Claude de ${esc(dmy(c.date).slice(0, 5))} · último comentário a este ativo` : `Análise do Claude · ${esc(clWhen().split(' · ')[0])}`}</div>
             <div class="adv-act ${cTone}-t">${esc(c.action || '')}</div>
             <div class="adv-txt">${esc(c.why || '')}</div>
             ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}

@@ -396,12 +396,15 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .r-sub').textContent(), /isentas · próxima em \d+ d|isenta em \d+ d/);
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /^sem data de compra$|−?[\d,]+% do máx\. · sem data de compra/);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /^[−+]?[\d,]+% do máx\.$/, 'sem datas de compra: não há texto');
     assert.doesNotMatch(await page.locator('.sec:has(h2:text("Os meus ativos"))').textContent(), /24 h|Acc · sem dividendos/, 'sem texto que não interessa');
     assert.equal(await page.locator('.sec:has(h2:text("Índices")) .row .r-sub').count(), 0, 'listas só com nome, preço e variação');
 
     // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
     await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
+    // conselho anterior do Claude para um ativo que hoje não comentou (Ether)
+    await page.evaluate(() => { const d = new Date(Date.now() - 2 * 864e5); const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        localStorage.setItem('mercados:clmem', JSON.stringify({ 'c:ETH': { s: 'c:ETH', key: 'hold', action: 'Manter', why: 'tendência longa ainda a subir', date: iso } })); });
     await page.reload();
     await page.waitForFunction(() => window.__mk && window.__mk.cfg.watchVer === 3);
     await page.waitForSelector('.today .cl-head', { state: 'attached' });
@@ -409,6 +412,15 @@ function proxyBody(u) {
     assert.match(await page.locator('.today .teaser').textContent(), /manter o plano no VWCE/);
     if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, '7-painel-condensado.png') }); }
     console.log('✓ análise do Claude lida fica condensada');
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.waitForSelector('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:ETH"] .badge');
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:ETH"] .badge').textContent(), /Manter/);
+    await page.locator('.row[data-open="c:ETH"]').first().click();
+    await page.waitForSelector('.advice .adv-src');
+    assert.match(await page.locator('.advice .adv-src').textContent(), /Análise do Claude de \d\d\/\d\d · último comentário/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ Ether sem comentário hoje: fica o último conselho do Claude');
     const w = await page.evaluate(() => window.__mk.cfg.watch);
     assert.ok(!w.includes('EDP.LS') && w.includes('EGL.LS') && w.includes('JPM'), 'migração: ' + w.join(','));
     console.log('✓ migração da lista: sai EDP, fica Mota-Engil, entra JPMorgan');

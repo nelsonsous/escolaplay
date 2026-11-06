@@ -29,6 +29,9 @@ const out = {
     lessons: (Array.isArray(a.lessons) ? a.lessons : []).slice(0, 15).map((r, i) => str(r, 240, `lessons[${i}]`, true)),
 };
 if (!out.plan.length) errs.push('plan vazio: diz sempre o que fazer com o plano do mês');
+// o que o investidor tem aparece sempre em actions (a app mostra o conselho em cada um)
+const HOLD = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
+for (const k of HOLD) if (!out.actions.some((x) => x.s === k)) errs.push(`actions sem ${k}: comenta sempre os 5 que o investidor tem`);
 if (errs.length) { console.error('Análise inválida:\n- ' + errs.join('\n- ')); process.exit(1); }
 // preços no momento do conselho (em euros), para a avaliação dos dias seguintes
 out.prices = Object.fromEntries(dados.rows.map((r) => [r.s, r.priceEur ?? r.price]).filter(([, p]) => Number.isFinite(p)));
