@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.17.0';
+    const VERSION = '3.18.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -877,11 +877,28 @@
             const c = el.querySelector('.chg');
             if (c) { const pc = perData(k).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
         }
-        if (sheetKey === k) renderSheetPrice();
+        liveTail(k);
+        if (sheetKey === k) { renderSheetPrice(); sheetSoon(); }
         sparkSoon();
     }
-    let sparkT = 0;
-    function sparkSoon() { if (!sparkT) sparkT = setTimeout(() => { sparkT = 0; drawSparks(); }, 3000); }
+    // cada preço novo entra no gráfico do dia (ao vivo: cripto e ações dos EUA com Finnhub)
+    const liveT = {};
+    function liveTail(k) {
+        const raw = Q[k];
+        if (!raw || !fin(raw.price) || !Array.isArray(raw.series) || raw.series.length < 2) return;
+        const s = raw.series, last = s[s.length - 1], t = raw.time || Math.floor(now() / 1000);
+        if (t < last[0]) return;
+        if (liveT[k] === last[0] && t - last[0] < 5) { last[0] = t; last[1] = raw.price; } else s.push([t, raw.price]);
+        liveT[k] = s[s.length - 1][0];
+        if (s.length > 2000) s.splice(0, s.length - 2000);
+    }
+    let sparkT = 0, sheetT = 0;
+    function sparkSoon() { if (!sparkT) sparkT = setTimeout(() => { sparkT = 0; drawSparks(); }, 1000); }
+    // gráfico da ficha: redesenha ao segundo no 1D, exceto enquanto se arrasta o dedo nele
+    function sheetSoon() {
+        if (sheetT || sheetRange !== '1d') return;
+        sheetT = setTimeout(() => { sheetT = 0; if (sheetKey && now() - (st.chartHover || 0) > 2500) drawSheetChart(); }, 1000);
+    }
 
     // ---------- render ----------
     let renderPending = false;
@@ -1737,11 +1754,12 @@
             const x = ev.clientX - cv.getBoundingClientRect().left;
             let best = 0, bd = Infinity;
             for (let i = 0; i < sheetPts.length; i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }
+            st.chartHover = now();
             drawSheetChart(best);
         };
         cv.addEventListener('pointermove', at);
         cv.addEventListener('pointerdown', at);
-        cv.addEventListener('pointerleave', () => drawSheetChart());
+        cv.addEventListener('pointerleave', () => { st.chartHover = 0; drawSheetChart(); });
     }
 
     // ---------- lembretes no calendário (.ics) ----------

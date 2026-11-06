@@ -182,6 +182,10 @@ function proxyBody(u) {
     assert.match(cgTxt, /Medo e ganância\s*24\s*Medo extremo · ontem 30/);
     assert.match(cgTxt, /Dominância do Bitcoin\s*58,4%/);
     console.log('✓ resumo em 3 linhas e Cripto hoje (medo e ganância 24)');
+    // ao vivo: cada preço da Binance entra no gráfico do dia
+    const tail0 = await page.evaluate(() => { const s = window.__mk.Q['c:BTC'].series; return s[s.length - 1][0]; });
+    await page.waitForFunction((t0) => { const s = window.__mk.Q['c:BTC'].series; return s[s.length - 1][0] > t0; }, tail0, { timeout: 15000 });
+    console.log('✓ gráfico do dia recebe os preços ao vivo');
     // Agora: pulso do mercado e o que mexe, com o porquê (notícia ou Claude)
     await page.waitForSelector('.sec:has(h2:text("Agora")) .idea.why');
     const nowTxt = await page.locator('.sec:has(h2:text("Agora"))').textContent();
