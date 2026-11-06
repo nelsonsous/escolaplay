@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.15.0';
+    const VERSION = '3.16.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d' };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -760,8 +760,11 @@
         const lim = +cfg.alertPct || 0;
         if (!lim) return;
         const hits = [];
+        // só os ativos que interessam: os meus, os que juntei (fora da lista de origem) ou tudo o que sigo
+        const scope = cfg.alertScope || 'mineAdded';
+        const wanted = (k) => holdingKeys().includes(k) || (scope === 'all' ? true : scope === 'mineAdded' && (cfg.watch.includes(k) || cfg.funds.includes(k)) && !DEFAULT_WATCH.includes(k) && !DEFAULT_FUNDS.includes(k));
         for (let [k, q] of Object.entries(Q)) {
-            if (!listed(k)) continue;
+            if (!listed(k) || !wanted(k)) continue;
             q = qv(k);
             if (!fin(q.changePct) || Math.abs(q.changePct) < lim) continue;
             const id = `${today()}|${k}|${q.changePct > 0 ? '+' : '-'}`;
@@ -1447,7 +1450,8 @@
                 <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="${cfg.eur ? 'on' : ''}">EUR</button><button type="button" data-eur="0" class="${cfg.eur ? '' : 'on'}">Moeda local</button></div></div>
                 <div class="sw"><span>Moeda das cripto</span><div class="seg"><button type="button" data-fiat="EUR" class="${cfg.fiat === 'EUR' ? 'on' : ''}">EUR</button><button type="button" data-fiat="USD" class="${cfg.fiat === 'USD' ? 'on' : ''}">USD</button></div></div>
                 <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
-                    <select id="f-lim" class="inp" data-cfg="alertPct">${[0, 2, 3, 4, 5, 8, 10].map((p) => `<option value="${p}" ${lim === p ? 'selected' : ''}>${p ? '±' + p + '% no dia' : 'Não avisar'}</option>`).join('')}</select></div>
+                    <select id="f-lim" class="inp" data-cfg="alertPct">${[0, 2, 3, 4, 5, 8, 10].map((p) => `<option value="${p}" ${lim === p ? 'selected' : ''}>${p ? '±' + p + '% no dia' : 'Não avisar'}</option>`).join('')}</select>
+                    <select id="f-scope" class="inp" data-cfg="alertScope" style="margin-top:8px" aria-label="Sobre que ativos">${[['mine', 'Só os meus ativos'], ['mineAdded', 'Os meus e os que juntei'], ['all', 'Tudo o que sigo']].map(([v, l]) => `<option value="${v}" ${(cfg.alertScope || 'mineAdded') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
                 <div class="sw"><span>Notificações no telemóvel${notifState ? ` <small class="hint">(${notifState})</small>` : ''}</span><button type="button" class="btn sm" data-act="notify">${cfg.notify && 'Notification' in window && Notification.permission === 'granted' ? 'Ligadas' : 'Ligar'}</button></div>
                 <div class="sw"><span>Silêncio à noite (22h às 10h)<br><small class="hint">os avisos da noite chegam juntos de manhã, numa só notificação</small></span><div class="seg"><button type="button" data-act="quiet" data-v="1" class="${cfg.quiet !== false ? 'on' : ''}">Sim</button><button type="button" data-act="quiet" data-v="0" class="${cfg.quiet === false ? 'on' : ''}">Não</button></div></div>
                 <div><label for="f-dist">Combustíveis: zona</label>
