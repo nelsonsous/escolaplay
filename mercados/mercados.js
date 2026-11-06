@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.8.0';
+    const VERSION = '3.9.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -975,12 +975,13 @@
         if (!FUEL || !FUEL.fuels) inner = st.fuelErr ? `<div class="empty">Não deu para ler a DGEG: ${esc(st.fuelErr)}</div>` : '<div class="empty">A carregar os preços da DGEG…</div>';
         else {
             inner = `<div class="grid g3" style="grid-template-columns:repeat(2,minmax(0,1fr))">${FUEL.fuels.map((f) => f.error ? `<div class="card fuel"><div class="c-name">${esc(f.name)}</div><div class="c-sub">${esc(f.error)}</div></div>` : `
-                <div class="card fuel" style="cursor:default">
+                <button type="button" class="card fuel" data-fuel="${f.id}" aria-label="Ver os preços nos postos: ${esc(f.name)}">
                     <div class="c-top"><span class="c-name">${esc(f.name)}</span></div>
                     <div class="f-avg num">${fmtPx(f.median, { decimals: 3 }, 'EUR')}<span class="c-unit">/L</span></div>
                     <div class="c-note">mediana · média ${fmtPx(f.avg, { decimals: 3 }, 'EUR')}<br>${NF({}).format(f.n)} postos · máx. ${fmtPx(f.max, { decimals: 3 }, 'EUR')}</div>
                     ${f.cheapest && f.cheapest[0] ? `<div class="f-min">Mais barato: <b class="num">${fmtPx(f.cheapest[0].price, { decimals: 3 }, 'EUR')}</b><br>${esc([f.cheapest[0].brand, f.cheapest[0].name].filter(Boolean).join(' — '))}${f.cheapest[0].place ? '<br>' + esc(f.cheapest[0].place) : ''}</div>` : ''}
-                </div>`).join('')}</div>
+                    <div class="f-more">Ver os ${NF({}).format(f.n)} postos ›</div>
+                </button>`).join('')}</div>
                 <p class="note">Fonte: DGEG — Preços dos Combustíveis Online. Preço mediano por litro${mname ? ' no concelho de ' + esc(mname) : dname ? ' no distrito de ' + esc(dname) : ' em Portugal'}${FUEL.fuels[0] && FUEL.fuels[0].updated ? ' · última atualização ' + esc(FUEL.fuels[0].updated) : ''}.</p>`;
         }
         return `<section class="sec"><div class="sec-h"><h2>Combustíveis${mname ? ' em ' + esc(mname) : dname ? ' em ' + esc(dname) : ' em Portugal'}</h2><span class="sub">bombas, com impostos</span></div>${inner}</section>`;
@@ -1392,6 +1393,42 @@
             if (a.kind !== 'crypto' && cfg.proxy) px(`/quotes?symbols=${encodeURIComponent(k)}&range=1d`).then((r) => { const q = r.quotes && r.quotes[0]; if (q && !q.error) { Q[k] = { ...q, stale: false }; if (sheetKey === k) renderSheet(true); } }).catch(() => {});
         }
     }
+    // lista de postos de um combustível (DGEG), do mais barato para o mais caro
+    async function openFuelSheet(id) {
+        const f0 = FUEL && FUEL.fuels && FUEL.fuels.find((x) => x.id === id);
+        if (!f0) return;
+        sheetKey = 'fuel:' + id;
+        const sh = $('#mk-sheet'), box = $('#mk-sheet-card');
+        box.style.transition = ''; box.style.transform = ''; $('.mk-sheet-bg').style.opacity = '';
+        sh.hidden = false; document.body.style.overflow = 'hidden';
+        const dname = cfg.distrito && DISTRITOS ? (DISTRITOS.find((d) => String(d.id) === String(cfg.distrito)) || {}).name : '';
+        const mname = cfg.municipio && MUNIC[cfg.distrito] ? (MUNIC[cfg.distrito].find((m) => String(m.id) === String(cfg.municipio)) || {}).name : '';
+        const zone = mname || dname || 'Portugal';
+        const head = `<div class="grab"></div><div class="d-head"><div><h2 id="mk-sheet-title">${esc(f0.name)}</h2><div class="d-sub">${esc(zone)} · ${NF({}).format(f0.n)} postos · DGEG</div></div>
+            <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
+        box.innerHTML = head + '<div class="note" style="margin:16px 2px">A carregar os postos…</div>';
+        box.scrollTop = 0;
+        let f;
+        try {
+            const r = await px(`/fuel?distrito=${encodeURIComponent(cfg.distrito || '')}${cfg.distrito && cfg.municipio ? '&municipio=' + encodeURIComponent(cfg.municipio) : ''}&tipos=${id}&list=1`, 30000);
+            f = r.fuels && r.fuels[0];
+        } catch (e) { if (sheetKey === 'fuel:' + id) box.innerHTML = head + `<div class="empty" style="margin-top:14px">Não deu: ${esc(e.message)}</div>`; return; }
+        if (sheetKey !== 'fuel:' + id) return;
+        const st0 = (f && f.stations) || [];
+        const min = st0.length ? st0[0].price : null;
+        const maps = (s) => s.lat && s.lon ? `https://maps.apple.com/?ll=${s.lat},${s.lon}&q=${encodeURIComponent(s.name || 'Posto')}` : `https://maps.apple.com/?q=${encodeURIComponent([s.name, s.addr, s.place].filter(Boolean).join(', '))}`;
+        const save = f && fin(f.median) && fin(min) ? (f.median - min) * 50 : null;
+        box.innerHTML = head + `
+            ${f ? `<div class="fu-sum"><div><small>Mais barato</small><b class="num up-t">${fmtPx(min, { decimals: 3 }, 'EUR')}</b></div><div><small>Mediana</small><b class="num">${fmtPx(f.median, { decimals: 3 }, 'EUR')}</b></div><div><small>Mais caro</small><b class="num">${fmtPx(f.max, { decimals: 3 }, 'EUR')}</b></div></div>
+            ${save > 0.5 ? `<p class="note" style="margin:8px 2px 0">Num depósito de 50 L, o mais barato poupa cerca de <b>${fmtPx(save, { decimals: 2 }, 'EUR')}</b> face à mediana.</p>` : ''}` : ''}
+            ${st0.length ? `<div class="list fu-list">${st0.map((s, i) => `<a class="row st-row" href="${esc(maps(s))}" target="_blank" rel="noopener">
+                <span class="r-rank num">${i + 1}</span>
+                <div class="r-main"><div class="r-name">${esc(s.name || s.brand || 'Posto')}</div><div class="r-sub">${esc([s.brand && s.brand !== s.name ? s.brand : '', s.addr || s.place].filter(Boolean).join(' · '))}</div></div>
+                <div class="r-px num"><span class="px ${i === 0 ? 'up-t' : ''}">${fmtPx(s.price, { decimals: 3 }, 'EUR')}</span>${i ? `<span class="chg flat">+${NF({ minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(s.price - min)}</span>` : '<span class="chg up">o mais barato</span>'}</div></a>`).join('')}</div>
+                ${f.n > st0.length ? `<p class="note">Mostra os ${st0.length} mais baratos de ${NF({}).format(f.n)}. Escolhe o concelho em Ajustes para ver só os da tua zona.</p>` : ''}`
+            : '<div class="empty" style="margin-top:14px">Sem postos com preço.</div>'}
+            <p class="note">Toca num posto para o abrir no Mapas. Preços comunicados pelos postos à DGEG${f && f.updated ? ' · última atualização ' + esc(f.updated) : ''}.</p>`;
+    }
     function closeSheet(animated) {
         const done = () => { $('#mk-sheet').hidden = true; document.body.style.overflow = ''; sheetKey = null; scheduleRender(); };
         if (!animated) { done(); return; }
@@ -1697,7 +1734,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide],[data-per]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide],[data-per],[data-fuel]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1722,6 +1759,7 @@
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
+        if (d.fuel) { openFuelSheet(+d.fuel); return; }
         if (d.per) { cfg.per = d.per; saveCfg(); render(); return; }
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
         if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }

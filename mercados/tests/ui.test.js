@@ -45,6 +45,8 @@ function proxyBody(u) {
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
     if (p === '/movers') return { gainers: [{ symbol: 'XYZ', name: 'Xyz Therapeutics', price: 12.3, changePct: 38.2, volume: 9e6, currency: 'USD' }], losers: [{ symbol: 'ABCD', name: 'Abcd Corp', price: 4.1, changePct: -22.5, volume: 3e6, currency: 'USD' }], actives: [] };
+    if (p === '/fuel' && u.searchParams.get('list') === '1') return { fuels: [{ id: +u.searchParams.get('tipos'), name: 'Gasolina simples 95', n: 3, median: 1.739, max: 1.799, updated: '2026-11-05 09:30',
+        stations: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', addr: 'Rua A, Torres Novas', lat: 39.48, lon: -8.54 }, { price: 1.739, name: 'Galp Centro', brand: 'Galp', addr: 'Av. B', lat: null, lon: null }, { price: 1.799, name: 'BP Norte', brand: 'BP', place: 'Porto, Porto' }] }] };
     if (p === '/fuel') return { fuels: [
         { id: 2101, name: 'Gasóleo simples', n: 3012, avg: 1.611, median: 1.599, min: 1.449, max: 1.899, cheapest: [{ price: 1.449, name: 'Intermarché', brand: 'Intermarché', place: 'Leiria, Leiria' }], updated: '2026-11-05 09:30' },
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
@@ -509,6 +511,17 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="painel"]');
     await page.waitForSelector('h2:text("Combustíveis em Santo Tirso")');
     console.log('✓ combustíveis no concelho de Santo Tirso');
+    // tocar no combustível → lista de postos, do mais barato
+    await page.click('button.card.fuel[data-fuel="3201"]');
+    await page.waitForSelector('.fu-list .st-row');
+    assert.equal(await page.locator('.fu-list .st-row').count(), 3);
+    assert.match(await page.locator('.fu-list .st-row').first().textContent(), /Prio Torres Novas[\s\S]*o mais barato/);
+    assert.match(await page.locator('.fu-list .st-row').nth(1).textContent(), /\+0,150/);
+    assert.match(await page.locator('.fu-list .st-row').first().getAttribute('href'), /maps\.apple\.com\/\?ll=39\.48,-8\.54/);
+    assert.match(await page.locator('#mk-sheet-card').textContent(), /poupa cerca de 7,50/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ lista de postos ao tocar na gasolina');
 
     assert.deepEqual(errors, [], 'sem erros na consola');
     console.log('✓ sem erros na consola');
