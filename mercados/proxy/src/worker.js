@@ -13,6 +13,7 @@
 //   GET /calendar?symbols=AAPL,GALP.LS        → próximos resultados e dividendos (Yahoo)
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
+//   GET /fuel?…&tipos=3201&list=1             → também a lista de postos (até 300, mais baratos primeiro)
 //   GET /fuel/municipios?distrito=13          → concelhos de um distrito (DGEG); /fuel?municipio=… filtra por concelho
 //   GET  /journal?id=…                        → diário de sugestões (KV)
 //   POST /journal  { id, date, items, lots }  → guardar as sugestões do dia e as datas de compra de cripto
@@ -295,7 +296,7 @@ export const parsePrice = (raw) => {
     return v > 0 && v < 10 ? v : null;
 };
 
-export function fuelStats(rows) {
+export function fuelStats(rows, withList) {
     const list = [];
     let latest = '';
     for (const s of rows || []) {
@@ -319,6 +320,11 @@ export function fuelStats(rows) {
         max: ps[ps.length - 1],
         cheapest: list.slice(0, 3).map(station),
         updated: latest || null,
+        // lista de postos (mais baratos primeiro), só quando pedida
+        ...(withList ? { stations: list.slice(0, 300).map((x) => ({ ...station(x),
+            addr: [x.s.Morada, x.s.Localidade].map((v) => String(v || '').trim()).filter(Boolean).join(', ') || null,
+            lat: Number.isFinite(+x.s.Latitude) && +x.s.Latitude ? +x.s.Latitude : null, lon: Number.isFinite(+x.s.Longitude) && +x.s.Longitude ? +x.s.Longitude : null,
+            upd: x.s.DataAtualizacao ? String(x.s.DataAtualizacao) : null })) } : {}),
     };
 }
 
@@ -335,7 +341,7 @@ async function fuel(url) {
     const out = await Promise.all(ids.map(async (id) => {
         try {
             const rows = await dgeg(`PesquisarPostos?idsTiposComb=${id}&idMarca=&idTipoPosto=&idDistrito=${distrito}&idsMunicipios=${municipio}&qtdPorPagina=9999&pagina=1`);
-            return { id: Number(id), name: FUELS[id], ...(fuelStats(rows) || { error: 'sem preços' }) };
+            return { id: Number(id), name: FUELS[id], ...(fuelStats(rows, url.searchParams.get('list') === '1') || { error: 'sem preços' }) };
         } catch (e) {
             return { id: Number(id), name: FUELS[id], error: String(e.message || e) };
         }

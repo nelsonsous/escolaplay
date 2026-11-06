@@ -230,3 +230,15 @@ test('/fuel/municipios e /fuel?municipio=… (concelho)', async () => {
     assert.equal((await r.json()).municipio, '1316');
     assert.ok(calls.some((u) => u.includes('idDistrito=13&idsMunicipios=1316')));
 });
+
+test('/fuel?list=1 devolve os postos, mais baratos primeiro', async () => {
+    const ST = STATIONS.map((x, i) => ({ ...x, Morada: 'Rua ' + i, Localidade: 'Terra', Latitude: 39 + i / 10, Longitude: -8 }));
+    mockFetch((u) => u.includes('PesquisarPostos') ? res({ status: true, resultado: ST }) : res({ status: false, mensagem: 'x' }));
+    let r = await worker.fetch(new Request('https://w.test/fuel?tipos=3201&list=1'), {});
+    const f = (await r.json()).fuels[0];
+    assert.deepEqual(f.stations.map((x) => x.name), ['Posto B', 'Posto C', 'Posto A']);
+    assert.equal(f.stations[0].addr, 'Rua 1, Terra');
+    assert.equal(f.stations[0].lat, 39.1);
+    r = await worker.fetch(new Request('https://w.test/fuel?tipos=3201'), {});
+    assert.equal((await r.json()).fuels[0].stations, undefined, 'sem list=1 não manda a lista');
+});
