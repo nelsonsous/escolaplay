@@ -132,6 +132,22 @@ function proxyBody(u) {
     const firstStock = await page.locator('.sec:has(h2:text("Ações que sigo")) .row .r-name').first().textContent();
     assert.equal(firstStock, 'Allianz', 'ordenado pela maior subida');
     assert.equal(await page.locator('.sec:has(h2:text("Ações que sigo")) .row[data-key$=".LS"]').count(), 0, 'sem ações portuguesas por omissão');
+    // ordenar: desce → a maior descida primeiro; bolsa → grupos (EUA, Alemanha…); minha → setas em Ajustes
+    const stockSec = '.sec:has(h2:text("Ações que sigo"))';
+    await page.click(stockSec + ' [data-sort="down"]');
+    assert.equal(await page.locator(stockSec + ' .row .r-name').first().textContent(), 'Tesla', 'maior descida primeiro');
+    await page.click(stockSec + ' [data-sort="mkt"]');
+    const grps = await page.locator(stockSec + ' .grp-h').allTextContents();
+    assert.ok(grps.some((g) => /^EUA/.test(g)) && grps.some((g) => /^Alemanha/.test(g)), 'grupos por bolsa: ' + grps.join(' | '));
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
+    await page.click(`[data-mv="${secondW}"][data-dir="-1"]`);
+    assert.deepEqual(await page.evaluate(() => window.__mk.cfg.watch.slice(0, 2)), [secondW, firstW], 'seta ↑ troca a ordem');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.sort), 'mine');
+    await page.click('#mk-nav [data-tab="painel"]');
+    assert.equal(await page.locator(stockSec + ' .row').first().getAttribute('data-key'), secondW, 'Painel segue a minha ordem');
+    await page.click(stockSec + ' [data-sort="up"]');
+    console.log('✓ ordenar ações: desce, bolsa (' + grps.length + ' grupos), minha ordem');
     console.log('✓ painel: Brent', brent, '| 1.ª ação', firstStock);
     const firstSec = await page.locator('#mk-body .sec h2').first().textContent();
     assert.equal(firstSec, 'Os meus ativos', 'os meus ativos em primeiro');
