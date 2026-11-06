@@ -66,7 +66,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
    - `s` usa as chaves da app: símbolos do Yahoo (`VWCE.DE`, `AMZN`, `EDP.LS`…) e `c:BTC`, `c:ETH`, `c:SOL`, `c:XRP` para cripto.
    - `key` ∈ `buy`, `scale`, `hold`, `wait`, `neutral`, `turn`, `avoid`, `sell`.
    - `plan`: o que fazer com os 900 € **deste mês** (soma = 900 €): **só VWCE e cripto** (por omissão 810 € VWCE + 90 € BTC). Mudar a divisão só com motivo forte e explicado (ex.: reforço extra no VWCE perto do suporte); a cripto não se suspende por quedas de curto prazo. Se a próxima execução for amanhã, dizê-lo.
-   - `actions`: até 12 ativos — **sempre os 5 que o investidor tem (VWCE, BTC, ETH, SOL, XRP), todos os dias, mesmo que seja "manter"** (o `publicar.mjs` recusa se faltar algum; a app mostra o conselho em cada um), depois outros ETF; ações só para contexto (`key` `neutral`/`avoid`, nunca `buy`/`scale`).
+   - `actions`: até 12 ativos — **sempre os 5 que o investidor tem (VWCE, BTC, ETH, SOL, XRP), todos os dias, mesmo que seja "manter"** (o `publicar.mjs` recusa se faltar algum; a app mostra o conselho em cada um), depois as ações que o investidor juntou na app (secção "Juntadas pelo investidor" do `dados.md`, com uma frase cada), depois outros ETF; ações só para contexto (`key` `neutral`/`avoid`, nunca `buy`/`scale`).
    - Português de Portugal, frases curtas, números concretos.
 5. Publicar (valida e grava `advice:<data>`, `advice:latest` e as lições no KV; a app mostra no cartão "Hoje" do Painel e no conselho de cada ativo):
    ```bash
