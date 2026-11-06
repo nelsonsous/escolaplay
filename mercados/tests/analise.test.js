@@ -160,6 +160,6 @@ test('avisos: agrupados e silêncio à noite', () => {
     assert.equal(g.body, 'Ether −7,63% · Solana −6,46% · toca para ver', 'maior movimento primeiro');
     assert.equal(A.groupAlert([s, { name: 'Bitcoin', pct: 5, pctTxt: '+5%', px: '' }], true).title, 'Durante a noite: 2 ativos com movimentos fortes');
     assert.equal(A.groupAlert([]), null);
-    assert.ok(A.isQuiet(23) && A.isQuiet(0) && A.isQuiet(7));
-    assert.ok(!A.isQuiet(8) && !A.isQuiet(12) && !A.isQuiet(21));
+    assert.ok(A.isQuiet(23) && A.isQuiet(0) && A.isQuiet(9));
+    assert.ok(!A.isQuiet(10) && !A.isQuiet(12) && !A.isQuiet(21));
 });

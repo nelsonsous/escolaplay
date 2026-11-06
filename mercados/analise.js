@@ -541,8 +541,8 @@
         const list = L.slice(0, 6).map((x) => `${x.name} ${x.pctTxt}`).join(' · ') + (L.length > 6 ? ` · +${L.length - 6}` : '');
         return { title: `${pre}${L.length} ativos ${what}${held ? '' : ' hoje'}`, body: `${list} · toca para ver` };
     }
-    // silêncio entre `from` e `to` horas (ex.: 22 → 8, atravessa a meia-noite)
-    const isQuiet = (h, from = 22, to = 8) => (from > to ? h >= from || h < to : h >= from && h < to);
+    // silêncio entre `from` e `to` horas (ex.: 22 → 10, atravessa a meia-noite)
+    const isQuiet = (h, from = 22, to = 10) => (from > to ? h >= from || h < to : h >= from && h < to);
 
     const api = { groupAlert, isQuiet, sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf, backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
