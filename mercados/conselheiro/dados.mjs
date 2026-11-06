@@ -161,6 +161,7 @@ for (const [k, t] of Object.entries(cryptoTax)) {
     if (!t.n) { L.push(`- ${k}: data de compra por indicar na app → perguntar ao investidor antes de falar em vender`); continue; }
     L.push(`- ${k}: ${t.n} compras desde ${t.first}${t.plan ? ` (plano mensal desde ${t.plan})` : ''}; ${t.exempt} isentas${t.eur ? ` (${Math.round(t.eurExempt)} € de ${Math.round(t.eur)} €)` : ''}${t.next ? `; próxima isenta a ${t.next.free} (faltam ${t.next.days} dias)` : '; todas isentas'}`);
 }
+if (extra.size) L.push('## Juntadas pelo investidor na app (comentar em actions, como contexto)', ...[...extra].map((s) => `- ${s} ${nameOf(s)}`));
 L.push('## Lições guardadas'); for (const l of lessons) L.push(`- ${l}`);
 if (warn.length) { L.push('## Avisos'); for (const w of warn) L.push(`- ${w}`); }
 writeFileSync(path.join(OUT, 'dados.md'), L.join('\n'));

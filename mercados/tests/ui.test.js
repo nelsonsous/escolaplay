@@ -339,6 +339,21 @@ function proxyBody(u) {
     assert.equal(await page.locator(idxSel).count(), nIdx, 'Repor traz de volta');
     console.log('✓ arrastar para a esquerda: retirar, desfazer e repor (' + firstIdx + ')');
 
+    // puxar para baixo no topo → atualizar
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const r0 = await page.evaluate(() => window.__mk.st.lastRefresh || 0);
+    const pt = (y) => [{ x: 200, y }];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(160) });
+    for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(160 + i * 30) });
+    assert.match(await page.locator('#mk-ptr').textContent(), /Larga para atualizar/);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForFunction((r) => (window.__mk.st.lastRefresh || 0) > r, r0);
+    await page.waitForFunction(() => !window.__mk.st.pulling);
+    assert.equal(await page.locator('.mk-top:visible').count(), 0, 'sem barra fixa');
+    assert.match(await page.locator('#mk-body .pg-st').textContent(), /Cripto/);
+    console.log('✓ puxar para baixo atualiza; estado por baixo do título');
+
     // letra mais larga (como a do iOS): nada pode passar da largura do ecrã
     await page.addStyleTag({ content: 'body *{letter-spacing:.07em !important}' });
     // e com a letra "Muito grande"

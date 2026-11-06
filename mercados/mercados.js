@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.10.2';
+    const VERSION = '3.11.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -865,16 +865,17 @@
     }
 
     function render() {
-        renderStatus();
         $$('#mk-nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === cfg.tab));
         const body = $('#mk-body');
         if (st.touching) { st.renderLater = true; return; }
         // não destruir o campo onde se está a escrever
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
+        if (st.pulling) return;
         const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? viewAnalysis() : cfg.tab === 'ajustes' ? viewSettings() : viewDashboard();
         const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
-        body.innerHTML = `<h1 class="pg-t">${title}</h1>` + html;
+        body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
+        renderStatus();
         drawSparks();
     }
 
@@ -1725,13 +1726,41 @@
 
     // ---------- ações do utilizador ----------
     function refreshAll() {
-        const b = $('[data-act="refresh"]');
-        b.classList.add('spin');
-        Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null])
-            .finally(() => { b.classList.remove('spin'); scheduleRender(); });
+        st.lastRefresh = now();
+        return Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null, loadClaude()])
+            .finally(() => scheduleRender());
     }
+    // puxar para baixo no topo da página → atualizar (como nas apps do iPhone)
+    (() => {
+        const ptr = $('#mk-ptr'), body = $('#mk-body'), TH = 70;
+        let y0 = null, x0 = 0, dy = 0, busy = false;
+        const set = (h, txt) => { if (!ptr) return; ptr.style.height = h + 'px'; ptr.firstChild.textContent = txt; body.style.transform = h ? `translateY(${h}px)` : ''; };
+        document.addEventListener('touchstart', (e) => {
+            if (busy || window.scrollY > 0 || !$('#mk-sheet').hidden || e.target.closest('input, select')) { y0 = null; return; }
+            y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0;
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (y0 == null) return;
+            const my = e.touches[0].clientY - y0, mx = e.touches[0].clientX - x0;
+            if (my <= 0 || Math.abs(mx) > my) { if (st.pulling) { st.pulling = false; set(0, ''); } return; }
+            st.pulling = true; dy = Math.min(120, my * 0.5);
+            body.style.transition = 'none'; ptr.style.transition = 'none';
+            set(dy, dy > TH * 0.7 ? 'Larga para atualizar' : 'Puxa para atualizar');
+        }, { passive: true });
+        document.addEventListener('touchend', () => {
+            if (y0 == null) return;
+            y0 = null;
+            if (!st.pulling) return;
+            body.style.transition = ''; ptr.style.transition = '';
+            if (dy > TH * 0.7) {
+                busy = true; set(44, 'A atualizar…');
+                refreshAll().finally(() => { busy = false; st.pulling = false; set(0, ''); scheduleRender(); });
+            } else { st.pulling = false; set(0, ''); }
+        }, { passive: true });
+    })();
 
     function watchChanged() {
+        cfg.jLast = '';
         saveCfg(); buildReg(); loadCalendar();
         pollYahoo();
         loadDaily();

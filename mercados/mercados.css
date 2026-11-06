@@ -484,6 +484,15 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* sem barra fixa: o estado fica por baixo do título; atualizar = puxar para baixo */
+.mk-top { display: none; }
+.mk-body { padding-top: calc(var(--safe-t) + 14px); transition: transform .25s ease; }
+.pg-t { margin-bottom: 2px; }
+.pg-st { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin: 0 2px 16px; color: var(--muted); font-size: calc(.78rem * var(--k)); min-height: 1.2em; }
+.pg-st b { color: var(--muted); font-weight: 600; }
+.pg-st span + span::before { content: '·'; margin-right: 6px; color: var(--faint); }
+.pg-st .dot { width: 6px; height: 6px; margin-right: 4px; }
+.mk-ptr { position: fixed; top: var(--safe-t); left: 0; right: 0; height: 0; overflow: hidden; display: grid; place-items: center; z-index: 15; color: var(--muted); font-size: calc(.82rem * var(--k)); transition: height .25s ease; pointer-events: none; }
 .chips.sort { margin: 0 0 6px; }
 .grp-h { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 2px; font-weight: 700; font-size: calc(.9rem * var(--k)); color: var(--muted); }
 .grp-h small { color: var(--faint); font-weight: 600; }
