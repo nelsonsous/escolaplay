@@ -484,6 +484,13 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* Agora */
+.now-box { background: var(--card); border-radius: var(--r); padding: 12px 14px; }
+.now-box .t-mk { margin: 0; color: var(--muted); font-size: calc(.85rem * var(--k)); }
+.now-mkt { margin: 8px 0 0; font-size: calc(.92rem * var(--k)); line-height: 1.4; }
+.now-mkt small { display: block; color: var(--faint); font-size: calc(.75rem * var(--k)); margin-top: 2px; }
+.idea.why em { font-style: normal; color: var(--faint); }
+.idea.why .tone { vertical-align: 1px; }
 /* motivo dos movimentos fortes */
 .idea.why .i-n { white-space: normal; }
 .idea.why .i-n small { white-space: normal; line-height: 1.35; margin-top: 2px; }

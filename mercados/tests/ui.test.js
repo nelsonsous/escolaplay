@@ -174,6 +174,13 @@ function proxyBody(u) {
     assert.equal(await page.locator('.sec:has(h2:text("Cripto"))').count(), 0, 'cripto que tenho não se repete');
     assert.equal(await page.locator('#mk-body h1.pg-t').textContent(), 'Painel');
     console.log('✓ Hoje: análise do Claude + plano | conselho nos meus ativos');
+    // Agora: pulso do mercado e o que mexe, com o porquê (notícia ou Claude)
+    await page.waitForSelector('.sec:has(h2:text("Agora")) .idea.why');
+    const nowTxt = await page.locator('.sec:has(h2:text("Agora"))').textContent();
+    assert.match(nowTxt, /S&P 500 [−+]/);
+    assert.match(nowTxt, /Tesla/, 'Tesla (−7,4%) aparece no que mexe');
+    assert.match(nowTxt, /resultados abaixo do esperado/, 'motivo do Claude para a Tesla');
+    console.log('✓ Agora: pulso do mercado e o que mexe com o porquê');
     assert.match(await page.locator('.today .i-blk:has-text("Porque sobem ou descem")').textContent(), /Tesla[\s\S]*resultados abaixo do esperado/, 'motivo do movimento no Hoje');
     // letra: texto principal ≥ 16 px e notas ≥ 12,5 px (no iPhone a base é 17 px, aqui é 16 px)
     const fsz = await page.evaluate(() => Object.fromEntries([['nome', '.row .r-name'], ['nota', '.note'], ['título', 'h1.pg-t'], ['secção', '.sec-h h2']].map(([n, q]) => [n, parseFloat(getComputedStyle(document.querySelector(q)).fontSize)])));

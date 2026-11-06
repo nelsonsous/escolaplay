@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.13.1';
+    const VERSION = '3.14.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -984,6 +984,7 @@
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><div class="right seg per" role="group" aria-label="Período da variação">${PER_LBL.map(([v, l]) => `<button type="button" data-per="${v}" class="${(cfg.per || '1d') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
             ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), wide: true, badge: cl && cl.action ? [SHORT[cl.key] || cl.action, CL_TONE[cl.key] || 'flat'] : AN[k] && AN[k].advice ? [SHORT[AN[k].advice.key] || AN[k].advice.action, 'auto'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
+        ${nowCard()}
         ${todayCard()}
         ${crypt.length || nHid(cryAll) ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="list sw-list">${crypt.map((k) => card(k)).join('')}</div>${foot('', nHid(cryAll) ? ['crypto', nHid(cryAll)] : null)}</section>` : ''}
@@ -1044,6 +1045,41 @@
         </button>`;
     }
 
+    // ---------- Agora: o que está a mexer e porquê (cotações e notícias ao vivo) ----------
+    function nowCard() {
+        const stale = (k) => (!NEWS[k] || now() - NEWS[k].at > 10 * 60 * 1000) && !newsBusy[k];
+        const keys = holdingKeys().concat(cfg.watch, cfg.funds, CRYPTO.map((c) => 'c:' + c.id))
+            .filter((k, i, a) => REG[k] && a.indexOf(k) === i && !cfg.hidden.includes(k));
+        const mv = keys.map((k) => [k, qv(k).changePct]).filter(([, p]) => fin(p) && Math.abs(p) >= 2)
+            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 5);
+        const pulse = [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq'], ['^STOXX50E', 'Euro Stoxx'], ['c:BTC', 'Bitcoin']]
+            .filter(([k]) => REG[k] && fin(qv(k).changePct)).map(([k, n]) => `${n} <span class="${toneOf(qv(k).changePct)}-t">${fmtPct(qv(k).changePct)}</span>`);
+        const vix = Q['^VIX'] && Q['^VIX'].price;
+        if (!pulse.length && !mv.length) return '';
+        // notícias (cache de 10 min): do mercado e de cada um que mexe
+        if (cfg.proxy) for (const k of mv.map((x) => x[0]).concat(REG['^GSPC'] ? ['^GSPC'] : [])) if (stale(k)) loadNews(k).then(scheduleRender).catch(() => {});
+        const top = (k) => NEWS[k] && NEWS[k].items && NEWS[k].items[0];
+        const mkt = top('^GSPC');
+        const why = (k, p) => {
+            const c = moverWhy(k);
+            if (c) return { txt: c, src: 'Claude' };
+            const n = top(k);
+            if (n) return { txt: n.title, src: [n.source, n.time ? ago(n.time * 1000) : ''].filter(Boolean).join(' · '), tone: n.tone };
+            if (NEWS[k]) {
+                const sp = REG['^GSPC'] ? qv('^GSPC').changePct : null;
+                return { txt: fin(sp) && Math.sign(sp) === Math.sign(p) && Math.abs(sp) >= 0.7 ? 'Sem notícia própria: segue o mercado.' : 'Sem notícia encontrada para este movimento.' };
+            }
+            return { txt: cfg.proxy ? 'A procurar notícias…' : 'Liga o conector para ver o porquê.' };
+        };
+        const at = Math.max(st.yahooAt || 0, st.cryptoAt || 0) || now();
+        return `<section class="sec now"><div class="sec-h"><h2>Agora</h2><span class="sub">atualizado às ${new Date(at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span></div>
+            <div class="now-box">
+                ${pulse.length ? `<p class="t-mk">${pulse.join(' · ')}${fin(vix) ? ` · VIX ${Math.round(vix)}${vix > 25 ? ' (medo)' : vix < 16 ? ' (calma)' : ''}` : ''}</p>` : ''}
+                ${mkt ? `<p class="now-mkt"><span class="tone ${mkt.tone.tone}">${esc(mkt.tone.label)}</span>${esc(mkt.title)}<small>${esc([mkt.source, mkt.time ? ago(mkt.time * 1000) : ''].filter(Boolean).join(' · '))}</small></p>` : ''}
+                ${mv.length ? `<div class="i-blk"><div class="i-h">O que mexe agora<small>±2% ou mais no dia · e porquê</small></div>${mv.map(([k, p]) => { const w = why(k, p); return `<button type="button" class="idea why" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}<small>${w.tone ? `<span class="tone ${w.tone.tone}">${esc(w.tone.label)}</span>` : ''}${esc(w.txt)}${w.src ? ` <em>— ${esc(w.src)}</em>` : ''}</small></span><span class="i-t ${toneOf(p)}-t num">${fmtPct(p)}</span></button>`; }).join('')}</div>`
+                : '<p class="note" style="margin-top:6px">Nada do que tens ou segues mexe 2% ou mais neste momento.</p>'}
+            </div></section>`;
+    }
     function moodBox() {
         const inv = Object.keys(AN).filter((k) => listed(k) && investable(k));
         const breadth = inv.length ? inv.filter((k) => AN[k].score >= 58).length / inv.length : NaN;
