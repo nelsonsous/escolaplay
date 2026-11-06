@@ -395,8 +395,9 @@ function proxyBody(u) {
     console.log('✓ compras de cripto:', (await page.locator('.tax-box .tx-head').textContent()).trim());
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .r-note').textContent(), /isentas|isenta a/);
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-note').textContent(), /data de compra por indicar/);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:SOL"] .r-sub').textContent(), /isentas · próxima em \d+ d|isenta em \d+ d/);
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /^sem data de compra$|−?[\d,]+% do máx\. · sem data de compra/);
+    assert.doesNotMatch(await page.locator('.sec:has(h2:text("Os meus ativos"))').textContent(), /24 h|Acc · sem dividendos/, 'sem texto que não interessa');
 
     // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
     await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });

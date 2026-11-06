@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.2.1';
+    const VERSION = '3.3.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -474,10 +474,9 @@
     const dmy = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '';
     function taxLine(k) {
         const t = taxOf(k);
-        if (!t.n) return 'data de compra por indicar';
-        if (t.all) return 'isenta de IRS (tudo com 1 ano ou mais)';
-        const nx = `isenta a ${dmy(t.next.free)} (faltam ${t.next.days} d)`;
-        return t.exempt ? `${t.exempt} de ${t.n} compras isentas · próxima ${nx.slice(7)}` : nx;
+        if (!t.n) return 'sem data de compra';
+        if (t.all) return 'isenta de IRS';
+        return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
     function setLots(k, L) {
         if (!L.plan && !(L.buys || []).length) delete cfg.lots[k]; else cfg.lots[k] = L;
@@ -859,7 +858,7 @@
         const q = qv(k);
         const sub = opt.sub ?? [a.sym, q.exchange, q.open === false ? 'fechado' : ''].filter(Boolean).join(' · ');
         return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
-            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${esc(sub)}</div>${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}</div>
+            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${esc(sub)}</div>${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
             <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
         </button>`;
@@ -889,7 +888,7 @@
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">${CLAUDE && !CLAUDE.missing && CLAUDE.headline ? 'com o conselho do Claude' : 'o que tenho'}</span></div>
-            ${hold.length ? `<div class="list">${hold.map((k) => { const cl = claudeFor(k); return card(k, [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máx. do ano` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '), cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
+            ${hold.length ? `<div class="list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { sub: [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máx.` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
         ${todayCard()}
         ${crypt.length ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="list">${crypt.map((k) => card(k)).join('')}</div></section>` : ''}
