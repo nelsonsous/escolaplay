@@ -292,6 +292,34 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
 
+    // arrastar uma linha para a esquerda → Retirar (com Desfazer e Repor)
+    await page.click('#mk-nav [data-tab="painel"]');
+    const idxSel = '.sec:has(h2:text("Índices")) .sw-wrap';
+    const nIdx = await page.locator(idxSel).count();
+    const swipeLeft = async (sel) => {
+        const b = await page.locator(sel).first().boundingBox();
+        const y = b.y + b.height / 2, p = (x) => [{ x, y }];
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: p(b.x + b.width - 30) });
+        for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: p(b.x + b.width - 30 - i * 25) });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await page.waitForTimeout(300);
+    };
+    await page.locator(idxSel).first().scrollIntoViewIfNeeded();
+    const firstIdx = await page.locator(idxSel).first().getAttribute('data-swk');
+    await swipeLeft(idxSel);
+    assert.equal(await page.locator(idxSel + '.open').count(), 1, 'arrastar mostra Retirar');
+    assert.equal(await page.locator('#mk-sheet').isHidden(), true, 'arrastar não abre a ficha');
+    await page.locator(idxSel + '.open .sw-del').click();
+    assert.equal(await page.locator(idxSel).count(), nIdx - 1, 'retirado da lista');
+    assert.match(await page.locator('#mk-toast').textContent(), /retirado.*Desfazer/);
+    await page.click('#mk-toast .t-undo');
+    assert.equal(await page.locator(idxSel).count(), nIdx, 'desfazer repõe');
+    await swipeLeft(idxSel); await page.locator(idxSel + '.open .sw-del').click();
+    assert.ok(await page.evaluate((k) => window.__mk.cfg.hidden.includes(k), firstIdx));
+    await page.click('.sec:has(h2:text("Índices")) [data-unhide="index"]');
+    assert.equal(await page.locator(idxSel).count(), nIdx, 'Repor traz de volta');
+    console.log('✓ arrastar para a esquerda: retirar, desfazer e repor (' + firstIdx + ')');
+
     // letra mais larga (como a do iOS): nada pode passar da largura do ecrã
     await page.addStyleTag({ content: 'body *{letter-spacing:.07em !important}' });
     // e com a letra "Muito grande"

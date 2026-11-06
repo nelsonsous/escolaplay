@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.5.1';
+    const VERSION = '3.6.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,7 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true };
+    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [] };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -86,6 +86,7 @@
     if (!Array.isArray(cfg.holdings) || !cfg.holdings.length) cfg.holdings = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
     if (!cfg.lots || typeof cfg.lots !== 'object' || Array.isArray(cfg.lots)) cfg.lots = {};
     if (!cfg.seen || typeof cfg.seen !== 'object') cfg.seen = {};
+    if (!Array.isArray(cfg.hidden)) cfg.hidden = [];
     if ((cfg.stratVer || 0) < 1) { cfg.hz = 'long'; cfg.filter = 'plan'; cfg.stratVer = 1; store.set(KEY, cfg); }
     if ((cfg.watchVer || 1) < 3) {
         const mine = (cfg.watch || []).filter((x) => !OLD_DEFAULT.includes(x));
@@ -827,6 +828,7 @@
         renderStatus();
         $$('#mk-nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === cfg.tab));
         const body = $('#mk-body');
+        if (st.touching) { st.renderLater = true; return; }
         // não destruir o campo onde se está a escrever
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
@@ -855,7 +857,7 @@
         const q = qv(k);
         // como na Trade Republic: só nome, preço e variação (a unidade fica quando é por litro, por barril…)
         const sub = a.unit ? 'por ' + a.unit : '';
-        return row(k, { sub, note: extra, badge });
+        return row(k, { sub, note: extra, badge, swipe: 'fixed' });
     }
     // ícone redondo com as iniciais (cor fixa por ativo)
     function ico(k) {
@@ -870,11 +872,13 @@
         const a = REG[k] || { key: k, name: k, sym: k };
         const q = qv(k);
         const sub = opt.sub ?? '';
-        return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
+        const html = `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
             ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${sub || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
             <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
         </button>`;
+        // arrastar para a esquerda mostra "Retirar" (só no Painel)
+        return opt.swipe ? `<div class="sw-wrap${st.swipe === k ? ' open' : ''}" data-swk="${esc(k)}" data-grp="${opt.swipe}"><button type="button" class="sw-del" data-hide="${esc(k)}" data-grp="${opt.swipe}" tabindex="-1">Retirar</button>${html}</div>` : html;
     }
 
     function setupBanner() {
@@ -888,37 +892,41 @@
 
     function viewDashboard() {
         const eurusd = Q['EURUSD=X'] && Q['EURUSD=X'].price;
-        const energy = ENERGY.map((e) => {
+        const energy = ENERGY.filter((e) => !cfg.hidden.includes(e.sym)).map((e) => {
             const q = Q[e.sym];
             const l = e.perLitre && q ? A.usdGalToEurL(q.price, eurusd) : null;
             return card(e.sym, l ? `≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L sem impostos` : '');
         }).join('');
         const hold = holdingKeys();
-        const crypt = CRYPTO.map((c) => 'c:' + c.id).filter((k) => !hold.includes(k));
+        const hid = (k) => cfg.hidden.includes(k);
+        const crypt = CRYPTO.map((c) => 'c:' + c.id).filter((k) => !hold.includes(k) && !hid(k));
         const funds = cfg.funds.filter((k) => !hold.includes(k));
+        const nHid = (keys) => keys.filter(hid).length;
+        const foot = (add, restore) => add || restore ? `<div class="sec-f">${add ? `<button type="button" class="lnk" data-act="${add}">+ Juntar</button>` : ''}${restore ? `<button type="button" class="lnk" data-unhide="${restore[0]}">Repor ${restore[1]}</button>` : ''}</div>` : '';
+        const cryAll = CRYPTO.map((c) => 'c:' + c.id), idxAll = INDICES.map((i) => i.sym), enAll = ENERGY.map((e) => e.sym);
         const stocks = cfg.watch.slice();
         if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">${CLAUDE && !CLAUDE.missing && CLAUDE.headline ? 'com o conselho do Claude' : 'o que tenho'}</span></div>
-            ${hold.length ? `<div class="list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { sub: [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máx.` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}</section>
+            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máx.` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
         ${todayCard()}
-        ${crypt.length ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
-            <div class="list">${crypt.map((k) => card(k)).join('')}</div></section>` : ''}
+        ${crypt.length || nHid(cryAll) ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
+            <div class="list sw-list">${crypt.map((k) => card(k)).join('')}</div>${foot('', nHid(cryAll) ? ['crypto', nHid(cryAll)] : null)}</section>` : ''}
         ${funds.length || !cfg.funds.length ? `<section class="sec"><div class="sec-h"><h2>Fundos e ETF</h2><span class="sub">${cfg.eur ? 'em euros' : ''}</span></div>
-            ${funds.length ? `<div class="list">${funds.map((s) => card(s)).join('')}</div>` : '<div class="empty">Sem fundos. Junta em Ajustes (ex.: VWCE, IWDA).</div>'}</section>` : ''}
+            ${funds.length ? `<div class="list sw-list">${funds.map((s) => card(s).replace('data-grp="fixed"', 'data-grp="list"').replace('data-grp="fixed"', 'data-grp="list"')).join('')}</div>` : '<div class="empty">Sem fundos. Junta em Ajustes (ex.: VWCE, IWDA).</div>'}${foot('go-add')}</section>` : ''}
         <section class="sec"><div class="sec-h"><h2>Petróleo e energia</h2><span class="sub">futuros, USD</span></div>
-            <div class="list">${energy}</div></section>
+            <div class="list sw-list">${energy}</div>${foot('', nHid(enAll) ? ['energy', nHid(enAll)] : null)}</section>
         ${viewFuel()}
         <section class="sec"><div class="sec-h"><h2>Índices, câmbio e ouro</h2></div>
-            <div class="list">${INDICES.map((i) => row(i.sym)).join('')}</div></section>
+            <div class="list sw-list">${INDICES.filter((i) => !hid(i.sym)).map((i) => row(i.sym, { swipe: 'fixed' })).join('')}</div>${foot('', nHid(idxAll) ? ['index', nHid(idxAll)] : null)}</section>
         ${etfCrypto() ? `<details class="stocks-fold"><summary>Ações (só informação — não fazem parte do plano) <span class="sub">${cfg.watch.length}</span></summary>` : ''}
         <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${cfg.watch.length}</span>
             <div class="right seg" role="group" aria-label="Ordenar">
                 <button type="button" data-sort="chg" class="${cfg.sort === 'chg' ? 'on' : ''}">Variação</button>
                 <button type="button" data-sort="name" class="${cfg.sort === 'name' ? 'on' : ''}">Nome</button>
                 <button type="button" data-sort="mine" class="${cfg.sort === 'mine' ? 'on' : ''}">Minha</button></div></div>
-            ${stocks.length ? `<div class="list">${stocks.map((s) => row(s)).join('')}</div>` : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}
+            ${stocks.length ? `<div class="list sw-list">${stocks.map((s) => row(s, { swipe: 'list' })).join('')}</div>` : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}${foot('go-add')}
             </section>${etfCrypto() ? '</details>' : ''}
             <p class="note">Cripto em tempo real. Ações, índices e petróleo: dados gratuitos do Yahoo Finance, que podem ter até 15 min de atraso nalgumas bolsas. Atualiza a cada 30 s.</p>`;
     }
@@ -1556,11 +1564,60 @@
 
     // ---------- avisos ----------
     let toastT = 0;
-    function toast(msg) {
+    function toast(msg, undo) {
         const t = $('#mk-toast');
-        t.textContent = msg; t.classList.add('show');
-        clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3200);
+        t.textContent = msg; t.classList.toggle('act', !!undo);
+        if (undo) { const b = document.createElement('button'); b.type = 'button'; b.className = 't-undo'; b.textContent = 'Desfazer'; b.onclick = () => { t.classList.remove('show'); undo(); }; t.append(' ', b); }
+        t.classList.add('show');
+        clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), undo ? 5000 : 3200);
     }
+    // retirar da lista (arrastar para a esquerda → Retirar), com "Desfazer"
+    function hideAsset(k, grp) {
+        const snap = { holdings: cfg.holdings.slice(), watch: cfg.watch.slice(), funds: cfg.funds.slice(), hidden: cfg.hidden.slice() };
+        st.swipe = null;
+        if (grp === 'hold') cfg.holdings = cfg.holdings.filter((x) => x !== k);
+        else if (grp === 'list') { cfg.watch = cfg.watch.filter((x) => x !== k); cfg.funds = cfg.funds.filter((x) => x !== k); }
+        else if (!cfg.hidden.includes(k)) cfg.hidden = cfg.hidden.concat(k);
+        saveCfg(); grp === 'list' ? watchChanged() : render();
+        toast(`${nameOf(k)} retirado${grp === 'hold' ? ' de Os meus ativos' : ''}`, () => { Object.assign(cfg, snap); saveCfg(); grp === 'list' ? watchChanged() : render(); });
+    }
+    // gesto: arrastar uma linha para a esquerda
+    (() => {
+        let w = null, x0 = 0, y0 = 0, dx = 0, mode = '';
+        const W = 92;
+        document.addEventListener('touchstart', (e) => {
+            const el = e.target.closest && e.target.closest('.sw-wrap');
+            if (!el || e.target.closest('.sw-del')) return;
+            if (st.swipe && st.swipe !== el.dataset.swk) { $$('.sw-wrap.open').forEach((o) => o.classList.remove('open')); st.swipe = null; }
+            w = el; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; mode = ''; st.touching = true;
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (!w) return;
+            const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+            if (!mode && (Math.abs(mx) > 8 || Math.abs(my) > 8)) mode = Math.abs(mx) > Math.abs(my) ? 'h' : 'v';
+            if (mode !== 'h') return;
+            const base = w.classList.contains('open') ? -W : 0;
+            dx = Math.max(-W * 1.4, Math.min(0, base + mx));
+            const r = w.querySelector('.row'); r.style.transition = 'none'; r.style.transform = `translateX(${dx}px)`;
+        }, { passive: true });
+        document.addEventListener('touchend', () => {
+            if (!w) return;
+            const r = w.querySelector('.row');
+            if (mode === 'h') {
+                const open = dx < -W / 2;
+                r.style.transition = ''; r.style.transform = '';
+                w.classList.toggle('open', open); st.swipe = open ? w.dataset.swk : null;
+                st.noClick = now() + 400; // o arrasto não abre a ficha
+            }
+            w = null; mode = ''; st.touching = false;
+            if (st.renderLater) { st.renderLater = false; scheduleRender(); }
+        }, { passive: true });
+        document.addEventListener('click', (e) => {
+            if (st.noClick && now() < st.noClick && e.target.closest('.sw-wrap') && !e.target.closest('.sw-del')) { e.stopPropagation(); e.preventDefault(); return; }
+            const op = e.target.closest && e.target.closest('.sw-wrap.open');
+            if (op && !e.target.closest('.sw-del')) { op.classList.remove('open'); st.swipe = null; e.stopPropagation(); e.preventDefault(); }
+        }, true);
+    })();
 
     // ---------- ações do utilizador ----------
     function refreshAll() {
@@ -1600,7 +1657,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1625,6 +1682,8 @@
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
+        if (d.hide) { hideAsset(d.hide, d.grp); return; }
+        if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }
         if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
         if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
@@ -1665,6 +1724,8 @@
             }
             case 'backtest': runBacktest(); break;
             case 'ics': downloadIcs(); break;
+            case 'go-add': cfg.tab = 'ajustes'; saveCfg(); render(); setTimeout(() => { const i = $('#f-add'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }, 50); break;
+            case 'go-hold': cfg.tab = 'ajustes'; saveCfg(); render(); setTimeout(() => { const h = $('[data-hold]'); if (h) h.scrollIntoView({ block: 'center' }); }, 50); break;
             case 'quiet': cfg.quiet = t.dataset.v === '1'; saveCfg(); render(); break;
             case 'lot-add': {
                 const k = sheetKey, dt = ($('#lot-d') || {}).value || '', e = +(($('#lot-e') || {}).value || 0);
