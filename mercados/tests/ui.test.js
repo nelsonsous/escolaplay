@@ -482,6 +482,8 @@ function proxyBody(u) {
     // os gráficos pequenos ficam todos na mesma coluna
     const sparkX = await page.evaluate(() => [...document.querySelectorAll('.sec:first-of-type .sw-list canvas.spark')].map((c) => Math.round(c.getBoundingClientRect().right)));
     assert.ok(sparkX.length >= 4 && new Set(sparkX).size === 1, 'gráficos alinhados: ' + sparkX);
+    const wSpark = await page.evaluate(() => Math.round(document.querySelector('.row.wide canvas.spark').getBoundingClientRect().width));
+    assert.ok(wSpark > 300, 'gráfico a toda a largura nos meus ativos: ' + wSpark);
     assert.doesNotMatch(await page.locator('.sec:has(h2:text("Os meus ativos"))').textContent(), /24 h|Acc · sem dividendos/, 'sem texto que não interessa');
     assert.equal(await page.locator('.sec:has(h2:text("Índices")) .row .r-sub').count(), 0, 'listas só com nome, preço e variação');
 

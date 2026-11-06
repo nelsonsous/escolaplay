@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.11.2';
+    const VERSION = '3.12.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -527,7 +527,7 @@
         scheduleRender();
     }
     // etiquetas curtas para os sinais automáticos na lista
-    const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Manter', turn: 'Esperar', avoid: 'Evitar', sell: 'Vender' };
+    const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Não reforçar', turn: 'Esperar', avoid: 'Evitar', sell: 'Vender' };
     const ACT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter (não perseguir)', wait: 'Esperar / reforçar', neutral: 'Manter, sem reforçar', turn: 'Esperar confirmação', avoid: 'Evitar' };
     function evalJournal() {
         if (!JOURNAL || !JOURNAL.days) return null;
@@ -930,7 +930,7 @@
         const a = REG[k] || { key: k, name: k, sym: k };
         const q = qv(k);
         const sub = opt.sub ?? '';
-        const html = `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
+        const html = `<button type="button" class="row${opt.wide ? ' wide' : ''}" data-open="${esc(k)}" data-key="${esc(k)}">
             ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${(Array.isArray(sub) ? sub.length : sub) || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${Array.isArray(sub) ? sub.map((x) => `<span class="nb">${esc(x)}</span>`).join('<span class="dotsep"> · </span>') : esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
             <div class="r-px num">${pxWhen(k, q) ? `<span class="r-t">${pxWhen(k, q)}</span>` : ''}<span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(perData(k).pct)}</div>
@@ -980,7 +980,7 @@
         } else stocksHtml = stockList(stocks);
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><div class="right seg per" role="group" aria-label="Período da variação">${PER_LBL.map(([v, l]) => `<button type="button" data-per="${v}" class="${(cfg.per || '1d') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
-            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : AN[k] && AN[k].advice ? [SHORT[AN[k].advice.key] || AN[k].advice.action, 'auto'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
+            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), wide: true, badge: cl && cl.action ? [SHORT[cl.key] || cl.action, CL_TONE[cl.key] || 'flat'] : AN[k] && AN[k].advice ? [SHORT[AN[k].advice.key] || AN[k].advice.action, 'auto'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
         ${todayCard()}
         ${crypt.length || nHid(cryAll) ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="list sw-list">${crypt.map((k) => card(k)).join('')}</div>${foot('', nHid(cryAll) ? ['crypto', nHid(cryAll)] : null)}</section>` : ''}
