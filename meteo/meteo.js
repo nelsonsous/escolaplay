@@ -7,8 +7,8 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.0.0';
-const SCHEDULE = ['07:12', '13:12', '19:42'];
+const VERSION = '1.1.0';
+const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
     ['geocolour', 'Nuvens', 'Nuvens em cor natural de dia; de noite, infravermelho com as luzes das cidades (satélite MTG, Meteosat de 3.ª geração).'],
@@ -20,7 +20,7 @@ const LAYERS = [
 ];
 const ZOOMS = [300, 600, 1200];
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
-const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)' };
+const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações' };
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
 
 // ---------- configuração ----------
@@ -64,11 +64,17 @@ const placeName = () => cfg.loc?.name || st.fc?.location?.name || (cfg.loc ? 'Lo
 const near = (a, b, km = 0.2) => a && b && haversineKm(a.lat, a.lon, b.lat, b.lon) <= km;
 
 let toastT = 0;
-function toast(msg) {
+function toast(msg, undo) {
     const t = $('#mt-toast');
-    t.textContent = msg;
+    t.textContent = msg; t.classList.toggle('act', !!undo);
+    if (undo) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 't-undo'; b.textContent = 'Desfazer';
+        b.onclick = () => { t.classList.remove('show', 'act'); undo(); };
+        t.append(' ', b);
+    }
     t.classList.add('show');
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3600);
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show', 'act'), undo ? 6000 : 3600);
 }
 
 // ---------- arranque ----------
@@ -262,9 +268,10 @@ function nowBox(fc) {
     const lines = [];
     if (fc.nowcast?.text) lines.push(`<li>${ui('drop')}<span>${esc(fc.nowcast.text)}</span></li>`);
     const o = n.obs;
-    if (o && F.isNum(o.temp)) lines.push(`<li>${ui('station')}<span>Observado <b>${esc(F.deg(o.temp, 1))}</b> em ${esc(o.station)} · ${esc(F.km(o.distanceKm))} · ${esc(F.ago(o.ageMin))} (${esc(o.source)})</span></li>`);
+    const many = (o?.n || 1) > 1;
+    if (o && F.isNum(o.temp)) lines.push(`<li>${ui('station')}<span>Observado <b>${esc(F.deg(o.temp, 1))}</b> em ${esc(o.station)} · ${many ? '~' : ''}${esc(F.km(o.distanceKm))} · ${esc(F.ago(o.ageMin))} (${esc((o.sources || [o.source]).join(' + '))})</span></li>`);
     const c = n.correction;
-    if (c && F.isNum(c.temp) && Math.abs(c.temp) >= 0.1) lines.push(`<li>${ui('target')}<span>Previsão ajustada ${esc(F.signed(c.temp, 1))}° com esta observação nas próximas ${esc(c.decayHours ?? 6)} h.</span></li>`);
+    if (c && F.isNum(c.temp) && Math.abs(c.temp) >= 0.1) lines.push(`<li>${ui('target')}<span>Previsão ajustada ${esc(F.signed(c.temp, 1))}° com ${many ? `${esc(o.n)} estações` : 'esta observação'} nas próximas ${esc(c.decayHours ?? 6)} h.</span></li>`);
     const conf = d0.confidence;
     return `<section class="box now ${tintOf(n.code, n.isDay)}" aria-label="Agora">
         <div class="now-top">
@@ -470,8 +477,47 @@ function viewAnalysis() {
     h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${np ? `Ligada (${esc(np.name)}) · ${esc(sched.join(' · '))}` : `Às ${esc(sched.join(', '))} · até 5 locais`}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
-    if (fc) h += reliabilityHtml(fc) + modelsHtml(fc);
+    if (fc) h += compareHtml(fc) + reliabilityHtml(fc) + obsHtml(fc) + modelsHtml(fc);
     return { title, html: h };
+}
+const officialTxt = (fc) => {
+    const of = fc?.official, err = fc?.status?.ipmaFc;
+    if (of) return `Previsão oficial IPMA: ${of.local}, ${F.km(of.distanceKm)}`;
+    if (fc?.location?.country && fc.location.country !== 'PT') return 'Previsão oficial do IPMA só em Portugal';
+    return err && err !== 'ok' ? `Previsão oficial do IPMA indisponível (${err})` : 'Sem previsão oficial do IPMA para este ponto';
+};
+// fontes lado a lado: cada modelo, o IPMA (oficial) e o ensemble (P50 com P10–P90) em hoje, amanhã e depois
+function compareHtml(fc) {
+    const C = fc.compare;
+    if (!C?.rows?.length) return '';
+    const today = todayOf(fc), ref = C.rows[0].days;
+    const dev = (x, k, key) => { const r = ref[k]?.[key]; if (!F.isNum(x?.[key]) || !F.isNum(r)) return ''; const d = x[key] - r; return d >= 2 ? ' hot' : d <= -2 ? ' cold' : ''; };
+    const cell = (r, x, k) => {
+        if (!x) return '<td class="na">–</td>';
+        const t = r.kind === 'consenso' ? '' : 'class="d"';
+        const sub = r.kind === 'ensemble' ? `${F.num(x.tmaxP10)}–${F.num(x.tmaxP90)}° · ${F.pct(x.pop)}` : r.kind === 'oficial' ? `chuva ${F.pct(x.pop)}`
+            : r.kind === 'consenso' ? `${F.mm(x.precip)} · ${F.pct(x.pop)}` : F.mm(x.precip);
+        return `<td${x.text ? ` title="${esc(x.text)}"` : ''}><span ${t}><b class="${dev(x, k, 'tmax').trim()}">${esc(F.deg(x.tmax))}</b>/<span class="${dev(x, k, 'tmin').trim()}">${esc(F.deg(x.tmin))}</span></span><small>${esc(sub)}</small></td>`;
+    };
+    const tag = (r) => (r.kind === 'consenso' ? 'final' : r.kind === 'oficial' ? 'oficial' : r.kind === 'ensemble' ? 'P50 · P10–P90' : `peso ${F.num(r.weight, 1)}`);
+    const rows = C.rows.map((r) => `<tr class="k-${esc(r.kind)}"><th scope="row">${esc(r.short)}<small>${esc(tag(r))}</small></th>${C.dates.map((_, k) => cell(r, r.days[k], k)).join('')}</tr>`).join('');
+    const agree = { alta: 'Fontes de acordo', media: 'Fontes com algumas diferenças', baixa: 'Fontes muito divididas' }[C.agreement] || '';
+    return `<section class="sec" id="fontes"><div class="sec-h"><h2>Fontes lado a lado</h2><span class="sub">${esc(officialTxt(fc))}</span></div>
+        <div class="box cmp"><div class="cmp-scroll"><table class="tbl cmp-t"><thead><tr><th scope="col">Fonte</th>${C.dates.map((d) => `<th scope="col">${esc(F.dayLabel(d, today))}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+        ${agree ? `<p class="cmp-ag"><span class="badge">${sig(C.agreement, false)}${esc(agree)}</span>${F.isNum(C.spreadMax) ? `<span>até ${esc(F.num(C.spreadMax, 1))}° entre fontes</span>` : ''}</p>` : ''}
+        ${C.notes?.length ? `<ul class="an-list cmp-notes">${C.notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
+        <p class="note">Máxima/mínima de cada fonte tal como sai, sem correções; o consenso já junta tudo com os pesos da verificação local e as observações. A laranja, 2° ou mais acima do consenso; a azul, 2° ou mais abaixo.</p></section>`;
+}
+// estações que entram na observação combinada do ponto
+function obsHtml(fc) {
+    const o = fc.now?.obs;
+    if (!o?.stations?.length) return '';
+    const maxW = Math.max(...o.stations.map((x) => x.weight || 0), 1);
+    return `<section class="sec"><div class="sec-h"><h2>Observações usadas</h2><span class="sub">${esc(`${o.n || o.stations.length} estações · ajustadas a ${F.num(o.elevation ?? fc.location?.elevation)} m`)}</span></div><div class="list">${o.stations.map((x) => `<div class="row${x.used ? '' : ' off'}"><div class="r-main">
+        <div class="r-name">${esc(x.name)}</div><div class="r-sub">${esc([x.source, F.km(x.distanceKm), F.isNum(x.elev) ? `${F.num(x.elev)} m` : null, F.ago(x.ageMin)].filter(Boolean).join(' · '))}${x.used ? '' : ' · rejeitada (muito diferente das outras)'}</div>
+        <div class="score" role="img" aria-label="${esc(`Peso ${F.num(x.weight)}%`)}"><div class="bar"><i style="width:${(((x.weight || 0) / maxW) * 100).toFixed(1)}%"></i></div></div></div>
+        <div class="r-px num">${esc(F.deg(x.tempAdj, 1))}<small>${esc(F.isNum(x.temp) ? `${F.deg(x.temp, 1)} medido` : '')}</small></div></div>`).join('')}</div>
+        <p class="note">Cada estação é levada à altitude do ponto (0,65° por 100 m) e pesa pela distância, pela altitude parecida e por ser recente; as muito diferentes das outras ficam de fora. Juntas dão ${esc(F.deg(o.temp, 1))} a ${esc(F.km(o.distanceKm))} em média${F.isNum(o.repr) ? ` · confiança ${esc(F.pct(o.repr * 100))}` : ''}.</p></section>`;
 }
 const nearPlace = () => (cfg.loc ? st.places.find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= 2) : null);
 function reliabilityHtml(fc) {
@@ -480,7 +526,7 @@ function reliabilityHtml(fc) {
     return `<section class="sec"><div class="sec-h"><h2>Fiabilidade</h2></div><div class="stats">
         <div><small>Previsibilidade</small><b>${ind.predictability?.days != null ? `${esc(F.num(ind.predictability.days))} dias` : '–'}</b><em>${esc(ind.predictability?.text || '')}</em></div>
         <div><small>Concordância (48 h)</small><b>${F.isNum(ind.agreement) ? esc(F.pct(ind.agreement * 100)) : '–'}</b><em>entre ${esc(fc.models?.length || 0)} modelos</em></div>
-        <div><small>Verificação local</small><b>${ver ? `${esc(F.num(ver.n))} horas` : 'Ainda não'}</b><em>${esc(ver ? `${ver.station} · ${ver.days} dias` : 'precisa de uma estação perto')}</em></div>
+        <div><small>Verificação local</small><b>${ver ? ((ver.stations || 1) > 1 ? `${esc(F.num(ver.stations))} estações` : `${esc(F.num(ver.n))} horas`) : 'Ainda não'}</b><em>${esc(ver ? ((ver.stations || 1) > 1 ? `${F.num(ver.n)} comparações · ${ver.days} dia${ver.days === 1 ? '' : 's'} · ~${F.km(ver.distanceKm)}` : `${ver.station} · ${ver.days} dias`) : 'precisa de uma estação perto')}</em></div>
         <div><small>Mais certeiro aqui</small><b>${esc(ver ? (byId[ver.best]?.name || ver.best) : '–')}</b><em>${esc(ver ? 'menor erro recente' : '')}</em></div>
     </div></section>`;
 }
@@ -489,18 +535,27 @@ function modelsHtml(fc) {
     const maxW = Math.max(...M.map((m) => m.weight || 0), 1);
     const ens = fc.ensemble || {};
     return `<section class="sec"><div class="sec-h"><h2>Modelos</h2><span class="sub">peso no consenso</span></div><div class="list">${M.map((m) => `<div class="row"><div class="r-main">
-        <div class="r-name">${esc(m.name)}</div><div class="r-sub">${esc([m.org, `${F.num(m.resKm, m.resKm < 3 ? 1 : 0)} km`, `${F.num((m.hours || 0) / 24)} dias`].filter(Boolean).join(' · '))}${m.skill ? ` · erro local ${esc(F.num(m.skill.mae, 1))}° (viés ${esc(F.signed(m.skill.bias, 1))}°)` : ''}</div>
+        <div class="r-name">${esc(m.name)}${m.official ? ' <span class="badge">oficial</span>' : ''}</div><div class="r-sub">${esc(m.official ? [`${m.local}, a ${F.km(m.distanceKm)}`, `${F.num(m.days || 0)} dias`, m.updated ? `atualizada ${F.hhmm(m.updated)}` : null].filter(Boolean).join(' · ') : [m.org, `${F.num(m.resKm, m.resKm < 3 ? 1 : 0)} km`, `${F.num((m.hours || 0) / 24)} dias`].filter(Boolean).join(' · '))}${m.skill ? ` · erro local ${esc(F.num(m.skill.mae, 1))}° (viés ${esc(F.signed(m.skill.bias, 1))}°)` : ''}</div>
         <div class="score" role="img" aria-label="${esc(`Peso ${F.num(m.weight, 1)}`)}"><div class="bar"><i style="width:${(((m.weight || 0) / maxW) * 100).toFixed(1)}%"></i></div></div></div>
         <div class="r-px num">${esc(F.num(m.weight, 1))}</div></div>`).join('')}</div>
         ${ens.models?.length ? `<div class="grp-h">Ensembles <small>${esc(F.num(ens.members))} cenários</small></div><ul class="tags">${ens.models.map((e) => `<li class="tag"><span><b>${esc(e.name)}</b> · ${esc(F.num(e.members))} · ${esc(F.num(e.days))} dias</span></li>`).join('')}</ul>` : ''}
-        <p class="note">O peso de cada modelo depende da resolução e do erro recente neste local (comparado com a estação mais próxima).</p></section>`;
+        <p class="note">O peso de cada modelo depende da resolução e do erro recente neste local (comparado com as estações perto). A previsão oficial do IPMA (AROME 2,5 km revista por meteorologistas) pesa mais nos primeiros 3 dias.</p></section>`;
 }
 
+function precisionLines(fc) {
+    const out = [officialTxt(fc)];
+    const o = fc.now?.obs;
+    if (o) out.push((o.n || 1) > 1 ? `Observações: ${o.n} estações até ${F.km(Math.max(...(o.stations || []).filter((x) => x.used).map((x) => x.distanceKm), o.distanceKm))} (a mais próxima a ${F.km(o.nearestKm)})` : `Observação: ${o.station}, ${F.km(o.distanceKm)}`);
+    else out.push('Sem estações de observação perto');
+    if (F.isNum(fc.location?.elevation)) out.push(`Altitude do ponto: ${F.num(fc.location.elevation)} m (observações ajustadas a esta altitude)`);
+    return out;
+}
 function viewSettings() {
     const title = TITLES.ajustes;
     const L = cfg.loc;
     let h = `<section class="sec"><div class="sec-h"><h2>Local</h2></div><div class="form">
         ${L ? `<div class="sw"><span><b>${esc(placeName())}</b><br><small class="hint num">${esc(`${F.num(L.lat, 4)}, ${F.num(L.lon, 4)}${L.gps ? ' · GPS' : ''}`)}</small></span><button type="button" class="btn sm" data-act="place">Mudar</button></div>` : ''}
+        ${L && st.fc ? `<ul class="prec" aria-label="Precisão para este ponto">${precisionLines(st.fc).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
         <button type="button" class="btn blk" data-act="gps">${ui('gps')}Usar a minha localização exata</button>
         <div><label>Favoritos</label><div class="wl">${cfg.favs.length ? cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button><button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Retirar ' + f.name)}">✕</button></div>`).join('') : '<div class="hint">Ainda sem favoritos.</div>'}</div>
             ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui('star')}${cfg.favs.some((f) => near(f, L)) ? 'Retirar este local' : 'Guardar este local'}</button>` : ''}</div>
@@ -550,6 +605,16 @@ function renderSheet() {
             <div style="margin-top:12px"><label class="sr-only" for="f-q">Pesquisar local</label><input id="f-q" class="inp" type="search" placeholder="Cidade, vila ou freguesia" autocomplete="off" autocapitalize="words" enterkeyhint="search"><div class="res" id="f-res" aria-live="polite"></div></div>
             ${cfg.favs.length ? `<div class="grp-h" style="margin-top:18px">Favoritos</div><div class="wl">${cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}
             ${st.places.length ? `<div class="grp-h" style="margin-top:18px">Com análise diária</div><div class="wl">${st.places.map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}`;
+        return;
+    }
+    if (s.kind === 'off') {
+        const p = st.places.find((x) => x.id === s.arg?.id);
+        if (!p) { closeSheet(); return; }
+        const sched = st.status?.schedule || SCHEDULE;
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Desligar a análise diária de ${esc(p.name)}?</h2>
+            <div class="d-sub">A análise atual fica guardada.</div></div>${closeBtn}</div>
+            <p class="note" style="margin:0 2px 14px">O Claude deixa de analisar este local às ${esc(sched.join(', '))}. Se voltares a ligar, aparece outra vez a última análise.</p>
+            <div class="btns-col"><button type="button" class="btn blk danger" data-act="off-yes">Desligar</button><button type="button" class="btn blk" data-act="close">Cancelar</button></div>`;
         return;
     }
     if (s.kind === 'day') {
@@ -666,11 +731,32 @@ async function togglePlace(on) {
             toast(`Ligada. A primeira análise chega ${nextRun()}.`);
         } else if (!on) {
             const p = nearPlace();
-            if (p) { await api.deletePlace(p.id); st.places = st.places.filter((x) => x.id !== p.id); }
-            toast('Análise diária desligada para este local.');
+            if (p) { openSheet('off', { id: p.id }); return; }
+            toast('A análise diária já está desligada para este local.');
         }
     } catch (e) { toast(e.message); }
     render();
+}
+// desligar só depois de confirmar (folha); a análise fica guardada no conector e "Desfazer" volta a ligar o mesmo local
+async function placeOff(id) {
+    const p = st.places.find((x) => x.id === id);
+    closeSheet(true);
+    if (!p) return;
+    try {
+        await api.deletePlace(p.id);
+        st.places = st.places.filter((x) => x.id !== p.id);
+        render();
+        toast(`Análise diária desligada para ${p.name}.`, () => placeBack(p));
+    } catch (e) { toast(e.message); }
+}
+async function placeBack(p) {
+    try {
+        const n = await api.addPlace(p.name, p.lat, p.lon);
+        if (n) st.places = [...st.places.filter((x) => x.id !== n.id), n];
+        render();
+        toast(`Análise diária de ${p.name} ligada de novo.`);
+        if (cfg.loc) loadAnalysis(cfg.loc);
+    } catch (e) { toast(e.message); }
 }
 async function analyzeNow() {
     if (!st.fc || st.analyzing) return;
@@ -707,10 +793,7 @@ document.addEventListener('click', (ev) => {
     if (d.fav != null) { const f = cfg.favs[+d.fav]; if (f) { closeSheet(); setLocation(f); } return; }
     if (d.rmfav != null) { const f = cfg.favs[+d.rmfav]; cfg.favs.splice(+d.rmfav, 1); saveCfg(); render(); if (f) toast(`${f.name} retirado dos favoritos`); return; }
     if (d.goplace) { const p = st.places.find((x) => x.id === d.goplace); if (p) { closeSheet(); setLocation({ lat: p.lat, lon: p.lon, name: p.name }); } return; }
-    if (d.rmplace) {
-        api.deletePlace(d.rmplace).then(() => { st.places = st.places.filter((x) => x.id !== d.rmplace); render(); toast('Análise diária desligada'); }).catch((e) => toast(e.message));
-        return;
-    }
+    if (d.rmplace) { if (st.places.some((x) => x.id === d.rmplace)) openSheet('off', { id: d.rmplace }); return; }
     switch (d.act) {
         case 'close': closeSheet(true); break;
         case 'place': openSheet('place'); break;
@@ -719,6 +802,7 @@ document.addEventListener('click', (ev) => {
         case 'reload': location.reload(); break;
         case 'place-on': togglePlace(true); break;
         case 'place-off': togglePlace(false); break;
+        case 'off-yes': placeOff(st.sheet?.arg?.id); break;
         case 'analyze': analyzeNow(); break;
         case 'save-proxy': saveProxy(); break;
         case 'fav': {

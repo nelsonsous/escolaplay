@@ -4,21 +4,21 @@
 // Modelos determinísticos (Open-Meteo). w = peso de base (qualidade conhecida na Europa).
 // "box" = domínio aproximado [sul, oeste, norte, este]; fora dele o modelo não é pedido.
 export const DET_MODELS = [
-    { id: 'ecmwf_ifs', name: 'ECMWF IFS', org: 'ECMWF (UE)', resKm: 9, w: 1.6 },
-    { id: 'ukmo_seamless', name: 'Met Office', org: 'Met Office (UK)', resKm: 10, w: 1.3 },
-    { id: 'meteofrance_seamless', name: 'Météo-France AROME/ARPEGE', org: 'Météo-France', resKm: 1.3, w: 1.3, wAfter48: 1.0 },
-    { id: 'icon_seamless', name: 'DWD ICON', org: 'DWD (Alemanha)', resKm: 7, w: 1.2 },
-    { id: 'ecmwf_aifs025_single', name: 'ECMWF AIFS (IA)', org: 'ECMWF (UE)', resKm: 25, w: 1.2, wPrecip: 0.7 },
-    { id: 'gfs_seamless', name: 'NOAA GFS', org: 'NOAA (EUA)', resKm: 13, w: 1.0 },
-    { id: 'gem_seamless', name: 'GEM', org: 'ECCC (Canadá)', resKm: 15, w: 0.8 },
-    { id: 'jma_seamless', name: 'JMA', org: 'JMA (Japão)', resKm: 55, w: 0.5 },
-    { id: 'cma_grapes_global', name: 'CMA GRAPES', org: 'CMA (China)', resKm: 15, w: 0.5 },
+    { id: 'ecmwf_ifs', short: 'ECMWF', name: 'ECMWF IFS', org: 'ECMWF (UE)', resKm: 9, w: 1.6 },
+    { id: 'ukmo_seamless', short: 'Met Office', name: 'Met Office', org: 'Met Office (UK)', resKm: 10, w: 1.3 },
+    { id: 'meteofrance_seamless', short: 'Météo-France', name: 'Météo-France AROME/ARPEGE', org: 'Météo-France', resKm: 1.3, w: 1.3, wAfter48: 1.0 },
+    { id: 'icon_seamless', short: 'ICON', name: 'DWD ICON', org: 'DWD (Alemanha)', resKm: 7, w: 1.2 },
+    { id: 'ecmwf_aifs025_single', short: 'AIFS', name: 'ECMWF AIFS (IA)', org: 'ECMWF (UE)', resKm: 25, w: 1.2, wPrecip: 0.7 },
+    { id: 'gfs_seamless', short: 'GFS', name: 'NOAA GFS', org: 'NOAA (EUA)', resKm: 13, w: 1.0 },
+    { id: 'gem_seamless', short: 'GEM', name: 'GEM', org: 'ECCC (Canadá)', resKm: 15, w: 0.8 },
+    { id: 'jma_seamless', short: 'JMA', name: 'JMA', org: 'JMA (Japão)', resKm: 55, w: 0.5 },
+    { id: 'cma_grapes_global', short: 'CMA', name: 'CMA GRAPES', org: 'CMA (China)', resKm: 15, w: 0.5 },
     // Regionais de alta resolução (fora do domínio caem para o ECMWF; são filtrados se duplicados)
-    { id: 'knmi_seamless', name: 'KNMI HARMONIE', org: 'KNMI (P. Baixos)', resKm: 2.5, w: 1.3, box: [45, -12, 62, 20], dupOf: 'ecmwf_ifs' },
-    { id: 'dmi_seamless', name: 'DMI HARMONIE', org: 'DMI (Dinamarca)', resKm: 2.5, w: 1.3, box: [50, -30, 72, 40], dupOf: 'ecmwf_ifs' },
-    { id: 'metno_seamless', name: 'MET Nordic', org: 'MET Norway', resKm: 1, w: 1.3, box: [52, -2, 72, 32], dupOf: 'ecmwf_ifs' },
-    { id: 'meteoswiss_icon_seamless', name: 'MeteoSwiss ICON-CH', org: 'MeteoSwiss', resKm: 1, w: 1.3, box: [43.5, 3, 50, 16.5] },
-    { id: 'italia_meteo_arpae_icon_2i', name: 'ItaliaMeteo ICON-2I', org: 'ItaliaMeteo', resKm: 2.2, w: 1.2, box: [35.5, 5, 47.5, 20] },
+    { id: 'knmi_seamless', short: 'KNMI', name: 'KNMI HARMONIE', org: 'KNMI (P. Baixos)', resKm: 2.5, w: 1.3, box: [45, -12, 62, 20], dupOf: 'ecmwf_ifs' },
+    { id: 'dmi_seamless', short: 'DMI', name: 'DMI HARMONIE', org: 'DMI (Dinamarca)', resKm: 2.5, w: 1.3, box: [50, -30, 72, 40], dupOf: 'ecmwf_ifs' },
+    { id: 'metno_seamless', short: 'MET Nordic', name: 'MET Nordic', org: 'MET Norway', resKm: 1, w: 1.3, box: [52, -2, 72, 32], dupOf: 'ecmwf_ifs' },
+    { id: 'meteoswiss_icon_seamless', short: 'MeteoSwiss', name: 'MeteoSwiss ICON-CH', org: 'MeteoSwiss', resKm: 1, w: 1.3, box: [43.5, 3, 50, 16.5] },
+    { id: 'italia_meteo_arpae_icon_2i', short: 'ItaliaMeteo', name: 'ItaliaMeteo ICON-2I', org: 'ItaliaMeteo', resKm: 2.2, w: 1.2, box: [35.5, 5, 47.5, 20] },
 ];
 
 // Ensembles (cenários). w = peso de cada sistema (dividido pelos seus membros).
@@ -57,7 +57,18 @@ export const IPMA = {
     rcm0: 'https://api.ipma.pt/open-data/forecast/meteorology/rcm/rcm-d0.json',
     rcm1: 'https://api.ipma.pt/open-data/forecast/meteorology/rcm/rcm-d1.json',
     districts: 'https://api.ipma.pt/open-data/distrits-islands.json',
+    // previsão oficial por concelho (AROME 2,5 km + meteorologista): 423 locais; hora a hora ~3 dias, de 3 em 3 h e diária (10 dias)
+    locations: 'https://api.ipma.pt/public-data/forecast/locations.json',
 };
+export const ipmaAggregateUrl = (id) => `https://api.ipma.pt/public-data/forecast/aggregate/${encodeURIComponent(id)}.json`;
+
+// A previsão oficial do IPMA entra no consenso como mais uma fonte. wDay = peso por dia (0 = hoje).
+export const IPMA_MODEL = { id: 'ipma', short: 'IPMA', name: 'IPMA (oficial)', org: 'IPMA (Portugal)', resKm: 2.5, w: 1.6,
+    wDay: [1.6, 1.6, 1.6, 1.2, 1.0, 1.0, 0.8, 0.8, 0.8, 0.8], official: true };
+export const IPMA_MAX_KM = 15; // concelho mais próximo até 15 km
+
+// Observações: estações IPMA e METAR até 30 km entram na observação combinada do ponto
+export const OBS_RADIUS_KM = 30;
 
 // Focos de calor por satélite (NASA FIRMS, ficheiros abertos das últimas 24 h, região Europa)
 export const FIRMS = {

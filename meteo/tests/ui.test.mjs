@@ -16,6 +16,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(process.env.MT_ROOT || path.join(HERE, '..'));
 const SHOTS = process.argv[2];
 const RAW = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/lisboa-2026-11-06.json'), 'utf8'));
+// previsão oficial do IPMA (locais reduzidos e a previsão de "Lisboa - Jardim Botânico", o local mais próximo)
+const IPMA_LOCS = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/ipma-locations.json'), 'utf8'));
+const IPMA_LX = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/ipma-lisboa.json'), 'utf8'));
+const IPMA_ST = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/ipma-santo-tirso.json'), 'utf8'));
 const NOW = '2026-11-06T15:45:00Z';
 const PROXY = 'https://meteo.proxy.test';
 const LAT = 38.7223, LON = -9.1393;
@@ -56,7 +60,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     });
     const errors = [], unexpected = [], calls = [];
     let places = [{ id: 'lisboa', name: 'Lisboa', lat: LAT, lon: LON, createdAt: '2026-11-01T10:00:00Z' }];
-    let failModels = false, refreshBody = null;
+    let failModels = false, refreshBody = null, elevCalls = 0;
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -67,12 +71,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     });
     const fulfill = (route, json) => route.fulfill({ json, headers: CORS });
     await ctx.route(/^https:\/\/api\.open-meteo\.com\/v1\/forecast/, (r) => (failModels ? r.abort('failed') : fulfill(r, RAW.det)));
-    await ctx.route(/^https:\/\/api\.open-meteo\.com\/v1\/elevation/, (r) => fulfill(r, { elevation: [77] }));
+    // altitudes de várias estações num só pedido (latitude=a,b,c)
+    await ctx.route(/^https:\/\/api\.open-meteo\.com\/v1\/elevation/, (r) => { elevCalls++; const n = new URL(r.request().url()).searchParams.get('latitude').split(',').length; return fulfill(r, { elevation: Array(n).fill(77) }); });
     await ctx.route(/^https:\/\/ensemble-api\.open-meteo\.com\//, (r) => fulfill(r, RAW.ens));
     await ctx.route(/^https:\/\/previous-runs-api\.open-meteo\.com\//, (r) => fulfill(r, RAW.prev));
     await ctx.route(/^https:\/\/archive-api\.open-meteo\.com\//, (r) => fulfill(r, climate(new URL(r.request().url()))));
     await ctx.route(/^https:\/\/api\.ipma\.pt\//, (r) => {
         const p = new URL(r.request().url()).pathname;
+        if (p === '/public-data/forecast/locations.json') return fulfill(r, IPMA_LOCS);
+        if (p === '/public-data/forecast/aggregate/1110622.json') return fulfill(r, IPMA_LX);
+        if (/^\/public-data\/forecast\/aggregate\/\d+\.json$/.test(p)) return fulfill(r, IPMA_ST); // outros concelhos (Porto): a de Santo Tirso, ali ao lado
         const k = /stations\.json$/.test(p) ? 'stations' : /observations\.json$/.test(p) ? 'obs' : /warnings_www/.test(p) ? 'warnings' : /rcm-d0/.test(p) ? 'rcm0' : /rcm-d1/.test(p) ? 'rcm1' : /distrits-islands/.test(p) ? 'districts' : null;
         return k ? fulfill(r, RAW.ipma[k]) : r.fulfill({ status: 404, headers: CORS, body: '' });
     });
@@ -134,7 +142,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(temp, /^\d+,\d°$/, 'temperatura agora: ' + temp);
     const nowTxt = await page.locator('.now').textContent();
     assert.match(nowTxt, /Sensação .*Máx\. .*Mín\./);
-    assert.match(nowTxt, /Observado \d+,\d° em .+ · .+ km · há \d+ min \((IPMA|METAR)\)/, 'linha da observação');
+    assert.match(nowTxt, /Observado \d+,\d° em Lisboa \(Geofísico\), .+ e mais \d+ · ~\d+,\d km · há \d+ min \(IPMA \+ METAR\)/, 'linha da observação combinada');
+    assert.equal(elevCalls, 1, 'altitudes de todas as estações num só pedido');
     assert.equal(await page.locator('.tile').count(), 12, 'indicadores');
     assert.ok(await page.locator('#nc-chart svg').count(), 'gráfico das 2 horas');
     assert.match(await page.locator('#cl-teaser').textContent(), new RegExp(MOCK_ANALYSIS.titulo.slice(0, 30)));
@@ -196,18 +205,48 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.locator('.today .cl-head').textContent(), MOCK_ANALYSIS.titulo);
     assert.ok(await page.locator('.today .an-sec').count() >= 8, 'secções da análise');
     assert.ok(await page.locator('[data-act="place-on"].on').count(), 'análise diária ligada (Lisboa registada)');
+    // desligar pede confirmação; "Cancelar" não apaga nada
     await page.click('[data-act="place-off"]');
-    await toastIs(/desligada/);
+    await page.waitForSelector('#mt-sheet:not([hidden]) [data-act="off-yes"]');
+    assert.match(await page.locator('#mt-sheet-card').textContent(), /Desligar a análise diária de Lisboa\?.*A análise atual fica guardada\./s);
+    await page.click('#mt-sheet-card .btns-col [data-act="close"]');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    assert.ok(!calls.includes('DELETE /api/places/lisboa'), 'cancelar não desliga');
+    // confirmar → DELETE e aviso com "Desfazer", que volta a ligar o mesmo local
+    await page.click('[data-act="place-off"]');
+    await page.click('#mt-sheet-card [data-act="off-yes"]');
+    await toastIs(/desligada para Lisboa/);
     assert.ok(calls.includes('DELETE /api/places/lisboa'));
+    await page.click('#mt-toast .t-undo');
+    await toastIs(/ligada de novo/);
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 1, 'Desfazer volta a registar o local');
+    assert.equal(places.at(-1).name, 'Lisboa');
+    await page.waitForSelector('[data-act="place-on"].on');
+    // desligar e voltar a ligar com "Sim"
+    await page.click('[data-act="place-off"]');
+    await page.click('#mt-sheet-card [data-act="off-yes"]');
+    await toastIs(/desligada/);
     await page.click('[data-act="place-on"]');
     await toastIs(/Ligada/);
-    assert.ok(calls.includes('POST /api/places'));
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2);
     await page.click('[data-act="analyze"]');
     await toastIs(/Análise feita/);
     assert.ok(refreshBody && refreshBody.summary.length > 500, 'resumo enviado ao Claude');
     assert.match(await page.locator('.today .cl-head').textContent(), /Análise a pedido/);
     const nModels = await page.evaluate(() => window.__mt.st.fc.models.length);
+    assert.equal(nModels, 10, '9 modelos + IPMA oficial');
     assert.equal(await page.locator('.sec:has(h2:text("Modelos")) .list .row').count(), nModels);
+    assert.match(await page.locator('.sec:has(h2:text("Modelos"))').textContent(), /IPMA \(oficial\) oficial.*Lisboa - Jardim Botânico, a 1,0 km/s);
+    // fontes lado a lado: consenso, IPMA, 9 modelos e ensemble em 3 dias, com o concelho do IPMA e a distância
+    const cmp = page.locator('#fontes');
+    assert.match(await cmp.locator('.sec-h .sub').textContent(), /^Previsão oficial IPMA: Lisboa - Jardim Botânico, 1,0 km$/);
+    assert.equal(await cmp.locator('tbody tr').count(), 12);
+    assert.deepEqual(await cmp.locator('thead th').allTextContents(), ['Fonte', 'Hoje', 'Amanhã', 'Dom 8']);
+    assert.match(await cmp.locator('tbody tr').nth(1).textContent(), /^IPMAoficial18°\/12°chuva 100%/);
+    assert.ok(await cmp.locator('.cmp-notes li').count() >= 3, 'resumo das divergências');
+    assert.ok(await cmp.locator('td .hot, td .cold').count() >= 1, 'desvios de 2° ou mais destacados');
+    // estações que entram na observação combinada
+    assert.ok(await page.locator('.sec:has(h2:text("Observações usadas")) .row').count() >= 5);
     await noOverflow('Análise');
     await shot('06-analise.png');
     console.log(`✓ Análise: Claude, análise diária (DELETE/POST), a pedido, ${nModels} modelos`);
@@ -218,7 +257,21 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.waitForFunction(() => /Ligado · versão 1\.0\.0/.test(document.querySelector('#f-proxy-msg').textContent));
     const srcRows = await page.locator('.sec:has(h2:text("Estado das fontes")) .row').count();
     assert.ok(srcRows >= 10, 'estado das fontes: ' + srcRows);
-    assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Modelos determinísticos/);
+    assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Modelos determinísticos.*Previsão oficial do IPMA \(concelho\)/s);
+    const prec = await page.locator('.prec').textContent();
+    assert.match(prec, /Previsão oficial IPMA: Lisboa - Jardim Botânico, 1,0 km/);
+    assert.match(prec, /Observações: \d+ estações até \d+(,\d)? km \(a mais próxima a 1,0 km\)/);
+    // ✕ na lista também pede confirmação; Desfazer volta a ligar
+    const posts0 = calls.filter((c) => c === 'POST /api/places').length;
+    await page.click('[data-rmplace="casa"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) [data-act="off-yes"]');
+    await page.click('#mt-sheet-card [data-act="off-yes"]');
+    await toastIs(/desligada para Lisboa/);
+    assert.ok(calls.includes('DELETE /api/places/casa'));
+    await page.click('#mt-toast .t-undo');
+    await toastIs(/ligada de novo/);
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, posts0 + 1);
+    await page.waitForSelector('[data-rmplace="casa"]');
     await page.click('[data-fs="l"]');
     assert.equal(await page.evaluate(() => document.documentElement.dataset.fs), 'l');
     await noOverflow('Ajustes (letra grande)');

@@ -1,11 +1,18 @@
 // Analista do tempo — recolhe tudo o que o Claude precisa para cada local registado.
 //   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo]
 // Mostra as regras, o resumo numérico, a análise anterior, as lições e o observado; grava imagens de satélite.
+// Também guarda no KV o histórico horário das estações IPMA usadas e as previsões do IPMA de cada concelho
+// (para a verificação local, que precisa de previsões feitas na véspera).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
-import { satUrl, FOGOS_URL } from '../lib/sources.js';
+import { satUrl, FOGOS_URL, IPMA } from '../lib/sources.js';
+import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns } from '../lib/engine.js';
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { WORKER, getJSON, kvGet, kvPut, arg } from './comum.mjs';
+
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const savedStations = new Set(); // estações já gravadas nesta corrida (locais perto partilham estações)
+let ipmaLocs = null;
 
 const OUT = arg('--out', '/tmp/meteo');
 mkdirSync(OUT, { recursive: true });
@@ -25,11 +32,17 @@ try {
 console.log(`\n# REGRAS DA ANÁLISE\n${SYSTEM_PROMPT}\n`);
 console.log(`Locais: ${places.map((p) => `${p.id} (${p.name})`).join(', ')}. Pasta: ${OUT}\n`);
 
-for (const place of places) {
+for (const [i, place] of places.entries()) {
     const out = [];
+    if (i) await sleep(3000); // o Open-Meteo limita pedidos por minuto (HTTP 429): espaçar os locais
     try {
-        const { fc, raw } = await loadForecast({ lat: place.lat, lon: place.lon, name: place.name, base: WORKER, preferProxy: true, withRaw: true });
-        if (raw.station?.source === 'IPMA') await saveObsHistory(raw.station).catch((e) => out.push(`(histórico IPMA não gravado: ${e.message})`));
+        // previsões do IPMA de há ~1 dia para este concelho (guardadas aqui nas corridas anteriores)
+        const local = await ipmaLocalOf(place).catch(() => null);
+        const runs = local ? (await kvGet('ipma:runs:' + local.id).catch(() => null)) || [] : [];
+        const { fc, raw } = await loadForecast({ lat: place.lat, lon: place.lon, name: place.name, base: WORKER, preferProxy: true, withRaw: true,
+            ipmaPrev: ipmaPrevFromRuns(runs) });
+        await saveObsHistories(raw, fc).catch((e) => out.push(`(histórico IPMA não gravado: ${e.message})`));
+        if (raw.ipma?.forecast) await saveIpmaRun(raw.ipma.forecast, runs).catch((e) => out.push(`(previsão IPMA não arquivada: ${e.message})`));
         const prev = await kvGet('analysis:' + place.id).catch(() => null);
         const lessons = (await kvGet('lessons:' + place.id).catch(() => null)) || [];
         out.push(`\n==================== LOCAL ${place.id} — ${place.name} (${place.lat}, ${place.lon}) ====================`);
@@ -58,25 +71,52 @@ for (const place of places) {
     console.log(out.join('\n'));
 }
 
-// O que se observou nas últimas 24 h na estação (para verificar a análise anterior)
+// O que se observou nas últimas 24 h nas estações com mais peso (para verificar a análise anterior)
 function observed(raw, fc) {
-    const st = raw.station;
-    if (!st?.series?.length) return '\n## Observado nas últimas 24 h: sem estação próxima.';
+    const used = (fc.now.obs?.stations || []).filter((x) => x.used && x.source === 'IPMA').slice(0, 3);
+    const lines = [];
     const since = Date.now() - 24 * 36e5;
-    const s = st.series.filter((o) => o.ms >= since);
-    const t = s.map((o) => o.temp).filter(Number.isFinite), w = s.map((o) => o.wind).filter(Number.isFinite);
-    const rain = st.source === 'IPMA' ? s.map((o) => o.precip1h).filter(Number.isFinite).reduce((a, b) => a + b, 0) : null;
-    return `\n## Observado nas últimas 24 h em ${st.name} (${st.source}, ${fc.now.obs?.distanceKm ?? '?'} km)\n` +
-        `máx ${t.length ? Math.max(...t).toFixed(1) : '—'}°C, mín ${t.length ? Math.min(...t).toFixed(1) : '—'}°C, ` +
-        `chuva ${rain == null ? 'n/d (METAR)' : rain.toFixed(1) + ' mm'}, vento máx ${w.length ? Math.round(Math.max(...w)) : '—'} km/h (${s.length} registos).`;
+    for (const x of used) {
+        const s = ipmaSeries(raw.ipma?.obs, x.id).filter((o) => o.ms >= since);
+        const t = s.map((o) => o.temp).filter(Number.isFinite), w = s.map((o) => o.wind).filter(Number.isFinite);
+        const rain = s.map((o) => o.precip1h).filter(Number.isFinite).reduce((a, b) => a + b, 0);
+        if (t.length) lines.push(`${x.name} (IPMA, ${x.distanceKm} km, ${x.elev ?? '?'} m, peso ${x.weight}%): máx ${Math.max(...t).toFixed(1)}°C, mín ${Math.min(...t).toFixed(1)}°C, ` +
+            `chuva ${rain.toFixed(1)} mm, vento máx ${w.length ? Math.round(Math.max(...w)) : '—'} km/h (${s.length} registos)`);
+    }
+    if (!lines.length && raw.station?.series?.length) {
+        const s = raw.station.series.filter((o) => o.ms >= since), t = s.map((o) => o.temp).filter(Number.isFinite);
+        if (t.length) lines.push(`${raw.station.name} (${raw.station.source}): máx ${Math.max(...t).toFixed(1)}°C, mín ${Math.min(...t).toFixed(1)}°C (${s.length} registos)`);
+    }
+    return lines.length ? `\n## Observado nas últimas 24 h (valores medidos, sem ajuste de altitude)\n- ${lines.join('\n- ')}` : '\n## Observado nas últimas 24 h: sem estação próxima.';
 }
 
-// Acumula as observações horárias IPMA (só há 24 h na fonte) para a verificação local na app — 14 dias
-async function saveObsHistory(st) {
-    const key = 'obs:' + st.id;
-    const old = (await kvGet(key)) || [];
-    const map = new Map(old.map((o) => [o.ms, o]));
-    for (const o of st.series) if (Number.isFinite(o.temp)) map.set(o.ms, { ms: o.ms, temp: o.temp, rh: o.rh, wind: o.wind, precip1h: o.precip1h });
-    const keep = [...map.values()].filter((o) => o.ms >= Date.now() - 14 * 864e5).sort((a, b) => a.ms - b.ms);
-    await kvPut(key, keep);
+// Acumula as observações horárias das estações IPMA usadas no ponto (a fonte só dá 24 h) — 14 dias, até 6 por local
+async function saveObsHistories(raw, fc) {
+    const ids = (fc.now.obs?.stations || []).filter((x) => x.source === 'IPMA' && x.used).slice(0, 6).map((x) => x.id);
+    if (raw.station?.source === 'IPMA' && !ids.includes(raw.station.id)) ids.push(raw.station.id);
+    for (const id of ids) {
+        if (savedStations.has(id)) continue;
+        savedStations.add(id);
+        const series = ipmaSeries(raw.ipma?.obs, id);
+        if (!series.length) continue;
+        const key = 'obs:' + id;
+        const old = (await kvGet(key)) || [];
+        const map = new Map((Array.isArray(old) ? old : []).map((o) => [o.ms, o]));
+        for (const o of series) if (Number.isFinite(o.temp)) map.set(o.ms, { ms: o.ms, temp: o.temp, rh: o.rh, wind: o.wind, precip1h: o.precip1h });
+        const keep = [...map.values()].filter((o) => o.ms >= Date.now() - 14 * 864e5).sort((a, b) => a.ms - b.ms);
+        await kvPut(key, keep);
+    }
+}
+
+// ---------- previsões anteriores do IPMA (a API só dá a atual) ----------
+async function ipmaLocalOf(place) {
+    if (!ipmaLocs) ipmaLocs = await getJSON(IPMA.locations, 20000);
+    return nearestIpmaLocal(ipmaLocs, place.lat, place.lon);
+}
+// Guarda a corrida atual (temperatura hora a hora e de 3 em 3 h) — 9 dias de corridas
+async function saveIpmaRun(forecast, runs) {
+    const rec = ipmaRunRecord(forecast.data);
+    if (!rec || runs.some((r) => r.u === rec.u)) return;
+    const keep = [...runs, rec].filter((r) => Date.parse(r.u + ':00Z') >= Date.now() - 9 * 864e5).sort((a, b) => a.u.localeCompare(b.u));
+    await kvPut('ipma:runs:' + forecast.local.id, keep);
 }
