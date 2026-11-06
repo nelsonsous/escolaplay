@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.6.0';
+    const VERSION = '3.6.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -209,6 +209,7 @@
         if (c && /^[A-Z]{3}$/.test(c)) { o.style = 'currency'; o.currency = c; }
         try { return NF(o).format(v) + (c === 'GBp' ? ' p' : ''); } catch { return v.toFixed(d); }
     }
+    const fmtPct1 = (v) => fin(v) ? (v > 0.05 ? '+' : v < -0.05 ? '−' : '') + NF({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(v)) + '%' : '—';
     const fmtPct = (v) => fin(v) ? (v > 0 ? '+' : v < 0 ? '−' : '') + NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v)) + '%' : '—';
     const fmtBig = (v) => fin(v) ? NF({ notation: 'compact', maximumFractionDigits: 1 }).format(v) : '—';
     const toneOf = (v) => !fin(v) ? 'flat' : v > 0.005 ? 'up' : v < -0.005 ? 'down' : 'flat';
@@ -873,7 +874,7 @@
         const q = qv(k);
         const sub = opt.sub ?? '';
         const html = `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
-            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${sub || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
+            ${ico(k)}<div class="r-main"><div class="r-name">${esc(nameOf(k))}</div>${(Array.isArray(sub) ? sub.length : sub) || opt.badge ? `<div class="r-sub">${opt.badge ? `<span class="badge ${opt.badge[1]}">${esc(opt.badge[0])}</span>` : ''}${Array.isArray(sub) ? sub.map((x) => `<span class="nb">${esc(x)}</span>`).join('<span class="dotsep"> · </span>') : esc(sub)}</div>` : ''}${opt.note ? `<div class="r-note">${esc(opt.note)}</div>` : ''}</div>
             ${opt.spark === false ? '' : `<canvas class="spark" data-key="${esc(k)}"></canvas>`}
             <div class="r-px num"><span class="px${q.price == null ? ' skel' : ''}">${q.price == null ? '0000,00' : fmtPx(q.price, a, q.currency)}</span>${chg(q.changePct)}</div>
         </button>`;
@@ -909,7 +910,7 @@
         else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><span class="sub">${CLAUDE && !CLAUDE.missing && CLAUDE.headline ? 'com o conselho do Claude' : 'o que tenho'}</span></div>
-            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct(AN[k].discount.dd * 100)} do máx.` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean).join(' · '), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
+            ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
         ${todayCard()}
         ${crypt.length || nHid(cryAll) ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="list sw-list">${crypt.map((k) => card(k)).join('')}</div>${foot('', nHid(cryAll) ? ['crypto', nHid(cryAll)] : null)}</section>` : ''}
@@ -1124,7 +1125,8 @@
         const c = CLAUDE && !CLAUDE.missing && CLAUDE.headline ? CLAUDE : null;
         if (!b && !c) return '';
         const x = nextExec();
-        const old = c && c.date && c.date < todayLocal();
+        const nw = new Date(), late = nw.getHours() * 60 + nw.getMinutes() > CL_HOUR * 60 + CL_MIN + 30;
+        const old = c && c.date && c.date < todayLocal() && late;
         const nE = Math.max(1, x.days.length);
         // plano do mês: o do Claude; o automático só enquanto não há análise
         const cplan = c && Array.isArray(c.plan) && c.plan.length ? c.plan : null;
