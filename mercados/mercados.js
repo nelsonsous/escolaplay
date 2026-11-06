@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.14.0';
+    const VERSION = '3.15.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -621,16 +621,24 @@
         }
         scheduleRender();
     }
-    // "feita às 07:16 de 06/11 · próxima amanhã às 07:14" (a tarefa corre todos os dias às 07:14 de Lisboa)
-    const CL_HOUR = 7, CL_MIN = 14;
+    // "feita às 07:16 de 06/11 · próxima hoje às 15:14" (a tarefa corre às 07:14 e às 15:14 de Lisboa)
+    const CL_TIMES = [[7, 14], [15, 14]];
+    const CL_LBL = CL_TIMES.map(([h, m]) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`).join(' e ');
+    // hora da última corrida que já devia ter acontecido (para o aviso "atrasada")
+    function clLastDue(n) {
+        const t = n.getHours() * 60 + n.getMinutes();
+        const past = CL_TIMES.filter(([h, m]) => h * 60 + m + 30 <= t);
+        return past.length ? past[past.length - 1] : null;
+    }
     function clWhen() {
         const c = CLAUDE || {};
         const g = c.generatedAt ? new Date(c.generatedAt) : null;
         const made = g && !isNaN(g) ? `feita às ${g.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} de ${g.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}` : (c.date || '');
-        const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate(), CL_HOUR, CL_MIN);
-        if (next <= n) next.setDate(next.getDate() + 1);
+        const n = new Date();
+        let next = CL_TIMES.map(([h, m]) => new Date(n.getFullYear(), n.getMonth(), n.getDate(), h, m)).find((d) => d > n);
+        if (!next) { next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, CL_TIMES[0][0], CL_TIMES[0][1]); }
         const day = next.getDate() === n.getDate() ? 'hoje' : 'amanhã';
-        return `${made} · próxima ${day} às ${String(CL_HOUR).padStart(2, '0')}:${String(CL_MIN).padStart(2, '0')}`;
+        return `${made} · próxima ${day} às ${next.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
     }
     // Cartão "Hoje": aberto na primeira vez (dia novo / análise nova do Claude); depois condensado numa linha
     function firstView(name, parts) {
@@ -1235,8 +1243,11 @@
         const c = CLAUDE && !CLAUDE.missing && CLAUDE.headline ? CLAUDE : null;
         if (!b && !c) return '';
         const x = nextExec();
-        const nw = new Date(), late = nw.getHours() * 60 + nw.getMinutes() > CL_HOUR * 60 + CL_MIN + 30;
-        const old = c && c.date && c.date < todayLocal() && late;
+        // atrasada: já passou (com 30 min de folga) uma corrida de hoje e a análise é de antes dela
+        const nw = new Date(), due = clLastDue(nw);
+        const dueAt = due ? new Date(nw.getFullYear(), nw.getMonth(), nw.getDate(), due[0], due[1]) : null;
+        const gen = c && c.generatedAt ? new Date(c.generatedAt) : null;
+        const old = !!(c && dueAt && (gen && !isNaN(gen) ? gen < dueAt : c.date < todayLocal()));
         const nE = Math.max(1, x.days.length);
         // plano do mês: o do Claude; o automático só enquanto não há análise
         const cplan = c && Array.isArray(c.plan) && c.plan.length ? c.plan : null;
@@ -1258,7 +1269,7 @@
         const teaser = c ? c.headline : x.next ? `${exTitle}: ${when}${execTxt ? ' · ' + execTxt : ''}` : '';
         const open = firstView('hoje', [todayLocal(), c ? (c.generatedAt || c.date || '') : '']);
         return `<details class="today fold" data-fold="hoje" ${open ? 'open' : ''}><summary><span>Hoje</span>${b && b.mood ? `<b class="${b.mood.tone}-t">${esc(b.mood.label)}</b>` : ''}
-                <small>${c ? `Análise do Claude · ${esc(clWhen())}${old ? ' · atrasada' : ''}` : 'Resumo automático · a análise do Claude chega às 07:14'}</small>${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
+                <small>${c ? `Análise do Claude · ${esc(clWhen())}${old ? ' · atrasada' : ''}` : `Resumo automático · a análise do Claude chega às ${CL_LBL}`}</small>${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
             ${head ? `<p class="t-mk">${head}</p>` : ''}
             ${c ? `<div class="cl-head">${esc(c.headline)}</div>${c.market ? `<p>${esc(c.market)}</p>` : ''}` : b && b.mood ? `<p class="muted">${esc(b.mood.hint)}</p>` : ''}
             ${!c && b && (b.up.length || b.dn.length) ? `<p>${b.up.length ? 'Sobem: ' + b.up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}${b.up.length && b.dn.length ? '<br>' : ''}${b.dn.length ? 'Caem: ' + b.dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
@@ -1269,7 +1280,7 @@
             ${ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''}
             ${b ? b.notes.map((n) => `<p class="note">${esc(n)}</p>`).join('') : ''}
             ${!c && b && b.avoid.length ? `<p class="note">Evitar por agora: ${b.avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
-            <p class="note">${c ? 'Escrita todos os dias às 07:14 por uma tarefa agendada do Claude, com os teus dados e o diário de sugestões. Como têm corrido os conselhos: Análise → Resultados.' : 'Plano automático até chegar a análise do Claude.'} Toca num nome para ver o detalhe. Valida antes de investir.</p></details>`;
+            <p class="note">${c ? `Escrita todos os dias às ${CL_LBL} por uma tarefa agendada do Claude, com os teus dados e o diário de sugestões. Como têm corrido os conselhos: Análise → Resultados.` : 'Plano automático até chegar a análise do Claude.'} Toca num nome para ver o detalhe. Valida antes de investir.</p></details>`;
     }
 
     function discountBox(k, q) {

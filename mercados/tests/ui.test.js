@@ -168,7 +168,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ aviso de resultados no conselho');
     assert.match(await page.locator('.today').textContent(), /manter o plano no VWCE/);
-    assert.match(await page.locator('.today > summary').textContent(), /Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às 07:14/);
+    assert.match(await page.locator('.today > summary').textContent(), /Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)/);
     assert.equal(await page.locator('.today .plan-blk .idea').count(), 2, 'plano do Claude');
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .badge').textContent(), /Esperar/, 'conselho do Claude no ativo');
     assert.equal(await page.locator('.sec:has(h2:text("Cripto"))').count(), 0, 'cripto que tenho não se repete');
