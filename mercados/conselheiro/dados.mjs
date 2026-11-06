@@ -92,7 +92,10 @@ for (const [q, lang] of [['stock market today', 'en'], ['bolsa mercados hoje', '
     const r = await tryOr(() => px(`/news?q=${encodeURIComponent(q)}&lang=${lang}`), { items: [] }, 'notícias ' + q);
     news[q] = (r.items || []).slice(0, 6).map((i) => `${i.title} (${i.source || ''})`);
 }
-const movers = rows.filter((r) => r.day != null).sort((a, b) => Math.abs(b.day) - Math.abs(a.day)).slice(0, 5);
+const MINE = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
+const top5 = rows.filter((r) => r.day != null).sort((a, b) => Math.abs(b.day) - Math.abs(a.day)).slice(0, 5);
+const strong = rows.filter((r) => r.day != null && Math.abs(r.day) >= 3 && (MINE.includes(r.s) || extra.has(r.s)));
+const movers = [...new Map(top5.concat(strong).map((r) => [r.s, r])).values()].slice(0, 10);
 for (const m of movers) {
     const r = await tryOr(() => px(`/news?q=${encodeURIComponent(m.name)}&lang=en&sym=${encodeURIComponent(yahooOf(m.s))}`), { items: [] }, 'notícias ' + m.s);
     news[m.name] = (r.items || []).slice(0, 3).map((i) => `${i.title} (${i.source || ''})`);
@@ -150,6 +153,7 @@ L.push(`# Dados de ${today}`);
 L.push('## Mercado'); for (const m of market) L.push(`- ${m.name}: ${m.price} (${m.day == null ? '—' : m.day.toFixed(2) + '%'})`);
 L.push('## Ativos (C/M/L = curto/médio/longo; regra = sugestão automática; suportes/resistências na moeda do ativo)');
 for (const r of rows) L.push(`- ${r.s} ${r.name} [${r.kind}] ${r.price} ${r.cur || ''}${r.cur && r.cur !== 'EUR' ? ` (≈${r.priceEur}€)` : ''} hoje ${r.day == null ? '—' : r.day.toFixed(1) + '%'} | C${r.short}/M${r.mid}/L${r.long ?? '—'} RSI ${r.rsi?.toFixed?.(0)} | desconto ${pc(r.discount)} ${r.discountTag} | ${r.risk} | regra: ${r.ruleAction} | S: ${r.supports.join('; ')} | R: ${r.resistances.join('; ')}${r.events.length ? ' | AGENDA: ' + r.events.join(', ') : ''}`);
+L.push('## Movimentos fortes de hoje (explica o motivo em "movers")'); for (const m of movers) L.push(`- ${m.s} ${m.name}: ${m.day > 0 ? '+' : ''}${m.day.toFixed(1)}%`);
 L.push('## Notícias'); for (const [q, items] of Object.entries(news)) { L.push(`### ${q}`); for (const i of items) L.push(`- ${i}`); }
 L.push('## Os teus conselhos anteriores (retorno desde então, e face ao VWCE)');
 if (!pastAdvice.length) L.push('- (ainda nenhum)');

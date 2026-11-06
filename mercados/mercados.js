@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.12.1';
+    const VERSION = '3.13.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -644,6 +644,7 @@
         if (unread && document.visibilityState !== 'hidden') { parts.forEach((x, i) => { if (x) cfg.seen[name + i] = x; }); saveCfg(); }
         return v;
     }
+    const moverWhy = (k) => { const m = CLAUDE && Array.isArray(CLAUDE.movers) ? CLAUDE.movers.find((x) => x.s === k) : null; return m ? m.why : ''; };
     function claudeFor(k) {
         const now1 = CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
         if (now1) return now1;
@@ -1025,8 +1026,8 @@
     function moverRow(k, q, isTemp) {
         const n = NEWS[k] && NEWS[k].items && NEWS[k].items[0];
         const nt = NEWS[k] ? A.newsTone(NEWS[k].items) : null;
-        let why = '';
-        if (nt != null && fin(q.changePct)) {
+        let why = moverWhy(k);
+        if (!why && nt != null && fin(q.changePct)) {
             const up = q.changePct > 0, good = nt > 0.15, bad = nt < -0.15;
             why = up ? (good ? 'Sobe com boas notícias' : bad ? 'Sobe apesar de notícias negativas' : 'Sobe sem notícia clara')
                 : (bad ? 'Cai com más notícias' : good ? 'Cai apesar de notícias positivas' : 'Cai sem notícia clara');
@@ -1093,6 +1094,7 @@
         const cTone = c ? (CL_TONE[c.key] || 'flat') : a.tone;
         const algoPlan = a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : '';
         return `<div class="box advice ${cTone}"><h3>O que fazer na Trade Republic</h3>
+            ${moverWhy(k) ? `<div class="adv-why"><b>Porquê ${fin(q.changePct) && q.changePct < 0 ? 'desce' : 'sobe'} hoje:</b> ${esc(moverWhy(k))}</div>` : ''}
             ${c ? `<div class="adv-src">${c.old ? `Análise do Claude de ${esc(dmy(c.date).slice(0, 5))} · último comentário a este ativo` : `Análise do Claude · ${esc(clWhen().split(' · ')[0])}`}</div>
             <div class="adv-act ${cTone}-t">${esc(c.action || '')}</div>
             <div class="adv-txt">${esc(c.why || '')}</div>
@@ -1226,6 +1228,7 @@
             ${!c && b && (b.up.length || b.dn.length) ? `<p>${b.up.length ? 'Sobem: ' + b.up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}${b.up.length && b.dn.length ? '<br>' : ''}${b.dn.length ? 'Caem: ' + b.dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
             <div class="i-blk plan-blk"><div class="i-h">Plano do mês na Trade Republic<small>${c && c.planNote ? esc(c.planNote) : b ? b.planSub : ''}</small></div>${planHtml}${ex}</div>
             ${others.length ? `<div class="i-blk"><div class="i-h">Também a seguir<small>fora do que tens</small></div>${others.map((a) => `<button type="button" class="idea" data-open="${esc(a.s)}"><span class="i-n">${esc(nameOf(a.s))}<small>${esc(a.why || '')}</small></span><span class="i-t ${CL_TONE[a.key] || 'flat'}-t">${esc(a.action || '')}</span></button>`).join('')}</div>` : ''}
+            ${c && Array.isArray(c.movers) && c.movers.length ? `<div class="i-blk"><div class="i-h">Porque sobem ou descem<small>o motivo dos movimentos fortes</small></div>${c.movers.map((m) => { const v = REG[m.s] ? qv(m.s) : null; return `<${REG[m.s] ? `button type="button" data-open="${esc(m.s)}"` : 'div'} class="idea why"><span class="i-n">${esc(REG[m.s] ? nameOf(m.s) : m.s)}<small>${esc(m.why)}</small></span>${v && fin(v.changePct) ? `<span class="i-t ${toneOf(v.changePct)}-t num">${fmtPct(v.changePct)}</span>` : ''}</${REG[m.s] ? 'button' : 'div'}>`; }).join('')}</div>` : ''}
             ${c && Array.isArray(c.risks) && c.risks.length ? `<div class="i-blk"><div class="i-h">Riscos a vigiar</div><ul class="dnotes">${c.risks.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></div>` : ''}
             ${ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''}
             ${b ? b.notes.map((n) => `<p class="note">${esc(n)}</p>`).join('') : ''}
