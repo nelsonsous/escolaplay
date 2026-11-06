@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.16.0';
+    const VERSION = '3.16.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -378,7 +378,7 @@
         sock.onerror = () => { try { sock.close(); } catch { /* ignora */ } };
     }
 
-    const KL = { '1d': ['15m', 96], '5d': ['1h', 120], '1mo': ['4h', 180], '6mo': ['1d', 183], '1y': ['1d', 365], '5y': ['1w', 260] };
+    const KL = { '1d': ['15m', 96], '5d': ['1h', 168], '1mo': ['4h', 180], '6mo': ['1d', 183], '1y': ['1d', 365], '5y': ['1w', 260] };
     async function klines(id, range) {
         const [iv, n] = KL[range];
         const arr = await bnGet(`/api/v3/klines?symbol=${pairOf(id)}&interval=${iv}&limit=${n}`);
@@ -1471,11 +1471,12 @@
 
     // ---------- folha de detalhe ----------
     let sheetKey = null, sheetRange = '1d', sheetPts = null, sheetDraw = null, sheetLoadId = 0;
-    const RANGE_LBL = [['1d', '1D'], ['5d', '5D'], ['1mo', '1M'], ['6mo', '6M'], ['1y', '1A'], ['5y', '5A']];
+    const RANGE_LBL = [['1d', '1D'], ['5d', '1S'], ['1mo', '1M'], ['6mo', '6M'], ['1y', '1A'], ['5y', '5A']];
 
     function openSheet(k, tempName) {
         if (!REG[k]) REG[k] = { key: k, kind: 'stock', sym: k, name: tempName || k, temp: true };
-        sheetKey = k; sheetRange = '1d'; sheetPts = null;
+        // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
+        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y' }[cfg.per] || '1d'; sheetPts = null;
         const sh = $('#mk-sheet');
         const cardEl = $('#mk-sheet-card');
         cardEl.style.transition = ''; cardEl.style.transform = ''; $('.mk-sheet-bg').style.opacity = '';
@@ -1636,7 +1637,7 @@
             tip.innerHTML = sheetRange === '1d' ? (lw ? esc(lw) + ' · arrasta no gráfico' : 'Hoje · arrasta no gráfico para ver valores') : `No período: <span class="${toneOf(ch)}-t">${fmtPct(ch)}</span> · arrasta no gráfico`;
         }
     }
-    const PERIOD = { '1d': 'hoje', '5d': '5 dias', '1mo': '1 mês', '6mo': '6 meses', '1y': '1 ano', '5y': '5 anos' };
+    const PERIOD = { '1d': 'hoje', '5d': '1 semana', '1mo': '1 mês', '6mo': '6 meses', '1y': '1 ano', '5y': '5 anos' };
     function renderSheetPrice() {
         const k = sheetKey; const q = qv(k); const a = REG[k];
         const el = $('#d-px'); if (!el) return;
