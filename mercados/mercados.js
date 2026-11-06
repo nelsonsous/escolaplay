@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.12.0';
+    const VERSION = '3.12.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -230,12 +230,14 @@
         if (!q || !q.time || (REG[k] && REG[k].kind === 'crypto')) return '';
         if (now() / 1000 - q.time < 15 * 60) return '';
         const d = new Date(q.time * 1000), t = new Date();
-        return d.toDateString() === t.toDateString() ? hhmm(q.time) : `${d.getDate()}/${d.getMonth() + 1}`;
+        const y = new Date(t); y.setDate(t.getDate() - 1);
+        return d.toDateString() === t.toDateString() ? hhmm(q.time) : d.toDateString() === y.toDateString() ? 'ontem' : `${d.getDate()}/${d.getMonth() + 1}`;
     }
     function pxWhenLong(k, q) {
         if (!q || !q.time || (REG[k] && REG[k].kind === 'crypto')) return '';
         const d = new Date(q.time * 1000), t = new Date();
-        const when = d.toDateString() === t.toDateString() ? `às ${hhmm(q.time)}` : `às ${hhmm(q.time)} de ${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
+        const y = new Date(t); y.setDate(t.getDate() - 1);
+        const when = d.toDateString() === t.toDateString() ? `às ${hhmm(q.time)}` : d.toDateString() === y.toDateString() ? `de ontem às ${hhmm(q.time)}` : `às ${hhmm(q.time)} de ${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
         return `Último preço ${when}${q.open === false ? ' · mercado fechado' : now() / 1000 - q.time < 15 * 60 ? ' · atualiza a cada 30 s' : ''}`;
     }
     const hhmm = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
