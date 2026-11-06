@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.19.0';
+    const VERSION = '3.20.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1682,7 +1682,28 @@
         const first = pts[0][1], lastv = pts[pts.length - 1][1];
         const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
-        sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 10, byIndex: sheetRange !== '1d' && !SHORT_R[sheetRange] });
+        const byIdx = sheetRange !== '1d' && !SHORT_R[sheetRange];
+        sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 14, byIndex: byIdx });
+        // preço máximo e mínimo do período, à direita
+        if (sheetDraw) {
+            const { g, w, Y, lo, hi } = sheetDraw, vals = pts.map((p) => p[1]), mx = Math.max(...vals), mn = Math.min(...vals);
+            g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'right';
+            g.fillText(fmtPx(mx, REG[sheetKey], q.currency), w - 2, Math.max(10, Y(mx) - 4));
+            g.textBaseline = 'top'; g.fillText(fmtPx(mn, REG[sheetKey], q.currency), w - 2, Math.min(sheetDraw.h - 12, Y(mn) + 4));
+            g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+        }
+        // linha do tempo: 4 marcas por baixo do gráfico
+        const ax = $('#d-axis');
+        if (ax) {
+            const t0 = pts[0][0], t1 = pts[pts.length - 1][0];
+            const tAt = (f) => byIdx ? pts[Math.round(f * (pts.length - 1))][0] : t0 + f * (t1 - t0);
+            const span = t1 - t0;
+            const fmt = (t) => { const d = new Date(t * 1000);
+                if (span <= 2 * 86400) return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+                if (span <= 200 * 86400) return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+                return d.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' }); };
+            ax.innerHTML = [0, 1 / 3, 2 / 3, 1].map((f) => `<span>${esc(fmt(tAt(f)))}</span>`).join('');
+        }
         const tip = $('#d-tip');
         if (hover != null && sheetDraw) {
             const { g, X, Y, h } = sheetDraw;
@@ -1736,7 +1757,7 @@
                 <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
             <div class="d-px" id="d-px"></div>
             <div class="d-tip" id="d-tip"></div>
-            <div class="d-chart"><canvas id="d-cv"></canvas><div class="loading" id="d-load">A carregar…</div></div>
+            <div class="d-chart"><canvas id="d-cv"></canvas><div class="d-axis num" id="d-axis"></div><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
             ${perfRow(k, q)}
             ${adviceBox(k, q)}
