@@ -63,8 +63,16 @@ test('locais: só da própria origem, máximo 5, sem duplicados, e apagar', asyn
     assert.equal((await post({ name: 'Outra', lat: 38.7201, lon: -9.1401 })).status, 200, 'mesmo sítio devolve o existente');
     for (let i = 1; i <= 4; i++) assert.equal((await post({ name: `L${i}`, lat: 38 + i, lon: -9 })).status, 201);
     assert.equal((await post({ name: 'L6', lat: 30, lon: -9 })).status, 409);
+    env.KV.m.set('analysis:casa', JSON.stringify({ titulo: 'Última análise', generatedAt: new Date().toISOString() }));
     assert.equal((await call('/api/places/casa', { method: 'DELETE', headers: { origin: ORIGIN } })).status, 204);
     assert.equal((await (await call('/api/places')).json()).length, 4);
+    // desligar não apaga a análise: ao voltar a ligar o mesmo local (mesmo id) aparece de novo
+    assert.ok(env.KV.m.has('analysis:casa'), 'a análise fica guardada');
+    assert.equal((await (await call('/api/analysis?lat=38.72&lon=-9.14')).json()).analysis, null, 'sem local registado não é servida');
+    const again = await post({ name: 'Casa', lat: 38.72, lon: -9.14 });
+    assert.equal(again.status, 201);
+    assert.equal((await again.json()).id, 'casa');
+    assert.equal((await (await call('/api/analysis?lat=38.72&lon=-9.14')).json()).analysis.titulo, 'Última análise');
 });
 
 test('análise: devolve a do local registado mais próximo (≤ 10 km)', async () => {

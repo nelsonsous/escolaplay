@@ -13,9 +13,16 @@ principal*; Android *⋮ → Instalar app*).
   demasiado dos outros. Os modelos regionais de alta resolução entram sozinhos quando o local está no domínio.
 - **212 cenários de 6 ensembles** — ECMWF ENS, AIFS ENS, Met Office MOGREPS-G, ICON-EPS, GEFS e GEPS, para as
   probabilidades (chuva ≥ 1 mm e ≥ 10 mm), intervalos P10–P90, confiança de cada dia e até quando a previsão é fiável.
-- **Observações** — a estação IPMA ou METAR mais próxima corrige as próximas horas (a correção vai-se desvanecendo).
-- **Verificação local** — compara as previsões a 1 dia dos últimos 7 dias com o que a estação mediu: o modelo mais
-  certeiro no teu local pesa mais e os vieses são corrigidos (ex.: em Lisboa o GFS estava 1,2 °C quente).
+- **Previsão oficial do IPMA** para o concelho mais próximo (até 15 km; 423 locais): hora a hora nos primeiros 3 dias
+  e diária a 10 dias (AROME 2,5 km revista pelos meteorologistas). Entra no consenso como mais uma fonte, com peso alto
+  nos primeiros dias (1,6, como o ECMWF), e aparece em **Fontes lado a lado**: hoje, amanhã e depois em cada modelo, no
+  IPMA e no ensemble (P50 com P10–P90), com quem discorda e quanto.
+- **Observações de várias estações** — todas as estações IPMA e METAR até 30 km, cada uma levada à altitude do ponto
+  (0,65 °C por 100 m) e pesada pela distância, pela altitude parecida e por ser recente; as que destoam ficam de fora.
+  A combinação corrige as próximas horas (a correção vai-se desvanecendo) e diz quanto se pode confiar nela.
+- **Verificação local** — compara as previsões a 1 dia dos últimos 7 dias com o que se mediu (METAR perto, ou várias
+  estações com o histórico guardado): o modelo mais certeiro no teu local pesa mais e os vieses são corrigidos (ex.: em
+  Lisboa o GFS estava 1,2 °C quente). O IPMA entra também, com as corridas anteriores guardadas pela tarefa agendada.
 - **Mudança face a ontem**, **normais de 10 anos** (anomalia), **próximas 2 horas** de 15 em 15 minutos.
 - **Indicadores** — trovoada (CAPE), nevoeiro, geada, calor, vento, chuva forte, neve, UV, tendência da pressão.
 - **Avisos oficiais do IPMA** do distrito.
@@ -69,8 +76,8 @@ node --test meteo/tests/*.test.mjs
 ## Fontes e licenças
 
 Dados de previsão: [Open-Meteo](https://open-meteo.com) (CC BY 4.0), com modelos do ECMWF, DWD, Météo-France,
-Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: [IPMA](https://api.ipma.pt) e NOAA Aviation Weather Center
-(METAR). Focos de calor: NASA FIRMS. Ocorrências: ANEPC via [fogos.pt](https://fogos.pt). Imagens: EUMETSAT.
+Met Office, NOAA, ECCC, JMA e CMA, e a previsão oficial do [IPMA](https://api.ipma.pt) por concelho. Observações e
+avisos: IPMA e NOAA Aviation Weather Center (METAR). Altitudes: Open-Meteo (Copernicus DEM). Focos de calor: NASA FIRMS. Ocorrências: ANEPC via [fogos.pt](https://fogos.pt). Imagens: EUMETSAT.
 Nomes de locais: OpenStreetMap/Nominatim.
 
 > A previsão é automática e pode falhar; em situações de risco seguem-se sempre os avisos do IPMA e da Proteção Civil.

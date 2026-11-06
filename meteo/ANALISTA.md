@@ -15,9 +15,11 @@ Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código ne
    ```
 
    Mostra as **regras da análise** e, para cada local registado na app: o que se observou nas últimas 24 h, a
-   análise anterior, as lições aprendidas sobre o local, o resumo numérico completo (consenso de 9 modelos,
-   212 cenários de ensemble, verificação local, avisos IPMA, incêndios) e a lista de imagens de satélite gravadas em
-   `/tmp/meteo/`. Se disser **"Sem locais registados"**, termina aqui.
+   análise anterior, as lições aprendidas sobre o local, o resumo numérico completo (consenso de 9 modelos e da
+   previsão oficial do IPMA, 212 cenários de ensemble, observação combinada de várias estações, verificação local,
+   **Fontes lado a lado** com as divergências, avisos IPMA, incêndios) e a lista de imagens de satélite gravadas em
+   `/tmp/meteo/`. Se disser **"Sem locais registados"**, termina aqui. Os locais são processados com 3 s de intervalo
+   (o Open-Meteo limita pedidos por minuto).
 
 2. Para cada local:
 
@@ -30,8 +32,9 @@ Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código ne
       - `lightning` (~1200 km): áreas de relâmpagos detetadas pelo MTG (se não houver, fica igual à cor natural).
       - `ir` (~1200 km): topos das nuvens — quanto mais brancos, mais frios e altos (convecção).
    2. **Pensa como meteorologista de serviço**: começa por verificar a análise anterior contra o observado; usa a
-      verificação local para pesar os modelos; liga o que o satélite mostra (o que vem a caminho e a que
-      velocidade) às próximas horas; no médio prazo fala em probabilidades; respeita os avisos do IPMA.
+      verificação local para pesar os modelos; **cruza a previsão oficial do IPMA com os modelos** e explica as
+      divergências (Fontes lado a lado); liga o que o satélite mostra (o que vem a caminho e a que velocidade) às
+      próximas horas; no médio prazo fala em probabilidades; respeita os avisos do IPMA.
    3. **Escreve** `/tmp/meteo/analise-<id>.json` com os campos de `meteo/docs/API.md` → "Análise"
       (titulo, resumo, agora, hoje, amanha, dias, tendencia, alertas, incendios, satelite, conselhos, fiabilidade,
       tecnica, verificacao, licoes). `dias` começa depois de amanhã. Em `licoes` mantém as lições anteriores que
@@ -50,6 +53,7 @@ Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código ne
 
 - A app mostra a análise do local registado mais próximo (até 10 km) no cartão **Análise do Claude**.
 - Os locais registam-se na própria app (máx. 5). Sem locais, a tarefa não faz nada.
-- O `dados.mjs` também guarda no KV as ocorrências da Proteção Civil (o fogos.pt recusa pedidos do Worker) e o
-  histórico horário da estação IPMA de cada local (a fonte só dá 24 h), que a app usa na verificação local.
+- O `dados.mjs` também guarda no KV as ocorrências da Proteção Civil (o fogos.pt recusa pedidos do Worker), o
+  histórico horário das estações IPMA usadas em cada local (até 6; a fonte só dá 24 h), que a app usa na verificação
+  local, e as corridas da previsão do IPMA de cada concelho (`ipma:runs:<id>`, 9 dias), para verificar também o IPMA.
 - Se uma fonte falhar, o resumo diz qual (`Fontes: …`); analisa com o que houver e diz-o em `fiabilidade`.

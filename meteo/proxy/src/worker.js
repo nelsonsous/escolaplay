@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const SCHEDULE = ['07:34', '13:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const MAX_PLACES = 5;
@@ -171,8 +171,8 @@ async function deletePlace(req, env, url, id) {
     if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
     const places = await getPlaces(env);
     if (!places.some((x) => x.id === id)) return json({ error: 'nao_encontrado', message: 'Local não encontrado.' }, 404);
+    // a análise e as lições ficam guardadas: ao voltar a ligar o mesmo local (mesmo id) aparece de novo a última análise
     await env.KV.put('places', JSON.stringify(places.filter((x) => x.id !== id)));
-    await env.KV.delete('analysis:' + id);
     return new Response(null, { status: 204 });
 }
 

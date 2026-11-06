@@ -1,8 +1,8 @@
 // Motor de previsão: junta modelos, ensembles e observações num só resultado (formato em docs/API.md).
 // Funções puras: corre no browser (PWA) e no Node (tarefa agendada do Claude). Sem acesso à rede.
-import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS } from './sources.js';
+import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS, IPMA_MODEL, IPMA_MAX_KM, OBS_RADIUS_KM } from './sources.js';
 import {
-    isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, wfrac, haversine, bearing, compass,
+    isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, robustKeep, wfrac, haversine, bearing, compass,
     WIND_FROM, vecDir, dewPoint, relHum,
 } from './stats.js';
 
@@ -11,6 +11,7 @@ export const RCM_LABELS = [null, 'Reduzido', 'Moderado', 'Elevado', 'Muito eleva
 const DOW = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 const MON = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const LAPSE = 0.0065; // °C por metro
+const DEW_LAPSE = 0.0018; // o ponto de orvalho desce menos com a altitude
 
 const HV = { temp: 'temperature_2m', feels: 'apparent_temperature', dew: 'dew_point_2m', rh: 'relative_humidity_2m', precip: 'precipitation',
     snow: 'snowfall', code: 'weather_code', cloud: 'cloud_cover', cloudLow: 'cloud_cover_low', wind: 'wind_speed_10m', dir: 'wind_direction_10m',
@@ -94,7 +95,8 @@ export function parseEns(ens) {
 const IPMA_DIR = [null, 0, 45, 90, 135, 180, 225, 270, 315, 0];
 const okv = (x) => (isNum(x) && x > -90 ? x : null);
 
-function ipmaSeries(obs, id) {
+// Série horária de uma estação IPMA (observations.json: { hora UTC: { id: registo } })
+export function ipmaSeries(obs, id) {
     const out = [];
     for (const [t, recs] of Object.entries(obs || {})) {
         const r = recs && recs[id];
@@ -146,6 +148,239 @@ export function pickStation({ ipmaStations, ipmaObs, metar, lat, lon, nowMs }) {
     return cands[0];
 }
 
+// Todas as estações IPMA e METAR até radiusKm com observação recente (≤ 2,5 h), da mais próxima para a mais longe
+export function nearStations({ ipmaStations, ipmaObs, metar, lat, lon, nowMs, radiusKm = OBS_RADIUS_KM, maxAgeH = 2.5 }) {
+    const out = [];
+    const lastOf = (series) => { for (let i = series.length - 1; i >= 0; i--) if (isNum(series[i].temp)) return series[i]; return null; };
+    const feats = Array.isArray(ipmaStations) ? ipmaStations : ipmaStations?.features || [];
+    if (ipmaObs && feats.length) {
+        for (const f of feats) {
+            const c = f?.geometry?.coordinates;
+            if (!Array.isArray(c) || !isNum(c[0]) || !isNum(c[1])) continue;
+            const d = haversine(lat, lon, c[1], c[0]);
+            if (d > radiusKm) continue;
+            const id = String(f.properties.idEstacao), series = ipmaSeries(ipmaObs, id), last = lastOf(series);
+            if (last && nowMs - last.ms <= maxAgeH * 36e5) out.push({ source: 'IPMA', id, name: f.properties.localEstacao, lat: c[1], lon: c[0], elev: null, distanceKm: d, last, series });
+        }
+    }
+    const byId = new Map();
+    for (const r of metarRows(metar)) { if (!byId.has(r.id)) byId.set(r.id, []); byId.get(r.id).push(r); }
+    for (const [id, list] of byId) {
+        list.sort((a, b) => a.ms - b.ms);
+        const d = haversine(lat, lon, list[0].lat, list[0].lon), last = lastOf(list);
+        if (last && d <= radiusKm && nowMs - last.ms <= maxAgeH * 36e5) out.push({ source: 'METAR', id, name: list[0].name, lat: list[0].lat, lon: list[0].lon, elev: isNum(list[0].elev) ? list[0].elev : null, distanceKm: d, last, series: list });
+    }
+    return out.sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+// Peso de cada estação para o ponto: distância 1/(d+2)², semelhança de altitude exp(−|Δz|/150) e frescura.
+// v = variância do erro de representatividade (°C²), usada para saber quanto confiar na observação combinada.
+const freshOf = (ageMin) => (ageMin <= 75 ? 1 : Math.exp(-(ageMin - 75) / 60));
+function weighStations(cands, { elevs = {}, targetElev, nowMs }) {
+    const rows = cands.map((c) => {
+        const elev = isNum(c.elev) ? c.elev : isNum(elevs[c.id]) ? elevs[c.id] : null;
+        const dz = isNum(elev) && isNum(targetElev) ? elev - targetElev : null;
+        const ageMin = (nowMs - c.last.ms) / 6e4, fresh = freshOf(ageMin);
+        const geo = (1 / (c.distanceKm + 2) ** 2) * (dz == null ? 0.5 : Math.exp(-Math.abs(dz) / 150));
+        const v = (0.4 + 0.06 * c.distanceKm) ** 2 + ((dz == null ? 100 : dz) / 250) ** 2;
+        return { ...c, elev, dz, ageMin, fresh, geo, w: geo * fresh, v: v / fresh, twin: null };
+    });
+    // METAR e estação IPMA no mesmo sítio (aeroportos): contam como um só local
+    for (const r of rows) {
+        if (r.source !== 'METAR') continue;
+        const t = rows.find((x) => x.source === 'IPMA' && haversine(r.lat, r.lon, x.lat, x.lon) <= 2);
+        if (t) { for (const x of [r, t]) { x.geo *= 0.5; x.w *= 0.5; x.v *= 2; } r.twin = t.name; t.twin = r.name; }
+    }
+    return rows;
+}
+
+// Observação combinada no ponto: anomalias (observado ajustado à altitude − consenso à mesma hora), sem as discrepantes
+function blendObs(rows, { cAt, nowMs }) {
+    for (const r of rows) {
+        const o = r.last, adjT = (r.dz ?? 0) * LAPSE, adjD = (r.dz ?? 0) * DEW_LAPSE;
+        r.tAdj = isNum(o.temp) ? o.temp + adjT : null;
+        r.dAdj = isNum(o.dew) ? o.dew + adjD : null;
+        const cT = cAt(o.ms, 'temp'), cD = cAt(o.ms, 'dew');
+        r.aT = isNum(r.tAdj) && isNum(cT) ? r.tAdj - cT : null;
+        r.aD = isNum(r.dAdj) && isNum(cD) ? r.dAdj - cD : null;
+    }
+    const keep = robustKeep(rows.map((r) => r.aT), rows.map((r) => r.w), 1.5);
+    rows.forEach((r, i) => { r.used = !!keep[i]; });
+    const U = rows.filter((r) => r.used);
+    if (!U.length) return null;
+    const W = U.reduce((s, r) => s + r.w, 0);
+    if (!(W > 0)) return null;
+    const ws = U.map((r) => r.w);
+    const A = wmean(U.map((r) => r.aT), ws), AD = wmean(U.map((r) => r.aD), ws);
+    const ms = U.reduce((s, r) => s + r.w * r.last.ms, 0) / W;
+    const dEff = U.reduce((s, r) => s + r.w * r.distanceKm, 0) / W;
+    const zEff = U.reduce((s, r) => s + r.w * Math.abs(r.dz ?? 100), 0) / W;
+    // confiança na observação combinada: inversa da variância, sem descer abaixo de 60% da melhor estação
+    // (os erros das estações estão correlacionados) e pior quando as estações discordam entre si
+    const info = U.reduce((s, r) => s + 1 / r.v, 0);
+    const sd = U.length >= 3 ? wstd(U.map((r) => r.aT), ws) : 0;
+    const varB = Math.max(1 / info, 0.6 * Math.min(...U.map((r) => r.v)), 0.5 * sd * sd);
+    const repr = clamp(1.5 / (1.5 + varB), 0, 0.95);
+    for (const r of rows) r.share = r.used ? r.w / W : 0;
+    return { A, AD, ms, dEff, zEff, repr, sd, n: U.length, rows };
+}
+// O que já se mediu hoje no ponto: média hora a hora das estações usadas (ajustadas à altitude), só nas horas
+// em que reportaram estações com pelo menos 40% do peso
+function seenSeries(rows, date, off) {
+    const U = rows.filter((r) => r.used);
+    const G = U.reduce((s, r) => s + r.geo, 0);
+    const byHour = new Map();
+    for (const r of U) {
+        for (const o of r.series || []) {
+            if (!isNum(o.temp)) continue;
+            const h = Math.round(o.ms / 36e5);
+            if (Math.abs(o.ms - h * 36e5) > 10 * 6e4 || !msToLocal(h * 36e5, off).startsWith(date)) continue;
+            if (!byHour.has(h)) byHour.set(h, new Map());
+            byHour.get(h).set(r, o.temp + (r.dz ?? 0) * LAPSE);
+        }
+    }
+    const out = [];
+    for (const m of byHour.values()) {
+        let s = 0, w = 0;
+        for (const [r, t] of m) { s += r.geo * t; w += r.geo; }
+        if (G > 0 && w >= 0.4 * G) out.push(s / w);
+    }
+    return out;
+}
+// Observação combinada sem o resto do motor (testes e diagnóstico): consensus = número ou função (ms, chave) → valor
+export function stationBlend({ ipmaStations, ipmaObs, metar, lat, lon, nowMs, elevs = {}, targetElev, consensus }) {
+    const cands = nearStations({ ipmaStations, ipmaObs, metar, lat, lon, nowMs });
+    if (!cands.length) return null;
+    const cAt = typeof consensus === 'function' ? consensus : () => consensus;
+    const b = blendObs(weighStations(cands, { elevs, targetElev, nowMs }), { cAt, nowMs });
+    if (!b) return null;
+    const U = b.rows.filter((r) => r.used);
+    return { ...b, label: stationLabel(U), used: U, temp: isNum(b.A) ? cAt(b.ms, 'temp') + b.A : null };
+}
+const stationLabel = (U) => {
+    const names = U.slice().sort((a, b) => b.w - a.w).map((r) => r.name);
+    return names.length <= 3 ? names.join(', ') : `${names.slice(0, 2).join(', ')} e mais ${names.length - 2}`;
+};
+
+// ---------- previsão oficial do IPMA (por concelho) ----------
+const IPMA_COMPASS = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, SO: 225, W: 270, O: 270, NW: 315, NO: 315 };
+// tipo de tempo IPMA (weather-type-classe.json) → código WMO do resto do motor
+const IPMA_WX = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 2, 6: 81, 7: 80, 8: 82, 9: 63, 10: 61, 11: 65, 12: 61, 13: 61, 14: 65, 15: 53, 16: 45, 17: 45,
+    18: 73, 19: 95, 20: 95, 21: 96, 22: 0, 23: 95, 24: 2, 25: 2, 26: 45, 27: 3, 28: 85, 29: 71, 30: 71 };
+const IPMA_TXT = { 1: 'Céu limpo', 2: 'Céu pouco nublado', 3: 'Céu parcialmente nublado', 4: 'Céu muito nublado ou encoberto', 5: 'Céu nublado por nuvens altas',
+    6: 'Aguaceiros/chuva', 7: 'Aguaceiros/chuva fracos', 8: 'Aguaceiros/chuva fortes', 9: 'Chuva/aguaceiros', 10: 'Chuva fraca ou chuvisco', 11: 'Chuva/aguaceiros fortes',
+    12: 'Períodos de chuva', 13: 'Períodos de chuva fraca', 14: 'Períodos de chuva forte', 15: 'Chuvisco', 16: 'Neblina', 17: 'Nevoeiro ou nuvens baixas', 18: 'Neve',
+    19: 'Trovoada', 20: 'Aguaceiros e possibilidade de trovoada', 21: 'Granizo', 22: 'Geada', 23: 'Chuva e possibilidade de trovoada', 24: 'Nebulosidade convectiva',
+    25: 'Céu com períodos de muito nublado', 26: 'Nevoeiro', 27: 'Céu nublado', 28: 'Aguaceiros de neve', 29: 'Chuva e neve', 30: 'Chuva e neve' };
+const WIND_CLS = [null, 'fraco', 'moderado', 'forte', 'muito forte'];
+const ipNum = (s) => { const x = typeof s === 'number' ? s : parseFloat(s); return Number.isFinite(x) && x > -90 ? x : null; };
+
+// Concelho (ou local) da previsão do IPMA mais próximo, até maxKm
+export function nearestIpmaLocal(locations, lat, lon, maxKm = IPMA_MAX_KM) {
+    let best = null;
+    for (const x of Array.isArray(locations) ? locations : []) {
+        const la = Number(x.latitude), lo = Number(x.longitude);
+        if (!isNum(la) || !isNum(lo)) continue;
+        const d = haversine(lat, lon, la, lo);
+        if (!best || d < best.distanceKm) best = { id: x.globalIdLocal, name: x.local, lat: la, lon: lo, distanceKm: d, idAreaAviso: x.idAreaAviso || null, idDistrito: x.idDistrito ?? null };
+    }
+    return best && best.distanceKm <= maxKm ? best : null;
+}
+
+// Previsão agregada do IPMA → "modelo" alinhado com as horas e os dias dos outros (hora local nos dois lados)
+export function ipmaModel(forecast, P) {
+    const data = Array.isArray(forecast?.data) ? forecast.data : null;
+    const local = forecast?.local;
+    if (!data?.length || !local) return null;
+    const pts = [], D = new Map();
+    let updated = null;
+    for (const r of data) {
+        const t = String(r?.dataPrev || '').slice(0, 16);
+        if (t.length !== 16) continue;
+        if (!updated && r.dataUpdate) updated = String(r.dataUpdate).slice(0, 16);
+        if (r.idPeriodo === 24) { D.set(t.slice(0, 10), r); continue; }
+        if (r.idPeriodo !== 1 && r.idPeriodo !== 3) continue;
+        const temp = ipNum(r.tMed), rh = ipNum(r.hR);
+        pts.push({ t, ms: Date.parse(t + ':00Z'), step: r.idPeriodo, temp, rh, wind: ipNum(r.ffVento), dir: IPMA_COMPASS[r.ddVento] ?? null,
+            pop: ipNum(r.probabilidadePrecipita), code: IPMA_WX[r.idTipoTempo] ?? null, dew: dewPoint(temp, rh) });
+    }
+    pts.sort((a, b) => a.ms - b.ms);
+    const H = Object.fromEntries(['temp', 'feels', 'dew', 'rh', 'precip', 'snow', 'code', 'cloud', 'cloudLow', 'wind', 'dir', 'gust', 'pressure', 'vis', 'cape', 'uv', 'isDay', 'frz'].map((k) => [k, []]));
+    const hp = [];
+    let j = 0, nH = 0;
+    for (let i = 0; i < P.times.length; i++) {
+        const ms = Date.parse(P.times[i] + ':00Z');
+        while (j < pts.length && pts[j].ms < ms) j++;
+        const nx = pts[j], pv = pts[j - 1];
+        const exact = nx && nx.ms === ms ? nx : null;
+        // entre pontos de 3 em 3 h: interpolação linear (temperatura, humidade, vento); tipo e direção do período que acaba a seguir
+        const near = !exact && nx && pv && nx.ms - pv.ms <= 3 * 36e5 ? [pv, nx, (ms - pv.ms) / (nx.ms - pv.ms)] : null;
+        const val = (k) => (exact ? exact[k] : near && isNum(near[0][k]) && isNum(near[1][k]) ? near[0][k] + near[2] * (near[1][k] - near[0][k]) : null);
+        for (const k of ['temp', 'rh', 'wind', 'dew']) H[k][i] = val(k);
+        H.dir[i] = exact ? exact.dir : near ? near[1].dir : null;
+        H.code[i] = exact ? exact.code : near ? near[1].code : null;
+        if (isNum(H.temp[i])) nH++;
+        // probabilidade de 3 em 3 h (nas horas intermédias vem −99): vale para o período que acaba nesse ponto
+        let p = null;
+        for (let k = j; k < pts.length && pts[k].ms - ms < 3 * 36e5; k++) if (isNum(pts[k].pop)) { p = pts[k].pop; break; }
+        if (p == null && (exact || near)) for (let k = j - 1; k >= 0 && ms - pts[k].ms < 3 * 36e5; k--) if (isNum(pts[k].pop)) { p = pts[k].pop; break; }
+        hp[i] = isNum(p) ? p / 100 : null;
+    }
+    const dkeys = ['code', 'tmax', 'tmin', 'feelsMax', 'precip', 'windMax', 'gustMax', 'dir', 'uvMax', 'sunrise', 'sunset'];
+    const d = Object.fromEntries(dkeys.map((k) => [k, []]));
+    const dp = [], wcls = [], types = [];
+    P.dates.forEach((date, k) => {
+        const r = D.get(date);
+        d.tmax[k] = r ? ipNum(r.tMax) : null; d.tmin[k] = r ? ipNum(r.tMin) : null;
+        d.code[k] = r ? IPMA_WX[r.idTipoTempo] ?? null : null; d.dir[k] = r ? IPMA_COMPASS[r.ddVento] ?? null : null;
+        d.uvMax[k] = r ? ipNum(r.iUv) : null;
+        const p = r ? ipNum(r.probabilidadePrecipita) : null;
+        dp[k] = isNum(p) ? p / 100 : null; wcls[k] = r ? ipNum(r.idFfxVento) : null; types[k] = r ? r.idTipoTempo ?? null : null;
+    });
+    if (nH < 6 && !d.tmax.some(isNum)) return null;
+    // os 10 dias tal como o IPMA os publica (para o resumo e a app)
+    const daily = [...D.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, r]) => {
+        const p = ipNum(r.probabilidadePrecipita);
+        return { date, tmax: ipNum(r.tMax), tmin: ipNum(r.tMin), pop: isNum(p) ? Math.round(p) : null, code: IPMA_WX[r.idTipoTempo] ?? null, type: r.idTipoTempo ?? null,
+            text: IPMA_TXT[r.idTipoTempo] || null, uv: ipNum(r.iUv), wind: WIND_CLS[ipNum(r.idFfxVento)] || null, dir: r.ddVento || null };
+    });
+    return { id: IPMA_MODEL.id, meta: IPMA_MODEL, h: H, d, m15: [], hp, dp, wcls, types, skill: null, factor: 1, corrDay: 0, corrNight: 0,
+        ipma: { id: local.id, name: local.name, distanceKm: local.distanceKm, updated, hours: nH, days: d.tmax.filter(isNum).length, daily } };
+}
+// Arquivo das corridas do IPMA (a API só dá a atual; a tarefa agendada guarda-as no KV):
+// registo compacto de uma corrida { u: atualização, h: [[hora local, temperatura], …] }
+export function ipmaRunRecord(data) {
+    if (!Array.isArray(data)) return null;
+    const u = String(data.find((r) => r?.dataUpdate)?.dataUpdate || '').slice(0, 16);
+    const h = data.filter((r) => r && (r.idPeriodo === 1 || r.idPeriodo === 3) && isNum(ipNum(r.tMed))).map((r) => [String(r.dataPrev).slice(0, 16), ipNum(r.tMed)]);
+    return u.length === 16 && h.length ? { u, h } : null;
+}
+// Para cada hora, a previsão da corrida mais recente feita 18 a 42 h antes (como as "previsões a 1 dia" dos modelos)
+export function ipmaPrevFromRuns(runs) {
+    if (!Array.isArray(runs) || !runs.length) return null;
+    const best = new Map();
+    for (const r of runs) {
+        const u = Date.parse(r?.u + ':00Z');
+        if (!isNum(u)) continue;
+        for (const [t, v] of r.h || []) {
+            const lead = (Date.parse(t + ':00Z') - u) / 36e5;
+            if (!(lead >= 18 && lead <= 42) || !isNum(v)) continue;
+            const b = best.get(t);
+            if (!b || u > b.u) best.set(t, { u, v });
+        }
+    }
+    if (best.size < 6) return null;
+    const times = [...best.keys()].sort();
+    return { times, temp: times.map((t) => best.get(t).v) };
+}
+// Corridas anteriores do IPMA guardadas pela tarefa agendada (previsão a ~1 dia) → coluna para a verificação local
+function withIpmaPrev(prev, ipmaPrev) {
+    const H = prev?.hourly;
+    if (!H?.time || !Array.isArray(ipmaPrev?.times) || !Array.isArray(ipmaPrev?.temp)) return prev;
+    const map = new Map(ipmaPrev.times.map((t, i) => [String(t).slice(0, 16), ipmaPrev.temp[i]]));
+    return { ...prev, hourly: { ...H, temperature_2m_previous_day1_ipma: H.time.map((t) => (isNum(map.get(t)) ? map.get(t) : null)) } };
+}
+
 // ---------- verificação local (erro de cada modelo a 1 dia contra a estação) ----------
 function verify(prev, series, ctx) {
     const H = prev?.hourly;
@@ -177,6 +412,34 @@ function verify(prev, series, ctx) {
     }
     return Object.keys(res).length ? res : null;
 }
+// Junta a verificação de várias estações: peso = distância/altitude × horas (até 72 h por estação, para uma série
+// longa não abafar as outras). n = total de comparações; nMax = a série mais longa (para não exagerar a confiança no viés).
+function combineVer(parts) {
+    const res = {};
+    for (const id of new Set(parts.flatMap((p) => Object.keys(p.ver)))) {
+        let n = 0, nMax = 0, sw = 0, sb = 0, sa = 0, swd = 0, sbd = 0, nd = 0, swn = 0, sbn = 0, nn = 0;
+        for (const p of parts) {
+            const v = p.ver[id];
+            if (!v) continue;
+            const w = p.w * Math.min(v.n, 72);
+            n += v.n; nMax = Math.max(nMax, v.n); sw += w; sb += w * v.bias; sa += w * v.mae;
+            if (isNum(v.biasDay)) { const x = p.w * Math.min(v.nDay, 36); swd += x; sbd += x * v.biasDay; nd = Math.max(nd, v.nDay); }
+            if (isNum(v.biasNight)) { const x = p.w * Math.min(v.nNight, 36); swn += x; sbn += x * v.biasNight; nn = Math.max(nn, v.nNight); }
+        }
+        if (sw > 0) res[id] = { n, nMax, bias: sb / sw, mae: sa / sw, nDay: nd, biasDay: swd > 0 ? sbd / swd : null, nNight: nn, biasNight: swn > 0 ? sbn / swn : null };
+    }
+    return Object.keys(res).length ? res : null;
+}
+function mergeSeries(...lists) {
+    const map = new Map();
+    for (const l of lists) for (const o of Array.isArray(l) ? l : []) if (o && isNum(o.ms) && isNum(o.temp)) map.set(o.ms, o);
+    return [...map.values()].sort((a, b) => a.ms - b.ms);
+}
+const spanDays = (s) => {
+    let a = Infinity, b = -Infinity;
+    for (const o of s || []) if (isNum(o?.ms)) { a = Math.min(a, o.ms); b = Math.max(b, o.ms); }
+    return b > a ? Math.max(1, Math.round((b - a) / 864e5)) : 1;
+};
 const shrink = (b, n) => (isNum(b) ? clamp((-b * n) / (n + 36), -2.5, 2.5) : 0);
 // Fração "dia" da correção por hora local (tarde = erro de dia; madrugada = erro de noite)
 const dayFrac = (h) => (h <= 5 ? 0 : h < 11 ? (h - 5) / 6 : h <= 17 ? 1 : h < 23 ? (23 - h) / 6 : 0);
@@ -273,33 +536,66 @@ export function buildForecast(raw, opts = {}) {
     let nowIdx = tMs.findIndex((ms) => ms > nowMs) - 1;
     if (nowIdx < 0) nowIdx = 0;
     const targetElev = isNum(opts.elevation) ? opts.elevation : P.elevation;
+    const kOf = (date) => Math.round((Date.parse(date + 'T00:00:00Z') - Date.parse(todayDate + 'T00:00:00Z')) / 864e5);
 
-    // 1) Estação e verificação local
+    // 0) Previsão oficial do IPMA para o concelho: mais uma fonte, com peso alto nos primeiros dias
+    const ipmaM = ipmaModel(raw.ipma?.forecast, P);
+    if (ipmaM) P.models.push(ipmaM);
+    // peso de base de cada fonte para o dia k (0 = hoje) e a antecedência em horas
+    const wBase = (m, k, lead) => (m.meta.wDay ? m.meta.wDay[Math.max(0, k)] ?? 0
+        : (lead != null ? lead > 48 : k >= 2) && m.meta.wAfter48 != null ? m.meta.wAfter48 : m.meta.w);
+
+    // 1) Estações perto (IPMA e METAR até 30 km) e verificação local
     const st = raw.station || pickStation({ ipmaStations: raw.ipma?.stations, ipmaObs: raw.ipma?.obs, metar: raw.metar, lat, lon, nowMs });
-    const stationElev = st ? (isNum(st.elev) ? st.elev : raw.stationElev ?? null) : null;
-    const dElev = isNum(stationElev) && isNum(targetElev) ? Math.abs(stationElev - targetElev) : null;
-    const reprW = st ? clamp(1 - (st.distanceKm - 3) / 20, 0, 1) * (dElev == null ? 0.6 : clamp(1 - dElev / 300, 0, 1)) : 0;
-    // estação para verificação: a que tem mais histórico (METAR 7 dias > IPMA 24 h + histórico guardado)
-    let vs = null;
-    const mh = metarRows(raw.metarHistory);
-    if (mh.length >= 48) {
-        const r0w = mh[0];
-        vs = { source: 'METAR', name: r0w.name, distanceKm: haversine(lat, lon, r0w.lat, r0w.lon), elev: r0w.elev, series: mh };
-    } else if (st) vs = { source: st.source, name: st.name, distanceKm: st.distanceKm, elev: stationElev, series: [...(raw.obsHistory || []), ...st.series] };
-    const vElev = vs && isNum(vs.elev) ? vs.elev : null;
-    const vdElev = isNum(vElev) && isNum(targetElev) ? Math.abs(vElev - targetElev) : null;
-    const ver = vs && vs.distanceKm <= 20 && (vdElev == null || vdElev <= 250) ? verify(raw.prev, vs.series, { stationElev: vElev, targetElev, nowMs, offset: off }) : null;
+    const elevs = { ...(raw.stationElevs || {}) };
+    if (st && isNum(raw.stationElev) && !isNum(elevs[st.id])) elevs[st.id] = raw.stationElev;
+    const cands = nearStations({ ipmaStations: raw.ipma?.stations, ipmaObs: raw.ipma?.obs, metar: raw.metar, lat, lon, nowMs });
+    if (st && !cands.some((c) => c.id === st.id)) cands.push({ ...st, elev: isNum(st.elev) ? st.elev : null });
+    const SW = weighStations(cands, { elevs, targetElev, nowMs });
+    // verificação: METAR perto (≤ 12 km) com 7 dias → só ele; senão várias estações (IPMA 24 h + histórico guardado,
+    // METAR mais longe com 7 dias), pesadas pela distância e pela altitude
+    const prevV = ipmaM ? withIpmaPrev(raw.prev, raw.ipmaPrev) : raw.prev;
+    const mh = metarRows(raw.metarHistory).sort((a, b) => a.ms - b.ms); // a fonte vem da mais recente para a mais antiga
+    const mhS = mh.length >= 48 ? { id: mh[0].id, name: mh[0].name, lat: mh[0].lat, lon: mh[0].lon, elev: isNum(mh[0].elev) ? mh[0].elev : null, distanceKm: haversine(lat, lon, mh[0].lat, mh[0].lon) } : null;
+    const mhDz = mhS && isNum(mhS.elev) && isNum(targetElev) ? Math.abs(mhS.elev - targetElev) : null;
+    let vset = null;
+    if (mhS && mhS.distanceKm <= 12 && (mhDz == null || mhDz <= 150)) {
+        const ver = verify(prevV, mh, { stationElev: mhS.elev, targetElev, nowMs, offset: off });
+        if (ver) vset = { ver, source: 'METAR', label: mhS.name, names: [mhS.name], distanceKm: mhS.distanceKm, days: 7, stations: 1, biasOk: mhDz == null || mhDz <= 150 };
+    }
+    if (!vset) {
+        const parts = [];
+        const vrows = SW.filter((s) => s.distanceKm <= 25 && (s.dz == null || Math.abs(s.dz) <= 250));
+        if (mhS && mhS.distanceKm <= 25 && !vrows.some((s) => s.id === mhS.id)) vrows.push(...weighStations([{ source: 'METAR', ...mhS, last: mh[mh.length - 1], series: mh }], { elevs, targetElev, nowMs }));
+        for (const s of vrows) {
+            const series = s.source === 'METAR' ? (mhS && s.id === mhS.id ? mh : s.series)
+                : mergeSeries(raw.obsHistories?.[s.id], st && s.id === st.id ? raw.obsHistory : null, s.series);
+            const ver = verify(prevV, series, { stationElev: s.elev, targetElev, nowMs, offset: off });
+            if (ver) parts.push({ s, w: s.geo, ver, days: spanDays(series) });
+        }
+        const ver = parts.length ? combineVer(parts) : null;
+        if (ver) {
+            const W = parts.reduce((a, p) => a + p.w, 0);
+            const dEff = parts.reduce((a, p) => a + p.w * p.s.distanceKm, 0) / W, zEff = parts.reduce((a, p) => a + p.w * Math.abs(p.s.dz ?? 100), 0) / W;
+            const srcs = ['IPMA', 'METAR'].filter((x) => parts.some((p) => p.s.source === x));
+            const top = parts.slice().sort((a, b) => b.w - a.w).map((p) => p.s.name);
+            // as corridas anteriores só cobrem os últimos 7 dias
+            vset = { ver, source: srcs.join('+'), label: stationLabel(parts.map((p) => p.s)), names: top, distanceKm: dEff, days: Math.min(7, Math.max(...parts.map((p) => p.days))),
+                stations: parts.length, biasOk: dEff <= 15 && zEff <= 150 };
+        }
+    }
+    const ver = vset?.ver || null;
     if (ver) {
-        const maes = Object.values(ver).filter((v) => v.n >= 24).map((v) => v.mae);
+        const maes = Object.entries(ver).filter(([id, v]) => v.n >= 24 && id !== 'ipma').map(([, v]) => v.mae);
         const med = maes.length ? wmedian(maes) : null;
-        const biasOk = vs.distanceKm <= 15 && (vdElev == null || vdElev <= 150);
         for (const m of P.models) {
             const v = ver[m.id];
             if (v && v.n >= 24 && med) {
                 m.skill = { mae: r1(v.mae), bias: r1(v.bias), n: v.n };
                 m.factor = clamp((med / Math.max(v.mae, 0.3)) ** 2, 0.4, 2.5);
-                if (biasOk) { m.corrDay = shrink(v.biasDay ?? v.bias, v.nDay || v.n); m.corrNight = shrink(v.biasNight ?? v.bias, v.nNight || v.n); }
-            } else if (maes.length) m.factor = 0.7;
+                const nb = v.nMax ?? v.n;
+                if (vset.biasOk) { m.corrDay = shrink(v.biasDay ?? v.bias, Math.min(v.nDay || nb, nb)); m.corrNight = shrink(v.biasNight ?? v.bias, Math.min(v.nNight || nb, nb)); }
+            } else if (maes.length && !m.meta.official) m.factor = 0.7; // sem verificação (o IPMA mantém o peso oficial)
         }
     }
 
@@ -307,9 +603,9 @@ export function buildForecast(raw, opts = {}) {
     const ensP = parseEns(raw.ens);
     const ensHourIdx = new Map((ensP?.hours || []).map((t, i) => [t, i]));
     const H = P.times.map((time, i) => {
-        const lead = (tMs[i] - nowMs) / 36e5, hr = hourOf(time);
+        const lead = (tMs[i] - nowMs) / 36e5, hr = hourOf(time), kd = kOf(time.slice(0, 10));
         const ms = P.models;
-        const wT = ms.map((m) => (lead > 48 && m.meta.wAfter48 != null ? m.meta.wAfter48 : m.meta.w) * m.factor);
+        const wT = ms.map((m) => wBase(m, kd, lead) * m.factor);
         const wP = ms.map((m, k) => wT[k] * (m.meta.wPrecip || 1));
         const col = (k, corr) => ms.map((m) => { const v = m.h[k][i]; return isNum(v) ? v + (corr ? corrAt(m, hr) : 0) : null; });
         const temps = col('temp', true), precs = col('precip');
@@ -318,7 +614,13 @@ export function buildForecast(raw, opts = {}) {
         const cw = okW(codes, wT), cwSum = cw.reduce((a, b) => a + b, 0) || 1;
         const vote = (f) => codes.reduce((s, c, k) => s + (isNum(c) && f(c) ? cw[k] : 0), 0) / cwSum;
         const wetW = codes.reduce((s, c, k) => s + (isNum(c) && c >= 50 ? cw[k] : 0), 0);
-        const popDet = wfrac(precs, wP, 0.1);
+        // chuva ≥ 0,1 mm: voto de cada modelo; o IPMA vota com a sua probabilidade
+        let pHit = 0, pW = 0;
+        ms.forEach((m, k) => {
+            if (!(wP[k] > 0)) return;
+            if (isNum(precs[k])) { pW += wP[k]; if (precs[k] >= 0.1) pHit += wP[k]; } else if (isNum(m.hp?.[i])) { pW += wP[k]; pHit += wP[k] * m.hp[i]; }
+        });
+        const popDet = pW > 0 ? pHit / pW : null;
         let pop = popDet;
         const ei = ensHourIdx.get(time);
         if (ensP && ei != null) {
@@ -342,33 +644,50 @@ export function buildForecast(raw, opts = {}) {
         return x;
     });
 
-    // 3) Correção pela observação atual (decai em ~5 h; ponto de orvalho ~8 h)
-    let correction = null, obsOut = null;
-    if (st) {
-        const o = st.last;
-        const adj = isNum(stationElev) && isNum(targetElev) ? (stationElev - targetElev) * LAPSE : 0;
-        const i0 = tMs.findIndex((ms) => ms > o.ms) - 1;
-        if (i0 >= 0 && i0 + 1 < H.length && isNum(H[i0].temp) && isNum(H[i0 + 1].temp)) {
-            const f = (o.ms - tMs[i0]) / 36e5;
-            const cAt = (k) => (isNum(H[i0][k]) && isNum(H[i0 + 1][k]) ? H[i0][k] + f * (H[i0 + 1][k] - H[i0][k]) : null);
-            const aT = isNum(o.temp) ? clamp(o.temp + adj - cAt('temp'), -6, 6) : null;
-            const cDew = cAt('dew');
-            const aD = isNum(o.dew) && isNum(cDew) ? clamp(o.dew + adj - cDew, -6, 6) : null;
-            if (reprW > 0 && (isNum(aT) || isNum(aD))) {
-                for (let i = i0; i < H.length; i++) {
-                    const h = Math.max(0, (tMs[i] - o.ms) / 36e5);
-                    if (isNum(aT)) {
-                        const d = reprW * aT * Math.exp(-h / 5);
-                        for (const k of ['temp', 'tempLo', 'tempHi', 'feels']) if (isNum(H[i][k])) H[i][k] += d;
-                    }
-                    if (isNum(aD) && isNum(H[i].dew)) H[i].dew += reprW * aD * Math.exp(-h / 8);
-                    if (isNum(H[i].dew) && isNum(H[i].temp)) { H[i].dew = Math.min(H[i].dew, H[i].temp); H[i].rh = relHum(H[i].temp, H[i].dew); }
+    // 3) Correção pela observação combinada das estações perto (decai em ~5 h; ponto de orvalho ~8 h)
+    let correction = null, obsOut = null, reprW = 0, blend = null;
+    // consenso (ainda sem correção) num instante qualquer, interpolado entre horas
+    const cAt = (ms, k) => {
+        const i0 = tMs.findIndex((t) => t > ms) - 1;
+        if (i0 < 0 || i0 + 1 >= H.length) return null;
+        const a = H[i0][k], b = H[i0 + 1][k];
+        return isNum(a) && isNum(b) ? a + ((ms - tMs[i0]) / 36e5) * (b - a) : null;
+    };
+    if (SW.length) blend = blendObs(SW, { cAt, nowMs });
+    if (blend) {
+        reprW = blend.repr;
+        const aT = isNum(blend.A) ? clamp(blend.A, -6, 6) : null, aD = isNum(blend.AD) ? clamp(blend.AD, -6, 6) : null;
+        const i0 = tMs.findIndex((ms) => ms > blend.ms) - 1;
+        const cT = cAt(blend.ms, 'temp'), cD = cAt(blend.ms, 'dew');
+        if (i0 >= 0 && reprW > 0 && (isNum(aT) || isNum(aD))) {
+            for (let i = i0; i < H.length; i++) {
+                const h = Math.max(0, (tMs[i] - blend.ms) / 36e5);
+                if (isNum(aT)) {
+                    const d = reprW * aT * Math.exp(-h / 5);
+                    for (const k of ['temp', 'tempLo', 'tempHi', 'feels']) if (isNum(H[i][k])) H[i][k] += d;
                 }
-                correction = { temp: r1(isNum(aT) ? reprW * aT : 0), dew: r1(isNum(aD) ? reprW * aD : 0), decayHours: 5 };
+                if (isNum(aD) && isNum(H[i].dew)) H[i].dew += reprW * aD * Math.exp(-h / 8);
+                if (isNum(H[i].dew) && isNum(H[i].temp)) { H[i].dew = Math.min(H[i].dew, H[i].temp); H[i].rh = relHum(H[i].temp, H[i].dew); }
             }
+            correction = { temp: r1(isNum(aT) ? reprW * aT : 0), dew: r1(isNum(aD) ? reprW * aD : 0), decayHours: 5, stations: blend.n, repr: Math.round(reprW * 100) / 100 };
         }
-        obsOut = { source: st.source, station: st.name, distanceKm: r1(st.distanceKm), time: msToLocal(o.ms, off), ageMin: r0((nowMs - o.ms) / 6e4),
-            temp: r1(o.temp), rh: r0(o.rh), wind: r0(o.wind), gust: r0(o.gust), dir: r0(o.dir), pressure: r1(o.pressure), precip1h: r1(o.precip1h) };
+        const U = blend.rows.filter((r) => r.used);
+        const uw = U.map((r) => r.w);
+        const srcs = ['IPMA', 'METAR'].filter((s) => U.some((r) => r.source === s));
+        const wSrc = (s) => U.filter((r) => r.source === s).reduce((a, r) => a + r.w, 0);
+        const tObs = isNum(cT) && isNum(aT) ? cT + aT : wmean(U.map((r) => r.tAdj), uw);
+        const dObs = isNum(cD) && isNum(aD) ? cD + aD : wmean(U.map((r) => r.dAdj), uw);
+        obsOut = {
+            source: wSrc('METAR') > wSrc('IPMA') ? 'METAR' : 'IPMA', sources: srcs, station: stationLabel(U), n: U.length,
+            distanceKm: r1(blend.dEff), nearestKm: r1(Math.min(...U.map((r) => r.distanceKm))), time: msToLocal(blend.ms, off), ageMin: r0((nowMs - blend.ms) / 6e4),
+            temp: r1(tObs), rh: r0(isNum(tObs) && isNum(dObs) ? relHum(tObs, Math.min(dObs, tObs)) : wmean(U.map((r) => r.last.rh), uw)),
+            wind: r0(wmedian(U.map((r) => r.last.wind), uw)), gust: r0(wmedian(U.map((r) => r.last.gust), uw)), dir: r0(vecDir(U.map((r) => r.last.dir), U.map((r) => r.last.wind), uw)),
+            pressure: r1(wmean(U.map((r) => r.last.pressure), uw)), precip1h: r1(wmean(U.map((r) => r.last.precip1h), uw)),
+            elevation: r0(targetElev), repr: Math.round(reprW * 100) / 100, spread: r1(blend.sd),
+            stations: blend.rows.slice().sort((a, b) => b.share - a.share || a.distanceKm - b.distanceKm).slice(0, 12).map((r) => ({
+                id: r.id, name: r.name, source: r.source, distanceKm: r1(r.distanceKm), elev: r0(r.elev), time: msToLocal(r.last.ms, off), ageMin: r0(r.ageMin),
+                temp: r1(r.last.temp), tempAdj: r1(r.tAdj), anomaly: r1(r.aT), weight: r0(r.share * 100), used: r.used, ...(r.twin ? { sameSite: r.twin } : {}) })),
+        };
     }
 
     // nevoeiro e código (depois da correção)
@@ -406,16 +725,23 @@ export function buildForecast(raw, opts = {}) {
     const shiftNight = wmean(P.models.map((m) => m.corrNight), P.models.map((m) => m.meta.w)) || 0;
     const normals = climateNormals(raw.clim, P.dates);
     const change = runChanges(raw.prev, P.dates, off);
+    const ensDays = [];
     const daily = P.dates.map((date, k) => {
         const ms = P.models;
-        const wD = ms.map((m) => (k >= 2 && m.meta.wAfter48 != null ? m.meta.wAfter48 : m.meta.w) * m.factor);
+        const wD = ms.map((m) => wBase(m, k) * m.factor);
         const dv = (key, corr) => ms.map((m) => { const v = m.d[key][k]; return isNum(v) ? v + corr(m) : null; });
         const tmaxM = dv('tmax', (m) => m.corrDay), tminM = dv('tmin', (m) => m.corrNight);
         const nDet = tmaxM.filter(isNum).length;
         const pM = dv('precip', () => 0), wPD = wD.map((w, i) => w * (ms[i].meta.wPrecip || 1));
+        // chuva ≥ 1 mm: voto de cada modelo; o IPMA (sem quantidades) vota com a sua probabilidade
+        let pHit = 0, pW = 0;
+        ms.forEach((m, i) => {
+            if (!(wPD[i] > 0)) return;
+            if (isNum(pM[i])) { pW += wPD[i]; if (pM[i] >= 1) pHit += wPD[i]; } else if (isNum(m.dp?.[k])) { pW += wPD[i]; pHit += wPD[i] * m.dp[k]; }
+        });
         const det = nDet ? {
             tmax: robustMean(tmaxM, wD, 2), tmin: robustMean(tminM, wD, 2), sd: wstd(tmaxM, wD), precip: wmean(pM, wPD),
-            pop: wfrac(pM, wPD, 1), pop10: wfrac(pM, wPD, 10), p90: wquantile(pM, wPD, 0.9),
+            pop: pW > 0 ? pHit / pW : null, pop10: wfrac(pM, wPD, 10), p90: wquantile(pM, wPD, 0.9),
             wind: robustMean(dv('windMax', () => 0), wD, 8), gust: robustMean(dv('gustMax', () => 0), wD, 12),
             dir: vecDir(dv('dir', () => 0), dv('windMax', () => 0), wD), uv: wmean(dv('uvMax', () => 0), wD),
         } : null;
@@ -430,13 +756,14 @@ export function buildForecast(raw, opts = {}) {
                 gust: wquantile(gu, w, 0.5),
             };
         }
+        ensDays[k] = ens;
         const wDet = !det ? 0 : !ens ? 1 : clamp((k <= 2 ? 0.75 : k <= 4 ? 0.6 : k <= 6 ? 0.45 : k <= 9 ? 0.3 : 0.2) * (nDet >= 4 ? 1 : nDet >= 2 ? 0.7 : 0.4), 0, 1);
         const mix = (a, b) => (isNum(a) && isNum(b) ? wDet * a + (1 - wDet) * b : isNum(a) ? a : b);
         let tmax = mix(det?.tmax, ens && ens.tmax[1] + shiftDay), tmin = mix(det?.tmin, ens && ens.tmin[1] + shiftNight);
         // hoje: o que já se observou + horas que faltam (já corrigidas)
         if (k === 0) {
             const rest = H.filter((x) => x.time.startsWith(date) && x.ms >= nowMs).map((x) => x.temp).filter(isNum);
-            const seen = st && reprW >= 0.5 ? st.series.filter((o) => isNum(o.temp) && msToLocal(o.ms, off).startsWith(date)).map((o) => o.temp + (isNum(stationElev) && isNum(targetElev) ? (stationElev - targetElev) * LAPSE : 0)) : [];
+            const seen = blend && reprW >= 0.5 ? seenSeries(blend.rows, date, off) : [];
             if (seen.length >= 3) {
                 // estação representativa: o dia é o que já se mediu + o que falta (já corrigido)
                 const all = [...seen, ...rest];
@@ -508,27 +835,113 @@ export function buildForecast(raw, opts = {}) {
     };
 
     const models = P.models.map((m) => ({ id: m.id, name: m.meta.name, org: m.meta.org, resKm: m.meta.resKm,
-        weight: Math.round(m.meta.w * m.factor * 100) / 100, days: m.d.tmax.filter(isNum).length, hours: m.d.tmax.filter(isNum).length * 24, skill: m.skill }))
+        weight: Math.round(m.meta.w * m.factor * 100) / 100, days: m.d.tmax.filter(isNum).length, hours: m.d.tmax.filter(isNum).length * 24, skill: m.skill,
+        ...(m.ipma ? { official: true, local: m.ipma.name, localId: m.ipma.id, distanceKm: r1(m.ipma.distanceKm), updated: m.ipma.updated } : {}) }))
         .sort((a, b) => b.weight - a.weight);
+    const nameOf = (id) => (id === IPMA_MODEL.id ? IPMA_MODEL.name : DET_MODELS.find((m) => m.id === id)?.name || id);
     const verification = ver ? {
-        station: vs.name, source: vs.source, distanceKm: r1(vs.distanceKm), days: vs.source === 'METAR' ? 7 : 1, n: Math.max(...Object.values(ver).map((v) => v.n)),
+        station: vset.label, source: vset.source, distanceKm: r1(vset.distanceKm), stations: vset.stations, names: vset.names.slice(0, 8), days: vset.days,
+        n: Math.max(...Object.values(ver).map((v) => v.n)),
         biasApplied: P.models.some((m) => m.corrDay || m.corrNight),
         best: Object.entries(ver).filter(([, v]) => v.n >= 24).sort((a, b) => a[1].mae - b[1].mae)[0]?.[0] || null,
-        models: Object.entries(ver).map(([id, v]) => ({ id, name: DET_MODELS.find((m) => m.id === id)?.name || id, mae: r1(v.mae), bias: r1(v.bias), n: v.n })).sort((a, b) => a.mae - b.mae),
+        models: Object.entries(ver).map(([id, v]) => ({ id, name: nameOf(id), mae: r1(v.mae), bias: r1(v.bias), n: v.n })).sort((a, b) => a.mae - b.mae),
     } : null;
+    const hIdx = H.slice(nowIdx, nowIdx + 72).map((_, j) => nowIdx + j);
+    const official = ipmaM ? { source: 'IPMA', local: ipmaM.ipma.name, id: ipmaM.ipma.id, distanceKm: r1(ipmaM.ipma.distanceKm), updated: ipmaM.ipma.updated,
+        hours: ipmaM.ipma.hours, days: ipmaM.ipma.days, weight: Math.round(IPMA_MODEL.w * ipmaM.factor * 100) / 100, skill: ipmaM.skill,
+        daily: ipmaM.ipma.daily.filter((x) => x.date >= todayDate),
+        // hora a hora alinhado com "hourly" (temperatura e probabilidade de chuva do período de 3 h)
+        hourly: { times: hIdx.map((i) => P.times[i]), temp: hIdx.map((i) => r1(ipmaM.h.temp[i])), pop: hIdx.map((i) => (isNum(ipmaM.hp[i]) ? r0(ipmaM.hp[i] * 100) : null)) } } : null;
+    const compare = buildCompare({ P, daily, ensDays, ensP, ipmaM, todayDate });
 
     for (const d of daily) delete d._thunder;
+    const usedMetar = (obsOut?.sources || []).includes('METAR') || /METAR/.test(vset?.source || '');
     return {
         v: 1, generatedAt: new Date(nowMs).toISOString(),
         location: { lat, lon, elevation: r0(targetElev), timezone: P.timezone, utcOffsetSeconds: off,
             name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null },
         models, ensemble: ensP ? { members: ensP.members.length, models: ensP.systems } : { members: 0, models: [] },
-        now, nowcast, hourly, daily: daily.map(stripInternal), indicators, warnings, fire, verification,
+        now, nowcast, hourly, daily: daily.map(stripInternal), indicators, warnings, fire, verification, official, compare,
         analysis: raw.analysisMeta || null,
-        sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area ? ['IPMA'] : []),
-            ...(st?.source === 'METAR' ? ['NOAA AWC (METAR)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
+        sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area || official ? ['IPMA'] : []),
+            ...(usedMetar ? ['NOAA AWC (METAR)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
     };
 }
+
+// ---------- fontes lado a lado (hoje, amanhã e depois) ----------
+// Cada fonte com os seus valores (sem correções), o consenso final e o ensemble (P50 com P10–P90),
+// e um resumo de quem discorda e quanto.
+function buildCompare({ P, daily, ensDays, ensP, ipmaM, todayDate }) {
+    const K = Math.min(3, daily.length);
+    if (!K) return null;
+    const dates = daily.slice(0, K).map((d) => d.date);
+    const rows = [{ id: 'consenso', name: 'Consenso', short: 'Consenso', kind: 'consenso',
+        days: daily.slice(0, K).map((d) => ({ tmax: d.tmax, tmin: d.tmin, precip: d.precip, pop: d.pop, code: d.code })) }];
+    if (ipmaM) {
+        rows.push({ id: 'ipma', name: IPMA_MODEL.name, short: 'IPMA', kind: 'oficial', local: ipmaM.ipma.name, distanceKm: r1(ipmaM.ipma.distanceKm), weight: Math.round(IPMA_MODEL.w * ipmaM.factor * 100) / 100,
+            days: dates.map((_, k) => ({ tmax: r1(ipmaM.d.tmax[k]), tmin: r1(ipmaM.d.tmin[k]), precip: null, pop: isNum(ipmaM.dp[k]) ? r0(ipmaM.dp[k] * 100) : null,
+                code: ipmaM.d.code[k] ?? null, text: IPMA_TXT[ipmaM.types[k]] || null })) });
+    }
+    for (const m of P.models) {
+        if (m === ipmaM) continue;
+        rows.push({ id: m.id, name: m.meta.name, short: m.meta.short || m.meta.name, kind: 'modelo', weight: Math.round(m.meta.w * m.factor * 100) / 100,
+            days: dates.map((_, k) => ({ tmax: r1(m.d.tmax[k]), tmin: r1(m.d.tmin[k]), precip: r1(m.d.precip[k]), pop: null, code: isNum(m.d.code[k]) ? m.d.code[k] : null })) });
+    }
+    if (ensP && ensDays.slice(0, K).some(Boolean)) {
+        rows.push({ id: 'ensemble', name: `Ensemble (P50 de ${ensP.members.length} cenários)`, short: 'Ensemble', kind: 'ensemble',
+            days: dates.map((_, k) => { const e = ensDays[k]; return e ? { tmax: r1(e.tmax[1]), tmaxP10: r1(e.tmax[0]), tmaxP90: r1(e.tmax[2]), tmin: r1(e.tmin[1]), tminP10: r1(e.tmin[0]), tminP90: r1(e.tmin[2]),
+                precip: r1(e.p50), precipP90: r1(e.p90), pop: isNum(e.pop) ? r0(e.pop * 100) : null } : null; }) });
+    }
+    // divergências: cada fonte face ao consenso, por dia (máxima, mínima e chuva)
+    const src = rows.filter((r) => r.kind !== 'consenso');
+    const lab = (date) => dayLabel(date, todayDate).replace(/ \(.*\)$/, '');
+    const days = dates.map((date, k) => {
+        const ref = rows[0].days[k];
+        const out = { date };
+        for (const key of ['tmax', 'tmin']) {
+            const vals = src.map((r) => ({ id: r.id, name: r.short, v: r.days[k]?.[key] })).filter((x) => isNum(x.v));
+            if (vals.length < 2 || !isNum(ref[key])) continue;
+            const lo = vals.reduce((a, b) => (b.v < a.v ? b : a)), hi = vals.reduce((a, b) => (b.v > a.v ? b : a));
+            const far = vals.reduce((a, b) => (Math.abs(b.v - ref[key]) > Math.abs(a.v - ref[key]) ? b : a));
+            const ip = vals.find((x) => x.id === 'ipma');
+            out[key] = { spread: r1(hi.v - lo.v), lo: { id: lo.id, name: lo.name, v: lo.v }, hi: { id: hi.id, name: hi.name, v: hi.v },
+                far: { id: far.id, name: far.name, dev: r1(far.v - ref[key]) }, ipma: ip ? r1(ip.v - ref[key]) : null };
+        }
+        // chuva: fontes com ≥ 1 mm (modelos) ou probabilidade ≥ 50% (IPMA, ensemble)
+        const wet = src.map((r) => { const x = r.days[k]; if (!x) return null; return r.kind === 'modelo' ? (isNum(x.precip) ? x.precip >= 1 : null) : isNum(x.pop) ? x.pop >= 50 : null; }).filter((x) => x != null);
+        out.rain = { wet: wet.filter(Boolean).length, of: wet.length, pop: ref.pop, ipma: rows.find((r) => r.id === 'ipma')?.days[k]?.pop ?? null };
+        return out;
+    });
+    // notas curtas (PT-PT)
+    const f1 = (x) => String(r1(x)).replace('.', ','), sg = (x) => `${x > 0 ? '+' : x < 0 ? '−' : '±'}${f1(Math.abs(x))}`;
+    const notes = [];
+    days.forEach((d, k) => {
+        const parts = [];
+        if (d.tmax) parts.push(`máx. ${f1(d.tmax.lo.v)}° (${d.tmax.lo.name}) a ${f1(d.tmax.hi.v)}° (${d.tmax.hi.name})`);
+        if (d.tmax && isNum(d.tmax.ipma)) parts.push(`IPMA ${sg(d.tmax.ipma)}° na máx.${d.tmin && isNum(d.tmin.ipma) ? ` e ${sg(d.tmin.ipma)}° na mín.` : ''} face ao consenso`);
+        if (d.rain.of) parts.push(`chuva em ${d.rain.wet} de ${d.rain.of} fontes${isNum(d.rain.ipma) ? ` (IPMA ${d.rain.ipma}%)` : ''}`);
+        if (parts.length) notes.push(`${cap1(lab(d.date))}: ${parts.join('; ')}.`);
+    });
+    // a maior divergência e a fonte mais afastada em média
+    let worst = null;
+    days.forEach((d) => { for (const key of ['tmax', 'tmin']) if (d[key] && (!worst || Math.abs(d[key].far.dev) > Math.abs(worst.dev))) worst = { date: d.date, key, ...d[key].far }; });
+    const dev = new Map();
+    for (const r of src) {
+        const xs = [];
+        rows[0].days.forEach((ref, k) => { for (const key of ['tmax', 'tmin']) if (isNum(ref[key]) && isNum(r.days[k]?.[key])) xs.push(Math.abs(r.days[k][key] - ref[key])); });
+        if (xs.length >= 3) dev.set(r, xs.reduce((a, b) => a + b, 0) / xs.length);
+    }
+    const ranked = [...dev.entries()].sort((a, b) => b[1] - a[1]);
+    if (worst && Math.abs(worst.dev) >= 1) notes.push(`Maior divergência: ${worst.name} ${sg(worst.dev)}° na ${worst.key === 'tmax' ? 'máxima' : 'mínima'} de ${lab(worst.date)}.`);
+    const spreadMax = Math.max(0, ...days.flatMap((d) => [d.tmax?.spread, d.tmin?.spread].filter(isNum)));
+    const level = spreadMax <= 2 ? 'alta' : spreadMax <= 4 ? 'media' : 'baixa';
+    return {
+        dates, rows, days, notes, agreement: level, spreadMax: r1(spreadMax),
+        farthest: ranked.slice(0, 3).map(([r, x]) => ({ id: r.id, name: r.short, meanDev: r1(x) })),
+        summary: notes.join(' '),
+    };
+}
+const cap1 = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '');
 const stripInternal = (d) => { const { models, members, ...rest } = d; return { ...rest, models, members }; };
 
 // Frase para as próximas 2 h (passos de 15 min: chuva em mm/15 min e % de modelos com chuva)
@@ -693,15 +1106,21 @@ export function buildSummary(fc, extra = {}) {
     L.push(`# Previsão para ${loc.name || 'local'} (${loc.lat?.toFixed(4)}, ${loc.lon?.toFixed(4)}), ${loc.elevation} m, fuso ${loc.timezone}`);
     L.push(`Gerado: ${fc.generatedAt} (hora local agora: ${fc.now.time}). Modelos: ${fc.models.map((m) => `${m.name} p=${m.weight}${m.skill ? ` [erro local ${m.skill.mae}°C, viés ${m.skill.bias}]` : ''}`).join('; ')}.`);
     L.push(`Ensembles: ${fc.ensemble.members} cenários (${fc.ensemble.models.map((m) => `${m.name} ${m.members}×${m.days}d`).join(', ')}).`);
-    const n = fc.now, o = n.obs;
+    const n = fc.now, o = n.obs, OF = fc.official;
+    if (OF) L.push(`Previsão oficial do IPMA: ${OF.local} (a ${OF.distanceKm} km do ponto), atualizada ${OF.updated || '?'}, entra no consenso com peso ${OF.weight} nos dias 0–2 (menos depois)${OF.skill ? ` [erro local ${OF.skill.mae}°C, viés ${OF.skill.bias}]` : ' (ainda sem verificação local)'}.`);
     L.push('\n## Agora');
     L.push(`Consenso: ${f1(n.temp)}°C (sensação ${f1(n.feels)}), HR ${f0(n.rh)}%, orvalho ${f1(n.dew)}, vento ${f0(n.wind)} km/h de ${compass(n.dir) || '—'} rajadas ${f0(n.gust)}, pressão ${f1(n.pressure)} hPa (3 h: ${f1(n.pressureTrend3h)}), nuvens ${f0(n.cloud)}%, código ${n.code}.`);
-    if (o) L.push(`Observado em ${o.station} (${o.source}, ${o.distanceKm} km, há ${o.ageMin} min): ${f1(o.temp)}°C, HR ${f0(o.rh)}%, vento ${f0(o.wind)} km/h de ${compass(o.dir) || '—'}, pressão ${f1(o.pressure)}.${n.correction ? ` Correção aplicada: ${n.correction.temp}°C (decai em ~5 h).` : ''}`);
+    if (o) {
+        L.push(`Observação combinada no ponto (${o.n ?? 1} estação(ões) ${(o.sources || [o.source]).join('+')}, a ${o.distanceKm} km em média${isNum(o.nearestKm) ? `, a mais próxima a ${o.nearestKm} km` : ''}, ajustada à altitude de ${o.elevation ?? loc.elevation} m, há ${o.ageMin} min): ${f1(o.temp)}°C, HR ${f0(o.rh)}%, vento ${f0(o.wind)} km/h de ${compass(o.dir) || '—'}, pressão ${f1(o.pressure)}.${isNum(o.repr) ? ` Confiança na observação ${o.repr} (0–1; dispersão entre estações ${f1(o.spread)}°C).` : ''}${n.correction ? ` Correção aplicada: ${n.correction.temp}°C (decai em ~5 h).` : ''}`);
+        if (o.stations?.length) L.push(`Estações: ${o.stations.map((s) => `${s.name} (${s.source}, ${s.distanceKm} km, ${isNum(s.elev) ? s.elev + ' m' : 'alt. ?'}, ${String(s.time).slice(11)}): ${f1(s.temp)}→${f1(s.tempAdj)}°C, desvio ${f1(s.anomaly)}, peso ${s.weight}%${s.used ? '' : ' [rejeitada]'}`).join('; ')}.`);
+    }
     if (fc.nowcast?.text) L.push(`Próximas 2 h: ${fc.nowcast.text} (${fc.nowcast.steps.map((s) => `${s.time.slice(11)} ${f1(s.precip)}mm/${s.prob}%`).join(', ')})`);
-    L.push('\n## Próximas 48 h (de 3 em 3 h; T = consenso [faixa entre modelos], chuva mm/h e prob.)');
-    L.push('hora | T [faixa] | sens | chuva (prob) | vento/rajada dir | nuvens (baixas) | CAPE | HR | código');
+    const ipH = OF?.hourly ? new Map(OF.hourly.times.map((t, i) => [t, [OF.hourly.temp[i], OF.hourly.pop[i]]])) : null;
+    L.push(`\n## Próximas 48 h (de 3 em 3 h; T = consenso [faixa entre modelos], chuva mm/h e prob.${ipH ? '; IPMA = previsão oficial T (prob. 3 h)' : ''})`);
+    L.push(`hora | T [faixa] | sens | chuva (prob) | vento/rajada dir | nuvens (baixas) | CAPE | HR | código${ipH ? ' | IPMA' : ''}`);
     fc.hourly.filter((_, i) => i % 3 === 0).slice(0, 17).forEach((h) => {
-        L.push(`${h.time.slice(5).replace('T', ' ')} | ${f1(h.temp)} [${f1(h.tempLo)}–${f1(h.tempHi)}] | ${f1(h.feels)} | ${f1(h.precip)} (${f0(h.pop)}%) | ${f0(h.wind)}/${f0(h.gust)} ${compass(h.dir) || ''} | ${f0(h.cloud)} (${f0(h.cloudLow)}) | ${f0(h.cape)} | ${f0(h.rh)} | ${h.code}`);
+        const ip = ipH?.get(h.time);
+        L.push(`${h.time.slice(5).replace('T', ' ')} | ${f1(h.temp)} [${f1(h.tempLo)}–${f1(h.tempHi)}] | ${f1(h.feels)} | ${f1(h.precip)} (${f0(h.pop)}%) | ${f0(h.wind)}/${f0(h.gust)} ${compass(h.dir) || ''} | ${f0(h.cloud)} (${f0(h.cloudLow)}) | ${f0(h.cape)} | ${f0(h.rh)} | ${h.code}${ipH ? ` | ${ip && isNum(ip[0]) ? `${f1(ip[0])} (${f0(ip[1])}%)` : '—'}` : ''}`);
     });
     L.push('\n## 16 dias (T máx/mín com P10–P90 do ensemble; chuva = média e P90; prob. ≥1 mm e ≥10 mm)');
     L.push('dia | código | máx [P10–P90] | mín [P10–P90] | chuva (P90) | prob | ≥10mm | rajada | conf. | Δ24h máx/chuva | anomalia | fonte');
@@ -722,11 +1141,30 @@ export function buildSummary(fc, extra = {}) {
     L.push(`${F.rule30.text}. Propagação agora: ${F.spread.text || '—'}.`);
     if (fc.verification) {
         const v = fc.verification;
-        L.push(`\n## Verificação local (últimos 7 dias, ${v.station}, ${v.distanceKm} km, previsões a 1 dia)`);
+        const where = (v.stations || 1) > 1 ? `${v.stations} estações (${(v.names || []).slice(0, 5).join(', ')}), a ${v.distanceKm} km em média` : `${v.station}, ${v.distanceKm} km`;
+        L.push(`\n## Verificação local (últimos ${v.days} dia(s), ${where}, previsões a 1 dia)`);
         L.push(v.models.map((m) => `${m.name}: erro médio ${m.mae}°C, viés ${m.bias} (n=${m.n})`).join('; ') + (v.biasApplied ? '. Viés corrigido nos modelos.' : '.'));
     }
-    L.push('\n## Modelos lado a lado (máx/mín/chuva)');
-    if (extra.perModel) L.push(extra.perModel);
+    if (OF?.daily?.length) {
+        L.push(`\n## Previsão oficial IPMA — ${OF.local} (10 dias, como publicada)`);
+        L.push('dia | máx/mín | prob. chuva | tempo | vento | UV');
+        OF.daily.forEach((d) => L.push(`${d.date} | ${f1(d.tmax)}/${f1(d.tmin)} | ${f0(d.pop)}% | ${d.text || d.code} | ${d.wind || '—'} ${d.dir || ''} | ${isNum(d.uv) ? f1(d.uv) : '—'}`));
+    }
+    const C = fc.compare;
+    if (C?.rows?.length) {
+        L.push(`\n## Fontes lado a lado (valores de cada fonte sem correções; consenso = final; concordância ${C.agreement}, maior diferença ${f1(C.spreadMax)}°C)`);
+        L.push(`fonte | ${C.dates.join(' | ')} (máx/mín, chuva mm ou prob.)`);
+        for (const r of C.rows) {
+            L.push(`${r.short}${r.kind === 'modelo' ? ` p=${r.weight}` : r.kind === 'oficial' ? ` (oficial, p=${r.weight})` : ''} | ${r.days.map((x) => (!x ? '—'
+                : `${f1(x.tmax)}${isNum(x.tmaxP10) ? ` [${f1(x.tmaxP10)}–${f1(x.tmaxP90)}]` : ''}/${f1(x.tmin)}${isNum(x.tminP10) ? ` [${f1(x.tminP10)}–${f1(x.tminP90)}]` : ''} ${isNum(x.precip) ? `${f1(x.precip)}mm` : ''}${isNum(x.pop) ? ` ${f0(x.pop)}%` : ''}${x.text ? ` ${x.text}` : ''}`.trim())).join(' | ')}`);
+        }
+        if (C.notes?.length) L.push(`Divergências: ${C.notes.join(' ')}`);
+        if (C.farthest?.length) L.push(`Fontes mais afastadas do consenso (média dos 3 dias): ${C.farthest.map((x) => `${x.name} ${f1(x.meanDev)}°C`).join(', ')}.`);
+    }
+    if (extra.perModel) {
+        L.push('\n## Modelos lado a lado (máx/mín/chuva, 4 dias)');
+        L.push(extra.perModel);
+    }
     return L.join('\n');
 }
 
