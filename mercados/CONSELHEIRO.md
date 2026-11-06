@@ -1,6 +1,6 @@
 # Conselheiro diário (tarefa agendada do Claude)
 
-Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (dias úteis e fim de semana). Para mudar o comportamento do conselheiro, muda-se este ficheiro (e os scripts em `conselheiro/`) e faz-se merge — o agendamento lê sempre a versão do `main`.
+Este ficheiro é o procedimento que a tarefa agendada segue **duas vezes por dia: às 07:14 e às 15:14** (dias úteis e fim de semana). Para mudar o comportamento do conselheiro, muda-se este ficheiro (e os scripts em `conselheiro/`) e faz-se merge — o agendamento lê sempre a versão do `main`.
 
 ## Quem é o investidor
 
@@ -25,6 +25,11 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
 - **Ações e ETF** (vendas depois de 29/06/2024): a taxa desce com o tempo de detenção — **28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais** (exclusão de 10/20/30% do ganho). Cada compra conta a partir da sua data. O VWCE é de acumulação (não distribui): sem imposto enquanto não se vender. Logo: **não vender o núcleo**; cada ano a mais reduz o imposto; reforçar em vez de rodar.
 - **Dividendos**: ações e ETF de distribuição pagam dividendos, tributados a 28% e a declarar **todos os anos** no IRS (Anexo J, com o imposto retido no estrangeiro). ETF de **acumulação** (VWCE, EUNL, SXR8, SXRV, IS3N) não pagam: nada a declarar até à venda — preferi-los sempre. Avisar sempre que uma sugestão envolver um ETF de distribuição (ex.: EXSA, Europa 600) ou uma ação que pague dividendos, e propor a alternativa de acumulação quando existir.
 - Isto é informação geral; casos concretos (englobamento, perdas a reportar) confirmam-se com a AT ou um contabilista.
+
+## Manhã e tarde
+
+- **07:14 (manhã)**: análise completa (passos abaixo).
+- **15:14 (tarde, 45 min depois da abertura dos EUA)**: atualização. Correr os mesmos passos, mas focar no que **mudou desde a manhã** (abertura dos EUA, notícias novas, movimentos fortes e o seu motivo em `movers`). Começar o `headline` por "Tarde:". Manter o plano do mês salvo motivo forte; `review` e `lessons` só mudam se houver algo novo. O publicar substitui a análise da manhã na app (o histórico do dia fica com a última).
 
 ## Dias úteis e fim de semana
 
