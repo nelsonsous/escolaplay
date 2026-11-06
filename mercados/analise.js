@@ -526,7 +526,25 @@
         return res;
     }
 
-    const api = { sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf, backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax };
+    // ---------- avisos: vários movimentos numa só notificação; à noite esperam pela manhã ----------
+    // items: [{ name, pct, pctTxt, px }]
+    function groupAlert(items, held) {
+        const L = (items || []).slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+        if (!L.length) return null;
+        const pre = held ? 'Durante a noite: ' : '';
+        if (L.length === 1) {
+            const x = L[0];
+            return { title: `${pre}${x.name} ${x.pct > 0 ? 'sobe' : 'cai'} ${x.pctTxt}${held ? '' : ' hoje'}`, body: `${x.px} · toca para ver` };
+        }
+        const up = L.filter((x) => x.pct > 0).length, dn = L.length - up;
+        const what = !up ? 'a cair' : !dn ? 'a subir' : 'com movimentos fortes';
+        const list = L.slice(0, 6).map((x) => `${x.name} ${x.pctTxt}`).join(' · ') + (L.length > 6 ? ` · +${L.length - 6}` : '');
+        return { title: `${pre}${L.length} ativos ${what}${held ? '' : ' hoje'}`, body: `${list} · toca para ver` };
+    }
+    // silêncio entre `from` e `to` horas (ex.: 22 → 8, atravessa a meia-noite)
+    const isQuiet = (h, from = 22, to = 8) => (from > to ? h >= from || h < to : h >= from && h < to);
+
+    const api = { groupAlert, isQuiet, sma, emaSeries, rsi, macd, volatility, analyse, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf, backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.Analise = api;
 })(typeof self !== 'undefined' ? self : this);

@@ -397,6 +397,31 @@ function proxyBody(u) {
     assert.ok(!w.includes('EDP.LS') && w.includes('EGL.LS') && w.includes('JPM'), 'migração: ' + w.join(','));
     console.log('✓ migração da lista: sai EDP, fica Mota-Engil, entra JPMorgan');
 
+    // avisos: vários movimentos numa só notificação; à noite esperam pela manhã
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    assert.equal(await page.locator('[data-act="quiet"][data-v="1"].on').count(), 1, 'silêncio à noite ligado por omissão');
+    const notes = await page.evaluate(() => {
+        const out = [];
+        Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true });
+        window.Notification = function (t, o) { out.push(t + ' | ' + o.body); };
+        window.Notification.permission = 'granted';
+        const mk = window.__mk, A = window.Analise, isQ = A.isQuiet;
+        mk.cfg.notify = true; mk.cfg.alertPct = 4; mk.st.firstPoll = false;
+        const set = (k, p) => { mk.Q[k] = { ...mk.Q[k], changePct: p }; };
+        A.isQuiet = () => true; set('c:ETH', 9.1); set('c:SOL', 8.2); mk.checkAlerts();
+        const night = out.length, held = JSON.parse(localStorage.getItem('mercados:held'));
+        A.isQuiet = () => false; mk.checkAlerts();
+        set('c:XRP', -12.5); mk.checkAlerts();
+        A.isQuiet = isQ;
+        return { night, held, out };
+    });
+    assert.equal(notes.night, 0, 'nada à noite');
+    assert.deepEqual(notes.held.sort(), ['c:ETH', 'c:SOL']);
+    assert.match(notes.out[0], /^Durante a noite: 2 ativos a subir \| Ether \+9,1\d?% · Solana \+8,2\d?%/);
+    assert.match(notes.out[1], /^XRP cai −12,5\d?% hoje \|/);
+    assert.equal(notes.out.length, 2);
+    console.log('✓ avisos:', notes.out.map((x) => x.split(' | ')[0]).join(' / '));
+
     assert.deepEqual(errors, [], 'sem erros na consola');
     console.log('✓ sem erros na consola');
     await browser.close();

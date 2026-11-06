@@ -151,3 +151,15 @@ test('cripto: isenção de IRS aos 365 dias, compra a compra', () => {
     assert.deepEqual(A.planLots('', [2], today), []);
     assert.equal(A.planLots('2020-01-01', [2], today).length, 83);
 });
+
+test('avisos: agrupados e silêncio à noite', () => {
+    const e = { name: 'Ether', pct: -7.63, pctTxt: '−7,63%', px: '1 991,93 €' }, s = { name: 'Solana', pct: -6.46, pctTxt: '−6,46%', px: '79,52 €' };
+    assert.deepEqual(A.groupAlert([e]), { title: 'Ether cai −7,63% hoje', body: '1 991,93 € · toca para ver' });
+    const g = A.groupAlert([s, e]);
+    assert.equal(g.title, '2 ativos a cair hoje');
+    assert.equal(g.body, 'Ether −7,63% · Solana −6,46% · toca para ver', 'maior movimento primeiro');
+    assert.equal(A.groupAlert([s, { name: 'Bitcoin', pct: 5, pctTxt: '+5%', px: '' }], true).title, 'Durante a noite: 2 ativos com movimentos fortes');
+    assert.equal(A.groupAlert([]), null);
+    assert.ok(A.isQuiet(23) && A.isQuiet(0) && A.isQuiet(7));
+    assert.ok(!A.isQuiet(8) && !A.isQuiet(12) && !A.isQuiet(21));
+});
