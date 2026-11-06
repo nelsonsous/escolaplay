@@ -501,7 +501,11 @@ function proxyBody(u) {
     await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-open="c:BTC"]').click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .ranges button.on');
     assert.equal(await page.locator('.ranges button.on').textContent(), '1M', 'ficha no período do Painel');
-    assert.deepEqual(await page.locator('.ranges button').allTextContents(), ['1D', '1S', '1M', '6M', '1A', '5A']);
+    assert.deepEqual(await page.locator('.ranges button').allTextContents(), ['15m', '1H', '4H', '1D', '1S', '1M', '6M', '1A', '5A']);
+    assert.match(await page.locator('.perf').textContent(), /Hoje[\s\S]*7 dias[\s\S]*30 dias[\s\S]*1 ano/, 'rendimentos por período');
+    await page.click('.ranges [data-range="15m"]');
+    await page.waitForFunction(() => /15 min/.test(document.querySelector('#d-px').textContent));
+    await page.waitForFunction(() => document.querySelector('#d-load').hidden);
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     await page.click('[data-per="1d"]');
