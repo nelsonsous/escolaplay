@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.18.0';
+    const VERSION = '3.19.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -378,7 +378,8 @@
         sock.onerror = () => { try { sock.close(); } catch { /* ignora */ } };
     }
 
-    const KL = { '1d': ['15m', 96], '5d': ['1h', 168], '1mo': ['4h', 180], '6mo': ['1d', 183], '1y': ['1d', 365], '5y': ['1w', 260] };
+    const SHORT_R = { '15m': 15 * 60, '1h': 3600, '4h': 4 * 3600 };
+    const KL = { '15m': ['1m', 15], '1h': ['1m', 60], '4h': ['5m', 48], '1d': ['15m', 96], '5d': ['1h', 168], '1mo': ['4h', 180], '6mo': ['1d', 183], '1y': ['1d', 365], '5y': ['1w', 260] };
     async function klines(id, range) {
         const [iv, n] = KL[range];
         const arr = await bnGet(`/api/v3/klines?symbol=${pairOf(id)}&interval=${iv}&limit=${n}`);
@@ -878,6 +879,11 @@
             if (c) { const pc = perData(k).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
         }
         liveTail(k);
+        if (sheetKey === k && SHORT_R[sheetRange] && sheetPts && sheetPts.length && fin(raw.price)) {
+            const t = raw.time || Math.floor(now() / 1000), l = sheetPts[sheetPts.length - 1];
+            if (t >= l[0]) { if (t - l[0] < 5) l[1] = raw.price; else sheetPts.push([t, raw.price]); }
+            while (sheetPts.length > 2 && sheetPts[0][0] < t - SHORT_R[sheetRange]) sheetPts.shift();
+        }
         if (sheetKey === k) { renderSheetPrice(); sheetSoon(); }
         sparkSoon();
     }
@@ -896,7 +902,7 @@
     function sparkSoon() { if (!sparkT) sparkT = setTimeout(() => { sparkT = 0; drawSparks(); }, 1000); }
     // gráfico da ficha: redesenha ao segundo no 1D, exceto enquanto se arrasta o dedo nele
     function sheetSoon() {
-        if (sheetT || sheetRange !== '1d') return;
+        if (sheetT || (sheetRange !== '1d' && !SHORT_R[sheetRange])) return;
         sheetT = setTimeout(() => { sheetT = 0; if (sheetKey && now() - (st.chartHover || 0) > 2500) drawSheetChart(); }, 1000);
     }
 
@@ -1517,7 +1523,7 @@
 
     // ---------- folha de detalhe ----------
     let sheetKey = null, sheetRange = '1d', sheetPts = null, sheetDraw = null, sheetLoadId = 0;
-    const RANGE_LBL = [['1d', '1D'], ['5d', '1S'], ['1mo', '1M'], ['6mo', '6M'], ['1y', '1A'], ['5y', '5A']];
+    const RANGE_LBL = [['15m', '15m'], ['1h', '1H'], ['4h', '4H'], ['1d', '1D'], ['5d', '1S'], ['1mo', '1M'], ['6mo', '6M'], ['1y', '1A'], ['5y', '5A']];
 
     function openSheet(k, tempName) {
         if (!REG[k]) REG[k] = { key: k, kind: 'stock', sym: k, name: tempName || k, temp: true };
@@ -1641,6 +1647,13 @@
         try {
             let pts;
             if (a.kind === 'crypto') pts = range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 20 ? Q[k].series : await klines(a.sym, range);
+            else if (SHORT_R[range]) {
+                const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range === '4h' ? '5d' : '1d'}&interval=${range === '4h' ? '5m' : '1m'}`, 20000);
+                const q = r.quotes && r.quotes[0];
+                if (!q || q.error || !q.series || !q.series.length) throw new Error(q && q.error || 'sem dados');
+                const end = q.series[q.series.length - 1][0]; // mercado fechado: os últimos minutos da sessão
+                pts = q.series.filter(([t]) => t >= end - SHORT_R[range]);
+            }
             else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1 && !Q[k].stale) pts = daySeries(k);
             else if (range === '1y' && D[k]) pts = D[k];
             else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range}`, 20000); const q = r.quotes && r.quotes[0]; if (!q || q.error) throw new Error(q && q.error || 'sem dados'); pts = q.series; }
@@ -1669,21 +1682,21 @@
         const first = pts[0][1], lastv = pts[pts.length - 1][1];
         const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
-        sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 10, byIndex: sheetRange !== '1d' });
+        sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 10, byIndex: sheetRange !== '1d' && !SHORT_R[sheetRange] });
         const tip = $('#d-tip');
         if (hover != null && sheetDraw) {
             const { g, X, Y, h } = sheetDraw;
             const p = pts[hover];
             g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(X(hover), 0); g.lineTo(X(hover), h); g.stroke();
             g.fillStyle = COL[tone]; g.beginPath(); g.arc(X(hover), Y(p[1]), 4, 0, 7); g.fill();
-            if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
+            if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['15m', '1h', '4h', '1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
         } else if (tip) {
             const ch = (lastv / first - 1) * 100;
             const lw = pxWhenLong(sheetKey, q);
             tip.innerHTML = sheetRange === '1d' ? (lw ? esc(lw) + ' · arrasta no gráfico' : 'Hoje · arrasta no gráfico para ver valores') : `No período: <span class="${toneOf(ch)}-t">${fmtPct(ch)}</span> · arrasta no gráfico`;
         }
     }
-    const PERIOD = { '1d': 'hoje', '5d': '1 semana', '1mo': '1 mês', '6mo': '6 meses', '1y': '1 ano', '5y': '5 anos' };
+    const PERIOD = { '15m': '15 min', '1h': '1 hora', '4h': '4 horas', '1d': 'hoje', '5d': '1 semana', '1mo': '1 mês', '6mo': '6 meses', '1y': '1 ano', '5y': '5 anos' };
     function renderSheetPrice() {
         const k = sheetKey; const q = qv(k); const a = REG[k];
         const el = $('#d-px'); if (!el) return;
@@ -1699,6 +1712,18 @@
         const dd = fin(diff) ? (diff > 0 ? '+' : diff < 0 ? '−' : '') + fmtPx(Math.abs(diff), { decimals: Math.abs(diff) >= 1 || !fin(diff) ? 2 : 4 }, q.currency) : '';
         el.innerHTML = `<span class="px num">${fmtPx(q.price, a, q.currency)}</span>${chg(pct)}<span class="alt num">${dd} ${esc(lbl)}${orig}${l ? ` · ≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L` : ''}</span>`;
     }
+    // rendimento em vários períodos (dos fechos diários de 1 ano)
+    function perfRow(k, q) {
+        const d = D[k];
+        if (!d || d.length < 5 || !fin(q.price)) return '';
+        const f = q.fx || 1, nowS = now() / 1000;
+        const at = (days) => { let i = d.findIndex((p) => p[0] > nowS - days * 86400); if (i < 0) i = d.length; if (i === 0 && d[0][0] > nowS - days * 86400 + 5 * 86400) return null; return d[Math.max(0, i - 1)][1] * f; };
+        const cells = [['Hoje', q.changePct], ['7 dias', 7], ['30 dias', 30], ['90 dias', 90], ['180 dias', 180], ['1 ano', 365]].map(([l, v]) => {
+            const pc = l === 'Hoje' ? v : (() => { const r = at(v); return fin(r) && r ? (q.price / r - 1) * 100 : null; })();
+            return `<div><small>${l}</small><b class="num ${fin(pc) ? toneOf(pc) + '-t' : ''}">${fin(pc) ? fmtPct(pc) : '—'}</b></div>`;
+        });
+        return `<div class="perf">${cells.join('')}</div>`;
+    }
     function renderSheet() {
         const k = sheetKey; if (!k) return;
         const a = REG[k], q = qv(k), r = AN[k], n = NEWS[k];
@@ -1713,6 +1738,7 @@
             <div class="d-tip" id="d-tip"></div>
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+            ${perfRow(k, q)}
             ${adviceBox(k, q)}
             <div class="stats">
                 ${stat('Máx. do dia', fmtPx(q.dayHigh, a, q.currency))}${stat('Mín. do dia', fmtPx(q.dayLow, a, q.currency))}

@@ -484,6 +484,15 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* períodos do gráfico: deslizam na horizontal */
+.ranges { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+.ranges::-webkit-scrollbar { display: none; }
+.ranges button { flex: 0 0 auto; min-width: 46px; padding: 7px 10px; }
+/* rendimentos por período */
+.perf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; margin: 0 0 14px; }
+.perf div { background: var(--card); padding: 8px 10px; }
+.perf small { display: block; color: var(--muted); font-size: calc(.72rem * var(--k)); }
+.perf b { font-size: calc(.92rem * var(--k)); font-weight: 650; }
 /* resumo em 3 linhas */
 .tldr { list-style: none; margin: 10px 0 2px; padding: 0; display: grid; gap: 6px; font-size: calc(.95rem * var(--k)); line-height: 1.4; }
 .tldr li { padding-left: 12px; position: relative; }
