@@ -524,6 +524,163 @@ function climateNormals(clim, dates) {
     });
 }
 
+// ---------- relevo à volta do ponto ----------
+// Um só pedido de altitudes (Open-Meteo, Copernicus DEM 90 m): o ponto e 12 rumos (de 30 em 30°) a 1,5 km e a 4 km.
+export const TERRAIN = { rings: [1.5, 4], dirs: 12 };
+const TERRAIN_LABEL = { vale: 'Vale', encosta: 'Encosta', topo: 'Topo', 'planície': 'Planície' };
+/** Pontos do pedido de altitudes, pela ordem que buildTerrain espera: [lat, lon] do ponto e depois cada anel de N para E. */
+export function terrainPoints(lat, lon) {
+    const out = [[lat, lon]];
+    const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
+    for (const km of TERRAIN.rings) {
+        for (let i = 0; i < TERRAIN.dirs; i++) {
+            const b = ((i * 360) / TERRAIN.dirs) * (Math.PI / 180);
+            out.push([lat + (km / 111.32) * Math.cos(b), lon + (km / kx) * Math.sin(b)]);
+        }
+    }
+    return out;
+}
+// Plano por mínimos quadrados z = a + gx·x + gy·y (x para leste, y para norte, em m) → [gx, gy]
+function planeFit(P) {
+    let n = 0, sx = 0, sy = 0, sz = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0;
+    for (const p of P) { n++; sx += p.x; sy += p.y; sz += p.z; sxx += p.x * p.x; syy += p.y * p.y; sxy += p.x * p.y; sxz += p.x * p.z; syz += p.y * p.z; }
+    const M = [[n, sx, sy], [sx, sxx, sxy], [sy, sxy, syy]], b = [sz, sxz, syz];
+    const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    const D = det(M);
+    if (!D) return [0, 0];
+    const col = (k) => M.map((row, i) => row.map((v, j) => (j === k ? b[i] : v)));
+    return [det(col(1)) / D, det(col(2)) / D];
+}
+/**
+ * Relevo do ponto a partir das altitudes de terrainPoints (o ponto + 2 anéis): posição face ao relevo à volta
+ * (média das diferenças para os anéis de 1,5 e 4 km), declive e orientação (plano pelo anel de 1,5 km), para onde desce.
+ * vale: ≥ 20 m abaixo e rodeado de terreno mais alto; topo: ≥ 20 m acima e com terreno mais baixo à volta;
+ * encosta: declive ≥ 3,5% ou terreno mais alto de um lado e mais baixo do outro; planície: o resto.
+ * A água (0 m no modelo de terreno: mar, estuário) não entra nas médias quando o ponto está acima de 10 m.
+ */
+export function buildTerrain(t) {
+    const e = Array.isArray(t) ? t : t?.elevation;
+    const { rings: RK, dirs: N } = TERRAIN;
+    if (!Array.isArray(e) || e.length !== 1 + RK.length * N || !isNum(e[0])) return null;
+    const z0 = e[0];
+    const isWater = (z) => z0 > 10 && z <= 0.5;
+    const rings = RK.map((km, r) => {
+        const pts = [];
+        for (let i = 0; i < N; i++) { const z = e[1 + r * N + i]; if (isNum(z)) pts.push({ km, deg: (i * 360) / N, z, water: isWater(z) }); }
+        const land = pts.filter((p) => !p.water), zs = land.map((p) => p.z);
+        if (land.length < N / 2) return { km, pts, ok: false };
+        const frac = (f) => land.filter(f).length / land.length;
+        return { km, pts, land, ok: true, mean: wmean(zs), min: Math.min(...zs), max: Math.max(...zs), hi: frac((p) => p.z > z0 + 10), lo: frac((p) => p.z < z0 - 10) };
+    });
+    if (!rings.some((r) => r.ok)) return null; // quase só água à volta (ilhéu, molhe)
+    const S = rings[0].ok ? rings[0] : rings[1], Lr = rings[1].ok ? rings[1] : rings[0];
+    const relS = z0 - S.mean, relL = z0 - Lr.mean, rel = (relS + relL) / 2;
+    const xy = (p) => ({ x: Math.sin((p.deg * Math.PI) / 180) * p.km * 1000, y: Math.cos((p.deg * Math.PI) / 180) * p.km * 1000, z: p.z });
+    const [gx, gy] = planeFit([{ x: 0, y: 0, z: z0 }, ...S.land.map(xy)]);
+    const slopePct = Math.hypot(gx, gy) * 100;
+    const aspect = compass((Math.atan2(-gx, -gy) * 180) / Math.PI); // para onde o terreno desce
+    const outer = rings[1].pts.length ? rings[1].pts : rings[0].pts;
+    const lowest = outer.reduce((a, p) => (p.z < a.z ? p : a)), highest = outer.reduce((a, p) => (p.z > a.z ? p : a));
+    const wet = rings.flatMap((r) => r.pts.filter((p) => p.water));
+    const waterDir = wet.length >= 2 ? compass(vecDir(wet.map((p) => p.deg))) : null;
+    let type;
+    if (rel <= -20 && relS <= 0 && Lr.hi >= 0.6 && (S.hi >= 0.4 || relL <= -40)) type = 'vale';
+    else if (rel >= 20 && relS >= 0 && Lr.lo >= 0.6 && (S.lo >= 0.4 || relL >= 40)) type = 'topo';
+    else if (slopePct >= 3.5 || (S.hi >= 0.25 && S.lo >= 0.25 && S.max - S.min >= 50)) type = 'encosta';
+    else type = 'planície';
+    const reliefM = Math.round(Math.abs(rel));
+    const approx = reliefM >= 20 ? Math.round(reliefM / 10) * 10 : reliefM;
+    const where = (d) => WIND_FROM[d] || d; // 'NO' → 'noroeste'
+    const side = `${approx} m ${rel < 0 ? 'abaixo' : 'acima'} do relevo à volta`;
+    const sideApprox = reliefM < 10 ? 'à altura do relevo à volta' : `~${side}`;
+    const text = type === 'vale' || type === 'topo' ? side
+        : type === 'encosta' ? `virada a ${where(aspect)} · declive ${r0(slopePct)}%` : 'sem grandes desníveis à volta';
+    let description = type === 'vale' ? `vale, ~${side}; o terreno desce para ${where(compass(lowest.deg))}`
+        : type === 'topo' ? `topo, ~${side}; mais exposto ao vento do que o terreno à volta`
+            : type === 'encosta' ? `encosta virada a ${where(aspect)} (declive ~${r0(slopePct)}%), ${sideApprox}`
+                : `terreno plano ou suave (declive ~${r0(slopePct)}%, ${sideApprox})`;
+    if (waterDir) description += `; água (mar, rio largo ou estuário) para ${where(waterDir)}`;
+    return {
+        type, label: TERRAIN_LABEL[type], elevation: r0(z0), aroundM: r0(z0 - rel), relM: r0(rel), reliefM,
+        slopePct: r1(slopePct), aspect, lowestDir: compass(lowest.deg), highestDir: compass(highest.deg), water: waterDir,
+        rings: rings.filter((r) => r.ok).map((r) => ({ km: r.km, mean: r0(r.mean), min: r0(r.min), max: r0(r.max) })),
+        text, description,
+    };
+}
+
+// ---------- efeito local do relevo: ajuste pequeno, só em condições claras, sempre indicado (fc.local) ----------
+// vale: noite limpa (nuvens < 30%, efeito inteiro ≤ 20%), calma (vento < 8 km/h, inteiro ≤ 5) e sem chuva → o ar frio
+//   acumula-se no fundo: até −1,5 °C por cada 100 m abaixo do relevo à volta (máx. 1,5 °C), a crescer nas primeiras 4 h
+//   de noite e com metade na primeira hora depois do nascer do sol. A parte que a correção das estações já arrefece
+//   nessa hora não se soma (não contar duas vezes).
+//   A mínima dos dias com previsão hora a hora desce o mesmo que o mínimo das horas.
+// topo: vento e rajadas +0,15% por metro acima do relevo à volta (máx. +15%), a toda a hora e nos 16 dias.
+export const LOCAL_RULES = { valleyPer100m: 1.5, valleyMax: 1.5, cloud: [20, 30], wind: [5, 8], rampH: 4, topPerM: 0.0015, topMax: 0.15 };
+const RULE_TXT = {
+    vale: 'vale — em noite limpa (nuvens < 30%) e calma (vento < 8 km/h), sem chuva, a temperatura desce até 1,5 °C por cada 100 m abaixo do relevo à volta (máx. 1,5 °C), a crescer nas primeiras 4 h de noite; sem somar ao que a correção das estações já arrefece',
+    topo: 'topo — vento e rajadas +0,15% por metro acima do relevo à volta (máx. +15%)',
+};
+function terrainAdjust(H, terrain) {
+    const R = LOCAL_RULES;
+    for (const x of H) { x.tempPre = x.temp; x.localT = 0; }
+    if (terrain?.type === 'vale') {
+        const pot = Math.min(R.valleyMax, (R.valleyPer100m * terrain.reliefM) / 100);
+        // cresce nas primeiras horas de noite; na primeira hora depois do nascer do sol fica metade (a inversão demora a desfazer-se)
+        let nightH = H[0] && !H[0].isDay ? R.rampH : 0, sinceDawn = 0, lastRamp = nightH ? 1 : 0; // a série pode começar já de noite
+        for (const x of H) {
+            let ramp;
+            if (!x.isDay) { if (sinceDawn) { nightH = 0; sinceDawn = 0; } nightH++; ramp = lastRamp = clamp(nightH / R.rampH, 0, 1); }
+            else { sinceDawn++; ramp = sinceDawn === 1 ? 0.5 * lastRamp : 0; }
+            const f = clamp((R.cloud[1] - (x.cloud ?? 100)) / (R.cloud[1] - R.cloud[0]), 0, 1)
+                * clamp((R.wind[1] - (x.wind ?? 99)) / (R.wind[1] - R.wind[0]), 0, 1)
+                * ((x.precip ?? 0) >= 0.2 ? 0 : 1) * ramp;
+            const cool = Math.max(0, pot * f - Math.max(0, -(x.obsT || 0)));
+            if (cool < 0.01 || !isNum(x.temp)) continue;
+            x.localT = -cool;
+            for (const k of ['temp', 'tempLo', 'tempHi', 'feels']) if (isNum(x[k])) x[k] -= cool;
+            if (isNum(x.dew)) { x.dew = Math.min(x.dew, x.temp); x.rh = relHum(x.temp, x.dew); }
+        }
+        return { pot, windFactor: 1 };
+    }
+    if (terrain?.type === 'topo') {
+        const wf = 1 + Math.min(R.topMax, R.topPerM * terrain.reliefM);
+        for (const x of H) { if (isNum(x.wind)) x.wind *= wf; if (isNum(x.gust)) x.gust *= wf; }
+        return { pot: 0, windFactor: wf };
+    }
+    return { pot: 0, windFactor: 1 };
+}
+// Mínima de cada dia com horas de madrugada na série: quanto desceu o mínimo das horas com o ajuste do vale
+function tminShifts(H) {
+    const byDate = new Map();
+    for (const x of H) { const d = x.time.slice(0, 10); if (!byDate.has(d)) byDate.set(d, []); byDate.get(d).push(x); }
+    const out = new Map();
+    for (const [d, xs] of byDate) {
+        if (xs.filter((x) => hourOf(x.time) < 10).length < 6 || !xs.some((x) => x.localT)) continue;
+        const a = Math.min(...xs.map((x) => x.temp).filter(isNum)), b = Math.min(...xs.map((x) => x.tempPre).filter(isNum));
+        if (isNum(a) && isNum(b) && a < b - 0.05) out.set(d, a - b);
+    }
+    return out;
+}
+function localSummary(terrain, adj, next, nowX, shifts) {
+    if (!terrain) return null;
+    const fmt = (x) => String(r1(Math.abs(x))).replace('.', ',');
+    const base = { type: terrain.type, rule: RULE_TXT[terrain.type] || null, potential: null, windFactor: null, now: 0, hours: 0, max: 0, peak: null, tmin: [] };
+    if (terrain.type === 'vale') {
+        const hit = next.filter((x) => x.localT <= -0.05);
+        const top = hit.reduce((a, x) => (!a || x.localT < a.localT ? x : a), null);
+        const tmin = [...shifts.entries()].map(([date, d]) => ({ date, delta: r1(d) }));
+        return { ...base, potential: -r1(adj.pot), now: r1(nowX?.localT || 0) || 0, hours: hit.length, max: top ? r1(top.localT) : 0, peak: top?.time || null, tmin,
+            text: hit.length ? `Vale: ${hit.length} h de noite limpa e calma nas próximas 72 h, até ${fmt(top.localT)}° mais frio do que o consenso (${hm(top.time)}).`
+                : `Vale: sem noites limpas e calmas nas próximas 72 h, por isso sem ajuste (até −${fmt(adj.pot)}° quando houver).` };
+    }
+    if (terrain.type === 'topo') {
+        const pct = Math.round((adj.windFactor - 1) * 100);
+        return { ...base, windFactor: Math.round(adj.windFactor * 100) / 100,
+            text: `Topo: vento e rajadas +${pct}% face ao consenso (mais exposto do que o terreno suavizado dos modelos).` };
+    }
+    return { ...base, text: `${terrain.label} (${terrain.text}): sem ajuste automático.` };
+}
+
 // ---------- previsão completa ----------
 export function buildForecast(raw, opts = {}) {
     const nowMs = (opts.now ? new Date(opts.now) : new Date()).getTime();
@@ -665,6 +822,7 @@ export function buildForecast(raw, opts = {}) {
                 if (isNum(aT)) {
                     const d = reprW * aT * Math.exp(-h / 5);
                     for (const k of ['temp', 'tempLo', 'tempHi', 'feels']) if (isNum(H[i][k])) H[i][k] += d;
+                    H[i].obsT = d;
                 }
                 if (isNum(aD) && isNum(H[i].dew)) H[i].dew += reprW * aD * Math.exp(-h / 8);
                 if (isNum(H[i].dew) && isNum(H[i].temp)) { H[i].dew = Math.min(H[i].dew, H[i].temp); H[i].rh = relHum(H[i].temp, H[i].dew); }
@@ -686,9 +844,15 @@ export function buildForecast(raw, opts = {}) {
             elevation: r0(targetElev), repr: Math.round(reprW * 100) / 100, spread: r1(blend.sd),
             stations: blend.rows.slice().sort((a, b) => b.share - a.share || a.distanceKm - b.distanceKm).slice(0, 12).map((r) => ({
                 id: r.id, name: r.name, source: r.source, distanceKm: r1(r.distanceKm), elev: r0(r.elev), time: msToLocal(r.last.ms, off), ageMin: r0(r.ageMin),
-                temp: r1(r.last.temp), tempAdj: r1(r.tAdj), anomaly: r1(r.aT), weight: r0(r.share * 100), used: r.used, ...(r.twin ? { sameSite: r.twin } : {}) })),
+                temp: r1(r.last.temp), tempAdj: r1(r.tAdj), anomaly: r1(r.aT), weight: r0(r.share * 100), used: r.used,
+                dir: isNum(r.lat) && isNum(r.lon) ? compass(bearing(lat, lon, r.lat, r.lon)) : null, ...(r.twin ? { sameSite: r.twin } : {}) })),
         };
     }
+
+    // 3b) Efeito local do relevo à volta do ponto (vale: noites limpas e calmas mais frias; topo: mais vento)
+    const terrain = buildTerrain(raw.terrain);
+    const tAdj = terrainAdjust(H, terrain);
+    const wf = tAdj.windFactor;
 
     // nevoeiro e código (depois da correção)
     for (const x of H) {
@@ -709,6 +873,7 @@ export function buildForecast(raw, opts = {}) {
         precip: r1(x.precip), precipHi: r1(x.precipHi), pop: r0(x.pop == null ? null : x.pop * 100), wind: r0(x.wind), gust: r0(x.gust), dir: r0(x.dir),
         cloud: r0(x.cloud), cloudLow: r0(x.cloudLow), pressure: r1(x.pressure), visibility: r0(x.vis), cape: r0(x.cape), uv: r1(x.uv),
         code: x.code, isDay: !!x.isDay, spread: r1(x.spread), agree: x.agree == null ? null : Math.round(x.agree * 100) / 100,
+        ...(x.localT <= -0.05 ? { local: r1(x.localT) } : {}),
     }));
 
     // 5) Próximas 2 horas (minuto a minuto de 15 em 15)
@@ -725,6 +890,7 @@ export function buildForecast(raw, opts = {}) {
     const shiftNight = wmean(P.models.map((m) => m.corrNight), P.models.map((m) => m.meta.w)) || 0;
     const normals = climateNormals(raw.clim, P.dates);
     const change = runChanges(raw.prev, P.dates, off);
+    const shifts = terrain?.type === 'vale' ? tminShifts(H) : new Map();
     const ensDays = [];
     const daily = P.dates.map((date, k) => {
         const ms = P.models;
@@ -773,7 +939,7 @@ export function buildForecast(raw, opts = {}) {
                 if (isNum(tmax)) tmax = Math.max(tmax, ...rest);
                 if (isNum(tmin)) tmin = Math.min(tmin, ...rest);
             }
-        }
+        } else if (shifts.has(date) && isNum(tmin)) tmin += shifts.get(date); // vale: noite limpa e calma (hoje já entra pelas horas)
         const sd = det?.sd ?? 1;
         const qx = ens ? ens.tmax.map((v) => v - ens.tmax[1] + tmax) : [tmax - 1.28 * Math.max(sd, 0.6), tmax, tmax + 1.28 * Math.max(sd, 0.6)];
         const qn = ens ? ens.tmin.map((v) => v - ens.tmin[1] + tmin) : [tmin - 1.28 * Math.max(sd, 0.6), tmin, tmin + 1.28 * Math.max(sd, 0.6)];
@@ -807,7 +973,8 @@ export function buildForecast(raw, opts = {}) {
         return {
             date, code, tmax: r1(tmax), tmin: r1(tmin), tmaxP10: r1(qx[0]), tmaxP90: r1(qx[2]), tminP10: r1(qn[0]), tminP90: r1(qn[2]),
             precip: r1(precip), precipP90: r1(precipP90), pop: r0(isNum(pop) ? pop * 100 : null), popHeavy: r0(isNum(popHeavy) ? popHeavy * 100 : null),
-            windMax: r0(det?.wind), gustMax: r0(det?.gust ?? ens?.gust), dir: r0(det?.dir), uvMax: r1(det?.uv), sunrise: sun('sunrise'), sunset: sun('sunset'),
+            windMax: r0(isNum(det?.wind) ? det.wind * wf : null), gustMax: r0(isNum(det?.gust ?? ens?.gust) ? (det?.gust ?? ens.gust) * wf : null),
+            dir: r0(det?.dir), uvMax: r1(det?.uv), sunrise: sun('sunrise'), sunset: sun('sunset'),
             confidence: confScore >= 0.7 ? 'alta' : confScore >= 0.45 ? 'media' : 'baixa', confScore: Math.round(confScore * 100) / 100, spread: r1(spread),
             change24h: change?.[k] || null, normal: nrm, anomaly: nrm && isNum(tmax) ? r1(tmax - nrm.tmax) : null,
             source: wDet >= 0.5 ? 'multimodelo' : 'ensemble', models: nDet, members: ens?.n || 0,
@@ -847,7 +1014,9 @@ export function buildForecast(raw, opts = {}) {
         models: Object.entries(ver).map(([id, v]) => ({ id, name: nameOf(id), mae: r1(v.mae), bias: r1(v.bias), n: v.n })).sort((a, b) => a.mae - b.mae),
     } : null;
     const hIdx = H.slice(nowIdx, nowIdx + 72).map((_, j) => nowIdx + j);
-    const official = ipmaM ? { source: 'IPMA', local: ipmaM.ipma.name, id: ipmaM.ipma.id, distanceKm: r1(ipmaM.ipma.distanceKm), updated: ipmaM.ipma.updated,
+    const ipLoc = raw.ipma?.forecast?.local;
+    const official = ipmaM ? { source: 'IPMA', local: ipmaM.ipma.name, id: ipmaM.ipma.id, distanceKm: r1(ipmaM.ipma.distanceKm),
+        dir: isNum(ipLoc?.lat) && isNum(ipLoc?.lon) && ipmaM.ipma.distanceKm >= 0.05 ? compass(bearing(lat, lon, ipLoc.lat, ipLoc.lon)) : null, updated: ipmaM.ipma.updated,
         hours: ipmaM.ipma.hours, days: ipmaM.ipma.days, weight: Math.round(IPMA_MODEL.w * ipmaM.factor * 100) / 100, skill: ipmaM.skill,
         daily: ipmaM.ipma.daily.filter((x) => x.date >= todayDate),
         // hora a hora alinhado com "hourly" (temperatura e probabilidade de chuva do período de 3 h)
@@ -859,9 +1028,10 @@ export function buildForecast(raw, opts = {}) {
     return {
         v: 1, generatedAt: new Date(nowMs).toISOString(),
         location: { lat, lon, elevation: r0(targetElev), timezone: P.timezone, utcOffsetSeconds: off,
-            name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null },
+            name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null, terrain },
         models, ensemble: ensP ? { members: ensP.members.length, models: ensP.systems } : { members: 0, models: [] },
         now, nowcast, hourly, daily: daily.map(stripInternal), indicators, warnings, fire, verification, official, compare,
+        local: localSummary(terrain, tAdj, H.slice(nowIdx, nowIdx + 72), H[nowIdx], shifts),
         analysis: raw.analysisMeta || null,
         sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area || official ? ['IPMA'] : []),
             ...(usedMetar ? ['NOAA AWC (METAR)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
@@ -1102,12 +1272,29 @@ function buildFire(raw, { lat, lon, off, next, now, area, place }) {
 export function buildSummary(fc, extra = {}) {
     const L = [];
     const f1 = (x) => (isNum(x) ? x.toFixed(1) : '—'), f0 = (x) => (isNum(x) ? String(Math.round(x)) : '—');
-    const loc = fc.location;
-    L.push(`# Previsão para ${loc.name || 'local'} (${loc.lat?.toFixed(4)}, ${loc.lon?.toFixed(4)}), ${loc.elevation} m, fuso ${loc.timezone}`);
-    L.push(`Gerado: ${fc.generatedAt} (hora local agora: ${fc.now.time}). Modelos: ${fc.models.map((m) => `${m.name} p=${m.weight}${m.skill ? ` [erro local ${m.skill.mae}°C, viés ${m.skill.bias}]` : ''}`).join('; ')}.`);
-    L.push(`Ensembles: ${fc.ensemble.members} cenários (${fc.ensemble.models.map((m) => `${m.name} ${m.members}×${m.days}d`).join(', ')}).`);
+    const loc = fc.location, T = loc.terrain, LA = fc.local;
     const n = fc.now, o = n.obs, OF = fc.official;
-    if (OF) L.push(`Previsão oficial do IPMA: ${OF.local} (a ${OF.distanceKm} km do ponto), atualizada ${OF.updated || '?'}, entra no consenso com peso ${OF.weight} nos dias 0–2 (menos depois)${OF.skill ? ` [erro local ${OF.skill.mae}°C, viés ${OF.skill.bias}]` : ' (ainda sem verificação local)'}.`);
+    // 1) o ponto: onde é, o relevo, de onde vêm os dados — e o pedido explícito de falar só dele
+    L.push('## O ponto');
+    L.push(`${loc.name || 'Local sem nome'} — ${loc.lat?.toFixed(4)}, ${loc.lon?.toFixed(4)} · ${loc.elevation} m · fuso ${loc.timezone} · hora local agora ${String(n.time).replace('T', ' ')}.`);
+    L.push(T ? `Relevo: ${T.description} (altitude média à volta: ${T.rings.map((r) => `${r.mean} m a ${String(r.km).replace('.', ',')} km [${r.min}–${r.max} m]`).join(', ')}).`
+        : 'Relevo: desconhecido (sem as altitudes à volta do ponto).');
+    if (LA) L.push(`Efeito local já incluído na previsão: ${LA.text}${LA.tmin?.length ? ` Mínimas: ${LA.tmin.map((t) => `${t.date} ${f1(t.delta)}°C`).join(', ')}.` : ''}${LA.rule ? ` Regra: ${LA.rule}.` : ''}`);
+    if (OF) L.push(`Previsão oficial do IPMA: ${OF.local} (a ${OF.distanceKm} km do ponto${OF.dir ? `, para ${OF.dir}` : ''}), atualizada ${OF.updated || '?'}, entra no consenso com peso ${OF.weight} nos dias 0–2 (menos depois)${OF.skill ? ` [erro local ${OF.skill.mae}°C, viés ${OF.skill.bias}]` : ' (ainda sem verificação local)'}.`);
+    const used = (o?.stations || []).filter((s) => s.used);
+    L.push(used.length ? `Estações na observação combinada (${used.length}, a ${o.distanceKm} km em média, levadas à altitude do ponto): ${used.slice(0, 8).map((s) => `${s.name} (${s.source}, ${s.distanceKm} km${s.dir ? ` para ${s.dir}` : ''}, ${isNum(s.elev) ? s.elev + ' m' : 'alt. ?'}, peso ${s.weight}%)`).join('; ')}${used.length > 8 ? `; e mais ${used.length - 8}` : ''}.`
+        : 'Estações: nenhuma com observação recente até 30 km — a previsão do ponto vem só dos modelos.');
+    L.push('Analisa este ponto; a região só interessa quando afeta o ponto (com distância, direção e hora de chegada). Diz o que acontece aqui, hora a hora, em mm, km/h e °C; nada de frases genéricas sobre o distrito ou a região.');
+    const ipH = OF?.hourly ? new Map(OF.hourly.times.map((t, i) => [t, [OF.hourly.temp[i], OF.hourly.pop[i]]])) : null;
+    const ipCell = (h) => { const ip = ipH?.get(h.time); return ip && isNum(ip[0]) ? `${f1(ip[0])} (${f0(ip[1])}%)` : '—'; };
+    L.push(`\n## Próximas 12 h no ponto, hora a hora (T = consenso corrigido [faixa entre modelos]; local = ajuste do relevo já incluído${ipH ? '; IPMA = previsão oficial T (prob. 3 h)' : ''})`);
+    L.push(`hora | T [faixa] | sens | chuva mm/h (prob) | vento/rajada dir | nuvens (baixas) | HR | orvalho | visib. km | código | local${ipH ? ' | IPMA' : ''}`);
+    fc.hourly.slice(0, 13).forEach((h) => {
+        L.push(`${h.time.slice(5).replace('T', ' ')} | ${f1(h.temp)} [${f1(h.tempLo)}–${f1(h.tempHi)}] | ${f1(h.feels)} | ${f1(h.precip)} (${f0(h.pop)}%) | ${f0(h.wind)}/${f0(h.gust)} ${compass(h.dir) || ''} | ${f0(h.cloud)} (${f0(h.cloudLow)}) | ${f0(h.rh)} | ${f1(h.dew)} | ${isNum(h.visibility) ? f1(h.visibility / 1000) : '—'} | ${h.code} | ${isNum(h.local) ? f1(h.local) : '0'}${ipH ? ` | ${ipCell(h)}` : ''}`);
+    });
+    L.push('\n## Fontes');
+    L.push(`Gerado: ${fc.generatedAt}. Modelos: ${fc.models.map((m) => `${m.name} p=${m.weight}${m.skill ? ` [erro local ${m.skill.mae}°C, viés ${m.skill.bias}]` : ''}`).join('; ')}.`);
+    L.push(`Ensembles: ${fc.ensemble.members} cenários (${fc.ensemble.models.map((m) => `${m.name} ${m.members}×${m.days}d`).join(', ')}).`);
     L.push('\n## Agora');
     L.push(`Consenso: ${f1(n.temp)}°C (sensação ${f1(n.feels)}), HR ${f0(n.rh)}%, orvalho ${f1(n.dew)}, vento ${f0(n.wind)} km/h de ${compass(n.dir) || '—'} rajadas ${f0(n.gust)}, pressão ${f1(n.pressure)} hPa (3 h: ${f1(n.pressureTrend3h)}), nuvens ${f0(n.cloud)}%, código ${n.code}.`);
     if (o) {
@@ -1115,12 +1302,10 @@ export function buildSummary(fc, extra = {}) {
         if (o.stations?.length) L.push(`Estações: ${o.stations.map((s) => `${s.name} (${s.source}, ${s.distanceKm} km, ${isNum(s.elev) ? s.elev + ' m' : 'alt. ?'}, ${String(s.time).slice(11)}): ${f1(s.temp)}→${f1(s.tempAdj)}°C, desvio ${f1(s.anomaly)}, peso ${s.weight}%${s.used ? '' : ' [rejeitada]'}`).join('; ')}.`);
     }
     if (fc.nowcast?.text) L.push(`Próximas 2 h: ${fc.nowcast.text} (${fc.nowcast.steps.map((s) => `${s.time.slice(11)} ${f1(s.precip)}mm/${s.prob}%`).join(', ')})`);
-    const ipH = OF?.hourly ? new Map(OF.hourly.times.map((t, i) => [t, [OF.hourly.temp[i], OF.hourly.pop[i]]])) : null;
-    L.push(`\n## Próximas 48 h (de 3 em 3 h; T = consenso [faixa entre modelos], chuva mm/h e prob.${ipH ? '; IPMA = previsão oficial T (prob. 3 h)' : ''})`);
-    L.push(`hora | T [faixa] | sens | chuva (prob) | vento/rajada dir | nuvens (baixas) | CAPE | HR | código${ipH ? ' | IPMA' : ''}`);
-    fc.hourly.filter((_, i) => i % 3 === 0).slice(0, 17).forEach((h) => {
-        const ip = ipH?.get(h.time);
-        L.push(`${h.time.slice(5).replace('T', ' ')} | ${f1(h.temp)} [${f1(h.tempLo)}–${f1(h.tempHi)}] | ${f1(h.feels)} | ${f1(h.precip)} (${f0(h.pop)}%) | ${f0(h.wind)}/${f0(h.gust)} ${compass(h.dir) || ''} | ${f0(h.cloud)} (${f0(h.cloudLow)}) | ${f0(h.cape)} | ${f0(h.rh)} | ${h.code}${ipH ? ` | ${ip && isNum(ip[0]) ? `${f1(ip[0])} (${f0(ip[1])}%)` : '—'}` : ''}`);
+    L.push(`\n## Das 12 às 48 h no ponto (de 3 em 3 h; T = consenso [faixa entre modelos], chuva mm/h e prob.${ipH ? '; IPMA = previsão oficial T (prob. 3 h)' : ''})`);
+    L.push(`hora | T [faixa] | sens | chuva (prob) | vento/rajada dir | nuvens (baixas) | CAPE | HR | código | local${ipH ? ' | IPMA' : ''}`);
+    fc.hourly.filter((_, i) => i >= 12 && i % 3 === 0).slice(0, 13).forEach((h) => {
+        L.push(`${h.time.slice(5).replace('T', ' ')} | ${f1(h.temp)} [${f1(h.tempLo)}–${f1(h.tempHi)}] | ${f1(h.feels)} | ${f1(h.precip)} (${f0(h.pop)}%) | ${f0(h.wind)}/${f0(h.gust)} ${compass(h.dir) || ''} | ${f0(h.cloud)} (${f0(h.cloudLow)}) | ${f0(h.cape)} | ${f0(h.rh)} | ${h.code} | ${isNum(h.local) ? f1(h.local) : '0'}${ipH ? ` | ${ipCell(h)}` : ''}`);
     });
     L.push('\n## 16 dias (T máx/mín com P10–P90 do ensemble; chuva = média e P90; prob. ≥1 mm e ≥10 mm)');
     L.push('dia | código | máx [P10–P90] | mín [P10–P90] | chuva (P90) | prob | ≥10mm | rajada | conf. | Δ24h máx/chuva | anomalia | fonte');

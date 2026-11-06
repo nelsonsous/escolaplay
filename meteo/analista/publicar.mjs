@@ -1,9 +1,10 @@
 // Analista do tempo — valida a análise escrita pelo Claude e grava-a na base de dados (KV).
-//   NODE_USE_ENV_PROXY=1 node meteo/analista/publicar.mjs /tmp/meteo/analise-<id>.json [--model <id do modelo>]
+//   NODE_USE_ENV_PROXY=1 node meteo/analista/publicar.mjs /tmp/meteo/analise-<id>.json [--model <id do modelo>] [--regiao-ok]
+// Recusa frases genéricas sobre a região (a análise é para o ponto exato), salvo --regiao-ok.
 // Grava analysis:<id> (a app lê-a em /api/analysis), o arquivo analysis:<id>:<data-hora> (30 dias) e lessons:<id>.
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { validateAnalysis } from '../lib/analysis.js';
+import { validateAnalysis, regionalPhrases } from '../lib/analysis.js';
 import { WORKER, getJSON, kvPut, arg } from './comum.mjs';
 
 const file = process.argv[2];
@@ -19,6 +20,14 @@ const { ok, errors, value } = validateAnalysis(a, { strict: true });
 const today = new Date().toISOString().slice(0, 10);
 if (value?.dias?.some((d) => d.data <= today)) errors.push('"dias" deve começar depois de amanhã (hoje e amanhã têm campos próprios)');
 if (!ok || errors.length) { console.error('Análise inválida:\n- ' + errors.join('\n- ')); process.exit(1); }
+// a análise é para o ponto exato: frases genéricas sobre a região não passam (salvo --regiao-ok, quando são mesmo precisas)
+const regional = regionalPhrases(value, { place: place.name });
+if (regional.length && !process.argv.includes('--regiao-ok')) {
+    console.error(`Frases sobre a região em vez do ponto (${place.name}, ${place.lat}, ${place.lon}):\n- ${regional.map((r) => `${r.campo}: «${r.frase}»`).join('\n- ')}\n` +
+        'Reescreve-as sobre o ponto: o que acontece aqui (mm, km/h, °C, horas); um sistema regional só com distância, direção e hora de chegada ao ponto. ' +
+        'Se a menção for mesmo necessária, publica com --regiao-ok.');
+    process.exit(1);
+}
 
 const doc = { ...value, generatedAt: new Date().toISOString(), by: 'claude-agendado', model: arg('--model', 'claude'),
     place: { id: place.id, name: place.name, lat: place.lat, lon: place.lon } };

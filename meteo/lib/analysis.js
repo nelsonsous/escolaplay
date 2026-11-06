@@ -28,9 +28,16 @@ export const ANALYSIS_SCHEMA = obj({
     licoes: { type: 'array', description: 'Até 8 lições curtas sobre este local para análises futuras', items: { type: 'string' } },
 });
 
-export const SYSTEM_PROMPT = `És o meteorologista de serviço para um local exato. Recebes um resumo numérico: consenso ponderado de até 9 modelos (ECMWF, Met Office, Météo-France AROME, DWD ICON, AIFS, GFS, GEM, JMA, CMA) e da previsão oficial do IPMA para o concelho, 212 cenários de 6 ensembles, a observação combinada das estações perto (IPMA e METAR, ajustadas à altitude do ponto), a verificação local dos modelos nos últimos dias, a tabela "Fontes lado a lado" (cada modelo, o IPMA e o ensemble para hoje, amanhã e depois, com as divergências), avisos do IPMA, risco de incêndio, focos de calor por satélite (NASA FIRMS) e ocorrências da Proteção Civil. Às vezes recebes também imagens de satélite Meteosat (MTG) centradas no local.
+export const SYSTEM_PROMPT = `És o meteorologista de serviço para UM PONTO exato: as coordenadas, a altitude e o relevo estão no bloco "## O ponto" do resumo. Recebes um resumo numérico: consenso ponderado de até 9 modelos (ECMWF, Met Office, Météo-France AROME, DWD ICON, AIFS, GFS, GEM, JMA, CMA) e da previsão oficial do IPMA para o concelho, 212 cenários de 6 ensembles, a observação combinada das estações perto (IPMA e METAR, ajustadas à altitude do ponto), a tabela hora a hora das próximas 12 h no ponto, a verificação local dos modelos nos últimos dias, a tabela "Fontes lado a lado" (cada modelo, o IPMA e o ensemble para hoje, amanhã e depois, com as divergências), avisos do IPMA, risco de incêndio, focos de calor por satélite (NASA FIRMS) e ocorrências da Proteção Civil. Às vezes recebes também imagens de satélite Meteosat (MTG) centradas no ponto: de perto (~280 km) e largas.
 
-Objetivo: a previsão mais exata possível para ESTE local, a curto prazo (0–48 h) e a médio prazo (3–15 dias), dita de forma clara e útil.
+Objetivo: a previsão mais exata possível para ESTE PONTO, a curto prazo (0–48 h) e a médio prazo (3–15 dias), dita de forma clara e útil para quem lá está.
+
+O ponto primeiro (regra principal):
+- Escreve sobre o que acontece NO PONTO: a que horas começa e acaba a chuva aqui e quantos mm, a temperatura e o vento aqui (°C, km/h), hora a hora nas próximas horas (tabela "Próximas 12 h no ponto").
+- Os sistemas regionais só entram como causa, com distância, direção e hora de chegada ao ponto: "a banda de chuva a 80 km a sudoeste deve chegar ao ponto por volta das 21h"; "a frente passa aqui entre as 3h e as 6h".
+- Nada de frases genéricas sobre o distrito, a região ou o país ("no distrito do Porto", "no Minho e Douro Litoral", "no interior norte", "no litoral"). Os avisos do IPMA são por distrito: diz só o que significam para o ponto.
+- Usa o relevo do ponto: num vale, nas noites limpas e calmas, o ar frio acumula-se (geada, nevoeiro, inversão térmica, mínimas mais baixas) e o vento é mais fraco; num topo há mais vento e menos geada; numa encosta conta a exposição ao sol e ao vento. O ajuste local já aplicado vem em "Efeito local"; diz quando faz diferença.
+- As estações (distância, rumo e altitude em "O ponto") dizem o que se passa à volta: diz quanto valem para este ponto (mesma altitude? mesmo vale?).
 
 Como pensar:
 - Começa pelas observações. A observação "agora" combina várias estações (lista, distâncias, altitudes e pesos no resumo); se diverge do consenso, confia mais nela para as próximas horas (a correção já aplicada vem indicada) e diz se as estações concordam entre si.
@@ -39,18 +46,51 @@ Como pensar:
 - Quando os modelos discordam, diz qual o cenário mais provável e porquê (resolução, verificação local, coerência com o satélite e com a tendência da pressão) e qual a alternativa.
 - No médio prazo fala em probabilidades e intervalos (P10–P90), não em certezas, e diz a partir de quando a previsão deixa de ser fiável.
 - Os avisos do IPMA são oficiais: nunca os contradigas sem explicar. Os teus alertas não os substituem.
-- Nas imagens de satélite identifica frentes, bandas de nebulosidade, células convectivas, relâmpagos e o movimento provável em relação ao local, e liga isso à previsão. Sem imagens, deixa "satelite" vazio.
-- Incêndios: com risco elevado ou superior, focos de calor ou ocorrências por perto, avalia com o vento, a humidade e a regra 30-30-30; lembra que um foco de satélite pode ser uma fonte industrial ou uma queima. Se nada for relevante, deixa "incendios" vazio.
+- Nas imagens de satélite o ponto está no centro exato. Nas de perto (~280 × 210 km) vê o que já está sobre o ponto ou a menos de ~100 km; nas largas, o sistema todo. Para cada coisa que vai afetar o ponto (frente, banda de nebulosidade, célula convectiva, relâmpagos) diz a distância, o rumo, o deslocamento e a hora provável de chegada, e liga isso à previsão. Sem imagens, deixa "satelite" vazio.
+- Incêndios: com risco elevado ou superior, focos de calor ou ocorrências por perto, avalia com o vento, a humidade e a regra 30-30-30, dizendo a distância e o rumo ao ponto; lembra que um foco de satélite pode ser uma fonte industrial ou uma queima. Se nada for relevante, deixa "incendios" vazio.
 - Não inventes dados que não estejam no resumo. Usa a hora local do sítio.
 
-Estilo: português de Portugal, direto, frases curtas, números concretos (horas, mm, km/h, °C). Sem floreados nem repetições entre secções. "conselhos" práticos (roupa, guarda-chuva, estendal, rega, condução, atividades ao ar livre, saúde), no máximo 5. "dias" cobre os dias depois de amanhã (até 7). "licoes": mantém as anteriores que continuem válidas e junta o que aprendeste sobre este local (até 8).`;
+Estilo: português de Portugal, direto, frases curtas, números concretos no ponto (horas, mm, km/h, °C). Sem floreados nem repetições entre secções. "conselhos" práticos para quem está no ponto (roupa, guarda-chuva, estendal, rega, condução, atividades ao ar livre, saúde), no máximo 5. "dias" cobre os dias depois de amanhã (até 7). "licoes": mantém as anteriores que continuem válidas e junta o que aprendeste sobre este ponto (até 8).`;
 
 export function userPrompt(summary, { previous, lessons } = {}) {
     const parts = [summary];
     if (previous) parts.push(`\n## Análise anterior (${previous.generatedAt})\nTítulo: ${previous.titulo}\nHoje: ${previous.hoje}\nAmanhã: ${previous.amanha}`);
     if (lessons?.length) parts.push(`\n## Lições sobre este local\n- ${lessons.join('\n- ')}`);
-    parts.push('\nEscreve a análise no formato pedido.');
+    parts.push('\nEscreve a análise no formato pedido, sobre o ponto exato (não sobre a região).');
     return parts.join('\n');
+}
+
+// Frases genéricas sobre a região (a análise é para o ponto exato). O publicar.mjs recusa-as, salvo --regiao-ok.
+// Não apanha sistemas descritos em relação ao ponto ("a banda de chuva a 80 km a sudoeste").
+const word = (s, f = '') => new RegExp(`(?<!\\p{L})(?:${s})(?!\\p{L})`, `u${f}`); // \b não conhece acentos
+export const REGIONAL_PATTERNS = [
+    word('distritos?', 'i'),
+    word('(?:na|da|pela|à|nesta|desta|toda a) região', 'i'),
+    word('regiões', 'i'),
+    word('Minho|Douro Litoral|Trás-os-Montes|Alto Douro|Beira (?:Litoral|Interior|Alta|Baixa)|Ribatejo|Alentejo|Algarve|Estremadura'),
+    word('(?:litoral|interior) (?:norte|centro|sul)', 'i'),
+    word('(?:norte|centro|sul) do país', 'i'),
+    word('Portugal continental|todo o país|todo o território', 'i'),
+    word('Grande Porto|Grande Lisboa|Área Metropolitana', 'i'),
+];
+/** Frases sobre a região em vez do ponto: [{ campo, frase }] (a frase com algum contexto). place = nome do local, que não conta. */
+export function regionalPhrases(a, { place } = {}) {
+    if (!a || typeof a !== 'object') return [];
+    const fields = [['titulo', a.titulo], ['resumo', a.resumo], ['agora', a.agora], ['hoje', a.hoje], ['amanha', a.amanha], ['tendencia', a.tendencia],
+        ['incendios', a.incendios], ['satelite', a.satelite], ['tecnica', a.tecnica], ['verificacao', a.verificacao], ['fiabilidade.texto', a.fiabilidade?.texto],
+        ...(Array.isArray(a.dias) ? a.dias.map((d, i) => [`dias[${i}]`, d?.texto]) : []),
+        ...(Array.isArray(a.alertas) ? a.alertas.map((x, i) => [`alertas[${i}]`, `${x?.quando || ''} ${x?.texto || ''}`]) : []),
+        ...(Array.isArray(a.conselhos) ? a.conselhos.map((c, i) => [`conselhos[${i}]`, c]) : [])];
+    const out = [];
+    for (const [campo, v] of fields) {
+        if (typeof v !== 'string' || !v) continue;
+        const t = place ? v.split(place).join(' ') : v;
+        for (const re of REGIONAL_PATTERNS) {
+            const m = re.exec(t);
+            if (m) out.push({ campo, frase: t.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).trim() });
+        }
+    }
+    return out;
 }
 
 // Valida e normaliza. strict=true devolve erros quando passa dos limites; senão corta o texto.

@@ -1,7 +1,7 @@
 // Recolha de dados para um local e cálculo da previsão (browser e Node).
 // Open-Meteo, IPMA e Nominatim são chamados diretamente (CORS aberto); METAR, FIRMS e fogos.pt passam pelo Worker.
 import { omQueries, climateQueries, OM, IPMA, ipmaAggregateUrl, inPortugal, inEuropeFirms } from './sources.js';
-import { buildForecast, buildSummary, perModelTable, pickStation, nearStations, nearestIpmaLocal } from './engine.js';
+import { buildForecast, buildSummary, perModelTable, pickStation, nearStations, nearestIpmaLocal, terrainPoints } from './engine.js';
 import { haversine } from './stats.js';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -107,6 +107,21 @@ async function elevations(points, ctx) {
     return out;
 }
 
+// Relevo à volta do ponto: altitudes do ponto e de 24 pontos à volta (1,5 e 4 km) num só pedido, guardadas para sempre
+// (o terreno não muda). A chave tem a versão da geometria (engine.TERRAIN): mudar os anéis = pedir de novo.
+export async function pointTerrain(lat, lon, ctx = { base: PROXY, preferProxy: false }) {
+    const key = `terrain:v1:${cell(lat, 4)},${cell(lon, 4)}`;
+    const hit = cacheGet(key, Infinity);
+    if (hit) return hit;
+    const pts = terrainPoints(lat, lon);
+    const j = await om('elevation', `latitude=${pts.map((p) => cell(p[0], 4)).join(',')}&longitude=${pts.map((p) => cell(p[1], 4)).join(',')}`, ctx, 10000);
+    const e = Array.isArray(j?.elevation) && j.elevation.length === pts.length && j.elevation.every(Number.isFinite) ? j.elevation : null;
+    if (!e) throw new Error('altitudes à volta em falta');
+    const v = { elevation: e };
+    cacheSet(key, v);
+    return v;
+}
+
 // Previsão oficial do IPMA: concelho mais próximo (lista guardada 7 dias) e a sua previsão (30 min)
 async function ipmaOfficial(lat, lon) {
     const locs = await cached('ipma:locations', 7 * 864e5, async () => {
@@ -123,6 +138,7 @@ async function ipmaOfficial(lat, lon) {
 /**
  * Previsão completa para um local (formato em docs/API.md, "Previsão").
  * ipmaPrev (opcional, tarefa agendada): previsões do IPMA de há ~1 dia { times, temp } para a verificação local.
+ * O relevo à volta do ponto (pointTerrain) dá location.terrain e o efeito local (fc.local).
  * @param {{lat:number, lon:number, name?:string, base?:string, preferProxy?:boolean, withRaw?:boolean, now?:number|string, ipmaPrev?:object}} o
  */
 export async function loadForecast(o = {}) {
@@ -145,6 +161,7 @@ export async function loadForecast(o = {}) {
         metar: settle(request(`${B}/api/raw/metar?lat=${lat}&lon=${lon}`, { timeout: 10000 })),
         place: settle(reverseGeocode(lat, lon)),
         clim: settle(climate(lat, lon, ctx)),
+        terrain: settle(pointTerrain(lat, lon, ctx)),
         ...(pt ? {
             stations: settle(cached('ipma:stations', 864e5, () => request(IPMA.stations))),
             obs: settle(request(IPMA.obs, { timeout: 20000 })),
@@ -198,7 +215,7 @@ export async function loadForecast(o = {}) {
         obsHistory: station && p2.hist[station.id] ? p2.hist[station.id] : null, obsHistories: p2.hist, station,
         stationElev: station ? elevs[station.id] ?? null : null, stationElevs: elevs, ipmaPrev: o.ipmaPrev || null,
         firms: R.firms?.ok ? Object.fromEntries(R.firms.v.filter(([, t]) => t)) : null, fogos: v('fogos'),
-        place: v('place'), clim: v('clim'),
+        place: v('place'), clim: v('clim'), terrain: v('terrain'),
     };
     const fc = buildForecast(raw, { lat, lon, name: o.name, now: nowMs });
     const status = Object.fromEntries(Object.entries(R).map(([k, r]) => [k, r.ok ? 'ok' : (r.e?.message || 'falhou')]));

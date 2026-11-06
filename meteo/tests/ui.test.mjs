@@ -26,6 +26,9 @@ const LAT = 38.7223, LON = -9.1393;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const SCHEDULE = ['07:12', '13:12', '19:42'];
+// relevo à volta do ponto (o ponto + 12 rumos a 1,5 km e a 4 km): altitudes reais de Santo Tirso, um vale
+const TERRAIN = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/terrain.json'), 'utf8'))['santo-tirso'].elevation;
+const distKm = (a, b, c, d) => { const t = Math.PI / 180, x = Math.sin(((c - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin(((d - b) * t) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); };
 
 // ocorrências da ANEPC (formato fogos.pt v2): uma perto de Lisboa, outra longe (Braga)
 const FOGOS = { success: true, data: [
@@ -60,7 +63,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     });
     const errors = [], unexpected = [], calls = [];
     let places = [{ id: 'lisboa', name: 'Lisboa', lat: LAT, lon: LON, createdAt: '2026-11-01T10:00:00Z' }];
-    let failModels = false, refreshBody = null, elevCalls = 0;
+    let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null;
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -71,8 +74,13 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     });
     const fulfill = (route, json) => route.fulfill({ json, headers: CORS });
     await ctx.route(/^https:\/\/api\.open-meteo\.com\/v1\/forecast/, (r) => (failModels ? r.abort('failed') : fulfill(r, RAW.det)));
-    // altitudes de várias estações num só pedido (latitude=a,b,c)
-    await ctx.route(/^https:\/\/api\.open-meteo\.com\/v1\/elevation/, (r) => { elevCalls++; const n = new URL(r.request().url()).searchParams.get('latitude').split(',').length; return fulfill(r, { elevation: Array(n).fill(77) }); });
+    // altitudes num só pedido (latitude=a,b,c): as estações perto, ou o relevo à volta do ponto (25 pontos: o 2.º a 1,5 km para norte)
+    await ctx.route(/^https:\/\/api\.open-meteo\.com\/v1\/elevation/, (r) => {
+        const sp = new URL(r.request().url()).searchParams, la = sp.get('latitude').split(',').map(Number), lo = sp.get('longitude').split(',').map(Number);
+        if (la.length === 25 && Math.abs(distKm(la[0], lo[0], la[1], lo[1]) - 1.5) < 0.05) { terrainCalls++; return fulfill(r, { elevation: TERRAIN }); }
+        elevCalls++;
+        return fulfill(r, { elevation: Array(la.length).fill(77) });
+    });
     await ctx.route(/^https:\/\/ensemble-api\.open-meteo\.com\//, (r) => fulfill(r, RAW.ens));
     await ctx.route(/^https:\/\/previous-runs-api\.open-meteo\.com\//, (r) => fulfill(r, RAW.prev));
     await ctx.route(/^https:\/\/archive-api\.open-meteo\.com\//, (r) => fulfill(r, climate(new URL(r.request().url()))));
@@ -96,9 +104,10 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/om/forecast') return fulfill(r, RAW.det);
         if (p === '/api/obs-history') return fulfill(r, []);
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: places.length, schedule: SCHEDULE });
-        if (p === '/api/analysis') {
-            const near = places.find((x) => Math.abs(x.lat - Number(u.searchParams.get('lat'))) < 0.05 && Math.abs(x.lon - Number(u.searchParams.get('lon'))) < 0.05);
-            return fulfill(r, { analysis: near ? MOCK_ANALYSIS : null, place: near ? { ...near, distanceKm: 0 } : null, ageMin: near ? 140 : null, schedule: SCHEDULE, onDemand: true });
+        if (p === '/api/analysis') { // como o conector: o local registado mais próximo até 10 km
+            const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
+            const near = places.map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
+            return fulfill(r, { analysis: near ? MOCK_ANALYSIS : null, place: near || null, ageMin: near ? 140 : null, schedule: SCHEDULE, onDemand: true });
         }
         if (p === '/api/analysis/refresh' && m === 'POST') {
             refreshBody = JSON.parse(req.postData() || '{}');
@@ -107,7 +116,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/places' && m === 'GET') return fulfill(r, places);
         if (p === '/api/places' && m === 'POST') { const b = JSON.parse(req.postData()); const pl = { id: 'casa', name: b.name, lat: b.lat, lon: b.lon, createdAt: NOW }; places.push(pl); return r.fulfill({ status: 201, json: pl, headers: CORS }); }
         if (p.startsWith('/api/places/') && m === 'DELETE') { places = places.filter((x) => x.id !== decodeURIComponent(p.slice(12))); return r.fulfill({ status: 204, headers: CORS, body: '' }); }
-        if (p === '/api/geocode') return fulfill(r, [{ name: 'Porto', admin1: 'Porto', country: 'Portugal', lat: 41.1496, lon: -8.611, elevation: 85 }, { name: '<img src=x onerror=alert(1)>', admin1: 'XSS', country: 'Teste', lat: 40, lon: -8 }]);
+        if (p.startsWith('/api/places/') && m === 'PATCH') {
+            patchBody = JSON.parse(req.postData());
+            const id = decodeURIComponent(p.slice(12)), cur = places.find((x) => x.id === id);
+            if (!cur) return r.fulfill({ status: 404, json: { error: 'nao_encontrado' }, headers: CORS });
+            const moved = { ...cur, lat: patchBody.lat, lon: patchBody.lon, ...(patchBody.name ? { name: patchBody.name } : {}) };
+            places = places.map((x) => (x.id === id ? moved : x));
+            return fulfill(r, moved);
+        }
+        if (p === '/api/geocode') return fulfill(r, [{ name: 'Porto', admin1: 'Porto', country: 'Portugal', lat: 41.1496, lon: -8.611, elevation: 85 }, { name: '<img src=x onerror=alert(1)>', admin1: 'XSS', country: 'Teste', lat: 40, lon: -8 },
+            { name: 'Amadora', admin1: 'Lisboa', country: 'Portugal', lat: 38.7536, lon: -9.2302, elevation: 150 }]);
         if (p === '/api/sat') return r.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'image/png' }, body: fs.readFileSync(path.join(ROOT, 'icon-192.png')) });
         return r.fulfill({ status: 404, json: { error: 'x' }, headers: CORS });
     });
@@ -144,9 +162,13 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(nowTxt, /Sensação .*Máx\. .*Mín\./);
     assert.match(nowTxt, /Observado \d+,\d° em Lisboa \(Geofísico\), .+ e mais \d+ · ~\d+,\d km · há \d+ min \(IPMA \+ METAR\)/, 'linha da observação combinada');
     assert.equal(elevCalls, 1, 'altitudes de todas as estações num só pedido');
+    assert.equal(terrainCalls, 1, 'relevo à volta do ponto num só pedido');
+    assert.match(nowTxt, /Vale · 70 m abaixo do relevo à volta/, 'linha do relevo no Agora');
     assert.equal(await page.locator('.tile').count(), 12, 'indicadores');
     assert.ok(await page.locator('#nc-chart svg').count(), 'gráfico das 2 horas');
-    assert.match(await page.locator('#cl-teaser').textContent(), new RegExp(MOCK_ANALYSIS.titulo.slice(0, 30)));
+    const teaser = await page.locator('#cl-teaser').textContent();
+    assert.match(teaser, new RegExp(MOCK_ANALYSIS.titulo.slice(0, 30)));
+    assert.match(teaser, /Para Lisboa · 38,7223, −9,1393 · no ponto selecionado/, 'para que ponto é a análise');
     await page.click('#h-chart .twin > summary');
     await page.waitForSelector('#h-chart .tbl tbody tr');
     assert.equal(await page.locator('#h-chart .tbl tbody tr').count(), 72, '72 horas na tabela');
@@ -203,6 +225,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // 5) Análise: análise do Claude, ligar/desligar a análise diária, análise a pedido
     await tab('analise');
     assert.equal(await page.locator('.today .cl-head').textContent(), MOCK_ANALYSIS.titulo);
+    assert.match(await page.locator('.today .cl-for').textContent(), /^Para Lisboa · 38,7223, −9,1393 · no ponto selecionado$/);
+    assert.equal(await page.locator('.far-pt').count(), 0, 'análise deste ponto: sem aviso');
     assert.ok(await page.locator('.today .an-sec').count() >= 8, 'secções da análise');
     assert.ok(await page.locator('[data-act="place-on"].on').count(), 'análise diária ligada (Lisboa registada)');
     // desligar pede confirmação; "Cancelar" não apaga nada
@@ -261,6 +285,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const prec = await page.locator('.prec').textContent();
     assert.match(prec, /Previsão oficial IPMA: Lisboa - Jardim Botânico, 1,0 km/);
     assert.match(prec, /Observações: \d+ estações até \d+(,\d)? km \(a mais próxima a 1,0 km\)/);
+    assert.match(prec, /Relevo: Vale · 70 m abaixo do relevo à volta/);
+    assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Relevo à volta do ponto/);
     // ✕ na lista também pede confirmação; Desfazer volta a ligar
     const posts0 = calls.filter((c) => c === 'POST /api/places').length;
     await page.click('[data-rmplace="casa"]');
@@ -277,7 +303,46 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('Ajustes (letra grande)');
     await shot('07-ajustes.png');
     await page.click('[data-fs="n"]');
-    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, letra grande');
+    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande');
+
+    // 6b) ponto a 8,6 km do local com análise diária: a análise diz que é de outro ponto e oferece mudar (PATCH, mesmo id)
+    await page.click('.form [data-act="place"]');
+    await page.waitForSelector('#f-q');
+    await page.fill('#f-q', 'Ama');
+    await page.waitForSelector('#f-res [data-pick="2"]');
+    await page.click('#f-res [data-pick="2"]');
+    await tab('agora');
+    await page.waitForFunction(() => document.querySelector('h1.pg-t').textContent.trim() === 'Amadora' && document.querySelector('#cl-teaser.far'));
+    assert.match(await page.locator('#cl-teaser').textContent(), /Para Lisboa · 38,7223, −9,1393 · a 8,6 km do ponto selecionado.*Esta análise é para um ponto a 8,6 km daqui/s);
+    assert.equal(await page.locator('#cl-teaser [data-act="place-move"]').count(), 1, 'oferece mudar no cartão');
+    await tab('analise');
+    const far = page.locator('.far-pt');
+    assert.match(await far.textContent(), /Esta análise é para outro ponto, a 8,6 km daqui.*Para Lisboa · 38,7223, −9,1393 · a 8,6 km do ponto selecionado/s);
+    assert.ok(await page.locator('[data-act="place-off"].on').count(), 'a análise diária não está neste ponto');
+    await noOverflow('Análise (de outro ponto)');
+    await shot('07a-analise-outro-ponto.png');
+    await far.locator('[data-act="place-move"]').click();
+    await toastIs(/A análise diária de Lisboa passa a ser para este ponto/);
+    assert.ok(calls.includes('PATCH /api/places/casa'), 'mesmo id: a análise e as lições ficam');
+    assert.deepEqual(patchBody, { lat: 38.7536, lon: -9.2302 }, 'só as coordenadas (o nome fica)');
+    await page.waitForFunction(() => /já passou para este ponto/.test(document.querySelector('.far-pt').textContent));
+    assert.equal(await page.locator('.far-pt [data-act="place-move"]').count(), 0);
+    assert.ok(await page.locator('[data-act="place-on"].on').count(), 'análise diária ligada para este ponto');
+    // Desfazer: volta ao ponto anterior
+    await page.click('#mt-toast .t-undo');
+    await toastIs(/voltou ao ponto anterior/);
+    assert.deepEqual(patchBody, { lat: 38.7223, lon: -9.1393 });
+    await page.waitForSelector('.far-pt [data-act="place-move"]');
+    // e mudar a partir do cartão do Agora
+    await tab('agora');
+    await page.click('#cl-teaser [data-act="place-move"]');
+    await toastIs(/passa a ser para este ponto/);
+    await page.waitForFunction(() => /já passou para este ponto/.test(document.querySelector('#cl-teaser').textContent));
+    assert.equal(calls.filter((c) => c === 'PATCH /api/places/casa').length, 3);
+    await noOverflow('Agora (análise de outro ponto)');
+    await shot('07b-outro-ponto.png');
+    await tab('ajustes');
+    console.log('✓ análise de outro ponto (8,6 km): aviso, mudar para este ponto (PATCH) e desfazer');
 
     // 7) mudar de local (folha): pesquisa → Porto; nomes com HTML ficam como texto
     await page.click('.form [data-act="place"]');

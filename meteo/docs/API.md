@@ -12,8 +12,10 @@ Unidades: °C, mm, km/h, hPa, %, m. Números arredondados a 1 casa (temp), intei
 Calculada no telemóvel (não é um pedido ao conector). Pedidos: Open-Meteo (direto ou pelo conector; HTTP 429 → tenta de
 novo ao fim de ~1,5 s e ~4 s), IPMA (observações, avisos, risco de incêndio, e a **previsão oficial do concelho mais
 próximo até 15 km**: `public-data/forecast/locations.json`, guardada 7 dias, e `public-data/forecast/aggregate/<id>.json`,
-30 min), METAR, histórico guardado das estações IPMA perto (`/api/obs-history`, até 6) e as **altitudes de todas as
-estações até 30 km num só pedido** ao Open-Meteo (`elevation?latitude=a,b,c&longitude=x,y,z`, guardadas 1 ano).
+30 min), METAR, histórico guardado das estações IPMA perto (`/api/obs-history`, até 6), as **altitudes de todas as
+estações até 30 km num só pedido** ao Open-Meteo (`elevation?latitude=a,b,c&longitude=x,y,z`, guardadas 1 ano) e o
+**relevo à volta do ponto**: outro pedido `elevation` com o ponto e 12 rumos (0°, 30°, …) a 1,5 km e a 4 km (25 pontos,
+`terrainPoints` em `lib/engine.js`), guardado para sempre (`pointTerrain` em `lib/data.js`; o terreno não muda).
 Na tarefa agendada, `ipmaPrev` (`{ times, temp }`) traz as previsões do IPMA feitas na véspera, para a verificação local.
 Formato:
 
@@ -21,8 +23,18 @@ Formato:
 {
   "v": 1,
   "generatedAt": "2026-11-06T15:40:00Z",
-  "location": { "lat": 38.7223, "lon": -9.1393, "elevation": 66, "timezone": "Europe/Lisbon",
-                "utcOffsetSeconds": 0, "name": "Lisboa", "region": "Lisboa", "country": "PT" },
+  "location": { "lat": 41.3354, "lon": -8.4745, "elevation": 66, "timezone": "Europe/Lisbon",
+                "utcOffsetSeconds": 0, "name": "Santo Tirso", "region": "Porto", "country": "PT",
+    // relevo à volta do ponto (null sem o pedido das altitudes). relM = ponto − média das altitudes a 1,5 e a 4 km;
+    // reliefM = |relM|. vale: ≥ 20 m abaixo e rodeado de terreno mais alto; topo: ≥ 20 m acima e com terreno mais baixo
+    // à volta; encosta: declive ≥ 3,5% ou mais alto de um lado e mais baixo do outro; planície: o resto.
+    // A água (0 m: mar, estuário) não entra nas médias. aspect = para onde a encosta desce; lowestDir = rumo do ponto
+    // mais baixo a 4 km (por onde o ar frio escoa); water = rumo da água, se houver
+    "terrain": { "type": "vale", "label": "Vale", "elevation": 66, "aroundM": 139, "relM": -73, "reliefM": 73,
+                 "slopePct": 2.4, "aspect": "NO", "lowestDir": "NO", "highestDir": "E", "water": null,
+                 "rings": [ { "km": 1.5, "mean": 98, "min": 36, "max": 192 }, { "km": 4, "mean": 180, "min": 40, "max": 404 } ],
+                 "text": "70 m abaixo do relevo à volta", // a app mostra "Vale · 70 m abaixo do relevo à volta"
+                 "description": "vale, ~70 m abaixo do relevo à volta; o terreno desce para noroeste" } },
   "models": [ // fontes do consenso (ordenadas por peso): modelos determinísticos e a previsão oficial do IPMA
     { "id": "ecmwf_ifs", "name": "ECMWF IFS", "org": "ECMWF", "resKm": 9, "weight": 1.6, "hours": 361,
       "skill": { "mae": 1.1, "bias": -0.3, "n": 48 } }, // skill = verificação local recente (pode ser null)
@@ -42,8 +54,8 @@ Formato:
              "n": 11, "distanceKm": 3.3, "nearestKm": 1.0, "time": "2026-11-06T15:02", "ageMin": 43, "temp": 15.3, "rh": 79,
              "wind": 7, "gust": null, "dir": 52, "pressure": 1019.5, "precip1h": 0, "elevation": 66, "repr": 0.92, "spread": 0.4,
              "stations": [ // até 12, por peso
-               { "id": "1200535", "name": "Lisboa (Geofísico)", "source": "IPMA", "distanceKm": 1.0, "elev": 77, "time": "2026-11-06T15:00",
-                 "ageMin": 45, "temp": 15.1, "tempAdj": 15.2, "anomaly": -2.1, "weight": 43, "used": true } ] }, // sameSite = METAR no mesmo aeroporto
+               { "id": "1200535", "name": "Lisboa (Geofísico)", "source": "IPMA", "distanceKm": 1.0, "dir": "O", "elev": 77, "time": "2026-11-06T15:00",
+                 "ageMin": 45, "temp": 15.1, "tempAdj": 15.2, "anomaly": -2.1, "weight": 43, "used": true } ] }, // dir = rumo do ponto para a estação; sameSite = METAR no mesmo aeroporto
     "correction": { "temp": -1.6, "dew": 1.7, "decayHours": 5, "stations": 11, "repr": 0.92 } // correção aplicada às próximas horas (ou null)
   },
   "nowcast": { "steps": [ { "time": "2026-11-06T15:15", "precip": 0.0 } ], // 8 passos de 15 min (2 h)
@@ -53,8 +65,20 @@ Formato:
       "precip": 0.0, "precipHi": 0.2, "pop": 10, "wind": 11, "gust": 22, "dir": 80, "cloud": 25, "cloudLow": 10,
       "pressure": 1019.2, "visibility": 24000, "cape": 50, "uv": 1.2, "code": 2, "isDay": true,
       "spread": 0.7,  // desvio-padrão da temperatura entre modelos
-      "agree": 0.9 }  // 0..1 concordância chuva/sem chuva entre modelos
+      "agree": 0.9,   // 0..1 concordância chuva/sem chuva entre modelos
+      "local": -0.6 } // só quando há: ajuste do relevo (°C) já incluído em temp, tempLo, tempHi e feels (ver "local")
   ],
+  // efeito local do relevo (null sem location.terrain), sempre pequeno e só em condições claras:
+  // vale: noite limpa (nuvens < 30%; inteiro ≤ 20%), calma (vento < 8 km/h; inteiro ≤ 5) e sem chuva → até −1,5 °C por
+  //   100 m abaixo do relevo à volta (máx. 1,5 °C), a crescer nas primeiras 4 h de noite e com metade na 1.ª hora depois
+  //   do nascer do sol; não se soma ao que a correção das estações já arrefece nessa hora. A mínima dos dias com horas
+  //   (até ~3 dias; hoje pelas horas que faltam) desce o mesmo que o mínimo das horas.
+  // topo: vento e rajadas (horas e 16 dias) +0,15% por metro acima do relevo à volta (máx. +15%).
+  // encosta e planície: sem ajuste. Constantes em LOCAL_RULES (lib/engine.js).
+  "local": { "type": "vale", "rule": "vale — em noite limpa (…)", "potential": -1.1, "windFactor": null,
+             "now": 0, "hours": 9, "max": -1.1, "peak": "2026-11-07T07:00", // próximas 72 h: horas ajustadas, maior ajuste e quando
+             "tmin": [ { "date": "2026-11-07", "delta": -0.8 } ],
+             "text": "Vale: 9 h de noite limpa e calma nas próximas 72 h, até 1,1° mais frio do que o consenso (sáb 7 07:00)." },
   "daily": [ // 16 dias (índice 0 = hoje)
     { "date": "2026-11-06", "code": 2, "tmax": 18.2, "tmin": 11.4,
       "tmaxP10": 17.5, "tmaxP90": 19.0, "tminP10": 10.8, "tminP90": 12.0,
@@ -98,7 +122,7 @@ Formato:
                     "days": 7, "n": 166, "biasApplied": true, "best": "ecmwf_ifs",
                     "models": [ { "id": "ecmwf_ifs", "name": "ECMWF IFS", "mae": 0.9, "bias": 0.3, "n": 166 } ] }, // ou null
   // previsão oficial do IPMA para o concelho mais próximo (≤ 15 km), tal como publicada (ou null fora de Portugal)
-  "official": { "source": "IPMA", "local": "Santo Tirso", "id": 1131400, "distanceKm": 0.7, "updated": "2026-11-06T08:39",
+  "official": { "source": "IPMA", "local": "Santo Tirso", "id": 1131400, "distanceKm": 0.7, "dir": "N", "updated": "2026-11-06T08:39", // dir = rumo do ponto do IPMA
                 "hours": 79, "days": 10, "weight": 1.6, "skill": null,
                 "daily": [ { "date": "2026-11-06", "tmax": 14.9, "tmin": 6.0, "pop": 98, "code": 63, "type": 9, "text": "Chuva/aguaceiros",
                              "uv": 0.5, "wind": "fraco", "dir": "E" } ],          // 10 dias; type = idTipoTempo do IPMA, code = WMO
@@ -123,7 +147,7 @@ Formato:
   },
   "analysis": { "available": true, "ageMin": 95, "placeId": "lisboa" }, // atalho: há análise do Claude perto?
   "sources": ["Open-Meteo (CC BY 4.0)", "IPMA", "NOAA AWC (METAR)", "NASA FIRMS", "ANEPC via fogos.pt", "EUMETSAT"],
-  "status": { "det": "ok", "ipmaFc": "ok", "elev": "ok", "obsHist": "ok", "fogos": "HTTP 502" } // cada fonte: "ok" ou o erro
+  "status": { "det": "ok", "ipmaFc": "ok", "elev": "ok", "terrain": "ok", "obsHist": "ok", "fogos": "HTTP 502" } // cada fonte: "ok" ou o erro
 }
 ```
 
@@ -147,9 +171,14 @@ Cabeçalhos: `x-sat-layer`, `x-sat-bbox` (`oeste,sul,este,norte`), `cache-contro
 
 ### Análise (escrita pelo Claude; mesmo formato pela tarefa agendada ou pela API)
 
+Escrita sobre o **ponto exato** (`place`, as coordenadas do local registado quando foi feita): o que acontece ali, hora a
+hora, em mm, km/h e °C; sistemas regionais só com distância, direção e hora de chegada ao ponto. A app mostra para que
+ponto é («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto selecionado») e, se estiver a mais de 2 km do ponto
+selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATCH /api/places/<id>`).
+
 ```jsonc
 { "generatedAt": "2026-11-06T13:20:00Z", "by": "claude-agendado", "model": "<id do modelo>",
-  "place": { "id": "casa", "name": "Casa", "lat": 38.72, "lon": -9.14 },
+  "place": { "id": "casa", "name": "Casa", "lat": 38.72, "lon": -9.14 }, // o ponto analisado
   "titulo": "Tarde amena; chuva a chegar sábado de manhã",            // ≤ 90
   "resumo": "…",                                                     // ≤ 600
   "agora": "…",          // próximas 6 h, ≤ 400
@@ -170,11 +199,19 @@ Cabeçalhos: `x-sat-layer`, `x-sat-bbox` (`oeste,sul,este,norte`), `cache-contro
 
 Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`). 200 `{ "analysis": {…} }`,
 503 `{ "error": "sem_chave" }`, 429 `{ "error": "limite" }` (máx. 1 por local a cada 30 min, 20/dia).
+Recebe o resumo do ponto e 3 imagens (cor natural de perto ~280 km e a ~1200 km, massas de ar). Fica como análise do
+local registado só se houver um a ≤ 2 km (como na app); senão fica à parte para este ponto (24 h), e `GET /api/analysis`
+mostra-a enquanto for mais recente do que a do local registado. `place.lat/lon` = o ponto analisado.
 
 ## Locais com análise agendada
 
 - `GET /api/places` → `[ { "id": "casa", "name": "Casa", "lat": 38.72, "lon": -9.14, "createdAt": "…" } ]`
 - `POST /api/places` body `{ "name": "Casa", "lat": 38.72, "lon": -9.14 }` → `201 { place }` (máx. 5; só da própria origem)
+- `PATCH /api/places/<id>` body `{ "lat": 41.3612, "lon": -8.4877, "name": "…" }` (`name` opcional) → `200 place` com o
+  mesmo `id` (e `movedAt`): muda o local para outro ponto. A última análise (`analysis:<id>`) e as lições (`lessons:<id>`)
+  ficam; a próxima análise já é do ponto novo. Só da própria origem (como o `POST`): `403`; `404` se não existir; `400`
+  com coordenadas inválidas; `409` se ficar a menos de 0,5 km de outro local registado. Na app: «Mudar a análise diária
+  para este ponto», com «Desfazer» (volta às coordenadas anteriores).
 - `DELETE /api/places/<id>` → `204` (a análise e as lições ficam guardadas: ao voltar a ligar o mesmo local, com o mesmo
   nome, aparece de novo a última análise; na app, desligar pede confirmação e o aviso tem «Desfazer»)
 
@@ -184,7 +221,7 @@ Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`)
 
 ## GET /api/status
 
-`{ "version": "1.1.0", "onDemand": false, "places": 1, "schedule": ["07:34","13:34","20:34"] }`
+`{ "version": "1.2.0", "onDemand": false, "places": 1, "schedule": ["07:34","13:34","20:34"] }`
 
 ## Fontes em bruto (passagem com cache)
 
@@ -193,4 +230,20 @@ Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`)
 quando o fogos.pt recusa o Worker), `/api/obs-history?station=<id IPMA>` (histórico horário de 14 dias que a tarefa agendada
 guarda para as estações IPMA usadas em cada local registado; `[]` se não houver).
 
-O resumo para o Claude é `buildSummary(fc)` em `lib/engine.js`.
+## Resumo para o Claude — `buildSummary(fc)` em `lib/engine.js`
+
+Texto que a tarefa agendada e a análise imediata dão ao Claude, **a começar pelo ponto**:
+
+1. `## O ponto` — nome, coordenadas exatas, altitude, fuso e hora local; relevo (`location.terrain.description` e as
+   altitudes à volta); o efeito local já aplicado (`local.text`, mínimas e a regra); a previsão oficial do IPMA (ponto
+   do IPMA, distância e rumo); as estações da observação combinada (nome, fonte, distância, rumo, altitude e peso); e o
+   pedido explícito: «Analisa este ponto; a região só interessa quando afeta o ponto (com distância, direção e hora de
+   chegada).»
+2. `## Próximas 12 h no ponto, hora a hora` — T [faixa], sensação, chuva (prob.), vento/rajada, nuvens, HR, orvalho,
+   visibilidade, código, ajuste local e IPMA.
+3. `## Fontes`, `## Agora`, `## Das 12 às 48 h no ponto` (de 3 em 3 h), `## 16 dias`, indicadores, avisos, incêndios,
+   verificação local, IPMA (10 dias) e fontes lado a lado.
+
+A análise que volta passa por `validateAnalysis` e, na tarefa agendada, por `regionalPhrases` (`lib/analysis.js`): o
+`publicar.mjs` recusa frases genéricas sobre a região («no distrito do Porto», «no Minho e Douro Litoral», «no interior
+norte»…), salvo `--regiao-ok`.

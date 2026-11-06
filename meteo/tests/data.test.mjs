@@ -1,7 +1,7 @@
 // Pedidos de lib/data.js com fetch simulado (sem rede).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reverseGeocode, RETRY_429_MS } from '../lib/data.js';
+import { reverseGeocode, RETRY_429_MS, pointTerrain } from '../lib/data.js';
 
 test('HTTP 429 (limite por minuto do Open-Meteo): tenta de novo 2 vezes, ~1,5 s e ~4 s depois', async () => {
     assert.deepEqual(RETRY_429_MS, [1500, 4000]);
@@ -28,4 +28,30 @@ test('HTTP 429 (limite por minuto do Open-Meteo): tenta de novo 2 vezes, ~1,5 s 
         RETRY_429_MS.splice(0, 2, ...saved);
         globalThis.fetch = realFetch;
     }
+});
+
+test('relevo à volta do ponto: um só pedido de altitudes (o ponto + 24), pelo conector, guardado para sempre', async () => {
+    const realFetch = globalThis.fetch, urls = [];
+    try {
+        const elev = [66, ...Array(12).fill(100), ...Array(12).fill(180)];
+        globalThis.fetch = async (u) => { urls.push(String(u)); return new Response(JSON.stringify({ elevation: elev }), { status: 200 }); };
+        const ctx = { base: 'https://conector.test', preferProxy: true };
+        const t = await pointTerrain(41.3354, -8.4745, ctx);
+        assert.deepEqual(t.elevation, elev);
+        assert.equal(urls.length, 1);
+        const u = new URL(urls[0]);
+        assert.equal(u.origin + u.pathname, 'https://conector.test/api/raw/om/elevation', 'no Node vai pelo conector (o Open-Meteo limita o IP)');
+        const la = u.searchParams.get('latitude').split(','), lo = u.searchParams.get('longitude').split(',');
+        assert.equal(la.length, 25);
+        assert.equal(lo.length, 25);
+        assert.deepEqual([la[0], lo[0]], ['41.3354', '-8.4745'], 'o ponto primeiro');
+        assert.deepEqual(await pointTerrain(41.3354, -8.4745, ctx), t);
+        assert.equal(urls.length, 1, 'da segunda vez vem da memória (o terreno não muda)');
+        // resposta incompleta: erro e nada guardado
+        globalThis.fetch = async (u) => { urls.push(String(u)); return new Response(JSON.stringify({ elevation: [66, 70] }), { status: 200 }); };
+        await assert.rejects(pointTerrain(40.1, -8.1, ctx), /altitudes à volta em falta/);
+        const n = urls.length;
+        await assert.rejects(pointTerrain(40.1, -8.1, ctx));
+        assert.ok(urls.length > n, 'pede de novo');
+    } finally { globalThis.fetch = realFetch; }
 });

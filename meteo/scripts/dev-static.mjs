@@ -84,6 +84,14 @@ async function apiRoute(req, res, url, p) {
     return json(res, 201, place);
   }
   if (p.startsWith('/api/places/') && req.method === 'DELETE') { places = places.filter((x) => x.id !== decodeURIComponent(p.slice(12))); res.writeHead(204, { 'access-control-allow-origin': '*' }); return res.end(); }
+  if (p.startsWith('/api/places/') && req.method === 'PATCH') { // mudar de ponto (mesmo id)
+    const b = await readBody(req), id = decodeURIComponent(p.slice(12)), cur = places.find((x) => x.id === id);
+    if (!cur) return json(res, 404, { error: 'nao_encontrado', message: 'Local não encontrado.' });
+    if (!Number.isFinite(b.lat) || !Number.isFinite(b.lon)) return json(res, 400, { error: 'pedido_invalido', message: 'Coordenadas inválidas.' });
+    const place = { ...cur, lat: b.lat, lon: b.lon, ...(b.name ? { name: b.name } : {}), movedAt: new Date().toISOString() };
+    places = places.map((x) => (x.id === id ? place : x));
+    return json(res, 200, place);
+  }
   if (p === '/api/geocode') return json(res, 200, searchPlaces(url.searchParams.get('q') || '').slice(0, 8));
   if (p === '/api/status') return json(res, 200, { version: '1.0.0', onDemand: ON_DEMAND, places: places.length, schedule: SCHEDULE });
   if (p === '/api/sat') { const { body, type } = await satellite(url); res.writeHead(200, { 'content-type': type, 'cache-control': 'max-age=600', 'access-control-allow-origin': '*' }); return res.end(body); }
@@ -94,7 +102,7 @@ createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let p = url.pathname.replace(/^\/escolaplay\/meteo(?=\/|$)/, '') || '/';
   try {
-    if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,DELETE', 'access-control-allow-headers': 'content-type' }); return res.end(); }
+    if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE', 'access-control-allow-headers': 'content-type' }); return res.end(); }
     if (p.startsWith('/api/')) return await apiRoute(req, res, url, p);
     if (p === '/' && !url.pathname.endsWith('/')) { res.writeHead(301, { location: url.pathname + '/' + url.search }); return res.end(); }
     if (/^\/(proxy|node_modules|analista|docs)\//.test(p)) { res.writeHead(403); return res.end(); }
