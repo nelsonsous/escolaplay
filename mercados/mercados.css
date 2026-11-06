@@ -424,6 +424,16 @@ details.auto[open] > summary { margin-bottom: 10px; }
 .tax-box .lot-add label { flex-basis: 100%; font-size: calc(0.853rem * var(--k)); color: var(--muted); }
 .tax-box .lot-add .inp { flex: 1 1 120px; min-width: 0; }
 .mk-ibtn.sm { width: 28px; height: 28px; }
+/* arrastar para a esquerda → Retirar */
+.sw-wrap { position: relative; overflow: hidden; border-top: 1px solid var(--line); }
+.sw-wrap .row { position: relative; z-index: 1; background: var(--bg); border-top: 0; transition: transform .22s cubic-bezier(.2, .8, .2, 1); touch-action: pan-y; }
+.sw-wrap.open .row { transform: translateX(-92px); }
+.sw-list > .sw-wrap:first-child { border-top: 0; }
+.sw-del { position: absolute; top: 0; right: 0; bottom: 0; width: 92px; border: 0; background: var(--down); color: #fff; font-weight: 700; font-size: calc(.88rem * var(--k)); cursor: pointer; }
+.sec-f { display: flex; gap: 18px; padding: 10px 2px 0; border-top: 1px solid var(--line); }
+.lnk { border: 0; background: none; color: var(--accent2); font-weight: 600; font-size: calc(.9rem * var(--k)); padding: 4px 0; cursor: pointer; }
+.mk-toast.act { pointer-events: auto; display: flex; align-items: center; gap: 12px; }
+.t-undo { border: 0; background: none; color: #0a84ff; font-weight: 700; font-size: inherit; padding: 0; cursor: pointer; }
 
 /* ---------- 3.0: fundo preto, listas limpas, títulos grandes (estilo de app de corretora) ---------- */
 :root {
