@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal, cleanLots } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal, cleanLots, parseCryptoGlobal } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -241,4 +241,19 @@ test('/fuel?list=1 devolve os postos, mais baratos primeiro', async () => {
     assert.equal(f.stations[0].lat, 39.1);
     r = await worker.fetch(new Request('https://w.test/fuel?tipos=3201'), {});
     assert.equal((await r.json()).fuels[0].stations, undefined, 'sem list=1 não manda a lista');
+});
+
+test('/cryptoglobal junta CoinGecko e o índice de medo e ganância', async () => {
+    const g = { data: { total_market_cap: { eur: 2.1e12 }, total_volume: { eur: 9e10 }, market_cap_percentage: { btc: 58.4, eth: 11.2 }, market_cap_change_percentage_24h_usd: -3.2 } };
+    const f = { data: [{ value: '24', value_classification: 'Extreme Fear' }, { value: '30', value_classification: 'Fear' }] };
+    assert.deepEqual(parseCryptoGlobal(g, f), { mcap: 2.1e12, mcapChg: -3.2, vol: 9e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30 } });
+    mockFetch((u) => u.includes('coingecko') ? res(g) : u.includes('alternative.me') ? res(f) : res({}, 404));
+    const r = await worker.fetch(new Request('https://w.test/cryptoglobal'), {});
+    assert.equal((await r.json()).fng.v, 24);
+    mockFetch((u) => u.includes('coinpaprika') ? res({ market_cap_usd: 2.4e12, volume_24h_usd: 1e11, bitcoin_dominance_percentage: 58.9, market_cap_change_24h: -2.5 }) : u.includes('alternative.me') ? res(f) : res({}, 429));
+    const r2 = await (await worker.fetch(new Request('https://w.test/cryptoglobal?y=1'), {})).json();
+    assert.equal(r2.mcapUsd, 2.4e12, 'CoinGecko em baixo: usa a CoinPaprika');
+    assert.equal(r2.btcDom, 58.9);
+    mockFetch(() => res({}, 500));
+    assert.equal((await worker.fetch(new Request('https://w.test/cryptoglobal?x=1'), {})).status, 502);
 });

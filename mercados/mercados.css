@@ -484,6 +484,16 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* resumo em 3 linhas */
+.tldr { list-style: none; margin: 10px 0 2px; padding: 0; display: grid; gap: 6px; font-size: calc(.95rem * var(--k)); line-height: 1.4; }
+.tldr li { padding-left: 12px; position: relative; }
+.tldr li::before { content: ''; position: absolute; left: 0; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+/* cripto hoje */
+.cg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: var(--r); overflow: hidden; }
+.cg div { background: var(--card); padding: 10px 12px; }
+.cg small { display: block; color: var(--muted); font-size: calc(.75rem * var(--k)); }
+.cg b { display: block; font-size: calc(1.15rem * var(--k)); font-weight: 700; margin-top: 2px; }
+.cg em { display: block; font-style: normal; color: var(--muted); font-size: calc(.75rem * var(--k)); margin-top: 1px; }
 /* Agora */
 .now-box { background: var(--card); border-radius: var(--r); padding: 12px 14px; }
 .now-box .t-mk { margin: 0; color: var(--muted); font-size: calc(.85rem * var(--k)); }

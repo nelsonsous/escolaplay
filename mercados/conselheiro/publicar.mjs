@@ -25,12 +25,15 @@ const out = {
         return { s: x.s, key: x.key, action: str(x.action, 40, `actions[${i}].action`, true), why: str(x.why, 300, `actions[${i}].why`, true), plan: str(x.plan, 300, `actions[${i}].plan`) };
     }),
     risks: (Array.isArray(a.risks) ? a.risks : []).slice(0, 6).map((r, i) => str(r, 240, `risks[${i}]`, true)),
+    // resumo em 3 linhas curtas (o que aparece primeiro na app)
+    tldr: (Array.isArray(a.tldr) ? a.tldr : []).slice(0, 3).map((r, i) => str(r, 120, `tldr[${i}]`, true)),
     // porque sobe ou desce muito: o motivo (notícia, setor, mercado) de cada movimento forte
     movers: (Array.isArray(a.movers) ? a.movers : []).slice(0, 10).map((x, i) => ({ s: str(x.s, 24, `movers[${i}].s`, true), why: str(x.why, 260, `movers[${i}].why`, true) })),
     review: str(a.review, 1400, 'review'),
     lessons: (Array.isArray(a.lessons) ? a.lessons : []).slice(0, 15).map((r, i) => str(r, 240, `lessons[${i}]`, true)),
 };
 if (!out.plan.length) errs.push('plan vazio: diz sempre o que fazer com o plano do mês');
+if (!out.tldr.length) errs.push('tldr vazio: escreve o resumo em 3 linhas curtas (mercado · plano · atenção)');
 // o que o investidor tem aparece sempre em actions (a app mostra o conselho em cada um)
 const HOLD = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
 for (const k of HOLD) if (!out.actions.some((x) => x.s === k)) errs.push(`actions sem ${k}: comenta sempre os 5 que o investidor tem`);

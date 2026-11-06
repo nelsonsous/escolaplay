@@ -14,6 +14,7 @@
 //   GET /fuel?distrito=11                     → preços médios em Portugal (DGEG)
 //   GET /fuel/distritos                       → lista de distritos (DGEG)
 //   GET /fuel?…&tipos=3201&list=1             → também a lista de postos (até 300, mais baratos primeiro)
+//   GET /cryptoglobal                         → mercado cripto: capitalização, dominância BTC, volume, medo e ganância
 //   GET /fuel/municipios?distrito=13          → concelhos de um distrito (DGEG); /fuel?municipio=… filtra por concelho
 //   GET  /journal?id=…                        → diário de sugestões (KV)
 //   POST /journal  { id, date, items, lots }  → guardar as sugestões do dia e as datas de compra de cripto
@@ -349,6 +350,40 @@ async function fuel(url) {
     return { body: { distrito: distrito || null, municipio: municipio || null, source: 'DGEG — Preços dos Combustíveis Online', at: Math.floor(Date.now() / 1000), fuels: out }, ttl: 3600 };
 }
 
+// ---------- /cryptoglobal: o que as apps de cripto mostram (CoinGecko + alternative.me) ----------
+export function parseCryptoGlobal(g, f) {
+    const d = g && g.data;
+    const fg = f && Array.isArray(f.data) ? f.data : [];
+    return {
+        mcap: d && d.total_market_cap ? d.total_market_cap.eur ?? null : null,
+        mcapChg: d && Number.isFinite(d.market_cap_change_percentage_24h_usd) ? d.market_cap_change_percentage_24h_usd : null,
+        vol: d && d.total_volume ? d.total_volume.eur ?? null : null,
+        btcDom: d && d.market_cap_percentage ? d.market_cap_percentage.btc ?? null : null,
+        ethDom: d && d.market_cap_percentage ? d.market_cap_percentage.eth ?? null : null,
+        fng: fg[0] ? { v: Number(fg[0].value), label: fg[0].value_classification || '', prev: fg[1] ? Number(fg[1].value) : null } : null,
+    };
+}
+async function cryptoGlobal() {
+    const [g, f] = await Promise.all([
+        getJSON('https://api.coingecko.com/api/v3/global').catch(() => null),
+        getJSON('https://api.alternative.me/fng/?limit=2').catch(() => null),
+    ]);
+    const out = parseCryptoGlobal(g, f);
+    // a CoinGecko às vezes recusa pedidos do Cloudflare: a CoinPaprika (em USD) serve de alternativa
+    if (out.mcap == null) {
+        // CoinLore (grátis, sem chave): [{ total_mcap, total_volume, btc_d, eth_d, mcap_change }] em USD
+        const l = await getJSON('https://api.coinlore.net/api/global/').catch(() => null);
+        const x = Array.isArray(l) ? l[0] : null;
+        if (x) Object.assign(out, { mcapUsd: +x.total_mcap || null, volUsd: +x.total_volume || null, mcapChg: Number.isFinite(+x.mcap_change) ? +x.mcap_change : out.mcapChg, btcDom: +x.btc_d || out.btcDom, ethDom: +x.eth_d || out.ethDom });
+    }
+    if (out.mcap == null && out.mcapUsd == null) {
+        const p = await getJSON('https://api.coinpaprika.com/v1/global').catch(() => null);
+        if (p) Object.assign(out, { mcapUsd: p.market_cap_usd ?? null, volUsd: p.volume_24h_usd ?? null, mcapChg: Number.isFinite(p.market_cap_change_24h) ? p.market_cap_change_24h : out.mcapChg, btcDom: p.bitcoin_dominance_percentage ?? out.btcDom });
+    }
+    if (out.mcap == null && out.mcapUsd == null && !out.fng) return { status: 502, body: { error: 'sem dados do mercado cripto' } };
+    return { body: out, ttl: 600 };
+}
+
 async function distritos() {
     const rows = await dgeg('GetDistritos');
     return { body: { items: (rows || []).map((r) => ({ id: r.Id, name: r.Descritivo })).sort((a, b) => a.name.localeCompare(b.name, 'pt')) }, ttl: 86400 };
@@ -429,7 +464,7 @@ async function advice(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios };
+const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
 
 export default {
     async fetch(request, env = {}, ctx) {

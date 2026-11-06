@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.16.1';
+    const VERSION = '3.17.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -996,6 +996,7 @@
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><div class="right seg per" role="group" aria-label="Período da variação">${PER_LBL.map(([v, l]) => `<button type="button" data-per="${v}" class="${(cfg.per || '1d') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
             ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), wide: true, badge: cl && cl.action ? [SHORT[cl.key] || cl.action, CL_TONE[cl.key] || 'flat'] : AN[k] && AN[k].advice ? [SHORT[AN[k].advice.key] || AN[k].advice.action, 'auto'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
         ${nowCard()}
+        ${cryptoCard()}
         ${todayCard()}
         ${crypt.length || nHid(cryAll) ? `<section class="sec"><div class="sec-h"><h2>Cripto</h2><span class="sub">${esc(st.cryptoSrc || 'Binance')} · ${esc(cfg.fiat)}</span></div>
             <div class="list sw-list">${crypt.map((k) => card(k)).join('')}</div>${foot('', nHid(cryAll) ? ['crypto', nHid(cryAll)] : null)}</section>` : ''}
@@ -1056,6 +1057,32 @@
         </button>`;
     }
 
+    // ---------- Cripto hoje: o que as apps de cripto mostram ----------
+    let CG = null, cgAt = 0;
+    async function loadCryptoGlobal() {
+        if (!cfg.proxy || now() - cgAt < 10 * 60 * 1000) return;
+        cgAt = now();
+        try { CG = await px('/cryptoglobal', 20000); scheduleRender(); } catch { /* sem dados */ }
+    }
+    const FNG_PT = { 'Extreme Fear': 'Medo extremo', 'Fear': 'Medo', 'Neutral': 'Neutro', 'Greed': 'Ganância', 'Extreme Greed': 'Ganância extrema' };
+    function cryptoCard() {
+        loadCryptoGlobal();
+        if (!CG) return '';
+        const f = CG.fng;
+        const eu = Q['EURUSD=X'] && Q['EURUSD=X'].price;
+        const mcap = fin(CG.mcap) ? CG.mcap : fin(CG.mcapUsd) && eu ? CG.mcapUsd / eu : null;
+        const vol = fin(CG.vol) ? CG.vol : fin(CG.volUsd) && eu ? CG.volUsd / eu : null;
+        const ftone = f ? (f.v < 45 ? 'down' : f.v > 55 ? 'up' : 'flat') : 'flat';
+        const cell = (lbl, val, sub) => `<div><small>${lbl}</small><b class="num">${val}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+        return `<section class="sec"><div class="sec-h"><h2>Cripto hoje</h2><span class="sub">mercado cripto todo</span></div>
+            <div class="cg">
+                ${f ? cell('Medo e ganância', `<span class="${ftone}-t">${f.v}</span>`, `${esc(FNG_PT[f.label] || f.label)}${fin(f.prev) ? ` · ontem ${f.prev}` : ''}`) : ''}
+                ${fin(mcap) ? cell('Valor do mercado', fmtBig(mcap) + ' €', fin(CG.mcapChg) ? `<span class="${toneOf(CG.mcapChg)}-t">${fmtPct(CG.mcapChg)}</span> em 24 h` : '') : ''}
+                ${fin(CG.btcDom) ? cell('Dominância do Bitcoin', NF({ maximumFractionDigits: 1 }).format(CG.btcDom) + '%', fin(CG.ethDom) ? `Ether ${NF({ maximumFractionDigits: 1 }).format(CG.ethDom)}%` : '') : ''}
+                ${fin(vol) ? cell('Volume 24 h', fmtBig(vol) + ' €', '') : ''}
+            </div>
+            <p class="note">Medo e ganância: 0 = medo extremo, 100 = ganância extrema (com medo, os preços costumam estar mais baixos). Dominância a subir = o dinheiro foge das outras moedas para o Bitcoin.</p></section>`;
+    }
     // ---------- Agora: o que está a mexer e porquê (cotações e notícias ao vivo) ----------
     function nowCard() {
         const stale = (k) => (!NEWS[k] || now() - NEWS[k].at > 10 * 60 * 1000) && !newsBusy[k];
@@ -1269,10 +1296,12 @@
         const others = c && Array.isArray(c.actions) ? c.actions.filter((a) => REG[a.s] && !hold.includes(a.s)).slice(0, 6) : [];
         const head = b ? b.idx.concat(fin(b.vix) ? [`VIX ${Math.round(b.vix)}${b.vix > 25 ? ' (medo)' : b.vix < 16 ? ' (calma)' : ''}`] : []).join(' · ') : '';
         const ag = agenda(14).slice(0, 7);
-        const teaser = c ? c.headline : x.next ? `${exTitle}: ${when}${execTxt ? ' · ' + execTxt : ''}` : '';
+        const tl = c && Array.isArray(c.tldr) && c.tldr.length ? c.tldr : null;
+        const teaser = tl ? tl.join(' · ') : c ? c.headline : x.next ? `${exTitle}: ${when}${execTxt ? ' · ' + execTxt : ''}` : '';
         const open = firstView('hoje', [todayLocal(), c ? (c.generatedAt || c.date || '') : '']);
         return `<details class="today fold" data-fold="hoje" ${open ? 'open' : ''}><summary><span>Hoje</span>${b && b.mood ? `<b class="${b.mood.tone}-t">${esc(b.mood.label)}</b>` : ''}
                 <small>${c ? `Análise do Claude · ${esc(clWhen())}${old ? ' · atrasada' : ''}` : `Resumo automático · a análise do Claude chega às ${CL_LBL}`}</small>${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
+            ${tl ? `<ul class="tldr">${tl.map((t) => { const m = /^([^:]{2,14}):\s*(.*)$/.exec(t); return `<li>${m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(t)}</li>`; }).join('')}</ul>` : ''}
             ${head ? `<p class="t-mk">${head}</p>` : ''}
             ${c ? `<div class="cl-head">${esc(c.headline)}</div>${c.market ? `<p>${esc(c.market)}</p>` : ''}` : b && b.mood ? `<p class="muted">${esc(b.mood.hint)}</p>` : ''}
             ${!c && b && (b.up.length || b.dn.length) ? `<p>${b.up.length ? 'Sobem: ' + b.up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}${b.up.length && b.dn.length ? '<br>' : ''}${b.dn.length ? 'Caem: ' + b.dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
