@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.9.1';
+    const VERSION = '3.10.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -889,6 +889,10 @@
         el.innerHTML = `<span>${cTxt}</span><span>${yTxt}</span>`;
     }
 
+    // bolsa de cotação (aproximação do índice pelo mercado onde a ação cota)
+    const MKT = { LS: 'Portugal · PSI', DE: 'Alemanha · DAX', F: 'Alemanha · DAX', PA: 'França · CAC 40', AS: 'Países Baixos · AEX', MI: 'Itália · FTSE MIB', MC: 'Espanha · IBEX 35', L: 'Reino Unido · FTSE 100', CO: 'Dinamarca · OMX', SW: 'Suíça · SMI', BR: 'Bélgica · BEL 20', HE: 'Finlândia', ST: 'Suécia', OL: 'Noruega', T: 'Japão · Nikkei', HK: 'Hong Kong' };
+    const MKT_ORDER = ['Portugal · PSI', 'EUA · S&P 500 / Nasdaq', 'Alemanha · DAX', 'França · CAC 40', 'Países Baixos · AEX', 'Espanha · IBEX 35', 'Itália · FTSE MIB', 'Reino Unido · FTSE 100', 'Suíça · SMI', 'Dinamarca · OMX'];
+    const mktOf = (k) => { const m = /\.([A-Z]{1,3})$/.exec(k); return m ? MKT[m[1]] || 'Outras bolsas' : 'EUA · S&P 500 / Nasdaq'; };
     // ativo numa linha da lista (com o subtítulo do tipo de ativo)
     function card(k, extra = '', badge = null) {
         const a = REG[k] || { key: k, name: k };
@@ -943,8 +947,21 @@
         const foot = (add, restore) => add || restore ? `<div class="sec-f">${add ? `<button type="button" class="lnk" data-act="${add}">+ Juntar</button>` : ''}${restore ? `<button type="button" class="lnk" data-unhide="${restore[0]}">Repor ${restore[1]}</button>` : ''}</div>` : '';
         const cryAll = CRYPTO.map((c) => 'c:' + c.id), idxAll = INDICES.map((i) => i.sym), enAll = ENERGY.map((e) => e.sym);
         const stocks = cfg.watch.slice();
-        if (cfg.sort === 'chg') stocks.sort((a, b) => (qv(b).changePct ?? -999) - (qv(a).changePct ?? -999));
-        else if (cfg.sort === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
+        // ordenar: sobe / desce (no período escolhido), por bolsa, nome ou pela minha ordem
+        const pc = (k) => { const v = perData(k).pct; return fin(v) ? v : null; };
+        const byUp = (a, b) => (pc(b) ?? -1e9) - (pc(a) ?? -1e9);
+        const sortBy = cfg.sort === 'chg' ? 'up' : cfg.sort;
+        if (sortBy === 'up' || sortBy === 'mkt') stocks.sort(byUp);
+        else if (sortBy === 'down') stocks.sort((a, b) => (pc(a) ?? 1e9) - (pc(b) ?? 1e9));
+        else if (sortBy === 'name') stocks.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
+        const stockList = (keys) => `<div class="list sw-list">${keys.map((s) => row(s, { swipe: 'list' })).join('')}</div>`;
+        let stocksHtml = '';
+        if (sortBy === 'mkt') {
+            const groups = {};
+            for (const k of stocks) (groups[mktOf(k)] = groups[mktOf(k)] || []).push(k);
+            stocksHtml = MKT_ORDER.filter((m) => groups[m]).concat(Object.keys(groups).filter((m) => !MKT_ORDER.includes(m)))
+                .map((m) => `<div class="grp-h">${esc(m)}<small>${groups[m].length}</small></div>${stockList(groups[m])}`).join('');
+        } else stocksHtml = stockList(stocks);
         return `${cfg.proxy ? '' : setupBanner()}
         <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2><div class="right seg per" role="group" aria-label="Período da variação">${PER_LBL.map(([v, l]) => `<button type="button" data-per="${v}" class="${(cfg.per || '1d') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
             ${hold.length ? `<div class="list sw-list">${hold.map((k) => { const cl = claudeFor(k); return row(k, { swipe: 'hold', sub: [AN[k] && AN[k].discount ? `${fmtPct1(AN[k].discount.dd * 100)} do máximo` : '', REG[k].kind === 'crypto' ? taxLine(k) : ''].filter(Boolean), badge: cl && cl.action ? [cl.action, CL_TONE[cl.key] || 'flat'] : AN[k] && AN[k].advice ? [SHORT[AN[k].advice.key] || AN[k].advice.action, 'auto'] : null }); }).join('')}</div>` : '<div class="empty">Escolhe em Ajustes → O que tenho.</div>'}${foot('go-hold')}</section>
@@ -959,11 +976,10 @@
         <section class="sec"><div class="sec-h"><h2>Índices, câmbio e ouro</h2></div>
             <div class="list sw-list">${INDICES.filter((i) => !hid(i.sym)).map((i) => row(i.sym, { swipe: 'fixed' })).join('')}</div>${foot('', nHid(idxAll) ? ['index', nHid(idxAll)] : null)}</section>
         <section class="sec"><div class="sec-h"><h2>Ações que sigo</h2><span class="sub">${etfCrypto() ? 'só informação' : cfg.watch.length}</span>
-            <div class="right seg" role="group" aria-label="Ordenar">
-                <button type="button" data-sort="chg" class="${cfg.sort === 'chg' ? 'on' : ''}">Variação</button>
-                <button type="button" data-sort="name" class="${cfg.sort === 'name' ? 'on' : ''}">Nome</button>
-                <button type="button" data-sort="mine" class="${cfg.sort === 'mine' ? 'on' : ''}">Minha</button></div></div>
-            ${stocks.length ? `<div class="list sw-list">${stocks.map((s) => row(s, { swipe: 'list' })).join('')}</div>` : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}${foot('go-add')}
+</div>
+            <div class="chips sort" role="group" aria-label="Ordenar">${[['up', '↑ Sobe'], ['down', '↓ Desce'], ['mkt', 'Bolsa'], ['name', 'Nome'], ['mine', 'Minha']].map(([v, l]) => `<button type="button" data-sort="${v}" class="${sortBy === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+            ${stocks.length ? stocksHtml : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}${foot('go-add')}
+            ${sortBy === 'mine' ? '<p class="note">A tua ordem muda-se em Ajustes → Ações e fundos que sigo (setas ↑ ↓).</p>' : ''}
             </section>
             <p class="note">Cripto em tempo real. Ações, índices e petróleo: dados gratuitos do Yahoo Finance, que podem ter até 15 min de atraso nalgumas bolsas. Atualiza a cada 30 s.</p>`;
     }
@@ -1368,7 +1384,7 @@
                     <input id="f-add" class="inp" type="search" autocomplete="off" placeholder="ex.: Mota-Engil, Ferrari, IWDA, AAPL…" ${cfg.proxy ? '' : 'disabled'}>
                     <div class="res" id="f-res"></div>
                     <div class="hint">Também podes escrever o símbolo do Yahoo Finance (ex.: <code>EGL.LS</code>, <code>RACE.MI</code>) e carregar Enter.</div></div>
-                <div class="wl">${cfg.funds.concat(cfg.watch).map((s) => `<div class="wl-i"><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')}</div>
+                <div class="wl">${cfg.funds.concat(cfg.watch).map((s) => `<div class="wl-i"><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-mv="${esc(s)}" data-dir="-1" aria-label="Subir ${esc(nameOf(s))}">↑</button><button type="button" class="xbtn" data-mv="${esc(s)}" data-dir="1" aria-label="Descer ${esc(nameOf(s))}">↓</button><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')}</div>
             </div></section>
         <div class="disc"><b>Mercados ${VERSION}.</b> Cripto: Binance. Ações, índices, petróleo e notícias: Yahoo Finance e Google Notícias, através do teu conector. Combustíveis: DGEG. Os dados podem ter atrasos ou falhas; confirma sempre na tua corretora antes de comprar ou vender. Não é aconselhamento financeiro.</div>`;
     }
@@ -1735,7 +1751,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide],[data-per],[data-fuel]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
@@ -1760,6 +1776,11 @@
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
+        if (d.mv) {
+            const arr = cfg.watch.includes(d.mv) ? cfg.watch : cfg.funds, i = arr.indexOf(d.mv), j = i + (+d.dir);
+            if (i >= 0 && j >= 0 && j < arr.length) { [arr[i], arr[j]] = [arr[j], arr[i]]; if (cfg.sort !== 'mine') { cfg.sort = 'mine'; toast('Ordem das ações: a tua'); } saveCfg(); render(); }
+            return;
+        }
         if (d.fuel) { openFuelSheet(+d.fuel); return; }
         if (d.per) { cfg.per = d.per; saveCfg(); render(); return; }
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
