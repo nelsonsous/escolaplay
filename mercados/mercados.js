@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.11.0';
+    const VERSION = '3.11.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);

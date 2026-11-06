@@ -193,7 +193,9 @@
                 m.w += l.w;
             } else merged.push({ ...l, top: l.w });
         }
-        const out = (l) => ({ price: l.price, label: l.label, strong: l.w >= 4, dist: l.price / p - 1 });
+        // um fundo que ficou acima do preço já foi perdido (agora trava a subida); um topo abaixo já foi ultrapassado (agora trava a descida)
+        const name = (l) => (l.label === 'Fundo recente' && l.price > p ? 'Antigo fundo, já perdido' : l.label === 'Topo recente' && l.price < p ? 'Antigo topo, já ultrapassado' : l.label);
+        const out = (l) => ({ price: l.price, label: name(l), strong: l.w >= 4, dist: l.price / p - 1 });
         return {
             supports: merged.filter((l) => l.price < p * 0.995).sort((a, b) => b.price - a.price).slice(0, 3).map(out),
             resistances: merged.filter((l) => l.price > p * 1.005).sort((a, b) => a.price - b.price).slice(0, 3).map(out),
