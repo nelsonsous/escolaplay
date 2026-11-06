@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.5.0';
+    const VERSION = '3.5.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1712,6 +1712,8 @@
     window.addEventListener('resize', () => { drawSparks(); drawSheetChart(); });
     // lembra na sessão o que abriste ou fechaste (para não mudar a cada atualização)
     document.addEventListener('toggle', (ev) => { const f = ev.target.dataset && ev.target.dataset.fold; if (f && st.open && st.open[f]) st.open[f].v = ev.target.open; }, true);
+    // o toque fica registado logo (o evento "toggle" chega depois e perde-se se os preços ao vivo redesenharem o ecrã antes)
+    document.addEventListener('click', (ev) => { const sm = ev.target.closest && ev.target.closest('details[data-fold] > summary'); if (!sm) return; const d = sm.parentElement, f = d.dataset.fold; if (st.open && st.open[f]) st.open[f].v = !d.open; }, true);
 
     // ---------- ciclo ----------
     let yTimer = 0;

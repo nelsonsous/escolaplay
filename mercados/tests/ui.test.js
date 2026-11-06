@@ -411,6 +411,11 @@ function proxyBody(u) {
     assert.equal(await page.locator('details.today[open]').count(), 0, 'análise já lida → condensada');
     assert.match(await page.locator('.today .teaser').textContent(), /manter o plano no VWCE/);
     if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, '7-painel-condensado.png') }); }
+    // tocar para abrir funciona mesmo com o ecrã a atualizar logo a seguir (preços ao vivo)
+    await page.evaluate(() => { document.querySelector('.today > summary').click(); window.__mk.render(); });
+    assert.equal(await page.locator('details.today[open]').count(), 1, 'Hoje abre ao tocar, mesmo já lido');
+    await page.evaluate(() => { document.querySelector('.today > summary').click(); window.__mk.render(); });
+    assert.equal(await page.locator('details.today[open]').count(), 0, 'e volta a fechar');
     console.log('✓ análise do Claude lida fica condensada');
     await page.click('#mk-nav [data-tab="painel"]');
     await page.waitForSelector('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:ETH"] .badge');
