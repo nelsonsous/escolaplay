@@ -1,0 +1,17 @@
+{
+  "name": "meteo-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Conector de dados da app Meteo (Cloudflare Worker)",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
