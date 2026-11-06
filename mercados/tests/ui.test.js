@@ -52,7 +52,7 @@ function proxyBody(u) {
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
     if (p === '/fuel/municipios') return { items: [{ id: 1316, name: 'Santo Tirso' }, { id: 1312, name: 'Porto' }] };
-    if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
+    if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], movers: [{ s: 'TSLA', why: 'Cai depois de resultados abaixo do esperado.' }], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
     if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
     return null;
@@ -174,6 +174,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('.sec:has(h2:text("Cripto"))').count(), 0, 'cripto que tenho não se repete');
     assert.equal(await page.locator('#mk-body h1.pg-t').textContent(), 'Painel');
     console.log('✓ Hoje: análise do Claude + plano | conselho nos meus ativos');
+    assert.match(await page.locator('.today .i-blk:has-text("Porque sobem ou descem")').textContent(), /Tesla[\s\S]*resultados abaixo do esperado/, 'motivo do movimento no Hoje');
     // letra: texto principal ≥ 16 px e notas ≥ 12,5 px (no iPhone a base é 17 px, aqui é 16 px)
     const fsz = await page.evaluate(() => Object.fromEntries([['nome', '.row .r-name'], ['nota', '.note'], ['título', 'h1.pg-t'], ['secção', '.sec-h h2']].map(([n, q]) => [n, parseFloat(getComputedStyle(document.querySelector(q)).fontSize)])));
     assert.ok(fsz.nome >= 16 && fsz.nota >= 12.5 && fsz['título'] >= 30, JSON.stringify(fsz));

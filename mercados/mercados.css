@@ -484,6 +484,11 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* motivo dos movimentos fortes */
+.idea.why .i-n { white-space: normal; }
+.idea.why .i-n small { white-space: normal; line-height: 1.35; margin-top: 2px; }
+.adv-why { font-size: calc(.88rem * var(--k)); line-height: 1.45; background: rgba(10, 132, 255, .1); border-radius: 10px; padding: 8px 10px; margin: 0 0 10px; color: #d1d1d6; }
+.adv-why b { color: #fff; }
 /* os meus ativos: nome e preço em cima, conselho no meio, gráfico a toda a largura por baixo */
 .row.wide { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "ico main px" "spark spark spark"; column-gap: 12px; row-gap: 6px; align-items: start; padding: 12px 2px 10px; }
 .row.wide .r-ico { grid-area: ico; width: 34px; height: 34px; font-size: calc(.62rem * var(--k)); margin-top: 2px; }

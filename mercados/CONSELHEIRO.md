@@ -58,6 +58,9 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
      "actions": [
        { "s": "c:BTC", "key": "wait", "action": "Esperar", "why": "porquê (curto)", "plan": "o que fazer e a que preço" }
      ],
+     "movers": [
+       { "s": "c:ETH", "why": "porque sobe ou desce muito hoje: a causa concreta (notícia, resultados, setor, juros…)" }
+     ],
      "risks": ["até 6 riscos concretos a vigiar"],
      "review": "como correram os conselhos anteriores, com números; o que muda por isso",
      "lessons": ["lições acumuladas (máx. 15)"]
@@ -67,6 +70,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **todos os dias** (d
    - `key` ∈ `buy`, `scale`, `hold`, `wait`, `neutral`, `turn`, `avoid`, `sell`.
    - `plan`: o que fazer com os 900 € **deste mês** (soma = 900 €): **só VWCE e cripto** (por omissão 810 € VWCE + 90 € BTC). Mudar a divisão só com motivo forte e explicado (ex.: reforço extra no VWCE perto do suporte); a cripto não se suspende por quedas de curto prazo. Se a próxima execução for amanhã, dizê-lo.
    - `actions`: até 12 ativos — **sempre os 5 que o investidor tem (VWCE, BTC, ETH, SOL, XRP), todos os dias, mesmo que seja "manter"** (o `publicar.mjs` recusa se faltar algum; a app mostra o conselho em cada um), depois as ações que o investidor juntou na app (secção "Juntadas pelo investidor" do `dados.md`, com uma frase cada), depois outros ETF; ações só para contexto (`key` `neutral`/`avoid`, nunca `buy`/`scale`).
+   - `movers`: para **cada** ativo da secção "Movimentos fortes de hoje" do `dados.md`, o **motivo** em 1–2 frases, com base nas notícias do `dados.md` (ex.: "cai 7% depois de resultados abaixo do esperado"; "arrastado pela venda em tecnologia: Nasdaq −5%"). Se nenhuma notícia explicar, dizê-lo ("sem notícia própria: segue o mercado"). Nunca inventar causas. O `why` de `actions` também deve dizer o porquê do movimento quando for forte.
    - Português de Portugal, frases curtas, números concretos.
 5. Publicar (valida e grava `advice:<data>`, `advice:latest` e as lições no KV; a app mostra no cartão "Hoje" do Painel e no conselho de cada ativo):
    ```bash
