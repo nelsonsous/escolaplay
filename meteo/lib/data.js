@@ -115,7 +115,6 @@ export async function loadForecast(o = {}) {
         metar: settle(request(`${B}/api/raw/metar?lat=${lat}&lon=${lon}`, { timeout: 10000 })),
         place: settle(reverseGeocode(lat, lon)),
         clim: settle(climate(lat, lon, ctx)),
-        analysis: settle(request(`${B}/api/analysis?lat=${lat}&lon=${lon}`, { timeout: 8000 })),
         ...(pt ? {
             stations: settle(cached('ipma:stations', 864e5, () => request(IPMA.stations))),
             obs: settle(request(IPMA.obs, { timeout: 20000 })),
@@ -148,7 +147,6 @@ export async function loadForecast(o = {}) {
         obsHistory: oh.ok && Array.isArray(oh.v) ? oh.v : null, station, stationElev: stElev.ok ? stElev.v : null,
         firms: R.firms?.ok ? Object.fromEntries(R.firms.v.filter(([, t]) => t)) : null, fogos: v('fogos'),
         place: v('place'), clim: v('clim'),
-        analysisMeta: v('analysis') ? { available: !!v('analysis').analysis, ageMin: v('analysis').ageMin ?? null, placeId: v('analysis').place?.id ?? null } : null,
     };
     const fc = buildForecast(raw, { lat, lon, name: o.name, now: nowMs });
     fc.status = Object.fromEntries(Object.entries(R).map(([k, r]) => [k, r.ok ? 'ok' : (r.e?.message || 'falhou')]));

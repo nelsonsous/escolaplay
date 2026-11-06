@@ -139,7 +139,7 @@ async function refresh() {
         api.saveForecast(loc.lat, loc.lon, fc);
     } catch (e) {
         if (cfg.loc !== loc) return;
-        st.error = e?.message || 'Não foi possível obter a previsão.';
+        st.error = /failed to fetch|networkerror|load failed|network/i.test(e?.message || '') ? 'Sem ligação à Internet.' : (e?.message || 'Não foi possível obter a previsão.');
         if (st.fc) { st.offline = true; toast(st.error); }
     } finally {
         if (cfg.loc === loc) { st.loading = false; scheduleRender(); }
