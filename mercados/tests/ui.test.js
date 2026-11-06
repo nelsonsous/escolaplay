@@ -366,7 +366,7 @@ function proxyBody(u) {
     assert.ok(Math.abs(total - 900) <= 3, 'plano soma 900 €: ' + amounts.join(' + '));
     assert.deepEqual(amounts.map((t) => t.replace(/\s/g, '')), ['810€', '90€'], 'VWCE 810 € + Bitcoin 90 €');
     assert.match(await page.locator('.today .plan-blk').textContent(), /Bitcoin/);
-    assert.equal(await page.locator('details.stocks-fold:not([open])').count(), 1, 'ações fechadas, só informação');
+    assert.equal(await page.locator('details.stocks-fold').count(), 0, 'ações à vista no Painel (só informação)');
     console.log('✓ plano do mês 900 €:', amounts.join(' + '));
     // dias de execução: com 2 e 16, cada execução leva metade
     await page.click('#mk-nav [data-tab="ajustes"]');
@@ -430,6 +430,10 @@ function proxyBody(u) {
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) [data-key="c:XRP"] .r-sub').textContent(), /[−+]?\d+,\d% do máximo$/, 'sem datas de compra: não há texto');
     // sem conselho do Claude: sinal automático marcado "auto"
     assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:XRP"] .badge.auto').count(), 1, 'XRP com sinal automático');
+    assert.doesNotMatch(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:XRP"] .badge.auto').textContent(), /\//, 'etiqueta curta');
+    // ações (lista fechada): ao abrir, os gráficos pequenos aparecem
+    const drawn = await page.evaluate(() => [...document.querySelectorAll('.sec:has(h2) .row canvas.spark')].filter((c) => c.closest('.sec').querySelector('h2').textContent === 'Ações que sigo').map((c) => { const g = c.getContext('2d'); if (!c.width) return 0; const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) n += d[i] > 0; return n; }));
+    assert.ok(drawn.length > 5 && drawn.filter((n) => n > 0).length === drawn.length, 'gráficos em todas as ações: ' + drawn.join(','));
     // período: 1M muda a variação (dados diários) e volta a 1D
     const d1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
     await page.click('[data-per="1m"]');
