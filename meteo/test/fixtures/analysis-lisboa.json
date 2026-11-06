@@ -1,0 +1,96 @@
+{
+ "analysis": {
+  "generatedAt": "2026-11-06T13:20:00Z",
+  "by": "claude-agendado",
+  "model": "claude",
+  "place": {
+   "id": "lisboa",
+   "name": "Lisboa",
+   "lat": 38.7223,
+   "lon": -9.1393
+  },
+  "titulo": "Tarde amena; frente fria traz chuva forte e vento no domingo de manhã",
+  "resumo": "Sexta-feira termina com céu pouco nublado e vento fraco de leste. No sábado o vento roda para sul e as nuvens aumentam com a aproximação de uma superfície frontal fria, que atravessa Lisboa no domingo entre as 6h e as 12h com chuva por vezes forte (até 6 mm/h) e rajadas de 50 a 55 km/h. Segunda-feira fica mais fresca, com aguaceiros e possibilidade de trovoada isolada à tarde. A partir de terça volta o tempo seco.",
+  "agora": "Até às 21h: céu pouco nublado, 18 °C a descer para 14 °C ao anoitecer. Vento fraco de leste (10 km/h). Sem chuva.",
+  "hoje": "Resto do dia agradável, com a máxima de 18 °C já atingida. Noite com 12 a 13 °C e algumas nuvens altas a partir da meia-noite.",
+  "amanha": "Sábado com nebulosidade a aumentar e vento de sul a intensificar-se à tarde (rajadas até 45 km/h). Nevoeiro possível ao amanhecer junto ao rio. Chuvisco fraco a partir das 21h.",
+  "dias": [
+   {
+    "data": "2026-11-08",
+    "texto": "Chuva forte entre as 6h e as 12h (10 a 20 mm) com rajadas de 55 km/h; tarde com abertas e mais fresco.",
+    "confianca": "alta"
+   },
+   {
+    "data": "2026-11-09",
+    "texto": "Aguaceiros à tarde, por vezes fortes, com trovoada isolada. Máxima de 16 °C.",
+    "confianca": "alta"
+   },
+   {
+    "data": "2026-11-10",
+    "texto": "Céu pouco nublado e seco. Manhã fresca (9 °C).",
+    "confianca": "media"
+   },
+   {
+    "data": "2026-11-11",
+    "texto": "Sol e temperaturas a subir ligeiramente.",
+    "confianca": "media"
+   }
+  ],
+  "tendencia": "Da próxima sexta em diante, metade dos cenários do ensemble traz nova perturbação atlântica com chuva moderada; a outra metade mantém o anticiclone. Temperaturas perto do normal para a época.",
+  "alertas": [
+   {
+    "tipo": "chuva",
+    "nivel": "amarelo",
+    "quando": "dom 06h–12h",
+    "texto": "Chuva por vezes forte à passagem da frente."
+   },
+   {
+    "tipo": "vento",
+    "nivel": "laranja",
+    "quando": "dom 06h–15h",
+    "texto": "Rajadas de 55 km/h na cidade, até 80 km/h no litoral."
+   },
+   {
+    "tipo": "mar",
+    "nivel": "amarelo",
+    "quando": "sáb 18h – dom 21h",
+    "texto": "Ondas de 4 a 5 m na costa ocidental."
+   },
+   {
+    "tipo": "nevoeiro",
+    "nivel": "info",
+    "quando": "sáb 06h–09h",
+    "texto": "Visibilidade reduzida junto ao Tejo."
+   }
+  ],
+  "incendios": "Risco de incêndio moderado hoje e reduzido amanhã. O satélite detetou 2 focos de calor nas últimas 24 h (o mais próximo a 18 km para noroeste, fraco) e há uma ocorrência de mato em curso em Mafra com 24 operacionais. A humidade a subir e a chuva de domingo limitam a propagação.",
+  "satelite": "A imagem Meteosat mostra uma banda de nebulosidade frontal a cerca de 900 km a oeste, orientada de norte para sul, com topos frios a norte dos Açores. Sem relâmpagos perto do continente.",
+  "conselhos": [
+   "Domingo de manhã: guarda-chuva e casaco impermeável.",
+   "Prende objetos soltos em varandas antes de sábado à noite.",
+   "Evita a orla costeira no domingo: ondas de 4 a 5 m.",
+   "Terça e quarta são os melhores dias para atividades ao ar livre."
+  ],
+  "fiabilidade": {
+   "curto": "alta",
+   "medio": "media",
+   "texto": "Os 9 modelos concordam na passagem da frente no domingo (diferença de ±2 h na hora de chegada); a quantidade de chuva varia entre 8 e 20 mm. Depois de quarta-feira os ensembles divergem."
+  },
+  "tecnica": "Uma depressão profunda (980 hPa) a oeste da Irlanda arrasta uma superfície frontal fria que atravessa a Península no domingo. Antes dela, o fluxo roda de leste para sul, com advecção de ar quente e húmido (ponto de orvalho de 13 a 14 °C). A frente está bem definida nos modelos de alta resolução (AROME 1,3 km), com uma linha de precipitação mais intensa à passagem. Depois entra ar polar marítimo, mais fresco e instável (CAPE de 300 a 500 J/kg na segunda à tarde), com aguaceiros dispersos. A crista anticiclónica regressa a partir de terça.",
+  "verificacao": "A previsão das 07:12 acertou a máxima (prevista 18 °C, observada 18,4 °C) e a ausência de chuva."
+ },
+ "place": {
+  "id": "lisboa",
+  "name": "Lisboa",
+  "lat": 38.7223,
+  "lon": -9.1393,
+  "distanceKm": 0
+ },
+ "ageMin": 140,
+ "schedule": [
+  "07:12",
+  "13:12",
+  "19:42"
+ ],
+ "onDemand": false
+}
