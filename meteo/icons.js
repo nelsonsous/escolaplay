@@ -113,6 +113,7 @@ const UI = {
   snow: '<path d="M12 4v16M5.1 8l13.8 8M5.1 16l13.8-8"/>',
   waves: '<path d="M2.5 9c2 0 2-1.5 4-1.5S8.5 9 10.5 9s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5"/><path d="M2.5 14c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5"/><path d="M2.5 19c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5"/>',
   station: '<path d="M12 21V10"/><path d="M8 21h8"/><circle cx="12" cy="7" r="2.5"/><path d="M7.5 3.5a6.5 6.5 0 0 0 0 7M16.5 3.5a6.5 6.5 0 0 1 0 7"/>',
+  relief: '<path d="M2.5 19.5l6-9.5 3.6 5.4 2.4-3.4 7 7.5z"/><path d="M7.2 12.1l1.3 1.4 1.4-1.3"/>',
   signal1: '<rect x="4" y="15" width="3.5" height="5" rx="1" fill="currentColor" stroke="none"/><rect x="10.25" y="10" width="3.5" height="10" rx="1"/><rect x="16.5" y="5" width="3.5" height="15" rx="1"/>',
   signal2: '<rect x="4" y="15" width="3.5" height="5" rx="1" fill="currentColor" stroke="none"/><rect x="10.25" y="10" width="3.5" height="10" rx="1" fill="currentColor" stroke="none"/><rect x="16.5" y="5" width="3.5" height="15" rx="1"/>',
   signal3: '<rect x="4" y="15" width="3.5" height="5" rx="1" fill="currentColor" stroke="none"/><rect x="10.25" y="10" width="3.5" height="10" rx="1" fill="currentColor" stroke="none"/><rect x="16.5" y="5" width="3.5" height="15" rx="1" fill="currentColor" stroke="none"/>',

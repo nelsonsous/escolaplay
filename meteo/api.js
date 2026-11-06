@@ -35,6 +35,8 @@ export const getStatus = () => call('/api/status', { timeout: 8000 });
 export const getPlaces = async () => (await call('/api/places')) || [];
 export const addPlace = (name, lat, lon) => call('/api/places', { method: 'POST', body: { name, lat: r4(lat), lon: r4(lon) } });
 export const deletePlace = (id) => call(`/api/places/${encodeURIComponent(id)}`, { method: 'DELETE' });
+/** Muda um local com análise diária para outro ponto (o id fica: a última análise e as lições continuam). */
+export const movePlace = (id, lat, lon, name) => call(`/api/places/${encodeURIComponent(id)}`, { method: 'PATCH', body: { lat: r4(lat), lon: r4(lon), ...(name ? { name } : {}) } });
 export async function geocode(text) {
   const r = await call(`/api/geocode?${q({ q: text })}`, { timeout: 10000 });
   return Array.isArray(r) ? r : [];

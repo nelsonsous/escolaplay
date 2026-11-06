@@ -7,7 +7,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -20,7 +20,8 @@ const LAYERS = [
 ];
 const ZOOMS = [300, 600, 1200];
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
-const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações' };
+const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto' };
+const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
 
 // ---------- configuração ----------
@@ -272,6 +273,8 @@ function nowBox(fc) {
     if (o && F.isNum(o.temp)) lines.push(`<li>${ui('station')}<span>Observado <b>${esc(F.deg(o.temp, 1))}</b> em ${esc(o.station)} · ${many ? '~' : ''}${esc(F.km(o.distanceKm))} · ${esc(F.ago(o.ageMin))} (${esc((o.sources || [o.source]).join(' + '))})</span></li>`);
     const c = n.correction;
     if (c && F.isNum(c.temp) && Math.abs(c.temp) >= 0.1) lines.push(`<li>${ui('target')}<span>Previsão ajustada ${esc(F.signed(c.temp, 1))}° com ${many ? `${esc(o.n)} estações` : 'esta observação'} nas próximas ${esc(c.decayHours ?? 6)} h.</span></li>`);
+    const tl = terrainLine(fc);
+    if (tl) lines.push(`<li>${ui('relief')}<span>${esc(tl)}</span></li>`);
     const conf = d0.confidence;
     return `<section class="box now ${tintOf(n.code, n.isDay)}" aria-label="Agora">
         <div class="now-top">
@@ -283,6 +286,30 @@ function nowBox(fc) {
         ${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}
     </section>`;
 }
+// "Vale · 70 m abaixo do relevo à volta" e, se mexe na previsão, quanto
+function terrainLine(fc) {
+    const T = fc?.location?.terrain, LA = fc?.local;
+    if (!T) return '';
+    let s = `${T.label} · ${T.text}`;
+    if (T.type === 'vale' && LA) {
+        if (F.isNum(LA.now) && LA.now <= -0.1) s += ` · agora ${F.num(LA.now, 1)}° (noite limpa e calma)`;
+        else if (LA.hours > 0 && F.isNum(LA.max)) s += ` · até ${F.num(LA.max, 1)}° nas noites limpas e calmas`;
+    } else if (T.type === 'topo' && F.isNum(LA?.windFactor) && LA.windFactor > 1) s += ` · vento +${F.num((LA.windFactor - 1) * 100)}%`;
+    return s;
+}
+// Para que ponto é a análise mostrada (o local registado quando foi escrita) e a que distância está do ponto selecionado
+function analysedPoint() {
+    const r = st.analysis, a = r?.analysis;
+    if (!a || !cfg.loc) return null;
+    const p = F.isNum(a.place?.lat) && F.isNum(a.place?.lon) ? a.place : F.isNum(r.place?.lat) && F.isNum(r.place?.lon) ? r.place : null;
+    if (!p) return null;
+    const d = haversineKm(cfg.loc.lat, cfg.loc.lon, p.lat, p.lon);
+    const reg = r.place?.id ? st.places.find((x) => x.id === r.place.id) || null : null; // local registado, como está agora (pode ter mudado de sítio)
+    const moved = !!reg && haversineKm(cfg.loc.lat, cfg.loc.lon, reg.lat, reg.lon) <= FAR_KM; // a análise diária já é deste ponto
+    return { name: p.name || reg?.name || 'local', lat: p.lat, lon: p.lon, d, far: d > FAR_KM, reg, moved };
+}
+const forTxt = (ap) => `Para ${ap.name} · ${F.num(ap.lat, 4)}, ${F.num(ap.lon, 4)} · ${ap.d < 0.05 ? 'no ponto selecionado' : `a ${F.km(ap.d)} do ponto selecionado`}`;
+const forLine = (ap) => `<div class="cl-for${ap.far ? ' far' : ''}">${ui(ap.far ? 'alert' : 'pin')}<span>${esc(forTxt(ap))}</span></div>`;
 function alertsHtml(fc) {
     const today = todayOf(fc);
     let h = '';
@@ -311,8 +338,17 @@ function teaserHtml() {
     if (r === undefined) return `<div class="claude" id="cl-teaser" aria-busy="true"><div class="adv-src">Análise do Claude</div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
     const a = r?.analysis;
     if (!a) return `<button type="button" class="claude" id="cl-teaser" data-tab="analise"><div class="adv-src">Análise do Claude</div><p>Ainda não há análise para este local. Ativa a análise diária: o Claude junta os modelos, as observações e o satélite às ${esc(SCHEDULE.join(', '))}.</p><span class="lnk">Ativar</span></button>`;
-    return `<button type="button" class="claude" id="cl-teaser" data-tab="analise"><div class="adv-src">Análise do Claude <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>
-        <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise completa</span></button>`;
+    const ap = analysedPoint();
+    const main = `<div class="adv-src">Análise do Claude <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
+        <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise completa</span>`;
+    // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise diária para aqui
+    if (ap?.far && ap.reg && !ap.moved) {
+        return `<div class="claude far" id="cl-teaser"><button type="button" class="cl-go" data-tab="analise">${main}</button>
+            <div class="cl-far"><p>Esta análise é para um ponto a ${esc(F.km(ap.d))} daqui: o tempo aqui pode ser diferente.</p>
+            <button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button></div></div>`;
+    }
+    const note = ap?.far ? `<p class="cl-farmsg">${esc(ap.moved ? `A análise diária já passou para este ponto: a próxima chega ${nextRun()}.` : 'Feita para outro ponto: o tempo aqui pode ser diferente.')}</p>` : '';
+    return `<button type="button" class="claude" id="cl-teaser" data-tab="analise">${main}${note}</button>`;
 }
 const nowcastSec = (fc) => (fc.nowcast?.steps?.length
     ? `<section class="sec"><div class="sec-h"><h2>Próximas 2 horas</h2></div><div class="box"><p class="lead">${esc(fc.nowcast.text || '')}</p><div id="nc-chart"></div></div></section>` : '');
@@ -458,8 +494,18 @@ function viewAnalysis() {
         const g = a.generatedAt ? new Date(a.generatedAt) : null;
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
         const sec = (t, x) => (x ? `<div class="an-sec"><h4>${t}</h4><p>${esc(x)}</p></div>` : '');
+        const ap = analysedPoint();
+        // feita para outro ponto (> 2 km): dizê-lo claramente e oferecer mudar a análise diária para o ponto selecionado
+        if (ap?.far) {
+            h += `<div class="warn far-pt" role="note">${ui('alert')}<div><b>Esta análise é para outro ponto, a ${esc(F.km(ap.d))} daqui</b>
+                <span class="w-when">${esc(forTxt(ap))}</span>
+                <p>${esc(ap.moved ? `O tempo aqui pode ser diferente. A análise diária já passou para este ponto: a próxima chega ${nextRun()}.`
+                    : 'O tempo aqui pode ser diferente (altitude, relevo, distância ao mar).')}</p>
+                ${ap.reg && !ap.moved ? `<button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button>` : ''}</div></div>`;
+        }
         h += `<article class="today">
             <div class="adv-src">Análise do Claude <span>· ${a.by === 'claude-api' ? 'a pedido' : 'agendada'}${hm ? ` às ${esc(hm)}` : ''}${r.offline ? ' · guardada' : ''}</span></div>
+            ${ap ? forLine(ap) : ''}
             <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p style="margin:6px 0 0;color:var(--soft)">${esc(a.resumo)}</p>` : ''}
             ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas do Claude">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
             ${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${sec('Amanhã', a.amanha)}
@@ -468,7 +514,7 @@ function viewAnalysis() {
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
             ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}
-            <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))}${r.place?.name && r.place.distanceKm > 0.5 ? ` para ${esc(r.place.name)} (a ${esc(F.km(r.place.distanceKm))})` : ''} · próxima ${esc(nextRun())}.</p>
+            <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · próxima ${esc(nextRun())}.</p>
         </article>`;
     } else {
         h += `<div class="today"><div class="adv-src">Análise do Claude</div><p style="margin:6px 0 0;color:var(--soft)">${r?.error && !r.offline ? `Não foi possível obter a análise (${esc(r.error)}).` : `Ainda não há análise para este local. Com a análise diária ligada, o Claude junta os modelos, as observações e as imagens de satélite às ${esc(sched.slice(0, -1).join(', '))} e ${esc(sched.at(-1))}.`}</p></div>`;
@@ -548,6 +594,9 @@ function precisionLines(fc) {
     if (o) out.push((o.n || 1) > 1 ? `Observações: ${o.n} estações até ${F.km(Math.max(...(o.stations || []).filter((x) => x.used).map((x) => x.distanceKm), o.distanceKm))} (a mais próxima a ${F.km(o.nearestKm)})` : `Observação: ${o.station}, ${F.km(o.distanceKm)}`);
     else out.push('Sem estações de observação perto');
     if (F.isNum(fc.location?.elevation)) out.push(`Altitude do ponto: ${F.num(fc.location.elevation)} m (observações ajustadas a esta altitude)`);
+    const tl = terrainLine(fc);
+    if (tl) out.push(`Relevo: ${tl}`);
+    else if (fc.status?.terrain && fc.status.terrain !== 'ok') out.push(`Relevo à volta indisponível (${fc.status.terrain})`);
     return out;
 }
 function viewSettings() {
@@ -758,6 +807,27 @@ async function placeBack(p) {
         if (cfg.loc) loadAnalysis(cfg.loc);
     } catch (e) { toast(e.message); }
 }
+// "Mudar a análise diária para este ponto": o local registado passa para o ponto selecionado (mesmo id: a última
+// análise e as lições ficam); "Desfazer" volta a pô-lo onde estava
+async function movePlaceHere() {
+    const reg = analysedPoint()?.reg;
+    if (!reg?.id || !cfg.loc) return;
+    const from = { lat: reg.lat, lon: reg.lon };
+    try {
+        const p = await moveTo(reg.id, cfg.loc.lat, cfg.loc.lon);
+        toast(`A análise diária de ${p.name} passa a ser para este ponto. A próxima chega ${nextRun()}.`, () => moveTo(reg.id, from.lat, from.lon)
+            .then(() => toast(`A análise diária de ${p.name} voltou ao ponto anterior.`)).catch((e) => toast(e.message)));
+    } catch (e) { toast(e.message); }
+}
+async function moveTo(id, lat, lon) {
+    const p = await api.movePlace(id, lat, lon);
+    if (p) {
+        st.places = st.places.some((x) => x.id === p.id) ? st.places.map((x) => (x.id === p.id ? p : x)) : [...st.places, p];
+        if (st.analysis?.place?.id === p.id) st.analysis = { ...st.analysis, place: { ...st.analysis.place, ...p } };
+    }
+    render();
+    return p;
+}
 async function analyzeNow() {
     if (!st.fc || st.analyzing) return;
     st.analyzing = true; render();
@@ -803,6 +873,7 @@ document.addEventListener('click', (ev) => {
         case 'place-on': togglePlace(true); break;
         case 'place-off': togglePlace(false); break;
         case 'off-yes': placeOff(st.sheet?.arg?.id); break;
+        case 'place-move': movePlaceHere(); break;
         case 'analyze': analyzeNow(); break;
         case 'save-proxy': saveProxy(); break;
         case 'fav': {

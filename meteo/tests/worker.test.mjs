@@ -2,7 +2,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../proxy/src/worker.js';
-import { validateAnalysis, ANALYSIS_SCHEMA } from '../lib/analysis.js';
+import { validateAnalysis, ANALYSIS_SCHEMA, SYSTEM_PROMPT, regionalPhrases } from '../lib/analysis.js';
 
 const ORIGIN = 'https://meteo.example.workers.dev';
 function kv() {
@@ -23,6 +23,7 @@ test('estado, CORS e endereço da app', async () => {
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
+    assert.equal(j.version, '1.2.0');
     assert.deepEqual(j.schedule, ['07:34', '13:34', '20:34']);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const root = await call('/');
@@ -32,6 +33,7 @@ test('estado, CORS e endereço da app', async () => {
     const pre = await call('/api/places', { method: 'OPTIONS', headers: { origin: 'https://nelsonsous.github.io' } });
     assert.equal(pre.status, 204);
     assert.match(pre.headers.get('access-control-allow-methods'), /POST/);
+    assert.match(pre.headers.get('access-control-allow-methods'), /PATCH/, 'o browser pode mudar um local de sítio');
 });
 
 test('proxies só para as fontes previstas', async () => {
@@ -104,4 +106,65 @@ test('validação da análise: limites, listas e valores permitidos', () => {
     assert.equal(soft.value.titulo.length, 90);
     assert.equal(ANALYSIS_SCHEMA.additionalProperties, false);
     assert.ok(ANALYSIS_SCHEMA.required.includes('licoes'));
+});
+
+test('PATCH /api/places/<id>: muda o ponto, mantém o id (análise e lições ficam), só da própria origem', async () => {
+    const places = [{ id: 'santo-tirso', name: 'Santo Tirso', lat: 41.3354, lon: -8.4745, createdAt: '2026-11-01T10:00:00Z' },
+        { id: 'porto', name: 'Porto', lat: 41.1496, lon: -8.611, createdAt: '2026-11-02T10:00:00Z' }];
+    env.KV.m.set('places', JSON.stringify(places));
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Nevoeiro no vale', generatedAt: new Date().toISOString(), place: places[0] }));
+    env.KV.m.set('lessons:santo-tirso', JSON.stringify(['O vale arrefece mais nas noites calmas']));
+    const patch = (id, b, origin = ORIGIN) => call(`/api/places/${id}`, { method: 'PATCH', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(b) });
+    assert.equal((await patch('santo-tirso', { lat: 41.36, lon: -8.48 }, 'https://evil.example')).status, 403);
+    assert.equal((await patch('santo-tirso', { lat: 41.36, lon: -8.48 }, '')).status, 403, 'sem origem não grava');
+    assert.equal((await patch('nada', { lat: 41.36, lon: -8.48 })).status, 404);
+    assert.equal((await patch('santo-tirso', { lat: 'x', lon: -8.48 })).status, 400);
+    assert.equal((await patch('santo-tirso', { lat: 95, lon: -8.48 })).status, 400);
+    assert.equal(JSON.parse(env.KV.m.get('places'))[0].lat, 41.3354, 'nada mudou');
+    // para o ponto selecionado (a 3 km): mesmo id e nome, coordenadas novas (4 casas)
+    const r = await patch('santo-tirso', { lat: 41.361234, lon: -8.487681 });
+    assert.equal(r.status, 200);
+    const p = await r.json();
+    assert.deepEqual([p.id, p.name, p.lat, p.lon, p.createdAt], ['santo-tirso', 'Santo Tirso', 41.3612, -8.4877, '2026-11-01T10:00:00Z']);
+    assert.ok(Date.parse(p.movedAt) > 0);
+    const saved = JSON.parse(env.KV.m.get('places'));
+    assert.deepEqual(saved.map((x) => x.id), ['santo-tirso', 'porto'], 'a ordem e o outro local ficam');
+    assert.equal(saved[0].lat, 41.3612);
+    assert.ok(env.KV.m.has('analysis:santo-tirso') && env.KV.m.has('lessons:santo-tirso'), 'a análise e as lições ficam');
+    const an = await (await call('/api/analysis?lat=41.3612&lon=-8.4877')).json();
+    assert.equal(an.place.id, 'santo-tirso');
+    assert.equal(an.place.distanceKm, 0);
+    assert.equal(an.analysis.titulo, 'Nevoeiro no vale', 'a última análise continua a aparecer até à próxima');
+    // o nome é opcional; não pode ficar em cima de outro local registado
+    assert.equal((await (await patch('santo-tirso', { lat: 41.3612, lon: -8.4877, name: '  Casa no vale ' })).json()).name, 'Casa no vale');
+    const dup = await patch('santo-tirso', { lat: 41.1497, lon: -8.6111 });
+    assert.equal(dup.status, 409);
+    assert.match((await dup.json()).message, /Porto/);
+    assert.equal(JSON.parse(env.KV.m.get('places')).length, 2);
+});
+
+test('análise focada no ponto: regras e frases sobre a região', () => {
+    for (const s of ['## O ponto', 'distância, direção e hora de chegada', 'a banda de chuva a 80 km a sudoeste deve chegar ao ponto por volta das 21h', 'num vale', 'de perto (~280 km)'])
+        assert.ok(SYSTEM_PROMPT.includes(s), `falta "${s}" nas regras`);
+    const a = { titulo: 'Chuva no distrito do Porto', resumo: 'A banda de chuva a 80 km a sudoeste deve chegar ao ponto por volta das 21h.',
+        hoje: 'Aguaceiros no Minho e Douro Litoral; mais frio no interior norte.', amanha: 'Vento de norte fraco; os modelos regionais concordam.',
+        tecnica: 'A frente chega à região de madrugada.', dias: [{ data: '2026-11-08', texto: 'Sol em Santo Tirso, geada no vale.' }],
+        alertas: [{ tipo: 'chuva', nivel: 'amarelo', quando: 'sáb', texto: 'Aviso amarelo para o distrito.' }], conselhos: ['Leva guarda-chuva às 21h'] };
+    const f = regionalPhrases(a, { place: 'Santo Tirso' });
+    assert.deepEqual([...new Set(f.map((x) => x.campo))], ['titulo', 'hoje', 'tecnica', 'alertas[0]']);
+    assert.ok(f.some((x) => /distrito do Porto/.test(x.frase)) && f.some((x) => /Minho e Douro Litoral/.test(x.frase)) && f.some((x) => /interior norte/.test(x.frase)));
+    assert.ok(!f.some((x) => x.campo === 'resumo' || x.campo === 'amanha' || x.campo.startsWith('dias')), 'sistemas a uma distância do ponto, "vento de norte" e "modelos regionais" passam');
+    assert.deepEqual(regionalPhrases({ hoje: 'Chuva às 15h no Alentejo' }, { place: 'Alentejo' }), [], 'o nome do local não conta');
+    assert.deepEqual(regionalPhrases(null), []);
+});
+
+test('análise: a imediata feita para este ponto aparece se for mais recente do que a do local registado', async () => {
+    env.KV.m.set('places', JSON.stringify([{ id: 'casa', name: 'Casa', lat: 38.72, lon: -9.14 }]));
+    env.KV.m.set('analysis:casa', JSON.stringify({ titulo: 'Diária', generatedAt: new Date(Date.now() - 2 * 36e5).toISOString(), place: { id: 'casa', lat: 38.72, lon: -9.14 } }));
+    env.KV.m.set('analysis:@38.75,-9.15', JSON.stringify({ titulo: 'Aqui', generatedAt: new Date(Date.now() - 6e5).toISOString(), place: { id: null, lat: 38.75, lon: -9.15 } }));
+    const j = await (await call('/api/analysis?lat=38.75&lon=-9.15')).json();
+    assert.equal(j.analysis.titulo, 'Aqui');
+    assert.equal(j.place.id, 'casa', 'o local registado perto continua indicado (para mudar a análise diária)');
+    env.KV.m.set('analysis:@38.75,-9.15', JSON.stringify({ titulo: 'Aqui', generatedAt: new Date(Date.now() - 5 * 36e5).toISOString() }));
+    assert.equal((await (await call('/api/analysis?lat=38.75&lon=-9.15')).json()).analysis.titulo, 'Diária', 'a diária é mais recente');
 });

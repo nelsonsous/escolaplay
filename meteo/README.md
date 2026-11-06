@@ -20,6 +20,11 @@ principal*; Android *⋮ → Instalar app*).
 - **Observações de várias estações** — todas as estações IPMA e METAR até 30 km, cada uma levada à altitude do ponto
   (0,65 °C por 100 m) e pesada pela distância, pela altitude parecida e por ser recente; as que destoam ficam de fora.
   A combinação corrige as próximas horas (a correção vai-se desvanecendo) e diz quanto se pode confiar nela.
+- **Relevo do ponto** — um só pedido de altitudes (o ponto e 12 rumos a 1,5 km e a 4 km, guardado para sempre) diz se o
+  ponto está num **vale**, numa **encosta**, num **topo** ou numa **planície**, e quanto abaixo ou acima do relevo à volta
+  (em Santo Tirso: *Vale · 70 m abaixo do relevo à volta*). Daí um ajuste local pequeno e sempre indicado: num vale, nas
+  noites limpas (nuvens < 30%) e calmas (vento < 8 km/h), até −1,5 °C por cada 100 m de desnível (máx. 1,5 °C), também
+  na mínima; num topo, vento e rajadas até +15%.
 - **Verificação local** — compara as previsões a 1 dia dos últimos 7 dias com o que se mediu (METAR perto, ou várias
   estações com o histórico guardado): o modelo mais certeiro no teu local pesa mais e os vieses são corrigidos (ex.: em
   Lisboa o GFS estava 1,2 °C quente). O IPMA entra também, com as corridas anteriores guardadas pela tarefa agendada.
@@ -33,11 +38,21 @@ principal*; Android *⋮ → Instalar app*).
 ## Análise do Claude
 
 Como o conselheiro dos Mercados, uma **tarefa agendada do Claude** segue [`ANALISTA.md`](ANALISTA.md) três vezes por
-dia (07:34, 13:34 e 20:34): para cada local registado lê a previsão, **vê as imagens de satélite**, verifica a análise
-anterior contra o que se observou, escreve a análise (título, agora, hoje, amanhã, próximos dias, tendência, alertas,
-satélite, incêndios, conselhos, fiabilidade, análise técnica) e guarda lições sobre o local para as seguintes.
+dia (07:34, 13:34 e 20:34): para cada local registado lê a previsão, **vê as imagens de satélite** (de perto, ~280 km
+com o ponto ao centro, e largas), verifica a análise anterior contra o que se observou, escreve a análise (título,
+agora, hoje, amanhã, próximos dias, tendência, alertas, satélite, incêndios, conselhos, fiabilidade, análise técnica) e
+guarda lições sobre o local para as seguintes.
 
-Na app, **Análise diária do Claude para este local** regista o local (máx. 5; a análise aparece num raio de 10 km).
+A análise é **sobre o ponto exato**: o resumo que o Claude recebe começa por `## O ponto` (coordenadas, altitude, relevo,
+o ponto do IPMA e as estações com distância, rumo e altitude) e pela tabela hora a hora das próximas 12 h ali; as regras
+pedem o que acontece no ponto, em mm, km/h e °C, com os sistemas regionais só como causa («a banda de chuva a 80 km a
+sudoeste deve chegar ao ponto por volta das 21h») e os efeitos do relevo (vale: geada, nevoeiro, inversões; topo:
+vento). O `publicar.mjs` recusa frases genéricas sobre o distrito ou a região.
+
+Na app, **Análise diária do Claude para este local** regista o local (máx. 5; a análise aparece num raio de 10 km). O
+cartão e o separador Análise dizem para que ponto é («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto
+selecionado»); a mais de 2 km avisam e oferecem **Mudar a análise diária para este ponto** (o local muda de sítio e fica
+com a última análise e as lições).
 
 Opcional — análise imediata para qualquer local, pela API do Claude (paga à parte):
 
@@ -51,8 +66,9 @@ Ou no painel da Cloudflare: *Workers & Pages → meteo → Settings → Variable
 
 Como nos Mercados, a app é estática (GitHub Pages) e o que o browser não pode ler diretamente (METAR, NASA FIRMS,
 fogos.pt, imagens EUMETSAT) passa por um Cloudflare Worker próprio, grátis, na pasta `proxy/` — que também guarda os
-locais e as análises do Claude (KV). Já está publicado em `https://meteo.mercados-proxy.workers.dev` e a app usa-o
-por omissão; para usar outro: **Ajustes → Conector de dados**, ou abrir a app com `…/meteo/?proxy=https://…`.
+locais (criar, mudar de ponto, desligar) e as análises do Claude (KV). Já está publicado em
+`https://meteo.mercados-proxy.workers.dev` e a app usa-o por omissão; para usar outro: **Ajustes → Conector de dados**,
+ou abrir a app com `…/meteo/?proxy=https://…`.
 
 ```bash
 cd meteo/proxy
@@ -67,7 +83,8 @@ npx wrangler deploy
   da Cloudflare só dá 10 ms de CPU por pedido, por isso o Worker não faz contas).
 - `proxy/` — o conector (Worker). `analista/` — scripts da tarefa agendada (`dados.mjs` recolhe, `publicar.mjs`
   valida e grava). `docs/API.md` — formato de todas as respostas.
-- `tests/` — motor com dados reais de Lisboa, rotas do conector e a app no Chromium com a rede simulada:
+- `tests/` — motor com dados reais de Lisboa (e o relevo real de Santo Tirso, Beja, Covilhã, Pinhão…), rotas do
+  conector e a app no Chromium com a rede simulada:
 
 ```bash
 node --test meteo/tests/*.test.mjs

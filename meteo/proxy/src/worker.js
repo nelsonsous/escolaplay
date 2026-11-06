@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const SCHEDULE = ['07:34', '13:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const MAX_PLACES = 5;
@@ -16,7 +16,7 @@ const OM_TTL = { forecast: 900, ensemble: 3600, previous: 3600, archive: 2592000
 export default {
     async fetch(req, env, ctx) {
         const url = new URL(req.url);
-        if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...CORS, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+        if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...CORS, 'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
             'access-control-allow-headers': 'content-type', 'access-control-max-age': '86400' } });
         // a app está no GitHub Pages; quem abrir o endereço do conector vai lá parar
         if (url.pathname === '/' && req.method === 'GET') return Response.redirect(env.APP_URL || 'https://nelsonsous.github.io/escolaplay/meteo/', 302);
@@ -105,6 +105,7 @@ async function route(req, env, ctx, url) {
         if (m === 'POST') return addPlace(req, env, url);
     }
     if (m === 'DELETE' && p.startsWith('/api/places/')) return deletePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
+    if (m === 'PATCH' && p.startsWith('/api/places/')) return movePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
     return json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
 }
 
@@ -176,13 +177,35 @@ async function deletePlace(req, env, url, id) {
     return new Response(null, { status: 204 });
 }
 
+// Mudar um local registado para outro ponto (a app: "Mudar a análise diária para este ponto"). O id fica o mesmo,
+// por isso a última análise (analysis:<id>) e as lições (lessons:<id>) continuam; a próxima análise já é do ponto novo.
+async function movePlace(req, env, url, id) {
+    if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
+    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    const places = await getPlaces(env);
+    const cur = places.find((x) => x.id === id);
+    if (!cur) return json({ error: 'nao_encontrado', message: 'Local não encontrado.' }, 404);
+    const b = await req.json().catch(() => null);
+    const lat = Number(b?.lat), lon = Number(b?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return bad('Coordenadas inválidas.');
+    const name = b?.name == null ? cur.name : String(b.name).trim().slice(0, 40);
+    if (!name) return bad('Nome inválido.');
+    const other = places.find((x) => x.id !== id && distKm(x.lat, x.lon, lat, lon) < 0.5);
+    if (other) return json({ error: 'duplicado', message: `Já há análise diária para este ponto (${other.name}).` }, 409);
+    const place = { ...cur, name, lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4, movedAt: new Date().toISOString() };
+    await env.KV.put('places', JSON.stringify(places.map((x) => (x.id === id ? place : x))));
+    return json(place, 200);
+}
+
 const adhocKey = (lat, lon) => `analysis:@${lat.toFixed(2)},${lon.toFixed(2)}`;
 
 async function findAnalysis(env, lat, lon) {
     const places = await getPlaces(env);
     const near = places.map((x) => ({ ...x, distanceKm: Math.round(distKm(lat, lon, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0] || null;
     let analysis = near && env.KV ? await env.KV.get('analysis:' + near.id, 'json') : null;
-    if (!analysis && env.KV) analysis = await env.KV.get(adhocKey(lat, lon), 'json');
+    // análise imediata feita para este ponto (sem local registado a ≤ 2 km): mostra-se se for mais recente
+    const adhoc = env.KV ? await env.KV.get(adhocKey(lat, lon), 'json') : null;
+    if (adhoc && (!analysis || Date.parse(adhoc.generatedAt) > Date.parse(analysis.generatedAt))) analysis = adhoc;
     const ageMin = analysis?.generatedAt ? Math.round((Date.now() - Date.parse(analysis.generatedAt)) / 6e4) : null;
     return { analysis: analysis || null, place: near, ageMin, schedule: SCHEDULE, onDemand: !!env.ANTHROPIC_API_KEY };
 }
@@ -203,7 +226,8 @@ async function refresh(req, env, url) {
     await Promise.all([env.KV.put(cellKey, '1', { expirationTtl: 1800 }), env.KV.put(dayKey, String(Number(count || 0) + 1), { expirationTtl: 172800 })]);
 
     const places = await getPlaces(env);
-    const place = places.find((x) => distKm(c.lat, c.lon, x.lat, x.lon) <= 10) || null;
+    // só conta como análise do local registado se for para o mesmo ponto (≤ 2 km, como na app); senão fica à parte (24 h)
+    const place = places.map((x) => ({ x, d: distKm(c.lat, c.lon, x.lat, x.lon) })).filter((o) => o.d <= 2).sort((a, b) => a.d - b.d)[0]?.x || null;
     const previous = place ? await env.KV.get('analysis:' + place.id, 'json') : null;
     const lessons = place ? (await env.KV.get('lessons:' + place.id, 'json')) || [] : [];
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
@@ -216,9 +240,11 @@ async function refresh(req, env, url) {
             output_config: { effort: 'high', format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
             system: SYSTEM_PROMPT,
             messages: [{ role: 'user', content: [
-                { type: 'text', text: 'Imagem 1: Meteosat MTG cor natural (~1200 km, o local está no centro).' },
+                { type: 'text', text: 'Imagem 1: Meteosat MTG cor natural de perto (~280 km de largura, 100 píxeis ≈ 39 km, norte para cima, o ponto no centro exato).' },
+                { type: 'image', source: { type: 'url', url: satUrl('geocolour', c.lat, c.lon, { km: 280 }) } },
+                { type: 'text', text: 'Imagem 2: Meteosat MTG cor natural (~1200 km, o ponto no centro).' },
                 { type: 'image', source: { type: 'url', url: satUrl('geocolour', c.lat, c.lon, { km: 1200 }) } },
-                { type: 'text', text: 'Imagem 2: massas de ar RGB (~2500 km, local ao centro): vermelho/laranja = ar seco de altitude e frentes, verde = massa de ar quente, azul/violeta = ar frio.' },
+                { type: 'text', text: 'Imagem 3: massas de ar RGB (~2500 km, o ponto ao centro): vermelho/laranja = ar seco de altitude e frentes, verde = massa de ar quente, azul/violeta = ar frio.' },
                 { type: 'image', source: { type: 'url', url: satUrl('airmass', c.lat, c.lon, { km: 2500 }) } },
                 { type: 'text', text: userPrompt(summary, { previous, lessons }) },
             ] }],
@@ -234,8 +260,9 @@ async function refresh(req, env, url) {
     let parsed;
     try { parsed = JSON.parse(text); } catch { return json({ error: 'formato', message: 'Resposta do Claude em formato inesperado.' }, 502); }
     const { value } = validateAnalysis(parsed);
+    // place = o ponto analisado (as coordenadas do pedido), com o id e o nome do local registado quando o há
     const analysis = { ...value, generatedAt: new Date().toISOString(), by: 'claude-api', model: msg.model || model,
-        place: place ? { id: place.id, name: place.name, lat: place.lat, lon: place.lon } : { id: null, name: typeof b?.name === 'string' ? b.name.slice(0, 40) : null, lat: c.lat, lon: c.lon } };
+        place: place ? { id: place.id, name: place.name, lat: c.lat, lon: c.lon } : { id: null, name: typeof b?.name === 'string' ? b.name.slice(0, 40) : null, lat: c.lat, lon: c.lon } };
     if (place) {
         await env.KV.put('analysis:' + place.id, JSON.stringify(analysis));
         if (value.licoes.length) await env.KV.put('lessons:' + place.id, JSON.stringify(value.licoes));

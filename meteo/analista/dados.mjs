@@ -1,6 +1,7 @@
 // Analista do tempo — recolhe tudo o que o Claude precisa para cada local registado.
 //   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo]
-// Mostra as regras, o resumo numérico, a análise anterior, as lições e o observado; grava imagens de satélite.
+// Mostra as regras, o resumo numérico (a começar por "## O ponto"), a análise anterior, as lições e o observado;
+// grava imagens de satélite centradas no ponto (de perto, ~280 km, e largas).
 // Também guarda no KV o histórico horário das estações IPMA usadas e as previsões do IPMA de cada concelho
 // (para a verificação local, que precisa de previsões feitas na véspera).
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -16,8 +17,16 @@ let ipmaLocs = null;
 
 const OUT = arg('--out', '/tmp/meteo');
 mkdirSync(OUT, { recursive: true });
-const SAT = [['geocolour', 1200, 'cor natural MTG'], ['airmass', 2500, 'massas de ar (frentes, jato)'], ['rain', 800, 'precipitação por satélite H SAF'],
-    ['lightning', 1200, 'relâmpagos MTG LI'], ['ir', 1200, 'infravermelho 10,5 µm']];
+// Imagens de satélite (720×540, norte para cima, píxeis quadrados, o ponto no centro exato): primeiro as de perto
+// (~280 km: o que está a chegar ao ponto), depois as largas (o sistema todo)
+const W = 720, Hpx = 540;
+const SAT = [
+    ['geocolour', 280, 'perto', 'cor natural MTG, de perto'], ['rain', 280, 'perto', 'chuva por satélite H SAF, de perto'],
+    ['lightning', 280, 'perto', 'relâmpagos MTG LI, de perto'],
+    ['geocolour', 1200, '', 'cor natural MTG'], ['airmass', 2500, '', 'massas de ar (frentes, jato)'], ['rain', 800, '', 'precipitação por satélite H SAF'],
+    ['lightning', 1200, '', 'relâmpagos MTG LI'], ['ir', 1200, '', 'infravermelho 10,5 µm'],
+];
+const kmPx = (km) => String(Math.round((km / W) * 100) / 100).replace('.', ',');
 
 const places = await getJSON(`${WORKER}/api/places`);
 if (!places.length) { console.log('Sem locais registados — nada a analisar.'); process.exit(0); }
@@ -46,6 +55,8 @@ for (const [i, place] of places.entries()) {
         const prev = await kvGet('analysis:' + place.id).catch(() => null);
         const lessons = (await kvGet('lessons:' + place.id).catch(() => null)) || [];
         out.push(`\n==================== LOCAL ${place.id} — ${place.name} (${place.lat}, ${place.lon}) ====================`);
+        const T = fc.location.terrain;
+        out.push(`Ponto exato: ${place.lat}, ${place.lon} · ${fc.location.elevation} m${T ? ` · ${T.label.toLowerCase()} (${T.text})` : ''}. Escreve sobre este ponto, não sobre a região.`);
         out.push(`Fontes: ${Object.entries(fc.status).map(([k, v]) => `${k}=${v}`).join(' ')}`);
         out.push(observed(raw, fc));
         if (prev) out.push(`\n## Análise anterior (${prev.generatedAt})\nTítulo: ${prev.titulo}\nResumo: ${prev.resumo}\nHoje: ${prev.hoje}\nAmanhã: ${prev.amanha}`);
@@ -53,16 +64,17 @@ for (const [i, place] of places.entries()) {
         out.push(lessons.length ? `\n## Lições sobre este local\n- ${lessons.join('\n- ')}` : '\n## Lições: ainda nenhuma.');
         out.push('\n' + buildSummary(fc, { perModel: perModelTable(raw.det) }));
         const imgs = [];
-        for (const [layer, km, what] of SAT) {
+        for (const [layer, km, tag, what] of SAT) {
             try {
-                const r = await fetch(satUrl(layer, place.lat, place.lon, { km }));
+                const r = await fetch(satUrl(layer, place.lat, place.lon, { km, w: W, h: Hpx }));
                 if (!r.ok || !String(r.headers.get('content-type')).includes('image')) throw new Error(`HTTP ${r.status}`);
-                const file = `${OUT}/sat-${place.id}-${layer}.png`;
+                const file = `${OUT}/sat-${place.id}-${tag ? tag + '-' : ''}${layer}.png`;
                 writeFileSync(file, Buffer.from(await r.arrayBuffer()));
-                imgs.push(`- ${file} — ${what}, ~${km} km de largura, local ao centro`);
-            } catch (e) { imgs.push(`- ${layer}: indisponível (${e.message})`); }
+                imgs.push(`- ${file} — ${what}, ~${km} km de largura (1 píxel ≈ ${kmPx(km)} km; 100 píxeis ≈ ${Math.round((km / W) * 100)} km)`);
+            } catch (e) { imgs.push(`- ${layer}${tag ? ' (perto)' : ''}: indisponível (${e.message})`); }
         }
-        out.push(`\n## Imagens de satélite (ver com Read e limit: 1)\n${imgs.join('\n')}`);
+        out.push(`\n## Imagens de satélite (ver com Read e limit: 1; ${W}×${Hpx}, norte para cima, o ponto no centro exato — píxel ${W / 2}, ${Hpx / 2})\n` +
+            `As de perto primeiro: mede a distância e o rumo do que vem a caminho a partir do centro e diz quando chega ao ponto.\n${imgs.join('\n')}`);
         out.push(`\nEscreve a análise em: ${OUT}/analise-${place.id}.json  e publica com:\nNODE_USE_ENV_PROXY=1 node meteo/analista/publicar.mjs ${OUT}/analise-${place.id}.json`);
         writeFileSync(`${OUT}/dados-${place.id}.txt`, out.join('\n'));
     } catch (e) {

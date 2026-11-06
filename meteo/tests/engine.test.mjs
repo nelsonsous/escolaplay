@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildForecast, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns } from '../lib/engine.js';
+import { buildForecast, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
+    buildTerrain, terrainPoints, LOCAL_RULES } from '../lib/engine.js';
 import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../lib/stats.js';
 
 const fx = (f) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8'));
@@ -248,4 +249,130 @@ test('arquivo das corridas do IPMA: previsão feita 18 a 42 h antes de cada hora
     assert.equal(p2.temp[p2.times.indexOf('2026-11-07T03:00')], r.h.find(([t]) => t === '2026-11-07T03:00')[1]);
     assert.equal(p2.temp[p2.times.indexOf('2026-11-06T15:00')], r.h.find(([t]) => t === '2026-11-06T15:00')[1] - 5, 'hora de hoje vem da corrida de ontem');
     assert.equal(ipmaPrevFromRuns([]), null);
+});
+
+// ---------- relevo à volta do ponto e efeito local ----------
+const TER = fx('terrain.json');
+// noites limpas e calmas e sem chuva em todos os modelos (os dados de Lisboa de 6 nov tinham nuvens e chuva)
+function clearCalm(det) {
+    const d = structuredClone(det);
+    for (const k of Object.keys(d.hourly)) {
+        const set = (v) => { d.hourly[k] = d.hourly[k].map((x) => (x == null ? x : v)); };
+        if (/^cloud_cover(_low)?_/.test(k)) set(5); else if (/^wind_speed_10m_/.test(k)) set(3); else if (/^precipitation_/.test(k)) set(0);
+    }
+    return d;
+}
+
+test('relevo: o ponto e 24 pontos à volta, num só pedido', () => {
+    const pts = terrainPoints(41.3354, -8.4745);
+    assert.equal(pts.length, 25);
+    assert.deepEqual(pts[0], [41.3354, -8.4745]);
+    const d = pts.slice(1).map(([la, lo]) => haversine(41.3354, -8.4745, la, lo));
+    assert.ok(d.slice(0, 12).every((x) => Math.abs(x - 1.5) < 0.01) && d.slice(12).every((x) => Math.abs(x - 4) < 0.01), 'anéis de 1,5 e 4 km');
+    assert.equal(compass(bearing(41.3354, -8.4745, ...pts[1])), 'N');
+    assert.equal(compass(bearing(41.3354, -8.4745, ...pts[4])), 'E', '12 rumos de 30 em 30°, de N para E');
+    assert.equal(buildTerrain(null), null);
+    assert.equal(buildTerrain({ elevation: [66, 70] }), null, 'pedido incompleto');
+});
+
+test('relevo: vale, topo, encosta e planície (altitudes reais à volta)', () => {
+    const st = buildTerrain(TER['santo-tirso']);
+    assert.equal(st.type, 'vale');
+    assert.ok(st.reliefM >= 60 && st.reliefM <= 85, `Santo Tirso ${st.reliefM} m abaixo do relevo à volta`);
+    assert.equal(st.lowestDir, 'NO', 'o vale do Ave desce para noroeste');
+    assert.equal(st.label, 'Vale');
+    assert.equal(st.text, '70 m abaixo do relevo à volta');
+    assert.match(st.description, /^vale, ~70 m abaixo do relevo à volta; o terreno desce para noroeste$/);
+    assert.deepEqual(st.rings.map((r) => r.km), [1.5, 4]);
+    const pinhao = buildTerrain(TER.pinhao);
+    assert.ok(pinhao.type === 'vale' && pinhao.reliefM > 200, 'vale do Douro, fundo');
+    const beja = buildTerrain(TER.beja);
+    assert.ok(beja.type === 'topo' && beja.reliefM >= 50, `Beja no alto: ${beja.reliefM} m acima`);
+    assert.match(beja.text, /^\d+ m acima do relevo à volta$/);
+    const cov = buildTerrain(TER.covilha);
+    assert.equal(cov.type, 'encosta');
+    assert.equal(cov.aspect, 'E', 'Covilhã: encosta virada a leste (Cova da Beira)');
+    assert.ok(cov.slopePct > 10);
+    assert.equal(buildTerrain(TER.leziria).type, 'planície');
+    // Lisboa: o estuário (0 m) não conta como relevo mais baixo — não é um topo
+    const lx = buildTerrain(TER.lisboa);
+    assert.ok(lx.type === 'encosta' || lx.type === 'planície', lx.type);
+    assert.equal(lx.water, 'SE', 'água (Tejo) para sueste');
+});
+
+test('vale: noites limpas e calmas mais frias (até 1,5 °C pelo desnível), mínima mais baixa; com nuvens não mexe', () => {
+    const det = clearCalm(raw.det);
+    const a = buildForecast({ ...raw, det }, { lat: LAT, lon: LON, now: NOW });
+    const b = buildForecast({ ...raw, det, terrain: TER['santo-tirso'] }, { lat: LAT, lon: LON, now: NOW });
+    assert.equal(b.location.terrain.type, 'vale');
+    const L = b.local;
+    assert.equal(L.type, 'vale');
+    assert.equal(L.potential, -1.1, '73 m abaixo → até 1,1 °C (1,5 °C por 100 m)');
+    assert.ok(L.hours >= 20 && L.max <= -0.8 && L.max >= -1.15, `${L.hours} h, até ${L.max} °C`);
+    assert.match(L.text, /^Vale: \d+ h de noite limpa e calma nas próximas 72 h, até 1,1° mais frio do que o consenso/);
+    assert.match(L.rule, /1,5 °C por cada 100 m/);
+    let night = 0;
+    b.hourly.forEach((h, i) => {
+        const d = h.temp - a.hourly[i].temp;
+        assert.ok(d <= 0.05 && d >= L.potential - 0.05, `${h.time}: ${d}`);
+        if (h.isDay && (i === 0 || a.hourly[i - 1].isDay)) assert.ok(Math.abs(d) < 0.05, `de dia não mexe (${h.time})`);
+        if (h.local != null) { night++; assert.ok(Math.abs(h.local - d) <= 0.11, `${h.time}: local ${h.local} vs ${d}`); }
+        assert.ok(h.dew <= h.temp + 0.05, 'orvalho ≤ temperatura');
+    });
+    assert.equal(night, L.hours);
+    // mínima de amanhã: desce o mesmo que o mínimo das horas; a máxima fica
+    const t1 = L.tmin.find((x) => x.date === '2026-11-07');
+    assert.ok(t1 && t1.delta < -0.5, 'mínima de sábado mais baixa');
+    assert.ok(Math.abs(b.daily[1].tmin - (a.daily[1].tmin + t1.delta)) <= 0.11);
+    assert.equal(b.daily[1].tmax, a.daily[1].tmax);
+    assert.ok(b.daily[1].tminP10 < a.daily[1].tminP10, 'a faixa P10–P90 acompanha');
+    // limite de 1,5 °C num vale fundo (Douro, ~230 m)
+    assert.equal(buildForecast({ ...raw, det, terrain: TER.pinhao }, { lat: LAT, lon: LON, now: NOW }).local.potential, -LOCAL_RULES.valleyMax);
+    // dados reais (noites com nuvens e chuva): sem ajuste
+    const c = buildForecast({ ...raw, terrain: TER['santo-tirso'] }, { lat: LAT, lon: LON, now: NOW });
+    assert.equal(c.local.hours, 0);
+    assert.match(c.local.text, /sem noites limpas e calmas/);
+    assert.deepEqual(c.hourly.map((h) => h.temp), fc.hourly.map((h) => h.temp));
+    assert.ok(c.hourly.every((h) => h.local == null));
+    // sem relevo (sem o pedido das altitudes): nada muda
+    assert.equal(fc.location.terrain, null);
+    assert.equal(fc.local, null);
+});
+
+test('topo: vento e rajadas um pouco mais fortes; temperatura igual', () => {
+    const t = buildForecast({ ...raw, terrain: TER.beja }, { lat: LAT, lon: LON, now: NOW });
+    const f = t.local.windFactor;
+    assert.ok(f > 1.05 && f <= 1 + LOCAL_RULES.topMax, `×${f}`);
+    assert.match(t.local.text, /^Topo: vento e rajadas \+\d+%/);
+    t.hourly.forEach((h, i) => {
+        assert.equal(h.temp, fc.hourly[i].temp);
+        assert.ok(Math.abs(h.gust - fc.hourly[i].gust * f) <= 1, `${h.time}: rajada ${h.gust} vs ${fc.hourly[i].gust}×${f}`);
+    });
+    assert.ok(Math.abs(t.daily[2].gustMax - fc.daily[2].gustMax * f) <= 1);
+    assert.ok(t.indicators.wind.text.length > 0);
+    // encosta e planície: só a descrição, sem ajuste
+    const e = buildForecast({ ...raw, terrain: TER.covilha }, { lat: LAT, lon: LON, now: NOW });
+    assert.equal(e.local.type, 'encosta');
+    assert.match(e.local.text, /^Encosta \(virada a leste · declive \d+%\): sem ajuste automático\.$/);
+    assert.deepEqual(e.hourly.map((h) => [h.temp, h.wind]), fc.hourly.map((h) => [h.temp, h.wind]));
+});
+
+test('resumo para o Claude começa pelo ponto: relevo, IPMA, estações e as próximas 12 h hora a hora', () => {
+    const lx = nearestIpmaLocal(IPMA_LOCS, LAT, LON);
+    const f = buildForecast({ ...raw, terrain: TER['santo-tirso'], ipma: { ...raw.ipma, forecast: { local: lx, data: IPMA_LX } } }, { lat: LAT, lon: LON, name: 'Lisboa', now: NOW });
+    const txt = buildSummary(f, { perModel: perModelTable(raw.det) });
+    assert.ok(txt.startsWith('## O ponto\nLisboa — 38.7223, -9.1393 · 66 m'), txt.slice(0, 80));
+    for (const s of ['Relevo: vale, ~70 m abaixo do relevo à volta', 'Efeito local já incluído na previsão: Vale:',
+        'Previsão oficial do IPMA: Lisboa - Jardim Botânico (a 1 km do ponto, para O)', 'Estações na observação combinada (', 'Lisboa (Geofísico) (IPMA, 1 km para O',
+        'Analisa este ponto; a região só interessa quando afeta o ponto (com distância, direção e hora de chegada)',
+        '## Próximas 12 h no ponto, hora a hora', '## Das 12 às 48 h no ponto', '## Fontes', '## Agora', '## 16 dias']) assert.ok(txt.includes(s), `falta "${s}"`);
+    const pt = txt.indexOf('## O ponto'), h12 = txt.indexOf('## Próximas 12 h'), agora = txt.indexOf('## Agora');
+    assert.ok(pt === 0 && h12 > pt && agora > h12, 'o ponto primeiro, depois as 12 h, depois o resto');
+    const rows = txt.slice(h12).split('\n## ')[0].split('\n').filter((l) => /^\d{2}-\d{2} \d{2}:00 \|/.test(l));
+    assert.equal(rows.length, 13, '12 h hora a hora (15h a 03h)');
+    assert.deepEqual(rows.slice(0, 3).map((l) => l.slice(6, 11)), ['15:00', '16:00', '17:00']);
+    assert.ok(txt.length < 24000, `resumo com ${txt.length} caracteres`);
+    // sem relevo nem estações, o bloco diz-o
+    const g = buildSummary(buildForecast({ det: raw.det, ens: raw.ens }, { lat: 48.85, lon: 2.35, now: NOW }));
+    assert.ok(g.startsWith('## O ponto') && g.includes('Relevo: desconhecido') && g.includes('Estações: nenhuma'));
 });
