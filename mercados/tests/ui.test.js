@@ -536,13 +536,16 @@ function proxyBody(u) {
         const mk = window.__mk, A = window.Analise, isQ = A.isQuiet;
         mk.cfg.notify = true; mk.cfg.alertPct = 4; mk.st.firstPoll = false;
         const set = (k, p) => { mk.Q[k] = { ...mk.Q[k], changePct: p }; };
+        set('AMD', 12.3); mk.checkAlerts();
+        const notMine = out.length; // AMD é da lista de origem: não avisa
         A.isQuiet = () => true; set('c:ETH', 9.1); set('c:SOL', 8.2); mk.checkAlerts();
         const night = out.length, held = JSON.parse(localStorage.getItem('mercados:held'));
         A.isQuiet = () => false; mk.checkAlerts();
         set('c:XRP', -12.5); mk.checkAlerts();
         A.isQuiet = isQ;
-        return { night, held, out };
+        return { night, held, out, notMine };
     });
+    assert.equal(notes.notMine, 0, 'AMD (lista de origem) não gera aviso');
     assert.equal(notes.night, 0, 'nada à noite');
     assert.deepEqual(notes.held.sort(), ['c:ETH', 'c:SOL']);
     assert.match(notes.out[0], /^Durante a noite: 2 ativos a subir \| Ether \+9,1\d?% · Solana \+8,2\d?%/);
