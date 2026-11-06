@@ -485,6 +485,13 @@ function proxyBody(u) {
     const expM = await page.evaluate(() => { const mk = window.__mk, d = mk.D['c:BTC'], from = Date.now() / 1000 - 30 * 86400; let i = d.findIndex((p) => p[0] > from); if (i < 0) i = d.length; const ref = d[Math.max(0, i - 1)][1]; return (mk.Q['c:BTC'].price / ref - 1) * 100; });
     assert.notEqual(m1, d1, '1M diferente de 1D');
     assert.equal(Number(m1.replace('−', '-').replace('%', '').replace(',', '.')).toFixed(1), expM.toFixed(1), '1M calculado dos fechos diários');
+    // a ficha abre no mesmo período do Painel
+    await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-open="c:BTC"]').click();
+    await page.waitForSelector('#mk-sheet:not([hidden]) .ranges button.on');
+    assert.equal(await page.locator('.ranges button.on').textContent(), '1M', 'ficha no período do Painel');
+    assert.deepEqual(await page.locator('.ranges button').allTextContents(), ['1D', '1S', '1M', '6M', '1A', '5A']);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     await page.click('[data-per="1d"]');
     console.log('✓ período da variação: 1D', d1, '| 1M', m1);
     // os gráficos pequenos ficam todos na mesma coluna
