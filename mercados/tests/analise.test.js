@@ -163,3 +163,17 @@ test('avisos: agrupados e silêncio à noite', () => {
     assert.ok(A.isQuiet(23) && A.isQuiet(0) && A.isQuiet(9));
     assert.ok(!A.isQuiet(10) && !A.isQuiet(12) && !A.isQuiet(21));
 });
+
+test('níveis: fundo acima do preço e topo abaixo têm nome que explica o papel', () => {
+    // sobe até 120 com um fundo a 100, depois cai abaixo de 100
+    const v = [];
+    for (let i = 0; i < 60; i++) v.push(80 + i * 0.5);
+    for (let i = 0; i < 15; i++) v.push(110 - i * 0.7);
+    for (let i = 0; i < 15; i++) v.push(100 + i * 1.3);
+    for (let i = 0; i < 20; i++) v.push(119 - i * 1.6);
+    const r = A.analyse(v, {});
+    const all = r.levels.supports.concat(r.levels.resistances);
+    assert.ok(!r.levels.resistances.some((l) => l.label === 'Fundo recente'), 'fundo acima do preço não se chama "Fundo recente"');
+    assert.ok(!r.levels.supports.some((l) => l.label === 'Topo recente'), 'topo abaixo do preço não se chama "Topo recente"');
+    assert.ok(r.levels.resistances.some((l) => l.label === 'Antigo fundo, já perdido'), JSON.stringify(all));
+});
