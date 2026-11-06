@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.1.0';
+    const VERSION = '3.2.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -177,8 +177,8 @@
         let q = q0;
         const lv = a.live && Q[a.live];
         if (lv && fin(lv.price) && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) {
-            const series = (q0.series || []).slice();
-            if (lv.time) series.push([lv.time, lv.price]);
+            const series = lv.series && lv.series.length > 1 ? lv.series.slice() : (q0.series || []).slice();
+            if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
             q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: 'Munique (gettex)',
                 change: fin(q0.prevClose) ? lv.price - q0.prevClose : null, changePct: fin(q0.prevClose) ? (lv.price / q0.prevClose - 1) * 100 : q0.changePct };
         }
@@ -1387,6 +1387,12 @@
             if (sheetKey === k) renderSheet(true);
         } catch { /* sem análise */ }
     }
+    // série do dia sem conversão de moeda: a de Munique (gettex) quando é a mais recente, como no Painel
+    function daySeries(k) {
+        const a = REG[k], q0 = Q[k], lv = a && a.live && Q[a.live];
+        if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) return lv.series;
+        return q0.series;
+    }
     async function loadSheetChart() {
         const k = sheetKey, range = sheetRange, id = ++sheetLoadId;
         const a = REG[k];
@@ -1394,7 +1400,7 @@
         try {
             let pts;
             if (a.kind === 'crypto') pts = range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 20 ? Q[k].series : await klines(a.sym, range);
-            else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1 && !Q[k].stale) pts = Q[k].series;
+            else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1 && !Q[k].stale) pts = daySeries(k);
             else if (range === '1y' && D[k]) pts = D[k];
             else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range}`, 20000); const q = r.quotes && r.quotes[0]; if (!q || q.error) throw new Error(q && q.error || 'sem dados'); pts = q.series; }
             if (id !== sheetLoadId) return;
@@ -1417,7 +1423,8 @@
         if (l) l.hidden = true;
         const q = qv(sheetKey);
         const f = q.fx || 1;
-        const pts = f === 1 ? sheetPts : sheetPts.map(([t, v]) => [t, v * f]);
+        const pts = f === 1 ? sheetPts.slice() : sheetPts.map(([t, v]) => [t, v * f]);
+        if (sheetRange !== '1d' && fin(q.price) && q.time && q.time > pts[pts.length - 1][0] + 60) pts.push([q.time, q.price]);
         const first = pts[0][1], lastv = pts[pts.length - 1][1];
         const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
@@ -1447,7 +1454,8 @@
             pct = (q.price / first - 1) * 100; diff = q.price - first; lbl = PERIOD[sheetRange];
         }
         const orig = q.origCurrency ? ` · ${fmtPx(q.origPrice, a, q.origCurrency)}` : '';
-        el.innerHTML = `<span class="px num">${fmtPx(q.price, a, q.currency)}</span>${chg(pct)}<span class="alt num">${fin(diff) ? (diff > 0 ? '+' : '') + fmtPx(diff, a, q.currency) : ''} ${esc(lbl)}${orig}${l ? ` · ≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L` : ''}</span>`;
+        const dd = fin(diff) ? (diff > 0 ? '+' : diff < 0 ? '−' : '') + fmtPx(Math.abs(diff), { decimals: Math.abs(diff) >= 1 || !fin(diff) ? 2 : 4 }, q.currency) : '';
+        el.innerHTML = `<span class="px num">${fmtPx(q.price, a, q.currency)}</span>${chg(pct)}<span class="alt num">${dd} ${esc(lbl)}${orig}${l ? ` · ≈ ${fmtPx(l, { decimals: 3 }, 'EUR')}/L` : ''}</span>`;
     }
     function renderSheet() {
         const k = sheetKey; if (!k) return;
