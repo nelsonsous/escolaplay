@@ -484,6 +484,9 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* linha do tempo por baixo do gráfico */
+.d-chart { margin-bottom: 26px; }
+.d-axis { position: absolute; left: 4px; right: 4px; bottom: -20px; display: flex; justify-content: space-between; color: var(--muted); font-size: calc(.68rem * var(--k)); pointer-events: none; }
 /* períodos do gráfico: deslizam na horizontal */
 .ranges { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
 .ranges::-webkit-scrollbar { display: none; }

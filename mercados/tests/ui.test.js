@@ -506,6 +506,10 @@ function proxyBody(u) {
     await page.click('.ranges [data-range="15m"]');
     await page.waitForFunction(() => /15 min/.test(document.querySelector('#d-px').textContent));
     await page.waitForFunction(() => document.querySelector('#d-load').hidden);
+    await page.waitForFunction(() => [...document.querySelectorAll('#d-axis span')].every((e) => /^\d\d:\d\d$/.test(e.textContent)), null, { timeout: 10000 });
+    const axis = await page.locator('#d-axis span').allTextContents();
+    assert.equal(axis.length, 4, 'linha do tempo com 4 marcas');
+    assert.ok(axis.every((t) => /^\d\d:\d\d$/.test(t)), '15 min: horas na linha do tempo ' + axis.join(' '));
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     await page.click('[data-per="1d"]');
