@@ -437,8 +437,15 @@ export function buildForecast(raw, opts = {}) {
         if (k === 0) {
             const rest = H.filter((x) => x.time.startsWith(date) && x.ms >= nowMs).map((x) => x.temp).filter(isNum);
             const seen = st && reprW >= 0.5 ? st.series.filter((o) => isNum(o.temp) && msToLocal(o.ms, off).startsWith(date)).map((o) => o.temp + (isNum(stationElev) && isNum(targetElev) ? (stationElev - targetElev) * LAPSE : 0)) : [];
-            const all = [...rest, ...seen];
-            if (all.length >= 3) { tmax = Math.max(...all); if (seen.length >= 3 || rest.length >= 12) tmin = Math.min(...all, ...(seen.length ? [] : [tmin])); }
+            if (seen.length >= 3) {
+                // estação representativa: o dia é o que já se mediu + o que falta (já corrigido)
+                const all = [...seen, ...rest];
+                tmax = Math.max(...all); tmin = Math.min(...all);
+            } else if (rest.length) {
+                // sem estação: as horas que faltam só podem alargar os extremos dos modelos
+                if (isNum(tmax)) tmax = Math.max(tmax, ...rest);
+                if (isNum(tmin)) tmin = Math.min(tmin, ...rest);
+            }
         }
         const sd = det?.sd ?? 1;
         const qx = ens ? ens.tmax.map((v) => v - ens.tmax[1] + tmax) : [tmax - 1.28 * Math.max(sd, 0.6), tmax, tmax + 1.28 * Math.max(sd, 0.6)];
@@ -489,9 +496,12 @@ export function buildForecast(raw, opts = {}) {
     const fire = buildFire(raw, { lat, lon, off, next: next72, now: H[nowIdx], area, place: raw.place });
 
     // 8) Agora
-    const n = H[nowIdx];
+    const n = H[nowIdx], n2 = H[nowIdx + 1];
+    // interpolação para o minuto atual (a hora cheia pode estar até 59 min desatualizada)
+    const fr = n2 ? clamp((nowMs - tMs[nowIdx]) / 36e5, 0, 1) : 0;
+    const at = (k) => (n2 && isNum(n[k]) && isNum(n2[k]) ? n[k] + fr * (n2[k] - n[k]) : n[k]);
     const now = {
-        time: n.time, temp: r1(n.temp), feels: r1(n.feels), dew: r1(n.dew), rh: r0(n.rh), wind: r0(n.wind), gust: r0(n.gust), dir: r0(n.dir),
+        time: msToLocal(nowMs, off), temp: r1(at('temp')), feels: r1(at('feels')), dew: r1(at('dew')), rh: r0(at('rh')), wind: r0(at('wind')), gust: r0(at('gust')), dir: r0(n.dir),
         pressure: r1(n.pressure), pressureTrend3h: nowIdx >= 3 && isNum(n.pressure) && isNum(H[nowIdx - 3].pressure) ? r1(n.pressure - H[nowIdx - 3].pressure) : null,
         cloud: r0(n.cloud), precip: r1(n.precip), code: n.code, isDay: !!n.isDay, uv: r1(n.uv), visibility: r0(n.vis),
         obs: obsOut, correction,
