@@ -446,12 +446,21 @@ const anfitriao = String.raw`(function (root) {
     function _texto(nome, xs) { const k = k0(); return xs.map((x) => { k.vai(() => k.ex[nome](x)); return k.saida(); }); }
     // os textos normalizados pelo norm da Onda (as fronteiras não-ASCII saem como \u0080)
     function _norm(texts) { const us = Array.from(texts, (t) => enc.encode(String(t))), k = k0(), p = textos(k, us, []); k.vai(() => k.ex.nrmx(BigInt(p))); return k.json(); }
+    // o que a função 'nome' da Onda (uma vista, ou o fm_teste de ecra.onda) escreve para um instantâneo
+    const _vista = (nome, snap) => vista(nome, snap);
+    // a ordem em que o TimSort da Onda (ts_ordena de ecra.onda) põe os índices 0..n-1, com as chaves k1 e k2
+    function _ordena(k1, k2, modo) {
+        const n = k1.length, a = Float64Array.from(k1), b = Float64Array.from(k2), k = k0(), p = k.reserva(2 + 3 * n);
+        k.i(p, n); k.i(p + 1, modo); k.put(p + 2, a); k.put(p + 2 + n, b);
+        k.vai(() => k.ex.ts_teste(BigInt(p)));
+        return Array.from({ length: n }, (_, j) => k.gi(p + 2 + 2 * n + j));
+    }
 
     const api = {
         ready, analyseMany, analyse,
         groupAlert, isQuiet, sma, emaSeries, rsi, macd, volatility, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf,
         backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax,
-        sentimentMany, backtestMany, _texto, _norm, ecra,
+        sentimentMany, backtestMany, _texto, _norm, _vista, _ordena, ecra,
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.AnaliseOnda = api;

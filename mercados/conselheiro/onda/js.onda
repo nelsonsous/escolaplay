@@ -22,6 +22,7 @@
 : ho_fecha >i { _fl Y 210 0 0 }
 : ho_sair i>i c { _fl Y 211 c 0 }
 : ho_erro >i Y 213 0 0
+: ho_nomeerro >i Y 214 0 0
 : ho_agora >f F Y 108 0 0
 # um texto sem limite: tudo o que se escreve entre sb_ini e sb_fim (vai para um fluxo em memória do anfitrião)
 : sb_ini >i ho_abre 0

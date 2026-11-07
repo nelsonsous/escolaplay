@@ -1,0 +1,223 @@
+# Conselheiro em Onda — universo (o universo.mjs): a classificação de toda a lista da Trade Republic (universo.json).
+#   correr.mjs universo [pasta] → <pasta>/universo.json e universo.md (também no stdout); grava uni:latest no KV
+# De cada lote de 40 cotações (até 3 tentativas, 3 s entre elas) só fica um registo compacto por símbolo; o JSON da
+# resposta e a árvore dele voltam ao monte (o que se reservou depois da marca desce para a marca e o resto vai a zero).
+#
+# Registo de uma cotação (palavras): 0 tamanho  1 q.series verdadeiro  2 q.series.length >= 60  3 q.series é lista
+#   4 Number.isFinite(q.price)  5 há changePct finito  6 changePct  7 closes[0] verdadeiro  8 Number(closes[0])
+#   9 Number(closes[último])  10 há um elemento null/undefined (o p[1] do JS lança)  11 n  12 onde começa o JSON da
+#   currency (posição no registo)  13.. n fechos (o que não é número vai como NaN) e o JSON.stringify(q.currency || '')
+
+#k k_lote lote
+#k k_rkna —
+#k k_rk1 Risco baixo
+#k k_rk2 Risco médio
+#k k_rk3 Risco alto
+#k k_rk4 Risco muito alto
+#k k_jsoninv JSON inválido
+#k k_seriesnf Q[x.s].series.map is not a function
+
+: un_corre >i {
+  ! g_scr 2
+  ! g_out cs_argou 1 k_tmp
+  ? ~ ho_pasta @ g_out cs_lanca k_Error ho_erro 0
+  sb_ini tx_p @ g_dir "/conselheiro/universo.json" = f sb_fim
+  = t ho_ler f ? ~ t cs_lanca k_Error ho_erro 0
+  = u js_parse tx_norm t 0 ? ~ u cs_lanca k_SyntaxError k_jsoninv 0
+  # list = Object.entries(U).flatMap(([t, o]) => Object.keys(o).map((s) => ({ s, t, n: o[s] })))
+  = us js_lst 1400 = ut js_lst 1400 = un js_lst 1400
+  = ord js_ordem u = i 0
+  W < i js_on u {
+    = p js_pos ord i = ty js_ok u p = o js_ov u p
+    ? js_ehobj o { = ks js_chaves o = j 0 W < j js_len ks { = s js_it ks j js_push us s js_push ut ty js_push un js_oget o s = j + j 1 } 0 } 0
+    = i + i 1 }
+  ! g_us us ! g_ut ut ! g_un un
+  = n js_len us
+  ! g_qt A + n 1 ! g_toc A + n 1
+  ! g_i 0 ! g_tent 0 ! g_ph 1
+  cs_passo }
+: un_passo >i { = p @ g_ph ? == p 1 un_p1 ? == p 2 un_p2 ? == p 4 un_p4 ? == p 5 un_p5 0 }
+# um lote: /quotes?symbols=…&range=1y (60 s)
+: un_p1 >i {
+  = i @ g_i = n js_len @ g_us
+  ? < i n {
+      ! g_marca @ -1
+      sb_ini = j i W < j Mn n + i 40 { ? > j i P ', 0 tx_p js_it @ g_us j = j + j 1 } = sy sb_fim
+      ! g_ph 2
+      ? tx_urimal sy { cs_falha k_urimal 1 } { cs_wini "/quotes?symbols=" tx_puri sy "&range=1y" ~ cs_wfim 60000 } }
+    { ! g_ph 4 1 } }
+# o JSON.stringify(v) como texto (para guardar no registo)
+: un_jtxt i>i v { sb_ini js_pj v 0 0 sb_fim }
+# o registo compacto de uma cotação (reservado no topo do monte)
+: un_rec i>i q {
+  = ser js_get q k_series
+  = lst js_ehlst ser = n ? lst js_len ser 0
+  = cur js_get q k_currency = cj un_jtxt ? js_v cur cur tx_vazio
+  = nc tx_len cj
+  = r A + + 14 n + 1 nc
+  ! r + + 14 n + 1 nc
+  ! + r 1 js_v ser
+  ! + r 2 >= js_vn js_get ser k_length 60.
+  ! + r 3 lst
+  ! + r 4 js_fin js_get q k_price
+  = ch js_get q k_changePct ! + r 5 js_fin ch !f + r 6 ? js_fin ch js_f ch 0.
+  ! + r 11 n
+  = j 0 = mau 0
+  W < j n {
+    = p js_it ser j
+    ? js_nulo p { = mau 1 !f + + r 13 j Bw 2146959360 0 0 } {
+      = x js_get p k_1
+      !f + + r 13 j ? js_ehnum x js_f x Bw 2146959360 0
+      ? == j 0 { ! + r 7 js_v x !f + r 8 js_tonum x 0 } 0
+      ? == j - n 1 { !f + r 9 js_tonum x 0 } 0 }
+    = j + j 1 }
+  ! + r 10 mau
+  ? == n 0 { !f + r 8 Bw 2146959360 0 !f + r 9 Bw 2146959360 0 0 } 0
+  # o JSON da currency no fim
+  = c + + r 13 n ! + r 12 - c r
+  ! c nc = j 0 W < j nc { ! + + c 1 j tx_b cj j = j + j 1 }
+  r }
+# Q[q.symbol] = q: todas as entradas da lista com esse símbolo (a última resposta ganha)
+: un_poe ii>i s r {
+  = us @ g_us = n js_len us = j 0
+  W < j n { ? tx_igual js_it us j s { ! + @ g_qt j r ! + @ g_toc @ g_ntoc j ! g_ntoc + @ g_ntoc 1 0 } 0 = j + j 1 }
+  0 }
+: un_p2 >i {
+  ! g_ntoc 0
+  cs_rget
+  = rs 0
+  ? ~ @ g_err {
+      = qs da_itl cs_tget @ g_res k_quotes
+      = rs @ -1
+      = j 0 W && < j js_len qs ~ @ g_err {
+        = q js_it qs j
+        = e cs_tget q k_error
+        ? && ~ @ g_err ~ js_v e { = s js_str js_get q k_symbol un_poe s un_rec q 0 } 0
+        = j + j 1 } 0 } 0
+  # a mensagem do erro (texto do lote) vai com os registos para baixo da marca
+  = rs ? rs rs @ -1
+  ? @ g_err { = mc tx_copia @ g_err ! g_err mc 0 } 0
+  = d un_compacta rs
+  ? @ g_err { = t - @ g_err d ! t - @ t d ! g_err t 0 } 0
+  ? @ g_err {
+      ! g_tent + @ g_tent 1
+      ? == @ g_tent 3 { sb_ini "lote " N + / @ g_i 40 1 = w sb_fim cs_aviso w ! g_tent 0 ! g_i + @ g_i 40 0 } { cs_semerro }
+      ! g_ph 1
+      ! g_tid Y 103 3000 k_un_tique 0 }
+    { ! g_tent 0 ! g_i + @ g_i 40 ! g_ph 1 1 } }
+# depois dos 3 s: continua (a mesma tentativa ou o lote seguinte)
+: un_tique i>i z { Y 104 @ g_tid 0 cs_passo }
+# os registos deste lote [rs, topo) descem para a marca; o resto do lote (o JSON, a árvore) volta a zero
+: un_compacta i>i rs {
+  = m @ g_marca = top @ -1
+  = rs ? rs rs top
+  = d - rs m = tam - top rs
+  = j 0 W < j tam { ! + m j @ + rs j = j + j 1 }
+  = j + m tam W < j top { ! j 0 = j + j 1 }
+  = j 0
+  W < j @ g_ntoc {
+    = ix @ + @ g_toc j = p + @ g_qt ix
+    = vu 0 = i 0 W && ~ vu < i j { = vu == @ + @ g_toc i ix = i + i 1 }
+    ? && ~ vu >= @ p rs ! p - @ p d 0
+    = j + j 1 }
+  ! -1 + m tam d }
+# a análise de um registo: o JSON do motor, lido para os globais g_a*, e o que se reservou volta ao monte
+: un_rk i>i t ? tx_igual t k_rk1 k_rk1 ? tx_igual t k_rk2 k_rk2 ? tx_igual t k_rk3 k_rk3 ? tx_igual t k_rk4 k_rk4 k_rkna
+: un_key i>i t ? tx_igual t k_hold k_hold ? tx_igual t k_buy k_buy ? tx_igual t k_scale k_scale ? tx_igual t k_wait k_wait ? tx_igual t k_neutral k_neutral ? tx_igual t k_turn k_turn k_avoid
+: un_an iii>i r kind cr {
+  = m @ -1
+  = n @ + r 11
+  ! 4 kind ! 3 cr ! 5 0 !f 6 0. ! 8 @ g_abuf
+  sb_ini serie + r 13 n = t sb_fim
+  = v js_parse t
+  = ok js_v v
+  ? ok {
+    = hz js_get v k_horizons = lo js_get hz k_long
+    ! g_al ? js_v lo I js_f js_get lo k_score -1000000
+    ! g_am I js_f js_get js_get hz k_mid k_score
+    = me js_get v k_metrics = r1m js_get me k_ret1m ! g_ar1 js_fin r1m !f g_ar1v ? js_fin r1m js_f r1m 0.
+    = di js_get v k_discount = dd js_get di k_dd ! g_addn js_nulo dd !f g_add ? js_ehnum dd js_f dd 0.
+    ! g_aop js_v js_get di k_opp
+    ! g_ak un_key js_get js_get v k_advice k_key
+    ! g_ark un_rk js_get js_get v k_risk k_label 0 } 0
+  = top @ -1 = j m W < j top { ! j 0 = j + j 1 } ! -1 m
+  ok }
+# o comparador do sort (cs_cmp): 20 l e m descendentes (null = -1 / 0), 21 dd ascendente, 22 |d| descendente
+: un_vl ii>f r k { = v js_get r k ? js_nulo v ? tx_igual k k_l -1. 0. js_vn v }
+: un_cmp iii>f k x y {
+  ? == k 20 { = a - un_vl y k_l un_vl x k_l ? && != a 0. == a a a - un_vl y k_m un_vl x k_m }
+  ? == k 21 - js_vn js_get x k_dd js_vn js_get y k_dd
+  ? == k 22 - Ab js_vn js_get y k_d Ab js_vn js_get x k_d 0. }
+: un_p4 >i {
+  = us @ g_us = ut @ g_ut = un @ g_un = n js_len us
+  # com: as que têm série com 60 ou mais e preço
+  = mx 1 = j 0 W < j n { = r @ + @ g_qt j ? && r > @ + r 11 mx = mx @ + r 11 0 = j + j 1 }
+  ! g_abuf A + mx 1
+  # o map dos fechos de todas (antes de analisar): uma série que não é lista, ou com um null, faz o JS lançar
+  = j 0
+  W < j n {
+    = r @ + @ g_qt j
+    ? && && && r @ + r 1 @ + r 2 @ + r 4 { ? ~ @ + r 3 cs_lanca k_TypeError k_seriesnf 0 ? @ + r 10 cs_lanca k_TypeError k_null1 0 } 0
+    = j + j 1 }
+  = rows js_lst n = j 0
+  W < j n {
+    = r @ + @ g_qt j
+    ? && && && r @ + r 1 @ + r 2 @ + r 4 {
+      = t js_it ut j = kc js_oget cs_c k_KIND t
+      ? un_an r cs_tipoan kc tx_eh t k_crypto {
+        = o js_obj 13
+        js_oset o k_s js_it us j js_oset o k_n js_it un j js_oset o k_t t
+        = cj + r @ + r 12 = c A + 1 @ cj ! c + + c 1 @ cj = i 0 W < i @ cj { ! + + c 1 i @ + + cj 1 i = i + i 1 }
+        js_oset o k_c js_parse c
+        js_oset o k_l ? == @ g_al -1000000 2 js_num F @ g_al
+        js_oset o k_m js_num F @ g_am
+        js_oset o k_d ? @ + r 5 cs_r1f @f + r 6 2
+        js_oset o k_m1 ? @ g_ar1 cs_r1f * @f g_ar1v 100. 2
+        js_oset o k_y ? @ + r 7 cs_r1f * - / @f + r 9 @f + r 8 1. 100. 2
+        js_oset o k_dd cs_r1f * ? @ g_addn 0. @f g_add 100.
+        js_oset o k_o js_num ? @ g_aop 1. 0.
+        js_oset o k_k @ g_ak js_oset o k_rk @ g_ark
+        js_push rows o 0 } 0 } 0
+    = j + j 1 }
+  js_ordena rows 20
+  ! g_rows rows
+  = doc js_obj 5
+  js_oset doc k_date cs_hoje js_oset doc k_generatedAt cs_iso
+  js_oset doc k_n js_num F js_len rows js_oset doc k_of js_num F n js_oset doc k_rows rows
+  ! g_doc doc
+  da_gravaini k_universojson js_pj doc 0 0 da_gravafim
+  ? > F js_len rows / F n 2. { ! g_ph 5 ? cs_kvput k_unilatest doc 0 un_p5 } {
+    sb_ini "só " N js_len rows " de " N n " com dados: não gravei no KV" js_push @ g_warn sb_fim un_md } }
+#k k_null1 Cannot read properties of null (reading '1')
+#k k_universojson universo.json
+#k k_universomd universo.md
+: un_p5 >i { cs_rkvput k_unilatest cs_lancase un_md }
+# o universo.md (e o stdout)
+: un_fmt i>i r {
+  "- " js_pu js_get r k_s P 32 js_pu js_get r k_n " [" js_pu js_get r k_t "] L" = l js_get r k_l ? js_nulo l "—" js_pu l "/M" js_pu js_get r k_m
+  " | hoje " = v js_get r k_d ? js_nulo v "—" js_pu v "% | 1 mês " = v js_get r k_m1 ? js_nulo v "—" js_pu v
+  "% | 1 ano " = v js_get r k_y ? js_nulo v "—" js_pu v "% | do máximo " js_pu js_get r k_dd "% | " js_pu js_get r k_rk 0 }
+: un_l >i { ? @ g_ln P 10 0 ! g_ln 1 0 }
+: un_ls ii>i l n { = j 0 W < j Mn n js_len l { un_l un_fmt js_it l j = j + j 1 } 0 }
+: un_texto >i {
+  ! g_ln 0
+  = rows @ g_rows
+  un_l "# Toda a Trade Republic — " N js_len rows " de " N js_len @ g_us " ativos com dados (" tx_p js_get @ g_doc k_date ")"
+  = gs cs_c k_UNI = i 0
+  W < i 3 {
+    = t js_it js_it gs i 0 = lb js_it js_it gs i 1
+    = g js_lst 64 = j 0 W < j js_len rows { = r js_it rows j ? tx_eh js_get r k_t t js_push g r 0 = j + j 1 }
+    un_l "## " tx_p lb " (" N js_len g "): as 10 mais fortes a longo prazo" un_ls g 10
+    un_l "## " tx_p lb ": desconto com tendência longa a favor (até 8)"
+    = o js_lst 16 = j 0 W < j js_len g { = r js_it g j ? js_v js_get r k_o js_push o r 0 = j + j 1 }
+    js_ordena o 21 un_ls o 8
+    un_l "## " tx_p lb ": as 5 mais fracas (armadilhas)"
+    = f js_lst 16 = j 0 W < j js_len g { = r js_it g j ? ~ js_nulo js_get r k_l js_push f r 0 = j + j 1 }
+    = k js_len f un_ls js_fatia f Mx 0 - k 5 k 5
+    = i + i 1 }
+  un_l "## Maiores movimentos de hoje (toda a lista)"
+  = d js_lst 64 = j 0 W < j js_len rows { = r js_it rows j ? ~ js_nulo js_get r k_d js_push d r 0 = j + j 1 }
+  js_ordena d 22 un_ls d 12
+  = w @ g_warn ? js_len w { un_l "## Avisos" = j 0 W < j js_len w { un_l "- " js_pu js_it w j = j + j 1 } 0 } 0
+  0 }
+: un_md >i { da_gravaini k_universomd un_texto da_gravafim un_texto P 10 ho_sair 0 }

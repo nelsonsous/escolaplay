@@ -20,11 +20,13 @@ const ondac = path.join(raiz, 'onda/build/ondac');
 export const DESTINO = path.join(raiz, 'mercados/conselheiro/conselheiro.wasm');
 export const FONTES = ['js.onda', 'comum.onda', 'dados.onda', 'universo.onda', 'outros.onda', 'publicar.onda', 'backtest.onda', 'main.onda'];
 
-// as fontes da análise, pela ordem do build da app (mercados/onda/build.mjs); o main dela não entra (o nosso é outro)
+// as fontes da análise (fases B e C), pela ordem do build da app (mercados/onda/build.mjs): as do FONTES antes da
+// biblioteca de apps (o ecrã da app não entra); o main da análise também não (o nosso é outro)
 function analise() {
     const b = readFileSync(path.join(raiz, 'mercados/onda/build.mjs'), 'utf8');
     const lista = JSON.parse(b.match(/export const FONTES = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
-    return lista.map((f) => readFileSync(path.join(raiz, 'mercados/onda', f), 'utf8')).join('\n').replace(/^: main >i/m, ': amain >i');
+    const fim = lista.findIndex((f) => f.includes('/'));
+    return lista.slice(0, fim < 0 ? lista.length : fim).map((f) => readFileSync(path.join(raiz, 'mercados/onda', f), 'utf8')).join('\n').replace(/^: main >i/m, ': amain >i');
 }
 
 // os tokens fora de comentários e de textos

@@ -1,0 +1,3 @@
+: bt_corre >i 0
+: bt_passo >i 0
+: bt_cmp iii>f k x y 0.

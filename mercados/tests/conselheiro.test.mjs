@@ -1,9 +1,10 @@
-// node --test mercados/tests — scripts da tarefa agendada (sem rede: só as funções puras)
+// node --test mercados/tests — scripts da tarefa agendada (sem rede: só as funções puras), na referência em JS
+// (mercados/conselheiro/js/); o conselheiro-onda.test.mjs confirma que a Onda (o que a tarefa corre) dá o mesmo
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAdvice, MAX_EXTRA } from '../conselheiro/publicar.mjs';
-import { pickAssets, kindFromQuote, lineOf, evalPast, pastLines, lastVerdicts, modelOf } from '../conselheiro/dados.mjs';
-import { normVerdict, FUNDS, STOCKS, CRYPTO, MARKET, MINE } from '../conselheiro/comum.mjs';
+import { buildAdvice, MAX_EXTRA } from '../conselheiro/js/publicar.mjs';
+import { pickAssets, kindFromQuote, lineOf, evalPast, pastLines, lastVerdicts, modelOf } from '../conselheiro/js/dados.mjs';
+import { normVerdict, FUNDS, STOCKS, CRYPTO, MARKET, MINE } from '../conselheiro/js/comum.mjs';
 
 // dados.json mínimo: dois ativos que se compram, um da referência
 const DADOS = { rows: [

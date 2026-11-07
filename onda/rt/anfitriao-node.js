@@ -18,6 +18,7 @@
 //   210 fechar   0 0       → fecha o fluxo do topo (ficheiro: 1, 0 se falhou; texto: o texto) e volta ao anterior
 //   211 sair     c 0       → termina o processo com o código c (depois de escrever tudo)
 //   213 erro     0 0       → a mensagem do último erro (texto)
+//   214 nome     0 0       → o nome do último erro (TypeError, AbortError…; de um ficheiro: Error)
 // Texto: o formato do `O t` (M[t] = fim, um byte por palavra em M[t+1 .. fim-1]). Uso:
 //   const { correr } = require('onda/rt/anfitriao-node.js'); correr(bytes, { args: ['dados', '/tmp/x'] });
 // opcoes: args, env, buscar (o fetch), sair (process.exit), saida ({ 1: fn, 2: fn } em vez do stdout e do stderr)
@@ -29,9 +30,16 @@ function correr(bytes, opcoes = {}) {
     const args = opcoes.args || [];
     const env = opcoes.env || process.env;
     const buscar = opcoes.buscar || ((...a) => fetch(...a));
-    const sair = opcoes.sair || ((c) => process.exit(c));
+    // sair: o código fica, e o processo acaba quando o stdout e o stderr tiverem escrito tudo (num pipe, o write pode
+    // ficar em espera e um process.exit logo a seguir cortava a saída)
+    const sair = opcoes.sair || ((c) => {
+        process.exitCode = c;
+        const fim = () => process.exit(c);
+        if (process.stdout.writableLength || process.stderr.writableLength) process.stdout.write('', () => process.stderr.write('', fim)); else fim();
+    });
+    let acabou = false;
     const out = { 1: (u) => process.stdout.write(u), 2: (u) => process.stderr.write(u), ...(opcoes.saida || {}) };
-    let mem = null, ex = null, u8 = null, i32 = null, erro = '';
+    let mem = null, ex = null, u8 = null, i32 = null, erro = '', nome = 'Error';
     const vistas = () => { if (!u8 || u8.buffer !== mem.buffer) { u8 = new Uint8Array(mem.buffer); i32 = new Int32Array(mem.buffer); } };
     const W = (a, n) => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n);
     // os bytes de um texto (um por palavra: o byte baixo de cada palavra de 8)
@@ -55,6 +63,7 @@ function correr(bytes, opcoes = {}) {
         return BigInt(t);
     };
     const chamar = (nome, ...a) => {
+        if (acabou) return;
         const f = ex[nome];
         if (typeof f !== 'function') throw new Error(`onda: não há a função ${nome}`);
         try { f(...a); } catch (e) { if (!e || e.ondaExit === undefined) throw e; }
@@ -85,11 +94,11 @@ function correr(bytes, opcoes = {}) {
             case 109: return BigInt(Math.floor(Math.random() * Math.max(1, Number(a))));
             case 200: { const i = Number(a); return i < 0 ? BigInt(args.length) : i < args.length ? escrever(String(args[i])) : 0n; }
             case 201: { const v = env[ler(a)]; return v === undefined ? 0n : escrever(String(v)); }
-            case 202: try { return escrever(fs.readFileSync(ler(a))); } catch (e) { erro = e.message; return 0n; }
-            case 204: try { fs.mkdirSync(ler(a), { recursive: true }); return 1n; } catch (e) { erro = e.message; return 0n; }
+            case 202: try { return escrever(fs.readFileSync(ler(a))); } catch (e) { erro = e.message; nome = 'Error'; return 0n; }
+            case 204: try { fs.mkdirSync(ler(a), { recursive: true }); return 1n; } catch (e) { erro = e.message; nome = 'Error'; return 0n; }
             case 205: return fs.existsSync(ler(a)) ? 1n : 0n;
             case 206: {
-                const p = W(a, 5).map(Number), fn = ler(b);
+                const p = Array.from(W(a, 5), Number), fn = ler(b);
                 const init = { method: p[0] ? ler(p[0]) : 'GET' };
                 if (p[2]) { init.headers = {}; for (const l of ler(p[2]).split('\n')) { const i = l.indexOf(':'); if (i > 0) init.headers[l.slice(0, i)] = l.slice(i + 1).trim(); } }
                 if (p[3]) init.body = bytesDe(p[3]);
@@ -98,8 +107,9 @@ function correr(bytes, opcoes = {}) {
                 if (ms > 0) { const ctl = new AbortController(); init.signal = ctl.signal; t = setTimeout(() => ctl.abort(), ms); }
                 (async () => {
                     let r, u;
-                    try { r = await buscar(ler(p[1]), init); } catch (e) { clearTimeout(t); return chamar(fn, escrever(String(e && e.message)), 0n); }
-                    try { u = new Uint8Array(await r.arrayBuffer()); } catch (e) { clearTimeout(t); return chamar(fn, escrever(String(e && e.message)), BigInt(-r.status)); }
+                    const falhou = (e, st) => { clearTimeout(t); erro = String(e && e.message); nome = String((e && e.name) || 'Error'); chamar(fn, escrever(erro), st); };
+                    try { r = await buscar(ler(p[1]), init); } catch (e) { return falhou(e, 0n); }
+                    try { u = new Uint8Array(await r.arrayBuffer()); } catch (e) { return falhou(e, BigInt(-r.status)); }
                     clearTimeout(t);
                     chamar(fn, escrever(u), BigInt(r.status));
                 })();
@@ -113,10 +123,11 @@ function correr(bytes, opcoes = {}) {
                 if (!s.partes) return 0n;
                 const u = Buffer.concat(s.partes);
                 if (s.caminho === null) return escrever(u);
-                try { fs.writeFileSync(s.caminho, u); return 1n; } catch (e) { erro = e.message; return 0n; }
+                try { fs.writeFileSync(s.caminho, u); return 1n; } catch (e) { erro = e.message; nome = 'Error'; return 0n; }
             }
-            case 211: ex._fl(); sair(Number(a)); throw { ondaExit: Number(a) };
+            case 211: ex._fl(); acabou = true; for (const t of relogios.values()) clearInterval(t); sair(Number(a)); throw { ondaExit: Number(a) };
             case 213: return escrever(erro);
+            case 214: return escrever(nome);
         }
         throw new Error('onda: porta ' + c + ' desconhecida');
     };
