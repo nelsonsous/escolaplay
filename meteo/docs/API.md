@@ -32,7 +32,11 @@ este campo). Cada telemóvel só vê e muda os seus locais, as suas análises e 
 dos outros só o nome e a localização arredondada a 2 casas (~1 km), com as distâncias contadas a partir daí — nunca as
 coordenadas exatas. CORS: `access-control-allow-headers: content-type, x-meteo-device, x-meteo-owner`.
 
-## Previsão — `await loadForecast({ lat, lon, name })` em `lib/data.js`
+## Previsão — `await loadForecast({ lat, lon, name, memory?, reports? })` em `lib/data.js`
+
+`memory`: a memória da aprendizagem deste ponto (uma, várias ou uma promessa — espera no máximo 6 s); `reports`: avisos do
+utilizador perto do ponto (contam na verificação da chuva). As corridas anteriores (`previous-runs`) vêm dos 9 modelos
+globais com temperatura, chuva e vento da corrida mais recente, da de há 1 dia e da de há 2 dias (7 dias para trás).
 
 Calculada no telemóvel (não é um pedido ao conector). Pedidos: Open-Meteo (direto ou pelo conector; HTTP 429 → tenta de
 novo ao fim de ~1,5 s e ~4 s), IPMA (observações, avisos, risco de incêndio, e a **previsão oficial do concelho mais
@@ -183,6 +187,19 @@ Formato:
   "verification": { "station": "Lisbon Arpt, LI, PT", "source": "METAR", "distanceKm": 6.5, "stations": 1, "names": ["Lisbon Arpt, LI, PT"],
                     "days": 7, "n": 166, "biasApplied": true, "best": "ecmwf_ifs",
                     "models": [ { "id": "ecmwf_ifs", "name": "ECMWF IFS", "mae": 0.9, "bias": 0.3, "n": 166 } ] }, // ou null
+  // aprendizagem acumulada (lib/learn.js): cada modelo verificado dia a dia no ponto — t = temperatura, r = chuva (fração
+  // das horas com chuva observada ou prevista em que errou, ±1 h), w = vento (sem o erro comum: a exposição da estação não
+  // conta) — em 3 prazos: [hoje (< 24 h), amanhã (24–48 h), 3+ dias (≥ 48 h)]. f = fator do peso no consenso (×¼ a ×4):
+  // (erro mediano / erro do modelo)³ com força n/(n + n0) (n = dias de prova, recentes pesam mais: meia-vida 21 dias);
+  // a chuva e o vento partem do fator da temperatura. lag = atraso típico da chuva em horas (+ = chega tarde).
+  // window = os dias verificados agora ({ "<data>": { h, hr, src, m: { <modelo>: { t, r, w, g } } } }) para juntar à
+  // memória (mergeMemory): a app guarda-a no telemóvel e a tarefa agendada no KV (learn:<id>). models[].learned = os mesmos f.
+  "learning": { "days": 38, "since": "2026-09-30", "rainDays": 2, "halfLife": 21, "keepDays": 90, "source": "IPMA+METAR",
+                "stations": ["Porto/Cameriro Arpt, PT, PT", "Paços Ferreira"], "ref": { "t": [1.3, 1.5, 1.5], "r": [0.22, 0.15, 0.18], "w": [3.9, 4, 4] },
+                "models": [ { "id": "ecmwf_ifs", "name": "ECMWF IFS", "short": "ECMWF", "f": { "t": [1.24, 1.91, 1.98], "r": [0.93, 1.28, 2.17], "w": [1.03, 1.26, 1.38] },
+                              "t": [ { "mae": 1.2, "bias": -1.1, "nEff": 6.4, "days": 8 } ], "r": [], "w": [], "lag": [-1.5, null, null] } ],
+                "best": { "t": ["ecmwf_ifs", "ecmwf_ifs", "ecmwf_ifs"], "r": ["gfs_seamless", null, null], "w": ["ukmo_seamless", null, null] },
+                "window": { "2026-11-06": { "h": 24, "hr": 5, "src": "IPMA+METAR", "m": { "ecmwf_ifs": { "t": [[24, 1.1, -0.9], [24, 1.2, -1.3], [24, 1.4, -1.6]] } } } } },
   // previsão oficial do IPMA para o concelho mais próximo (≤ 15 km), tal como publicada (ou null fora de Portugal)
   "official": { "source": "IPMA", "local": "Santo Tirso", "id": 1131400, "distanceKm": 0.7, "dir": "N", "updated": "2026-11-06T08:39", // dir = rumo do ponto do IPMA
                 "hours": 79, "days": 10, "weight": 1.6, "skill": null,
@@ -234,6 +251,14 @@ PNG do satélite (EUMETSAT WMS), centrado no local (o local fica no centro exato
 `layer`: `geocolour` (MTG cor natural/IR de noite), `ir` (infravermelho 10.5 µm), `lightning` (relâmpagos MTG LI),
 `fire` (temperatura do fogo RGB), `rain` (precipitação por satélite H SAF), `airmass` (massas de ar / frentes).
 Cabeçalhos: `x-sat-layer`, `x-sat-bbox` (`oeste,sul,este,norte`), `cache-control: max-age=600`.
+
+## GET /api/learning?lat=..&lon=..
+
+A memória da aprendizagem (`learn:<id>`, até 90 dias, a que a tarefa agendada atualiza 3× por dia) do local **deste
+telemóvel** mais perto do ponto, até 3 km (o dono: os seus locais). `{ "place": { "id", "distanceKm" } | null, "memory":
+{ "v": 1, "lat", "lon", "updated", "days": { "<data>": { "h", "hr", "src", "m": { … } } } } | null }`. A app junta-a à sua
+(`mergeMemory`: dia a dia fica a mais completa; uma memória de outro ponto, a mais de 3 km, não entra) e passa as duas
+a `loadForecast({ memory })`.
 
 ## GET /api/analysis?lat=..&lon=..
 
@@ -374,7 +399,8 @@ O primeiro pedido da app ao abrir (regista o telemóvel; os outros pedidos esper
 dia de Lisboa, 40 dias: `{ scheduled, instant, guest }` — a tarefa agendada conta-as no `publicar.mjs`, a análise imediata
 no conector), `analysis:<id>` e `lessons:<id>` (por local), `analysis:<id>:<data-hora>` (arquivo, 30 dias),
 `analysis:dev:<id>` (análise imediata fora dos locais, 24 h), `reports:<id>` e `reports:dev:<id>` (avisos), `rl:<ponto>`
-(30 min), `obs:<estação>`, `ipma:runs:<concelho>`, `fogos:latest`.
+(30 min), `obs:<estação>`, `ipma:runs:<concelho>`, `fogos:latest`, `learn:<id>` (memória da aprendizagem de cada local,
+até 90 dias, ~1 KB por dia; a tarefa agendada junta-lhe os dias verificados em cada corrida).
 
 ## Fontes em bruto (passagem com cache)
 
@@ -400,7 +426,9 @@ outros, até 15):
    só dos modelos), `## Radar no ponto` (última imagem e idade, o ponto agora e nas últimas 2 h, anéis, chuva mais perto,
    ecos parados, deslocamento, chegada ou fim, **Radar vs modelos** e a frase do radar), `## Avisos do utilizador`
    (`extra.reports`: os do conector, com a hora local e a distância), `## Das 12 às 48 h no ponto` (de 3 em 3 h),
-   `## 16 dias`, indicadores, avisos, incêndios, verificação local, IPMA (10 dias) e fontes lado a lado.
+   `## 16 dias`, indicadores, avisos, incêndios, verificação local, `## Aprendizagem no ponto` (dias de memória, quem
+   acerta mais na temperatura, na chuva e no vento em cada prazo, o fator de cada modelo, o atraso típico da chuva;
+   `learningLines(fc.learning)`), IPMA (10 dias) e fontes lado a lado.
 
 A análise que volta passa por `validateAnalysis` e, na tarefa agendada, por `regionalPhrases` (`lib/analysis.js`): o
 `publicar.mjs` recusa frases genéricas sobre a região («no distrito do Porto», «no Minho e Douro Litoral», «no interior

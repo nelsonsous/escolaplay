@@ -12,7 +12,7 @@ import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '..
 import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, placeOwner, isOwnerPlace, placeKind, othersMode, approx, lisbon,
     placeStatus, bumpStats, recentReports, usageSummary, addDays } from '../../lib/places.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const SCHEDULE = ['07:34', '13:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -102,6 +102,7 @@ async function route(req, env, ctx, url) {
     }
     // --- análises, locais e avisos: dependem de quem pede (cabeçalhos x-meteo-device / x-meteo-owner) ---
     if (m === 'GET' && p === '/api/analysis') return getAnalysis(req, env, url);
+    if (m === 'GET' && p === '/api/learning') return getLearning(req, env, url);
     if (m === 'POST' && p === '/api/analysis/refresh') return refresh(req, env, url);
     if (p === '/api/places') {
         if (m === 'GET') return listPlaces(req, env, url);
@@ -445,6 +446,22 @@ async function getAnalysis(req, env, url) {
     const ageMin = analysis?.generatedAt ? Math.round((Date.now() - Date.parse(analysis.generatedAt)) / 6e4) : null;
     return json({ analysis: analysis || null, place: near ? placeView(me, near.p, { distanceKm: r1(near.d) }) : null, ageMin, schedule: SCHEDULE,
         onDemand: onDemandFor(env, me, mode), others: mode }, 200);
+}
+
+// Memória da aprendizagem (lib/learn.js) do local deste telemóvel mais perto do ponto (≤ 3 km), que a tarefa agendada
+// atualiza 3× por dia (learn:<id>). Só a de um local do próprio (o dono: os seus) — a memória traz as coordenadas do local.
+// Devolve o texto guardado tal como está (sem o ler: poupa CPU).
+async function getLearning(req, env, url) {
+    const c = coords(url.searchParams);
+    if (!c) return bad('coordenadas inválidas');
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!env.KV) return json({ place: null, memory: null });
+    const near = nearestOf(me, (await getPlaces(env)).filter((p) => mine(me, p)), c.lat, c.lon, 3);
+    const text = near ? await env.KV.get('learn:' + near.p.id, 'text') : null;
+    const memory = text && text.startsWith('{') ? text : 'null';
+    return new Response(`{"place":${JSON.stringify(near ? { id: near.p.id, distanceKm: r1(near.d) } : null)},"memory":${memory}}`,
+        { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 async function status(req, env, url) {

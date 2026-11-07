@@ -14,16 +14,30 @@ const raw = JSON.parse(readFileSync(fx('lisboa-2026-11-06.json'), 'utf8'));
 const NOW = Date.parse('2026-11-06T15:45:00Z'), LAT = 38.7223, LON = -9.1393;
 const LAST = NOW - 5 * 6e4; // última imagem às 15:40 (há 5 min)
 const SW = Math.SQRT1_2;
-// modelos 2 h atrasados (como em Santo Tirso a 6 nov às 20:33): sem chuva até às 18:00
+// modelos 2 h atrasados (como em Santo Tirso a 6 nov às 20:33): sem chuva até às 18:00, todos com chuva das 18:00 às 21:00
+// (cenário explícito: não depende dos pesos que a aprendizagem dá a cada modelo)
+const LATE_WET = (t) => t >= '2026-11-06T18:00' && t <= '2026-11-06T21:00';
 function lateModels() {
     const r = structuredClone(raw), H = r.det.hourly, M = r.det.minutely_15;
     for (const k of Object.keys(H)) {
-        if (k.startsWith('precipitation_')) H[k] = H[k].map((v, i) => (H.time[i] < '2026-11-06T18:00' ? 0 : v));
-        if (k.startsWith('weather_code_')) H[k] = H[k].map((v, i) => (H.time[i] < '2026-11-06T18:00' ? 3 : v));
+        if (k.startsWith('precipitation_')) H[k] = H[k].map((v, i) => (H.time[i] < '2026-11-06T18:00' ? 0 : LATE_WET(H.time[i]) ? Math.max(v ?? 0, 1.2) : v));
+        if (k.startsWith('weather_code_')) H[k] = H[k].map((v, i) => (H.time[i] < '2026-11-06T18:00' ? 3 : LATE_WET(H.time[i]) ? 61 : v));
     }
     for (const k of Object.keys(M)) if (k.startsWith('precipitation_')) M[k] = M[k].map(() => 0);
     return r;
 }
+// todos os modelos com chuva moderada agora e nas próximas 2 h (cenário explícito, como acima)
+function wetModels() {
+    const r = structuredClone(raw), H = r.det.hourly, M = r.det.minutely_15;
+    const wet = (t) => t >= '2026-11-06T15:00' && t <= '2026-11-06T18:00';
+    for (const k of Object.keys(H)) {
+        if (k.startsWith('precipitation_')) H[k] = H[k].map((v, i) => (wet(H.time[i]) ? Math.max(v ?? 0, 2) : v));
+        if (k.startsWith('weather_code_')) H[k] = H[k].map((v, i) => (wet(H.time[i]) ? 63 : v));
+    }
+    for (const k of Object.keys(M)) if (k.startsWith('precipitation_')) M[k] = M[k].map((v, j) => (wet(M.time[j]) ? Math.max(v ?? 0, 0.5) : v));
+    return r;
+}
+const wraw = wetModels();
 
 test('radar: cor da tabela Universal Blue → dBZ, e dBZ → mm/h (Marshall-Palmer, Z = 200·R^1,6)', () => {
     for (let d = -10; d <= 64; d++) assert.equal(colorToDbz(...dbzColor(d)), d, `${d} dBZ`);
@@ -151,10 +165,10 @@ test('radar a chover no ponto: manda no "agora" e nos primeiros passos (prob. 90
 });
 
 test('radar sem chuva no ponto nem à volta: abafa a chuva dos modelos nos primeiros 30–45 min e depois volta a eles', () => {
-    const base = buildForecast(raw, { lat: LAT, lon: LON, now: NOW });
+    const base = buildForecast(wraw, { lat: LAT, lon: LON, now: NOW });
     assert.match(base.nowcast.text, /^Chuva moderada/);
     const radar = synthFrames(LAT, LON, () => [], { lastMs: LAST });
-    const fc = buildForecast({ ...raw, radar }, { lat: LAT, lon: LON, now: NOW });
+    const fc = buildForecast({ ...wraw, radar }, { lat: LAT, lon: LON, now: NOW });
     assert.equal(fc.radar.nearest, null);
     assert.ok(fc.now.code < 50 || fc.now.code === 45, `sem chuva agora (${fc.now.code})`);
     assert.equal(fc.now.precip, 0);
@@ -175,6 +189,7 @@ test('radar: chuva a aproximar-se de sudoeste a 36 km/h — deslocamento, hora d
     const approach = (t) => [{ e: (-25 + 0.6 * t) * SW, n: (-25 + 0.6 * t) * SW, r: 10, dbz: 30 }, { e: 22, n: 22, box: 5, dbz: 25 }];
     const radar = synthFrames(LAT, LON, approach, { lastMs: LAST });
     const R = analyzeRadar({ ...radar, nowMs: NOW });
+    // os modelos dão chuva já (cenário explícito); o radar só a vê chegar daqui a ~20 min
     assert.equal(R.atPoint.raining, false);
     assert.ok(R.motion.used && Math.abs(R.motion.speedKmh - 36) <= 4, `${R.motion.speedKmh} km/h`);
     assert.deepEqual([R.motion.toDir, R.motion.fromDir], ['NE', 'SO']);
@@ -186,7 +201,7 @@ test('radar: chuva a aproximar-se de sudoeste a 36 km/h — deslocamento, hora d
     assert.equal(R.nearest.bearing, 'SO');
     assert.ok(R.fixedKm2 > 50, `eco fixo a NE (${R.fixedKm2} km²) fica de fora`);
     assert.match(R.text, /^Sem chuva no radar; chuva a 1[4-6] km a sudoeste, deve chegar por volta das 16:0[05]\.$/);
-    const fc = buildForecast({ ...raw, radar }, { lat: LAT, lon: LON, now: NOW });
+    const fc = buildForecast({ ...wraw, radar }, { lat: LAT, lon: LON, now: NOW });
     assert.equal(fc.nowcast.text, R.text, 'a frase das próximas 2 h é a do radar');
     const S = fc.nowcast.steps, at = (hhmm) => S.find((s) => s.time.endsWith(hhmm));
     assert.ok(at('16:00').prob < 15, 'antes de chegar: sem chuva');
@@ -207,7 +222,7 @@ test('radar: chuva a aproximar-se de sudoeste a 36 km/h — deslocamento, hora d
 
 test('aviso do utilizador: o mais forte no "agora" durante 45 min; depois do aviso perde peso; resumo para o Claude', () => {
     const radar = synthFrames(LAT, LON, (t) => [{ e: (-25 + 0.6 * t) * SW, n: (-25 + 0.6 * t) * SW, r: 10, dbz: 30 }], { lastMs: LAST });
-    const fc = buildForecast({ ...raw, radar }, { lat: LAT, lon: LON, now: NOW, name: 'Lisboa' });
+    const fc = buildForecast({ ...wraw, radar }, { lat: LAT, lon: LON, now: NOW, name: 'Lisboa' });
     const at = (min) => new Date(NOW - min * 6e4).toISOString();
     // chove (o radar não vê): agora é chuva; os primeiros passos 95%
     const c = withReport(fc, { kind: 'chuva', time: at(3), lat: LAT, lon: LON }, NOW);

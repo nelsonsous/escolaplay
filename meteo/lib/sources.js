@@ -31,8 +31,11 @@ export const ENS_MODELS = [
     { id: 'gem_global', name: 'Canadá GEPS', w: 0.8 },
 ];
 
-// Modelos usados na comparação com corridas anteriores e na verificação local
-export const PREV_MODELS = ['ecmwf_ifs', 'ukmo_seamless', 'meteofrance_seamless', 'icon_seamless', 'gfs_seamless'];
+// Modelos usados na comparação com corridas anteriores, na verificação local e na aprendizagem (os 9 globais)
+export const PREV_MODELS = DET_MODELS.filter((m) => !m.box).map((m) => m.id);
+// Corridas anteriores: a mais recente (hoje), a de há 1 dia (amanhã) e a de há 2 dias (3+ dias), para cada variável aprendida
+export const PREV_HOURLY = ['temperature_2m', 'precipitation', 'wind_speed_10m']
+    .flatMap((v) => [v, `${v}_previous_day1`, `${v}_previous_day2`]);
 
 export const DET_HOURLY = ['temperature_2m', 'apparent_temperature', 'dew_point_2m', 'relative_humidity_2m', 'precipitation', 'snowfall',
     'weather_code', 'cloud_cover', 'cloud_cover_low', 'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'pressure_msl',
@@ -117,8 +120,7 @@ export function omQueries(lat, lon, { models } = {}) {
             minutely_15: 'precipitation', past_hours: 6, forecast_hours: 73, past_minutely_15: 1, forecast_minutely_15: 9, forecast_days: 16 }),
         ensemble: qs({ ...base, models: ENS_MODELS.map((m) => m.id).join(','), daily: ENS_DAILY.join(','), hourly: 'precipitation',
             forecast_hours: 73, forecast_days: 16 }),
-        previous: qs({ ...base, models: PREV_MODELS.join(','), hourly: 'temperature_2m,temperature_2m_previous_day1,precipitation,precipitation_previous_day1',
-            past_days: 7, forecast_days: 7 }),
+        previous: qs({ ...base, models: PREV_MODELS.join(','), hourly: PREV_HOURLY.join(','), past_days: 7, forecast_days: 7 }),
     };
 }
 

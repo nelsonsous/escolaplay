@@ -4,14 +4,16 @@
 // (Ajustes → Utilização: ligada | só 1× por dia, na corrida da manhã | desligada), até 15 — selectPlaces em lib/places.js.
 // Mostra as regras, o resumo numérico (a começar por "## O ponto", com o radar no ponto e os avisos do utilizador),
 // a análise anterior, as lições e o observado; grava imagens de satélite centradas no ponto (de perto, ~280 km, e largas).
-// Também guarda no KV o histórico horário das estações IPMA usadas e as previsões do IPMA de cada concelho
-// (para a verificação local, que precisa de previsões feitas na véspera).
+// Também guarda no KV o histórico horário das estações IPMA usadas, as previsões do IPMA de cada concelho
+// (para a verificação local, que precisa de previsões feitas na véspera) e a memória da aprendizagem de cada local
+// (learn:<id>, até 90 dias: o erro de cada modelo no ponto, dia a dia — a app usa-a para pesar os modelos).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
 import { satUrl, FOGOS_URL, IPMA } from '../lib/sources.js';
 import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns } from '../lib/engine.js';
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
+import { mergeMemory } from '../lib/learn.js';
 import { WORKER, getJSON, kvGet, kvPut, arg } from './comum.mjs';
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -60,8 +62,13 @@ for (const [i, place] of places.entries()) {
         // previsões do IPMA de há ~1 dia para este concelho (guardadas aqui nas corridas anteriores)
         const local = await ipmaLocalOf(place).catch(() => null);
         const runs = local ? (await kvGet('ipma:runs:' + local.id).catch(() => null)) || [] : [];
+        // memória da aprendizagem (até 90 dias) e avisos do utilizador dos últimos 30 dias (contam na verificação da chuva)
+        const memory = await kvGet('learn:' + place.id).catch(() => null);
+        let reports30 = [];
+        try { reports30 = recentReports(await kvGet('reports:' + place.id), place.lat, place.lon, { hours: 720, maxKm: 3 }); } catch { /* sem avisos */ }
         const { fc, raw } = await loadForecast({ lat: place.lat, lon: place.lon, name: place.name, base: WORKER, preferProxy: true, withRaw: true,
-            ipmaPrev: ipmaPrevFromRuns(runs) });
+            ipmaPrev: ipmaPrevFromRuns(runs), memory, reports: reports30 });
+        await saveLearning(place, memory, fc).catch((e) => out.push(`(memória da aprendizagem não gravada: ${e.message})`));
         await saveObsHistories(raw, fc).catch((e) => out.push(`(histórico IPMA não gravado: ${e.message})`));
         if (raw.ipma?.forecast) await saveIpmaRun(raw.ipma.forecast, runs).catch((e) => out.push(`(previsão IPMA não arquivada: ${e.message})`));
         const prev = await kvGet('analysis:' + place.id).catch(() => null);
@@ -137,6 +144,15 @@ async function saveObsHistories(raw, fc) {
         const keep = [...map.values()].filter((o) => o.ms >= Date.now() - 14 * 864e5).sort((a, b) => a.ms - b.ms);
         await kvPut(key, keep);
     }
+}
+
+// Junta os dias verificados nesta corrida à memória do local (fica o dia mais completo; mais de 90 dias sai)
+async function saveLearning(place, memory, fc) {
+    const win = fc.learning?.window;
+    if (!win) return;
+    const today = fc.generatedAt && fc.location?.utcOffsetSeconds != null
+        ? new Date(Date.parse(fc.generatedAt) + fc.location.utcOffsetSeconds * 1000).toISOString().slice(0, 10) : null;
+    await kvPut('learn:' + place.id, mergeMemory(memory, win, { lat: place.lat, lon: place.lon, today }));
 }
 
 // ---------- previsões anteriores do IPMA (a API só dá a atual) ----------

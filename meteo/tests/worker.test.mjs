@@ -50,7 +50,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.4.0');
+    assert.equal(j.version, '1.5.0');
     assert.deepEqual(j.schedule, ['07:34', '13:34', '20:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -318,6 +318,24 @@ test('análise: a do local do próprio telemóvel mais próximo (≤ 10 km)', as
     const j = (await J('GET', '/api/analysis?lat=38.75&lon=-9.15', { d: g })).body;
     assert.deepEqual([j.place.id, j.place.mine, j.analysis.titulo, j.ageMin, j.place.distanceKm], [pl.id, true, 'Teste', 10, 3.4]);
     assert.equal((await J('GET', '/api/analysis?lat=41.15&lon=-8.61', { d: g })).body.analysis, null);
+});
+
+test('aprendizagem: a memória do local do próprio telemóvel (≤ 3 km), tal como a tarefa a guardou; a dos outros não', async () => {
+    const a = device(), b = device();
+    const pa = (await J('POST', '/api/places', { d: a, body: { name: 'Casa da Ana', lat: 41.5454, lon: -8.4265 } })).body;
+    const mem = { v: 1, lat: 41.5454, lon: -8.4265, updated: '2026-11-07T08:00:00Z', days: { '2026-11-06': { h: 24, hr: 3, m: { ecmwf_ifs: { t: [[24, 0.8, 0.1], null, null] } } } } };
+    env.KV.m.set('learn:' + pa.id, JSON.stringify(mem));
+    const r = await J('GET', '/api/learning?lat=41.546&lon=-8.427', { d: a });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.memory, mem);
+    assert.equal(r.body.place.id, pa.id);
+    assert.ok(r.body.place.distanceKm <= 0.2);
+    assert.deepEqual((await J('GET', '/api/learning?lat=41.546&lon=-8.427', { d: b })).body, { place: null, memory: null }, 'outro telemóvel não a vê');
+    assert.deepEqual((await J('GET', '/api/learning?lat=41.6&lon=-8.427', { d: a })).body, { place: null, memory: null }, 'a mais de 3 km não é deste ponto');
+    assert.equal((await J('GET', '/api/learning?lat=x&lon=-8', { d: a })).status, 400);
+    // sem memória guardada (local novo): memória vazia
+    env.KV.m.delete('learn:' + pa.id);
+    assert.equal((await J('GET', '/api/learning?lat=41.546&lon=-8.427', { d: a })).body.memory, null);
 });
 
 test('análise imediata sem chave responde 503 com explicação', async () => {
