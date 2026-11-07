@@ -1,0 +1,906 @@
+# Musica: a app, toda em Onda -- uma "app em Onda" (onda/rt/anfitriao.js corre-a no browser).
+# Monta-se com a biblioteca de apps e o motor de curadoria (musica/onda/compilar.mjs):
+#   cat onda/lib/app.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w > musica/app/musica.wasm
+# O main prepara o estado; cada clique, campo e resposta da rede chama uma funcao daqui. A casca (musica.js) so
+# trata do que a Onda nao tem como porta: a chave do aparelho nos pedidos ao conector, os pedidos que escrevem
+# ("METODO caminho" + nova linha + corpo JSON), sair para o login do Tidal ("IR url") e o regresso dele.
+#
+# Globais (M[0..59] sao da app):
+#   fixos (criados no main): 0 textos fixos, 1 vista (1 playlists, 2 playlist, 3 pedir, 4 gosto, 5 ajustes),
+#     2 base do monte (navegar solta tudo o que veio depois), 20 texto do pedido, 21 client id, 22 conector,
+#     23 pesquisa, 24..27 pedido: faixas, max por artista, estilo, arco, 29 relogio do aviso, 30 id da playlist,
+#     36 pesos dos estilos
+#   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 6 afinar ligado, 7 faixas, 8 max por
+#     artista, 9 estilo, 10 arco, 11 candidatas, 12 faixas das candidatas, 13 ordem, 14 m, 15 motivos,
+#     16 custo, 17 fixas, 18 tiradas, 19 pesquisa, 28 a confirmar, 31 ocupado, 32 pontos, 33 ms do motor,
+#     34 escrita em curso, 35 candidatas + extras, 37 n candidatas da playlist
+
+# ===== textos fixos =====
+# Cada texto fixo (chave JSON, seletor, acao, funcao chamada pelo anfitriao) tem um acessor k_* aqui e um kdef no main,
+# com o mesmo indice. Para juntar um: `: k_novo >i @ + @ 0 N` e `kdef N abre "texto" O 0`, com N o seguinte (ha folga
+# ate ao tamanho do A no inicio do main).
+: k_nome >i @ + @ 0 0
+: k_id >i @ + @ 0 1
+: k_faixas >i @ + @ 0 2
+: k_duracao >i @ + @ 0 3
+: k_criadaEm >i @ + @ 0 4
+: k_por >i @ + @ 0 5
+: k_tidal >i @ + @ 0 6
+: k_url >i @ + @ 0 7
+: k_titulo >i @ + @ 0 8
+: k_versao >i @ + @ 0 9
+: k_artistas >i @ + @ 0 10
+: k_ano >i @ + @ 0 11
+: k_genero >i @ + @ 0 12
+: k_bpm >i @ + @ 0 13
+: k_tom >i @ + @ 0 14
+: k_tags >i @ + @ 0 15
+: k_motivo >i @ + @ 0 16
+: k_porque >i @ + @ 0 17
+: k_pontos >i @ + @ 0 18
+: k_resumo >i @ + @ 0 19
+: k_descricao >i @ + @ 0 20
+: k_tendencias >i @ + @ 0 21
+: k_pedido >i @ + @ 0 22
+: k_candidatas >i @ + @ 0 23
+: k_faixa >i @ + @ 0 24
+: k_sinais >i @ + @ 0 25
+: k_artista >i @ + @ 0 26
+: k_gosto >i @ + @ 0 27
+: k_qualidade >i @ + @ 0 28
+: k_tendencia >i @ + @ 0 29
+: k_claude >i @ + @ 0 30
+: k_novidade >i @ + @ 0 31
+: k_energia >i @ + @ 0 32
+: k_fixa >i @ + @ 0 33
+: k_opcoes >i @ + @ 0 34
+: k_maxArtista >i @ + @ 0 35
+: k_estilo >i @ + @ 0 36
+: k_arco >i @ + @ 0 37
+: k_ligado >i @ + @ 0 38
+: k_clientId >i @ + @ 0 39
+: k_tu >i @ + @ 0 40
+: k_utilizador >i @ + @ 0 41
+: k_pais >i @ + @ 0 42
+: k_ligadoEm >i @ + @ 0 43
+: k_playlists >i @ + @ 0 44
+: k_pedidos >i @ + @ 0 45
+: k_retorno >i @ + @ 0 46
+: k_texto >i @ + @ 0 47
+: k_estado >i @ + @ 0 48
+: k_feitoEm >i @ + @ 0 49
+: k_criadoEm >i @ + @ 0 50
+: k_playlist >i @ + @ 0 51
+: k_favoritas >i @ + @ 0 52
+: k_generos >i @ + @ 0 53
+: k_decadas >i @ + @ 0 54
+: k_decada >i @ + @ 0 55
+: k_n >i @ + @ 0 56
+: k_geradoEm >i @ + @ 0 57
+: k_message >i @ + @ 0 58
+: k_popularidade >i @ + @ 0 59
+: k_q >i @ + @ 0 60
+: k_v_curador >i @ + @ 0 61
+: k_v_hires >i @ + @ 0 62
+: k_v_lossless >i @ + @ 0 63
+: k_v_atmos >i @ + @ 0 64
+: k_v_pendente >i @ + @ 0 65
+: k_v_feito >i @ + @ 0 66
+: k_v_equilibrado >i @ + @ 0 67
+: k_v_descoberta >i @ + @ 0 68
+: k_v_moda >i @ + @ 0 69
+: k_v_audiofilo >i @ + @ 0 70
+: k_v_onda >i @ + @ 0 71
+: k_v_sobe >i @ + @ 0 72
+: k_v_desce >i @ + @ 0 73
+: k_v_plano >i @ + @ 0 74
+: k_g_chave >i @ + @ 0 75
+: k_g_codigo >i @ + @ 0 76
+: k_g_proxy >i @ + @ 0 77
+: k_g_aviso >i @ + @ 0 78
+: k_s_body >i @ + @ 0 79
+: k_s_nav >i @ + @ 0 80
+: k_s_aviso >i @ + @ 0 81
+: k_s_faixas >i @ + @ 0 82
+: k_s_afmotor >i @ + @ 0 83
+: k_s_afnv >i @ + @ 0 84
+: k_s_pdnv >i @ + @ 0 85
+: k_s_ajm >i @ + @ 0 86
+: k_ev_click >i @ + @ 0 87
+: k_ev_input >i @ + @ 0 88
+: k_c_clique >i @ + @ 0 89
+: k_c_campo >i @ + @ 0 90
+: k_c_estado >i @ + @ 0 91
+: k_c_pl >i @ + @ 0 92
+: k_c_ped >i @ + @ 0 93
+: k_c_doc >i @ + @ 0 94
+: k_c_perfil >i @ + @ 0 95
+: k_c_pesq >i @ + @ 0 96
+: k_c_escrita >i @ + @ 0 97
+: k_c_fim >i @ + @ 0 98
+: k_c_nada >i @ + @ 0 99
+: k_p_estado >i @ + @ 0 100
+: k_p_playlists >i @ + @ 0 101
+: k_p_pedidos >i @ + @ 0 102
+: k_p_perfil >i @ + @ 0 103
+: k_p_fresco >i @ + @ 0 104
+: k_a_ir >i @ + @ 0 105
+: k_a_abrir >i @ + @ 0 106
+: k_a_enviar >i @ + @ 0 107
+: k_a_afinar >i @ + @ 0 108
+: k_a_apagar >i @ + @ 0 109
+: k_a_apagar_sim >i @ + @ 0 110
+: k_a_nao >i @ + @ 0 111
+: k_a_fixar >i @ + @ 0 112
+: k_a_tirar >i @ + @ 0 113
+: k_a_afmx >i @ + @ 0 114
+: k_a_afes >i @ + @ 0 115
+: k_a_afar >i @ + @ 0 116
+: k_a_procurar >i @ + @ 0 117
+: k_a_juntar >i @ + @ 0 118
+: k_a_guardar >i @ + @ 0 119
+: k_a_sug >i @ + @ 0 120
+: k_a_pdmx >i @ + @ 0 121
+: k_a_pdes >i @ + @ 0 122
+: k_a_pdar >i @ + @ 0 123
+: k_a_pedir >i @ + @ 0 124
+: k_a_cancelar >i @ + @ 0 125
+: k_a_ligar >i @ + @ 0 126
+: k_a_config >i @ + @ 0 127
+: k_a_atualizar >i @ + @ 0 128
+: k_a_desligar >i @ + @ 0 129
+: k_a_desligar_sim >i @ + @ 0 130
+: k_a_esquecer >i @ + @ 0 131
+: k_a_esquecer_sim >i @ + @ 0 132
+: k_a_pxok >i @ + @ 0 133
+: k_a_pxrep >i @ + @ 0 134
+: k_a_motor >i @ + @ 0 135
+: k_f_cid >i @ + @ 0 136
+: k_f_ptx >i @ + @ 0 137
+: k_f_q >i @ + @ 0 138
+: k_f_px >i @ + @ 0 139
+: k_f_afn >i @ + @ 0 140
+: k_f_pdn >i @ + @ 0 141
+: k_t_escolhida >i @ + @ 0 142
+: k_t_proxy >i @ + @ 0 143
+
+# ===== utilitarios =====
+: abre >i { = t tnovo 400 O t t }
+: kdef ii>i i t { ! + @ 0 i t 0 }
+: jg ii>i n k jget n k
+: jgi ii>i n k I jnum jget n k
+: jgt ii>i n k jtxt jget n k
+: jprim i>i n ? n @ + n 4 0
+: jprox i>i c @ + c 3
+: pt i>i t thtml t
+: pjt i>i n thtml jtxt n
+: busca ii>i u f Y 102 u f
+: tvazio i>i d { ! d + d 1 0 }
+: tcopia iii>i d s mx { ! d + d 1 O d = n Mn tlen s mx = j 0 W < j n { P tbyte s j = j + j 1 } O 0 0 }
+: hexd i>i h P ? < h 10 + 48 h + 87 h
+: hexm i>i h P ? < h 10 + 48 h + 55 h
+# o texto t como string JSON, com aspas e escapes
+: pjs i>i t {
+  P 34
+  = n tlen t = j 0
+  W < j n {
+    = c tbyte t j
+    ? || == c 34 == c 92 { P 92 P c 0 } ? < c 32 { P 92 P 'u P '0 P '0 hexd / c 16 hexd % c 16 0 } P c
+    = j + j 1 }
+  P 34 0 }
+# o texto t codificado para um URL (percent-encoding)
+: purl i>i t {
+  = n tlen t = j 0
+  W < j n {
+    = c tbyte t j
+    = ok || && >= c 'a <= c 'z && >= c 'A <= c 'Z
+    = ok || ok && >= c '0 <= c '9
+    = ok || ok || == c '- == c '_
+    = ok || ok || == c '. == c '~
+    ? ok P c { P '% hexm / c 16 hexm % c 16 0 }
+    = j + j 1 }
+  0 }
+# "2026-11-07T..." -> 7/11
+: dd ii>i t j + * - tbyte t j '0 10 - tbyte t + j 1 '0
+: pdia i>i t ? >= tlen t 10 { N dd t 8 "/" N dd t 5 0 } 0
+# segundos -> "25 min" ou "1 h 05 min"
+: pmin i>i s ? >= s 3600 { N / s 3600 " h " = r / + % s 3600 30 60 ? < r 10 "0" 0 N r " min" 0 } { N Mx 1 / + s 30 60 " min" 0 }
+: partistas i>i l { = c jprim l = s 0 W c { ? s ", " 0 pjt c = s 1 = c jprox c } 0 }
+
+# ===== aviso (toast) =====
+: aviso i>i t {
+  = m marca
+  = h tnovo + tlen t 80
+  O h "<div class=\"mu-toast on\">" pt t "</div>" O 0
+  Y 100 k_s_aviso h
+  ? @ 29 Y 104 @ 29 0 0
+  ! 29 Y 103 3800 k_c_fim
+  solta m }
+: fim_aviso i>i z { ? @ 29 Y 104 @ 29 0 0 ! 29 0 = h tnovo 4 Y 100 k_s_aviso h solta h }
+: nada ii>i t s 0
+: erro_ped ii>i t s {
+  ? s {
+    = r json t = mg jgt r k_message
+    ? mg aviso mg { = a abre "Erro " N s " do conector." O 0 aviso a 0 } 0 }
+    { = a abre "Sem ligação ao conector." O 0 aviso a 0 } }
+
+# ===== estilos e arcos =====
+: nome_estilo i>i e ? == e 0 "Equilibrado" ? == e 1 "Descoberta" ? == e 2 "Na moda" ? == e 3 "O meu gosto" "Audiófilo"
+: estilo_json i>i e ? == e 0 "equilibrado" ? == e 1 "descoberta" ? == e 2 "moda" ? == e 3 "gosto" "audiofilo"
+: idx_estilo i>i t ? tigual t k_v_descoberta 1 ? tigual t k_v_moda 2 ? tigual t k_gosto 3 ? tigual t k_v_audiofilo 4 0
+: nome_arco i>i a ? == a 0 "Onda" ? == a 1 "Sobe" ? == a 2 "Acalma" "Sem arco"
+: arco_json i>i a ? == a 0 "onda" ? == a 1 "sobe" ? == a 2 "desce" "plano"
+: idx_arco i>i t ? tigual t k_v_sobe 1 ? tigual t k_v_desce 2 ? tigual t k_v_plano 3 0
+: arco_val i>i a ? == a 0 1 ? == a 1 2 ? == a 2 3 0
+: pporque i>i q ? == q 1 "o teu gosto" ? == q 2 "som" ? == q 3 "na moda" ? == q 4 "Claude" ? == q 5 "novidade" "fixada"
+: porque_json i>i q ? == q 1 "gosto" ? == q 2 "qualidade" ? == q 3 "tendencia" ? == q 4 "claude" ? == q 5 "novidade" "fixa"
+: cod_porque i>i t ? tigual t k_gosto 1 ? tigual t k_qualidade 2 ? tigual t k_tendencia 3 ? tigual t k_claude 4 ? tigual t k_novidade 5 ? tigual t k_fixa 6 0
+: sugestao i>i q ? == q 0 "Faixas bem gravadas para testar o som do carro" ? == q 1 "Jazz para um domingo de manhã" ? == q 2 "O melhor de 2026 até agora, de vários géneros" ? == q 3 "Fado e música portuguesa nova" ? == q 4 "Soul e funk dos anos 70" ? == q 5 "Treino: energia sempre a subir" "Para conduzir à noite, calma e com graves"
+
+# ===== estado da ligacao =====
+: ligado >i { = e @ 3 ? e == jtipo jg e k_ligado 3 0 }
+: acesso >i { = e @ 3 ? e ? jg e k_tu ligado 0 0 }
+
+# ===== pedacos de HTML =====
+: pill >i ? ligado { "<button type=\"button\" class=\"mu-pill on\" data-onda=\"ir&#9;5\">" pjt jg @ 3 k_utilizador "</button>" 0 } { "<button type=\"button\" class=\"mu-pill off\" data-onda=\"ir&#9;5\">Tidal desligado</button>" 0 }
+: carregar >i ? @ 3 "<p class=\"mu-nota\">A carregar…</p>" "<p class=\"mu-nota\">A ligar ao conector…</p>"
+# qualidade do som pelas etiquetas do Tidal
+: pqual i>i l { = c jprim l = h 0 = q 0 W c { = t jtxt c ? tigual t k_v_hires { = h 1 0 } ? tigual t k_v_lossless { = q 1 0 } 0 = c jprox c }
+  ? h "<span class=\"mu-chip hires\">Hi-Res</span>" ? q "<span class=\"mu-chip lossless\">Sem perdas</span>" 0
+  0 }
+: qual_tags i>i l { = c jprim l = h 0 = q 0 = a 0
+  W c { = t jtxt c ? tigual t k_v_hires { = h 1 0 } ? tigual t k_v_lossless { = q 1 0 } ? tigual t k_v_atmos { = a 1 0 } 0 = c jprox c }
+  = v ? h 1000 ? q 750 350
+  Mn 1000 + v ? a 100 0 }
+# ano . genero . bpm . tom (Camelot) . duracao
+: meta ii>i f g {
+  = s 0
+  = a jgi f k_ano ? a { N a = s 1 0 } 0
+  ? tlen g { ? s " · " 0 pt g = s 1 0 } 0
+  = b jgi f k_bpm ? b { ? s " · " 0 N b " bpm" = s 1 0 } 0
+  = t jgi f k_tom ? t { ? s " · " 0 N + % - t 1 12 1 ? > t 12 "B" "A" = s 1 0 } 0
+  = du jgi f k_duracao ? du { ? s " · " 0 pmin du 0 } 0
+  0 }
+# uma faixa: p posicao, f faixa (JSON), g genero, mo motivo, pq porque (1..6), po pontos, fx fixada, af a afinar, ci candidata
+: linha iiiiiiiii>i p f g mo pq po fx af ci {
+  "<li class=\"mu-faixa" ? fx " fixa" 0 "\"><span class=\"n\">" N + p 1 "</span><div><div class=\"t\"><a href=\"" pjt jg f k_url "\" target=\"_blank\" rel=\"noopener\">" pjt jg f k_titulo "</a>"
+  ? tlen jgt f k_versao { " <span class=\"mu-nota\">(" pjt jg f k_versao ")</span>" 0 } 0
+  "</div><div class=\"a\">" partistas jg f k_artistas "</div><div class=\"m\">" meta f g "</div>"
+  ? tlen mo { "<div class=\"mot\">" pt mo "</div>" 0 } 0
+  ? af { "<div class=\"ctl\"><button type=\"button\" data-onda=\"fixar&#9;" N ci "\" aria-pressed=\"" ? fx "true" "false" "\">📌 fixar</button><button type=\"button\" data-onda=\"tirar&#9;" N ci "\">✕ tirar</button></div>" 0 } 0
+  "</div><div class=\"dir\">" pqual jg f k_tags
+  ? pq { "<span class=\"why\">" pporque pq " " N / po 10 "</span>" 0 } 0
+  "</div></li>" 0 }
+
+# ===== boas-vindas (ligar o Tidal) =====
+: boas_vindas >i {
+  = e @ 3
+  = cod Y 105 k_g_codigo 0
+  = ch Y 105 k_g_chave 0
+  ? ~ == jtipo jg e k_clientId 3 {
+      "<div class=\"mu-card boas\"><h3>Primeiro: a tua app no Tidal</h3><p>Em <a href=\"https://developer.tidal.com/dashboard\" target=\"_blank\" rel=\"noopener\">developer.tidal.com</a> cria uma app (grátis) e, nas definições dela:</p><ul class=\"mu-tend\"><li>Redirect URI: <code>" pjt jg e k_retorno "</code></li><li>Scopes: <code>user.read collection.read playlists.read playlists.write search.read recommendations.read</code></li></ul>"
+      ? || cod && ch jg e k_tu {
+          "<label class=\"mu-campo\"><span>Client ID da app</span><input data-onda=\"cid\" autocapitalize=\"off\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"copia-o do Tidal\" value=\"" pt @ 21 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"config\">Guardar e continuar</button></div>" 0 }
+        { "<p class=\"mu-nota\">Depois abre o link de ligação que o Claude te deu (termina em <code>?ligar=…</code>) para colares aqui o Client ID.</p>" 0 }
+      "</div>" 0 }
+    { ? && ch ~ jg e k_tu { "<div class=\"mu-card boas\"><h3>Este aparelho perdeu o acesso</h3><p>A chave guardada já não é válida. Abre outra vez o link de ligação que o Claude te deu.</p></div>" 0 }
+      ? cod { "<div class=\"mu-card boas\"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta e o Curador (o Claude) passa a ler o teu gosto.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"ligar\">Ligar ao Tidal</button></div></div>" 0 }
+      { "<div class=\"mu-card boas\"><h3>Liga o teu Tidal</h3><p>Para ligar este aparelho, abre o <b>link de ligação</b> que o Claude te deu (termina em <code>?ligar=…</code>). Só serve uma vez; depois este aparelho fica com acesso.</p></div>" 0 } }
+  0 }
+
+# ===== Playlists =====
+: npendentes i>i pd { = n 0 = c jprim pd W c { ? tigual jgt c k_estado k_v_pendente { = n + n 1 0 } 0 = c jprox c } n }
+: lista_pl i>i d {
+  ? ~ jn d { "<div class=\"mu-card\"><h3>Ainda não há playlists</h3><p>O Curador cria a primeira «Onda da semana» na próxima manhã. Ou faz já um pedido.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"ir&#9;3\">Fazer um pedido</button></div></div>" 0 }
+  { "<h2 class=\"mu-sec\">As tuas playlists</h2><div class=\"mu-lista-pl\">"
+    = c jprim d
+    W c {
+      "<button type=\"button\" class=\"mu-pl\" data-onda=\"abrir&#9;" pjt jg c k_id "\"><div class=\"nm\">" pjt jg c k_nome "</div><div class=\"mt\">" N jgi c k_faixas " faixas · " pmin jgi c k_duracao " · " pdia jgt c k_criadaEm "</div><div class=\"tags\">"
+      ? tigual jgt c k_por k_v_curador "<span class=\"mu-chip\">✦ Curador</span>" "<span class=\"mu-chip\">por ti</span>"
+      ? jgt c k_tidal "<span class=\"mu-chip tidal\">no Tidal</span>" "<span class=\"mu-chip\">só na app</span>"
+      "</div></button>"
+      = c jprox c }
+    "</div>" 0 } }
+: v_playlists >i {
+  "<header class=\"mu-head\"><div><h1>Música</h1><div class=\"sub\">Playlists de qualidade para o teu Tidal</div></div>" pill "</header>"
+  ? ~ @ 3 carregar {
+    ? ~ acesso boas_vindas {
+      = np npendentes @ 5
+      ? > np 0 { "<button type=\"button\" class=\"mu-card mu-cartao\" data-onda=\"ir&#9;3\"><h3>" N np ? > np 1 " pedidos à espera do Curador" " pedido à espera do Curador" "</h3><p>O Curador trata deles às 07:44 e às 18:44.</p></button>" 0 } 0
+      ? @ 4 lista_pl @ 4 carregar } }
+  0 }
+
+# ===== uma playlist (e o Afinar) =====
+: cn i>i i @ + @ 11 i
+: cf i>i i @ + @ 12 i
+: c_sin i>i i ? < i @ 37 jg cn i k_sinais 0
+: art_txt i>i i ? < i @ 37 jgt c_sin i k_artista jtxt jprim jg cf i k_artistas
+: gen_txt i>i i ? < i @ 37 jgt c_sin i k_genero jtxt jprim jg cf i k_generos
+: mot_txt i>i i ? < i @ 37 jgt cn i k_motivo k_t_escolhida
+: usaveis >i { = n 0 = i 0 W < i @ 35 { ? ~ @ + @ 18 i { = n + n 1 0 } 0 = i + i 1 } n }
+: soma_dur i>i fx { = s 0 = c jprim fx W c { = s + s jgi c k_duracao = c jprox c } s }
+: n_itens >i ? @ 6 @ 14 jn jg @ 4 k_faixas
+: item_f i>i p ? @ 6 cf @ + @ 13 p jidx jg @ 4 k_faixas p
+: item_g i>i p ? @ 6 gen_txt @ + @ 13 p jgt item_f p k_genero
+: dur_itens >i { = s 0 = p 0 W < p n_itens { = s + s jgi item_f p k_duracao = p + p 1 } s }
+: lista_doc i>i fx { = c jprim fx = p 0 W c { linha p c jgt c k_genero jgt c k_motivo cod_porque jgt c k_porque jgi c k_pontos 0 0 0 = c jprox c = p + p 1 } 0 }
+: lista_afinada >i { = p 0 W < p @ 14 { = i @ + @ 13 p linha p cf i gen_txt i mot_txt i @ + @ 15 p @ + @ 32 p @ + @ 17 i 1 i = p + p 1 } 0 }
+# barras de uma contagem (tx textos ou decadas, ct contagens), ordenadas, no maximo 6
+: barras_arr iiiii>i tx ct n tot modo {
+  "<div class=\"mu-mix\">"
+  = feito A + n 1
+  = q 0 W && < q 6 < q n {
+    = b -1 = bv -1 = k 0 W < k n { ? && ~ @ + feito k > @ + ct k bv { = b k = bv @ + ct k 0 } 0 = k + k 1 }
+    ! + feito b 1
+    "<div class=\"mu-barra\"><span>"
+    ? modo { ? @ + tx b { N @ + tx b "s" 0 } "?" } { ? tlen @ + tx b pt @ + tx b "?" }
+    "</span><span class=\"b\"><i style=\"width:" N / + * 200 bv tot * 2 tot "%\"></i></span><span class=\"v\">" N bv "</span></div>"
+    = q + q 1 }
+  "</div>" 0 }
+: mistura >i {
+  = n n_itens
+  ? n {
+    = gt A + n 1 = gc A + n 1 = ng 0
+    = dt A + n 1 = dc A + n 1 = nd 0
+    = p 0 W < p n {
+      = g item_g p
+      = k 0 = ach -1 W && < k ng < ach 0 { ? tigual @ + gt k g { = ach k 0 } 0 = k + k 1 }
+      ? < ach 0 { ! + gt ng g ! + gc ng 1 = ng + ng 1 0 } { ! + gc ach + @ + gc ach 1 0 }
+      = a jgi item_f p k_ano = dv ? a * / a 10 10 0
+      = k 0 = ach -1 W && < k nd < ach 0 { ? == @ + dt k dv { = ach k 0 } 0 = k + k 1 }
+      ? < ach 0 { ! + dt nd dv ! + dc nd 1 = nd + nd 1 0 } { ! + dc ach + @ + dc ach 1 0 }
+      = p + p 1 }
+    barras_arr gt gc ng n 0
+    barras_arr dt dc nd n 1
+    0 } 0 }
+: motor_txt >i { "motor Onda (WASM): " N @ 14 " faixas de " N usaveis " em " ? @ 33 { N @ 33 " ms" 0 } "menos de 1 ms" " · " pmin dur_itens " · custo das transições " N @ 16 0 }
+: resultados >i {
+  = r @ 19
+  ? r {
+    = l jg r k_faixas
+    ? ~ jn l "<p class=\"mu-nota\">Nada encontrado.</p>" {
+      "<ol class=\"mu-faixas\">" = c jprim l = q 0
+      W && c < q 6 {
+        "<li class=\"mu-faixa\"><span class=\"n\">" N + q 1 "</span><div><div class=\"t\">" pjt jg c k_titulo "</div><div class=\"a\">" partistas jg c k_artistas "</div><div class=\"m\">" meta c 0 "</div></div><div class=\"dir\"><button type=\"button\" class=\"mu-btn peq\" data-onda=\"juntar&#9;" N q "\">+ juntar</button></div></li>"
+        = c jprox c = q + q 1 }
+      "</ol>" 0 } } 0
+  0 }
+: seg_af iiii>i nome n ini atual {
+  = q ini W < q + ini n {
+    "<button type=\"button\" data-onda=\"" ? == nome 1 "af-mx" ? == nome 2 "af-es" ? == nome 3 "af-ar" ? == nome 4 "pd-mx" ? == nome 5 "pd-es" "pd-ar" "&#9;" N q "\" aria-pressed=\"" ? == q atual "true" "false" "\">"
+    ? || == nome 1 == nome 4 N q ? || == nome 2 == nome 5 nome_estilo q nome_arco q
+    "</button>" = q + q 1 }
+  0 }
+: afinador >i {
+  "<div class=\"mu-card mu-afinar\"><h3>Afinar com o motor Onda</h3><p>" N usaveis " candidatas. Muda as regras e o motor escolhe e ordena outra vez, aqui no telemóvel.</p>"
+  "<label class=\"mu-campo\"><span>Faixas</span><div class=\"mu-range\"><input type=\"range\" data-onda=\"af-n\" min=\"5\" max=\"" N Mx 5 usaveis "\" value=\"" N @ 7 "\"><output id=\"af-nv\">" N @ 7 "</output></div></label>"
+  "<div class=\"mu-campo\"><span>Máximo por artista</span><div class=\"mu-seg\" data-seg=\"maxArtista\">" seg_af 1 4 1 @ 8 "</div></div>"
+  "<div class=\"mu-campo\"><span>Estilo</span><div class=\"mu-seg\" data-seg=\"estilo\">" seg_af 2 5 0 @ 9 "</div></div>"
+  "<div class=\"mu-campo\"><span>Energia ao longo da playlist</span><div class=\"mu-seg\" data-seg=\"arco\">" seg_af 3 4 0 @ 10 "</div></div>"
+  "<label class=\"mu-campo\"><span>Acrescentar do Tidal</span><input type=\"search\" data-onda=\"q\" placeholder=\"artista e título\" value=\"" pt @ 23 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"procurar\">Procurar no Tidal</button></div><div id=\"af-res\">" resultados "</div>"
+  "<div class=\"mu-motor\" id=\"af-motor\">" motor_txt "</div>"
+  "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"guardar&#9;1\">Guardar e enviar para o Tidal</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"guardar&#9;0\">Só guardar na app</button></div></div>" 0 }
+: v_playlist >i {
+  "<button type=\"button\" class=\"mu-voltar\" data-onda=\"ir&#9;1\">‹ Playlists</button>"
+  = d @ 4
+  ? ~ d { ? && @ 3 ~ acesso boas_vindas carregar 0 } {
+    = fx jg d k_faixas
+    "<header class=\"mu-head\"><div><h1>" pjt jg d k_nome "</h1><div class=\"sub\">" N jn fx " faixas · " pmin soma_dur fx " · " pdia jgt d k_criadaEm " · " ? tigual jgt d k_por k_v_curador "✦ Curador" "por ti" "</div></div></header>"
+    "<div class=\"mu-acoes\">"
+    ? acesso { = td jg d k_tidal
+        ? == jtipo td 7 { "<a class=\"mu-btn\" href=\"" pjt jg td k_url "\" target=\"_blank\" rel=\"noopener\">Abrir no Tidal</a>" 0 }
+          { "<button type=\"button\" class=\"mu-btn\" data-onda=\"enviar\">Enviar para o Tidal</button>" 0 } } 0
+    ? ~ @ 6 "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"afinar\">Afinar no telemóvel</button>" 0
+    "</div>"
+    ? tlen jgt d k_pedido { "<p class=\"mu-nota\">Pedido: «" pjt jg d k_pedido "»</p>" 0 } 0
+    = rs ? tlen jgt d k_resumo jgt d k_resumo jgt d k_descricao
+    ? tlen rs { "<div class=\"mu-card\"><h3>Porquê esta playlist</h3><p class=\"mu-resumo\">" pt rs "</p>"
+        = tl jg d k_tendencias
+        ? jn tl { "<ul class=\"mu-tend\">" = c jprim tl W c { "<li>" pjt c "</li>" = c jprox c } "</ul>" 0 } 0
+        "</div>" 0 } 0
+    ? @ 6 afinador 0
+    "<h2 class=\"mu-sec\">Faixas</h2><ol class=\"mu-faixas\" id=\"faixas\">"
+    ? @ 6 lista_afinada lista_doc fx
+    "</ol><div class=\"mu-card\" style=\"margin-top:12px\"><h3>A mistura</h3>" mistura "</div><div class=\"mu-acoes\">"
+    ? == @ 28 1 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"apagar_sim\">Sim, apagar da biblioteca</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"apagar\">Apagar da biblioteca</button>"
+    "</div>" 0 }
+  0 }
+
+# o motor de curadoria (motor.onda) aqui dentro: escolhe e ordena as candidatas que nao foram tiradas
+: energia_bpm i>i b ? b lim / + * 2000 - b 60 110 220 100 950 500
+: afinar_correr >i {
+  = t0 Y 108 0 0
+  = mk marca
+  = tot @ 35
+  = u A + tot 1 = nu 0 = i 0
+  W < i tot { ? ~ @ + @ 18 i { ! + u nu i = nu + nu 1 0 } 0 = i + i 1 }
+  = c ctx_novo nu Mn @ 7 nu @ 8
+  = e @ 9 = w 0 W < w 5 { cs c + 3 w @ + @ 36 + * e 5 w = w + w 1 }
+  cs c 8 300 cs c 9 250 cs c 10 200
+  cs c 11 arco_val @ 10
+  = at A + nu 1 = na 0 = gt A + nu 1 = ng 0
+  = j 0 W < j nu {
+    = i @ + u j
+    # artista e genero: ids densos pela ordem em que aparecem (sem nome: um artista so dela; sem genero: 0)
+    = x art_txt i = id -1
+    ? tlen x { = q 0 W && < q na < id 0 { ? tigual @ + at q x { = id q 0 } 0 = q + q 1 } 0 } 0
+    ? < id 0 { ! + at na x = id na = na + na 1 0 } 0
+    ap c 12 j Mn id nu
+    = y gen_txt i = gi 0
+    ? tlen y { = q 0 = gi -1 W && < q ng < gi 0 { ? tigual @ + gt q y { = gi + q 1 0 } 0 = q + q 1 }
+        ? < gi 0 { ! + gt ng y = ng + ng 1 = gi ng 0 } 0 0 } 0
+    ap c 13 j Mn gi nu
+    ? < i @ 37 {
+        = s c_sin i
+        ap c 29 j lim jgi s k_gosto 0 1000 ap c 30 j lim jgi s k_qualidade 0 1000 ap c 31 j lim jgi s k_tendencia 0 1000
+        ap c 32 j lim jgi s k_claude 0 1000 ap c 33 j lim jgi s k_novidade 0 1000 ap c 15 j lim jgi s k_energia 0 1000
+        ap c 16 j lim jgi s k_bpm 0 400 ap c 17 j lim jgi s k_tom 0 24 ap c 14 j decada lim jgi s k_ano 0 2100
+        ap c 18 j || == jtipo jg s k_fixa 3 @ + @ 17 i
+        0 } {
+        = f cf i = b lim jgi f k_bpm 0 400
+        ap c 29 j 0 ap c 30 j qual_tags jg f k_tags ap c 31 j lim jgi f k_popularidade 0 1000 ap c 32 j 700 ap c 33 j 1000
+        ap c 15 j energia_bpm b ap c 16 j b ap c 17 j lim jgi f k_tom 0 24 ap c 14 j decada lim jgi f k_ano 0 2100
+        ap c 18 j 1
+        0 }
+    = j + j 1 }
+  ! 16 curar c
+  = m cg c 27 ! 14 m
+  = p 0 W < p m { = j ag c 28 p ! + @ 13 p @ + u j ! + @ 15 p ag c 20 j ! + @ 32 p ag c 26 j = p + p 1 }
+  solta mk
+  ! 33 - Y 108 0 0 t0
+  0 }
+: afinar_abrir >i {
+  = d @ 4
+  = cs jg d k_candidatas = n jn cs
+  ? ~ n { = a abre "Esta playlist não tem candidatas para afinar." O 0 aviso a 0 } {
+    ! 37 n ! 35 n
+    = cap + n 21
+    ! 11 A cap ! 12 A cap ! 13 A cap ! 15 A cap ! 17 A cap ! 18 A cap ! 32 A cap
+    = c jprim cs = i 0
+    W c { ! + @ 11 i c ! + @ 12 i jg c k_faixa = c jprox c = i + i 1 }
+    = op jg d k_opcoes
+    = f jgi op k_faixas ! 7 ? && > f 0 < f n f n
+    = mx jgi op k_maxArtista ! 8 ? > mx 0 mx 2
+    ! 9 idx_estilo jgt op k_estilo
+    ! 10 idx_arco jgt op k_arco
+    ! 6 1
+    afinar_correr
+    render 0 } }
+: parcial_afinar >i {
+  = m marca
+  = h tnovo 250000 O h lista_afinada O 0 Y 100 k_s_faixas h
+  = g tnovo 40 O g N @ 7 O 0 Y 100 k_s_afnv g
+  = x tnovo 800 O x motor_txt O 0 Y 100 k_s_afmotor x
+  solta m }
+: juntar_faixa i>i f {
+  = id jgt f k_id
+  = i 0 = ach -1 W && < i @ 35 < ach 0 { ? tigual jgt cf i k_id id { = ach i 0 } 0 = i + i 1 }
+  ? && < ach 0 < @ 35 + @ 37 20 { = ach @ 35 ! + @ 11 ach 0 ! + @ 12 ach f ! 35 + @ 35 1 0 } 0
+  ? >= ach 0 {
+    ! + @ 17 ach 1 ! + @ 18 ach 0 ! 7 Mn + @ 7 1 usaveis
+    ! 19 0 tvazio @ 23
+    afinar_correr render
+    = a abre "«" tpor jtxt jg f k_titulo "» entra (fixada)." O 0 aviso a 0 }
+    { = a abre "Já não cabem mais faixas." O 0 aviso a 0 } }
+
+# ===== escritas no conector =====
+: ocupado >i ? @ 31 { = a abre "Um momento…" O 0 aviso a 1 } 0
+: guardar_versao i>i tidal {
+  ? ocupado 0 {
+    ! 31 1 ! 34 ? tidal 9 4
+    = r tnovo + 4000 * 40 @ 35
+    O r "POST /api/playlists/" purl @ 30 "/versoes" P 10
+    "{\"ordem\":[" = p 0 W < p @ 14 { ? p "," 0 N @ + @ 13 p = p + p 1 }
+    "],\"porque\":[" = p 0 W < p @ 14 { ? p "," 0 P 34 porque_json @ + @ 15 p P 34 = p + p 1 }
+    "],\"pontos\":[" = p 0 W < p @ 14 { ? p "," 0 N @ + @ 32 p = p + p 1 }
+    "],\"extras\":[" = i @ 37 W < i @ 35 { ? > i @ 37 "," 0 pjs jgt cf i k_id = i + i 1 }
+    "],\"opcoes\":{\"faixas\":" N @ 7 ",\"maxArtista\":" N @ 8 ",\"estilo\":\"" estilo_json @ 9 "\",\"arco\":\"" arco_json @ 10 "\"},\"custo\":" N @ 16 ",\"tidal\":" ? tidal "true" "false" "}"
+    O 0
+    busca r k_c_escrita
+    = a abre ? tidal "A criar no Tidal…" "A guardar…" O 0 aviso a 0 } }
+: enviar >i ? ocupado 0 { ! 31 1 ! 34 3 = r abre "POST /api/playlists/" purl @ 30 "/tidal" P 10 "{}" O 0 busca r k_c_escrita = a abre "A criar no Tidal…" O 0 aviso a 0 }
+: apagar_pl >i ? ocupado 0 { ! 31 1 ! 34 5 = r abre "DELETE /api/playlists/" purl @ 30 O 0 busca r k_c_escrita 0 }
+: pedir_enviar >i ? ocupado 0 {
+    ? < tlen @ 20 3 { = a abre "Escreve o que queres ouvir." O 0 aviso a 0 } {
+      ! 31 1 ! 34 6
+      = r tnovo + 600 * 7 tlen @ 20
+      O r "POST /api/pedidos" P 10 "{\"texto\":" pjs @ 20 ",\"opcoes\":{\"faixas\":" N @ 24 ",\"maxArtista\":" N @ 25 ",\"estilo\":\"" estilo_json @ 26 "\",\"arco\":\"" arco_json @ 27 "\"}}" O 0
+      busca r k_c_escrita 0 } }
+: cancelar_ped i>i b ? ocupado 0 { ! 31 1 ! 34 7 = r abre "DELETE /api/pedidos/" purl b O 0 busca r k_c_escrita 0 }
+: ligar_enviar >i ? ocupado 0 {
+    ! 31 1 ! 34 2
+    = cod Y 105 k_g_codigo 0
+    = r tnovo + 400 * 7 tlen cod
+    O r "POST /api/ligar" P 10 "{\"codigo\":" ? cod pjs cod "null" ",\"nome\":\"app Música\"}" O 0
+    busca r k_c_escrita 0 }
+: config_enviar >i ? ocupado 0 {
+    ? ~ tlen @ 21 { = a abre "Cola o Client ID." O 0 aviso a 0 } {
+      ! 31 1 ! 34 1
+      = cod Y 105 k_g_codigo 0
+      = r tnovo + 1200 * 7 tlen cod
+      O r "POST /api/config" P 10 "{\"codigo\":" ? cod pjs cod "null" ",\"clientId\":" pjs @ 21 "}" O 0
+      busca r k_c_escrita 0 } }
+: desligar_enviar >i ? ocupado 0 { ! 31 1 ! 34 8 = r abre "POST /api/desligar" P 10 "{}" O 0 busca r k_c_escrita 0 }
+: lido_escrita ii>i t s {
+  = modo @ 34 ! 34 0 ! 31 0
+  = r json t
+  ? || == s 200 == s 201 {
+    ? == modo 1 { = a abre "Client ID guardado. Agora liga o Tidal." O 0 aviso a busca k_p_estado k_c_estado 0 }
+    ? == modo 2 { = u jgt r k_url ? u { = q tnovo + tlen u 8 O q "IR " tpor u O 0 busca q k_c_nada 0 } 0 0 }
+    ? == modo 3 { ! 4 r ! 28 0 render = a abre "Criada no Tidal." O 0 aviso a 0 }
+    ? || == modo 4 == modo 9 { ! 4 r tcopia @ 30 jgt r k_id 70 ! 6 0 ! 28 0 render = a abre ? == modo 9 "Nova versão criada no Tidal." "Guardada na biblioteca." O 0 aviso a 0 }
+    ? == modo 5 { ir 1 = a abre "Apagada da biblioteca." O 0 aviso a 0 }
+    ? == modo 6 { tvazio @ 20 busca k_p_pedidos k_c_ped render = a abre "Pedido feito — o Curador trata dele na próxima corrida." O 0 aviso a 0 }
+    ? == modo 7 { busca k_p_pedidos k_c_ped = a abre "Pedido cancelado." O 0 aviso a 0 }
+    ? == modo 8 { ir 5 = a abre "Tidal desligado." O 0 aviso a 0 } 0 }
+    { ! 28 0 render erro_ped t s 0 }
+  0 }
+
+# ===== Pedir =====
+: lista_pedidos i>i pd {
+  = c jprim pd = q 0
+  W && c < q 12 {
+    = op jg c k_opcoes
+    = fe tigual jgt c k_estado k_v_feito
+    "<div class=\"mu-pedido\"><div><div class=\"tx\">«" pjt jg c k_texto "»</div><div class=\"mt\">"
+    ? fe { "feito a " pdia jgt c k_feitoEm 0 } { "à espera · " pdia jgt c k_criadoEm 0 }
+    " · " N jgi op k_faixas " faixas · " nome_estilo idx_estilo jgt op k_estilo "</div></div>"
+    ? && fe jgt c k_playlist { "<button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"abrir&#9;" pjt jg c k_playlist "\">Ver</button>" 0 }
+      { ? tigual jgt c k_estado k_v_pendente { "<button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"cancelar&#9;" pjt jg c k_id "\">Cancelar</button>" 0 } 0 }
+    "</div>"
+    = c jprox c = q + q 1 }
+  0 }
+: v_pedir >i {
+  "<header class=\"mu-head\"><div><h1>Pedir</h1><div class=\"sub\">Ao Curador, que pesquisa e cria no teu Tidal</div></div>" pill "</header>"
+  ? && @ 3 ~ acesso boas_vindas 0
+  "<div class=\"mu-card\"><h3>O que te apetece ouvir?</h3><label class=\"mu-campo\"><span class=\"sr\">Pedido</span><textarea data-onda=\"ptx\" maxlength=\"500\" placeholder=\"Ex.: jazz dos anos 60 bem gravado para a viagem de sábado\">" pt @ 20 "</textarea></label>"
+  "<div class=\"mu-chips\">" = q 0 W < q 7 { "<button type=\"button\" class=\"mu-chip\" data-onda=\"sug&#9;" N q "\">" sugestao q "</button>" = q + q 1 } "</div>"
+  "<label class=\"mu-campo\"><span>Faixas</span><div class=\"mu-range\"><input type=\"range\" data-onda=\"pd-n\" min=\"10\" max=\"60\" step=\"5\" value=\"" N @ 24 "\"><output id=\"pd-nv\">" N @ 24 "</output></div></label>"
+  "<div class=\"mu-campo\"><span>Máximo por artista</span><div class=\"mu-seg\">" seg_af 4 4 1 @ 25 "</div></div>"
+  "<div class=\"mu-campo\"><span>Estilo</span><div class=\"mu-seg\">" seg_af 5 5 0 @ 26 "</div></div>"
+  "<div class=\"mu-campo\"><span>Energia ao longo da playlist</span><div class=\"mu-seg\">" seg_af 6 4 0 @ 27 "</div></div>"
+  "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"pedir\"" ? acesso 0 " disabled" ">Pedir ao Curador</button></div><p class=\"mu-nota\">O Curador (tarefa agendada do Claude) pesquisa o que está a dar, cruza com o teu gosto e cria a playlist no Tidal às 07:44 e às 18:44.</p></div>"
+  ? jn @ 5 { "<h2 class=\"mu-sec\">Os teus pedidos</h2><div class=\"mu-card\">" lista_pedidos @ 5 "</div>" 0 } 0
+  0 }
+
+# ===== Gosto =====
+: barra_j iii>i c modo mx { "<div class=\"mu-barra\"><span>" ? modo { N jgi c k_decada "s" 0 } pjt jg c k_nome "</span><span class=\"b\"><i style=\"width:" N / + * 200 jgi c k_n mx * 2 mx "%\"></i></span><span class=\"v\">" N jgi c k_n "</span></div>" 0 }
+: barras_j ii>i l modo {
+  = mx 1 = c jprim l W c { = mx Mx mx jgi c k_n = c jprox c }
+  = n jn l
+  "<div class=\"mu-mix\">"
+  ? modo {
+    = feito A + n 1 = q 0
+    W && < q 8 < q n {
+      = b -1 = bv 100000 = k 0 = c jprim l
+      W c { ? && ~ @ + feito k < jgi c k_decada bv { = b k = bv jgi c k_decada 0 } 0 = c jprox c = k + k 1 }
+      ! + feito b 1
+      barra_j jidx l b 1 mx
+      = q + q 1 }
+    0 } { = c jprim l = q 0 W && c < q 8 { barra_j c 0 mx = c jprox c = q + q 1 } 0 }
+  "</div>" 0 }
+: v_gosto >i {
+  = p @ 4
+  "<header class=\"mu-head\"><div><h1>O teu gosto</h1><div class=\"sub\">" ? p { N jn jg p k_favoritas " favoritas · atualizado " pdia jgt p k_geradoEm 0 } "Das tuas favoritas no Tidal" "</div></div>" pill "</header>"
+  ? ~ @ 3 carregar {
+    ? ~ acesso boas_vindas {
+      ? ~ p carregar {
+        "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"atualizar\">Atualizar do Tidal</button></div>"
+        = r jg p k_resumo
+        ? jn jg r k_artistas { "<div class=\"mu-card\"><h3>Artistas que mais aparecem</h3>" barras_j jg r k_artistas 0 "</div>" 0 } 0
+        ? jn jg r k_decadas { "<div class=\"mu-card\"><h3>Décadas</h3>" barras_j jg r k_decadas 1 "</div>" 0 } 0
+        ? jn jg r k_generos { "<div class=\"mu-card\"><h3>Géneros (etiquetas do Tidal)</h3>" barras_j jg r k_generos 0 "</div>" 0 } 0
+        = ql jg r k_qualidade
+        ? jn ql { "<div class=\"mu-card\"><h3>Qualidade das favoritas</h3><div class=\"mu-chips\">" = c jprim ql W c { "<span class=\"mu-chip\">" pjt jg c k_q " · " N jgi c k_n "</span>" = c jprox c } "</div></div>" 0 } 0
+        = ar jg p k_artistas
+        ? jn ar { "<div class=\"mu-card\"><h3>Artistas que segues</h3><div class=\"mu-chips\">" = c jprim ar = q 0 W && c < q 40 { "<span class=\"mu-chip\">" pjt jg c k_nome "</span>" = c jprox c = q + q 1 } "</div></div>" 0 } 0
+        "<h2 class=\"mu-sec\">Favoritas mais recentes</h2><ol class=\"mu-faixas\">"
+        = fv jg p k_favoritas
+        ? jn fv { = c jprim fv = q 0 W && c < q 25 { linha q c jtxt jprim jg c k_generos 0 0 0 0 0 0 = c jprox c = q + q 1 } 0 } "<li class=\"mu-vazio\">Sem favoritas.</li>"
+        "</ol>"
+        = pl jg p k_playlists
+        ? jn pl { "<h2 class=\"mu-sec\">As tuas playlists no Tidal</h2><div class=\"mu-card\">" = c jprim pl = q 0 W && c < q 20 { "<div class=\"mu-pedido\"><div class=\"tx\">" pjt jg c k_nome "</div><a class=\"mu-btn sec peq\" href=\"" pjt jg c k_url "\" target=\"_blank\" rel=\"noopener\">Abrir</a></div>" = c jprox c = q + q 1 } "</div>" 0 } 0
+        0 } } }
+  0 }
+
+# ===== Ajustes =====
+: rr i>i i % * i 2654435761 1000
+: testar_motor >i {
+  = m marca
+  = t0 Y 108 0 0
+  = n 60
+  = c ctx_novo n 30 2
+  = w 0 W < w 5 { cs c + 3 w @ + @ 36 w = w + w 1 }
+  cs c 8 300 cs c 9 250 cs c 10 200 cs c 11 1
+  = i 0 W < i n {
+    ap c 12 i % i 25 ap c 13 i + 1 % i 5 ap c 14 i decada + 1950 % * i 7 75
+    ap c 29 i rr i ap c 30 i 750 ap c 31 i rr + i 7 ap c 32 i rr + i 3 ap c 33 i rr + i 11
+    ap c 15 i rr + i 5 ap c 16 i + 70 % * i 13 100 ap c 17 i + 1 % * i 5 24 ap c 18 i 0
+    = i + i 1 }
+  curar c
+  = ms - Y 108 0 0 t0
+  = h tnovo 300 O h N cg c 27 " faixas escolhidas de 60 e ordenadas em " ? ms { N ms " ms" 0 } "menos de 1 ms" ", aqui no telemóvel." O 0
+  Y 100 k_s_ajm h
+  solta m }
+: v_ajustes >i {
+  "<header class=\"mu-head\"><div><h1>Ajustes</h1></div>" pill "</header>"
+  = e @ 3
+  ? ~ e carregar {
+    "<div class=\"mu-card\"><h3>Tidal</h3>"
+    ? ligado { "<dl class=\"mu-kv\"><dt>Conta</dt><dd>" pjt jg e k_utilizador " (" pjt jg e k_pais ")</dd><dt>Desde</dt><dd>" pdia jgt e k_ligadoEm "</dd><dt>Biblioteca</dt><dd>" N jgi e k_playlists " playlists · " N jgi e k_pedidos " pedidos à espera</dd></dl>" 0 } "<p>Não está ligado.</p>"
+    "<div class=\"mu-acoes\">"
+    ? || jg e k_tu Y 105 k_g_codigo 0 { "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"ligar\">" ? ligado "Ligar outra vez" "Ligar ao Tidal" "</button>" 0 } 0
+    ? && ligado jg e k_tu { ? == @ 28 2 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"desligar_sim\">Sim, desligar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"desligar\">Desligar o Tidal</button>" 0 } 0
+    "</div>"
+    ? ~ == jtipo jg e k_clientId 3 { "<p class=\"mu-nota\">Falta o Client ID no conector. Redirect URI a registar em developer.tidal.com: <code>" pjt jg e k_retorno "</code></p>" 0 } 0
+    "</div>"
+    = ch Y 105 k_g_chave 0
+    "<div class=\"mu-card\"><h3>Este aparelho</h3><p>" ? ch ? jg e k_tu "Tem acesso à tua biblioteca e ao teu Tidal." "Tem uma chave que já não é válida." "Ainda não tem acesso." "</p>"
+    ? ch { "<div class=\"mu-acoes\">" ? == @ 28 3 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"esquecer_sim\">Sim, esquecer</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"esquecer\">Esquecer este aparelho</button>" "</div>" 0 } 0
+    "</div>"
+    "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
+    "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
+    "<p class=\"mu-nota\">Música 2.0.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+  0 }
+
+# ===== navegacao e desenho =====
+: ativo i>i v ? == @ 1 2 == v 1 == v @ 1
+: nb i>i v { "<button type=\"button\" data-onda=\"ir&#9;" N v "\"" ? ativo v " aria-current=\"page\"" 0 ">" 0 }
+: nav >i {
+  nb 1 "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 6h11M4 11h11M4 16h7\"/><circle cx=\"17.5\" cy=\"16.5\" r=\"2.5\"/><path d=\"M20 16.5V5l2 1\"/></svg><span>Playlists</span></button>"
+  nb 3 "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z\"/></svg><span>Pedir</span></button>"
+  nb 4 "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z\"/></svg><span>Gosto</span></button>"
+  nb 5 "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 7h10M18 7h2M4 17h4M12 17h8\"/><circle cx=\"16\" cy=\"7\" r=\"2\"/><circle cx=\"10\" cy=\"17\" r=\"2\"/></svg><span>Ajustes</span></button>"
+  0 }
+: render >i {
+  = m marca
+  = h tnovo 250000
+  O h
+  = v @ 1
+  ? == v 1 v_playlists ? == v 2 v_playlist ? == v 3 v_pedir ? == v 4 v_gosto v_ajustes
+  O 0
+  Y 100 k_s_body h
+  = g tnovo 4000
+  O g nav O 0
+  Y 100 k_s_nav g
+  solta m }
+# muda de vista: solta tudo o que a vista anterior reservou e pede o estado (e depois os dados)
+: ir i>i v {
+  solta @ 2
+  = q 3 W <= q 19 { ! q 0 = q + q 1 }
+  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0
+  ! 1 v
+  render
+  busca k_p_estado k_c_estado
+  0 }
+: abrir i>i b { tcopia @ 30 b 70 ir 2 }
+: carregar_vista >i {
+  = v @ 1
+  ? acesso {
+    ? == v 1 { busca k_p_playlists k_c_pl busca k_p_pedidos k_c_ped 0 }
+    ? == v 2 { = u abre "/api/playlists/" purl @ 30 O 0 busca u k_c_doc 0 }
+    ? == v 3 { busca k_p_pedidos k_c_ped 0 }
+    ? == v 4 { busca k_p_perfil k_c_perfil 0 } 0 } 0
+  0 }
+
+# ===== respostas do conector =====
+: lido_estado ii>i t s { ? == s 200 { ! 3 json t render carregar_vista 0 } { erro_ped t s 0 } 0 }
+: lido_pl ii>i t s ? == @ 1 1 { ? == s 200 { ! 4 json t render 0 } { erro_ped t s 0 } } 0
+: lido_ped ii>i t s ? || == @ 1 1 == @ 1 3 { ? == s 200 { ! 5 json t render 0 } 0 } 0
+: lido_doc ii>i t s ? == @ 1 2 {
+    ? == s 200 { = d json t ? tigual jgt d k_id @ 30 { ! 4 d render 0 } 0 0 }
+      { erro_ped t s ? == s 404 ir 1 0 0 } } 0
+: lido_perfil ii>i t s ? == @ 1 4 { ? == s 200 { ! 4 json t render 0 } { erro_ped t s 0 } } 0
+: lido_pesq ii>i t s ? && == @ 1 2 @ 6 { ? == s 200 { ! 19 json t render 0 } { erro_ped t s 0 } } 0
+
+# ===== eventos =====
+: clique i>i t {
+  = a tcampo t 0 = b tcampo t 1
+  = fica 0
+  ? tigual a k_a_ir { ir tint b = fica 1 0 }
+  ? tigual a k_a_abrir { abrir b = fica 1 0 }
+  ? tigual a k_a_enviar { enviar 0 }
+  ? tigual a k_a_afinar { afinar_abrir = fica 1 0 }
+  ? tigual a k_a_apagar { ! 28 1 render 0 }
+  ? tigual a k_a_apagar_sim { apagar_pl 0 }
+  ? tigual a k_a_nao { ! 28 0 render 0 }
+  ? tigual a k_a_fixar { = i tint b ! + @ 17 i ~ @ + @ 17 i afinar_correr render 0 }
+  ? tigual a k_a_tirar { = i tint b ! + @ 18 i 1 ! + @ 17 i 0 afinar_correr render 0 }
+  ? tigual a k_a_afmx { ! 8 tint b afinar_correr render 0 }
+  ? tigual a k_a_afes { ! 9 tint b afinar_correr render 0 }
+  ? tigual a k_a_afar { ! 10 tint b afinar_correr render 0 }
+  ? tigual a k_a_procurar { ? < tlen @ 23 2 { = m abre "Escreve pelo menos 2 letras." O 0 aviso m 0 } { = u tnovo + 40 * 3 tlen @ 23 O u "/api/pesquisa?q=" purl @ 23 O 0 busca u k_c_pesq = m abre "A procurar no Tidal…" O 0 aviso m 0 } }
+  ? tigual a k_a_juntar { = r @ 19 = f ? r jidx jg r k_faixas tint b 0 ? f juntar_faixa f 0 0 }
+  ? tigual a k_a_guardar { guardar_versao tint b 0 }
+  ? tigual a k_a_sug { tvazio @ 20 O @ 20 sugestao tint b O 0 render 0 }
+  ? tigual a k_a_pdmx { ! 25 tint b render 0 }
+  ? tigual a k_a_pdes { ! 26 tint b render 0 }
+  ? tigual a k_a_pdar { ! 27 tint b render 0 }
+  ? tigual a k_a_pedir { pedir_enviar 0 }
+  ? tigual a k_a_cancelar { cancelar_ped b 0 }
+  ? tigual a k_a_ligar { ligar_enviar 0 }
+  ? tigual a k_a_config { config_enviar 0 }
+  ? tigual a k_a_atualizar { busca k_p_fresco k_c_perfil = m abre "A ler do Tidal…" O 0 aviso m 0 }
+  ? tigual a k_a_desligar { ! 28 2 render 0 }
+  ? tigual a k_a_desligar_sim { desligar_enviar 0 }
+  ? tigual a k_a_esquecer { ! 28 3 render 0 }
+  ? tigual a k_a_esquecer_sim { Y 106 k_g_chave 0 ir 5 = m abre "Aparelho esquecido." O 0 aviso m = fica 1 0 }
+  ? tigual a k_a_pxok { Y 106 k_g_proxy @ 22 ir 5 = m abre "Conector guardado." O 0 aviso m = fica 1 0 }
+  ? tigual a k_a_pxrep { Y 106 k_g_proxy 0 tcopia @ 22 k_t_proxy 390 ir 5 = m abre "Conector reposto." O 0 aviso m = fica 1 0 }
+  ? tigual a k_a_motor { testar_motor 0 } 0
+  ? fica 0 solta t }
+: campo i>i t {
+  = a tcampo t 0 = b tcampo t 1
+  ? tigual a k_f_cid { tcopia @ 21 b 110 0 }
+  ? tigual a k_f_ptx { tcopia @ 20 b 1990 0 }
+  ? tigual a k_f_q { tcopia @ 23 b 290 0 }
+  ? tigual a k_f_px { tcopia @ 22 b 390 0 }
+  ? tigual a k_f_afn { ? @ 6 { ! 7 tint b afinar_correr parcial_afinar 0 } 0 }
+  ? tigual a k_f_pdn { ! 24 tint b = h tnovo 8 O h N @ 24 O 0 Y 100 k_s_pdnv h 0 } 0
+  solta t }
+
+# ===== arranque =====
+: main >i {
+  ! 0 A 148
+  kdef 0 abre "nome" O 0
+  kdef 1 abre "id" O 0
+  kdef 2 abre "faixas" O 0
+  kdef 3 abre "duracao" O 0
+  kdef 4 abre "criadaEm" O 0
+  kdef 5 abre "por" O 0
+  kdef 6 abre "tidal" O 0
+  kdef 7 abre "url" O 0
+  kdef 8 abre "titulo" O 0
+  kdef 9 abre "versao" O 0
+  kdef 10 abre "artistas" O 0
+  kdef 11 abre "ano" O 0
+  kdef 12 abre "genero" O 0
+  kdef 13 abre "bpm" O 0
+  kdef 14 abre "tom" O 0
+  kdef 15 abre "tags" O 0
+  kdef 16 abre "motivo" O 0
+  kdef 17 abre "porque" O 0
+  kdef 18 abre "pontos" O 0
+  kdef 19 abre "resumo" O 0
+  kdef 20 abre "descricao" O 0
+  kdef 21 abre "tendencias" O 0
+  kdef 22 abre "pedido" O 0
+  kdef 23 abre "candidatas" O 0
+  kdef 24 abre "faixa" O 0
+  kdef 25 abre "sinais" O 0
+  kdef 26 abre "artista" O 0
+  kdef 27 abre "gosto" O 0
+  kdef 28 abre "qualidade" O 0
+  kdef 29 abre "tendencia" O 0
+  kdef 30 abre "claude" O 0
+  kdef 31 abre "novidade" O 0
+  kdef 32 abre "energia" O 0
+  kdef 33 abre "fixa" O 0
+  kdef 34 abre "opcoes" O 0
+  kdef 35 abre "maxArtista" O 0
+  kdef 36 abre "estilo" O 0
+  kdef 37 abre "arco" O 0
+  kdef 38 abre "ligado" O 0
+  kdef 39 abre "clientId" O 0
+  kdef 40 abre "tu" O 0
+  kdef 41 abre "utilizador" O 0
+  kdef 42 abre "pais" O 0
+  kdef 43 abre "ligadoEm" O 0
+  kdef 44 abre "playlists" O 0
+  kdef 45 abre "pedidos" O 0
+  kdef 46 abre "retorno" O 0
+  kdef 47 abre "texto" O 0
+  kdef 48 abre "estado" O 0
+  kdef 49 abre "feitoEm" O 0
+  kdef 50 abre "criadoEm" O 0
+  kdef 51 abre "playlist" O 0
+  kdef 52 abre "favoritas" O 0
+  kdef 53 abre "generos" O 0
+  kdef 54 abre "decadas" O 0
+  kdef 55 abre "decada" O 0
+  kdef 56 abre "n" O 0
+  kdef 57 abre "geradoEm" O 0
+  kdef 58 abre "message" O 0
+  kdef 59 abre "popularidade" O 0
+  kdef 60 abre "q" O 0
+  kdef 61 abre "curador" O 0
+  kdef 62 abre "HIRES_LOSSLESS" O 0
+  kdef 63 abre "LOSSLESS" O 0
+  kdef 64 abre "DOLBY_ATMOS" O 0
+  kdef 65 abre "pendente" O 0
+  kdef 66 abre "feito" O 0
+  kdef 67 abre "equilibrado" O 0
+  kdef 68 abre "descoberta" O 0
+  kdef 69 abre "moda" O 0
+  kdef 70 abre "audiofilo" O 0
+  kdef 71 abre "onda" O 0
+  kdef 72 abre "sobe" O 0
+  kdef 73 abre "desce" O 0
+  kdef 74 abre "plano" O 0
+  kdef 75 abre "chave" O 0
+  kdef 76 abre "codigo" O 0
+  kdef 77 abre "proxy" O 0
+  kdef 78 abre "aviso" O 0
+  kdef 79 abre "#mu-body" O 0
+  kdef 80 abre "#mu-nav" O 0
+  kdef 81 abre "#mu-aviso" O 0
+  kdef 82 abre "#faixas" O 0
+  kdef 83 abre "#af-motor" O 0
+  kdef 84 abre "#af-nv" O 0
+  kdef 85 abre "#pd-nv" O 0
+  kdef 86 abre "#aj-motor-r" O 0
+  kdef 87 abre "click" O 0
+  kdef 88 abre "input" O 0
+  kdef 89 abre "clique" O 0
+  kdef 90 abre "campo" O 0
+  kdef 91 abre "lido_estado" O 0
+  kdef 92 abre "lido_pl" O 0
+  kdef 93 abre "lido_ped" O 0
+  kdef 94 abre "lido_doc" O 0
+  kdef 95 abre "lido_perfil" O 0
+  kdef 96 abre "lido_pesq" O 0
+  kdef 97 abre "lido_escrita" O 0
+  kdef 98 abre "fim_aviso" O 0
+  kdef 99 abre "nada" O 0
+  kdef 100 abre "/api/estado" O 0
+  kdef 101 abre "/api/playlists" O 0
+  kdef 102 abre "/api/pedidos" O 0
+  kdef 103 abre "/api/perfil" O 0
+  kdef 104 abre "/api/perfil?fresco=1" O 0
+  kdef 105 abre "ir" O 0
+  kdef 106 abre "abrir" O 0
+  kdef 107 abre "enviar" O 0
+  kdef 108 abre "afinar" O 0
+  kdef 109 abre "apagar" O 0
+  kdef 110 abre "apagar_sim" O 0
+  kdef 111 abre "nao" O 0
+  kdef 112 abre "fixar" O 0
+  kdef 113 abre "tirar" O 0
+  kdef 114 abre "af-mx" O 0
+  kdef 115 abre "af-es" O 0
+  kdef 116 abre "af-ar" O 0
+  kdef 117 abre "procurar" O 0
+  kdef 118 abre "juntar" O 0
+  kdef 119 abre "guardar" O 0
+  kdef 120 abre "sug" O 0
+  kdef 121 abre "pd-mx" O 0
+  kdef 122 abre "pd-es" O 0
+  kdef 123 abre "pd-ar" O 0
+  kdef 124 abre "pedir" O 0
+  kdef 125 abre "cancelar" O 0
+  kdef 126 abre "ligar" O 0
+  kdef 127 abre "config" O 0
+  kdef 128 abre "atualizar" O 0
+  kdef 129 abre "desligar" O 0
+  kdef 130 abre "desligar_sim" O 0
+  kdef 131 abre "esquecer" O 0
+  kdef 132 abre "esquecer_sim" O 0
+  kdef 133 abre "px-ok" O 0
+  kdef 134 abre "px-rep" O 0
+  kdef 135 abre "motor" O 0
+  kdef 136 abre "cid" O 0
+  kdef 137 abre "ptx" O 0
+  kdef 138 abre "q" O 0
+  kdef 139 abre "px" O 0
+  kdef 140 abre "af-n" O 0
+  kdef 141 abre "pd-n" O 0
+  kdef 142 abre "Escolhida por ti." O 0
+  kdef 143 abre "https://musica.mercados-proxy.workers.dev" O 0
+  ! 36 A 25
+  = w @ 36
+  ! + w 0 300 ! + w 1 200 ! + w 2 200 ! + w 3 300 ! + w 4 100
+  ! + w 5 150 ! + w 6 200 ! + w 7 150 ! + w 8 350 ! + w 9 400
+  ! + w 10 150 ! + w 11 150 ! + w 12 500 ! + w 13 250 ! + w 14 150
+  ! + w 15 550 ! + w 16 150 ! + w 17 50 ! + w 18 200 ! + w 19 0
+  ! + w 20 150 ! + w 21 500 ! + w 22 50 ! + w 23 300 ! + w 24 100
+  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80
+  ! 24 30 ! 25 2 ! 26 0 ! 27 0
+  = px Y 105 k_g_proxy 0
+  ? px { tcopia @ 22 px 390 0 } { tcopia @ 22 k_t_proxy 390 0 }
+  Y 101 k_ev_click k_c_clique
+  Y 101 k_ev_input k_c_campo
+  = av Y 105 k_g_aviso 0
+  ! 2 marca
+  ir 1
+  ? av { aviso av Y 106 k_g_aviso 0 0 } 0
+  0 }

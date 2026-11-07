@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { correr, entrada, saida, curar } from '../onda/onda.js';
-import { procurarCompilador, ondac } from '../onda/compilar.mjs';
+import { procurarCompilador, compilarTudo } from '../onda/compilar.mjs';
 
 const ONDA = new URL('../onda/', import.meta.url).pathname;
 const wasm = readFileSync(join(ONDA, 'curador.wasm'));
@@ -125,9 +125,10 @@ test('casos limite: vazia, K maior do que N, K = 0, formato errado', async () =>
     assert.throws(() => saida('3\n1 1 1\n'), /esperava/);
 });
 
-test('curador.wasm e curador.c correspondem a curador.onda (compilador do repositório)', { skip: !procurarCompilador() && 'sem o compilador Onda' }, async () => {
-    const fonte = readFileSync(join(ONDA, 'curador.onda'), 'utf8');
-    assert.ok(existsSync(join(ONDA, 'curador.c')));
-    assert.equal(Buffer.compare(await ondac(procurarCompilador(), fonte, ['-w']), wasm), 0, 'curador.wasm desatualizado: corre npm run onda');
-    assert.equal(Buffer.compare(await ondac(procurarCompilador(), fonte, []), readFileSync(join(ONDA, 'curador.c'))), 0, 'curador.c desatualizado: corre npm run onda');
+test('os compilados (curador.wasm, curador.c, app/musica.wasm) correspondem às fontes', { skip: !procurarCompilador() && 'sem o compilador Onda' }, async () => {
+    const tudo = await compilarTudo(procurarCompilador());
+    for (const [nome, bytes] of Object.entries(tudo)) {
+        assert.ok(existsSync(join(ONDA, nome)), `falta ${nome}: corre npm run onda`);
+        assert.equal(Buffer.compare(bytes, readFileSync(join(ONDA, nome))), 0, `${nome} desatualizado: corre npm run onda`);
+    }
 });

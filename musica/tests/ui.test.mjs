@@ -1,6 +1,7 @@
-// A app no Chromium, de ponta a ponta: o Worker a sério (Tidal simulado, KV em memória), a ligação ao Tidal pelo
-// link de ligação, montar uma playlist a partir de uma proposta do Claude com o motor Onda a correr no browser (WASM),
-// afinar, enviar para o Tidal, o gosto e os ajustes. Sem rede.
+// A app — uma app em Onda (app/musica.onda + onda/lib/app.onda + motor.onda, corrida por onda/rt/anfitriao.js) — no
+// Chromium, de ponta a ponta: o Worker a sério (Tidal simulado, KV em memória), ligar o Tidal pelo link de ligação,
+// uma playlist publicada como o Curador a publica, afinar (o motor Onda dentro da app) com o juiz a confirmar a
+// ordem contra o curador.wasm em cada mudança, juntar uma faixa do Tidal, guardar e enviar, gosto, ajustes e pedir.
 //   MUSICA_SHOTS=/pasta node --test musica/tests/ui.test.mjs   (com capturas de ecrã)
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,12 +12,17 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import worker from '../proxy/src/worker.js';
 import { simulador, kv } from './simulador.mjs';
+import { encontrar, preparar, afinar, paraGuardar } from '../lib/curadoria.js';
+import { curar } from '../onda/onda.js';
+import { qualidadeSom } from '../lib/tidal.js';
 
 let chromium = null;
 try { chromium = createRequire(import.meta.url)('playwright').chromium; } catch { /* sem Playwright: o teste salta */ }
-const ROOT = path.resolve(new URL('..', import.meta.url).pathname);
+const MUSICA = path.resolve(new URL('..', import.meta.url).pathname);
+const RAIZ = path.resolve(MUSICA, '..');
 const SHOTS = process.env.MUSICA_SHOTS || null;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm', '.webmanifest': 'application/manifest+json' };
+const CURADOR = fs.readFileSync(path.join(MUSICA, 'onda', 'curador.wasm'));
 
 let estatico, conector, APP, WORKER, env, sim, browser;
 const ouvir = (srv) => new Promise((ok) => srv.listen(0, '127.0.0.1', () => ok(`http://127.0.0.1:${srv.address().port}`)));
@@ -25,11 +31,13 @@ before(async () => {
     if (!chromium) return;
     sim = simulador();
     globalThis.fetch = sim.fetch;
+    // o repositório servido em /escolaplay/ (a app em /escolaplay/musica/, o anfitrião em /escolaplay/onda/rt/)
     estatico = http.createServer((req, res) => {
         const u = new URL(req.url, 'http://x');
-        if (!u.pathname.startsWith('/escolaplay/musica/')) { res.writeHead(404); return res.end(); }
-        let f = path.join(ROOT, decodeURIComponent(u.pathname.slice('/escolaplay/musica/'.length)) || 'index.html');
-        if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(ROOT, 'index.html');
+        if (!u.pathname.startsWith('/escolaplay/')) { res.writeHead(404); return res.end(); }
+        let f = path.join(RAIZ, decodeURIComponent(u.pathname.slice('/escolaplay/'.length)));
+        if (f.endsWith('/')) f = path.join(f, 'index.html');
+        if (!f.startsWith(RAIZ) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
         res.end(fs.readFileSync(f));
     });
@@ -47,101 +55,171 @@ before(async () => {
 });
 after(async () => { await browser?.close(); estatico?.close(); conector?.close(); });
 
-const PROPOSTA = {
-    nome: 'Som para o carro', descricao: 'Gravações de referência.', resumo: 'Jazz modal, soul e eletrónica bem gravados — para ouvir o sistema de som.',
-    tendencias: ['Teardrop volta às listas com a reedição em Hi-Res'], opcoes: { faixas: 5, maxArtista: 1, estilo: 'equilibrado', arco: 'onda' },
-    candidatas: [
+// a playlist publicada como o Curador a publica (o mesmo pipeline do publicar.mjs)
+async function publicarComoCurador() {
+    const agente = await env.KV.get('agente:chave');
+    const api = async (p, init = {}) => (await worker.fetch(new Request(WORKER + p, { ...init, headers: { authorization: `Bearer ${agente}`, 'content-type': 'application/json' } }), env, { waitUntil() {} })).json();
+    const candidatas = [
         { artista: 'Miles Davis', titulo: 'So What', ano: 1959, genero: 'jazz', nota: 98, energia: 40, motivo: 'Kind of Blue: referência de gravação.' },
         { artista: 'Nina Simone', titulo: 'Feeling Good', ano: 1965, genero: 'soul', nota: 95, energia: 50, motivo: 'Voz e metais.' },
         { artista: 'Daft Punk', titulo: 'Get Lucky', ano: 2013, genero: 'disco', nota: 88, energia: 80, motivo: 'Graves limpos.' },
-        { artista: 'Amália Rodrigues', titulo: 'Barco Negro', ano: 1955, genero: 'fado', nota: 93, energia: 35, motivo: 'Fado essencial.' },
         { artista: 'Massive Attack', titulo: 'Teardrop', ano: 1998, genero: 'trip-hop', nota: 94, energia: 30, motivo: 'Espaço e graves profundos.' },
+        { artista: 'Miles Davis', titulo: 'Faixa 3', ano: 1959, genero: 'jazz', nota: 80, energia: 45, motivo: 'Mais Miles.' },
+        { artista: 'Miles Davis', titulo: 'Faixa 7', ano: 1959, genero: 'jazz', nota: 78, energia: 55, motivo: 'Ainda mais Miles.' },
         { artista: 'Ninguém', titulo: 'Não existe', ano: 2020, genero: 'pop', nota: 60, energia: 50, motivo: 'Não está no Tidal.' },
-    ],
-};
+    ];
+    const opcoes = { faixas: 5, maxArtista: 1, estilo: 'equilibrado', arco: 'onda' };
+    const enc = await encontrar(candidatas, async (lote) => (await api('/api/resolver', { method: 'POST', body: JSON.stringify({ faixas: lote }) })).faixas);
+    const perfil = await api('/api/perfil');
+    const cands = preparar(enc, perfil);
+    const { faixas, custo } = await afinar(opcoes, cands, CURADOR);
+    return api('/api/playlists', { method: 'POST', body: JSON.stringify({ nome: 'Som para o carro', descricao: 'Gravações de referência.',
+        resumo: 'Jazz modal, soul e eletrónica bem gravados — para ouvir o sistema de som.', tendencias: ['Teardrop volta às listas com a reedição em Hi-Res'],
+        opcoes, faixas, custo, candidatas: paraGuardar(cands), tidal: false }) });
+}
 
-test('ligar, montar com o motor Onda no browser, afinar, enviar para o Tidal, gosto e ajustes', { skip: !chromium && 'sem Playwright' }, async () => {
+// o juiz: a ordem que a app (Onda, no browser) mostra tem de ser a do curador.wasm com as mesmas entradas
+const sinaisJuntada = (f) => ({ artista: f.artistas[0] || '', genero: f.generos[0] || '', ano: f.ano, gosto: 0, qualidade: qualidadeSom(f.tags),
+    tendencia: f.popularidade, claude: 700, novidade: 1000, energia: f.bpm ? Math.min(950, Math.max(100, Math.round(((f.bpm - 60) * 1000) / 110))) : 500,
+    bpm: f.bpm, tom: f.tom, fixa: true });
+async function esperado(doc, op, { tiradas = new Set(), fixas = new Set(), juntadas = [] } = {}) {
+    const usadas = [];
+    doc.candidatas.forEach((c, i) => { if (!tiradas.has(i)) usadas.push({ id: c.faixa.id, s: { ...c.sinais, fixa: c.sinais.fixa || fixas.has(i) } }); });
+    juntadas.forEach((f) => usadas.push({ id: f.id, s: sinaisJuntada(f) }));
+    const { ordem } = await curar(CURADOR, { k: Math.min(op.faixas, usadas.length), maxArtista: op.maxArtista, estilo: op.estilo, arco: op.arco }, usadas.map((u) => u.s));
+    return ordem.map((o) => usadas[o.i].id);
+}
+const mostradas = (page) => page.$$eval('#faixas .mu-faixa .t a', (as) => as.map((a) => a.href.split('/').pop()));
+const heap = (page) => page.evaluate(() => Number(new BigInt64Array(window.app.exports.memory.buffer, 15 * 8, 1)[0]));
+
+test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, enviar, gosto, ajustes e pedir', { skip: !chromium && 'sem Playwright' }, async () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, serviceWorkers: 'block' });
     const page = await ctx.newPage();
     const erros = [];
     page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()); });
     page.on('pageerror', (e) => erros.push(String(e)));
-    // a página de login do Tidal autoriza logo e volta ao conector com o código
+    if (process.env.MUSICA_DEBUG) { page.on('console', (m) => m.text() && console.log('consola:', m.type(), m.text().slice(0, 300))); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 400))); }
     await page.route('https://login.tidal.com/**', (route) => {
         const u = new URL(route.request().url());
         assert.equal(u.searchParams.get('client_id'), 'ClienteTidal123');
         assert.equal(u.searchParams.get('code_challenge_method'), 'S256');
         route.fulfill({ status: 302, headers: { location: `${WORKER}/tidal/retorno?code=CODIGO-BOM&state=${u.searchParams.get('state')}` } });
     });
-    const foto = async (n) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${n}.png`), fullPage: false }); };
+    const foto = async (n) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${n}.png`) }); };
+    const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
 
-    // 1) o link de ligação → Ligar ao Tidal → volta com a chave
+    // 1) o link de ligação: Client ID, ligar, voltar com a chave
     await page.goto(`${APP}?ligar=LIGAR-123&proxy=${encodeURIComponent(WORKER)}`);
     await page.getByRole('heading', { name: 'Primeiro: a tua app no Tidal' }).waitFor();
     assert.ok(!page.url().includes('ligar='), 'o código sai do endereço');
     assert.ok(await page.getByText(`${WORKER}/tidal/retorno`).count(), 'mostra o Redirect URI a registar');
     await foto('0-client-id');
-    await page.locator('#cfg-id').fill('ClienteTidal123');
+    await page.locator('[data-onda="cid"]').fill('ClienteTidal123');
     await page.getByRole('button', { name: 'Guardar e continuar' }).click();
     await page.getByRole('heading', { name: 'Liga o teu Tidal' }).waitFor();
     assert.equal(await env.KV.get('config:tidal_client_id'), 'ClienteTidal123');
-    await foto('1-ligar');
     await page.getByRole('button', { name: 'Ligar ao Tidal' }).click();
     await page.getByText('Ainda não há playlists').waitFor();
-    await page.locator('#mu-toast.on').filter({ hasText: 'Tidal ligado' }).waitFor();
-    assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('musica:chave') || 'null')), 'guarda a chave');
+    await page.locator('#mu-aviso').getByText('Tidal ligado').waitFor();
+    assert.ok(await page.evaluate(() => localStorage.getItem('musica:chave')), 'guarda a chave');
     assert.equal(await page.evaluate(() => localStorage.getItem('musica:codigo')), null, 'esquece o código');
     assert.match(await page.locator('.mu-pill').textContent(), /nelson/);
 
-    // 2) importar uma proposta do Claude: o browser encontra no Tidal e o motor Onda (WASM) escolhe e ordena
-    await page.locator('.mu-nav a[data-tab="pedir"]').click();
-    await page.locator('#im-json').fill('Aqui está:\n' + JSON.stringify(PROPOSTA));
-    await page.getByRole('button', { name: 'Montar playlist' }).click();
+    // 2) o Curador publica; a lista e a playlist
+    const doc = await publicarComoCurador();
+    assert.equal(doc.candidatas.length, 6);
+    await nav(1);
+    await page.locator('.mu-pl').getByText('Som para o carro').waitFor();
+    await page.locator('.mu-pl').click();
     await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
-    assert.equal(await page.locator('#faixas .mu-faixa').count(), 5);
+    assert.equal(await page.locator('#faixas .mu-faixa').count(), doc.faixas.length);
+    assert.deepEqual(await mostradas(page), doc.faixas.map((f) => f.id), 'a ordem guardada');
     assert.match(await page.locator('.mu-resumo').textContent(), /sistema de som/);
-    const artistas = await page.locator('#faixas .mu-faixa .a').allTextContents();
-    assert.equal(new Set(artistas).size, 5, 'máx. 1 por artista');
-    assert.ok(!artistas.includes('Ninguém'));
-    await foto('2-playlist');
+    await foto('1-playlist');
 
-    // 3) afinar: o motor corre no browser a cada mudança
+    // 3) afinar: o motor Onda dentro da app, e o juiz em cada mudança
+    const op = { faixas: 5, maxArtista: 1, estilo: 'equilibrado', arco: 'onda' };
+    const tiradas = new Set(), fixas = new Set(), juntadas = [];
+    const juiz = async (msg) => assert.deepEqual(await mostradas(page), await esperado(doc, op, { tiradas, fixas, juntadas }), msg);
     await page.getByRole('button', { name: 'Afinar no telemóvel' }).click();
-    await page.locator('#af-motor').filter({ hasText: 'motor Onda (WASM): 5 faixas de 5' }).waitFor();
-    await page.locator('[data-seg="estilo"] button', { hasText: 'Audiófilo' }).click();
-    await page.locator('[data-seg="arco"] button', { hasText: 'Acalma' }).click();
-    await page.locator('#faixas [data-tirar]').first().click();
-    await page.locator('#af-motor').filter({ hasText: '4 faixas de 4' }).waitFor();
-    await foto('3-afinar');
+    await page.locator('#af-motor').filter({ hasText: 'motor Onda (WASM): 4 faixas de 6' }).waitFor();
+    await juiz('afinar: as opções guardadas');
+    await page.locator('[data-onda="af-mx\t2"]').click(); op.maxArtista = 2;
+    await page.locator('#af-motor').filter({ hasText: '5 faixas de 6' }).waitFor();
+    await juiz('máximo 2 por artista');
+    await page.locator('[data-onda="af-es\t4"]').click(); op.estilo = 'audiofilo';
+    await page.locator('[data-onda="af-ar\t2"]').click(); op.arco = 'desce';
+    await juiz('audiófilo, a acalmar');
+    const primeira = await page.locator('#faixas [data-onda^="tirar"]').first().getAttribute('data-onda');
+    await page.locator(`#faixas [data-onda="${primeira}"]`).click(); tiradas.add(Number(primeira.split('\t')[1]));
+    await page.locator('#af-motor').filter({ hasText: 'faixas de 5' }).waitFor();
+    await juiz('sem a primeira');
+    const ultima = await page.locator('#faixas [data-onda^="fixar"]').last().getAttribute('data-onda');
+    await page.locator(`#faixas [data-onda="${ultima}"]`).click(); fixas.add(Number(ultima.split('\t')[1]));
+    assert.equal(await page.locator('#faixas .mu-faixa.fixa').count(), 1);
+    await juiz('com uma fixada');
+    // juntar uma faixa do Tidal
+    await page.locator('[data-onda="q"]').fill('Amália Barco Negro');
+    await page.getByRole('button', { name: 'Procurar no Tidal' }).click();
+    await page.locator('[data-onda="juntar\t0"]').click();
+    await page.locator('#mu-aviso').getByText('entra (fixada)').waitFor();
+    const barco = (await worker.fetch(new Request(WORKER + '/api/pesquisa?q=barco%20negro', { headers: { authorization: `Bearer ${await env.KV.get('agente:chave')}` } }), env, {}).then((r) => r.json())).faixas[0];
+    juntadas.push(barco);
+    op.faixas = Math.min(op.faixas + 1, doc.candidatas.length - tiradas.size + juntadas.length);
+    await juiz('com a faixa juntada');
+    assert.ok((await mostradas(page)).includes(barco.id));
+    // o deslizador (eventos "input", entre 5 e o número de candidatas): o motor corre a cada passo; e o monte não cresce
+    const h0 = await heap(page);
+    for (let i = 0; i < 60; i++) await page.evaluate((v) => { const e = document.querySelector('[data-onda="af-n"]'); e.value = String(v); e.dispatchEvent(new Event('input', { bubbles: true })); }, 6 - (i % 2));
+    await page.evaluate(() => { const e = document.querySelector('[data-onda="af-n"]'); e.value = '5'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    op.faixas = 5;
+    await page.locator('#af-motor').filter({ hasText: 'motor Onda (WASM): 5 faixas de 6' }).waitFor();
+    await juiz('5 faixas pelo deslizador');
+    assert.ok((await heap(page)) - h0 < 200, `o monte cresceu ${(await heap(page)) - h0} palavras em 61 eventos`);
+    await foto('2-afinar');
+
+    // 4) guardar e enviar para o Tidal: a app manda a decisão; o Worker monta a versão
+    const ordemFinal = await mostradas(page);
     await page.getByRole('button', { name: 'Guardar e enviar para o Tidal' }).click();
     await page.getByRole('link', { name: 'Abrir no Tidal' }).waitFor();
+    await page.locator('#mu-aviso').getByText('Nova versão criada no Tidal').waitFor();
     assert.equal(sim.criadas.length, 1);
     assert.equal(sim.criadas[0].name, 'Som para o carro · afinada');
-    assert.equal(sim.itens.length, 4);
-    assert.equal(await page.locator('#faixas .mu-faixa').count(), 4);
+    assert.deepEqual(sim.itens, ordemFinal, 'o Tidal recebe a ordem do motor Onda');
+    assert.deepEqual(await mostradas(page), ordemFinal);
+    const idx = JSON.parse(await env.KV.get('playlists'));
+    const nova = JSON.parse(await env.KV.get('playlist:' + idx[0].id));
+    assert.equal(nova.por, 'app');
+    assert.deepEqual(nova.opcoes, { faixas: 5, maxArtista: 2, estilo: 'audiofilo', arco: 'desce' });
+    assert.equal(nova.faixas.find((f) => f.id === barco.id).motivo, 'Escolhida por ti.');
+    assert.equal(nova.candidatas.length, 7, 'as candidatas da original e a juntada');
 
-    // 4) a biblioteca, o gosto e os ajustes
-    await page.locator('.mu-nav a[data-tab="playlists"]').click();
+    // 5) a biblioteca, o gosto e os ajustes
+    await nav(1);
     await page.locator('.mu-pl').nth(1).waitFor();
     assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro · afinada', 'Som para o carro']);
-    await page.locator('.mu-nav a[data-tab="gosto"]').click();
+    await nav(4);
     await page.getByRole('heading', { name: 'Artistas que mais aparecem' }).waitFor();
     assert.ok(await page.getByText('So What').count());
-    await foto('4-gosto');
-    await page.locator('.mu-nav a[data-tab="ajustes"]').click();
+    await foto('3-gosto');
+    await nav(5);
     await page.getByText('nelson (PT)').waitFor();
     await page.getByRole('button', { name: 'Testar o motor' }).click();
     await page.locator('#aj-motor-r').filter({ hasText: 'faixas escolhidas de 60' }).waitFor();
-    await foto('5-ajustes');
+    await foto('4-ajustes');
 
-    // 5) um pedido ao Curador
-    await page.locator('.mu-nav a[data-tab="pedir"]').click();
-    await page.locator('[data-sug]').first().click();
+    // 6) um pedido ao Curador
+    await nav(3);
+    await page.locator('[data-onda="sug\t0"]').click();
+    assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Faixas bem gravadas para testar o som do carro');
     await page.getByRole('button', { name: 'Pedir ao Curador' }).click();
     await page.getByText('Os teus pedidos').waitFor();
-    const pedidos = JSON.parse(await env.KV.get('pedidos'));
-    assert.equal(pedidos[0].texto, 'Faixas bem gravadas para testar o som do carro');
+    assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].texto, 'Faixas bem gravadas para testar o som do carro');
+    await foto('5-pedir');
 
+    // 7) voltar a abrir: a chave fica, a app abre ligada
+    await page.reload();
+    await page.locator('.mu-pl').nth(1).waitFor();
     assert.deepEqual(erros, [], 'sem erros na consola');
     await ctx.close();
 });
