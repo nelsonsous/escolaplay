@@ -109,13 +109,16 @@
     = c @ + b i
     ? isws c = i + i 1
     ? == c '# { W && < i n != @ + b i 10 = i + i 1 i }
-    ? == c '" {
+    # "..." imprime (tipo 3); $"..." e um texto constante (tipo 6), com o token a comecar nas aspas, como o de um "..."
+    ? || == c '" && == c '$ && < + i 1 n == @ + b + i 1 '" {
+        = k ? == c '$ 6 3
+        = i ? == k 6 + i 1 i
         = s i
         = i + i 1
         W && < i n != @ + b i '" { ? == @ + b i 92 = i + i 1 0 = i + i 1 }
         ? >= i n { ebeg "texto sem fim" eend } 0
         = i + i 1
-        addtok 3 + b s - i s }
+        addtok k + b s - i s }
     { = s i
       W && < i n ~ isws @ + b i = i + i 1
       addtok kindof + b s - i s + b s - i s } }
@@ -124,7 +127,15 @@
 # fim dos tokens do corpo da funcao k (as funcoes sinteticas -- campo 12 -- vem no fim e nao tem tokens)
 : fend i>i k ? && < + k 1 @ 6 == @ fe + k 1 12 0 - @ fe + k 1 0 1 @ 4
 : fpt ii>i k j ? > @ fe k 12 0 0 ? == @ + tks @ fe k 1 j 'f 1 0
-: ffun i>i i { = k 0 = r -1 W && < r 0 < k @ 6 { ? teq i @ fe k 0 = r k 0 = k + k 1 } r }
+# a funcao com o nome do token i (-1 se nao ha). Os nomes estao numa tabela de dispersao (65536 lugares a seguir a
+# tabela das funcoes, em @5 + 120000: funcao + 1), para cada nome nao percorrer as funcoes todas
+: fhl i>i h + + @ 5 120000 h
+: ffun i>i i {
+  = h thash i
+  = r -2
+  W < r -1 { = q @ fhl h ? q { ? teq i @ fe - q 1 0 = r - q 1 = h & + h 1 65535 } = r -1 }
+  r }
+: fins i>i k { = h thash @ fe k 0 W @ fhl h = h & + h 1 65535 ! fhl h + k 1 }
 : defn i>i i {
   ? >= + i 2 @ 4 { ! 7 i ebeg "definicao incompleta" eend } 0
   = k @ 6
@@ -137,9 +148,10 @@
   W < j g { ? && != @ + s j 'i != @ + s j 'f { ! 7 + i 2 ebeg "tipo invalido" eend } 0 = j + j 1 }
   = rt @ + s + g 1
   ? && != rt 'i != rt 'f { ! 7 + i 2 ebeg "tipo invalido" eend } 0
-  ? != tkk + i 1 0 { ! 7 + i 1 ebeg "nome invalido" eend } 0
+  ? != tkk + i 1 0 { ! 7 + i 1 ebeg "nome invalido" emai + i 1 eend } 0
   ? >= ffun + i 1 0 { ! 7 + i 1 ebeg "funcao repetida" eend } 0
   ! fe k 0 + i 1
+  fins k
   ! fe k 1 + i 2
   ! fe k 2 g
   ! fe k 3 ? == rt 'f 1 0

@@ -4,8 +4,13 @@
 : lty i>i j @ + + @ 8 * j 2 1
 : addl ii>i n y { = p + @ 8 * @ 9 2 ! p n ! + p 1 y ! 9 + @ 9 1 }
 : floc i>i i { = k @ 32 = r -1 W && < r 0 < k @ 9 { ? teq i lnm k = r k 0 = k + k 1 } r }
-: nt i>i y { = r @ 11 ! + @ 10 r y ! 11 + r 1 r }
+: nt i>i y { = r @ 11 ! + @ 10 r y ! + + @ 10 400000 r -1 ! 11 + r 1 r }
 : tty i>i t @ + @ 10 t
+# o token onde comeca a expressao que deu o temporario t (o cx guarda-o; -1 se nao veio do cx): os erros de tipo
+# apontam para ai, e nao para o token a seguir
+: ttok i>i t @ + + @ 10 400000 t
+: tgo i>i t { = j ttok t ? >= j 0 ! 7 j 0 }
+: tyn i>i y ? y "real" "inteiro"
 : edge i>i k { = p + @ 14 * @ 15 2 ! p @ 13 ! + p 1 k ! 15 + @ 15 1 }
 : ir iiiiiii>i k d a b c x y { = p + @ 18 * @ 19 8 ! p k ! + p 1 d ! + p 2 a ! + p 3 b ! + p 4 c ! + p 5 x ! + p 6 y ! 19 + @ 19 1 }
 : sighdr i>i k {
@@ -32,8 +37,8 @@
   W < j np { addl + @ fe k 4 j fpt k j = j + j 1 }
   ! 7 @ fe k 5
   = r cx
-  ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
   ? && < @ 7 @ 4 != tcode @ 7 ': { ebeg "tokens a mais" eend } 0
+  ? != tty r @ fe k 3 { tgo r ebeg "tipo de retorno errado: o corpo vale " tyn tty r ", a assinatura diz " tyn @ fe k 3 eend } 0
   ir 41 0 r 0 0 0 0
   ? isc zfn k ? isw wfun k ? isx xfun k ? isa afun k ? isd dfun k tfun k }
 : tfun i>i k {
@@ -55,11 +60,14 @@
 : lit ii>i i y { = r nt y ir 1 r i 0 0 0 0 r }
 : clit i>i i { ? < tkl i 2 { ebeg "caracter invalido" eend } 0 = r nt 0 ir 2 r tc i 1 0 0 0 0 r }
 : cstr i>i i { ir 3 0 i 0 0 0 0 = r nt 0 ir 4 r 0 0 0 0 0 r }
+# $"...": o endereco de um texto constante, no formato do O t (M[t] = fim, um byte por palavra), posto uma vez na zona
+# dos dados (treg); vale como um literal inteiro. Na GPU e no JavaScript nao ha memoria: da o erro do "...".
+: ctxt i>i i ? || == @ 12 1 == @ 12 2 cstr i { = r nt 0 ir 2 r treg i 0 0 0 0 r }
 : cargs ii>i k sk {
   = n - @ fe k 2 sk
   = a A + n 1
   = j 0
-  W < j n { = t cx ? != tty t fpt k + sk j { ebeg "argumento com tipo errado" eend } 0 ! + a j t = j + j 1 }
+  W < j n { = t cx ? != tty t fpt k + sk j { tgo t ebeg "argumento com tipo errado: " etx @ fe k 0 " espera " tyn fpt k + sk j eend } 0 ! + a j t = j + j 1 }
   a }
 : eargs iii>i a n ld { = j 0 W < j n { ? || > j 0 ld "," 0 et @ + a j = j + j 1 } 0 }
 : ccall i>i k { = a cargs k 0 ? || > @ 33 0 isc ccallt k a ncall k a }
@@ -81,7 +89,7 @@
   W < j np { = n + @ fe k 4 j ? xro k n addl n + 2 @ + a j { addl n fpt k j ir 6 0 0 @ + a j - @ 9 1 0 0 } = j + j 1 }
   ! 7 @ fe k 5
   = r cx
-  ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
+  ? != tty r @ fe k 3 { tgo r ebeg "tipo de retorno errado: o corpo vale " tyn tty r ", a assinatura diz " tyn @ fe k 3 eend } 0
   = j @ 32
   W < j @ 9 { ! + @ 8 * j 2 0 = j + j 1 }
   ! 7 s7
@@ -389,31 +397,38 @@
   = i @ 7
   ! 7 + i 1
   = k tkk i
-  ? == k 1 lit i 0
-  ? == k 2 lit i 1
-  ? == k 4 clit i
-  ? == k 3 cstr i
-  ? == k 0 cid i
-  cop i }
+  = r ? == k 1 lit i 0
+      ? == k 2 lit i 1
+      ? == k 4 clit i
+      ? == k 3 cstr i
+      ? == k 6 ctxt i
+      ? == k 0 cid i
+      cop i
+  ! + + @ 10 400000 r i
+  r }
+# um token que comeca por maiuscula e um operador: o aviso para quem o quis como nome
+: emai i>i i ? && >= tc i 0 'A <= tc i 0 'Z { ": " etx i " comeca por maiuscula, e o que comeca por maiuscula e um operador (os nomes comecam por minuscula ou _)" } 0
 : isar i>i o || || == o '+ == o '- || == o '* == o '/
 : isbi i>i o || || || == o '% == o '& || == o '| == o '^ || == o k2 '< '< == o k2 '> '>
 : iscm i>i o || || || == o '< == o '> || == o k2 '< '= == o k2 '> '= || == o k2 '= '= == o k2 '! '=
-: ckint i>i t ? tty t { ebeg "esperava inteiro" eend } 0
-: ckflt i>i t ? tty t 0 { ebeg "esperava real" eend }
-: ckc i>i t ? tty t { ebeg "condicao deve ser inteira" eend } 0
+: ckint i>i t ? tty t { tgo t ebeg "esperava inteiro" eend } 0
+: ckflt i>i t ? tty t 0 { tgo t ebeg "esperava real" eend }
+: ckc i>i t ? tty t { tgo t ebeg "condicao deve ser inteira" eend } 0
+# "tipos diferentes", apontado ao segundo operando b (o primeiro, a, da o tipo)
+: ctd ii>i a b ? != tty a tty b { tgo b ebeg "tipos diferentes: " tyn tty a " e " tyn tty b eend } 0
 : cbin ii>i i m {
   = a cx
   = b cx
   = y tty a
-  ? != y tty b { ebeg "tipos diferentes" eend } 0
-  ? && == m 0 != y 0 { ebeg "operacao so para inteiros" eend } 0
+  ctd a b
+  ? && == m 0 != y 0 { ! 7 i ebeg "operacao so para inteiros" eend } 0
   = r nt y
   ir 8 r i a b 0 0
   r }
 : ccmp i>i i {
   = a cx
   = b cx
-  ? != tty a tty b { ebeg "tipos diferentes" eend } 0
+  ctd a b
   = r nt 0
   ir 9 r i a b 0 0
   r }
@@ -422,7 +437,7 @@
 : cnot >i { = a cx ckc a = r nt 0 ir 14 r a 0 0 0 0 r }
 : cun iii>i c ti to {
   = a cx
-  ? != tty a ti { ebeg ? ti "esperava real" "esperava inteiro" eend } 0
+  ? != tty a ti { tgo a ebeg ? ti "esperava real" "esperava inteiro" eend } 0
   = r nt to
   ir 15 r c a 0 0 0
   r }
@@ -430,7 +445,7 @@
 : cmm i>i m {
   = a cx
   = b cx
-  ? != tty a tty b { ebeg "tipos diferentes" eend } 0
+  ctd a b
   = r nt tty a
   ir 17 r m a b 0 0
   r }
@@ -443,7 +458,7 @@
   ir 19 r a 0 0 0 0
   = b cx
   ir 20 r b 0 0 0 0
-  ? != tty a tty b { ebeg "ramos com tipos diferentes" eend } 0
+  ? != tty a tty b { tgo b ebeg "ramos com tipos diferentes: o primeiro vale " tyn tty a ", o segundo " tyn tty b eend } 0
   ! + @ 10 r tty a
   r }
 : cwh >i {
@@ -465,11 +480,11 @@
   ? < r 0 { = r nt 0 ir 4 r 0 0 0 0 0 r } r }
 : cset >i {
   = n @ 7
-  ? || >= n @ 4 tkk n { ebeg "= precisa de nome" eend } 0
+  ? || >= n @ 4 tkk n { ebeg "= precisa de nome" ? < n @ 4 emai n 0 eend } 0
   ! 7 + n 1
   = e cx
   = y tty e
   = j floc n
-  ? < j 0 { addl n y = j - @ 9 1 } ? != lty j y { ebeg "tipo de variavel mudou" eend } 0
+  ? < j 0 { addl n y = j - @ 9 1 } ? != lty j y { ! 7 n ebeg "tipo de variavel mudou: " etx n " era " tyn lty j ", agora " tyn y eend } 0
   ir 6 0 n e j 0 0
   e }

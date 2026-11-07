@@ -13,13 +13,16 @@ const Significado = (() => {
       const c = src.charCodeAt(i);
       if (WS(c)) { i++; continue; }
       if (c === 35) { while (i < n && src.charCodeAt(i) !== 10) i++; continue; }
+      // "..." imprime (tipo 3); $"..." e um texto constante (tipo 6, o endereco de um texto em M; o token comeca nas aspas)
+      const tc = c === 36 && src.charCodeAt(i + 1) === 34;
+      if (tc) i++;
       const s = i;
-      if (c === 34) {
+      if (c === 34 || tc) {
         i++;
         while (i < n && src.charCodeAt(i) !== 34) { if (src.charCodeAt(i) === 92) i++; i++; }
         if (i >= n) throw erro('texto sem fim');
         i++;
-        t.push({ k: 3, x: src.slice(s, i), s, e: i });
+        t.push({ k: tc ? 6 : 3, x: src.slice(s, i), s, e: i });
         continue;
       }
       while (i < n && !WS(src.charCodeAt(i))) i++;
@@ -42,7 +45,7 @@ const Significado = (() => {
   const BW = (h, l) => { BV.setInt32(0, h); BV.setUint32(4, l); return BV.getFloat64(0); };
   const BIN = { '+': 10, '-': 11, '*': 12, '/': 13, '%': 15, '&': 16, '|': 17, '^': 18, '<<': 19, '>>': 20 };
   const CMP = { '<': 21, '>': 22, '<=': 23, '>=': 24, '==': 25, '!=': 26 };
-  const CPU = new Set(['@', '!', '@f', '!f', 'A', 'P', 'R', 'N', 'G', 'O', 'Ac', 'Av', 'X', 'T', 'E', 'D', 'Y', 'K', 'Kc']);
+  const CPU = new Set(['@', '!', '@f', '!f', 'A', 'P', 'R', 'N', 'G', 'O', 'Oc', 'Ac', 'Av', 'X', 'T', 'E', 'D', 'Y', 'K', 'Kc']);
 
   function definicoes(T) {
     const F = new Map();
@@ -93,7 +96,7 @@ const Significado = (() => {
         if (t.k === 1) return { o: 0, y: 0, v: num(x) };
         if (t.k === 2) return { o: 0, y: 1, v: num(x) };
         if (t.k === 4) { if (x.length < 2) throw erro('caracter invalido'); return { o: 0, y: 0, v: new TextEncoder().encode(x)[1] }; }
-        if (t.k === 3) throw erro('texto so existe na CPU');
+        if (t.k === 3 || t.k === 6) throw erro('texto so existe na CPU');
         if (t.k === 0) {
           const l = loc.get(x);
           if (l) return { o: 1, y: l.y, s: l.s };

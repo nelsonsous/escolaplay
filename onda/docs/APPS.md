@@ -23,6 +23,10 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 ## O que a Onda ganha com isto
 - **Já ganhou (it.137):** apps com estado vivo, eventos, rede, armazém, JSON, textos e números pt-PT, e memória que
   se liberta por regiões.
+- **Ganhou com as lições abaixo (it.138):** textos constantes (`$"chave"` — o fim das funções `k_*`), módulos só com o
+  que se usa (a Mercados 300 696 → 262 439 bytes sem mudar nada, 248 364 com a lista do que a ponte chama:
+  `ondac -w f g …`), saída de texto em bloco (para um texto do `O` 4× mais rápida; pelo `rt/anfitriao.js` 6×), o `Oc t n`
+  (um `O t` que não passa de n bytes) e erros de tipo no token culpado, com os tipos.
 - **Vai precisar:** portas para WebSocket, canvas e notificações (fase D); um JSON mais rápido para o Worker (fase E):
   bytes compactados 8 por palavra ou um leitor em fluxo.
 
@@ -31,21 +35,26 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 - Não há negação real: `- 0. x` dá `+0` quando x é `+0`; usar `* -1. x`.
 - `I` satura em silêncio (`NaN` vira 0).
 - A saída é o mais lento: cada byte de texto é uma chamada ao runtime e o buffer guarda um byte por palavra. Uma saída
-  compactada (8 bytes por palavra) cortaria cerca de metade do tempo de um lote grande.
+  compactada (8 bytes por palavra) cortaria cerca de metade do tempo de um lote grande. **Em parte resolvido (it.138):**
+  os textos literais, os números e os reais vão em bloco (8 bytes por palavra lida); o buffer continua com um byte por
+  palavra, que é o protocolo dos anfitriões.
 - Ler a entrada pelo stdin custa uma chamada por byte em WebAssembly: o motor recebe o lote direto na memória (`_oa` +
   função exportada `lote`), graças às exportações da it.137.
 
 ## Aprendido com o resto da análise (fase C)
 - `!` e `!f` valem o valor guardado: um bloco que acaba num `!f` é real, e um `? c { ... !f p x } 0` dá "ramos com tipos
-  diferentes" (o erro aponta o início da instrução, não o ramo). Acabar o bloco com `0`.
-- Os nomes começam por minúscula: `L` é um operador (`= L 1` dá "= precisa de nome").
+  diferentes" (o erro aponta o início da instrução, não o ramo). Acabar o bloco com `0`. **(it.138: o erro aponta o
+  segundo ramo e diz "o primeiro vale real, o segundo inteiro".)**
+- Os nomes começam por minúscula: `L` é um operador (`= L 1` dá "= precisa de nome"). **(it.138: a mensagem diz que `L`
+  começa por maiúscula e que isso é um operador.)**
 - Criar uma instância do módulo custa ~0,3 ms (2 MB de memória inicial e os textos): a ponte guarda uma e repõe o monte em
   cada chamada (o que foi reservado volta a zero). As tabelas fixas (palavras das notícias, normalização) e a área de
   trabalho do motor ficam abaixo dessa marca, feitas uma vez pelo `main`.
 - Com a memória viva, o JS do chamador (getters, `valueOf`) pode voltar a chamar a API a meio: a ponte lê tudo primeiro e
   só depois escreve na memória da Onda.
 - A saída de texto continua a ser o mais lento: um cryptoTax de 300 compras escreve 24 KB de JSON e fica ao nível do JS
-  (0,4 ms); onde há contas (notícias, teste no passado) a Onda ganha por 10×.
+  (0,4 ms); onde há contas (notícias, teste no passado) a Onda ganha por 10×. **(it.138: com a saída em bloco, 0,39 →
+  0,34 ms; o JS 0,33.)**
 - O NaN não tem forma em JSON: a Onda escreve-o como texto marcado e a ponte troca-o (±Infinity sai `±1e999`, -0 sai `-0`).
 - O teste no passado analisa prefixos cada vez maiores: o RSI, o MACD e os logaritmos da volatilidade continuam de onde
   ficaram (as mesmas contas, pela mesma ordem: os mesmos bits).
@@ -76,12 +85,15 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 - **Cuidado com o invisível:** um espaço normal no lugar de um U+00A0 num texto fixo deu 147 diferenças em 200
   estados. Os caracteres invisíveis escrevem-se como bytes (`P 194 P 160`).
 - **O `O t` não sabe a capacidade do texto:** um `tstr` (String(v) num texto novo, para comparar) reserva antes um
-  máximo (`vcap`).
+  máximo (`vcap`). **(it.138: `Oc t n` desvia como o `O t` mas corta o que passar de n bytes; o `O` continua sem
+  guarda.)**
 - **A saída de texto já não é o que pesa:** a Onda escreve 23 KB em 0,1 ms; a ponte (instantâneo, árvore, cópia da
   saída) pesa mais do que o WASM.
 - **Tamanho:** o módulo passa de 163 962 para 216 004 bytes de WASM: 12,9 KB da biblioteca (sobretudo o leitor de
   JSON, que esta vista não usa — vai ser preciso nos dados ao vivo), 7 KB do `ecra.onda` e 32 KB dos Ajustes (15 KB
-  são o próprio texto do HTML).
+  são o próprio texto do HTML). **(it.138: o `-w` deixa de fora o que nada usa — a matemática que a app não chama, as
+  rotinas do runtime que só o x86 e o arm64 usam —, e com `ondac -w f g …` também o leitor de JSON, se nenhuma das
+  entradas o usar.)**
 - **Limites conhecidos:** o `Number()` de um texto não está na Onda (`vnum` dá NaN; no JS `'3'` dá 3) — só se usa onde
   o Worker manda números; um substituto UTF-16 sozinho (que não aparece em dados reais) vira U+FFFD, como no
   `TextEncoder`; e a data feita por um `Intl.DateTimeFormat` guardado fica com o fuso de quando a app abriu.
@@ -162,11 +174,12 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   grandes no resto (até 780 algarismos e o "há mais"); o `JSON.stringify` com o decimal mais curto que a análise já
   tinha. 537 000 comparações com o Node ao acaso, todas iguais.
 - Os 64 globais são poucos: a análise usa-os todos. O build liga os nomes `g_*` (palavras) e `k_*` (textos
-  constantes) a um bloco que o main reserva logo ao começar, num endereço que sai de uma 1.ª compilação.
+  constantes) a um bloco que o main reserva logo ao começar, num endereço que sai de uma 1.ª compilação. **(it.138: um
+  texto constante é agora `$"price"`, já na zona dos dados: sem `k_*`, sem `k_ini`, sem build.)**
 - `fetch` assíncrono em Onda é uma máquina de passos por script (`g_ph`): cada resposta chama uma função exportada, que
   continua onde ia. Um `encodeURIComponent` que lança antes do pedido "responde" logo, com o estado -1000.
 - O `||` e o `&&` são em curto-circuito: `= st || st bdiv b m` deixava de dividir depois do primeiro resto (um erro
-  meu, apanhado pelos testes ao acaso). `Ab` é só para reais (e o erro aponta o token a seguir).
+  meu, apanhado pelos testes ao acaso). `Ab` é só para reais (e o erro aponta o token a seguir; **na it.138 já aponta o operando**).
 - Memória: 10 MB de JSON do universo por lotes de 40; de cada lote só fica um registo compacto por símbolo, que desce
   para a marca (o resto volta a zero). Os textos guardam o fim em absoluto: ao mover um texto, corrige-se o fim.
 - O sort do V8 com um comparador incoerente (`a.s < b.s ? 1 : -1`, nunca 0) dá o mesmo que uma ordenação estável que

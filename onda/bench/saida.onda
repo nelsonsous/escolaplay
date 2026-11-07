@@ -1,0 +1,6 @@
+# 25 KB de HTML feitos de muitos textos literais e numeros (como uma vista de app)
+: linha i>i i { "<tr class=\"linha\" data-i=\"" N i "\"><td class=\"nome\">Ativo " N i "</td><td class=\"num\">" N * i 37 "</td><td>" N % * i 7919 1000 " €</td><td>ok</td></tr>\n" 0 }
+: render i>i n { = i 0 W < i n { linha i = i + i 1 } 0 }
+# o mesmo, para um texto (O t)
+: rtexto i>i n { = t A 40000 ! t + t 1 O t render n O 0 - - @ t t 1 }
+: main >i 0

@@ -9,6 +9,7 @@ Não há runtime, GC nem VM. O compilador gera C (e daí código nativo ou WebAs
 - Os tokens separam-se por espaço, tab ou mudança de linha. `#` no início de um token comenta até ao fim da linha.
 - `123`, `-5`, `0xFF` são inteiros. `1.5`, `-0.25`, `2.` são reais (têm de ter `.`). `'c` é o código do carácter c (`'a` = 97).
 - `"..."` imprime o texto e vale 0. Escapes: `\n \t \\ \"`; mudanças de linha literais são permitidas.
+- `$"..."` (o `$` colado às aspas) é um **texto constante**: vale o endereço de um texto fixo no formato do `O t` (M[t] = fim, um byte por palavra em M[t+1 .. M[t]-1]), posto uma vez na zona dos dados (a partir de M[64]). Os mesmos escapes. É só de leitura (não se escreve nele) e textos iguais dão o mesmo endereço. Existe em C, WebAssembly, x86 e arm64; na GPU e no JavaScript não há memória (erro do texto).
 - Um nome é `[a-z_][a-zA-Z0-9_]*`. Qualquer outro token é um operador.
 
 ## Programa
@@ -42,6 +43,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `R` | 0 | lê um byte (-1 no fim) |
 | `Rb p n` | 2 | lê até n bytes do stdin para M[p..] (um byte por palavra); vale quantos leu (menos de n só no fim) |
 | `O p` | 1 | desvia a saída para a memória (M[p] = cursor); `O 0` repõe o stdout |
+| `Oc t n` | 2 | como o `O t`, com guarda: o texto t leva no máximo n bytes e o resto fica de fora, até ao próximo `O` (só `-w`, `-x`, `-a/-m`); vale t |
 | `Ac` / `Av i j` | 0/2 | número de argumentos / byte j do argumento i |
 | `X c` | 1 | sai com o código c |
 | `T` | 0 | relógio em microssegundos |
@@ -51,7 +53,7 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | **`S n f a..`** | campo | Σ f(i, a..) para i<n, redução paralela |
 | **`D w h f a..`** | campo | imagem w×h com o píxel f(x, y, a..) = 0xRRGGBB (PPM no stdout) |
 
-Matemática: `Sn Cs Ex Lg At Pw` são definidas por uma biblioteca escrita em Onda (`src/9mat.onda`, o algoritmo fdlibm). Em C, WebAssembly e x86 dão os mesmos bits, e os mesmos que o significado. `Sn Cs Ex Lg At` são iguais ao `Math` do JavaScript. `Pw` é o pow do fdlibm 5.3 (o `StrictMath.pow` do Java), também na forma JavaScript e no significado, que usam o mesmo `_pw`. Na GPU usam as funções nativas, com a tolerância declarada. Os nomes começados por `_` são do runtime.
+Matemática: `Sn Cs Ex Lg At Pw` são definidas por uma biblioteca escrita em Onda (`src/9mat.onda`, o algoritmo fdlibm). Em C, WebAssembly e x86 dão os mesmos bits, e os mesmos que o significado. `Sn Cs Ex Lg At` são iguais ao `Math` do JavaScript. `Pw` é o pow do fdlibm 5.3 (o `StrictMath.pow` do Java), também na forma JavaScript e no significado, que usam o mesmo `_pw`. Na GPU usam as funções nativas, com a tolerância declarada. Os nomes começados por `_` são do runtime e das bibliotecas: no `-w` são privados (ver "Apps").
 
 Regra da sobreposição: uma função usada em `E`, `S` ou `D` não pode escrever na memória nem fazer E/S, porque a ordem dos índices não existe.
 
@@ -96,11 +98,13 @@ Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Gro
     ^
   ```
   Num nome desconhecido perto de uma função existente, sugere: `nome desconhecido, quis dizer soma?`.
+- Um erro de tipo aponta o token onde começa a expressão culpada (o operando, o segundo ramo do `?`, o argumento) e diz os tipos: `tipos diferentes: inteiro e real`, `ramos com tipos diferentes: o primeiro vale real, o segundo inteiro`, `argumento com tipo errado: f espera inteiro`. Um nome que começa por maiúscula é um operador, e o erro di-lo (`= precisa de nome: L comeca por maiuscula, …`).
 
 ## Apps (WebAssembly + anfitrião)
-Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.js` (browser ou Node). O `main` corre uma vez e prepara o estado; depois o anfitrião chama as funções da Onda em cada evento, e a memória fica viva entre chamadas (é o estado da app). O `-w` exporta todas as funções com o seu nome (menos `memory` e `_start`).
+Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.js` (browser ou Node). O `main` corre uma vez e prepara o estado; depois o anfitrião chama as funções da Onda em cada evento, e a memória fica viva entre chamadas (é o estado da app).
+- **O que vai no módulo:** só as funções que as raízes alcançam (as outras nem se compilam). Raízes e exportações: as funções cujo nome **não** começa por `_` (com o seu nome; menos `memory` e `_start`), mais `_oa`, `_fl` e `_ini`, que os anfitriões chamam. As `_` são privadas: entram só se alguma função viva as usar, e não se exportam. Com `ondac -w f g …`, as raízes e exportações são só `f`, `g`, … (e as três do anfitrião): um módulo mais pequeno, quando se sabe o que o anfitrião chama. Por isso uma função que o anfitrião chama pelo nome (um evento, a ponte) não pode começar por `_`.
 - **Funções de evento** recebem inteiros: `clique i>i t` (t = texto do evento), `lido ii>i t estado`, `tique i>i z`.
-- **Texto:** um endereço `t` com `M[t]` = fim e os bytes (UTF-8, um por palavra) em `M[t+1 .. M[t]-1]` — o que o `O t` deixa. Escrever um texto é imprimir para ele: `= t tnovo 100 O t "Olá " N 42 O 0`.
+- **Texto:** um endereço `t` com `M[t]` = fim e os bytes (UTF-8, um por palavra) em `M[t+1 .. M[t]-1]` — o que o `O t` deixa. Escrever um texto é imprimir para ele: `= t tnovo 100 O t "Olá " N 42 O 0`. Um texto fixo é um texto constante: `Y 100 $"#app" h`, `jget r $"valor"`, `Y 101 $"click" $"clique"`. O `O t` não sabe a capacidade do texto; com `Oc t n` o que passar de n bytes fica de fora (`= t tnovo 100 Oc t 100 …`).
 - **Portas** (`Y c a b`, além das do runtime 0–9):
 
 | c | a b | efeito |
@@ -129,5 +133,5 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 | 213 / 214 | – | a mensagem / o nome (TypeError, AbortError, Error…) do último erro |
 
 - **Biblioteca** `lib/app.onda` (junta-se antes da app: `cat lib/app.onda app.onda | ondac -w`): textos (`tnovo tlen tbyte tpor tigual tcomeca tcampo tint thtml`), números como no pt-PT (`pint`, `pdec x d`), JSON (`json t` → árvore; `jget jidx jnum jtxt jn jtipo`) e regiões de memória (`marca` / `solta m`: o que se reservou depois da marca volta a zero e fica livre — usar uma por evento para o monte não crescer).
-- **Globais:** `M[0..59]` são da app; a biblioteca usa `M[60..63]`; os textos literais começam em `M[64]`.
+- **Globais:** `M[0..59]` são da app; a biblioteca usa `M[60..63]`; os textos literais (`"..."` e `$"..."`) começam em `M[64]`, e o monte a seguir a eles.
 - Exemplo completo, com teste no browser: `ex/app/contador.onda` (`test/app.test.js`).

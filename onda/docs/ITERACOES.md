@@ -2387,3 +2387,119 @@ Ganho modesto (~5-10%) porque a geracao esta limitada pela largura de banda da m
 **O balanço honesto.** O código de uma app em Onda é mais comprido do que em JavaScript (notação prefixa, sem objetos nem strings nativas) — é pensado para ser escrito por IAs. O ganho está noutro lado: o mesmo código corre igual em todos os alvos, e o núcleo de cálculo é rápido e verificável ao bit.
 
 **Próxima.** O motor de análise da Mercados em Onda (paridade ao bit com o JavaScript), depois o ecrã, o Worker e os scripts.
+
+---
+
+## Iteração 138: o que as apps pediram — textos constantes, módulos só com o que se usa, saída em bloco, erros no sítio
+
+**O pedido.** A Mercados e a Música estão a ser escritas em Onda, e quem as escreve encontrou problemas concretos da
+linguagem (`docs/APPS.md`, "Aprendido com…"). Resolver os mais importantes no compilador e no runtime, sem perder
+nenhuma garantia: os pontos fixos, os mesmos resultados em todas as formas e os programas de antes com o mesmo
+significado.
+
+**1. Textos constantes: `$"..."`.**
+- **Antes:** `"..."` só imprime (vale 0). Um texto fixo — a chave de um JSON, um seletor, o nome de uma função de
+  evento — tinha de ser feito em tempo de execução (`= k tnovo 8 O k "mais" O 0`), e as apps escondiam isso atrás de
+  funções de acesso: os Ajustes da Mercados têm 68 (`: k_versao >i ekt 0`…) e uma função que as faz todas; o
+  conselheiro gera 293 `k_*` no build e um `k_ini` que os faz no arranque.
+- **Agora:** `$"..."` vale o endereço de um texto no formato do `O t` (M[t] = fim, um byte por palavra), posto uma vez
+  na zona dos dados (a partir de M[64], com os textos impressos): `? tigual t $"mais" …`, `jget r $"valor"`,
+  `Y 101 $"click" $"clique"`. É só de leitura, e textos iguais dão o mesmo endereço (uma tabela de dispersão no
+  compilador; também quando o x86/arm64 expande a função em linha e compila o mesmo token outra vez).
+- **Em todas as formas com memória:** WebAssembly (os dados do módulo), x86 e arm64 (o bloco de dados do executável) e
+  C (o `main` põe-nos em M antes do `f_main`, e o monte começa a seguir; um programa sem `$"` dá o mesmo C de antes, ao
+  byte — o `curador.c` da Música não mudou). Na GPU e no JavaScript não há memória: dá o erro do texto ("texto so em
+  CPU"). O significado lê-o como um só token e recusa-o como aos textos.
+- **A sintaxe:** o `$` não é operador nem começa nomes, e o lexer só o junta às aspas quando vêm coladas (`$"`): nenhum
+  programa de antes muda de significado.
+- **O custo:** 8 bytes de módulo por byte de texto (é o formato do `O t`). Para chaves e seletores é menos do que o
+  código que os fazia. O exemplo `ex/app/contador.onda` passou a usá-los (deixou de fazer 9 textos fixos; um clique
+  fazia 3).
+- Teste: `test/texto.test.js` (C, WebAssembly, x86 e arm64 no qemu dão o mesmo, ao byte).
+
+**2. Módulos WebAssembly só com o que se usa (a poda do `-w`).**
+- **Antes:** o `-w` emitia e exportava todas as funções. Uma app levava a biblioteca toda, o runtime todo (os inteiros
+  grandes e a impressão de reais do x86/arm64, que o WebAssembly nem usa: pede-a ao anfitrião) e a matemática toda
+  assim que usasse uma função dela (a Mercados usa `Lg` e `At` e levava 19 KB de `Sn`, `Cs`, `Ex` e `Pw`).
+- **Agora:** só entram as funções que as raízes alcançam, e as mortas nem se compilam. Raízes: o arranque (`main`), as
+  três rotinas que os anfitriões chamam (`_oa`, `_fl`, `_ini`) e as entradas — sem nomes no comando, todas as funções
+  cujo nome não começa por `_` (as `_` passam a ser privadas: não se exportam e só entram se alguma viva as usar); com
+  `ondac -w f g …`, só essas (um nome que não existe é um erro). O alcance segue os tokens de cada corpo: um nome de
+  função conta como uma chamada (mesmo que ali seja um local: pode sobrar, nunca faltar) e cada operador conta como a
+  rotina do runtime que chama (`P Pb N G A X D`, os textos impressos, `Sn Cs Ex Lg Pw At`).
+- **A regra para as apps:** as funções que o anfitrião chama pelo nome (eventos, a ponte, os testes) não podem começar
+  por `_`. As duas apps já seguiam esta regra: não mudou nada nelas.
+- **De caminho:** os textos todos num só segmento de dados (antes um por texto, ~6 bytes de cabeçalho cada).
+- **Números (bytes de WebAssembly, as apps como estão — Mercados 4.7.0, Música 2.7.0):** Mercados 300 696 → 262 439
+  (−12,7%) sem mudar a app, e 248 364 (−17,4%) com a lista das 29 funções que a ponte e os testes chamam
+  (`ondac -w lote sent … fm_teste`); conselheiro 427 035 → 388 874 (−8,9%); Música: `curador.wasm` 22 945 → 16 646
+  (−27%), `app/musica.wasm` 141 667 → 130 915 (−7,6%) e `curador/maestro.wasm` 66 611 → 58 674 (−11,9%); o exemplo
+  `bench/saida.onda` 11 681 → 5 388. O compilador em WebAssembly passou de 508 748 para 511 924 bytes (ganhou tudo o
+  desta iteração; a poda e o segmento único pagam quase tudo).
+- Teste: `test/poda.test.js` (o que entra, o que se exporta, a lista no comando, o anfitrião a chamar pelo nome).
+
+**3. Saída de texto em bloco.**
+- **Antes:** cada byte impresso era uma chamada ao `_op` (do `_os` dos textos literais, do `_on` dos números, do `_og`
+  dos reais), que olha para o desvio do `O` e para o buffer a cada byte; e os anfitriões liam e escreviam cada byte de
+  um texto com um BigInt (`rt/anfitriao.js`, `wasm/host.js`).
+- **Agora:** o runtime (o mesmo em WebAssembly, x86 e arm64) copia um texto literal de uma vez — 8 bytes por palavra
+  lida, para o texto do `O` ou para o buffer, e só esvazia antes o buffer se o texto não couber no que resta —, e os
+  números e os reais passam os algarismos de uma vez (`_ow`). Os anfitriões usam vistas de bytes. O formato dos textos
+  e o protocolo com o anfitrião (sys 0: uma palavra por byte) não mudam; o `_fl` deixa de chamar o anfitrião quando não
+  há nada a escrever.
+- **Números** (Node 22, `bench/saida.mjs`: ~27 KB de HTML feitos de 1 380 textos literais e 920 números, mediana de
+  3 000 corridas alternadas): para um texto do `O` 108 → 26 µs (4,2×); para o stdout e daí para um texto do JS 171 →
+  95 µs (1,8×: o resto é a cópia do anfitrião, uma palavra por byte, e o UTF-8); o JavaScript a fazer o mesmo HTML com
+  um template: 31 µs. Pelo anfitrião das apps (`rt/anfitriao.js`: o HTML num texto e `Y 100`), compilador e anfitrião
+  antigos contra os novos: 933 → 147 µs (6×). Na Mercados, o `cryptoTax` de 300 compras (24 KB de JSON): 0,39 → 0,34 ms
+  (o JS: 0,33 ms) — aí já pesam mais as contas e o `JSON.parse` da ponte.
+- O teste de `test/texto.test.js` cobre textos de 5 000 bytes, o buffer a encher a meio de um texto, o `O t` com textos
+  longos, números e reais: os quatro alvos iguais ao byte.
+
+**4. Erros no sítio certo.**
+- **Antes:** um erro de tipo apontava o token a seguir à expressão culpada: `: f i>i x { = s Ab x = b + s 1 b }` dava
+  "esperava real (coluna 22)", o `=` seguinte; o `? c { … !f p x } 0` apontava a instrução a seguir.
+- **Agora:** cada temporário guarda o token onde começa a sua expressão, e o erro aponta-o (coluna 20, o `x`) e diz os
+  tipos: "tipos diferentes: inteiro e real", "ramos com tipos diferentes: o primeiro vale real, o segundo inteiro" (no
+  segundo ramo), "argumento com tipo errado: f espera inteiro", "tipo de variavel mudou: x era inteiro, agora real",
+  "tipo de retorno errado: o corpo vale real, a assinatura diz inteiro".
+- **Maiúsculas:** `= L 1` dava só "= precisa de nome"; agora junta "L comeca por maiuscula, e o que comeca por maiuscula
+  e um operador (os nomes comecam por minuscula ou _)" — também em "operacao desconhecida" e "nome invalido".
+- Teste: `test/erros.test.js` (16 casos, mensagem e coluna).
+
+**5. O `O t` com guarda: `Oc t n`.**
+- **Antes:** o `O t` não sabe a capacidade do texto: o que não cabe pisa o que vem a seguir na memória, sem aviso (a
+  Mercados reserva antes um máximo, o `vcap`, para cada `String(v)`).
+- **Agora:** `Oc t n` desvia a saída como o `O t`, mas o texto leva no máximo n bytes e o resto fica de fora:
+  `= t tnovo 100 Oc t 100 …`. A guarda dura até ao próximo `O` (o `Oc` deixa o desvio negativo, M[-2] = -t, e o fim
+  permitido em M[-15]; um `O` repõe o desvio): o `O` não ficou mais caro. No `-w`, `-x` e `-a/-m` (o runtime é o mesmo);
+  no C dá um erro (o C escreve pelo seu prelúdio).
+- Teste: em `test/texto.test.js`, a palavra a seguir a cada texto fica intacta, também com 8 100 bytes num texto de 8 000.
+
+**6. De caminho: o compilador mais rápido.** O `ffun` (a função de um nome) percorria as funções todas a cada nome;
+agora há uma tabela de dispersão dos nomes. Auto-compilação com o compilador nativo (mínimo de 7, varia ±10 ms entre
+corridas): `-x` ~75 → ~45 ms, C ~60 → 29 ms, `-w` ~60 → ~54 ms (já com a poda); a Mercados em `-w` 26 → 21 ms; o
+`./build.sh` inteiro 0,93 → 0,76 s.
+
+**Verificado.** Pontos fixos: WebAssembly (511 924 bytes), x86-64 (362 080, também com `--semente-x86`) e a ponte C
+(`seed/ondac.c` refeita a partir da semente WebAssembly). O arm64 conferido no qemu: o compilador em `-a` (ELF aarch64)
+compila-se a si próprio ao byte, e dá a mesma semente WebAssembly e o mesmo `-mx` que a semente WebAssembly.
+`node --test test/*.test.js`: 118 passam, 0 falham, 17 saltados (os do Mac M1); com o `qemu-aarch64-static`
+instalado, os testes do arm64 (`-a`) correm em vez de saltar. Os 45 exemplos de `ex/` dão o mesmo C ao byte, e em x86 e
+WebAssembly a mesma saída (menos os tempos que imprimem). As apps com o compilador novo, numa cópia: Mercados 79/79 (com
+o `analise-onda.js` e o `conselheiro.wasm` refeitos), Música 36/36 (com o `curador.wasm`, o `app/musica.wasm` e o
+`curador/maestro.wasm` refeitos; o `curador.c` fica igual ao byte), incluindo os testes no Chromium.
+
+**O que fica.**
+- A semente arm64 (`seed/ondac-arm64`) não foi refeita (o Mach-O não corre aqui): o `./build.sh` no Mac refá-la a partir
+  da semente WebAssembly.
+- O código WebAssembly continua grande pela forma do emissor: cada temporário vai a um local (`local.set` seguido de
+  `local.get`). Um emissor que deixasse na pilha os temporários usados uma vez encolheria todos os módulos — é o passo
+  seguinte para os módulos leves.
+- A poda vai pelos tokens: um local com o nome de uma função mantém-na viva.
+- A saída para o stdout ainda paga a cópia do anfitrião (uma palavra por byte): mudar isso é mudar o protocolo de todos
+  os anfitriões.
+- O `Oc` corta em silêncio: quem precisa de saber se cortou compara `tlen t` com n.
+- O `tpor` e o `thtml` da biblioteca ainda escrevem um byte de cada vez: com o `_ow` do runtime iriam de uma vez, mas a
+  biblioteca tem de continuar a compilar com o compilador de antes enquanto as apps não passam todas para este (uma
+  versão com o `_ow` passou nos testes das duas apps). Fica para quando passarem.

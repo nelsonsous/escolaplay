@@ -61,23 +61,26 @@
         const pre = opcoes.prefixo || 'onda:';
         const buscar = opcoes.buscar || (typeof fetch !== 'undefined' ? fetch.bind(raiz) : null);
         const registo = opcoes.registo || ((t) => console.log(t));
-        let mem = null, ex = null, saida = [];
+        let mem = null, ex = null, saida = [], m8 = null, m32 = null;
         const W = (a, n) => new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n);
+        // vistas de bytes e de inteiros de 32 bits sobre a memória (refeitas quando ela cresce): o byte de um texto é o
+        // byte baixo da sua palavra, e lê-se e escreve-se sem um BigInt por byte
+        const vistas = () => { if (!m8 || m8.buffer !== mem.buffer) { m8 = new Uint8Array(mem.buffer); m32 = new Int32Array(mem.buffer); } };
+        // n bytes, um por palavra, desde M[a]
+        const bytesDe = (a, n) => { vistas(); const u = new Uint8Array(n); for (let i = 0, o = (a + 16) * 8; i < n; i++, o += 8) u[i] = m8[o]; return u; };
         const ler = (t) => {
             t = Number(t);
             if (!t) return '';
             const fim = Number(W(t, 1)[0]), n = Math.max(0, fim - t - 1);
-            const v = W(t + 1, n), u = new Uint8Array(n);
-            for (let i = 0; i < n; i++) u[i] = Number(v[i] & 255n);
-            return dec.decode(u);
+            return dec.decode(bytesDe(t + 1, n));
         };
         // escreve um texto na memória da Onda (reservado com o _oa do runtime) e devolve o endereço
         const escrever = (s) => {
             const u = typeof s === 'string' ? enc.encode(s) : s;
             const t = Number(ex._oa(BigInt(u.length + 1)));
-            const v = W(t, u.length + 1);
-            v[0] = BigInt(t + 1 + u.length);
-            for (let i = 0; i < u.length; i++) v[i + 1] = BigInt(u[i]);
+            vistas();
+            W(t, 1)[0] = BigInt(t + 1 + u.length);
+            for (let i = 0, w = (t + 17) * 2; i < u.length; i++, w += 2) { m32[w] = u[i]; m32[w + 1] = 0; }
             return BigInt(t);
         };
         const chamar = (nome, ...args) => {
@@ -91,7 +94,7 @@
         let nr = 0;
         const sys = (c, a, b) => {
             switch (Number(c)) {
-                case 0: { const n = Number(b), v = W(a, n), u = new Uint8Array(n); for (let i = 0; i < n; i++) u[i] = Number(v[i] & 255n); saida.push(dec.decode(u)); return 0n; }
+                case 0: saida.push(dec.decode(bytesDe(Number(a), Number(b)))); return 0n;
                 case 1: return -1n;
                 case 2: throw { ondaExit: Number(a) };
                 case 3: return 1n;

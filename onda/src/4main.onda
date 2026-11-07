@@ -90,6 +90,15 @@
 : cnum >i { = x cx ckint x ir 31 0 x 0 0 0 0 x }
 : cgf >i { = x cx ckflt x ir 32 0 x 0 0 0 0 x }
 : csnk >i { = p cx ckint p ir 33 0 p 0 0 0 0 p }
+# Oc t n: como o O t, com uma guarda: o texto t leva no maximo n bytes, e o que passar fica de fora. O desvio fica
+# negativo (M[-2] = -t: o runtime ve que ha guarda) e o fim permitido vai para M[-15]; o O seguinte repoe o desvio, por
+# isso a guarda dura ate ao proximo O. So no -w, -x e -a/-m (o runtime destas formas e o mesmo; o C tem o seu).
+: coc >i {
+  ? ~ || || isw isx isa { ! 7 - @ 7 1 ebeg "Oc so no -w, -x e -a/-m" eend } 0
+  = p cx = n cx ckint p ckint n
+  ir 25 0 lit1 -15 binx '+ 0 p binx '+ 0 n lit1 1 0 0 0
+  ir 25 0 lit1 -2 binx '- 0 lit1 0 p 0 0 0
+  p }
 : cac >i { = r nt 0 ir 34 r 0 0 0 0 0 r }
 : cav >i { = a cx = b cx ckint a ckint b = r nt 0 ir 35 r a b 0 0 0 r }
 : cex >i { = c cx ckint c ir 36 0 c 0 0 0 0 c }
@@ -114,14 +123,14 @@
   ckint d
   ckint n
   = k fref 1
-  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  ? fpt k 0 { ! 7 - @ 7 1 ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
   ? ppar k lowEp d n k a ? || isx isa ? && isx xvan k lowEv d n k a ? && isa asva k lowEg d n k a ? && isa xvan k lowEa d n k a lowE d n k a { ir 38 0 d n k a - @ fe k 2 1 d } }
 : cs >i {
   = n cx
   ckint n
   = k fref 1
-  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
+  ? fpt k 0 { ! 7 - @ 7 1 ebeg "indice deve ser inteiro" eend } 0
   = a cargs k 1
   ? && ppar k || fastf ~ @ fe k 3 lowSp n k a ? ppar k lowSq n k a ? || isx isa ? && && isx fastf xvan k lowSv n k a ? && && isa fastf asva k lowSa n k a lowS n k a { = r nt @ fe k 3 ir 39 r n k a - @ fe k 2 1 0 r } }
 : cd >i {
@@ -216,8 +225,8 @@
   ckint d
   ckint n
   = k fref 1
-  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
-  ? == @ fe k 3 0 { ebeg "elemento deve devolver real" eend } 0
+  ? fpt k 0 { ! 7 - @ 7 1 ebeg "indice deve ser inteiro" eend } 0
+  ? == @ fe k 3 0 { ! 7 - @ 7 1 ebeg "elemento deve devolver real" eend } 0
   = a cargs k 1
   ? == xvan k 0 { ebeg "elemento nao diferenciavel (forma de mapa vetorizavel)" eend } 0
   = src @ a
@@ -243,8 +252,8 @@
   ckint d
   ckint n
   = k fref 1
-  ? fpt k 0 { ebeg "indice deve ser inteiro" eend } 0
-  ? == @ fe k 3 0 { ebeg "elemento deve devolver real" eend } 0
+  ? fpt k 0 { ! 7 - @ 7 1 ebeg "indice deve ser inteiro" eend } 0
+  ? == @ fe k 3 0 { ! 7 - @ 7 1 ebeg "elemento deve devolver real" eend } 0
   = a cargs k 1
   = y cx
   ckint y
@@ -373,6 +382,7 @@
   ? == o 'N cnum
   ? == o 'G cgf
   ? == o 'O csnk
+  ? == o k2 'O 'c coc
   ? == o k2 'A 'c cac
   ? == o k2 'A 'v cav
   ? == o 'X cex
@@ -386,7 +396,7 @@
   ? == o 'Y csys
   ? == o 'K ? isx cki k3 '_ 'k 'o ckst
   ? == o k2 'K 'c ? isx ckc0 ckcm
-  { ! 7 i ebeg "operacao desconhecida" eend } }
+  { ! 7 i ebeg "operacao desconhecida" emai i eend } }
 : rdall >i {
   = s @ 1
   = n 0
@@ -408,7 +418,15 @@
   W < k @ 6 { sighdr k ";\n" = k + k 1 }
   = k 0
   W < k @ 6 { emitf k = k + k 1 }
-  "int main(int c,char**v){oinit(c,v);I r=f_main();oflush();okend();return (int)r;}\n" }
+  ? @ 22 ctxs 0
+  "int main(int c,char**v){oinit(c,v);" ? @ 22 { "HP=" N @ 20 ";otxs();" } 0 "I r=f_main();oflush();okend();return (int)r;}\n" }
+# os textos constantes ($"...") no C: o main poe-nos em M (a partir de M[64], nos enderecos do treg, como os dados das
+# outras formas) e o monte (HP) comeca a seguir. No C a tabela so tem estes (os "..." impressos sao textos do C).
+: ctxs >i {
+  "static void otx(I a,I n,const unsigned char*s){I j;M[a]=a+1+n;for(j=0;j<n;j++)M[a+1+j]=s[j];}\nstatic void otxs(void){\n"
+  = j 0
+  W < j @ 22 { = i - 0 @ + @ 21 * j 2 "{static const unsigned char s[]={" wbytes i 2 "0};otx(" N dadr j "," N slen i ",s);}\n" = j + j 1 }
+  "}\n" }
 : reach >i {
   = e -1
   = k 0
@@ -449,13 +467,17 @@
   ! 12 ? && == Av 1 0 '- == Av 1 1 'g 1 ? && == Av 1 0 '- == Av 1 1 'j 2 ? && == Av 1 0 '- == Av 1 1 'w 3 ? && == Av 1 0 '- == Av 1 1 'x 4 ? && == Av 1 0 '- == Av 1 1 'c 5 ? && == Av 1 0 '- == Av 1 1 'v 6 ? && == Av 1 0 '- == Av 1 1 'q 7 ? && == Av 1 0 '- == Av 1 1 'a 8 ? && == Av 1 0 '- == Av 1 1 'm 8 ? && == Av 1 0 '- == Av 1 1 'd 9 0
   ! 1 A 1000000
   rdall
-  ? || || isw isx isa { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 ! 20 64 ! 21 A 40000 ! 22 0 } 0
+  ? || || isw isx isa { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 } 0
+  # a zona dos dados (textos; ver dent): em todas as formas, porque o $"..." tambem vive em M no C
+  ! 20 64 ! 21 A 105536 ! 22 0
   ? && || || || || == @ 12 0 isw isx isjs isa usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
   ? && isx usesk { ! 23 + @ 1 @ 2 O 23 xkrt O 0 ! 2 - @ 23 @ 1 } 0
   ! 3 A + 3 * 3 @ 2
-  ! 5 A 120000
+  # 5: as funcoes (14 palavras cada) e, a partir de 120000, a dispersao dos nomes (ffun)
+  ! 5 A 185536
   ! 8 A 40000
-  ! 10 A 400000
+  # 10: o tipo de cada temporario (e, a partir de 400000, o token onde comeca: ttok)
+  ! 10 A 800000
   ! 14 A 400000
   ! 16 A Mx 3000000 * 8 @ 2
   ! 17 A Mx 1500000 * 2 @ 2
@@ -474,8 +496,10 @@
   ? isc ! 50 xtab 0
   ? isx { ! 26 A 10000 ! 28 A 400000 ! 29 0 xpre } 0
   ? isx { ! 34 A 420000 ! 35 A 20000 ! 36 A 420000 ! 37 A 420000 ! 38 A 420000 ! 39 A 200008 ! 40 A 20000 ! 42 A 420000 ! 43 A 420000 ! 46 A 10000 ! 47 A 10000 ! 50 xtab ! 51 A 420000 ! 52 A 420000 ! 56 A 420000 ! 57 A 420000 ! 58 A 420000 ! 59 A 420000 ! 60 A 420000 ! 61 A 32 xqs 0 A 1680000 xqs 1 A 100000 xqs 2 A 420000 xqs 6 A 420000 xqs 8 A 800000 xqs 9 A 420000 xqs 10 A 100000 xqs 11 A 20000 xqs 13 A 100000 xqs 14 A 20000 xqs 16 A 20000 xqs 17 A 200000 xqs 19 A 420000 xqs 20 A 420000 xqs 21 A 192 } 0
+  # -w: so as funcoes que as raizes alcancam (wdce) entram no modulo (e so essas se compilam)
+  ? isw wdce 0
   ? isc outz
     { = k 0
-      W < k @ 6 { ? isi rifun k cfun k = k + k 1 }
+      W < k @ 6 { ? isi rifun k ? || ~ isw @ fe k 10 cfun k 0 = k + k 1 }
       ? isx outx ? isw outw ? isa ? ismx outmx ? ismo outm outa ? isd 0 ? isjs outj ? @ 12 outg outc }
   0 }

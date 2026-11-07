@@ -1853,8 +1853,8 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
   ab - l @ 16
   xput4 pc | 0xB400000B << & / - @ 16 pc 4 0x7FFFF 5
   dp }
-# bloco de dados: as strings registadas (sreg), cada uma em palavras de 8 bytes, pela ordem dos enderecos
-: adata >i { = j 0 W < j @ 22 { wchr @ + @ 21 * j 2 = j + j 1 } 0 }
+# bloco de dados: os textos registados (sreg, treg), pela ordem dos enderecos (wdat)
+: adata >i { = j 0 W < j @ 22 { wdat j = j + j 1 } 0 }
 : aftot >i { = t 0 = k 0 W < k @ 6 { = t + t - @ fe k 9 @ fe k 8 = k + k 1 } t }
 # corrige o bl da entrada para _go e os bl entre funcoes (@64; posicoes no buffer 16, contiguas na saida)
 : abls iii>i estart elen blp {
