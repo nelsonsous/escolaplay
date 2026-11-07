@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.4.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.5.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -356,4 +356,48 @@ test('para o Curador: as tuas mixes do Tidal e as novidades dos artistas que seg
     assert.deepEqual(n.albuns.map((x) => `${x.artista} — ${x.titulo}`), ['Nina Simone — Disco novo'], 'só o álbum dos últimos 7 dias');
     assert.deepEqual(n.faixas.map((x) => x.id), ['102', '201']);
     assert.equal((await get('/api/mixes')).status, 401);
+});
+
+test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o Curador vê todas', async () => {
+    const { chave } = await ligarPrimeiraVez(); // o dono
+    const agente = await env.KV.get('agente:chave');
+    // o dono cria um convite (link com o código de uma só vez)
+    const cv = await (await post('/api/convites', {}, chave)).json();
+    assert.match(cv.url, /^https:\/\/nelsonsous\.github\.io\/escolaplay\/musica\/\?ligar=/);
+    assert.equal((await post('/api/convites', {})).status, 401);
+    // a convidada liga o seu Tidal com o código do convite
+    const r = await post('/api/ligar', { codigo: cv.codigo, nome: 'telemóvel da Ana' });
+    assert.equal(r.status, 200);
+    const state = new URL((await r.json()).url).searchParams.get('state');
+    const volta = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    const chaveAna = decodeURIComponent(volta.headers.get('location').split('#chave=')[1] || '');
+    assert.ok(chaveAna.length > 20, 'a convidada recebe a chave do seu aparelho');
+    assert.equal((await post('/api/ligar', { codigo: cv.codigo })).status, 401, 'o convite gasta-se');
+    // cada uma com a sua biblioteca e os seus pedidos
+    await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna);
+    assert.deepEqual((await (await get('/api/pedidos', chaveAna)).json()).map((x) => x.texto), ['Fado para a Ana']);
+    assert.deepEqual(await (await get('/api/pedidos', chave)).json(), [], 'o dono não vê os pedidos da Ana');
+    const est = await (await get('/api/estado', chaveAna)).json();
+    assert.equal(est.dono, false);
+    assert.equal(est.ligado, true);
+    assert.equal(est.pedidos, 1);
+    assert.equal((await (await get('/api/estado', chave)).json()).dono, true);
+    assert.equal((await post('/api/convites', {}, chaveAna)).status, 403, 'só o dono convida');
+    // os dados da Ana ficam no espaço dela; os do dono onde sempre estiveram
+    const us = await (await get('/api/utilizadores', agente)).json();
+    assert.equal(us.length, 2);
+    const ana = us.find((u) => u.uid !== 'dono');
+    assert.equal(ana.pedidos, 1);
+    assert.equal(ana.ligado, true);
+    assert.ok(await env.KV.get(`u:${ana.uid}:tidal:tokens`));
+    assert.ok(await env.KV.get('tidal:tokens'));
+    // o Curador trata os pedidos de cada pessoa com ?u=
+    assert.equal((await (await get(`/api/pedidos?u=${ana.uid}`, agente)).json())[0].texto, 'Fado para a Ana');
+    assert.deepEqual(await (await get('/api/pedidos', agente)).json(), [], 'sem ?u= é o dono');
+    assert.equal((await get('/api/utilizadores', chave)).status, 403, 'a lista de pessoas é só para o Curador');
+    assert.equal((await get('/api/pedidos?u=u-nao-existe', agente)).status, 404);
+    // desligar o Tidal da Ana não mexe no do dono
+    await post('/api/desligar', {}, chaveAna);
+    assert.equal(await env.KV.get(`u:${ana.uid}:tidal:tokens`), null);
+    assert.ok(await env.KV.get('tidal:tokens'));
 });

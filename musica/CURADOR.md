@@ -17,6 +17,9 @@ nesta tarefa.
 - A API do Tidal não dá o histórico de reprodução. O gosto lê-se das **favoritas** (as mais recentes pesam mais), dos
   **artistas seguidos** e das **playlists dele** — tudo no `dados.md`.
 - Escreve sempre em **português de Portugal**.
+- **Várias pessoas**: o Nelson pode convidar outras pessoas (cada uma liga o seu Tidal). O `dados.md` tem uma
+  secção por pessoa (`# Pessoa: <nome> (`<id>`)`) — o gosto, os pedidos, a playlist da semana e as novidades de cada
+  uma são **dela**: não mistures gostos entre pessoas. O dono é `dono`.
 
 ## Passos
 
@@ -107,5 +110,10 @@ nesta tarefa.
    Para um pedido, junta `--pedido <id>` (fica marcado como feito e ligado à playlist). Se o Worker responder
    `tidal_desligado` (sessão expirada), termina e diz no resumo que é preciso **ligar o Tidal outra vez na app**.
 
-7. Termina com um resumo curto: o que criaste (nome, ligação do Tidal, número de faixas e duração), a mistura
+   **Para outra pessoa** (não o dono): escreve a proposta na pasta dela, `/tmp/musica/<id>/proposta.json` (o
+   `perfil.json` dela já lá está), e junta `--utilizador <id>` ao ensaio e à publicação — a playlist vai para o Tidal
+   e para a biblioteca **dessa pessoa**. Em cada corrida trata no máximo **3 pedidos no total**, os mais antigos
+   primeiro e alternando entre pessoas; os outros ficam para a corrida seguinte.
+
+7. Termina com um resumo curto: o que criaste (para quem, nome, ligação do Tidal, número de faixas e duração), a mistura
    (géneros, décadas) e 2–3 destaques.

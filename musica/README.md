@@ -45,6 +45,13 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   A casca [`musica.js`](musica.js) só trata do que a Onda não tem como porta: a chave do aparelho nos pedidos, os
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
 
+## Partilhar com outras pessoas
+
+Nos **Ajustes**, «Convidar alguém» cria um link (serve uma vez, durante 14 dias) para enviar por WhatsApp ou email.
+Quem o abre liga o **seu** Tidal e fica com a sua biblioteca, os seus pedidos e o seu gosto; o Curador trata os pedidos
+de todos (na tua conta do Claude). No Worker, os dados do dono ficam nas chaves de sempre e os de cada pessoa
+convidada com o prefixo `u:<id>:`; o agente escolhe a pessoa com `?u=<id>` e vê a lista em `GET /api/utilizadores`.
+
 ## Ligar (uma vez)
 
 1. Em **developer.tidal.com** cria uma app (grátis). Redirect URI: `https://musica.mercados-proxy.workers.dev/tidal/retorno`.

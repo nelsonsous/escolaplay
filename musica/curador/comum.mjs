@@ -25,13 +25,18 @@ async function chaveAgente() {
 }
 
 // Pedido ao Worker com a chave do agente; devolve o JSON ou lança o erro com a mensagem do Worker
+// a pessoa da app para quem o agente está a trabalhar (o Worker usa ?u=; sem ela, é o dono)
+let pessoaAtual = process.env.MUSICA_UTILIZADOR || '';
+export function pessoa(uid) { pessoaAtual = uid && uid !== 'dono' ? String(uid) : ''; }
+
 export async function api(caminho, { method = 'GET', body, semChave = false, ms = 60000 } = {}) {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), ms);
     try {
         const headers = { accept: 'application/json', ...(body ? { 'content-type': 'application/json' } : {}) };
         if (!semChave) headers.authorization = `Bearer ${await chaveAgente()}`;
-        const r = await fetch(WORKER + caminho, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
+        const alvo = WORKER + caminho + (pessoaAtual && !semChave ? (caminho.includes('?') ? '&' : '?') + 'u=' + encodeURIComponent(pessoaAtual) : '');
+        const r = await fetch(alvo, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
         const j = await r.json().catch(() => null);
         if (!r.ok) {
             const e = new Error((j && (j.message || j.error)) || `HTTP ${r.status} em ${caminho}`);
