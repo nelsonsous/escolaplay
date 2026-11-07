@@ -13,7 +13,7 @@ const destino = path.join(raiz, 'mercados/analise-onda.js');
 // um só módulo: o motor (fase B), o resto do analise.js (fase C) e o ecrã (fase D: a biblioteca de apps, os
 // utilitários das vistas e as vistas), por esta ordem
 export const FONTES = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda',
-    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda', 'ecra-analise.onda'];
+    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda', 'ecra-analise.onda', 'ecra-destaques.onda'];
 
 // o compilador da Onda: se ainda não existe, arranca-o (onda/build.sh, ~1 s)
 if (!existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
@@ -457,7 +457,7 @@ const anfitriao = String.raw`(function (root) {
     }
     // o HTML da vista nome (uma função da Onda: ajustes.onda…) para o instantâneo
     function vista(nome, snap) { const k = k0(), r = arvore(k, snap); k.vai(() => k.ex[nome](BigInt(r))); return k.saida(); }
-    const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap), fixa };
+    const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap), destaques: (snap) => vista('ecra_destaques', snap), fixa };
 
     // ---------- para os testes ----------
     // o que a função 'nome' da Onda imprime para cada real de xs (ex.: 'pct', 'pnum')
@@ -490,7 +490,8 @@ const cabeca = `// GERADO a partir de mercados/onda/*.onda por \`node mercados/o
 // Mercados — a análise toda (a API de analise.js) e o ecrã (AnaliseOnda.ecra: as vistas já passadas para a Onda)
 // escritos em Onda (${linhas} linhas, com a biblioteca de apps) e compilados para WebAssembly (${wasm.length} bytes).
 // Dá o mesmo resultado que o analise.js (mercados/tests/analise-onda*.test.mjs) e o mesmo HTML que os Ajustes do
-// mercados.js (mercados/tests/ecra-onda.test.mjs); a Análise já é só da Onda (mercados/tests/ecra-analise.test.mjs).
+// mercados.js (mercados/tests/ecra-onda.test.mjs); a Análise e os Destaques já são só da Onda
+// (mercados/tests/ecra-analise.test.mjs e ecra-destaques.test.mjs).
 // Corre no browser (window.AnaliseOnda) e no Node (module.exports). Depois do ready, todas as funções são síncronas.
 `;
 writeFileSync(destino, cabeca + anfitriao.replace('@WASM@', wasm.toString('base64')));

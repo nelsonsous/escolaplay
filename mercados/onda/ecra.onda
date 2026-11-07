@@ -140,11 +140,53 @@
   tpor t }
 # fmtPx(v, { decimals: 0 }, 'EUR') do mercados.js
 : peur0 f>i x ? ~ finito x "—" { fm_num x 0 P 194 P 160 "€" }
+# arredonda, no lugar, os algarismos g do fm_dig (g[0] = quantos, g[1] = n) a d casas: metades para longe do zero
+: fm_arr ii>i g d {
+  = k @ g = n @ + g 1 = l + n d
+  ? < l k {
+      = up ? >= l 0 >= @ + g + 2 l 5 0
+      = k ? < l 0 0 l
+      ? up {
+          = j - k 1
+          W && >= j 0 == @ + g + 2 j 9 = j - j 1
+          ? >= j 0 { ! + g + 2 j + 1 @ + g + 2 j = k + j 1 0 } { ! + g 2 1 = k 1 = n + n 1 0 } } 0 } 0
+  ! g k ! + g 1 n 0 }
+# os algarismos g (k, com o ponto depois de n) sem os zeros à direita das casas, e com as casas que sobram (o
+# minimumFractionDigits 0); dá quantos ficam
+: fm_tira iii>i g k n { = q k W && > q ? > n 0 n 0 == @ + g + 1 q 0 = q - q 1 fm_imp g q n ? && > q 0 > q n - q n 0 q }
+# x finito com ATÉ d casas (o Intl.NumberFormat('pt-PT', { maximumFractionDigits: d }): sem os zeros à direita)
+: fm_numm fi>i x d {
+  ? < Bh x 0 P '- 0
+  = a Ab x
+  ? == a 0. P '0 {
+    = mc marca
+    = g fm_dig a fm_arr g d
+    fm_tira g @ g @ + g 1
+    solta mc } }
+# fmtBig(v) do mercados.js para um x finito: o Intl.NumberFormat('pt-PT', { notation: 'compact', maximumFractionDigits: 1 })
+# do Chromium. A grandeza m do decimal mais curto escolhe a escala (mil 10^3, M 10^6, mM 10^9 e Bi 10^12, que daí para
+# cima continua: 10^16 dá "10 000 Bi"); o número escalado vai com até 1 casa (metades para longe do zero) e, se o
+# arredondamento o leva à grandeza seguinte (999,95 → 1000), passa à escala dela quando é outra (dá "1 mil", como o
+# ICU). Milhares do número escalado com U+00A0 a partir de 10 000; U+00A0 antes da escala; "-" nos negativos (e no -0)
+: fm_esc i>i m ? < m 3 0 ? < m 6 3 ? < m 9 6 ? < m 12 9 12
+: fm_big f>i x {
+  ? < Bh x 0 P '- 0
+  = a Ab x
+  ? == a 0. P '0 {
+    = mc marca
+    = g fm_dig a = n @ + g 1 = m - n 1 = e fm_esc m
+    ! + g 1 - n e
+    fm_arr g 1
+    = n2 @ + g 1
+    ? > n2 - n e { = e2 fm_esc + m 1 ? != e2 e { = n2 - n2 - e2 e = e e2 0 } 0 } 0
+    fm_tira g @ g n2
+    ? == e 3 { P 194 P 160 "mil" 0 } ? == e 6 { P 194 P 160 P 'M 0 } ? == e 9 { P 194 P 160 "mM" 0 } ? == e 12 { P 194 P 160 "Bi" 0 } 0
+    solta mc } }
 # (x).toFixed(1).replace('.', ',') do JS: o valor exato (o tofix1 da análise); de 1e21 para cima o String(x)
 : fm_fix1 f>i x ? != x x "NaN" { = y x ? < y 0. { P '- = y * -1. y 0 } 0 ? ~ finito y "Infinity" ? >= y 1000000000000000000000. pnz y 44 tofix1 y }
 # para os testes (AnaliseOnda._vista('fm_teste', lista)): cada [tipo, v, …] da lista numa linha — 0 fmtPct(v),
 # 1 fmtPct1(v), 2 fmtPx(v, a, cur) com [2, v, a, cur, Q[a.key].currency, cfg.fiat], 3 o número com d casas
-# [3, v, d], 4 toFixed(1) com vírgula
+# [3, v, d], 4 toFixed(1) com vírgula, 5 fmtBig(v), 6 o número com até d casas [6, v, d]
 : fm_teste i>i s {
   = kd kab "decimals" O 0 = kp kab "points" O 0 = kk kab "kind" O 0 = kc kab "crypto" O 0
   = c jprim s
@@ -156,7 +198,9 @@
         # a moeda pela ordem do fmtPx: cur || Q[a.key].currency || (a && a.kind === 'crypto' ? cfg.fiat : null)
         = m ? vverd cu cu ? vverd jidx c 4 jidx c 4 ? && vverd a veqt jget a kk kc jidx c 5 0
         ? == jtipo v 4 fm_px x jget a kd jget a kp m "—" }
-    ? == y 3. fm_num x I jnum jidx c 2 fm_fix1 x
+    ? == y 3. fm_num x I jnum jidx c 2
+    ? == y 5. ? && == jtipo v 4 finito x fm_big x "—"
+    ? == y 6. fm_numm x I jnum jidx c 2 fm_fix1 x
     P 10 = c jprox c }
   0 }
 
@@ -338,3 +382,47 @@
 : pago ffi>i ms ag tx {
   = s jround / - ag ms 1000.
   ? < s 5. "agora" ? < s 60. { "há " pjn s " s" 0 } ? < s 3600. { "há " pjn jround / s 60. " min" 0 } thtml tx }
+
+# ---- as linhas das listas, como as do Painel (para todas as vistas): o ícone redondo e a variação ----
+# o tamanho (em bytes) do carácter UTF-8 que começa com o byte b, e o código do que começa no byte j do texto t
+: ln_u8n i>i b ? < b 192 1 ? < b 224 2 ? < b 240 3 4
+: ln_u8 ii>i t j { = b tbyte t j = n ln_u8n b
+  ? == n 1 b ? == n 2 | << & b 31 6 & tbyte t + j 1 63
+  ? == n 3 | | << & b 15 12 << & tbyte t + j 1 63 6 & tbyte t + j 2 63
+  | | | << & b 7 18 << & tbyte t + j 1 63 12 << & tbyte t + j 2 63 6 & tbyte t + j 3 63 }
+# um código em UTF-8
+: ln_putf i>i u ? < u 128 P u ? < u 2048 { P | 192 >> u 6 P | 128 & u 63 0 }
+  ? < u 65536 { P | 224 >> u 12 P | 128 & >> u 6 63 P | 128 & u 63 0 } { P | 240 >> u 18 P | 128 & >> u 12 63 P | 128 & >> u 6 63 P | 128 & u 63 0 }
+# o toUpperCase de um carácter (o do ASCII e do Latim-1: ß dá SS, ÿ dá Ÿ e µ dá o Μ grego)
+: ln_mai i>i c ? && >= c 'a <= c 'z P - c 32 ? == c 223 "SS" ? == c 255 { P 197 P 184 0 } ? == c 181 { P 206 P 156 0 }
+  ? && && >= c 224 <= c 254 != c 247 ln_putf - c 32 ln_putf c
+# o texto de um nó (o String(v) num texto novo, se não é texto)
+: ln_txt i>i n ? == jtipo n 5 jtxt n tstr n
+# o ícone redondo do Painel (o ico() do mercados.js): a cor pela chave k (h = (h * 31 + charCodeAt) % 360, carácter a
+# carácter), as iniciais do nome nm ou, na cripto, o símbolo cs
+: ln_cor i>i n {
+  = t ln_txt n = m tlen t = j 0 = h 0
+  W < j m { = c ln_u8 t j = j + j ln_u8n tbyte t j = h % + * h 31 ? < c 65536 c + 55296 >> - c 65536 10 360 }
+  h }
+# as iniciais: sem o que não é letra, algarismo ou espaço ([^A-Za-zÀ-ÿ0-9 ]), o primeiro carácter das duas primeiras
+# palavras, em maiúsculas; "?" se não há nenhum
+: ln_inic i>i n {
+  = t ln_txt n = m tlen t = j 0 = ini 1 = q 0
+  W && < j m < q 2 {
+    = c ln_u8 t j = j + j ln_u8n tbyte t j
+    ? == c 32 = ini 1
+      ? || || || && >= c 'a <= c 'z && >= c 'A <= c 'Z && >= c '0 <= c '9 && >= c 192 <= c 255 { ? ini { ln_mai c = q + q 1 0 } 0 = ini 0 } 0 }
+  ? q 0 P '?
+  0 }
+# o símbolo da cripto (os 4 primeiros caracteres, em maiúsculas e escapados); com st, só até ao "-" (ADA-EUR, na lista
+# toda da TR)
+: ln_isim ii>i n st {
+  = t ln_txt n = m tlen t = j 0 = q 0
+  W && && < j m < q 4 || ~ st != tbyte t j '- {
+    = c ln_u8 t j = j + j ln_u8n tbyte t j = q + q 1
+    ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" ln_mai c }
+  0 }
+: ln_ico iiii>i k nm cs st { "<span class=\"r-ico\" style=\"--h:" N ln_cor k "\" aria-hidden=\"true\">" ? cs ln_isim cs st ln_inic nm "</span>" 0 }
+# o toneOf(v) do mercados.js para um real, e a variação (o chg(): a cor e o fmtPct; — se não é um número finito)
+: ln_tom f>i v ? ~ finito v "flat" ? > v 0.005 "up" ? < v -0.005 "down" "flat"
+: ln_chg i>i n { = x ? == jtipo n 4 @f + n 1 / 0. 0. "<span class=\"chg " ln_tom x "\">" fm_pct x "</span>" 0 }
