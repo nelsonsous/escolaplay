@@ -1,0 +1,134 @@
+# Conselheiro em Onda — backtest (o backtest.mjs): teste no passado das regras da análise.
+#   correr.mjs backtest [anos=5] [euros_por_compra=90]
+# Preços ajustados, de 40 em 40 ativos; o teste no passado é o de passado.onda (bix, btk, bta, resumo), com os
+# mesmos blocos que a ponte do analise-onda.js lhe dá (benchFn, backtestAsset, summarize), sem passar pelo JS.
+# Cada ativo guarda: os fechos para o motor (o que não é número vai como NaN), os +x (se algum não era número) e as
+# datas já em UTF-16 ([10 unidades]), partilhadas pelas três corridas (os prefixos são só um n mais pequeno).
+#   ativo = [chave, tipo, n, fechos, +x (ou 0), datas (n endereços de textos UTF-16)]
+
+#g g_bacc 77
+#g g_bord 8
+#k k_bkeys ["hold","buy","scale","wait","neutral","turn","avoid"]
+#k k_bshow ["buy","scale","hold","wait","neutral","turn","avoid"]
+
+: bt_corre >i {
+  ! g_scr 6
+  = a ho_arg 1 !f g_anos ? && a > tx_len a 0 js_tonum a 5.
+  = t ho_arg 2 !f g_ticket ? && t > tx_len t 0 js_tonum t 90.
+  # keys = FUNDS, STOCKS e CRYPTO
+  = ks js_lst 40 da_addk ks cs_funds da_addk ks cs_stocks da_addk ks cs_crypto
+  ! g_keys ks ! g_ativos js_lst 40 ! g_i 0 ! g_ph 1
+  cs_passo }
+: bt_passo >i { = p @ g_ph ? == p 1 bt_p1 ? == p 2 bt_p2 0 }
+: bt_p1 >i {
+  = i @ g_i = keys @ g_keys = n js_len keys
+  ? < i n {
+      = part js_fatia keys i Mn n + i 40 ! g_part part
+      sb_ini = j 0 W < j js_len part { ? j P ', 0 tx_p cs_yahoo js_it part j = j + j 1 } = sy sb_fim
+      ! g_ph 2
+      ? tx_urimal sy { cs_falha k_urimal 1 } { cs_wini "/quotes?symbols=" tx_puri sy "&range=" nu_ps @f g_anos "y&interval=1d&adj=1" ~ cs_wfim 90000 } }
+    { bt_fim } }
+# o dia (o toISOString().slice(0, 10) de x[0] * 1000) como texto UTF-16 [10, unidades]
+: bt_dia i>i v {
+  = ms * js_tonum v 1000.
+  ? ~ dt_ok ms cs_lanca k_RangeError k_itv 0
+  sb_ini dt_piso ms = t sb_fim
+  = r A 11 ! r 10 = j 0 W < j 10 { ! + + r 1 j tx_b t j = j + j 1 } r }
+: bt_p2 >i {
+  cs_rget cs_lancase
+  = qs da_itx js_getx @ g_res k_quotes = part @ g_part = j 0
+  W < j js_len qs {
+    = q js_it qs j = sym js_getx q k_symbol
+    = k 0 = m 0 W && ~ k < m js_len part { = x js_it part m ? js_eq cs_yahoo x sym = k x 0 = m + m 1 }
+    = ser js_get q k_series
+    ? && && && k ~ js_v js_get q k_error js_v ser > js_vn js_get ser k_length 300. {
+        ? ~ js_ehlst ser cs_lanca k_TypeError k_qseriesnf 0
+        = n js_len ser
+        = ca A + n 1 = cf A + n 1 = ds A + n 1 = todos 1 = i 0
+        W < i n {
+          = p js_it ser i = x js_getx p k_1
+          !f + ca i ? js_ehnum x js_f x Bw 2146959360 0
+          !f + cf i js_tonum x
+          ? ~ js_ehnum x = todos 0 0
+          = i + i 1 }
+        = i 0 W < i n { ! + ds i bt_dia js_getx js_it ser i k_0 = i + i 1 }
+        = a A 6 ! a k ! + a 1 cs_kind k ! + a 2 n ! + a 3 ca ! + a 4 ? todos 0 cf ! + a 5 ds
+        js_push @ g_ativos a 0 } 0
+    = j + j 1 }
+  ! g_i + @ g_i 40 ! g_ph 1 1 }
+#k k_qseriesnf q.series.map is not a function
+#k k_0 0
+# benchFn(bench): o índice do VWCE (bix, em M[62])
+: bt_bench i>i a {
+  = n @ + a 2 = ds @ + a 5 = cf ? @ + a 4 @ + a 4 @ + a 3
+  = b A + 1 * n 14 ! b n = q + b 1 = j 0
+  W < j n { ! q 1 !f + q 1 @f + cf j = q cs_u16cp + q 2 @ + ds j = j + j 1 }
+  bix b 0 }
+# backtestAsset(sub, bf, acc, { cost, warm }) com sub = os primeiros hi dias do ativo
+: bt_ativo iiff>i a hi warm cost {
+  = n Mn hi @ + a 2 = kind @ + a 1
+  = b A 102
+  ! b n ! + b 1 cs_tipoan kind ! + b 2 tx_igual kind k_crypto
+  !f + b 3 warm !f + b 4 Bw 2146959360 0 !f + b 5 cost ! + b 6 @ g_bmodo
+  ! + b 7 @ + a 3 ! + b 8 ? @ + a 4 @ + a 4 @ + a 3
+  ? == @ g_bmodo 1 { = dt A + n 1 ! dt n = j 0 W < j n { ! + + dt 1 j @ + @ + a 5 j = j + j 1 } ! + b 9 dt 0 } 0
+  = j 0 W < j 7 { = s + g_bacc * j 11 ? @ s { ! + + b 10 * j 11 1 = i 1 W <= i 10 { !f + + + b 10 * j 11 i @f + s i = i + i 1 } 0 } 0 = j + j 1 }
+  ! 61 0
+  btk b
+  bta b
+  # as chaves novas (pela ordem em que o JS as cria) e as mexidas
+  = j 0 W < j @ + b 91 { = k @ + + b 92 j = s + g_bacc * k 11 ! s 1 = i 1 W <= i 10 { !f + s i 0. = i + i 1 } ! + + g_bord 1 @ g_bord k ! g_bord + @ g_bord 1 = j + j 1 }
+  = j 0 W < j 7 { ? == @ + + b 10 * j 11 2 { = s + g_bacc * j 11 = i 1 W <= i 10 { !f + s i @f + + + b 10 * j 11 i = i + i 1 } 0 } 0 = j + j 1 }
+  # per: [chave, buyN, buyS]
+  = p A 3 ! p @ a !f + p 1 @f + b 87 !f + p 2 @f + b 88 p }
+# pc do backtest: x == null ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%' (o NaN sai NaN%), à direita em w
+: bt_pc i>i v { sb_ini ? js_nulo v "—" { = x js_tonum v ? > x 0. P '+ 0 nu_pfix * x 100. 1 P '% } sb_fim }
+: bt_pad ii>i t w { = n tx_l16 t W < n w { P 32 = n + n 1 } tx_pu t }
+: bt_corrida iii>i rot corte per {
+  ! g_bord 0 = j 0 W < j 77 { ! + g_bacc j 0 = j + j 1 }
+  = as @ g_ativos = j 0
+  W < j js_len as {
+    = a js_it as j = n @ + a 2
+    = lo ? == corte 2 / n 2 0 = hi ? == corte 1 + / n 2 63 n
+    = p bt_ativo a hi ? > lo 200 F lo 200. ? tx_igual @ + a 1 k_fund 0. / 1. @f g_ticket
+    ? per js_push per p 0
+    = j + j 1 }
+  # summarize(acc)
+  = ne @ g_bord = b A + 1 * 10 ne ! b ne = j 0
+  W < j ne { = s + g_bacc * @ + + g_bord 1 j 11 = i 0 W < i 10 { !f + + + b 1 * j 10 i @f + s + i 1 = i + i 1 } = j + j 1 }
+  ! 60 0 ! 61 0
+  sb_ini resumo b = r cs_fase
+  P 10 "== " tx_p rot P 10
+  = sh js_parse k_bshow = bk js_parse k_bkeys = j 0
+  W < j 7 {
+    = k js_it sh j = ki js_ix bk k
+    = pos -1 = i 0 W < i ne { ? == @ + + g_bord 1 i ki = pos i 0 = i + i 1 }
+    ? >= pos 0 {
+        = s js_it r pos
+        tx_p k = i tx_len k W < i 8 { P 32 = i + i 1 }
+        " n=" sb_ini js_ps js_get s k_n63 = t sb_fim bt_pad t 4
+        "  3m " bt_pad bt_pc js_get s k_avg63 7 "  acerto " bt_pad bt_pc js_get s k_hit63 7 "  vs VWCE " bt_pad bt_pc js_get s k_ex63 7 P 10 } 0
+    = j + j 1 }
+  0 }
+#k k_rot1 Período todo
+#k k_rot2 1.ª metade (afinar aqui)
+#k k_rot3 2.ª metade (confirmar aqui)
+# o comparador das compras (cs_cmp 50): a[1] - b[1]
+: bt_cmp iii>f k x y - js_f js_it x 1 js_f js_it y 1
+: bt_fim >i {
+  = as @ g_ativos
+  # bench = assets.find((a) => a.key === 'VWCE.DE'); bf = AO.benchFn(bench)
+  = be 0 = j 0 W && ~ be < j js_len as { ? tx_igual @ js_it as j k_VWCE = be js_it as j 0 = j + j 1 }
+  ! g_bmodo ? be 1 0
+  ? be bt_bench be 0
+  N js_len as " ativos, " nu_ps @f g_anos " anos, " nu_ps @f g_ticket " € por compra (comissão " nu_pfix / 100. @f g_ticket 1 "%)" P 10
+  = per js_lst 40
+  bt_corrida k_rot1 0 per bt_corrida k_rot2 1 0 bt_corrida k_rot3 2 0
+  # as piores e as melhores compras (com 5 ou mais)
+  = bu js_lst 40 = j 0
+  W < j js_len per { = p js_it per j ? >= @f + p 1 5. { = e js_lst 2 js_push e @ p js_push e js_num / @f + p 2 @f + p 1 js_push bu e 0 } 0 = j + j 1 }
+  js_ordena bu 50
+  = n js_len bu
+  P 10 "Piores compras: " = j 0 W < j Mn 4 n { ? j ", " 0 = e js_it bu j tx_pu cs_nome js_it e 0 P 32 tx_pu bt_pc js_it e 1 = j + j 1 } P 10
+  "Melhores compras: " = j 0 W < j Mn 4 n { ? j ", " 0 = e js_it bu - - n 1 j tx_pu cs_nome js_it e 0 P 32 tx_pu bt_pc js_it e 1 = j + j 1 } P 10
+  ho_sair 0 }

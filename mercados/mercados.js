@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.5.0';
+    const VERSION = '4.6.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -689,7 +689,6 @@
     const UNI_T = { plan: ['etf', 'crypto'], all: ['etf', 'crypto', 'stock'], fund: ['etf'], crypto: ['crypto'], stock: ['stock'] };
     function uniSection() {
         if (!cfg.owner) return '';
-        loadUni();
         const types = UNI_T[cfg.filter];
         if (!types || !UNI || !UNI.rows) return UNI && UNI.error && types ? `<p class="note" style="margin:0 2px 12px">Toda a Trade Republic: ainda sem classificação (${esc(UNI.error)}). Chega com a próxima análise do Claude.</p>` : '';
         const disc = cfg.hz === 'disc', key = cfg.hz === 'mid' ? 'm' : 'l';
@@ -1068,7 +1067,7 @@
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
         if (st.pulling) return;
-        const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? viewAnalysis() : cfg.tab === 'ajustes' ? settingsHtml() : viewDashboard();
+        const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'ajustes' ? settingsHtml() : viewDashboard();
         const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
         body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
@@ -1575,7 +1574,6 @@
     }
 
     function trackSection() {
-        if (cfg.proxy && !JOURNAL) loadJournal();
         const pc = (x) => (x == null || !fin(x) ? '—' : fmtPct(x * 100));
         const tone = (x) => (x == null ? 'flat' : toneOf(x * 100));
         const order = ['buy', 'scale', 'hold', 'wait', 'neutral', 'turn', 'avoid'];
@@ -1621,7 +1619,49 @@
         return rows.length ? `<div class="ideas"><div class="m-l">Pontuação automática a ${HZ_PT[hz]} prazo</div>
             ${rows.map((k) => { const h = hzOf(k, hz); return `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}</span><span class="i-t ${h.tone}-t num">${h.score} · ${esc(h.label.toLowerCase())}</span></button>`; }).join('')}</div>` : '';
     }
+    // A Análise é desenhada pela Onda (mercados/onda/ecra-analise.onda, no módulo da análise), com o mesmo HTML; os
+    // eventos continuam aqui. Até o módulo estar pronto (ou se falhar), desenha-a o viewAnalysis, que fica também como a
+    // referência do teste de paridade (tests/ecra-onda.test.mjs) até todas as vistas passarem para a Onda.
+    function analysisHtml() {
+        if (aoOk && AO.ecra) try { return AO.ecra.analise(analysisSnap()); } catch (e) { console.error('ecrã Onda:', e); }
+        return viewAnalysis();
+    }
+    // o que a Análise pede à rede: toda a Trade Republic (na app do dono) e o diário
+    function analysisLoad() {
+        if (cfg.owner) loadUni();
+        if (cfg.proxy && !JOURNAL) loadJournal();
+    }
+    // O instantâneo para a Onda: o que o viewAnalysis lê, cru (a Onda filtra, ordena — o mesmo TimSort do V8 — e
+    // escreve). Da análise de cada ativo vão só os campos que a vista usa (as razões só do prazo escolhido); toda a
+    // Trade Republic vai como lista fixa (escrita na memória da Onda uma vez por cada lista nova). Vai já feito o que é do browser ou de outras partes da app: os nomes
+    // (nameOf), a variação do dia (qv: preço da noite, euros), as datas (clWhen, a hora da lista toda) e o diário
+    // avaliado (evalJournal, com os preços de agora).
+    function analysisSnap() {
+        analysisLoad();
+        const hz = cfg.hz, C = CLAUDE, U = cfg.owner ? UNI : null, B = BT;
+        const H = (x, rs) => (x ? { score: x.score, tone: x.tone, label: x.label, reasons: rs ? x.reasons.map((r) => [r.pts, r.txt]) : undefined } : x);
+        const ac = (x) => (x && typeof x === 'object' ? { s: x.s, key: x.key, action: x.action, why: x.why, short: x.short, mid: x.mid, long: x.long } : x);
+        const nm = (l) => (Array.isArray(l) ? l.map((x) => [nameOf(x.k), x.a]) : l);
+        return {
+            horas: CL_LBL, owner: cfg.owner, claude: cfg.claude, proxy: cfg.proxy, filter: cfg.filter, hz, strategy: cfg.strategy,
+            foldAn: 'an-auto' in st.fold ? st.fold['an-auto'] : false, foldUni: 'uni' in st.fold ? st.fold.uni : false, uniN: st.uniN,
+            when: hz !== 'disc' && clScored() ? clWhen() : '',
+            assets: Object.keys(REG).map((k) => {
+                const a = REG[k], r = AN[k], h = r && r.horizons, d = r && r.discount;
+                return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), chg: qv(k).changePct,
+                    an: r ? { h: h ? { short: H(h.short, hz === 'short'), mid: H(h.mid, hz === 'mid'), long: H(h.long, hz === 'long') } : h,
+                        d: d ? { dd: d.dd, score: d.score, tone: d.tone, tag: d.tag, verdict: d.verdict, opp: d.opp } : d,
+                        risk: r.risk.label, rsi: r.metrics.rsi, adv: r.advice && r.advice.key } : r };
+            }),
+            cl: C ? { missing: C.missing, off: C.off, review: C.review, lessons: C.lessons, rank: C.rank ? { short: C.rank.short, mid: C.rank.mid, long: C.rank.long } : C.rank,
+                actions: Array.isArray(C.actions) ? C.actions.map(ac) : C.actions } : C,
+            uni: U ? { error: U.error, when: U.generatedAt ? dtLbl(U.generatedAt) : U.date, rows: Array.isArray(U.rows) ? AO.ecra.fixa(U.rows) : U.rows } : U,
+            ev: evalJournal(),
+            bt: B ? { running: B.running, error: B.error, sum: B.sum, n: B.n, yrs: B.yrs, ticket: B.ticket, byKind: B.byKind, worst: nm(B.worst), best: nm(B.best) } : B,
+        };
+    }
     function viewAnalysis() {
+        analysisLoad();
         const keys = Object.keys(REG).filter((k) => listed(k) && (REG[k].kind !== 'index' || k === 'GC=F') && (AN[k] || clNow(k)));
         const inv = keys.filter((k) => investable(k) && AN[k]);
         const f = cfg.filter, hz = cfg.hz, disc = hz === 'disc';
@@ -2459,6 +2499,9 @@
     // para os testes
     window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
-        viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; } };
+        viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
+        // e a da Análise, e a formatação dos números (a das vistas em Onda é testada contra estas)
+        viewAnalysis, analysisSnap, analysisHtml, fmtPx, fmtPct, fmtPct1, set journal(v) { JOURNAL = v; }, set bt(v) { BT = v; },
+        get claude() { return CLAUDE; }, set claude(v) { CLAUDE = v; }, get uni() { return UNI; }, set uni(v) { UNI = v; } };
     boot();
 })();

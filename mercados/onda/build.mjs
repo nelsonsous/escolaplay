@@ -13,7 +13,7 @@ const destino = path.join(raiz, 'mercados/analise-onda.js');
 // um só módulo: o motor (fase B), o resto do analise.js (fase C) e o ecrã (fase D: a biblioteca de apps, os
 // utilitários das vistas e as vistas), por esta ordem
 export const FONTES = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda',
-    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda'];
+    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda', 'ecra-analise.onda'];
 
 // o compilador da Onda: se ainda não existe, arranca-o (onda/build.sh, ~1 s)
 if (!existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
@@ -370,10 +370,25 @@ const anfitriao = String.raw`(function (root) {
     // palavra —, sem JSON pelo meio: os números vão ao bit (NaN, ±Infinity e -0 incluídos); um membro undefined fica
     // de fora e, numa lista, é um nó de tipo 0 (o undefined da Onda). Primeiro lê-se o instantâneo todo (uma cópia
     // simples), depois reserva-se um só bloco e escreve-se.
+    // Uma lista marcada com ecra.fixa(lista) (as ~1 340 linhas de toda a Trade Republic, que só mudam de 30 em 30 min)
+    // fica escrita abaixo da marca, como as tabelas do main: as chamadas seguintes só ligam o nó a ela enquanto o JS
+    // passar a MESMA lista (a mesma referência, sem a mudar no lugar). Uma lista nova apaga a anterior; uma por
+    // instantâneo.
+    const FIXO = typeof Symbol === 'function' ? Symbol('AnaliseOnda.fixa') : '__ondaFixa';
+    const fixa = (lista) => ({ [FIXO]: lista });
+    let fixo = null;
+    function fixar(k, v) {
+        if (fixo && fixo.v === v) return fixo;
+        if (fixo) { k.base = fixo.base; k.reset(); fixo = null; } // a anterior volta a zero
+        const base = k.base, r = arvore(k, v);
+        fixo = { v, base, filho: k.gi(r + 4), n: k.gi(r + 5) };
+        k.marca();
+        return fixo;
+    }
     function arvore(k, v0) {
         // 1) lê o instantâneo uma só vez, em pré-ordem: tipo, valor (número ou texto), chave e quantos filhos
         const tp = [], vl = [], ch = [], nf = [];
-        let T = 0;
+        let T = 0, lf = null;
         const le = (v, key) => {
             const i = tp.length;
             let t = 0, x = 0;
@@ -382,8 +397,9 @@ const anfitriao = String.raw`(function (root) {
                 case 'boolean': t = v ? 3 : 2; break;
                 case 'number': t = 4; x = v; break;
                 case 'string': t = 5; x = v; T += 1 + 3 * v.length; break;
-                case 'object': t = Array.isArray(v) ? 6 : 7; break;
+                case 'object': t = Array.isArray(v) ? 6 : Array.isArray(v[FIXO]) ? 8 : 7; break;
             }
+            if (t === 8) { if (lf !== null && lf !== v[FIXO]) throw new Error('AnaliseOnda: só uma lista fixa por instantâneo'); x = lf = v[FIXO]; }
             tp.push(t); vl.push(x); ch.push(key); nf.push(0);
             T += 6;
             if (key !== null) T += 1 + 3 * key.length;
@@ -395,6 +411,7 @@ const anfitriao = String.raw`(function (root) {
             }
         };
         le(v0, null);
+        const fx = lf === null ? null : fixar(k, lf);
         // 2) escreve num só bloco (um texto ocupa no máximo 3 bytes por unidade UTF-16; um substituto sozinho dá U+FFFD,
         // como no TextEncoder). Palavra p: I32[(p + 16) * 2] (os 32 bits de cima ficam a zero) ou F64[p + 16].
         let q = k.reserva(T), i = 0;
@@ -426,7 +443,8 @@ const anfitriao = String.raw`(function (root) {
             i++; q += 6;
             I32[(a + 16) * 2] = t;
             if (key !== null) I32[(a + 18) * 2] = texto(key);
-            if (t === 4) F64[a + 17] = x;
+            if (t === 8) { I32[(a + 16) * 2] = 6; I32[(a + 20) * 2] = fx.filho; I32[(a + 21) * 2] = fx.n; } // a lista fixa
+            else if (t === 4) F64[a + 17] = x;
             else if (t === 5) I32[(a + 17) * 2] = texto(x);
             else if (t >= 6) {
                 let ant = a + 4; // o filho, e depois o irmão do anterior
@@ -439,19 +457,28 @@ const anfitriao = String.raw`(function (root) {
     }
     // o HTML da vista nome (uma função da Onda: ajustes.onda…) para o instantâneo
     function vista(nome, snap) { const k = k0(), r = arvore(k, snap); k.vai(() => k.ex[nome](BigInt(r))); return k.saida(); }
-    const ecra = { ajustes: (snap) => vista('ajustes', snap) };
+    const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap), fixa };
 
     // ---------- para os testes ----------
     // o que a função 'nome' da Onda imprime para cada real de xs (ex.: 'pct', 'pnum')
     function _texto(nome, xs) { const k = k0(); return xs.map((x) => { k.vai(() => k.ex[nome](x)); return k.saida(); }); }
     // os textos normalizados pelo norm da Onda (as fronteiras não-ASCII saem como \u0080)
     function _norm(texts) { const us = Array.from(texts, (t) => enc.encode(String(t))), k = k0(), p = textos(k, us, []); k.vai(() => k.ex.nrmx(BigInt(p))); return k.json(); }
+    // o que a função 'nome' da Onda (uma vista, ou o fm_teste de ecra.onda) escreve para um instantâneo
+    const _vista = (nome, snap) => vista(nome, snap);
+    // a ordem em que o sort da Onda (ts_ordena de ecra.onda, o do V8) põe os índices 0..n-1, com as chaves k1 e k2
+    function _ordena(k1, k2, modo) {
+        const n = k1.length, a = Float64Array.from(k1), b = Float64Array.from(k2), k = k0(), p = k.reserva(2 + 3 * n);
+        k.i(p, n); k.i(p + 1, modo); k.put(p + 2, a); k.put(p + 2 + n, b);
+        k.vai(() => k.ex.ts_teste(BigInt(p)));
+        return Array.from({ length: n }, (_, j) => k.gi(p + 2 + 2 * n + j));
+    }
 
     const api = {
         ready, analyseMany, analyse,
         groupAlert, isQuiet, sma, emaSeries, rsi, macd, volatility, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf,
         backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax,
-        sentimentMany, backtestMany, _texto, _norm, ecra,
+        sentimentMany, backtestMany, _texto, _norm, _vista, _ordena, ecra,
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.AnaliseOnda = api;

@@ -114,6 +114,20 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 | 108 / 109 | – / n | milissegundos desde 1970 / inteiro aleatório em [0, n) |
 | 110 | t | título do documento |
 
+- **Scripts (Node):** `rt/anfitriao-node.js` corre um módulo como um programa de linha de comando, com as portas do runtime, as 103/104/108/109 de cima e estas (as mesmas regras: o `main` corre uma vez e cada resposta chama uma função da Onda):
+
+| c | a b | efeito (só Node) |
+|---|---|---|
+| 200 | i | argumento i (texto; 0 se não há); i = -1: quantos |
+| 201 | nome | variável de ambiente (texto; 0 se não há) |
+| 202 | caminho | os bytes do ficheiro (texto; 0 se falhou: a mensagem fica na 213) |
+| 204 / 205 | caminho | cria a pasta e as que faltam (1; 0 se falhou) / 1 se existe |
+| 206 | p fn | `fetch`: p = `[método, url, cabeçalhos ("Nome: valor" por linha), corpo, ms]` (textos; 0 = GET, sem cabeçalhos, sem corpo, sem limite); no fim chama `fn(t, estado)`: o corpo e o estado HTTP; 0 = falhou (t = a mensagem do erro); -estado = o corpo não chegou |
+| 208 | fd / 0 | a saída (`P`, `N`, `"..."`) passa para fd (1 stdout, 2 stderr) / volta à anterior |
+| 209 / 210 | caminho / – | abre um fluxo e põe nele a saída: um ficheiro, ou com 0 um texto em memória / fecha o do topo: ficheiro → 1 (0 se falhou), memória → o texto |
+| 211 | c | termina com o código c, depois de escrever tudo |
+| 213 / 214 | – | a mensagem / o nome (TypeError, AbortError, Error…) do último erro |
+
 - **Biblioteca** `lib/app.onda` (junta-se antes da app: `cat lib/app.onda app.onda | ondac -w`): textos (`tnovo tlen tbyte tpor tigual tcomeca tcampo tint thtml`), números como no pt-PT (`pint`, `pdec x d`), JSON (`json t` → árvore; `jget jidx jnum jtxt jn jtipo`) e regiões de memória (`marca` / `solta m`: o que se reservou depois da marca volta a zero e fica livre — usar uma por evento para o monte não crescer).
 - **Globais:** `M[0..59]` são da app; a biblioteca usa `M[60..63]`; os textos literais começam em `M[64]`.
 - Exemplo completo, com teste no browser: `ex/app/contador.onda` (`test/app.test.js`).

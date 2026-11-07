@@ -1,3 +1,5 @@
+// REFERÊNCIA em JavaScript, só para os testes de paridade (mercados/tests/conselheiro-onda.test.mjs): o script que a
+// tarefa agendada corre é o de Onda: estas peças comuns estão em mercados/conselheiro/onda/comum.onda e js.onda.
 // Conselheiro — peças comuns aos scripts da tarefa agendada (Node 18+, sem dependências).
 import { createRequire } from 'node:module';
 import { readFileSync, realpathSync } from 'node:fs';
@@ -7,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 // a análise (toda a API de analise.js) escrita em Onda e compilada para WebAssembly (analise-onda.js, gerado de
 // onda/*.onda): os mesmos resultados que o analise.js, que fica só como referência dos testes
-export const AO = createRequire(import.meta.url)('../analise-onda.js');
+export const AO = createRequire(import.meta.url)('../../analise-onda.js');
 await AO.ready;
 
 // Conector e base de dados (KV) — valores do wrangler.toml
-const toml = readFileSync(path.join(here, '../proxy/wrangler.toml'), 'utf8');
+const toml = readFileSync(path.join(here, '../../proxy/wrangler.toml'), 'utf8');
 export const WORKER = process.env.MERCADOS_PROXY || 'https://mercados-proxy.mercados-proxy.workers.dev';
 export const ACCOUNT = process.env.CF_ACCOUNT_ID || 'e5f9f94050228b1fa9f74443667b20a6';
 export const KV_NS = (toml.match(/binding = "JOURNAL"\s*\nid = "([0-9a-f]+)"/) || [])[1];

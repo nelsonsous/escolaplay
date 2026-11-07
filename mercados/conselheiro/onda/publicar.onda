@@ -1,0 +1,176 @@
+# Conselheiro em Onda — publicar (o publicar.mjs): valida a análise escrita pelo Claude e grava-a no KV.
+#   correr.mjs publicar /tmp/conselheiro/analise.json [/tmp/conselheiro/dados.json]
+# Grava advice:<data>, advice:latest e advice:lessons (formato 2: um veredicto por ativo do dados.json, convicção
+# 0–100 por prazo, níveis, o porquê, e a classificação por prazo). Os erros saem todos, pela ordem do JS.
+
+#k k_dados0 /tmp/conselheiro/dados.json
+#k k_rowsmapnf (dados.rows || []).map is not a function
+#k k_umapnf (uniRows || []).map is not a function
+
+# new Map(lista.map((r) => [r.s, r])): as chaves (SameValueZero) e os valores, pela ordem da 1.ª vez
+: pu_mapa i>i l {
+  ? ~ js_ehlst l cs_lanca k_TypeError k_rowsmapnf 0
+  = ks js_lst js_len l = vs js_lst js_len l = j 0
+  W < j js_len l {
+    = r js_it l j = s js_getx r k_s
+    = i -1 = m 0 W && < i 0 < m js_len ks { ? js_svz js_it ks m s = i m 0 = m + m 1 }
+    ? < i 0 { js_push ks s js_push vs r 0 } { ! + @ + vs 3 i r 0 }
+    = j + j 1 }
+  = mp js_lst 2 js_push mp ks js_push mp vs }
+: pu_mget ii>i mp s { = ks js_it mp 0 = i -1 = m 0 W && < i 0 < m js_len ks { ? js_svz js_it ks m s = i m 0 = m + m 1 } ? < i 0 1 js_it js_it mp 1 i }
+: pu_mtem ii>i mp s != pu_mget mp s 1
+# o FAM[k] (k: o ToPropertyKey) ou undefined (1)
+: pu_fam i>i k { = v js_oget cs_c k_FAM js_str k v }
+# um campo de lista com o índice: `${nome}[${i}]${resto}`
+: pu_ni iii>i nome i resto { sb_ini tx_p nome P '[ N i P '] ? resto tx_p resto 0 sb_fim }
+#k k_ps .s
+#k k_pname .name
+#k k_pamount .amount
+#k k_pwhy .why
+#k k_plan0 plan
+#k k_risks0 risks
+#k k_tldr0 tldr
+#k k_movers0 movers
+#k k_lessons0 lessons
+: pu_lista ii>i a k { = v js_get a k ? js_ehlst v v js_lst 0 }
+# buildAdvice(a, dados, uniRows): o out (g_res) e os erros (g_errs)
+: pu_build iii>i a dados uni {
+  ? || ~ js_v a ~ || js_ehobj a js_ehlst a {
+      cs_eini "a análise tem de ser um objeto JSON" cs_efim 0 } {
+  = drows js_getx dados k_rows
+  = rows pu_mapa ? js_v drows drows js_lst 0
+  = ul ? js_v uni uni js_lst 0 ? ~ js_ehlst ul cs_lanca k_TypeError k_umapnf 0
+  = un pu_mapa ul
+  = o js_obj 16
+  js_oset o k_v js_num 2.
+  js_oset o k_date cs_hoje
+  js_oset o k_generatedAt cs_iso
+  js_oset o k_headline cs_str js_get a k_headline 160 k_headline 1
+  js_oset o k_market cs_str js_get a k_market 1400 k_market 1
+  js_oset o k_planNote cs_str js_get a k_planNote 160 k_planNote 0
+  = pl pu_lista a k_plan = n Mn 6 js_len pl = l js_lst n = j 0
+  W < j n {
+    = x js_it pl j = e js_obj 4
+    js_oset e k_s cs_str js_getx x k_s 24 pu_ni k_plan0 j k_ps 1
+    js_oset e k_name cs_str js_get x k_name 60 pu_ni k_plan0 j k_pname 0
+    js_oset e k_amount cs_str js_get x k_amount 30 pu_ni k_plan0 j k_pamount 1
+    js_oset e k_why cs_str js_get x k_why 220 pu_ni k_plan0 j k_pwhy 0
+    js_push l e = j + j 1 }
+  js_oset o k_plan l
+  = acts js_lst 64 js_oset o k_actions acts
+  = rank js_obj 3 js_oset o k_rank rank
+  = rk pu_lista a k_risks = n Mn 6 js_len rk = l js_lst n = j 0
+  W < j n { js_push l cs_str js_it rk j 240 pu_ni k_risks0 j 0 1 = j + j 1 }
+  js_oset o k_risks l
+  = tl pu_lista a k_tldr = n Mn 3 js_len tl = ltl js_lst n = j 0
+  W < j n { js_push ltl cs_str js_it tl j 120 pu_ni k_tldr0 j 0 1 = j + j 1 }
+  js_oset o k_tldr ltl
+  = mv pu_lista a k_movers = n Mn 10 js_len mv = l js_lst n = j 0
+  W < j n {
+    = x js_it mv j = e js_obj 2
+    js_oset e k_s cs_str js_getx x k_s 24 pu_ni k_movers0 j k_ps 1
+    js_oset e k_why cs_str js_get x k_why 260 pu_ni k_movers0 j k_pwhy 1
+    js_push l e = j + j 1 }
+  js_oset o k_movers l
+  js_oset o k_review cs_str js_get a k_review 1400 k_review 0
+  = le pu_lista a k_lessons = n Mn 15 js_len le = lle js_lst n = j 0
+  W < j n { js_push lle cs_str js_it le j 240 pu_ni k_lessons0 j 0 1 = j + j 1 }
+  js_oset o k_lessons lle
+  ? == js_len js_oget o k_plan 0 { cs_eini "plan vazio: diz sempre o que fazer com o plano do mês" cs_efim } 0
+  ? == js_len ltl 0 { cs_eini "tldr vazio: escreve o resumo em 3 linhas curtas (mercado · plano · atenção)" cs_efim } 0
+  # um veredicto por ativo
+  = av js_get a k_actions = list ? js_ehlst av av js_lst 0
+  ? ~ js_ehlst av { cs_eini "actions tem de ser a lista dos veredictos (um por ativo)" cs_efim } 0
+  = seen js_lst 64 = j 0
+  W < j js_len list {
+    = x js_it list j
+    = s ? js_v x js_get x k_s x = r pu_mget rows s
+    sb_ini "actions[" N j "] " ? js_v s js_ps s P '? = p sb_fim
+    ? && == r 1 ~ pu_mtem un s { cs_eini tx_p p ": ativo desconhecido (não está no dados.json nem na lista da TR)" cs_efim } {
+      ? js_inc seen s { cs_eini tx_p p ": repetido" cs_efim } {
+        js_push seen s
+        = ref && != r 1 tx_eh js_get r k_kind k_ref
+        = v pu_norm x p ref ? != r 1 js_get r k_price 2
+        = ru ? != r 1 js_get r k_rule 1
+        ? && && != r 1 js_v ru && != pu_fam ru 1 != pu_fam js_get v k_key 1 {
+            js_oset v k_alg ru
+            sb_ini tx_p p ".algWhy" = nm sb_fim
+            = w cs_str js_get x k_algWhy 200 nm 0
+            ? && ~ js_eq pu_fam js_get v k_key pu_fam ru tx_branco w {
+                = ra js_get r k_ruleAction = ra ? js_v ra ra cs_alabel js_str ru
+                cs_eini tx_p p ": o teu veredicto (" js_ps js_get v k_action ") discorda do sinal automático (" js_ps ra "): explica porquê em algWhy (até 200 caracteres)" cs_efim } 0
+            ? ~ tx_branco w js_oset v k_algWhy w 0 0 } 0
+        js_push acts v 0 } }
+    = j + j 1 }
+  = ex 0 = j 0 W < j js_len acts { ? ~ pu_mtem rows js_get js_it acts j k_s = ex + ex 1 0 = j + j 1 }
+  ? > ex 8 { cs_eini "no máximo 8 ativos de fora das listas da app; vieram " N ex cs_efim } 0
+  = rk0 js_it rows 0 = mi js_lst 8 = j 0 W < j js_len rk0 { = s js_it rk0 j ? ~ js_inc seen s js_push mi s 0 = j + j 1 }
+  ? js_len mi {
+      cs_eini "faltam " N js_len mi " ativos em actions (a app mostra o veredicto em todos): " = j 0 W < j js_len mi { ? j ", " 0 js_ps js_it mi j = j + j 1 } cs_efim } 0
+  # a classificação do Claude por prazo: só o que se compra
+  = inv js_lst 64 = j 0
+  W < j js_len acts {
+    = x js_it acts j = r pu_mget rows js_get x k_s
+    ? && ~ js_inc cs_c k_REF_KEYS js_get x k_key ~ && != r 1 tx_eh js_get r k_kind k_ref js_push inv x 0
+    = j + j 1 }
+  = ra js_get a k_rank = rr ? && js_v ra || js_ehobj ra js_ehlst ra ra js_obj 0
+  = hz cs_c k_HZ = i 0
+  W < i 3 {
+    = h js_it hz i = gv js_get rr h
+    ? || js_nulo gv && js_ehlst gv == js_len gv 0 {
+        = f js_lst 16 = j 0 W < j js_len inv { = x js_it inv j ? js_fin js_get x h js_push f x 0 = j + j 1 }
+        ! g_cmph h js_ordena f 40
+        = l js_lst 10 = j 0 W < j Mn 10 js_len f { js_push l js_get js_it f j k_s = j + j 1 }
+        js_oset rank h l 0 } {
+      ? ~ js_ehlst gv { cs_eini "rank." tx_p h " tem de ser uma lista de símbolos" cs_efim } {
+        = l js_lst 15 = pv 0 = j 0
+        W < j Mn 15 js_len gv {
+          = s js_it gv j
+          = x 0 = m 0 W && ~ x < m js_len inv { ? js_eq js_get js_it inv m k_s s = x js_it inv m 0 = m + m 1 }
+          ? ~ x { cs_eini "rank." tx_p h P '[ N j "]: " js_ps s " não está em actions (ou é referência)" cs_efim } {
+            ? js_inc l s { cs_eini "rank." tx_p h ": " js_ps s " repetido" cs_efim } {
+              ? && && pv js_fin js_get x h && js_fin js_get pv h > js_f js_get x h js_f js_get pv h {
+                  cs_eini "rank." tx_p h ": " js_ps s " (" js_ps js_get x h ") atrás de " js_ps js_get pv k_s " (" js_ps js_get pv h "): ordena pela convicção ou ajusta-a" cs_efim } 0
+              js_push l s = pv x 0 } }
+          = j + j 1 }
+        js_oset rank h l 0 } }
+    = i + i 1 }
+  # os preços no momento do conselho (em euros; a referência na sua unidade)
+  = pr js_obj 64 = dl ? js_v drows drows js_lst 0 = j 0
+  W < j js_len dl {
+    = r js_it dl j = pe js_get r k_priceEur = p ? js_nulo pe js_get r k_price pe
+    ? js_fin p js_oset pr js_str js_get r k_s p 0
+    = j + j 1 }
+  js_oset o k_prices pr
+  ! g_res o 0 } }
+# normVerdict com as opções do publicar (scores 'req', plan)
+: pu_norm iiii>i x p ref price cs_norm x p ref price 1 1
+# o comparador do auto-rank (cs_cmp 40): y[h] - x[h]
+: pu_cmp iii>f k x y - js_vn js_get y @ g_cmph js_vn js_get x @ g_cmph
+: pu_corre >i {
+  ! g_scr 5
+  = f ho_arg 1
+  ? || ~ f == tx_len f 0 { ho_fd 2 "uso: publicar.mjs analise.json [dados.json]" P 10 ho_volta ho_sair 2 } 0
+  = df ho_arg 2 = df ? df df k_dados0
+  = a cs_lejson f
+  = dados cs_lejson df
+  = uf cs_junta cs_dirname df k_universojson
+  = ur ? ho_existe uf { = u cs_lejson uf = r js_getx u k_rows ? js_v r r js_lst 0 } js_lst 0
+  ! g_res 0
+  pu_build a dados ur
+  = e @ g_errs
+  ? js_len e { ho_fd 2 "Análise inválida (" N js_len e "):\n- " = j 0 W < j js_len e { ? j "\n- " 0 tx_pu js_it e j = j + j 1 } P 10 ho_volta ho_sair 1 } 0
+  ! g_pout @ g_res
+  sb_ini "advice:" tx_p js_oget @ g_res k_date ! g_pk sb_fim
+  ! g_ph 1
+  ? cs_kvput @ g_pk @ g_pout 0 cs_passo }
+: pu_passo >i { = p @ g_ph ? == p 1 pu_p1 ? == p 2 pu_p2 ? == p 3 pu_p3 0 }
+: pu_p1 >i { cs_rkvput @ g_pk cs_lancase ! g_ph 2 ~ cs_kvput k_advicelatest @ g_pout }
+: pu_p2 >i { cs_rkvput k_advicelatest cs_lancase ! g_ph 3 ~ cs_kvput k_advicelessons js_oget @ g_pout k_lessons }
+: pu_p3 >i {
+  cs_rkvput k_advicelessons cs_lancase
+  = o @ g_pout
+  "Publicado advice:" tx_p js_oget o k_date " (" N js_len js_oget o k_actions " ativos, " N js_len js_oget o k_plan " linhas de plano, "
+  N js_len js_oget o k_lessons " lições; mais fortes a médio prazo: "
+  = m js_oget js_oget o k_rank k_mid = j 0 W < j Mn 3 js_len m { ? j ", " 0 js_pu js_it m j = j + j 1 } ")." P 10
+  ho_sair 0 }

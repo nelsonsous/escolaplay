@@ -42,13 +42,14 @@
 : vnum i>f n { = y jtipo n ? == y 4 @f + n 1 ? == y 1 0. ? == y 2 0. ? == y 3 1. / 0. 0. }
 : vmenor ii>i a b < vnum a vnum b
 
-# String(v) (e = 0) ou o esc(v) do mercados.js (e = 1: String(v ?? '') com & < > " ' escapados)
+# String(v) (e = 0), o esc(v) do mercados.js (e = 1: String(v ?? '') com & < > " ' escapados) ou o esc(`${v}`) (e = 2:
+# String(v) escapado, com o null e o undefined por extenso)
 : pv ii>i n e {
   = y jtipo n
   ? == y 5 ? e thtml @ + n 1 tpor @ + n 1
   ? == y 4 pjn @f + n 1
   ? == y 3 "true" ? == y 2 "false"
-  ? == y 1 ? e 0 "null" ? == y 0 ? e 0 "undefined"
+  ? == y 1 ? == e 1 0 "null" ? == y 0 ? == e 1 0 "undefined"
   # String de uma lista: os elementos separados por vírgulas, com o null e o undefined vazios
   ? == y 6 { = c @ + n 4 = f 1 W c { ? f 0 P ', = f 0 = z jtipo c ? || == z 0 == z 1 0 pv c e = c @ + c 3 } 0 }
   "[object Object]" }
@@ -60,27 +61,278 @@
 # ---- números ----
 # String(x) do JS: o decimal mais curto que volta a dar x (o pnz da análise), NaN, Infinity, e o -0 sai 0
 : pjn f>i x ? != x x "NaN" ? ~ finito x { ? < x 0. P '- 0 "Infinity" } ? == x 0. P '0 { ? < x 0. P '- 0 pnz Ab x 46 }
-# fmtPx(v, { decimals: 0 }, 'EUR') do mercados.js: o Intl.NumberFormat('pt-PT') em euros, sem casas. O Intl parte do
-# decimal mais curto do real (o 2^60 sai 1 152 921 504 606 847 000 €, não ...846 976): abaixo de 2^53 é arredondar
-# o real (metades para longe do zero: o x,5 é exato no real e nenhum decimal mais curto de outro real passa por ele);
-# daí para cima são os algarismos do pnz, com zeros. Milhares com U+00A0 a partir de 10 000; "-" nos negativos,
-# também no -0 e no que arredonda para 0 (-0,3 dá -0 €).
-: peur0 f>i x ? ~ finito x "—" {
+# ---- o Intl.NumberFormat('pt-PT') (os fmt* do mercados.js), para todas as vistas ----
+# O Intl (o ICU) arredonda o decimal MAIS CURTO do real, não o valor exato: 1.005 com 2 casas dá 1,01 (o real é
+# 1,00499…), e 2^60 sem casas dá 1 152 921 504 606 847 000 (não …846 976). Arredonda metades para longe do zero (o
+# halfExpand). Vírgula decimal; milhares com U+00A0, só a partir de 10 000 (o mínimo de 2 algarismos do grupo do
+# pt-PT); "-" (U+002D) nos negativos, também no -0 e no que arredonda para 0 (-0,001 com 2 casas dá -0,00).
+# os algarismos do decimal mais curto de a > 0 finito (o do pnz): g[0] = quantos (k), g[1] = n (a = 0,d1…dk × 10^n)
+# e os algarismos, sem os zeros à direita, em g[2..]
+: fm_dig f>i a {
+  = t tnovo 40 O t pnz a 46 O 0
+  = g A 44 = m tlen t = j 0 = k 0 = ni 0 = pt 0 = lz 0 = ex 0
+  W && < j m != tbyte t j 'e {
+    = c tbyte t j
+    ? == c '. = pt 1 {
+        ? pt 0 = ni + ni 1
+        ? && == k 0 == c '0 = lz + lz 1 { ! + g + 2 k - c '0 = k + k 1 0 } }
+    = j + j 1 }
+  ? < j m { = j + j 1 = sg 1 ? == tbyte t j '- { = sg -1 = j + j 1 } ? == tbyte t j '+ = j + j 1 0
+    W < j m { = ex + * ex 10 - tbyte t j '0 = j + j 1 } = ex * sg ex 0 } 0
+  W && > k 0 == @ + g + 1 k 0 = k - k 1
+  ! g k ! + g 1 + - ni lz ex
+  g }
+# x finito com d casas (minimumFractionDigits = maximumFractionDigits = d, 0 <= d <= 100)
+: fm_num fi>i x d {
   ? < Bh x 0 P '- 0
   = a Ab x
-  ? < a 9007199254740992. { = f Fl a pint I ? >= - a f 0.5 + f 1. f 0 } pgrande a
-  # U+00A0 e o €
-  P 194 P 160 "€" }
-# um inteiro (real >= 2^53) com os algarismos do decimal mais curto e os milhares separados
-: pgrande f>i y {
-  = t tnovo 40 O t pnz y 46 O 0
-  # "1152921504606847000" ou, de 1e21 para cima, "1.1805916207174113e+21": os algarismos (d) e quantos tem o inteiro
-  = n tlen t = d A 24 = nd 0 = j 0
-  W && < j n != tbyte t j 'e { = c tbyte t j ? != c '. { ! + d nd c = nd + nd 1 0 } 0 = j + j 1 }
-  = ni nd
-  ? < j n { = e2 0 = j + j 2 W < j n { = e2 + * e2 10 - tbyte t j '0 = j + j 1 } = ni + e2 1 0 } 0
-  = j 0 W < j ni { P ? < j nd @ + d j '0 = r - - ni j 1 ? && > r 0 == % r 3 0 { P 194 P 160 0 } 0 = j + j 1 }
+  ? == a 0. fm_imp 0 0 0 d {
+    # o que o fm_dig reserva volta ao monte no fim
+    = mc marca
+    = g fm_dig a = k @ g = n @ + g 1 = l + n d
+    ? < l k {
+        = up ? >= l 0 >= @ + g + 2 l 5 0
+        = k ? < l 0 0 l
+        ? up {
+            = j - k 1
+            W && >= j 0 == @ + g + 2 j 9 = j - j 1
+            ? >= j 0 { ! + g + 2 j + 1 @ + g + 2 j = k + j 1 0 } { ! + g 2 1 = k 1 = n + n 1 0 } } 0 } 0
+    fm_imp g k n d
+    solta mc } }
+# escreve os algarismos g (k, com o ponto depois de n) com d casas e os milhares
+: fm_imp iiii>i g k n d {
+  ? <= n 0 P '0 { = j 0 W < j n {
+      ? && >= n 5 && > j 0 == % - n j 3 0 { P 194 P 160 0 } 0
+      P + '0 ? < j k @ + g + 2 j 0 = j + j 1 } 0 }
+  ? > d 0 { P ', = p 1 W <= p d { = i + - n 1 p P + '0 ? && >= i 0 < i k @ + g + 2 i 0 = p + p 1 } 0 } 0
   0 }
+# fmtPct(v) e fmtPct1(v) do mercados.js para um número x: o sinal à parte (o − é U+2212; nada entre -0,005 e 0,005,
+# ou entre -0,05 e 0,05 com uma casa), |x| com 2 (1) casas e o %; — se não é finito. As versões …v são para um nó
+# (o fin(v) do JS: só um número finito)
+: fm_pct f>i x ? ~ finito x "—" { ? >= x 0.005 P '+ ? <= x -0.005 { P 226 P 136 P 146 0 } 0 fm_num Ab x 2 P '% }
+: fm_pct1 f>i x ? ~ finito x "—" { ? > x 0.05 P '+ ? < x -0.05 { P 226 P 136 P 146 0 } 0 fm_num Ab x 1 P '% }
+: fm_pctv i>i n ? == jtipo n 4 fm_pct @f + n 1 "—"
+# fmtPx(v, a, cur) do mercados.js, com os campos do ativo já lidos: dn = a.decimals, pt = a.points (nós, 0 sem a) e
+# c = a moeda já escolhida pela ordem do JS (cur || Q[a.key].currency || cfg.fiat na cripto, ou 0). Uma moeda é um
+# código de 3 letras maiúsculas (o /^[A-Z]{3}$/ sobre String(c)): o número, U+00A0 e o símbolo do pt-PT; 'GBp'
+# (pence) não é moeda do Intl e leva " p". Os decimals têm de ser um inteiro de 0 a 100 (como na app: 0, 3 ou 4).
+: fm_px fiii>i v dn pt c ? ~ finito v "—" {
+  = d ? > jtipo dn 1 I vnum dn { = x Ab v ? < x 1. 4 ? < x 10. 3 ? >= x 10000. 0 2 }
+  = cv ? vverd pt 0 c
+  = t ? vverd cv tstr cv 0
+  = m && t && == tlen t 3 && fm_mai tbyte t 0 && fm_mai tbyte t 1 fm_mai tbyte t 2
+  fm_num v d
+  ? m { P 194 P 160 fm_sim t 0 } 0
+  ? && == jtipo cv 5 && == tlen t 3 && && == tbyte t 0 'G == tbyte t 1 'B == tbyte t 2 'p " p" 0
+  0 }
+: fm_mai i>i c && >= c 'A <= c 'Z
+: fm_k3 iii>i a b c + + * a 65536 * b 256 c
+# o símbolo da moeda (código de 3 letras) no pt-PT do Chromium 153: os 21 que não são o próprio código
+: fm_sim i>i t {
+  = h fm_k3 tbyte t 0 tbyte t 1 tbyte t 2
+  ? == h fm_k3 'E 'U 'R "€" ? == h fm_k3 'U 'S 'D "US$" ? == h fm_k3 'G 'B 'P "£" ? == h fm_k3 'A 'U 'D "AU$"
+  ? == h fm_k3 'B 'R 'L "R$" ? == h fm_k3 'C 'A 'D "CA$" ? == h fm_k3 'C 'N 'Y "CN¥" ? == h fm_k3 'H 'K 'D "HK$"
+  ? == h fm_k3 'I 'L 'S "₪" ? == h fm_k3 'I 'N 'R "₹" ? == h fm_k3 'J 'P 'Y "JP¥" ? == h fm_k3 'K 'R 'W "₩"
+  ? == h fm_k3 'M 'X 'N "MX$" ? == h fm_k3 'N 'Z 'D "NZ$" ? == h fm_k3 'T 'H 'B "฿" ? == h fm_k3 'T 'W 'D "NT$"
+  ? == h fm_k3 'V 'N 'D "₫" ? == h fm_k3 'X 'A 'F "FCFA" ? == h fm_k3 'X 'C 'D "EC$" ? == h fm_k3 'X 'P 'F "CFPF"
+  # F CFA, com U+202F
+  ? == h fm_k3 'X 'O 'F { P 'F P 226 P 128 P 175 "CFA" 0 }
+  tpor t }
+# fmtPx(v, { decimals: 0 }, 'EUR') do mercados.js
+: peur0 f>i x ? ~ finito x "—" { fm_num x 0 P 194 P 160 "€" }
+# (x).toFixed(1).replace('.', ',') do JS: o valor exato (o tofix1 da análise); de 1e21 para cima o String(x)
+: fm_fix1 f>i x ? != x x "NaN" { = y x ? < y 0. { P '- = y * -1. y 0 } 0 ? ~ finito y "Infinity" ? >= y 1000000000000000000000. pnz y 44 tofix1 y }
+# para os testes (AnaliseOnda._vista('fm_teste', lista)): cada [tipo, v, …] da lista numa linha — 0 fmtPct(v),
+# 1 fmtPct1(v), 2 fmtPx(v, a, cur) com [2, v, a, cur, Q[a.key].currency, cfg.fiat], 3 o número com d casas
+# [3, v, d], 4 toFixed(1) com vírgula
+: fm_teste i>i s {
+  = kd kab "decimals" O 0 = kp kab "points" O 0 = kk kab "kind" O 0 = kc kab "crypto" O 0
+  = c jprim s
+  W c {
+    = y jnum jidx c 0 = v jidx c 1 = x vnum v
+    ? == y 0. fm_pctv v ? == y 1. ? == jtipo v 4 fm_pct1 x "—"
+    ? == y 2. {
+        = a jidx c 2 = cu jidx c 3
+        # a moeda pela ordem do fmtPx: cur || Q[a.key].currency || (a && a.kind === 'crypto' ? cfg.fiat : null)
+        = m ? vverd cu cu ? vverd jidx c 4 jidx c 4 ? && vverd a veqt jget a kk kc jidx c 5 0
+        ? == jtipo v 4 fm_px x jget a kd jget a kp m "—" }
+    ? == y 3. fm_num x I jnum jidx c 2 fm_fix1 x
+    P 10 = c jprox c }
+  0 }
+
+# ---- a ordenação do JS (Array.prototype.sort do V8 do Chromium: o PowerSort de array-sort.tq) ----
+# Ordena n índices w[0..n-1] pelo comparador (a, b) => d1 || d2, com d1 = k1[b] - k1[a] (ou k1[a] - k1[b], modo & 1)
+# e d2 = k2[b] - k2[a] (ou k2[a] - k2[b], modo & 4) só com o modo & 2; o NaN conta 0 (o SortCompare do JS). k1 e k2
+# são reais indexados pelos índices. As mesmas comparações que o V8, pela mesma ordem: com chaves que não dão uma
+# ordem (NaN, que empata com tudo) o resultado é também o do browser, não só "um" resultado ordenado. Abaixo de 16
+# elementos é a inserção binária; daí para cima, as corridas naturais (estendidas até ao minrun do CPython) fundem-se
+# pela "potência" da fronteira (PowerSort), com o galope do TimSort. (O V8 do Node 22 ainda é o TimSort clássico.)
+# contexto c: 0 k1, 1 k2, 2 modo, 3 minGallop, 4 temporário, 5 w, 6 corridas na pilha, 8.. (base, comprimento),
+# 200.. as potências
+: ts_cmp iii>i c x y {
+  = md @ + c 2 = k1 @ c
+  = a @f + k1 x = b @f + k1 y
+  = d ? & md 1 - a b - b a
+  ? && & md 2 || == d 0. != d d { = k2 @ + c 1 = a @f + k2 x = b @f + k2 y = d ? & md 4 - a b - b a 0 } 0
+  ? < d 0. -1 ? > d 0. 1 0 }
+: ts_ordena iiiii>i w n k1 k2 md ? < n 2 0 {
+  = c A 300
+  ! c k1 ! + c 1 k2 ! + c 2 md ! + c 3 7 ! + c 4 A + n 1 ! + c 5 w
+  ? < n 16 ts_bis c w 0 0 n {
+    # o minrun_next do CPython: corridas de floor(n/2^e) ou ceil(n/2^e), com floor(n/2^e) em [32, 64)
+    = st n = mk 0 W >= st 64 { = st >> st 1 = mk | << mk 1 1 }
+    = rm & n mk = th + mk 1 = ac 0
+    = lo 0 = rem n
+    W != rem 0 {
+      = ac + ac rm = mr st ? >= ac th { = ac - ac th = mr + mr 1 0 } 0
+      = cr ts_run c w lo + lo rem
+      ? < cr mr { = fr ? < mr rem mr rem ts_bis c w lo + lo cr + lo fr = cr fr 0 } 0
+      = ss @ + c 6
+      ? ss {
+          = p ts_pot @ + + c 8 * 2 - ss 1 @ + + c 9 * 2 - ss 1 cr n
+          W && > ss 1 > @ + + c 200 - ss 2 p { ts_ma c - ss 2 = ss @ + c 6 }
+          ! + + c 200 - ss 1 p 0 } 0
+      ! + + c 8 * 2 ss lo ! + + c 9 * 2 ss cr ! + c 6 + ss 1
+      = lo + lo cr = rem - rem cr }
+    W > @ + c 6 1 { = n2 - @ + c 6 2 ? && > n2 0 < ts_rl c - n2 1 ts_rl c + n2 1 = n2 - n2 1 0 ts_ma c n2 }
+    0 } }
+# NodePower (64 bits): a profundidade, numa árvore de fusão ótima, da fronteira entre a corrida (s1, n1) e a seguinte (n2)
+: ts_pot iiii>i s1 n1 n2 n {
+  = a + * 2 s1 n1 = b + + a n1 n2
+  = x ^ & / << a 30 n 4294967295 & / << b 30 n 4294967295
+  = r 32 W > x 0 { = x >> x 1 = r - r 1 } r }
+# CountAndMakeRun: a corrida natural que começa em lo (a descer, estritamente, é invertida)
+: ts_run iiii>i c w lo hi {
+  = l + lo 1
+  ? == l hi 1 {
+    = n 2 = ds < ts_cmp c @ + w l @ + w - l 1 0
+    = pe @ + w l = i + l 1 = go 1
+    W && go < i hi { = o ts_cmp c @ + w i pe ? ? ds >= o 0 < o 0 = go 0 { = pe @ + w i = n + n 1 = i + i 1 0 } }
+    ? ds { = i lo = j - + lo n 1 W < i j { = t @ + w i ! + w i @ + w j ! + w j t = i + i 1 = j - j 1 } 0 } 0
+    n } }
+# BinaryInsertionSort(lo, st, hi)
+: ts_bis iiiii>i c w lo st hi {
+  = s ? == lo st + st 1 st
+  W < s hi {
+    = l lo = r s = pv @ + w s
+    W < l r { = m + l >> - r l 1 ? < ts_cmp c pv @ + w m 0 = r m = l + m 1 }
+    = p s W > p l { ! + w p @ + w - p 1 = p - p 1 }
+    ! + w l pv = s + s 1 }
+  0 }
+: ts_rl ii>i c i @ + + c 9 * 2 i
+# cópia de n palavras de s[sp..] para d[dp..] (como o memmove)
+: ts_cp iiiii>i s sp d dp n ? < sp dp { = i - n 1 W >= i 0 { ! + d + dp i @ + s + sp i = i - i 1 } 0 } { = i 0 W < i n { ! + d + dp i @ + s + sp i = i + i 1 } 0 }
+# GallopLeft e GallopRight (no array ar, a partir de bs, ln elementos, começando em hi)
+: ts_gl iiiiii>i c ar key bs ln hi {
+  = lo 0 = of 1
+  ? < ts_cmp c @ + ar + bs hi key 0 {
+      = mx - ln hi
+      W && < of mx < ts_cmp c @ + ar + + bs hi of key 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = lo + lo hi = of + of hi 0 }
+    {
+      = mx + hi 1
+      W && < of mx >= ts_cmp c @ + ar - + bs hi of key 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = t lo = lo - hi of = of - hi t 0 }
+  = lo + lo 1
+  W < lo of { = m + lo >> - of lo 1 ? < ts_cmp c @ + ar + bs m key 0 = lo + m 1 = of m }
+  of }
+: ts_gr iiiiii>i c ar key bs ln hi {
+  = lo 0 = of 1
+  ? < ts_cmp c key @ + ar + bs hi 0 {
+      = mx + hi 1
+      W && < of mx < ts_cmp c key @ + ar - + bs hi of 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = t lo = lo - hi of = of - hi t 0 }
+    {
+      = mx - ln hi
+      W && < of mx >= ts_cmp c key @ + ar + + bs hi of 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = lo + lo hi = of + of hi 0 }
+  = lo + lo 1
+  W < lo of { = m + lo >> - of lo 1 ? < ts_cmp c key @ + ar + bs m 0 = of m = lo + m 1 }
+  of }
+# MergeAt(i)
+: ts_ma ii>i c i {
+  = ss @ + c 6 = rs + c 8
+  = ba @ + rs * 2 i = la @ + + rs * 2 i 1
+  = bb @ + rs * 2 + i 1 = lb @ + + rs * 2 + i 1 1
+  ! + + rs * 2 i 1 + la lb
+  ? == i - ss 3 { ! + rs * 2 + i 1 @ + rs * 2 + i 2 ! + + rs * 2 + i 1 1 @ + + rs * 2 + i 2 1 0 } 0
+  ! + c 6 - ss 1
+  = w @ + c 5
+  = k ts_gr c w @ + w bb ba la 0
+  = ba + ba k = la - la k
+  ? == la 0 0 {
+    = lb ts_gl c w @ + w - + ba la 1 bb lb - lb 1
+    ? == lb 0 0 ? <= la lb ts_ml c ba la bb lb ts_mh c ba la bb lb } }
+# MergeLow e MergeHigh (fim: 1 Succeed, 2 CopyB / CopyA)
+: ts_ml iiiii>i c ba la bb lb {
+  = w @ + c 5 = tp @ + c 4
+  ts_cp w ba tp 0 la
+  = de ba = ct 0 = cb bb
+  ! + w de @ + w cb = de + de 1 = cb + cb 1 = lb - lb 1
+  = fim ? == lb 0 1 ? == la 1 2 0
+  = mg @ + c 3
+  W ~ fim {
+    = wa 0 = wb 0 = mo 1
+    W && ~ fim mo {
+      ? < ts_cmp c @ + w cb @ + tp ct 0 {
+          ! + w de @ + w cb = de + de 1 = cb + cb 1 = wb + wb 1 = lb - lb 1 = wa 0
+          ? == lb 0 = fim 1 ? >= wb mg = mo 0 0 }
+        { ! + w de @ + tp ct = de + de 1 = ct + ct 1 = wa + wa 1 = la - la 1 = wb 0
+          ? == la 1 = fim 2 ? >= wa mg = mo 0 0 } }
+    ? fim 0 {
+      = mg + mg 1 = pr 1
+      W && ~ fim || || >= wa 7 >= wb 7 pr {
+        = pr 0 = mg ? > mg 2 - mg 1 1 ! + c 3 mg
+        = wa ts_gr c tp @ + w cb ct la 0
+        ? > wa 0 { ts_cp tp ct w de wa = de + de wa = ct + ct wa = la - la wa ? == la 1 = fim 2 ? == la 0 = fim 1 0 } 0
+        ? fim 0 {
+          ! + w de @ + w cb = de + de 1 = cb + cb 1 = lb - lb 1
+          ? == lb 0 = fim 1 {
+            = wb ts_gl c w @ + tp ct cb lb 0
+            ? > wb 0 { ts_cp w cb w de wb = de + de wb = cb + cb wb = lb - lb wb ? == lb 0 = fim 1 0 } 0
+            ? fim 0 { ! + w de @ + tp ct = de + de 1 = ct + ct 1 = la - la 1 ? == la 1 = fim 2 0 } } } }
+      ? fim 0 { = mg + mg 1 ! + c 3 mg 0 } } }
+  ? == fim 1 { ? > la 0 ts_cp tp ct w de la 0 0 } { ts_cp w cb w de lb ! + w + de lb @ + tp ct 0 }
+  0 }
+: ts_mh iiiii>i c ba la bb lb {
+  = w @ + c 5 = tp @ + c 4
+  ts_cp w bb tp 0 lb
+  = de - + bb lb 1 = ct - lb 1 = ca - + ba la 1
+  ! + w de @ + w ca = de - de 1 = ca - ca 1 = la - la 1
+  = fim ? == la 0 1 ? == lb 1 2 0
+  = mg @ + c 3
+  W ~ fim {
+    = wa 0 = wb 0 = mo 1
+    W && ~ fim mo {
+      ? < ts_cmp c @ + tp ct @ + w ca 0 {
+          ! + w de @ + w ca = de - de 1 = ca - ca 1 = wa + wa 1 = la - la 1 = wb 0
+          ? == la 0 = fim 1 ? >= wa mg = mo 0 0 }
+        { ! + w de @ + tp ct = de - de 1 = ct - ct 1 = wb + wb 1 = lb - lb 1 = wa 0
+          ? == lb 1 = fim 2 ? >= wb mg = mo 0 0 } }
+    ? fim 0 {
+      = mg + mg 1 = pr 1
+      W && ~ fim || || >= wa 7 >= wb 7 pr {
+        = pr 0 = mg ? > mg 2 - mg 1 1 ! + c 3 mg
+        = wa - la ts_gr c w @ + tp ct ba la - la 1
+        ? > wa 0 { = de - de wa = ca - ca wa ts_cp w + ca 1 w + de 1 wa = la - la wa ? == la 0 = fim 1 0 } 0
+        ? fim 0 {
+          ! + w de @ + tp ct = de - de 1 = ct - ct 1 = lb - lb 1
+          ? == lb 1 = fim 2 {
+            = wb - lb ts_gl c tp @ + w ca 0 lb - lb 1
+            ? > wb 0 { = de - de wb = ct - ct wb ts_cp tp + ct 1 w + de 1 wb = lb - lb wb ? == lb 1 = fim 2 ? == lb 0 = fim 1 0 } 0
+            ? fim 0 { ! + w de @ + w ca = de - de 1 = ca - ca 1 = la - la 1 ? == la 0 = fim 1 0 } } } }
+      ? fim 0 { = mg + mg 1 ! + c 3 mg 0 } } }
+  ? == fim 1 { ? > lb 0 ts_cp tp 0 w - de - lb 1 lb 0 0 } { = de - de la = ca - ca la ts_cp w + ca 1 w + de 1 la ! + w de @ + tp ct 0 }
+  0 }
+# para os testes (AnaliseOnda._ordena): b = [n, modo, k1 (n reais), k2 (n reais), n palavras para o resultado]
+: ts_teste i>i b {
+  = n @ b = k1 + b 2 = k2 + k1 n = w + k2 n
+  = i 0 W < i n { ! + w i i = i + i 1 }
+  ts_ordena w n k1 k2 @ + b 1 }
 # ago(ms) do mercados.js para um ms verdadeiro, com ag = now(); tx é a data que o browser escreveu (no fuso e na
 # língua dele), para mais de uma hora; escapa-se aqui
 : pago ffi>i ms ag tx {

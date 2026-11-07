@@ -1,0 +1,534 @@
+# Mercados — a vista da Análise em Onda: o mesmo HTML, byte a byte, que o viewAnalysis de mercados.js (com o
+# uniSection, o ideasCard, o algoRank e o trackSection), a partir do instantâneo que o analysisSnap monta (ver lá o
+# que vai nele e o que vai já feito). Os eventos continuam no JS (data-hz, data-filter, data-open, data-act…).
+# Entrada: `ecra_analise s`, com s o instantâneo (ecra.onda); saída: o HTML no stdout.
+# As listas filtram-se e ordenam-se aqui como no JS: o mesmo filtro, o mesmo comparador e o mesmo sort do V8
+# (ts_ordena de ecra.onda), por isso também os empates ficam pela mesma ordem.
+# Nomes: an_* e ka_*, para não chocarem com os k_* dos Ajustes nem com os do conselheiro (que junta estes ficheiros).
+
+# ===== as chaves do instantâneo e os textos com que se compara =====
+: ka_horas >i ekt 0
+: ka_owner >i ekt 1
+: ka_claude >i ekt 2
+: ka_proxy >i ekt 3
+: ka_filter >i ekt 4
+: ka_hz >i ekt 5
+: ka_strategy >i ekt 6
+: ka_foldAn >i ekt 7
+: ka_foldUni >i ekt 8
+: ka_uniN >i ekt 9
+: ka_when >i ekt 10
+: ka_assets >i ekt 11
+: ka_cl >i ekt 12
+: ka_uni >i ekt 13
+: ka_ev >i ekt 14
+: ka_bt >i ekt 15
+: ka_k >i ekt 16
+: ka_kind >i ekt 17
+: ka_temp >i ekt 18
+: ka_sym >i ekt 19
+: ka_name >i ekt 20
+: ka_chg >i ekt 21
+: ka_an >i ekt 22
+: ka_h >i ekt 23
+: ka_d >i ekt 24
+: ka_risk >i ekt 25
+: ka_rsi >i ekt 26
+: ka_adv >i ekt 27
+: ka_score >i ekt 28
+: ka_tone >i ekt 29
+: ka_label >i ekt 30
+: ka_reasons >i ekt 31
+: ka_short >i ekt 32
+: ka_mid >i ekt 33
+: ka_long >i ekt 34
+: ka_dd >i ekt 35
+: ka_tag >i ekt 36
+: ka_verdict >i ekt 37
+: ka_opp >i ekt 38
+: ka_missing >i ekt 39
+: ka_off >i ekt 40
+: ka_review >i ekt 41
+: ka_lessons >i ekt 42
+: ka_rank >i ekt 43
+: ka_actions >i ekt 44
+: ka_s >i ekt 45
+: ka_key >i ekt 46
+: ka_action >i ekt 47
+: ka_why >i ekt 48
+: ka_error >i ekt 49
+: ka_rows >i ekt 50
+: ka_days >i ekt 51
+: ka_since >i ekt 52
+: ka_acc >i ekt 53
+: ka_n >i ekt 54
+: ka_xs >i ekt 55
+: ka_xn >i ekt 56
+: ka_running >i ekt 57
+: ka_sum >i ekt 58
+: ka_yrs >i ekt 59
+: ka_ticket >i ekt 60
+: ka_byKind >i ekt 61
+: ka_worst >i ekt 62
+: ka_best >i ekt 63
+: ka_n63 >i ekt 64
+: ka_avg63 >i ekt 65
+: ka_hit63 >i ekt 66
+: ka_ex63 >i ekt 67
+: ka_v_disc >i ekt 68
+: ka_v_all >i ekt 69
+: ka_v_plan >i ekt 70
+: ka_v_energy >i ekt 71
+: ka_v_gcf >i ekt 72
+: ka_v_aux >i ekt 73
+: ka_v_index >i ekt 74
+: ka_v_stock >i ekt 75
+: ka_v_fund >i ekt 76
+: ka_v_crypto >i ekt 77
+: ka_v_mix >i ekt 78
+: ka_v_etf >i ekt 79
+# os conselhos pela ordem das tabelas do trackSection (buy … avoid), e os outros
+: ka_o i>i j ekt + 80 j
+: ka_v_buy >i ekt 80
+: ka_v_scale >i ekt 81
+: ka_v_hold >i ekt 82
+: ka_v_wait >i ekt 83
+: ka_v_neutral >i ekt 84
+: ka_v_turn >i ekt 85
+: ka_v_avoid >i ekt 86
+: ka_v_reduce >i ekt 87
+: ka_v_sell >i ekt 88
+: ka_v_up >i ekt 89
+: ka_v_flat >i ekt 90
+: ka_v_down >i ekt 91
+# as linhas de toda a Trade Republic: { s, n, t, m, l, o, dd, d, y, rk }
+: ka_rt >i ekt 92
+: ka_rm >i ekt 93
+: ka_rl >i ekt 94
+: ka_ro >i ekt 95
+: ka_ry >i ekt 96
+: ka_rk >i ekt 97
+: an_chaves >i {
+  ! 54 A 120
+  kdef 0 kab "horas" O 0  kdef 1 kab "owner" O 0  kdef 2 kab "claude" O 0  kdef 3 kab "proxy" O 0  kdef 4 kab "filter" O 0
+  kdef 5 kab "hz" O 0  kdef 6 kab "strategy" O 0  kdef 7 kab "foldAn" O 0  kdef 8 kab "foldUni" O 0  kdef 9 kab "uniN" O 0
+  kdef 10 kab "when" O 0  kdef 11 kab "assets" O 0  kdef 12 kab "cl" O 0  kdef 13 kab "uni" O 0  kdef 14 kab "ev" O 0
+  kdef 15 kab "bt" O 0  kdef 16 kab "k" O 0  kdef 17 kab "kind" O 0  kdef 18 kab "temp" O 0  kdef 19 kab "sym" O 0
+  kdef 20 kab "name" O 0  kdef 21 kab "chg" O 0  kdef 22 kab "an" O 0  kdef 23 kab "h" O 0  kdef 24 kab "d" O 0
+  kdef 25 kab "risk" O 0  kdef 26 kab "rsi" O 0  kdef 27 kab "adv" O 0  kdef 28 kab "score" O 0  kdef 29 kab "tone" O 0
+  kdef 30 kab "label" O 0  kdef 31 kab "reasons" O 0  kdef 32 kab "short" O 0  kdef 33 kab "mid" O 0  kdef 34 kab "long" O 0
+  kdef 35 kab "dd" O 0  kdef 36 kab "tag" O 0  kdef 37 kab "verdict" O 0  kdef 38 kab "opp" O 0  kdef 39 kab "missing" O 0
+  kdef 40 kab "off" O 0  kdef 41 kab "review" O 0  kdef 42 kab "lessons" O 0  kdef 43 kab "rank" O 0  kdef 44 kab "actions" O 0
+  kdef 45 kab "s" O 0  kdef 46 kab "key" O 0  kdef 47 kab "action" O 0  kdef 48 kab "why" O 0  kdef 49 kab "error" O 0
+  kdef 50 kab "rows" O 0  kdef 51 kab "days" O 0  kdef 52 kab "since" O 0  kdef 53 kab "acc" O 0  kdef 54 kab "n" O 0
+  kdef 55 kab "xs" O 0  kdef 56 kab "xn" O 0  kdef 57 kab "running" O 0  kdef 58 kab "sum" O 0  kdef 59 kab "yrs" O 0
+  kdef 60 kab "ticket" O 0  kdef 61 kab "byKind" O 0  kdef 62 kab "worst" O 0  kdef 63 kab "best" O 0  kdef 64 kab "n63" O 0
+  kdef 65 kab "avg63" O 0  kdef 66 kab "hit63" O 0  kdef 67 kab "ex63" O 0  kdef 68 kab "disc" O 0  kdef 69 kab "all" O 0
+  kdef 70 kab "plan" O 0  kdef 71 kab "energy" O 0  kdef 72 kab "GC=F" O 0  kdef 73 kab "aux" O 0  kdef 74 kab "index" O 0
+  kdef 75 kab "stock" O 0  kdef 76 kab "fund" O 0  kdef 77 kab "crypto" O 0  kdef 78 kab "mix" O 0  kdef 79 kab "etf" O 0
+  kdef 80 kab "buy" O 0  kdef 81 kab "scale" O 0  kdef 82 kab "hold" O 0  kdef 83 kab "wait" O 0  kdef 84 kab "neutral" O 0
+  kdef 85 kab "turn" O 0  kdef 86 kab "avoid" O 0  kdef 87 kab "reduce" O 0  kdef 88 kab "sell" O 0  kdef 89 kab "up" O 0
+  kdef 90 kab "flat" O 0  kdef 91 kab "down" O 0
+  kdef 92 kab "t" O 0  kdef 93 kab "m" O 0  kdef 94 kab "l" O 0  kdef 95 kab "o" O 0  kdef 96 kab "y" O 0  kdef 97 kab "rk" O 0
+  0 }
+# o estado da chamada, a seguir às chaves: 100 hz  101 filtro  102 desconto (hz === 'disc')  103 useCl  104 clDoc (a
+# lista actions, ou 0)  105 CLAUDE  106 claudeOn  107 quantos ativos  108 os ativos  109 o texto do hz (ou 0)
+# 110/111 clRows (índices, quantos)  112/113 autoRows
+: an_g i>i i @ + @ 54 i
+: an_s ii>i i v { ! + @ 54 i v 0 }
+# o ativo i (pela ordem de Object.keys(REG)): 0 o nó  1 clNow(k) (ou 0)  2 hzOf(k, hz) (o nó do prazo ou do desconto,
+# ou 0)  3 marcas (1 keys, 2 inv, 4 pool, 8 em clRows, 16 tem clScore)  4 clScore (real)  5 AN[k] (ou 0)  7 o tipo
+: an_p ii>i i o + + an_g 108 * 8 i o
+: an_f ii>i i o @ an_p i o
+
+# ===== o que o JS tem em tabelas =====
+# CL_TONE[k] || 'flat'
+: an_tom i>i k ? || || veqt k ka_v_buy veqt k ka_v_scale veqt k ka_v_up "up"
+  ? || || || veqt k ka_v_reduce veqt k ka_v_avoid veqt k ka_v_sell veqt k ka_v_down "down" "flat"
+# SHORT[k]: escreve-o e dá 1, ou 0 se não há
+: an_sht i>i k ? veqt k ka_v_buy { "Comprar" 1 } ? veqt k ka_v_scale { "Comprar aos poucos" 1 } ? veqt k ka_v_hold { "Manter" 1 }
+  ? veqt k ka_v_wait { "Esperar" 1 } ? veqt k ka_v_neutral { "Não reforçar" 1 } ? veqt k ka_v_turn { "Esperar" 1 }
+  ? veqt k ka_v_reduce { "Reduzir" 1 } ? veqt k ka_v_avoid { "Evitar" 1 } ? veqt k ka_v_sell { "Vender" 1 }
+  ? veqt k ka_v_up { "Em alta" 1 } ? veqt k ka_v_flat { "Lateral" 1 } ? veqt k ka_v_down { "Em queda" 1 } 0
+# FAM[k]: 0 sem família, 1 entrar, 2 ficar, 3 sair
+: an_fam i>i k ? || veqt k ka_v_buy veqt k ka_v_scale 1 ? || || || veqt k ka_v_hold veqt k ka_v_wait veqt k ka_v_neutral veqt k ka_v_turn 2
+  ? || || veqt k ka_v_reduce veqt k ka_v_sell veqt k ka_v_avoid 3 0
+# ACT[order[j]]
+: an_act i>i j ? == j 0 "Comprar" ? == j 1 "Comprar aos poucos" ? == j 2 "Manter (não perseguir)" ? == j 3 "Esperar / reforçar"
+  ? == j 4 "Manter, sem reforçar" ? == j 5 "Esperar confirmação" "Evitar"
+# HZ_PT[hz]
+: an_hzpt >i { = h an_g 100 ? veqt h ka_short "curto" ? veqt h ka_mid "médio" ? veqt h ka_long "longo" "undefined" }
+: an_medal i>i j ? == j 0 "1.º" ? == j 1 "2.º" "3.º"
+
+# ===== pedaços =====
+# o pc e o tone do trackSection para um real x (nul: o x é null)
+: an_pc if>i nul x ? || nul ~ finito x "—" fm_pct * x 100.
+: an_tof f>i v ? ~ finito v "flat" ? > v 0.005 "up" ? < v -0.005 "down" "flat"
+: an_tn if>i nul x ? nul "flat" an_tof * x 100.
+# … e para um nó (null e undefined são o null do JS; o que não é número não é finito)
+: an_pcv i>i n ? || == jtipo n 0 == jtipo n 1 "—" ? == jtipo n 4 an_pc 0 @f + n 1 "—"
+: an_tnv i>i n ? || == jtipo n 0 == jtipo n 1 "flat" an_tof * vnum n 100.
+# v === 1
+: an_um i>i n && == jtipo n 4 == @f + n 1 1.
+# scoreBar({ score: v, tone: scoreTone(v) }) para um número; scoreBar(h) com o h.tone e o h.score crus
+: an_t3 i>i t ? == t 0 "up" ? == t 1 "flat" "down"
+: an_barv f>i v { = t ? >= v 58. 0 ? <= v 42. 2 1
+  "<div class=\"score\"><div class=\"bar\"><i class=\"" an_t3 t "\" style=\"width:" pjn v "%\"></i></div><span class=\"val num " an_t3 t "-t\">" pjn v "</span></div>" 0 }
+: an_barh i>i h { = t jg h ka_tone = s jg h ka_score
+  "<div class=\"score\"><div class=\"bar\"><i class=\"" pv t 0 "\" style=\"width:" pv s 0 "%\"></i></div><span class=\"val num " pv t 0 "-t\">" pv s 0 "</span></div>" 0 }
+# badge(c)
+: an_badge i>i c ? c { = k jg c ka_key "<span class=\"badge " an_tom k "\">" ? an_sht k 0 { = a jg c ka_action ? vverd a pv a 1 0 } "</span>" 0 } 0
+# o h.label do hzOf (no desconto é o d.tag) e a primeira razão a favor ((h.reasons.find((r) => r.pts > 0) || {}).txt
+# || ''; no desconto é o d.verdict)
+: an_lab ii>i a dsc jg a ? dsc ka_tag ka_label
+: an_razao ii>i a dsc ? dsc { = v jg a ka_verdict ? vverd v pv v 1 0 } {
+  = c jprim jg a ka_reasons = r 0
+  W && c ~ r { ? > vnum jidx c 0 0. = r c 0 = c jprox c }
+  ? r { = t jidx r 1 ? vverd t pv t 1 0 } 0 }
+# t.toLowerCase() escapado, para um nó de texto (ASCII e o Latim-1 de U+00C0 a U+00DE: os rótulos da análise)
+: an_min i>i n {
+  = t jtxt n = m tlen t = j 0
+  W < j m {
+    = c tbyte t j
+    ? && >= c 'A <= c 'Z P + c 32
+    ? && == c 195 < + j 1 m { = c2 tbyte t + j 1 P 195 P ? && && >= c2 128 <= c2 158 != c2 151 + c2 32 c2 = j + j 1 0 }
+    ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" P c
+    = j + j 1 }
+  0 }
+# clNow: o primeiro conselho a da lista l com a && a.s === k
+: an_cl ii>i l k { = c jprim l = r 0 W && c ~ r { ? && vverd c vigual jg c ka_s k = r c 0 = c jprox c } r }
+# clScored: algum a && fin(a.mid)
+: an_mid i>i l { = c jprim l = r 0 W && c ~ r { = v jg c ka_mid = r && vverd c && == jtipo v 4 finito @f + v 1 = c jprox c } r }
+# rk(k): a posição de k na classificação do Claude (r.indexOf(k), com ===), ou 1000
+: an_rk ii>i rl k { = c ? == jtipo rl 6 jprim rl 0 = i 0 = r -1 W && c < r 0 { ? vigual c k = r i 0 = c jprox c = i + i 1 } ? < r 0 1000 r }
+# o prazo h (texto) do AN[k] (o hzOf(k, h) fora do desconto): r.horizons && r.horizons[h]
+: an_hzn ii>i an h { = x jg an ka_h = y ? && vverd x h jget x h 0 ? vverd y y 0 }
+# types.includes(t) do uniSection (ty: 1 etf, 2 crypto, 4 stock)
+: an_tipo ii>i t ty ? veqt t ka_v_etf & ty 1 ? veqt t ka_v_crypto & ty 2 ? veqt t ka_v_stock & ty 4 0
+
+# ===== os ativos e as listas =====
+: an_prep >i {
+  = l sg ka_assets = n jn l = b A * 8 + n 1
+  an_s 107 n an_s 108 b
+  = disc an_g 102 = cd an_g 104 = f an_g 101 = ht an_g 109
+  = c jprim l = i 0
+  W c {
+    = p + b * 8 i
+    = k jg c ka_k = kd jg c ka_kind = an0 jg c ka_an
+    = an ? vverd an0 an0 0
+    ! p c ! + p 5 an ! + p 7 kd
+    = cn ? cd an_cl cd k 0
+    ! + p 1 cn
+    = al ? an { ? disc { = d jg an ka_d ? vverd d d 0 } ? ht an_hzn an ht 0 } 0
+    ! + p 2 al
+    # listed, investable, inPlan; keys, inv e pool do viewAnalysis
+    = li && ~ vverd jg c ka_temp ~ veqt kd ka_v_aux
+    = iv && li || || veqt kd ka_v_stock veqt kd ka_v_fund veqt kd ka_v_crypto
+    = ip || veqt kd ka_v_fund veqt kd ka_v_crypto
+    = ky && && li || ~ veqt kd ka_v_index veqt k ka_v_gcf || an cn
+    = po ? veqt f ka_v_all iv ? veqt f ka_v_plan && iv ip || vigual kd f && veqt f ka_v_energy veqt k ka_v_gcf
+    = fl | ? ky 1 0 | ? && && ky iv an 2 0 ? && ky po 4 0
+    # clScore(k, hz): c && fin(c[hz])
+    = v ? && cn ht jget cn ht 0
+    ? && == jtipo v 4 finito @f + v 1 { !f + p 4 @f + v 1 = fl | fl 16 0 } 0
+    ! + p 3 fl
+    = c jprox c = i + i 1 }
+  0 }
+: an_listas >i {
+  = n an_g 107 = k1 A + n 1 = k2 A + n 1
+  # clRows: os que o Claude pontuou, pela convicção (a descer) e, nos empates, pela classificação dele
+  = cr + A + n 2 1 = nc 0
+  ? an_g 103 {
+      = rl jg an_g 105 ka_rank = ht an_g 109 = rh ? && vverd rl ht jget rl ht 0
+      = i 0 W < i n {
+        ? == & an_f i 3 20 20 { ! + cr nc i = nc + nc 1 !f + k1 i @f an_p i 4 !f + k2 i F an_rk rh jg an_f i 0 ka_k 0 } 0
+        = i + i 1 }
+      ts_ordena cr nc k1 k2 6
+      = j 0 W < j nc { = i @ + cr j ! an_p i 3 | an_f i 3 8 = j + j 1 } 0 } 0
+  an_s 110 cr an_s 111 nc
+  # autoRows: os outros do pool com sinal automático, pela pontuação (a descer)
+  = ar + A + n 2 1 = na 0
+  = i 0 W < i n {
+    ? && == & an_f i 3 12 4 an_f i 2 { ! + ar na i = na + na 1 !f + k1 i vnum jg an_f i 2 ka_score 0 } 0
+    = i + i 1 }
+  ts_ordena ar na k1 0 0
+  an_s 112 ar an_s 113 na
+  0 }
+
+# ===== cartões e linhas =====
+: an_abre iii>i a c0 c1 { "<button type=\"button\" class=\"" ? c0 "card cl-card" ? c1 "card" "row" "\" data-open=\"" pv jg a ka_k 1 "\" data-key=\"" pv jg a ka_k 1 "\">\n                " 0 }
+: an_topo i>i a { "<div class=\"c-top\" style=\"margin-top:4px\"><span class=\"c-name\">" pv jg a ka_name 1 "</span><span class=\"c-sym\">" pv jg a ka_sym 1 "</span></div>\n                <div class=\"c-row\" style=\"margin-top:8px\">" 0 }
+: an_clcard ii>i i j {
+  = a an_f i 0 = c an_f i 1 = kk jg c ka_key = an an_f i 5
+  an_abre a 1 0
+  "<div class=\"medal\">" an_medal j " lugar</div>\n                " an_topo a an_barv @f an_p i 4
+  "</div>\n                <div class=\"c-sub " an_tom kk "-t\" style=\"margin-top:6px;white-space:normal\">"
+  = ac jg c ka_action ? vverd ac pv ac 1 { an_sht kk 0 }
+  ? an { " · " pv jg an ka_risk 1 0 } 0
+  "</div>\n                <div class=\"c-sub cl-why\">" = w jg c ka_why ? vverd w pv w 1 0 "</div>\n            </button>" 0 }
+: an_algocard ii>i i j {
+  = a an_f i 0 = h an_f i 2 = an an_f i 5 = dsc an_g 102
+  an_abre a 0 1
+  "<div class=\"medal\">" an_medal j " lugar</div>\n                " an_topo a an_barh h
+  "</div>\n                <div class=\"c-sub " pv jg h ka_tone 0 "-t\" style=\"margin-top:6px;white-space:normal\">" pv an_lab h dsc 1 " · " pv jg an ka_risk 1
+  "</div>\n                <div class=\"c-sub\" style=\"white-space:normal;margin-top:4px\">" an_razao h dsc "</div>\n            </button>" 0 }
+: an_clrow ii>i i j {
+  = a an_f i 0 = c an_f i 1 = kk jg c ka_key = an an_f i 5
+  an_abre a 0 0
+  "<span class=\"rk\">" N + j 1 "</span>\n                <div class=\"r-main\"><div class=\"r-name\">" pv jg a ka_name 1 "</div><div class=\"r-sub\">" fm_pctv jg a ka_chg " hoje"
+  ? an { " · " pv jg an ka_risk 1 0 } 0
+  # algDiff: o sinal automático (AN[k].advice) noutra família (entrar / ficar / sair)
+  = fc an_fam kk = fa ? an an_fam jg an ka_adv 0
+  ? && && fc fa != fc fa " · <span class=\"alg-diff\">≠ algoritmo</span>" 0
+  "</div></div>\n                <div class=\"r-score\">" an_barv @f an_p i 4 "<div class=\"lbl " an_tom kk "-t\">"
+  ? an_sht kk 0 { = ac jg c ka_action ? vverd ac pv ac 1 0 }
+  "</div></div>\n            </button>" 0 }
+: an_autorow ii>i i j {
+  = a an_f i 0 = h an_f i 2 = an an_f i 5 = dsc an_g 102 = d jg an ka_d
+  "<button type=\"button\" class=\"row" ? an_g 103 " auto" 0 "\" data-open=\"" pv jg a ka_k 1 "\" data-key=\"" pv jg a ka_k 1 "\">\n                <span class=\"rk\">" N + j 1 "</span>\n                <div class=\"r-main\"><div class=\"r-name\">" pv jg a ka_name 1 "</div><div class=\"r-sub\">"
+  an_badge an_f i 1
+  ? && dsc vverd d { fm_pct * vnum jg d ka_dd 100. " do máx. · " 0 } 0
+  pv jg an ka_risk 1 " · " fm_pctv jg a ka_chg " hoje"
+  ? dsc 0 { " · RSI " = r jg an ka_rsi ? && == jtipo r 4 finito @f + r 1 pjn jround @f + r 1 "—" 0 }
+  "</div></div>\n                <div class=\"r-score\">" an_barh h "<div class=\"lbl " pv jg h ka_tone 0 "-t\">" pv an_lab h dsc 1 "</div></div>\n            </button>" 0 }
+
+# ===== secções =====
+: an_src >i ? an_g 103 { "<b>Análise do Claude</b> · " pv sg ka_when 1 0 }
+  ? an_g 102 { "Desconto face ao máximo do ano: medida automática" ? an_g 104 " · veredicto do Claude em cada linha" 0 0 } {
+  "Sinais automáticos (algoritmo) · "
+  = cc an_g 105
+  ? ~ an_g 106 "a análise do Claude liga-se em Ajustes"
+  ? && vverd cc vverd jg cc ka_off "análise do Claude em pausa"
+  ? an_g 104 { ? vverd sg ka_owner { "a convicção do Claude chega com a próxima análise (às " pv sg ka_horas 0 ")" 0 } "o veredicto do Claude está na ficha dos teus ativos" }
+  { "a análise do Claude chega às " pv sg ka_horas 0 0 } }
+: an_botoes >i {
+  = hz an_g 100 = f an_g 101
+  "<button type=\"button\" data-hz=\"short\" class=\"" ? veqt hz ka_short "on" 0 "\"><b>Curto prazo</b><small>dias a 2 semanas</small></button>"
+  "<button type=\"button\" data-hz=\"mid\" class=\"" ? veqt hz ka_mid "on" 0 "\"><b>Médio prazo</b><small>semanas a 3 meses</small></button>"
+  "<button type=\"button\" data-hz=\"long\" class=\"" ? veqt hz ka_long "on" 0 "\"><b>Longo prazo</b><small>anos</small></button>"
+  "<button type=\"button\" data-hz=\"disc\" class=\"" ? veqt hz ka_v_disc "on" 0 "\"><b>Desconto</b><small>face ao máximo</small></button>"
+  "</div>\n        <div class=\"chips\" role=\"group\" aria-label=\"Filtro\">"
+  "<button type=\"button\" data-filter=\"plan\" class=\"" ? veqt f ka_v_plan "on" 0 "\">ETF + cripto</button>"
+  "<button type=\"button\" data-filter=\"all\" class=\"" ? veqt f ka_v_all "on" 0 "\">Tudo</button>"
+  "<button type=\"button\" data-filter=\"fund\" class=\"" ? veqt f ka_v_fund "on" 0 "\">ETF</button>"
+  "<button type=\"button\" data-filter=\"crypto\" class=\"" ? veqt f ka_v_crypto "on" 0 "\">Cripto</button>"
+  "<button type=\"button\" data-filter=\"stock\" class=\"" ? veqt f ka_v_stock "on" 0 "\">Ações</button>"
+  "<button type=\"button\" data-filter=\"energy\" class=\"" ? veqt f ka_v_energy "on" 0 "\">Futuros (referência)</button>"
+  "</div>\n        "
+  ? veqt f ka_v_energy "<p class=\"note\" style=\"margin:0 2px 12px\">Contratos de futuros, como referência: na Trade Republic compram-se ETC, que ao fim de anos perdem com os custos de rolagem; para ouro há o ETC físico (Xetra-Gold, nos ETF).</p>" 0
+  0 }
+# as duas secções da classificação (n ativos), ou o vazio
+: an_classif >i {
+  = cr an_g 110 = nc an_g 111 = ar an_g 112 = na an_g 113 = n + nc na = dsc an_g 102 = f an_g 101
+  ? n {
+    "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>" ? dsc "Maiores oportunidades (desconto)" { "Mais fortes a " an_hzpt " prazo" 0 }
+    "</h2><span class=\"sub\">" ? nc "pelo Claude" "sinais automáticos" "</span></div>\n            <div class=\"top3\">"
+    = t ? nc cr ar = nt ? nc nc na = nt ? > nt 3 3 nt
+    = j 0 W < j nt { ? nc an_clcard @ + t j j an_algocard @ + t j j = j + j 1 }
+    "</div></section>\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Classificação</h2><span class=\"sub\">" N n " ativos · 0 a 100</span></div>\n            <p class=\"note\" style=\"margin:-4px 2px 10px\">"
+    ? an_g 103 { "Convicção do Claude a " an_hzpt " prazo: 50 = neutro, 70 ou mais = forte a favor, 30 ou menos = forte contra. Toca para ver o veredicto, os níveis e o porquê." 0 }
+      ? dsc "Quanto mais alto, maior o desconto com a tendência longa a favor." "Pontuação automática da tendência e do momento de cada ativo."
+    "</p>\n            <div class=\"list\">"
+    = j 0 W < j nc { an_clrow @ + cr j j = j + j 1 }
+    ? && nc na "<div class=\"grp-h\">Sem análise do Claude<small>sinais automáticos</small></div>" 0
+    = j 0 W < j na { an_autorow @ + ar j + nc j = j + j 1 }
+    "</div></section>" 0 }
+  { "<div class=\"empty\">" ? || || vverd sg ka_proxy veqt f ka_v_crypto veqt f ka_v_all "A calcular com o histórico de 1 ano…" "Liga o conector para analisar ações e energia." "</div>" 0 } }
+# uniSection(): toda a Trade Republic, na app do dono
+: an_uni >i ? ~ vverd sg ka_owner 0 {
+  = f an_g 101
+  = ty ? veqt f ka_v_plan 3 ? veqt f ka_v_all 7 ? veqt f ka_v_fund 1 ? veqt f ka_v_crypto 2 ? veqt f ka_v_stock 4 0
+  = u sg ka_uni = rs jg u ka_rows
+  ? || || ~ ty ~ vverd u ~ vverd rs {
+      ? && && vverd u vverd jg u ka_error ty { "<p class=\"note\" style=\"margin:0 2px 12px\">Toda a Trade Republic: ainda sem classificação (" pv jg u ka_error 1 "). Chega com a próxima análise do Claude.</p>" 0 } 0 }
+    an_unil u rs ty }
+: an_unil iii>i u rs ty {
+  = hz an_g 100 = dsc an_g 102 = km ? veqt hz ka_mid ka_rm ka_rl
+  = nr jn rs = w A + nr 1 = k1 A + nr 1 = k2 A + nr 1 = ix A + nr 1
+  = c jprim rs = i 0 = m 0
+  W c {
+    ! + ix i c
+    = v jg c km
+    ? && an_tipo jg c ka_rt ty && == jtipo v 4 finito @f + v 1 {
+        ! + w m i = m + m 1
+        ? dsc { !f + k1 i vnum jg c ka_ro !f + k2 i vnum jg c ka_dd 0 } { !f + k1 i @f + v 1 0 } } 0
+    = c jprox c = i + i 1 }
+  # rows.sort(disc ? (a, b) => b.o - a.o || a.dd - b.dd : (a, b) => b[key] - a[key])
+  ts_ordena w m k1 k2 ? dsc 6 0
+  # n = st.uniN || 25 e rows.slice(0, n)
+  = un sg ka_uniN = nn ? vverd un vnum un 25.
+  = ie ? < nn 0. * -1. Fl * -1. nn Fl nn
+  = ne I ? < ie 0. jmax + F m ie 0. jmin ie F m
+  "<details class=\"auto uni\" data-fold=\"uni\" " ? vverd sg ka_foldUni "open" 0 "><summary>Toda a Trade Republic<small>sinais automáticos · " N m " ativos · "
+  = wn jg u ka_when ? vverd wn pv wn 1 0
+  "</small></summary>\n            <p class=\"note\" style=\"margin:0 2px 10px\">S&P 500 e outras ações dos EUA, as grandes da Europa, ETF e cripto, classificados pelo algoritmo "
+  ? veqt hz ka_mid "a médio prazo" ? dsc "pelo desconto" "a longo prazo"
+  " duas vezes por dia. Os que o Claude analisou trazem o veredicto dele. Toca para ver o gráfico.</p>\n            <div class=\"list\">"
+  = j 0 W < j ne { an_unirow @ + ix @ + w j j km dsc = j + j 1 }
+  "</div>\n            "
+  ? > F m nn { "<div class=\"sec-f\"><button type=\"button\" class=\"lnk\" data-act=\"uni-more\">Ver mais (" pjn - F m nn ")</button></div>" 0 } 0
+  "</details>" 0 }
+: an_unirow iiii>i r i km dsc {
+  = s jg r ka_s = nm jg r ka_n
+  "<button type=\"button\" class=\"row\" data-open=\"" pv s 1 "\" data-name=\"" pv nm 1 "\" data-ut=\"" pv jg r ka_rt 1 "\">\n                <span class=\"rk\">" N + i 1 "</span>\n                <div class=\"r-main\"><div class=\"r-name\">" pv nm 1 "</div><div class=\"r-sub\">"
+  = cd an_g 104 an_badge ? cd an_cl cd s 0
+  pv s 1 " · "
+  ? dsc { fm_pctv jg r ka_dd " do máx. · " 0 } 0
+  = d jg r ka_d ? && == jtipo d 4 finito @f + d 1 { fm_pct @f + d 1 " hoje · " 0 } 0
+  = y jg r ka_ry ? && == jtipo y 4 finito @f + y 1 { "1 ano " fm_pct @f + y 1 " · " 0 } 0
+  = rk jg r ka_rk ? vverd rk pv rk 1 0
+  "</div></div>\n                <div class=\"r-score\">" an_barv @f + jg r km 1 "</div>\n            </button>" 0 }
+# algoRank(pool, hz): os 10 do pool com sinal automático, pela pontuação (só com a análise do Claude)
+: an_rank >i {
+  = n an_g 107 = w A + n 1 = k1 A + n 1 = m 0 = i 0
+  W < i n { ? && & an_f i 3 4 an_f i 2 { ! + w m i = m + m 1 !f + k1 i vnum jg an_f i 2 ka_score 0 } 0 = i + i 1 }
+  ts_ordena w m k1 0 0
+  = m ? > m 10 10 m
+  ? m {
+    "<div class=\"ideas\"><div class=\"m-l\">Pontuação automática a " an_hzpt " prazo</div>\n            "
+    = j 0 W < j m {
+      = i @ + w j = h an_f i 2 = a an_f i 0
+      "<button type=\"button\" class=\"idea\" data-open=\"" pv jg a ka_k 1 "\"><span class=\"i-n\">" pv jg a ka_name 1 "</span><span class=\"i-t " pv jg h ka_tone 0 "-t num\">" pv jg h ka_score 0 " · " an_min jg h ka_label "</span></button>"
+      = j + j 1 }
+    "</div>" 0 } 0 }
+# ideasCard(inv)
+: an_item i>i i { = a an_f i 0 "<button type=\"button\" class=\"idea\" data-open=\"" pv jg a ka_k 1 "\"><span class=\"i-n\">" pv jg a ka_name 1 "</span><span class=\"i-t " 0 }
+: an_ideias >i {
+  = n an_g 107 = kl A + n 1 = kd A + n 1
+  = etf ~ veqt sg ka_strategy ka_v_mix
+  = wb A + n 1 = nb 0 = wo A + n 1 = no 0 = wa A + n 1 = na 0
+  = i 0 W < i n {
+    ? & an_f i 3 2 {
+      = an an_f i 5 = k an_f i 7
+      = lh an_hzn an ka_long = mh an_hzn an ka_mid = d0 jg an ka_d = dh ? vverd d0 d0 0
+      ? lh { !f + kl i vnum jg lh ka_score 0 } 0
+      ? dh { !f + kd i vnum jg dh ka_score 0 } 0
+      ? && veqt k ka_v_fund lh { ! + wb nb i = nb + nb 1 0 } 0
+      ? || ~ etf || veqt k ka_v_fund veqt k ka_v_crypto {
+          ? && dh vverd jg dh ka_opp { ! + wo no i = no + no 1 0 } 0
+          ? && && && lh < vnum jg lh ka_score 42. mh < vnum jg mh ka_score 42. { ! + wa na i = na + na 1 0 } 0 } 0 } 0
+    = i + i 1 }
+  ts_ordena wb nb kl 0 0 ts_ordena wo no kd 0 0 ts_ordena wa na kl 0 1
+  = nb ? > nb 3 3 nb = no ? > no 5 5 no = na ? > na 4 4 na
+  ? || || nb no na {
+    "<div class=\"ideas\"><div class=\"m-l\">Sinais automáticos</div>\n            "
+    ? nb { "<div class=\"i-blk\"><div class=\"i-h\">Base de longo prazo<small>ETF para o plano mensal</small></div>"
+        = j 0 W < j nb { = i @ + wb j = an an_f i 5 = lh an_hzn an ka_long = dh jg an ka_d
+          an_item i pv jg lh ka_tone 0 "-t\">" pv jg lh ka_score 2 " · " ? vverd dh an_min jg dh ka_tag 0 "</span></button>" = j + j 1 }
+        "</div>" 0 } 0
+    "\n            "
+    ? no { "<div class=\"i-blk\"><div class=\"i-h\">Oportunidades agora<small>desconto com a tendência longa a subir — comprar aos poucos</small></div>"
+        = j 0 W < j no { = i @ + wo j an_item i "up-t\">" fm_pct * vnum jg jg an_f i 5 ka_d ka_dd 100. " do máx.</span></button>" = j + j 1 }
+        "</div>" 0 } 0
+    "\n            "
+    ? na { "<div class=\"i-blk\"><div class=\"i-h\">Evitar por agora<small>a descer a médio e a longo prazo</small></div>"
+        = j 0 W < j na { = i @ + wa j = lh an_hzn an_f i 5 ka_long
+          an_item i "down-t\">" pv jg lh ka_score 2 " · " an_min jg lh ka_label "</span></button>" = j + j 1 }
+        "</div>" 0 } 0
+    "\n            <p class=\"note\">Regras fixas (tendência, desconto, RSI), calculadas na app. O Claude usa-as como um dos dados.</p></div>" 0 } 0 }
+# trackSection(): os resultados dos conselhos do Claude, o diário e o teste no passado
+: an_jconta i>i ac { = n 0 = j 0 W < j 7 { ? vverd jget ac ka_o j = n + n 1 0 = j + j 1 } n }
+: an_diario ii>i px ev ? ~ px "<div class=\"note\">Liga o conector para guardar o diário.</div>" ? ~ vverd ev "<div class=\"note\">A ler o diário…</div>" {
+  = ac jg ev ka_acc = dy jg ev ka_days
+  ? ? vverd ac ~ an_jconta ac 1 {
+      "<div class=\"note\">A app guarda as sugestões de cada dia em que a abres (" ? vverd dy pv dy 0 P '0 " dia" ? an_um dy 0 "s"
+      " até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>" 0 } {
+    "<table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
+    = j 0 W < j 7 {
+      = a jget ac ka_o j
+      ? vverd a {
+          = x / vnum jg a ka_s vnum jg a ka_n = xn jg a ka_xn = q vverd xn = y ? q / vnum jg a ka_xs vnum xn 0.
+          "<tr><td>" an_act j "</td><td class=\"num\">" pv jg a ka_n 0 "</td><td class=\"num " an_tn 0 x "-t\">" an_pc 0 x "</td><td class=\"num\">"
+          ? || || == j 0 == j 1 == j 6 an_pc 0 / vnum jg a ka_h vnum jg a ka_n "—"
+          "</td><td class=\"num " an_tn ~ q y "-t\">" an_pc ~ q y "</td></tr>" 0 } 0
+      = j + j 1 }
+    "</tbody></table><p class=\"note\">Desde " pv jg ev ka_since 1 " · " pv dy 0 " dia" ? an_um dy 0 "s" " guardado" ? an_um dy 0 "s" ".</p>\n                "
+    ? < vnum dy 20. { "<p class=\"adv-ev\">Ainda é cedo (" pv dy 0 " dia" ? an_um dy 0 "s" "): diferenças de décimas não querem dizer nada. A tabela começa a valer ao fim de 1 a 3 meses.</p>" 0 } 0
+    "\n                <details class=\"how in\"><summary>Como ler esta tabela</summary><ul>\n                    <li>Todos os dias a app guarda o que as regras automáticas sugeriam para cada ativo e o preço desse dia.</li>\n                    <li><b>Casos</b>: quantas vezes a regra sugeriu isto (um ativo num dia conta 1).</li>\n                    <li><b>Desde então</b>: quanto esses ativos subiram ou desceram, em média, desde o dia da sugestão até agora.</li>\n                    <li><b>Acerto</b>: em \"Comprar\", a % de vezes em que o preço subiu depois; em \"Evitar\", a % em que desceu. 80% = acertou 4 em 5.</li>\n                    <li><b>vs VWCE</b>: o mesmo resultado menos o que o VWCE fez no mesmo tempo. Positivo = teria sido melhor do que pôr o dinheiro no VWCE; negativo = pior.</li>\n                    <li>Uma regra só vale a pena se \"Comprar\" ficar acima do VWCE e \"Evitar\" abaixo, durante meses.</li></ul></details>" 0 } }
+# os nomes do BT.worst / BT.best ([nameOf(x.k), x.a])
+: an_nomes i>i l { = c jprim l = f 1 W c { ? f 0 ", " = f 0 = a jidx c 1 pv jidx c 0 1 " <span class=\"" an_tnv a "-t\">" an_pcv a "</span>" = c jprox c } 0 }
+# Object.entries(BT.byKind || {}).filter(([, v]) => v.n): quantos e as partes
+: an_nk i>i bk { = c ? == jtipo bk 7 jprim bk 0 = n 0 W c { ? vverd jg c ka_n = n + n 1 0 = c jprox c } n }
+: an_kinds i>i bk { = c ? == jtipo bk 7 jprim bk 0 = f 1
+  W c {
+    ? vverd jg c ka_n {
+        ? f 0 " · " = f 0
+        = k @ + c 2 ? tigual k ka_v_stock "ações" ? tigual k ka_v_fund "outros ETF" ? tigual k ka_v_crypto "cripto" tpor k
+        = x / vnum jg c ka_s vnum jg c ka_n
+        " <span class=\"" an_tn 0 x "-t\">" an_pc 0 x "</span>" 0 } 0
+    = c jprox c }
+  0 }
+: an_btsum i>i b {
+  = su jg b ka_sum
+  "<table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
+  = j 0 W < j 7 {
+    = a jget su ka_o j
+    ? vverd a { "<tr><td>" an_act j "</td><td class=\"num\">" pv jg a ka_n63 0 "</td><td class=\"num " an_tnv jg a ka_avg63 "-t\">" an_pcv jg a ka_avg63 "</td><td class=\"num\">"
+        ? || || == j 0 == j 1 == j 6 an_pcv jg a ka_hit63 "—"
+        "</td><td class=\"num " an_tnv jg a ka_ex63 "-t\">" an_pcv jg a ka_ex63 "</td></tr>" 0 } 0
+    = j + j 1 }
+  "</tbody></table>\n                "
+  = bk jg b ka_byKind
+  ? an_nk bk { "<p class=\"note\">Em média, face ao VWCE a 3 meses: " an_kinds bk ".</p>" 0 } 0
+  "\n                "
+  ? jn jg b ka_worst { "<p class=\"note\">Onde \"comprar\" correu pior: " an_nomes jg b ka_worst ". Melhor: " an_nomes jg b ka_best ".</p>" 0 } 0
+  "\n                <p class=\"note\"><b>Leitura:</b> a lista são as empresas que hoje são grandes (viés de sobrevivência), por isso quase tudo parece bater o VWCE a olhar para trás. O que conta é a diferença entre sugestões: se \"Evitar\" corre tão bem ou melhor do que \"Comprar\", as regras não preveem nada. Por isso o núcleo é o VWCE e as decisões são do Claude, com o diário real a medir se acerta.</p>"
+  0 }
+: an_track >i {
+  = px vverd sg ka_proxy = ev sg ka_ev = b sg ka_bt
+  = cc an_g 105 = c ? && vverd cc ~ vverd jg cc ka_missing cc 0
+  "<section class=\"sec res-sec\">\n            <div class=\"box cl-box\"><h3>Conselhos do Claude</h3>\n                "
+  = rv jg c ka_review
+  ? && c vverd rv { "<p class=\"muted\">" pv rv 1 "</p>" 0 }
+    { "<div class=\"note\">" ? px "Ainda sem revisão: o Claude compara os conselhos com o que aconteceu a partir do segundo dia." "Liga o conector para ver a análise do Claude." "</div>" 0 }
+  "\n                "
+  = ls jg c ka_lessons
+  ? && && c == jtipo ls 6 jn ls { "<details class=\"how in\"><summary>O que o Claude aprendeu até agora (" N jn ls ")</summary><ul>" = l jprim ls W l { "<li>" pv l 1 "</li>" = l jprox l } "</ul></details>" 0 } 0
+  "\n            </div>\n            <div class=\"box\"><h3>Diário real (regras automáticas)</h3>\n                "
+  an_diario px ev
+  "\n            </div>\n            <div class=\"box\"><h3>Teste no passado (regras atuais)</h3>"
+  = vb vverd b = su ? vb vverd jg b ka_sum 0
+  ? su { "<p class=\"note\" style=\"margin-top:0\">" pv jg b ka_n 0 " ativos · " = y jg b ka_yrs ? vverd y pv y 0 P '5
+    " anos · preços ajustados (dividendos incluídos) · comissão de 1 € por compra manual de " = tk jg b ka_ticket ? == jtipo tk 4 peur0 @f + tk 1 "—"
+    " (" fm_fix1 / 100. vnum tk "%); ETF por plano de poupança, sem comissão. Não inclui impostos.</p>" 0 } 0
+  ? && vb vverd jg b ka_running "<div class=\"note\">A testar as regras atuais nos últimos 2 anos…</div>"
+  ? && vb vverd jg b ka_error { "<div class=\"note\">Não deu: " pv jg b ka_error 1 "</div>" 0 }
+  ? su an_btsum b
+  { "<button type=\"button\" class=\"btn\" data-act=\"backtest\" " ? px 0 "disabled" ">Testar as regras nos últimos 5 anos</button>" 0 }
+  "</div></section>" 0 }
+
+# ===== a vista =====
+: ecra_analise i>i s {
+  ! 53 s
+  an_chaves
+  = hz sg ka_hz = f sg ka_filter
+  an_s 100 hz an_s 101 f
+  = disc veqt hz ka_v_disc an_s 102 disc
+  an_s 109 ? == jtipo hz 5 jtxt hz 0
+  = con || vverd sg ka_owner vverd sg ka_claude an_s 106 con
+  = cc sg ka_cl an_s 105 cc
+  # clDoc(): claudeOn() && CLAUDE && !CLAUDE.missing && Array.isArray(CLAUDE.actions)
+  = ac jg cc ka_actions
+  an_s 104 ? && && && con vverd cc ~ vverd jg cc ka_missing == jtipo ac 6 ac 0
+  # useCl = !disc && clScored()
+  = cd an_g 104 an_s 103 && ~ disc ? cd an_mid cd 0
+  an_prep an_listas
+  "<h2 class=\"grp\">Comparar ativos</h2>\n        <p class=\"note grp-n src-line" ? an_g 103 " cl" 0 "\">" an_src "</p>\n        <div class=\"seg hz\" role=\"group\" aria-label=\"Prazo\">"
+  an_botoes
+  "\n        " an_classif
+  "\n        " an_uni
+  "\n        <details class=\"auto\" data-fold=\"an-auto\" " ? vverd sg ka_foldAn "open" 0 "><summary>Sinais automáticos (algoritmo)<small>regras fixas, para comparar</small></summary>"
+  ? an_g 103 an_rank 0
+  an_ideias
+  "</details>\n        <details class=\"how\"><summary>Como funciona a classificação?</summary><ul>\n            <li><b>Convicção do Claude</b> (0 a 100 por prazo): escrita pelo Claude às " pv sg ka_horas 0 ", para cada ativo, a partir dos preços, da análise técnica, das notícias e da agenda. 50 = neutro; acima de 58 a favor; 70 ou mais, forte. O veredicto, os níveis (entrada, alvo, stop) e o porquê estão na ficha de cada ativo.</li>"
+  "\n            <li><b>Sinais automáticos</b>: regras fixas da app, sobre os fechos diários. São um dos dados que o Claude usa.</li>"
+  "\n            <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>"
+  "\n            <li><b>Médio prazo</b> (semanas a 3 meses): médias de 20 e 50 dias, variação de 1 e 3 meses, MACD e RSI.</li>"
+  "\n            <li><b>Longo prazo</b> (anos): média de 200 dias e se está a subir, variação de 1 ano e desconto face ao máximo. Uma descida com a tendência longa a subir conta como oportunidade para ir comprando aos poucos.</li>"
+  "\n            <li><b>Desconto</b>: quanto o preço está abaixo do máximo do último ano, com o RSI e a tendência longa. \"Oportunidade\" quando há desconto e a tendência longa ainda sobe; \"Barato, mas a cair\" quando a tendência longa desce.</li>"
+  "\n            <li><b>RSI</b>: acima de 70 está \"esticado\"; abaixo de 30 está muito castigado (pode ressaltar).</li>"
+  "\n            <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>"
+  "\n            <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li></ul></details>"
+  "\n        <h2 class=\"grp\">Resultados</h2>\n        <p class=\"note grp-n\">Como têm corrido os conselhos do Claude e as regras automáticas.</p>\n        "
+  an_track
+  0 }
