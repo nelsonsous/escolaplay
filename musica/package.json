@@ -1,0 +1,12 @@
+{
+  "name": "musica",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Música — curador de playlists para o Tidal, com o motor de curadoria escrito na Onda",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "onda": "node onda/compilar.mjs",
+    "onda:verificar": "node onda/compilar.mjs --verificar"
+  }
+}
