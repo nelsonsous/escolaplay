@@ -2,7 +2,7 @@
 // Open-Meteo, IPMA, Nominatim e o radar (RainViewer) são chamados diretamente (CORS aberto); METAR, FIRMS e fogos.pt
 // passam pelo Worker.
 import { omQueries, climateQueries, OM, IPMA, ipmaAggregateUrl, inPortugal, inEuropeFirms } from './sources.js';
-import { buildForecast, buildSummary, perModelTable, pickStation, nearStations, nearestIpmaLocal, terrainPoints } from './engine.js';
+import { buildForecast, buildSummary, perModelTable, pickStation, nearStations, nearestIpmaLocal, terrainPoints, ipmaObsLatest, ipmaByPosition } from './engine.js';
 import { RAINVIEWER, radarFrames, radarTileUrl, coverageUrl, tileGeo, decodeFrame, coveredAt } from './radar.js';
 import { decodePng } from './png.js';
 import { haversine } from './stats.js';
@@ -210,7 +210,11 @@ export async function loadRadar(lat, lon) {
  * ipmaPrev (opcional, tarefa agendada): previsões do IPMA de há ~1 dia { times, temp } para a verificação local.
  * O relevo à volta do ponto (pointTerrain) dá location.terrain e o efeito local (fc.local); o radar das últimas 2 h
  * (loadRadar, RainViewer) dá fc.radar e corrige o "agora" e as próximas 2 h quando a imagem tem ≤ 20 min.
- * @param {{lat:number, lon:number, name?:string, base?:string, preferProxy?:boolean, withRaw?:boolean, now?:number|string, ipmaPrev?:object}} o
+ * memory (opcional): a memória da aprendizagem deste ponto (lib/learn.js) — uma, várias (telemóvel + conector) ou uma
+ * promessa delas (espera no máximo 6 s); fc.learning.window traz os dias verificados agora, para juntar e guardar.
+ * reports (opcional): avisos do utilizador perto do ponto ({ kind, time, distanceKm }) — contam na verificação da chuva.
+ * @param {{lat:number, lon:number, name?:string, base?:string, preferProxy?:boolean, withRaw?:boolean, now?:number|string, ipmaPrev?:object,
+ *   memory?:object|object[]|Promise<object|object[]>, reports?:object[]}} o
  */
 export async function loadForecast(o = {}) {
     const lat = Number(o.lat), lon = Number(o.lon);
@@ -258,6 +262,9 @@ export async function loadForecast(o = {}) {
             const station = pickStation({ ipmaStations, ipmaObs, metar, lat, lon, nowMs });
             const ipmaC = cands.filter((c) => c.source === 'IPMA');
             if (station?.source === 'IPMA' && !ipmaC.some((c) => c.id === station.id)) ipmaC.push(station);
+            // estações IPMA perto pela posição, mesmo sem observações recentes (o IPMA às vezes falha): o histórico
+            // guardado no conector continua a servir para a verificação e a aprendizagem
+            for (const s of ipmaByPosition(ipmaStations, lat, lon)) if (ipmaC.length < 6 && !ipmaC.some((c) => c.id === s.id)) ipmaC.push(s);
             const histIds = ipmaC.slice(0, 6).map((c) => c.id);
             if (station?.source === 'IPMA' && !histIds.includes(station.id)) histIds.push(station.id);
             const metarNear = metar.map((m) => ({ id: m.icaoId, d: haversine(lat, lon, m.lat, m.lon) })).filter((m) => m.id && m.d <= 30).sort((a, b) => a.d - b.d)[0];
@@ -270,6 +277,8 @@ export async function loadForecast(o = {}) {
             return { station, el, mh, hist, histIds, hs };
         } catch (e) { return { ...none, el: { ok: false, e } }; }
     })();
+    const memP = o.memory && typeof o.memory.then === 'function'
+        ? Promise.race([o.memory.catch(() => null), new Promise((res) => setTimeout(() => res(null), 6000))]) : Promise.resolve(o.memory || null);
     const R = {};
     for (const [k, p] of Object.entries(T)) R[k] = await p;
     const v = (k) => (R[k]?.ok ? R[k].v : null);
@@ -287,11 +296,18 @@ export async function loadForecast(o = {}) {
         obsHistory: station && p2.hist[station.id] ? p2.hist[station.id] : null, obsHistories: p2.hist, station,
         stationElev: station ? elevs[station.id] ?? null : null, stationElevs: elevs, ipmaPrev: o.ipmaPrev || null,
         firms: R.firms?.ok ? Object.fromEntries(R.firms.v.filter(([, t]) => t)) : null, fogos: v('fogos'),
-        place: v('place'), clim: v('clim'), terrain: v('terrain'), radar: v('radar'),
+        place: v('place'), clim: v('clim'), terrain: v('terrain'), radar: v('radar'), reports: Array.isArray(o.reports) ? o.reports : null,
     };
-    const fc = buildForecast(raw, { lat, lon, name: o.name, now: nowMs });
+    const memory = await memP;
+    const fc = buildForecast(raw, { lat, lon, name: o.name, now: nowMs, memory });
     const status = Object.fromEntries(Object.entries(R).map(([k, r]) => [k, r.ok ? 'ok' : (r.e?.message || 'falhou')]));
     if (status.ipmaFc === 'ok' && !ipma?.forecast) status.ipmaFc = ofc?.reason || 'sem previsão';
+    // o IPMA às vezes publica as horas sem valores (falha deles): diz desde quando, para não parecer que só há o METAR
+    if (status.obs === 'ok') {
+        const last = ipmaObsLatest(v('obs'));
+        if (!last) status.obs = 'sem valores (falha do IPMA)';
+        else if (nowMs - last > 3 * 36e5) status.obs = `em atraso: última observação ${new Date(last + fc.location.utcOffsetSeconds * 1000).toISOString().slice(0, 16).replace('T', ' ')}`;
+    }
     if (status.radar === 'ok' && raw.radar && !raw.radar.covered) status.radar = 'ponto fora da cobertura do radar';
     if (pt || metarList.length) {
         status.elev = p2.el.ok ? 'ok' : (p2.el.e?.message || 'falhou');

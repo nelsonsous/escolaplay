@@ -36,7 +36,9 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
    ponto agora e nas últimas 2 h de 10 em 10 min, os anéis à volta, a chuva mais perto, o deslocamento dos ecos, a hora
    de chegada ou de fim e **Radar vs modelos** — quando os modelos estão atrasados ou adiantados), os **avisos do
    utilizador** (`## Avisos do utilizador`: o que se via no ponto, «Está a chover?», últimas 48 h), verificação local,
-   **Fontes lado a lado**, avisos IPMA e incêndios.
+   a **aprendizagem no ponto** (`## Aprendizagem no ponto`: até 90 dias de memória — quem mais acerta aqui na temperatura,
+   na chuva e no vento, hoje, amanhã e a 3+ dias, o fator de peso de cada modelo e o atraso típico da chuva), **Fontes lado
+   a lado**, avisos IPMA e incêndios.
    No fim, a lista de imagens de satélite gravadas em `/tmp/meteo/` (as de perto primeiro). Se disser **"Sem locais a
    analisar"**, termina aqui. Os locais são processados com 3 s de intervalo (o Open-Meteo limita pedidos por minuto).
 
@@ -60,14 +62,17 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       observado — os avisos do utilizador e o radar dizem a que horas choveu de facto no ponto; o **«agora»** vem primeiro
       dos avisos do utilizador (alguém no sítio, o mais forte) e do radar no ponto (imagem de há poucos minutos), depois
       das estações, só depois dos modelos; para as próximas 1–2 h usa o deslocamento dos ecos e a hora de chegada do radar
-      («a chuva a 12 km a sudoeste chega ao ponto por volta das 21h10»); usa a verificação local para pesar os modelos; **cruza a previsão oficial do IPMA com os modelos** e
+      («a chuva a 12 km a sudoeste chega ao ponto por volta das 21h10»); usa a verificação local e a **aprendizagem no ponto**
+      para pesar os modelos (o consenso já os pesa assim; quando um modelo que costuma acertar aqui discorda do consenso,
+      diz-o; o atraso típico da chuva de cada modelo ajuda a acertar a hora de chegada); **cruza a previsão oficial do IPMA com os modelos** e
       explica as divergências (Fontes lado a lado); liga o que o satélite mostra às próximas horas **no ponto**; no médio
       prazo fala em probabilidades; respeita os avisos do IPMA.
    3. **Escreve sobre o ponto** (regras abaixo) em `/tmp/meteo/analise-<id>.json` com os campos de `meteo/docs/API.md` →
       "Análise" (titulo, resumo, agora, hoje, amanha, dias, tendencia, alertas, incendios, satelite, conselhos,
       fiabilidade, tecnica, verificacao, licoes). `dias` começa depois de amanhã. Em `verificacao` diz o **erro de tempo
       dos modelos** visto no radar e nos avisos («os modelos davam chuva às 22h15; o radar já a tinha no ponto às 20h10:
-      ~2 h de atraso»). Em `licoes` mantém as lições anteriores que continuem certas e junta o que aprendeste sobre o ponto
+      ~2 h de atraso») e quem mais acerta aqui segundo a aprendizagem («nas últimas semanas o ECMWF é o que menos erra
+      a temperatura de amanhã: 1,1 °C; o GFS 2,2 °C»). Em `licoes` mantém as lições anteriores que continuem certas e junta o que aprendeste sobre o ponto
       (ex.: "o GFS aquece 1 °C a mais nas tardes de sol"; "nas noites limpas o vale fica 2 °C abaixo de Pedras Rubras";
       "os modelos atrasam ~2 h a chuva das frentes de sudoeste").
    4. **Publica**:
@@ -124,4 +129,11 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
 - O `dados.mjs` também guarda no KV as ocorrências da Proteção Civil (o fogos.pt recusa pedidos do Worker), o
   histórico horário das estações IPMA usadas em cada local (até 6; a fonte só dá 24 h), que a app usa na verificação
   local, e as corridas da previsão do IPMA de cada concelho (`ipma:runs:<id>`, 9 dias), para verificar também o IPMA.
-- Se uma fonte falhar, o resumo diz qual (`Fontes: …`); analisa com o que houver e diz-o em `fiabilidade`.
+- **Aprendizagem**: o `dados.mjs` verifica cada modelo no ponto dia a dia (temperatura e vento contra as estações; chuva
+  contra a chuva das estações, o tempo presente do METAR e os avisos do utilizador) e junta os dias à memória do local
+  (`learn:<id>`, até 90 dias; os recentes pesam mais). O peso de cada modelo no consenso cresce com os dias em que acerta
+  mais do que os outros e desce quando falha — por variável e por prazo. A app do telemóvel dono do local lê a mesma
+  memória (`GET /api/learning`) e mostra-a em **Análise → Aprendizagem**. Não escrevas na memória à mão.
+- Se uma fonte falhar, o resumo diz qual (`Fontes: …`); analisa com o que houver e diz-o em `fiabilidade`. Quando o IPMA
+  publica as horas sem valores (`obs=em atraso: última observação …`), as estações IPMA ficam de fora do «agora», mas o
+  histórico guardado continua a servir para a verificação.

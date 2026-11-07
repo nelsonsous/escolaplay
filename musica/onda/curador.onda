@@ -1,4 +1,5 @@
-# curador: o motor de curadoria da app Musica, escrito na Onda.
+# curador: o motor de curadoria da app Musica, como programa de linha de comando (junta-se a motor.onda:
+# cat motor.onda curador.onda | ondac). Usam-no a tarefa agendada (publicar.mjs) e os testes (o juiz).
 #
 # Le inteiros do stdin, escolhe K faixas entre N candidatas e ordena-as para uma audicao seguida.
 # Escolha: pontuacao pesada (gosto, qualidade do som, tendencia, nota do Claude, novidade) menos
@@ -23,16 +24,6 @@
 #                                    3 tendencia, 4 claude, 5 novidade, 6 fixa; pontos 0..1000 ao escolher
 #   custo                            custo total da ordem (diagnostico)
 
-# contexto c: 0 n, 1 k, 2 mx, 3..7 pesos, 8..10 penalizacoes, 11 arco, 12 art, 13 gen, 14 dec, 15 energia,
-# 16 bpm, 17 tom, 18 fixa, 19 base, 20 motivo, 21 usada, 22 conta-artista, 23 conta-genero, 24 conta-decada,
-# 25 escolhidas, 26 pontos, 27 m, 28 ordem, 29 gosto, 30 qualidade, 31 tendencia, 32 claude, 33 novidade
-: cg ii>i c k @ + c k
-: cs iii>i c k v { ! + c k v 0 }
-: ag iii>i c k i @ + @ + c k i
-: ap iiii>i c k i v { ! + @ + c k i v 0 }
-: lim iii>i x a b Mx a Mn b x
-: iabs i>i x ? < x 0 - 0 x x
-
 # le o proximo inteiro nao negativo; -1 no fim
 : rd >i { = c R W && >= c 0 || < c 48 > c 57 { = c R } ? < c 0 -1 { = n 0 W && >= c 48 <= c 57 { = n + * n 10 - c 48 = c R } n } }
 
@@ -41,7 +32,7 @@
   ap c 12 i lim rd 0 n
   ap c 13 i lim rd 0 n
   = ano rd
-  ap c 14 i ? < ano 1900 14 Mn 13 / - ano 1900 10
+  ap c 14 i decada ano
   ap c 29 i lim rd 0 1000
   ap c 30 i lim rd 0 1000
   ap c 31 i lim rd 0 1000
@@ -52,135 +43,6 @@
   ap c 17 i lim rd 0 24
   ap c 18 i ? == rd 1 1 0
   0 }
-
-# pontuacao base 0..1000 e o motivo (o maior contributo)
-: base ii>i c i {
-  = a * cg c 3 ag c 29 i
-  = b * cg c 4 ag c 30 i
-  = t * cg c 5 ag c 31 i
-  = d * cg c 6 ag c 32 i
-  = e * cg c 7 ag c 33 i
-  = sw + + + + cg c 3 cg c 4 cg c 5 cg c 6 cg c 7
-  = m 1 = mv a
-  ? > b mv { = m 2 = mv b 0 } 0
-  ? > t mv { = m 3 = mv t 0 } 0
-  ? > d mv { = m 4 = mv d 0 } 0
-  ? > e mv { = m 5 = mv e 0 } 0
-  ? == ag c 18 i 1 { = m 6 0 } 0
-  ap c 20 i m
-  ? > sw 0 / + + + + a b t d e sw 0 }
-
-# penalizacao de diversidade face ao que ja esta escolhido
-: pen ii>i c i {
-  = len + cg c 27 1
-  = p * cg c 8 ag c 22 ag c 12 i
-  = g ag c 13 i
-  ? > g 0 { = p + p / * cg c 9 ag c 23 g len 0 } 0
-  = d ag c 14 i
-  ? < d 14 { = p + p / * cg c 10 ag c 24 d len 0 } 0
-  p }
-
-: escolhe iii>i c i v {
-  = m cg c 27
-  ap c 25 m i
-  ap c 26 i v
-  cs c 27 + m 1
-  ap c 21 i 1
-  = a ag c 12 i ap c 22 a + ag c 22 a 1
-  = g ag c 13 i ap c 23 g + ag c 23 g 1
-  = d ag c 14 i ap c 24 d + ag c 24 d 1
-  0 }
-
-: seleciona i>i c {
-  = n cg c 0 = k cg c 1 = mx cg c 2
-  # as fixas entram primeiro, pela ordem da entrada
-  = i 0 W < i n { ? && == ag c 18 i 1 < cg c 27 k { escolhe c i ag c 19 i } 0 = i + i 1 }
-  # depois, a melhor ainda livre, com as penalizacoes de diversidade
-  = segue 1
-  W && segue < cg c 27 k {
-    = bi -1 = bv -1000000000
-    = i 0 W < i n {
-      ? && == ag c 21 i 0 < ag c 22 ag c 12 i mx {
-        = v - ag c 19 i pen c i
-        ? > v bv { = bv v = bi i 0 } 0
-        0 } 0
-      = i + i 1 }
-    ? < bi 0 { = segue 0 0 } { escolhe c bi bv } }
-  cg c 27 }
-
-# custos de transicao (simetricos)
-: cbpm ii>i x y ? || == x 0 == y 0 150 / * Mn 40 Mn Mn iabs - x y iabs - * 2 x y iabs - x * 2 y 25 2
-
-: ctom ii>i x y {
-  ? || == x 0 == y 0 200 {
-    = nx % - x 1 12 = ny % - y 1 12
-    = lx > x 12 = ly > y 12
-    = dn iabs - nx ny
-    = dn Mn dn - 12 dn
-    ? == dn 0 ? == lx ly 0 100 ? == dn 1 ? == lx ly 100 400 ? && == dn 2 == lx ly 300 500 } }
-
-: cera ii>i a b ? || == a 14 == b 14 100 Mn 360 * 60 iabs - a b
-
-: trans iii>i c i j {
-  = t + + cbpm ag c 16 i ag c 16 j ctom ag c 17 i ag c 17 j cera ag c 14 i ag c 14 j
-  ? == ag c 12 i ag c 12 j { = t + t 2000 0 } 0
-  = gi ag c 13 i = gj ag c 13 j
-  ? && && > gi 0 > gj 0 != gi gj { = t + t 150 0 } 0
-  + t / iabs - ag c 15 i ag c 15 j 2 }
-
-# energia pretendida na posicao p de m (0..1000)
-: alvo iii>i a p m {
-  = t ? > m 1 / * p 1000 - m 1 0
-  ? == a 1 + 350 / * 550 ? < t 650 / * t 1000 650 / * - 1000 t 1000 350 1000
-  ? == a 2 + 300 / * 600 t 1000
-  ? == a 3 - 800 / * 600 t 1000 0 }
-
-: cpos iii>i c i p ? == cg c 11 0 0 iabs - ag c 15 i alvo cg c 11 p cg c 27
-
-: total i>i c {
-  = m cg c 27 = s 0 = p 0
-  W < p m {
-    = i ag c 28 p
-    = s + s cpos c i p
-    ? > p 0 { = s + s trans c ag c 28 - p 1 i 0 } 0
-    = p + p 1 }
-  s }
-
-: inverte iii>i c a b { = i a = j b W < i j { = x ag c 28 i ap c 28 i ag c 28 j ap c 28 j x = i + i 1 = j - j 1 } 0 }
-
-: ordena i>i c {
-  = m cg c 27
-  = vis A + m 1
-  = q 0 W <= q m { ! + vis q 0 = q + q 1 }
-  # vizinho mais proximo, a comecar pela que melhor abre o arco
-  = p 0
-  W < p m {
-    = bk -1 = bv 1000000000 = q 0
-    W < q m {
-      ? == @ + vis q 0 {
-        = i ag c 25 q
-        = v cpos c i p
-        ? > p 0 { = v + v trans c ag c 28 - p 1 i 0 } 0
-        ? < v bv { = bv v = bk q 0 } 0
-        0 } 0
-      = q + q 1 }
-    ! + vis bk 1
-    ap c 28 p ag c 25 bk
-    = p + p 1 }
-  # 2-opt: inverter trocos enquanto o custo descer
-  = melhor total c = passo 0 = mudou 1
-  W && mudou < passo 8 {
-    = mudou 0 = a 0
-    W < a - m 1 {
-      = b + a 1
-      W < b m {
-        inverte c a b
-        = t total c
-        ? < t melhor { = melhor t = mudou 1 0 } { inverte c a b }
-        = b + b 1 }
-      = a + a 1 }
-    = passo + passo 1 }
-  melhor }
 
 : escreve ii>i c custo {
   = m cg c 27
@@ -195,23 +57,13 @@
 : main >i {
   = ver rd
   ? != ver 1 { "erro: formato desconhecido\n" 2 } {
-    = c A 40
     = n lim rd 0 5000
     = k lim rd 0 n
     = mx rd
-    ? <= mx 0 { = mx n 0 } 0
-    cs c 0 n cs c 1 k cs c 2 mx
+    = c ctx_novo n k mx
     = q 3 W <= q 10 { cs c q lim rd 0 1000 = q + q 1 }
     cs c 11 lim rd 0 3
-    = q 12 W <= q 21 { cs c q A + n 1 = q + q 1 }
-    cs c 22 A + n 2 cs c 23 A + n 2 cs c 24 A 16
-    cs c 25 A + k 1 cs c 26 A + n 1 cs c 27 0 cs c 28 A + k 1
-    = q 29 W <= q 33 { cs c q A + n 1 = q + q 1 }
-    = i 0 W <= i n { ap c 21 i 0 ap c 22 i 0 ap c 23 i 0 = i + i 1 }
-    = i 0 W < i 16 { ap c 24 i 0 = i + i 1 }
     = i 0 W < i n { le c i = i + i 1 }
-    = i 0 W < i n { ap c 19 i base c i = i + i 1 }
-    seleciona c
-    = custo ordena c
+    = custo curar c
     escreve c custo
     0 } }

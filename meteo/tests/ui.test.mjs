@@ -77,6 +77,14 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const analysed = new Set(); // locais que a tarefa agendada já analisou
     let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null, postBody = null, others = 'on', settingsBody = null;
     const rvCalls = [], reportPosts = [], serverReports = [];
+    // memória da aprendizagem do local (como a tarefa agendada a guarda em learn:<id>): 30 dias antes da janela do exemplo,
+    // em que o Met Office errou 0,6 °C e os outros 1,4 °C
+    const learnMem = { v: 1, lat: LAT, lon: LON, updated: NOW, days: Object.fromEntries(Array.from({ length: 30 }, (_, k) => {
+        const date = new Date(Date.parse('2026-10-29T00:00:00Z') - k * 864e5).toISOString().slice(0, 10);
+        return [date, { h: 24, hr: 0, m: Object.fromEntries(['ecmwf_ifs', 'ukmo_seamless', 'meteofrance_seamless', 'icon_seamless', 'gfs_seamless']
+            .map((id) => [id, { t: [0, 1, 2].map(() => [24, id === 'ukmo_seamless' ? 0.6 : 1.4, 0]) }])) }];
+    })) };
+    let learnCalls = 0;
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -168,6 +176,12 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             : r.fulfill({ status: 403, json: { error: 'dono' }, headers: CORS });
         if (p === '/api/settings' && m === 'PATCH') { settingsBody = JSON.parse(req.postData()); others = settingsBody.others; return fulfill(r, { others, updatedAt: NOW }); }
         if (p === '/api/reports' && m === 'GET') return fulfill(r, { place: null, reports: serverReports });
+        if (p === '/api/learning') { // como o conector: só a do local deste telemóvel (≤ 3 km)
+            learnCalls++;
+            const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
+            const near = places.filter((x) => !x.off && x.mine !== false && distKm(la, lo, x.lat, x.lon) <= 3)[0];
+            return fulfill(r, near ? { place: { id: near.id, distanceKm: 0 }, memory: learnMem } : { place: null, memory: null });
+        }
         if (p === '/api/reports' && m === 'POST') { const b = JSON.parse(req.postData()); reportPosts.push(b); return r.fulfill({ status: 201, json: { report: b, place: null, count: 1 }, headers: CORS }); }
         if (p === '/api/geocode') return fulfill(r, [{ name: 'Porto', admin1: 'Porto', country: 'Portugal', lat: 41.1496, lon: -8.611, elevation: 85 }, { name: '<img src=x onerror=alert(1)>', admin1: 'XSS', country: 'Teste', lat: 40, lon: -8 },
             { name: 'Amadora', admin1: 'Lisboa', country: 'Portugal', lat: 38.7536, lon: -9.2302, elevation: 150 }]);
@@ -394,6 +408,32 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.ok(await cmp.locator('td .hot, td .cold').count() >= 1, 'desvios de 2° ou mais destacados');
     // estações que entram na observação combinada
     assert.ok(await page.locator('.sec:has(h2:text("Observações usadas")) .row').count() >= 5);
+    // aprendizagem: o local tem a análise diária → na atualização seguinte a memória do conector (30 dias) junta-se
+    // aos 8 dias verificados agora
+    assert.match(await page.locator('#aprendizagem .sec-h .sub').textContent(), /^8 dias de memória · desde 30 out$/);
+    const lc0 = learnCalls;
+    await page.evaluate(() => window.__mt.refresh());
+    assert.ok(learnCalls > lc0, 'pede a memória ao conector');
+    const lr = page.locator('#aprendizagem');
+    await page.waitForFunction(() => /\b3\d dias de memória/.test(document.querySelector('#aprendizagem .sec-h .sub')?.textContent || ''));
+    assert.equal(await lr.locator('.lseg').count(), 2, 'variável e prazo');
+    assert.deepEqual(await lr.locator('.lseg').first().locator('button').allTextContents(), ['Temperatura', 'Chuva', 'Vento']);
+    assert.deepEqual(await lr.locator('.lseg').nth(1).locator('button').allTextContents(), ['Hoje', 'Amanhã', '3+ dias']);
+    assert.equal(await lr.locator('.list .row').count(), 5, 'os 5 modelos verificados no exemplo');
+    assert.match(await lr.locator('.list .row').first().textContent(), /^\s*Met Office.*mais certeiro.*erro médio 0,\d°.*×\d/s, 'o Met Office, que acerta há semanas, à frente');
+    assert.ok(await lr.locator('.lchart svg path').count() === 3, 'evolução dos 3 com mais peso');
+    const ukmoW = await page.evaluate(() => window.__mt.st.fc.models.find((m) => m.id === 'ukmo_seamless').learned.t[1]);
+    assert.ok(ukmoW > 2, `peso do Met Office com a memória: ×${ukmoW}`);
+    if (SHOTS) await lr.screenshot({ path: path.join(SHOTS, '06b-aprendizagem.png') });
+    await lr.locator('[data-lv="r"]').click();
+    await page.waitForSelector('#aprendizagem [data-lv="r"].on');
+    assert.match(await lr.locator('.list').textContent(), /horas de chuva erradas|segue a temperatura/);
+    await lr.locator('[data-ll="0"]').click();
+    await page.waitForSelector('#aprendizagem [data-ll="0"].on');
+    await lr.locator('[data-lv="t"]').click();
+    const saved = await page.evaluate(() => { const i = JSON.parse(localStorage.getItem('meteo:learn-index')); return { n: i.length, days: Object.keys(JSON.parse(localStorage.getItem(i[0].key)).days).length }; });
+    assert.deepEqual(saved, { n: 1, days: 38 }, 'memória guardada neste telemóvel (30 + 8 dias)');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem(JSON.parse(localStorage.getItem('meteo:fc-index'))[0])).fc.learning.window), null, 'a previsão guardada não repete os dias');
     await noOverflow('Análise');
     await shot('06-analise.png');
     console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos`);
@@ -574,7 +614,21 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.goto(url + '?dono=');
     await toastIs(/Código do dono esquecido/);
     assert.equal(await page.evaluate(() => localStorage.getItem('meteo:dono')), null);
-    console.log('✓ dono: ?dono= guardado e fora do endereço, Utilização, análise dos outros, locais dos outros (~1 km), esquecer o código');
+    // na app instalada (iPhone: memória à parte do Safari) o código escreve-se em Ajustes → Conector → "Sou o dono desta app"
+    await page.waitForSelector('details.own summary');
+    await page.click('details.own summary');
+    await page.fill('#f-owner', 'código errado');
+    await page.click('[data-act="owner-save"]');
+    await toastIs(/não aceitou este código/);
+    await page.fill('#f-owner', OWNER_CODE);
+    await page.press('#f-owner', 'Enter');
+    await toastIs(/Modo dono ligado neste telemóvel/);
+    await page.waitForSelector('#uso');
+    assert.match(await page.locator('.own-row').textContent(), /És o dono desta app/);
+    await page.click('.own-row [data-act="owner-forget"]');
+    await toastIs(/Código do dono esquecido/);
+    await page.waitForSelector('details.own');
+    console.log('✓ dono: ?dono= guardado e fora do endereço, Utilização, análise dos outros, locais dos outros (~1 km), esquecer o código; código escrito na app');
 
     assert.deepEqual(unexpected, [], 'sem pedidos à rede real');
     assert.deepEqual(errors, [], 'sem erros na consola');

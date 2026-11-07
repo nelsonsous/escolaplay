@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.0.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.2.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -241,4 +241,53 @@ test('desligar apaga os tokens e o perfil', async () => {
     assert.equal(await env.KV.get('tidal:tokens'), null);
     assert.equal(await env.KV.get('perfil'), null);
     assert.equal((await get('/api/perfil', chave)).status, 409);
+});
+
+test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (por id) e o envio', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200, tags: ['LOSSLESS'], generos: [], ano: 1960 });
+    const s = (genero) => ({ artista: 'x', genero, ano: 1960, gosto: 500, qualidade: 750, tendencia: 500, claude: 800, novidade: 500, energia: 500, bpm: 0, tom: 0, fixa: false });
+    const candidatas = [
+        { artista: 'Miles Davis', titulo: 'So What', motivo: 'Referência.', faixa: f('101', 'So What', 'Miles Davis'), sinais: s('jazz') },
+        { artista: 'Nina Simone', titulo: 'Feeling Good', motivo: 'Voz.', faixa: f('102', 'Feeling Good', 'Nina Simone'), sinais: s('soul') },
+        { artista: 'Daft Punk', titulo: 'Get Lucky', motivo: 'Graves.', faixa: f('103', 'Get Lucky', 'Daft Punk'), sinais: s('disco') },
+    ];
+    const d = await (await post('/api/playlists', { nome: 'Original', descricao: 'd', resumo: 'r', faixas: candidatas.map((c) => c.faixa), candidatas, opcoes: { faixas: 3 } }, agente)).json();
+    const r = await post(`/api/playlists/${d.id}/versoes`, { ordem: [2, 0, 3], porque: ['claude', 'gosto', 'fixa'], pontos: [800, 700, 600], extras: ['106'],
+        opcoes: { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'desce' }, custo: 1234, tidal: true }, chave);
+    assert.equal(r.status, 201);
+    const v = await r.json();
+    assert.equal(v.nome, 'Original · afinada');
+    assert.equal(v.por, 'app');
+    assert.deepEqual(v.faixas.map((x) => x.id), ['103', '101', '106'], 'a ordem da app; o índice 3 é a faixa juntada');
+    assert.deepEqual(v.faixas.map((x) => x.porque), ['claude', 'gosto', 'fixa']);
+    assert.equal(v.faixas[0].motivo, 'Graves.');
+    assert.equal(v.faixas[0].genero, 'disco');
+    const juntada = v.faixas[2];
+    assert.equal(juntada.titulo, 'Teardrop', 'os dados da juntada vêm do Tidal, não da app');
+    assert.equal(juntada.motivo, 'Escolhida por ti.');
+    assert.equal(v.candidatas.length, 4);
+    assert.equal(v.candidatas[3].sinais.fixa, true);
+    assert.deepEqual(v.opcoes, { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'desce' });
+    assert.equal(v.tidal.faixas, 3);
+    assert.deepEqual(sim.itens, ['103', '101', '106']);
+    // a original fica como estava; erros
+    assert.equal((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.length, 3);
+    assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [0], extras: ['abc'] }, chave)).status, 400);
+    assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [] }, chave)).status, 400);
+    assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [9] }, chave)).status, 400);
+    assert.equal((await post('/api/playlists/nao-existe/versoes', { ordem: [0] }, chave)).status, 404);
+    assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [0] })).status, 401);
+});
+
+test('aparelho novo com o código de ligação (sem novo login no Tidal)', async () => {
+    await env.KV.put('codigo:ligacao', sha('OUTRO-456'));
+    assert.equal((await post('/api/aparelho', { codigo: 'errado' })).status, 401);
+    const r = await post('/api/aparelho', { codigo: 'OUTRO-456', nome: 'iPhone (ecrã principal)' });
+    assert.equal(r.status, 201);
+    const { chave } = await r.json();
+    assert.equal(await env.KV.get('codigo:ligacao'), null, 'o código gasta-se');
+    assert.equal((await (await get('/api/estado', chave)).json()).tu, 'aparelho');
+    assert.equal((await post('/api/aparelho', { codigo: 'OUTRO-456' })).status, 401);
 });

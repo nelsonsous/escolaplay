@@ -5,8 +5,9 @@
 // agendada; aqui só se fala com o Tidal, em lotes pequenos.
 import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFaixas, indexar, melhor } from '../../lib/tidal.js';
 import { normalizarOpcoes } from '../../lib/playlist.js';
+import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.2.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -45,6 +46,7 @@ async function route(req, env, url) {
     if (p === '/api/estado' && m === 'GET') return json(await estado(req, env, url));
     if (p === '/api/ligar' && m === 'POST') return json(await ligar(req, env, url, await autenticar(req, env)));
     if (p === '/api/config' && m === 'POST') return json(await configurar(req, env, await autenticar(req, env)));
+    if (p === '/api/aparelho' && m === 'POST') return json(await aparelho(req, env), 201);
     const quem = await autenticar(req, env);
     if (!quem) throw new Erro(401, 'sem_acesso', 'Falta a chave deste aparelho (liga o Tidal na app).');
     if (p === '/api/desligar' && m === 'POST') { await env.KV.delete('tidal:tokens'); await env.KV.delete('perfil'); return json({ ok: true }); }
@@ -53,10 +55,11 @@ async function route(req, env, url) {
     if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(env, url.searchParams.get('q')));
     if (p === '/api/playlists' && m === 'GET') return json((await env.KV.get('playlists', 'json')) || []);
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(env, await corpo(req), quem), 201);
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal)?$/.exec(p);
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(env, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(env, pl[1]));
-    if (pl && pl[2] && m === 'POST') return json(await enviar(env, pl[1], await corpo(req)));
+    if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(env, pl[1], await corpo(req)));
+    if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(env, pl[1], await corpo(req), quem), 201);
     if (p === '/api/pedidos' && m === 'GET') return json((await env.KV.get('pedidos', 'json')) || []);
     if (p === '/api/pedidos' && m === 'POST') return json(await pedir(env, await corpo(req)), 201);
     const pd = /^\/api\/pedidos\/([a-z0-9_-]{4,40})$/.exec(p);
@@ -117,6 +120,15 @@ async function configurar(req, env, quem) {
     if (!/^[A-Za-z0-9._-]{8,80}$/.test(id)) throw new Erro(400, 'client_id_invalido', 'Esse Client ID não parece válido (copia-o de developer.tidal.com).');
     await env.KV.put('config:tidal_client_id', id);
     return { ok: true };
+}
+
+// Um aparelho novo (ex.: a app no ecrã principal do iOS, que tem o seu próprio armazém) com o Tidal já ligado:
+// troca o código de ligação por uma chave, sem voltar a passar pelo login do Tidal. O código gasta-se.
+async function aparelho(req, env) {
+    const c = await req.json().catch(() => ({}));
+    if (!(await codigoValido(env, c.codigo))) throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
+    await env.KV.delete('codigo:ligacao');
+    return { chave: await novaChave(env, 'aparelho', txt(c.nome, 60) || 'aparelho') };
 }
 
 async function estado(req, env, url) {
@@ -365,6 +377,41 @@ async function enviar(env, id, c) {
     const idx = ((await env.KV.get('playlists', 'json')) || []).map((x) => (x.id === d.id ? resumoDe(d) : x));
     await env.KV.put('playlists', JSON.stringify(idx));
     return d;
+}
+
+// Uma versão afinada na app (o motor Onda correu no telemóvel): a app manda só a decisão — a ordem (índices nas
+// candidatas guardadas e, a seguir, nas faixas que juntou do Tidal), o porquê e os pontos — e aqui monta-se a
+// playlist com as candidatas da original. As faixas juntadas vêm do Tidal por id (a app não manda dados de faixas).
+async function versao(env, id, c, quem) {
+    const d = await obter(env, id);
+    const cands = Array.isArray(d.candidatas) ? d.candidatas : [];
+    const ids = (Array.isArray(c?.extras) ? c.extras : []).slice(0, 20).map((x) => String(x));
+    let extras = [];
+    if (ids.length) {
+        if (!ids.every((x) => /^\d+$/.test(x))) throw new Erro(400, 'extras_invalidos', 'As faixas juntadas têm de ser ids do Tidal.');
+        const t = await acesso(env);
+        const det = await porIds(env, ids, t.pais || 'PT');
+        const g = perfilGosto((await env.KV.get('perfil', 'json')) || {});
+        extras = ids.map((x) => {
+            const f = det.get(x);
+            if (!f) return null;
+            const p = { artista: f.artistas[0] || '', titulo: f.titulo, motivo: 'Escolhida por ti.', fixa: true };
+            return { ...p, faixa: f, sinais: sinais(p, f, g) };
+        });
+    }
+    const todas = [...cands, ...extras];
+    const ordem = Array.isArray(c?.ordem) ? c.ordem.slice(0, 200) : [];
+    const vistas = new Set();
+    const faixas = [];
+    ordem.forEach((i, p) => {
+        const x = Number.isInteger(i) ? todas[i] : null;
+        if (!x?.faixa || vistas.has(x.faixa.id)) return;
+        vistas.add(x.faixa.id);
+        faixas.push({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo || '', porque: txt(c.porque?.[p], 20), pontos: Number(c.pontos?.[p]) || 0 });
+    });
+    if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A versão não tem faixas.');
+    return guardar(env, { nome: `${d.nome.slice(0, 50)} · afinada`, descricao: d.descricao, resumo: d.resumo, tendencias: d.tendencias, pedido: d.pedido,
+        opcoes: c.opcoes || d.opcoes, faixas, custo: c.custo, candidatas: todas.filter(Boolean), tidal: !!c.tidal }, quem);
 }
 
 async function criarNoTidal(env, d) {
