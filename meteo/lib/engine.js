@@ -1,6 +1,7 @@
 // Motor de previsão: junta modelos, ensembles e observações num só resultado (formato em docs/API.md).
 // Funções puras: corre no browser (PWA) e no Node (tarefa agendada do Claude). Sem acesso à rede.
-import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS, IPMA_MODEL, IPMA_MAX_KM, OBS_RADIUS_KM } from './sources.js';
+import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS, IPMA_MODEL, IPMA_MAX_KM, OBS_RADIUS_KM, REPORT_KINDS, REPORT_MIN } from './sources.js';
+import { analyzeRadar, RADAR, rainLabel, fmtMmh, fmtKm, dirName } from './radar.js';
 import {
     isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, robustKeep, wfrac, haversine, bearing, compass,
     WIND_FROM, vecDir, dewPoint, relHum,
@@ -882,7 +883,8 @@ export function buildForecast(raw, opts = {}) {
         const v = P.models.map((m) => m.m15[j]), w = P.models.map((m) => m.meta.w * m.factor * (m.meta.wPrecip || 1));
         return { time, precip: r1(wmean(v, w)) ?? 0, prob: r0((wfrac(v, w, 0.05) ?? 0) * 100) };
     });
-    const nowcast = { steps, text: nowcastText(steps) };
+    // 5b) Radar no ponto (RainViewer): imagens das últimas 2 h centradas no ponto (raw.radar de lib/data.js)
+    const radar = raw.radar?.frames?.length && raw.radar.geo ? analyzeRadar({ ...raw.radar, nowMs, off }) : null;
 
     // 6) Diário (16 dias): multimodelo nos primeiros dias, ensemble depois
     const ensDateIdx = new Map((ensP?.dates || []).map((d, i) => [d, i]));
@@ -1000,6 +1002,14 @@ export function buildForecast(raw, opts = {}) {
         cloud: r0(n.cloud), precip: r1(n.precip), code: n.code, isDay: !!n.isDay, uv: r1(n.uv), visibility: r0(n.vis),
         obs: obsOut, correction,
     };
+    // o radar manda no "agora" e nos primeiros passos das próximas 2 h quando a imagem tem ≤ 20 min; depois volta aos modelos
+    let nowcast = { steps, text: nowcastText(steps) };
+    if (radar?.covered && radar.fresh && radar.atPoint) {
+        const blended = blendRadar(steps, radar, off);
+        radar.compare = radarVsModels(radar, steps, hourly, off);
+        nowcast = { steps: blended, text: radarNowcastText(radar, blended, off, steps), source: 'radar+modelos', modelText: nowcastText(steps) };
+        radarNow(now, n, radar);
+    }
 
     const models = P.models.map((m) => ({ id: m.id, name: m.meta.name, org: m.meta.org, resKm: m.meta.resKm,
         weight: Math.round(m.meta.w * m.factor * 100) / 100, days: m.d.tmax.filter(isNum).length, hours: m.d.tmax.filter(isNum).length * 24, skill: m.skill,
@@ -1030,11 +1040,11 @@ export function buildForecast(raw, opts = {}) {
         location: { lat, lon, elevation: r0(targetElev), timezone: P.timezone, utcOffsetSeconds: off,
             name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null, terrain },
         models, ensemble: ensP ? { members: ensP.members.length, models: ensP.systems } : { members: 0, models: [] },
-        now, nowcast, hourly, daily: daily.map(stripInternal), indicators, warnings, fire, verification, official, compare,
+        now, nowcast, radar, hourly, daily: daily.map(stripInternal), indicators, warnings, fire, verification, official, compare,
         local: localSummary(terrain, tAdj, H.slice(nowIdx, nowIdx + 72), H[nowIdx], shifts),
         analysis: raw.analysisMeta || null,
         sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area || official ? ['IPMA'] : []),
-            ...(usedMetar ? ['NOAA AWC (METAR)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
+            ...(usedMetar ? ['NOAA AWC (METAR)'] : []), ...(radar ? ['RainViewer (radar)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
     };
 }
 
@@ -1130,6 +1140,163 @@ export function nowcastText(steps) {
     }
     const i = kind.indexOf('sim');
     return `Chuva ${inten(steps.slice(i))} a partir das ${t(steps[i])}.`;
+}
+
+// ---------- radar no ponto e avisos do utilizador: o "agora" e as próximas 2 h ----------
+// Passo de 15 min combinado: chove (≥ 0,1 mm/h, prob ≥ 50%), talvez, ou não
+const stepKind = (s) => (s.prob >= 50 && s.precip >= 0.025 ? 'sim' : s.prob >= 25 || s.precip >= 0.1 ? 'talvez' : 'nao');
+const hh = (iso) => String(iso || '').slice(11, 16);
+
+// mm/h do radar no ponto num instante: o observado nas imagens até à última, depois a persistência (radar.ahead)
+function radarRateAt(R, ms, frameMs, off) {
+    if (ms <= frameMs) {
+        let best = null, d = 6 * 6e4;
+        for (const x of R.last2h) { const dd = Math.abs(localToMs(x.time, off) - ms); if (dd <= d) { d = dd; best = x.mmh; } }
+        return best;
+    }
+    const A = R.ahead?.mmh || [], k = (ms - frameMs) / ((R.ahead?.stepMin || 5) * 6e4), i = Math.floor(k);
+    if (i >= A.length) return null;
+    const a = A[i], b = A[i + 1];
+    return isNum(a) && isNum(b) ? a + (k - i) * (b - a) : isNum(a) ? a : null;
+}
+/** Peso do radar num passo, pela antecedência L (min) desde a imagem: inteiro nos primeiros 30 min (15 sem deslocamento
+ *  fiável) e a cair até 0 aos 120 min (75). Sem chuva no ponto só abafa 90% da chuva dos modelos (pode nascer chuva nova). */
+export function radarWeight(L, { raining, moving }) {
+    const wMax = raining ? 1 : 0.9, L0 = moving ? 30 : 15, L1 = moving ? 120 : 75;
+    return L <= L0 ? wMax : wMax * clamp(1 - (L - L0) / (L1 - L0), 0, 1);
+}
+// Passos de 15 min: radar (mm/h no intervalo, prob. 95% se chove) misturado com os modelos pelo peso do radar
+function blendRadar(steps, R, off) {
+    // sem deslocamento fiável, chuva larga à volta do ponto (≥ 50% de 5 a 15 km) também dura: conta como persistência longa
+    const steady = !!R.atPoint.raining && (R.rings?.[1]?.wet ?? 0) >= 0.5;
+    const frameMs = localToMs(R.time, off), opt = { raining: !!R.atPoint.raining, moving: !!R.ahead?.moving || steady };
+    return steps.map((s) => {
+        const T = localToMs(s.time, off);
+        const rs = [T - 10 * 6e4, T - 5 * 6e4, T].map((u) => radarRateAt(R, u, frameMs, off)).filter(isNum);
+        if (!rs.length) return s;
+        const rr = rs.reduce((a, b) => a + b, 0) / rs.length, L = (T - 7.5 * 6e4 - frameMs) / 6e4;
+        const w = radarWeight(L, opt);
+        const rp = rr >= RADAR.wetMmh ? clamp(95 - Math.max(0, L - 30) * 0.2, 75, 95) : rr >= RADAR.wetMmh / 2 ? 30 : 3;
+        return { time: s.time, precip: Math.round((w * (rr / 4) + (1 - w) * s.precip) * 100) / 100, prob: Math.round(w * rp + (1 - w) * s.prob), radar: Math.round(w * 100) / 100 };
+    });
+}
+// Início da chuva no radar (episódio atual ou chegada prevista) e nos modelos (sem radar): o erro de tempo dos modelos.
+// lagMin > 0: os modelos atrasados; < 0: adiantados; null: não dá para comparar
+function radarVsModels(R, steps, hourly, off) {
+    const A = R.atPoint, ms = (iso) => localToMs(iso, off);
+    let rStart = null, since = false;
+    if (A.raining) {
+        let i = R.last2h.length - 1;
+        while (i > 0 && R.last2h[i - 1].mmh >= RADAR.wetMmh) i--;
+        since = i === 0; rStart = R.last2h[i].time;
+    } else if (R.approach) rStart = R.approach.time;
+    const wetStep = (x) => x.prob >= 50 && x.precip >= 0.05;
+    const mNow = !!steps[0] && wetStep(steps[0]);
+    const mStart = steps.find(wetStep)?.time || (hourly || []).slice(1, 13).find((h) => (h.pop ?? 0) >= 50 && (h.precip ?? 0) >= 0.2)?.time || null;
+    const dur = (m) => (Math.abs(m) >= 90 ? `~${String(Math.round(Math.abs(m) / 30) / 2).replace('.', ',')} h` : `~${Math.round(Math.abs(m) / 5) * 5} min`);
+    const rTxt = A.raining ? `o radar tem chuva no ponto ${since ? 'há mais de 2 h' : `desde as ${hh(rStart)}`}` : `o radar prevê a chegada às ${hh(rStart)}`;
+    let lag = null, text;
+    if (A.raining && mNow) text = `radar e modelos de acordo: chove agora no ponto (no radar ${since ? 'há mais de 2 h' : `desde as ${hh(rStart)}`}).`;
+    else if (rStart && mNow) { lag = Math.round((ms(steps[0].time) - ms(rStart)) / 6e4); text = `os modelos dão chuva já, mas o radar só a vê chegar às ${hh(rStart)} (${dur(lag)}).`; }
+    else if (rStart && mStart) {
+        lag = Math.round((ms(mStart) - ms(rStart)) / 6e4);
+        text = Math.abs(lag) < 20 ? `${rTxt}; os modelos dão-na às ${hh(mStart)} (de acordo).`
+            : lag > 0 ? `${rTxt}; os modelos só a dão às ${hh(mStart)} (${dur(lag)} de atraso).` : `${rTxt}; os modelos davam-na às ${hh(mStart)} (${dur(lag)} adiantados).`;
+    } else if (rStart) text = `${rTxt}; os modelos não a dão nas próximas 12 h.`;
+    else if (mStart && ms(mStart) - ms(R.time) <= 45 * 6e4) text = `os modelos dão chuva às ${hh(mStart)}, mas o radar não a vê no ponto nem a chegar.`;
+    else text = mStart ? `sem chuva no radar; os modelos dão-na às ${hh(mStart)}.` : 'radar e modelos de acordo: sem chuva.';
+    return { radar: rStart, models: mNow ? steps[0].time : mStart, modelsNow: mNow, lagMin: lag, text: text[0].toUpperCase() + text.slice(1) };
+}
+// O que vem nas próximas 2 h, depois do "agora" (passos já combinados)
+function outlookText(steps, { wet, from = 0, radar }) {
+    const kinds = steps.map(stepKind);
+    if (wet) {
+        const i = kinds.findIndex((k, j) => j >= from && k === 'nao');
+        return i < 0 ? 'deve continuar nas próximas 2 horas' : `deve parar por volta das ${hh(steps[i].time)}`;
+    }
+    if (radar?.approach) return `chuva a ${fmtKm(radar.approach.distanceKm)} km a ${WIND_FROM[radar.approach.fromDir] || ''}, deve chegar por volta das ${hh(radar.approach.time)}`;
+    const i = kinds.findIndex((k, j) => j >= from && k === 'sim');
+    if (i >= 0) return `${radar ? 'os modelos dão ' : ''}chuva ${rainLabel(Math.max(...steps.slice(i).map((s) => s.precip)) * 4)} a partir das ${hh(steps[i].time)}`;
+    return kinds.some((k, j) => j >= from && k === 'talvez') ? 'possibilidade de chuva fraca nas próximas 2 horas' : 'sem chuva prevista nas próximas 2 horas';
+}
+/** Frase das próximas 2 h com o radar: "A chover agora (fraca, 0,6 mm/h); …" / "Sem chuva no radar; chuva a 12 km a sudoeste, …"
+ *  steps = passos já combinados; modelSteps = só os modelos (para dizer quando eles falham a chuva que já cai). */
+export function radarNowcastText(R, steps, off = 0, modelSteps = []) {
+    const A = R.atPoint;
+    if (A.raining) {
+        let s = `A chover agora (${A.label}, ${fmtMmh(A.mmh)} mm/h${A.trend && A.trend !== 'estável' ? `, ${A.trend}` : ''}); `;
+        const modelsDry = modelSteps.length > 0 && !modelSteps.some((x) => x.prob >= 50 && x.precip >= 0.05);
+        if (R.ends) {
+            s += `deve parar por volta das ${hh(R.ends.time)}`;
+            const again = steps.find((x) => stepKind(x) === 'sim' && localToMs(x.time, off) >= localToMs(R.ends.time, off) + 30 * 6e4);
+            if (again) s += `, mas os modelos dão mais chuva a partir das ${hh(again.time)}`;
+        } else if (modelsDry) s += R.compare?.models ? `os modelos só a davam a partir das ${hh(R.compare.models)}` : 'os modelos não a davam nas próximas horas';
+        else s += outlookText(steps, { wet: true, from: 1 });
+        return s + '.';
+    }
+    let s = 'Sem chuva no radar';
+    if (R.approach) return `${s}; ${outlookText(steps, { radar: R })}.`;
+    if (R.nearest) {
+        const m = R.motion?.used ? R.motion : null, away = m && Math.abs((((m.deg - R.nearest.deg) % 360) + 540) % 360 - 180) <= 60;
+        s += `; a chuva mais perto está a ${fmtKm(R.nearest.distanceKm)} km a ${dirName(R.nearest.deg)}${away ? ` e afasta-se para ${dirName(m.deg)}` : ''}`;
+    } else s += ` até ${RADAR.nearKm} km`;
+    return `${s}; ${outlookText(steps, { radar: R })}.`;
+}
+/** Código WMO com o radar a chover no ponto: a intensidade do radar, a família (aguaceiros, trovoada, neve) dos modelos */
+export function radarCode(mmh, model, temp) {
+    if (isNum(model) && model >= 95) return model;
+    if ((isNum(temp) && temp <= 1) || (model >= 71 && model <= 77) || model === 85 || model === 86) return model >= 85 ? (mmh >= 2.5 ? 86 : 85) : mmh >= 2.5 ? 75 : mmh >= 1 ? 73 : 71;
+    if (model >= 80 && model <= 82) return mmh >= 10 ? 82 : mmh >= 2.5 ? 81 : 80;
+    if (model >= 51 && model <= 57 && mmh < 1) return mmh >= 0.5 ? 53 : 51;
+    return mmh >= 10 ? 65 : mmh >= 2.5 ? 63 : 61;
+}
+const dryCode = (n, cloud) => (n ? hourCode({ ...n, precip: 0, pop: 0 }) : cloud < 15 ? 0 : cloud < 40 ? 1 : cloud < 75 ? 2 : 3);
+const isWetCode = (c) => isNum(c) && c >= 50;
+// "agora" com o radar: chove → intensidade e código do radar; não chove → sem chuva (os modelos podiam dar)
+function radarNow(now, n, R) {
+    const A = R.atPoint;
+    if (A.raining) { now.precip = Math.max(0.1, r1(A.mmh)); now.code = radarCode(A.mmh, now.code, now.temp); }
+    else if (isWetCode(now.code) || (now.precip ?? 0) >= 0.1) { now.precip = 0; now.code = dryCode(n, now.cloud); }
+    now.rainSource = 'radar';
+}
+
+// Avisos do utilizador ("Está a chover?"): o mais forte de todos no "agora" durante 45 min; nos passos de 15 min conta
+// por inteiro até 15 min depois do aviso e vai perdendo peso até aos 45 min
+const REPORT_NOW = { chuva: 'Está a chover', 'chuva-forte': 'Chuva forte', 'nao-chove': 'Não está a chover', nevoeiro: 'Nevoeiro', granizo: 'Granizo', trovoada: 'Trovoada' };
+/** O aviso ainda vale para este ponto e esta hora? (≤ 45 min, ≤ 2 km) */
+export function reportActive(report, { lat, lon, nowMs = Date.now() } = {}) {
+    if (!report || !REPORT_KINDS[report.kind]) return false;
+    const age = (nowMs - Date.parse(report.time)) / 6e4;
+    if (!(age >= -5 && age <= REPORT_MIN)) return false;
+    return !(isNum(lat) && isNum(report.lat) && isNum(report.lon) && haversine(lat, lon, report.lat, report.lon) > 2);
+}
+/** Previsão com o aviso do utilizador aplicado ao "agora" e às próximas 2 h (devolve uma cópia; fc fica igual). */
+export function withReport(fc, report, nowMs = Date.now()) {
+    if (!fc?.now || !reportActive(report, { lat: fc.location?.lat, lon: fc.location?.lon, nowMs })) return fc;
+    const off = fc.location?.utcOffsetSeconds || 0, k = report.kind, t = Date.parse(report.time);
+    const R = fc.radar?.fresh && fc.radar.covered !== false ? fc.radar : null, rr = R?.atPoint?.raining ? R.atPoint.mmh : 0;
+    const now = { ...fc.now, rainSource: 'aviso' };
+    const wet = !['nao-chove', 'nevoeiro'].includes(k);
+    const mmh = k === 'chuva' ? Math.max(rr, 0.5) : k === 'chuva-forte' ? Math.max(rr, 10) : k === 'granizo' ? Math.max(rr, 5) : k === 'trovoada' ? Math.max(rr, 2) : 0;
+    if (k === 'nao-chove') { if (isWetCode(now.code)) now.code = dryCode(null, now.cloud ?? 50); now.precip = 0; }
+    else if (k === 'nevoeiro') { now.code = 45; if (!(now.visibility < 1000)) now.visibility = 800; }
+    else {
+        now.precip = r1(mmh);
+        now.code = k === 'trovoada' ? 95 : k === 'granizo' ? 89 : k === 'chuva-forte' ? (fc.now.code >= 80 && fc.now.code <= 82 ? 82 : 65) : radarCode(mmh, fc.now.code >= 95 ? 61 : fc.now.code, fc.now.temp);
+    }
+    let last = -1;
+    const steps = (fc.nowcast?.steps || []).map((s, i) => {
+        const L = (localToMs(s.time, off) - 7.5 * 6e4 - t) / 6e4, r = L <= 15 ? 1 : clamp(1 - (L - 15) / 30, 0, 1);
+        if (r <= 0 || k === 'nevoeiro') return s;
+        last = i;
+        if (k === 'nao-chove') return { ...s, precip: Math.round((1 - r) * s.precip * 100) / 100, prob: Math.round((1 - r) * s.prob + r * 3), report: Math.round(r * 100) / 100 };
+        return { ...s, precip: Math.round(Math.max(s.precip, r * (mmh / 4) + (1 - r) * s.precip) * 100) / 100, prob: Math.round(Math.max(s.prob, r * 95 + (1 - r) * s.prob)), report: Math.round(r * 100) / 100 };
+    });
+    const at = `o teu aviso das ${msToLocal(t, off).slice(11, 16)}`;
+    let text;
+    if (k === 'nevoeiro') text = `Nevoeiro (${at}); ${(fc.nowcast?.text || '').replace(/^./, (c) => c.toLowerCase())}`;
+    else text = `${REPORT_NOW[k]} (${at}); ${outlookText(steps, { wet, from: wet ? last + 1 : 0, radar: R })}.`;
+    return { ...fc, now, nowcast: { ...fc.nowcast, steps, text, source: 'aviso' }, report: { kind: k, label: REPORT_KINDS[k], time: report.time, local: msToLocal(t, off), ageMin: Math.max(0, Math.round((nowMs - t) / 6e4)) } };
 }
 
 // Diferença face à corrida de há 24 h (máx. e chuva por dia), média dos modelos
@@ -1301,7 +1468,35 @@ export function buildSummary(fc, extra = {}) {
         L.push(`Observação combinada no ponto (${o.n ?? 1} estação(ões) ${(o.sources || [o.source]).join('+')}, a ${o.distanceKm} km em média${isNum(o.nearestKm) ? `, a mais próxima a ${o.nearestKm} km` : ''}, ajustada à altitude de ${o.elevation ?? loc.elevation} m, há ${o.ageMin} min): ${f1(o.temp)}°C, HR ${f0(o.rh)}%, vento ${f0(o.wind)} km/h de ${compass(o.dir) || '—'}, pressão ${f1(o.pressure)}.${isNum(o.repr) ? ` Confiança na observação ${o.repr} (0–1; dispersão entre estações ${f1(o.spread)}°C).` : ''}${n.correction ? ` Correção aplicada: ${n.correction.temp}°C (decai em ~5 h).` : ''}`);
         if (o.stations?.length) L.push(`Estações: ${o.stations.map((s) => `${s.name} (${s.source}, ${s.distanceKm} km, ${isNum(s.elev) ? s.elev + ' m' : 'alt. ?'}, ${String(s.time).slice(11)}): ${f1(s.temp)}→${f1(s.tempAdj)}°C, desvio ${f1(s.anomaly)}, peso ${s.weight}%${s.used ? '' : ' [rejeitada]'}`).join('; ')}.`);
     }
-    if (fc.nowcast?.text) L.push(`Próximas 2 h: ${fc.nowcast.text} (${fc.nowcast.steps.map((s) => `${s.time.slice(11)} ${f1(s.precip)}mm/${s.prob}%`).join(', ')})`);
+    if (fc.report) L.push(`Aviso do utilizador no ponto: ${fc.report.label} às ${hh(fc.report.local)} (há ${fc.report.ageMin} min) — o que se vê no sítio; manda no "agora" durante 45 min.`);
+    if (fc.nowcast?.text) L.push(`Próximas 2 h${fc.nowcast.source ? ` (${fc.nowcast.source})` : ''}: ${fc.nowcast.text} (${fc.nowcast.steps.map((s) => `${s.time.slice(11)} ${f1(s.precip)}mm/${s.prob}%${isNum(s.radar) ? ` radar ${Math.round(s.radar * 100)}%` : ''}`).join(', ')})${fc.nowcast.modelText ? `. Só os modelos diziam: ${fc.nowcast.modelText}` : ''}`);
+    const R = fc.radar;
+    if (R) {
+        const pc = (x) => `${Math.round((x || 0) * 100)}%`;
+        L.push(`\n## Radar no ponto (RainViewer; imagens de 10 em 10 min centradas no ponto, ${R.kmPx} km por píxel; no ponto = média de 3×3 píxeis, ~2.8 km)`);
+        if (R.covered === false) L.push('O ponto está fora da cobertura do radar: o "agora" vem das estações e dos modelos.');
+        else {
+            const A = R.atPoint;
+            L.push(`Última imagem: ${R.time.replace('T', ' ')} (há ${R.ageMin} min${R.fresh ? '' : '; antiga: não entrou no "agora"'}), ${R.frames} imagens nas últimas 2 h.`);
+            L.push(`No ponto: ${A.raining ? `chuva ${A.label}, ${f1(A.mmh)} mm/h (${A.dbz} dBZ)${A.trend ? `, ${A.trend}` : ''}` : 'sem chuva'}; ${pc(A.wet)} dos 9 píxeis com chuva.`);
+            L.push(`Últimas 2 h no ponto (mm/h): ${R.last2h.map((x) => `${x.time.slice(11)} ${f1(x.mmh)}`).join(' | ')}`);
+            L.push(`À volta (fração com chuva ≥ 0.1 mm/h; máximo): ${R.rings.map((r, i) => `${i ? R.rings[i - 1].km : 0}–${r.km} km ${pc(r.wet)} (${f1(r.max)} mm/h)`).join(' · ')}.`);
+            if (!A.raining) L.push(R.nearest ? `Chuva mais perto (sem ecos parados): ${R.nearest.distanceKm} km para ${R.nearest.bearing}, ${f1(R.nearest.mmh)} mm/h.` : `Sem chuva até ${RADAR.nearKm} km (sem contar ecos parados).`);
+            if (R.fixedKm2) L.push(`Ecos parados até ${RADAR.nearKm} km (no mesmo sítio em metade ou mais das imagens: eco fixo — relevo, interferência — ou chuva parada): ~${R.fixedKm2} km²; não contam para a chegada.`);
+            L.push(R.motion ? `Deslocamento dos ecos: para ${R.motion.toDir || '—'} a ${R.motion.speedKmh} km/h (vêm de ${R.motion.fromDir || '—'}; confiança ${R.motion.corr}${R.motion.used ? '' : ' — baixa, não usado'}).` : 'Deslocamento dos ecos: sem estimativa (poucos ecos, ou mudam mais do que andam).');
+            if (R.approach) L.push(`Chegada ao ponto pelo radar: ~${hh(R.approach.time)} (daqui a ${R.approach.etaMin} min), ~${f1(R.approach.mmh)} mm/h; a chuva está a ${R.approach.distanceKm} km para ${R.approach.fromDir}, a ${R.approach.speedKmh} km/h.`);
+            if (R.ends) L.push(`Fim da chuva no ponto pelo radar: ~${hh(R.ends.time)}.`);
+            if (R.compare?.text) L.push(`Radar vs modelos: ${R.compare.text}`);
+            L.push(`Frase do radar: ${R.text}`);
+        }
+    }
+    if (extra.reports?.length) {
+        L.push('\n## Avisos do utilizador ("Está a chover?": o que se via no ponto; o mais recente primeiro)');
+        for (const x of extra.reports.slice(0, 12)) {
+            const t = Date.parse(x.time);
+            if (Number.isFinite(t)) L.push(`${msToLocal(t, loc.utcOffsetSeconds || 0).replace('T', ' ')} — ${REPORT_KINDS[x.kind] || x.kind}${isNum(x.distanceKm) ? ` (a ${x.distanceKm} km do ponto)` : ''}`);
+        }
+    }
     L.push(`\n## Das 12 às 48 h no ponto (de 3 em 3 h; T = consenso [faixa entre modelos], chuva mm/h e prob.${ipH ? '; IPMA = previsão oficial T (prob. 3 h)' : ''})`);
     L.push(`hora | T [faixa] | sens | chuva (prob) | vento/rajada dir | nuvens (baixas) | CAPE | HR | código | local${ipH ? ' | IPMA' : ''}`);
     fc.hourly.filter((_, i) => i >= 12 && i % 3 === 0).slice(0, 13).forEach((h) => {

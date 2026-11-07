@@ -1,17 +1,22 @@
 // Meteo — previsão do tempo para o ponto exato, com a mesma linguagem da app Mercados.
-// A previsão é calculada no telemóvel por ./lib/data.js; o conector (Cloudflare Worker) serve
-// METAR, FIRMS, fogos.pt, satélite, locais e a análise do Claude. Endereço nos Ajustes ou ?proxy=URL.
-import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY } from './lib/data.js';
+// A previsão é calculada no telemóvel por ./lib/data.js (com o radar no ponto, RainViewer); o conector (Cloudflare
+// Worker) serve METAR, FIRMS, fogos.pt, satélite, locais, avisos do utilizador e a análise do Claude.
+// Endereço do conector nos Ajustes ou ?proxy=URL.
+import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps } from './lib/data.js';
+import { withReport, reportActive } from './lib/engine.js';
+import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
+import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
 import * as api from './api.js';
 import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
     ['geocolour', 'Nuvens', 'Nuvens em cor natural de dia; de noite, infravermelho com as luzes das cidades (satélite MTG, Meteosat de 3.ª geração).'],
+    ['radar', 'Radar', 'Radar de chuva (RainViewer, que junta os radares meteorológicos, incluindo os do IPMA): as últimas 2 horas, de 10 em 10 minutos, sobre as nuvens. As manchas em cunha que não se mexem, perto dos radares, são ecos fixos e não chuva.'],
     ['ir', 'Infravermelho', 'Infravermelho 10,5 µm: quanto mais branco, mais alto e frio é o topo da nuvem. Mostra frentes e trovoadas de dia e de noite.'],
     ['lightning', 'Relâmpagos', 'Relâmpagos detetados pelo Lightning Imager do MTG nos últimos minutos, sobre o infravermelho.'],
     ['fire', 'Fogo', 'Temperatura do fogo (RGB): os focos ativos aparecem em laranja e amarelo.'],
@@ -19,14 +24,17 @@ const LAYERS = [
     ['airmass', 'Massas de ar', 'Massas de ar: vermelho = ar seco que desce (perto das depressões), verde = ar tropical, azul e violeta = ar polar. Ajuda a ver frentes e correntes de jato.'],
 ];
 const ZOOMS = [300, 600, 1200];
+const RZOOMS = [7, 6]; // radar: imagens centradas no ponto, ~240 e ~470 km de largura
+const RAIN_CLS = (mmh) => (mmh >= 10 ? 'r3' : mmh >= 2.5 ? 'r2' : mmh >= RADAR.wetMmh ? 'r1' : '');
+const REPORT_ICON = { chuva: 61, 'chuva-forte': 65, 'nao-chove': 2, nevoeiro: 45, granizo: 89, trovoada: 95 };
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
-const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto' };
+const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
 const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
 
 // ---------- configuração ----------
 const KEY = 'meteo:v1';
-const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, loc: null, favs: [], noInstall: false };
+const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false };
 const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
@@ -46,6 +54,8 @@ const st = {
     fc: null, savedAt: 0, loading: false, error: '', offline: false, lastFetch: 0,
     analysis: undefined, places: [], status: null, statusErr: '',
     pulling: false, sheet: null, installEvt: null, iosHint: false, updateReady: false, analyzing: false,
+    report: api.loadReport(), reports: [], // aviso deste telemóvel e avisos recentes do conector
+    rv: null, rvErr: '', rvIdx: null, rvPlay: 0, // camada Radar: lista de imagens, imagem mostrada, animação
 };
 
 // ---------- utilitários ----------
@@ -62,6 +72,20 @@ function haversineKm(a, b, c, d) {
     return 2 * R * Math.asin(Math.sqrt(x));
 }
 const placeName = () => cfg.loc?.name || st.fc?.location?.name || (cfg.loc ? 'Local atual' : 'Meteo');
+// o aviso que vale agora (deste telemóvel ou do conector): o mais recente, ≤ 45 min e ≤ 2 km do ponto
+function currentReport() {
+    if (!cfg.loc) return null;
+    const ok = [st.report, ...st.reports].filter((r) => reportActive(r, { lat: cfg.loc.lat, lon: cfg.loc.lon }));
+    return ok.sort((a, b) => Date.parse(b.time) - Date.parse(a.time))[0] || null;
+}
+// a previsão como se mostra: com o aviso do utilizador aplicado ao "agora" e às próximas 2 h
+const viewFc = () => (st.fc ? withReport(st.fc, currentReport(), Date.now()) : null);
+let reportT = 0;
+function reportTimer() { // ao fim dos 45 min o aviso deixa de contar: volta a desenhar
+    clearTimeout(reportT);
+    const r = currentReport();
+    if (r) reportT = setTimeout(() => { scheduleRender(); reportTimer(); }, Math.max(1000, Date.parse(r.time) + REPORT_MIN * 6e4 - Date.now() + 1000));
+}
 const near = (a, b, km = 0.2) => a && b && haversineKm(a.lat, a.lon, b.lat, b.lon) <= km;
 
 let toastT = 0;
@@ -99,6 +123,7 @@ function init() {
     loadStatus();
     if (cfg.loc) setLocation(cfg.loc, { save: false });
     else render();
+    reportTimer();
 }
 function applyFs() {
     if (cfg.fs && cfg.fs !== 'n') document.documentElement.dataset.fs = cfg.fs;
@@ -109,7 +134,7 @@ function applyFs() {
 function setLocation(loc, { save = true } = {}) {
     cfg.loc = { lat: api.r4(loc.lat), lon: api.r4(loc.lon), name: loc.name || null, gps: !!loc.gps, acc: loc.acc ?? null };
     if (save) saveCfg();
-    st.analysis = undefined; st.offline = false; st.error = '';
+    st.analysis = undefined; st.offline = false; st.error = ''; st.reports = []; stopRadar(); st.rv = null;
     const saved = api.loadSavedForecast(cfg.loc.lat, cfg.loc.lon);
     st.fc = saved?.fc || null; st.savedAt = saved?.savedAt || 0;
     render();
@@ -154,8 +179,13 @@ async function refresh() {
     await an;
 }
 async function loadAnalysis(loc) {
-    const [a, p] = await Promise.allSettled([api.getAnalysis(loc.lat, loc.lon), api.getPlaces()]);
+    const [a, p, r] = await Promise.allSettled([api.getAnalysis(loc.lat, loc.lon), api.getPlaces(), api.getReports(loc.lat, loc.lon)]);
     if (cfg.loc !== loc) return;
+    if (r.status === 'fulfilled') {
+        const had = currentReport();
+        st.reports = r.value;
+        if (currentReport() !== had) { reportTimer(); scheduleRender(); }
+    }
     if (a.status === 'fulfilled' && a.value) { st.analysis = a.value; api.saveAnalysis(loc.lat, loc.lon, a.value); }
     else {
         const saved = api.loadSavedAnalysis(loc.lat, loc.lon);
@@ -214,7 +244,7 @@ function renderStatus() {
     el.innerHTML = `${a}<span class="num">${esc(b)}</span>`;
 }
 function mount() {
-    const fc = st.fc;
+    const fc = viewFc();
     if (cfg.tab === 'agora' && fc) {
         const nc = $('#nc-chart'); if (nc) renderNowcast(nc, fc.nowcast);
         const hc = $('#h-chart'); if (hc) renderHourly(hc, fc.hourly, { todayIso: todayOf(fc) });
@@ -224,9 +254,13 @@ function mount() {
         const fr = img.closest('.sat-frame');
         const done = () => fr.classList.remove('loading', 'err');
         img.addEventListener('load', done);
-        img.addEventListener('error', () => { fr.classList.remove('loading'); fr.classList.add('err'); });
+        img.addEventListener('error', () => { fr.classList.remove('loading'); fr.classList.add(fr.classList.contains('rad') ? 'nobg' : 'err'); });
         if (img.complete && img.naturalWidth) done();
     }
+    const rim = $('#rad-img');
+    if (rim) rim.addEventListener('error', () => { if (!st.rvPlay) rim.closest('.sat-frame')?.classList.add('err'); });
+    // camada Radar: a lista das imagens (pede de novo ao fim de 5 min)
+    if (cfg.tab === 'satelite' && cfg.layer === 'radar' && cfg.loc && (!st.rv || Date.now() - st.rv.at > 5 * 60e3)) loadRadarLayer();
 }
 
 // ---------- vistas ----------
@@ -249,7 +283,7 @@ function viewNow() {
             <div class="btns"><button type="button" class="btn pri" data-act="gps">${ui('gps')}Usar a minha localização</button><button type="button" class="btn" data-act="place">${ui('search')}Pesquisar local</button></div></div>` };
     }
     const title = `<button type="button" class="pg-loc" data-act="place" aria-label="${esc(placeName())} — mudar de local">${esc(placeName())}${ui('chevron')}</button>`;
-    const fc = st.fc;
+    const fc = viewFc();
     if (!fc) {
         return { title, html: st.error
             ? `<div class="empty">${esc(st.error)}<div style="margin-top:10px"><button type="button" class="btn pri sm" data-act="refresh">Tentar de novo</button></div></div>`
@@ -268,6 +302,10 @@ function nowBox(fc) {
     const [ti, td] = F.num(n.temp, 1).split(',');
     const lines = [];
     if (fc.nowcast?.text) lines.push(`<li>${ui('drop')}<span>${esc(fc.nowcast.text)}</span></li>`);
+    const rl = radarLine(fc);
+    if (rl) lines.push(rl);
+    const rp = fc.report;
+    if (rp) lines.push(`<li>${ui('person')}<span>O teu aviso: <b>${esc(rp.label)}</b> · ${esc(F.ago(rp.ageMin))} · conta até às ${esc(F.hhmm(addMin(rp.local, REPORT_MIN)))}</span></li>`);
     const o = n.obs;
     const many = (o?.n || 1) > 1;
     if (o && F.isNum(o.temp)) lines.push(`<li>${ui('station')}<span>Observado <b>${esc(F.deg(o.temp, 1))}</b> em ${esc(o.station)} · ${many ? '~' : ''}${esc(F.km(o.distanceKm))} · ${esc(F.ago(o.ageMin))} (${esc((o.sources || [o.source]).join(' + '))})</span></li>`);
@@ -284,7 +322,25 @@ function nowBox(fc) {
         </div>
         <div class="now-m num"><span>Sensação ${esc(F.deg(n.feels))}</span><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span>${conf ? `<span class="badge">${sig(conf, false)}${esc(F.CONF[conf] || '')}</span>` : ''}</div>
         ${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}
+        <div class="now-rpt"><button type="button" class="btn sm" data-act="report">${ui('drop')}${rp ? 'Mudar o aviso' : 'Está a chover?'}</button></div>
     </section>`;
+}
+const addMin = (iso, m) => new Date(Date.parse(iso + ':00Z') + m * 6e4).toISOString().slice(0, 16);
+// idade da imagem do radar agora (a previsão pode ter sido calculada há algum tempo)
+const radarAge = (fc) => (fc.radar?.ageMin ?? 0) + Math.max(0, (Date.now() - Date.parse(fc.generatedAt)) / 6e4);
+// "Radar no ponto: 0,6 mm/h (fraca) · há 8 min" + as últimas 2 h em 13 barras
+function radarLine(fc) {
+    const R = fc.radar;
+    if (!R) return '';
+    if (R.covered === false) return `<li>${ui('radar')}<span>Radar: este ponto está fora da cobertura.</span></li>`;
+    const A = R.atPoint || {}, age = radarAge(fc);
+    const what = A.raining ? `<b>${esc(F.num(A.mmh, A.mmh < 10 ? 1 : 0))} mm/h</b> (${esc(A.label)})` : '<b>sem chuva</b>';
+    const when = age > RADAR.maxAgeMin ? `imagem de ${F.ago(age)}, antiga` : F.ago(age);
+    const L = R.last2h || [];
+    const bars = L.map((x) => { const v = x.mmh || 0, h = v < RADAR.wetMmh ? 0 : Math.min(1, 0.3 + (0.7 * Math.log10(v / RADAR.wetMmh)) / 2.7); return `<i class="${RAIN_CLS(v)}" style="height:${Math.round(h * 100)}%"></i>`; }).join('');
+    const strip = L.length ? `<div class="rad-strip" role="img" aria-label="${esc(`Radar no ponto nas últimas 2 horas: ${L.map((x) => `${F.hhmm(x.time)} ${F.num(x.mmh || 0, 1)} mm/h`).join(', ')}`)}">
+        <div class="rs-bars" aria-hidden="true">${bars}</div><div class="rs-ax" aria-hidden="true"><span>${esc(F.hhmm(L[0].time))}</span><span>últimas 2 h</span><span>${esc(F.hhmm(L.at(-1).time))}</span></div></div>` : '';
+    return `<li class="rad-li">${ui('radar')}<div><span>Radar no ponto: ${what} · ${esc(when)}</span>${strip}</div></li>`;
 }
 // "Vale · 70 m abaixo do relevo à volta" e, se mexe na previsão, quanto
 function terrainLine(fc) {
@@ -350,8 +406,14 @@ function teaserHtml() {
     const note = ap?.far ? `<p class="cl-farmsg">${esc(ap.moved ? `A análise diária já passou para este ponto: a próxima chega ${nextRun()}.` : 'Feita para outro ponto: o tempo aqui pode ser diferente.')}</p>` : '';
     return `<button type="button" class="claude" id="cl-teaser" data-tab="analise">${main}${note}</button>`;
 }
-const nowcastSec = (fc) => (fc.nowcast?.steps?.length
-    ? `<section class="sec"><div class="sec-h"><h2>Próximas 2 horas</h2></div><div class="box"><p class="lead">${esc(fc.nowcast.text || '')}</p><div id="nc-chart"></div></div></section>` : '');
+function nowcastSec(fc) {
+    if (!fc.nowcast?.steps?.length) return '';
+    const src = fc.nowcast.source === 'aviso' ? 'com o teu aviso' : fc.nowcast.source === 'radar+modelos' ? 'radar e modelos' : 'modelos';
+    // o radar desmente os modelos (hora da chuva): dizê-lo por baixo do gráfico
+    const C = fc.radar?.compare, off = C && (C.lagMin != null ? Math.abs(C.lagMin) >= 20 : !/de acordo/.test(C.text));
+    return `<section class="sec"><div class="sec-h"><h2>Próximas 2 horas</h2><span class="sub">${esc(src)}</span></div><div class="box"><p class="lead">${esc(fc.nowcast.text || '')}</p><div id="nc-chart"></div>
+        ${off ? `<p class="note rad-cmp">${ui('radar')}<span>${esc(C.text)}</span></p>` : ''}</div></section>`;
+}
 const hourlySec = (fc) => (fc.hourly?.length
     ? `<section class="sec"><div class="sec-h"><h2>Próximas ${Math.min(72, fc.hourly.length)} horas</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="h-chart" class="chart"></div></div></section>` : '');
 
@@ -444,12 +506,67 @@ function viewSat() {
     const layer = LAYERS.find((l) => l[0] === cfg.layer);
     const fc = st.fc;
     let html = `<section class="sec"><div class="chips" role="tablist" aria-label="Camada de satélite">${LAYERS.map(([id, name]) => `<button type="button" role="tab" data-layer="${id}" aria-selected="${id === cfg.layer}" class="${id === cfg.layer ? 'on' : ''}">${name}</button>`).join('')}</div>
-        <div class="sat-frame loading"><img id="sat-img" src="${esc(api.satUrl(cfg.layer, cfg.loc.lat, cfg.loc.lon, cfg.km))}" width="720" height="540" alt="${esc(`Imagem de satélite (${layer[1].toLowerCase()}) centrada no local`)}" decoding="async"><span class="sat-mk" aria-hidden="true"></span><span class="sat-msg">Imagem indisponível de momento.</span></div>
-        <div class="sat-bar"><div class="seg" role="group" aria-label="Largura da imagem">${ZOOMS.map((z) => `<button type="button" data-km="${z}" aria-pressed="${z === cfg.km}" class="${z === cfg.km ? 'on' : ''}">${F.num(z)} km</button>`).join('')}</div><span class="note" style="margin:0">EUMETSAT · o local está no centro</span></div>
+        ${cfg.layer === 'radar' ? radarFrameHtml() : `<div class="sat-frame loading"><img id="sat-img" src="${esc(api.satUrl(cfg.layer, cfg.loc.lat, cfg.loc.lon, cfg.km))}" width="720" height="540" alt="${esc(`Imagem de satélite (${layer[1].toLowerCase()}) centrada no local`)}" decoding="async"><span class="sat-mk" aria-hidden="true"></span><span class="sat-msg">Imagem indisponível de momento.</span></div>
+        <div class="sat-bar"><div class="seg" role="group" aria-label="Largura da imagem">${ZOOMS.map((z) => `<button type="button" data-km="${z}" aria-pressed="${z === cfg.km}" class="${z === cfg.km ? 'on' : ''}">${F.num(z)} km</button>`).join('')}</div><span class="note" style="margin:0">EUMETSAT · o local está no centro</span></div>`}
         <p class="note">${esc(layer[2])}</p></section>`;
     html += fc ? fireHtml(fc) : skeleton();
     return { title, html };
 }
+// ---------- camada Radar (RainViewer): imagens centradas no ponto sobre as nuvens, a última e as últimas 2 h ----------
+const radarKm = (z) => (40075.016686 * Math.cos((cfg.loc.lat * Math.PI) / 180)) / 2 ** z; // largura da imagem (km)
+const rvUrl = (f, z) => radarTileUrl(st.rv.host, f.path, cfg.loc.lat, cfg.loc.lon, { size: 512, z, smooth: 1, snow: 1 });
+function rvLabel(f) {
+    const off = st.fc?.location?.utcOffsetSeconds;
+    const t = F.isNum(off) ? F.localFromUtc(new Date(f.ms).toISOString(), off) : new Date(f.ms - new Date(f.ms).getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+    return `${F.hhmm(t)} · ${F.ago((Date.now() - f.ms) / 6e4)}`;
+}
+function radarFrameHtml() {
+    if (!RZOOMS.includes(cfg.rz)) cfg.rz = 7;
+    const z = cfg.rz, fr = st.rv?.frames || [];
+    const i = fr.length ? Math.min(fr.length - 1, Math.max(0, st.rvIdx ?? fr.length - 1)) : -1;
+    const tl = i >= 0 ? rvLabel(fr[i]) : st.rvErr ? 'Radar indisponível' : 'A carregar o radar…';
+    const leg = [['#9e9375', 'eco fraco'], ['#36bae5', 'fraca'], ['#00699c', 'moderada'], ['#ffb700', 'forte'], ['#c10000', 'muito forte'], ['#ff77ff', 'granizo']];
+    return `<div class="sat-frame rad loading${st.rvErr && !fr.length ? ' err' : ''}">
+        <img id="sat-img" class="rad-bg" src="${esc(api.satUrl('geocolour', cfg.loc.lat, cfg.loc.lon, Math.round(radarKm(z))))}" width="720" height="540" alt="" decoding="async">
+        ${i >= 0 ? `<img id="rad-img" class="rad-fg" src="${esc(rvUrl(fr[i], z))}" width="512" height="512" alt="${esc(`Radar de chuva à volta do local (${tl})`)}" decoding="async">` : ''}
+        <span class="sat-mk" aria-hidden="true"></span><span class="rad-time num" id="rad-time">${esc(tl)}</span>
+        <span class="sat-msg">${esc(st.rvErr ? `Radar indisponível de momento (${st.rvErr}).` : 'Imagem indisponível de momento.')}</span></div>
+        <div class="sat-bar"><div class="seg" role="group" aria-label="Largura do radar">${RZOOMS.map((rz) => `<button type="button" data-rz="${rz}" aria-pressed="${rz === z}" class="${rz === z ? 'on' : ''}">${F.num(Math.round(radarKm(rz) / 10) * 10)} km</button>`).join('')}</div>
+        <button type="button" class="btn sm" data-act="rad-play"${fr.length > 1 ? '' : ' disabled'} aria-pressed="${!!st.rvPlay}">${ui(st.rvPlay ? 'pause' : 'play')}${st.rvPlay ? 'Parar' : 'Últimas 2 h'}</button></div>
+        <div class="rad-leg" aria-label="Legenda do radar">${leg.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')}</div>`;
+}
+async function loadRadarLayer() {
+    if (st.rvLoading) return;
+    st.rvLoading = true;
+    try {
+        const { host, frames } = radarFrames(await radarMaps());
+        st.rv = { host, frames, at: Date.now() }; st.rvErr = frames.length ? '' : 'sem imagens'; st.rvIdx = null;
+    } catch (e) { st.rv = { host: null, frames: [], at: Date.now() }; st.rvErr = e?.message || 'sem resposta'; }
+    st.rvLoading = false;
+    if (cfg.tab === 'satelite' && cfg.layer === 'radar' && !st.rvPlay) scheduleRender();
+}
+function stopRadar() { clearTimeout(st.rvPlay); st.rvPlay = 0; st.rvIdx = null; }
+// as últimas 2 h: uma imagem a cada 0,5 s (pré-carregadas), fica 1,2 s na última e para
+function radarPlay() {
+    if (st.rvPlay) { stopRadar(); render(); return; }
+    const fr = st.rv?.frames || [];
+    if (fr.length < 2) return;
+    const urls = fr.map((f) => rvUrl(f, cfg.rz));
+    for (const u of urls) { const im = new Image(); im.src = u; }
+    st.rvIdx = 0;
+    const tick = () => {
+        const img = $('#rad-img'), lab = $('#rad-time');
+        if (!img || cfg.tab !== 'satelite' || cfg.layer !== 'radar') { stopRadar(); return; }
+        const i = st.rvIdx;
+        img.src = urls[i]; lab.textContent = rvLabel(fr[i]);
+        if (i >= fr.length - 1) { st.rvPlay = setTimeout(() => { stopRadar(); scheduleRender(); }, 1200); return; }
+        st.rvIdx = i + 1;
+        st.rvPlay = setTimeout(tick, 500);
+    };
+    st.rvPlay = setTimeout(tick, 30);
+    render();
+}
+
 function riskRow(day, lv, label) {
     return `<div class="rk"><span class="rk-d">${day}</span><div class="rk-s" role="img" aria-label="${esc(`Risco de incêndio ${day.toLowerCase()}: ${label || F.FIRE[lv]} (${lv} de 5)`)}">${[1, 2, 3, 4, 5].map((k) => `<i class="r${k}${k <= lv ? ' on' : ''}${k === lv ? ' cur' : ''}"></i>`).join('')}</div><b>${esc(label || F.FIRE[lv] || '–')}</b></div>`;
 }
@@ -597,6 +714,9 @@ function precisionLines(fc) {
     const tl = terrainLine(fc);
     if (tl) out.push(`Relevo: ${tl}`);
     else if (fc.status?.terrain && fc.status.terrain !== 'ok') out.push(`Relevo à volta indisponível (${fc.status.terrain})`);
+    const R = fc.radar;
+    if (R) out.push(R.covered === false ? 'Radar: ponto fora da cobertura' : `Radar no ponto (RainViewer): imagem de ${F.ago(radarAge(fc))}, ${F.num(R.kmPx, 2)} km por píxel`);
+    else if (fc.status?.radar && fc.status.radar !== 'ok') out.push(`Radar indisponível (${fc.status.radar})`);
     return out;
 }
 function viewSettings() {
@@ -654,6 +774,14 @@ function renderSheet() {
             <div style="margin-top:12px"><label class="sr-only" for="f-q">Pesquisar local</label><input id="f-q" class="inp" type="search" placeholder="Cidade, vila ou freguesia" autocomplete="off" autocapitalize="words" enterkeyhint="search"><div class="res" id="f-res" aria-live="polite"></div></div>
             ${cfg.favs.length ? `<div class="grp-h" style="margin-top:18px">Favoritos</div><div class="wl">${cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}
             ${st.places.length ? `<div class="grp-h" style="margin-top:18px">Com análise diária</div><div class="wl">${st.places.map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}`;
+        return;
+    }
+    if (s.kind === 'report') {
+        const cur = currentReport(), day = st.fc?.now?.isDay !== false;
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Está a chover?</h2>
+            <div class="d-sub">Diz o que vês aí agora. O teu aviso manda no «agora» durante ${REPORT_MIN} min e ajuda a análise do Claude.</div></div>${closeBtn}</div>
+            <div class="rpt-grid" role="group" aria-label="O que vês agora">${Object.entries(REPORT_KINDS).map(([k, label]) => `<button type="button" data-report="${k}" class="${cur?.kind === k ? 'on' : ''}" aria-pressed="${cur?.kind === k}">${weatherIcon(REPORT_ICON[k], day, 36)}<span>${esc(label)}</span></button>`).join('')}</div>
+            ${cur ? `<p class="note">O teu último aviso: ${esc(REPORT_KINDS[cur.kind])}, ${esc(F.ago((Date.now() - Date.parse(cur.time)) / 6e4))}. Um aviso novo substitui-o.</p>` : ''}`;
         return;
     }
     if (s.kind === 'off') {
@@ -828,11 +956,20 @@ async function moveTo(id, lat, lon) {
     render();
     return p;
 }
+// "Está a chover?": vale já neste telemóvel (45 min) e segue para o conector, para a análise do Claude
+async function submitReport(kind) {
+    if (!cfg.loc || !Object.hasOwn(REPORT_KINDS, kind)) return;
+    const rep = { kind, time: new Date().toISOString(), lat: cfg.loc.lat, lon: cfg.loc.lon };
+    st.report = rep; api.saveReport(rep);
+    closeSheet(true); reportTimer(); render();
+    toast(`Obrigado! «${REPORT_KINDS[kind]}» conta no agora durante ${REPORT_MIN} min.`);
+    try { await api.postReport(rep); } catch (e) { toast(`Aviso guardado neste telemóvel; o conector não o recebeu (${e.message})`); }
+}
 async function analyzeNow() {
     if (!st.fc || st.analyzing) return;
     st.analyzing = true; render();
     try {
-        const analysis = await requestAnalysis(st.fc);
+        const analysis = await requestAnalysis(viewFc(), { reports: st.reports });
         st.analysis = { ...(st.analysis || {}), analysis, ageMin: 0, offline: false };
         if (cfg.loc) api.saveAnalysis(cfg.loc.lat, cfg.loc.lon, st.analysis);
         toast('Análise feita ✓');
@@ -851,13 +988,15 @@ async function saveProxy() {
 }
 
 document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace]');
+    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-report]');
     if (!t) return;
     const d = t.dataset;
     if (d.tab) { cfg.tab = d.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); if (d.tab === 'ajustes') loadStatus(); return; }
     if (d.day != null) { openSheet('day', +d.day); return; }
-    if (d.layer) { cfg.layer = d.layer; saveCfg(); render(); return; }
+    if (d.layer) { stopRadar(); cfg.layer = d.layer; saveCfg(); render(); return; }
     if (d.km) { cfg.km = +d.km; saveCfg(); render(); return; }
+    if (d.rz) { stopRadar(); cfg.rz = +d.rz; saveCfg(); render(); return; }
+    if (d.report) { submitReport(d.report); return; }
     if (d.fs) { cfg.fs = d.fs; saveCfg(); applyFs(); render(); return; }
     if (d.pick != null) { const r = lastRes[+d.pick]; if (r) { closeSheet(); setLocation({ lat: r.lat, lon: r.lon, name: r.name }); } return; }
     if (d.fav != null) { const f = cfg.favs[+d.fav]; if (f) { closeSheet(); setLocation(f); } return; }
@@ -875,6 +1014,8 @@ document.addEventListener('click', (ev) => {
         case 'off-yes': placeOff(st.sheet?.arg?.id); break;
         case 'place-move': movePlaceHere(); break;
         case 'analyze': analyzeNow(); break;
+        case 'report': openSheet('report'); break;
+        case 'rad-play': radarPlay(); break;
         case 'save-proxy': saveProxy(); break;
         case 'fav': {
             const i = cfg.favs.findIndex((f) => near(f, cfg.loc));

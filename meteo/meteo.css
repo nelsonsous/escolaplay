@@ -418,3 +418,31 @@ div.claude { cursor: auto; }
 .welcome p { color: var(--soft); margin: 0 0 14px; }
 .welcome .btns { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- radar no ponto (Agora) e avisos do utilizador ---------- */
+.now-l .rad-li > div { flex: 1; min-width: 0; }
+.rad-strip { margin-top: 6px; max-width: 280px; }
+.rs-bars { display: flex; align-items: flex-end; gap: 2px; height: 18px; }
+.rs-bars i { flex: 1; min-height: 2px; border-radius: 2px 2px 1px 1px; background: rgba(255, 255, 255, .14); }
+.rs-bars i.r1 { background: #36bae5; }
+.rs-bars i.r2 { background: #0a6fb0; }
+.rs-bars i.r3 { background: #ffb700; }
+.rs-ax { display: flex; justify-content: space-between; gap: 6px; margin-top: 3px; color: var(--muted); font-size: calc(.7rem * var(--k)); font-variant-numeric: tabular-nums; }
+.now-rpt { display: flex; justify-content: flex-end; margin-top: 10px; }
+.now-rpt .btn .i { color: #64a8ff; }
+.rad-cmp { display: flex; gap: 6px; align-items: flex-start; margin-top: 10px; color: var(--soft); }
+.rad-cmp .i { color: var(--accent); margin-top: .1em; }
+.rpt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.rpt-grid button { display: flex; align-items: center; gap: 10px; border: 0; background: var(--card); color: var(--text); border-radius: 14px; padding: 10px 12px; min-height: 58px; cursor: pointer; text-align: left; font-weight: 650; font-size: calc(.95rem * var(--k)); }
+.rpt-grid button .wx { width: 36px; height: 36px; flex: none; }
+.rpt-grid button.on { box-shadow: inset 0 0 0 2px var(--accent2); }
+.rpt-grid button:active { background: var(--card2); }
+
+/* ---------- camada Radar (Satélite) ---------- */
+.sat-frame .rad-bg { filter: brightness(.6) saturate(.7); }
+.sat-frame.nobg .rad-bg { visibility: hidden; }
+.sat-frame img.rad-fg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rad-time { position: absolute; left: 10px; top: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, .6); color: #fff; font-size: calc(.78rem * var(--k)); font-weight: 650; }
+.sat-bar .btn .i { width: 1em; height: 1em; }
+.rad-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 2px 0; font-size: calc(.75rem * var(--k)); color: var(--soft); }
+.rad-leg i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; }

@@ -117,7 +117,7 @@ const WX = {
   51: 'Chuvisco fraco', 53: 'Chuvisco', 55: 'Chuvisco intenso', 56: 'Chuvisco gelado', 57: 'Chuvisco gelado intenso',
   61: 'Chuva fraca', 63: 'Chuva', 65: 'Chuva forte', 66: 'Chuva gelada', 67: 'Chuva gelada forte',
   71: 'Neve fraca', 73: 'Neve', 75: 'Neve forte', 77: 'Grãos de neve',
-  80: 'Aguaceiros fracos', 81: 'Aguaceiros', 82: 'Aguaceiros fortes', 85: 'Aguaceiros de neve', 86: 'Aguaceiros de neve fortes',
+  80: 'Aguaceiros fracos', 81: 'Aguaceiros', 82: 'Aguaceiros fortes', 85: 'Aguaceiros de neve', 86: 'Aguaceiros de neve fortes', 89: 'Granizo',
   95: 'Trovoada', 96: 'Trovoada com granizo', 99: 'Trovoada forte com granizo',
 };
 export const wxText = (code) => WX[code] ?? '—';
@@ -134,6 +134,7 @@ export function wxGroup(code) {
   if (code >= 71 && code <= 77) return 'snow';
   if (code >= 80 && code <= 82) return 'showers';
   if (code === 85 || code === 86) return 'snowshowers';
+  if (code === 89 || code === 90) return 'hail';
   if (code >= 95) return 'storm';
   return 'overcast';
 }

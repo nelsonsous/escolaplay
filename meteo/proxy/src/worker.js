@@ -1,14 +1,15 @@
 // Conector da app Meteo (Cloudflare Worker), como o mercados/proxy: cache/proxy das fontes que o browser não lê
-// diretamente, imagens de satélite, locais e análises do Claude (KV). A app em si está no GitHub Pages.
+// diretamente, imagens de satélite, locais, avisos do utilizador e análises do Claude (KV). A app está no GitHub Pages.
 // Plano gratuito (10 ms de CPU por pedido): aqui não se faz cálculo pesado — o motor (../../lib) corre no telemóvel.
 import Anthropic from '@anthropic-ai/sdk';
-import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl } from '../../lib/sources.js';
+import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl, REPORT_KINDS } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const SCHEDULE = ['07:34', '13:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const MAX_PLACES = 5;
+const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local, 30 dias
 // Dados públicos: qualquer origem pode ler; escrever (locais, análise imediata) só a app (ALLOWED_ORIGINS) ou o próprio conector
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'x-sat-layer, x-sat-bbox, x-cache' };
 const OM_TTL = { forecast: 900, ensemble: 3600, previous: 3600, archive: 2592000, elevation: 2592000, geocoding: 86400 };
@@ -104,6 +105,10 @@ async function route(req, env, ctx, url) {
         if (m === 'GET') return json(await getPlaces(env), 200, { 'cache-control': 'no-store' });
         if (m === 'POST') return addPlace(req, env, url);
     }
+    if (p === '/api/reports') {
+        if (m === 'GET') return listReports(env, q);
+        if (m === 'POST') return addReport(req, env, url);
+    }
     if (m === 'DELETE' && p.startsWith('/api/places/')) return deletePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
     if (m === 'PATCH' && p.startsWith('/api/places/')) return movePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
     return json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
@@ -195,6 +200,44 @@ async function movePlace(req, env, url, id) {
     const place = { ...cur, name, lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4, movedAt: new Date().toISOString() };
     await env.KV.put('places', JSON.stringify(places.map((x) => (x.id === id ? place : x))));
     return json(place, 200);
+}
+
+// ---------- avisos do utilizador ("Está a chover?") ----------
+// Ficam com o local registado a ≤ 2 km (reports:<id>, que a tarefa agendada mostra ao Claude) ou, longe dos locais, com a
+// quadrícula de ~1 km (reports:@41.34,-8.47). Os últimos 50, 30 dias; coordenadas com 3 casas (~100 m).
+async function reportKey(env, lat, lon) {
+    const near = (await getPlaces(env)).map((x) => ({ x, d: distKm(lat, lon, x.lat, x.lon) })).filter((o) => o.d <= 2).sort((a, b) => a.d - b.d)[0]?.x || null;
+    return { key: near ? `reports:${near.id}` : `reports:@${lat.toFixed(2)},${lon.toFixed(2)}`, place: near ? { id: near.id, name: near.name } : null };
+}
+const r3 = (x) => Math.round(x * 1e3) / 1e3;
+
+async function addReport(req, env, url) {
+    if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
+    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    const b = await req.json().catch(() => null);
+    const lat = Number(b?.lat), lon = Number(b?.lon), kind = String(b?.kind || '');
+    if (!Object.hasOwn(REPORT_KINDS, kind) || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return bad('Aviso inválido.');
+    // a hora do telemóvel (até 3 h para trás); fora disso, a do conector
+    const now = Date.now(), t = Date.parse(b?.time);
+    const time = new Date(Number.isFinite(t) && t <= now + 5 * 6e4 && t >= now - 3 * 36e5 ? t : now).toISOString();
+    const { key, place } = await reportKey(env, lat, lon);
+    const old = (await env.KV.get(key, 'json')) || [];
+    const report = { kind, time, lat: r3(lat), lon: r3(lon), receivedAt: new Date(now).toISOString() };
+    const keep = [report, ...(Array.isArray(old) ? old : []).filter((x) => now - Date.parse(x.time) <= REPORTS_TTL * 1000)]
+        .sort((a, c) => Date.parse(c.time) - Date.parse(a.time)).slice(0, REPORTS_MAX);
+    await env.KV.put(key, JSON.stringify(keep), { expirationTtl: REPORTS_TTL });
+    return json({ report, place, count: keep.length }, 201);
+}
+
+async function listReports(env, q) {
+    const c = coords(q);
+    if (!c) return bad('coordenadas inválidas');
+    const { key, place } = await reportKey(env, c.lat, c.lon);
+    const now = Date.now(), hours = clampInt(q.get('hours'), 1, 720, 720);
+    const list = (env.KV && (await env.KV.get(key, 'json'))) || [];
+    const reports = (Array.isArray(list) ? list : []).filter((x) => now - Date.parse(x.time) <= hours * 36e5)
+        .map((x) => ({ ...x, ageMin: Math.round((now - Date.parse(x.time)) / 6e4), distanceKm: Math.round(distKm(c.lat, c.lon, x.lat, x.lon) * 10) / 10 }));
+    return json({ place, reports }, 200, { 'cache-control': 'no-store' });
 }
 
 const adhocKey = (lat, lon) => `analysis:@${lat.toFixed(2)},${lon.toFixed(2)}`;

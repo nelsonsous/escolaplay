@@ -1,7 +1,10 @@
 // Recolha de dados para um local e cálculo da previsão (browser e Node).
-// Open-Meteo, IPMA e Nominatim são chamados diretamente (CORS aberto); METAR, FIRMS e fogos.pt passam pelo Worker.
+// Open-Meteo, IPMA, Nominatim e o radar (RainViewer) são chamados diretamente (CORS aberto); METAR, FIRMS e fogos.pt
+// passam pelo Worker.
 import { omQueries, climateQueries, OM, IPMA, ipmaAggregateUrl, inPortugal, inEuropeFirms } from './sources.js';
 import { buildForecast, buildSummary, perModelTable, pickStation, nearStations, nearestIpmaLocal, terrainPoints } from './engine.js';
+import { RAINVIEWER, radarFrames, radarTileUrl, coverageUrl, tileGeo, decodeFrame, coveredAt } from './radar.js';
+import { decodePng } from './png.js';
 import { haversine } from './stats.js';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -135,10 +138,78 @@ async function ipmaOfficial(lat, lon) {
     return { local, data };
 }
 
+// ---------- radar no ponto (RainViewer) ----------
+let mapsMemo = null;
+/** Lista das imagens de radar (weather-maps.json: as últimas 2 h, de 10 em 10 min), guardada 1 min em memória. */
+export async function radarMaps() {
+    if (mapsMemo && Date.now() - mapsMemo.t < 60e3) return mapsMemo.v;
+    const v = await request(RAINVIEWER.maps, { timeout: 8000, retries: [] });
+    mapsMemo = { t: Date.now(), v };
+    return v;
+}
+// Píxeis RGBA de uma imagem. No browser: canvas (crossOrigin anónimo; o RainViewer responde com CORS aberto).
+// No Node, ou se o canvas falhar ou mexer nas cores: o descodificador PNG (lib/png.js), sobre o ficheiro original.
+function canvasPixels(url, timeout = 12000) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const t = setTimeout(() => { img.src = ''; reject(new Error('tempo esgotado')); }, timeout);
+        img.crossOrigin = 'anonymous';
+        img.decoding = 'async';
+        img.onload = () => {
+            clearTimeout(t);
+            try {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth; c.height = img.naturalHeight;
+                const g = c.getContext('2d', { willReadFrequently: true });
+                g.drawImage(img, 0, 0);
+                resolve({ width: c.width, height: c.height, data: g.getImageData(0, 0, c.width, c.height).data });
+            } catch (e) { reject(e); }
+        };
+        img.onerror = () => { clearTimeout(t); reject(new Error('imagem do radar indisponível')); };
+        img.src = url;
+    });
+}
+async function pngPixels(url, timeout = 12000) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeout);
+    try {
+        const r = await fetch(url, { signal: ctl.signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return await decodePng(new Uint8Array(await r.arrayBuffer()));
+    } catch (e) {
+        throw new Error(e.name === 'AbortError' ? 'tempo esgotado' : e.message);
+    } finally { clearTimeout(t); }
+}
+const pixels = (url) => (isBrowser ? canvasPixels(url).catch(() => pngPixels(url)) : pngPixels(url));
+async function radarFrame(url) {
+    if (isBrowser) {
+        try {
+            const f = decodeFrame((await canvasPixels(url)).data);
+            // cores fora da tabela (proteção contra impressões digitais do browser, perfis de cor): lê o PNG original
+            if (f.unknown <= Math.max(20, f.echoes * 0.02)) return f;
+        } catch { /* tenta o PNG */ }
+    }
+    return decodeFrame((await pngPixels(url)).data);
+}
+/** Imagens de radar das últimas 2 h centradas no ponto (z7, ~0,92 km por píxel) para o motor (raw.radar). A cobertura
+ *  do radar no ponto fica guardada 7 dias. */
+export async function loadRadar(lat, lon) {
+    const { host, frames } = radarFrames(await radarMaps());
+    if (!frames.length) throw new Error('sem imagens de radar');
+    const geo = tileGeo(lat, lon);
+    const covered = await cached(`rvcov:v1:${cell(lat, 3)},${cell(lon, 3)}`, 7 * 864e5, async () => coveredAt((await pixels(coverageUrl(host, lat, lon))).data, geo))
+        .catch(() => true);
+    const got = await Promise.all(frames.map((f) => radarFrame(radarTileUrl(host, f.path, lat, lon)).then((d) => ({ ms: f.ms, dbz: d.dbz })).catch(() => null)));
+    const ok = got.filter(Boolean);
+    if (!ok.length) throw new Error('imagens do radar indisponíveis');
+    return { frames: ok, geo, covered, host };
+}
+
 /**
  * Previsão completa para um local (formato em docs/API.md, "Previsão").
  * ipmaPrev (opcional, tarefa agendada): previsões do IPMA de há ~1 dia { times, temp } para a verificação local.
- * O relevo à volta do ponto (pointTerrain) dá location.terrain e o efeito local (fc.local).
+ * O relevo à volta do ponto (pointTerrain) dá location.terrain e o efeito local (fc.local); o radar das últimas 2 h
+ * (loadRadar, RainViewer) dá fc.radar e corrige o "agora" e as próximas 2 h quando a imagem tem ≤ 20 min.
  * @param {{lat:number, lon:number, name?:string, base?:string, preferProxy?:boolean, withRaw?:boolean, now?:number|string, ipmaPrev?:object}} o
  */
 export async function loadForecast(o = {}) {
@@ -162,6 +233,7 @@ export async function loadForecast(o = {}) {
         place: settle(reverseGeocode(lat, lon)),
         clim: settle(climate(lat, lon, ctx)),
         terrain: settle(pointTerrain(lat, lon, ctx)),
+        radar: settle(loadRadar(lat, lon)),
         ...(pt ? {
             stations: settle(cached('ipma:stations', 864e5, () => request(IPMA.stations))),
             obs: settle(request(IPMA.obs, { timeout: 20000 })),
@@ -215,11 +287,12 @@ export async function loadForecast(o = {}) {
         obsHistory: station && p2.hist[station.id] ? p2.hist[station.id] : null, obsHistories: p2.hist, station,
         stationElev: station ? elevs[station.id] ?? null : null, stationElevs: elevs, ipmaPrev: o.ipmaPrev || null,
         firms: R.firms?.ok ? Object.fromEntries(R.firms.v.filter(([, t]) => t)) : null, fogos: v('fogos'),
-        place: v('place'), clim: v('clim'), terrain: v('terrain'),
+        place: v('place'), clim: v('clim'), terrain: v('terrain'), radar: v('radar'),
     };
     const fc = buildForecast(raw, { lat, lon, name: o.name, now: nowMs });
     const status = Object.fromEntries(Object.entries(R).map(([k, r]) => [k, r.ok ? 'ok' : (r.e?.message || 'falhou')]));
     if (status.ipmaFc === 'ok' && !ipma?.forecast) status.ipmaFc = ofc?.reason || 'sem previsão';
+    if (status.radar === 'ok' && raw.radar && !raw.radar.covered) status.radar = 'ponto fora da cobertura do radar';
     if (pt || metarList.length) {
         status.elev = p2.el.ok ? 'ok' : (p2.el.e?.message || 'falhou');
         status.obsHist = p2.histIds.length ? (p2.hs.some((h) => h.ok) ? 'ok' : (p2.hs[0]?.e?.message || 'falhou')) : 'sem estações IPMA perto';
@@ -228,9 +301,9 @@ export async function loadForecast(o = {}) {
     return o.withRaw ? { fc, raw } : fc;
 }
 
-// Pede uma análise imediata ao Claude (só funciona se o Worker tiver chave da API)
-export async function requestAnalysis(fc, { base = PROXY, det } = {}) {
-    const summary = buildSummary(fc, det ? { perModel: perModelTable(det) } : {});
+// Pede uma análise imediata ao Claude (só funciona se o Worker tiver chave da API). reports = avisos do utilizador perto
+export async function requestAnalysis(fc, { base = PROXY, det, reports } = {}) {
+    const summary = buildSummary(fc, { ...(det ? { perModel: perModelTable(det) } : {}), ...(reports?.length ? { reports } : {}) });
     const r = await fetch(`${base}/api/analysis/refresh?lat=${fc.location.lat}&lon=${fc.location.lon}`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ summary, name: fc.location.name }) });
     const j = await r.json().catch(() => ({}));

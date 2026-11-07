@@ -16,6 +16,14 @@ próximo até 15 km**: `public-data/forecast/locations.json`, guardada 7 dias, e
 estações até 30 km num só pedido** ao Open-Meteo (`elevation?latitude=a,b,c&longitude=x,y,z`, guardadas 1 ano) e o
 **relevo à volta do ponto**: outro pedido `elevation` com o ponto e 12 rumos (0°, 30°, …) a 1,5 km e a 4 km (25 pontos,
 `terrainPoints` em `lib/engine.js`), guardado para sempre (`pointTerrain` em `lib/data.js`; o terreno não muda).
+**Radar** (`loadRadar` em `lib/data.js`, direto ao RainViewer, CORS aberto): `api.rainviewer.com/public/weather-maps.json`
+(1 min em memória), a cobertura no ponto (`/v2/coverage/0/256/7/<lat>/<lon>/0/0_0.png`, 7 dias) e as 13 imagens das
+últimas 2 h centradas no ponto (`<host><path>/256/7/<lat>/<lon>/2/0_0.png`: z7 ≈ 0,92 km por píxel a 41° N, ±117 km;
+`0_0` = cores exatas, sem suavizar, e toda a precipitação na escala da chuva). As imagens gratuitas vêm sempre no esquema
+"Universal Blue" (qualquer cor pedida dá o mesmo): uma cor por dBZ de −10 a 64 (os níveis −10 a 14 semitransparentes,
+cada um com a sua opacidade), 65–74 a branco, ≥ 75 a verde (ignorado). No browser lêem-se pelo canvas
+(`crossOrigin = 'anonymous'`; se aparecerem cores fora da tabela, pelo PNG original); no Node, por `lib/png.js`.
+A imagem centrada começa no píxel global `round(X − 128)` da grelha normal (verificado contra as imagens x/y/z).
 Na tarefa agendada, `ipmaPrev` (`{ times, temp }`) traz as previsões do IPMA feitas na véspera, para a verificação local.
 Formato:
 
@@ -56,10 +64,39 @@ Formato:
              "stations": [ // até 12, por peso
                { "id": "1200535", "name": "Lisboa (Geofísico)", "source": "IPMA", "distanceKm": 1.0, "dir": "O", "elev": 77, "time": "2026-11-06T15:00",
                  "ageMin": 45, "temp": 15.1, "tempAdj": 15.2, "anomaly": -2.1, "weight": 43, "used": true } ] }, // dir = rumo do ponto para a estação; sameSite = METAR no mesmo aeroporto
-    "correction": { "temp": -1.6, "dew": 1.7, "decayHours": 5, "stations": 11, "repr": 0.92 } // correção aplicada às próximas horas (ou null)
+    "correction": { "temp": -1.6, "dew": 1.7, "decayHours": 5, "stations": 11, "repr": 0.92 }, // correção aplicada às próximas horas (ou null)
+    "rainSource": "radar" // só quando o radar (imagem ≤ 20 min) mandou em precip/code: precip = mm/h no ponto; "aviso" com o aviso do utilizador
   },
-  "nowcast": { "steps": [ { "time": "2026-11-06T15:15", "precip": 0.0 } ], // 8 passos de 15 min (2 h)
-               "text": "Sem chuva nas próximas 2 horas." },
+  // 8 passos de 15 min (2 h): precip = mm nesses 15 min, prob = %. Com o radar (imagem ≤ 20 min), cada passo mistura o
+  // radar (mm/h no intervalo: o observado até à última imagem, depois a persistência; prob. 95% se chove) com os modelos
+  // pelo peso radar (0..1): inteiro até 30 min depois da imagem (15 sem deslocamento fiável), a cair até 0 aos 120 min
+  // (75); sem chuva no ponto o radar só abafa 90% da chuva dos modelos. source: "radar+modelos" | "aviso" (sem: só modelos)
+  "nowcast": { "steps": [ { "time": "2026-11-06T15:15", "precip": 0.14, "prob": 95, "radar": 1 } ],
+               "text": "A chover agora (fraca, 0,6 mm/h); os modelos só a davam a partir das 18:00.", // ou "Sem chuva no radar; chuva a 12 km a sudoeste, deve chegar por volta das 21:10."
+               "source": "radar+modelos", "modelText": "Sem chuva prevista nas próximas 2 horas." }, // modelText = a frase só dos modelos
+  // radar no ponto (RainViewer; null sem radar). Tudo na última imagem, salvo last2h. No ponto = média de 3×3 píxeis
+  // (~2,8 km); chove a partir de 0,1 mm/h (≈ 7 dBZ). Ecos parados (eco no mesmo píxel em ≥ 50% das imagens: fixos —
+  // relevo, interferência, as cunhas perto dos radares — ou chuva que não se mexe) não contam para o eco mais próximo nem
+  // para a chegada e pesam pouco no deslocamento; contam no ponto e nos anéis.
+  "radar": { "source": "RainViewer", "time": "2026-11-06T20:30", "ageMin": 8, "fresh": true, // fresh = imagem ≤ 20 min (só então mexe no "agora")
+             "frames": 13, "stepMin": 10, "kmPx": 0.92, "covered": true, // covered = false: ponto fora da cobertura (só text)
+             "atPoint": { "mmh": 0.56, "dbz": 19, "wet": 0.89, "raining": true, "label": "fraca", "trend": "estável" }, // wet = fração dos 9 píxeis; label OMM (fraca < 2,5 mm/h, moderada < 10, forte < 50, muito forte); trend: a aumentar | a diminuir | estável (vs 30 min)
+             "last2h": [ { "time": "2026-11-06T18:30", "mmh": 0 } ], // as 13 imagens, no ponto
+             "rings": [ { "km": 5, "wet": 0.9, "max": 0.9 }, { "km": 15, "wet": 0.4, "max": 2.1 }, { "km": 30, "wet": 0.2, "max": 6.3 }, { "km": 60, "wet": 0.1, "max": 11.5 } ], // anéis 0–5, 5–15, 15–30, 30–60 km: fração com chuva e máximo (mm/h)
+             "nearest": { "distanceKm": 12.3, "bearing": "SO", "deg": 225, "mmh": 1.2 }, // só sem chuva no ponto: eco (3×3 ≥ 0,1 mm/h) mais perto até 40 km, sem os parados (ou null); bearing = rumo do ponto para o eco
+             // deslocamento: correlação do padrão dos ecos entre a última imagem e as de há 10, 20 e 30 min, numa caixa de
+             // ±60 km (grelha de ~1,8 km, ecos ≥ 12 dBZ, cada píxel a pesar menos quanto mais tempo teve eco). corr = confiança
+             // (0..1, cai se as três estimativas discordam); used = corr ≥ 0,4 e ≥ 5 km/h (senão a chuva fica parada)
+             "motion": { "speedKmh": 35, "deg": 45, "toDir": "NE", "fromDir": "SO", "corr": 0.82, "used": true, "vx": 0.45, "vy": -0.45 },
+             // persistência lagrangiana: a chuva que vai estar no ponto daqui a t min está agora a v·t para montante
+             "approach": { "etaMin": 37, "time": "2026-11-06T21:10", "distanceKm": 21, "speedKmh": 35, "fromDir": "SO", "mmh": 1.4 }, // sem chuva no ponto: chegada (ou null)
+             "ends": { "etaMin": 50, "time": "2026-11-06T21:20" }, // a chover: fim pelo deslocamento (ou null)
+             "fixedKm2": 0, // área de ecos parados até 40 km
+             "ahead": { "stepMin": 5, "moving": true, "mmh": [0.56, 0.6] }, // mm/h no ponto de 5 em 5 min desde a imagem (25 valores; sem deslocamento: o valor de agora)
+             // início da chuva no radar (episódio atual ou chegada) e nos modelos (sem radar): lagMin > 0 = modelos atrasados
+             "compare": { "radar": "2026-11-06T20:10", "models": "2026-11-06T22:15", "modelsNow": false, "lagMin": 125,
+                          "text": "O radar tem chuva no ponto desde as 20:10; os modelos só a dão às 22:15 (~2 h de atraso)." },
+             "text": "A chover agora (fraca, 0,6 mm/h)." }, // frase só do radar
   "hourly": [ // 72 entradas a partir da hora atual (consenso ponderado dos modelos)
     { "time": "2026-11-06T15:00", "temp": 14.6, "tempLo": 13.9, "tempHi": 15.3, "feels": 13.2, "dew": 10.9, "rh": 78,
       "precip": 0.0, "precipHi": 0.2, "pop": 10, "wind": 11, "gust": 22, "dir": 80, "cloud": 25, "cloudLow": 10,
@@ -146,13 +183,26 @@ Formato:
     "summary": "…" // as notas numa frase só
   },
   "analysis": { "available": true, "ageMin": 95, "placeId": "lisboa" }, // atalho: há análise do Claude perto?
+  // só na app, com um aviso do utilizador ativo (withReport em lib/engine.js; ver "Avisos do utilizador")
+  "report": { "kind": "chuva", "label": "Chuva", "time": "2026-11-06T20:33:00.000Z", "local": "2026-11-06T20:33", "ageMin": 3 },
   "sources": ["Open-Meteo (CC BY 4.0)", "IPMA", "NOAA AWC (METAR)", "NASA FIRMS", "ANEPC via fogos.pt", "EUMETSAT"],
-  "status": { "det": "ok", "ipmaFc": "ok", "elev": "ok", "terrain": "ok", "obsHist": "ok", "fogos": "HTTP 502" } // cada fonte: "ok" ou o erro
+  "status": { "det": "ok", "ipmaFc": "ok", "elev": "ok", "terrain": "ok", "obsHist": "ok", "radar": "ok", "fogos": "HTTP 502" } // cada fonte: "ok" ou o erro
 }
 ```
 
 Códigos `code` = WMO (Open-Meteo): 0 limpo, 1 pouco nublado, 2 parcialmente nublado, 3 encoberto,
-45/48 nevoeiro, 51-57 chuvisco, 61-67 chuva, 71-77 neve, 80-82 aguaceiros, 85/86 aguaceiros de neve, 95-99 trovoada.
+45/48 nevoeiro, 51-57 chuvisco, 61-67 chuva, 71-77 neve, 80-82 aguaceiros, 85/86 aguaceiros de neve, 89 granizo (só com
+o aviso do utilizador), 95-99 trovoada. Com o radar a chover no ponto, `now.code` tem a intensidade do radar e a família
+dos modelos (aguaceiros, trovoada, neve; senão chuva 61/63/65); sem chuva no radar, o código das nuvens.
+
+### Avisos do utilizador — `withReport(fc, report, now)` em `lib/engine.js`
+
+`report = { kind, time, lat, lon }` (`kind`: `chuva`, `chuva-forte`, `nao-chove`, `nevoeiro`, `granizo`, `trovoada`;
+`REPORT_KINDS` em `lib/sources.js`). Vale 45 min e a ≤ 2 km de onde foi dado; é o sinal mais forte do «agora»:
+`now.code`/`now.precip` (chuva ≥ 0,5 mm/h, chuva forte ≥ 10, granizo 89, trovoada 95, nevoeiro 45, não chove: o código
+das nuvens) e, nos passos de 15 min, por inteiro até 15 min depois do aviso e a perder peso até aos 45 (`report` = peso).
+`nowcast.text`: «Está a chover (o teu aviso das 20:33); deve continuar nas próximas 2 horas.» Devolve uma cópia (a app
+guarda a previsão sem o aviso); o aviso fica no telemóvel (`meteo:report`) e vai para `POST /api/reports`.
 
 ## GET /api/sat?layer=geocolour&lat=38.72&lon=-9.14[&km=600&w=720&h=540]
 
@@ -215,13 +265,26 @@ mostra-a enquanto for mais recente do que a do local registado. `place.lat/lon` 
 - `DELETE /api/places/<id>` → `204` (a análise e as lições ficam guardadas: ao voltar a ligar o mesmo local, com o mesmo
   nome, aparece de novo a última análise; na app, desligar pede confirmação e o aviso tem «Desfazer»)
 
+## Avisos do utilizador («Está a chover?»)
+
+- `POST /api/reports` body `{ "kind": "chuva", "time": "2026-11-06T20:33:00Z", "lat": 41.3354, "lon": -8.4745 }` →
+  `201 { "report": { "kind", "time", "lat", "lon", "receivedAt" }, "place": { "id", "name" } | null, "count": 12 }`.
+  Só da própria origem (como `/api/places`): `403`; `400` com tipo ou coordenadas inválidas. `time` = a hora do telemóvel
+  (até 3 h para trás; senão a do conector). Fica em `reports:<id>` do local registado a ≤ 2 km, ou em
+  `reports:@41.34,-8.47` (quadrícula de ~1 km); os últimos 50 (o mais recente primeiro), 30 dias (TTL do KV);
+  coordenadas com 3 casas (~100 m).
+- `GET /api/reports?lat=..&lon=..[&hours=24]` → `{ "place": { "id", "name" } | null, "reports": [ { "kind", "time", "lat",
+  "lon", "receivedAt", "ageMin": 3, "distanceKm": 0.1 } ] }` (leitura livre; `hours` 1–720, por omissão 30 dias). A app
+  usa os das últimas 24 h (um aviso de outro telemóvel no mesmo sítio também vale 45 min); a tarefa agendada mostra ao
+  Claude os das últimas 48 h.
+
 ## GET /api/geocode?q=Ericeira
 
 `[ { "name": "Ericeira", "admin1": "Lisboa", "country": "Portugal", "lat": 38.96, "lon": -9.42, "elevation": 35 } ]`
 
 ## GET /api/status
 
-`{ "version": "1.2.0", "onDemand": false, "places": 1, "schedule": ["07:34","13:34","20:34"] }`
+`{ "version": "1.3.0", "onDemand": false, "places": 1, "schedule": ["07:34","13:34","20:34"] }`
 
 ## Fontes em bruto (passagem com cache)
 
@@ -241,8 +304,11 @@ Texto que a tarefa agendada e a análise imediata dão ao Claude, **a começar p
    chegada).»
 2. `## Próximas 12 h no ponto, hora a hora` — T [faixa], sensação, chuva (prob.), vento/rajada, nuvens, HR, orvalho,
    visibilidade, código, ajuste local e IPMA.
-3. `## Fontes`, `## Agora`, `## Das 12 às 48 h no ponto` (de 3 em 3 h), `## 16 dias`, indicadores, avisos, incêndios,
-   verificação local, IPMA (10 dias) e fontes lado a lado.
+3. `## Fontes`, `## Agora` (com o aviso do utilizador ativo e as próximas 2 h, o peso do radar em cada passo e a frase
+   só dos modelos), `## Radar no ponto` (última imagem e idade, o ponto agora e nas últimas 2 h, anéis, chuva mais perto,
+   ecos parados, deslocamento, chegada ou fim, **Radar vs modelos** e a frase do radar), `## Avisos do utilizador`
+   (`extra.reports`: os do conector, com a hora local e a distância), `## Das 12 às 48 h no ponto` (de 3 em 3 h),
+   `## 16 dias`, indicadores, avisos, incêndios, verificação local, IPMA (10 dias) e fontes lado a lado.
 
 A análise que volta passa por `validateAnalysis` e, na tarefa agendada, por `regionalPhrases` (`lib/analysis.js`): o
 `publicar.mjs` recusa frases genéricas sobre a região («no distrito do Porto», «no Minho e Douro Litoral», «no interior

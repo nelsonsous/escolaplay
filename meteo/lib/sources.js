@@ -70,6 +70,11 @@ export const IPMA_MAX_KM = 15; // concelho mais próximo até 15 km
 // Observações: estações IPMA e METAR até 30 km entram na observação combinada do ponto
 export const OBS_RADIUS_KM = 30;
 
+// Avisos do utilizador ("Está a chover?"): o que se vê no sítio. Na app, o "agora" mais forte de todos durante 45 min;
+// no conector ficam os últimos 50 de cada local (30 dias) para a análise do Claude.
+export const REPORT_KINDS = { chuva: 'Chuva', 'chuva-forte': 'Chuva forte', 'nao-chove': 'Não chove', nevoeiro: 'Nevoeiro', granizo: 'Granizo', trovoada: 'Trovoada' };
+export const REPORT_MIN = 45;
+
 // Focos de calor por satélite (NASA FIRMS, ficheiros abertos das últimas 24 h, região Europa)
 export const FIRMS = {
     n20: { name: 'VIIRS NOAA-20', url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Europe_24h.csv' },

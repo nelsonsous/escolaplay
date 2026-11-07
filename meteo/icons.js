@@ -66,6 +66,7 @@ export function weatherIconInner(code, isDay = true) {
     case 'showers': return smallSky + cloud(2, -4, 0.95) + drops(code >= 82 ? 3 : 2, 48);
     case 'snowshowers': return smallSky + cloud(2, -4, 0.95) + flakes(52);
     case 'storm': return upCloud('var(--wx-cloud-2)') + bolt + (code >= 96 ? hail : '');
+    case 'hail': return upCloud('var(--wx-cloud-2)') + hail;
     default: return cloud(-1, 0, 1);
   }
 }
@@ -114,6 +115,10 @@ const UI = {
   waves: '<path d="M2.5 9c2 0 2-1.5 4-1.5S8.5 9 10.5 9s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5"/><path d="M2.5 14c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5"/><path d="M2.5 19c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5"/>',
   station: '<path d="M12 21V10"/><path d="M8 21h8"/><circle cx="12" cy="7" r="2.5"/><path d="M7.5 3.5a6.5 6.5 0 0 0 0 7M16.5 3.5a6.5 6.5 0 0 1 0 7"/>',
   relief: '<path d="M2.5 19.5l6-9.5 3.6 5.4 2.4-3.4 7 7.5z"/><path d="M7.2 12.1l1.3 1.4 1.4-1.3"/>',
+  radar: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5a4.5 4.5 0 1 1-4.5 4.5"/><path d="M12 12l5.6-5.6"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  pause: '<path d="M8.5 5.5v13M15.5 5.5v13"/>',
+  person: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20.5a7 7 0 0 1 14 0"/>',
   signal1: '<rect x="4" y="15" width="3.5" height="5" rx="1" fill="currentColor" stroke="none"/><rect x="10.25" y="10" width="3.5" height="10" rx="1"/><rect x="16.5" y="5" width="3.5" height="15" rx="1"/>',
   signal2: '<rect x="4" y="15" width="3.5" height="5" rx="1" fill="currentColor" stroke="none"/><rect x="10.25" y="10" width="3.5" height="10" rx="1" fill="currentColor" stroke="none"/><rect x="16.5" y="5" width="3.5" height="15" rx="1"/>',
   signal3: '<rect x="4" y="15" width="3.5" height="5" rx="1" fill="currentColor" stroke="none"/><rect x="10.25" y="10" width="3.5" height="10" rx="1" fill="currentColor" stroke="none"/><rect x="16.5" y="5" width="3.5" height="15" rx="1" fill="currentColor" stroke="none"/>',
