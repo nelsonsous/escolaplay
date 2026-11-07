@@ -251,6 +251,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.locator('#d-now').getAttribute('open'), null);
     assert.equal(await page.locator('#d-ind').getAttribute('open'), null);
     assert.equal(await page.locator('.list.mini .day').count(), 5, 'próximos 5 dias no Agora');
+    assert.equal(await page.locator('.list.mini .day .rng .rb').count(), 5, 'com a barra mín.–máx. (sem espaço vazio no meio)');
+    if (SHOTS) await page.locator('.sec:has(h2:text("Próximos dias"))').screenshot({ path: path.join(SHOTS, '02c-proximos-dias.png') });
     assert.match(await page.locator('[data-tab="dias"].ghost').textContent(), /Ver os 16 dias/);
     assert.match(nowTxt, /Observado \d+,\d° em Lisboa \(Geofísico\), .+ e mais \d+ · ~\d+,\d km · há \d+ min \(IPMA \+ METAR\)/, 'linha da observação combinada');
     assert.equal(elevCalls, 1, 'altitudes de todas as estações num só pedido');
@@ -350,7 +352,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.locator('#mt-sheet #d-chart').count(), 0);
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
-    console.log('✓ Dias: 16 dias, folha do domingo com as horas, dia 11 sem horas');
+    // hoje às 15:45 faltam 8 horas: a folha de hoje mostra as próximas 12 (passa da meia-noite), a encher a largura
+    await page.click('.row.day[data-day="0"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) #d-chart svg');
+    assert.match(await page.locator('#mt-sheet-card').textContent(), /Próximas 12 horas/);
+    const fill = await page.evaluate(() => { const sc = document.querySelector('#d-chart .chart-scroll'), cv = document.querySelector('#d-chart .chart-canvas'); return { cv: cv.offsetWidth, sc: sc.clientWidth }; });
+    assert.ok(fill.cv >= fill.sc - 2, `o gráfico enche a largura (${fill.cv} ≥ ${fill.sc})`);
+    if (SHOTS) await page.locator('#mt-sheet-card').screenshot({ path: path.join(SHOTS, '04b-hoje.png') });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    console.log('✓ Dias: 16 dias, folha do domingo com as horas, dia 11 sem horas, hoje com as próximas 12 horas');
 
     // 4) Satélite e incêndios
     await tab('satelite');

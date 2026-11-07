@@ -504,7 +504,5 @@ details.more.in-box[open] { display: block; margin-top: 8px; }
 .now-rpt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .cl-tom { margin: 8px 0 0; color: var(--soft); line-height: 1.45; }
 .cl-tom b { color: var(--text); margin-right: 6px; }
-.list.mini .day.mini { grid-template-columns: 1fr 28px calc(2.6rem * var(--k)) calc(2.1rem * var(--k)) calc(2.1rem * var(--k)); }
-.list.mini .day.mini .wx { width: 28px; height: 28px; }
 .btn.ghost { background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--soft); margin-top: 10px; }
 .ver-line { margin: 18px 4px 8px; color: var(--faint); font-size: calc(.78rem * var(--k)); text-align: center; }

@@ -68,13 +68,16 @@ function barPath(x, y, w, h, r = 4) {
 const popClass = (p) => (!isNum(p) || p < 30 ? 'p1' : p < 60 ? 'p2' : 'p3');
 
 // ---------------------------------------------------------------------------
-export function renderHourly(root, hourly, { todayIso } = {}) {
+export function renderHourly(root, hourly, { todayIso, width } = {}) {
   const H = (hourly || []).slice(0, 72);
   root.textContent = '';
   if (!H.length) { root.innerHTML = '<p class="muted">Sem dados horários.</p>'; return; }
   const n = H.length;
-  const W = n * STEP + PADR;
-  const xc = (i) => i * STEP + STEP / 2;
+  // largura útil: a medida (2.ª passagem) ou uma estimativa a partir da caixa
+  const avail = Math.max(0, (width || ((root.clientWidth || 0) - AXIS_W)) - PADR);
+  const step = Math.max(STEP, Math.min(64, avail / n));
+  const W = n * step + PADR;
+  const xc = (i) => i * step + step / 2;
 
   const temps = H.flatMap((h) => [h.temp, h.tempLo, h.tempHi]).filter(isNum);
   const ts = tempScale(Math.min(...temps), Math.max(...temps));
@@ -89,14 +92,14 @@ export function renderHourly(root, hourly, { todayIso } = {}) {
   let s = '';
   // noite
   for (const r of runs(n, (i) => H[i].isDay === false)) {
-    s += `<rect class="night" x="${r[0] * STEP}" y="0" width="${r.length * STEP}" height="${G.arrows + 10}"/>`;
+    s += `<rect class="night" x="${r[0] * step}" y="0" width="${r.length * step}" height="${G.arrows + 10}"/>`;
   }
   // grelha
   for (let v = ts.lo; v <= ts.hi + 1e-9; v += ts.step) s += `<line class="grid" x1="0" x2="${W}" y1="${f(yT(v))}" y2="${f(yT(v))}"/>`;
   s += `<line class="grid" x1="0" x2="${W}" y1="${f(yP(pTop))}" y2="${f(yP(pTop))}"/><line class="base" x1="0" x2="${W}" y1="${G.pB}" y2="${G.pB}"/>`;
   s += `<line class="grid" x1="0" x2="${W}" y1="${f(yW(wTop))}" y2="${f(yW(wTop))}"/><line class="base" x1="0" x2="${W}" y1="${G.wB}" y2="${G.wB}"/>`;
   // meia-noite
-  H.forEach((h, i) => { if (i > 0 && parts(h.time)?.h === 0) s += `<line class="midnight" x1="${i * STEP}" x2="${i * STEP}" y1="0" y2="${G.days - 12}"/>`; });
+  H.forEach((h, i) => { if (i > 0 && parts(h.time)?.h === 0) s += `<line class="midnight" x1="${i * step}" x2="${i * step}" y1="0" y2="${G.days - 12}"/>`; });
 
   // temperatura: banda entre modelos + linha do consenso
   for (const r of runs(n, (i) => isNum(H[i].tempLo) && isNum(H[i].tempHi))) {
@@ -172,7 +175,7 @@ export function renderHourly(root, hourly, { todayIso } = {}) {
   H.forEach((h, i) => {
     const p = parts(h.time);
     if (i === 0 && p.h !== 0 && (firstMidnight < 0 || firstMidnight >= 4)) s += `<text class="ax ax-day" x="2" y="${G.days}">${esc(h.time.slice(0, 10) === todayIso ? 'Hoje' : cap(wdShort(h.time)))}</text>`;
-    else if (p.h === 0 && i < n - 4) s += `<text class="ax ax-day" x="${i * STEP + 4}" y="${G.days}">${esc(`${cap(wdShort(h.time))} ${p.d}`)}</text>`;
+    else if (p.h === 0 && i < n - 4) s += `<text class="ax ax-day" x="${i * step + 4}" y="${G.days}">${esc(`${cap(wdShort(h.time))} ${p.d}`)}</text>`;
   });
   // mira (cruz) do toque/rato
   s += `<g class="xh" visibility="hidden"><line x1="0" x2="0" y1="0" y2="${G.arrows + 10}"/><circle class="xh-dot" r="4.5" cx="0" cy="0"/></g>`;
@@ -200,6 +203,8 @@ export function renderHourly(root, hourly, { todayIso } = {}) {
 
   // ---------- interação ----------
   const scroller = root.querySelector('.chart-scroll');
+  // com poucas horas, as colunas alargam até encher a largura real (medida já com o gráfico no sítio)
+  if (!width && scroller && n * step + PADR < scroller.clientWidth - 2 && step < 64) return renderHourly(root, hourly, { todayIso, width: scroller.clientWidth });
   const canvas = root.querySelector('.chart-canvas');
   const tip = root.querySelector('.chart-tip');
   const xh = root.querySelector('.xh');
@@ -248,7 +253,7 @@ export function renderHourly(root, hourly, { todayIso } = {}) {
     tip.style.transform = `translate(${Math.round(left)}px, 0)`;
   }
   function hide() { sel = -1; xh.setAttribute('visibility', 'hidden'); tip.hidden = true; }
-  const idxAt = (clientX) => Math.max(0, Math.min(n - 1, Math.floor((clientX - canvas.getBoundingClientRect().left) / STEP)));
+  const idxAt = (clientX) => Math.max(0, Math.min(n - 1, Math.floor((clientX - canvas.getBoundingClientRect().left) / step)));
 
   let down = null;
   canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });

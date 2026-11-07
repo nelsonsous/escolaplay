@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.7.0';
+const VERSION = '1.7.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -544,14 +544,12 @@ function nowcastSec(fc) {
 }
 const hourlySec = (fc) => (fc.hourly?.length
     ? `<section class="sec"><div class="sec-h"><h2>Próximas horas</h2></div><div class="box"><div id="h-chart" class="chart"></div></div></section>` : '');
-// os próximos 5 dias em linhas simples; os 16 no separador Dias
+// os próximos 5 dias (a mesma linha do separador Dias); os 16 no separador Dias
 function daysMini(fc) {
     const D = (fc.daily || []).slice(0, 5);
     if (!D.length) return '';
-    const today = todayOf(fc);
-    return `<section class="sec"><div class="sec-h"><h2>Próximos dias</h2></div><div class="list mini">${D.map((d, i) => `<button type="button" class="row day mini" data-day="${i}" aria-label="${esc(`${F.dayLabel(d.date, today)}: ${F.wxText(d.code)}, mínima ${F.deg(d.tmin)}, máxima ${F.deg(d.tmax)}, chuva ${F.pct(d.pop)}`)}">
-        <span class="d-n" aria-hidden="true"><b>${esc(F.dayLabel(d.date, today))}</b></span><span aria-hidden="true">${weatherIcon(d.code, true, 28)}</span>
-        <span class="d-p" aria-hidden="true">${(d.pop || 0) >= 10 ? esc(F.pct(d.pop)) : ''}</span><span class="d-lo" aria-hidden="true">${esc(F.deg(d.tmin))}</span><span class="d-hi" aria-hidden="true">${esc(F.deg(d.tmax))}</span></button>`).join('')}</div>
+    const S = dayScale(D);
+    return `<section class="sec"><div class="sec-h"><h2>Próximos dias</h2></div><div class="list mini">${D.map((d, i) => dayRow(d, i, fc, S, { extras: false })).join('')}</div>
         <button type="button" class="btn blk ghost" data-tab="dias">Ver os ${esc(F.num(fc.daily.length))} dias</button></section>`;
 }
 
@@ -591,25 +589,37 @@ function viewDays() {
     const fc = st.fc;
     if (!fc) return { title, html: skeleton() };
     const D = fc.daily || [];
-    const today = todayOf(fc);
-    const lo = Math.min(...D.map((d) => (F.isNum(d.tminP10) ? d.tminP10 : d.tmin)).filter(F.isNum));
-    const hi = Math.max(...D.map((d) => (F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax)).filter(F.isNum));
-    const span = Math.max(1, hi - lo);
-    const pos = (v) => (((v - lo) / span) * 100).toFixed(2);
-    const wid = (a, b) => Math.max(0, ((b - a) / span) * 100).toFixed(2);
     const ens = fc.ensemble?.members;
+    const S = dayScale(D);
     let rows = '';
     D.forEach((d, i) => {
         if (i > 0 && d.source === 'ensemble' && D[i - 1].source !== 'ensemble') rows += `<div class="grp-h">Dias ${i + 1} a ${D.length} <small>tendência do ensemble${ens ? ` · ${esc(F.num(ens))} cenários` : ''}</small></div>`;
-        const wLo = F.isNum(d.tminP10) ? d.tminP10 : d.tmin, wHi = F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax;
-        let rng = '';
-        if (F.isNum(wLo) && F.isNum(wHi)) rng += `<i class="wh" style="left:${pos(wLo)}%;width:${wid(wLo, wHi)}%"></i>`;
-        if (F.isNum(d.tmin) && F.isNum(d.tmax)) rng += `<i class="rb" style="left:${pos(d.tmin)}%;width:${wid(d.tmin, d.tmax)}%"></i>`;
-        if (i === 0 && F.isNum(fc.now?.temp)) rng += `<i class="rn" style="left:${pos(Math.min(Math.max(fc.now.temp, lo), hi))}%"></i>`;
-        const x = dayExtras(d);
-        const label = F.dayLabel(d.date, today);
-        const sr = `${label}: ${F.wxText(d.code)}, mínima ${F.deg(d.tmin)}, máxima ${F.deg(d.tmax)}, chuva ${F.pct(d.pop)}${F.CONF[d.confidence] ? ', ' + F.CONF[d.confidence].toLowerCase() : ''}`;
-        rows += `<button type="button" class="row day${i === 0 ? ' today' : ''}" data-day="${i}" aria-label="${esc(sr)}">
+        rows += dayRow(d, i, fc, S);
+    });
+    return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
+        <div class="list">${rows}</div>
+        <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
+        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
+}
+// escala comum das barras mín.–máx. dos dias (e a faixa P10–P90 por trás)
+function dayScale(D) {
+    const lo = Math.min(...D.map((d) => (F.isNum(d.tminP10) ? d.tminP10 : d.tmin)).filter(F.isNum));
+    const hi = Math.max(...D.map((d) => (F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax)).filter(F.isNum));
+    const span = Math.max(1, hi - lo);
+    return { lo, hi, pos: (v) => (((v - lo) / span) * 100).toFixed(2), wid: (a, b) => Math.max(0, ((b - a) / span) * 100).toFixed(2) };
+}
+// uma linha de dia (separador Dias e próximos dias do Agora): nome, ícone, chuva, mín., barra, máx.
+function dayRow(d, i, fc, S, { extras = true } = {}) {
+    const today = todayOf(fc);
+    const wLo = F.isNum(d.tminP10) ? d.tminP10 : d.tmin, wHi = F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax;
+    let rng = '';
+    if (F.isNum(wLo) && F.isNum(wHi)) rng += `<i class="wh" style="left:${S.pos(wLo)}%;width:${S.wid(wLo, wHi)}%"></i>`;
+    if (F.isNum(d.tmin) && F.isNum(d.tmax)) rng += `<i class="rb" style="left:${S.pos(d.tmin)}%;width:${S.wid(d.tmin, d.tmax)}%"></i>`;
+    if (i === 0 && F.isNum(fc.now?.temp)) rng += `<i class="rn" style="left:${S.pos(Math.min(Math.max(fc.now.temp, S.lo), S.hi))}%"></i>`;
+    const x = extras ? dayExtras(d) : [];
+    const label = F.dayLabel(d.date, today);
+    const sr = `${label}: ${F.wxText(d.code)}, mínima ${F.deg(d.tmin)}, máxima ${F.deg(d.tmax)}, chuva ${F.pct(d.pop)}${F.CONF[d.confidence] ? ', ' + F.CONF[d.confidence].toLowerCase() : ''}`;
+    return `<button type="button" class="row day${i === 0 ? ' today' : ''}" data-day="${i}" aria-label="${esc(sr)}">
             <span class="d-n" aria-hidden="true"><b>${esc(label)}</b><small>${esc(F.dateShort(d.date))}</small></span>
             <span aria-hidden="true">${weatherIcon(d.code, true, 30)}</span>
             <span class="d-p" aria-hidden="true">${(d.pop || 0) >= 10 ? esc(F.pct(d.pop)) : ''}</span>
@@ -619,11 +629,6 @@ function viewDays() {
             <span class="d-c" aria-hidden="true">${sig(d.confidence, false)}</span>
             ${x.length ? `<span class="d-x" aria-hidden="true">${esc(x.join(' · '))}</span>` : ''}
         </button>`;
-    });
-    return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
-        <div class="list">${rows}</div>
-        <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
-        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
 }
 function dayExtras(d) {
     const x = [];
@@ -1178,7 +1183,9 @@ function renderSheet() {
         if (!d) { closeSheet(); return; }
         const today = todayOf(fc);
         const pr = (a, b) => (F.isNum(a) && F.isNum(b) ? `80% entre ${F.num(a, 1)} e ${F.num(b, 1)}°` : '');
-        const hours = (fc.hourly || []).filter((x) => x.time.slice(0, 10) === d.date);
+        let hours = (fc.hourly || []).filter((x) => x.time.slice(0, 10) === d.date);
+        const next12 = d.date === today && hours.length < 12;
+        if (next12) hours = (fc.hourly || []).slice(0, 12);
         const stats = [
             ['Máxima', F.deg(d.tmax, 1), pr(d.tmaxP10, d.tmaxP90)],
             ['Mínima', F.deg(d.tmin, 1), pr(d.tminP10, d.tminP90)],
@@ -1195,7 +1202,7 @@ function renderSheet() {
             <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos`)}</div></div>${closeBtn}</div>
             <div class="d-big">${weatherIcon(d.code, true, 64)}<div><b class="num">${esc(F.deg(d.tmax))} / ${esc(F.deg(d.tmin))}</b><br><span>máxima e mínima</span></div></div>
             <div class="stats">${stats.map(([k, v, e]) => `<div><small>${esc(k)}</small><b class="num">${esc(v)}</b>${e ? `<em>${esc(e)}</em>` : ''}</div>`).join('')}</div>
-            ${hours.length ? `<div class="sec-h"><h2>Hora a hora</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
+            ${hours.length ? `<div class="sec-h"><h2>${next12 ? 'Próximas 12 horas' : 'Hora a hora'}</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
         if (hours.length) renderHourly($('#d-chart'), hours, { todayIso: today });
     }
 }
