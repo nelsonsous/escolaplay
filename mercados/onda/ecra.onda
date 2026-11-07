@@ -1,0 +1,88 @@
+# Mercados — o ecrã em Onda (fase D): o que as vistas usam para escrever, byte a byte, o HTML que o JS escrevia.
+# O mercados/onda/build.mjs junta-o ao módulo da análise, com a biblioteca de apps (onda/lib/app.onda) e as vistas
+# (ajustes.onda).
+#
+# Uma vista recebe um INSTANTÂNEO: dados simples do JS (objetos, listas, textos, números, booleanos, null), que o
+# analise-onda.js escreve direto na memória, já na árvore do json da biblioteca — nó [tipo, valor, chave, irmão,
+# filho, n] e textos com M[t] = fim, um byte UTF-8 por palavra —, sem JSON pelo meio (os números chegam ao bit).
+# Tipos: 0 undefined (um membro que falta também vale 0), 1 null, 2 false, 3 true, 4 número, 5 texto, 6 lista, 7 objeto.
+# Os valores vêm crus: as funções daqui fazem com um nó o que o JS faz com o valor — String(v), esc(v), v === w,
+# a.includes(v), a verdade de um if —, para a vista dar o mesmo HTML que o JS dava com os mesmos dados.
+# A vista escreve no stdout (o analise-onda.js lê-o no fim).
+#
+# Globais (só durante a chamada de uma vista; a análise também só usa estes dentro das suas):
+#   53 o instantâneo   54 a tabela das chaves e dos textos fixos da vista (k_*, feita no início de cada chamada)
+
+# ---- o instantâneo ----
+: es >i @ 53
+: sg i>i k jget @ 53 k
+: jg ii>i n k jget n k
+: jprim i>i n ? n @ + n 4 0
+: jprox i>i c @ + c 3
+# chaves e textos fixos (até 16 bytes): k_x >i ekt N, e na função de chaves da vista `kdef N kab "x" O 0`
+: ekt i>i i @ + @ 54 i
+: kdef ii>i i t { ! + @ 54 i t 0 }
+: kab >i { = t tnovo 16 O t t }
+
+# ---- o que o JS faz com um valor ----
+# if (v): false, 0, -0, NaN, '', null e undefined são falsos
+: vverd i>i n { = y jtipo n ? == y 3 1 ? == y 4 { = x @f + n 1 && != x 0. == x x } ? == y 5 > tlen @ + n 1 0 >= y 6 }
+# v === w (as listas e os objetos só são iguais a si mesmos)
+: vigual ii>i a b { = y jtipo a ? != y jtipo b 0 ? == y 4 == @f + a 1 @f + b 1 ? == y 5 tigual @ + a 1 @ + b 1 ? >= y 6 == a b 1 }
+: vnan i>i n && == jtipo n 4 != @f + n 1 @f + n 1
+# a.includes(v): o SameValueZero (o NaN encontra o NaN)
+: vtem ii>i l v { = c ? == jtipo l 6 @ + l 4 0 = r 0 W && c ~ r { = r || vigual c v && vnan c vnan v = c @ + c 3 } r }
+# o mesmo para um número x (que não é NaN)
+: vtemf if>i l x { = c ? == jtipo l 6 @ + l 4 0 = r 0 W && c ~ r { = r && == jtipo c 4 == @f + c 1 x = c @ + c 3 } r }
+# v é o texto t
+: veqt ii>i n t && == jtipo n 5 tigual @ + n 1 t
+# Number(v) e a < b do JS para números, booleanos, null e undefined (null 0, false 0, true 1, undefined NaN). Um
+# texto, uma lista ou um objeto dão NaN aqui (no JS, '12' dá 12 e '3' < '10' compara os textos): as vistas só usam
+# estas onde os dados são números
+: vnum i>f n { = y jtipo n ? == y 4 @f + n 1 ? == y 1 0. ? == y 2 0. ? == y 3 1. / 0. 0. }
+: vmenor ii>i a b < vnum a vnum b
+
+# String(v) (e = 0) ou o esc(v) do mercados.js (e = 1: String(v ?? '') com & < > " ' escapados)
+: pv ii>i n e {
+  = y jtipo n
+  ? == y 5 ? e thtml @ + n 1 tpor @ + n 1
+  ? == y 4 pjn @f + n 1
+  ? == y 3 "true" ? == y 2 "false"
+  ? == y 1 ? e 0 "null" ? == y 0 ? e 0 "undefined"
+  # String de uma lista: os elementos separados por vírgulas, com o null e o undefined vazios
+  ? == y 6 { = c @ + n 4 = f 1 W c { ? f 0 P ', = f 0 = z jtipo c ? || == z 0 == z 1 0 pv c e = c @ + c 3 } 0 }
+  "[object Object]" }
+# bytes que chegam para String(v)
+: vcap i>i n { = y jtipo n ? == y 5 tlen @ + n 1 ? == y 6 { = s 0 = c @ + n 4 W c { = s + + s 2 vcap c = c @ + c 3 } s } 32 }
+# String(v) num texto novo (para comparar)
+: tstr i>i n { = t tnovo vcap n O t pv n 0 O 0 t }
+
+# ---- números ----
+# String(x) do JS: o decimal mais curto que volta a dar x (o pnz da análise), NaN, Infinity, e o -0 sai 0
+: pjn f>i x ? != x x "NaN" ? ~ finito x { ? < x 0. P '- 0 "Infinity" } ? == x 0. P '0 { ? < x 0. P '- 0 pnz Ab x 46 }
+# fmtPx(v, { decimals: 0 }, 'EUR') do mercados.js: o Intl.NumberFormat('pt-PT') em euros, sem casas. O Intl parte do
+# decimal mais curto do real (o 2^60 sai 1 152 921 504 606 847 000 €, não ...846 976): abaixo de 2^53 é arredondar
+# o real (metades para longe do zero: o x,5 é exato no real e nenhum decimal mais curto de outro real passa por ele);
+# daí para cima são os algarismos do pnz, com zeros. Milhares com U+00A0 a partir de 10 000; "-" nos negativos,
+# também no -0 e no que arredonda para 0 (-0,3 dá -0 €).
+: peur0 f>i x ? ~ finito x "—" {
+  ? < Bh x 0 P '- 0
+  = a Ab x
+  ? < a 9007199254740992. { = f Fl a pint I ? >= - a f 0.5 + f 1. f 0 } pgrande a
+  # U+00A0 e o €
+  P 194 P 160 "€" }
+# um inteiro (real >= 2^53) com os algarismos do decimal mais curto e os milhares separados
+: pgrande f>i y {
+  = t tnovo 40 O t pnz y 46 O 0
+  # "1152921504606847000" ou, de 1e21 para cima, "1.1805916207174113e+21": os algarismos (d) e quantos tem o inteiro
+  = n tlen t = d A 24 = nd 0 = j 0
+  W && < j n != tbyte t j 'e { = c tbyte t j ? != c '. { ! + d nd c = nd + nd 1 0 } 0 = j + j 1 }
+  = ni nd
+  ? < j n { = e2 0 = j + j 2 W < j n { = e2 + * e2 10 - tbyte t j '0 = j + j 1 } = ni + e2 1 0 } 0
+  = j 0 W < j ni { P ? < j nd @ + d j '0 = r - - ni j 1 ? && > r 0 == % r 3 0 { P 194 P 160 0 } 0 = j + j 1 }
+  0 }
+# ago(ms) do mercados.js para um ms verdadeiro, com ag = now(); tx é a data que o browser escreveu (no fuso e na
+# língua dele), para mais de uma hora; escapa-se aqui
+: pago ffi>i ms ag tx {
+  = s jround / - ag ms 1000.
+  ? < s 5. "agora" ? < s 60. { "há " pjn s " s" 0 } ? < s 3600. { "há " pjn jround / s 60. " min" 0 } thtml tx }

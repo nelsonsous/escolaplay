@@ -65,6 +65,6 @@ Duas vezes por dia (07:14 e 15:14), uma tarefa agendada do Claude segue [`CONSEL
 ## Testes
 
 ```bash
-node --test mercados/tests/*.test.*      # análise, Worker (fetch simulado), scripts do conselheiro e a app
+node --test mercados/tests/*.test.*      # análise, Worker (fetch simulado), scripts do conselheiro, a app e os ecrãs em Onda (o mesmo HTML que o JS)
 node mercados/tests/ui.test.js            # app no Chromium com todas as fontes simuladas
 ```

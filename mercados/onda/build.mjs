@@ -10,8 +10,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(here, '../..');
 const ondac = path.join(raiz, 'onda/build/ondac');
 const destino = path.join(raiz, 'mercados/analise-onda.js');
-// um só módulo: o motor (fase B) e o resto do analise.js (fase C), por esta ordem
-export const FONTES = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda'];
+// um só módulo: o motor (fase B), o resto do analise.js (fase C) e o ecrã (fase D: a biblioteca de apps, os
+// utilitários das vistas e as vistas), por esta ordem
+export const FONTES = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda',
+    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda'];
 
 // o compilador da Onda: se ainda não existe, arranca-o (onda/build.sh, ~1 s)
 if (!existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
@@ -117,6 +119,8 @@ const anfitriao = String.raw`(function (root) {
             u16(p, s) { vistas(); const n = s.length; let w = (p + 16) * 2; I32[w] = n; for (let j = 0; j < n; j++) I32[w += 2] = s.charCodeAt(j); return p + 1 + n; },
             // um texto UTF-8 [n, bytes...] (os bytes vêm já codificados)
             u8(p, u) { vistas(); const n = u.length; let w = (p + 16) * 2; I32[w] = n; for (let j = 0; j < n; j++) I32[w += 2] = u[j]; return p + 1 + n; },
+            // as vistas da memória, para escrever muito de seguida (sem chamar a Onda pelo meio)
+            palavras() { vistas(); return [I32, F64]; },
         };
         vai(() => ex._start());
         k.saida();
@@ -359,6 +363,84 @@ const anfitriao = String.raw`(function (root) {
     }
     function isQuiet(h, from = 22, to = 10) { const x = +h, f = +from, t = +to, k = k0(); return !!k.vai(() => k.ex.quieto(x, f, t)); }
 
+    // ---------- fase D: o ecrã ----------
+    // A Onda desenha uma vista (o HTML, igual ao byte ao que o JS desenhava) a partir de um instantâneo: dados simples
+    // (objetos, listas, textos, números, booleanos, null), que vão direto para a memória da Onda já na árvore do json
+    // de onda/lib/app.onda — nó [tipo, valor, chave, irmão, filho, n], textos com M[t] = fim e um byte UTF-8 por
+    // palavra —, sem JSON pelo meio: os números vão ao bit (NaN, ±Infinity e -0 incluídos); um membro undefined fica
+    // de fora e, numa lista, é um nó de tipo 0 (o undefined da Onda). Primeiro lê-se o instantâneo todo (uma cópia
+    // simples), depois reserva-se um só bloco e escreve-se.
+    function arvore(k, v0) {
+        // 1) lê o instantâneo uma só vez, em pré-ordem: tipo, valor (número ou texto), chave e quantos filhos
+        const tp = [], vl = [], ch = [], nf = [];
+        let T = 0;
+        const le = (v, key) => {
+            const i = tp.length;
+            let t = 0, x = 0;
+            if (v === null) t = 1;
+            else switch (typeof v) {
+                case 'boolean': t = v ? 3 : 2; break;
+                case 'number': t = 4; x = v; break;
+                case 'string': t = 5; x = v; T += 1 + 3 * v.length; break;
+                case 'object': t = Array.isArray(v) ? 6 : 7; break;
+            }
+            tp.push(t); vl.push(x); ch.push(key); nf.push(0);
+            T += 6;
+            if (key !== null) T += 1 + 3 * key.length;
+            if (t === 6) { const n = v.length >>> 0; nf[i] = n; for (let j = 0; j < n; j++) le(v[j], null); }
+            else if (t === 7) {
+                let n = 0;
+                for (const kk of Object.keys(v)) { const y = v[kk]; if (y === undefined || typeof y === 'function' || typeof y === 'symbol') continue; le(y, kk); n++; }
+                nf[i] = n;
+            }
+        };
+        le(v0, null);
+        // 2) escreve num só bloco (um texto ocupa no máximo 3 bytes por unidade UTF-16; um substituto sozinho dá U+FFFD,
+        // como no TextEncoder). Palavra p: I32[(p + 16) * 2] (os 32 bits de cima ficam a zero) ou F64[p + 16].
+        let q = k.reserva(T), i = 0;
+        const [I32, F64] = k.palavras();
+        const texto = (s) => {
+            const t = q, n = s.length;
+            let w = (t + 17) * 2;
+            for (let j = 0; j < n; j++) {
+                let c = s.charCodeAt(j);
+                if (c < 0x80) { I32[w] = c; w += 2; continue; }
+                if (c < 0x800) { I32[w] = 0xc0 | (c >> 6); I32[w + 2] = 0x80 | (c & 63); w += 4; continue; }
+                if (c >= 0xd800 && c < 0xdc00 && j + 1 < n) {
+                    const d = s.charCodeAt(j + 1);
+                    if ((d & 0xfc00) === 0xdc00) {
+                        j++; c = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00);
+                        I32[w] = 0xf0 | (c >> 18); I32[w + 2] = 0x80 | ((c >> 12) & 63); I32[w + 4] = 0x80 | ((c >> 6) & 63); I32[w + 6] = 0x80 | (c & 63); w += 8;
+                        continue;
+                    }
+                }
+                if (c >= 0xd800 && c < 0xe000) c = 0xfffd;
+                I32[w] = 0xe0 | (c >> 12); I32[w + 2] = 0x80 | ((c >> 6) & 63); I32[w + 4] = 0x80 | (c & 63); w += 6;
+            }
+            q = w / 2 - 16;
+            I32[(t + 16) * 2] = q;
+            return t;
+        };
+        const escreve = () => {
+            const a = q, t = tp[i], key = ch[i], x = vl[i], n = nf[i];
+            i++; q += 6;
+            I32[(a + 16) * 2] = t;
+            if (key !== null) I32[(a + 18) * 2] = texto(key);
+            if (t === 4) F64[a + 17] = x;
+            else if (t === 5) I32[(a + 17) * 2] = texto(x);
+            else if (t >= 6) {
+                let ant = a + 4; // o filho, e depois o irmão do anterior
+                for (let j = 0; j < n; j++) { const b = escreve(); I32[(ant + 16) * 2] = b; ant = b + 3; }
+                I32[(a + 21) * 2] = n;
+            }
+            return a;
+        };
+        return escreve();
+    }
+    // o HTML da vista nome (uma função da Onda: ajustes.onda…) para o instantâneo
+    function vista(nome, snap) { const k = k0(), r = arvore(k, snap); k.vai(() => k.ex[nome](BigInt(r))); return k.saida(); }
+    const ecra = { ajustes: (snap) => vista('ajustes', snap) };
+
     // ---------- para os testes ----------
     // o que a função 'nome' da Onda imprime para cada real de xs (ex.: 'pct', 'pnum')
     function _texto(nome, xs) { const k = k0(); return xs.map((x) => { k.vai(() => k.ex[nome](x)); return k.saida(); }); }
@@ -369,7 +451,7 @@ const anfitriao = String.raw`(function (root) {
         ready, analyseMany, analyse,
         groupAlert, isQuiet, sma, emaSeries, rsi, macd, volatility, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf,
         backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax,
-        sentimentMany, backtestMany, _texto, _norm,
+        sentimentMany, backtestMany, _texto, _norm, ecra,
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.AnaliseOnda = api;
@@ -378,9 +460,11 @@ const anfitriao = String.raw`(function (root) {
 
 const linhas = (fonte.match(/\n/g) || []).length - (FONTES.length - 1); // como o wc -l dos ficheiros
 const cabeca = `// GERADO a partir de mercados/onda/*.onda por \`node mercados/onda/build.mjs\` — não editar à mão.
-// Mercados — a análise toda (a API de analise.js) escrita em Onda (${linhas} linhas) e compilada para WebAssembly
-// (${wasm.length} bytes). Dá o mesmo resultado que o analise.js (mercados/tests/analise-onda*.test.mjs). Corre no
-// browser (window.AnaliseOnda) e no Node (module.exports). Depois do ready, todas as funções são síncronas.
+// Mercados — a análise toda (a API de analise.js) e o ecrã (AnaliseOnda.ecra: as vistas já passadas para a Onda)
+// escritos em Onda (${linhas} linhas, com a biblioteca de apps) e compilados para WebAssembly (${wasm.length} bytes).
+// Dá o mesmo resultado que o analise.js (mercados/tests/analise-onda*.test.mjs) e o mesmo HTML que as vistas do
+// mercados.js (mercados/tests/ecra-onda.test.mjs). Corre no browser (window.AnaliseOnda) e no Node
+// (module.exports). Depois do ready, todas as funções são síncronas.
 `;
 writeFileSync(destino, cabeca + anfitriao.replace('@WASM@', wasm.toString('base64')));
 console.log(`analise-onda.js: ${linhas} linhas de Onda, ${wasm.length} bytes de WASM → ${path.relative(raiz, destino)}`);
