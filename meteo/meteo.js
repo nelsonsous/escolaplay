@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.6.1';
+const VERSION = '1.7.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -79,7 +79,10 @@ const st = {
     rv: null, rvErr: '', rvIdx: null, rvPlay: 0, // camada Radar: lista de imagens, imagem mostrada, animação
     memory: null, // memória da aprendizagem deste ponto (telemóvel + conector), para o gráfico da evolução
     push: null, pushBusy: false, // notificações do fim do dia: { on, time, sunday, place } (do conector)
+    open: new Set(), // secções «Ver mais» abertas (ficam abertas quando a página se redesenha)
 };
+// Simples (estilo Trade Republic): o essencial à vista, o resto em «Ver mais»
+const more = (id, label, inner, cls = '') => (inner ? `<details class="more${cls ? ' ' + cls : ''}" id="${id}"${st.open.has(id) ? ' open' : ''}><summary><span>${label}</span>${ui('chevron')}</summary><div class="more-in">${inner}</div></details>` : '');
 
 // ---------- utilitários ----------
 const $ = (s, r = document) => r.querySelector(s);
@@ -365,7 +368,8 @@ function viewNow() {
             ? `<div class="empty">${esc(st.error)}<div style="margin-top:10px"><button type="button" class="btn pri sm" data-act="refresh">Tentar de novo</button></div></div>`
             : skeleton() };
     }
-    return { title, html: banners() + nowBox(fc) + alertsHtml(fc) + teaserHtml() + nowcastSec(fc) + hourlySec(fc) + tilesSec(fc) };
+    return { title, html: banners() + nowBox(fc) + alertsHtml(fc) + teaserHtml() + nowcastSec(fc) + hourlySec(fc) + daysMini(fc)
+        + more('d-ind', 'Indicadores', tilesSec(fc), 'sec-more') };
 }
 
 function tintOf(code, isDay) {
@@ -376,12 +380,14 @@ function tintOf(code, isDay) {
 function nowBox(fc) {
     const n = fc.now || {}, d0 = fc.daily?.[0] || {};
     const [ti, td] = F.num(n.temp, 1).split(',');
+    // à vista: o que vem nas próximas 2 horas (e o teu aviso); o resto (radar, estações, correção, relevo) em «Detalhes»
+    const main = [];
+    if (fc.nowcast?.text) main.push(`<li>${ui('drop')}<span>${esc(fc.nowcast.text)}</span></li>`);
+    const rp = fc.report;
+    if (rp) main.push(`<li>${ui('person')}<span>O teu aviso: <b>${esc(rp.label)}</b> · ${esc(F.ago(rp.ageMin))} · conta até às ${esc(F.hhmm(addMin(rp.local, REPORT_MIN)))}</span></li>`);
     const lines = [];
-    if (fc.nowcast?.text) lines.push(`<li>${ui('drop')}<span>${esc(fc.nowcast.text)}</span></li>`);
     const rl = radarLine(fc);
     if (rl) lines.push(rl);
-    const rp = fc.report;
-    if (rp) lines.push(`<li>${ui('person')}<span>O teu aviso: <b>${esc(rp.label)}</b> · ${esc(F.ago(rp.ageMin))} · conta até às ${esc(F.hhmm(addMin(rp.local, REPORT_MIN)))}</span></li>`);
     const o = n.obs;
     const many = (o?.n || 1) > 1;
     if (o && F.isNum(o.temp)) lines.push(`<li>${ui('station')}<span>Observado <b>${esc(F.deg(o.temp, 1))}</b> em ${esc(o.station)} · ${many ? '~' : ''}${esc(F.km(o.distanceKm))} · ${esc(F.ago(o.ageMin))} (${esc((o.sources || [o.source]).join(' + '))})</span></li>`);
@@ -396,9 +402,10 @@ function nowBox(fc) {
                 <div class="now-c">${esc(F.wxText(n.code))}</div></div>
             <div class="now-i">${weatherIcon(n.code, n.isDay, 96, F.wxText(n.code))}</div>
         </div>
-        <div class="now-m num"><span>Sensação ${esc(F.deg(n.feels))}</span><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span>${conf ? `<span class="badge">${sig(conf, false)}${esc(F.CONF[conf] || '')}</span>` : ''}</div>
-        ${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}
-        <div class="now-rpt"><button type="button" class="btn sm" data-act="report">${ui('drop')}${rp ? 'Mudar o aviso' : 'Está a chover?'}</button></div>
+        <div class="now-m num"><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span><span>Sensação ${esc(F.deg(n.feels))}</span></div>
+        ${main.length ? `<ul class="now-l">${main.join('')}</ul>` : ''}
+        <div class="now-rpt"><button type="button" class="btn sm" data-act="report">${ui('drop')}${rp ? 'Mudar o aviso' : 'Está a chover?'}</button>
+            ${more('d-now', 'Detalhes', `${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}${conf ? `<p class="hint">${esc(F.CONF[conf] || '')} para hoje.</p>` : ''}`, 'in-box')}</div>
     </section>`;
 }
 const addMin = (iso, m) => new Date(Date.parse(iso + ':00Z') + m * 6e4).toISOString().slice(0, 16);
@@ -451,7 +458,7 @@ function alertsHtml(fc) {
             <span class="w-when">${esc(F.period(w.start, w.end, today))} · ${esc(w.source || 'IPMA')}</span>${w.text ? `<p>${esc(w.text)}</p>` : ''}</div></div>`).join('')}</div>`;
     }
     const ind = fc.indicators || {};
-    const act = Object.keys(IND).filter((k) => (ind[k]?.level || 0) > 0).sort((a, b) => ind[b].level - ind[a].level);
+    const act = Object.keys(IND).filter((k) => (ind[k]?.level || 0) >= 2).sort((a, b) => ind[b].level - ind[a].level);
     if (act.length) {
         h += `<ul class="tags" aria-label="Riscos previstos">${act.map((k) => { const it = ind[k];
             return `<li class="tag l${it.level}">${ui(IND[k][0])}<span><b>${IND[k][1]}</b> · ${esc(it.label || F.LEVELS[it.level])}${it.peak ? ` · ${esc(F.whenShort(it.peak, today))}` : ''}</span></li>`; }).join('')}</ul>`;
@@ -477,8 +484,9 @@ function teaserHtml() {
     const a = r?.analysis;
     if (!a) return `<div class="claude cl-opt" id="cl-teaser">${optInHtml()}</div>`;
     const ap = analysedPoint();
+    const tomorrow = a.notificacao?.amanha || a.vestir || '';
     const main = `<div class="adv-src">Análise do Claude <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
-        <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise completa</span>`;
+        <div class="cl-head">${esc(a.titulo)}</div>${tomorrow ? `<p class="cl-tom"><b>Amanhã</b> ${esc(tomorrow)}</p>` : a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise</span>`;
     // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise diária para aqui
     if (ap?.far && ap.reg && !ap.moved) {
         return `<div class="claude far" id="cl-teaser"><button type="button" class="cl-go" data-tab="analise">${main}</button>
@@ -505,6 +513,8 @@ function optInHtml() {
 }
 function nowcastSec(fc) {
     if (!fc.nowcast?.steps?.length) return '';
+    const wet = fc.nowcast.steps.some((x) => (x.prob || 0) >= 30 && (x.precip || 0) >= 0.05) || fc.radar?.atPoint?.raining || fc.radar?.approach;
+    if (!wet) return '';
     const src = fc.nowcast.source === 'aviso' ? 'com o teu aviso' : fc.nowcast.source === 'radar+modelos' ? 'radar e modelos' : 'modelos';
     // o radar desmente os modelos (hora da chuva): dizê-lo por baixo do gráfico
     const C = fc.radar?.compare, off = C && (C.lagMin != null ? Math.abs(C.lagMin) >= 20 : !/de acordo/.test(C.text));
@@ -512,7 +522,17 @@ function nowcastSec(fc) {
         ${off ? `<p class="note rad-cmp">${ui('radar')}<span>${esc(C.text)}</span></p>` : ''}</div></section>`;
 }
 const hourlySec = (fc) => (fc.hourly?.length
-    ? `<section class="sec"><div class="sec-h"><h2>Próximas ${Math.min(72, fc.hourly.length)} horas</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="h-chart" class="chart"></div></div></section>` : '');
+    ? `<section class="sec"><div class="sec-h"><h2>Próximas horas</h2></div><div class="box"><div id="h-chart" class="chart"></div></div></section>` : '');
+// os próximos 5 dias em linhas simples; os 16 no separador Dias
+function daysMini(fc) {
+    const D = (fc.daily || []).slice(0, 5);
+    if (!D.length) return '';
+    const today = todayOf(fc);
+    return `<section class="sec"><div class="sec-h"><h2>Próximos dias</h2></div><div class="list mini">${D.map((d, i) => `<button type="button" class="row day mini" data-day="${i}" aria-label="${esc(`${F.dayLabel(d.date, today)}: ${F.wxText(d.code)}, mínima ${F.deg(d.tmin)}, máxima ${F.deg(d.tmax)}, chuva ${F.pct(d.pop)}`)}">
+        <span class="d-n" aria-hidden="true"><b>${esc(F.dayLabel(d.date, today))}</b></span><span aria-hidden="true">${weatherIcon(d.code, true, 28)}</span>
+        <span class="d-p" aria-hidden="true">${(d.pop || 0) >= 10 ? esc(F.pct(d.pop)) : ''}</span><span class="d-lo" aria-hidden="true">${esc(F.deg(d.tmin))}</span><span class="d-hi" aria-hidden="true">${esc(F.deg(d.tmax))}</span></button>`).join('')}</div>
+        <button type="button" class="btn blk ghost" data-tab="dias">Ver os ${esc(F.num(fc.daily.length))} dias</button></section>`;
+}
 
 function tilesSec(fc) {
     const n = fc.now || {}, d0 = fc.daily?.[0] || {}, ind = fc.indicators || {}, H = fc.hourly || [];
@@ -541,7 +561,7 @@ function tilesSec(fc) {
         lvl('thunder', 'bolt', 'Trovoada'), lvl('fog', 'fog', 'Nevoeiro'), lvl('frost', 'frost', 'Geada'), lvl('heat', 'heat', 'Calor'),
         tile(ui('target'), 'Previsibilidade', ind.predictability?.days != null ? `${esc(F.num(ind.predictability.days))}<small> dias</small>` : '–', esc(ind.predictability?.text || '')),
     ];
-    return `<section class="sec"><div class="sec-h"><h2>Indicadores</h2></div><div class="tiles">${tiles.join('')}</div></section>`;
+    return `<div class="tiles">${tiles.join('')}</div>`;
 }
 
 function viewDays() {
@@ -722,12 +742,13 @@ function viewAnalysis() {
             ${ap ? forLine(ap) : ''}
             <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p style="margin:6px 0 0;color:var(--soft)">${esc(a.resumo)}</p>` : ''}
             ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas do Claude">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
-            ${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
+            ${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
+            ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}
             ${a.dias?.length ? `<div class="an-sec"><h4>Próximos dias</h4><ul class="an-days">${a.dias.map((d) => `<li><b>${esc(today ? F.dayLabel(d.data, today) : d.data)}</b>${sig(d.confianca)}<span>${esc(d.texto)}</span></li>`).join('')}</ul></div>` : ''}
             ${sec('A semana em resumo', a.semana)}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
-            ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}
+            ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}`)}
             <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · próxima ${esc(nextRun())}.</p>
         </article>`;
     } else {
@@ -741,7 +762,7 @@ function viewAnalysis() {
     h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
-    if (fc) h += compareHtml(fc) + reliabilityHtml(fc) + learningHtml(fc) + obsHtml(fc) + modelsHtml(fc);
+    if (fc) h += more('d-tec', 'Detalhes técnicos', compareHtml(fc) + reliabilityHtml(fc) + learningHtml(fc) + obsHtml(fc) + modelsHtml(fc), 'sec-more');
     return { title, html: h };
 }
 const officialTxt = (fc) => {
@@ -873,29 +894,33 @@ function viewSettings() {
     const L = cfg.loc;
     let h = `<section class="sec"><div class="sec-h"><h2>Local</h2></div><div class="form">
         ${L ? `<div class="sw"><span><b>${esc(placeName())}</b><br><small class="hint num">${esc(`${F.num(L.lat, 4)}, ${F.num(L.lon, 4)}${L.gps ? ' · GPS' : ''}`)}</small></span><button type="button" class="btn sm" data-act="place">Mudar</button></div>` : ''}
-        ${L && st.fc ? `<ul class="prec" aria-label="Precisão para este ponto">${precisionLines(st.fc).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+        ${L && st.fc ? more('d-prec', 'Precisão para este ponto', `<ul class="prec" aria-label="Precisão para este ponto">${precisionLines(st.fc).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`) : ''}
         <button type="button" class="btn blk" data-act="gps">${ui('gps')}Usar a minha localização exata</button>
         <div><label>Favoritos</label><div class="wl">${cfg.favs.length ? cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button><button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Retirar ' + f.name)}">✕</button></div>`).join('') : '<div class="hint">Ainda sem favoritos.</div>'}</div>
             ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui('star')}${cfg.favs.some((f) => near(f, L)) ? 'Retirar este local' : 'Guardar este local'}</button>` : ''}</div>
     </div></section>`;
-    h += placesSettingsHtml();
     h += notifHtml();
+    h += placesSettingsHtml();
+    h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
+        <div class="hint">Envia o endereço e como instalar (iPhone e Android). Grátis e sem conta.</div></div></section>`;
     h += meHtml();
     if (isOwner()) h += usageHtml();
-    h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
-        <div class="hint">Envia o endereço da app e como a instalar: no iPhone, abre no Safari → Partilhar → «Adicionar ao ecrã principal»; no Android, abre no Chrome → ⋮ → «Instalar app». É grátis e sem conta; a análise do Claude é opcional, 1 local por telemóvel.</div></div></section>`;
+    // Avançado: o conector, o código do dono, a letra e o estado das fontes (escondido; quase nunca é preciso)
+    let adv = '';
     const stTxt = st.status ? `Ligado · versão ${esc(st.status.version || '?')} · análise imediata: ${st.status.onDemand ? 'sim' : 'não'}${st.status.owner ? ' · és o dono' : ''}` : st.statusErr ? `Sem resposta: ${esc(st.statusErr)}` : 'A testar…';
     // código do dono guardado (de ?dono=) que o conector não aceita: dizê-lo e deixar esquecê-lo
     const oc = api.ownerCode() && st.status && !st.status.owner
         ? `<div class="banner warn own-note">${ui('alert')}<span>${st.status.ownerCode === 'sem_codigo' ? 'Há um código do dono guardado neste telemóvel, mas o conector ainda não tem o segredo OWNER_CODE.' : 'O código do dono guardado neste telemóvel não foi aceite pelo conector.'}</span><button type="button" class="btn sm" data-act="owner-forget">Esquecer</button></div>` : '';
-    h += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
+    adv += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
         <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${esc(DEFAULT_PROXY)}" value="${esc(cfg.proxy)}"><button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
         <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div>${ownerHtml()}</div></section>`;
-    h += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
+    adv += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div></div></section>`;
     const S = st.fc?.status;
-    if (S) h += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
-    h += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
+    if (S) adv += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
+    adv += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
+    h += more('d-adv', 'Avançado', adv, 'sec-more');
+    h += `<p class="ver-line">Meteo ${VERSION} · fontes e licenças em Avançado</p>`;
     return { title, html: h };
 }
 
@@ -905,7 +930,7 @@ function meHtml() {
     if (!S?.device) return '';
     return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2><span class="sub num">código ${esc(S.id || '')}</span></div><div class="form">
         <div><label for="f-name">O teu nome <small>(opcional)</small></label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
-        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel na lista do painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização, para saber quem é quem. Sem nome, aparece só o código.'} A tua localização não é registada: só o local que escolheres para a análise diária.</div></div>
+        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização. Sem nome, aparece o código.'} A tua localização não é registada.</div></div>
     </div></section>`;
 }
 async function nameSave() {
@@ -938,11 +963,12 @@ function notifHtml() {
     else {
         const own = onPlaces(), cur = pushPlace();
         body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur ? ` · ${cur.name}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
-            <div><label for="f-push-time">Hora</label><select id="f-push-time" class="inp"${st.pushBusy ? ' disabled' : ''}>${PUSH_TIMES.map((t) => `<option value="${t}"${t === P.time ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+            ${P.on ? `<div><label for="f-push-time">Hora</label><select id="f-push-time" class="inp"${st.pushBusy ? ' disabled' : ''}>${PUSH_TIMES.map((t) => `<option value="${t}"${t === P.time ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
             <div class="sw"><span><b>Ao domingo: a semana que vem</b><br><small class="hint">Em vez de amanhã, a semana toda</small></span>${seg('push-sun', P.sunday !== false, 'Ao domingo, a semana')}</div>
             ${own.length > 1 ? `<div><label for="f-push-place">Local</label><select id="f-push-place" class="inp">${own.map((p) => `<option value="${esc(p.id)}"${p.id === cur?.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>` : ''}
-            ${P.on ? `<button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>` : ''}
-            <div class="hint">Vem da análise do Claude das 17:34: como vai estar amanhã no teu local e o que vestir; ao domingo, a semana que vem. A hora é a deste telemóvel.</div>`;
+            <button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>
+            <div class="hint">Da análise do Claude das 17:34, à hora deste telemóvel.</div>`
+                : '<div class="hint">Às 19:00 por omissão; ao domingo, a semana que vem.</div>'}`;
     }
     return `<section class="sec" id="notificacoes"><div class="sec-h"><h2>Notificações</h2></div><div class="form">${body}</div></section>`;
 }
@@ -1444,6 +1470,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); }
     if (e.key === 'Enter' && e.target.id === 'f-name') { e.preventDefault(); nameSave(); }
 });
+// «Ver mais»: lembrar o que está aberto (a página redesenha-se com dados novos e não deve fechar o que a pessoa abriu)
+document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (d?.tagName === 'DETAILS' && d.classList.contains('more') && d.id) { if (d.open) st.open.add(d.id); else st.open.delete(d.id); }
+}, true);
 document.addEventListener('change', (e) => {
     if (e.target.id === 'f-push-time') { e.target.blur(); pushChange({ time: e.target.value }); }
     if (e.target.id === 'f-push-place') { e.target.blur(); pushChange({ place: e.target.value }); }
