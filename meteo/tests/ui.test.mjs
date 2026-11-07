@@ -88,6 +88,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // notificações do fim do dia (o conector simulado guarda o estado; o browser simulado assina sem rede)
     let pushState = { on: false, time: '19:00', sunday: true, place: null };
     const pushPosts = [], pushTests = [];
+    let myName = null, namePatches = []; // nome opcional deste telemóvel (PATCH /api/me)
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -140,8 +141,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/fogos') return fulfill(r, FOGOS);
         if (p === '/api/raw/om/forecast') return fulfill(r, RAW.det);
         if (p === '/api/obs-history') return fulfill(r, []);
+        if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName }); }
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: SCHEDULE,
-            device: !!h['x-meteo-device'], owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
+            device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
         if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
             const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
@@ -172,7 +174,10 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             return m === 'DELETE' ? r.fulfill({ status: 204, headers: CORS, body: '' }) : fulfill(r, next);
         }
         if (p === '/api/usage') return owner ? fulfill(r, { today: '2026-11-06', others,
-            devices: { today: 3, d7: 5, d30: 8, total: 9, owner: 1 },
+            devices: { today: 3, d7: 5, d30: 8, total: 9, owner: 1, list: [
+                { id: 'a1b2c3', name: myName, days: 0, owner: true, places: ['Lisboa'], push: false },
+                { id: 'f0e9d8', name: 'Ana', days: 0, owner: false, places: ['Casa da Ana'], push: true },
+                { id: '9c8b7a', name: null, days: 3, owner: false, places: [], push: false }] },
             places: { total: 2, owner: places.length, guests: 1, active: 2, paused: 0, off: 0, analysed: 2, cap: 15,
                 list: [{ name: 'Casa da Ana', kind: 'guest', status: 'active', analysed: true, days: 0 }] },
             analyses: ['2026-11-06', '2026-11-05', '2026-11-04', '2026-11-03', '2026-11-02', '2026-11-01', '2026-10-31'].map((date, i) => ({ date, scheduled: i ? 3 : 2, instant: i === 1 ? 1 : 0, guest: 1 })) })
@@ -544,6 +549,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.ok(calls.includes('DELETE /api/push'));
     assert.equal(await page.evaluate(() => window.__pushSub), null, 'a assinatura do browser também sai');
     await noOverflow('Ajustes (notificações)');
+    // este telemóvel: o código curto e o nome opcional que o dono vê
+    const me = page.locator('#telemovel');
+    assert.match(await me.locator('.sec-h .sub').textContent(), /^código a1b2c3$/);
+    assert.match(await me.textContent(), /Só o dono da app vê este nome/);
+    await me.locator('#f-name').fill('  Nelson ');
+    await me.locator('#f-name').press('Enter');
+    await toastIs(/Nome guardado: Nelson\./);
+    assert.deepEqual(namePatches, [{ name: '  Nelson ' }]);
+    assert.equal(await page.locator('#f-name').inputValue(), 'Nelson');
     console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão), notificações (19:00, hora, domingo, teste)');
 
     // 6b) ponto a 8,6 km do local com análise diária: a análise diz que é de outro ponto e oferece mudar (PATCH, mesmo id)
@@ -635,6 +649,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(uso, /Telemóveis hoje3.*7 dias · 30 dias5 · 89 no total \(1 teu\)/s);
     assert.match(uso, /Analisados por corrida2 de 15/);
     assert.match(uso, /Casa da Anaem uso · abriu a app hoje/);
+    assert.deepEqual(await page.locator('#uso .use-l').first().locator('li').allTextContents(), [
+        'Nelson · a1b2c3 (teu)abriu hoje · Lisboa', 'Ana · f0e9d8abriu hoje · Casa da Ana · notificações', 'Telemóvel 9c8b7aabriu há 3 dias · sem análise diária']);
     assert.equal(await page.locator('#uso .use-t tbody tr').count(), 7);
     assert.match(await page.locator('#uso .use-t tbody tr').first().textContent(), /^Hoje201$/);
     assert.match(await page.locator('#uso .use-t tfoot').textContent(), /^7 dias2017$/);

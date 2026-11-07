@@ -52,7 +52,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.6.0');
+    assert.equal(j.version, '1.6.1');
     assert.deepEqual(j.schedule, ['07:34', '13:34', '17:34', '20:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -340,6 +340,32 @@ test('aprendizagem: a memória do local do próprio telemóvel (≤ 3 km), tal c
     assert.equal((await J('GET', '/api/learning?lat=41.546&lon=-8.427', { d: a })).body.memory, null);
 });
 
+test('nome opcional por telemóvel: só o próprio o muda; o dono vê-o (ou o código curto) no painel Utilização', async () => {
+    env.OWNER_CODE = CODE;
+    const ana = device(), dono = { d: device(), owner: CODE };
+    let s0 = (await J('GET', '/api/status', { d: ana })).body;
+    assert.deepEqual([s0.id, s0.name], [ana.id.slice(0, 6), null], 'o código curto deste telemóvel');
+    let r = await J('PATCH', '/api/me', { d: ana, body: { name: '  Ana   Silva  ' } });
+    assert.deepEqual([r.status, r.body], [200, { id: ana.id.slice(0, 6), name: 'Ana Silva' }]);
+    assert.equal(env.KV.meta.get('dev:' + ana.id).n, 'Ana Silva', 'na metadata: o painel lê tudo de uma vez');
+    assert.equal(kvj('dev:' + ana.id).name, 'Ana Silva');
+    assert.equal((await J('GET', '/api/status', { d: ana })).body.name, 'Ana Silva');
+    assert.equal((await J('PATCH', '/api/me', { d: ana, body: { name: 42 } })).status, 400);
+    assert.equal((await api('PATCH', '/api/me', { d: ana, body: { name: 'X' }, origin: 'https://outro.example' })).status, 403, 'só da app');
+    await J('GET', '/api/status', dono);
+    const u = (await J('GET', '/api/usage', dono)).body;
+    const row = u.devices.list.find((d) => d.id === ana.id.slice(0, 6));
+    assert.deepEqual([row.name, row.days, row.owner, row.push], ['Ana Silva', 0, false, false]);
+    assert.ok(u.devices.list.some((d) => d.owner && d.name === null), 'o do dono, sem nome: o código');
+    assert.equal((await J('GET', '/api/usage', { d: ana })).status, 403, 'os outros não veem o painel');
+    // apagar o nome
+    r = await J('PATCH', '/api/me', { d: ana, body: { name: '' } });
+    assert.equal(r.body.name, null);
+    assert.equal(env.KV.meta.get('dev:' + ana.id).n, undefined);
+    s0 = (await J('GET', '/api/status', { d: ana })).body;
+    assert.equal(s0.name, null);
+});
+
 // ---------- notificações do fim do dia ----------
 async function browserSub(endpoint = 'https://web.push.apple.com/QGtoken123') {
     const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
@@ -483,7 +509,10 @@ test('em pausa: o local de outro telemóvel que não abre a app há 14 dias fica
     env.KV.meta.set('dev:' + h.id, { s: lisbon(Date.parse(old)).date, o: 0 });
     env.KV.m.set('stats:' + lisbon().date, JSON.stringify({ scheduled: 4, instant: 1, guest: 2 }));
     const u = (await J('GET', '/api/usage', owner)).body;
-    assert.deepEqual(u.devices, { today: 2, d7: 2, d30: 3, total: 3, owner: 1 });
+    const { list: devList, ...devCounts } = u.devices;
+    assert.deepEqual(devCounts, { today: 2, d7: 2, d30: 3, total: 3, owner: 1 });
+    assert.equal(devList.length, 3);
+    assert.ok(devList.every((d) => d.id.length === 6 && !('lat' in d)), 'só o código curto, sem coordenadas');
     assert.deepEqual(u.places.list.map((p) => [p.name, p.kind, p.status, p.analysed]),
         [['Santo Tirso', 'owner', 'active', true], ['Casa da Ana', 'guest', 'active', true], ['Praia do Rui', 'guest', 'paused', false]]);
     assert.equal(u.places.list[2].days, 15);
@@ -492,7 +521,7 @@ test('em pausa: o local de outro telemóvel que não abre a app há 14 dias fica
     assert.deepEqual(u.analyses[0], { date: lisbon().date, scheduled: 4, instant: 1, guest: 2 });
     assert.deepEqual(u.analyses[1], { date: u.analyses[1].date, scheduled: 0, instant: 0, guest: 0 });
     assert.equal(u.others, 'on');
-    assert.ok(!/41\.5454|8\.4265|41\.36|tel\d/.test(JSON.stringify(u)), 'só nomes e estados: sem coordenadas nem ids');
+    assert.ok(!/41\.5454|8\.4265|41\.36|tel\d{7,}/.test(JSON.stringify(u)), 'só nomes e estados: sem coordenadas nem ids completos (só o código curto)');
     assert.equal((await J('GET', '/api/places', owner)).body.find((p) => p.id === ph.id).status, 'paused');
     // h abre a app: volta a estar em uso
     await J('GET', '/api/status', { d: h });

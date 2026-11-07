@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -880,6 +880,7 @@ function viewSettings() {
     </div></section>`;
     h += placesSettingsHtml();
     h += notifHtml();
+    h += meHtml();
     if (isOwner()) h += usageHtml();
     h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
         <div class="hint">Envia o endereço da app e como a instalar: no iPhone, abre no Safari → Partilhar → «Adicionar ao ecrã principal»; no Android, abre no Chrome → ⋮ → «Instalar app». É grátis e sem conta; a análise do Claude é opcional, 1 local por telemóvel.</div></div></section>`;
@@ -896,6 +897,27 @@ function viewSettings() {
     if (S) h += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
     h += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
     return { title, html: h };
+}
+
+// ---------- este telemóvel: o código curto e o nome (opcional) que o dono vê no painel Utilização ----------
+function meHtml() {
+    const S = st.status;
+    if (!S?.device) return '';
+    return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2><span class="sub num">código ${esc(S.id || '')}</span></div><div class="form">
+        <div><label for="f-name">O teu nome <small>(opcional)</small></label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
+        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel na lista do painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização, para saber quem é quem. Sem nome, aparece só o código.'} A tua localização não é registada: só o local que escolheres para a análise diária.</div></div>
+    </div></section>`;
+}
+async function nameSave() {
+    const inp = $('#f-name');
+    if (!inp) return;
+    inp.blur();
+    try {
+        const r = await api.setMyName(inp.value);
+        st.status = { ...(st.status || {}), name: r?.name || null };
+        toast(r?.name ? `Nome guardado: ${r.name}.` : 'Nome apagado: aparece só o código.');
+    } catch (e) { toast(e.message); }
+    render();
 }
 
 // ---------- notificações do fim do dia ----------
@@ -1021,6 +1043,7 @@ function useState(x) {
     if (!x.analysed) return x.reason || 'de fora';
     return F.isNum(x.days) ? (x.days === 0 ? 'em uso · abriu a app hoje' : `em uso · abriu a app há ${x.days} dia${x.days === 1 ? '' : 's'}`) : 'em uso';
 }
+const seenTxt = (days) => (days == null ? 'ainda não abriu' : days === 0 ? 'abriu hoje' : days === 1 ? 'abriu ontem' : `abriu há ${days} dias`);
 function usageHtml() {
     const u = st.usage;
     let b;
@@ -1033,6 +1056,7 @@ function usageHtml() {
             <div><small>7 dias · 30 dias</small><b class="num">${esc(`${F.num(D.d7)} · ${F.num(D.d30)}`)}</b><em>${esc(`${F.num(D.total)} no total${D.owner ? ` (${F.num(D.owner)} teu${D.owner === 1 ? '' : 's'})` : ''}`)}</em></div>
             <div><small>Locais com análise</small><b class="num">${esc(F.num(P.owner + P.guests - P.off))}</b><em>${esc(`${F.num(P.owner)} teu${P.owner === 1 ? '' : 's'} · ${F.num(P.guests)} de outros${P.paused ? ` · ${F.num(P.paused)} em pausa` : ''}`)}</em></div>
             <div><small>Analisados por corrida</small><b class="num">${esc(`${F.num(P.analysed)} de ${F.num(P.cap)}`)}</b><em>os teus nunca ficam de fora</em></div></div>
+            ${D.list?.length ? `<div><label>Telemóveis <small>(o nome que escolheram, ou o código)</small></label><ul class="use-l">${D.list.map((d) => `<li><b>${esc(d.name ? `${d.name} · ${d.id}` : `Telemóvel ${d.id}`)}${d.owner ? ' (teu)' : ''}</b><span>${esc([seenTxt(d.days), d.places.length ? d.places.join(', ') : 'sem análise diária', d.push ? 'notificações' : null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul></div>` : ''}
             <div><label>Locais dos outros <small>(só o nome)</small></label>${guests.length ? `<ul class="use-l">${guests.map((x) => `<li><b>${esc(x.name)}</b><span>${esc(useState(x))}</span></li>`).join('')}</ul>` : '<div class="hint">Ainda nenhum.</div>'}</div>
             <div><label>Análises do Claude, últimos 7 dias</label><div class="cmp-scroll"><table class="tbl use-t"><thead><tr><th scope="col">Dia</th><th scope="col">Agendadas</th><th scope="col">Imediatas</th><th scope="col">De outros</th></tr></thead>
                 <tbody>${u.analyses.map((d) => `<tr><th scope="row">${esc(pastDay(d.date, u.today))}</th><td>${esc(F.num(d.scheduled))}</td><td>${esc(F.num(d.instant))}</td><td>${esc(F.num(d.guest))}</td></tr>`).join('')}</tbody>
@@ -1399,6 +1423,7 @@ document.addEventListener('click', (ev) => {
         case 'usage': st.usageErr = ''; render(); loadUsage(); break;
         case 'owner-forget': ownerForget(); break;
         case 'owner-save': ownerSave(); break;
+        case 'name-save': nameSave(); break;
         case 'push-on': pushOn(); break;
         case 'push-off': pushOff(); break;
         case 'push-sun-on': pushChange({ sunday: true }); break;
@@ -1415,7 +1440,10 @@ document.addEventListener('click', (ev) => {
         default: break;
     }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); } });
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); }
+    if (e.key === 'Enter' && e.target.id === 'f-name') { e.preventDefault(); nameSave(); }
+});
 document.addEventListener('change', (e) => {
     if (e.target.id === 'f-push-time') { e.target.blur(); pushChange({ time: e.target.value }); }
     if (e.target.id === 'f-push-place') { e.target.blur(); pushChange({ place: e.target.value }); }

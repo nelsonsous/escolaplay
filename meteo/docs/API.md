@@ -260,6 +260,14 @@ telemóvel** mais perto do ponto, até 3 km (o dono: os seus locais). `{ "place"
 (`mergeMemory`: dia a dia fica a mais completa; uma memória de outro ponto, a mais de 3 km, não entra) e passa as duas
 a `loadForecast({ memory })`.
 
+## Este telemóvel — `PATCH /api/me`
+
+`{ name }` → `{ id, name }`: o nome que a pessoa quer mostrar ao dono (opcional; sem caracteres de controlo, até 40;
+vazio apaga). Só da app e com a identidade do telemóvel. Fica no registo `dev:<id>` e na sua metadata (`n`), que o painel
+lê de uma vez. `GET /api/status` devolve também `id` (o código curto, 6 caracteres) e `name` deste telemóvel.
+`GET /api/usage` (só o dono) traz `devices.list`: `[{ id: código curto, name, days: dias desde que abriu a app, owner,
+places: nomes dos locais com análise, push: notificações ligadas }]` — sem coordenadas.
+
 ## Notificações do fim do dia — `/api/push`
 
 - `GET /api/push/key` → `{ "publicKey": "<VAPID, P-256, base64url>" }` (o par de chaves é criado no primeiro uso e fica no
