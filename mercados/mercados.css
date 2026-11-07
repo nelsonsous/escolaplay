@@ -484,6 +484,11 @@ a.st-row { text-decoration: none; color: inherit; }
 .r-rank { width: 26px; flex: none; color: var(--faint); font-weight: 700; text-align: center; font-size: calc(.85rem * var(--k)); }
 .st-row .r-sub { white-space: normal; }
 .badge { white-space: nowrap; }
+/* partilha: quantas apps */
+.share-st { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; margin-top: 6px; }
+.share-st div { background: var(--card); padding: 8px 10px; }
+.share-st b { display: block; font-size: calc(1.15rem * var(--k)); font-weight: 700; }
+.share-st small { color: var(--muted); font-size: calc(.72rem * var(--k)); }
 /* linha do tempo por baixo do gráfico */
 .d-chart { margin-bottom: 26px; }
 .d-axis { position: absolute; left: 4px; right: 4px; bottom: -20px; display: flex; justify-content: space-between; color: var(--muted); font-size: calc(.68rem * var(--k)); pointer-events: none; }

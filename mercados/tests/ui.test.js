@@ -13,6 +13,13 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 function rnd(seed) { let s = seed % 2147483647 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 const hash = (str) => [...str].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 const BASE = { BTCEUR: 88000, ETHEUR: 3100, SOLEUR: 160, XRPEUR: 2.18, 'BZ=F': 64.2, 'CL=F': 60.1, 'RB=F': 1.98, 'HO=F': 2.31, 'NG=F': 3.4, '^GSPC': 6850, '^IXIC': 23500, '^STOXX50E': 5650, 'PSI20.LS': 8100, '^VIX': 17.2, 'EURUSD=X': 1.152, 'GC=F': 3980, 'ALV.DE': 17.4, 'NVDA': 196, 'TSLA': 455, 'VWCE.DE': 165.98, 'VWCE.MU': 163.8, 'EURDKK=X': 7.4742 };
+// o servidor diz se esta app é a do dono (análise completa) ou outra (análise do Claude desligada por omissão)
+const ME = { owner: true, others: true, advice: null };
+const UNI = { date: '2026-11-07', generatedAt: '2026-11-07T07:20:00Z', n: 3, rows: [
+    { s: 'SXRV.DE', n: 'iShares NASDAQ 100 ETF', t: 'etf', l: 90, m: 23, d: 0.5, y: 12.1, dd: -12.3, o: 0, rk: 'Risco baixo' },
+    { s: 'PUM.DE', n: 'PUMA', t: 'stock', l: 84, m: 97, d: -1, y: 66, dd: -10.6, o: 0, rk: 'Risco médio' },
+    { s: 'ADA-EUR', n: 'Cardano', t: 'crypto', l: 31, m: 40, d: 2.1, y: -35, dd: -60, o: 0, rk: 'Risco muito alto' },
+] };
 const DAYCHG = { 'VWCE.DE': -2.28, 'VWCE.MU': -3.9, 'EURUSD=X': 0, 'EURDKK=X': 0, 'ALV.DE': 6.8, 'NVDA': 5.2, 'TSLA': -7.4, 'TTE.PA': -4.6, 'BZ=F': 1.3 };
 
 function series(sym, n, stepSec, drift) {
@@ -53,6 +60,11 @@ function proxyBody(u) {
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
     if (p === '/cryptoglobal') return { mcap: 2.1e12, mcapChg: -3.2, vol: 9.5e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30 } };
     if (p === '/fuel/municipios') return { items: [{ id: 1316, name: 'Santo Tirso' }, { id: 1312, name: 'Porto' }] };
+    if (p === '/me') return { owner: ME.owner, others: ME.others };
+    if (p === '/stats') return ME.owner ? { total: 5, d1: 2, d7: 4, d30: 5, claude: 1, others: ME.others, run: { at: '2026-11-07T07:20:00Z', queued: 1, done: 1, max: 20 } } : null;
+    if (p === '/universe') return ME.owner ? UNI : null;
+    if (p === '/owner') { ME.others = JSON.parse(u.searchParams.get('_b') || '{}').others ?? ME.others; return { ok: true }; }
+    if (p === '/advice' && !ME.owner) return ME.advice;
     if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], movers: [{ s: 'TSLA', why: 'Cai depois de resultados abaixo do esperado.' }], tldr: ['Mercado: venda em tecnologia, VIX 24.', 'Plano: manter 810 € VWCE + 90 € BTC.', 'Atenção: XRP −9%, sem reforço.'], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
     if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
@@ -76,13 +88,14 @@ function proxyBody(u) {
 
     const JDOC = { v: 1, days: { '2026-10-01': [{ s: 'NVDA', p: 150, a: 'buy' }, { s: 'TSLA', p: 500, a: 'avoid' }, { s: 'VWCE.DE', p: 150, a: 'buy' }] } };
     let jPosts = 0;
-    const lotPosts = [];
+    const lotPosts = [], claudePosts = [], ownerPosts = [];
     await ctx.route(/proxy\.test/, (route) => {
         const u = new URL(route.request().url());
         if (u.pathname === '/journal') {
-            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); if (b.date) { JDOC.days[b.date] = b.items; jPosts++; } if (b.lots) lotPosts.push(b.lots); return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
+            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); if ('claude' in b) claudePosts.push(b); if (b.date && b.items) { JDOC.days[b.date] = b.items; jPosts++; } if (b.lots) lotPosts.push(b.lots); return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
             return route.fulfill({ json: JDOC, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
+        if (u.pathname === '/owner' && route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); ownerPosts.push(b); ME.others = b.others; return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
         const body = proxyBody(u);
         return body ? route.fulfill({ json: body, headers: { 'Access-Control-Allow-Origin': '*' } }) : route.fulfill({ status: 404, json: { error: 'x' } });
     });
@@ -251,18 +264,18 @@ function proxyBody(u) {
     // análise
     await page.click('#mk-nav [data-tab="analise"]');
     await page.waitForSelector('.chips [data-filter="plan"].on');
-    const planRows = await page.locator('.list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
+    const planRows = await page.locator('.sec:has(h2:text-is("Classificação")) .list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(planRows.length >= 8 && planRows.every((k) => /^c:|\.DE$/.test(k)), 'filtro ETF + cripto: ' + planRows);
     await page.click('.chips [data-filter="all"]');
     await page.waitForFunction(() => document.querySelectorAll('.sec:has(h2) .list .row').length > 20);
     assert.equal(await page.locator('.mood').count(), 0, 'sentimento só nos Destaques');
-    const scores = await page.locator('.r-score .val').allTextContents();
+    const scores = await page.locator('.sec:has(h2:text-is("Classificação")) .r-score .val').allTextContents();
     const nums = scores.map(Number);
     assert.deepEqual(nums, [...nums].sort((a, b) => b - a), 'classificação ordenada');
     assert.ok(nums.every((n) => n >= 0 && n <= 100));
     console.log('✓ análise: top', (await page.locator('.top3 .c-name').allTextContents()).join(', '), '| n =', nums.length);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '3-analise.png') });
-    const allKeys = await page.locator('.list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
+    const allKeys = await page.locator('.sec:has(h2:text-is("Classificação")) .list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(!allKeys.some((k) => /=F$|^\^/.test(k)), '"Tudo" só com o que se compra na TR: ' + allKeys.filter((k) => /=F$|^\^/.test(k)));
     assert.ok(allKeys.includes('SXR8.DE') && allKeys.includes('c:BTC'));
     assert.deepEqual(await page.locator('h2.grp').allTextContents(), ['Comparar ativos', 'Resultados']);
@@ -271,16 +284,17 @@ function proxyBody(u) {
     assert.equal(await page.locator('details.auto:not([open])').count(), 1, 'algoritmo fechado');
     console.log('✓ análise: comparar ativos + resultados (conselhos do Claude, diário, teste)');
     await page.click('.chips [data-filter="crypto"]');
-    assert.equal(await page.locator('.list .row').count(), 4);
+    assert.equal(await page.locator('.sec:has(h2:text-is("Classificação")) .list .row').count(), 4);
+    assert.equal(await page.locator('.sec:has(h2:text("Toda a Trade Republic")) .list .row').count(), 1, 'toda a TR filtrada: só cripto');
     await page.click('.chips [data-filter="all"]');
     await page.click('.seg.hz [data-hz="long"]');
     await page.waitForSelector('h2:text("Mais fortes a longo prazo")');
-    const longScores = (await page.locator('.r-score .val').allTextContents()).map(Number);
+    const longScores = (await page.locator('.sec:has(h2:text-is("Classificação")) .r-score .val').allTextContents()).map(Number);
     assert.deepEqual(longScores, [...longScores].sort((a, b) => b - a), 'ordenado pelo longo prazo');
     console.log('✓ análise por prazo: longo, n =', longScores.length);
     await page.click('.seg.hz [data-hz="disc"]');
     await page.waitForSelector('h2:text("Maiores oportunidades (desconto)")');
-    const dScores = (await page.locator('.r-score .val').allTextContents()).map(Number);
+    const dScores = (await page.locator('.sec:has(h2:text-is("Classificação")) .r-score .val').allTextContents()).map(Number);
     assert.deepEqual(dScores, [...dScores].sort((a, b) => b - a), 'ordenado pela oportunidade');
     assert.match(await page.locator('.list .row .r-sub').first().textContent(), /do máx\./);
     console.log('✓ modo desconto: n =', dScores.length);
@@ -620,6 +634,60 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ lista de postos ao tocar na gasolina');
+
+    // app do dono: quantas apps se ligam, ligar/desligar o Claude para as outras, toda a Trade Republic
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.waitForSelector('.share-st');
+    const shareTxt = await page.locator('.sec:has(h2:text("Partilha da app"))').textContent();
+    assert.match(shareTxt, /2\s*hoje\s*4\s*7 dias\s*5\s*30 dias\s*1\s*com o Claude/);
+    assert.match(shareTxt, /1 analisada/);
+    assert.match(await page.locator('#f-share').inputValue(), /\?proxy=https%3A%2F%2Fproxy\.test$/);
+    await page.click('[data-others="0"]');
+    await page.waitForFunction(() => document.querySelector('[data-others="0"]').classList.contains('on'));
+    assert.equal(ownerPosts.at(-1).others, false);
+    await page.click('[data-others="1"]');
+    await page.waitForFunction(() => document.querySelector('[data-others="1"]').classList.contains('on'));
+    assert.equal(await page.locator('h2:text-is("Análise do Claude")').count(), 0, 'o dono não precisa de ligar');
+    await page.click('#mk-nav [data-tab="analise"]');
+    await page.click('[data-filter="all"]');
+    await page.click('.seg.hz [data-hz="long"]');
+    await page.waitForSelector('.sec:has(h2:text("Toda a Trade Republic")) .row');
+    const uniRows = await page.locator('.sec:has(h2:text("Toda a Trade Republic")) .row .r-name').allTextContents();
+    assert.deepEqual(uniRows, ['iShares NASDAQ 100 ETF', 'PUMA', 'Cardano'], 'ordenada pela pontuação a longo prazo');
+    await page.click('.sec:has(h2:text("Toda a Trade Republic")) .row[data-open="PUM.DE"]');
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && /PUMA/.test(document.querySelector('#mk-sheet-card').textContent));
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ dono: partilha (apps ligadas) e toda a Trade Republic em Análise');
+
+    // outra app: a análise do Claude vem desligada; liga-se em Ajustes e chega só a dela
+    ME.owner = false;
+    await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.owner = false; c.claude = false; localStorage.setItem('mercados:v1', JSON.stringify(c)); localStorage.removeItem('mercados:clmem'); });
+    await page.reload();
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.waitForSelector('.today > summary');
+    await page.waitForTimeout(800);
+    assert.match(await page.locator('.today > summary').textContent(), /Resumo automático/);
+    assert.equal(await page.locator('.today .cl-head').count(), 0, 'sem a análise do dono');
+    await page.click('#mk-nav [data-tab="analise"]');
+    await page.waitForSelector('.sec:has(h2:text("Classificação"))');
+    assert.equal(await page.locator('h2:text("Toda a Trade Republic")').count(), 0, 'só na app do dono');
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    assert.equal(await page.locator('h2:text("Partilha da app")').count(), 0);
+    ME.advice = { date: '2026-11-07', generatedAt: '2026-11-07T07:21:00Z', short: true, headline: 'Só os teus ativos', tldr: ['Mercado: calmo.', 'Os teus ativos: manter.', 'Atenção: nada.'], actions: [{ s: 'c:BTC', key: 'hold', action: 'Manter', why: 'tendência longa a subir' }], movers: [] };
+    await page.click('[data-claude="1"]');
+    assert.equal(claudePosts.at(-1).claude, true);
+    assert.ok(claudePosts.at(-1).my.includes('VWCE.DE'), 'envia a lista desta app');
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.waitForSelector('.today .cl-head');
+    assert.equal(await page.locator('.today .cl-head').textContent(), 'Só os teus ativos');
+    assert.equal(await page.locator('.today .tldr li').count(), 3);
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.click('[data-claude="0"]');
+    assert.equal(claudePosts.at(-1).claude, false);
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.waitForFunction(() => !document.querySelector('.today .cl-head'));
+    console.log('✓ outra app: Claude desligado por omissão, liga em Ajustes e recebe a análise dos seus ativos');
 
     assert.deepEqual(errors, [], 'sem erros na consola');
     console.log('✓ sem erros na consola');

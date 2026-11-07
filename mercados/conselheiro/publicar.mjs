@@ -1,7 +1,8 @@
 // Conselheiro — valida a análise escrita pelo Claude e grava-a na base de dados (KV).
 //   node mercados/conselheiro/publicar.mjs /tmp/conselheiro/analise.json [/tmp/conselheiro/dados.json]
 // Grava advice:<data>, advice:latest e advice:lessons. A app lê-a em /advice.
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 import { kvPut, todayLisbon, ACTION_KEYS } from './comum.mjs';
 
 const [file, dadosFile = '/tmp/conselheiro/dados.json'] = process.argv.slice(2);
@@ -9,6 +10,9 @@ if (!file) { console.error('uso: publicar.mjs analise.json [dados.json]'); proce
 const a = JSON.parse(readFileSync(file, 'utf8'));
 const dados = JSON.parse(readFileSync(dadosFile, 'utf8'));
 const known = new Set(dados.rows.map((r) => r.s));
+// também se pode comentar qualquer ativo de toda a lista da Trade Republic (universo.mjs)
+const uniFile = path.join(path.dirname(dadosFile), 'universo.json');
+if (existsSync(uniFile)) for (const r of JSON.parse(readFileSync(uniFile, 'utf8')).rows || []) known.add(r.s);
 
 const errs = [];
 const str = (v, max, name, req) => { if (v == null || v === '') { if (req) errs.push(`falta ${name}`); return ''; } if (typeof v !== 'string') { errs.push(`${name} tem de ser texto`); return ''; } if (v.length > max) errs.push(`${name} com mais de ${max} caracteres`); return v; };
