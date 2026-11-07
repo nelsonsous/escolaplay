@@ -7,6 +7,31 @@ Horas locais em ISO sem fuso (`2026-11-06T15:00`), no fuso do local (`location.t
 Unidades: °C, mm, km/h, hPa, %, m. Números arredondados a 1 casa (temp), inteiros (%, km/h).
 `null` = sem dado. Erros: `{ "error": "codigo", "message": "texto PT" }` com HTTP 4xx/5xx.
 
+## Identidade (sem contas) e privacidade
+
+Cada instalação da app cria na primeira vez um **id** (24 hex) e um **segredo** (48 hex) ao acaso, guardados só no telemóvel
+(`meteo:device` no localStorage), e manda-os em todos os pedidos da app ao conector (`api.js`: estado, análise, locais,
+avisos, pesquisa, painel; e a análise imediata):
+
+- `x-meteo-device: <id>.<segredo>` — confiança na primeira utilização: o conector guarda `dev:<id>` =
+  `{ tokenHash (SHA-256 do segredo), firstSeen, lastSeen, owner? }` e recusa um segredo errado para um id conhecido
+  (`403 { "error": "dispositivo" }`; a app cria então uma identidade nova e tenta outra vez). Só pedidos da app
+  (`ALLOWED_ORIGINS`) registam telemóveis novos. `lastSeen` grava-se **no máximo 1× por dia** (dia de Lisboa; o plano
+  gratuito dá 1000 gravações por dia; pedidos simultâneos do mesmo telemóvel gravam uma só vez), com os metadados
+  `{ s: "AAAA-MM-DD", o: 1 se é do dono }` (o painel conta os telemóveis com uma só listagem). O registo expira ao fim de
+  400 dias sem abrir a app.
+- `x-meteo-owner: <código>` (com `encodeURIComponent`) — só o telemóvel do dono, que abriu uma vez
+  `…/meteo/?dono=<código>` (a app guarda-o em `meteo:dono` e tira-o do endereço com `history.replaceState`; `?dono=`
+  vazio esquece-o). O conector compara-o (SHA-256, em tempo constante) com o segredo `OWNER_CODE`; **sem o segredo não há
+  dono**. Um telemóvel que passa a ser do dono leva os seus locais (passam a `owner: "owner"`).
+- As fontes em bruto (`/api/raw/*`, `/api/obs-history`) e as imagens (`/api/sat`, em `<img>`) não levam identidade: são
+  públicas e com cache, e um cabeçalho próprio obrigaria o browser a um pedido prévio (CORS) em cada uma.
+
+Cada local tem dono: `owner` = o id do telemóvel que o ligou, ou `"owner"` (o dono da app; também os locais de antes, sem
+este campo). Cada telemóvel só vê e muda os seus locais, as suas análises e os seus avisos; o dono vê todos os locais, mas
+dos outros só o nome e a localização arredondada a 2 casas (~1 km), com as distâncias contadas a partir daí — nunca as
+coordenadas exatas. CORS: `access-control-allow-headers: content-type, x-meteo-device, x-meteo-owner`.
+
 ## Previsão — `await loadForecast({ lat, lon, name })` em `lib/data.js`
 
 Calculada no telemóvel (não é um pedido ao conector). Pedidos: Open-Meteo (direto ou pelo conector; HTTP 429 → tenta de
@@ -182,7 +207,6 @@ Formato:
     "farthest": [ { "id": "gem_seamless", "name": "GEM", "meanDev": 1.9 } ], // fontes mais afastadas do consenso (média dos 3 dias)
     "summary": "…" // as notas numa frase só
   },
-  "analysis": { "available": true, "ageMin": 95, "placeId": "lisboa" }, // atalho: há análise do Claude perto?
   // só na app, com um aviso do utilizador ativo (withReport em lib/engine.js; ver "Avisos do utilizador")
   "report": { "kind": "chuva", "label": "Chuva", "time": "2026-11-06T20:33:00.000Z", "local": "2026-11-06T20:33", "ageMin": 3 },
   "sources": ["Open-Meteo (CC BY 4.0)", "IPMA", "NOAA AWC (METAR)", "NASA FIRMS", "ANEPC via fogos.pt", "EUMETSAT"],
@@ -213,10 +237,16 @@ Cabeçalhos: `x-sat-layer`, `x-sat-bbox` (`oeste,sul,este,norte`), `cache-contro
 
 ## GET /api/analysis?lat=..&lon=..
 
+Só para quem é dono do local: o local **em uso** de quem pede mais perto (≤ 10 km) — os deste telemóvel; o dono, todos.
+Nunca a análise de outra pessoa por estar perto. A de um local de outro telemóvel (só o dono a vê) vem com `place.lat/lon`
+arredondados (~1 km). Um local desligado não tem análise.
+
 ```jsonc
 { "analysis": { /* ver "Análise" abaixo */ } | null,
-  "place": { "id": "casa", "name": "Casa", "lat": 38.72, "lon": -9.14, "distanceKm": 0.3 } | null, // local registado mais próximo (≤ 10 km)
-  "ageMin": 95, "schedule": ["07:34", "13:34", "20:34"], "onDemand": false } // onDemand = há chave da API configurada
+  "place": { "id": "casa-k2m9xq", "name": "Casa", "lat": 38.72, "lon": -9.14, "distanceKm": 0.3, "mine": true, "kind": "guest" } | null,
+  "ageMin": 95, "schedule": ["07:34", "13:34", "20:34"],
+  "onDemand": false, // há chave da API e quem pede a pode usar (o dono; os outros só com a análise dos outros "on")
+  "others": "on" }   // análise dos outros: on | 1x | off
 ```
 
 ### Análise (escrita pelo Claude; mesmo formato pela tarefa agendada ou pela API)
@@ -248,35 +278,61 @@ selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATC
 ## POST /api/analysis/refresh?lat=..&lon=..
 
 Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`). 200 `{ "analysis": {…} }`,
-503 `{ "error": "sem_chave" }`, 429 `{ "error": "limite" }` (máx. 1 por local a cada 30 min, 20/dia).
-Recebe o resumo do ponto e 3 imagens (cor natural de perto ~280 km e a ~1200 km, massas de ar). Fica como análise do
-local registado só se houver um a ≤ 2 km (como na app); senão fica à parte para este ponto (24 h), e `GET /api/analysis`
-mostra-a enquanto for mais recente do que a do local registado. `place.lat/lon` = o ponto analisado.
+503 `{ "error": "sem_chave" }`, 429 `{ "error": "limite" }` (máx. 1 por ponto a cada 30 min, 20 por dia ao todo),
+403 `dispositivo` (sem identidade) ou `convidados_desligados` (a análise dos outros não está "on": só o dono).
+Recebe o resumo do ponto e 3 imagens (cor natural de perto ~280 km e a ~1200 km, massas de ar). Fica como análise de um
+local de quem pede só se houver um a ≤ 2 km (como na app); senão fica só para esse telemóvel (`analysis:dev:<id>`, 24 h), e
+`GET /api/analysis` mostra-a nesse ponto (≤ 2 km) enquanto for mais recente do que a do local. `place.lat/lon` = o ponto
+analisado. Conta no dia (`stats:<data>`, `instant`; `guest` se não é o dono).
 
-## Locais com análise agendada
+## Locais com análise diária
 
-- `GET /api/places` → `[ { "id": "casa", "name": "Casa", "lat": 38.72, "lon": -9.14, "createdAt": "…" } ]`
-- `POST /api/places` body `{ "name": "Casa", "lat": 38.72, "lon": -9.14 }` → `201 { place }` (máx. 5; só da própria origem)
-- `PATCH /api/places/<id>` body `{ "lat": 41.3612, "lon": -8.4877, "name": "…" }` (`name` opcional) → `200 place` com o
-  mesmo `id` (e `movedAt`): muda o local para outro ponto. A última análise (`analysis:<id>`) e as lições (`lessons:<id>`)
-  ficam; a próxima análise já é do ponto novo. Só da própria origem (como o `POST`): `403`; `404` se não existir; `400`
-  com coordenadas inválidas; `409` se ficar a menos de 0,5 km de outro local registado. Na app: «Mudar a análise diária
-  para este ponto», com «Desfazer» (volta às coordenadas anteriores).
-- `DELETE /api/places/<id>` → `204` (a análise e as lições ficam guardadas: ao voltar a ligar o mesmo local, com o mesmo
-  nome, aparece de novo a última análise; na app, desligar pede confirmação e o aviso tem «Desfazer»)
+A análise diária está **desligada por omissão**; na app liga-se no cartão «Análise do Claude» (**Ativar a análise diária do
+Claude para este local**). Cada telemóvel tem no máximo **1 local** (`GUEST_MAX`; o dono não tem limite); ligar noutro sítio
+muda-o para lá. Um local de outro telemóvel fica **em pausa** (não é analisado) se esse telemóvel não abrir a app há
+**14 dias** (`lastSeen` de `dev:<id>`) e volta quando a abrir. Limite de segurança: **15 locais** por corrida
+(`ANALYSED_MAX`; os do dono nunca são cortados). Regras e escolha em `lib/places.js`.
+
+```jsonc
+// o local como o vê quem pede
+{ "id": "casa-k2m9xq", "name": "Casa", "lat": 38.72, "lon": -9.14, "mine": true, "kind": "guest" | "owner",
+  "status": "active" | "paused" | "off", "createdAt": "…", "movedAt": "…",   // movedAt só depois de mudar de ponto
+  "off": true, "offBy": "device" | "owner" }                                    // só desligado
+// dos outros (só o dono os vê): "lat": 38.72, "lon": -9.14 (2 casas), "approx": true, "mine": false
+```
+
+- `GET /api/places` → os locais de quem pede (o dono: todos; sem identidade: `[]`), também os desligados.
+- `POST /api/places` body `{ "name": "Casa", "lat": 38.72, "lon": -9.14 }` → `201 place` (só da própria origem: `403`;
+  sem identidade: `403 dispositivo`). A menos de 0,5 km de um local seu ligado → `200` com esse; de um seu desligado → volta
+  a ligá-lo (`200`, o mesmo id: a última análise e as lições). Outro telemóvel que já tem um local → `409 { "error":
+  "limite", "place": {…} }` (a app muda esse local para aqui com `PATCH`); com a análise dos outros desligada → `403
+  convidados_desligados`; com 15 locais em análise → `409 cheio`. Os ids dos outros telemóveis levam sempre um sufixo ao
+  acaso (`casa-k2m9xq`): nunca herdam a análise guardada de outro local.
+- `PATCH /api/places/<id>` body `{ "lat": 41.3612, "lon": -8.4877, "name": "…", "on": true }` (tudo opcional) → `200 place`
+  com o mesmo `id` (e `movedAt`): muda o local para outro ponto e/ou liga-o (`on: true`) ou desliga-o (`on: false`). A
+  última análise (`analysis:<id>`) e as lições (`lessons:<id>`) ficam; a próxima análise já é do ponto novo. Só o telemóvel
+  do local (ou o dono, nos do dono) o muda de sítio (`403 so_o_proprio`); o dono liga e desliga qualquer um; um local
+  desligado pelo dono (`offBy: "owner"`) só o dono o volta a ligar (`403 desligado_pelo_dono`). Só da própria origem:
+  `403`; `404` se não existir ou não for de quem pede; `400` com coordenadas inválidas ou nada a mudar; `409` se ficar a
+  menos de 0,5 km de outro local seu. Na app: «Mudar a análise diária para este ponto» e ligar noutro sítio o único local
+  de um telemóvel, ambos com «Desfazer».
+- `DELETE /api/places/<id>` → `204`: desliga (fica `off`, com a análise e as lições guardadas; «Desfazer» na app volta a
+  ligá-lo com `PATCH { "on": true }`). O dono pode desligar o de outro telemóvel (`offBy: "owner"`).
 
 ## Avisos do utilizador («Está a chover?»)
 
+Ficam com o telemóvel que os deu; ninguém lê os dos outros.
+
 - `POST /api/reports` body `{ "kind": "chuva", "time": "2026-11-06T20:33:00Z", "lat": 41.3354, "lon": -8.4745 }` →
   `201 { "report": { "kind", "time", "lat", "lon", "receivedAt" }, "place": { "id", "name" } | null, "count": 12 }`.
-  Só da própria origem (como `/api/places`): `403`; `400` com tipo ou coordenadas inválidas. `time` = a hora do telemóvel
-  (até 3 h para trás; senão a do conector). Fica em `reports:<id>` do local registado a ≤ 2 km, ou em
-  `reports:@41.34,-8.47` (quadrícula de ~1 km); os últimos 50 (o mais recente primeiro), 30 dias (TTL do KV);
-  coordenadas com 3 casas (~100 m).
+  Só da própria origem (como `/api/places`): `403`; sem identidade: `403 dispositivo`; `400` com tipo ou coordenadas
+  inválidas. `time` = a hora do telemóvel (até 3 h para trás; senão a do conector). Fica em `reports:<id>` do local (ligado)
+  de quem o deu a ≤ 2 km — que a tarefa agendada mostra ao Claude —, ou em `reports:dev:<id do telemóvel>`; os últimos 50
+  (o mais recente primeiro), 30 dias (TTL do KV); coordenadas com 3 casas (~100 m).
 - `GET /api/reports?lat=..&lon=..[&hours=24]` → `{ "place": { "id", "name" } | null, "reports": [ { "kind", "time", "lat",
-  "lon", "receivedAt", "ageMin": 3, "distanceKm": 0.1 } ] }` (leitura livre; `hours` 1–720, por omissão 30 dias). A app
-  usa os das últimas 24 h (um aviso de outro telemóvel no mesmo sítio também vale 45 min); a tarefa agendada mostra ao
-  Claude os das últimas 48 h.
+  "lon", "receivedAt", "ageMin": 3, "distanceKm": 0.1 } ] }`: os de quem pede (do seu local a ≤ 2 km, ou os seus) até
+  10 km do ponto; sem identidade, nenhum. `hours` 1–720, por omissão 30 dias. A app usa os das últimas 24 h; a tarefa
+  agendada lê `reports:<id do local>` no KV e mostra ao Claude os das últimas 48 h.
 
 ## GET /api/geocode?q=Ericeira
 
@@ -284,7 +340,41 @@ mostra-a enquanto for mais recente do que a do local registado. `place.lat/lon` 
 
 ## GET /api/status
 
-`{ "version": "1.3.0", "onDemand": false, "places": 1, "schedule": ["07:34","13:34","20:34"] }`
+O primeiro pedido da app ao abrir (regista o telemóvel; os outros pedidos esperam por ele):
+
+```jsonc
+{ "version": "1.4.0", "onDemand": false, "places": 1, // locais ligados que quem pede vê
+  "schedule": ["07:34","13:34","20:34"],
+  "device": true, "owner": false, "ownerCode": "ok" | "errado" | "sem_codigo", // ownerCode só com x-meteo-owner
+  "others": "on", "limit": 1 }                                                // limit = locais por telemóvel (dono: null)
+```
+
+## Só o dono
+
+- `GET /api/usage` → painel **Ajustes → Utilização** (outros: `403 { "error": "dono" }`). Dos outros só o nome dos locais e
+  o estado, sem coordenadas nem ids:
+
+  ```jsonc
+  { "today": "2026-11-07", "others": "on",
+    "devices": { "today": 3, "d7": 5, "d30": 8, "total": 9, "owner": 1 }, // telemóveis que abriram a app (dia de Lisboa)
+    "places": { "total": 3, "owner": 1, "guests": 2, "active": 2, "paused": 1, "off": 0, "analysed": 2, "cap": 15,
+                "list": [ { "name": "Casa da Ana", "kind": "guest", "status": "active", "analysed": true, "days": 0 },
+                          { "name": "Praia", "kind": "guest", "status": "paused", "analysed": false, "days": 15,
+                            "reason": "em pausa (14 dias ou mais sem abrir a app)" } ] }, // analysed: na corrida da manhã
+    "analyses": [ { "date": "2026-11-07", "scheduled": 9, "instant": 1, "guest": 6 } ] } // 7 dias, o mais recente primeiro
+  ```
+- `GET /api/settings` → `{ "others": "on", "updatedAt": null }`; `PATCH /api/settings` body `{ "others": "on" | "1x" | "off" }`
+  (só da própria origem) → a **análise dos outros**: ligada; só 1× por dia (os locais dos outros só na corrida das 07:34,
+  pela hora de Lisboa); desligada (os outros não ligam locais e a análise imediata fica só para o dono). Os locais do dono
+  nunca são cortados.
+
+## Base de dados (KV `meteo`)
+
+`places` (lista dos locais), `dev:<id>` (telemóveis), `settings` (`{ others }`), `stats:<AAAA-MM-DD>` (análises do dia,
+dia de Lisboa, 40 dias: `{ scheduled, instant, guest }` — a tarefa agendada conta-as no `publicar.mjs`, a análise imediata
+no conector), `analysis:<id>` e `lessons:<id>` (por local), `analysis:<id>:<data-hora>` (arquivo, 30 dias),
+`analysis:dev:<id>` (análise imediata fora dos locais, 24 h), `reports:<id>` e `reports:dev:<id>` (avisos), `rl:<ponto>`
+(30 min), `obs:<estação>`, `ipma:runs:<concelho>`, `fogos:latest`.
 
 ## Fontes em bruto (passagem com cache)
 
@@ -295,7 +385,9 @@ guarda para as estações IPMA usadas em cada local registado; `[]` se não houv
 
 ## Resumo para o Claude — `buildSummary(fc)` em `lib/engine.js`
 
-Texto que a tarefa agendada e a análise imediata dão ao Claude, **a começar pelo ponto**:
+Texto que a tarefa agendada e a análise imediata dão ao Claude, **a começar pelo ponto** (a tarefa agendada escolhe os
+locais com `selectPlaces` de `lib/places.js`, a partir do KV: os do dono e os dos outros em uso, conforme a análise dos
+outros, até 15):
 
 1. `## O ponto` — nome, coordenadas exatas, altitude, fuso e hora local; relevo (`location.terrain.description` e as
    altitudes à volta); o efeito local já aplicado (`local.text`, mínimas e a regra); a previsão oficial do IPMA (ponto

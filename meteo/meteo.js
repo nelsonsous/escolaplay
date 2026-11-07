@@ -1,7 +1,9 @@
 // Meteo — previsão do tempo para o ponto exato, com a mesma linguagem da app Mercados.
 // A previsão é calculada no telemóvel por ./lib/data.js (com o radar no ponto, RainViewer); o conector (Cloudflare
 // Worker) serve METAR, FIRMS, fogos.pt, satélite, locais, avisos do utilizador e a análise do Claude.
-// Endereço do conector nos Ajustes ou ?proxy=URL.
+// Endereço do conector nos Ajustes ou ?proxy=URL. Sem contas: cada telemóvel tem uma identidade anónima (api.js); a
+// análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
+// (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps } from './lib/data.js';
 import { withReport, reportActive } from './lib/engine.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
@@ -11,7 +13,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -31,6 +33,11 @@ const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt'
 const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
 const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
+const APP_URL = 'https://nelsonsous.github.io/escolaplay/meteo/';
+// texto de "Partilhar" (já leva o endereço: sem url à parte, que alguns sítios repetem)
+const SHARE_TEXT = '🌦️ Meteo — previsão do tempo para o sítio exato onde estás. Junta 9 modelos meteorológicos, 212 cenários, a previsão oficial do IPMA, as estações mais próximas e o radar, e ajusta tudo ao ponto e ao relevo onde estás: agora e próximas 2 horas, 72 horas e 16 dias com a confiança de cada dia, avisos do IPMA, incêndios, satélite e, opcional, uma análise escrita pelo Claude. Grátis, sem conta e sem publicidade. https://nelsonsous.github.io/escolaplay/meteo/ — iPhone: abre no Safari → Partilhar → «Adicionar ao ecrã principal». Android: abre no Chrome → ⋮ → «Instalar app».';
+const OTHERS_UI = [['on', 'Ligada'], ['1x', 'Só 1× por dia (07:34)'], ['off', 'Desligada']]; // "análise dos outros" (só o dono)
+const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 dias, a análise diária fica em pausa
 
 // ---------- configuração ----------
 const KEY = 'meteo:v1';
@@ -39,20 +46,27 @@ const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
 const saveCfg = () => api.store.set(KEY, cfg);
+let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pelo endereço (aviso quando o conector responder)
 {
     const sp = new URLSearchParams(location.search);
+    let changed = false;
     const p = sp.get('proxy');
     if (p && /^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)/.test(p)) {
         cfg.proxy = p.replace(/\/+$/, ''); saveCfg();
-        sp.delete('proxy');
-        history.replaceState(null, '', location.pathname + (sp.toString() ? '?' + sp : ''));
+        sp.delete('proxy'); changed = true;
     }
+    // ?dono=<código> (uma vez): fica só neste telemóvel e sai logo do endereço; ?dono= vazio esquece-o
+    if (sp.has('dono')) {
+        ownerJust = api.setOwnerCode(sp.get('dono')) ? 'set' : 'cleared';
+        sp.delete('dono'); changed = true;
+    }
+    if (changed) history.replaceState(null, '', location.pathname + (sp.toString() ? '?' + sp : '') + location.hash);
 }
 setProxy(cfg.proxy || DEFAULT_PROXY);
 
 const st = {
     fc: null, savedAt: 0, loading: false, error: '', offline: false, lastFetch: 0,
-    analysis: undefined, places: [], status: null, statusErr: '',
+    analysis: undefined, places: [], status: null, statusErr: '', usage: null, usageErr: '', // usage = painel do dono
     pulling: false, sheet: null, installEvt: null, iosHint: false, updateReady: false, analyzing: false,
     report: api.loadReport(), reports: [], // aviso deste telemóvel e avisos recentes do conector
     rv: null, rvErr: '', rvIdx: null, rvPlay: 0, // camada Radar: lista de imagens, imagem mostrada, animação
@@ -87,6 +101,15 @@ function reportTimer() { // ao fim dos 45 min o aviso deixa de contar: volta a d
     if (r) reportT = setTimeout(() => { scheduleRender(); reportTimer(); }, Math.max(1000, Date.parse(r.time) + REPORT_MIN * 6e4 - Date.now() + 1000));
 }
 const near = (a, b, km = 0.2) => a && b && haversineKm(a.lat, a.lon, b.lat, b.lon) <= km;
+// locais com análise diária: os deste telemóvel (o dono vê também os dos outros, com mine = false e ~1 km)
+const isOwner = () => !!st.status?.owner;
+const myPlaces = () => st.places.filter((p) => p.mine !== false);
+const onPlaces = () => myPlaces().filter((p) => !p.off);
+const othersMode = () => st.status?.others || 'on';
+function upsertPlace(p) {
+    if (!p?.id) return;
+    st.places = st.places.some((x) => x.id === p.id) ? st.places.map((x) => (x.id === p.id ? { ...x, ...p, ...(p.off ? {} : { off: undefined, offBy: undefined }) } : x)) : [...st.places, p];
+}
 
 let toastT = 0;
 function toast(msg, undo) {
@@ -179,6 +202,8 @@ async function refresh() {
     await an;
 }
 async function loadAnalysis(loc) {
+    // o pedido do estado vai primeiro e regista este telemóvel; os outros vêm depois (uma só gravação no conector)
+    if (statusP) await statusP;
     const [a, p, r] = await Promise.allSettled([api.getAnalysis(loc.lat, loc.lon), api.getPlaces(), api.getReports(loc.lat, loc.lon)]);
     if (cfg.loc !== loc) return;
     if (r.status === 'fulfilled') {
@@ -197,9 +222,26 @@ async function loadAnalysis(loc) {
     if (cfg.tab === 'agora' && $('#cl-teaser')) $('#cl-teaser').outerHTML = teaserHtml();
     else if (cfg.tab === 'analise' || cfg.tab === 'ajustes') scheduleRender();
 }
-async function loadStatus() {
-    try { st.status = await api.getStatus(); st.statusErr = ''; } catch (e) { st.status = null; st.statusErr = e.message; }
-    if (cfg.tab === 'ajustes' || cfg.tab === 'analise') scheduleRender();
+let statusP = null;
+function loadStatus() {
+    statusP = (async () => {
+        const had = !!st.status, was = isOwner();
+        try { st.status = await api.getStatus(); st.statusErr = ''; } catch (e) { st.status = null; st.statusErr = e.message; }
+        if (ownerJust && st.status) {
+            toast(ownerJust === 'cleared' ? 'Código do dono esquecido neste telemóvel.' : st.status.owner ? 'Modo dono ligado neste telemóvel.'
+                : st.status.ownerCode === 'sem_codigo' ? 'Código guardado, mas o conector ainda não tem o código do dono (OWNER_CODE).' : 'O conector não aceitou este código do dono.');
+            ownerJust = '';
+        }
+        if (had && st.status && isOwner() !== was && cfg.loc) loadAnalysis(cfg.loc); // passou (ou deixou) de ser o dono
+        if (isOwner() && cfg.tab === 'ajustes') loadUsage();
+        if (cfg.tab === 'ajustes' || cfg.tab === 'analise') scheduleRender();
+    })();
+    return statusP;
+}
+async function loadUsage() {
+    if (!isOwner()) { st.usage = null; return; }
+    try { st.usage = await api.getUsage(); st.usageErr = ''; } catch (e) { st.usageErr = e.message; }
+    if (cfg.tab === 'ajustes') scheduleRender();
 }
 
 // ---------- render ----------
@@ -279,7 +321,7 @@ function banners() {
 function viewNow() {
     if (!cfg.loc) {
         return { title: 'Meteo', html: `<div class="welcome">${weatherIcon(2, true, 72)}<h2>Previsão para o sítio exato onde estás</h2>
-            <p>Combina 9 modelos meteorológicos, mais de 200 cenários de ensemble e observações reais, com análise do Claude.</p>
+            <p>Combina 9 modelos meteorológicos, mais de 200 cenários de ensemble e observações reais e, se quiseres, uma análise escrita pelo Claude.</p>
             <div class="btns"><button type="button" class="btn pri" data-act="gps">${ui('gps')}Usar a minha localização</button><button type="button" class="btn" data-act="place">${ui('search')}Pesquisar local</button></div></div>` };
     }
     const title = `<button type="button" class="pg-loc" data-act="place" aria-label="${esc(placeName())} — mudar de local">${esc(placeName())}${ui('chevron')}</button>`;
@@ -360,7 +402,7 @@ function analysedPoint() {
     const p = F.isNum(a.place?.lat) && F.isNum(a.place?.lon) ? a.place : F.isNum(r.place?.lat) && F.isNum(r.place?.lon) ? r.place : null;
     if (!p) return null;
     const d = haversineKm(cfg.loc.lat, cfg.loc.lon, p.lat, p.lon);
-    const reg = r.place?.id ? st.places.find((x) => x.id === r.place.id) || null : null; // local registado, como está agora (pode ter mudado de sítio)
+    const reg = r.place?.id ? myPlaces().find((x) => x.id === r.place.id) || null : null; // local deste telemóvel, como está agora (pode ter mudado de sítio)
     const moved = !!reg && haversineKm(cfg.loc.lat, cfg.loc.lon, reg.lat, reg.lon) <= FAR_KM; // a análise diária já é deste ponto
     return { name: p.name || reg?.name || 'local', lat: p.lat, lon: p.lon, d, far: d > FAR_KM, reg, moved };
 }
@@ -382,8 +424,14 @@ function alertsHtml(fc) {
     }
     return h;
 }
+// as corridas que valem para este telemóvel: com a "análise dos outros" só 1× por dia, só a da manhã
+function schedFor() {
+    const s = st.analysis?.schedule || st.status?.schedule || SCHEDULE;
+    return !isOwner() && othersMode() === '1x' ? s.slice(0, 1) : s;
+}
+const schedTxt = (s = schedFor()) => (s.length > 1 ? `${s.slice(0, -1).join(', ')} e ${s.at(-1)}` : s[0]);
 function nextRun() {
-    const sched = st.analysis?.schedule || st.status?.schedule || SCHEDULE;
+    const sched = schedFor();
     const d = new Date();
     const now = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     const next = sched.find((s) => s > now);
@@ -393,7 +441,7 @@ function teaserHtml() {
     const r = st.analysis;
     if (r === undefined) return `<div class="claude" id="cl-teaser" aria-busy="true"><div class="adv-src">Análise do Claude</div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
     const a = r?.analysis;
-    if (!a) return `<button type="button" class="claude" id="cl-teaser" data-tab="analise"><div class="adv-src">Análise do Claude</div><p>Ainda não há análise para este local. Ativa a análise diária: o Claude junta os modelos, as observações e o satélite às ${esc(SCHEDULE.join(', '))}.</p><span class="lnk">Ativar</span></button>`;
+    if (!a) return `<div class="claude cl-opt" id="cl-teaser">${optInHtml()}</div>`;
     const ap = analysedPoint();
     const main = `<div class="adv-src">Análise do Claude <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
         <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise completa</span>`;
@@ -405,6 +453,21 @@ function teaserHtml() {
     }
     const note = ap?.far ? `<p class="cl-farmsg">${esc(ap.moved ? `A análise diária já passou para este ponto: a próxima chega ${nextRun()}.` : 'Feita para outro ponto: o tempo aqui pode ser diferente.')}</p>` : '';
     return `<button type="button" class="claude" id="cl-teaser" data-tab="analise">${main}${note}</button>`;
+}
+// Sem análise para este ponto. A análise diária do Claude está desligada por omissão: ligá-la é uma escolha clara, para
+// este local e só para este telemóvel (os outros telemóveis têm 1 local: ligar aqui muda-o para aqui)
+function optInHtml() {
+    const head = '<div class="adv-src">Análise do Claude</div>';
+    if (st.analysis?.error && !st.analysis.offline) return `${head}<p>Não foi possível obter a análise (${esc(st.analysis.error)}).</p>`;
+    const here = nearPlace();
+    if (here) return `${head}<p>A análise diária do Claude está ligada para este local (${esc(here.name)}). A primeira chega ${esc(nextRun())}.</p>`;
+    const owner = isOwner(), mine = owner ? null : myPlaces()[0];
+    if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise diária deste telemóvel foi desligada pelo dono da app.</p>`;
+    if (!owner && othersMode() === 'off') return `${head}<p>A análise diária do Claude está desligada, por agora, pelo dono da app.</p>`;
+    const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
+    return `${head}<p>Opcional: o Claude escreve uma análise para este ponto exato ${esc(when)}, com os modelos, as observações, o radar e o satélite. Só este telemóvel a vê.</p>
+        ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada telemóvel tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
+        <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária do Claude para este local</span></button>`;
 }
 function nowcastSec(fc) {
     if (!fc.nowcast?.steps?.length) return '';
@@ -634,10 +697,14 @@ function viewAnalysis() {
             <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · próxima ${esc(nextRun())}.</p>
         </article>`;
     } else {
-        h += `<div class="today"><div class="adv-src">Análise do Claude</div><p style="margin:6px 0 0;color:var(--soft)">${r?.error && !r.offline ? `Não foi possível obter a análise (${esc(r.error)}).` : `Ainda não há análise para este local. Com a análise diária ligada, o Claude junta os modelos, as observações e as imagens de satélite às ${esc(sched.slice(0, -1).join(', '))} e ${esc(sched.at(-1))}.`}</p></div>`;
+        h += `<div class="today cl-opt">${optInHtml()}</div>`;
     }
-    const np = nearPlace();
-    h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${np ? `Ligada (${esc(np.name)}) · ${esc(sched.join(' · '))}` : `Às ${esc(sched.join(', '))} · até 5 locais`}</small></span>
+    const np = nearPlace(), owner = isOwner(), mine = owner ? null : myPlaces()[0];
+    const swHint = np ? `Ligada (${np.name}) · ${schedFor().join(' · ')}`
+        : owner ? `Às ${sched.join(', ')} · sem limite de locais`
+        : othersMode() === 'off' ? 'Desligada pelo dono da app, por agora'
+        : `${othersMode() === '1x' ? '1× por dia, às 07:34' : `Às ${sched.join(', ')}`} · 1 local por telemóvel${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
+    h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
     if (fc) h += compareHtml(fc) + reliabilityHtml(fc) + obsHtml(fc) + modelsHtml(fc);
@@ -682,7 +749,8 @@ function obsHtml(fc) {
         <div class="r-px num">${esc(F.deg(x.tempAdj, 1))}<small>${esc(F.isNum(x.temp) ? `${F.deg(x.temp, 1)} medido` : '')}</small></div></div>`).join('')}</div>
         <p class="note">Cada estação é levada à altitude do ponto (0,65° por 100 m) e pesa pela distância, pela altitude parecida e por ser recente; as muito diferentes das outras ficam de fora. Juntas dão ${esc(F.deg(o.temp, 1))} a ${esc(F.km(o.distanceKm))} em média${F.isNum(o.repr) ? ` · confiança ${esc(F.pct(o.repr * 100))}` : ''}.</p></section>`;
 }
-const nearPlace = () => (cfg.loc ? st.places.find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= 2) : null);
+// o local deste telemóvel com a análise diária ligada aqui (≤ 2 km do ponto selecionado)
+const nearPlace = () => (cfg.loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= FAR_KM) : null);
 function reliabilityHtml(fc) {
     const ind = fc.indicators || {}, ver = fc.verification;
     const byId = Object.fromEntries((fc.models || []).map((m) => [m.id, m]));
@@ -729,10 +797,15 @@ function viewSettings() {
         <div><label>Favoritos</label><div class="wl">${cfg.favs.length ? cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button><button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Retirar ' + f.name)}">✕</button></div>`).join('') : '<div class="hint">Ainda sem favoritos.</div>'}</div>
             ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui('star')}${cfg.favs.some((f) => near(f, L)) ? 'Retirar este local' : 'Guardar este local'}</button>` : ''}</div>
     </div></section>`;
-    h += `<section class="sec"><div class="sec-h"><h2>Análise diária do Claude</h2><span class="sub">até 5 locais</span></div><div class="form"><div class="wl">${st.places.length ? st.places.map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button><button type="button" class="xbtn" data-rmplace="${esc(p.id)}" aria-label="${esc('Desligar ' + p.name)}">✕</button></div>`).join('') : '<div class="hint">Nenhum local. Liga-a no separador Análise.</div>'}</div>
-        <div class="hint">O Claude escreve a análise às ${esc((st.status?.schedule || SCHEDULE).join(', '))}, com os modelos, as observações e as imagens de satélite.</div></div></section>`;
-    const stTxt = st.status ? `Ligado · versão ${esc(st.status.version || '?')} · análise imediata: ${st.status.onDemand ? 'sim' : 'não'}` : st.statusErr ? `Sem resposta: ${esc(st.statusErr)}` : 'A testar…';
-    h += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form"><div><label for="f-proxy">Endereço do teu Worker</label>
+    h += placesSettingsHtml();
+    if (isOwner()) h += usageHtml();
+    h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
+        <div class="hint">Envia o endereço da app e como a instalar: no iPhone, abre no Safari → Partilhar → «Adicionar ao ecrã principal»; no Android, abre no Chrome → ⋮ → «Instalar app». É grátis e sem conta; a análise do Claude é opcional, 1 local por telemóvel.</div></div></section>`;
+    const stTxt = st.status ? `Ligado · versão ${esc(st.status.version || '?')} · análise imediata: ${st.status.onDemand ? 'sim' : 'não'}${st.status.owner ? ' · és o dono' : ''}` : st.statusErr ? `Sem resposta: ${esc(st.statusErr)}` : 'A testar…';
+    // código do dono guardado (de ?dono=) que o conector não aceita: dizê-lo e deixar esquecê-lo
+    const oc = api.ownerCode() && st.status && !st.status.owner
+        ? `<div class="banner warn own-note">${ui('alert')}<span>${st.status.ownerCode === 'sem_codigo' ? 'Há um código do dono guardado neste telemóvel, mas o conector ainda não tem o segredo OWNER_CODE.' : 'O código do dono guardado neste telemóvel não foi aceite pelo conector.'}</span><button type="button" class="btn sm" data-act="owner-forget">Esquecer</button></div>` : '';
+    h += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
         <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${esc(DEFAULT_PROXY)}" value="${esc(cfg.proxy)}"><button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
         <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div></div></section>`;
     h += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
@@ -741,6 +814,63 @@ function viewSettings() {
     if (S) h += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
     h += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
     return { title, html: h };
+}
+
+// Ajustes → "Análise diária do Claude": os locais deste telemóvel; o dono vê também os dos outros (só o nome, ~1 km e o
+// estado) e pode desligá-los (e voltar a ligar os que desligou)
+function placeState(p) {
+    if (p.off) return p.offBy === 'owner' ? 'desligada por ti' : 'desligada no telemóvel';
+    return p.status === 'paused' ? `em pausa (${PAUSE_DAYS} dias sem abrir a app)` : 'em uso';
+}
+function placeRow(p, other = false) {
+    const where = other ? `~${F.num(p.lat, 2)}, ${F.num(p.lon, 2)} · ${placeState(p)}` : `${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`;
+    const act = !p.off ? `<button type="button" class="xbtn" data-rmplace="${esc(p.id)}" aria-label="${esc('Desligar ' + p.name)}">✕</button>`
+        : other && p.offBy === 'owner' ? `<button type="button" class="btn sm" data-onplace="${esc(p.id)}">Ligar</button>` : '';
+    return `<div class="wl-i${p.off ? ' off' : ''}"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(where)}</small></button>${act}</div>`;
+}
+function placesSettingsHtml() {
+    const owner = isOwner(), mineOn = onPlaces();
+    const byOwner = !owner && myPlaces().some((p) => p.off && p.offBy === 'owner');
+    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Análise diária do Claude</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por telemóvel'}</span></div><div class="form">
+        <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise do Claude» do local que quiseres.'}</div>`}</div>`;
+    if (owner) {
+        const others = st.places.filter((p) => p.mine === false);
+        h += `<div><label>Dos outros telemóveis</label><div class="wl">${others.length ? others.map((p) => placeRow(p, true)).join('') : '<div class="hint">Ainda nenhum.</div>'}</div>
+            <div class="hint">Só o nome e a zona (~1 km), nunca o ponto exato. ✕ desliga a análise desse telemóvel e só tu a voltas a ligar.</div></div>`;
+    }
+    const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
+    return h + `<div class="hint">O Claude escreve a análise ${esc(when)}, com os modelos, as observações, o radar e as imagens de satélite.${owner ? ''
+        : ` Só este telemóvel a vê; se não abrires a app durante ${PAUSE_DAYS} dias, fica em pausa até voltares.`}</div></div></section>`;
+}
+// Ajustes → "Utilização" (só o dono): telemóveis que abrem a app, locais, análises do Claude e a "análise dos outros"
+const pastDay = (d, today) => { const k = F.dayDiff(today, d); return k === 0 ? 'Hoje' : k === -1 ? 'Ontem' : F.dayLabel(d, today); };
+function useState(x) {
+    if (x.status === 'off') return 'desligado';
+    if (x.status === 'paused') return `em pausa${F.isNum(x.days) ? ` · há ${x.days} dias sem abrir a app` : ''}`;
+    if (!x.analysed) return x.reason || 'de fora';
+    return F.isNum(x.days) ? (x.days === 0 ? 'em uso · abriu a app hoje' : `em uso · abriu a app há ${x.days} dia${x.days === 1 ? '' : 's'}`) : 'em uso';
+}
+function usageHtml() {
+    const u = st.usage;
+    let b;
+    if (!u) b = st.usageErr ? `<div class="hint">Sem dados (${esc(st.usageErr)}). <button type="button" class="btn sm" data-act="usage">Tentar</button></div>` : '<div class="skel skel-l"></div><div class="skel skel-l s"></div>';
+    else {
+        const D = u.devices, P = u.places, guests = P.list.filter((x) => x.kind === 'guest');
+        const sum = u.analyses.reduce((a, d) => ({ s: a.s + d.scheduled, i: a.i + d.instant, g: a.g + d.guest }), { s: 0, i: 0, g: 0 });
+        b = `<div class="stats use-st">
+            <div><small>Telemóveis hoje</small><b class="num">${esc(F.num(D.today))}</b><em>abriram a app</em></div>
+            <div><small>7 dias · 30 dias</small><b class="num">${esc(`${F.num(D.d7)} · ${F.num(D.d30)}`)}</b><em>${esc(`${F.num(D.total)} no total${D.owner ? ` (${F.num(D.owner)} teu${D.owner === 1 ? '' : 's'})` : ''}`)}</em></div>
+            <div><small>Locais com análise</small><b class="num">${esc(F.num(P.owner + P.guests - P.off))}</b><em>${esc(`${F.num(P.owner)} teu${P.owner === 1 ? '' : 's'} · ${F.num(P.guests)} de outros${P.paused ? ` · ${F.num(P.paused)} em pausa` : ''}`)}</em></div>
+            <div><small>Analisados por corrida</small><b class="num">${esc(`${F.num(P.analysed)} de ${F.num(P.cap)}`)}</b><em>os teus nunca ficam de fora</em></div></div>
+            <div><label>Locais dos outros <small>(só o nome)</small></label>${guests.length ? `<ul class="use-l">${guests.map((x) => `<li><b>${esc(x.name)}</b><span>${esc(useState(x))}</span></li>`).join('')}</ul>` : '<div class="hint">Ainda nenhum.</div>'}</div>
+            <div><label>Análises do Claude, últimos 7 dias</label><div class="cmp-scroll"><table class="tbl use-t"><thead><tr><th scope="col">Dia</th><th scope="col">Agendadas</th><th scope="col">Imediatas</th><th scope="col">De outros</th></tr></thead>
+                <tbody>${u.analyses.map((d) => `<tr><th scope="row">${esc(pastDay(d.date, u.today))}</th><td>${esc(F.num(d.scheduled))}</td><td>${esc(F.num(d.instant))}</td><td>${esc(F.num(d.guest))}</td></tr>`).join('')}</tbody>
+                <tfoot><tr><th scope="row">7 dias</th><td>${esc(F.num(sum.s))}</td><td>${esc(F.num(sum.i))}</td><td>${esc(F.num(sum.g))}</td></tr></tfoot></table></div></div>`;
+    }
+    const mode = u?.others || othersMode();
+    return `<section class="sec" id="uso"><div class="sec-h"><h2>Utilização</h2><span class="sub">só tu vês isto</span></div><div class="form">${b}
+        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise diária do Claude nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${l}</button>`).join('')}</div>
+        <div class="hint">A análise diária do Claude nos outros telemóveis. «Só 1× por dia»: só na análise das 07:34. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
 }
 
 // ---------- folhas ----------
@@ -773,7 +903,7 @@ function renderSheet() {
             <button type="button" class="btn pri blk" data-act="gps">${ui('gps')}Usar a minha localização exata</button>
             <div style="margin-top:12px"><label class="sr-only" for="f-q">Pesquisar local</label><input id="f-q" class="inp" type="search" placeholder="Cidade, vila ou freguesia" autocomplete="off" autocapitalize="words" enterkeyhint="search"><div class="res" id="f-res" aria-live="polite"></div></div>
             ${cfg.favs.length ? `<div class="grp-h" style="margin-top:18px">Favoritos</div><div class="wl">${cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}
-            ${st.places.length ? `<div class="grp-h" style="margin-top:18px">Com análise diária</div><div class="wl">${st.places.map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}`;
+            ${onPlaces().length ? `<div class="grp-h" style="margin-top:18px">Com análise diária</div><div class="wl">${onPlaces().map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}`;
         return;
     }
     if (s.kind === 'report') {
@@ -787,11 +917,18 @@ function renderSheet() {
     if (s.kind === 'off') {
         const p = st.places.find((x) => x.id === s.arg?.id);
         if (!p) { closeSheet(); return; }
-        const sched = st.status?.schedule || SCHEDULE;
+        const other = p.mine === false; // o dono a desligar o local de outro telemóvel
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Desligar a análise diária de ${esc(p.name)}?</h2>
-            <div class="d-sub">A análise atual fica guardada.</div></div>${closeBtn}</div>
-            <p class="note" style="margin:0 2px 14px">O Claude deixa de analisar este local às ${esc(sched.join(', '))}. Se voltares a ligar, aparece outra vez a última análise.</p>
+            <div class="d-sub">${other ? 'É o local de outro telemóvel.' : 'A análise atual fica guardada.'}</div></div>${closeBtn}</div>
+            <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise do Claude e não a pode voltar a ligar; tu podes, em Ajustes.'
+                : `O Claude deixa de analisar este local às ${esc(schedTxt())}. Se voltares a ligar, aparece outra vez a última análise.`}</p>
             <div class="btns-col"><button type="button" class="btn blk danger" data-act="off-yes">Desligar</button><button type="button" class="btn blk" data-act="close">Cancelar</button></div>`;
+        return;
+    }
+    if (s.kind === 'share') { // sem partilha do sistema nem acesso à área de transferência: o texto para copiar à mão
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Partilhar a Meteo</h2><div class="d-sub">Copia o texto e envia-o numa mensagem.</div></div>${closeBtn}</div>
+            <label class="sr-only" for="f-share">Texto para partilhar</label><textarea id="f-share" class="inp share-t" readonly rows="9">${esc(SHARE_TEXT)}</textarea>
+            <div class="btns-col" style="margin-top:12px"><button type="button" class="btn pri blk" data-act="share-copy">Copiar o texto</button></div>`;
         return;
     }
     if (s.kind === 'day') {
@@ -901,12 +1038,12 @@ async function doSearch(qtext) {
 
 // ---------- ações ----------
 async function togglePlace(on) {
+    if (!cfg.loc) return;
     try {
-        if (on && !nearPlace()) {
-            const p = await api.addPlace(placeName(), cfg.loc.lat, cfg.loc.lon);
-            if (p) st.places = [...st.places.filter((x) => x.id !== p.id), p];
-            toast(`Ligada. A primeira análise chega ${nextRun()}.`);
-        } else if (!on) {
+        if (on) {
+            if (nearPlace()) toast('A análise diária já está ligada para este local.');
+            else await turnOn();
+        } else {
             const p = nearPlace();
             if (p) { openSheet('off', { id: p.id }); return; }
             toast('A análise diária já está desligada para este local.');
@@ -914,26 +1051,91 @@ async function togglePlace(on) {
     } catch (e) { toast(e.message); }
     render();
 }
-// desligar só depois de confirmar (folha); a análise fica guardada no conector e "Desfazer" volta a ligar o mesmo local
+// Ligar a análise diária aqui: um local seu desligado perto volta a ligar-se (o mesmo id: a última análise e as lições
+// ficam); nos outros telemóveis (1 local cada) o seu local muda para aqui; senão regista-se um novo
+async function turnOn() {
+    const { lat, lon } = cfg.loc, name = placeName();
+    const off = myPlaces().find((p) => p.off && haversineKm(p.lat, p.lon, lat, lon) <= FAR_KM);
+    if (off) {
+        upsertPlace(await api.updatePlace(off.id, { on: true }));
+        toast(`Análise diária de ${off.name} ligada de novo. A próxima chega ${nextRun()}.`);
+        loadAnalysis(cfg.loc);
+        return;
+    }
+    const one = !isOwner() && myPlaces()[0];
+    if (one) { await moveHere(one, name); return; }
+    try {
+        upsertPlace(await api.addPlace(name, lat, lon));
+        toast(`Ligada. A primeira análise chega ${nextRun()}.`);
+    } catch (e) {
+        if (e.code !== 'limite' || !e.data?.place) throw e;
+        upsertPlace(e.data.place); // já tinha um local (noutro sítio): muda-o para aqui
+        await moveHere(e.data.place, name);
+        return;
+    }
+    loadAnalysis(cfg.loc); // o conector pode ter voltado a ligar um local antigo daqui, com a última análise
+}
+async function moveHere(p, name) {
+    const from = { lat: p.lat, lon: p.lon, name: p.name, off: !!p.off };
+    upsertPlace(await api.updatePlace(p.id, { lat: cfg.loc.lat, lon: cfg.loc.lon, name, on: true }));
+    render();
+    loadAnalysis(cfg.loc);
+    toast(from.off ? `Ligada. A primeira análise chega ${nextRun()}.` : `A tua análise diária passa de ${from.name} para este local. A próxima chega ${nextRun()}.`,
+        () => api.updatePlace(p.id, { lat: from.lat, lon: from.lon, name: from.name, ...(from.off ? { on: false } : {}) })
+            .then((n) => { upsertPlace(n); render(); toast(`A análise diária voltou para ${from.name}.`); }).catch((e) => toast(e.message)));
+}
+// desligar só depois de confirmar (folha); o local fica guardado no conector (com a análise e as lições) e "Desfazer"
+// volta a ligá-lo, com o mesmo id
 async function placeOff(id) {
     const p = st.places.find((x) => x.id === id);
     closeSheet(true);
     if (!p) return;
     try {
         await api.deletePlace(p.id);
-        st.places = st.places.filter((x) => x.id !== p.id);
+        upsertPlace({ ...p, off: true, offBy: p.mine === false ? 'owner' : 'device' });
         render();
         toast(`Análise diária desligada para ${p.name}.`, () => placeBack(p));
     } catch (e) { toast(e.message); }
 }
 async function placeBack(p) {
     try {
-        const n = await api.addPlace(p.name, p.lat, p.lon);
-        if (n) st.places = [...st.places.filter((x) => x.id !== n.id), n];
+        upsertPlace(await api.updatePlace(p.id, { on: true }));
         render();
         toast(`Análise diária de ${p.name} ligada de novo.`);
         if (cfg.loc) loadAnalysis(cfg.loc);
     } catch (e) { toast(e.message); }
+}
+// Partilhar a app: a partilha do sistema (Web Share); sem ela, copiar o texto; sem isso, mostrá-lo para copiar à mão
+async function shareApp() {
+    if (navigator.share) {
+        try { await navigator.share({ title: 'Meteo', text: SHARE_TEXT }); return; } catch (e) { if (e?.name === 'AbortError') return; }
+    }
+    if (await copyText(SHARE_TEXT)) { toast('Texto copiado: cola-o numa mensagem.'); return; }
+    openSheet('share');
+}
+async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch { /* sem acesso à área de transferência */ }
+    const ta = $('#f-share');
+    if (!ta) return false;
+    ta.focus(); ta.select();
+    try { return document.execCommand('copy'); } catch { return false; }
+}
+// só o dono: a análise diária do Claude nos outros telemóveis (ligada | só 1× por dia | desligada)
+async function setOthers(mode) {
+    if (!isOwner() || !OTHERS_UI.some(([v]) => v === mode) || mode === (st.usage?.others || othersMode())) return;
+    try {
+        const r = await api.setOthers(mode);
+        if (st.status) st.status = { ...st.status, others: r.others };
+        if (st.usage) st.usage = { ...st.usage, others: r.others };
+        render();
+        toast(`Análise dos outros: ${OTHERS_UI.find(([v]) => v === r.others)[1].toLowerCase()}.`);
+        loadUsage();
+    } catch (e) { toast(e.message); }
+}
+function ownerForget() {
+    api.setOwnerCode('');
+    toast('Código do dono esquecido neste telemóvel.');
+    loadStatus();
 }
 // "Mudar a análise diária para este ponto": o local registado passa para o ponto selecionado (mesmo id: a última
 // análise e as lições ficam); "Desfazer" volta a pô-lo onde estava
@@ -969,7 +1171,7 @@ async function analyzeNow() {
     if (!st.fc || st.analyzing) return;
     st.analyzing = true; render();
     try {
-        const analysis = await requestAnalysis(viewFc(), { reports: st.reports });
+        const analysis = await requestAnalysis(viewFc(), { reports: st.reports, headers: api.identityHeaders() });
         st.analysis = { ...(st.analysis || {}), analysis, ageMin: 0, offline: false };
         if (cfg.loc) api.saveAnalysis(cfg.loc.lat, cfg.loc.lon, st.analysis);
         toast('Análise feita ✓');
@@ -988,7 +1190,7 @@ async function saveProxy() {
 }
 
 document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-report]');
+    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-others],[data-report]');
     if (!t) return;
     const d = t.dataset;
     if (d.tab) { cfg.tab = d.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); if (d.tab === 'ajustes') loadStatus(); return; }
@@ -1003,6 +1205,8 @@ document.addEventListener('click', (ev) => {
     if (d.rmfav != null) { const f = cfg.favs[+d.rmfav]; cfg.favs.splice(+d.rmfav, 1); saveCfg(); render(); if (f) toast(`${f.name} retirado dos favoritos`); return; }
     if (d.goplace) { const p = st.places.find((x) => x.id === d.goplace); if (p) { closeSheet(); setLocation({ lat: p.lat, lon: p.lon, name: p.name }); } return; }
     if (d.rmplace) { if (st.places.some((x) => x.id === d.rmplace)) openSheet('off', { id: d.rmplace }); return; }
+    if (d.onplace) { const p = st.places.find((x) => x.id === d.onplace); if (p) placeBack(p); return; }
+    if (d.others) { setOthers(d.others); return; }
     switch (d.act) {
         case 'close': closeSheet(true); break;
         case 'place': openSheet('place'); break;
@@ -1017,6 +1221,10 @@ document.addEventListener('click', (ev) => {
         case 'report': openSheet('report'); break;
         case 'rad-play': radarPlay(); break;
         case 'save-proxy': saveProxy(); break;
+        case 'share': shareApp(); break;
+        case 'share-copy': copyText(SHARE_TEXT).then((ok) => toast(ok ? 'Texto copiado: cola-o numa mensagem.' : 'Seleciona o texto e copia-o.')); break;
+        case 'usage': st.usageErr = ''; render(); loadUsage(); break;
+        case 'owner-forget': ownerForget(); break;
         case 'fav': {
             const i = cfg.favs.findIndex((f) => near(f, cfg.loc));
             if (i >= 0) { cfg.favs.splice(i, 1); toast('Retirado dos favoritos'); }
@@ -1039,5 +1247,5 @@ document.addEventListener('keydown', (e) => {
 });
 
 // para os testes
-window.__mt = { cfg, st, render };
+window.__mt = { cfg, st, render, loadAnalysis, SHARE_TEXT };
 init();

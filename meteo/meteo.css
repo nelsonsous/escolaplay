@@ -446,3 +446,25 @@ div.claude { cursor: auto; }
 .sat-bar .btn .i { width: 1em; height: 1em; }
 .rad-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 2px 0; font-size: calc(.75rem * var(--k)); color: var(--soft); }
 .rad-leg i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; }
+
+/* ---------- 1.4: análise diária opcional, utilização (dono) e partilhar ---------- */
+/* cartão sem análise: a escolha clara de ligar a análise diária do Claude para este local */
+.claude.cl-opt, .today.cl-opt { cursor: auto; }
+.today.cl-opt p { margin: 6px 0 0; color: var(--soft); }
+.cl-opt .cl-on { width: 100%; margin-top: 12px; white-space: normal; text-align: center; line-height: 1.3; }
+.cl-opt .cl-on .i { color: currentColor; width: 1.1em; height: 1.1em; flex: none; }
+.wl-i.off b, .wl-i.off small { opacity: .6; }
+.own-note { margin: 0; }
+/* painel "Utilização" */
+.use-st { margin-bottom: 0; }
+.use-l { list-style: none; margin: 0; padding: 0; display: grid; }
+.use-l li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: calc(.88rem * var(--k)); }
+.use-l li:first-child { border-top: 0; }
+.use-l b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.use-l span { color: var(--muted); font-size: calc(.8rem * var(--k)); text-align: right; flex: none; max-width: 60%; }
+.use-t td, .use-t tfoot th { font-weight: 600; }
+.use-t tfoot th, .use-t tfoot td { border-bottom: 0; color: var(--soft); }
+.use-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+.use-seg button { white-space: normal; line-height: 1.2; padding: 6px 4px; }
+/* partilhar, sem a partilha do sistema: o texto para copiar à mão */
+.share-t { min-height: 180px; resize: vertical; line-height: 1.45; font-size: calc(.88rem * var(--k)); }
