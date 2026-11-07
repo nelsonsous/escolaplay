@@ -31,12 +31,15 @@ before(async () => {
 });
 after(() => servidor.close());
 
-const script = (nome, args) => correr(process.execPath, [join(RAIZ, 'curador', nome), ...args], { env: { ...process.env, MUSICA_WORKER: base, MUSICA_CHAVE: CHAVE }, timeout: 60000 })
+const script = (nome, args, { semChave = false } = {}) => correr(process.execPath, [join(RAIZ, 'curador', nome), ...args],
+    // sem chave: e uma conta Cloudflare que não existe, para nunca ir à KV verdadeira
+    { env: { ...process.env, MUSICA_WORKER: base, ...(semChave ? { MUSICA_CHAVE: '', CF_ACCOUNT_ID: 'conta-de-teste' } : { MUSICA_CHAVE: CHAVE }) }, timeout: 60000 })
     .catch((e) => ({ stdout: e.stdout, stderr: e.stderr, code: e.code }));
 
-test('sem Tidal ligado: os dados dizem para terminar', async () => {
+test('sem Tidal ligado (e ainda sem chave do agente): os dados dizem para terminar', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'musica-'));
-    const r = await script('dados.mjs', [dir]);
+    const r = await script('dados.mjs', [dir], { semChave: true });
+    assert.equal(r.code, undefined, r.stderr);
     assert.match(r.stdout, /Tidal não ligado/);
     assert.match(readFileSync(join(dir, 'dados.md'), 'utf8'), /Termina aqui/);
 });

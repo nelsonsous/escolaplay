@@ -9,7 +9,8 @@ import { qualidadeTexto, camelotTexto } from '../lib/tidal.js';
 const dir = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : '/tmp/musica';
 mkdirSync(dir, { recursive: true });
 
-const estado = await api('/api/estado');
+// o estado não precisa de chave: antes da primeira ligação ao Tidal ainda não há chave do agente
+const estado = await api('/api/estado', { semChave: true });
 if (!estado.ligado) {
     const msg = estado.clientId ? 'O Tidal ainda não foi ligado na app.' : 'Ainda falta o Client ID do Tidal no conector.';
     writeFileSync(join(dir, 'dados.md'), `# Curador\n\n**Tidal não ligado** — ${msg} Termina aqui.\n`);
