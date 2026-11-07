@@ -104,6 +104,17 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## Simples (1.7)
+
+Como a app da Trade Republic: o essencial à vista e o resto em «Ver mais», que fica aberto enquanto a app está aberta.
+- **Agora**: a temperatura, o que vem nas próximas 2 horas, os avisos que contam e o Claude com «Amanhã» (e o que
+  vestir). Depois as próximas horas e os próximos 5 dias. O radar, as estações e o relevo ficam em «Detalhes» e os
+  indicadores em «Indicadores». O gráfico das 2 horas só aparece com chuva a caminho.
+- **Análise**: o essencial do Claude (resumo, alertas, amanhã, o que vestir); o resto em «Ver a análise completa». As
+  fontes lado a lado, a fiabilidade, a aprendizagem, as observações e os modelos ficam em «Detalhes técnicos».
+- **Ajustes**: Local, Notificações, Análise diária, Partilhar, Este telemóvel; o conector, o código do dono, a letra,
+  o estado das fontes e as licenças em «Avançado».
+
 ## Quem usa a app (1.6.1)
 
 Cada telemóvel tem um **código curto** (os primeiros 6 caracteres do seu id aleatório, ex.: `a1b2c3`) e, se a pessoa

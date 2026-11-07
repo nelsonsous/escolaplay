@@ -185,9 +185,7 @@ export function renderHourly(root, hourly, { todayIso } = {}) {
 
   root.innerHTML = `
     <div class="legend" aria-hidden="true">
-      <div class="lg-row"><span class="lg-name">Temperatura</span><span class="lg"><i class="k-line k-t"></i>consenso</span><span class="lg"><i class="k-area k-t"></i>variação entre modelos</span></div>
-      <div class="lg-row"><span class="lg-name">Chuva</span><span class="lg"><i class="k-bar p1"></i><i class="k-bar p2"></i><i class="k-bar p3"></i>probabilidade &lt;30 · 30–60 · &gt;60%</span><span class="lg"><i class="k-cap"></i>máximo dos modelos</span></div>
-      <div class="lg-row"><span class="lg-name">Vento</span><span class="lg"><i class="k-line k-w"></i>rajada</span><span class="lg"><i class="k-area k-w"></i>médio</span><span class="lg"><i class="k-arrow"></i>para onde sopra</span></div>
+      <div class="lg-row"><span class="lg"><i class="k-line k-t"></i>temperatura</span><span class="lg"><i class="k-bar p3"></i>chuva</span><span class="lg"><i class="k-line k-w"></i>vento (rajada)</span></div>
     </div>
     <div class="chart-body">
       <svg class="chart-axis" width="${AXIS_W}" height="${G.H}" viewBox="0 0 ${AXIS_W} ${G.H}" aria-hidden="true">${ax}</svg>
