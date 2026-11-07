@@ -1,6 +1,6 @@
 // Conselheiro — peças comuns aos scripts da tarefa agendada (Node 18+, sem dependências).
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,6 +60,9 @@ export async function kvPut(key, value) {
 
 // Data de hoje em Lisboa (AAAA-MM-DD)
 export const todayLisbon = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
+// o ficheiro corre como script (e não importado pelos testes)? Caminhos reais: o Node resolve as ligações simbólicas no módulo
+const real = (p) => { try { return realpathSync(p); } catch { return path.resolve(p); } };
+export const isMain = (url) => !!process.argv[1] && real(process.argv[1]) === real(fileURLToPath(url));
 
 // Universo seguido (as mesmas listas da app; a chave é a da app)
 // Só ativos que se compram na Trade Republic: grandes empresas mundiais (as mesmas da app).
@@ -75,10 +78,69 @@ export const FUNDS = {
     'IS3N.DE': 'Mercados emergentes (iShares)', 'EXSA.DE': 'Europa 600 (iShares)', '4GLD.DE': 'Ouro físico (Xetra-Gold)',
 };
 export const CRYPTO = { 'c:BTC': ['BTC-EUR', 'Bitcoin'], 'c:ETH': ['ETH-EUR', 'Ether'], 'c:SOL': ['SOL-EUR', 'Solana'], 'c:XRP': ['XRP-EUR', 'XRP'] };
-export const MARKET = { '^GSPC': 'S&P 500', '^IXIC': 'Nasdaq', '^STOXX50E': 'Euro Stoxx 50', 'PSI20.LS': 'PSI', '^VIX': 'VIX', 'EURUSD=X': 'EUR/USD', 'BZ=F': 'Brent', 'GC=F': 'Ouro (futuros)' };
-export const ACTION_KEYS = ['buy', 'scale', 'hold', 'wait', 'neutral', 'turn', 'avoid', 'sell'];
+// Referência: o que a app mostra mas não se compra diretamente na TR (índices, câmbio, futuros de energia e ouro)
+export const MARKET = {
+    '^GSPC': 'S&P 500', '^IXIC': 'Nasdaq', '^STOXX50E': 'Euro Stoxx 50', 'PSI20.LS': 'PSI', '^VIX': 'VIX', 'EURUSD=X': 'EUR/USD',
+    'BZ=F': 'Petróleo Brent', 'CL=F': 'Petróleo WTI', 'RB=F': 'Gasolina (RBOB)', 'HO=F': 'Gasóleo (ULSD)', 'NG=F': 'Gás natural', 'GC=F': 'Ouro (futuros)',
+};
+// o que o investidor tem (a app mostra-os em "Os meus ativos")
+export const MINE = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];
 
-// chave da app → símbolo do Yahoo
-export const yahooOf = (k) => (CRYPTO[k] ? CRYPTO[k][0] : k);
-export const kindOf = (k) => (CRYPTO[k] ? 'crypto' : FUNDS[k] ? 'fund' : MARKET[k] ? 'market' : 'stock');
+// chave da app → símbolo do Yahoo (c:ADA → ADA-EUR)
+export const yahooOf = (k) => (CRYPTO[k] ? CRYPTO[k][0] : k.startsWith('c:') ? k.slice(2) + '-EUR' : k);
+export const kindOf = (k) => (CRYPTO[k] || k.startsWith('c:') ? 'crypto' : FUNDS[k] ? 'fund' : MARKET[k] ? 'market' : 'stock');
 export const nameOf = (k) => STOCKS[k] || FUNDS[k] || (CRYPTO[k] && CRYPTO[k][1]) || MARKET[k] || k;
+
+// ---------- veredicto do Claude por ativo (publicar.mjs e outros.mjs) ----------
+// ativos que se compram: comprar … evitar; referência (índices, câmbio, futuros): direção do preço
+export const ACTION_KEYS = ['buy', 'scale', 'hold', 'wait', 'neutral', 'turn', 'reduce', 'sell', 'avoid'];
+export const REF_KEYS = ['up', 'flat', 'down'];
+export const ACTION_LABEL = {
+    buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Manter, sem reforçar', turn: 'Esperar confirmação',
+    reduce: 'Reduzir', sell: 'Vender', avoid: 'Evitar', up: 'Em alta', flat: 'Lateral', down: 'Em queda',
+};
+export const HZ = ['short', 'mid', 'long']; // curto (dias a 2 semanas), médio (semanas a 3 meses), longo (anos)
+export const LEVELS = ['entry', 'target', 'stop']; // entrada, alvo e stop, na moeda do ativo
+
+// texto: obrigatório ou não, com tamanho máximo; os erros vão para errs
+export const textCheck = (errs) => (v, max, name, req) => {
+    if (v == null || v === '') { if (req) errs.push(`falta ${name}`); return ''; }
+    if (typeof v !== 'string') { errs.push(`${name} tem de ser texto`); return ''; }
+    if (v.length > max) errs.push(`${name} com mais de ${max} caracteres`);
+    return v;
+};
+
+// Valida e normaliza o veredicto de um ativo. opt: p (prefixo dos erros), ref (índice/futuro), price (preço de hoje,
+// na moeda do ativo, para apanhar níveis com a unidade errada), scores ('req' ou 'opt'), plan (aceita o campo plan)
+export function normVerdict(x, errs, opt = {}) {
+    const { p = 'ativo', ref = false, price = null, scores = 'req', plan = true } = opt;
+    if (!x || typeof x !== 'object' || Array.isArray(x)) { errs.push(`${p}: tem de ser um objeto`); return { s: null }; }
+    const str = textCheck(errs);
+    const keys = ref ? REF_KEYS : ACTION_KEYS;
+    if (!keys.includes(x.key)) errs.push(`${p}.key inválido: ${x.key} (${ref ? 'referência' : 'ativo que se compra'}: ${keys.join(', ')})`);
+    const o = { s: x.s, key: x.key, action: str(x.action, 40, `${p}.action`) || ACTION_LABEL[x.key] || '', why: str(x.why, 280, `${p}.why`, true) };
+    if (plan) { const t = str(x.plan, 280, `${p}.plan`); if (t) o.plan = t; }
+    // convicção 0–100 por prazo (50 = neutro; como a pontuação da app)
+    for (const h of HZ) {
+        if (x[h] == null || x[h] === '') { if (scores === 'req') errs.push(`falta ${p}.${h} (convicção 0–100)`); continue; }
+        const n = Number(x[h]);
+        if (typeof x[h] === 'boolean' || !Number.isFinite(n) || n < 0 || n > 100) errs.push(`${p}.${h}: a convicção é de 0 a 100 (veio ${JSON.stringify(x[h])})`);
+        else o[h] = Math.round(n);
+    }
+    // a escala ao contrário (100 = vender) é o erro mais provável: comprar pede convicção a favor nalgum prazo, vender/evitar contra
+    const sc = HZ.map((h) => o[h]).filter(Number.isFinite);
+    if (sc.length === 3 && ['buy', 'scale'].includes(x.key) && Math.max(...sc) < 50) errs.push(`${p}: "${o.action}" com convicção contra nos três prazos (${sc.join('/')}): 100 = muito a favor`);
+    if (sc.length === 3 && ['sell', 'avoid'].includes(x.key) && Math.min(...sc) > 50) errs.push(`${p}: "${o.action}" com convicção a favor nos três prazos (${sc.join('/')}): 0 = muito contra`);
+    // níveis (opcionais): números na moeda do ativo, perto do preço de hoje; stop < entrada < alvo
+    for (const l of LEVELS) {
+        if (x[l] == null || x[l] === '') continue;
+        const n = Number(x[l]);
+        if (typeof x[l] === 'boolean' || !Number.isFinite(n) || n <= 0) { errs.push(`${p}.${l} tem de ser um número (na moeda do ativo)`); continue; }
+        if (Number.isFinite(price) && price > 0 && (n < price / 4 || n > price * 4)) errs.push(`${p}.${l} = ${n} longe do preço de hoje (${price}): está na moeda do ativo?`);
+        o[l] = Number(n.toPrecision(6));
+    }
+    if (o.stop != null && o.entry != null && o.stop >= o.entry) errs.push(`${p}: o stop (${o.stop}) tem de ficar abaixo da entrada (${o.entry})`);
+    if (o.entry != null && o.target != null && o.target <= o.entry) errs.push(`${p}: o alvo (${o.target}) tem de ficar acima da entrada (${o.entry})`);
+    if (o.stop != null && o.target != null && o.target <= o.stop) errs.push(`${p}: o alvo (${o.target}) tem de ficar acima do stop (${o.stop})`);
+    return o;
+}
