@@ -49,5 +49,7 @@ export async function api(caminho, { method = 'GET', body, semChave = false, ms 
 
 export const arg = (name, def = null) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : def; };
 export const flag = (name) => process.argv.includes(name);
-export const lisboa = (d = new Date()) => d.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+// a hora de agora (MUSICA_AGORA, em ISO, fixa-a — os testes de paridade com a versão Onda usam-na)
+export const agora = () => (process.env.MUSICA_AGORA ? new Date(process.env.MUSICA_AGORA) : new Date());
+export const lisboa = (d = agora()) => d.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export const minutos = (s) => `${Math.floor(s / 60)} min`;

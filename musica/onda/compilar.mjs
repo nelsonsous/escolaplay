@@ -1,4 +1,4 @@
-// Compila o motor de curadoria e a app com o compilador Onda do repositório (onda/seed/ondac.wasm) e grava:
+// Compila o motor de curadoria, a app e os scripts do Maestro com o compilador Onda do repositório (onda/seed/ondac.wasm) e grava:
 //   curador.wasm — motor.onda + curador.onda: o programa de linha de comando (tarefa agendada, testes)
 //   curador.c    — o mesmo em C, para o juiz (testes) compilar em nativo e comparar ao bit
 //   ../app/musica.wasm — onda/lib/app.onda + motor.onda + ../app/musica.onda: a app, uma «app em Onda»
@@ -58,6 +58,8 @@ export function fontes() {
     return {
         curador: motor + '\n' + ler('curador.onda'),
         app: existsSync(app) && existsSync(lib) ? readFileSync(lib, 'utf8') + '\n' + motor + '\n' + readFileSync(app, 'utf8') : null,
+        // os scripts do Maestro (a tarefa agendada), com a biblioteca de apps (textos e JSON), para o anfitrião Node
+        maestro: existsSync(lib) ? readFileSync(lib, 'utf8') + '\n' + readFileSync(join(AQUI, '..', 'curador', 'onda', 'dados.onda'), 'utf8') : null,
     };
 }
 export async function compilarTudo(compilador) {
@@ -66,6 +68,7 @@ export async function compilarTudo(compilador) {
         'curador.wasm': await ondac(compilador, f.curador, ['-w']),
         'curador.c': await ondac(compilador, f.curador, []),
         ...(f.app ? { '../app/musica.wasm': await ondac(compilador, f.app, ['-w']) } : {}),
+        ...(f.maestro ? { '../curador/maestro.wasm': await ondac(compilador, f.maestro, ['-w']) } : {}),
     };
 }
 

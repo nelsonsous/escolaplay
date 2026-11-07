@@ -67,7 +67,7 @@ convidada com o prefixo `u:<id>:`; o agente escolhe a pessoa com `?u=<id>` e vê
 ```bash
 cd musica
 npm test                 # motor (juiz: app, anfitrião oficial e nativo), Worker, biblioteca, Maestro, a app em Onda no Chromium
-npm run onda             # recompila com onda/seed/ondac.wasm: onda/curador.wasm + curador.c e app/musica.wasm
+npm run onda             # recompila com onda/seed/ondac.wasm: onda/curador.wasm + curador.c, app/musica.wasm e curador/maestro.wasm
 cd proxy && npm install && npx wrangler deploy
 node scripts/make-icons.mjs
 ```
@@ -79,4 +79,6 @@ nativo do C gerado — e exige o mesmo resultado, ao bit.
 
 Estrutura: `app/` (a app em Onda), `onda/` (`motor.onda`, o programa de linha de comando `curador.onda` e o anfitrião
 de três portas para o Node), `lib/` (Tidal, sinais, proposta, curadoria — partilhado pelo Worker e pela tarefa
-agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada), `tests/`.
+agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada: o dos dados é Onda — `curador/onda/dados.onda` →
+`curador/maestro.wasm`, corrido pelo `correr.mjs` com o anfitrião Node da Onda; a versão JavaScript fica em
+`curador/js/` como referência do teste de paridade, ao byte), `tests/`.

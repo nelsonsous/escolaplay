@@ -1,0 +1,442 @@
+# Maestro em Onda — os dados da tarefa agendada (o que era o curador/dados.mjs; a versao em JavaScript fica em
+# curador/js/dados.mjs, so como referencia do teste de paridade). Para cada pessoa da app: o que ouve (favoritas,
+# artistas, playlists), os pedidos a espera, a playlist da semana, as novidades dos artistas que segue, as mixes do
+# Tidal e o que o Maestro ja fez. Grava <dir>/dados.md e <dir>/<pessoa>/perfil.json (o do dono tambem em
+# <dir>/perfil.json) e mostra o dados.md.
+#   node musica/curador/dados.mjs [/tmp/musica]     (o correr.mjs corre isto com o anfitriao Node da Onda)
+# Junta-se depois da biblioteca de apps (onda/lib/app.onda: textos e JSON). Os pedidos sao em serie: cada resposta
+# chega a funcao «lido», que segue o passo (M[8]).
+#
+# Globais: 0 textos constantes  1 pasta  2 Worker  3 chave do agente  4 agora (ms)  5 pessoas (JSON)  6 a pessoa
+#   atual (no)  7 seccoes (textos)  8 passo  9 perfil (texto)  10 perfil  11 pedidos  12 playlists  13 recentes (3)
+#   14 quantas recentes  15 mixes  16 novidades  17 quantas seccoes  18 quantas pessoas  19 a recente a pedir
+#   20 caminho do ultimo pedido  21 pasta musica/  22 cabecalhos do agente  26 uid da pessoa  59 bloco para datas
+
+# ---------- anfitriao Node (onda/rt/anfitriao-node.js) ----------
+: h_arg i>i i Y 200 i 0
+: h_env i>i t Y 201 t 0
+: h_ler i>i t Y 202 t 0
+: h_pasta i>i t Y 204 t 0
+: h_pede ii>i p fn Y 206 p fn
+: h_abre i>i t { _fl Y 209 t 0 }
+: h_fecha >i { _fl Y 210 0 0 }
+: h_fd i>i fd { _fl Y 208 fd 0 }
+: h_volta >i { _fl Y 208 0 0 }
+: h_sair i>i c { _fl Y 211 c 0 }
+: h_agora >i Y 108 0 0
+
+# ---------- textos constantes ----------
+: kd ii>i i t { ! + @ 0 i t 0 }
+: k_lido >i @ + @ 0 0
+: k_ligado >i @ + @ 0 1
+: k_clientId >i @ + @ 0 2
+: k_uid >i @ + @ 0 3
+: k_nome >i @ + @ 0 4
+: k_utilizador >i @ + @ 0 5
+: k_pais >i @ + @ 0 6
+: k_favoritas >i @ + @ 0 7
+: k_artistas >i @ + @ 0 8
+: k_playlists >i @ + @ 0 9
+: k_resumo >i @ + @ 0 10
+: k_generos >i @ + @ 0 11
+: k_decadas >i @ + @ 0 12
+: k_qualidade >i @ + @ 0 13
+: k_n >i @ + @ 0 14
+: k_decada >i @ + @ 0 15
+: k_q >i @ + @ 0 16
+: k_estado >i @ + @ 0 17
+: k_id >i @ + @ 0 18
+: k_texto >i @ + @ 0 19
+: k_opcoes >i @ + @ 0 20
+: k_faixas >i @ + @ 0 21
+: k_maxArtista >i @ + @ 0 22
+: k_estilo >i @ + @ 0 23
+: k_arco >i @ + @ 0 24
+: k_criadoEm >i @ + @ 0 25
+: k_por >i @ + @ 0 26
+: k_criadaEm >i @ + @ 0 27
+: k_tidal >i @ + @ 0 28
+: k_duracao >i @ + @ 0 29
+: k_albuns >i @ + @ 0 30
+: k_data >i @ + @ 0 31
+: k_artista >i @ + @ 0 32
+: k_titulo >i @ + @ 0 33
+: k_mixes >i @ + @ 0 34
+: k_tipo >i @ + @ 0 35
+: k_versao >i @ + @ 0 36
+: k_ano >i @ + @ 0 37
+: k_tags >i @ + @ 0 38
+: k_bpm >i @ + @ 0 39
+: k_tom >i @ + @ 0 40
+: k_adicionada >i @ + @ 0 41
+: k_message >i @ + @ 0 42
+: k_error >i @ + @ 0 43
+: k_dono >i @ + @ 0 44
+: k_pendente >i @ + @ 0 45
+: k_curador >i @ + @ 0 46
+: k_hires >i @ + @ 0 47
+: k_lossless >i @ + @ 0 48
+: k_descoberta >i @ + @ 0 49
+: k_diaria >i @ + @ 0 50
+: k_lancamentos >i @ + @ 0 51
+: k_semana >i @ + @ 0 52
+: k_e_agora >i @ + @ 0 53
+: k_e_chave >i @ + @ 0 54
+: k_e_worker >i @ + @ 0 55
+: k_e_dir >i @ + @ 0 56
+: k_e_conta >i @ + @ 0 57
+: k_e_token >i @ + @ 0 58
+: k_p_estado >i @ + @ 0 59
+: k_p_utilizadores >i @ + @ 0 60
+: k_p_perfil >i @ + @ 0 61
+: k_p_pedidos >i @ + @ 0 62
+: k_p_playlists >i @ + @ 0 63
+: k_p_mixes >i @ + @ 0 64
+: k_p_novidades >i @ + @ 0 65
+
+# ---------- textos e JSON ----------
+# um texto curto: tx comeca-o (o que se escreve vai para ele) e o O 0 fecha-o
+: tx >i { = t tnovo 4000 O t t }
+# t tem bytes? (o «verdadeiro» do JavaScript para textos)
+: cheio i>i t ? t > tlen t 0 0
+: _min i>i c ? && >= c 'A <= c 'Z + c 32 c
+# o texto t contem p (sem ligar a maiusculas, como o /p/i)?
+: contem ii>i t p {
+  = n tlen t = m tlen p = r 0 = i 0
+  W && ~ r <= + i m n { = j 0 = ok 1 W && ok < j m { = ok == _min tbyte t + i j _min tbyte p j = j + j 1 } = r ok = i + i 1 }
+  r }
+: temc ii>i t c { = n tlen t = r 0 = j 0 W && ~ r < j n { = r == tbyte t j c = j + j 1 } r }
+# os primeiros n bytes (o .slice(0, n))
+: tpref ii>i t n { = k Mn n tlen t = j 0 W < j k { P tbyte t j = j + j 1 } 0 }
+: jg ii>i n k jget n k
+: jgt ii>i n k jtxt jget n k
+: jgi ii>i n k I jnum jget n k
+: jprim i>i n ? n @ + n 4 0
+: jprox i>i c @ + c 3
+# o valor como o JavaScript o poe num texto: texto, numero (inteiro), null, true/false; o que falta e undefined
+: pv i>i n ? == jtipo n 5 tpor jtxt n ? == jtipo n 4 N I jnum n ? == jtipo n 1 "null" ? == jtipo n 3 "true" ? == jtipo n 2 "false" "undefined"
+# verdadeiro como no JavaScript: texto nao vazio, numero diferente de 0, true, lista ou objeto
+: jv i>i n { = t jtipo n ? == t 5 cheio jtxt n ? == t 4 != I jnum n 0 ? == t 3 1 >= t 6 }
+# os elementos (textos) de uma lista, separados por ", " (s = 1) ou "/" (s = 2): o .join
+: pjunta ii>i l s { = c jprim l = p 1 W c { ? p 0 ? == s 1 ", " "/" = p 0 pv c = c jprox c } 0 }
+
+# ---------- datas (Lisboa: a hora de verao da UE, do ultimo domingo de marco ao de outubro, a 01:00 UTC) ----------
+: dias_civil iii>i y m d {
+  = y - y ? <= m 2 1 0
+  = era / y 400
+  = yoe - y * era 400
+  = mm ? > m 2 - m 3 + m 9
+  = doy + / + * 153 mm 2 5 - d 1
+  = doe + - + * yoe 365 / yoe 4 / yoe 100 doy
+  - + * era 146097 doe 719468 }
+# dias desde 1970 -> ano, mes e dia em M[b], M[b+1], M[b+2]
+: civil ii>i z b {
+  = z + z 719468
+  = era / z 146097
+  = doe - z * era 146097
+  = yoe / - + - doe / doe 1460 / doe 36524 / doe 146096 365
+  = y + yoe * era 400
+  = doy - doe - + * 365 yoe / yoe 4 / yoe 100
+  = mp / + * 5 doy 2 153
+  = d + - doy / + * 153 mp 2 5 1
+  = m ? < mp 10 + mp 3 - mp 9
+  ! b + y ? <= m 2 1 0
+  ! + b 1 m
+  ! + b 2 d
+  0 }
+: dom_ult ii>i y m { = z dias_civil y m 31 - z % + z 4 7 }
+: desvio i>i t {
+  civil / t 86400000 @ 59
+  = y @ @ 59
+  = ini * + * dom_ult y 3 86400 3600 1000
+  = fim * + * dom_ult y 10 86400 3600 1000
+  ? && >= t ini < t fim 3600000 0 }
+: p2 i>i n { ? < n 10 P '0 0 N n 0 }
+: pdiasem i>i w ? == w 0 "domingo" ? == w 1 "segunda-feira" ? == w 2 "terça-feira" ? == w 3 "quarta-feira" ? == w 4 "quinta-feira" ? == w 5 "sexta-feira" "sábado"
+: pmes i>i m ? == m 1 "janeiro" ? == m 2 "fevereiro" ? == m 3 "março" ? == m 4 "abril" ? == m 5 "maio" ? == m 6 "junho" ? == m 7 "julho" ? == m 8 "agosto" ? == m 9 "setembro" ? == m 10 "outubro" ? == m 11 "novembro" "dezembro"
+# como o toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', weekday/day/month/year/hour/minute }): «sábado, 7 de novembro de 2026 às 17:18»
+: plisboa i>i t {
+  = l + t desvio t
+  = z / l 86400000
+  = s - l * z 86400000
+  civil z @ 59
+  pdiasem % + z 4 7 ", " N @ + @ 59 2 " de " pmes @ + @ 59 1 " de " N @ @ 59 " às " p2 / s 3600000 ":" p2 / % s 3600000 60000
+  0 }
+# dia da semana (0 domingo) e hora em Lisboa
+: lis_dia i>i t % + / + t desvio t 86400000 4 7
+: lis_hora i>i t / % + t desvio t 86400000 3600000
+# «AAAA-MM-DDTHH:MM:SS(.mmm)Z» -> milissegundos desde 1970 (0 se nao e uma data)
+: num iii>i t i n { = v 0 = j 0 W < j n { = v + * v 10 - tbyte t + i j '0 = j + j 1 } v }
+: iso_ms i>i t ? < tlen t 19 0 {
+  = d dias_civil num t 0 4 num t 5 2 num t 8 2
+  = ms ? && > tlen t 22 == tbyte t 19 '. num t 20 3 0
+  + * + + + * d 86400 * num t 11 2 3600 * num t 14 2 60 num t 17 2 1000 ms }
+
+# ---------- pedidos ----------
+# GET (cabecalhos «Nome: valor» por linha, ou 0), com 60 s de limite; a resposta vai para «lido»
+: pedir ii>i url cab { = p A 5 ! p 0 ! + p 1 url ! + p 2 cab ! + p 3 0 ! + p 4 60000 h_pede p k_lido 0 }
+# o caminho no Worker, para a pessoa atual (?u=<uid>; o dono e sem)
+: wurl i>i c { = t tx tpor @ 2 tpor c ? && @ 26 ~ tigual @ 26 k_dono { ? temc c '? "&u=" "?u=" tpor @ 26 0 } 0 O 0 t }
+# a mensagem de erro como o api() do comum.mjs: a do Worker (message, error) ou «HTTP <estado> em <caminho>»
+: perro iii>i t s c {
+  = j ? > s 0 json t 0
+  = m ? == jtipo j 7 ? jv jg j k_message jgt j k_message ? jv jg j k_error jgt j k_error 0 0
+  ? m tpor m ? > s 0 { "HTTP " N s " em " tpor c 0 } tpor t
+  0 }
+: falha i>i t { h_fd 2 tpor t P 10 h_volta h_sair 1 0 }
+
+# ---------- o fio: estado -> chave -> pessoas -> (perfil, pedidos, playlists, recentes, mixes, novidades) por pessoa ----------
+: main >i {
+  ! 0 A 70
+  kd 0 tx "lido" O 0  kd 1 tx "ligado" O 0  kd 2 tx "clientId" O 0  kd 3 tx "uid" O 0  kd 4 tx "nome" O 0
+  kd 5 tx "utilizador" O 0  kd 6 tx "pais" O 0  kd 7 tx "favoritas" O 0  kd 8 tx "artistas" O 0  kd 9 tx "playlists" O 0
+  kd 10 tx "resumo" O 0  kd 11 tx "generos" O 0  kd 12 tx "decadas" O 0  kd 13 tx "qualidade" O 0  kd 14 tx "n" O 0
+  kd 15 tx "decada" O 0  kd 16 tx "q" O 0  kd 17 tx "estado" O 0  kd 18 tx "id" O 0  kd 19 tx "texto" O 0
+  kd 20 tx "opcoes" O 0  kd 21 tx "faixas" O 0  kd 22 tx "maxArtista" O 0  kd 23 tx "estilo" O 0  kd 24 tx "arco" O 0
+  kd 25 tx "criadoEm" O 0  kd 26 tx "por" O 0  kd 27 tx "criadaEm" O 0  kd 28 tx "tidal" O 0  kd 29 tx "duracao" O 0
+  kd 30 tx "albuns" O 0  kd 31 tx "data" O 0  kd 32 tx "artista" O 0  kd 33 tx "titulo" O 0  kd 34 tx "mixes" O 0
+  kd 35 tx "tipo" O 0  kd 36 tx "versao" O 0  kd 37 tx "ano" O 0  kd 38 tx "tags" O 0  kd 39 tx "bpm" O 0
+  kd 40 tx "tom" O 0  kd 41 tx "adicionada" O 0  kd 42 tx "message" O 0  kd 43 tx "error" O 0  kd 44 tx "dono" O 0
+  kd 45 tx "pendente" O 0  kd 46 tx "curador" O 0  kd 47 tx "HIRES_LOSSLESS" O 0  kd 48 tx "LOSSLESS" O 0
+  kd 49 tx "descoberta" O 0  kd 50 tx "diaria" O 0  kd 51 tx "lancamentos" O 0  kd 52 tx "semana" O 0
+  kd 53 tx "MUSICA_AGORA" O 0  kd 54 tx "MUSICA_CHAVE" O 0  kd 55 tx "MUSICA_WORKER" O 0  kd 56 tx "MUSICA_DIR" O 0
+  kd 57 tx "CF_ACCOUNT_ID" O 0  kd 58 tx "CLOUDFLARE_API_TOKEN" O 0  kd 59 tx "/api/estado" O 0
+  kd 60 tx "/api/utilizadores" O 0  kd 61 tx "/api/perfil?fresco=1" O 0  kd 62 tx "/api/pedidos" O 0
+  kd 63 tx "/api/playlists" O 0  kd 64 tx "/api/mixes" O 0  kd 65 tx "/api/novidades?dias=7" O 0
+  ! 59 A 3
+  # a pasta (o 1.º argumento depois do nome do script; sem ele, ou com uma opcao, /tmp/musica)
+  = a h_arg 1
+  ! 1 ? && cheio a != tbyte a 0 '- a { = t tx "/tmp/musica" O 0 t }
+  h_pasta @ 1
+  = w h_env k_e_worker
+  ! 2 ? cheio w w { = t tx "https://musica.mercados-proxy.workers.dev" O 0 t }
+  = ag h_env k_e_agora
+  ! 4 ? cheio ag iso_ms ag h_agora
+  ! 21 h_env k_e_dir
+  ! 7 A 64
+  # o estado nao precisa de chave: antes da primeira ligacao ao Tidal ainda nao ha chave do agente
+  ! 8 0 ! 26 0 ! 20 k_p_estado
+  pedir wurl k_p_estado 0
+  0 }
+
+: lido ii>i t s {
+  = p @ 8
+  ? == p 0 { s_estado t s 0 } 0
+  ? == p 1 { s_kv t s 0 } 0
+  ? == p 2 { s_pessoas t s 0 } 0
+  ? == p 3 { s_perfil t s 0 } 0
+  ? == p 4 { s_pedidos t s 0 } 0
+  ? == p 5 { s_playlists t s 0 } 0
+  ? == p 6 { s_recente t s 0 } 0
+  ? == p 7 { ! 15 ? == s 200 json t 0 ! 8 8 ! 20 k_p_novidades pedir wurl k_p_novidades @ 22 0 } 0
+  ? == p 8 { ! 16 ? == s 200 json t 0 seccao proxima 0 } 0
+  0 }
+
+: s_estado ii>i t s {
+  ? != s 200 { h_fd 2 perro t s k_p_estado P 10 h_volta h_sair 1 0 } 0
+  = e json t
+  ? jv jg e k_ligado { chave 0 } {
+    = f tx tpor @ 1 "/dados.md" O 0
+    h_abre f "# Maestro" P 10 P 10 "**Tidal não ligado** — " msg_desligado e " Termina aqui." P 10 h_fecha
+    "Tidal não ligado — " msg_desligado e " Termina aqui." P 10
+    h_sair 0 0 }
+  0 }
+: msg_desligado i>i e ? jv jg e k_clientId "O Tidal ainda não foi ligado na app." "Ainda falta o Client ID do Tidal no conector."
+
+# a chave do agente: a de MUSICA_CHAVE ou a da KV (pela API da Cloudflare; o token vem do proxy do ambiente)
+: chave >i {
+  = c h_env k_e_chave
+  ? cheio c { ! 3 c pessoas 0 } {
+    = ns kv_id
+    ? ~ cheio ns { = m tx "Falta o id da KV em musica/proxy/wrangler.toml" O 0 falha m 0 } 0
+    = co h_env k_e_conta
+    = tk h_env k_e_token
+    = u tx "https://api.cloudflare.com/client/v4/accounts/" ? cheio co tpor co "e5f9f94050228b1fa9f74443667b20a6" "/storage/kv/namespaces/" tpor ns "/values/agente%3Achave" O 0
+    = h tx "Authorization: Bearer " ? cheio tk tpor tk "proxy-injected" O 0
+    ! 8 1 pedir u h 0 }
+  0 }
+# o id da KV no musica/proxy/wrangler.toml: o «id = "..."» a seguir ao «binding = "KV"»
+: kv_id >i {
+  = f tx ? cheio @ 21 tpor @ 21 "musica" "/proxy/wrangler.toml" O 0
+  = t h_ler f
+  ? ~ t 0 {
+    = n tlen t = i 0 = r 0
+    W && ~ r < i n { = r && == tbyte t i 'b && == tbyte t + i 10 '" && == tbyte t + i 11 'K == tbyte t + i 12 'V = i + i 1 }
+    W && < i n ~ && == tbyte t i 'i && == tbyte t + i 1 'd == tbyte t + i 5 '" = i + i 1
+    = i + i 6
+    = o tx W && < i n != tbyte t i '" { P tbyte t i = i + i 1 } O 0
+    ? r o 0 } }
+: s_kv ii>i t s {
+  ? == s 404 { = m tx "Ainda não há chave do agente: o Tidal nunca foi ligado na app." O 0 falha m 0 } 0
+  ? != s 200 { = m tx "Cloudflare: HTTP " N s " a ler agente:chave" O 0 falha m 0 } 0
+  ! 3 t pessoas 0 }
+
+# cada pessoa da app (o dono e quem foi convidado); se a lista nao vier (Worker antigo), so o dono
+: pessoas >i {
+  ! 22 tx "Authorization: Bearer " tpor @ 3 P 10 "accept: application/json" O 0
+  ! 8 2 ! 26 0 ! 20 k_p_utilizadores
+  pedir wurl k_p_utilizadores @ 22 0 }
+: s_pessoas ii>i t s {
+  = l ? == s 200 json t 0
+  ! 5 ? == jtipo l 6 l { = f tx "[{\"uid\":\"dono\",\"ligado\":true}]" O 0 json f }
+  = c jprim @ 5 = n 0 W c { ? jv jg c k_ligado { = n + n 1 0 } 0 = c jprox c }
+  ! 18 n ! 6 0 ! 17 0
+  proxima 0 }
+: proxima >i {
+  = c ? @ 6 jprox @ 6 jprim @ 5
+  W && c ~ jv jg c k_ligado = c jprox c
+  ! 6 c
+  ? c { comeca 0 } { fim 0 }
+  0 }
+: comeca >i {
+  ! 26 jgt @ 6 k_uid
+  ! 9 0 ! 10 0 ! 11 0 ! 12 0 ! 13 A 3 ! 14 0 ! 15 0 ! 16 0 ! 19 0
+  = d tx tpor @ 1 "/" tpor @ 26 O 0
+  h_pasta d
+  ! 8 3 ! 20 k_p_perfil
+  pedir wurl k_p_perfil @ 22 0 }
+# um passo que falhou (perfil, pedidos, playlists): a seccao da pessoa diz porque e segue-se para a proxima
+: perdida ii>i t s {
+  h_abre 0
+  "# Pessoa: " ? jv jg @ 6 k_nome pv jg @ 6 k_nome tpor @ 26 " (`" tpor @ 26 "`)" P 10 P 10
+  "Não consegui ler os dados desta pessoa: " perro t s @ 20 P 10
+  ! + @ 7 @ 17 h_fecha ! 17 + @ 17 1
+  proxima 0 }
+: s_perfil ii>i t s {
+  ? != s 200 { perdida t s 0 } {
+    ! 9 t ! 10 json t
+    = f tx tpor @ 1 "/" tpor @ 26 "/perfil.json" O 0
+    h_abre f tpor t h_fecha
+    ? tigual @ 26 k_dono { = g tx tpor @ 1 "/perfil.json" O 0 h_abre g tpor t h_fecha 0 } 0
+    ! 8 4 ! 20 k_p_pedidos
+    pedir wurl k_p_pedidos @ 22 0 }
+  0 }
+: s_pedidos ii>i t s {
+  ? != s 200 { perdida t s 0 } { ! 11 json t ! 8 5 ! 20 k_p_playlists pedir wurl k_p_playlists @ 22 0 }
+  0 }
+: s_playlists ii>i t s {
+  ? != s 200 { perdida t s 0 } { ! 12 json t ! 19 0 recente 0 }
+  0 }
+# as 3 playlists mais recentes, inteiras (as que nao vierem ficam de fora)
+: recente >i {
+  = c jidx @ 12 @ 19
+  ? && c < @ 19 3 {
+    ! 8 6
+    = cam tx "/api/playlists/" tpor jgt c k_id O 0
+    ! 20 cam
+    pedir wurl cam @ 22 0 }
+    { ! 8 7 ! 20 k_p_mixes pedir wurl k_p_mixes @ 22 0 }
+  0 }
+: s_recente ii>i t s {
+  ? == s 200 { ! + @ 13 @ 14 json t ! 14 + @ 14 1 0 } 0
+  ! 19 + @ 19 1
+  recente 0 }
+
+# ---------- a seccao de uma pessoa ----------
+# uma faixa: «artistas — título (versão) · ano · qualidade · bpm · tom · géneros»
+: pqual i>i l { = c jprim l = h 0 = q 0 W c { ? tigual jtxt c k_hires { = h 1 0 } 0 ? tigual jtxt c k_lossless { = q 1 0 } 0 = c jprox c } ? h "Hi-Res" ? q "Sem perdas" "Normal" 0 }
+: pcamelot i>i t { ? > t 0 { N + % - t 1 12 1 ? > t 12 "B" "A" 0 } 0 0 }
+: plinha i>i f {
+  pjunta jg f k_artistas 1 " — " tpor jgt f k_titulo
+  ? cheio jgt f k_versao { " (" tpor jgt f k_versao ")" 0 } 0
+  " · " ? jv jg f k_ano pv jg f k_ano "?"
+  " · " pqual jg f k_tags
+  ? jv jg f k_bpm { " · " pv jg f k_bpm " bpm" 0 } 0
+  ? jv jg f k_tom { " · " pcamelot jgi f k_tom 0 } 0
+  ? > jn jg f k_generos 0 { " · " pjunta jg f k_generos 2 0 } 0
+  0 }
+# «- `id` <faixa>», uma por linha (no máximo m)
+: pfaixas_id ii>i l m { = c jprim l = i 0 W && c < i m { ? i P 10 0 "- `" pv jg c k_id "` " plinha c = c jprox c = i + i 1 } 0 }
+: pnomemix i>i t ? tigual t k_descoberta "Descoberta" ? tigual t k_diaria "Diária" ? tigual t k_lancamentos "Lançamentos" tpor t
+# a ultima playlist da semana do Maestro (a primeira da lista, que vem da mais recente)
+: semanal i>i l { = c jprim l = r 0 W && c ~ r { ? && tigual jgt c k_por k_curador contem jgt c k_nome k_semana { = r c 0 } 0 = c jprox c } r }
+
+: seccao >i {
+  = pf @ 10 = r jg pf k_resumo
+  h_abre 0
+  "# Pessoa: " ? jv jg pf k_utilizador pv jg pf k_utilizador ? jv jg @ 6 k_nome pv jg @ 6 k_nome tpor @ 26 " (`" tpor @ 26 "`)" P 10 P 10
+  "Conta Tidal: **" ? jv jg pf k_utilizador pv jg pf k_utilizador "?" "** (" pv jg pf k_pais ") · " N jn jg pf k_favoritas " favoritas lidas (as mais recentes) · "
+  N jn jg pf k_artistas " artistas seguidos · " N jn jg pf k_playlists " playlists tuas." P 10 P 10
+  # pedidos a espera
+  = np 0 = c jprim @ 11 W c { ? tigual jgt c k_estado k_pendente { = np + np 1 0 } 0 = c jprox c }
+  "## Pedidos à espera (" N np ")" P 10
+  ? np {
+    = c jprim @ 11 = pr 1
+    W c {
+      ? tigual jgt c k_estado k_pendente {
+        ? pr 0 P 10 = pr 0
+        = o jg c k_opcoes
+        "- `" pv jg c k_id "` — «" pv jg c k_texto "» · " pv jg o k_faixas " faixas, máx. " pv jg o k_maxArtista " por artista, estilo " pv jg o k_estilo ", arco " pv jg o k_arco " · pedido a " plisboa iso_ms jgt c k_criadoEm
+        0 } 0
+      = c jprox c }
+    0 } "- nenhum"
+  P 10 P 10
+  # a playlist da semana
+  "## Playlist da semana" P 10
+  = u semanal @ 12
+  ? u {
+    = dd / - @ 4 iso_ms jgt u k_criadaEm 86400000
+    "A última foi «" pv jg u k_nome "» há " N dd " dia(s)" ? >= dd 7 " — **está na altura de uma nova**." "."
+    0 } "Ainda não há nenhuma — **cria a primeira**."
+  P 10 P 10
+  # novidades dos artistas que segue
+  "## Novidades dos artistas que segues (álbuns dos últimos 7 dias)" P 10
+  = nv @ 16 = al jg nv k_albuns
+  ? > jn al 0 {
+    = c jprim al = i 0 W c { ? i P 10 0 "- " pv jg c k_data " · " pv jg c k_artista " — «" pv jg c k_titulo "»" = c jprox c = i + i 1 }
+    P 10 P 10 "Faixas (com o id do Tidal):" P 10 pfaixas_id jg nv k_faixas 100000
+    0 } "- nenhum álbum novo esta semana"
+  P 10
+  ? && && == lis_dia @ 4 5 < lis_hora @ 4 12 >= jn jg nv k_faixas 5 { P 10 "**É sexta de manhã: cria a playlist «Novidades dos teus artistas · dd/mm»** com estas faixas." 0 } 0
+  P 10 P 10
+  # as mixes do Tidal
+  "## As tuas mixes do Tidal (o Tidal escolheu-as para ti; usa-as como candidatas quando encaixam)" P 10
+  = c jprim jg @ 15 k_mixes = i 0
+  W c { ? > jn jg c k_faixas 0 { ? i { P 10 P 10 0 } 0 "### " pnomemix jgt c k_tipo P 10 pfaixas_id jg c k_faixas 20 = i + i 1 0 } 0 = c jprox c }
+  ? i 0 "- o Tidal não devolveu mixes"
+  P 10 P 10
+  # o gosto
+  "## O teu gosto (das favoritas)" P 10
+  "- Artistas mais presentes: " = c jprim jg r k_artistas ? c 0 "—" = i 0 W c { ? i ", " 0 pv jg c k_nome " (" pv jg c k_n ")" = c jprox c = i + i 1 } P 10
+  "- Géneros (etiquetas do Tidal): " = c jprim jg r k_generos ? c 0 "o Tidal não indicou" = i 0 W c { ? i ", " 0 pv jg c k_nome " (" pv jg c k_n ")" = c jprox c = i + i 1 } P 10
+  "- Décadas: " = c jprim jg r k_decadas ? c 0 "—" = i 0 W c { ? i ", " 0 pv jg c k_decada "s (" pv jg c k_n ")" = c jprox c = i + i 1 } P 10
+  "- Qualidade das favoritas: " = c jprim jg r k_qualidade ? c 0 "—" = i 0 W c { ? i ", " 0 pv jg c k_q " " pv jg c k_n = c jprox c = i + i 1 } P 10
+  "- Artistas seguidos: " = c jprim jg pf k_artistas ? c 0 "—" = i 0 W && c < i 40 { ? i ", " 0 pv jg c k_nome = c jprox c = i + i 1 } P 10
+  "- As tuas playlists: " = c jprim jg pf k_playlists ? c 0 "—" = i 0
+  W && c < i 25 { ? i "; " 0 pv jg c k_nome ? > jtipo jg c k_faixas 1 { " (" pv jg c k_faixas ")" 0 } 0 = c jprox c = i + i 1 }
+  P 10 P 10
+  "### Favoritas mais recentes" P 10
+  = c jprim jg pf k_favoritas ? c 0 "- nenhuma" = i 0
+  W && c < i 40 { ? i P 10 0 "- " plinha c ? cheio jgt c k_adicionada { " · ❤ " tpref jgt c k_adicionada 10 0 } 0 = c jprox c = i + i 1 }
+  P 10 P 10
+  # o que o Maestro ja fez
+  "## O que o Maestro já fez (não repetir estas faixas)" P 10
+  = c jprim @ 12 ? c 0 "- ainda nada" = i 0
+  W && c < i 10 {
+    ? i P 10 0
+    "- " tpref jgt c k_criadaEm 10 " · «" pv jg c k_nome "» · " pv jg c k_faixas " faixas, " N / jgi c k_duracao 60 " min" ? jv jg c k_tidal " · no Tidal" 0
+    = c jprox c = i + i 1 }
+  P 10
+  = i 0 W < i @ 14 {
+    ? i P 10 0
+    = d @ + @ 13 i
+    P 10 "### «" pv jg d k_nome "» (" tpref jgt d k_criadaEm 10 ")" P 10
+    = c jprim jg d k_faixas = k 0 W c { ? k P 10 0 "- " pjunta jg c k_artistas 1 " — " pv jg c k_titulo = c jprox c = k + k 1 }
+    = i + i 1 }
+  P 10
+  ! + @ 7 @ 17 h_fecha ! 17 + @ 17 1
+  0 }
+
+# ---------- o fim: o dados.md (o cabecalho e as seccoes, separadas por ---) no ficheiro e no ecra ----------
+: fim >i {
+  h_abre 0
+  "# Maestro — dados de " plisboa @ 4 P 10 P 10
+  ? > @ 18 1 { "**" N @ 18 " pessoas** na app. Trata cada uma à parte: os pedidos, a playlist da semana e as novidades são de cada pessoa — escreve a proposta em `" tpor @ 1 "/<id>/proposta.json` e publica com `--utilizador <id>`." 0 } "Uma pessoa na app (o dono)."
+  P 10 P 10
+  = i 0 W < i @ 17 { ? i { P 10 "---" P 10 P 10 0 } 0 tpor @ + @ 7 i = i + i 1 }
+  = md h_fecha
+  = f tx tpor @ 1 "/dados.md" O 0
+  h_abre f tpor md h_fecha
+  tpor md P 10
+  h_sair 0
+  0 }
