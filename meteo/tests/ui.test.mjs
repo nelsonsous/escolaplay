@@ -85,6 +85,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             .map((id) => [id, { t: [0, 1, 2].map(() => [24, id === 'ukmo_seamless' ? 0.6 : 1.4, 0]) }])) }];
     })) };
     let learnCalls = 0;
+    // notificações do fim do dia (o conector simulado guarda o estado; o browser simulado assina sem rede)
+    let pushState = { on: false, time: '19:00', sunday: true, place: null };
+    const pushPosts = [], pushTests = [];
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -176,6 +179,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             : r.fulfill({ status: 403, json: { error: 'dono' }, headers: CORS });
         if (p === '/api/settings' && m === 'PATCH') { settingsBody = JSON.parse(req.postData()); others = settingsBody.others; return fulfill(r, { others, updatedAt: NOW }); }
         if (p === '/api/reports' && m === 'GET') return fulfill(r, { place: null, reports: serverReports });
+        if (p === '/api/push/key') return fulfill(r, { publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' });
+        if (p === '/api/push' && m === 'GET') return fulfill(r, pushState);
+        if (p === '/api/push' && m === 'POST') {
+            const b = JSON.parse(req.postData()); pushPosts.push(b);
+            pushState = { on: true, time: b.time, sunday: b.sunday, place: b.place, tz: b.tz, last: null };
+            return r.fulfill({ status: 201, json: pushState, headers: CORS });
+        }
+        if (p === '/api/push' && m === 'DELETE') { pushState = { ...pushState, on: false }; return r.fulfill({ status: 204, headers: CORS, body: '' }); }
+        if (p === '/api/push/test' && m === 'POST') { pushTests.push(Date.now()); return fulfill(r, { ok: true, weekly: false }); }
         if (p === '/api/learning') { // como o conector: só a do local deste telemóvel (≤ 3 km)
             learnCalls++;
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
@@ -189,6 +201,17 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         return r.fulfill({ status: 404, json: { error: 'x' }, headers: CORS });
     });
 
+    await ctx.addInitScript(() => {
+        const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/teste-ui',
+            toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', auth: 'AAAAAAAAAAAAAAAAAAAAAA' } }; },
+            async unsubscribe() { window.__pushSub = null; return true; } };
+        const pm = { async subscribe(o) { window.__pushOpts = o; window.__pushSub = sub; return sub; }, async getSubscription() { return window.__pushSub || null; } };
+        if (navigator.serviceWorker) Object.defineProperty(navigator.serviceWorker, 'ready', { get: () => Promise.resolve({ pushManager: pm }) });
+        if (!window.PushManager) window.PushManager = function PushManager() {};
+        let perm = 'default';
+        Object.defineProperty(Notification, 'permission', { get: () => perm });
+        Notification.requestPermission = async () => { perm = 'granted'; return perm; };
+    });
     const page = await ctx.newPage();
     await page.clock.setFixedTime(new Date(NOW));
     page.on('pageerror', (e) => { errors.push('pageerror: ' + e.message); if (process.env.STACK) console.log(e.stack); });
@@ -493,7 +516,35 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('Ajustes (letra grande)');
     await shot('07-ajustes.png');
     await page.click('[data-fs="n"]');
-    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão)');
+    // notificações do fim do dia: ligar (autorização + assinatura), mudar a hora, o domingo, teste e desligar
+    const nt = page.locator('#notificacoes');
+    assert.match(await nt.textContent(), /Resumo ao fim do diaComo vai estar amanhã e o que vestir/);
+    assert.equal(await nt.locator('#f-push-time').inputValue(), '19:00', '19:00 por omissão');
+    assert.equal(await nt.locator('#f-push-time option').count(), 32, 'das 16:00 às 23:45, de 15 em 15 min');
+    await nt.locator('[data-act="push-on"]').click();
+    await toastIs(/Notificação ligada: todos os dias às 19:00/);
+    assert.equal(pushPosts.length, 1);
+    assert.deepEqual({ ...pushPosts[0], subscription: pushPosts[0].subscription.endpoint },
+        { subscription: 'https://fcm.googleapis.com/fcm/send/teste-ui', time: '19:00', sunday: true, place: 'casa', tz: 'Europe/Lisbon' });
+    assert.equal(await page.evaluate(() => window.__pushOpts.userVisibleOnly), true);
+    assert.equal(await page.evaluate(() => window.__pushOpts.applicationServerKey.length), 65, 'a chave pública do conector (VAPID)');
+    await page.waitForSelector('#notificacoes [data-act="push-on"].on');
+    if (SHOTS) await nt.screenshot({ path: path.join(SHOTS, '07b-notificacoes.png') });
+    await nt.locator('#f-push-time').selectOption('20:30');
+    await toastIs(/Notificação às 20:30/);
+    assert.equal(pushPosts.at(-1).time, '20:30');
+    await nt.locator('[data-act="push-sun-off"]').click();
+    await toastIs(/Guardado/);
+    assert.equal(pushPosts.at(-1).sunday, false);
+    await nt.locator('[data-act="push-test"]').click();
+    await toastIs(/Enviada/);
+    assert.equal(pushTests.length, 1);
+    await nt.locator('[data-act="push-off"]').click();
+    await toastIs(/Notificações desligadas/);
+    assert.ok(calls.includes('DELETE /api/push'));
+    assert.equal(await page.evaluate(() => window.__pushSub), null, 'a assinatura do browser também sai');
+    await noOverflow('Ajustes (notificações)');
+    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão), notificações (19:00, hora, domingo, teste)');
 
     // 6b) ponto a 8,6 km do local com análise diária: a análise diz que é de outro ponto e oferece mudar (PATCH, mesmo id)
     const patches0 = calls.filter((c) => c === 'PATCH /api/places/casa').length;

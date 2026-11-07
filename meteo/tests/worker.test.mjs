@@ -43,15 +43,17 @@ const J = async (method, path, o) => { const r = await api(method, path, o); ret
 const kvj = (k) => JSON.parse(env.KV.m.get(k));
 const ANALISE = { titulo: 'Chuva sábado', resumo: 'r', agora: 'a', hoje: 'h', amanha: 'm', dias: [{ data: '2026-11-08', texto: 't', confianca: 'alta' }],
     tendencia: 't', alertas: [{ tipo: 'chuva', nivel: 'amarelo', quando: 'sáb', texto: 'x' }], incendios: '', satelite: '', conselhos: ['Leva guarda-chuva'],
-    fiabilidade: { curto: 'alta', medio: 'media', texto: 'ok' }, tecnica: 't', verificacao: '', licoes: [] };
+    fiabilidade: { curto: 'alta', medio: 'media', texto: 'ok' }, tecnica: 't', verificacao: '', licoes: [],
+    vestir: 'Casaco de manhã, camisola à tarde.', semana: 'Chuva seg e ter; sol depois.',
+    notificacao: { amanha: 'Chuva fraca até às 11h; 9 a 18 °C. Casaco impermeável de manhã.', semana: 'Chuva no início da semana, depois sol.' } };
 
 test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async () => {
     const r = await call('/api/status');
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.5.0');
-    assert.deepEqual(j.schedule, ['07:34', '13:34', '20:34']);
+    assert.equal(j.version, '1.6.0');
+    assert.deepEqual(j.schedule, ['07:34', '13:34', '17:34', '20:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const root = await call('/');
@@ -338,6 +340,84 @@ test('aprendizagem: a memória do local do próprio telemóvel (≤ 3 km), tal c
     assert.equal((await J('GET', '/api/learning?lat=41.546&lon=-8.427', { d: a })).body.memory, null);
 });
 
+// ---------- notificações do fim do dia ----------
+async function browserSub(endpoint = 'https://web.push.apple.com/QGtoken123') {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    const raw = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+    const b64 = (u) => Buffer.from(u).toString('base64url');
+    return { endpoint, keys: { p256dh: b64(raw), auth: b64(crypto.getRandomValues(new Uint8Array(16))) } };
+}
+async function withFetch(fake, fn) { // o envio para o serviço de notificações, sem rede
+    const real = globalThis.fetch;
+    globalThis.fetch = fake;
+    try { return await fn(); } finally { globalThis.fetch = real; }
+}
+
+test('notificações: chave pública, ligar só com um local do próprio (análise diária), hora de 15 em 15 min, desligar', async () => {
+    const k1 = (await J('GET', '/api/push/key')).body.publicKey;
+    assert.equal(Buffer.from(k1, 'base64url').length, 65);
+    assert.equal((await J('GET', '/api/push/key')).body.publicKey, k1, 'a mesma chave (guardada no KV)');
+    assert.ok(kvj('push:vapid').privateJwk.d, 'a chave privada fica só no KV');
+    const a = device(), b = device();
+    const sub = await browserSub();
+    // sem local com análise diária: recusa, a explicar
+    let r = await J('POST', '/api/push', { d: a, body: { subscription: sub, time: '19:00', place: 'x' } });
+    assert.deepEqual([r.status, r.body.error], [409, 'sem_local']);
+    const pa = (await J('POST', '/api/places', { d: a, body: { name: 'Casa', lat: 41.3354, lon: -8.4745 } })).body;
+    r = await J('POST', '/api/push', { d: a, body: { subscription: { ...sub, endpoint: 'https://evil.example.com/x' }, time: '19:00', place: pa.id } });
+    assert.equal(r.status, 400, 'só serviços de notificações conhecidos');
+    assert.equal((await J('POST', '/api/push', { d: a, body: { subscription: sub, time: '19:10', place: pa.id } })).status, 400, 'de 15 em 15 min');
+    assert.equal((await J('POST', '/api/push', { d: b, body: { subscription: sub, time: '19:00', place: pa.id } })).status, 409, 'o local de outro telemóvel não');
+    r = await J('POST', '/api/push', { d: a, body: { subscription: sub, time: '19:00', place: pa.id, tz: 'Europe/Lisbon' } });
+    assert.equal(r.status, 201);
+    assert.deepEqual(r.body, { on: true, time: '19:00', sunday: true, place: pa.id, tz: 'Europe/Lisbon', last: null });
+    assert.deepEqual((await J('GET', '/api/push', { d: a })).body.time, '19:00');
+    assert.deepEqual((await J('GET', '/api/push', { d: b })).body, { on: false, time: '19:00', sunday: true, place: null });
+    // mudar a hora e o domingo: a mesma entrada
+    await J('POST', '/api/push', { d: a, body: { subscription: sub, time: '20:30', sunday: false, place: pa.id } });
+    assert.equal(kvj('push:index').length, 1);
+    assert.deepEqual([kvj('push:index')[0].time, kvj('push:index')[0].sunday], ['20:30', false]);
+    assert.equal((await api('DELETE', '/api/push', { d: a })).status, 204);
+    assert.deepEqual(kvj('push:index'), []);
+});
+
+test('notificações: de 15 em 15 min envia as que chegaram à hora (cifradas, com VAPID), uma vez por dia; caducadas saem', async () => {
+    const a = device(), c = device();
+    const pa = (await J('POST', '/api/places', { d: a, body: { name: 'Santo Tirso', lat: 41.3354, lon: -8.4745 } })).body;
+    const pc = (await J('POST', '/api/places', { d: c, body: { name: 'Casa do Rui', lat: 41.16, lon: -8.62 } })).body;
+    const sa = await browserSub('https://web.push.apple.com/QGa'), sc = await browserSub('https://fcm.googleapis.com/fcm/send/c');
+    await J('POST', '/api/push', { d: a, body: { subscription: sa, time: '19:00', place: pa.id } });
+    await J('POST', '/api/push', { d: c, body: { subscription: sc, time: '21:00', place: pc.id } });
+    env.KV.m.set('analysis:' + pa.id, JSON.stringify({ ...ANALISE, generatedAt: '2026-11-09T17:45:00Z', place: { id: pa.id, name: 'Santo Tirso' } }));
+    const sent = [];
+    const fake = async (u, init) => { sent.push({ u, init }); return new Response(null, { status: u.includes('fcm') ? 410 : 201 }); };
+    const tick = (iso) => withFetch(fake, async () => {
+        const waits = [];
+        await worker.scheduled({ scheduledTime: Date.parse(iso) }, env, { waitUntil: (p) => waits.push(p) });
+        await Promise.all(waits);
+    });
+    await tick('2026-11-09T18:45:00Z');
+    assert.equal(sent.length, 0, 'antes da hora');
+    await tick('2026-11-09T19:00:00Z');
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].u, sa.endpoint);
+    assert.equal(sent[0].init.headers['content-encoding'], 'aes128gcm');
+    assert.match(sent[0].init.headers.authorization, /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
+    assert.equal(kvj('push:index').find((e) => e.id === a.id).last, '2026-11-09');
+    await tick('2026-11-09T19:15:00Z');
+    assert.equal(sent.length, 1, 'uma vez por dia');
+    // às 21:00 a do outro telemóvel: o serviço diz que caducou (410) → sai da lista
+    await tick('2026-11-09T21:00:00Z');
+    assert.equal(sent.length, 2);
+    assert.equal(kvj('push:index').some((e) => e.id === c.id), false);
+    // teste a pedido: envia já (mesmo depois da de hoje); no máximo 1 por minuto
+    const t = await withFetch(fake, () => J('POST', '/api/push/test', { d: a }));
+    assert.deepEqual([t.status, t.body.ok], [200, true]);
+    assert.equal(sent.length, 3);
+    assert.equal((await withFetch(fake, () => J('POST', '/api/push/test', { d: a }))).status, 429);
+    assert.equal((await J('POST', '/api/push/test', { d: c })).status, 409, 'sem notificações ligadas');
+});
+
 test('análise imediata sem chave responde 503 com explicação', async () => {
     const r = await call('/api/analysis/refresh?lat=38.7&lon=-9.1', { method: 'POST', headers: { origin: ORIGIN }, body: '{}' });
     assert.equal(r.status, 503);
@@ -449,6 +529,11 @@ test('validação da análise: limites, listas e valores permitidos', () => {
     assert.equal(soft.value.titulo.length, 90);
     assert.equal(ANALYSIS_SCHEMA.additionalProperties, false);
     assert.ok(ANALYSIS_SCHEMA.required.includes('licoes'));
+    // o que vestir, a semana e os textos das notificações (até 180 caracteres) são obrigatórios
+    for (const k of ['vestir', 'semana', 'notificacao']) assert.ok(ANALYSIS_SCHEMA.required.includes(k), k);
+    assert.deepEqual(ANALYSIS_SCHEMA.properties.notificacao.required, ['amanha', 'semana']);
+    const noWear = validateAnalysis({ ...ANALISE, vestir: '', notificacao: { amanha: 'x'.repeat(181), semana: 's' } }, { strict: true });
+    assert.deepEqual(noWear.errors, ['falta vestir', 'notificacao.amanha com 181 caracteres (máx. 180)']);
 });
 
 test('análise focada no ponto: regras e frases sobre a região', () => {

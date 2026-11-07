@@ -242,4 +242,10 @@ export const MOCK_ANALYSIS = {
   fiabilidade: { curto: 'alta', medio: 'media', texto: 'Os 9 modelos concordam na passagem da frente no domingo (diferença de ±2 h na hora de chegada); a quantidade de chuva varia entre 8 e 20 mm. Depois de quarta-feira os ensembles divergem.' },
   tecnica: 'Uma depressão profunda (980 hPa) a oeste da Irlanda arrasta uma superfície frontal fria que atravessa a Península no domingo. Antes dela, o fluxo roda de leste para sul, com advecção de ar quente e húmido (ponto de orvalho de 13 a 14 °C). A frente está bem definida nos modelos de alta resolução (AROME 1,3 km), com uma linha de precipitação mais intensa à passagem. Depois entra ar polar marítimo, mais fresco e instável (CAPE de 300 a 500 J/kg na segunda à tarde), com aguaceiros dispersos. A crista anticiclónica regressa a partir de terça.',
   verificacao: 'A previsão das 07:12 acertou a máxima (prevista 18 °C, observada 18,4 °C) e a ausência de chuva.',
+  vestir: 'Sábado de manhã casaco leve (12 °C, nevoeiro junto ao rio); à tarde camisola (18 °C) e um corta-vento a partir das 16h (rajadas de 45 km/h). À noite casaco quente (11 °C).',
+  semana: 'Domingo: chuva forte de manhã e vento, tarde com abertas (15 °C). Segunda: aguaceiros à tarde, trovoada isolada (16 °C). Terça e quarta: sol, manhãs frescas (9 °C). Quinta: sol, 19 °C. Sexta e sábado: nova perturbação possível (confiança baixa).',
+  notificacao: {
+    amanha: 'Nuvens a aumentar, vento de sul com rajadas de 45 km/h à tarde; 12 a 18 °C. Camisola e corta-vento; casaco à noite.',
+    semana: 'Domingo chuvoso e ventoso; segunda com aguaceiros; de terça a quinta sol e manhãs frescas; nova chuva possível no fim da semana.',
+  },
 };

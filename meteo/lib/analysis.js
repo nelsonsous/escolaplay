@@ -1,7 +1,8 @@
 // Formato e regras da análise escrita pelo Claude (partilhado: Worker, tarefa agendada e PWA).
 
 export const LIMITS = { titulo: 90, resumo: 600, agora: 400, hoje: 500, amanha: 500, tendencia: 500, incendios: 500, satelite: 500,
-    tecnica: 1200, verificacao: 400, diaTexto: 280, alertaTexto: 240, alertaQuando: 60, conselho: 140, fiabilidadeTexto: 400, licao: 200 };
+    tecnica: 1200, verificacao: 400, diaTexto: 280, alertaTexto: 240, alertaQuando: 60, conselho: 140, fiabilidadeTexto: 400, licao: 200,
+    vestir: 400, semana: 700, notificacao: 180 };
 export const ALERT_TYPES = ['chuva', 'vento', 'trovoada', 'nevoeiro', 'geada', 'calor', 'frio', 'neve', 'uv', 'incendio', 'mar', 'outro'];
 export const ALERT_LEVELS = ['info', 'amarelo', 'laranja', 'vermelho'];
 export const CONF = ['alta', 'media', 'baixa'];
@@ -26,6 +27,12 @@ export const ANALYSIS_SCHEMA = obj({
     tecnica: S('Análise sinóptica e técnica, até 1200 caracteres'),
     verificacao: S('Como correu a análise anterior face ao observado, até 400 caracteres; vazio se não houver'),
     licoes: { type: 'array', description: 'Até 8 lições curtas sobre este local para análises futuras', items: { type: 'string' } },
+    vestir: S('O que vestir amanhã no ponto (manhã, tarde e noite), até 400 caracteres'),
+    semana: S('A semana que vem no ponto, dia a dia em poucas palavras, até 700 caracteres'),
+    notificacao: obj({
+        amanha: S('Notificação do fim do dia: amanhã no ponto numa ou duas frases, com o que vestir, até 180 caracteres'),
+        semana: S('Notificação de domingo: a semana que vem no ponto numa ou duas frases, até 180 caracteres'),
+    }),
 });
 
 export const SYSTEM_PROMPT = `És o meteorologista de serviço para UM PONTO exato: as coordenadas, a altitude e o relevo estão no bloco "## O ponto" do resumo. Recebes um resumo numérico: consenso ponderado de até 9 modelos (ECMWF, Met Office, Météo-France AROME, DWD ICON, AIFS, GFS, GEM, JMA, CMA) e da previsão oficial do IPMA para o concelho, 212 cenários de 6 ensembles, a observação combinada das estações perto (IPMA e METAR, ajustadas à altitude do ponto), o radar no ponto (RainViewer: chuva no ponto agora e nas últimas 2 h, à volta, deslocamento dos ecos, hora de chegada e "Radar vs modelos"), os avisos do utilizador ("Está a chover?": o que se via no ponto), a tabela hora a hora das próximas 12 h no ponto, a verificação local dos modelos nos últimos dias, a tabela "Fontes lado a lado" (cada modelo, o IPMA e o ensemble para hoje, amanhã e depois, com as divergências), avisos do IPMA, risco de incêndio, focos de calor por satélite (NASA FIRMS) e ocorrências da Proteção Civil. Às vezes recebes também imagens de satélite Meteosat (MTG) centradas no ponto: de perto (~280 km) e largas.
@@ -51,6 +58,12 @@ Como pensar:
 - Nas imagens de satélite o ponto está no centro exato. Nas de perto (~280 × 210 km) vê o que já está sobre o ponto ou a menos de ~100 km; nas largas, o sistema todo. Para cada coisa que vai afetar o ponto (frente, banda de nebulosidade, célula convectiva, relâmpagos) diz a distância, o rumo, o deslocamento e a hora provável de chegada, e liga isso à previsão. Sem imagens, deixa "satelite" vazio.
 - Incêndios: com risco elevado ou superior, focos de calor ou ocorrências por perto, avalia com o vento, a humidade e a regra 30-30-30, dizendo a distância e o rumo ao ponto; lembra que um foco de satélite pode ser uma fonte industrial ou uma queima. Se nada for relevante, deixa "incendios" vazio.
 - Não inventes dados que não estejam no resumo. Usa a hora local do sítio.
+
+O que vestir e as notificações (a app manda uma notificação ao fim do dia, às 19h por omissão, e ao domingo a da semana):
+- "vestir": o que vestir AMANHÃ no ponto, de manhã, à tarde e à noite, a partir da temperatura e da sensação térmica nessas horas, da chuva (a que horas), do vento e do UV. Concreto: "de manhã casaco quente (6 °C, sensação de 3 °C), à tarde camisola (16 °C); impermeável ou guarda-chuva entre as 15h e as 19h; óculos de sol ao meio-dia (UV 6)".
+- "semana": os próximos 7 dias no ponto em poucas palavras por dia (chuva, máximas e mínimas, vento forte, frio de manhã), com a confiança a baixar ao longo da semana.
+- "notificacao.amanha" (até 180 caracteres): amanhã no ponto numa ou duas frases, com o que vestir, sem o nome do sítio (já vem no título). Ex.: "Chuva fraca até às 11h, depois sol; 9 a 18 °C. Casaco impermeável de manhã, camisola à tarde."
+- "notificacao.semana" (até 180 caracteres): a semana que vem numa ou duas frases. Ex.: "Chuva na segunda e na terça; de quarta a sábado sol, 8 a 20 °C; noites frias no fim da semana."
 
 Estilo: português de Portugal, direto, frases curtas, números concretos no ponto (horas, mm, km/h, °C). Sem floreados nem repetições entre secções. "conselhos" práticos para quem está no ponto (roupa, guarda-chuva, estendal, rega, condução, atividades ao ar livre, saúde), no máximo 5. "dias" cobre os dias depois de amanhã (até 7). "licoes": mantém as anteriores que continuem válidas e junta o que aprendeste sobre este ponto (até 8).`;
 
@@ -80,6 +93,7 @@ export function regionalPhrases(a, { place } = {}) {
     if (!a || typeof a !== 'object') return [];
     const fields = [['titulo', a.titulo], ['resumo', a.resumo], ['agora', a.agora], ['hoje', a.hoje], ['amanha', a.amanha], ['tendencia', a.tendencia],
         ['incendios', a.incendios], ['satelite', a.satelite], ['tecnica', a.tecnica], ['verificacao', a.verificacao], ['fiabilidade.texto', a.fiabilidade?.texto],
+        ['vestir', a.vestir], ['semana', a.semana], ['notificacao.amanha', a.notificacao?.amanha], ['notificacao.semana', a.notificacao?.semana],
         ...(Array.isArray(a.dias) ? a.dias.map((d, i) => [`dias[${i}]`, d?.texto]) : []),
         ...(Array.isArray(a.alertas) ? a.alertas.map((x, i) => [`alertas[${i}]`, `${x?.quando || ''} ${x?.texto || ''}`]) : []),
         ...(Array.isArray(a.conselhos) ? a.conselhos.map((c, i) => [`conselhos[${i}]`, c]) : [])];
@@ -134,6 +148,12 @@ export function validateAnalysis(a, { strict = false } = {}) {
         tecnica: str(a.tecnica, L.tecnica, 'tecnica', true),
         verificacao: str(a.verificacao, L.verificacao, 'verificacao'),
         licoes: arr(a.licoes, 'licoes').slice(0, 8).map((c, i) => str(c, L.licao, `licoes[${i}]`)).filter(Boolean),
+        vestir: str(a.vestir, L.vestir, 'vestir', true),
+        semana: str(a.semana, L.semana, 'semana', true),
+        notificacao: {
+            amanha: str(a.notificacao?.amanha, L.notificacao, 'notificacao.amanha', true),
+            semana: str(a.notificacao?.semana, L.notificacao, 'notificacao.semana', true),
+        },
     };
     if (strict && Array.isArray(a.dias) && a.dias.length > 7) errors.push('dias com mais de 7 entradas');
     return { ok: errors.length === 0, errors, value: out };
