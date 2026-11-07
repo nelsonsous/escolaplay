@@ -34,7 +34,13 @@ nesta tarefa.
      pedido, a respeitar o texto e as opções do pedido.
    - **Playlist da semana**: se o `dados.md` disser *"está na altura de uma nova"* (ou que ainda não há nenhuma) e for
      a corrida da **manhã**, cria a **«Onda da semana · dd/mm»**.
+   - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
+     artistas · dd/mm»"*, cria-a só com as faixas da secção *Novidades* (põe o `tidalId` de cada uma na proposta; não é
+     preciso pesquisar na web). Com menos de 5 faixas, não a cries.
    - Se não houver nada disto, **termina aqui** (sem pesquisar nada).
+   - **As tuas mixes do Tidal** (secção do `dados.md`): são faixas que o Tidal escolheu para o teu gosto. Quando
+     encaixarem num pedido ou na playlist da semana, usa-as como candidatas, com o `tidalId` (não contam como
+     pesquisa: junta-lhes sempre outras que tenhas encontrado na web).
 
 3. **Pesquisa na web** (antes de escolher):
    - **Playlist da semana** — o que está na moda **e** tem qualidade: lançamentos recentes com boa crítica (Pitchfork

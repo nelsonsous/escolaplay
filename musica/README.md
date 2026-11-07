@@ -21,7 +21,8 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   [`CURADOR.md`](CURADOR.md) às 07:44 e às 18:44: lê o teu gosto (favoritas, artistas seguidos, playlists), pesquisa
   na web o que está a dar e tem qualidade (crítica, tabelas, cena portuguesa, jazz, clássica, reedições, gravações de
   referência), escreve uma proposta com 1,5× a 2× as faixas necessárias, e publica: os pedidos que fizeste na app e,
-  uma vez por semana, a **«Onda da semana»**.
+  uma vez por semana, a **«Onda da semana»**. Usa também as tuas **mixes do Tidal** e, às sextas de manhã, cria
+  **«Novidades dos teus artistas»** com os álbuns novos dos artistas que segues.
 - **Motor de curadoria em Onda** — [`onda/curador.onda`](onda/curador.onda): da proposta, escolhe K faixas pela
   pontuação (gosto, qualidade do som, tendência, nota do Claude, novidade) com diversidade (máximo por artista, géneros
   e décadas espalhados), e ordena-as para uma audição seguida — bpm (com meio e dobro do tempo), tom na roda de
@@ -30,12 +31,14 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   juiz confirma-o nos testes.
 - **Worker** ([`proxy/`](proxy/)) — fala com o Tidal em teu nome: login com PKCE (sem segredo, só o Client ID), tokens
   renovados sozinhos, o teu gosto (cache de 6 h), encontrar faixas (pesquisa + verificação de artista e título,
-  versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app.
+  versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app,
+  afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **«Mais como esta»** (as faixas parecidas do
+  Tidal), apagar também no Tidal e, para o Curador, as tuas mixes e os álbuns novos dos artistas que segues.
   Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Curador).
 - **App em Onda** ([`app/musica.onda`](app/musica.onda)) — monta-se com a biblioteca de apps da Onda e o motor
   (`cat onda/lib/app.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w`) e corre no anfitrião das apps Onda:
-  os ecrãs (Playlists, a playlist com o porquê de cada faixa e a mistura, **Afinar no telemóvel**, Pedir, Gosto,
-  Ajustes), o estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
+  os ecrãs (Playlists com ▶ para ouvir no Tidal, a playlist com o porquê de cada faixa e a mistura — toca numa faixa
+  para **«Mais como esta»** —, **Afinar no telemóvel**, Pedir, Gosto, Ajustes), o estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
   app a cada mudança (estilo, arco, número de faixas, máximo por artista, fixar, tirar, juntar do Tidal) em menos de
   1 ms, e o juiz dos testes confirma que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão
   (a ordem, o porquê e os ids das faixas juntadas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`).

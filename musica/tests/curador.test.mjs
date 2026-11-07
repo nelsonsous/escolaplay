@@ -58,6 +58,11 @@ test('dados → proposta → ensaio → publicar com pedido', async () => {
     assert.match(md, /`q1abc` — «Jazz e soul para o carro» · 5 faixas, máx\. 1 por artista, estilo audiofilo/);
     assert.match(md, /Miles Davis — So What · 1959 · Hi-Res · 136 bpm · 7A · Jazz/);
     assert.match(md, /Ainda não há nenhuma — \*\*cria a primeira\*\*/);
+    // as novidades dos artistas que segues e as tuas mixes do Tidal, com o id do Tidal
+    assert.match(md, /- \d{4}-\d{2}-\d{2} · Nina Simone — «Disco novo»/);
+    assert.match(md, /- `102` Nina Simone — Feeling Good/);
+    assert.match(md, /### Descoberta\n- `106` Massive Attack — Teardrop/);
+    assert.match(md, /### Diária\n- `101` Miles Davis — So What/);
     assert.ok(JSON.parse(readFileSync(join(dir, 'perfil.json'), 'utf8')).favoritas.length >= 3);
 
     const proposta = {

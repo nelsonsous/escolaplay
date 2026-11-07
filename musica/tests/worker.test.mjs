@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.3.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.4.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -254,7 +254,7 @@ test('desligar apaga os tokens e o perfil', async () => {
     assert.equal((await get('/api/perfil', chave)).status, 409);
 });
 
-test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (por id) e o envio', async () => {
+test('afinar na app: a ordem do motor, as faixas juntadas do Tidal (por id) e o envio — na mesma playlist', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200, tags: ['LOSSLESS'], generos: [], ano: 1960 });
@@ -269,8 +269,10 @@ test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (p
         opcoes: { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'desce' }, custo: 1234, tidal: true }, chave);
     assert.equal(r.status, 201);
     const v = await r.json();
-    assert.equal(v.nome, 'Original · afinada');
-    assert.equal(v.por, 'app');
+    assert.equal(v.id, d.id, 'a mesma playlist');
+    assert.equal(v.nome, 'Original');
+    assert.equal(v.por, 'curador', 'quem a fez continua a ser o Curador');
+    assert.ok(v.afinadaEm);
     assert.deepEqual(v.faixas.map((x) => x.id), ['103', '101', '106'], 'a ordem da app; o índice 3 é a faixa juntada');
     assert.deepEqual(v.faixas.map((x) => x.porque), ['claude', 'gosto', 'fixa']);
     assert.equal(v.faixas[0].motivo, 'Graves.');
@@ -283,8 +285,9 @@ test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (p
     assert.deepEqual(v.opcoes, { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'desce' });
     assert.equal(v.tidal.faixas, 3);
     assert.deepEqual(sim.itens, ['103', '101', '106']);
-    // a original fica como estava; erros
-    assert.equal((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.length, 3);
+    // a playlist guardada é a afinada (sem cópia); erros
+    assert.deepEqual((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.map((x) => x.id), ['103', '101', '106']);
+    assert.equal((await (await get('/api/playlists', chave)).json()).filter((x) => x.nome.startsWith('Original')).length, 1);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [0], extras: ['abc'] }, chave)).status, 400);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [] }, chave)).status, 400);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [9] }, chave)).status, 400);
@@ -301,4 +304,56 @@ test('aparelho novo com o código de ligação (sem novo login no Tidal)', async
     assert.equal(await env.KV.get('codigo:ligacao'), null, 'o código gasta-se');
     assert.equal((await (await get('/api/estado', chave)).json()).tu, 'aparelho');
     assert.equal((await post('/api/aparelho', { codigo: 'OUTRO-456' })).status, 401);
+});
+
+test('afinar na mesma playlist: no Tidal, troca as faixas da própria playlist (sem cópias)', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const f = (id, titulo) => ({ id, titulo, artistas: ['Miles Davis'], duracao: 180 });
+    const candidatas = [f('101', 'So What'), f('102', 'Feeling Good'), f('106', 'Teardrop')].map((faixa) => ({ faixa, sinais: { genero: 'jazz' }, motivo: 'm' }));
+    const d = await (await post('/api/playlists', { nome: 'Noite', faixas: candidatas.map((x) => x.faixa), candidatas, tidal: true }, agente)).json();
+    const pid = d.tidal.id;
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['101', '102', '106']);
+    const criadas = sim.criadas.length;
+    const r = await post(`/api/playlists/${d.id}/versoes`, { ordem: [2, 0, 1], tidal: true, opcoes: { faixas: 5, maxArtista: 2 } }, chave);
+    assert.equal(r.status, 201);
+    const v = await r.json();
+    assert.equal(v.id, d.id, 'a mesma playlist na app');
+    assert.equal(v.nome, 'Noite', 'sem «· afinada»');
+    assert.equal(sim.criadas.length, criadas, 'nenhuma playlist nova no Tidal');
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['106', '101', '102'], 'a mesma playlist do Tidal, pela ordem nova');
+    assert.deepEqual(sim.removidos, ['101', '102', '106']);
+    const idx = await (await get('/api/playlists', chave)).json();
+    assert.equal(idx.filter((x) => x.nome.startsWith('Noite')).length, 1, 'sem cópias na biblioteca');
+    // só na app: o Tidal fica como está
+    await post(`/api/playlists/${d.id}/versoes`, { ordem: [0, 1], tidal: false }, chave);
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['106', '101', '102']);
+    assert.deepEqual((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.map((x) => x.id), ['101', '102']);
+});
+
+test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const r = await post('/api/mais', { faixa: '101' }, chave);
+    assert.equal(r.status, 201);
+    const d = await r.json();
+    assert.equal(d.nome, 'Parecidas com So What');
+    assert.equal(d.faixas[0].id, '101', 'começa pela faixa de partida');
+    assert.deepEqual(d.faixas.map((x) => x.id).slice(1), ['102', '106', '105', '103']);
+    assert.equal(d.candidatas.length, 5, 'fica pronta para afinar');
+    assert.match(d.tidal.url, /^https:\/\/tidal.com\/browse\/playlist\//);
+    assert.ok(sim.chamadas.some((c) => c.includes('/tracks/101/relationships/similarTracks')));
+    assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
+});
+
+test('para o Curador: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {
+    await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const m = await (await get('/api/mixes', agente)).json();
+    assert.deepEqual(m.mixes.map((x) => x.tipo), ['descoberta', 'diaria', 'lancamentos']);
+    assert.deepEqual(m.mixes[0].faixas.map((x) => x.titulo), ['Teardrop', 'Barco Negro']);
+    assert.equal(m.mixes[1].faixas[0].titulo, 'So What');
+    const n = await (await get('/api/novidades?dias=7', agente)).json();
+    assert.deepEqual(n.albuns.map((x) => `${x.artista} — ${x.titulo}`), ['Nina Simone — Disco novo'], 'só o álbum dos últimos 7 dias');
+    assert.deepEqual(n.faixas.map((x) => x.id), ['102', '201']);
+    assert.equal((await get('/api/mixes')).status, 401);
 });

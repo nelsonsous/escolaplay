@@ -21,6 +21,11 @@ if (!estado.ligado) {
 const [perfil, pedidos, playlists] = await Promise.all([api('/api/perfil?fresco=1'), api('/api/pedidos'), api('/api/playlists')]);
 writeFileSync(join(dir, 'perfil.json'), JSON.stringify(perfil));
 const recentes = await Promise.all(playlists.slice(0, 3).map((p) => api('/api/playlists/' + p.id).catch(() => null)));
+// o que o Tidal já sabe de ti (as tuas mixes) e os álbuns novos dos artistas que segues
+const [mixes, novas] = await Promise.all([api('/api/mixes').catch(() => null), api('/api/novidades?dias=7').catch(() => null)]);
+const agora = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', weekday: 'short', hour: 'numeric', hourCycle: 'h23' }).formatToParts(new Date());
+const sextaDeManha = agora.find((x) => x.type === 'weekday')?.value === 'Fri' && Number(agora.find((x) => x.type === 'hour')?.value) < 12;
+const NOMES_MIX = { descoberta: 'Descoberta', diaria: 'Diária', lancamentos: 'Lançamentos' };
 
 const linhaFaixa = (f) => `${f.artistas.join(', ')} — ${f.titulo}${f.versao ? ` (${f.versao})` : ''} · ${f.ano || '?'} · ${qualidadeTexto(f.tags)}` +
     `${f.bpm ? ` · ${f.bpm} bpm` : ''}${f.tom ? ` · ${camelotTexto(f.tom)}` : ''}${f.generos?.length ? ` · ${f.generos.join('/')}` : ''}`;
@@ -38,6 +43,13 @@ ${pend.length ? pend.map((p) => `- \`${p.id}\` — «${p.texto}» · ${p.opcoes.
 
 ## Playlist da semana
 ${ultimaSemanal ? `A última foi «${ultimaSemanal.nome}» há ${diasSemanal} dia(s)${diasSemanal >= 7 ? ' — **está na altura de uma nova**.' : '.'}` : 'Ainda não há nenhuma — **cria a primeira**.'}
+
+## Novidades dos artistas que segues (álbuns dos últimos 7 dias)
+${novas?.albuns?.length ? novas.albuns.map((a) => `- ${a.data} · ${a.artista} — «${a.titulo}»`).join('\n') + '\n\nFaixas (com o id do Tidal):\n' + novas.faixas.map((f) => `- \`${f.id}\` ${linhaFaixa(f)}`).join('\n') : '- nenhum álbum novo esta semana'}
+${sextaDeManha && (novas?.faixas?.length || 0) >= 5 ? '\n**É sexta de manhã: cria a playlist «Novidades dos teus artistas · dd/mm»** com estas faixas.' : ''}
+
+## As tuas mixes do Tidal (o Tidal escolheu-as para ti; usa-as como candidatas quando encaixam)
+${(mixes?.mixes || []).filter((m) => m.faixas.length).map((m) => `### ${NOMES_MIX[m.tipo] || m.tipo}\n${m.faixas.slice(0, 20).map((f) => `- \`${f.id}\` ${linhaFaixa(f)}`).join('\n')}`).join('\n\n') || '- o Tidal não devolveu mixes'}
 
 ## O teu gosto (das favoritas)
 - Artistas mais presentes: ${(r.artistas || []).map((a) => `${a.nome} (${a.n})`).join(', ') || '—'}
