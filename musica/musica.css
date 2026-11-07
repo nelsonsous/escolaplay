@@ -140,6 +140,9 @@ button.mu-chip { cursor: pointer; }
 .mu-faixa { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--line); align-items: start; }
 .mu-faixa:first-child { border-top: 0; }
 .mu-faixa .n { color: var(--dim); font: 600 12.5px/1.75 var(--mono); text-align: right; }
+.mu-faixa-a { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; }
+.mu-faixa-a:active { opacity: .6; }
+.mu-faixa-mais { margin-top: 8px; }
 .mu-faixa .t { font-weight: 650; font-size: 15px; line-height: 1.3; min-width: 0; }
 .mu-faixa .t a { color: inherit; text-decoration: none; }
 .mu-faixa .t a:active { color: var(--acc); }

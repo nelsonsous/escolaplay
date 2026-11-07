@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -60,6 +60,9 @@ async function route(req, env, url) {
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(env, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(env, pl[1], await corpo(req)));
     if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(env, pl[1], await corpo(req), quem), 201);
+    if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(env, await corpo(req), quem), 201);
+    if (p === '/api/mixes' && m === 'GET') return json(await mixes(env));
+    if (p === '/api/novidades' && m === 'GET') return json(await novidades(env, url.searchParams.get('dias')));
     if (p === '/api/pedidos' && m === 'GET') return json(await pedidos(env));
     if (p === '/api/pedidos' && m === 'POST') return json(await pedir(env, await corpo(req)), 201);
     const pd = /^\/api\/pedidos\/([a-z0-9_-]{4,40})$/.exec(p);
@@ -422,8 +425,102 @@ async function versao(env, id, c, quem) {
         faixas.push({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo || '', porque: txt(c.porque?.[p], 20), pontos: Number(c.pontos?.[p]) || 0 });
     });
     if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A versão não tem faixas.');
-    return guardar(env, { nome: `${d.nome.slice(0, 50)} · afinada`, descricao: d.descricao, resumo: d.resumo, tendencias: d.tendencias, pedido: d.pedido,
-        opcoes: c.opcoes || d.opcoes, faixas, custo: c.custo, candidatas: todas.filter(Boolean), tidal: !!c.tidal }, quem);
+    // a mesma playlist: na app e, se já estiver no Tidal, lá também (troca as faixas, sem criar cópias)
+    Object.assign(d, { faixas, candidatas: todas.filter(Boolean), opcoes: normalizarOpcoes(c.opcoes || d.opcoes || {}), custo: Number(c.custo) || d.custo || 0, afinadaEm: new Date().toISOString() });
+    if (c.tidal) {
+        if (d.tidal?.id) {
+            await substituirNoTidal(env, d.tidal.id, faixas.map((f) => f.id));
+            d.tidal = { ...d.tidal, faixas: faixas.length, atualizadaEm: d.afinadaEm };
+        } else d.tidal = await criarNoTidal(env, d);
+    }
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    const idx = (await env.KV.get('playlists', 'json')) || [];
+    await env.KV.put('playlists', JSON.stringify(idx.map((x) => (x.id === d.id ? resumoDe(d) : x))));
+    return d;
+}
+
+// troca as faixas de uma playlist do Tidal: tira as que lá estão (pelo itemId, lotes de 50) e põe as novas pela ordem
+async function substituirNoTidal(env, pid, ids) {
+    const atuais = [];
+    let cursor = null;
+    for (let pag = 0; pag < 8; pag++) {
+        const doc = await tidal(env, `/playlists/${pid}/relationships/items`, { query: { 'page[cursor]': cursor } });
+        for (const x of doc?.data || []) if (x?.meta?.itemId) atuais.push({ id: String(x.id), type: x.type || 'tracks', meta: { itemId: String(x.meta.itemId) } });
+        cursor = doc?.links?.meta?.nextCursor || null;
+        if (!cursor) break;
+    }
+    for (let i = 0; i < atuais.length; i += 50) await tidal(env, `/playlists/${pid}/relationships/items`, { method: 'DELETE', body: { data: atuais.slice(i, i + 50) } });
+    for (let i = 0; i < ids.length; i += MAX_ITENS) {
+        await tidal(env, `/playlists/${pid}/relationships/items`, { method: 'POST', body: { data: ids.slice(i, i + MAX_ITENS).map((x) => ({ id: x, type: 'tracks' })), meta: { onDuplicates: 'SKIP' } } });
+    }
+}
+
+// ---------- mais como esta: faixas parecidas (as do Tidal), numa playlist já no Tidal e pronta para afinar ----------
+async function maisComoEsta(env, c, quem) {
+    const id = String(c?.faixa || '');
+    if (!/^\d+$/.test(id)) throw new Erro(400, 'faixa_invalida', 'Indica "faixa": o id do Tidal.');
+    const t = await acesso(env);
+    const pais = t.pais || 'PT';
+    const doc = await tidal(env, `/tracks/${id}/relationships/similarTracks`, { query: { countryCode: pais } });
+    let ids = idsDe(doc);
+    const cursor = doc?.links?.meta?.nextCursor;
+    if (ids.length < 29 && cursor) ids.push(...idsDe(await tidal(env, `/tracks/${id}/relationships/similarTracks`, { query: { countryCode: pais, 'page[cursor]': cursor } }).catch(() => null)));
+    ids = [id, ...new Set(ids.filter((x) => x !== id))].slice(0, 30);
+    const det = await porIds(env, ids, pais);
+    const semente = det.get(id);
+    if (!semente) throw new Erro(404, 'nao_encontrada', 'Essa faixa já não está no Tidal.');
+    const g = perfilGosto((await env.KV.get('perfil', 'json')) || {});
+    const candidatas = ids.map((x, i) => {
+        const f = det.get(x);
+        if (!f) return null;
+        const p = { artista: f.artistas[0] || '', titulo: f.titulo, motivo: i ? `Parecida com «${semente.titulo}».` : 'A faixa de partida.', fixa: !i };
+        return { ...p, faixa: f, sinais: sinais(p, f, g) };
+    }).filter(Boolean);
+    const faixas = candidatas.map((x) => ({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo }));
+    return guardar(env, { nome: txt(`Parecidas com ${semente.titulo}`, 60), descricao: txt(`Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
+        resumo: `Pedi ao Tidal as faixas parecidas com «${semente.titulo}». Afina no telemóvel para mudar a ordem ou a escolha.`, faixas, candidatas,
+        opcoes: { faixas: Math.max(5, faixas.length), maxArtista: 3 }, tidal: true }, quem);
+}
+
+// ---------- para o Curador: as tuas mixes do Tidal ----------
+const MIXES = [['descoberta', 'userDiscoveryMixes'], ['diaria', 'userDailyMixes'], ['lancamentos', 'userNewReleaseMixes']];
+async function mixes(env) {
+    const t = await acesso(env);
+    const listas = [];
+    for (const [, r] of MIXES) {
+        listas.push(await tidal(env, `/${r}/me/relationships/items`).then((d) => idsDe(d).slice(0, 25)).catch((e) => {
+            if (e.status === 429) throw e;
+            return [];
+        }));
+    }
+    const det = await porIds(env, listas.flat(), t.pais || 'PT');
+    return { mixes: MIXES.map(([tipo], i) => ({ tipo, faixas: listas[i].map((id) => det.get(id)).filter(Boolean) })) };
+}
+
+// ---------- para o Curador: álbuns novos dos artistas que segues (os últimos `dias`) ----------
+async function novidades(env, dias) {
+    const t = await acesso(env);
+    const pais = t.pais || 'PT';
+    const desde = Date.now() - Math.min(Math.max(Number(dias) || 7, 1), 31) * 864e5;
+    const p = await perfil(env);
+    const albuns = [];
+    for (const a of (p.artistas || []).slice(0, 15)) {
+        const doc = await tidal(env, `/artists/${encodeURIComponent(a.id)}/relationships/albums`, { query: { countryCode: pais, include: 'albums' } }).catch((e) => {
+            if (e.status === 429) throw e;
+            return null;
+        });
+        for (const r of indexar(doc).values()) {
+            if (r.type === 'albums' && Date.parse(r.attributes?.releaseDate || '') >= desde) albuns.push({ id: String(r.id), titulo: r.attributes.title, data: r.attributes.releaseDate, artista: a.nome });
+        }
+    }
+    albuns.sort((x, y) => y.data.localeCompare(x.data));
+    const escolhidos = albuns.slice(0, 8);
+    const ids = [];
+    for (const al of escolhidos) {
+        ids.push(...idsDe(await tidal(env, `/albums/${encodeURIComponent(al.id)}/relationships/items`, { query: { countryCode: pais } }).catch(() => null)).slice(0, 4));
+    }
+    const det = await porIds(env, ids, pais);
+    return { desde: new Date(desde).toISOString().slice(0, 10), albuns: escolhidos, faixas: [...new Set(ids)].map((id) => det.get(id)).filter(Boolean) };
 }
 
 async function criarNoTidal(env, d) {
