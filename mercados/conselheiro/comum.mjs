@@ -102,6 +102,8 @@ export const ACTION_LABEL = {
     buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Manter, sem reforçar', turn: 'Esperar confirmação',
     reduce: 'Reduzir', sell: 'Vender', avoid: 'Evitar', up: 'Em alta', flat: 'Lateral', down: 'Em queda',
 };
+// família de cada veredicto: entrar (1), ficar (0), sair (-1) — para comparar com o sinal automático
+export const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
 export const HZ = ['short', 'mid', 'long']; // curto (dias a 2 semanas), médio (semanas a 3 meses), longo (anos)
 export const LEVELS = ['entry', 'target', 'stop']; // entrada, alvo e stop, na moeda do ativo
 

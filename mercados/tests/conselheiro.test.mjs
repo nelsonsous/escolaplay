@@ -171,12 +171,33 @@ test('dados: modelo.json com todos os ativos e o último veredicto, porquê semp
     const prev = { NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95 } };
     const m = modelOf(rows, prev, { last: { plan: [{ s: 'VWCE.DE', amount: '810 €', name: '' }], planNote: '900 € em 2 execuções' }, lessons: ['l1'], movers: [{ s: 'NVDA' }] });
     assert.deepEqual(m.actions.map((x) => x.s), ['VWCE.DE', 'NVDA', 'BZ=F']);
-    assert.deepEqual(m.actions[1], { s: 'NVDA', key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95, target: null, stop: null, why: '', plan: '' });
-    assert.deepEqual(m.actions[2], { s: 'BZ=F', key: '', action: '', short: null, mid: null, long: null, entry: null, target: null, stop: null, why: '', plan: '' });
+    assert.deepEqual(m.actions[1], { s: 'NVDA', key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95, target: null, stop: null, why: '', plan: '', algWhy: '' });
+    assert.deepEqual(m.actions[2], { s: 'BZ=F', key: '', action: '', short: null, mid: null, long: null, entry: null, target: null, stop: null, why: '', plan: '', algWhy: '' });
     assert.deepEqual(m.plan, [{ s: 'VWCE.DE', amount: '810 €', why: '' }]);
     assert.deepEqual([m.planNote, m.lessons, m.movers], ['900 € em 2 execuções', ['l1'], [{ s: 'NVDA', why: '' }]]);
     // por preencher, o publicar recusa (nunca se publica um porquê antigo por engano)
     const e = buildAdvice({ ...m, headline: 'x', market: 'y', tldr: ['a'] }, { rows }).errs;
     assert.ok(e.some((x) => /falta actions\[1\] NVDA\.why/.test(x)) && e.some((x) => /BZ=F\.key inválido/.test(x)), e.join(' | '));
     assert.deepEqual(modelOf([{ s: 'c:BTC' }], {}).plan.map((x) => x.amount), ['810 €', '90 €'], 'sem análise anterior: o plano por omissão');
+});
+
+test('publicar: segunda opinião — discordar do sinal automático exige o porquê (algWhy)', () => {
+    const D2 = { rows: DADOS.rows.map((r) => ({ ...r, rule: { 'VWCE.DE': 'wait', NVDA: 'avoid', 'c:BTC': 'buy' }[r.s] || null, ruleAction: { NVDA: 'Evitar', 'c:BTC': 'Comprar' }[r.s] })) };
+    // VWCE: hold vs wait (mesma família: ficar) → passa sem porquê; NVDA: scale vs avoid; BTC: wait vs buy → precisam
+    let r = buildAdvice(analise(), D2);
+    assert.equal(r.errs.length, 2);
+    assert.match(r.errs.join(' | '), /NVDA: o teu veredicto \(Comprar aos poucos\) discorda do sinal automático \(Evitar\)/);
+    assert.match(r.errs.join(' | '), /c:BTC: .*discorda do sinal automático \(Comprar\)/);
+    const a = analise();
+    a.actions.find((x) => x.s === 'NVDA').algWhy = 'A regra vê a queda; os resultados de 17/11 e o desconto pesam mais.';
+    a.actions.find((x) => x.s === 'c:BTC').algWhy = 'Abaixo da MM20: esperar pelo suporte.';
+    r = buildAdvice(a, D2);
+    assert.deepEqual(r.errs, []);
+    const nv = r.out.actions.find((x) => x.s === 'NVDA');
+    assert.equal(nv.alg, 'avoid');
+    assert.match(nv.algWhy, /resultados/);
+    assert.equal(r.out.actions.find((x) => x.s === 'VWCE.DE').alg, 'wait');
+    assert.equal(r.out.actions.find((x) => x.s === 'BZ=F').alg, undefined, 'a referência não tem regra');
+    a.actions.find((x) => x.s === 'NVDA').algWhy = 'x'.repeat(201);
+    assert.match(buildAdvice(a, D2).errs.join(' '), /algWhy com mais de 200/);
 });

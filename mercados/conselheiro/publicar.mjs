@@ -5,7 +5,7 @@
 // por prazo, níveis e o porquê, mais a classificação do Claude por prazo. A app continua a ler o formato antigo.
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { kvPut, todayLisbon, isMain, normVerdict, textCheck, HZ, REF_KEYS } from './comum.mjs';
+import { kvPut, todayLisbon, isMain, normVerdict, textCheck, HZ, REF_KEYS, FAM, ACTION_LABEL } from './comum.mjs';
 
 export const MAX_EXTRA = 8; // ativos de fora das listas da app (toda a Trade Republic, universo.json)
 const RANK_MAX = 15, RANK_AUTO = 10;
@@ -48,7 +48,16 @@ export function buildAdvice(a, dados, uniRows = []) {
         if (!r && !uni.has(s)) { errs.push(`${p}: ativo desconhecido (não está no dados.json nem na lista da TR)`); return; }
         if (seen.has(s)) { errs.push(`${p}: repetido`); return; }
         seen.add(s);
-        out.actions.push(normVerdict(x, errs, { p, ref: !!r && r.kind === 'ref', price: r ? r.price : null }));
+        const o = normVerdict(x, errs, { p, ref: !!r && r.kind === 'ref', price: r ? r.price : null });
+        // segunda opinião: o sinal automático (regra) do mesmo ativo; se o veredicto for de outra família
+        // (entrar / ficar / sair), o Claude explica porquê discorda
+        if (r && r.rule && FAM[r.rule] != null && FAM[o.key] != null) {
+            o.alg = r.rule;
+            const w = str(x.algWhy, 200, `${p}.algWhy`);
+            if (FAM[o.key] !== FAM[r.rule] && !w.trim()) errs.push(`${p}: o teu veredicto (${o.action}) discorda do sinal automático (${r.ruleAction || ACTION_LABEL[r.rule]}): explica porquê em algWhy (até 200 caracteres)`);
+            if (w.trim()) o.algWhy = w;
+        }
+        out.actions.push(o);
     });
     const extra = out.actions.filter((x) => !rows.has(x.s)).length;
     if (extra > MAX_EXTRA) errs.push(`no máximo ${MAX_EXTRA} ativos de fora das listas da app; vieram ${extra}`);

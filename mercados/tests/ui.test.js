@@ -385,6 +385,8 @@ function proxyBody(u) {
     assert.match(lv[2], /^Stop\s*149,31\s€\s*−12,24%$/, lv[2]);
     assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora/);
     assert.match(await page.locator(adv + ' .adv-ev').textContent(), /Resultados daqui a 5 dias/);
+    // segunda opinião: o sinal automático ao lado, a dizer se o Claude concorda
+    assert.match(await page.locator(adv + ' .adv-alg').textContent(), /^Algoritmo: .+ · o Claude (concorda|discorda)/);
     const shAuto = '#mk-sheet details.sh-auto';
     assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'sinais automáticos fechados na ficha');
     assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');

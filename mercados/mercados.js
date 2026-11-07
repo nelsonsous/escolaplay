@@ -12,7 +12,7 @@
     // motor de análise escrito em Onda (WebAssembly, gerado de onda/analise.onda); até compilar não há pontuações
     const AO = window.AnaliseOnda || null;
     let aoOk = false;
-    const VERSION = '4.1.0';
+    const VERSION = '4.2.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1332,6 +1332,15 @@
             ${kind === 'stock' ? '<div class="adv-meta"><b>Dividendos</b> — se a empresa pagar, são 28% e entram na declaração de IRS (Anexo J) todos os anos.</div>' : ''}
             <div class="adv-meta">Impostos (PT): ${kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%.' : kind === 'fund' ? 'só pagas quando venderes, e menos quanto mais tempo o tiveres: 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais. Um ETF de acumulação não paga nada enquanto o tiveres.' : 'ao vender, 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais; os dividendos pagam 28%.'}</div>`;
     }
+    // segunda opinião: o sinal automático do mesmo ativo ao lado do veredicto do Claude (família: entrar / ficar / sair)
+    const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
+    const algDiff = (k, c) => { const a = AN[k] && AN[k].advice; return !!(c && a && FAM[c.key] != null && FAM[a.key] != null && FAM[c.key] !== FAM[a.key]); };
+    function algLine(k, c) {
+        const a = AN[k] && AN[k].advice;
+        if (!a || !buyable(k) || FAM[c.key] == null) return '';
+        const diff = algDiff(k, c);
+        return `<div class="adv-alg${diff ? ' diff' : ''}"><b>Algoritmo:</b> ${esc(a.action)} · ${diff ? `<b>o Claude discorda</b>${c.algWhy ? ` — ${esc(c.algWhy)}` : ''}` : 'o Claude concorda'}</div>`;
+    }
     function claudeBox(k, q) {
         const c = claudeFor(k);
         if (!c) return '';
@@ -1345,6 +1354,7 @@
             <div class="adv-act ${tone}-t">${esc(c.action || SHORT[c.key] || '')}</div>
             ${conv ? `<div class="cl-conv" role="group" aria-label="Convicção do Claude por prazo">${conv}</div>` : ''}
             ${lv ? `<ul class="cl-lv">${lv}</ul>` : ''}
+            ${algLine(k, c)}
             ${whyToday(k, q)}
             <div class="adv-txt">${esc(c.why || '')}</div>
             ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}
@@ -1628,7 +1638,7 @@
             </button>`; };
         const clRow = (k, i) => { const c = clNow(k), v = clScore(k, hz); return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
                 <span class="rk">${i + 1}</span>
-                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${fmtPct(qv(k).changePct)} hoje${AN[k] ? ' · ' + esc(AN[k].risk.label) : ''}</div></div>
+                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${fmtPct(qv(k).changePct)} hoje${AN[k] ? ' · ' + esc(AN[k].risk.label) : ''}${algDiff(k, c) ? ' · <span class="alg-diff">≠ algoritmo</span>' : ''}</div></div>
                 <div class="r-score">${scoreBar({ score: v, tone: scoreTone(v) })}<div class="lbl ${CL_TONE[c.key] || 'flat'}-t">${esc(SHORT[c.key] || c.action || '')}</div></div>
             </button>`; };
         const autoRow = (k, i) => { const h = algo(k), d = AN[k].discount; return `<button type="button" class="row${useCl ? ' auto' : ''}" data-open="${esc(k)}" data-key="${esc(k)}">

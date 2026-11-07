@@ -71,7 +71,8 @@ Este ficheiro é o procedimento que a tarefa agendada segue **duas vezes por dia
      "actions": [
        { "s": "NVDA", "key": "scale", "action": "Comprar aos poucos", "short": 45, "mid": 62, "long": 74,
          "entry": 180, "target": 215, "stop": 164,
-         "why": "porquê em 1–2 frases, com números do dados.md", "plan": "quanto, como e quando (opcional)" },
+         "why": "porquê em 1–2 frases, com números do dados.md", "plan": "quanto, como e quando (opcional)",
+         "algWhy": "só se discordares da regra: porquê (até 200 caracteres)" },
        { "s": "BZ=F", "key": "up", "action": "Em alta", "short": 60, "mid": 55, "long": 45, "why": "…" }
      ],
      "rank": { "short": ["…"], "mid": ["…"], "long": ["…"] },
@@ -89,6 +90,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **duas vezes por dia
    - `short` / `mid` / `long`: a tua **convicção 0–100** em cada prazo (curto: dias a 2 semanas; médio: semanas a 3 meses; longo: anos) — quão favorável é comprar ou ter o ativo nesse prazo: 50 = neutro, ≥ 70 forte a favor, ≤ 30 forte contra (a mesma escala da pontuação da app). Na referência, a força da tendência de subida. Coerente com o veredicto (Comprar pede convicção a favor nalgum prazo; Vender/Evitar, contra). É o que ordena "Mais fortes" na app.
    - `entry` / `target` / `stop`: quando fizerem sentido, **na moeda do ativo** (a do `dados.md`; a app converte para €), com stop < entrada < alvo. Os S/R do `dados.md` são a base.
    - `why`: até 280 caracteres, **com os dados do `dados.md`** (tendência, RSI, desconto, níveis, notícias, agenda); nunca inventar. Se o movimento do dia for forte, diz porquê.
+   - **Segunda opinião (`algWhy`)**: em cada ativo, compara o teu veredicto com a `regra` do `dados.md` (o sinal automático, o mesmo motor que a app mostra quando não há análise tua). Se discordares de família — entrar (`buy`, `scale`) / ficar (`hold`, `wait`, `neutral`, `turn`) / sair (`reduce`, `sell`, `avoid`) — diz em `algWhy` (até 200 caracteres) **porque é que o algoritmo está errado aqui** (ex.: "a regra vê a queda de 12% mas não sabe que foi o dividendo"). O `publicar.mjs` recusa sem isso. Quando concordas, é opcional. A app mostra os dois lado a lado e destaca as discordâncias.
    - `plan` (de cada ativo, opcional, até 280): o que fazer — quanto (em € ou % da carteira), de uma vez ou em partes, quando. Na cripto com menos de 365 dias, o custo de vender.
    - `rank` (opcional): a tua classificação por prazo (até 15, só ativos que se compram), da maior convicção para a menor — o publicar confirma a ordem; sem `rank`, ordena pela convicção.
    - `plan` (do mês): o que fazer com os 900 € **deste mês** (soma = 900 €). Se a próxima execução for amanhã, dizê-lo.
