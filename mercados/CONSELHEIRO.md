@@ -116,7 +116,7 @@ Este ficheiro é o procedimento que a tarefa agendada segue **duas vezes por dia
    - Nunca falar do plano, dos ativos ou das datas do investidor principal, nem de outras apps. Sem valores em euros a investir (não se sabe o que cada um tem).
    - Publicar: `NODE_USE_ENV_PROXY=1 node mercados/conselheiro/outros.mjs publicar /tmp/conselheiro/outros-analise.json` (se a validação falhar, corrigir e repetir).
 7. **À sexta-feira, antes de propor regras**: correr `NODE_USE_ENV_PROXY=1 node mercados/conselheiro/backtest.mjs 5 90` (5 anos, preços ajustados com dividendos, comissão de 1 € por compra manual). Ler com o **viés de sobrevivência** em mente: a lista são as vencedoras de hoje, por isso quase tudo "bate" o VWCE olhando para trás — o que conta é a diferença **entre** sugestões (ex.: "Comprar" vs "Evitar"). Uma regra só muda se melhorar nas **duas metades**.
-8. **Só à sexta-feira**: se o diário e os veredictos anteriores mostrarem com evidência (não um dia mau) que uma regra de `mercados/analise.js` está a errar, abrir um **PR em rascunho** com a alteração, testes a passar (`node --test mercados/tests/*.test.*`) e os números que a justificam. **Nunca fazer merge** — o investidor decide.
+8. **Só à sexta-feira**: se o diário e os veredictos anteriores mostrarem com evidência (não um dia mau) que uma regra da análise está a errar, abrir um **PR em rascunho** com a alteração (as regras estão em `mercados/onda/*.onda`, a análise que a app corre, e em `mercados/analise.js`, a referência: muda-se nos dois, `node mercados/onda/build.mjs`), testes a passar (`node --test mercados/tests/*.test.*`) e os números que a justificam. **Nunca fazer merge** — o investidor decide.
 
 ## Regras
 

@@ -1,0 +1,42 @@
+# Mercados — peças comuns às funções da fase C (tudo o que o analise.js tem além do analyse): JSON exato, textos
+# UTF-16 e comparação de textos como no JS. Junta-se depois do analise.onda (o build.mjs concatena os ficheiros).
+#
+# Globais da fase C (o motor usa M[0..54]; os textos literais começam em M[64]):
+# 55 tabela da normalização (656 letras)  56 palavras (5 por palavra: início, comprimento, sinal, seguinte, marca)
+# 57 cabeças das listas de palavras por primeira letra (26)  58 contador de textos (para as marcas)
+# 59 resultado real de uma função (o anfitrião lê-o)  60 houve NaN no JSON (o anfitrião passa então um reviver)
+# 61 erro (1: data inválida no cryptoTax, o JS lança RangeError; 2: o passo do backtestAsset não avança)
+# 62 índice da referência (benchFn)  63 data civil (ano, mês, dia) do dcal (cripto.onda)
+#
+# TEXTOS UTF-16 (o que vem do JS): M[s] = n e as n unidades UTF-16 em M[s+1 .. s+n], uma por palavra. Assim as
+# comparações (<, <=) e o JSON (pares substitutos sozinhos incluídos) ficam iguais aos do JS.
+
+# um real no JSON, exato: o -0 sai "-0" e ±Infinity sai ±1e999 (o JSON.parse devolve-os); o NaN não tem forma em JSON:
+# sai o texto "\u0000NaN" e M[60] = 1, para o anfitrião o trocar por NaN
+: pj f>i x ? != x x { ! 60 1 "\"\\u0000NaN\"" } ? ~ finito x { ? < x 0. P '- 0 "1e999" } pnum x
+# um algarismo hexadecimal
+: hx i>i d P ? < d 10 + 48 d + 87 d
+# as unidades de um texto UTF-16 dentro de um texto JSON (sem as aspas): ASCII visível tal e qual, o resto em \uXXXX
+: pjc i>i s {
+  = n @ s = j 0
+  W < j n {
+    = u @ + + s 1 j
+    ? == u 34 { P 92 P 34 } ? == u 92 { P 92 P 92 } ? && >= u 32 < u 127 P u
+      { P 92 P 'u hx & >> u 12 15 hx & >> u 8 15 hx & >> u 4 15 hx & u 15 }
+    = j + j 1 }
+  0 }
+# o texto UTF-16 s como texto JSON (com aspas)
+: pjs i>i s { P 34 pjc s P 34 }
+# compara a (na unidades em M[a..]) com b (nb unidades em M[b..]) como os < e > do JS: -1, 0 ou 1
+: scmp iiii>i a na b nb {
+  = n ? < na nb na nb = j 0 = r 0
+  W && == r 0 < j n { = x @ + a j = y @ + b j = r ? < x y -1 ? > x y 1 0 = j + j 1 }
+  ? r r ? < na nb -1 ? > na nb 1 0 }
+# compara dois textos UTF-16
+: tcmp ii>i a b scmp + a 1 @ a + b 1 @ b
+# o v[i] do JS para um índice real i: o valor, ou undefined (NaN) se i não é um inteiro de 0 a len-1
+: vat iif>f v len i ? && && == Fl i i >= i 0. < i F len @f + v I i Bw 2146959360 0
+# o ToIntegerOrInfinity do JS (NaN dá 0; tira a parte decimal para o lado do zero)
+: tioi f>f x ? != x x 0. ? ~ finito x x ? < x 0. * -1. Fl * -1. x Fl x
+# o índice relativo do slice do JS (início ou fim) para um comprimento len
+: sidx fi>i x len { = r tioi x I ? < r 0. jmax + F len r 0. jmin r F len }

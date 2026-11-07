@@ -705,7 +705,7 @@ function proxyBody(u) {
         Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true });
         window.Notification = function (t, o) { out.push(t + ' | ' + o.body); };
         window.Notification.permission = 'granted';
-        const mk = window.__mk, A = window.Analise, isQ = A.isQuiet;
+        const mk = window.__mk, A = window.AnaliseOnda, isQ = A.isQuiet;
         mk.cfg.notify = true; mk.cfg.alertPct = 4; mk.st.firstPoll = false;
         const set = (k, p) => { mk.Q[k] = { ...mk.Q[k], changePct: p }; };
         set('AMD', 12.3); mk.checkAlerts();

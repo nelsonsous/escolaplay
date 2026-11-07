@@ -5,8 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const A = createRequire(import.meta.url)('../analise.js');
-// motor de análise escrito em Onda (WebAssembly gerado de onda/analise.onda): o mesmo resultado que o A.analyse
+// a análise (toda a API de analise.js) escrita em Onda e compilada para WebAssembly (analise-onda.js, gerado de
+// onda/*.onda): os mesmos resultados que o analise.js, que fica só como referência dos testes
 export const AO = createRequire(import.meta.url)('../analise-onda.js');
 await AO.ready;
 

@@ -8,11 +8,25 @@
 //    e a DGEG. O endereço do conector fica nos Ajustes (ou ?proxy=URL).
 (() => {
     'use strict';
-    const A = window.Analise;
-    // motor de análise escrito em Onda (WebAssembly, gerado de onda/analise.onda); até compilar não há pontuações
+    // A análise toda (pontuações, tom das notícias, sentimento do mercado, avisos, imposto da cripto, teste no passado)
+    // é escrita em Onda e compilada para WebAssembly (analise-onda.js, gerado de onda/*.onda). Compila em fundo: até
+    // estar pronta (ou se o browser não tiver WebAssembly) não há pontuações; o resto da app funciona e o ecrã volta a
+    // desenhar-se quando o motor fica pronto.
     const AO = window.AnaliseOnda || null;
     let aoOk = false;
-    const VERSION = '4.2.0';
+    // A: as funções da análise que o ecrã usa; antes de o motor estar pronto respondem "sem dados" (null, [] ou false)
+    // em vez de falharem. As notícias e os avisos esperam pelo motor; o teste no passado usa o AO diretamente.
+    const A = {
+        newsTone: (items) => (aoOk ? AO.newsTone(items) : null),
+        sentiment: (t) => (aoOk ? AO.sentiment(t) : null),
+        marketMood: (ctx) => (aoOk ? AO.marketMood(ctx) : null),
+        usdGalToEurL: (usd, fx) => (aoOk ? AO.usdGalToEurL(usd, fx) : null),
+        planLots: (since, days, today) => (aoOk ? AO.planLots(since, days, today) : []),
+        cryptoTax: (lots, today) => (aoOk ? AO.cryptoTax(lots, today) : null),
+        groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
+        isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
+    };
+    const VERSION = '4.3.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -512,7 +526,7 @@
     const dmy = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '';
     function taxLine(k) {
         const t = taxOf(k);
-        if (!t.n) return ''; // sem datas: não ocupa espaço
+        if (!t || !t.n) return ''; // sem datas (ou o motor ainda a compilar): não ocupa espaço
         if (t.all) return 'isenta de IRS';
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
@@ -526,6 +540,7 @@
     function taxBox(k) {
         if (!REG[k] || REG[k].kind !== 'crypto') return '';
         const L = lotOf(k), t = taxOf(k);
+        if (!t) return '';
         const plan = t.lots.filter((x) => x.plan);
         const planFree = plan.filter((x) => x.ok).length;
         const eurOk = t.eur > 0 && t.lots.every((x) => x.e > 0);
@@ -578,6 +593,8 @@
         if (btBusy) return;
         btBusy = true; BT = { running: true }; render();
         try {
+            if (!AO) throw new Error('o motor de análise não carregou');
+            await AO.ready;
             const keys = Object.keys(REG).filter(investable);
             const ykeys = keys.filter((k) => REG[k].kind !== 'crypto');
             const day = (t) => new Date(t * 1000).toISOString().slice(0, 10);
@@ -591,11 +608,11 @@
                 assets.push({ key, kind: REG[key] ? REG[key].kind : 'stock', closes: q.series.map((x) => x[1]), days: q.series.map((x) => day(x[0])) });
             }
             const bench = assets.find((a) => a.key === 'VWCE.DE');
-            const bf = A.benchFn(bench), acc = {}, per = [];
+            const bf = AO.benchFn(bench), acc = {}, per = [];
             // comissão: 1 € por ordem manual (ações e cripto) num valor típico de satélite; ETF por plano de poupança = 0
             const ticket = Math.max(50, (+cfg.budget || 900) * Math.max(0.05, (+cfg.cryptoPct || 10) / 100));
             const cost = (k) => (REG[k] && REG[k].kind === 'fund' ? 0 : 1 / ticket);
-            for (const a of assets) { per.push(A.backtestAsset(a, bf, acc, { cost: cost(a.key) })); await sleep(0); }
+            for (const a of assets) { per.push(AO.backtestAsset(a, bf, acc, { cost: cost(a.key) })); await sleep(0); }
             const byKind = {};
             for (const a of assets) {
                 if (!bf || a.key === 'VWCE.DE') continue;
@@ -604,7 +621,7 @@
             }
             const buys = per.filter((x) => x.buyN >= 3).map((x) => ({ k: x.key, a: x.buyS / x.buyN })).sort((a, b) => a.a - b.a);
             const yrs = bench ? Math.round(bench.closes.length / 252 * 10) / 10 : null;
-            BT = { at: now(), n: assets.length, yrs, ticket, sum: A.summarize(acc), worst: buys.slice(0, 3), best: buys.slice(-3).reverse(), byKind };
+            BT = { at: now(), n: assets.length, yrs, ticket, sum: AO.summarize(acc), worst: buys.slice(0, 3), best: buys.slice(-3).reverse(), byKind };
         } catch (e) { BT = { error: e.message || String(e) }; }
         btBusy = false; render();
     }
@@ -839,6 +856,7 @@
             const a = REG[k] || {};
             const sym = a.kind === 'stock' ? k : a.kind === 'crypto' ? a.sym + '-USD' : '';
             const res = await Promise.all(newsQueries(k).map(([q, lang]) => px(`/news?q=${encodeURIComponent(q)}&lang=${lang}${sym ? '&sym=' + encodeURIComponent(sym) : ''}`).catch(() => ({ items: [] }))));
+            if (AO && !aoOk) await AO.ready.catch(() => {}); // o tom de cada notícia é do motor: espera por ele
             const seen = new Set();
             const items = [];
             for (const it of res.flatMap((r) => r.items || [])) {
@@ -869,7 +887,7 @@
     const alertItem = (k) => { const q = qv(k); return { k, name: nameOf(k), pct: q.changePct, pctTxt: fmtPct(q.changePct), px: fmtPx(q.price, REG[k], q.currency) }; };
     function checkAlerts() {
         const lim = +cfg.alertPct || 0;
-        if (!lim) return;
+        if (!lim || !aoOk) return; // os avisos (agrupar, silêncio à noite) são do motor: sem ele, esperam
         const hits = [];
         // só os ativos que interessam: os meus, os que juntei (fora da lista de origem) ou tudo o que sigo
         const scope = cfg.alertScope || 'mineAdded';
@@ -1202,7 +1220,7 @@
             <div class="r-main mv-main">
                 <div class="r-name">${esc(isTemp ? (q.name || k) : nameOf(k))}</div>
                 <div class="r-sub">${esc([a.sym || k, q.exchange || (isTemp ? 'EUA' : '')].filter(Boolean).join(' · '))}${fin(q.volume) ? ' · vol. ' + fmtBig(q.volume) : ''}</div>
-                ${n ? `<div class="news1"><span class="tone ${n.tone.tone}">${esc(n.tone.label)}</span>${esc(n.title)}</div>` : ''}
+                ${n ? `<div class="news1">${n.tone ? `<span class="tone ${n.tone.tone}">${esc(n.tone.label)}</span>` : ''}${esc(n.title)}</div>` : ''}
                 ${why ? `<div class="mv-why">${esc(why)}</div>` : ''}
             </div>
             <div class="r-px num"><span class="px">${fmtPx(q.price, REG[k] || { key: k }, q.currency)}</span>${chg(q.changePct)}</div>
@@ -1265,7 +1283,7 @@
         return `<section class="sec now"><div class="sec-h"><h2>Agora</h2><span class="sub">atualizado às ${new Date(at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span></div>
             <div class="now-box">
                 ${pulse.length ? `<p class="t-mk">${pulse.join(' · ')}${fin(vix) ? ` · VIX ${Math.round(vix)}${vix > 25 ? ' (medo)' : vix < 16 ? ' (calma)' : ''}` : ''}</p>` : ''}
-                ${mkt ? `<p class="now-mkt"><span class="tone ${mkt.tone.tone}">${esc(mkt.tone.label)}</span>${esc(mkt.title)}<small>${esc([mkt.source, mkt.time ? ago(mkt.time * 1000) : ''].filter(Boolean).join(' · '))}</small></p>` : ''}
+                ${mkt ? `<p class="now-mkt">${mkt.tone ? `<span class="tone ${mkt.tone.tone}">${esc(mkt.tone.label)}</span>` : ''}${esc(mkt.title)}<small>${esc([mkt.source, mkt.time ? ago(mkt.time * 1000) : ''].filter(Boolean).join(' · '))}</small></p>` : ''}
                 ${mv.length ? `<div class="i-blk"><div class="i-h">O que mexe agora<small>±2% ou mais no dia · e porquê</small></div>${mv.map(([k, p]) => { const w = why(k, p); return `<button type="button" class="idea why" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}<small>${w.tone ? `<span class="tone ${w.tone.tone}">${esc(w.tone.label)}</span>` : ''}${esc(w.txt)}${w.src ? ` <em>— ${esc(w.src)}</em>` : ''}</small></span><span class="i-t ${toneOf(p)}-t num">${fmtPct(p)}</span></button>`; }).join('')}</div>`
                 : '<p class="note" style="margin-top:6px">Nada do que tens ou segues mexe 2% ou mais neste momento.</p>'}
             </div></section>`;
@@ -1996,7 +2014,7 @@
             ${taxBox(k)}
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'
-                : `<ul class="news">${n.items.map((it) => `<li><a href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer"><span class="tone ${it.tone.tone}">${esc(it.tone.label)}</span>${esc(it.title)}</a>
+                : `<ul class="news">${n.items.map((it) => `<li><a href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer">${it.tone ? `<span class="tone ${it.tone.tone}">${esc(it.tone.label)}</span>` : ''}${esc(it.title)}</a>
                     <div class="meta">${esc([it.source, it.time ? ago(it.time * 1000) : ''].filter(Boolean).join(' · '))}</div></li>`).join('')}</ul>`}
             </div>
             <div class="d-actions">

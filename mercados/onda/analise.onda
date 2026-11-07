@@ -25,7 +25,7 @@
 # 53 máximo e 54 mínimo do último ano (v.slice(-252))
 # Tons: 0 up, 1 flat, 2 down.
 
-# ---------- área de trabalho (reservada uma vez por lote) ----------
+# ---------- área de trabalho (reservada uma vez por instância, no ini de noticias.onda) ----------
 # listas de razões: M[l] = quantas; a razão i em M[l+1+4i ..] = pts (real, já arredondado), texto, x (real), k
 : wr >i @ 9
 : lM >i + @ 9 64
@@ -140,22 +140,25 @@
   0 }
 
 # ---------- a análise (v = M[1], n = M[2] >= 30) ----------
-: metricas >i {
+: metricas >i metr 0
+# s: o estado do teste no passado (passado.onda), que vai analisando prefixos cada vez maiores dos mesmos fechos:
+# o RSI, o MACD e os logaritmos da volatilidade continuam de onde ficaram (as mesmas contas, pela mesma ordem)
+: metr i>i s {
   = v @ 1 = n @ 2
   = p @f + v - n 1 !f 10 p
   !f 11 sma v n 20
   ! 13 >= n 50 !f 12 ? @ 13 sma v n 50 0.
   ! 15 >= n 60 !f 14 ? @ 15 sma v - n 10 50 0.
-  !f 16 rsi v n
-  macd v n
+  !f 16 ? s rsii s n rsi v n
+  ? s macdi s n macd v n
   ! 23 hret v n 21 !f 22 ? @ 23 ret v n 21 0.
   ! 25 hret v n 63 !f 24 ? @ 25 ret v n 63 0.
-  !f 26 vol v n ? @ 3 365 252
+  !f 26 ? s voli s n vol v n ? @ 3 365 252
   !f 28 - / p vmax v ? > n 126 - n 126 0 n 1.
   = a ? > n 252 - n 252 0 !f 53 vmax v a n !f 54 vmin v a n
   ! 30 >= n 200 !f 29 ? @ 30 sma v n 200 0.
   = vo @f 26
-  ! 52 ? ~ @ 27 0 ? < vo 0.2 1 ? < vo 0.4 2 ? < vo 0.7 3 4
+  ! 52 ? ~ @ 27 0 rclass vo
   0 }
 
 # médio prazo (o analyse em si)
@@ -424,7 +427,9 @@
     P 'e ? > n 0 { P '+ N - n 1 } { P '- N - 1 n } } }
 # v > 0 finito, como o Number#toString do JS: o decimal mais curto que o JSON.parse devolve como v (dos mais curtos,
 # o mais perto de v; empate: o par). Contas exatas numa grelha de 17 algarismos: V = v·10^(16-e), em [10^16, 10^17).
-: pnz fi>i v sep {
+# Um inteiro abaixo de 2^53 é o único real a menos de 1/2 de si: os algarismos dele são já os mais curtos.
+: pnz fi>i v sep ? && < v 9007199254740992. == Fl v v N I v pnzg v sep
+: pnzg fi>i v sep {
   = hx Bh v
   = ex & >> hx 20 2047
   = f | << & hx 1048575 32 Bl v
@@ -457,8 +462,9 @@
 # um real no JSON, como o JSON.stringify (NaN e ±Infinity saem null), mas o -0 sai "-0"
 : pnum f>i x ? ~ finito x "null" { ? < Bh x 0 P '- 0 ? == x 0. P '0 pnz Ab x 46 }
 : pnul if>i h x ? h pnum x "null"
-# um inteiro (real) num texto, como o `${x}` do JS
-: pintf f>i x ? != x x "NaN" ? ~ finito x { ? < x 0. P '- 0 "Infinity" } ? < Ab x 9000000000000000000. N I x pnum x
+# um inteiro (real) num texto, como o `${x}` do JS: abaixo de 2^53 os algarismos todos; daí para cima o JS escreve o
+# decimal mais curto (2^60 dá 1152921504606847000), que é o pnum
+: pintf f>i x ? != x x "NaN" ? ~ finito x { ? < x 0. P '- 0 "Infinity" } ? < Ab x 9007199254740992. N I x pnum x
 # o inteiro y (real, 2^52 <= y < 1e21) por extenso
 : pinteiro f>i y ? < y 9000000000000000000. N I y {
   = hx Bh y
@@ -485,6 +491,9 @@
     ? < y 0. { P '- = y * -1. y 0 } 0
     ? ~ finito y "Infinity" ? >= y 1000000000000000000000. pnz y 44 tofix1 y }
   P '% }
+
+# a classe do riskOf para uma volatilidade (não nula): 1 low, 2 mid, 3 high, 4 xhigh
+: rclass f>i vo ? < vo 0.2 1 ? < vo 0.4 2 ? < vo 0.7 3 4
 
 # ---------- textos (copiados letra a letra de analise.js) ----------
 # razões e notas: c = código, x = real (percentagem ou inteiro), k = inteiro (dias)
@@ -555,8 +564,9 @@
 : ptom i>i t ? == t 0 "up" ? == t 1 "flat" "down"
 : pbool i>i b ? b "true" "false"
 # "key", "tone" e "label" do labelOf(score, hz): hz 0 médio, 1 curto, 2 longo
-: plab ii>i s hz {
-  = c ? >= s 70 0 ? >= s 58 1 ? > s 42 2 ? > s 30 3 4
+: plab ii>i s hz plabc ? >= s 70 0 ? >= s 58 1 ? > s 42 2 ? > s 30 3 4 hz
+# o mesmo para a classe c (0 strong, 1 pos, 2 neutral, 3 neg, 4 weak)
+: plabc ii>i c hz {
   "\"key\":\"" ? == c 0 "strong" ? == c 1 "pos" ? == c 2 "neutral" ? == c 3 "neg" "weak"
   "\",\"tone\":\"" ptom ? < c 2 0 ? == c 2 1 2
   "\",\"label\":\""
@@ -565,8 +575,9 @@
     ? == hz 1 { ? == c 0 "Bom momento no curto prazo" "Pressão de venda" }
     ? == c 0 "Favorável para investir a prazo" ? == c 3 "Cautela" "Desfavorável a prazo"
   "\"" }
-: prisco >i {
-  = k @ 52
+: prisco >i prisk @ 52
+# o riskOf da classe k (0 na, 1 low, 2 mid, 3 high, 4 xhigh)
+: prisk i>i k {
   "\"key\":\"" ? == k 0 "na" ? == k 1 "low" ? == k 2 "mid" ? == k 3 "high" "xhigh"
   "\",\"label\":\"" ? == k 0 "—" ? == k 1 "Risco baixo" ? == k 2 "Risco médio" ? == k 3 "Risco alto" "Risco muito alto"
   "\"" }
@@ -678,7 +689,6 @@
   = mx 1 = q + b 2 = s 0
   W < s ns { = len @ q = mx ? > len mx len mx = q + + q 5 len = s + s 1 }
   ! 8 A mx
-  ! 9 A 2600
   P '[
   = q + b 2 = s 0
   W < s ns {
@@ -691,8 +701,10 @@
   0 }
 # uma palavra de 64 bits do stdin (little-endian)
 : rw >i { = v 0 = j 0 W < j 8 { = v | v << & R 255 * 8 j = j + j 1 } v }
-# sem entrada não faz nada (o anfitrião pode então chamar o `lote` com o lote já na memória)
+# prepara as tabelas da fase C (noticias.onda); sem entrada não faz mais nada (o anfitrião chama então as funções
+# com os dados já na memória: o `lote` e as da fase C)
 : main >i {
+  ini
   = c R
   ? < c 0 0 {
     = t c = j 1 W < j 8 { = t | t << & R 255 * 8 j = j + j 1 }

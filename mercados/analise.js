@@ -1,5 +1,9 @@
 // Mercados — motor de análise (sem dependências).
 //
+// REFERÊNCIA: a app e os scripts já não usam este ficheiro. A análise corre em Onda (mercados/onda/*.onda, compilado
+// para mercados/analise-onda.js); este analise.js fica no repositório só como a referência dos testes de paridade
+// (mercados/tests/analise*.test.*), que exigem os mesmos resultados nos dois. Uma regra nova muda-se nos dois.
+//
 // Indicadores técnicos clássicos sobre fechos diários, uma pontuação 0–100
 // com as razões em português simples, o "tom" das notícias por palavras-chave
 // e o sentimento geral do mercado.

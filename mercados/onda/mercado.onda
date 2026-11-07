@@ -1,0 +1,99 @@
+# Mercados — sentimento do mercado (marketMood), €/litro dos futuros (usdGalToEurL), labelOf, riskOf e os
+# indicadores exportados de analise.js (sma, emaSeries, rsi, macd, volatility), em Onda.
+# Os indicadores aceitam o que o JS aceita: qualquer real (NaN, ±Infinity, -0) e qualquer n (real: com um n que não
+# é inteiro o JS lê v[2.5], que é undefined; aqui é o vat). O resultado real vai para M[59]; devolvem 0 para null.
+
+# ---------- marketMood ----------
+# b (reais): [há, preço, sma50] do S&P 500, do Euro Stoxx 50 e do Bitcoin, depois o VIX e a amplitude
+# (NaN quando não são números, como os recusa o Number.isFinite do JS). JSON: null ou {tone, label, hint, reasons}
+: humor i>i b {
+  = s 0. = nr 0
+  = k 0 W < k 3 { = q + b * k 3 ? != @f q 0. { = nr + nr 1 = s + s ? > @f + q 1 @f + q 2 1. -1. } 0. = k + k 1 }
+  = vx @f + b 9 = bd @f + b 10
+  ? finito vx { = nr + nr 1 = s ? < vx 16. + s 1. ? > vx 25. - s 1.5 s } 0.
+  ? finito bd { = nr + nr 1 = s ? >= bd 0.55 + s 1. ? <= bd 0.3 - s 1. s } 0.
+  ? == nr 0 "null" {
+    = t ? >= s 1.5 0 ? <= s -1.5 2 1
+    "{\"tone\":\"" ptom t "\",\"label\":\"" ? == t 0 "Otimista" ? == t 2 "Pessimista" "Misto"
+    "\",\"hint\":\"" ? == t 0 "Apetite pelo risco: a maioria dos mercados está em tendência de subida."
+      ? == t 2 "Aversão ao risco: muitos mercados em tendência de descida." "Sinais contraditórios: uns mercados sobem, outros descem."
+    "\",\"reasons\":["
+    = c 0
+    = k 0
+    W < k 3 {
+      = q + b * k 3
+      ? != @f q 0. {
+          = up > @f + q 1 @f + q 2
+          ? c P ', 0 = c + c 1
+          "{\"tone\":\"" ? up "up" "down" "\",\"txt\":\"" ? == k 0 "S&P 500" ? == k 1 "Euro Stoxx 50" "Bitcoin"
+          ? up " acima" " abaixo" " da média de 50 dias\"}" } 0
+      = k + k 1 }
+    ? finito vx {
+        ? c P ', 0 = c + c 1
+        = v jround vx
+        ? < vx 16. { "{\"tone\":\"up\",\"txt\":\"VIX " pintf v ": mercado calmo\"}" }
+          ? > vx 25. { "{\"tone\":\"down\",\"txt\":\"VIX " pintf v ": medo elevado\"}" }
+            { "{\"tone\":\"flat\",\"txt\":\"VIX " pintf v ": nervosismo normal\"}" } } 0
+    ? finito bd {
+        ? c P ', 0 = c + c 1
+        = v jround * bd 100.
+        ? >= bd 0.55 { "{\"tone\":\"up\",\"txt\":\"" pintf v "% dos ativos seguidos com sinal positivo\"}" }
+          ? <= bd 0.3 { "{\"tone\":\"down\",\"txt\":\"Só " pintf v "% dos ativos seguidos com sinal positivo\"}" }
+            { "{\"tone\":\"flat\",\"txt\":\"" pintf v "% dos ativos seguidos com sinal positivo\"}" } } 0
+    "]}" } }
+
+# ---------- futuros em USD por galão americano → € por litro ----------
+: galao ff>i a e ? && && finito a finito e > e 0. { !f 59 / / a 3.785411784 e 1 } 0
+
+# ---------- labelOf e riskOf ----------
+# labelOf(score, hz): hz 0 'mid' (e qualquer outro), 1 'short', 2 'long'
+: rotulo fi>i s hz { P '{ plabc ? >= s 70. 0 ? >= s 58. 1 ? > s 42. 2 ? > s 30. 3 4 hz P '} }
+# riskOf(vol): nulo = vol == null
+: risco if>i nulo vo { P '{ prisk ? nulo 0 rclass vo P '} }
+
+# ---------- indicadores (v = len reais em M[v..]) ----------
+# sma(v, n)
+: nsma iif>i v len n {
+  ? < F len n 0 {
+    = s 0. = i - F len n
+    W < i F len { = s + s vat v len i = i + i 1. }
+    !f 59 / s n 1 } }
+# emaSeries(v, n): devolve o endereço de [quantos, reais...]
+: nema iif>i v len n {
+  ? < F len n { = o A 1 ! o 0 o } {
+    = k / 2. + n 1. = c1 - 1. k
+    = e 0. = i 0. W < i n { = e + e vat v len i = i + i 1. }
+    = e / e n
+    = c 1 = i n W < i F len { = c + c 1 = i + i 1. }
+    = o A + c 1 ! o c !f + o 1 e
+    = j 2 = i n
+    W < i F len { = e + * vat v len i k * e c1 !f + o j e = j + j 1 = i + i 1. }
+    o } }
+# rsi(v, n)
+: nrsi iif>i v len n {
+  ? < F len + n 1. 0 {
+    = g 0. = l 0.
+    = i 1. W <= i n { = d - vat v len i vat v len - i 1. ? >= d 0. = g + g d = l - l d = i + i 1. }
+    = g / g n = l / l n
+    = i + n 1. = n1 - n 1.
+    W < i F len {
+      = d - vat v len i vat v len - i 1.
+      = g / + * g n1 jmax d 0. n
+      = l / + * l n1 jmax * -1. d 0. n
+      = i + i 1. }
+    !f 59 ? == l 0. ? == g 0. 50. 100. - 100. / 100. + 1. / g l
+    1 } }
+# macd(v): o do motor (M[17] = há; M[18..21] = linha, sinal, hist, anterior)
+: nmacd ii>i v len { macd v len @ 17 }
+# volatility(v, days, lookback): v.slice(-lookback - 1), retornos logarítmicos onde o anterior é > 0
+: nvol iiff>i v len dias lb {
+  = a sidx - * -1. lb 1. len
+  ? < - len a 10 0 {
+    = r A - len a
+    = m 0 = i + a 1
+    W < i len { ? > @f + v - i 1 0. { !f + r m Lg / @f + v i @f + v - i 1 = m + m 1 } 0 = i + i 1 }
+    = s 0. = j 0 W < j m { = s + s @f + r j = j + j 1 }
+    = mu / s F m
+    = q 0. = j 0 W < j m { = d - @f + r j mu = q + q * d d = j + j 1 }
+    !f 59 * Sq / q F ? > - m 1 1 - m 1 1 Sq dias
+    1 } }

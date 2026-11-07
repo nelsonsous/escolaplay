@@ -3,7 +3,7 @@
 //     → <pasta>/dados.json (tudo), dados.md (resumo compacto, uma linha por ativo) e modelo.json (esqueleto da análise)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { A, AO, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, yahooOf, kindOf, nameOf } from './comum.mjs';
+import { AO, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, yahooOf, kindOf, nameOf } from './comum.mjs';
 
 const SYM = /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/;
 const pc = (x) => (x == null || !Number.isFinite(x) ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%');
@@ -237,7 +237,7 @@ async function main() {
         const lots = j.lots || {}, sd = j.saveDays || [2];
         for (const k of Object.keys(CRYPTO)) {
             const L = lots[k] || {};
-            const t = A.cryptoTax((L.buys || []).concat(A.planLots(L.plan, sd, today)), today);
+            const t = AO.cryptoTax((L.buys || []).concat(AO.planLots(L.plan, sd, today)), today);
             cryptoTax[k] = { ...t, lots: t.lots.filter((x) => !x.ok).slice(0, 12), plan: L.plan || '' };
         }
     }

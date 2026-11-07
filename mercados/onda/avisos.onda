@@ -1,0 +1,48 @@
+# Mercados — avisos: groupAlert (vários movimentos numa só notificação) e isQuiet (silêncio à noite), em Onda.
+
+# ---------- groupAlert ----------
+# b: [held, n] e n itens seguidos: pct (real), name, pctTxt, px (textos UTF-16 [n, unidades...])
+# A ordem é a do sort do JS com (a, b) => |b.pct| - |a.pct|: o TimSort do V8, que para menos de 64 itens é uma só
+# corrida (CountAndMakeRun) completada por inserção binária; um resultado NaN do comparador conta como 0. Com 64 ou
+# mais o V8 junta corridas, o que dá o mesmo que esta inserção binária sempre que nenhuma variação é NaN.
+: gnome i>i q + q 1
+: gtxt i>i q { = s gnome q + + s 1 @ s }
+: gpx i>i q { = s gtxt q + + s 1 @ s }
+: gprox i>i q { = s gpx q + + s 1 @ s }
+# o comparador do JS para os itens x e y (NaN conta como 0)
+: gcmp ii>f x y { = d - Ab @f y Ab @f x ? != d d 0. d }
+: gsort ii>i o n {
+  ? < n 2 0 {
+    # CountAndMakeRun(0, n)
+    = rl 2 = des < gcmp @ + o 1 @ o 0.
+    = j 2 = go 1
+    W && go < j n { = r gcmp @ + o j @ + o - j 1 = go ? des < r 0. >= r 0. ? go { = rl + rl 1 = j + j 1 } 0 }
+    ? des { = a 0 = z - rl 1 W < a z { = t @ + o a ! + o a @ + o z ! + o z t = a + a 1 = z - z 1 } 0 } 0
+    # BinaryInsertionSort(0, rl, n)
+    = st rl
+    W < st n {
+      = pv @ + o st = lf 0 = rt st
+      W < lf rt { = md + lf >> - rt lf 1 ? < gcmp pv @ + o md 0. = rt md = lf + md 1 }
+      = p st W > p lf { ! + o p @ + o - p 1 = p - p 1 }
+      ! + o lf pv
+      = st + st 1 }
+    0 } }
+: aviso i>i b {
+  = held @ b = n @ + b 1
+  ? == n 0 "null" {
+    = o A n = q + b 2 = j 0 W < j n { ! + o j q = q gprox q = j + j 1 } gsort o n
+    ? == n 1 {
+        = x @ o
+        "{\"title\":\"" ? held "Durante a noite: " 0 pjc gnome x ? > @f x 0. " sobe " " cai " pjc gtxt x ? held 0 " hoje"
+        "\",\"body\":\"" pjc gpx x " · toca para ver\"}" }
+      { = up 0 = j 0 W < j n { ? > @f @ + o j 0. = up + up 1 0 = j + j 1 }
+        = dn - n up
+        "{\"title\":\"" ? held "Durante a noite: " 0 N n " ativos " ? == up 0 "a cair" ? == dn 0 "a subir" "com movimentos fortes"
+        ? held 0 " hoje" "\",\"body\":\""
+        = m ? > n 6 6 n = j 0
+        W < j m { ? j " · " 0 = x @ + o j pjc gnome x P 32 pjc gtxt x = j + j 1 }
+        ? > n 6 { " · +" N - n 6 } 0
+        " · toca para ver\"}" } } }
+
+# ---------- isQuiet(h, from, to): silêncio entre `from` e `to` horas (ex.: 22 → 10, atravessa a meia-noite) ----------
+: quieto fff>i h f t ? > f t || >= h f < h t && >= h f < h t

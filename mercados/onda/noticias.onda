@@ -1,0 +1,140 @@
+# Mercados — tom das notícias: sentiment e newsTone de analise.js, em Onda.
+#
+# O norm do JS é toLowerCase + NFD + tirar as marcas U+0300–U+036F; depois o hitWord procura cada palavra com
+# (^|[^a-z0-9]) antes e, nas de 4 letras ou menos, ($|[^a-z0-9]) depois. Para isso só conta onde ficam as letras e
+# os algarismos ASCII: aqui o texto chega em UTF-8 e cada carácter vira um byte —
+#   ASCII: o próprio (A–Z em minúsculas);
+#   U+0300–U+036F: nada (o JS tira-as);
+#   os 495 caracteres a que o norm dá um carácter ASCII (é→e, Ç→c, İ→i, ǘ→u, ḱ→k, K de Kelvin→k, Å de ångström→a,
+#   e ; ` = < > de U+037E U+1FEF U+2260 U+226E U+226F): esse carácter (tabela abaixo, gerada do JS e conferida no
+#   teste para todos os 1 112 064 pontos de código);
+#   qualquer outro: o byte 128, uma fronteira (no JS, cada unidade UTF-16 não-ASCII também é um [^a-z0-9]).
+# As palavras são as de analise.js, pela mesma ordem (já estão normalizadas). Cada palavra conta uma vez.
+
+# ---------- tabelas (uma vez por instância, no main: ficam abaixo da marca do monte) ----------
+: ini >i {
+  # a área de trabalho do motor (razões, níveis, inteiros grandes dos números exatos): uma só, para todas as chamadas
+  ! 9 A 2600
+  # datas do cryptoTax (cripto.onda)
+  ! 63 A 8
+  # U+00C0..U+024F (400) e U+1E00..U+1EFF (256): a letra que o norm dá, ou '.' (fica não-ASCII)
+  = t A 700 ! t + t 1
+  O t
+  "aaaaaa.ceeeeiiii.nooooo..uuuuy..aaaaaa.ceeeeiiii.nooooo..uuuuy.yaaaaaaccccccccdd..eeeeeeeeeegggggggghh..iiiiiiiii...jjkk.llllll....nnnnnn...oooooo..rrrrrrsssssssstttt..uuuuuuuuuuuuwwyyyzzzzzz.................................oo.............uu............................aaiioouuuuuuuuuu.aaaa....ggkkoooo..j...gg..nnaa....aaaaeeeeiiiioooorrrruuuusstt..hh......aaeeooooooooyy............................"
+  "aabbbbbbccddddddddddeeeeeeeeeeffgghhhhhhhhhhiiiikkkkkkllllllllmmmmmmnnnnnnnnoooooooopppprrrrrrrrssssssssssttttttttuuuuuuuuuuvvvvwwwwwwwwwwxxxxyyzzzzzzhtwy......aaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeiiiioooooooooooooooooooooooouuuuuuuuuuuuuuyyyyyyyy......"
+  O 0
+  ! 55 + t 1
+  # as palavras do POS e (depois do #) do NEG, separadas por |
+  = w A 1100 ! w + w 1
+  O w
+  "sobe|subida|subir|dispara|disparam|recorde|maximo historico|lucro|lucros|supera|acima das expectativas|melhora|melhoria|aprovado|aprovacao|parceria|acordo|cresce|crescimento|ganha|ganhos|valoriza|recupera|eleva|aumenta dividendo|recompra|otimis|upgrade|beat|beats|surge|surges|soar|jump|rally|rallies|record high|all-time high|profit|gains|soars|jumps|raises guidance|raises forecast|approval|approved|wins|gain|rises|rise|bullish|buyback|outperform|strong demand|partnership|deal|tops estimates|rebound|climbs|upbeat"
+  "#cai|caem|queda|afunda|tomba|derrapa|prejuizo|perdas|abaixo das expectativas|corta|corte|despedimento|investigacao|multa|processo judicial|falencia|insolvencia|alerta|recua|crise|desvaloriza|pessimis|tarifas|downgrade|plunge|plunges|falls|fall|drop|drops|slump|tumble|tumbles|sinks|miss|misses|loss|losses|lawsuit|probe|fined|layoffs|cuts|bankruptcy|recall|warning|warns|bearish|hack|hacked|sell-off|selloff|crash|slides|lowers guidance|underperform|weak demand|fraud|tariff"
+  O 0
+  = fim @ w
+  = e A * 5 130
+  = h A 26
+  = j 0 W < j 26 { ! + h j -1 = j + j 1 }
+  ! 56 e ! 57 h ! 58 0
+  # cada palavra: início, comprimento, sinal (+1 POS, -1 NEG), a seguinte com a mesma primeira letra, marca
+  = q + w 1 = nw 0 = sg 1 = i0 q
+  W <= q fim {
+    = c ? < q fim @ q 124
+    ? || == c 124 == c 35 {
+        = en + e * nw 5
+        ! en i0 ! + en 1 - q i0 ! + en 2 sg
+        = l - @ i0 97
+        ! + en 3 @ + h l ! + h l nw
+        ! + en 4 0
+        = nw + nw 1
+        ? == c 35 = sg -1 0
+        = i0 + q 1 } 0
+    = q + q 1 }
+  0 }
+
+# ---------- norm ----------
+: nlet i>i c ? == c 46 128 c
+# o byte que o norm deixa para o ponto de código cp (0: nada)
+: mapcp i>i cp
+  ? && >= cp 768 <= cp 879 0
+  ? && >= cp 192 <= cp 591 nlet @ + @ 55 - cp 192
+  ? && >= cp 7680 <= cp 7935 nlet @ + @ 55 + 400 - cp 7680
+  ? == cp 8490 107 ? == cp 8491 97 ? == cp 894 59 ? == cp 8175 96 ? == cp 8800 61 ? == cp 8814 60 ? == cp 8815 62 128
+# os len bytes UTF-8 em M[b..] normalizados para M[o..]; devolve quantos (um UTF-8 inválido conta como fronteira)
+: nrm iii>i b len o {
+  = i 0 = m 0
+  W < i len {
+    = c @ + b i
+    ? < c 128 { ! + o m ? && >= c 65 <= c 90 + c 32 c = m + m 1 = i + i 1 } {
+      = k ? && >= c 194 <= c 223 2 ? && >= c 224 <= c 239 3 ? && >= c 240 <= c 244 4 0
+      = cp ? == k 2 & c 31 ? == k 3 & c 15 & c 7
+      = j 1 = ok > k 0
+      W && ok < j k { = d ? < + i j len @ + b + i j 0 = ok && >= d 128 <= d 191 = cp | << cp 6 & d 63 = j + j 1 }
+      ? ok { = r mapcp cp ? r { ! + o m r = m + m 1 } 0 = i + i k } { ! + o m 128 = m + m 1 = i + i 1 } } }
+  m }
+
+# ---------- hitWord e sentiment ----------
+# [a-z0-9]
+: anum i>i c || && >= c 97 <= c 122 && >= c 48 <= c 57
+# a pontuação do texto normalizado t[0..m): (p - n) / (p + n), p e n = palavras POS e NEG encontradas
+: tom ii>f t m {
+  = id + @ 58 1 ! 58 id
+  = e @ 56 = h @ 57
+  = p 0 = n 0 = s 0
+  W < s m {
+    = c @ + t s
+    ? && && >= c 97 <= c 122 || == s 0 ~ anum @ + t - s 1 {
+        = w @ + h - c 97
+        W >= w 0 {
+          = en + e * w 5
+          ? != @ + en 4 id {
+              = wl @ + en 1
+              ? <= + s wl m {
+                  = pp @ en = j 1 = ok 1
+                  W && ok < j wl { = ok == @ + t + s j @ + pp j = j + j 1 }
+                  ? && ok || > wl 4 || == + s wl m ~ anum @ + t + s wl { ! + en 4 id ? > @ + en 2 0 = p + p 1 = n + n 1 } 0 } 0 } 0
+          = w @ + en 3 } } 0
+    = s + s 1 }
+  ? + p n / F - p n F + p n 0. }
+: psent f>i sc {
+  "{\"score\":" pj sc
+  ",\"tone\":\"" ? > sc 0.15 "up" ? < sc -0.15 "down" "flat"
+  "\",\"label\":\"" ? > sc 0.15 "Boa notícia" ? < sc -0.15 "Má notícia" "Neutra"
+  "\"}" }
+# o maior dos nt textos UTF-8 seguidos em q ([n, bytes...] cada um)
+: tmaior ii>i q nt { = mx 1 = j 0 W < j nt { = l @ q = mx ? > l mx l mx = q + + q 1 l = j + j 1 } mx }
+# sentiment de cada texto do lote b = [nt, textos...]: JSON [{score, tone, label}, ...]
+: sent i>i b {
+  = nt @ b
+  = o A tmaior + b 1 nt
+  P '[
+  = q + b 1 = j 0
+  W < j nt { = l @ q ? j P ', 0 psent tom o nrm + q 1 l o = q + + q 1 l = j + j 1 }
+  P '] 0 }
+# newsTone: b = [ln, nt, textos...] com ln = items.slice(0, 8).length e os títulos que o map visita (nt ≤ ln);
+# a média das pontuações vai para M[59]; devolve 0 (null) se ln = 0
+: tons i>i b {
+  = ln @ b = nt @ + b 1
+  ? == ln 0 0 {
+    = o A tmaior + b 2 nt
+    = s 0. = q + b 2 = j 0
+    W < j nt { = l @ q = s + s tom o nrm + q 1 l o = q + + q 1 l = j + j 1 }
+    !f 59 / s F ln
+    1 } }
+# para os testes: os textos do lote normalizados, como textos JSON (o byte 128, uma fronteira, sai \u0080)
+: nrmx i>i b {
+  = nt @ b
+  = o A tmaior + b 1 nt
+  P '[
+  = q + b 1 = j 0
+  W < j nt {
+    = l @ q ? j P ', 0
+    = m nrm + q 1 l o
+    P 34
+    = i 0
+    W < i m {
+      = c @ + o i
+      ? == c 128 "\\u0080" ? == c 34 { P 92 P 34 } ? == c 92 { P 92 P 92 } ? < c 32 { "\\u00" hx >> c 4 hx & c 15 } P c
+      = i + i 1 }
+    P 34
+    = q + + q 1 l = j + j 1 }
+  P '] 0 }
