@@ -18,6 +18,7 @@ const PORT = Number(process.env.PORT || 8790);
 const ON_DEMAND = process.env.MOCK_ONDEMAND === '1';
 const SCHEDULE = ['07:12', '13:12', '19:42'];
 let places = [{ id: 'lisboa', name: 'Lisboa', lat: 38.7223, lon: -9.1393, createdAt: '2026-11-01T10:00:00Z' }];
+const reports = []; // avisos do utilizador ("Está a chover?"), em memória
 
 function analysisResponse(lat, lon) {
   const near = places.find((p) => Math.abs(p.lat - lat) < 0.09 && Math.abs(p.lon - lon) < 0.09);
@@ -91,6 +92,13 @@ async function apiRoute(req, res, url, p) {
     const place = { ...cur, lat: b.lat, lon: b.lon, ...(b.name ? { name: b.name } : {}), movedAt: new Date().toISOString() };
     places = places.map((x) => (x.id === id ? place : x));
     return json(res, 200, place);
+  }
+  if (p === '/api/reports' && req.method === 'GET') return json(res, 200, { place: null, reports: reports.filter((r) => Math.abs(r.lat - lat) < 0.02 && Math.abs(r.lon - lon) < 0.02).map((r) => ({ ...r, ageMin: Math.round((Date.now() - Date.parse(r.time)) / 6e4) })) });
+  if (p === '/api/reports' && req.method === 'POST') {
+    const b = await readBody(req);
+    const report = { kind: String(b.kind || ''), time: b.time || new Date().toISOString(), lat: Number(b.lat), lon: Number(b.lon) };
+    reports.unshift(report); reports.splice(50);
+    return json(res, 201, { report, place: null, count: reports.length });
   }
   if (p === '/api/geocode') return json(res, 200, searchPlaces(url.searchParams.get('q') || '').slice(0, 8));
   if (p === '/api/status') return json(res, 200, { version: '1.0.0', onDemand: ON_DEMAND, places: places.length, schedule: SCHEDULE });

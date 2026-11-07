@@ -42,6 +42,13 @@ export async function geocode(text) {
   return Array.isArray(r) ? r : [];
 }
 export const satUrl = (layer, lat, lon, km = 600, w = 720, h = 540) => `${getProxy()}/api/sat?${q({ layer, lat: r4(lat), lon: r4(lon), km, w, h })}`;
+/** Aviso do utilizador ("Está a chover?"): { kind, time, lat, lon } → o conector guarda-o para a análise do Claude. */
+export const postReport = (r) => call('/api/reports', { method: 'POST', body: { kind: r.kind, time: r.time, lat: r4(r.lat), lon: r4(r.lon) }, timeout: 10000 });
+/** Avisos recentes perto do ponto (o mais recente primeiro). */
+export async function getReports(lat, lon, hours = 24) {
+  const r = await call(`/api/reports?${q({ lat: r4(lat), lon: r4(lon), hours })}`, { timeout: 8000 });
+  return Array.isArray(r?.reports) ? r.reports : [];
+}
 
 // ---------- memória local (pode falhar: modo privado, armazenamento cheio) ----------
 export const store = {
@@ -72,3 +79,6 @@ export const loadSavedForecast = (lat, lon) => store.get(fcKey(lat, lon));
 const anKey = (lat, lon) => `meteo:an:${r4(lat)},${r4(lon)}`;
 export const saveAnalysis = (lat, lon, data) => store.set(anKey(lat, lon), { savedAt: Date.now(), data });
 export const loadSavedAnalysis = (lat, lon) => store.get(anKey(lat, lon));
+// o último aviso deste telemóvel (vale 45 min e só perto do sítio onde foi dado)
+export const saveReport = (r) => store.set('meteo:report', r);
+export const loadReport = () => store.get('meteo:report');

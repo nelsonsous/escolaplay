@@ -1,7 +1,7 @@
 // Analista do tempo — recolhe tudo o que o Claude precisa para cada local registado.
 //   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo]
-// Mostra as regras, o resumo numérico (a começar por "## O ponto"), a análise anterior, as lições e o observado;
-// grava imagens de satélite centradas no ponto (de perto, ~280 km, e largas).
+// Mostra as regras, o resumo numérico (a começar por "## O ponto", com o radar no ponto e os avisos do utilizador),
+// a análise anterior, as lições e o observado; grava imagens de satélite centradas no ponto (de perto, ~280 km, e largas).
 // Também guarda no KV o histórico horário das estações IPMA usadas e as previsões do IPMA de cada concelho
 // (para a verificação local, que precisa de previsões feitas na véspera).
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -54,15 +54,21 @@ for (const [i, place] of places.entries()) {
         if (raw.ipma?.forecast) await saveIpmaRun(raw.ipma.forecast, runs).catch((e) => out.push(`(previsão IPMA não arquivada: ${e.message})`));
         const prev = await kvGet('analysis:' + place.id).catch(() => null);
         const lessons = (await kvGet('lessons:' + place.id).catch(() => null)) || [];
+        // avisos do utilizador ("Está a chover?") perto do ponto nas últimas 48 h: o que se via lá, para o "agora" e a verificação
+        let reports = [];
+        try { reports = (await getJSON(`${WORKER}/api/reports?lat=${place.lat}&lon=${place.lon}&hours=48`, 15000)).reports || []; }
+        catch (e) { out.push(`(avisos do utilizador indisponíveis: ${e.message})`); }
         out.push(`\n==================== LOCAL ${place.id} — ${place.name} (${place.lat}, ${place.lon}) ====================`);
         const T = fc.location.terrain;
         out.push(`Ponto exato: ${place.lat}, ${place.lon} · ${fc.location.elevation} m${T ? ` · ${T.label.toLowerCase()} (${T.text})` : ''}. Escreve sobre este ponto, não sobre a região.`);
         out.push(`Fontes: ${Object.entries(fc.status).map(([k, v]) => `${k}=${v}`).join(' ')}`);
         out.push(observed(raw, fc));
+        out.push(fc.radar ? `Radar no ponto: ${fc.radar.text}${fc.radar.compare ? ` ${fc.radar.compare.text}` : ''}` : `Radar no ponto: indisponível (${fc.status.radar || 'sem dados'}).`);
+        out.push(reports.length ? `Avisos do utilizador (48 h): ${reports.length}, o último «${reports[0].kind}» há ${reports[0].ageMin} min (lista em "## Avisos do utilizador").` : 'Avisos do utilizador (48 h): nenhum.');
         if (prev) out.push(`\n## Análise anterior (${prev.generatedAt})\nTítulo: ${prev.titulo}\nResumo: ${prev.resumo}\nHoje: ${prev.hoje}\nAmanhã: ${prev.amanha}`);
         else out.push('\n## Análise anterior: nenhuma (primeira análise deste local).');
         out.push(lessons.length ? `\n## Lições sobre este local\n- ${lessons.join('\n- ')}` : '\n## Lições: ainda nenhuma.');
-        out.push('\n' + buildSummary(fc, { perModel: perModelTable(raw.det) }));
+        out.push('\n' + buildSummary(fc, { perModel: perModelTable(raw.det), reports }));
         const imgs = [];
         for (const [layer, km, tag, what] of SAT) {
             try {
