@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v11'; // 1.7.1
+const CACHE = 'meteo-v12'; // 1.8.0
 const ASSETS = [
     './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './manifest.webmanifest',
     './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js',
