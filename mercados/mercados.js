@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.21.0';
+    const VERSION = '3.21.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -905,7 +905,7 @@
                 }
             }
             const c = el.querySelector('.chg');
-            if (c) { const pc = perData(k).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
+            if (c) { const pc = el.dataset.chg === 'day' ? q.changePct : perData(k).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
         }
         liveTail(k);
         if (sheetKey === k && SHORT_R[sheetRange] && sheetPts && sheetPts.length && fin(raw.price)) {
@@ -1098,7 +1098,7 @@
                 : (bad ? 'Cai com más notícias' : good ? 'Cai apesar de notícias positivas' : 'Cai sem notícia clara');
         }
         const a = REG[k] || { sym: k };
-        return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}" ${isTemp ? `data-name="${esc(q.name || '')}"` : ''}>
+        return `<button type="button" class="row" data-chg="day" data-open="${esc(k)}" data-key="${esc(k)}" ${isTemp ? `data-name="${esc(q.name || '')}"` : ''}>
             <div class="r-main mv-main">
                 <div class="r-name">${esc(isTemp ? (q.name || k) : nameOf(k))}</div>
                 <div class="r-sub">${esc([a.sym || k, q.exchange || (isTemp ? 'EUA' : '')].filter(Boolean).join(' · '))}${fin(q.volume) ? ' · vol. ' + fmtBig(q.volume) : ''}</div>
