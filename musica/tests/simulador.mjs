@@ -23,7 +23,7 @@ function recursoFaixa(id) {
         relationships: { artists: { data: f.artists.map((a) => ({ id: a, type: 'artists' })) }, albums: { data: [{ id: f.album[0], type: 'albums' }] }, genres: { data: id === '101' ? [{ id: 'g1', type: 'genres' }] : [] } } };
 }
 export function simulador() {
-    const sim = { criadas: [], itens: [], recusar401: false, chamadas: [], tokenBodies: [] };
+    const sim = { criadas: [], itens: [], apagadas: [], recusar401: false, chamadas: [], tokenBodies: [] };
     sim.fetch = async (u, init = {}) => tidalSimulado(sim, u, init);
     return sim;
 }
@@ -84,6 +84,12 @@ function tidalSimulado(sim, u, init = {}) {
         assert.equal(b.data.type, 'playlists');
         sim.criadas.push(b.data.attributes);
         return resp({ data: { id: 'uuid-nova', type: 'playlists', attributes: b.data.attributes } }, 201);
+    }
+    const del = /^\/playlists\/([^/]+)$/.exec(p);
+    if (del && metodo === 'DELETE') {
+        if (del[1] !== 'uuid-nova') return resp({ errors: [{ status: '404', detail: 'Playlist not found' }] }, 404);
+        sim.apagadas.push(del[1]);
+        return resp(null, 204);
     }
     const it = /^\/playlists\/([^/]+)\/relationships\/items$/.exec(p);
     if (it && metodo === 'POST') {

@@ -181,7 +181,7 @@ test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, envi
     // 4) guardar e enviar para o Tidal: a app manda a decisão; o Worker monta a versão
     const ordemFinal = await mostradas(page);
     await page.getByRole('button', { name: 'Guardar e enviar para o Tidal' }).click();
-    await page.getByRole('link', { name: 'Abrir no Tidal' }).waitFor();
+    await page.getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
     await page.locator('#mu-aviso').getByText('Nova versão criada no Tidal').waitFor();
     assert.equal(sim.criadas.length, 1);
     assert.equal(sim.criadas[0].name, 'Som para o carro · afinada');

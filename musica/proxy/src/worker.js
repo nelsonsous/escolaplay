@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.2.1';
+const VERSION = '1.3.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -57,10 +57,10 @@ async function route(req, env, url) {
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(env, await corpo(req), quem), 201);
     const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(env, pl[1]));
-    if (pl && !pl[2] && m === 'DELETE') return json(await apagar(env, pl[1]));
+    if (pl && !pl[2] && m === 'DELETE') return json(await apagar(env, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(env, pl[1], await corpo(req)));
     if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(env, pl[1], await corpo(req), quem), 201);
-    if (p === '/api/pedidos' && m === 'GET') return json((await env.KV.get('pedidos', 'json')) || []);
+    if (p === '/api/pedidos' && m === 'GET') return json(await pedidos(env));
     if (p === '/api/pedidos' && m === 'POST') return json(await pedir(env, await corpo(req)), 201);
     const pd = /^\/api\/pedidos\/([a-z0-9_-]{4,40})$/.exec(p);
     if (pd && m === 'DELETE') return json(await despachar(env, pd[1], url.searchParams.get('playlist')));
@@ -366,7 +366,12 @@ async function obter(env, id) {
     return d;
 }
 
-async function apagar(env, id) {
+// com noTidal, apaga também a playlist no Tidal (se lá já não existir, segue)
+async function apagar(env, id, noTidal) {
+    if (noTidal) {
+        const tid = (await env.KV.get('playlist:' + id, 'json'))?.tidal?.id;
+        if (tid) await tidal(env, `/playlists/${encodeURIComponent(tid)}`, { method: 'DELETE' }).catch((e) => { if (e.status !== 404) throw e; });
+    }
     await env.KV.delete('playlist:' + id);
     const idx = ((await env.KV.get('playlists', 'json')) || []).filter((x) => x.id !== id);
     await env.KV.put('playlists', JSON.stringify(idx));
@@ -434,6 +439,13 @@ async function criarNoTidal(env, d) {
 }
 
 // ---------- pedidos ao Curador (feitos na app; a tarefa agendada trata-os) ----------
+// os pedidos feitos levam a ligação do Tidal da playlist, para se abrir logo
+async function pedidos(env) {
+    const [lista, idx] = await Promise.all([env.KV.get('pedidos', 'json'), env.KV.get('playlists', 'json')]);
+    const tidalDe = new Map((idx || []).map((x) => [x.id, x.tidal]));
+    return (lista || []).map((x) => (x.playlist && tidalDe.get(x.playlist) ? { ...x, tidal: tidalDe.get(x.playlist) } : x));
+}
+
 async function pedir(env, c) {
     const texto = txt(c?.texto, 500);
     if (texto.length < 3) throw new Erro(400, 'pedido_vazio', 'Escreve o que queres ouvir.');

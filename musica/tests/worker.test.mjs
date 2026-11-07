@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.2.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.3.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -188,6 +188,12 @@ test('playlists: guardar e criar no Tidal pela ordem, em lotes de 50; biblioteca
     assert.equal(e.tidal.faixas, 2);
     assert.equal((await call('/api/playlists/' + s.id, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } })).status, 200);
     assert.equal((await get('/api/playlists/' + s.id, chave)).status, 404);
+    assert.deepEqual(sim.apagadas, [], 'sem ?tidal=1, o Tidal fica como está');
+    // apagar também no Tidal
+    assert.equal((await call(`/api/playlists/${d.id}?tidal=1`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } })).status, 200);
+    assert.deepEqual(sim.apagadas, ['uuid-nova']);
+    assert.equal((await get('/api/playlists/' + d.id, chave)).status, 404);
+    assert.ok(!(await (await get('/api/playlists', chave)).json()).some((x) => x.id === d.id));
     // validação
     assert.equal((await post('/api/playlists', { nome: 'x', faixas: [{ id: 'abc' }] }, chave)).status, 400);
     assert.equal((await post('/api/playlists', { faixas }, chave)).status, 400);
@@ -227,10 +233,13 @@ test('pedidos ao Curador: criar, listar, marcar feito, cancelar', async () => {
     const p2 = await (await post('/api/pedidos', { texto: 'Fado para o carro' }, chave)).json();
     assert.equal((await (await get('/api/estado', chave)).json()).pedidos, 2);
     const ag = await env.KV.get('agente:chave');
-    assert.equal((await call(`/api/pedidos/${p.id}?playlist=p123`, { method: 'DELETE', headers: { authorization: `Bearer ${ag}` } })).status, 200);
+    const pl = await (await post('/api/playlists', { nome: 'Soul 70', faixas: [{ id: '201', titulo: 'x', artistas: ['y'] }], tidal: true }, ag)).json();
+    assert.equal((await call(`/api/pedidos/${p.id}?playlist=${pl.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${ag}` } })).status, 200);
     const lista = await (await get('/api/pedidos', chave)).json();
     assert.equal(lista.find((x) => x.id === p.id).estado, 'feito');
-    assert.equal(lista.find((x) => x.id === p.id).playlist, 'p123');
+    assert.equal(lista.find((x) => x.id === p.id).playlist, pl.id);
+    assert.equal(lista.find((x) => x.id === p.id).tidal, pl.tidal.url, 'o pedido feito leva a ligação do Tidal');
+    assert.equal(lista.find((x) => x.id === p2.id).tidal, undefined);
     await call(`/api/pedidos/${p2.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
     assert.equal((await (await get('/api/pedidos', chave)).json()).length, 1);
     assert.equal((await (await get('/api/estado', chave)).json()).pedidos, 0);
