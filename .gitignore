@@ -6,5 +6,3 @@ dist/
 *.log
 package-lock.json
 
-# compilador Onda (é do Nelson; não vai para o repositório público)
-musica/onda/ondac.wasm

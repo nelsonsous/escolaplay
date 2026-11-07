@@ -2,10 +2,9 @@
 //   curador.wasm — o que a app, o Worker e a tarefa agendada correm
 //   curador.c    — a mesma coisa em C, para o juiz (testes) compilar em nativo e comparar ao bit
 //
-//   ONDAC=/caminho/ondac.wasm node musica/onda/compilar.mjs [--verificar]
+//   node musica/onda/compilar.mjs [--verificar]        (ONDAC=/caminho/ondac.wasm para usar outro compilador)
 //
-// O compilador não está no repositório (é teu e o repositório é público). Por omissão procura-o em
-// $ONDAC, ~/.onda/ondac.wasm ou musica/onda/ondac.wasm (este último está no .gitignore).
+// O compilador é o do repositório: onda/seed/ondac.wasm (a semente WebAssembly da Onda). $ONDAC escolhe outro.
 // --verificar: não grava; falha se curador.wasm ou curador.c não corresponderem à fonte.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -14,7 +13,7 @@ import { join } from 'node:path';
 const AQUI = new URL('.', import.meta.url).pathname;
 
 export function procurarCompilador() {
-    const c = [process.env.ONDAC, join(homedir(), '.onda', 'ondac.wasm'), join(AQUI, 'ondac.wasm')].filter(Boolean);
+    const c = [process.env.ONDAC, join(AQUI, '..', '..', 'onda', 'seed', 'ondac.wasm'), join(homedir(), '.onda', 'ondac.wasm')].filter(Boolean);
     return c.find((p) => existsSync(p)) || null;
 }
 
@@ -54,8 +53,7 @@ export async function ondac(compilador, fonte, flags) {
 if (import.meta.url === `file://${process.argv[1]}`) {
     const compilador = procurarCompilador();
     if (!compilador) {
-        console.error('Não encontrei o compilador Onda (ondac.wasm). Indica-o com ONDAC=/caminho/ondac.wasm.\n' +
-            'Está embutido no artefacto «Onda · Editor» (o WebAssembly do script principal).');
+        console.error('Não encontrei o compilador Onda (onda/seed/ondac.wasm). Indica-o com ONDAC=/caminho/ondac.wasm.');
         process.exit(2);
     }
     const fonte = readFileSync(join(AQUI, 'curador.onda'), 'utf8');

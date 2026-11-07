@@ -36,7 +36,10 @@ function binarioNativo() {
     return nativo;
 }
 
-test('juiz: o WASM e o binário nativo dão o mesmo, ao bit', { skip: !binarioNativo() && 'sem gcc' }, async () => {
+// o anfitrião oficial da Onda (onda/wasm/host.js, Node) — a terceira forma, quando o repositório o tem
+const HOST_OFICIAL = join(ONDA, '..', '..', 'onda', 'wasm', 'host.js');
+
+test('juiz: o WASM (no anfitrião da app e no oficial da Onda) e o binário nativo dão o mesmo, ao bit', { skip: !binarioNativo() && 'sem gcc' }, async () => {
     const casos = [[0, 0, 1], [1, 1, 2], [5, 3, 3], [12, 8, 4], [30, 20, 5], [60, 30, 6], [90, 40, 7]];
     for (const [n, k, seed] of casos) {
         for (const op of [{ k, maxArtista: 2, arco: 'onda' }, { k, maxArtista: 1, estilo: 'moda', arco: 'sobe' }, { k, maxArtista: 0, estilo: 'audiofilo', arco: 'plano' }]) {
@@ -45,6 +48,10 @@ test('juiz: o WASM e o binário nativo dão o mesmo, ao bit', { skip: !binarioNa
             const c = execFileSync(binarioNativo(), { input: inp }).toString();
             assert.equal(w.code, 0);
             assert.equal(w.text, c, `n=${n} k=${k} ${JSON.stringify(op)}`);
+            if (existsSync(HOST_OFICIAL)) {
+                const o = execFileSync(process.execPath, [HOST_OFICIAL, join(ONDA, 'curador.wasm')], { input: inp }).toString();
+                assert.equal(o, w.text, `anfitrião oficial · n=${n} k=${k}`);
+            }
         }
     }
 });
@@ -118,7 +125,7 @@ test('casos limite: vazia, K maior do que N, K = 0, formato errado', async () =>
     assert.throws(() => saida('3\n1 1 1\n'), /esperava/);
 });
 
-test('curador.wasm e curador.c correspondem a curador.onda', { skip: !procurarCompilador() && 'sem o compilador Onda (ONDAC)' }, async () => {
+test('curador.wasm e curador.c correspondem a curador.onda (compilador do repositório)', { skip: !procurarCompilador() && 'sem o compilador Onda' }, async () => {
     const fonte = readFileSync(join(ONDA, 'curador.onda'), 'utf8');
     assert.ok(existsSync(join(ONDA, 'curador.c')));
     assert.equal(Buffer.compare(await ondac(procurarCompilador(), fonte, ['-w']), wasm), 0, 'curador.wasm desatualizado: corre npm run onda');

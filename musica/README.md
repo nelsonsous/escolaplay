@@ -49,14 +49,15 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 ```bash
 cd musica
 npm test                 # motor Onda (com o juiz WASM = nativo), Worker, biblioteca, Curador de ponta a ponta, app no Chromium
-npm run onda             # recompila onda/curador.onda → curador.wasm + curador.c (precisa do compilador Onda)
+npm run onda             # recompila onda/curador.onda → curador.wasm + curador.c (com onda/seed/ondac.wasm)
 cd proxy && npm install && npx wrangler deploy
 node scripts/make-icons.mjs
 ```
 
-O compilador Onda (`ondac.wasm`, escrito na própria Onda) **não está no repositório** (é público): está embutido no
-artefacto «Onda · Editor». Para recompilar: `ONDAC=/caminho/ondac.wasm npm run onda` (ou guarda-o em
-`~/.onda/ondac.wasm`). Sem ele, os testes usam o `curador.wasm` e o `curador.c` já compilados.
+O compilador é o da Onda deste repositório (`onda/seed/ondac.wasm`, escrito na própria Onda); `npm run onda`
+recompila e `npm test` confirma que os compilados correspondem à fonte. O juiz corre o motor em três formas — o
+anfitrião da app (`onda/onda.js`: browser, Worker e Node), o anfitrião oficial (`onda/wasm/host.js`) e o binário
+nativo do C gerado — e exige o mesmo resultado, ao bit.
 
 Estrutura: `onda/` (motor e anfitrião das três portas da Onda), `lib/` (Tidal, sinais, proposta, curadoria — partilhado
 pela app, pelo Worker e pela tarefa agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada), `tests/`.
