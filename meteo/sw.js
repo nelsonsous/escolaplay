@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v12'; // 1.8.0
+const CACHE = 'meteo-v13'; // 1.8.1
 const ASSETS = [
     './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './manifest.webmanifest',
     './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js',
@@ -76,15 +76,18 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const scope = self.registration.scope;
+    // ao domingo (a da semana) abre já no resumo da semana
+    const nav = { tab: 'analise', open: 'd-an', focus: event.notification.tag === 'meteo-semana' ? 'an-semana' : '', at: Date.now() };
     let url = scope + '?tab=analise&abrir=d-an';
-    try { const u = new URL(event.notification.data?.url || '', scope); if (u.href.startsWith(scope)) { u.searchParams.set('abrir', 'd-an'); url = u.href; } } catch { /* fica a da Análise */ }
+    try { const u = new URL(event.notification.data?.url || '', scope); if (u.href.startsWith(scope)) { u.searchParams.set('tab', 'analise'); u.searchParams.set('abrir', 'd-an'); url = u.href; } } catch { /* fica a da Análise */ }
+    if (nav.focus) url += (url.includes('?') ? '&' : '?') + 'foco=' + nav.focus;
     event.waitUntil((async () => {
-        try { await (await caches.open('meteonav')).put('nav', new Response(JSON.stringify({ tab: 'analise', open: 'd-an', at: Date.now() }))); } catch { /* sem cache */ }
+        try { await (await caches.open('meteonav')).put('nav', new Response(JSON.stringify(nav))); } catch { /* sem cache */ }
         const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         const w = wins.find((c) => c.url.startsWith(scope));
         if (w) {
             try { await w.focus(); } catch { /* o sistema decide */ }
-            try { w.postMessage({ type: 'tab', tab: 'analise', open: 'd-an' }); } catch { /* lê-se da cache */ }
+            try { w.postMessage({ type: 'tab', ...nav }); } catch { /* lê-se da cache */ }
             return;
         }
         await self.clients.openWindow(url);
