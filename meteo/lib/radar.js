@@ -197,7 +197,8 @@ function bestShift(A, B, c, half, S) {
 }
 const same = (a, b) => { if (a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; };
 /** Deslocamento dos ecos na caixa de ±60 km à volta do ponto, comparando a última imagem com as de há ~10, 20 e 30 min
- *  (o padrão dos ecos de imagem para imagem). → { vx, vy (píxeis/min, y para baixo), speedKmh, deg (para onde vão), corr } ou null */
+ *  (o padrão dos ecos de imagem para imagem). → { vx, vy (píxeis/min, y para baixo), speedKmh, deg (para onde vão), corr } ou null.
+ *  debug (opcional): lista onde fica a estimativa de cada intervalo, para diagnóstico. */
 export function radarMotion(frames, geo, { boxKm = RADAR.boxKm, maxKmh = RADAR.maxKmh, fixed = null, minDbz = 12, debug = null } = {}) {
     const F = frames.filter((f) => f?.dbz);
     if (F.length < 2) return null;
@@ -277,7 +278,7 @@ export function analyzeRadar({ frames, geo, nowMs = Date.now(), off = 0, covered
     }
     const rings = RG.map((km, k) => ({ km, wet: acc[k].n ? r2(acc[k].wet / acc[k].n) : 0, max: r1(acc[k].max) }));
     const ndeg = near ? ((Math.atan2(near.e, near.n) * 180) / Math.PI + 360) % 360 : null;
-    const nearest = near ? { distanceKm: r1(near.d), deg: Math.round(ndeg), dir: compass(ndeg), mmh: r1(near.mmh) } : null;
+    const nearest = near ? { distanceKm: r1(near.d), bearing: compass(ndeg), deg: Math.round(ndeg), mmh: r1(near.mmh) } : null; // bearing: rumo do ponto para o eco, como nos focos de incêndio
     // 4) deslocamento dos ecos e persistência lagrangiana: a chuva que vai estar no ponto daqui a t min está agora a v·t
     //    para montante (a chover: o campo todo; sem chuva: sem os ecos parados). Sem deslocamento fiável (ecos que mudam
     //    mais do que andam, ou nenhum) fica como está agora, e o motor confia nisso menos tempo.

@@ -101,7 +101,7 @@ test('radar real (Santo Tirso, 7 nov 15:10): sem chuva no ponto, os ecos fixos d
     assert.equal(R.atPoint.raining, false);
     assert.ok(R.last2h.every((x) => x.mmh === 0), 'seco no ponto nas últimas 2 h');
     assert.ok(R.rings[3].wet > 0 && R.rings[3].max > 10, 'aguaceiros fortes entre 30 e 60 km');
-    assert.equal(R.nearest.dir, 'SO');
+    assert.deepEqual([R.nearest.bearing, Object.keys(R.nearest)], ['SO', ['distanceKm', 'bearing', 'deg', 'mmh']]);
     assert.ok(R.nearest.distanceKm > 15 && R.nearest.distanceKm < 30);
     assert.equal(R.approach, null, 'nada a chegar ao ponto');
     assert.ok(!R.motion?.used, 'os ecos mudam mais do que andam: deslocamento não fiável');
@@ -183,7 +183,7 @@ test('radar: chuva a aproximar-se de sudoeste a 36 km/h — deslocamento, hora d
     assert.ok(Math.abs(R.approach.etaMin - 20) <= 5, `chega daqui a ${R.approach.etaMin} min (≈ 15 km a 36 km/h, menos 5 min de idade)`);
     assert.ok(Math.abs(R.approach.distanceKm - 15) <= 2, `${R.approach.distanceKm} km`);
     assert.ok(R.approach.mmh >= 2 && R.approach.mmh <= 3, `${R.approach.mmh} mm/h`);
-    assert.equal(R.nearest.dir, 'SO');
+    assert.equal(R.nearest.bearing, 'SO');
     assert.ok(R.fixedKm2 > 50, `eco fixo a NE (${R.fixedKm2} km²) fica de fora`);
     assert.match(R.text, /^Sem chuva no radar; chuva a 1[4-6] km a sudoeste, deve chegar por volta das 16:0[05]\.$/);
     const fc = buildForecast({ ...raw, radar }, { lat: LAT, lon: LON, now: NOW });

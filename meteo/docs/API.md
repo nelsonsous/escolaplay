@@ -83,7 +83,7 @@ Formato:
              "atPoint": { "mmh": 0.56, "dbz": 19, "wet": 0.89, "raining": true, "label": "fraca", "trend": "estável" }, // wet = fração dos 9 píxeis; label OMM (fraca < 2,5 mm/h, moderada < 10, forte < 50, muito forte); trend: a aumentar | a diminuir | estável (vs 30 min)
              "last2h": [ { "time": "2026-11-06T18:30", "mmh": 0 } ], // as 13 imagens, no ponto
              "rings": [ { "km": 5, "wet": 0.9, "max": 0.9 }, { "km": 15, "wet": 0.4, "max": 2.1 }, { "km": 30, "wet": 0.2, "max": 6.3 }, { "km": 60, "wet": 0.1, "max": 11.5 } ], // anéis 0–5, 5–15, 15–30, 30–60 km: fração com chuva e máximo (mm/h)
-             "nearest": { "distanceKm": 12.3, "deg": 225, "dir": "SO", "mmh": 1.2 }, // só sem chuva no ponto: eco (3×3 ≥ 0,1 mm/h) mais perto até 40 km, sem os parados (ou null)
+             "nearest": { "distanceKm": 12.3, "bearing": "SO", "deg": 225, "mmh": 1.2 }, // só sem chuva no ponto: eco (3×3 ≥ 0,1 mm/h) mais perto até 40 km, sem os parados (ou null); bearing = rumo do ponto para o eco
              // deslocamento: correlação do padrão dos ecos entre a última imagem e as de há 10, 20 e 30 min, numa caixa de
              // ±60 km (grelha de ~1,8 km, ecos ≥ 12 dBZ, cada píxel a pesar menos quanto mais tempo teve eco). corr = confiança
              // (0..1, cai se as três estimativas discordam); used = corr ≥ 0,4 e ≥ 5 km/h (senão a chuva fica parada)
