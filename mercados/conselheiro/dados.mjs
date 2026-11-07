@@ -104,7 +104,7 @@ export function modelOf(rows, prev, { last = null, lessons = [], movers = [] } =
             const p = prev[r.s] || {};
             const o = { s: r.s, key: p.key || '', action: p.action || '' };
             for (const k of HZ.concat(LEVELS)) o[k] = Number.isFinite(p[k]) ? p[k] : null;
-            return { ...o, why: '', plan: '' };
+            return { ...o, why: '', plan: '', algWhy: '' };
         }),
         rank: { short: [], mid: [], long: [] },
         movers: movers.map((m) => ({ s: m.s, why: '' })),
