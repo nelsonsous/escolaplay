@@ -12,7 +12,7 @@ mesmo resultado que o JavaScript, verificado por testes. A app nunca fica partid
 | A | Onda para apps: exportações, anfitrião (`rt/anfitriao.js`), biblioteca (`lib/app.onda`) | feito (it.137) | app de exemplo testada num browser |
 | B | Motor de análise (`analyse`: médias, RSI, MACD, volatilidade, níveis, pontuações, conselho, textos) | feito (Mercados 3.23) | `mercados/onda/analise.onda` (701 linhas): 0 diferenças em 4 000 séries, números iguais ao bit; 40×400 em ~4 ms; corre em WebAssembly na app e nos scripts |
 | C | O resto do `analise.js`: tom das notícias, sentimento do mercado, teste no passado, imposto da cripto (365 dias), agrupar avisos, horas de silêncio | feito (Mercados 4.3.0) | a API toda do `analise.js` em Onda: `mercados/onda/*.onda`, 7 ficheiros e 1 415 linhas (702 da fase C), um módulo de 163 962 bytes. 0 diferenças, ao bit, em 1 114 112 pontos de código (norm), 41 500 títulos, 20 000 casos por função (marketMood, labelOf, riskOf, €/L, planLots, cryptoTax, groupAlert, isQuiet), 36 000 indicadores e 120 testes no passado. Mais rápido: tom de 1 000 títulos 60–75 ms → 3–6 ms; teste no passado 40×500 110–155 ms → 14–18 ms, 40×1 260 0,7–0,8 s → 43–72 ms. A app e os scripts já só usam a Onda; o `analise.js` fica como referência dos testes |
-| D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | passo 1 feito (Mercados 4.5.0): os Ajustes | `mercados/onda/ecra.onda` (88 linhas) e `ajustes.onda` (306), no mesmo módulo da análise: o HTML do `viewSettings`, igual ao byte em 600 estados por corrida do teste (5 000 numa corrida longa, ~115 MB de HTML). Desenho em ~0,2 ms (0,1 ms de WASM) + 0,1 ms do instantâneo, contra 0,15–0,3 ms do JS. A seguir: as outras vistas; depois a ficha e os gráficos; por fim os dados ao vivo e o estado na Onda. Portas que vão faltar: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
+| D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | passos 1 e 2 feitos (Mercados 4.5.0 e 4.6.0): os Ajustes e a Análise | `mercados/onda/ecra.onda` e `ajustes.onda` (306 linhas), no mesmo módulo da análise: o HTML do `viewSettings`, igual ao byte em 600 estados por corrida do teste (5 000 numa corrida longa, ~115 MB de HTML). Desenho em ~0,2 ms (0,1 ms de WASM) + 0,1 ms do instantâneo, contra 0,15–0,3 ms do JS. Passo 2: `ecra-analise.onda` (534 linhas) e, em `ecra.onda` (340 linhas), o que as vistas todas vão usar: os números do Intl pt-PT (`fmtPx`, `fmtPct`, `fmtPct1`) e o sort do V8. A Análise igual ao byte em 600 estados por corrida (5 000 numa longa, ~82 MB de HTML), os números em 249 166 casos (996 664), o sort em 4 000 listas; ~1,3–1,5 ms contra ~0,6–0,9 ms do JS; módulo de 305 445 bytes. A seguir: as outras vistas (Destaques, depois o Painel); depois a ficha e os gráficos; por fim os dados ao vivo e o estado na Onda. Portas que vão faltar: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
 | E | O Worker da Cloudflare | com risco | o plano grátis dá 10 ms de CPU por pedido. Medido (Node, WASM): 645 KB de JSON do Yahoo (40 ações, 1 ano) → **20 ms** com o `json` da biblioteca, contra 3 ms do `JSON.parse`. Precisa de um leitor em fluxo que só tire os fechos, sem montar a árvore |
 | F | Os scripts da tarefa do Claude (`dados`, `universo`, `outros`, `publicar`, `backtest`) | feito | `mercados/conselheiro/onda/*.onda`: 2 520 linhas (o modelo dos valores do JS — JSON exato, `String`, `Number`, `toFixed`, `toPrecision`, datas de Lisboa, textos UTF-16 — 573; o comum 417; `dados` 667, `universo` 223, `outros` 297, `publicar` 176, `backtest` 134), com a análise num módulo de 427 035 bytes (`conselheiro.wasm`). Anfitrião Node `rt/anfitriao-node.js` (portas 200–214: argumentos, ambiente, ficheiros, pastas, `fetch` com método/cabeçalhos/corpo/tempo, fluxos de saída, código de saída). Os `.mjs` de sempre são lançadores (a CONSELHEIRO.md não muda) e o JS fica em `conselheiro/js/` como referência. Paridade: 50 cenários com a rede e o relógio simulados, iguais ao byte nos ficheiros, nos 604 pedidos (17 gravações no KV), no stdout, no stderr e no código de saída; as corridas verdadeiras de `dados` e `universo` (1 340 ativos) gravadas e repostas nos dois lados: iguais. Tempos (processo inteiro, rede reposta): `dados` 125 ms (JS) / 186 ms (Onda), `universo` 438 / 422 ms |
 
@@ -85,6 +85,49 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 - **Limites conhecidos:** o `Number()` de um texto não está na Onda (`vnum` dá NaN; no JS `'3'` dá 3) — só se usa onde
   o Worker manda números; um substituto UTF-16 sozinho (que não aparece em dados reais) vira U+FFFD, como no
   `TextEncoder`; e a data feita por um `Intl.DateTimeFormat` guardado fica com o fuso de quando a app abriu.
+
+## O ecrã (fase D), passo 2: a Análise
+- **A lógica da vista também passou:** o JS manda os dados crus e a Onda filtra (as chaves, o `pool` de cada filtro,
+  o que o Claude pontuou), classifica e escreve (`ecra-analise.onda`: cartões, linhas, o "≠ algoritmo", toda a Trade
+  Republic, as ideias, o `algoRank`, o diário e o teste no passado). Vai já feito no JS o que é de outras partes da app
+  ou do browser: os nomes (`nameOf`), a variação do dia (`qv`: preço da noite, euros), as datas (`clWhen`, a hora da
+  lista toda) e o diário avaliado (`evalJournal`, com os preços de agora). Os pedidos à rede que o `viewAnalysis` fazia
+  (`loadUni`, `loadJournal`) saíram para o `analysisLoad`, chamado nos mesmos momentos.
+- **Os números do Intl, para todas as vistas** (`ecra.onda`): `fm_num x d` é o `Intl.NumberFormat('pt-PT')` com `d`
+  casas — os algarismos do decimal mais curto (o `pnz` da análise) arredondados a `d` casas, metades para longe do
+  zero, milhares com U+00A0 a partir de 10 000, "-" com o sinal do real (também o -0 e o que arredonda para 0) —;
+  `fm_pct`/`fm_pct1` (o sinal à parte, com o − U+2212); `fm_px` (o `fmtPx` todo: as casas pela grandeza ou pelo
+  `decimals`, os pontos sem moeda, qualquer código `/^[A-Z]{3}$/` com o símbolo do pt-PT — 21 diferem do código no
+  Chromium 153: €, US$, £, JP¥, CA$, … e `F CFA` com U+202F —, e o `GBp` com " p"); `peur0` passa a usá-lo; `fm_fix1`
+  é o `toFixed(1)`. Conferidos com as próprias funções da app e com o `Intl` do Chromium em 249 166 casos por corrida
+  (996 664 numa longa): metades exatas no decimal e não no binário, um ulp ao lado, subnormais, 2^53…2^64, bits ao
+  acaso. Cada número custa ~0,6 µs; ao princípio 84 µs, porque cada um deixava ~85 palavras no monte (a chamada
+  inteira só o repõe no fim): `marca`/`solta` à volta de cada número.
+- **O sort do V8 mudou:** o do Chromium 153 é o PowerSort (`array-sort.tq`, do `listobject.c` atual do CPython):
+  inserção binária abaixo de 16 elementos; daí para cima as corridas naturais, estendidas até ao `minrun` do CPython
+  (corridas de ⌊n/2^e⌋ ou ⌈n/2^e⌉), fundem-se pela "potência" da fronteira, com o galope do TimSort. O do Node 22 ainda é
+  o TimSort clássico (o primeiro porte, que dava 0 diferenças no Node, dava 831 em 4 000 no Chromium). E o código
+  otimizado (Maglev, Turbofan) troca o sort por uma inserção LINEAR até 16 elementos. Com um comparador que dá uma
+  ordem, tudo isto dá o mesmo (são estáveis); com chaves NaN (que empatam com tudo), o resultado do próprio JS depende
+  de a função já estar otimizada. O `ts_ordena` segue o builtin, comparação a comparação: 4 000 listas até 5 000
+  elementos, com NaN e corridas, iguais às do Chromium (com uma lista com buracos, que o código otimizado não mete em
+  linha). Na app as chaves nunca são NaN: as pontuações do motor são inteiros e as do Claude e de toda a TR passam pelo
+  `fin`.
+- **Uma lista fixa no instantâneo:** escrever as ~1 340 linhas de toda a Trade Republic custava 1,2 ms a cada desenho
+  (~80 ns por nó). Com `AnaliseOnda.ecra.fixa(lista)` a ponte escreve-a uma vez abaixo da marca e as chamadas seguintes
+  só ligam o nó a ela, enquanto o JS passar a mesma lista (o `UNI.rows` só muda de 30 em 30 min, e nunca no lugar).
+  Com a lista toda: 4,9 ms no pior caso medido → ~1,9 ms (o JS ~1,2 ms).
+- **O `esc` de um texto feito:** o ``esc(`${score} · …`)`` do JS escreve `null` para um null (o `${}` vem primeiro),
+  e o `esc(score)` não escreve nada. O `pv` ganhou o modo 2 (o `String(v)` escapado).
+- **Cuidado com as maiúsculas, outra vez:** `C`, `L`, `M`, `D` são operadores (`= C …` dá "= precisa de nome").
+- **O que não é igual, e porquê:** com chaves NaN numa ordenação, a ordem do JS não é uma (ver acima); o
+  `toLowerCase` só conhece o ASCII e o Latim-1 (os rótulos da análise); um texto com um número (`'50'`) numa conta
+  continua a dar NaN (no JS dá 50; o motor e o Worker mandam números); as chaves do protótipo (`constructor`…) nas
+  tabelas (`CL_TONE`, `SHORT`) não se imitam; os símbolos das moedas, o U+00A0 e o mínimo de 2 algarismos para os
+  milhares são os do CLDR do Chromium 153 (o Safari usa o ICU da Apple: os mesmos para o pt-PT, mas não conferido lá).
+- **Desempenho** (Chromium, mediana de 50; 59 linhas e 25 de toda a TR): JS ~0,6–0,9 ms; Onda ~1,3–1,5 ms = instantâneo
+  0,33 ms (objetos JS) + árvore 0,37 ms + WASM e saída ~0,45 ms. Como no passo 1, a ponte pesa mais do que o WASM.
+- **Tamanho:** 216 004 → 305 445 bytes de WASM: ~25 KB os números e o sort, ~64 KB a vista (o HTML fixo e o código).
 
 ## Aprendido com os scripts (fase F)
 - Ser igual ao JS ao byte obriga a ter o modelo dele: valores com tipo (undefined, null, números, textos, listas,

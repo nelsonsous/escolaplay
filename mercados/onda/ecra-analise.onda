@@ -3,7 +3,7 @@
 # que vai nele e o que vai já feito). Os eventos continuam no JS (data-hz, data-filter, data-open, data-act…).
 # Entrada: `ecra_analise s`, com s o instantâneo (ecra.onda); saída: o HTML no stdout.
 # As listas filtram-se e ordenam-se aqui como no JS: o mesmo filtro, o mesmo comparador e o mesmo sort do V8
-# (ts_ordena de ecra.onda), por isso também os empates (e os NaN) ficam pela mesma ordem.
+# (ts_ordena de ecra.onda), por isso também os empates ficam pela mesma ordem.
 # Nomes: an_* e ka_*, para não chocarem com os k_* dos Ajustes nem com os do conselheiro (que junta estes ficheiros).
 
 # ===== as chaves do instantâneo e os textos com que se compara =====
