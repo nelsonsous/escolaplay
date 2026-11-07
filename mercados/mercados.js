@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.7.0';
+    const VERSION = '4.8.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1044,7 +1044,7 @@
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
         if (st.pulling) return;
-        const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'ajustes' ? settingsHtml() : viewDashboard();
+        const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'ajustes' ? settingsHtml() : viewDashboard();
         const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
         body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
@@ -1181,27 +1181,6 @@
         return `<section class="sec"><div class="sec-h"><h2>Combustíveis${mname ? ' em ' + esc(mname) : dname ? ' em ' + esc(dname) : ' em Portugal'}</h2><span class="sub">bombas, com impostos</span></div>${inner}</section>`;
     }
 
-    function moverRow(k, q, isTemp) {
-        const n = NEWS[k] && NEWS[k].items && NEWS[k].items[0];
-        const nt = NEWS[k] ? A.newsTone(NEWS[k].items) : null;
-        let why = moverWhy(k);
-        if (!why && nt != null && fin(q.changePct)) {
-            const up = q.changePct > 0, good = nt > 0.15, bad = nt < -0.15;
-            why = up ? (good ? 'Sobe com boas notícias' : bad ? 'Sobe apesar de notícias negativas' : 'Sobe sem notícia clara')
-                : (bad ? 'Cai com más notícias' : good ? 'Cai apesar de notícias positivas' : 'Cai sem notícia clara');
-        }
-        const a = REG[k] || { sym: k };
-        return `<button type="button" class="row" data-chg="day" data-open="${esc(k)}" data-key="${esc(k)}" ${isTemp ? `data-name="${esc(q.name || '')}"` : ''}>
-            <div class="r-main mv-main">
-                <div class="r-name">${esc(isTemp ? (q.name || k) : nameOf(k))}</div>
-                <div class="r-sub">${esc([a.sym || k, q.exchange || (isTemp ? 'EUA' : '')].filter(Boolean).join(' · '))}${fin(q.volume) ? ' · vol. ' + fmtBig(q.volume) : ''}</div>
-                ${n ? `<div class="news1">${n.tone ? `<span class="tone ${n.tone.tone}">${esc(n.tone.label)}</span>` : ''}${esc(n.title)}</div>` : ''}
-                ${why ? `<div class="mv-why">${esc(why)}</div>` : ''}
-            </div>
-            <div class="r-px num"><span class="px">${fmtPx(q.price, REG[k] || { key: k }, q.currency)}</span>${chg(q.changePct)}</div>
-        </button>`;
-    }
-
     // ---------- Cripto hoje: o que as apps de cripto mostram ----------
     let CG = null, cgAt = 0;
     async function loadCryptoGlobal() {
@@ -1263,33 +1242,47 @@
                 : '<p class="note" style="margin-top:6px">Nada do que tens ou segues mexe 2% ou mais neste momento.</p>'}
             </div></section>`;
     }
-    function moodBox() {
+    // Os Destaques são desenhados pela Onda (mercados/onda/ecra-destaques.onda, no módulo da análise): desde a 4.8.0 é ela
+    // a referência desta vista. Os eventos continuam aqui; o aviso do conector é o do Painel. Até o módulo estar pronto
+    // fica o aviso "A calcular…" (o sentimento do mercado e o tom das notícias também são da Onda).
+    function highlightsHtml() {
+        const top = cfg.proxy ? '' : setupBanner();
+        if (aoOk && AO.ecra) try { return top + AO.ecra.destaques(highlightsSnap()); } catch (e) { console.error('ecrã Onda:', e); }
+        highlightsLoad();
+        return top + `<div class="empty">${aoOk ? 'Não deu para mostrar os destaques.' : 'A calcular…'}</div>`;
+    }
+    // o que os Destaques pedem à rede: o mercado cripto e as notícias dos meus ativos e dos 3 que mais sobem e mais caem do
+    // que sigo (as mesmas regras da vista). A lista dos EUA pede-se ao abrir o separador, ao atualizar e de 3 em 3 min.
+    function highlightsLoad() {
+        if (!cfg.proxy) return;
+        loadCryptoGlobal();
+        const v = (k) => qv(k).changePct, mine = holdingKeys();
+        const rest = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && fin(v(k)) && !mine.includes(k));
+        const top = (s) => rest.filter((k) => s * v(k) > 0).sort((a, b) => s * (v(b) - v(a))).slice(0, 3);
+        for (const k of mine.concat(top(1), top(-1))) if (!NEWS[k]) loadNews(k).then(scheduleRender).catch(() => {});
+    }
+    // O instantâneo para a Onda: o que os Destaques leem, cru (a Onda filtra, ordena — o sort do V8 — e escreve). Vai já
+    // feito o que é de outras partes da app: os nomes (nameOf), a cotação do dia (qv: preço da noite, euros), o sentimento
+    // do mercado (o marketMood do motor) e, de cada ativo, só a 1.ª notícia (título e tom).
+    function highlightsSnap() {
+        highlightsLoad();
+        const fold = (f) => (f in st.fold ? st.fold[f] : false);
         const inv = Object.keys(AN).filter((k) => listed(k) && investable(k));
         const breadth = inv.length ? inv.filter((k) => AN[k].score >= 58).length / inv.length : NaN;
-        const mood = A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth });
-        return mood ? `<div class="mood ${mood.tone}"><div class="m-l">Sentimento do mercado agora</div><div class="m-v ${mood.tone}-t">${esc(mood.label)}</div>
-            <div class="m-h">${esc(mood.hint)}</div><ul>${mood.reasons.map((r) => `<li class="${r.tone}">${esc(r.txt)}</li>`).join('')}</ul></div>` : '';
-    }
-    function viewHighlights() {
-        const V = {};
-        const all = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && fin((V[k] = qv(k)).changePct));
-        const mine = holdingKeys().filter((k) => V[k] || fin((V[k] = qv(k)).changePct));
-        const rest = all.filter((k) => !mine.includes(k));
-        const ups = rest.filter((k) => V[k].changePct > 0).sort((a, b) => V[b].changePct - V[a].changePct).slice(0, 6);
-        const downs = rest.filter((k) => V[k].changePct < 0).sort((a, b) => V[a].changePct - V[b].changePct).slice(0, 6);
-        // notícias: os meus ativos e os maiores movimentos
-        mine.concat(ups.slice(0, 3), downs.slice(0, 3)).forEach((k) => { if (!NEWS[k] && cfg.proxy) loadNews(k).then(scheduleRender).catch(() => {}); });
-        const block = (title, sub, keys, emptyTxt) => `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">${sub}</span></div>
-            ${keys.length ? `<div class="list">${keys.map((k) => moverRow(k, V[k])).join('')}</div>` : `<div class="empty">${emptyTxt}</div>`}</section>`;
-        const usBlock = (title, arr) => arr && arr.length ? `<section class="sec"><div class="sec-h"><h2>${title}</h2><span class="sub">bolsa dos EUA</span></div>
-            <div class="list">${arr.slice(0, 6).map((q) => moverRow(q.symbol, q, true)).join('')}</div></section>` : '';
-        return `${cfg.proxy ? '' : setupBanner()}
-        ${moodBox()}
-        ${block('Os meus ativos hoje', 'o que tenho', mine, 'A carregar…')}
-        ${block('Mais sobem hoje', 'do que sigo', ups, 'Nada a subir hoje.')}
-        ${block('Mais caem hoje', 'do que sigo', downs, 'Nada a cair hoje.')}
-        ${MOVERS ? usBlock('Mais sobem — mercado todo', MOVERS.gainers) + usBlock('Mais caem — mercado todo', MOVERS.losers) : (cfg.proxy ? `<p class="note">${st.moversErr ? 'Lista global indisponível: ' + esc(st.moversErr) : 'A carregar a lista global…'}</p>` : '')}
-        <p class="note">O tom das notícias (boa / má) é calculado por palavras-chave nos títulos. Toca numa linha para ver o gráfico e todas as notícias. Os avisos de subidas/descidas fortes configuram-se em Ajustes.</p>`;
+        const n1 = (k) => { const n = NEWS[k] && NEWS[k].items && NEWS[k].items[0]; return n ? { title: n.title, tone: n.tone && n.tone.tone } : undefined; };
+        const C = CLAUDE, M = MOVERS, G = CG;
+        return {
+            proxy: cfg.proxy, fiat: cfg.fiat, mine: holdingKeys(), err: st.moversErr, eu: Q['EURUSD=X'] && Q['EURUSD=X'].price,
+            foldMood: fold('hl-mood'), foldEua: fold('hl-eua'), foldCg: fold('hl-cripto'),
+            mood: A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix: Q['^VIX'] && Q['^VIX'].price, breadth }),
+            assets: Object.keys(REG).map((k) => {
+                const a = REG[k], q = qv(k);
+                return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), dec: a.decimals, pts: a.points, px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, n1: n1(k) };
+            }),
+            why: C && Array.isArray(C.movers) ? C.movers.map((x) => (x && typeof x === 'object' ? { s: x.s, why: x.why } : x)) : undefined,
+            mv: M ? { gainers: M.gainers, losers: M.losers } : M,
+            cg: G ? { fng: G.fng, mcap: G.mcap, mcapUsd: G.mcapUsd, mcapChg: G.mcapChg, vol: G.vol, volUsd: G.volUsd, btcDom: G.btcDom, ethDom: G.ethDom } : G,
+        };
     }
 
     const HZ = [['short', 'Curto', 'dias a 2 semanas'], ['mid', 'Médio', 'semanas a 3 meses'], ['long', 'Longo', 'anos']];
@@ -2319,6 +2312,8 @@
     })();
 
     async function boot() {
+        // como a Música: ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => console.error('motor Onda:', e));
         cfg.tab = 'painel';
         applyFs();
@@ -2345,6 +2340,8 @@
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas
         // em Onda são testados contra estes)
         analysisSnap, analysisHtml, ico, fmtPx, fmtPct, fmtPct1, set journal(v) { JOURNAL = v; }, set bt(v) { BT = v; },
-        get claude() { return CLAUDE; }, set claude(v) { CLAUDE = v; }, get uni() { return UNI; }, set uni(v) { UNI = v; } };
+        get claude() { return CLAUDE; }, set claude(v) { CLAUDE = v; }, get uni() { return UNI; }, set uni(v) { UNI = v; },
+        // os Destaques (só em Onda): o instantâneo, o desenho, o compacto dos números e o que eles leem da rede
+        highlightsSnap, highlightsHtml, fmtBig, get movers() { return MOVERS; }, set movers(v) { MOVERS = v; }, get cg() { return CG; }, set cg(v) { CG = v; } };
     boot();
 })();

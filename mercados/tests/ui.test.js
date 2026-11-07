@@ -301,22 +301,47 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1b-painel-completo.png'), fullPage: true });
 
-    // destaques
+    // destaques: simples como a Análise — o sentimento numa linha (com os índices do dia), uma lista por secção com as
+    // linhas do Painel (o porquê numa linha pequena: o motivo do Claude ou a notícia) e o resto em linhas fechadas no fim
     await page.click('#mk-nav [data-tab="destaques"]');
-    await page.waitForFunction(() => document.querySelectorAll('.news1').length >= 2);
+    await page.waitForFunction(() => document.querySelectorAll('.hl-row .hl-w').length >= 4);
     assert.equal(await page.locator('[data-lim]').count(), 0, 'sem filtros de ±X%');
-    const mineH = await page.locator('.sec:has(h2:text("Os meus ativos hoje")) .row .r-name').allTextContents();
-    assert.ok(mineH.some((t) => /FTSE All-World/.test(t)) && mineH.includes('Bitcoin'), 'os meus ativos: ' + mineH);
-    const ups = await page.locator('.sec:has(h2:text("Mais sobem hoje")) .row .r-name').allTextContents();
-    const downs = await page.locator('.sec:has(h2:text("Mais caem hoje")) .row .r-name').allTextContents();
-    assert.ok(ups.includes('Allianz') && ups.includes('Nvidia'), 'subidas: ' + ups);
-    assert.ok(downs.includes('Tesla') && downs.includes('TotalEnergies'), 'descidas: ' + downs);
-    assert.ok(ups.indexOf('Allianz') < ups.indexOf('Nvidia'));
-    await page.waitForSelector('text=Xyz Therapeutics');
+    assert.deepEqual(await page.locator('#mk-body .sec-h h2').allTextContents(), ['Os meus ativos hoje', 'Mais sobem', 'Mais caem'], 'uma lista por secção');
+    const mineH = await page.locator('.sec:has(h2:text-is("Os meus ativos hoje")) .row .r-name').allTextContents();
+    assert.deepEqual(mineH, ['FTSE All-World USD (Acc)', 'Bitcoin', 'Ether', 'Solana', 'XRP'], 'os meus ativos, pela ordem dos Ajustes');
+    const ups = await page.locator('.sec:has(h2:text-is("Mais sobem")) .row .r-name').allTextContents();
+    const downs = await page.locator('.sec:has(h2:text-is("Mais caem")) .row .r-name').allTextContents();
+    assert.deepEqual(ups.slice(0, 2), ['Allianz', 'Nvidia'], 'subidas: ' + ups);
+    assert.deepEqual(downs.slice(0, 2), ['Tesla', 'TotalEnergies'], 'descidas: ' + downs);
+    assert.ok(ups.length === 5 && downs.length === 5, 'cinco de cada lado');
+    // o porquê numa linha pequena: o motivo do Claude (Tesla), com o ponto dele, ou a notícia do dia, com o da cor do tom
+    assert.equal(await page.locator('.row[data-key="TSLA"] .r-sub').textContent(), 'Cai depois de resultados abaixo do esperado.');
+    assert.equal(await page.locator('.row[data-key="TSLA"] .hl-w.cl').count(), 1);
+    assert.match(await page.locator('.row[data-key="ALV.DE"] .hl-w').getAttribute('class'), /^hl-w (up|down|flat)$/);
+    assert.match(await page.locator('.row[data-key="VWCE.DE"] .px').textContent(), /^163,80\s€$/, 'o preço da noite (Munique), como no Painel');
+    assert.equal(await page.locator('.row[data-key="VWCE.DE"] .chg').textContent(), '−3,90%', 'e a variação do dia face ao fecho de Munique');
+    assert.equal(await page.evaluate(() => [...document.querySelectorAll('#mk-body .note')].filter((e) => !e.closest('details')).length), 0, 'sem parágrafos a explicar');
+    // em cima o sentimento do mercado, com os índices do dia; no fim, fechados: o mercado dos EUA e a cripto hoje
+    assert.match(await page.locator('details.hl-mood > summary').textContent(), /^Sentimento do mercadoS&P 500 [−+]?\d+,\d\d% · Nasdaq [−+]?\d+,\d\d% · Euro Stoxx [−+]?\d+,\d\d%(Otimista|Pessimista|Misto)$/);
+    await page.waitForSelector('details[data-fold="hl-eua"] .row[data-key="XYZ"]', { state: 'attached' });
+    assert.equal(await page.locator('details[data-fold="hl-eua"] > summary small').textContent(), 'Xyz Therapeutics +38,20% · Abcd Corp −22,50%');
+    assert.equal(await page.locator('details[data-fold="hl-cripto"] > summary').textContent(), 'Cripto hojeMedo extremo · mercado −3,20% em 24 h24');
+    assert.equal(await page.locator('#mk-body details[open]').count(), 0, 'as linhas do fim fechadas');
     console.log('✓ destaques: sobem', ups.join(', '), '| caem', downs.join(', '));
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '2-destaques.png') });
+    // abrir uma linha do fim: fica aberta quando o ecrã se atualiza (preços ao vivo); uma da lista dos EUA abre a ficha
+    await page.click('details[data-fold="hl-eua"] > summary');
+    await page.evaluate(() => window.__mk.render());
+    assert.equal(await page.locator('details[data-fold="hl-eua"][open]').count(), 1, 'fica aberta ao atualizar');
+    await page.click('details[data-fold="hl-eua"] .row[data-open="XYZ"]');
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && /Xyz Therapeutics/.test(document.querySelector('#mk-sheet-card').textContent));
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    await page.click('details[data-fold="hl-eua"] > summary');
+    assert.equal(await page.locator('details[data-fold="hl-eua"][open]').count(), 0, 'e volta a fechar');
+    console.log('✓ destaques: o sentimento numa linha, o porquê do Claude ou da notícia, os EUA e a cripto fechados');
 
-    assert.ok(await page.locator('.mood').isVisible(), 'sentimento do mercado nos Destaques');
+    assert.ok(await page.locator('details.hl-mood').isVisible(), 'sentimento do mercado nos Destaques');
     // análise: simples como a Trade Republic — o prazo, o filtro e UMA lista (a convicção do Claude pelo prazo; o que ele
     // não analisou no fim, com o sinal automático, marcado "auto"); o resto em linhas fechadas no fim
     await page.click('#mk-nav [data-tab="analise"]');
@@ -329,7 +354,7 @@ function proxyBody(u) {
     await page.click('.chips [data-filter="all"]');
     await page.click('.seg.hz [data-hz="mid"]');
     await page.waitForFunction(() => document.querySelectorAll('.an-list .row').length > 20);
-    assert.equal(await page.locator('.mood').count(), 0, 'sentimento só nos Destaques');
+    assert.equal(await page.locator('.hl-mood').count(), 0, 'sentimento só nos Destaques');
     assert.match(await page.locator('.an-src').textContent(), /^Claude · (\d\d\/\d\d )?\d\d:\d\d$/, 'de onde vem a lista, numa linha pequena');
     assert.equal(await page.locator('#mk-body .top3, #mk-body .medal, #mk-body h2').count(), 0, 'sem pódio nem títulos repetidos');
     assert.equal(await page.evaluate(() => [...document.querySelectorAll('#mk-body .note')].filter((e) => !e.closest('details')).length), 0, 'sem parágrafos a explicar (só dentro das linhas que abrem)');

@@ -8,7 +8,7 @@ App à parte (PWA instalável) para acompanhar, num só ecrã do telemóvel:
 - **Fundos e ETF** — vem com o Vanguard FTSE All-World (VWCE); à noite usa o preço de Munique (gettex, até às 22 h), perto do que a Trade Republic mostra. Ações e fundos em euros, como na TR.
 - **Índices, câmbio e ouro** — S&P 500, Nasdaq, Euro Stoxx 50, PSI, VIX, EUR/USD.
 - **Ações que segues** — lista editável (vem com PSI, Europa e EUA; procura e junta outras).
-- **Destaques** — o que sobe ou cai mais do que ±X % hoje, com a notícia do dia e se é **boa ou má notícia**; e as maiores subidas/descidas do mercado americano.
+- **Destaques** — simples, como a Análise: o sentimento do mercado com os índices do dia; os meus ativos e o que mais sobe e cai hoje, cada um com o porquê numa linha (o motivo do Claude ou a notícia do dia, com a cor de **boa ou má notícia**); as maiores subidas/descidas do mercado americano e o mercado cripto em linhas fechadas no fim.
 - **Análise** — simples, como a Trade Republic: o prazo (curto, médio, longo ou desconto), o filtro e uma lista ordenada pela convicção 0–100 do Claude, com o veredicto de cada ativo (comprar, manter, reduzir, vender…); na ficha, os níveis (entrada, alvo, stop) e o porquê. Os sinais automáticos (tendência, momento, RSI, MACD, volatilidade, tom das notícias), toda a Trade Republic e os resultados ficam em linhas fechadas no fim.
 - **Avisos** — notificação quando algo se mexe mais do que o limite escolhido.
 

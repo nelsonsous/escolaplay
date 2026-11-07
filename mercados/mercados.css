@@ -138,27 +138,13 @@ a { color: var(--accent2); }
 .fuel .f-min { font-size: calc(0.794rem * var(--k)); color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .fuel .f-min b { color: var(--up); }
 
-/* destaques */
-.mv { display: flex; gap: 10px; align-items: flex-start; }
-.mv .mv-main { flex: 1; min-width: 0; }
-.mv .news1 { margin-top: 6px; font-size: calc(0.853rem * var(--k)); line-height: 1.4; color: #c9d5e4; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* tom das notícias (o "Agora" do Painel) */
 .tone { display: inline-block; font-size: calc(0.765rem * var(--k)); font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-right: 4px; vertical-align: 1px; }
 .tone.up { color: var(--up); background: var(--up-bg); }
 .tone.down { color: var(--down); background: var(--down-bg); }
 .tone.flat { color: var(--flat); background: var(--flat-bg); }
-.mv-why { font-size: calc(0.794rem * var(--k)); color: var(--muted); margin-top: 4px; }
 
 /* análise */
-.mood { border-radius: var(--r); padding: 14px; border: 1px solid var(--line); background: var(--card); margin-bottom: 16px; }
-.mood.up { border-color: rgba(34, 197, 94, .45); background: linear-gradient(135deg, rgba(34, 197, 94, .12), var(--card) 60%); }
-.mood.down { border-color: rgba(240, 68, 97, .45); background: linear-gradient(135deg, rgba(240, 68, 97, .12), var(--card) 60%); }
-.mood .m-l { font-size: calc(0.794rem * var(--k)); color: var(--muted); }
-.mood .m-v { font-size: calc(1.412rem * var(--k)); font-weight: 800; margin: 2px 0 4px; }
-.mood .m-h { font-size: calc(0.853rem * var(--k)); color: #c9d5e4; line-height: 1.45; }
-.mood ul { margin: 10px 0 0; padding: 0; list-style: none; font-size: calc(0.853rem * var(--k)); display: grid; gap: 4px; }
-.mood li::before { content: '●'; margin-right: 6px; font-size: calc(0.562rem * var(--k)); vertical-align: 2px; }
-.mood li.up::before { color: var(--up); } .mood li.down::before { color: var(--down); } .mood li.flat::before { color: var(--flat); }
-
 .score { display: flex; align-items: center; gap: 8px; }
 .score .bar { flex: 1; height: 6px; background: var(--card2); border-radius: 99px; overflow: hidden; min-width: 40px; }
 .score .bar i { display: block; height: 100%; border-radius: 99px; }
@@ -561,8 +547,8 @@ a.st-row { text-decoration: none; color: inherit; }
 /* variação: só cor, sem caixa */
 .chg { background: none !important; padding: 0; font-weight: 600; font-size: calc(.85rem * var(--k)); }
 /* cartões, caixas e formulários sem contorno */
-.box, .ideas, .form, .mood, details.how, .today, .stocks-fold > summary, details.auto > summary, .banner { background: var(--card); border: 0; border-radius: var(--r); }
-.mood.up, .mood.down, .advice.up, .advice.down { border: 0; }
+.box, .ideas, .form, details.how, .today, .stocks-fold > summary, details.auto > summary, .banner { background: var(--card); border: 0; border-radius: var(--r); }
+.advice.up, .advice.down { border: 0; }
 .box { padding: 14px; }
 .box h3 { font-size: calc(1.05rem * var(--k)); font-weight: 700; }
 .today { padding: 14px 16px; margin: 0 0 26px; line-height: 1.45; }
@@ -605,7 +591,7 @@ a.st-row { text-decoration: none; color: inherit; }
 .ranges button { background: none; }
 .ranges button.on { background: var(--card2); color: #fff; outline: 0; }
 .stats { border: 0; background: var(--line); }
-.mood .m-h, .adv-txt, .dnotes, .mv .news1, details.how ul, .banner p { color: #d1d1d6; }
+.adv-txt, .dnotes, details.how ul, .banner p { color: #d1d1d6; }
 .advice, .advice.up, .advice.down { background: var(--card); }
 .adv-act { font-size: calc(1.45rem * var(--k)); }
 /* com letra grande, as colunas fixas crescem com ela */
@@ -660,3 +646,22 @@ details.an-f[open] > summary::after { margin-top: -7px; transform: rotate(135deg
 .an-f .sec-f .lnk { color: var(--text); }
 .an-f .ideas > .i-blk:first-child { margin-top: 0; }
 .an-sobre { margin: 0 2px 4px; padding: 0 0 0 18px; color: #d1d1d6; font-size: calc(.85rem * var(--k)); line-height: 1.45; display: grid; gap: 4px; }
+/* 4.8: os Destaques simples, como a Análise: o sentimento do mercado numa linha que abre, uma lista por secção com as
+   linhas do Painel (o porquê numa linha pequena: o ponto laranja é o Claude, os outros a cor da notícia) e o resto em
+   linhas fechadas no fim */
+details.hl-mood { margin-bottom: 24px; }
+.hl-mood .f-t small { white-space: normal; line-height: 1.4; margin-top: 3px; }
+.an-f .f-n.up-t { color: var(--up); }
+.an-f .f-n.down-t { color: var(--down); }
+.hl-hint { margin: 0 2px 8px; color: #d1d1d6; font-size: calc(.88rem * var(--k)); line-height: 1.45; }
+.hl-rz { list-style: none; margin: 0 2px 4px; padding: 0; display: grid; gap: 6px; color: var(--muted); font-size: calc(.85rem * var(--k)); line-height: 1.4; }
+.hl-rz li::before, .hl-w::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; background: var(--flat); }
+.hl-rz li.up::before, .hl-w.up::before { background: var(--up); }
+.hl-rz li.down::before, .hl-w.down::before { background: var(--down); }
+.hl-w.cl::before { background: #d97757; }
+.hl-row .r-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; margin-top: 2px; }
+.an-f > .cg { margin: 0 0 4px; }
+.an-f > .note { margin: 8px 2px 4px; }
+.an-f > .grp-h:first-of-type { margin-top: 2px; }
+/* como a Música: a zona das horas do iPhone é uma faixa preta fixa (o que desliza passa por baixo dela, não das horas) */
+body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: var(--safe-t); pointer-events: none; background: #000; }

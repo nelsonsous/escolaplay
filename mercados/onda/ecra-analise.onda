@@ -157,11 +157,10 @@
 # ===== pedaços =====
 # o pc e o tone das tabelas dos resultados para um real x (nul: o x é null)
 : an_pc if>i nul x ? || nul ~ finito x "—" fm_pct * x 100.
-: an_tof f>i v ? ~ finito v "flat" ? > v 0.005 "up" ? < v -0.005 "down" "flat"
-: an_tn if>i nul x ? nul "flat" an_tof * x 100.
+: an_tn if>i nul x ? nul "flat" ln_tom * x 100.
 # … e para um nó (null e undefined são o null do JS; o que não é número não é finito)
 : an_pcv i>i n ? || == jtipo n 0 == jtipo n 1 "—" ? == jtipo n 4 an_pc 0 @f + n 1 "—"
-: an_tnv i>i n ? || == jtipo n 0 == jtipo n 1 "flat" an_tof * vnum n 100.
+: an_tnv i>i n ? || == jtipo n 0 == jtipo n 1 "flat" ln_tom * vnum n 100.
 # v === 1
 : an_um i>i n && == jtipo n 4 == @f + n 1 1.
 # o fmtPct1 de um nó (um número já em %)
@@ -240,48 +239,8 @@
   an_s 112 ar an_s 113 na
   0 }
 
-# ===== as linhas: as do Painel (ícone, nome, símbolo e variação do dia), com a pontuação e o veredicto à direita =====
-# o tamanho (em bytes) do carácter UTF-8 que começa com o byte b, e o código do que começa no byte j do texto t
-: an_u8n i>i b ? < b 192 1 ? < b 224 2 ? < b 240 3 4
-: an_u8 ii>i t j { = b tbyte t j = n an_u8n b
-  ? == n 1 b ? == n 2 | << & b 31 6 & tbyte t + j 1 63
-  ? == n 3 | | << & b 15 12 << & tbyte t + j 1 63 6 & tbyte t + j 2 63
-  | | | << & b 7 18 << & tbyte t + j 1 63 12 << & tbyte t + j 2 63 6 & tbyte t + j 3 63 }
-# um código em UTF-8
-: an_putf i>i u ? < u 128 P u ? < u 2048 { P | 192 >> u 6 P | 128 & u 63 0 }
-  ? < u 65536 { P | 224 >> u 12 P | 128 & >> u 6 63 P | 128 & u 63 0 } { P | 240 >> u 18 P | 128 & >> u 12 63 P | 128 & >> u 6 63 P | 128 & u 63 0 }
-# o toUpperCase de um carácter (o do ASCII e do Latim-1: ß dá SS, ÿ dá Ÿ e µ dá o Μ grego)
-: an_mai i>i c ? && >= c 'a <= c 'z P - c 32 ? == c 223 "SS" ? == c 255 { P 197 P 184 0 } ? == c 181 { P 206 P 156 0 }
-  ? && && >= c 224 <= c 254 != c 247 an_putf - c 32 an_putf c
-# o texto de um nó (o String(v) num texto novo, se não é texto)
-: an_txt i>i n ? == jtipo n 5 jtxt n tstr n
-# o ícone redondo do Painel (o ico() do mercados.js): a cor pela chave k (h = (h * 31 + charCodeAt) % 360, carácter a
-# carácter), as iniciais do nome nm ou, na cripto, o símbolo cs
-: an_cor i>i n {
-  = t an_txt n = m tlen t = j 0 = h 0
-  W < j m { = c an_u8 t j = j + j an_u8n tbyte t j = h % + * h 31 ? < c 65536 c + 55296 >> - c 65536 10 360 }
-  h }
-# as iniciais: sem o que não é letra, algarismo ou espaço ([^A-Za-zÀ-ÿ0-9 ]), o primeiro carácter das duas primeiras
-# palavras, em maiúsculas; "?" se não há nenhum
-: an_inic i>i n {
-  = t an_txt n = m tlen t = j 0 = ini 1 = q 0
-  W && < j m < q 2 {
-    = c an_u8 t j = j + j an_u8n tbyte t j
-    ? == c 32 = ini 1
-      ? || || || && >= c 'a <= c 'z && >= c 'A <= c 'Z && >= c '0 <= c '9 && >= c 192 <= c 255 { ? ini { an_mai c = q + q 1 0 } 0 = ini 0 } 0 }
-  ? q 0 P '?
-  0 }
-# o símbolo da cripto (os 4 primeiros caracteres, em maiúsculas e escapados); com st, só até ao "-" (ADA-EUR, na lista
-# toda da TR)
-: an_isim ii>i n st {
-  = t an_txt n = m tlen t = j 0 = q 0
-  W && && < j m < q 4 || ~ st != tbyte t j '- {
-    = c an_u8 t j = j + j an_u8n tbyte t j = q + q 1
-    ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" an_mai c }
-  0 }
-: an_ico iiii>i k nm cs st { "<span class=\"r-ico\" style=\"--h:" N an_cor k "\" aria-hidden=\"true\">" ? cs an_isim cs st an_inic nm "</span>" 0 }
-# a variação do dia (o chg() do Painel: a cor e o fmtPct); — se não é um número finito
-: an_chg i>i n { = x ? == jtipo n 4 @f + n 1 / 0. 0. "<span class=\"chg " an_tof x "\">" fm_pct x "</span>" 0 }
+# ===== as linhas: as do Painel (ícone, nome, símbolo e variação do dia: ln_ico e ln_chg de ecra.onda), com a pontuação
+# e o veredicto à direita =====
 # a pontuação da linha do ativo i: a convicção do Claude (clRows) ou a do algoritmo (a do prazo, ou a do desconto)
 : an_nota i>f i ? & an_f i 3 8 @f an_p i 4 vnum jg an_f i 2 ka_score
 # o veredicto: o do Claude, se o há; senão o do algoritmo — no desconto a etiqueta do desconto; nos prazos o conselho
@@ -305,9 +264,9 @@
 : an_linha i>i i {
   = a an_f i 0 = k jg a ka_k
   "\n            <button type=\"button\" class=\"row an-row\" data-open=\"" pv k 1 "\" data-key=\"" pv k 1 "\" data-chg=\"day\">"
-  an_ico k jg a ka_name ? veqt an_f i 7 ka_v_crypto jg a ka_sym 0 0
+  ln_ico k jg a ka_name ? veqt an_f i 7 ka_v_crypto jg a ka_sym 0 0
   "<div class=\"r-main\"><div class=\"r-name\">" pv jg a ka_name 1 "</div><div class=\"r-sub\">" pv jg a ka_sym 1 " · "
-  ? an_g 102 { fm_pct1 * vnum jg an_f i 2 ka_dd 100. " do máx." 0 } an_chg jg a ka_chg
+  ? an_g 102 { fm_pct1 * vnum jg an_f i 2 ka_dd 100. " do máx." 0 } ln_chg jg a ka_chg
   an_marca i
   "</div></div><div class=\"r-score\">" an_barv an_nota i an_ver i "</div></button>" 0 }
 
@@ -375,9 +334,9 @@
 : an_unirow iii>i r km dsc {
   = s jg r ka_s = nm jg r ka_n
   "\n            <button type=\"button\" class=\"row an-row\" data-open=\"" pv s 1 "\" data-name=\"" pv nm 1 "\" data-ut=\"" pv jg r ka_rt 1 "\">"
-  an_ico s nm ? veqt jg r ka_rt ka_v_crypto s 0 1
+  ln_ico s nm ? veqt jg r ka_rt ka_v_crypto s 0 1
   "<div class=\"r-main\"><div class=\"r-name\">" pv nm 1 "</div><div class=\"r-sub\">" pv s 1 " · "
-  ? dsc { an_p1v jg r ka_dd " do máx." 0 } an_chg jg r ka_d
+  ? dsc { an_p1v jg r ka_dd " do máx." 0 } ln_chg jg r ka_d
   "</div></div><div class=\"r-score\">" an_barv @f + jg r km 1
   = cd an_g 104 = c ? cd an_cl cd s 0
   ? c { = kk jg c ka_key "<div class=\"lbl " an_tom kk "-t\">" ? an_sht kk 0 { = ac jg c ka_action ? vverd ac pv ac 1 0 } "</div>" 0 } 0
