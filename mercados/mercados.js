@@ -12,7 +12,7 @@
     // motor de análise escrito em Onda (WebAssembly, gerado de onda/analise.onda); até compilar não há pontuações
     const AO = window.AnaliseOnda || null;
     let aoOk = false;
-    const VERSION = '3.22.1';
+    const VERSION = '3.23.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);

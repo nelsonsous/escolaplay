@@ -10,7 +10,7 @@ mesmo resultado que o JavaScript, verificado por testes. A app nunca fica partid
 | # | O quê | Estado | Notas |
 |---|---|---|---|
 | A | Onda para apps: exportações, anfitrião (`rt/anfitriao.js`), biblioteca (`lib/app.onda`) | feito (it.137) | app de exemplo testada num browser |
-| B | Motor de análise (`analyse`: médias, RSI, MACD, volatilidade, níveis, pontuações, conselho, textos) | a fazer | paridade com o JS em milhares de séries; corre em WebAssembly na app e nos scripts |
+| B | Motor de análise (`analyse`: médias, RSI, MACD, volatilidade, níveis, pontuações, conselho, textos) | feito (Mercados 3.23) | `mercados/onda/analise.onda` (701 linhas): 0 diferenças em 4 000 séries, números iguais ao bit; 40×400 em ~4 ms; corre em WebAssembly na app e nos scripts |
 | C | O resto do `analise.js`: tom das notícias, sentimento do mercado, teste no passado, imposto da cripto (365 dias), agrupar avisos, horas de silêncio | depois de B | pura lógica, sem ecrã |
 | D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | o maior | precisa de portas novas: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
 | E | O Worker da Cloudflare | com risco | o plano grátis dá 10 ms de CPU por pedido. Medido (Node, WASM): 645 KB de JSON do Yahoo (40 ações, 1 ano) → **20 ms** com o `json` da biblioteca, contra 3 ms do `JSON.parse`. Precisa de um leitor em fluxo que só tire os fechos, sem montar a árvore |
@@ -25,6 +25,15 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   se liberta por regiões.
 - **Vai precisar:** portas para WebSocket, canvas e notificações (fase D); um JSON mais rápido para o Worker (fase E):
   bytes compactados 8 por palavra ou um leitor em fluxo.
+
+## Aprendido com o motor (fase B)
+- `Mx`/`Mn` comparam e escolhem: diferem do `Math.max/min` do JavaScript no `-0` e no `NaN` (o motor tem `jmax`/`jmin` exatos).
+- Não há negação real: `- 0. x` dá `+0` quando x é `+0`; usar `* -1. x`.
+- `I` satura em silêncio (`NaN` vira 0).
+- A saída é o mais lento: cada byte de texto é uma chamada ao runtime e o buffer guarda um byte por palavra. Uma saída
+  compactada (8 bytes por palavra) cortaria cerca de metade do tempo de um lote grande.
+- Ler a entrada pelo stdin custa uma chamada por byte em WebAssembly: o motor recebe o lote direto na memória (`_oa` +
+  função exportada `lote`), graças às exportações da it.137.
 
 ## Limites, com honestidade
 - Nenhuma linguagem é a melhor em tudo. A Onda ganha no cálculo (rápida, igual ao bit em todos os alvos,
