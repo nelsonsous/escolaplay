@@ -552,6 +552,11 @@ a.st-row { text-decoration: none; color: inherit; }
 .grp-h { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 2px; font-weight: 700; font-size: calc(.9rem * var(--k)); color: var(--muted); }
 .grp-h small { color: var(--faint); font-weight: 600; }
 .wl .wl-i .xbtn + .xbtn { margin-left: -2px; }
+/* ordenar: pega para arrastar */
+.wl .wl-h { touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab; border: 0; background: none; color: var(--faint); font-size: calc(1.25rem * var(--k)); width: 36px; height: 36px; margin-left: -6px; flex: none; }
+.wl .wl-i.drag { position: relative; z-index: 5; background: var(--card2); box-shadow: 0 8px 22px rgba(0, 0, 0, .55); border-radius: 10px; }
+.wl .wl-i.drag .wl-h { cursor: grabbing; color: var(--text); }
+.wl .wl-i.shift { transition: transform .15s ease; }
 /* sinal automático (sem conselho do Claude): mais discreto */
 .badge.auto { color: var(--muted); background: rgba(142, 142, 147, .1); font-weight: 600; }
 .badge.auto::after { content: 'auto'; margin-left: 5px; font-size: .78em; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .04em; }

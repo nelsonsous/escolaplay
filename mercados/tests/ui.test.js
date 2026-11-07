@@ -199,8 +199,18 @@ function proxyBody(u) {
     assert.ok(grps.some((g) => /^EUA/.test(g)) && grps.some((g) => /^Alemanha/.test(g)), 'grupos por bolsa: ' + grps.join(' | '));
     await page.click('#mk-nav [data-tab="ajustes"]');
     const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
-    await page.click(`[data-mv="${secondW}"][data-dir="-1"]`);
-    assert.deepEqual(await page.evaluate(() => window.__mk.cfg.watch.slice(0, 2)), [secondW, firstW], 'seta ↑ troca a ordem');
+    await page.click(`[data-mv="${secondW}"][data-dir="top"]`);
+    assert.deepEqual(await page.evaluate(() => window.__mk.cfg.watch.slice(0, 2)), [secondW, firstW], '⤒ põe no topo');
+    // arrastar pela pega: a 4.ª linha de ações vai para o 1.º lugar
+    const w4 = await page.evaluate(() => window.__mk.cfg.watch.slice(0, 4));
+    const hb = await page.locator(`.wl-i[data-wk="${w4[3]}"] .wl-h`).boundingBox();
+    const tb = await page.locator(`.wl-i[data-wk="${w4[0]}"]`).boundingBox();
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2 + (tb.y + 4 - hb.y - hb.height / 2) * i / 8);
+    await page.mouse.up();
+    assert.deepEqual(await page.evaluate(() => window.__mk.cfg.watch.slice(0, 4)), [w4[3], w4[0], w4[1], w4[2]], 'arrastar pela pega muda a ordem');
+    await page.click(`[data-mv="${secondW}"][data-dir="top"]`);
     assert.equal(await page.evaluate(() => window.__mk.cfg.sort), 'mine');
     await page.click('#mk-nav [data-tab="painel"]');
     assert.equal(await page.locator(stockSec + ' .row').first().getAttribute('data-key'), secondW, 'Painel segue a minha ordem');

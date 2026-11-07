@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.3.0';
+    const VERSION = '4.4.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1181,7 +1181,7 @@
 </div>
             <div class="chips sort" role="group" aria-label="Ordenar">${[['up', '↑ Sobe'], ['down', '↓ Desce'], ['mkt', 'Bolsa'], ['name', 'Nome'], ['mine', 'Minha']].map(([v, l]) => `<button type="button" data-sort="${v}" class="${sortBy === v ? 'on' : ''}">${l}</button>`).join('')}</div>
             ${stocks.length ? stocksHtml : '<div class="empty">Sem ações na lista. Junta em Ajustes.</div>'}${foot('go-add')}
-            ${sortBy === 'mine' ? '<p class="note">A tua ordem muda-se em Ajustes → Ações e fundos que sigo (setas ↑ ↓).</p>' : ''}
+            ${sortBy === 'mine' ? '<p class="note">A tua ordem muda-se em Ajustes → Ações e fundos que sigo (arrasta pela pega ≡).</p>' : ''}
             </section>
             <p class="note">Cripto em tempo real. Ações, índices e petróleo: dados gratuitos do Yahoo Finance, que podem ter até 15 min de atraso nalgumas bolsas. Atualiza a cada 30 s.</p>`;
     }
@@ -1750,7 +1750,8 @@
                     <input id="f-add" class="inp" type="search" autocomplete="off" placeholder="ex.: Mota-Engil, Ferrari, IWDA, AAPL…" ${cfg.proxy ? '' : 'disabled'}>
                     <div class="res" id="f-res"></div>
                     <div class="hint">Também podes escrever o símbolo do Yahoo Finance (ex.: <code>EGL.LS</code>, <code>RACE.MI</code>) e carregar Enter.</div></div>
-                <div class="wl">${cfg.funds.concat(cfg.watch).map((s) => `<div class="wl-i"><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-mv="${esc(s)}" data-dir="-1" aria-label="Subir ${esc(nameOf(s))}">↑</button><button type="button" class="xbtn" data-mv="${esc(s)}" data-dir="1" aria-label="Descer ${esc(nameOf(s))}">↓</button><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')}</div>
+                <div class="hint">Para ordenar: agarra na pega ≡ e arrasta (a página desliza sozinha perto das margens), ou ⤒ para pôr no topo.</div>
+                <div class="wl">${[['f', cfg.funds], ['w', cfg.watch]].map(([g, arr]) => arr.map((s) => `<div class="wl-i" data-wk="${esc(s)}" data-grp="${g}"><button type="button" class="wl-h" aria-label="Arrastar ${esc(nameOf(s))}">≡</button><span>${esc(nameOf(s))} <small>${esc(s)}</small></span><button type="button" class="xbtn" data-mv="${esc(s)}" data-dir="top" aria-label="Pôr ${esc(nameOf(s))} no topo">⤒</button><button type="button" class="xbtn" data-rm="${esc(s)}" aria-label="Tirar ${esc(nameOf(s))}">×</button></div>`).join('')).join('')}</div>
             </div></section>
         <section class="sec" id="sobre"><div class="sec-h"><h2>Sobre</h2></div>
             <div class="disc"><b>Mercados ${VERSION}.</b> Cripto: Binance. Ações, índices, petróleo e notícias: Yahoo Finance e Google Notícias, através do teu conector. Combustíveis: DGEG. Análise de cada ativo: tarefa agendada do Claude, às ${CL_LBL}.
@@ -2220,8 +2221,8 @@
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
         if (d.mv) {
-            const arr = cfg.watch.includes(d.mv) ? cfg.watch : cfg.funds, i = arr.indexOf(d.mv), j = i + (+d.dir);
-            if (i >= 0 && j >= 0 && j < arr.length) { [arr[i], arr[j]] = [arr[j], arr[i]]; if (cfg.sort !== 'mine') { cfg.sort = 'mine'; toast('Ordem das ações: a tua'); } saveCfg(); render(); }
+            const arr = cfg.watch.includes(d.mv) ? cfg.watch : cfg.funds, i = arr.indexOf(d.mv);
+            moveTo(arr, i, d.dir === 'top' ? 0 : i + (+d.dir));
             return;
         }
         if (d.fuel) { openFuelSheet(+d.fuel); return; }
@@ -2346,6 +2347,60 @@
     setInterval(() => { if (!document.hidden) loadClaude(); }, 60 * 60000);
 
     function applyFs() { document.documentElement.dataset.fs = ['n', 'l', 'xl'].includes(cfg.fs) ? cfg.fs : 'n'; }
+    // ---------- ordenar a lista que sigo: arrastar pela pega ≡ (ou ⤒ para o topo) ----------
+    function moveTo(arr, i, j) {
+        if (i < 0 || j < 0 || j >= arr.length || i === j) return;
+        arr.splice(j, 0, arr.splice(i, 1)[0]);
+        if (cfg.sort !== 'mine') { cfg.sort = 'mine'; toast('Ordem das ações: a tua'); }
+        saveCfg(); render();
+    }
+    (() => {
+        let dr = null;
+        const fim = (ok) => {
+            if (!dr) return;
+            const { arr, from, to, rows } = dr;
+            rows.forEach((r) => { r.style.transform = ''; r.classList.remove('drag', 'shift'); });
+            dr = null; st.touching = false;
+            if (ok && to !== from) moveTo(arr, from, to);
+            else if (st.renderLater) { st.renderLater = false; scheduleRender(); }
+        };
+        document.addEventListener('pointerdown', (e) => {
+            const h = e.target.closest && e.target.closest('.wl-h');
+            if (!h) return;
+            const row = h.closest('.wl-i'), g = row.dataset.grp;
+            const rows = $$(`.wl-i[data-grp="${g}"]`), from = rows.indexOf(row);
+            if (from < 0) return;
+            e.preventDefault();
+            const sy = window.scrollY;
+            dr = { arr: g === 'f' ? cfg.funds : cfg.watch, rows, from, to: from, y0: e.clientY, sy, id: e.pointerId,
+                mids: rows.map((r) => { const b = r.getBoundingClientRect(); return b.top + sy + b.height / 2; }), hgt: row.getBoundingClientRect().height };
+            st.touching = true;
+            row.classList.add('drag');
+            rows.forEach((r) => { if (r !== row) r.classList.add('shift'); });
+            try { h.setPointerCapture(e.pointerId); } catch { /* sem captura */ }
+        });
+        document.addEventListener('pointermove', (e) => {
+            if (!dr || e.pointerId !== dr.id) return;
+            e.preventDefault();
+            // perto das margens a página desliza, para se poder levar a linha longe
+            if (e.clientY < 90) window.scrollBy(0, -14); else if (e.clientY > window.innerHeight - 140) window.scrollBy(0, 14);
+            const dy = e.clientY - dr.y0 + (window.scrollY - dr.sy);
+            const { rows, from, mids, hgt } = dr;
+            rows[from].style.transform = `translateY(${dy}px)`;
+            const mid = mids[from] + dy;
+            let to = 0;
+            mids.forEach((m, i) => { if (i !== from && m < mid) to++; });
+            dr.to = to;
+            rows.forEach((r, i) => {
+                if (i === from) return;
+                const sh = from < to && i > from && i <= to ? -hgt : from > to && i >= to && i < from ? hgt : 0;
+                r.style.transform = sh ? `translateY(${sh}px)` : '';
+            });
+        }, { passive: false });
+        document.addEventListener('pointerup', (e) => { if (dr && e.pointerId === dr.id) fim(true); });
+        document.addEventListener('pointercancel', (e) => { if (dr && e.pointerId === dr.id) fim(false); });
+    })();
+
     async function boot() {
         if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => console.error('motor Onda:', e));
         cfg.tab = 'painel';
