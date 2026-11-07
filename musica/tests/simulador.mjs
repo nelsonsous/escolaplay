@@ -23,7 +23,9 @@ function recursoFaixa(id) {
         relationships: { artists: { data: f.artists.map((a) => ({ id: a, type: 'artists' })) }, albums: { data: [{ id: f.album[0], type: 'albums' }] }, genres: { data: id === '101' ? [{ id: 'g1', type: 'genres' }] : [] } } };
 }
 export function simulador() {
-    const sim = { criadas: [], itens: [], apagadas: [], listas: {}, removidos: [], nItem: 0, recusar401: false, chamadas: [], tokenBodies: [] };
+    const sim = { criadas: [], itens: [], apagadas: [], removidos: [], nItem: 0, recusar401: false, chamadas: [], tokenBodies: [],
+        // as mixes do Tidal são playlists com faixas
+        listas: { 'mix-desc': [{ id: '106', itemId: 'm1' }, { id: '105', itemId: 'm2' }], 'mix-dia': [{ id: '101', itemId: 'm3' }] } };
     sim.fetch = async (u, init = {}) => tidalSimulado(sim, u, init);
     return sim;
 }
@@ -115,12 +117,12 @@ function tidalSimulado(sim, u, init = {}) {
     if (par) return resp({ data: ['102', '106', '105', '103'].filter((x) => x !== par[1]).map((id) => ({ id, type: 'tracks' })), links: { self: '/x' } });
     // as mixes do utilizador
     const mix = /^\/(userDiscoveryMixes|userDailyMixes|userNewReleaseMixes)\/me\/relationships\/items$/.exec(p);
-    if (mix) return resp({ data: ({ userDiscoveryMixes: ['106', '105'], userDailyMixes: ['101'], userNewReleaseMixes: [] })[mix[1]].map((id) => ({ id, type: 'tracks' })), links: { self: '/x' } });
+    if (mix) return resp({ data: ({ userDiscoveryMixes: ['mix-desc'], userDailyMixes: ['mix-dia'], userNewReleaseMixes: [] })[mix[1]].map((id) => ({ id, type: 'playlists' })), links: { self: '/x' } });
     // álbuns de um artista (um saído há 3 dias) e as faixas de um álbum
     const alb = /^\/artists\/([^/]+)\/relationships\/albums$/.exec(p);
     if (alb) {
         const dia = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
-        const lista = alb[1] === 'a2' ? [{ id: 'al-novo', title: 'Disco novo', releaseDate: dia(3) }, { id: 'al2', title: 'Pastel Blues', releaseDate: '1965-01-01' }] : [];
+        const lista = alb[1] === 'a2' ? [{ id: 'al-novo', title: 'Disco novo', releaseDate: dia(3) }, { id: 'al-novo-x', title: 'Disco novo', releaseDate: dia(3) }, { id: 'al2', title: 'Pastel Blues', releaseDate: '1965-01-01' }] : [];
         return resp({ data: lista.map((x) => ({ id: x.id, type: 'albums' })), included: lista.map((x) => ({ id: x.id, type: 'albums', attributes: { title: x.title, releaseDate: x.releaseDate } })), links: { self: '/x' } });
     }
     const ai = /^\/albums\/([^/]+)\/relationships\/items$/.exec(p);

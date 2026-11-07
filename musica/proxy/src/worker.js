@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -484,16 +484,22 @@ async function maisComoEsta(env, c, quem) {
 
 // ---------- para o Curador: as tuas mixes do Tidal ----------
 const MIXES = [['descoberta', 'userDiscoveryMixes'], ['diaria', 'userDailyMixes'], ['lancamentos', 'userNewReleaseMixes']];
+// cada tipo de mix é uma lista de playlists (a Discovery Mix, as Daily Mixes…); as faixas estão dentro de cada uma
 async function mixes(env) {
     const t = await acesso(env);
+    const pais = t.pais || 'PT';
+    const falha = (e) => {
+        if (e.status === 429) throw e;
+        return null;
+    };
     const listas = [];
     for (const [, r] of MIXES) {
-        listas.push(await tidal(env, `/${r}/me/relationships/items`).then((d) => idsDe(d).slice(0, 25)).catch((e) => {
-            if (e.status === 429) throw e;
-            return [];
-        }));
+        const pls = idsDe(await tidal(env, `/${r}/me/relationships/items`).catch(falha), 'playlists').slice(0, 2);
+        const ids = [];
+        for (const pid of pls) ids.push(...idsDe(await tidal(env, `/playlists/${encodeURIComponent(pid)}/relationships/items`, { query: { countryCode: pais } }).catch(falha)).slice(0, 15));
+        listas.push([...new Set(ids)].slice(0, 25));
     }
-    const det = await porIds(env, listas.flat(), t.pais || 'PT');
+    const det = await porIds(env, listas.flat(), pais);
     return { mixes: MIXES.map(([tipo], i) => ({ tipo, faixas: listas[i].map((id) => det.get(id)).filter(Boolean) })) };
 }
 
@@ -510,7 +516,9 @@ async function novidades(env, dias) {
             return null;
         });
         for (const r of indexar(doc).values()) {
-            if (r.type === 'albums' && Date.parse(r.attributes?.releaseDate || '') >= desde) albuns.push({ id: String(r.id), titulo: r.attributes.title, data: r.attributes.releaseDate, artista: a.nome });
+            // o mesmo álbum pode vir em várias edições (normal, explícita, deluxe…): fica uma
+            const repetido = albuns.some((x) => x.artista === a.nome && x.titulo === r.attributes?.title);
+            if (r.type === 'albums' && !repetido && Date.parse(r.attributes?.releaseDate || '') >= desde) albuns.push({ id: String(r.id), titulo: r.attributes.title, data: r.attributes.releaseDate, artista: a.nome });
         }
     }
     albuns.sort((x, y) => y.data.localeCompare(x.data));
