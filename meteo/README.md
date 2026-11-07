@@ -104,6 +104,13 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## Quem usa a app (1.6.1)
+
+Cada telemóvel tem um **código curto** (os primeiros 6 caracteres do seu id aleatório, ex.: `a1b2c3`) e, se a pessoa
+quiser, um **nome** (Ajustes → Este telemóvel; até 40 caracteres, apaga-se deixando vazio), com o aviso de que só o dono
+o vê. No painel **Utilização** o dono vê a lista: nome ou código, quando abriu a app, os locais com análise diária (só o
+nome) e se tem notificações. A localização de quem usa a app não é registada.
+
 ## Notificações do fim do dia (1.6)
 
 Em **Ajustes → Notificações**: «Resumo ao fim do dia», **às 19:00 por omissão** (a hora escolhe-se de 15 em 15 min, das

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { selectPlaces, placeStatus, daysUnseen, lisbon, isMorningRun, bumpStats, usageSummary, recentReports, othersMode, placeOwner,
-    ANALYSED_MAX, PAUSE_DAYS, GUEST_MAX } from '../lib/places.js';
+    ANALYSED_MAX, PAUSE_DAYS, GUEST_MAX, cleanName } from '../lib/places.js';
 
 const NOW = Date.parse('2026-11-07T13:34:00Z'); // sábado, 13:34 em Lisboa (inverno: UTC+0)
 const daysAgo = (n, from = NOW) => new Date(from - n * 864e5).toISOString();
@@ -88,7 +88,15 @@ test('contadores do dia (stats:<data>) e painel "Utilização"', () => {
     const places = [owner('Santo Tirso'), guest('Casa da Ana', 'a', { lat: 41.5454 }), guest('Praia', 'c'), guest('Velho', 'd', { off: true })];
     const u = usageSummary({ devices, places, stats: { '2026-11-07': { scheduled: 9, instant: 1, guest: 6 }, '2026-11-05': { scheduled: 3 } }, now: NOW });
     assert.equal(u.today, '2026-11-07');
-    assert.deepEqual(u.devices, { today: 2, d7: 3, d30: 4, total: 6, owner: 1 });
+    const { list, ...counts } = u.devices;
+    assert.deepEqual(counts, { today: 2, d7: 3, d30: 4, total: 6, owner: 1 });
+    // cada telemóvel: o código curto (ou o nome que a pessoa escolheu), quando abriu a app, os locais (só o nome), notificações
+    assert.deepEqual(list.map((d) => [d.id, d.name, d.days, d.owner, d.places, d.push]), [
+        ['a', null, 0, false, ['Casa da Ana'], false], ['dono1', null, 0, true, ['Santo Tirso'], false], ['b', null, 6, false, [], false],
+        ['c', null, 18, false, ['Praia'], false], ['d', null, 67, false, ['Velho'], false], ['e', null, null, false, [], false]]);
+    const named = usageSummary({ devices: [{ id: 'abcdef123456', s: '2026-11-07', n: 'Ana' }], places: [guest('Casa da Ana', 'abcdef123456')], push: ['abcdef123456'], now: NOW });
+    assert.deepEqual(named.devices.list, [{ id: 'abcdef', name: 'Ana', days: 0, owner: false, places: ['Casa da Ana'], push: true }]);
+    assert.deepEqual(['  Ana  Silva ', 'x'.repeat(50), 'A\u0000B\nC', '', null, 42].map(cleanName), ['Ana Silva', 'x'.repeat(40), 'A B C', '', '', null]);
     assert.deepEqual(u.places.list.map((p) => [p.name, p.kind, p.status, p.analysed, p.days ?? null]),
         [['Santo Tirso', 'owner', 'active', true, null], ['Casa da Ana', 'guest', 'active', true, 0], ['Praia', 'guest', 'paused', false, 18], ['Velho', 'guest', 'off', false, 67]]);
     assert.deepEqual([u.places.total, u.places.owner, u.places.guests, u.places.active, u.places.paused, u.places.off, u.places.analysed], [4, 1, 3, 2, 1, 1, 2]);

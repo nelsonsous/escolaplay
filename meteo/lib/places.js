@@ -105,7 +105,15 @@ export function recentReports(list, lat, lon, { hours = 720, now = Date.now(), m
  * (metadados das chaves dev:<id>); stats = { <AAAA-MM-DD>: { scheduled, instant, guest } }.
  * Dos outros só o nome dos locais e o estado — nunca as coordenadas.
  */
-export function usageSummary({ devices = [], places = [], stats = {}, others = 'on', now = Date.now(), cap = ANALYSED_MAX } = {}) {
+/** Código curto de um telemóvel (os primeiros 6 caracteres do id aleatório): para o dono saber quem é quem sem nomes. */
+export const shortId = (id) => String(id || '').slice(0, 6);
+/** Nome que a pessoa escolheu mostrar ao dono (opcional): sem caracteres de controlo, até 40. '' = apagar; null = inválido. */
+export function cleanName(v) {
+    if (v == null) return '';
+    if (typeof v !== 'string') return null;
+    return v.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+}
+export function usageSummary({ devices = [], places = [], stats = {}, others = 'on', now = Date.now(), cap = ANALYSED_MAX, push = [] } = {}) {
     const today = lisbon(now).date;
     const ago = (s) => (typeof s === 'string' && s.length === 10 ? daysBetween(s, today) : Infinity);
     const dv = { today: 0, d7: 0, d30: 0, total: devices.length, owner: 0 };
@@ -126,5 +134,12 @@ export function usageSummary({ devices = [], places = [], stats = {}, others = '
     const pl = { total: list.length, owner: 0, guests: 0, active: 0, paused: 0, off: 0, analysed: sel.run.length, cap, list };
     for (const x of list) { pl[x.kind === 'owner' ? 'owner' : 'guests']++; pl[x.status]++; }
     const analyses = Array.from({ length: 7 }, (_, i) => addDays(today, -i)).map((date) => ({ date, ...bumpStats(stats[date]) }));
+    // cada telemóvel: o nome que a pessoa escolheu mostrar (opcional) ou o código curto, quando abriu a app, os locais com
+    // análise (só o nome) e se tem as notificações ligadas — nunca onde está
+    const pushOn = new Set(push);
+    dv.list = devices.slice().sort((a, b) => String(b.s || '').localeCompare(String(a.s || '')) || String(a.id).localeCompare(String(b.id))).slice(0, 200)
+        .map((d) => ({ id: shortId(d.id), name: d.n || null, days: Number.isFinite(ago(d.s)) ? ago(d.s) : null, owner: !!d.o,
+            places: places.filter((p) => (d.o ? !p.owner || p.owner === OWNER || p.owner === d.id : p.owner === d.id)).map((p) => p.name),
+            push: pushOn.has(d.id) }));
     return { today, devices: dv, places: pl, analyses, others: Object.hasOwn(OTHERS, others) ? others : 'on' };
 }

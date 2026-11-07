@@ -10,10 +10,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl, REPORT_KINDS } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, placeOwner, isOwnerPlace, placeKind, othersMode, approx, lisbon,
-    placeStatus, bumpStats, recentReports, usageSummary, addDays } from '../../lib/places.js';
+    placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -128,6 +128,7 @@ async function route(req, env, ctx, url) {
     if (m === 'PATCH' && p.startsWith('/api/places/')) return updatePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
     // --- só o dono ---
     if (m === 'GET' && p === '/api/usage') return usage(req, env, url);
+    if (m === 'PATCH' && p === '/api/me') return setMe(req, env, url);
     if (p === '/api/settings' && (m === 'GET' || m === 'PATCH')) return settings(req, env, url);
     return json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
 }
@@ -228,7 +229,8 @@ async function who(req, env, url) {
     const [rec, th] = await Promise.all([env.KV.get(key, 'json'), sha256(token)]);
     if (rec && !sameHash(rec.tokenHash, th)) return { error: noDevice() };
     const canWrite = trusted(req, env, url);
-    const nowIso = new Date().toISOString(), day = lisbon().date, meta = { metadata: { s: day, o: owner ? 1 : 0 }, expirationTtl: DEV_TTL };
+    const nowIso = new Date().toISOString(), day = lisbon().date;
+    const meta = { metadata: { s: day, o: owner ? 1 : 0, ...(rec?.name ? { n: rec.name } : {}) }, expirationTtl: DEV_TTL };
     if (!rec) {
         if (!canWrite) return { id: null, owner, code };
         const wkey = `${id}:novo`;
@@ -244,7 +246,7 @@ async function who(req, env, url) {
         // este telemóvel passou a ser do dono: os locais que ligou antes passam a ser do dono
         if (owner && !rec.owner) await adoptPlaces(env, id);
     }
-    return { id, owner, code };
+    return { id, owner, code, name: rec.name || null };
 }
 async function adoptPlaces(env, id) {
     const places = await getPlaces(env);
@@ -576,7 +578,7 @@ async function status(req, env, url) {
     if (me.error) return me.error;
     const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
     return json({ version: VERSION, onDemand: onDemandFor(env, me, mode), places: places.filter((p) => !p.off && canSee(me, p)).length, schedule: SCHEDULE,
-        device: !!me.id, owner: me.owner, ...(me.code ? { ownerCode: me.code } : {}), others: mode, limit: me.owner ? null : GUEST_MAX });
+        device: !!me.id, ...(me.id ? { id: shortId(me.id), name: me.name || null } : {}), owner: me.owner, ...(me.code ? { ownerCode: me.code } : {}), others: mode, limit: me.owner ? null : GUEST_MAX });
 }
 
 // ---------- só o dono: painel "Utilização" e "Análise dos outros" ----------
@@ -586,10 +588,29 @@ async function listDevices(env) {
     let cursor;
     do {
         const r = await env.KV.list({ prefix: 'dev:', ...(cursor ? { cursor } : {}) });
-        for (const k of r.keys) out.push({ id: k.name.slice(4), s: k.metadata?.s || null, o: k.metadata?.o ? 1 : 0 });
+        for (const k of r.keys) out.push({ id: k.name.slice(4), s: k.metadata?.s || null, o: k.metadata?.o ? 1 : 0, n: k.metadata?.n || null });
         cursor = r.list_complete ? null : r.cursor;
     } while (cursor && out.length < 20000);
     return out;
+}
+// O nome que a pessoa quer mostrar ao dono (opcional; vazio apaga). Fica no registo do telemóvel e na metadata (n),
+// que o painel "Utilização" lê de uma vez.
+async function setMe(req, env, url) {
+    if (!env.KV) return noKv();
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.id) return noDevice('Atualiza a app: este telemóvel ainda não está identificado no conector.');
+    const b = await req.json().catch(() => null);
+    const name = cleanName(b?.name);
+    if (name === null) return bad('Nome inválido.');
+    const key = 'dev:' + me.id, rec = await env.KV.get(key, 'json');
+    if (!rec) return noDevice();
+    const upd = { ...rec };
+    if (name) upd.name = name; else delete upd.name;
+    const seen = Number.isFinite(Date.parse(rec.lastSeen)) ? lisbon(Date.parse(rec.lastSeen)).date : lisbon().date;
+    await env.KV.put(key, JSON.stringify(upd), { metadata: { s: seen, o: rec.owner ? 1 : 0, ...(name ? { n: name } : {}) }, expirationTtl: DEV_TTL });
+    return json({ id: shortId(me.id), name: name || null });
 }
 async function usage(req, env, url) {
     const me = await who(req, env, url);
@@ -597,9 +618,9 @@ async function usage(req, env, url) {
     if (!me.owner) return notOwner();
     if (!env.KV) return noKv();
     const today = lisbon().date, days = Array.from({ length: 7 }, (_, i) => addDays(today, -i));
-    const [devices, places, mode, st] = await Promise.all([listDevices(env), getPlaces(env), getSettings(env).then(othersMode),
-        Promise.all(days.map((d) => env.KV.get('stats:' + d, 'json')))]);
-    return json(usageSummary({ devices, places, others: mode, stats: Object.fromEntries(days.map((d, i) => [d, st[i]])) }), 200);
+    const [devices, places, mode, st, pidx] = await Promise.all([listDevices(env), getPlaces(env), getSettings(env).then(othersMode),
+        Promise.all(days.map((d) => env.KV.get('stats:' + d, 'json'))), pushIndex(env)]);
+    return json(usageSummary({ devices, places, others: mode, stats: Object.fromEntries(days.map((d, i) => [d, st[i]])), push: pidx.map((e) => e.id) }), 200);
 }
 async function settings(req, env, url) {
     const me = await who(req, env, url);

@@ -60,6 +60,9 @@ export async function getReports(lat, lon, hours = 24) {
   return Array.isArray(r?.reports) ? r.reports : [];
 }
 
+/** O nome que a pessoa quer mostrar ao dono da app (opcional; vazio apaga): { id (código curto), name } */
+export const setMyName = (name) => call('/api/me', { method: 'PATCH', body: { name }, timeout: 10000 });
+
 // ---------- notificações do fim do dia (Web Push; o conector envia-as à hora escolhida) ----------
 export const getPushKey = () => call('/api/push/key', { timeout: 8000 });
 /** { on, time, sunday, place } deste telemóvel */
