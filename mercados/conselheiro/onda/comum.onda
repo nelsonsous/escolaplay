@@ -1,0 +1,98 @@
+# Conselheiro em Onda — as peças comuns aos scripts (o comum.mjs): listas, conector e KV (com as mesmas mensagens de
+# erro), veredictos, a ponte para a análise e o motor dos pedidos (cada resposta da rede chama cs_resp, que continua o
+# script no passo em que ia: g_scr = script, g_ph = passo).
+
+#g g_cmp 4
+#g g_big 260
+#g g_dig 800
+#g g_jp 3
+#k k_TypeError TypeError
+#k k_Error Error
+#k k_URIError URIError
+#k k_RangeError RangeError
+#k k_cfgowner cfg:owner
+#k k_cfgothers cfg:others
+#k k_cfglastRun cfg:lastRun
+#k k_jdois j:
+#k k_advice2 advice:2
+#k k_advicelessons advice:lessons
+#k k_advicelatest advice:latest
+#k k_unilatest uni:latest
+#k k_VWCE VWCE.DE
+#k k_EURUSD EURUSD=X
+#k k_cBTC c:BTC
+#k k_VIX ^VIX
+#k k_traco —
+#k k_tmp /tmp/conselheiro
+#k k_nan_marca  NaN
+#k k_conv1 ≥70
+#k k_conv2 58–69
+#k k_conv3 43–57
+#k k_conv4 31–42
+#k k_conv5 ≤30
+
+# ---------- erros ----------
+# um erro que o JS não apanhava: "Tipo: mensagem" no stderr e sai com 1 (o Node mostra também a pilha do JS)
+: cs_lanca ii>i tipo m { ho_fd 2 tx_pu tipo ": " tx_pu m P 10 ho_volta ho_sair 1 }
+# o erro do último pedido (ou de uma conta a meio): g_err = mensagem (texto), g_errt = tipo
+: cs_erro ii>i tipo m { ! g_errt tipo ! g_err m 0 }
+: cs_semerro >i { ! g_err 0 ! g_errt k_Error 0 }
+# se houve erro, o JS lançava-o (fora de um tryOr)
+: cs_lancase >i ? @ g_err cs_lanca @ g_errt @ g_err 0
+# o v[k] de dentro de uma função que o tryOr apanha: com v undefined/null, o erro fica em g_err (TypeError)
+: cs_tget ii>i v k ? js_nulo v { ? @ g_err 0 { sb_ini "Cannot read properties of " ? == v 1 "undefined" "null" " (reading '" tx_p k "')" cs_erro k_TypeError sb_fim } 1 } js_get v k
+# o aviso de um tryOr: `${what}: ${e.message}`
+: cs_aviso i>i what { sb_ini tx_p what ": " tx_p @ g_err = t sb_fim js_push @ g_warn t cs_semerro }
+
+# ---------- as listas da app (as mesmas do comum.mjs) ----------
+: cs_cfgjson >i {
+  "{\"STOCKS\":{\"AAPL\":\"Apple\",\"MSFT\":\"Microsoft\",\"NVDA\":\"Nvidia\",\"AMZN\":\"Amazon\",\"GOOGL\":\"Alphabet (Google)\",\"META\":\"Meta\",\"TSLA\":\"Tesla\","
+  "\"AVGO\":\"Broadcom\",\"JPM\":\"JPMorgan\",\"V\":\"Visa\",\"LLY\":\"Eli Lilly\",\"BRK-B\":\"Berkshire Hathaway\",\"PLTR\":\"Palantir\",\"AMD\":\"AMD\","
+  "\"ASML.AS\":\"ASML\",\"SAP.DE\":\"SAP\",\"MC.PA\":\"LVMH\",\"SIE.DE\":\"Siemens\",\"NOVO-B.CO\":\"Novo Nordisk\",\"ALV.DE\":\"Allianz\","
+  "\"TTE.PA\":\"TotalEnergies\",\"RHM.DE\":\"Rheinmetall\",\"TSM\":\"TSMC (Taiwan)\"},"
+  "\"FUNDS\":{\"VWCE.DE\":\"FTSE All-World USD (Acc) · VWCE\",\"EUNL.DE\":\"MSCI World (iShares)\",\"SXR8.DE\":\"S&P 500 (iShares)\",\"SXRV.DE\":\"Nasdaq-100 (iShares)\","
+  "\"IS3N.DE\":\"Mercados emergentes (iShares)\",\"EXSA.DE\":\"Europa 600 (iShares)\",\"4GLD.DE\":\"Ouro físico (Xetra-Gold)\"},"
+  "\"CRYPTO\":{\"c:BTC\":[\"BTC-EUR\",\"Bitcoin\"],\"c:ETH\":[\"ETH-EUR\",\"Ether\"],\"c:SOL\":[\"SOL-EUR\",\"Solana\"],\"c:XRP\":[\"XRP-EUR\",\"XRP\"]},"
+  "\"MARKET\":{\"^GSPC\":\"S&P 500\",\"^IXIC\":\"Nasdaq\",\"^STOXX50E\":\"Euro Stoxx 50\",\"PSI20.LS\":\"PSI\",\"^VIX\":\"VIX\",\"EURUSD=X\":\"EUR/USD\","
+  "\"BZ=F\":\"Petróleo Brent\",\"CL=F\":\"Petróleo WTI\",\"RB=F\":\"Gasolina (RBOB)\",\"HO=F\":\"Gasóleo (ULSD)\",\"NG=F\":\"Gás natural\",\"GC=F\":\"Ouro (futuros)\"},"
+  "\"MINE\":[\"VWCE.DE\",\"c:BTC\",\"c:ETH\",\"c:SOL\",\"c:XRP\"],"
+  "\"ACTION_KEYS\":[\"buy\",\"scale\",\"hold\",\"wait\",\"neutral\",\"turn\",\"reduce\",\"sell\",\"avoid\"],\"REF_KEYS\":[\"up\",\"flat\",\"down\"],"
+  "\"ACTION_LABEL\":{\"buy\":\"Comprar\",\"scale\":\"Comprar aos poucos\",\"hold\":\"Manter\",\"wait\":\"Esperar\",\"neutral\":\"Manter, sem reforçar\",\"turn\":\"Esperar confirmação\","
+  "\"reduce\":\"Reduzir\",\"sell\":\"Vender\",\"avoid\":\"Evitar\",\"up\":\"Em alta\",\"flat\":\"Lateral\",\"down\":\"Em queda\"},"
+  "\"FAM\":{\"buy\":1,\"scale\":1,\"hold\":0,\"wait\":0,\"neutral\":0,\"turn\":0,\"reduce\":-1,\"sell\":-1,\"avoid\":-1},"
+  "\"HZ\":[\"short\",\"mid\",\"long\"],\"LEVELS\":[\"entry\",\"target\",\"stop\"],\"HZLV\":[\"short\",\"mid\",\"long\",\"entry\",\"target\",\"stop\"],"
+  "\"LV\":{\"Média de 20 dias\":\"MM20\",\"Média de 50 dias\":\"MM50\",\"Média de 200 dias\":\"MM200\",\"Máximo do ano\":\"máx.ano\",\"Mínimo do ano\":\"mín.ano\","
+  "\"Topo recente\":\"topo\",\"Fundo recente\":\"fundo\",\"Antigo fundo, já perdido\":\"ex-fundo\",\"Antigo topo, já ultrapassado\":\"ex-topo\"},"
+  "\"KIND_PT\":{\"fund\":\"ETF\",\"stock\":\"ação\",\"crypto\":\"cripto\",\"ref\":\"ref\"},"
+  "\"SECTIONS\":[[\"mine\",\"O que tens\"],[\"fund\",\"ETF\"],[\"crypto\",\"Cripto\"],[\"stock\",\"Ações da lista da app\"],[\"extra\",\"Juntadas por ti na app\"],"
+  "[\"ref\",\"Referência: índices, câmbio e futuros (key up/flat/down)\"]],"
+  "\"MK\":[\"^GSPC\",\"^IXIC\",\"^STOXX50E\",\"PSI20.LS\",\"^VIX\",\"EURUSD=X\",\"BZ=F\",\"GC=F\"],"
+  "\"NEWSQ\":[[\"stock market today\",\"en\"],[\"bolsa mercados hoje\",\"pt\"],[\"bitcoin\",\"en\"]],"
+  "\"PLAN0\":[{\"s\":\"VWCE.DE\",\"amount\":\"810 €\"},{\"s\":\"c:BTC\",\"amount\":\"90 €\"}],\"TLDR0\":[\"Mercado: \",\"Plano: \",\"Atenção: \"],"
+  "\"KIND\":{\"stock\":\"stock\",\"etf\":\"fund\",\"crypto\":\"crypto\"}}"
+  0 }
+: cs_c i>i k js_oget @ g_cfg k
+: cs_stocks >i cs_c k_STOCKS
+: cs_funds >i cs_c k_FUNDS
+: cs_crypto >i cs_c k_CRYPTO
+: cs_market >i cs_c k_MARKET
+# a chave da app → símbolo do Yahoo (c:ADA → ADA-EUR): yahooOf
+: cs_yahoo i>i k { = c js_oget cs_crypto k ? != c 1 js_it c 0 ? cs_cpref k { sb_ini tx_p tx_s16 k 2 tx_l16 k "-EUR" sb_fim } k }
+: cs_cpref i>i k && >= tx_len k 2 && == tx_b k 0 'c == tx_b k 1 ':
+# kindOf: crypto, fund, market ou stock
+: cs_kind i>i k ? || js_otem cs_crypto k cs_cpref k k_crypto ? js_otem cs_funds k k_fund ? js_otem cs_market k k_market k_stock
+# nameOf
+: cs_nome i>i k {
+  = v js_oget cs_stocks k ? js_v v v {
+  = v js_oget cs_funds k ? js_v v v {
+  = c js_oget cs_crypto k = v ? != c 1 js_it c 1 1 ? js_v v v {
+  = v js_oget cs_market k ? js_v v v k } } } }
+# o SYM do JS: /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/
+: cs_az09 i>i c || && >= c 'A <= c 'Z && >= c '0 <= c '9
+: cs_sym i>i v ? ~ js_ehtxt v 0 {
+  = n tx_len v
+  ? && cs_cpref v && >= n 4 <= n 12 { = ok 1 = j 2 W && ok < j n { = ok cs_az09 tx_b v j = j + j 1 } ok } 0
+  ? && >= n 1 <= n 20 {
+    = c tx_b v 0 = ok || cs_az09 c == c '^ = j 1
+    W && ok < j n { = c tx_b v j = ok || || cs_az09 c == c '. || || == c '= == c '^ == c '- = j + j 1 } ok } 0
+  || }

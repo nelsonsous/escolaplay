@@ -1,0 +1,30 @@
+# Conselheiro em Onda — o ponto de entrada. O correr.mjs dá o nome do script e os argumentos dele:
+#   arg 0 = dados | universo | outros | publicar | backtest, e depois os argumentos da linha de comando.
+# Sem argumentos (os testes), só prepara as tabelas: as funções t_* servem para comparar com o JS.
+: main >i {
+  # o bloco dos globais (g_*) e dos textos constantes (k_*): o primeiro A, no endereço que o build.mjs calculou
+  = g A gn
+  ? != g gb { ho_fd 2 "conselheiro: os globais não ficaram onde o build os pôs" P 10 ho_sair 70 } 0
+  ini
+  k_ini
+  ? == Y 200 -1 0 0 0 cs_corre
+  0 }
+
+# ---------- para os testes (mercados/tests/conselheiro-onda.test.mjs) ----------
+: t_bits f>i x { N Bh x P 32 N Bl x 0 }
+: t_json ii>i t ind { = v js_parse tx_norm t 0 ? v js_pj v ind 0 "ERRO" }
+: t_num i>i t t_bits nu_s2n tx_norm t 0
+: t_tonum i>i t { = v js_parse t ? v t_bits js_tonum v "ERRO" }
+: t_str i>i t { = v js_parse t ? v tx_pu js_str v "ERRO" }
+: t_fix fi>i x d nu_pfix x d
+: t_ps f>i x nu_ps x
+: t_r6 f>i x t_bits nu_r6 x
+: t_iso f>i x ? dt_ok x dt_piso x "ERRO"
+: t_lis i>i t { dt_phoje t P 32 dt_pquando t }
+: t_s16 iii>i t a b { = v js_parse t tx_pj tx_s16 v a b }
+: t_l16 i>i t { = v js_parse t N tx_l16 v }
+: t_cmp ii>i a b N tx_cmp js_parse a js_parse b
+: t_norm ii>i t bom tx_p tx_norm t bom
+: t_uri i>i t { = v js_parse t ? tx_urimal v "URIError" tx_puri v }
+: t_ord i>i t { = v js_parse t ? v { js_ordena v 1 js_pj v 0 0 } "ERRO" }
+: t_branco i>i t N tx_branco js_parse t
