@@ -1,5 +1,7 @@
-// Analista do tempo — recolhe tudo o que o Claude precisa para cada local registado.
+// Analista do tempo — recolhe tudo o que o Claude precisa para cada local a analisar nesta corrida.
 //   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo]
+// Os locais vêm do KV (places): todos os do dono e os dos outros telemóveis em uso, conforme a "análise dos outros"
+// (Ajustes → Utilização: ligada | só 1× por dia, na corrida da manhã | desligada), até 15 — selectPlaces em lib/places.js.
 // Mostra as regras, o resumo numérico (a começar por "## O ponto", com o radar no ponto e os avisos do utilizador),
 // a análise anterior, as lições e o observado; grava imagens de satélite centradas no ponto (de perto, ~280 km, e largas).
 // Também guarda no KV o histórico horário das estações IPMA usadas e as previsões do IPMA de cada concelho
@@ -9,6 +11,7 @@ import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
 import { satUrl, FOGOS_URL, IPMA } from '../lib/sources.js';
 import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns } from '../lib/engine.js';
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
+import { selectPlaces, isOwnerPlace, placeOwner, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { WORKER, getJSON, kvGet, kvPut, arg } from './comum.mjs';
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -28,8 +31,17 @@ const SAT = [
 ];
 const kmPx = (km) => String(Math.round((km / W) * 100) / 100).replace('.', ',');
 
-const places = await getJSON(`${WORKER}/api/places`);
-if (!places.length) { console.log('Sem locais registados — nada a analisar.'); process.exit(0); }
+// Locais registados na app (KV, como o conector os guarda) e quem os pode ter nesta corrida
+const all = (await kvGet('places')) || [];
+const settings = (await kvGet('settings').catch(() => null)) || {};
+const guestIds = [...new Set((Array.isArray(all) ? all : []).filter((p) => p && !isOwnerPlace(p)).map(placeOwner))];
+const devices = Object.fromEntries(await Promise.all(guestIds.map(async (id) => [id, await kvGet('dev:' + id).catch(() => null)])));
+const plan = selectPlaces(all, { devices, others: othersMode(settings) });
+const places = plan.run;
+console.log(`Análise dos outros: ${OTHERS[plan.others]} · corrida ${plan.morning ? 'da manhã' : 'da tarde ou da noite'} (${lisbon().hour} h em Lisboa) · ` +
+    `${places.length} local(is) a analisar (máx. ${ANALYSED_MAX}; os do dono nunca ficam de fora).`);
+if (plan.skip.length) console.log(`Ficam de fora: ${plan.skip.map((p) => `${p.id} (${p.name}, ${KIND_PT[p.kind]}): ${p.reason}`).join('; ')}.`);
+if (!places.length) { console.log('Sem locais a analisar — nada a fazer.'); process.exit(0); }
 
 // Ocorrências da Proteção Civil: o fogos.pt recusa o Worker, por isso guardamos aqui uma cópia para a app (válida 6 h)
 try {
@@ -39,7 +51,7 @@ try {
 } catch (e) { console.log(`fogos.pt indisponível (${e.message}).`); }
 
 console.log(`\n# REGRAS DA ANÁLISE\n${SYSTEM_PROMPT}\n`);
-console.log(`Locais: ${places.map((p) => `${p.id} (${p.name})`).join(', ')}. Pasta: ${OUT}\n`);
+console.log(`Locais: ${places.map((p) => `${p.id} (${p.name}, ${KIND_PT[p.kind]})`).join(', ')}. Pasta: ${OUT}\n`);
 
 for (const [i, place] of places.entries()) {
     const out = [];
@@ -54,11 +66,12 @@ for (const [i, place] of places.entries()) {
         if (raw.ipma?.forecast) await saveIpmaRun(raw.ipma.forecast, runs).catch((e) => out.push(`(previsão IPMA não arquivada: ${e.message})`));
         const prev = await kvGet('analysis:' + place.id).catch(() => null);
         const lessons = (await kvGet('lessons:' + place.id).catch(() => null)) || [];
-        // avisos do utilizador ("Está a chover?") perto do ponto nas últimas 48 h: o que se via lá, para o "agora" e a verificação
+        // avisos do utilizador ("Está a chover?") no local nas últimas 48 h (os do telemóvel dono do local, KV reports:<id>):
+        // o que se via lá, para o "agora" e a verificação
         let reports = [];
-        try { reports = (await getJSON(`${WORKER}/api/reports?lat=${place.lat}&lon=${place.lon}&hours=48`, 15000)).reports || []; }
+        try { reports = recentReports(await kvGet('reports:' + place.id), place.lat, place.lon, { hours: 48 }); }
         catch (e) { out.push(`(avisos do utilizador indisponíveis: ${e.message})`); }
-        out.push(`\n==================== LOCAL ${place.id} — ${place.name} (${place.lat}, ${place.lon}) ====================`);
+        out.push(`\n==================== LOCAL ${place.id} — ${place.name} (${place.lat}, ${place.lon}) · ${KIND_PT[place.kind]} ====================`);
         const T = fc.location.terrain;
         out.push(`Ponto exato: ${place.lat}, ${place.lon} · ${fc.location.elevation} m${T ? ` · ${T.label.toLowerCase()} (${T.text})` : ''}. Escreve sobre este ponto, não sobre a região.`);
         out.push(`Fontes: ${Object.entries(fc.status).map(([k, v]) => `${k}=${v}`).join(' ')}`);

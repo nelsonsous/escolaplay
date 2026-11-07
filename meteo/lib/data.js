@@ -301,11 +301,12 @@ export async function loadForecast(o = {}) {
     return o.withRaw ? { fc, raw } : fc;
 }
 
-// Pede uma análise imediata ao Claude (só funciona se o Worker tiver chave da API). reports = avisos do utilizador perto
-export async function requestAnalysis(fc, { base = PROXY, det, reports } = {}) {
+// Pede uma análise imediata ao Claude (só funciona se o Worker tiver chave da API). reports = avisos do utilizador perto;
+// headers = a identidade do telemóvel (na app: identityHeaders() de api.js)
+export async function requestAnalysis(fc, { base = PROXY, det, reports, headers = {} } = {}) {
     const summary = buildSummary(fc, { ...(det ? { perModel: perModelTable(det) } : {}), ...(reports?.length ? { reports } : {}) });
     const r = await fetch(`${base}/api/analysis/refresh?lat=${fc.location.lat}&lon=${fc.location.lon}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ summary, name: fc.location.name }) });
+        method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ summary, name: fc.location.name }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.message || 'A análise imediata não está disponível.');
     return j.analysis;

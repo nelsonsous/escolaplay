@@ -65,10 +65,14 @@ pedem o que acontece no ponto, em mm, km/h e °C, com os sistemas regionais só 
 sudoeste deve chegar ao ponto por volta das 21h») e os efeitos do relevo (vale: geada, nevoeiro, inversões; topo:
 vento). O `publicar.mjs` recusa frases genéricas sobre o distrito ou a região.
 
-Na app, **Análise diária do Claude para este local** regista o local (máx. 5; a análise aparece num raio de 10 km). O
-cartão e o separador Análise dizem para que ponto é («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto
-selecionado»); a mais de 2 km avisam e oferecem **Mudar a análise diária para este ponto** (o local muda de sítio e fica
-com a última análise e as lições).
+Na app a análise diária está **desligada por omissão**: o cartão «Análise do Claude» de um local sem análise oferece
+**Ativar a análise diária do Claude para este local**. Cada telemóvel (cada instalação da app) tem **1 local**, e a análise
+desse local só aparece nesse telemóvel (nunca a de outras pessoas por estar perto); ligar noutro sítio muda o local para
+lá, com a última análise e as lições. Se o telemóvel não abrir a app durante **14 dias**, o local fica em pausa (não é
+analisado) e volta quando a app for aberta. No máximo **15 locais** por corrida; os do dono nunca ficam de fora. O cartão e
+o separador Análise dizem para que ponto é («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto selecionado»); a mais
+de 2 km avisam e oferecem **Mudar a análise diária para este ponto** (o local muda de sítio e fica com a última análise e
+as lições).
 
 Opcional — análise imediata para qualquer local, pela API do Claude (paga à parte):
 
@@ -78,12 +82,43 @@ cd meteo/proxy && npx wrangler secret put ANTHROPIC_API_KEY
 
 Ou no painel da Cloudflare: *Workers & Pages → meteo → Settings → Variables and Secrets → Add → Secret*.
 
+O código do dono (para o painel "Utilização" e para gerir os locais de todos) é outro segredo, longo e ao acaso:
+
+```bash
+openssl rand -hex 16                               # gera um código
+cd meteo/proxy && npx wrangler secret put OWNER_CODE
+```
+
+Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
+
+## Partilhar
+
+Em **Ajustes → Partilhar a Meteo** a app abre a partilha do telemóvel (ou copia o texto) com uma frase sobre a app, o
+endereço e como a instalar:
+
+- **iPhone**: abrir **https://nelsonsous.github.io/escolaplay/meteo/** no **Safari** → **Partilhar** → **«Adicionar ao ecrã
+  principal»**.
+- **Android**: abrir no **Chrome** → **⋮** → **«Instalar app»**.
+
+É grátis, sem conta e sem publicidade. Cada instalação ganha uma identidade anónima (um id e um segredo ao acaso, só no
+telemóvel); quem a recebe tem tudo, menos a análise do Claude, que é opcional e liga para 1 local.
+
+**O dono** (eu) abre uma vez, em cada telemóvel seu, `https://nelsonsous.github.io/escolaplay/meteo/?dono=<código>` — o
+código fica só nesse telemóvel e sai logo do endereço (`?dono=` vazio esquece-o). O código é o segredo `OWNER_CODE` do
+conector (ver abaixo; nunca no repositório). O dono não tem limite de locais, vê os de todos (dos outros só o nome e a zona,
+~1 km, nunca o ponto exato), pode desligá-los, e tem **Ajustes → Utilização**: telemóveis que abriram a app hoje, em 7 e em
+30 dias; locais (os seus e os dos outros, em uso, em pausa, desligados — dos outros só o nome); análises do Claude por dia
+nos últimos 7 dias (agendadas, imediatas, e quantas para os outros); e **Análise dos outros: ligada / só 1× por dia (07:34)
+/ desligada**, para cortar as análises dos outros se for preciso.
+
 ## Conector
 
 Como nos Mercados, a app é estática (GitHub Pages) e o que o browser não pode ler diretamente (METAR, NASA FIRMS,
 fogos.pt, imagens EUMETSAT) passa por um Cloudflare Worker próprio, grátis, na pasta `proxy/` — que também guarda os
-locais (criar, mudar de ponto, desligar), os avisos do utilizador («Está a chover?», os últimos 50 de cada local, 30 dias)
-e as análises do Claude (KV). O radar (RainViewer) é lido diretamente pela app (CORS aberto). Já está publicado em
+telemóveis (só o hash do segredo de cada um, e o dia em que abriu a app pela última vez), os locais (criar, mudar de ponto,
+desligar), os avisos do utilizador («Está a chover?», os últimos 50 de cada local ou telemóvel, 30 dias), as análises do
+Claude e os contadores do dia (KV). Grava pouco (o plano gratuito dá 1000 gravações por dia): cada telemóvel no máximo 1×
+por dia. O radar (RainViewer) é lido diretamente pela app (CORS aberto). Já está publicado em
 `https://meteo.mercados-proxy.workers.dev` e a app usa-o por omissão; para usar outro: **Ajustes → Conector de dados**,
 ou abrir a app com `…/meteo/?proxy=https://…`.
 
@@ -98,11 +133,13 @@ npx wrangler deploy
 - `index.html`, `meteo.css`, `meteo.js` (+ módulos) — a PWA, sem dependências.
 - `lib/` — o **motor**: junta as fontes e calcula tudo. Corre no telemóvel e na tarefa agendada (o plano gratuito
   da Cloudflare só dá 10 ms de CPU por pedido, por isso o Worker não faz contas). `lib/radar.js` lê o radar (cores →
-  dBZ → mm/h, deslocamento, chegada); `lib/png.js` descodifica as imagens no Node (no browser, o canvas).
+  dBZ → mm/h, deslocamento, chegada); `lib/png.js` descodifica as imagens no Node (no browser, o canvas);
+  `lib/places.js` diz de quem é cada local, quando fica em pausa e que locais entram em cada corrida (conector e tarefa).
 - `proxy/` — o conector (Worker). `analista/` — scripts da tarefa agendada (`dados.mjs` recolhe, `publicar.mjs`
   valida e grava). `docs/API.md` — formato de todas as respostas.
 - `tests/` — motor com dados reais de Lisboa (e o relevo real de Santo Tirso, Beja, Covilhã, Pinhão…), o radar com
-  imagens sintéticas e 13 imagens reais de Santo Tirso, rotas do conector e a app no Chromium com a rede simulada:
+  imagens sintéticas e 13 imagens reais de Santo Tirso, rotas do conector (identidade, dono, privacidade, pausa,
+  contadores), a escolha dos locais de cada corrida e a app no Chromium com a rede simulada:
 
 ```bash
 node --test meteo/tests/*.test.mjs

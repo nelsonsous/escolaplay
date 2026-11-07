@@ -9,6 +9,14 @@ Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código ne
 **A análise é para o PONTO EXATO de cada local registado** (coordenadas, altitude e relevo no bloco `## O ponto` do
 resumo), não para a região à volta.
 
+**Quem tem análise.** Na app a análise diária está desligada por omissão: liga-a quem quer, para 1 local por telemóvel (o
+dono da app, sem limite). Cada análise só aparece no telemóvel dono do local (e ao dono da app). O `dados.mjs` já escolhe os
+locais de cada corrida (`selectPlaces` em `meteo/lib/places.js`): todos os do **dono** — nunca são cortados — e os dos
+**convidados** (os outros telemóveis) que estão em uso, conforme **Ajustes → Utilização → Análise dos outros**: ligada;
+só 1× por dia (só na corrida da manhã, pela hora de Lisboa); desligada. Fica de fora o local desligado, o de um telemóvel
+que não abre a app há 14 dias (em pausa: volta quando abrir) e, acima de 15 locais, os dos convidados que abriram a app há
+mais tempo. Analisa só os locais que o `dados.mjs` lista.
+
 ## Passos
 
 1. Na raiz do repositório:
@@ -17,7 +25,9 @@ resumo), não para a região à volta.
    NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs
    ```
 
-   Mostra as **regras da análise** e, para cada local registado na app: o ponto exato, o que se observou nas últimas
+   Começa por dizer a análise dos outros (ligada, 1× ou desligada), se é a corrida da manhã, os locais a analisar com o
+   **tipo de dono** de cada um (`dono` ou `convidado`) e os que ficam de fora, com o motivo. Depois mostra as **regras da
+   análise** e, para cada local a analisar: o ponto exato, o que se observou nas últimas
    24 h, a análise anterior, as lições aprendidas sobre o local e o resumo numérico completo, que **começa por
    `## O ponto`** (nome, coordenadas, altitude, relevo — vale, encosta, topo ou planície, quanto abaixo ou acima do
    relevo à volta — e o efeito local já aplicado, o ponto da previsão oficial do IPMA e as estações usadas com distância,
@@ -27,8 +37,8 @@ resumo), não para a região à volta.
    de chegada ou de fim e **Radar vs modelos** — quando os modelos estão atrasados ou adiantados), os **avisos do
    utilizador** (`## Avisos do utilizador`: o que se via no ponto, «Está a chover?», últimas 48 h), verificação local,
    **Fontes lado a lado**, avisos IPMA e incêndios.
-   No fim, a lista de imagens de satélite gravadas em `/tmp/meteo/` (as de perto primeiro). Se disser **"Sem locais
-   registados"**, termina aqui. Os locais são processados com 3 s de intervalo (o Open-Meteo limita pedidos por minuto).
+   No fim, a lista de imagens de satélite gravadas em `/tmp/meteo/` (as de perto primeiro). Se disser **"Sem locais a
+   analisar"**, termina aqui. Os locais são processados com 3 s de intervalo (o Open-Meteo limita pedidos por minuto).
 
 2. Para cada local:
 
@@ -68,9 +78,11 @@ resumo), não para a região à volta.
 
       Se der erros de validação, corrige o JSON e repete. O `publicar.mjs` **recusa frases genéricas sobre a região**
       («no distrito do Porto», «no Minho e Douro Litoral», «no interior norte», «em toda a região»…): reescreve-as sobre o
-      ponto e publica de novo. Só se a menção for mesmo indispensável junta `--regiao-ok`.
+      ponto e publica de novo. Só se a menção for mesmo indispensável junta `--regiao-ok`. Também recusa um local que foi
+      desligado entretanto (salta-o). Cada análise publicada conta no dia (`stats:<data>`, o painel «Utilização» do dono:
+      agendadas e quantas para convidados).
 
-3. Termina com uma linha por local: `<nome>: <título publicado>`.
+3. Termina com uma linha por local: `<nome> (<dono|convidado>): <título publicado>`.
 
 ## Escrever sobre o ponto
 
@@ -97,14 +109,18 @@ resumo), não para a região à volta.
 
 ## Notas
 
-- A app mostra a análise do local registado mais próximo (até 10 km) no cartão **Análise do Claude**, sempre com o ponto
-  a que se refere («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto selecionado»). Se o ponto selecionado estiver
-  a mais de 2 km, a app avisa e oferece **«Mudar a análise diária para este ponto»** (`PATCH /api/places/<id>`): o local
-  fica com o mesmo id, por isso a última análise e as lições continuam; a próxima análise já é do ponto novo — revê as
-  lições que dependam do sítio antigo.
-- Os locais registam-se na própria app (máx. 5). Sem locais, a tarefa não faz nada.
-- Os avisos do utilizador («Está a chover?» na app) ficam no KV em `reports:<id>` (os últimos 50 de cada local, 30
-  dias); o `dados.mjs` só os lê (`GET /api/reports`).
+- A app mostra a análise só no telemóvel dono do local (e ao dono da app), no cartão **Análise do Claude**, sempre com o
+  ponto a que se refere («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto selecionado»). Se o ponto selecionado
+  estiver a mais de 2 km, a app avisa e oferece **«Mudar a análise diária para este ponto»** (`PATCH /api/places/<id>`);
+  num convidado, ligar a análise noutro sítio também muda o seu único local. O local fica com o mesmo id, por isso a última
+  análise e as lições continuam; a próxima análise já é do ponto novo — revê as lições que dependam do sítio antigo.
+- Os locais ligam-se na própria app (desligada por omissão; 1 por telemóvel, o dono sem limite). A lista está no KV
+  (`places`; cada local com `owner`: o id do telemóvel ou `owner`, o dono — os de antes, sem dono, são do dono). Sem locais
+  a analisar, a tarefa não faz nada.
+- **Privacidade**: cada análise é só para o telemóvel do local. Escreve só sobre o ponto; nunca menciones outros locais
+  registados nem quem os registou, e não ponhas as coordenadas exatas no texto (a app mostra-as a quem é dono do local).
+- Os avisos do utilizador («Está a chover?» na app) do telemóvel dono do local ficam no KV em `reports:<id>` (os últimos
+  50, 30 dias); o `dados.mjs` só os lê (do KV).
 - O `dados.mjs` também guarda no KV as ocorrências da Proteção Civil (o fogos.pt recusa pedidos do Worker), o
   histórico horário das estações IPMA usadas em cada local (até 6; a fonte só dá 24 h), que a app usa na verificação
   local, e as corridas da previsão do IPMA de cada concelho (`ipma:runs:<id>`, 9 dias), para verificar também o IPMA.

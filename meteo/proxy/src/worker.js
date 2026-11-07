@@ -192,6 +192,19 @@ async function ownerCode(req, env) {
     return sameHash(await sha256(got), ownerHash.hash) ? 'ok' : 'errado';
 }
 const noDevice = (message = 'Este telemóvel não foi reconhecido pelo conector. Abre a app de novo.') => json({ error: 'dispositivo', message }, 403);
+// Pedidos ao mesmo tempo do mesmo telemóvel leem o mesmo registo: neste isolate só o primeiro grava (durante 60 s, o
+// tempo que o KV pode levar a mostrar a gravação). A chave é o que se leu, por isso um registo diferente grava sempre.
+const writing = new Map();
+function firstWriter(key) {
+    const t = writing.get(key);
+    if (t && Date.now() - t < 60e3) return false;
+    if (writing.size > 2000) writing.clear();
+    writing.set(key, Date.now());
+    return true;
+}
+async function putDevice(env, wkey, key, value, meta) {
+    try { await env.KV.put(key, JSON.stringify(value), meta); } catch (e) { writing.delete(wkey); throw e; }
+}
 
 /** Quem pede: { id, owner, code } (id null sem identidade válida) ou { error } quando o segredo não bate certo. */
 async function who(req, env, url) {
@@ -205,14 +218,16 @@ async function who(req, env, url) {
     const nowIso = new Date().toISOString(), day = lisbon().date, meta = { metadata: { s: day, o: owner ? 1 : 0 }, expirationTtl: DEV_TTL };
     if (!rec) {
         if (!canWrite) return { id: null, owner, code };
-        await env.KV.put(key, JSON.stringify({ tokenHash: th, firstSeen: nowIso, lastSeen: nowIso, ...(owner ? { owner: true } : {}) }), meta);
+        const wkey = `${id}:novo`;
+        if (firstWriter(wkey)) await putDevice(env, wkey, key, { tokenHash: th, firstSeen: nowIso, lastSeen: nowIso, ...(owner ? { owner: true } : {}) }, meta);
         return { id, owner, code, isNew: true };
     }
     const seenDay = Number.isFinite(Date.parse(rec.lastSeen)) ? lisbon(Date.parse(rec.lastSeen)).date : '';
-    if (canWrite && (seenDay !== day || !!rec.owner !== owner)) {
+    const wkey = `${id}:${rec.lastSeen}:${owner ? 1 : 0}`;
+    if (canWrite && (seenDay !== day || !!rec.owner !== owner) && firstWriter(wkey)) {
         const upd = { ...rec, lastSeen: nowIso };
         if (owner) upd.owner = true; else delete upd.owner;
-        await env.KV.put(key, JSON.stringify(upd), meta);
+        await putDevice(env, wkey, key, upd, meta);
         // este telemóvel passou a ser do dono: os locais que ligou antes passam a ser do dono
         if (owner && !rec.owner) await adoptPlaces(env, id);
     }
@@ -361,7 +376,8 @@ async function updatePlace(req, env, url, id) {
         next = { ...next, off: true, offAt: new Date().toISOString(), offBy: own ? 'device' : 'owner' };
     }
     if (!move && b.on == null) return bad('Nada a mudar.');
-    await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
+    // sem mudanças (ligar o que já está ligado…): não grava
+    if (move || (b.on === true && cur.off) || (b.on === false && !cur.off)) await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
     return json(placeView(me, next), 200);
 }
 
