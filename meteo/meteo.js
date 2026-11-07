@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.6.1';
+const VERSION = '1.8.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -47,6 +47,7 @@ const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
 const saveCfg = () => api.store.set(KEY, cfg);
+let openFromLink = null, focusFromLink = ''; // secção «Ver mais» a abrir já e parte a mostrar (vindas da notificação)
 let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pelo endereço (aviso quando o conector responder)
 {
     const sp = new URLSearchParams(location.search);
@@ -61,12 +62,14 @@ let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pel
         ownerJust = api.setOwnerCode(sp.get('dono')) ? 'set' : 'cleared';
         sp.delete('dono'); changed = true;
     }
-    // ?tab=analise (a notificação do fim do dia abre a Análise)
+    // ?tab=analise&abrir=d-an (tocar na notificação do fim do dia abre a análise completa)
     const tb = sp.get('tab');
     if (sp.has('tab')) {
         if (tb && (TITLES[tb] || tb === 'agora')) { cfg.tab = tb; saveCfg(); }
         sp.delete('tab'); changed = true;
     }
+    if (sp.has('abrir')) { if (/^d-[a-z]+$/.test(sp.get('abrir') || '')) openFromLink = sp.get('abrir'); sp.delete('abrir'); changed = true; }
+    if (sp.has('foco')) { if (/^an-[a-z]+$/.test(sp.get('foco') || '')) focusFromLink = sp.get('foco'); sp.delete('foco'); changed = true; }
     if (changed) history.replaceState(null, '', location.pathname + (sp.toString() ? '?' + sp : '') + location.hash);
 }
 setProxy(cfg.proxy || DEFAULT_PROXY);
@@ -79,7 +82,42 @@ const st = {
     rv: null, rvErr: '', rvIdx: null, rvPlay: 0, // camada Radar: lista de imagens, imagem mostrada, animação
     memory: null, // memória da aprendizagem deste ponto (telemóvel + conector), para o gráfico da evolução
     push: null, pushBusy: false, // notificações do fim do dia: { on, time, sunday, place } (do conector)
+    open: new Set(), // secções «Ver mais» abertas (ficam abertas quando a página se redesenha)
+    focus: '', // parte da página a mostrar quando aparecer (a semana, vinda da notificação de domingo)
 };
+if (openFromLink) st.open.add(openFromLink);
+st.focus = focusFromLink;
+// a notificação tocada: ir para a análise (aberta toda), e ao domingo para a semana
+let navDone = 0, navTimer = 0;
+function openFromNotification(n) {
+    if (!n || !TITLES[n.tab]) return;
+    clearTimeout(navTimer);
+    if (n.at && n.at === navDone) return; // o mesmo toque chega pela mensagem e pela cache
+    navDone = n.at || 0;
+    cfg.tab = n.tab; saveCfg();
+    if (n.open) st.open.add(n.open);
+    st.focus = /^an-[a-z]+$/.test(n.focus || '') ? n.focus : '';
+    closeSheet(); window.scrollTo(0, 0); render();
+}
+async function checkNav() {
+    try {
+        const c = await caches.open('meteonav'), r = await c.match('nav');
+        if (!r) return false;
+        await c.delete('nav');
+        const n = await r.json();
+        if (Date.now() - n.at < 10 * 60e3) { openFromNotification(n); return true; }
+    } catch { /* sem cache: fica onde está */ }
+    return false;
+}
+// No iPhone a app fica visível antes de o service worker gravar o pedido do toque: ver várias vezes durante uns segundos
+function watchNav(ms = 6000) {
+    clearTimeout(navTimer);
+    const t0 = Date.now();
+    const tick = async () => { if (await checkNav()) return; if (Date.now() - t0 < ms) navTimer = setTimeout(tick, 250); };
+    tick();
+}
+// Simples (estilo Trade Republic): o essencial à vista, o resto em «Ver mais»
+const more = (id, label, inner, cls = '') => (inner ? `<details class="more${cls ? ' ' + cls : ''}" id="${id}"${st.open.has(id) ? ' open' : ''}><summary><span>${label}</span>${ui('chevron')}</summary><div class="more-in">${inner}</div></details>` : '');
 
 // ---------- utilitários ----------
 const $ = (s, r = document) => r.querySelector(s);
@@ -142,7 +180,7 @@ function init() {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
         navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) { st.updateReady = true; scheduleRender(); } });
         navigator.serviceWorker.addEventListener('message', (e) => {
-            if (e.data?.type === 'tab' && TITLES[e.data.tab]) { cfg.tab = e.data.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); }
+            if (e.data?.type === 'tab') { openFromNotification(e.data); caches.open('meteonav').then((c) => c.delete('nav')).catch(() => {}); }
         });
     }
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -152,8 +190,11 @@ function init() {
         st.iosHint = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     }
     document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') watchNav();
         if (document.visibilityState === 'visible' && cfg.loc && Date.now() - st.lastFetch > REFRESH_MIN * 60e3) refresh();
     });
+    watchNav();
+    window.addEventListener('pageshow', (e) => { if (e.persisted) watchNav(); });
     window.addEventListener('online', () => { if (st.offline) refresh(); });
     loadStatus();
     if (cfg.loc) setLocation(cfg.loc, { save: false });
@@ -296,6 +337,8 @@ function render() {
     body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mt-status" aria-live="polite"></div>${html}`;
     renderStatus();
     mount();
+    const f = st.focus && document.getElementById(st.focus);
+    if (f) { st.focus = ''; f.scrollIntoView({ block: 'start' }); }
     document.title = cfg.loc ? `${placeName()} · Meteo` : 'Meteo';
 }
 function renderStatus() {
@@ -365,7 +408,8 @@ function viewNow() {
             ? `<div class="empty">${esc(st.error)}<div style="margin-top:10px"><button type="button" class="btn pri sm" data-act="refresh">Tentar de novo</button></div></div>`
             : skeleton() };
     }
-    return { title, html: banners() + nowBox(fc) + alertsHtml(fc) + teaserHtml() + nowcastSec(fc) + hourlySec(fc) + tilesSec(fc) };
+    return { title, html: banners() + nowBox(fc) + alertsHtml(fc) + teaserHtml() + nowcastSec(fc) + hourlySec(fc) + daysMini(fc)
+        + more('d-ind', 'Indicadores', tilesSec(fc), 'sec-more') };
 }
 
 function tintOf(code, isDay) {
@@ -376,12 +420,14 @@ function tintOf(code, isDay) {
 function nowBox(fc) {
     const n = fc.now || {}, d0 = fc.daily?.[0] || {};
     const [ti, td] = F.num(n.temp, 1).split(',');
+    // à vista: o que vem nas próximas 2 horas (e o teu aviso); o resto (radar, estações, correção, relevo) em «Detalhes»
+    const main = [];
+    if (fc.nowcast?.text) main.push(`<li>${ui('drop')}<span>${esc(fc.nowcast.text)}</span></li>`);
+    const rp = fc.report;
+    if (rp) main.push(`<li>${ui('person')}<span>O teu aviso: <b>${esc(rp.label)}</b> · ${esc(F.ago(rp.ageMin))} · conta até às ${esc(F.hhmm(addMin(rp.local, REPORT_MIN)))}</span></li>`);
     const lines = [];
-    if (fc.nowcast?.text) lines.push(`<li>${ui('drop')}<span>${esc(fc.nowcast.text)}</span></li>`);
     const rl = radarLine(fc);
     if (rl) lines.push(rl);
-    const rp = fc.report;
-    if (rp) lines.push(`<li>${ui('person')}<span>O teu aviso: <b>${esc(rp.label)}</b> · ${esc(F.ago(rp.ageMin))} · conta até às ${esc(F.hhmm(addMin(rp.local, REPORT_MIN)))}</span></li>`);
     const o = n.obs;
     const many = (o?.n || 1) > 1;
     if (o && F.isNum(o.temp)) lines.push(`<li>${ui('station')}<span>Observado <b>${esc(F.deg(o.temp, 1))}</b> em ${esc(o.station)} · ${many ? '~' : ''}${esc(F.km(o.distanceKm))} · ${esc(F.ago(o.ageMin))} (${esc((o.sources || [o.source]).join(' + '))})</span></li>`);
@@ -396,9 +442,10 @@ function nowBox(fc) {
                 <div class="now-c">${esc(F.wxText(n.code))}</div></div>
             <div class="now-i">${weatherIcon(n.code, n.isDay, 96, F.wxText(n.code))}</div>
         </div>
-        <div class="now-m num"><span>Sensação ${esc(F.deg(n.feels))}</span><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span>${conf ? `<span class="badge">${sig(conf, false)}${esc(F.CONF[conf] || '')}</span>` : ''}</div>
-        ${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}
-        <div class="now-rpt"><button type="button" class="btn sm" data-act="report">${ui('drop')}${rp ? 'Mudar o aviso' : 'Está a chover?'}</button></div>
+        <div class="now-m num"><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span><span>Sensação ${esc(F.deg(n.feels))}</span></div>
+        ${main.length ? `<ul class="now-l">${main.join('')}</ul>` : ''}
+        <div class="now-rpt"><button type="button" class="btn sm" data-act="report">${ui('drop')}${rp ? 'Mudar o aviso' : 'Está a chover?'}</button>
+            ${more('d-now', 'Detalhes', `${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}${conf ? `<p class="hint">${esc(F.CONF[conf] || '')} para hoje.</p>` : ''}`, 'in-box')}</div>
     </section>`;
 }
 const addMin = (iso, m) => new Date(Date.parse(iso + ':00Z') + m * 6e4).toISOString().slice(0, 16);
@@ -451,7 +498,7 @@ function alertsHtml(fc) {
             <span class="w-when">${esc(F.period(w.start, w.end, today))} · ${esc(w.source || 'IPMA')}</span>${w.text ? `<p>${esc(w.text)}</p>` : ''}</div></div>`).join('')}</div>`;
     }
     const ind = fc.indicators || {};
-    const act = Object.keys(IND).filter((k) => (ind[k]?.level || 0) > 0).sort((a, b) => ind[b].level - ind[a].level);
+    const act = Object.keys(IND).filter((k) => (ind[k]?.level || 0) >= 2).sort((a, b) => ind[b].level - ind[a].level);
     if (act.length) {
         h += `<ul class="tags" aria-label="Riscos previstos">${act.map((k) => { const it = ind[k];
             return `<li class="tag l${it.level}">${ui(IND[k][0])}<span><b>${IND[k][1]}</b> · ${esc(it.label || F.LEVELS[it.level])}${it.peak ? ` · ${esc(F.whenShort(it.peak, today))}` : ''}</span></li>`; }).join('')}</ul>`;
@@ -477,8 +524,9 @@ function teaserHtml() {
     const a = r?.analysis;
     if (!a) return `<div class="claude cl-opt" id="cl-teaser">${optInHtml()}</div>`;
     const ap = analysedPoint();
+    const tomorrow = a.notificacao?.amanha || a.vestir || '';
     const main = `<div class="adv-src">Análise do Claude <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
-        <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise completa</span>`;
+        <div class="cl-head">${esc(a.titulo)}</div>${tomorrow ? `<p class="cl-tom"><b>Amanhã</b> ${esc(tomorrow)}</p>` : a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise</span>`;
     // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise diária para aqui
     if (ap?.far && ap.reg && !ap.moved) {
         return `<div class="claude far" id="cl-teaser"><button type="button" class="cl-go" data-tab="analise">${main}</button>
@@ -505,6 +553,8 @@ function optInHtml() {
 }
 function nowcastSec(fc) {
     if (!fc.nowcast?.steps?.length) return '';
+    const wet = fc.nowcast.steps.some((x) => (x.prob || 0) >= 30 && (x.precip || 0) >= 0.05) || fc.radar?.atPoint?.raining || fc.radar?.approach;
+    if (!wet) return '';
     const src = fc.nowcast.source === 'aviso' ? 'com o teu aviso' : fc.nowcast.source === 'radar+modelos' ? 'radar e modelos' : 'modelos';
     // o radar desmente os modelos (hora da chuva): dizê-lo por baixo do gráfico
     const C = fc.radar?.compare, off = C && (C.lagMin != null ? Math.abs(C.lagMin) >= 20 : !/de acordo/.test(C.text));
@@ -512,7 +562,15 @@ function nowcastSec(fc) {
         ${off ? `<p class="note rad-cmp">${ui('radar')}<span>${esc(C.text)}</span></p>` : ''}</div></section>`;
 }
 const hourlySec = (fc) => (fc.hourly?.length
-    ? `<section class="sec"><div class="sec-h"><h2>Próximas ${Math.min(72, fc.hourly.length)} horas</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="h-chart" class="chart"></div></div></section>` : '');
+    ? `<section class="sec"><div class="sec-h"><h2>Próximas horas</h2></div><div class="box"><div id="h-chart" class="chart"></div></div></section>` : '');
+// os próximos 5 dias (a mesma linha do separador Dias); os 16 no separador Dias
+function daysMini(fc) {
+    const D = (fc.daily || []).slice(0, 5);
+    if (!D.length) return '';
+    const S = dayScale(D);
+    return `<section class="sec"><div class="sec-h"><h2>Próximos dias</h2></div><div class="list mini">${D.map((d, i) => dayRow(d, i, fc, S, { extras: false })).join('')}</div>
+        <button type="button" class="btn blk ghost" data-tab="dias">Ver os ${esc(F.num(fc.daily.length))} dias</button></section>`;
+}
 
 function tilesSec(fc) {
     const n = fc.now || {}, d0 = fc.daily?.[0] || {}, ind = fc.indicators || {}, H = fc.hourly || [];
@@ -541,7 +599,7 @@ function tilesSec(fc) {
         lvl('thunder', 'bolt', 'Trovoada'), lvl('fog', 'fog', 'Nevoeiro'), lvl('frost', 'frost', 'Geada'), lvl('heat', 'heat', 'Calor'),
         tile(ui('target'), 'Previsibilidade', ind.predictability?.days != null ? `${esc(F.num(ind.predictability.days))}<small> dias</small>` : '–', esc(ind.predictability?.text || '')),
     ];
-    return `<section class="sec"><div class="sec-h"><h2>Indicadores</h2></div><div class="tiles">${tiles.join('')}</div></section>`;
+    return `<div class="tiles">${tiles.join('')}</div>`;
 }
 
 function viewDays() {
@@ -550,25 +608,37 @@ function viewDays() {
     const fc = st.fc;
     if (!fc) return { title, html: skeleton() };
     const D = fc.daily || [];
-    const today = todayOf(fc);
-    const lo = Math.min(...D.map((d) => (F.isNum(d.tminP10) ? d.tminP10 : d.tmin)).filter(F.isNum));
-    const hi = Math.max(...D.map((d) => (F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax)).filter(F.isNum));
-    const span = Math.max(1, hi - lo);
-    const pos = (v) => (((v - lo) / span) * 100).toFixed(2);
-    const wid = (a, b) => Math.max(0, ((b - a) / span) * 100).toFixed(2);
     const ens = fc.ensemble?.members;
+    const S = dayScale(D);
     let rows = '';
     D.forEach((d, i) => {
         if (i > 0 && d.source === 'ensemble' && D[i - 1].source !== 'ensemble') rows += `<div class="grp-h">Dias ${i + 1} a ${D.length} <small>tendência do ensemble${ens ? ` · ${esc(F.num(ens))} cenários` : ''}</small></div>`;
-        const wLo = F.isNum(d.tminP10) ? d.tminP10 : d.tmin, wHi = F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax;
-        let rng = '';
-        if (F.isNum(wLo) && F.isNum(wHi)) rng += `<i class="wh" style="left:${pos(wLo)}%;width:${wid(wLo, wHi)}%"></i>`;
-        if (F.isNum(d.tmin) && F.isNum(d.tmax)) rng += `<i class="rb" style="left:${pos(d.tmin)}%;width:${wid(d.tmin, d.tmax)}%"></i>`;
-        if (i === 0 && F.isNum(fc.now?.temp)) rng += `<i class="rn" style="left:${pos(Math.min(Math.max(fc.now.temp, lo), hi))}%"></i>`;
-        const x = dayExtras(d);
-        const label = F.dayLabel(d.date, today);
-        const sr = `${label}: ${F.wxText(d.code)}, mínima ${F.deg(d.tmin)}, máxima ${F.deg(d.tmax)}, chuva ${F.pct(d.pop)}${F.CONF[d.confidence] ? ', ' + F.CONF[d.confidence].toLowerCase() : ''}`;
-        rows += `<button type="button" class="row day${i === 0 ? ' today' : ''}" data-day="${i}" aria-label="${esc(sr)}">
+        rows += dayRow(d, i, fc, S);
+    });
+    return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
+        <div class="list">${rows}</div>
+        <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
+        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
+}
+// escala comum das barras mín.–máx. dos dias (e a faixa P10–P90 por trás)
+function dayScale(D) {
+    const lo = Math.min(...D.map((d) => (F.isNum(d.tminP10) ? d.tminP10 : d.tmin)).filter(F.isNum));
+    const hi = Math.max(...D.map((d) => (F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax)).filter(F.isNum));
+    const span = Math.max(1, hi - lo);
+    return { lo, hi, pos: (v) => (((v - lo) / span) * 100).toFixed(2), wid: (a, b) => Math.max(0, ((b - a) / span) * 100).toFixed(2) };
+}
+// uma linha de dia (separador Dias e próximos dias do Agora): nome, ícone, chuva, mín., barra, máx.
+function dayRow(d, i, fc, S, { extras = true } = {}) {
+    const today = todayOf(fc);
+    const wLo = F.isNum(d.tminP10) ? d.tminP10 : d.tmin, wHi = F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax;
+    let rng = '';
+    if (F.isNum(wLo) && F.isNum(wHi)) rng += `<i class="wh" style="left:${S.pos(wLo)}%;width:${S.wid(wLo, wHi)}%"></i>`;
+    if (F.isNum(d.tmin) && F.isNum(d.tmax)) rng += `<i class="rb" style="left:${S.pos(d.tmin)}%;width:${S.wid(d.tmin, d.tmax)}%"></i>`;
+    if (i === 0 && F.isNum(fc.now?.temp)) rng += `<i class="rn" style="left:${S.pos(Math.min(Math.max(fc.now.temp, S.lo), S.hi))}%"></i>`;
+    const x = extras ? dayExtras(d) : [];
+    const label = F.dayLabel(d.date, today);
+    const sr = `${label}: ${F.wxText(d.code)}, mínima ${F.deg(d.tmin)}, máxima ${F.deg(d.tmax)}, chuva ${F.pct(d.pop)}${F.CONF[d.confidence] ? ', ' + F.CONF[d.confidence].toLowerCase() : ''}`;
+    return `<button type="button" class="row day${i === 0 ? ' today' : ''}" data-day="${i}" aria-label="${esc(sr)}">
             <span class="d-n" aria-hidden="true"><b>${esc(label)}</b><small>${esc(F.dateShort(d.date))}</small></span>
             <span aria-hidden="true">${weatherIcon(d.code, true, 30)}</span>
             <span class="d-p" aria-hidden="true">${(d.pop || 0) >= 10 ? esc(F.pct(d.pop)) : ''}</span>
@@ -578,11 +648,6 @@ function viewDays() {
             <span class="d-c" aria-hidden="true">${sig(d.confidence, false)}</span>
             ${x.length ? `<span class="d-x" aria-hidden="true">${esc(x.join(' · '))}</span>` : ''}
         </button>`;
-    });
-    return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
-        <div class="list">${rows}</div>
-        <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
-        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
 }
 function dayExtras(d) {
     const x = [];
@@ -707,7 +772,7 @@ function viewAnalysis() {
     else if (a) {
         const g = a.generatedAt ? new Date(a.generatedAt) : null;
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
-        const sec = (t, x) => (x ? `<div class="an-sec"><h4>${t}</h4><p>${esc(x)}</p></div>` : '');
+        const sec = (t, x, id) => (x ? `<div class="an-sec"${id ? ` id="${id}"` : ''}><h4>${t}</h4><p>${esc(x)}</p></div>` : '');
         const ap = analysedPoint();
         // feita para outro ponto (> 2 km): dizê-lo claramente e oferecer mudar a análise diária para o ponto selecionado
         if (ap?.far) {
@@ -722,12 +787,13 @@ function viewAnalysis() {
             ${ap ? forLine(ap) : ''}
             <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p style="margin:6px 0 0;color:var(--soft)">${esc(a.resumo)}</p>` : ''}
             ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas do Claude">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
-            ${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
+            ${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
+            ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}
             ${a.dias?.length ? `<div class="an-sec"><h4>Próximos dias</h4><ul class="an-days">${a.dias.map((d) => `<li><b>${esc(today ? F.dayLabel(d.data, today) : d.data)}</b>${sig(d.confianca)}<span>${esc(d.texto)}</span></li>`).join('')}</ul></div>` : ''}
-            ${sec('A semana em resumo', a.semana)}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
+            ${sec('A semana em resumo', a.semana, 'an-semana')}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
-            ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}
+            ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}`)}
             <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · próxima ${esc(nextRun())}.</p>
         </article>`;
     } else {
@@ -741,7 +807,7 @@ function viewAnalysis() {
     h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
-    if (fc) h += compareHtml(fc) + reliabilityHtml(fc) + learningHtml(fc) + obsHtml(fc) + modelsHtml(fc);
+    if (fc) h += more('d-tec', 'Detalhes técnicos', compareHtml(fc) + reliabilityHtml(fc) + learningHtml(fc) + obsHtml(fc) + modelsHtml(fc), 'sec-more');
     return { title, html: h };
 }
 const officialTxt = (fc) => {
@@ -873,29 +939,33 @@ function viewSettings() {
     const L = cfg.loc;
     let h = `<section class="sec"><div class="sec-h"><h2>Local</h2></div><div class="form">
         ${L ? `<div class="sw"><span><b>${esc(placeName())}</b><br><small class="hint num">${esc(`${F.num(L.lat, 4)}, ${F.num(L.lon, 4)}${L.gps ? ' · GPS' : ''}`)}</small></span><button type="button" class="btn sm" data-act="place">Mudar</button></div>` : ''}
-        ${L && st.fc ? `<ul class="prec" aria-label="Precisão para este ponto">${precisionLines(st.fc).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+        ${L && st.fc ? more('d-prec', 'Precisão para este ponto', `<ul class="prec" aria-label="Precisão para este ponto">${precisionLines(st.fc).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`) : ''}
         <button type="button" class="btn blk" data-act="gps">${ui('gps')}Usar a minha localização exata</button>
         <div><label>Favoritos</label><div class="wl">${cfg.favs.length ? cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button><button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Retirar ' + f.name)}">✕</button></div>`).join('') : '<div class="hint">Ainda sem favoritos.</div>'}</div>
             ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui('star')}${cfg.favs.some((f) => near(f, L)) ? 'Retirar este local' : 'Guardar este local'}</button>` : ''}</div>
     </div></section>`;
-    h += placesSettingsHtml();
     h += notifHtml();
+    h += placesSettingsHtml();
+    h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
+        <div class="hint">Envia o endereço e como instalar (iPhone e Android). Grátis e sem conta.</div></div></section>`;
     h += meHtml();
     if (isOwner()) h += usageHtml();
-    h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
-        <div class="hint">Envia o endereço da app e como a instalar: no iPhone, abre no Safari → Partilhar → «Adicionar ao ecrã principal»; no Android, abre no Chrome → ⋮ → «Instalar app». É grátis e sem conta; a análise do Claude é opcional, 1 local por telemóvel.</div></div></section>`;
+    // Avançado: o conector, o código do dono, a letra e o estado das fontes (escondido; quase nunca é preciso)
+    let adv = '';
     const stTxt = st.status ? `Ligado · versão ${esc(st.status.version || '?')} · análise imediata: ${st.status.onDemand ? 'sim' : 'não'}${st.status.owner ? ' · és o dono' : ''}` : st.statusErr ? `Sem resposta: ${esc(st.statusErr)}` : 'A testar…';
     // código do dono guardado (de ?dono=) que o conector não aceita: dizê-lo e deixar esquecê-lo
     const oc = api.ownerCode() && st.status && !st.status.owner
         ? `<div class="banner warn own-note">${ui('alert')}<span>${st.status.ownerCode === 'sem_codigo' ? 'Há um código do dono guardado neste telemóvel, mas o conector ainda não tem o segredo OWNER_CODE.' : 'O código do dono guardado neste telemóvel não foi aceite pelo conector.'}</span><button type="button" class="btn sm" data-act="owner-forget">Esquecer</button></div>` : '';
-    h += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
+    adv += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
         <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${esc(DEFAULT_PROXY)}" value="${esc(cfg.proxy)}"><button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
         <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div>${ownerHtml()}</div></section>`;
-    h += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
+    adv += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div></div></section>`;
     const S = st.fc?.status;
-    if (S) h += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
-    h += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
+    if (S) adv += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
+    adv += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
+    h += more('d-adv', 'Avançado', adv, 'sec-more');
+    h += `<p class="ver-line">Meteo ${VERSION} · fontes e licenças em Avançado</p>`;
     return { title, html: h };
 }
 
@@ -905,7 +975,7 @@ function meHtml() {
     if (!S?.device) return '';
     return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2><span class="sub num">código ${esc(S.id || '')}</span></div><div class="form">
         <div><label for="f-name">O teu nome <small>(opcional)</small></label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
-        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel na lista do painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização, para saber quem é quem. Sem nome, aparece só o código.'} A tua localização não é registada: só o local que escolheres para a análise diária.</div></div>
+        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização. Sem nome, aparece o código.'} A tua localização não é registada.</div></div>
     </div></section>`;
 }
 async function nameSave() {
@@ -938,11 +1008,12 @@ function notifHtml() {
     else {
         const own = onPlaces(), cur = pushPlace();
         body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur ? ` · ${cur.name}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
-            <div><label for="f-push-time">Hora</label><select id="f-push-time" class="inp"${st.pushBusy ? ' disabled' : ''}>${PUSH_TIMES.map((t) => `<option value="${t}"${t === P.time ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+            ${P.on ? `<div><label for="f-push-time">Hora</label><select id="f-push-time" class="inp"${st.pushBusy ? ' disabled' : ''}>${PUSH_TIMES.map((t) => `<option value="${t}"${t === P.time ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
             <div class="sw"><span><b>Ao domingo: a semana que vem</b><br><small class="hint">Em vez de amanhã, a semana toda</small></span>${seg('push-sun', P.sunday !== false, 'Ao domingo, a semana')}</div>
             ${own.length > 1 ? `<div><label for="f-push-place">Local</label><select id="f-push-place" class="inp">${own.map((p) => `<option value="${esc(p.id)}"${p.id === cur?.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>` : ''}
-            ${P.on ? `<button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>` : ''}
-            <div class="hint">Vem da análise do Claude das 17:34: como vai estar amanhã no teu local e o que vestir; ao domingo, a semana que vem. A hora é a deste telemóvel.</div>`;
+            <button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>
+            <div class="hint">Da análise do Claude das 17:34, à hora deste telemóvel.</div>`
+                : '<div class="hint">Às 19:00 por omissão; ao domingo, a semana que vem.</div>'}`;
     }
     return `<section class="sec" id="notificacoes"><div class="sec-h"><h2>Notificações</h2></div><div class="form">${body}</div></section>`;
 }
@@ -1131,7 +1202,9 @@ function renderSheet() {
         if (!d) { closeSheet(); return; }
         const today = todayOf(fc);
         const pr = (a, b) => (F.isNum(a) && F.isNum(b) ? `80% entre ${F.num(a, 1)} e ${F.num(b, 1)}°` : '');
-        const hours = (fc.hourly || []).filter((x) => x.time.slice(0, 10) === d.date);
+        let hours = (fc.hourly || []).filter((x) => x.time.slice(0, 10) === d.date);
+        const next12 = d.date === today && hours.length < 12;
+        if (next12) hours = (fc.hourly || []).slice(0, 12);
         const stats = [
             ['Máxima', F.deg(d.tmax, 1), pr(d.tmaxP10, d.tmaxP90)],
             ['Mínima', F.deg(d.tmin, 1), pr(d.tminP10, d.tminP90)],
@@ -1148,7 +1221,7 @@ function renderSheet() {
             <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos`)}</div></div>${closeBtn}</div>
             <div class="d-big">${weatherIcon(d.code, true, 64)}<div><b class="num">${esc(F.deg(d.tmax))} / ${esc(F.deg(d.tmin))}</b><br><span>máxima e mínima</span></div></div>
             <div class="stats">${stats.map(([k, v, e]) => `<div><small>${esc(k)}</small><b class="num">${esc(v)}</b>${e ? `<em>${esc(e)}</em>` : ''}</div>`).join('')}</div>
-            ${hours.length ? `<div class="sec-h"><h2>Hora a hora</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
+            ${hours.length ? `<div class="sec-h"><h2>${next12 ? 'Próximas 12 horas' : 'Hora a hora'}</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
         if (hours.length) renderHourly($('#d-chart'), hours, { todayIso: today });
     }
 }
@@ -1444,6 +1517,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); }
     if (e.key === 'Enter' && e.target.id === 'f-name') { e.preventDefault(); nameSave(); }
 });
+// «Ver mais»: lembrar o que está aberto (a página redesenha-se com dados novos e não deve fechar o que a pessoa abriu)
+document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (d?.tagName === 'DETAILS' && d.classList.contains('more') && d.id) { if (d.open) st.open.add(d.id); else st.open.delete(d.id); }
+}, true);
 document.addEventListener('change', (e) => {
     if (e.target.id === 'f-push-time') { e.target.blur(); pushChange({ time: e.target.value }); }
     if (e.target.id === 'f-push-place') { e.target.blur(); pushChange({ place: e.target.value }); }

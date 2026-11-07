@@ -1,4 +1,4 @@
-# Curador de música (tarefa agendada do Claude)
+# Maestro de música (tarefa agendada do Claude)
 
 Procedimento que a tarefa agendada segue **duas vezes por dia: 07:44 e 18:44 (hora de Lisboa)**. Para mudar o
 comportamento, muda-se este ficheiro (e os scripts em `musica/curador/`) e faz-se merge — o agendamento usa sempre o
@@ -17,6 +17,9 @@ nesta tarefa.
 - A API do Tidal não dá o histórico de reprodução. O gosto lê-se das **favoritas** (as mais recentes pesam mais), dos
   **artistas seguidos** e das **playlists dele** — tudo no `dados.md`.
 - Escreve sempre em **português de Portugal**.
+- **Várias pessoas**: o Nelson pode convidar outras pessoas (cada uma liga o seu Tidal). O `dados.md` tem uma
+  secção por pessoa (`# Pessoa: <nome> (`<id>`)`) — o gosto, os pedidos, a playlist da semana e as novidades de cada
+  uma são **dela**: não mistures gostos entre pessoas. O dono é `dono`.
 
 ## Passos
 
@@ -34,7 +37,13 @@ nesta tarefa.
      pedido, a respeitar o texto e as opções do pedido.
    - **Playlist da semana**: se o `dados.md` disser *"está na altura de uma nova"* (ou que ainda não há nenhuma) e for
      a corrida da **manhã**, cria a **«Onda da semana · dd/mm»**.
+   - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
+     artistas · dd/mm»"*, cria-a só com as faixas da secção *Novidades* (põe o `tidalId` de cada uma na proposta; não é
+     preciso pesquisar na web). Com menos de 5 faixas, não a cries.
    - Se não houver nada disto, **termina aqui** (sem pesquisar nada).
+   - **As tuas mixes do Tidal** (secção do `dados.md`): são faixas que o Tidal escolheu para o teu gosto. Quando
+     encaixarem num pedido ou na playlist da semana, usa-as como candidatas, com o `tidalId` (não contam como
+     pesquisa: junta-lhes sempre outras que tenhas encontrado na web).
 
 3. **Pesquisa na web** (antes de escolher):
    - **Playlist da semana** — o que está na moda **e** tem qualidade: lançamentos recentes com boa crítica (Pitchfork
@@ -76,7 +85,7 @@ nesta tarefa.
      (dos anos 50 aos 2010), ~25% perto do gosto dele (artistas e géneros de que gosta, **sem** repetir favoritas);
      pelo menos 5 géneros. Opções: `"faixas": 30, "maxArtista": 2, "estilo": "descoberta", "arco": "onda"`.
    - **Pedido**: as opções do pedido (faixas, máximo por artista, estilo, arco) — copia-as para `opcoes`.
-   - Não repetir faixas das últimas playlists do Curador (lista no `dados.md`) nem favoritas dele, salvo se o pedido
+   - Não repetir faixas das últimas playlists do Maestro (lista no `dados.md`) nem favoritas dele, salvo se o pedido
      pedir.
    - Estilos: `equilibrado`, `descoberta` (mais novidade), `moda` (mais tendência), `gosto` (mais perto do que ouve),
      `audiofilo` (mais qualidade de som). Arcos: `onda` (sobe até ~2/3 e acalma), `sobe` (treino, festa), `desce`
@@ -101,5 +110,10 @@ nesta tarefa.
    Para um pedido, junta `--pedido <id>` (fica marcado como feito e ligado à playlist). Se o Worker responder
    `tidal_desligado` (sessão expirada), termina e diz no resumo que é preciso **ligar o Tidal outra vez na app**.
 
-7. Termina com um resumo curto: o que criaste (nome, ligação do Tidal, número de faixas e duração), a mistura
+   **Para outra pessoa** (não o dono): escreve a proposta na pasta dela, `/tmp/musica/<id>/proposta.json` (o
+   `perfil.json` dela já lá está), e junta `--utilizador <id>` ao ensaio e à publicação — a playlist vai para o Tidal
+   e para a biblioteca **dessa pessoa**. Em cada corrida trata no máximo **3 pedidos no total**, os mais antigos
+   primeiro e alternando entre pessoas; os outros ficam para a corrida seguinte.
+
+7. Termina com um resumo curto: o que criaste (para quem, nome, ligação do Tidal, número de faixas e duração), a mistura
    (géneros, décadas) e 2–3 destaques.

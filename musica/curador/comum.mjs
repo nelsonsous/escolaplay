@@ -1,4 +1,4 @@
-// Utilitários da tarefa agendada do Curador: o Worker (com a chave do agente) e a KV pela API da Cloudflare.
+// Utilitários da tarefa agendada do Maestro: o Worker (com a chave do agente) e a KV pela API da Cloudflare.
 import { readFileSync } from 'node:fs';
 
 const toml = readFileSync(new URL('../proxy/wrangler.toml', import.meta.url), 'utf8');
@@ -25,13 +25,18 @@ async function chaveAgente() {
 }
 
 // Pedido ao Worker com a chave do agente; devolve o JSON ou lança o erro com a mensagem do Worker
+// a pessoa da app para quem o agente está a trabalhar (o Worker usa ?u=; sem ela, é o dono)
+let pessoaAtual = process.env.MUSICA_UTILIZADOR || '';
+export function pessoa(uid) { pessoaAtual = uid && uid !== 'dono' ? String(uid) : ''; }
+
 export async function api(caminho, { method = 'GET', body, semChave = false, ms = 60000 } = {}) {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), ms);
     try {
         const headers = { accept: 'application/json', ...(body ? { 'content-type': 'application/json' } : {}) };
         if (!semChave) headers.authorization = `Bearer ${await chaveAgente()}`;
-        const r = await fetch(WORKER + caminho, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
+        const alvo = WORKER + caminho + (pessoaAtual && !semChave ? (caminho.includes('?') ? '&' : '?') + 'u=' + encodeURIComponent(pessoaAtual) : '');
+        const r = await fetch(alvo, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
         const j = await r.json().catch(() => null);
         if (!r.ok) {
             const e = new Error((j && (j.message || j.error)) || `HTTP ${r.status} em ${caminho}`);
@@ -44,5 +49,7 @@ export async function api(caminho, { method = 'GET', body, semChave = false, ms 
 
 export const arg = (name, def = null) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : def; };
 export const flag = (name) => process.argv.includes(name);
-export const lisboa = (d = new Date()) => d.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+// a hora de agora (MUSICA_AGORA, em ISO, fixa-a — os testes de paridade com a versão Onda usam-na)
+export const agora = () => (process.env.MUSICA_AGORA ? new Date(process.env.MUSICA_AGORA) : new Date());
+export const lisboa = (d = agora()) => d.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export const minutos = (s) => `${Math.floor(s / 60)} min`;

@@ -1,6 +1,6 @@
 // A app — uma app em Onda (app/musica.onda + onda/lib/app.onda + motor.onda, corrida por onda/rt/anfitriao.js) — no
 // Chromium, de ponta a ponta: o Worker a sério (Tidal simulado, KV em memória), ligar o Tidal pelo link de ligação,
-// uma playlist publicada como o Curador a publica, afinar (o motor Onda dentro da app) com o juiz a confirmar a
+// uma playlist publicada como o Maestro a publica, afinar (o motor Onda dentro da app) com o juiz a confirmar a
 // ordem contra o curador.wasm em cada mudança, juntar uma faixa do Tidal, guardar e enviar, gosto, ajustes e pedir.
 //   MUSICA_SHOTS=/pasta node --test musica/tests/ui.test.mjs   (com capturas de ecrã)
 import { test, before, after } from 'node:test';
@@ -55,7 +55,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); estatico?.close(); conector?.close(); });
 
-// a playlist publicada como o Curador a publica (o mesmo pipeline do publicar.mjs)
+// a playlist publicada como o Maestro a publica (o mesmo pipeline do publicar.mjs)
 async function publicarComoCurador() {
     const agente = await env.KV.get('agente:chave');
     const api = async (p, init = {}) => (await worker.fetch(new Request(WORKER + p, { ...init, headers: { authorization: `Bearer ${agente}`, 'content-type': 'application/json' } }), env, { waitUntil() {} })).json();
@@ -89,10 +89,10 @@ async function esperado(doc, op, { tiradas = new Set(), fixas = new Set(), junta
     const { ordem } = await curar(CURADOR, { k: Math.min(op.faixas, usadas.length), maxArtista: op.maxArtista, estilo: op.estilo, arco: op.arco }, usadas.map((u) => u.s));
     return ordem.map((o) => usadas[o.i].id);
 }
-const mostradas = (page) => page.$$eval('#faixas .mu-faixa .t a', (as) => as.map((a) => a.href.split('/').pop()));
+const mostradas = (page) => page.$$eval('#faixas .mu-faixa .mu-tocar', (as) => as.map((a) => a.href.split('/').pop()));
 const heap = (page) => page.evaluate(() => Number(new BigInt64Array(window.app.exports.memory.buffer, 15 * 8, 1)[0]));
 
-test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, enviar, gosto, ajustes e pedir', { skip: !chromium && 'sem Playwright' }, async () => {
+test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, enviar, gosto, ajustes e pedir', { skip: !chromium && 'sem Playwright' }, async () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, serviceWorkers: 'block' });
     const page = await ctx.newPage();
     const erros = [];
@@ -125,7 +125,7 @@ test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, envi
     assert.equal(await page.evaluate(() => localStorage.getItem('musica:codigo')), null, 'esquece o código');
     assert.match(await page.locator('.mu-pill').textContent(), /nelson/);
 
-    // 2) o Curador publica; a lista e a playlist
+    // 2) o Maestro publica; a lista e a playlist
     const doc = await publicarComoCurador();
     assert.equal(doc.candidatas.length, 6);
     await nav(1);
@@ -182,22 +182,40 @@ test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, envi
     const ordemFinal = await mostradas(page);
     await page.getByRole('button', { name: 'Guardar e enviar para o Tidal' }).click();
     await page.getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
-    await page.locator('#mu-aviso').getByText('Nova versão criada no Tidal').waitFor();
+    await page.locator('#mu-aviso').getByText('Guardada no Tidal').waitFor();
     assert.equal(sim.criadas.length, 1);
-    assert.equal(sim.criadas[0].name, 'Som para o carro · afinada');
+    assert.equal(sim.criadas[0].name, 'Som para o carro', 'a mesma playlist, sem «· afinada»');
     assert.deepEqual(sim.itens, ordemFinal, 'o Tidal recebe a ordem do motor Onda');
     assert.deepEqual(await mostradas(page), ordemFinal);
     const idx = JSON.parse(await env.KV.get('playlists'));
     const nova = JSON.parse(await env.KV.get('playlist:' + idx[0].id));
-    assert.equal(nova.por, 'app');
+    assert.equal(idx.length, 1, 'sem cópias na biblioteca');
+    assert.ok(nova.afinadaEm);
     assert.deepEqual(nova.opcoes, { faixas: 5, maxArtista: 2, estilo: 'audiofilo', arco: 'desce' });
     assert.equal(nova.faixas.find((f) => f.id === barco.id).motivo, 'Escolhida por ti.');
     assert.equal(nova.candidatas.length, 7, 'as candidatas da original e a juntada');
 
-    // 5) a biblioteca, o gosto e os ajustes
+    // 5) a biblioteca, o gosto e os ajustes — com a playlist descida, a vista nova abre no topo
+    await page.evaluate(() => window.scrollTo(0, 300));
+    assert.ok((await page.evaluate(() => window.scrollY)) > 0, 'a playlist dá para descer');
+    await nav(5);
+    await page.getByRole('heading', { name: 'Este aparelho' }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight >= 300), 'os Ajustes também dão para descer');
+    assert.equal(await page.evaluate(() => window.scrollY), 0, 'a vista nova abre no topo');
+    await nav(1);
+    await page.locator('.mu-pl').first().waitFor();
+    assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro']);
+    // mais como esta: toca-se numa faixa e cria-se logo no Tidal uma playlist de parecidas
+    await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
+    await page.locator('#faixas .mu-faixa-a').first().waitFor();
+    await page.locator('#faixas .mu-faixa-a').first().click();
+    await page.getByRole('button', { name: 'Mais como esta' }).click();
+    await page.getByRole('heading', { name: /^Parecidas com / }).waitFor();
+    await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
+    assert.equal(sim.criadas.length, 2);
+    assert.match(sim.criadas[1].name, /^Parecidas com /);
     await nav(1);
     await page.locator('.mu-pl').nth(1).waitFor();
-    assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro · afinada', 'Som para o carro']);
     await nav(4);
     await page.getByRole('heading', { name: 'Artistas que mais aparecem' }).waitFor();
     assert.ok(await page.getByText('So What').count());
@@ -208,11 +226,11 @@ test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, envi
     await page.locator('#aj-motor-r').filter({ hasText: 'faixas escolhidas de 60' }).waitFor();
     await foto('4-ajustes');
 
-    // 6) um pedido ao Curador
+    // 6) um pedido ao Maestro
     await nav(3);
     await page.locator('[data-onda="sug\t0"]').click();
     assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Faixas bem gravadas para testar o som do carro');
-    await page.getByRole('button', { name: 'Pedir ao Curador' }).click();
+    await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
     await page.getByText('Os teus pedidos').waitFor();
     assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].texto, 'Faixas bem gravadas para testar o som do carro');
     await foto('5-pedir');
@@ -240,4 +258,42 @@ test('outro aparelho (a app no ecrã principal do iOS tem o seu armazém): cola 
     assert.equal(await env.KV.get('codigo:ligacao'), null, 'o código gasta-se');
     assert.deepEqual(erros, []);
     await ctx.close();
+});
+
+test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal e tem a sua app', { skip: !chromium && 'sem Playwright' }, async () => {
+    const erros = [];
+    // o dono, noutro aparelho (com o código de ligação)
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('DONO-321').digest('hex'));
+    const a = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const pa = await a.newPage();
+    pa.on('pageerror', (e) => erros.push(String(e)));
+    await pa.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await pa.locator('[data-onda="cod"]').fill('DONO-321');
+    await pa.getByRole('button', { name: 'Usar este código' }).click();
+    await pa.locator('.mu-pl').first().waitFor();
+    await pa.locator('#mu-nav [data-onda="ir\t5"]').click();
+    await pa.getByRole('button', { name: 'Convidar alguém' }).click();
+    await pa.getByRole('link', { name: 'Enviar por WhatsApp' }).waitFor();
+    const link = await pa.locator('input[readonly]').inputValue();
+    assert.match(link, /\?ligar=/);
+    const wa = await pa.getByRole('link', { name: 'Enviar por WhatsApp' }).getAttribute('href');
+    assert.ok(decodeURIComponent(wa.split('text=')[1]).endsWith(link), 'a mensagem leva o link');
+    await a.close();
+    // a convidada abre o link e liga o seu Tidal
+    const b = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const pb = await b.newPage();
+    pb.on('pageerror', (e) => erros.push(String(e)));
+    await pb.route('https://login.tidal.com/**', (route) => {
+        const u = new URL(route.request().url());
+        route.fulfill({ status: 302, headers: { location: `${WORKER}/tidal/retorno?code=CODIGO-BOM&state=${u.searchParams.get('state')}` } });
+    });
+    await pb.goto(`${link.replace(APP, APP)}&proxy=${encodeURIComponent(WORKER)}`);
+    await pb.getByRole('button', { name: 'Ligar ao Tidal' }).click();
+    await pb.getByText('Ainda não há playlists').waitFor();
+    assert.equal(JSON.parse(await env.KV.get('utilizadores')).length, 1, 'uma pessoa nova');
+    await pb.locator('#mu-nav [data-onda="ir\t5"]').click();
+    await pb.getByText('Este aparelho').waitFor();
+    assert.equal(await pb.getByText('Partilhar a Música').count(), 0, 'só o dono convida');
+    assert.deepEqual(erros, []);
+    await b.close();
 });

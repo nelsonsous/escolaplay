@@ -22,10 +22,15 @@ button { -webkit-user-select: none; user-select: none; touch-action: manipulatio
 [hidden] { display: none !important; }
 code { font: 12.5px/1.5 var(--mono); color: var(--fg); background: var(--panel2); border-radius: 6px; padding: 1px 5px; overflow-wrap: anywhere; }
 
+/* como a Meteo e a Mercados: a app enche sempre o ecrã (min-height 100dvh). Sem isto, numa página curta o iOS
+   subia a barra de baixo e deixava uma faixa preta por baixo dela. */
+.mu-app { min-height: 100dvh; display: flex; flex-direction: column; }
 .mu-body {
-    max-width: 680px; margin: 0 auto; outline: none;
-    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(var(--nav) + 28px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    flex: 1; width: 100%; max-width: 680px; margin: 0 auto; outline: none;
+    padding: calc(env(safe-area-inset-top) + 20px) max(16px, env(safe-area-inset-right)) calc(var(--nav) + 28px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
+/* a zona das horas: uma faixa preta fixa (o título começa abaixo dela e do esbatido do iOS por cima do conteúdo) */
+body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: env(safe-area-inset-top); pointer-events: none; background: #000; }
 .mu-load { color: var(--dim); text-align: center; margin-top: 30vh; }
 
 /* navegação */
@@ -140,6 +145,9 @@ button.mu-chip { cursor: pointer; }
 .mu-faixa { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--line); align-items: start; }
 .mu-faixa:first-child { border-top: 0; }
 .mu-faixa .n { color: var(--dim); font: 600 12.5px/1.75 var(--mono); text-align: right; }
+.mu-faixa-a { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; }
+.mu-faixa-a:active { opacity: .6; }
+.mu-faixa-mais { margin-top: 8px; }
 .mu-faixa .t { font-weight: 650; font-size: 15px; line-height: 1.3; min-width: 0; }
 .mu-faixa .t a { color: inherit; text-decoration: none; }
 .mu-faixa .t a:active { color: var(--acc); }

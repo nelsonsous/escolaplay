@@ -104,6 +104,17 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## Simples (1.7)
+
+Como a app da Trade Republic: o essencial à vista e o resto em «Ver mais», que fica aberto enquanto a app está aberta.
+- **Agora**: a temperatura, o que vem nas próximas 2 horas, os avisos que contam e o Claude com «Amanhã» (e o que
+  vestir). Depois as próximas horas e os próximos 5 dias. O radar, as estações e o relevo ficam em «Detalhes» e os
+  indicadores em «Indicadores». O gráfico das 2 horas só aparece com chuva a caminho.
+- **Análise**: o essencial do Claude (resumo, alertas, amanhã, o que vestir); o resto em «Ver a análise completa». As
+  fontes lado a lado, a fiabilidade, a aprendizagem, as observações e os modelos ficam em «Detalhes técnicos».
+- **Ajustes**: Local, Notificações, Análise diária, Partilhar, Este telemóvel; o conector, o código do dono, a letra,
+  o estado das fontes e as licenças em «Avançado».
+
 ## Quem usa a app (1.6.1)
 
 Cada telemóvel tem um **código curto** (os primeiros 6 caracteres do seu id aleatório, ex.: `a1b2c3`) e, se a pessoa
@@ -117,6 +128,8 @@ Em **Ajustes → Notificações**: «Resumo ao fim do dia», **às 19:00 por omi
 16:00 às 23:45). Traz a análise do Claude das **17:34** para o teu local: **como vai estar amanhã e o que vestir** (de manhã,
 à tarde e à noite). **Ao domingo** (desligável) a notificação é **a semana que vem**. «Enviar uma agora» mostra já como fica.
 Na própria análise há também as secções «O que vestir amanhã» e «A semana em resumo».
+**Tocar na notificação** abre a Análise com tudo à vista (ao domingo, já na semana). No iPhone a app pode ficar visível
+antes de o pedido do toque chegar; por isso a app espera por ele uns segundos (1.8.1).
 
 - Precisa da análise diária ligada para o local (é dela que vem o texto).
 - No iPhone só funciona com a app **instalada no ecrã principal** (iOS 16.4 ou mais recente): Partilhar → «Adicionar ao

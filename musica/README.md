@@ -12,16 +12,17 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 ```
  app em Onda (telemóvel) ─┐                                  ┌─ Tidal (API oficial v2, OAuth com PKCE)
    app/musica.onda        ├─►  Worker "musica" (Cloudflare) ──┤
- Curador (Claude) ────────┘     tokens, chaves, biblioteca    └─ a tua conta: favoritas, playlists, pesquisa
+ Maestro (Claude) ────────┘     tokens, chaves, biblioteca    └─ a tua conta: favoritas, playlists, pesquisa
         │                       (KV)
         └─ motor.onda — o mesmo motor na app (app/musica.wasm) e na tarefa agendada (onda/curador.wasm)
 ```
 
-- **Curador** — como o Conselheiro dos Mercados e o Analista do Meteo, uma **tarefa agendada do Claude** segue
+- **Maestro** — como o Conselheiro dos Mercados e o Analista do Meteo, uma **tarefa agendada do Claude** segue
   [`CURADOR.md`](CURADOR.md) às 07:44 e às 18:44: lê o teu gosto (favoritas, artistas seguidos, playlists), pesquisa
   na web o que está a dar e tem qualidade (crítica, tabelas, cena portuguesa, jazz, clássica, reedições, gravações de
   referência), escreve uma proposta com 1,5× a 2× as faixas necessárias, e publica: os pedidos que fizeste na app e,
-  uma vez por semana, a **«Onda da semana»**.
+  uma vez por semana, a **«Onda da semana»**. Usa também as tuas **mixes do Tidal** e, às sextas de manhã, cria
+  **«Novidades dos teus artistas»** com os álbuns novos dos artistas que segues.
 - **Motor de curadoria em Onda** — [`onda/curador.onda`](onda/curador.onda): da proposta, escolhe K faixas pela
   pontuação (gosto, qualidade do som, tendência, nota do Claude, novidade) com diversidade (máximo por artista, géneros
   e décadas espalhados), e ordena-as para uma audição seguida — bpm (com meio e dobro do tempo), tom na roda de
@@ -30,17 +31,26 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   juiz confirma-o nos testes.
 - **Worker** ([`proxy/`](proxy/)) — fala com o Tidal em teu nome: login com PKCE (sem segredo, só o Client ID), tokens
   renovados sozinhos, o teu gosto (cache de 6 h), encontrar faixas (pesquisa + verificação de artista e título,
-  versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app.
-  Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Curador).
+  versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app,
+  afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **«Mais como esta»** (as faixas parecidas do
+  Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
+  Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Maestro).
 - **App em Onda** ([`app/musica.onda`](app/musica.onda)) — monta-se com a biblioteca de apps da Onda e o motor
   (`cat onda/lib/app.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w`) e corre no anfitrião das apps Onda:
-  os ecrãs (Playlists, a playlist com o porquê de cada faixa e a mistura, **Afinar no telemóvel**, Pedir, Gosto,
-  Ajustes), o estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
+  os ecrãs (Playlists com ▶ para ouvir no Tidal, a playlist com o porquê de cada faixa e a mistura — toca numa faixa
+  para **«Mais como esta»** —, **Afinar no telemóvel**, Pedir, Gosto, Ajustes), o estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
   app a cada mudança (estilo, arco, número de faixas, máximo por artista, fixar, tirar, juntar do Tidal) em menos de
   1 ms, e o juiz dos testes confirma que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão
   (a ordem, o porquê e os ids das faixas juntadas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`).
   A casca [`musica.js`](musica.js) só trata do que a Onda não tem como porta: a chave do aparelho nos pedidos, os
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
+
+## Partilhar com outras pessoas
+
+Nos **Ajustes**, «Convidar alguém» cria um link (serve uma vez, durante 14 dias) para enviar por WhatsApp ou email.
+Quem o abre liga o **seu** Tidal e fica com a sua biblioteca, os seus pedidos e o seu gosto; o Maestro trata os pedidos
+de todos (na tua conta do Claude). No Worker, os dados do dono ficam nas chaves de sempre e os de cada pessoa
+convidada com o prefixo `u:<id>:`; o agente escolhe a pessoa com `?u=<id>` e vê a lista em `GET /api/utilizadores`.
 
 ## Ligar (uma vez)
 
@@ -56,8 +66,8 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 
 ```bash
 cd musica
-npm test                 # motor (juiz: app, anfitrião oficial e nativo), Worker, biblioteca, Curador, a app em Onda no Chromium
-npm run onda             # recompila com onda/seed/ondac.wasm: onda/curador.wasm + curador.c e app/musica.wasm
+npm test                 # motor (juiz: app, anfitrião oficial e nativo), Worker, biblioteca, Maestro, a app em Onda no Chromium
+npm run onda             # recompila com onda/seed/ondac.wasm: onda/curador.wasm + curador.c, app/musica.wasm e curador/maestro.wasm
 cd proxy && npm install && npx wrangler deploy
 node scripts/make-icons.mjs
 ```
@@ -69,4 +79,6 @@ nativo do C gerado — e exige o mesmo resultado, ao bit.
 
 Estrutura: `app/` (a app em Onda), `onda/` (`motor.onda`, o programa de linha de comando `curador.onda` e o anfitrião
 de três portas para o Node), `lib/` (Tidal, sinais, proposta, curadoria — partilhado pelo Worker e pela tarefa
-agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada), `tests/`.
+agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada: o dos dados é Onda — `curador/onda/dados.onda` →
+`curador/maestro.wasm`, corrido pelo `correr.mjs` com o anfitrião Node da Onda; a versão JavaScript fica em
+`curador/js/` como referência do teste de paridade, ao byte), `tests/`.

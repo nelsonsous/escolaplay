@@ -1,21 +1,22 @@
-// Curador — último passo: valida a proposta do Claude, encontra as faixas no Tidal, deixa o motor Onda escolher e
+// Maestro — último passo: valida a proposta do Claude, encontra as faixas no Tidal, deixa o motor Onda escolher e
 // ordenar, e cria a playlist na tua conta (e na biblioteca da app).
-//   NODE_USE_ENV_PROXY=1 node musica/curador/publicar.mjs /tmp/musica/proposta.json [--pedido <id>] [--modelo <id>]
+//   NODE_USE_ENV_PROXY=1 node musica/curador/publicar.mjs /tmp/musica/<pessoa>/proposta.json [--utilizador <pessoa>] [--pedido <id>] [--modelo <id>]
 //        [--ensaio] (não grava nada) [--sem-tidal] (só na biblioteca da app) [--aceitar-menos]
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { api, arg, flag, minutos } from './comum.mjs';
+import { api, pessoa, arg, flag, minutos } from './comum.mjs';
 import { validarProposta } from '../lib/playlist.js';
 import { encontrar, preparar, afinar, paraGuardar, mistura } from '../lib/curadoria.js';
 import { qualidadeTexto, camelotTexto } from '../lib/tidal.js';
 
 const file = process.argv[2];
-if (!file || file.startsWith('--')) { console.error('uso: publicar.mjs /tmp/musica/proposta.json [--pedido <id>] [--modelo <id>] [--ensaio]'); process.exit(2); }
+if (!file || file.startsWith('--')) { console.error('uso: publicar.mjs /tmp/musica/<pessoa>/proposta.json [--utilizador <pessoa>] [--pedido <id>] [--modelo <id>] [--ensaio]'); process.exit(2); }
 let bruto;
 try { bruto = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { console.error(`JSON inválido em ${file}: ${e.message}`); process.exit(1); }
 const { ok, errors, value: p } = validarProposta(bruto, { strict: true });
 if (!ok) { console.error('Proposta inválida:\n- ' + errors.join('\n- ')); process.exit(1); }
 
+pessoa(arg('--utilizador'));
 const pedidoId = arg('--pedido');
 if (pedidoId) {
     const pedido = (await api('/api/pedidos')).find((x) => x.id === pedidoId);

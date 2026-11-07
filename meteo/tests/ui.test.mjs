@@ -246,7 +246,14 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const temp = await page.locator('.now-t').getAttribute('aria-label');
     assert.match(temp, /^\d+,\d°$/, 'temperatura agora: ' + temp);
     const nowTxt = await page.locator('.now').textContent();
-    assert.match(nowTxt, /Sensação .*Máx\. .*Mín\./);
+    assert.match(nowTxt, /Máx\. .*Mín\. .*Sensação /);
+    // simples: à vista só o essencial; o radar, as estações e o relevo em «Detalhes» (fechado), os indicadores em «Indicadores»
+    assert.equal(await page.locator('#d-now').getAttribute('open'), null);
+    assert.equal(await page.locator('#d-ind').getAttribute('open'), null);
+    assert.equal(await page.locator('.list.mini .day').count(), 5, 'próximos 5 dias no Agora');
+    assert.equal(await page.locator('.list.mini .day .rng .rb').count(), 5, 'com a barra mín.–máx. (sem espaço vazio no meio)');
+    if (SHOTS) await page.locator('.sec:has(h2:text("Próximos dias"))').screenshot({ path: path.join(SHOTS, '02c-proximos-dias.png') });
+    assert.match(await page.locator('[data-tab="dias"].ghost').textContent(), /Ver os 16 dias/);
     assert.match(nowTxt, /Observado \d+,\d° em Lisboa \(Geofísico\), .+ e mais \d+ · ~\d+,\d km · há \d+ min \(IPMA \+ METAR\)/, 'linha da observação combinada');
     assert.equal(elevCalls, 1, 'altitudes de todas as estações num só pedido');
     assert.equal(terrainCalls, 1, 'relevo à volta do ponto num só pedido');
@@ -345,7 +352,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.locator('#mt-sheet #d-chart').count(), 0);
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
-    console.log('✓ Dias: 16 dias, folha do domingo com as horas, dia 11 sem horas');
+    // hoje às 15:45 faltam 8 horas: a folha de hoje mostra as próximas 12 (passa da meia-noite), a encher a largura
+    await page.click('.row.day[data-day="0"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) #d-chart svg');
+    assert.match(await page.locator('#mt-sheet-card').textContent(), /Próximas 12 horas/);
+    const fill = await page.evaluate(() => { const sc = document.querySelector('#d-chart .chart-scroll'), cv = document.querySelector('#d-chart .chart-canvas'); return { cv: cv.offsetWidth, sc: sc.clientWidth }; });
+    assert.ok(fill.cv >= fill.sc - 2, `o gráfico enche a largura (${fill.cv} ≥ ${fill.sc})`);
+    if (SHOTS) await page.locator('#mt-sheet-card').screenshot({ path: path.join(SHOTS, '04b-hoje.png') });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    console.log('✓ Dias: 16 dias, folha do domingo com as horas, dia 11 sem horas, hoje com as próximas 12 horas');
 
     // 4) Satélite e incêndios
     await tab('satelite');
@@ -422,6 +438,17 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await toastIs(/Análise feita/);
     assert.ok(refreshBody && refreshBody.summary.length > 500, 'resumo enviado ao Claude');
     assert.match(await page.locator('.today .cl-head').textContent(), /Análise a pedido/);
+    // simples: a análise mostra o essencial (amanhã e o que vestir); o resto em «Ver a análise completa»; os detalhes
+    // técnicos (fontes, fiabilidade, aprendizagem, observações, modelos) num só «Detalhes técnicos», fechado
+    assert.match(await page.locator('.today').textContent(), /AmanhãSábado.*O que vestir amanhãSábado de manhã casaco leve/s);
+    assert.equal(await page.locator('#d-an').getAttribute('open'), null);
+    assert.equal(await page.locator('#d-tec').getAttribute('open'), null);
+    await shot('06-analise-simples.png');
+    await page.click('#d-tec > summary');
+    await page.waitForSelector('#d-tec[open] #fontes');
+    // continua aberto quando a página se redesenha (dados novos)
+    await page.evaluate(() => window.__mt.render());
+    assert.equal(await page.locator('#d-tec').getAttribute('open'), '');
     const nModels = await page.evaluate(() => window.__mt.st.fc.models.length);
     assert.equal(nModels, 10, '9 modelos + IPMA oficial');
     assert.equal(await page.locator('.sec:has(h2:text("Modelos")) .list .row').count(), nModels);
@@ -464,10 +491,39 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem(JSON.parse(localStorage.getItem('meteo:fc-index'))[0])).fc.learning.window), null, 'a previsão guardada não repete os dias');
     await noOverflow('Análise');
     await shot('06-analise.png');
-    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos`);
+    // tocar na notificação do fim do dia abre a app na análise completa (?tab=analise&abrir=d-an, que sai do endereço)
+    await page.evaluate(() => { window.__mt.cfg.tab = 'agora'; window.__mt.render(); });
+    await page.goto(url + '?tab=analise&abrir=d-an');
+    await page.waitForSelector('#d-an[open]');
+    assert.equal(await page.evaluate(() => location.search), '');
+    assert.ok(await page.locator('#mt-nav [data-tab="analise"].on').count(), 'abre na Análise');
+    assert.ok(await page.locator('#d-an .an-sec h4:text("Hoje")').isVisible(), 'com a análise completa aberta');
+    // no iPhone a app fica visível antes de o service worker gravar o pedido do toque (e abre sem o endereço da notificação)
+    const lateNav = (focus) => page.evaluate((f) => new Promise((ok) => setTimeout(ok, 1500)).then(async () => (await caches.open('meteonav'))
+        .put('nav', new Response(JSON.stringify({ tab: 'analise', open: 'd-an', focus: f, at: Date.now() - (f ? 1000 : 2000) })))), focus);
+    const inView = (id) => page.waitForFunction((i) => { const r = document.getElementById(i)?.getBoundingClientRect(); return r && r.top >= 0 && r.top < innerHeight; }, id);
+    await page.goto(url);
+    await page.click('#mt-nav [data-tab="agora"]');
+    await lateNav('');
+    await page.waitForSelector('#mt-nav [data-tab="analise"].on');
+    await page.waitForSelector('#d-an[open]');
+    // app em segundo plano: volta a ficar visível e o pedido (a da semana, ao domingo) chega depois
+    await page.click('#mt-nav [data-tab="agora"]');
+    await page.evaluate(() => { window.__mt.st.open.clear(); document.dispatchEvent(new Event('visibilitychange')); });
+    await lateNav('an-semana');
+    await page.waitForSelector('#d-an[open]');
+    await inView('an-semana');
+    assert.match(await page.locator('#an-semana').textContent(), /A semana em resumo/);
+    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos; a notificação abre a análise completa (também quando o pedido chega atrasado; ao domingo, na semana)`);
 
     // 6) Ajustes: conector, estado das fontes, tamanho da letra
     await tab('ajustes');
+    // simples: Local, Notificações, Análise diária, Partilhar e Este telemóvel à vista; o resto em «Avançado» (fechado)
+    assert.deepEqual((await page.locator('#mt-body > section.sec > .sec-h h2').allTextContents()).slice(0, 5), ['Local', 'Notificações', 'Análise diária do Claude', 'Partilhar', 'Este telemóvel']);
+    assert.equal(await page.locator('#d-adv').getAttribute('open'), null);
+    await shot('07-ajustes-simples.png');
+    await page.click('#d-adv > summary');
+    await page.waitForSelector('#d-adv[open] #f-proxy');
     assert.equal(await page.locator('#f-proxy').inputValue(), PROXY);
     await page.waitForFunction(() => /Ligado · versão 1\.0\.0/.test(document.querySelector('#f-proxy-msg').textContent));
     const srcRows = await page.locator('.sec:has(h2:text("Estado das fontes")) .row').count();
@@ -524,10 +580,13 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // notificações do fim do dia: ligar (autorização + assinatura), mudar a hora, o domingo, teste e desligar
     const nt = page.locator('#notificacoes');
     assert.match(await nt.textContent(), /Resumo ao fim do diaComo vai estar amanhã e o que vestir/);
-    assert.equal(await nt.locator('#f-push-time').inputValue(), '19:00', '19:00 por omissão');
-    assert.equal(await nt.locator('#f-push-time option').count(), 32, 'das 16:00 às 23:45, de 15 em 15 min');
+    // desligadas: só o interruptor (simples); a hora, o domingo e o teste aparecem quando se ligam
+    assert.equal(await nt.locator('#f-push-time').count(), 0);
+    assert.match(await nt.textContent(), /Às 19:00 por omissão; ao domingo, a semana que vem\./);
     await nt.locator('[data-act="push-on"]').click();
     await toastIs(/Notificação ligada: todos os dias às 19:00/);
+    assert.equal(await nt.locator('#f-push-time').inputValue(), '19:00', '19:00 por omissão');
+    assert.equal(await nt.locator('#f-push-time option').count(), 32, 'das 16:00 às 23:45, de 15 em 15 min');
     assert.equal(pushPosts.length, 1);
     assert.deepEqual({ ...pushPosts[0], subscription: pushPosts[0].subscription.endpoint },
         { subscription: 'https://fcm.googleapis.com/fcm/send/teste-ui', time: '19:00', sunday: true, place: 'casa', tz: 'Europe/Lisbon' });
@@ -682,6 +741,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await toastIs(/Código do dono esquecido/);
     assert.equal(await page.evaluate(() => localStorage.getItem('meteo:dono')), null);
     // na app instalada (iPhone: memória à parte do Safari) o código escreve-se em Ajustes → Conector → "Sou o dono desta app"
+    await page.click('#d-adv > summary'); // o código do dono está em Ajustes → Avançado → Conector de dados
     await page.waitForSelector('details.own summary');
     await page.click('details.own summary');
     await page.fill('#f-owner', 'código errado');

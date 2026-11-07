@@ -31,9 +31,9 @@ before(async () => {
 });
 after(() => servidor.close());
 
-const script = (nome, args, { semChave = false } = {}) => correr(process.execPath, [join(RAIZ, 'curador', nome), ...args],
+const script = (nome, args, { semChave = false, agora = '' } = {}) => correr(process.execPath, [join(RAIZ, 'curador', nome), ...args],
     // sem chave: e uma conta Cloudflare que não existe, para nunca ir à KV verdadeira
-    { env: { ...process.env, MUSICA_WORKER: base, ...(semChave ? { MUSICA_CHAVE: '', CF_ACCOUNT_ID: 'conta-de-teste' } : { MUSICA_CHAVE: CHAVE }) }, timeout: 60000 })
+    { env: { ...process.env, MUSICA_WORKER: base, MUSICA_AGORA: agora, ...(semChave ? { MUSICA_CHAVE: '', CF_ACCOUNT_ID: 'conta-de-teste' } : { MUSICA_CHAVE: CHAVE }) }, timeout: 60000 })
     .catch((e) => ({ stdout: e.stdout, stderr: e.stderr, code: e.code }));
 
 test('sem Tidal ligado (e ainda sem chave do agente): os dados dizem para terminar', async () => {
@@ -47,7 +47,7 @@ test('sem Tidal ligado (e ainda sem chave do agente): os dados dizem para termin
 test('dados → proposta → ensaio → publicar com pedido', async () => {
     const { createHash } = await import('node:crypto');
     await env.KV.put('tidal:tokens', JSON.stringify({ access: 'AT1', refresh: 'RT1', expira: Date.now() + 3600e3, utilizador: 'nelson', pais: 'PT' }));
-    await env.KV.put('chaves', JSON.stringify({ [createHash('sha256').update(CHAVE).digest('hex')]: { tipo: 'agente', nome: 'Curador' } }));
+    await env.KV.put('chaves', JSON.stringify({ [createHash('sha256').update(CHAVE).digest('hex')]: { tipo: 'agente', nome: 'Maestro' } }));
     await env.KV.put('pedidos', JSON.stringify([{ id: 'q1abc', texto: 'Jazz e soul para o carro', opcoes: { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'onda' }, estado: 'pendente', criadoEm: new Date().toISOString() }]));
     const dir = mkdtempSync(join(tmpdir(), 'musica-'));
 
@@ -55,9 +55,16 @@ test('dados → proposta → ensaio → publicar com pedido', async () => {
     assert.equal(d.code, undefined, d.stderr);
     const md = readFileSync(join(dir, 'dados.md'), 'utf8');
     assert.match(md, /Conta Tidal: \*\*nelson\*\* \(PT\)/);
+    assert.match(md, /^## Pedidos à espera/m, 'os títulos no início da linha (sem indentação: senão o Markdown faz deles código)');
+    assert.doesNotMatch(md, /^ {4}\S/m);
     assert.match(md, /`q1abc` — «Jazz e soul para o carro» · 5 faixas, máx\. 1 por artista, estilo audiofilo/);
     assert.match(md, /Miles Davis — So What · 1959 · Hi-Res · 136 bpm · 7A · Jazz/);
     assert.match(md, /Ainda não há nenhuma — \*\*cria a primeira\*\*/);
+    // as novidades dos artistas que segues e as tuas mixes do Tidal, com o id do Tidal
+    assert.match(md, /- \d{4}-\d{2}-\d{2} · Nina Simone — «Disco novo»/);
+    assert.match(md, /- `102` Nina Simone — Feeling Good/);
+    assert.match(md, /### Descoberta\n- `106` Massive Attack — Teardrop/);
+    assert.match(md, /### Diária\n- `101` Miles Davis — So What/);
     assert.ok(JSON.parse(readFileSync(join(dir, 'perfil.json'), 'utf8')).favoritas.length >= 3);
 
     const proposta = {
@@ -104,4 +111,45 @@ test('dados → proposta → ensaio → publicar com pedido', async () => {
     assert.ok(doc.candidatas[0].sinais && doc.candidatas[0].faixa);
     assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].estado, 'feito');
     assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].playlist, doc.id);
+});
+
+test('várias pessoas: uma secção por pessoa no dados.md e publicar na biblioteca de cada uma (--utilizador)', async () => {
+    // uma segunda pessoa, convidada pelo dono, com o seu Tidal e um pedido
+    await env.KV.put('utilizadores', JSON.stringify([{ uid: 'uana', nome: 'ana' }]));
+    await env.KV.put('u:uana:tidal:tokens', await env.KV.get('tidal:tokens'));
+    await env.KV.put('u:uana:pedidos', JSON.stringify([{ id: 'q2ana', texto: 'Fado para a Ana', opcoes: { faixas: 5, maxArtista: 2, estilo: 'equilibrado', arco: 'onda' }, estado: 'pendente', criadoEm: new Date().toISOString() }]));
+    const dir = mkdtempSync(join(tmpdir(), 'musica-'));
+    const d = await script('dados.mjs', [dir]);
+    assert.equal(d.code, undefined, d.stderr);
+    const md = readFileSync(join(dir, 'dados.md'), 'utf8');
+    assert.match(md, /\*\*2 pessoas\*\* na app/);
+    assert.match(md, /# Pessoa: nelson \(`dono`\)/);
+    assert.match(md, /# Pessoa: nelson \(`uana`\)[\s\S]*`q2ana` — «Fado para a Ana»/);
+    assert.ok(JSON.parse(readFileSync(join(dir, 'uana', 'perfil.json'), 'utf8')).favoritas.length >= 3);
+    // a proposta da Ana vai para a biblioteca dela e o pedido dela fica feito
+    const proposta = { nome: 'Fado para a Ana', descricao: 'Fado.', resumo: 'Fado e companhia, com gravações de referência. Para ouvir com calma ao fim do dia.', opcoes: { faixas: 5, maxArtista: 2, estilo: 'equilibrado', arco: 'onda' },
+        candidatas: ['So What', 'Feeling Good', 'Get Lucky', 'Barco Negro', 'Teardrop', 'Faixa 3', 'Faixa 7'].map((titulo, i) => ({ artista: ['Miles Davis', 'Nina Simone', 'Daft Punk', 'Amália Rodrigues', 'Massive Attack', 'Miles Davis', 'Miles Davis'][i], titulo, ano: 1960, genero: 'fado', nota: 90 - i, energia: 40, motivo: 'm' })) };
+    writeFileSync(join(dir, 'uana', 'proposta.json'), JSON.stringify(proposta));
+    const pub = await script('publicar.mjs', [join(dir, 'uana', 'proposta.json'), '--utilizador', 'uana', '--pedido', 'q2ana', '--modelo', 'modelo-teste']);
+    assert.equal(pub.code, undefined, pub.stderr);
+    assert.equal(JSON.parse(await env.KV.get('u:uana:playlists'))[0].nome, 'Fado para a Ana');
+    assert.equal(JSON.parse(await env.KV.get('u:uana:pedidos'))[0].estado, 'feito');
+    assert.ok(!JSON.parse(await env.KV.get('playlists')).some((x) => x.nome === 'Fado para a Ana'), 'não vai para a biblioteca do dono');
+});
+
+test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byte (as duas pessoas, as datas de Lisboa)', async () => {
+    for (const agora of ['2026-11-13T09:30:00Z', '2026-07-03T22:59:00Z', '2027-03-28T00:59:59Z']) {
+        const a = mkdtempSync(join(tmpdir(), 'musica-onda-')), b = mkdtempSync(join(tmpdir(), 'musica-js-'));
+        const onda = await script('dados.mjs', [a], { agora });
+        const js = await script(join('js', 'dados.mjs'), [b], { agora });
+        assert.equal(onda.code, undefined, onda.stderr);
+        assert.equal(js.code, undefined, js.stderr);
+        const md = (d) => readFileSync(join(d, 'dados.md'), 'utf8').replaceAll(d, '<dir>');
+        assert.equal(md(a), md(b), `dados.md com MUSICA_AGORA=${agora}`);
+        assert.equal(onda.stdout.replaceAll(a, '<dir>'), js.stdout.replaceAll(b, '<dir>'));
+        // o perfil.json é o que o Worker deu (tirando a hora em que o gerou)
+        const pj = (f) => { const x = JSON.parse(readFileSync(f, 'utf8')); delete x.geradoEm; return x; };
+        assert.deepEqual(pj(join(a, 'perfil.json')), pj(join(b, 'perfil.json')));
+        assert.deepEqual(pj(join(a, 'uana', 'perfil.json')), pj(join(b, 'uana', 'perfil.json')));
+    }
 });

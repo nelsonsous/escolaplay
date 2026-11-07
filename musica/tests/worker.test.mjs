@@ -1,5 +1,5 @@
 // Rotas do Worker com o Tidal e a KV simulados: ligação (código + PKCE), gosto, encontrar faixas,
-// criar playlists no Tidal, renovar o token e pedidos ao Curador.
+// criar playlists no Tidal, renovar o token e pedidos ao Maestro.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.3.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.5.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -224,7 +224,7 @@ test('token: renova quando expira e quando o Tidal responde 401; sessão perdida
     assert.equal(await env.KV.get('tidal:tokens'), null);
 });
 
-test('pedidos ao Curador: criar, listar, marcar feito, cancelar', async () => {
+test('pedidos ao Maestro: criar, listar, marcar feito, cancelar', async () => {
     const { chave } = await ligarPrimeiraVez();
     assert.equal((await post('/api/pedidos', { texto: 'x' }, chave)).status, 400);
     const p = await (await post('/api/pedidos', { texto: 'Soul dos anos 70 bem gravado', opcoes: { faixas: 25, arco: 'sobe' } }, chave)).json();
@@ -254,7 +254,7 @@ test('desligar apaga os tokens e o perfil', async () => {
     assert.equal((await get('/api/perfil', chave)).status, 409);
 });
 
-test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (por id) e o envio', async () => {
+test('afinar na app: a ordem do motor, as faixas juntadas do Tidal (por id) e o envio — na mesma playlist', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200, tags: ['LOSSLESS'], generos: [], ano: 1960 });
@@ -269,8 +269,10 @@ test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (p
         opcoes: { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'desce' }, custo: 1234, tidal: true }, chave);
     assert.equal(r.status, 201);
     const v = await r.json();
-    assert.equal(v.nome, 'Original · afinada');
-    assert.equal(v.por, 'app');
+    assert.equal(v.id, d.id, 'a mesma playlist');
+    assert.equal(v.nome, 'Original');
+    assert.equal(v.por, 'curador', 'quem a fez continua a ser o Maestro');
+    assert.ok(v.afinadaEm);
     assert.deepEqual(v.faixas.map((x) => x.id), ['103', '101', '106'], 'a ordem da app; o índice 3 é a faixa juntada');
     assert.deepEqual(v.faixas.map((x) => x.porque), ['claude', 'gosto', 'fixa']);
     assert.equal(v.faixas[0].motivo, 'Graves.');
@@ -283,8 +285,9 @@ test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (p
     assert.deepEqual(v.opcoes, { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'desce' });
     assert.equal(v.tidal.faixas, 3);
     assert.deepEqual(sim.itens, ['103', '101', '106']);
-    // a original fica como estava; erros
-    assert.equal((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.length, 3);
+    // a playlist guardada é a afinada (sem cópia); erros
+    assert.deepEqual((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.map((x) => x.id), ['103', '101', '106']);
+    assert.equal((await (await get('/api/playlists', chave)).json()).filter((x) => x.nome.startsWith('Original')).length, 1);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [0], extras: ['abc'] }, chave)).status, 400);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [] }, chave)).status, 400);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [9] }, chave)).status, 400);
@@ -301,4 +304,100 @@ test('aparelho novo com o código de ligação (sem novo login no Tidal)', async
     assert.equal(await env.KV.get('codigo:ligacao'), null, 'o código gasta-se');
     assert.equal((await (await get('/api/estado', chave)).json()).tu, 'aparelho');
     assert.equal((await post('/api/aparelho', { codigo: 'OUTRO-456' })).status, 401);
+});
+
+test('afinar na mesma playlist: no Tidal, troca as faixas da própria playlist (sem cópias)', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const f = (id, titulo) => ({ id, titulo, artistas: ['Miles Davis'], duracao: 180 });
+    const candidatas = [f('101', 'So What'), f('102', 'Feeling Good'), f('106', 'Teardrop')].map((faixa) => ({ faixa, sinais: { genero: 'jazz' }, motivo: 'm' }));
+    const d = await (await post('/api/playlists', { nome: 'Noite', faixas: candidatas.map((x) => x.faixa), candidatas, tidal: true }, agente)).json();
+    const pid = d.tidal.id;
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['101', '102', '106']);
+    const criadas = sim.criadas.length;
+    const r = await post(`/api/playlists/${d.id}/versoes`, { ordem: [2, 0, 1], tidal: true, opcoes: { faixas: 5, maxArtista: 2 } }, chave);
+    assert.equal(r.status, 201);
+    const v = await r.json();
+    assert.equal(v.id, d.id, 'a mesma playlist na app');
+    assert.equal(v.nome, 'Noite', 'sem «· afinada»');
+    assert.equal(sim.criadas.length, criadas, 'nenhuma playlist nova no Tidal');
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['106', '101', '102'], 'a mesma playlist do Tidal, pela ordem nova');
+    assert.deepEqual(sim.removidos, ['101', '102', '106']);
+    const idx = await (await get('/api/playlists', chave)).json();
+    assert.equal(idx.filter((x) => x.nome.startsWith('Noite')).length, 1, 'sem cópias na biblioteca');
+    // só na app: o Tidal fica como está
+    await post(`/api/playlists/${d.id}/versoes`, { ordem: [0, 1], tidal: false }, chave);
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['106', '101', '102']);
+    assert.deepEqual((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.map((x) => x.id), ['101', '102']);
+});
+
+test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const r = await post('/api/mais', { faixa: '101' }, chave);
+    assert.equal(r.status, 201);
+    const d = await r.json();
+    assert.equal(d.nome, 'Parecidas com So What');
+    assert.equal(d.faixas[0].id, '101', 'começa pela faixa de partida');
+    assert.deepEqual(d.faixas.map((x) => x.id).slice(1), ['102', '106', '105', '103']);
+    assert.equal(d.candidatas.length, 5, 'fica pronta para afinar');
+    assert.match(d.tidal.url, /^https:\/\/tidal.com\/browse\/playlist\//);
+    assert.ok(sim.chamadas.some((c) => c.includes('/tracks/101/relationships/similarTracks')));
+    assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
+});
+
+test('para o Maestro: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {
+    await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const m = await (await get('/api/mixes', agente)).json();
+    assert.deepEqual(m.mixes.map((x) => x.tipo), ['descoberta', 'diaria', 'lancamentos']);
+    assert.deepEqual(m.mixes[0].faixas.map((x) => x.titulo), ['Teardrop', 'Barco Negro']);
+    assert.equal(m.mixes[1].faixas[0].titulo, 'So What');
+    const n = await (await get('/api/novidades?dias=7', agente)).json();
+    assert.deepEqual(n.albuns.map((x) => `${x.artista} — ${x.titulo}`), ['Nina Simone — Disco novo'], 'só o álbum dos últimos 7 dias');
+    assert.deepEqual(n.faixas.map((x) => x.id), ['102', '201']);
+    assert.equal((await get('/api/mixes')).status, 401);
+});
+
+test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o Maestro vê todas', async () => {
+    const { chave } = await ligarPrimeiraVez(); // o dono
+    const agente = await env.KV.get('agente:chave');
+    // o dono cria um convite (link com o código de uma só vez)
+    const cv = await (await post('/api/convites', {}, chave)).json();
+    assert.match(cv.url, /^https:\/\/nelsonsous\.github\.io\/escolaplay\/musica\/\?ligar=/);
+    assert.equal((await post('/api/convites', {})).status, 401);
+    // a convidada liga o seu Tidal com o código do convite
+    const r = await post('/api/ligar', { codigo: cv.codigo, nome: 'telemóvel da Ana' });
+    assert.equal(r.status, 200);
+    const state = new URL((await r.json()).url).searchParams.get('state');
+    const volta = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    const chaveAna = decodeURIComponent(volta.headers.get('location').split('#chave=')[1] || '');
+    assert.ok(chaveAna.length > 20, 'a convidada recebe a chave do seu aparelho');
+    assert.equal((await post('/api/ligar', { codigo: cv.codigo })).status, 401, 'o convite gasta-se');
+    // cada uma com a sua biblioteca e os seus pedidos
+    await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna);
+    assert.deepEqual((await (await get('/api/pedidos', chaveAna)).json()).map((x) => x.texto), ['Fado para a Ana']);
+    assert.deepEqual(await (await get('/api/pedidos', chave)).json(), [], 'o dono não vê os pedidos da Ana');
+    const est = await (await get('/api/estado', chaveAna)).json();
+    assert.equal(est.dono, false);
+    assert.equal(est.ligado, true);
+    assert.equal(est.pedidos, 1);
+    assert.equal((await (await get('/api/estado', chave)).json()).dono, true);
+    assert.equal((await post('/api/convites', {}, chaveAna)).status, 403, 'só o dono convida');
+    // os dados da Ana ficam no espaço dela; os do dono onde sempre estiveram
+    const us = await (await get('/api/utilizadores', agente)).json();
+    assert.equal(us.length, 2);
+    const ana = us.find((u) => u.uid !== 'dono');
+    assert.equal(ana.pedidos, 1);
+    assert.equal(ana.ligado, true);
+    assert.ok(await env.KV.get(`u:${ana.uid}:tidal:tokens`));
+    assert.ok(await env.KV.get('tidal:tokens'));
+    // o Maestro trata os pedidos de cada pessoa com ?u=
+    assert.equal((await (await get(`/api/pedidos?u=${ana.uid}`, agente)).json())[0].texto, 'Fado para a Ana');
+    assert.deepEqual(await (await get('/api/pedidos', agente)).json(), [], 'sem ?u= é o dono');
+    assert.equal((await get('/api/utilizadores', chave)).status, 403, 'a lista de pessoas é só para o Maestro');
+    assert.equal((await get('/api/pedidos?u=u-nao-existe', agente)).status, 404);
+    // desligar o Tidal da Ana não mexe no do dono
+    await post('/api/desligar', {}, chaveAna);
+    assert.equal(await env.KV.get(`u:${ana.uid}:tidal:tokens`), null);
+    assert.ok(await env.KV.get('tidal:tokens'));
 });
