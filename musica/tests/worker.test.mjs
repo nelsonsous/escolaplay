@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.2.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.2.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -145,14 +145,16 @@ test('resolver: encontra a versão de estúdio, ignora o que não existe, respei
     assert.equal(faixas[1], null);
     assert.equal(faixas[2].id, '102');
     assert.equal(faixas[2].ano, 1965);
-    const pesquisas = sim.chamadas.filter((c) => c.includes('/searchResults/'));
+    const pesquisas = sim.chamadas.filter((c) => c.includes('/searchResults'));
     assert.equal(pesquisas.length, 3);
+    assert.match(pesquisas[0], /^GET \/v2\/searchResults\?/);
+    assert.match(pesquisas[0], /filter%5Bquery%5D=Daft\+Punk\+Get\+Lucky/);
     assert.match(pesquisas[0], /countryCode=PT/);
     // por id, sem pesquisar; e o limite do lote
     sim.chamadas = [];
     const porId = await (await post('/api/resolver', { faixas: [{ tidalId: '105' }] }, chave)).json();
     assert.equal(porId.faixas[0].titulo, 'Barco Negro');
-    assert.equal(sim.chamadas.filter((c) => c.includes('/searchResults/')).length, 0);
+    assert.equal(sim.chamadas.filter((c) => c.includes('/searchResults')).length, 0);
     assert.equal((await post('/api/resolver', { faixas: Array.from({ length: 11 }, () => ({ artista: 'a', titulo: 'b' })) }, chave)).status, 400);
     assert.equal((await post('/api/resolver', { faixas: [] }, chave)).status, 400);
     const ps = await (await get('/api/pesquisa?q=feeling%20good', chave)).json();

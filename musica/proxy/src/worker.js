@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -294,11 +294,11 @@ async function resolver(env, c) {
             if (ids.length) { opcoes.push(ids.slice(0, 3)); continue; }
         }
         const q = `${p.artista} ${p.titulo}`.replace(/[/\\?#]/g, ' ').replace(/\s+/g, ' ').trim();
-        const doc = await tidal(env, `/searchResults/${encodeURIComponent(q)}/relationships/tracks`, { query: { countryCode: pais, explicitFilter: 'INCLUDE' } }).catch((e) => {
+        const ids = await pesquisar(env, q, pais).catch((e) => {
             if (e.status === 429) throw e;
-            return null;
+            return [];
         });
-        opcoes.push(idsDe(doc).slice(0, 3));
+        opcoes.push(ids.slice(0, 3));
     }
     const detalhe = await porIds(env, opcoes.flat(), pais);
     return {
@@ -310,12 +310,19 @@ async function resolver(env, c) {
     };
 }
 
+// a pesquisa do Tidal: a frase vai em filter[query] (no caminho dá «Invalid resource ID»); as faixas vêm, das mais
+// relevantes para as menos, em data[0].relationships.tracks
+async function pesquisar(env, q, pais) {
+    const doc = await tidal(env, '/searchResults', { query: { 'filter[query]': q, countryCode: pais, explicitFilter: 'INCLUDE', include: 'tracks' } });
+    const r = (Array.isArray(doc?.data) ? doc.data : doc?.data ? [doc.data] : []).find((d) => d?.type === 'searchResults');
+    return idsDe({ data: r?.relationships?.tracks?.data });
+}
+
 async function pesquisa(env, q) {
     q = txt(q, 200).replace(/[/\\?#]/g, ' ');
     if (q.length < 2) throw new Erro(400, 'pesquisa_curta', 'Escreve pelo menos 2 letras.');
     const t = await acesso(env);
-    const doc = await tidal(env, `/searchResults/${encodeURIComponent(q)}/relationships/tracks`, { query: { countryCode: t.pais || 'PT', explicitFilter: 'INCLUDE' } });
-    const ids = idsDe(doc).slice(0, 10);
+    const ids = (await pesquisar(env, q, t.pais || 'PT')).slice(0, 10);
     const detalhe = await porIds(env, ids, t.pais || 'PT');
     return { faixas: ids.map((id) => detalhe.get(id)).filter(Boolean) };
 }

@@ -67,12 +67,18 @@ function tidalSimulado(sim, u, init = {}) {
         inc.push({ id: 'g1', type: 'genres', attributes: { genreName: 'Jazz' } });
         return resp({ data, included: inc, links: { self: '/x' } });
     }
-    const s = /^\/searchResults\/(.+)\/relationships\/tracks$/.exec(p);
-    if (s) {
-        const q = decodeURIComponent(s[1]).toLowerCase();
+    // a pesquisa como o Tidal a faz hoje: a frase em filter[query]; as faixas em data[0].relationships.tracks
+    if (p === '/searchResults') {
+        const q = (url.searchParams.get('filter[query]') || '').toLowerCase();
+        assert.ok(q, 'a pesquisa vai em filter[query]');
+        assert.deepEqual(url.searchParams.getAll('include'), ['tracks']);
         const ids = Object.keys(FAIXAS).filter((id) => q.includes(FAIXAS[id].title.toLowerCase().replace(/ \(live\)/, '')));
-        return resp({ data: ids.map((id) => ({ id, type: 'tracks' })), links: { self: '/x' } });
+        if (!ids.length) return resp({ data: [], links: { self: '/x' } });
+        return resp({ data: [{ id: q, type: 'searchResults', attributes: { trackingId: 't' }, relationships: { tracks: { data: ids.map((id) => ({ id, type: 'tracks' })), links: { self: '/x' } } } }],
+            included: ids.map(recursoFaixa), links: { self: '/x' } });
     }
+    // o formato antigo (a frase no caminho) já não existe
+    if (p.startsWith('/searchResults/')) return resp({ errors: [{ status: '400', code: 'INVALID_REQUEST', detail: 'Invalid resource ID' }] }, 400);
     if (p === '/playlists' && metodo === 'POST') {
         const b = JSON.parse(init.body);
         assert.equal(b.data.type, 'playlists');
