@@ -223,3 +223,21 @@ test('a app em Onda: ligar, playlist do Curador, afinar com o juiz, juntar, envi
     assert.deepEqual(erros, [], 'sem erros na consola');
     await ctx.close();
 });
+
+test('outro aparelho (a app no ecrã principal do iOS tem o seu armazém): cola o código e fica com acesso', { skip: !chromium && 'sem Playwright' }, async () => {
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('NOVO-789').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    const erros = [];
+    page.on('pageerror', (e) => erros.push(String(e)));
+    await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await page.getByRole('heading', { name: 'Liga este aparelho' }).waitFor();
+    await page.locator('[data-onda="cod"]').fill('NOVO-789');
+    await page.getByRole('button', { name: 'Usar este código' }).click();
+    await page.locator('.mu-pl').first().waitFor();
+    await page.locator('#mu-aviso').getByText('Este aparelho fica com acesso').waitFor();
+    assert.ok(await page.evaluate(() => localStorage.getItem('musica:chave')), 'guarda a chave deste aparelho');
+    assert.equal(await env.KV.get('codigo:ligacao'), null, 'o código gasta-se');
+    assert.deepEqual(erros, []);
+    await ctx.close();
+});

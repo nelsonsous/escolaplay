@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.1.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.2.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -279,4 +279,15 @@ test('versões afinadas na app: a ordem do motor, as faixas juntadas do Tidal (p
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [9] }, chave)).status, 400);
     assert.equal((await post('/api/playlists/nao-existe/versoes', { ordem: [0] }, chave)).status, 404);
     assert.equal((await post(`/api/playlists/${d.id}/versoes`, { ordem: [0] })).status, 401);
+});
+
+test('aparelho novo com o código de ligação (sem novo login no Tidal)', async () => {
+    await env.KV.put('codigo:ligacao', sha('OUTRO-456'));
+    assert.equal((await post('/api/aparelho', { codigo: 'errado' })).status, 401);
+    const r = await post('/api/aparelho', { codigo: 'OUTRO-456', nome: 'iPhone (ecrã principal)' });
+    assert.equal(r.status, 201);
+    const { chave } = await r.json();
+    assert.equal(await env.KV.get('codigo:ligacao'), null, 'o código gasta-se');
+    assert.equal((await (await get('/api/estado', chave)).json()).tu, 'aparelho');
+    assert.equal((await post('/api/aparelho', { codigo: 'OUTRO-456' })).status, 401);
 });

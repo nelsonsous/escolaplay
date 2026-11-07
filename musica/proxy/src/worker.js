@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -46,6 +46,7 @@ async function route(req, env, url) {
     if (p === '/api/estado' && m === 'GET') return json(await estado(req, env, url));
     if (p === '/api/ligar' && m === 'POST') return json(await ligar(req, env, url, await autenticar(req, env)));
     if (p === '/api/config' && m === 'POST') return json(await configurar(req, env, await autenticar(req, env)));
+    if (p === '/api/aparelho' && m === 'POST') return json(await aparelho(req, env), 201);
     const quem = await autenticar(req, env);
     if (!quem) throw new Erro(401, 'sem_acesso', 'Falta a chave deste aparelho (liga o Tidal na app).');
     if (p === '/api/desligar' && m === 'POST') { await env.KV.delete('tidal:tokens'); await env.KV.delete('perfil'); return json({ ok: true }); }
@@ -119,6 +120,15 @@ async function configurar(req, env, quem) {
     if (!/^[A-Za-z0-9._-]{8,80}$/.test(id)) throw new Erro(400, 'client_id_invalido', 'Esse Client ID não parece válido (copia-o de developer.tidal.com).');
     await env.KV.put('config:tidal_client_id', id);
     return { ok: true };
+}
+
+// Um aparelho novo (ex.: a app no ecrã principal do iOS, que tem o seu próprio armazém) com o Tidal já ligado:
+// troca o código de ligação por uma chave, sem voltar a passar pelo login do Tidal. O código gasta-se.
+async function aparelho(req, env) {
+    const c = await req.json().catch(() => ({}));
+    if (!(await codigoValido(env, c.codigo))) throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
+    await env.KV.delete('codigo:ligacao');
+    return { chave: await novaChave(env, 'aparelho', txt(c.nome, 60) || 'aparelho') };
 }
 
 async function estado(req, env, url) {
