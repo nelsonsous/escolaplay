@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const A = createRequire(import.meta.url)('../analise.js');
+// motor de análise escrito em Onda (WebAssembly gerado de onda/analise.onda): o mesmo resultado que o A.analyse
+export const AO = createRequire(import.meta.url)('../analise-onda.js');
+await AO.ready;
 
 // Conector e base de dados (KV) — valores do wrangler.toml
 const toml = readFileSync(path.join(here, '../proxy/wrangler.toml'), 'utf8');

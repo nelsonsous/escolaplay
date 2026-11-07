@@ -9,6 +9,9 @@
 (() => {
     'use strict';
     const A = window.Analise;
+    // motor de análise escrito em Onda (WebAssembly, gerado de onda/analise.onda); até compilar não há pontuações
+    const AO = window.AnaliseOnda || null;
+    let aoOk = false;
     const VERSION = '3.22.1';
 
     // ---------- utilitários ----------
@@ -480,13 +483,13 @@
         if (fin(live) && !Q[k].stale) c[c.length - 1] = live; // a última vela diária é o dia de hoje
         return c;
     }
+    const anOpts = (k) => ({ crypto: REG[k].kind === 'crypto', kind: REG[k].kind, news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
     function analyseAll() {
-        for (const k of Object.keys(REG)) {
-            const c = closesFor(k);
-            if (!c) continue;
-            const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', kind: REG[k].kind, news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
-            if (r) AN[k] = r;
-        }
+        if (!aoOk) return;
+        const ks = [], list = [];
+        for (const k of Object.keys(REG)) { const c = closesFor(k); if (c) { ks.push(k); list.push({ closes: c, opts: anOpts(k) }); } }
+        const out = AO.analyseMany(list);
+        ks.forEach((k, i) => { if (out[i]) AN[k] = out[i]; });
     }
 
     // ---------- diário das sugestões ----------
@@ -1742,8 +1745,8 @@
     })();
     function analyseOne(k) {
         const c = closesFor(k);
-        if (!c) return;
-        const r = A.analyse(c, { crypto: REG[k].kind === 'crypto', kind: REG[k].kind, news: NEWS[k] ? A.newsTone(NEWS[k].items) : null });
+        if (!c || !aoOk) return;
+        const r = AO.analyse(c, anOpts(k));
         if (r) AN[k] = r;
     }
     async function ensureAnalysis(k) {
@@ -2234,6 +2237,7 @@
 
     function applyFs() { document.documentElement.dataset.fs = ['n', 'l', 'xl'].includes(cfg.fs) ? cfg.fs : 'n'; }
     async function boot() {
+        if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => console.error('motor Onda:', e));
         cfg.tab = 'painel';
         applyFs();
         colors();

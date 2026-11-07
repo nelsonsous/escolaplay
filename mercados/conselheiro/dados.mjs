@@ -2,7 +2,7 @@
 //   node mercados/conselheiro/dados.mjs [pasta]   → escreve <pasta>/dados.json e imprime um resumo legível
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { A, px, kvKeys, kvGet, todayLisbon, STOCKS, FUNDS, CRYPTO, MARKET, yahooOf, kindOf, nameOf } from './comum.mjs';
+import { A, AO, px, kvKeys, kvGet, todayLisbon, STOCKS, FUNDS, CRYPTO, MARKET, yahooOf, kindOf, nameOf } from './comum.mjs';
 
 const OUT = process.argv[2] || '/tmp/conselheiro';
 mkdirSync(OUT, { recursive: true });
@@ -72,7 +72,7 @@ for (const k of assets) {
     if (!d || d.error || !d.series || d.series.length < 60) { warn.push(`sem histórico: ${k}`); continue; }
     const closes = d.series.map((x) => x[1]);
     if (t && t.price) closes[closes.length - 1] = t.price;
-    const r = A.analyse(closes, { crypto: kindOf(k) === 'crypto', kind: kindOf(k) });
+    const r = AO.analyse(closes, { crypto: kindOf(k) === 'crypto', kind: kindOf(k) });
     const cur = (t && t.currency) || d.currency;
     rows.push({
         s: k, name: nameOf(k), kind: kindOf(k), cur, price: r2(t && t.price), priceEur: r2(toEur(t && t.price, cur)), day: r2(t && t.changePct),

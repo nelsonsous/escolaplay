@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { A, px, kvPut, todayLisbon } from './comum.mjs';
+import { AO, px, kvPut, todayLisbon } from './comum.mjs';
 
 const OUT = process.argv[2] || '/tmp/conselheiro';
 mkdirSync(OUT, { recursive: true });
@@ -27,12 +27,14 @@ for (let i = 0; i < list.length; i += 40) {
     }
 }
 
+// todos de uma vez no motor em Onda
+const com = list.filter((x) => { const q = Q[x.s]; return q && q.series && q.series.length >= 60 && Number.isFinite(q.price); });
+const AN = AO.analyseMany(com.map((x) => ({ closes: Q[x.s].series.map((p) => p[1]), opts: { crypto: x.t === 'crypto', kind: KIND[x.t] } })));
 const rows = [];
-for (const x of list) {
+for (const [i, x] of com.entries()) {
     const q = Q[x.s];
-    if (!q || !q.series || q.series.length < 60 || !Number.isFinite(q.price)) continue;
     const closes = q.series.map((p) => p[1]);
-    const r = A.analyse(closes, { crypto: x.t === 'crypto', kind: KIND[x.t] });
+    const r = AN[i];
     if (!r) continue;
     const y0 = closes[0];
     rows.push({
