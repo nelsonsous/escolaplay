@@ -4,7 +4,7 @@
 // Das outras apps só se leem símbolos (validados) e números: nunca texto escrito por elas.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { A, px, kvGet, kvPut, kvList, todayLisbon, ACTION_KEYS } from './comum.mjs';
+import { A, px, kvGet, kvPut, kvList, todayLisbon, normVerdict, textCheck } from './comum.mjs';
 
 const MAX_APPS = 20; // por corrida (as que se ligaram há menos tempo primeiro); o dono vê quantas ficaram de fora
 const MAX_ASSETS = 12;
@@ -87,7 +87,7 @@ if (cmd === 'dados') {
     const a = JSON.parse(readFileSync(arg, 'utf8'));
     const d = JSON.parse(readFileSync(path.join(path.dirname(arg), 'outros.json'), 'utf8'));
     const errs = [];
-    const str = (v, max, name, req) => { if (v == null || v === '') { if (req) errs.push(`falta ${name}`); return ''; } if (typeof v !== 'string') { errs.push(`${name} tem de ser texto`); return ''; } if (v.length > max) errs.push(`${name} com mais de ${max} caracteres`); return v; };
+    const str = textCheck(errs);
     const out = [];
     for (const u of d.users) {
         const x = a[u.ref];
@@ -97,10 +97,12 @@ if (cmd === 'dados') {
             date: d.date, generatedAt: new Date().toISOString(), short: true,
             headline: str(x.headline, 160, `${p}.headline`, true),
             tldr: (Array.isArray(x.tldr) ? x.tldr : []).slice(0, 3).map((r, i) => str(r, 120, `${p}.tldr[${i}]`, true)),
+            // o mesmo veredicto da análise principal; a convicção por prazo e os níveis são opcionais aqui
             actions: (Array.isArray(x.actions) ? x.actions : []).slice(0, MAX_ASSETS).map((y, i) => {
-                if (!u.assets.includes(y.s)) errs.push(`${p}.actions[${i}].s não é desta app: ${y.s}`);
-                if (!ACTION_KEYS.includes(y.key)) errs.push(`${p}.actions[${i}].key inválido: ${y.key}`);
-                return { s: y.s, key: y.key, action: str(y.action, 40, `${p}.actions[${i}].action`, true), why: str(y.why, 300, `${p}.actions[${i}].why`, true) };
+                const q = `${p}.actions[${i}]`;
+                if (!y || !u.assets.includes(y.s)) errs.push(`${q}.s não é desta app: ${y && y.s}`);
+                const r = y && d.rows[y.s];
+                return normVerdict(y, errs, { p: q, price: r ? r.price : null, scores: 'opt', plan: false });
             }),
             movers: (Array.isArray(x.movers) ? x.movers : []).slice(0, 6).map((y, i) => {
                 if (!u.assets.includes(y.s)) errs.push(`${p}.movers[${i}].s não é desta app: ${y.s}`);

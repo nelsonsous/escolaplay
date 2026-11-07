@@ -9,12 +9,12 @@ App à parte (PWA instalável) para acompanhar, num só ecrã do telemóvel:
 - **Índices, câmbio e ouro** — S&P 500, Nasdaq, Euro Stoxx 50, PSI, VIX, EUR/USD.
 - **Ações que segues** — lista editável (vem com PSI, Europa e EUA; procura e junta outras).
 - **Destaques** — o que sobe ou cai mais do que ±X % hoje, com a notícia do dia e se é **boa ou má notícia**; e as maiores subidas/descidas do mercado americano.
-- **Análise** — sentimento geral do mercado e uma classificação 0–100 de cada ativo (tendência, momento, RSI, MACD, volatilidade, tom das notícias), com as razões explicadas.
+- **Análise** — o veredicto do Claude para cada ativo (comprar, manter, reduzir, vender…), com a convicção 0–100 a curto, médio e longo prazo, os níveis (entrada, alvo, stop) e o porquê; "Mais fortes" pela convicção do Claude. Os sinais automáticos (tendência, momento, RSI, MACD, volatilidade, tom das notícias) ficam à parte, para comparar.
 - **Avisos** — notificação quando algo se mexe mais do que o limite escolhido.
 
 Endereço: `https://nelsonsous.github.io/escolaplay/mercados/` (no telemóvel: *Partilhar → Adicionar ao ecrã principal*).
 
-> A análise descreve a tendência recente; **não é aconselhamento financeiro** e não garante subidas.
+> Ferramenta pessoal: as decisões e a execução são tuas.
 
 ## Conector
 
@@ -48,7 +48,7 @@ O plano grátis da Cloudflare dá 100 000 pedidos/dia; com a app aberta a atuali
 
 ## Conselheiro diário (Claude)
 
-Todos os dias úteis de manhã, uma tarefa agendada do Claude segue [`CONSELHEIRO.md`](CONSELHEIRO.md): corre `conselheiro/dados.mjs` (preços, análise técnica, agenda, notícias, diário e avaliação dos conselhos anteriores), escreve a análise do dia com o plano do mês e as lições aprendidas, e publica-a com `conselheiro/publicar.mjs` no KV (`advice:<data>`, `advice:latest`, `advice:lessons`). A app mostra-a no cartão **Análise do Claude** (lida em `GET /advice`). Não é preciso merge diário: só a base de dados muda; alterações às regras chegam como PR em rascunho, à sexta.
+Duas vezes por dia (07:14 e 15:14), uma tarefa agendada do Claude segue [`CONSELHEIRO.md`](CONSELHEIRO.md): corre `conselheiro/dados.mjs` (todos os ativos que a app mostra — o que tens, ETF, cripto, ações da lista e as que juntaste, índices e futuros — numa linha compacta cada, com notícias, agenda, diário e a avaliação dos veredictos anteriores; e um `modelo.json` com todos os ativos), escreve um veredicto por ativo (convicção 0–100 por prazo, entrada/alvo/stop, porquê), a sua classificação por prazo, o plano do mês e as lições, e publica com `conselheiro/publicar.mjs` no KV (`advice:<data>`, `advice:latest`, `advice:lessons`; o publicar recusa se faltar algum ativo). A app mostra-a no cartão **Hoje**, em **Análise → Comparar ativos** e na ficha de cada ativo (lida em `GET /advice`; a análise antiga, só com alguns veredictos, continua a ser lida). Não é preciso merge diário: só a base de dados muda; alterações às regras chegam como PR em rascunho, à sexta.
 
 ## Diário e teste no passado
 
@@ -65,6 +65,6 @@ Todos os dias úteis de manhã, uma tarefa agendada do Claude segue [`CONSELHEIR
 ## Testes
 
 ```bash
-node --test mercados/tests/*.test.*      # análise + Worker (fetch simulado)
+node --test mercados/tests/*.test.*      # análise, Worker (fetch simulado), scripts do conselheiro e a app
 node mercados/tests/ui.test.js            # app no Chromium com todas as fontes simuladas
 ```

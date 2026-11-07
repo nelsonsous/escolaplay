@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Mercados",
   "short_name": "Mercados",
-  "description": "Petróleo, combustíveis, cripto e ações em tempo real, com destaques do dia, notícias e análise técnica simples.",
+  "description": "Petróleo, combustíveis, cripto e ações em tempo real, com destaques do dia, notícias e a análise do Claude de cada ativo.",
   "lang": "pt-PT",
   "start_url": "./",
   "scope": "./",

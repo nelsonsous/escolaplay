@@ -619,3 +619,29 @@ a.st-row { text-decoration: none; color: inherit; }
 .levels .lv-d { width: calc(4rem * var(--k)); }
 .tax-box .lots li { grid-template-columns: calc(6.2rem * var(--k)) calc(4.2rem * var(--k)) 1fr 32px; }
 .row .r-score { width: calc(6.8rem * var(--k)); }
+/* 4.0: a análise do Claude em cada ativo; o algoritmo fica em "Sinais automáticos" */
+.src-line { color: var(--muted); }
+.src-line.cl b { color: #f0b49b; font-weight: 700; }
+.src-line.cl::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #d97757; margin-right: 6px; vertical-align: 1px; }
+.top3 .cl-card .c-sub.up-t { color: var(--up); font-weight: 650; }
+.top3 .cl-card .c-sub.down-t { color: var(--down); font-weight: 650; }
+.top3 .cl-card .c-sub.flat-t { color: #d1d1d6; font-weight: 650; }
+.top3 .cl-why { white-space: normal; margin-top: 4px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cl-conv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 8px; }
+.cl-conv .cv { min-width: 0; }
+.cl-conv .cv small { display: block; font-size: calc(.76rem * var(--k)); color: var(--muted); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-conv .score { gap: 6px; }
+.cl-conv .score .bar { min-width: 0; }
+.cl-lv { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cl-lv li { background: var(--card2); border-radius: 10px; padding: 7px 9px; display: flex; flex-direction: column; min-width: 0; }
+.cl-lv small { font-size: calc(.74rem * var(--k)); color: var(--muted); }
+.cl-lv b { font-size: calc(.9rem * var(--k)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-lv span { font-size: calc(.76rem * var(--k)); color: var(--muted); }
+.cl-lv .target b { color: var(--up); }
+.cl-lv .stop b { color: var(--down); }
+.row.auto .lbl::after { content: ' · auto'; color: var(--faint); }
+details.auto > summary small { display: block; font-weight: 500; font-size: calc(.78rem * var(--k)); color: var(--faint); margin-top: 2px; }
+details.sh-auto { margin: 0 0 14px; }
+details.sh-auto > .box { background: var(--bg); }
+.algo-box h3 { color: var(--muted); }
+.about-own { margin: 8px 0 0; color: var(--text); }
