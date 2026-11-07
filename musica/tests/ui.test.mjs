@@ -253,3 +253,41 @@ test('outro aparelho (a app no ecrã principal do iOS tem o seu armazém): cola 
     assert.deepEqual(erros, []);
     await ctx.close();
 });
+
+test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal e tem a sua app', { skip: !chromium && 'sem Playwright' }, async () => {
+    const erros = [];
+    // o dono, noutro aparelho (com o código de ligação)
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('DONO-321').digest('hex'));
+    const a = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const pa = await a.newPage();
+    pa.on('pageerror', (e) => erros.push(String(e)));
+    await pa.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await pa.locator('[data-onda="cod"]').fill('DONO-321');
+    await pa.getByRole('button', { name: 'Usar este código' }).click();
+    await pa.locator('.mu-pl').first().waitFor();
+    await pa.locator('#mu-nav [data-onda="ir\t5"]').click();
+    await pa.getByRole('button', { name: 'Convidar alguém' }).click();
+    await pa.getByRole('link', { name: 'Enviar por WhatsApp' }).waitFor();
+    const link = await pa.locator('input[readonly]').inputValue();
+    assert.match(link, /\?ligar=/);
+    const wa = await pa.getByRole('link', { name: 'Enviar por WhatsApp' }).getAttribute('href');
+    assert.ok(decodeURIComponent(wa.split('text=')[1]).endsWith(link), 'a mensagem leva o link');
+    await a.close();
+    // a convidada abre o link e liga o seu Tidal
+    const b = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const pb = await b.newPage();
+    pb.on('pageerror', (e) => erros.push(String(e)));
+    await pb.route('https://login.tidal.com/**', (route) => {
+        const u = new URL(route.request().url());
+        route.fulfill({ status: 302, headers: { location: `${WORKER}/tidal/retorno?code=CODIGO-BOM&state=${u.searchParams.get('state')}` } });
+    });
+    await pb.goto(`${link.replace(APP, APP)}&proxy=${encodeURIComponent(WORKER)}`);
+    await pb.getByRole('button', { name: 'Ligar ao Tidal' }).click();
+    await pb.getByText('Ainda não há playlists').waitFor();
+    assert.equal(JSON.parse(await env.KV.get('utilizadores')).length, 1, 'uma pessoa nova');
+    await pb.locator('#mu-nav [data-onda="ir\t5"]').click();
+    await pb.getByText('Este aparelho').waitFor();
+    assert.equal(await pb.getByText('Partilhar a Música').count(), 0, 'só o dono convida');
+    assert.deepEqual(erros, []);
+    await b.close();
+});

@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.4.1';
+const VERSION = '1.5.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -15,6 +15,18 @@ const MAX_PLAYLISTS = 200, MAX_PEDIDOS = 20;
 
 class Erro extends Error {
     constructor(status, codigo, mensagem) { super(mensagem); this.status = status; this.codigo = codigo; }
+}
+
+// ---------- várias pessoas ----------
+// O dono (quem montou a app) fica com as chaves de sempre; cada pessoa convidada tem as suas com o prefixo u:<id>:.
+// As chaves globais (aparelhos, Client ID, códigos, convites, o estado do login) são as mesmas para todos.
+const DONO = 'dono';
+const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|tidal:estado:)/;
+function deUtilizador(env, uid) {
+    if (!uid || uid === DONO) return { ...env, UID: DONO };
+    const k = (x) => (GLOBAL.test(x) ? x : `u:${uid}:${x}`);
+    const kv = env.KV;
+    return { ...env, UID: uid, KV: { get: (x, t) => kv.get(k(x), t), put: (x, v, o) => kv.put(k(x), v, o), delete: (x) => kv.delete(k(x)) } };
 }
 
 export default {
@@ -44,29 +56,32 @@ export default {
 async function route(req, env, url) {
     const p = url.pathname, m = req.method;
     if (p === '/api/estado' && m === 'GET') return json(await estado(req, env, url));
-    if (p === '/api/ligar' && m === 'POST') return json(await ligar(req, env, url, await autenticar(req, env)));
-    if (p === '/api/config' && m === 'POST') return json(await configurar(req, env, await autenticar(req, env)));
+    if (p === '/api/ligar' && m === 'POST') return json(await ligar(req, env, url, await autenticar(req, env, url)));
+    if (p === '/api/config' && m === 'POST') return json(await configurar(req, env, await autenticar(req, env, url)));
     if (p === '/api/aparelho' && m === 'POST') return json(await aparelho(req, env), 201);
-    const quem = await autenticar(req, env);
+    const quem = await autenticar(req, env, url);
     if (!quem) throw new Erro(401, 'sem_acesso', 'Falta a chave deste aparelho (liga o Tidal na app).');
-    if (p === '/api/desligar' && m === 'POST') { await env.KV.delete('tidal:tokens'); await env.KV.delete('perfil'); return json({ ok: true }); }
-    if (p === '/api/perfil' && m === 'GET') return json(await perfil(env, url.searchParams.has('fresco')));
-    if (p === '/api/resolver' && m === 'POST') return json(await resolver(env, await corpo(req)));
-    if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(env, url.searchParams.get('q')));
-    if (p === '/api/playlists' && m === 'GET') return json((await env.KV.get('playlists', 'json')) || []);
-    if (p === '/api/playlists' && m === 'POST') return json(await guardar(env, await corpo(req), quem), 201);
+    if (p === '/api/utilizadores' && m === 'GET') return json(await utilizadores(env, quem));
+    if (p === '/api/convites' && m === 'POST') return json(await convidar(env, quem), 201);
+    const ue = deUtilizador(env, quem.uid);
+    if (p === '/api/desligar' && m === 'POST') { await ue.KV.delete('tidal:tokens'); await ue.KV.delete('perfil'); return json({ ok: true }); }
+    if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
+    if (p === '/api/resolver' && m === 'POST') return json(await resolver(ue, await corpo(req)));
+    if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q')));
+    if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
+    if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
     const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes)?$/.exec(p);
-    if (pl && !pl[2] && m === 'GET') return json(await obter(env, pl[1]));
-    if (pl && !pl[2] && m === 'DELETE') return json(await apagar(env, pl[1], url.searchParams.get('tidal') === '1'));
-    if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(env, pl[1], await corpo(req)));
-    if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(env, pl[1], await corpo(req), quem), 201);
-    if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(env, await corpo(req), quem), 201);
-    if (p === '/api/mixes' && m === 'GET') return json(await mixes(env));
-    if (p === '/api/novidades' && m === 'GET') return json(await novidades(env, url.searchParams.get('dias')));
-    if (p === '/api/pedidos' && m === 'GET') return json(await pedidos(env));
-    if (p === '/api/pedidos' && m === 'POST') return json(await pedir(env, await corpo(req)), 201);
+    if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
+    if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
+    if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
+    if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(ue, pl[1], await corpo(req), quem), 201);
+    if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(ue, await corpo(req), quem), 201);
+    if (p === '/api/mixes' && m === 'GET') return json(await mixes(ue));
+    if (p === '/api/novidades' && m === 'GET') return json(await novidades(ue, url.searchParams.get('dias')));
+    if (p === '/api/pedidos' && m === 'GET') return json(await pedidos(ue));
+    if (p === '/api/pedidos' && m === 'POST') return json(await pedir(ue, await corpo(req)), 201);
     const pd = /^\/api\/pedidos\/([a-z0-9_-]{4,40})$/.exec(p);
-    if (pd && m === 'DELETE') return json(await despachar(env, pd[1], url.searchParams.get('playlist')));
+    if (pd && m === 'DELETE') return json(await despachar(ue, pd[1], url.searchParams.get('playlist')));
     throw new Erro(404, 'nao_encontrado', 'Pedido desconhecido.');
 }
 
@@ -94,16 +109,21 @@ async function desafio(verifier) {
 const novoId = (pre) => `${pre}${Date.now().toString(36)}${aleatorio(4).toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
 // Chaves: a de cada aparelho (criada ao ligar o Tidal) e a do agente (tarefa agendada). Só os hashes na KV.
-async function autenticar(req, env) {
+async function autenticar(req, env, url) {
     const m = /^Bearer\s+(\S{20,})$/.exec(req.headers.get('authorization') || '');
     if (!m) return null;
     const chaves = (await env.KV.get('chaves', 'json')) || {};
-    return chaves[await sha256(m[1])] || null;
+    const q = chaves[await sha256(m[1])];
+    if (!q) return null;
+    if (q.tipo !== 'agente') return { ...q, uid: q.uid || DONO };
+    const u = url?.searchParams.get('u') || DONO;
+    if (u !== DONO && !((await env.KV.get('utilizadores', 'json')) || []).some((x) => x.uid === u)) throw new Erro(404, 'sem_pessoa', 'Essa pessoa não existe.');
+    return { ...q, uid: u };
 }
-async function novaChave(env, tipo, nome) {
+async function novaChave(env, tipo, nome, uid) {
     const chave = aleatorio(32);
     const chaves = (await env.KV.get('chaves', 'json')) || {};
-    chaves[await sha256(chave)] = { tipo, nome: txt(nome, 60) || tipo, criada: new Date().toISOString() };
+    chaves[await sha256(chave)] = { tipo, nome: txt(nome, 60) || tipo, criada: new Date().toISOString(), ...(uid && uid !== DONO ? { uid } : {}) };
     await env.KV.put('chaves', JSON.stringify(chaves));
     return chave;
 }
@@ -119,6 +139,7 @@ async function codigoValido(env, codigo) {
 async function configurar(req, env, quem) {
     const c = await req.json().catch(() => ({}));
     if (!quem && !(await codigoValido(env, c.codigo))) throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
+    if (quem && quem.tipo !== 'agente' && quem.uid !== DONO) throw new Erro(403, 'so_o_dono', 'O Client ID é de quem montou a app.');
     const id = String(c.clientId || '').trim();
     if (!/^[A-Za-z0-9._-]{8,80}$/.test(id)) throw new Erro(400, 'client_id_invalido', 'Esse Client ID não parece válido (copia-o de developer.tidal.com).');
     await env.KV.put('config:tidal_client_id', id);
@@ -135,29 +156,50 @@ async function aparelho(req, env) {
 }
 
 async function estado(req, env, url) {
-    const t = await env.KV.get('tidal:tokens', 'json');
+    const quem = await autenticar(req, env, url).catch(() => null);
+    const ue = deUtilizador(env, quem?.uid);
+    const t = await ue.KV.get('tidal:tokens', 'json');
     const out = { versao: VERSION, clientId: !!(await clientId(env)), ligado: !!t, retorno: new URL('/tidal/retorno', url.origin).href };
-    const quem = await autenticar(req, env);
     if (quem) {
-        const [pls, peds] = await Promise.all([env.KV.get('playlists', 'json'), env.KV.get('pedidos', 'json')]);
-        Object.assign(out, { tu: quem.tipo, utilizador: t?.utilizador || null, pais: t?.pais || null, ligadoEm: t?.ligadoEm || null,
+        const [pls, peds] = await Promise.all([ue.KV.get('playlists', 'json'), ue.KV.get('pedidos', 'json')]);
+        Object.assign(out, { tu: quem.tipo, dono: quem.uid === DONO, utilizador: t?.utilizador || null, pais: t?.pais || null, ligadoEm: t?.ligadoEm || null,
             playlists: (pls || []).length, pedidos: (peds || []).filter((x) => x.estado === 'pendente').length });
     }
     return out;
+}
+
+// convites: só o dono (ou o Curador) convida; o código serve uma vez e dura 14 dias
+async function convidar(env, quem) {
+    if (quem.tipo !== 'agente' && quem.uid !== DONO) throw new Erro(403, 'so_o_dono', 'Só quem montou a app pode convidar.');
+    const codigo = aleatorio(12);
+    await env.KV.put('convite:' + (await sha256(codigo)), JSON.stringify({ criadoEm: new Date().toISOString() }), { expirationTtl: 14 * 86400 });
+    return { codigo, url: `${appUrl(env)}?ligar=${encodeURIComponent(codigo)}`, dias: 14 };
+}
+
+// as pessoas da app, para o Curador tratar os pedidos de cada uma (com ?u=<uid>)
+async function utilizadores(env, quem) {
+    if (quem.tipo !== 'agente') throw new Erro(403, 'so_o_curador', 'A lista de pessoas é só para o Curador.');
+    const lista = [{ uid: DONO }, ...((await env.KV.get('utilizadores', 'json')) || [])];
+    return Promise.all(lista.map(async (u) => {
+        const ue = deUtilizador(env, u.uid);
+        const [t, peds] = await Promise.all([ue.KV.get('tidal:tokens', 'json'), ue.KV.get('pedidos', 'json')]);
+        return { uid: u.uid, nome: t?.utilizador || u.nome || '', ligado: !!t, pedidos: (peds || []).filter((x) => x.estado === 'pendente').length };
+    }));
 }
 
 async function ligar(req, env, url, quem) {
     const cid = await clientId(env);
     if (!cid) throw new Erro(409, 'sem_client_id', 'Ainda falta o Client ID do Tidal no conector.');
     const c = await req.json().catch(() => ({}));
-    let novo = false;
+    let novo = false, convite = null;
     if (!quem) {
-        // primeira ligação (ou um aparelho novo): só com o código de ligação, que se gasta ao ligar
-        if (!(await codigoValido(env, c.codigo))) throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
-        novo = true;
+        // primeira ligação (ou um aparelho novo): com o código de ligação do dono ou com um convite (gastam-se ao ligar)
+        if (await codigoValido(env, c.codigo)) novo = true;
+        else if (c.codigo && (await env.KV.get('convite:' + (await sha256(String(c.codigo)))))) { novo = true; convite = await sha256(String(c.codigo)); }
+        else throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
     }
     const verifier = aleatorio(48), state = aleatorio(24);
-    await env.KV.put('tidal:estado:' + state, JSON.stringify({ verifier, novo, nome: txt(c.nome, 60) }), { expirationTtl: 600 });
+    await env.KV.put('tidal:estado:' + state, JSON.stringify({ verifier, novo, convite, uid: quem?.uid || DONO, nome: txt(c.nome, 60) }), { expirationTtl: 600 });
     const q = new URLSearchParams({
         client_id: cid, code_challenge: await desafio(verifier), code_challenge_method: 'S256',
         redirect_uri: new URL('/tidal/retorno', url.origin).href, response_type: 'code', scope: SCOPES.join(' '), state,
@@ -173,6 +215,12 @@ async function retorno(env, url) {
     const est = state && (await env.KV.get('tidal:estado:' + state, 'json'));
     if (!est || !code) return voltar('#erro=' + encodeURIComponent('A ligação expirou. Tenta outra vez.'));
     await env.KV.delete('tidal:estado:' + state);
+    let uid = est.uid || DONO;
+    if (est.convite) {
+        if (!(await env.KV.get('convite:' + est.convite))) return voltar('#erro=' + encodeURIComponent('Este convite já foi usado.'));
+        uid = novoId('u');
+    }
+    const ue = deUtilizador(env, uid);
     const r = await fetch(TOKEN, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({
         client_id: await clientId(env), code, code_verifier: est.verifier, grant_type: 'authorization_code',
         redirect_uri: new URL('/tidal/retorno', url.origin).href, scope: SCOPES.join(' '),
@@ -185,12 +233,18 @@ async function retorno(env, url) {
     t.utilizador = eu?.data?.attributes?.username || eu?.data?.attributes?.firstName || '';
     t.pais = eu?.data?.attributes?.country || env.PAIS || 'PT';
     if (eu?.data?.id) t.userId = String(eu.data.id);
-    await env.KV.put('tidal:tokens', JSON.stringify(t));
-    await env.KV.delete('perfil');
+    await ue.KV.put('tidal:tokens', JSON.stringify(t));
+    await ue.KV.delete('perfil');
+    if (est.convite) {
+        await env.KV.delete('convite:' + est.convite);
+        const us = (await env.KV.get('utilizadores', 'json')) || [];
+        us.push({ uid, nome: t.utilizador, criadoEm: t.ligadoEm });
+        await env.KV.put('utilizadores', JSON.stringify(us));
+    }
     if (!(await env.KV.get('agente:chave'))) await env.KV.put('agente:chave', await novaChave(env, 'agente', 'Curador (tarefa agendada)'));
     if (!est.novo) return voltar('#ligado=1');
-    await env.KV.delete('codigo:ligacao');
-    return voltar('#chave=' + (await novaChave(env, 'aparelho', est.nome || 'telemóvel')));
+    if (!est.convite) await env.KV.delete('codigo:ligacao');
+    return voltar('#chave=' + (await novaChave(env, 'aparelho', est.nome || 'telemóvel', uid)));
 }
 
 // ---------- API do Tidal, com renovação do token ----------

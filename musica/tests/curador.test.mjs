@@ -110,3 +110,27 @@ test('dados → proposta → ensaio → publicar com pedido', async () => {
     assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].estado, 'feito');
     assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].playlist, doc.id);
 });
+
+test('várias pessoas: uma secção por pessoa no dados.md e publicar na biblioteca de cada uma (--utilizador)', async () => {
+    // uma segunda pessoa, convidada pelo dono, com o seu Tidal e um pedido
+    await env.KV.put('utilizadores', JSON.stringify([{ uid: 'uana', nome: 'ana' }]));
+    await env.KV.put('u:uana:tidal:tokens', await env.KV.get('tidal:tokens'));
+    await env.KV.put('u:uana:pedidos', JSON.stringify([{ id: 'q2ana', texto: 'Fado para a Ana', opcoes: { faixas: 5, maxArtista: 2, estilo: 'equilibrado', arco: 'onda' }, estado: 'pendente', criadoEm: new Date().toISOString() }]));
+    const dir = mkdtempSync(join(tmpdir(), 'musica-'));
+    const d = await script('dados.mjs', [dir]);
+    assert.equal(d.code, undefined, d.stderr);
+    const md = readFileSync(join(dir, 'dados.md'), 'utf8');
+    assert.match(md, /\*\*2 pessoas\*\* na app/);
+    assert.match(md, /# Pessoa: nelson \(`dono`\)/);
+    assert.match(md, /# Pessoa: nelson \(`uana`\)[\s\S]*`q2ana` — «Fado para a Ana»/);
+    assert.ok(JSON.parse(readFileSync(join(dir, 'uana', 'perfil.json'), 'utf8')).favoritas.length >= 3);
+    // a proposta da Ana vai para a biblioteca dela e o pedido dela fica feito
+    const proposta = { nome: 'Fado para a Ana', descricao: 'Fado.', resumo: 'Fado e companhia, com gravações de referência. Para ouvir com calma ao fim do dia.', opcoes: { faixas: 5, maxArtista: 2, estilo: 'equilibrado', arco: 'onda' },
+        candidatas: ['So What', 'Feeling Good', 'Get Lucky', 'Barco Negro', 'Teardrop', 'Faixa 3', 'Faixa 7'].map((titulo, i) => ({ artista: ['Miles Davis', 'Nina Simone', 'Daft Punk', 'Amália Rodrigues', 'Massive Attack', 'Miles Davis', 'Miles Davis'][i], titulo, ano: 1960, genero: 'fado', nota: 90 - i, energia: 40, motivo: 'm' })) };
+    writeFileSync(join(dir, 'uana', 'proposta.json'), JSON.stringify(proposta));
+    const pub = await script('publicar.mjs', [join(dir, 'uana', 'proposta.json'), '--utilizador', 'uana', '--pedido', 'q2ana', '--modelo', 'modelo-teste']);
+    assert.equal(pub.code, undefined, pub.stderr);
+    assert.equal(JSON.parse(await env.KV.get('u:uana:playlists'))[0].nome, 'Fado para a Ana');
+    assert.equal(JSON.parse(await env.KV.get('u:uana:pedidos'))[0].estado, 'feito');
+    assert.ok(!JSON.parse(await env.KV.get('playlists')).some((x) => x.nome === 'Fado para a Ana'), 'não vai para a biblioteca do dono');
+});
