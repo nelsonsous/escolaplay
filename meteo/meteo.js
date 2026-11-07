@@ -6,6 +6,7 @@
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps } from './lib/data.js';
 import { withReport, reportActive } from './lib/engine.js';
+import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
 import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
 import * as api from './api.js';
@@ -13,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -41,7 +42,7 @@ const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 di
 
 // ---------- configuração ----------
 const KEY = 'meteo:v1';
-const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false };
+const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false, lv: 't', ll: 1 };
 const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
@@ -70,6 +71,7 @@ const st = {
     pulling: false, sheet: null, installEvt: null, iosHint: false, updateReady: false, analyzing: false,
     report: api.loadReport(), reports: [], // aviso deste telemóvel e avisos recentes do conector
     rv: null, rvErr: '', rvIdx: null, rvPlay: 0, // camada Radar: lista de imagens, imagem mostrada, animação
+    memory: null, // memória da aprendizagem deste ponto (telemóvel + conector), para o gráfico da evolução
 };
 
 // ---------- utilitários ----------
@@ -160,6 +162,7 @@ function setLocation(loc, { save = true } = {}) {
     st.analysis = undefined; st.offline = false; st.error = ''; st.reports = []; stopRadar(); st.rv = null;
     const saved = api.loadSavedForecast(cfg.loc.lat, cfg.loc.lon);
     st.fc = saved?.fc || null; st.savedAt = saved?.savedAt || 0;
+    st.memory = api.loadLearning(cfg.loc.lat, cfg.loc.lon);
     render();
     refresh();
 }
@@ -187,10 +190,15 @@ async function refresh() {
     const loc = cfg.loc;
     st.loading = true; renderStatus();
     const an = loadAnalysis(loc);
+    // aprendizagem: a memória deste telemóvel e a do conector (a do local com a análise diária, ≤ 3 km)
+    const local = api.loadLearning(loc.lat, loc.lon);
+    const remote = (statusP || Promise.resolve()).then(() => api.getLearning(loc.lat, loc.lon)).then((r) => r?.memory || null).catch(() => null);
     try {
-        const fc = await loadForecast({ lat: loc.lat, lon: loc.lon, name: loc.name || undefined });
+        const fc = await loadForecast({ lat: loc.lat, lon: loc.lon, name: loc.name || undefined,
+            memory: remote.then((m) => [local, m].filter(Boolean)), reports: st.reports });
         if (cfg.loc !== loc) return;
         st.fc = fc; st.savedAt = Date.now(); st.lastFetch = Date.now(); st.offline = false; st.error = '';
+        learnSave(loc, fc, local, remote);
         api.saveForecast(loc.lat, loc.lon, fc);
     } catch (e) {
         if (cfg.loc !== loc) return;
@@ -200,6 +208,17 @@ async function refresh() {
         if (cfg.loc === loc) { st.loading = false; scheduleRender(); }
     }
     await an;
+}
+// junta os dias verificados agora (e a memória do conector, quando chegar) à memória deste telemóvel
+async function learnSave(loc, fc, local, remote) {
+    const win = fc.learning?.window;
+    const m = await remote;
+    if (!win && !m) return;
+    const off = fc.location?.utcOffsetSeconds || 0;
+    const today = new Date(Date.parse(fc.generatedAt) + off * 1000).toISOString().slice(0, 10);
+    const mem = mergeMemory(local, [m, win].filter(Boolean), { lat: loc.lat, lon: loc.lon, today });
+    api.saveLearning(loc.lat, loc.lon, mem);
+    if (cfg.loc === loc) { st.memory = mem; if (cfg.tab === 'analise') scheduleRender(); }
 }
 async function loadAnalysis(loc) {
     // o pedido do estado vai primeiro e regista este telemóvel; os outros vêm depois (uma só gravação no conector)
@@ -707,7 +726,7 @@ function viewAnalysis() {
     h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
-    if (fc) h += compareHtml(fc) + reliabilityHtml(fc) + obsHtml(fc) + modelsHtml(fc);
+    if (fc) h += compareHtml(fc) + reliabilityHtml(fc) + learningHtml(fc) + obsHtml(fc) + modelsHtml(fc);
     return { title, html: h };
 }
 const officialTxt = (fc) => {
@@ -736,7 +755,7 @@ function compareHtml(fc) {
         <div class="box cmp"><div class="cmp-scroll"><table class="tbl cmp-t"><thead><tr><th scope="col">Fonte</th>${C.dates.map((d) => `<th scope="col">${esc(F.dayLabel(d, today))}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
         ${agree ? `<p class="cmp-ag"><span class="badge">${sig(C.agreement, false)}${esc(agree)}</span>${F.isNum(C.spreadMax) ? `<span>até ${esc(F.num(C.spreadMax, 1))}° entre fontes</span>` : ''}</p>` : ''}
         ${C.notes?.length ? `<ul class="an-list cmp-notes">${C.notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
-        <p class="note">Máxima/mínima de cada fonte tal como sai, sem correções; o consenso já junta tudo com os pesos da verificação local e as observações. A laranja, 2° ou mais acima do consenso; a azul, 2° ou mais abaixo.</p></section>`;
+        <p class="note">Máxima/mínima de cada fonte tal como sai, sem correções; o consenso já junta tudo com os pesos aprendidos neste ponto e as observações. A laranja, 2° ou mais acima do consenso; a azul, 2° ou mais abaixo.</p></section>`;
 }
 // estações que entram na observação combinada do ponto
 function obsHtml(fc) {
@@ -752,14 +771,61 @@ function obsHtml(fc) {
 // o local deste telemóvel com a análise diária ligada aqui (≤ 2 km do ponto selecionado)
 const nearPlace = () => (cfg.loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= FAR_KM) : null);
 function reliabilityHtml(fc) {
-    const ind = fc.indicators || {}, ver = fc.verification;
+    const ind = fc.indicators || {}, ver = fc.verification, learnBest = fc.learning?.best?.t?.[1] || null;
     const byId = Object.fromEntries((fc.models || []).map((m) => [m.id, m]));
     return `<section class="sec"><div class="sec-h"><h2>Fiabilidade</h2></div><div class="stats">
         <div><small>Previsibilidade</small><b>${ind.predictability?.days != null ? `${esc(F.num(ind.predictability.days))} dias` : '–'}</b><em>${esc(ind.predictability?.text || '')}</em></div>
         <div><small>Concordância (48 h)</small><b>${F.isNum(ind.agreement) ? esc(F.pct(ind.agreement * 100)) : '–'}</b><em>entre ${esc(fc.models?.length || 0)} modelos</em></div>
         <div><small>Verificação local</small><b>${ver ? ((ver.stations || 1) > 1 ? `${esc(F.num(ver.stations))} estações` : `${esc(F.num(ver.n))} horas`) : 'Ainda não'}</b><em>${esc(ver ? ((ver.stations || 1) > 1 ? `${F.num(ver.n)} comparações · ${ver.days} dia${ver.days === 1 ? '' : 's'} · ~${F.km(ver.distanceKm)}` : `${ver.station} · ${ver.days} dias`) : 'precisa de uma estação perto')}</em></div>
-        <div><small>Mais certeiro aqui</small><b>${esc(ver ? (byId[ver.best]?.name || ver.best) : '–')}</b><em>${esc(ver ? 'menor erro recente' : '')}</em></div>
+        <div><small>Mais certeiro aqui</small><b>${esc(learnBest ? (byId[learnBest]?.name || learnBest) : ver ? (byId[ver.best]?.name || ver.best) : '–')}</b><em>${esc(learnBest ? `temperatura de amanhã · ${F.num(fc.learning.days)} dias` : ver ? 'menor erro recente' : '')}</em></div>
     </div></section>`;
+}
+// Aprendizagem: o peso que cada modelo ganhou (ou perdeu) neste ponto, por variável e prazo, e como evoluiu dia a dia
+const LV_UNIT = { t: (x) => `${F.num(x, 1)}°`, r: (x) => `${F.num(x * 100)}% das horas`, w: (x) => `${F.num(x, 1)} km/h` };
+const LV_ERR = { t: 'erro médio', r: 'horas de chuva erradas', w: 'erro médio (sem a exposição da estação)' };
+const LINE_C = ['var(--accent)', 'var(--c-precip)', 'var(--c-wind)'];
+function learningHtml(fc) {
+    const Lr = fc.learning;
+    if (!Lr) return '';
+    const v = LVARS[cfg.lv] ? cfg.lv : 't', L = [0, 1, 2].includes(cfg.ll) ? cfg.ll : 1;
+    const seg = (key, opts, cur) => `<div class="seg lseg" role="group" aria-label="${key === 'lv' ? 'Variável' : 'Prazo'}">${opts.map(([val, lab]) => `<button type="button" data-${key}="${val}" class="${cur === val ? 'on' : ''}" aria-pressed="${cur === val}">${esc(lab)}</button>`).join('')}</div>`;
+    const head = `<div class="sec-h"><h2>Aprendizagem</h2><span class="sub">${esc(Lr.days ? `${Lr.days} dia${Lr.days === 1 ? '' : 's'} de memória${Lr.since ? ` · desde ${F.dateShort(Lr.since)}` : ''}` : 'a começar')}</span></div>`;
+    if (!Lr.models?.length) return `<section class="sec" id="aprendizagem">${head}<p class="note">Ainda sem verificação neste ponto: precisa de uma estação perto (IPMA ou aeroporto) e das corridas anteriores dos modelos. Cada dia em que houver, o peso dos modelos que acertam mais aqui sobe.</p></section>`;
+    const rows = Lr.models.map((m) => ({ m, f: m.f[v][L], s: m[v][L] })).sort((a, b) => b.f - a.f);
+    const maxF = Math.max(...rows.map((r) => r.f), 1);
+    const best = Lr.best?.[v]?.[L];
+    const list = rows.map(({ m, f, s }) => `<div class="row"><div class="r-main">
+        <div class="r-name">${esc(m.name)}${m.official ? ' <span class="badge">oficial</span>' : ''}${m.id === best ? ' <span class="badge up">mais certeiro</span>' : ''}</div>
+        <div class="r-sub">${esc(s ? `${LV_ERR[v]} ${LV_UNIT[v](s.mae)} · ${F.num(s.days)} dia${s.days === 1 ? '' : 's'}${s.nEff < 3 ? ' · pouca prova' : ''}` : v === 't' ? 'sem verificação neste prazo' : 'sem prova própria: segue a temperatura')}${v === 'r' && F.isNum(m.lag?.[L]) && Math.abs(m.lag[L]) >= 0.5 ? ` · chega ~${F.num(Math.abs(m.lag[L]), 1)} h ${m.lag[L] > 0 ? 'tarde' : 'cedo'}` : ''}</div>
+        <div class="score" role="img" aria-label="${esc(`Fator ${F.num(f, 2)}`)}"><div class="bar"><i class="${f >= 1.05 ? 'gain' : f <= 0.95 ? 'loss' : ''}" style="width:${((f / maxF) * 100).toFixed(1)}%"></i></div></div></div>
+        <div class="r-px num">×${esc(F.num(f, 2))}</div></div>`).join('');
+    const chart = learnChart(st.memory, Lr.models.map((m) => m.id), rows.slice(0, 3).map((r) => r.m), v, L);
+    const where = Lr.stations?.length ? ` Verificado contra ${Lr.stations.join(', ')}${Lr.source ? ` (${Lr.source})` : ''}${v === 'r' ? ', o tempo presente dos aeroportos e os teus avisos «Está a chover?»' : ''}.` : '';
+    return `<section class="sec" id="aprendizagem">${head}
+        ${seg('lv', Object.entries(LVARS), v)}${seg('ll', LEADS.map((x, i) => [i, F.cap(x)]), L)}
+        <div class="list">${list}</div>${chart}
+        <p class="note">O peso de cada modelo no consenso é o de base × este fator. Cada dia a app compara o que cada modelo previu com o que aconteceu aqui: quem acerta mais do que os outros ganha peso, e ganha mais quanto mais dias o confirmarem; quem falha perde. Os dias recentes contam mais (meia-vida de ${esc(Lr.halfLife)} dias), até ${esc(Lr.keepDays)} dias.${esc(where)}</p></section>`;
+}
+// evolução do fator (escala logarítmica: ×4 em cima, ×¼ em baixo, ×1 ao meio) dos 3 com mais peso; a referência (o erro
+// mediano) é de todos os modelos verificados, como no consenso
+let lhCache = { key: '', H: null }; // a evolução só muda quando a memória muda (evita refazer a conta a cada desenho)
+function learnChart(memory, ids, models, v, L) {
+    if (!memory?.days || !models.length) return '';
+    const key = `${memory.updated}|${Object.keys(memory.days).length}|${ids.join(',')}|${v}|${L}`;
+    if (lhCache.key !== key) lhCache = { key, H: learnHistory(memory, ids, { v, lead: L }) };
+    const H = lhCache.H;
+    if (H.length < 2) return '';
+    const W = 320, Ht = 130, pl = 30, pr = 8, pt = 8, pb = 18;
+    const x = (i) => pl + (i / (H.length - 1)) * (W - pl - pr);
+    const y = (f) => pt + ((2 - Math.log2(Math.min(4, Math.max(0.25, f || 1)))) / 4) * (Ht - pt - pb);
+    const grid = [[4, '×4'], [2, '×2'], [1, '×1'], [0.5, '×½'], [0.25, '×¼']].map(([f, lab]) => `<line x1="${pl}" x2="${W - pr}" y1="${y(f).toFixed(1)}" y2="${y(f).toFixed(1)}" class="${f === 1 ? 'lc-one' : 'lc-grid'}"/><text x="${pl - 4}" y="${(y(f) + 3).toFixed(1)}" class="lc-ax" text-anchor="end">${lab}</text>`).join('');
+    const lines = models.map((m, k) => {
+        const pts = H.map((h, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(h.f[m.id]).toFixed(1)}`).join('');
+        return `<path d="${pts}" fill="none" stroke="${LINE_C[k]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }).join('');
+    const ticks = [0, H.length - 1].map((i) => `<text x="${x(i).toFixed(1)}" y="${Ht - 4}" class="lc-ax" text-anchor="${i ? 'end' : 'start'}">${esc(F.dateShort(H[i].date))}</text>`).join('');
+    const legend = models.map((m, k) => `<span><i style="background:${LINE_C[k]}"></i>${esc(m.short)}</span>`).join('');
+    return `<div class="box lchart"><svg viewBox="0 0 ${W} ${Ht}" role="img" aria-label="${esc(`Evolução do peso: ${models.map((m) => m.short).join(', ')}`)}">${grid}${lines}${ticks}</svg><div class="lc-leg">${legend}</div></div>`;
 }
 function modelsHtml(fc) {
     const M = fc.models || [];
@@ -770,7 +836,7 @@ function modelsHtml(fc) {
         <div class="score" role="img" aria-label="${esc(`Peso ${F.num(m.weight, 1)}`)}"><div class="bar"><i style="width:${(((m.weight || 0) / maxW) * 100).toFixed(1)}%"></i></div></div></div>
         <div class="r-px num">${esc(F.num(m.weight, 1))}</div></div>`).join('')}</div>
         ${ens.models?.length ? `<div class="grp-h">Ensembles <small>${esc(F.num(ens.members))} cenários</small></div><ul class="tags">${ens.models.map((e) => `<li class="tag"><span><b>${esc(e.name)}</b> · ${esc(F.num(e.members))} · ${esc(F.num(e.days))} dias</span></li>`).join('')}</ul>` : ''}
-        <p class="note">O peso de cada modelo depende da resolução e do erro recente neste local (comparado com as estações perto). A previsão oficial do IPMA (AROME 2,5 km revista por meteorologistas) pesa mais nos primeiros 3 dias.</p></section>`;
+        <p class="note">O peso de cada modelo depende da resolução e do que a app aprendeu neste ponto: o erro de cada um, dia a dia, contra as estações perto (ver Aprendizagem — a temperatura, a chuva e o vento têm pesos próprios). A previsão oficial do IPMA (AROME 2,5 km revista por meteorologistas) pesa mais nos primeiros 3 dias.</p></section>`;
 }
 
 function precisionLines(fc) {
@@ -1190,7 +1256,7 @@ async function saveProxy() {
 }
 
 document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-others],[data-report]');
+    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-others],[data-report],[data-lv],[data-ll]');
     if (!t) return;
     const d = t.dataset;
     if (d.tab) { cfg.tab = d.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); if (d.tab === 'ajustes') loadStatus(); return; }
@@ -1200,6 +1266,8 @@ document.addEventListener('click', (ev) => {
     if (d.rz) { stopRadar(); cfg.rz = +d.rz; saveCfg(); render(); return; }
     if (d.report) { submitReport(d.report); return; }
     if (d.fs) { cfg.fs = d.fs; saveCfg(); applyFs(); render(); return; }
+    if (d.lv) { cfg.lv = d.lv; saveCfg(); render(); return; }
+    if (d.ll != null) { cfg.ll = +d.ll; saveCfg(); render(); return; }
     if (d.pick != null) { const r = lastRes[+d.pick]; if (r) { closeSheet(); setLocation({ lat: r.lat, lon: r.lon, name: r.name }); } return; }
     if (d.fav != null) { const f = cfg.favs[+d.fav]; if (f) { closeSheet(); setLocation(f); } return; }
     if (d.rmfav != null) { const f = cfg.favs[+d.rmfav]; cfg.favs.splice(+d.rmfav, 1); saveCfg(); render(); if (f) toast(`${f.name} retirado dos favoritos`); return; }
@@ -1247,5 +1315,5 @@ document.addEventListener('keydown', (e) => {
 });
 
 // para os testes
-window.__mt = { cfg, st, render, loadAnalysis, SHARE_TEXT };
+window.__mt = { cfg, st, render, refresh, loadAnalysis, SHARE_TEXT };
 init();

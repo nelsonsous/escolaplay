@@ -346,7 +346,8 @@ test('topo: vento e rajadas um pouco mais fortes; temperatura igual', () => {
     assert.match(t.local.text, /^Topo: vento e rajadas \+\d+%/);
     t.hourly.forEach((h, i) => {
         assert.equal(h.temp, fc.hourly[i].temp);
-        assert.ok(Math.abs(h.gust - fc.hourly[i].gust * f) <= 1, `${h.time}: rajada ${h.gust} vs ${fc.hourly[i].gust}×${f}`);
+        // os dois valores vêm arredondados e o fator a 2 casas: até ~1,3 km/h de diferença só pelos arredondamentos
+        assert.ok(Math.abs(h.gust - fc.hourly[i].gust * f) <= 1.5, `${h.time}: rajada ${h.gust} vs ${fc.hourly[i].gust}×${f}`);
     });
     assert.ok(Math.abs(t.daily[2].gustMax - fc.daily[2].gustMax * f) <= 1);
     assert.ok(t.indicators.wind.text.length > 0);
@@ -375,4 +376,40 @@ test('resumo para o Claude começa pelo ponto: relevo, IPMA, estações e as pr�
     // sem relevo nem estações, o bloco diz-o
     const g = buildSummary(buildForecast({ det: raw.det, ens: raw.ens }, { lat: 48.85, lon: 2.35, now: NOW }));
     assert.ok(g.startsWith('## O ponto') && g.includes('Relevo: desconhecido') && g.includes('Estações: nenhuma'));
+});
+
+// ---------- aprendizagem acumulada ----------
+test('aprendizagem: janela verificada agora + memória guardada → o modelo que acerta há semanas ganha peso', () => {
+    const L0 = fc.learning;
+    assert.ok(L0.window && Object.keys(L0.window).length >= 7, 'dias verificados nesta corrida');
+    assert.ok(L0.days >= 7 && L0.since);
+    assert.equal(L0.source, 'METAR');
+    assert.ok(L0.models.length >= 5 && L0.models.every((m) => m.f.t.length === 3 && m.f.r.length === 3 && m.f.w.length === 3));
+    assert.equal(L0.best.t[1], 'ecmwf_ifs', 'na semana do exemplo o ECMWF é o que mais acerta na temperatura');
+    const ecmwf = fc.models.find((m) => m.id === 'ecmwf_ifs');
+    assert.deepEqual(ecmwf.learned.t, L0.models.find((m) => m.id === 'ecmwf_ifs').f.t);
+    // 60 dias guardados em que o Met Office errou 0,5 °C e os outros 1,5 °C: o Met Office passa à frente
+    const days = {};
+    for (let k = 1; k <= 60; k++) {
+        const date = new Date(Date.parse('2026-10-30T00:00:00Z') - k * 864e5).toISOString().slice(0, 10);
+        days[date] = { h: 24, hr: 0, m: Object.fromEntries(['ecmwf_ifs', 'ukmo_seamless', 'meteofrance_seamless', 'icon_seamless', 'gfs_seamless']
+            .map((id) => [id, { t: [0, 1, 2].map(() => [24, id === 'ukmo_seamless' ? 0.5 : 1.5, 0]), r: [null, null, null], w: [null, null, null], g: [null, null, null] }])) };
+    }
+    const memory = { v: 1, lat: LAT, lon: LON, days };
+    const f2 = buildForecast(raw, { lat: LAT, lon: LON, now: NOW, memory });
+    assert.ok(f2.learning.days >= 67, `${f2.learning.days} dias`);
+    assert.equal(f2.learning.best.t[2], 'ukmo_seamless');
+    const w = (f, id) => f.models.find((m) => m.id === id).weight;
+    assert.ok(w(f2, 'ukmo_seamless') > 2 * w(fc, 'ukmo_seamless'), `${w(fc, 'ukmo_seamless')} → ${w(f2, 'ukmo_seamless')}`);
+    assert.ok(w(f2, 'ecmwf_ifs') < w(fc, 'ecmwf_ifs'), 'o ECMWF só foi o melhor nesta semana: perde parte do peso');
+    // a memória de outro sítio (Porto) não entra; duas memórias juntam-se (telemóvel + conector)
+    const far = buildForecast(raw, { lat: LAT, lon: LON, now: NOW, memory: { ...memory, lat: 41.15, lon: -8.61 } });
+    assert.equal(far.learning.days, L0.days);
+    const both = buildForecast(raw, { lat: LAT, lon: LON, now: NOW, memory: [memory, { v: 1, lat: LAT, lon: LON, days: {} }] });
+    assert.equal(both.learning.days, f2.learning.days);
+    // resumo para o Claude
+    const S = buildSummary(f2);
+    assert.match(S, /## Aprendizagem no ponto \(\d+ dia\(s\) de memória desde 2026-08-31/);
+    assert.match(S, /- Temperatura: hoje: melhor Met Office/);
+    assert.match(S, /\nMet Office \| [\d.]+\/[\d.]+\/[\d.]+ \|/);
 });

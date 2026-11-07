@@ -39,8 +39,21 @@ principal*; Android *⋮ → Instalar app*).
   noites limpas (nuvens < 30%) e calmas (vento < 8 km/h), até −1,5 °C por cada 100 m de desnível (máx. 1,5 °C), também
   na mínima; num topo, vento e rajadas até +15%.
 - **Verificação local** — compara as previsões a 1 dia dos últimos 7 dias com o que se mediu (METAR perto, ou várias
-  estações com o histórico guardado): o modelo mais certeiro no teu local pesa mais e os vieses são corrigidos (ex.: em
-  Lisboa o GFS estava 1,2 °C quente). O IPMA entra também, com as corridas anteriores guardadas pela tarefa agendada.
+  estações com o histórico guardado) e corrige os vieses (ex.: em Lisboa o GFS estava 1,2 °C quente). O IPMA entra também,
+  com as corridas anteriores guardadas pela tarefa agendada.
+- **Aprendizagem acumulada** (1.5) — **o modelo que mais acerta no teu ponto ganha peso a cada dia que passa; o que falha
+  perde.** Cada um dos 9 modelos é verificado dia a dia em três variáveis — **temperatura**, **chuva** (horas com chuva
+  certas, com 1 h de tolerância, contra a chuva das estações, o tempo presente dos aeroportos e os teus avisos «Está a
+  chover?») e **vento** — e em três prazos (**hoje**, **amanhã**, **3+ dias**), com as corridas de hoje, de ontem e de
+  anteontem. A memória guarda até **90 dias** e os dias recentes contam mais (meia-vida de 21 dias). O peso de cada modelo
+  no consenso é o de base × um fator que vai de ×¼ a ×4: (erro mediano ÷ erro do modelo)³, com uma força que cresce com os
+  dias de prova — com 7 dias já conta, com 30 conta bem mais. A chuva e o vento partem do fator da temperatura e afastam-se
+  dele com a sua própria prova. A memória fica no telemóvel (até 4 sítios) e, no local com a análise diária, também no
+  conector (a tarefa agendada atualiza-a 3× por dia, por isso continua a aprender mesmo sem abrires a app). Em **Análise →
+  Aprendizagem**: o fator e o erro de cada modelo por variável e prazo, quem é o mais certeiro, o atraso típico da chuva
+  de cada modelo e a evolução dos pesos dia a dia. O Claude recebe o mesmo na análise.
+- **Quando o IPMA falha** — se o IPMA publica as horas sem valores, o estado das fontes diz desde quando
+  («em atraso: última observação …») e o histórico guardado dessas estações continua a servir para a verificação.
 - **Mudança face a ontem**, **normais de 10 anos** (anomalia), **próximas 2 horas** de 15 em 15 minutos (radar e modelos).
 - **Indicadores** — trovoada (CAPE), nevoeiro, geada, calor, vento, chuva forte, neve, UV, tendência da pressão.
 - **Avisos oficiais do IPMA** do distrito.

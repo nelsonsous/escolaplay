@@ -60,6 +60,9 @@ export async function getReports(lat, lon, hours = 24) {
   return Array.isArray(r?.reports) ? r.reports : [];
 }
 
+/** Memória da aprendizagem do local deste telemóvel perto do ponto (≤ 3 km), que a tarefa agendada guarda: { place, memory } */
+export const getLearning = (lat, lon) => call(`/api/learning?${q({ lat: r4(lat), lon: r4(lon) })}`, { timeout: 6000 });
+
 // ---------- memória local (pode falhar: modo privado, armazenamento cheio) ----------
 export const store = {
   get(key, fallback = null) {
@@ -106,6 +109,8 @@ export function saveForecast(lat, lon, fc) {
   idx.unshift(key);
   for (const old of idx.splice(3)) store.del(old);
   store.set('meteo:fc-index', idx);
+  // os dias verificados agora já foram juntos à memória da aprendizagem: não se guardam duas vezes
+  if (fc?.learning?.window) fc = { ...fc, learning: { ...fc.learning, window: null } };
   if (!store.set(key, { savedAt: Date.now(), fc })) {
     for (const k of idx.slice(1)) store.del(k);
     store.set('meteo:fc-index', [key]);
@@ -113,6 +118,32 @@ export function saveForecast(lat, lon, fc) {
   }
 }
 export const loadSavedForecast = (lat, lon) => store.get(fcKey(lat, lon));
+
+// ---------- memória da aprendizagem neste telemóvel (lib/learn.js): até 4 sítios, cada uma vale até 3 km ----------
+const LEARN_IDX = 'meteo:learn-index';
+const kmBetween = (a, b, c, d) => {
+  const t = Math.PI / 180, x = Math.sin(((c - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin(((d - b) * t) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(x));
+};
+const learnIdx = () => store.get(LEARN_IDX, []).filter((x) => x && typeof x.key === 'string' && Number.isFinite(x.lat) && Number.isFinite(x.lon));
+const nearLearn = (lat, lon) => learnIdx().map((x) => ({ ...x, d: kmBetween(lat, lon, x.lat, x.lon) })).filter((x) => x.d <= 3).sort((a, b) => a.d - b.d)[0] || null;
+export function loadLearning(lat, lon) {
+  const n = nearLearn(lat, lon);
+  return n ? store.get(n.key) : null;
+}
+export function saveLearning(lat, lon, memory) {
+  if (!memory?.days) return;
+  const n = nearLearn(lat, lon);
+  const key = n?.key || `meteo:learn:${r4(lat)},${r4(lon)}`;
+  const idx = [{ key, lat: n?.lat ?? lat, lon: n?.lon ?? lon, at: Date.now() }, ...learnIdx().filter((x) => x.key !== key)];
+  for (const old of idx.splice(4)) store.del(old.key);
+  store.set(LEARN_IDX, idx);
+  if (!store.set(key, memory)) { // armazenamento cheio: fica só esta
+    for (const x of idx.slice(1)) store.del(x.key);
+    store.set(LEARN_IDX, idx.slice(0, 1));
+    store.set(key, memory);
+  }
+}
 const anKey = (lat, lon) => `meteo:an:${r4(lat)},${r4(lon)}`;
 export const saveAnalysis = (lat, lon, data) => store.set(anKey(lat, lon), { savedAt: Date.now(), data });
 export const loadSavedAnalysis = (lat, lon) => store.get(anKey(lat, lon));

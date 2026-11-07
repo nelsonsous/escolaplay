@@ -375,6 +375,17 @@ div.claude { cursor: auto; }
 .score { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .score .bar { flex: 1; height: 5px; background: var(--card2); border-radius: 99px; overflow: hidden; min-width: 40px; }
 .score .bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent2); }
+.score .bar i.gain { background: var(--up); }
+.score .bar i.loss { background: var(--down); }
+/* Aprendizagem: variável e prazo, evolução do fator */
+.seg.lseg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; margin: 0 0 8px; }
+.lchart { margin-top: 10px; padding: 10px 12px 8px; }
+.lchart svg { display: block; width: 100%; height: auto; }
+.lchart .lc-grid { stroke: var(--grid); stroke-width: 1; }
+.lchart .lc-one { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 3 3; }
+.lchart .lc-ax { fill: var(--muted); font-size: 9px; }
+.lc-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: calc(.78rem * var(--k)); color: var(--soft); }
+.lc-leg i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 
 /* ---------- navegação ---------- */
 .mt-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px 4px calc(6px + var(--safe-b)); background: rgba(0, 0, 0, .9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid #1c1c1e; }
