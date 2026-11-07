@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.20.1';
+    const VERSION = '3.21.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -847,10 +847,28 @@
     }
     const PER_DAYS = { '1w': 7, '1m': 30, '1y': 365 };
     const PER_LBL = [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A']];
+    // 1S e 1M: as mesmas séries da ficha (de 30 min / 1 h; cripto 1 h / 4 h), para o gráfico pequeno e a % baterem certo
+    const PS = { '1w': {}, '1m': {} }, psAt = { '1w': 0, '1m': 0 };
+    async function loadPerSeries() {
+        const per = cfg.per;
+        if (!PS[per] || now() - psAt[per] < 5 * 60 * 1000) return;
+        psAt[per] = now();
+        const range = per === '1w' ? '5d' : '1mo';
+        const jobs = CRYPTO.map(async (c) => { try { PS[per]['c:' + c.id] = await klines(c.id, range); } catch { /* fica o diário */ } });
+        if (cfg.proxy) jobs.push(quotesBatch(yahooKeys().filter(listed), range).then((list) => { for (const q of list) if (!q.error && q.series && q.series.length > 1) PS[per][q.symbol] = q.series; }).catch(() => {}));
+        await Promise.all(jobs);
+        drawSparks(); scheduleRender();
+    }
     function perData(k) {
         const q = qv(k);
         const days = PER_DAYS[cfg.per];
         const day = { pct: q.changePct, series: q.series, base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose };
+        const ps = PS[cfg.per] && PS[cfg.per][k];
+        if (days && ps && ps.length > 1 && fin(q.price)) {
+            const f = q.fx || 1, series = ps.map(([t, v]) => [t, v * f]), tq = q.time || now() / 1000;
+            if (tq > series[series.length - 1][0]) series.push([tq, q.price]);
+            return { pct: (q.price / series[0][1] - 1) * 100, series, base: series[0][1] };
+        }
         if (!days || !D[k] || D[k].length < 2 || !fin(q.price)) return day;
         const f = q.fx || 1, from = now() / 1000 - days * 86400;
         let i = D[k].findIndex((p) => p[0] > from);
@@ -862,6 +880,7 @@
         return { pct: (q.price / ref - 1) * 100, series, base: ref };
     }
     function drawSparks() {
+        if (PS[cfg.per]) loadPerSeries();
         for (const cv of $$('canvas.spark')) {
             const k = cv.dataset.key;
             const p = perData(k);
@@ -2131,6 +2150,6 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
     boot();
 })();

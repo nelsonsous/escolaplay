@@ -496,14 +496,18 @@ function proxyBody(u) {
     // período: 1M muda a variação (dados diários) e volta a 1D
     const d1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
     await page.click('[data-per="1m"]');
+    await page.waitForFunction(() => window.__mk.PS['1m']['c:BTC'], null, { timeout: 15000 });
+    await page.evaluate(() => window.__mk.render());
     const m1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
-    const expM = await page.evaluate(() => { const mk = window.__mk, d = mk.D['c:BTC'], from = Date.now() / 1000 - 30 * 86400; let i = d.findIndex((p) => p[0] > from); if (i < 0) i = d.length; const ref = d[Math.max(0, i - 1)][1]; return (mk.Q['c:BTC'].price / ref - 1) * 100; });
     assert.notEqual(m1, d1, '1M diferente de 1D');
-    assert.equal(Number(m1.replace('−', '-').replace('%', '').replace(',', '.')).toFixed(1), expM.toFixed(1), '1M calculado dos fechos diários');
     // a ficha abre no mesmo período do Painel
     await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-open="c:BTC"]').click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .ranges button.on');
     assert.equal(await page.locator('.ranges button.on').textContent(), '1M', 'ficha no período do Painel');
+    await page.waitForFunction(() => /1 mês/.test(document.querySelector('#d-px').textContent));
+    const sheetM = await page.locator('#d-px .chg').textContent();
+    const num = (t) => Number(t.replace('−', '-').replace('%', '').replace(',', '.'));
+    assert.ok(Math.abs(num(sheetM) - num(m1)) < 0.2, `1M igual no Painel (${m1}) e na ficha (${sheetM})`);
     assert.deepEqual(await page.locator('.ranges button').allTextContents(), ['15m', '1H', '4H', '1D', '1S', '1M', '6M', '1A', '5A']);
     assert.match(await page.locator('.perf').textContent(), /Hoje[\s\S]*7 dias[\s\S]*30 dias[\s\S]*1 ano/, 'rendimentos por período');
     await page.click('.ranges [data-range="15m"]');
