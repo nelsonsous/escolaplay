@@ -118,11 +118,18 @@ function proxyBody(u) {
         send(); const t = setInterval(send, 400); ws.onClose(() => clearInterval(t));
     });
 
-    // 1) sem conector: cripto funciona e aparece o aviso
+    // 0) instalação nova: já vem ligada ao conector do autor (no iPhone, a app do ecrã principal não vê o que o Safari guardou)
+    await ctx.route(/mercados-proxy\.mercados-proxy\.workers\.dev/, (route) => route.fulfill({ status: 503, json: { error: 'teste' }, headers: { 'Access-Control-Allow-Origin': '*' } }));
     let page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+    page.on('console', (m) => { if (m.type() === 'error' && !/status of 503/.test(m.text())) errors.push('console: ' + m.text()); });
     await page.goto(url);
+    await page.waitForFunction(() => { try { return JSON.parse(localStorage.getItem('mercados:v1')).proxy === 'https://mercados-proxy.mercados-proxy.workers.dev'; } catch { return false; } });
+    console.log('✓ instalação nova: já ligada ao conector do autor');
+
+    // 1) sem conector: cripto funciona e aparece o aviso
+    await page.addInitScript(() => { const c = JSON.parse(localStorage.getItem('mercados:v1') || '{}'); c.proxy = ''; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
+    await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-key="c:BTC"] .px') && /€/.test(document.querySelector('[data-key="c:BTC"] .px').textContent));
     assert.ok(await page.locator('.banner').isVisible(), 'aviso do conector');
     assert.match(await page.locator('#mk-status').textContent(), /Cripto ao vivo/);

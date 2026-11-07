@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.22.0';
+    const VERSION = '3.22.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,9 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', claude: false, owner: false, fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
+    // conector do autor: uma instalação nova já vem ligada (no iPhone, a app do ecrã principal não vê o que o Safari guardou)
+    const DEFAULT_PROXY = 'https://mercados-proxy.mercados-proxy.workers.dev';
+    const DEFAULTS = { proxy: DEFAULT_PROXY, claude: false, owner: false, fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -629,7 +631,7 @@
         try { STATS = { ...(await px(`/stats?id=${encodeURIComponent(cfg.jid)}`)), at: now() }; } catch (e) { STATS = { at: now(), error: e.message }; }
         scheduleRender();
     }
-    const shareLink = () => location.origin + location.pathname + (cfg.proxy ? '?proxy=' + encodeURIComponent(cfg.proxy) : '');
+    const shareLink = () => location.origin + location.pathname + (cfg.proxy && cfg.proxy !== DEFAULT_PROXY ? '?proxy=' + encodeURIComponent(cfg.proxy) : '');
     function claudeSection() {
         if (cfg.owner) {
             loadStats();
@@ -643,7 +645,7 @@
                 <div><label>Análise do Claude para as outras apps</label><div class="seg prof two"><button type="button" data-others="1" class="${on ? 'on' : ''}"><b>Ligada</b><small>para quem a pedir</small></button><button type="button" data-others="0" class="${on ? '' : 'on'}"><b>Desligada</b><small>só para ti</small></button></div>
                     <div class="hint">Cada app analisada torna a tarefa das ${CL_LBL} mais longa e gasta mais do teu plano Claude (até 20 por corrida). Se forem muitas, desliga aqui.</div></div>
                 <div><label for="f-share">Link para partilhar</label><div class="inl"><input id="f-share" class="inp" type="text" readonly value="${esc(shareLink())}"><button type="button" class="btn sm" data-act="share-link">Copiar</button></div>
-                    <div class="hint">Abre a app já ligada ao conector. Cada pessoa fica com os seus ativos e a análise do Claude vem desligada. A tua análise, o teu plano e toda a lista da Trade Republic ficam só nesta app.</div></div>
+                    <div class="hint">A app já vem ligada ao teu conector. Cada pessoa fica com os seus ativos e a análise do Claude vem desligada. A tua análise, o teu plano e toda a lista da Trade Republic ficam só nesta app.</div></div>
             </div></section>`;
         }
         const names = myList().map((k) => nameOf(k)).join(', ');
