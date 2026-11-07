@@ -1,11 +1,10 @@
-// Compila curador.onda com o compilador Onda (ondac.wasm, ele próprio escrito na Onda) e grava:
-//   curador.wasm — o que a app, o Worker e a tarefa agendada correm
-//   curador.c    — a mesma coisa em C, para o juiz (testes) compilar em nativo e comparar ao bit
+// Compila o motor de curadoria e a app com o compilador Onda do repositório (onda/seed/ondac.wasm) e grava:
+//   curador.wasm — motor.onda + curador.onda: o programa de linha de comando (tarefa agendada, testes)
+//   curador.c    — o mesmo em C, para o juiz (testes) compilar em nativo e comparar ao bit
+//   ../app/musica.wasm — onda/lib/app.onda + motor.onda + ../app/musica.onda: a app, uma «app em Onda»
 //
 //   node musica/onda/compilar.mjs [--verificar]        (ONDAC=/caminho/ondac.wasm para usar outro compilador)
-//
-// O compilador é o do repositório: onda/seed/ondac.wasm (a semente WebAssembly da Onda). $ONDAC escolhe outro.
-// --verificar: não grava; falha se curador.wasm ou curador.c não corresponderem à fonte.
+// --verificar: não grava; falha se algum compilado não corresponder às fontes.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -50,22 +49,45 @@ export async function ondac(compilador, fonte, flags) {
     return all;
 }
 
+// As fontes de cada compilado (a Onda junta-se por concatenação, como a biblioteca de apps)
+export function fontes() {
+    const ler = (f) => readFileSync(join(AQUI, f), 'utf8');
+    const motor = ler('motor.onda');
+    const lib = join(AQUI, '..', '..', 'onda', 'lib', 'app.onda');
+    const app = join(AQUI, '..', 'app', 'musica.onda');
+    return {
+        curador: motor + '\n' + ler('curador.onda'),
+        app: existsSync(app) && existsSync(lib) ? readFileSync(lib, 'utf8') + '\n' + motor + '\n' + readFileSync(app, 'utf8') : null,
+    };
+}
+export async function compilarTudo(compilador) {
+    const f = fontes();
+    return {
+        'curador.wasm': await ondac(compilador, f.curador, ['-w']),
+        'curador.c': await ondac(compilador, f.curador, []),
+        ...(f.app ? { '../app/musica.wasm': await ondac(compilador, f.app, ['-w']) } : {}),
+    };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
     const compilador = procurarCompilador();
     if (!compilador) {
         console.error('Não encontrei o compilador Onda (onda/seed/ondac.wasm). Indica-o com ONDAC=/caminho/ondac.wasm.');
         process.exit(2);
     }
-    const fonte = readFileSync(join(AQUI, 'curador.onda'), 'utf8');
-    const wasm = await ondac(compilador, fonte, ['-w']);
-    const c = await ondac(compilador, fonte, []);
+    const tudo = await compilarTudo(compilador);
     if (process.argv.includes('--verificar')) {
-        const okW = Buffer.compare(wasm, readFileSync(join(AQUI, 'curador.wasm'))) === 0;
-        const okC = Buffer.compare(c, readFileSync(join(AQUI, 'curador.c'))) === 0;
-        console.log(`curador.wasm ${okW ? 'atualizado' : 'DESATUALIZADO'} · curador.c ${okC ? 'atualizado' : 'DESATUALIZADO'}`);
-        process.exit(okW && okC ? 0 : 1);
+        let ok = true;
+        for (const [nome, bytes] of Object.entries(tudo)) {
+            const igual = existsSync(join(AQUI, nome)) && Buffer.compare(bytes, readFileSync(join(AQUI, nome))) === 0;
+            ok &&= igual;
+            console.log(`${nome.replace('../', '')} ${igual ? 'atualizado' : 'DESATUALIZADO'}`);
+        }
+        process.exit(ok ? 0 : 1);
     }
-    writeFileSync(join(AQUI, 'curador.wasm'), wasm);
-    writeFileSync(join(AQUI, 'curador.c'), c);
-    console.log(`curador.wasm ${wasm.length} B · curador.c ${c.length} B (compilador: ${compilador})`);
+    for (const [nome, bytes] of Object.entries(tudo)) {
+        writeFileSync(join(AQUI, nome), bytes);
+        console.log(`${nome.replace('../', '')} ${bytes.length} B`);
+    }
+    console.log(`(compilador: ${compilador})`);
 }
