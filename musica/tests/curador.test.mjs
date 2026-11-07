@@ -47,7 +47,7 @@ test('sem Tidal ligado (e ainda sem chave do agente): os dados dizem para termin
 test('dados → proposta → ensaio → publicar com pedido', async () => {
     const { createHash } = await import('node:crypto');
     await env.KV.put('tidal:tokens', JSON.stringify({ access: 'AT1', refresh: 'RT1', expira: Date.now() + 3600e3, utilizador: 'nelson', pais: 'PT' }));
-    await env.KV.put('chaves', JSON.stringify({ [createHash('sha256').update(CHAVE).digest('hex')]: { tipo: 'agente', nome: 'Curador' } }));
+    await env.KV.put('chaves', JSON.stringify({ [createHash('sha256').update(CHAVE).digest('hex')]: { tipo: 'agente', nome: 'Maestro' } }));
     await env.KV.put('pedidos', JSON.stringify([{ id: 'q1abc', texto: 'Jazz e soul para o carro', opcoes: { faixas: 5, maxArtista: 1, estilo: 'audiofilo', arco: 'onda' }, estado: 'pendente', criadoEm: new Date().toISOString() }]));
     const dir = mkdtempSync(join(tmpdir(), 'musica-'));
 

@@ -12,12 +12,12 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 ```
  app em Onda (telemóvel) ─┐                                  ┌─ Tidal (API oficial v2, OAuth com PKCE)
    app/musica.onda        ├─►  Worker "musica" (Cloudflare) ──┤
- Curador (Claude) ────────┘     tokens, chaves, biblioteca    └─ a tua conta: favoritas, playlists, pesquisa
+ Maestro (Claude) ────────┘     tokens, chaves, biblioteca    └─ a tua conta: favoritas, playlists, pesquisa
         │                       (KV)
         └─ motor.onda — o mesmo motor na app (app/musica.wasm) e na tarefa agendada (onda/curador.wasm)
 ```
 
-- **Curador** — como o Conselheiro dos Mercados e o Analista do Meteo, uma **tarefa agendada do Claude** segue
+- **Maestro** — como o Conselheiro dos Mercados e o Analista do Meteo, uma **tarefa agendada do Claude** segue
   [`CURADOR.md`](CURADOR.md) às 07:44 e às 18:44: lê o teu gosto (favoritas, artistas seguidos, playlists), pesquisa
   na web o que está a dar e tem qualidade (crítica, tabelas, cena portuguesa, jazz, clássica, reedições, gravações de
   referência), escreve uma proposta com 1,5× a 2× as faixas necessárias, e publica: os pedidos que fizeste na app e,
@@ -33,8 +33,8 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   renovados sozinhos, o teu gosto (cache de 6 h), encontrar faixas (pesquisa + verificação de artista e título,
   versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app,
   afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **«Mais como esta»** (as faixas parecidas do
-  Tidal), apagar também no Tidal e, para o Curador, as tuas mixes e os álbuns novos dos artistas que segues.
-  Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Curador).
+  Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
+  Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Maestro).
 - **App em Onda** ([`app/musica.onda`](app/musica.onda)) — monta-se com a biblioteca de apps da Onda e o motor
   (`cat onda/lib/app.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w`) e corre no anfitrião das apps Onda:
   os ecrãs (Playlists com ▶ para ouvir no Tidal, a playlist com o porquê de cada faixa e a mistura — toca numa faixa
@@ -48,7 +48,7 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 ## Partilhar com outras pessoas
 
 Nos **Ajustes**, «Convidar alguém» cria um link (serve uma vez, durante 14 dias) para enviar por WhatsApp ou email.
-Quem o abre liga o **seu** Tidal e fica com a sua biblioteca, os seus pedidos e o seu gosto; o Curador trata os pedidos
+Quem o abre liga o **seu** Tidal e fica com a sua biblioteca, os seus pedidos e o seu gosto; o Maestro trata os pedidos
 de todos (na tua conta do Claude). No Worker, os dados do dono ficam nas chaves de sempre e os de cada pessoa
 convidada com o prefixo `u:<id>:`; o agente escolhe a pessoa com `?u=<id>` e vê a lista em `GET /api/utilizadores`.
 
@@ -66,7 +66,7 @@ convidada com o prefixo `u:<id>:`; o agente escolhe a pessoa com `?u=<id>` e vê
 
 ```bash
 cd musica
-npm test                 # motor (juiz: app, anfitrião oficial e nativo), Worker, biblioteca, Curador, a app em Onda no Chromium
+npm test                 # motor (juiz: app, anfitrião oficial e nativo), Worker, biblioteca, Maestro, a app em Onda no Chromium
 npm run onda             # recompila com onda/seed/ondac.wasm: onda/curador.wasm + curador.c e app/musica.wasm
 cd proxy && npm install && npx wrangler deploy
 node scripts/make-icons.mjs

@@ -1,4 +1,4 @@
-// Curador — passo 1: o que ouves (favoritas, artistas, playlists), o que o Curador já fez e os pedidos à espera.
+// Maestro — passo 1: o que ouves (favoritas, artistas, playlists), o que o Maestro já fez e os pedidos à espera.
 //   NODE_USE_ENV_PROXY=1 node musica/curador/dados.mjs [/tmp/musica]
 // Grava <dir>/dados.md (para ler; uma secção por pessoa da app) e <dir>/<pessoa>/perfil.json (o publicar.mjs usa-o
 // para os sinais de gosto; o do dono também em <dir>/perfil.json).
@@ -14,7 +14,7 @@ mkdirSync(dir, { recursive: true });
 const estado = await api('/api/estado', { semChave: true });
 if (!estado.ligado) {
     const msg = estado.clientId ? 'O Tidal ainda não foi ligado na app.' : 'Ainda falta o Client ID do Tidal no conector.';
-    writeFileSync(join(dir, 'dados.md'), `# Curador\n\n**Tidal não ligado** — ${msg} Termina aqui.\n`);
+    writeFileSync(join(dir, 'dados.md'), `# Maestro\n\n**Tidal não ligado** — ${msg} Termina aqui.\n`);
     console.log(`Tidal não ligado — ${msg} Termina aqui.`);
     process.exit(0);
 }
@@ -72,7 +72,7 @@ async function secao(quem) {
     ### Favoritas mais recentes
     ${perfil.favoritas.slice(0, 40).map((f) => `- ${linhaFaixa(f)}${f.adicionada ? ` · ❤ ${f.adicionada.slice(0, 10)}` : ''}`).join('\n') || '- nenhuma'}
 
-    ## O que o Curador já fez (não repetir estas faixas)
+    ## O que o Maestro já fez (não repetir estas faixas)
     ${playlists.slice(0, 10).map((p) => `- ${p.criadaEm.slice(0, 10)} · «${p.nome}» · ${p.faixas} faixas, ${minutos(p.duracao)}${p.tidal ? ' · no Tidal' : ''}`).join('\n') || '- ainda nada'}
     ${recentes.filter(Boolean).map((d) => `\n### «${d.nome}» (${d.criadaEm.slice(0, 10)})\n${d.faixas.map((f) => `- ${f.artistas.join(', ')} — ${f.titulo}`).join('\n')}`).join('\n')}
     `;
@@ -80,7 +80,7 @@ async function secao(quem) {
 
 const secoes = [];
 for (const q of pessoas) secoes.push(await secao(q).catch((e) => `# Pessoa: ${q.nome || q.uid} (\`${q.uid}\`)\n\nNão consegui ler os dados desta pessoa: ${e.message}\n`));
-const md = `# Curador — dados de ${lisboa()}
+const md = `# Maestro — dados de ${lisboa()}
 
 ${pessoas.length > 1 ? `**${pessoas.length} pessoas** na app. Trata cada uma à parte: os pedidos, a playlist da semana e as novidades são de cada pessoa — escreve a proposta em \`${dir}/<id>/proposta.json\` e publica com \`--utilizador <id>\`.` : 'Uma pessoa na app (o dono).'}
 

@@ -1,4 +1,4 @@
-// Utilitários da tarefa agendada do Curador: o Worker (com a chave do agente) e a KV pela API da Cloudflare.
+// Utilitários da tarefa agendada do Maestro: o Worker (com a chave do agente) e a KV pela API da Cloudflare.
 import { readFileSync } from 'node:fs';
 
 const toml = readFileSync(new URL('../proxy/wrangler.toml', import.meta.url), 'utf8');

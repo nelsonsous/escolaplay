@@ -1,5 +1,5 @@
 // Rotas do Worker com o Tidal e a KV simulados: ligação (código + PKCE), gosto, encontrar faixas,
-// criar playlists no Tidal, renovar o token e pedidos ao Curador.
+// criar playlists no Tidal, renovar o token e pedidos ao Maestro.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.5.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.5.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -224,7 +224,7 @@ test('token: renova quando expira e quando o Tidal responde 401; sessão perdida
     assert.equal(await env.KV.get('tidal:tokens'), null);
 });
 
-test('pedidos ao Curador: criar, listar, marcar feito, cancelar', async () => {
+test('pedidos ao Maestro: criar, listar, marcar feito, cancelar', async () => {
     const { chave } = await ligarPrimeiraVez();
     assert.equal((await post('/api/pedidos', { texto: 'x' }, chave)).status, 400);
     const p = await (await post('/api/pedidos', { texto: 'Soul dos anos 70 bem gravado', opcoes: { faixas: 25, arco: 'sobe' } }, chave)).json();
@@ -271,7 +271,7 @@ test('afinar na app: a ordem do motor, as faixas juntadas do Tidal (por id) e o 
     const v = await r.json();
     assert.equal(v.id, d.id, 'a mesma playlist');
     assert.equal(v.nome, 'Original');
-    assert.equal(v.por, 'curador', 'quem a fez continua a ser o Curador');
+    assert.equal(v.por, 'curador', 'quem a fez continua a ser o Maestro');
     assert.ok(v.afinadaEm);
     assert.deepEqual(v.faixas.map((x) => x.id), ['103', '101', '106'], 'a ordem da app; o índice 3 é a faixa juntada');
     assert.deepEqual(v.faixas.map((x) => x.porque), ['claude', 'gosto', 'fixa']);
@@ -345,7 +345,7 @@ test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async ()
     assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
 });
 
-test('para o Curador: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {
+test('para o Maestro: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {
     await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const m = await (await get('/api/mixes', agente)).json();
@@ -358,7 +358,7 @@ test('para o Curador: as tuas mixes do Tidal e as novidades dos artistas que seg
     assert.equal((await get('/api/mixes')).status, 401);
 });
 
-test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o Curador vê todas', async () => {
+test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o Maestro vê todas', async () => {
     const { chave } = await ligarPrimeiraVez(); // o dono
     const agente = await env.KV.get('agente:chave');
     // o dono cria um convite (link com o código de uma só vez)
@@ -391,10 +391,10 @@ test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o C
     assert.equal(ana.ligado, true);
     assert.ok(await env.KV.get(`u:${ana.uid}:tidal:tokens`));
     assert.ok(await env.KV.get('tidal:tokens'));
-    // o Curador trata os pedidos de cada pessoa com ?u=
+    // o Maestro trata os pedidos de cada pessoa com ?u=
     assert.equal((await (await get(`/api/pedidos?u=${ana.uid}`, agente)).json())[0].texto, 'Fado para a Ana');
     assert.deepEqual(await (await get('/api/pedidos', agente)).json(), [], 'sem ?u= é o dono');
-    assert.equal((await get('/api/utilizadores', chave)).status, 403, 'a lista de pessoas é só para o Curador');
+    assert.equal((await get('/api/utilizadores', chave)).status, 403, 'a lista de pessoas é só para o Maestro');
     assert.equal((await get('/api/pedidos?u=u-nao-existe', agente)).status, 404);
     // desligar o Tidal da Ana não mexe no do dono
     await post('/api/desligar', {}, chaveAna);
