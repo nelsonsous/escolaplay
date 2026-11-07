@@ -1,0 +1,17 @@
+# Crivo de Eratostenes: conta os primos ate N. Compute + memoria, sem chamadas no laço quente -- onde o x86 da
+# Onda deve aproximar-se do C. Tambem demonstra a eficiencia que o utilizador pediu, com um numero concreto.
+: numa i>i i { = v 0 = j 0 W && >= Av i j '0 <= Av i j '9 { = v - + * v 10 Av i j '0 = j + j 1 } v }
+: main >i {
+  = n ? >= Ac 2 numa 1 10000000
+  = c A + n 1
+  = t T
+  = i 2
+  = total 0
+  W <= i n {
+    ? == @ + c i 0 {
+      = total + total 1
+      = j * i i
+      W <= j n { ! + c j 1 = j + j i } }
+    0
+    = i + i 1 }
+  N total " primos ate " N n " em " N / - T t 1000 " ms\n" 0 }

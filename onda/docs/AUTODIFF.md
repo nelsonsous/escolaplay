@@ -1,0 +1,104 @@
+# Autodiff na Onda — desenho e plano
+
+Objetivo declarado pelo utilizador: **melhor que o PyTorch/JAX**. O que a Onda já tem (um só código-fonte que
+compila para AVX, NEON, WebAssembly SIMD e GPU, igual ao bit onde é determinista) não chega para essa liga sem
+a peça central de um sistema de IA: **diferenciação automática** (autodiff), o motor que calcula gradientes
+para treinar modelos. Este documento fixa o desenho e o plano.
+
+## 1. O que o autodiff precisa
+
+Dado um programa que calcula uma perda escalar `L` a partir de parâmetros `θ`, o autodiff em **modo reverso**
+(o backprop) calcula `∂L/∂θ` com um custo da mesma ordem do forward — independentemente de quantos parâmetros
+houver. Faz-se em dois passos:
+
+1. **Forward**: corre o cálculo, guardando os valores intermédios de que o backward precisa.
+2. **Backward**: propaga o *adjunto* `v̄ = ∂L/∂v` de trás para a frente, aplicando a cada primitiva a sua regra
+   adjunta (o *VJP*, vector-Jacobian product), acumulando em `θ̄`.
+
+## 2. As regras adjuntas das primitivas da Onda
+
+Para a aritmética e a matemática escalar (um valor `y = f(…)`, adjunto de saída `ȳ`, acumula nos adjuntos das
+entradas):
+
+| primitiva      | forward            | adjunto (VJP)                                  |
+|----------------|--------------------|------------------------------------------------|
+| soma           | `y = a + b`        | `ā += ȳ`,  `b̄ += ȳ`                            |
+| subtração      | `y = a - b`        | `ā += ȳ`,  `b̄ -= ȳ`                            |
+| produto        | `y = a * b`        | `ā += ȳ·b`,  `b̄ += ȳ·a`                        |
+| divisão        | `y = a / b`        | `ā += ȳ/b`,  `b̄ -= ȳ·a/b²`                     |
+| `sqrt`         | `y = √a`           | `ā += ȳ/(2y)`                                  |
+| `exp`          | `y = eᵃ`           | `ā += ȳ·y`                                     |
+| `log`          | `y = ln a`         | `ā += ȳ/a`                                     |
+| `sin` / `cos`  | `y = sin a`        | `ā += ȳ·cos a`  (e `-sin a` para o `cos`)      |
+
+Para as **operações de campo** (as que dão paralelismo, e onde está a velocidade) vale a dualidade central:
+
+| operação de campo        | forward                     | adjunto                                            |
+|--------------------------|-----------------------------|----------------------------------------------------|
+| **mapa**  `E`            | `y[i] = f(x[i])`            | `x̄[i] += f'(x[i])·ȳ[i]`  — **é outro mapa**        |
+| **redução-soma** `S`     | `s = Σ x[i]`               | `x̄[i] += s̄`  — **é um broadcast** (um mapa)        |
+| **broadcast**            | `y[i] = c` (c escalar)     | `c̄ += Σ ȳ[i]`  — **é uma redução-soma**            |
+
+Em resumo: **o adjunto de um mapa é um mapa; o adjunto de uma soma é um broadcast, e vice-versa.** O backward
+é feito das *mesmas* operações de campo que o forward.
+
+## 3. A tese que separa a Onda do PyTorch/JAX
+
+No PyTorch/JAX, o passo backward de cada operação é um **kernel separado**, escrito à mão (CUDA/cuDNN) ou gerado
+por um compilador próprio (XLA). As reduções na GPU usam somas atómicas → a ordem muda entre corridas → **o
+gradiente não é determinista ao bit**. E o backward só é rápido onde existe esse kernel.
+
+Na Onda, como o adjunto de um mapa é um mapa e o de uma soma é um broadcast, **o backward passa pelo mesmo
+emissor que o forward**: herda de graça o AVX (x86), o NEON (Apple Silicon, it.68), o f64x2 (WASM/Safari) e a
+GPU (WebGL2) — e é **determinista ao bit** onde o forward é (reduções em série ou com ordem fixa). Uma só fonte,
+o mesmo gradiente em qualquer máquina. É aqui que uma linguagem desenhada de raiz para IA pode ganhar à
+biblioteca: não em TFLOPs brutos num A100 (onde o CUDA ganha), mas em **portabilidade + determinismo + edge/browser**.
+
+## 4. O desenho: source-to-source, não fita
+
+Há duas formas de implementar autodiff:
+- **Fita (tape / eager)**: grava as operações em runtime e reproduz-nas ao contrário. É o que o PyTorch faz.
+  Simples, mas o backward é interpretado (lento) e aloca a fita a cada corrida.
+- **Source-to-source**: transforma o *programa* forward no *programa* backward, em tempo de compilação. É o que
+  o JAX/Zygote fazem. O backward é código compilado (rápido), sem fita.
+
+A Onda vai de **source-to-source**, e tem uma vantagem rara para o fazer de forma simples: o analisador `xvan`
+(it.58+) já reconhece e valida a árvore exata do elemento de um mapa — uma expressão de `+ - * /` sobre a
+variável `x` e constantes. **Diferenciar essa árvore é mecânico** (as regras da secção 2 aplicadas à árvore),
+e o resultado é outra árvore de `+ - * /` sobre `x` — ou seja, **outro elemento de mapa vetorizável**. O
+gradiente de um mapa da Onda é, literalmente, um mapa da Onda que corre em AVX/NEON/WASM/GPU.
+
+## 5. Estado e plano
+
+- **it.69 (feito)** — fundação verificada. `ex/autodiff.onda`: gradiente de uma regressão linear por modo
+  reverso, escrito com as operações de campo (forward = mapa `pred` + redução da perda; backward = reduções
+  que são os adjuntos). Conferido contra diferenças finitas centradas (bate a ~10 dígitos) e **bit a bit igual
+  em C, x86 e WASM** (`test/autodiff.test.js`). Prova que a matemática e a dualidade mapa/redução estão certas.
+- **it.70 (feito)** — diferenciação simbólica automática. Operador novo **`B d n f a`** (backward): dado `f`
+  validado por `xvan`, gera `d[i] = f'(a[i])` por números duais (`xdiff` anda a árvore e devolve `(valor,
+  derivada)` por nó: `c→(c,0)`, `x→(x,1)`, e as regras de `+ − × ÷`). A derivada de uma árvore de `+ − × ÷` é
+  outra árvore de `+ − × ÷`, por isso `B` compila para um laço em RI que corre em **C, x86 e WASM**. Para isso
+  o emissor de C passou a aceitar locais anónimos (`elnm`) e operadores sintéticos (`eop`) — o que o x86 e o
+  WASM já faziam; agora a geração de laços em RI é verdadeiramente igual nos três. `ex/grad.onda` +
+  `test/grad.test.js`: o `f'` automático é **exato** (as diferenças finitas é que têm erro `O(e²)`) e **bit a
+  bit igual** em C/x86/WASM. Princípio da folha mantido: `B`/`xdiff`/`binx`/locais anónimos nunca são usados
+  pelo compilador em si, logo não podem partir o ponto fixo.
+- **it.74 (feito)** — derivada composta (o VJP completo do mapa). Operador novo **`V d n f a y`**: `d[i] =
+  f'(a[i]) · y[i]`, a regra da cadeia que propaga o gradiente a montante (`y`) para a entrada do mapa. Reaproveita
+  o `xdiff` (gera `f'`) e multiplica pela pista de `y`. `ex/vjp.onda` + `test/vjp.test.js`: bate as diferenças
+  finitas (é o gradiente de `L = Σ y·f(a)` em ordem a `a`) e é **bit a bit igual** em C/x86/WASM. Corre também em
+  ARM64 (`-a`), pela mesma RI. Com o `V`, o passo backward de uma camada-mapa está completo.
+- **depois** — acumulação de adjuntos em arrays de parâmetros (pesos), encadear várias operações de campo, e
+  treinar um modelo pequeno (regressão → uma camada → MLP minúsculo) de ponta a ponta, medindo o determinismo
+  entre backends.
+- **J g f a (operador interno genérico)** — gradiente de uma função escalar `f(v0..vK-1)` em ordem a TODAS as
+  entradas de uma só vez: `g[j] = ∂f/∂v_j`. Generaliza o `B` (uma variável) para multi-variável e acrescenta as
+  transcendentais e os seletores: diferencia `+ − × ÷ sqrt pow exp log sin cos min max` e composições (p.ex. a
+  sigmoide `1/(1+e^-x)`; a norma L2 `√(Σx²)` para LayerNorm/RMSNorm — `d(√a)=da/(2√a)`, em `ex/jsqrt.onda`; a
+  potência `a^b`, `d(a^b)=b·a^{b-1}·da + a^b·ln(a)·db`, em `ex/jpow.onda`; e a **ReLU** `max(0,x)` — o adjunto do
+  min/max é *sem ramo*, `d(max a b)=db+[a>b]·(da−db)` com `[a>b]` um nó de comparação, logo determinista ao bit,
+  em `ex/jrelu.onda`). Modo
+  forward (K passagens) reusando a RI dual (`binx`/`monx`), logo corre em C/x86/WASM determinista ao bit. `f` é
+  uma função de corpo-expressão (sem chavetas). Verificado contra diferenças finitas a ~1e-9 (`ex/jgrad.onda`).
+  Princípio da folha mantido: o compilador nunca usa `J`, logo **o ponto-fixo não parte**. (Modo reverso, mais
+  eficiente para muitos parâmetros, é o passo seguinte; para redes grandes há o source-to-source `web/autodiff.js`.)

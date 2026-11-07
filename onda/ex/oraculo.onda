@@ -1,0 +1,6 @@
+# Busca de Grover a partir de uma funcao Onda. O mesmo predicado e o teste classico (onda run),
+# o circuito (onda circ ex/oraculo.onda alvo) e o programa quantico completo (ondac -q alvo), em OpenQASM 3.
+: bit >i 20
+: gro >i 1
+: alvo i>i x == x 777777
+: main >i { = n 0 = x 0 W < x << 1 bit { = n + n alvo x = x + x 1 } "solucoes classicas: " N n "\n" 0 }

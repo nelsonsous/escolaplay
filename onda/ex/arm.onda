@@ -1,0 +1,27 @@
+# Armazem persistente (K): uma tabela de dispersao chave -> valor que sobrevive entre execucoes.
+# Com ONDA_ARM=ficheiro, o armazem e esse ficheiro mapeado em memoria: le-se e escreve-se a velocidade da RAM,
+# sem formato, sem serializacao e sem nada para carregar ao arrancar. O mesmo ficheiro serve as formas C, x86 e WebAssembly.
+# uso: ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 ; ONDA_ARM=kv.arm ./onda run ex/arm.onda le 1000000
+# armazem: k+0 marca, k+1 capacidade (potencia de 2), k+2 quantas chaves, k+3.. pares (chave+1, valor)
+: numa i>i i { = v 0 = j 0 W && >= Av i j '0 <= Av i j '9 { = v - + * v 10 Av i j '0 = j + j 1 } v }
+: hsh ii>i x m & >> * x -7046029254386353131 32 m
+: lugar ii>i k x {
+  = m - @ + k 1 1
+  = t + k 3
+  = j hsh x m
+  W && != @ + t * 2 j 0 != @ + t * 2 j + x 1 = j & + j 1 m
+  + t * 2 j }
+: poe iii>i k x v { = p lugar k x ? == @ p 0 { ! p + x 1 ! + k 2 + @ + k 2 1 } 0 ! + p 1 v }
+: le ii>i k x { = p lugar k x ? == @ p 0 -1 @ + p 1 }
+: main >i {
+  = cap 2097152
+  = k K + 3 * 2 cap
+  ? != @ k 5067329 { ! k 5067329 ! + k 1 cap ! + k 2 0 } 0
+  = c ? >= Ac 2 Av 1 0 'c
+  = n ? >= Ac 3 numa 2 0
+  ? > n / * 3 @ + k 1 4 { "armazem: chaves demais para a capacidade\n" X 1 } 0
+  = t T
+  ? == c 'p { = i 0 W < i n { poe k i + * 3 i 1 = i + i 1 } "poe: " N n " chaves" } 0
+  ? == c 'l { = i 0 = b 0 W < i n { = b + b == le k i + * 3 i 1 = i + i 1 } "le: " N b " de " N n " certas" } 0
+  " em " N / - T t 1000 " ms; o armazem tem " N @ + k 2 " chaves\n"
+  0 }

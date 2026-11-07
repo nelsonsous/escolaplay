@@ -1,0 +1,23 @@
+# Jogo da Vida de Conway pelo paradigma de campo: cada geracao e um E sobre todas as celulas ao mesmo tempo,
+# e cada celula le os seus 8 vizinhos (um stencil). Mostra o modelo campo+colapso num automato celular com estado.
+# Grelha w x h, toroidal (os bordos dao a volta). @1 w @2 h
+: viv iii>i g x y & @ + g + * % + y @ 2 @ 2 @ 1 % + x @ 1 @ 1 1
+: proximo iii>i i g dummy {
+  = x % i @ 1
+  = y / i @ 1
+  = n + + + + + + + viv g - x 1 - y 1 viv g x - y 1 viv g + x 1 - y 1 viv g - x 1 y viv g + x 1 y viv g - x 1 + y 1 viv g x + y 1 viv g + x 1 + y 1
+  = vivo & @ + g i 1
+  ? vivo ? || == n 2 == n 3 1 0 ? == n 3 1 0 }
+: por iiii>i g x y v { ! + g + * % + y @ 2 @ 2 @ 1 % + x @ 1 @ 1 v 0 }
+: main >i {
+  ! 1 10 ! 2 10
+  = n * @ 1 @ 2
+  = g A n
+  = h A n
+  # um planador no canto
+  por g 1 0 1 por g 2 1 1 por g 0 2 1 por g 1 2 1 por g 2 2 1
+  = ger ? >= Ac 2 - Av 1 0 '0 4
+  = passo 0
+  W < passo ger { E h n proximo g 0 = c g = g h = h c = passo + passo 1 }
+  # imprimir a grelha final
+  = y 0 W < y @ 2 { = x 0 W < x @ 1 { P ? @ + g + * y @ 1 x '# '. = x + x 1 } P 10 = y + y 1 } 0 }
