@@ -1,6 +1,6 @@
 // Conselheiro — classificação de toda a lista da Trade Republic (ações, ETF e cripto de universo.json).
 //   node mercados/conselheiro/universo.mjs [pasta]   → <pasta>/universo.json e universo.md; grava uni:latest no KV
-// O mesmo motor da app (analise.js). A app do dono mostra-a em Análise → "Toda a Trade Republic".
+// O mesmo motor da app (a análise em Onda, analise-onda.js). A app do dono mostra-a em Análise → "Toda a Trade Republic".
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

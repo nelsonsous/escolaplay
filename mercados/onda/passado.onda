@@ -1,0 +1,239 @@
+# Mercados — teste no passado (newAcc, backtestAsset, summarize, benchFn de analise.js), em Onda.
+# O backtestAsset do JS chama analyse(c.slice(0, i + 1)) de step em step dias: aqui o motor corre sobre um prefixo
+# dos fechos válidos (a filtragem é a mesma para todos os prefixos), sem cópias nem JSON, e só até à chave do
+# conselho (é tudo o que o teste usa). As somas de acc e per fazem-se pela mesma ordem que no JS, ao bit.
+
+: nova >i "{\"n21\":0,\"s21\":0,\"h21\":0,\"x21\":0,\"nx21\":0,\"n63\":0,\"s63\":0,\"h63\":0,\"x63\":0,\"nx63\":0}"
+
+# ---------- benchFn: o índice data → fecho da referência ----------
+# O JS faz um Map (cada data na posição da 1.ª vez, com o fecho da última) e o near(d): a data exata, ou o fecho da
+# última data antes da primeira que passa d, pela ordem do Map. Aqui: as datas ordenadas (para a exata) e o máximo
+# corrido pela ordem do Map (a primeira data > d é a primeira em que esse máximo passa d), ambos por bissecção.
+# b: [nb] e nb entradas [é texto (0/1), fecho (real; o +x do JS), data (texto UTF-16)]
+# Índice em M[62]: [ng, grupos, nu, corridos]; grupos = ng × [data, fecho] por data; corridos = nu × [máximo, fecho]
+: bix i>i b {
+  = nb @ b
+  = e A + nb 1 = q + b 1 = j 0
+  W < j nb { ! + e j q = q + + q 3 @ + q 2 = j + j 1 }
+  # as entradas com texto, ordenadas por data (estável)
+  = o A + nb 1 = no 0
+  = j 0 W < j nb { ? @ @ + e j { ! + o no j = no + no 1 } 0 = j + j 1 }
+  # inserção binária, estável (as datas iguais ficam pela ordem em que vêm); já por ordem, 1 comparação por data
+  = i 1
+  W < i no {
+    = x @ + o i = kx + @ + e x 2
+    ? > tcmp + @ + e @ + o - i 1 2 kx 0 {
+        = lo 0 = hi - i 1
+        W < lo hi { = md >> + lo hi 1 ? > tcmp + @ + e @ + o md 2 kx 0 = hi md = lo + md 1 }
+        = j i W > j lo { ! + o j @ + o - j 1 = j - j 1 }
+        ! + o lo x } 0
+    = i + i 1 }
+  # grupos de datas iguais: a 1.ª posição e o fecho da última
+  = g A + * 2 no 2 = pr A + nb 1 = ng 0
+  = i 0
+  W < i no {
+    = x @ + o i = kx + @ + e x 2
+    = z i W && < + z 1 no == tcmp + @ + e @ + o + z 1 2 kx 0 = z + z 1
+    = gq + g * 2 ng ! gq kx !f + gq 1 @f + @ + e @ + o z 1
+    ! + pr x 1
+    = ng + ng 1 = i + z 1 }
+  # pela ordem do Map: as datas na 1.ª posição, até à primeira entrada que não é texto (o near pára aí)
+  = u A + * 2 nb 2 = nu 0 = mx 0
+  = j 0 = go 1
+  W && go < j nb {
+    = en @ + e j
+    ? @ en {
+        ? @ + pr j {
+            = kx + en 2
+            = mx ? ? mx > tcmp kx mx 0 1 kx mx
+            # o fecho é o da última vez desta data: procura-o nos grupos
+            = uq + u * 2 nu ! uq mx !f + uq 1 bgrupo g ng kx
+            = nu + nu 1 } 0 }
+      = go 0
+    = j + j 1 }
+  = ix A 4 ! ix ng ! + ix 1 g ! + ix 2 nu ! + ix 3 u
+  ! 62 ix
+  0 }
+# o fecho do grupo da data k (que existe)
+: bgrupo iii>f g ng k { = r bprocura g ng k @f + + g * 2 r 1 }
+# a posição do grupo com a data k, ou -1
+: bprocura iii>i g ng k {
+  = lo 0 = hi ng = r -1
+  W && < lo hi < r 0 { = md / + lo hi 2 = c tcmp @ + g * 2 md k ? == c 0 = r md ? < c 0 = lo + md 1 = hi md }
+  r }
+# near(d) para o texto d (0: não é texto): devolve 1 e o fecho em M[59], ou 0 (null)
+: bnear i>i d {
+  ? == d 0 0 {
+    = ix @ 62 = g @ + ix 1 = ng @ ix
+    = r bprocura g ng d
+    ? >= r 0 { !f 59 @f + + g * 2 r 1 1 } {
+      = u @ + ix 3 = nu @ + ix 2
+      # a primeira corrida cujo máximo passa d
+      = lo 0 = hi nu
+      W < lo hi { = md / + lo hi 2 ? > tcmp @ + u * 2 md d 0 = hi md = lo + md 1 }
+      ? == lo 0 0 { !f 59 @f + + u * 2 - lo 1 1 1 } } } }
+# o benchByDay(d0, d1) do JS: a && b ? b / a - 1 : null; devolve 1 e o valor em M[59], ou 0
+: bval ii>i d0 d1 {
+  ? bnear d0 {
+    = a @f 59
+    ? && != a 0. == a a {
+      ? bnear d1 { = c @f 59 ? && != c 0. == c c { !f 59 - / c a 1. 1 } 0 } 0 } 0 } 0 }
+# chamada do anfitrião: q = [é texto, d0 (texto)] [é texto, d1 (texto)]
+: bfq i>i q { = q1 + + q 2 @ + q 1 bval ? @ q + q 1 0 ? @ q1 + q1 1 0 }
+
+# ---------- análise incremental dos prefixos ----------
+# Estado s: 0 próximo índice do RSI (0: por começar)  1 g  2 l  3 próximo índice do MACD (0: por começar)
+#   4 EMA12  5 EMA26  6 linha  7 sinal  8 linha anterior  9 sinal anterior  10 logaritmos dos retornos  11 quantos há
+# As mesmas contas do rsi, do macd e do vol de analise.onda, pela mesma ordem: continuar de onde se ficou dá os
+# mesmos bits que fazer tudo de novo (os fechos válidos de um prefixo são o início dos do prefixo seguinte); se o
+# prefixo encolhe, o RSI e o MACD recomeçam do zero (os logaritmos servem para qualquer prefixo).
+: rsii ii>f s n {
+  = v @ 1
+  # um prefixo mais curto do que o anterior (com um warm negativo, o slice do JS conta do fim): recomeça
+  ? > @ s n ! s 0 0
+  ? == @ s 0 {
+    = g 0. = l 0.
+    = i 1 W <= i 14 { = d - @f + v i @f + v - i 1 ? >= d 0. { = g + g d 0 } { = l - l d 0 } = i + i 1 }
+    !f + s 1 / g 14. !f + s 2 / l 14. ! s 15 } 0
+  = g @f + s 1 = l @f + s 2 = i @ s
+  W < i n {
+    = d - @f + v i @f + v - i 1
+    = g / + * g 13. ? > d 0. d 0. 14.
+    = l / + * l 13. ? < d 0. * -1. d 0. 14.
+    = i + i 1 }
+  ! s i !f + s 1 g !f + s 2 l
+  ? == l 0. ? == g 0. 50. 100. - 100. / 100. + 1. / g l }
+: macdi ii>i s n {
+  ! 17 0
+  ? > @ + s 3 n ! + s 3 0 0
+  ? >= n 35 {
+    = v @ 1
+    = k1 / 2. 13. = c1 - 1. k1
+    = k2 / 2. 27. = c2 - 1. k2
+    = k3 / 2. 10. = c3 - 1. k3
+    ? == @ + s 3 0 {
+      = a 0. = i 0 W < i 12 { = a + a @f + v i = i + i 1 } = a / a 12.
+      = i 12 W < i 26 { = a + * @f + v i k1 * a c1 = i + i 1 }
+      = b 0. = i 0 W < i 26 { = b + b @f + v i = i + i 1 } = b / b 26.
+      = ln - a b
+      = sg + 0. ln
+      = i 26 W < i 34 { = a + * @f + v i k1 * a c1 = b + * @f + v i k2 * b c2 = ln - a b = sg + sg ln = i + i 1 }
+      = sg / sg 9.
+      !f + s 4 a !f + s 5 b !f + s 6 ln !f + s 7 sg !f + s 8 ln !f + s 9 sg ! + s 3 34 } 0
+    = a @f + s 4 = b @f + s 5 = ln @f + s 6 = sg @f + s 7 = lp @f + s 8 = sp @f + s 9 = i @ + s 3
+    W < i n {
+      = lp ln = sp sg
+      = a + * @f + v i k1 * a c1
+      = b + * @f + v i k2 * b c2
+      = ln - a b
+      = sg + * ln k3 * sg c3
+      = i + i 1 }
+    !f + s 4 a !f + s 5 b !f + s 6 ln !f + s 7 sg !f + s 8 lp !f + s 9 sp ! + s 3 i
+    ! 17 1 !f 18 ln !f 19 sg !f 20 - ln sg !f 21 - lp sp 0 } 0 }
+: voli ii>f s n {
+  = v @ 1 = lg @ + s 10
+  = j @ + s 11 W < j n { ? j !f + lg j Lg / @f + v j @f + v - j 1 0. = j + j 1 } ! + s 11 j
+  = a ? > n 61 - n 61 0
+  ! 27 0
+  ? < - n a 10 0. {
+    # os fechos do motor são todos > 0: entram os n - a - 1 retornos da janela
+    = m - - n a 1
+    = sm 0. = j + a 1 W < j n { = sm + sm @f + lg j = j + j 1 }
+    = mu / sm F m
+    = q 0. = j + a 1 W < j n { = d - @f + lg j mu = q + q * d d = j + j 1 }
+    ! 27 1
+    * Sq / q F ? > - m 1 1 - m 1 1 Sq F ? @ 3 365 252 } }
+
+# ---------- backtestAsset ----------
+# a chave do conselho (a mesma regra do conselho do motor): 0 hold 1 buy 2 scale 3 wait 4 neutral 5 turn 6 avoid
+: chave >i {
+  = lh ? @ 34 @ 33 @ 31 = md @ 31 = r @f 16
+  ? && >= lh 58 >= md 58 ? > r 72. 0 1
+    ? && && >= lh 58 @ 44 >= md 25 2
+      ? >= lh 58 3 ? >= lh 42 4 ? >= md 42 5 6 }
+# o analyse do prefixo com cnt fechos válidos (M[1] = os fechos válidos, s = o estado incremental): a chave, ou -1 (null)
+: achave ii>i s cnt ? < cnt 30 -1 { ! 2 cnt metr s medio longo desconto chave }
+# o bloco do ativo (escrito pelo anfitrião), em palavras:
+#  0 n  1 tipo  2 cripto  3 warm  4 step  5 cost (reais, crus: o `|| 200`, `|| 5` e `|| 0` são daqui)  6 modo da
+#  referência (0 nenhuma, 1 o índice, 2 valores do anfitrião)  7 fechos para o analyse (NaN se não são números)
+#  8 fechos para as contas (o +x do JS)  9 datas: [nd, nd endereços de textos (0: não é texto)]
+#  10.. acc: 7 × [existe (0 não, 1 sim, 2 mexida), n21 s21 h21 x21 nx21 n63 s63 h63 x63 nx63]  87.. per: buyN buyS avoidN avoidS
+#  91 quantas chaves novas  92..98 as chaves novas, por ordem  99 [i, chave] dos dias com análise
+#  100 pares (i, h) que pedem a referência (modo 2)  101 os valores deles: [tem, valor] (o anfitrião escreve-os)
+: btk i>i b {
+  = n @ b
+  = ca @ + b 7
+  # os fechos válidos (o filtro do analyse) e quantos há em cada prefixo
+  = vb A + n 1 = pc A + n 2 = m 0
+  = j 0
+  W < j n { ! + pc j m = w @ + ca j ? && != & >> w 52 2047 2047 > @f + ca j 0. { ! + vb m w = m + m 1 } 0 = j + j 1 }
+  ! + pc n m
+  ! 1 vb ! 3 @ + b 2 ! 4 @ + b 1 ! 5 0 !f 6 0.
+  = wv @f + b 3 = wm ? || == wv 0. != wv wv 200. wv
+  = st @f + b 4 = sp ? || == st 0. != st st 5. st
+  # quantos dias (um passo que não faz avançar o i deixava o JS num ciclo sem fim: aqui é o erro 2)
+  = i wm = fim - F n 21. = nd 0
+  ! 61 0
+  W && < i fim == @ 61 0 { = nd + nd 1 = i2 + i sp ? <= i2 i ! 61 2 0 = i i2 }
+  = li A + 1 * 2 nd ! li 0
+  = es A 12 ! + es 10 A + m 1
+  = i wm
+  W && < i fim == @ 61 0 {
+    = k achave es @ + pc sidx + i 1. n
+    ? >= k 0 { = q + + li 1 * 2 @ li !f q i ! + q 1 k ! li + @ li 1 } 0
+    = i + i sp }
+  ! + b 99 li
+  # os pares que pedem a referência ao anfitrião (modo 2), pela ordem em que o JS a chama
+  = pa A + 1 * 4 @ li ! pa 0
+  ? == @ + b 6 2 {
+    = j 0
+    W < j @ li {
+      = x @f + + li 1 * 2 j
+      = h 21 W <= h 63 { ? < + x F h F n { = q + + pa 1 * 2 @ pa !f q x ! + q 1 h ! pa + @ pa 1 } 0 = h + h 42 }
+      = j + j 1 } } 0
+  ! + b 100 pa
+  = pv A + 1 * 4 @ pa ! + b 101 pv
+  @ 61 }
+# o dia i (real) de a.days: o endereço do texto, ou 0 (undefined)
+: bdia if>i dt i ? == dt 0 0 ? && && == Fl i i >= i 0. < i F @ dt @ + + dt 1 I i 0
+# acumula como o JS (depois do btk e, no modo 2, dos valores do anfitrião)
+: bta i>i b {
+  = n @ b = cf @ + b 8 = md @ + b 6 = dt @ + b 9
+  = c @f + b 5 = cost ? || == c 0. != c c 0. c
+  = li @ + b 99 = pv @ + b 101 = pi 0
+  ! + b 91 0
+  = j 0
+  W < j @ li {
+    = x @f + + li 1 * 2 j = k @ + + + li 1 * 2 j 1
+    = ac + + b 10 * k 11
+    # acc[k] || (acc[k] = newAcc()); 2 = mexida (o anfitrião copia-a de volta)
+    ? ~ @ ac { = z 1 W <= z 10 { !f + ac z 0. = z + z 1 } ! + + b 92 @ + b 91 k ! + b 91 + @ + b 91 1 } 0
+    ! ac 2
+    = bu || == k 1 == k 2
+    = h 21 = o 1
+    W <= h 63 {
+      ? < + x F h F n {
+          = f - - / vat cf n + x F h vat cf n x 1. cost
+          !f + ac o + @f + ac o 1.
+          !f + ac + o 1 + @f + ac + o 1 f
+          ? || && bu > f 0. && == k 6 < f 0. { !f + ac + o 2 + @f + ac + o 2 1. 0 } 0
+          = tb ? == md 1 bval bdia dt x bdia dt + x F h ? == md 2 { = r @ + pv * 2 pi !f 59 @f + + pv * 2 pi 1 = pi + pi 1 r } 0
+          ? tb { = bb @f 59 !f + ac + o 3 + @f + ac + o 3 - f bb !f + ac + o 4 + @f + ac + o 4 1. 0 } 0
+          ? == h 63 {
+              ? bu { !f + b 87 + @f + b 87 1. !f + b 88 + @f + b 88 f 0 } 0
+              ? == k 6 { !f + b 89 + @f + b 89 1. !f + b 90 + @f + b 90 f 0 } 0 } 0 } 0
+      = h + h 42 = o + o 5 }
+    = j + j 1 }
+  0 }
+# summarize: b = [ne] e ne × [n21 s21 h21 x21 nx21 n63 s63 h63 x63 nx63]; JSON [{n, avg21, ...}, ...] pela mesma ordem
+: pdiv ff>i a n ? || == n 0. != n n "null" pj / a n
+: resumo i>i b {
+  = ne @ b P '[
+  = j 0
+  W < j ne {
+    = q + + b 1 * j 10
+    ? j P ', 0
+    "{\"n\":" pj @f q ",\"avg21\":" pdiv @f + q 1 @f q ",\"hit21\":" pdiv @f + q 2 @f q ",\"ex21\":" pdiv @f + q 3 @f + q 4
+    ",\"n63\":" pj @f + q 5 ",\"avg63\":" pdiv @f + q 6 @f + q 5 ",\"hit63\":" pdiv @f + q 7 @f + q 5 ",\"ex63\":" pdiv @f + q 8 @f + q 9 "}"
+    = j + j 1 }
+  P '] 0 }

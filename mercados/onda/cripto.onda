@@ -1,0 +1,134 @@
+# Mercados — cripto em Portugal: mais-valias isentas com 365 dias ou mais (planLots e cryptoTax de analise.js).
+# As datas chegam como texto UTF-16 e as comparações (<, <=, >=) são as do JS. O addDaysISO do JS
+# (Date.parse(iso + 'T12:00:00Z') + 365 dias → toISOString().slice(0, 10)) faz-se em dias: o Date.parse do V8 aceita
+# o mês 01–12 e o dia 01–31 (o 31 de abril é 1 de maio) e dá NaN no resto (o toISOString lança então RangeError).
+
+# o texto s (UTF-16) é /^\d{4}-\d{2}-\d{2}$/?
+: isoq i>i s {
+  ? != @ s 10 0 {
+    = ok 1 = j 0
+    W && ok < j 10 { = c @ + + s 1 j = ok ? || == j 4 == j 7 == c 45 && >= c 48 <= c 57 = j + j 1 }
+    ok } }
+# o número de k algarismos de s a partir da posição j
+: sdig iii>i s j k { = v 0 = i 0 W < i k { = v + * v 10 - @ + + s 1 + j i 48 = i + i 1 } v }
+# dias desde 1970-01-01 de (ano, mês 1–12, dia; o dia pode passar do fim do mês, como no MakeDay)
+: dciv iii>i y m d {
+  = y ? <= m 2 - y 1 y
+  = era / ? >= y 0 y - y 399 400
+  = yoe - y * era 400
+  = doy + - / + * 153 + m ? > m 2 -3 9 2 5 1 d
+  = doe + - + * yoe 365 / yoe 4 / yoe 100 doy
+  - + * era 146097 doe 719468 }
+# a data civil dos dias z desde 1970 fica no bloco `cv` (M[63] aponta para ele): ano, mês, dia
+: cv >i @ 63
+: dcal i>i z {
+  = z + z 719468
+  = era / ? >= z 0 z - z 146096 146097
+  = doe - z * era 146097
+  = yoe / - + - doe / doe 1460 / doe 36524 / doe 146096 365
+  = y + yoe * era 400
+  = doy - doe - + * 365 yoe / yoe 4 / yoe 100
+  = mp / + * 5 doy 2 153
+  = d + - doy / + * 153 mp 2 5 1
+  = m ? < mp 10 + mp 3 - mp 9
+  ! cv + y <= m 2 ! + cv 1 m ! + cv 2 d 0 }
+# escreve n com k algarismos (zeros à esquerda)
+: pzk ii>i n k { = p 1 = i 1 W < i k { = p * p 10 = i + i 1 } W > p 1 { ? < n p P '0 0 = p / p 10 } N n }
+# o free do JS: toISOString().slice(0, 10) do dia z ('AAAA-MM-DD'; de 10000 em diante '+0AAAAA-MM', sem o dia)
+: pfree i>i z {
+  dcal z
+  = y @ cv = m @ + cv 1 = d @ + cv 2
+  ? && >= y 0 <= y 9999 { pzk y 4 P '- pzk m 2 P '- pzk d 2 }
+    { P ? < y 0 '- '+ pzk ? < y 0 - 0 y y 6 P '- pzk m 2 } }
+
+# ---------- planLots(since, days, today) ----------
+# si, to: textos (String(since || '') e String(today || '')); dd: [n, reais] (os Number(x) de days, sem buracos)
+: lotes iii>i si to dd {
+  ? || ~ isoq si ~ isoq to "[]" {
+    = n @ dd = d A + n 1 = k 0
+    = j 0 W < j n { = x @f + + dd 1 j ? && >= x 1. <= x 28. { !f + d k x = k + k 1 } 0 = j + j 1 }
+    # sort((a, b) => a - b), estável
+    = i 1 W < i k { = x @f + d i = j - i 1 W && >= j 0 > @f + d j x { !f + d + j 1 @f + d j = j - j 1 } !f + d + j 1 x = i + i 1 }
+    = y sdig si 0 4 = m sdig si 5 2
+    = ym A 40 = iso A 80
+    P '[ = c 0
+    = i 0
+    W && < i 360 k {
+      ! ym + ym 1 O ym N y P '- ? < m 10 P '0 0 N m O 0
+      = ly - - @ ym ym 1
+      ? > scmp + ym 1 ly + to 1 7 0 = i 360 {
+        = j 0
+        W < j k {
+          = x @f + d j
+          ! iso + iso 1 O iso
+          = q + ym 1 W < q @ ym { P @ q = q + q 1 }
+          P '- ? == Fl x x { ? < x 10. P '0 0 N I x } pnum x
+          O 0
+          = li - - @ iso iso 1
+          ? && >= scmp + iso 1 li + si 1 10 0 <= scmp + iso 1 li + to 1 @ to 0 {
+              ? c P ', 0 = c + c 1
+              "{\"d\":\"" = q + iso 1 W < q @ iso { P @ q = q + q 1 } "\",\"plan\":1}" } 0
+          = j + j 1 }
+        = m + m 1 ? > m 12 { = m 1 = y + y 1 } 0
+        = i + i 1 } }
+    P '] } }
+
+# ---------- cryptoTax(lots, today) ----------
+# b: [T (o Date.parse(today) do JS, real), today é texto (0/1), today (texto), n] e n compras seguidas:
+#    [verdadeira (0/1), e (o +x.e do JS, real), plan (0/1), d (texto)]
+# JSON igual ao do JS; se uma compra tem uma data que o Date.parse recusa, M[61] = 1 e não escreve nada (o JS lança)
+: imposto i>i b {
+  = tt @f b = tst @ + b 1 = to + b 2
+  = n @ + + to 1 @ to
+  # as compras que passam o filtro (x && ISO.test(x.d) && x.d <= today)
+  = l A + n 1 = k 0
+  = q + + + to 1 @ to 1 = j 0
+  W < j n {
+    ? && && @ q isoq + q 3 && tst <= tcmp + q 3 to 0 { ! + l k q = k + k 1 } 0
+    = q + + q 4 @ + q 3 = j + j 1 }
+  # sort por data, estável: inserção binária (cada compra vai para depois das da mesma data); já por ordem, 1 comparação
+  = i 1
+  W < i k {
+    = x @ + l i
+    ? > tcmp + @ + l - i 1 3 + x 3 0 {
+        = lo 0 = hi - i 1
+        W < lo hi { = md >> + lo hi 1 ? > tcmp + @ + l md 3 + x 3 0 = hi md = lo + md 1 }
+        = j i W > j lo { ! + l j @ + l - j 1 = j - j 1 }
+        ! + l lo x } 0
+    = i + i 1 }
+  # datas válidas para o Date.parse do V8 (mês 1–12, dia 1–31)?
+  = ok 1 = j 0
+  W && ok < j k { = s + @ + l j 3 = mm sdig s 5 2 = dd sdig s 8 2 = ok && && >= mm 1 <= mm 12 && >= dd 1 <= dd 31 = j + j 1 }
+  ? ~ ok { ! 61 1 0 } {
+    # 1.ª passagem: free, days, ok e somas (pela ordem do JS)
+    = fz A + k 1 = dz A + k 1
+    = ex 0 = eur 0. = eux 0. = nx -1
+    = j 0
+    W < j k {
+      = x @ + l j = s + x 3
+      = z + dciv sdig s 0 4 sdig s 5 2 sdig s 8 2 365
+      ! + fz j z
+      # o Date.parse(free), em dias: o '+0AAAAA-MM' é o dia 1 desse mês
+      dcal z = fy @ cv = fm @ + cv 1
+      = pz ? && >= fy 0 <= fy 9999 z dciv fy fm 1
+      = dy jround / - * F pz 86400000. tt 86400000.
+      !f + dz j dy
+      = e ? > @f + x 1 0. @f + x 1 0.
+      = eur + eur e
+      ? <= dy 0. { = ex + ex 1 = eux + eux e 0 } ? < nx 0 = nx j 0
+      = j + j 1 }
+    "{\"n\":" N k ",\"exempt\":" N ex ",\"eur\":" pj eur ",\"eurExempt\":" pj eux
+    ",\"first\":" ? k pjs + @ l 3 "null"
+    ",\"next\":" ? >= nx 0 {
+        = x @ + l nx
+        "{\"d\":" pjs + x 3 ",\"free\":\"" pfree @ + fz nx "\",\"days\":" pj @f + dz nx "}" } "null"
+    ",\"all\":" pbool && > k 0 == ex k
+    ",\"lots\":["
+    = j 0
+    W < j k {
+      = x @ + l j = dy @f + dz j
+      ? j P ', 0
+      "{\"d\":" pjs + x 3 ",\"e\":" pj ? > @f + x 1 0. @f + x 1 0.
+      ",\"free\":\"" pfree @ + fz j "\",\"days\":" pj jmax 0. dy ",\"ok\":" pbool <= dy 0. ",\"plan\":" pbool @ + x 2 "}"
+      = j + j 1 }
+    "]}" } }

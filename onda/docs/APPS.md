@@ -11,7 +11,7 @@ mesmo resultado que o JavaScript, verificado por testes. A app nunca fica partid
 |---|---|---|---|
 | A | Onda para apps: exportações, anfitrião (`rt/anfitriao.js`), biblioteca (`lib/app.onda`) | feito (it.137) | app de exemplo testada num browser |
 | B | Motor de análise (`analyse`: médias, RSI, MACD, volatilidade, níveis, pontuações, conselho, textos) | feito (Mercados 3.23) | `mercados/onda/analise.onda` (701 linhas): 0 diferenças em 4 000 séries, números iguais ao bit; 40×400 em ~4 ms; corre em WebAssembly na app e nos scripts |
-| C | O resto do `analise.js`: tom das notícias, sentimento do mercado, teste no passado, imposto da cripto (365 dias), agrupar avisos, horas de silêncio | depois de B | pura lógica, sem ecrã |
+| C | O resto do `analise.js`: tom das notícias, sentimento do mercado, teste no passado, imposto da cripto (365 dias), agrupar avisos, horas de silêncio | feito (Mercados 4.3.0) | a API toda do `analise.js` em Onda: `mercados/onda/*.onda`, 7 ficheiros e 1 415 linhas (702 da fase C), um módulo de 163 962 bytes. 0 diferenças, ao bit, em 1 114 112 pontos de código (norm), 41 500 títulos, 20 000 casos por função (marketMood, labelOf, riskOf, €/L, planLots, cryptoTax, groupAlert, isQuiet), 36 000 indicadores e 120 testes no passado. Mais rápido: tom de 1 000 títulos 60–75 ms → 3–6 ms; teste no passado 40×500 110–155 ms → 14–18 ms, 40×1 260 0,7–0,8 s → 43–72 ms. A app e os scripts já só usam a Onda; o `analise.js` fica como referência dos testes |
 | D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | o maior | precisa de portas novas: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
 | E | O Worker da Cloudflare | com risco | o plano grátis dá 10 ms de CPU por pedido. Medido (Node, WASM): 645 KB de JSON do Yahoo (40 ações, 1 ano) → **20 ms** com o `json` da biblioteca, contra 3 ms do `JSON.parse`. Precisa de um leitor em fluxo que só tire os fechos, sem montar a árvore |
 | F | Os scripts da tarefa do Claude (`dados`, `universo`, `outros`, `publicar`) | depois de B e C | anfitrião Node: ficheiros, `fetch`, API da Cloudflare |
@@ -34,6 +34,23 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   compactada (8 bytes por palavra) cortaria cerca de metade do tempo de um lote grande.
 - Ler a entrada pelo stdin custa uma chamada por byte em WebAssembly: o motor recebe o lote direto na memória (`_oa` +
   função exportada `lote`), graças às exportações da it.137.
+
+## Aprendido com o resto da análise (fase C)
+- `!` e `!f` valem o valor guardado: um bloco que acaba num `!f` é real, e um `? c { ... !f p x } 0` dá "ramos com tipos
+  diferentes" (o erro aponta o início da instrução, não o ramo). Acabar o bloco com `0`.
+- Os nomes começam por minúscula: `L` é um operador (`= L 1` dá "= precisa de nome").
+- Criar uma instância do módulo custa ~0,3 ms (2 MB de memória inicial e os textos): a ponte guarda uma e repõe o monte em
+  cada chamada (o que foi reservado volta a zero). As tabelas fixas (palavras das notícias, normalização) e a área de
+  trabalho do motor ficam abaixo dessa marca, feitas uma vez pelo `main`.
+- Com a memória viva, o JS do chamador (getters, `valueOf`) pode voltar a chamar a API a meio: a ponte lê tudo primeiro e
+  só depois escreve na memória da Onda.
+- A saída de texto continua a ser o mais lento: um cryptoTax de 300 compras escreve 24 KB de JSON e fica ao nível do JS
+  (0,4 ms); onde há contas (notícias, teste no passado) a Onda ganha por 10×.
+- O NaN não tem forma em JSON: a Onda escreve-o como texto marcado e a ponte troca-o (±Infinity sai `±1e999`, -0 sai `-0`).
+- O teste no passado analisa prefixos cada vez maiores: o RSI, o MACD e os logaritmos da volatilidade continuam de onde
+  ficaram (as mesmas contas, pela mesma ordem: os mesmos bits).
+- Encontrado e corrigido no motor da fase B: o `${x}` de inteiros entre 2^53 e 9·10^18 saía com os algarismos todos
+  (o JS escreve o decimal mais curto, 2^60 → 1152921504606847000).
 
 ## Limites, com honestidade
 - Nenhuma linguagem é a melhor em tudo. A Onda ganha no cálculo (rápida, igual ao bit em todos os alvos,
