@@ -1,7 +1,8 @@
 # App de exemplo, toda em Onda: um contador que se lembra do valor (armazem do browser), botoes, e uma leitura
 # da rede (fetch de JSON). Corre com o anfitriao rt/anfitriao.js: o main prepara; cada clique e cada resposta
 # chamam uma funcao daqui. Monta-se com: cat lib/app.onda ex/app/contador.onda | build/ondac -w > contador.wasm
-# Globais: M[0] contagem, M[2] texto da ultima leitura da rede.
+# Globais: M[0] contagem, M[2] texto da ultima leitura da rede. Os textos fixos (seletores, chaves, nomes das funcoes
+# de evento) sao textos constantes ($"..."): nao se fazem nem gastam o monte.
 : render >i {
   = m marca
   = h tnovo 4000
@@ -10,27 +11,22 @@
   "<button data-onda=\"menos\">−</button> <button data-onda=\"mais\">+</button>"
   "<p id=\"rede\">" ? @ 2 thtml @ 2 "…" "</p>"
   O 0
-  = s tnovo 8 O s "#app" O 0
-  Y 100 s h
+  Y 100 $"#app" h
   solta m }
 : clique i>i t {
-  = k tnovo 8 O k "mais" O 0
-  ? tigual t k ! 0 + @ 0 1 ! 0 - @ 0 1
-  = c tnovo 24 O c "contagem" O 0
+  ? tigual t $"mais" ! 0 + @ 0 1 ! 0 - @ 0 1
   = v tnovo 24 O v N @ 0 O 0
-  Y 106 c v
+  Y 106 $"contagem" v
   render
   solta t }
 : lido ii>i t estado {
   = r json t
-  = k tnovo 8 O k "valor" O 0
-  = s tnovo 64 O s "valor " pdec jnum jget r k 2 " (HTTP " N estado ")" O 0
+  = s tnovo 64 O s "valor " pdec jnum jget r $"valor" 2 " (HTTP " N estado ")" O 0
   ! 2 s
   render }
 : main >i {
-  = c tnovo 24 O c "contagem" O 0
-  = g Y 105 c 0
+  = g Y 105 $"contagem" 0
   ! 0 ? g tint g 0
-  = e tnovo 8 O e "click" O 0 = f tnovo 8 O f "clique" O 0 Y 101 e f
-  = u tnovo 32 O u "dados.json" O 0 = f2 tnovo 8 O f2 "lido" O 0 Y 102 u f2
+  Y 101 $"click" $"clique"
+  Y 102 $"dados.json" $"lido"
   render 0 }

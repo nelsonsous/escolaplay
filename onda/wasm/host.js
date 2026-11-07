@@ -39,7 +39,7 @@ function cfmt(x) {
 }
 function sys(c, a, b) {
   switch (Number(c)) {
-    case 0: { const n = Number(b), v = new BigInt64Array(mem.buffer, (Number(a) + 16) * 8, n), u = Buffer.alloc(n); for (let i = 0; i < n; i++) u[i] = Number(v[i] & 255n); fs.writeSync(1, u); return 0n; }
+    case 0: { const n = Number(b), m8 = new Uint8Array(mem.buffer, (Number(a) + 16) * 8, n * 8), u = Buffer.allocUnsafe(n); for (let i = 0; i < n; i++) u[i] = m8[i << 3]; fs.writeSync(1, u); return 0n; }
     case 1: if (!inbuf) { try { inbuf = fs.readFileSync(0); } catch (e) { inbuf = Buffer.alloc(0); } } return ip < inbuf.length ? BigInt(inbuf[ip++]) : -1n;
     case 2: kcommit(); process.exit(Number(a));
     case 3: return BigInt(args.length);

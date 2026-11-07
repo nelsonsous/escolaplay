@@ -1,10 +1,14 @@
 # Biblioteca para apps Onda (junta-se antes do codigo da app: cat lib/app.onda app.onda | ondac -w).
-# Globais: M[0..59] sao da app; a biblioteca usa M[60..63] (o JSON). Os textos literais comecam em M[64].
+# Globais: M[0..59] sao da app; a biblioteca usa M[60..63] (o JSON). Os textos literais ("..." e $"...") comecam em M[64].
 #
 # TEXTO: um endereco t com M[t] = fim; os bytes (UTF-8, um por palavra) estao em M[t+1 .. M[t]-1].
 # E o que o `O t` deixa ao desviar a saida para a memoria, por isso escrever um texto e imprimir para ele:
 #   = t tnovo 100  O t "Ola " N 42  O 0      -> t vale "Ola 42"
-# Cuidado: o O nao conhece a capacidade; reserva o suficiente (tnovo n reserva n bytes).
+# Cuidado: o O nao conhece a capacidade; reserva o suficiente (tnovo n reserva n bytes), ou usa o Oc t n: o que passar
+# de n bytes fica de fora (= t tnovo 100 Oc t 100 ...).
+# Um texto fixo nao precisa de ser feito: $"Ola" e o endereco de um texto constante, ja neste formato (so de leitura;
+# textos iguais partilham o endereco).
+# A biblioteca e para o -w (e -x/-a): usa o M[-1] (o topo do monte).
 
 # ---- memoria por regioes: marca o monte antes de um evento e solta-o no fim (o que foi reservado depois volta a
 # zero, como o A promete) ----

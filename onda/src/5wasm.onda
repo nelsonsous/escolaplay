@@ -22,7 +22,7 @@
 : wf0 >i { P 68 = j 0 W < j 8 { P 0 = j + j 1 } 0 }
 : wsys iii>i c a b { wi64 c wi64 a wi64 b P 16 P 0 }
 : fby i>i c { = k 0 = r -1 W && < r 0 < k @ 6 { ? == tcode @ fe k 0 c = r k 0 = k + k 1 } r }
-: wrf i>i c { = k fby c ? < k 0 { ebeg "runtime sem funcao" eend } 0 P 16 wu + 3 k }
+: wrf i>i c { = k fby c ? < k 0 { ebeg "runtime sem funcao" eend } 0 P 16 wu wix k }
 : tokval i>i i {
   = s tks i
   = l tkl i
@@ -74,7 +74,7 @@
   wsx d
   wloop0 0
   wtest 0 a
-  wg d wgx 0 wxargs c x P 16 wu + 3 b P ? tty d 160 124 wsx d
+  wg d wgx 0 wxargs c x P 16 wu wix b P ? tty d 160 124 wsx d
   wnext 0 }
 # --- WASM SIMD (v128 / f64x2): mapa vetorizado, 2 doubles por instrucao (so em -wf). Bit-exato (por lane). ---
 # walker pos-fixo do elemento: recarrega x por uso (v128.load), sem locais v128 novos. 0xFD = prefixo SIMD.
@@ -101,7 +101,7 @@
   P 2 P 64 P 3 P 64
   wgx 0 wg b P 89 P 13 P 1
   wg a wgx 0 P 124 wadr
-  wgx 0 wxargs x y P 16 wu + 3 c
+  wgx 0 wxargs x y P 16 wu wix c
   ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
   wgx 0 wi64 1 P 124 wsxx 0 P 12 P 0 P 11 P 11
   ! 7 sv }
@@ -115,7 +115,7 @@
     wloop0 0
     wtest 0 b
     wg a wgx 0 P 124 wadr
-    wgx 0 wxargs x y P 16 wu + 3 c
+    wgx 0 wxargs x y P 16 wu wix c
     ? @ fe c 3 { P 57 P 3 P 0 } { P 55 P 3 P 0 }
     wnext 0 } }
 : wbyte ii>i j s { wgx j wi64 s P 135 wi64 255 P 131 wrf k3 '_ 'o 'p P 26 }
@@ -133,7 +133,7 @@
   wtest 0 a
   wgx 0 ? fpt c 0 P 185 0
   wgx 1 ? fpt c 0 P 185 0
-  wxargs x y P 16 wu + 3 c wsxx 2
+  wxargs x y P 16 wu wix c wsxx 2
   wbyte 2 16 wbyte 2 8 wbyte 2 0
   wnext 0
   wnext 1
@@ -152,24 +152,40 @@
   = n 0
   W < j - l 1 { ? == @ + s j 92 = j + j 2 = j + j 1 = n + n 1 }
   n }
-: wstr i>i i {
-  = n slen i
-  = adr @ 20
-  ! 20 + adr / + n 7 8
+: wstr i>i i { = adr sreg i wi64 adr wi64 slen i wrf k3 '_ 'o 's P 26 }
+# a zona dos dados (a partir de M[64]; @20 = o fim): a tabela @21 tem uma entrada [token, endereco] por texto, pela
+# ordem dos enderecos. Um texto impresso ("...", token > 0) vai compactado, 8 bytes por palavra; um texto constante
+# ($"...", token < 0) vai no formato do O t: M[t] = fim e um byte por palavra. A seguir as 20000 entradas (40000
+# palavras) fica a tabela de dispersao dos textos constantes (65536 lugares: entrada + 1), para um texto igual dar
+# sempre o mesmo endereco (tambem quando a funcao e expandida em linha e o mesmo token e compilado outra vez).
+: dent ii>i i adr {
+  ? >= @ 22 20000 { ebeg "textos demais" eend } 0
   = q + @ 21 * @ 22 2
   ! q i
   ! + q 1 adr
-  ! 22 + @ 22 1
-  wi64 adr wi64 n wrf k3 '_ 'o 's P 26 }
+  ! 22 + @ 22 1 }
 : sreg i>i i {
   = n slen i
   = adr @ 20
   ! 20 + adr / + n 7 8
-  = q + @ 21 * @ 22 2
-  ! q i
-  ! + q 1 adr
-  ! 22 + @ 22 1
+  dent i adr
   adr }
+: thash i>i i { = s tks i = l tkl i = h 2166136261 = j 0 W < j l { = h & * ^ h @ + s j 16777619 4294967295 = j + j 1 } & h 65535 }
+: treg i>i i {
+  = h thash i
+  = r -1
+  W < r 0 {
+    = q @ + + @ 21 40000 h
+    ? q
+      { = e + @ 21 * - q 1 2 ? teq - 0 @ e i = r @ + e 1 = h & + h 1 65535 }
+      { = r @ 20
+        ! 20 + + r slen i 1
+        dent - 0 i r
+        ! + + @ 21 40000 h @ 22 } }
+  r }
+: dadr i>i j @ + + @ 21 * j 2 1
+: wtxt ii>i i a { wword + + a slen i 1 8 wbytes i 1 }
+: wdat i>i j { = i @ + @ 21 * j 2 ? < i 0 wtxt - 0 i dadr j wchr i }
 : wins i>i p {
   = k @ p
   = d @ + p 1
@@ -182,7 +198,7 @@
   ? == k 4 { ? tty d wf0 wi64 0 wsx d }
   ? == k 5 { wgv b wsx d }
   ? == k 6 { wg b wsv c }
-  ? == k 7 { = j 0 W < j c { wg @ + b j = j + j 1 } P 16 wu + 3 a wsx d }
+  ? == k 7 { = j 0 W < j c { wg @ + b j = j + j 1 } P 16 wu wix a wsx d }
   ? == k 8 { wg b wg c P wbop opof a tty d wsx d }
   ? == k 9 { wg b wg c P wcop opof a tty b wb2i wsx d }
   ? == k 10 { wi64 0 wsx d wcond a P 4 P 64 }
@@ -240,7 +256,9 @@
 : wty i>i y P ? y 124 126
 : wnm i>i c { wu 3 P & c 255 P & >> c 8 255 P >> c 16 }
 : wword ii>i v n { = j 0 W < j n { P & v 255 = v >> v 8 = j + j 1 } 0 }
-: wchr i>i i {
+# os bytes do texto do token i (os escapes \n \t \r \0 e \x = x), escritos como m pede: 0 cada byte (compactado),
+# 1 uma palavra de 8 bytes por byte (o formato do O t), 2 em decimal com virgula (para o C); vale quantos
+: wbytes ii>i i m {
   = s tks i
   = l tkl i
   = j 1
@@ -250,28 +268,93 @@
     ? == c 92
       { = j + j 1 = e @ + s j = c ? == e 'n 10 ? == e 't 9 ? == e 'r 13 ? == e '0 0 e }
       0
-    P c
+    ? == m 0 P c ? == m 1 wword c 8 { N c P ', }
     = n + n 1
     = j + j 1 }
-  W & n 7 { P 0 = n + n 1 }
-  0 }
-# exportacoes: cada funcao fica exportada com o seu nome, para o anfitriao a chamar (eventos de uma app:
-# o anfitriao corre o _start uma vez e depois chama as funcoes; a memoria e o estado ficam no modulo).
-# "memory" e "_start" ficam de fora (ja sao exportacoes do modulo).
+  n }
+: wchr i>i i { = n wbytes i 0 W & n 7 { P 0 = n + n 1 } 0 }
+# --- so o que se usa (-w): o modulo leva as funcoes que as raizes alcancam e exporta so as entradas ---
+# Raizes: o arranque (_go: _ini, main, _ex), as rotinas que os anfitrioes chamam (_oa, _fl, _ini) e as entradas: sem
+# nomes no comando, todas as funcoes cujo nome nao comeca por _ (as _ sao privadas: so entram se alguma funcao viva
+# as usa); com `ondac -w f g ...`, so f, g, ... O alcance segue os tokens de cada corpo: um nome de funcao conta como
+# uma chamada (mesmo que ali seja um local: pode sobrar, nunca faltar), e um operador que chama o runtime (P Pb N G A
+# X D, os textos impressos, Sn Cs Ex Lg Pw At) conta como a rotina que chama.
+# Campo 10 de cada funcao: 0 morta, 1 viva por ver, 2 viva e vista; depois, o indice WASM (3 + ordem entre as vivas).
+: wmark i>i k { ? && >= k 0 == @ fe k 10 0 ! fe k 10 1 0 0 }
+: wrun i>i c wmark fby c
+: wimp i>i j {
+  = kk tkk j
+  ? == kk 3 wrun k3 '_ 'o 's
+  ? == kk 5 {
+      = o tcode j
+      ? || == o 'P == o k2 'P 'b wrun k3 '_ 'o 'p
+      ? == o 'N wrun k3 '_ 'o 'n
+      ? == o 'G wrun k3 '_ 'o 'g
+      ? == o 'A wrun k3 '_ 'o 'a
+      ? == o 'X wrun k3 '_ 'e 'x
+      ? == o 'D { wrun k3 '_ 'p 'h wrun k3 '_ 'o 'p }
+      ? == o k2 'S 'n wrun k3 '_ 's 'n
+      ? == o k2 'C 's wrun k3 '_ 'c 's
+      ? == o k2 'E 'x wrun k3 '_ 'x 'p
+      ? == o k2 'L 'g wrun k3 '_ 'l 'g
+      ? == o k2 'P 'w wrun k3 '_ 'p 'w
+      ? == o k2 'A 't wrun k3 '_ 'a 't 0 }
+    0 }
+: wscan i>i k {
+  = e fend k
+  = j @ fe k 5
+  W < j e { ? == tkk j 0 wmark ffun j wimp j = j + j 1 }
+  ! fe k 10 2 }
+# o nome da funcao k e o argumento i do comando?
+: wxeq ii>i k i { = t @ fe k 0 = l tkl t = j 0 = r 1 W && r < j l { ? != tc t j Av i j = r 0 0 = j + j 1 } && r == Av i l 0 }
+: wxarg i>i k { = r 0 = i 2 W && ~ r < i Ac { = r wxeq k i = i + i 1 } r }
+# _oa, _fl e _ini: o anfitriao reserva textos (_oa), esvazia a saida (_fl) e corre so o arranque do runtime (_ini)
+: wxhost i>i k {
+  = t @ fe k 0
+  = l tkl t
+  ? == l 3 || == tcode t k3 '_ 'o 'a == tcode t k3 '_ 'f 'l
+    && && == l 4 == tc t 0 '_ && && == tc t 1 'i == tc t 2 'n == tc t 3 'i }
+: wdce >i {
+  = i 2
+  W < i Ac {
+    = r 0 = k 0 W && ~ r < k @ 6 { = r wxeq k i = k + k 1 }
+    ? r 0 { ebeg "-w: nao ha a funcao " = j 0 W Av i j { P Av i j = j + j 1 } " para exportar\n" X 1 }
+    = i + i 1 }
+  = k 0
+  W < k @ 6 { ? || wxhost k ? > Ac 2 wxarg k != tc @ fe k 0 0 '_ wmark k 0 = k + k 1 }
+  wrun k3 '_ 'g 'o
+  = ch 1
+  W ch { = ch 0 = k 0 W < k @ 6 { ? == @ fe k 10 1 { wscan k = ch 1 } 0 = k + k 1 } }
+  = n 3
+  = k 0
+  W < k @ 6 { ? @ fe k 10 { ! fe k 10 n = n + n 1 } 0 = k + k 1 }
+  - n 3 }
+: wix i>i k { = w @ fe k 10 ? < w 3 { ebeg "funcao fora do modulo" eend } 0 w }
+# exportacoes: as entradas vivas com o seu nome, para o anfitriao as chamar (eventos de uma app: o anfitriao corre o
+# _start uma vez e depois chama as funcoes; a memoria e o estado ficam no modulo). "memory" e "_start" ficam de fora
+# (ja sao exportacoes do modulo).
 : wxmem i>i t && && == tc t 0 'm == tc t 1 'e && && == tc t 2 'm == tc t 3 'o && == tc t 4 'r == tc t 5 'y
 : wxst i>i t && && == tc t 0 '_ == tc t 1 's && && == tc t 2 't == tc t 3 'a && == tc t 4 'r == tc t 5 't
-: wxok i>i k { = t @ fe k 0 ? != tkl t 6 1 ~ || wxmem t wxst t }
-: wexp i>i k { = t @ fe k 0 = l tkl t wu l = j 0 W < j l { P tc t j = j + j 1 } P 0 wu + 3 k }
+: wxok i>i k {
+  = t @ fe k 0
+  ? ~ @ fe k 10 0
+  ? && == tkl t 6 || wxmem t wxst t 0
+  ? wxhost k 1
+  ? > Ac 2 wxarg k != tc t 0 '_ }
+: wexp i>i k { = t @ fe k 0 = l tkl t wu l = j 0 W < j l { P tc t j = j + j 1 } P 0 wu wix k }
 : outw >i {
   = nf @ 6
+  = nl 0
+  = k 0
+  W < k nf { ? @ fe k 10 = nl + nl 1 0 = k + k 1 }
   P 0 P 97 P 115 P 109 P 1 P 0 P 0 P 0
   = a wbeg
-  wu + 4 nf
+  wu + 4 nl
   P 96 P 3 P 126 P 126 P 126 P 1 P 126
   P 96 P 2 P 126 P 124 P 1 P 124
   P 96 P 3 P 126 P 124 P 124 P 1 P 124
   = k 0
-  W < k nf { P 96 = np @ fe k 2 wu np = j 0 W < j np { wty fpt k j = j + j 1 } P 1 wty @ fe k 3 = k + k 1 }
+  W < k nf { ? @ fe k 10 { P 96 = np @ fe k 2 wu np = j 0 W < j np { wty fpt k j = j + j 1 } P 1 wty @ fe k 3 } 0 = k + k 1 }
   P 96 P 0 P 0
   wend 1 a
   = a wbeg
@@ -281,12 +364,15 @@
   wnm k3 'e 'n 'v wu 2 P 'm P '2 P 0 wu 2
   wend 2 a
   = a wbeg
-  wu + nf 1
+  wu + nl 1
   = k 0
-  W <= k nf { wu + 3 k = k + k 1 }
+  W < k nf { ? @ fe k 10 wu wix k 0 = k + k 1 }
+  wu + 3 nl
   wend 3 a
   = a wbeg
-  P 1 P 0 wu 32
+  # memoria inicial: 2 MiB, ou o que os dados pedirem (os segmentos tem de caber nela ao instanciar)
+  = pg / + * + @ 20 16 8 65535 65536
+  P 1 P 0 wu ? > pg 32 pg 32
   wend 5 a
   = a wbeg
   = ne 2
@@ -294,41 +380,82 @@
   W < k nf { = ne + ne wxok k = k + k 1 }
   wu ne
   wu 6 P 'm P 'e P 'm P 'o P 'r P 'y P 2 wu 0
-  wu 6 P '_ P 's P 't P 'a P 'r P 't P 0 wu + 3 nf
+  wu 6 P '_ P 's P 't P 'a P 'r P 't P 0 wu + 3 nl
   = k 0
   W < k nf { ? wxok k wexp k 0 = k + k 1 }
   wend 7 a
   = a wbeg
-  wu + nf 1
+  wu + nl 1
   = k 0
-  W < k nf { = s @ fe k 8 = z @ fe k 9 wu - z s ew s - z s = k + k 1 }
-  = g + 3 fby k3 '_ 'g 'o
+  W < k nf { ? @ fe k 10 { = s @ fe k 8 = z @ fe k 9 wu - z s ew s - z s } 0 = k + k 1 }
+  = g wix fby k3 '_ 'g 'o
   wu + 4 ? < g 128 1 2
   P 0 P 16 wu g P 26 P 11
   wend 10 a
+  # dados: o topo do monte (M[-1]) e, num so segmento, os textos todos (M[64..@20), seguidos, pela ordem da tabela)
   = a wbeg
-  wu + @ 22 1
+  wu ? @ 22 2 1
   P 0 P 65 ws 120 P 11 wu 8 wword + @ 20 8 8
-  = j 0
-  W < j @ 22 {
-    = q + @ 21 * j 2
-    = i @ q
-    P 0 P 65 ws * + @ + q 1 16 8 P 11
-    wu * 8 / + slen i 7 8
-    wchr i
-    = j + j 1 }
+  ? @ 22 {
+      P 0 P 65 ws 640 P 11
+      wu * 8 - @ 20 64
+      = j 0 W < j @ 22 { wdat j = j + j 1 } } 0
   wend 11 a
   0 }
 : wrt >i "
-: _fl >i { Y 0 @ -4 @ -3 ! -3 0 }
-: _op i>i b { = s @ -2 ? s { ! @ s b ! s + @ s 1 b } { = n @ -3 ! + @ -4 n b ! -3 + n 1 ? >= + n 1 4096 _fl 0 b } }
-: _os ii>i p n { = j 0 W < j n { _op & >> @ + p >> j 3 * 8 & j 7 255 = j + j 1 } 0 }
-: _on i>i n { = u n ? < n 0 { _op 45 = u - 0 n } 0 = b @ -5 = i 0 W { ! + b i + 48 % u 10 = i + i 1 = u / u 10 != u 0 } 0 W > i 0 { = i - i 1 _op @ + b i } n }
+: _fl >i { ? @ -3 { Y 0 @ -4 @ -3 ! -3 0 } 0 0 }
+: _op i>i b {
+  = s @ -2
+  ? s { ? < s 0 { = s - 0 s = c @ s ? < c @ -15 { ! c b ! s + c 1 } 0 } { ! @ s b ! s + @ s 1 } b }
+    { = n @ -3 ! + @ -4 n b ! -3 + n 1 ? >= + n 1 4096 _fl 0 b } }
+# saida em bloco: um texto literal (n bytes compactados, 8 por palavra, em M[p..]) ou n bytes de um por palavra (_ow)
+# vao de uma vez para o texto do O (M[@-2] = cursor) ou para o buffer (4096 palavras); so os que nao cabem no que
+# resta do buffer o esvaziam antes. Com o Oc o desvio vem negativo (M[-2] = -t) e o texto so recebe ate ao fim M[-15]:
+# cada O repoe o desvio, por isso a guarda dura ate ao proximo O.
+: _ocp iii>i d p n {
+  = e + d n
+  = f - e 7
+  W < d f {
+    = w @ p
+    ! d & w 255 ! + d 1 & >> w 8 255 ! + d 2 & >> w 16 255 ! + d 3 & >> w 24 255
+    ! + d 4 & >> w 32 255 ! + d 5 & >> w 40 255 ! + d 6 & >> w 48 255 ! + d 7 & >> w 56 255
+    = d + d 8 = p + p 1 }
+  ? < d e { = w @ p W < d e { ! d & w 255 = w >> w 8 = d + d 1 } } 0
+  0 }
+: _os ii>i p n {
+  = s @ -2
+  ? s { = g < s 0 = s ? g - 0 s s = c @ s = n ? g Mx 0 Mn n - @ -15 c n _ocp c p n ! s + c n }
+    { W > n 0 {
+        ? && > n - 4096 @ -3 @ -3 _fl 0
+        = k ? > n 4096 4096 n
+        = m @ -3
+        _ocp + @ -4 m p k
+        = m + m k
+        ! -3 m
+        ? >= m 4096 _fl 0
+        = n - n k
+        = p + p 512 } }
+  0 }
+: _ow ii>i p n {
+  = s @ -2
+  ? s { = g < s 0 = s ? g - 0 s s = c @ s = e + c ? g Mx 0 Mn n - @ -15 c n W < c e { ! c @ p = c + c 1 = p + p 1 } ! s e }
+    { ? && > n - 4096 @ -3 @ -3 _fl 0
+      ? > n 4096 { = j 0 W < j n { _op @ + p j = j + j 1 } }
+        { = m @ -3 = d + @ -4 m = e + d n W < d e { ! d @ p = d + d 1 = p + p 1 } = m + m n ! -3 m ? >= m 4096 _fl 0 } }
+  0 }
+: _on i>i n {
+  = b @ -5
+  = i 24
+  = u ? < n 0 - 0 n n
+  W { = i - i 1 ! + b i + 48 % u 10 = u / u 10 != u 0 } 0
+  ? < n 0 { = i - i 1 ! + b i 45 } 0
+  _ow + b i - 24 i
+  n }
 : _oa i>i n { = p @ -1 = q + p n ! -1 q ? > q @ -7 ! -7 Y 7 q 0 0 p }
 : _ini >i { ! -7 Y 7 0 0 ! -4 _oa 4096 ! -5 _oa 300 0 }
 : _ex i>i c { _fl Y 2 c 0 }
 : _go >i { _ini _ex main }
-: _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 = j 0 W < j n { _op @ + @ -5 j = j + j 1 } x }
+: _og f>f x { !f -6 x = n Y 5 @ -6 @ -5 _ow @ -5 n x }
 : _pd ii>i p n { = j 0 W < j n { = c @ + p j _op & >> c 16 255 _op & >> c 8 255 _op & c 255 = j + j 1 } 0 }
 : _ph ii>i w h { _op 80 _op 54 _op 10 _on w _op 32 _on h _op 10 _op 50 _op 53 _op 53 _op 10 }
 : _pt i>f k { = r 1.0 = j 0 W < j k { = r * r 10.0 = j + j 1 } r }
