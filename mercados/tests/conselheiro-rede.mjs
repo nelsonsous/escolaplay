@@ -28,7 +28,7 @@ function grafico(s, range) {
     const r = rng(hash(s + '|' + (cena.semente || 1)));
     const p0 = aj(s).p0 ?? (/=X$/.test(s) ? 0.5 + r() : 5 + r() * (hash(s) % 7 === 0 ? 60000 : 400));
     const vol = aj(s).vol ?? 0.005 + r() * 0.04;
-    const n = range === '1d' ? 90 : aj(s).n ?? 252;
+    const n = range === '1d' ? 90 : aj(s).n ?? (/^\d+y$/.test(range) ? 252 * parseInt(range, 10) : 252);
     const passo = range === '1d' ? 300 : 86400, t0 = Math.floor(T / 1000) - n * passo;
     const ts = [], close = [];
     let p = p0;

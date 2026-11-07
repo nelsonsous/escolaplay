@@ -142,6 +142,13 @@ export function cenarios() {
     p('erro que o JS não apanha: o ficheiro da análise não existe', analise(), { args: ['{pasta}/nao-existe.json', '{pasta}/dados.json'] });
     p('erro que o JS não apanha: JSON inválido na análise', '{"headline": "x",}');
     C.push({ nome: 'publicar: sem argumentos (uso)', script: 'publicar', args: [], agora: '2026-11-07T07:40:00Z' });
+
+    const b = (nome, c) => C.push({ nome: 'backtest: ' + nome, script: 'backtest', args: [], agora: '2026-11-06T10:00:00Z', semente: 21, ...c });
+    b('5 anos e 90 € (por omissão)', {});
+    b('3 anos, 45 €, ativos com poucos dias e um sem dados', { args: ['3', '45'], simbolos: { NVDA: { curto: 200 }, 'SAP.DE': { erro: 'Not Found' } } });
+    b('sem o VWCE (sem referência) e com nulos nas séries', { args: ['2', '30'], simbolos: { 'VWCE.DE': { erro: 'Not Found' }, AAPL: { nulos: true } } });
+    b('argumentos que não são números', { args: ['abc', ''] });
+    b('erro que o JS não apanha: o conector falha', { falhas: [{ url: '/quotes', estado: 500, corpo: { error: 'Yahoo em baixo' } }] });
     return C;
 }
 
@@ -177,6 +184,65 @@ test('conselheiro em Onda: o mesmo que o JS em todos os cenários (ficheiros, pe
     const pedidos = res.reduce((s, r) => s + ((r.a.registo && r.a.registo.pedidos.length) || 0), 0);
     const puts = res.reduce((s, r) => s + ((r.a.registo && r.a.registo.pedidos.filter((x) => x.metodo === 'PUT').length) || 0), 0);
     console.log(`✓ ${C.length} cenários iguais: ${pedidos} pedidos (${puts} gravações no KV), ${res.reduce((s, r) => s + Object.keys(r.a.ficheiros).length, 0)} ficheiros`);
+});
+
+// as funções do modelo do JS na Onda (js.onda) contra o próprio Node, em valores escolhidos e ao acaso
+test('conselheiro em Onda: JSON, números, datas de Lisboa e textos UTF-16 iguais aos do Node', async () => {
+    const { correr } = await import('../conselheiro/correr.mjs');
+    let buf = [];
+    const h = correr('', [], { args: [], saida: { 1: (u) => buf.push(Buffer.from(u)) } });
+    const call = (f, ...a) => { buf = []; h.chamar(f, ...a); return Buffer.concat(buf).toString('utf8'); };
+    const T = (x) => h.escrever(Buffer.isBuffer(x) ? x : Buffer.from(x, 'utf8'));
+    const bits = (x) => { const v = new DataView(new ArrayBuffer(8)); v.setFloat64(0, x); return `${v.getInt32(0)} ${v.getUint32(4)}`; };
+    let seed = 99;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x80000000; };
+    const ri = (n) => Math.floor(rnd() * n);
+    const M = () => Number(new BigInt64Array(h.exports.memory.buffer, 0, 16)[15]);
+    const solta = (m) => { const t = M(); new Uint8Array(h.exports.memory.buffer, (m + 16) * 8, (t - m) * 8).fill(0); new BigInt64Array(h.exports.memory.buffer, 0, 16)[15] = BigInt(m); };
+    const m0 = M();
+    const nums = [0, -0, 5e-324, 1.7976931348623157e308, 2 ** 53, 2 ** 60, 1e21, 1e-7, 0.1, 0.05, 0.15, 0.25, 1.005, 2.675, -0.04, 999.95, 123456789012345680000, 0.000001, 1e-6 * 3];
+    for (let i = 0; i < 3000; i++) nums.push(ri(3) ? (rnd() - 0.5) * 10 ** (ri(40) - 20) : Number((rnd() * 1000).toPrecision(1 + ri(17))));
+    for (const x of nums) {
+        assert.equal(call('t_ps', x), String(x));
+        assert.equal(call('t_fix', x, 1n), x.toFixed(1)); assert.equal(call('t_fix', x, 2n), x.toFixed(2));
+        assert.equal(call('t_r6', x), bits(Number(x.toPrecision(6))), 'toPrecision(6) ' + x);
+        const j = JSON.stringify(x); assert.equal(call('t_json', T(j), 0n), JSON.stringify(JSON.parse(j)));
+        const e = x.toExponential(16 + ri(4)); assert.equal(call('t_num', T(e)), bits(Number(e)), e);
+        solta(m0);
+    }
+    for (const s of ['', ' 12 ', '0x1F', '0b101', '-0x1', '.5', '5.', '.', '1e', 'Infinity', '-Infinity', 'infinity', '12abc', '\u00a012\u2028', '1'.repeat(400), '0.' + '0'.repeat(400) + '1'])
+        assert.equal(call('t_tonum', T(JSON.stringify(s))), bits(Number(s)), 'Number(' + JSON.stringify(s) + ')');
+    const v = { a: [1, -0, 1.5e300, 'x\u0001"\\é😀\ud800'], 1: null, '01': true, 4294967294: { z: [] }, 4294967295: {}, b: '' };
+    const j = JSON.stringify(v);
+    assert.equal(call('t_json', T(j), 0n), JSON.stringify(JSON.parse(j)));
+    assert.equal(call('t_json', T(j), 1n), JSON.stringify(JSON.parse(j), null, 1));
+    for (const s of ['[1,]', '{"a":1,}', '01', '"\\x"', '"a\u0001"', '1 2', '\ufeff1', 'NaN']) assert.equal(call('t_json', T(s), 0n), 'ERRO', s);
+    const lis = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }), quando = new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', hour: '2-digit', minute: '2-digit' });
+    for (let y = 1997; y < 2100; y++) for (const mes of [2, 9]) {
+        const ult = new Date(Date.UTC(y, mes + 1, 0)), dia = ult.getUTCDate() - ult.getUTCDay();
+        for (const k of [-61, -1, 0, 1, 59]) { const t = Date.UTC(y, mes, dia, 1, 0) + k * 60000; assert.equal(call('t_lis', BigInt(t)), lis.format(t) + ' ' + quando.format(t)); }
+    }
+    // as regras de Lisboa na Onda são as da UE, as de Portugal desde 31 de março de 1996 (antes houve outras)
+    for (let i = 0; i < 2000; i++) { const t = Math.floor(rnd() * 4e12), tl = 828230400000 + (t % 3e12); assert.equal(call('t_lis', BigInt(tl)), lis.format(tl) + ' ' + quando.format(tl)); assert.equal(call('t_iso', t - 1e12), new Date(t - 1e12).toISOString()); }
+    const ch = ['a', '"', '\\', '\n', 'é', '€', '😀', '\ud83d', '\ude00', '\u2028', '\u00a0'];
+    for (let i = 0; i < 2000; i++) {
+        let s = ''; for (let k = ri(10); k > 0; k--) s += ch[ri(ch.length)];
+        const a = ri(s.length + 2), b2 = a + ri(s.length + 2);
+        assert.equal(call('t_s16', T(JSON.stringify(s)), BigInt(a), BigInt(b2)), JSON.stringify(s.slice(a, b2)));
+        assert.equal(call('t_l16', T(JSON.stringify(s))), String(s.length));
+        let u; try { u = encodeURIComponent(s); } catch { u = 'URIError'; }
+        assert.equal(call('t_uri', T(JSON.stringify(s))), u);
+        solta(m0);
+    }
+    for (let i = 0; i < 2000; i++) { const u = Buffer.from(Array.from({ length: ri(10) }, () => [ri(256), 0xef, 0xbb, 0xbf, 0xed, 0xa0, 0xf0, 0x9f, 0xc2][ri(9)])); assert.equal(Buffer.from(call('t_norm', T(u), 1n)).toString('hex'), Buffer.from(new TextDecoder().decode(u)).toString('hex')); solta(m0); }
+});
+
+test('conselheiro em Onda: as listas da app (STOCKS, FUNDS, CRYPTO, MARKET, MINE, rótulos) são as do comum.mjs', async () => {
+    const R = await import('../conselheiro/js/comum.mjs');
+    const src = readFileSync(path.join(raiz, 'mercados/conselheiro/onda/comum.onda'), 'utf8');
+    const corpo = src.slice(src.indexOf(': cs_cfgjson'), src.indexOf(': cs_c i>i'));
+    const cfg = JSON.parse([...corpo.matchAll(/^\s*"(.*)"\s*$/gm)].map((m) => m[1].replace(/\\"/g, '"')).join(''));
+    for (const k of ['STOCKS', 'FUNDS', 'CRYPTO', 'MARKET', 'MINE', 'ACTION_KEYS', 'REF_KEYS', 'ACTION_LABEL', 'FAM', 'HZ', 'LEVELS']) assert.deepEqual(cfg[k], R[k], k);
 });
 
 test('conselheiro em Onda: o conselheiro.wasm gravado corresponde às fontes', async () => {

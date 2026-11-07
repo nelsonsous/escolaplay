@@ -1,5 +1,5 @@
 // REFERÊNCIA em JavaScript, só para os testes de paridade (mercados/tests/conselheiro-onda.test.mjs): o script que a
-// tarefa agendada corre é o de Onda (mercados/conselheiro/onda/*.onda), lançado por mercados/conselheiro/comum.mjs.
+// tarefa agendada corre é o de Onda: estas peças comuns estão em mercados/conselheiro/onda/comum.onda e js.onda.
 // Conselheiro — peças comuns aos scripts da tarefa agendada (Node 18+, sem dependências).
 import { createRequire } from 'node:module';
 import { readFileSync, realpathSync } from 'node:fs';

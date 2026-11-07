@@ -42,13 +42,14 @@
 : vnum i>f n { = y jtipo n ? == y 4 @f + n 1 ? == y 1 0. ? == y 2 0. ? == y 3 1. / 0. 0. }
 : vmenor ii>i a b < vnum a vnum b
 
-# String(v) (e = 0) ou o esc(v) do mercados.js (e = 1: String(v ?? '') com & < > " ' escapados)
+# String(v) (e = 0), o esc(v) do mercados.js (e = 1: String(v ?? '') com & < > " ' escapados) ou o esc(`${v}`) (e = 2:
+# String(v) escapado, com o null e o undefined por extenso)
 : pv ii>i n e {
   = y jtipo n
   ? == y 5 ? e thtml @ + n 1 tpor @ + n 1
   ? == y 4 pjn @f + n 1
   ? == y 3 "true" ? == y 2 "false"
-  ? == y 1 ? e 0 "null" ? == y 0 ? e 0 "undefined"
+  ? == y 1 ? == e 1 0 "null" ? == y 0 ? == e 1 0 "undefined"
   # String de uma lista: os elementos separados por vírgulas, com o null e o undefined vazios
   ? == y 6 { = c @ + n 4 = f 1 W c { ? f 0 P ', = f 0 = z jtipo c ? || == z 0 == z 1 0 pv c e = c @ + c 3 } 0 }
   "[object Object]" }
@@ -159,12 +160,15 @@
     P 10 = c jprox c }
   0 }
 
-# ---- a ordenação do JS (Array.prototype.sort do V8: o TimSort de array-sort.tq) ----
+# ---- a ordenação do JS (Array.prototype.sort do V8 do Chromium: o PowerSort de array-sort.tq) ----
 # Ordena n índices w[0..n-1] pelo comparador (a, b) => d1 || d2, com d1 = k1[b] - k1[a] (ou k1[a] - k1[b], modo & 1)
 # e d2 = k2[b] - k2[a] (ou k2[a] - k2[b], modo & 4) só com o modo & 2; o NaN conta 0 (o SortCompare do JS). k1 e k2
 # são reais indexados pelos índices. As mesmas comparações que o V8, pela mesma ordem: com chaves que não dão uma
-# ordem (NaN, que empata com tudo) o resultado é também o do browser, não só "um" resultado ordenado.
-# contexto c: 0 k1, 1 k2, 2 modo, 3 minGallop, 4 temporário, 5 w, 6 corridas na pilha, 8.. (base, comprimento)
+# ordem (NaN, que empata com tudo) o resultado é também o do browser, não só "um" resultado ordenado. Abaixo de 16
+# elementos é a inserção binária; daí para cima, as corridas naturais (estendidas até ao minrun do CPython) fundem-se
+# pela "potência" da fronteira (PowerSort), com o galope do TimSort. (O V8 do Node 22 ainda é o TimSort clássico.)
+# contexto c: 0 k1, 1 k2, 2 modo, 3 minGallop, 4 temporário, 5 w, 6 corridas na pilha, 8.. (base, comprimento),
+# 200.. as potências
 : ts_cmp iii>i c x y {
   = md @ + c 2 = k1 @ c
   = a @f + k1 x = b @f + k1 y
@@ -172,18 +176,31 @@
   ? && & md 2 || == d 0. != d d { = k2 @ + c 1 = a @f + k2 x = b @f + k2 y = d ? & md 4 - a b - b a 0 } 0
   ? < d 0. -1 ? > d 0. 1 0 }
 : ts_ordena iiiii>i w n k1 k2 md ? < n 2 0 {
-  = c A 200
+  = c A 300
   ! c k1 ! + c 1 k2 ! + c 2 md ! + c 3 7 ! + c 4 A + n 1 ! + c 5 w
-  = m n = r 0 W >= m 64 { = r | r & m 1 = m >> m 1 } = mr + m r
-  = lo 0 = rem n
-  W != rem 0 {
-    = cr ts_run c w lo + lo rem
-    ? < cr mr { = fr ? < mr rem mr rem ts_bis c w lo + lo cr + lo fr = cr fr 0 } 0
-    = ss @ + c 6 ! + + c 8 * 2 ss lo ! + + c 9 * 2 ss cr ! + c 6 + ss 1
-    ts_mc c
-    = lo + lo cr = rem - rem cr }
-  W > @ + c 6 1 { = n2 - @ + c 6 2 ? && > n2 0 < ts_rl c - n2 1 ts_rl c + n2 1 = n2 - n2 1 0 ts_ma c n2 }
-  0 }
+  ? < n 16 ts_bis c w 0 0 n {
+    # o minrun_next do CPython: corridas de floor(n/2^e) ou ceil(n/2^e), com floor(n/2^e) em [32, 64)
+    = st n = mk 0 W >= st 64 { = st >> st 1 = mk | << mk 1 1 }
+    = rm & n mk = th + mk 1 = ac 0
+    = lo 0 = rem n
+    W != rem 0 {
+      = ac + ac rm = mr st ? >= ac th { = ac - ac th = mr + mr 1 0 } 0
+      = cr ts_run c w lo + lo rem
+      ? < cr mr { = fr ? < mr rem mr rem ts_bis c w lo + lo cr + lo fr = cr fr 0 } 0
+      = ss @ + c 6
+      ? ss {
+          = p ts_pot @ + + c 8 * 2 - ss 1 @ + + c 9 * 2 - ss 1 cr n
+          W && > ss 1 > @ + + c 200 - ss 2 p { ts_ma c - ss 2 = ss @ + c 6 }
+          ! + + c 200 - ss 1 p 0 } 0
+      ! + + c 8 * 2 ss lo ! + + c 9 * 2 ss cr ! + c 6 + ss 1
+      = lo + lo cr = rem - rem cr }
+    W > @ + c 6 1 { = n2 - @ + c 6 2 ? && > n2 0 < ts_rl c - n2 1 ts_rl c + n2 1 = n2 - n2 1 0 ts_ma c n2 }
+    0 } }
+# NodePower (64 bits): a profundidade, numa árvore de fusão ótima, da fronteira entre a corrida (s1, n1) e a seguinte (n2)
+: ts_pot iiii>i s1 n1 n2 n {
+  = a + * 2 s1 n1 = b + + a n1 n2
+  = x ^ & / << a 30 n 4294967295 & / << b 30 n 4294967295
+  = r 32 W > x 0 { = x >> x 1 = r - r 1 } r }
 # CountAndMakeRun: a corrida natural que começa em lo (a descer, estritamente, é invertida)
 : ts_run iiii>i c w lo hi {
   = l + lo 1
@@ -203,15 +220,6 @@
     ! + w l pv = s + s 1 }
   0 }
 : ts_rl ii>i c i @ + + c 9 * 2 i
-: ts_inv ii>i c n ? < n 2 1 > ts_rl c - n 2 + ts_rl c - n 1 ts_rl c n
-# MergeCollapse
-: ts_mc i>i c {
-  = go 1
-  W && go > @ + c 6 1 {
-    = n - @ + c 6 2
-    ? || ~ ts_inv c + n 1 ~ ts_inv c n { ? < ts_rl c - n 1 ts_rl c + n 1 = n - n 1 0 ts_ma c n }
-      ? <= ts_rl c n ts_rl c + n 1 ts_ma c n = go 0 }
-  0 }
 # cópia de n palavras de s[sp..] para d[dp..] (como o memmove)
 : ts_cp iiiii>i s sp d dp n ? < sp dp { = i - n 1 W >= i 0 { ! + d + dp i @ + s + sp i = i - i 1 } 0 } { = i 0 W < i n { ! + d + dp i @ + s + sp i = i + i 1 } 0 }
 # GallopLeft e GallopRight (no array ar, a partir de bs, ln elementos, começando em hi)

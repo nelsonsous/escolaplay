@@ -13,7 +13,7 @@ const destino = path.join(raiz, 'mercados/analise-onda.js');
 // um só módulo: o motor (fase B), o resto do analise.js (fase C) e o ecrã (fase D: a biblioteca de apps, os
 // utilitários das vistas e as vistas), por esta ordem
 export const FONTES = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda',
-    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda'];
+    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda', 'ecra-analise.onda'];
 
 // o compilador da Onda: se ainda não existe, arranca-o (onda/build.sh, ~1 s)
 if (!existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
@@ -439,7 +439,7 @@ const anfitriao = String.raw`(function (root) {
     }
     // o HTML da vista nome (uma função da Onda: ajustes.onda…) para o instantâneo
     function vista(nome, snap) { const k = k0(), r = arvore(k, snap); k.vai(() => k.ex[nome](BigInt(r))); return k.saida(); }
-    const ecra = { ajustes: (snap) => vista('ajustes', snap) };
+    const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap) };
 
     // ---------- para os testes ----------
     // o que a função 'nome' da Onda imprime para cada real de xs (ex.: 'pct', 'pnum')

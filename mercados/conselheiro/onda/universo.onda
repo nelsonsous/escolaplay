@@ -34,6 +34,9 @@
   ! g_us us ! g_ut ut ! g_un un
   = n js_len us
   ! g_qt A + n 1 ! g_toc A + n 1
+  # os símbolos da lista numa tabela de dispersão (FNV-1a, 4096 cabeças; 0 = vazia, senão índice + 1)
+  ! g_hcab A 4096 ! g_hseg A + n 1
+  = j 0 W < j n { = h un_hash js_it us j ! + @ g_hseg j @ + @ g_hcab h ! + @ g_hcab h + j 1 = j + j 1 }
   ! g_i 0 ! g_tent 0 ! g_ph 1
   cs_passo }
 : un_passo >i { = p @ g_ph ? == p 1 un_p1 ? == p 2 un_p2 ? == p 4 un_p4 ? == p 5 un_p5 0 }
@@ -78,9 +81,10 @@
   ! c nc = j 0 W < j nc { ! + + c 1 j tx_b cj j = j + j 1 }
   r }
 # Q[q.symbol] = q: todas as entradas da lista com esse símbolo (a última resposta ganha)
+: un_hash i>i t { = h 2166136261 = q + t 1 = e @ t W < q e { = h & * ^ h @ q 16777619 4294967295 = q + q 1 } & h 4095 }
 : un_poe ii>i s r {
-  = us @ g_us = n js_len us = j 0
-  W < j n { ? tx_igual js_it us j s { ! + @ g_qt j r ! + @ g_toc @ g_ntoc j ! g_ntoc + @ g_ntoc 1 0 } 0 = j + j 1 }
+  = us @ g_us = j - @ + @ g_hcab un_hash s 1
+  W >= j 0 { ? tx_igual js_it us j s { ! + @ g_qt j r ! + @ g_toc @ g_ntoc j ! g_ntoc + @ g_ntoc 1 0 } 0 = j - @ + @ g_hseg j 1 }
   0 }
 : un_p2 >i {
   ! g_ntoc 0
@@ -121,27 +125,26 @@
     ? && ~ vu >= @ p rs ! p - @ p d 0
     = j + j 1 }
   ! -1 + m tam d }
-# a análise de um registo: o JSON do motor, lido para os globais g_a*, e o que se reservou volta ao monte
-: un_rk i>i t ? tx_igual t k_rk1 k_rk1 ? tx_igual t k_rk2 k_rk2 ? tx_igual t k_rk3 k_rk3 ? tx_igual t k_rk4 k_rk4 k_rkna
-: un_key i>i t ? tx_igual t k_hold k_hold ? tx_igual t k_buy k_buy ? tx_igual t k_scale k_scale ? tx_igual t k_wait k_wait ? tx_igual t k_neutral k_neutral ? tx_igual t k_turn k_turn k_avoid
+# a análise de um registo (o analyse de cada série do analyseMany): o mesmo que o serie de analise.onda, sem escrever o
+# JSON — lêem-se direto os globais do motor que esse JSON teria (os reais não finitos davam null nele)
+: un_rk i>i k ? == k 0 k_rkna ? == k 1 k_rk1 ? == k 2 k_rk2 ? == k 3 k_rk3 k_rk4
+: un_key i>i k ? == k 0 k_hold ? == k 1 k_buy ? == k 2 k_scale ? == k 3 k_wait ? == k 4 k_neutral ? == k 5 k_turn k_avoid
 : un_an iii>i r kind cr {
-  = m @ -1
-  = n @ + r 11
+  = n @ + r 11 = c + r 13
   ! 4 kind ! 3 cr ! 5 0 !f 6 0. ! 8 @ g_abuf
-  sb_ini serie + r 13 n = t sb_fim
-  = v js_parse t
-  = ok js_v v
-  ? ok {
-    = hz js_get v k_horizons = lo js_get hz k_long
-    ! g_al ? js_v lo I js_f js_get lo k_score -1000000
-    ! g_am I js_f js_get js_get hz k_mid k_score
-    = me js_get v k_metrics = r1m js_get me k_ret1m ! g_ar1 js_fin r1m !f g_ar1v ? js_fin r1m js_f r1m 0.
-    = di js_get v k_discount = dd js_get di k_dd ! g_addn js_nulo dd !f g_add ? js_ehnum dd js_f dd 0.
-    ! g_aop js_v js_get di k_opp
-    ! g_ak un_key js_get js_get v k_advice k_key
-    ! g_ark un_rk js_get js_get v k_risk k_label 0 } 0
-  = top @ -1 = j m W < j top { ! j 0 = j + j 1 } ! -1 m
-  ok }
+  = v @ 8 = m 0 = i 0
+  W < i n { = w @ + c i ? && != & >> w 52 2047 2047 > @f + c i 0. { ! + v m w = m + m 1 } 0 = i + i 1 }
+  ! 1 v ! 2 m
+  ? < m 30 0 {
+    metricas medio curto longo desconto niveis conselho
+    # horizons.long.score (ou null), horizons.mid.score, metrics.ret1m, discount.dd, discount.opp, advice.key, risk.label
+    ! g_al ? @ 34 @ 33 -1000000
+    ! g_am @ 31
+    ! g_ar1 && @ 23 finito @f 22 !f g_ar1v @f 22
+    ! g_addn ~ finito @f 36 !f g_add @f 36
+    ! g_aop @ 44
+    ! g_ak un_key @ 47 ! g_ark un_rk @ 52
+    1 } }
 # o comparador do sort (cs_cmp): 20 l e m descendentes (null = -1 / 0), 21 dd ascendente, 22 |d| descendente
 : un_vl ii>f r k { = v js_get r k ? js_nulo v ? tx_igual k k_l -1. 0. js_vn v }
 : un_cmp iii>f k x y {

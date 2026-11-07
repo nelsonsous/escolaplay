@@ -402,7 +402,7 @@
 
 # ---------- comparadores do sort (o real do comparador do JS) e o arranque dos scripts ----------
 # 1: o sort() sem comparador (textos)
-: cs_cmp iii>f k x y ? == k 1 F tx_cmp js_str x js_str y ? < k 20 da_cmp k x y ? < k 30 un_cmp k x y ? < k 40 ou_cmp k x y pu_cmp k x y
+: cs_cmp iii>f k x y ? == k 1 F tx_cmp js_str x js_str y ? < k 20 da_cmp k x y ? < k 30 un_cmp k x y ? < k 40 ou_cmp k x y ? < k 50 pu_cmp k x y bt_cmp k x y
 # o sort() do JS: os undefined vão para o fim sem comparar
 : js_sortdef i>i a {
   = n js_len a = b js_lst n = u 0 = j 0
