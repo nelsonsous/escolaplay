@@ -1,8 +1,8 @@
 // node --test mercados/tests/ecra-analise.test.mjs     (MK_ROOT=dist/mercados: a mesma coisa na pasta minificada)
-// A Análise desenhada pela Onda (AnaliseOnda.ecra.analise, de mercados/onda/ecra-analise.onda) tem de dar o mesmo
-// HTML, byte a byte, que o viewAnalysis do mercados.js, com a app a correr no Chromium; e o que ela usa e as outras
-// vistas vão usar — os números do Intl pt-PT (fmtPx, fmtPct, fmtPct1) e a ordem do sort do V8 — tem de ser igual ao
-// do browser, valor a valor.
+// A Análise desenhada pela Onda (AnaliseOnda.ecra.analise, de mercados/onda/ecra-analise.onda), com a app a correr no
+// Chromium. Desde a 4.7.0 é a Onda a referência desta vista (o viewAnalysis do JS saiu): o teste confere no DOM o que a
+// vista promete, em estados ao acaso com valores estranhos. E o que ela usa e as outras vistas vão usar — os números do
+// Intl pt-PT (fmtPx, fmtPct, fmtPct1) e a ordem do sort do V8 — tem de ser igual ao do browser, valor a valor.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -150,8 +150,10 @@ test('ordem: o sort da Onda dá a mesma ordem que o sort do Chromium (empates, N
 // ---------- a vista ----------
 // Corre na página: monta o estado n.º i (pseudo-aleatório, o mesmo em todas as corridas) — os ativos (REG), as análises
 // (do motor, com valores estranhos à mistura), as cotações, o Claude, toda a Trade Republic, o diário e o teste no
-// passado —, desenha com o JS e com a Onda e compara.
-function correr({ de, ate, seed }) {
+// passado —, desenha com a Onda e confere no DOM: a ordem da lista (a convicção do Claude pelo prazo, nos empates a
+// classificação dele; depois o algoritmo), o veredicto, a pontuação, a linha de baixo (símbolo, variação do dia ou
+// desconto, ≠ algoritmo e auto), o ícone igual ao do Painel, a linha da fonte, toda a Trade Republic e as dobras.
+function verificar({ de, ate, seed }) {
     const mk = window.__mk, AO = window.AnaliseOnda;
     const rng = (s) => () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     // as análises: o motor sobre séries ao acaso (uma vez por página)
@@ -166,19 +168,25 @@ function correr({ de, ate, seed }) {
         window.__anPool = AO.analyseMany(L).filter(Boolean);
     }
     const POOL = window.__anPool;
-    const ODD = ['<b>&amp;</b>', '"aspas"', "o'neil", 'Ação & Cª', '😀 emoji 🇵🇹', 'tab\tnova\nlinha', '  espaços  ', '', 'ÇÃÕ ñ ü ß', ' nbsp ', '<script>alert(1)</script>', 'a"b\'c<d>e&f', '—…→×≡⤒', '&#39;&lt;', 'nul\u0000 c1\u0085 del\u007f', 'Muito comprido '.repeat(60)];
+    const ODD = ['<b>&amp;</b>', '"aspas"', "o'neil", 'Ação & Cª', '😀 emoji 🇵🇹', 'tab\tnova\nlinha', '  espaços  ', '', 'ÇÃÕ ñ ü ß', ' nbsp ', '<script>alert(1)</script>', 'a"b\'c<d>e&f', '—…→×≡⤒', '&#39;&lt;', 'nul\u0000 c1\u0085 del\u007f', 'Muito comprido '.repeat(60), 'ÿsland ßtraße', 'µ ÷ × þorn'];
     const ROT = ['Sinal forte de subida', 'Positivo', 'Neutro', 'Negativo', 'Fraco — evitar por agora', 'Pressão de venda', 'Favorável para investir a prazo', 'Cautela', 'Oportunidade (com cautela)', 'Barato, mas a cair',
         'ÇÃO ÓTIMO <b>&"\'', 'ÀÉÎÕÜ Ý Þ × ÿ', 'MiXeD CaSe ZZ', '', 'Á"\'<>&', '😀 ABC ß'];
-    const NOMES = ['Apple', 'Microsoft', 'FTSE All-World USD (Acc)', 'Mota-Engil', 'LVMH Moët Hennessy', 'Novo Nordisk A/S', 'Bitcoin', 'Ouro'];
+    const NOMES = ['Apple', 'Microsoft', 'FTSE All-World USD (Acc)', 'Mota-Engil', 'LVMH Moët Hennessy', 'Novo Nordisk A/S', 'Bitcoin', 'Ouro', 'J.P. Morgan', 'ébano élan'];
     const SIMB = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'LLY', 'BRK-B', 'PLTR', 'AMD', 'ASML.AS', 'SAP.DE', 'MC.PA', 'SIE.DE', 'NOVO-B.CO', 'ALV.DE', 'TTE.PA', 'RHM.DE', 'TSM',
         'VWCE.DE', 'EUNL.DE', 'SXR8.DE', 'SXRV.DE', 'IS3N.DE', 'EXSA.DE', '4GLD.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP', 'BZ=F', 'CL=F', 'RB=F', 'HO=F', 'NG=F', 'GC=F', '^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS', '^VIX', 'EURUSD=X',
         'VWCE.MU', 'EURDKK=X', 'A&B', '<X>', '"Q"', "S'", 'ÇA.LS', '😀', 'X Y', '7', '123', '0', 'a<b>"c"&d\'e', 'EGL.LS', 'RACE.MI'];
     const TIPO = (k) => (k.startsWith('c:') ? 'crypto' : /=F$/.test(k) ? (k === 'GC=F' ? 'index' : 'energy') : k.startsWith('^') || k === 'PSI20.LS' || k === 'EURUSD=X' ? 'index' : /\.MU$|EURDKK/.test(k) ? 'aux' : /^(VWCE|EUNL|SXR|IS3N|EXSA|4GLD)/.test(k) ? 'fund' : 'stock');
     const CHAVES = ['buy', 'scale', 'hold', 'wait', 'neutral', 'turn', 'reduce', 'avoid', 'sell', 'up', 'flat', 'down'];
+    // as regras da vista (as do viewAnalysis de antes para a ordem; as da 4.7.0 para o veredicto e as marcas)
+    const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Não reforçar', turn: 'Esperar', reduce: 'Reduzir', avoid: 'Evitar', sell: 'Vender', up: 'Em alta', flat: 'Lateral', down: 'Em queda' };
+    const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
+    const tem = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+    const fin = (x) => typeof x === 'number' && Number.isFinite(x);
+    const toneOf = (v) => (!fin(v) ? 'flat' : v > 0.005 ? 'up' : v < -0.005 ? 'down' : 'flat');
+    const txt = (v) => String(v ?? '').replace(/\u0000/g, ''); // o esc(v) do JS, como o DOM o lê (sem os NUL)
     const clone = (o) => JSON.parse(JSON.stringify(o));
     const real = { REG: Object.entries(mk.REG), AN: Object.entries(mk.AN), Q: Object.entries(mk.Q), cfg: clone(mk.cfg), fold: { ...mk.st.fold }, uniN: mk.st.uniN, claude: mk.claude, uni: mk.uni, journal: mk.journal, bt: mk.bt };
-    const out = { iguais: 0, dif: [], ndif: 0, tipos: { dono: 0, outro: 0, claude: 0, semClaude: 0, desconto: 0, vazio: 0, toda: 0, todaErro: 0, diario: 0, btFeito: 0, btOutro: 0, ideias: 0, listaLonga: 0 }, hz: {}, filtro: {}, bytes: 0 };
-    const pos = (h, t) => { const i = h.indexOf(t); return i < 0 ? 0 : 1; };
+    const out = { estados: 0, dif: [], ndif: 0, linhas: 0, icones: 0, tipos: { dono: 0, outro: 0, claude: 0, algoritmo: 0, desconto: 0, vazio: 0, toda: 0, verMais: 0, diferente: 0, auto: 0, diario: 0, btFeito: 0, ideias: 0 }, bytes: 0 };
     try {
         for (let i = de; i < ate; i++) {
             const R = rng(seed + i * 7919), pick = (a) => a[Math.floor(R() * a.length)], sim = (p) => R() < p;
@@ -196,8 +204,7 @@ function correr({ de, ate, seed }) {
             set('strategy', pick(['etfcrypto', 'etfcrypto', 'mix', undefined]));
             const st = mk.st;
             for (const k of Object.keys(st.fold)) delete st.fold[k];
-            if (sim(0.4)) st.fold['an-auto'] = sim(0.5);
-            if (sim(0.4)) st.fold.uni = pick([true, false, 1, 0]);
+            for (const f of ['an-auto', 'uni', 'an-res', 'an-sobre']) if (sim(0.4)) st.fold[f] = pick([true, false, 1, 0]);
             st.uniN = pick([undefined, undefined, 25, 75, 125, 1000]);
             // ---- os ativos ----
             for (const k of Object.keys(mk.REG)) delete mk.REG[k];
@@ -209,15 +216,12 @@ function correr({ de, ate, seed }) {
                 mk.REG[k] = { key: k, kind, sym: pick([k, k, k.replace('c:', ''), pick(ODD), 7, null]), name: pick([k, pick(NOMES), pick(ODD)]), temp: sim(0.08) ? true : undefined };
                 if (sim(0.8)) {
                     const r = clone(pick(POOL));
-                    if (sim(0.15)) r.metrics.rsi = pick([NaN, null, undefined, 49.5, 50.5, -0.4, 0, 100, 1e21, -1e-9]);
-                    if (sim(0.1)) r.risk.label = pick(ODD);
                     for (const h of ['short', 'mid', 'long']) {
                         const x = r.horizons[h];
                         if (!x) continue;
                         if (sim(0.12)) x.score = pick([42, 58, 41, 59, 57.5, 42.5, -0, 0, 100, null, 1e21, -5, 70, 30, 1e-300]);
                         if (sim(0.1)) x.label = pick(ROT);
                         if (sim(0.05)) x.tone = pick(['up', 'down', 'flat', '<b>"', '']);
-                        if (sim(0.1)) x.reasons = pick([[], [{ pts: 0, txt: 'zero' }, { pts: -3, txt: 'neg' }], [{ pts: NaN, txt: 'nan' }, { pts: 2, txt: pick(ODD) }], [{ pts: 1, txt: '' }, { pts: 5, txt: 'x' }], [{ pts: 3, txt: null }], [{ pts: null, txt: 'a' }, { pts: true, txt: 'b' }]]);
                     }
                     if (sim(0.1)) r.horizons.long = null;
                     if (sim(0.03)) r.horizons = null;
@@ -225,7 +229,6 @@ function correr({ de, ate, seed }) {
                         const d = r.discount;
                         if (sim(0.12)) d.dd = pick([NaN, null, undefined, -0, 0, -1e-9, -0.00005, -0.99, 1e21, -0.000049999, -0.2345]);
                         if (sim(0.1)) d.tag = pick(ROT);
-                        if (sim(0.08)) d.verdict = pick(ODD.concat(['', null]));
                         if (sim(0.12)) d.opp = pick([true, false, 1, 0, '', 'x', null]);
                         if (sim(0.12)) d.score = pick([null, 0, 100, 42, 58, -0, 33.3, 1e21]);
                         if (sim(0.05)) d.tone = pick(ODD);
@@ -256,7 +259,7 @@ function correr({ de, ate, seed }) {
             const linha = () => ({ s: pick(SIMB.concat(['UNI1', 'UNI2', 'UNI3', 'PUM.DE', 'ADA-EUR'])), n: pick(NOMES.concat(ODD)), t: pick(['etf', 'crypto', 'stock', 'stock', 'stock', 'x', undefined]),
                 m: pick([num(), num(), NaN, null, '50']), l: pick([num(), num(), num(), NaN, null, undefined]), o: pick([0, 0, 1, 1, null, true]),
                 dd: pick([-Math.round(R() * 900) / 10, -Math.round(R() * 900) / 10, null, -0]), d: pick([Math.round((R() - 0.5) * 100) / 10, null, NaN, undefined]),
-                y: pick([Math.round((R() - 0.5) * 2000) / 10, null, NaN]), rk: pick(['Risco baixo', 'Risco médio', 'Risco muito alto', undefined, '', '<b>'] ) });
+                y: pick([Math.round((R() - 0.5) * 2000) / 10, null, NaN]), rk: pick(['Risco baixo', 'Risco médio', 'Risco muito alto', undefined, '', '<b>']) });
             const nr = longa ? pick([300, 1400]) : pick([0, 1, 3, 25, 26, 80, 300, 1400]);
             const at = Date.now() - (sim(0.15) ? 31 * 60000 : 0);
             mk.uni = longa ? { at, date: '2026-11-07', generatedAt: '2026-11-07T07:20:00Z', rows: Array.from({ length: nr }, linha) } : pick([null, { at, error: pick(['ainda sem classificação', 'só para a app do dono', '<x>&']) }, { at }, { at, date: '2026-11-07', generatedAt: pick(['2026-11-07T07:20:00Z', 'lixo', undefined, 1762500000000]), rows: Array.from({ length: nr }, linha) },
@@ -272,30 +275,97 @@ function correr({ de, ate, seed }) {
             const nomes = () => sub(keys.concat(['FORA', 'VWCE.DE']), Math.floor(R() * 4)).map((k) => ({ k, a: pick([(R() - 0.5) * 0.5, null, NaN, 0]) }));
             const kinds = () => { const b = {}; for (const k of sub(['stock', 'fund', 'crypto', 'energy'], Math.floor(R() * 5))) b[k] = { s: (R() - 0.5) * 10, n: pick([0, 0, 5, 40]) }; return b; };
             mk.bt = pick([null, null, { running: true }, { error: pick(ODD) }, { at: 1, n: pick([0, 3, 40]), yrs: pick([5, 4.9, null, 0, 2]), ticket: pick([50, 90, 123.456, 900 * 0.1, 45.04999, 1e21, Infinity, NaN, 64.95]), sum: soma(), worst: nomes(), best: nomes(), byKind: pick([kinds(), kinds(), undefined, null]) }]);
-            // ---- os dois desenhos (às vezes a Onda primeiro: o que a Análise pede à rede muda o estado) ----
-            let js, onda;
-            if (i % 2) { onda = AO.ecra.analise(mk.analysisSnap()); js = mk.viewAnalysis(); } else { js = mk.viewAnalysis(); onda = AO.ecra.analise(mk.analysisSnap()); }
+
+            // ---- o desenho ----
+            const snap = mk.analysisSnap(), html = AO.ecra.analise(snap);
+            const D = new DOMParser().parseFromString(html, 'text/html');
+            out.estados++; out.bytes += html.length;
+            const erro = (m) => { out.ndif++; if (out.dif.length < 8) out.dif.push(`estado ${i}: ${m}`); };
+            // ---- o que devia lá estar ----
+            const REG = mk.REG, AN = mk.AN, C = mk.claude, hz = c.hz, f = c.filter, disc = hz === 'disc';
+            const listed = (k) => !!REG[k] && !REG[k].temp && REG[k].kind !== 'aux';
+            const investable = (k) => listed(k) && ['stock', 'fund', 'crypto'].includes(REG[k].kind);
+            const clDoc = !!(c.owner || c.claude) && C && !C.missing && Array.isArray(C.actions) ? C : null;
+            const clNow = (k) => (clDoc ? clDoc.actions.find((a) => a && a.s === k) || null : null);
+            const hzOf = (k) => { const r = AN[k]; if (!r) return null; return disc ? r.discount || null : r.horizons && r.horizons[hz]; };
+            const clScore = (k) => { const a = clNow(k); return a && fin(a[hz]) ? a[hz] : null; };
+            const useCl = !disc && !!clDoc && clDoc.actions.some((a) => a && fin(a.mid));
+            const ks = Object.keys(REG).filter((k) => listed(k) && REG[k].kind !== 'index' && (AN[k] || clNow(k)));
+            const pool = ks.filter((k) => (f === 'all' ? investable(k) : f === 'plan' ? investable(k) && ['fund', 'crypto'].includes(REG[k].kind) : REG[k].kind === f));
+            const rk = (k) => { const r = useCl && C.rank && C.rank[hz]; const j = Array.isArray(r) ? r.indexOf(k) : -1; return j < 0 ? 1e3 : j; };
+            const clRows = useCl ? pool.filter((k) => clScore(k) != null).sort((a, b) => clScore(b) - clScore(a) || rk(a) - rk(b)) : [];
+            const autoRows = pool.filter((k) => !clRows.includes(k) && hzOf(k)).sort((a, b) => hzOf(b).score - hzOf(a).score);
+            const quer = clRows.concat(autoRows), sa = Object.fromEntries(snap.assets.map((x) => [x.k, x]));
             const T = out.tipos;
             if (c.owner) T.dono++; else T.outro++;
-            if (js.includes('src-line cl')) T.claude++; else T.semClaude++;
-            if (c.hz === 'disc') T.desconto++;
-            T.vazio += pos(js, 'class="empty"');
-            T.toda += pos(js, 'details class="auto uni"');
-            T.todaErro += pos(js, 'Toda a Trade Republic: ainda sem');
-            T.diario += pos(js, '<th>Desde então</th>');
-            T.btFeito += pos(js, '<th>3 meses</th>');
-            T.btOutro += pos(js, 'A testar as regras') + pos(js, '>Não deu: ');
-            T.ideias += pos(js, '<div class="m-l">Sinais automáticos</div>');
-            if ((js.match(/class="row/g) || []).length >= 40) T.listaLonga++;
-            out.hz[c.hz] = (out.hz[c.hz] || 0) + 1; out.filtro[c.filter] = (out.filtro[c.filter] || 0) + 1;
-            out.bytes += js.length;
-            if (js === onda) { out.iguais++; continue; }
-            out.ndif++;
-            if (out.dif.length < 5) {
-                let j = 0;
-                while (j < js.length && js[j] === onda[j]) j++;
-                out.dif.push({ estado: i, offset: j, js: js.slice(Math.max(0, j - 120), j + 80), onda: onda.slice(Math.max(0, j - 120), j + 80), cfg: JSON.stringify({ owner: c.owner, claude: c.claude, proxy: c.proxy, filter: c.filter, hz: c.hz, strategy: c.strategy }) });
+            if (disc) T.desconto++;
+            if (!quer.length) T.vazio++; else if (useCl) T.claude++; else T.algoritmo++;
+            // ---- a lista ----
+            const rows = [...D.querySelectorAll('.an-list .row')];
+            if (rows.map((r) => r.dataset.open).join('\n') !== quer.join('\n')) erro(`ordem: ${JSON.stringify(rows.map((r) => r.dataset.open).slice(0, 6))} em vez de ${JSON.stringify(quer.slice(0, 6))}`);
+            if (!quer.length !== !!D.querySelector('.empty')) erro('o vazio');
+            if (quer.length) {
+                const fonte = (D.querySelector('.an-src') || {}).textContent;
+                const fq = useCl ? 'Claude' + (snap.when ? ' · ' + snap.when : '') : 'Algoritmo' + (clDoc ? ' · veredicto do Claude' : '');
+                if (fonte !== fq || !!D.querySelector('.an-src.cl') !== useCl) erro(`fonte: ${JSON.stringify(fonte)} em vez de ${JSON.stringify(fq)}`);
             }
+            rows.forEach((row, j) => {
+                const k = quer[j];
+                if (row.dataset.open !== k) return;
+                out.linhas++;
+                const a = clNow(k), h = hzOf(k), adv = AN[k] && AN[k].advice && AN[k].advice.key, x = sa[k];
+                const nota = j < clRows.length ? clScore(k) : +h.score;
+                const ver = a ? (tem(SHORT, a.key) ? SHORT[a.key] : a.action ? txt(a.action) : '') : disc ? txt(h.tag) : tem(FAM, adv) ? SHORT[adv] : txt(h.label);
+                const fc = a && tem(FAM, a.key) ? FAM[a.key] : null, fa = tem(FAM, adv) ? FAM[adv] : null;
+                const marca = a ? (!disc && fc != null && fa != null && fc !== fa ? '≠ algoritmo' : '') : clDoc ? 'auto' : '';
+                if (marca === '≠ algoritmo') T.diferente++; else if (marca) T.auto++;
+                const meio = disc ? mk.fmtPct1(+AN[k].discount.dd * 100) + ' do máx.' : mk.fmtPct(x.chg);
+                const subq = `${txt(x.sym)} · ${meio}${marca ? ' · ' + marca : ''}`;
+                const v = row.querySelector('.r-score .val'), l = row.querySelector('.r-score .lbl'), s = row.querySelector('.r-sub'), nm = row.querySelector('.r-name');
+                if (!v || v.textContent !== String(nota)) erro(`${k}: pontuação ${v && v.textContent} em vez de ${nota}`);
+                if (!l || l.textContent !== ver) erro(`${k}: veredicto ${JSON.stringify(l && l.textContent)} em vez de ${JSON.stringify(ver)}`);
+                if (!s || s.textContent !== subq) erro(`${k}: linha de baixo ${JSON.stringify(s && s.textContent)} em vez de ${JSON.stringify(subq)}`);
+                if (!disc && (!s.querySelector('.chg') || s.querySelector('.chg').className !== 'chg ' + toneOf(x.chg))) erro(`${k}: cor da variação`);
+                if (!nm || nm.textContent !== txt(x.name) || nm.children.length) erro(`${k}: nome ${JSON.stringify(nm && nm.textContent)}`);
+                if (row.dataset.key !== k || row.dataset.chg !== 'day') erro(`${k}: data-key / data-chg`);
+                // o ícone: o do Painel (o ico() do JS), menos na cripto com um símbolo que não é texto ou com caracteres fora do BMP
+                const sy = REG[k].sym;
+                if (REG[k].kind !== 'crypto' || (typeof sy === 'string' && !/[\ud800-\udfff]/.test(sy))) {
+                    const js = new DOMParser().parseFromString(mk.ico(k), 'text/html').body.firstChild, on = row.querySelector('.r-ico');
+                    out.icones++;
+                    if (!on || on.textContent !== js.textContent || on.getAttribute('style') !== js.getAttribute('style')) erro(`${k}: ícone ${on && on.outerHTML} em vez de ${js.outerHTML}`);
+                }
+            });
+            // ---- toda a Trade Republic (só na app do dono) ----
+            const tipos = { plan: ['etf', 'crypto'], all: ['etf', 'crypto', 'stock'], fund: ['etf'], crypto: ['crypto'], stock: ['stock'] }, ty = tem(tipos, f) ? tipos[f] : null, U = mk.uni;
+            const uni = D.querySelector('details.uni');
+            if (c.owner && ty && U && U.rows) {
+                const kk = hz === 'mid' ? 'm' : 'l';
+                const rs = U.rows.filter((r) => ty.includes(r.t) && fin(r[kk]));
+                rs.sort(disc ? (a, b) => b.o - a.o || a.dd - b.dd : (a, b) => b[kk] - a[kk]);
+                const n = mk.st.uniN || 25;
+                if (!rs.length) { if (uni) erro('toda a TR sem linhas, mas com a dobra'); } else if (!uni) erro('falta toda a TR');
+                else {
+                    T.toda++;
+                    const got = [...uni.querySelectorAll('.row')].map((e) => e.dataset.open).join('\n'), want = rs.slice(0, n).map((r) => txt(r.s)).join('\n');
+                    if (got !== want) erro('ordem de toda a TR');
+                    if (uni.querySelector('.f-n').textContent !== String(rs.length)) erro(`toda a TR: ${uni.querySelector('.f-n').textContent} em vez de ${rs.length}`);
+                    if (!!uni.querySelector('[data-act="uni-more"]') !== rs.length > n) erro('o "Ver mais"');
+                    if (rs.length > n) T.verMais++;
+                    if (uni.hasAttribute('open') !== !!mk.st.fold.uni) erro('toda a TR aberta/fechada');
+                }
+            } else if (uni) erro('toda a TR a mais');
+            // ---- as dobras: ficam como o utilizador as deixou ----
+            for (const fd of ['an-auto', 'an-res', 'an-sobre']) {
+                const e = D.querySelector(`details[data-fold="${fd}"]`);
+                if (!e) { if (fd !== 'an-auto') erro(`falta a dobra ${fd}`); continue; }
+                if (e.hasAttribute('open') !== !!mk.st.fold[fd]) erro(`${fd} aberta/fechada`);
+            }
+            if (D.querySelector('details[data-fold="an-auto"]')) T.ideias++;
+            if (/<th>Desde então<\/th>/.test(html)) T.diario++;
+            if (/<th>3 meses<\/th>/.test(html)) T.btFeito++;
+            // nada do que vem nos dados vira HTML
+            if (D.querySelector('script, img, iframe, .an-list b, .r-sub b')) erro('HTML dos dados no ecrã');
         }
     } finally {
         for (const k of Object.keys(mk.REG)) delete mk.REG[k];
@@ -313,45 +383,41 @@ function correr({ de, ate, seed }) {
     return out;
 }
 
-test(`Análise: a Onda dá o HTML do JS, byte a byte, em ${ESTADOS} estados`, async () => {
-    const tot = { iguais: 0, ndif: 0, dif: [], tipos: {}, hz: {}, filtro: {}, bytes: 0 };
+test(`Análise: a lista, os veredictos, as marcas, os ícones e as dobras certos em ${ESTADOS} estados`, async () => {
+    const tot = { estados: 0, ndif: 0, dif: [], linhas: 0, icones: 0, tipos: {}, bytes: 0 };
     for (let de = 0; de < ESTADOS; de += 50) {
-        const r = await page.evaluate(correr, { de, ate: Math.min(ESTADOS, de + 50), seed: 2026 });
-        tot.iguais += r.iguais; tot.ndif += r.ndif; tot.bytes += r.bytes;
+        const r = await page.evaluate(verificar, { de, ate: Math.min(ESTADOS, de + 50), seed: 2026 });
+        tot.estados += r.estados; tot.ndif += r.ndif; tot.linhas += r.linhas; tot.icones += r.icones; tot.bytes += r.bytes;
         for (const [k, v] of Object.entries(r.tipos)) tot.tipos[k] = (tot.tipos[k] || 0) + v;
-        for (const [k, v] of Object.entries(r.hz)) tot.hz[k] = (tot.hz[k] || 0) + v;
-        for (const [k, v] of Object.entries(r.filtro)) tot.filtro[k] = (tot.filtro[k] || 0) + v;
         tot.dif.push(...r.dif);
     }
-    for (const d of tot.dif.slice(0, 3)) console.log(`estado ${d.estado}: primeira diferença no carácter ${d.offset} ${d.cfg}\n  JS:   ${JSON.stringify(d.js)}\n  Onda: ${JSON.stringify(d.onda)}`);
-    console.log(`# ${tot.iguais}/${ESTADOS} estados iguais (${(tot.bytes / ESTADOS / 1024).toFixed(1)} KB de HTML em média) — ${JSON.stringify(tot.tipos)} — prazos ${JSON.stringify(tot.hz)} — filtros ${JSON.stringify(tot.filtro)}`);
-    assert.equal(tot.ndif, 0, `${tot.ndif} estados com HTML diferente`);
-    assert.equal(tot.iguais, ESTADOS);
+    for (const d of tot.dif.slice(0, 8)) console.log('  ' + d);
+    console.log(`# ${tot.estados} estados, ${tot.linhas} linhas e ${tot.icones} ícones conferidos (${(tot.bytes / tot.estados / 1024).toFixed(1)} KB de HTML em média) — ${JSON.stringify(tot.tipos)}`);
+    assert.equal(tot.ndif, 0, `${tot.ndif} diferenças`);
+    assert.equal(tot.estados, ESTADOS);
     // cobertura: os ramos todos apareceram muitas vezes
     for (const [k, v] of Object.entries(tot.tipos)) assert.ok(v >= ESTADOS / 40, `poucos estados do tipo ${k}: ${v}`);
     assert.deepEqual(erros, []);
 });
 
-test('Análise: a app desenha-a com a Onda (e com o JS se a Onda falhar)', async () => {
+test('Análise: a app desenha-a com a Onda (e, se a Onda falhar, um aviso curto)', async () => {
     const r = await page.evaluate(() => {
         const mk = window.__mk, ecra = window.AnaliseOnda.ecra, orig = ecra.analise;
         let n = 0;
         ecra.analise = (s) => { n++; return orig(s); };
         mk.cfg.tab = 'analise'; mk.render();
         const html = document.querySelector('#mk-body').innerHTML, usou = n;
-        const viaApp = mk.analysisHtml(), js = mk.viewAnalysis();
-        // se a Onda falhar, a Análise não fica vazia: desenha-a o JS (e fica o erro na consola)
         ecra.analise = () => { throw new Error('teste'); };
         const ce = console.error; let logs = 0; console.error = () => { logs++; };
         const recurso = mk.analysisHtml();
         console.error = ce; ecra.analise = orig;
         mk.cfg.tab = 'painel'; mk.render();
-        return { usou, temPrazo: html.includes('<div class="seg hz" role="group" aria-label="Prazo">'), igual: viaApp === js, recurso: recurso === js, logs };
+        return { usou, temPrazo: html.includes('<div class="seg hz" role="group" aria-label="Prazo">'), recurso, logs };
     });
     assert.ok(r.usou >= 1, 'o render da Análise chamou a Onda');
     assert.ok(r.temPrazo, 'os prazos estão no ecrã');
-    assert.ok(r.igual, 'analysisHtml (Onda) === viewAnalysis (JS)');
-    assert.ok(r.recurso && r.logs === 1, 'sem Onda, desenha o JS');
+    assert.equal(r.recurso, '<div class="empty">Não deu para mostrar a análise.</div>', 'sem a vista da Onda, um aviso');
+    assert.equal(r.logs, 1, 'e o erro na consola');
 });
 
 test('Análise: desempenho (mediana de 50 desenhos no Chromium)', async () => {
@@ -379,9 +445,9 @@ test('Análise: desempenho (mediana de 50 desenhos no Chromium)', async () => {
         const res = {};
         for (const [nome, nr] of [['25 da lista toda', 25], ['1340 da lista toda', 1340]]) {
             mk.uni = { at: Date.now(), date: '2026-11-07', generatedAt: '2026-11-07T07:20:00Z', rows: linhas(nr) };
-            const snap = mk.analysisSnap();
-            res[nome] = { js: med(() => mk.viewAnalysis()), onda: med(() => AO.ecra.analise(mk.analysisSnap())), instantaneo: med(() => mk.analysisSnap()), soOnda: med(() => AO.ecra.analise(snap)),
-                kb: mk.viewAnalysis().length / 1024, linhas: (mk.viewAnalysis().match(/class="row/g) || []).length, igual: mk.viewAnalysis() === AO.ecra.analise(mk.analysisSnap()) };
+            const snap = mk.analysisSnap(), html = AO.ecra.analise(snap);
+            res[nome] = { onda: med(() => AO.ecra.analise(mk.analysisSnap())), instantaneo: med(() => mk.analysisSnap()), soOnda: med(() => AO.ecra.analise(snap)),
+                kb: html.length / 1024, linhas: (html.match(/class="row/g) || []).length };
         }
         for (const k of Object.keys(mk.cfg)) delete mk.cfg[k];
         Object.assign(mk.cfg, antes.cfg);
@@ -393,8 +459,8 @@ test('Análise: desempenho (mediana de 50 desenhos no Chromium)', async () => {
         return res;
     });
     for (const [k, v] of Object.entries(r)) {
-        console.log(`# ${k} (${v.linhas} linhas, ${v.kb.toFixed(1)} KB): JS ${v.js.toFixed(3)} ms · Onda ${v.onda.toFixed(3)} ms (instantâneo ${v.instantaneo.toFixed(3)} ms + desenho ${v.soOnda.toFixed(3)} ms)`);
-        assert.ok(v.igual, `${k}: o mesmo HTML`);
+        console.log(`# ${k} (${v.linhas} linhas, ${v.kb.toFixed(1)} KB): Onda ${v.onda.toFixed(3)} ms (instantâneo ${v.instantaneo.toFixed(3)} ms + desenho ${v.soOnda.toFixed(3)} ms)`);
+        assert.ok(v.linhas > 30, `${k}: a lista desenhada`);
         assert.ok(v.onda < 25, `a Onda demora ${v.onda} ms`);
     }
 });

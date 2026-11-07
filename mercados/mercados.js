@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.6.0';
+    const VERSION = '4.7.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -107,6 +107,8 @@
     if (!cfg.seen || typeof cfg.seen !== 'object') cfg.seen = {};
     if (!Array.isArray(cfg.hidden)) cfg.hidden = [];
     if ((cfg.stratVer || 0) < 1) { cfg.hz = 'long'; cfg.filter = 'plan'; cfg.stratVer = 1; store.set(KEY, cfg); }
+    // 4.7: a Análise já não tem o filtro dos futuros (só o que se compra na TR)
+    if (cfg.filter === 'energy') { cfg.filter = 'all'; store.set(KEY, cfg); }
     if ((cfg.watchVer || 1) < 3) {
         const mine = (cfg.watch || []).filter((x) => !OLD_DEFAULT.includes(x));
         cfg.watch = DEFAULT_WATCH.concat(mine.filter((x) => !DEFAULT_WATCH.includes(x)));
@@ -142,7 +144,6 @@
     const planKeys = () => [cfg.coreFund].concat(cfg.cryptoMix === 'btceth' ? ['c:BTC', 'c:ETH'] : ['c:BTC']).filter((k) => REG[k]);
     // o que o investidor tem (acompanhar e avisar), além do que compra todos os meses (planKeys)
     const holdingKeys = () => cfg.holdings.filter((k) => REG[k]);
-    const inPlan = (k) => REG[k] && (REG[k].kind === 'fund' || REG[k].kind === 'crypto');
     const yahooKeys = () => Object.values(REG).filter((a) => a.kind !== 'crypto' && !a.temp).map((a) => a.key);
     const nameOf = (k) => (REG[k] && REG[k].name !== REG[k].sym ? REG[k].name : null) || (Q[k] && Q[k].name) || (REG[k] && REG[k].name) || k;
 
@@ -563,7 +564,6 @@
     }
     // etiquetas curtas dos veredictos (do Claude e dos sinais automáticos); up/flat/down: referência (índices, futuros)
     const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Não reforçar', turn: 'Esperar', reduce: 'Reduzir', avoid: 'Evitar', sell: 'Vender', up: 'Em alta', flat: 'Lateral', down: 'Em queda' };
-    const ACT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter (não perseguir)', wait: 'Esperar / reforçar', neutral: 'Manter, sem reforçar', turn: 'Esperar confirmação', avoid: 'Evitar' };
     function evalJournal() {
         if (!JOURNAL || !JOURNAL.days) return null;
         const days = Object.keys(JOURNAL.days).sort();
@@ -686,27 +686,6 @@
     }
     const uniRow = (s) => (UNI && UNI.rows ? UNI.rows.find((x) => x.s === s) : null) || {};
     const uniName = (s) => uniRow(s).n || '';
-    const UNI_T = { plan: ['etf', 'crypto'], all: ['etf', 'crypto', 'stock'], fund: ['etf'], crypto: ['crypto'], stock: ['stock'] };
-    function uniSection() {
-        if (!cfg.owner) return '';
-        const types = UNI_T[cfg.filter];
-        if (!types || !UNI || !UNI.rows) return UNI && UNI.error && types ? `<p class="note" style="margin:0 2px 12px">Toda a Trade Republic: ainda sem classificação (${esc(UNI.error)}). Chega com a próxima análise do Claude.</p>` : '';
-        const disc = cfg.hz === 'disc', key = cfg.hz === 'mid' ? 'm' : 'l';
-        const rows = UNI.rows.filter((r) => types.includes(r.t) && fin(r[key]));
-        rows.sort(disc ? (a, b) => b.o - a.o || a.dd - b.dd : (a, b) => b[key] - a[key]);
-        const n = st.uniN || 25;
-        const when = UNI.generatedAt ? new Date(UNI.generatedAt).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : UNI.date;
-        // ~1340 ativos: classificação automática; o Claude escolhe daqui os que valem a pena (com veredicto nesta lista e na ficha)
-        const cl = (s) => { const c = clNow(s); return c ? `<span class="badge ${CL_TONE[c.key] || 'flat'}">${esc(SHORT[c.key] || c.action || '')}</span>` : ''; };
-        return `<details class="auto uni" data-fold="uni" ${foldAttr('uni')}><summary>Toda a Trade Republic<small>sinais automáticos · ${rows.length} ativos · ${esc(when || '')}</small></summary>
-            <p class="note" style="margin:0 2px 10px">S&P 500 e outras ações dos EUA, as grandes da Europa, ETF e cripto, classificados pelo algoritmo ${cfg.hz === 'mid' ? 'a médio prazo' : disc ? 'pelo desconto' : 'a longo prazo'} duas vezes por dia. Os que o Claude analisou trazem o veredicto dele. Toca para ver o gráfico.</p>
-            <div class="list">${rows.slice(0, n).map((r, i) => `<button type="button" class="row" data-open="${esc(r.s)}" data-name="${esc(r.n)}" data-ut="${esc(r.t)}">
-                <span class="rk">${i + 1}</span>
-                <div class="r-main"><div class="r-name">${esc(r.n)}</div><div class="r-sub">${cl(r.s)}${esc(r.s)} · ${disc ? esc(fmtPct(r.dd) + ' do máx. · ') : ''}${fin(r.d) ? fmtPct(r.d) + ' hoje · ' : ''}${fin(r.y) ? '1 ano ' + fmtPct(r.y) + ' · ' : ''}${esc(r.rk || '')}</div></div>
-                <div class="r-score">${scoreBar({ score: r[key], tone: scoreTone(r[key]) })}</div>
-            </button>`).join('')}</div>
-            ${rows.length > n ? `<div class="sec-f"><button type="button" class="lnk" data-act="uni-more">Ver mais (${rows.length - n})</button></div>` : ''}</details>`;
-    }
 
     // ---------- análise diária escrita pelo Claude (tarefa agendada → KV → /advice) ----------
     let CLAUDE = null;
@@ -784,8 +763,6 @@
     // 0–100 por prazo (short/mid/long), níveis e o porquê; a antiga (só o veredicto de alguns) continua a funcionar.
     const clDoc = () => (claudeOn() && CLAUDE && !CLAUDE.missing && Array.isArray(CLAUDE.actions) ? CLAUDE : null);
     const clNow = (k) => { const c = clDoc(); return c ? c.actions.find((a) => a && a.s === k) || null : null; };
-    const clScore = (k, hz) => { const c = clNow(k); return c && fin(c[hz]) ? c[hz] : null; };
-    const clScored = () => { const c = clDoc(); return !!c && c.actions.some((a) => a && fin(a.mid)); };
     async function loadFuel() {
         if (!cfg.proxy) return;
         try {
@@ -1316,15 +1293,6 @@
     }
 
     const HZ = [['short', 'Curto', 'dias a 2 semanas'], ['mid', 'Médio', 'semanas a 3 meses'], ['long', 'Longo', 'anos']];
-    const MODES = HZ.concat([['disc', 'Desconto', 'face ao máximo']]);
-    function hzOf(k, hz) {
-        const r = AN[k];
-        if (!r) return null;
-        const h = hz || cfg.hz;
-        if (h !== 'disc') return r.horizons && r.horizons[h];
-        const d = r.discount;
-        return d && { score: d.score, tone: d.tone, label: d.tag, reasons: [{ pts: 1, txt: d.verdict }] };
-    }
     // preço na mesma moeda/escala do que se mostra (euros, preço da noite)
     const lvPx = (k, q, price) => price * (q.fx || 1);
     // ---------- ficha: primeiro o veredicto do Claude; o algoritmo fica em "Sinais automáticos" ----------
@@ -1557,178 +1525,52 @@
 
     const CL_TONE = { buy: 'up', scale: 'up', hold: 'flat', wait: 'flat', neutral: 'flat', turn: 'flat', reduce: 'down', avoid: 'down', sell: 'down', up: 'up', flat: 'flat', down: 'down' };
     const scoreTone = (v) => (v >= 58 ? 'up' : v <= 42 ? 'down' : 'flat');
-    function ideasCard(inv) {
-        const L = (k) => hzOf(k, 'long'), M = (k) => hzOf(k, 'mid'), D = (k) => AN[k] && AN[k].discount;
-        const base = inv.filter((k) => REG[k].kind === 'fund' && L(k)).sort((a, b) => L(b).score - L(a).score).slice(0, 3);
-        const pool = etfCrypto() ? inv.filter(inPlan) : inv;
-        const opps = pool.filter((k) => D(k) && D(k).opp).sort((a, b) => D(b).score - D(a).score).slice(0, 5);
-        const avoid = pool.filter((k) => L(k) && L(k).score < 42 && M(k) && M(k).score < 42).sort((a, b) => L(a).score - L(b).score).slice(0, 4);
-        if (!base.length && !opps.length && !avoid.length) return '';
-        const item = (k, txt, tone) => `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}</span><span class="i-t ${tone}-t">${esc(txt)}</span></button>`;
-        const blk = (title, sub, items) => items.length ? `<div class="i-blk"><div class="i-h">${title}<small>${sub}</small></div>${items.join('')}</div>` : '';
-        return `<div class="ideas"><div class="m-l">Sinais automáticos</div>
-            ${blk('Base de longo prazo', 'ETF para o plano mensal', base.map((k) => item(k, `${L(k).score} · ${D(k) ? D(k).tag.toLowerCase() : ''}`, L(k).tone)))}
-            ${blk('Oportunidades agora', 'desconto com a tendência longa a subir — comprar aos poucos', opps.map((k) => item(k, `${fmtPct(D(k).dd * 100)} do máx.`, 'up')))}
-            ${blk('Evitar por agora', 'a descer a médio e a longo prazo', avoid.map((k) => item(k, `${L(k).score} · ${L(k).label.toLowerCase()}`, 'down')))}
-            <p class="note">Regras fixas (tendência, desconto, RSI), calculadas na app. O Claude usa-as como um dos dados.</p></div>`;
-    }
-
-    function trackSection() {
-        const pc = (x) => (x == null || !fin(x) ? '—' : fmtPct(x * 100));
-        const tone = (x) => (x == null ? 'flat' : toneOf(x * 100));
-        const order = ['buy', 'scale', 'hold', 'wait', 'neutral', 'turn', 'avoid'];
-        const ev = evalJournal();
-        const jrows = ev && ev.acc ? order.filter((k) => ev.acc[k]).map((k) => { const a = ev.acc[k]; return `<tr><td>${esc(ACT[k])}</td><td class="num">${a.n}</td><td class="num ${tone(a.s / a.n)}-t">${pc(a.s / a.n)}</td><td class="num">${k === 'buy' || k === 'scale' || k === 'avoid' ? pc(a.h / a.n) : '—'}</td><td class="num ${tone(a.xn ? a.xs / a.xn : null)}-t">${pc(a.xn ? a.xs / a.xn : null)}</td></tr>`; }).join('') : '';
-        let bt = '';
-        if (BT && BT.running) bt = '<div class="note">A testar as regras atuais nos últimos 2 anos…</div>';
-        else if (BT && BT.error) bt = `<div class="note">Não deu: ${esc(BT.error)}</div>`;
-        else if (BT && BT.sum) {
-            const rows = order.filter((k) => BT.sum[k]).map((k) => { const a = BT.sum[k]; return `<tr><td>${esc(ACT[k])}</td><td class="num">${a.n63}</td><td class="num ${tone(a.avg63)}-t">${pc(a.avg63)}</td><td class="num">${k === 'buy' || k === 'scale' || k === 'avoid' ? pc(a.hit63) : '—'}</td><td class="num ${tone(a.ex63)}-t">${pc(a.ex63)}</td></tr>`; }).join('');
-            const kinds = Object.entries(BT.byKind || {}).filter(([, v]) => v.n).map(([k, v]) => `${{ stock: 'ações', fund: 'outros ETF', crypto: 'cripto' }[k] || k} <span class="${tone(v.s / v.n)}-t">${pc(v.s / v.n)}</span>`).join(' · ');
-            bt = `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${rows}</tbody></table>
-                ${kinds ? `<p class="note">Em média, face ao VWCE a 3 meses: ${kinds}.</p>` : ''}
-                ${BT.worst.length ? `<p class="note">Onde "comprar" correu pior: ${BT.worst.map((x) => `${esc(nameOf(x.k))} <span class="${tone(x.a)}-t">${pc(x.a)}</span>`).join(', ')}. Melhor: ${BT.best.map((x) => `${esc(nameOf(x.k))} <span class="${tone(x.a)}-t">${pc(x.a)}</span>`).join(', ')}.</p>` : ''}
-                <p class="note"><b>Leitura:</b> a lista são as empresas que hoje são grandes (viés de sobrevivência), por isso quase tudo parece bater o VWCE a olhar para trás. O que conta é a diferença entre sugestões: se "Evitar" corre tão bem ou melhor do que "Comprar", as regras não preveem nada. Por isso o núcleo é o VWCE e as decisões são do Claude, com o diário real a medir se acerta.</p>`;
-        } else bt = `<button type="button" class="btn" data-act="backtest" ${cfg.proxy ? '' : 'disabled'}>Testar as regras nos últimos 5 anos</button>`;
-        const c = CLAUDE && !CLAUDE.missing ? CLAUDE : null;
-        return `<section class="sec res-sec">
-            <div class="box cl-box"><h3>Conselhos do Claude</h3>
-                ${c && c.review ? `<p class="muted">${esc(c.review)}</p>` : `<div class="note">${cfg.proxy ? 'Ainda sem revisão: o Claude compara os conselhos com o que aconteceu a partir do segundo dia.' : 'Liga o conector para ver a análise do Claude.'}</div>`}
-                ${c && Array.isArray(c.lessons) && c.lessons.length ? `<details class="how in"><summary>O que o Claude aprendeu até agora (${c.lessons.length})</summary><ul>${c.lessons.map((l) => `<li>${esc(l)}</li>`).join('')}</ul></details>` : ''}
-            </div>
-            <div class="box"><h3>Diário real (regras automáticas)</h3>
-                ${!cfg.proxy ? '<div class="note">Liga o conector para guardar o diário.</div>' : !ev ? '<div class="note">A ler o diário…</div>'
-                : !jrows ? `<div class="note">A app guarda as sugestões de cada dia em que a abres (${ev.days || 0} dia${ev.days === 1 ? '' : 's'} até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>`
-                : `<table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>${jrows}</tbody></table><p class="note">Desde ${esc(ev.since)} · ${ev.days} dia${ev.days === 1 ? '' : 's'} guardado${ev.days === 1 ? '' : 's'}.</p>
-                ${ev.days < 20 ? `<p class="adv-ev">Ainda é cedo (${ev.days} dia${ev.days === 1 ? '' : 's'}): diferenças de décimas não querem dizer nada. A tabela começa a valer ao fim de 1 a 3 meses.</p>` : ''}
-                <details class="how in"><summary>Como ler esta tabela</summary><ul>
-                    <li>Todos os dias a app guarda o que as regras automáticas sugeriam para cada ativo e o preço desse dia.</li>
-                    <li><b>Casos</b>: quantas vezes a regra sugeriu isto (um ativo num dia conta 1).</li>
-                    <li><b>Desde então</b>: quanto esses ativos subiram ou desceram, em média, desde o dia da sugestão até agora.</li>
-                    <li><b>Acerto</b>: em "Comprar", a % de vezes em que o preço subiu depois; em "Evitar", a % em que desceu. 80% = acertou 4 em 5.</li>
-                    <li><b>vs VWCE</b>: o mesmo resultado menos o que o VWCE fez no mesmo tempo. Positivo = teria sido melhor do que pôr o dinheiro no VWCE; negativo = pior.</li>
-                    <li>Uma regra só vale a pena se "Comprar" ficar acima do VWCE e "Evitar" abaixo, durante meses.</li></ul></details>`}
-            </div>
-            <div class="box"><h3>Teste no passado (regras atuais)</h3>${BT && BT.sum ? `<p class="note" style="margin-top:0">${BT.n} ativos · ${BT.yrs || 5} anos · preços ajustados (dividendos incluídos) · comissão de 1 € por compra manual de ${fmtPx(BT.ticket, { decimals: 0 }, 'EUR')} (${(100 / BT.ticket).toFixed(1).replace('.', ',')}%); ETF por plano de poupança, sem comissão. Não inclui impostos.</p>` : ''}${bt}</div></section>`;
-    }
-
-    const HZ_PT = { short: 'curto', mid: 'médio', long: 'longo' };
-    // classificação automática (algoritmo) de um prazo: fica em "Sinais automáticos" quando o Claude já classificou
-    function algoRank(pool, hz) {
-        const rows = pool.filter((k) => hzOf(k, hz)).sort((a, b) => hzOf(b, hz).score - hzOf(a, hz).score).slice(0, 10);
-        return rows.length ? `<div class="ideas"><div class="m-l">Pontuação automática a ${HZ_PT[hz]} prazo</div>
-            ${rows.map((k) => { const h = hzOf(k, hz); return `<button type="button" class="idea" data-open="${esc(k)}"><span class="i-n">${esc(nameOf(k))}</span><span class="i-t ${h.tone}-t num">${h.score} · ${esc(h.label.toLowerCase())}</span></button>`; }).join('')}</div>` : '';
-    }
-    // A Análise é desenhada pela Onda (mercados/onda/ecra-analise.onda, no módulo da análise), com o mesmo HTML; os
-    // eventos continuam aqui. Até o módulo estar pronto (ou se falhar), desenha-a o viewAnalysis, que fica também como a
-    // referência do teste de paridade (tests/ecra-onda.test.mjs) até todas as vistas passarem para a Onda.
+    // A Análise é desenhada pela Onda (mercados/onda/ecra-analise.onda, no módulo da análise): desde a 4.7.0 é ela a
+    // referência desta vista. Os eventos continuam aqui. Até o módulo estar pronto não há pontuações (o motor também é a
+    // Onda): fica o aviso.
     function analysisHtml() {
         if (aoOk && AO.ecra) try { return AO.ecra.analise(analysisSnap()); } catch (e) { console.error('ecrã Onda:', e); }
-        return viewAnalysis();
+        analysisLoad();
+        return `<div class="empty">${aoOk ? 'Não deu para mostrar a análise.' : 'A calcular…'}</div>`;
     }
     // o que a Análise pede à rede: toda a Trade Republic (na app do dono) e o diário
     function analysisLoad() {
         if (cfg.owner) loadUni();
         if (cfg.proxy && !JOURNAL) loadJournal();
     }
-    // O instantâneo para a Onda: o que o viewAnalysis lê, cru (a Onda filtra, ordena — o mesmo TimSort do V8 — e
-    // escreve). Da análise de cada ativo vão só os campos que a vista usa (as razões só do prazo escolhido); toda a
-    // Trade Republic vai como lista fixa (escrita na memória da Onda uma vez por cada lista nova). Vai já feito o que é do browser ou de outras partes da app: os nomes
-    // (nameOf), a variação do dia (qv: preço da noite, euros), as datas (clWhen, a hora da lista toda) e o diário
-    // avaliado (evalJournal, com os preços de agora).
+    // a hora da análise do Claude, para a linha pequena da Análise: "07:16" (de hoje) ou "06/11 07:16"
+    const HM = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit' }), DM = new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: '2-digit' });
+    function clAt() {
+        const g = CLAUDE && CLAUDE.generatedAt ? new Date(CLAUDE.generatedAt) : null;
+        if (!g || isNaN(g)) return '';
+        return (g.toDateString() === new Date().toDateString() ? '' : DM.format(g) + ' ') + HM.format(g);
+    }
+    // O instantâneo para a Onda: o que a Análise lê, cru (a Onda filtra, ordena — o sort do V8 — e escreve). Da análise
+    // de cada ativo vão só os campos que a vista usa; toda a Trade Republic vai como lista fixa (escrita na memória da
+    // Onda uma vez por cada lista nova). Vai já feito o que é do browser ou de outras partes da app: os nomes (nameOf), a
+    // variação do dia (qv: preço da noite, euros), a hora da análise do Claude (clAt) e o diário avaliado (evalJournal,
+    // com os preços de agora).
     function analysisSnap() {
         analysisLoad();
-        const hz = cfg.hz, C = CLAUDE, U = cfg.owner ? UNI : null, B = BT;
-        const H = (x, rs) => (x ? { score: x.score, tone: x.tone, label: x.label, reasons: rs ? x.reasons.map((r) => [r.pts, r.txt]) : undefined } : x);
-        const ac = (x) => (x && typeof x === 'object' ? { s: x.s, key: x.key, action: x.action, why: x.why, short: x.short, mid: x.mid, long: x.long } : x);
+        const C = CLAUDE, U = cfg.owner ? UNI : null, B = BT, fold = (f) => (f in st.fold ? st.fold[f] : false);
+        const H = (x) => (x ? { score: x.score, tone: x.tone, label: x.label } : x);
+        const ac = (x) => (x && typeof x === 'object' ? { s: x.s, key: x.key, action: x.action, short: x.short, mid: x.mid, long: x.long } : x);
         const nm = (l) => (Array.isArray(l) ? l.map((x) => [nameOf(x.k), x.a]) : l);
         return {
-            horas: CL_LBL, owner: cfg.owner, claude: cfg.claude, proxy: cfg.proxy, filter: cfg.filter, hz, strategy: cfg.strategy,
-            foldAn: 'an-auto' in st.fold ? st.fold['an-auto'] : false, foldUni: 'uni' in st.fold ? st.fold.uni : false, uniN: st.uniN,
-            when: hz !== 'disc' && clScored() ? clWhen() : '',
+            horas: CL_LBL, owner: cfg.owner, claude: cfg.claude, proxy: cfg.proxy, filter: cfg.filter, hz: cfg.hz, strategy: cfg.strategy,
+            foldAn: fold('an-auto'), foldUni: fold('uni'), foldRes: fold('an-res'), foldSobre: fold('an-sobre'), uniN: st.uniN, when: clAt(),
             assets: Object.keys(REG).map((k) => {
                 const a = REG[k], r = AN[k], h = r && r.horizons, d = r && r.discount;
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), chg: qv(k).changePct,
-                    an: r ? { h: h ? { short: H(h.short, hz === 'short'), mid: H(h.mid, hz === 'mid'), long: H(h.long, hz === 'long') } : h,
-                        d: d ? { dd: d.dd, score: d.score, tone: d.tone, tag: d.tag, verdict: d.verdict, opp: d.opp } : d,
-                        risk: r.risk.label, rsi: r.metrics.rsi, adv: r.advice && r.advice.key } : r };
+                    an: r ? { h: h ? { short: H(h.short), mid: H(h.mid), long: H(h.long) } : h,
+                        d: d ? { dd: d.dd, score: d.score, tone: d.tone, tag: d.tag, opp: d.opp } : d, adv: r.advice && r.advice.key } : r };
             }),
-            cl: C ? { missing: C.missing, off: C.off, review: C.review, lessons: C.lessons, rank: C.rank ? { short: C.rank.short, mid: C.rank.mid, long: C.rank.long } : C.rank,
+            cl: C ? { missing: C.missing, review: C.review, lessons: C.lessons, rank: C.rank ? { short: C.rank.short, mid: C.rank.mid, long: C.rank.long } : C.rank,
                 actions: Array.isArray(C.actions) ? C.actions.map(ac) : C.actions } : C,
-            uni: U ? { error: U.error, when: U.generatedAt ? dtLbl(U.generatedAt) : U.date, rows: Array.isArray(U.rows) ? AO.ecra.fixa(U.rows) : U.rows } : U,
+            uni: U ? { error: U.error, rows: Array.isArray(U.rows) ? AO.ecra.fixa(U.rows) : U.rows } : U,
             ev: evalJournal(),
             bt: B ? { running: B.running, error: B.error, sum: B.sum, n: B.n, yrs: B.yrs, ticket: B.ticket, byKind: B.byKind, worst: nm(B.worst), best: nm(B.best) } : B,
         };
-    }
-    function viewAnalysis() {
-        analysisLoad();
-        const keys = Object.keys(REG).filter((k) => listed(k) && (REG[k].kind !== 'index' || k === 'GC=F') && (AN[k] || clNow(k)));
-        const inv = keys.filter((k) => investable(k) && AN[k]);
-        const f = cfg.filter, hz = cfg.hz, disc = hz === 'disc';
-        const pool = keys.filter((k) => (f === 'all' ? investable(k) : f === 'plan' ? investable(k) && inPlan(k) : REG[k].kind === f || (f === 'energy' && k === 'GC=F')));
-        const algo = (k) => hzOf(k, hz);
-        // primeiro a convicção do Claude (empates: a classificação dele); o que o Claude não analisou vem a seguir, com o sinal automático
-        const useCl = !disc && clScored();
-        const rk = (k) => { const r = useCl && CLAUDE.rank && CLAUDE.rank[hz]; const i = Array.isArray(r) ? r.indexOf(k) : -1; return i < 0 ? 1e3 : i; };
-        const clRows = useCl ? pool.filter((k) => clScore(k, hz) != null).sort((a, b) => clScore(b, hz) - clScore(a, hz) || rk(a) - rk(b)) : [];
-        const autoRows = pool.filter((k) => !clRows.includes(k) && algo(k)).sort((a, b) => algo(b).score - algo(a).score);
-        const n = clRows.length + autoRows.length;
-        const top = (clRows.length ? clRows : autoRows).slice(0, 3);
-        const chips = [['plan', 'ETF + cripto'], ['all', 'Tudo'], ['fund', 'ETF'], ['crypto', 'Cripto'], ['stock', 'Ações'], ['energy', 'Futuros (referência)']];
-        const src = useCl ? `<b>Análise do Claude</b> · ${esc(clWhen())}`
-            : disc ? `Desconto face ao máximo do ano: medida automática${clDoc() ? ' · veredicto do Claude em cada linha' : ''}`
-                : `Sinais automáticos (algoritmo) · ${!claudeOn() ? 'a análise do Claude liga-se em Ajustes' : CLAUDE && CLAUDE.off ? 'análise do Claude em pausa' : clDoc() ? (cfg.owner ? `a convicção do Claude chega com a próxima análise (às ${CL_LBL})` : 'o veredicto do Claude está na ficha dos teus ativos') : `a análise do Claude chega às ${CL_LBL}`}`;
-        const badge = (c) => (c ? `<span class="badge ${CL_TONE[c.key] || 'flat'}">${esc(SHORT[c.key] || c.action || '')}</span>` : '');
-        const clCard = (k, i) => { const c = clNow(k), v = clScore(k, hz); return `<button type="button" class="card cl-card" data-open="${esc(k)}" data-key="${esc(k)}">
-                <div class="medal">${['1.º', '2.º', '3.º'][i]} lugar</div>
-                <div class="c-top" style="margin-top:4px"><span class="c-name">${esc(nameOf(k))}</span><span class="c-sym">${esc(REG[k].sym)}</span></div>
-                <div class="c-row" style="margin-top:8px">${scoreBar({ score: v, tone: scoreTone(v) })}</div>
-                <div class="c-sub ${CL_TONE[c.key] || 'flat'}-t" style="margin-top:6px;white-space:normal">${esc(c.action || SHORT[c.key] || '')}${AN[k] ? ' · ' + esc(AN[k].risk.label) : ''}</div>
-                <div class="c-sub cl-why">${esc(c.why || '')}</div>
-            </button>`; };
-        const algoCard = (k, i) => { const h = algo(k); return `<button type="button" class="card" data-open="${esc(k)}" data-key="${esc(k)}">
-                <div class="medal">${['1.º', '2.º', '3.º'][i]} lugar</div>
-                <div class="c-top" style="margin-top:4px"><span class="c-name">${esc(nameOf(k))}</span><span class="c-sym">${esc(REG[k].sym)}</span></div>
-                <div class="c-row" style="margin-top:8px">${scoreBar(h)}</div>
-                <div class="c-sub ${h.tone}-t" style="margin-top:6px;white-space:normal">${esc(h.label)} · ${esc(AN[k].risk.label)}</div>
-                <div class="c-sub" style="white-space:normal;margin-top:4px">${esc((h.reasons.find((r) => r.pts > 0) || {}).txt || '')}</div>
-            </button>`; };
-        const clRow = (k, i) => { const c = clNow(k), v = clScore(k, hz); return `<button type="button" class="row" data-open="${esc(k)}" data-key="${esc(k)}">
-                <span class="rk">${i + 1}</span>
-                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${fmtPct(qv(k).changePct)} hoje${AN[k] ? ' · ' + esc(AN[k].risk.label) : ''}${algDiff(k, c) ? ' · <span class="alg-diff">≠ algoritmo</span>' : ''}</div></div>
-                <div class="r-score">${scoreBar({ score: v, tone: scoreTone(v) })}<div class="lbl ${CL_TONE[c.key] || 'flat'}-t">${esc(SHORT[c.key] || c.action || '')}</div></div>
-            </button>`; };
-        const autoRow = (k, i) => { const h = algo(k), d = AN[k].discount; return `<button type="button" class="row${useCl ? ' auto' : ''}" data-open="${esc(k)}" data-key="${esc(k)}">
-                <span class="rk">${i + 1}</span>
-                <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${badge(clNow(k))}${disc && d ? esc(fmtPct(d.dd * 100) + ' do máx. · ') : ''}${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje${disc ? '' : ` · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}`}</div></div>
-                <div class="r-score">${scoreBar(h)}<div class="lbl ${h.tone}-t">${esc(h.label)}</div></div>
-            </button>`; };
-        return `<h2 class="grp">Comparar ativos</h2>
-        <p class="note grp-n src-line${useCl ? ' cl' : ''}">${src}</p>
-        <div class="seg hz" role="group" aria-label="Prazo">${MODES.map(([v, l, d]) => `<button type="button" data-hz="${v}" class="${hz === v ? 'on' : ''}"><b>${l}${v === 'disc' ? '' : ' prazo'}</b><small>${d}</small></button>`).join('')}</div>
-        <div class="chips" role="group" aria-label="Filtro">${chips.map(([v, l]) => `<button type="button" data-filter="${v}" class="${f === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-        ${f === 'energy' ? '<p class="note" style="margin:0 2px 12px">Contratos de futuros, como referência: na Trade Republic compram-se ETC, que ao fim de anos perdem com os custos de rolagem; para ouro há o ETC físico (Xetra-Gold, nos ETF).</p>' : ''}
-        ${!n ? `<div class="empty">${cfg.proxy || f === 'crypto' || f === 'all' ? 'A calcular com o histórico de 1 ano…' : 'Liga o conector para analisar ações e energia.'}</div>` : `
-        <section class="sec"><div class="sec-h"><h2>${disc ? 'Maiores oportunidades (desconto)' : `Mais fortes a ${HZ_PT[hz]} prazo`}</h2><span class="sub">${clRows.length ? 'pelo Claude' : 'sinais automáticos'}</span></div>
-            <div class="top3">${top.map((k, i) => (clRows.length ? clCard : algoCard)(k, i)).join('')}</div></section>
-        <section class="sec"><div class="sec-h"><h2>Classificação</h2><span class="sub">${n} ativos · 0 a 100</span></div>
-            <p class="note" style="margin:-4px 2px 10px">${useCl ? `Convicção do Claude a ${HZ_PT[hz]} prazo: 50 = neutro, 70 ou mais = forte a favor, 30 ou menos = forte contra. Toca para ver o veredicto, os níveis e o porquê.` : disc ? 'Quanto mais alto, maior o desconto com a tendência longa a favor.' : 'Pontuação automática da tendência e do momento de cada ativo.'}</p>
-            <div class="list">${clRows.map(clRow).join('')}${clRows.length && autoRows.length ? '<div class="grp-h">Sem análise do Claude<small>sinais automáticos</small></div>' : ''}${autoRows.map((k, i) => autoRow(k, clRows.length + i)).join('')}</div></section>`}
-        ${uniSection()}
-        <details class="auto" data-fold="an-auto" ${foldAttr('an-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas, para comparar</small></summary>${useCl ? algoRank(pool, hz) : ''}${ideasCard(inv)}</details>
-        <details class="how"><summary>Como funciona a classificação?</summary><ul>
-            <li><b>Convicção do Claude</b> (0 a 100 por prazo): escrita pelo Claude às ${CL_LBL}, para cada ativo, a partir dos preços, da análise técnica, das notícias e da agenda. 50 = neutro; acima de 58 a favor; 70 ou mais, forte. O veredicto, os níveis (entrada, alvo, stop) e o porquê estão na ficha de cada ativo.</li>
-            <li><b>Sinais automáticos</b>: regras fixas da app, sobre os fechos diários. São um dos dados que o Claude usa.</li>
-            <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>
-            <li><b>Médio prazo</b> (semanas a 3 meses): médias de 20 e 50 dias, variação de 1 e 3 meses, MACD e RSI.</li>
-            <li><b>Longo prazo</b> (anos): média de 200 dias e se está a subir, variação de 1 ano e desconto face ao máximo. Uma descida com a tendência longa a subir conta como oportunidade para ir comprando aos poucos.</li>
-            <li><b>Desconto</b>: quanto o preço está abaixo do máximo do último ano, com o RSI e a tendência longa. "Oportunidade" quando há desconto e a tendência longa ainda sobe; "Barato, mas a cair" quando a tendência longa desce.</li>
-            <li><b>RSI</b>: acima de 70 está "esticado"; abaixo de 30 está muito castigado (pode ressaltar).</li>
-            <li><b>Notícias</b>: tom dos títulos recentes, quando já foram carregados.</li>
-            <li><b>Risco</b>: volatilidade dos últimos 60 dias (quanto oscila).</li></ul></details>
-        <h2 class="grp">Resultados</h2>
-        <p class="note grp-n">Como têm corrido os conselhos do Claude e as regras automáticas.</p>
-        ${trackSection()}`;
     }
 
     // ---------- ajustes ----------
@@ -2500,8 +2342,9 @@
     window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
-        // e a da Análise, e a formatação dos números (a das vistas em Onda é testada contra estas)
-        viewAnalysis, analysisSnap, analysisHtml, fmtPx, fmtPct, fmtPct1, set journal(v) { JOURNAL = v; }, set bt(v) { BT = v; },
+        // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas
+        // em Onda são testados contra estes)
+        analysisSnap, analysisHtml, ico, fmtPx, fmtPct, fmtPct1, set journal(v) { JOURNAL = v; }, set bt(v) { BT = v; },
         get claude() { return CLAUDE; }, set claude(v) { CLAUDE = v; }, get uni() { return UNI; }, set uni(v) { UNI = v; } };
     boot();
 })();
