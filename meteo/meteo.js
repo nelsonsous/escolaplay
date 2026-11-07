@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.5.0';
+const VERSION = '1.5.1';
 const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -873,7 +873,7 @@ function viewSettings() {
         ? `<div class="banner warn own-note">${ui('alert')}<span>${st.status.ownerCode === 'sem_codigo' ? 'Há um código do dono guardado neste telemóvel, mas o conector ainda não tem o segredo OWNER_CODE.' : 'O código do dono guardado neste telemóvel não foi aceite pelo conector.'}</span><button type="button" class="btn sm" data-act="owner-forget">Esquecer</button></div>` : '';
     h += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
         <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${esc(DEFAULT_PROXY)}" value="${esc(cfg.proxy)}"><button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
-        <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div></div></section>`;
+        <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div>${ownerHtml()}</div></section>`;
     h += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div></div></section>`;
     const S = st.fc?.status;
@@ -882,6 +882,19 @@ function viewSettings() {
     return { title, html: h };
 }
 
+// "Sou o dono desta app": o código (o segredo OWNER_CODE do conector) escreve-se aqui — no iPhone a app do ecrã principal
+// não partilha a memória com o Safari, por isso o link ?dono= aberto no Safari não chega à app instalada
+function ownerHtml() {
+    if (st.status?.owner) return `<div class="sw own-row"><span><b>És o dono desta app</b><br><small class="hint">Vês todos os locais e o painel Utilização.</small></span><button type="button" class="btn sm" data-act="owner-forget">Esquecer o código</button></div>`;
+    return `<details class="own"${api.ownerCode() ? ' open' : ''}><summary>Sou o dono desta app</summary><div class="inl"><input id="f-owner" class="inp" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Código do dono" aria-label="Código do dono"><button type="button" class="btn pri" data-act="owner-save">Entrar</button></div>
+        <div class="hint">É o segredo OWNER_CODE do conector (Cloudflare). Fica guardado só neste telemóvel; na app do ecrã principal escreve-o aqui.</div></details>`;
+}
+function ownerSave() {
+    const inp = $('#f-owner'), v = (inp?.value || '').trim();
+    if (!v) { toast('Escreve o código do dono.'); return; }
+    inp.blur(); // com o campo focado a página não se redesenha (para não estragar o que se escreve)
+    api.setOwnerCode(v); ownerJust = 'set'; loadStatus();
+}
 // Ajustes → "Análise diária do Claude": os locais deste telemóvel; o dono vê também os dos outros (só o nome, ~1 km e o
 // estado) e pode desligá-los (e voltar a ligar os que desligou)
 function placeState(p) {
@@ -1293,6 +1306,7 @@ document.addEventListener('click', (ev) => {
         case 'share-copy': copyText(SHARE_TEXT).then((ok) => toast(ok ? 'Texto copiado: cola-o numa mensagem.' : 'Seleciona o texto e copia-o.')); break;
         case 'usage': st.usageErr = ''; render(); loadUsage(); break;
         case 'owner-forget': ownerForget(); break;
+        case 'owner-save': ownerSave(); break;
         case 'fav': {
             const i = cfg.favs.findIndex((f) => near(f, cfg.loc));
             if (i >= 0) { cfg.favs.splice(i, 1); toast('Retirado dos favoritos'); }
@@ -1304,6 +1318,7 @@ document.addEventListener('click', (ev) => {
         default: break;
     }
 });
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); } });
 document.addEventListener('input', (e) => {
     if (e.target.id === 'f-q') { clearTimeout(searchT); searchT = setTimeout(() => doSearch(e.target.value), 300); }
 });

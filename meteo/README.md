@@ -116,8 +116,10 @@ endereço e como a instalar:
 É grátis, sem conta e sem publicidade. Cada instalação ganha uma identidade anónima (um id e um segredo ao acaso, só no
 telemóvel); quem a recebe tem tudo, menos a análise do Claude, que é opcional e liga para 1 local.
 
-**O dono** (eu) abre uma vez, em cada telemóvel seu, `https://nelsonsous.github.io/escolaplay/meteo/?dono=<código>` — o
-código fica só nesse telemóvel e sai logo do endereço (`?dono=` vazio esquece-o). O código é o segredo `OWNER_CODE` do
+**O dono** (eu) escreve o código uma vez em cada telemóvel seu, em **Ajustes → Conector de dados → «Sou o dono desta
+app»** (no iPhone é o único caminho para a app do ecrã principal, que não partilha a memória com o Safari), ou abre
+`https://nelsonsous.github.io/escolaplay/meteo/?dono=<código>` no browser — o código fica só nesse telemóvel e sai logo do
+endereço (`?dono=` vazio ou «Esquecer o código» esquece-o). O código é o segredo `OWNER_CODE` do
 conector (ver abaixo; nunca no repositório). O dono não tem limite de locais, vê os de todos (dos outros só o nome e a zona,
 ~1 km, nunca o ponto exato), pode desligá-los, e tem **Ajustes → Utilização**: telemóveis que abriram a app hoje, em 7 e em
 30 dias; locais (os seus e os dos outros, em uso, em pausa, desligados — dos outros só o nome); análises do Claude por dia
