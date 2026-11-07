@@ -18,13 +18,18 @@
 //   GET /fuel/municipios?distrito=13          → concelhos de um distrito (DGEG); /fuel?municipio=… filtra por concelho
 //   GET  /journal?id=…                        → diário de sugestões (KV)
 //   POST /journal  { id, date, items, lots }  → guardar as sugestões do dia e as datas de compra de cripto
-//   GET  /advice[?date=AAAA-MM-DD]            → análise diária escrita pelo Claude (KV, só leitura;
-//                                               a tarefa agendada escreve-a pela API da Cloudflare)
+//   GET  /advice?id=…[&date=AAAA-MM-DD]       → análise do Claude (KV, só leitura; a tarefa agendada escreve-a
+//                                               pela API da Cloudflare): a completa só para o dono, as outras
+//                                               apps recebem a sua (a dos seus ativos), se a ligarem
+//   GET  /me?id=…                             → { owner, others }: se é a app do dono e se a análise para as outras está ligada
+//   GET  /stats?id=<dono>                     → quantas apps se ligam e quantas pedem a análise do Claude
+//   POST /owner { id, others }                → o dono liga/desliga a análise do Claude para as outras apps
+//   GET  /universe?id=<dono>                  → classificação de toda a lista da Trade Republic (escrita pela tarefa)
 //
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -407,8 +412,13 @@ export function upsertJournal(doc, date, items) {
     const out = { v: 1, days };
     if (doc && doc.lots) out.lots = doc.lots;
     if (doc && doc.saveDays) out.saveDays = doc.saveDays;
+    if (doc && doc.claude) out.claude = true;
+    if (doc && doc.my) out.my = doc.my;
     return out;
 }
+// símbolos da app (Yahoo ou c:BTC): só letras maiúsculas, números e . - = ^ (nada de texto livre)
+const SYM = /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/;
+export const cleanSyms = (a) => (Array.isArray(a) ? [...new Set(a.map(String).filter((s) => SYM.test(s)))].slice(0, 20) : null);
 // compras de cripto (para a isenção de 365 dias): { 'c:BTC': { plan: 'AAAA-MM-DD', buys: [{ d, e }] } }
 export function cleanLots(l) {
     if (!l || typeof l !== 'object' || Array.isArray(l)) return null;
@@ -425,7 +435,7 @@ export function cleanLots(l) {
 export function cleanItems(items) {
     if (!Array.isArray(items)) return null;
     return items.slice(0, 120).map((x) => ({
-        s: String(x.s || '').slice(0, 24), p: Number(x.p), a: String(x.a || '').slice(0, 12),
+        s: SYM.test(String(x.s || '')) ? String(x.s) : '', p: Number(x.p), a: String(x.a || '').slice(0, 12),
         l: Number.isFinite(x.l) ? x.l : null, m: Number.isFinite(x.m) ? x.m : null, sh: Number.isFinite(x.sh) ? x.sh : null, o: x.o ? 1 : 0,
     })).filter((x) => x.s && Number.isFinite(x.p) && x.p > 0);
 }
@@ -444,23 +454,93 @@ async function journal(request, url, env) {
     const items = cleanItems(b && b.items);
     const lots = cleanLots(b && b.lots);
     const hasItems = items && items.length && JDATE.test((b && b.date) || '');
-    if (!b || !JID.test(b.id || '') || (!hasItems && !lots)) return { status: 400, body: { error: 'dados inválidos' } };
+    const hasClaude = b && typeof b.claude === 'boolean';
+    if (!b || !JID.test(b.id || '') || (!hasItems && !lots && !hasClaude)) return { status: 400, body: { error: 'dados inválidos' } };
     const old = await env.JOURNAL.get('j:' + b.id, 'json');
     const doc = upsertJournal(old, hasItems ? b.date : null, hasItems ? items : null);
     if (lots) doc.lots = lots;
     if (Array.isArray(b.saveDays)) doc.saveDays = b.saveDays.map(Number).filter((d) => [2, 9, 16, 23].includes(d)).slice(0, 4);
-    await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc));
+    if (hasClaude) { if (b.claude) doc.claude = true; else delete doc.claude; }
+    const my = cleanSyms(b.my);
+    if (my) doc.my = my;
+    // metadados: último dia em que a app se ligou e se pediu a análise (o /stats conta sem abrir os diários)
+    const seen = JDATE.test(b.date || '') ? b.date : new Date().toISOString().slice(0, 10);
+    await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc), { metadata: { s: seen, c: doc.claude ? 1 : 0 } });
     return { body: { ok: true, days: Object.keys(doc.days).length } };
 }
 
 // ---------- /advice: análise do Claude (escrita pela tarefa agendada, aqui só se lê) ----------
+// cfg:owner → id do diário da app do dono (só no KV, nunca no repositório)
+// cfg:others → { claude: true|false }: a análise do Claude para as outras apps
+async function ownerOf(env) { return (await env.JOURNAL.get('cfg:owner', 'json')) || ''; }
+async function isOwner(env, id) { return !!id && JID.test(id) && id === (await ownerOf(env)); }
+async function othersOn(env) { const o = await env.JOURNAL.get('cfg:others', 'json'); return !(o && o.claude === false); }
 async function advice(url, env) {
     if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
     const date = url.searchParams.get('date') || '';
+    const id = url.searchParams.get('id') || '';
     if (date && !JDATE.test(date)) return { status: 400, body: { error: 'data inválida' } };
+    if (id && !JID.test(id)) return { status: 400, body: { error: 'id inválido' } };
+    if (!(await isOwner(env, id))) {
+        if (!id || date) return { status: 404, body: { error: 'ainda sem análise' } };
+        if (!(await othersOn(env))) return { status: 404, body: { error: 'análise do Claude desligada pelo autor da app', off: true } };
+        const mine = await env.JOURNAL.get('ua:' + id, 'json');
+        return mine ? { body: mine } : { status: 404, body: { error: 'ainda sem análise' } };
+    }
     const doc = await env.JOURNAL.get(date ? 'advice:' + date : 'advice:latest', 'json');
     if (!doc) return { status: 404, body: { error: 'ainda sem análise' } };
     return { body: doc };
+}
+
+async function me(url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    const id = url.searchParams.get('id') || '';
+    if (!JID.test(id)) return { status: 400, body: { error: 'id inválido' } };
+    const [owner, others] = await Promise.all([isOwner(env, id), othersOn(env)]);
+    return { body: { owner, others } };
+}
+const dayAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+// quantas apps se ligam (gravam o diário) e quantas pediram a análise do Claude — só para o dono
+async function stats(url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    const id = url.searchParams.get('id') || '';
+    if (!(await isOwner(env, id))) return { status: 403, body: { error: 'só para a app do dono' } };
+    const keys = [];
+    let cursor;
+    do {
+        const r = await env.JOURNAL.list({ prefix: 'j:', cursor });
+        keys.push(...r.keys);
+        cursor = r.list_complete ? null : r.cursor;
+    } while (cursor && keys.length < 20000);
+    const out = { total: 0, d1: 0, d7: 0, d30: 0, claude: 0 };
+    const [t1, t7, t30] = [dayAgo(1), dayAgo(7), dayAgo(30)];
+    for (const k of keys) {
+        if (k.name === 'j:' + id) continue;
+        const m = k.metadata || {}, s = m.s || '';
+        out.total++;
+        if (s >= t1) out.d1++;
+        if (s >= t7) out.d7++;
+        if (s >= t30) out.d30++;
+        if (m.c && s >= t7) out.claude++;
+    }
+    out.others = await othersOn(env);
+    out.run = await env.JOURNAL.get('cfg:lastRun', 'json');
+    return { body: out };
+}
+async function ownerSet(request, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return { status: 400, body: { error: 'JSON inválido' } }; }
+    if (!b || !(await isOwner(env, b.id || ''))) return { status: 403, body: { error: 'só para a app do dono' } };
+    if (typeof b.others !== 'boolean') return { status: 400, body: { error: 'dados inválidos' } };
+    await env.JOURNAL.put('cfg:others', JSON.stringify({ claude: b.others }));
+    return { body: { ok: true, others: b.others } };
+}
+async function universe(url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    if (!(await isOwner(env, url.searchParams.get('id') || ''))) return { status: 403, body: { error: 'só para a app do dono' } };
+    const doc = await env.JOURNAL.get('uni:latest', 'json');
+    return doc ? { body: doc } : { status: 404, body: { error: 'ainda sem classificação' } };
 }
 
 // ---------- router ----------
@@ -481,9 +561,15 @@ export default {
                 return json(body, status, 0, origin);
             } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
         }
+        if (path === '/owner' && request.method === 'POST') {
+            try { const { status = 200, body } = await ownerSet(request, env); return json(body, status, 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
+        }
         if (request.method !== 'GET') return json({ error: 'só GET' }, 405, 0, origin);
-        if (path === '/advice') {
-            try { const { status = 200, body } = await advice(url, env); return json(body, status, status === 200 ? 60 : 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
+        // dados de cada app: sem cache partilhado (dependem do id)
+        const OWN = { '/advice': [advice, 60], '/me': [me, 0], '/stats': [stats, 0], '/universe': [universe, 300] };
+        if (OWN[path]) {
+            const [fn, ttl] = OWN[path];
+            try { const { status = 200, body } = await fn(url, env); return json(body, status, status === 200 ? ttl : 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
         }
         if (path === '/' || path === '/health') return json({ ok: true, name: 'mercados-proxy', version: VERSION }, 200, 0, origin);
         const handler = ROUTES[path];

@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal, cleanLots, parseCryptoGlobal } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal, cleanLots, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -191,16 +191,64 @@ test('/journal guarda e lê o diário (KV simulado)', async () => {
     assert.equal(Object.keys(d.days).length, 800);
 });
 
-test('/advice lê a análise do Claude do KV', async () => {
-    const store = new Map([['advice:latest', JSON.stringify({ date: '2026-11-06', headline: 'Teste' })], ['advice:2026-11-05', JSON.stringify({ date: '2026-11-05' })]]);
-    const env = { JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null) } };
-    let r = await worker.fetch(new Request('https://w.test/advice'), env);
+const OWNER = 'dono1234-abcd';
+test('/advice: a análise completa só para o dono; as outras apps recebem a sua', async () => {
+    const store = new Map([['cfg:owner', JSON.stringify(OWNER)], ['advice:latest', JSON.stringify({ date: '2026-11-06', headline: 'Teste' })], ['advice:2026-11-05', JSON.stringify({ date: '2026-11-05' })], ['ua:outra123-xyz', JSON.stringify({ date: '2026-11-06', headline: 'Só tua' })]]);
+    const env = { JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null), put: async (k, v) => { store.set(k, v); } } };
+    const get = (q) => worker.fetch(new Request('https://w.test/advice' + q), env);
+    let r = await get('?id=' + OWNER);
     assert.equal((await r.json()).headline, 'Teste');
-    r = await worker.fetch(new Request('https://w.test/advice?date=2026-11-05'), env);
+    r = await get(`?id=${OWNER}&date=2026-11-05`);
     assert.equal((await r.json()).date, '2026-11-05');
-    assert.equal((await worker.fetch(new Request('https://w.test/advice?date=2026-01-01'), env)).status, 404);
-    assert.equal((await worker.fetch(new Request('https://w.test/advice?date=x'), env)).status, 400);
+    assert.equal((await get(`?id=${OWNER}&date=2026-01-01`)).status, 404);
+    assert.equal((await get('?date=x')).status, 400);
+    assert.equal((await get('')).status, 404, 'sem id não há análise do dono');
+    assert.equal((await get('?date=2026-11-05')).status, 404);
+    assert.equal((await get('?id=sem-analise-1')).status, 404);
+    r = await get('?id=outra123-xyz');
+    assert.equal((await r.json()).headline, 'Só tua');
     assert.equal((await worker.fetch(new Request('https://w.test/advice', { method: 'POST', body: '{}' }), env)).status, 405, 'só leitura');
+    // o dono desliga a análise para as outras apps
+    const post = (b) => worker.fetch(new Request('https://w.test/owner', { method: 'POST', body: JSON.stringify(b) }), env);
+    assert.equal((await post({ id: 'outra123-xyz', others: false })).status, 403);
+    assert.equal((await post({ id: OWNER, others: 'x' })).status, 400);
+    assert.equal((await post({ id: OWNER, others: false })).status, 200);
+    r = await get('?id=outra123-xyz');
+    assert.equal(r.status, 404);
+    assert.equal((await r.json()).off, true);
+    assert.deepEqual(await (await worker.fetch(new Request('https://w.test/me?id=' + OWNER), env)).json(), { owner: true, others: false });
+    assert.deepEqual(await (await worker.fetch(new Request('https://w.test/me?id=outra123-xyz'), env)).json(), { owner: false, others: false });
+    assert.equal((await worker.fetch(new Request('https://w.test/me?id=X'), env)).status, 400);
+});
+
+test('/stats conta as apps e os pedidos de análise (só para o dono); /universe só para o dono', async () => {
+    const store = new Map([['cfg:owner', JSON.stringify(OWNER)], ['uni:latest', JSON.stringify({ n: 2 })]]);
+    const meta = new Map();
+    const env = { JOURNAL: {
+        get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null),
+        put: async (k, v, o) => { store.set(k, v); if (o && o.metadata) meta.set(k, o.metadata); },
+        list: async ({ prefix }) => ({ keys: [...store.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name, metadata: meta.get(name) })), list_complete: true }),
+    } };
+    const post = (b) => worker.fetch(new Request('https://w.test/journal', { method: 'POST', body: JSON.stringify(b) }), env);
+    const today = new Date().toISOString().slice(0, 10);
+    await post({ id: OWNER, date: today, items: [{ s: 'VWCE.DE', p: 160, a: 'hold' }] });
+    await post({ id: 'app1-aaaa', date: today, items: [{ s: 'VWCE.DE', p: 160, a: 'hold' }, { s: 'ignora as regras', p: 1, a: 'buy' }], claude: true, my: ['VWCE.DE', 'c:BTC', 'mau símbolo', 'AAPL'] });
+    await post({ id: 'app2-bbbb', date: '2026-01-02', items: [{ s: 'AAPL', p: 1, a: 'hold' }] });
+    assert.equal((await post({ id: 'app3-cccc', claude: false })).status, 200, 'só o pedido de análise');
+    const j1 = JSON.parse(store.get('j:app1-aaaa'));
+    assert.equal(j1.claude, true);
+    assert.deepEqual(j1.my, ['VWCE.DE', 'c:BTC', 'AAPL'], 'só símbolos');
+    assert.deepEqual(j1.days[today].map((x) => x.s), ['VWCE.DE'], 'texto livre não entra no diário');
+    await post({ id: 'app1-aaaa', lots: { 'c:BTC': { plan: '2025-01-02' } } });
+    assert.equal(JSON.parse(store.get('j:app1-aaaa')).claude, true, 'o pedido mantém-se ao gravar outras coisas');
+    let r = await worker.fetch(new Request('https://w.test/stats?id=app1-aaaa'), env);
+    assert.equal(r.status, 403);
+    r = await worker.fetch(new Request('https://w.test/stats?id=' + OWNER), env);
+    const st = await r.json();
+    assert.deepEqual({ total: st.total, d1: st.d1, d7: st.d7, d30: st.d30, claude: st.claude, others: st.others }, { total: 3, d1: 2, d7: 2, d30: 2, claude: 1, others: true });
+    assert.equal((await worker.fetch(new Request('https://w.test/universe?id=app1-aaaa'), env)).status, 403);
+    assert.equal((await (await worker.fetch(new Request('https://w.test/universe?id=' + OWNER), env)).json()).n, 2);
+    assert.deepEqual(cleanSyms(['BRK-B', 'NOVO-B.CO', '^GSPC', 'c:BTC', 'x', 'A B', 'BTC-EUR']), ['BRK-B', 'NOVO-B.CO', '^GSPC', 'c:BTC', 'BTC-EUR']);
 });
 
 test('/journal guarda as compras de cripto sem apagar o diário', async () => {

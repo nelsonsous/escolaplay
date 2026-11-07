@@ -26,8 +26,9 @@ const today = todayLisbon();
 const warn = [];
 const tryOr = async (f, fb, what) => { try { return await f(); } catch (e) { warn.push(`${what}: ${e.message}`); return fb; } };
 
-// 1) Diário (para incluir ações que o utilizador juntou na app)
-const jKeys = await tryOr(() => kvKeys('j:'), [], 'diário (lista)');
+// 1) Diário do dono (para incluir ações que juntou na app); as outras apps têm análise à parte (outros.mjs)
+const owner = await tryOr(() => kvGet('cfg:owner'), null, 'dono');
+const jKeys = owner ? ['j:' + owner] : await tryOr(() => kvKeys('j:'), [], 'diário (lista)');
 const journals = [];
 for (const k of jKeys) { const d = await tryOr(() => kvGet(k), null, 'diário ' + k); if (d && d.days) journals.push({ id: k.slice(2), days: d.days, lots: d.lots, saveDays: d.saveDays }); }
 // ações juntadas pelo utilizador: só as do dia mais recente de cada diário (a lista da app pode ter mudado)
