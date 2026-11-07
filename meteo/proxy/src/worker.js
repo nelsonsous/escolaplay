@@ -1,24 +1,33 @@
 // Conector da app Meteo (Cloudflare Worker), como o mercados/proxy: cache/proxy das fontes que o browser não lê
 // diretamente, imagens de satélite, locais, avisos do utilizador e análises do Claude (KV). A app está no GitHub Pages.
-// Plano gratuito (10 ms de CPU por pedido): aqui não se faz cálculo pesado — o motor (../../lib) corre no telemóvel.
+// Plano gratuito (10 ms de CPU por pedido, 1000 gravações no KV por dia): aqui não se faz cálculo pesado — o motor
+// (../../lib) corre no telemóvel — e grava-se pouco.
+// Sem contas: cada instalação da app tem um id e um segredo aleatórios (cabeçalho x-meteo-device: <id>.<segredo>),
+// registados na primeira utilização (dev:<id>); o dono da app é quem envia o código do segredo OWNER_CODE
+// (x-meteo-owner). Cada local é de um telemóvel (ou do dono) e só esse o vê; o dono vê todos, sem as coordenadas exatas
+// dos outros.
 import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl, REPORT_KINDS } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
+import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, placeOwner, isOwnerPlace, placeKind, othersMode, approx, lisbon,
+    placeStatus, bumpStats, recentReports, usageSummary, addDays } from '../../lib/places.js';
 
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const SCHEDULE = ['07:34', '13:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
-const MAX_PLACES = 5;
-const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local, 30 dias
-// Dados públicos: qualquer origem pode ler; escrever (locais, análise imediata) só a app (ALLOWED_ORIGINS) ou o próprio conector
+const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
+const INSTANT_DAY_MAX = 20; // análises imediatas por dia (todas juntas)
+// Dados públicos: qualquer origem pode ler; escrever (locais, avisos, análise imediata) só a app (ALLOWED_ORIGINS) ou o
+// próprio conector. Os pedidos da app levam a identidade do telemóvel (e do dono) em cabeçalhos próprios.
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'x-sat-layer, x-sat-bbox, x-cache' };
+const ALLOW_HEADERS = 'content-type, x-meteo-device, x-meteo-owner';
 const OM_TTL = { forecast: 900, ensemble: 3600, previous: 3600, archive: 2592000, elevation: 2592000, geocoding: 86400 };
 
 export default {
     async fetch(req, env, ctx) {
         const url = new URL(req.url);
         if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...CORS, 'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-            'access-control-allow-headers': 'content-type', 'access-control-max-age': '86400' } });
+            'access-control-allow-headers': ALLOW_HEADERS, 'access-control-max-age': '86400' } });
         // a app está no GitHub Pages; quem abrir o endereço do conector vai lá parar
         if (url.pathname === '/' && req.method === 'GET') return Response.redirect(env.APP_URL || 'https://nelsonsous.github.io/escolaplay/meteo/', 302);
         let res;
@@ -37,11 +46,8 @@ export default {
 async function route(req, env, ctx, url) {
     const p = url.pathname, m = req.method;
     const q = url.searchParams;
-    if (m === 'GET' && p === '/api/status') {
-        const places = await getPlaces(env);
-        return json({ version: VERSION, onDemand: !!env.ANTHROPIC_API_KEY, places: places.length, schedule: SCHEDULE });
-    }
-    // --- fontes (passagem com cache; o Worker não interpreta os dados) ---
+    if (m === 'GET' && p === '/api/status') return status(req, env, url);
+    // --- fontes (passagem com cache; o Worker não interpreta os dados nem precisa de saber quem pede) ---
     if (m === 'GET' && p.startsWith('/api/raw/om/')) {
         const api = p.slice('/api/raw/om/'.length);
         if (!OM[api]) return bad('fonte desconhecida');
@@ -94,23 +100,22 @@ async function route(req, env, ctx, url) {
         if (!/^\d{3,9}$/.test(id) || !env.KV) return json([]);
         return json((await env.KV.get('obs:' + id, 'json')) || [], 200, { 'cache-control': 'public, max-age=600' });
     }
-    // --- análises e locais ---
-    if (m === 'GET' && p === '/api/analysis') {
-        const c = coords(q);
-        if (!c) return bad('coordenadas inválidas');
-        return json(await findAnalysis(env, c.lat, c.lon), 200, { 'cache-control': 'no-store' });
-    }
+    // --- análises, locais e avisos: dependem de quem pede (cabeçalhos x-meteo-device / x-meteo-owner) ---
+    if (m === 'GET' && p === '/api/analysis') return getAnalysis(req, env, url);
     if (m === 'POST' && p === '/api/analysis/refresh') return refresh(req, env, url);
     if (p === '/api/places') {
-        if (m === 'GET') return json(await getPlaces(env), 200, { 'cache-control': 'no-store' });
+        if (m === 'GET') return listPlaces(req, env, url);
         if (m === 'POST') return addPlace(req, env, url);
     }
     if (p === '/api/reports') {
-        if (m === 'GET') return listReports(env, q);
+        if (m === 'GET') return listReports(req, env, url);
         if (m === 'POST') return addReport(req, env, url);
     }
     if (m === 'DELETE' && p.startsWith('/api/places/')) return deletePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
-    if (m === 'PATCH' && p.startsWith('/api/places/')) return movePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
+    if (m === 'PATCH' && p.startsWith('/api/places/')) return updatePlace(req, env, url, decodeURIComponent(p.slice('/api/places/'.length)));
+    // --- só o dono ---
+    if (m === 'GET' && p === '/api/usage') return usage(req, env, url);
+    if (p === '/api/settings' && (m === 'GET' || m === 'PATCH')) return settings(req, env, url);
     return json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
 }
 
@@ -119,15 +124,21 @@ function json(body, status = 200, headers = {}) {
     return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
 }
 const bad = (message) => json({ error: 'pedido_invalido', message }, 400);
+const noKv = () => json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
+const notTrusted = () => json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+const notFound = () => json({ error: 'nao_encontrado', message: 'Local não encontrado.' }, 404);
 function coords(q) {
     const lat = Number(q.get('lat')), lon = Number(q.get('lon'));
     return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
 }
+const validLatLon = (lat, lon) => Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 function clampInt(v, a, b, d) { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d; }
 function distKm(a, b, c, d) {
     const t = Math.PI / 180, x = Math.sin(((c - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin(((d - b) * t) / 2) ** 2;
     return 12742 * Math.asin(Math.sqrt(x));
 }
+const r1 = (x) => Math.round(x * 10) / 10;
+const r4 = (x) => Math.round(x * 1e4) / 1e4;
 function trusted(req, env, url) {
     const o = req.headers.get('origin');
     return !!o && [url.origin, ...String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)].includes(o);
@@ -151,76 +162,232 @@ async function passthrough(ctx, upstream, { ttl, type, headers = {}, ua = UA }) 
     return out;
 }
 
-// ---------- locais ----------
-async function getPlaces(env) { return (env.KV && (await env.KV.get('places', 'json'))) || []; }
-const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'local';
+// ---------- identidade (sem contas) ----------
+// x-meteo-device: <id>.<segredo>, gerados ao acaso no telemóvel na primeira utilização. O conector guarda só o hash do
+// segredo (dev:<id>: confiança na primeira utilização) e recusa um segredo errado para um id conhecido. lastSeen é
+// gravado no máximo 1× por dia; os metadados { s: dia de Lisboa, o: 1 se é do dono } deixam o painel do dono contar os
+// telemóveis com uma só listagem. Só a app (origem de confiança) regista telemóveis novos e grava o lastSeen. O registo
+// expira ao fim de 400 dias sem abrir a app (cada gravação do lastSeen renova o prazo).
+const DEVICE = /^([a-z0-9]{16,40})\.([A-Za-z0-9_-]{32,128})$/;
+const DEV_TTL = 400 * 86400;
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const sha256 = async (s) => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+/** Comparação em tempo constante (os hashes têm sempre 64 caracteres). */
+function sameHash(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+    let x = 0;
+    for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return x === 0;
+}
+let ownerHash = null; // { code, hash }: o hash do segredo OWNER_CODE, calculado uma vez por isolate
+/** O pedido traz o código do dono (x-meteo-owner, com encodeURIComponent)? Sem o segredo OWNER_CODE não há dono. */
+async function ownerCode(req, env) {
+    const code = typeof env.OWNER_CODE === 'string' ? env.OWNER_CODE.trim() : '';
+    const raw = req.headers.get('x-meteo-owner');
+    if (!raw) return null;
+    if (!code) return 'sem_codigo';
+    let got;
+    try { got = decodeURIComponent(raw).trim(); } catch { return 'errado'; }
+    if (ownerHash?.code !== code) ownerHash = { code, hash: await sha256(code) };
+    return sameHash(await sha256(got), ownerHash.hash) ? 'ok' : 'errado';
+}
+const noDevice = (message = 'Este telemóvel não foi reconhecido pelo conector. Abre a app de novo.') => json({ error: 'dispositivo', message }, 403);
 
-async function addPlace(req, env, url) {
-    if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
-    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
-    const b = await req.json().catch(() => null);
-    const lat = Number(b?.lat), lon = Number(b?.lon), name = String(b?.name || '').trim().slice(0, 40);
-    if (!name || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return bad('Dados do local inválidos.');
+/** Quem pede: { id, owner, code } (id null sem identidade válida) ou { error } quando o segredo não bate certo. */
+async function who(req, env, url) {
+    const code = await ownerCode(req, env), owner = code === 'ok';
+    const m = DEVICE.exec(req.headers.get('x-meteo-device') || '');
+    if (!m || !env.KV) return { id: null, owner, code };
+    const [, id, token] = m, key = 'dev:' + id;
+    const [rec, th] = await Promise.all([env.KV.get(key, 'json'), sha256(token)]);
+    if (rec && !sameHash(rec.tokenHash, th)) return { error: noDevice() };
+    const canWrite = trusted(req, env, url);
+    const nowIso = new Date().toISOString(), day = lisbon().date, meta = { metadata: { s: day, o: owner ? 1 : 0 }, expirationTtl: DEV_TTL };
+    if (!rec) {
+        if (!canWrite) return { id: null, owner, code };
+        await env.KV.put(key, JSON.stringify({ tokenHash: th, firstSeen: nowIso, lastSeen: nowIso, ...(owner ? { owner: true } : {}) }), meta);
+        return { id, owner, code, isNew: true };
+    }
+    const seenDay = Number.isFinite(Date.parse(rec.lastSeen)) ? lisbon(Date.parse(rec.lastSeen)).date : '';
+    if (canWrite && (seenDay !== day || !!rec.owner !== owner)) {
+        const upd = { ...rec, lastSeen: nowIso };
+        if (owner) upd.owner = true; else delete upd.owner;
+        await env.KV.put(key, JSON.stringify(upd), meta);
+        // este telemóvel passou a ser do dono: os locais que ligou antes passam a ser do dono
+        if (owner && !rec.owner) await adoptPlaces(env, id);
+    }
+    return { id, owner, code };
+}
+async function adoptPlaces(env, id) {
     const places = await getPlaces(env);
-    const dup = places.find((x) => distKm(x.lat, x.lon, lat, lon) < 0.5);
-    if (dup) return json(dup, 200);
-    if (places.length >= MAX_PLACES) return json({ error: 'limite', message: `Máximo de ${MAX_PLACES} locais com análise diária. Remove um primeiro.` }, 409);
-    let id = slug(name);
-    while (places.some((x) => x.id === id)) id = `${slug(name).slice(0, 20)}-${Math.random().toString(36).slice(2, 5)}`;
-    const place = { id, name, lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4, createdAt: new Date().toISOString() };
-    await env.KV.put('places', JSON.stringify([...places, place]));
-    return json(place, 201);
+    if (places.some((p) => p.owner === id)) await savePlaces(env, places.map((p) => (p.owner === id ? { ...p, owner: OWNER } : p)));
 }
 
-async function deletePlace(req, env, url, id) {
-    if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
-    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+// ---------- locais ----------
+// Cada local tem dono: place.owner = id do telemóvel que o ligou, ou "owner" (o dono da app; também os de antes, sem
+// dono). Os outros telemóveis têm no máximo 1 (ligar noutro sítio muda-o: PATCH, o mesmo id); o dono não tem limite.
+// Desligar não apaga: o local fica com off (e offBy), para voltar a ligar com o mesmo id (a última análise e as lições
+// ficam). Os ids dos outros telemóveis levam sempre um sufixo ao acaso: nunca herdam a análise guardada de outro local.
+async function getPlaces(env) { const v = env.KV && (await env.KV.get('places', 'json')); return Array.isArray(v) ? v : []; }
+const savePlaces = (env, places) => env.KV.put('places', JSON.stringify(places));
+const getSettings = async (env) => (env.KV && (await env.KV.get('settings', 'json'))) || {};
+const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'local';
+const rand = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map((b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
+/** É deste telemóvel? (o dono: os do dono e os deste telemóvel) */
+const mine = (me, p) => (me.owner && isOwnerPlace(p)) || (!!me.id && placeOwner(p) === me.id);
+const canSee = (me, p) => me.owner || mine(me, p);
+/** As coordenadas como as pode ver quem pede: as exatas só nos seus locais; nos dos outros (só o dono os vê), ~1 km. */
+const seenAt = (me, p) => (mine(me, p) ? { lat: p.lat, lon: p.lon } : { lat: approx(p.lat), lon: approx(p.lon) });
+function placeView(me, p, extra = {}) {
+    const own = mine(me, p), c = seenAt(me, p);
+    return { id: p.id, name: p.name, ...c, ...(own ? {} : { approx: true }), mine: own, kind: placeKind(p), createdAt: p.createdAt || null,
+        ...(p.movedAt ? { movedAt: p.movedAt } : {}), ...(p.off ? { off: true, offBy: p.offBy || 'device' } : {}), ...extra };
+}
+/** lastSeen dos telemóveis (KV dev:<id>) → { id: ISO } */
+async function lastSeenOf(env, ids) {
+    const u = [...new Set(ids)];
+    const recs = await Promise.all(u.map((id) => env.KV.get('dev:' + id, 'json').catch(() => null)));
+    return Object.fromEntries(u.map((id, i) => [id, recs[i]?.lastSeen || null]));
+}
+/** O local (em uso) de quem pede mais perto do ponto, até maxKm (distância às coordenadas que pode ver). */
+function nearestOf(me, places, lat, lon, maxKm) {
+    return places.filter((p) => !p.off && canSee(me, p)).map((p) => { const c = seenAt(me, p); return { p, d: distKm(lat, lon, c.lat, c.lon) }; })
+        .filter((o) => o.d <= maxKm).sort((a, b) => a.d - b.d)[0] || null;
+}
+// O que impede outro telemóvel de ligar (ou voltar a ligar) a análise diária: a análise dos outros desligada pelo dono,
+// um local desligado pelo dono, ou já haver 15 locais em análise (os do dono e os dos outros em uso).
+async function guestBlock(env, places, cur) {
+    if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária do Claude nos outros telemóveis.' }, 403);
+    if (cur?.off && cur.offBy === 'owner') return json({ error: 'desligado_pelo_dono', message: 'A análise diária deste telemóvel foi desligada pelo dono da app.' }, 403);
+    const rest = places.filter((p) => p.id !== cur?.id && !p.off);
+    const seen = await lastSeenOf(env, rest.filter((p) => !isOwnerPlace(p)).map(placeOwner));
+    if (rest.filter((p) => placeStatus(p, seen[placeOwner(p)]) === 'active').length >= ANALYSED_MAX) {
+        return json({ error: 'cheio', message: `De momento não há vagas para a análise diária do Claude (máx. ${ANALYSED_MAX} locais). Tenta mais tarde.` }, 409);
+    }
+    return null;
+}
+
+async function listPlaces(req, env, url) {
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    const vis = (await getPlaces(env)).filter((p) => canSee(me, p));
+    const seen = me.owner ? await lastSeenOf(env, vis.filter((p) => !mine(me, p)).map(placeOwner)) : {};
+    const now = new Date().toISOString();
+    return json(vis.map((p) => placeView(me, p, { status: placeStatus(p, mine(me, p) ? now : seen[placeOwner(p)]) })), 200);
+}
+
+async function addPlace(req, env, url) {
+    if (!env.KV) return noKv();
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.id && !me.owner) return noDevice('Atualiza a app: este telemóvel ainda não está identificado no conector.');
+    const b = await req.json().catch(() => null);
+    const lat = Number(b?.lat), lon = Number(b?.lon), name = String(b?.name || '').trim().slice(0, 40);
+    if (!name || !validLatLon(lat, lon)) return bad('Dados do local inválidos.');
     const places = await getPlaces(env);
-    if (!places.some((x) => x.id === id)) return json({ error: 'nao_encontrado', message: 'Local não encontrado.' }, 404);
-    // a análise e as lições ficam guardadas: ao voltar a ligar o mesmo local (mesmo id) aparece de novo a última análise
-    await env.KV.put('places', JSON.stringify(places.filter((x) => x.id !== id)));
+    const own = places.filter((p) => mine(me, p));
+    const near = own.filter((p) => distKm(p.lat, p.lon, lat, lon) < 0.5);
+    const on = near.find((p) => !p.off);
+    if (on) return json(placeView(me, on), 200);
+    const off = near.find((p) => p.off) || null;
+    if (!me.owner) {
+        // 1 local por telemóvel: noutro sítio, a app muda-o (PATCH /api/places/<id>)
+        if (!off && own.length >= GUEST_MAX) return json({ error: 'limite', message: 'Cada telemóvel tem 1 local com análise diária: muda-o para aqui.', place: placeView(me, own[0]) }, 409);
+        const block = await guestBlock(env, places, off);
+        if (block) return block;
+    }
+    const nowIso = new Date().toISOString();
+    if (off) { // voltar a ligar: o mesmo id (a última análise e as lições continuam)
+        const back = { ...off, onAt: nowIso };
+        delete back.off; delete back.offAt; delete back.offBy;
+        await savePlaces(env, places.map((x) => (x.id === off.id ? back : x)));
+        return json(placeView(me, back), 200);
+    }
+    const base = slug(name);
+    let id = me.owner ? base : `${base.slice(0, 17)}-${rand(6)}`;
+    while (places.some((x) => x.id === id)) id = `${base.slice(0, 17)}-${rand(6)}`;
+    const place = { id, name, lat: r4(lat), lon: r4(lon), createdAt: nowIso, owner: me.owner ? OWNER : me.id };
+    await savePlaces(env, [...places, place]);
+    return json(placeView(me, place), 201);
+}
+
+// Desligar (a análise e as lições ficam guardadas). O dono pode desligar qualquer local; o dos outros fica offBy "owner"
+// e só o dono o volta a ligar.
+async function deletePlace(req, env, url, id) {
+    if (!env.KV) return noKv();
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    const places = await getPlaces(env);
+    const cur = places.find((x) => x.id === id);
+    if (!cur || !canSee(me, cur)) return notFound();
+    if (!cur.off) await savePlaces(env, places.map((x) => (x.id === id ? { ...cur, off: true, offAt: new Date().toISOString(), offBy: mine(me, cur) ? 'device' : 'owner' } : x)));
     return new Response(null, { status: 204 });
 }
 
-// Mudar um local registado para outro ponto (a app: "Mudar a análise diária para este ponto"). O id fica o mesmo,
-// por isso a última análise (analysis:<id>) e as lições (lessons:<id>) continuam; a próxima análise já é do ponto novo.
-async function movePlace(req, env, url, id) {
-    if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
-    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+// Mudar um local para outro ponto ({ lat, lon, name? } — na app: "Mudar a análise diária para este ponto", ou ligar
+// noutro sítio o único local de um telemóvel) e/ou ligar/desligar ({ on }). O id fica o mesmo, por isso a última análise
+// (analysis:<id>) e as lições (lessons:<id>) continuam; a próxima análise já é do ponto novo. Só o telemóvel do local
+// (ou o dono, nos do dono) o muda de sítio; o dono pode ligar/desligar qualquer um.
+async function updatePlace(req, env, url, id) {
+    if (!env.KV) return noKv();
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
     const places = await getPlaces(env);
     const cur = places.find((x) => x.id === id);
-    if (!cur) return json({ error: 'nao_encontrado', message: 'Local não encontrado.' }, 404);
-    const b = await req.json().catch(() => null);
-    const lat = Number(b?.lat), lon = Number(b?.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return bad('Coordenadas inválidas.');
-    const name = b?.name == null ? cur.name : String(b.name).trim().slice(0, 40);
-    if (!name) return bad('Nome inválido.');
-    const other = places.find((x) => x.id !== id && distKm(x.lat, x.lon, lat, lon) < 0.5);
-    if (other) return json({ error: 'duplicado', message: `Já há análise diária para este ponto (${other.name}).` }, 409);
-    const place = { ...cur, name, lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4, movedAt: new Date().toISOString() };
-    await env.KV.put('places', JSON.stringify(places.map((x) => (x.id === id ? place : x))));
-    return json(place, 200);
+    if (!cur || !canSee(me, cur)) return notFound();
+    const own = mine(me, cur);
+    const b = (await req.json().catch(() => null)) || {};
+    const move = b.lat != null || b.lon != null;
+    let next = { ...cur };
+    if (move) {
+        if (!own) return json({ error: 'so_o_proprio', message: 'Só o telemóvel deste local o pode mudar de sítio.' }, 403);
+        const lat = Number(b.lat), lon = Number(b.lon);
+        if (!validLatLon(lat, lon)) return bad('Coordenadas inválidas.');
+        const name = b.name == null ? cur.name : String(b.name).trim().slice(0, 40);
+        if (!name) return bad('Nome inválido.');
+        const other = places.find((x) => x.id !== id && !x.off && mine(me, x) && distKm(x.lat, x.lon, lat, lon) < 0.5);
+        if (other) return json({ error: 'duplicado', message: `Já tens análise diária para este ponto (${other.name}).` }, 409);
+        next = { ...next, name, lat: r4(lat), lon: r4(lon), movedAt: new Date().toISOString() };
+    }
+    if (b.on === true && cur.off) {
+        if (!own && cur.offBy !== 'owner') return json({ error: 'so_o_proprio', message: 'Este local foi desligado no próprio telemóvel.' }, 403);
+        if (!me.owner) { const block = await guestBlock(env, places, cur); if (block) return block; }
+        next.onAt = new Date().toISOString();
+        delete next.off; delete next.offAt; delete next.offBy;
+    } else if (b.on === false && !cur.off) {
+        next = { ...next, off: true, offAt: new Date().toISOString(), offBy: own ? 'device' : 'owner' };
+    }
+    if (!move && b.on == null) return bad('Nada a mudar.');
+    await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
+    return json(placeView(me, next), 200);
 }
 
 // ---------- avisos do utilizador ("Está a chover?") ----------
-// Ficam com o local registado a ≤ 2 km (reports:<id>, que a tarefa agendada mostra ao Claude) ou, longe dos locais, com a
-// quadrícula de ~1 km (reports:@41.34,-8.47). Os últimos 50, 30 dias; coordenadas com 3 casas (~100 m).
-async function reportKey(env, lat, lon) {
-    const near = (await getPlaces(env)).map((x) => ({ x, d: distKm(lat, lon, x.lat, x.lon) })).filter((o) => o.d <= 2).sort((a, b) => a.d - b.d)[0]?.x || null;
-    return { key: near ? `reports:${near.id}` : `reports:@${lat.toFixed(2)},${lon.toFixed(2)}`, place: near ? { id: near.id, name: near.name } : null };
+// Ficam com quem os deu: no local (em uso) deste telemóvel a ≤ 2 km (reports:<id>, que a tarefa agendada mostra ao
+// Claude) ou, longe dos seus locais, só deste telemóvel (reports:dev:<id>). Os últimos 50, 30 dias; coordenadas com 3
+// casas (~100 m). Ninguém lê os avisos dos outros.
+async function reportKey(env, me, lat, lon) {
+    const near = nearestOf(me, (await getPlaces(env)).filter((p) => mine(me, p)), lat, lon, 2)?.p || null;
+    return near ? { key: `reports:${near.id}`, place: { id: near.id, name: near.name } } : { key: `reports:dev:${me.id}`, place: null };
 }
 const r3 = (x) => Math.round(x * 1e3) / 1e3;
 
 async function addReport(req, env, url) {
-    if (!env.KV) return json({ error: 'kv', message: 'Base de dados por configurar.' }, 501);
-    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    if (!env.KV) return noKv();
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.id) return noDevice('Atualiza a app: este telemóvel ainda não está identificado no conector.');
     const b = await req.json().catch(() => null);
     const lat = Number(b?.lat), lon = Number(b?.lon), kind = String(b?.kind || '');
-    if (!Object.hasOwn(REPORT_KINDS, kind) || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return bad('Aviso inválido.');
+    if (!Object.hasOwn(REPORT_KINDS, kind) || !validLatLon(lat, lon)) return bad('Aviso inválido.');
     // a hora do telemóvel (até 3 h para trás); fora disso, a do conector
     const now = Date.now(), t = Date.parse(b?.time);
     const time = new Date(Number.isFinite(t) && t <= now + 5 * 6e4 && t >= now - 3 * 36e5 ? t : now).toISOString();
-    const { key, place } = await reportKey(env, lat, lon);
+    const { key, place } = await reportKey(env, me, lat, lon);
     const old = (await env.KV.get(key, 'json')) || [];
     const report = { kind, time, lat: r3(lat), lon: r3(lon), receivedAt: new Date(now).toISOString() };
     const keep = [report, ...(Array.isArray(old) ? old : []).filter((x) => now - Date.parse(x.time) <= REPORTS_TTL * 1000)]
@@ -229,48 +396,106 @@ async function addReport(req, env, url) {
     return json({ report, place, count: keep.length }, 201);
 }
 
-async function listReports(env, q) {
-    const c = coords(q);
+async function listReports(req, env, url) {
+    const c = coords(url.searchParams);
     if (!c) return bad('coordenadas inválidas');
-    const { key, place } = await reportKey(env, c.lat, c.lon);
-    const now = Date.now(), hours = clampInt(q.get('hours'), 1, 720, 720);
-    const list = (env.KV && (await env.KV.get(key, 'json'))) || [];
-    const reports = (Array.isArray(list) ? list : []).filter((x) => now - Date.parse(x.time) <= hours * 36e5)
-        .map((x) => ({ ...x, ageMin: Math.round((now - Date.parse(x.time)) / 6e4), distanceKm: Math.round(distKm(c.lat, c.lon, x.lat, x.lon) * 10) / 10 }));
-    return json({ place, reports }, 200, { 'cache-control': 'no-store' });
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.id || !env.KV) return json({ place: null, reports: [] });
+    const { key, place } = await reportKey(env, me, c.lat, c.lon);
+    const reports = recentReports(await env.KV.get(key, 'json'), c.lat, c.lon, { hours: clampInt(url.searchParams.get('hours'), 1, 720, 720), maxKm: 10 });
+    return json({ place, reports }, 200);
 }
 
-const adhocKey = (lat, lon) => `analysis:@${lat.toFixed(2)},${lon.toFixed(2)}`;
+// ---------- análise do Claude ----------
+// Só para o telemóvel do local (ou o dono): o local em uso de quem pede mais perto (≤ 10 km) — nunca a de outras pessoas
+// por estar perto. A análise imediata feita fora dos seus locais fica só para esse telemóvel (analysis:dev:<id>, 24 h).
+const adhocKey = (id) => `analysis:dev:${id}`;
+const onDemandFor = (env, me, mode) => !!env.ANTHROPIC_API_KEY && (me.owner || mode === 'on');
 
-async function findAnalysis(env, lat, lon) {
-    const places = await getPlaces(env);
-    const near = places.map((x) => ({ ...x, distanceKm: Math.round(distKm(lat, lon, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0] || null;
-    let analysis = near && env.KV ? await env.KV.get('analysis:' + near.id, 'json') : null;
-    // análise imediata feita para este ponto (sem local registado a ≤ 2 km): mostra-se se for mais recente
-    const adhoc = env.KV ? await env.KV.get(adhocKey(lat, lon), 'json') : null;
-    if (adhoc && (!analysis || Date.parse(adhoc.generatedAt) > Date.parse(analysis.generatedAt))) analysis = adhoc;
+async function getAnalysis(req, env, url) {
+    const c = coords(url.searchParams);
+    if (!c) return bad('coordenadas inválidas');
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
+    const near = nearestOf(me, places, c.lat, c.lon, 10);
+    let analysis = near && env.KV ? await env.KV.get('analysis:' + near.p.id, 'json') : null;
+    // a de um local de outro telemóvel (só o dono a vê): sem as coordenadas exatas
+    if (analysis?.place && !mine(me, near.p)) analysis = { ...analysis, place: { ...analysis.place, lat: approx(analysis.place.lat), lon: approx(analysis.place.lon) } };
+    // análise imediata deste telemóvel para este ponto (≤ 2 km), fora dos seus locais: mostra-se se for mais recente
+    const adhoc = me.id && env.KV ? await env.KV.get(adhocKey(me.id), 'json') : null;
+    if (adhoc?.place && distKm(c.lat, c.lon, adhoc.place.lat, adhoc.place.lon) <= 2 && (!analysis || Date.parse(adhoc.generatedAt) > Date.parse(analysis.generatedAt))) analysis = adhoc;
     const ageMin = analysis?.generatedAt ? Math.round((Date.now() - Date.parse(analysis.generatedAt)) / 6e4) : null;
-    return { analysis: analysis || null, place: near, ageMin, schedule: SCHEDULE, onDemand: !!env.ANTHROPIC_API_KEY };
+    return json({ analysis: analysis || null, place: near ? placeView(me, near.p, { distanceKm: r1(near.d) }) : null, ageMin, schedule: SCHEDULE,
+        onDemand: onDemandFor(env, me, mode), others: mode }, 200);
+}
+
+async function status(req, env, url) {
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
+    return json({ version: VERSION, onDemand: onDemandFor(env, me, mode), places: places.filter((p) => !p.off && canSee(me, p)).length, schedule: SCHEDULE,
+        device: !!me.id, owner: me.owner, ...(me.code ? { ownerCode: me.code } : {}), others: mode, limit: me.owner ? null : GUEST_MAX });
+}
+
+// ---------- só o dono: painel "Utilização" e "Análise dos outros" ----------
+const notOwner = () => json({ error: 'dono', message: 'Só para o dono da app.' }, 403);
+async function listDevices(env) {
+    const out = [];
+    let cursor;
+    do {
+        const r = await env.KV.list({ prefix: 'dev:', ...(cursor ? { cursor } : {}) });
+        for (const k of r.keys) out.push({ id: k.name.slice(4), s: k.metadata?.s || null, o: k.metadata?.o ? 1 : 0 });
+        cursor = r.list_complete ? null : r.cursor;
+    } while (cursor && out.length < 20000);
+    return out;
+}
+async function usage(req, env, url) {
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.owner) return notOwner();
+    if (!env.KV) return noKv();
+    const today = lisbon().date, days = Array.from({ length: 7 }, (_, i) => addDays(today, -i));
+    const [devices, places, mode, st] = await Promise.all([listDevices(env), getPlaces(env), getSettings(env).then(othersMode),
+        Promise.all(days.map((d) => env.KV.get('stats:' + d, 'json')))]);
+    return json(usageSummary({ devices, places, others: mode, stats: Object.fromEntries(days.map((d, i) => [d, st[i]])) }), 200);
+}
+async function settings(req, env, url) {
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.owner) return notOwner();
+    if (!env.KV) return noKv();
+    const cur = await getSettings(env);
+    if (req.method === 'GET') return json({ others: othersMode(cur), updatedAt: cur.updatedAt || null });
+    if (!trusted(req, env, url)) return notTrusted();
+    const b = await req.json().catch(() => null);
+    if (!b || !Object.hasOwn(OTHERS, b.others)) return bad('Valor inválido: on, 1x ou off.');
+    const next = { ...cur, others: b.others, updatedAt: new Date().toISOString() };
+    await env.KV.put('settings', JSON.stringify(next));
+    return json({ others: next.others, updatedAt: next.updatedAt });
 }
 
 // ---------- análise imediata pela API do Claude (opcional: precisa do segredo ANTHROPIC_API_KEY) ----------
 async function refresh(req, env, url) {
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'sem_chave', message: 'A análise imediata precisa de uma chave da API do Claude no Worker. As análises agendadas continuam a funcionar.' }, 503);
-    if (!trusted(req, env, url)) return json({ error: 'origem', message: 'Pedido não autorizado.' }, 403);
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.id && !me.owner) return noDevice();
+    if (!me.owner && othersMode(await getSettings(env)) !== 'on') return json({ error: 'convidados_desligados', message: 'A análise imediata está, por agora, só disponível para o dono da app.' }, 403);
     const c = coords(url.searchParams);
     const b = await req.json().catch(() => null);
     const summary = typeof b?.summary === 'string' ? b.summary : '';
     if (!c || summary.length < 400 || summary.length > 60000) return bad('Resumo da previsão em falta ou demasiado grande.');
-    const day = new Date().toISOString().slice(0, 10);
-    const cellKey = `rl:${c.lat.toFixed(2)},${c.lon.toFixed(2)}`, dayKey = `rl:day:${day}`;
-    const [last, count] = await Promise.all([env.KV.get(cellKey), env.KV.get(dayKey)]);
+    const statsKey = 'stats:' + lisbon().date, cellKey = `rl:${c.lat.toFixed(2)},${c.lon.toFixed(2)}`;
+    const [last, day] = await Promise.all([env.KV.get(cellKey), env.KV.get(statsKey, 'json')]);
     if (last) return json({ error: 'limite', message: 'Já há uma análise recente para este local (máx. 1 a cada 30 min).' }, 429);
-    if (Number(count || 0) >= 20) return json({ error: 'limite', message: 'Limite diário de análises imediatas atingido (20).' }, 429);
-    await Promise.all([env.KV.put(cellKey, '1', { expirationTtl: 1800 }), env.KV.put(dayKey, String(Number(count || 0) + 1), { expirationTtl: 172800 })]);
+    if (bumpStats(day).instant >= INSTANT_DAY_MAX) return json({ error: 'limite', message: `Limite diário de análises imediatas atingido (${INSTANT_DAY_MAX}).` }, 429);
+    await env.KV.put(cellKey, '1', { expirationTtl: 1800 });
 
-    const places = await getPlaces(env);
-    // só conta como análise do local registado se for para o mesmo ponto (≤ 2 km, como na app); senão fica à parte (24 h)
-    const place = places.map((x) => ({ x, d: distKm(c.lat, c.lon, x.lat, x.lon) })).filter((o) => o.d <= 2).sort((a, b) => a.d - b.d)[0]?.x || null;
+    // só conta como análise de um local se for um dos seus, para o mesmo ponto (≤ 2 km, como na app); senão fica à parte
+    const place = nearestOf(me, (await getPlaces(env)).filter((p) => mine(me, p)), c.lat, c.lon, 2)?.p || null;
     const previous = place ? await env.KV.get('analysis:' + place.id, 'json') : null;
     const lessons = place ? (await env.KV.get('lessons:' + place.id, 'json')) || [] : [];
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
@@ -303,12 +528,14 @@ async function refresh(req, env, url) {
     let parsed;
     try { parsed = JSON.parse(text); } catch { return json({ error: 'formato', message: 'Resposta do Claude em formato inesperado.' }, 502); }
     const { value } = validateAnalysis(parsed);
-    // place = o ponto analisado (as coordenadas do pedido), com o id e o nome do local registado quando o há
+    // place = o ponto analisado (as coordenadas do pedido), com o id e o nome do local quando é um dos seus
     const analysis = { ...value, generatedAt: new Date().toISOString(), by: 'claude-api', model: msg.model || model,
         place: place ? { id: place.id, name: place.name, lat: c.lat, lon: c.lon } : { id: null, name: typeof b?.name === 'string' ? b.name.slice(0, 40) : null, lat: c.lat, lon: c.lon } };
     if (place) {
         await env.KV.put('analysis:' + place.id, JSON.stringify(analysis));
         if (value.licoes.length) await env.KV.put('lessons:' + place.id, JSON.stringify(value.licoes));
-    } else await env.KV.put(adhocKey(c.lat, c.lon), JSON.stringify(analysis), { expirationTtl: 86400 });
+    } else if (me.id) await env.KV.put(adhocKey(me.id), JSON.stringify(analysis), { expirationTtl: 86400 });
+    // contador do dia (painel "Utilização"): lido de novo, a tarefa agendada pode ter contado entretanto
+    await env.KV.put(statsKey, JSON.stringify(bumpStats(await env.KV.get(statsKey, 'json'), { kind: 'instant', guest: !me.owner })), { expirationTtl: STATS_TTL });
     return json({ analysis });
 }
