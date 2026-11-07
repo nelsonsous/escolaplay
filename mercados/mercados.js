@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.4.0';
+    const VERSION = '4.5.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -656,7 +656,6 @@
     const shareLink = () => location.origin + location.pathname + (cfg.proxy && cfg.proxy !== DEFAULT_PROXY ? '?proxy=' + encodeURIComponent(cfg.proxy) : '');
     function claudeSection() {
         if (cfg.owner) {
-            loadStats();
             const S = STATS || {}, r = S.run;
             const cell = (v, l) => `<div><b class="num">${fin(v) ? v : '—'}</b><small>${l}</small></div>`;
             const runTxt = r && r.at ? ` Última corrida: ${new Date(r.at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} — ${r.done} analisada${r.done === 1 ? '' : 's'}${r.queued > r.done ? `, ${r.queued - r.done} ficaram de fora (limite de ${r.max} por corrida)` : ''}.` : '';
@@ -1069,7 +1068,7 @@
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
         if (st.pulling) return;
-        const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? viewAnalysis() : cfg.tab === 'ajustes' ? viewSettings() : viewDashboard();
+        const html = cfg.tab === 'destaques' ? viewHighlights() : cfg.tab === 'analise' ? viewAnalysis() : cfg.tab === 'ajustes' ? settingsHtml() : viewDashboard();
         const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
         body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
@@ -1692,11 +1691,47 @@
         ${trackSection()}`;
     }
 
+    // ---------- ajustes ----------
+    // Os Ajustes são desenhados pela Onda (mercados/onda/ajustes.onda, no módulo da análise), com o mesmo HTML; os
+    // eventos continuam aqui (o click/change delegado pelos data-*). Até o módulo estar pronto (ou se falhar),
+    // desenha-os o viewSettings, que fica também como a referência do teste de paridade
+    // (tests/ecra-onda.test.mjs) até todas as vistas passarem para a Onda; depois sai.
+    function settingsHtml() {
+        if (aoOk && AO.ecra) try { return AO.ecra.ajustes(settingsSnap()); } catch (e) { console.error('ecrã Onda:', e); }
+        return viewSettings();
+    }
+    // o que os Ajustes pedem à rede: as zonas dos combustíveis e, na app do dono, as contas da partilha
+    function settingsLoad() {
+        if (cfg.proxy && cfg.distrito && !MUNIC[cfg.distrito]) { MUNIC[cfg.distrito] = []; px(`/fuel/municipios?distrito=${encodeURIComponent(cfg.distrito)}`).then((d) => { MUNIC[cfg.distrito] = d.items || []; scheduleRender(); }).catch(() => { delete MUNIC[cfg.distrito]; }); }
+        if (cfg.proxy && !DISTRITOS) px('/fuel/distritos').then((d) => { DISTRITOS = d.items || []; scheduleRender(); }).catch(() => { DISTRITOS = []; });
+        if (cfg.owner) loadStats();
+    }
+    // "07/11, 08:00": o texto do toLocaleString('pt-PT') com estas opções, sem criar um formatador a cada desenho
+    // (~0,4 ms cada); fica com o fuso de quando a app abriu
+    const DTF = new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const dtLbl = (t) => { const d = new Date(t); return isNaN(d) ? 'Invalid Date' : DTF.format(d); };
+    // O instantâneo para a Onda: o que o viewSettings lê, cru (a Onda faz com os valores o que o JS faz: String, esc,
+    // ===, includes, verdade). Vai já feito só o que é do browser ou de outras partes da app: as datas (no fuso e na
+    // língua do browser), o + dos números da configuração, as notificações do browser, os nomes (nameOf), a lista
+    // desta app (myList) e o link de partilha.
+    function settingsSnap() {
+        settingsLoad();
+        const r = (STATS || {}).run, nm = (k) => [k, nameOf(k)], nOk = 'Notification' in window;
+        return {
+            versao: VERSION, horas: CL_LBL, agora: now(),
+            finnhub: cfg.finnhub, fh: st.fh, proxy: cfg.proxy, yErr: st.yahooErr, yAt: st.yahooAt, yAtTxt: st.yahooAt ? dtLbl(st.yahooAt) : '',
+            budget: +cfg.budget, strategy: cfg.strategy, funds: cfg.funds.map(nm), coreFund: cfg.coreFund, cryptoPct: +cfg.cryptoPct, cryptoMix: cfg.cryptoMix,
+            crypto: CRYPTO.map((c) => nm('c:' + c.id)), holdings: cfg.holdings, profile: cfg.profile, saveDays: cfg.saveDays, jid: cfg.jid,
+            owner: cfg.owner, claude: cfg.claude, others: st.others, stats: STATS, runAt: r && r.at ? dtLbl(r.at) : '', share: shareLink(), meus: myList().map(nameOf),
+            fs: cfg.fs, eur: cfg.eur, fiat: cfg.fiat, alertPct: +cfg.alertPct, alertScope: cfg.alertScope,
+            notifOk: nOk, notifPerm: nOk ? Notification.permission : undefined, notify: cfg.notify, quiet: cfg.quiet,
+            distritos: DISTRITOS, distrito: cfg.distrito, munic: MUNIC[cfg.distrito], municipio: cfg.municipio, watch: cfg.watch.map(nm),
+        };
+    }
     function viewSettings() {
         const lim = +cfg.alertPct || 0;
         const notifState = !('Notification' in window) ? 'não suportado neste browser' : Notification.permission === 'denied' ? 'bloqueado nas definições do browser' : '';
-        if (cfg.proxy && cfg.distrito && !MUNIC[cfg.distrito]) { MUNIC[cfg.distrito] = []; px(`/fuel/municipios?distrito=${encodeURIComponent(cfg.distrito)}`).then((d) => { MUNIC[cfg.distrito] = d.items || []; scheduleRender(); }).catch(() => { delete MUNIC[cfg.distrito]; }); }
-        if (cfg.proxy && !DISTRITOS) px('/fuel/distritos').then((d) => { DISTRITOS = d.items || []; scheduleRender(); }).catch(() => { DISTRITOS = []; });
+        settingsLoad();
         const fhState = !cfg.finnhub ? '' : st.fh === 'on' ? 'Ligado: ações dos EUA em tempo real.' : st.fh ? 'Finnhub: ' + st.fh : 'A ligar…';
         return `<section class="sec"><div class="sec-h"><h2>Ações dos EUA em tempo real</h2></div>
             <div class="form"><div><label for="f-fh">Chave Finnhub (grátis)</label>
@@ -2422,6 +2457,8 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; } };
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+        // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
+        viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; } };
     boot();
 })();

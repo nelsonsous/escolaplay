@@ -12,7 +12,7 @@ mesmo resultado que o JavaScript, verificado por testes. A app nunca fica partid
 | A | Onda para apps: exportações, anfitrião (`rt/anfitriao.js`), biblioteca (`lib/app.onda`) | feito (it.137) | app de exemplo testada num browser |
 | B | Motor de análise (`analyse`: médias, RSI, MACD, volatilidade, níveis, pontuações, conselho, textos) | feito (Mercados 3.23) | `mercados/onda/analise.onda` (701 linhas): 0 diferenças em 4 000 séries, números iguais ao bit; 40×400 em ~4 ms; corre em WebAssembly na app e nos scripts |
 | C | O resto do `analise.js`: tom das notícias, sentimento do mercado, teste no passado, imposto da cripto (365 dias), agrupar avisos, horas de silêncio | feito (Mercados 4.3.0) | a API toda do `analise.js` em Onda: `mercados/onda/*.onda`, 7 ficheiros e 1 415 linhas (702 da fase C), um módulo de 163 962 bytes. 0 diferenças, ao bit, em 1 114 112 pontos de código (norm), 41 500 títulos, 20 000 casos por função (marketMood, labelOf, riskOf, €/L, planLots, cryptoTax, groupAlert, isQuiet), 36 000 indicadores e 120 testes no passado. Mais rápido: tom de 1 000 títulos 60–75 ms → 3–6 ms; teste no passado 40×500 110–155 ms → 14–18 ms, 40×1 260 0,7–0,8 s → 43–72 ms. A app e os scripts já só usam a Onda; o `analise.js` fica como referência dos testes |
-| D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | o maior | precisa de portas novas: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
+| D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | passo 1 feito (Mercados 4.5.0): os Ajustes | `mercados/onda/ecra.onda` (88 linhas) e `ajustes.onda` (306), no mesmo módulo da análise: o HTML do `viewSettings`, igual ao byte em 600 estados por corrida do teste (5 000 numa corrida longa, ~115 MB de HTML). Desenho em ~0,2 ms (0,1 ms de WASM) + 0,1 ms do instantâneo, contra 0,15–0,3 ms do JS. A seguir: as outras vistas; depois a ficha e os gráficos; por fim os dados ao vivo e o estado na Onda. Portas que vão faltar: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
 | E | O Worker da Cloudflare | com risco | o plano grátis dá 10 ms de CPU por pedido. Medido (Node, WASM): 645 KB de JSON do Yahoo (40 ações, 1 ano) → **20 ms** com o `json` da biblioteca, contra 3 ms do `JSON.parse`. Precisa de um leitor em fluxo que só tire os fechos, sem montar a árvore |
 | F | Os scripts da tarefa do Claude (`dados`, `universo`, `outros`, `publicar`) | depois de B e C | anfitrião Node: ficheiros, `fetch`, API da Cloudflare |
 
@@ -51,6 +51,40 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   ficaram (as mesmas contas, pela mesma ordem: os mesmos bits).
 - Encontrado e corrigido no motor da fase B: o `${x}` de inteiros entre 2^53 e 9·10^18 saía com os algarismos todos
   (o JS escreve o decimal mais curto, 2^60 → 1152921504606847000).
+
+## O ecrã (fase D), passo 1: os Ajustes
+- **A abordagem:** o mesmo HTML, feito pela Onda. Cada separador do `mercados.js` é uma função que devolve o HTML a
+  partir do estado, e os eventos são um só ouvinte delegado pelos `data-*` (`data-act`, `data-cfg`, `data-mv`…). Por
+  isso uma vista passa para a Onda sem mexer nos eventos, desde que dê o HTML igual ao byte. O JS monta um
+  instantâneo (`settingsSnap`), a Onda escreve o HTML (`AnaliseOnda.ecra.ajustes`) e o `render` usa-o; até o módulo
+  estar pronto (ou se falhar) desenha o `viewSettings`, que fica como a referência do teste de paridade
+  (`mercados/tests/ecra-onda.test.mjs`, no Chromium) até as vistas todas passarem; depois sai.
+- **O instantâneo não passa por JSON:** a ponte escreve-o direto na memória, já na árvore do `json` de
+  `lib/app.onda` (nó `[tipo, valor, chave, irmão, filho, n]`, mais o tipo 0 para o `undefined`), e a vista lê-o com
+  `jget`/`jidx`. Os números chegam ao bit (o leitor de JSON da biblioteca só é exato até 15 algarismos e não tem NaN,
+  ±Infinity, -0 nem `undefined`). Primeira versão da escrita: 0,35 ms, mais do que a vista toda (um `TextEncoder` por
+  texto e uma chamada por palavra); com o UTF-8 feito à mão direto na memória, 0,02 ms.
+- **Os valores vão crus:** `ecra.onda` faz com um nó o que o JS faz com o valor — `String(v)`, o `esc` da app,
+  `===`, `includes` (SameValueZero), a verdade de um `if` —, e o teste mete lá lixo de propósito (null, NaN, números
+  em texto, listas, `<>&"'`, emojis, NUL). Vai já feito no JS só o que é do browser ou de outras partes da app: as
+  datas (fuso e língua do browser), o `+` dos números da configuração, as notificações, os nomes (`nameOf`), a
+  lista da app (`myList`) e o link de partilha.
+- **O Intl em Onda:** o `Intl.NumberFormat('pt-PT')` em euros sem casas parte do decimal **mais curto** do real, não
+  do valor exato (2^60 dá `1 152 921 504 606 847 000 €`, não `…846 976`; e `1.005` com 2 casas dá `1,01`). Sem
+  casas, abaixo de 2^53 é o mesmo que arredondar o real (metades para longe do zero; `-0,3` dá `-0 €`); daí para
+  cima são os algarismos do `pnz` da análise com zeros. Milhares e o espaço antes do € são U+00A0.
+- **Cuidado com o invisível:** um espaço normal no lugar de um U+00A0 num texto fixo deu 147 diferenças em 200
+  estados. Os caracteres invisíveis escrevem-se como bytes (`P 194 P 160`).
+- **O `O t` não sabe a capacidade do texto:** um `tstr` (String(v) num texto novo, para comparar) reserva antes um
+  máximo (`vcap`).
+- **A saída de texto já não é o que pesa:** a Onda escreve 23 KB em 0,1 ms; a ponte (instantâneo, árvore, cópia da
+  saída) pesa mais do que o WASM.
+- **Tamanho:** o módulo passa de 163 962 para 216 004 bytes de WASM: 12,9 KB da biblioteca (sobretudo o leitor de
+  JSON, que esta vista não usa — vai ser preciso nos dados ao vivo), 7 KB do `ecra.onda` e 32 KB dos Ajustes (15 KB
+  são o próprio texto do HTML).
+- **Limites conhecidos:** o `Number()` de um texto não está na Onda (`vnum` dá NaN; no JS `'3'` dá 3) — só se usa onde
+  o Worker manda números; um substituto UTF-16 sozinho (que não aparece em dados reais) vira U+FFFD, como no
+  `TextEncoder`; e a data feita por um `Intl.DateTimeFormat` guardado fica com o fuso de quando a app abriu.
 
 ## Limites, com honestidade
 - Nenhuma linguagem é a melhor em tudo. A Onda ganha no cálculo (rápida, igual ao bit em todos os alvos,

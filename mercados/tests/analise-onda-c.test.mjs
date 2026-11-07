@@ -377,8 +377,8 @@ test('desempenho (Onda vs JS): teste no passado 40 × 500 e o tom de 1 000 títu
     assert.ok(bo * 3 < bj, `backtest: Onda ${bo.toFixed(1)} ms vs JS ${bj.toFixed(1)} ms`);
 });
 
-test('a API da Onda é a do analise.js (mais ready, analyseMany, sentimentMany, backtestMany e os auxiliares dos testes)', () => {
-    const js = Object.keys(A).sort(), onda = Object.keys(O).filter((k) => !['ready', 'analyseMany', 'sentimentMany', 'backtestMany', '_texto', '_norm'].includes(k)).sort();
+test('a API da Onda é a do analise.js (mais ready, analyseMany, sentimentMany, backtestMany, os auxiliares dos testes e o ecrã)', () => {
+    const js = Object.keys(A).sort(), onda = Object.keys(O).filter((k) => !['ready', 'analyseMany', 'sentimentMany', 'backtestMany', '_texto', '_norm', 'ecra'].includes(k)).sort();
     assert.deepEqual(onda, js);
     for (const k of js) assert.equal(typeof O[k], 'function', k);
 });
