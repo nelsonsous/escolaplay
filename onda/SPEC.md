@@ -96,3 +96,24 @@ Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Gro
     ^
   ```
   Num nome desconhecido perto de uma função existente, sugere: `nome desconhecido, quis dizer soma?`.
+
+## Apps (WebAssembly + anfitrião)
+Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.js` (browser ou Node). O `main` corre uma vez e prepara o estado; depois o anfitrião chama as funções da Onda em cada evento, e a memória fica viva entre chamadas (é o estado da app). O `-w` exporta todas as funções com o seu nome (menos `memory` e `_start`).
+- **Funções de evento** recebem inteiros: `clique i>i t` (t = texto do evento), `lido ii>i t estado`, `tique i>i z`.
+- **Texto:** um endereço `t` com `M[t]` = fim e os bytes (UTF-8, um por palavra) em `M[t+1 .. M[t]-1]` — o que o `O t` deixa. Escrever um texto é imprimir para ele: `= t tnovo 100 O t "Olá " N 42 O 0`.
+- **Portas** (`Y c a b`, além das do runtime 0–9):
+
+| c | a b | efeito |
+|---|---|---|
+| 100 | sel txt | `innerHTML` do elemento `sel` (seletor CSS) = `txt`; vale 1 se existe |
+| 101 | tipo fn | em cada evento `tipo` num elemento com `data-onda`, chama `fn(t)`; t = valor de `data-onda` (+ tab + valor do campo, fora do `click`) |
+| 102 | url fn | `fetch(url)`; no fim chama `fn(t, estado)` com o corpo e o estado HTTP (0 = falhou) |
+| 103 / 104 | ms fn / id | relógio: chama `fn(0)` a cada ms (devolve o id) / pára |
+| 105 / 106 | chave / chave t | lê (texto ou 0) / grava (t = 0 apaga) no armazém do browser |
+| 107 | t | `console.log` |
+| 108 / 109 | – / n | milissegundos desde 1970 / inteiro aleatório em [0, n) |
+| 110 | t | título do documento |
+
+- **Biblioteca** `lib/app.onda` (junta-se antes da app: `cat lib/app.onda app.onda | ondac -w`): textos (`tnovo tlen tbyte tpor tigual tcomeca tcampo tint thtml`), números como no pt-PT (`pint`, `pdec x d`), JSON (`json t` → árvore; `jget jidx jnum jtxt jn jtipo`) e regiões de memória (`marca` / `solta m`: o que se reservou depois da marca volta a zero e fica livre — usar uma por evento para o monte não crescer).
+- **Globais:** `M[0..59]` são da app; a biblioteca usa `M[60..63]`; os textos literais começam em `M[64]`.
+- Exemplo completo, com teste no browser: `ex/app/contador.onda` (`test/app.test.js`).

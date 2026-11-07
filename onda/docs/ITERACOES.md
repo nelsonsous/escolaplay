@@ -2371,3 +2371,19 @@ Ganho modesto (~5-10%) porque a geracao esta limitada pela largura de banda da m
 **Correcoes pelo caminho:** a cadeia `||` do `acall` tinha de incluir o op novo (senao partia o emissor e o compilador nao se auto-compilava); o contador da copia de volta incrementava 0; um bloco de dados dentro de uma funcao alinha-se ao inicio da funcao.
 
 **A seguir:** o kernel do produto matriz-vetor de 4 bits do LLM, para a IA correr na GPU.
+
+## Iteração 137: Onda para apps
+
+**O pedido.** Escrever apps inteiras em Onda (a primeira será a Mercados), em vez de só núcleos de cálculo dentro de páginas em JavaScript.
+
+**O que faltava.** A Onda já falava com o anfitrião (`Y c a b`), mas só num sentido: um programa corria do princípio ao fim. Uma app precisa do contrário — o anfitrião chama a Onda em cada clique, resposta da rede ou relógio, com o estado vivo entre chamadas.
+
+**O que mudou.**
+- **Exportações:** o `-w` exporta todas as funções com o seu nome. O anfitrião corre o `_start` uma vez (o `main` prepara o estado) e depois chama as funções de evento; a memória do módulo é o estado. Ponto fixo WASM, x86-64 e C refeitos (a semente C mudou porque o compilador ganhou 4 funções).
+- **Anfitrião de apps** (`rt/anfitriao.js`, browser e Node): portas 100–110 para o ecrã (HTML por seletor), eventos (`data-onda`), rede (`fetch`), relógios, armazém, registo, tempo e aleatório.
+- **Biblioteca** (`lib/app.onda`): textos (o formato do `O t`), números pt-PT iguais ao `Intl`, JSON (com `\u` e pares substitutos) e regiões de memória (`marca`/`solta`), porque o monte da Onda só cresce.
+- **Exemplo** `ex/app/contador.onda`, todo em Onda: contador com memória, botões e leitura da rede. O teste corre-o num Chromium a sério (cliques, recarregar, `fetch`) e confirma que 300 cliques não fazem crescer o monte.
+
+**O balanço honesto.** O código de uma app em Onda é mais comprido do que em JavaScript (notação prefixa, sem objetos nem strings nativas) — é pensado para ser escrito por IAs. O ganho está noutro lado: o mesmo código corre igual em todos os alvos, e o núcleo de cálculo é rápido e verificável ao bit.
+
+**Próxima.** O motor de análise da Mercados em Onda (paridade ao bit com o JavaScript), depois o ecrã, o Worker e os scripts.

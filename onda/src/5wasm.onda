@@ -255,6 +255,13 @@
     = j + j 1 }
   W & n 7 { P 0 = n + n 1 }
   0 }
+# exportacoes: cada funcao fica exportada com o seu nome, para o anfitriao a chamar (eventos de uma app:
+# o anfitriao corre o _start uma vez e depois chama as funcoes; a memoria e o estado ficam no modulo).
+# "memory" e "_start" ficam de fora (ja sao exportacoes do modulo).
+: wxmem i>i t && && == tc t 0 'm == tc t 1 'e && && == tc t 2 'm == tc t 3 'o && == tc t 4 'r == tc t 5 'y
+: wxst i>i t && && == tc t 0 '_ == tc t 1 's && && == tc t 2 't == tc t 3 'a && == tc t 4 'r == tc t 5 't
+: wxok i>i k { = t @ fe k 0 ? != tkl t 6 1 ~ || wxmem t wxst t }
+: wexp i>i k { = t @ fe k 0 = l tkl t wu l = j 0 W < j l { P tc t j = j + j 1 } P 0 wu + 3 k }
 : outw >i {
   = nf @ 6
   P 0 P 97 P 115 P 109 P 1 P 0 P 0 P 0
@@ -282,9 +289,14 @@
   P 1 P 0 wu 32
   wend 5 a
   = a wbeg
-  wu 2
+  = ne 2
+  = k 0
+  W < k nf { = ne + ne wxok k = k + k 1 }
+  wu ne
   wu 6 P 'm P 'e P 'm P 'o P 'r P 'y P 2 wu 0
   wu 6 P '_ P 's P 't P 'a P 'r P 't P 0 wu + 3 nf
+  = k 0
+  W < k nf { ? wxok k wexp k 0 = k + k 1 }
   wend 7 a
   = a wbeg
   wu + nf 1

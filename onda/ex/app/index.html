@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contador em Onda</title></head>
+<body><div id="app">a carregar…</div>
+<script src="../../rt/anfitriao.js"></script>
+<script>fetch('contador.wasm').then((r) => r.arrayBuffer()).then((b) => { window.app = OndaApp.criar(new Uint8Array(b)); });</script>
+</body></html>
