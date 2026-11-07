@@ -1,0 +1,14 @@
+{
+  "name": "musica-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Conector da app Música (Cloudflare Worker): Tidal (OAuth PKCE), gosto, faixas e playlists",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

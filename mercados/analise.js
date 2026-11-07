@@ -438,8 +438,8 @@
         const tone = s >= 1.5 ? 'up' : s <= -1.5 ? 'down' : 'flat';
         const label = tone === 'up' ? 'Otimista' : tone === 'down' ? 'Pessimista' : 'Misto';
         const hint = tone === 'up' ? 'Apetite pelo risco: a maioria dos mercados está em tendência de subida.'
-            : tone === 'down' ? 'Aversão ao risco: muitos mercados em tendência de descida — cautela.'
-                : 'Sinais contraditórios: escolher com cuidado e não arriscar tudo de uma vez.';
+            : tone === 'down' ? 'Aversão ao risco: muitos mercados em tendência de descida.'
+                : 'Sinais contraditórios: uns mercados sobem, outros descem.';
         return { tone, label, hint, reasons };
     }
 

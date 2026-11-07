@@ -1,6 +1,7 @@
 // Teste da app no Chromium com todas as fontes simuladas (sem rede): o motor real (lib/data.js +
 // lib/engine.js) corre sobre os dados reais de Lisboa de 6 nov 2026 (tests/fixtures/lisboa-2026-11-06.json),
-// com o relógio fixo às 15:45 UTC.
+// com o relógio fixo às 15:45 UTC. O conector simulado faz como o verdadeiro: cada telemóvel (x-meteo-device) só vê os
+// seus locais e análises; o dono (x-meteo-owner) vê todos e tem o painel "Utilização".
 //   node meteo/tests/ui.test.mjs [pasta-para-capturas]
 import { createRequire } from 'node:module';
 import http from 'node:http';
@@ -27,6 +28,7 @@ const LAT = 38.7223, LON = -9.1393;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const SCHEDULE = ['07:12', '13:12', '19:42'];
+const OWNER_CODE = 'código do dono ç'; // como o segredo OWNER_CODE do conector simulado
 // relevo à volta do ponto (o ponto + 12 rumos a 1,5 km e a 4 km): altitudes reais de Santo Tirso, um vale
 const TERRAIN = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/terrain.json'), 'utf8'))['santo-tirso'].elevation;
 const distKm = (a, b, c, d) => { const t = Math.PI / 180, x = Math.sin(((c - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin(((d - b) * t) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); };
@@ -68,9 +70,12 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         locale: 'pt-PT', timezoneId: 'Europe/Lisbon', serviceWorkers: 'block',
         geolocation: { latitude: LAT, longitude: LON, accuracy: 12 }, permissions: ['geolocation'],
     });
-    const errors = [], unexpected = [], calls = [];
-    let places = [{ id: 'lisboa', name: 'Lisboa', lat: LAT, lon: LON, createdAt: '2026-11-01T10:00:00Z' }];
-    let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null;
+    const errors = [], unexpected = [], calls = [], ids = [];
+    // a análise diária está desligada por omissão: nenhum local; o local de outro telemóvel só o dono o vê (~1 km)
+    let places = [];
+    const guestPlace = { id: 'casa-ana-k2m9xq', name: 'Casa da Ana', lat: 41.55, lon: -8.43, approx: true, mine: false, kind: 'guest', status: 'active', createdAt: '2026-11-05T10:00:00Z' };
+    const analysed = new Set(); // locais que a tarefa agendada já analisou
+    let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null, postBody = null, others = 'on', settingsBody = null;
     const rvCalls = [], reportPosts = [], serverReports = [];
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
@@ -112,8 +117,11 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         return png(f);
     });
     await ctx.route(new RegExp('^' + PROXY.replace(/\./g, '\\.')), async (r) => {
-        const req = r.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
+        const req = r.request(), u = new URL(req.url()), p = u.pathname, m = req.method(), h = req.headers();
         calls.push(`${m} ${p}`);
+        ids.push({ p, dev: h['x-meteo-device'] || null, own: h['x-meteo-owner'] || null });
+        const owner = h['x-meteo-owner'] === encodeURIComponent(OWNER_CODE);
+        const visible = () => (owner ? [...places, guestPlace] : places);
         if (failModels && p.startsWith('/api/raw/om/forecast')) return r.abort('failed');
         if (p === '/api/raw/metar') return fulfill(r, RAW.metar);
         if (p === '/api/raw/metar-history') return fulfill(r, RAW.metarHistory);
@@ -121,27 +129,44 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/fogos') return fulfill(r, FOGOS);
         if (p === '/api/raw/om/forecast') return fulfill(r, RAW.det);
         if (p === '/api/obs-history') return fulfill(r, []);
-        if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: places.length, schedule: SCHEDULE });
-        if (p === '/api/analysis') { // como o conector: o local registado mais próximo até 10 km
+        if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: SCHEDULE,
+            device: !!h['x-meteo-device'], owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
+        if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
-            const near = places.map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
-            return fulfill(r, { analysis: near ? MOCK_ANALYSIS : null, place: near || null, ageMin: near ? 140 : null, schedule: SCHEDULE, onDemand: true });
+            const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
+            const an = near && analysed.has(near.id);
+            return fulfill(r, { analysis: an ? MOCK_ANALYSIS : null, place: near || null, ageMin: an ? 140 : null, schedule: SCHEDULE, onDemand: true, others });
         }
         if (p === '/api/analysis/refresh' && m === 'POST') {
             refreshBody = JSON.parse(req.postData() || '{}');
             return fulfill(r, { analysis: { ...MOCK_ANALYSIS, by: 'claude-api', generatedAt: NOW, titulo: 'Análise a pedido: frente fria no domingo' } });
         }
-        if (p === '/api/places' && m === 'GET') return fulfill(r, places);
-        if (p === '/api/places' && m === 'POST') { const b = JSON.parse(req.postData()); const pl = { id: 'casa', name: b.name, lat: b.lat, lon: b.lon, createdAt: NOW }; places.push(pl); return r.fulfill({ status: 201, json: pl, headers: CORS }); }
-        if (p.startsWith('/api/places/') && m === 'DELETE') { places = places.filter((x) => x.id !== decodeURIComponent(p.slice(12))); return r.fulfill({ status: 204, headers: CORS, body: '' }); }
-        if (p.startsWith('/api/places/') && m === 'PATCH') {
-            patchBody = JSON.parse(req.postData());
-            const id = decodeURIComponent(p.slice(12)), cur = places.find((x) => x.id === id);
-            if (!cur) return r.fulfill({ status: 404, json: { error: 'nao_encontrado' }, headers: CORS });
-            const moved = { ...cur, lat: patchBody.lat, lon: patchBody.lon, ...(patchBody.name ? { name: patchBody.name } : {}) };
-            places = places.map((x) => (x.id === id ? moved : x));
-            return fulfill(r, moved);
+        if (p === '/api/places' && m === 'GET') return fulfill(r, visible());
+        if (p === '/api/places' && m === 'POST') {
+            postBody = JSON.parse(req.postData());
+            if (!owner && places.length) return r.fulfill({ status: 409, json: { error: 'limite', message: 'Cada telemóvel tem 1 local.', place: places[0] }, headers: CORS });
+            const pl = { id: 'casa', name: postBody.name, lat: postBody.lat, lon: postBody.lon, mine: true, kind: owner ? 'owner' : 'guest', status: 'active', createdAt: NOW };
+            places.push(pl);
+            return r.fulfill({ status: 201, json: pl, headers: CORS });
         }
+        if (p.startsWith('/api/places/') && (m === 'DELETE' || m === 'PATCH')) { // desligar não apaga; PATCH muda de sítio e/ou liga
+            const id = decodeURIComponent(p.slice(12)), cur = visible().find((x) => x.id === id);
+            if (!cur) return r.fulfill({ status: 404, json: { error: 'nao_encontrado' }, headers: CORS });
+            const b = m === 'PATCH' ? (patchBody = JSON.parse(req.postData())) : { on: false };
+            const next = { ...cur, ...(b.lat != null ? { lat: b.lat, lon: b.lon } : {}), ...(b.name ? { name: b.name } : {}) };
+            if (b.on === true) { delete next.off; delete next.offBy; }
+            if (b.on === false) Object.assign(next, { off: true, offBy: cur.mine === false ? 'owner' : 'device' });
+            if (cur === guestPlace) Object.assign(guestPlace, next, b.on === true ? { off: undefined, offBy: undefined } : {});
+            else places = places.map((x) => (x.id === id ? next : x));
+            return m === 'DELETE' ? r.fulfill({ status: 204, headers: CORS, body: '' }) : fulfill(r, next);
+        }
+        if (p === '/api/usage') return owner ? fulfill(r, { today: '2026-11-06', others,
+            devices: { today: 3, d7: 5, d30: 8, total: 9, owner: 1 },
+            places: { total: 2, owner: places.length, guests: 1, active: 2, paused: 0, off: 0, analysed: 2, cap: 15,
+                list: [{ name: 'Casa da Ana', kind: 'guest', status: 'active', analysed: true, days: 0 }] },
+            analyses: ['2026-11-06', '2026-11-05', '2026-11-04', '2026-11-03', '2026-11-02', '2026-11-01', '2026-10-31'].map((date, i) => ({ date, scheduled: i ? 3 : 2, instant: i === 1 ? 1 : 0, guest: 1 })) })
+            : r.fulfill({ status: 403, json: { error: 'dono' }, headers: CORS });
+        if (p === '/api/settings' && m === 'PATCH') { settingsBody = JSON.parse(req.postData()); others = settingsBody.others; return fulfill(r, { others, updatedAt: NOW }); }
         if (p === '/api/reports' && m === 'GET') return fulfill(r, { place: null, reports: serverReports });
         if (p === '/api/reports' && m === 'POST') { const b = JSON.parse(req.postData()); reportPosts.push(b); return r.fulfill({ status: 201, json: { report: b, place: null, count: 1 }, headers: CORS }); }
         if (p === '/api/geocode') return fulfill(r, [{ name: 'Porto', admin1: 'Porto', country: 'Portugal', lat: 41.1496, lon: -8.611, elevation: 85 }, { name: '<img src=x onerror=alert(1)>', admin1: 'XSS', country: 'Teste', lat: 40, lon: -8 },
@@ -186,6 +211,20 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(nowTxt, /Vale · 70 m abaixo do relevo à volta/, 'linha do relevo no Agora');
     assert.equal(await page.locator('.tile').count(), 12, 'indicadores');
     assert.ok(await page.locator('#nc-chart svg').count(), 'gráfico das 2 horas');
+    // a análise diária do Claude está desligada por omissão: o cartão diz o que é e oferece ligá-la para este local
+    await page.waitForFunction(() => /Ativar a análise diária do Claude para este local/.test(document.querySelector('#cl-teaser')?.textContent || ''));
+    assert.match(await page.locator('#cl-teaser').textContent(), /Opcional: o Claude escreve uma análise para este ponto exato às 07:12, 13:12 e 19:42.*Só este telemóvel a vê\./s);
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 0, 'nada ligado sem o utilizador escolher');
+    await noOverflow('Agora (sem análise)');
+    await shot('02-agora-sem-analise.png');
+    await page.click('#cl-teaser [data-act="place-on"]');
+    await toastIs(/Ligada\. A primeira análise chega hoje às 19:42/);
+    assert.deepEqual(postBody, { name: RAW.place.name, lat: LAT, lon: LON });
+    await page.waitForFunction(() => /A análise diária do Claude está ligada para este local/.test(document.querySelector('#cl-teaser').textContent));
+    // a tarefa agendada fez a primeira análise
+    analysed.add('casa');
+    await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
+    await page.waitForFunction((t) => document.querySelector('#cl-teaser').textContent.includes(t), MOCK_ANALYSIS.titulo.slice(0, 30));
     const teaser = await page.locator('#cl-teaser').textContent();
     assert.match(teaser, new RegExp(MOCK_ANALYSIS.titulo.slice(0, 30)));
     assert.match(teaser, /Para Lisboa · 38,7223, −9,1393 · no ponto selecionado/, 'para que ponto é a análise');
@@ -212,7 +251,13 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(rvCalls.filter((c) => c === '256/7/0_0').length, 13, '13 imagens centradas no ponto (z7, cores exatas)');
     await noOverflow('Agora');
     await shot('02-agora.png');
-    console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude');
+    // a identidade anónima do telemóvel vai em todos os pedidos da app ao conector (sempre a mesma); as fontes em bruto não a levam
+    const dev = await page.evaluate(() => JSON.parse(localStorage.getItem('meteo:device')));
+    assert.match(`${dev.id}.${dev.token}`, /^[0-9a-f]{24}\.[0-9a-f]{48}$/);
+    const apiIds = ids.filter((x) => /^\/api\/(status|analysis|places|reports)/.test(x.p));
+    assert.ok(apiIds.length >= 5 && apiIds.every((x) => x.dev === `${dev.id}.${dev.token}` && !x.own), 'x-meteo-device em todos os pedidos da app');
+    assert.ok(ids.filter((x) => /^\/api\/(raw|obs-history)/.test(x.p)).every((x) => !x.dev), 'as fontes em bruto não precisam dela');
+    console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude (desligada por omissão, ligada pelo cartão)');
 
     // 2b) "Está a chover?": o aviso manda no agora (45 min) e segue para o conector
     await page.click('.now [data-act="report"]');
@@ -304,31 +349,33 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.today .cl-for').textContent(), /^Para Lisboa · 38,7223, −9,1393 · no ponto selecionado$/);
     assert.equal(await page.locator('.far-pt').count(), 0, 'análise deste ponto: sem aviso');
     assert.ok(await page.locator('.today .an-sec').count() >= 8, 'secções da análise');
-    assert.ok(await page.locator('[data-act="place-on"].on').count(), 'análise diária ligada (Lisboa registada)');
+    assert.ok(await page.locator('[data-act="place-on"].on').count(), 'análise diária ligada (ligada no passo 2)');
+    assert.match(await page.locator('.form .sw .hint').first().textContent(), /Ligada \(Lisboa\)/);
     // desligar pede confirmação; "Cancelar" não apaga nada
     await page.click('[data-act="place-off"]');
     await page.waitForSelector('#mt-sheet:not([hidden]) [data-act="off-yes"]');
     assert.match(await page.locator('#mt-sheet-card').textContent(), /Desligar a análise diária de Lisboa\?.*A análise atual fica guardada\./s);
     await page.click('#mt-sheet-card .btns-col [data-act="close"]');
     await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
-    assert.ok(!calls.includes('DELETE /api/places/lisboa'), 'cancelar não desliga');
-    // confirmar → DELETE e aviso com "Desfazer", que volta a ligar o mesmo local
+    assert.ok(!calls.includes('DELETE /api/places/casa'), 'cancelar não desliga');
+    // confirmar → DELETE (o local fica guardado, desligado) e aviso com "Desfazer", que volta a ligar o mesmo local
     await page.click('[data-act="place-off"]');
     await page.click('#mt-sheet-card [data-act="off-yes"]');
     await toastIs(/desligada para Lisboa/);
-    assert.ok(calls.includes('DELETE /api/places/lisboa'));
+    assert.ok(calls.includes('DELETE /api/places/casa'));
+    assert.equal(places[0].off, true);
     await page.click('#mt-toast .t-undo');
     await toastIs(/ligada de novo/);
-    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 1, 'Desfazer volta a registar o local');
-    assert.equal(places.at(-1).name, 'Lisboa');
+    assert.deepEqual(patchBody, { on: true }, 'Desfazer volta a ligar o mesmo local (o mesmo id)');
+    assert.equal(places[0].off, undefined);
     await page.waitForSelector('[data-act="place-on"].on');
-    // desligar e voltar a ligar com "Sim"
+    // desligar e voltar a ligar com "Sim": o mesmo local outra vez
     await page.click('[data-act="place-off"]');
     await page.click('#mt-sheet-card [data-act="off-yes"]');
     await toastIs(/desligada/);
     await page.click('[data-act="place-on"]');
-    await toastIs(/Ligada/);
-    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2);
+    await toastIs(/ligada de novo/);
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 1, 'sem locais novos: o mesmo, ligado de novo');
     await page.click('[data-act="analyze"]');
     await toastIs(/Análise feita/);
     assert.ok(refreshBody && refreshBody.summary.length > 500, 'resumo enviado ao Claude');
@@ -349,7 +396,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.ok(await page.locator('.sec:has(h2:text("Observações usadas")) .row').count() >= 5);
     await noOverflow('Análise');
     await shot('06-analise.png');
-    console.log(`✓ Análise: Claude, análise diária (DELETE/POST), a pedido, ${nModels} modelos`);
+    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos`);
 
     // 6) Ajustes: conector, estado das fontes, tamanho da letra
     await tab('ajustes');
@@ -364,24 +411,52 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(prec, /Relevo: Vale · 70 m abaixo do relevo à volta/);
     assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Relevo à volta do ponto/);
     // ✕ na lista também pede confirmação; Desfazer volta a ligar
-    const posts0 = calls.filter((c) => c === 'POST /api/places').length;
+    assert.match(await page.locator('#locais .sec-h').textContent(), /1 local por telemóvel/);
+    assert.match(await page.locator('#locais').textContent(), /Só este telemóvel a vê; se não abrires a app durante 14 dias, fica em pausa até voltares\./);
+    assert.equal(await page.locator('#uso').count(), 0, 'o painel "Utilização" é só do dono');
+    const dels0 = calls.filter((c) => c === 'DELETE /api/places/casa').length;
     await page.click('[data-rmplace="casa"]');
     await page.waitForSelector('#mt-sheet:not([hidden]) [data-act="off-yes"]');
     await page.click('#mt-sheet-card [data-act="off-yes"]');
     await toastIs(/desligada para Lisboa/);
-    assert.ok(calls.includes('DELETE /api/places/casa'));
+    assert.equal(calls.filter((c) => c === 'DELETE /api/places/casa').length, dels0 + 1);
     await page.click('#mt-toast .t-undo');
     await toastIs(/ligada de novo/);
-    assert.equal(calls.filter((c) => c === 'POST /api/places').length, posts0 + 1);
+    assert.deepEqual(patchBody, { on: true });
     await page.waitForSelector('[data-rmplace="casa"]');
+    // Partilhar: a partilha do sistema com o texto (que já leva o endereço e como instalar)
+    await page.evaluate(() => Object.defineProperty(navigator, 'share', { configurable: true, value: async (d) => { window.__shared = d; } }));
+    await page.click('[data-act="share"]');
+    await page.waitForFunction(() => window.__shared);
+    const shared = await page.evaluate(() => window.__shared);
+    assert.deepEqual(Object.keys(shared).sort(), ['text', 'title']);
+    assert.equal(shared.text, await page.evaluate(() => window.__mt.SHARE_TEXT));
+    assert.ok(shared.text.startsWith('🌦️ Meteo — previsão do tempo para o sítio exato onde estás. Junta 9 modelos meteorológicos, 212 cenários'));
+    assert.match(shared.text, /Grátis, sem conta e sem publicidade\. https:\/\/nelsonsous\.github\.io\/escolaplay\/meteo\/ — iPhone: abre no Safari → Partilhar → «Adicionar ao ecrã principal»\. Android: abre no Chrome → ⋮ → «Instalar app»\.$/);
+    // sem partilha do sistema: copia o texto; sem isso, mostra-o para copiar à mão
+    await page.evaluate(() => {
+        Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+    });
+    await page.click('[data-act="share"]');
+    await toastIs(/Texto copiado/);
+    assert.equal(await page.evaluate(() => window.__copied), shared.text);
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('sem acesso'); } } }));
+    await page.click('[data-act="share"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) #f-share');
+    assert.equal(await page.locator('#f-share').inputValue(), shared.text);
+    await noOverflow('folha Partilhar');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
     await page.click('[data-fs="l"]');
     assert.equal(await page.evaluate(() => document.documentElement.dataset.fs), 'l');
     await noOverflow('Ajustes (letra grande)');
     await shot('07-ajustes.png');
     await page.click('[data-fs="n"]');
-    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande');
+    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão)');
 
     // 6b) ponto a 8,6 km do local com análise diária: a análise diz que é de outro ponto e oferece mudar (PATCH, mesmo id)
+    const patches0 = calls.filter((c) => c === 'PATCH /api/places/casa').length;
     await page.click('.form [data-act="place"]');
     await page.waitForSelector('#f-q');
     await page.fill('#f-q', 'Ama');
@@ -414,7 +489,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.click('#cl-teaser [data-act="place-move"]');
     await toastIs(/passa a ser para este ponto/);
     await page.waitForFunction(() => /já passou para este ponto/.test(document.querySelector('#cl-teaser').textContent));
-    assert.equal(calls.filter((c) => c === 'PATCH /api/places/casa').length, 3);
+    assert.equal(calls.filter((c) => c === 'PATCH /api/places/casa').length, patches0 + 3, 'mudar, desfazer e mudar outra vez');
     await noOverflow('Agora (análise de outro ponto)');
     await shot('07b-outro-ponto.png');
     await tab('ajustes');
@@ -430,7 +505,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await tab('agora');
     await page.waitForFunction(() => document.querySelector('h1.pg-t').textContent.trim() === 'Porto' && document.querySelector('.now'));
     await page.waitForFunction(() => !window.__mt.st.loading);
-    console.log('✓ mudar de local: Porto');
+    // cada telemóvel tem 1 local: ligar aqui muda-o para aqui (PATCH, o mesmo id), com "Desfazer"
+    await page.waitForFunction(() => /a tua análise diária passa de Lisboa para aqui/.test(document.querySelector('#cl-teaser')?.textContent || ''));
+    await page.click('#cl-teaser [data-act="place-on"]');
+    await toastIs(/A tua análise diária passa de Lisboa para este local/);
+    assert.deepEqual(patchBody, { lat: 41.1496, lon: -8.611, name: 'Porto', on: true });
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 1, 'continua a haver 1 local');
+    await page.click('#mt-toast .t-undo');
+    await toastIs(/voltou para Lisboa/);
+    assert.deepEqual(patchBody, { lat: 38.7536, lon: -9.2302, name: 'Lisboa' });
+    console.log('✓ mudar de local: Porto; 1 local por telemóvel (ligar aqui muda-o, e desfazer)');
 
     // 8) sem rede para os modelos: puxar para atualizar → fica a última previsão, com aviso
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -447,6 +531,50 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await shot('08-sem-rede.png');
     failModels = false;
     console.log('✓ puxar para atualizar sem rede: mantém a previsão com aviso');
+
+    // 9) o dono: abre a app uma vez com ?dono=<código> → fica só neste telemóvel e sai do endereço
+    await page.goto(url + '?dono=' + encodeURIComponent(OWNER_CODE));
+    await toastIs(/Modo dono ligado neste telemóvel/);
+    assert.equal(await page.evaluate(() => location.search), '', 'o código sai do endereço');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('meteo:dono'))), OWNER_CODE);
+    assert.ok(ids.slice(-3).every((x) => x.own === encodeURIComponent(OWNER_CODE) && x.dev === `${dev.id}.${dev.token}`), 'x-meteo-owner nos pedidos');
+    await tab('ajustes');
+    await page.waitForSelector('#uso .use-st');
+    const uso = await page.locator('#uso').textContent();
+    assert.match(uso, /Telemóveis hoje3.*7 dias · 30 dias5 · 89 no total \(1 teu\)/s);
+    assert.match(uso, /Analisados por corrida2 de 15/);
+    assert.match(uso, /Casa da Anaem uso · abriu a app hoje/);
+    assert.equal(await page.locator('#uso .use-t tbody tr').count(), 7);
+    assert.match(await page.locator('#uso .use-t tbody tr').first().textContent(), /^Hoje201$/);
+    assert.match(await page.locator('#uso .use-t tfoot').textContent(), /^7 dias2017$/);
+    assert.match(await page.locator('#f-proxy-msg').textContent(), /és o dono/);
+    // os locais dos outros: só o nome e ~1 km
+    assert.match(await page.locator('#locais').textContent(), /Dos outros telemóveis.*Casa da Ana~41,55, −8,43 · em uso/s);
+    assert.match(await page.locator('#locais .sec-h').textContent(), /sem limite de locais/);
+    await noOverflow('Ajustes do dono');
+    await shot('09-dono.png');
+    // a análise dos outros: só 1× por dia
+    await page.click('#uso [data-others="1x"]');
+    await toastIs(/Análise dos outros: só 1× por dia \(07:34\)/);
+    assert.deepEqual(settingsBody, { others: '1x' });
+    await page.waitForSelector('#uso [data-others="1x"].on');
+    // desligar o local de outro telemóvel (confirmar) e voltar a ligá-lo
+    await page.click(`[data-rmplace="${guestPlace.id}"]`);
+    await page.waitForSelector('#mt-sheet:not([hidden]) [data-act="off-yes"]');
+    assert.match(await page.locator('#mt-sheet-card').textContent(), /Desligar a análise diária de Casa da Ana\?.*É o local de outro telemóvel\..*não a pode voltar a ligar; tu podes, em Ajustes/s);
+    await page.click('#mt-sheet-card [data-act="off-yes"]');
+    await toastIs(/desligada para Casa da Ana/);
+    assert.equal(guestPlace.offBy, 'owner');
+    await page.waitForSelector(`[data-onplace="${guestPlace.id}"]`);
+    assert.match(await page.locator('#locais').textContent(), /desligada por ti/);
+    await page.click(`[data-onplace="${guestPlace.id}"]`);
+    await toastIs(/Análise diária de Casa da Ana ligada de novo/);
+    assert.equal(guestPlace.off, undefined);
+    // esquecer o código: ?dono= vazio
+    await page.goto(url + '?dono=');
+    await toastIs(/Código do dono esquecido/);
+    assert.equal(await page.evaluate(() => localStorage.getItem('meteo:dono')), null);
+    console.log('✓ dono: ?dono= guardado e fora do endereço, Utilização, análise dos outros, locais dos outros (~1 km), esquecer o código');
 
     assert.deepEqual(unexpected, [], 'sem pedidos à rede real');
     assert.deepEqual(errors, [], 'sem erros na consola');

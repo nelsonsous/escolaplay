@@ -1,0 +1,17 @@
+name = "musica"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+# Tokens do Tidal, chaves dos aparelhos, perfil de gosto, biblioteca de playlists e pedidos
+# (criado com: POST /accounts/:id/storage/kv/namespaces {"title":"musica-KV"})
+[[kv_namespaces]]
+binding = "KV"
+id = "f3574d08325242b88f73354859b291ff"
+
+[vars]
+APP_URL = "https://nelsonsous.github.io/escolaplay/musica/"
+PAIS = "PT"
+# Client ID da app registada em developer.tidal.com (público; o fluxo é PKCE, sem segredo).
+# Normalmente fica vazio: cola-se na app (com o código de ligação) e fica na KV (config:tidal_client_id).
+# Redirect URI a registar lá: https://musica.mercados-proxy.workers.dev/tidal/retorno
+TIDAL_CLIENT_ID = ""

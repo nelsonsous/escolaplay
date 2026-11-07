@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v4'; // 1.3.0
+const CACHE = 'meteo-v5'; // 1.4.0
 const ASSETS = [
     './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './manifest.webmanifest',
     './lib/data.js', './lib/engine.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js',
@@ -24,7 +24,8 @@ self.addEventListener('activate', (event) => {
     })());
 });
 
-// Navegação: rede primeiro (apanha versões novas), cache se não houver rede.
+// Navegação: rede primeiro (apanha versões novas), cache se não houver rede. Guarda-se sem o "?…" do endereço (o
+// ?dono=<código> do dono da app nunca fica na cache).
 // Resto (só ficheiros da app): cache primeiro e, se faltar, rede — e guarda.
 self.addEventListener('fetch', (event) => {
     const req = event.request;
@@ -38,7 +39,7 @@ self.addEventListener('fetch', (event) => {
             const cache = await caches.open(CACHE);
             try {
                 const fresh = await fetch(req);
-                if (fresh && fresh.ok) cache.put(req, fresh.clone()).catch(() => {});
+                if (fresh && fresh.ok) cache.put(url.search ? new Request(url.origin + url.pathname) : req, fresh.clone()).catch(() => {});
                 return fresh;
             } catch (e) {
                 return (await cache.match(req, { ignoreSearch: true })) || (await cache.match('./')) || (await cache.match('./index.html'))

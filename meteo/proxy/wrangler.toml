@@ -16,3 +16,7 @@ CLAUDE_MODEL = "claude-opus-5-5"
 
 # Opcional — análise imediata pela API do Claude (botão "Analisar agora"):
 #   npx wrangler secret put ANTHROPIC_API_KEY
+
+# Código do dono da app (Ajustes → Utilização, gerir os locais de todos; a app recebe-o uma vez com ?dono=<código>).
+# Nunca aqui: só como segredo, longo e ao acaso (ex.: openssl rand -hex 16). Sem ele ninguém é o dono.
+#   npx wrangler secret put OWNER_CODE

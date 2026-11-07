@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0713">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Playlists de qualidade para o Tidal: o Claude analisa o que ouves e o que está a dar, e o motor de curadoria escrito na Onda escolhe e ordena.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Música">
+    <title>Música</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="stylesheet" href="musica.css">
+</head>
+<body>
+    <div id="app" class="mu-app">
+        <main class="mu-body" id="mu-body" tabindex="-1"><p class="mu-load">A abrir…</p></main>
+        <nav class="mu-nav" id="mu-nav" aria-label="Secções">
+            <a href="#/" data-tab="playlists"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="16.5" r="2.5"/><path d="M20 16.5V5l2 1"/></svg><span>Playlists</span></a>
+            <a href="#/pedir" data-tab="pedir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z"/></svg><span>Pedir</span></a>
+            <a href="#/gosto" data-tab="gosto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>Gosto</span></a>
+            <a href="#/ajustes" data-tab="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Ajustes</span></a>
+        </nav>
+        <div class="mu-toast" id="mu-toast" role="status" aria-live="polite"></div>
+    </div>
+    <script type="module" src="musica.js"></script>
+</body>
+</html>

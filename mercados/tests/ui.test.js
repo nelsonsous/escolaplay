@@ -40,6 +40,32 @@ function quote(sym, range) {
     return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
         change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : 1762300000, open: true, series: s };
 }
+// análise do Claude do dono: o formato antigo (até à 3.x: o veredicto de alguns ativos) e o da 4.0, feito no arranque
+// pelo publicar.mjs a partir de uma análise de teste (um veredicto por ativo, com convicção por prazo, níveis e porquê)
+const ADV_BASE = { headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], movers: [{ s: 'TSLA', why: 'Cai depois de resultados abaixo do esperado.' }], tldr: ['Mercado: venda em tecnologia, VIX 24.', 'Plano: manter 810 € VWCE + 90 € BTC.', 'Atenção: XRP −9%, sem reforço.'], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
+const ADV_V1 = { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', ...ADV_BASE, actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }] };
+const ADV = { doc: null };
+const WATCH = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'LLY', 'BRK-B', 'PLTR', 'AMD', 'ASML.AS', 'SAP.DE', 'MC.PA', 'SIE.DE', 'NOVO-B.CO', 'ALV.DE', 'TTE.PA', 'RHM.DE', 'TSM'];
+const FUNDS = ['VWCE.DE', 'EUNL.DE', 'SXR8.DE', 'SXRV.DE', 'IS3N.DE', 'EXSA.DE', '4GLD.DE'];
+const REFS = ['BZ=F', 'CL=F', 'RB=F', 'HO=F', 'NG=F', 'GC=F', '^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS', '^VIX', 'EURUSD=X'];
+// sem veredicto hoje (ex.: sem dados nesse dia): o Ether fica com o último conselho; o XRP, a TSMC e a Rheinmetall com o algoritmo
+const SKIP = ['c:ETH', 'c:XRP', 'TSM', 'RHM.DE'];
+const SPECIAL = {
+    NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 48, mid: 88, long: 81, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% com a tendência longa a favor; resultados a 17/11.', plan: 'Metade agora, metade depois dos resultados.' },
+    'ALV.DE': { key: 'buy', action: 'Comprar', short: 70, mid: 84, long: 70, why: 'Sobe 6,8% com resultados acima do esperado.' },
+    'VWCE.DE': { key: 'hold', action: 'Manter e reforçar', short: 40, mid: 82, long: 90, why: 'Núcleo do plano.' },
+    MSFT: { key: 'hold', action: 'Manter', short: 50, mid: 76, long: 70, why: 'Tendência longa a favor.' },
+    AAPL: { key: 'hold', action: 'Manter', short: 50, mid: 76, long: 60, why: 'Perto do máximo do ano.' },
+    'c:BTC': { key: 'wait', action: 'Esperar', short: 40, mid: 45, long: 62, entry: 86000, target: 99000, stop: 80000, why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' },
+    'BZ=F': { key: 'up', action: 'Em alta', short: 66, mid: 77, long: 45, why: 'Brent acima da média de 50 dias.' },
+};
+function verdictOf(s) {
+    if (SPECIAL[s]) return SPECIAL[s];
+    const sc = (h) => 25 + (hash(s + h) % 51); // 25 a 75
+    const mid = sc('m');
+    const key = REFS.includes(s) ? (mid >= 58 ? 'up' : mid <= 42 ? 'down' : 'flat') : mid >= 60 ? 'buy' : mid <= 35 ? 'avoid' : 'hold';
+    return { key, short: sc('c'), mid, long: sc('l'), why: `${s}: leitura de teste.` };
+}
 const NEWS = (q) => ({ q, items: [
     { title: `${q}: ações disparam após lucros recorde`, link: 'https://news.example/1', source: 'Jornal de Negócios', time: 1762299000 },
     { title: `${q} shares fall on weak demand`, link: 'https://news.example/2', source: 'Reuters', time: 1762290000 },
@@ -65,13 +91,24 @@ function proxyBody(u) {
     if (p === '/universe') return ME.owner ? UNI : null;
     if (p === '/owner') { ME.others = JSON.parse(u.searchParams.get('_b') || '{}').others ?? ME.others; return { ok: true }; }
     if (p === '/advice' && !ME.owner) return ME.advice;
-    if (p === '/advice') return { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }], movers: [{ s: 'TSLA', why: 'Cai depois de resultados abaixo do esperado.' }], tldr: ['Mercado: venda em tecnologia, VIX 24.', 'Plano: manter 810 € VWCE + 90 € BTC.', 'Atenção: XRP −9%, sem reforço.'], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
+    if (p === '/advice') return ADV.doc;
     if (p === '/calendar') return { items: u.searchParams.get('symbols').split(',').map((s) => s === 'NVDA' ? { symbol: s, earnings: Math.floor(Date.now() / 1000) + 5 * 86400, exDividend: null } : { symbol: s, earnings: null, exDividend: null }) };
     if (p === '/search') return { items: [{ symbol: 'EGL.LS', name: 'Mota-Engil', exchange: 'Lisbon', type: 'Equity' }] };
     return null;
 }
 
 (async () => {
+    // a análise do dono no formato 4.0, exatamente como o publicar.mjs a grava no KV
+    const { buildAdvice } = await import(require('url').pathToFileURL(path.join(__dirname, '../conselheiro/publicar.mjs')).href);
+    const covered = [...FUNDS, 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP', ...WATCH, ...REFS].filter((s) => !SKIP.includes(s));
+    const dadosRows = covered.map((s) => ({ s, kind: REFS.includes(s) ? 'ref' : 'x', price: s === 'NVDA' ? 196 : s === 'c:BTC' ? 88000 : null }));
+    // mais um da lista toda da TR (fora das listas da app): a PUMA
+    const pick = { s: 'PUM.DE', key: 'buy', action: 'Comprar', short: 60, mid: 70, long: 72, why: 'PUMA: tendência forte na lista da TR.' };
+    const built = buildAdvice({ ...ADV_BASE, actions: covered.map((s) => ({ s, ...verdictOf(s) })).concat(pick), rank: { mid: ['NVDA', 'ALV.DE', 'VWCE.DE', 'MSFT', 'AAPL'] } }, { rows: dadosRows }, [{ s: 'PUM.DE' }]);
+    assert.deepEqual(built.errs, [], 'a análise de teste passa na validação do publicar.mjs');
+    ADV.doc = { ...built.out, date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z' };
+    console.log('✓ análise de teste (formato 4.0) validada pelo publicar.mjs:', ADV.doc.actions.length, 'ativos');
+
     const server = http.createServer((req, res) => {
         let f = decodeURIComponent(req.url.split('?')[0]).replace(/^\/escolaplay\/mercados\/?/, '/');
         if (f === '/') f = '/index.html';
@@ -182,7 +219,9 @@ function proxyBody(u) {
     await page.waitForSelector('.today .i-h:has-text("Agenda")');
     assert.match(await page.locator('.today').textContent(), /Nvidia: apresenta resultados/);
     console.log('✓ agenda no Hoje:', (await page.locator('.today .i-blk:has-text("Agenda") .idea').allTextContents()).length, 'eventos');
-    await page.click('.today button.idea:has-text("Nvidia")');
+    // fora do que tem: as ideias de maior convicção do Claude (compras e vendas)
+    assert.match(await page.locator('.today .i-blk:has-text("Também a seguir") .idea').first().textContent(), /^Nvidia[\s\S]*Comprar aos poucos$/);
+    await page.click('.today .i-blk:has-text("Agenda") button.idea:has-text("Nvidia")');
     await page.waitForSelector('.advice .adv-ev');
     assert.match(await page.locator('.advice .adv-ev').textContent(), /Resultados daqui a 5 dias/);
     await page.click('[data-act="close"] >> nth=-1');
@@ -268,44 +307,96 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '2-destaques.png') });
 
     assert.ok(await page.locator('.mood').isVisible(), 'sentimento do mercado nos Destaques');
-    // análise
+    // análise: "Comparar ativos" com a análise do Claude primeiro (convicção por prazo); o algoritmo em "Sinais automáticos"
     await page.click('#mk-nav [data-tab="analise"]');
     await page.waitForSelector('.chips [data-filter="plan"].on');
-    const planRows = await page.locator('.sec:has(h2:text-is("Classificação")) .list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
+    const cls = '.sec:has(h2:text-is("Classificação"))';
+    const planRows = await page.locator(cls + ' .list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(planRows.length >= 8 && planRows.every((k) => /^c:|\.DE$/.test(k)), 'filtro ETF + cripto: ' + planRows);
     await page.click('.chips [data-filter="all"]');
+    await page.click('.seg.hz [data-hz="mid"]');
     await page.waitForFunction(() => document.querySelectorAll('.sec:has(h2) .list .row').length > 20);
     assert.equal(await page.locator('.mood').count(), 0, 'sentimento só nos Destaques');
-    const scores = await page.locator('.sec:has(h2:text-is("Classificação")) .r-score .val').allTextContents();
-    const nums = scores.map(Number);
-    assert.deepEqual(nums, [...nums].sort((a, b) => b - a), 'classificação ordenada');
-    assert.ok(nums.every((n) => n >= 0 && n <= 100));
-    console.log('✓ análise: top', (await page.locator('.top3 .c-name').allTextContents()).join(', '), '| n =', nums.length);
+    assert.match(await page.locator('.src-line').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
+    assert.deepEqual(await page.locator('.top3 .c-name').allTextContents(), ['Nvidia', 'Allianz', 'FTSE All-World USD (Acc)'], 'mais fortes pela convicção do Claude');
+    assert.match(await page.locator('.top3 .card').first().textContent(), /Comprar aos poucos[\s\S]*Desconto de 22%/, 'veredicto e porquê do Claude');
+    assert.match(await page.locator('.sec:has(h2:text("Mais fortes a médio prazo")) .sub').textContent(), /pelo Claude/);
+    const rowsOf = (sel) => page.locator(sel).evaluateAll((els) => els.map((e) => [e.dataset.open, +e.querySelector('.r-score .val').textContent]));
+    const desc = (a) => a.every((x, i) => !i || a[i - 1][1] >= x[1]);
+    const rowsCl = await rowsOf(cls + ' .row:not(.auto)'), rowsAuto = await rowsOf(cls + ' .row.auto');
+    assert.ok(desc(rowsCl) && desc(rowsAuto), 'ordenada pela convicção do Claude e depois pelo algoritmo');
+    assert.deepEqual(rowsAuto.map((x) => x[0]).sort(), ['RHM.DE', 'TSM', 'c:ETH', 'c:XRP'], 'o que o Claude não analisou fica no fim, com o sinal automático');
+    assert.match(await page.locator(cls + ' .grp-h').textContent(), /Sem análise do Claude/);
+    const order = rowsCl.map((x) => x[0]);
+    assert.equal(order.indexOf('MSFT') + 1, order.indexOf('AAPL'), 'empate (76): decide a classificação do Claude');
+    assert.ok(rowsCl.concat(rowsAuto).every(([, v]) => v >= 0 && v <= 100));
+    console.log('✓ análise do Claude: top', (await page.locator('.top3 .c-name').allTextContents()).join(', '), '| n =', rowsCl.length, '+', rowsAuto.length, 'automáticos');
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '3-analise.png') });
-    const allKeys = await page.locator('.sec:has(h2:text-is("Classificação")) .list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
+    const allKeys = await page.locator(cls + ' .list .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(!allKeys.some((k) => /=F$|^\^/.test(k)), '"Tudo" só com o que se compra na TR: ' + allKeys.filter((k) => /=F$|^\^/.test(k)));
     assert.ok(allKeys.includes('SXR8.DE') && allKeys.includes('c:BTC'));
     assert.deepEqual(await page.locator('h2.grp').allTextContents(), ['Comparar ativos', 'Resultados']);
     assert.match(await page.locator('.cl-box').textContent(), /Primeiro dia/);
     assert.match(await page.locator('.cl-box').textContent(), /aprendeu até agora \(1\)/);
-    assert.equal(await page.locator('details.auto:not([open])').count(), 1, 'algoritmo fechado');
-    console.log('✓ análise: comparar ativos + resultados (conselhos do Claude, diário, teste)');
+    const auto = 'details.auto[data-fold="an-auto"]';
+    assert.equal(await page.locator(auto + ':not([open])').count(), 1, 'algoritmo fechado');
+    assert.equal(await page.locator('details.uni:not([open])').count(), 1, 'toda a TR (algoritmo) fechada');
+    assert.match(await page.locator(auto).textContent(), /Pontuação automática a médio prazo/);
+    // abrir "Sinais automáticos": fica aberto quando o ecrã se atualiza (preços ao vivo)
+    await page.click(auto + ' > summary');
+    await page.evaluate(() => window.__mk.render());
+    assert.equal(await page.locator(auto + '[open]').count(), 1, 'fica aberto ao atualizar');
+    await page.click(auto + ' > summary');
+    console.log('✓ análise: comparar ativos + resultados; sinais automáticos fechados');
+    // futuros (referência): também com a leitura do Claude
+    await page.click('.chips [data-filter="energy"]');
+    assert.equal(await page.locator('.top3 .c-name').first().textContent(), 'Petróleo Brent');
+    assert.match(await page.locator('.top3 .card').first().textContent(), /Em alta/);
     await page.click('.chips [data-filter="crypto"]');
-    assert.equal(await page.locator('.sec:has(h2:text-is("Classificação")) .list .row').count(), 4);
-    assert.equal(await page.locator('.sec:has(h2:text("Toda a Trade Republic")) .list .row').count(), 1, 'toda a TR filtrada: só cripto');
+    assert.equal(await page.locator(cls + ' .list .row').count(), 4);
+    assert.equal(await page.locator('details.uni .list .row').count(), 1, 'toda a TR filtrada: só cripto');
     await page.click('.chips [data-filter="all"]');
     await page.click('.seg.hz [data-hz="long"]');
     await page.waitForSelector('h2:text("Mais fortes a longo prazo")');
-    const longScores = (await page.locator('.sec:has(h2:text-is("Classificação")) .r-score .val').allTextContents()).map(Number);
-    assert.deepEqual(longScores, [...longScores].sort((a, b) => b - a), 'ordenado pelo longo prazo');
+    const longScores = (await page.locator(cls + ' .row:not(.auto) .r-score .val').allTextContents()).map(Number);
+    assert.deepEqual(longScores, [...longScores].sort((a, b) => b - a), 'ordenado pela convicção a longo prazo');
+    assert.equal(await page.locator('.top3 .c-name').first().textContent(), 'FTSE All-World USD (Acc)', 'VWCE (90) à frente a longo prazo');
     console.log('✓ análise por prazo: longo, n =', longScores.length);
     await page.click('.seg.hz [data-hz="disc"]');
     await page.waitForSelector('h2:text("Maiores oportunidades (desconto)")');
-    const dScores = (await page.locator('.sec:has(h2:text-is("Classificação")) .r-score .val').allTextContents()).map(Number);
+    const dScores = (await page.locator(cls + ' .r-score .val').allTextContents()).map(Number);
     assert.deepEqual(dScores, [...dScores].sort((a, b) => b - a), 'ordenado pela oportunidade');
     assert.match(await page.locator('.list .row .r-sub').first().textContent(), /do máx\./);
+    assert.match(await page.locator('.src-line').textContent(), /medida automática · veredicto do Claude em cada linha/);
+    assert.ok(await page.locator(cls + ' .row .r-sub .badge').count() >= 30, 'veredicto do Claude nas linhas');
     console.log('✓ modo desconto: n =', dScores.length);
     await page.click('.seg.hz [data-hz="mid"]');
+    // ficha a partir de "Mais fortes": veredicto, convicção por prazo, níveis e porquê do Claude; o algoritmo fechado
+    await page.click('.top3 .card[data-open="NVDA"]');
+    await page.waitForSelector('#mk-sheet:not([hidden]) .cl-adv');
+    const adv = '#mk-sheet .advice.cl-adv';
+    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar aos poucos');
+    assert.match(await page.locator(adv + ' .adv-src').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
+    assert.deepEqual(await page.locator(adv + ' .cl-conv .val').allTextContents(), ['48', '88', '81'], 'convicção curto/médio/longo');
+    assert.deepEqual(await page.locator(adv + ' .cl-conv small').allTextContents(), ['Curto prazo', 'Médio prazo', 'Longo prazo']);
+    const lv = await page.locator(adv + ' .cl-lv li').allTextContents();
+    assert.match(lv[0], /^Entrada\s*164,93\s€\s*−3,06%$/, 'entrada em euros e a distância ao preço: ' + lv[0]);
+    assert.match(lv[1], /^Alvo\s*199,65\s€\s*\+17,35%$/, lv[1]);
+    assert.match(lv[2], /^Stop\s*149,31\s€\s*−12,24%$/, lv[2]);
+    assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora/);
+    assert.match(await page.locator(adv + ' .adv-ev').textContent(), /Resultados daqui a 5 dias/);
+    const shAuto = '#mk-sheet details.sh-auto';
+    assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'sinais automáticos fechados na ficha');
+    assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');
+    assert.equal(await page.locator(shAuto + ' .algo-box .adv-act').count(), 1, 'sinal automático lá dentro');
+    assert.equal(await page.locator('#mk-sheet .disc-box').count(), 1);
+    if (SHOTS) { await page.locator(adv).scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, '3b-ficha-claude.png') }); }
+    await page.click(shAuto + ' > summary');
+    assert.ok(await page.locator(shAuto + ' .algo-box').isVisible(), 'abre ao tocar');
+    await page.click(shAuto + ' > summary');
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ ficha da Nvidia: Comprar aos poucos', lv.map((x) => x.replace(/\s+/g, ' ')).join(' | '));
 
     // detalhe da Bitcoin
     await page.click('#mk-nav [data-tab="painel"]');
@@ -322,7 +413,8 @@ function proxyBody(u) {
     assert.ok(await page.locator('.advice .adv-act').count(), 'o que fazer na TR');
     assert.match(await page.locator('.advice .adv-src').textContent(), /Análise do Claude/);
     assert.match(await page.locator('.advice .adv-act').textContent(), /Esperar/);
-    assert.ok(await page.locator('.advice details.algo').count(), 'algoritmo como referência');
+    assert.equal(await page.locator('#mk-sheet details.sh-auto').count(), 1, 'algoritmo como referência, à parte');
+    assert.equal(await page.locator('.advice .cl-lv li').count(), 3, 'entrada, alvo e stop');
     assert.match(await page.locator('.advice').textContent(), /€/);
     assert.ok(await page.locator('.levels li').count() >= 2, 'níveis-chave');
     console.log('✓ conselho BTC:', await page.locator('.advice .adv-act').textContent(), '| níveis', await page.locator('.levels li').count());
@@ -359,6 +451,18 @@ function proxyBody(u) {
     assert.equal(await page.locator('#mk-sheet').isHidden(), false, 'puxão curto não fecha');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    // índice (referência): a leitura do Claude, sem conselho de compra nem impostos; o algoritmo fechado
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.locator('.row[data-open="^GSPC"]').first().click();
+    await page.waitForSelector('#mk-sheet:not([hidden]) .cl-adv');
+    assert.equal(await page.locator('#mk-sheet .cl-adv h3').textContent(), 'Leitura do Claude');
+    assert.match(await page.locator('#mk-sheet .cl-adv .adv-act').textContent(), /^(Em alta|Lateral|Em queda)$/);
+    assert.equal(await page.locator('#mk-sheet .cl-adv .cl-conv .cv').count(), 3);
+    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-meta').count(), 0, 'sem impostos num índice');
+    assert.equal(await page.locator('#mk-sheet details.sh-auto:not([open]) .hzb').count(), 3);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ índice: leitura do Claude (referência)');
 
     // arrastar uma linha para a esquerda → Retirar (com Desfazer e Repor)
     await page.click('#mk-nav [data-tab="painel"]');
@@ -658,14 +762,70 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="analise"]');
     await page.click('[data-filter="all"]');
     await page.click('.seg.hz [data-hz="long"]');
-    await page.waitForSelector('.sec:has(h2:text("Toda a Trade Republic")) .row');
-    const uniRows = await page.locator('.sec:has(h2:text("Toda a Trade Republic")) .row .r-name').allTextContents();
+    // toda a TR: classificação automática, fechada; abre ao tocar e fica aberta quando o ecrã se atualiza
+    await page.waitForSelector('details.uni', { state: 'attached' });
+    await page.click('details.uni > summary');
+    await page.waitForSelector('details.uni[open] .row');
+    await page.evaluate(() => window.__mk.render());
+    assert.equal(await page.locator('details.uni[open]').count(), 1, 'toda a TR fica aberta ao atualizar');
+    assert.match(await page.locator('details.uni > summary').textContent(), /sinais automáticos · 3 ativos/);
+    const uniRows = await page.locator('details.uni .row .r-name').allTextContents();
     assert.deepEqual(uniRows, ['iShares NASDAQ 100 ETF', 'PUMA', 'Cardano'], 'ordenada pela pontuação a longo prazo');
-    await page.click('.sec:has(h2:text("Toda a Trade Republic")) .row[data-open="PUM.DE"]');
+    assert.equal(await page.locator('details.uni .row[data-open="PUM.DE"] .badge').textContent(), 'Comprar', 'o que o Claude escolheu da lista toda traz o veredicto dele');
+    await page.click('details.uni .row[data-open="PUM.DE"]');
     await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && /PUMA/.test(document.querySelector('#mk-sheet-card').textContent));
+    assert.equal(await page.locator('#mk-sheet .cl-adv h3').textContent(), 'O que fazer na Trade Republic');
+    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-act').textContent(), 'Comprar');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
-    console.log('✓ dono: partilha (apps ligadas) e toda a Trade Republic em Análise');
+    // um da lista toda que o Claude não analisou: o sinal automático, marcado (e os impostos da cripto)
+    await page.click('details.uni .row[data-open="ADA-EUR"]');
+    await page.waitForSelector('#mk-sheet:not([hidden]) .advice .adv-src');
+    assert.match(await page.locator('#mk-sheet .advice .adv-src').textContent(), /^Sinal automático \(algoritmo\) · o Claude não analisou este ativo$/);
+    assert.match(await page.locator('#mk-sheet .advice').textContent(), /365 dias ou mais está isento/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ dono: partilha (apps ligadas) e toda a Trade Republic em Análise (com as escolhas do Claude)');
+
+    // sem avisos: nada de "não é aconselhamento" e afins; em Ajustes → Sobre só uma linha neutra
+    const BANNED = /aconselhamento|não dizem o que comprar|só informação|valida antes|não garante|contabilista|confirma sempre|informação geral/i;
+    for (const tab of ['painel', 'destaques', 'analise', 'ajustes']) {
+        await page.click(`#mk-nav [data-tab="${tab}"]`); await page.waitForTimeout(150);
+        assert.doesNotMatch(await page.locator('#mk-body').textContent(), BANNED, `${tab}: sem avisos`);
+    }
+    assert.equal(await page.locator('#sobre .about-own').textContent(), 'Ferramenta pessoal; as decisões e a execução são tuas.');
+    assert.equal((await page.locator('#mk-body').textContent()).split('Ferramenta pessoal').length, 2, 'uma só vez');
+    await page.click('#mk-nav [data-tab="painel"]');
+    for (const k of ['c:SOL', 'VWCE.DE']) {
+        await page.locator(`.row[data-open="${k}"]`).first().click();
+        await page.waitForSelector('#mk-sheet:not([hidden]) .advice');
+        assert.doesNotMatch(await page.locator('#mk-sheet-card').textContent(), BANNED, `ficha ${k}: sem avisos`);
+        await page.click('[data-act="close"] >> nth=-1');
+        await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    }
+    console.log('✓ sem avisos nem ressalvas; em Sobre: "Ferramenta pessoal; as decisões e a execução são tuas."');
+
+    // análise antiga no KV (formato até à 3.x, antes da primeira corrida nova): a app continua a funcionar
+    ADV.doc = ADV_V1;
+    await page.evaluate(() => localStorage.removeItem('mercados:clmem'));
+    await page.reload();
+    await page.waitForFunction(() => window.__mk && window.__mk.st.yahooAt > 0);
+    await page.click('#mk-nav [data-tab="analise"]');
+    await page.click('[data-filter="all"]');
+    await page.click('.seg.hz [data-hz="mid"]');
+    await page.waitForFunction(() => /Sinais automáticos/.test((document.querySelector('.src-line') || {}).textContent || '') && document.querySelectorAll('.sec .list .row').length > 20, null, { timeout: 15000 });
+    assert.match(await page.locator('.src-line').textContent(), /^Sinais automáticos \(algoritmo\) · a convicção do Claude chega com a próxima análise/);
+    const oldNums = (await page.locator(cls + ' .r-score .val').allTextContents()).map(Number);
+    assert.deepEqual(oldNums, [...oldNums].sort((a, b) => b - a), 'sem convicção do Claude: ordenada pelo algoritmo');
+    assert.match(await page.locator('.sec:has(h2:text("Mais fortes a médio prazo")) .sub').textContent(), /sinais automáticos/);
+    assert.equal(await page.locator(cls + ' .row[data-open="c:BTC"] .badge').textContent(), 'Esperar', 'o veredicto antigo aparece na linha');
+    await page.locator(cls + ' .row[data-open="c:BTC"]').click();
+    await page.waitForSelector('#mk-sheet:not([hidden]) .advice .adv-act');
+    assert.equal(await page.locator('#mk-sheet .advice .adv-act').textContent(), 'Esperar');
+    assert.equal(await page.locator('#mk-sheet .cl-conv').count(), 0, 'formato antigo: sem convicção por prazo');
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ formato antigo da análise: veredicto na ficha, classificação pelo algoritmo (marcada)');
 
     // outra app: a análise do Claude vem desligada; liga-se em Ajustes e chega só a dela
     ME.owner = false;
@@ -678,7 +838,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('.today .cl-head').count(), 0, 'sem a análise do dono');
     await page.click('#mk-nav [data-tab="analise"]');
     await page.waitForSelector('.sec:has(h2:text("Classificação"))');
-    assert.equal(await page.locator('h2:text("Toda a Trade Republic")').count(), 0, 'só na app do dono');
+    assert.equal(await page.locator('details.uni').count(), 0, 'toda a TR só na app do dono');
     await page.click('#mk-nav [data-tab="ajustes"]');
     assert.equal(await page.locator('h2:text("Partilha da app")').count(), 0);
     ME.advice = { date: '2026-11-07', generatedAt: '2026-11-07T07:21:00Z', short: true, headline: 'Só os teus ativos', tldr: ['Mercado: calmo.', 'Os teus ativos: manter.', 'Atenção: nada.'], actions: [{ s: 'c:BTC', key: 'hold', action: 'Manter', why: 'tendência longa a subir' }], movers: [] };
