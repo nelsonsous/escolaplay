@@ -489,9 +489,9 @@ const linhas = (fonte.match(/\n/g) || []).length - (FONTES.length - 1); // como 
 const cabeca = `// GERADO a partir de mercados/onda/*.onda por \`node mercados/onda/build.mjs\` — não editar à mão.
 // Mercados — a análise toda (a API de analise.js) e o ecrã (AnaliseOnda.ecra: as vistas já passadas para a Onda)
 // escritos em Onda (${linhas} linhas, com a biblioteca de apps) e compilados para WebAssembly (${wasm.length} bytes).
-// Dá o mesmo resultado que o analise.js (mercados/tests/analise-onda*.test.mjs) e o mesmo HTML que as vistas do
-// mercados.js (mercados/tests/ecra-onda.test.mjs). Corre no browser (window.AnaliseOnda) e no Node
-// (module.exports). Depois do ready, todas as funções são síncronas.
+// Dá o mesmo resultado que o analise.js (mercados/tests/analise-onda*.test.mjs) e o mesmo HTML que os Ajustes do
+// mercados.js (mercados/tests/ecra-onda.test.mjs); a Análise já é só da Onda (mercados/tests/ecra-analise.test.mjs).
+// Corre no browser (window.AnaliseOnda) e no Node (module.exports). Depois do ready, todas as funções são síncronas.
 `;
 writeFileSync(destino, cabeca + anfitriao.replace('@WASM@', wasm.toString('base64')));
 console.log(`analise-onda.js: ${linhas} linhas de Onda, ${wasm.length} bytes de WASM → ${path.relative(raiz, destino)}`);
