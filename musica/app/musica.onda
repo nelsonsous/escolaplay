@@ -244,6 +244,27 @@
 : acesso >i { = e @ 3 ? e ? jg e k_tu ligado 0 0 }
 
 # ===== pedacos de HTML =====
+# icones dos botoes (traco 24x24, na cor do texto): 1 ligar, 2 pedir, 3 enviar, 4 ouvir, 5 onda, 6 atualizar, 7 motor,
+# 8 procurar, 9 apagar, 10 desligar, 11 esquecer, 12 juntar, 13 fixar, 14 tirar, 15 seguir, 16 guardar
+: ic i>i n {
+  "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
+  ? == n 1 "<path d=\"M10 14a3.5 3.5 0 0 0 5 0l3.5-3.5a3.5 3.5 0 0 0-5-5L12 7\"/><path d=\"M14 10a3.5 3.5 0 0 0-5 0l-3.5 3.5a3.5 3.5 0 0 0 5 5L12 17\"/>"
+  ? == n 2 "<path d=\"M12 3.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z\"/>"
+  ? == n 3 "<path d=\"M21 3 10.5 13.5\"/><path d=\"M21 3l-6.5 18-4-7.5L3 9.5z\"/>"
+  ? == n 4 "<path d=\"M8 5.5v13l10.5-6.5z\" fill=\"currentColor\"/>"
+  ? == n 5 "<path d=\"M2 12c2-5 4.5-5 6.5 0s4.5 5 6.5 0 4.5-5 6.5 0\"/>"
+  ? == n 6 "<path d=\"M20 11a8 8 0 0 0-14-5l-2 2\"/><path d=\"M4 4v4h4\"/><path d=\"M4 13a8 8 0 0 0 14 5l2-2\"/><path d=\"M20 20v-4h-4\"/>"
+  ? == n 7 "<path d=\"M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z\"/>"
+  ? == n 8 "<circle cx=\"11\" cy=\"11\" r=\"6.5\"/><path d=\"m20 20-4.2-4.2\"/>"
+  ? == n 9 "<path d=\"M4 7h16\"/><path d=\"M9 7V4.5h6V7\"/><path d=\"M6.5 7l1 12.5h9l1-12.5\"/><path d=\"M10 11v5M14 11v5\"/>"
+  ? == n 10 "<path d=\"M12 3v8\"/><path d=\"M6.6 6.6a7.5 7.5 0 1 0 10.8 0\"/>"
+  ? == n 11 "<path d=\"M9.5 4H5v16h4.5\"/><path d=\"M15 8l4 4-4 4\"/><path d=\"M19 12H9.5\"/>"
+  ? == n 12 "<path d=\"M12 5v14M5 12h14\"/>"
+  ? == n 13 "<path d=\"M9 3.5h6l-1 6 3.5 3.5h-11L10 9.5z\"/><path d=\"M12 13v7.5\"/>"
+  ? == n 14 "<path d=\"M6.5 6.5l11 11M17.5 6.5l-11 11\"/>"
+  ? == n 15 "<path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/>"
+  "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>"
+  "</svg>" 0 }
 : pill >i ? ligado { "<button type=\"button\" class=\"mu-pill on\" data-onda=\"ir&#9;5\">" pjt jg @ 3 k_utilizador "</button>" 0 } { "<button type=\"button\" class=\"mu-pill off\" data-onda=\"ir&#9;5\">Tidal desligado</button>" 0 }
 : carregar >i ? @ 3 "<p class=\"mu-nota\">A carregar…</p>" "<p class=\"mu-nota\">A ligar ao conector…</p>"
 # qualidade do som pelas etiquetas do Tidal
@@ -269,13 +290,13 @@
   ? tlen jgt f k_versao { " <span class=\"mu-nota\">(" pjt jg f k_versao ")</span>" 0 } 0
   "</div><div class=\"a\">" partistas jg f k_artistas "</div><div class=\"m\">" meta f g "</div>"
   ? tlen mo { "<div class=\"mot\">" pt mo "</div>" 0 } 0
-  ? af { "<div class=\"ctl\"><button type=\"button\" data-onda=\"fixar&#9;" N ci "\" aria-pressed=\"" ? fx "true" "false" "\">📌 fixar</button><button type=\"button\" data-onda=\"tirar&#9;" N ci "\">✕ tirar</button></div>" 0 } 0
+  ? af { "<div class=\"ctl\"><button type=\"button\" data-onda=\"fixar&#9;" N ci "\" aria-pressed=\"" ? fx "true" "false" "\">" ic 13 "fixar</button><button type=\"button\" data-onda=\"tirar&#9;" N ci "\">" ic 14 "tirar</button></div>" 0 } 0
   "</div><div class=\"dir\">" pqual jg f k_tags
   ? pq { "<span class=\"why\">" pporque pq " " N / po 10 "</span>" 0 } 0
   "</div></li>" 0 }
 
 # ===== boas-vindas (ligar o Tidal) =====
-: campo_codigo >i { "<label class=\"mu-campo\"><span>Código de ligação</span><input data-onda=\"cod\" autocapitalize=\"off\" autocomplete=\"off\" spellcheck=\"false\" value=\"" pt @ 38 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"usar\">Usar este código</button></div>" 0 }
+: campo_codigo >i { "<label class=\"mu-campo\"><span>Código de ligação</span><input data-onda=\"cod\" autocapitalize=\"off\" autocomplete=\"off\" spellcheck=\"false\" value=\"" pt @ 38 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"usar\">" ic 15 "Usar este código</button></div>" 0 }
 : boas_vindas >i {
   = e @ 3
   = cod Y 105 k_g_codigo 0
@@ -283,18 +304,18 @@
   ? ~ == jtipo jg e k_clientId 3 {
       "<div class=\"mu-card boas\"><h3>Primeiro: a tua app no Tidal</h3><p>Em <a href=\"https://developer.tidal.com/dashboard\" target=\"_blank\" rel=\"noopener\">developer.tidal.com</a> cria uma app (grátis) e, nas definições dela:</p><ul class=\"mu-tend\"><li>Redirect URI: <code>" pjt jg e k_retorno "</code></li><li>Scopes: <code>user.read collection.read playlists.read playlists.write search.read recommendations.read</code></li></ul>"
       ? || cod && ch jg e k_tu {
-          "<label class=\"mu-campo\"><span>Client ID da app</span><input data-onda=\"cid\" autocapitalize=\"off\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"copia-o do Tidal\" value=\"" pt @ 21 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"config\">Guardar e continuar</button></div>" 0 }
+          "<label class=\"mu-campo\"><span>Client ID da app</span><input data-onda=\"cid\" autocapitalize=\"off\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"copia-o do Tidal\" value=\"" pt @ 21 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"config\">" ic 15 "Guardar e continuar</button></div>" 0 }
         { "<p class=\"mu-nota\">Depois abre o link de ligação que o Claude te deu (termina em <code>?ligar=…</code>) para colares aqui o Client ID.</p>" 0 }
       "</div>" 0 }
     { ? && ch ~ jg e k_tu { "<div class=\"mu-card boas\"><h3>Este aparelho perdeu o acesso</h3><p>A chave guardada já não é válida. Cola aqui um código de ligação novo, que o Claude te dá.</p>" campo_codigo "</div>" 0 }
-      ? cod { "<div class=\"mu-card boas\"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta e o Curador (o Claude) passa a ler o teu gosto.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"ligar\">Ligar ao Tidal</button></div></div>" 0 }
+      ? cod { "<div class=\"mu-card boas\"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta e o Curador (o Claude) passa a ler o teu gosto.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"ligar\">" ic 1 "Ligar ao Tidal</button></div></div>" 0 }
       { "<div class=\"mu-card boas\"><h3>" ? ligado "Liga este aparelho" "Liga o teu Tidal" "</h3><p>Cola aqui o <b>código de ligação</b> que o Claude te deu (ou abre o link que termina em <code>?ligar=…</code>). Só serve uma vez; depois este aparelho fica com acesso.</p>" campo_codigo "</div>" 0 } }
   0 }
 
 # ===== Playlists =====
 : npendentes i>i pd { = n 0 = c jprim pd W c { ? tigual jgt c k_estado k_v_pendente { = n + n 1 0 } 0 = c jprox c } n }
 : lista_pl i>i d {
-  ? ~ jn d { "<div class=\"mu-card\"><h3>Ainda não há playlists</h3><p>O Curador cria a primeira «Onda da semana» na próxima manhã. Ou faz já um pedido.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"ir&#9;3\">Fazer um pedido</button></div></div>" 0 }
+  ? ~ jn d { "<div class=\"mu-card nada\"><h3>Ainda não há playlists</h3><p>O Curador cria a primeira «Onda da semana» na próxima manhã. Ou faz já um pedido.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"ir&#9;3\">" ic 2 "Fazer um pedido</button></div></div>" 0 }
   { "<h2 class=\"mu-sec\">As tuas playlists</h2><div class=\"mu-lista-pl\">"
     = c jprim d
     W c {
@@ -364,7 +385,7 @@
     ? ~ jn l "<p class=\"mu-nota\">Nada encontrado.</p>" {
       "<ol class=\"mu-faixas\">" = c jprim l = q 0
       W && c < q 6 {
-        "<li class=\"mu-faixa\"><span class=\"n\">" N + q 1 "</span><div><div class=\"t\">" pjt jg c k_titulo "</div><div class=\"a\">" partistas jg c k_artistas "</div><div class=\"m\">" meta c 0 "</div></div><div class=\"dir\"><button type=\"button\" class=\"mu-btn peq\" data-onda=\"juntar&#9;" N q "\">+ juntar</button></div></li>"
+        "<li class=\"mu-faixa\"><span class=\"n\">" N + q 1 "</span><div><div class=\"t\">" pjt jg c k_titulo "</div><div class=\"a\">" partistas jg c k_artistas "</div><div class=\"m\">" meta c 0 "</div></div><div class=\"dir\"><button type=\"button\" class=\"mu-btn peq\" data-onda=\"juntar&#9;" N q "\">" ic 12 "juntar</button></div></li>"
         = c jprox c = q + q 1 }
       "</ol>" 0 } } 0
   0 }
@@ -380,9 +401,9 @@
   "<div class=\"mu-campo\"><span>Máximo por artista</span><div class=\"mu-seg\" data-seg=\"maxArtista\">" seg_af 1 4 1 @ 8 "</div></div>"
   "<div class=\"mu-campo\"><span>Estilo</span><div class=\"mu-seg\" data-seg=\"estilo\">" seg_af 2 5 0 @ 9 "</div></div>"
   "<div class=\"mu-campo\"><span>Energia ao longo da playlist</span><div class=\"mu-seg\" data-seg=\"arco\">" seg_af 3 4 0 @ 10 "</div></div>"
-  "<label class=\"mu-campo\"><span>Acrescentar do Tidal</span><input type=\"search\" data-onda=\"q\" placeholder=\"artista e título\" value=\"" pt @ 23 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"procurar\">Procurar no Tidal</button></div><div id=\"af-res\">" resultados "</div>"
+  "<label class=\"mu-campo\"><span>Acrescentar do Tidal</span><input type=\"search\" data-onda=\"q\" placeholder=\"artista e título\" value=\"" pt @ 23 "\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"procurar\">" ic 8 "Procurar no Tidal</button></div><div id=\"af-res\">" resultados "</div>"
   "<div class=\"mu-motor\" id=\"af-motor\">" motor_txt "</div>"
-  "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"guardar&#9;1\">Guardar e enviar para o Tidal</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"guardar&#9;0\">Só guardar na app</button></div></div>" 0 }
+  "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"guardar&#9;1\">" ic 3 "Guardar e enviar para o Tidal</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"guardar&#9;0\">" ic 16 "Só guardar na app</button></div></div>" 0 }
 : v_playlist >i {
   "<button type=\"button\" class=\"mu-voltar\" data-onda=\"ir&#9;1\">‹ Playlists</button>"
   = d @ 4
@@ -391,9 +412,9 @@
     "<header class=\"mu-head\"><div><h1>" pjt jg d k_nome "</h1><div class=\"sub\">" N jn fx " faixas · " pmin soma_dur fx " · " pdia jgt d k_criadaEm " · " ? tigual jgt d k_por k_v_curador "✦ Curador" "por ti" "</div></div></header>"
     "<div class=\"mu-acoes\">"
     ? acesso { = td jg d k_tidal
-        ? == jtipo td 7 { "<a class=\"mu-btn\" href=\"" pjt jg td k_url "\" target=\"_blank\" rel=\"noopener\">Abrir no Tidal</a>" 0 }
-          { "<button type=\"button\" class=\"mu-btn\" data-onda=\"enviar\">Enviar para o Tidal</button>" 0 } } 0
-    ? ~ @ 6 "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"afinar\">Afinar no telemóvel</button>" 0
+        ? == jtipo td 7 { "<a class=\"mu-btn\" href=\"" pjt jg td k_url "\" target=\"_blank\" rel=\"noopener\">" ic 4 "Abrir no Tidal</a>" 0 }
+          { "<button type=\"button\" class=\"mu-btn\" data-onda=\"enviar\">" ic 3 "Enviar para o Tidal</button>" 0 } } 0
+    ? ~ @ 6 { "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"afinar\">" ic 5 "Afinar no telemóvel</button>" 0 } 0
     "</div>"
     ? tlen jgt d k_pedido { "<p class=\"mu-nota\">Pedido: «" pjt jg d k_pedido "»</p>" 0 } 0
     = rs ? tlen jgt d k_resumo jgt d k_resumo jgt d k_descricao
@@ -405,7 +426,7 @@
     "<h2 class=\"mu-sec\">Faixas</h2><ol class=\"mu-faixas\" id=\"faixas\">"
     ? @ 6 lista_afinada lista_doc fx
     "</ol><div class=\"mu-card\" style=\"margin-top:12px\"><h3>A mistura</h3>" mistura "</div><div class=\"mu-acoes\">"
-    ? == @ 28 1 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"apagar_sim\">Sim, apagar da biblioteca</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"apagar\">Apagar da biblioteca</button>"
+    ? == @ 28 1 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"apagar_sim\">Sim, apagar da biblioteca</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" { "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"apagar\">" ic 9 "Apagar da biblioteca</button>" 0 }
     "</div>" 0 }
   0 }
 
@@ -569,7 +590,7 @@
   "<div class=\"mu-campo\"><span>Máximo por artista</span><div class=\"mu-seg\">" seg_af 4 4 1 @ 25 "</div></div>"
   "<div class=\"mu-campo\"><span>Estilo</span><div class=\"mu-seg\">" seg_af 5 5 0 @ 26 "</div></div>"
   "<div class=\"mu-campo\"><span>Energia ao longo da playlist</span><div class=\"mu-seg\">" seg_af 6 4 0 @ 27 "</div></div>"
-  "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"pedir\"" ? acesso 0 " disabled" ">Pedir ao Curador</button></div><p class=\"mu-nota\">O Curador (tarefa agendada do Claude) pesquisa o que está a dar, cruza com o teu gosto e cria a playlist no Tidal às 07:44 e às 18:44.</p></div>"
+  "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"pedir\"" ? acesso 0 " disabled" ">" ic 2 "Pedir ao Curador</button></div><p class=\"mu-nota\">O Curador (tarefa agendada do Claude) pesquisa o que está a dar, cruza com o teu gosto e cria a playlist no Tidal às 07:44 e às 18:44.</p></div>"
   ? jn @ 5 { "<h2 class=\"mu-sec\">Os teus pedidos</h2><div class=\"mu-card\">" lista_pedidos @ 5 "</div>" 0 } 0
   0 }
 
@@ -595,7 +616,7 @@
   ? ~ @ 3 carregar {
     ? ~ acesso boas_vindas {
       ? ~ p carregar {
-        "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"atualizar\">Atualizar do Tidal</button></div>"
+        "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"atualizar\">" ic 6 "Atualizar do Tidal</button></div>"
         = r jg p k_resumo
         ? jn jg r k_artistas { "<div class=\"mu-card\"><h3>Artistas que mais aparecem</h3>" barras_j jg r k_artistas 0 "</div>" 0 } 0
         ? jn jg r k_decadas { "<div class=\"mu-card\"><h3>Décadas</h3>" barras_j jg r k_decadas 1 "</div>" 0 } 0
@@ -639,18 +660,18 @@
     "<div class=\"mu-card\"><h3>Tidal</h3>"
     ? ligado { "<dl class=\"mu-kv\"><dt>Conta</dt><dd>" pjt jg e k_utilizador " (" pjt jg e k_pais ")</dd><dt>Desde</dt><dd>" pdia jgt e k_ligadoEm "</dd><dt>Biblioteca</dt><dd>" N jgi e k_playlists " playlists · " N jgi e k_pedidos " pedidos à espera</dd></dl>" 0 } "<p>Não está ligado.</p>"
     "<div class=\"mu-acoes\">"
-    ? || jg e k_tu Y 105 k_g_codigo 0 { "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"ligar\">" ? ligado "Ligar outra vez" "Ligar ao Tidal" "</button>" 0 } 0
-    ? && ligado jg e k_tu { ? == @ 28 2 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"desligar_sim\">Sim, desligar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"desligar\">Desligar o Tidal</button>" 0 } 0
+    ? || jg e k_tu Y 105 k_g_codigo 0 { "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"ligar\">" ic 1 ? ligado "Ligar outra vez" "Ligar ao Tidal" "</button>" 0 } 0
+    ? && ligado jg e k_tu { ? == @ 28 2 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"desligar_sim\">Sim, desligar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" { "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"desligar\">" ic 10 "Desligar o Tidal</button>" 0 } 0 } 0
     "</div>"
     ? ~ == jtipo jg e k_clientId 3 { "<p class=\"mu-nota\">Falta o Client ID no conector. Redirect URI a registar em developer.tidal.com: <code>" pjt jg e k_retorno "</code></p>" 0 } 0
     "</div>"
     = ch Y 105 k_g_chave 0
     "<div class=\"mu-card\"><h3>Este aparelho</h3><p>" ? ch ? jg e k_tu "Tem acesso à tua biblioteca e ao teu Tidal." "Tem uma chave que já não é válida." "Ainda não tem acesso." "</p>"
-    ? ch { "<div class=\"mu-acoes\">" ? == @ 28 3 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"esquecer_sim\">Sim, esquecer</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"esquecer\">Esquecer este aparelho</button>" "</div>" 0 } 0
+    ? ch { "<div class=\"mu-acoes\">" ? == @ 28 3 "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"esquecer_sim\">Sim, esquecer</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button>" { "<button type=\"button\" class=\"mu-btn perigo\" data-onda=\"esquecer\">" ic 11 "Esquecer este aparelho</button>" 0 } "</div>" 0 } 0
     "</div>"
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
-    "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.0.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
+    "<p class=\"mu-nota\">Música 2.1.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====

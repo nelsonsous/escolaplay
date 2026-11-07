@@ -49,5 +49,7 @@
         .catch((e) => {
             document.getElementById('mu-body').innerHTML = '<p class="mu-erro">Não consegui abrir a app: ' + String(e && e.message || e).replace(/[<&]/g, '') + '</p>';
         });
+    // no iOS, o :active (o botão a afundar quando se toca) só funciona com um touchstart registado
+    document.addEventListener('touchstart', () => {}, { passive: true });
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
