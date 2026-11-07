@@ -71,15 +71,22 @@ self.addEventListener('push', (event) => {
         tag: d?.tag || 'meteo', data: { url: d?.url || './?tab=analise' },
     }));
 });
+// Tocar na notificação abre a análise completa. A app também lê o pedido numa cache à parte quando volta a ficar
+// visível (no iPhone nem sempre se pode focar a janela ou mandar-lhe mensagens).
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const scope = self.registration.scope;
-    let url = scope + '?tab=analise';
-    try { const u = new URL(event.notification.data?.url || '', scope); if (u.href.startsWith(scope)) url = u.href; } catch { /* fica a da Análise */ }
+    let url = scope + '?tab=analise&abrir=d-an';
+    try { const u = new URL(event.notification.data?.url || '', scope); if (u.href.startsWith(scope)) { u.searchParams.set('abrir', 'd-an'); url = u.href; } } catch { /* fica a da Análise */ }
     event.waitUntil((async () => {
+        try { await (await caches.open('meteonav')).put('nav', new Response(JSON.stringify({ tab: 'analise', open: 'd-an', at: Date.now() }))); } catch { /* sem cache */ }
         const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         const w = wins.find((c) => c.url.startsWith(scope));
-        if (w) { await w.focus(); w.postMessage({ type: 'tab', tab: 'analise' }); return; }
+        if (w) {
+            try { await w.focus(); } catch { /* o sistema decide */ }
+            try { w.postMessage({ type: 'tab', tab: 'analise', open: 'd-an' }); } catch { /* lê-se da cache */ }
+            return;
+        }
         await self.clients.openWindow(url);
     })());
 });

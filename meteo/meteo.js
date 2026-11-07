@@ -47,6 +47,7 @@ const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
 const saveCfg = () => api.store.set(KEY, cfg);
+let openFromLink = null; // secção «Ver mais» a abrir já (vinda da notificação)
 let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pelo endereço (aviso quando o conector responder)
 {
     const sp = new URLSearchParams(location.search);
@@ -61,12 +62,13 @@ let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pel
         ownerJust = api.setOwnerCode(sp.get('dono')) ? 'set' : 'cleared';
         sp.delete('dono'); changed = true;
     }
-    // ?tab=analise (a notificação do fim do dia abre a Análise)
+    // ?tab=analise&abrir=d-an (tocar na notificação do fim do dia abre a análise completa)
     const tb = sp.get('tab');
     if (sp.has('tab')) {
         if (tb && (TITLES[tb] || tb === 'agora')) { cfg.tab = tb; saveCfg(); }
         sp.delete('tab'); changed = true;
     }
+    if (sp.has('abrir')) { if (/^d-[a-z]+$/.test(sp.get('abrir') || '')) openFromLink = sp.get('abrir'); sp.delete('abrir'); changed = true; }
     if (changed) history.replaceState(null, '', location.pathname + (sp.toString() ? '?' + sp : '') + location.hash);
 }
 setProxy(cfg.proxy || DEFAULT_PROXY);
@@ -81,6 +83,23 @@ const st = {
     push: null, pushBusy: false, // notificações do fim do dia: { on, time, sunday, place } (do conector)
     open: new Set(), // secções «Ver mais» abertas (ficam abertas quando a página se redesenha)
 };
+if (openFromLink) st.open.add(openFromLink);
+// a notificação tocada com a app já aberta: ir para a análise completa
+function openFromNotification(n) {
+    if (!n || !TITLES[n.tab]) return;
+    cfg.tab = n.tab; saveCfg();
+    if (n.open) st.open.add(n.open);
+    closeSheet(); window.scrollTo(0, 0); render();
+}
+async function checkNav() {
+    try {
+        const c = await caches.open('meteonav'), r = await c.match('nav');
+        if (!r) return;
+        await c.delete('nav');
+        const n = await r.json();
+        if (Date.now() - n.at < 10 * 60e3) openFromNotification(n);
+    } catch { /* sem cache: fica onde está */ }
+}
 // Simples (estilo Trade Republic): o essencial à vista, o resto em «Ver mais»
 const more = (id, label, inner, cls = '') => (inner ? `<details class="more${cls ? ' ' + cls : ''}" id="${id}"${st.open.has(id) ? ' open' : ''}><summary><span>${label}</span>${ui('chevron')}</summary><div class="more-in">${inner}</div></details>` : '');
 
@@ -145,7 +164,7 @@ function init() {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
         navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) { st.updateReady = true; scheduleRender(); } });
         navigator.serviceWorker.addEventListener('message', (e) => {
-            if (e.data?.type === 'tab' && TITLES[e.data.tab]) { cfg.tab = e.data.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); }
+            if (e.data?.type === 'tab') { openFromNotification(e.data); caches.open('meteonav').then((c) => c.delete('nav')).catch(() => {}); }
         });
     }
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -155,8 +174,10 @@ function init() {
         st.iosHint = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     }
     document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkNav();
         if (document.visibilityState === 'visible' && cfg.loc && Date.now() - st.lastFetch > REFRESH_MIN * 60e3) refresh();
     });
+    checkNav();
     window.addEventListener('online', () => { if (st.offline) refresh(); });
     loadStatus();
     if (cfg.loc) setLocation(cfg.loc, { save: false });

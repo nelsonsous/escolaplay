@@ -480,7 +480,14 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem(JSON.parse(localStorage.getItem('meteo:fc-index'))[0])).fc.learning.window), null, 'a previsão guardada não repete os dias');
     await noOverflow('Análise');
     await shot('06-analise.png');
-    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos`);
+    // tocar na notificação do fim do dia abre a app na análise completa (?tab=analise&abrir=d-an, que sai do endereço)
+    await page.evaluate(() => { window.__mt.cfg.tab = 'agora'; window.__mt.render(); });
+    await page.goto(url + '?tab=analise&abrir=d-an');
+    await page.waitForSelector('#d-an[open]');
+    assert.equal(await page.evaluate(() => location.search), '');
+    assert.ok(await page.locator('#mt-nav [data-tab="analise"].on').count(), 'abre na Análise');
+    assert.ok(await page.locator('#d-an .an-sec h4:text("Hoje")').isVisible(), 'com a análise completa aberta');
+    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos; a notificação abre a análise completa`);
 
     // 6) Ajustes: conector, estado das fontes, tamanho da letra
     await tab('ajustes');
