@@ -1,13 +1,13 @@
 // Conector da app Música (Cloudflare Worker), como o meteo/proxy e o mercados/proxy: fala com a API oficial do Tidal
 // em nome do dono (OAuth com PKCE, tokens na KV), lê o teu gosto, encontra faixas e cria playlists na tua conta,
-// e guarda a biblioteca de playlists do Curador (tarefa agendada do Claude). A app em si está no GitHub Pages.
+// e guarda a biblioteca de playlists do Maestro (tarefa agendada do Claude). A app em si está no GitHub Pages.
 // Plano gratuito: 10 ms de CPU e 50 pedidos externos por pedido — o motor Onda corre no telemóvel e na tarefa
 // agendada; aqui só se fala com o Tidal, em lotes pequenos.
 import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFaixas, indexar, melhor } from '../../lib/tidal.js';
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.5.0';
+const VERSION = '1.5.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -168,7 +168,7 @@ async function estado(req, env, url) {
     return out;
 }
 
-// convites: só o dono (ou o Curador) convida; o código serve uma vez e dura 14 dias
+// convites: só o dono (ou o Maestro) convida; o código serve uma vez e dura 14 dias
 async function convidar(env, quem) {
     if (quem.tipo !== 'agente' && quem.uid !== DONO) throw new Erro(403, 'so_o_dono', 'Só quem montou a app pode convidar.');
     const codigo = aleatorio(12);
@@ -176,9 +176,9 @@ async function convidar(env, quem) {
     return { codigo, url: `${appUrl(env)}?ligar=${encodeURIComponent(codigo)}`, dias: 14 };
 }
 
-// as pessoas da app, para o Curador tratar os pedidos de cada uma (com ?u=<uid>)
+// as pessoas da app, para o Maestro tratar os pedidos de cada uma (com ?u=<uid>)
 async function utilizadores(env, quem) {
-    if (quem.tipo !== 'agente') throw new Erro(403, 'so_o_curador', 'A lista de pessoas é só para o Curador.');
+    if (quem.tipo !== 'agente') throw new Erro(403, 'so_o_curador', 'A lista de pessoas é só para o Maestro.');
     const lista = [{ uid: DONO }, ...((await env.KV.get('utilizadores', 'json')) || [])];
     return Promise.all(lista.map(async (u) => {
         const ue = deUtilizador(env, u.uid);
@@ -241,7 +241,7 @@ async function retorno(env, url) {
         us.push({ uid, nome: t.utilizador, criadoEm: t.ligadoEm });
         await env.KV.put('utilizadores', JSON.stringify(us));
     }
-    if (!(await env.KV.get('agente:chave'))) await env.KV.put('agente:chave', await novaChave(env, 'agente', 'Curador (tarefa agendada)'));
+    if (!(await env.KV.get('agente:chave'))) await env.KV.put('agente:chave', await novaChave(env, 'agente', 'Maestro (tarefa agendada)'));
     if (!est.novo) return voltar('#ligado=1');
     if (!est.convite) await env.KV.delete('codigo:ligacao');
     return voltar('#chave=' + (await novaChave(env, 'aparelho', est.nome || 'telemóvel', uid)));
@@ -536,7 +536,7 @@ async function maisComoEsta(env, c, quem) {
         opcoes: { faixas: Math.max(5, faixas.length), maxArtista: 3 }, tidal: true }, quem);
 }
 
-// ---------- para o Curador: as tuas mixes do Tidal ----------
+// ---------- para o Maestro: as tuas mixes do Tidal ----------
 const MIXES = [['descoberta', 'userDiscoveryMixes'], ['diaria', 'userDailyMixes'], ['lancamentos', 'userNewReleaseMixes']];
 // cada tipo de mix é uma lista de playlists (a Discovery Mix, as Daily Mixes…); as faixas estão dentro de cada uma
 async function mixes(env) {
@@ -557,7 +557,7 @@ async function mixes(env) {
     return { mixes: MIXES.map(([tipo], i) => ({ tipo, faixas: listas[i].map((id) => det.get(id)).filter(Boolean) })) };
 }
 
-// ---------- para o Curador: álbuns novos dos artistas que segues (os últimos `dias`) ----------
+// ---------- para o Maestro: álbuns novos dos artistas que segues (os últimos `dias`) ----------
 async function novidades(env, dias) {
     const t = await acesso(env);
     const pais = t.pais || 'PT';
@@ -587,7 +587,7 @@ async function novidades(env, dias) {
 
 async function criarNoTidal(env, d) {
     const r = await tidal(env, '/playlists', { method: 'POST', body: { data: { type: 'playlists',
-        attributes: { name: d.nome, description: d.descricao || 'Criada pelo Curador da app Música.', accessType: 'UNLISTED' } } } });
+        attributes: { name: d.nome, description: d.descricao || 'Criada pelo Maestro da app Música.', accessType: 'UNLISTED' } } } });
     const pid = r?.data?.id;
     if (!pid) throw new Erro(502, 'tidal', 'O Tidal não devolveu a playlist criada.');
     const ids = d.faixas.map((f) => f.id);
@@ -597,7 +597,7 @@ async function criarNoTidal(env, d) {
     return { id: String(pid), url: `https://tidal.com/browse/playlist/${pid}`, criadaEm: new Date().toISOString(), faixas: ids.length };
 }
 
-// ---------- pedidos ao Curador (feitos na app; a tarefa agendada trata-os) ----------
+// ---------- pedidos ao Maestro (feitos na app; a tarefa agendada trata-os) ----------
 // os pedidos feitos levam a ligação do Tidal da playlist, para se abrir logo
 async function pedidos(env) {
     const [lista, idx] = await Promise.all([env.KV.get('pedidos', 'json'), env.KV.get('playlists', 'json')]);

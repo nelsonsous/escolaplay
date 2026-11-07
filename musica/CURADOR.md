@@ -1,4 +1,4 @@
-# Curador de música (tarefa agendada do Claude)
+# Maestro de música (tarefa agendada do Claude)
 
 Procedimento que a tarefa agendada segue **duas vezes por dia: 07:44 e 18:44 (hora de Lisboa)**. Para mudar o
 comportamento, muda-se este ficheiro (e os scripts em `musica/curador/`) e faz-se merge — o agendamento usa sempre o
@@ -85,7 +85,7 @@ nesta tarefa.
      (dos anos 50 aos 2010), ~25% perto do gosto dele (artistas e géneros de que gosta, **sem** repetir favoritas);
      pelo menos 5 géneros. Opções: `"faixas": 30, "maxArtista": 2, "estilo": "descoberta", "arco": "onda"`.
    - **Pedido**: as opções do pedido (faixas, máximo por artista, estilo, arco) — copia-as para `opcoes`.
-   - Não repetir faixas das últimas playlists do Curador (lista no `dados.md`) nem favoritas dele, salvo se o pedido
+   - Não repetir faixas das últimas playlists do Maestro (lista no `dados.md`) nem favoritas dele, salvo se o pedido
      pedir.
    - Estilos: `equilibrado`, `descoberta` (mais novidade), `moda` (mais tendência), `gosto` (mais perto do que ouve),
      `audiofilo` (mais qualidade de som). Arcos: `onda` (sobe até ~2/3 e acalma), `sobe` (treino, festa), `desce`

@@ -51,5 +51,7 @@
         });
     // no iOS, o :active (o botão a afundar quando se toca) só funciona com um touchstart registado
     document.addEventListener('touchstart', () => {}, { passive: true });
+    // ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

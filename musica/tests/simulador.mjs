@@ -1,4 +1,4 @@
-// Tidal simulado (API v2 + OAuth) e KV em memória, partilhados pelos testes do Worker e do Curador.
+// Tidal simulado (API v2 + OAuth) e KV em memória, partilhados pelos testes do Worker e do Maestro.
 import assert from 'node:assert/strict';
 
 export function kv() {
