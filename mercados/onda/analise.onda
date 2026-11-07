@@ -1,0 +1,701 @@
+# Mercados — o motor de análise (analyse de mercados/analise.js e tudo o que ele usa) escrito em Onda.
+# Objetivo: o mesmo resultado que o JS, ao bit (pontuações, chaves, textos e os próprios reais).
+# O mercados/analise-onda.js é gerado a partir daqui por `node mercados/onda/build.mjs`.
+#
+# ENTRADA: um lote em palavras de 64 bits (little-endian); os reais vão em binário (sem decimais).
+#   T (palavras do lote, contando esta)  N (séries)
+#   por série: L  tipo (0 outro, 1 fund, 2 stock, 3 crypto, 4 index)  cripto (0/1)  há notícias (0/1)
+#              notícias (real)  e os L fechos crus (reais: NaN, ±Infinity, 0 e negativos são filtrados aqui)
+# Portas: `main` lê o lote do stdin (node onda/wasm/host.js analise.wasm < lote.bin);
+#         `lote b` analisa um lote já posto em M[b..] (o analise-onda.js põe-no na memória e chama esta).
+# SAÍDA: JSON — uma lista com, por série, null (menos de 30 fechos válidos) ou o objeto do analyse, com as mesmas
+#   chaves, pela mesma ordem e com os mesmos tipos. Os reais saem como no JSON.stringify (o decimal mais curto que
+#   o JSON.parse devolve com os mesmos bits; NaN e ±Infinity saem null), menos o -0, que sai "-0" para não o perder.
+#
+# Globais (M[0..59]):
+#  0 pontuação a acumular (real)   1 v (fechos válidos)   2 n   3 cripto   4 tipo   5 há notícias   6 notícias (real)
+#  7 classe do arredondamento (números)   8 buffer de v   9 área de trabalho
+# 10 p   11 sma20   12 sma50  13 há sma50   14 sma50 de há 10 sessões  15 há   16 rsi
+# 17 há macd  18 linha  19 sinal  20 hist  21 hist anterior
+# 22 ret1m  23 há  24 ret3m  25 há  26 vol  27 há vol  28 drawdown (6 meses)  29 sma200  30 há sma200
+# 31 pontuação (médio)  32 curto  33 longo  34 há longo  35 desconto do longo (real)
+# 36 dd do ano  37 pos  38 hi  39 lo  40 nível (0 none 1 small 2 good 3 deep)  41 veredicto  42 tom  43 etiqueta
+# 44 oportunidade  45 pontuação do desconto (real: é NaN se o RSI for NaN)  46 tendência longa (-1 null, 0 false, 1 true)
+# 47 conselho  48 ação  49 tom  50 texto  51 nível inválido (endereço ou 0)  52 risco (0 na 1 low 2 mid 3 high 4 xhigh)
+# 53 máximo e 54 mínimo do último ano (v.slice(-252))
+# Tons: 0 up, 1 flat, 2 down.
+
+# ---------- área de trabalho (reservada uma vez por lote) ----------
+# listas de razões: M[l] = quantas; a razão i em M[l+1+4i ..] = pts (real, já arredondado), texto, x (real), k
+: wr >i @ 9
+: lM >i + @ 9 64
+: lS >i + @ 9 128
+: lL >i + @ 9 168
+: lN >i + @ 9 208
+# plano: M[l] = quantos; item i em M[l+1+2i ..] = texto, preço (real)
+: lP >i + @ 9 248
+# níveis crus [preço, nome, peso] e juntos [preço, nome, peso, maior peso]
+: lR >i + @ 9 260
+: lG >i + @ 9 1044
+# suportes e resistências escolhidos (endereços de níveis juntos) e uma lista temporária
+: lU >i + @ 9 2088
+: lZ >i + @ 9 2092
+: lT >i + @ 9 2216
+# inteiro grande e algarismos (números exatos)
+: bA >i + @ 9 2096
+: dg >i + @ 9 2176
+
+# ---------- Math do JS ----------
+# Math.max / Math.min: NaN contamina e +0 > -0 (o Mx/Mn da Onda não distinguem os zeros)
+: jmax ff>f a b ? > a b a ? > b a b ? && == a b != a 0. a + a b
+: jmin ff>f a b ? < a b a ? < b a b ? && == a b != a 0. a * -1. + * -1. a * -1. b
+: clamp fff>f x a b jmax a jmin b x
+# Math.round: o inteiro mais próximo, empates para +∞; dá -0 em [-0.5, 0)
+: jround f>f x { = r Fl x = r ? >= - x r 0.5 + r 1. r ? == r 0. * x 0. r }
+: finito f>i x != & >> Bh x 20 2047 2047
+
+# ---------- estatística: as mesmas operações, pela mesma ordem, que o JS ----------
+# sma(v.slice(0, len), k): média dos k valores que acabam antes de len
+: sma iii>f v len k { = s 0. = i - len k W < i len { = s + s @f + v i = i + i 1 } / s F k }
+# máximo / mínimo de v[a..b)
+: vmax iii>f v a b { = m @f + v a = i + a 1 W < i b { = x @f + v i = m ? > x m x m = i + i 1 } m }
+: vmin iii>f v a b { = m @f + v a = i + a 1 W < i b { = x @f + v i = m ? < x m x m = i + i 1 } m }
+# v[i] === Math.max(...v.slice(i-5, i+6)) (dir 1) ou o Math.min (dir 0): nenhum vizinho passa v[i]
+: extremo iii>i v i dir {
+  = x @f + v i = j - i 5 = ok 1
+  W && ok <= j + i 5 { = y @f + v j = ok ? dir <= y x >= y x = j + j 1 }
+  ok }
+# RSI de Wilder (14)
+: rsi ii>f v n {
+  = g 0. = l 0.
+  = i 1 W <= i 14 { = d - @f + v i @f + v - i 1 ? >= d 0. { = g + g d 0 } { = l - l d 0 } = i + i 1 }
+  = g / g 14. = l / l 14.
+  = i 15 W < i n {
+    = d - @f + v i @f + v - i 1
+    = g / + * g 13. ? > d 0. d 0. 14.
+    = l / + * l 13. ? < d 0. * -1. d 0. 14.
+    = i + i 1 }
+  ? == l 0. ? == g 0. 50. 100. - 100. / 100. + 1. / g l }
+# MACD (12, 26, 9) em fluxo, com as EMA do emaSeries do JS: M[17] = há (n >= 35), M[18..21] = linha, sinal, hist, anterior
+: macd ii>i v n {
+  ! 17 0
+  ? >= n 35 {
+    = k1 / 2. 13. = c1 - 1. k1
+    = k2 / 2. 27. = c2 - 1. k2
+    = k3 / 2. 10. = c3 - 1. k3
+    = a 0. = i 0 W < i 12 { = a + a @f + v i = i + i 1 } = a / a 12.
+    = i 12 W < i 26 { = a + * @f + v i k1 * a c1 = i + i 1 }
+    = b 0. = i 0 W < i 26 { = b + b @f + v i = i + i 1 } = b / b 26.
+    # a e b são as EMA 12 e 26 depois de v[25]: a linha começa aí; o sinal é a EMA 9 da linha
+    = ln - a b
+    = sg + 0. ln
+    = i 26 W < i 34 { = a + * @f + v i k1 * a c1 = b + * @f + v i k2 * b c2 = ln - a b = sg + sg ln = i + i 1 }
+    = sg / sg 9.
+    = lp ln = sp sg
+    W < i n {
+      = lp ln = sp sg
+      = a + * @f + v i k1 * a c1
+      = b + * @f + v i k2 * b c2
+      = ln - a b
+      = sg + * ln k3 * sg c3
+      = i + i 1 }
+    ! 17 1 !f 18 ln !f 19 sg !f 20 - ln sg !f 21 - lp sp 0 } 0 }
+# volatilidade anualizada dos últimos 60 retornos (logaritmos); M[27] = há
+: vol iii>f v n dias {
+  = r wr
+  = a ? > n 61 - n 61 0
+  ! 27 0
+  ? < - n a 10 0. {
+    = m 0 = i + a 1
+    W < i n { ? > @f + v - i 1 0. { !f + r m Lg / @f + v i @f + v - i 1 = m + m 1 0 } 0 = i + i 1 }
+    = s 0. = j 0 W < j m { = s + s @f + r j = j + j 1 }
+    = mu / s F m
+    = q 0. = j 0 W < j m { = d - @f + r j mu = q + q * d d = j + j 1 }
+    ! 27 1
+    * Sq / q F ? > - m 1 1 - m 1 1 Sq F dias } }
+# ret(v, k) do JS: há se n > k e v[n-1-k] > 0
+: hret iii>i v n k && > n k > @f + v - - n 1 k 0.
+: ret iii>f v n k - / @f + v - n 1 @f + v - - n 1 k 1.
+
+# ---------- razões ----------
+: lini i>i l { ! l 0 0 }
+: lpush ififi>i l pts c x k { = q + + l 1 * @ l 4 !f q pts ! + q 1 c !f + q 2 x ! + q 3 k ! l + @ l 1 0 }
+# o add do JS: soma os pontos (sem arredondar) à pontuação M[0] e guarda-os arredondados
+: ladd ififi>i l pts c x k { !f 0 + @f 0 pts lpush l jround pts c x k }
+# ordena por |pts| decrescente, estável (o sort do JS com (a, b) => |b.pts| - |a.pts|)
+: lsort i>i l {
+  = n @ l = i 1
+  W < i n {
+    = a + + l 1 * i 4
+    = t0 @ a = t1 @ + a 1 = t2 @ + a 2 = t3 @ + a 3
+    = kk Ab @f a
+    = j - i 1
+    W && >= j 0 < Ab @f + + l 1 * j 4 kk {
+      = s + + l 1 * j 4
+      ! + s 4 @ s ! + s 5 @ + s 1 ! + s 6 @ + s 2 ! + s 7 @ + s 3
+      = j - j 1 }
+    = s + + l 1 * + j 1 4
+    ! s t0 ! + s 1 t1 ! + s 2 t2 ! + s 3 t3
+    = i + i 1 }
+  0 }
+
+# ---------- a análise (v = M[1], n = M[2] >= 30) ----------
+: metricas >i {
+  = v @ 1 = n @ 2
+  = p @f + v - n 1 !f 10 p
+  !f 11 sma v n 20
+  ! 13 >= n 50 !f 12 ? @ 13 sma v n 50 0.
+  ! 15 >= n 60 !f 14 ? @ 15 sma v - n 10 50 0.
+  !f 16 rsi v n
+  macd v n
+  ! 23 hret v n 21 !f 22 ? @ 23 ret v n 21 0.
+  ! 25 hret v n 63 !f 24 ? @ 25 ret v n 63 0.
+  !f 26 vol v n ? @ 3 365 252
+  !f 28 - / p vmax v ? > n 126 - n 126 0 n 1.
+  = a ? > n 252 - n 252 0 !f 53 vmax v a n !f 54 vmin v a n
+  ! 30 >= n 200 !f 29 ? @ 30 sma v n 200 0.
+  = vo @f 26
+  ! 52 ? ~ @ 27 0 ? < vo 0.2 1 ? < vo 0.4 2 ? < vo 0.7 3 4
+  0 }
+
+# médio prazo (o analyse em si)
+: medio >i {
+  = li lM lini li !f 0 50.
+  = p @f 10 = s20 @f 11 = s50 @f 12 = r @f 16 = dd @f 28
+  ? > p s20 ladd li 8. 1 0. 0 ladd li -8. 2 0. 0
+  ? @ 13 {
+    ? > p s50 ladd li 10. 3 0. 0 ladd li -10. 4 0. 0
+    ? > s20 s50 ladd li 7. 5 0. 0 ladd li -7. 6 0. 0 } 0
+  ? && @ 13 @ 15 { = sl - / s50 @f 14 1. ? > sl 0. ladd li 5. 7 0. 0 ladd li -5. 8 0. 0 } 0
+  ? @ 23 { = x @f 22 ladd li clamp * * x 100. 0.6 -10. 10. 9 x 0 } 0
+  ? @ 25 { = x @f 24 ladd li clamp * * x 100. 0.25 -8. 8. 10 x 0 } 0
+  = rr jround r
+  ? >= r 80. ladd li -12. 11 rr 0 ? >= r 70. ladd li -7. 12 rr 0 ? >= r 50. ladd li 4. 13 rr 0
+    ? >= r 30. ladd li -2. 14 rr 0 ladd li 7. 15 rr 0
+  ? @ 17 {
+    = h @f 20 = hp @f 21
+    ? && > h 0. > h hp ladd li 6. 16 0. 0 ? > h 0. ladd li 3. 17 0. 0 ? < h hp ladd li -6. 18 0. 0 ladd li -3. 19 0. 0 } 0
+  ? && && < dd -0.3 @ 13 < p s50 ladd li -5. 20 dd 0 ? > dd -0.03 lpush li 0. 21 0. 0 0
+  ? && @ 5 >= Ab @f 6 0.2 { = w @f 6 ladd li clamp * w 8. -6. 6. ? > w 0. 22 23 0. 0 } 0
+  ! 31 I jround clamp @f 0 0. 100.
+  lsort li }
+
+# curto prazo (shortTerm)
+: curto >i {
+  = li lS lini li !f 0 50.
+  = p @f 10 = r @f 16
+  = rr jround r
+  ? < r 30. ladd li 10. 30 rr 0 ? < r 45. ladd li -2. 31 rr 0 ? <= r 65. ladd li 4. 13 rr 0
+    ? <= r 75. ladd li -4. 32 rr 0 ladd li -10. 33 rr 0
+  ? @ 17 {
+    = h @f 20 = hp @f 21
+    ? && > h 0. > h hp ladd li 8. 16 0. 0 ? > h 0. ladd li 3. 34 0. 0 ? < h hp ladd li -8. 18 0. 0 ladd li 2. 35 0. 0 } 0
+  = g - / p @f 11 1.
+  ? < g -0.08 ladd li 4. 36 g 0 ? > g 0.1 ladd li -4. 37 g 0 ? > g 0. ladd li 6. 38 0. 0 ladd li -6. 39 0. 0
+  ? hret @ 1 @ 2 5 { = x ret @ 1 @ 2 5 ladd li clamp * * x 100. 0.8 -8. 8. 40 x 0 } 0
+  ! 32 I jround clamp @f 0 0. 100.
+  lsort li }
+
+# longo prazo (longTerm): só com 120 fechos ou mais
+: longo >i {
+  = v @ 1 = n @ 2
+  ! 34 >= n 120
+  ? @ 34 {
+    = li lL lini li !f 0 50.
+    = p @f 10
+    = m ? < 200 - n 20 200 - n 20
+    = sl sma v n m = sp sma v - n 20 m
+    = up > sl sp
+    ? > p sl ladd li 12. 50 0. m ladd li -12. 51 0. m
+    ? up ladd li 8. 52 0. m ladd li -8. 53 0. m
+    = k ? < 252 - n 1 252 - n 1
+    ? hret v n k { = x ret v n k ladd li clamp * * x 100. 0.15 -10. 10. 54 x 0 } 0
+    = d - / p @f 53 1.
+    !f 35 d
+    ? && <= d -0.1 up ladd li 8. 55 d 0 ? && <= d -0.25 ~ up ladd li -6. 56 d 0
+      ? > d -0.03 lpush li 0. 57 0. 0 lpush li 0. 58 d 0
+    ? @ 27 {
+      = vo @f 26 = vp jround * vo 100.
+      ? < vo 0.2 ladd li 6. 59 vp 0 ? > vo 0.7 ladd li -14. 60 vp 0 ? > vo 0.4 ladd li -8. 61 vp 0 0 } 0
+    = t @ 4
+    ? == t 1 ladd li 4. 62 0. 0 ? == t 2 ladd li -4. 63 0. 0 ? == t 3 ladd li -4. 64 0. 0 0
+    ! 33 I jround clamp @f 0 0. 100.
+    lsort li } 0 }
+
+# desconto (discountOf)
+: desconto >i {
+  = v @ 1 = n @ 2 = p @f 10 = r @f 16
+  # Math.max(...yr, p) e Math.min(...yr, p)
+  = hi jmax @f 53 p = lo jmin @f 54 p
+  = dd - / p hi 1.
+  !f 36 dd !f 38 hi !f 39 lo
+  !f 37 ? > hi lo / - p lo - hi lo 1.
+  = m ? < 200 - n 20 200 - n 20
+  = hs >= n 120
+  = sl ? hs sma v n m 0. = sp ? hs sma v - n 20 m 0.
+  = lu ? hs > sl sp -1
+  ! 46 lu
+  = lv ? > dd -0.05 0 ? > dd -0.15 1 ? > dd -0.3 2 3
+  ! 40 lv
+  = no lN lini no
+  lpush no 0. 70 dd 0
+  ? hs { ? < p sl lpush no 0. 71 - / p sl 1. m lpush no 0. 72 0. m } 0
+  = rr jround r
+  ? < r 30. lpush no 0. 73 rr 0 ? < r 40. lpush no 0. 74 rr 0 ? > r 70. lpush no 0. 12 rr 0 lpush no 0. 75 rr 0
+  ? >= lu 0 lpush no 0. ? lu 76 77 0. 0 0
+  ! 44 0
+  ? == lv 0 { ! 41 0 ! 42 1 ! 43 0 0 }
+  ? && == lu 0 <= dd -0.15 { ! 41 1 ! 42 2 ! 43 1 0 }
+  ? && != lu 0 || <= dd -0.08 < r 35. {
+      ! 44 1 ! 42 0 ! 43 2 ! 41 ? < r 30. 2 3
+      ? < @ 31 25 { ! 43 3 ! 42 1 ! 41 4 lpush no 0. 78 0. 0 } 0 }
+    { ! 41 ? == lu 1 5 6 ! 42 1 ! 43 + 10 lv 0 }
+  # 0–100: desconto + sobrevenda, com a tendência longa a favor
+  = sa clamp * * -1. dd 200. 0. 60.
+  = sb clamp * - 50. r 1.2 -15. 25.
+  = sc ? == lu 1 15. ? == lu 0 -20. 0.
+  = sd ? < @ 31 25 15. 0.
+  !f 45 jround clamp - + + sa sb sc sd 0. 100.
+  0 }
+
+# níveis-chave (levels): candidatos [preço, nome, peso]; nomes 1..7 como em pnome
+: nadd ifii>i cr x c w {
+  ? && finito x > x 0. { = q + + cr 1 * @ cr 3 !f q x ! + q 1 c ! + q 2 w ! cr + @ cr 1 0 } 0 }
+# ordena os candidatos por preço a subir, estável
+: nsort i>i cr {
+  = n @ cr = i 1
+  W < i n {
+    = a + + cr 1 * i 3 = t0 @ a = t1 @ + a 1 = t2 @ + a 2 = kk @f a
+    = j - i 1
+    W && >= j 0 > @f + + cr 1 * j 3 kk {
+      = s + + cr 1 * j 3 ! + s 3 @ s ! + s 4 @ + s 1 ! + s 5 @ + s 2 = j - j 1 }
+    = s + + cr 1 * + j 1 3 ! s t0 ! + s 1 t1 ! + s 2 t2
+    = i + i 1 }
+  0 }
+# dos níveis juntos, os abaixo de lim (dir 1, do mais alto para baixo) ou acima (dir 0, a subir); os 3 primeiros
+: escolhe iiif>i jt u dir lim {
+  = tt lT ! tt 0
+  = j 0 W < j @ jt {
+    = m + + jt 1 * j 4 = x @f m
+    ? ? dir < x lim > x lim { ! + + tt 1 @ tt m ! tt + @ tt 1 0 } 0
+    = j + j 1 }
+  = i 1 W < i @ tt {
+    = t @ + + tt 1 i = kx @f t
+    = j - i 1
+    W && >= j 0 ? dir < @f @ + + tt 1 j kx > @f @ + + tt 1 j kx { ! + + tt 2 j @ + + tt 1 j = j - j 1 }
+    ! + + tt 2 j t
+    = i + i 1 }
+  ! u ? > @ tt 3 3 @ tt
+  = j 0 W < j @ u { ! + + u 1 j @ + + tt 1 j = j + j 1 }
+  0 }
+: niveis >i {
+  = v @ 1 = n @ 2 = p @f 10
+  = cr lR lini cr
+  ? >= n 20 nadd cr sma v n 20 1 1 0
+  ? >= n 50 nadd cr sma v n 50 2 2 0
+  ? >= n 200 nadd cr sma v n 200 3 3 0
+  nadd cr @f 53 4 3
+  nadd cr @f 54 5 3
+  # topos e fundos recentes: extremos locais (±5 sessões) nos últimos ~6 meses
+  = i ? > 5 - n 130 5 - n 130
+  W < i - n 5 {
+    = x @f + v i
+    ? extremo v i 1 nadd cr x 6 1 0
+    ? extremo v i 0 nadd cr x 7 1 0
+    = i + i 1 }
+  nsort cr
+  # juntar níveis a menos de 1,5% uns dos outros (fica o de maior peso; os pesos somam-se)
+  = jt lG lini jt
+  = j 0
+  W < j @ cr {
+    = q + + cr 1 * j 3 = x @f q = c @ + q 1 = w @ + q 2
+    = m + + jt 1 * - @ jt 1 4
+    ? && > @ jt 0 < Ab - / x @f m 1. 0.015 {
+        ? > w @ + m 3 { !f m x ! + m 1 c ! + m 3 w 0 } 0
+        ! + m 2 + @ + m 2 w 0 }
+      { = m + + jt 1 * @ jt 4 !f m x ! + m 1 c ! + m 2 w ! + m 3 w ! jt + @ jt 1 0 }
+    = j + j 1 }
+  escolhe jt lU 1 * p 0.995
+  escolhe jt lZ 0 * p 1.005
+  0 }
+
+# o que fazer (advise): textos e preços do plano como em pplano
+: plano iif>i pl t x { = q + + pl 1 * @ pl 2 ! q t !f + q 1 x ! pl + @ pl 1 0 }
+: conselho >i {
+  = lh ? @ 34 @ 33 @ 31
+  = md @ 31
+  = p @f 10 = r @f 16
+  = su lU = re lZ
+  = s1 ? > @ su 0 @ + su 1 0
+  = s2 ? > @ su 1 @ + su 2 0
+  = s3 ? > @ su 2 @ + su 3 0
+  = r1 ? > @ re 0 @ + re 1 0
+  = pl lP ! pl 0
+  ! 51 0
+  ? && >= lh 58 >= md 58 {
+      ? > r 72. { ! 47 0 ! 48 0 ! 49 1 ! 50 0 ? s1 plano pl 1 @f s1 0 }
+        { ! 47 1 ! 48 1 ! 49 0 ! 50 1 plano pl 2 p ? s1 plano pl 3 @f s1 0 }
+      ! 51 ? s2 s2 s1 0 }
+  ? && && >= lh 58 @ 44 >= md 25 {
+      ! 47 2 ! 48 2 ! 49 0 ! 50 2
+      plano pl 4 p
+      ? s1 plano pl 5 @f s1 0
+      ? s2 plano pl 5 @f s2 ? r1 plano pl 6 @f r1 0
+      ! 51 ? s3 s3 ? s2 s2 s1 0 }
+  ? >= lh 58 {
+      ! 47 3 ! 48 ? < md 25 3 4 ! 49 1 ! 50 ? < md 25 3 4
+      ? s1 plano pl ? < md 25 7 8 @f s1 0
+      ? > @f 11 p plano pl 9 @f 11 0
+      ! 51 ? s2 s2 s1 0 }
+  ? >= lh 42 {
+      ! 47 4 ! 48 5 ! 49 1 ! 50 5
+      ? s1 plano pl 10 @f s1 0
+      ? r1 plano pl 11 @f r1 0 0 }
+  ? >= md 42 {
+      ! 47 5 ! 48 6 ! 49 1 ! 50 6
+      ? && @ 30 > @f 29 p plano pl 12 @f 29 ? r1 plano pl 12 @f r1 0 0 }
+    { ! 47 6 ! 48 7 ! 49 2 ! 50 7
+      ? && @ 13 > @f 12 p plano pl 13 @f 12 ? r1 plano pl 13 @f r1 0
+      ? s1 plano pl 14 @f s1 0 0 }
+  0 }
+
+# ---------- números exatos ----------
+# inteiros grandes: M[b] = número de limbs; M[b+1..] em base 2^32, do menos significativo
+: bset ii>i b x { ! b 0 ? x { ! + b 1 & x 4294967295 ! b 1 = h >> x 32 ? h { ! + b 2 h ! b 2 0 } 0 } 0 }
+: bmul ii>i b m {
+  = n @ b = c 0 = i 1
+  W <= i n { = t + * @ + b i m c ! + b i & t 4294967295 = c >> t 32 = i + i 1 }
+  ? c { ! + + b n 1 c ! b + n 1 0 } 0 }
+: bp10 ii>i b s { W >= s 9 { bmul b 1000000000 = s - s 9 } = m 1 W > s 0 { = m * m 10 = s - s 1 } ? > m 1 bmul b m 0 }
+: bshl ii>i b s {
+  = w / s 32 = r % s 32 = n @ b
+  ? r {
+    = c 0 = i 1
+    W <= i n { = t | << @ + b i r c ! + b i & t 4294967295 = c >> t 32 = i + i 1 }
+    ? c { ! + + b n 1 c = n + n 1 0 } 0 } 0
+  ? && w n { = i n W >= i 1 { ! + + b i w @ + b i = i - i 1 } = i 1 W <= i w { ! + b i 0 = i + i 1 } = n + n w 0 } 0
+  ! b n 0 }
+# divide por m (pequeno) no lugar; devolve o resto
+: bdiv ii>i b m {
+  = n @ b = r 0 = i n
+  W >= i 1 { = c + << r 32 @ + b i ! + b i / c m = r % c m = i - i 1 }
+  W && > n 0 == @ + b n 0 = n - n 1
+  ! b n r }
+: limb ii>i b j ? && >= j 0 < j @ b @ + + b 1 j 0
+: bget i>i b | limb b 0 << limb b 1 32
+# A / 2^k arredondado para baixo; M[7] = 2·(bit k-1) + (há bits abaixo dele): 0 exato, 1 < meio, 2 meio, 3 > meio
+: bext ii>i b k {
+  = wi / k 32 = bo % k 32
+  = d >> limb b wi bo
+  = d ? bo | | d << limb b + wi 1 - 32 bo << limb b + wi 2 - 64 bo | d << limb b + wi 1 32
+  = k1 - k 1 = w1 / k1 32 = b1 % k1 32
+  = hb & >> limb b w1 b1 1
+  = st != & limb b w1 - << 1 b1 1 0
+  = j 0 W && ~ st < j w1 { = st != limb b j 0 = j + j 1 }
+  ! 7 + * 2 hb st
+  d }
+# A / 10^t arredondado para baixo; M[7] como no bext
+: bd10 ii>i b t {
+  = r 0 = st 0 = j 0
+  W < j t { = st || st r = r bdiv b 10 = j + j 1 }
+  ! 7 ? > r 5 3 ? == r 5 ? st 3 2 ? || r st 1 0
+  bget b }
+# floor(c · 10^s · 2^q / 4) (cabe em int64 aqui); M[7] = classe do resto face a meio, como no bext
+: bq iiii>i c s q b {
+  bset b c
+  ? > q 0 bshl b q 0
+  ? > s 0 bp10 b s 0
+  ? < s 0 {
+      = y bd10 b - 0 s
+      = c10 @ 7 = r2 & y 3
+      ! 7 ? > r2 2 3 ? == r2 2 ? c10 3 2 ? || r2 c10 1 0
+      >> y 2 }
+    { bext b + 2 ? < q 0 - 0 q 0 } }
+# d × 10^(e-16) (10^16 <= d < 10^17) no formato do Number#toString do JS, sem os zeros finais (sep no lugar do ponto)
+: pdig iii>i d e sep {
+  = b dg
+  = j 16 W >= j 0 { ! + b j + 48 % d 10 = d / d 10 = j - j 1 }
+  = k 17 W && > k 1 == @ + b - k 1 48 = k - k 1
+  = n + e 1
+  ? && <= k n <= n 21 { = j 0 W < j k { P @ + b j = j + j 1 } W < j n { P '0 = j + j 1 } 0 }
+  ? && > n 0 <= n 21 { = j 0 W < j n { P @ + b j = j + j 1 } P sep W < j k { P @ + b j = j + j 1 } 0 }
+  ? && > n -6 <= n 0 { P '0 P sep = j 0 W < j - 0 n { P '0 = j + j 1 } = j 0 W < j k { P @ + b j = j + j 1 } 0 }
+  { P @ b ? > k 1 { P sep = j 1 W < j k { P @ + b j = j + j 1 } 0 } 0
+    P 'e ? > n 0 { P '+ N - n 1 } { P '- N - 1 n } } }
+# v > 0 finito, como o Number#toString do JS: o decimal mais curto que o JSON.parse devolve como v (dos mais curtos,
+# o mais perto de v; empate: o par). Contas exatas numa grelha de 17 algarismos: V = v·10^(16-e), em [10^16, 10^17).
+: pnz fi>i v sep {
+  = hx Bh v
+  = ex & >> hx 20 2047
+  = f | << & hx 1048575 32 Bl v
+  = f ? ex | f 4503599627370496 f
+  = q ? ex - ex 1075 -1074
+  # estimativa de floor(log10 v), certa a menos de 1; o inteiro grande corrige-a
+  = e I Fl * Lg v 0.4342944819032518
+  = b bA = d 0 = go 1
+  W go {
+    = d bq * 4 f - 16 e q b
+    ? >= d 100000000000000000 { = e + e 1 0 } ? < d 10000000000000000 { = e - e 1 0 } { = go 0 0 } }
+  = cv @ 7
+  = s - 16 e
+  # o intervalo que volta a dar v: meio caminho até aos vizinhos (incluído se f é par); abaixo de uma potência
+  # de 2 o vizinho está a meia distância
+  = inc == & f 1 0
+  = hi bq + * 4 f 2 s q b
+  = hi ? && == @ 7 0 ~ inc - hi 1 hi
+  = lo bq - * 4 f ? && == f 4503599627370496 > ex 1 1 2 s q b
+  = lo + lo ? @ 7 1 ? inc 0 1
+  # o maior passo 10^t com um múltiplo dentro do intervalo; depois o múltiplo mais perto de V (empate: par)
+  = m 100000000000000000 = t 17
+  W && > t 0 < * / hi m m lo { = m / m 10 = t - t 1 }
+  = c0 * / d m m = c1 + c0 m
+  = dl - d c0
+  = w ? <= + * 2 dl 2 m -1 ? >= * 2 dl + m 1 1 ? == * 2 dl m ? cv 1 0 ? == cv 3 1 ? == cv 2 0 -1
+  = r ? && >= c0 lo <= c1 hi { ? < w 0 c0 ? > w 0 c1 ? == & / c0 m 1 0 c0 c1 } ? >= c0 lo c0 c1
+  ? == r 100000000000000000 { = r 10000000000000000 = e + e 1 0 } 0
+  pdig r e sep }
+# um real no JSON, como o JSON.stringify (NaN e ±Infinity saem null), mas o -0 sai "-0"
+: pnum f>i x ? ~ finito x "null" { ? < Bh x 0 P '- 0 ? == x 0. P '0 pnz Ab x 46 }
+: pnul if>i h x ? h pnum x "null"
+# um inteiro (real) num texto, como o `${x}` do JS
+: pintf f>i x ? != x x "NaN" ? ~ finito x { ? < x 0. P '- 0 "Infinity" } ? < Ab x 9000000000000000000. N I x pnum x
+# o inteiro y (real, 2^52 <= y < 1e21) por extenso
+: pinteiro f>i y ? < y 9000000000000000000. N I y {
+  = hx Bh y
+  = f | | << & hx 1048575 32 Bl y 4503599627370496
+  = b bA bset b f bshl b - & >> hx 20 2047 1075
+  = g dg = j 0 W > @ b 0 { ! + g j + 48 bdiv b 10 = j + j 1 }
+  W > j 0 { = j - j 1 P @ + g j } }
+# (y).toFixed(1) com a vírgula, y >= 0 finito e < 1e21: o inteiro t mais perto de 10y (empate: o maior), t/10
+: tofix1 f>i y {
+  = hx Bh y = ex & >> hx 20 2047
+  = m | << & hx 1048575 32 Bl y
+  = m ? ex | m 4503599627370496 m
+  = q ? ex - ex 1075 -1074
+  ? >= q 0 { pinteiro y ",0" } {
+    = k - 0 q
+    = t ? > k 57 0 >> + * m 10 << 1 - k 1 k
+    N / t 10 P ', N % t 10 } }
+# pct do JS: (x >= 0 ? '+' : '') + (x * 100).toFixed(1).replace('.', ',') + '%'
+# o toFixed arredonda o valor exato de x*100; -0.04 dá "-0.0" e -0 dá "0.0"
+: pct f>i x {
+  ? >= x 0. P '+ 0
+  = y * x 100.
+  ? != y y "NaN" {
+    ? < y 0. { P '- = y * -1. y 0 } 0
+    ? ~ finito y "Infinity" ? >= y 1000000000000000000000. pnz y 44 tofix1 y }
+  P '% }
+
+# ---------- textos (copiados letra a letra de analise.js) ----------
+# razões e notas: c = código, x = real (percentagem ou inteiro), k = inteiro (dias)
+: ptxt ifi>i c x k ? < c 30 txa c x k ? < c 50 txb c x k ? < c 70 txc c x k txd c x k
+: txa ifi>i c x k
+  ? == c 1 "Preço acima da média de 20 dias"
+  ? == c 2 "Preço abaixo da média de 20 dias"
+  ? == c 3 "Acima da média de 50 dias (tendência de fundo positiva)"
+  ? == c 4 "Abaixo da média de 50 dias (tendência de fundo negativa)"
+  ? == c 5 "Média curta acima da longa (tendência a subir)"
+  ? == c 6 "Média curta abaixo da longa (tendência a descer)"
+  ? == c 7 "Média de 50 dias a inclinar para cima"
+  ? == c 8 "Média de 50 dias a inclinar para baixo"
+  ? == c 9 { "Último mês: " pct x }
+  ? == c 10 { "Últimos 3 meses: " pct x }
+  ? == c 11 { "RSI " pintf x ": muito esticado, risco de correção" }
+  ? == c 12 { "RSI " pintf x ": sobrecomprado" }
+  ? == c 13 { "RSI " pintf x ": momento saudável" }
+  ? == c 14 { "RSI " pintf x ": momento fraco" }
+  ? == c 15 { "RSI " pintf x ": sobrevendido, pode ressaltar" }
+  ? == c 16 "MACD positivo e a acelerar"
+  ? == c 17 "MACD positivo"
+  ? == c 18 "MACD negativo e a piorar"
+  ? == c 19 "MACD negativo mas a melhorar"
+  ? == c 20 { pct x " abaixo do máximo de 6 meses" }
+  ? == c 21 "Perto do máximo de 6 meses"
+  ? == c 22 "Notícias recentes com tom positivo"
+  "Notícias recentes com tom negativo"
+: txb ifi>i c x k
+  ? == c 30 { "RSI " pintf x ": sobrevendido, ressalto provável" }
+  ? == c 31 { "RSI " pintf x ": sem força" }
+  ? == c 32 { "RSI " pintf x ": a ficar esticado" }
+  ? == c 33 { "RSI " pintf x ": sobrecomprado, correção provável" }
+  ? == c 34 "MACD positivo mas a abrandar"
+  ? == c 35 "MACD negativo mas a melhorar (pode virar)"
+  ? == c 36 { pct x " abaixo da média de 20 dias: muito esticado para baixo" }
+  ? == c 37 { pct x " acima da média de 20 dias: muito esticado para cima" }
+  ? == c 38 "Acima da média de 20 dias"
+  ? == c 39 "Abaixo da média de 20 dias"
+  { "Últimos 5 dias: " pct x }
+# (no longo, `média de ${n} dias` também cobre o 'média de 200 dias' do JS: n vale 200 nesse caso)
+: txc ifi>i c x k
+  ? == c 50 { "Acima da média de " N k " dias: tendência longa positiva" }
+  ? == c 51 { "Abaixo da média de " N k " dias: tendência longa negativa" }
+  ? == c 52 { "A média de " N k " dias continua a subir" }
+  ? == c 53 { "A média de " N k " dias está a descer" }
+  ? == c 54 { "Último ano: " pct x }
+  ? == c 55 { pct x " abaixo do máximo do ano com a tendência longa a subir: desconto para ir comprando aos poucos" }
+  ? == c 56 { pct x " abaixo do máximo do ano e ainda em queda prolongada" }
+  ? == c 57 "Perto do máximo do ano (sem desconto)"
+  ? == c 58 { pct x " abaixo do máximo do ano" }
+  ? == c 59 { "Pouco volátil (" pintf x "%/ano): fácil de manter anos" }
+  ? == c 60 { "Muito volátil (" pintf x "%/ano): difícil de aguentar a prazo" }
+  ? == c 61 { "Volátil (" pintf x "%/ano): exige estômago a prazo" }
+  ? == c 62 "Diversificado (ETF): sem risco de uma só empresa"
+  ? == c 63 "Uma só empresa: risco específico a prazo"
+  "Especulativo: sem lucros nem dividendos por trás"
+: txd ifi>i c x k
+  ? == c 70 { pct x " face ao máximo do último ano" }
+  ? == c 71 { pct x " abaixo da média de " N k " dias" }
+  ? == c 72 { "Acima da média de " N k " dias" }
+  ? == c 73 { "RSI " pintf x ": sobrevendido (vendeu-se demais)" }
+  ? == c 74 { "RSI " pintf x ": perto de sobrevendido" }
+  ? == c 75 { "RSI " pintf x ": normal" }
+  ? == c 76 "Tendência longa ainda a subir"
+  ? == c 77 "Tendência longa a descer"
+  "Médio prazo ainda muito fraco"
+: ptom i>i t ? == t 0 "up" ? == t 1 "flat" "down"
+: pbool i>i b ? b "true" "false"
+# "key", "tone" e "label" do labelOf(score, hz): hz 0 médio, 1 curto, 2 longo
+: plab ii>i s hz {
+  = c ? >= s 70 0 ? >= s 58 1 ? > s 42 2 ? > s 30 3 4
+  "\"key\":\"" ? == c 0 "strong" ? == c 1 "pos" ? == c 2 "neutral" ? == c 3 "neg" "weak"
+  "\",\"tone\":\"" ptom ? < c 2 0 ? == c 2 1 2
+  "\",\"label\":\""
+  ? == c 1 "Positivo" ? == c 2 "Neutro" ? && == c 3 < hz 2 "Negativo"
+    ? == hz 0 { ? == c 0 "Sinal forte de subida" "Fraco — evitar por agora" }
+    ? == hz 1 { ? == c 0 "Bom momento no curto prazo" "Pressão de venda" }
+    ? == c 0 "Favorável para investir a prazo" ? == c 3 "Cautela" "Desfavorável a prazo"
+  "\"" }
+: prisco >i {
+  = k @ 52
+  "\"key\":\"" ? == k 0 "na" ? == k 1 "low" ? == k 2 "mid" ? == k 3 "high" "xhigh"
+  "\",\"label\":\"" ? == k 0 "—" ? == k 1 "Risco baixo" ? == k 2 "Risco médio" ? == k 3 "Risco alto" "Risco muito alto"
+  "\"" }
+: pnivel i>i lv ? == lv 0 "Sem desconto" ? == lv 1 "Desconto pequeno" ? == lv 2 "Bom desconto" "Desconto grande"
+: petiq i>i t ? == t 0 "Sem desconto" ? == t 1 "Barato, mas a cair" ? == t 2 "Oportunidade" ? == t 3 "Oportunidade (com cautela)" pnivel - t 10
+: pveredicto i>i c
+  ? == c 0 "Perto do máximo do ano: sem desconto especial agora (num plano mensal não faz mal, conta a média)"
+  ? == c 1 "Está barato, mas continua a cair: melhor esperar que pare (risco de apanhar a faca a cair)"
+  ? == c 2 "Oportunidade: com desconto e sobrevendido — bom para ir comprando aos poucos"
+  ? == c 3 "Oportunidade para ir comprando aos poucos"
+  ? == c 4 "Desconto com a tendência longa a subir, mas a queda ainda está forte: comprar só aos bocadinhos ou esperar que estabilize"
+  ? == c 5 "Pequena correção dentro de uma tendência positiva"
+  "Pequeno desconto, sem pressa"
+: pnome i>i c
+  ? == c 1 "Média de 20 dias" ? == c 2 "Média de 50 dias" ? == c 3 "Média de 200 dias" ? == c 4 "Máximo do ano"
+  ? == c 5 "Mínimo do ano" ? == c 6 "Topo recente" ? == c 7 "Fundo recente" ? == c 8 "Antigo fundo, já perdido"
+  "Antigo topo, já ultrapassado"
+: pacao i>i a
+  ? == a 0 "Manter — não perseguir" ? == a 1 "Comprar" ? == a 2 "Comprar aos poucos" ? == a 3 "Esperar que estabilize"
+  ? == a 4 "Manter, reforçar nos suportes" ? == a 5 "Manter, sem reforçar" ? == a 6 "Esperar confirmação" "Evitar"
+: ptexto i>i t
+  ? == t 0 { "Tendência forte, mas esticado (RSI " pintf jround @f 16 "). Melhor comprar num recuo." }
+  ? == t 1 "Tendência a favor no médio e no longo prazo."
+  ? == t 2 { "Desconto de " pct @f 36 " face ao máximo com a tendência longa a subir." }
+  ? == t 3 "A tendência longa sobe, mas a queda atual ainda é forte."
+  ? == t 4 "Tendência longa positiva, médio prazo indeciso."
+  ? == t 5 "Sem tendência clara a longo prazo."
+  ? == t 6 "Tendência longa negativa, mas o médio prazo pode estar a virar."
+  "A descer a médio e a longo prazo: está barato porque continua a cair."
+: pplano i>i t
+  ? == t 1 "Comprar num recuo para" ? == t 2 "Compra agora" ? == t 3 "Reforçar se recuar para" ? == t 4 "⅓ agora"
+  ? == t 5 "⅓ se descer para" ? == t 6 "⅓ quando passar" ? == t 7 "Só um bocadinho perto de" ? == t 8 "Reforçar perto de"
+  ? == t 9 "Entrar a sério quando voltar acima de" ? == t 10 "Rever se perder" ? == t 11 "Mais interessante se passar"
+  ? == t 12 "Comprar só se passar" ? == t 13 "Só reconsiderar acima de" "Se já tens: considerar reduzir se perder"
+
+# ---------- o JSON do resultado ----------
+: prazoes i>i li {
+  P '[
+  = i 0 W < i @ li {
+    = q + + li 1 * i 4
+    ? i P ', 0
+    "{\"pts\":" pnum @f q ",\"txt\":\"" ptxt @ + q 1 @f + q 2 @ + q 3 "\"}"
+    = i + i 1 }
+  P '] }
+: pniveis i>i u {
+  = p @f 10
+  P '[
+  = i 0 W < i @ u {
+    ? i P ', 0
+    = m @ + + u 1 i = x @f m = c @ + m 1
+    "{\"price\":" pnum x ",\"label\":\"" pnome ? && == c 7 > x p 8 ? && == c 6 < x p 9 c
+    "\",\"strong\":" pbool >= @ + m 2 4 ",\"dist\":" pnum - / x p 1. "}"
+    = i + i 1 }
+  P '] }
+: pdesconto >i {
+  "\"dd\":" pnum @f 36 ",\"pos\":" pnum @f 37 ",\"hi\":" pnum @f 38 ",\"lo\":" pnum @f 39
+  = lv @ 40
+  ",\"level\":\"" ? == lv 0 "none" ? == lv 1 "small" ? == lv 2 "good" "deep"
+  "\",\"levelLabel\":\"" pnivel lv
+  "\",\"verdict\":\"" pveredicto @ 41
+  "\",\"tone\":\"" ptom @ 42
+  "\",\"tag\":\"" petiq @ 43
+  "\",\"opp\":" pbool @ 44
+  ",\"score\":" pnum @f 45
+  ",\"notes\":["
+  = no lN = i 0
+  W < i @ no { = q + + no 1 * i 4 ? i P ', 0 P 34 ptxt @ + q 1 @f + q 2 @ + q 3 P 34 = i + i 1 }
+  "],\"longUp\":" ? == @ 46 1 "true" ? == @ 46 0 "false" "null" }
+: pconselho >i {
+  = k @ 47
+  "\"key\":\"" ? == k 0 "hold" ? == k 1 "buy" ? == k 2 "scale" ? == k 3 "wait" ? == k 4 "neutral" ? == k 5 "turn" "avoid"
+  "\",\"action\":\"" pacao @ 48
+  "\",\"tone\":\"" ptom @ 49
+  "\",\"text\":\"" ptexto @ 50
+  ? && == @ 4 1 >= ? @ 34 @ 33 @ 31 50 " Bom para plano de poupança mensal na TR." 0
+  "\",\"plan\":["
+  = pl lP = i 0
+  W < i @ pl { = q + + pl 1 * i 2 ? i P ', 0 "{\"t\":\"" pplano @ q "\",\"price\":" pnum @f + q 1 "}" = i + i 1 }
+  "],\"invalid\":" ? @ 51 pnum @f @ 51 "null"
+  = rk @ 52
+  ",\"size\":\"" ? == rk 1 "Pode ser o núcleo da carteira" ? == rk 2 "Até ~10% da carteira" ? == rk 3 "Até ~5% da carteira"
+    ? == rk 4 "Até ~2–3% da carteira" 0
+  "\"" }
+: pres >i {
+  = sc @ 31
+  "{\"score\":" N sc "," plab sc 0 ",\"risk\":{" prisco "},\"reasons\":" prazoes lM
+  ",\"metrics\":{\"price\":" pnum @f 10 ",\"sma20\":" pnum @f 11 ",\"sma50\":" pnul @ 13 @f 12
+  ",\"sma200\":" pnul @ 30 @f 29 ",\"rsi\":" pnum @f 16 ",\"macd\":"
+  ? @ 17 { "{\"line\":" pnum @f 18 ",\"signal\":" pnum @f 19 ",\"hist\":" pnum @f 20 ",\"histPrev\":" pnum @f 21 "}" } "null"
+  ",\"ret1m\":" pnul @ 23 @f 22 ",\"ret3m\":" pnul @ 25 @f 24 ",\"vol\":" pnul @ 27 @f 26 ",\"drawdown\":" pnum @f 28
+  "},\"horizons\":{\"short\":{\"score\":" N @ 32 "," plab @ 32 1 ",\"reasons\":" prazoes lS
+  "},\"mid\":{\"score\":" N sc "," plab sc 0 ",\"reasons\":" prazoes lM
+  "},\"long\":" ? @ 34 { "{\"score\":" N @ 33 "," plab @ 33 2 ",\"reasons\":" prazoes lL ",\"discount\":" pnum @f 35 "}" } "null"
+  "},\"discount\":{" pdesconto "},\"levels\":{\"supports\":" pniveis lU ",\"resistances\":" pniveis lZ
+  "},\"advice\":{" pconselho "}}" }
+
+# ---------- o lote ----------
+# uma série: filtra os fechos (closes.filter(x => Number.isFinite(x) && x > 0)) e analisa-a
+: serie ii>i c len {
+  = v @ 8 = n 0 = i 0
+  W < i len {
+    = w @ + c i
+    ? && != & >> w 52 2047 2047 > @f + c i 0. { ! + v n w = n + n 1 } 0
+    = i + i 1 }
+  ! 1 v ! 2 n
+  ? < n 30 "null" { metricas medio curto longo desconto niveis conselho pres } }
+: lote i>i b {
+  = ns @ + b 1
+  = mx 1 = q + b 2 = s 0
+  W < s ns { = len @ q = mx ? > len mx len mx = q + + q 5 len = s + s 1 }
+  ! 8 A mx
+  ! 9 A 2600
+  P '[
+  = q + b 2 = s 0
+  W < s ns {
+    = len @ q
+    ! 4 @ + q 1 ! 3 @ + q 2 ! 5 @ + q 3 ! 6 @ + q 4
+    ? s P ', 0
+    serie + q 5 len
+    = q + + q 5 len = s + s 1 }
+  P ']
+  0 }
+# uma palavra de 64 bits do stdin (little-endian)
+: rw >i { = v 0 = j 0 W < j 8 { = v | v << & R 255 * 8 j = j + j 1 } v }
+# sem entrada não faz nada (o anfitrião pode então chamar o `lote` com o lote já na memória)
+: main >i {
+  = c R
+  ? < c 0 0 {
+    = t c = j 1 W < j 8 { = t | t << & R 255 * 8 j = j + j 1 }
+    = b A t ! b t
+    = i 1 W < i t { ! + b i rw = i + i 1 }
+    lote b } }

@@ -3,7 +3,7 @@
 //     → <pasta>/dados.json (tudo), dados.md (resumo compacto, uma linha por ativo) e modelo.json (esqueleto da análise)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { A, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, yahooOf, kindOf, nameOf } from './comum.mjs';
+import { A, AO, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, yahooOf, kindOf, nameOf } from './comum.mjs';
 
 const SYM = /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/;
 const pc = (x) => (x == null || !Number.isFinite(x) ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%');
@@ -179,7 +179,7 @@ async function main() {
         const closes = d.series.map((x) => x[1]);
         if (t && Number.isFinite(t.price)) closes[closes.length - 1] = t.price;
         const kind = kinds[k], ref = kind === 'ref';
-        const r = A.analyse(closes, { crypto: kind === 'crypto', kind: ref ? undefined : kind });
+        const r = AO.analyse(closes, { crypto: kind === 'crypto', kind: ref ? undefined : kind });
         if (!r) { warn.push(`sem análise: ${k}`); continue; }
         const cur = (t && t.currency) || d.currency;
         const price = closes[closes.length - 1];

@@ -4,7 +4,7 @@
 // Das outras apps só se leem símbolos (validados) e números: nunca texto escrito por elas.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { A, px, kvGet, kvPut, kvList, todayLisbon, normVerdict, textCheck } from './comum.mjs';
+import { AO, px, kvGet, kvPut, kvList, todayLisbon, normVerdict, textCheck } from './comum.mjs';
 
 const MAX_APPS = 20; // por corrida (as que se ligaram há menos tempo primeiro); o dono vê quantas ficaram de fora
 const MAX_ASSETS = 12;
@@ -51,7 +51,7 @@ if (cmd === 'dados') {
         const closes = d.series.map((x) => x[1]);
         if (t && t.price) closes[closes.length - 1] = t.price;
         const kind = s.startsWith('c:') ? 'crypto' : /ETF|ETC|ETN/i.test(String(d.longName || d.name || '')) ? 'fund' : 'stock';
-        const r = A.analyse(closes, { crypto: kind === 'crypto', kind });
+        const r = AO.analyse(closes, { crypto: kind === 'crypto', kind });
         if (!r) continue;
         rows[s] = {
             name: String((t && (t.longName || t.name)) || d.longName || d.name || s).slice(0, 60), kind, cur: (t && t.currency) || d.currency || '',
