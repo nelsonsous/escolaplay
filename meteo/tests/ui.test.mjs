@@ -85,6 +85,10 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             .map((id) => [id, { t: [0, 1, 2].map(() => [24, id === 'ukmo_seamless' ? 0.6 : 1.4, 0]) }])) }];
     })) };
     let learnCalls = 0;
+    // notificações do fim do dia (o conector simulado guarda o estado; o browser simulado assina sem rede)
+    let pushState = { on: false, time: '19:00', sunday: true, place: null };
+    const pushPosts = [], pushTests = [];
+    let myName = null, namePatches = []; // nome opcional deste telemóvel (PATCH /api/me)
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -137,8 +141,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/fogos') return fulfill(r, FOGOS);
         if (p === '/api/raw/om/forecast') return fulfill(r, RAW.det);
         if (p === '/api/obs-history') return fulfill(r, []);
+        if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName }); }
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: SCHEDULE,
-            device: !!h['x-meteo-device'], owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
+            device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
         if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
             const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
@@ -169,13 +174,25 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             return m === 'DELETE' ? r.fulfill({ status: 204, headers: CORS, body: '' }) : fulfill(r, next);
         }
         if (p === '/api/usage') return owner ? fulfill(r, { today: '2026-11-06', others,
-            devices: { today: 3, d7: 5, d30: 8, total: 9, owner: 1 },
+            devices: { today: 3, d7: 5, d30: 8, total: 9, owner: 1, list: [
+                { id: 'a1b2c3', name: myName, days: 0, owner: true, places: ['Lisboa'], push: false },
+                { id: 'f0e9d8', name: 'Ana', days: 0, owner: false, places: ['Casa da Ana'], push: true },
+                { id: '9c8b7a', name: null, days: 3, owner: false, places: [], push: false }] },
             places: { total: 2, owner: places.length, guests: 1, active: 2, paused: 0, off: 0, analysed: 2, cap: 15,
                 list: [{ name: 'Casa da Ana', kind: 'guest', status: 'active', analysed: true, days: 0 }] },
             analyses: ['2026-11-06', '2026-11-05', '2026-11-04', '2026-11-03', '2026-11-02', '2026-11-01', '2026-10-31'].map((date, i) => ({ date, scheduled: i ? 3 : 2, instant: i === 1 ? 1 : 0, guest: 1 })) })
             : r.fulfill({ status: 403, json: { error: 'dono' }, headers: CORS });
         if (p === '/api/settings' && m === 'PATCH') { settingsBody = JSON.parse(req.postData()); others = settingsBody.others; return fulfill(r, { others, updatedAt: NOW }); }
         if (p === '/api/reports' && m === 'GET') return fulfill(r, { place: null, reports: serverReports });
+        if (p === '/api/push/key') return fulfill(r, { publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' });
+        if (p === '/api/push' && m === 'GET') return fulfill(r, pushState);
+        if (p === '/api/push' && m === 'POST') {
+            const b = JSON.parse(req.postData()); pushPosts.push(b);
+            pushState = { on: true, time: b.time, sunday: b.sunday, place: b.place, tz: b.tz, last: null };
+            return r.fulfill({ status: 201, json: pushState, headers: CORS });
+        }
+        if (p === '/api/push' && m === 'DELETE') { pushState = { ...pushState, on: false }; return r.fulfill({ status: 204, headers: CORS, body: '' }); }
+        if (p === '/api/push/test' && m === 'POST') { pushTests.push(Date.now()); return fulfill(r, { ok: true, weekly: false }); }
         if (p === '/api/learning') { // como o conector: só a do local deste telemóvel (≤ 3 km)
             learnCalls++;
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
@@ -189,6 +206,17 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         return r.fulfill({ status: 404, json: { error: 'x' }, headers: CORS });
     });
 
+    await ctx.addInitScript(() => {
+        const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/teste-ui',
+            toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', auth: 'AAAAAAAAAAAAAAAAAAAAAA' } }; },
+            async unsubscribe() { window.__pushSub = null; return true; } };
+        const pm = { async subscribe(o) { window.__pushOpts = o; window.__pushSub = sub; return sub; }, async getSubscription() { return window.__pushSub || null; } };
+        if (navigator.serviceWorker) Object.defineProperty(navigator.serviceWorker, 'ready', { get: () => Promise.resolve({ pushManager: pm }) });
+        if (!window.PushManager) window.PushManager = function PushManager() {};
+        let perm = 'default';
+        Object.defineProperty(Notification, 'permission', { get: () => perm });
+        Notification.requestPermission = async () => { perm = 'granted'; return perm; };
+    });
     const page = await ctx.newPage();
     await page.clock.setFixedTime(new Date(NOW));
     page.on('pageerror', (e) => { errors.push('pageerror: ' + e.message); if (process.env.STACK) console.log(e.stack); });
@@ -493,7 +521,44 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('Ajustes (letra grande)');
     await shot('07-ajustes.png');
     await page.click('[data-fs="n"]');
-    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão)');
+    // notificações do fim do dia: ligar (autorização + assinatura), mudar a hora, o domingo, teste e desligar
+    const nt = page.locator('#notificacoes');
+    assert.match(await nt.textContent(), /Resumo ao fim do diaComo vai estar amanhã e o que vestir/);
+    assert.equal(await nt.locator('#f-push-time').inputValue(), '19:00', '19:00 por omissão');
+    assert.equal(await nt.locator('#f-push-time option').count(), 32, 'das 16:00 às 23:45, de 15 em 15 min');
+    await nt.locator('[data-act="push-on"]').click();
+    await toastIs(/Notificação ligada: todos os dias às 19:00/);
+    assert.equal(pushPosts.length, 1);
+    assert.deepEqual({ ...pushPosts[0], subscription: pushPosts[0].subscription.endpoint },
+        { subscription: 'https://fcm.googleapis.com/fcm/send/teste-ui', time: '19:00', sunday: true, place: 'casa', tz: 'Europe/Lisbon' });
+    assert.equal(await page.evaluate(() => window.__pushOpts.userVisibleOnly), true);
+    assert.equal(await page.evaluate(() => window.__pushOpts.applicationServerKey.length), 65, 'a chave pública do conector (VAPID)');
+    await page.waitForSelector('#notificacoes [data-act="push-on"].on');
+    if (SHOTS) await nt.screenshot({ path: path.join(SHOTS, '07b-notificacoes.png') });
+    await nt.locator('#f-push-time').selectOption('20:30');
+    await toastIs(/Notificação às 20:30/);
+    assert.equal(pushPosts.at(-1).time, '20:30');
+    await nt.locator('[data-act="push-sun-off"]').click();
+    await toastIs(/Guardado/);
+    assert.equal(pushPosts.at(-1).sunday, false);
+    await nt.locator('[data-act="push-test"]').click();
+    await toastIs(/Enviada/);
+    assert.equal(pushTests.length, 1);
+    await nt.locator('[data-act="push-off"]').click();
+    await toastIs(/Notificações desligadas/);
+    assert.ok(calls.includes('DELETE /api/push'));
+    assert.equal(await page.evaluate(() => window.__pushSub), null, 'a assinatura do browser também sai');
+    await noOverflow('Ajustes (notificações)');
+    // este telemóvel: o código curto e o nome opcional que o dono vê
+    const me = page.locator('#telemovel');
+    assert.match(await me.locator('.sec-h .sub').textContent(), /^código a1b2c3$/);
+    assert.match(await me.textContent(), /Só o dono da app vê este nome/);
+    await me.locator('#f-name').fill('  Nelson ');
+    await me.locator('#f-name').press('Enter');
+    await toastIs(/Nome guardado: Nelson\./);
+    assert.deepEqual(namePatches, [{ name: '  Nelson ' }]);
+    assert.equal(await page.locator('#f-name').inputValue(), 'Nelson');
+    console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão), notificações (19:00, hora, domingo, teste)');
 
     // 6b) ponto a 8,6 km do local com análise diária: a análise diz que é de outro ponto e oferece mudar (PATCH, mesmo id)
     const patches0 = calls.filter((c) => c === 'PATCH /api/places/casa').length;
@@ -584,6 +649,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(uso, /Telemóveis hoje3.*7 dias · 30 dias5 · 89 no total \(1 teu\)/s);
     assert.match(uso, /Analisados por corrida2 de 15/);
     assert.match(uso, /Casa da Anaem uso · abriu a app hoje/);
+    assert.deepEqual(await page.locator('#uso .use-l').first().locator('li').allTextContents(), [
+        'Nelson · a1b2c3 (teu)abriu hoje · Lisboa', 'Ana · f0e9d8abriu hoje · Casa da Ana · notificações', 'Telemóvel 9c8b7aabriu há 3 dias · sem análise diária']);
     assert.equal(await page.locator('#uso .use-t tbody tr').count(), 7);
     assert.match(await page.locator('#uso .use-t tbody tr').first().textContent(), /^Hoje201$/);
     assert.match(await page.locator('#uso .use-t tfoot').textContent(), /^7 dias2017$/);

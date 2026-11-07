@@ -14,8 +14,8 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.5.1';
-const SCHEDULE = ['07:34', '13:34', '20:34']; // igual ao conector (/api/status)
+const VERSION = '1.6.1';
+const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
     ['geocolour', 'Nuvens', 'Nuvens em cor natural de dia; de noite, infravermelho com as luzes das cidades (satélite MTG, Meteosat de 3.ª geração).'],
@@ -61,6 +61,12 @@ let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pel
         ownerJust = api.setOwnerCode(sp.get('dono')) ? 'set' : 'cleared';
         sp.delete('dono'); changed = true;
     }
+    // ?tab=analise (a notificação do fim do dia abre a Análise)
+    const tb = sp.get('tab');
+    if (sp.has('tab')) {
+        if (tb && (TITLES[tb] || tb === 'agora')) { cfg.tab = tb; saveCfg(); }
+        sp.delete('tab'); changed = true;
+    }
     if (changed) history.replaceState(null, '', location.pathname + (sp.toString() ? '?' + sp : '') + location.hash);
 }
 setProxy(cfg.proxy || DEFAULT_PROXY);
@@ -72,6 +78,7 @@ const st = {
     report: api.loadReport(), reports: [], // aviso deste telemóvel e avisos recentes do conector
     rv: null, rvErr: '', rvIdx: null, rvPlay: 0, // camada Radar: lista de imagens, imagem mostrada, animação
     memory: null, // memória da aprendizagem deste ponto (telemóvel + conector), para o gráfico da evolução
+    push: null, pushBusy: false, // notificações do fim do dia: { on, time, sunday, place } (do conector)
 };
 
 // ---------- utilitários ----------
@@ -134,6 +141,9 @@ function init() {
         const had = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.register('./sw.js').catch(() => {});
         navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) { st.updateReady = true; scheduleRender(); } });
+        navigator.serviceWorker.addEventListener('message', (e) => {
+            if (e.data?.type === 'tab' && TITLES[e.data.tab]) { cfg.tab = e.data.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); }
+        });
     }
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     if (!standalone && !cfg.noInstall) {
@@ -252,10 +262,15 @@ function loadStatus() {
             ownerJust = '';
         }
         if (had && st.status && isOwner() !== was && cfg.loc) loadAnalysis(cfg.loc); // passou (ou deixou) de ser o dono
+        if (st.status?.device) loadPush();
         if (isOwner() && cfg.tab === 'ajustes') loadUsage();
         if (cfg.tab === 'ajustes' || cfg.tab === 'analise') scheduleRender();
     })();
     return statusP;
+}
+async function loadPush() {
+    try { st.push = await api.getPush(); } catch { /* fica o que havia */ }
+    if (cfg.tab === 'ajustes') scheduleRender();
 }
 async function loadUsage() {
     if (!isOwner()) { st.usage = null; return; }
@@ -707,9 +722,9 @@ function viewAnalysis() {
             ${ap ? forLine(ap) : ''}
             <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p style="margin:6px 0 0;color:var(--soft)">${esc(a.resumo)}</p>` : ''}
             ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas do Claude">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
-            ${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${sec('Amanhã', a.amanha)}
+            ${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
             ${a.dias?.length ? `<div class="an-sec"><h4>Próximos dias</h4><ul class="an-days">${a.dias.map((d) => `<li><b>${esc(today ? F.dayLabel(d.data, today) : d.data)}</b>${sig(d.confianca)}<span>${esc(d.texto)}</span></li>`).join('')}</ul></div>` : ''}
-            ${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
+            ${sec('A semana em resumo', a.semana)}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
             ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}
@@ -864,6 +879,8 @@ function viewSettings() {
             ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui('star')}${cfg.favs.some((f) => near(f, L)) ? 'Retirar este local' : 'Guardar este local'}</button>` : ''}</div>
     </div></section>`;
     h += placesSettingsHtml();
+    h += notifHtml();
+    h += meHtml();
     if (isOwner()) h += usageHtml();
     h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
         <div class="hint">Envia o endereço da app e como a instalar: no iPhone, abre no Safari → Partilhar → «Adicionar ao ecrã principal»; no Android, abre no Chrome → ⋮ → «Instalar app». É grátis e sem conta; a análise do Claude é opcional, 1 local por telemóvel.</div></div></section>`;
@@ -880,6 +897,103 @@ function viewSettings() {
     if (S) h += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
     h += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
     return { title, html: h };
+}
+
+// ---------- este telemóvel: o código curto e o nome (opcional) que o dono vê no painel Utilização ----------
+function meHtml() {
+    const S = st.status;
+    if (!S?.device) return '';
+    return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2><span class="sub num">código ${esc(S.id || '')}</span></div><div class="form">
+        <div><label for="f-name">O teu nome <small>(opcional)</small></label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
+        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel na lista do painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização, para saber quem é quem. Sem nome, aparece só o código.'} A tua localização não é registada: só o local que escolheres para a análise diária.</div></div>
+    </div></section>`;
+}
+async function nameSave() {
+    const inp = $('#f-name');
+    if (!inp) return;
+    inp.blur();
+    try {
+        const r = await api.setMyName(inp.value);
+        st.status = { ...(st.status || {}), name: r?.name || null };
+        toast(r?.name ? `Nome guardado: ${r.name}.` : 'Nome apagado: aparece só o código.');
+    } catch (e) { toast(e.message); }
+    render();
+}
+
+// ---------- notificações do fim do dia ----------
+// Às 19:00 por omissão (hora ajustável de 15 em 15 min): amanhã no local e o que vestir, da análise do Claude das 17:34;
+// ao domingo, a semana. O conector envia-as (Web Push); no iPhone só com a app instalada no ecrã principal (iOS 16.4+).
+const PUSH_TIMES = Array.from({ length: 32 }, (_, i) => `${String(16 + Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushPlace = () => { const own = onPlaces(), P = st.push; return own.find((p) => p.id === P?.place) || nearPlace() || own[0] || null; };
+function notifHtml() {
+    const P = st.push || { on: false, time: '19:00', sunday: true };
+    const seg = (act, on, label) => `<div class="seg" role="group" aria-label="${esc(label)}"><button type="button" data-act="${act}-on" class="${on ? 'on' : ''}" aria-pressed="${!!on}">Sim</button><button type="button" data-act="${act}-off" class="${on ? '' : 'on'}" aria-pressed="${!on}">Não</button></div>`;
+    let body;
+    if (isIos() && !isStandalone()) body = '<div class="hint">No iPhone, as notificações só chegam à app instalada no ecrã principal (iOS 16.4 ou mais recente): Partilhar → «Adicionar ao ecrã principal», abre a Meteo de lá e liga aqui.</div>';
+    else if (!pushSupported()) body = '<div class="hint">Este browser não recebe notificações.</div>';
+    else if (!onPlaces().length && !P.on) body = '<div class="hint">A notificação traz a análise diária do Claude do teu local: liga-a primeiro (Análise → «Análise diária para este local»).</div>';
+    else {
+        const own = onPlaces(), cur = pushPlace();
+        body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur ? ` · ${cur.name}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
+            <div><label for="f-push-time">Hora</label><select id="f-push-time" class="inp"${st.pushBusy ? ' disabled' : ''}>${PUSH_TIMES.map((t) => `<option value="${t}"${t === P.time ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+            <div class="sw"><span><b>Ao domingo: a semana que vem</b><br><small class="hint">Em vez de amanhã, a semana toda</small></span>${seg('push-sun', P.sunday !== false, 'Ao domingo, a semana')}</div>
+            ${own.length > 1 ? `<div><label for="f-push-place">Local</label><select id="f-push-place" class="inp">${own.map((p) => `<option value="${esc(p.id)}"${p.id === cur?.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>` : ''}
+            ${P.on ? `<button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>` : ''}
+            <div class="hint">Vem da análise do Claude das 17:34: como vai estar amanhã no teu local e o que vestir; ao domingo, a semana que vem. A hora é a deste telemóvel.</div>`;
+    }
+    return `<section class="sec" id="notificacoes"><div class="sec-h"><h2>Notificações</h2></div><div class="form">${body}</div></section>`;
+}
+const b64uBytes = (s) => { const t = s.replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(t + '='.repeat((4 - (t.length % 4)) % 4)), (c) => c.charCodeAt(0)); };
+async function pushSubscription(create) {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub && create) {
+        const { publicKey } = await api.getPushKey();
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(publicKey) });
+    }
+    return sub;
+}
+async function pushSend(changes = {}, { create = false } = {}) {
+    const P = { time: '19:00', sunday: true, ...(st.push || {}), ...changes };
+    const sub = await pushSubscription(create);
+    if (!sub) throw new Error('Sem autorização de notificações neste telemóvel.');
+    st.push = await api.savePush({ subscription: sub.toJSON(), time: P.time, sunday: P.sunday !== false, place: P.place || pushPlace()?.id,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon' });
+}
+// ligar: o pedido de autorização tem de sair logo do toque (sem esperas antes)
+function pushOn() {
+    if (!pushSupported()) return;
+    const perm = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
+    st.pushBusy = true; render();
+    perm.then(async (p) => {
+        if (p !== 'granted') throw new Error('Sem autorização para notificações: ativa-as nas definições do telemóvel, na Meteo.');
+        await pushSend({}, { create: true });
+        toast(`Notificação ligada: todos os dias às ${st.push.time}.`);
+    }).catch((e) => toast(e?.message || 'Não foi possível ligar as notificações.'))
+        .finally(() => { st.pushBusy = false; render(); });
+}
+async function pushOff() {
+    st.pushBusy = true; render();
+    try { (await pushSubscription(false))?.unsubscribe(); } catch { /* sem assinatura */ }
+    try { await api.deletePush(); st.push = { ...(st.push || {}), on: false }; toast('Notificações desligadas.'); }
+    catch (e) { toast(e.message); }
+    st.pushBusy = false; render();
+}
+async function pushChange(changes) {
+    if (!st.push?.on) { st.push = { ...(st.push || { time: '19:00', sunday: true }), ...changes }; render(); return; }
+    st.pushBusy = true; render();
+    try { await pushSend(changes); toast(changes.time ? `Notificação às ${st.push.time}.` : 'Guardado.'); }
+    catch (e) { toast(e.message); }
+    st.pushBusy = false; render();
+}
+async function pushTest() {
+    st.pushBusy = true; render();
+    try { const r = await api.testPush(); toast(r?.weekly ? 'Enviada a da semana: deve chegar daqui a segundos.' : 'Enviada: deve chegar daqui a segundos.'); }
+    catch (e) { toast(e.message); }
+    st.pushBusy = false; render();
 }
 
 // "Sou o dono desta app": o código (o segredo OWNER_CODE do conector) escreve-se aqui — no iPhone a app do ecrã principal
@@ -929,6 +1043,7 @@ function useState(x) {
     if (!x.analysed) return x.reason || 'de fora';
     return F.isNum(x.days) ? (x.days === 0 ? 'em uso · abriu a app hoje' : `em uso · abriu a app há ${x.days} dia${x.days === 1 ? '' : 's'}`) : 'em uso';
 }
+const seenTxt = (days) => (days == null ? 'ainda não abriu' : days === 0 ? 'abriu hoje' : days === 1 ? 'abriu ontem' : `abriu há ${days} dias`);
 function usageHtml() {
     const u = st.usage;
     let b;
@@ -941,6 +1056,7 @@ function usageHtml() {
             <div><small>7 dias · 30 dias</small><b class="num">${esc(`${F.num(D.d7)} · ${F.num(D.d30)}`)}</b><em>${esc(`${F.num(D.total)} no total${D.owner ? ` (${F.num(D.owner)} teu${D.owner === 1 ? '' : 's'})` : ''}`)}</em></div>
             <div><small>Locais com análise</small><b class="num">${esc(F.num(P.owner + P.guests - P.off))}</b><em>${esc(`${F.num(P.owner)} teu${P.owner === 1 ? '' : 's'} · ${F.num(P.guests)} de outros${P.paused ? ` · ${F.num(P.paused)} em pausa` : ''}`)}</em></div>
             <div><small>Analisados por corrida</small><b class="num">${esc(`${F.num(P.analysed)} de ${F.num(P.cap)}`)}</b><em>os teus nunca ficam de fora</em></div></div>
+            ${D.list?.length ? `<div><label>Telemóveis <small>(o nome que escolheram, ou o código)</small></label><ul class="use-l">${D.list.map((d) => `<li><b>${esc(d.name ? `${d.name} · ${d.id}` : `Telemóvel ${d.id}`)}${d.owner ? ' (teu)' : ''}</b><span>${esc([seenTxt(d.days), d.places.length ? d.places.join(', ') : 'sem análise diária', d.push ? 'notificações' : null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul></div>` : ''}
             <div><label>Locais dos outros <small>(só o nome)</small></label>${guests.length ? `<ul class="use-l">${guests.map((x) => `<li><b>${esc(x.name)}</b><span>${esc(useState(x))}</span></li>`).join('')}</ul>` : '<div class="hint">Ainda nenhum.</div>'}</div>
             <div><label>Análises do Claude, últimos 7 dias</label><div class="cmp-scroll"><table class="tbl use-t"><thead><tr><th scope="col">Dia</th><th scope="col">Agendadas</th><th scope="col">Imediatas</th><th scope="col">De outros</th></tr></thead>
                 <tbody>${u.analyses.map((d) => `<tr><th scope="row">${esc(pastDay(d.date, u.today))}</th><td>${esc(F.num(d.scheduled))}</td><td>${esc(F.num(d.instant))}</td><td>${esc(F.num(d.guest))}</td></tr>`).join('')}</tbody>
@@ -1307,6 +1423,12 @@ document.addEventListener('click', (ev) => {
         case 'usage': st.usageErr = ''; render(); loadUsage(); break;
         case 'owner-forget': ownerForget(); break;
         case 'owner-save': ownerSave(); break;
+        case 'name-save': nameSave(); break;
+        case 'push-on': pushOn(); break;
+        case 'push-off': pushOff(); break;
+        case 'push-sun-on': pushChange({ sunday: true }); break;
+        case 'push-sun-off': pushChange({ sunday: false }); break;
+        case 'push-test': pushTest(); break;
         case 'fav': {
             const i = cfg.favs.findIndex((f) => near(f, cfg.loc));
             if (i >= 0) { cfg.favs.splice(i, 1); toast('Retirado dos favoritos'); }
@@ -1318,7 +1440,14 @@ document.addEventListener('click', (ev) => {
         default: break;
     }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); } });
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); }
+    if (e.key === 'Enter' && e.target.id === 'f-name') { e.preventDefault(); nameSave(); }
+});
+document.addEventListener('change', (e) => {
+    if (e.target.id === 'f-push-time') { e.target.blur(); pushChange({ time: e.target.value }); }
+    if (e.target.id === 'f-push-place') { e.target.blur(); pushChange({ place: e.target.value }); }
+});
 document.addEventListener('input', (e) => {
     if (e.target.id === 'f-q') { clearTimeout(searchT); searchT = setTimeout(() => doSearch(e.target.value), 300); }
 });

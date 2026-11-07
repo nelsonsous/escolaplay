@@ -53,6 +53,13 @@ try {
 } catch (e) { console.log(`fogos.pt indisponível (${e.message}).`); }
 
 console.log(`\n# REGRAS DA ANÁLISE\n${SYSTEM_PROMPT}\n`);
+{
+    const L = lisbon();
+    const dow = new Date(L.date + 'T12:00:00Z').getUTCDay();
+    console.log(`Hoje: ${['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][dow]} ${L.date}. ` +
+        (dow === 0 ? 'É domingo: a notificação do fim do dia é a da semana — capricha em "semana" e "notificacao.semana".'
+            : 'A notificação do fim do dia leva "notificacao.amanha" (amanhã e o que vestir).') + '\n');
+}
 console.log(`Locais: ${places.map((p) => `${p.id} (${p.name}, ${KIND_PT[p.kind]})`).join(', ')}. Pasta: ${OUT}\n`);
 
 for (const [i, place] of places.entries()) {
