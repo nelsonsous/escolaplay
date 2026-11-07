@@ -614,7 +614,21 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.goto(url + '?dono=');
     await toastIs(/Código do dono esquecido/);
     assert.equal(await page.evaluate(() => localStorage.getItem('meteo:dono')), null);
-    console.log('✓ dono: ?dono= guardado e fora do endereço, Utilização, análise dos outros, locais dos outros (~1 km), esquecer o código');
+    // na app instalada (iPhone: memória à parte do Safari) o código escreve-se em Ajustes → Conector → "Sou o dono desta app"
+    await page.waitForSelector('details.own summary');
+    await page.click('details.own summary');
+    await page.fill('#f-owner', 'código errado');
+    await page.click('[data-act="owner-save"]');
+    await toastIs(/não aceitou este código/);
+    await page.fill('#f-owner', OWNER_CODE);
+    await page.press('#f-owner', 'Enter');
+    await toastIs(/Modo dono ligado neste telemóvel/);
+    await page.waitForSelector('#uso');
+    assert.match(await page.locator('.own-row').textContent(), /És o dono desta app/);
+    await page.click('.own-row [data-act="owner-forget"]');
+    await toastIs(/Código do dono esquecido/);
+    await page.waitForSelector('details.own');
+    console.log('✓ dono: ?dono= guardado e fora do endereço, Utilização, análise dos outros, locais dos outros (~1 km), esquecer o código; código escrito na app');
 
     assert.deepEqual(unexpected, [], 'sem pedidos à rede real');
     assert.deepEqual(errors, [], 'sem erros na consola');

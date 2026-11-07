@@ -375,6 +375,12 @@ div.claude { cursor: auto; }
 .score { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .score .bar { flex: 1; height: 5px; background: var(--card2); border-radius: 99px; overflow: hidden; min-width: 40px; }
 .score .bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent2); }
+/* "Sou o dono desta app" (Ajustes → Conector) */
+.own { margin-top: 4px; }
+.own summary { cursor: pointer; color: var(--accent2); font-weight: 600; min-height: 44px; display: flex; align-items: center; list-style: none; }
+.own summary::-webkit-details-marker { display: none; }
+.own .inl { margin: 4px 0 6px; }
+.own-row { margin-top: 6px; }
 .score .bar i.gain { background: var(--up); }
 .score .bar i.loss { background: var(--down); }
 /* Aprendizagem: variável e prazo, evolução do fator */
