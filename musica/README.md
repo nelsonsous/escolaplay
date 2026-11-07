@@ -48,7 +48,9 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
    Scopes: `user.read collection.read playlists.read playlists.write search.read recommendations.read`.
 2. Abre no iPhone o **link de ligação** (`…/musica/?ligar=<código>`) que o Claude te deu: colas o Client ID, carregas
    em **Ligar ao Tidal**, autorizas e voltas à app. O código só serve uma vez; o aparelho fica com a sua chave.
-3. Para outro aparelho: pede ao Claude um código novo (grava o hash em `codigo:ligacao` na KV).
+3. Para outro aparelho (ex.: a app no ecrã principal do iOS, que tem o seu próprio armazém): pede ao Claude um código
+   novo (grava o hash em `codigo:ligacao` na KV) e cola-o em «Código de ligação» — com o Tidal já ligado, o aparelho
+   recebe a sua chave sem novo login (`POST /api/aparelho`).
 
 ## Desenvolvimento
 
