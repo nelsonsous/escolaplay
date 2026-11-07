@@ -1,7 +1,9 @@
 // Pedidos de lib/data.js com fetch simulado (sem rede).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reverseGeocode, RETRY_429_MS, pointTerrain } from '../lib/data.js';
+import { reverseGeocode, RETRY_429_MS, pointTerrain, loadRadar } from '../lib/data.js';
+import { RAINVIEWER, analyzeRadar } from '../lib/radar.js';
+import { synthFrames, framePng, coveragePng, mapsJson } from './fixtures/radar.mjs';
 
 test('HTTP 429 (limite por minuto do Open-Meteo): tenta de novo 2 vezes, ~1,5 s e ~4 s depois', async () => {
     assert.deepEqual(RETRY_429_MS, [1500, 4000]);
@@ -53,5 +55,41 @@ test('relevo à volta do ponto: um só pedido de altitudes (o ponto + 24), pelo 
         const n = urls.length;
         await assert.rejects(pointTerrain(40.1, -8.1, ctx));
         assert.ok(urls.length > n, 'pede de novo');
+    } finally { globalThis.fetch = realFetch; }
+});
+
+test('radar no Node: lista das imagens, cobertura (guardada 7 dias) e 13 imagens centradas no ponto lidas pelo descodificador PNG', async () => {
+    const realFetch = globalThis.fetch, urls = [];
+    try {
+        const last = Date.now() - 6 * 6e4;
+        const { frames } = synthFrames(41.3354, -8.4745, (t) => (t >= -20 ? [{ e: 0, n: 0, r: 10, dbz: 23 }] : []), { lastMs: last });
+        const maps = mapsJson(frames);
+        const pngs = new Map(maps.radar.past.map((f, i) => [f.path, framePng(frames[i].dbz)]));
+        let broken = null, covered = true;
+        globalThis.fetch = async (u) => {
+            u = String(u); urls.push(u);
+            if (u === RAINVIEWER.maps) return new Response(JSON.stringify(maps), { status: 200 });
+            if (u.startsWith('https://tilecache.rainviewer.com/v2/coverage/0/256/7/')) return new Response(coveragePng(covered), { status: 200 });
+            const m = /^https:\/\/tilecache\.rainviewer\.com(\/v2\/radar\/\w+)\/256\/7\/-?[\d.]+\/-?[\d.]+\/2\/0_0\.png$/.exec(u);
+            return m && pngs.has(m[1]) && m[1] !== broken ? new Response(pngs.get(m[1]), { status: 200 }) : new Response('não há', { status: 404 });
+        };
+        const r = await loadRadar(41.3354, -8.4745);
+        assert.deepEqual([r.frames.length, r.covered, r.host], [13, true, 'https://tilecache.rainviewer.com']);
+        const tiles = urls.filter((u) => u.includes('/v2/radar/'));
+        assert.equal(tiles.length, 13);
+        assert.ok(tiles.every((u) => u.endsWith('/256/7/41.3354/-8.4745/2/0_0.png')), 'imagens de 256 px centradas no ponto, cores exatas (sem suavizar)');
+        const R = analyzeRadar({ ...r, nowMs: Date.now() });
+        assert.deepEqual([R.atPoint.mmh, R.atPoint.raining, R.ageMin], [1, true, 6]);
+        // de novo: a lista vem da memória (1 min) e a cobertura também (7 dias); uma imagem que falha fica de fora
+        urls.length = 0; broken = maps.radar.past[3].path;
+        const r2 = await loadRadar(41.3354, -8.4745);
+        assert.equal(r2.frames.length, 12);
+        assert.ok(!urls.some((u) => u === RAINVIEWER.maps || u.includes('/v2/coverage/')));
+        // outro ponto, sem radar (cobertura preta)
+        covered = false;
+        assert.equal((await loadRadar(36.9, -25.1)).covered, false);
+        // sem nenhuma imagem: erro (a previsão segue sem radar)
+        globalThis.fetch = async (u) => (String(u) === RAINVIEWER.maps ? new Response(JSON.stringify(maps)) : new Response('x', { status: 500 }));
+        await assert.rejects(loadRadar(40.5, -8.2), /imagens do radar indisponíveis/);
     } finally { globalThis.fetch = realFetch; }
 });

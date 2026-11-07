@@ -1,0 +1,24 @@
+#!/bin/sh
+# ensina: ensina o modelo com os teus exemplos (fine-tuning LoRA, no proprio Mac, com o motor em Onda).
+#   ia/ensina [1.5b|3b] exemplos.txt [passadas] ["instrucoes de sistema"]
+#   ia/ensina [1.5b|3b] --esquece          (apaga o que foi ensinado)
+# O ficheiro de exemplos tem perguntas e respostas (cada uma pode ter varias linhas):
+#   >>> pergunta
+#   <<< a resposta que queres que ele de
+# O modelo original fica igual; o que aprende vai para ~/.cache/onda-ia/<modelo>/ensinado.lora, que o ia/ia usa
+# sempre que existir. Passadas por omissao: 3 (mais passadas = decora mais). O 7b nao se ensina aqui (nao cabe).
+set -e
+D=$(cd "$(dirname "$0")" && pwd)
+m="${1:-1.5b}"
+case "$m" in 1.5b|3b) ;; *) echo "uso: ia/ensina [1.5b|3b] exemplos.txt [passadas] [\"sistema\"]  (o 7b nao cabe no treino)" >&2; exit 1;; esac
+C="${ONDA_IA:-$HOME/.cache/onda-ia}/$m"
+[ "$2" = "--esquece" ] && { rm -f "$C/ensinado.lora"; echo "esquecido: o $m volta ao original"; exit 0; }
+[ -s "$2" ] || { echo "ia/ensina: falta o ficheiro de exemplos" >&2; exit 1; }
+ex="$2"; p="${3:-3}"
+# garante o modelo, a cache e o motor (o ia/ia trata disso; aqui so com a entrada vazia)
+ONDA_IA_BITS=8 "$D/ia" "$m" < /dev/null > /dev/null
+K="$C/qwen.q8"; B="$C/qwen"
+[ -s "$K" ] || { echo "ia/ensina: o $m tem de estar em 8 bits (ONDA_IA_BITS=8)" >&2; exit 1; }
+if [ -n "$4" ]; then cat "$K" "$ex" | "$B" --treina "$p" "$4" | python3 "$D/separa.py" "$C/ensinado.lora"
+else cat "$K" "$ex" | "$B" --treina "$p" | python3 "$D/separa.py" "$C/ensinado.lora"; fi
+echo "pronto: o $m aprendeu (ficheiro $C/ensinado.lora). Experimenta: ia/ia $m"

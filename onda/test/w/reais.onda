@@ -1,0 +1,14 @@
+# reais sem funcoes transcendentes: os resultados tem de ser iguais bit a bit em C e em WebAssembly
+: q fi>f x i * x F i
+: dobro if>f i k * F i k
+: lng f>f x { G x P 10 x }
+: main >i {
+  lng + 0.1 0.2 lng - 1.0 3.5 lng * -2.5 4.0 lng / 1.0 3.0 lng / 22.0 7.0
+  lng 0.0035 lng -0.35 lng 2. lng 123456.789 lng 0.0000015 lng 1000000000000000000000.0
+  N < 0.1 0.2 N > 0.1 0.2 N == / 1.0 3.0 / 2.0 6.0 N != 0.5 0.25 P 10
+  lng F 7 N I 3.99 N I -3.99 P 10
+  lng Sq 2.0 lng Fl -2.5 lng Ab -7.25 lng Mn 1.5 -0.5 lng Mx 1.5 -0.5
+  lng S 1000 dobro 0.001
+  = v A 8 E v 8 dobro 0.5 lng @f + v 7
+  lng q 0.25 3
+  0 }

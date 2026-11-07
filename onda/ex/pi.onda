@@ -1,0 +1,3 @@
+# pi como colapso (S) de um campo de 200 milhoes de pontos, em paralelo
+: f ii>f i n { = x / + F i 0.5 F n / 4.0 + 1.0 * x x }
+: main >i { = n 200000000 = t T = s / S n f n F n G s " (" N / - T t 1000 " ms)\n" 0 }

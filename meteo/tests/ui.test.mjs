@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { MOCK_ANALYSIS } from './fixtures/mock.mjs';
+import { synthFrames, framePng, coveragePng, mapsJson } from './fixtures/radar.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -29,6 +30,12 @@ const SCHEDULE = ['07:12', '13:12', '19:42'];
 // relevo à volta do ponto (o ponto + 12 rumos a 1,5 km e a 4 km): altitudes reais de Santo Tirso, um vale
 const TERRAIN = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/terrain.json'), 'utf8'))['santo-tirso'].elevation;
 const distKm = (a, b, c, d) => { const t = Math.PI / 180, x = Math.sin(((c - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin(((d - b) * t) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); };
+// radar (RainViewer) simulado: 13 imagens até às 15:40; chove no ponto desde as 15:20 (19 dBZ ≈ 0,6 mm/h). As imagens são
+// centradas no ponto pedido, por isso servem para qualquer local.
+const RADAR = synthFrames(LAT, LON, (t) => (t >= -20 ? [{ e: 0, n: 0, r: 15, dbz: 19 }] : []), { lastMs: Date.parse(NOW) - 5 * 6e4 });
+const RV_MAPS = mapsJson(RADAR.frames);
+const RV_PNG = new Map(RV_MAPS.radar.past.map((f, i) => [f.path, framePng(RADAR.frames[i].dbz)]));
+const RV_COVER = coveragePng(true);
 
 // ocorrências da ANEPC (formato fogos.pt v2): uma perto de Lisboa, outra longe (Braga)
 const FOGOS = { success: true, data: [
@@ -64,6 +71,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const errors = [], unexpected = [], calls = [];
     let places = [{ id: 'lisboa', name: 'Lisboa', lat: LAT, lon: LON, createdAt: '2026-11-01T10:00:00Z' }];
     let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null;
+    const rvCalls = [], reportPosts = [], serverReports = [];
 
     // tudo o que não for simulado abaixo fica bloqueado (sem rede real)
     await ctx.route(/.*/, (route) => {
@@ -93,6 +101,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         return k ? fulfill(r, RAW.ipma[k]) : r.fulfill({ status: 404, headers: CORS, body: '' });
     });
     await ctx.route(/^https:\/\/nominatim\.openstreetmap\.org\//, (r) => fulfill(r, nominatim()));
+    await ctx.route('https://api.rainviewer.com/public/weather-maps.json', (r) => { rvCalls.push('maps'); return fulfill(r, RV_MAPS); });
+    await ctx.route(/^https:\/\/tilecache\.rainviewer\.com\//, (r) => {
+        const u = r.request().url(), png = (body) => r.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'image/png' }, body });
+        if (u.includes('/v2/coverage/0/256/7/')) { rvCalls.push('coverage'); return png(RV_COVER); }
+        const m = /\/v2\/radar\/(\w+)\/(256|512)\/(\d)\/-?[\d.]+\/-?[\d.]+\/2\/(\d)_(\d)\.png$/.exec(u);
+        const f = m && RV_PNG.get(`/v2/radar/${m[1]}`);
+        if (!f) return r.fulfill({ status: 404, headers: CORS, body: '' });
+        rvCalls.push(`${m[2]}/${m[3]}/${m[4]}_${m[5]}`);
+        return png(f);
+    });
     await ctx.route(new RegExp('^' + PROXY.replace(/\./g, '\\.')), async (r) => {
         const req = r.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
         calls.push(`${m} ${p}`);
@@ -124,6 +142,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             places = places.map((x) => (x.id === id ? moved : x));
             return fulfill(r, moved);
         }
+        if (p === '/api/reports' && m === 'GET') return fulfill(r, { place: null, reports: serverReports });
+        if (p === '/api/reports' && m === 'POST') { const b = JSON.parse(req.postData()); reportPosts.push(b); return r.fulfill({ status: 201, json: { report: b, place: null, count: 1 }, headers: CORS }); }
         if (p === '/api/geocode') return fulfill(r, [{ name: 'Porto', admin1: 'Porto', country: 'Portugal', lat: 41.1496, lon: -8.611, elevation: 85 }, { name: '<img src=x onerror=alert(1)>', admin1: 'XSS', country: 'Teste', lat: 40, lon: -8 },
             { name: 'Amadora', admin1: 'Lisboa', country: 'Portugal', lat: 38.7536, lon: -9.2302, elevation: 150 }]);
         if (p === '/api/sat') return r.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'image/png' }, body: fs.readFileSync(path.join(ROOT, 'icon-192.png')) });
@@ -179,9 +199,44 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.touchscreen.tap(cv.x + 150, cv.y + 100);
     await page.waitForSelector('#h-chart .chart-tip:not([hidden])');
     assert.match(await page.locator('#h-chart .chart-tip').textContent(), /temperatura.*chuva.*rajada/s);
+    // radar no ponto (RainViewer): a chover desde as 15:20 → o "agora" e as próximas 2 h vêm do radar
+    assert.match(nowTxt, /Radar no ponto: 0,6 mm\/h \(fraca\) · há 5 min/, 'linha do radar no Agora');
+    assert.equal(await page.locator('.now .rad-strip .rs-bars i').count(), 13, '13 imagens nas últimas 2 h');
+    assert.equal(await page.locator('.now .rad-strip .rs-bars i.r1').count(), 3, 'chuva nas 3 últimas');
+    assert.match(await page.locator('.now .rad-strip').getAttribute('aria-label'), /^Radar no ponto nas últimas 2 horas: 13:40 0,0 mm\/h, .* 15:40 0,6 mm\/h$/);
+    const ncSec = page.locator('.sec:has(h2:text("Próximas 2 horas"))');
+    assert.match(await ncSec.locator('.lead').textContent(), /^A chover agora \(fraca, 0,6 mm\/h\); /);
+    assert.equal(await ncSec.locator('.sec-h .sub').textContent(), 'radar e modelos');
+    assert.match(await page.locator('.now-c').textContent(), /Chuva fraca/);
+    assert.deepEqual(rvCalls.slice(0, 2).sort(), ['coverage', 'maps']);
+    assert.equal(rvCalls.filter((c) => c === '256/7/0_0').length, 13, '13 imagens centradas no ponto (z7, cores exatas)');
     await noOverflow('Agora');
     await shot('02-agora.png');
-    console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| 72 h, 2 h, 12 indicadores, análise do Claude');
+    console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude');
+
+    // 2b) "Está a chover?": o aviso manda no agora (45 min) e segue para o conector
+    await page.click('.now [data-act="report"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) .rpt-grid');
+    assert.equal(await page.locator('#mt-sheet-title').textContent(), 'Está a chover?');
+    assert.deepEqual(await page.locator('.rpt-grid button span').allTextContents(), ['Chuva', 'Chuva forte', 'Não chove', 'Nevoeiro', 'Granizo', 'Trovoada']);
+    await noOverflow('folha do aviso');
+    await shot('02b-aviso.png');
+    await page.click('.rpt-grid [data-report="nao-chove"]');
+    await toastIs(/Obrigado! «Não chove» conta no agora durante 45 min/);
+    await page.waitForFunction(() => /O teu aviso: Não chove/.test(document.querySelector('.now').textContent));
+    assert.deepEqual(reportPosts, [{ kind: 'nao-chove', time: NOW.replace('Z', '.000Z'), lat: LAT, lon: LON }], 'POST /api/reports');
+    assert.match(await page.locator('.now').textContent(), /O teu aviso: Não chove · agora mesmo · conta até às 16:30/);
+    assert.match(await ncSec.locator('.lead').textContent(), /^Não está a chover \(o teu aviso das 15:45\); /);
+    assert.equal(await ncSec.locator('.sec-h .sub').textContent(), 'com o teu aviso');
+    assert.doesNotMatch(await page.locator('.now-c').textContent(), /Chuva/);
+    assert.match(await page.locator('.now [data-act="report"]').textContent(), /Mudar o aviso/);
+    // outro aviso substitui-o
+    await page.click('.now [data-act="report"]');
+    await page.click('.rpt-grid [data-report="chuva"]');
+    await page.waitForFunction(() => /O teu aviso: Chuva ·/.test(document.querySelector('.now').textContent));
+    assert.match(await ncSec.locator('.lead').textContent(), /^Está a chover \(o teu aviso das 15:45\); /);
+    assert.equal(reportPosts.length, 2);
+    console.log('✓ "Está a chover?": aviso no agora (45 min) e no conector');
 
     // 3) Dias: 16 dias; tocar num dia → folha com as horas
     await tab('dias');
@@ -220,7 +275,28 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.doesNotMatch(fireTxt, /Póvoa de Lanhoso/, 'ocorrência longe fica de fora');
     await noOverflow('Satélite');
     await shot('05-satelite.png');
-    console.log('✓ Satélite: camadas e zoom pelo conector; incêndios (IPMA, FIRMS, ANEPC)');
+    // camada Radar: a última imagem sobre as nuvens, centrada no ponto; z7/z6; as últimas 2 h a andar
+    await page.click('.chips [data-layer="radar"]');
+    await page.waitForSelector('#rad-img');
+    const rsrc = await page.locator('#rad-img').getAttribute('src');
+    assert.match(rsrc, new RegExp(`^https://tilecache\\.rainviewer\\.com${RV_MAPS.radar.past.at(-1).path}/512/7/38\\.7223/-9\\.1393/2/1_1\\.png$`), rsrc);
+    assert.match(await page.locator('#sat-img').getAttribute('src'), /layer=geocolour&lat=38\.7223&lon=-9\.1393&km=244&/, 'nuvens por baixo, com a mesma largura');
+    assert.equal(await page.locator('#rad-time').textContent(), '15:40 · há 5 min');
+    assert.deepEqual(await page.locator('[data-rz]').allTextContents(), ['240 km', '490 km']);
+    assert.match(await page.locator('.rad-leg').textContent(), /fraca.*moderada.*forte.*muito forte.*granizo/);
+    await page.click('[data-act="rad-play"]');
+    await page.waitForFunction(() => /Parar/.test(document.querySelector('[data-act="rad-play"]').textContent));
+    await page.waitForFunction(() => /^13:\d0/.test(document.querySelector('#rad-time').textContent) || /^14:/.test(document.querySelector('#rad-time').textContent));
+    await page.click('[data-act="rad-play"]');
+    await page.waitForFunction(() => document.querySelector('#rad-time').textContent === '15:40 · há 5 min' && /Últimas 2 h/.test(document.querySelector('[data-act="rad-play"]').textContent));
+    await page.click('[data-rz="6"]');
+    await page.waitForFunction(() => /\/512\/6\//.test(document.querySelector('#rad-img').src));
+    assert.ok(rvCalls.filter((c) => c === '512/7/1_1').length >= 13, 'as 13 imagens pré-carregadas para a animação');
+    await noOverflow('Satélite (radar)');
+    await shot('05b-radar.png');
+    await page.click('[data-rz="7"]');
+    await page.click('.chips [data-layer="geocolour"]');
+    console.log('✓ Satélite: camadas e zoom pelo conector; radar (última imagem, z7/z6, últimas 2 h); incêndios (IPMA, FIRMS, ANEPC)');
 
     // 5) Análise: análise do Claude, ligar/desligar a análise diária, análise a pedido
     await tab('analise');

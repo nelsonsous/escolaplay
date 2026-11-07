@@ -1,0 +1,255 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Onda Fluxo</title>
+<style>
+  /* Enxame: milhares de partículas seguem um campo vetorial escrito em Onda (compilado p/ JS). Tema escuro. */
+  :root{
+    --bg:#0a0612; --panel:#180d26; --line:#321c48; --fg:#f5e9fb; --mut:#bfa0d6;
+    --pink:#f472b6; --amber:#f59e0b; --cyan:#5ad1c6;
+    color-scheme:dark;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--sans);overflow:hidden}
+  .wrap{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;
+    padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
+    padding-block:max(14px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-bottom,0px))}
+  .top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:11px;flex:0 0 auto}
+  h1{margin:0;font:800 clamp(22px,6.5vw,30px)/1 var(--sans);letter-spacing:-.02em;
+    background:linear-gradient(100deg,var(--cyan),var(--pink) 60%,var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  h1 small{display:block;font:700 9.5px/1.5 var(--mono);letter-spacing:.14em;color:var(--cyan);-webkit-text-fill-color:var(--cyan);text-transform:uppercase}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px;text-align:center}
+  .pill .k{font:700 8.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+  .pill .v{font:800 17px/1.1 var(--sans);margin-top:3px;font-variant-numeric:tabular-nums}
+  .pill .v b{color:var(--cyan)}
+  .stage{position:relative;flex:1 1 auto;min-height:0;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#07040e;
+    box-shadow:0 22px 60px -30px #000,0 0 40px -22px var(--pink)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .hint{position:absolute;left:12px;bottom:12px;font:600 12px var(--sans);color:#fff;background:#0009;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;padding:7px 12px;pointer-events:none;transition:opacity .5s}
+  .hint.gone{opacity:0}
+  .note{flex:0 0 auto;margin-top:11px;color:var(--mut);font-size:13px;text-align:center;text-wrap:balance}
+  .note b{color:var(--fg)} .note code{font:12px var(--mono);color:#ffd9ec}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Onda Fluxo<small>campo vetorial · Onda → JS</small></h1>
+    <div class="pill"><div class="k">partículas</div><div class="v" id="np">—</div></div>
+  </div>
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <div class="hint" id="hint">arrasta o dedo — cria redemoinhos 🌀</div>
+  </div>
+  <p class="note"><b>Cada partícula</b> pergunta a uma função <b>Onda</b> (<code>flow</code>, compilada para JS) para onde seguir. O cérebro do enxame é a Onda; o desenho é a camada de cima. <b id="fps">—</b> fps.</p>
+</div>
+
+<script id="flowjs" type="text/plain">const obv=new DataView(new ArrayBuffer(8));function obh(x){obv.setFloat64(0,x);return obv.getInt32(0);}function obl(x){obv.setFloat64(0,x);return obv.getUint32(4);}function obw(h,l){obv.setInt32(0,h);obv.setUint32(4,l);return obv.getFloat64(0);}
+function f_flow(v_x,v_y,v_t,v_tx,v_ty){
+let t0=0.0;
+let t1=0.0;
+let t2=0.0;
+let t3=0.0;
+let t4=0.0;
+let t5=0.0;
+let t6=0.0;
+let t7=0.0;
+let t8=0.0;
+let t9=0.0;
+let t10=0.0;
+let t11=0.0;
+let t12=0.0;
+let t13=0.0;
+let t14=0.0;
+let t15=0.0;
+let t16=0.0;
+let t17=0.0;
+let t18=0.0;
+let t19=0.0;
+let t20=0.0;
+let t21=0.0;
+let t22=0.0;
+let t23=0.0;
+let t24=0.0;
+let t25=0.0;
+let t26=0.0;
+let t27=0.0;
+let t28=0.0;
+let t29=0.0;
+let t30=0.0;
+let t31=0.0;
+let t32=0.0;
+let t33=0.0;
+let t34=0.0;
+let t35=0.0;
+let t36=0.0;
+let t37=0.0;
+let t38=0.0;
+let t39=0.0;
+let t40=0.0;
+let t41=0.0;
+let t42=0.0;
+let t43=0.0;
+let t44=0.0;
+let t45=0.0;
+let t46=0.0;
+let t47=0.0;
+let t48=0.0;
+let t49=0.0;
+let t50=0.0;
+let t51=0.0;
+let t52=0.0;
+let t53=0.0;
+let t54=0.0;
+let t55=0.0;
+let t56=0.0;
+let t57=0.0;
+let t58=0.0;
+let t59=0.0;
+let t60=0.0;
+let t61=0.0;
+let t62=0.0;
+let t63=0.0;
+let t64=0.0;
+let t65=0.0;
+let t66=0.0;
+let t67=0;
+let v_dx=0.0;
+let v_dy=0.0;
+let v_d2=0.0;
+let v_bump=0.0;
+let v_amb=0.0;
+let v_ang=0.0;
+t0=v_x;
+t1=v_tx;
+t2=t0-t1;
+v_dx=t2;
+t3=v_y;
+t4=v_ty;
+t5=t3-t4;
+v_dy=t5;
+t6=v_dx;
+t7=v_dx;
+t8=t6*t7;
+t9=v_dy;
+t10=v_dy;
+t11=t9*t10;
+t12=t8+t11;
+v_d2=t12;
+t13=3.5;
+t14=1.0;
+t15=1.0;
+t16=2.5;
+t17=v_d2;
+t18=t16*t17;
+t19=t15+t18;
+t20=t14/t19;
+t21=t13*t20;
+v_bump=t21;
+t22=2.4;
+t23=v_x;
+t24=t22*t23;
+t25=1.1;
+t26=v_t;
+t27=t25*t26;
+t28=t24+t27;
+t29=Math.sin(t28);
+t30=2.1;
+t31=v_y;
+t32=t30*t31;
+t33=-0.9;
+t34=v_t;
+t35=t33*t34;
+t36=t32+t35;
+t37=Math.cos(t36);
+t38=t29+t37;
+t39=0.6;
+t40=1.7;
+t41=v_x;
+t42=v_y;
+t43=t41+t42;
+t44=t40*t43;
+t45=0.4;
+t46=v_t;
+t47=t45*t46;
+t48=t44+t47;
+t49=Math.sin(t48);
+t50=t39*t49;
+t51=t38+t50;
+v_amb=t51;
+t52=v_amb;
+t53=v_bump;
+t54=7.0;
+t55=v_d2;
+t56=t54*t55;
+t57=2.0;
+t58=v_t;
+t59=t57*t58;
+t60=t56-t59;
+t61=Math.sin(t60);
+t62=t53*t61;
+t63=t52+t62;
+v_ang=t63;
+t64=10000.0;
+t65=v_ang;
+t66=t64*t65;
+t67=Math.trunc(t66);
+return t67;
+}
+return f_flow;
+</script>
+<script>
+(function(){
+  var cv=document.getElementById('c'), stage=document.getElementById('stage'), hint=document.getElementById('hint');
+  var ctx=cv.getContext('2d');
+  var flow=null; try{ flow=(new Function(document.getElementById('flowjs').textContent))(); }catch(e){}
+  var SC=8.0;                 // escala do mundo (coords 0..SC) para o campo ter detalhe
+  var N = Math.min(2000, Math.max(800, Math.round((window.innerWidth*window.innerHeight)/600)));
+  document.getElementById('np').textContent=N;
+
+  var W=1,H=1,dpr=1;
+  function resize(){ var r=cv.getBoundingClientRect(); dpr=Math.min(window.devicePixelRatio||1,2);
+    W=Math.round(r.width*dpr); H=Math.round(r.height*dpr); cv.width=W; cv.height=H;
+    ctx.fillStyle='#07040e'; ctx.fillRect(0,0,W,H); }
+  resize(); window.addEventListener('resize',resize,{passive:true});
+
+  var px=new Float32Array(N), py=new Float32Array(N), hue=new Float32Array(N);
+  var COL=['#f472b6','#f59e0b','#5ad1c6','#a78bfa','#34d399'];
+  for(var i=0;i<N;i++){ px[i]=Math.random()*SC; py[i]=Math.random()*SC; hue[i]=i%COL.length; }
+
+  var tx=SC*0.5, ty=SC*0.5, touched=false, lastTouch=0;
+  function setPt(e){ var r=cv.getBoundingClientRect(), p=(e.touches&&e.touches[0])||e;
+    tx=Math.max(0,Math.min(1,(p.clientX-r.left)/r.width))*SC; ty=Math.max(0,Math.min(1,(p.clientY-r.top)/r.height))*SC;
+    touched=true; lastTouch=performance.now(); hint.classList.add('gone'); }
+  cv.addEventListener('pointerdown',function(e){cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);setPt(e);},{passive:true});
+  cv.addEventListener('pointermove',function(e){if(e.buttons||e.pointerType==='touch')setPt(e);},{passive:true});
+  window.addEventListener('pointerup',function(){touched=false;},{passive:true});
+
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t0=performance.now(), facc=0, flast=t0, fpsEl=document.getElementById('fps'), cur=0;
+  var SPD=SC*0.0016;
+
+  function frame(now){
+    var t=(now-t0)/1000*(reduce?0.4:1);
+    if(!touched && now-lastTouch>1200){ var a=now/1000*0.3; tx=SC*(0.5+0.33*Math.cos(a)); ty=SC*(0.5+0.33*Math.sin(a*1.2)); }
+    // rasto: esbate o frame anterior
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='rgba(7,4,14,0.11)'; ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter'; ctx.lineWidth=1.15*dpr; ctx.lineCap='round';
+    var sx=W/SC, sy=H/SC;
+    for(var i=0;i<N;i++){
+      var a = flow ? flow(px[i],py[i],t,tx,ty)/10000 : Math.atan2(ty-py[i],tx-px[i]);
+      var ox=px[i], oy=py[i];
+      var nx=ox+Math.cos(a)*SPD, ny=oy+Math.sin(a)*SPD, wrap=false;
+      if(nx<0){nx+=SC;wrap=true;} else if(nx>=SC){nx-=SC;wrap=true;}
+      if(ny<0){ny+=SC;wrap=true;} else if(ny>=SC){ny-=SC;wrap=true;}
+      px[i]=nx; py[i]=ny;
+      if(!wrap){ ctx.strokeStyle=COL[hue[i]]; ctx.beginPath(); ctx.moveTo(ox*sx,oy*sy); ctx.lineTo(nx*sx,ny*sy); ctx.stroke(); }
+    }
+    facc++;
+    if(now-flast>=500){ var fps=facc*1000/(now-flast); facc=0; flast=now; cur=cur?cur*0.6+fps*0.4:fps; fpsEl.textContent=Math.round(cur); }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  setTimeout(function(){hint.classList.add('gone');},4800);
+})();
+</script>

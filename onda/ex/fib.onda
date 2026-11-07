@@ -1,0 +1,2 @@
+: fib i>i n ? < n 2 n + fib - n 1 fib - n 2
+: main >i { = t T = r fib 35 N r " em " N / - T t 1000 " ms\n" 0 }

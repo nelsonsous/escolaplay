@@ -28,16 +28,17 @@ export async function getJSON(url, ms = 30000) {
 export const px = (p, ms) => getJSON(WORKER + p, ms);
 
 const KV = () => `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_NS}`;
-export async function kvKeys(prefix) {
+export async function kvList(prefix) {
     const out = [];
     let cursor = '';
     do {
         const r = await getJSONauth(`${KV()}/keys?prefix=${encodeURIComponent(prefix)}${cursor ? '&cursor=' + cursor : ''}`);
-        out.push(...(r.result || []).map((k) => k.name));
+        out.push(...(r.result || []));
         cursor = r.result_info && r.result_info.cursor;
     } while (cursor);
-    return out;
+    return out; // [{ name, metadata }]
 }
+export const kvKeys = async (prefix) => (await kvList(prefix)).map((k) => k.name);
 async function getJSONauth(url) {
     const r = await fetch(url, { headers: CF_AUTH });
     const b = await r.json().catch(() => null);

@@ -1,0 +1,475 @@
+# compilacao para a representacao intermedia (RI): instrucoes de 8 palavras [k d a b c x y -]
+# 18 base da RI 19 n de instrucoes
+: lnm i>i j @ + @ 8 * j 2
+: lty i>i j @ + + @ 8 * j 2 1
+: addl ii>i n y { = p + @ 8 * @ 9 2 ! p n ! + p 1 y ! 9 + @ 9 1 }
+: floc i>i i { = k @ 32 = r -1 W && < r 0 < k @ 9 { ? teq i lnm k = r k 0 = k + k 1 } r }
+: nt i>i y { = r @ 11 ! + @ 10 r y ! 11 + r 1 r }
+: tty i>i t @ + @ 10 t
+: edge i>i k { = p + @ 14 * @ 15 2 ! p @ 13 ! + p 1 k ! 15 + @ 15 1 }
+: ir iiiiiii>i k d a b c x y { = p + @ 18 * @ 19 8 ! p k ! + p 1 d ! + p 2 a ! + p 3 b ! + p 4 c ! + p 5 x ! + p 6 y ! 19 + @ 19 1 }
+: sighdr i>i k {
+  ? @ 12 0 "static "
+  ? isjs "function" ety @ fe k 3
+  " f_"
+  etx @ fe k 0
+  "("
+  = np @ fe k 2
+  ? && == np 0 ~ @ 12 "void" 0
+  = j 0
+  W < j np { ? > j 0 "," 0 ? isjs "v_" { ety fpt k j " v_" } etx + @ fe k 4 j = j + j 1 }
+  ")" }
+: cfun i>i k ? == @ fe k 12 -2 arsn k ? == @ fe k 12 -3 arbn k ? == @ fe k 12 -4 arpn k ? == @ fe k 12 -5 apbn k ? == @ fe k 12 -6 afmn k ? == @ fe k 12 -7 agdn k ? == @ fe k 12 -8 agva k ? == @ fe k 12 1 aprn k ? > @ fe k 12 1 cdrv k cfun0 k
+: cfun0 i>i k {
+  ! 13 k
+  ! 9 0
+  ! 11 0
+  ! 19 0
+  ! 32 0
+  ! 33 0
+  = np @ fe k 2
+  = j 0
+  W < j np { addl + @ fe k 4 j fpt k j = j + j 1 }
+  ! 7 @ fe k 5
+  = r cx
+  ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
+  ? && < @ 7 @ 4 != tcode @ 7 ': { ebeg "tokens a mais" eend } 0
+  ir 41 0 r 0 0 0 0
+  ? isc zfn k ? isw wfun k ? isx xfun k ? isa afun k ? isd dfun k tfun k }
+: tfun i>i k {
+  = np @ fe k 2
+  O 16
+  ! fe k 8 @ 16
+  = j 0
+  W < j @ 19 { emi + @ 18 * j 8 = j + j 1 }
+  ! fe k 9 @ 16
+  O 17
+  ! fe k 6 @ 17
+  sighdr k "{\n"
+  = j 0
+  W < j @ 11 { ety tty j " " et j "=" ez tty j ";\n" = j + j 1 }
+  = j np
+  W < j @ 9 { ety lty j " " elnm lnm j j "=" ez lty j ";\n" = j + j 1 }
+  ! fe k 7 @ 17
+  O 0 }
+: lit ii>i i y { = r nt y ir 1 r i 0 0 0 0 r }
+: clit i>i i { ? < tkl i 2 { ebeg "caracter invalido" eend } 0 = r nt 0 ir 2 r tc i 1 0 0 0 0 r }
+: cstr i>i i { ir 3 0 i 0 0 0 0 = r nt 0 ir 4 r 0 0 0 0 0 r }
+: cargs ii>i k sk {
+  = n - @ fe k 2 sk
+  = a A + n 1
+  = j 0
+  W < j n { = t cx ? != tty t fpt k + sk j { ebeg "argumento com tipo errado" eend } 0 ! + a j t = j + j 1 }
+  a }
+: eargs iii>i a n ld { = j 0 W < j n { ? || > j 0 ld "," 0 et @ + a j = j + j 1 } 0 }
+: ccall i>i k { = a cargs k 0 ? || > @ 33 0 isc ccallt k a ncall k a }
+# -a/-m: dentro de um ciclo W, uma chamada a biblioteca matematica (nao recursiva, ate 600 tokens) expande-se em linha,
+# um nivel, como o clang faz com as funcoes estaticas; nunca dentro da propria biblioteca (funcoes _...)
+: ailp i>i k {
+  = e fend k
+  && && > xq 6 0 == @ 33 0 && && != @ fe k 11 0 <= - e @ fe k 5 600 != tc @ fe @ 13 0 0 '_ }
+: ncall ii>i k a { = r nt @ fe k 3 ir 7 r k a @ fe k 2 0 0 edge k r }
+: ccallt ii>i k a ? || && && isx == @ fe k 11 1 < @ 33 4 && && isc @ fe k 11 < @ 33 16 cinl k a ncall k a
+: ccallf ii>i k a ? && && || isx isa @ fe k 11 < @ 33 4 cinl k a ncall k a
+: cinl ii>i k a {
+  = sv @ 32
+  = s7 @ 7
+  ! 32 @ 9
+  ! 33 + @ 33 1
+  = np @ fe k 2
+  = j 0
+  W < j np { = n + @ fe k 4 j ? xro k n addl n + 2 @ + a j { addl n fpt k j ir 6 0 0 @ + a j - @ 9 1 0 0 } = j + j 1 }
+  ! 7 @ fe k 5
+  = r cx
+  ? != tty r @ fe k 3 { ebeg "tipo de retorno errado" eend } 0
+  = j @ 32
+  W < j @ 9 { ! + @ 8 * j 2 0 = j + j 1 }
+  ! 7 s7
+  ! 32 sv
+  ! 33 - @ 33 1
+  r }
+: xro ii>i k n {
+  = s @ fe k 5
+  = e fend k
+  = r 1
+  = j s
+  W && r < j - e 1 { ? && == tcode j '= && == tkl j 1 teq + j 1 n = r 0 0 = j + j 1 }
+  r }
+: inlf >i {
+  = k 0
+  W < k @ 6 {
+    = s @ fe k 5
+    = e fend k
+    = r 0
+    = j s
+    W < j e { ? teq j @ fe k 0 = r 1 0 = j + j 1 }
+    ! fe k 11 ? r 0 ? <= - e s 80 1 2
+    = k + k 1 }
+  0 }
+: newl i>i y { addl 0 y - @ 9 1 }
+: getl i>i j { = r nt lty j ir 5 r 0 j 0 0 0 r }
+: setl ii>i j t { ir 6 0 0 t j 0 0 t }
+: lit1 i>i v { = r nt 0 ir 2 r v 0 0 0 0 r }
+: zer i>i y { = r nt y ir 4 r 0 0 0 0 0 r }
+: binx iiii>i o y a b { = r nt y ir 8 r - 0 o a b 0 0 r }
+: cmpx iii>i o a b { = r nt 0 ir 9 r - 0 o a b 0 0 r }
+: rcall iii>i k a n { = r nt @ fe k 3 ir 7 r k a n 0 0 r }
+: lpbeg iii>i iv n z { setl iv zer 0 ir 21 0 0 0 0 0 0 = c cmpx '< getl iv n ir 22 0 c 0 0 0 0 z }
+: lpend i>i iv { setl iv binx '+ 0 getl iv lit1 1 ir 23 0 0 0 0 0 0 }
+: fargs iiii>i k a i0 i1 { = n @ fe k 2 = q A + n 1 ! q i0 = s ? < i1 0 1 2 ? < i1 0 0 ! + q 1 i1 = j s W < j n { ! + q j @ + a - j s = j + j 1 } q }
+: lowS iii>i n k a {
+  = y @ fe k 3
+  = ac newl y
+  = iv newl 0
+  setl ac zer y
+  lpbeg iv n 0
+  = fr ccallf k fargs k a getl iv -1
+  setl ac binx '+ y getl ac fr
+  lpend iv
+  getl ac }
+: lowE iiii>i d n k a {
+  = iv newl 0
+  lpbeg iv n 0
+  = fr ccallf k fargs k a getl iv -1
+  = ad binx '+ 0 d getl iv
+  ? @ fe k 3 { ir 27 0 ad fr 0 0 0 } { ir 25 0 ad fr 0 0 0 }
+  lpend iv
+  d }
+# --- vetorizacao de mapas de campo (so x86): detetar um elemento vetorizavel e emitir um no-macro (tipo 41) ---
+# token do nome do parametro j da funcao k
+: xpe ii>i k j + @ fe k 4 j
+# pressao de registos da expressao do resultado em @7 (modelo direita-primeiro): max(p(B),1+p(A)); -1 se invalida.
+# so permite: literal float, o local x (teq com xt) e + - * / sobre eles.
+: xvp i>i xt {
+  = i @ 7
+  ! 7 + i 1
+  = kk tkk i
+  ? == kk 2 1
+  ? == kk 0 ? teq i xt 1 -1
+  { = o tcode i
+    ? isar o { = pa xvp xt = pb xvp xt ? || < pa 0 < pb 0 -1 ? > pb + 1 pa pb + 1 pa } -1 } }
+# a funcao k e um mapa vetorizavel? forma exata: : g ii>f i a { = x @f + a i <expr de + - * / sobre x e floats> }
+# conta os literais float da expressao em @7 (para a tabela de constantes caber em disp8)
+: xvnc >i { = i @ 7 ! 7 + i 1 ? == tkk i 2 1 ? == tkk i 0 0 { ? isar tcode i + xvnc xvnc 0 } }
+: xvan i>i k {
+  ? == @ fe k 3 0 0
+  ? != @ fe k 2 2 0
+  = b @ fe k 5
+  ? ~ == tcode b '{ 0
+  ? ~ == tcode + b 1 '= 0
+  ? ~ == tkk + b 2 0 0
+  ? ~ == tcode + b 3 k2 '@ 'f 0
+  ? ~ == tcode + b 4 '+ 0
+  ? ~ teq + b 5 xpe k 1 0
+  ? ~ teq + b 6 xpe k 0 0
+  { = sv @ 7
+    ! 7 + b 7
+    = p xvp + b 2
+    ! 7 + b 7
+    = nc xvnc
+    = r && && && >= p 0 <= p 6 <= nc 15 == tcode @ 7 '}
+    ! 7 sv
+    r } }
+: lowEv iiii>i d n k a { ir 51 0 n d @ a k 0 d }
+: lowEa iiii>i d n k a { ir 53 0 d n k @ a 0 d }
+: fastf >i || == Av 1 2 'f == Av 1 2 '5
+: lowSv iii>i n k a { = r nt @ fe k 3 ir 52 r n 0 @ a k 0 r }
+: conv ii>i t f ? f { = r nt 1 ir 15 r 0 t 0 0 0 r } t
+# --- paralelo (-m, Mac): um E ou D cuja funcao e pura reparte-se por threads (pthread da libSystem). A funcao condutora
+# (sintetica: campo 12 = 2 + 4*funcao + modo; 0 D, 1 E, 2 S) corre um intervalo [lo, hi) com a funcao expandida, como o lowE/lowD; a
+# rotina _pr (campo 12 = 1, codigo-maquina) cria as threads, que vao buscando blocos com um contador atomico. Cada
+# elemento escreve so o seu lugar, logo o resultado e o mesmo, bit a bit, em qualquer ordem. Os argumentos passam por
+# slots fixos no fim de M (pjs): 0 condutora 1 n 2 contador 3 bloco 4 destino 5 largura 6..13 inteiros 14..21 reais
+# 22..37 threads 38 n de cpus 39 n de blocos 64.. somas parciais do S (uma por bloco, somadas por ordem: o resultado nao
+# depende do numero de threads)
+: pjs i>i j + - amw 512 j
+: ppbad i>i o {
+  = b 0
+  ? || == o '! == o k2 '! 'f = b 1 0
+  ? || == o 'A == o 'P = b 1 0
+  ? || == o 'R == o 'N = b 1 0
+  ? || || == o k2 'R 'b == o k2 'R 'p == o k2 'P 'b = b 1 0
+  ? || == o 'G == o 'O = b 1 0
+  ? || == o 'X == o 'E = b 1 0
+  ? || == o 'D == o 'V = b 1 0
+  ? || == o 'J == o 'Y = b 1 0
+  ? || == o 'K == o k2 'K 'c = b 1 0
+  ? == o 'B = b 1 0
+  b }
+# pura: nao escreve na memoria, nao aloca, nao imprime nem le (tambem nas funcoes que chama); 13 = memo
+: ppok ii>i k d {
+  = m @ fe k 13
+  ? == m 1 1 ? == m 2 0 ? == m 3 1 ? > d 60 0 ? == tc @ fe k 0 0 '_ 1 {
+    ! fe k 13 3
+    = e fend k
+    = r 1
+    = j @ fe k 5
+    W && r < j e {
+      = kk tkk j
+      ? == kk 3 = r 0 { ? == kk 0 { = f ffun j ? && >= f 0 != f k = r ppok f + d 1 0 } { ? == kk 5 = r ~ ppbad tcode j 0 } }
+      = j + j 1 }
+    ! fe k 13 ? r 1 2
+    r } }
+# custo estimado por elemento (para o limiar do paralelo): tokens do corpo, +1000 por ciclo ou recursao, +40 por
+# Sn/Cs/Ex/Lg/At/Pw, e o custo das funcoes que chama. Acordar as threads custa uns microssegundos: so compensa
+# quando n * custo e grande. Limiar = 600000/custo elementos, entre 4096 e 2^20.
+: pheavy i>i c || || || || == c k2 'Q 'd == c k2 'Q 'e == c k2 'S 'n == c k2 'C 's || || == c k2 'E 'x == c k2 'L 'g || == c k2 'A 't == c k2 'P 'w
+: pcost ii>i k d {
+  = e fend k = j @ fe k 5 = c 0
+  W && < j e < d 8 {
+    = kk tkk j
+    ? == kk 0 { = f ffun j ? >= f 0 { ? == f k { = c + c 1000 } { = c + + c 20 pcost f + d 1 } } 0 } 0
+    ? == kk 5 { = o tcode j ? || || == o 'W == o k2 'Q 'd == o k2 'Q 'e = c + c 1000 0 ? pheavy o = c + c 40 0 } 0
+    = c + c 1
+    = j + j 1 }
+  c }
+: pthr i>i k { = c pcost k 0 = t / 600000 ? < c 1 1 c = lo ? >= c 1000 32 4096 ? < t lo lo ? > t 1048576 1048576 t }
+# so fora de funcoes puras e das condutoras (onde as puras sao expandidas): uma pura pode correr dentro de uma
+# condutora, e os slots sao um so conjunto
+: ppar i>i k && && && isa ismo ppok k 0 ~ || != @ fe @ 13 12 0 ppok @ 13 0
+: pnew ii>i code kf { = k @ 6 = j 0 W < j 14 { ! fe k j 0 = j + j 1 } ! fe k 0 @ fe kf 0 ! fe k 1 @ fe kf 0 ! fe k 2 2 ! fe k 12 code ! 6 + k 1 k }
+: pfind i>i code { = r -1 = k 0 W && < r 0 < k @ 6 { ? == @ fe k 12 code = r k 0 = k + k 1 } r }
+: pdrv ii>i kf mode { = code + + 2 * kf 4 mode = r pfind code ? >= r 0 r pnew code kf }
+: pprk i>i kf { = r pfind 1 ? >= r 0 r pnew 1 kf }
+: pslot iii>i s v fl { ? fl { ir 27 0 lit1 pjs s v 0 0 0 } { ir 25 0 lit1 pjs s v 0 0 0 } 0 }
+: pargs iii>i k a s {
+  = np @ fe k 2 = ni 0 = nf 0 = j s
+  W < j np { ? fpt k j { pslot + 14 nf @ + a - j s 1 = nf + nf 1 } { pslot + 6 ni @ + a - j s 0 = ni + ni 1 } = j + j 1 }
+  ni }
+: lowDp iiii>i w h k a {
+  = q A 2
+  ! q w
+  ! + q 1 h
+  rcall fby k3 '_ 'p 'h q 2
+  = nb binx '* 0 w h
+  = bf nt 0
+  ir 28 bf nb 0 0 0 0
+  pslot 4 bf 0
+  pslot 5 w 0
+  pargs k a 2
+  pprk k
+  ir 60 0 h pdrv k 0 0 0 0
+  = q2 A 2
+  ! q2 bf
+  ! + q2 1 nb
+  rcall fby k3 '_ 'p 'd q2 2
+  zer 0 }
+: lowEp iiii>i d n k a {
+  pslot 4 d 0
+  = ni pargs k a 1
+  pprk k
+  ir 60 0 n pdrv k 1 + + 1 * 2 ni << pthr k 10 0 0
+  d }
+: lowSp iii>i n k a {
+  = y @ fe k 3
+  pargs k a 1
+  pprk k
+  ir 60 0 n pdrv k 2 + 513 << pthr k 10 0 0
+  = ac newl y
+  setl ac zer y
+  = nc ldslot 39 0
+  = cv newl 0
+  lpbeg cv nc 0
+  = pv nt y
+  ir ? y 26 24 pv binx '+ 0 lit1 pjs 64 getl cv 0 0 0 0
+  setl ac binx '+ y getl ac pv
+  lpend cv
+  getl ac }
+# S real sem -mf: os bits tem de ser os do WASM (soma pela ordem 0..n-1). Os termos calculam-se em paralelo (um E
+# para um buffer temporario) e somam-se depois em serie, pela mesma ordem. O topo do heap (M[-1]) e reposto no fim,
+# para um S num ciclo nao gastar memoria. Para n enorme (buffer > 32 MiB) fica o S em serie.
+: lowSb iii>i n k a {
+  = hp nt 0
+  ir 24 hp lit1 -1 0 0 0 0
+  = d nt 0
+  ir 28 d n 0 0 0 0
+  lowEp d n k a
+  = ac newl 1
+  setl ac zer 1
+  = iv newl 0
+  lpbeg iv n 0
+  = pv nt 1
+  ir 26 pv binx '+ 0 d getl iv 0 0 0 0
+  setl ac binx '+ 1 getl ac pv
+  lpend iv
+  ir 25 0 lit1 -1 hp 0 0 0
+  getl ac }
+: lowSq iii>i n k a {
+  ? < pcost k 0 40 lowS n k a {
+  = c binx '& 0 cmpx '< n lit1 4194304 cmpx '< lit1 - pthr k 1 n
+  = r nt 1
+  ir 18 0 c 0 0 0 0
+  = x lowSb n k a
+  ir 19 r x 0 0 0 0
+  = y lowS n k a
+  ir 20 r y 0 0 0 0
+  r } }
+: ldslot ii>i s fl { = r nt fl ir ? fl 26 24 r lit1 pjs s 0 0 0 0 r }
+: lpfrom iii>i iv lo hl { setl iv lo ir 21 0 0 0 0 0 0 = c cmpx '< getl iv getl hl ir 22 0 c 0 0 0 0 0 }
+: cdrv i>i kd {
+  = code @ fe kd 12
+  = kf >> - code 2 2
+  = mode & - code 2 3
+  ! 13 kd
+  ! 9 0
+  ! 11 0
+  ! 19 0
+  ! 32 0
+  ! 33 0
+  = lo newl 0
+  = hi newl 0
+  = dd ldslot 4 0
+  = s ? mode 1 2
+  = a A 9
+  = np @ fe kf 2 = ni 0 = nf 0 = j s
+  W < j np { ? fpt kf j { ! + a - j s ldslot + 14 nf 1 = nf + nf 1 } { ! + a - j s ldslot + 6 ni 0 = ni + ni 1 } = j + j 1 }
+  ? == mode 2 {
+      = y @ fe kf 3
+      = r ? && && y fastf asva kf
+        { = r nt 1 ir 54 r getl hi kf a + 1 getl lo 0 r }
+        { = ac newl y
+          setl ac zer y
+          = iv newl 0
+          lpfrom iv getl lo hi
+          = fr ccallf kf fargs kf a getl iv -1
+          setl ac binx '+ y getl ac fr
+          lpend iv
+          getl ac }
+      = ad binx '+ 0 lit1 pjs 64 binx '/ 0 getl lo ldslot 3 0
+      ? y { ir 27 0 ad r 0 0 0 } { ir 25 0 ad r 0 0 0 } }
+  ? mode {
+      ? asva kf { ir 59 0 dd getl hi kf a + 1 getl lo 0 } ? xvan kf { ir 53 0 dd getl hi kf @ a + 1 getl lo 0 } {
+      = iv newl 0
+      lpfrom iv getl lo hi
+      = fr ccallf kf fargs kf a getl iv -1
+      = ad binx '+ 0 dd getl iv
+      ? @ fe kf 3 { ir 27 0 ad fr 0 0 0 } { ir 25 0 ad fr 0 0 0 }
+      lpend iv } }
+    { = f fpt kf 0
+      = w ldslot 5 0
+      = yv newl 0
+      = xv newl 0
+      lpfrom yv getl lo hi
+      lpbeg xv w 0
+      = c ccallf kf fargs kf a conv getl xv f conv getl yv f
+      ir 25 0 binx '+ 0 dd binx '+ 0 binx '* 0 getl yv w getl xv c 0 0 0
+      lpend xv
+      lpend yv }
+  ir 41 0 lit1 0 0 0 0 0
+  afun kd }
+: lowD iiii>i w h k a {
+  = f fpt k 0
+  = q A 2
+  ! q w
+  ! + q 1 h
+  rcall fby k3 '_ 'p 'h q 2
+  = nb binx '* 0 w h
+  = bf nt 0
+  ir 28 bf nb 0 0 0 0
+  = yv newl 0
+  = xv newl 0
+  lpbeg yv h 0
+  lpbeg xv w 0
+  = c ccallf k fargs k a conv getl xv f conv getl yv f
+  ir 25 0 binx '+ 0 bf binx '+ 0 binx '* 0 getl yv w getl xv c 0 0 0
+  lpend xv
+  lpend yv
+  = q2 A 2
+  ! q2 bf
+  ! + q2 1 nb
+  rcall fby k3 '_ 'p 'd q2 2
+  zer 0 }
+: cid i>i i {
+  = j floc i
+  ? >= j 0
+    ? >= lty j 2 - lty j 2 { = r nt lty j ir 5 r i j 0 0 0 r }
+    { = k ffun i ? < k 0 { ! 7 i ebeg "nome desconhecido" = g esug i ? >= g 0 { ", quis dizer " ew tks g tkl g "?" } 0 eend } 0 ccall k } }
+: cx >i {
+  ? >= @ 7 @ 4 { ebeg "fim inesperado" eend } 0
+  = i @ 7
+  ! 7 + i 1
+  = k tkk i
+  ? == k 1 lit i 0
+  ? == k 2 lit i 1
+  ? == k 4 clit i
+  ? == k 3 cstr i
+  ? == k 0 cid i
+  cop i }
+: isar i>i o || || == o '+ == o '- || == o '* == o '/
+: isbi i>i o || || || == o '% == o '& || == o '| == o '^ || == o k2 '< '< == o k2 '> '>
+: iscm i>i o || || || == o '< == o '> || == o k2 '< '= == o k2 '> '= || == o k2 '= '= == o k2 '! '=
+: ckint i>i t ? tty t { ebeg "esperava inteiro" eend } 0
+: ckflt i>i t ? tty t 0 { ebeg "esperava real" eend }
+: ckc i>i t ? tty t { ebeg "condicao deve ser inteira" eend } 0
+: cbin ii>i i m {
+  = a cx
+  = b cx
+  = y tty a
+  ? != y tty b { ebeg "tipos diferentes" eend } 0
+  ? && == m 0 != y 0 { ebeg "operacao so para inteiros" eend } 0
+  = r nt y
+  ir 8 r i a b 0 0
+  r }
+: ccmp i>i i {
+  = a cx
+  = b cx
+  ? != tty a tty b { ebeg "tipos diferentes" eend } 0
+  = r nt 0
+  ir 9 r i a b 0 0
+  r }
+: cand >i { = a cx ckc a = r nt 0 ir 10 r a 0 0 0 0 = b cx ckc b ir 11 r b 0 0 0 0 r }
+: cor >i { = a cx ckc a = r nt 0 ir 12 r a 0 0 0 0 = b cx ckc b ir 13 r b 0 0 0 0 r }
+: cnot >i { = a cx ckc a = r nt 0 ir 14 r a 0 0 0 0 r }
+: cun iii>i c ti to {
+  = a cx
+  ? != tty a ti { ebeg ? ti "esperava real" "esperava inteiro" eend } 0
+  = r nt to
+  ir 15 r c a 0 0 0
+  r }
+: cbf i>i c { = a cx = b cx ckflt a ckflt b = r nt 1 ir 16 r c a b 0 0 r }
+: cmm i>i m {
+  = a cx
+  = b cx
+  ? != tty a tty b { ebeg "tipos diferentes" eend } 0
+  = r nt tty a
+  ir 17 r m a b 0 0
+  r }
+: cif >i {
+  = c cx
+  ckc c
+  = r nt 0
+  ir 18 0 c 0 0 0 0
+  = a cx
+  ir 19 r a 0 0 0 0
+  = b cx
+  ir 20 r b 0 0 0 0
+  ? != tty a tty b { ebeg "ramos com tipos diferentes" eend } 0
+  ! + @ 10 r tty a
+  r }
+: cwh >i {
+  ir 21 0 0 0 0 0 0
+  ? isa xqs 6 + xq 6 1 0
+  = c cx
+  ckc c
+  ir 22 0 c 0 0 0 0
+  cx
+  ? isa xqs 6 - xq 6 1 0
+  ir 23 0 0 0 0 0 0
+  = r nt 0
+  ir 4 r 0 0 0 0 0
+  r }
+: cblk >i {
+  = r -1
+  W { ? >= @ 7 @ 4 { ebeg "falta }" eend } 0 != tcode @ 7 '} } = r cx
+  ! 7 + @ 7 1
+  ? < r 0 { = r nt 0 ir 4 r 0 0 0 0 0 r } r }
+: cset >i {
+  = n @ 7
+  ? || >= n @ 4 tkk n { ebeg "= precisa de nome" eend } 0
+  ! 7 + n 1
+  = e cx
+  = y tty e
+  = j floc n
+  ? < j 0 { addl n y = j - @ 9 1 } ? != lty j y { ebeg "tipo de variavel mudou" eend } 0
+  ir 6 0 n e j 0 0
+  e }

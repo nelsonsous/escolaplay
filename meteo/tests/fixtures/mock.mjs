@@ -159,9 +159,23 @@ export function mockForecast({ lat = 38.7223, lon = -9.1393, name } = {}) {
     obs, correction: obs ? { temp: v === 'braganca' ? -0.9 : -0.4, dew: 0.3, decayHours: 6 } : null,
   };
   const ncRain = v === 'porto' ? [0.4, 0.6, 0.8, 0.5, 0.3, 0.2, 0.1, 0] : [0, 0, 0, 0, 0, 0, 0, 0];
+  // radar no ponto (RainViewer): no Porto chove há 30 min; em Lisboa nada até 40 km; em Bragança e Madrid sem radar
+  const radarOn = v === 'porto' || v === 'lisboa';
+  const radar = radarOn ? {
+    source: 'RainViewer', time: '2026-11-06T15:30', ageMin: 10, fresh: true, frames: 13, stepMin: 10, kmPx: v === 'porto' ? 0.92 : 0.95, covered: true,
+    atPoint: v === 'porto' ? { mmh: 0.6, dbz: 19, wet: 0.89, raining: true, label: 'fraca', trend: 'estável' } : { mmh: 0, dbz: null, wet: 0, raining: false, label: null, trend: null },
+    last2h: Array.from({ length: 13 }, (_, i) => ({ time: iso(Date.UTC(2026, 10, 6, 13, 30) + i * 10 * 60e3), mmh: v === 'porto' && i >= 10 ? 0.6 : 0 })),
+    rings: [5, 15, 30, 60].map((km, i) => ({ km, wet: v === 'porto' ? [0.9, 0.7, 0.4, 0.2][i] : 0, max: v === 'porto' ? [0.9, 2.1, 6.3, 11.5][i] : 0 })),
+    nearest: null, motion: v === 'porto' ? { speedKmh: 32, deg: 50, toDir: 'NE', fromDir: 'SO', corr: 0.78, used: true } : null, approach: null,
+    ends: v === 'porto' ? { etaMin: 75, time: '2026-11-06T17:00' } : null, fixedKm2: 0,
+    compare: v === 'porto' ? { radar: '2026-11-06T15:10', models: '2026-11-06T15:15', modelsNow: true, lagMin: null, text: 'Radar e modelos de acordo: chove agora no ponto (no radar desde as 15:10).' }
+      : { radar: null, models: null, modelsNow: false, lagMin: null, text: 'Radar e modelos de acordo: sem chuva.' },
+    text: v === 'porto' ? 'A chover agora (fraca, 0,6 mm/h); pelo deslocamento dos ecos deve parar por volta das 17:00.' : 'Sem chuva no radar até 40 km.',
+  } : null;
   const nowcast = {
     steps: ncRain.map((p, i) => ({ time: iso(hourStart + (i + 1) * 15 * 60e3), precip: p })),
-    text: v === 'porto' ? 'Chuva fraca a moderada até às 16:30, a diminuir depois.' : 'Sem chuva nas próximas 2 horas.',
+    text: v === 'porto' ? 'A chover agora (fraca, 0,6 mm/h); deve parar por volta das 17:00.' : v === 'lisboa' ? 'Sem chuva no radar até 40 km; sem chuva prevista nas próximas 2 horas.' : 'Sem chuva nas próximas 2 horas.',
+    ...(radarOn ? { source: 'radar+modelos' } : {}),
   };
   const lvl = (level, label, peak, text) => ({ level, label, peak, text });
   const indicators = v === 'braganca'
@@ -194,10 +208,10 @@ export function mockForecast({ lat = 38.7223, lon = -9.1393, name } = {}) {
   return {
     v: 1, generatedAt: v === 'braganca' ? '2026-11-06T23:20:00Z' : '2026-11-06T15:40:00Z',
     location: { lat, lon, elevation: place.elevation, ...tz, name: name || place.name, region: place.admin1, country: v === 'madrid' ? 'ES' : 'PT' },
-    models: v === 'madrid' ? MODELS.slice(1, 8) : MODELS, ensemble: ENSEMBLE, now, nowcast, hourly, daily, indicators, warnings, fire,
+    models: v === 'madrid' ? MODELS.slice(1, 8) : MODELS, ensemble: ENSEMBLE, now, nowcast, radar, hourly, daily, indicators, warnings, fire,
     verification: v === 'lisboa' ? { station: 'Lisboa (Geofísico)', days: 7, n: 120, best: 'meteofrance_seamless', models: MODELS.map((m) => ({ id: m.id, mae: m.skill.mae, bias: m.skill.bias })) } : null,
     analysis: v === 'lisboa' ? { available: true, ageMin: 140, placeId: 'lisboa' } : { available: false, ageMin: null, placeId: null },
-    sources: ['Open-Meteo (CC BY 4.0)', 'IPMA', 'NOAA AWC (METAR)', 'NASA FIRMS', 'ANEPC via fogos.pt', 'EUMETSAT'],
+    sources: ['Open-Meteo (CC BY 4.0)', 'IPMA', 'NOAA AWC (METAR)', ...(radarOn ? ['RainViewer (radar)'] : []), 'NASA FIRMS', 'ANEPC via fogos.pt', 'EUMETSAT'],
   };
 }
 

@@ -1,0 +1,1033 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>EscolaPlay na GPU</title>
+<style>
+  /* Ecrã de arcada: o campo fluido da Onda (GPU) é o herói; por baixo, a corrida GPU vs 1 núcleo em série. Tema escuro deliberado. */
+  :root{
+    --bg:#140a1e; --panel:#1d1030; --panel2:#160b24;
+    --fg:#fbe9f4; --mut:#c8a0d2; --line:#3a2152;
+    --pink:#f472b6; --amber:#f59e0b; --cyan:#5ad1c6; --green:#34d399;
+    color-scheme:dark;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:radial-gradient(130% 90% at 50% -8%,#311451 0%,var(--bg) 58%) fixed;color:var(--fg);font:16px/1.55 var(--sans);min-height:100%}
+  .wrap{max-width:720px;margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left,0px));
+    padding-right:max(16px,env(safe-area-inset-right,0px));
+    padding-block:22px 40px}
+  .tag{display:inline-block;font:700 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);border:1px solid var(--line);border-radius:999px;padding:7px 11px;margin-bottom:14px}
+  h1{font-size:clamp(28px,8vw,40px);margin:0;font-weight:800;letter-spacing:-.02em;line-height:1.04;text-wrap:balance;
+    background:linear-gradient(100deg,var(--pink) 10%,var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  p.lede{color:var(--mut);margin:.6em 0 1.25em;max-width:58ch}
+  p.lede b{color:var(--fg);font-weight:650}
+  .stage{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:1/1;max-width:100%;
+    box-shadow:0 24px 70px -28px #000,0 0 40px -18px var(--pink)}
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+  .hint{position:absolute;left:14px;bottom:14px;font:600 12.5px var(--sans);color:#fff;background:#0009;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;padding:7px 13px;pointer-events:none;transition:opacity .5s ease}
+  .hint.gone{opacity:0}
+  .err{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:24px;color:var(--mut);font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 12px;min-width:0}
+  .stat .k{color:var(--mut);font:700 10px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase}
+  .stat .v{font:800 23px/1.1 var(--sans);margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .stat .v small{font-size:12px;color:var(--mut);font-weight:600}
+  .race{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 17px;margin-top:16px}
+  .race h2{font-size:14px;margin:0 0 4px;font-weight:750}
+  .race .sub{color:var(--mut);font-size:13px;margin:0 0 13px}
+  .bar{display:grid;grid-template-columns:92px 1fr auto;align-items:center;gap:10px;margin:9px 0}
+  .bar .lab{font:700 12px var(--mono);letter-spacing:.02em}
+  .bar .track{height:16px;border-radius:8px;background:#ffffff10;overflow:hidden}
+  .bar .fill{height:100%;border-radius:8px;width:0;transition:width .5s cubic-bezier(.3,1,.5,1)}
+  .bar .num{font:800 15px var(--sans);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+  .bar.gpu .fill{background:linear-gradient(90deg,var(--cyan),var(--green))} .bar.gpu .lab{color:var(--cyan)}
+  .bar.cpu .fill{background:linear-gradient(90deg,var(--pink),var(--amber))} .bar.cpu .lab{color:var(--pink)}
+  .verdict{margin-top:12px;font-size:14px;color:var(--mut);text-align:center}
+  .verdict b{color:var(--fg)}
+  .verdict .x{font:800 20px var(--sans);background:linear-gradient(100deg,var(--cyan),var(--green));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 17px;margin-top:16px}
+  .card h2{font-size:14px;margin:0 0 9px;font-weight:750}
+  .card h2 .d{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pink);margin-right:8px;vertical-align:middle}
+  .card p{color:var(--mut);font-size:14.5px;margin:.35em 0}
+  .card p b{color:var(--fg);font-weight:650}
+  .card code{font:12.5px var(--mono);color:#ffd9ec;background:#ffffff0d;border-radius:5px;padding:1px 5px}
+  pre{margin:11px 0 0;overflow-x:auto;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  pre code{display:block;font:12.5px/1.65 var(--mono);color:#ffe3f1;white-space:pre;padding:0;background:none}
+  pre code .c{color:#9b78b4}
+  .foot{color:var(--mut);font-size:13px;margin-top:24px;text-align:center;text-wrap:balance}
+  .foot b{color:var(--pink);font-weight:650}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="tag">Onda · GPU vs 1 núcleo</span>
+    <h1>EscolaPlay na GPU</h1>
+    <p class="lede">Uma função fluida escrita em <b>Onda</b>. O <code>ondac</code> compila-a para <b>GLSL</b> (GPU) e para <b>JavaScript</b> (CPU) — o <b>mesmo código</b>, duas camadas. Vê a GPU a correr ~500&nbsp;mil pixéis em paralelo enquanto 1 núcleo os faria em série, como o C. <b>Toca e arrasta.</b></p>
+  </header>
+
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <div class="hint" id="hint">toca no campo ✨</div>
+    <div class="err" id="err">O teu navegador não deu WebGL2. Abre no Safari ou Chrome recentes.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">GPU · fluidez</div><div class="v"><span id="fps">—</span> <small>fps</small></div></div>
+    <div class="stat"><div class="k">Campos / frame</div><div class="v" id="nf">—</div></div>
+    <div class="stat"><div class="k">Débito GPU</div><div class="v"><span id="thru">—</span> <small>M/s</small></div></div>
+  </div>
+
+  <div class="race">
+    <h2>A mesma Onda, duas camadas</h2>
+    <p class="sub">Frames por segundo a full-res, a avaliar o campo todo.</p>
+    <div class="bar gpu"><span class="lab">GPU</span><div class="track"><div class="fill" id="gfill"></div></div><span class="num" id="gnum">—</span></div>
+    <div class="bar cpu"><span class="lab">1 núcleo</span><div class="track"><div class="fill" id="cfill"></div></div><span class="num" id="cnum">medir…</span></div>
+    <div class="verdict" id="verdict">A medir o núcleo em série…</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="d" style="background:var(--amber)"></span>A fonte, em Onda</h2>
+    <pre><code><span class="c"># campo fluido: as ondas deformam as proprias coords (warp)</span>
+: px fffffff&gt;i x y t w h tx ty {
+  = u / - x * 0.5 w h
+  = v / - y * 0.5 h h
+  = pu + u * 0.45 Cs + * 3.0 v * 0.6 t   <span class="c"># warp</span>
+  = pv + v * 0.45 Sn + * 3.0 u * 0.7 t
+  = a Sn + + * 6.0 pu * 5.0 pv * 1.3 t
+  = b Sn + - * 5.0 pu * 6.0 pv * 1.1 t
+  = cc Sn + * 7.0 Sq + * pu pu * pv pv * -2.0 t
+  = g mistura(a, b, cc, toque)
+  cor rosa/ambar(g) }</code></pre>
+    <p style="margin-top:11px">A mesma Onda compila-se a si própria e corre em <b>C</b>, <b>WASM</b>, <b>x86-64</b>, <b>ARM64 nativo</b> e <b>GPU</b> — o <b>juiz</b> confirma que todas dão o mesmo resultado, ao bit. C só serve de referência; aqui não corre nenhum C.</p>
+  </div>
+
+  <p class="foot">Feito com <b>Onda</b> — a linguagem que se auto-compila, do silício à GPU. Sem C no caminho.</p>
+</div>
+
+<script id="cpufield" type="text/plain">const obv=new DataView(new ArrayBuffer(8));function obh(x){obv.setFloat64(0,x);return obv.getInt32(0);}function obl(x){obv.setFloat64(0,x);return obv.getUint32(4);}function obw(h,l){obv.setInt32(0,h);obv.setUint32(4,l);return obv.getFloat64(0);}
+function f_c8(v_v){
+let t0=0.0;
+let t1=0.0;
+let t2=0.0;
+let t3=0.0;
+let t4=0.0;
+let t5=0.0;
+let t6=0.0;
+let t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=Math.trunc(t6);
+return t7;
+}
+function f_px(v_x,v_y,v_t,v_w,v_h,v_tx,v_ty){
+let t0=0.0;
+let t1=0.0;
+let t2=0.0;
+let t3=0.0;
+let t4=0.0;
+let t5=0.0;
+let t6=0.0;
+let t7=0.0;
+let t8=0.0;
+let t9=0.0;
+let t10=0.0;
+let t11=0.0;
+let t12=0.0;
+let t13=0.0;
+let t14=0.0;
+let t15=0.0;
+let t16=0.0;
+let t17=0.0;
+let t18=0.0;
+let t19=0.0;
+let t20=0.0;
+let t21=0.0;
+let t22=0.0;
+let t23=0.0;
+let t24=0.0;
+let t25=0.0;
+let t26=0.0;
+let t27=0.0;
+let t28=0.0;
+let t29=0.0;
+let t30=0.0;
+let t31=0.0;
+let t32=0.0;
+let t33=0.0;
+let t34=0.0;
+let t35=0.0;
+let t36=0.0;
+let t37=0.0;
+let t38=0.0;
+let t39=0.0;
+let t40=0.0;
+let t41=0.0;
+let t42=0.0;
+let t43=0.0;
+let t44=0.0;
+let t45=0.0;
+let t46=0.0;
+let t47=0.0;
+let t48=0.0;
+let t49=0.0;
+let t50=0.0;
+let t51=0.0;
+let t52=0.0;
+let t53=0.0;
+let t54=0.0;
+let t55=0.0;
+let t56=0.0;
+let t57=0.0;
+let t58=0.0;
+let t59=0.0;
+let t60=0.0;
+let t61=0.0;
+let t62=0.0;
+let t63=0.0;
+let t64=0.0;
+let t65=0.0;
+let t66=0.0;
+let t67=0.0;
+let t68=0.0;
+let t69=0.0;
+let t70=0.0;
+let t71=0.0;
+let t72=0.0;
+let t73=0.0;
+let t74=0.0;
+let t75=0.0;
+let t76=0.0;
+let t77=0.0;
+let t78=0.0;
+let t79=0.0;
+let t80=0.0;
+let t81=0.0;
+let t82=0.0;
+let t83=0.0;
+let t84=0.0;
+let t85=0.0;
+let t86=0.0;
+let t87=0.0;
+let t88=0.0;
+let t89=0.0;
+let t90=0.0;
+let t91=0.0;
+let t92=0.0;
+let t93=0.0;
+let t94=0.0;
+let t95=0.0;
+let t96=0.0;
+let t97=0.0;
+let t98=0.0;
+let t99=0.0;
+let t100=0.0;
+let t101=0.0;
+let t102=0.0;
+let t103=0.0;
+let t104=0.0;
+let t105=0.0;
+let t106=0.0;
+let t107=0.0;
+let t108=0.0;
+let t109=0.0;
+let t110=0.0;
+let t111=0.0;
+let t112=0.0;
+let t113=0.0;
+let t114=0.0;
+let t115=0.0;
+let t116=0.0;
+let t117=0.0;
+let t118=0.0;
+let t119=0.0;
+let t120=0.0;
+let t121=0.0;
+let t122=0.0;
+let t123=0.0;
+let t124=0.0;
+let t125=0.0;
+let t126=0.0;
+let t127=0.0;
+let t128=0.0;
+let t129=0.0;
+let t130=0.0;
+let t131=0.0;
+let t132=0.0;
+let t133=0.0;
+let t134=0.0;
+let t135=0.0;
+let t136=0.0;
+let t137=0.0;
+let t138=0.0;
+let t139=0.0;
+let t140=0.0;
+let t141=0.0;
+let t142=0.0;
+let t143=0.0;
+let t144=0.0;
+let t145=0.0;
+let t146=0.0;
+let t147=0.0;
+let t148=0.0;
+let t149=0.0;
+let t150=0.0;
+let t151=0.0;
+let t152=0.0;
+let t153=0.0;
+let t154=0.0;
+let t155=0.0;
+let t156=0.0;
+let t157=0.0;
+let t158=0.0;
+let t159=0.0;
+let t160=0.0;
+let t161=0.0;
+let t162=0.0;
+let t163=0.0;
+let t164=0.0;
+let t165=0.0;
+let t166=0.0;
+let t167=0.0;
+let t168=0;
+let t169=0;
+let t170=0;
+let t171=0.0;
+let t172=0;
+let t173=0;
+let t174=0;
+let t175=0;
+let t176=0.0;
+let t177=0;
+let t178=0;
+let v_u=0.0;
+let v_v=0.0;
+let v_w1=0.0;
+let v_w2=0.0;
+let v_pu=0.0;
+let v_pv=0.0;
+let v_ux=0.0;
+let v_uy=0.0;
+let v_dr=0.0;
+let v_ripp=0.0;
+let v_a=0.0;
+let v_b=0.0;
+let v_cc=0.0;
+let v_e=0.0;
+let v_g=0.0;
+let v_rr=0.0;
+let v_gg=0.0;
+let v_bb=0.0;
+t0=v_x;
+t1=0.5;
+t2=v_w;
+t3=t1*t2;
+t4=t0-t3;
+t5=v_h;
+t6=t4/t5;
+v_u=t6;
+t7=v_y;
+t8=0.5;
+t9=v_h;
+t10=t8*t9;
+t11=t7-t10;
+t12=v_h;
+t13=t11/t12;
+v_v=t13;
+t14=3.0;
+t15=v_u;
+t16=t14*t15;
+t17=0.7;
+t18=v_t;
+t19=t17*t18;
+t20=t16+t19;
+t21=Math.sin(t20);
+v_w1=t21;
+t22=3.0;
+t23=v_v;
+t24=t22*t23;
+t25=0.6;
+t26=v_t;
+t27=t25*t26;
+t28=t24+t27;
+t29=Math.cos(t28);
+v_w2=t29;
+t30=v_u;
+t31=0.45;
+t32=v_w2;
+t33=t31*t32;
+t34=t30+t33;
+v_pu=t34;
+t35=v_v;
+t36=0.45;
+t37=v_w1;
+t38=t36*t37;
+t39=t35+t38;
+v_pv=t39;
+t40=v_tx;
+t41=0.5;
+t42=v_w;
+t43=t41*t42;
+t44=t40-t43;
+t45=v_h;
+t46=t44/t45;
+v_ux=t46;
+t47=v_ty;
+t48=0.5;
+t49=v_h;
+t50=t48*t49;
+t51=t47-t50;
+t52=v_h;
+t53=t51/t52;
+v_uy=t53;
+t54=v_pu;
+t55=v_ux;
+t56=t54-t55;
+t57=v_pu;
+t58=v_ux;
+t59=t57-t58;
+t60=t56*t59;
+t61=v_pv;
+t62=v_uy;
+t63=t61-t62;
+t64=v_pv;
+t65=v_uy;
+t66=t64-t65;
+t67=t63*t66;
+t68=t60+t67;
+t69=Math.sqrt(t68);
+v_dr=t69;
+t70=16.0;
+t71=v_dr;
+t72=t70*t71;
+t73=5.0;
+t74=v_t;
+t75=t73*t74;
+t76=t72-t75;
+t77=Math.sin(t76);
+v_ripp=t77;
+t78=6.0;
+t79=v_pu;
+t80=t78*t79;
+t81=5.0;
+t82=v_pv;
+t83=t81*t82;
+t84=t80+t83;
+t85=1.3;
+t86=v_t;
+t87=t85*t86;
+t88=t84+t87;
+t89=Math.sin(t88);
+v_a=t89;
+t90=5.0;
+t91=v_pu;
+t92=t90*t91;
+t93=6.0;
+t94=v_pv;
+t95=t93*t94;
+t96=t92-t95;
+t97=1.1;
+t98=v_t;
+t99=t97*t98;
+t100=t96+t99;
+t101=Math.sin(t100);
+v_b=t101;
+t102=7.0;
+t103=v_pu;
+t104=v_pu;
+t105=t103*t104;
+t106=v_pv;
+t107=v_pv;
+t108=t106*t107;
+t109=t105+t108;
+t110=Math.sqrt(t109);
+t111=t102*t110;
+t112=-2.0;
+t113=v_t;
+t114=t112*t113;
+t115=t111+t114;
+t116=Math.sin(t115);
+v_cc=t116;
+t117=0.38;
+t118=v_a;
+t119=t117*t118;
+t120=0.32;
+t121=v_b;
+t122=t120*t121;
+t123=t119+t122;
+t124=0.42;
+t125=v_cc;
+t126=t124*t125;
+t127=0.5;
+t128=v_ripp;
+t129=t127*t128;
+t130=t126+t129;
+t131=t123+t130;
+v_e=t131;
+t132=0.5;
+t133=0.5;
+t134=v_e;
+t135=t133*t134;
+t136=t132+t135;
+v_g=t136;
+t137=0.60;
+t138=0.40;
+t139=6.283;
+t140=v_g;
+t141=t139*t140;
+t142=0.1;
+t143=t141+t142;
+t144=Math.sin(t143);
+t145=t138*t144;
+t146=t137+t145;
+v_rr=t146;
+t147=0.42;
+t148=0.34;
+t149=6.283;
+t150=v_g;
+t151=t149*t150;
+t152=1.7;
+t153=t151+t152;
+t154=Math.sin(t153);
+t155=t148*t154;
+t156=t147+t155;
+v_gg=t156;
+t157=0.58;
+t158=0.40;
+t159=6.283;
+t160=v_g;
+t161=t159*t160;
+t162=3.2;
+t163=t161+t162;
+t164=Math.sin(t163);
+t165=t158*t164;
+t166=t157+t165;
+v_bb=t166;
+t167=v_rr;
+t168=f_c8(t167);
+t169=65536;
+t170=t168*t169;
+t171=v_gg;
+t172=f_c8(t171);
+t173=256;
+t174=t172*t173;
+t175=t170+t174;
+t176=v_bb;
+t177=f_c8(t176);
+t178=t175+t177;
+return t178;
+}
+return f_px;
+</script>
+<script id="frag" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+precision highp int;
+uniform float u[8];
+out vec4 oc;
+int obh(float x){return floatBitsToInt(x);}
+int obl(float x){return 0;}
+float obw(int h,int l){return intBitsToFloat(h);}
+int f_c8(float v_v);
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty);
+int f_c8(float v_v){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+int t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=int(t6);
+return t7;
+}
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+float t7=0.0;
+float t8=0.0;
+float t9=0.0;
+float t10=0.0;
+float t11=0.0;
+float t12=0.0;
+float t13=0.0;
+float t14=0.0;
+float t15=0.0;
+float t16=0.0;
+float t17=0.0;
+float t18=0.0;
+float t19=0.0;
+float t20=0.0;
+float t21=0.0;
+float t22=0.0;
+float t23=0.0;
+float t24=0.0;
+float t25=0.0;
+float t26=0.0;
+float t27=0.0;
+float t28=0.0;
+float t29=0.0;
+float t30=0.0;
+float t31=0.0;
+float t32=0.0;
+float t33=0.0;
+float t34=0.0;
+float t35=0.0;
+float t36=0.0;
+float t37=0.0;
+float t38=0.0;
+float t39=0.0;
+float t40=0.0;
+float t41=0.0;
+float t42=0.0;
+float t43=0.0;
+float t44=0.0;
+float t45=0.0;
+float t46=0.0;
+float t47=0.0;
+float t48=0.0;
+float t49=0.0;
+float t50=0.0;
+float t51=0.0;
+float t52=0.0;
+float t53=0.0;
+float t54=0.0;
+float t55=0.0;
+float t56=0.0;
+float t57=0.0;
+float t58=0.0;
+float t59=0.0;
+float t60=0.0;
+float t61=0.0;
+float t62=0.0;
+float t63=0.0;
+float t64=0.0;
+float t65=0.0;
+float t66=0.0;
+float t67=0.0;
+float t68=0.0;
+float t69=0.0;
+float t70=0.0;
+float t71=0.0;
+float t72=0.0;
+float t73=0.0;
+float t74=0.0;
+float t75=0.0;
+float t76=0.0;
+float t77=0.0;
+float t78=0.0;
+float t79=0.0;
+float t80=0.0;
+float t81=0.0;
+float t82=0.0;
+float t83=0.0;
+float t84=0.0;
+float t85=0.0;
+float t86=0.0;
+float t87=0.0;
+float t88=0.0;
+float t89=0.0;
+float t90=0.0;
+float t91=0.0;
+float t92=0.0;
+float t93=0.0;
+float t94=0.0;
+float t95=0.0;
+float t96=0.0;
+float t97=0.0;
+float t98=0.0;
+float t99=0.0;
+float t100=0.0;
+float t101=0.0;
+float t102=0.0;
+float t103=0.0;
+float t104=0.0;
+float t105=0.0;
+float t106=0.0;
+float t107=0.0;
+float t108=0.0;
+float t109=0.0;
+float t110=0.0;
+float t111=0.0;
+float t112=0.0;
+float t113=0.0;
+float t114=0.0;
+float t115=0.0;
+float t116=0.0;
+float t117=0.0;
+float t118=0.0;
+float t119=0.0;
+float t120=0.0;
+float t121=0.0;
+float t122=0.0;
+float t123=0.0;
+float t124=0.0;
+float t125=0.0;
+float t126=0.0;
+float t127=0.0;
+float t128=0.0;
+float t129=0.0;
+float t130=0.0;
+float t131=0.0;
+float t132=0.0;
+float t133=0.0;
+float t134=0.0;
+float t135=0.0;
+float t136=0.0;
+float t137=0.0;
+float t138=0.0;
+float t139=0.0;
+float t140=0.0;
+float t141=0.0;
+float t142=0.0;
+float t143=0.0;
+float t144=0.0;
+float t145=0.0;
+float t146=0.0;
+float t147=0.0;
+float t148=0.0;
+float t149=0.0;
+float t150=0.0;
+float t151=0.0;
+float t152=0.0;
+float t153=0.0;
+float t154=0.0;
+float t155=0.0;
+float t156=0.0;
+float t157=0.0;
+float t158=0.0;
+float t159=0.0;
+float t160=0.0;
+float t161=0.0;
+float t162=0.0;
+float t163=0.0;
+float t164=0.0;
+float t165=0.0;
+float t166=0.0;
+float t167=0.0;
+int t168=0;
+int t169=0;
+int t170=0;
+float t171=0.0;
+int t172=0;
+int t173=0;
+int t174=0;
+int t175=0;
+float t176=0.0;
+int t177=0;
+int t178=0;
+float v_u=0.0;
+float v_v=0.0;
+float v_w1=0.0;
+float v_w2=0.0;
+float v_pu=0.0;
+float v_pv=0.0;
+float v_ux=0.0;
+float v_uy=0.0;
+float v_dr=0.0;
+float v_ripp=0.0;
+float v_a=0.0;
+float v_b=0.0;
+float v_cc=0.0;
+float v_e=0.0;
+float v_g=0.0;
+float v_rr=0.0;
+float v_gg=0.0;
+float v_bb=0.0;
+t0=v_x;
+t1=0.5;
+t2=v_w;
+t3=t1*t2;
+t4=t0-t3;
+t5=v_h;
+t6=t4/t5;
+v_u=t6;
+t7=v_y;
+t8=0.5;
+t9=v_h;
+t10=t8*t9;
+t11=t7-t10;
+t12=v_h;
+t13=t11/t12;
+v_v=t13;
+t14=3.0;
+t15=v_u;
+t16=t14*t15;
+t17=0.7;
+t18=v_t;
+t19=t17*t18;
+t20=t16+t19;
+t21=sin(t20);
+v_w1=t21;
+t22=3.0;
+t23=v_v;
+t24=t22*t23;
+t25=0.6;
+t26=v_t;
+t27=t25*t26;
+t28=t24+t27;
+t29=cos(t28);
+v_w2=t29;
+t30=v_u;
+t31=0.45;
+t32=v_w2;
+t33=t31*t32;
+t34=t30+t33;
+v_pu=t34;
+t35=v_v;
+t36=0.45;
+t37=v_w1;
+t38=t36*t37;
+t39=t35+t38;
+v_pv=t39;
+t40=v_tx;
+t41=0.5;
+t42=v_w;
+t43=t41*t42;
+t44=t40-t43;
+t45=v_h;
+t46=t44/t45;
+v_ux=t46;
+t47=v_ty;
+t48=0.5;
+t49=v_h;
+t50=t48*t49;
+t51=t47-t50;
+t52=v_h;
+t53=t51/t52;
+v_uy=t53;
+t54=v_pu;
+t55=v_ux;
+t56=t54-t55;
+t57=v_pu;
+t58=v_ux;
+t59=t57-t58;
+t60=t56*t59;
+t61=v_pv;
+t62=v_uy;
+t63=t61-t62;
+t64=v_pv;
+t65=v_uy;
+t66=t64-t65;
+t67=t63*t66;
+t68=t60+t67;
+t69=sqrt(t68);
+v_dr=t69;
+t70=16.0;
+t71=v_dr;
+t72=t70*t71;
+t73=5.0;
+t74=v_t;
+t75=t73*t74;
+t76=t72-t75;
+t77=sin(t76);
+v_ripp=t77;
+t78=6.0;
+t79=v_pu;
+t80=t78*t79;
+t81=5.0;
+t82=v_pv;
+t83=t81*t82;
+t84=t80+t83;
+t85=1.3;
+t86=v_t;
+t87=t85*t86;
+t88=t84+t87;
+t89=sin(t88);
+v_a=t89;
+t90=5.0;
+t91=v_pu;
+t92=t90*t91;
+t93=6.0;
+t94=v_pv;
+t95=t93*t94;
+t96=t92-t95;
+t97=1.1;
+t98=v_t;
+t99=t97*t98;
+t100=t96+t99;
+t101=sin(t100);
+v_b=t101;
+t102=7.0;
+t103=v_pu;
+t104=v_pu;
+t105=t103*t104;
+t106=v_pv;
+t107=v_pv;
+t108=t106*t107;
+t109=t105+t108;
+t110=sqrt(t109);
+t111=t102*t110;
+t112=-2.0;
+t113=v_t;
+t114=t112*t113;
+t115=t111+t114;
+t116=sin(t115);
+v_cc=t116;
+t117=0.38;
+t118=v_a;
+t119=t117*t118;
+t120=0.32;
+t121=v_b;
+t122=t120*t121;
+t123=t119+t122;
+t124=0.42;
+t125=v_cc;
+t126=t124*t125;
+t127=0.5;
+t128=v_ripp;
+t129=t127*t128;
+t130=t126+t129;
+t131=t123+t130;
+v_e=t131;
+t132=0.5;
+t133=0.5;
+t134=v_e;
+t135=t133*t134;
+t136=t132+t135;
+v_g=t136;
+t137=0.60;
+t138=0.40;
+t139=6.283;
+t140=v_g;
+t141=t139*t140;
+t142=0.1;
+t143=t141+t142;
+t144=sin(t143);
+t145=t138*t144;
+t146=t137+t145;
+v_rr=t146;
+t147=0.42;
+t148=0.34;
+t149=6.283;
+t150=v_g;
+t151=t149*t150;
+t152=1.7;
+t153=t151+t152;
+t154=sin(t153);
+t155=t148*t154;
+t156=t147+t155;
+v_gg=t156;
+t157=0.58;
+t158=0.40;
+t159=6.283;
+t160=v_g;
+t161=t159*t160;
+t162=3.2;
+t163=t161+t162;
+t164=sin(t163);
+t165=t158*t164;
+t166=t157+t165;
+v_bb=t166;
+t167=v_rr;
+t168=f_c8(t167);
+t169=65536;
+t170=t168*t169;
+t171=v_gg;
+t172=f_c8(t171);
+t173=256;
+t174=t172*t173;
+t175=t170+t174;
+t176=v_bb;
+t177=f_c8(t176);
+t178=t175+t177;
+return t178;
+}
+void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0],u[1],u[2],u[3],u[4]);oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}
+</script>
+<script>
+(function(){
+  var cv=document.getElementById('c'), err=document.getElementById('err'), hint=document.getElementById('hint');
+  var gl=cv.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'});
+  if(!gl){ err.style.display='grid'; return; }
+  var VS='#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.0-1.0,0.0,1.0);}';
+  var FS=document.getElementById('frag').textContent;
+  function sh(ty,src){var s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){err.textContent='Erro no shader: '+gl.getShaderInfoLog(s);err.style.display='grid';throw 0;}return s;}
+  var prog=gl.createProgram();
+  try{ gl.attachShader(prog,sh(gl.VERTEX_SHADER,VS)); gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FS)); }catch(e){ return; }
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){err.textContent='Erro ao ligar o shader.';err.style.display='grid';return;}
+  gl.useProgram(prog);
+  var uLoc=gl.getUniformLocation(prog,'u');
+  gl.bindVertexArray(gl.createVertexArray());
+
+  // a MESMA funcao Onda, compilada para JS (ondac -j) -> baseline em 1 nucleo
+  var cpuField=null; try{ cpuField=(new Function(document.getElementById('cpufield').textContent))(); }catch(e){}
+
+  var W=1,H=1;
+  function resize(){ var r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+    var s=Math.max(64,Math.min(Math.round(Math.min(r.width,r.height)*dpr),900)); if(s===W) return;
+    W=H=s; cv.width=W; cv.height=H; gl.viewport(0,0,W,H);
+    document.getElementById('nf').textContent=(W*H>=1e6?(W*H/1e6).toFixed(2)+' M':Math.round(W*H/1000)+' mil'); }
+  window.addEventListener('resize',resize,{passive:true});
+
+  var tx=0.5,ty=0.5,touched=false,lastTouch=0;
+  function setPt(e){ var r=cv.getBoundingClientRect(), p=(e.touches&&e.touches[0])||e;
+    tx=Math.max(0,Math.min(1,(p.clientX-r.left)/r.width)); ty=Math.max(0,Math.min(1,(p.clientY-r.top)/r.height));
+    touched=true; lastTouch=performance.now(); hint.classList.add('gone'); }
+  cv.addEventListener('pointerdown',function(e){cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);setPt(e);},{passive:true});
+  cv.addEventListener('pointermove',function(e){if(e.buttons||e.pointerType==='touch')setPt(e);},{passive:true});
+  window.addEventListener('pointerup',function(){touched=false;},{passive:true});
+
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t0=performance.now(), facc=0, flast=t0, fpsEl=document.getElementById('fps'), thruEl=document.getElementById('thru'), cur=0;
+  var cpuFps=0, measured=false, frames=0;
+
+  // mede o campo em 1 nucleo: avalia uma amostra de pixeis em JS e extrapola p/ full-res
+  function measureCPU(){
+    if(!cpuField){ document.getElementById('cnum').textContent='n/d'; return; }
+    var N=90, t=(performance.now()-t0)/1000, warm=0;
+    try{ for(var i=0;i<400;i++) warm+=cpuField((i*37)%W, (i*53)%H, t, W, H, tx*W, ty*H); }catch(e){ document.getElementById('cnum').textContent='n/d'; return; }
+    var s=performance.now(), acc=0;
+    for(var yy=0;yy<N;yy++) for(var xx=0;xx<N;xx++){ acc+=cpuField(xx/N*W, yy/N*H, t, W, H, tx*W, ty*H); }
+    var ms=performance.now()-s; if(ms<=0) ms=0.01;
+    var pxPerMs=(N*N)/ms;                 // pixeis por ms em 1 nucleo
+    cpuFps=pxPerMs*1000/(W*H);            // fps a full-res
+    if(warm===12345) console.log(acc);    // impede o JIT de eliminar o calculo
+    measured=true; paintRace();
+  }
+  function paintRace(){
+    var g=cur, c=cpuFps; if(!c) return;
+    var mx=Math.max(g,c,1);
+    document.getElementById('gfill').style.width=(100*g/mx)+'%';
+    document.getElementById('cfill').style.width=(100*Math.max(c/mx,0.02))+'%';
+    document.getElementById('gnum').textContent=Math.round(g)+' fps';
+    document.getElementById('cnum').textContent=(c>=1?Math.round(c):c.toFixed(1))+' fps';
+    var r=g/Math.max(c,0.0001);
+    document.getElementById('verdict').innerHTML='Na GPU, a <b>mesma função Onda</b> corre <span class="x">'+(r>=10?Math.round(r):r.toFixed(1))+'×</span> mais rápido que em 1 núcleo, em série.';
+  }
+
+  function frame(now){
+    resize();
+    var t=(now-t0)/1000*(reduce?0.3:1), age=(now-lastTouch)/1000;
+    if(!touched && now-lastTouch>900){ var a=now/1000*0.4; tx=0.5+0.32*Math.cos(a); ty=0.5+0.32*Math.sin(a*1.3); }
+    gl.uniform1fv(uLoc,[t,W,H,tx*W,ty*H,0,0,0]);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    facc++; frames++;
+    if(now-flast>=500){ var fps=facc*1000/(now-flast); facc=0; flast=now; cur=cur?cur*0.6+fps*0.4:fps;
+      fpsEl.textContent=Math.round(cur); thruEl.textContent=(W*H*cur/1e6).toFixed(0); if(measured) paintRace(); }
+    if(!measured && frames===40){ setTimeout(measureCPU,0); }   // mede depois do aquecimento
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  setTimeout(function(){hint.classList.add('gone');},4200);
+})();
+</script>

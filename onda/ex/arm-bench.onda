@@ -1,0 +1,25 @@
+# Benchmark NEON (ARM64) vs C, no teu Mac -- sem precisar de impressao: o codigo de saida confirma a correcao,
+# o `time` da shell mede a velocidade. A Onda escreve o seu PROPRIO codigo-maquina aarch64 (-a), com NEON
+# (fmul.2d/fadd.2d, 2 doubles por instrucao); o C passa pelo clang. Mesmo nucleo: um mapa de polinomio de grau 7,
+# repetido `rep` vezes. Devolve int(soma)&255 -- igual nas duas formas (confirma que o NEON esta certo).
+#
+# Como medir no teu Mac (Apple Silicon) -- NATIVO, sem Docker. Primeiro constroi o compilador no Mac
+# (git clone ..., cd onda, ./build.sh -- arranque 100% Onda, sem Rust nem C), depois:
+#   build/ondac -m < ex/arm-bench.onda > bench_arm && chmod +x bench_arm && codesign -s - bench_arm
+#   build/ondac    < ex/arm-bench.onda > bench.c && clang -O2 -fwrapv -w bench.c -o bench_c -lm
+#   echo ARM-Onda:; time ./bench_arm; echo; echo C:; time ./bench_c
+# O -m faz um executavel Mach-O arm64 (o MESMO codigo-maquina NEON do -a, mas no formato do macOS); o
+# `codesign -s -` e a assinatura ad-hoc que o Apple Silicon exige para correr um binario novo.
+# (os dois exits tem de ser iguais -- confirma o NEON; compara os tempos.) Ajusta `rep` p/ durar ~1 s.
+# Em Linux-ARM: troca -m por -a (ELF aarch64) e salta o codesign.
+: g ii>f i a { = x @f + a i + 0.1 * x + 0.2 * x + 0.3 * x + 0.4 * x + 0.5 * x + 0.6 * x + 0.7 * x 0.8 }
+: encher ii>i p n { = i 0 W < i n { !f + p i F + % i 100 1 = i + i 1 } p }
+: soma ii>f p n { = s 0.0 = i 0 W < i n { = s + s @f + p i = i + i 1 } s }
+: main >i {
+  = n 8192
+  = rep 2000
+  = a encher A n n
+  = b A n
+  = r 0
+  W < r rep { E b n g a = r + r 1 }
+  I soma b n }

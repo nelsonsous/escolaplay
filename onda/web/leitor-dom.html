@@ -1,0 +1,102 @@
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Leitor Ágil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+ :root{--ink:#eef2fb;--mut:#9fb0d8;--card:#141a2e;--line:#283255;--a:#7ee0ff;--b:#b98cff;--ok:#8ff0c0;--amber:#ffd36b;
+   --f:"Baloo 2","Arial Rounded MT Bold",system-ui,sans-serif;--m:"JetBrains Mono",ui-monospace,monospace;color-scheme:dark}
+ *{box-sizing:border-box}html,body{margin:0;min-height:100%}
+ body{background:radial-gradient(900px 600px at 50% -10%,#1a2350,transparent 60%),linear-gradient(180deg,#0a0e1c,#0d1228);
+   color:var(--ink);font:15px/1.45 var(--f);-webkit-tap-highlight-color:transparent;min-height:100vh}
+ .wrap{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:12px;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(18px,env(safe-area-inset-bottom,0px))}
+ h1{margin:0;text-align:center;font-size:22px;font-weight:800}h1 small{display:block;font-size:12px;font-weight:700;color:var(--mut)}
+ .go{border:0;border-radius:14px;color:#071018;font:800 15px var(--f);padding:13px 0;cursor:pointer;background:linear-gradient(120deg,var(--a),var(--b))}
+ .go:active{transform:translateY(2px)}
+ /* "separador do browser" simulado */
+ .tab{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#0e1424}
+ .tab .url{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#0a0f1d;border-bottom:1px solid var(--line);font:600 12px var(--m);color:var(--mut)}
+ .tab .url b{width:9px;height:9px;border-radius:50%;background:#ff6a8a;box-shadow:16px 0 #ffd36b,32px 0 #8ff0c0;margin-right:22px}
+ .page{padding:12px;display:flex;flex-direction:column;gap:9px}
+ .page nav{display:flex;gap:6px;flex-wrap:wrap}
+ .page nav a{font:700 12px var(--f);color:var(--a);text-decoration:none;padding:5px 10px;border:1px solid var(--line);border-radius:8px;background:#121a30;cursor:pointer}
+ .page h2{margin:2px 0;font-size:16px}
+ .page .row{display:flex;gap:7px;align-items:center}
+ .page input{flex:1;background:#0b0f1f;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:8px 10px;font:600 13px var(--m)}
+ .page button{border:0;border-radius:9px;padding:8px 12px;font:800 13px var(--f);cursor:pointer;color:#071018;background:var(--a)}
+ .page .item{display:flex;justify-content:space-between;align-items:center;background:#101831;border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+ .page .item span{font:600 13px var(--m);color:var(--ink)}
+ .page .item button{background:var(--amber)}
+ .page .st{font:700 12px var(--f);color:var(--ok);min-height:16px}
+ .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+ .panel h3{margin:0 0 7px;font:800 11px var(--f);letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}
+ pre{margin:0;font:600 11px/1.5 var(--m);color:var(--ok);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+ .stat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:9px}
+ .stat div{background:#0b1022;border:1px solid var(--line);border-radius:11px;padding:8px 4px;text-align:center}
+ .stat b{display:block;font:800 16px var(--m);color:var(--ink)}.stat i{font:700 9.5px var(--f);color:var(--mut);font-style:normal;text-transform:uppercase}
+ .act{display:flex;gap:8px;margin-top:9px}.act input{width:70px;background:#0b0f1f;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px;font:700 13px var(--m)}
+ .act button{flex:1;border:0;border-radius:10px;font:800 13px var(--f);background:var(--amber);color:#071018;cursor:pointer}
+ .note{color:var(--mut);font-size:12px;font-weight:700;text-align:center;line-height:1.5}.note b{color:var(--a)}
+</style>
+<div class="wrap">
+ <h1>Leitor Ágil <small>a forma rápida do Claude “ler” o browser — o DOM, não a imagem</small></h1>
+
+ <div class="tab">
+  <div class="url"><b></b>portal.inetum.pt/faturas</div>
+  <div class="page" id="page">
+   <nav><a onclick="st('abriu Início')">Início</a><a onclick="st('abriu Faturas')">Faturas</a><a onclick="st('abriu Clientes')">Clientes</a><a onclick="st('abriu Definições')">Definições</a></nav>
+   <h2>Pesquisar fatura</h2>
+   <div class="row"><input placeholder="número ou cliente" id="busca"><button onclick="st('procurou: '+(document.getElementById('busca').value||'(vazio)'))">Procurar</button></div>
+   <div class="item"><span>FT 2026/0012 · Garland</span><button onclick="st('abriu FT 2026/0012')">Abrir</button></div>
+   <div class="item"><span>FT 2026/0013 · Sierra</span><button onclick="st('abriu FT 2026/0013')">Abrir</button></div>
+   <div class="item"><span>FT 2026/0014 · Inetum</span><button onclick="st('abriu FT 2026/0014')">Abrir</button></div>
+   <button onclick="st('nova fatura criada')">+ Nova fatura</button>
+   <div class="st" id="st">—</div>
+  </div>
+ </div>
+
+ <button class="go" id="ler">⚡ Ler a página (DOM)</button>
+
+ <div class="panel"><h3>O que o Claude recebe (texto estruturado)</h3><pre id="out">toca ⚡ para ler</pre>
+  <div class="stat"><div><b id="nel">—</b><i>elementos</i></div><div><b id="tms">—</b><i>tempo</i></div><div><b id="kb">—</b><i>tamanho</i></div></div>
+  <div class="act"><input id="ref" type="number" placeholder="#" min="1"><button id="clic">👆 Clicar nesse elemento</button></div>
+ </div>
+ <div class="note">Um screenshot seria <b>~600 KB de imagem + ~1500 tokens de visão</b> por passo. Isto é <b>~2 KB de texto, lido em &lt;1 ms, sem modelo</b> — e cada elemento traz um <b>ref clicável</b>. É assim que um agente de browser fica rápido. <b>Nota honesta:</b> isto é JS a ler o DOM (a ferramenta certa); o OCR só entra onde <b>não há DOM</b> (imagens, apps nativas, canvas).</div>
+</div>
+<script>
+ var ELS=[];
+ function st(m){document.getElementById('st').textContent='✓ '+m;}
+ function ler(root){
+   var out=[],id=0,seen=new Set();
+   root.querySelectorAll('a,button,input,select,textarea,[role=button]').forEach(function(el){
+     var r=el.getBoundingClientRect(); if(r.width<1||r.height<1) return;
+     var tag=el.tagName.toLowerCase();
+     var txt=(el.value||el.placeholder||el.textContent||el.getAttribute('aria-label')||'').trim().replace(/\s+/g,' ').slice(0,50);
+     out.push({ref:++id,papel:tag==='a'?'link':tag==='input'?(el.type||'campo'):tag==='button'?'botao':tag,texto:txt,caixa:[Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]});
+     ELS[id]=el; seen.add(el);
+   });
+   root.querySelectorAll('h1,h2,h3,h4,label,p,li,td,th,span').forEach(function(el){
+     if(seen.has(el)) return; var direct='';
+     el.childNodes.forEach(function(n){if(n.nodeType===3)direct+=n.textContent;});
+     direct=direct.trim(); if(!direct) return;
+     var r=el.getBoundingClientRect(); if(r.width<1||r.height<1) return;
+     out.push({ref:++id,papel:'texto',texto:direct.replace(/\s+/g,' ').slice(0,60),caixa:[Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]});
+     ELS[id]=el;
+   });
+   return out;
+ }
+ document.getElementById('ler').onclick=function(){
+   ELS=[]; var t0=performance.now(); var data=ler(document.getElementById('page')); var ms=performance.now()-t0;
+   var json=JSON.stringify(data,null,1);
+   document.getElementById('out').textContent=json;
+   document.getElementById('nel').textContent=data.length;
+   document.getElementById('tms').textContent=ms.toFixed(2)+' ms';
+   document.getElementById('kb').textContent=(json.length/1024).toFixed(1)+' KB';
+ };
+ document.getElementById('clic').onclick=function(){
+   var n=+document.getElementById('ref').value, el=ELS[n];
+   if(!el){st('ref '+n+' inválido — lê a página primeiro');return;}
+   el.focus&&el.focus(); el.click&&el.click();
+   el.style.outline='2px solid #ffd36b'; setTimeout(function(){el.style.outline='';},700);
+ };
+</script>

@@ -9,7 +9,7 @@
 (() => {
     'use strict';
     const A = window.Analise;
-    const VERSION = '3.21.1';
+    const VERSION = '3.22.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +72,9 @@
 
     // ---------- configuração ----------
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
-    const DEFAULTS = { proxy: '', fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
+    // conector do autor: uma instalação nova já vem ligada (no iPhone, a app do ecrã principal não vê o que o Safari guardou)
+    const DEFAULT_PROXY = 'https://mercados-proxy.mercados-proxy.workers.dev';
+    const DEFAULTS = { proxy: DEFAULT_PROXY, claude: false, owner: false, fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, seen: {}, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -496,7 +498,7 @@
         const keys = Object.keys(AN).filter((k) => investable(k) && AN[k].advice && fin(qv(k).price));
         if (keys.length < 5) return;
         const items = keys.map((k) => { const r = AN[k]; return { s: k, p: +qv(k).price.toPrecision(8), a: r.advice.key, l: r.horizons.long ? r.horizons.long.score : null, m: r.horizons.mid.score, sh: r.horizons.short.score, o: r.discount && r.discount.opp ? 1 : 0 }; });
-        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: cfg.lots, saveDays: cfg.saveDays }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
+        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: cfg.lots, saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList() }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
     }
     // ---------- datas de compra de cripto (isenção de IRS aos 365 dias) ----------
     const lotOf = (k) => cfg.lots[k] || { plan: '', buys: [] };
@@ -602,11 +604,95 @@
         btBusy = false; render();
     }
 
+    // ---------- dono da app e partilha ----------
+    // A app do dono tem a análise completa do Claude e a de toda a Trade Republic. As outras apps
+    // começam sem a análise do Claude; podem pedi-la em Ajustes (uma análise curta dos seus ativos).
+    const claudeOn = () => !!(cfg.owner || cfg.claude);
+    async function loadMe() {
+        if (!cfg.proxy || (st.meAt && now() - st.meAt < 30 * 60000)) return;
+        st.meAt = now();
+        try {
+            const m = await px(`/me?id=${encodeURIComponent(cfg.jid)}`);
+            st.others = m.others !== false;
+            if (!!m.owner !== !!cfg.owner) { cfg.owner = !!m.owner; saveCfg(); scheduleRender(); }
+        } catch { /* fica o que se sabia */ }
+    }
+    // a lista desta app (o que tem + o que juntou): é o que cobre a análise do Claude das outras apps
+    const myList = () => [...new Set([...holdingKeys(), ...cfg.watch.filter((k) => !DEFAULT_WATCH.includes(k)), ...cfg.funds.filter((k) => !DEFAULT_FUNDS.includes(k))])].slice(0, 12);
+    function setClaude(on) {
+        cfg.claude = on; saveCfg();
+        if (cfg.proxy) pxPost('/journal', { id: cfg.jid, claude: on, my: myList(), date: todayLocal() }).catch(() => toast('Sem ligação ao conector: tenta outra vez'));
+        CLAUDE = null; loadClaude(); render();
+    }
+    let STATS = null;
+    async function loadStats() {
+        if (!cfg.owner || !cfg.proxy || (STATS && now() - STATS.at < 5 * 60000)) return;
+        STATS = { ...(STATS || {}), at: now() };
+        try { STATS = { ...(await px(`/stats?id=${encodeURIComponent(cfg.jid)}`)), at: now() }; } catch (e) { STATS = { at: now(), error: e.message }; }
+        scheduleRender();
+    }
+    const shareLink = () => location.origin + location.pathname + (cfg.proxy && cfg.proxy !== DEFAULT_PROXY ? '?proxy=' + encodeURIComponent(cfg.proxy) : '');
+    function claudeSection() {
+        if (cfg.owner) {
+            loadStats();
+            const S = STATS || {}, r = S.run;
+            const cell = (v, l) => `<div><b class="num">${fin(v) ? v : '—'}</b><small>${l}</small></div>`;
+            const runTxt = r && r.at ? ` Última corrida: ${new Date(r.at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} — ${r.done} analisada${r.done === 1 ? '' : 's'}${r.queued > r.done ? `, ${r.queued - r.done} ficaram de fora (limite de ${r.max} por corrida)` : ''}.` : '';
+            const on = S.others !== false && st.others !== false;
+            return `<section class="sec"><div class="sec-h"><h2>Partilha da app</h2></div><div class="form">
+                <div><label>Outras apps ligadas ao teu conector</label><div class="share-st">${cell(S.d1, 'hoje')}${cell(S.d7, '7 dias')}${cell(S.d30, '30 dias')}${cell(S.claude, 'com o Claude')}</div>
+                    <div class="hint">${S.error ? 'Não deu para contar: ' + esc(S.error) + '. ' : ''}Não conta a tua. "Com o Claude": pediram a análise nos últimos 7 dias.${runTxt}</div></div>
+                <div><label>Análise do Claude para as outras apps</label><div class="seg prof two"><button type="button" data-others="1" class="${on ? 'on' : ''}"><b>Ligada</b><small>para quem a pedir</small></button><button type="button" data-others="0" class="${on ? '' : 'on'}"><b>Desligada</b><small>só para ti</small></button></div>
+                    <div class="hint">Cada app analisada torna a tarefa das ${CL_LBL} mais longa e gasta mais do teu plano Claude (até 20 por corrida). Se forem muitas, desliga aqui.</div></div>
+                <div><label for="f-share">Link para partilhar</label><div class="inl"><input id="f-share" class="inp" type="text" readonly value="${esc(shareLink())}"><button type="button" class="btn sm" data-act="share-link">Copiar</button></div>
+                    <div class="hint">A app já vem ligada ao teu conector. Cada pessoa fica com os seus ativos e a análise do Claude vem desligada. A tua análise, o teu plano e toda a lista da Trade Republic ficam só nesta app.</div></div>
+            </div></section>`;
+        }
+        const names = myList().map((k) => nameOf(k)).join(', ');
+        return `<section class="sec"><div class="sec-h"><h2>Análise do Claude</h2></div><div class="form"><div>
+            <div class="seg prof two"><button type="button" data-claude="0" class="${cfg.claude ? '' : 'on'}"><b>Desligada</b><small>só o resumo automático</small></button><button type="button" data-claude="1" class="${cfg.claude ? 'on' : ''}"><b>Ligada</b><small>às ${CL_LBL}</small></button></div>
+            <div class="hint">${st.others === false ? 'Pausada pelo autor da app. ' : ''}Uma análise curta dos teus ativos e dos que juntaste${names ? ` (${esc(names)})` : ''}, escrita pelo Claude duas vezes por dia. Para isso, a lista de símbolos desta app é enviada ao autor da app. Informação, não aconselhamento financeiro.</div>
+        </div></div></section>`;
+    }
+
+    // ---------- toda a lista da Trade Republic (só na app do dono; classificada pela tarefa agendada) ----------
+    let UNI = null;
+    async function loadUni() {
+        if (!cfg.owner || !cfg.proxy || (UNI && now() - UNI.at < 30 * 60000)) return;
+        UNI = { ...(UNI || {}), at: now() };
+        try { UNI = { ...(await px(`/universe?id=${encodeURIComponent(cfg.jid)}`, 30000)), at: now() }; } catch (e) { UNI = { ...UNI, error: e.message }; }
+        scheduleRender();
+    }
+    const uniName = (s) => { const r = UNI && UNI.rows ? UNI.rows.find((x) => x.s === s) : null; return r ? r.n : ''; };
+    const UNI_T = { plan: ['etf', 'crypto'], all: ['etf', 'crypto', 'stock'], fund: ['etf'], crypto: ['crypto'], stock: ['stock'] };
+    function uniSection() {
+        if (!cfg.owner) return '';
+        loadUni();
+        const types = UNI_T[cfg.filter];
+        if (!types || !UNI || !UNI.rows) return UNI && UNI.error && types ? `<p class="note" style="margin:0 2px 12px">Toda a Trade Republic: ainda sem classificação (${esc(UNI.error)}). Chega com a próxima análise do Claude.</p>` : '';
+        const disc = cfg.hz === 'disc', key = cfg.hz === 'mid' ? 'm' : 'l';
+        const rows = UNI.rows.filter((r) => types.includes(r.t) && fin(r[key]));
+        rows.sort(disc ? (a, b) => b.o - a.o || a.dd - b.dd : (a, b) => b[key] - a[key]);
+        const n = st.uniN || 25;
+        const tone = (v) => (v >= 58 ? 'up' : v <= 42 ? 'down' : 'flat');
+        const when = UNI.generatedAt ? new Date(UNI.generatedAt).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : UNI.date;
+        return `<section class="sec"><div class="sec-h"><h2>Toda a Trade Republic</h2><span class="sub">${rows.length} ativos · ${esc(when || '')}</span></div>
+            <p class="note" style="margin:-4px 2px 10px">S&P 500 e outras ações dos EUA, as grandes da Europa, ETF e cripto, classificados ${cfg.hz === 'mid' ? 'a médio prazo' : disc ? 'pelo desconto' : 'a longo prazo'} duas vezes por dia. Toca para ver o gráfico.</p>
+            <div class="list">${rows.slice(0, n).map((r, i) => `<button type="button" class="row" data-open="${esc(r.s)}" data-name="${esc(r.n)}">
+                <span class="rk">${i + 1}</span>
+                <div class="r-main"><div class="r-name">${esc(r.n)}</div><div class="r-sub">${esc(r.s)} · ${disc ? esc(fmtPct(r.dd) + ' do máx. · ') : ''}${fin(r.d) ? fmtPct(r.d) + ' hoje · ' : ''}${fin(r.y) ? '1 ano ' + fmtPct(r.y) + ' · ' : ''}${esc(r.rk || '')}</div></div>
+                <div class="r-score">${scoreBar({ score: r[key], tone: tone(r[key]) })}</div>
+            </button>`).join('')}</div>
+            ${rows.length > n ? `<div class="sec-f"><button type="button" class="lnk" data-act="uni-more">Ver mais (${rows.length - n})</button></div>` : ''}</section>`;
+    }
+
     // ---------- análise diária escrita pelo Claude (tarefa agendada → KV → /advice) ----------
     let CLAUDE = null;
     async function loadClaude() {
         if (!cfg.proxy) return;
-        try { CLAUDE = await px('/advice'); } catch (e) { CLAUDE = { missing: true, error: e.message }; }
+        await loadMe();
+        if (!claudeOn()) { CLAUDE = null; scheduleRender(); return; }
+        try { CLAUDE = await px(`/advice?id=${encodeURIComponent(cfg.jid)}`); } catch (e) { CLAUDE = { missing: true, error: e.message, off: /desligada/.test(e.message) }; }
         // guarda o último conselho do Claude de cada ativo (se num dia não o comentar, fica o anterior)
         if (CLAUDE && Array.isArray(CLAUDE.actions) && CLAUDE.date) {
             const mem = store.get('mercados:clmem') || {};
@@ -617,7 +703,7 @@
         loadClaudeHistory();
     }
     async function loadClaudeHistory() {
-        if (st.clHist || !CLAUDE || CLAUDE.missing) return;
+        if (st.clHist || !cfg.owner || !CLAUDE || CLAUDE.missing) return;
         st.clHist = true;
         const mem = store.get('mercados:clmem') || {};
         let miss = holdingKeys().filter((k) => !claudeFor(k));
@@ -625,7 +711,7 @@
             const dt = new Date(); dt.setDate(dt.getDate() - d);
             const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
             let a = null;
-            try { a = await px(`/advice?date=${iso}`); } catch { continue; }
+            try { a = await px(`/advice?id=${encodeURIComponent(cfg.jid)}&date=${iso}`); } catch { continue; }
             for (const x of (a && a.actions) || []) if (miss.includes(x.s) && (!mem[x.s] || mem[x.s].date < (a.date || iso))) mem[x.s] = { ...x, date: a.date || iso };
             store.set('mercados:clmem', mem);
             miss = miss.filter((k) => !claudeFor(k));
@@ -665,6 +751,7 @@
     }
     const moverWhy = (k) => { const m = CLAUDE && Array.isArray(CLAUDE.movers) ? CLAUDE.movers.find((x) => x.s === k) : null; return m ? m.why : ''; };
     function claudeFor(k) {
+        if (!claudeOn()) return null;
         const now1 = CLAUDE && Array.isArray(CLAUDE.actions) ? CLAUDE.actions.find((a) => a.s === k) : null;
         if (now1) return now1;
         const m = (store.get('mercados:clmem') || {})[k];
@@ -1345,26 +1432,28 @@
             ${execTxt ? `<div class="ex-a num">${esc(execTxt)}${nE > 1 ? `<small>por execução · ${nE} por mês</small>` : ''}</div>` : ''}
             <div class="ex-btns"><button type="button" class="btn sm" data-act="ics">Lembretes no calendário</button></div></div>` : '';
         const hold = holdingKeys();
-        const others = c && Array.isArray(c.actions) ? c.actions.filter((a) => REG[a.s] && !hold.includes(a.s)).slice(0, 6) : [];
+        const others = c && Array.isArray(c.actions) ? c.actions.filter((a) => !hold.includes(a.s)).slice(0, 6) : [];
+        const oName = (s) => REG[s] ? nameOf(s) : uniName(s) || s;
+        const clLbl = c ? `Análise do Claude · ${esc(clWhen())}${old ? ' · atrasada' : ''}` : !claudeOn() ? 'Resumo automático' : CLAUDE && CLAUDE.off ? 'Resumo automático · análise do Claude em pausa' : `Resumo automático · a análise do Claude chega às ${CL_LBL}`;
         const head = b ? b.idx.concat(fin(b.vix) ? [`VIX ${Math.round(b.vix)}${b.vix > 25 ? ' (medo)' : b.vix < 16 ? ' (calma)' : ''}`] : []).join(' · ') : '';
         const ag = agenda(14).slice(0, 7);
         const tl = c && Array.isArray(c.tldr) && c.tldr.length ? c.tldr : null;
         const teaser = tl ? tl.join(' · ') : c ? c.headline : x.next ? `${exTitle}: ${when}${execTxt ? ' · ' + execTxt : ''}` : '';
         const open = firstView('hoje', [todayLocal(), c ? (c.generatedAt || c.date || '') : '']);
         return `<details class="today fold" data-fold="hoje" ${open ? 'open' : ''}><summary><span>Hoje</span>${b && b.mood ? `<b class="${b.mood.tone}-t">${esc(b.mood.label)}</b>` : ''}
-                <small>${c ? `Análise do Claude · ${esc(clWhen())}${old ? ' · atrasada' : ''}` : `Resumo automático · a análise do Claude chega às ${CL_LBL}`}</small>${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
+                <small>${clLbl}</small>${teaser ? `<em class="teaser">${esc(teaser)}</em>` : ''}</summary>
             ${tl ? `<ul class="tldr">${tl.map((t) => { const m = /^([^:]{2,14}):\s*(.*)$/.exec(t); return `<li>${m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(t)}</li>`; }).join('')}</ul>` : ''}
             ${head ? `<p class="t-mk">${head}</p>` : ''}
             ${c ? `<div class="cl-head">${esc(c.headline)}</div>${c.market ? `<p>${esc(c.market)}</p>` : ''}` : b && b.mood ? `<p class="muted">${esc(b.mood.hint)}</p>` : ''}
             ${!c && b && (b.up.length || b.dn.length) ? `<p>${b.up.length ? 'Sobem: ' + b.up.map((k) => `${esc(nameOf(k))} <span class="up-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}${b.up.length && b.dn.length ? '<br>' : ''}${b.dn.length ? 'Caem: ' + b.dn.map((k) => `${esc(nameOf(k))} <span class="down-t">${fmtPct(b.V(k).changePct)}</span>`).join(', ') : ''}</p>` : ''}
             <div class="i-blk plan-blk"><div class="i-h">Plano do mês na Trade Republic<small>${c && c.planNote ? esc(c.planNote) : b ? b.planSub : ''}</small></div>${planHtml}${ex}</div>
-            ${others.length ? `<div class="i-blk"><div class="i-h">Também a seguir<small>fora do que tens</small></div>${others.map((a) => `<button type="button" class="idea" data-open="${esc(a.s)}"><span class="i-n">${esc(nameOf(a.s))}<small>${esc(a.why || '')}</small></span><span class="i-t ${CL_TONE[a.key] || 'flat'}-t">${esc(a.action || '')}</span></button>`).join('')}</div>` : ''}
+            ${others.length ? `<div class="i-blk"><div class="i-h">Também a seguir<small>fora do que tens</small></div>${others.map((a) => `<button type="button" class="idea" data-open="${esc(a.s)}" data-name="${esc(oName(a.s))}"><span class="i-n">${esc(oName(a.s))}<small>${esc(a.why || '')}</small></span><span class="i-t ${CL_TONE[a.key] || 'flat'}-t">${esc(a.action || '')}</span></button>`).join('')}</div>` : ''}
             ${c && Array.isArray(c.movers) && c.movers.length ? `<div class="i-blk"><div class="i-h">Porque sobem ou descem<small>o motivo dos movimentos fortes</small></div>${c.movers.map((m) => { const v = REG[m.s] ? qv(m.s) : null; return `<${REG[m.s] ? `button type="button" data-open="${esc(m.s)}"` : 'div'} class="idea why"><span class="i-n">${esc(REG[m.s] ? nameOf(m.s) : m.s)}<small>${esc(m.why)}</small></span>${v && fin(v.changePct) ? `<span class="i-t ${toneOf(v.changePct)}-t num">${fmtPct(v.changePct)}</span>` : ''}</${REG[m.s] ? 'button' : 'div'}>`; }).join('')}</div>` : ''}
             ${c && Array.isArray(c.risks) && c.risks.length ? `<div class="i-blk"><div class="i-h">Riscos a vigiar</div><ul class="dnotes">${c.risks.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></div>` : ''}
             ${ag.length ? `<div class="i-blk"><div class="i-h">Agenda — próximos 14 dias<small>resultados, dividendos e juros</small></div>${ag.map((e) => `<${e.k ? `button type="button" data-open="${esc(e.k)}"` : 'div'} class="idea"><span class="i-n">${esc(e.txt)}</span><span class="i-t muted num">${dm(e.ms)} · ${esc(whenTxt(inDays(e.ms)))}</span></${e.k ? 'button' : 'div'}>`).join('')}</div>` : ''}
             ${b ? b.notes.map((n) => `<p class="note">${esc(n)}</p>`).join('') : ''}
             ${!c && b && b.avoid.length ? `<p class="note">Evitar por agora: ${b.avoid.map((k) => esc(nameOf(k))).join(', ')}.</p>` : ''}
-            <p class="note">${c ? `Escrita todos os dias às ${CL_LBL} por uma tarefa agendada do Claude, com os teus dados e o diário de sugestões. Como têm corrido os conselhos: Análise → Resultados.` : 'Plano automático até chegar a análise do Claude.'} Toca num nome para ver o detalhe. Valida antes de investir.</p></details>`;
+            <p class="note">${c ? `Escrita todos os dias às ${CL_LBL} por uma tarefa agendada do Claude, com os teus dados e o diário de sugestões. Como têm corrido os conselhos: Análise → Resultados.` : claudeOn() ? 'Plano automático até chegar a análise do Claude.' : 'Plano automático. A análise do Claude liga-se em Ajustes.'} Toca num nome para ver o detalhe. Valida antes de investir.</p></details>`;
     }
 
     function discountBox(k, q) {
@@ -1472,6 +1561,7 @@
                 <div class="r-main"><div class="r-name">${esc(nameOf(k))}</div><div class="r-sub">${hz === 'disc' && AN[k].discount ? esc(fmtPct(AN[k].discount.dd * 100) + ' do máx. · ') : ''}${esc(AN[k].risk.label)} · ${fmtPct(qv(k).changePct)} hoje · RSI ${fin(AN[k].metrics.rsi) ? Math.round(AN[k].metrics.rsi) : '—'}</div></div>
                 <div class="r-score">${scoreBar(hzOf(k, hz))}<div class="lbl ${hzOf(k, hz).tone}-t">${esc(hzOf(k, hz).label)}</div></div>
             </button>`).join('')}</div></section>`}
+        ${uniSection()}
         <details class="auto"><summary>Sinais automáticos (algoritmo) — referência</summary>${ideasCard(inv)}</details>
         <details class="how"><summary>Como é calculada a pontuação?</summary><ul>
             <li><b>Curto prazo</b> (dias a 2 semanas): RSI, MACD, últimos 5 dias e distância à média de 20 dias. Uma queda muito forte pode dar ressalto.</li>
@@ -1521,9 +1611,10 @@
                     <div class="hint">Núcleo (ETF) / satélites (ações) / cripto. O Resumo do dia divide o valor do mês por estas partes, conforme os sinais de cada ativo. No teste de 2 anos, as ações escolhidas uma a uma ficaram em média atrás do VWCE: quanto mais núcleo, menos risco de ficar para trás.</div></div>
                 <div><label>Dias de execução dos planos na TR</label><div class="chips days">${[2, 9, 16, 23].map((d) => `<button type="button" data-sday="${d}" class="${cfg.saveDays.includes(d) ? 'on' : ''}">dia ${d}</button>`).join('')}</div>
                     <div class="hint">A TR executa os planos de poupança nos dias 2, 9, 16 e 23 (sem custos; dá para alterar até à véspera). Com 2 dias, o valor do mês divide-se a meio${+cfg.budget ? ` (${fmtPx(+cfg.budget / cfg.saveDays.length, { decimals: 0 }, 'EUR')} por execução)` : ''}. Na véspera, o Resumo do dia diz quanto pôr em cada plano.</div></div>
-                <div><label>Diário das sugestões</label><div class="hint">Guardado no teu conector com o código <code class="sel">${esc(cfg.jid)}</code>. Se reinstalares a app, cola aqui o código para recuperar o histórico.</div>
+                <div><label>Diário das sugestões</label><div class="hint">Guardado no teu conector com o código <code class="sel">${esc(cfg.jid)}</code>. Se reinstalares a app, cola aqui o código para recuperar o histórico.${cfg.owner ? ' É também a chave da tua app de dono: não o mostres a ninguém.' : ''}</div>
                     <div class="inl" style="margin-top:6px"><input id="f-jid" class="inp" type="text" autocomplete="off" spellcheck="false" placeholder="código do diário"><button type="button" class="btn sm" data-act="jid">Usar</button></div></div>
             </div></section>
+        ${claudeSection()}
         <section class="sec"><div class="sec-h"><h2>Preferências</h2></div>
             <div class="form">
                 <div><label>Tamanho da letra</label><div class="seg prof">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}"><b>${l}</b></button>`).join('')}</div>
@@ -1984,11 +2075,17 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
         if (d.open) { openSheet(d.open, d.name); return; }
+        if (d.claude) { setClaude(d.claude === '1'); return; }
+        if (d.others) {
+            const on = d.others === '1';
+            pxPost('/owner', { id: cfg.jid, others: on }).then(() => { st.others = on; STATS = { ...(STATS || {}), others: on }; toast(on ? 'Análise do Claude ligada para as outras apps' : 'Análise do Claude desligada para as outras apps'); render(); }).catch((e) => toast('Não deu: ' + e.message));
+            return;
+        }
         if (d.sort) { cfg.sort = d.sort; saveCfg(); render(); return; }
         if (d.filter) { cfg.filter = d.filter; saveCfg(); render(); return; }
         if (d.lim) { cfg.alertPct = +d.lim; saveCfg(); render(); return; }
@@ -2058,6 +2155,12 @@
             }
             case 'backtest': runBacktest(); break;
             case 'ics': downloadIcs(); break;
+            case 'uni-more': st.uniN = (st.uniN || 25) + 50; render(); break;
+            case 'share-link': {
+                const l = shareLink();
+                (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject()).then(() => toast('Link copiado')).catch(() => { const i = $('#f-share'); if (i) { i.select(); toast('Copia o link selecionado'); } });
+                break;
+            }
             case 'go-add': cfg.tab = 'ajustes'; saveCfg(); render(); setTimeout(() => { const i = $('#f-add'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }, 50); break;
             case 'go-hold': cfg.tab = 'ajustes'; saveCfg(); render(); setTimeout(() => { const h = $('[data-hold]'); if (h) h.scrollIntoView({ block: 'center' }); }, 50); break;
             case 'quiet': cfg.quiet = t.dataset.v === '1'; saveCfg(); render(); break;
@@ -2078,7 +2181,7 @@
             case 'jid': {
                 const v = ($('#f-jid').value || '').trim().toLowerCase();
                 if (!/^[a-z0-9-]{8,40}$/.test(v)) { toast('Código inválido'); return; }
-                cfg.jid = v; cfg.jLast = ''; saveCfg(); JOURNAL = null; toast('Diário recuperado'); loadJournal(); render(); break;
+                cfg.jid = v; cfg.jLast = ''; saveCfg(); JOURNAL = null; st.meAt = 0; toast('Diário recuperado'); loadJournal(); loadClaude(); render(); break;
             }
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
         }

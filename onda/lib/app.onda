@@ -1,0 +1,129 @@
+# Biblioteca para apps Onda (junta-se antes do codigo da app: cat lib/app.onda app.onda | ondac -w).
+# Globais: M[0..59] sao da app; a biblioteca usa M[60..63] (o JSON). Os textos literais comecam em M[64].
+#
+# TEXTO: um endereco t com M[t] = fim; os bytes (UTF-8, um por palavra) estao em M[t+1 .. M[t]-1].
+# E o que o `O t` deixa ao desviar a saida para a memoria, por isso escrever um texto e imprimir para ele:
+#   = t tnovo 100  O t "Ola " N 42  O 0      -> t vale "Ola 42"
+# Cuidado: o O nao conhece a capacidade; reserva o suficiente (tnovo n reserva n bytes).
+
+# ---- memoria por regioes: marca o monte antes de um evento e solta-o no fim (o que foi reservado depois volta a
+# zero, como o A promete) ----
+: marca >i @ -1
+: solta i>i m { = e @ -1 = p m W < p e { ! p 0 = p + p 1 } ! -1 m 0 }
+
+# ---- textos ----
+: tnovo i>i cap { = t A + cap 1 ! t + t 1 t }
+: tlen i>i t ? t - - @ t t 1 0
+: tbyte ii>i t j @ + + t 1 j
+: tpor i>i t { = n tlen t = j 0 W < j n { P tbyte t j = j + j 1 } 0 }
+: tigual ii>i a b { = n tlen a = r == n tlen b = j 0 W && r < j n { = r == tbyte a j tbyte b j = j + j 1 } r }
+# o texto t comeca pelo texto p?
+: tcomeca ii>i t p { = n tlen p = r <= n tlen t = j 0 W && r < j n { = r == tbyte t j tbyte p j = j + j 1 } r }
+# copia o campo i (separado por tabs) para um texto novo
+: tcampo ii>i t i {
+  = n tlen t = j 0 = k 0
+  W && < j n < k i { ? == tbyte t j 9 = k + k 1 0 = j + j 1 }
+  = s tnovo - n j O s
+  W && < j n != tbyte t j 9 { P tbyte t j = j + j 1 }
+  O 0 s }
+# inteiro (com sinal) no inicio do texto
+: tint i>i t { = n tlen t = j 0 = g 1 ? && > n 0 == tbyte t 0 '- { = g -1 = j 1 } 0 = v 0
+  W && < j n && >= tbyte t j '0 <= tbyte t j '9 { = v + * v 10 - tbyte t j '0 = j + j 1 } * g v }
+# imprime o texto escapado para HTML (& < > " ')
+: thtml i>i t { = n tlen t = j 0 W < j n { = c tbyte t j
+  ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" P c = j + j 1 } 0 }
+
+# ---- numeros como no pt-PT: virgula decimal; milhares com espaco fixo (U+00A0) a partir de 10 000 ----
+: _p10 i>i d { = r 1 W > d 0 { = r * r 10 = d - d 1 } r }
+: _pgr i>i n { ? >= n 1000 { _pgr / n 1000 P 194 P 160 = r % n 1000 ? < r 100 P '0 0 ? < r 10 P '0 0 N r } N n }
+: pint i>i n { ? < n 0 { P '- = n - 0 n } 0 ? >= n 10000 _pgr n N n 0 }
+# x com d casas decimais (arredonda metades para longe do zero)
+: pdec fi>i x d {
+  = g < x 0.0
+  = a ? g - 0.0 x x
+  = p _p10 d
+  = q I Fl + * a F p 0.5
+  ? && g > q 0 P '- 0
+  = ip / q p
+  ? >= ip 10000 _pgr ip N ip
+  ? > d 0 { P ', = fr % q p = z / p 10 W > z fr { P '0 = z / z 10 } ? > fr 0 N fr 0 } 0
+  0 }
+
+# ---- JSON: le um texto para uma arvore. No: [tipo, valor, chave, irmao, filho, n]
+# tipo: 1 null, 2 false, 3 true, 4 numero (valor = real em @f), 5 texto (valor = texto), 6 lista, 7 objeto.
+# Numeros: mantissa ate 18 algarismos e expoente por potencias de 10 exatas (arredondamento certo ate 15
+# algarismos significativos; mais do que isso pode diferir no ultimo bit do JSON.parse). ----
+: _jt i>i t ! 60 t
+: _jsp >i { W && < @ 61 @ 62 || || == _jc 32 == _jc 10 || == _jc 13 == _jc 9 ! 61 + @ 61 1 0 }
+: _jc >i @ + + @ 60 1 @ 61
+: _jno i>i k { = n A 6 ! n k n }
+: _jhex i>i c ? <= c '9 - c '0 ? >= c 'a + 10 - c 'a + 10 - c 'A
+: _jutf i>i u ? < u 128 P u ? < u 2048 { P | 192 >> u 6 P | 128 & u 63 } ? < u 65536 { P | 224 >> u 12 P | 128 & >> u 6 63 P | 128 & u 63 } { P | 240 >> u 18 P | 128 & >> u 12 63 P | 128 & >> u 6 63 P | 128 & u 63 }
+: _jstr >i {
+  ! 61 + @ 61 1
+  = q @ 61 = t @ 60
+  W && < q @ 62 != @ + + t 1 q 34 { = q + q ? == @ + + t 1 q 92 2 1 }
+  = s tnovo - q @ 61
+  O s
+  W && < @ 61 @ 62 != _jc 34 {
+    = c _jc
+    ? == c 92 {
+      ! 61 + @ 61 1 = e _jc
+      ? == e 'n P 10 ? == e 't P 9 ? == e 'r P 13 ? == e 'b P 8 ? == e 'f P 12
+      ? == e 'u { = u 0 = j 0 W < j 4 { ! 61 + @ 61 1 = u + * u 16 _jhex _jc = j + j 1 }
+        ? && >= u 55296 < u 56320 { ! 61 + @ 61 2 = w 0 = j 0 W < j 4 { ! 61 + @ 61 1 = w + * w 16 _jhex _jc = j + j 1 }
+          = u + 65536 + << - u 55296 10 - w 56320 } 0
+        _jutf u }
+      P e }
+    P c
+    ! 61 + @ 61 1 }
+  O 0
+  ! 61 + @ 61 1
+  s }
+: _jpf i>f k { = r 1.0 W > k 0 { = r * r 10.0 = k - k 1 } r }
+: _jnum >f {
+  = g 1.0 ? == _jc '- { = g -1.0 ! 61 + @ 61 1 } 0
+  = m 0 = nd 0 = e 0
+  W && < @ 61 @ 62 && >= _jc '0 <= _jc '9 { ? < nd 18 { = m + * m 10 - _jc '0 = nd + nd 1 } = e + e 1 ! 61 + @ 61 1 }
+  ? && < @ 61 @ 62 == _jc '. { ! 61 + @ 61 1
+    W && < @ 61 @ 62 && >= _jc '0 <= _jc '9 { ? < nd 18 { = m + * m 10 - _jc '0 = nd + nd 1 = e - e 1 } 0 ! 61 + @ 61 1 } } 0
+  ? && < @ 61 @ 62 || == _jc 'e == _jc 'E { ! 61 + @ 61 1 = sg 1
+    ? == _jc '- { = sg -1 ! 61 + @ 61 1 } ? == _jc '+ ! 61 + @ 61 1 0
+    = x 0 W && < @ 61 @ 62 && >= _jc '0 <= _jc '9 { = x + * x 10 - _jc '0 ! 61 + @ 61 1 } = e + e * sg x } 0
+  = v F m
+  ? >= e 0 = v * v _jpf e = v / v _jpf - 0 e
+  * g v }
+: _jval >i {
+  _jsp
+  = c _jc
+  ? == c '{ { = n _jno 7 ! 61 + @ 61 1 = ul 0
+      W { _jsp && < @ 61 @ 62 != _jc '} } {
+        _jsp
+        = k _jstr _jsp ! 61 + @ 61 1
+        = v _jval ! + v 2 k
+        ? ul ! + ul 3 v ! + n 4 v
+        = ul v ! + n 5 + @ + n 5 1
+        _jsp ? == _jc ', ! 61 + @ 61 1 0 }
+      ! 61 + @ 61 1 n }
+  ? == c '[ { = n _jno 6 ! 61 + @ 61 1 = ul 0
+      W { _jsp && < @ 61 @ 62 != _jc '] } {
+        = v _jval
+        ? ul ! + ul 3 v ! + n 4 v
+        = ul v ! + n 5 + @ + n 5 1
+        _jsp ? == _jc ', ! 61 + @ 61 1 0 }
+      ! 61 + @ 61 1 n }
+  ? == c 34 { = n _jno 5 ! + n 1 _jstr n }
+  ? == c 't { ! 61 + @ 61 4 _jno 3 }
+  ? == c 'f { ! 61 + @ 61 5 _jno 2 }
+  ? == c 'n { ! 61 + @ 61 4 _jno 1 }
+  { = n _jno 4 !f + n 1 _jnum n } }
+# le o texto t (JSON) e devolve a raiz (0 se t e 0)
+: json i>i t ? t { _jt t ! 61 0 ! 62 tlen t _jval } 0
+: jtipo i>i n ? n @ n 0
+: jnum i>f n ? == jtipo n 4 @f + n 1 0.0
+: jtxt i>i n ? == jtipo n 5 @ + n 1 0
+: jn i>i n ? n @ + n 5 0
+# membro de um objeto pelo nome (o nome e um texto)
+: jget ii>i n k { = c ? == jtipo n 7 @ + n 4 0 W && c ~ tigual @ + c 2 k = c @ + c 3 c }
+# elemento i de uma lista
+: jidx ii>i n i { = c ? == jtipo n 6 @ + n 4 0 W && c > i 0 { = c @ + c 3 = i - i 1 } c }

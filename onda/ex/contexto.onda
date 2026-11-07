@@ -1,0 +1,45 @@
+# contexto.onda -- a Onda constroi o "contexto" de um ecra a partir de glifos
+# com posicao (o que o OCR cospe: um caracter + onde esta). Reconstroi palavras
+# e linhas SO com geometria: salto em y = nova linha, folga em x = nova palavra.
+# Nao ha gramatica nem arvore -> nao precisa de parser. E so comparar distancias.
+: main >i {
+  = n 17
+  = ch A n  = x A n  = y A n
+  # linha 1 (y=0):  "Fatura"   "2026"
+  ! + ch 0 'F  ! + x 0 0    ! + y 0 0
+  ! + ch 1 'a  ! + x 1 10   ! + y 1 0
+  ! + ch 2 't  ! + x 2 20   ! + y 2 0
+  ! + ch 3 'u  ! + x 3 30   ! + y 3 0
+  ! + ch 4 'r  ! + x 4 40   ! + y 4 0
+  ! + ch 5 'a  ! + x 5 50   ! + y 5 0
+  ! + ch 6 '2  ! + x 6 80   ! + y 6 0
+  ! + ch 7 '0  ! + x 7 90   ! + y 7 0
+  ! + ch 8 '2  ! + x 8 100  ! + y 8 0
+  ! + ch 9 '6  ! + x 9 110  ! + y 9 0
+  # linha 2 (y=22): "Total"   "42"
+  ! + ch 10 'T ! + x 10 0   ! + y 10 22
+  ! + ch 11 'o ! + x 11 10  ! + y 11 22
+  ! + ch 12 't ! + x 12 20  ! + y 12 22
+  ! + ch 13 'a ! + x 13 30  ! + y 13 22
+  ! + ch 14 'l ! + x 14 40  ! + y 14 22
+  ! + ch 15 '4 ! + x 15 70  ! + y 15 22
+  ! + ch 16 '2 ! + x 16 80  ! + y 16 22
+  = w 10
+  = k 0  = ln 0  = xe 0  = nl 0  = st 0
+  W < k n {
+    = yy @ + y k
+    = sl & st == yy ln
+    ? sl {
+      ? < 5 - @ + x k xe P 32 0
+    } {
+      ? < 0 st P 10 0
+      = nl + nl 1
+      = ln yy
+      N nl " @y" N ln ": "
+      = st 1
+    }
+    P @ + ch k
+    = xe + @ + x k w
+    = k + k 1 }
+  P 10
+  0 }
