@@ -520,6 +520,17 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     await page.click('[data-per="1d"]');
+    // com 1A no Painel, os Destaques continuam a mostrar a variação do dia, mesmo com preços ao vivo
+    await page.click('[data-per="1y"]');
+    await page.click('#mk-nav [data-tab="destaques"]');
+    await page.waitForSelector('.sec:has(h2:text("Os meus ativos hoje")) .row[data-key="c:ETH"] .chg');
+    await page.evaluate(() => { const mk = window.__mk; const q = mk.Q['c:ETH']; mk.Q['c:ETH'] = { ...q, price: q.price * 1.001, changePct: 0.45 }; });
+    await page.waitForTimeout(1500);
+    const ethDay = await page.evaluate(() => { const q = window.__mk.Q['c:ETH']; return q.changePct; });
+    const ethTxt = await page.locator('.sec:has(h2:text("Os meus ativos hoje")) .row[data-key="c:ETH"] .chg').textContent();
+    assert.ok(Math.abs(Number(ethTxt.replace('−', '-').replace('%', '').replace(',', '.')) - ethDay) < 0.05, `Destaques mostra o dia (${ethTxt} vs ${ethDay.toFixed(2)})`);
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.click('[data-per="1d"]');
     console.log('✓ período da variação: 1D', d1, '| 1M', m1);
     // os gráficos pequenos ficam todos na mesma coluna
     const sparkX = await page.evaluate(() => [...document.querySelectorAll('.sec:first-of-type .sw-list canvas.spark')].map((c) => Math.round(c.getBoundingClientRect().right)));
