@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.5.0';
+    const VERSION = '4.6.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1632,8 +1632,8 @@
         if (cfg.proxy && !JOURNAL) loadJournal();
     }
     // O instantâneo para a Onda: o que o viewAnalysis lê, cru (a Onda filtra, ordena — o mesmo TimSort do V8 — e
-    // escreve). Da análise de cada ativo vão só os campos que a vista usa (as razões só do prazo escolhido); de toda a
-    // Trade Republic, as linhas em listas. Vai já feito o que é do browser ou de outras partes da app: os nomes
+    // escreve). Da análise de cada ativo vão só os campos que a vista usa (as razões só do prazo escolhido); toda a
+    // Trade Republic vai como lista fixa (escrita na memória da Onda uma vez por cada lista nova). Vai já feito o que é do browser ou de outras partes da app: os nomes
     // (nameOf), a variação do dia (qv: preço da noite, euros), as datas (clWhen, a hora da lista toda) e o diário
     // avaliado (evalJournal, com os preços de agora).
     function analysisSnap() {
@@ -1655,7 +1655,7 @@
             }),
             cl: C ? { missing: C.missing, off: C.off, review: C.review, lessons: C.lessons, rank: C.rank ? { short: C.rank.short, mid: C.rank.mid, long: C.rank.long } : C.rank,
                 actions: Array.isArray(C.actions) ? C.actions.map(ac) : C.actions } : C,
-            uni: U ? { error: U.error, when: U.generatedAt ? dtLbl(U.generatedAt) : U.date, rows: Array.isArray(U.rows) ? U.rows.map((r) => [r.s, r.n, r.t, r.m, r.l, r.o, r.dd, r.d, r.y, r.rk]) : U.rows } : U,
+            uni: U ? { error: U.error, when: U.generatedAt ? dtLbl(U.generatedAt) : U.date, rows: Array.isArray(U.rows) ? AO.ecra.fixa(U.rows) : U.rows } : U,
             ev: evalJournal(),
             bt: B ? { running: B.running, error: B.error, sum: B.sum, n: B.n, yrs: B.yrs, ticket: B.ticket, byKind: B.byKind, worst: nm(B.worst), best: nm(B.best) } : B,
         };

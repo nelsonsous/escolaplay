@@ -101,6 +101,13 @@
 : ka_v_up >i ekt 89
 : ka_v_flat >i ekt 90
 : ka_v_down >i ekt 91
+# as linhas de toda a Trade Republic: { s, n, t, m, l, o, dd, d, y, rk }
+: ka_rt >i ekt 92
+: ka_rm >i ekt 93
+: ka_rl >i ekt 94
+: ka_ro >i ekt 95
+: ka_ry >i ekt 96
+: ka_rk >i ekt 97
 : an_chaves >i {
   ! 54 A 120
   kdef 0 kab "horas" O 0  kdef 1 kab "owner" O 0  kdef 2 kab "claude" O 0  kdef 3 kab "proxy" O 0  kdef 4 kab "filter" O 0
@@ -122,6 +129,7 @@
   kdef 80 kab "buy" O 0  kdef 81 kab "scale" O 0  kdef 82 kab "hold" O 0  kdef 83 kab "wait" O 0  kdef 84 kab "neutral" O 0
   kdef 85 kab "turn" O 0  kdef 86 kab "avoid" O 0  kdef 87 kab "reduce" O 0  kdef 88 kab "sell" O 0  kdef 89 kab "up" O 0
   kdef 90 kab "flat" O 0  kdef 91 kab "down" O 0
+  kdef 92 kab "t" O 0  kdef 93 kab "m" O 0  kdef 94 kab "l" O 0  kdef 95 kab "o" O 0  kdef 96 kab "y" O 0  kdef 97 kab "rk" O 0
   0 }
 # o estado da chamada, a seguir às chaves: 100 hz  101 filtro  102 desconto (hz === 'disc')  103 useCl  104 clDoc (a
 # lista actions, ou 0)  105 CLAUDE  106 claudeOn  107 quantos ativos  108 os ativos  109 o texto do hz (ou 0)
@@ -334,17 +342,16 @@
   ? || || ~ ty ~ vverd u ~ vverd rs {
       ? && && vverd u vverd jg u ka_error ty { "<p class=\"note\" style=\"margin:0 2px 12px\">Toda a Trade Republic: ainda sem classificação (" pv jg u ka_error 1 "). Chega com a próxima análise do Claude.</p>" 0 } 0 }
     an_unil u rs ty }
-# as linhas vêm em listas [s, n, t, m, l, o, dd, d, y, rk]
 : an_unil iii>i u rs ty {
-  = hz an_g 100 = dsc an_g 102 = km ? veqt hz ka_mid 3 4
+  = hz an_g 100 = dsc an_g 102 = km ? veqt hz ka_mid ka_rm ka_rl
   = nr jn rs = w A + nr 1 = k1 A + nr 1 = k2 A + nr 1 = ix A + nr 1
   = c jprim rs = i 0 = m 0
   W c {
     ! + ix i c
-    = v jidx c km
-    ? && an_tipo jidx c 2 ty && == jtipo v 4 finito @f + v 1 {
+    = v jg c km
+    ? && an_tipo jg c ka_rt ty && == jtipo v 4 finito @f + v 1 {
         ! + w m i = m + m 1
-        ? dsc { !f + k1 i vnum jidx c 5 !f + k2 i vnum jidx c 6 0 } { !f + k1 i @f + v 1 0 } } 0
+        ? dsc { !f + k1 i vnum jg c ka_ro !f + k2 i vnum jg c ka_dd 0 } { !f + k1 i @f + v 1 0 } } 0
     = c jprox c = i + i 1 }
   # rows.sort(disc ? (a, b) => b.o - a.o || a.dd - b.dd : (a, b) => b[key] - a[key])
   ts_ordena w m k1 k2 ? dsc 6 0
@@ -362,15 +369,15 @@
   ? > F m nn { "<div class=\"sec-f\"><button type=\"button\" class=\"lnk\" data-act=\"uni-more\">Ver mais (" pjn - F m nn ")</button></div>" 0 } 0
   "</details>" 0 }
 : an_unirow iiii>i r i km dsc {
-  = s jidx r 0 = nm jidx r 1
-  "<button type=\"button\" class=\"row\" data-open=\"" pv s 1 "\" data-name=\"" pv nm 1 "\" data-ut=\"" pv jidx r 2 1 "\">\n                <span class=\"rk\">" N + i 1 "</span>\n                <div class=\"r-main\"><div class=\"r-name\">" pv nm 1 "</div><div class=\"r-sub\">"
+  = s jg r ka_s = nm jg r ka_n
+  "<button type=\"button\" class=\"row\" data-open=\"" pv s 1 "\" data-name=\"" pv nm 1 "\" data-ut=\"" pv jg r ka_rt 1 "\">\n                <span class=\"rk\">" N + i 1 "</span>\n                <div class=\"r-main\"><div class=\"r-name\">" pv nm 1 "</div><div class=\"r-sub\">"
   = cd an_g 104 an_badge ? cd an_cl cd s 0
   pv s 1 " · "
-  ? dsc { fm_pctv jidx r 6 " do máx. · " 0 } 0
-  = d jidx r 7 ? && == jtipo d 4 finito @f + d 1 { fm_pct @f + d 1 " hoje · " 0 } 0
-  = y jidx r 8 ? && == jtipo y 4 finito @f + y 1 { "1 ano " fm_pct @f + y 1 " · " 0 } 0
-  = rk jidx r 9 ? vverd rk pv rk 1 0
-  "</div></div>\n                <div class=\"r-score\">" an_barv @f + jidx r km 1 "</div>\n            </button>" 0 }
+  ? dsc { fm_pctv jg r ka_dd " do máx. · " 0 } 0
+  = d jg r ka_d ? && == jtipo d 4 finito @f + d 1 { fm_pct @f + d 1 " hoje · " 0 } 0
+  = y jg r ka_ry ? && == jtipo y 4 finito @f + y 1 { "1 ano " fm_pct @f + y 1 " · " 0 } 0
+  = rk jg r ka_rk ? vverd rk pv rk 1 0
+  "</div></div>\n                <div class=\"r-score\">" an_barv @f + jg r km 1 "</div>\n            </button>" 0 }
 # algoRank(pool, hz): os 10 do pool com sinal automático, pela pontuação (só com a análise do Claude)
 : an_rank >i {
   = n an_g 107 = w A + n 1 = k1 A + n 1 = m 0 = i 0
