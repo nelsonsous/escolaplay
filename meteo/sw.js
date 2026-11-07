@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v7'; // 1.5.1
+const CACHE = 'meteo-v8'; // 1.6.0
 const ASSETS = [
     './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './manifest.webmanifest',
     './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js',
@@ -59,5 +59,27 @@ self.addEventListener('fetch', (event) => {
         } catch (e) {
             return new Response('', { status: 503 });
         }
+    })());
+});
+
+// Notificações do fim do dia (o conector envia-as cifradas à hora escolhida): mostra-a; ao tocar, abre a Análise
+self.addEventListener('push', (event) => {
+    let d = null;
+    try { d = event.data ? event.data.json() : null; } catch { d = null; }
+    event.waitUntil(self.registration.showNotification(d?.title || 'Meteo', {
+        body: d?.body || 'Abre a app para ver a previsão de amanhã.', icon: 'icon-192.png', badge: 'icon-192.png',
+        tag: d?.tag || 'meteo', data: { url: d?.url || './?tab=analise' },
+    }));
+});
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const scope = self.registration.scope;
+    let url = scope + '?tab=analise';
+    try { const u = new URL(event.notification.data?.url || '', scope); if (u.href.startsWith(scope)) url = u.href; } catch { /* fica a da Análise */ }
+    event.waitUntil((async () => {
+        const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const w = wins.find((c) => c.url.startsWith(scope));
+        if (w) { await w.focus(); w.postMessage({ type: 'tab', tab: 'analise' }); return; }
+        await self.clients.openWindow(url);
     })());
 });

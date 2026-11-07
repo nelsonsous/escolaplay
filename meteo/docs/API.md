@@ -254,11 +254,26 @@ Cabeçalhos: `x-sat-layer`, `x-sat-bbox` (`oeste,sul,este,norte`), `cache-contro
 
 ## GET /api/learning?lat=..&lon=..
 
-A memória da aprendizagem (`learn:<id>`, até 90 dias, a que a tarefa agendada atualiza 3× por dia) do local **deste
+A memória da aprendizagem (`learn:<id>`, até 90 dias, a que a tarefa agendada atualiza 4× por dia) do local **deste
 telemóvel** mais perto do ponto, até 3 km (o dono: os seus locais). `{ "place": { "id", "distanceKm" } | null, "memory":
 { "v": 1, "lat", "lon", "updated", "days": { "<data>": { "h", "hr", "src", "m": { … } } } } | null }`. A app junta-a à sua
 (`mergeMemory`: dia a dia fica a mais completa; uma memória de outro ponto, a mais de 3 km, não entra) e passa as duas
 a `loadForecast({ memory })`.
+
+## Notificações do fim do dia — `/api/push`
+
+- `GET /api/push/key` → `{ "publicKey": "<VAPID, P-256, base64url>" }` (o par de chaves é criado no primeiro uso e fica no
+  KV em `push:vapid`).
+- `GET /api/push` → `{ "on": true, "time": "19:00", "sunday": true, "place": "<id>", "tz": "Europe/Lisbon", "last": "2026-11-09" }`
+  deste telemóvel (`on: false` com os valores por omissão se não tiver).
+- `POST /api/push` `{ subscription: PushSubscription.toJSON(), time: "HH:MM" (de 15 em 15 min), sunday, place, tz }` → 201 com
+  o mesmo formato. Só da app (origem) e com a identidade do telemóvel; `place` tem de ser um local **do próprio**, ligado
+  (409 `sem_local` se não houver); só serviços de notificações conhecidos (Apple, Google, Mozilla, Microsoft).
+- `DELETE /api/push` → 204. `POST /api/push/test` → envia já a que seguiria agora (1 por minuto).
+- **Cron** `*/15 * * * *` (`scheduled` → `runPush`): para cada entrada de `push:index` cuja hora local já passou (até 2 h) e
+  que ainda não foi enviada hoje (dia local do telemóvel), envia `{ title, body, url, tag }` cifrado (RFC 8291, aes128gcm)
+  com VAPID (RFC 8292, JWT ES256). Título «Amanhã em <local>» com `notificacao.amanha` da última análise (até 30 h); ao
+  domingo, com `sunday`, «A semana em <local>» com `notificacao.semana`. 404/410 do serviço = assinatura caducada → sai.
 
 ## GET /api/analysis?lat=..&lon=..
 
@@ -269,7 +284,7 @@ arredondados (~1 km). Um local desligado não tem análise.
 ```jsonc
 { "analysis": { /* ver "Análise" abaixo */ } | null,
   "place": { "id": "casa-k2m9xq", "name": "Casa", "lat": 38.72, "lon": -9.14, "distanceKm": 0.3, "mine": true, "kind": "guest" } | null,
-  "ageMin": 95, "schedule": ["07:34", "13:34", "20:34"],
+  "ageMin": 95, "schedule": ["07:34", "13:34", "17:34", "20:34"],
   "onDemand": false, // há chave da API e quem pede a pode usar (o dono; os outros só com a análise dos outros "on")
   "others": "on" }   // análise dos outros: on | 1x | off
 ```
@@ -297,7 +312,10 @@ selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATC
   "conselhos": ["Leva guarda-chuva sábado de manhã"],               // até 5, ≤ 140 cada
   "fiabilidade": { "curto": "alta", "medio": "media", "texto": "…" }, // ≤ 400
   "tecnica": "…",        // análise sinóptica/técnica, ≤ 1200
-  "verificacao": "…" }   // como correu a previsão anterior, ≤ 400 (opcional)
+  "verificacao": "…",    // como correu a previsão anterior, ≤ 400 (opcional)
+  "vestir": "…",         // o que vestir amanhã no ponto (manhã, tarde, noite), ≤ 400
+  "semana": "…",         // a semana que vem no ponto, ≤ 700
+  "notificacao": { "amanha": "…", "semana": "…" } } // textos das notificações (amanhã + o que vestir; a de domingo), ≤ 180
 ```
 
 ## POST /api/analysis/refresh?lat=..&lon=..
@@ -369,7 +387,7 @@ O primeiro pedido da app ao abrir (regista o telemóvel; os outros pedidos esper
 
 ```jsonc
 { "version": "1.4.0", "onDemand": false, "places": 1, // locais ligados que quem pede vê
-  "schedule": ["07:34","13:34","20:34"],
+  "schedule": ["07:34","13:34","17:34","20:34"],
   "device": true, "owner": false, "ownerCode": "ok" | "errado" | "sem_codigo", // ownerCode só com x-meteo-owner
   "others": "on", "limit": 1 }                                                // limit = locais por telemóvel (dono: null)
 ```
@@ -399,7 +417,7 @@ O primeiro pedido da app ao abrir (regista o telemóvel; os outros pedidos esper
 dia de Lisboa, 40 dias: `{ scheduled, instant, guest }` — a tarefa agendada conta-as no `publicar.mjs`, a análise imediata
 no conector), `analysis:<id>` e `lessons:<id>` (por local), `analysis:<id>:<data-hora>` (arquivo, 30 dias),
 `analysis:dev:<id>` (análise imediata fora dos locais, 24 h), `reports:<id>` e `reports:dev:<id>` (avisos), `rl:<ponto>`
-(30 min), `obs:<estação>`, `ipma:runs:<concelho>`, `fogos:latest`, `learn:<id>` (memória da aprendizagem de cada local,
+(30 min), `obs:<estação>`, `ipma:runs:<concelho>`, `fogos:latest`, `push:vapid` e `push:index` (notificações), `learn:<id>` (memória da aprendizagem de cada local,
 até 90 dias, ~1 KB por dia; a tarefa agendada junta-lhe os dias verificados em cada corrida).
 
 ## Fontes em bruto (passagem com cache)

@@ -1,7 +1,8 @@
 # Analista do tempo (tarefa agendada do Claude)
 
-Procedimento que a tarefa agendada segue **três vezes por dia: 07:34, 13:34 e 20:34 (hora de Lisboa)**, a seguir
-às corridas das 00, 06 e 12 UTC dos modelos. Para mudar o comportamento muda-se este ficheiro, os scripts em
+Procedimento que a tarefa agendada segue **quatro vezes por dia: 07:34, 13:34, 17:34 e 20:34 (hora de Lisboa)**, a
+seguir às corridas das 00, 06 e 12 UTC dos modelos. A das **17:34** é a que vai nas **notificações do fim do dia** (19:00 por
+omissão, cada telemóvel escolhe a hora): amanhã no ponto e o que vestir; ao domingo, a semana que vem. Para mudar o comportamento muda-se este ficheiro, os scripts em
 `meteo/analista/` e as regras em `meteo/lib/analysis.js`, e faz-se merge — o agendamento usa sempre o `main`.
 
 Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código nem abras PR nesta tarefa.
@@ -69,7 +70,11 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       prazo fala em probabilidades; respeita os avisos do IPMA.
    3. **Escreve sobre o ponto** (regras abaixo) em `/tmp/meteo/analise-<id>.json` com os campos de `meteo/docs/API.md` →
       "Análise" (titulo, resumo, agora, hoje, amanha, dias, tendencia, alertas, incendios, satelite, conselhos,
-      fiabilidade, tecnica, verificacao, licoes). `dias` começa depois de amanhã. Em `verificacao` diz o **erro de tempo
+      fiabilidade, tecnica, verificacao, licoes, **vestir**, **semana**, **notificacao** { amanha, semana }). `dias` começa
+      depois de amanhã. `vestir`: o que vestir **amanhã** no ponto, de manhã, à tarde e à noite (temperatura e sensação nessas
+      horas, chuva a que horas, vento, UV). `semana`: os próximos 7 dias em poucas palavras por dia. `notificacao.amanha` e
+      `notificacao.semana` (até 180 caracteres cada, sem o nome do sítio, que já vai no título) são o texto das notificações:
+      amanhã com o que vestir, e a semana (a de domingo). Escreve-os sempre — são o que a pessoa lê no ecrã bloqueado. Em `verificacao` diz o **erro de tempo
       dos modelos** visto no radar e nos avisos («os modelos davam chuva às 22h15; o radar já a tinha no ponto às 20h10:
       ~2 h de atraso») e quem mais acerta aqui segundo a aprendizagem («nas últimas semanas o ECMWF é o que menos erra
       a temperatura de amanhã: 1,1 °C; o GFS 2,2 °C»). Em `licoes` mantém as lições anteriores que continuem certas e junta o que aprendeste sobre o ponto

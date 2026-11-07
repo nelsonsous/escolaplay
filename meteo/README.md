@@ -49,7 +49,7 @@ principal*; Android *⋮ → Instalar app*).
   no consenso é o de base × um fator que vai de ×¼ a ×4: (erro mediano ÷ erro do modelo)³, com uma força que cresce com os
   dias de prova — com 7 dias já conta, com 30 conta bem mais. A chuva e o vento partem do fator da temperatura e afastam-se
   dele com a sua própria prova. A memória fica no telemóvel (até 4 sítios) e, no local com a análise diária, também no
-  conector (a tarefa agendada atualiza-a 3× por dia, por isso continua a aprender mesmo sem abrires a app). Em **Análise →
+  conector (a tarefa agendada atualiza-a 4× por dia, por isso continua a aprender mesmo sem abrires a app). Em **Análise →
   Aprendizagem**: o fator e o erro de cada modelo por variável e prazo, quem é o mais certeiro, o atraso típico da chuva
   de cada modelo e a evolução dos pesos dia a dia. O Claude recebe o mesmo na análise.
 - **Quando o IPMA falha** — se o IPMA publica as horas sem valores, o estado das fontes diz desde quando
@@ -65,8 +65,8 @@ principal*; Android *⋮ → Instalar app*).
 
 ## Análise do Claude
 
-Como o conselheiro dos Mercados, uma **tarefa agendada do Claude** segue [`ANALISTA.md`](ANALISTA.md) três vezes por
-dia (07:34, 13:34 e 20:34): para cada local registado lê a previsão, **vê as imagens de satélite** (de perto, ~280 km
+Como o conselheiro dos Mercados, uma **tarefa agendada do Claude** segue [`ANALISTA.md`](ANALISTA.md) quatro vezes por
+dia (07:34, 13:34, 17:34 e 20:34): para cada local registado lê a previsão, **vê as imagens de satélite** (de perto, ~280 km
 com o ponto ao centro, e largas), lê o **radar no ponto** e os **avisos do utilizador** (o «agora» começa por eles; o erro
 de tempo dos modelos vai para a verificação e as lições), verifica a análise anterior contra o que se observou, escreve a análise (título,
 agora, hoje, amanhã, próximos dias, tendência, alertas, satélite, incêndios, conselhos, fiabilidade, análise técnica) e
@@ -103,6 +103,21 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 ```
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
+
+## Notificações do fim do dia (1.6)
+
+Em **Ajustes → Notificações**: «Resumo ao fim do dia», **às 19:00 por omissão** (a hora escolhe-se de 15 em 15 min, das
+16:00 às 23:45). Traz a análise do Claude das **17:34** para o teu local: **como vai estar amanhã e o que vestir** (de manhã,
+à tarde e à noite). **Ao domingo** (desligável) a notificação é **a semana que vem**. «Enviar uma agora» mostra já como fica.
+Na própria análise há também as secções «O que vestir amanhã» e «A semana em resumo».
+
+- Precisa da análise diária ligada para o local (é dela que vem o texto).
+- No iPhone só funciona com a app **instalada no ecrã principal** (iOS 16.4 ou mais recente): Partilhar → «Adicionar ao
+  ecrã principal», abrir a Meteo de lá e ligar em Ajustes. No Android e no computador, no browser ou instalada.
+- Como funciona: o browser cria uma assinatura Web Push para o conector (chave pública VAPID do conector); o conector
+  acorda de 15 em 15 min (Cron Trigger da Cloudflare), vê quem chegou à hora (no fuso do telemóvel) e envia a
+  notificação **cifrada para o telemóvel** (RFC 8291: a Apple, a Google ou a Mozilla só a entregam, não a leem). As chaves
+  VAPID são criadas no primeiro uso e ficam no KV do conector — nada para configurar.
 
 ## Partilhar
 

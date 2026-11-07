@@ -60,6 +60,14 @@ export async function getReports(lat, lon, hours = 24) {
   return Array.isArray(r?.reports) ? r.reports : [];
 }
 
+// ---------- notificações do fim do dia (Web Push; o conector envia-as à hora escolhida) ----------
+export const getPushKey = () => call('/api/push/key', { timeout: 8000 });
+/** { on, time, sunday, place } deste telemóvel */
+export const getPush = () => call('/api/push', { timeout: 8000 });
+export const savePush = (b) => call('/api/push', { method: 'POST', body: b, timeout: 10000 });
+export const deletePush = () => call('/api/push', { method: 'DELETE', timeout: 10000 });
+export const testPush = () => call('/api/push/test', { method: 'POST', body: {}, timeout: 15000 });
+
 /** Memória da aprendizagem do local deste telemóvel perto do ponto (≤ 3 km), que a tarefa agendada guarda: { place, memory } */
 export const getLearning = (lat, lon) => call(`/api/learning?${q({ lat: r4(lat), lon: r4(lon) })}`, { timeout: 6000 });
 
