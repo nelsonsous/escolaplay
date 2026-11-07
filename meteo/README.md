@@ -128,6 +128,8 @@ Em **Ajustes → Notificações**: «Resumo ao fim do dia», **às 19:00 por omi
 16:00 às 23:45). Traz a análise do Claude das **17:34** para o teu local: **como vai estar amanhã e o que vestir** (de manhã,
 à tarde e à noite). **Ao domingo** (desligável) a notificação é **a semana que vem**. «Enviar uma agora» mostra já como fica.
 Na própria análise há também as secções «O que vestir amanhã» e «A semana em resumo».
+**Tocar na notificação** abre a Análise com tudo à vista (ao domingo, já na semana). No iPhone a app pode ficar visível
+antes de o pedido do toque chegar; por isso a app espera por ele uns segundos (1.8.1).
 
 - Precisa da análise diária ligada para o local (é dela que vem o texto).
 - No iPhone só funciona com a app **instalada no ecrã principal** (iOS 16.4 ou mais recente): Partilhar → «Adicionar ao

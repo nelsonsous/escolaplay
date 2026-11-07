@@ -498,7 +498,23 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.evaluate(() => location.search), '');
     assert.ok(await page.locator('#mt-nav [data-tab="analise"].on').count(), 'abre na Análise');
     assert.ok(await page.locator('#d-an .an-sec h4:text("Hoje")').isVisible(), 'com a análise completa aberta');
-    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos; a notificação abre a análise completa`);
+    // no iPhone a app fica visível antes de o service worker gravar o pedido do toque (e abre sem o endereço da notificação)
+    const lateNav = (focus) => page.evaluate((f) => new Promise((ok) => setTimeout(ok, 1500)).then(async () => (await caches.open('meteonav'))
+        .put('nav', new Response(JSON.stringify({ tab: 'analise', open: 'd-an', focus: f, at: Date.now() - (f ? 1000 : 2000) })))), focus);
+    const inView = (id) => page.waitForFunction((i) => { const r = document.getElementById(i)?.getBoundingClientRect(); return r && r.top >= 0 && r.top < innerHeight; }, id);
+    await page.goto(url);
+    await page.click('#mt-nav [data-tab="agora"]');
+    await lateNav('');
+    await page.waitForSelector('#mt-nav [data-tab="analise"].on');
+    await page.waitForSelector('#d-an[open]');
+    // app em segundo plano: volta a ficar visível e o pedido (a da semana, ao domingo) chega depois
+    await page.click('#mt-nav [data-tab="agora"]');
+    await page.evaluate(() => { window.__mt.st.open.clear(); document.dispatchEvent(new Event('visibilitychange')); });
+    await lateNav('an-semana');
+    await page.waitForSelector('#d-an[open]');
+    await inView('an-semana');
+    assert.match(await page.locator('#an-semana').textContent(), /A semana em resumo/);
+    console.log(`✓ Análise: Claude, análise diária (desligar e voltar a ligar o mesmo local), a pedido, ${nModels} modelos; a notificação abre a análise completa (também quando o pedido chega atrasado; ao domingo, na semana)`);
 
     // 6) Ajustes: conector, estado das fontes, tamanho da letra
     await tab('ajustes');

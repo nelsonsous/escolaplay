@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.8.0';
+const VERSION = '1.8.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -47,7 +47,7 @@ const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
 const saveCfg = () => api.store.set(KEY, cfg);
-let openFromLink = null; // secção «Ver mais» a abrir já (vinda da notificação)
+let openFromLink = null, focusFromLink = ''; // secção «Ver mais» a abrir já e parte a mostrar (vindas da notificação)
 let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pelo endereço (aviso quando o conector responder)
 {
     const sp = new URLSearchParams(location.search);
@@ -69,6 +69,7 @@ let ownerJust = ''; // 'set' | 'cleared': o código do dono acabou de chegar pel
         sp.delete('tab'); changed = true;
     }
     if (sp.has('abrir')) { if (/^d-[a-z]+$/.test(sp.get('abrir') || '')) openFromLink = sp.get('abrir'); sp.delete('abrir'); changed = true; }
+    if (sp.has('foco')) { if (/^an-[a-z]+$/.test(sp.get('foco') || '')) focusFromLink = sp.get('foco'); sp.delete('foco'); changed = true; }
     if (changed) history.replaceState(null, '', location.pathname + (sp.toString() ? '?' + sp : '') + location.hash);
 }
 setProxy(cfg.proxy || DEFAULT_PROXY);
@@ -82,23 +83,38 @@ const st = {
     memory: null, // memória da aprendizagem deste ponto (telemóvel + conector), para o gráfico da evolução
     push: null, pushBusy: false, // notificações do fim do dia: { on, time, sunday, place } (do conector)
     open: new Set(), // secções «Ver mais» abertas (ficam abertas quando a página se redesenha)
+    focus: '', // parte da página a mostrar quando aparecer (a semana, vinda da notificação de domingo)
 };
 if (openFromLink) st.open.add(openFromLink);
-// a notificação tocada com a app já aberta: ir para a análise completa
+st.focus = focusFromLink;
+// a notificação tocada: ir para a análise (aberta toda), e ao domingo para a semana
+let navDone = 0, navTimer = 0;
 function openFromNotification(n) {
     if (!n || !TITLES[n.tab]) return;
+    clearTimeout(navTimer);
+    if (n.at && n.at === navDone) return; // o mesmo toque chega pela mensagem e pela cache
+    navDone = n.at || 0;
     cfg.tab = n.tab; saveCfg();
     if (n.open) st.open.add(n.open);
+    st.focus = /^an-[a-z]+$/.test(n.focus || '') ? n.focus : '';
     closeSheet(); window.scrollTo(0, 0); render();
 }
 async function checkNav() {
     try {
         const c = await caches.open('meteonav'), r = await c.match('nav');
-        if (!r) return;
+        if (!r) return false;
         await c.delete('nav');
         const n = await r.json();
-        if (Date.now() - n.at < 10 * 60e3) openFromNotification(n);
+        if (Date.now() - n.at < 10 * 60e3) { openFromNotification(n); return true; }
     } catch { /* sem cache: fica onde está */ }
+    return false;
+}
+// No iPhone a app fica visível antes de o service worker gravar o pedido do toque: ver várias vezes durante uns segundos
+function watchNav(ms = 6000) {
+    clearTimeout(navTimer);
+    const t0 = Date.now();
+    const tick = async () => { if (await checkNav()) return; if (Date.now() - t0 < ms) navTimer = setTimeout(tick, 250); };
+    tick();
 }
 // Simples (estilo Trade Republic): o essencial à vista, o resto em «Ver mais»
 const more = (id, label, inner, cls = '') => (inner ? `<details class="more${cls ? ' ' + cls : ''}" id="${id}"${st.open.has(id) ? ' open' : ''}><summary><span>${label}</span>${ui('chevron')}</summary><div class="more-in">${inner}</div></details>` : '');
@@ -174,10 +190,11 @@ function init() {
         st.iosHint = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     }
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') checkNav();
+        if (document.visibilityState === 'visible') watchNav();
         if (document.visibilityState === 'visible' && cfg.loc && Date.now() - st.lastFetch > REFRESH_MIN * 60e3) refresh();
     });
-    checkNav();
+    watchNav();
+    window.addEventListener('pageshow', (e) => { if (e.persisted) watchNav(); });
     window.addEventListener('online', () => { if (st.offline) refresh(); });
     loadStatus();
     if (cfg.loc) setLocation(cfg.loc, { save: false });
@@ -320,6 +337,8 @@ function render() {
     body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mt-status" aria-live="polite"></div>${html}`;
     renderStatus();
     mount();
+    const f = st.focus && document.getElementById(st.focus);
+    if (f) { st.focus = ''; f.scrollIntoView({ block: 'start' }); }
     document.title = cfg.loc ? `${placeName()} · Meteo` : 'Meteo';
 }
 function renderStatus() {
@@ -753,7 +772,7 @@ function viewAnalysis() {
     else if (a) {
         const g = a.generatedAt ? new Date(a.generatedAt) : null;
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
-        const sec = (t, x) => (x ? `<div class="an-sec"><h4>${t}</h4><p>${esc(x)}</p></div>` : '');
+        const sec = (t, x, id) => (x ? `<div class="an-sec"${id ? ` id="${id}"` : ''}><h4>${t}</h4><p>${esc(x)}</p></div>` : '');
         const ap = analysedPoint();
         // feita para outro ponto (> 2 km): dizê-lo claramente e oferecer mudar a análise diária para o ponto selecionado
         if (ap?.far) {
@@ -771,7 +790,7 @@ function viewAnalysis() {
             ${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
             ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}
             ${a.dias?.length ? `<div class="an-sec"><h4>Próximos dias</h4><ul class="an-days">${a.dias.map((d) => `<li><b>${esc(today ? F.dayLabel(d.data, today) : d.data)}</b>${sig(d.confianca)}<span>${esc(d.texto)}</span></li>`).join('')}</ul></div>` : ''}
-            ${sec('A semana em resumo', a.semana)}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
+            ${sec('A semana em resumo', a.semana, 'an-semana')}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
             ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}`)}
