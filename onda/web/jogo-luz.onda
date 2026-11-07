@@ -1,0 +1,70 @@
+# Jogo "Luz": a cena inteira e desenhada pela Onda na GPU (zero CSS para graficos).
+# fundo-nebulosa vivo + 5 estrelas a cair (azuis/douradas/vermelhas, deterministas)
+# + jogador (anel ciano) na posicao do dedo (tx,ty) + flash/energia reativos ao jogo.
+# uniforms: t w h tx ty en fl co  ->  u[0..7]
+: c8 f>i v I * 255.0 Mx 0.0 Mn 1.0 v
+: rgb fff>i r g b + + * c8 r 65536 * c8 g 256 c8 b
+: px ffffffffff>i x y t w h tx ty en fl co {
+  = s / 1.0 h
+  = nx * x s
+  = ny * y s
+  = aw * w s
+  = cx * 0.5 aw
+  # fundo vivo (plasma escuro)
+  = p1 Sn + * nx 6.0 t
+  = p2 Sn - * ny 7.0 * t 1.3
+  = p3 Sn + * 4.5 + nx ny * t 0.6
+  = rd Sq + * - nx cx - nx cx * - ny 0.45 - ny 0.45
+  = p4 Sn - * rd 14.0 * t 2.0
+  = pn / + 4.0 + + + p1 p2 p3 p4 8.0
+  = tau 6.2831853
+  = hr + 0.5 * 0.5 Cs * tau pn
+  = hg + 0.5 * 0.5 Cs * tau + pn 0.33
+  = hb + 0.5 * 0.5 Cs * tau + pn 0.66
+  = bl + 0.02 * + 0.05 * 0.05 en pn
+  = vr * hr bl
+  = vg * hg bl
+  = vb * hb bl
+  # estrelas a cair (deterministas; tipo = (k*7+n*3) % 5)
+  = k 0
+  W < k 5 {
+    = ph + * t 0.45 * F k 0.37
+    = nn I ph
+    = fr - ph F nn
+    = sxx * aw / + F k 0.5 5.0
+    = dx - nx sxx
+    = dy - ny fr
+    = d2 + * dx dx * dy dy
+    = core / 0.0009 + d2 0.0009
+    = halo / 0.012 + d2 0.012
+    = gg + core * 0.22 halo
+    = tp % + * k 7 * nn 3 5
+    = cr ? == tp 4 1.0 ? == tp 3 1.0 0.35
+    = cg ? == tp 4 0.30 ? == tp 3 0.82 0.70
+    = cb ? == tp 4 0.35 ? == tp 3 0.30 1.00
+    = vr + vr * gg cr
+    = vg + vg * gg cg
+    = vb + vb * gg cb
+    = k + k 1 }
+  # jogador: anel ciano no dedo
+  = jx * tx s
+  = jy * ty s
+  = ax - nx jx
+  = ay - ny jy
+  = dp2 + * ax ax * ay ay
+  = dp Sq dp2
+  = ring / 0.00035 + * - dp 0.05 - dp 0.05 0.00035
+  = fil / 0.0016 + dp2 0.0016
+  = pg + ring * 0.3 fil
+  = pb + 1.0 co
+  = vr + vr * * pg 0.55 pb
+  = vg + vg * * pg 1.00 pb
+  = vb + vb * * pg 1.00 pb
+  # flash ao apanhar
+  = vr + vr * fl 0.80
+  = vg + vg * fl 0.75
+  = vb + vb * fl 0.55
+  rgb vr vg vb }
+: main >i D 300 540 px 0.0 300.0 540.0 150.0 470.0 0.4 0.0 0.0
+: tol >i 8
+: aceita >i 95

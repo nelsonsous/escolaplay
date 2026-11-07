@@ -1,0 +1,24 @@
+# fractal de Julia animado: a mesma funcao corre na CPU (D) e na GPU (onda gpu ... px)
+: c8 f>i v I * 255.0 Mx 0.0 Mn 1.0 v
+: rgb fff>i r g b + + * c8 r 65536 * c8 g 256 c8 b
+: px fffff>i x y t w h {
+  = s / 3.0 h
+  = zr * - x * 0.5 w s
+  = zi * - y * 0.5 h s
+  = cr * 0.7885 Cs * 0.3 t
+  = ci * 0.7885 Sn * 0.3 t
+  = k 0
+  W && < k 200 < + * zr zr * zi zi 64.0 {
+    = q + - * zr zr * zi zi cr
+    = zi + * 2.0 * zr zi ci
+    = zr q
+    = k + k 1 }
+  ? >= k 200 0
+  { = m + * zr zr * zi zi
+    = v - + F k 1.0 / Lg * 0.5 Lg m Lg 2.0
+    = a * v 0.15
+    rgb + 0.5 * 0.5 Cs a + 0.5 * 0.5 Cs + a 2.1 + 0.5 * 0.5 Cs + a 4.2 } }
+: main >i D 960 540 px 2.0 960.0 540.0
+# tolerancia declarada para formas de 32 bits (GPU): +-8/255 por canal em 95% dos pixeis
+: tol >i 8
+: aceita >i 95

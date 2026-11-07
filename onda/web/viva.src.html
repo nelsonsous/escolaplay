@@ -1,0 +1,166 @@
+<title>Onda Viva</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Martian+Mono:wdth,wght@75..112.5,300..700&display=swap">
+<style>
+/* Layout: sala de controlo. O ecra mostra a forma ativa; ao lado, o quadro das formas e o diario de decisoes do sistema. */
+:root{
+  --paper:#eef1f5; --panel:#ffffff; --ink:#111a24; --muted:#536271; --rule:#d3dae2;
+  --accent:#2f3ee8; --ok:#11784a; --bad:#b4232c; --warn:#8a5a00;
+  --ok-bg:#e3f3ea; --bad-bg:#fbe6e7; --warn-bg:#f8eed8; --on-bg:#e5e7fd; --wait-bg:#eceff3;
+  --code-bg:#f6f8fb; --code-fg:#1b2633; --screen:#05070a; --screen-ink:#e9eef5;
+  --display:"Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0c1117; --panel:#121922; --ink:#e4eaf1; --muted:#93a1b0; --rule:#243040;
+  --accent:#8e98ff; --ok:#4cc98a; --bad:#ff7b84; --warn:#e9b44c;
+  --ok-bg:#12291e; --bad-bg:#2e1518; --warn-bg:#2b2210; --on-bg:#1c2050; --wait-bg:#1a222c;
+  --code-bg:#0a0f15; --code-fg:#d6dfe9; --screen:#000000; --screen-ink:#e9eef5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0c1117; --panel:#121922; --ink:#e4eaf1; --muted:#93a1b0; --rule:#243040;
+  --accent:#8e98ff; --ok:#4cc98a; --bad:#ff7b84; --warn:#e9b44c;
+  --ok-bg:#12291e; --bad-bg:#2e1518; --warn-bg:#2b2210; --on-bg:#1c2050; --wait-bg:#1a222c;
+  --code-bg:#0a0f15; --code-fg:#d6dfe9; --screen:#000000; --screen-ink:#e9eef5; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{margin:0}
+code,pre{font-family:var(--mono);font-size:13.5px}
+.lbl{font:500 11.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+button,select{font:500 14px/1 var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:9px 12px;cursor:pointer}
+button:hover,select:hover{border-color:var(--muted)}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 40px;align-items:end;padding-block:40px 24px}
+.mark{font:300 clamp(48px,9vw,104px)/.9 var(--display);font-stretch:112.5%;letter-spacing:-.04em}
+.mark b{font-weight:600;color:var(--accent)}
+.thesis{margin-top:16px;max-width:60ch;font-size:18.5px;line-height:1.5}
+.top a{color:var(--accent);font-weight:500}
+.desk{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px;padding-block:6px 48px}
+.scope{min-width:0;display:grid;gap:10px;align-content:start}
+.screen{position:relative;background:var(--screen);border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-width:100%}
+.screen canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.ro{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font:500 12px/1.2 var(--mono);color:var(--screen-ink);font-variant-numeric:tabular-nums;pointer-events:none}
+.ro.t{top:0;background:linear-gradient(rgba(0,0,0,.55),transparent)} .ro.b{bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.55))}
+#ro-forma{font-weight:600}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.panel{min-width:0;display:grid;gap:14px;align-content:start}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font:500 11px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 8px 8px 0;border-bottom:1px solid var(--rule)}
+td{padding:9px 8px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.35}
+td:nth-child(3){font-family:var(--mono);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+td:nth-child(4){color:var(--muted);font-size:13px}
+.tw{overflow-x:auto}
+.chip{display:inline-block;font:500 12px/1 var(--mono);padding:4px 7px;border-radius:4px;white-space:nowrap}
+.c-on{background:var(--on-bg);color:var(--accent)} .c-ok{background:var(--ok-bg);color:var(--ok)}
+.c-bad{background:var(--bad-bg);color:var(--bad)} .c-warn{background:var(--warn-bg);color:var(--warn)} .c-wait{background:var(--wait-bg);color:var(--muted)}
+#vig{font-size:13.5px;color:var(--muted)}
+.diario{list-style:none;margin:0;padding:0;display:grid;gap:0;max-height:300px;overflow-y:auto;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+.diario li{padding:9px 12px;border-bottom:1px solid var(--rule);font-size:14px;line-height:1.45;display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px}
+.diario li:last-child{border-bottom:none}
+.diario .lt{font:400 12px/1.6 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.diario li.ok{box-shadow:inset 3px 0 0 var(--ok)} .diario li.bad{box-shadow:inset 3px 0 0 var(--bad)}
+.sec{padding-block:44px;border-top:1px solid var(--rule)}
+.sec h2{font:500 clamp(24px,3vw,32px)/1.15 var(--display);font-stretch:87.5%;letter-spacing:-.02em}
+.split{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px;margin-top:22px}
+.ed{min-width:0;display:grid;gap:8px}
+.ed-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+#hash{font:500 12px/1 var(--mono);color:var(--muted)}
+textarea{width:100%;min-height:330px;resize:vertical;background:var(--code-bg);color:var(--code-fg);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;font:400 13.5px/1.55 var(--mono);white-space:pre;overflow:auto;tab-size:2}
+.testes{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.testes li{display:flex;gap:10px;align-items:center;font:400 13px/1.4 var(--mono);font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.testes i{flex:none;width:14px;height:14px;border-radius:3px;border:1px solid var(--rule)}
+.testes .vazio{font-family:var(--body);font-size:14px;color:var(--muted)}
+.ciclo{margin:22px 0 0;padding-left:22px;display:grid;gap:12px;max-width:78ch}
+.ciclo li::marker{font:500 14px var(--mono);color:var(--accent)}
+.ciclo b{font-weight:600}
+.lim{margin:20px 0 0;padding-left:20px;display:grid;gap:10px;max-width:78ch;color:var(--ink)}
+.foot{padding-block:28px 44px;border-top:1px solid var(--rule);font-size:14px;color:var(--muted)}
+.foot a{color:var(--accent)}
+@media (max-width:920px){.top,.desk,.split{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){td:nth-child(4),th:nth-child(4){display:none}.diario li{grid-template-columns:minmax(0,1fr)}textarea{min-height:240px}}
+</style>
+
+<header class="wrap top">
+  <div>
+    <h1 class="mark">Onda <b>Viva</b></h1>
+    <p class="thesis">Um programa que se observa a correr, gera versões mais rápidas de si próprio, verifica cada uma contra o seu significado e só usa as que passam. O compilador está dentro do próprio programa.</p>
+  </div>
+  <p><a href="https://claude.ai/artifact/GRcUUwyG96GRcXnhxVtifN" target="_blank" rel="noopener">A linguagem Onda →</a></p>
+</header>
+
+<section class="wrap desk" aria-label="Sistema a correr">
+  <div class="scope">
+    <div class="screen">
+      <canvas id="c2" width="120" height="68" aria-label="Imagem calculada pela forma ativa"></canvas>
+      <canvas id="cg" width="960" height="540" hidden aria-label="Imagem calculada pela GPU"></canvas>
+      <div class="ro t"><span id="ro-forma">Significado</span><span id="ro-fps">— q/s</span></div>
+      <div class="ro b"><span id="ro-res">120 × 68</span><span id="ro-t">t = 0,0 s</span></div>
+    </div>
+    <div class="bar">
+      <label class="lbl" for="ex">Programa</label>
+      <select id="ex"><option value="julia">Fractal de Julia</option><option value="ondas">Interferência de ondas</option></select>
+      <button id="pausa" type="button">Pausar</button>
+      <button id="recomecar" type="button">Recomeçar do zero</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="tw">
+      <table>
+        <thead><tr><th>Forma</th><th>Estado</th><th>Um quadro 960×540</th><th>Verificação</th></tr></thead>
+        <tbody id="formas"></tbody>
+      </table>
+    </div>
+    <p id="vig" role="status"></p>
+    <p class="lbl">Diário de decisões</p>
+    <ul class="diario" id="diario" aria-live="polite"></ul>
+  </div>
+</section>
+
+<section class="wrap sec" aria-label="Significado e testes">
+  <h2>O significado é o código</h2>
+  <div class="split">
+    <div class="ed">
+      <div class="ed-h"><span class="lbl">Significado em Onda · edita e o ciclo recomeça</span><span id="hash"></span></div>
+      <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código Onda do significado"></textarea>
+    </div>
+    <div class="ed">
+      <span class="lbl">Testes aprendidos</span>
+      <ul class="testes" id="testes"></ul>
+      <p style="font-size:14px;color:var(--muted);margin-top:8px">O sistema guarda cada píxel que já apanhou uma forma errada, e as formas novas são testadas primeiro nesses píxeis. Se voltares a um código anterior, o mesmo hash devolve as formas já verificadas sem compilar nada.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap sec">
+  <h2>O ciclo</h2>
+  <ol class="ciclo">
+    <li><b>Significado.</b> O código corre primeiro num intérprete simples e lento, que não otimiza nada. É ele que define o que é correto, e é identificado pelo hash do código.</li>
+    <li><b>O compilador é julgado.</b> Antes de gerar o que quer que seja, o compilador embutido compila-se a si próprio e tem de dar o SHA-256 da semente.</li>
+    <li><b>Formas.</b> O compilador gera versões rápidas para CPU (JavaScript) e para GPU (GLSL). Uma forma CPU tem de dar os mesmos bits que o significado. Uma forma GPU calcula com 32 bits, por isso tem de cumprir a tolerância que o próprio significado declara: no exemplo, ±8/255 por canal em 95% dos píxeis.</li>
+    <li><b>A medição escolhe.</b> Das formas verificadas, fica a mais rápida neste aparelho. Sem GPU, fica a CPU.</li>
+    <li><b>Vigilância.</b> Enquanto corre, 32 píxeis ao acaso são comparados com o significado a cada 1,5 s. Uma forma CPU que falhe num só píxel é despromovida; uma forma GPU, quando sai claramente da sua tolerância. Os píxeis onde falharam passam a ser testes.</li>
+    <li><b>O juiz é testado.</b> Uma forma com um erro injetado de propósito tem de ser rejeitada. Se passasse, o juiz não estaria a funcionar.</li>
+  </ol>
+</section>
+
+<section class="wrap sec">
+  <h2>Limites</h2>
+  <ul class="lim">
+    <li>Mudar o comportamento do programa é mudar o significado, e isso não é automático: decides tu, ou uma especificação. O sistema só melhora a velocidade, e nunca pode tornar o programa errado.</li>
+    <li>A verificação é por amostragem: prova a igualdade nos píxeis testados, não em todos. Um erro raro pode passar até a vigilância o apanhar.</li>
+    <li>O significado e as formas cobrem a parte pura da Onda, a que também corre na GPU. Memória e escrita no ecrã ficam na CPU.</li>
+  </ul>
+</section>
+
+<footer class="wrap foot">Onda Viva v0 · intérprete de referência, compilador Onda em WebAssembly (__KB_WASM__ KB) e formas para CPU e GPU, tudo a correr nesta página. <a href="https://claude.ai/artifact/GRcUUwyG96GRcXnhxVtifN" target="_blank" rel="noopener">Ver a linguagem Onda</a>.</footer>
+
+<script type="text/plain" id="s-julia"><!--SRC_JULIA--></script>
+<script type="text/plain" id="s-ondas"><!--SRC_ONDAS--></script>
+<script src="significado.js"></script>
+<script src="ondac.js"></script>
+<script src="viva.js"></script>
+<script src="viva-app.js"></script>

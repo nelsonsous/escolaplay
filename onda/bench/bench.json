@@ -1,0 +1,73 @@
+[
+ {
+  "teste": "fib(35) recursivo (sequencial)",
+  "res": [
+   {
+    "ling": "Onda",
+    "ms": 15.3
+   },
+   {
+    "ling": "C -O3",
+    "ms": 16.3
+   },
+   {
+    "ling": "JavaScript (Node)",
+    "ms": 110.7
+   },
+   {
+    "ling": "Python",
+    "ms": 901.5
+   }
+  ]
+ },
+ {
+  "teste": "pi: soma de 200 milhoes de termos",
+  "res": [
+   {
+    "ling": "Onda (S paralelo automatico)",
+    "ms": 68.0
+   },
+   {
+    "ling": "C -O3 sequencial",
+    "ms": 246.3
+   },
+   {
+    "ling": "C + OpenMP escrito a mao",
+    "ms": 67.1
+   },
+   {
+    "ling": "JavaScript (Node)",
+    "ms": 471.1
+   },
+   {
+    "ling": "Python (20M x10)",
+    "ms": 26947.9
+   }
+  ]
+ },
+ {
+  "teste": "fractal 960x540 (D paralelo automatico)",
+  "res": [
+   {
+    "ling": "Onda",
+    "ms": 12.7
+   },
+   {
+    "ling": "C -O3 sequencial",
+    "ms": 30.8
+   },
+   {
+    "ling": "C + OpenMP escrito a mao",
+    "ms": 11.8
+   },
+   {
+    "ling": "JavaScript (Node)",
+    "ms": 73.0
+   },
+   {
+    "ling": "Python (1/16 x16)",
+    "ms": 1153.1
+   }
+  ]
+ }
+]

@@ -1,0 +1,12 @@
+# le quadras (alto baixo alto baixo) = (a, b) e escreve os bits de Pw a b e At a b
+: rn >i { = c R = s 1 W || == c 32 == c 10 = c R ? == c 45 { = s -1 = c R } 0 = v 0 W && >= c 48 <= c 57 { = v + * v 10 - c 48 = c R } * s v }
+: pb f>i v { N Bh v " " N Bl v 0 }
+: main >i {
+  = n rn
+  = i 0
+  W < i n {
+    = a Bw rn rn
+    = b Bw rn rn
+    pb Pw a b " " pb At a b "\n"
+    = i + i 1 }
+  0 }

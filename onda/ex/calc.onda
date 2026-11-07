@@ -1,0 +1,35 @@
+# Avaliador de expressoes aritmeticas por descida recursiva, escrito em Onda. Le uma expressao do stdin e imprime
+# o valor. Precedencia: + - ; depois * / % ; parenteses; menos unario. Mostra a Onda a analisar e a recorrer.
+# @1 texto @2 tamanho @3 posicao
+: ch >i ? < @ 3 @ 2 @ + @ 1 @ 3 -1
+: adianta >i { ! 3 + @ 3 1 0 }
+: esp >i W || || == ch 32 == ch 9 == ch 13 adianta
+: numero >i { esp = v 0 W && >= ch '0 <= ch '9 { = v + * v 10 - ch '0 adianta } v }
+# factor: numero, ( expr ), ou menos unario
+: fator >i {
+  esp
+  ? == ch '( { adianta = v expr esp ? == ch ') adianta { "falta )\n" X 1 } v }
+  ? == ch '- { adianta - 0 fator }
+  numero }
+: termo >i {
+  = v fator
+  esp
+  W || || == ch '* == ch '/ == ch '% {
+    = o ch adianta = r fator
+    ? == o '* = v * v r ? == o '/ = v / v r = v % v r
+    esp }
+  v }
+: expr >i {
+  = v termo
+  esp
+  W || == ch '+ == ch '- { = o ch adianta = r termo ? == o '+ = v + v r = v - v r esp }
+  v }
+: main >i {
+  ! 1 A 10000
+  = n 0
+  = c R
+  W && >= c 0 < n 9999 { ! + @ 1 n c = n + n 1 = c R }
+  ! 2 n
+  ! 3 0
+  = r expr
+  N r P 10 0 }

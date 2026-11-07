@@ -43,6 +43,7 @@ async function listFiles(dir, predicate) {
     if (ent.name === 'voz-mistral') continue; // conector do tutor-ingles/: Worker com deploy próprio
     if (path.basename(dir) === 'mercados' && (ent.name === 'proxy' || ent.name === 'tests')) continue; // Worker com deploy próprio e testes
     if (path.basename(dir) === 'meteo' && ['proxy', 'tests', 'analista', 'scripts', 'docs'].includes(ent.name)) continue; // idem + scripts Node
+    if (ent.name === 'onda') continue; // linguagem Onda (e as fontes .onda das apps): sem deploy no site
     const full = path.join(dir, ent.name);
     if (ent.isDirectory()) {
       const sub = await listFiles(full, predicate);

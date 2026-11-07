@@ -1,0 +1,15 @@
+# interferencia de tres fontes de ondas: cada pixel soma as ondas que o atravessam
+: d ffff>f x y a b Sq + * - x a - x a * - y b - y b
+: c8 f>i v I * 255.0 Mx 0.0 Mn 1.0 v
+: px fffff>i x y t w h {
+  = u / - x * 0.5 w h
+  = v / - y * 0.5 h h
+  = k 60.0
+  = p * 2.5 t
+  = s + + Sn - * k d u v -0.35 0.0 p Sn - * k d u v 0.35 0.0 p Sn - * k d u v * 0.3 Sn * 0.4 t * 0.3 Cs * 0.4 t p
+  = q / + s 3.0 6.0
+  + + * c8 * q q 65536 * c8 * 0.85 q 256 c8 + 0.25 * 0.75 q }
+: main >i D 960 540 px 1.0 960.0 540.0
+# tolerancia declarada para formas de 32 bits (GPU): +-8/255 por canal em 95% dos pixeis
+: tol >i 8
+: aceita >i 95

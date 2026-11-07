@@ -1,0 +1,555 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Onda</title>
+<style>
+  /* Vitrine editorial: herói vivo (campo GPU) + a história da linguagem, da camada mais baixa à mais alta, + galeria. Tema escuro. */
+  :root{
+    --bg:#0b0713; --panel:#170e26; --panel2:#120a1e; --line:#30203f;
+    --fg:#f6ecfb; --mut:#bfa6d2; --dim:#8f7aa6;
+    --pink:#f472b6; --amber:#f59e0b; --cyan:#5ad1c6; --green:#34d399; --violet:#a78bfa;
+    color-scheme:dark;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  /* herói */
+  .hero{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);margin-top:20px;aspect-ratio:16/10;max-height:46vh;background:#000;
+    box-shadow:0 30px 80px -34px #000,0 0 48px -22px var(--pink)}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .hero .grad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,#0b0713e0 96%)}
+  .hero .cap{position:absolute;left:18px;right:18px;bottom:16px}
+  .hero .live{display:inline-flex;align-items:center;gap:6px;font:700 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+  .hero .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  @media (prefers-reduced-motion:reduce){.hero .live::before{animation:none}}
+  h1{margin:0;font:800 clamp(40px,14vw,76px)/.92 var(--sans);letter-spacing:-.03em;
+    background:linear-gradient(100deg,var(--cyan),var(--pink) 50%,var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .tagline{margin:18px 2px 0;font-size:18px;color:var(--mut);text-wrap:balance}
+  .tagline b{color:var(--fg);font-weight:650}
+  /* camadas */
+  .layers{display:flex;flex-direction:column;gap:12px;margin:26px 0 8px}
+  .layer{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 17px;position:relative;overflow:hidden}
+  .layer::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ac,var(--pink))}
+  .layer .lv{font:700 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ac,var(--pink))}
+  .layer h2{margin:7px 0 5px;font-size:17px;font-weight:750;letter-spacing:-.01em}
+  .layer p{margin:0;color:var(--mut);font-size:14.5px}
+  .layer p b{color:var(--fg);font-weight:650}
+  .l1{--ac:var(--cyan)} .l2{--ac:var(--pink)} .l3{--ac:var(--amber)}
+  /* galeria */
+  .sec{margin:30px 2px 12px;font:800 13px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  a.card{display:flex;flex-direction:column;gap:5px;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px 15px;transition:border-color .2s,transform .1s;min-width:0}
+  a.card:active{transform:scale(.98)} a.card:hover{border-color:var(--ac,var(--pink))}
+  a.card .dot{width:10px;height:10px;border-radius:50%;background:var(--ac,var(--pink));box-shadow:0 0 12px var(--ac,var(--pink))}
+  a.card .nm{font-weight:750;font-size:15.5px}
+  a.card .ds{color:var(--mut);font-size:12.5px;line-height:1.45}
+  a.card .go{margin-top:2px;font:700 11px var(--mono);color:var(--ac,var(--pink));letter-spacing:.04em}
+  .c1{--ac:var(--cyan)} .c2{--ac:var(--pink)} .c3{--ac:var(--violet)} .c4{--ac:var(--green)} .c5{--ac:var(--amber)} .c6{--ac:#ff8bd0} .c7{--ac:#7dd3fc}
+  .foot{margin:30px 2px 44px;color:var(--dim);font-size:12.5px;text-wrap:balance}
+  .foot b{color:var(--mut)}
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <canvas id="c"></canvas>
+    <div class="grad"></div>
+    <div class="cap">
+      <span class="live">ao vivo · na GPU</span>
+      <h1>Onda</h1>
+    </div>
+  </div>
+  <p class="tagline">Uma linguagem que <b>se escreve a si própria</b> — do código-máquina do chip à GPU do telemóvel. O mesmo programa corre em cinco formas e todas dão o mesmo resultado, <b>ao bit</b>.</p>
+
+  <div class="layers">
+    <div class="layer l1">
+      <div class="lv">camada mais baixa · o silício</div>
+      <h2>Escreve o seu próprio código-máquina</h2>
+      <p>A Onda compila-se a si mesma, bit a bit, e emite <b>ARM64</b> e <b>x86-64</b> nativos — sem passar por C. No Mac corre direto; a corrida contra o C (FMA + desenrolamento) é a caça em curso.</p>
+    </div>
+    <div class="layer l2">
+      <div class="lv">camada do meio · milhares em paralelo</div>
+      <h2>Vira shader e corre na GPU</h2>
+      <p>Uma função vira <b>GLSL</b> com <code>ondac -g</code>; ~500 mil pixéis avaliam-na ao mesmo tempo. Para trabalho gráfico, bate o série (o C) com folga — é a <b>nossa melhor</b>.</p>
+    </div>
+    <div class="layer l3">
+      <div class="lv">camada mais alta · no teu bolso</div>
+      <h2>Compila-se dentro do Safari</h2>
+      <p>O compilador é a própria Onda em <b>WebAssembly</b>: escreves Onda no telemóvel e ela compila para JS/GLSL na hora. O <b>juiz</b> confere que todas as formas concordam.</p>
+    </div>
+  </div>
+
+  <div class="sec">IA, GPU & editor — a onda a compilar-se a si mesma</div>
+  <div class="grid">
+    <a class="card c3" href="https://claude.ai/artifact/Hr636kwh9SgCSQ617hwVvW" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Editor Onda</span><span class="ds">Escreves Onda, o próprio compilador (WASM) corre-o ou pinta-o na GPU. Sem servidor.</span><span class="go">abrir →</span></a>
+    <a class="card c1" href="https://claude.ai/artifact/P3F7ASg2FGRxXNFnxWUE38" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">GPU Flor</span><span class="ds">Rede de 6 classes classificada na GPU, pixel a pixel, com confiança.</span><span class="go">abrir →</span></a>
+    <a class="card c5" href="https://claude.ai/artifact/AynipGmnQurJxWP5tuxinz" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">GPU ReLU</span><span class="ds">5 classes com ocultos ReLU — fronteiras poligonais, na GPU.</span><span class="go">abrir →</span></a>
+    <a class="card c6" href="https://claude.ai/artifact/QvBVs2H4s8ra7ucnSPvRUP" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">GPU Multi</span><span class="ds">3 classes de um espiral, argmax por pixel. Verificado GPU==CPU.</span><span class="go">abrir →</span></a>
+    <a class="card c2" href="https://claude.ai/artifact/8ztKazHuNP1S1npx2Uf3yd" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Aprende (J)</span><span class="ds">A rede treina pelo operador interno J, compilada em WASM no browser. Vê-a aprender.</span><span class="go">abrir →</span></a>
+  </div>
+
+  <div class="sec">Toca para jogar e brincar</div>
+  <div class="grid">
+    <a class="card c1" href="https://claude.ai/artifact/1veJmfFzJZJhiSWogHJULg" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Campo GPU</span><span class="ds">A mesma função na GPU vs 1 núcleo, com os fps lado a lado.</span><span class="go">abrir →</span></a>
+    <a class="card c2" href="https://claude.ai/artifact/FRgBRRXSjMLBrynq3ZAbNf" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Onda Dash</span><span class="ds">Jogo de nave: voa pelos portões de neon no mundo da Onda.</span><span class="go">jogar →</span></a>
+    <a class="card c3" href="https://claude.ai/artifact/M3u6uGgQryeUssubc9okRP" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Onda Fractal</span><span class="ds">Julia tátil, 200 iterações por pixel. Arrasta e molda-o.</span><span class="go">abrir →</span></a>
+    <a class="card c4" href="https://claude.ai/artifact/RrcCbGHZJMSY6f5BBgaYxG" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Onda Fluxo</span><span class="ds">Milhares de partículas guiadas por um campo Onda. Faz redemoinhos.</span><span class="go">abrir →</span></a>
+    <a class="card c5" href="https://claude.ai/artifact/5ZBYXfXMnqpZHsBqXJuy23" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Onda Pop</span><span class="ds">30 segundos a rebentar bolhas e a encadear combos.</span><span class="go">jogar →</span></a>
+    <a class="card c6" href="https://claude.ai/artifact/SPqgqUURFRzb5mYvjNmYNC" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Onda Cromo</span><span class="ds">O campo iluminado como superfície 3D — crómio líquido.</span><span class="go">abrir →</span></a>
+    <a class="card c7" href="https://claude.ai/artifact/Vyx6g8qS5w6qqf7GKgmQwQ" target="_blank" rel="noopener"><span class="dot"></span><span class="nm">Onda Mandala</span><span class="ds">Caleidoscópio de 8 eixos. Toca para dar zoom no infinito.</span><span class="go">abrir →</span></a>
+  </div>
+
+  <p class="foot">Todos estes correm com código da <b>Onda</b> — nenhum passa por C em execução. Os links são privados (abrem na tua conta). O nativo ainda está a fechar a corrida com o clang no escalar; no paralelo e no gráfico, já vai à frente.</p>
+</div>
+
+<script id="frag" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+precision highp int;
+uniform float u[8];
+out vec4 oc;
+int obh(float x){return floatBitsToInt(x);}
+int obl(float x){return 0;}
+float obw(int h,int l){return intBitsToFloat(h);}
+int f_c8(float v_v);
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty);
+int f_c8(float v_v){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+int t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=int(t6);
+return t7;
+}
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h,float v_tx,float v_ty){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+float t7=0.0;
+float t8=0.0;
+float t9=0.0;
+float t10=0.0;
+float t11=0.0;
+float t12=0.0;
+float t13=0.0;
+float t14=0.0;
+float t15=0.0;
+float t16=0.0;
+float t17=0.0;
+float t18=0.0;
+float t19=0.0;
+float t20=0.0;
+float t21=0.0;
+float t22=0.0;
+float t23=0.0;
+float t24=0.0;
+float t25=0.0;
+float t26=0.0;
+float t27=0.0;
+float t28=0.0;
+float t29=0.0;
+float t30=0.0;
+float t31=0.0;
+float t32=0.0;
+float t33=0.0;
+float t34=0.0;
+float t35=0.0;
+float t36=0.0;
+float t37=0.0;
+float t38=0.0;
+float t39=0.0;
+float t40=0.0;
+float t41=0.0;
+float t42=0.0;
+float t43=0.0;
+float t44=0.0;
+float t45=0.0;
+float t46=0.0;
+float t47=0.0;
+float t48=0.0;
+float t49=0.0;
+float t50=0.0;
+float t51=0.0;
+float t52=0.0;
+float t53=0.0;
+float t54=0.0;
+float t55=0.0;
+float t56=0.0;
+float t57=0.0;
+float t58=0.0;
+float t59=0.0;
+float t60=0.0;
+float t61=0.0;
+float t62=0.0;
+float t63=0.0;
+float t64=0.0;
+float t65=0.0;
+float t66=0.0;
+float t67=0.0;
+float t68=0.0;
+float t69=0.0;
+float t70=0.0;
+float t71=0.0;
+float t72=0.0;
+float t73=0.0;
+float t74=0.0;
+float t75=0.0;
+float t76=0.0;
+float t77=0.0;
+float t78=0.0;
+float t79=0.0;
+float t80=0.0;
+float t81=0.0;
+float t82=0.0;
+float t83=0.0;
+float t84=0.0;
+float t85=0.0;
+float t86=0.0;
+float t87=0.0;
+float t88=0.0;
+float t89=0.0;
+float t90=0.0;
+float t91=0.0;
+float t92=0.0;
+float t93=0.0;
+float t94=0.0;
+float t95=0.0;
+float t96=0.0;
+float t97=0.0;
+float t98=0.0;
+float t99=0.0;
+float t100=0.0;
+float t101=0.0;
+float t102=0.0;
+float t103=0.0;
+float t104=0.0;
+float t105=0.0;
+float t106=0.0;
+float t107=0.0;
+float t108=0.0;
+float t109=0.0;
+float t110=0.0;
+float t111=0.0;
+float t112=0.0;
+float t113=0.0;
+float t114=0.0;
+float t115=0.0;
+float t116=0.0;
+float t117=0.0;
+float t118=0.0;
+float t119=0.0;
+float t120=0.0;
+float t121=0.0;
+float t122=0.0;
+float t123=0.0;
+float t124=0.0;
+float t125=0.0;
+float t126=0.0;
+float t127=0.0;
+float t128=0.0;
+float t129=0.0;
+float t130=0.0;
+float t131=0.0;
+float t132=0.0;
+float t133=0.0;
+float t134=0.0;
+float t135=0.0;
+float t136=0.0;
+float t137=0.0;
+float t138=0.0;
+float t139=0.0;
+float t140=0.0;
+float t141=0.0;
+float t142=0.0;
+float t143=0.0;
+float t144=0.0;
+float t145=0.0;
+float t146=0.0;
+float t147=0.0;
+float t148=0.0;
+float t149=0.0;
+float t150=0.0;
+float t151=0.0;
+float t152=0.0;
+float t153=0.0;
+float t154=0.0;
+float t155=0.0;
+float t156=0.0;
+float t157=0.0;
+float t158=0.0;
+float t159=0.0;
+float t160=0.0;
+float t161=0.0;
+float t162=0.0;
+float t163=0.0;
+float t164=0.0;
+float t165=0.0;
+float t166=0.0;
+float t167=0.0;
+int t168=0;
+int t169=0;
+int t170=0;
+float t171=0.0;
+int t172=0;
+int t173=0;
+int t174=0;
+int t175=0;
+float t176=0.0;
+int t177=0;
+int t178=0;
+float v_u=0.0;
+float v_v=0.0;
+float v_w1=0.0;
+float v_w2=0.0;
+float v_pu=0.0;
+float v_pv=0.0;
+float v_ux=0.0;
+float v_uy=0.0;
+float v_dr=0.0;
+float v_ripp=0.0;
+float v_a=0.0;
+float v_b=0.0;
+float v_cc=0.0;
+float v_e=0.0;
+float v_g=0.0;
+float v_rr=0.0;
+float v_gg=0.0;
+float v_bb=0.0;
+t0=v_x;
+t1=0.5;
+t2=v_w;
+t3=t1*t2;
+t4=t0-t3;
+t5=v_h;
+t6=t4/t5;
+v_u=t6;
+t7=v_y;
+t8=0.5;
+t9=v_h;
+t10=t8*t9;
+t11=t7-t10;
+t12=v_h;
+t13=t11/t12;
+v_v=t13;
+t14=3.0;
+t15=v_u;
+t16=t14*t15;
+t17=0.7;
+t18=v_t;
+t19=t17*t18;
+t20=t16+t19;
+t21=sin(t20);
+v_w1=t21;
+t22=3.0;
+t23=v_v;
+t24=t22*t23;
+t25=0.6;
+t26=v_t;
+t27=t25*t26;
+t28=t24+t27;
+t29=cos(t28);
+v_w2=t29;
+t30=v_u;
+t31=0.45;
+t32=v_w2;
+t33=t31*t32;
+t34=t30+t33;
+v_pu=t34;
+t35=v_v;
+t36=0.45;
+t37=v_w1;
+t38=t36*t37;
+t39=t35+t38;
+v_pv=t39;
+t40=v_tx;
+t41=0.5;
+t42=v_w;
+t43=t41*t42;
+t44=t40-t43;
+t45=v_h;
+t46=t44/t45;
+v_ux=t46;
+t47=v_ty;
+t48=0.5;
+t49=v_h;
+t50=t48*t49;
+t51=t47-t50;
+t52=v_h;
+t53=t51/t52;
+v_uy=t53;
+t54=v_pu;
+t55=v_ux;
+t56=t54-t55;
+t57=v_pu;
+t58=v_ux;
+t59=t57-t58;
+t60=t56*t59;
+t61=v_pv;
+t62=v_uy;
+t63=t61-t62;
+t64=v_pv;
+t65=v_uy;
+t66=t64-t65;
+t67=t63*t66;
+t68=t60+t67;
+t69=sqrt(t68);
+v_dr=t69;
+t70=16.0;
+t71=v_dr;
+t72=t70*t71;
+t73=5.0;
+t74=v_t;
+t75=t73*t74;
+t76=t72-t75;
+t77=sin(t76);
+v_ripp=t77;
+t78=6.0;
+t79=v_pu;
+t80=t78*t79;
+t81=5.0;
+t82=v_pv;
+t83=t81*t82;
+t84=t80+t83;
+t85=1.3;
+t86=v_t;
+t87=t85*t86;
+t88=t84+t87;
+t89=sin(t88);
+v_a=t89;
+t90=5.0;
+t91=v_pu;
+t92=t90*t91;
+t93=6.0;
+t94=v_pv;
+t95=t93*t94;
+t96=t92-t95;
+t97=1.1;
+t98=v_t;
+t99=t97*t98;
+t100=t96+t99;
+t101=sin(t100);
+v_b=t101;
+t102=7.0;
+t103=v_pu;
+t104=v_pu;
+t105=t103*t104;
+t106=v_pv;
+t107=v_pv;
+t108=t106*t107;
+t109=t105+t108;
+t110=sqrt(t109);
+t111=t102*t110;
+t112=-2.0;
+t113=v_t;
+t114=t112*t113;
+t115=t111+t114;
+t116=sin(t115);
+v_cc=t116;
+t117=0.38;
+t118=v_a;
+t119=t117*t118;
+t120=0.32;
+t121=v_b;
+t122=t120*t121;
+t123=t119+t122;
+t124=0.42;
+t125=v_cc;
+t126=t124*t125;
+t127=0.5;
+t128=v_ripp;
+t129=t127*t128;
+t130=t126+t129;
+t131=t123+t130;
+v_e=t131;
+t132=0.5;
+t133=0.5;
+t134=v_e;
+t135=t133*t134;
+t136=t132+t135;
+v_g=t136;
+t137=0.60;
+t138=0.40;
+t139=6.283;
+t140=v_g;
+t141=t139*t140;
+t142=0.1;
+t143=t141+t142;
+t144=sin(t143);
+t145=t138*t144;
+t146=t137+t145;
+v_rr=t146;
+t147=0.42;
+t148=0.34;
+t149=6.283;
+t150=v_g;
+t151=t149*t150;
+t152=1.7;
+t153=t151+t152;
+t154=sin(t153);
+t155=t148*t154;
+t156=t147+t155;
+v_gg=t156;
+t157=0.58;
+t158=0.40;
+t159=6.283;
+t160=v_g;
+t161=t159*t160;
+t162=3.2;
+t163=t161+t162;
+t164=sin(t163);
+t165=t158*t164;
+t166=t157+t165;
+v_bb=t166;
+t167=v_rr;
+t168=f_c8(t167);
+t169=65536;
+t170=t168*t169;
+t171=v_gg;
+t172=f_c8(t171);
+t173=256;
+t174=t172*t173;
+t175=t170+t174;
+t176=v_bb;
+t177=f_c8(t176);
+t178=t175+t177;
+return t178;
+}
+void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0],u[1],u[2],u[3],u[4]);oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}
+</script>
+<script>
+(function(){
+  var cv=document.getElementById('c'); var gl=cv.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'});
+  if(!gl){ cv.parentElement.style.background='radial-gradient(circle at 50% 40%,#3a1550,#0b0713)'; return; }
+  var VS='#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.0-1.0,0.0,1.0);}';
+  function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+  var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,document.getElementById('frag').textContent));gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ cv.parentElement.style.background='radial-gradient(circle at 50% 40%,#3a1550,#0b0713)'; return; }
+  gl.useProgram(pr); var uLoc=gl.getUniformLocation(pr,'u'); gl.bindVertexArray(gl.createVertexArray());
+  var W=1,H=1;
+  function resize(){ var r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+    var w=Math.round(r.width*dpr),h=Math.round(r.height*dpr); if(w!==W||h!==H){W=w;H=h;cv.width=W;cv.height=H;gl.viewport(0,0,W,H);} }
+  window.addEventListener('resize',resize,{passive:true});
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t0=performance.now(), tx=0.5,ty=0.5;
+  cv.addEventListener('pointermove',function(e){var r=cv.getBoundingClientRect();tx=(e.clientX-r.left)/r.width;ty=(e.clientY-r.top)/r.height;},{passive:true});
+  function frame(now){ resize(); var t=(now-t0)/1000*(reduce?0.3:1);
+    var a=now/1000*0.25; var ax=tx*0.6+(0.5+0.3*Math.cos(a))*0.4, ay=ty*0.6+(0.5+0.3*Math.sin(a*1.2))*0.4;
+    gl.uniform1fv(uLoc,[t,W,H,ax*W,ay*H,0,0,0]); gl.drawArrays(gl.TRIANGLES,0,3); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+})();
+</script>

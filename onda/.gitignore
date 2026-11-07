@@ -1,0 +1,6 @@
+build/
+boot/target/
+src/0prel.onda
+bench/c_*
+bench/o_*
+*.ppm

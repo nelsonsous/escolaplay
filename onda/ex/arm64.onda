@@ -1,0 +1,5 @@
+# ARM64 nativo (-a): a Onda escreve o SEU PROPRIO codigo-maquina aarch64 (ELF estatico), sem C nem assembler --
+# o irmao do -x (x86-64), para o chip do Mac/iPhone (Apple Silicon). Primeira fatia: nucleo inteiro.
+# Aqui, o algoritmo de Euclides: gcd(1071, 462) = 21. O resultado sai no codigo de saida do processo.
+#   ./build/ondac -a < ex/arm64.onda > /tmp/gcd && chmod +x /tmp/gcd && qemu-aarch64-static /tmp/gcd ; echo $?
+: main >i { = a 1071 = b 462 W b { = r % a b = a b = b r } a }

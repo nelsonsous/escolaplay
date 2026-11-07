@@ -1,0 +1,286 @@
+# x86-64: atribuicao de registos por varrimento linear, com prioridade aos ciclos mais fundos.
+# valor v: temporario t (v = t) ou variavel j (v = @ 11 + j). posicoes: entrada 0, usos da instrucao i em 2i+2, definicoes em 2i+3.
+# local: -1 memoria, 0..15 registo inteiro, 16..31 registo xmm. so vai para registo o que nao atravessa chamadas.
+# 34/35 local dos temporarios/variaveis 36 inicio 37 fim 38 profundidade de ciclo 39 ocupacao por posicao 40 ciclos 41 n de ciclos
+# 42/43 nivel condicional e fechos na 1.a referencia 44 prof. de ciclo 45 nivel condicional 46 fechos por nivel 47 pilha 48 instrucao 49 topo 50 tabela
+: tlc i>i t xvlc t
+: vlc i>i j xvlc + @ 11 j
+# aliases (58): v le o local de outro valor w (58 = w+1); 59 n de escritas de cada variavel 60 origem da ultima
+: xfin i>i v { = a @ + @ 58 v W a { = v - a 1 = a @ + @ 58 v } v }
+: xvl i>i v ? < v @ 11 @ + @ 34 v @ + @ 35 - v @ 11
+: xvlc i>i v xvl xfin v
+: xvmd i>i v { = w xfin v ? < w @ 11 xdt0 w xdisp - w @ 11 }
+: xmrg ii>i v w {
+  ! + @ 58 v + w 1
+  = s @ + @ 36 v
+  = pj @ + @ 57 v
+  = s ? && > pj 0 < pj s pj s
+  = q + @ 36 w
+  ? && >= s 0 || < @ q 0 < s @ q ! q s 0
+  = q + @ 37 w
+  ? > @ + @ 37 v @ q ! q @ + @ 37 v 0
+  = q + @ 38 w
+  ? > @ + @ 38 v @ q ! q @ + @ 38 v 0
+  xext w }
+# a) variavel escrita uma so vez, nunca lida antes: le direto o valor que recebeu (ate um imediato)
+: xala >i {
+  = nt @ 11
+  = j @ 25
+  W < j @ 9 { = v + nt j ? && && == @ + @ 59 v 1 >= @ + @ 42 v 0 >= @ + @ 36 v 0 xmrg v @ + @ 60 v 0 = j + j 1 }
+  0 }
+# b) leitura de variavel: o temporario le o local da variavel se ela nao muda enquanto ele vive
+: xalb >i {
+  = nt @ 11
+  = i 0
+  W < i @ 19 {
+    = p + @ 18 * i 8
+    ? == @ p 5 {
+      = d @ + p 1
+      = v + nt @ + p 3
+      = e @ + @ 37 d
+      ? @ + @ 58 v xmrg d xfin v {
+        = u / - e 2 2
+        = ok 1
+        = q + i 1
+        W && ok <= q u { = p2 + @ 18 * q 8 ? && == @ p2 6 == + nt @ + p2 4 v = ok 0 0 = q + q 1 }
+        ? ok xmrg d v 0 } } 0
+    = i + i 1 }
+  0 }
+# c) resultado cujo unico uso e a escrita seguinte numa variavel: calcula-se ja no local dela (= x + x 1 -> add x, 1)
+: xalc >i {
+  = nt @ 11
+  = i 0
+  W < i - @ 19 1 {
+    = p + @ 18 * i 8
+    = k @ p
+    = d @ + p 1
+    = q + p 8
+    = ok && & @ + @ 50 k 8 ~ || == k 5 && >= k 10 <= k 13
+    = ok && ok ~ || @ + @ 52 d @ + @ 58 d
+    = ok && ok && == @ q 6 && == @ + q 3 d == @ + @ 37 d + * 2 + i 1 2
+    ? ok { = v + nt @ + q 4 ? @ + @ 58 v 0 xmrg d v } 0
+    = i + i 1 }
+  0 }
+: xtab >i {
+  = t A 96
+  ! + t 1 8 ! + t 2 8 ! + t 3 16 ! + t 4 8 ! + t 5 8 ! + t 6 2 ! + t 7 24
+  ! + t 8 14 ! + t 9 14 ! + t 10 9 ! + t 11 9 ! + t 12 9 ! + t 13 9 ! + t 14 9
+  ! + t 15 10 ! + t 16 14 ! + t 17 14 ! + t 18 1 ! + t 19 9 ! + t 20 9 ! + t 22 1
+  ! + t 24 9 ! + t 25 3 ! + t 26 9 ! + t 27 3 ! + t 28 25 ! + t 29 17 ! + t 30 24
+  ! + t 31 17 ! + t 32 17 ! + t 33 1 ! + t 34 24 ! + t 35 27 ! + t 36 17 ! + t 37 24
+  ! + t 41 1 ! + t 42 31 ! + t 43 11 ! + t 44 8 ! + t 46 9 ! + t 47 13 ! + t 48 7 ! + t 49 13 ! + t 50 7
+  ! + t 51 7
+  ! + t 52 13
+  ! + t 54 8
+  ! + t 59 3
+  ! + t 60 17
+  ! + t 62 27
+  ! + t 63 27
+  ! + t 64 15
+  ! + t 65 27
+  ! + t 67 27
+  ! + t 68 17
+  ! + t 69 27
+  ! + t 66 15
+  t }
+: xrf ii>i v p {
+  = q + @ 36 v
+  = w + @ 42 v
+  ? < @ q 0
+    { ! q p ! w @ 45 ! + @ 43 v @ + @ 46 @ 45 }
+    ? >= @ w 0 ? != @ + @ 43 v @ + @ 46 @ w ! w -1 0 0
+  ! + @ 37 v p
+  ? > @ 44 @ + @ 38 v ! + @ 38 v @ 44 0
+  0 }
+: xu i>i t xrf t + * 2 @ 48 2
+: xd i>i t xrf t + * 2 @ 48 3
+: xfc >i { = q + @ 46 @ 45 ! q + @ q 1 }
+: xri i>i i {
+  ! 48 i
+  = p + @ 18 * i 8
+  = k @ p
+  = f @ + @ 50 k
+  ? == k 21 { ! + @ 47 @ 49 i ! 49 + @ 49 1 ! 44 + @ 44 1 } 0
+  ? || || == k 1 == k 2 == k 4 xlim p 0
+  ? & f 1 xu @ + p 2 0
+  ? & f 2 xu @ + p 3 0
+  ? & f 4 xu @ + p 4 0
+  ? == k 7 { = b @ + p 3 = j 0 W < j @ + p 4 { xu @ + b j = j + j 1 } } 0
+  ? == k 5 xu + @ 11 @ + p 3 0
+  ? & f 8 xd @ + p 1 0
+  ? == k 6 { xd + @ 11 @ + p 4 = v + @ 11 @ + p 4 ! + @ 59 v + @ + @ 59 v 1 ! + @ 60 v @ + p 3 } 0
+  ? || || == k 10 == k 12 == k 19 ! + @ 57 @ + p 1 + * 2 i 3 0
+  ? || || == k 11 == k 13 == k 20 { = d @ + p 1 ? == @ + @ 36 d @ + @ 57 d ! + @ 36 d + * 2 i 3 0 } 0
+  ? & f 16 { = q + @ 39 + * 2 i 3 ! q | @ q << 1 40 } 0
+  ? == k 23 { ! 49 - @ 49 1 = q + @ 40 * @ 41 2 ! q + * 2 @ + @ 47 @ 49 2 ! + q 1 + * 2 i 3 ! 41 + @ 41 1 ! 44 - @ 44 1 } 0
+  ? || || == k 10 == k 12 || == k 18 == k 21 ! 45 + @ 45 1 0
+  ? || || == k 11 == k 13 || == k 20 == k 23 { xfc ! 45 - @ 45 1 } 0
+  ? == k 19 xfc 0
+  0 }
+: xext i>i v {
+  = s @ + @ 36 v
+  = e @ + @ 37 v
+  = l 0
+  W && >= s 0 < l @ 41 {
+    = q + @ 40 * l 2
+    = a @ q
+    = b @ + q 1
+    ? && && <= s b >= e a || < s a > e b { = s Mn s a = e Mx e b } 0
+    = l + l 1 }
+  ! + @ 36 v s
+  ! + @ 37 v e }
+: xgpr i>i j ? j + j 5 3
+: xfree ii>i m f {
+  = r -1
+  = j ? f 18 0
+  = z ? f 32 10
+  W && < r 0 < j z { = g ? f j xgpr j ? & >> m g 1 0 = r g = j + j 1 }
+  r }
+: xal i>i v ? @ + @ 58 v 0 ? && < v @ 11 || @ + @ 52 v @ + @ 56 v ! + @ 34 v -2 xal2 v
+: xal2 i>i v {
+  = s @ + @ 36 v
+  = e @ + @ 37 v
+  = nt @ 11
+  = r -1
+  ? >= s 0 {
+    = m 0
+    = c 0
+    = p s
+    W <= p e { = o @ + @ 39 p = m | m o ? && > p s & o << 1 40 = c 1 0 = p + p 1 }
+    = pj @ + @ 57 v
+    ? && > pj 0 < pj s = m | m @ + @ 39 pj 0
+    ? c 0 {
+      = r xfree m ? < v nt tty v lty - v nt
+      ? >= r 0 { = b << 1 r = p s W <= p e { = q + @ 39 p ! q | @ q b = p + p 1 } ? && > pj 0 < pj s { = q + @ 39 pj ! q | @ q b } 0 } 0 } } 0
+  ? < v nt ! + @ 34 v r ! + @ 35 - v nt r
+  r }
+: xra >i {
+  = n @ 19
+  = nt @ 11
+  = nv + nt @ 9
+  = v 0
+  W < v nv { ! + @ 36 v -1 ! + @ 37 v -1 ! + @ 38 v 0 ! + @ 42 v 0 ! + @ 52 v 0 ! + @ 56 v 0 ! + @ 57 v 0 ! + @ 58 v 0 ! + @ 59 v 0 = v + v 1 }
+  = p 0
+  W < p + * 2 n 4 { ! + @ 39 p 0 = p + p 1 }
+  ! 41 0
+  ! 44 0
+  ! 45 0
+  ! 49 0
+  = j 0
+  W < j @ 25 { xrf + nt j 0 = j + j 1 }
+  = i 0
+  W < i n { xri i = i + i 1 }
+  = j @ 25
+  W < j @ 9 { = v + nt j ? && >= @ + @ 36 v 0 < @ + @ 42 v 0 ! + @ 36 v 0 0 = j + j 1 }
+  = v 0
+  xala
+  W < v nv { xext v = v + v 1 }
+  xalb
+  xalc
+  xfz
+  = md 0
+  = v 0
+  W < v nv { = md Mx md @ + @ 38 v = v + v 1 }
+  W >= md 0 {
+    = v nt
+    W < v nv { ? == @ + @ 38 v md xal v 0 = v + v 1 }
+    = v 0
+    W < v nt { ? == @ + @ 38 v md xal v 0 = v + v 1 }
+    = md - md 1 }
+  xpro
+  0 }
+# promocao: num ciclo sem chamadas, o que vive na memoria passa para um registo livre (carregado antes, escrito depois)
+# 61 bloco (as globais acabam em 63; a partir de 64 e o monte): 0 registos [valor registo escrito seguinte] 1 lista por
+# instrucao de inicio de ciclo 2 carimbos 3 n 4 ocupados 5 cabeca 6 registo de cada valor 7 contador de carimbos
+: xq i>i k @ + @ 61 k
+: xqs ii>i k v ! + @ 61 k v
+: xpro >i {
+  xqs 3 0
+  = i 0
+  W < i @ 19 { ! + xq 1 i -1 = i + i 1 }
+  = l - @ 41 1
+  W >= l 0 {
+    = q + @ 40 * l 2
+    = a @ q
+    = b @ + q 1
+    = m 0
+    = p a
+    W <= p b { = m | m @ + @ 39 p = p + p 1 }
+    ? & m | << 1 40 << 1 41 0 xprl a b m
+    = l - l 1 }
+  0 }
+: xprl iii>i a b m {
+  xqs 7 + xq 7 1
+  xqs 4 m
+  xqs 5 -1
+  = nt @ 11
+  = i0 / - a 2 2
+  = i1 / - b 3 2
+  = i i0
+  W <= i i1 {
+    = p + @ 18 * i 8
+    = k @ p
+    = f @ + @ 50 k
+    ? & f 1 xprc @ + p 2 0 a 0
+    ? & f 2 xprc @ + p 3 0 a 0
+    ? & f 4 xprc @ + p 4 0 a 0
+    ? == k 5 xprc + nt @ + p 3 0 a 0
+    ? & f 8 xprc @ + p 1 1 a 0
+    ? == k 6 xprc + nt @ + p 4 1 a 0
+    = i + i 1 }
+  ? >= xq 5 0 {
+    ! + xq 1 i0 xq 5
+    = t | ^ xq 4 m << 1 41
+    = p a
+    W <= p b { = q + @ 39 p ! q | @ q t = p + p 1 } } 0 }
+: xprc iii>i v w a {
+  = v xfin v
+  ? || != xvl v -1 && < v @ 11 >= @ + @ 36 v a 0 {
+    = q + xq 2 v
+    ? == @ q xq 7
+      { = n @ + xq 6 v ? && w >= n 0 ! + + xq 0 * n 4 2 1 0 }
+      { ! q xq 7
+        = r xfree xq 4 ? < v @ 11 tty v lty - v @ 11
+        ! + xq 6 v -1
+        ? >= r 0 {
+          xqs 4 | xq 4 << 1 r
+          = n xq 3
+          = e + xq 0 * n 4
+          ! e v
+          ! + e 1 r
+          ! + e 2 w
+          ! + e 3 xq 5
+          xqs 5 n
+          ! + xq 6 v n
+          xqs 3 + n 1 } 0 } } }
+: xsetl ii>i v r ? < v @ 11 ! + @ 34 v r ! + @ 35 - v @ 11 r
+: xprlo i>i h { W >= h 0 { = e + xq 0 * h 4 = v @ e = r @ + e 1 ? < r 16 xmr r xvmd v xmsd 16 - r 16 xvmd v xsetl v r = h @ + e 3 } 0 }
+: xprst i>i h { W >= h 0 { = e + xq 0 * h 4 = v @ e = r @ + e 1 xsetl v -1 ? @ + e 2 { ? < r 16 xrm r xvmd v xmsd 17 - r 16 xvmd v } 0 = h @ + e 3 } 0 }
+# movimentos entre locais: memoria [rbp+m], registo inteiro, registo xmm
+: xmrr ii>i d s ? == d s 0 { P + + 72 ? >= s 8 4 0 ? >= d 8 1 0 P 137 P + + 192 * 8 & s 7 & d 7 }
+: xmqg ii>i g x { P 102 P + + 72 ? >= x 8 4 0 ? >= g 8 1 0 P 15 P 126 P + + 192 * 8 & x 7 & g 7 }
+: xmgq ii>i x g { P 102 P + + 72 ? >= x 8 4 0 ? >= g 8 1 0 P 15 P 110 P + + 192 * 8 & x 7 & g 7 }
+: xmsd iii>i o x d { P 242 ? >= x 8 P 68 0 P 15 P o P + 133 * 8 & x 7 x4 d }
+: xmap ii>i d s ? == d s 0 { ? || >= d 8 >= s 8 P + + 64 ? >= d 8 4 0 ? >= s 8 1 0 0 P 15 P 40 P + + 192 * 8 & d 7 & s 7 }
+: xldg iii>i r l m ? == l -2 xcon r m ? < l 0 xmr r m ? < l 16 xmrr r l xmqg r - l 16
+: xstg iii>i r l m ? < l 0 xrm r m ? < l 16 xmrr l r xmgq - l 16 r
+: xldx iii>i x l m ? == l -2 { xcon 0 m xmgq x 0 } ? < l 0 xmsd 16 x m ? < l 16 xmgq x l xmap x - l 16
+: xstx iii>i x l m ? < l 0 xmsd 17 x m ? < l 16 xmqg l x xmap - l 16 x
+: xpr i>i r { ? >= r 8 P 65 0 P + 80 & r 7 }
+: xpsv i>i t { = l tlc t ? == l -2 { P 104 x4 xm t } ? < l 0 xpush xdt t ? < l 16 xpr l { xmqg 0 - l 16 P 80 } }
+: xzr i>i l { = r & l 15 ? >= r 8 P 69 0 ? >= l 16 P 15 0 P ? >= l 16 87 49 P + 192 * 9 & r 7 }
+# prologo: zera as variaveis que podem ser lidas antes de escritas, carrega os parametros que vivem em registos
+: xzer >i {
+  = nt @ 11
+  = z 0
+  = j @ 25
+  W < j @ 9 { ? && < vlc j 0 == @ + @ 36 + nt j 0 = z + z 1 0 = j + j 1 }
+  ? > z 16
+    { = c - @ 9 @ 25 P 72 P 141 P 189 x4 * -8 c P 185 x4 c P 49 P 192 P 243 P 72 P 171 }
+    ? z { P 49 P 192 = j @ 25 W < j @ 9 { ? && < vlc j 0 == @ + @ 36 + nt j 0 xsv 0 j 0 = j + j 1 } } 0
+  = j @ 25
+  W < j @ 9 { = l vlc j ? && >= l 0 == @ + @ 36 + nt j 0 xzr l 0 = j + j 1 }
+  = j 0
+  W < j @ 25 { = l vlc j ? >= l 0 xldp l j 0 = j + j 1 }
+  0 }
+: xldp ii>i l j ? < l 16 xmr l xdisp j xmsd 16 - l 16 xdisp j

@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onda na GPU — Safari</title>
+<style>
+  :root{--bg:#0b0e14;--fg:#e6e9ef;--mut:#8b93a7;--acc:#5ad1c6;--acc2:#b48cff;--card:#141926;--line:#222a3a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;padding:24px 16px 48px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 2px;font-weight:650;letter-spacing:-.02em}
+  h1 small{color:var(--mut);font-weight:400;font-size:16px}
+  p.lede{color:var(--mut);margin:.4em 0 1.4em;max-width:62ch}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  button,select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer}
+  button:hover,select:hover{border-color:var(--acc)}
+  button.primary{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#0b0e14;border:0;font-weight:600}
+  button:disabled{opacity:.5;cursor:default}
+  label{color:var(--mut)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .stat .k{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .stat .v{font-size:22px;font-weight:650;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:13px;color:var(--mut);font-weight:400}
+  .big{grid-column:span 2}
+  .big .v{font-size:30px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  canvas{width:100%;height:auto;max-width:100%;border-radius:14px;border:1px solid var(--line);display:block;background:#000}
+  .note{color:var(--mut);font-size:13px;margin-top:14px;max-width:70ch}
+  code{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.9em}
+  #msg{color:#ff8080;min-height:1.2em;font-size:14px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:13px;margin-top:6px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Onda na GPU <small>— o paradigma de campo, no teu Safari</small></h1>
+  <p class="lede">Cada pixel é uma avaliação do campo <code>px</code> da Onda. Na GPU corre o <b>GLSL que o <code>ondac&nbsp;-g</code> gera</b> (milhares de ALUs em paralelo); ao lado, o <b>mesmo cálculo portado para JS</b> corre na CPU. Compara tu os dois — é o "melhor que o WASM" para trabalho data-parallel (o que uma linguagem de IA faz).</p>
+
+  <div class="controls">
+    <label>Resolução
+      <select id="res">
+        <option value="1024">1024² — 1,0 M campos</option>
+        <option value="1536" selected>1536² — 2,4 M campos</option>
+        <option value="2048">2048² — 4,2 M campos</option>
+      </select>
+    </label>
+    <button id="anim" class="primary">⏸ Pausar</button>
+    <button id="cpu">⚡ Comparar com a CPU (porte JS)</button>
+  </div>
+  <div id="msg"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Campos por frame</div><div class="v" id="sN">—</div></div>
+    <div class="stat"><div class="k">GPU — tempo/frame</div><div class="v" id="sGms">—</div></div>
+    <div class="stat"><div class="k">GPU — débito</div><div class="v" id="sGr">—</div></div>
+    <div class="stat"><div class="k">CPU (porte JS) — débito</div><div class="v" id="sCr">—</div></div>
+    <div class="stat big"><div class="k">GPU vs CPU</div><div class="v" id="sX">carrega em “Comparar”</div></div>
+  </div>
+
+  <canvas id="gpu" width="1536" height="1536"></canvas>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--acc)"></span>GPU: GLSL gerado pela Onda, WebGL2</span>
+    <span><span class="dot" style="background:var(--acc2)"></span>CPU: porte JS da mesma função <code>px</code></span>
+  </div>
+  <p class="note">A mesma função de campo da Onda corre nas duas formas — na GPU é o <code>ondac -g px</code>, na CPU é a mesma iteração de Julia em JavaScript. WebGL2 corre no Safari 15+ (Mac e iPhone). O débito da GPU mede-se sobre a animação (render + sincronização); o da CPU sobre uma amostra de 640².</p>
+</div>
+
+<script id="frag" type="x-shader/x-fragment">
+#version 300 es
+precision highp float;
+precision highp int;
+uniform float u[8];
+out vec4 oc;
+int obh(float x){return floatBitsToInt(x);}
+int obl(float x){return 0;}
+float obw(int h,int l){return intBitsToFloat(h);}
+int f_c8(float v_v);
+int f_rgb(float v_r,float v_g,float v_b);
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h);
+int f_c8(float v_v){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+int t7=0;
+t0=255.0;
+t1=0.0;
+t2=1.0;
+t3=v_v;
+t4=(t2<t3)?t2:t3;
+t5=(t1>t4)?t1:t4;
+t6=t0*t5;
+t7=int(t6);
+return t7;
+}
+int f_rgb(float v_r,float v_g,float v_b){
+float t0=0.0;
+int t1=0;
+int t2=0;
+int t3=0;
+float t4=0.0;
+int t5=0;
+int t6=0;
+int t7=0;
+int t8=0;
+float t9=0.0;
+int t10=0;
+int t11=0;
+t0=v_r;
+t1=f_c8(t0);
+t2=65536;
+t3=t1*t2;
+t4=v_g;
+t5=f_c8(t4);
+t6=256;
+t7=t5*t6;
+t8=t3+t7;
+t9=v_b;
+t10=f_c8(t9);
+t11=t8+t10;
+return t11;
+}
+int f_px(float v_x,float v_y,float v_t,float v_w,float v_h){
+float t0=0.0;
+float t1=0.0;
+float t2=0.0;
+float t3=0.0;
+float t4=0.0;
+float t5=0.0;
+float t6=0.0;
+float t7=0.0;
+float t8=0.0;
+float t9=0.0;
+float t10=0.0;
+float t11=0.0;
+float t12=0.0;
+float t13=0.0;
+float t14=0.0;
+float t15=0.0;
+float t16=0.0;
+float t17=0.0;
+float t18=0.0;
+float t19=0.0;
+float t20=0.0;
+float t21=0.0;
+float t22=0.0;
+float t23=0.0;
+float t24=0.0;
+float t25=0.0;
+float t26=0.0;
+float t27=0.0;
+float t28=0.0;
+int t29=0;
+int t30=0;
+int t31=0;
+int t32=0;
+int t33=0;
+float t34=0.0;
+float t35=0.0;
+float t36=0.0;
+float t37=0.0;
+float t38=0.0;
+float t39=0.0;
+float t40=0.0;
+float t41=0.0;
+int t42=0;
+float t43=0.0;
+float t44=0.0;
+float t45=0.0;
+float t46=0.0;
+float t47=0.0;
+float t48=0.0;
+float t49=0.0;
+float t50=0.0;
+float t51=0.0;
+float t52=0.0;
+float t53=0.0;
+float t54=0.0;
+float t55=0.0;
+float t56=0.0;
+float t57=0.0;
+float t58=0.0;
+float t59=0.0;
+int t60=0;
+int t61=0;
+int t62=0;
+int t63=0;
+int t64=0;
+int t65=0;
+int t66=0;
+int t67=0;
+int t68=0;
+float t69=0.0;
+float t70=0.0;
+float t71=0.0;
+float t72=0.0;
+float t73=0.0;
+float t74=0.0;
+float t75=0.0;
+int t76=0;
+float t77=0.0;
+float t78=0.0;
+float t79=0.0;
+float t80=0.0;
+float t81=0.0;
+float t82=0.0;
+float t83=0.0;
+float t84=0.0;
+float t85=0.0;
+float t86=0.0;
+float t87=0.0;
+float t88=0.0;
+float t89=0.0;
+float t90=0.0;
+float t91=0.0;
+float t92=0.0;
+float t93=0.0;
+float t94=0.0;
+float t95=0.0;
+float t96=0.0;
+float t97=0.0;
+float t98=0.0;
+float t99=0.0;
+float t100=0.0;
+float t101=0.0;
+float t102=0.0;
+float t103=0.0;
+float t104=0.0;
+float t105=0.0;
+float t106=0.0;
+float t107=0.0;
+float t108=0.0;
+float t109=0.0;
+float t110=0.0;
+float t111=0.0;
+float t112=0.0;
+float t113=0.0;
+int t114=0;
+float v_s=0.0;
+float v_zr=0.0;
+float v_zi=0.0;
+float v_cr=0.0;
+float v_ci=0.0;
+int v_k=0;
+float v_q=0.0;
+float v_m=0.0;
+float v_v=0.0;
+float v_a=0.0;
+t0=3.0;
+t1=v_h;
+t2=t0/t1;
+v_s=t2;
+t3=v_x;
+t4=0.5;
+t5=v_w;
+t6=t4*t5;
+t7=t3-t6;
+t8=v_s;
+t9=t7*t8;
+v_zr=t9;
+t10=v_y;
+t11=0.5;
+t12=v_h;
+t13=t11*t12;
+t14=t10-t13;
+t15=v_s;
+t16=t14*t15;
+v_zi=t16;
+t17=0.7885;
+t18=0.3;
+t19=v_t;
+t20=t18*t19;
+t21=cos(t20);
+t22=t17*t21;
+v_cr=t22;
+t23=0.7885;
+t24=0.3;
+t25=v_t;
+t26=t24*t25;
+t27=sin(t26);
+t28=t23*t27;
+v_ci=t28;
+t29=0;
+v_k=t29;
+while(true){
+t30=v_k;
+t31=200;
+t32=(t30<t31)?1:0;
+t33=0;
+if(t32!=0){
+t34=v_zr;
+t35=v_zr;
+t36=t34*t35;
+t37=v_zi;
+t38=v_zi;
+t39=t37*t38;
+t40=t36+t39;
+t41=64.0;
+t42=(t40<t41)?1:0;
+t33=(t42!=0)?1:0;
+}
+if(t33==0)break;
+t43=v_zr;
+t44=v_zr;
+t45=t43*t44;
+t46=v_zi;
+t47=v_zi;
+t48=t46*t47;
+t49=t45-t48;
+t50=v_cr;
+t51=t49+t50;
+v_q=t51;
+t52=2.0;
+t53=v_zr;
+t54=v_zi;
+t55=t53*t54;
+t56=t52*t55;
+t57=v_ci;
+t58=t56+t57;
+v_zi=t58;
+t59=v_q;
+v_zr=t59;
+t60=v_k;
+t61=1;
+t62=t60+t61;
+v_k=t62;
+}
+t63=0;
+t64=v_k;
+t65=200;
+t66=(t64>=t65)?1:0;
+if(t66!=0){
+t68=0;
+t67=t68;
+}else{
+t69=v_zr;
+t70=v_zr;
+t71=t69*t70;
+t72=v_zi;
+t73=v_zi;
+t74=t72*t73;
+t75=t71+t74;
+v_m=t75;
+t76=v_k;
+t77=float(t76);
+t78=1.0;
+t79=t77+t78;
+t80=0.5;
+t81=v_m;
+t82=log(t81);
+t83=t80*t82;
+t84=log(t83);
+t85=2.0;
+t86=log(t85);
+t87=t84/t86;
+t88=t79-t87;
+v_v=t88;
+t89=v_v;
+t90=0.15;
+t91=t89*t90;
+v_a=t91;
+t92=0.5;
+t93=0.5;
+t94=v_a;
+t95=cos(t94);
+t96=t93*t95;
+t97=t92+t96;
+t98=0.5;
+t99=0.5;
+t100=v_a;
+t101=2.1;
+t102=t100+t101;
+t103=cos(t102);
+t104=t99*t103;
+t105=t98+t104;
+t106=0.5;
+t107=0.5;
+t108=v_a;
+t109=4.2;
+t110=t108+t109;
+t111=cos(t110);
+t112=t107*t111;
+t113=t106+t112;
+t114=f_rgb(t97,t105,t113);
+t67=t114;
+}
+return t67;
+}
+void main(){int c=f_px(floor(gl_FragCoord.x),u[2]-1.0-floor(gl_FragCoord.y),u[0],u[1],u[2]);oc=vec4(float((c>>16)&255),float((c>>8)&255),float(c&255),255.0)/255.0;}
+</script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const FRAG=$("frag").textContent.trim();
+const VERT="#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+const cv=$("gpu"), msg=$("msg");
+const gl=cv.getContext("webgl2",{preserveDrawingBuffer:true,antialias:false});
+let uLoc=null, ok=false;
+function sh(ty,src){const s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+if(!gl){ msg.textContent="Este browser não tem WebGL2 — abre no Safari 15+ ou Chrome."; }
+else { try{
+  const pr=gl.createProgram();
+  gl.attachShader(pr,sh(gl.VERTEX_SHADER,VERT));
+  gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FRAG));
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  gl.useProgram(pr);
+  const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),gl.STATIC_DRAW);
+  const pl=gl.getAttribLocation(pr,"p"); gl.enableVertexAttribArray(pl);
+  gl.vertexAttribPointer(pl,2,gl.FLOAT,false,0,0);
+  uLoc=gl.getUniformLocation(pr,"u"); ok=true;
+}catch(e){ msg.textContent="Erro a compilar o shader da Onda: "+e.message; } }
+
+let W=1536, H=1536, t=2.0, animOn=true, acc=0, frames=0, gpuMsAvg=0, gpuRate=0, cpuRate=0;
+const sync=new Uint8Array(4);
+function renderGPU(){ if(cv.width!==W){cv.width=W;cv.height=H;} gl.viewport(0,0,W,H);
+  gl.uniform1fv(uLoc,[t,W,H,0,0,0,0,0]); gl.drawArrays(gl.TRIANGLES,0,3); }
+function fmt(n){ return n>=1e9?(n/1e9).toFixed(2)+" G":n>=1e6?(n/1e6).toFixed(1)+" M":n>=1e3?(n/1e3).toFixed(0)+" k":n.toFixed(0); }
+
+function loop(){
+  if(ok&&animOn){
+    const t0=performance.now();
+    renderGPU();
+    gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,sync); // força sincronizar p/ medir
+    const dt=performance.now()-t0;
+    gpuMsAvg = gpuMsAvg? gpuMsAvg*0.9+dt*0.1 : dt;
+    gpuRate = W*H/(gpuMsAvg/1000);
+    t += 0.016;
+    if(++frames%6===0){
+      $("sN").textContent=fmt(W*H).replace(" ","")+" ";
+      $("sGms").innerHTML=gpuMsAvg.toFixed(2)+" <small>ms</small>";
+      $("sGr").innerHTML=fmt(gpuRate)+" <small>campos/s</small>";
+    }
+  }
+  requestAnimationFrame(loop);
+}
+if(ok) requestAnimationFrame(loop);
+
+// --- porte JS do px da Onda (mesma iteração de Julia) ---
+function c8(v){ return Math.max(0,Math.min(255,Math.trunc(255*Math.max(0,Math.min(1,v))))); }
+function pxJS(x,y,tt,w,h){
+  const s=3/h; let zr=(x-0.5*w)*s, zi=(y-0.5*h)*s;
+  const cr=0.7885*Math.cos(0.3*tt), ci=0.7885*Math.sin(0.3*tt);
+  let k=0;
+  while(k<200 && zr*zr+zi*zi<64){ const q=zr*zr-zi*zi+cr; zi=2*zr*zi+ci; zr=q; k++; }
+  if(k>=200) return 0;
+  const m=zr*zr+zi*zi, v=(k+1)-Math.log(0.5*Math.log(m)/Math.log(2)), a=v*0.15;
+  return (c8(0.5+0.5*Math.cos(a))<<16)|(c8(0.5+0.5*Math.cos(a+2.1))<<8)|c8(0.5+0.5*Math.cos(a+4.2));
+}
+$("cpu").onclick=()=>{
+  $("cpu").disabled=true; $("sX").textContent="a calcular na CPU…";
+  setTimeout(()=>{
+    const w=640,h=640; const t0=performance.now(); let s=0;
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) s+=pxJS(x,y,t,w,h);
+    const ms=performance.now()-t0;
+    cpuRate = w*h/(ms/1000);
+    $("sCr").innerHTML=fmt(cpuRate)+" <small>campos/s</small>";
+    if(gpuRate){ const x=gpuRate/cpuRate; $("sX").innerHTML=x.toFixed(0)+"× <small>mais rápida a GPU</small>"; }
+    $("cpu").disabled=false; void s;
+  },30);
+};
+$("anim").onclick=()=>{ animOn=!animOn; $("anim").textContent=animOn?"⏸ Pausar":"▶ Animar"; };
+$("res").onchange=e=>{ W=H=+e.target.value; gpuMsAvg=0; };
+</script>
+</body>
+</html>

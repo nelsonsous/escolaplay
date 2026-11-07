@@ -1,0 +1,43 @@
+# Mini expressoes regulares em Onda -- o matcher recursivo do Kernighan (de "The Practice of Programming").
+# . = qualquer caratere, * = zero ou mais do anterior, ^ = inicio, $ = fim. Le o padrao do 1.o argumento
+# e o texto do stdin (uma linha por vez); imprime 1 (casa) ou 0 por linha. Demonstra recursao mutua em Onda.
+# @1 padrao @2 tamanho do padrao @3 linha de texto @4 tamanho da linha
+: rc i>i i @ + @ 1 i
+: xc i>i i @ + @ 3 i
+: fimr i>i re >= re @ 2
+: fimt i>i tx >= tx @ 4
+: aqui ii>i re tx {
+  ? fimr re 1
+  ? && ~ fimr + re 1 == rc + re 1 '* estrela rc re + re 2 tx
+  ? && == rc re '$ fimr + re 1 fimt tx
+  ? && ~ fimt tx || == rc re '. == rc re xc tx aqui + re 1 + tx 1
+  0 }
+: estrela iii>i c re tx {
+  = t tx
+  = r 0
+  W == r 0 {
+    ? aqui re t = r 1 { ? && ~ fimt t || == xc t c == c '. = t + t 1 = r 2 } }
+  == r 1 }
+: casa >i {
+  ? && ~ fimr 0 == rc 0 '^ aqui 1 0 {
+    = tx 0
+    = r 0
+    W && == r 0 1 {
+      ? aqui 0 tx = r 1 0
+      ? && == r 0 fimt tx = r 2 0
+      = tx + tx 1 }
+    == r 1 } }
+: main >i {
+  ! 1 A 1000
+  = i 0 = c Av 1 0
+  W && && >= c 0 != c 0 < i 999 { ! + @ 1 i c = i + i 1 = c Av 1 i }
+  ! 2 i
+  ! 3 A 100000
+  = c R
+  W >= c 0 {
+    = n 0
+    W && && >= c 0 != c 10 < n 99999 { ! + @ 3 n c = n + n 1 = c R }
+    ! 4 n
+    N casa P 10
+    ? == c 10 = c R 0 }
+  0 }

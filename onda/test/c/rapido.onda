@@ -1,0 +1,6 @@
+# o mesmo, com o somador de prefixos (Kogge-Stone): menos profundidade, mais portas
+: rap >i 1
+: soma ii>i a b + a b
+: sub ii>i a b - a b
+: cmp ii>i a b + + * 4 < a b * 2 == a b >= a b
+: mx3 iii>i a b c Mx a Mx b c
