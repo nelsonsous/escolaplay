@@ -12,7 +12,7 @@ mesmo resultado que o JavaScript, verificado por testes. A app nunca fica partid
 | A | Onda para apps: exportações, anfitrião (`rt/anfitriao.js`), biblioteca (`lib/app.onda`) | feito (it.137) | app de exemplo testada num browser |
 | B | Motor de análise (`analyse`: médias, RSI, MACD, volatilidade, níveis, pontuações, conselho, textos) | feito (Mercados 3.23) | `mercados/onda/analise.onda` (701 linhas): 0 diferenças em 4 000 séries, números iguais ao bit; 40×400 em ~4 ms; corre em WebAssembly na app e nos scripts |
 | C | O resto do `analise.js`: tom das notícias, sentimento do mercado, teste no passado, imposto da cripto (365 dias), agrupar avisos, horas de silêncio | feito (Mercados 4.3.0) | a API toda do `analise.js` em Onda: `mercados/onda/*.onda`, 7 ficheiros e 1 415 linhas (702 da fase C), um módulo de 163 962 bytes. 0 diferenças, ao bit, em 1 114 112 pontos de código (norm), 41 500 títulos, 20 000 casos por função (marketMood, labelOf, riskOf, €/L, planLots, cryptoTax, groupAlert, isQuiet), 36 000 indicadores e 120 testes no passado. Mais rápido: tom de 1 000 títulos 60–75 ms → 3–6 ms; teste no passado 40×500 110–155 ms → 14–18 ms, 40×1 260 0,7–0,8 s → 43–72 ms. A app e os scripts já só usam a Onda; o `analise.js` fica como referência dos testes |
-| D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | passos 1 a 4 feitos (Mercados 4.5.0, 4.6.0, 4.7.0 e 4.8.0): os Ajustes, a Análise e os Destaques; desde a 4.7.0 as vistas ficam simples e a Onda passa a ser a referência delas | `mercados/onda/ecra.onda` e `ajustes.onda` (306 linhas), no mesmo módulo da análise: o HTML do `viewSettings`, igual ao byte em 600 estados por corrida do teste (5 000 numa corrida longa, ~115 MB de HTML). Desenho em ~0,2 ms (0,1 ms de WASM) + 0,1 ms do instantâneo, contra 0,15–0,3 ms do JS. Passo 2: `ecra-analise.onda` (534 linhas) e, em `ecra.onda` (340 linhas), o que as vistas todas vão usar: os números do Intl pt-PT (`fmtPx`, `fmtPct`, `fmtPct1`) e o sort do V8. A Análise igual ao byte em 600 estados por corrida (5 000 numa longa, ~82 MB de HTML), os números em 249 166 casos (996 664), o sort em 4 000 listas; ~1,3–1,5 ms contra ~0,6–0,9 ms do JS; módulo de 305 445 bytes. Passo 4 (4.8.0): `ecra-destaques.onda` (168 linhas), módulo de 284 140 bytes. A seguir: o Painel; depois a ficha e os gráficos; por fim os dados ao vivo e o estado na Onda. Portas que vão faltar: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
+| D | O ecrã: estado, vistas (Painel, Destaques, Análise, Ajustes, ficha), eventos e gestos | passos 1 a 5 feitos (Mercados 4.5.0 a 4.9.0): os Ajustes, a Análise, os Destaques e o Painel — as quatro vistas dos separadores; desde a 4.7.0 as vistas ficam simples e a Onda passa a ser a referência delas | `mercados/onda/ecra.onda` e `ajustes.onda` (306 linhas), no mesmo módulo da análise: o HTML do `viewSettings`, igual ao byte em 600 estados por corrida do teste (5 000 numa corrida longa, ~115 MB de HTML). Desenho em ~0,2 ms (0,1 ms de WASM) + 0,1 ms do instantâneo, contra 0,15–0,3 ms do JS. Passo 2: `ecra-analise.onda` (534 linhas) e, em `ecra.onda` (340 linhas), o que as vistas todas vão usar: os números do Intl pt-PT (`fmtPx`, `fmtPct`, `fmtPct1`) e o sort do V8. A Análise igual ao byte em 600 estados por corrida (5 000 numa longa, ~82 MB de HTML), os números em 249 166 casos (996 664), o sort em 4 000 listas; ~1,3–1,5 ms contra ~0,6–0,9 ms do JS; módulo de 305 445 bytes. Passo 4 (4.8.0): `ecra-destaques.onda` (168 linhas), módulo de 284 140 bytes. Passo 5 (4.9.0): `ecra-painel.onda` (529 linhas), módulo de 341 504 bytes. A seguir: a ficha e os gráficos; depois os dados ao vivo e o estado na Onda. Portas que vão faltar: WebSocket (preços ao vivo da Binance), canvas (gráficos), notificações, área de transferência, toque (arrastar para o lado), datas no fuso de Lisboa |
 | E | O Worker da Cloudflare | com risco | o plano grátis dá 10 ms de CPU por pedido. Medido (Node, WASM): 645 KB de JSON do Yahoo (40 ações, 1 ano) → **20 ms** com o `json` da biblioteca, contra 3 ms do `JSON.parse`. Precisa de um leitor em fluxo que só tire os fechos, sem montar a árvore |
 | F | Os scripts da tarefa do Claude (`dados`, `universo`, `outros`, `publicar`, `backtest`) | feito | `mercados/conselheiro/onda/*.onda`: 2 520 linhas (o modelo dos valores do JS — JSON exato, `String`, `Number`, `toFixed`, `toPrecision`, datas de Lisboa, textos UTF-16 — 573; o comum 417; `dados` 667, `universo` 223, `outros` 297, `publicar` 176, `backtest` 134), com a análise num módulo de 427 035 bytes (`conselheiro.wasm`). Anfitrião Node `rt/anfitriao-node.js` (portas 200–214: argumentos, ambiente, ficheiros, pastas, `fetch` com método/cabeçalhos/corpo/tempo, fluxos de saída, código de saída). Os `.mjs` de sempre são lançadores (a CONSELHEIRO.md não muda) e o JS fica em `conselheiro/js/` como referência. Paridade: 50 cenários com a rede e o relógio simulados, iguais ao byte nos ficheiros, nos 604 pedidos (17 gravações no KV), no stdout, no stderr e no código de saída; as corridas verdadeiras de `dados` e `universo` (1 340 ativos) gravadas e repostas nos dois lados: iguais. Tempos (processo inteiro, rede reposta): `dados` 125 ms (JS) / 186 ms (Onda), `universo` 438 / 422 ms |
 
@@ -188,6 +188,40 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   o nome que vem nela (o JS antigo não tinha ícone aí).
 - **Da Música:** a zona das horas do iPhone passa a ser uma faixa preta fixa (`body::before`) e a app abre no topo
   (`scrollRestoration`), como na 2.7.0 da Música.
+
+## O ecrã (fase D), passo 5: o Painel simples (Mercados 4.9.0)
+- **Como a Análise e os Destaques:** a Onda é a referência (o `viewDashboard`, o `todayCard`, o `briefParts`, o `firstView`,
+  o `row`, o `card` e o `viewFuel` saíram; até o módulo estar pronto, "A calcular…"). Saíram do Painel o "Agora" e o "Cripto
+  hoje" (estão nos Destaques), os subtítulos das secções e as notas a explicar. O cartão Hoje fica compacto — de onde vem
+  ("Claude · 07:16", "atrasada"), as 3 linhas do Claude e a próxima execução com os valores — e o resto (o sentimento e os
+  índices, o título e o mercado, o plano do mês, o que mais seguir, o porquê dos movimentos, os riscos, a agenda) numa dobra
+  que começa fechada, como as outras: o `firstView`, que gravava o `cfg.seen` a meio do desenho, saiu. Os índices, a energia
+  e os combustíveis passaram a linhas fechadas no fim, com uma linha de resumo; o período e a ordem das ações em pílulas de
+  36 px, a escolha a branco. A página por omissão passa de 7 514 para 3 870 px.
+- **A lógica também passou:** o JS manda os ativos crus e o que é do browser ou de outras partes da app — a cotação (`qv`), a
+  variação no período (`perData`, a dos gráficos pequenos), a hora (`pxWhen`), o conselho (`claudeFor`), o imposto
+  (`taxLine`), o €/L, a bolsa (`mktOf`), a ordem dos nomes do `localeCompare('pt')`, o sentimento do motor, as datas (a
+  execução, a agenda, a hora da análise) e os euros do plano do Claude (`eurNum`: o `Number()` de um texto não está na Onda).
+  A Onda filtra (o que tenho, o retirado), ordena (o sort do V8: sobe, desce, bolsa em grupos, nome), faz o plano do mês
+  automático (o núcleo, os satélites e a cripto, pela estratégia e pelo perfil), escolhe as ideias de maior convicção do
+  Claude e faz o regex das 3 linhas (`/^([^:]{2,14}):\s*(.*)$/`, com as unidades UTF-16, o `\s` e as mudanças de linha do JS).
+  Os eventos, os gestos e o `patchLive` não mudaram: os mesmos `data-*` e classes.
+- **Teste** (`ecra-painel.test.mjs`): 600 estados ao acaso por corrida (19 308 linhas e 19 276 ícones), conferidos no DOM contra
+  as regras de antes, reescritas no teste a partir do estado da app, e os números do browser; e o instantâneo contra a app.
+  Cinco mutações da vista (o limite das 14 unidades, o resumo de 3, os 70/30 da cripto, a ordem do "desce", a linha larga)
+  foram todas apanhadas.
+- **Desempenho e tamanho:** ~0,9 ms com 46 linhas (31 KB de HTML: 0,17 ms o instantâneo, 0,5 ms o desenho). Módulo 284 140 →
+  341 504 bytes: os textos literais ocupam ~1 byte por carácter; o resto é o código do emissor (~100 bytes por linha de Onda,
+  como nas outras vistas).
+- **O que não é igual:** dados que a app não produz (um item que não é um objeto no plano, nas ideias, nos motivos ou nos
+  combustíveis; uma chave das listas que não está no `REG`) a Onda salta; o JS antigo rebentava ou desenhava uma linha vazia.
+- **O teste instável:** era o "puxão curto não fecha" do `ui.test.js` (falhou em 2 de 4 corridas da suite com o CPU ocupado;
+  os testes de desempenho ficaram a ≥ 11× com 8 processos nos 4 núcleos, para um limite de 3×). A velocidade do gesto contava
+  pelo `Date.now()` de quando o browser tratava os toques: com a máquina ocupada chegavam de seguida e o puxão parecia rápido.
+  Agora conta pelo `event.timeStamp` dos toques, e o teste manda-os com a hora deles (`Input.dispatchTouchEvent` com
+  `timestamp`): devagar não fecha, rápido fecha.
+- **O que falta:** a ficha de cada ativo e os gráficos (precisam de uma porta para o canvas); os dados ao vivo e o estado na
+  Onda (WebSocket, relógios, armazém, gestos); o Worker (fase E).
 
 ## Aprendido com os scripts (fase F)
 - Ser igual ao JS ao byte obriga a ter o modelo dele: valores com tipo (undefined, null, números, textos, listas,

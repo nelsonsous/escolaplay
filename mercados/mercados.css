@@ -138,7 +138,7 @@ a { color: var(--accent2); }
 .fuel .f-min { font-size: calc(0.794rem * var(--k)); color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .fuel .f-min b { color: var(--up); }
 
-/* tom das notícias (o "Agora" do Painel) */
+/* tom das notícias (na ficha) */
 .tone { display: inline-block; font-size: calc(0.765rem * var(--k)); font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-right: 4px; vertical-align: 1px; }
 .tone.up { color: var(--up); background: var(--up-bg); }
 .tone.down { color: var(--down); background: var(--down-bg); }
@@ -359,11 +359,6 @@ code.sel { user-select: all; -webkit-user-select: all; font-size: calc(0.794rem 
 .claude > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; font-weight: 750; font-size: calc(1rem * var(--k)); }
 .claude > summary::-webkit-details-marker { display: none; }
 .claude > summary small { font-weight: 500; font-size: calc(0.794rem * var(--k)); color: var(--muted); }
-/* cartões condensados depois de lidos: uma linha com o essencial */
-.fold > summary { flex-wrap: wrap; }
-.fold .teaser { display: none; flex-basis: 100%; font-style: normal; font-weight: 500; font-size: calc(0.853rem * var(--k)); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fold:not([open]) .teaser { display: block; }
-.fold:not([open]) { padding-top: 9px; padding-bottom: 9px; margin-bottom: 10px; }
 .claude .cl-head { font-weight: 700; font-size: calc(1rem * var(--k)); margin-top: 8px; color: #f3d9cd; }
 .claude p { margin: 8px 0 0; }
 .claude .muted { color: var(--muted); }
@@ -477,23 +472,16 @@ a.st-row { text-decoration: none; color: inherit; }
 .perf div { background: var(--card); padding: 8px 10px; }
 .perf small { display: block; color: var(--muted); font-size: calc(.72rem * var(--k)); }
 .perf b { font-size: calc(.92rem * var(--k)); font-weight: 650; }
-/* resumo em 3 linhas */
-.tldr { list-style: none; margin: 10px 0 2px; padding: 0; display: grid; gap: 6px; font-size: calc(.95rem * var(--k)); line-height: 1.4; }
-.tldr li { padding-left: 12px; position: relative; }
-.tldr li::before { content: ''; position: absolute; left: 0; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
-/* cripto hoje */
+/* resumo em 3 linhas (o do Claude, no cartão Hoje) */
+.tldr { display: grid; gap: 6px; margin: 10px 0 0; font-size: calc(.95rem * var(--k)); line-height: 1.4; }
+.tldr .tl { display: block; position: relative; padding-left: 12px; }
+.tldr .tl::before { content: ''; position: absolute; left: 0; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+/* cripto hoje (nos Destaques) */
 .cg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: var(--r); overflow: hidden; }
 .cg div { background: var(--card); padding: 10px 12px; }
 .cg small { display: block; color: var(--muted); font-size: calc(.75rem * var(--k)); }
 .cg b { display: block; font-size: calc(1.15rem * var(--k)); font-weight: 700; margin-top: 2px; }
 .cg em { display: block; font-style: normal; color: var(--muted); font-size: calc(.75rem * var(--k)); margin-top: 1px; }
-/* Agora */
-.now-box { background: var(--card); border-radius: var(--r); padding: 12px 14px; }
-.now-box .t-mk { margin: 0; color: var(--muted); font-size: calc(.85rem * var(--k)); }
-.now-mkt { margin: 8px 0 0; font-size: calc(.92rem * var(--k)); line-height: 1.4; }
-.now-mkt small { display: block; color: var(--faint); font-size: calc(.75rem * var(--k)); margin-top: 2px; }
-.idea.why em { font-style: normal; color: var(--faint); }
-.idea.why .tone { vertical-align: 1px; }
 /* motivo dos movimentos fortes */
 .idea.why .i-n { white-space: normal; }
 .idea.why .i-n small { white-space: normal; line-height: 1.35; margin-top: 2px; }
@@ -551,17 +539,13 @@ a.st-row { text-decoration: none; color: inherit; }
 .advice.up, .advice.down { border: 0; }
 .box { padding: 14px; }
 .box h3 { font-size: calc(1.05rem * var(--k)); font-weight: 700; }
-.today { padding: 14px 16px; margin: 0 0 26px; line-height: 1.45; }
-.today > summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; cursor: pointer; list-style: none; font-weight: 800; font-size: calc(1.2rem * var(--k)); }
+.today { margin: 0 0 26px; line-height: 1.45; }
+.today > summary { cursor: pointer; list-style: none; }
 .today > summary::-webkit-details-marker { display: none; }
-.today > summary > b { margin-left: auto; font-size: calc(.9rem * var(--k)); font-weight: 650; }
-.today > summary small { flex-basis: 100%; font-weight: 500; font-size: calc(.8rem * var(--k)); color: var(--muted); }
 .today p { margin: 8px 0 0; }
 .today .muted, .today .t-mk { color: var(--muted); }
 .today .t-mk { font-size: calc(.85rem * var(--k)); }
 .today .cl-head { font-weight: 700; font-size: calc(1.08rem * var(--k)); margin-top: 10px; line-height: 1.35; }
-.fold:not([open]) { padding-top: 12px; padding-bottom: 12px; margin-bottom: 26px; }
-.fold .teaser { font-size: calc(.85rem * var(--k)); }
 .plan-blk .exec { margin-top: 10px; border: 0; background: var(--card2); border-radius: 12px; padding: 10px 12px; }
 .plan-blk .exec.hot { background: rgba(245, 184, 61, .14); }
 .exec .ex-t { font-size: calc(.88rem * var(--k)); }
@@ -665,3 +649,30 @@ details.hl-mood { margin-bottom: 24px; }
 .an-f > .grp-h:first-of-type { margin-top: 2px; }
 /* como a Música: a zona das horas do iPhone é uma faixa preta fixa (o que desliza passa por baixo dela, não das horas) */
 body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: var(--safe-t); pointer-events: none; background: #000; }
+/* 4.9: o Painel simples, como a Análise e os Destaques (e a Música): o período e a ordem a branco, em pílulas de 36 px; o
+   cartão Hoje compacto — de onde vem, as 3 linhas do Claude e a próxima execução; o resto numa dobra, como as outras —; os
+   índices, a energia e os combustíveis em linhas fechadas no fim, com uma linha de resumo */
+.seg.per { padding: 3px; gap: 3px; border-radius: 12px; }
+.seg.per button { min-height: 36px; min-width: calc(2.5rem * var(--k)); padding: 6px 8px; border-radius: 9px; font-size: calc(.85rem * var(--k)); font-weight: 600; color: var(--muted); }
+.seg.per button.on { background: #fff; color: #000; }
+.sec-h:has(.seg.per) { align-items: center; }
+.chips.sort { margin: 0 0 8px; }
+.chips.sort button { min-height: 36px; padding: 7px 10px; font-size: calc(.85rem * var(--k)); font-weight: 600; }
+.today > summary { position: relative; display: block; padding: 14px 16px; border-radius: var(--r); }
+.today > summary:active { background: var(--card2); }
+.today > summary::after { content: ''; position: absolute; right: 19px; top: calc(14px + .75rem * var(--k) - 5px); width: 8px; height: 8px; border: solid var(--faint); border-width: 2px 2px 0 0; transform: rotate(45deg); transition: transform .2s; }
+.today[open] > summary::after { margin-top: -2px; transform: rotate(135deg); }
+.hj-t { display: block; padding-right: 28px; font-weight: 800; font-size: calc(1.2rem * var(--k)); line-height: 1.25; }
+.hj-src { display: block; margin-top: 2px; font-weight: 500; font-size: calc(.8rem * var(--k)); color: var(--muted); }
+.hj-src b { font-weight: 650; }
+.hj-src.cl b { color: #f0b49b; }
+.hj-src.cl::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #d97757; margin-right: 6px; vertical-align: 1px; }
+.hj-ex { display: block; margin-top: 12px; padding: 9px 12px; background: var(--card2); border-radius: 12px; }
+.hj-ex.hot { background: rgba(245, 184, 61, .14); }
+.hj-ex .ex-t { display: block; color: var(--muted); font-size: calc(.82rem * var(--k)); }
+.hj-ex .ex-t b { color: var(--text); font-weight: 650; }
+.hj-ex .ex-a { display: block; margin-top: 2px; font-weight: 650; font-size: calc(.92rem * var(--k)); }
+.hj-in { padding: 0 16px 14px; }
+.hj-in > :first-child { margin-top: 2px; }
+.hj-in .plan-blk .exec { margin-top: 8px; }
+.pn-f > .sec-f { margin: 0 0 6px; }

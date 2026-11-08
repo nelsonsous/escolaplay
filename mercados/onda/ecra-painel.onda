@@ -1,0 +1,529 @@
+# Mercados — a vista do Painel em Onda. Desde a 4.9.0 é a Onda a referência desta vista (o viewDashboard, o todayCard, o
+# briefParts, o row, o card e o viewFuel do JS saíram).
+# Simples, como a Trade Republic e a Música: os meus ativos (com o período da variação, 1D 1S 1M 1A, a branco), logo a
+# seguir o cartão Hoje, compacto — o resumo do Claude em 3 linhas e a próxima execução do plano; o resto (o plano, o que
+# mais seguir, o porquê dos movimentos, os riscos, a agenda) numa dobra —, depois as listas que sigo (cripto, fundos e ETF,
+# ações, com a ordem: sobe, desce, bolsa, nome, a minha) com as linhas de sempre (o ícone, o nome, o gráfico pequeno, o
+# preço e a variação no período; arrastar para a esquerda retira) e, no fim, em linhas fechadas com uma linha de resumo, os
+# índices, a energia e os combustíveis. Sem parágrafos a explicar. A partir do instantâneo que o panelSnap monta (ver lá o
+# que vai nele e o que vai já feito). Os eventos, os gestos e os preços ao vivo (o patchLive: .row[data-key] .px e .chg)
+# continuam no JS; os gráficos pequenos (canvas.spark) desenha-os o JS depois.
+# Entrada: `ecra_painel s`, com s o instantâneo (ecra.onda); saída: o HTML no stdout. As chaves do instantâneo e os
+# textos com que se compara são textos constantes ($"…").
+# As listas filtram-se e ordenam-se com o comparador que o JS usava e o sort do V8 (ts_ordena de ecra.onda).
+# Nomes: pn_*.
+
+# ===== procurar =====
+# o ativo (um dos assets, pela ordem de Object.keys(REG)) com a chave do nó kn (k === kn), ou 0
+: pn_ativo i>i kn { = c jprim sg $"assets" = r 0 W && c ~ r { ? vigual jg c $"k" kn = r c 0 = c jprox c } r }
+# … com a chave do texto t
+: pn_ativot i>i t { = c jprim sg $"assets" = r 0 W && c ~ r { ? veqt jg c $"k" t = r c 0 = c jprox c } r }
+# um número finito (o fin do JS)
+: pn_fin i>i n && == jtipo n 4 finito @f + n 1
+
+# ===== o que o JS tem em tabelas =====
+# SHORT[k] (as etiquetas curtas dos veredictos): escreve-a e dá 1, ou 0 se não há
+: pn_sht i>i k ? veqt k $"buy" { "Comprar" 1 } ? veqt k $"scale" { "Comprar aos poucos" 1 } ? veqt k $"hold" { "Manter" 1 }
+  ? veqt k $"wait" { "Esperar" 1 } ? veqt k $"neutral" { "Não reforçar" 1 } ? veqt k $"turn" { "Esperar" 1 }
+  ? veqt k $"reduce" { "Reduzir" 1 } ? veqt k $"avoid" { "Evitar" 1 } ? veqt k $"sell" { "Vender" 1 }
+  ? veqt k $"up" { "Em alta" 1 } ? veqt k $"flat" { "Lateral" 1 } ? veqt k $"down" { "Em queda" 1 } 0
+# CL_TONE[k] || 'flat'
+: pn_tom i>i k ? || || veqt k $"buy" veqt k $"scale" veqt k $"up" "up"
+  ? || || || veqt k $"reduce" veqt k $"avoid" veqt k $"sell" veqt k $"down" "down" "flat"
+# t.toLowerCase() escapado, de um nó de texto (o ASCII e o Latim-1 de U+00C0 a U+00DE, menos o ×: as ações do motor)
+: pn_min i>i n {
+  = t jtxt n = m tlen t = j 0
+  W < j m {
+    = c tbyte t j
+    ? && >= c 'A <= c 'Z P + c 32
+    ? && == c 195 < + j 1 m { = c2 tbyte t + j 1 P 195 P ? && && >= c2 128 <= c2 158 != c2 151 + c2 32 c2 = j + j 1 0 }
+    ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" P c
+    = j + j 1 }
+  0 }
+# os bytes [a, b) do texto t, escapados
+: pn_esc iii>i t a b { = j a W < j b { = c tbyte t j ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" P c = j + j 1 } 0 }
+
+# ===== os números =====
+# o fmtPx(price, a, cur) do mercados.js, com a moeda pela ordem do JS: cur || Q[a.key].currency || (cripto ? cfg.fiat : null)
+: pn_preco iii>i pn a cu {
+  = m ? vverd cu cu ? vverd jg a $"qc" jg a $"qc" ? veqt jg a $"kind" $"crypto" sg $"fiat" 0
+  ? == jtipo pn 4 fm_px @f + pn 1 jg a $"dec" jg a $"pts" m "—" }
+# fmtPx(v, { decimals: 3 }, 'EUR') (combustíveis e €/L)
+: pn_eur3 i>i n ? pn_fin n { fm_num @f + n 1 3 P 194 P 160 "€" 0 } "—"
+# o Intl.NumberFormat('pt-PT') por omissão (o NF({}) do JS, até 3 casas) de um número, um booleano, null ou undefined
+: pn_nf i>i n { = x vnum n ? != x x "NaN" ? ~ finito x { ? < x 0. P '- 0 "∞" } fm_numm x 3 }
+
+# ===== as linhas: a do Painel (o row() do JS), dentro do sw-wrap (arrastar para a esquerda mostra Retirar) =====
+# md 0 só o nome (índices, ações), 1 o card() do JS (a unidade e, na energia por litro, o €/L), 2 os meus ativos (linha
+# larga, com o conselho, o desconto e o imposto da cripto); g o grupo do arrastar (hold, list ou fixed)
+: pn_linha iii>i a md g {
+  = k jg a $"k" = px jg a $"px" = t jg a $"t"
+  "\n            <div class=\"sw-wrap" ? vigual sg $"swipe" k " open" 0 "\" data-swk=\"" pv k 1 "\" data-grp=\"" tpor g
+  "\"><button type=\"button\" class=\"sw-del\" data-hide=\"" pv k 1 "\" data-grp=\"" tpor g "\" tabindex=\"-1\">Retirar</button><button type=\"button\" class=\"row" ? == md 2 " wide" 0 "\" data-open=\"" pv k 1 "\" data-key=\"" pv k 1 "\">"
+  ln_ico k jg a $"name" ? veqt jg a $"kind" $"crypto" jg a $"sym" 0 0
+  "<div class=\"r-main\"><div class=\"r-name\">" pv jg a $"name" 1 "</div>"
+  ? == md 2 pn_meu a ? == md 1 pn_card a 0
+  "</div><canvas class=\"spark\" data-key=\"" pv k 1 "\"></canvas><div class=\"r-px num\">"
+  ? vverd t { "<span class=\"r-t\">" pv t 1 "</span>" 0 } 0
+  ? || == jtipo px 0 == jtipo px 1 "<span class=\"px skel\">0000,00</span>" { "<span class=\"px\">" pn_preco px a jg a $"cur" "</span>" 0 }
+  ln_chg jg a $"pc" "</div></button></div>" 0 }
+# o card(): a unidade ("por barril") e, na energia por litro, o €/L sem impostos
+: pn_card i>i a {
+  = u jg a $"unit" = l jg a $"pl"
+  ? vverd u { "<div class=\"r-sub\">por " pv u 1 "</div>" 0 } 0
+  ? vverd l { "<div class=\"r-note\">≈ " pn_eur3 l "/L sem impostos</div>" 0 } 0 }
+# os meus ativos: o conselho (o do Claude, com a cor do tom; sem ele o automático, marcado "auto"), o desconto face ao
+# máximo do ano e o imposto da cripto (o taxLine do JS)
+: pn_meu i>i a {
+  = an jg a $"an" = cl jg a $"cl" = d jg an $"d" = ad jg an $"adv" = tx jg a $"tax"
+  = bc && vverd cl vverd jg cl $"action"
+  = ba && ~ bc && vverd an vverd ad
+  = vd && vverd an vverd d
+  = vt vverd tx
+  ? || || || bc ba vd vt {
+    "<div class=\"r-sub\">"
+    ? bc { = kk jg cl $"key" "<span class=\"badge " pn_tom kk "\">" ? pn_sht kk 0 pv jg cl $"action" 1 "</span>" 0 } 0
+    ? ba { "<span class=\"badge auto\">" ? pn_sht jg ad $"key" 0 pv jg ad $"action" 1 "</span>" 0 } 0
+    ? vd { "<span class=\"nb\">" fm_pct1 * vnum jg d $"dd" 100. " do máximo</span>" 0 } 0
+    ? && vd vt "<span class=\"dotsep\"> · </span>" 0
+    ? vt { "<span class=\"nb\">" pv tx 1 "</span>" 0 } 0
+    "</div>" 0 } 0 }
+
+# ===== as listas =====
+# os ativos das chaves da lista l (pela ordem dela; as que não são ativos ficam de fora), menos os que tenho (fl & 1) e os
+# retirados (fl & 2), em w; dá quantos
+: pn_junta iii>i l fl w {
+  = mi sg $"mine" = hi sg $"hidden" = c jprim l = m 0
+  W c {
+    ? || && & fl 1 vtem mi c && & fl 2 vtem hi c 0 { = a pn_ativo c ? a { ! + w m a = m + m 1 0 } 0 }
+    = c jprox c }
+  m }
+# quantas chaves da lista l estão retiradas (o nHid do JS)
+: pn_nret i>i l { = hi sg $"hidden" = c jprim l = m 0 W c { ? vtem hi c = m + m 1 0 = c jprox c } m }
+: pn_lista iiii>i w m md g { "<div class=\"list sw-list\">" = j 0 W < j m { pn_linha @ + w j md g = j + j 1 } "</div>" 0 }
+# o rodapé (o foot do JS): + Juntar (com o data-act ad; sem ele, 0) e Repor n (com o data-unhide u; nada se n é 0)
+: pn_pe iii>i ad u n ? || ad n {
+  "<div class=\"sec-f\">"
+  ? ad { "<button type=\"button\" class=\"lnk\" data-act=\"" tpor ad "\">+ Juntar</button>" 0 } 0
+  ? n { "<button type=\"button\" class=\"lnk\" data-unhide=\"" tpor u "\">Repor " N n "</button>" 0 } 0
+  "</div>" 0 } 0
+# o período da variação ((cfg.per || '1d') === v: a escolha a branco)
+: pn_per ii>i p v { "<button type=\"button\" data-per=\"" tpor v "\" class=\"" ? ? vverd p veqt p v tigual v $"1d" "on" 0 "\">" 0 }
+: pn_periodo >i {
+  = p sg $"per"
+  "<div class=\"right seg per\" role=\"group\" aria-label=\"Período da variação\">"
+  pn_per p $"1d" "1D</button>" pn_per p $"1w" "1S</button>" pn_per p $"1m" "1M</button>" pn_per p $"1y" "1A</button>"
+  "</div>" 0 }
+# os meus ativos (o holdingKeys(), pela ordem dos Ajustes)
+: pn_meus >i {
+  = l sg $"mine" = w A + jn l 1 = m pn_junta l 0 w
+  "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Os meus ativos</h2>" pn_periodo "</div>"
+  ? m pn_lista w m 2 $"hold" "<div class=\"empty\">Escolhe em Ajustes → O que tenho.</div>"
+  pn_pe $"go-hold" 0 0 "</section>" 0 }
+# a cripto que não tenho (e não retirei); com alguma retirada, a secção fica (com o Repor)
+: pn_cripto >i {
+  = l sg $"crypto" = w A + jn l 1 = m pn_junta l 3 w = nh pn_nret l
+  ? || m nh { "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Cripto</h2></div>" pn_lista w m 1 $"fixed" pn_pe 0 $"crypto" nh "</section>" 0 } 0 }
+# os fundos e ETF que sigo e não tenho
+: pn_fundos >i {
+  = l sg $"funds" = w A + jn l 1 = m pn_junta l 1 w
+  ? || m ~ jn l {
+    "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Fundos e ETF</h2></div>"
+    ? m pn_lista w m 1 $"list" "<div class=\"empty\">Sem fundos. Junta em Ajustes (ex.: VWCE, IWDA).</div>"
+    pn_pe $"go-add" 0 0 "</section>" 0 } 0 }
+# as ações que sigo, pela ordem escolhida: sobe ou desce (a variação no período; sem ela, no fim), por bolsa (pela subida,
+# em grupos), pelo nome (o localeCompare('pt') do browser: a ordem nr que o JS manda) ou a minha (a dos Ajustes)
+: pn_chip ii>i so v { "<button type=\"button\" data-sort=\"" tpor v "\" class=\"" ? tigual so v "on" 0 "\">" 0 }
+: pn_acoes >i {
+  = l sg $"watch" = w A + jn l 1 = m pn_junta l 0 w
+  = s sg $"sort" = so ? veqt s $"chg" $"up" ? == jtipo s 5 jtxt s 0
+  = dn tigual so $"down" = nm tigual so $"name"
+  # sort((a, b) => (pc(b) ?? -1e9) - (pc(a) ?? -1e9)) (sobe e bolsa), (pc(a) ?? 1e9) - (pc(b) ?? 1e9) (desce) e o nome
+  = ix A + m 1 = k1 A + m 1 = j 0
+  W < j m {
+    = a @ + w j = v jg a $"pc"
+    ! + ix j j
+    !f + k1 j ? nm vnum jg a $"nr" ? pn_fin v @f + v 1 ? dn 1000000000. -1000000000.
+    = j + j 1 }
+  ? || tigual so $"up" tigual so $"mkt" ts_ordena ix m k1 0 0 ? || dn nm ts_ordena ix m k1 0 1 0
+  "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Ações que sigo</h2></div><div class=\"chips sort\" role=\"group\" aria-label=\"Ordenar\">"
+  pn_chip so $"up" "↑ Sobe</button>" pn_chip so $"down" "↓ Desce</button>" pn_chip so $"mkt" "Bolsa</button>"
+  pn_chip so $"name" "Nome</button>" pn_chip so $"mine" "Minha</button></div>"
+  ? m { ? tigual so $"mkt" pn_grupos ix m w { "<div class=\"list sw-list\">" = j 0 W < j m { pn_linha @ + w @ + ix j 0 $"list" = j + j 1 } "</div>" 0 } }
+    "<div class=\"empty\">Sem ações na lista. Junta em Ajustes.</div>"
+  pn_pe $"go-add" 0 0 "</section>" 0 }
+# por bolsa (o mktOf do JS): os grupos do MKT_ORDER primeiro, por essa ordem, e depois os outros pela ordem em que aparecem;
+# em cada um, as linhas pela ordem da subida
+: pn_grupos iii>i ix m w {
+  = gs A + m 1 = ng 0 = j 0
+  W < j m {
+    = g jg @ + w @ + ix j $"mkt" = i 0 = ach 0
+    W && < i ng ~ ach { ? vigual @ + gs i g = ach 1 0 = i + i 1 }
+    ? ach 0 { ! + gs ng g = ng + ng 1 0 }
+    = j + j 1 }
+  = mo sg $"mktOrder" = c jprim mo
+  W c { = i 0 W < i ng { ? vigual @ + gs i c { pn_grupo @ + gs i ix m w = i ng } 0 = i + i 1 } = c jprox c }
+  = i 0 W < i ng { ? vtem mo @ + gs i 0 pn_grupo @ + gs i ix m w = i + i 1 }
+  0 }
+: pn_grupo iiii>i g ix m w {
+  = n 0 = j 0 W < j m { ? vigual jg @ + w @ + ix j $"mkt" g = n + n 1 0 = j + j 1 }
+  "<div class=\"grp-h\">" pv g 1 "<small>" N n "</small></div><div class=\"list sw-list\">"
+  = j 0 W < j m { = a @ + w @ + ix j ? vigual jg a $"mkt" g pn_linha a 0 $"list" 0 = j + j 1 }
+  "</div>" 0 }
+
+# ===== em baixo, em linhas fechadas (details com data-fold: ficam como o utilizador as deixou) =====
+# numa linha pequena: os três primeiros com a variação no período (o nome e a variação, com a cor do tom)
+: pn_resumo ii>i w m {
+  = j 0 = q 0
+  W && < j m < q 3 {
+    = a @ + w j = v jg a $"pc"
+    ? pn_fin v { ? q " · " "<small>" pv jg a $"name" 1 " <span class=\"" ln_tom @f + v 1 "-t\">" fm_pct @f + v 1 "</span>" = q + q 1 } 0
+    = j + j 1 }
+  ? q "</small>" 0
+  0 }
+# os índices, o câmbio e o ouro; a energia (com o €/L da gasolina e do gasóleo)
+: pn_indices >i {
+  = l sg $"indices" = w A + jn l 1 = m pn_junta l 2 w = nh pn_nret l
+  "\n        <details class=\"an-f pn-f\" data-fold=\"pn-idx\" " ? vverd sg $"foldIdx" "open" 0 "><summary><span class=\"f-t\">Índices, câmbio e ouro"
+  pn_resumo w m "</span></summary>" pn_lista w m 0 $"fixed" pn_pe 0 $"index" nh "</details>" 0 }
+: pn_energia >i {
+  = l sg $"energy" = w A + jn l 1 = m pn_junta l 2 w = nh pn_nret l
+  "\n        <details class=\"an-f pn-f\" data-fold=\"pn-en\" " ? vverd sg $"foldEn" "open" 0 "><summary><span class=\"f-t\">Petróleo e energia"
+  pn_resumo w m "</span></summary>" pn_lista w m 1 $"fixed" pn_pe 0 $"energy" nh "</details>" 0 }
+# os combustíveis (a DGEG, pelo conector), no concelho ou no distrito dos Ajustes: numa linha, a mediana de cada um; lá
+# dentro os cartões (tocar mostra os postos, do mais barato)
+: pn_fcard i>i f {
+  ? vverd jg f $"error" { "<div class=\"card fuel\"><div class=\"c-name\">" pv jg f $"name" 1 "</div><div class=\"c-sub\">" pv jg f $"error" 1 "</div></div>" 0 } {
+    = nm jg f $"name" = n jg f $"n"
+    "<button type=\"button\" class=\"card fuel\" data-fuel=\"" pv jg f $"id" 2 "\" aria-label=\"Ver os preços nos postos: " pv nm 1 "\"><div class=\"c-top\"><span class=\"c-name\">" pv nm 1
+    "</span></div><div class=\"f-avg num\">" pn_eur3 jg f $"median" "<span class=\"c-unit\">/L</span></div><div class=\"c-note\">mediana · média " pn_eur3 jg f $"avg"
+    "<br>" pn_nf n " postos · máx. " pn_eur3 jg f $"max" "</div>"
+    = ch jg f $"cheapest" = c0 ? == jtipo ch 6 jidx ch 0 0
+    ? vverd c0 {
+      "<div class=\"f-min\">Mais barato: <b class=\"num\">" pn_eur3 jg c0 $"price" "</b><br>"
+      = b jg c0 $"brand" = nn jg c0 $"name" ? vverd b pv b 1 0 ? && vverd b vverd nn " — " 0 ? vverd nn pv nn 1 0
+      = pl jg c0 $"place" ? vverd pl { "<br>" pv pl 1 0 } 0
+      "</div>" 0 } 0
+    "<div class=\"f-more\">Ver os " pn_nf n " postos ›</div></button>" 0 } }
+: pn_fuel >i ? ~ vverd sg $"proxy" 0 {
+  = mn sg $"mname" = dn sg $"dname" = fu sg $"fuel" = fl jg fu $"fuels" = ls ? == jtipo fl 6 fl 0 = e sg $"fuelErr"
+  "\n        <details class=\"an-f pn-f\" data-fold=\"pn-fuel\" " ? vverd sg $"foldFuel" "open" 0 "><summary><span class=\"f-t\">Combustíveis em "
+  ? vverd mn pv mn 1 ? vverd dn pv dn 1 "Portugal"
+  ? || ~ vverd fu ~ vverd fl {
+      "<small>" ? vverd e "Indisponível" "A carregar…" "</small></span></summary>"
+      ? vverd e { "<div class=\"empty\">Não deu para ler a DGEG: " pv e 1 "</div>" 0 } "<div class=\"empty\">A carregar os preços da DGEG…</div>" 0 } {
+      = c jprim ls = q 0
+      W c { ? && == jtipo c 7 ~ vverd jg c $"error" { ? q " · " "<small>" pv jg c $"name" 1 " " pn_eur3 jg c $"median" = q + q 1 } 0 = c jprox c }
+      ? q "</small>" 0
+      "</span></summary><div class=\"grid g3\" style=\"grid-template-columns:repeat(2,minmax(0,1fr))\">"
+      = c jprim ls W c { ? == jtipo c 7 pn_fcard c 0 = c jprox c }
+      "</div><p class=\"note\">Fonte: DGEG — Preços dos Combustíveis Online. Preço mediano por litro"
+      ? vverd mn { " no concelho de " pv mn 1 0 } ? vverd dn { " no distrito de " pv dn 1 0 } " em Portugal"
+      = u jg jidx ls 0 $"updated" ? vverd u { " · última atualização " pv u 1 0 } 0
+      ".</p>" 0 }
+  "</details>" 0 }
+
+# ===== o cartão Hoje: o resumo do Claude e o plano do mês =====
+: pn_advk i>i an { = ad jg an $"adv" ? vverd ad jg ad $"key" 0 }
+: pn_adva i>i an { = ad jg an $"adv" ? vverd ad jg ad $"action" 0 }
+# AN[k] && ['buy', 'scale'].includes(adv(k).key)
+: pn_compra i>i a { = an jg a $"an" = k pn_advk an && vverd an || veqt k $"buy" veqt k $"scale" }
+# O resumo automático do dia (o briefParts do JS), dos ativos analisados que se compram na TR (inv, pela ordem de
+# Object.keys(AN)): o que mais sobe e cai hoje, o plano do mês automático (o núcleo, os satélites e a cripto, pela
+# estratégia e pelo perfil) e o que evitar. Num bloco b (palavras):
+#   0 quantos em inv (sem eles, não há resumo)  1/2 sobem (ativos, quantos)  3/4 caem  5 linhas do plano  6 os ativos das
+#   linhas (0: só a chave, 19)  7 as frações (reais)  8 o tipo (0 núcleo, 1 satélite, 2 cripto)  9 os ativos de inv
+#   10/11 evitar (índices em 9, quantos)  12/13 as notas (sem satélites, sem cripto)  14 o orçamento (real)
+#   15 execuções por mês  16 o perfil (0 prud, 1 bal, 2 dyn)  17 ETF + cripto  18 a % da cripto (real)  19 as chaves
+: pn_breve i>i h {
+  = b A 24 = inv jg h $"inv" = n jn inv
+  ! b n
+  = ne jn jg h $"saveDays" ! + b 15 ? < ne 1 1 ne
+  = bb vnum jg h $"budget" !f + b 14 ? && == bb bb != bb 0. bb 0.
+  = cp vnum jg h $"cryptoPct" = cp ? && == cp cp != cp 0. cp 0. !f + b 18 cp
+  ? n {
+    = ia A + n 1 = m 0 = c jprim inv
+    W c { = a pn_ativo c ? a { ! + ia m a = m + m 1 0 } 0 = c jprox c }
+    ! + b 9 ia
+    # o que mais mexe hoje, pela variação do dia (a descer): sobem os 2 primeiros acima de +1%, caem os 2 últimos (do
+    # último para trás) abaixo de −1%
+    = mv A + m 1 = k1 A + m 1 = nv 0 = j 0
+    W < j m { = v jg @ + ia j $"chg" ? pn_fin v { ! + mv nv j !f + k1 j @f + v 1 = nv + nv 1 0 } 0 = j + j 1 }
+    ts_ordena mv nv k1 0 0
+    = up A 3 = nu 0 = j 0
+    W && < j 2 < j nv { = i @ + mv j ? > @f + k1 i 1. { ! + up nu @ + ia i = nu + nu 1 0 } 0 = j + j 1 }
+    = dw A 3 = nd 0 = j - nv 1
+    W && >= j 0 > j - nv 3 { = i @ + mv j ? < @f + k1 i -1. { ! + dw nd @ + ia i = nd + nd 1 0 } 0 = j - j 1 }
+    ! + b 1 up ! + b 2 nu ! + b 3 dw ! + b 4 nd
+    # o perfil (PROFILES): a parte dos satélites e a da cripto
+    = pf jg h $"profile" = pi ? veqt pf $"prud" 0 ? veqt pf $"dyn" 2 1 ! + b 16 pi
+    = qs ? == pi 0 0.1 ? == pi 2 0.3 0.2
+    = qc ? == pi 0 0. ? == pi 2 0.15 0.1
+    # o núcleo: os fundos com a pontuação longa (ou a média) de 50 ou mais, o VWCE primeiro, depois pela pontuação
+    = fw A + m 1 = fk A + m 1 = fp A + m 1 = nf 0 = j 0
+    W < j m { = a @ + ia j = l vnum jg jg a $"an" $"L"
+      ? && veqt jg a $"kind" $"fund" >= l 50. { ! + fw nf j !f + fk j ? veqt jg a $"k" $"VWCE.DE" 1. 0. !f + fp j l = nf + nf 1 0 } 0
+      = j + j 1 }
+    ts_ordena fw nf fk fp 2
+    = co ? nf @ + ia @ fw 0
+    # os satélites (sem a cripto e o núcleo, com sinal de compra): pelo desconto (os de comprar aos poucos) ou pela
+    # pontuação longa; os 2 primeiros
+    = sw A + m 1 = sk A + m 1 = ns 0 = j 0
+    W < j m { = a @ + ia j = an jg a $"an" = k pn_advk an
+      ? && && != a co ~ veqt jg a $"kind" $"crypto" || veqt k $"buy" veqt k $"scale" {
+          ! + sw ns j !f + sk j ? veqt k $"scale" vnum jg jg an $"d" $"score" vnum jg an $"L" = ns + ns 1 0 } 0
+      = j + j 1 }
+    ts_ordena sw ns sk 0 0
+    = ns ? > ns 2 2 ns
+    # a cripto com sinal de compra (o Bitcoin e o Ether)
+    = ck A 3 = ca A 3 = nc 0
+    = a pn_ativot $"c:BTC" ? && a pn_compra a { ! + ck nc $"c:BTC" ! + ca nc a = nc + nc 1 0 } 0
+    = a pn_ativot $"c:ETH" ? && a pn_compra a { ! + ck nc $"c:ETH" ! + ca nc a = nc + nc 1 0 } 0
+    # evitar por agora: os 4 com a pontuação longa mais baixa
+    = aw A + m 1 = ak A + m 1 = na 0 = j 0
+    W < j m { = an jg @ + ia j $"an" ? veqt pn_advk an $"avoid" { ! + aw na j !f + ak j vnum jg an $"L" = na + na 1 0 } 0 = j + j 1 }
+    ts_ordena aw na ak 0 1
+    ! + b 10 aw ! + b 11 ? > na 4 4 na
+    # as partes: satélites, cripto e o núcleo com o resto; ETF + cripto (fora do "mix"): o núcleo dos Ajustes e a cripto
+    # todos os meses, sem ações
+    = cs ? ns qs 0. = cc ? nc qc 0. = cr - - 1. cs cc
+    = etf ~ veqt jg h $"strategy" $"mix" ! + b 17 etf
+    ! + b 12 && && ~ etf == ns 0 != qs 0.
+    ! + b 13 && && ~ etf == nc 0 != qc 0.
+    ? etf {
+        = cf pn_ativo jg h $"coreFund" = co ? cf cf co
+        = ns 0 = cs 0.
+        ! ck $"c:BTC" ! ca pn_ativot $"c:BTC" = nc 1
+        ? veqt jg h $"cryptoMix" $"btceth" { ! + ck 1 $"c:ETH" ! + ca 1 pn_ativot $"c:ETH" = nc 2 } 0
+        = cc / cp 100. = cr - 1. cc
+        ? == cc 0. = nc 0 0 } 0
+    # as linhas do plano
+    = la A 6 = lk A 6 = lf A 6 = lt A 6 = nl 0
+    ? co { ! la co !f lf cr = nl 1 0 } 0
+    = j 0 W < j ns { ! + la nl @ + ia @ + sw j !f + lf nl / cs F ns ! + lt nl 1 = nl + nl 1 = j + j 1 }
+    = bt && veqt jg h $"cryptoMix" $"btceth" == nc 2
+    = j 0 W < j nc {
+      ! + la nl @ + ca j ! + lk nl @ + ck j ! + lt nl 2
+      !f + lf nl ? bt * cc ? tigual @ + ck j $"c:BTC" 0.7 0.3 / cc F nc
+      = nl + nl 1 = j + j 1 }
+    ! + b 5 nl ! + b 6 la ! + b 7 lf ! + b 8 lt ! + b 19 lk
+    0 } 0
+  b }
+# o valor da fração f do plano: em euros (o × f, sem casas) com o orçamento; sem ele, a percentagem (o Math.round)
+: pn_amt ff>i o f ? != o 0. peur0 * o f { pjn jround * f 100. P '% 0 }
+# a chave e o nome da linha i do plano (o ativo; sem ele, a chave)
+: pn_lchave ii>i b i { = a @ + @ + b 6 i ? a pv jg a $"k" 1 thtml @ + @ + b 19 i 0 }
+: pn_lnome ii>i b i { = a @ + @ + b 6 i ? a pv jg a $"name" 1 thtml @ + @ + b 19 i 0 }
+# … e o porquê: "núcleo · comprar", "satélite · …", "cripto · …" (com ETF + cripto: todos os meses, manter ≥ 1 ano)
+: pn_lporque ii>i b i {
+  = a @ + @ + b 6 i = t @ + @ + b 8 i
+  ? == t 0 "núcleo · " ? == t 1 "satélite · " "cripto · "
+  ? && == t 2 @ + b 17 "todos os meses, manter ≥ 1 ano" pn_min pn_adva jg a $"an" 0 }
+# o subtítulo do plano automático: a estratégia (ETF + cripto, as partes) ou o perfil, e o orçamento
+: pn_psub i>i b {
+  = cp @f + b 18
+  ? @ + b 17 { "ETF + cripto (" pjn - 100. cp "/" pjn cp ")" 0 } { = pi @ + b 16 "perfil " ? == pi 0 "prudente" ? == pi 2 "dinâmico" "equilibrado" 0 }
+  = o @f + b 14 ? != o 0. { " · " peur0 o "/mês" 0 } " · define o valor em Ajustes"
+  0 }
+# o plano do Claude (c.plan, se é uma lista com alguma coisa), ou 0
+: pn_cplan i>i c { = p jg c $"plan" ? && == jtipo p 6 jn p p 0 }
+# os valores da próxima execução (o execTxt do JS): os do plano do Claude (os que têm um valor em euros, a dividir pelas
+# execuções do mês) ou os do automático; com pr 0 só conta
+: pn_exa iiiii>i h b cp ne pr {
+  = q 0
+  ? cp {
+      = x jprim cp
+      W x { ? == jtipo x 7 { = e jg x $"eur" = v ? == jtipo e 4 / @f + e 1 F ne 0.
+          ? && finito v > v 0. { ? pr { ? q " + " 0 peur0 v " " pv jg x $"nm" 1 0 } 0 = q + q 1 } 0 } 0
+        = x jprox x } 0 }
+    { ? @ b {
+      = o / @f + b 14 F ne = nl @ + b 5 = i 0
+      W < i nl { ? pr { ? q " + " 0 pn_amt o @f + @ + b 7 i " " pn_lnome b i 0 } 0 = q + q 1 = i + i 1 } 0 } 0 }
+  q }
+# de onde vem o cartão, numa linha pequena: o Claude e a hora (atrasada: devia haver uma mais nova), ou o automático
+: pn_fonte ii>i h c ? vverd c {
+    "<small class=\"hj-src cl\"><b>Claude</b>" = w jg h $"when" ? vverd w { " · " pv w 1 0 } 0 ? vverd jg h $"old" " · atrasada" 0 "</small>" 0 }
+  { "<small class=\"hj-src\">Resumo automático"
+    ? ~ vverd jg h $"claudeOn" 0 ? vverd jg h $"off" " · análise do Claude em pausa" { " · a análise do Claude chega às " pv jg h $"horas" 1 0 }
+    "</small>" 0 }
+# o tamanho, em bytes, do espaço do \s do JS que começa no byte j do texto t (0 se não é um)
+: pn_esp ii>i t j {
+  = b tbyte t j
+  ? || && >= b 9 <= b 13 == b 32 1
+  ? && == b 194 == tbyte t + j 1 160 2
+  ? && == b 225 && == tbyte t + j 1 154 == tbyte t + j 2 128 3
+  ? == b 226 { = b1 tbyte t + j 1 = b2 tbyte t + j 2 ? && == b1 128 || || <= b2 138 == b2 168 || == b2 169 == b2 175 3 ? && == b1 129 == b2 159 3 0 }
+  ? && == b 227 && == tbyte t + j 1 128 == tbyte t + j 2 128 3
+  ? && == b 239 && == tbyte t + j 1 187 == tbyte t + j 2 191 3 0 }
+# uma mudança de linha (o que o . do JS não apanha: \n, \r, U+2028, U+2029) no byte j
+: pn_nl ii>i t j { = b tbyte t j ? || == b 10 == b 13 1 && == b 226 && == tbyte t + j 1 128 || == tbyte t + j 2 168 == tbyte t + j 2 169 }
+# uma linha do resumo do Claude: "Mercado: venda em tecnologia", com a etiqueta a negro — o /^([^:]{2,14}):\s*(.*)$/ do
+# JS sobre String(t): 2 a 14 unidades UTF-16 antes do 1.º ':', os espaços do \s a seguir e o resto sem mudanças de linha;
+# senão o texto todo (o esc(t): o null e o undefined vazios)
+: pn_tl i>i n {
+  = t tstr n = m tlen t
+  = j 0 = u 0
+  W && < j m != tbyte t j ': { = b tbyte t j ? != & b 192 128 = u + u ? >= b 240 2 1 0 = j + j 1 }
+  = ok && && < j m >= u 2 <= u 14
+  = k + j 1
+  ? ok {
+      W && < k m > pn_esp t k 0 = k + k pn_esp t k
+      = i k W && ok < i m { ? pn_nl t i = ok 0 0 = i + i 1 } 0 } 0
+  ? ok { "<b>" pn_esc t 0 j ":</b> " pn_esc t k m 0 } pv n 1 }
+# o que mexe hoje (sem o Claude): "Sobem: Allianz +6,80%, …" e "Caem: …"
+: pn_mexe i>i b {
+  = nu @ + b 2 = nd @ + b 4
+  "<p>"
+  ? nu { "Sobem: " = i 0 W < i nu { ? i ", " 0 = a @ + @ + b 1 i pv jg a $"name" 1 " <span class=\"up-t\">" fm_pctv jg a $"chg" "</span>" = i + i 1 } 0 } 0
+  ? && nu nd "<br>" 0
+  ? nd { "Caem: " = i 0 W < i nd { ? i ", " 0 = a @ + @ + b 3 i pv jg a $"name" 1 " <span class=\"down-t\">" fm_pctv jg a $"chg" "</span>" = i + i 1 } 0 } 0
+  "</p>" 0 }
+# o dia nos índices (o S&P 500, o Nasdaq, o Euro Stoxx 50 e o PSI, pela variação do dia) e o VIX
+: pn_temcab i>i h { = c jprim jg h $"ind" = r pn_fin jg h $"vix" W && c ~ r { = r pn_fin c = c jprox c } r }
+: pn_cab i>i h {
+  = c jprim jg h $"ind" = j 0 = q 0
+  W c {
+    ? pn_fin c { ? q " · " 0 ? == j 0 "S&P 500" ? == j 1 "Nasdaq" ? == j 2 "Euro Stoxx 50" "PSI"
+        " <span class=\"" ln_tom @f + c 1 "-t\">" fm_pct @f + c 1 "</span>" = q + q 1 } 0
+    = c jprox c = j + j 1 }
+  = v jg h $"vix"
+  ? pn_fin v { = x @f + v 1 ? q " · " 0 "VIX " pjn jround x ? > x 25. " (medo)" ? < x 16. " (calma)" 0 0 } 0
+  0 }
+# os itens do plano do Claude: o nome (o dele, ou o da app), o porquê e o valor; abre a ficha se é um ativo da app
+: pn_citens i>i p {
+  = x jprim p
+  W x {
+    ? == jtipo x 7 {
+        = r vverd jg x $"r" = nm jg x $"name" = wy jg x $"why" = am jg x $"amount"
+        ? r { "<button type=\"button\" data-open=\"" pv jg x $"s" 1 "\"" 0 } "<div"
+        " class=\"idea\"><span class=\"i-n\">" ? vverd nm pv nm 1 pv jg x $"nm" 1 "<small>" ? vverd wy pv wy 1 0 "</small></span><span class=\"i-t num\">" ? vverd am pv am 1 0 "</span>"
+        ? r "</button>" "</div>" 0 } 0
+    = x jprox x }
+  0 }
+# os itens do plano automático
+: pn_bitens i>i b {
+  = nl @ + b 5 = o @f + b 14 = i 0
+  W < i nl {
+    "<button type=\"button\" class=\"idea\" data-open=\"" pn_lchave b i "\"><span class=\"i-n\">" pn_lnome b i "<small>" pn_lporque b i "</small></span><span class=\"i-t num\">" pn_amt o @f + @ + b 7 i "</span></button>"
+    = i + i 1 }
+  0 }
+# a execução, por dentro: até quando se ajusta o plano, quantas há por mês e os lembretes no calendário
+: pn_exbox ii>i x ne {
+  = aj && ~ vverd jg x $"exec" ~ vverd jg x $"prazo"
+  "<div class=\"exec" ? vverd jg x $"prazo" " hot" 0 "\">"
+  ? || aj > ne 1 { "<div class=\"ex-t\">" ? aj { "Ajustar até <b>" pv jg x $"dl" 1 "</b>" 0 } 0 ? && aj > ne 1 " · " 0 ? > ne 1 { N ne " execuções por mês" 0 } 0 "</div>" 0 } 0
+  "<div class=\"ex-btns\"><button type=\"button\" class=\"btn sm\" data-act=\"ics\">Lembretes no calendário</button></div></div>" 0 }
+# fora do que tenho: as ideias de maior convicção do Claude (compras e vendas pela convicção média + longa; sem ela, as 6
+# primeiras), com o nome da app ou o de toda a TR (n) e o tipo (t) para a ficha
+: pn_pull i>f a {
+  = mi jg a $"mid" = lo jg a $"long" = k jg a $"key"
+  = s + ? pn_fin mi @f + mi 1 50. ? pn_fin lo @f + lo 1 50.
+  ? || veqt k $"buy" veqt k $"scale" s ? || veqt k $"sell" veqt k $"reduce" - 200. s -1. }
+: pn_outros i>i c {
+  = l jg c $"actions" = mi sg $"mine" = n jn l
+  = w A + n 1 = k1 A + n 1 = ws A + n 1 = nr 0 = fm 0
+  ? == jtipo l 6 { = x jprim l W x { ? && == jtipo x 7 ~ vtem mi jg x $"s" { ! + w nr x = nr + nr 1 ? pn_fin jg x $"mid" = fm 1 0 } 0 = x jprox x } 0 } 0
+  = m 0
+  ? fm {
+      = j 0 W < j nr { = p pn_pull @ + w j ? >= p 0. { ! + ws m j !f + k1 j p = m + m 1 0 } 0 = j + j 1 }
+      ts_ordena ws m k1 0 0 }
+    { = j 0 W < j nr { ! + ws j j = j + j 1 } = m nr }
+  = m ? > m 6 6 m
+  ? m {
+    "<div class=\"i-blk\"><div class=\"i-h\">Também a seguir</div>"
+    = j 0
+    W < j m {
+      = a @ + w @ + ws j = wy jg a $"why" = ac jg a $"action"
+      "<button type=\"button\" class=\"idea\" data-open=\"" pv jg a $"s" 1 "\" data-name=\"" pv jg a $"n" 1 "\" data-ut=\"" pv jg a $"t" 1 "\"><span class=\"i-n\">" pv jg a $"n" 1
+      "<small>" ? vverd wy pv wy 1 0 "</small></span><span class=\"i-t " pn_tom jg a $"key" "-t\">" ? vverd ac pv ac 1 0 "</span></button>"
+      = j + j 1 }
+    "</div>" 0 } 0 }
+# porque sobem ou descem: o motivo do Claude para os movimentos fortes (com a variação do dia, se é um ativo da app)
+: pn_porque i>i c {
+  = l jg c $"movers"
+  ? && == jtipo l 6 jn l {
+    "<div class=\"i-blk\"><div class=\"i-h\">Porque sobem ou descem</div>"
+    = x jprim l
+    W x {
+      ? == jtipo x 7 {
+          = r vverd jg x $"r" = v jg x $"chg"
+          ? r { "<button type=\"button\" data-open=\"" pv jg x $"s" 1 "\"" 0 } "<div"
+          " class=\"idea why\"><span class=\"i-n\">" pv jg x ? r $"nm" $"s" 1 "<small>" pv jg x $"why" 1 "</small></span>"
+          ? && r pn_fin v { "<span class=\"i-t " ln_tom @f + v 1 "-t num\">" fm_pct @f + v 1 "</span>" 0 } 0
+          ? r "</button>" "</div>" 0 } 0
+      = x jprox x }
+    "</div>" 0 } 0 }
+: pn_riscos i>i c {
+  = l jg c $"risks"
+  ? && == jtipo l 6 jn l {
+    "<div class=\"i-blk\"><div class=\"i-h\">Riscos a vigiar</div><ul class=\"dnotes\">"
+    = x jprim l W x { "<li>" pv x 1 "</li>" = x jprox x }
+    "</ul></div>" 0 } 0 }
+# a agenda dos próximos 14 dias (resultados, dividendos e os juros da Fed e do BCE; as datas, o JS)
+: pn_agenda i>i h {
+  = l jg h $"agenda"
+  ? && == jtipo l 6 jn l {
+    "<div class=\"i-blk\"><div class=\"i-h\">Agenda — próximos 14 dias</div>"
+    = x jprim l
+    W x {
+      ? == jtipo x 7 {
+          = k jg x $"k" = r vverd k
+          ? r { "<button type=\"button\" data-open=\"" pv k 1 "\"" 0 } "<div"
+          " class=\"idea\"><span class=\"i-n\">" pv jg x $"txt" 1 "</span><span class=\"i-t muted num\">" pv jg x $"quando" 1 "</span>" ? r "</button>" "</div>" 0 } 0
+      = x jprox x }
+    "</div>" 0 } 0 }
+# o cartão: no resumo (o que se vê fechado) o Hoje, de onde vem, as 3 linhas do Claude (sem elas, o título dele) e a próxima
+# execução com os valores; na dobra o resto
+: pn_hoje >i {
+  = h sg $"hoje" = c jg h $"cl" = cv vverd c = b pn_breve h = bv @ b
+  ? || cv bv {
+    = x jg h $"ex" = ne @ + b 15 = cp ? cv pn_cplan c 0
+    = tl ? cv jg c $"tldr" 0 = tv && == jtipo tl 6 jn tl
+    "\n        <details class=\"today\" data-fold=\"hoje\" " ? vverd sg $"foldHoje" "open" 0 "><summary><span class=\"hj-t\">Hoje"
+    pn_fonte h c "</span>"
+    ? cv {
+        "<span class=\"tldr\">"
+        ? tv { = l jprim tl W l { "<span class=\"tl\">" pn_tl l "</span>" = l jprox l } 0 } { "<span class=\"tl\">" pv jg c $"headline" 1 "</span>" 0 }
+        "</span>" 0 } 0
+    ? vverd x {
+        "<span class=\"hj-ex" ? vverd jg x $"prazo" " hot" 0 "\"><span class=\"ex-t\">"
+        ? vverd jg x $"exec" "Hoje executam os planos" ? vverd jg x $"prazo" "Hoje é o último dia para ajustar os planos" "Próxima execução"
+        ": <b>" pv jg x $"quando" 1 "</b></span>"
+        ? pn_exa h b cp ne 0 { "<span class=\"ex-a num\">" pn_exa h b cp ne 1 "</span>" 0 } 0
+        "</span>" 0 } 0
+    "</summary><div class=\"hj-in\">"
+    # o sentimento do mercado e o dia nos índices
+    = mo jg h $"mood" = mv && bv vverd mo = hv && bv pn_temcab h
+    ? || mv hv {
+        "<p class=\"t-mk\">"
+        ? mv { "<b class=\"" pv jg mo $"tone" 1 "-t\">" pv jg mo $"label" 1 "</b>" ? hv " · " 0 } 0
+        ? hv pn_cab h 0
+        "</p>" 0 } 0
+    # o Claude: o título (se as 3 linhas estão em cima) e o mercado; sem ele, a frase do sentimento e o que mexe
+    ? cv {
+        ? tv { "<div class=\"cl-head\">" pv jg c $"headline" 1 "</div>" 0 } 0
+        = mk jg c $"market" ? vverd mk { "<p>" pv mk 1 "</p>" 0 } 0 }
+      { ? mv { "<p class=\"muted\">" pv jg mo $"hint" 1 "</p>" 0 } 0 }
+    ? && ~ cv && bv || @ + b 2 @ + b 4 pn_mexe b 0
+    # o plano do mês: o do Claude; o automático só sem ele
+    "<div class=\"i-blk plan-blk\"><div class=\"i-h\">Plano do mês na Trade Republic<small>"
+    = pnt ? cv jg c $"planNote" 0 ? vverd pnt pv pnt 1 ? bv pn_psub b 0
+    "</small></div>"
+    ? cp pn_citens cp ? bv pn_bitens b 0
+    ? vverd x pn_exbox x ne 0
+    "</div>"
+    ? cv { pn_outros c pn_porque c pn_riscos c 0 } 0
+    pn_agenda h
+    ? bv {
+        ? @ + b 12 "<p class=\"note\">Sem ações em boa altura: a parte dos satélites fica no núcleo este mês.</p>" 0
+        ? @ + b 13 "<p class=\"note\">Cripto sem sinal de compra: essa parte fica no núcleo este mês.</p>" 0
+        = na @ + b 11
+        ? && ~ cv na { "<p class=\"note\">Evitar por agora: " = i 0 W < i na { ? i ", " 0 pv jg @ + @ + b 9 @ + @ + b 10 i $"name" 1 = i + i 1 } ".</p>" 0 } 0
+        0 } 0
+    "</div></details>" 0 } 0 }
+
+# ===== a vista =====
+: ecra_painel i>i s {
+  ! 53 s
+  pn_meus pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
+  0 }
