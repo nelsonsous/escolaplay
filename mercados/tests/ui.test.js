@@ -220,13 +220,19 @@ function proxyBody(u) {
     const firstSec = await page.locator('#mk-body .sec h2').first().textContent();
     assert.equal(firstSec, 'Os meus ativos', 'os meus ativos em primeiro');
     assert.equal(await page.locator('.sec:has(h2:text("Os meus ativos")) .row').count(), 5, 'VWCE + 4 cripto');
-    // "Hoje": a análise do Claude e o resumo num só cartão; análise nova → aberto
-    await page.waitForSelector('.today .cl-head', { timeout: 15000 });
-    assert.equal(await page.locator('details.today[open]').count(), 1, 'análise nova do Claude → aberto');
+    // "Hoje": a análise do Claude e o resumo num só cartão, compacto: as 3 linhas do Claude e a próxima execução à vista;
+    // o resto numa dobra, fechada até se tocar (como as outras linhas que abrem)
+    await page.waitForSelector('.today .tldr', { timeout: 15000 });
+    assert.equal(await page.locator('details.today[open]').count(), 0, 'compacto: fechado');
+    assert.ok(await page.locator('.today > summary .tldr').isVisible(), 'as 3 linhas do Claude à vista');
+    assert.match(await page.locator('.today > summary .hj-ex').textContent(), /^(Próxima execução|Hoje executam os planos|Hoje é o último dia para ajustar os planos): .+810\s€ FTSE All-World USD \(Acc\) \+ 90\s€ Bitcoin$/, 'e a próxima execução, com os valores');
     assert.equal(await page.locator('.claude, .brief, .ideas.cl').count(), 0, 'sem cartões repetidos');
     assert.match(await page.locator('.today > summary').textContent(), /Hoje/);
     assert.equal(await page.locator('.today .i-h:has-text("Plano do mês")').count(), 1, 'um só plano do mês');
-    await page.waitForSelector('.today .i-h:has-text("Agenda")');
+    assert.equal(await page.locator('.today .note').count(), 0, 'sem parágrafos a explicar no cartão');
+    await page.waitForSelector('.today .i-h:has-text("Agenda")', { state: 'attached' });
+    await page.click('.today > summary');
+    assert.equal(await page.locator('details.today[open]').count(), 1, 'abre ao tocar');
     assert.match(await page.locator('.today').textContent(), /Nvidia: apresenta resultados/);
     console.log('✓ agenda no Hoje:', (await page.locator('.today .i-blk:has-text("Agenda") .idea').allTextContents()).length, 'eventos');
     // fora do que tem: as ideias de maior convicção do Claude (compras e vendas)
@@ -238,30 +244,22 @@ function proxyBody(u) {
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ aviso de resultados no conselho');
     assert.match(await page.locator('.today').textContent(), /manter o plano no VWCE/);
-    assert.match(await page.locator('.today > summary').textContent(), /Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)/);
+    assert.match(await page.locator('.today > summary .hj-src').textContent(), /^Claude · (\d\d\/\d\d )?\d\d:\d\d( · atrasada)?$/, 'de onde vem: o Claude e a hora');
     assert.equal(await page.locator('.today .plan-blk .idea').count(), 2, 'plano do Claude');
     assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .badge').textContent(), /Esperar/, 'conselho do Claude no ativo');
     assert.equal(await page.locator('.sec:has(h2:text-is("Cripto"))').count(), 0, 'cripto que tenho não se repete');
     assert.equal(await page.locator('#mk-body h1.pg-t').textContent(), 'Painel');
     console.log('✓ Hoje: análise do Claude + plano | conselho nos meus ativos');
-    assert.equal(await page.locator('.today .tldr li').count(), 3, 'resumo em 3 linhas');
+    assert.equal(await page.locator('.today .tldr .tl').count(), 3, 'resumo em 3 linhas');
     assert.match(await page.locator('.today .tldr').textContent(), /Plano: manter 810/);
-    await page.waitForSelector('.sec:has(h2:text("Cripto hoje")) .cg');
-    const cgTxt = await page.locator('.sec:has(h2:text("Cripto hoje"))').textContent();
-    assert.match(cgTxt, /Medo e ganância\s*24\s*Medo extremo · ontem 30/);
-    assert.match(cgTxt, /Dominância do Bitcoin\s*58,4%/);
-    console.log('✓ resumo em 3 linhas e Cripto hoje (medo e ganância 24)');
+    assert.equal(await page.locator('.today .tldr .tl b').first().textContent(), 'Mercado:', 'a etiqueta de cada linha a negro');
+    // o Cripto hoje e o Agora estão nos Destaques (conferidos lá), não no Painel
+    assert.equal(await page.locator('#mk-body .sec:has(h2:text-is("Cripto hoje")), #mk-body .sec:has(h2:text-is("Agora")), #mk-body .cg, #mk-body .now-box').count(), 0, 'sem o Cripto hoje nem o Agora');
+    console.log('✓ resumo em 3 linhas; o Cripto hoje e o Agora fora do Painel');
     // ao vivo: cada preço da Binance entra no gráfico do dia
     const tail0 = await page.evaluate(() => { const s = window.__mk.Q['c:BTC'].series; return s[s.length - 1][0]; });
     await page.waitForFunction((t0) => { const s = window.__mk.Q['c:BTC'].series; return s[s.length - 1][0] > t0; }, tail0, { timeout: 15000 });
     console.log('✓ gráfico do dia recebe os preços ao vivo');
-    // Agora: pulso do mercado e o que mexe, com o porquê (notícia ou Claude)
-    await page.waitForSelector('.sec:has(h2:text("Agora")) .idea.why');
-    const nowTxt = await page.locator('.sec:has(h2:text("Agora"))').textContent();
-    assert.match(nowTxt, /S&P 500 [−+]/);
-    assert.match(nowTxt, /Tesla/, 'Tesla (−7,4%) aparece no que mexe');
-    assert.match(nowTxt, /resultados abaixo do esperado/, 'motivo do Claude para a Tesla');
-    console.log('✓ Agora: pulso do mercado e o que mexe com o porquê');
     assert.match(await page.locator('.today .i-blk:has-text("Porque sobem ou descem")').textContent(), /Tesla[\s\S]*resultados abaixo do esperado/, 'motivo do movimento no Hoje');
     // letra: texto principal ≥ 16 px e notas ≥ 12,5 px (no iPhone a base é 17 px, aqui é 16 px)
     const fsz = await page.evaluate(() => Object.fromEntries([['nome', '.row .r-name'], ['nota', '.note'], ['título', 'h1.pg-t'], ['secção', '.sec-h h2']].map(([n, q]) => [n, parseFloat(getComputedStyle(document.querySelector(q)).fontSize)])));
@@ -291,7 +289,12 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     // preço que não é ao vivo: mostra a hora (ou o dia) do último preço; a cripto ao vivo não
-    const tIdx = await page.locator('.sec:has(h2:text("Índices")) .row .r-t').first().textContent();
+    assert.deepEqual(await page.locator('#mk-body > details.pn-f > summary .f-t').evaluateAll((els) => els.map((e) => e.firstChild.textContent)), ['Índices, câmbio e ouro', 'Petróleo e energia', 'Combustíveis em Portugal'], 'no fim, fechados');
+    assert.equal(await page.locator('#mk-body > details.pn-f[open]').count(), 0, 'todos fechados');
+    assert.match(await page.locator('details[data-fold="pn-idx"] > summary small').textContent(), /^S&P 500 [−+]\d+,\d\d% · Nasdaq [−+]\d+,\d\d% · Euro Stoxx 50 [−+]\d+,\d\d%$/, 'uma linha de resumo');
+    assert.match(await page.locator('details[data-fold="pn-fuel"] > summary small').textContent(), /^Gasóleo simples 1,599\s€ · Gasolina simples 95 1,739\s€$/);
+    assert.equal(await page.evaluate(() => [...document.querySelectorAll('#mk-body .note, #mk-body p')].filter((e) => !e.closest('details')).length), 0, 'sem parágrafos a explicar');
+    const tIdx = await page.locator('details[data-fold="pn-idx"] .row .r-t').first().textContent();
     assert.match(tIdx, /^\d{1,2}:\d{2}$|^\d{1,2}\/\d{1,2}$|^ontem$/, 'hora do último preço: ' + tIdx);
     assert.equal(await page.locator('.row[data-key="c:BTC"] .r-t').count(), 0, 'cripto ao vivo sem hora');
     const nv = await page.locator('.row[data-key="NVDA"] .px').first().textContent();
@@ -504,23 +507,31 @@ function proxyBody(u) {
     await page.waitForTimeout(100);
     const g = await page.locator('#mk-sheet-card .grab').boundingBox();
     const tp = (y) => [{ x: g.x + g.width / 2, y }];
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(g.y + 2) });
-    for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(g.y + 2 + i * 25) });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    // um gesto: os pontos (y) e a hora de cada toque (ms desde o início), mandados ao Chromium com o timestamp deles
+    const puxa = async (ys, ms) => {
+        const t0 = Date.now() / 1000;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(ys[0]), timestamp: t0 });
+        for (let i = 1; i < ys.length; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(ys[i]), timestamp: t0 + ms[i] / 1000 });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [], timestamp: t0 + ms[ms.length - 1] / 1000 + 0.01 });
+    };
+    // longo (250 px em 300 ms): fecha
+    await puxa(Array.from({ length: 11 }, (_, i) => g.y + 2 + i * 25), Array.from({ length: 11 }, (_, i) => i * 30));
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
     console.log('✓ puxar para baixo fecha a folha');
-    // puxar pouco não fecha
+    // puxar pouco e devagar (38 px em 400 ms) não fecha
     await page.locator('.row[data-open="c:ETH"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden])');
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(g.y + 2) });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(g.y + 40) });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(300); // a folha acabou de abrir (a animação)
+    await puxa([g.y + 2, g.y + 40], [0, 400]);
     await page.waitForTimeout(400);
     assert.equal(await page.locator('#mk-sheet').isHidden(), false, 'puxão curto não fecha');
-    await page.click('[data-act="close"] >> nth=-1');
-    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    // … e um puxão curto mas rápido (38 px em 40 ms, como um gesto de fechar) fecha
+    await puxa([g.y + 2, g.y + 40], [0, 30]);
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
+    console.log('✓ puxão curto e devagar não fecha; curto e rápido fecha');
     // índice (referência): a leitura do Claude, sem conselho de compra nem impostos; o algoritmo fechado
     await page.click('#mk-nav [data-tab="painel"]');
+    await page.click('details[data-fold="pn-idx"] > summary');
     await page.locator('.row[data-open="^GSPC"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .cl-adv');
     assert.equal(await page.locator('#mk-sheet .cl-adv h3').textContent(), 'Leitura do Claude');
@@ -534,7 +545,7 @@ function proxyBody(u) {
 
     // arrastar uma linha para a esquerda → Retirar (com Desfazer e Repor)
     await page.click('#mk-nav [data-tab="painel"]');
-    const idxSel = '.sec:has(h2:text("Índices")) .sw-wrap';
+    const idxSel = 'details[data-fold="pn-idx"][open] .sw-wrap';
     const nIdx = await page.locator(idxSel).count();
     const swipeLeft = async (sel) => {
         const b = await page.locator(sel).first().boundingBox();
@@ -556,7 +567,7 @@ function proxyBody(u) {
     assert.equal(await page.locator(idxSel).count(), nIdx, 'desfazer repõe');
     await swipeLeft(idxSel); await page.locator(idxSel + '.open .sw-del').click();
     assert.ok(await page.evaluate((k) => window.__mk.cfg.hidden.includes(k), firstIdx));
-    await page.click('.sec:has(h2:text("Índices")) [data-unhide="index"]');
+    await page.click('details[data-fold="pn-idx"] [data-unhide="index"]');
     assert.equal(await page.locator(idxSel).count(), nIdx, 'Repor traz de volta');
     console.log('✓ arrastar para a esquerda: retirar, desfazer e repor (' + firstIdx + ')');
 
@@ -626,7 +637,7 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.click('[data-sday="16"]');
     await page.click('#mk-nav [data-tab="painel"]');
-    const exTxt = await page.locator('.today .exec .ex-a').textContent();
+    const exTxt = await page.locator('.today > summary .hj-ex .ex-a').textContent();
     const ex = [...exTxt.matchAll(/(\d[\d\s\u00a0\u202f]*)\s*€/g)].map((m) => m[0].trim());
     const exTot = ex.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(exTot - 450) <= 3, 'execução = 450 €: ' + ex.join(' + '));
@@ -733,7 +744,7 @@ function proxyBody(u) {
     const wSpark = await page.evaluate(() => Math.round(document.querySelector('.row.wide canvas.spark').getBoundingClientRect().width));
     assert.equal(wSpark, 84, 'gráfico à direita, 84 px: ' + wSpark);
     assert.doesNotMatch(await page.locator('.sec:has(h2:text("Os meus ativos"))').textContent(), /24 h|Acc · sem dividendos/, 'sem texto que não interessa');
-    assert.equal(await page.locator('.sec:has(h2:text("Índices")) .row .r-sub').count(), 0, 'listas só com nome, preço e variação');
+    assert.equal(await page.locator('details[data-fold="pn-idx"] .row .r-sub').count(), 0, 'listas só com nome, preço e variação');
 
     // migração: as portuguesas da lista antiga saem; as que o utilizador juntou ficam
     await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('mercados:v1')); c.watch = ['EDP.LS', 'NVDA', 'EGL.LS']; delete c.watchVer; localStorage.setItem('mercados:v1', JSON.stringify(c)); });
@@ -743,8 +754,8 @@ function proxyBody(u) {
     await page.reload();
     await page.waitForFunction(() => window.__mk && window.__mk.cfg.watchVer === 3);
     await page.waitForSelector('.today .cl-head', { state: 'attached' });
-    assert.equal(await page.locator('details.today[open]').count(), 0, 'análise já lida → condensada');
-    assert.match(await page.locator('.today .teaser').textContent(), /Plano: manter 810/, 'condensado mostra o resumo em 3 linhas');
+    assert.equal(await page.locator('details.today[open]').count(), 0, 'ao abrir a app: compacto');
+    assert.match(await page.locator('.today > summary .tldr').textContent(), /Plano: manter 810/, 'compacto mostra o resumo em 3 linhas');
     if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, '7-painel-condensado.png') }); }
     // tocar para abrir funciona mesmo com o ecrã a atualizar logo a seguir (preços ao vivo)
     await page.evaluate(() => { document.querySelector('.today > summary').click(); window.__mk.render(); });
@@ -802,9 +813,10 @@ function proxyBody(u) {
     await page.selectOption('#f-mun', '1316');
     await fuelReq;
     await page.click('#mk-nav [data-tab="painel"]');
-    await page.waitForSelector('h2:text("Combustíveis em Santo Tirso")');
+    await page.waitForSelector('details[data-fold="pn-fuel"] > summary:has-text("Combustíveis em Santo Tirso")');
     console.log('✓ combustíveis no concelho de Santo Tirso');
     // tocar no combustível → lista de postos, do mais barato
+    await page.click('details[data-fold="pn-fuel"] > summary');
     await page.click('button.card.fuel[data-fuel="3201"]');
     await page.waitForSelector('.fu-list .st-row');
     assert.equal(await page.locator('.fu-list .st-row').count(), 3);
@@ -917,9 +929,9 @@ function proxyBody(u) {
     assert.equal(claudePosts.at(-1).claude, true);
     assert.ok(claudePosts.at(-1).my.includes('VWCE.DE'), 'envia a lista desta app');
     await page.click('#mk-nav [data-tab="painel"]');
-    await page.waitForSelector('.today .cl-head');
+    await page.waitForSelector('.today .cl-head', { state: 'attached' });
     assert.equal(await page.locator('.today .cl-head').textContent(), 'Só os teus ativos');
-    assert.equal(await page.locator('.today .tldr li').count(), 3);
+    assert.equal(await page.locator('.today .tldr .tl').count(), 3);
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.click('[data-claude="0"]');
     assert.equal(claudePosts.at(-1).claude, false);
