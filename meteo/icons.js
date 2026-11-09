@@ -1,16 +1,32 @@
 // Ícones da app: tempo (SVG 64×64, cores por variáveis CSS para o tema) e interface (24×24, traço).
 import { wxGroup } from './format.js';
 
+// ---------- degradês (uma vez no documento: os ícones e os gráficos usam url(#wxg-…)) ----------
+const DEFS = `<svg id="wx-defs" aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden"><defs>
+<radialGradient id="wxg-sun" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#fff3a6"/><stop offset=".45" stop-color="#ffd23f"/><stop offset="1" stop-color="#ff9f1c"/></radialGradient>
+<radialGradient id="wxg-glow"><stop offset="0" stop-color="#ffc531" stop-opacity=".55"/><stop offset="1" stop-color="#ffc531" stop-opacity="0"/></radialGradient>
+<linearGradient id="wxg-moon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c2e3"/></linearGradient>
+<linearGradient id="wxg-cloud" gradientUnits="userSpaceOnUse" x1="0" y1="17" x2="0" y2="48"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c6d0de"/></linearGradient>
+<linearGradient id="wxg-cloud2" gradientUnits="userSpaceOnUse" x1="0" y1="17" x2="0" y2="48"><stop offset="0" stop-color="#b4bfcf"/><stop offset="1" stop-color="#6f7b8d"/></linearGradient>
+<linearGradient id="wxg-drop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd3ff"/><stop offset="1" stop-color="#2e7cf6"/></linearGradient>
+<linearGradient id="wxg-bolt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff07a"/><stop offset="1" stop-color="#ff9a1a"/></linearGradient>
+</defs></svg>`;
+if (typeof document !== 'undefined' && !document.getElementById('wx-defs')) (document.body || document.documentElement).insertAdjacentHTML('afterbegin', DEFS);
+
 // ---------- peças ----------
-const cloud = (tx = 0, ty = 0, s = 1, fill = 'var(--wx-cloud)') =>
-  `<g class="wx-cloud"><g transform="translate(${tx} ${ty}) scale(${s})" fill="${fill}"><circle cx="24" cy="36" r="10"/><circle cx="36" cy="30" r="13"/><circle cx="46" cy="38" r="8"/><rect x="14" y="36" width="40" height="12" rx="6"/></g></g>`;
+// nuvem: uma só forma (sem costuras), com volume (degradê) e uma sombra suave por baixo; escura nas trovoadas
+const CLOUD_D = 'M20 48a10 10 0 0 1-2.2-19.76A13 13 0 0 1 43.6 27a9.5 9.5 0 0 1 4.4 17.9A6 6 0 0 1 46 48z';
+const cloud = (tx = 0, ty = 0, s = 1, fill = 'var(--wx-cloud)') => {
+  const dark = fill === 'var(--wx-cloud-2)';
+  return `<g class="wx-cloud"><g transform="translate(${tx} ${ty}) scale(${s})"><path d="${CLOUD_D}" transform="translate(0 1.6)" fill="#000" opacity=".22"/><path d="${CLOUD_D}" fill="url(#wxg-${dark ? 'cloud2' : 'cloud'})"/></g></g>`;
+};
 
 function sun(cx, cy, r, rays = true) {
   const o = `style="transform-origin:${cx}px ${cy}px"`; // as animações (rodar, pulsar) são à volta do centro do sol
-  let s = `<circle class="wx-sun" ${o} cx="${cx}" cy="${cy}" r="${r}" fill="var(--wx-sun)"/>`;
+  let s = `<circle cx="${cx}" cy="${cy}" r="${(r * 1.9).toFixed(1)}" fill="url(#wxg-glow)"/><circle class="wx-sun" ${o} cx="${cx}" cy="${cy}" r="${r}" fill="url(#wxg-sun)"/>`;
   if (rays) {
     const r1 = r + 4.5, r2 = r + 9;
-    s += `<g class="wx-rays" ${o} stroke="var(--wx-sun)" stroke-width="3" stroke-linecap="round">`;
+    s += `<g class="wx-rays" ${o} stroke="#ffb52e" stroke-width="3" stroke-linecap="round">`;
     for (let k = 0; k < 8; k++) {
       const a = (k * Math.PI) / 4;
       const c = Math.cos(a), si = Math.sin(a);
@@ -22,12 +38,13 @@ function sun(cx, cy, r, rays = true) {
 }
 // crescente: círculo (32,32) r15 menos círculo (40,25) r13
 const moon = (tx = 0, ty = 0, s = 1) =>
-  `<g class="wx-moon"><path transform="translate(${tx} ${ty}) scale(${s})" fill="var(--wx-moon)" d="M29.6 17.19A15 15 0 1 0 46.36 36.34A13 13 0 0 1 29.6 17.19Z"/></g>`;
+  `<g class="wx-moon"><path transform="translate(${tx} ${ty}) scale(${s})" fill="url(#wxg-moon)" d="M29.6 17.19A15 15 0 1 0 46.36 36.34A13 13 0 0 1 29.6 17.19Z"/><circle transform="translate(${tx} ${ty}) scale(${s})" cx="25" cy="37" r="2.6" fill="#a9b2d6" opacity=".5"/><circle transform="translate(${tx} ${ty}) scale(${s})" cx="32" cy="41.5" r="1.6" fill="#a9b2d6" opacity=".45"/></g>`;
 
 function drops(n, y0 = 46) {
   const xs = n === 1 ? [32] : n === 2 ? [26, 38] : [22, 32, 42];
-  return `<g stroke="var(--wx-rain)" stroke-width="3" stroke-linecap="round">${xs
-    .map((x, i) => `<line class="wx-drop" style="--i:${i}" x1="${x}" y1="${y0}" x2="${x - 3}" y2="${y0 + 10}"/>`)
+  // gotas em forma de lágrima, um pouco inclinadas (o grupo de fora é o que a animação mexe)
+  return `<g fill="url(#wxg-drop)">${xs
+    .map((x, i) => `<g class="wx-drop" style="--i:${i}"><path transform="translate(${x - 1} ${y0 - 1}) rotate(16) scale(1.3)" d="M0 0C1.9 3.1 3.4 5.2 3.4 7a3.4 3.4 0 0 1-6.8 0C-3.4 5.2-1.9 3.1 0 0z"/></g>`)
     .join('')}</g>`;
 }
 const drizzle = (y0 = 48) =>
@@ -44,7 +61,7 @@ function flake(x, y, r = 4) {
 const flakes = (y0 = 50) =>
   `<g stroke="var(--wx-snow)" stroke-width="2.2" stroke-linecap="round">${[[22, y0], [34, y0 + 6], [44, y0 - 1]].map(([x, y], i) => `<g class="wx-flake" style="--i:${i}">${flake(x, y)}</g>`).join('')}</g>`;
 const ice = (y0 = 56) => `<g fill="var(--wx-snow)"><circle class="wx-hail" style="--i:0" cx="20" cy="${y0}" r="2.2"/><circle class="wx-hail" style="--i:1" cx="44" cy="${y0 - 3}" r="2.2"/></g>`;
-const bolt = `<path class="wx-bolt" fill="var(--wx-bolt)" d="M34 41l-9 12h7l-3 10 11-14h-7l4-8z"/>`;
+const bolt = `<path class="wx-bolt" fill="url(#wxg-bolt)" stroke="#ffb020" stroke-width=".8" stroke-linejoin="round" d="M34 41l-9 12h7l-3 10 11-14h-7l4-8z"/>`;
 const hail = `<g fill="var(--wx-snow)"><circle class="wx-hail" style="--i:0" cx="20" cy="52" r="2.4"/><circle class="wx-hail" style="--i:1" cx="46" cy="54" r="2.4"/><circle class="wx-hail" style="--i:2" cx="24" cy="60" r="2.4"/></g>`;
 const fog = `<g stroke="var(--wx-fog)" stroke-width="3.2" stroke-linecap="round"><line class="wx-fogl" style="--i:0" x1="12" y1="46" x2="52" y2="46"/><line class="wx-fogl" style="--i:1" x1="16" y1="53" x2="48" y2="53"/><line class="wx-fogl" style="--i:2" x1="22" y1="60" x2="44" y2="60"/></g>`;
 
