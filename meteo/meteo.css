@@ -605,3 +605,7 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 @keyframes wx-fog { from { transform: translateX(-3px); } to { transform: translateX(3px); } }
 /* sem movimento (preferência do sistema ou Ajustes → Animações: Não): o céu não se mostra e os ícones ficam parados */
 @media (prefers-reduced-motion: reduce) { .sky { display: none; } }
+/* gráfico da chuva das próximas 2 horas em Onda (chuva.js): o canvas por baixo, o SVG (base, horas, mm) por cima */
+.nc-wrap { position: relative; margin-top: 4px; }
+.nc-wrap .nc-cv { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 320 / 88; display: block; pointer-events: none; }
+.nc-wrap .nowcast-svg { position: relative; margin-top: 0; }

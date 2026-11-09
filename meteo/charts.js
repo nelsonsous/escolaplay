@@ -1,6 +1,7 @@
 // Gráficos SVG da app (sem bibliotecas).
 // 72 h = três pequenos múltiplos com o mesmo eixo do tempo (temperatura, chuva, vento):
 // cada um com a sua escala — nunca dois eixos y no mesmo painel.
+import { rainField, ondaOk } from './chuva.js';
 import { isNum, num, parts, wdShort, cap, compass, hhmm, deg, mm, kmh, pct } from './format.js';
 import { weatherIconInner } from './icons.js';
 
@@ -298,10 +299,13 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
 
 // ---------------------------------------------------------------------------
 /** Próximas 2 horas: 8 barras de 15 min (uma série, sem legenda). */
-export function renderNowcast(root, nowcast) {
+// onda: as barras saem do campo da Onda (chuva.js: água que enche e chuva a cair) num canvas por baixo do SVG, que fica
+// com a linha de base, as horas e o valor máximo; sem Onda (ou com as animações desligadas), barras SVG paradas.
+export function renderNowcast(root, nowcast, { onda = false } = {}) {
   const steps = (nowcast?.steps || []).slice(0, 8);
   root.textContent = '';
   if (!steps.length) return;
+  const live = onda && ondaOk();
   const Wv = 320, base = 62, top = 16;
   const max = Math.max(0, ...steps.map((s) => s.precip || 0));
   const pTop = max > 0 ? niceCeil(max, [0.5, 1, 2, 5, 10, 20, 50]) : 1;
@@ -313,7 +317,7 @@ export function renderNowcast(root, nowcast) {
     const cx = slot * i + slot / 2;
     if (p > 0) {
       const hh = Math.max(2, (p / pTop) * (base - top));
-      s += `<path class="bar nc" d="${barPath(cx - bw / 2, base - hh, bw, hh)}"><title>${esc(`${hhmm(st.time)} · ${mm(p)}`)}</title></path>`;
+      if (!live) s += `<path class="bar nc" d="${barPath(cx - bw / 2, base - hh, bw, hh)}"><title>${esc(`${hhmm(st.time)} · ${mm(p)}`)}</title></path>`;
       if (iMax < 0 || p > steps[iMax].precip) iMax = i;
     } else {
       s += `<line class="nc-zero" x1="${f(cx - bw / 2)}" x2="${f(cx + bw / 2)}" y1="${base}" y2="${base}"/>`;
@@ -325,6 +329,9 @@ export function renderNowcast(root, nowcast) {
     s += `<text class="lbl" x="${f(cx)}" y="${f(base - hh - 6)}" text-anchor="middle">${esc(mm(steps[iMax].precip))}</text>`;
   }
   const label = steps.map((st) => `${hhmm(st.time)} ${mm(st.precip || 0)}`).join(', ');
-  root.innerHTML = `<svg class="nowcast-svg" viewBox="0 0 ${Wv} ${base + 26}" role="img" aria-label="${esc('Chuva prevista a cada 15 minutos: ' + label)}">${s}</svg>`;
+  const svg = `<svg class="nowcast-svg" viewBox="0 0 ${Wv} ${base + 26}" role="img" aria-label="${esc('Chuva prevista a cada 15 minutos: ' + label)}">${s}</svg>`;
+  if (!live) { root.innerHTML = svg; return; }
+  root.innerHTML = `<div class="nc-wrap"><canvas class="nc-cv" aria-hidden="true"></canvas>${svg}</div>`;
+  rainField(root.querySelector('.nc-cv'), steps.map((st) => st.precip || 0), pTop);
 }
 

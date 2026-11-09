@@ -1,0 +1,90 @@
+# Grafico da chuva das proximas 2 horas da Meteo, como CAMPO da Onda (como o prototipo da Mercados): cada pixel e uma
+# funcao (x, y, estado) calculada em WebAssembly. As barras enchem-se como agua, com a superficie a ondular, e a chuva
+# cai la para dentro: mais gotas e mais depressa quanto mais chove. A casca (meteo/chuva.js) passa os valores, chama
+# cpasso e cdesenha em cada imagem e copia os pixeis; os textos (horas, mm) ficam num SVG por cima.
+#
+# Monta-se com: node meteo/onda/build.mjs
+# Medidas como o SVG antigo (viewBox 320 x 88): linha de base em y = 62, topo das barras em y = 16, sc = w / 320.
+# Um pixel vale R + G*256 + B*65536 + A*2^24 (a ordem dos bytes de um ImageData); A = 0 e transparente.
+
+# ---------- utilitarios ----------
+: lim fff>f x a b Mx a Mn b x
+: rgba ffff>i r g b a + + + I * 255.0 lim r 0.0 1.0 * 256 I * 255.0 lim g 0.0 1.0 * 65536 I * 255.0 lim b 0.0 1.0 * 16777216 I * 255.0 lim a 0.0 1.0
+: frac f>f x - x Fl x
+
+# ---------- estado ----------
+# c (palavras): 0 n passos | 1 alvo (mm em cada 15 min) | 2 mostrado | 3 topo da escala (mm, real) | 4 tempo (s, real) |
+# 5 pixeis | 6 capacidade de pixeis | 7 capacidade de passos
+: cnovo i>i cap { = c A 8 ! + c 1 A cap ! + c 2 A cap ! + c 7 cap !f + c 3 1.0 !f + c 4 0.0 c }
+: calvo i>i c @ + c 1
+# a serie nova (n passos, topo da escala): as barras crescem a partir do que mostravam
+: cfixa iif>i c n top { ! c n !f + c 3 top n }
+# um passo de animacao (dt em ms): o mostrado aproxima-se do alvo e o tempo anda
+: cpasso if>i c dt {
+  = n @ c = a @ + c 1 = s @ + c 2 = i 0
+  = k lim / dt 260.0 0.0 1.0
+  W < i n { = v @f + s i !f + s i + v * - @f + a i v k = i + i 1 }
+  !f + c 4 + @f + c 4 / dt 1000.0
+  n }
+
+# ---------- o pixel i de um grafico w x h ----------
+: cpx iiii>i i c w h {
+  = n @ c
+  ? < n 1 0 {
+    = x + F % i w 0.5
+    = y + F / i w 0.5
+    = sc / F w 320.0
+    = base * 62.0 sc
+    = ytop * 16.0 sc
+    = slot / F w F n
+    = k Mn - n 1 Mx 0 I Fl / x slot
+    = cx * slot + F k 0.5
+    = hb * 0.5 * Mn 24.0 - / slot sc 14.0 sc
+    = dx - x cx
+    = v @f + @ + c 2 k
+    = t @f + c 4
+    = mag lim / v @f + c 3 0.0 1.0
+    ? || <= v 0.0005 > Ab dx + hb sc 0 {
+      # a superficie da agua ondula (mais com mais chuva)
+      = hh Mx * 2.0 sc * mag - base ytop
+      = ys + - base hh * * Sn + * x / 0.55 sc * t 3.2 * 0.9 sc + 0.25 mag
+      # dentro da barra (bordos suaves)
+      = ax lim - + hb 0.5 Ab dx 0.0 1.0
+      = ay lim + - y ys 0.5 0.0 1.0
+      = dentro * * ax ay lim + - base y 0.5 0.0 1.0
+      # chuva que cai: pistas inclinadas; mais depressa e mais densa com mais chuva
+      = sp + 1.1 * 2.6 mag
+      = xl + x * 0.16 y
+      = pw * 4.2 sc
+      = li Fl / xl pw
+      = lx * + li 0.5 pw
+      = hs / F % + * I li 37 * k 11 101 101.0
+      = ph frac + - / y * 13.0 sc * t sp hs
+      = traco * lim - * 0.9 sc Ab - xl lx 0.0 1.0 lim / - + 0.06 * 0.30 Sq mag ph 0.05 0.0 1.0
+      # acima da superficie: as gotas a cair (aparecem a meio caminho e vao ganhando forca)
+      = cai * * traco lim / - y * 0.15 ys * 0.85 ys 0.0 1.0 lim - ys y 0.0 1.0
+      = acima * * + 0.40 * 0.50 mag cai - 1.0 dentro
+      # dentro: o azul da agua, mais claro em cima, com as gotas a mexer e um brilho na superficie
+      = fu lim / - y ys Mx 1.0 hh 0.0 1.0
+      = ph2 frac + - / y * 8.0 sc * t * 1.35 sp hs
+      = risca * * 0.16 lim - * 0.8 sc Ab - xl lx 0.0 1.0 lim / - 0.22 ph2 0.04 0.0 1.0
+      = brilho * 0.35 lim - 1.0 / - y ys * 1.6 sc 0.0 1.0
+      = r + + - 0.52 * 0.27 fu risca brilho
+      = g + + - 0.74 * 0.22 fu risca brilho
+      = b + + 1.0 risca brilho
+      # junta as duas camadas (a agua por cima das gotas)
+      = a Mx * dentro 0.96 acima
+      ? <= a 0.004 0 {
+        = wa / * dentro 0.96 a
+        = r + * r wa * - 1.0 wa 0.62
+        = g + * g wa * - 1.0 wa 0.80
+        = b + * b wa * - 1.0 wa 1.0
+        rgba r g b a } } } }
+: cdesenha iii>i c w h {
+  = np * w h
+  ? > np @ + c 6 { ! + c 5 A np ! + c 6 np } 0
+  E @ + c 5 np cpx c w h }
+
+# ---------- arranque: a casca le este endereco ----------
+: chuva >i @ 0
+: main >i { ! 0 cnovo 16 0 }
