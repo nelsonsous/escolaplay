@@ -73,7 +73,7 @@ de cima, com o estado dentro da Onda.
 | `onda/molde/` | o ponto de partida de uma app nova | 143 linhas de Onda, módulo de 45 KB |
 | `mercados/onda/` | a análise e os quatro separadores da Mercados | 2 827 linhas, módulo de 327 KB |
 | `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 948 linhas, módulo de 363 KB |
-| `mercados/proto/` | gráficos vivos e o mapa do mercado | 265 linhas, módulo de 27 KB |
+| `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
 | `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
 
 ## Estado de cada app
