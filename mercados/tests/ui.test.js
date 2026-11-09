@@ -273,6 +273,8 @@ function proxyBody(u) {
     // ficha do VWCE: gráfico do dia = o do Painel (Munique), e no mês o "no período" bate com o número de cima
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
+    // a ficha refaz o HTML quando chega a análise: espera pela dica do desenho novo
+    await page.waitForFunction(() => document.querySelector('#d-tip') && document.querySelector('#d-tip').textContent.length > 0);
     assert.match(await page.locator('#d-tip').textContent(), /Último preço (de ontem )?às \d\d:\d\d/, 'ficha: hora do último preço');
     // gráfico do dia dos fundos: Xetra (denso) + Munique depois do fecho da Xetra
     const md = await page.evaluate(() => { const t0 = Math.floor(new Date().setHours(9, 0, 0, 0) / 1000); const x = Array.from({ length: 10 }, (_, i) => [t0 + i * 300, 160 + i]); const g = [[t0 + 600, 161], [t0 + 9 * 3600, 170], [t0 + 12 * 3600, 171]]; return window.__mk.mergeDay(x, g).map((p) => p[1]); });
@@ -476,6 +478,8 @@ function proxyBody(u) {
     await page.waitForFunction(() => { const c = document.querySelector('#d-cv'); return c && c.width > 0 && document.querySelector('#d-load').hidden; });
     const inked = await page.evaluate(() => { const c = document.querySelector('#d-cv'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
     assert.ok(inked > 500, 'gráfico desenhado');
+    assert.equal(await page.evaluate(() => !!(window.GraficoOnda && GraficoOnda.ok)), true, 'gráfico vivo (Onda)');
+    await page.waitForFunction(() => GraficoOnda.animando, null, { timeout: 5000 }); // os preços da Binance mexem-no
     assert.equal(await page.locator('.news a[href^="javascript"]').count(), 0, 'links javascript: bloqueados');
     assert.equal(await page.locator('.news img').count(), 0, 'HTML das notícias escapado');
     assert.ok(await page.locator('.box:has-text("Análise técnica") .reasons li').count() >= 4);
@@ -500,6 +504,8 @@ function proxyBody(u) {
     await page.click('.ranges [data-range="6mo"]');
     await page.waitForFunction(() => document.querySelector('#d-load').hidden);
     assert.match(await page.locator('#d-px .alt').textContent(), /6 meses/, 'variação do período escolhido');
+    await page.waitForFunction(() => !GraficoOnda.animando, null, { timeout: 5000 });
+    console.log('✓ gráfico vivo: anima com os preços e pára quando assenta');
 
     // puxar para baixo fecha a folha
     const cdp = await ctx.newCDPSession(page);

@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.9.1';
+    const VERSION = '4.10.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1545,7 +1545,7 @@
             <p class="note">Toca num posto para o abrir no Mapas. Preços comunicados pelos postos à DGEG${f && f.updated ? ' · última atualização ' + esc(f.updated) : ''}.</p>`;
     }
     function closeSheet(animated) {
-        const done = () => { $('#mk-sheet').hidden = true; document.body.style.overflow = ''; sheetKey = null; scheduleRender(); };
+        const done = () => { $('#mk-sheet').hidden = true; document.body.style.overflow = ''; sheetKey = null; if (window.GraficoOnda) GraficoOnda.parar(); scheduleRender(); };
         if (!animated) { done(); return; }
         const c = $('#mk-sheet-card');
         c.style.transition = 'transform .22s ease-in'; c.style.transform = 'translateY(105%)';
@@ -1634,6 +1634,48 @@
         }
         drawSheetChart();
     }
+    // ---------- o gráfico vivo da ficha (grafico-onda.js: cada píxel calculado pela Onda) ----------
+    // A série vai igualmente espaçada: por ordem (períodos longos) ou reamostrada no tempo (1D e menos). A Onda desenha a
+    // linha, o enchimento, a referência e o último preço, e só anima enquanto há mudança; por cima, aqui, as etiquetas
+    // do máximo e do mínimo e o dedo.
+    let vivaSig = '', vivaCores = false;
+    function amostra(pts, byIdx) {
+        const n0 = pts.length;
+        const t0 = pts[0][0], t1 = pts[n0 - 1][0];
+        if (byIdx || !(t1 > t0)) return Float64Array.from(pts, (p) => p[1]);
+        const N = 480, out = new Float64Array(N);
+        for (let j = 0, k = 0; j < N; j++) {
+            const t = t0 + (t1 - t0) * j / (N - 1);
+            while (k < n0 - 2 && pts[k + 1][0] < t) k++;
+            const a = pts[k], b = pts[k + 1], f = b[0] > a[0] ? Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0]))) : 1;
+            out[j] = a[1] + (b[1] - a[1]) * f;
+        }
+        return out;
+    }
+    function desenhaViva(viva, cv, pts, o) {
+        if (!vivaCores) { viva.cores({ sobe: COL.up, desce: COL.down, parado: COL.flat, ref: COL.muted, ponto: COL.text }); vivaCores = true; }
+        const sig = sheetKey + '|' + sheetRange;
+        viva.serie(amostra(pts, o.byIdx), { novo: sig !== vivaSig, base: fin(o.base) ? o.base : 0, tom: o.tone === 'up' ? 1 : o.tone === 'down' ? -1 : 0, vivo: true });
+        vivaSig = sig;
+        const n = pts.length, t0 = pts[0][0], t1 = pts[n - 1][0], porT = !o.byIdx && t1 > t0;
+        const geo = viva.geo();
+        const X = (i) => (porT ? (pts[i][0] - t0) / (t1 - t0) : i / (n - 1)) * geo.xr;
+        const Y = (v, gg = viva.geo()) => gg.topo + (gg.hi - v) / Math.max(1e-12, gg.hi - gg.lo) * gg.alt;
+        sheetDraw = { X, Y, w: geo.w, h: geo.h };
+        const vals = pts.map((p) => p[1]), mx = Math.max(...vals), mn = Math.min(...vals), a = REG[sheetKey], cur = o.q.currency, hv = o.hover, tone = o.tone;
+        viva.sobre = (g, gg) => {
+            g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'right';
+            g.fillText(fmtPx(mx, a, cur), gg.w - 2, Math.max(10, Y(mx, gg) - 4));
+            g.textBaseline = 'top'; g.fillText(fmtPx(mn, a, cur), gg.w - 2, Math.min(gg.h - 12, Y(mn, gg) + 4));
+            g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+            if (hv != null && pts[hv]) {
+                const x = X(hv), y = Y(pts[hv][1], gg);
+                g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, gg.h); g.stroke();
+                g.fillStyle = COL[tone]; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+            }
+        };
+        if (!viva.animando) viva.pinta();
+    }
     function drawSheetChart(hover) {
         const cv = $('#d-cv');
         if (!cv || !sheetKey || !REG[sheetKey]) return;
@@ -1649,9 +1691,11 @@
         const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
         const byIdx = sheetRange !== '1d' && !SHORT_R[sheetRange];
-        sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 14, byIndex: byIdx });
+        const viva = window.GraficoOnda && GraficoOnda.ok ? GraficoOnda.ligar(cv) : null;
+        if (viva) desenhaViva(viva, cv, pts, { base, tone, byIdx, hover, q });
+        else sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 14, byIndex: byIdx });
         // preço máximo e mínimo do período, à direita
-        if (sheetDraw) {
+        if (sheetDraw && !viva) {
             const { g, w, Y, lo, hi } = sheetDraw, vals = pts.map((p) => p[1]), mx = Math.max(...vals), mn = Math.min(...vals);
             g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'right';
             g.fillText(fmtPx(mx, REG[sheetKey], q.currency), w - 2, Math.max(10, Y(mx) - 4));
@@ -1674,8 +1718,8 @@
         if (hover != null && sheetDraw) {
             const { g, X, Y, h } = sheetDraw;
             const p = pts[hover];
-            g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(X(hover), 0); g.lineTo(X(hover), h); g.stroke();
-            g.fillStyle = COL[tone]; g.beginPath(); g.arc(X(hover), Y(p[1]), 4, 0, 7); g.fill();
+            if (!viva) { g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(X(hover), 0); g.lineTo(X(hover), h); g.stroke();
+            g.fillStyle = COL[tone]; g.beginPath(); g.arc(X(hover), Y(p[1]), 4, 0, 7); g.fill(); }
             if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['15m', '1h', '4h', '1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
         } else if (tip) {
             const ch = (lastv / first - 1) * 100;
@@ -2051,6 +2095,7 @@
         if (ev.key === 'Enter' && ev.target.id === 'f-proxy') { ev.preventDefault(); $('[data-act="save-proxy"]').click(); }
     });
     window.addEventListener('resize', () => { drawSparks(); drawSheetChart(); });
+    if (window.GraficoOnda) GraficoOnda.pronto.then(() => { if (sheetKey) drawSheetChart(); }, () => {});
     // lembra na sessão o que abriste ou fechaste (para não mudar a cada atualização)
     document.addEventListener('toggle', (ev) => { const f = ev.target.dataset && ev.target.dataset.fold; if (f) st.fold[f] = ev.target.open; if (ev.target.open && ev.target.querySelector && ev.target.querySelector('canvas.spark')) drawSparks(); }, true);
     // o toque fica registado logo (o evento "toggle" chega depois e perde-se se os preços ao vivo redesenharem o ecrã antes)
