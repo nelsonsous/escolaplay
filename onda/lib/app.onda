@@ -1,3 +1,6 @@
+# A biblioteca de apps da it.137 (fica tal e qual para quem ainda a usa: a Musica). A biblioteca da Onda e a de
+# lib/LEIA.md (memoria, texto, numero, valor, json, arvore, data, ordenar, html, anfitriao); a correspondencia dos
+# nomes daqui para la esta no LEIA.md.
 # Biblioteca para apps Onda (junta-se antes do codigo da app: cat lib/app.onda app.onda | ondac -w).
 # Globais: M[0..59] sao da app; a biblioteca usa M[60..63] (o JSON). Os textos literais ("..." e $"...") comecam em M[64].
 #

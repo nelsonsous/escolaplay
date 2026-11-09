@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.9.0';
+    const VERSION = '4.9.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);

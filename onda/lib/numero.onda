@@ -1,0 +1,408 @@
+# numero.onda — os números do JavaScript, ao bit: String(x), Number(texto), toFixed, toPrecision, Math.round,
+# Math.max/min, e o Intl.NumberFormat('pt-PT') (simples, até d casas, compacto e moedas). Precisa de memoria.onda
+# (e de texto.onda para o _nu_s2n e o _nu_simb).
+#
+# Escrever (imprime; vale 0)
+#   _nu_ps x          String(x): o decimal mais curto que volta a dar x (dos mais curtos, o mais perto; empate: o
+#                     par); NaN, Infinity, -Infinity; o -0 sai 0
+#   _nu_pj x          um número no JSON.stringify (os não finitos saem null)
+#   _nu_pnz v sep     v > 0 finito, como o String(v), com o byte sep no lugar do ponto (46 '.', 44 ',')
+#   _nu_fixo x d      x.toFixed(d), 0 <= d <= 100;  _nu_fixos x d sep: com o byte sep no lugar do ponto (também no
+#                     String(x) de 1e21 para cima)
+#   _nu_prec x p      x.toPrecision(p), 1 <= p <= 100
+#   _nu_pzk n k       o inteiro n >= 0 com k algarismos (zeros à esquerda)
+# O Intl.NumberFormat('pt-PT') (o ICU arredonda o decimal MAIS CURTO do real, metades para longe do zero: 1.005 com 2
+# casas dá 1,01; vírgula; milhares com U+00A0 só a partir de 10 000; "-" nos negativos, também no -0 e no que
+# arredonda para 0). x finito:
+#   _nu_intl x d      com d casas (minimum = maximumFractionDigits = d, 0 <= d <= 100)
+#   _nu_intlm x d     com até d casas (maximumFractionDigits = d: sem os zeros à direita)
+#   _nu_compacto x    { notation: 'compact', maximumFractionDigits: 1 }: mil, M, mM, Bi (e daí para cima Bi:
+#                     10^16 dá "10 000 Bi"); o salto de escala quando o arredondamento chega à seguinte (999 950 → 1 M)
+#   _nu_moeda x d t   { style: 'currency', currency: t } com d casas: o número, U+00A0 e o símbolo (_nu_simb t: o
+#                     do pt-PT para um código de 3 letras, os 21 que não são o próprio código)
+# Contas (reais)
+#   _nu_round x       Math.round (empates para +∞; -0 em [-0.5, 0))
+#   _nu_max a b / _nu_min a b / _nu_clamp x a b   Math.max/min (o NaN contamina, +0 > -0; o Mx/Mn da Onda não)
+#   _nu_fin x         Number.isFinite;  _nu_toint x: o ToIntegerOrInfinity (NaN dá 0)
+#   _nu_relidx x n    o índice relativo do slice do JS (início ou fim) para um comprimento n
+#   _nu_at v n i      o v[i] do JS (v com n reais) para um índice real i: o valor, ou NaN (undefined)
+#   _nu_rprec x p     Number(x.toPrecision(p)), 1 <= p <= 17, já como real
+#   _nu_bits b        o real com estes 64 bits (o inteiro b)
+# Ler
+#   _nu_s2n t         Number(texto) do JS (o StringToNumber): sem os espaços do JS à volta; vazio dá 0; decimal (com
+#                     sinal, ponto e expoente), Infinity, 0x 0o 0b; o resto NaN. Arredondamento certo sempre (até 780
+#                     algarismos e o "há mais", como o V8)
+#   _nu_d2f dg nd e   D × 10^e → o real mais perto (empate: par); D = nd algarismos (valores 0..9) em dg, D > 0
+#   _nu_dig a         os algarismos do decimal mais curto de a > 0 finito: g = [k, n, d1..dk] (a = 0,d1…dk × 10^n)
+#   _nu_exato a       os algarismos do valor EXATO de a > 0 finito (até 767): o endereço do 1.º; quantos em
+#                     M[_me_lb + 13] e o expoente em M[_me_lb + 14] (a = 0,d1…dL × 10^E)
+# Globais: o bloco da biblioteca (memoria.onda): a classe do arredondamento (b+0), b+12..14, os algarismos (b+16..63),
+# o inteiro grande (b+64..363) e os algarismos lidos ou exatos (b+400..1299). Sem Lg nem outra função matemática.
+
+# ---------- Math do JS ----------
+: _nu_fin f>i x != & >> Bh x 20 2047 2047
+: _nu_max ff>f a b ? > a b a ? > b a b ? && == a b != a 0. a + a b
+: _nu_min ff>f a b ? < a b a ? < b a b ? && == a b != a 0. a * -1. + * -1. a * -1. b
+: _nu_clamp fff>f x a b _nu_max a _nu_min b x
+: _nu_round f>f x { = r Fl x = r ? >= - x r 0.5 + r 1. r ? == r 0. * x 0. r }
+: _nu_toint f>f x ? != x x 0. ? ~ _nu_fin x x ? < x 0. * -1. Fl * -1. x Fl x
+: _nu_relidx fi>i x len { = r _nu_toint x I ? < r 0. _nu_max + F len r 0. _nu_min r F len }
+: _nu_at iif>f v len i ? && && == Fl i i >= i 0. < i F len @f + v I i Bw 2146959360 0
+: _nu_bits i>f b Bw >> b 32 & b 4294967295
+# 10^k como real (exato até 22) e como inteiro (k < 19)
+: _nu_p10 i>f k { = r 1. W > k 0 { = r * r 10. = k - k 1 } r }
+: _nu_p10i i>i k { = r 1 W > k 0 { = r * r 10 = k - k 1 } r }
+: _nu_pzk ii>i n k { = p 1 = i 1 W < i k { = p * p 10 = i + i 1 } W > p 1 { ? < n p P '0 0 = p / p 10 } N n }
+
+# ---------- inteiros grandes: M[b] = número de limbs; M[b+1..] em base 2^32, do menos significativo ----------
+: _nu_bset ii>i b x { ! b 0 ? x { ! + b 1 & x 4294967295 ! b 1 = h >> x 32 ? h { ! + b 2 h ! b 2 0 } 0 } 0 }
+: _nu_bmul ii>i b m {
+  = n @ b = c 0 = i 1
+  W <= i n { = t + * @ + b i m c ! + b i & t 4294967295 = c >> t 32 = i + i 1 }
+  ? c { ! + + b n 1 c ! b + n 1 0 } 0 }
+: _nu_badd ii>i b x { = n @ b = i 1 = c x W && c <= i n { = t + @ + b i c ! + b i & t 4294967295 = c >> t 32 = i + i 1 } ? c { ! + + b n 1 c ! b + n 1 0 } 0 0 }
+: _nu_bp10 ii>i b s { W >= s 9 { _nu_bmul b 1000000000 = s - s 9 } = m 1 W > s 0 { = m * m 10 = s - s 1 } ? > m 1 _nu_bmul b m 0 }
+: _nu_bshl ii>i b s {
+  = w / s 32 = r % s 32 = n @ b
+  ? r {
+    = c 0 = i 1
+    W <= i n { = t | << @ + b i r c ! + b i & t 4294967295 = c >> t 32 = i + i 1 }
+    ? c { ! + + b n 1 c = n + n 1 0 } 0 } 0
+  ? && w n { = i n W >= i 1 { ! + + b i w @ + b i = i - i 1 } = i 1 W <= i w { ! + b i 0 = i + i 1 } = n + n w 0 } 0
+  ! b n 0 }
+# divide por m (pequeno) no lugar; devolve o resto
+: _nu_bdiv ii>i b m {
+  = n @ b = r 0 = i n
+  W >= i 1 { = c + << r 32 @ + b i ! + b i / c m = r % c m = i - i 1 }
+  W && > n 0 == @ + b n 0 = n - n 1
+  ! b n r }
+: _nu_blimb ii>i b j ? && >= j 0 < j @ b @ + + b 1 j 0
+: _nu_bget i>i b | _nu_blimb b 0 << _nu_blimb b 1 32
+: _nu_bbits i>i b { = n @ b ? == n 0 0 { = t _nu_blimb b - n 1 = k 0 W > t 0 { = t >> t 1 = k + k 1 } + * 32 - n 1 k } }
+# A / 2^k arredondado para baixo (cabe em 64 bits); a classe do resto face a meio fica em M[_me_lb]: 0 exato, 1 abaixo,
+# 2 meio, 3 acima
+: _nu_bext ii>i b k {
+  = wi / k 32 = bo % k 32
+  = d >> _nu_blimb b wi bo
+  = d ? bo | | d << _nu_blimb b + wi 1 - 32 bo << _nu_blimb b + wi 2 - 64 bo | d << _nu_blimb b + wi 1 32
+  = k1 - k 1 = w1 / k1 32 = b1 % k1 32
+  = hb & >> _nu_blimb b w1 b1 1
+  = st != & _nu_blimb b w1 - << 1 b1 1 0
+  = j 0 W && ~ st < j w1 { = st != _nu_blimb b j 0 = j + j 1 }
+  ! _me_lb + * 2 hb st
+  d }
+# A / 10^t arredondado para baixo, com a classe como no _nu_bext
+: _nu_bd10 ii>i b t {
+  = r 0 = st 0 = j 0
+  W < j t { = st || st r = r _nu_bdiv b 10 = j + j 1 }
+  ! _me_lb ? > r 5 3 ? == r 5 ? st 3 2 ? || r st 1 0
+  _nu_bget b }
+# divide por 10^k no lugar; devolve 1 se sobrou resto
+: _nu_bd10k ii>i b k { = st 0 W >= k 9 { = r _nu_bdiv b 1000000000 = st || st r = k - k 9 } ? > k 0 { = r _nu_bdiv b _nu_p10i k = st || st r 0 } 0 st }
+# floor(c · 10^s · 2^q / 4) (cabe em 64 bits), com a classe do resto
+: _nu_bq iiii>i c s q b {
+  _nu_bset b c
+  ? > q 0 _nu_bshl b q 0
+  ? > s 0 _nu_bp10 b s 0
+  ? < s 0 {
+      = y _nu_bd10 b - 0 s
+      = c10 @ _me_lb = r2 & y 3
+      ! _me_lb ? > r2 2 3 ? == r2 2 ? c10 3 2 ? || r2 c10 1 0
+      >> y 2 }
+    { _nu_bext b + 2 ? < q 0 - 0 q 0 } }
+# floor(f · 2^q · 10^s) (f > 0), exato, com a classe do resto; o resultado tem de caber em 63 bits
+: _nu_fq iii>i f q s {
+  = b + _me_lb 64 _nu_bset b f
+  ? > q 0 _nu_bshl b q 0
+  ? > s 0 _nu_bp10 b s 0
+  = c10 0
+  ? < s 0 { _nu_bd10 b - 0 s = c10 @ _me_lb 0 } 0
+  ? < q 0 { = m _nu_bext b - 0 q ? c10 ! _me_lb | @ _me_lb 1 0 m } { ! _me_lb c10 _nu_bget b } }
+
+# ---------- o decimal mais curto ----------
+# floor(log10 (f·2^q)) a menos de 1, pelos bits de f (f > 0): nb = quantos bits, log2 em [nb-1+q, nb+q)
+: _nu_e10 ii>i f q { = nb 0 = t f W > t 0 { = t >> t 1 = nb + nb 1 } I Fl * F + q - nb 1 0.3010299956639812 }
+# v > 0 finito (não inteiro abaixo de 2^53): V = v·10^(16-e) na grelha de 17 algarismos, em [10^16, 10^17): o decimal
+# mais curto que o JSON.parse devolve como v (dos mais curtos, o mais perto de v; empate: o par). Contas exatas: o
+# intervalo que volta a dar v vai a meio caminho dos vizinhos (incluído se a mantissa é par; abaixo de uma potência
+# de 2 o vizinho está a meia distância). Devolve V e põe e em M[_me_lb + 12].
+: _nu_grade f>i v {
+  = hx Bh v
+  = ex & >> hx 20 2047
+  = f | << & hx 1048575 32 Bl v
+  = f ? ex | f 4503599627370496 f
+  = q ? ex - ex 1075 -1074
+  # estimativa de floor(log10 v) pelos bits de f (log2 v em [nb-1+q, nb+q)), certa a menos de 1; o inteiro grande
+  # corrige-a. Sem Lg: numa função _ o Lg é a primitiva (não o _lg do fdlibm), e o -a não a tem
+  = e _nu_e10 f q
+  = b + _me_lb 64 = d 0 = go 1
+  W go {
+    = d _nu_bq * 4 f - 16 e q b
+    ? >= d 100000000000000000 { = e + e 1 0 } ? < d 10000000000000000 { = e - e 1 0 } { = go 0 0 } }
+  = cv @ _me_lb
+  = s - 16 e
+  = inc == & f 1 0
+  = hi _nu_bq + * 4 f 2 s q b
+  = hi ? && == @ _me_lb 0 ~ inc - hi 1 hi
+  = lo _nu_bq - * 4 f ? && == f 4503599627370496 > ex 1 1 2 s q b
+  = lo + lo ? @ _me_lb 1 ? inc 0 1
+  # o maior passo 10^t com um múltiplo dentro do intervalo; depois o múltiplo mais perto de V (empate: par)
+  = m 100000000000000000 = t 17
+  W && > t 0 < * / hi m m lo { = m / m 10 = t - t 1 }
+  = c0 * / d m m = c1 + c0 m
+  = dl - d c0
+  = w ? <= + * 2 dl 2 m -1 ? >= * 2 dl + m 1 1 ? == * 2 dl m ? cv 1 0 ? == cv 3 1 ? == cv 2 0 -1
+  = r ? && >= c0 lo <= c1 hi { ? < w 0 c0 ? > w 0 c1 ? == & / c0 m 1 0 c0 c1 } ? >= c0 lo c0 c1
+  ? == r 100000000000000000 { = r 10000000000000000 = e + e 1 0 } 0
+  ! + _me_lb 12 e
+  r }
+# d × 10^(e-16) (10^16 <= d < 10^17) no formato do Number#toString do JS, sem os zeros finais (sep no lugar do ponto)
+: _nu_pdig iii>i d e sep {
+  = b + _me_lb 16
+  = j 16 W >= j 0 { ! + b j + 48 % d 10 = d / d 10 = j - j 1 }
+  = k 17 W && > k 1 == @ + b - k 1 48 = k - k 1
+  = n + e 1
+  ? && <= k n <= n 21 { = j 0 W < j k { P @ + b j = j + j 1 } W < j n { P '0 = j + j 1 } 0 }
+  ? && > n 0 <= n 21 { = j 0 W < j n { P @ + b j = j + j 1 } P sep W < j k { P @ + b j = j + j 1 } 0 }
+  ? && > n -6 <= n 0 { P '0 P sep = j 0 W < j - 0 n { P '0 = j + j 1 } = j 0 W < j k { P @ + b j = j + j 1 } 0 }
+  { P @ b ? > k 1 { P sep = j 1 W < j k { P @ + b j = j + j 1 } 0 } 0
+    P 'e ? > n 0 { P '+ N - n 1 } { P '- N - 1 n } } }
+# um inteiro abaixo de 2^53 é o único real a menos de 1/2 de si: os algarismos dele são já os mais curtos
+: _nu_pnz fi>i v sep ? && < v 9007199254740992. == Fl v v N I v { = r _nu_grade v _nu_pdig r @ + _me_lb 12 sep }
+: _nu_ps f>i x ? != x x "NaN" ? == x 0. P '0 { ? < x 0. P '- 0 = a Ab x ? ~ _nu_fin a "Infinity" _nu_pnz a 46 }
+: _nu_pj f>i x ? _nu_fin x _nu_ps x "null"
+: _nu_dig f>i a {
+  = g + _me_lb 40
+  ? && < a 9007199254740992. == Fl a a {
+      = x I a = n 0 = y x W > y 0 { = y / y 10 = n + n 1 }
+      = j - n 1 W >= j 0 { ! + + g 2 j % x 10 = x / x 10 = j - j 1 }
+      = k n W && > k 1 == @ + + g 1 k 0 = k - k 1
+      ! g k ! + g 1 n g }
+    {
+      = r _nu_grade a = e @ + _me_lb 12
+      = j 16 W >= j 0 { ! + + g 2 j % r 10 = r / r 10 = j - j 1 }
+      = k 17 W && > k 1 == @ + + g 1 k 0 = k - k 1
+      ! g k ! + g 1 + e 1 g } }
+
+# ---------- o valor exato ----------
+# a = f·2^q: com q < 0 é (f·5^-q)·10^q, um inteiro com algarismos finitos; os algarismos vão para b+400.., o mais
+# significativo primeiro
+: _nu_exato f>i a {
+  = lb _me_lb
+  = hx Bh a = ex & >> hx 20 2047
+  = f | << & hx 1048575 32 Bl a
+  = f ? ex | f 4503599627370496 f
+  = q ? ex - ex 1075 -1074
+  = b + lb 64
+  _nu_bset b f
+  ? >= q 0 _nu_bshl b q { = k - 0 q W >= k 13 { _nu_bmul b 1220703125 = k - k 13 } = m 1 W > k 0 { = m * m 5 = k - k 1 } _nu_bmul b m }
+  = g + lb 400 = n 0
+  W > @ b 0 { = r _nu_bdiv b 1000000000 = j 0 W < j 9 { ! + g n % r 10 = r / r 10 = n + n 1 = j + j 1 } }
+  W && > n 1 == @ + g - n 1 0 = n - n 1
+  = i 0 = j - n 1 W < i j { = t @ + g i ! + g i @ + g j ! + g j t = i + i 1 = j - j 1 }
+  ! + lb 13 n ! + lb 14 + n ? < q 0 q 0
+  g }
+# os L algarismos exatos em g, levados a K (zeros depois do fim) e arredondados no K+1.º (empate: para cima); se o
+# arredondamento passa a K+1 algarismos (999 → 1000), g fica com eles e devolve 1
+: _nu_xarr iii>i g nl kk {
+  = j nl W < j kk { ! + g j 0 = j + j 1 }
+  ? && < kk nl >= @ + g kk 5 {
+      = j - kk 1 W && >= j 0 == @ + g j 9 { ! + g j 0 = j - j 1 }
+      ? >= j 0 { ! + g j + @ + g j 1 0 } { ! g 1 ! + g kk 0 1 } } 0 }
+# o inteiro y (real, 2^52 <= y < 1e21) por extenso
+: _nu_pinteiro f>i y ? < y 9000000000000000000. N I y {
+  = hx Bh y
+  = f | | << & hx 1048575 32 Bl y 4503599627370496
+  = b + _me_lb 64 _nu_bset b f _nu_bshl b - & >> hx 20 2047 1075
+  = g + _me_lb 400 = j 0 W > @ b 0 { ! + g j + 48 _nu_bdiv b 10 = j + j 1 }
+  W > j 0 { = j - j 1 P @ + g j } }
+# x.toFixed(d): o inteiro n mais perto de |x|·10^d (empate: o maior), com d casas; de 1e21 para cima o String(x)
+: _nu_fixo fi>i x d _nu_fixos x d 46
+: _nu_fixos fii>i x d sep
+  ? != x x "NaN" ? >= Ab x 1000000000000000000000. { ? < x 0. P '- 0 ? ~ _nu_fin x "Infinity" _nu_pnz Ab x sep } {
+  ? < x 0. P '- 0
+  = a Ab x
+  = hx Bh a = ex & >> hx 20 2047
+  = m | << & hx 1048575 32 Bl a
+  = m ? ex | m 4503599627370496 m
+  = q ? ex - ex 1075 -1074
+  ? >= q 0 { _nu_pinteiro a ? d { P sep = j 0 W < j d { P '0 = j + j 1 } } 0 }
+    ? <= d 2 {
+      # m·10^d + metade cabe em 63 bits
+      = k - 0 q = p _nu_p10i d
+      = n ? > k 61 0 >> + * m p << 1 - k 1 k
+      N / n p ? d { P sep _nu_pzk % n p d } 0 } {
+      = g _nu_exato a = nl @ + _me_lb 13 = kk + @ + _me_lb 14 d
+      ? <= kk 0 { P '0 P sep = j 1 W < j d { P '0 = j + j 1 } N && == kk 0 >= @ g 5 } {
+        = kk + kk _nu_xarr g nl kk
+        ? <= kk d { P '0 P sep = j kk W < j d { P '0 = j + j 1 } = j 0 W < j kk { P + '0 @ + g j = j + j 1 } 0 } {
+          = j 0 W < j - kk d { P + '0 @ + g j = j + j 1 } P sep W < j kk { P + '0 @ + g j = j + j 1 } 0 } } } }
+# x.toPrecision(p): p algarismos significativos (empate: o maior); notação científica se o expoente é < -6 ou >= p
+: _nu_prec fi>i x p
+  ? != x x "NaN" ? == x 0. { P '0 ? > p 1 { P '. = j 1 W < j p { P '0 = j + j 1 } 0 } 0 } {
+  ? < x 0. P '- 0
+  = a Ab x
+  ? ~ _nu_fin a "Infinity" {
+    = g _nu_exato a = nl @ + _me_lb 13
+    = e - + @ + _me_lb 14 _nu_xarr g nl p 1
+    ? || < e -6 >= e p {
+        P + '0 @ g ? > p 1 { P '. = j 1 W < j p { P + '0 @ + g j = j + j 1 } 0 } 0
+        P 'e ? >= e 0 { P '+ N e } { P '- N - 0 e } }
+      ? >= e 0 {
+        = j 0 W <= j e { P + '0 @ + g j = j + j 1 }
+        ? < + e 1 p { P '. W < j p { P + '0 @ + g j = j + j 1 } 0 } 0 }
+        { P '0 P '. = j 0 W < j - -1 e { P '0 = j + j 1 } = j 0 W < j p { P + '0 @ + g j = j + j 1 } 0 } } }
+# Number(x.toPrecision(p)), p <= 17
+: _nu_rprec fi>f x p ? == x 0. 0. ? ~ _nu_fin x x {
+  = a Ab x
+  = hx Bh a = ex & >> hx 20 2047
+  = f | << & hx 1048575 32 Bl a
+  = f ? ex | f 4503599627370496 f
+  = q ? ex - ex 1075 -1074
+  = e _nu_e10 f q
+  = p1 _nu_p10i p = p0 / p1 10
+  = go 1 = n 0
+  W go {
+    = n _nu_fq f q - - p 1 e
+    ? >= n p1 { = e + e 1 0 } ? < n p0 { = e - e 1 0 } { = go 0 0 } }
+  = n ? >= @ _me_lb 2 + n 1 n
+  ? == n p1 { = n p0 = e + e 1 0 } 0
+  = r _nu_i2f n + - e p 1
+  ? < x 0. * -1. r r }
+
+# ---------- ler ----------
+# X·2^-s (st: há mais abaixo) → o real mais perto (empate: par), com os subnormais; X > 0
+: _nu_b2f iii>f b s st {
+  = nb _nu_bbits b
+  = sh - nb 53
+  = sh ? < - sh s -1074 + -1074 s sh
+  ? <= sh 0 F _nu_bget b {
+    = m _nu_bext b sh = c @ _me_lb
+    = c ? st ? == c 0 1 ? == c 2 3 c c
+    = m ? || == c 3 && == c 2 & m 1 + m 1 m
+    = q - sh s
+    ? == m 9007199254740992 { = m 4503599627370496 = q + q 1 } 0
+    ? < m 4503599627370496 _nu_bits m {
+      = be + q 1075
+      ? >= be 2047 _nu_bits 9218868437227405312 _nu_bits | << be 52 - m 4503599627370496 } } }
+: _nu_d2f iii>f dg nd e {
+  ? && <= nd 15 && >= e -22 <= e 22 {
+      = d 0 = j 0 W < j nd { = d + * d 10 @ + dg j = j + j 1 }
+      ? >= e 0 * F d _nu_p10 e / F d _nu_p10 - 0 e }
+    ? > + nd e 310 _nu_bits 9218868437227405312 ? < + nd e -324 0. {
+      = b + _me_lb 64 _nu_bset b 0
+      = j 0 W < j nd { = k Mn 9 - nd j = d 0 = i 0 W < i k { = d + * d 10 @ + dg + j i = i + i 1 } _nu_bmul b _nu_p10i k _nu_badd b d = j + j k }
+      ? >= e 0 { _nu_bp10 b e _nu_b2f b 0 0 } {
+        = k - 0 e
+        = s + - + 64 I * F k 3.321928094887362 _nu_bbits b 0
+        = s ? < s 0 0 s
+        _nu_bshl b s
+        = st _nu_bd10k b k
+        _nu_b2f b s st } } }
+# um inteiro n >= 0 × 10^k (o caminho rápido só com n < 2^53: o F n é então exato)
+: _nu_i2f ii>f n k {
+  = cu < n 9007199254740992
+  ? && cu && >= k 0 <= k 22 * F n _nu_p10 k ? && cu && < k 0 >= k -22 / F n _nu_p10 - 0 k ? == n 0 0. {
+    = dg + _me_lb 400 = nd 0 = x n = t 0 W > x 0 { = x / x 10 = t + t 1 }
+    = j - t 1 = x n W >= j 0 { ! + dg j % x 10 = x / x 10 = j - j 1 }
+    _nu_d2f dg t k } }
+: _nu_s2n i>f t {
+  = q + t 1 = e @ t
+  W && < q e _tx_ews _tx_cp q = q + q _tx_nb
+  # o fim sem os espaços: recua enquanto o último código é espaço
+  = go 1 W && go > e q { = b - e 1 W && > b q == & @ b 192 128 = b - b 1 = go _tx_ews _tx_cp b ? go = e b 0 }
+  ? >= q e 0. {
+    = c0 @ q
+    = r ? && == c0 '0 < + q 1 e { = c1 | @ + q 1 32 = base ? == c1 'x 16 ? == c1 'o 8 ? == c1 'b 2 0
+        ? base _nu_s2nb + q 2 e base Bw 2146959360 1 } Bw 2146959360 1
+    ? == Bh r 2146959360 {
+      = neg 0 ? || == c0 '+ == c0 '- { = neg == c0 '- = q + q 1 0 } 0
+      = v ? && == - e q 8 _nu_eh q $"Infinity" Bw 2146435072 0 _nu_s2nd q e
+      ? neg * -1. v v } r } }
+# o pedaço [q, e) da memória é o texto t?
+: _nu_eh ii>i q t { = n _tx_len t = ok 1 = j 0 W && ok < j n { = ok == @ + q j _tx_b t j = j + j 1 } ok }
+# decimal sem sinal em [q, e): algarismos, ponto, expoente (pelo menos um algarismo antes ou depois do ponto)
+: _nu_s2nd ii>f q e {
+  = dg + _me_lb 400 = nd 0 = ex 0 = st 0 = na 0
+  W && < q e && >= @ q '0 <= @ q '9 {
+    = d - @ q '0 = na + na 1
+    ? < nd 780 { ? || > nd 0 d { ! + dg nd d = nd + nd 1 0 } 0 } { = ex + ex 1 = st || st d }
+    = q + q 1 }
+  ? && < q e == @ q '. {
+      = q + q 1
+      W && < q e && >= @ q '0 <= @ q '9 {
+        = d - @ q '0 = na + na 1
+        ? < nd 780 { ? || > nd 0 d { ! + dg nd d = nd + nd 1 0 } 0 = ex - ex 1 } { = st || st d }
+        = q + q 1 } } 0
+  = ok > na 0
+  ? && && ok < q e || == @ q 'e == @ q 'E {
+      = q + q 1 = sg 1
+      ? && < q e || == @ q '+ == @ q '- { = sg ? == @ q '- -1 1 = q + q 1 } 0
+      ? || >= q e || < @ q '0 > @ q '9 { = ok 0 0 } {
+        = x 0 W && < q e && >= @ q '0 <= @ q '9 { = x ? < x 100000 + * x 10 - @ q '0 x = q + q 1 }
+        = ex + ex * sg x } } 0
+  ? || ~ ok < q e Bw 2146959360 0 {
+    ? st { ! + dg nd 1 = nd + nd 1 = ex - ex 1 } 0
+    ? == nd 0 0. _nu_d2f dg nd ex } }
+# 0x 0o 0b: o valor exato, arredondado a 53 bits
+: _nu_s2nb iii>f q e base {
+  ? >= q e Bw 2146959360 0 {
+    = b + _me_lb 64 _nu_bset b 0 = ok 1
+    W && ok < q e { = c | @ q 32 = d ? && >= c '0 <= c '9 - c '0 ? && >= c 'a <= c 'f + 10 - c 'a 99 = ok < d base ? ok { _nu_bmul b base _nu_badd b d } 0 = q + q 1 }
+    ? ~ ok Bw 2146959360 0 ? == @ b 0 0. _nu_b2f b 0 0 } }
+
+# ---------- o Intl.NumberFormat('pt-PT') ----------
+# arredonda, no lugar, os algarismos g do _nu_dig a d casas: metades para longe do zero
+: _nu_iarr ii>i g d {
+  = k @ g = n @ + g 1 = l + n d
+  ? < l k {
+      = up ? >= l 0 >= @ + g + 2 l 5 0
+      = k ? < l 0 0 l
+      ? up {
+          = j - k 1
+          W && >= j 0 == @ + g + 2 j 9 = j - j 1
+          ? >= j 0 { ! + g + 2 j + 1 @ + g + 2 j = k + j 1 0 } { ! + g 2 1 = k 1 = n + n 1 0 } } 0 } 0
+  ! g k ! + g 1 n 0 }
+# escreve os algarismos g (k, com o ponto depois de n) com d casas e os milhares
+: _nu_iimp iiii>i g k n d {
+  ? <= n 0 P '0 { = j 0 W < j n {
+      ? && >= n 5 && > j 0 == % - n j 3 0 { P 194 P 160 0 } 0
+      P + '0 ? < j k @ + g + 2 j 0 = j + j 1 } 0 }
+  ? > d 0 { P ', = p 1 W <= p d { = i + - n 1 p P + '0 ? && >= i 0 < i k @ + g + 2 i 0 = p + p 1 } 0 } 0
+  0 }
+# sem os zeros à direita das casas (o minimumFractionDigits 0); dá quantos ficam
+: _nu_itira iii>i g k n { = q k W && > q ? > n 0 n 0 == @ + g + 1 q 0 = q - q 1 _nu_iimp g q n ? && > q 0 > q n - q n 0 q }
+: _nu_intl fi>i x d {
+  ? < Bh x 0 P '- 0
+  = a Ab x
+  ? == a 0. _nu_iimp 0 0 0 d { = g _nu_dig a _nu_iarr g d _nu_iimp g @ g @ + g 1 d } }
+: _nu_intlm fi>i x d {
+  ? < Bh x 0 P '- 0
+  = a Ab x
+  ? == a 0. P '0 { = g _nu_dig a _nu_iarr g d _nu_itira g @ g @ + g 1 0 } }
+: _nu_iesc i>i m ? < m 3 0 ? < m 6 3 ? < m 9 6 ? < m 12 9 12
+: _nu_compacto f>i x {
+  ? < Bh x 0 P '- 0
+  = a Ab x
+  ? == a 0. P '0 {
+    = g _nu_dig a = n @ + g 1 = m - n 1 = e _nu_iesc m
+    ! + g 1 - n e
+    _nu_iarr g 1
+    = n2 @ + g 1
+    ? > n2 - n e { = e2 _nu_iesc + m 1 ? != e2 e { = n2 - n2 - e2 e = e e2 0 } 0 } 0
+    _nu_itira g @ g n2
+    ? == e 3 { P 194 P 160 "mil" 0 } ? == e 6 { P 194 P 160 P 'M 0 } ? == e 9 { P 194 P 160 "mM" 0 } ? == e 12 { P 194 P 160 "Bi" 0 } 0
+    0 } }
+: _nu_k3 iii>i a b c + + * a 65536 * b 256 c
+# o símbolo da moeda (código de 3 letras) no pt-PT do Chromium 153: os 21 que não são o próprio código
+: _nu_simb i>i t {
+  = h _nu_k3 _tx_b t 0 _tx_b t 1 _tx_b t 2
+  ? == h _nu_k3 'E 'U 'R "€" ? == h _nu_k3 'U 'S 'D "US$" ? == h _nu_k3 'G 'B 'P "£" ? == h _nu_k3 'A 'U 'D "AU$"
+  ? == h _nu_k3 'B 'R 'L "R$" ? == h _nu_k3 'C 'A 'D "CA$" ? == h _nu_k3 'C 'N 'Y "CN¥" ? == h _nu_k3 'H 'K 'D "HK$"
+  ? == h _nu_k3 'I 'L 'S "₪" ? == h _nu_k3 'I 'N 'R "₹" ? == h _nu_k3 'J 'P 'Y "JP¥" ? == h _nu_k3 'K 'R 'W "₩"
+  ? == h _nu_k3 'M 'X 'N "MX$" ? == h _nu_k3 'N 'Z 'D "NZ$" ? == h _nu_k3 'T 'H 'B "฿" ? == h _nu_k3 'T 'W 'D "NT$"
+  ? == h _nu_k3 'V 'N 'D "₫" ? == h _nu_k3 'X 'A 'F "FCFA" ? == h _nu_k3 'X 'C 'D "EC$" ? == h _nu_k3 'X 'P 'F "CFPF"
+  # F CFA, com U+202F
+  ? == h _nu_k3 'X 'O 'F { P 'F P 226 P 128 P 175 "CFA" 0 }
+  _tx_p t }
+: _nu_moeda fii>i x d t { _nu_intl x d P 194 P 160 _nu_simb t }

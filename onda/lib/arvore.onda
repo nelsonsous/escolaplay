@@ -1,0 +1,103 @@
+# arvore.onda — JSON só de leitura, em árvore: o que a ponte de uma app escreve direto na memória (um instantâneo
+# do estado do JS, sem JSON pelo meio) e o que o _ar_json lê de um texto. Com o que o JS faz com um valor: String(v),
+# o esc(v) dos templates, ===, includes, a verdade de um if. Precisa de memoria.onda, texto.onda e numero.onda (e de
+# json.onda para o _ar_json).
+#
+# NÓ: [tipo, valor, chave, irmão, filho, n] — tipo 0 undefined (um membro que falta também vale 0), 1 null, 2 false,
+# 3 true, 4 número (valor = real, em @f), 5 texto (valor = texto), 6 lista, 7 objeto; chave = texto (num membro);
+# irmão = o nó seguinte da mesma lista/objeto; filho = o primeiro; n = quantos filhos.
+#
+#   _ar_json t        lê o texto t (JSON) para uma árvore; 0 se t é 0 ou não é JSON válido. Os números e os textos
+#                     como no json.onda (ao bit, \u e substitutos). Ao contrário do JSON.parse, a árvore guarda a
+#                     ordem do texto (o JS põe primeiro as chaves de índice) e as chaves repetidas (o _ar_get dá a
+#                     primeira; o JS fica com o valor da última): para isso há o _js_parse
+#   _ar_tipo n  _ar_num n (0 se não é número)  _ar_txt n (0 se não é texto)  _ar_n n (quantos filhos)
+#   _ar_get n k       o membro de um objeto pelo nome (k um texto, p. ex. $"preco"); 0 se não há
+#   _ar_idx n i       o elemento i de uma lista;  _ar_prim n: o primeiro filho;  _ar_prox c: o irmão seguinte;
+#                     _ar_chave c: o nome de um membro
+#   _ar_verd n        if (v): false, 0, -0, NaN, '', null e undefined são falsos
+#   _ar_igual a b     v === w (as listas e os objetos só são iguais a si mesmos);  _ar_eqt n t: v === o texto t
+#   _ar_nan n         é o NaN;  _ar_tem l v: l.includes(v) (o SameValueZero);  _ar_temf l x: o mesmo para um real
+#   _ar_vnum n        Number(v) dos primitivos (null 0, false 0, true 1, undefined NaN, números); um texto, uma lista
+#                     ou um objeto dão NaN aqui (no JS '12' dá 12: para isso, _nu_s2n _ar_txt n)
+#   _ar_ps n e        escreve String(v) (e = 0), o esc(v) dos templates — String(v ?? '') com & < > " ' escapados
+#                     (e = 1) — ou o esc(`${v}`) (e = 2: escapado, com o null e o undefined por extenso). Uma lista é
+#                     o join(','), com o null e o undefined vazios; um objeto "[object Object]"
+#   _ar_cap n         bytes que chegam para o String(v);  _ar_str n: String(v) num texto novo (para comparar)
+# Globais: nenhum além do bloco da biblioteca.
+
+: _ar_tipo i>i n ? n @ n 0
+: _ar_num i>f n ? == _ar_tipo n 4 @f + n 1 0.
+: _ar_txt i>i n ? == _ar_tipo n 5 @ + n 1 0
+: _ar_n i>i n ? n @ + n 5 0
+: _ar_get ii>i n k { = c ? == _ar_tipo n 7 @ + n 4 0 W && c ~ _tx_igual @ + c 2 k = c @ + c 3 c }
+: _ar_idx ii>i n i { = c ? == _ar_tipo n 6 @ + n 4 0 W && c > i 0 { = c @ + c 3 = i - i 1 } c }
+: _ar_prim i>i n ? n @ + n 4 0
+: _ar_prox i>i c @ + c 3
+: _ar_chave i>i c @ + c 2
+
+# ---------- ler JSON ----------
+: _ar_no i>i k { = n A 6 ! n k n }
+# junta o nó v (filho de n) a seguir ao último (ul); devolve v
+: _ar_junta iii>i n ul v { ? ul ! + ul 3 v ! + n 4 v ! + n 5 + @ + n 5 1 v }
+: _ar_v i>i s {
+  _jp_ws s
+  = c _jp_c s
+  ? == c '{ {
+      = n _ar_no 7 = ul 0
+      _jp_av s _jp_ws s
+      ? == _jp_c s '} { _jp_av s 0 } {
+        = go 1
+        W go {
+          _jp_ws s
+          ? != _jp_c s 34 { _jp_err s = go 0 0 } {
+            = k _jp_str s
+            _jp_ws s
+            ? || @ + s 2 != _jp_c s ': { _jp_err s = go 0 0 } {
+              _jp_av s
+              = v _ar_v s
+              ? @ + s 2 { = go 0 0 } {
+                ! + v 2 k = ul _ar_junta n ul v
+                _jp_ws s
+                = c _jp_c s
+                ? == c ', { _jp_av s 0 } ? == c '} { _jp_av s = go 0 0 } { _jp_err s = go 0 0 } } } } } 0 }
+      n }
+  ? == c '[ {
+      = n _ar_no 6 = ul 0
+      _jp_av s _jp_ws s
+      ? == _jp_c s '] { _jp_av s 0 } {
+        = go 1
+        W go {
+          = v _ar_v s
+          ? @ + s 2 { = go 0 0 } {
+            = ul _ar_junta n ul v
+            _jp_ws s
+            = c _jp_c s
+            ? == c ', { _jp_av s 0 } ? == c '] { _jp_av s = go 0 0 } { _jp_err s = go 0 0 } } } 0 }
+      n }
+  ? == c 34 { = t _jp_str s = n _ar_no 5 ! + n 1 t n }
+  ? == c 't _jp_lit s $"true" _ar_no 3 ? == c 'f _jp_lit s $"false" _ar_no 2 ? == c 'n _jp_lit s $"null" _ar_no 1
+  ? || == c '- && >= c '0 <= c '9 { = x _jp_numf s = n _ar_no 4 !f + n 1 x n } _jp_err s }
+: _ar_json i>i t ? t {
+  = s _jp_ini t
+  = v _ar_v s
+  ? @ + s 2 0 { _jp_ws s ? < @ s @ + s 1 0 v } } 0
+
+# ---------- o que o JS faz com um valor ----------
+: _ar_verd i>i n { = y _ar_tipo n ? == y 3 1 ? == y 4 { = x @f + n 1 && != x 0. == x x } ? == y 5 > _tx_len @ + n 1 0 >= y 6 }
+: _ar_igual ii>i a b { = y _ar_tipo a ? != y _ar_tipo b 0 ? == y 4 == @f + a 1 @f + b 1 ? == y 5 _tx_igual @ + a 1 @ + b 1 ? >= y 6 == a b 1 }
+: _ar_nan i>i n && == _ar_tipo n 4 != @f + n 1 @f + n 1
+: _ar_tem ii>i l v { = c ? == _ar_tipo l 6 @ + l 4 0 = r 0 W && c ~ r { = r || _ar_igual c v && _ar_nan c _ar_nan v = c @ + c 3 } r }
+: _ar_temf if>i l x { = c ? == _ar_tipo l 6 @ + l 4 0 = r 0 W && c ~ r { = r && == _ar_tipo c 4 == @f + c 1 x = c @ + c 3 } r }
+: _ar_eqt ii>i n t && == _ar_tipo n 5 _tx_igual @ + n 1 t
+: _ar_vnum i>f n { = y _ar_tipo n ? == y 4 @f + n 1 ? == y 1 0. ? == y 2 0. ? == y 3 1. / 0. 0. }
+: _ar_ps ii>i n e {
+  = y _ar_tipo n
+  ? == y 5 ? e _tx_html @ + n 1 _tx_p @ + n 1
+  ? == y 4 _nu_ps @f + n 1
+  ? == y 3 "true" ? == y 2 "false"
+  ? == y 1 ? == e 1 0 "null" ? == y 0 ? == e 1 0 "undefined"
+  ? == y 6 { = c @ + n 4 = f 1 W c { ? f 0 P ', = f 0 = z _ar_tipo c ? || == z 0 == z 1 0 _ar_ps c e = c @ + c 3 } 0 }
+  "[object Object]" }
+: _ar_cap i>i n { = y _ar_tipo n ? == y 5 _tx_len @ + n 1 ? == y 6 { = s 0 = c @ + n 4 W c { = s + + s 2 _ar_cap c = c @ + c 3 } s } 32 }
+: _ar_str i>i n { = t _tx_abre _ar_cap n _ar_ps n 0 _tx_fecha t }

@@ -11,35 +11,8 @@
     ok } }
 # o número de k algarismos de s a partir da posição j
 : sdig iii>i s j k { = v 0 = i 0 W < i k { = v + * v 10 - @ + + s 1 + j i 48 = i + i 1 } v }
-# dias desde 1970-01-01 de (ano, mês 1–12, dia; o dia pode passar do fim do mês, como no MakeDay)
-: dciv iii>i y m d {
-  = y ? <= m 2 - y 1 y
-  = era / ? >= y 0 y - y 399 400
-  = yoe - y * era 400
-  = doy + - / + * 153 + m ? > m 2 -3 9 2 5 1 d
-  = doe + - + * yoe 365 / yoe 4 / yoe 100 doy
-  - + * era 146097 doe 719468 }
-# a data civil dos dias z desde 1970 fica no bloco `cv` (M[63] aponta para ele): ano, mês, dia
-: cv >i @ 63
-: dcal i>i z {
-  = z + z 719468
-  = era / ? >= z 0 z - z 146096 146097
-  = doe - z * era 146097
-  = yoe / - + - doe / doe 1460 / doe 36524 / doe 146096 365
-  = y + yoe * era 400
-  = doy - doe - + * 365 yoe / yoe 4 / yoe 100
-  = mp / + * 5 doy 2 153
-  = d + - doy / + * 153 mp 2 5 1
-  = m ? < mp 10 + mp 3 - mp 9
-  ! cv + y <= m 2 ! + cv 1 m ! + cv 2 d 0 }
-# escreve n com k algarismos (zeros à esquerda)
-: pzk ii>i n k { = p 1 = i 1 W < i k { = p * p 10 = i + i 1 } W > p 1 { ? < n p P '0 0 = p / p 10 } N n }
-# o free do JS: toISOString().slice(0, 10) do dia z ('AAAA-MM-DD'; de 10000 em diante '+0AAAAA-MM', sem o dia)
-: pfree i>i z {
-  dcal z
-  = y @ cv = m @ + cv 1 = d @ + cv 2
-  ? && >= y 0 <= y 9999 { pzk y 4 P '- pzk m 2 P '- pzk d 2 }
-    { P ? < y 0 '- '+ pzk ? < y 0 - 0 y y 6 P '- pzk m 2 } }
+# os dias desde 1970 e de volta (_dt_dias, _dt_civil), o toISOString().slice(0, 10) (_dt_piso10) e os algarismos com
+# zeros à esquerda (_nu_pzk) são os da biblioteca (onda/lib/data.onda, numero.onda)
 
 # ---------- planLots(since, days, today) ----------
 # si, to: textos (String(since || '') e String(today || '')); dd: [n, reais] (os Number(x) de days, sem buracos)
@@ -56,7 +29,7 @@
     W && < i 360 k {
       ! ym + ym 1 O ym N y P '- ? < m 10 P '0 0 N m O 0
       = ly - - @ ym ym 1
-      ? > scmp + ym 1 ly + to 1 7 0 = i 360 {
+      ? > _tx_c16 + ym 1 ly + to 1 7 0 = i 360 {
         = j 0
         W < j k {
           = x @f + d j
@@ -65,7 +38,7 @@
           P '- ? == Fl x x { ? < x 10. P '0 0 N I x } pnum x
           O 0
           = li - - @ iso iso 1
-          ? && >= scmp + iso 1 li + si 1 10 0 <= scmp + iso 1 li + to 1 @ to 0 {
+          ? && >= _tx_c16 + iso 1 li + si 1 10 0 <= _tx_c16 + iso 1 li + to 1 @ to 0 {
               ? c P ', 0 = c + c 1
               "{\"d\":\"" = q + iso 1 W < q @ iso { P @ q = q + q 1 } "\",\"plan\":1}" } 0
           = j + j 1 }
@@ -84,15 +57,15 @@
   = l A + n 1 = k 0
   = q + + + to 1 @ to 1 = j 0
   W < j n {
-    ? && && @ q isoq + q 3 && tst <= tcmp + q 3 to 0 { ! + l k q = k + k 1 } 0
+    ? && && @ q isoq + q 3 && tst <= _tx_cmp16 + q 3 to 0 { ! + l k q = k + k 1 } 0
     = q + + q 4 @ + q 3 = j + j 1 }
   # sort por data, estável: inserção binária (cada compra vai para depois das da mesma data); já por ordem, 1 comparação
   = i 1
   W < i k {
     = x @ + l i
-    ? > tcmp + @ + l - i 1 3 + x 3 0 {
+    ? > _tx_cmp16 + @ + l - i 1 3 + x 3 0 {
         = lo 0 = hi - i 1
-        W < lo hi { = md >> + lo hi 1 ? > tcmp + @ + l md 3 + x 3 0 = hi md = lo + md 1 }
+        W < lo hi { = md >> + lo hi 1 ? > _tx_cmp16 + @ + l md 3 + x 3 0 = hi md = lo + md 1 }
         = j i W > j lo { ! + l j @ + l - j 1 = j - j 1 }
         ! + l lo x } 0
     = i + i 1 }
@@ -106,29 +79,29 @@
     = j 0
     W < j k {
       = x @ + l j = s + x 3
-      = z + dciv sdig s 0 4 sdig s 5 2 sdig s 8 2 365
+      = z + _dt_dias sdig s 0 4 sdig s 5 2 sdig s 8 2 365
       ! + fz j z
       # o Date.parse(free), em dias: o '+0AAAAA-MM' é o dia 1 desse mês
-      dcal z = fy @ cv = fm @ + cv 1
-      = pz ? && >= fy 0 <= fy 9999 z dciv fy fm 1
-      = dy jround / - * F pz 86400000. tt 86400000.
+      _dt_civil z = fy @ _dt_cv = fm @ + _dt_cv 1
+      = pz ? && >= fy 0 <= fy 9999 z _dt_dias fy fm 1
+      = dy _nu_round / - * F pz 86400000. tt 86400000.
       !f + dz j dy
       = e ? > @f + x 1 0. @f + x 1 0.
       = eur + eur e
       ? <= dy 0. { = ex + ex 1 = eux + eux e 0 } ? < nx 0 = nx j 0
       = j + j 1 }
     "{\"n\":" N k ",\"exempt\":" N ex ",\"eur\":" pj eur ",\"eurExempt\":" pj eux
-    ",\"first\":" ? k pjs + @ l 3 "null"
+    ",\"first\":" ? k _tx_pj16 + @ l 3 "null"
     ",\"next\":" ? >= nx 0 {
         = x @ + l nx
-        "{\"d\":" pjs + x 3 ",\"free\":\"" pfree @ + fz nx "\",\"days\":" pj @f + dz nx "}" } "null"
+        "{\"d\":" _tx_pj16 + x 3 ",\"free\":\"" _dt_piso10 @ + fz nx "\",\"days\":" pj @f + dz nx "}" } "null"
     ",\"all\":" pbool && > k 0 == ex k
     ",\"lots\":["
     = j 0
     W < j k {
       = x @ + l j = dy @f + dz j
       ? j P ', 0
-      "{\"d\":" pjs + x 3 ",\"e\":" pj ? > @f + x 1 0. @f + x 1 0.
-      ",\"free\":\"" pfree @ + fz j "\",\"days\":" pj jmax 0. dy ",\"ok\":" pbool <= dy 0. ",\"plan\":" pbool @ + x 2 "}"
+      "{\"d\":" _tx_pj16 + x 3 ",\"e\":" pj ? > @f + x 1 0. @f + x 1 0.
+      ",\"free\":\"" _dt_piso10 @ + fz j "\",\"days\":" pj _nu_max 0. dy ",\"ok\":" pbool <= dy 0. ",\"plan\":" pbool @ + x 2 "}"
       = j + j 1 }
     "]}" } }

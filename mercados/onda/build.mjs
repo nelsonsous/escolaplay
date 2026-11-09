@@ -10,25 +10,19 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(here, '../..');
 const ondac = path.join(raiz, 'onda/build/ondac');
 const destino = path.join(raiz, 'mercados/analise-onda.js');
-// um só módulo: o motor (fase B), o resto do analise.js (fase C) e o ecrã (fase D: a biblioteca de apps, os
-// utilitários das vistas e as vistas), por esta ordem
-export const FONTES = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda',
-    '../../onda/lib/app.onda', 'ecra.onda', 'ajustes.onda', 'ecra-analise.onda', 'ecra-destaques.onda', 'ecra-painel.onda'];
+// um só módulo: a biblioteca da Onda (onda/lib, toda: o -w só leva o que se usa), o motor (fase B), o resto do
+// analise.js (fase C) e o ecrã (fase D: os utilitários das vistas e as vistas), por esta ordem. O conselheiro
+// (mercados/conselheiro/onda/build.mjs) usa as mesmas listas BIBLIOTECA e ANALISE.
+export const BIBLIOTECA = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao'].map((m) => `../../onda/lib/${m}.onda`);
+export const ANALISE = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda'];
+export const ECRA = ['ecra.onda', 'ajustes.onda', 'ecra-analise.onda', 'ecra-destaques.onda', 'ecra-painel.onda'];
+export const FONTES = [...BIBLIOTECA, ...ANALISE, ...ECRA];
+const ehMain = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 // o compilador da Onda: se ainda não existe, arranca-o (onda/build.sh, ~1 s)
-if (!existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
+if (ehMain && !existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
 
 const fonte = FONTES.map((f) => readFileSync(path.join(here, f), 'utf8')).join('\n');
-let wasm;
-try {
-    wasm = execFileSync(ondac, ['-w'], { input: fonte, maxBuffer: 64 << 20 });
-} catch (e) {
-    process.stderr.write(String(e.stdout || '') + String(e.stderr || ''));
-    process.exit(1);
-}
-if (wasm.subarray(0, 4).toString('latin1') !== '\0asm') { process.stderr.write(wasm.toString()); process.exit(1); }
-await WebAssembly.compile(wasm); // valida o módulo antes de o escrever
-
 // O anfitrião vai como texto: só passa os dados para a memória da Onda e lê o que ela escreve (JSON, ou reais em
 // M[59]); as contas, as regras e os textos são todos da Onda. Portas usadas: stdout, stdin vazio, saída, relógio, memória.
 const anfitriao = String.raw`(function (root) {
@@ -485,14 +479,35 @@ const anfitriao = String.raw`(function (root) {
 })(typeof self !== 'undefined' ? self : this);
 `;
 
-const linhas = (fonte.match(/\n/g) || []).length - (FONTES.length - 1); // como o wc -l dos ficheiros
-const cabeca = `// GERADO a partir de mercados/onda/*.onda por \`node mercados/onda/build.mjs\` — não editar à mão.
+// As entradas do módulo (ondac -w f g …: só elas são raízes e exportações; o resto que nada usa fica de fora, também a
+// biblioteca que a app não chama): as funções que a ponte chama (k.ex.nome, e as vistas pelo nome em vista('…')) e as
+// que os testes chamam pela ponte (AnaliseOnda._texto e _vista).
+const TESTES = ['pct', 'pnum', 'fm_teste'];
+export const ENTRADAS = [...new Set([...anfitriao.matchAll(/k\.ex\.([a-z_][a-z0-9_]*)/g), ...anfitriao.matchAll(/vista\('([a-z_][a-z0-9_]*)'/g)].map((m) => m[1]).concat(TESTES))].sort();
+let wasm;
+if (ehMain) {
+    try {
+        wasm = execFileSync(ondac, ['-w', ...ENTRADAS], { input: fonte, maxBuffer: 64 << 20 });
+    } catch (e) {
+        process.stderr.write(String(e.stdout || '') + String(e.stderr || ''));
+        process.exit(1);
+    }
+    if (wasm.subarray(0, 4).toString('latin1') !== '\0asm') { process.stderr.write(wasm.toString()); process.exit(1); }
+    await WebAssembly.compile(wasm); // valida o módulo antes de o escrever
+}
+
+// as linhas, como o wc -l dos ficheiros: as da app e as da biblioteca
+const wc = (fs) => fs.reduce((n, f) => n + (readFileSync(path.join(here, f), 'utf8').match(/\n/g) || []).length, 0);
+const linhas = wc([...ANALISE, ...ECRA]), linhasLib = wc(BIBLIOTECA);
+if (ehMain) {
+    const cabeca = `// GERADO a partir de mercados/onda/*.onda por \`node mercados/onda/build.mjs\` — não editar à mão.
 // Mercados — a análise toda (a API de analise.js) e o ecrã (AnaliseOnda.ecra: as vistas já passadas para a Onda)
-// escritos em Onda (${linhas} linhas, com a biblioteca de apps) e compilados para WebAssembly (${wasm.length} bytes).
+// escritos em Onda (${linhas} linhas, mais a biblioteca da Onda: onda/lib) e compilados para WebAssembly (${wasm.length} bytes).
 // Dá o mesmo resultado que o analise.js (mercados/tests/analise-onda*.test.mjs) e o mesmo HTML que os Ajustes do
 // mercados.js (mercados/tests/ecra-onda.test.mjs); a Análise, os Destaques e o Painel já são só da Onda
 // (mercados/tests/ecra-analise.test.mjs, ecra-destaques.test.mjs e ecra-painel.test.mjs).
 // Corre no browser (window.AnaliseOnda) e no Node (module.exports). Depois do ready, todas as funções são síncronas.
 `;
-writeFileSync(destino, cabeca + anfitriao.replace('@WASM@', wasm.toString('base64')));
-console.log(`analise-onda.js: ${linhas} linhas de Onda, ${wasm.length} bytes de WASM → ${path.relative(raiz, destino)}`);
+    writeFileSync(destino, cabeca + anfitriao.replace('@WASM@', wasm.toString('base64')));
+    console.log(`analise-onda.js: ${linhas} linhas de Onda (e ${linhasLib} da biblioteca), ${wasm.length} bytes de WASM → ${path.relative(raiz, destino)}`);
+}

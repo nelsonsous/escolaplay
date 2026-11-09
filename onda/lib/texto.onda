@@ -1,0 +1,213 @@
+# texto.onda — textos: o formato do `O t`, comparar, procurar, partir, UTF-8 ⇄ códigos, vistas UTF-16 (como o
+# String do JS), maiúsculas e minúsculas, URI. Precisa de memoria.onda.
+#
+# TEXTO: um endereço t com M[t] = fim; os bytes (UTF-8, um por palavra) em M[t+1 .. M[t]-1]. É o que o `O t` deixa
+# ao desviar a saída para a memória, por isso escrever um texto é imprimir para ele. Um texto fixo é um texto
+# constante: $"chave" (só de leitura). Os textos são WTF-8: UTF-8 em que um substituto sozinho do UTF-16 (o que o
+# slice do JS deixa ao cortar um emoji, ou um \udxxx do JSON) fica nos 3 bytes ED A0..BF xx.
+# TEXTO UTF-16 (o que a ponte de uma app escreve, para comparar como o JS): s com M[s] = n e as n unidades UTF-16 em
+# M[s+1 .. s+n], uma por palavra.
+#
+# Fazer
+#   _tx_novo n        texto vazio com lugar para n bytes (para o `O t`, ou o `Oc t n`)
+#   _tx_abre n        abre um texto novo de até n bytes e põe nele a saída (guarda do Oc); _tx_fecha t fecha-o,
+#                     repõe a saída de antes (abrem-se uns dentro dos outros) e devolve ao monte o que sobrou
+#   _tx_copia t       cópia;  _tx_sub t a b: os bytes [a, b) num texto novo
+# Ler e comparar
+#   _tx_len t (0 para t = 0)   _tx_b t j (o byte j)   _tx_igual a b   _tx_comeca t p   _tx_em t i p (p no byte i)
+#   _tx_acha t p i    o primeiro byte >= i onde está p (o indexOf de bytes), ou -1
+#   _tx_campo t i s   o campo i (separados pelo byte s; 9 = tab) num texto novo
+#   _tx_int t         o inteiro (com sinal) no início do texto;  _tx_dig t j k: o número dos k algarismos do byte j
+#   _tx_cmp a b       a ordem dos < e > do JS (unidades UTF-16): -1, 0, 1
+# Escrever
+#   _tx_p t           os bytes tal e qual;  _tx_pu t: em UTF-8 válido (um substituto sozinho dá U+FFFD, como o
+#                     writeFileSync e o console.log do Node);  _tx_pj t: o JSON.stringify do texto (com as aspas)
+#   _tx_hex d / _tx_hexm d   um algarismo hexadecimal (minúsculo / maiúsculo)
+#   _tx_uri t         o encodeURIComponent (precisa de _tx_urimal t = 0: com um substituto sozinho o JS lança URIError)
+# Códigos (UTF-8)
+#   _tx_u8n b         quantos bytes tem o carácter que começa com o byte b (1..4)
+#   _tx_cp q          o código no endereço q (WTF-8; quantos bytes: _tx_nb);  _tx_cpj t j: o do byte j do texto t
+#   _tx_putf u        escreve o código u em UTF-8;  _tx_wcp w u: põe-no na memória em w (devolve o w seguinte)
+#   _tx_mai u / _tx_min u   escreve o toUpperCase / toLowerCase do código u (iguais ao JS no ASCII e no Latim-1:
+#                     ß → SS, ÿ → Ÿ, µ → Μ; fora disso o código fica como está)
+#   _tx_ews u         1 se u é espaço para o JS (o que o trim tira);  _tx_branco t: o !t.trim()
+#   _tx_valido t      1 se o texto é UTF-8 válido;  _tx_norm t bom: como o TextDecoder do JS (cada sequência
+#                     inválida dá U+FFFD, a maior subparte, como o WHATWG; bom = 1 tira o BOM do início)
+# UTF-16 (o .length, o slice e o < do JS)
+#   _tx_l16 t         o .length;  _tx_s16 t a b: o slice(a, b) (0 <= a, b; um par cortado deixa o substituto sozinho)
+#   _tx_u16 s e       a unidade seguinte (s = [endereço, baixo pendente]; -1 no fim e)
+#   _tx_a16 t         o texto como texto UTF-16 [n, unidades];  _tx_c16 a na b nb / _tx_cmp16 a b: a ordem do JS
+#   _tx_pj16 s        um texto UTF-16 em JSON (com aspas): o ASCII visível tal e qual, o resto em \uXXXX — JSON
+#                     válido (o JSON.parse dá o mesmo texto), mas não o texto do JSON.stringify
+# Globais: o bloco da biblioteca (memoria.onda): b+1 (_tx_nb) e b+2..5 (_tx_cmp).
+
+# ---------- fazer ----------
+: _tx_novo i>i n { = t A + n 1 ! t + t 1 t }
+: _tx_abre i>i n { = h A + n 4 ! h @ -2 ! + h 1 @ -15 ! + h 2 n = t + h 3 ! t + t 1 Oc t n t }
+: _tx_fecha i>i t {
+  = h - t 3
+  ! -2 @ h ! -15 @ + h 1
+  ? == @ -1 + + t 1 @ + h 2 ! -1 @ t 0
+  t }
+: _tx_copia i>i t { = n _tx_len t = r A + n 1 = j 0 W < j n { ! + + r 1 j _tx_b t j = j + j 1 } ! r + + r 1 n r }
+: _tx_sub iii>i t a b { = r A + 1 - b a = j a W < j b { ! + + r 1 - j a _tx_b t j = j + j 1 } ! r + + r 1 - b a r }
+
+# ---------- ler e comparar ----------
+: _tx_len i>i t ? t - - @ t t 1 0
+: _tx_b ii>i t j @ + + t 1 j
+: _tx_igual ii>i a b { = n _tx_len a = r == n _tx_len b = p + a 1 = q + b 1 = e + p n W && r < p e { = r == @ p @ q = p + p 1 = q + q 1 } r }
+: _tx_em iii>i t i p { = n _tx_len p = ok <= + i n _tx_len t = j 0 W && ok < j n { = ok == _tx_b t + i j _tx_b p j = j + j 1 } ok }
+: _tx_comeca ii>i t p _tx_em t 0 p
+: _tx_acha iii>i t p i { = n - _tx_len t _tx_len p = r -1 W && < r 0 <= i n { ? _tx_em t i p = r i 0 = i + i 1 } r }
+: _tx_campo iii>i t i s {
+  = n _tx_len t = j 0 = k 0
+  W && < j n < k i { ? == _tx_b t j s = k + k 1 0 = j + j 1 }
+  = a j W && < j n != _tx_b t j s = j + j 1
+  _tx_sub t a j }
+: _tx_int i>i t { = n _tx_len t = j 0 = g 1 ? && > n 0 == _tx_b t 0 '- { = g -1 = j 1 } 0 = v 0
+  W && < j n && >= _tx_b t j '0 <= _tx_b t j '9 { = v + * v 10 - _tx_b t j '0 = j + j 1 } * g v }
+: _tx_dig iii>i t j k { = v 0 = i 0 W < i k { = v + * v 10 - _tx_b t + j i '0 = i + i 1 } v }
+# compara como os < e > do JS (unidades UTF-16): -1, 0, 1
+: _tx_cmp ii>i a b {
+  = s + _me_lb 2 ! s + a 1 ! + s 1 0 ! + s 2 + b 1 ! + s 3 0
+  = ea @ a = eb @ b = r 2
+  W == r 2 { = x _tx_u16 s ea = y _tx_u16 + s 2 eb = r ? < x 0 ? < y 0 0 -1 ? < y 0 1 ? < x y -1 ? > x y 1 2 }
+  r }
+
+# ---------- escrever ----------
+# os bytes tal e qual, de uma vez (o _ow do runtime)
+: _tx_p i>i t { ? t _ow + t 1 _tx_len t 0 0 }
+: _tx_pu i>i t {
+  = q + t 1 = e @ t
+  W < q e { = c @ q ? && == c 237 >= @ + q 1 160 { P 239 P 191 P 189 = q + q 3 } { P c = q + q 1 } }
+  0 }
+: _tx_hex i>i d P ? < d 10 + 48 d + 87 d
+: _tx_hexm i>i d P ? < d 10 + 48 d + 55 d
+# o JSON.stringify de um texto: \" \\ \b \f \n \r \t, o resto abaixo de 32 e os substitutos sozinhos em \uxxxx
+# (minúsculas); o resto tal e qual
+: _tx_pj i>i t {
+  P 34
+  = q + t 1 = e @ t
+  W < q e {
+    = c @ q
+    ? == c 34 { P 92 P 34 } ? == c 92 { P 92 P 92 } ? >= c 32 {
+        ? && == c 237 >= @ + q 1 160 {
+            = u | | << & c 15 12 << & @ + q 1 63 6 & @ + q 2 63
+            P 92 P 'u _tx_hex & >> u 12 15 _tx_hex & >> u 8 15 _tx_hex & >> u 4 15 _tx_hex & u 15 = q + q 2 } P c }
+      ? == c 8 { P 92 P 'b } ? == c 12 { P 92 P 'f } ? == c 10 { P 92 P 'n } ? == c 13 { P 92 P 'r }
+        ? == c 9 { P 92 P 't } { P 92 P 'u P '0 P '0 _tx_hex >> c 4 _tx_hex & c 15 }
+    = q + q 1 }
+  P 34 }
+# HTML: o texto com & < > " ' escapados; _tx_ent c escreve a entidade de c (e vale 1) se é um desses, senão vale 0
+: _tx_ent i>i c ? == c '& { "&amp;" 1 } ? == c '< { "&lt;" 1 } ? == c '> { "&gt;" 1 } ? == c 34 { "&quot;" 1 } ? == c 39 { "&#39;" 1 } 0
+: _tx_html i>i t ? t { = q + t 1 = e @ t W < q e { = c @ q ? _tx_ent c 0 P c = q + q 1 } 0 } 0
+# o encodeURIComponent: 1 se há um substituto sozinho (o JS lança URIError: URI malformed)
+: _tx_urimal i>i t { = q + t 1 = e @ t = r 0 W && ~ r < q e { = r && == @ q 237 >= @ + q 1 160 = q + q 1 } r }
+: _tx_uri i>i t {
+  = q + t 1 = e @ t
+  W < q e {
+    = c @ q
+    ? || || && >= c 'a <= c 'z && >= c 'A <= c 'Z || && >= c '0 <= c '9 || || == c '- == c '_ || || == c '. == c '! || || == c '~ == c '* || == c 39 || == c 40 == c 41
+      P c { P '% _tx_hexm >> c 4 _tx_hexm & c 15 }
+    = q + q 1 }
+  0 }
+
+# ---------- códigos ----------
+: _tx_u8n i>i b ? < b 192 1 ? < b 224 2 ? < b 240 3 4
+: _tx_nb >i @ + _me_lb 1
+: _tx_cp i>i q {
+  = c @ q = b + _me_lb 1
+  ? < c 192 { ! b 1 c } ? < c 224 { ! b 2 | << & c 31 6 & @ + q 1 63 }
+  ? < c 240 { ! b 3 | | << & c 15 12 << & @ + q 1 63 6 & @ + q 2 63 }
+  { ! b 4 | | | << & c 7 18 << & @ + q 1 63 12 << & @ + q 2 63 6 & @ + q 3 63 } }
+: _tx_cpj ii>i t j _tx_cp + + t 1 j
+: _tx_putf i>i u ? < u 128 P u ? < u 2048 { P | 192 >> u 6 P | 128 & u 63 0 }
+  ? < u 65536 { P | 224 >> u 12 P | 128 & >> u 6 63 P | 128 & u 63 0 } { P | 240 >> u 18 P | 128 & >> u 12 63 P | 128 & >> u 6 63 P | 128 & u 63 0 }
+: _tx_wcp ii>i w c
+  ? < c 128 { ! w c + w 1 } ? < c 2048 { ! w | 192 >> c 6 ! + w 1 | 128 & c 63 + w 2 }
+  ? < c 65536 { ! w | 224 >> c 12 ! + w 1 | 128 & >> c 6 63 ! + w 2 | 128 & c 63 + w 3 }
+  { ! w | 240 >> c 18 ! + w 1 | 128 & >> c 12 63 ! + w 2 | 128 & >> c 6 63 ! + w 3 | 128 & c 63 + w 4 }
+# toUpperCase / toLowerCase de um código (ASCII e Latim-1, como o JS)
+: _tx_mai i>i c ? && >= c 'a <= c 'z P - c 32 ? == c 223 { P 'S P 'S 0 } ? == c 255 { P 197 P 184 0 } ? == c 181 { P 206 P 156 0 }
+  ? && && >= c 224 <= c 254 != c 247 _tx_putf - c 32 _tx_putf c
+: _tx_min i>i c ? && >= c 'A <= c 'Z P + c 32 ? && && >= c 192 <= c 222 != c 215 _tx_putf + c 32 _tx_putf c
+# espaço do JS: WhiteSpace e LineTerminator
+: _tx_ews i>i u
+  ? <= u 32 || == u 32 && >= u 9 <= u 13 ? < u 160 0 ? == u 160 1 ? == u 5760 1 ? && >= u 8192 <= u 8202 1
+  ? || == u 8232 == u 8233 1 ? || == u 8239 == u 8287 1 || == u 12288 == u 65279
+: _tx_branco i>i t { = q + t 1 = e @ t = r 1 W && r < q e { = r _tx_ews _tx_cp q = q + q _tx_nb } r }
+: _tx_valido i>i t {
+  = q + t 1 = e @ t = ok 1
+  W && ok < q e {
+    = c @ q
+    ? < c 128 { = q + q 1 0 } {
+      = n ? && >= c 194 <= c 223 1 ? && >= c 224 <= c 239 2 ? && >= c 240 <= c 244 3 0
+      = lo ? == c 224 160 ? == c 240 144 128 = hi ? == c 237 159 ? == c 244 143 191
+      ? || == n 0 > + + q n 1 e { = ok 0 0 } {
+        = b @ + q 1 = ok && >= b lo <= b hi
+        = j 2 W && ok <= j n { = b @ + q j = ok && >= b 128 <= b 191 = j + j 1 }
+        = q + + q n 1 } } }
+  ok }
+: _tx_norm ii>i t bom {
+  = sb && && bom >= _tx_len t 3 && && == _tx_b t 0 239 == _tx_b t 1 187 == _tx_b t 2 191
+  ? && ~ sb _tx_valido t t {
+    = r A + 1 * 3 _tx_len t = w + r 1
+    = q + + t 1 ? sb 3 0 = e @ t
+    W < q e {
+      = c @ q
+      ? < c 128 { ! w c = w + w 1 = q + q 1 0 } {
+        = n ? && >= c 194 <= c 223 1 ? && >= c 224 <= c 239 2 ? && >= c 240 <= c 244 3 0
+        ? == n 0 { = w _tx_wcp w 65533 = q + q 1 0 } {
+          = lo ? == c 224 160 ? == c 240 144 128 = hi ? == c 237 159 ? == c 244 143 191
+          = j 1 = ok 1
+          W && ok <= j n { = b ? < + q j e @ + q j -1 = ok && >= b lo <= b hi = lo 128 = hi 191 ? ok = j + j 1 0 }
+          ? ok { = k 0 W < k + n 1 { ! w @ + q k = w + w 1 = k + k 1 } = q + + q n 1 0 }
+            { = w _tx_wcp w 65533 = q + q j 0 } } } }
+    ! r w ! -1 w r } }
+
+# ---------- UTF-16 ----------
+: _tx_l16 i>i t { = q + t 1 = e @ t = n 0 W < q e { = c @ q ? != & c 192 128 { = n + n ? >= c 240 2 1 0 } 0 = q + q 1 } n }
+: _tx_s16 iii>i t a b {
+  # o bloco antes do A: o fim devolve ao monte o que sobrou, e o bloco não pode ficar nessa sobra
+  _me_lb
+  = r A + 1 _tx_len t
+  = w + r 1 = q + t 1 = e @ t = u 0
+  W && < q e < u b {
+    = c _tx_cp q = nb _tx_nb
+    ? == nb 4 {
+        = hi && >= u a < u b = lo && >= + u 1 a < + u 1 b
+        ? && hi lo { ! w @ q ! + w 1 @ + q 1 ! + w 2 @ + q 2 ! + w 3 @ + q 3 = w + w 4 } {
+          = v - c 65536
+          ? hi { = w _tx_wcp w | 55296 >> v 10 } 0
+          ? lo { = w _tx_wcp w | 56320 & v 1023 } 0 }
+        = u + u 2 }
+      { ? >= u a { = j 0 W < j nb { ! w @ + q j = w + w 1 = j + j 1 } } 0 = u + u 1 }
+    = q + q nb }
+  ! r w ! -1 w r }
+: _tx_u16 ii>i s e {
+  = pd @ + s 1
+  ? pd { ! + s 1 0 pd } ? >= @ s e -1 {
+    = c _tx_cp @ s
+    ! s + @ s _tx_nb
+    ? < c 65536 c { = v - c 65536 ! + s 1 | 56320 & v 1023 | 55296 >> v 10 } } }
+: _tx_a16 i>i t {
+  = s + _me_lb 2
+  = n _tx_l16 t = r A + n 1 ! r n
+  ! s + t 1 ! + s 1 0 = e @ t = j 0
+  W < j n { ! + + r 1 j _tx_u16 s e = j + j 1 }
+  r }
+# compara a (na unidades em M[a..]) com b (nb unidades em M[b..]) como os < e > do JS: -1, 0 ou 1
+: _tx_c16 iiii>i a na b nb {
+  = n ? < na nb na nb = j 0 = r 0
+  W && == r 0 < j n { = x @ + a j = y @ + b j = r ? < x y -1 ? > x y 1 0 = j + j 1 }
+  ? r r ? < na nb -1 ? > na nb 1 0 }
+: _tx_cmp16 ii>i a b _tx_c16 + a 1 @ a + b 1 @ b
+: _tx_pj16c i>i s {
+  = n @ s = j 0
+  W < j n {
+    = u @ + + s 1 j
+    ? == u 34 { P 92 P 34 } ? == u 92 { P 92 P 92 } ? && >= u 32 < u 127 P u
+      { P 92 P 'u _tx_hex & >> u 12 15 _tx_hex & >> u 8 15 _tx_hex & >> u 4 15 _tx_hex & u 15 }
+    = j + j 1 }
+  0 }
+: _tx_pj16 i>i s { P 34 _tx_pj16c s P 34 }

@@ -2503,3 +2503,96 @@ o `analise-onda.js` e o `conselheiro.wasm` refeitos), Música 36/36 (com o `cura
 - O `tpor` e o `thtml` da biblioteca ainda escrevem um byte de cada vez: com o `_ow` do runtime iriam de uma vez, mas a
   biblioteca tem de continuar a compilar com o compilador de antes enquanto as apps não passam todas para este (uma
   versão com o `_ow` passou nos testes das duas apps). Fica para quando passarem.
+
+---
+
+## Iteração 139: a biblioteca da Onda — o que o JavaScript traz de origem, igual ao bit, uma vez só
+
+**O pedido.** "Ter uma biblioteca que traz de origem como o JavaScript, reutilizável para futuras aplicações." As apps
+tinham cada uma as suas cópias: o `lib/app.onda` (textos, pt-PT, um JSON aproximado), a análise da Mercados (o `String(x)`
+exato, o `Math.round`, o `toFixed(1)`, os `jmax`/`jmin`), o ecrã (o `Intl` pt-PT, o sort do V8, os ícones), o conselheiro
+(573 linhas de `js.onda`: `JSON.parse`/`stringify` exatos, `Number`, `toPrecision`, UTF-16, as datas de Lisboa) e a Música
+(outra vez os hexadecimais, o JSON de um texto, o URL). O mesmo problema resolvido quatro vezes, com quatro nomes.
+
+**O que há agora: `onda/lib`, 10 módulos, 1 385 linhas, 252 funções** (`lib/LEIA.md` é o índice):
+- `memoria` (`_me_`): o bloco da biblioteca, as regiões (`_me_marca`/`_me_solta`) e listas que crescem.
+- `texto` (`_tx_`): o formato do `O t`; comparar, procurar, partir; UTF-8 ⇄ códigos; as vistas UTF-16 do JS (o `length`,
+  o `slice`, o `<`); maiúsculas e minúsculas (ASCII e Latim-1); `encodeURIComponent`, o `TextDecoder`, o `trim`, o HTML
+  escapado, o `JSON.stringify` de um texto; e `_tx_abre n`/`_tx_fecha t`, um texto novo com a guarda do `Oc` que repõe a
+  saída de antes — abrem-se uns dentro dos outros, coisa que o `O t … O 0` não deixava.
+- `numero` (`_nu_`): `String(x)` (o decimal mais curto), `Number(texto)` (arredondamento certo sempre, até 780 algarismos
+  como o V8), `toFixed` 0–100 e `toPrecision` 1–100 (pelo valor exato do real), `Math.round/max/min`, e o
+  `Intl.NumberFormat('pt-PT')` com d casas, até d casas, compacto e moedas (o ICU arredonda o decimal mais curto, não o
+  valor exato: `1.005` com 2 casas dá `1,01`).
+- `valor` + `json` (`_js_`): os valores do JS (listas, objetos com a ordem das chaves do JS), `String(v)`, `Number(v)`,
+  `===`, `includes`, `<`, `join`; `JSON.parse` e `JSON.stringify` (também indentado) ao byte.
+- `arvore` (`_ar_`): o JSON só de leitura que a ponte de uma app escreve direto na memória, com a semântica do JS.
+- `data` (`_dt_`): dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (as regras da UE).
+- `ordenar` (`_or_`): o `sort` do V8 comparação a comparação — o PowerSort do Chromium e o TimSort do Node 22.
+- `html` (`_ht_`) e `anfitriao` (`_an_`): pedaços de HTML para o ecrã e as portas dos anfitriões com nomes.
+
+**Como não colide e não pesa.** Uma só tabela de funções, sem módulos: cada nome é `_` + prefixo + `_` + nome. As apps não
+começam nomes por `_` e o runtime não usa um segundo `_`. E como no `-w` as `_` são privadas (it.138), só entra o que a app
+usa: junta-se a biblioteca toda e o módulo sai **igual ao byte** ao que se faz só com os módulos precisos
+(`test/biblioteca-poda.test.js`): uma app que não a usa paga 0 bytes; só o `String(x)` 11 961 bytes; só o `Intl` 9 414; o
+JSON 35 665; as datas 2 870; o sort 17 819; a biblioteca toda viva seriam 121 706 bytes (252 funções).
+
+**Globais.** A Onda tem 64 e a análise da Mercados usava-os todos. A biblioteca usa **só o `M[63]`**, que aponta para o seu
+bloco (1 200 palavras de trabalho, reservado na primeira vez que uma função precisa dele: os inteiros grandes e os
+algarismos dos números, a data civil, o leitor de JSON, os cursores dos textos). A app fica com `M[0..62]`.
+
+**Provado contra o próprio JavaScript** (`test/biblioteca-*.test.js`, Node 22 e Chromium 153, ~120 000 reais de toda a
+espécie por conjunto: 64 bits ao acaso, subnormais, metades no decimal e não no binário, um ulp ao lado, 2^53…2^64):
+- números: `String`, `JSON.stringify`, `toFixed` (0–2 em todos, 3–100 ao acaso), `toPrecision` (1–100) e
+  `Number(x.toPrecision(p))` ao bit, `Math.round/max/min` (o -0 e o NaN), `Number(texto)` (os meios exatos entre dois
+  reais seguidos, 0x 0o 0b, os espaços do JS), o `Intl` com 0 a 20 casas, até d casas, compacto e 27 moedas — cerca de
+  3,5 milhões de comparações, 0 diferenças;
+- JSON e valores: 6 000 valores ao acaso em três formas (compacto, indentado, escapado), 12 000 textos inválidos (cortes e
+  trocas), a árvore, `String(v)`, `Number(v)`, a verdade, `Object.keys`, `v[k]`, `includes`/`indexOf`, `<`/`>=`, `join`;
+- textos: 20 000 textos com emoji e substitutos sozinhos (`length`, `slice`, `<`, o JSON, o `encodeURIComponent`, o
+  `trim`), todos os espaços do JS, 20 000 sequências de bytes no `TextDecoder`, os 256 códigos do Latim-1 em maiúsculas e
+  minúsculas;
+- datas: todos os dias de 1600 a 2400 e 100 000 ao acaso em toda a gama do `Date`, 200 000 `toISOString`, Lisboa em
+  todas as mudanças de hora de 1996 a 2099 (minuto a minuto à volta) e 100 000 instantes ao acaso;
+- ordenar: 3 000 listas (NaN, corridas, empates, até 5 000 elementos) iguais ao Node (TimSort) e 3 000 iguais ao
+  Chromium (PowerSort, pelo Playwright); os dois algoritmos diferem em 653 delas (as chaves NaN), e a Onda acerta nos dois;
+- as três formas: 3 301 linhas de números, datas, JSON e textos dão 446 853 bytes iguais em `-w`, `-x` e `-a` (qemu);
+- o exemplo `ex/carteira/carteira.onda` (um script do anfitrião Node com sete módulos) contra o mesmo em JS, no exemplo e
+  em 300 carteiras ao acaso.
+
+**A Mercados passou para a biblioteca** (Mercados 4.9.1, cache v70), com os 87 testes dela a passar sem mudar um byte dos
+testes — a análise igual ao bit, as vistas no Chromium, os 50 cenários do conselheiro com a rede simulada:
+- a app (`mercados/onda`): 3 356 → 2 827 linhas de Onda (a análise 1 415 → 1 219, o ecrã 1 941 → 1 608); o módulo
+  341 504 → 327 378 bytes. Saíram o `Math` do JS, os inteiros grandes e o `pnz`, o `toFixed`, o `Intl` e o sort do V8, os
+  códigos UTF-8 e as maiúsculas, a semântica dos nós, duas cópias do `toLowerCase` escapado, e o TimSort à mão dos avisos
+  (um `CountAndMakeRun` + inserção binária copiado do V8 que só era igual até 64 itens: agora é o `_or_tim`, igual sempre);
+- o conselheiro (`mercados/conselheiro/onda`): 2 520 → 1 948 linhas (o `js.onda` desapareceu inteiro); o módulo
+  388 874 → 363 126 bytes;
+- os dois builds passam agora ao `ondac -w` a lista das entradas (as funções que a ponte, o anfitrião e os testes chamam
+  pelo nome; o do conselheiro deduz a lista dos textos constantes que são nomes de funções, e apanhou um `un_tique` que
+  o anfitrião chama pelo relógio): o módulo da app exporta 36 funções em vez de 558, o do conselheiro 753 em vez de 929.
+
+**O que fica diferente do JS, de propósito ou por limite** (`lib/LEIA.md`): as maiúsculas só no ASCII e no Latim-1;
+Lisboa só desde 31 de março de 1996 (antes houve outras regras, que o JS sabe); a árvore (`_ar_json`) guarda a ordem do
+texto e as chaves repetidas (o `JSON.parse` não — para isso há o `_js_parse`); os bits de um NaN (que o JS não deixa ver);
+o `Intl` e as 21 moedas com símbolo são os do CLDR do Chromium 153 e do Node 22; ordenar só por chaves reais (não há
+funções como valores: o comparador vem num código).
+
+**O que a Onda não tem e se contornou.**
+- Numa função cujo nome começa por `_`, `Lg` (e `Sn Cs Ex Pw At`) é a **primitiva** do alvo, não o `_lg` do fdlibm da Onda
+  (é a regra `mlib` do compilador, para a própria biblioteca matemática). No `-w` isso é o `Math.log` do anfitrião; no `-a`
+  não há primitiva e o compilador recusa (`funcao matematica ainda nao em -a: 6`). Repro: `: _f f>f x Lg x` com
+  `ondac -a`; com `: f f>f x Lg x` compila. A biblioteca usava o `Lg` só para estimar o `floor(log10 v)` do decimal mais
+  curto; a estimativa passou a sair dos bits do real (`_nu_e10`), que dá o mesmo e corre nas três formas. De caminho, a
+  poda do `-w` marca o `_lg` do fdlibm como vivo mal vê o token `Lg`, mesmo quando a função `_` chama a primitiva: sem o
+  `Lg`, o `String(x)` passou de 14 583 para 11 961 bytes.
+- No `-w`, uma função morta pode chamar um nome que não existe sem erro (a poda vem antes da resolução dos nomes); no `-x`
+  e no C é erro. Repro: `: _morta i>i x naoexiste x 1` com um `main` que não a usa.
+- Um local com nome em maiúscula (`L`, `K`) é um operador: a biblioteca escreve-os em minúsculas (`nl`, `kk`).
+
+**A Música** não mudou (é de outra sessão): o `lib/app.onda` fica tal e qual, e o LEIA.md diz a que nome da biblioteca
+corresponde cada função dele.
+
+**Verificado.** `node --test test/*.test.js`: 142 passam, 0 falham, 17 saltados (os do Mac; os do arm64 correram no
+qemu). Mercados: 87/87, o `ui.test.js` na pasta e no `dist/` (depois do `node build.mjs` da raiz). O compilador
+(`onda/src`, `onda/seed`) não mudou.

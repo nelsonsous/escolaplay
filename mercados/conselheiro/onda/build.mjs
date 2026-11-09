@@ -4,7 +4,10 @@
 //   node mercados/conselheiro/onda/build.mjs --verificar  → só confirma que o módulo gravado corresponde às fontes
 // O correr.mjs corre-o com o anfitrião Node (onda/rt/anfitriao-node.js).
 //
-// Ligação (a Onda só tem M[0..63] de globais, e a análise usa-os todos): os nomes g_* são palavras num bloco que o
+// O módulo leva a biblioteca da Onda (onda/lib, toda: o -w só leva o que se usa) e a análise (mercados/onda), pelas
+// listas BIBLIOTECA e ANALISE do mercados/onda/build.mjs, e depois os scripts (FONTES).
+//
+// Ligação (a Onda só tem M[0..63] de globais, e a análise usa M[0..62]): os nomes g_* são palavras num bloco que o
 // main reserva logo ao começar (o primeiro A do programa, num endereço fixo); `#g g_nome n` dá-lhe n palavras. Os
 // nomes k_* são textos constantes ("k_price" → "price"; `#k k_nome texto` para outro texto), feitos uma vez no
 // k_ini. O endereço do bloco sai de uma primeira compilação (o topo do monte depois do _ini do runtime), e a segunda
@@ -13,20 +16,17 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BIBLIOTECA, ANALISE } from '../../onda/build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(here, '../../..');
 const ondac = path.join(raiz, 'onda/build/ondac');
 export const DESTINO = path.join(raiz, 'mercados/conselheiro/conselheiro.wasm');
-export const FONTES = ['js.onda', 'comum.onda', 'dados.onda', 'universo.onda', 'outros.onda', 'publicar.onda', 'backtest.onda', 'main.onda'];
+export const FONTES = ['comum.onda', 'dados.onda', 'universo.onda', 'outros.onda', 'publicar.onda', 'backtest.onda', 'main.onda'];
 
-// as fontes da análise (fases B e C), pela ordem do build da app (mercados/onda/build.mjs): as do FONTES antes da
-// biblioteca de apps (o ecrã da app não entra); o main da análise também não (o nosso é outro)
+// a biblioteca e as fontes da análise (fases B e C), pela ordem do build da app; o main da análise não (o nosso é outro)
 function analise() {
-    const b = readFileSync(path.join(raiz, 'mercados/onda/build.mjs'), 'utf8');
-    const lista = JSON.parse(b.match(/export const FONTES = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
-    const fim = lista.findIndex((f) => f.includes('/'));
-    return lista.slice(0, fim < 0 ? lista.length : fim).map((f) => readFileSync(path.join(raiz, 'mercados/onda', f), 'utf8')).join('\n').replace(/^: main >i/m, ': amain >i');
+    return [...BIBLIOTECA, ...ANALISE].map((f) => readFileSync(path.join(raiz, 'mercados/onda', f), 'utf8')).join('\n').replace(/^: main >i/m, ': amain >i');
 }
 
 // os tokens fora de comentários e de textos
@@ -60,15 +60,19 @@ export function fonte(base = 0) {
     ks.forEach((k, j) => L.push(`: ${k} >i @ ${k0 + j}`));
     p += ks.length;
     const esc = (s) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    L.push(`: k_ini >i { = t 0`, ...ks.map((k, j) => `  = t tx_ini "${esc(txt[k] ?? k.slice(2))}" ! ${k0 + j} tx_fim t`), '  0 }');
+    L.push(`: k_ini >i { = t 0`, ...ks.map((k, j) => `  = t _tx_abre 4096 "${esc(txt[k] ?? k.slice(2))}" ! ${k0 + j} _tx_fecha t`), '  0 }');
     L.push(`: gb >i ${base}`, `: gn >i ${p - base}`);
-    return { texto: analise() + '\n' + src + '\n# ---------- gerado pelo build.mjs ----------\n' + L.join('\n') + '\n', globais: gs.length, constantes: ks.length, palavras: p - base };
+    // as entradas (ondac -w f g …): as funções que o anfitrião chama pelo nome — as que têm o nome num texto constante
+    // (o cs_resp, que o _an_pede recebe) — e as t_* dos testes; o resto que nada usa fica de fora
+    const defs = new Set([...src.matchAll(/^: ([a-z_][a-zA-Z0-9_]*) /gm)].map((m) => m[1]));
+    const entradas = [...new Set([...ks.map((k) => txt[k] ?? k.slice(2)).filter((t) => defs.has(t)), ...[...defs].filter((d) => d.startsWith('t_'))])].sort();
+    return { texto: analise() + '\n' + src + '\n# ---------- gerado pelo build.mjs ----------\n' + L.join('\n') + '\n', entradas, globais: gs.length, constantes: ks.length, palavras: p - base };
 }
 
-function compilar(texto) {
+function compilar(texto, entradas) {
     if (!existsSync(ondac)) execFileSync('sh', [path.join(raiz, 'onda/build.sh')], { stdio: 'inherit' });
     let w;
-    try { w = execFileSync(ondac, ['-w'], { input: texto, maxBuffer: 64 << 20 }); } catch (e) { throw new Error(String(e.stdout || '') + String(e.stderr || '')); }
+    try { w = execFileSync(ondac, ['-w', ...entradas], { input: texto, maxBuffer: 64 << 20 }); } catch (e) { throw new Error(String(e.stdout || '') + String(e.stderr || '')); }
     if (w.subarray(0, 4).toString('latin1') !== '\0asm') throw new Error(w.toString().slice(0, 2000));
     return w;
 }
@@ -86,9 +90,9 @@ function topo(w) {
 }
 
 export function construir() {
-    const base = topo(compilar(fonte(0).texto));
+    const f0 = fonte(0), base = topo(compilar(f0.texto, f0.entradas));
     const f = fonte(base);
-    const w = compilar(f.texto);
+    const w = compilar(f.texto, f.entradas);
     if (topo(w) !== base) throw new Error('conselheiro: o endereço dos globais mudou entre as duas compilações');
     return { wasm: w, base, ...f };
 }

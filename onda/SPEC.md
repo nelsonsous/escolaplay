@@ -132,6 +132,36 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 | 211 | c | termina com o código c, depois de escrever tudo |
 | 213 / 214 | – | a mensagem / o nome (TypeError, AbortError, Error…) do último erro |
 
-- **Biblioteca** `lib/app.onda` (junta-se antes da app: `cat lib/app.onda app.onda | ondac -w`): textos (`tnovo tlen tbyte tpor tigual tcomeca tcampo tint thtml`), números como no pt-PT (`pint`, `pdec x d`), JSON (`json t` → árvore; `jget jidx jnum jtxt jn jtipo`) e regiões de memória (`marca` / `solta m`: o que se reservou depois da marca volta a zero e fica livre — usar uma por evento para o monte não crescer).
-- **Globais:** `M[0..59]` são da app; a biblioteca usa `M[60..63]`; os textos literais (`"..."` e `$"..."`) começam em `M[64]`, e o monte a seguir a eles.
+- **Biblioteca:** a da Onda (ver "Biblioteca", abaixo), que se junta antes da app. O `lib/app.onda` da it.137 (textos, números pt-PT, um leitor de JSON e as regiões) fica para quem ainda o usa.
+- **Globais:** `M[0..62]` são da app; a biblioteca usa só o `M[63]` (o `lib/app.onda` usava `M[60..62]`); os textos literais (`"..."` e `$"..."`) começam em `M[64]`, e o monte a seguir a eles.
 - Exemplo completo, com teste no browser: `ex/app/contador.onda` (`test/app.test.js`).
+
+## Biblioteca
+`onda/lib`: o que o JavaScript traz de origem, para qualquer app, igual ao JS onde o diz (conferido contra o Node 22 e o
+Chromium 153 em `test/biblioteca-*.test.js`). Junta-se antes da app, por esta ordem (cada módulo só usa os de cima):
+
+```
+cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao}.onda app.onda | ondac -w > app.wasm
+```
+
+| módulo | prefixo | o quê |
+|---|---|---|
+| `memoria` | `_me_` | o bloco da biblioteca, regiões (`_me_marca`/`_me_solta`), listas que crescem |
+| `texto` | `_tx_` | o formato do `O t`; comparar, procurar, partir; UTF-8 ⇄ códigos; vistas UTF-16 (o `length`, o `slice` e o `<` do JS); maiúsculas (ASCII e Latim-1); `encodeURIComponent`, `TextDecoder`, HTML; `_tx_abre`/`_tx_fecha` (um texto com a guarda do `Oc` que repõe a saída de antes) |
+| `numero` | `_nu_` | `String(x)` (o decimal mais curto), `Number(texto)` (arredondamento certo sempre), `toFixed` (0–100), `toPrecision` (1–100), `Math.round/max/min`; o `Intl.NumberFormat('pt-PT')` (d casas, até d casas, compacto, moedas: arredonda o decimal mais curto, como o ICU) |
+| `valor` | `_js_` | os valores do JS (undefined, null, booleanos, números, textos, listas, objetos com a ordem das chaves do JS), `String(v)`, `Number(v)`, `===`, `includes`, `<`, `join` |
+| `json` | `_js_` | `JSON.parse` (os números ao bit, `\u` e substitutos) e `JSON.stringify` (também indentado), ao byte |
+| `arvore` | `_ar_` | JSON só de leitura em árvore — o que a ponte de uma app escreve na memória — com a semântica do JS |
+| `data` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (as regras da UE) |
+| `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
+| `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
+| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–110` e `Y 200–214`) com nomes |
+
+- **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não
+  colidem. Como são privados no `-w`, só entra o que a app usa: com a biblioteca toda junta, o módulo sai igual ao byte
+  ao que se faz só com os módulos precisos (`test/biblioteca-poda.test.js`).
+- **Globais:** só o `M[63]`, que aponta para o bloco da biblioteca (1 200 palavras de trabalho, reservado na primeira vez).
+  Quem repõe o monte por fora (uma ponte que mexe no `M[-1]`) chama o `_me_lb` no `main`, antes de marcar.
+- **Para o `-w`, `-x` e `-a`** (usa o `M[-1]`, o `Oc` e o `_ow` do runtime); não para o C.
+- O que não é igual ao JS, e como usar: `lib/LEIA.md`. Exemplo: `ex/carteira/carteira.onda` (um script com sete módulos).
+

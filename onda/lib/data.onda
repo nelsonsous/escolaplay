@@ -1,0 +1,73 @@
+# data.onda — datas como no JavaScript: dia civil ⇄ dias desde 1970, o toISOString, o dia da semana, e a hora de
+# Lisboa (Europe/Lisbon, com as regras da UE). Precisa de memoria.onda e numero.onda (_nu_pzk, _nu_fin).
+#
+# Tempos em ms desde 1970 (UTC); dias desde 1970-01-01 (o dia 0 é uma quinta-feira).
+#   _dt_dias y m d    os dias de (ano, mês 1–12, dia; o dia pode passar do fim do mês, como no Date.UTC)
+#   _dt_civil z       a data civil do dia z: _dt_cv é o endereço de [ano, mês, dia] (no bloco da biblioteca: vale
+#                     até ao próximo _dt_civil)
+#   _dt_semana z      o dia da semana (0 domingo .. 6 sábado: o getUTCDay)
+#   _dt_dia t         o dia de um tempo t (ms, inteiro; para baixo também antes de 1970)
+#   _dt_ok t          1 se t (ms, real) é uma data válida do JS (finito, |t| <= 8,64e15)
+#   _dt_piso t        escreve o toISOString(): AAAA-MM-DDTHH:MM:SS.mmmZ (±AAAAAA fora de 0..9999); t real válido
+#   _dt_pdia t        escreve AAAA-MM-DD (o toISOString().slice(0, 10)) de um tempo t (ms, inteiro)
+#   _dt_piso10 z      escreve o toISOString().slice(0, 10) do dia z ('+0AAAAA-MM' de 10000 em diante, sem o dia)
+#   _dt_liso t        os dias de um texto 'AAAA-MM-DD' (sem confirmar o formato)
+#   _dt_ultdom y m    o dia (desde 1970) do último domingo do mês m
+#   _dt_lisboa t      o tempo t (ms, UTC) na hora de Lisboa: a de inverno é a UTC; a de verão (UTC+1) vai do último
+#                     domingo de março à 01:00 UTC ao último domingo de outubro à 01:00 UTC (as regras da UE, as de
+#                     Portugal desde 31 de março de 1996; antes houve outras, e o JS sabe-as: daí para trás não é igual)
+#   _dt_phoje t       a data de Lisboa (AAAA-MM-DD: o Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }))
+#   _dt_pquando t     o Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', hour: '2-digit',
+#                     minute: '2-digit' }): "quinta-feira, 07:15"
+# Globais: o bloco da biblioteca (b+6..8, a data civil).
+
+: _dt_dias iii>i y m d {
+  = y ? <= m 2 - y 1 y
+  = era / ? >= y 0 y - y 399 400
+  = yoe - y * era 400
+  = doy + - / + * 153 + m ? > m 2 -3 9 2 5 1 d
+  = doe + - + * yoe 365 / yoe 4 / yoe 100 doy
+  - + * era 146097 doe 719468 }
+: _dt_cv >i + _me_lb 6
+: _dt_civil i>i z {
+  = z + z 719468
+  = era / ? >= z 0 z - z 146096 146097
+  = doe - z * era 146097
+  = yoe / - + - doe / doe 1460 / doe 36524 / doe 146096 365
+  = y + yoe * era 400
+  = doy - doe - + * 365 yoe / yoe 4 / yoe 100
+  = mp / + * 5 doy 2 153
+  = d + - doy / + * 153 mp 2 5 1
+  = m ? < mp 10 + mp 3 - mp 9
+  = c _dt_cv ! c + y <= m 2 ! + c 1 m ! + c 2 d 0 }
+: _dt_semana i>i z % + % z 7 11 7
+: _dt_dia i>i t ? >= t 0 / t 86400000 - / + t 1 86400000 1
+: _dt_ok f>i t && _nu_fin t <= Ab t 8640000000000000.
+: _dt_piso f>i t {
+  = ms I _nu_toint t
+  = z _dt_dia ms = r - ms * z 86400000
+  _dt_civil z
+  = c _dt_cv = y @ c
+  ? && >= y 0 <= y 9999 _nu_pzk y 4 { P ? < y 0 '- '+ _nu_pzk ? < y 0 - 0 y y 6 }
+  P '- _nu_pzk @ + c 1 2 P '- _nu_pzk @ + c 2 2
+  P 'T _nu_pzk / r 3600000 2 P ': _nu_pzk % / r 60000 60 2 P ': _nu_pzk % / r 1000 60 2 P '. _nu_pzk % r 1000 3 P 'Z }
+: _dt_pdia i>i ms { _dt_civil _dt_dia ms = c _dt_cv _nu_pzk @ c 4 P '- _nu_pzk @ + c 1 2 P '- _nu_pzk @ + c 2 2 }
+: _dt_piso10 i>i z {
+  _dt_civil z
+  = c _dt_cv = y @ c = m @ + c 1 = d @ + c 2
+  ? && >= y 0 <= y 9999 { _nu_pzk y 4 P '- _nu_pzk m 2 P '- _nu_pzk d 2 }
+    { P ? < y 0 '- '+ _nu_pzk ? < y 0 - 0 y y 6 P '- _nu_pzk m 2 } }
+: _dt_liso i>i t _dt_dias _tx_dig t 0 4 _tx_dig t 5 2 _tx_dig t 8 2
+: _dt_ultdom ii>i y m { = z - ? == m 12 _dt_dias + y 1 1 1 _dt_dias y + m 1 1 1 - z _dt_semana z }
+: _dt_lisboa i>i t {
+  _dt_civil _dt_dia t
+  = y @ _dt_cv
+  = a + * _dt_ultdom y 3 86400000 3600000 = b + * _dt_ultdom y 10 86400000 3600000
+  ? && >= t a < t b + t 3600000 t }
+: _dt_phoje i>i t _dt_pdia _dt_lisboa t
+: _dt_pquando i>i t {
+  = l _dt_lisboa t = z _dt_dia l = r - l * z 86400000
+  = w _dt_semana z
+  ? == w 0 "domingo" ? == w 1 "segunda-feira" ? == w 2 "terça-feira" ? == w 3 "quarta-feira" ? == w 4 "quinta-feira"
+    ? == w 5 "sexta-feira" "sábado"
+  ", " _nu_pzk / r 3600000 2 P ': _nu_pzk % / r 60000 60 2 }

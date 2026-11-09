@@ -1,0 +1,143 @@
+# json.onda — o JSON.parse e o JSON.stringify do JavaScript, ao byte, sobre os valores de valor.onda. Precisa de
+# memoria.onda, texto.onda, numero.onda e valor.onda.
+#
+#   _js_parse t       JSON.parse(t): o valor, ou 0 se o texto não é JSON válido (o JS lança SyntaxError). Os números
+#                     ao bit (o arredondamento certo do _nu_d2f, até 780 algarismos e o "há mais", como o V8); os
+#                     \uXXXX, com os pares de substitutos juntos e os sozinhos em WTF-8. Um BOM no início é um erro
+#                     (como no JS: quem lê um ficheiro tira-o antes, com o _tx_norm t 1)
+#   _js_pj v ind d    escreve JSON.stringify(v, null, ind) (ind = espaços por nível, 0 = compacto; d = 0): as chaves pela
+#                     ordem do JS (as de índice primeiro), os undefined de fora nos objetos e null nas listas, os
+#                     números como o String (os não finitos null), os textos com os escapes do JS; vale 0 se v é
+#                     undefined (o JS devolve undefined e não escreve nada)
+# Internas do leitor: _jp_* (o estado vai no bloco da biblioteca: b+9..11 = posição, fim, erro).
+#   _jp_str s / _jp_numf s   um texto / um número no sítio do estado s (o arvore.onda usa-os)
+# Globais: o bloco da biblioteca.
+
+: _jp_c i>i s ? < @ s @ + s 1 @ @ s -1
+: _jp_av i>i s ! s + @ s 1
+: _jp_err i>i s { ! + s 2 1 ! s @ + s 1 0 }
+: _jp_ws i>i s { W && < @ s @ + s 1 { = c @ @ s || || == c 32 == c 10 || == c 13 == c 9 } _jp_av s 0 }
+: _jp_lit iii>i s t v { = q @ s = n _tx_len t = ok <= + q n @ + s 1 = j 0 W && ok < j n { = ok == @ + q j _tx_b t j = j + j 1 } ? ok { ! s + q n v } _jp_err s }
+: _jp_v i>i s {
+  _jp_ws s
+  = c _jp_c s
+  ? == c '{ _jp_obj s ? == c '[ _jp_lst s ? == c 34 _jp_str s ? == c 't _jp_lit s $"true" 4 ? == c 'f _jp_lit s $"false" 3
+  ? == c 'n _jp_lit s $"null" 2 ? || == c '- && >= c '0 <= c '9 _jp_num s _jp_err s }
+: _jp_obj i>i s {
+  _jp_av s
+  = o _js_obj 4
+  _jp_ws s
+  ? == _jp_c s '} { _jp_av s o } {
+    = go 1
+    W go {
+      _jp_ws s
+      ? != _jp_c s 34 { _jp_err s = go 0 0 } {
+        = k _jp_str s
+        _jp_ws s
+        ? || @ + s 2 != _jp_c s ': { _jp_err s = go 0 0 } {
+          _jp_av s
+          = v _jp_v s
+          ? @ + s 2 { = go 0 0 } {
+            _js_oset o k v
+            _jp_ws s
+            = c _jp_c s
+            ? == c ', { _jp_av s 0 } ? == c '} { _jp_av s = go 0 0 } { _jp_err s = go 0 0 } } } } }
+    o } }
+: _jp_lst i>i s {
+  _jp_av s
+  = a _js_lst 4
+  _jp_ws s
+  ? == _jp_c s '] { _jp_av s a } {
+    = go 1
+    W go {
+      = v _jp_v s
+      ? @ + s 2 { = go 0 0 } {
+        _js_push a v
+        _jp_ws s
+        = c _jp_c s
+        ? == c ', { _jp_av s 0 } ? == c '] { _jp_av s = go 0 0 } { _jp_err s = go 0 0 } } }
+    a } }
+: _jp_hex i>i c ? && >= c '0 <= c '9 - c '0 ? && >= c 'a <= c 'f + 10 - c 'a ? && >= c 'A <= c 'F + 10 - c 'A -1
+# 4 algarismos hexadecimais em q (ou -1)
+: _jp_u4 i>i q { = v 0 = j 0 W && >= v 0 < j 4 { = h _jp_hex @ + q j = v ? < h 0 -1 + * v 16 h = j + j 1 } v }
+: _jp_str i>i s {
+  _jp_av s
+  = q @ s = e @ + s 1
+  # o fim (a aspa que fecha): sem caracteres de controlo; os escapes saltam-se
+  = p q = ok 1 = fim 0
+  W && ok ~ fim { ? >= p e = ok 0 { = c @ p ? == c 34 = fim 1 ? < c 32 = ok 0 { = p + p ? == c 92 2 1 } } }
+  ? ~ ok _jp_err s {
+    = r A + 1 - p q
+    = w + r 1 = i q
+    W && ok < i p {
+      = c @ i
+      ? != c 92 { ! w c = w + w 1 = i + i 1 0 } {
+        = d @ + i 1
+        ? == d 'u {
+            = u _jp_u4 + i 2
+            ? < u 0 { = ok 0 0 } {
+              = i + i 6
+              # um par de substitutos em dois escapes seguidos é um só código
+              ? && && >= u 55296 < u 56320 && < + i 5 p && == @ i 92 == @ + i 1 'u {
+                  = u2 _jp_u4 + i 2
+                  ? && >= u2 56320 < u2 57344 { = u + 65536 + << - u 55296 10 - u2 56320 = i + i 6 0 } 0 } 0
+              = w _tx_wcp w u 0 } }
+          { = x ? == d 34 34 ? == d 92 92 ? == d '/ 47 ? == d 'b 8 ? == d 'f 12 ? == d 'n 10 ? == d 'r 13 ? == d 't 9 -1
+            ? < x 0 { = ok 0 0 } { ! w x = w + w 1 = i + i 2 0 } } } }
+    ? ~ ok _jp_err s { ! r w ! -1 w ! s + p 1 r } } }
+# um número: os algarismos significativos (até 780; os seguintes só contam como "há mais") vão para b+400..
+: _jp_numf i>f s {
+  = q @ s = e @ + s 1
+  = neg 0 ? && < q e == @ q '- { = neg 1 = q + q 1 } 0
+  ? || >= q e || < @ q '0 > @ q '9 { _jp_err s 0. } {
+    = dg + _me_lb 400 = nd 0 = ex 0 = st 0
+    ? == @ q '0 { = q + q 1 0 } {
+      W && < q e && >= @ q '0 <= @ q '9 {
+        = d - @ q '0
+        ? < nd 780 { ? || > nd 0 d { ! + dg nd d = nd + nd 1 0 } 0 } { = ex + ex 1 = st || st d }
+        = q + q 1 } }
+    = ok 1
+    ? && < q e == @ q '. {
+        = q + q 1
+        ? || >= q e || < @ q '0 > @ q '9 { = ok 0 0 } {
+          W && < q e && >= @ q '0 <= @ q '9 {
+            = d - @ q '0
+            ? < nd 780 { ? || > nd 0 d { ! + dg nd d = nd + nd 1 0 } 0 = ex - ex 1 } { = st || st d }
+            = q + q 1 } } } 0
+    ? && && ok < q e || == @ q 'e == @ q 'E {
+        = q + q 1 = sg 1
+        ? && < q e || == @ q '+ == @ q '- { = sg ? == @ q '- -1 1 = q + q 1 } 0
+        ? || >= q e || < @ q '0 > @ q '9 { = ok 0 0 } {
+          = x 0 W && < q e && >= @ q '0 <= @ q '9 { = x ? < x 100000 + * x 10 - @ q '0 x = q + q 1 }
+          = ex + ex * sg x } } 0
+    ? ~ ok { _jp_err s 0. } {
+      ! s q
+      ? st { ! + dg nd 1 = nd + nd 1 = ex - ex 1 } 0
+      = v ? == nd 0 0. _nu_d2f dg nd ex
+      ? neg * -1. v v } } }
+: _jp_num i>i s { = x _jp_numf s ? @ + s 2 0 _js_num x }
+# o estado do leitor para o texto t (no bloco da biblioteca)
+: _jp_ini i>i t { = s + _me_lb 9 ! s + t 1 ! + s 1 @ t ! + s 2 0 s }
+: _js_parse i>i t {
+  = s _jp_ini t
+  = v _jp_v s
+  ? @ + s 2 0 { _jp_ws s ? < @ s @ + s 1 0 v } }
+
+# ---------- JSON.stringify ----------
+: _js_ind ii>i ind d { P 10 = j 0 W < j * ind d { P 32 = j + j 1 } 0 }
+: _js_pj iii>i v ind d {
+  = t _js_tipo v
+  ? == t 1 0 ? == t 2 { "null" 1 } ? == t 3 { "false" 1 } ? == t 4 { "true" 1 } ? == t 5 { _nu_pj _js_f v 1 }
+  ? == t 8 { _tx_pj v 1 } ? == t 6 {
+    = n _js_len v
+    ? == n 0 { "[]" 1 } {
+      P '[ = j 0
+      W < j n { ? j P ', 0 ? ind _js_ind ind + d 1 0 = x _js_it v j ? == _js_tipo x 1 "null" _js_pj x ind + d 1 0 = j + j 1 }
+      ? ind _js_ind ind d 0 P '] 1 } } {
+    = r _js_ordem v = n _js_on v = c 0
+    P '{ = j 0
+    W < j n {
+      = p _js_pos r j = x _js_ov v p
+      ? != _js_tipo x 1 { ? c P ', 0 ? ind _js_ind ind + d 1 0 _tx_pj _js_ok v p P ': ? ind P 32 0 _js_pj x ind + d 1 = c + c 1 } 0
+      = j + j 1 }
+    ? && ind c _js_ind ind d 0 P '} 1 } }

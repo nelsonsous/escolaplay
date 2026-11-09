@@ -95,59 +95,59 @@
 
 # ===== pedaços =====
 # etfCrypto(): cfg.strategy !== 'mix'
-: aj_etf >i ~ veqt sg k_strategy k_v_mix
+: aj_etf >i ~ _ar_eqt sg k_strategy k_v_mix
 # (v || def) === w, com def e w textos fixos
-: aj_ou iii>i v def w ? vverd v veqt v w tigual def w
+: aj_ou iii>i v def w ? _ar_verd v _ar_eqt v w _tx_igual def w
 : aj_cpct if>i v x { "<button type=\"button\" data-cpct=\"" N v "\" class=\"" ? == x F v "on" 0 "\">" N v "%</button>" 0 }
-: aj_dia ii>i d l { "<button type=\"button\" data-sday=\"" N d "\" class=\"" ? vtemf l F d "on" 0 "\">dia " N d "</button>" 0 }
+: aj_dia ii>i d l { "<button type=\"button\" data-sday=\"" N d "\" class=\"" ? _ar_temf l F d "on" 0 "\">dia " N d "</button>" 0 }
 : aj_lim if>i p lim { "<option value=\"" N p "\" " ? == lim F p "selected" 0 ">" ? p { "±" N p "% no dia" 0 } "Não avisar" "</option>" 0 }
 # os botões do "O que tenho" para a lista l de [chave, nome]; h = cfg.holdings
-: aj_hold ii>i l h { = c jprim l W c { = k jidx c 0 "<button type=\"button\" data-hold=\"" pv k 1 "\" class=\"" ? vtem h k "on" 0 "\">" pv jidx c 1 1 "</button>" = c jprox c } 0 }
+: aj_hold ii>i l h { = c _ar_prim l W c { = k _ar_idx c 0 "<button type=\"button\" data-hold=\"" _ar_ps k 1 "\" class=\"" ? _ar_tem h k "on" 0 "\">" _ar_ps _ar_idx c 1 1 "</button>" = c _ar_prox c } 0 }
 # as opções de um select de zonas (l = [{ id, name }]) com String(id) === t
-: aj_opcoes ii>i l t { = c jprim l W c { = i jg c k_id "<option value=\"" pv i 1 "\" " ? tigual tstr i t "selected" 0 ">" pv jg c k_name 1 "</option>" = c jprox c } 0 }
+: aj_opcoes ii>i l t { = c _ar_prim l W c { = i _ar_get c k_id "<option value=\"" _ar_ps i 1 "\" " ? _tx_igual _ar_str i t "selected" 0 ">" _ar_ps _ar_get c k_name 1 "</option>" = c _ar_prox c } 0 }
 # uma célula das contas do dono: o número, se o é (fin), ou —
-: aj_cel i>i v ? && == jtipo v 4 finito @f + v 1 pjn @f + v 1 "—"
+: aj_cel i>i v ? && == _ar_tipo v 4 _nu_fin @f + v 1 _nu_ps @f + v 1 "—"
 # os nomes de myList(), juntos por ", "
-: aj_meus i>i l { = c jprim l = f 1 W c { ? f 0 ", " = f 0 = z jtipo c ? || == z 0 == z 1 0 pv c 0 = c jprox c } 0 }
+: aj_meus i>i l { = c _ar_prim l = f 1 W c { ? f 0 ", " = f 0 = z _ar_tipo c ? || == z 0 == z 1 0 _ar_ps c 0 = c _ar_prox c } 0 }
 # as linhas da lista que sigo (l = [[chave, nome]…]; g 0 fundos, 1 ações), com a pega ≡ e o ⤒ da 4.4.0
-: aj_wl ii>i l g { = c jprim l W c {
-    = s jidx c 0 = n jidx c 1
-    "<div class=\"wl-i\" data-wk=\"" pv s 1 "\" data-grp=\"" ? g "w" "f" "\"><button type=\"button\" class=\"wl-h\" aria-label=\"Arrastar " pv n 1 "\">≡</button><span>" pv n 1 " <small>" pv s 1 "</small></span><button type=\"button\" class=\"xbtn\" data-mv=\"" pv s 1 "\" data-dir=\"top\" aria-label=\"Pôr " pv n 1 " no topo\">⤒</button><button type=\"button\" class=\"xbtn\" data-rm=\"" pv s 1 "\" aria-label=\"Tirar " pv n 1 "\">×</button></div>"
-    = c jprox c } 0 }
+: aj_wl ii>i l g { = c _ar_prim l W c {
+    = s _ar_idx c 0 = n _ar_idx c 1
+    "<div class=\"wl-i\" data-wk=\"" _ar_ps s 1 "\" data-grp=\"" ? g "w" "f" "\"><button type=\"button\" class=\"wl-h\" aria-label=\"Arrastar " _ar_ps n 1 "\">≡</button><span>" _ar_ps n 1 " <small>" _ar_ps s 1 "</small></span><button type=\"button\" class=\"xbtn\" data-mv=\"" _ar_ps s 1 "\" data-dir=\"top\" aria-label=\"Pôr " _ar_ps n 1 " no topo\">⤒</button><button type=\"button\" class=\"xbtn\" data-rm=\"" _ar_ps s 1 "\" aria-label=\"Tirar " _ar_ps n 1 "\">×</button></div>"
+    = c _ar_prox c } 0 }
 
 # ===== secções =====
 : aj_fh >i {
   "<section class=\"sec\"><div class=\"sec-h\"><h2>Ações dos EUA em tempo real</h2></div>\n            <div class=\"form\"><div><label for=\"f-fh\">Chave Finnhub (grátis)</label>\n                <div class=\"inl\"><input id=\"f-fh\" class=\"inp\" type=\"password\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"cola aqui a chave\" value=\""
   = f sg k_finnhub
-  ? vverd f pv f 1 0
+  ? _ar_verd f _ar_ps f 1 0
   "\"><button type=\"button\" class=\"btn pri\" data-act=\"save-fh\">Guardar</button></div>\n                <div class=\"hint\">"
   # fhState
-  ? vverd f { = h sg k_fh ? veqt h k_v_on "Ligado: ações dos EUA em tempo real." ? vverd h { "Finnhub: " pv h 1 0 } "A ligar…" " " 0 } 0
+  ? _ar_verd f { = h sg k_fh ? _ar_eqt h k_v_on "Ligado: ações dos EUA em tempo real." ? _ar_verd h { "Finnhub: " _ar_ps h 1 0 } "A ligar…" " " 0 } 0
   "Cria uma conta grátis em finnhub.io e copia a \"API key\". Fica só neste telemóvel. Cobre ações dos EUA (Apple, Nvidia…); ETF europeus e o VWCE continuam pelo conector, com até 15 min de atraso. Cripto já é em tempo real.</div></div></div></section>\n        "
   0 }
 : aj_conector >i {
   "<section class=\"sec\" id=\"conector\"><div class=\"sec-h\"><h2>Conector de dados</h2></div>\n            <div class=\"form\">\n                <div><label for=\"f-proxy\">Endereço do teu Worker</label>\n                    <div class=\"inl\"><input id=\"f-proxy\" class=\"inp\" type=\"url\" inputmode=\"url\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"https://mercados-proxy.<conta>.workers.dev\" value=\""
   = px sg k_proxy
-  pv px 1
+  _ar_ps px 1
   "\">\n                    <button type=\"button\" class=\"btn pri\" data-act=\"save-proxy\">Guardar</button></div>\n                    <div class=\"hint\" id=\"f-proxy-msg\">"
-  ? vverd px {
+  ? _ar_verd px {
       = e sg k_yErr
-      ? vverd e { "Último erro: " pv e 1 0 } {
+      ? _ar_verd e { "Último erro: " _ar_ps e 1 0 } {
         = a sg k_yAt
-        ? vverd a { "Ligado. Última leitura " pago jnum a jnum sg k_agora jtxt sg k_yAtTxt "." 0 } "A testar…" } }
+        ? _ar_verd a { "Ligado. Última leitura " pago _ar_num a _ar_num sg k_agora _ar_txt sg k_yAtTxt "." 0 } "A testar…" } }
     "Publica o Worker da pasta <code>mercados/proxy</code> (<code>npx wrangler deploy</code>) e cola aqui o URL."
   "</div></div>\n            </div></section>\n        "
   0 }
 : aj_nucleo >i {
   "<div><label>Fundo núcleo</label><select class=\"inp\" data-cfg=\"coreFund\">"
   = cf sg k_coreFund
-  = c jprim sg k_funds
-  W c { = f jidx c 0 "<option value=\"" pv f 1 "\" " ? vigual cf f "selected" 0 ">" pv jidx c 1 1 "</option>" = c jprox c }
+  = c _ar_prim sg k_funds
+  W c { = f _ar_idx c 0 "<option value=\"" _ar_ps f 1 "\" " ? _ar_igual cf f "selected" 0 ">" _ar_ps _ar_idx c 1 1 "</option>" = c _ar_prox c }
   "</select></div>\n                <div><label>Parte em cripto</label><div class=\"chips days\">"
-  = x jnum sg k_cryptoPct
+  = x _ar_num sg k_cryptoPct
   aj_cpct 0 x aj_cpct 5 x aj_cpct 10 x aj_cpct 15 x
   "</div>\n                    <div class=\"seg prof two\" style=\"margin-top:8px\"><button type=\"button\" data-cmix=\"btc\" class=\""
-  = m veqt sg k_cryptoMix k_v_btceth
+  = m _ar_eqt sg k_cryptoMix k_v_btceth
   ? m 0 "on"
   "\"><b>Só Bitcoin</b></button><button type=\"button\" data-cmix=\"btceth\" class=\""
   ? m "on" 0
@@ -156,9 +156,9 @@
 : aj_plano >i {
   "<section class=\"sec\"><div class=\"sec-h\"><h2>O teu plano na Trade Republic</h2></div>\n            <div class=\"form\">\n                <div><label for=\"f-budget\">Quanto investes por mês (€)</label>\n                    <input id=\"f-budget\" class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"50\" data-cfg=\"budget\" value=\""
   # +cfg.budget (o `+` vem do JS)
-  = b jnum sg k_budget
+  = b _ar_num sg k_budget
   = bv && != b 0. == b b
-  ? bv pjn b 0
+  ? bv _nu_ps b 0
   "\" placeholder=\"ex.: 900\"></div>\n                <div><label>Estratégia</label><div class=\"seg prof two\"><button type=\"button\" data-strat=\"etfcrypto\" class=\""
   = etf aj_etf
   ? etf "on" 0
@@ -176,64 +176,64 @@
   "><label>Perfil de risco</label><div class=\"seg prof\">"
   # os PROFILES do mercados.js (nome e Math.round das partes × 100)
   = p sg k_profile
-  "<button type=\"button\" data-prof=\"prud\" class=\"" ? veqt p k_v_prud "on" 0 "\"><b>Prudente</b><small>90/10/0</small></button>"
-  "<button type=\"button\" data-prof=\"bal\" class=\"" ? veqt p k_v_bal "on" 0 "\"><b>Equilibrado</b><small>70/20/10</small></button>"
-  "<button type=\"button\" data-prof=\"dyn\" class=\"" ? veqt p k_v_dyn "on" 0 "\"><b>Dinâmico</b><small>55/30/15</small></button>"
+  "<button type=\"button\" data-prof=\"prud\" class=\"" ? _ar_eqt p k_v_prud "on" 0 "\"><b>Prudente</b><small>90/10/0</small></button>"
+  "<button type=\"button\" data-prof=\"bal\" class=\"" ? _ar_eqt p k_v_bal "on" 0 "\"><b>Equilibrado</b><small>70/20/10</small></button>"
+  "<button type=\"button\" data-prof=\"dyn\" class=\"" ? _ar_eqt p k_v_dyn "on" 0 "\"><b>Dinâmico</b><small>55/30/15</small></button>"
   "</div>\n                    <div class=\"hint\">Núcleo (ETF) / satélites (ações) / cripto. O Resumo do dia divide o valor do mês por estas partes, conforme os sinais de cada ativo.</div></div>\n                <div><label>Dias de execução dos planos na TR</label><div class=\"chips days\">"
   = d sg k_saveDays
   aj_dia 2 d aj_dia 9 d aj_dia 16 d aj_dia 23 d
   "</div>\n                    <div class=\"hint\">A TR executa os planos de poupança nos dias 2, 9, 16 e 23 (sem custos; dá para alterar até à véspera). Com 2 dias, o valor do mês divide-se a meio"
-  ? bv { " (" peur0 / b F jn d " por execução)" 0 } 0
+  ? bv { " (" peur0 / b F _ar_n d " por execução)" 0 } 0
   ". Na véspera, o Resumo do dia diz quanto pôr em cada plano.</div></div>\n                <div><label>Diário das sugestões</label><div class=\"hint\">Guardado no teu conector com o código <code class=\"sel\">"
-  pv sg k_jid 1
+  _ar_ps sg k_jid 1
   "</code>. Se reinstalares a app, cola aqui o código para recuperar o histórico."
-  ? vverd sg k_owner " É também a chave da tua app de dono: não o mostres a ninguém." 0
+  ? _ar_verd sg k_owner " É também a chave da tua app de dono: não o mostres a ninguém." 0
   "</div>\n                    <div class=\"inl\" style=\"margin-top:6px\"><input id=\"f-jid\" class=\"inp\" type=\"text\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"código do diário\"><button type=\"button\" class=\"btn sm\" data-act=\"jid\">Usar</button></div></div>\n            </div></section>\n        "
   0 }
 # claudeSection() na app do dono
 : aj_dono >i {
-  = s sg k_stats = r jg s k_run
+  = s sg k_stats = r _ar_get s k_run
   "<section class=\"sec\"><div class=\"sec-h\"><h2>Partilha da app</h2></div><div class=\"form\">\n                <div><label>Outras apps ligadas ao teu conector</label><div class=\"share-st\">"
-  "<div><b class=\"num\">" aj_cel jg s k_d1 "</b><small>hoje</small></div>"
-  "<div><b class=\"num\">" aj_cel jg s k_d7 "</b><small>7 dias</small></div>"
-  "<div><b class=\"num\">" aj_cel jg s k_d30 "</b><small>30 dias</small></div>"
-  "<div><b class=\"num\">" aj_cel jg s k_claude "</b><small>com o Claude</small></div>"
+  "<div><b class=\"num\">" aj_cel _ar_get s k_d1 "</b><small>hoje</small></div>"
+  "<div><b class=\"num\">" aj_cel _ar_get s k_d7 "</b><small>7 dias</small></div>"
+  "<div><b class=\"num\">" aj_cel _ar_get s k_d30 "</b><small>30 dias</small></div>"
+  "<div><b class=\"num\">" aj_cel _ar_get s k_claude "</b><small>com o Claude</small></div>"
   "</div>\n                    <div class=\"hint\">"
-  = e jg s k_error
-  ? vverd e { "Não deu para contar: " pv e 1 ". " 0 } 0
+  = e _ar_get s k_error
+  ? _ar_verd e { "Não deu para contar: " _ar_ps e 1 ". " 0 } 0
   "Não conta a tua. \"Com o Claude\": pediram a análise nos últimos 7 dias."
   # runTxt (sem escapar, como no JS); a data vem do JS
-  ? && vverd r vverd jg r k_at {
-      = dn jg r k_done = qd jg r k_queued
-      " Última corrida: " tpor jtxt sg k_runAt " — " pv dn 0 " analisada" ? && == jtipo dn 4 == @f + dn 1 1. 0 "s"
-      ? vmenor dn qd { ", " pjn - vnum qd vnum dn " ficaram de fora (limite de " pv jg r k_max 0 " por corrida)" 0 } 0
+  ? && _ar_verd r _ar_verd _ar_get r k_at {
+      = dn _ar_get r k_done = qd _ar_get r k_queued
+      " Última corrida: " _tx_p _ar_txt sg k_runAt " — " _ar_ps dn 0 " analisada" ? && == _ar_tipo dn 4 == @f + dn 1 1. 0 "s"
+      ? vmenor dn qd { ", " _nu_ps - _ar_vnum qd _ar_vnum dn " ficaram de fora (limite de " _ar_ps _ar_get r k_max 0 " por corrida)" 0 } 0
       "." 0 } 0
   "</div></div>\n                <div><label>Análise do Claude para as outras apps</label><div class=\"seg prof two\"><button type=\"button\" data-others=\"1\" class=\""
   # S.others !== false && st.others !== false
-  = on && != jtipo jg s k_others 2 != jtipo sg k_others 2
+  = on && != _ar_tipo _ar_get s k_others 2 != _ar_tipo sg k_others 2
   ? on "on" 0
   "\"><b>Ligada</b><small>para quem a pedir</small></button><button type=\"button\" data-others=\"0\" class=\""
   ? on 0 "on"
   "\"><b>Desligada</b><small>só para ti</small></button></div>\n                    <div class=\"hint\">Cada app analisada torna a tarefa das "
-  pv sg k_horas 0
+  _ar_ps sg k_horas 0
   " mais longa e gasta mais do teu plano Claude (até 20 por corrida). Se forem muitas, desliga aqui.</div></div>\n                <div><label for=\"f-share\">Link para partilhar</label><div class=\"inl\"><input id=\"f-share\" class=\"inp\" type=\"text\" readonly value=\""
-  pv sg k_share 1
+  _ar_ps sg k_share 1
   "\"><button type=\"button\" class=\"btn sm\" data-act=\"share-link\">Copiar</button></div>\n                    <div class=\"hint\">A app já vem ligada ao teu conector. Cada pessoa fica com os seus ativos e a análise do Claude vem desligada. A tua análise, o teu plano e toda a lista da Trade Republic ficam só nesta app.</div></div>\n            </div></section>"
   0 }
 # claudeSection() nas outras apps
 : aj_claude >i {
-  = on vverd sg k_claude
+  = on _ar_verd sg k_claude
   "<section class=\"sec\"><div class=\"sec-h\"><h2>Análise do Claude</h2></div><div class=\"form\"><div>\n            <div class=\"seg prof two\"><button type=\"button\" data-claude=\"0\" class=\""
   ? on 0 "on"
   "\"><b>Desligada</b><small>só o resumo automático</small></button><button type=\"button\" data-claude=\"1\" class=\""
   ? on "on" 0
   "\"><b>Ligada</b><small>às "
-  pv sg k_horas 0
+  _ar_ps sg k_horas 0
   "</small></button></div>\n            <div class=\"hint\">"
-  ? == jtipo sg k_others 2 "Pausada pelo autor da app. " 0
+  ? == _ar_tipo sg k_others 2 "Pausada pelo autor da app. " 0
   "Uma análise curta dos teus ativos e dos que juntaste"
-  = l sg k_meus = t tnovo vcap l O t aj_meus l O 0
-  ? tlen t { " (" thtml t ")" 0 } 0
+  = l sg k_meus = t _tx_novo _ar_cap l O t aj_meus l O 0
+  ? _tx_len t { " (" _tx_html t ")" 0 } 0
   ", escrita pelo Claude duas vezes por dia. Para isso, a lista de símbolos desta app é enviada ao autor da app.</div>\n        </div></div></section>"
   0 }
 : aj_pref >i {
@@ -243,17 +243,17 @@
   "<button type=\"button\" data-fs=\"l\" class=\"" ? aj_ou fs k_v_n k_v_l "on" 0 "\"><b>Grande</b></button>"
   "<button type=\"button\" data-fs=\"xl\" class=\"" ? aj_ou fs k_v_n k_v_xl "on" 0 "\"><b>Muito grande</b></button>"
   "</div>\n                    <div class=\"hint\">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>\n                <div class=\"sw\"><span>Ações e fundos em euros<br><small class=\"hint\">como na Trade Republic</small></span><div class=\"seg\"><button type=\"button\" data-eur=\"1\" class=\""
-  = eu vverd sg k_eur
+  = eu _ar_verd sg k_eur
   ? eu "on" 0
   "\">EUR</button><button type=\"button\" data-eur=\"0\" class=\""
   ? eu 0 "on"
   "\">Moeda local</button></div></div>\n                <div class=\"sw\"><span>Moeda das cripto</span><div class=\"seg\"><button type=\"button\" data-fiat=\"EUR\" class=\""
-  ? veqt sg k_fiat k_v_EUR "on" 0
+  ? _ar_eqt sg k_fiat k_v_EUR "on" 0
   "\">EUR</button><button type=\"button\" data-fiat=\"USD\" class=\""
-  ? veqt sg k_fiat k_v_USD "on" 0
+  ? _ar_eqt sg k_fiat k_v_USD "on" 0
   "\">USD</button></div></div>\n                <div><label for=\"f-lim\">Avisar quando algo sobe ou cai mais de</label>\n                    <select id=\"f-lim\" class=\"inp\" data-cfg=\"alertPct\">"
   # lim = +cfg.alertPct || 0 (o `+` vem do JS)
-  = a jnum sg k_alertPct = lim ? && != a 0. == a a a 0.
+  = a _ar_num sg k_alertPct = lim ? && != a 0. == a a a 0.
   aj_lim 0 lim aj_lim 2 lim aj_lim 3 lim aj_lim 4 lim aj_lim 5 lim aj_lim 8 lim aj_lim 10 lim
   "</select>\n                    <select id=\"f-scope\" class=\"inp\" data-cfg=\"alertScope\" style=\"margin-top:8px\" aria-label=\"Sobre que ativos\">"
   = sc sg k_alertScope
@@ -262,37 +262,37 @@
   "<option value=\"all\" " ? aj_ou sc k_v_mineAdded k_v_all "selected" 0 ">Tudo o que sigo</option>"
   "</select></div>\n                <div class=\"sw\"><span>Notificações no telemóvel"
   # notifState: 'Notification' in window e Notification.permission vêm do JS
-  = nok == jtipo sg k_notifOk 3
-  ? ~ nok " <small class=\"hint\">(não suportado neste browser)</small>" ? veqt sg k_notifPerm k_v_denied " <small class=\"hint\">(bloqueado nas definições do browser)</small>" 0
+  = nok == _ar_tipo sg k_notifOk 3
+  ? ~ nok " <small class=\"hint\">(não suportado neste browser)</small>" ? _ar_eqt sg k_notifPerm k_v_denied " <small class=\"hint\">(bloqueado nas definições do browser)</small>" 0
   "</span><button type=\"button\" class=\"btn sm\" data-act=\"notify\">"
-  ? && && vverd sg k_notify nok veqt sg k_notifPerm k_v_granted "Ligadas" "Ligar"
+  ? && && _ar_verd sg k_notify nok _ar_eqt sg k_notifPerm k_v_granted "Ligadas" "Ligar"
   "</button></div>\n                <div class=\"sw\"><span>Silêncio à noite (22h às 10h)<br><small class=\"hint\">os avisos da noite chegam juntos de manhã, numa só notificação</small></span><div class=\"seg\"><button type=\"button\" data-act=\"quiet\" data-v=\"1\" class=\""
-  = qf == jtipo sg k_quiet 2
+  = qf == _ar_tipo sg k_quiet 2
   ? qf 0 "on"
   "\">Sim</button><button type=\"button\" data-act=\"quiet\" data-v=\"0\" class=\""
   ? qf "on" 0
   "\">Não</button></div></div>\n                <div><label for=\"f-dist\">Combustíveis: zona</label>\n                    <select id=\"f-dist\" class=\"inp\" data-cfg=\"distrito\"><option value=\"\">Portugal (todos os postos)</option>"
   = dv sg k_distrito
-  aj_opcoes sg k_distritos tstr dv
+  aj_opcoes sg k_distritos _ar_str dv
   "</select>\n                    "
-  ? vverd dv { "<select id=\"f-mun\" class=\"inp\" data-cfg=\"municipio\" style=\"margin-top:8px\" aria-label=\"Concelho\"><option value=\"\">Todo o distrito</option>" aj_opcoes sg k_munic tstr sg k_municipio "</select>" 0 } 0
+  ? _ar_verd dv { "<select id=\"f-mun\" class=\"inp\" data-cfg=\"municipio\" style=\"margin-top:8px\" aria-label=\"Concelho\"><option value=\"\">Todo o distrito</option>" aj_opcoes sg k_munic _ar_str sg k_municipio "</select>" 0 } 0
   "</div>\n            </div></section>"
   0 }
 : aj_lista >i {
   "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Ações e fundos que sigo</h2><span class=\"sub\">"
   = w sg k_watch = f sg k_funds
-  N + jn w jn f
+  N + _ar_n w _ar_n f
   "</span><button type=\"button\" class=\"right btn sm\" data-act=\"reset-watch\">Repor lista</button></div>\n            <div class=\"form\">\n                <div><label for=\"f-add\">Juntar ação ou fundo/ETF</label>\n                    <input id=\"f-add\" class=\"inp\" type=\"search\" autocomplete=\"off\" placeholder=\"ex.: Mota-Engil, Ferrari, IWDA, AAPL…\" "
-  ? vverd sg k_proxy 0 "disabled"
+  ? _ar_verd sg k_proxy 0 "disabled"
   ">\n                    <div class=\"res\" id=\"f-res\"></div>\n                    <div class=\"hint\">Também podes escrever o símbolo do Yahoo Finance (ex.: <code>EGL.LS</code>, <code>RACE.MI</code>) e carregar Enter.</div></div>\n                <div class=\"hint\">Para ordenar: agarra na pega ≡ e arrasta (a página desliza sozinha perto das margens), ou ⤒ para pôr no topo.</div>\n                <div class=\"wl\">"
   aj_wl f 0 aj_wl w 1
   "</div>\n            </div></section>"
   0 }
 : aj_sobre >i {
   "\n        <section class=\"sec\" id=\"sobre\"><div class=\"sec-h\"><h2>Sobre</h2></div>\n            <div class=\"disc\"><b>Mercados "
-  pv sg k_versao 0
+  _ar_ps sg k_versao 0
   ".</b> Cripto: Binance. Ações, índices, petróleo e notícias: Yahoo Finance e Google Notícias, através do teu conector. Combustíveis: DGEG. Análise de cada ativo: tarefa agendada do Claude, às "
-  pv sg k_horas 0
+  _ar_ps sg k_horas 0
   ".\n                <p class=\"about-own\">Ferramenta pessoal; as decisões e a execução são tuas.</p></div></section>"
   0 }
 
@@ -301,6 +301,6 @@
   ! 53 s
   aj_chaves
   aj_fh aj_conector aj_plano
-  ? vverd sg k_owner aj_dono aj_claude
+  ? _ar_verd sg k_owner aj_dono aj_claude
   aj_pref aj_lista aj_sobre
   0 }

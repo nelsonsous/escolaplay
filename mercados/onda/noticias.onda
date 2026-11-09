@@ -15,8 +15,8 @@
 : ini >i {
   # a área de trabalho do motor (razões, níveis, inteiros grandes dos números exatos): uma só, para todas as chamadas
   ! 9 A 2600
-  # datas do cryptoTax (cripto.onda)
-  ! 63 A 8
+  # o bloco da biblioteca (M[63]): reservado já, abaixo da marca do monte que a ponte repõe em cada chamada
+  _me_lb
   # U+00C0..U+024F (400) e U+1E00..U+1EFF (256): a letra que o norm dá, ou '.' (fica não-ASCII)
   = t A 700 ! t + t 1
   O t
@@ -133,7 +133,7 @@
     = i 0
     W < i m {
       = c @ + o i
-      ? == c 128 "\\u0080" ? == c 34 { P 92 P 34 } ? == c 92 { P 92 P 92 } ? < c 32 { "\\u00" hx >> c 4 hx & c 15 } P c
+      ? == c 128 "\\u0080" ? == c 34 { P 92 P 34 } ? == c 92 { P 92 P 92 } ? < c 32 { "\\u00" _tx_hex >> c 4 _tx_hex & c 15 } P c
       = i + i 1 }
     P 34
     = q + + q 1 l = j + j 1 }

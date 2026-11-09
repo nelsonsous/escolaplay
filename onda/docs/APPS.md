@@ -27,13 +27,21 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   que se usa (a Mercados 300 696 → 262 439 bytes sem mudar nada, 248 364 com a lista do que a ponte chama:
   `ondac -w f g …`), saída de texto em bloco (para um texto do `O` 4× mais rápida; pelo `rt/anfitriao.js` 6×), o `Oc t n`
   (um `O t` que não passa de n bytes) e erros de tipo no token culpado, com os tipos.
+- **Ganhou com a biblioteca (it.139):** `onda/lib` — o que o JavaScript traz de origem, igual ao bit (`String`, `Number`,
+  `toFixed`, `toPrecision`, o `Intl` pt-PT, `JSON.parse`/`stringify`, os valores do JS, as datas de Lisboa, o sort do V8,
+  os textos UTF-16, o HTML, as portas dos anfitriões), em 10 módulos que não pesam quando não se usam. A Mercados passou
+  para ela: a app 3 356 → 2 827 linhas e 341 504 → 327 378 bytes; o conselheiro 2 520 → 1 948 linhas (o `js.onda` saiu
+  inteiro) e 388 874 → 363 126 bytes, com os 87 testes iguais. O que esta página aprendeu com as fases B a F está lá, uma
+  vez só e com testes contra o JS (`onda/lib/LEIA.md`).
 - **Vai precisar:** portas para WebSocket, canvas e notificações (fase D); um JSON mais rápido para o Worker (fase E):
   bytes compactados 8 por palavra ou um leitor em fluxo.
 
 ## Aprendido com o motor (fase B)
-- `Mx`/`Mn` comparam e escolhem: diferem do `Math.max/min` do JavaScript no `-0` e no `NaN` (o motor tem `jmax`/`jmin` exatos).
+- `Mx`/`Mn` comparam e escolhem: diferem do `Math.max/min` do JavaScript no `-0` e no `NaN`. **(it.139: `_nu_max`/`_nu_min`
+  da biblioteca, conferidos com o Node.)**
 - Não há negação real: `- 0. x` dá `+0` quando x é `+0`; usar `* -1. x`.
-- `I` satura em silêncio (`NaN` vira 0).
+- `I` satura em silêncio (`NaN` vira 0). **(it.139: o `_nu_toint` é o ToIntegerOrInfinity do JS, para quem precisa do NaN → 0 e do
+  infinito como real.)**
 - A saída é o mais lento: cada byte de texto é uma chamada ao runtime e o buffer guarda um byte por palavra. Uma saída
   compactada (8 bytes por palavra) cortaria cerca de metade do tempo de um lote grande. **Em parte resolvido (it.138):**
   os textos literais, os números e os reais vão em bloco (8 bytes por palavra lida); o buffer continua com um byte por
@@ -59,7 +67,7 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 - O teste no passado analisa prefixos cada vez maiores: o RSI, o MACD e os logaritmos da volatilidade continuam de onde
   ficaram (as mesmas contas, pela mesma ordem: os mesmos bits).
 - Encontrado e corrigido no motor da fase B: o `${x}` de inteiros entre 2^53 e 9·10^18 saía com os algarismos todos
-  (o JS escreve o decimal mais curto, 2^60 → 1152921504606847000).
+  (o JS escreve o decimal mais curto, 2^60 → 1152921504606847000). **(it.139: é o `_nu_ps` da biblioteca.)**
 
 ## O ecrã (fase D), passo 1: os Ajustes
 - **A abordagem:** o mesmo HTML, feito pela Onda. Cada separador do `mercados.js` é uma função que devolve o HTML a
@@ -95,7 +103,8 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   rotinas do runtime que só o x86 e o arm64 usam —, e com `ondac -w f g …` também o leitor de JSON, se nenhuma das
   entradas o usar.)**
 - **Limites conhecidos:** o `Number()` de um texto não está na Onda (`vnum` dá NaN; no JS `'3'` dá 3) — só se usa onde
-  o Worker manda números; um substituto UTF-16 sozinho (que não aparece em dados reais) vira U+FFFD, como no
+  o Worker manda números **(it.139: está, `_nu_s2n`, igual ao `Number` do JS; as vistas continuam a não o usar, para
+  dar o mesmo HTML)**; um substituto UTF-16 sozinho (que não aparece em dados reais) vira U+FFFD, como no
   `TextEncoder`; e a data feita por um `Intl.DateTimeFormat` guardado fica com o fuso de quando a app abriu.
 
 ## O ecrã (fase D), passo 2: a Análise
@@ -115,7 +124,8 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   (996 664 numa longa): metades exatas no decimal e não no binário, um ulp ao lado, subnormais, 2^53…2^64, bits ao
   acaso. Cada número custa ~0,6 µs; ao princípio 84 µs, porque cada um deixava ~85 palavras no monte (a chamada
   inteira só o repõe no fim): `marca`/`solta` à volta de cada número.
-- **O sort do V8 mudou:** o do Chromium 153 é o PowerSort (`array-sort.tq`, do `listobject.c` atual do CPython):
+- **O sort do V8 mudou** (it.139: os dois sorts, o PowerSort e o TimSort, são o `ordenar.onda` da biblioteca, conferidos
+  comparação a comparação com o Chromium e com o Node): o do Chromium 153 é o PowerSort (`array-sort.tq`, do `listobject.c` atual do CPython):
   inserção binária abaixo de 16 elementos; daí para cima as corridas naturais, estendidas até ao `minrun` do CPython
   (corridas de ⌊n/2^e⌋ ou ⌈n/2^e⌉), fundem-se pela "potência" da fronteira, com o galope do TimSort. O do Node 22 ainda é
   o TimSort clássico (o primeiro porte, que dava 0 diferenças no Node, dava 831 em 4 000 no Chromium). E o código
@@ -233,10 +243,12 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   ficheiro leva U+FFFD, como o JS.
 - JSON exato nos dois sentidos: o `JSON.parse` com o caminho rápido de Clinger (até 15 algarismos e 10^22) e inteiros
   grandes no resto (até 780 algarismos e o "há mais"); o `JSON.stringify` com o decimal mais curto que a análise já
-  tinha. 537 000 comparações com o Node ao acaso, todas iguais.
+  tinha. 537 000 comparações com o Node ao acaso, todas iguais. **(it.139: é o `json.onda` da biblioteca; o `js.onda` do
+  conselheiro desapareceu inteiro.)**
 - Os 64 globais são poucos: a análise usa-os todos. O build liga os nomes `g_*` (palavras) e `k_*` (textos
   constantes) a um bloco que o main reserva logo ao começar, num endereço que sai de uma 1.ª compilação. **(it.138: um
-  texto constante é agora `$"price"`, já na zona dos dados: sem `k_*`, sem `k_ini`, sem build.)**
+  texto constante é agora `$"price"`, já na zona dos dados: sem `k_*`, sem `k_ini`, sem build. it.139: a biblioteca
+  resolve o mesmo problema para si com um só global, o `M[63]`, que aponta para o seu bloco; a app fica com `M[0..62]`.)**
 - `fetch` assíncrono em Onda é uma máquina de passos por script (`g_ph`): cada resposta chama uma função exportada, que
   continua onde ia. Um `encodeURIComponent` que lança antes do pedido "responde" logo, com o estado -1000.
 - O `||` e o `&&` são em curto-circuito: `= st || st bdiv b m` deixava de dividir depois do primeiro resto (um erro
@@ -257,3 +269,24 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   verificável) e na portabilidade (o mesmo código em WebAssembly, x86, arm64, C e GPU). Perde em leitura humana
   (notação prefixa, sem objetos nem strings nativas): é pensada para ser escrita e lida por IAs.
 - Uma app em Onda tem mais linhas do que em JavaScript. Mudar uma app grande demora mais.
+
+## A biblioteca (it.139)
+- O que estas fases aprenderam está agora uma vez só em `onda/lib` (ver `onda/lib/LEIA.md` e a it.139 em `ITERACOES.md`),
+  com testes contra o próprio JS. Uma app nova junta a biblioteca antes do seu código e só paga o que usa.
+- **Para passar uma app:** trocar os nomes (a tabela do LEIA.md: `tnovo` → `_tx_novo`, `json` → `_ar_json`,
+  `pdec x d` → `_nu_intl x d`…), apagar as cópias privadas e deixar o `M[63]` à biblioteca. Uma ponte que repõe o monte
+  por fora (como a da Mercados, que repõe o `M[-1]` do lado do JS) chama o `_me_lb` no `main`, antes de marcar, para o
+  bloco da biblioteca ficar abaixo da marca. O que se aprendeu a fazer isto na Mercados: os renomes fazem-se por tokens
+  (fora de textos, comentários e literais de carácter, e sem tocar nos locais de cada função: um local pode ter o nome de
+  uma função que se vai renomear, como o `hx` do `dados.onda`).
+- **Entradas explícitas:** com `ondac -w f g …` só as funções que o anfitrião chama pelo nome são raízes e exportações.
+  Os dois builds da Mercados passam agora essa lista (a da app lida da ponte; a do conselheiro deduzida dos textos
+  constantes que são nomes de funções, mais as `t_*` dos testes), e o módulo da app exporta 36 funções em vez de 558.
+- **`Lg` numa função `_`** é a primitiva do alvo, não o fdlibm da Onda (a regra `mlib` do compilador): no `-w` é o
+  `Math.log` do anfitrião e no `-a` não existe. A biblioteca não usa funções matemáticas (a estimativa do `log10` sai
+  dos bits do real).
+- **A Música** pode passar da mesma maneira (fica para a sessão dela): o `app/musica.onda` e o `curador/onda/dados.onda`
+  usam o `lib/app.onda` (`json`, `jget`, `tnovo`, `tint`, `tcampo`, `marca`/`solta`) e têm as suas cópias dos hexadecimais
+  (`hexd`/`hexm` → `_tx_hex`/`_tx_hexm`), do JSON de um texto (`pjs` → `_tx_pj`), do URL (`purl` → `_tx_uri`), das datas
+  (`dias_civil`, `civil`, `dom_ult`, `plisboa`… → `data.onda`) e das portas (`h_arg`, `h_pede`… → `anfitriao.onda`).
+
