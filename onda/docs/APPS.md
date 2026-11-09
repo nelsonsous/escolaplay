@@ -282,9 +282,8 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 - **Entradas explícitas:** com `ondac -w f g …` só as funções que o anfitrião chama pelo nome são raízes e exportações.
   Os dois builds da Mercados passam agora essa lista (a da app lida da ponte; a do conselheiro deduzida dos textos
   constantes que são nomes de funções, mais as `t_*` dos testes), e o módulo da app exporta 36 funções em vez de 558.
-- **`Lg` numa função `_`** é a primitiva do alvo, não o fdlibm da Onda (a regra `mlib` do compilador): no `-w` é o
-  `Math.log` do anfitrião e no `-a` não existe. A biblioteca não usa funções matemáticas (a estimativa do `log10` sai
-  dos bits do real).
+- **`Lg` numa função `_`** era a primitiva do alvo e não o fdlibm da Onda: corrigido na it.140 (a matemática da Onda
+  vale em todas as funções; só o `_sn` e o `_cs` chamam a primitiva, para argumentos enormes).
 - **A Música** pode passar da mesma maneira (fica para a sessão dela): o `app/musica.onda` e o `curador/onda/dados.onda`
   usam o `lib/app.onda` (`json`, `jget`, `tnovo`, `tint`, `tcampo`, `marca`/`solta`) e têm as suas cópias dos hexadecimais
   (`hexd`/`hexm` → `_tx_hex`/`_tx_hexm`), do JSON de um texto (`pjs` → `_tx_pj`), do URL (`purl` → `_tx_uri`), das datas

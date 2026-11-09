@@ -40,7 +40,7 @@
   ? && < @ 7 @ 4 != tcode @ 7 ': { ebeg "tokens a mais" eend } 0
   ? != tty r @ fe k 3 { tgo r ebeg "tipo de retorno errado: o corpo vale " tyn tty r ", a assinatura diz " tyn @ fe k 3 eend } 0
   ir 41 0 r 0 0 0 0
-  ? isc zfn k ? isw wfun k ? isx xfun k ? isa afun k ? isd dfun k tfun k }
+  ? isc zfn k ? isw ? @ fe k 10 wfun k 0 ? isx xfun k ? isa afun k ? isd dfun k tfun k }
 : tfun i>i k {
   = np @ fe k 2
   O 16
