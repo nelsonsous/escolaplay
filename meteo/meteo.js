@@ -15,7 +15,7 @@ import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml } from './sky.js';
 
-const VERSION = '1.9.0';
+const VERSION = '1.10.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -377,7 +377,7 @@ function mount() {
     watchSky();
     const fc = viewFc();
     if (cfg.tab === 'agora' && fc) {
-        const nc = $('#nc-chart'); if (nc) renderNowcast(nc, fc.nowcast);
+        const nc = $('#nc-chart'); if (nc) renderNowcast(nc, fc.nowcast, { onda: cfg.anim !== false });
         const hc = $('#h-chart'); if (hc) renderHourly(hc, fc.hourly, { todayIso: todayOf(fc) });
     }
     const img = $('#sat-img');

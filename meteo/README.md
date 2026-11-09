@@ -112,6 +112,12 @@ relâmpagos. Os **ícones grandes** (Agora, folha do dia) também mexem: os raio
 raio pisca. Só CSS (transform e opacity), parado quando o cartão sai do ecrã; os ícones pequenos das listas e dos gráficos
 ficam quietos. Desliga-se em **Ajustes → Avançado → Preferências → Animações**, e respeita «Reduzir movimento» do sistema.
 
+**A chuva das próximas 2 horas em Onda** (1.10): o gráfico é um campo da Onda, como o protótipo da Mercados
+(`onda/docs/CAMPOS.md`): `onda/chuva.onda` → WebAssembly (11 KB, `node meteo/onda/build.mjs` gera `onda/chuva-wasm.js`), e
+`chuva.js` copia os píxeis para um canvas por baixo do SVG das horas. As barras enchem-se como água, com a superfície a
+ondular, e a chuva cai lá para dentro: mais gotas e mais depressa quanto mais chove. 60 imagens/s; pára fora do ecrã.
+Com as animações desligadas (ou sem WebAssembly), as barras SVG de sempre.
+
 ## Simples (1.7)
 
 Como a app da Trade Republic: o essencial à vista e o resto em «Ver mais», que fica aberto enquanto a app está aberta.
