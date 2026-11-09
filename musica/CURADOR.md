@@ -44,6 +44,11 @@ nesta tarefa.
    - **As tuas mixes do Tidal** (secção do `dados.md`): são faixas que o Tidal escolheu para o teu gosto. Quando
      encaixarem num pedido ou na playlist da semana, usa-as como candidatas, com o `tidalId` (não contam como
      pesquisa: junta-lhes sempre outras que tenhas encontrado na web).
+   - **Tendências** (secção do `dados.md`): o que as tabelas do Apple Music (Portugal, EUA) e do Deezer (mundo) mostram,
+     recolhido pelo conector todos os dias, com o que **sobe**, o que é **novo** e o que **dura**, e o «para ti» (o que
+     disso encaixa no gosto da pessoa). Usa-as na playlist da semana (a parte recente) e para dar o `tendencia` das
+     candidatas com dados reais: a subir ~80, nova ~70, no top 10 ~70, dura ~50. São um sinal do que se ouve, não de
+     qualidade: só entram as que também passam no critério de qualidade.
 
 3. **Pesquisa na web** (antes de escolher):
    - **Playlist da semana** — o que está na moda **e** tem qualidade: lançamentos recentes com boa crítica (Pitchfork

@@ -26,8 +26,28 @@ export function simulador() {
     const sim = { criadas: [], itens: [], apagadas: [], removidos: [], nItem: 0, recusar401: false, chamadas: [], tokenBodies: [],
         // as mixes do Tidal são playlists com faixas
         listas: { 'mix-desc': [{ id: '106', itemId: 'm1' }, { id: '105', itemId: 'm2' }], 'mix-dia': [{ id: '101', itemId: 'm3' }] } };
-    sim.fetch = async (u, init = {}) => tidalSimulado(sim, u, init);
+    // as tabelas públicas das tendências (Apple Music PT e EUA, Deezer mundo): [artista, título, género]
+    sim.tabelas = {
+        pt: [['Daft Punk', 'Get Lucky', 'Dance'], ['Artista PT 1', 'Canção 1', 'Pop'], ['Nina Simone', 'Feeling Good', 'Jazz'], ['Artista PT 2', 'Canção 2', 'Pop']],
+        eua: [['Artista EUA', 'Hit', 'Hip-Hop/Rap'], ['Daft Punk', 'Get Lucky (feat. Pharrell Williams)', 'Dance']],
+        mundo: [['Daft Punk', 'Get Lucky', ''], ['Artista Mundo', 'Global', '']],
+    };
+    sim.tabelaFalha = null;
+    sim.fetch = async (u, init = {}) => tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
     return sim;
+}
+
+function tabelaSimulada(sim, u) {
+    const h = String(u);
+    const fonte = h.startsWith('https://rss.marketingtools.apple.com/api/v2/pt/') ? 'pt' : h.startsWith('https://rss.marketingtools.apple.com/api/v2/us/') ? 'eua'
+        : h.startsWith('https://api.deezer.com/chart/') ? 'mundo' : null;
+    if (!fonte) return null;
+    sim.chamadas.push(`GET ${h}`);
+    if (sim.tabelaFalha === fonte) return new Response('indisponível', { status: 503 });
+    const l = sim.tabelas[fonte];
+    const body = fonte === 'mundo' ? { data: l.map(([a, t], i) => ({ position: i + 1, title: t, artist: { name: a } })) }
+        : { feed: { results: l.map(([a, t, g]) => ({ artistName: a, name: t, genres: [{ name: g, genreId: '1' }, { name: 'Music', genreId: '34' }] })) } };
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 }
 
 function tidalSimulado(sim, u, init = {}) {

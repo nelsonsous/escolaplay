@@ -10,7 +10,8 @@
 # Globais: 0 textos constantes  1 pasta  2 Worker  3 chave do agente  4 agora (ms)  5 pessoas (JSON)  6 a pessoa
 #   atual (no)  7 seccoes (textos)  8 passo  9 perfil (texto)  10 perfil  11 pedidos  12 playlists  13 recentes (3)
 #   14 quantas recentes  15 mixes  16 novidades  17 quantas seccoes  18 quantas pessoas  19 a recente a pedir
-#   20 caminho do ultimo pedido  21 pasta musica/  22 cabecalhos do agente  26 uid da pessoa  59 bloco para datas
+#   20 caminho do ultimo pedido  21 pasta musica/  22 cabecalhos do agente  24 tendencias  26 uid da pessoa
+#   59 bloco para datas
 
 # ---------- anfitriao Node (onda/rt/anfitriao-node.js) ----------
 : h_arg i>i i Y 200 i 0
@@ -229,7 +230,8 @@
   ? == p 5 { s_playlists t s 0 } 0
   ? == p 6 { s_recente t s 0 } 0
   ? == p 7 { ! 15 ? == s 200 json t 0 ! 8 8 ! 20 k_p_novidades pedir wurl k_p_novidades @ 22 0 } 0
-  ? == p 8 { ! 16 ? == s 200 json t 0 seccao proxima 0 } 0
+  ? == p 8 { ! 16 ? == s 200 json t 0 ! 8 9 ! 20 $"/api/tendencias" pedir wurl $"/api/tendencias" @ 22 0 } 0
+  ? == p 9 { ! 24 ? == s 200 json t 0 seccao proxima 0 } 0
   0 }
 
 : s_estado ii>i t s {
@@ -290,7 +292,7 @@
   0 }
 : comeca >i {
   ! 26 jgt @ 6 k_uid
-  ! 9 0 ! 10 0 ! 11 0 ! 12 0 ! 13 A 3 ! 14 0 ! 15 0 ! 16 0 ! 19 0
+  ! 9 0 ! 10 0 ! 11 0 ! 12 0 ! 13 A 3 ! 14 0 ! 15 0 ! 16 0 ! 19 0 ! 24 0
   = d tx tpor @ 1 "/" tpor @ 26 O 0
   h_pasta d
   ! 8 3 ! 20 k_p_perfil
@@ -395,6 +397,22 @@
   W c { ? > jn jg c k_faixas 0 { ? i { P 10 P 10 0 } 0 "### " pnomemix jgt c k_tipo P 10 pfaixas_id jg c k_faixas 20 = i + i 1 0 } 0 = c jprox c }
   ? i 0 "- o Tidal não devolveu mixes"
   P 10 P 10
+  # as tendencias (as tabelas que o conector recolhe todos os dias; o que disso e do gosto da pessoa)
+  "## Tendências (o que se está a ouvir: tabelas do Apple Music e do Deezer, recolhidas pelo conector todos os dias)" P 10
+  = td @ 24
+  ? ~ jv jg td $"dias" { "- ainda sem dados (o conector recolhe as tabelas uma vez por dia)" 0 } {
+    "Histórico de " pv jg td $"dias" " dia(s), desde " pv jg td $"desde" ": «a subir» = ganhou 10 ou mais lugares numa semana; «nova» = entrou nos últimos 7 dias; «dura» = 21 dias ou mais na tabela. Usa-as no campo `tendencia` das candidatas." P 10 P 10
+    "### Para ti (das tabelas, o que é do teu gosto)" P 10
+    = c jprim jg td $"paraTi" ? c 0 { "- nada das tabelas encaixa no teu gosto, por agora" 0 } = i 0
+    W c { ? i P 10 0 "- " pv jg c k_artista " — " pv jg c k_titulo " · " pv jg c $"fonte" " n.º " pv jg c $"pos" pestado jgt c $"estado" " · " pv jg c $"porque" = c jprox c = i + i 1 }
+    = f jprim jg td $"fontes"
+    W f {
+      P 10 P 10 "### " pv jg f k_nome P 10
+      "- Top 10 hoje: " = c jprim jg f $"itens" = i 0 W && c < i 10 { ? i " · " 0 pv jg c $"pos" ". " pv jg c k_artista " — " pv jg c k_titulo = c jprox c = i + i 1 } P 10
+      "- A subir: " pcat f $"sobe" 1 P 10 "- Novas: " pcat f $"nova" 2 P 10 "- Duram: " pcat f $"dura" 3
+      = f jprox f }
+    0 }
+  P 10 P 10
   # o gosto
   "## O teu gosto (das favoritas)" P 10
   "- Artistas mais presentes: " = c jprim jg r k_artistas ? c 0 "—" = i 0 W c { ? i ", " 0 pv jg c k_nome " (" pv jg c k_n ")" = c jprox c = i + i 1 } P 10
@@ -426,6 +444,19 @@
   P 10
   ! + @ 7 @ 17 h_fecha ! 17 + @ 17 1
   0 }
+
+# ---------- as tendencias ----------
+: pestado i>i t ? cheio t { " · " ? tigual t $"sobe" { "a subir" 0 } ? tigual t $"nova" { "nova" 0 } { "dura" 0 } 0 } 0
+# as (ate 8) da tabela f no estado e: 1 «A — T (semana.º → pos.º)», 2 «A — T (pos.º)», 3 «A — T (dias dias, pos.º)»
+: pcat iii>i f e m {
+  = c jprim jg f $"itens" = i 0
+  W && c < i 8 {
+    ? tigual jgt c $"estado" e {
+      ? i " · " 0 pv jg c k_artista " — " pv jg c k_titulo " ("
+      ? == m 1 { pv jg c $"semana" ".º → " 0 } 0 ? == m 3 { pv jg c $"dias" " dias, " 0 } 0
+      pv jg c $"pos" ".º)" = i + i 1 0 } 0
+    = c jprox c }
+  ? i 0 "—" }
 
 # ---------- o fim: o dados.md (o cabecalho e as seccoes, separadas por ---) no ficheiro e no ecra ----------
 : fim >i {

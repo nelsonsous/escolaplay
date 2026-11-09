@@ -216,9 +216,22 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.match(sim.criadas[1].name, /^Parecidas com /);
     await nav(1);
     await page.locator('.mu-pl').nth(1).waitFor();
+    // as tendências: 9 dias de tabelas (a Nina Simone, que segues, a subir em Portugal)
+    const { recolher } = await import('../proxy/src/tendencias.js');
+    for (let d = 0; d < 9; d++) {
+        const lista = Array.from({ length: 30 }, (_, i) => [`Artista ${i}`, `Canção ${i}`, 'Pop']);
+        lista.splice(d < 2 ? 25 : 25 - (d - 1) * 3, 0, ['Nina Simone', 'Feeling Good', 'Jazz']);
+        sim.tabelas.pt = lista;
+        await recolher(env, Date.parse('2026-11-01T04:23:00Z') + d * 864e5);
+    }
     await nav(4);
     await page.getByRole('heading', { name: 'Artistas que mais aparecem' }).waitFor();
     assert.ok(await page.getByText('So What').count());
+    await page.getByRole('heading', { name: 'O que se está a ouvir' }).waitFor();
+    const paraTi = page.locator('.mu-card', { has: page.getByRole('heading', { name: 'Para ti' }) });
+    assert.match(await paraTi.locator('.mu-faixa').first().innerText(), /Feeling Good[\s\S]*Nina Simone[\s\S]*Portugal \(Apple Music\) · n\.º 5 · a subir \(era 26\.º\) · segues/);
+    assert.equal(await paraTi.locator('.mu-tocar').first().getAttribute('href'), 'https://tidal.com/search?q=Nina%20Simone+Feeling%20Good');
+    assert.ok(await page.getByRole('heading', { name: 'Mundo (Deezer)' }).count());
     await foto('3-gosto');
     await nav(5);
     await page.getByText('nelson (PT)').waitFor();

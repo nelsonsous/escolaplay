@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.6.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.7.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -431,4 +431,47 @@ test('ligar outro aparelho: cada pessoa cria um código de uma vez; o aparelho n
     const c3 = await (await post('/api/aparelho/codigo', {}, chave)).json();
     const chave4 = (await (await post('/api/aparelho', { codigo: c3.codigo })).json()).chave;
     assert.equal((await (await get('/api/estado', chave4)).json()).dono, true);
+});
+
+test('tendências: o retrato de cada dia, o que sobe, o que é novo, o que dura, e o que é do teu gosto', async () => {
+    const { recolher } = await import('../proxy/src/tendencias.js');
+    const { chave } = await ligarPrimeiraVez();
+    await get('/api/perfil', chave); // o perfil fica guardado (segue a Nina Simone; favoritas de Miles Davis, ...)
+    assert.deepEqual(await (await get('/api/tendencias', chave)).json(), { dias: 0, fontes: [], paraTi: [] }, 'antes da primeira recolha');
+    const enche = (n, pre) => Array.from({ length: n }, (_, i) => [`${pre} ${i}`, `Canção ${i}`, 'Pop']);
+    const D = Date.parse('2026-10-01T04:23:00Z');
+    sim.tabelas.mundo = [['Artista Mundo', 'Global', ''], ['NINA SIMONE', 'Feeling Good', '']];
+    sim.tabelas.eua = [['Nina Simone & Convidado', 'Feeling Good (feat. Convidado)', 'Jazz']];
+    // 25 dias: «Feeling Good» sempre lá (dura); «Subida» de 40.º a 5.º na última semana; «Estreia» entra no dia 22
+    for (let d = 0; d < 25; d++) {
+        const lista = enche(60, 'Enchimento');
+        lista.splice(10, 0, ['Nina Simone', 'Feeling Good', 'Jazz']);
+        const sub = d < 18 ? 40 : 40 - (d - 17) * 5;
+        lista.splice(sub - 1, 0, ['Alguém', 'Subida', 'Pop']);
+        if (d >= 21) lista.splice(2, 0, ['Miles Davis', 'Estreia (feat. Alguém)', 'Jazz']);
+        sim.tabelas.pt = lista;
+        sim.tabelaFalha = d === 3 ? 'mundo' : null; // uma tabela pode falhar num dia: as outras guardam-se
+        const r = await recolher(env, D + d * 864e5);
+        assert.equal(r.ok, true);
+        if (d === 3) assert.deepEqual(r.erros, ['mundo: HTTP 503']);
+    }
+    const t = await (await get('/api/tendencias', chave)).json();
+    assert.equal(t.dias, 25);
+    assert.equal(t.desde, '2026-10-01');
+    assert.deepEqual(t.fontes.map((f) => f.id), ['pt', 'mundo', 'eua']);
+    const pt = t.fontes[0].itens, de = (titulo) => pt.find((x) => x.titulo === titulo);
+    assert.equal(de('Subida').estado, 'sobe');
+    assert.ok(de('Subida').semana - de('Subida').pos >= 10);
+    assert.equal(de('Estreia (feat. Alguém)').estado, 'nova');
+    assert.equal(de('Feeling Good').estado, 'dura');
+    assert.equal(de('Feeling Good').dias, 25);
+    assert.equal(de('Canção 50').estado, 'dura');
+    // para ti: a Nina Simone (segues), o Miles Davis (nas favoritas), sem repetir a mesma canção noutras tabelas
+    assert.deepEqual(t.paraTi.slice(0, 2).map((x) => `${x.artista} — ${x.titulo} · ${x.porque}`),
+        ['Miles Davis — Estreia (feat. Alguém) · nas favoritas', 'Nina Simone — Feeling Good · segues']);
+    assert.equal(t.paraTi.filter((x) => x.titulo === 'Feeling Good').length, 1, 'está em três tabelas (uma com convidado): aparece uma vez');
+    // recolher à mão: só o dono e o Maestro
+    const agente = await env.KV.get('agente:chave');
+    assert.equal((await post('/api/tendencias/recolher', {}, agente)).status, 200);
+    assert.equal((await post('/api/tendencias/recolher', {})).status, 401);
 });

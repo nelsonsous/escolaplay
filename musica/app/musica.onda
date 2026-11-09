@@ -647,6 +647,7 @@
     ? ~ acesso boas_vindas {
       ? ~ p carregar {
         "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"atualizar\">" ic 6 "Atualizar do Tidal</button></div>"
+        ? @ 11 { v_tend @ 11 0 } 0
         = r jg p k_resumo
         ? jn jg r k_artistas { "<div class=\"mu-card\"><h3>Artistas que mais aparecem</h3>" barras_j jg r k_artistas 0 "</div>" 0 } 0
         ? jn jg r k_decadas { "<div class=\"mu-card\"><h3>Décadas</h3>" barras_j jg r k_decadas 1 "</div>" 0 } 0
@@ -663,6 +664,32 @@
         ? jn pl { "<h2 class=\"mu-sec\">As tuas playlists no Tidal</h2><div class=\"mu-card\">" = c jprim pl = q 0 W && c < q 20 { "<div class=\"mu-pedido\"><div class=\"tx\">" pjt jg c k_nome "</div><a class=\"mu-btn sec peq\" href=\"" pjt jg c k_url "\" target=\"_blank\" rel=\"noopener\">Abrir</a></div>" = c jprox c = q + q 1 } "</div>" 0 } 0
         0 } } }
   0 }
+
+# ===== Tendencias: o que se esta a ouvir (as tabelas que o conector recolhe todos os dias) =====
+: tend_estado i>i t ? tigual t $"sobe" { "a subir" 0 } ? tigual t $"nova" { "nova" 0 } ? tigual t $"dura" { "dura" 0 } 0
+# uma linha: o lugar, a cancao, o artista, o que se sabe dela; o play procura-a no Tidal
+: tend_li ii>i c fonte {
+  "<li class=\"mu-faixa\"><span class=\"n\">" N jgi c $"pos" "</span><div><div class=\"t\">" pjt jg c k_titulo "</div><div class=\"a\">" pjt jg c k_artista "</div><div class=\"m\">"
+  ? fonte { pjt jg c $"fonte" " · n.º " N jgi c $"pos" 0 } 0
+  = e jgt c k_estado ? && e tlen e { ? fonte " · " 0 "<b>" tend_estado e "</b>" ? && tigual e $"sobe" jgi c $"semana" { " (era " N jgi c $"semana" ".º)" 0 } 0 0 } 0
+  ? fonte { " · " pjt jg c $"porque" 0 } 0
+  "</div></div><div class=\"dir\"><a class=\"mu-tocar\" href=\"https://tidal.com/search?q=" purl jtxt jg c k_artista P '+ purl jtxt jg c k_titulo
+  "\" target=\"_blank\" rel=\"noopener\" aria-label=\"Procurar «" pjt jg c k_titulo "» no Tidal\">" ic 4 "</a></div></li>" 0 }
+: v_tend i>i t {
+  "<h2 class=\"mu-sec\">O que se está a ouvir</h2>"
+  ? ~ jgi t $"dias" { "<div class=\"mu-card\"><p class=\"mu-nota\">O conector guarda as tabelas do Apple Music e do Deezer uma vez por dia. As primeiras aparecem amanhã; o que sobe e o que dura vê-se ao fim de uma semana.</p></div>" 0 } {
+    "<p class=\"mu-nota mu-tend-nota\">Tabelas do Apple Music e do Deezer · " N jgi t $"dias" " dia(s) de histórico. «A subir»: ganhou 10 lugares ou mais numa semana; «dura»: 3 semanas ou mais na tabela.</p>"
+    = l jg t $"paraTi"
+    ? jn l { "<div class=\"mu-card\"><h3>Para ti</h3><ol class=\"mu-faixas\">" = c jprim l = q 0 W && c < q 8 { tend_li c 1 = c jprox c = q + q 1 } "</ol></div>" 0 } 0
+    = f jprim jg t $"fontes"
+    W f {
+      "<div class=\"mu-card\"><h3>" pjt jg f k_nome "</h3><ol class=\"mu-faixas\">"
+      # o que sobe (ou, sem nada a subir, o topo)
+      = q 0 = c jprim jg f $"itens" W && c < q 5 { ? tigual jgt c k_estado $"sobe" { tend_li c 0 = q + q 1 0 } 0 = c jprox c }
+      ? ~ q { = c jprim jg f $"itens" W && c < q 5 { tend_li c 0 = c jprox c = q + q 1 } 0 } 0
+      "</ol></div>"
+      = f jprox f }
+    0 } 0 }
 
 # ===== Ajustes =====
 : rr i>i i % * i 2654435761 1000
@@ -709,7 +736,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.9.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.10.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
@@ -749,7 +776,7 @@
     ? == v 1 { busca k_p_playlists k_c_pl busca k_p_pedidos k_c_ped 0 }
     ? == v 2 { = u abre "/api/playlists/" purl @ 30 O 0 busca u k_c_doc 0 }
     ? == v 3 { busca k_p_pedidos k_c_ped 0 }
-    ? == v 4 { busca k_p_perfil k_c_perfil 0 } 0 } 0
+    ? == v 4 { busca k_p_perfil k_c_perfil busca $"/api/tendencias" $"lido_tend" 0 } 0 } 0
   0 }
 
 # ===== respostas do conector =====
@@ -760,6 +787,7 @@
     ? == s 200 { = d json t ? tigual jgt d k_id @ 30 { ! 4 d render 0 } 0 0 }
       { erro_ped t s ? == s 404 ir 1 0 0 } } 0
 : lido_perfil ii>i t s ? == @ 1 4 { ? == s 200 { ! 4 json t render 0 } { erro_ped t s 0 } } 0
+: lido_tend ii>i t s ? && == @ 1 4 == s 200 { ! 11 json t render 0 } 0
 : lido_pesq ii>i t s ? && == @ 1 2 @ 6 { ? == s 200 { ! 19 json t render 0 } { erro_ped t s 0 } } 0
 
 # ===== eventos =====
