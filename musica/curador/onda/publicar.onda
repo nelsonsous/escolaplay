@@ -1,0 +1,665 @@
+# Maestro em Onda — o ultimo passo da tarefa agendada (o que era o curador/publicar.mjs; a versao em JavaScript fica
+# em curador/js/publicar.mjs, so como referencia do teste de paridade): valida a proposta do Claude, encontra as
+# candidatas no Tidal (pelo Worker), junta os sinais do gosto da pessoa, deixa o motor de curadoria (onda/motor.onda)
+# escolher e ordenar, e grava a playlist na biblioteca da app (e no Tidal).
+#   node musica/curador/publicar.mjs <dir>/proposta.json [--utilizador <pessoa>] [--pedido <id>] [--modelo <id>]
+#        [--ensaio] (nao grava nada) [--sem-tidal] (so na biblioteca da app) [--aceitar-menos]
+# Junta-se depois da biblioteca de apps, do motor e do dados.onda (usa os h_*, o kv_id e os utilitarios de JSON de la).
+# Os pedidos sao em serie: cada resposta chega a «pb_lido», que segue o passo (M[6]).
+#
+# Globais (so deste script): 1 ficheiro  2 Worker  3 chave  4 pessoa (uid ou 0)  5 pedido (id ou 0)  6 passo
+#   7 nome  8 descricao  9 resumo  10 tendencias (textos)  11 quantas  12 pedido (texto)  13 o pedido vem do Worker
+#   (0 nao, no do JSON, -1 sem)  14 faixas  15 max. por artista  16 estilo  17 arco  18 candidatas (registos)
+#   19 quantas  20 caminho do pedido em curso  21 pasta musica/ (o kv_id le-a)  23 a proxima a encontrar no Tidal
+#   24 pasta da proposta  25 perfil  26 as encontradas (indices, sem a mesma faixa duas vezes)  27 quantas
+#   28 ordem (3 por faixa: encontrada, motivo, pontos)  29 quantas  30 custo  31 modelo (texto; 0 = sem)
+#   32..46 o gosto (pb_gosto)  47 48 e 53 54 os ids de artistas e generos para o motor  50 bytes do ultimo
+#   caracter lido  51 o Number() deu numero  55 a playlist gravada  56 posicao ao ver se e JSON
+# Candidata (16): 0 artista 1 titulo 2 ano (-1) 3 album (0) 4 genero (0) 5 nota 6 energia 7 tendencia 8 bpm (-1)
+#   9 motivo (0) 10 isrc (0) 11 tidalId (0) 12 fixa 13 a faixa do Tidal (no; 0) 14 chave (artista|titulo)
+#   15 sinais (12: artista genero ano gosto qualidade tendencia claude novidade energia bpm tom fixa)
+
+# ---------- caracteres (UTF-8) ----------
+# o caracter que comeca no byte i de t; os bytes que ocupa ficam no M[50]
+: pb_cp ii>i t i {
+  = b tbyte t i
+  ? < b 128 { ! 50 1 b }
+  ? < b 224 { ! 50 2 | << & b 31 6 & tbyte t + i 1 63 }
+  ? < b 240 { ! 50 3 | | << & b 15 12 << & tbyte t + i 1 63 6 & tbyte t + i 2 63 }
+  { ! 50 4 | | | << & b 7 18 << & tbyte t + i 1 63 12 << & tbyte t + i 2 63 6 & tbyte t + i 3 63 } }
+# o \s do JavaScript (e o que o trim tira)
+: pb_ws i>i c || && >= c 9 <= c 13 || == c 32 || == c 160 || == c 5760 || && >= c 8192 <= c 8202 || == c 8232 || == c 8233 || == c 8239 || == c 8287 || == c 12288 == c 65279
+# fim de linha (o . das expressoes regulares nao passa por eles)
+: pb_lt i>i c || == c 10 || == c 13 || == c 8232 == c 8233
+: pb_an i>i c || && >= c 'a <= c 'z && >= c '0 <= c '9
+: pb_dg i>i b && >= b '0 <= b '9
+: pb_letra i>i b || && >= b 'A <= b 'Z && >= b 'a <= b 'z
+# a letra base (minuscula) de U+00C0..U+02FF e U+1E00..U+1EFF pelo normalize('NFD') do JavaScript ('.': nao tem)
+: pb_tab1 >i $"aaaaaa.ceeeeiiii.nooooo..uuuuy..aaaaaa.ceeeeiiii.nooooo..uuuuy.yaaaaaaccccccccdd..eeeeeeeeeegggggggghh..iiiiiiiii...jjkk.llllll....nnnnnn...oooooo..rrrrrrsssssssstttt..uuuuuuuuuuuuwwyyyzzzzzz.................................oo.............uu............................aaiioouuuuuuuuuu.aaaa....ggkkoooo..j...gg..nnaa....aaaaeeeeiiiioooorrrruuuusstt..hh......aaeeooooooooyy............................................................................................................................................................................................................"
+: pb_tab2 >i $"aabbbbbbccddddddddddeeeeeeeeeeffgghhhhhhhhhhiiiikkkkkkllllllllmmmmmmnnnnnnnnoooooooopppprrrrrrrrssssssssssttttttttuuuuuuuuuuvvvvwwwwwwwwwwxxxxyyzzzzzzhtwy......aaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeiiiioooooooooooooooooooooooouuuuuuuuuuuuuuyyyyyyyy......"
+: pb_tb iii>i t i c { = b tbyte t i ? == b '. c b }
+# o caracter depois do normalize('NFD'), sem acentos e com o toLowerCase: -1 e um acento solto (sai)
+: pb_base i>i c ? && >= c 'A <= c 'Z + c 32 ? && >= c 768 <= c 879 -1 ? && >= c 192 <= c 767 pb_tb pb_tab1 - c 192 c ? && >= c 7680 <= c 7935 pb_tb pb_tab2 - c 7680 c ? == c 8490 'k ? == c 8491 'a c
+# o toLowerCase (latim ate U+017F, grego e cirilico basicos; as outras letras ficam: so serve para nao repetir candidatas)
+: pb_low i>i c
+  ? && >= c 'A <= c 'Z + c 32
+  ? && && >= c 192 <= c 222 != c 215 + c 32
+  ? && >= c 256 <= c 311 ? && ~ & c 1 != c 304 + c 1 c
+  ? && >= c 313 <= c 328 ? & c 1 + c 1 c
+  ? && >= c 330 <= c 375 ? ~ & c 1 + c 1 c
+  ? == c 376 255
+  ? && >= c 377 <= c 382 ? & c 1 + c 1 c
+  ? && >= c 913 <= c 939 ? != c 930 + c 32 c
+  ? && >= c 1040 <= c 1071 + c 32
+  ? && >= c 1024 <= c 1039 + c 80
+  c
+: pb_lowt i>i t { = n tlen t = r tnovo + * n 2 4 O r = i 0 W < i n { _jutf pb_low pb_cp t i = i + i @ 50 } O 0 r }
+# o .length do JavaScript (unidades UTF-16)
+: pb_u16 i>i t { = n tlen t = i 0 = u 0 W < i n { = c pb_cp t i = i + i @ 50 = u + u ? >= c 65536 2 1 } u }
+
+# ---------- o normal() do lib/tidal.js e a chave() do onda/onda.js ----------
+# (« ... »), [ ... ]: cada um passa a um espaco (sem atravessar fins de linha)
+: pb_par ii>i a k {
+  = o 0 = i 0
+  W < i k {
+    = c @ + a i = j -1
+    ? || == c 40 == c 91 {
+        = f ? == c 40 41 93 = q + i 1
+        W && < j 0 < q k { = d @ + a q ? == d f { = j q 0 } ? pb_lt d { = q k 0 } 0 = q + q 1 }
+        0 } 0
+    ? >= j 0 { ! + a o 32 = o + o 1 = i + j 1 0 } { ! + a o c = o + o 1 = i + i 1 0 } }
+  o }
+# o primeiro « - ...» ate ao fim (\s+-\s+.*$) passa a um espaco
+: pb_traco ii>i a k {
+  = i 0 = r k
+  W < i k {
+    ? && pb_ws @ + a i || == i 0 ~ pb_ws @ + a - i 1 {
+        = j i W && < j k pb_ws @ + a j = j + j 1
+        ? && && < + j 1 k == @ + a j '- pb_ws @ + a + j 1 {
+            = e + j 1 W && < e k pb_ws @ + a e = e + e 1
+            = ok 1 = q e W < q k { ? pb_lt @ + a q { = ok 0 0 } 0 = q + q 1 }
+            ? ok { ! + a i 32 = r + i 1 = i k 0 } 0 } 0
+        0 } 0
+    = i + i 1 }
+  r }
+# a palavra de s (inicio a, l bytes) e o texto k?
+: pb_weq iiii>i s a l k { = r == l tlen k = j 0 W && r < j l { = r == tbyte s + a j tbyte k j = j + j 1 } r }
+: pb_r1 iii>i s a l ? pb_weq s a l $"remaster" 1 ? pb_weq s a l $"remastered" 1 ? pb_weq s a l $"remasterizado" 1 ? pb_weq s a l $"remasterizada" 1 ? pb_weq s a l $"mono" 1 ? pb_weq s a l $"stereo" 1 ? pb_weq s a l $"version" 1 ? pb_weq s a l $"versao" 1 ? pb_weq s a l $"edit" 1 ? pb_weq s a l $"single" 1 ? pb_weq s a l $"mix" 1 ? pb_weq s a l $"original" 1 pb_weq s a l $"deluxe"
+: pb_ano4 iii>i s a l { = r == l 4 = j 0 W && r < j 4 { = r pb_dg tbyte s + a j = j + j 1 } r }
+# o ruido de edicao (remaster, mono, deluxe...) sai; s ja e palavras separadas por um espaco
+: pb_ruido i>i s {
+  = n tlen s
+  = w A + n 4 = nw 0 = i 0
+  W < i n { = b i W && < i n != tbyte s i 32 = i + i 1 ! + w * 2 nw b ! + w + * 2 nw 1 - i b = nw + nw 1 = i + i 1 }
+  = r tnovo + n 1 O r
+  = e 0 = j 0
+  W < j nw {
+    = a @ + w * 2 j = l @ + w + * 2 j 1
+    = a2 @ + w * 2 + j 1 = l2 @ + w + * 2 + j 1 1
+    = t2 < + j 1 nw
+    = x ? pb_r1 s a l 1 ? && && t2 pb_ano4 s a l || pb_weq s a2 l2 $"remaster" pb_weq s a2 l2 $"remastered" 2 ? && && t2 pb_weq s a l $"bonus" pb_weq s a2 l2 $"track" 2 0
+    ? x { = j + j x 0 } { ? e P 32 0 = q 0 W < q l { P tbyte s + a q = q + q 1 } = e 1 = j + j 1 0 } }
+  O 0 r }
+# m = 1: o normal(); m = 0: a chave() (sem acentos, minusculas, so letras e algarismos com um espaco entre palavras)
+: pb_normal ii>i t m {
+  = n tlen t
+  = a A + n 1 = k 0 = i 0
+  W < i n { = c pb_base pb_cp t i = i + i @ 50 ? >= c 0 { ! + a k c = k + k 1 0 } 0 }
+  ? m { = k pb_par a k = k pb_traco a k 0 } 0
+  = s tnovo + * 5 k 2
+  O s
+  = sp 0 = em 0 = j 0
+  W < j k {
+    = c @ + a j
+    ? pb_an c { ? && sp em P 32 0 P c = sp 0 = em 1 0 }
+      { ? && m == c '& { ? em P 32 0 "and" = em 1 0 } 0 = sp 1 0 }
+    = j + j 1 }
+  O 0
+  ? m pb_ruido s s }
+
+# ---------- valores como no JavaScript ----------
+# a ?? b (o que falta ou e null passa ao b)
+: pb_q ii>i a b ? && a != jtipo a 1 a b
+: pb_l1 i>i n ? == jtipo n 6 jprim n 0
+# um numero como o String() do JavaScript (inteiros; o resto com ate 15 algarismos significativos)
+: pb_pn f>i x {
+  ? < x 0.0 { P '- = x - 0.0 x 0 } 0
+  = ip I x
+  = fr - x F ip
+  ? == fr 0.0 { N ip 0 } {
+    = d 1 = q ip W >= q 10 { = q / q 10 = d + d 1 }
+    = k Mx 0 - 15 d
+    = p 1 = j 0 W < j k { = p * p 10 = j + j 1 }
+    = qf I + * fr F p 0.5
+    ? >= qf p { = ip + ip 1 = qf 0 0 } 0
+    N ip
+    ? qf {
+      = kk k W == % qf 10 0 { = qf / qf 10 = kk - kk 1 }
+      P '. = z 1 = j 1 W < j kk { = z * z 10 = j + j 1 }
+      W > z 0 { P + '0 % / qf z 10 = z / z 10 } 0 } 0 } }
+# String(v ?? '') como texto
+: pb_str i>i v {
+  = t jtipo v
+  ? == t 5 jtxt v
+  ? == t 4 { = r tnovo 40 O r pb_pn jnum v O 0 r }
+  ? == t 3 $"true"
+  ? == t 2 $"false"
+  ? == t 7 $"[object Object]"
+  ? == t 6 { h_abre 0 = c jprim v = k 0 W c { ? k P ', 0 = e pb_str c tpor e = c jprox c = k + k 1 } h_fecha }
+  $"" }
+# o txt() do lib/playlist.js: String(v ?? ''), espacos seguidos num so, sem espacos nas pontas, ate max unidades UTF-16
+: pb_txt ii>i v max {
+  = s pb_str v
+  = n tlen s
+  = r tnovo + n 1
+  O r
+  = i 0 = u 0 = sp 0 = em 0
+  W && < i n < u max {
+    = c pb_cp s i = l @ 50
+    ? pb_ws c { = sp 1 0 } {
+      ? && sp em { P 32 = u + u 1 0 } 0
+      = sp 0 = em 1
+      = w ? >= c 65536 2 1
+      ? <= + u w max { = j 0 W < j l { P tbyte s + i j = j + j 1 } = u + u w 0 } { = u max 0 }
+      0 }
+    = i + i l }
+  O 0 r }
+# Number(t) de um texto (em M[51]: 1 se deu numero); so espacos: 0
+: pb_snum i>f t {
+  = n tlen t = i 0
+  W && < i n pb_ws pb_cp t i = i + i @ 50
+  = e i = j i
+  W < j n { = c pb_cp t j = j + j @ 50 ? ~ pb_ws c { = e j 0 } 0 }
+  = k i
+  ? && < k e || == tbyte t k '+ == tbyte t k '- { = k + k 1 0 } 0
+  = d 0 W && < k e pb_dg tbyte t k { = k + k 1 = d + d 1 }
+  ? && < k e == tbyte t k '. { = k + k 1 W && < k e pb_dg tbyte t k { = k + k 1 = d + d 1 } 0 } 0
+  ? && && > d 0 < k e || == tbyte t k 'e == tbyte t k 'E {
+      = k + k 1 ? && < k e || == tbyte t k '+ == tbyte t k '- { = k + k 1 0 } 0
+      = x 0 W && < k e pb_dg tbyte t k { = k + k 1 = x + x 1 }
+      ? == x 0 { = d 0 0 } 0 0 } 0
+  ? == i e { ! 51 1 0.0 }
+  ? || == d 0 != k e { ! 51 0 0.0 }
+  { ! 51 1 _jt t ! 61 ? == tbyte t i '+ + i 1 i ! 62 e _jnum } }
+# o num() do lib/playlist.js com o Math.round: inteiro em [a, b], ou -1 (null: vazio, falta, ou nao e numero)
+: pb_numr iii>i v a b {
+  = t jtipo v
+  ! 51 0
+  = x 0.0
+  ? == t 4 { ! 51 1 = x jnum v 0 } 0
+  ? == t 3 { ! 51 1 = x 1.0 0 } 0
+  ? == t 2 { ! 51 1 0 } 0
+  ? && == t 5 > tlen jtxt v 0 { = x pb_snum jtxt v 0 } 0
+  ? @ 51 { ? < x F a { = x F a 0 } 0 ? > x F b { = x F b 0 } 0 I + x 0.5 } -1 }
+# parseInt(v, 10), ou -100000 (NaN)
+: pb_pint i>i v {
+  = t jtipo v
+  ? == t 4 I jnum v
+  ? == t 5 {
+     = s jtxt v = n tlen s = i 0
+     W && < i n pb_ws pb_cp s i = i + i @ 50
+     = g 1 ? && < i n == tbyte s i '- { = g -1 = i + i 1 0 } ? && < i n == tbyte s i '+ { = i + i 1 0 } 0
+     = d 0 = r 0 W && < i n pb_dg tbyte s i { = r - + * r 10 tbyte s i '0 = i + i 1 = d + d 1 }
+     ? d * g r -100000 }
+  -100000 }
+
+# ---------- JSON ----------
+: pb_hx i>i d P ? < d 10 + d '0 + - d 10 'a
+: pb_hX i>i d P ? < d 10 + d '0 + - d 10 'A
+# um texto como o JSON.stringify o escreve
+: pb_js i>i t {
+  P 34
+  = n ? t tlen t 0 = i 0
+  W < i n { = b tbyte t i
+    ? == b 34 { P 92 P 34 } ? == b 92 { P 92 P 92 } ? == b 10 { P 92 P 'n } ? == b 13 { P 92 P 'r } ? == b 9 { P 92 P 't }
+    ? == b 8 { P 92 P 'b } ? == b 12 { P 92 P 'f } ? < b 32 { P 92 P 'u P '0 P '0 pb_hx >> b 4 pb_hx & b 15 } P b
+    = i + i 1 }
+  P 34 0 }
+: pb_ind ii>i ind l { ? ind { P 10 = i 0 W < i * ind l { P 32 = i + i 1 } 0 } 0 }
+# um no como o JSON.stringify(x) (ind = 0) ou o JSON.stringify(x, null, ind)
+: pb_jw iii>i n ind l {
+  = t jtipo n
+  ? == t 5 pb_js jtxt n
+  ? == t 4 pb_pn jnum n
+  ? == t 3 { "true" 0 }
+  ? == t 2 { "false" 0 }
+  ? || == t 6 == t 7 {
+      = c @ + n 4
+      ? c {
+        ? == t 6 P '[ P '{
+        = k 0
+        W c { ? k P ', 0 pb_ind ind + l 1 ? == t 7 { pb_js @ + c 2 P ': ? ind P 32 0 } 0 pb_jw c ind + l 1 = c @ + c 3 = k + k 1 }
+        pb_ind ind l
+        ? == t 6 P '] P '} } { ? == t 6 { "[]" 0 } { "{}" 0 } } }
+  { "null" 0 } }
+# a gramatica do JSON.parse (sem construir nada): a posicao vai no M[56]; 1 se o valor que comeca la e JSON
+: pb_jb i>i t ? < @ 56 tlen t tbyte t @ 56 -1
+: pb_jsp i>i t { W || || == pb_jb t 32 == pb_jb t 9 || == pb_jb t 10 == pb_jb t 13 ! 56 + @ 56 1 0 }
+: pb_jlit ii>i t k { = n tlen k = r 1 = i 0 W && r < i n { = r == pb_jb t tbyte k i ! 56 + @ 56 1 = i + i 1 } r }
+: pb_jdig i>i t { = d 0 W pb_dg pb_jb t { ! 56 + @ 56 1 = d + d 1 } d }
+: pb_jstr i>i t {
+  ! 56 + @ 56 1 = r -1
+  W < r 0 {
+    = b pb_jb t ! 56 + @ 56 1
+    ? || < b 32 == b -1 { = r 0 0 } ? == b 34 { = r 1 0 } ? == b 92 {
+      = e pb_jb t ! 56 + @ 56 1
+      ? == e 'u { = j 0 W && >= r -1 < j 4 { = h pb_jb t ? || pb_dg h || && >= h 'a <= h 'f && >= h 'A <= h 'F ! 56 + @ 56 1 { = r 0 0 } = j + j 1 } 0 }
+        { ? ~ || || || == e 34 == e 92 == e '/ || || == e 'b == e 'f || || == e 'n == e 'r == e 't { = r 0 0 } 0 } } 0 }
+  r }
+: pb_jnumok i>i t {
+  ? == pb_jb t '- ! 56 + @ 56 1 0
+  = r 1
+  ? == pb_jb t '0 ! 56 + @ 56 1 { = r > pb_jdig t 0 0 }
+  ? && r == pb_jb t '. { ! 56 + @ 56 1 = r > pb_jdig t 0 0 } 0
+  ? && r || == pb_jb t 'e == pb_jb t 'E { ! 56 + @ 56 1 ? || == pb_jb t '+ == pb_jb t '- ! 56 + @ 56 1 0 = r > pb_jdig t 0 0 } 0
+  r }
+: pb_jval i>i t {
+  pb_jsp t
+  = b pb_jb t
+  ? == b 34 pb_jstr t
+  ? || == b '{ == b '[ {
+      = fim ? == b '{ '} '] = ob == b '{
+      ! 56 + @ 56 1 pb_jsp t
+      ? == pb_jb t fim { ! 56 + @ 56 1 1 } {
+        = r -1
+        W < r 0 {
+          ? ob { pb_jsp t ? == pb_jb t 34 { ? pb_jstr t { pb_jsp t ? == pb_jb t ': { ! 56 + @ 56 1 0 } { = r 0 0 } } { = r 0 0 } } { = r 0 0 } } 0
+          ? && < r 0 ~ pb_jval t { = r 0 0 } 0
+          ? < r 0 { pb_jsp t = c pb_jb t ! 56 + @ 56 1 ? == c fim { = r 1 0 } ? != c ', { = r 0 0 } 0 } 0 }
+        r } }
+  ? == b 't pb_jlit t $"true"
+  ? == b 'f pb_jlit t $"false"
+  ? == b 'n pb_jlit t $"null"
+  ? || == b '- pb_dg b pb_jnumok t 0 }
+# o texto e JSON? a raiz (da biblioteca), ou 0
+: pb_jok i>i t { ! 56 0 = ok pb_jval t pb_jsp t ? && ok == @ 56 tlen t json t 0 }
+
+# ---------- a proposta (o validarProposta do lib/playlist.js, estrito) ----------
+: pb_isrc i>i t { ? != tlen t 12 0 { = ok && pb_letra tbyte t 0 pb_letra tbyte t 1 = i 2 W < i 5 { = ok && ok || pb_letra tbyte t i pb_dg tbyte t i = i + i 1 } W < i 12 { = ok && ok pb_dg tbyte t i = i + i 1 } ok } }
+: pb_maiusc i>i t { = n tlen t = r tnovo + n 1 O r = i 0 W < i n { = b tbyte t i P ? && >= b 'a <= b 'z - b 32 b = i + i 1 } O 0 r }
+: pb_dig i>i t { = n tlen t = ok > n 0 = i 0 W < i n { = ok && ok pb_dg tbyte t i = i + i 1 } ? ok t 0 }
+: pb_chavef i>i c { = a pb_lowt @ c = b pb_lowt @ + c 1 = r tnovo + + tlen a tlen b 2 O r tpor a P '| tpor b O 0 r }
+# uma candidata (o normalizarCandidatas): o registo, ou 0 se nao serve
+: pb_cand i>i r ? < jtipo r 6 0 {
+  = c A 16
+  ! c pb_txt pb_q jg r $"artista" jg r $"artist" 120
+  ! + c 1 pb_txt pb_q jg r $"titulo" jg r $"title" 160
+  ? || ~ tlen @ c ~ tlen @ + c 1 0 {
+    = a pb_pint pb_q jg r $"ano" jg r $"year"
+    ! + c 2 ? && >= a 1900 <= a 2100 a -1
+    ! + c 3 ? jv jg r $"album" pb_txt jg r $"album" 160 0
+    = g pb_q jg r $"genero" jg r $"genre"
+    ! + c 4 ? jv g pb_txt g 40 0
+    ! + c 5 pb_numr jg r $"nota" 0 100
+    ! + c 6 pb_numr jg r $"energia" 0 100
+    ! + c 7 pb_numr jg r $"tendencia" 0 100
+    ! + c 8 pb_numr jg r $"bpm" 0 300
+    = m pb_txt pb_q jg r $"motivo" jg r $"note" 140
+    ! + c 9 ? tlen m m 0
+    = s jg r $"isrc"
+    ! + c 10 ? && == jtipo s 5 pb_isrc jtxt s pb_maiusc jtxt s 0
+    = d jg r $"tidalId"
+    ! + c 11 ? jv d pb_dig pb_str d 0
+    ! + c 12 jv jg r $"fixa"
+    ! + c 14 pb_chavef c
+    c } }
+: pb_nova i>i c { = i 0 = r 1 W && r < i @ 19 { ? tigual @ + @ + @ 18 i 14 @ + c 14 { = r 0 0 } 0 = i + i 1 } r }
+: pb_estilo i>i t ? tigual t $"equilibrado" 1 ? tigual t $"descoberta" 2 ? tigual t $"moda" 3 ? tigual t $"gosto" 4 ? tigual t $"audiofilo" 5 0
+: pb_arco i>i t ? tigual t $"plano" 0 ? tigual t $"onda" 1 ? tigual t $"sobe" 2 ? tigual t $"desce" 3 -1
+# os pesos do estilo e (o ESTILOS do onda/onda.js): gosto, qualidade, tendencia, claude, novidade
+: pb_peso ii>i e j
+  ? == e 2 ? == j 0 150 ? == j 1 200 ? == j 2 150 ? == j 3 350 400
+  ? == e 3 ? == j 0 150 ? == j 1 150 ? == j 2 500 ? == j 3 250 150
+  ? == e 4 ? == j 0 550 ? == j 1 150 ? == j 2 50 ? == j 3 200 0
+  ? == e 5 ? == j 0 150 ? == j 1 500 ? == j 2 50 ? == j 3 300 100
+  ? == j 0 300 ? == j 1 200 ? == j 2 200 ? == j 3 300 100
+# Math.ceil(n * 1.3) (o 13/10 e o mesmo double do 1.3 do JavaScript)
+: pb_ceil13 i>i f { = x * F f / 13.0 10.0 = i I x ? < F i x + i 1 i }
+: pb_invalida i>i m { h_fd 2 "Proposta inválida:" P 10 "- " tpor m P 10 h_volta h_sair 1 0 }
+: pb_proposta i>i p {
+  ? || ~ p < jtipo p 6 { pb_invalida $"a proposta tem de ser um objeto JSON" } 0
+  ! 7 pb_txt pb_q jg p $"nome" jg p $"name" 60
+  ! 8 pb_txt pb_q jg p $"descricao" jg p $"description" 300
+  ! 9 pb_txt jg p $"resumo" 1200
+  ! 10 A 8 ! 11 0
+  = c pb_l1 jg p $"tendencias" W c { = x pb_txt c 200 ? && tlen x < @ 11 8 { ! + @ 10 @ 11 x ! 11 + @ 11 1 0 } 0 = c jprox c }
+  ! 12 pb_txt jg p $"pedido" 500 ! 13 0
+  = o jg p $"opcoes"
+  = x pb_numr pb_q jg o $"faixas" jg o $"count" 5 100 ! 14 ? < x 0 30 x
+  = x pb_numr pb_q jg o $"maxArtista" jg o $"perArtist" 1 10 ! 15 ? < x 0 2 x
+  = e jg o $"estilo" ! 16 ? && == jtipo e 5 pb_estilo jtxt e jtxt e $"equilibrado"
+  = a jg o $"arco" ! 17 ? && == jtipo a 5 >= pb_arco jtxt a 0 jtxt a $"onda"
+  = l pb_q jg p $"candidatas" jg p $"tracks"
+  ! 18 A + jn l 1 ! 19 0
+  = r pb_l1 l W r { = c pb_cand r ? && c pb_nova c { ! + @ 18 @ 19 c ! 19 + @ 19 1 0 } 0 = r jprox r }
+  # os erros, pela ordem do validarProposta
+  = e1 ~ tlen @ 7 = e2 ~ @ 19 = e3 ~ tlen @ 8 = e4 < pb_u16 @ 9 80
+  = mn pb_ceil13 @ 14 = e5 < @ 19 mn
+  = sn 0 = sm 0 = sg 0 = i 0
+  W < i @ 19 { = c @ + @ 18 i ? < @ + c 5 0 { = sn + sn 1 0 } 0 ? ~ @ + c 9 { = sm + sm 1 0 } 0
+    ? || || ~ @ + c 4 ~ tlen @ + c 4 < @ + c 2 0 { = sg + sg 1 0 } 0 = i + i 1 }
+  ? || || || e1 e2 e3 || || e4 e5 || || sn sm sg {
+    h_fd 2 "Proposta inválida:"
+    ? e1 { P 10 "- \"nome\" em falta" 0 } 0
+    ? e2 { P 10 "- \"candidatas\" vazia (cada uma com \"artista\" e \"titulo\")" 0 } 0
+    ? e3 { P 10 "- \"descricao\" em falta" 0 } 0
+    ? e4 { P 10 "- \"resumo\" curto demais (2 a 6 frases)" 0 } 0
+    ? e5 { P 10 "- só " N @ 19 " candidatas para " N @ 14 " faixas: propõe pelo menos " N mn " (o motor escolhe e algumas podem não existir no Tidal)" 0 } 0
+    ? sn { P 10 "- " N sn " candidata(s) sem \"nota\" (0-100)" 0 } 0
+    ? sm { P 10 "- " N sm " candidata(s) sem \"motivo\"" 0 } 0
+    ? sg { P 10 "- " N sg " candidata(s) sem \"genero\" ou \"ano\" (o ano original da gravação)" 0 } 0
+    P 10 h_volta h_sair 1 0 } 0
+  0 }
+
+# ---------- argumentos e pedidos ao Worker ----------
+# o indice do valor da opcao k (o process.argv.indexOf(k) + 1), ou -1
+: pb_argi i>i k { = n Y 200 -1 0 = i 0 = r -1 W && < r 0 < i n { ? tigual h_arg i k { = r + i 1 0 } 0 = i + i 1 } r }
+: pb_flag i>i k >= pb_argi k 0
+: pb_existe i>i t Y 205 t 0
+: pb_erro >i Y 213 0 0
+# a pasta do ficheiro (o dirname)
+: pb_pasta i>i f { = n tlen f = l -1 = i 0 W < i n { ? == tbyte f i '/ { = l i 0 } 0 = i + i 1 } ? < l 0 $"." ? == l 0 $"/" { = r tnovo + l 1 O r tpref f l O 0 r } }
+# o encodeURIComponent
+: pb_livre i>i b || pb_letra b || pb_dg b || == b '- || == b '_ || == b '. || == b '! || == b '~ || == b '* || == b 39 || == b 40 == b 41
+: pb_uri i>i t { = n tlen t = i 0 W < i n { = b tbyte t i ? pb_livre b P b { P '% pb_hX >> b 4 pb_hX & b 15 } = i + i 1 } 0 }
+# o api() do comum.mjs: metodo (0 = GET), caminho e corpo (texto ou 0); a resposta vai para «pb_lido»
+: pb_api iii>i m c b {
+  ! 20 c
+  = u tx tpor @ 2 tpor c ? @ 4 { ? temc c '? { "&u=" 0 } { "?u=" 0 } pb_uri @ 4 0 } 0 O 0
+  = h tx "accept: application/json" P 10 ? b { "content-type: application/json" P 10 0 } 0 "authorization: Bearer " tpor @ 3 O 0
+  = p A 5 ! p m ! + p 1 u ! + p 2 h ! + p 3 b ! + p 4 60000
+  h_pede p $"pb_lido" 0 }
+# a resposta: o JSON (2xx), ou a mensagem de erro (a do Worker, ou «HTTP <estado> em <caminho>») e sai com 1
+: pb_resp ii>i t s ? && >= s 200 < s 300 json t {
+  h_fd 2
+  ? <= s 0 tpor t {
+    = j json t
+    = m ? == jtipo j 7 ? jv jg j $"message" jgt j $"message" ? jv jg j $"error" jgt j $"error" 0 0
+    ? m tpor m { "HTTP " N s " em " tpor @ 20 0 } }
+  P 10 h_volta h_sair 1 0 }
+
+: pb_lido ii>i t s {
+  = p @ 6
+  ? == p 1 { pb_kv t s 0 } 0
+  ? == p 2 { pb_pedidos pb_resp t s 0 } 0
+  ? == p 3 { pb_lote pb_resp t s 0 } 0
+  ? == p 4 { ! 25 pb_resp t s pb_perfil 0 } 0
+  ? == p 5 { pb_gravada pb_resp t s 0 } 0
+  ? == p 6 { pb_resp t s pb_fim 0 } 0
+  0 }
+
+# a chave do agente: a de MUSICA_CHAVE ou a da KV (pela API da Cloudflare; o token vem do proxy do ambiente)
+: pb_chave >i {
+  = c h_env $"MUSICA_CHAVE"
+  ? cheio c { ! 3 c pb_segue 0 } {
+    = ns kv_id
+    ? ~ cheio ns { = m tx "Falta o id da KV em musica/proxy/wrangler.toml" O 0 falha m 0 } 0
+    = co h_env $"CF_ACCOUNT_ID" = tk h_env $"CLOUDFLARE_API_TOKEN"
+    = u tx "https://api.cloudflare.com/client/v4/accounts/" ? cheio co tpor co "e5f9f94050228b1fa9f74443667b20a6" "/storage/kv/namespaces/" tpor ns "/values/agente%3Achave" O 0
+    = h tx "Authorization: Bearer " ? cheio tk tpor tk "proxy-injected" O 0
+    ! 6 1 = p A 5 ! + p 1 u ! + p 2 h ! + p 4 60000 h_pede p $"pb_lido" 0 } }
+: pb_kv ii>i t s {
+  ? || == s 404 && == s 200 ~ cheio t { = m tx "Ainda não há chave do agente: o Tidal nunca foi ligado na app." O 0 falha m 0 } 0
+  ? || < s 200 >= s 300 { = m tx "Cloudflare: HTTP " N s " a ler agente:chave" O 0 falha m 0 } 0
+  ! 3 t pb_segue 0 }
+: pb_segue >i ? @ 5 { ! 6 2 pb_api 0 $"/api/pedidos" 0 } pb_resolve
+: pb_pedidos i>i l {
+  = c pb_l1 l = r 0
+  W && c ~ r { = x jg c $"id" ? && == jtipo x 5 tigual jtxt x @ 5 { = r c 0 } 0 = c jprox c }
+  ? ~ r { = m tx "O pedido " tpor @ 5 " não existe." O 0 falha m 0 } 0
+  ? ~ tlen @ 12 { = x jg r $"texto" ! 13 ? x x -1 0 } 0
+  pb_resolve }
+
+# 1) encontrar as candidatas no Tidal, de 10 em 10 (POST /api/resolver)
+: pb_resolve >i ? >= @ 23 @ 19 pb_perfil_ler {
+  h_abre 0
+  "{\"faixas\":["
+  = i @ 23 = e Mn + i 10 @ 19
+  W < i e {
+    ? > i @ 23 P ', 0
+    = c @ + @ 18 i
+    "{\"artista\":" pb_js @ c ",\"titulo\":" pb_js @ + c 1
+    ? @ + c 10 { ",\"isrc\":" pb_js @ + c 10 0 } 0
+    ? @ + c 11 { ",\"tidalId\":" pb_js @ + c 11 0 } 0
+    P '} = i + i 1 }
+  "]}"
+  = b h_fecha
+  ! 6 3 pb_api $"POST" $"/api/resolver" b }
+: pb_lote i>i r {
+  = l jg r $"faixas"
+  = i @ 23 = e Mn + i 10 @ 19 = j 0
+  W < i e { = x jidx l j ! + @ + @ 18 i 13 ? jv x x 0 = i + i 1 = j + j 1 }
+  ! 23 e
+  pb_resolve }
+# 2) o perfil (o perfil.json do dados, ao lado da proposta, ou o do Worker)
+: pb_perfil_ler >i {
+  = f tx tpor @ 24 "/perfil.json" O 0
+  ? pb_existe f { ! 25 json h_ler f pb_perfil } { ! 6 4 pb_api 0 $"/api/perfil" 0 } }
+
+# ---------- o gosto (o perfilGosto do lib/sinais.js) ----------
+# mapas: chaves em @g, contagens em @(g+1), quantas em @(g+2); o indice da chave k, ou -1
+: pb_acha iii>i ks n k { = i 0 = r -1 W && < r 0 < i n { ? tigual @ + ks i k { = r i 0 } 0 = i + i 1 } r }
+: pb_entra ii>i g k { = i pb_acha @ g @ + g 2 k ? < i 0 { = i @ + g 2 ! + @ g i k ! + @ + g 1 i 0 ! + g 2 + i 1 0 } 0 i }
+: pb_entrad ii>i g k { = i 0 = r -1 W && < r 0 < i @ + g 2 { ? == @ + @ g i k { = r i 0 } 0 = i + i 1 } ? < r 0 { = r @ + g 2 ! + @ g r k ! + @ + g 1 r 0 ! + g 2 + r 1 0 } 0 r }
+: pb_mais ii>i g i { ! + @ + g 1 i + @ + @ + g 1 i 1 0 }
+: pb_tem iii>i g n k >= pb_acha @ g @ n k 0
+# 1 nas n chaves com mais contagens (empates: a ordem de entrada), como o topo()
+: pb_topo iii>i cs m n { = f A + m 1 = i 0 W < i m { = r 0 = j 0 W < j m { = x @ + cs j = y @ + cs i ? || > x y && == x y < j i { = r + r 1 0 } 0 = j + j 1 } ! + f i < r n = i + i 1 } f }
+: pb_gosto >i {
+  = fv jg @ 25 $"favoritas" = ar jg @ 25 $"artistas"
+  = na jn ar = ng 0 = nf 0
+  = c pb_l1 fv W c { = na + na jn jg c $"artistas" = ng + ng jn jg c $"generos" = nf + nf 1 = c jprox c }
+  ! 32 A + na 1 ! 33 A + na 1 ! 34 0
+  ! 35 A + ng 1 ! 36 A + ng 1 ! 37 0
+  ! 38 A + nf 1 ! 39 A + nf 1 ! 40 0
+  ! 41 A + nf 1 ! 42 0 ! 43 A + nf 1 ! 44 0
+  = c pb_l1 fv
+  W c {
+    ! + @ 41 @ 42 pb_str jg c $"id" ! 42 + @ 42 1
+    = s jg c $"isrc" ? jv s { ! + @ 43 @ 44 pb_str s ! 44 + @ 44 1 0 } 0
+    = a pb_l1 jg c $"artistas" W a { pb_mais 32 pb_entra 32 pb_normal pb_str a 1 = a jprox a }
+    = g pb_l1 jg c $"generos" W g { pb_mais 35 pb_entra 35 pb_normal pb_str g 1 = g jprox g }
+    = y jg c $"ano" ? jv y { pb_mais 38 pb_entrad 38 * / I jnum y 10 10 0 } 0
+    = c jprox c }
+  = a pb_l1 ar
+  W a { = nm jg a $"nome" = i pb_entra 32 pb_normal ? jv nm pb_str nm pb_str a 1 ! + @ 33 i Mx 2 @ + @ 33 i = a jprox a }
+  ! 45 pb_topo @ 36 @ 37 5
+  ! 46 pb_topo @ 39 @ 40 3
+  0 }
+
+# ---------- os sinais de uma candidata (o sinais() do lib/sinais.js) ----------
+: pb_tag ii>i l k { = c pb_l1 l = r 0 W && c ~ r { = r && == jtipo c 5 tigual jtxt c k = c jprox c } r }
+: pb_qsom i>i l { = q ? pb_tag l $"HIRES_LOSSLESS" 1000 ? pb_tag l $"LOSSLESS" 750 350 ? || pb_tag l $"DOLBY_ATMOS" pb_tag l $"SONY_360RA" Mn 1000 + q 100 q }
+: pb_qtxt i>i l ? pb_tag l $"HIRES_LOSSLESS" $"Hi-Res" ? pb_tag l $"LOSSLESS" $"Sem perdas" $"Normal"
+# a energia pelo bpm: Math.round(min(950, max(100, (bpm - 60) * 1000 / 110)))
+: pb_enbpm i>i b { = v * - b 60 1000 ? < v 11000 100 ? > v 104500 950 / + * 2 v 110 220 }
+: pb_vezes ii>i k v { = i pb_acha @ 32 @ 34 pb_normal k 1 ? < i 0 v Mx v @ + @ 33 i }
+: pb_sinais i>i c {
+  = f @ + c 13 = s A 12
+  = fa jg f $"artistas"
+  = v 0
+  ? && == jtipo fa 6 > jn fa 0 { = a jprim fa W a { = v pb_vezes pb_str a v = a jprox a } 0 } { = v pb_vezes @ c 0 0 }
+  = ano ? >= @ + c 2 0 @ + c 2 I jnum jg f $"ano"
+  = g0 jprim pb_l1 jg f $"generos"
+  = gen ? && @ + c 4 tlen @ + c 4 @ + c 4 ? jv g0 pb_str g0 $""
+  = go ? >= v 3 1000 ? == v 2 850 ? == v 1 700 200
+  ? == v 0 {
+    = gi ? tlen gen pb_acha @ 35 @ 37 pb_normal gen 1 -1
+    ? && >= gi 0 @ + @ 45 gi { = go 450 0 } {
+      = di ? ano { = d * / ano 10 10 = r -1 = i 0 W && < r 0 < i @ 40 { ? == @ + @ 38 i d { = r i 0 } 0 = i + i 1 } r } -1
+      ? && >= di 0 @ + @ 46 di { = go 350 0 } 0 } 0 } 0
+  = fav pb_tem 41 42 pb_str jg f $"id"
+  = fi jg f $"isrc" ? && ~ fav jv fi { = fav pb_tem 43 44 pb_str fi 0 } 0
+  = bpm I jnum jg f $"bpm" = bpm ? bpm bpm ? >= @ + c 8 0 @ + c 8 0
+  = a0 jprim pb_l1 fa
+  ! s ? jv a0 pb_str a0 @ c
+  ! + s 1 gen
+  ! + s 2 ano
+  ! + s 3 go
+  ! + s 4 pb_qsom jg f $"tags"
+  ! + s 5 Mx I jnum jg f $"popularidade" ? >= @ + c 7 0 * @ + c 7 10 0
+  ! + s 6 ? >= @ + c 5 0 * @ + c 5 10 700
+  ! + s 7 ? fav 150 ? v 600 1000
+  ! + s 8 ? >= @ + c 6 0 * @ + c 6 10 ? bpm pb_enbpm bpm 500
+  ! + s 9 bpm
+  ! + s 10 I jnum jg f $"tom"
+  ! + s 11 @ + c 12
+  ! + c 15 s 0 }
+
+# ---------- o motor (o curar do onda/onda.js, sem passar por texto) ----------
+: pb_id iiii>i g n k b { = i pb_acha @ g @ n k ? < i 0 { = i @ n ! + @ g i k ! n + i 1 0 } 0 + i b }
+: pb_motor >i {
+  = n @ 27
+  ! 29 0 ! 30 0
+  ? n {
+    = c ctx_novo n Mn @ 14 n Mn 1000 @ 15
+    = e pb_estilo @ 16 = e ? e e 1
+    cs c 3 pb_peso e 0 cs c 4 pb_peso e 1 cs c 5 pb_peso e 2 cs c 6 pb_peso e 3 cs c 7 pb_peso e 4
+    cs c 8 300 cs c 9 250 cs c 10 200
+    cs c 11 pb_arco @ 17
+    ! 47 A + n 1 ! 48 0 ! 53 A + n 1 ! 54 0
+    = i 0 W < i n {
+      = s @ + @ + @ 18 @ + @ 26 i 15
+      = ka pb_normal @ s 0
+      = ka ? tlen ka ka { = t tnovo 24 O t N @ 48 O 0 t }
+      = kg pb_normal @ + s 1 0
+      ap c 12 i Mn pb_id 47 48 ka 0 n
+      ap c 13 i Mn ? tlen kg pb_id 53 54 kg 1 0 n
+      ap c 14 i decada lim @ + s 2 0 2100
+      ap c 29 i lim @ + s 3 0 1000 ap c 30 i lim @ + s 4 0 1000 ap c 31 i lim @ + s 5 0 1000
+      ap c 32 i lim @ + s 6 0 1000 ap c 33 i lim @ + s 7 0 1000 ap c 15 i lim @ + s 8 0 1000
+      ap c 16 i lim @ + s 9 0 400 ap c 17 i lim @ + s 10 0 24 ap c 18 i @ + s 11
+      = i + i 1 }
+    ! 30 curar c
+    = m cg c 27 ! 29 m ! 28 A + * 3 m 1
+    = p 0 W < p m { = x ag c 28 p ! + @ 28 * 3 p x ! + + @ 28 * 3 p 1 ag c 20 x ! + + @ 28 * 3 p 2 ag c 26 x = p + p 1 }
+    0 } 0 }
+
+# ---------- o que se mostra e o que se grava ----------
+# a candidata da faixa p da ordem final
+: pb_rc i>i p @ + @ 18 @ + @ 26 @ + @ 28 * 3 p
+: pb_motivo i>i q ? == q 2 $"qualidade" ? == q 3 $"tendencia" ? == q 4 $"claude" ? == q 5 $"novidade" ? == q 6 $"fixa" $"gosto"
+: pb_camelot i>i t { N + % - t 1 12 1 ? > t 12 P 'B P 'A }
+: pb_dectxt i>i y ? jv y { = t tnovo 12 O t N * / I jnum y 10 10 P 's O 0 t } $"?"
+# «chave n, ...» dos generos (1), decadas (2) ou qualidade (3) das faixas; as duas primeiras por contagem
+: pb_mist i>i modo {
+  = m @ 29 = ks A + m 1 = cs A + m 1 = n 0
+  = p 0 W < p m {
+    = r pb_rc p = f @ + r 13
+    = k ? == modo 1 { = g @ + @ + r 15 1 ? tlen g g $"?" } ? == modo 2 pb_dectxt jg f $"ano" pb_qtxt jg f $"tags"
+    = i pb_acha ks n k ? < i 0 { = i n ! + ks i k ! + cs i 0 = n + n 1 0 } 0
+    ! + cs i + @ + cs i 1
+    = p + p 1 }
+  = o A + n 1 = i 0 W < i n { ! + o i i = i + i 1 }
+  ? != modo 3 { = i 1 W < i n { = x @ + o i = j - i 1 W && >= j 0 < @ + cs @ + o j @ + cs x { ! + o + j 1 @ + o j = j - j 1 } ! + o + j 1 x = i + i 1 } 0 } 0
+  = i 0 W < i n { ? i { ", " 0 } 0 = j @ + o i tpor @ + ks j " " N @ + cs j = i + i 1 }
+  0 }
+# a faixa como o afinar() a guarda: { ...faixa do Tidal, genero, motivo, porque, pontos }
+: pb_faixa i>i p {
+  = r pb_rc p = f @ + r 13 = s @ + r 15
+  = q @ + + @ 28 * 3 p 1 = pt @ + + @ 28 * 3 p 2
+  = mo ? @ + r 9 @ + r 9 $""
+  P '{ = k 0 = h1 0 = h2 0 = h3 0 = h4 0
+  = c ? == jtipo f 7 @ + f 4 0
+  W c { = ch @ + c 2 ? k P ', 0 = k 1 pb_js ch P ':
+    ? tigual ch $"genero" { pb_js @ + s 1 = h1 1 0 } ? tigual ch $"motivo" { pb_js mo = h2 1 0 } ? tigual ch $"porque" { pb_js pb_motivo q = h3 1 0 } ? tigual ch $"pontos" { N pt = h4 1 0 } pb_jw c 0 0
+    = c @ + c 3 }
+  ? ~ h1 { ? k P ', 0 = k 1 "\"genero\":" pb_js @ + s 1 0 } 0
+  ? ~ h2 { ? k P ', 0 = k 1 "\"motivo\":" pb_js mo 0 } 0
+  ? ~ h3 { ? k P ', 0 = k 1 "\"porque\":" pb_js pb_motivo q 0 } 0
+  ? ~ h4 { ? k P ', 0 = k 1 "\"pontos\":" N pt 0 } 0
+  P '} 0 }
+# a candidata como o paraGuardar() a guarda: { ...candidata, faixa, sinais }
+: pb_guardada i>i r {
+  "{\"artista\":" pb_js @ r ",\"titulo\":" pb_js @ + r 1
+  ? >= @ + r 2 0 { ",\"ano\":" N @ + r 2 0 } 0
+  ? @ + r 3 { ",\"album\":" pb_js @ + r 3 0 } 0
+  ? @ + r 4 { ",\"genero\":" pb_js @ + r 4 0 } 0
+  ? >= @ + r 5 0 { ",\"nota\":" N @ + r 5 0 } 0
+  ? >= @ + r 6 0 { ",\"energia\":" N @ + r 6 0 } 0
+  ? >= @ + r 7 0 { ",\"tendencia\":" N @ + r 7 0 } 0
+  ? >= @ + r 8 0 { ",\"bpm\":" N @ + r 8 0 } 0
+  ? @ + r 9 { ",\"motivo\":" pb_js @ + r 9 0 } 0
+  ? @ + r 10 { ",\"isrc\":" pb_js @ + r 10 0 } 0
+  ? @ + r 11 { ",\"tidalId\":" pb_js @ + r 11 0 } 0
+  ? @ + r 12 { ",\"fixa\":true" 0 } 0
+  ",\"faixa\":" pb_jw @ + r 13 0 0
+  = s @ + r 15
+  ",\"sinais\":{\"artista\":" pb_js @ s ",\"genero\":" pb_js @ + s 1 ",\"ano\":" N @ + s 2 ",\"gosto\":" N @ + s 3
+  ",\"qualidade\":" N @ + s 4 ",\"tendencia\":" N @ + s 5 ",\"claude\":" N @ + s 6 ",\"novidade\":" N @ + s 7
+  ",\"energia\":" N @ + s 8 ",\"bpm\":" N @ + s 9 ",\"tom\":" N @ + s 10 ",\"fixa\":" ? @ + s 11 { "true" 0 } { "false" 0 } "}}" 0 }
+
+# 3) os sinais, o motor, o que saiu; 4) gravar na biblioteca e no Tidal
+: pb_perfil >i {
+  pb_gosto
+  # as encontradas, sem a mesma faixa do Tidal duas vezes
+  ! 26 A + @ 19 1 ! 27 0
+  = ids A + @ 19 1 = i 0
+  W < i @ 19 {
+    = c @ + @ 18 i = f @ + c 13
+    ? f { = d pb_str jg f $"id" ? < pb_acha ids @ 27 d 0 { ! + ids @ 27 d ! + @ 26 @ 27 i ! 27 + @ 27 1 pb_sinais c 0 } 0 0 } 0
+    = i + i 1 }
+  pb_motor
+  "Encontradas no Tidal: " N @ 27 " de " N @ 19
+  = q 0 = i 0
+  W < i @ 19 { = r @ + @ 18 i ? ~ @ + r 13 { ? q { "; " 0 } { " · não encontradas: " 0 } tpor @ r " — " tpor @ + r 1 = q 1 0 } 0 = i + i 1 }
+  P 10
+  ? && < @ 29 @ 14 ~ pb_flag $"--aceitar-menos" {
+    h_fd 2 "O motor só conseguiu " N @ 29 " de " N @ 14 " faixas (máx. " N @ 15 " por artista). Acrescenta candidatas (de outros artistas) à proposta e publica outra vez — ou usa --aceitar-menos." P 10 h_volta h_sair 1 0 } 0
+  = dur 0 = p 0 W < p @ 29 { = dur + dur I jnum jg @ + pb_rc p 13 $"duracao" = p + p 1 }
+  P 10 "«" tpor @ 7 "» — " N @ 29 " faixas, " N / dur 60 " min · custo das transições " N @ 30 P 10
+  = p 0
+  W < p @ 29 {
+    = r pb_rc p = f @ + r 13 = s @ + r 15
+    ? < p 9 P 32 0 N + p 1 ". " pjunta jg f $"artistas" 1 " — " pv jg f $"titulo" " · "
+    = y jg f $"ano" ? jv y pv y { "?" 0 } " · " ? tlen @ + s 1 tpor @ + s 1 { "?" 0 } " · " tpor pb_qtxt jg f $"tags"
+    = b jg f $"bpm" ? jv b { " · " pv b " bpm" 0 } 0
+    = t jg f $"tom" ? jv t { " · " pb_camelot I jnum t 0 } 0
+    " · " tpor pb_motivo @ + + @ 28 * 3 p 1 " " N @ + + @ 28 * 3 p 2 P 10
+    = p + p 1 }
+  P 10 "Géneros: " pb_mist 1 P 10 "Décadas: " pb_mist 2 P 10 "Qualidade: " pb_mist 3 P 10
+  ? pb_flag $"--ensaio" { P 10 "(ensaio: nada gravado)" P 10 h_sair 0 0 } 0
+  h_abre 0
+  "{\"nome\":" pb_js @ 7 ",\"descricao\":" pb_js @ 8 ",\"resumo\":" pb_js @ 9 ",\"tendencias\":["
+  = i 0 W < i @ 11 { ? i P ', 0 pb_js @ + @ 10 i = i + i 1 } "]"
+  ? == @ 13 0 { ",\"pedido\":" pb_js @ 12 0 } ? > @ 13 0 { ",\"pedido\":" pb_jw @ 13 0 0 0 } 0
+  ",\"opcoes\":{\"faixas\":" N @ 14 ",\"maxArtista\":" N @ 15 ",\"estilo\":" pb_js @ 16 ",\"arco\":" pb_js @ 17 "}"
+  ",\"faixas\":[" = p 0 W < p @ 29 { ? p P ', 0 pb_faixa p = p + p 1 } "]"
+  ",\"custo\":" N @ 30
+  ",\"candidatas\":[" = i 0 W < i @ 27 { ? i P ', 0 pb_guardada @ + @ 18 @ + @ 26 i = i + i 1 } "]"
+  ? @ 31 { ",\"modelo\":" pb_js @ 31 0 } 0
+  ",\"tidal\":" ? pb_flag $"--sem-tidal" { "false" 0 } { "true" 0 } "}"
+  = b h_fecha
+  ! 6 5 pb_api $"POST" $"/api/playlists" b }
+: pb_gravada i>i d {
+  ! 55 d
+  ? @ 5 { ! 6 6 = c tx "/api/pedidos/" tpor @ 5 "?playlist=" pv jg d $"id" O 0 pb_api $"DELETE" c 0 } pb_fim }
+: pb_fim >i {
+  = d @ 55
+  = f tx tpor @ 24 "/publicada.json" O 0
+  h_abre f pb_jw d 2 0 h_fecha
+  P 10 "Publicada: «" pv jg d $"nome" "» (" pv jg d $"id" ")"
+  = t jg d $"tidal" ? jv t { " · no Tidal: " pv jg t $"url" 0 } { " · só na biblioteca da app" 0 }
+  ? @ 5 { " · pedido " tpor @ 5 " feito" 0 } 0
+  P 10 h_sair 0 0 }
+
+: publicar >i {
+  = f h_arg 1
+  ? || ~ cheio f tcomeca f $"--" { h_fd 2 "uso: publicar.mjs /tmp/musica/<pessoa>/proposta.json [--utilizador <pessoa>] [--pedido <id>] [--modelo <id>] [--ensaio]" P 10 h_volta h_sair 2 0 } 0
+  ! 1 f
+  = t h_ler f
+  = p ? t pb_jok t 0
+  ? ~ p { h_fd 2 "JSON inválido em " tpor f ": " ? t { "o texto não é JSON válido" 0 } tpor pb_erro P 10 h_volta h_sair 1 0 } 0
+  pb_proposta p
+  = i pb_argi $"--utilizador" = u ? >= i 0 h_arg i 0
+  ! 4 ? && cheio u ~ tigual u $"dono" u 0
+  = i pb_argi $"--pedido" = x ? >= i 0 h_arg i 0 ! 5 ? cheio x x 0
+  = i pb_argi $"--modelo" ! 31 ? >= i 0 h_arg i $"claude"
+  = w h_env $"MUSICA_WORKER" ! 2 ? cheio w w $"https://musica.mercados-proxy.workers.dev"
+  ! 21 h_env $"MUSICA_DIR"
+  ! 24 pb_pasta f
+  ! 23 0
+  pb_chave }
+
+# para os testes de paridade: [normal(), chave(), toLowerCase()] de cada argumento, em JSON
+: pb_textos >i { = i 1 W h_arg i { = t h_arg i P '[ pb_js pb_normal t 1 P ', pb_js pb_normal t 0 P ', pb_js pb_lowt t P '] P 10 = i + i 1 } h_sair 0 0 }

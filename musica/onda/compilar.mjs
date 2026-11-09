@@ -59,7 +59,8 @@ export function fontes() {
         curador: motor + '\n' + ler('curador.onda'),
         app: existsSync(app) && existsSync(lib) ? readFileSync(lib, 'utf8') + '\n' + motor + '\n' + readFileSync(app, 'utf8') : null,
         // os scripts do Maestro (a tarefa agendada), com a biblioteca de apps (textos e JSON), para o anfitrião Node
-        maestro: existsSync(lib) ? readFileSync(lib, 'utf8') + '\n' + readFileSync(join(AQUI, '..', 'curador', 'onda', 'dados.onda'), 'utf8') : null,
+        // (dados, publicar com o motor, e o main que escolhe pelo 1.º argumento)
+        maestro: existsSync(lib) ? [readFileSync(lib, 'utf8'), motor, ...['dados', 'publicar', 'maestro'].map((s) => readFileSync(join(AQUI, '..', 'curador', 'onda', s + '.onda'), 'utf8'))].join('\n') : null,
     };
 }
 export async function compilarTudo(compilador) {

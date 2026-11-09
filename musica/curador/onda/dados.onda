@@ -186,7 +186,7 @@
 : falha i>i t { h_fd 2 tpor t P 10 h_volta h_sair 1 0 }
 
 # ---------- o fio: estado -> chave -> pessoas -> (perfil, pedidos, playlists, recentes, mixes, novidades) por pessoa ----------
-: main >i {
+: dados_main >i {
   ! 0 A 70
   kd 0 tx "lido" O 0  kd 1 tx "ligado" O 0  kd 2 tx "clientId" O 0  kd 3 tx "uid" O 0  kd 4 tx "nome" O 0
   kd 5 tx "utilizador" O 0  kd 6 tx "pais" O 0  kd 7 tx "favoritas" O 0  kd 8 tx "artistas" O 0  kd 9 tx "playlists" O 0
