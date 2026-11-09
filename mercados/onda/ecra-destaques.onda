@@ -13,78 +13,78 @@
 
 # ===== procurar =====
 # o ativo (um dos assets, pela ordem de Object.keys(REG)) com a chave do nó kn (k === kn), ou 0
-: hl_ativo i>i kn { = c jprim sg $"assets" = r 0 W && c ~ r { ? vigual jg c $"k" kn = r c 0 = c jprox c } r }
+: hl_ativo i>i kn { = c _ar_prim sg $"assets" = r 0 W && c ~ r { ? _ar_igual _ar_get c $"k" kn = r c 0 = c _ar_prox c } r }
 # … com a chave do texto t
-: hl_ativot i>i t { = c jprim sg $"assets" = r 0 W && c ~ r { ? veqt jg c $"k" t = r c 0 = c jprox c } r }
+: hl_ativot i>i t { = c _ar_prim sg $"assets" = r 0 W && c ~ r { ? _ar_eqt _ar_get c $"k" t = r c 0 = c _ar_prox c } r }
 # o motivo do Claude para kn: o why do primeiro dos CLAUDE.movers com s === kn (o moverWhy do JS), ou 0
-: hl_cl i>i kn { = c jprim sg $"why" = r 0 W && c ~ r { ? && == jtipo c 7 vigual jg c $"s" kn = r c 0 = c jprox c } ? r jg r $"why" 0 }
+: hl_cl i>i kn { = c _ar_prim sg $"why" = r 0 W && c ~ r { ? && == _ar_tipo c 7 _ar_igual _ar_get c $"s" kn = r c 0 = c _ar_prox c } ? r _ar_get r $"why" 0 }
 # o 1.º objeto de uma lista, e quantos objetos tem (até m)
-: hl_obj i>i l { = c jprim l W && c != jtipo c 7 = c jprox c c }
-: hl_nobj ii>i l m { = c jprim l = j 0 W && c < j m { ? == jtipo c 7 = j + j 1 0 = c jprox c } j }
+: hl_obj i>i l { = c _ar_prim l W && c != _ar_tipo c 7 = c _ar_prox c c }
+: hl_nobj ii>i l m { = c _ar_prim l = j 0 W && c < j m { ? == _ar_tipo c 7 = j + j 1 0 = c _ar_prox c } j }
 
 # ===== pedaços =====
 # um tom dos dados: 'up', 'down' ou 'flat'; e o de um código (1 up, 2 down)
-: hl_tom i>i n ? veqt n $"up" "up" ? veqt n $"down" "down" "flat"
+: hl_tom i>i n ? _ar_eqt n $"up" "up" ? _ar_eqt n $"down" "down" "flat"
 : hl_t3 i>i t ? == t 1 "up" ? == t 2 "down" "flat"
 # um nó como real (NaN se não é número), e se é um número finito (o fin do JS)
-: hl_num i>f n ? == jtipo n 4 @f + n 1 / 0. 0.
-: hl_fin i>i n && == jtipo n 4 finito @f + n 1
+: hl_num i>f n ? == _ar_tipo n 4 @f + n 1 / 0. 0.
+: hl_fin i>i n && == _ar_tipo n 4 _nu_fin @f + n 1
 # o fmtPx(price, a, cur) do mercados.js, com a moeda pela ordem do JS: cur || Q[a.key].currency || (cripto ? cfg.fiat : null)
 : hl_preco iii>i pn a cu {
-  = m ? vverd cu cu ? && a vverd jg a $"qc" jg a $"qc" ? && a veqt jg a $"kind" $"crypto" sg $"fiat" 0
-  ? == jtipo pn 4 fm_px @f + pn 1 ? a jg a $"dec" 0 ? a jg a $"pts" 0 m "—" }
+  = m ? _ar_verd cu cu ? && a _ar_verd _ar_get a $"qc" _ar_get a $"qc" ? && a _ar_eqt _ar_get a $"kind" $"crypto" sg $"fiat" 0
+  ? == _ar_tipo pn 4 fm_px @f + pn 1 ? a _ar_get a $"dec" 0 ? a _ar_get a $"pts" 0 m "—" }
 # o porquê, numa linha pequena: o motivo do Claude (com o ponto dele) ou o título da 1.ª notícia (com o ponto da cor do
 # tom); dá 1 se escreveu, 0 se não há porquê
 : hl_porque ii>i kn a {
   = w hl_cl kn
-  ? vverd w { "<span class=\"hl-w cl\">" pv w 1 "</span>" 1 } {
-    = n ? a jg a $"n1" 0 = t jg n $"title"
-    ? vverd t { "<span class=\"hl-w " hl_tom jg n $"tone" "\">" pv t 1 "</span>" 1 } 0 } }
+  ? _ar_verd w { "<span class=\"hl-w cl\">" _ar_ps w 1 "</span>" 1 } {
+    = n ? a _ar_get a $"n1" 0 = t _ar_get n $"title"
+    ? _ar_verd t { "<span class=\"hl-w " hl_tom _ar_get n $"tone" "\">" _ar_ps t 1 "</span>" 1 } 0 } }
 
 # ===== as linhas: as do Painel (ícone, nome, a linha pequena, preço e variação do dia) =====
 : hl_linha i>i a {
-  = k jg a $"k" = nm jg a $"name" = s jg a $"sym"
-  "\n            <button type=\"button\" class=\"row hl-row\" data-open=\"" pv k 1 "\" data-key=\"" pv k 1 "\" data-chg=\"day\">"
-  ln_ico k nm ? veqt jg a $"kind" $"crypto" s 0 0
-  "<div class=\"r-main\"><div class=\"r-name\">" pv nm 1 "</div><div class=\"r-sub\">"
-  ? hl_porque k a 0 ? vverd s pv s 1 pv k 1
-  "</div></div><div class=\"r-px num\"><span class=\"px\">" hl_preco jg a $"px" a jg a $"cur" "</span>" ln_chg jg a $"chg" "</div></button>" 0 }
+  = k _ar_get a $"k" = nm _ar_get a $"name" = s _ar_get a $"sym"
+  "\n            <button type=\"button\" class=\"row hl-row\" data-open=\"" _ar_ps k 1 "\" data-key=\"" _ar_ps k 1 "\" data-chg=\"day\">"
+  ln_ico k nm ? _ar_eqt _ar_get a $"kind" $"crypto" s 0 0
+  "<div class=\"r-main\"><div class=\"r-name\">" _ar_ps nm 1 "</div><div class=\"r-sub\">"
+  ? hl_porque k a 0 ? _ar_verd s _ar_ps s 1 _ar_ps k 1
+  "</div></div><div class=\"r-px num\"><span class=\"px\">" hl_preco _ar_get a $"px" a _ar_get a $"cur" "</span>" ln_chg _ar_get a $"chg" "</div></button>" 0 }
 # uma da lista dos EUA (q: { symbol, name, price, changePct, volume, currency }, o que o conector manda; a é o ativo, se
 # também está nas listas da app); sem porquê, o símbolo e o volume
 : hl_linhaq i>i q {
-  = k jg q $"symbol" = a hl_ativo k = n0 jg q $"name" = nm ? vverd n0 n0 k
-  "\n            <button type=\"button\" class=\"row hl-row\" data-open=\"" pv k 1 "\" data-key=\"" pv k 1 "\" data-chg=\"day\" data-name=\"" ? vverd n0 pv n0 1 0 "\">"
+  = k _ar_get q $"symbol" = a hl_ativo k = n0 _ar_get q $"name" = nm ? _ar_verd n0 n0 k
+  "\n            <button type=\"button\" class=\"row hl-row\" data-open=\"" _ar_ps k 1 "\" data-key=\"" _ar_ps k 1 "\" data-chg=\"day\" data-name=\"" ? _ar_verd n0 _ar_ps n0 1 0 "\">"
   ln_ico k nm 0 0
-  "<div class=\"r-main\"><div class=\"r-name\">" pv nm 1 "</div><div class=\"r-sub\">"
+  "<div class=\"r-main\"><div class=\"r-name\">" _ar_ps nm 1 "</div><div class=\"r-sub\">"
   ? hl_porque k a 0 {
-      = s ? a jg a $"sym" 0 ? vverd s pv s 1 pv k 1
-      = v jg q $"volume" ? hl_fin v { " · vol. " fm_big @f + v 1 0 } 0 }
-  "</div></div><div class=\"r-px num\"><span class=\"px\">" hl_preco jg q $"price" a jg q $"currency" "</span>" ln_chg jg q $"changePct" "</div></button>" 0 }
+      = s ? a _ar_get a $"sym" 0 ? _ar_verd s _ar_ps s 1 _ar_ps k 1
+      = v _ar_get q $"volume" ? hl_fin v { " · vol. " _nu_compacto @f + v 1 0 } 0 }
+  "</div></div><div class=\"r-px num\"><span class=\"px\">" hl_preco _ar_get q $"price" a _ar_get q $"currency" "</span>" ln_chg _ar_get q $"changePct" "</div></button>" 0 }
 
 # ===== em cima: o sentimento do mercado, numa linha (o tom e os índices do dia); ao abrir, o que o explica =====
 # um índice do dia (a chave t, o nome nm): "S&P 500 −0,42%", com " · " antes se não é o primeiro (f); dá 1 se escreveu
 : hl_ind iii>i t nm f {
-  = a hl_ativot t = v ? a jg a $"chg" 0
-  ? hl_fin v { ? f " · " 0 thtml nm " <span class=\"" ln_tom @f + v 1 "-t\">" fm_pct @f + v 1 "</span>" 1 } 0 }
+  = a hl_ativot t = v ? a _ar_get a $"chg" 0
+  ? hl_fin v { ? f " · " 0 _tx_html nm " <span class=\"" ln_tom @f + v 1 "-t\">" fm_pct @f + v 1 "</span>" 1 } 0 }
 : hl_humor >i {
   = m sg $"mood"
-  ? ~ vverd m 0 {
-    "\n        <details class=\"an-f hl-mood\" data-fold=\"hl-mood\" " ? vverd sg $"foldMood" "open" 0 "><summary><span class=\"f-t\">Sentimento do mercado<small>"
+  ? ~ _ar_verd m 0 {
+    "\n        <details class=\"an-f hl-mood\" data-fold=\"hl-mood\" " ? _ar_verd sg $"foldMood" "open" 0 "><summary><span class=\"f-t\">Sentimento do mercado<small>"
     = n hl_ind $"^GSPC" $"S&P 500" 0
     = n + n hl_ind $"^IXIC" $"Nasdaq" n
     = n + n hl_ind $"^STOXX50E" $"Euro Stoxx" n
-    ? n 0 pv jg m $"hint" 1
-    "</small></span><span class=\"f-n " hl_tom jg m $"tone" "-t\">" pv jg m $"label" 1 "</span></summary>"
-    ? n { "<p class=\"hl-hint\">" pv jg m $"hint" 1 "</p>" 0 } 0
+    ? n 0 _ar_ps _ar_get m $"hint" 1
+    "</small></span><span class=\"f-n " hl_tom _ar_get m $"tone" "-t\">" _ar_ps _ar_get m $"label" 1 "</span></summary>"
+    ? n { "<p class=\"hl-hint\">" _ar_ps _ar_get m $"hint" 1 "</p>" 0 } 0
     "<ul class=\"hl-rz\">"
-    = c jprim jg m $"reasons" W c { "<li class=\"" hl_tom jg c $"tone" "\">" pv jg c $"txt" 1 "</li>" = c jprox c }
+    = c _ar_prim _ar_get m $"reasons" W c { "<li class=\"" hl_tom _ar_get c $"tone" "\">" _ar_ps _ar_get c $"txt" 1 "</li>" = c _ar_prox c }
     "</ul></details>" 0 } }
 
 # ===== as listas =====
 # os meus ativos hoje (o holdingKeys(), pela ordem dos Ajustes)
 : hl_meus >i {
-  = l sg $"mine" = w A + jn l 1 = m 0
-  = c jprim l W c { = a hl_ativo c ? a { ! + w m a = m + m 1 0 } 0 = c jprox c }
+  = l sg $"mine" = w A + _ar_n l 1 = m 0
+  = c _ar_prim l W c { = a hl_ativo c ? a { ! + w m a = m + m 1 0 } 0 = c _ar_prox c }
   ? m {
     "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Os meus ativos hoje</h2></div><div class=\"list\">"
     = j 0 W < j m { hl_linha @ + w j = j + j 1 }
@@ -94,17 +94,17 @@
 # o que mais sobe e o que mais cai hoje do que sigo (fora os meus): os da lista (listed: nem temporário nem auxiliar), sem
 # os índices, com a variação do dia finita; os 5 primeiros de cada lado pela variação
 : hl_movem >i {
-  = l sg $"assets" = n jn l = b A + n 1 = k1 A + n 1 = wu A + n 1 = wd A + n 1 = nu 0 = nd 0 = mi sg $"mine"
-  = c jprim l = i 0
+  = l sg $"assets" = n _ar_n l = b A + n 1 = k1 A + n 1 = wu A + n 1 = wd A + n 1 = nu 0 = nd 0 = mi sg $"mine"
+  = c _ar_prim l = i 0
   W c {
     ! + b i c
-    = kd jg c $"kind" = v jg c $"chg"
-    ? && && && && ~ vverd jg c $"temp" ~ veqt kd $"aux" ~ veqt kd $"index" hl_fin v ~ vtem mi jg c $"k" {
+    = kd _ar_get c $"kind" = v _ar_get c $"chg"
+    ? && && && && ~ _ar_verd _ar_get c $"temp" ~ _ar_eqt kd $"aux" ~ _ar_eqt kd $"index" hl_fin v ~ _ar_tem mi _ar_get c $"k" {
         = x @f + v 1 !f + k1 i x
         ? > x 0. { ! + wu nu i = nu + nu 1 0 } ? < x 0. { ! + wd nd i = nd + nd 1 0 } 0 } 0
-    = c jprox c = i + i 1 }
+    = c _ar_prox c = i + i 1 }
   # sort((a, b) => V[b].changePct - V[a].changePct) e sort((a, b) => V[a].changePct - V[b].changePct)
-  ts_ordena wu nu k1 0 0 ts_ordena wd nd k1 0 1
+  _or_power wu nu k1 0 0 _or_power wd nd k1 0 1
   "\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Mais sobem</h2></div>"
   ? nu hl_lista b wu ? > nu 5 5 nu "<div class=\"empty\">Nada a subir hoje.</div>"
   "</section>\n        <section class=\"sec\"><div class=\"sec-h\"><h2>Mais caem</h2></div>"
@@ -114,51 +114,51 @@
 # ===== em baixo, em linhas fechadas (details com data-fold: ficam como o utilizador as deixou) =====
 # o mercado dos EUA (a lista do conector, que se pede ao abrir os Destaques): numa linha, o que mais sobe e o que mais
 # cai; lá dentro as 5 maiores subidas e as 5 maiores descidas
-: hl_qres i>i q { = n0 jg q $"name" = v jg q $"changePct"
-  ? vverd n0 pv n0 1 pv jg q $"symbol" 1 " <span class=\"" ln_tom hl_num v "-t\">" fm_pctv v "</span>" 0 }
-: hl_qrows ii>i l m { "<div class=\"list\">" = c jprim l = j 0 W && c < j m { ? == jtipo c 7 { hl_linhaq c = j + j 1 } 0 = c jprox c } "</div>" 0 }
-: hl_eua >i ? ~ vverd sg $"proxy" 0 {
-  = mv sg $"mv" = g jg mv $"gainers" = l jg mv $"losers" = ng hl_nobj g 5 = nl hl_nobj l 5 = e sg $"err"
-  ? && vverd mv ~ || ng nl 0 {
-    "\n        <details class=\"an-f\" data-fold=\"hl-eua\" " ? vverd sg $"foldEua" "open" 0 "><summary><span class=\"f-t\">Mercado dos EUA<small>"
-    ? vverd mv {
+: hl_qres i>i q { = n0 _ar_get q $"name" = v _ar_get q $"changePct"
+  ? _ar_verd n0 _ar_ps n0 1 _ar_ps _ar_get q $"symbol" 1 " <span class=\"" ln_tom hl_num v "-t\">" fm_pctv v "</span>" 0 }
+: hl_qrows ii>i l m { "<div class=\"list\">" = c _ar_prim l = j 0 W && c < j m { ? == _ar_tipo c 7 { hl_linhaq c = j + j 1 } 0 = c _ar_prox c } "</div>" 0 }
+: hl_eua >i ? ~ _ar_verd sg $"proxy" 0 {
+  = mv sg $"mv" = g _ar_get mv $"gainers" = l _ar_get mv $"losers" = ng hl_nobj g 5 = nl hl_nobj l 5 = e sg $"err"
+  ? && _ar_verd mv ~ || ng nl 0 {
+    "\n        <details class=\"an-f\" data-fold=\"hl-eua\" " ? _ar_verd sg $"foldEua" "open" 0 "><summary><span class=\"f-t\">Mercado dos EUA<small>"
+    ? _ar_verd mv {
         = a hl_obj g = z hl_obj l
         ? a hl_qres a 0 ? && a z " · " 0 ? z hl_qres z 0
         "</small></span></summary>"
         ? ng { "<div class=\"grp-h\">Sobem</div>" hl_qrows g 5 0 } 0
         ? nl { "<div class=\"grp-h\">Caem</div>" hl_qrows l 5 0 } 0 0 } {
-        ? vverd e "Indisponível" "A carregar…"
-        "</small></span></summary><div class=\"empty\">" ? vverd e { "Não deu para ler a lista: " pv e 1 0 } "A carregar…" "</div>" 0 }
+        ? _ar_verd e "Indisponível" "A carregar…"
+        "</small></span></summary><div class=\"empty\">" ? _ar_verd e { "Não deu para ler a lista: " _ar_ps e 1 0 } "A carregar…" "</div>" 0 }
     "</details>" 0 } }
 # a cripto hoje (o mercado cripto todo, do conector): numa linha, o medo e ganância e quanto o valor do mercado mexeu em
 # 24 h; lá dentro os 4 números
-: hl_fng i>i t ? veqt t $"Extreme Fear" "Medo extremo" ? veqt t $"Fear" "Medo" ? veqt t $"Neutral" "Neutro"
-  ? veqt t $"Greed" "Ganância" ? veqt t $"Extreme Greed" "Ganância extrema" pv t 1
+: hl_fng i>i t ? _ar_eqt t $"Extreme Fear" "Medo extremo" ? _ar_eqt t $"Fear" "Medo" ? _ar_eqt t $"Neutral" "Neutro"
+  ? _ar_eqt t $"Greed" "Ganância" ? _ar_eqt t $"Extreme Greed" "Ganância extrema" _ar_ps t 1
 # um valor em euros: o em euros, se o há (fin), ou o em dólares a dividir pelo EUR/USD (eu, se é verdade)
-: hl_eur iii>f a u eu ? hl_fin a @f + a 1 ? && hl_fin u vverd eu / @f + u 1 vnum eu / 0. 0.
+: hl_eur iii>f a u eu ? hl_fin a @f + a 1 ? && hl_fin u _ar_verd eu / @f + u 1 _ar_vnum eu / 0. 0.
 : hl_cripto >i {
   = g sg $"cg"
-  ? ~ vverd g 0 {
-    = f jg g $"fng" = fv vverd f = eu sg $"eu"
-    = mc hl_eur jg g $"mcap" jg g $"mcapUsd" eu = vo hl_eur jg g $"vol" jg g $"volUsd" eu
-    = bd jg g $"btcDom" = ch jg g $"mcapChg" = fc hl_fin ch
+  ? ~ _ar_verd g 0 {
+    = f _ar_get g $"fng" = fv _ar_verd f = eu sg $"eu"
+    = mc hl_eur _ar_get g $"mcap" _ar_get g $"mcapUsd" eu = vo hl_eur _ar_get g $"vol" _ar_get g $"volUsd" eu
+    = bd _ar_get g $"btcDom" = ch _ar_get g $"mcapChg" = fc hl_fin ch
     # f.v < 45 'down', > 55 'up', senão 'flat'
-    = x vnum jg f $"v" = ft ? < x 45. 2 ? > x 55. 1 0
-    ? ~ || || || fv finito mc hl_fin bd finito vo 0 {
-      "\n        <details class=\"an-f\" data-fold=\"hl-cripto\" " ? vverd sg $"foldCg" "open" 0 "><summary><span class=\"f-t\">Cripto hoje<small>"
-      ? fv hl_fng jg f $"label" 0
+    = x _ar_vnum _ar_get f $"v" = ft ? < x 45. 2 ? > x 55. 1 0
+    ? ~ || || || fv _nu_fin mc hl_fin bd _nu_fin vo 0 {
+      "\n        <details class=\"an-f\" data-fold=\"hl-cripto\" " ? _ar_verd sg $"foldCg" "open" 0 "><summary><span class=\"f-t\">Cripto hoje<small>"
+      ? fv hl_fng _ar_get f $"label" 0
       ? fc { ? fv " · " 0 "mercado <span class=\"" ln_tom @f + ch 1 "-t\">" fm_pct @f + ch 1 "</span> em 24 h" 0 } 0
       ? || fv fc 0 "Valor, dominância e volume"
       "</small></span>"
-      ? fv { "<span class=\"f-n " hl_t3 ft "-t\">" pv jg f $"v" 1 "</span>" 0 } 0
+      ? fv { "<span class=\"f-n " hl_t3 ft "-t\">" _ar_ps _ar_get f $"v" 1 "</span>" 0 } 0
       "</summary><div class=\"cg\">"
-      ? fv { "<div><small>Medo e ganância</small><b class=\"num\"><span class=\"" hl_t3 ft "-t\">" pv jg f $"v" 1 "</span></b><em>" hl_fng jg f $"label"
-          = pr jg f $"prev" ? hl_fin pr { " · ontem " pjn @f + pr 1 0 } 0 "</em></div>" 0 } 0
-      ? finito mc { "<div><small>Valor do mercado</small><b class=\"num\">" fm_big mc P 194 P 160 "€</b>"
+      ? fv { "<div><small>Medo e ganância</small><b class=\"num\"><span class=\"" hl_t3 ft "-t\">" _ar_ps _ar_get f $"v" 1 "</span></b><em>" hl_fng _ar_get f $"label"
+          = pr _ar_get f $"prev" ? hl_fin pr { " · ontem " _nu_ps @f + pr 1 0 } 0 "</em></div>" 0 } 0
+      ? _nu_fin mc { "<div><small>Valor do mercado</small><b class=\"num\">" _nu_compacto mc P 194 P 160 "€</b>"
           ? fc { "<em><span class=\"" ln_tom @f + ch 1 "-t\">" fm_pct @f + ch 1 "</span> em 24 h</em>" 0 } 0 "</div>" 0 } 0
-      ? hl_fin bd { "<div><small>Dominância do Bitcoin</small><b class=\"num\">" fm_numm @f + bd 1 1 "%</b>"
-          = ed jg g $"ethDom" ? hl_fin ed { "<em>Ether " fm_numm @f + ed 1 1 "%</em>" 0 } 0 "</div>" 0 } 0
-      ? finito vo { "<div><small>Volume 24 h</small><b class=\"num\">" fm_big vo P 194 P 160 "€</b></div>" 0 } 0
+      ? hl_fin bd { "<div><small>Dominância do Bitcoin</small><b class=\"num\">" _nu_intlm @f + bd 1 1 "%</b>"
+          = ed _ar_get g $"ethDom" ? hl_fin ed { "<em>Ether " _nu_intlm @f + ed 1 1 "%</em>" 0 } 0 "</div>" 0 } 0
+      ? _nu_fin vo { "<div><small>Volume 24 h</small><b class=\"num\">" _nu_compacto vo P 194 P 160 "€</b></div>" 0 } 0
       "</div><p class=\"note\">Medo e ganância: 0 = medo extremo, 100 = ganância extrema (com medo, os preços costumam estar mais baixos). Dominância a subir = o dinheiro foge das outras moedas para o Bitcoin.</p></details>" 0 } } }
 
 # ===== a vista =====

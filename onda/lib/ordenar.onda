@@ -1,0 +1,198 @@
+# ordenar.onda — o Array.prototype.sort do V8, comparação a comparação: o PowerSort do Chromium (array-sort.tq do V8
+# 13+, a partir do listobject.c do CPython) e o TimSort clássico (o do Node 22, V8 12). Os dois são estáveis; com um
+# comparador que dá uma ordem dão o mesmo, e com um que não dá (chaves NaN, que empatam com tudo) dão o mesmo que o
+# browser ou que o Node, porque fazem as mesmas comparações pela mesma ordem. Não precisa de outros módulos.
+#
+#   _or_power w n k1 k2 md   ordena no lugar os n índices w[0..n-1] como o sort do Chromium
+#   _or_tim w n k1 k2 md     o mesmo, como o sort do Node 22
+# O comparador é dado pelo código md, sobre as chaves k1 e k2 (reais indexados pelos índices): (a, b) => d1 || d2 com
+#   d1 = k1[b] - k1[a]   (md & 1: k1[a] - k1[b])
+#   d2 = k2[b] - k2[a]   (md & 4: k2[a] - k2[b]), só com md & 2
+# e o resultado NaN conta 0 (o SortCompare do JS). Uma ordem pelo texto, ou por outra coisa, faz-se com as chaves:
+# a posição de cada um numa ordem já feita.
+# Memória: reserva 300 + n palavras por chamada (usar uma região: memoria.onda). Globais: nenhum.
+# Por dentro: _or_ini (o contexto: 0 k1, 1 k2, 2 md, 3 minGallop, 4 temporário, 5 w, 6 corridas na pilha, 8..
+# (início, comprimento), 200.. as potências), _or_cmp, _or_run (CountAndMakeRun), _or_bis (BinaryInsertionSort),
+# _or_gl/_or_gr (GallopLeft/Right), _or_ma (MergeAt), _or_ml/_or_mh (MergeLow/High), _or_fim (MergeForceCollapse).
+
+: _or_cmp iii>i c x y {
+  = md @ + c 2 = k1 @ c
+  = a @f + k1 x = b @f + k1 y
+  = d ? & md 1 - a b - b a
+  ? && & md 2 || == d 0. != d d { = k2 @ + c 1 = a @f + k2 x = b @f + k2 y = d ? & md 4 - a b - b a 0 } 0
+  ? < d 0. -1 ? > d 0. 1 0 }
+: _or_ini iiiii>i w n k1 k2 md {
+  = c A 300
+  ! c k1 ! + c 1 k2 ! + c 2 md ! + c 3 7 ! + c 4 A + n 1 ! + c 5 w
+  c }
+: _or_power iiiii>i w n k1 k2 md ? < n 2 0 {
+  = c _or_ini w n k1 k2 md
+  ? < n 16 _or_bis c w 0 0 n {
+    # o minrun_next do CPython: corridas de floor(n/2^e) ou ceil(n/2^e), com floor(n/2^e) em [32, 64)
+    = st n = mk 0 W >= st 64 { = st >> st 1 = mk | << mk 1 1 }
+    = rm & n mk = th + mk 1 = ac 0
+    = lo 0 = rem n
+    W != rem 0 {
+      = ac + ac rm = mr st ? >= ac th { = ac - ac th = mr + mr 1 0 } 0
+      = cr _or_run c w lo + lo rem
+      ? < cr mr { = fr ? < mr rem mr rem _or_bis c w lo + lo cr + lo fr = cr fr 0 } 0
+      = ss @ + c 6
+      ? ss {
+          = p _or_pot @ + + c 8 * 2 - ss 1 @ + + c 9 * 2 - ss 1 cr n
+          W && > ss 1 > @ + + c 200 - ss 2 p { _or_ma c - ss 2 = ss @ + c 6 }
+          ! + + c 200 - ss 1 p 0 } 0
+      ! + + c 8 * 2 ss lo ! + + c 9 * 2 ss cr ! + c 6 + ss 1
+      = lo + lo cr = rem - rem cr }
+    _or_fim c } }
+: _or_tim iiiii>i w n k1 k2 md ? < n 2 0 {
+  = c _or_ini w n k1 k2 md
+  # ComputeMinRunLength
+  = mr n = r 0 W >= mr 64 { = r | r & mr 1 = mr >> mr 1 } = mr + mr r
+  = lo 0 = rem n
+  W != rem 0 {
+    = cr _or_run c w lo + lo rem
+    ? < cr mr { = fr ? < mr rem mr rem _or_bis c w lo + lo cr + lo fr = cr fr 0 } 0
+    = ss @ + c 6 ! + + c 8 * 2 ss lo ! + + c 9 * 2 ss cr ! + c 6 + ss 1
+    # MergeCollapse
+    = go 1
+    W && go > @ + c 6 1 {
+      = k - @ + c 6 2
+      ? || ~ _or_inv c + k 1 ~ _or_inv c k { ? < _or_rl c - k 1 _or_rl c + k 1 = k - k 1 0 _or_ma c k }
+        ? <= _or_rl c k _or_rl c + k 1 _or_ma c k = go 0 }
+    = lo + lo cr = rem - rem cr }
+  _or_fim c }
+# RunInvariantEstablished: comprimento(k-2) > comprimento(k-1) + comprimento(k)
+: _or_inv ii>i c k ? < k 2 1 > _or_rl c - k 2 + _or_rl c - k 1 _or_rl c k
+: _or_fim i>i c { W > @ + c 6 1 { = n2 - @ + c 6 2 ? && > n2 0 < _or_rl c - n2 1 _or_rl c + n2 1 = n2 - n2 1 0 _or_ma c n2 } 0 }
+# NodePower (64 bits): a profundidade, numa árvore de fusão ótima, da fronteira entre a corrida (s1, n1) e a seguinte (n2)
+: _or_pot iiii>i s1 n1 n2 n {
+  = a + * 2 s1 n1 = b + + a n1 n2
+  = x ^ & / << a 30 n 4294967295 & / << b 30 n 4294967295
+  = r 32 W > x 0 { = x >> x 1 = r - r 1 } r }
+# CountAndMakeRun: a corrida natural que começa em lo (a descer, estritamente, é invertida)
+: _or_run iiii>i c w lo hi {
+  = l + lo 1
+  ? == l hi 1 {
+    = n 2 = ds < _or_cmp c @ + w l @ + w - l 1 0
+    = pe @ + w l = i + l 1 = go 1
+    W && go < i hi { = o _or_cmp c @ + w i pe ? ? ds >= o 0 < o 0 = go 0 { = pe @ + w i = n + n 1 = i + i 1 0 } }
+    ? ds { = i lo = j - + lo n 1 W < i j { = t @ + w i ! + w i @ + w j ! + w j t = i + i 1 = j - j 1 } 0 } 0
+    n } }
+# BinaryInsertionSort(lo, st, hi)
+: _or_bis iiiii>i c w lo st hi {
+  = s ? == lo st + st 1 st
+  W < s hi {
+    = l lo = r s = pv @ + w s
+    W < l r { = m + l >> - r l 1 ? < _or_cmp c pv @ + w m 0 = r m = l + m 1 }
+    = p s W > p l { ! + w p @ + w - p 1 = p - p 1 }
+    ! + w l pv = s + s 1 }
+  0 }
+: _or_rl ii>i c i @ + + c 9 * 2 i
+# cópia de n palavras de s[sp..] para d[dp..] (como o memmove)
+: _or_cp iiiii>i s sp d dp n ? < sp dp { = i - n 1 W >= i 0 { ! + d + dp i @ + s + sp i = i - i 1 } 0 } { = i 0 W < i n { ! + d + dp i @ + s + sp i = i + i 1 } 0 }
+# GallopLeft e GallopRight (no array ar, a partir de bs, ln elementos, começando em hi)
+: _or_gl iiiiii>i c ar key bs ln hi {
+  = lo 0 = of 1
+  ? < _or_cmp c @ + ar + bs hi key 0 {
+      = mx - ln hi
+      W && < of mx < _or_cmp c @ + ar + + bs hi of key 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = lo + lo hi = of + of hi 0 }
+    {
+      = mx + hi 1
+      W && < of mx >= _or_cmp c @ + ar - + bs hi of key 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = t lo = lo - hi of = of - hi t 0 }
+  = lo + lo 1
+  W < lo of { = m + lo >> - of lo 1 ? < _or_cmp c @ + ar + bs m key 0 = lo + m 1 = of m }
+  of }
+: _or_gr iiiiii>i c ar key bs ln hi {
+  = lo 0 = of 1
+  ? < _or_cmp c key @ + ar + bs hi 0 {
+      = mx + hi 1
+      W && < of mx < _or_cmp c key @ + ar - + bs hi of 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = t lo = lo - hi of = of - hi t 0 }
+    {
+      = mx - ln hi
+      W && < of mx >= _or_cmp c key @ + ar + + bs hi of 0 { = lo of = of + << of 1 1 }
+      ? > of mx = of mx 0
+      = lo + lo hi = of + of hi 0 }
+  = lo + lo 1
+  W < lo of { = m + lo >> - of lo 1 ? < _or_cmp c key @ + ar + bs m 0 = of m = lo + m 1 }
+  of }
+# MergeAt(i)
+: _or_ma ii>i c i {
+  = ss @ + c 6 = rs + c 8
+  = ba @ + rs * 2 i = la @ + + rs * 2 i 1
+  = bb @ + rs * 2 + i 1 = lb @ + + rs * 2 + i 1 1
+  ! + + rs * 2 i 1 + la lb
+  ? == i - ss 3 { ! + rs * 2 + i 1 @ + rs * 2 + i 2 ! + + rs * 2 + i 1 1 @ + + rs * 2 + i 2 1 0 } 0
+  ! + c 6 - ss 1
+  = w @ + c 5
+  = k _or_gr c w @ + w bb ba la 0
+  = ba + ba k = la - la k
+  ? == la 0 0 {
+    = lb _or_gl c w @ + w - + ba la 1 bb lb - lb 1
+    ? == lb 0 0 ? <= la lb _or_ml c ba la bb lb _or_mh c ba la bb lb } }
+# MergeLow e MergeHigh (fim: 1 Succeed, 2 CopyB / CopyA)
+: _or_ml iiiii>i c ba la bb lb {
+  = w @ + c 5 = tp @ + c 4
+  _or_cp w ba tp 0 la
+  = de ba = ct 0 = cb bb
+  ! + w de @ + w cb = de + de 1 = cb + cb 1 = lb - lb 1
+  = fim ? == lb 0 1 ? == la 1 2 0
+  = mg @ + c 3
+  W ~ fim {
+    = wa 0 = wb 0 = mo 1
+    W && ~ fim mo {
+      ? < _or_cmp c @ + w cb @ + tp ct 0 {
+          ! + w de @ + w cb = de + de 1 = cb + cb 1 = wb + wb 1 = lb - lb 1 = wa 0
+          ? == lb 0 = fim 1 ? >= wb mg = mo 0 0 }
+        { ! + w de @ + tp ct = de + de 1 = ct + ct 1 = wa + wa 1 = la - la 1 = wb 0
+          ? == la 1 = fim 2 ? >= wa mg = mo 0 0 } }
+    ? fim 0 {
+      = mg + mg 1 = pr 1
+      W && ~ fim || || >= wa 7 >= wb 7 pr {
+        = pr 0 = mg ? > mg 2 - mg 1 1 ! + c 3 mg
+        = wa _or_gr c tp @ + w cb ct la 0
+        ? > wa 0 { _or_cp tp ct w de wa = de + de wa = ct + ct wa = la - la wa ? == la 1 = fim 2 ? == la 0 = fim 1 0 } 0
+        ? fim 0 {
+          ! + w de @ + w cb = de + de 1 = cb + cb 1 = lb - lb 1
+          ? == lb 0 = fim 1 {
+            = wb _or_gl c w @ + tp ct cb lb 0
+            ? > wb 0 { _or_cp w cb w de wb = de + de wb = cb + cb wb = lb - lb wb ? == lb 0 = fim 1 0 } 0
+            ? fim 0 { ! + w de @ + tp ct = de + de 1 = ct + ct 1 = la - la 1 ? == la 1 = fim 2 0 } } } }
+      ? fim 0 { = mg + mg 1 ! + c 3 mg 0 } } }
+  ? == fim 1 { ? > la 0 _or_cp tp ct w de la 0 0 } { _or_cp w cb w de lb ! + w + de lb @ + tp ct 0 }
+  0 }
+: _or_mh iiiii>i c ba la bb lb {
+  = w @ + c 5 = tp @ + c 4
+  _or_cp w bb tp 0 lb
+  = de - + bb lb 1 = ct - lb 1 = ca - + ba la 1
+  ! + w de @ + w ca = de - de 1 = ca - ca 1 = la - la 1
+  = fim ? == la 0 1 ? == lb 1 2 0
+  = mg @ + c 3
+  W ~ fim {
+    = wa 0 = wb 0 = mo 1
+    W && ~ fim mo {
+      ? < _or_cmp c @ + tp ct @ + w ca 0 {
+          ! + w de @ + w ca = de - de 1 = ca - ca 1 = wa + wa 1 = la - la 1 = wb 0
+          ? == la 0 = fim 1 ? >= wa mg = mo 0 0 }
+        { ! + w de @ + tp ct = de - de 1 = ct - ct 1 = wb + wb 1 = lb - lb 1 = wa 0
+          ? == lb 1 = fim 2 ? >= wb mg = mo 0 0 } }
+    ? fim 0 {
+      = mg + mg 1 = pr 1
+      W && ~ fim || || >= wa 7 >= wb 7 pr {
+        = pr 0 = mg ? > mg 2 - mg 1 1 ! + c 3 mg
+        = wa - la _or_gr c w @ + tp ct ba la - la 1
+        ? > wa 0 { = de - de wa = ca - ca wa _or_cp w + ca 1 w + de 1 wa = la - la wa ? == la 0 = fim 1 0 } 0
+        ? fim 0 {
+          ! + w de @ + tp ct = de - de 1 = ct - ct 1 = lb - lb 1
+          ? == lb 1 = fim 2 {
+            = wb - lb _or_gl c tp @ + w ca 0 lb - lb 1
+            ? > wb 0 { = de - de wb = ct - ct wb _or_cp tp + ct 1 w + de 1 wb = lb - lb wb ? == lb 1 = fim 2 ? == lb 0 = fim 1 0 } 0
+            ? fim 0 { ! + w de @ + w ca = de - de 1 = ca - ca 1 = la - la 1 ? == la 0 = fim 1 0 } } } }
+      ? fim 0 { = mg + mg 1 ! + c 3 mg 0 } } }
+  ? == fim 1 { ? > lb 0 _or_cp tp 0 w - de - lb 1 lb 0 0 } { = de - de la = ca - ca la _or_cp w + ca 1 w + de 1 la ! + w de @ + tp ct 0 }
+  0 }

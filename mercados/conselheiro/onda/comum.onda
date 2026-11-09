@@ -4,10 +4,6 @@
 # Os erros que o JS lança ficam em g_err (mensagem) e g_errt (tipo): um tryOr transforma-os num aviso; fora dele,
 # cs_lancase faz o que o Node faz com um erro por apanhar (a mensagem no stderr e o código 1).
 
-#g g_cmp 4
-#g g_big 260
-#g g_dig 800
-#g g_jp 3
 #k k_TypeError TypeError
 #k k_Error Error
 #k k_URIError URIError
@@ -46,47 +42,38 @@
 
 # ---------- erros ----------
 # um erro que o JS não apanhava: "Tipo: mensagem" no stderr e sai com 1 (o Node mostra também a pilha do JS)
-: cs_lanca ii>i tipo m { ho_fd 2 tx_pu tipo ": " tx_pu m P 10 ho_volta ho_sair 1 }
+: cs_lanca ii>i tipo m { _an_fd 2 _tx_pu tipo ": " _tx_pu m P 10 _an_volta _an_sair 1 }
 : cs_erro ii>i tipo m { ! g_errt tipo ! g_err m 0 }
 : cs_semerro >i { ! g_err 0 ! g_errt k_Error 0 }
 : cs_lancase >i ? @ g_err cs_lanca @ g_errt @ g_err 0
 # o v[k] de dentro de uma função que o tryOr apanha: com v undefined/null, o erro (TypeError) fica em g_err
-: cs_tget ii>i v k ? js_nulo v { ? @ g_err 0 { sb_ini "Cannot read properties of " ? == v 1 "undefined" "null" " (reading '" tx_p k "')" cs_erro k_TypeError sb_fim } 1 } js_get v k
+: cs_tget ii>i v k ? _js_nulo v { ? @ g_err 0 { _an_abre 0 "Cannot read properties of " ? == v 1 "undefined" "null" " (reading '" _tx_p k "')" cs_erro k_TypeError _an_fecha } 1 } _js_get v k
 # o aviso de um tryOr: `${what}: ${e.message}` em g_warn
-: cs_aviso i>i what { sb_ini tx_p what ": " tx_p @ g_err = t sb_fim js_push @ g_warn t cs_semerro }
+: cs_aviso i>i what { _an_abre 0 _tx_p what ": " _tx_p @ g_err = t _an_fecha _js_push @ g_warn t cs_semerro }
 # os erros da validação (errs.push): cs_eini, a mensagem, cs_efim
-: cs_eini >i sb_ini
-: cs_efim >i { = t sb_fim js_push @ g_errs t 0 }
+: cs_eini >i _an_abre 0
+: cs_efim >i { = t _an_fecha _js_push @ g_errs t 0 }
 
 # ---------- textos e números do JS ----------
 : iabs i>i x ? < x 0 - 0 x x
-: tx_vazio >i { = t A 1 ! t + t 1 t }
-: tx_copia i>i t { = n tx_len t = r A + n 1 = j 0 W < j n { ! + + r 1 j tx_b t j = j + j 1 } ! r + + r 1 n r }
-# os bytes [a, b) (ASCII) como texto novo
-: tx_sub iii>i t a b { = r A + 1 - b a = j a W < j b { ! + + r 1 - j a tx_b t j = j + j 1 } ! r + + r 1 - b a r }
-: tx_eh ii>i v k && js_ehtxt v tx_igual v k
-# o texto t tem o texto p a partir do byte i?
-: tx_em iii>i t i p { = n tx_len p = ok <= + i n tx_len t = j 0 W && ok < j n { = ok == tx_b t + i j tx_b p j = j + j 1 } ok }
-: tx_comeca ii>i t p tx_em t 0 p
+# Math.round(x * 10) / 10
+: cs_rd1 f>f x / _nu_round * x 10. 10.
+# o v[k] com o erro do JS se v é undefined/null: escreve a mensagem e sai com 1
+: cs_getx ii>i v k ? _js_nulo v { _an_abre 0 "Cannot read properties of " ? == v 1 "undefined" "null" " (reading '" _tx_p k "')" cs_lanca k_TypeError _an_fecha } _js_get v k
 # r2: x == null || !Number.isFinite(x) ? null : Number(x.toPrecision(6))
-: cs_r2 i>i v ? js_fin v js_num nu_r6 js_f v 2
-: cs_r2f f>i x ? finito x js_num nu_r6 x 2
+: cs_r2 i>i v ? _js_fin v _js_num _nu_rprec _js_f v 6 2
+: cs_r2f f>i x ? _nu_fin x _js_num _nu_rprec x 6 2
 # r1: Number.isFinite(x) ? Math.round(x * 10) / 10 : null
-: cs_r1 i>i v ? js_fin v js_num nu_r1 js_f v 2
-: cs_r1f f>i x ? finito x js_num nu_r1 x 2
+: cs_r1 i>i v ? _js_fin v _js_num cs_rd1 _js_f v 2
+: cs_r1f f>i x ? _nu_fin x _js_num cs_rd1 x 2
 # pc: x == null || !Number.isFinite(x) ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%'
-: cs_pcf f>i x { ? > x 0. P '+ 0 nu_pfix * x 100. 1 P '% }
-: cs_pc i>i v ? js_fin v cs_pcf js_f v "—"
-: cs_pcr f>i x ? finito x cs_pcf x "—"
+: cs_pcf f>i x { ? > x 0. P '+ 0 _nu_fixo * x 100. 1 P '% }
+: cs_pc i>i v ? _js_fin v cs_pcf _js_f v "—"
+: cs_pcr f>i x ? _nu_fin x cs_pcf x "—"
 # n0: Number.isFinite(x) ? Math.round(x) : '—'
-: cs_n0 i>i v ? js_fin v nu_ps jround js_f v "—"
+: cs_n0 i>i v ? _js_fin v _nu_ps _nu_round _js_f v "—"
 # cut(t, n): String(t || ''), cortado a n - 1 unidades UTF-16 com '…' se passa de n
-: cs_cut ii>i v n { = s ? js_v v js_str v tx_vazio ? > tx_l16 s n { = c tx_s16 s 0 - n 1 sb_ini tx_p c "…" sb_fim } s }
-# o x < y do JS (comparação abstrata): dois textos pela ordem UTF-16, o resto como números
-: js_prim i>i v ? || js_ehlst v js_ehobj v js_str v v
-: js_lt ii>i a b { = x js_prim a = y js_prim b ? && js_ehtxt x js_ehtxt y < tx_cmp x y 0 < js_tonum x js_tonum y }
-# a soma do JS para números (o resto não aparece aqui)
-: js_vn i>f v js_tonum v
+: cs_cut ii>i v n { = s ? _js_v v _js_str v _tx_novo 0 ? > _tx_l16 s n { = c _tx_s16 s 0 - n 1 _an_abre 0 _tx_p c "…" _an_fecha } s }
 
 # ---------- as listas da app (as mesmas do comum.mjs) ----------
 : cs_cfgjson >i {
@@ -117,92 +104,89 @@
   "\"KIND\":{\"stock\":\"stock\",\"etf\":\"fund\",\"crypto\":\"crypto\"},"
   "\"UNI\":[[\"etf\",\"ETF\"],[\"stock\",\"Ações\"],[\"crypto\",\"Cripto\"]]}"
   0 }
-: cs_c i>i k js_oget @ g_cfg k
+: cs_c i>i k _js_oget @ g_cfg k
 : cs_stocks >i cs_c k_STOCKS
 : cs_funds >i cs_c k_FUNDS
 : cs_crypto >i cs_c k_CRYPTO
 : cs_market >i cs_c k_MARKET
-: cs_alabel i>i k js_oget cs_c k_ACTION_LABEL k
+: cs_alabel i>i k _js_oget cs_c k_ACTION_LABEL k
 # yahooOf: a chave da app → símbolo do Yahoo (c:ADA → ADA-EUR)
-: cs_cpref i>i k && >= tx_len k 2 && == tx_b k 0 'c == tx_b k 1 ':
-: cs_yahoo i>i k { = c js_oget cs_crypto k ? != c 1 js_it c 0 ? cs_cpref k { = r tx_sub k 2 tx_len k sb_ini tx_p r "-EUR" sb_fim } k }
+: cs_cpref i>i k && >= _tx_len k 2 && == _tx_b k 0 'c == _tx_b k 1 ':
+: cs_yahoo i>i k { = c _js_oget cs_crypto k ? != c 1 _js_it c 0 ? cs_cpref k { = r _tx_sub k 2 _tx_len k _an_abre 0 _tx_p r "-EUR" _an_fecha } k }
 # kindOf: crypto, fund, market ou stock
-: cs_kind i>i k ? || js_otem cs_crypto k cs_cpref k k_crypto ? js_otem cs_funds k k_fund ? js_otem cs_market k k_market k_stock
+: cs_kind i>i k ? || _js_otem cs_crypto k cs_cpref k k_crypto ? _js_otem cs_funds k k_fund ? _js_otem cs_market k k_market k_stock
 # nameOf
 : cs_nome i>i k {
-  = v js_oget cs_stocks k
-  ? js_v v v {
-    = v js_oget cs_funds k
-    ? js_v v v {
-      = c js_oget cs_crypto k = v ? != c 1 js_it c 1 1
-      ? js_v v v { = v js_oget cs_market k ? js_v v v k } } } }
+  = v _js_oget cs_stocks k
+  ? _js_v v v {
+    = v _js_oget cs_funds k
+    ? _js_v v v {
+      = c _js_oget cs_crypto k = v ? != c 1 _js_it c 1 1
+      ? _js_v v v { = v _js_oget cs_market k ? _js_v v v k } } } }
 # o SYM: /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/
 : cs_az09 i>i c || && >= c 'A <= c 'Z && >= c '0 <= c '9
-: cs_sym i>i v ? ~ js_ehtxt v 0 {
-  = n tx_len v
-  ? cs_cpref v { ? && >= n 4 <= n 12 { = ok 1 = j 2 W && ok < j n { = ok cs_az09 tx_b v j = j + j 1 } ok } 0 }
+: cs_sym i>i v ? ~ _js_ehtxt v 0 {
+  = n _tx_len v
+  ? cs_cpref v { ? && >= n 4 <= n 12 { = ok 1 = j 2 W && ok < j n { = ok cs_az09 _tx_b v j = j + j 1 } ok } 0 }
     ? && >= n 1 <= n 20 {
-      = c tx_b v 0 = ok || cs_az09 c == c '^ = j 1
-      W && ok < j n { = c tx_b v j = ok || || cs_az09 c == c '. || || == c '= == c '^ == c '- = j + j 1 } ok } 0 }
+      = c _tx_b v 0 = ok || cs_az09 c == c '^ = j 1
+      W && ok < j n { = c _tx_b v j = ok || || cs_az09 c == c '. || || == c '= == c '^ == c '- = j + j 1 } ok } 0 }
 
 # ---------- arranque: listas, conector, KV ----------
 # o id do KV no wrangler.toml: /binding = "JOURNAL"\s*\nid = "([0-9a-f]+)"/ (o texto, ou "undefined")
 : cs_hexl i>i c || && >= c '0 <= c '9 && >= c 'a <= c 'f
 : cs_kvns i>i t {
-  = n tx_len t = np tx_len k_bindingJ = r 0 = i 0
+  = n _tx_len t = np _tx_len k_bindingJ = r 0 = i 0
   W && ~ r <= + i np n {
-    ? tx_em t i k_bindingJ {
+    ? _tx_em t i k_bindingJ {
         = w + i np = lw -1
-        W && < w n tx_ews tx_cp + + t 1 w { = lw w = w + w @ g_nb }
-        ? && >= lw 0 && == tx_b t lw 10 tx_em t w k_idq {
-            = h0 + w tx_len k_idq = h h0
-            W && < h n cs_hexl tx_b t h = h + h 1
-            ? && > h h0 && < h n == tx_b t h 34 { = r tx_sub t h0 h 0 } 0 } 0 } 0
+        W && < w n _tx_ews _tx_cp + + t 1 w { = lw w = w + w _tx_nb }
+        ? && >= lw 0 && == _tx_b t lw 10 _tx_em t w k_idq {
+            = h0 + w _tx_len k_idq = h h0
+            W && < h n cs_hexl _tx_b t h = h + h 1
+            ? && > h h0 && < h n == _tx_b t h 34 { = r _tx_sub t h0 h 0 } 0 } 0 } 0
     = i + i 1 }
   ? r r k_undefined }
 # process.env[nome] || omissão
-: cs_envou ii>i nome om { = v ho_env nome ? && v > tx_len v 0 v om }
+: cs_envou ii>i nome om { = v _an_env nome ? && v > _tx_len v 0 v om }
 : cs_ini >i {
-  ! g_cfg js_parse { sb_ini cs_cfgjson sb_fim }
-  ! g_dir ho_env k_dirvar
+  ! g_cfg _js_parse { _an_abre 0 cs_cfgjson _an_fecha }
+  ! g_dir _an_env k_dirvar
   = d @ g_dir
-  sb_ini tx_p d "/proxy/wrangler.toml" = f sb_fim
-  = t ho_ler f
-  ? ~ t cs_lanca k_Error ho_erro 0
+  _an_abre 0 _tx_p d "/proxy/wrangler.toml" = f _an_fecha
+  = t _an_fich f
+  ? ~ t cs_lanca k_Error _an_erro 0
   ! g_worker cs_envou k_MERCADOS_PROXY k_worker0
   = acc cs_envou k_CF_ACCOUNT_ID k_account0
-  = ns cs_kvns tx_norm t 0
-  sb_ini "https://api.cloudflare.com/client/v4/accounts/" tx_p acc "/storage/kv/namespaces/" tx_p ns ! g_kv sb_fim
+  = ns cs_kvns _tx_norm t 0
+  _an_abre 0 "https://api.cloudflare.com/client/v4/accounts/" _tx_p acc "/storage/kv/namespaces/" _tx_p ns ! g_kv _an_fecha
   = tok cs_envou k_tokenvar k_proxyinj
-  sb_ini "Authorization: Bearer " tx_p tok ! g_auth sb_fim
-  sb_ini "Authorization: Bearer " tx_p tok P 10 "Content-Type: text/plain" ! g_authct sb_fim
-  ! g_warn js_lst 8
-  ! g_errs js_lst 8
+  _an_abre 0 "Authorization: Bearer " _tx_p tok ! g_auth _an_fecha
+  _an_abre 0 "Authorization: Bearer " _tx_p tok P 10 "Content-Type: text/plain" ! g_authct _an_fecha
+  ! g_warn _js_lst 8
+  ! g_errs _js_lst 8
   cs_semerro
   0 }
 # os argumentos do script: arg i (1 = o primeiro depois do nome), ou 0
-: cs_arg i>i i ho_arg i
+: cs_arg i>i i _an_arg i
 # process.argv[i] || omissão
-: cs_argou ii>i i om { = v cs_arg i ? && v > tx_len v 0 v om }
+: cs_argou ii>i i om { = v cs_arg i ? && v > _tx_len v 0 v om }
 # a data de hoje em Lisboa (texto AAAA-MM-DD) e o new Date().toISOString() (texto)
-: cs_hoje >i { sb_ini dt_phoje I ho_agora sb_fim }
-: cs_iso >i { sb_ini dt_piso ho_agora sb_fim }
-# os dias desde 1970 de um texto AAAA-MM-DD (o Date.parse dele, em dias)
-: cs_dg iii>i t j k { = v 0 = i 0 W < i k { = v + * v 10 - tx_b t + j i '0 = i + i 1 } v }
-: cs_diade i>i t dciv cs_dg t 0 4 cs_dg t 5 2 cs_dg t 8 2
+: cs_hoje >i { _an_abre 0 _dt_phoje I _an_agoraf _an_fecha }
+: cs_iso >i { _an_abre 0 _dt_piso _an_agoraf _an_fecha }
 
 # ---------- pedidos ----------
 # p = [método, url, cabeçalhos, corpo, ms]: o anfitrião chama cs_resp com o corpo e o estado HTTP
-: cs_pede iiiii>i m u h c ms { = p A 5 ! p m ! + p 1 u ! + p 2 h ! + p 3 c ! + p 4 ms ! g_url u ho_pede p k_cs_resp 1 }
+: cs_pede iiiii>i m u h c ms { = p A 5 ! p m ! + p 1 u ! + p 2 h ! + p 3 c ! + p 4 ms ! g_url u _an_pede p k_cs_resp 1 }
 # o JS lançou antes do fetch (o encodeURIComponent dá URIError): a resposta "chega" já, com este estado
 : cs_falha i>i m { ! g_rs -1000 ! g_rt m 0 }
 : cs_resp ii>i t st { ! g_rt t ! g_rs st ? @ g_sub cs_lsub cs_passo }
 : cs_passo >i { = go 1 W go { = s @ g_scr = go ? == s 1 da_passo ? == s 2 un_passo ? == s 3 od_passo ? == s 4 op_passo ? == s 5 pu_passo ? == s 6 bt_passo 0 } 0 }
 # o tipo do erro de um pedido que falhou (o Node mostra a DOMException assim)
 #k k_domabort DOMException [AbortError]
-: cs_tipofetch >i { = n ho_nomeerro ? tx_igual n k_AbortError k_domabort n }
+: cs_tipofetch >i { = n _an_nomeerro ? _tx_igual n k_AbortError k_domabort n }
 # o corpo como o r.json() do fetch: UTF-8 sem BOM, JSON ou null
-: cs_jcorpo >i { = v js_parse tx_norm @ g_rt 1 ? v v 2 }
+: cs_jcorpo >i { = v _js_parse _tx_norm @ g_rt 1 ? v v 2 }
 : cs_okst i>i s && >= s 200 <= s 299
 # getJSON (comum.mjs): o valor (ou null) em g_res; erro: `(b && b.error) || HTTP ${status} ${url}`
 : cs_rget >i {
@@ -212,13 +196,13 @@
     = s iabs st
     = b ? < st 0 2 cs_jcorpo
     ? cs_okst s { ! g_res b 0 } {
-      = e ? js_v b js_get b k_error 1
-      ? js_v e cs_erro k_Error js_str e { sb_ini "HTTP " N s P 32 tx_p @ g_url cs_erro k_Error sb_fim } } } }
+      = e ? _js_v b _js_get b k_error 1
+      ? _js_v e cs_erro k_Error _js_str e { _an_abre 0 "HTTP " N s P 32 _tx_p @ g_url cs_erro k_Error _an_fecha } } } }
 # px(caminho, ms): GET ao conector; o caminho escreve-se entre cs_wini e cs_wfim; devolve 1 (à espera)
-: cs_wini >i { sb_ini tx_p @ g_worker 0 }
-: cs_wfim i>i ms { = u sb_fim cs_pede 0 u 0 0 ms }
+: cs_wini >i { _an_abre 0 _tx_p @ g_worker 0 }
+: cs_wfim i>i ms { = u _an_fecha cs_pede 0 u 0 0 ms }
 # o JSON.stringify(b && b.errors) dentro de uma mensagem (undefined sai "undefined")
-: cs_perrs i>i b { = x ? js_v b js_get b k_errors b ? == x 1 "undefined" js_pj x 0 0 }
+: cs_perrs i>i b { = x ? _js_v b _js_get b k_errors b ? == x 1 "undefined" _js_pj x 0 0 }
 # getJSONauth: erro se !r.ok ou b.success === false
 : cs_rauth >i {
   cs_semerro ! g_res 2
@@ -226,36 +210,36 @@
   ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
     = s iabs st
     = b ? < st 0 2 cs_jcorpo
-    ? || ~ cs_okst s && js_v b == js_get b k_success 3 {
-        sb_ini "Cloudflare: HTTP " N s P 32 cs_perrs b cs_erro k_Error sb_fim } { ! g_res b 0 } } }
+    ? || ~ cs_okst s && _js_v b == _js_get b k_success 3 {
+        _an_abre 0 "Cloudflare: HTTP " N s P 32 cs_perrs b cs_erro k_Error _an_fecha } { ! g_res b 0 } } }
 # kvGet(key): 404 → null; o corpo em JSON, ou o texto
 : cs_kvget i>i key {
-  = ks js_str key
-  ? tx_urimal ks cs_falha k_urimal { sb_ini tx_p @ g_kv "/values/" tx_puri ks = u sb_fim cs_pede 0 u @ g_auth 0 0 } }
+  = ks _js_str key
+  ? _tx_urimal ks cs_falha k_urimal { _an_abre 0 _tx_p @ g_kv "/values/" _tx_uri ks = u _an_fecha cs_pede 0 u @ g_auth 0 0 } }
 : cs_rkvget i>i key {
   cs_semerro ! g_res 2
   = st @ g_rs = s iabs st
   ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt ? == s 404 0
-  ? ~ cs_okst s { sb_ini "Cloudflare: HTTP " N s " a ler " js_ps key cs_erro k_Error sb_fim } ? < st 0 cs_erro cs_tipofetch @ g_rt {
-    = t tx_norm @ g_rt 1 = v js_parse t ! g_res ? v v t 0 } }
+  ? ~ cs_okst s { _an_abre 0 "Cloudflare: HTTP " N s " a ler " _js_ps key cs_erro k_Error _an_fecha } ? < st 0 cs_erro cs_tipofetch @ g_rt {
+    = t _tx_norm @ g_rt 1 = v _js_parse t ! g_res ? v v t 0 } }
 # kvPut(key, value): PUT com o JSON.stringify(value)
 : cs_kvput ii>i key v {
-  = ks js_str key
-  ? tx_urimal ks cs_falha k_urimal {
-    sb_ini tx_p @ g_kv "/values/" tx_puri ks = u sb_fim
-    sb_ini js_pj v 0 0 = c sb_fim
+  = ks _js_str key
+  ? _tx_urimal ks cs_falha k_urimal {
+    _an_abre 0 _tx_p @ g_kv "/values/" _tx_uri ks = u _an_fecha
+    _an_abre 0 _js_pj v 0 0 = c _an_fecha
     cs_pede k_PUT u @ g_authct c 0 } }
 : cs_rkvput i>i key {
   cs_semerro ! g_res 2
   = st @ g_rs = s iabs st
   ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
     = b ? < st 0 2 cs_jcorpo
-    ? || || ~ cs_okst s ~ js_v b ~ js_v js_get b k_success {
-        sb_ini "Cloudflare: HTTP " N s " a gravar " js_ps key P 32 cs_perrs b cs_erro k_Error sb_fim } 0 } }
+    ? || || ~ cs_okst s ~ _js_v b ~ _js_v _js_get b k_success {
+        _an_abre 0 "Cloudflare: HTTP " N s " a gravar " _js_ps key P 32 cs_perrs b cs_erro k_Error _an_fecha } 0 } }
 # kvList(prefix): as páginas (cursor) seguidas; no fim, g_res = a lista (ou g_err) e o script continua no passo volta
-: cs_lista ii>i pre volta { ! g_lpre pre ! g_lout js_lst 8 ! g_lcur 0 ! g_lvolta volta ! g_sub 1 cs_lpag }
+: cs_lista ii>i pre volta { ! g_lpre pre ! g_lout _js_lst 8 ! g_lcur 0 ! g_lvolta volta ! g_sub 1 cs_lpag }
 : cs_lpag >i {
-  sb_ini tx_p @ g_kv "/keys?prefix=" tx_puri @ g_lpre ? js_v @ g_lcur { "&cursor=" js_ps @ g_lcur } 0 = u sb_fim
+  _an_abre 0 _tx_p @ g_kv "/keys?prefix=" _tx_uri @ g_lpre ? _js_v @ g_lcur { "&cursor=" _js_ps @ g_lcur } 0 = u _an_fecha
   cs_pede 0 u @ g_auth 0 0 }
 : cs_lfim >i { ! g_sub 0 ! g_ph @ g_lvolta cs_passo }
 : cs_lsub >i {
@@ -264,69 +248,69 @@
     = r @ g_res
     = x cs_tget r k_result
     ? @ g_err cs_lfim {
-      ? js_v x { ? js_ehlst x { = j 0 W < j js_len x { js_push @ g_lout js_it x j = j + j 1 } 0 } cs_erro k_TypeError k_spread } 0
+      ? _js_v x { ? _js_ehlst x { = j 0 W < j _js_len x { _js_push @ g_lout _js_it x j = j + j 1 } 0 } cs_erro k_TypeError k_spread } 0
       ? @ g_err cs_lfim {
-        = ri js_get r k_result_info
-        = c ? js_v ri js_get ri k_cursor ri
-        ? js_v c { ! g_lcur c cs_lpag } { ! g_res @ g_lout cs_lfim } } } } }
+        = ri _js_get r k_result_info
+        = c ? _js_v ri _js_get ri k_cursor ri
+        ? _js_v c { ! g_lcur c cs_lpag } { ! g_res @ g_lout cs_lfim } } } } }
 # kvKeys: os nomes (k.name de cada um)
-: cs_nomes i>i l { = r js_lst js_len l = j 0 W && < j js_len l ~ @ g_err { js_push r cs_tget js_it l j k_name = j + j 1 } r }
+: cs_nomes i>i l { = r _js_lst _js_len l = j 0 W && < j _js_len l ~ @ g_err { _js_push r cs_tget _js_it l j k_name = j + j 1 } r }
 
 # ---------- a análise (a mesma da app; a ponte do analise-onda.js) ----------
 # o tipo para o motor: fund 1, stock 2, crypto 3, index 4, o resto 0
-: cs_tipoan i>i k ? js_ehtxt k { ? tx_igual k k_fund 1 ? tx_igual k k_stock 2 ? tx_igual k k_crypto 3 ? tx_igual k k_index 4 0 } 0
+: cs_tipoan i>i k ? _js_ehtxt k { ? _tx_igual k k_fund 1 ? _tx_igual k k_stock 2 ? _tx_igual k k_crypto 3 ? _tx_igual k k_index 4 0 } 0
 # analyse(closes, { crypto, kind }): closes = lista de valores do JS (o que não é número vai como NaN); o objeto
 # que o JSON da análise dá (ou null)
 : cs_analisa iii>i cl kind cr {
-  = n js_len cl
+  = n _js_len cl
   = c A + n 1 = j 0
-  W < j n { = x js_it cl j !f + c j ? js_ehnum x js_f x Bw 2146959360 0 = j + j 1 }
+  W < j n { = x _js_it cl j !f + c j ? _js_ehnum x _js_f x Bw 2146959360 0 = j + j 1 }
   ! 8 A + n 1 ! 4 kind ! 3 cr ! 5 0 !f 6 0.
-  sb_ini serie c n = t sb_fim
-  js_parse t }
+  _an_abre 0 serie c n = t _an_fecha
+  _js_parse t }
 # o reviver do NaN (M[60]: a fase C escreveu NaN como o texto "\u0000NaN")
-: cs_ehnan i>i v && js_ehtxt v && == tx_len v 4 && && == tx_b v 0 0 == tx_b v 1 'N && == tx_b v 2 'a == tx_b v 3 'N
+: cs_ehnan i>i v && _js_ehtxt v && == _tx_len v 4 && && == _tx_b v 0 0 == _tx_b v 1 'N && == _tx_b v 2 'a == _tx_b v 3 'N
 : cs_revive i>i v {
-  ? cs_ehnan v js_num Bw 2146959360 0 {
-    ? js_ehlst v { = j 0 W < j js_len v { ! + @ + v 3 j cs_revive js_it v j = j + j 1 } 0 } 0
-    ? js_ehobj v { = j 0 W < j js_on v { ! + @ + v 4 j cs_revive js_ov v j = j + j 1 } 0 } 0
+  ? cs_ehnan v _js_num Bw 2146959360 0 {
+    ? _js_ehlst v { = j 0 W < j _js_len v { ! + @ + v 3 j cs_revive _js_it v j = j + j 1 } 0 } 0
+    ? _js_ehobj v { = j 0 W < j _js_on v { ! + @ + v 4 j cs_revive _js_ov v j = j + j 1 } 0 } 0
     v } }
-: cs_fase >i { = t sb_fim = v js_parse t ? @ 60 cs_revive v v }
+: cs_fase >i { = t _an_fecha = v _js_parse t ? @ 60 cs_revive v v }
 # copia um texto UTF-16 [n, unidades] para d; devolve o endereço a seguir
 : cs_u16cp ii>i d s { = n @ s = j 0 W <= j n { ! + d j @ + s j = j + j 1 } + d + n 1 }
 # planLots(since, days, today)
 : cs_lotes iii>i since days today {
-  = si tx_a16 ? js_v since js_str since tx_vazio
-  = to tx_a16 today
-  = l ? js_v days days js_lst 0
-  = n js_len l
+  = si _tx_a16 ? _js_v since _js_str since _tx_novo 0
+  = to _tx_a16 today
+  = l ? _js_v days days _js_lst 0
+  = n _js_len l
   = dd A + n 1 ! dd n
-  = j 0 W < j n { !f + + dd 1 j js_tonum js_it l j = j + j 1 }
+  = j 0 W < j n { !f + + dd 1 j _js_tonum _js_it l j = j + j 1 }
   ! 60 0 ! 61 0
-  sb_ini lotes si to dd cs_fase }
+  _an_abre 0 lotes si to dd cs_fase }
 # cryptoTax(lots, today): uma data que o Date.parse recusa → RangeError (o JS lança)
 : cs_imposto ii>i lots today {
-  = n js_len lots
+  = n _js_len lots
   = ds A + n 1 = tot 0 = j 0
   W < j n {
-    = x js_it lots j
-    ? js_v x { = d js_get x k_d = u tx_a16 ? js_ehtxt d d js_str d ! + ds j u = tot + tot @ u 0 } { ! + ds j 0 0 }
+    = x _js_it lots j
+    ? _js_v x { = d _js_get x k_d = u _tx_a16 ? _js_ehtxt d d _js_str d ! + ds j u = tot + tot @ u 0 } { ! + ds j 0 0 }
     = j + j 1 }
-  = t16 tx_a16 today
+  = t16 _tx_a16 today
   = b A + + + 4 @ t16 * 4 n tot
-  !f b * F cs_diade today 86400000.
+  !f b * F _dt_liso today 86400000.
   ! + b 1 1
   = q cs_u16cp + b 2 t16
   ! q n = q + q 1
   = j 0
   W < j n {
-    = x js_it lots j
-    ? js_v x { ! q 1 !f + q 1 js_tonum js_get x k_e ! + q 2 js_v js_get x k_plan 0 } { ! q 0 0 }
+    = x _js_it lots j
+    ? _js_v x { ! q 1 !f + q 1 _js_tonum _js_get x k_e ! + q 2 _js_v _js_get x k_plan 0 } { ! q 0 0 }
     = u @ + ds j
     = q ? u cs_u16cp + q 3 u { ! + q 3 0 + q 4 }
     = j + j 1 }
   ! 60 0 ! 61 0
-  sb_ini imposto b
+  _an_abre 0 imposto b
   = r cs_fase
   ? @ 61 cs_lanca k_RangeError k_itv 0
   r }
@@ -334,84 +318,105 @@
 # ---------- veredictos (normVerdict e textCheck do comum.mjs; os erros vão para g_errs) ----------
 # str(v, max, name, req): o texto, ou '' (com o erro)
 : cs_str iiii>i v max nome req
-  ? || js_nulo v && js_ehtxt v == tx_len v 0 { ? req { cs_eini "falta " tx_p nome cs_efim } 0 tx_vazio }
-  ? ~ js_ehtxt v { cs_eini tx_p nome " tem de ser texto" cs_efim tx_vazio }
-  { ? > tx_l16 v max { cs_eini tx_p nome " com mais de " N max " caracteres" cs_efim } 0 v }
+  ? || _js_nulo v && _js_ehtxt v == _tx_len v 0 { ? req { cs_eini "falta " _tx_p nome cs_efim } 0 _tx_novo 0 }
+  ? ~ _js_ehtxt v { cs_eini _tx_p nome " tem de ser texto" cs_efim _tx_novo 0 }
+  { ? > _tx_l16 v max { cs_eini _tx_p nome " com mais de " N max " caracteres" cs_efim } 0 v }
 # um nome de campo: `${p}.campo` (o campo é um texto)
-: cs_pc2 ii>i p c { sb_ini tx_p p P '. tx_p c sb_fim }
+: cs_pc2 ii>i p c { _an_abre 0 _tx_p p P '. _tx_p c _an_fecha }
 # x[h] == null || x[h] === ''
-: cs_vazio i>i v || js_nulo v && js_ehtxt v == tx_len v 0
+: cs_vazio i>i v || _js_nulo v && _js_ehtxt v == _tx_len v 0
 : cs_norm iiiiii>i x p ref price sreq plano {
-  ? || || ~ js_v x ~ || js_ehobj x js_ehlst x js_ehlst x {
-    cs_eini tx_p p ": tem de ser um objeto" cs_efim
-    = o js_obj 1 js_oset o k_s 2 } {
+  ? || || ~ _js_v x ~ || _js_ehobj x _js_ehlst x _js_ehlst x {
+    cs_eini _tx_p p ": tem de ser um objeto" cs_efim
+    = o _js_obj 1 _js_oset o k_s 2 } {
   = keys ? ref cs_c k_REF_KEYS cs_c k_ACTION_KEYS
-  = xk js_get x k_key
-  ? ~ js_inc keys xk {
-      cs_eini tx_p p ".key inválido: " js_ps xk " (" ? ref "referência" "ativo que se compra" ": "
-      = j 0 W < j js_len keys { ? j ", " 0 tx_p js_it keys j = j + j 1 } ")" cs_efim } 0
-  = o js_obj 16
-  js_oset o k_s js_get x k_s
-  js_oset o k_key xk
-  = a cs_str js_get x k_action 40 cs_pc2 p k_action 0
-  = a ? > tx_len a 0 a { = l cs_alabel js_str xk ? js_v l l tx_vazio }
-  js_oset o k_action a
-  js_oset o k_why cs_str js_get x k_why 280 cs_pc2 p k_why 1
-  ? plano { = t cs_str js_get x k_plan 280 cs_pc2 p k_plan 0 ? > tx_len t 0 js_oset o k_plan t 0 0 } 0
+  = xk _js_get x k_key
+  ? ~ _js_inc keys xk {
+      cs_eini _tx_p p ".key inválido: " _js_ps xk " (" ? ref "referência" "ativo que se compra" ": "
+      = j 0 W < j _js_len keys { ? j ", " 0 _tx_p _js_it keys j = j + j 1 } ")" cs_efim } 0
+  = o _js_obj 16
+  _js_oset o k_s _js_get x k_s
+  _js_oset o k_key xk
+  = a cs_str _js_get x k_action 40 cs_pc2 p k_action 0
+  = a ? > _tx_len a 0 a { = l cs_alabel _js_str xk ? _js_v l l _tx_novo 0 }
+  _js_oset o k_action a
+  _js_oset o k_why cs_str _js_get x k_why 280 cs_pc2 p k_why 1
+  ? plano { = t cs_str _js_get x k_plan 280 cs_pc2 p k_plan 0 ? > _tx_len t 0 _js_oset o k_plan t 0 0 } 0
   = hz cs_c k_HZ
   = j 0 W < j 3 {
-    = h js_it hz j = v js_get x h
-    ? cs_vazio v { ? sreq { cs_eini "falta " tx_p p P '. tx_p h " (convicção 0–100)" cs_efim } 0 } {
-      = n js_tonum v
-      ? || || || == js_tipo v 3 == js_tipo v 4 ~ finito n || < n 0. > n 100. {
-          cs_eini tx_p p P '. tx_p h ": a convicção é de 0 a 100 (veio " js_pj v 0 0 ")" cs_efim }
-        { js_oset o h js_num jround n 0 } }
+    = h _js_it hz j = v _js_get x h
+    ? cs_vazio v { ? sreq { cs_eini "falta " _tx_p p P '. _tx_p h " (convicção 0–100)" cs_efim } 0 } {
+      = n _js_tonum v
+      ? || || || == _js_tipo v 3 == _js_tipo v 4 ~ _nu_fin n || < n 0. > n 100. {
+          cs_eini _tx_p p P '. _tx_p h ": a convicção é de 0 a 100 (veio " _js_pj v 0 0 ")" cs_efim }
+        { _js_oset o h _js_num _nu_round n 0 } }
     = j + j 1 }
   # sc: as convicções que ficaram
-  = sc js_lst 3 = j 0 W < j 3 { = v js_oget o js_it hz j ? js_fin v js_push sc v 0 = j + j 1 }
-  ? == js_len sc 3 {
-      = mx Mx Mx js_f js_it sc 0 js_f js_it sc 1 js_f js_it sc 2
-      = mn Mn Mn js_f js_it sc 0 js_f js_it sc 1 js_f js_it sc 2
-      ? && js_inc cs_c k_BUYISH xk < mx 50. {
-          cs_eini tx_p p ": \"" tx_p js_oget o k_action "\" com convicção contra nos três prazos (" cs_psc sc "): 100 = muito a favor" cs_efim } 0
-      ? && js_inc cs_c k_SELLAV xk > mn 50. {
-          cs_eini tx_p p ": \"" tx_p js_oget o k_action "\" com convicção a favor nos três prazos (" cs_psc sc "): 0 = muito contra" cs_efim } 0 } 0
+  = sc _js_lst 3 = j 0 W < j 3 { = v _js_oget o _js_it hz j ? _js_fin v _js_push sc v 0 = j + j 1 }
+  ? == _js_len sc 3 {
+      = mx Mx Mx _js_f _js_it sc 0 _js_f _js_it sc 1 _js_f _js_it sc 2
+      = mn Mn Mn _js_f _js_it sc 0 _js_f _js_it sc 1 _js_f _js_it sc 2
+      ? && _js_inc cs_c k_BUYISH xk < mx 50. {
+          cs_eini _tx_p p ": \"" _tx_p _js_oget o k_action "\" com convicção contra nos três prazos (" cs_psc sc "): 100 = muito a favor" cs_efim } 0
+      ? && _js_inc cs_c k_SELLAV xk > mn 50. {
+          cs_eini _tx_p p ": \"" _tx_p _js_oget o k_action "\" com convicção a favor nos três prazos (" cs_psc sc "): 0 = muito contra" cs_efim } 0 } 0
   = lv cs_c k_LEVELS
   = j 0 W < j 3 {
-    = l js_it lv j = v js_get x l
+    = l _js_it lv j = v _js_get x l
     ? cs_vazio v 0 {
-      = n js_tonum v
-      ? || || == js_tipo v 3 == js_tipo v 4 || ~ finito n <= n 0. {
-          cs_eini tx_p p P '. tx_p l " tem de ser um número (na moeda do ativo)" cs_efim } {
-        ? js_fin price {
-            = pr js_f price
+      = n _js_tonum v
+      ? || || == _js_tipo v 3 == _js_tipo v 4 || ~ _nu_fin n <= n 0. {
+          cs_eini _tx_p p P '. _tx_p l " tem de ser um número (na moeda do ativo)" cs_efim } {
+        ? _js_fin price {
+            = pr _js_f price
             ? && > pr 0. || < n / pr 4. > n * pr 4. {
-                cs_eini tx_p p P '. tx_p l " = " nu_ps n " longe do preço de hoje (" nu_ps pr "): está na moeda do ativo?" cs_efim } 0 } 0
-        js_oset o l js_num nu_r6 n 0 } }
+                cs_eini _tx_p p P '. _tx_p l " = " _nu_ps n " longe do preço de hoje (" _nu_ps pr "): está na moeda do ativo?" cs_efim } 0 } 0
+        _js_oset o l _js_num _nu_rprec n 6 0 } }
     = j + j 1 }
-  = st js_oget o k_stop = en js_oget o k_entry = ta js_oget o k_target
-  ? && && ~ js_nulo st ~ js_nulo en >= js_f st js_f en {
-      cs_eini tx_p p ": o stop (" js_ps st ") tem de ficar abaixo da entrada (" js_ps en ")" cs_efim } 0
-  ? && && ~ js_nulo en ~ js_nulo ta <= js_f ta js_f en {
-      cs_eini tx_p p ": o alvo (" js_ps ta ") tem de ficar acima da entrada (" js_ps en ")" cs_efim } 0
-  ? && && ~ js_nulo st ~ js_nulo ta <= js_f ta js_f st {
-      cs_eini tx_p p ": o alvo (" js_ps ta ") tem de ficar acima do stop (" js_ps st ")" cs_efim } 0
+  = st _js_oget o k_stop = en _js_oget o k_entry = ta _js_oget o k_target
+  ? && && ~ _js_nulo st ~ _js_nulo en >= _js_f st _js_f en {
+      cs_eini _tx_p p ": o stop (" _js_ps st ") tem de ficar abaixo da entrada (" _js_ps en ")" cs_efim } 0
+  ? && && ~ _js_nulo en ~ _js_nulo ta <= _js_f ta _js_f en {
+      cs_eini _tx_p p ": o alvo (" _js_ps ta ") tem de ficar acima da entrada (" _js_ps en ")" cs_efim } 0
+  ? && && ~ _js_nulo st ~ _js_nulo ta <= _js_f ta _js_f st {
+      cs_eini _tx_p p ": o alvo (" _js_ps ta ") tem de ficar acima do stop (" _js_ps st ")" cs_efim } 0
   o } }
 # sc.join('/')
-: cs_psc i>i l { = j 0 W < j js_len l { ? j P '/ 0 js_ps js_it l j = j + j 1 } 0 }
+: cs_psc i>i l { = j 0 W < j _js_len l { ? j P '/ 0 _js_ps _js_it l j = j + j 1 } 0 }
+
+# ---------- ordenar (estável, como o sort do JS: o que fica à frente quando cs_cmp(depois, antes) < 0) ----------
+# a ordem: cs_cmp k x y (comum.onda) devolve um real como o comparador do JS (NaN conta como 0)
+: cs_ordena ii>i a k {
+  = n _js_len a
+  ? < n 2 a {
+    = s @ + a 3 = d A n = w 1
+    W < w n {
+      = i 0
+      W < i n {
+        = m Mn + i w n = h Mn + i * 2 w n = x i = y m = o i
+        W < o h {
+          = dir ? >= x m 1 ? >= y h 0 < cs_cmp k @ + s y @ + s x 0.
+          ? dir { ! + d o @ + s y = y + y 1 } { ! + d o @ + s x = x + x 1 }
+          = o + o 1 }
+        = i h }
+      = t s = s d = d t
+      = w * w 2 }
+    = it @ + a 3
+    ? != s it { = j 0 W < j n { ! + it j @ + s j = j + j 1 } 0 } 0
+    a } }
 
 # ---------- comparadores do sort (o real do comparador do JS) e o arranque dos scripts ----------
 # 1: o sort() sem comparador (textos)
-: cs_cmp iii>f k x y ? == k 1 F tx_cmp js_str x js_str y ? < k 20 da_cmp k x y ? < k 30 un_cmp k x y ? < k 40 ou_cmp k x y ? < k 50 pu_cmp k x y bt_cmp k x y
+: cs_cmp iii>f k x y ? == k 1 F _tx_cmp _js_str x _js_str y ? < k 20 da_cmp k x y ? < k 30 un_cmp k x y ? < k 40 ou_cmp k x y ? < k 50 pu_cmp k x y bt_cmp k x y
 # o sort() do JS: os undefined vão para o fim sem comparar
-: js_sortdef i>i a {
-  = n js_len a = b js_lst n = u 0 = j 0
-  W < j n { = x js_it a j ? == x 1 = u + u 1 js_push b x = j + j 1 }
-  js_ordena b 1
-  = j 0 W < j u { js_push b 1 = j + j 1 }
+: cs_sortdef i>i a {
+  = n _js_len a = b _js_lst n = u 0 = j 0
+  W < j n { = x _js_it a j ? == x 1 = u + u 1 _js_push b x = j + j 1 }
+  cs_ordena b 1
+  = j 0 W < j u { _js_push b 1 = j + j 1 }
   ! + a 3 @ + b 3 ! + a 2 @ + b 2 ! + a 1 @ + b 1 a }
 : cs_corre >i {
   cs_ini
-  = s ho_arg 0
-  ? tx_igual s k_dados da_corre ? tx_igual s k_universo un_corre ? tx_igual s k_outros ou_corre
-    ? tx_igual s k_publicar pu_corre ? tx_igual s k_backtest bt_corre { ho_fd 2 "uso: correr.mjs dados|universo|outros|publicar|backtest [...]" P 10 ho_sair 2 } }
+  = s _an_arg 0
+  ? _tx_igual s k_dados da_corre ? _tx_igual s k_universo un_corre ? _tx_igual s k_outros ou_corre
+    ? _tx_igual s k_publicar pu_corre ? _tx_igual s k_backtest bt_corre { _an_fd 2 "uso: correr.mjs dados|universo|outros|publicar|backtest [...]" P 10 _an_sair 2 } }

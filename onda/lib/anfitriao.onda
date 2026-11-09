@@ -1,0 +1,54 @@
+# anfitriao.onda — as portas dos anfitriões, com nomes: o das apps (rt/anfitriao.js, browser e Node: Y 100–110) e o
+# dos scripts (rt/anfitriao-node.js: Y 200–214, e também 103/104/108/109). Um texto é o do texto.onda; um nome de
+# função (fn) é um texto com o nome de uma função da Onda que o anfitrião chama (não pode começar por _).
+#
+# Apps (rt/anfitriao.js)
+#   _an_html sel t     innerHTML do elemento sel (seletor CSS) = t; 1 se existe
+#   _an_ouvir tipo fn  em cada evento tipo ("click", "input"…) num elemento com data-onda, chama fn(t): t = o
+#                      data-onda (+ tab + o valor do campo, fora do click)
+#   _an_buscar url fn  fetch(url); no fim chama fn(t, estado): o corpo e o estado HTTP (0 = falhou)
+#   _an_ler k / _an_gravar k t   o armazém do browser (localStorage): o texto (ou 0) / grava (t = 0 apaga)
+#   _an_log t          console.log;  _an_titulo t: document.title
+# Os dois anfitriões
+#   _an_relogio ms fn  chama fn(0) a cada ms (devolve o id);  _an_parar id
+#   _an_agora          ms desde 1970 (inteiro);  _an_agoraf: o mesmo em real;  _an_aleat n: inteiro em [0, n)
+# Scripts (rt/anfitriao-node.js)
+#   _an_arg i          o argumento i (texto, 0 se não há); _an_arg -1: quantos
+#   _an_env t          a variável de ambiente (texto, 0 se não há)
+#   _an_fich t         os bytes do ficheiro (texto; 0 se falhou: a mensagem no _an_erro)
+#   _an_pasta t        cria a pasta e as que faltam (1; 0 se falhou);  _an_existe t: 1 se existe
+#   _an_pede p fn      fetch: p = [método, url, cabeçalhos ("Nome: valor" por linha), corpo, ms] (textos; 0 = GET,
+#                      sem cabeçalhos, sem corpo, sem limite); no fim chama fn(t, estado): o corpo e o estado HTTP;
+#                      0 = falhou (t = a mensagem); -estado = o corpo não chegou
+#   _an_fd fd          a saída passa para fd (1 stdout, 2 stderr);  _an_volta: volta à anterior
+#   _an_abre t         abre um fluxo e põe nele a saída: o ficheiro t, ou com 0 um texto em memória (sem limite de
+#                      tamanho); _an_fecha: fecha o do topo (ficheiro: 1, 0 se falhou; memória: o texto)
+#   _an_sair c         termina com o código c, depois de escrever tudo
+#   _an_erro / _an_nomeerro   a mensagem / o nome (TypeError, AbortError…) do último erro
+# As que mudam o destino da saída esvaziam antes o que está por escrever (_fl). Globais: nenhum.
+
+: _an_html ii>i sel t Y 100 sel t
+: _an_ouvir ii>i tipo fn Y 101 tipo fn
+: _an_buscar ii>i url fn Y 102 url fn
+: _an_relogio ii>i ms fn Y 103 ms fn
+: _an_parar i>i id Y 104 id 0
+: _an_ler i>i k Y 105 k 0
+: _an_gravar ii>i k t Y 106 k t
+: _an_log i>i t Y 107 t 0
+: _an_agora >i Y 108 0 0
+: _an_agoraf >f F Y 108 0 0
+: _an_aleat i>i n Y 109 n 0
+: _an_titulo i>i t Y 110 t 0
+: _an_arg i>i i Y 200 i 0
+: _an_env i>i t Y 201 t 0
+: _an_fich i>i t Y 202 t 0
+: _an_pasta i>i t Y 204 t 0
+: _an_existe i>i t Y 205 t 0
+: _an_pede ii>i p fn Y 206 p fn
+: _an_fd i>i fd { _fl Y 208 fd 0 }
+: _an_volta >i { _fl Y 208 0 0 }
+: _an_abre i>i t { _fl Y 209 t 0 }
+: _an_fecha >i { _fl Y 210 0 0 }
+: _an_sair i>i c { _fl Y 211 c 0 }
+: _an_erro >i Y 213 0 0
+: _an_nomeerro >i Y 214 0 0

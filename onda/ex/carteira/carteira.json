@@ -1,0 +1,10 @@
+{
+  "agora": 1762588800000,
+  "ativos": [
+    { "nome": "FTSE All-World (VWCE)", "qtd": 12, "preco": 138.42, "moeda": "EUR", "cambio": 1, "dia": -0.0031 },
+    { "nome": "Apple", "qtd": 3, "preco": 268.47, "moeda": "USD", "cambio": 0.8650519031141869, "dia": 0.0123 },
+    { "nome": "Bitcoin", "qtd": 0.015, "preco": 88123.45, "moeda": "EUR", "cambio": 1, "dia": 0.0345 },
+    { "nome": "Novo Nordisk", "qtd": 20, "preco": 318.5, "moeda": "DKK", "cambio": 0.1339, "dia": -0.021 },
+    { "nome": "Toyota", "qtd": 100, "preco": 2840, "moeda": "JPY", "cambio": 0.0057, "dia": 0.0049 }
+  ]
+}

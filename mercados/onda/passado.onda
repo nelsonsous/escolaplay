@@ -22,9 +22,9 @@
   = i 1
   W < i no {
     = x @ + o i = kx + @ + e x 2
-    ? > tcmp + @ + e @ + o - i 1 2 kx 0 {
+    ? > _tx_cmp16 + @ + e @ + o - i 1 2 kx 0 {
         = lo 0 = hi - i 1
-        W < lo hi { = md >> + lo hi 1 ? > tcmp + @ + e @ + o md 2 kx 0 = hi md = lo + md 1 }
+        W < lo hi { = md >> + lo hi 1 ? > _tx_cmp16 + @ + e @ + o md 2 kx 0 = hi md = lo + md 1 }
         = j i W > j lo { ! + o j @ + o - j 1 = j - j 1 }
         ! + o lo x } 0
     = i + i 1 }
@@ -33,7 +33,7 @@
   = i 0
   W < i no {
     = x @ + o i = kx + @ + e x 2
-    = z i W && < + z 1 no == tcmp + @ + e @ + o + z 1 2 kx 0 = z + z 1
+    = z i W && < + z 1 no == _tx_cmp16 + @ + e @ + o + z 1 2 kx 0 = z + z 1
     = gq + g * 2 ng ! gq kx !f + gq 1 @f + @ + e @ + o z 1
     ! + pr x 1
     = ng + ng 1 = i + z 1 }
@@ -45,7 +45,7 @@
     ? @ en {
         ? @ + pr j {
             = kx + en 2
-            = mx ? ? mx > tcmp kx mx 0 1 kx mx
+            = mx ? ? mx > _tx_cmp16 kx mx 0 1 kx mx
             # o fecho é o da última vez desta data: procura-o nos grupos
             = uq + u * 2 nu ! uq mx !f + uq 1 bgrupo g ng kx
             = nu + nu 1 } 0 }
@@ -59,7 +59,7 @@
 # a posição do grupo com a data k, ou -1
 : bprocura iii>i g ng k {
   = lo 0 = hi ng = r -1
-  W && < lo hi < r 0 { = md / + lo hi 2 = c tcmp @ + g * 2 md k ? == c 0 = r md ? < c 0 = lo + md 1 = hi md }
+  W && < lo hi < r 0 { = md / + lo hi 2 = c _tx_cmp16 @ + g * 2 md k ? == c 0 = r md ? < c 0 = lo + md 1 = hi md }
   r }
 # near(d) para o texto d (0: não é texto): devolve 1 e o fecho em M[59], ou 0 (null)
 : bnear i>i d {
@@ -70,7 +70,7 @@
       = u @ + ix 3 = nu @ + ix 2
       # a primeira corrida cujo máximo passa d
       = lo 0 = hi nu
-      W < lo hi { = md / + lo hi 2 ? > tcmp @ + u * 2 md d 0 = hi md = lo + md 1 }
+      W < lo hi { = md / + lo hi 2 ? > _tx_cmp16 @ + u * 2 md d 0 = hi md = lo + md 1 }
       ? == lo 0 0 { !f 59 @f + + u * 2 - lo 1 1 1 } } } }
 # o benchByDay(d0, d1) do JS: a && b ? b / a - 1 : null; devolve 1 e o valor em M[59], ou 0
 : bval ii>i d0 d1 {
@@ -179,7 +179,7 @@
   = es A 12 ! + es 10 A + m 1
   = i wm
   W && < i fim == @ 61 0 {
-    = k achave es @ + pc sidx + i 1. n
+    = k achave es @ + pc _nu_relidx + i 1. n
     ? >= k 0 { = q + + li 1 * 2 @ li !f q i ! + q 1 k ! li + @ li 1 } 0
     = i + i sp }
   ! + b 99 li
@@ -213,7 +213,7 @@
     = h 21 = o 1
     W <= h 63 {
       ? < + x F h F n {
-          = f - - / vat cf n + x F h vat cf n x 1. cost
+          = f - - / _nu_at cf n + x F h _nu_at cf n x 1. cost
           !f + ac o + @f + ac o 1.
           !f + ac + o 1 + @f + ac + o 1 f
           ? || && bu > f 0. && == k 6 < f 0. { !f + ac + o 2 + @f + ac + o 2 1. 0 } 0

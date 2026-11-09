@@ -10,8 +10,8 @@
   = s 0. = nr 0
   = k 0 W < k 3 { = q + b * k 3 ? != @f q 0. { = nr + nr 1 = s + s ? > @f + q 1 @f + q 2 1. -1. } 0. = k + k 1 }
   = vx @f + b 9 = bd @f + b 10
-  ? finito vx { = nr + nr 1 = s ? < vx 16. + s 1. ? > vx 25. - s 1.5 s } 0.
-  ? finito bd { = nr + nr 1 = s ? >= bd 0.55 + s 1. ? <= bd 0.3 - s 1. s } 0.
+  ? _nu_fin vx { = nr + nr 1 = s ? < vx 16. + s 1. ? > vx 25. - s 1.5 s } 0.
+  ? _nu_fin bd { = nr + nr 1 = s ? >= bd 0.55 + s 1. ? <= bd 0.3 - s 1. s } 0.
   ? == nr 0 "null" {
     = t ? >= s 1.5 0 ? <= s -1.5 2 1
     "{\"tone\":\"" ptom t "\",\"label\":\"" ? == t 0 "Otimista" ? == t 2 "Pessimista" "Misto"
@@ -28,22 +28,22 @@
           "{\"tone\":\"" ? up "up" "down" "\",\"txt\":\"" ? == k 0 "S&P 500" ? == k 1 "Euro Stoxx 50" "Bitcoin"
           ? up " acima" " abaixo" " da média de 50 dias\"}" } 0
       = k + k 1 }
-    ? finito vx {
+    ? _nu_fin vx {
         ? c P ', 0 = c + c 1
-        = v jround vx
-        ? < vx 16. { "{\"tone\":\"up\",\"txt\":\"VIX " pintf v ": mercado calmo\"}" }
-          ? > vx 25. { "{\"tone\":\"down\",\"txt\":\"VIX " pintf v ": medo elevado\"}" }
-            { "{\"tone\":\"flat\",\"txt\":\"VIX " pintf v ": nervosismo normal\"}" } } 0
-    ? finito bd {
+        = v _nu_round vx
+        ? < vx 16. { "{\"tone\":\"up\",\"txt\":\"VIX " _nu_ps v ": mercado calmo\"}" }
+          ? > vx 25. { "{\"tone\":\"down\",\"txt\":\"VIX " _nu_ps v ": medo elevado\"}" }
+            { "{\"tone\":\"flat\",\"txt\":\"VIX " _nu_ps v ": nervosismo normal\"}" } } 0
+    ? _nu_fin bd {
         ? c P ', 0 = c + c 1
-        = v jround * bd 100.
-        ? >= bd 0.55 { "{\"tone\":\"up\",\"txt\":\"" pintf v "% dos ativos seguidos com sinal positivo\"}" }
-          ? <= bd 0.3 { "{\"tone\":\"down\",\"txt\":\"Só " pintf v "% dos ativos seguidos com sinal positivo\"}" }
-            { "{\"tone\":\"flat\",\"txt\":\"" pintf v "% dos ativos seguidos com sinal positivo\"}" } } 0
+        = v _nu_round * bd 100.
+        ? >= bd 0.55 { "{\"tone\":\"up\",\"txt\":\"" _nu_ps v "% dos ativos seguidos com sinal positivo\"}" }
+          ? <= bd 0.3 { "{\"tone\":\"down\",\"txt\":\"Só " _nu_ps v "% dos ativos seguidos com sinal positivo\"}" }
+            { "{\"tone\":\"flat\",\"txt\":\"" _nu_ps v "% dos ativos seguidos com sinal positivo\"}" } } 0
     "]}" } }
 
 # ---------- futuros em USD por galão americano → € por litro ----------
-: galao ff>i a e ? && && finito a finito e > e 0. { !f 59 / / a 3.785411784 e 1 } 0
+: galao ff>i a e ? && && _nu_fin a _nu_fin e > e 0. { !f 59 / / a 3.785411784 e 1 } 0
 
 # ---------- labelOf e riskOf ----------
 # labelOf(score, hz): hz 0 'mid' (e qualquer outro), 1 'short', 2 'long'
@@ -56,30 +56,30 @@
 : nsma iif>i v len n {
   ? < F len n 0 {
     = s 0. = i - F len n
-    W < i F len { = s + s vat v len i = i + i 1. }
+    W < i F len { = s + s _nu_at v len i = i + i 1. }
     !f 59 / s n 1 } }
 # emaSeries(v, n): devolve o endereço de [quantos, reais...]
 : nema iif>i v len n {
   ? < F len n { = o A 1 ! o 0 o } {
     = k / 2. + n 1. = c1 - 1. k
-    = e 0. = i 0. W < i n { = e + e vat v len i = i + i 1. }
+    = e 0. = i 0. W < i n { = e + e _nu_at v len i = i + i 1. }
     = e / e n
     = c 1 = i n W < i F len { = c + c 1 = i + i 1. }
     = o A + c 1 ! o c !f + o 1 e
     = j 2 = i n
-    W < i F len { = e + * vat v len i k * e c1 !f + o j e = j + j 1 = i + i 1. }
+    W < i F len { = e + * _nu_at v len i k * e c1 !f + o j e = j + j 1 = i + i 1. }
     o } }
 # rsi(v, n)
 : nrsi iif>i v len n {
   ? < F len + n 1. 0 {
     = g 0. = l 0.
-    = i 1. W <= i n { = d - vat v len i vat v len - i 1. ? >= d 0. = g + g d = l - l d = i + i 1. }
+    = i 1. W <= i n { = d - _nu_at v len i _nu_at v len - i 1. ? >= d 0. = g + g d = l - l d = i + i 1. }
     = g / g n = l / l n
     = i + n 1. = n1 - n 1.
     W < i F len {
-      = d - vat v len i vat v len - i 1.
-      = g / + * g n1 jmax d 0. n
-      = l / + * l n1 jmax * -1. d 0. n
+      = d - _nu_at v len i _nu_at v len - i 1.
+      = g / + * g n1 _nu_max d 0. n
+      = l / + * l n1 _nu_max * -1. d 0. n
       = i + i 1. }
     !f 59 ? == l 0. ? == g 0. 50. 100. - 100. / 100. + 1. / g l
     1 } }
@@ -87,7 +87,7 @@
 : nmacd ii>i v len { macd v len @ 17 }
 # volatility(v, days, lookback): v.slice(-lookback - 1), retornos logarítmicos onde o anterior é > 0
 : nvol iiff>i v len dias lb {
-  = a sidx - * -1. lb 1. len
+  = a _nu_relidx - * -1. lb 1. len
   ? < - len a 10 0 {
     = r A - len a
     = m 0 = i + a 1

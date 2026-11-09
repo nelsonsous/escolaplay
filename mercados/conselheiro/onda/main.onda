@@ -4,7 +4,7 @@
 : main >i {
   # o bloco dos globais (g_*) e dos textos constantes (k_*): o primeiro A, no endereço que o build.mjs calculou
   = g A gn
-  ? != g gb { ho_fd 2 "conselheiro: os globais não ficaram onde o build os pôs" P 10 ho_sair 70 } 0
+  ? != g gb { _an_fd 2 "conselheiro: os globais não ficaram onde o build os pôs" P 10 _an_sair 70 } 0
   ini
   k_ini
   ? == Y 200 -1 0 0 0 cs_corre
@@ -12,19 +12,19 @@
 
 # ---------- para os testes (mercados/tests/conselheiro-onda.test.mjs) ----------
 : t_bits f>i x { N Bh x P 32 N Bl x 0 }
-: t_json ii>i t ind { = v js_parse tx_norm t 0 ? v js_pj v ind 0 "ERRO" }
-: t_num i>i t t_bits nu_s2n tx_norm t 0
-: t_tonum i>i t { = v js_parse t ? v t_bits js_tonum v "ERRO" }
-: t_str i>i t { = v js_parse t ? v tx_pu js_str v "ERRO" }
-: t_fix fi>i x d nu_pfix x d
-: t_ps f>i x nu_ps x
-: t_r6 f>i x t_bits nu_r6 x
-: t_iso f>i x ? dt_ok x dt_piso x "ERRO"
-: t_lis i>i t { dt_phoje t P 32 dt_pquando t }
-: t_s16 iii>i t a b { = v js_parse t tx_pj tx_s16 v a b }
-: t_l16 i>i t { = v js_parse t N tx_l16 v }
-: t_cmp ii>i a b N tx_cmp js_parse a js_parse b
-: t_norm ii>i t bom tx_p tx_norm t bom
-: t_uri i>i t { = v js_parse t ? tx_urimal v "URIError" tx_puri v }
-: t_ord i>i t { = v js_parse t ? v { js_ordena v 1 js_pj v 0 0 } "ERRO" }
-: t_branco i>i t N tx_branco js_parse t
+: t_json ii>i t ind { = v _js_parse _tx_norm t 0 ? v _js_pj v ind 0 "ERRO" }
+: t_num i>i t t_bits _nu_s2n _tx_norm t 0
+: t_tonum i>i t { = v _js_parse t ? v t_bits _js_tonum v "ERRO" }
+: t_str i>i t { = v _js_parse t ? v _tx_pu _js_str v "ERRO" }
+: t_fix fi>i x d _nu_fixo x d
+: t_ps f>i x _nu_ps x
+: t_r6 f>i x t_bits _nu_rprec x 6
+: t_iso f>i x ? _dt_ok x _dt_piso x "ERRO"
+: t_lis i>i t { _dt_phoje t P 32 _dt_pquando t }
+: t_s16 iii>i t a b { = v _js_parse t _tx_pj _tx_s16 v a b }
+: t_l16 i>i t { = v _js_parse t N _tx_l16 v }
+: t_cmp ii>i a b N _tx_cmp _js_parse a _js_parse b
+: t_norm ii>i t bom _tx_p _tx_norm t bom
+: t_uri i>i t { = v _js_parse t ? _tx_urimal v "URIError" _tx_uri v }
+: t_ord i>i t { = v _js_parse t ? v { cs_ordena v 1 _js_pj v 0 0 } "ERRO" }
+: t_branco i>i t N _tx_branco _js_parse t

@@ -1,0 +1,119 @@
+# valor.onda — os valores do JavaScript: undefined, null, booleanos, números, textos, listas e objetos, com as
+# conversões e as igualdades do JS. É o modelo do json.onda (JSON.parse / JSON.stringify). Precisa de memoria.onda,
+# texto.onda e numero.onda.
+#
+# VALOR (uma palavra v): 1 undefined, 2 null, 3 false, 4 true; v >= 64 é um nó: M[v] < 64 é a etiqueta —
+#   5 número [5, real]   6 lista [6, n, cap, itens]   7 objeto [7, n, cap, chaves, valores] (pela ordem de inserção)
+#   — e M[v] >= 64 é um TEXTO (o formato do texto.onda: M[v] = fim). Um texto constante $"x" é um valor.
+#
+#   _js_tipo v        1 undefined, 2 null, 3 false, 4 true, 5 número, 6 lista, 7 objeto, 8 texto
+#   _js_nulo v (undefined ou null)  _js_ehnum v  _js_ehtxt v  _js_ehlst v  _js_ehobj v  _js_eht v t (é o texto t)
+#   _js_bool b  _js_num x  _js_f v (o real)  _js_fin v (Number.isFinite)  _js_v v (a verdade de um if)
+#   _js_lst cap  _js_len a  _js_it a i  _js_at a i (o a[i], undefined fora)  _js_push a x  _js_fatia l a b (slice)
+#   _js_obj cap  _js_on o  _js_ok o i  _js_ov o i (chave e valor i, pela ordem de inserção)
+#   _js_oidx o k  _js_oget o k (undefined se não há)  _js_otem o k  _js_oset o k v
+#   _js_get v k       o v[k] do JS para uma chave de texto: objetos pelas chaves; listas e textos pelo índice e pelo
+#                     length; o resto não tem propriedades próprias (undefined). Com v undefined/null o JS lança
+#                     TypeError: quem chama decide o que fazer (ver _js_nulo)
+#   _js_indice k      o índice de lista (0 .. 2^32-2) que o texto k é, ou -1
+#   _js_ordem o       a ordem das chaves do JS (Object.keys, JSON.stringify): as de índice primeiro, por ordem
+#                     numérica, depois as outras pela ordem de inserção. Uma lista de posições (0: a de inserção);
+#                     _js_pos r j: a posição j
+#   _js_chaves o      Object.keys(o)
+#   _js_ps v          escreve String(v): listas pelo join(','), objetos "[object Object]";  _js_pu v: o mesmo em
+#                     UTF-8 válido (o console.log);  _js_str v: String(v) como texto (o próprio, se já é texto)
+#   _js_junta l s     escreve l.join(s) (s um texto; null e undefined vazios)
+#   _js_tonum v       Number(v)
+#   _js_eq a b        ===;  _js_svz a b: o SameValueZero (includes, Set, Map: o NaN encontra o NaN)
+#   _js_inc a x       a.includes(x);  _js_ix a x: a.indexOf(x)
+#   _js_prim v        o ToPrimitive das listas e dos objetos (o String deles);  _js_lt a b / _js_ge a b: o < e o >=
+#                     do JS (dois textos pela ordem UTF-16, o resto como números)
+# Globais: nenhum além do bloco da biblioteca (o String e o Number usam o numero.onda).
+
+: _js_tipo i>i v ? < v 64 v ? < @ v 64 @ v 8
+: _js_nulo i>i v || == v 1 == v 2
+: _js_bool i>i b ? b 4 3
+: _js_num f>i x { = p A 2 ! p 5 !f + p 1 x p }
+: _js_f i>f v @f + v 1
+: _js_ehnum i>i v && >= v 64 == @ v 5
+: _js_ehtxt i>i v && >= v 64 >= @ v 64
+: _js_ehlst i>i v && >= v 64 == @ v 6
+: _js_ehobj i>i v && >= v 64 == @ v 7
+: _js_eht ii>i v t && _js_ehtxt v _tx_igual v t
+: _js_fin i>i v && _js_ehnum v _nu_fin _js_f v
+: _js_v i>i v { = t _js_tipo v ? <= t 3 0 ? == t 4 1 ? == t 5 { = x _js_f v && != x 0. == x x } ? == t 8 > _tx_len v 0 1 }
+
+# ---------- listas ----------
+: _js_lst i>i cap { = v A 4 ! v 6 ! + v 1 0 ! + v 2 cap ! + v 3 A cap v }
+: _js_len i>i a @ + a 1
+: _js_it ii>i a i @ + @ + a 3 i
+: _js_at ii>i a i ? && >= i 0 < i @ + a 1 @ + @ + a 3 i 1
+: _js_push ii>i a x { _me_vpush + a 1 x a }
+: _js_fatia iii>i l a b { = r _js_lst - b a = j a W < j b { _js_push r _js_it l j = j + j 1 } r }
+
+# ---------- objetos ----------
+: _js_obj i>i cap { = v A 5 ! v 7 ! + v 1 0 ! + v 2 cap ! + v 3 A cap ! + v 4 A cap v }
+: _js_on i>i o @ + o 1
+: _js_ok ii>i o i @ + @ + o 3 i
+: _js_ov ii>i o i @ + @ + o 4 i
+: _js_oidx ii>i o k { = n @ + o 1 = ks @ + o 3 = j 0 = r -1 W && < r 0 < j n { ? _tx_igual @ + ks j k = r j 0 = j + j 1 } r }
+: _js_oget ii>i o k { = i _js_oidx o k ? < i 0 1 @ + @ + o 4 i }
+: _js_otem ii>i o k >= _js_oidx o k 0
+: _js_oset iii>i o k v {
+  = i _js_oidx o k
+  ? >= i 0 { ! + @ + o 4 i v 0 } {
+    = n @ + o 1 = c @ + o 2
+    ? >= n c {
+        = nc ? < c 4 4 * c 2 = nk A nc = nv A nc = ks @ + o 3 = vs @ + o 4
+        = j 0 W < j n { ! + nk j @ + ks j ! + nv j @ + vs j = j + j 1 }
+        ! + o 3 nk ! + o 4 nv ! + o 2 nc 0 } 0
+    ! + @ + o 3 n k ! + @ + o 4 n v ! + o 1 + n 1 0 }
+  o }
+: _js_get ii>i v k {
+  = t _js_tipo v
+  ? == t 7 _js_oget v k ? == t 6 { = i _js_indice k ? >= i 0 _js_at v i ? _tx_igual k $"length" _js_num F _js_len v 1 }
+  ? == t 8 { = i _js_indice k ? >= i 0 { = n _tx_l16 v ? < i n _tx_s16 v i + i 1 1 } ? _tx_igual k $"length" _js_num F _tx_l16 v 1 } 1 }
+: _js_indice i>i k {
+  = n _tx_len k
+  ? || == n 0 > n 10 -1 ? && > n 1 == _tx_b k 0 '0 -1 {
+    = v 0 = j 0 = ok 1
+    W && ok < j n { = c _tx_b k j = ok && >= c '0 <= c '9 = v + * v 10 - c '0 = j + j 1 }
+    ? && ok <= v 4294967294 v -1 } }
+: _js_ordem i>i o {
+  = n _js_on o = ni 0 = j 0
+  W < j n { ? >= _js_indice _js_ok o j 0 = ni + ni 1 0 = j + j 1 }
+  ? == ni 0 0 {
+    = r A n = q 0 = j 0
+    W < j n {
+      = x _js_indice _js_ok o j
+      ? >= x 0 {
+          # inserção ordenada pelo valor do índice
+          = i q W && > i 0 > _js_indice _js_ok o @ + r - i 1 x { ! + r i @ + r - i 1 = i - i 1 } ! + r i j = q + q 1 } 0
+      = j + j 1 }
+    = j 0 W < j n { ? < _js_indice _js_ok o j 0 { ! + r q j = q + q 1 } 0 = j + j 1 }
+    r } }
+: _js_pos ii>i r j ? r @ + r j j
+: _js_chaves i>i o { = r _js_ordem o = n _js_on o = l _js_lst n = j 0 W < j n { _js_push l _js_ok o _js_pos r j = j + j 1 } l }
+
+# ---------- conversões ----------
+: _js_ps i>i v {
+  = t _js_tipo v
+  ? == t 1 "undefined" ? == t 2 "null" ? == t 3 "false" ? == t 4 "true" ? == t 5 _nu_ps _js_f v ? == t 8 _tx_p v
+  ? == t 6 { = j 0 W < j _js_len v { ? j P ', 0 = x _js_it v j ? _js_nulo x 0 _js_ps x = j + j 1 } 0 } "[object Object]" }
+: _js_pu i>i v _tx_pu _js_str v
+: _js_junta ii>i l s { = j 0 W < j _js_len l { ? j _tx_p s 0 = x _js_it l j ? _js_nulo x 0 _js_ps x = j + j 1 } 0 }
+# bytes que chegam para o String(v)
+: _js_cap i>i v { = t _js_tipo v ? == t 8 _tx_len v ? == t 6 { = s 0 = j 0 W < j _js_len v { = s + + s 1 _js_cap _js_it v j = j + j 1 } s } 25 }
+: _js_str i>i v ? _js_ehtxt v v { = t _tx_abre _js_cap v _js_ps v _tx_fecha t }
+: _js_tonum i>f v {
+  = t _js_tipo v
+  ? || == t 1 == t 7 Bw 2146959360 0 ? || == t 2 == t 3 0. ? == t 4 1. ? == t 5 _js_f v ? == t 8 _nu_s2n v _nu_s2n _js_str v }
+
+# ---------- igualdades e comparações ----------
+: _js_eq ii>i a b { = ta _js_tipo a ? != ta _js_tipo b 0 ? == ta 5 == _js_f a _js_f b ? == ta 8 _tx_igual a b == a b }
+: _js_svz ii>i a b { = ta _js_tipo a ? != ta _js_tipo b 0 ? == ta 5 { = x _js_f a = y _js_f b || == x y && != x x != y y } ? == ta 8 _tx_igual a b == a b }
+: _js_inc ii>i a x { = n _js_len a = r 0 = j 0 W && ~ r < j n { = r _js_svz _js_it a j x = j + j 1 } r }
+: _js_ix ii>i a x { = n _js_len a = r -1 = j 0 W && < r 0 < j n { ? _js_eq _js_it a j x = r j 0 = j + j 1 } r }
+: _js_prim i>i v ? || _js_ehlst v _js_ehobj v _js_str v v
+: _js_lt ii>i a b { = x _js_prim a = y _js_prim b ? && _js_ehtxt x _js_ehtxt y < _tx_cmp x y 0 < _js_tonum x _js_tonum y }
+: _js_ge ii>i a b { = x _js_prim a = y _js_prim b ? && _js_ehtxt x _js_ehtxt y >= _tx_cmp x y 0 >= _js_tonum x _js_tonum y }

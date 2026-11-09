@@ -1,0 +1,38 @@
+# Carteira — um exemplo pequeno da biblioteca (onda/lib): um script para o anfitrião Node (rt/anfitriao-node.js) que lê
+# um JSON (o ficheiro do 1.º argumento), ordena os ativos pela variação do dia (o sort do Node: _or_tim) e escreve um
+# resumo em pt-PT — os números e as moedas do Intl, a hora de Lisboa — e o mesmo em JSON (o JSON.stringify).
+# Usa 7 módulos (memoria, texto, numero, valor, json, data, ordenar e anfitriao); os outros não pesam nada.
+#   cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao}.onda onda/ex/carteira/carteira.onda \
+#     | onda/build/ondac -w > carteira.wasm
+#   node -e "require('./onda/rt/anfitriao-node.js').correr(require('fs').readFileSync('carteira.wasm'), \
+#     { args: ['onda/ex/carteira/carteira.json'] })"
+# Entrada: { "agora": ms, "ativos": [{ "nome", "qtd", "preco", "moeda", "cambio" (€ por unidade da moeda), "dia" }] }
+
+# erro: a mensagem no stderr e o código 1
+: erro i>i m { _an_fd 2 _tx_pu m P 10 _an_volta _an_sair 1 }
+# o número de um membro (o Number(a[k]) do JS)
+: num ii>f a k _js_tonum _js_get a k
+: main >i {
+  = t _an_fich _an_arg 0
+  ? t 0 erro $"não li o ficheiro"
+  = v _js_parse _tx_norm t 1
+  ? v 0 erro $"JSON inválido"
+  = l _js_get v $"ativos" = n ? _js_ehlst l _js_len l 0
+  # a ordem: (a, b) => b.dia - a.dia (o NaN conta 0, como no JS)
+  = w A + n 1 = k A + n 1 = i 0
+  W < i n { ! + w i i !f + k i num _js_it l i $"dia" = i + i 1 }
+  _or_tim w n k k 0
+  "Carteira — " _dt_pquando I num v $"agora" P 10
+  = tot 0. = r _js_obj 2 = o _js_lst n = i 0
+  W < i n {
+    = a _js_it l @ + w i
+    = eur * * num a $"qtd" num a $"preco" num a $"cambio"
+    = tot + tot eur
+    N + i 1 ". " _js_pu _js_get a $"nome" "  " ? >= num a $"dia" 0. P '+ 0 _nu_intl * num a $"dia" 100. 2 " %  "
+    _nu_intl num a $"qtd" 2 " × " _nu_moeda num a $"preco" 2 _js_get a $"moeda" " = " _nu_moeda eur 2 $"EUR" P 10
+    _js_push o _js_get a $"nome"
+    = i + i 1 }
+  "Total: " _nu_moeda tot 2 $"EUR" P 10
+  _js_oset r $"ordem" o _js_oset r $"total" _js_num tot
+  _js_pj r 0 0 P 10
+  0 }

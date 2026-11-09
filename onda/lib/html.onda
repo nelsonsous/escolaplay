@@ -1,0 +1,26 @@
+# html.onda — fazer HTML: escrever um pedaço num texto e pô-lo no ecrã, atributos e textos escapados. Precisa de
+# memoria.onda e texto.onda (e de anfitriao.onda para o _ht_poe). O escape de um texto inteiro é o _tx_html (texto.onda).
+#
+#   _ht_ini n          começa um pedaço de HTML (um texto novo de até n bytes, com a guarda do Oc): tudo o que se
+#                      escreve até ao _ht_poe vai para ele (como o _tx_abre: abre-se dentro de outro)
+#   _ht_poe sel t      fecha o pedaço t e põe-no no innerHTML do elemento sel (seletor CSS; rt/anfitriao.js); 1 se o
+#                      elemento existe
+#   _ht_attr nome t    escreve ` nome="t"` (nome e t são textos; t escapado)
+#   _ht_cp u           escreve o código u em UTF-8, escapado (& < > " ')
+#   _ht_min t          escreve t.toLowerCase() escapado (o ASCII e o Latim-1, byte a byte: o resto fica igual)
+# Globais: nenhum.
+# Exemplo: = h _ht_ini 2000 "<p class=\"x\"" _ht_attr $"title" nome ">" _tx_html nome "</p>" _ht_poe $"#app" h
+
+: _ht_ini i>i n _tx_abre n
+: _ht_poe ii>i sel t { _tx_fecha t _an_html sel t }
+: _ht_attr ii>i nome t { P 32 _tx_p nome P '= P 34 _tx_html t P 34 }
+: _ht_cp i>i u ? _tx_ent u 0 _tx_putf u
+: _ht_min i>i t {
+  = m _tx_len t = j 0
+  W < j m {
+    = c _tx_b t j
+    ? && >= c 'A <= c 'Z P + c 32
+    ? && == c 195 < + j 1 m { = c2 _tx_b t + j 1 P 195 P ? && && >= c2 128 <= c2 158 != c2 151 + c2 32 c2 = j + j 1 0 }
+    ? _tx_ent c 0 P c
+    = j + j 1 }
+  0 }

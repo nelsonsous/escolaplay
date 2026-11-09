@@ -1,0 +1,48 @@
+# memoria.onda — o bloco da biblioteca, regiões de memória e listas que crescem. Precisam dele todos os módulos da
+# biblioteca que guardam estado (numero, texto, data, json); junta-se sempre primeiro (ver lib/LEIA.md).
+#
+# Nomes: _me_ (os da biblioteca começam todos por _ e pelo prefixo do módulo: no -w só entra o que a app usa).
+#   _me_lb            o endereço do bloco da biblioteca (reserva-o na 1.ª vez)
+#   _me_marca         o topo do monte agora (e garante o bloco abaixo dele)
+#   _me_solta m       o que se reservou depois da marca m volta a zero e fica livre
+#   _me_vec cap       lista de palavras que cresce: [n, cap, itens]; _me_vpush v x, _me_vn v, _me_vi v i
+#
+# GLOBAIS: a biblioteca só usa M[63], que aponta para o seu bloco (1 200 palavras, reservadas na primeira vez que
+# uma função precisa delas). A app fica com M[0..62]. Conteúdo do bloco b (é tudo de trabalho: só vale durante uma
+# chamada, ou logo a seguir, como a data do _dt_civil):
+#   b+0       classe do arredondamento dos inteiros grandes (0 exato, 1 abaixo do meio, 2 meio, 3 acima)
+#   b+1       bytes do último código UTF-8 lido (_tx_cp)
+#   b+2..5    os dois cursores do _tx_cmp
+#   b+6..8    a data civil do _dt_civil (ano, mês, dia)
+#   b+9..11   o leitor de JSON (posição, fim, erro)
+#   b+12      o expoente do último _nu_grade
+#   b+16..32  os 17 algarismos da grelha do _nu_pdig
+#   b+40..63  os algarismos do _nu_dig: [k, n, d1..dk]
+#   b+64..363 o inteiro grande (numero.onda)
+#   b+400..1199 os algarismos de um número lido (até 780 e o "há mais") ou do valor exato de um real (_nu_exato)
+#
+# REGIÕES: o monte da Onda só cresce (o A não tem free). Uma app marca-o antes de um evento e solta-o no fim:
+#   = m _me_marca  ...  _me_solta m
+# O _me_marca reserva antes o bloco da biblioteca, para ele ficar abaixo de todas as marcas. Quem repõe o monte de
+# outra maneira (a ponte da Mercados repõe o M[-1] do lado do JS) chama o _me_lb no main, antes de marcar.
+# Para o -w, -x e -a (usa o M[-1], o topo do monte do runtime); no C (./onda run) não.
+
+: _me_lb >i { = b @ 63 ? b b { = b A 1200 ! 63 b b } }
+: _me_marca >i { _me_lb @ -1 }
+: _me_solta i>i m {
+  = e @ -1 = p m W < p e { ! p 0 = p + p 1 } ! -1 m
+  # o bloco da biblioteca ficou do lado solto (uma marca feita antes dele): volta a ser reservado quando for preciso
+  ? >= @ 63 m ! 63 0 0
+  0 }
+
+# ---- listas de palavras que crescem: v = [n, cap, itens] (os itens mudam de sítio quando a lista cresce) ----
+: _me_vec i>i cap { = v A 3 ! + v 1 cap ! + v 2 A cap v }
+: _me_vn i>i v @ v
+: _me_vi ii>i v i @ + @ + v 2 i
+: _me_vpush ii>i v x {
+  = n @ v = c @ + v 1
+  ? >= n c {
+      = nc ? < c 4 4 * c 2 = ni A nc = it @ + v 2
+      = j 0 W < j n { ! + ni j @ + it j = j + j 1 }
+      ! + v 2 ni ! + v 1 nc 0 } 0
+  ! + @ + v 2 n x ! v + n 1 v }
