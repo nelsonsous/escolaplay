@@ -13,9 +13,9 @@ import * as api from './api.js';
 import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
-import { skyHtml, startRain } from './sky.js';
+import { skyHtml, startRain, rainFrames } from './sky.js';
 
-const VERSION = '1.13.0';
+const VERSION = '1.13.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -1588,5 +1588,5 @@ document.addEventListener('keydown', (e) => {
 });
 
 // para os testes
-window.__mt = { cfg, st, render, refresh, loadAnalysis, SHARE_TEXT };
+window.__mt = { cfg, st, render, refresh, loadAnalysis, SHARE_TEXT, rainFrames };
 init();

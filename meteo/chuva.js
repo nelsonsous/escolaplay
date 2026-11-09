@@ -44,7 +44,12 @@ export function rainField(canvas, values, top, { anim = true } = {}) {
         for (let i = 0, m = w * h; i < m; i++) dst[i] = src[i << 1];
         ctx.putImageData(img, 0, 0);
     };
-    const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => { vis = es.some((e) => e.isIntersecting); if (vis && !raf && !parado) frame(performance.now()); }) : null;
+    // no ecrã? decide cada imagem (o retângulo do canvas); o observador, o deslocar e o voltar à app só o põem a andar
+    // de novo (no iPhone o observador pode dizer «fora do ecrã» a um canvas acabado de pôr na página)
+    const kick = () => { if (anim && !raf && !parado && canvas.isConnected) raf = requestAnimationFrame(frame); };
+    const io = 'IntersectionObserver' in window ? new IntersectionObserver(kick) : null;
+    window.addEventListener('scroll', kick, { passive: true });
+    document.addEventListener('visibilitychange', kick);
     const frame = (now) => {
         raf = 0;
         if (parado || !canvas.isConnected) { me.stop(); return; }
@@ -52,9 +57,11 @@ export function rainField(canvas, values, top, { anim = true } = {}) {
         last = now;
         O.cpasso(estado, dt);
         pinta();
+        const r = canvas.getBoundingClientRect();
+        vis = r.bottom > 0 && r.top < (window.innerHeight || 1e4) && document.visibilityState !== 'hidden';
         if (anim && vis) raf = requestAnimationFrame(frame); else last = 0;
     };
-    const me = { stop() { parado = true; if (raf) cancelAnimationFrame(raf); raf = 0; io?.disconnect(); if (atual === me) atual = null; } };
+    const me = { stop() { parado = true; if (raf) cancelAnimationFrame(raf); raf = 0; io?.disconnect(); window.removeEventListener('scroll', kick); document.removeEventListener('visibilitychange', kick); if (atual === me) atual = null; } };
     atual = me;
     io?.observe(canvas);
     if (anim) frame(performance.now());

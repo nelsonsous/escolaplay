@@ -85,7 +85,7 @@ export function skyHtml(code, isDay = true, { wind = 0, t = 0 } = {}) {
 // Cada gota tem profundidade z (0 longe .. 1 perto): as de perto são mais compridas, mais grossas, mais claras e mais
 // rápidas (paralaxe); caem inclinadas pelo vento e, as de perto, rebentam em salpicos perto do fundo do cartão.
 // O estado fica no módulo: quando a página se redesenha (canvas novo), a chuva continua de onde ia.
-const RAIN = { drops: [], splash: [], key: '', canvas: null, raf: 0, last: 0, io: null, vis: true };
+const RAIN = { drops: [], splash: [], key: '', canvas: null, raf: 0, last: 0, io: null, vis: true, frames: 0 };
 function seedDrop(d, w, h, top) {
     const z = Math.random() ** 1.6; // mais gotas ao longe
     d.z = z;
@@ -103,16 +103,35 @@ export function startRain(canvas) {
     const ctx = canvas.getContext('2d');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const key = `${n}:${dz}`;
+    // a página redesenhou-se (canvas novo): a imagem que estava marcada era do canvas antigo, e esse ciclo acaba —
+    // por isso cancela-se e começa-se já o deste (senão a chuva parava ao fim de um segundo)
+    if (RAIN.raf) cancelAnimationFrame(RAIN.raf);
+    RAIN.raf = 0;
     RAIN.canvas = canvas;
+    // Quem decide se está no ecrã é cada imagem (o retângulo do canvas), não o IntersectionObserver: no iPhone ele pode
+    // dizer «fora do ecrã» para um canvas acabado de pôr na página, e a chuva parava. Fora do ecrã, o ciclo pára; volta
+    // com o observador, ao deslocar a página ou quando a app volta a ficar visível.
+    const kick = () => { if (!RAIN.raf && RAIN.canvas === canvas && canvas.isConnected) RAIN.raf = requestAnimationFrame(frame); };
+    RAIN.kick = kick;
     RAIN.io?.disconnect();
-    RAIN.io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => { RAIN.vis = es.some((e) => e.isIntersecting); if (RAIN.vis && !RAIN.raf) RAIN.raf = requestAnimationFrame(frame); }) : null;
+    RAIN.io = 'IntersectionObserver' in window ? new IntersectionObserver(() => RAIN.kick?.()) : null;
     RAIN.io?.observe(canvas);
+    if (!RAIN.listening) {
+        RAIN.listening = true;
+        window.addEventListener('scroll', () => RAIN.kick?.(), { passive: true });
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') RAIN.kick?.(); });
+        window.addEventListener('pageshow', () => RAIN.kick?.());
+    }
     const tanA = Math.tan(ang), sinA = Math.sin(ang), cosA = Math.cos(ang);
     function frame(now) {
         RAIN.raf = 0;
+        RAIN.frames++;
         if (RAIN.canvas !== canvas || !canvas.isConnected) return;
         const W = canvas.clientWidth, H = canvas.clientHeight;
-        if (!W || !H) return;
+        if (!W || !H) { RAIN.raf = requestAnimationFrame(frame); return; } // ainda sem tamanho: tenta na próxima imagem
+        const r = canvas.getBoundingClientRect();
+        if (r.bottom <= 0 || r.top >= (window.innerHeight || 1e4) || document.visibilityState === 'hidden') { RAIN.vis = false; RAIN.last = 0; return; }
+        RAIN.vis = true;
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         if (RAIN.key !== key || RAIN.w !== W || RAIN.h !== H) {
             RAIN.drops = Array.from({ length: n }, () => seedDrop({}, W, H, false));
@@ -163,7 +182,10 @@ export function startRain(canvas) {
         }
         for (const s of RAIN.splash) s.t += dt;
         RAIN.splash = RAIN.splash.filter((s) => s.t < 0.32);
-        if (RAIN.vis && !canvas.classList.contains('stop')) RAIN.raf = requestAnimationFrame(frame); else RAIN.last = 0;
+        RAIN.raf = requestAnimationFrame(frame);
     }
-    if (!RAIN.raf) RAIN.raf = requestAnimationFrame(frame);
+    RAIN.raf = requestAnimationFrame(frame);
 }
+
+/** Para os testes: quantas imagens a chuva já desenhou (deve continuar a subir depois de a página se redesenhar). */
+export const rainFrames = () => RAIN.frames;

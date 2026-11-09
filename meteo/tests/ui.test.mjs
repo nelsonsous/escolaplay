@@ -315,6 +315,40 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const apiIds = ids.filter((x) => /^\/api\/(status|analysis|places|reports)/.test(x.p));
     assert.ok(apiIds.length >= 5 && apiIds.every((x) => x.dev === `${dev.id}.${dev.token}` && !x.own), 'x-meteo-device em todos os pedidos da app');
     assert.ok(ids.filter((x) => /^\/api\/(raw|obs-history)/.test(x.p)).every((x) => !x.dev), 'as fontes em bruto não precisam dela');
+    // chuva no cartão (canvas): continua a cair depois de a página se redesenhar (antes parava ao fim de 1 s)
+    assert.equal(await page.locator('.now .sky-rain').count(), 1, 'chuva fraca: a chuva do cartão no canvas');
+    {
+        await page.evaluate(() => window.scrollTo(0, 0)); // fora do ecrã a chuva pára (de propósito)
+        await page.waitForTimeout(200);
+        const f0 = await page.evaluate(() => window.__mt.rainFrames());
+        for (let k = 0; k < 3; k++) { await page.evaluate(() => window.__mt.render()); await page.waitForTimeout(120); }
+        const f1 = await page.evaluate(() => window.__mt.rainFrames());
+        await page.waitForTimeout(500);
+        const f2 = await page.evaluate(() => window.__mt.rainFrames());
+        assert.ok(f1 > f0 && f2 - f1 >= 10, `a chuva continua depois de redesenhar: ${f0} → ${f1} → ${f2}`);
+        // fora do ecrã pára; ao voltar ao topo, recomeça
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(300);
+        const g0 = await page.evaluate(() => window.__mt.rainFrames());
+        await page.waitForTimeout(400);
+        const g1 = await page.evaluate(() => window.__mt.rainFrames());
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(400);
+        const g2 = await page.evaluate(() => window.__mt.rainFrames());
+        assert.ok(g1 - g0 <= 1 && g2 - g1 >= 10, `pára fora do ecrã e volta: ${g0} → ${g1} → ${g2}`);
+        // como no iPhone: o IntersectionObserver diz «fora do ecrã» a um canvas acabado de pôr na página — a chuva não pára
+        const h0 = await page.evaluate(async () => {
+            const IO = window.IntersectionObserver;
+            window.IntersectionObserver = class { constructor(cb) { this.cb = cb; } observe(t) { setTimeout(() => this.cb([{ target: t, isIntersecting: false }]), 0); } disconnect() {} };
+            window.__mt.render();
+            await new Promise((ok) => setTimeout(ok, 100));
+            const f = window.__mt.rainFrames();
+            await new Promise((ok) => setTimeout(ok, 500));
+            window.IntersectionObserver = IO;
+            return window.__mt.rainFrames() - f;
+        });
+        assert.ok(h0 >= 10, `com o observador a dizer «fora do ecrã», a chuva continua: ${h0} imagens em 0,5 s`);
+    }
     console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude (desligada por omissão, ligada pelo cartão)');
 
     // 2b) "Está a chover?": o aviso manda no agora (45 min) e segue para o conector
