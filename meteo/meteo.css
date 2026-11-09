@@ -222,6 +222,12 @@ div.claude { cursor: auto; }
 .nc-zero { stroke: var(--axis); stroke-width: 3; stroke-linecap: round; }
 .bar.p1 { fill: var(--pop-1); } .bar.p2 { fill: var(--pop-2); } .bar.p3 { fill: var(--pop-3); }
 .cap { stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; }
+/* intensidade da chuva: linhas tracejadas onde começa a moderada e a forte; a sombra clara é o modelo mais chuvoso */
+.guide { stroke: rgba(100, 168, 255, .35); stroke-width: 1; stroke-dasharray: 3 4; }
+.guide-l { fill: rgba(140, 190, 255, .75); font-size: calc(10px * var(--k)); font-weight: 600; letter-spacing: .02em; }
+.bar.ghost { fill: var(--pop-1); opacity: .2; }
+.nc-sum { margin: 6px 2px 0; color: var(--soft); font-size: calc(.88rem * var(--k)); line-height: 1.4; }
+.nc-sum b { color: var(--text); font-weight: 650; }
 .band-t { fill: var(--c-temp); opacity: .2; }
 .line-t { fill: none; stroke: var(--c-temp); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .dot-t { fill: var(--c-temp); stroke: var(--surface); stroke-width: 2; }

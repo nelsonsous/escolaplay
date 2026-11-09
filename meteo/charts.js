@@ -10,8 +10,8 @@ const PADR = 16;   // folga à direita
 const AXIS_W = 44; // coluna fixa com as escalas
 const G = {
   icon: 4, iconSize: 22,
-  tT: 44, tB: 146,
-  pT: 168, pB: 220,
+  tT: 44, tB: 132,
+  pT: 150, pB: 222,
   wT: 242, wB: 292,
   arrows: 307,
   hours: 332, days: 350,
@@ -24,11 +24,16 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 function tempScale(min, max) {
   for (const s of [1, 2, 5, 10, 20]) {
     const lo = Math.floor((min - 1) / s) * s, hi = Math.ceil((max + 1.5) / s) * s;
-    if ((hi - lo) / s <= 4) return { lo, hi, step: s };
+    if ((hi - lo) / s <= 5) return { lo, hi, step: s };
   }
   return { lo: Math.floor(min), hi: Math.ceil(max) + 1, step: Math.ceil(max - min) || 1 };
 }
 const niceCeil = (v, opts) => opts.find((o) => o >= v) ?? Math.ceil(v);
+// Intensidade da chuva (mm por hora), como o IPMA: fraca até 2,5 · moderada até 10 · forte a partir de 10.
+export const RAIN_MOD = 2.5, RAIN_HEAVY = 10;
+export const rainWord = (mmh) => (mmh >= RAIN_HEAVY ? 'forte' : mmh >= RAIN_MOD ? 'moderada' : mmh >= 0.05 ? 'fraca' : 'sem chuva');
+// escala da chuva em raiz quadrada: a chuva fraca vê-se, e a forte continua bem acima (as linhas dizem onde começa cada uma)
+const sqrtFrac = (v, top) => Math.sqrt(Math.min(Math.max(v, 0), top) / top);
 
 /** Curva monótona (Fritsch–Carlson): não inventa máximos entre pontos. */
 export function monotonePath(pts, move = true) {
@@ -83,9 +88,10 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
   const temps = H.flatMap((h) => [h.temp, h.tempLo, h.tempHi]).filter(isNum);
   const ts = tempScale(Math.min(...temps), Math.max(...temps));
   const yT = (v) => G.tB - ((v - ts.lo) / (ts.hi - ts.lo)) * (G.tB - G.tT);
-  const pData = Math.max(0, ...H.map((h) => Math.max(h.precip || 0, h.precipHi || 0)));
-  const pTop = niceCeil(Math.max(pData, 1), [1, 2, 5, 10, 20, 50, 100]);
-  const yP = (v) => G.pB - (Math.min(Math.max(v, 0), pTop) / pTop) * (G.pB - G.pT);
+  // chuva em mm/h, escala em raiz quadrada até 12 mm/h (acima de «forte»); só cresce se a chuva prevista passar disso
+  const pData = Math.max(0, ...H.map((h) => h.precip || 0));
+  const pTop = pData > 12 ? niceCeil(pData, [20, 50, 100]) : 12;
+  const yP = (v) => G.pB - sqrtFrac(v, pTop) * (G.pB - G.pT);
   const wData = Math.max(10, ...H.map((h) => Math.max(h.gust || 0, h.wind || 0)));
   const wTop = niceCeil(wData, [20, 30, 40, 60, 80, 100, 120, 150, 200]);
   const yW = (v) => G.wB - (Math.min(Math.max(v, 0), wTop) / wTop) * (G.wB - G.wT);
@@ -97,7 +103,11 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
   }
   // grelha
   for (let v = ts.lo; v <= ts.hi + 1e-9; v += ts.step) s += `<line class="grid" x1="0" x2="${W}" y1="${f(yT(v))}" y2="${f(yT(v))}"/>`;
-  s += `<line class="grid" x1="0" x2="${W}" y1="${f(yP(pTop))}" y2="${f(yP(pTop))}"/><line class="base" x1="0" x2="${W}" y1="${G.pB}" y2="${G.pB}"/>`;
+  s += `<line class="base" x1="0" x2="${W}" y1="${G.pB}" y2="${G.pB}"/>`;
+  for (const [v, w] of [[RAIN_MOD, 'moderada'], [RAIN_HEAVY, 'forte']]) {
+    s += `<line class="guide" x1="0" x2="${W}" y1="${f(yP(v))}" y2="${f(yP(v))}"/>`;
+    for (let x = 4; x < W - 60; x += 24 * step) s += `<text class="guide-l" x="${f(x)}" y="${f(yP(v) - 3)}">${w}</text>`;
+  }
   s += `<line class="grid" x1="0" x2="${W}" y1="${f(yW(wTop))}" y2="${f(yW(wTop))}"/><line class="base" x1="0" x2="${W}" y1="${G.wB}" y2="${G.wB}"/>`;
   // meia-noite
   H.forEach((h, i) => { if (i > 0 && parts(h.time)?.h === 0) s += `<line class="midnight" x1="${i * step}" x2="${i * step}" y1="0" y2="${G.days - 12}"/>`; });
@@ -124,18 +134,18 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
   }
   if (isNum(H[0].temp)) s += `<circle class="dot-t" cx="${f(xc(0))}" cy="${f(yT(H[0].temp))}" r="4"/>`;
 
-  // chuva: barras (tom = probabilidade) + máximo entre modelos
+  // chuva: sombra clara até ao modelo mais chuvoso, e por cima a barra do consenso (tom = probabilidade)
   let iPmax = -1;
   H.forEach((h, i) => {
     const p = h.precip || 0;
+    if (isNum(h.precipHi) && h.precipHi >= Math.max(0.2, p + 0.15)) {
+      const y2 = yP(h.precipHi);
+      s += `<path class="bar ghost" d="${barPath(xc(i) - 6, y2, 12, G.pB - y2)}"/>`;
+    }
     if (p >= 0.05) {
       const y = yP(p), hh = Math.max(2, G.pB - y);
       s += `<path class="bar ${popClass(h.pop)}" d="${barPath(xc(i) - 6, G.pB - hh, 12, hh)}"/>`;
       if (iPmax < 0 || p > (H[iPmax].precip || 0)) iPmax = i;
-    }
-    if (isNum(h.precipHi) && h.precipHi >= Math.max(0.2, p + 0.15)) {
-      const y1 = yP(Math.max(p, 0)), y2 = yP(h.precipHi);
-      s += `<line class="cap" x1="${f(xc(i))}" x2="${f(xc(i))}" y1="${f(y1)}" y2="${f(y2)}"/><line class="cap" x1="${f(xc(i) - 3)}" x2="${f(xc(i) + 3)}" y1="${f(y2)}" y2="${f(y2)}"/>`;
     }
   });
   if (iPmax >= 0 && H[iPmax].precip >= 0.2) {
@@ -184,12 +194,13 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
   // eixo fixo (escalas)
   let ax = '';
   for (let v = ts.lo; v <= ts.hi + 1e-9; v += ts.step) ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yT(v) + 4)}" text-anchor="end">${esc(num(v) + '°')}</text>`;
-  ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yP(pTop) + 4)}" text-anchor="end">${esc(num(pTop))}</text><text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(yP(pTop) + 18)}" text-anchor="end">mm</text>`;
+  for (const v of [RAIN_MOD, RAIN_HEAVY]) ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yP(v) + 4)}" text-anchor="end">${esc(num(v, v % 1 ? 1 : 0))}</text>`;
+  ax += `<text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(G.pB - 2)}" text-anchor="end">mm/h</text>`;
   ax += `<text class="ax" x="${AXIS_W - 6}" y="${f(yW(wTop) + 4)}" text-anchor="end">${esc(num(wTop))}</text><text class="ax ax-unit" x="${AXIS_W - 6}" y="${f(yW(wTop) + 18)}" text-anchor="end">km/h</text>`;
 
   root.innerHTML = `
     <div class="legend" aria-hidden="true">
-      <div class="lg-row"><span class="lg"><i class="k-line k-t"></i>temperatura</span><span class="lg"><i class="k-bar p3"></i>chuva</span><span class="lg"><i class="k-line k-w"></i>vento (rajada)</span></div>
+      <div class="lg-row"><span class="lg"><i class="k-line k-t"></i>temperatura</span><span class="lg"><i class="k-bar p3"></i>chuva (mm/h)</span><span class="lg"><i class="k-line k-w"></i>vento (rajada)</span></div>
     </div>
     <div class="chart-body">
       <svg class="chart-axis" width="${AXIS_W}" height="${G.H}" viewBox="0 0 ${AXIS_W} ${G.H}" aria-hidden="true">${ax}</svg>
@@ -233,7 +244,7 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
       r.append(b, sp); tip.append(r);
     };
     row(deg(h.temp, 1), isNum(h.tempLo) && isNum(h.tempHi) ? `temperatura (${num(h.tempLo, 1)} a ${num(h.tempHi, 1)})` : 'temperatura');
-    row(mm(h.precip || 0), `chuva · ${pct(h.pop)} prob.${isNum(h.precipHi) && h.precipHi > (h.precip || 0) + 0.1 ? ` · até ${mm(h.precipHi)}` : ''}`);
+    row(mm(h.precip || 0), `chuva ${(h.precip || 0) >= 0.05 ? rainWord(h.precip) + ' ' : ''}· ${pct(h.pop)} prob.${isNum(h.precipHi) && h.precipHi > (h.precip || 0) + 0.1 ? ` · até ${mm(h.precipHi)}` : ''}`);
     row(kmh(h.gust), `rajada · vento ${num(h.wind)} ${compass(h.dir)}`);
     row(pct(h.cloud), `nuvens${isNum(h.feels) ? ` · sensação ${deg(h.feels)}` : ''}`);
     tip.hidden = false;
@@ -308,15 +319,20 @@ export function renderNowcast(root, nowcast, { onda = false } = {}) {
   const live = onda && ondaOk();
   const Wv = 320, base = 62, top = 16;
   const max = Math.max(0, ...steps.map((s) => s.precip || 0));
-  const pTop = max > 0 ? niceCeil(max, [0.5, 1, 2, 5, 10, 20, 50]) : 1;
+  // mm em cada 15 min; escala em raiz quadrada até 3 mm (acima de «forte», 2,5 mm em 15 min = 10 mm/h)
+  const pTop = max > 3 ? niceCeil(max, [5, 10, 20, 50]) : 3;
+  const yN = (v) => base - sqrtFrac(v, pTop) * (base - top);
   const slot = Wv / steps.length, bw = Math.min(24, slot - 14);
   let s = `<line class="base" x1="0" x2="${Wv}" y1="${base}" y2="${base}"/>`;
+  for (const [v, w] of [[RAIN_MOD / 4, 'moderada'], [RAIN_HEAVY / 4, 'forte']]) {
+    s += `<line class="guide" x1="0" x2="${Wv}" y1="${f(yN(v))}" y2="${f(yN(v))}"/><text class="guide-l" x="${Wv - 2}" y="${f(yN(v) - 3)}" text-anchor="end">${w}</text>`;
+  }
   let iMax = -1;
   steps.forEach((st, i) => {
     const p = st.precip || 0;
     const cx = slot * i + slot / 2;
     if (p > 0) {
-      const hh = Math.max(2, (p / pTop) * (base - top));
+      const hh = Math.max(2, base - yN(p));
       if (!live) s += `<path class="bar nc" d="${barPath(cx - bw / 2, base - hh, bw, hh)}"><title>${esc(`${hhmm(st.time)} · ${mm(p)}`)}</title></path>`;
       if (iMax < 0 || p > steps[iMax].precip) iMax = i;
     } else {
@@ -325,13 +341,17 @@ export function renderNowcast(root, nowcast, { onda = false } = {}) {
     if (i % 2 === 1) s += `<text class="ax" x="${f(cx)}" y="${base + 18}" text-anchor="middle">${esc(hhmm(st.time))}</text>`;
   });
   if (iMax >= 0) {
-    const cx = slot * iMax + slot / 2, hh = Math.max(2, (steps[iMax].precip / pTop) * (base - top));
+    const cx = slot * iMax + slot / 2, hh = Math.max(2, base - yN(steps[iMax].precip));
     s += `<text class="lbl" x="${f(cx)}" y="${f(base - hh - 6)}" text-anchor="middle">${esc(mm(steps[iMax].precip))}</text>`;
   }
   const label = steps.map((st) => `${hhmm(st.time)} ${mm(st.precip || 0)}`).join(', ');
   const svg = `<svg class="nowcast-svg" viewBox="0 0 ${Wv} ${base + 26}" role="img" aria-label="${esc('Chuva prevista a cada 15 minutos: ' + label)}">${s}</svg>`;
-  if (!live) { root.innerHTML = svg; return; }
-  root.innerHTML = `<div class="nc-wrap"><canvas class="nc-cv" aria-hidden="true"></canvas>${svg}</div>`;
-  rainField(root.querySelector('.nc-cv'), steps.map((st) => st.precip || 0), pTop);
+  // o resumo que responde a «isto é muito?»: o máximo em 15 min, o mesmo por hora e a intensidade, e o total
+  const tot = steps.reduce((a, st) => a + (st.precip || 0), 0);
+  const sum = max >= 0.05 ? `<p class="nc-sum">Máx. <b>${esc(mm(max))}</b> em 15 min (≈ ${esc(num(max * 4, 1))} mm/h): <b>chuva ${esc(rainWord(max * 4))}</b> · total em 2 h: ${esc(mm(tot))}</p>` : '';
+  if (!live) { root.innerHTML = svg + sum; return; }
+  root.innerHTML = `<div class="nc-wrap"><canvas class="nc-cv" aria-hidden="true"></canvas>${svg}</div>${sum}`;
+  // a Onda desenha em escala linear: passam-se os valores já na escala da raiz (0..1)
+  rainField(root.querySelector('.nc-cv'), steps.map((st) => sqrtFrac(st.precip || 0, pTop)), 1);
 }
 
