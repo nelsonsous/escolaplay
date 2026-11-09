@@ -294,6 +294,20 @@ test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal 
     await pb.locator('#mu-nav [data-onda="ir\t5"]').click();
     await pb.getByText('Este aparelho').waitFor();
     assert.equal(await pb.getByText('Partilhar a Música').count(), 0, 'só o dono convida');
+    // a app do ecrã principal do iOS tem outro armazém: a convidada cria um código aqui e usa-o lá
+    await pb.getByRole('button', { name: 'Ligar outro aparelho' }).click();
+    const codigo = (await pb.locator('.mu-codigo').textContent()).trim();
+    assert.match(codigo, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const pc = await c.newPage();
+    pc.on('pageerror', (e) => erros.push(String(e)));
+    await pc.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await pc.locator('[data-onda="cod"]').fill(codigo);
+    await pc.getByRole('button', { name: 'Usar este código' }).click();
+    await pc.locator('#mu-aviso').getByText('Este aparelho fica com acesso').waitFor();
+    await pc.getByText('Ainda não há playlists').waitFor();
+    assert.ok(await pc.evaluate(() => localStorage.getItem('musica:chave')), 'a app do ecrã principal fica com a chave dela');
+    await c.close();
     assert.deepEqual(erros, []);
     await b.close();
 });

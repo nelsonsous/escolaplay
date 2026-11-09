@@ -7,7 +7,7 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 
-const VERSION = '1.5.1';
+const VERSION = '1.6.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -21,7 +21,7 @@ class Erro extends Error {
 // O dono (quem montou a app) fica com as chaves de sempre; cada pessoa convidada tem as suas com o prefixo u:<id>:.
 // As chaves globais (aparelhos, Client ID, códigos, convites, o estado do login) são as mesmas para todos.
 const DONO = 'dono';
-const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|tidal:estado:)/;
+const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:)/;
 function deUtilizador(env, uid) {
     if (!uid || uid === DONO) return { ...env, UID: DONO };
     const k = (x) => (GLOBAL.test(x) ? x : `u:${uid}:${x}`);
@@ -63,6 +63,7 @@ async function route(req, env, url) {
     if (!quem) throw new Erro(401, 'sem_acesso', 'Falta a chave deste aparelho (liga o Tidal na app).');
     if (p === '/api/utilizadores' && m === 'GET') return json(await utilizadores(env, quem));
     if (p === '/api/convites' && m === 'POST') return json(await convidar(env, quem), 201);
+    if (p === '/api/aparelho/codigo' && m === 'POST') return json(await codigoAparelho(env, quem), 201);
     const ue = deUtilizador(env, quem.uid);
     if (p === '/api/desligar' && m === 'POST') { await ue.KV.delete('tidal:tokens'); await ue.KV.delete('perfil'); return json({ ok: true }); }
     if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
@@ -150,9 +151,28 @@ async function configurar(req, env, quem) {
 // troca o código de ligação por uma chave, sem voltar a passar pelo login do Tidal. O código gasta-se.
 async function aparelho(req, env) {
     const c = await req.json().catch(() => ({}));
-    if (!(await codigoValido(env, c.codigo))) throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
-    await env.KV.delete('codigo:ligacao');
-    return { chave: await novaChave(env, 'aparelho', txt(c.nome, 60) || 'aparelho') };
+    // o código de ligação do dono (o da primeira ligação)
+    if (await codigoValido(env, c.codigo)) {
+        await env.KV.delete('codigo:ligacao');
+        return { chave: await novaChave(env, 'aparelho', txt(c.nome, 60) || 'aparelho') };
+    }
+    // um código criado num aparelho que já tem acesso: dá a chave da mesma pessoa
+    const n = normalizarCodigo(c.codigo);
+    const k = 'aparelho:' + (await sha256(n));
+    const a = n.length === 8 ? await env.KV.get(k, 'json') : null;
+    if (!a) throw new Erro(401, 'sem_acesso', 'Código inválido ou já usado. Cria um novo num aparelho onde já entraste: Ajustes → «Ligar outro aparelho».');
+    await env.KV.delete(k);
+    return { chave: await novaChave(env, 'aparelho', txt(c.nome, 60) || 'aparelho', a.uid) };
+}
+
+// ligar outro aparelho da mesma pessoa (a app do ecrã principal do iOS tem o seu armazém): um código de 8 letras e
+// algarismos fáceis de ler (sem 0/O/1/I), de uma só vez, válido 24 h. O agente cria-o para uma pessoa com ?u=.
+const LETRAS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const normalizarCodigo = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function codigoAparelho(env, quem) {
+    const codigo = [...crypto.getRandomValues(new Uint8Array(8))].map((x) => LETRAS[x % LETRAS.length]).join('');
+    await env.KV.put('aparelho:' + (await sha256(codigo)), JSON.stringify({ uid: quem.uid, criadoEm: new Date().toISOString() }), { expirationTtl: 86400 });
+    return { codigo: `${codigo.slice(0, 4)}-${codigo.slice(4)}`, horas: 24 };
 }
 
 async function estado(req, env, url) {
