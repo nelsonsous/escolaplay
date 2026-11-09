@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.5.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.6.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -400,4 +400,35 @@ test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o M
     await post('/api/desligar', {}, chaveAna);
     assert.equal(await env.KV.get(`u:${ana.uid}:tidal:tokens`), null);
     assert.ok(await env.KV.get('tidal:tokens'));
+});
+
+test('ligar outro aparelho: cada pessoa cria um código de uma vez; o aparelho novo fica com a biblioteca dela', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    // uma convidada entra pelo convite (no Safari)
+    const cv = await (await post('/api/convites', {}, chave)).json();
+    const state = new URL((await (await post('/api/ligar', { codigo: cv.codigo })).json()).url).searchParams.get('state');
+    const volta = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    const chaveAna = decodeURIComponent(volta.headers.get('location').split('#chave=')[1]);
+    await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna);
+    // a app do ecrã principal tem outro armazém: o convite já não serve lá
+    assert.equal((await post('/api/aparelho', { codigo: cv.codigo })).status, 401);
+    // no aparelho onde entrou, cria um código; no outro, escreve-o (à mão, em minúsculas, com um espaço)
+    const cod = await (await post('/api/aparelho/codigo', {}, chaveAna)).json();
+    assert.match(cod.codigo, /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+    const novo = await post('/api/aparelho', { codigo: cod.codigo.toLowerCase().replace('-', ' ') });
+    assert.equal(novo.status, 201);
+    const chave2 = (await novo.json()).chave;
+    assert.deepEqual((await (await get('/api/pedidos', chave2)).json()).map((x) => x.texto), ['Fado para a Ana'], 'a biblioteca dela, não a do dono');
+    assert.equal((await post('/api/aparelho', { codigo: cod.codigo })).status, 401, 'o código gasta-se');
+    // o Maestro (agente) também o cria para uma pessoa (?u=); sem chave, não
+    const uid = (await (await get('/api/utilizadores', agente)).json()).find((u) => u.uid !== 'dono').uid;
+    const c2 = await (await post(`/api/aparelho/codigo?u=${uid}`, {}, agente)).json();
+    const chave3 = (await (await post('/api/aparelho', { codigo: c2.codigo })).json()).chave;
+    assert.equal((await (await get('/api/pedidos', chave3)).json()).length, 1);
+    assert.equal((await post('/api/aparelho/codigo', {})).status, 401);
+    // e o dono também liga outro aparelho seu assim
+    const c3 = await (await post('/api/aparelho/codigo', {}, chave)).json();
+    const chave4 = (await (await post('/api/aparelho', { codigo: c3.codigo })).json()).chave;
+    assert.equal((await (await get('/api/estado', chave4)).json()).dono, true);
 });
