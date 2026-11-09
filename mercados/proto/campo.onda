@@ -1,0 +1,265 @@
+# Prototipo visual da Mercados: imagens como CAMPOS da Onda. Cada pixel e uma funcao (x, y, estado) calculada em
+# WebAssembly (E: um mapa sobre os pixeis) e, no fundo do "Hoje", na placa grafica (ondac -g fundo -> GLSL).
+# Todo o movimento vem dos dados: o grafico desliza para o preco novo, o brilho segue a volatilidade, cada ponto do
+# mapa tem a cor da variacao do dia e pisca quando o preco muda. A casca (proto.js) so traz dados e copia pixeis.
+#
+# Monta-se com: node mercados/proto/build.mjs
+# Cores (como a Trade Republic): verde 4ade80, vermelho f87171, fundo preto. Um pixel vale R + G*256 + B*65536 + A*2^24
+# (a ordem dos bytes de um ImageData).
+
+# ---------- utilitarios ----------
+: lim fff>f x a b Mx a Mn b x
+: cor fff>i r g b + + + I * 255.0 lim r 0.0 1.0 * 256 I * 255.0 lim g 0.0 1.0 * 65536 I * 255.0 lim b 0.0 1.0 4278190080
+# onda triangular 0..1..0 com periodo 1 (barata: sem seno)
+: tri f>f x { = f - x Fl x ? < f 0.5 * f 2.0 * - 1.0 f 2.0 }
+
+# ---------- grafico vivo ----------
+# Estado g (palavras): 0 n pontos | 1 alvo (precos reais) | 2 mostrado | 3 lo | 4 hi (reais: escala mostrada) |
+# 5 base (fecho anterior; 0 = sem linha) | 6 vol (brilho 0..1) | 7 tom (-1 a descer .. 1 a subir) | 8 fase do pulso |
+# 9 ao vivo (0/1) | 10 pixeis | 11 capacidade de pixeis | 12 capacidade de pontos
+: gnovo i>i cap { = g A 16 ! + g 1 A cap ! + g 2 A cap ! + g 12 cap !f + g 3 0.0 !f + g 4 1.0 g }
+: galvo i>i g @ + g 1
+: gn i>i g @ g
+: glo i>f g @f + g 3
+: ghi i>f g @f + g 4
+: gult i>f g ? @ g @f + @ + g 2 - @ g 1 0.0
+# minimo e maximo do alvo, com 6% de folga
+: gmm ii>f g qual {
+  = n @ g = a @ + g 1 = lo @f a = hi lo = i 1
+  W < i n { = v @f + a i = lo Mn lo v = hi Mx hi v = i + i 1 }
+  = b @f + g 5
+  ? > b 0.0 { = lo Mn lo b = hi Mx hi b 0 } 0
+  = m Mx * - hi lo 0.06 * hi 0.0002
+  ? qual + hi m - lo m }
+# a serie nova entra de uma vez (ao abrir ou ao mudar de periodo)
+: gfixa iifi>i g n base vivo {
+  ! g n !f + g 5 base ! + g 9 vivo
+  = a @ + g 1 = s @ + g 2 = i 0
+  W < i n { !f + s i @f + a i = i + i 1 }
+  !f + g 3 gmm g 0 !f + g 4 gmm g 1
+  !f + g 6 0.0 !f + g 7 ? && > base 0.0 < gult g base -1.0 1.0
+  n }
+# um preco ao vivo: o ultimo ponto do alvo passa a ser p; o brilho sobe com o tamanho do salto
+: gtique if>i g p {
+  = n @ g ? < n 2 0 {
+    = a @ + g 1 = v @f + a - n 1
+    = am - ghi g glo g
+    = sal ? > am 0.0 / Ab - p v am 0.0
+    !f + g 6 lim + @f + g 6 * sal 14.0 0.0 1.0
+    !f + a - n 1 p 1 } }
+# um ponto novo (vela nova): a serie anda uma casa para a esquerda
+: gjunta if>i g p {
+  = n @ g = a @ + g 1 = s @ + g 2 = i 0
+  W < i - n 1 { !f + a i @f + a + i 1 !f + s i @f + s + i 1 = i + i 1 }
+  !f + a - n 1 p n }
+# um passo de animacao (dt em ms): o mostrado aproxima-se do alvo, a escala acompanha, o brilho apaga-se devagar
+: gpasso if>i g dt {
+  = n @ g ? < n 2 0 {
+    = k lim / dt 110.0 0.0 1.0
+    = a @ + g 1 = s @ + g 2 = i 0
+    W < i n { = v @f + s i !f + s i + v * - @f + a i v k = i + i 1 }
+    = ke lim / dt 260.0 0.0 1.0
+    !f + g 3 + glo g * - gmm g 0 glo g ke
+    !f + g 4 + ghi g * - gmm g 1 ghi g ke
+    !f + g 6 * @f + g 6 Mx 0.0 - 1.0 / dt 1400.0
+    = b @f + g 5
+    = alvo ? > b 0.0 ? < gult g b -1.0 1.0 ? < gult g @f s -1.0 1.0
+    !f + g 7 + @f + g 7 * - alvo @f + g 7 lim / dt 300.0 0.0 1.0
+    !f + g 8 + @f + g 8 / dt 1600.0
+    1 } }
+# distancia (ao quadrado) do ponto p ao segmento a-b
+: gseg ffffff>f px py ax ay bx by {
+  = ux - bx ax
+  = uy - by ay
+  = t lim / + * - px ax ux * - py ay uy Mx 0.000001 + * ux ux * uy uy 0.0 1.0
+  = dx - px + ax * t ux
+  = dy - py + ay * t uy
+  + * dx dx * dy dy }
+# o pixel i de um grafico w x h
+: gpx iiii>i i g w h {
+  = x F % i w
+  = y F / i w
+  = n @ g
+  ? < n 2 4278190080 {
+    = s @ + g 2
+    = hi ghi g
+    = am Mx - hi glo g 0.000000001
+    = topo * F h 0.08
+    = alt * F h 0.80
+    = q / alt am
+    = xr - F w * F h 0.07
+    = passo / xr F - n 1
+    = u / x passo
+    = k Mn - n 2 I Fl u
+    = k0 Mx 0 - k 1
+    = k3 Mn - n 1 + k 2
+    = ya + topo * - hi @f + s k0 q
+    = yb1 + topo * - hi @f + s k q
+    = yc + topo * - hi @f + s + k 1 q
+    = yd + topo * - hi @f + s k3 q
+    = f lim - u F k 0.0 1.0
+    = yl + yb1 * - yc yb1 f
+    = fora > x + xr 1.0
+    = vol @f + g 6
+    = esc / F h 220.0
+    = gr * esc + 5.0 * 16.0 vol
+    = raio * gr 6.0
+    # longe da linha (acima ou abaixo dos pontos vizinhos) nao ha linha nem brilho: so o enchimento
+    = d ? || < y - Mn Mn ya yb1 Mn yc yd raio > y + Mx Mx ya yb1 Mx yc yd raio 100000.0
+      Sq Mn Mn gseg x y * F k0 passo ya * F k passo yb1 gseg x y * F k passo yb1 * F + k 1 passo yc gseg x y * F + k 1 passo yc * F k3 passo yd
+    = nuc lim - * 1.7 esc d 0.0 1.0
+    = bri * + 0.10 * 0.42 vol Mx 0.0 - / 1.0 + 1.0 / * d d * gr gr 0.027
+    = fun - F h yl
+    = pr ? && ~ fora > y yl / - y yl Mx 1.0 fun 1.0
+    = che * 0.20 * - 1.0 pr - 1.0 pr
+    = m * 0.5 + 1.0 @f + g 7
+    = cr + 0.973 * - 0.290 0.973 m
+    = cg + 0.443 * - 0.871 0.443 m
+    = cb + 0.443 * - 0.502 0.443 m
+    = t Mn 1.0 + bri che
+    = r + * cr t * + 0.35 * 0.65 cr nuc
+    = gg + * cg t * + 0.35 * 0.65 cg nuc
+    = b + * cb t * + 0.35 * 0.65 cb nuc
+    # fecho anterior: linha tracejada discreta
+    = ba @f + g 5
+    ? > ba 0.0 {
+      = yb + topo * / - ghi g ba am alt
+      = ie Mx 1 I + 0.5 esc
+      ? && && < Ab - y yb * 0.6 esc < % % i w * 8 ie * 3 ie ~ fora { = r + r 0.20 = gg + gg 0.20 = b + b 0.20 0 } 0 0 } 0
+    # o ultimo preco: um ponto, e um anel que se abre enquanto ha precos ao vivo
+    = ye + topo * / - ghi g @f + s - n 1 am alt
+    = dx - x xr
+    ? < Ab dx * 16.0 esc {
+      = dy - y ye
+      = q Sq + * dx dx * dy dy
+      = pt lim - * 3.4 esc q 0.0 1.0
+      = fa - @f + g 8 Fl @f + g 8
+      = an ? @ + g 9 * * 0.75 - 1.0 fa lim - * 1.4 esc Ab - q * esc + 4.0 * 11.0 fa 0.0 1.0 0.0
+      = r + + * r - 1.0 pt pt * an cr
+      = gg + + * gg - 1.0 pt pt * an cg
+      = b + + * b - 1.0 pt pt * an cb 0 } 0
+    cor r gg b } }
+: gdesenha iii>i g w h {
+  = np * w h
+  ? > np @ + g 11 { ! + g 10 A np ! + g 11 np } 0
+  E @ + g 10 np gpx g w h }
+
+# ---------- mapa do mercado ----------
+# Estado m: 0 n ativos | 1 alvo (variacao do dia em %) | 2 mostrado | 3 clarao (0..1) | 4 colunas | 5 casas (casa ->
+# ativo ou -1) | 6 n casas | 7 lado da casa em pixeis (real) | 8 ox | 9 oy (reais) | 10 escolhido (-1 nenhum) |
+# 11 fase | 12 pixeis | 13 capacidade | 14 tipo de cada ativo (0 ETF, 1 cripto, 2 acao) | 15 ordem (auxiliar)
+: mnovo i>i cap {
+  = m A 20
+  ! + m 1 A cap ! + m 2 A cap ! + m 3 A cap ! + m 14 A cap ! + m 15 A cap ! + m 5 A + cap * 8 64
+  ! + m 10 -1 !f + m 7 10.0 m }
+: malvo i>i m @ + m 1
+: mtipos i>i m @ + m 14
+: mcasas i>i m @ + m 6
+: mcols i>i m @ + m 4
+# arruma os ativos em casas: por tipo (ETF, cripto, acoes), cada grupo da maior subida para a maior queda, com uma
+# linha vazia entre grupos
+: marruma iii>i m n cols {
+  ! m n ! + m 4 cols
+  = v @ + m 1 = sh @ + m 2 = o @ + m 15 = tp @ + m 14 = c @ + m 5
+  = i 0 W < i n { !f + sh i @f + v i ! + o i i = i + i 1 }
+  # ordenacao por insercao: tipo a subir, variacao a descer
+  = i 1
+  W < i n {
+    = a @ + o i = j - i 1
+    W && >= j 0 { = b @ + o j || > @ + tp b @ + tp a && == @ + tp b @ + tp a < @f + v b @f + v a } { ! + o + j 1 @ + o j = j - j 1 }
+    ! + o + j 1 a
+    = i + i 1 }
+  = casa 0 = i 0 = tant -1
+  W < i n {
+    = a @ + o i
+    ? && != @ + tp a tant >= tant 0 { W % casa cols { ! + c casa -1 = casa + casa 1 } = j 0 W < j cols { ! + c casa -1 = casa + casa 1 = j + j 1 } } 0
+    = tant @ + tp a
+    ! + c casa a = casa + casa 1
+    = i + i 1 }
+  W % casa cols { ! + c casa -1 = casa + casa 1 }
+  ! + m 6 casa
+  / casa cols }
+: mvista ifff>i m lado ox oy { !f + m 7 lado !f + m 8 ox !f + m 9 oy 0 }
+# um valor ao vivo: o ponto muda de cor e da um clarao
+: mpoe iif>i m a v { ? && >= a 0 < a @ m { !f + @ + m 1 a v !f + @ + m 3 a 1.0 1 } 0 }
+: mpasso if>i m dt {
+  = n @ m = v @ + m 1 = sh @ + m 2 = fl @ + m 3 = k lim / dt 400.0 0.0 1.0 = i 0
+  W < i n {
+    = a @f + sh i !f + sh i + a * - @f + v i a k
+    !f + fl i * @f + fl i Mx 0.0 - 1.0 / dt 900.0
+    = i + i 1 }
+  !f + m 11 + @f + m 11 / dt 1000.0
+  n }
+# o ativo na posicao (x, y), ou -1; fica escolhido
+: mtoque iff>i m x y {
+  = gx / - x @f + m 8 @f + m 7
+  = gy / - y @f + m 9 @f + m 7
+  = cols @ + m 4
+  = a ? || || < gx 0.0 < gy 0.0 >= gx F cols -1 {
+    = casa + * I Fl gy cols I Fl gx
+    ? < casa @ + m 6 @ + @ + m 5 casa -1 }
+  ! + m 10 a
+  a }
+: mpx iiii>i i m w h {
+  = lado @f + m 7
+  = gx / - F % i w @f + m 8 lado
+  = gy / - F / i w @f + m 9 lado
+  = cols @ + m 4
+  ? || || < gx 0.0 < gy 0.0 >= gx F cols 4278190080 {
+    = col I Fl gx
+    = lin I Fl gy
+    = casa + * lin cols col
+    = a ? < casa @ + m 6 @ + @ + m 5 casa -1
+    ? < a 0 4278190080 {
+      = fx Ab - - gx F col 0.5
+      = fy Ab - - gy F lin 0.5
+      # quadrado de cantos redondos: a distancia junta o maximo e a soma
+      = q + * 0.72 Mx fx fy * 0.28 + fx fy
+      = aa lim * - 0.40 q lado 0.0 1.0
+      ? <= aa 0.0 4278190080 {
+        = v @f + @ + m 2 a
+        = mag Mn 1.0 / Ab v 5.0
+        = fo Sq mag
+        = on tri + * @f + m 11 + 0.18 * 0.5 mag * F % * a 37 101 0.0099
+        = lu * + 0.20 * 0.80 fo + 1.0 * * 0.30 fo - on 0.5
+        = cl @f + @ + m 3 a
+        = sub >= v 0.0
+        = r * ? sub 0.290 0.973 lu
+        = g * ? sub 0.871 0.443 lu
+        = b * ? sub 0.502 0.443 lu
+        # perto de zero: cinzento
+        = ne lim - 1.0 * mag 12.0 0.0 1.0
+        = r + * r - 1.0 ne * 0.17 ne
+        = g + * g - 1.0 ne * 0.17 ne
+        = b + * b - 1.0 ne * 0.19 ne
+        = r + r * cl - 1.0 r
+        = g + g * cl - 1.0 g
+        = b + b * cl - 1.0 b
+        = es && == a @ + m 10 > q 0.31
+        cor ? es 1.0 * r aa ? es 1.0 * g aa ? es 1.0 * b aa } } } }
+: mdesenha iii>i m w h {
+  = np * w h
+  ? > np @ + m 13 { ! + m 12 A np ! + m 13 np } 0
+  E @ + m 12 np mpx m w h }
+
+# ---------- fundo do "Hoje" (placa grafica): ondas lentas e escuras; hu = humor do mercado (-1 medo .. 1 calma) ----------
+# ondac -g fundo: x y sao o pixel; t (segundos), w, h e hu chegam pelos uniformes u[0..3]
+: fundo ffffff>i x y t w h hu {
+  = px / x w
+  = py / y h
+  = ag + 0.35 * 0.9 - 1.0 Ab hu
+  = a Sn + + * px 5.0 * t * 0.22 ag * 1.6 Sn + * py 3.0 * t * 0.13 ag
+  = b Sn + - * py 7.0 * t * 0.17 ag * 1.2 Sn + * px 4.0 * t 0.09
+  = c * 0.5 + 1.0 * a b
+  = luz * * 0.20 c - 1.0 * 0.55 py
+  = m * 0.5 + 1.0 hu
+  = r * luz + 0.973 * - 0.290 0.973 m
+  = g * luz + 0.443 * - 0.871 0.443 m
+  = bb * luz + 0.443 * - 0.502 0.443 m
+  + + * 65536 I * 255.0 r * 256 I * 255.0 g I * 255.0 bb }
+
+# ---------- arranque: a casca le estes enderecos ----------
+: g1 >i @ 0
+: g2 >i @ 1
+: mapa >i @ 2
+: main >i { ! 0 gnovo 600 ! 1 gnovo 600 ! 2 mnovo 1600 0 }
