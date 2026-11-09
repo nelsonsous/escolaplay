@@ -1,0 +1,16 @@
+{
+  "nota": "Dados de exemplo (população dos concelhos, valores aproximados e arredondados aos milhares).",
+  "itens": [
+    { "id": "lisboa", "nome": "Lisboa", "grupo": "Lisboa", "valor": 546000, "nota": "A capital, na foz do Tejo." },
+    { "id": "sintra", "nome": "Sintra", "grupo": "Lisboa", "valor": 386000, "nota": "Serra, palácios e o concelho mais populoso a seguir a Lisboa." },
+    { "id": "gaia", "nome": "Vila Nova de Gaia", "grupo": "Norte", "valor": 304000, "nota": "Na margem sul do Douro, em frente ao Porto." },
+    { "id": "porto", "nome": "Porto", "grupo": "Norte", "valor": 232000, "nota": "A segunda cidade do país." },
+    { "id": "braga", "nome": "Braga", "grupo": "Norte", "valor": 193000, "nota": "Uma das cidades mais antigas de Portugal." },
+    { "id": "guimaraes", "nome": "Guimarães", "grupo": "Norte", "valor": 157000, "nota": "O berço da nação." },
+    { "id": "coimbra", "nome": "Coimbra", "grupo": "Centro", "valor": 141000, "nota": "A universidade e o Mondego." },
+    { "id": "aveiro", "nome": "Aveiro", "grupo": "Centro", "valor": 81000, "nota": "A ria, os moliceiros e os ovos-moles." },
+    { "id": "evora", "nome": "Évora", "grupo": "Alentejo", "valor": 54000, "nota": "Cidade-museu no meio da planície." },
+    { "id": "faro", "nome": "Faro", "grupo": "Algarve", "valor": 68000, "nota": "A capital do Algarve, junto à Ria Formosa." },
+    { "id": "funchal", "nome": "Funchal", "grupo": "Madeira", "valor": 106000, "nota": "A capital da Madeira <entre o mar & a serra>." }
+  ]
+}

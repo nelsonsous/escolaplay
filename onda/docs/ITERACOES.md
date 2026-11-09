@@ -2596,3 +2596,26 @@ corresponde cada função dele.
 **Verificado.** `node --test test/*.test.js`: 142 passam, 0 falham, 17 saltados (os do Mac; os do arm64 correram no
 qemu). Mercados: 87/87, o `ui.test.js` na pasta e no `dist/` (depois do `node build.mjs` da raiz). O compilador
 (`onda/src`, `onda/seed`) não mudou.
+
+## Iteração 140: dois defeitos apanhados pela biblioteca
+
+**De onde vêm.** Escrever a biblioteca de origem (it.139) mostrou dois comportamentos do compilador que não batiam
+certo entre as formas.
+
+**1. A matemática dentro das funções privadas.** `Sn Cs Ex Lg Pw At` são a matemática da Onda (o fdlibm do
+`9mat.onda`), igual ao bit em todas as formas. Mas a regra `mlib` desligava-a em qualquer função cujo nome começasse
+por `_` — pensada para o runtime, apanhava também as funções das bibliotecas (`_nu_…`), que ficavam com a primitiva
+do alvo: bits diferentes entre formas e, no `-a`, erro (`funcao matematica ainda nao em -a`). Agora a regra é exata:
+só o `_sn` e o `_cs` chamam a primitiva (para argumentos acima de ~1,6e6, onde a redução ainda não chega). O teste
+compara os 64 bits de cada resultado em `-w`, `-x` e `-a`, e com o `Math` do JavaScript.
+
+**2. As funções mortas no `-w`.** Desde a it.138 o `-w` só compilava as funções vivas, por isso uma função sem uso
+podia referir um nome que não existe (ou ter um erro de tipos) sem erro no `-w` e com erro no `-x` e no C. Agora
+todas as funções se compilam até à representação intermédia (nomes e tipos verificados), e só as vivas se emitem. Os
+textos constantes das mortas não entram na zona dos dados: o módulo fica igual ao byte (o teste da poda confirma-o).
+
+**Verificado.** Pontos fixos: WASM 512 196 B, x86-64 362 080 B, ponte C. `node --test test/*.test.js`: 144 passam, 0
+falham, 17 só no Mac. As apps recompiladas dão módulos iguais ao byte aos de antes (Mercados 87/87, Música 37/37).
+
+**O que fica.** A redução de argumento de Payne–Hanek para o seno e o coseno de argumentos enormes; manter na pilha os
+temporários de um só uso no WebAssembly (o próximo ganho de tamanho).
