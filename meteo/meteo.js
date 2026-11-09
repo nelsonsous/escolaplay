@@ -13,8 +13,9 @@ import * as api from './api.js';
 import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
+import { skyHtml } from './sky.js';
 
-const VERSION = '1.8.2';
+const VERSION = '1.9.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -43,7 +44,7 @@ const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 di
 
 // ---------- configuração ----------
 const KEY = 'meteo:v1';
-const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false, lv: 't', ll: 1 };
+const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false, lv: 't', ll: 1, anim: true };
 const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
@@ -363,7 +364,17 @@ function renderStatus() {
     if (cfg.loc.gps && F.isNum(cfg.loc.acc)) b += ` · GPS ±${F.num(cfg.loc.acc)} m`;
     el.innerHTML = `${a}<span class="num">${esc(b)}</span>`;
 }
+// o céu animado pára quando o cartão sai do ecrã (poupa bateria)
+let skyWatch = null;
+function watchSky() {
+    skyWatch?.disconnect();
+    const sky = $('.now .sky');
+    if (!sky || !('IntersectionObserver' in window)) return;
+    skyWatch = new IntersectionObserver((es) => { for (const e of es) e.target.classList.toggle('off', !e.isIntersecting); });
+    skyWatch.observe(sky);
+}
 function mount() {
+    watchSky();
     const fc = viewFc();
     if (cfg.tab === 'agora' && fc) {
         const nc = $('#nc-chart'); if (nc) renderNowcast(nc, fc.nowcast);
@@ -398,7 +409,7 @@ function banners() {
 
 function viewNow() {
     if (!cfg.loc) {
-        return { title: 'Meteo', html: `<div class="welcome">${weatherIcon(2, true, 72)}<h2>Previsão para o sítio exato onde estás</h2>
+        return { title: 'Meteo', html: `<div class="welcome">${weatherIcon(2, true, 72, '', cfg.anim !== false)}<h2>Previsão para o sítio exato onde estás</h2>
             <p>Combina 9 modelos meteorológicos, mais de 200 cenários de ensemble e observações reais e, se quiseres, uma análise escrita pelo Claude.</p>
             <div class="btns"><button type="button" class="btn pri" data-act="gps">${ui('gps')}Usar a minha localização</button><button type="button" class="btn" data-act="place">${ui('search')}Pesquisar local</button></div></div>` };
     }
@@ -438,10 +449,11 @@ function nowBox(fc) {
     if (tl) lines.push(`<li>${ui('relief')}<span>${esc(tl)}</span></li>`);
     const conf = d0.confidence;
     return `<section class="box now ${tintOf(n.code, n.isDay)}" aria-label="Agora">
+        ${cfg.anim !== false ? skyHtml(n.code, n.isDay, { wind: n.wind, t: performance.now() / 1000 }) : ''}
         <div class="now-top">
             <div><div class="now-t num" aria-label="${esc(F.deg(n.temp, 1))}"><span aria-hidden="true">${esc(ti)}</span>${td != null ? `<small aria-hidden="true">,${esc(td)}</small>` : ''}<i aria-hidden="true">°</i></div>
                 <div class="now-c">${esc(F.wxText(n.code))}</div></div>
-            <div class="now-i">${weatherIcon(n.code, n.isDay, 96, F.wxText(n.code))}</div>
+            <div class="now-i">${weatherIcon(n.code, n.isDay, 96, F.wxText(n.code), cfg.anim !== false)}</div>
         </div>
         <div class="now-m num"><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span><span>Sensação ${esc(F.deg(n.feels))}</span></div>
         ${main.length ? `<ul class="now-l">${main.join('')}</ul>` : ''}
@@ -961,7 +973,9 @@ function viewSettings() {
         <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${esc(DEFAULT_PROXY)}" value="${esc(cfg.proxy)}"><button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
         <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div>${ownerHtml()}</div></section>`;
     adv += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
-        <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div></div></section>`;
+        <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
+        <div class="sw" id="animacoes"><span><b>Animações</b><br><small class="hint">O céu do cartão «Agora» e os ícones grandes a mexer (chuva, sol, neve…).</small></span>
+        <div class="seg" role="group" aria-label="Animações"><button type="button" data-act="anim-on" class="${cfg.anim !== false ? 'on' : ''}" aria-pressed="${cfg.anim !== false}">Sim</button><button type="button" data-act="anim-off" class="${cfg.anim === false ? 'on' : ''}" aria-pressed="${cfg.anim === false}">Não</button></div></div></div></section>`;
     const S = st.fc?.status;
     if (S) adv += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
     adv += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
@@ -1244,7 +1258,7 @@ function renderSheet() {
         ];
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">${esc(cap1(F.dayDiff(today, d.date) <= 1 ? F.dayLabel(d.date, today) : F.wdLong(d.date)))}, ${esc(F.dateShort(d.date))}</h2>
             <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos`)}</div></div>${closeBtn}</div>
-            <div class="d-big">${weatherIcon(d.code, true, 64)}<div><b class="num">${esc(F.deg(d.tmax))} / ${esc(F.deg(d.tmin))}</b><br><span>máxima e mínima</span></div></div>
+            <div class="d-big">${weatherIcon(d.code, true, 64, '', cfg.anim !== false)}<div><b class="num">${esc(F.deg(d.tmax))} / ${esc(F.deg(d.tmin))}</b><br><span>máxima e mínima</span></div></div>
             <div class="stats">${stats.map(([k, v, e]) => `<div><small>${esc(k)}</small><b class="num">${esc(v)}</b>${e ? `<em>${esc(e)}</em>` : ''}</div>`).join('')}</div>
             ${hours.length ? `<div class="sec-h"><h2>${next12 ? 'Próximas 12 horas' : 'Hora a hora'}</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
         if (hours.length) renderHourly($('#d-chart'), hours, { todayIso: today });
@@ -1501,6 +1515,7 @@ document.addEventListener('click', (ev) => {
     if (d.rz) { stopRadar(); cfg.rz = +d.rz; saveCfg(); render(); return; }
     if (d.report) { submitReport(d.report); return; }
     if (d.fs) { cfg.fs = d.fs; saveCfg(); applyFs(); render(); return; }
+    if (d.act === 'anim-on' || d.act === 'anim-off') { cfg.anim = d.act === 'anim-on'; saveCfg(); render(); return; }
     if (d.lv) { cfg.lv = d.lv; saveCfg(); render(); return; }
     if (d.ll != null) { cfg.ll = +d.ll; saveCfg(); render(); return; }
     if (d.pick != null) { const r = lastRes[+d.pick]; if (r) { closeSheet(); setLocation({ lat: r.lat, lon: r.lon, name: r.name }); } return; }

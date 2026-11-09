@@ -545,3 +545,63 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 .mt-toast::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--up); }
 .t-undo { color: var(--text); text-decoration: underline; }
 
+
+/* ---------- 1.9: o tempo a mexer — o céu do cartão «Agora» (sky.js) e os ícones grandes (.wx.anim) ---------- */
+.now { position: relative; overflow: hidden; isolation: isolate; }
+.now > :not(.sky) { position: relative; z-index: 1; }
+.sky { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; border-radius: inherit; contain: strict; }
+/* :where — peso mínimo, para cada peça escolher a sua animação */
+:where(.sky) i { position: absolute; display: block; animation: 1s linear infinite both; }
+.sky.off i, .sky.off i::after { animation-play-state: paused !important; }
+/* brilho do sol (ou da lua), a respirar */
+.sky-glow { top: -46%; right: -24%; width: 82%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 197, 49, .36), rgba(255, 197, 49, .12) 52%, transparent);
+    animation-name: sky-glow; animation-duration: 7s; animation-timing-function: ease-in-out; animation-direction: alternate; }
+.sky-glow.moon { background: radial-gradient(closest-side, rgba(170, 180, 255, .26), rgba(130, 140, 240, .09) 55%, transparent); }
+@keyframes sky-glow { from { transform: scale(.94); opacity: .78; } to { transform: scale(1.1); opacity: 1; } }
+.sky-st { border-radius: 50%; background: #fff; animation-name: sky-star; animation-timing-function: ease-in-out; animation-direction: alternate; }
+@keyframes sky-star { from { opacity: .12; transform: scale(.7); } to { opacity: .95; transform: scale(1.15); } }
+/* nuvens: manchas suaves a atravessar (mais depressa com vento) */
+.sky-c { left: 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(233, 238, 245, .17), rgba(233, 238, 245, .07) 58%, transparent); animation-name: sky-cloud; }
+.sky-c.dark { background: radial-gradient(closest-side, rgba(150, 156, 190, .26), rgba(120, 126, 160, .1) 58%, transparent); }
+@keyframes sky-cloud { from { transform: translate3d(-112%, 0, 0); } to { transform: translate3d(var(--to, 180%), 0, 0); } }
+.sky-f { left: -30%; width: 160%; height: 38%; background: radial-gradient(50% 50% at 50% 50%, rgba(205, 210, 220, .2), rgba(205, 210, 220, .08) 60%, transparent);
+    animation-name: sky-fog; animation-timing-function: ease-in-out; animation-direction: alternate; }
+@keyframes sky-fog { from { transform: translate3d(-9%, 0, 0); } to { transform: translate3d(9%, 0, 0); } }
+/* chuva, granizo e neve: cada gota numa «pista» com a altura do cartão (a inclinação vem do vento: --a) */
+.sky-r, .sky-h, .sky-s { top: 0; width: 2px; height: 100%; transform-origin: 50% 0; }
+.sky-r { animation-name: sky-fall; opacity: var(--o, .6); }
+.sky-r::after { content: ''; position: absolute; left: 0; top: 0; width: 1.6px; height: var(--l, 14px); border-radius: 2px; background: linear-gradient(transparent, rgba(110, 175, 255, .95)); }
+.sky-r.dz::after { width: 2px; height: 5px; background: rgba(110, 175, 255, .85); }
+.sky-h { animation-name: sky-fall; }
+.sky-h::after { content: ''; position: absolute; left: -1px; top: 0; width: 4px; height: 4px; border-radius: 50%; background: rgba(225, 238, 252, .85); }
+@keyframes sky-fall { from { transform: rotate(var(--a, 8deg)) translate3d(0, -14%, 0); } to { transform: rotate(var(--a, 8deg)) translate3d(0, 122%, 0); } }
+.sky-s { animation-name: sky-snow; opacity: var(--o, .7); }
+.sky-s::after { content: ''; position: absolute; left: 0; top: 0; width: var(--z, 4px); height: var(--z, 4px); border-radius: 50%; background: rgba(235, 244, 255, .92); animation: sky-sway var(--sw, 3s) ease-in-out infinite alternate; }
+@keyframes sky-snow { from { transform: translate3d(0, -6%, 0); } to { transform: translate3d(0, 106%, 0); } }
+@keyframes sky-sway { from { transform: translate3d(-7px, 0, 0); } to { transform: translate3d(7px, 0, 0); } }
+/* relâmpago: dois clarões curtos de 9 em 9 s */
+.sky-fl { inset: 0; background: radial-gradient(120% 90% at 70% 0, rgba(215, 205, 255, .55), transparent 70%); opacity: 0; animation-name: sky-flash; animation-duration: 9s; }
+@keyframes sky-flash { 0%, 90%, 100% { opacity: 0; } 91% { opacity: .85; } 92.2% { opacity: .1; } 93.4% { opacity: .6; } 96% { opacity: 0; } }
+
+/* ícones grandes: as peças mexem (as classes estão em todos os ícones; só os .anim se animam) */
+.wx.anim .wx-rays { animation: wx-spin 26s linear infinite; }
+.wx.anim .wx-sun { animation: wx-pulse 3.6s ease-in-out infinite alternate; }
+.wx.anim .wx-moon { transform-box: fill-box; transform-origin: 50% 50%; animation: wx-rock 5s ease-in-out infinite alternate; }
+.wx.anim .wx-cloud { animation: wx-drift 5.5s ease-in-out infinite alternate; }
+.wx.anim .wx-cloud + .wx-cloud { animation-duration: 7s; animation-direction: alternate-reverse; }
+.wx.anim .wx-drop { animation: wx-drop 1s linear infinite; animation-delay: calc(var(--i, 0) * -.37s); }
+.wx.anim .wx-flake { transform-box: fill-box; transform-origin: 50% 50%; animation: wx-flake 3.2s linear infinite; animation-delay: calc(var(--i, 0) * -1.1s); }
+.wx.anim .wx-hail { animation: wx-hail 1.1s ease-in infinite; animation-delay: calc(var(--i, 0) * -.4s); }
+.wx.anim .wx-bolt { animation: wx-bolt 3.4s linear infinite; }
+.wx.anim .wx-fogl { animation: wx-fog 4.5s ease-in-out infinite alternate; animation-delay: calc(var(--i, 0) * -1.3s); }
+@keyframes wx-spin { to { transform: rotate(360deg); } }
+@keyframes wx-pulse { from { transform: scale(.94); } to { transform: scale(1.06); } }
+@keyframes wx-rock { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@keyframes wx-drift { from { transform: translateX(-1.6px); } to { transform: translateX(1.6px); } }
+@keyframes wx-drop { 0% { transform: translate(1.5px, -5px); opacity: 0; } 25% { opacity: 1; } 75% { opacity: 1; } 100% { transform: translate(-2.4px, 8px); opacity: 0; } }
+@keyframes wx-flake { 0% { transform: translateY(-5px) rotate(0); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(7px) rotate(120deg); opacity: 0; } }
+@keyframes wx-hail { 0% { transform: translateY(-7px); opacity: 0; } 30% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(5px); opacity: 0; } }
+@keyframes wx-bolt { 0%, 62%, 100% { opacity: .25; } 64% { opacity: 1; } 68% { opacity: .35; } 71% { opacity: 1; } 84% { opacity: 1; } 92% { opacity: .25; } }
+@keyframes wx-fog { from { transform: translateX(-3px); } to { transform: translateX(3px); } }
+/* sem movimento (preferência do sistema ou Ajustes → Animações: Não): o céu não se mostra e os ícones ficam parados */
+@media (prefers-reduced-motion: reduce) { .sky { display: none; } }

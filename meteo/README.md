@@ -104,6 +104,14 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## O tempo a mexer (1.9)
+
+O cartão **Agora** tem um céu animado por trás da temperatura (`sky.js`): chuva a cair (mais gotas com mais chuva, mais
+inclinada com mais vento), neve, nuvens a passar (mais depressa com vento), o brilho do sol ou da lua, estrelas, nevoeiro e
+relâmpagos. Os **ícones grandes** (Agora, folha do dia) também mexem: os raios do sol rodam, as gotas e os flocos caem, o
+raio pisca. Só CSS (transform e opacity), parado quando o cartão sai do ecrã; os ícones pequenos das listas e dos gráficos
+ficam quietos. Desliga-se em **Ajustes → Avançado → Preferências → Animações**, e respeita «Reduzir movimento» do sistema.
+
 ## Simples (1.7)
 
 Como a app da Trade Republic: o essencial à vista e o resto em «Ver mais», que fica aberto enquanto a app está aberta.
