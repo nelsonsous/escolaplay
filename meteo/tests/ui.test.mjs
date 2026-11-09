@@ -141,7 +141,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/fogos') return fulfill(r, FOGOS);
         if (p === '/api/raw/om/forecast') return fulfill(r, RAW.det);
         if (p === '/api/obs-history') return fulfill(r, []);
-        if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName }); }
+        if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName, device: true }); }
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: SCHEDULE,
             device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
         if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
@@ -220,7 +220,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const page = await ctx.newPage();
     await page.clock.setFixedTime(new Date(NOW));
     page.on('pageerror', (e) => { errors.push('pageerror: ' + e.message); if (process.env.STACK) console.log(e.stack); });
-    page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::/.test(m.text())) errors.push('console: ' + m.text()); });
+    // 409 = resposta prevista do conector («limite»: a app muda o local)
+    page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::|status of 409/.test(m.text())) errors.push('console: ' + m.text()); });
     page.on('dialog', (d) => { errors.push('dialog (XSS?): ' + d.message()); d.dismiss(); });
     const shot = async (name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, name), fullPage: true }); } };
     const noOverflow = async (where) => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `sem scroll horizontal em ${where}`);
@@ -267,7 +268,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('Agora (sem análise)');
     await shot('02-agora-sem-analise.png');
     await page.click('#cl-teaser [data-act="place-on"]');
+    // o 1.º registo pede o nome (obrigatório); depois liga
+    await page.waitForSelector('#f-myname');
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 0, 'sem nome não liga');
+    await page.click('[data-act="name-sheet-save"]');
+    await toastIs(/Escreve o teu nome/);
+    await page.fill('#f-myname', 'Ana');
+    await page.click('[data-act="name-sheet-save"]');
     await toastIs(/Ligada\. A primeira análise chega hoje às 19:42/);
+    assert.deepEqual(namePatches, [{ name: 'Ana' }]);
     assert.deepEqual(postBody, { name: RAW.place.name, lat: LAT, lon: LON });
     await page.waitForFunction(() => /A análise diária do Claude está ligada para este local/.test(document.querySelector('#cl-teaser').textContent));
     // a tarefa agendada fez a primeira análise
@@ -615,7 +624,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await me.locator('#f-name').fill('  Nelson ');
     await me.locator('#f-name').press('Enter');
     await toastIs(/Nome guardado: Nelson\./);
-    assert.deepEqual(namePatches, [{ name: '  Nelson ' }]);
+    assert.deepEqual(namePatches, [{ name: 'Ana' }, { name: '  Nelson ' }]);
     assert.equal(await page.locator('#f-name').inputValue(), 'Nelson');
     console.log('✓ Ajustes: conector ligado, estado de', srcRows, 'fontes, relevo, letra grande, partilhar (sistema, copiar, à mão), notificações (19:00, hora, domingo, teste)');
 
@@ -674,7 +683,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.click('#cl-teaser [data-act="place-on"]');
     await toastIs(/A tua análise diária passa de Lisboa para este local/);
     assert.deepEqual(patchBody, { lat: 41.1496, lon: -8.611, name: 'Porto', on: true });
-    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 1, 'continua a haver 1 local');
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2, 'o conector responde «limite» e a app muda o local (continua a haver 1)');
     await page.click('#mt-toast .t-undo');
     await toastIs(/voltou para Lisboa/);
     assert.deepEqual(patchBody, { lat: 38.7536, lon: -9.2302, name: 'Lisboa' });

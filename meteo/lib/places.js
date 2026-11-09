@@ -6,6 +6,7 @@ import { haversine } from './stats.js';
 export const OWNER = 'owner';        // place.owner dos locais do dono; os dos outros telemóveis têm o id do telemóvel
 export const GUEST_MAX = 1;          // locais com análise diária por telemóvel (o dono não tem limite)
 export const ANALYSED_MAX = 15;      // limite de segurança: locais analisados em cada corrida (os do dono nunca são cortados)
+export const SHARE_KM = 5;           // na mesma cidade (≤ 5 km) os outros telemóveis juntam-se à análise que já existe
 export const PAUSE_DAYS = 14;        // telemóvel sem abrir a app há 14 dias → o seu local fica em pausa (volta quando abrir)
 export const MORNING_END_HOUR = 12;  // "só 1× por dia": só a corrida da manhã (07:34, hora de Lisboa < 12) analisa os outros
 export const STATS_TTL = 40 * 86400; // stats:<AAAA-MM-DD> (análises do dia) guardados 40 dias
@@ -16,6 +17,10 @@ export const KIND_PT = { owner: 'dono', guest: 'convidado' };
 /** Dono do local: o id do telemóvel, ou "owner". Migração: os locais de antes (sem dono) são do dono. */
 export const placeOwner = (p) => (p && typeof p.owner === 'string' && p.owner) || OWNER;
 export const isOwnerPlace = (p) => placeOwner(p) === OWNER;
+/** Os telemóveis que se juntaram ao local (a mesma análise, na mesma cidade), além de quem o ligou */
+export const placeMembers = (p) => (Array.isArray(p?.members) ? p.members.filter((x) => typeof x === 'string' && x) : []);
+/** A última vez que alguém do local abriu a app: quem o ligou ou quem se juntou (seenOf: id → data, ou null) */
+export const lastSeenOfPlace = (p, seenOf) => [placeOwner(p), ...placeMembers(p)].map(seenOf).filter((x) => typeof x === 'string' && x).sort().pop() || null;
 export const placeKind = (p) => (isOwnerPlace(p) ? 'owner' : 'guest');
 /** O valor guardado em settings (KV) → 'on' | '1x' | 'off' (por omissão, ligada). */
 export const othersMode = (s) => (s && typeof s === 'object' && Object.hasOwn(OTHERS, s.others) ? s.others : 'on');
@@ -65,7 +70,7 @@ export function selectPlaces(places, { devices = {}, others = 'on', now = Date.n
         if (p.off) skip.push({ ...p, kind: 'owner', reason: 'desligado' });
         else run.push({ ...p, kind: 'owner' });
     }
-    const guests = ok.filter((p) => !isOwnerPlace(p)).map((p) => ({ ...p, kind: 'guest', lastSeen: devices[p.owner]?.lastSeen || null }));
+    const guests = ok.filter((p) => !isOwnerPlace(p)).map((p) => ({ ...p, kind: 'guest', lastSeen: lastSeenOfPlace(p, (id) => devices[id]?.lastSeen) }));
     guests.sort((a, b) => String(b.lastSeen || '').localeCompare(String(a.lastSeen || '')) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
     for (const g of guests) {
         const reason = g.off ? (g.offBy === 'owner' ? 'desligado pelo dono' : 'desligado')
@@ -127,8 +132,9 @@ export function usageSummary({ devices = [], places = [], stats = {}, others = '
     const seen = Object.fromEntries(devices.map((d) => [d.id, { lastSeen: d.s || null }]));
     // como seria a corrida da manhã (a mais completa): quem é analisado e porque fica alguém de fora
     const sel = selectPlaces(places, { devices: seen, others, now, cap, morning: true });
-    const row = (p, analysed) => ({ name: p.name, kind: p.kind, status: placeStatus(p, seen[p.owner]?.lastSeen, now), analysed,
-        ...(p.reason ? { reason: p.reason } : {}), ...(p.kind === 'guest' && Number.isFinite(ago(seen[p.owner]?.lastSeen)) ? { days: ago(seen[p.owner]?.lastSeen) } : {}) });
+    const row = (p, analysed) => ({ name: p.name, kind: p.kind, status: placeStatus(p, p.lastSeen, now), analysed,
+        ...(p.reason ? { reason: p.reason } : {}), ...(p.kind === 'guest' && Number.isFinite(ago(p.lastSeen)) ? { days: ago(p.lastSeen) } : {}),
+        ...(placeMembers(p).length ? { shared: placeMembers(p).length } : {}) });
     const list = [...sel.run.map((p) => row(p, true)), ...sel.skip.map((p) => row(p, false))]
         .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name, 'pt') : a.kind === 'owner' ? -1 : 1));
     const pl = { total: list.length, owner: 0, guests: 0, active: 0, paused: 0, off: 0, analysed: sel.run.length, cap, list };
@@ -139,7 +145,7 @@ export function usageSummary({ devices = [], places = [], stats = {}, others = '
     const pushOn = new Set(push);
     dv.list = devices.slice().sort((a, b) => String(b.s || '').localeCompare(String(a.s || '')) || String(a.id).localeCompare(String(b.id))).slice(0, 200)
         .map((d) => ({ id: shortId(d.id), name: d.n || null, days: Number.isFinite(ago(d.s)) ? ago(d.s) : null, owner: !!d.o,
-            places: places.filter((p) => (d.o ? !p.owner || p.owner === OWNER || p.owner === d.id : p.owner === d.id)).map((p) => p.name),
+            places: places.filter((p) => (d.o ? !p.owner || p.owner === OWNER || p.owner === d.id : p.owner === d.id) || placeMembers(p).includes(d.id)).map((p) => p.name),
             push: pushOn.has(d.id) }));
     return { today, devices: dv, places: pl, analyses, others: Object.hasOwn(OTHERS, others) ? others : 'on' };
 }
