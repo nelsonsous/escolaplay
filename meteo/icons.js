@@ -3,13 +3,14 @@ import { wxGroup } from './format.js';
 
 // ---------- peças ----------
 const cloud = (tx = 0, ty = 0, s = 1, fill = 'var(--wx-cloud)') =>
-  `<g transform="translate(${tx} ${ty}) scale(${s})" fill="${fill}"><circle cx="24" cy="36" r="10"/><circle cx="36" cy="30" r="13"/><circle cx="46" cy="38" r="8"/><rect x="14" y="36" width="40" height="12" rx="6"/></g>`;
+  `<g class="wx-cloud"><g transform="translate(${tx} ${ty}) scale(${s})" fill="${fill}"><circle cx="24" cy="36" r="10"/><circle cx="36" cy="30" r="13"/><circle cx="46" cy="38" r="8"/><rect x="14" y="36" width="40" height="12" rx="6"/></g></g>`;
 
 function sun(cx, cy, r, rays = true) {
-  let s = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--wx-sun)"/>`;
+  const o = `style="transform-origin:${cx}px ${cy}px"`; // as animações (rodar, pulsar) são à volta do centro do sol
+  let s = `<circle class="wx-sun" ${o} cx="${cx}" cy="${cy}" r="${r}" fill="var(--wx-sun)"/>`;
   if (rays) {
     const r1 = r + 4.5, r2 = r + 9;
-    s += '<g stroke="var(--wx-sun)" stroke-width="3" stroke-linecap="round">';
+    s += `<g class="wx-rays" ${o} stroke="var(--wx-sun)" stroke-width="3" stroke-linecap="round">`;
     for (let k = 0; k < 8; k++) {
       const a = (k * Math.PI) / 4;
       const c = Math.cos(a), si = Math.sin(a);
@@ -21,16 +22,16 @@ function sun(cx, cy, r, rays = true) {
 }
 // crescente: círculo (32,32) r15 menos círculo (40,25) r13
 const moon = (tx = 0, ty = 0, s = 1) =>
-  `<path transform="translate(${tx} ${ty}) scale(${s})" fill="var(--wx-moon)" d="M29.6 17.19A15 15 0 1 0 46.36 36.34A13 13 0 0 1 29.6 17.19Z"/>`;
+  `<g class="wx-moon"><path transform="translate(${tx} ${ty}) scale(${s})" fill="var(--wx-moon)" d="M29.6 17.19A15 15 0 1 0 46.36 36.34A13 13 0 0 1 29.6 17.19Z"/></g>`;
 
 function drops(n, y0 = 46) {
   const xs = n === 1 ? [32] : n === 2 ? [26, 38] : [22, 32, 42];
   return `<g stroke="var(--wx-rain)" stroke-width="3" stroke-linecap="round">${xs
-    .map((x) => `<line x1="${x}" y1="${y0}" x2="${x - 3}" y2="${y0 + 10}"/>`)
+    .map((x, i) => `<line class="wx-drop" style="--i:${i}" x1="${x}" y1="${y0}" x2="${x - 3}" y2="${y0 + 10}"/>`)
     .join('')}</g>`;
 }
 const drizzle = (y0 = 48) =>
-  `<g fill="var(--wx-rain)">${[22, 32, 42].map((x, i) => `<circle cx="${x - i}" cy="${y0 + (i % 2) * 5}" r="2"/><circle cx="${x - 3 - i}" cy="${y0 + 8 + (i % 2) * 2}" r="2"/>`).join('')}</g>`;
+  `<g fill="var(--wx-rain)">${[22, 32, 42].map((x, i) => `<circle class="wx-drop" style="--i:${i}" cx="${x - i}" cy="${y0 + (i % 2) * 5}" r="2"/><circle class="wx-drop" style="--i:${i + 1.5}" cx="${x - 3 - i}" cy="${y0 + 8 + (i % 2) * 2}" r="2"/>`).join('')}</g>`;
 function flake(x, y, r = 4) {
   let s = '';
   for (let k = 0; k < 3; k++) {
@@ -41,11 +42,11 @@ function flake(x, y, r = 4) {
   return s;
 }
 const flakes = (y0 = 50) =>
-  `<g stroke="var(--wx-snow)" stroke-width="2.2" stroke-linecap="round">${flake(22, y0)}${flake(34, y0 + 6)}${flake(44, y0 - 1)}</g>`;
-const ice = (y0 = 56) => `<g fill="var(--wx-snow)"><circle cx="20" cy="${y0}" r="2.2"/><circle cx="44" cy="${y0 - 3}" r="2.2"/></g>`;
-const bolt = `<path fill="var(--wx-bolt)" d="M34 41l-9 12h7l-3 10 11-14h-7l4-8z"/>`;
-const hail = `<g fill="var(--wx-snow)"><circle cx="20" cy="52" r="2.4"/><circle cx="46" cy="54" r="2.4"/><circle cx="24" cy="60" r="2.4"/></g>`;
-const fog = `<g stroke="var(--wx-fog)" stroke-width="3.2" stroke-linecap="round"><line x1="12" y1="46" x2="52" y2="46"/><line x1="16" y1="53" x2="48" y2="53"/><line x1="22" y1="60" x2="44" y2="60"/></g>`;
+  `<g stroke="var(--wx-snow)" stroke-width="2.2" stroke-linecap="round">${[[22, y0], [34, y0 + 6], [44, y0 - 1]].map(([x, y], i) => `<g class="wx-flake" style="--i:${i}">${flake(x, y)}</g>`).join('')}</g>`;
+const ice = (y0 = 56) => `<g fill="var(--wx-snow)"><circle class="wx-hail" style="--i:0" cx="20" cy="${y0}" r="2.2"/><circle class="wx-hail" style="--i:1" cx="44" cy="${y0 - 3}" r="2.2"/></g>`;
+const bolt = `<path class="wx-bolt" fill="var(--wx-bolt)" d="M34 41l-9 12h7l-3 10 11-14h-7l4-8z"/>`;
+const hail = `<g fill="var(--wx-snow)"><circle class="wx-hail" style="--i:0" cx="20" cy="52" r="2.4"/><circle class="wx-hail" style="--i:1" cx="46" cy="54" r="2.4"/><circle class="wx-hail" style="--i:2" cx="24" cy="60" r="2.4"/></g>`;
+const fog = `<g stroke="var(--wx-fog)" stroke-width="3.2" stroke-linecap="round"><line class="wx-fogl" style="--i:0" x1="12" y1="46" x2="52" y2="46"/><line class="wx-fogl" style="--i:1" x1="16" y1="53" x2="48" y2="53"/><line class="wx-fogl" style="--i:2" x1="22" y1="60" x2="44" y2="60"/></g>`;
 
 /** Corpo do ícone (sem <svg>), para embutir em gráficos. */
 export function weatherIconInner(code, isDay = true) {
@@ -71,10 +72,10 @@ export function weatherIconInner(code, isDay = true) {
   }
 }
 
-/** Ícone de tempo completo (SVG inline). */
-export function weatherIcon(code, isDay = true, size = 48, label = '') {
+/** Ícone de tempo completo (SVG inline). anim: as peças mexem (sol, chuva, neve, trovoada…) — só nos ícones grandes. */
+export function weatherIcon(code, isDay = true, size = 48, label = '', anim = false) {
   const a = label ? `role="img" aria-label="${escAttr(label)}"` : 'aria-hidden="true"';
-  return `<svg class="wx" width="${size}" height="${size}" viewBox="0 0 64 64" ${a}>${weatherIconInner(code, isDay)}</svg>`;
+  return `<svg class="wx${anim ? ' anim' : ''}" width="${size}" height="${size}" viewBox="0 0 64 64" ${a}>${weatherIconInner(code, isDay)}</svg>`;
 }
 
 // ---------- interface ----------
