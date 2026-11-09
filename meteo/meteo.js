@@ -14,7 +14,7 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 
-const VERSION = '1.8.1';
+const VERSION = '1.8.2';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -32,6 +32,7 @@ const RAIN_CLS = (mmh) => (mmh >= 10 ? 'r3' : mmh >= 2.5 ? 'r2' : mmh >= RADAR.w
 const REPORT_ICON = { chuva: 61, 'chuva-forte': 65, 'nao-chove': 2, nevoeiro: 45, granizo: 89, trovoada: 95 };
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
 const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
+const SHARE_KM = 5; // como o conector (lib/places.js): na mesma cidade junta-se à análise que já existe
 const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
 const APP_URL = 'https://nelsonsous.github.io/escolaplay/meteo/';
@@ -780,7 +781,7 @@ function viewAnalysis() {
                 <span class="w-when">${esc(forTxt(ap))}</span>
                 <p>${esc(ap.moved ? `O tempo aqui pode ser diferente. A análise diária já passou para este ponto: a próxima chega ${nextRun()}.`
                     : 'O tempo aqui pode ser diferente (altitude, relevo, distância ao mar).')}</p>
-                ${ap.reg && !ap.moved ? `<button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button>` : ''}</div></div>`;
+                ${ap.reg && !ap.moved && !ap.reg.shared ? `<button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button>` : ''}</div></div>`;
         }
         h += `<article class="today">
             <div class="adv-src">Análise do Claude <span>· ${a.by === 'claude-api' ? 'a pedido' : 'agendada'}${hm ? ` às ${esc(hm)}` : ''}${r.offline ? ' · guardada' : ''}</span></div>
@@ -850,7 +851,7 @@ function obsHtml(fc) {
         <p class="note">Cada estação é levada à altitude do ponto (0,65° por 100 m) e pesa pela distância, pela altitude parecida e por ser recente; as muito diferentes das outras ficam de fora. Juntas dão ${esc(F.deg(o.temp, 1))} a ${esc(F.km(o.distanceKm))} em média${F.isNum(o.repr) ? ` · confiança ${esc(F.pct(o.repr * 100))}` : ''}.</p></section>`;
 }
 // o local deste telemóvel com a análise diária ligada aqui (≤ 2 km do ponto selecionado)
-const nearPlace = () => (cfg.loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= FAR_KM) : null);
+const nearPlace = () => (cfg.loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= (p.shared ? SHARE_KM : FAR_KM)) : null);
 function reliabilityHtml(fc) {
     const ind = fc.indicators || {}, ver = fc.verification, learnBest = fc.learning?.best?.t?.[1] || null;
     const byId = Object.fromEntries((fc.models || []).map((m) => [m.id, m]));
@@ -969,25 +970,39 @@ function viewSettings() {
     return { title, html: h };
 }
 
-// ---------- este telemóvel: o código curto e o nome (opcional) que o dono vê no painel Utilização ----------
+// ---------- este telemóvel: o código curto e o nome (obrigatório) que o dono vê no painel Utilização ----------
+// Abrir a app não regista nada no conector: o telemóvel fica registado quando a pessoa diz o nome (antes de ligar a
+// análise diária, as notificações ou dar um aviso).
+const hasName = () => !!st.status?.name;
+function ensureName(then = null) {
+    if (hasName()) return true;
+    st.afterName = then;
+    openSheet('nome');
+    return false;
+}
 function meHtml() {
     const S = st.status;
-    if (!S?.device) return '';
-    return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2><span class="sub num">código ${esc(S.id || '')}</span></div><div class="form">
-        <div><label for="f-name">O teu nome <small>(opcional)</small></label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
-        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização. Sem nome, aparece o código.'} A tua localização não é registada.</div></div>
+    if (!S) return '';
+    return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2>${S.device && S.id ? `<span class="sub num">código ${esc(S.id)}</span>` : ''}</div><div class="form">
+        <div><label for="f-name">O teu nome</label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
+        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização.'} É obrigatório para ligar a análise diária, as notificações e os avisos. A tua localização não é registada.</div></div>
     </div></section>`;
 }
-async function nameSave() {
-    const inp = $('#f-name');
+async function nameSave(id = 'f-name') {
+    const inp = $('#' + id);
     if (!inp) return;
     inp.blur();
+    if (!inp.value.trim()) { toast('Escreve o teu nome.'); return; }
     try {
         const r = await api.setMyName(inp.value);
-        st.status = { ...(st.status || {}), name: r?.name || null };
-        toast(r?.name ? `Nome guardado: ${r.name}.` : 'Nome apagado: aparece só o código.');
-    } catch (e) { toast(e.message); }
-    render();
+        st.status = { ...(st.status || {}), name: r?.name || null, device: true, ...(r?.id ? { id: r.id } : {}) };
+        const then = st.afterName;
+        st.afterName = null;
+        if (st.sheet?.kind === 'nome') closeSheet();
+        toast(`Nome guardado: ${r?.name}.`);
+        render();
+        if (then) await then();
+    } catch (e) { toast(e.message); render(); }
 }
 
 // ---------- notificações do fim do dia ----------
@@ -1036,6 +1051,8 @@ async function pushSend(changes = {}, { create = false } = {}) {
 }
 // ligar: o pedido de autorização tem de sair logo do toque (sem esperas antes)
 function pushOn() {
+    // o pedido de autorização tem de vir de um toque: depois do nome, toca-se outra vez em «Ligar»
+    if (!ensureName(() => toast('Agora toca em «Ligar» para receber as notificações.'))) return;
     if (!pushSupported()) return;
     const perm = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
     st.pushBusy = true; render();
@@ -1087,7 +1104,7 @@ function placeState(p) {
     return p.status === 'paused' ? `em pausa (${PAUSE_DAYS} dias sem abrir a app)` : 'em uso';
 }
 function placeRow(p, other = false) {
-    const where = other ? `~${F.num(p.lat, 2)}, ${F.num(p.lon, 2)} · ${placeState(p)}` : `${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`;
+    const where = other ? `~${F.num(p.lat, 2)}, ${F.num(p.lon, 2)} · ${placeState(p)}` : p.shared ? 'partilhada (já existia nesta cidade)' : `${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`;
     const act = !p.off ? `<button type="button" class="xbtn" data-rmplace="${esc(p.id)}" aria-label="${esc('Desligar ' + p.name)}">✕</button>`
         : other && p.offBy === 'owner' ? `<button type="button" class="btn sm" data-onplace="${esc(p.id)}">Ligar</button>` : '';
     return `<div class="wl-i${p.off ? ' off' : ''}"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(where)}</small></button>${act}</div>`;
@@ -1172,6 +1189,13 @@ function renderSheet() {
             ${onPlaces().length ? `<div class="grp-h" style="margin-top:18px">Com análise diária</div><div class="wl">${onPlaces().map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}`;
         return;
     }
+    if (s.kind === 'nome') {
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Como te chamas?</h2><div class="d-sub">É obrigatório para ligar a análise diária, as notificações e os avisos. Só o dono da app vê o nome.</div></div>${closeBtn}</div>
+            <div class="form"><input id="f-myname" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" aria-label="O teu nome">
+            <button type="button" class="btn pri blk" data-act="name-sheet-save">Continuar</button></div>`;
+        setTimeout(() => $('#f-myname')?.focus(), 50);
+        return;
+    }
     if (s.kind === 'report') {
         const cur = currentReport(), day = st.fc?.now?.isDay !== false;
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Está a chover?</h2>
@@ -1185,8 +1209,9 @@ function renderSheet() {
         if (!p) { closeSheet(); return; }
         const other = p.mine === false; // o dono a desligar o local de outro telemóvel
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Desligar a análise diária de ${esc(p.name)}?</h2>
-            <div class="d-sub">${other ? 'É o local de outro telemóvel.' : 'A análise atual fica guardada.'}</div></div>${closeBtn}</div>
+            <div class="d-sub">${other ? 'É o local de outro telemóvel.' : p.shared ? 'É uma análise partilhada.' : 'A análise atual fica guardada.'}</div></div>${closeBtn}</div>
             <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise do Claude e não a pode voltar a ligar; tu podes, em Ajustes.'
+                : p.shared ? 'Deixa de aparecer neste telemóvel; continua para quem a ligou.'
                 : `O Claude deixa de analisar este local às ${esc(schedTxt())}. Se voltares a ligar, aparece outra vez a última análise.`}</p>
             <div class="btns-col"><button type="button" class="btn blk danger" data-act="off-yes">Desligar</button><button type="button" class="btn blk" data-act="close">Cancelar</button></div>`;
         return;
@@ -1309,6 +1334,7 @@ async function togglePlace(on) {
     if (!cfg.loc) return;
     try {
         if (on) {
+            if (!nearPlace() && !ensureName(() => togglePlace(true))) return;
             if (nearPlace()) toast('A análise diária já está ligada para este local.');
             else await turnOn();
         } else {
@@ -1330,11 +1356,12 @@ async function turnOn() {
         loadAnalysis(cfg.loc);
         return;
     }
-    const one = !isOwner() && myPlaces()[0];
-    if (one) { await moveHere(one, name); return; }
+    // o conector decide: na mesma cidade junta-se à análise que já existe; senão cria (ou pede para mudar o seu local)
     try {
-        upsertPlace(await api.addPlace(name, lat, lon));
-        toast(`Ligada. A primeira análise chega ${nextRun()}.`);
+        const p = await api.addPlace(name, lat, lon);
+        if (p.shared) st.places = st.places.filter((x) => x.id === p.id || !(x.shared || (!isOwner() && x.mine !== false && !x.off)));
+        upsertPlace(p);
+        toast(p.shared ? `Ligada: usas a análise diária de ${p.name}, que já existia.` : `Ligada. A primeira análise chega ${nextRun()}.`);
     } catch (e) {
         if (e.code !== 'limite' || !e.data?.place) throw e;
         upsertPlace(e.data.place); // já tinha um local (noutro sítio): muda-o para aqui
@@ -1360,6 +1387,12 @@ async function placeOff(id) {
     if (!p) return;
     try {
         await api.deletePlace(p.id);
+        if (p.shared) { // sair da análise partilhada: deixa de aparecer aqui; «Desfazer» junta-se outra vez
+            st.places = st.places.filter((x) => x.id !== p.id);
+            render();
+            toast(`Deixaste de usar a análise diária de ${p.name}.`, () => api.addPlace(p.name, p.lat, p.lon).then((n) => { upsertPlace(n); render(); toast(`Voltaste a usar a análise de ${n.name}.`); }).catch((e) => toast(e.message)));
+            return;
+        }
         upsertPlace({ ...p, off: true, offBy: p.mine === false ? 'owner' : 'device' });
         render();
         toast(`Análise diária desligada para ${p.name}.`, () => placeBack(p));
@@ -1488,7 +1521,7 @@ document.addEventListener('click', (ev) => {
         case 'off-yes': placeOff(st.sheet?.arg?.id); break;
         case 'place-move': movePlaceHere(); break;
         case 'analyze': analyzeNow(); break;
-        case 'report': openSheet('report'); break;
+        case 'report': if (ensureName(() => openSheet('report'))) openSheet('report'); break;
         case 'rad-play': radarPlay(); break;
         case 'save-proxy': saveProxy(); break;
         case 'share': shareApp(); break;
@@ -1497,6 +1530,7 @@ document.addEventListener('click', (ev) => {
         case 'owner-forget': ownerForget(); break;
         case 'owner-save': ownerSave(); break;
         case 'name-save': nameSave(); break;
+        case 'name-sheet-save': nameSave('f-myname'); break;
         case 'push-on': pushOn(); break;
         case 'push-off': pushOff(); break;
         case 'push-sun-on': pushChange({ sunday: true }); break;
@@ -1516,6 +1550,7 @@ document.addEventListener('click', (ev) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.id === 'f-owner') { e.preventDefault(); ownerSave(); }
     if (e.key === 'Enter' && e.target.id === 'f-name') { e.preventDefault(); nameSave(); }
+    if (e.key === 'Enter' && e.target.id === 'f-myname') { e.preventDefault(); nameSave('f-myname'); }
 });
 // «Ver mais»: lembrar o que está aberto (a página redesenha-se com dados novos e não deve fechar o que a pessoa abriu)
 document.addEventListener('toggle', (e) => {
