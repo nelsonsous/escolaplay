@@ -1,4 +1,5 @@
 // Rotas do Worker com fetch e KV simulados.
+import { createHash } from 'node:crypto';
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../proxy/src/worker.js';
@@ -30,7 +31,17 @@ beforeEach(() => {
 });
 const call = (path, init = {}) => worker.fetch(new Request(ORIGIN + path, init), env, ctx);
 // um telemóvel novo: id e segredo ao acaso, como a app (api.js)
-const device = () => { seq++; return { id: `tel${String(seq).padStart(13, '0')}`, token: `segredo-${String(seq).padStart(4, '0')}-${'x'.repeat(30)}` }; };
+// (já registado, como depois de a pessoa dizer o nome; registered = false: só aberto, ainda sem registo)
+const device = (registered = true) => {
+    seq++;
+    const d = { id: `tel${String(seq).padStart(13, '0')}`, token: `segredo-${String(seq).padStart(4, '0')}-${'x'.repeat(30)}` };
+    if (registered) {
+        const now = new Date().toISOString();
+        env.KV.m.set('dev:' + d.id, JSON.stringify({ tokenHash: createHash('sha256').update(d.token).digest('hex'), firstSeen: now, lastSeen: now }));
+        env.KV.meta.set('dev:' + d.id, { s: lisbon().date, o: 0 });
+    }
+    return d;
+};
 function api(method, path, { d, owner, body, origin = ORIGIN } = {}) {
     const headers = {};
     if (origin) headers.origin = origin;
@@ -52,7 +63,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.6.1');
+    assert.equal(j.version, '1.6.2');
     assert.deepEqual(j.schedule, ['07:34', '13:34', '17:34', '20:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -82,15 +93,27 @@ test('proxies só para as fontes previstas', async () => {
     assert.match(upstream.at(-1), /view\.eumetsat\.int\/geoserver\/ows\?.*msg_fes%3Argb_airmass/);
 });
 
-test('identidade sem contas: regista na 1.ª utilização (só o hash do segredo), recusa um segredo errado, lastSeen no máx. 1× por dia', async () => {
-    const a = device();
+test('identidade sem contas: só regista com o nome (só o hash do segredo), recusa um segredo errado, lastSeen no máx. 1× por dia', async () => {
+    const a = device(false);
+    // abrir a app (ou o site no browser) não regista nada; ligar a análise, notificações ou avisos pedem o nome
+    for (const p of ['/api/status', '/api/places', '/api/analysis?lat=41&lon=-8']) assert.equal((await api('GET', p, { d: a })).status, 200, p);
+    assert.equal((await J('GET', '/api/status', { d: a })).body.device, false);
+    assert.ok(!env.KV.m.has('dev:' + a.id) && env.KV.writes === 0, 'nada gravado só por abrir');
+    for (const [m, p, body] of [['POST', '/api/places', { name: 'X', lat: 41, lon: -8 }], ['POST', '/api/reports', { kind: 'chuva', lat: 41, lon: -8 }]]) {
+        const r = await J(m, p, { d: a, body });
+        assert.deepEqual([r.status, r.body.error], [403, 'sem_nome'], `${m} ${p}`);
+    }
+    assert.deepEqual([(await J('PATCH', '/api/me', { d: a, body: { name: '  ' } })).status, env.KV.m.has('dev:' + a.id)], [400, false], 'o nome é obrigatório');
+    assert.equal((await J('PATCH', '/api/me', { d: a, body: { name: 'Ana' }, origin: 'https://evil.example' })).status, 403);
+    const reg = await J('PATCH', '/api/me', { d: a, body: { name: ' Ana ' } });
+    assert.deepEqual([reg.status, reg.body.name, reg.body.device], [200, 'Ana', true]);
     const s = await J('GET', '/api/status', { d: a });
-    assert.deepEqual([s.status, s.body.device, s.body.owner], [200, true, false]);
+    assert.deepEqual([s.status, s.body.device, s.body.owner, s.body.name], [200, true, false, 'Ana']);
     const rec = kvj('dev:' + a.id);
     assert.match(rec.tokenHash, /^[0-9a-f]{64}$/);
     assert.ok(!env.KV.m.get('dev:' + a.id).includes(a.token), 'o segredo não fica guardado');
     assert.equal(rec.firstSeen, rec.lastSeen);
-    assert.deepEqual(env.KV.meta.get('dev:' + a.id), { s: lisbon().date, o: 0 }, 'metadados para o painel do dono');
+    assert.deepEqual(env.KV.meta.get('dev:' + a.id), { s: lisbon().date, o: 0, n: 'Ana' }, 'metadados para o painel do dono');
     assert.equal(env.KV.opts.get('dev:' + a.id).expirationTtl, 400 * 86400);
     // mais pedidos no mesmo dia: nenhuma gravação (o plano gratuito só dá 1000 por dia)
     const w = env.KV.writes;
@@ -112,22 +135,20 @@ test('identidade sem contas: regista na 1.ª utilização (só o hash do segredo
     assert.equal(env.KV.writes, w + 1);
     assert.ok(Date.now() - Date.parse(kvj('dev:' + a.id).lastSeen) < 5000);
     assert.equal(kvj('dev:' + a.id).firstSeen, rec.firstSeen);
-    assert.deepEqual(env.KV.meta.get('dev:' + a.id), { s: lisbon().date, o: 0 });
+    assert.deepEqual(env.KV.meta.get('dev:' + a.id), { s: lisbon().date, o: 0, n: 'Ana' });
     // de outra origem, sem origem ou com um cabeçalho mal formado: anónimo e nada gravado (só a app regista telemóveis)
-    const b = device();
+    const b = device(false);
     assert.equal((await J('GET', '/api/status', { d: b, origin: 'https://evil.example' })).body.device, false);
     assert.equal((await J('GET', '/api/status', { d: b, origin: '' })).body.device, false);
     assert.ok(!env.KV.m.has('dev:' + b.id));
     assert.equal((await (await call('/api/status', { headers: { origin: ORIGIN, 'x-meteo-device': 'abc.def' } })).json()).device, false);
     assert.equal(env.KV.writes, w + 1);
-    // a app ao abrir faz vários pedidos ao mesmo tempo: um telemóvel novo (ou o 1.º pedido do dia) grava uma só vez
+    // a app ao abrir faz vários pedidos ao mesmo tempo: o 1.º pedido do dia grava uma só vez
     const c = device();
+    env.KV.m.set('dev:' + c.id, JSON.stringify({ ...kvj('dev:' + c.id), lastSeen: new Date(Date.now() - 2 * 864e5).toISOString() }));
     const many = await Promise.all(['/api/status', '/api/places', '/api/analysis?lat=41&lon=-8', '/api/reports?lat=41&lon=-8'].map((p) => api('GET', p, { d: c })));
     assert.ok(many.every((r) => r.status === 200));
     assert.equal(env.KV.writes, w + 2, 'pedidos simultâneos: 1 gravação');
-    env.KV.m.set('dev:' + c.id, JSON.stringify({ ...kvj('dev:' + c.id), lastSeen: new Date(Date.now() - 2 * 864e5).toISOString() }));
-    await Promise.all(['/api/status', '/api/places', '/api/places'].map((p) => api('GET', p, { d: c })));
-    assert.equal(env.KV.writes, w + 3);
 });
 
 test('dono: sem o segredo OWNER_CODE não há dono; com ele, o código certo vê e gere tudo, sem limite; os locais de antes (sem dono) são do dono', async () => {
@@ -276,6 +297,42 @@ test('privacidade: cada telemóvel só vê os seus locais e a sua análise; o do
     assert.equal((await J('PATCH', `/api/places/${pa.id}`, { d: a, body: { lat: 41.1622, lon: -8.622 } })).status, 200);
 });
 
+test('mesma cidade (≤ 5 km): o telemóvel novo junta-se à análise que já existe, em vez de criar outra', async () => {
+    env.OWNER_CODE = CODE;
+    const st = { id: 'santo-tirso', name: 'Santo Tirso', lat: 41.3354, lon: -8.4745, createdAt: '2026-11-01T10:00:00Z' };
+    env.KV.m.set('places', JSON.stringify([st]));
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ ...ANALISE, generatedAt: new Date().toISOString(), place: st }));
+    const v = device(), w = device(), longe = device();
+    // a 2 km: junta-se (o mesmo id), sem as coordenadas exatas do dono
+    const j = await J('POST', '/api/places', { d: v, body: { name: 'Areias', lat: 41.3500, lon: -8.4600 } });
+    assert.deepEqual([j.status, j.body.id, j.body.shared, j.body.mine, j.body.lat, j.body.approx], [200, 'santo-tirso', true, true, 41.34, true]);
+    assert.deepEqual(kvj('places').map((p) => [p.id, p.members]), [['santo-tirso', [v.id]]], 'nenhum local novo');
+    assert.equal((await J('POST', '/api/places', { d: v, body: { name: 'Areias', lat: 41.35, lon: -8.46 } })).body.id, 'santo-tirso', 'outra vez: o mesmo');
+    assert.equal(kvj('places')[0].members.length, 1);
+    assert.deepEqual((await J('GET', '/api/places', { d: v })).body.map((p) => [p.id, p.shared, p.status]), [['santo-tirso', true, 'active']]);
+    assert.equal((await J('GET', '/api/analysis?lat=41.35&lon=-8.46', { d: v })).body.analysis.titulo, ANALISE.titulo);
+    // não o muda de sítio; desligar é sair (a análise continua para o dono)
+    assert.equal((await J('PATCH', '/api/places/santo-tirso', { d: v, body: { lat: 41.5, lon: -8.4 } })).status, 403);
+    assert.equal((await api('DELETE', '/api/places/santo-tirso', { d: v })).status, 204);
+    assert.deepEqual([kvj('places')[0].members, kvj('places')[0].off], [[], undefined]);
+    assert.equal((await J('GET', '/api/analysis?lat=41.35&lon=-8.46', { d: v })).body.analysis, null);
+    // quem já tinha o seu local noutra cidade: junta-se e o seu fica desligado (1 análise por telemóvel)
+    const braga = (await J('POST', '/api/places', { d: w, body: { name: 'Braga', lat: 41.5454, lon: -8.4265 } })).body;
+    assert.equal(braga.shared, undefined);
+    const j2 = await J('POST', '/api/places', { d: w, body: { name: 'Santo Tirso', lat: 41.3354, lon: -8.4745 } });
+    assert.deepEqual([j2.status, j2.body.id], [200, 'santo-tirso']);
+    assert.deepEqual(kvj('places').map((p) => [p.id, !!p.off]), [['santo-tirso', false], [braga.id, true]]);
+    // e ao criar o seu noutra cidade, sai da partilhada
+    const porto = await J('POST', '/api/places', { d: longe, body: { name: 'Porto', lat: 41.1621, lon: -8.6219 } });
+    assert.equal(porto.status, 201, 'a 27 km: local próprio');
+    // notificações com a análise partilhada
+    const sub = await browserSub();
+    assert.equal((await J('POST', '/api/push', { d: w, body: { subscription: sub, time: '19:00', place: 'santo-tirso', tz: 'Europe/Lisbon' } })).status, 201);
+    // a análise dos outros desligada pelo dono: não se junta
+    env.KV.m.set('settings', JSON.stringify({ others: 'off' }));
+    assert.equal((await J('POST', '/api/places', { d: v, body: { name: 'Areias', lat: 41.35, lon: -8.46 } })).body.error, 'convidados_desligados');
+});
+
 test('PATCH /api/places/<id>: muda o ponto, mantém o id (análise e lições ficam), só da própria origem', async () => {
     env.OWNER_CODE = CODE;
     const me = { d: device(), owner: CODE };
@@ -340,13 +397,13 @@ test('aprendizagem: a memória do local do próprio telemóvel (≤ 3 km), tal c
     assert.equal((await J('GET', '/api/learning?lat=41.546&lon=-8.427', { d: a })).body.memory, null);
 });
 
-test('nome opcional por telemóvel: só o próprio o muda; o dono vê-o (ou o código curto) no painel Utilização', async () => {
+test('nome por telemóvel (obrigatório): só o próprio o muda; o dono vê-o (ou o código curto) no painel Utilização', async () => {
     env.OWNER_CODE = CODE;
     const ana = device(), dono = { d: device(), owner: CODE };
     let s0 = (await J('GET', '/api/status', { d: ana })).body;
     assert.deepEqual([s0.id, s0.name], [ana.id.slice(0, 6), null], 'o código curto deste telemóvel');
     let r = await J('PATCH', '/api/me', { d: ana, body: { name: '  Ana   Silva  ' } });
-    assert.deepEqual([r.status, r.body], [200, { id: ana.id.slice(0, 6), name: 'Ana Silva' }]);
+    assert.deepEqual([r.status, r.body], [200, { id: ana.id.slice(0, 6), name: 'Ana Silva', device: true }]);
     assert.equal(env.KV.meta.get('dev:' + ana.id).n, 'Ana Silva', 'na metadata: o painel lê tudo de uma vez');
     assert.equal(kvj('dev:' + ana.id).name, 'Ana Silva');
     assert.equal((await J('GET', '/api/status', { d: ana })).body.name, 'Ana Silva');
@@ -358,12 +415,11 @@ test('nome opcional por telemóvel: só o próprio o muda; o dono vê-o (ou o c�
     assert.deepEqual([row.name, row.days, row.owner, row.push], ['Ana Silva', 0, false, false]);
     assert.ok(u.devices.list.some((d) => d.owner && d.name === null), 'o do dono, sem nome: o código');
     assert.equal((await J('GET', '/api/usage', { d: ana })).status, 403, 'os outros não veem o painel');
-    // apagar o nome
+    // o nome não se apaga (é obrigatório): muda-se
     r = await J('PATCH', '/api/me', { d: ana, body: { name: '' } });
-    assert.equal(r.body.name, null);
-    assert.equal(env.KV.meta.get('dev:' + ana.id).n, undefined);
+    assert.deepEqual([r.status, r.body.error], [400, 'sem_nome']);
     s0 = (await J('GET', '/api/status', { d: ana })).body;
-    assert.equal(s0.name, null);
+    assert.equal(s0.name, 'Ana Silva');
 });
 
 // ---------- notificações do fim do dia ----------

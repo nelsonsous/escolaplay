@@ -12,7 +12,7 @@ import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
 import { satUrl, FOGOS_URL, IPMA } from '../lib/sources.js';
 import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns } from '../lib/engine.js';
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
-import { selectPlaces, isOwnerPlace, placeOwner, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
+import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
 import { WORKER, getJSON, kvGet, kvPut, arg } from './comum.mjs';
 
@@ -36,7 +36,7 @@ const kmPx = (km) => String(Math.round((km / W) * 100) / 100).replace('.', ',');
 // Locais registados na app (KV, como o conector os guarda) e quem os pode ter nesta corrida
 const all = (await kvGet('places')) || [];
 const settings = (await kvGet('settings').catch(() => null)) || {};
-const guestIds = [...new Set((Array.isArray(all) ? all : []).filter((p) => p && !isOwnerPlace(p)).map(placeOwner))];
+const guestIds = [...new Set((Array.isArray(all) ? all : []).filter((p) => p && !isOwnerPlace(p)).flatMap((p) => [placeOwner(p), ...placeMembers(p)]))];
 const devices = Object.fromEntries(await Promise.all(guestIds.map(async (id) => [id, await kvGet('dev:' + id).catch(() => null)])));
 const plan = selectPlaces(all, { devices, others: othersMode(settings) });
 const places = plan.run;
