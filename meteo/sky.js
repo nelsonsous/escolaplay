@@ -27,14 +27,14 @@ export function skyScene(code, isDay = true) {
         case 'partly': s.glow = true; s.clouds = 2; s.stars = day ? 0 : 8; break;
         case 'overcast': s.clouds = 3; break;
         case 'fog': s.fog = 3; s.clouds = 1; break;
-        case 'drizzle': s.clouds = 2; s.rain = 10; s.drizzle = true; break;
-        case 'freezing': s.clouds = 2; s.rain = 14; s.hail = 4; break;
-        case 'rain': s.clouds = 3; s.rain = code >= 65 ? 34 : code >= 63 ? 22 : 14; break;
-        case 'showers': s.clouds = 2; s.glow = true; s.rain = code >= 82 ? 30 : code >= 81 ? 20 : 14; break;
+        case 'drizzle': s.clouds = 2; s.rain = 90; s.drizzle = true; break;
+        case 'freezing': s.clouds = 2; s.rain = 90; s.hail = 4; break;
+        case 'rain': s.clouds = 3; s.rain = code >= 65 ? 230 : code >= 63 ? 150 : 95; break;
+        case 'showers': s.clouds = 2; s.glow = true; s.rain = code >= 82 ? 220 : code >= 81 ? 150 : 100; break;
         case 'snow': s.clouds = 2; s.snow = code >= 75 ? 26 : code >= 73 ? 18 : 12; break;
         case 'snowshowers': s.clouds = 2; s.glow = true; s.snow = code >= 86 ? 22 : 14; break;
-        case 'storm': s.clouds = 3; s.dark = true; s.rain = 26; s.flash = true; s.hail = code >= 96 ? 6 : 0; break;
-        case 'hail': s.clouds = 3; s.dark = true; s.rain = 16; s.hail = 8; break;
+        case 'storm': s.clouds = 3; s.dark = true; s.rain = 210; s.flash = true; s.hail = code >= 96 ? 6 : 0; break;
+        case 'hail': s.clouds = 3; s.dark = true; s.rain = 110; s.hail = 8; break;
         default: s.clouds = 2;
     }
     return s;
@@ -65,12 +65,9 @@ export function skyHtml(code, isDay = true, { wind = 0, t = 0 } = {}) {
         const d = 9 + r() * 6;
         h += `<i class="sky-f" style="top:${f1(14 + k * 26 + r() * 6)}%;animation-duration:${f1(d)}s;animation-delay:${at(d, r())}"></i>`;
     }
-    // chuva: cada gota cai numa «pista» à altura do cartão; mais vento, mais inclinada
+    // chuva: desenhada num canvas (startRain): gotas em três profundidades e salpicos no fundo; mais vento, mais inclinada
     const slant = clamp(5 + w * 0.35, 5, 24);
-    for (let k = 0; k < s.rain; k++) {
-        const d = (s.drizzle ? 1.5 : 0.62) + r() * (s.drizzle ? 0.9 : 0.5);
-        h += `<i class="sky-r${s.drizzle ? ' dz' : ''}" style="left:${f1(((k + r()) / s.rain) * 132 - 2)}%;--o:${f1(0.35 + r() * 0.5)};--l:${Math.round(10 + r() * 12)}px;animation-duration:${f1(d)}s;animation-delay:${at(d, r())}"></i>`;
-    }
+    if (s.rain) h += `<canvas class="sky-rain" data-n="${s.rain}" data-dz="${s.drizzle ? 1 : 0}" data-a="${f1(slant)}"></canvas>`;
     for (let k = 0; k < s.hail; k++) {
         const d = 0.9 + r() * 0.5;
         h += `<i class="sky-h" style="left:${f1(((k + r()) / s.hail) * 128)}%;animation-duration:${f1(d)}s;animation-delay:${at(d, r())}"></i>`;
@@ -82,4 +79,91 @@ export function skyHtml(code, isDay = true, { wind = 0, t = 0 } = {}) {
     if (s.flash) h += `<i class="sky-fl" style="animation-delay:${at(9, 0.4)}"></i>`;
     if (!h) return '';
     return `<div class="sky" aria-hidden="true" data-sky="${s.group}" style="--a:${f1(slant)}deg">${h}</div>`;
+}
+
+// ---------- chuva no canvas ----------
+// Cada gota tem profundidade z (0 longe .. 1 perto): as de perto são mais compridas, mais grossas, mais claras e mais
+// rápidas (paralaxe); caem inclinadas pelo vento e, as de perto, rebentam em salpicos perto do fundo do cartão.
+// O estado fica no módulo: quando a página se redesenha (canvas novo), a chuva continua de onde ia.
+const RAIN = { drops: [], splash: [], key: '', canvas: null, raf: 0, last: 0, io: null, vis: true };
+function seedDrop(d, w, h, top) {
+    const z = Math.random() ** 1.6; // mais gotas ao longe
+    d.z = z;
+    d.x = Math.random() * (w * 1.3) - w * 0.15;
+    d.y = top ? -Math.random() * h * 0.3 : Math.random() * h;
+    d.v = (0.75 + 0.9 * z) * h * (0.9 + Math.random() * 0.25); // px por segundo
+    d.l = (5 + 22 * z) * (0.85 + Math.random() * 0.3);
+    d.end = h * (0.82 + 0.18 * Math.random()) + 4 * z; // onde rebenta (as de perto, mais abaixo)
+    return d;
+}
+/** Liga (ou volta a ligar, se a página se redesenhou) a chuva a um canvas.sky-rain. */
+export function startRain(canvas) {
+    if (!canvas || typeof window === 'undefined') return;
+    const n = Number(canvas.dataset.n) || 0, dz = canvas.dataset.dz === '1', ang = (Number(canvas.dataset.a) || 8) * Math.PI / 180;
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const key = `${n}:${dz}`;
+    RAIN.canvas = canvas;
+    RAIN.io?.disconnect();
+    RAIN.io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => { RAIN.vis = es.some((e) => e.isIntersecting); if (RAIN.vis && !RAIN.raf) RAIN.raf = requestAnimationFrame(frame); }) : null;
+    RAIN.io?.observe(canvas);
+    const tanA = Math.tan(ang), sinA = Math.sin(ang), cosA = Math.cos(ang);
+    function frame(now) {
+        RAIN.raf = 0;
+        if (RAIN.canvas !== canvas || !canvas.isConnected) return;
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        if (!W || !H) return;
+        if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+        if (RAIN.key !== key || RAIN.w !== W || RAIN.h !== H) {
+            RAIN.drops = Array.from({ length: n }, () => seedDrop({}, W, H, false));
+            RAIN.splash = []; RAIN.key = key; RAIN.w = W; RAIN.h = H;
+        }
+        const dt = RAIN.last ? Math.min(0.05, (now - RAIN.last) / 1000) : 0.016;
+        RAIN.last = now;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        ctx.lineCap = 'round';
+        // três camadas (longe, meio, perto): um caminho por camada
+        for (const [z0, z1, alpha, lw] of [[0, 0.35, 0.22, 0.7], [0.35, 0.7, 0.38, 1.0], [0.7, 1.01, 0.5, 1.4]]) {
+            ctx.beginPath();
+            for (const d of RAIN.drops) {
+                if (d.z < z0 || d.z >= z1) continue;
+                const len = dz ? 2 + d.l * 0.15 : d.l;
+                ctx.moveTo(d.x, d.y);
+                ctx.lineTo(d.x + len * sinA, d.y - len * cosA); // o rasto fica para trás (cima, contra o vento)
+            }
+            ctx.strokeStyle = `rgba(175, 205, 255, ${dz ? alpha * 0.9 : alpha})`;
+            ctx.lineWidth = dz ? lw * 1.2 : lw;
+            ctx.stroke();
+        }
+        // salpicos: um arco que se abre e duas gotinhas que saltam
+        if (!dz) {
+            ctx.lineWidth = 0.8;
+            for (const s of RAIN.splash) {
+                const k = s.t / 0.32, a = (1 - k) * 0.55 * s.z;
+                ctx.strokeStyle = `rgba(190, 215, 255, ${a.toFixed(3)})`;
+                ctx.beginPath();
+                ctx.ellipse(s.x, s.y, 2 + 9 * k * s.z, 0.8 + 2.2 * k * s.z, 0, Math.PI, 2 * Math.PI);
+                ctx.stroke();
+                ctx.fillStyle = ctx.strokeStyle;
+                for (const sd of [-1, 1]) {
+                    const px = s.x + sd * (3 + 7 * k) * s.z, py = s.y - (9 * k - 12 * k * k) * s.z * 1.4;
+                    ctx.fillRect(px - 0.6, py - 0.6, 1.2, 1.2);
+                }
+            }
+        }
+        // andar
+        for (const d of RAIN.drops) {
+            d.y += d.v * dt;
+            d.x += d.v * dt * tanA * -1;
+            if (d.y >= d.end) {
+                if (!dz && d.z > 0.55 && RAIN.splash.length < 40) RAIN.splash.push({ x: d.x, y: d.end, z: d.z, t: 0 });
+                seedDrop(d, W, H, true);
+            }
+        }
+        for (const s of RAIN.splash) s.t += dt;
+        RAIN.splash = RAIN.splash.filter((s) => s.t < 0.32);
+        if (RAIN.vis && !canvas.classList.contains('stop')) RAIN.raf = requestAnimationFrame(frame); else RAIN.last = 0;
+    }
+    if (!RAIN.raf) RAIN.raf = requestAnimationFrame(frame);
 }
