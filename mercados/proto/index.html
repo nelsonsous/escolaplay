@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<title>Mercados · protótipo visual</title>
+<style>
+:root { --txt: #fff; --mudo: #8b8b93; --tenue: #55555c; --verde: #4ade80; --vermelho: #f87171; --linha: #1c1c1f; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: #000; }
+body { margin: 0; background: #000; color: var(--txt); font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; padding: env(safe-area-inset-top) 0 calc(28px + env(safe-area-inset-bottom)); }
+body::before { content: ''; position: fixed; z-index: 9; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #000; }
+main { max-width: 480px; margin: 0 auto; }
+header { padding: 18px 20px 6px; }
+header h1 { margin: 0; font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
+header p { margin: 2px 0 0; color: var(--mudo); font-size: .86rem; }
+section { padding: 18px 0 6px; }
+.cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 20px; }
+.cab h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.cab small { color: var(--mudo); font-size: .8rem; white-space: nowrap; }
+.preco { padding: 2px 20px 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.preco b { font-size: 2rem; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; transition: color .7s ease; }
+.preco b.sobe { animation: sobe .7s ease; } .preco b.desce { animation: desce .7s ease; }
+@keyframes sobe { 0% { color: var(--verde); } 100% { color: var(--txt); } }
+@keyframes desce { 0% { color: var(--vermelho); } 100% { color: var(--txt); } }
+.var { font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.verde { color: var(--verde); } .vermelho { color: var(--vermelho); }
+.vivo, .demo { font-size: .78rem; color: var(--mudo); }
+.vivo::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--verde); margin-right: 6px; animation: pisca 1.6s ease-in-out infinite; }
+@keyframes pisca { 50% { opacity: .25; } }
+canvas { display: block; width: 100%; }
+.graf { height: 210px; margin-top: 4px; }
+/* Hoje: o fundo é um campo da Onda na placa gráfica */
+.hoje { position: relative; margin: 10px 14px 0; border-radius: 18px; overflow: hidden; background: #060607; padding: 16px 18px 18px; isolation: isolate; }
+.hoje canvas { position: absolute; inset: 0; height: 100%; z-index: -1; }
+.hoje .topo { display: flex; justify-content: space-between; align-items: baseline; }
+.hoje h2 { margin: 0; font-size: 1.05rem; }
+.hoje .topo b { font-size: .95rem; }
+.hoje p { margin: 8px 0 0; font-size: .95rem; }
+.hoje p + p { margin-top: 4px; color: #c9c9d1; font-size: .88rem; }
+/* mapa */
+.mapa { position: relative; margin: 10px 16px 0; }
+.mapa canvas { touch-action: pan-y; border-radius: 6px; }
+#m-etq { position: absolute; z-index: 2; pointer-events: none; background: rgba(22, 22, 25, .96); border: 1px solid #2a2a2f; border-radius: 12px; padding: 9px 12px; max-width: 250px; box-shadow: 0 10px 30px rgba(0, 0, 0, .6); font-size: .86rem; }
+#m-etq b { display: block; font-size: .95rem; } #m-etq small { display: block; color: var(--mudo); margin: 1px 0 5px; }
+#m-etq span { font-weight: 650; font-variant-numeric: tabular-nums; } #m-etq i { font-style: normal; color: var(--mudo); margin-left: 8px; }
+#m-repor { position: absolute; z-index: 2; right: 8px; top: 8px; border: 0; border-radius: 999px; height: 34px; padding: 0 14px; background: #fff; color: #000; font: inherit; font-size: .85rem; font-weight: 650; }
+.leg { padding: 10px 20px 0; color: var(--mudo); font-size: .8rem; display: flex; gap: 14px; flex-wrap: wrap; }
+.leg i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+footer { padding: 26px 20px 0; color: var(--tenue); font-size: .76rem; }
+footer span { font-variant-numeric: tabular-nums; }
+.erro { color: var(--vermelho); padding: 20px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<header><h1>Mercados</h1><p>Protótipo visual · imagens calculadas em Onda</p></header>
+
+<div class="hoje"><canvas id="c-fundo"></canvas>
+    <div class="topo"><h2>Hoje</h2><b id="h-humor"></b></div>
+    <p id="h-1"></p><p id="h-2"></p>
+</div>
+
+<section>
+    <div class="cab"><h2>Bitcoin</h2><small id="e-vivo">a ligar…</small></div>
+    <div class="preco"><b id="p-btc">…</b><span class="var" id="v-btc"></span></div>
+    <canvas class="graf" id="c-btc"></canvas>
+</section>
+
+<section>
+    <div class="cab"><h2>FTSE All-World</h2><small>VWCE · 1 mês</small></div>
+    <div class="preco"><b id="p-vwce">…</b><span class="var" id="v-vwce"></span></div>
+    <canvas class="graf" id="c-vwce"></canvas>
+</section>
+
+<section>
+    <div class="cab"><h2>Mapa do mercado</h2><small>toca num ponto · dois dedos aproximam</small></div>
+    <div class="mapa"><canvas id="c-mapa"></canvas><button type="button" id="m-repor" hidden>Ver tudo</button><div id="m-etq" hidden></div></div>
+    <div class="leg"><span><i style="background:#4ade80"></i>sobe</span><span><i style="background:#f87171"></i>desce</span><span>mais brilho = maior variação · ETF, cripto e ações, por esta ordem</span></div>
+</section>
+
+<footer>Cada píxel é uma função escrita em Onda (WebAssembly; o fundo do «Hoje» corre na placa gráfica). <span id="rodape-fps"></span> · <span id="rodape-ms"></span></footer>
+</main>
+<script src="gerado/proto-dados.js?v=1"></script>
+<script src="proto.js?v=1"></script>
+</body>
+</html>
