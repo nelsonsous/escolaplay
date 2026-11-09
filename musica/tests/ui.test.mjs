@@ -298,6 +298,8 @@ test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal 
     await pb.getByRole('button', { name: 'Ligar outro aparelho' }).click();
     const codigo = (await pb.locator('.mu-codigo').textContent()).trim();
     assert.match(codigo, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    const waCod = await pb.getByRole('link', { name: 'Enviar por WhatsApp' }).getAttribute('href');
+    assert.ok(decodeURIComponent(waCod.split('?text=')[1]).includes(codigo), 'a mensagem pronta leva o código');
     const c = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     const pc = await c.newPage();
     pc.on('pageerror', (e) => erros.push(String(e)));
