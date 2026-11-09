@@ -147,6 +147,14 @@ test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byt
         sim.tabelas.pt = lista;
         await recolher(env, Date.parse('2026-11-01T04:23:00Z') + d * 864e5);
     }
+    // como correu: a playlist do dono no Tidal, com uma faixa guardada, uma tirada e «atualizar sozinha» ligado
+    const idx = JSON.parse(await env.KV.get('playlists'));
+    const doc = JSON.parse(await env.KV.get('playlist:' + idx[0].id));
+    const novas = doc.faixas.filter((f) => !['101', '102', '105'].includes(f.id)); // (estas já são favoritas no simulador)
+    sim.favoritasNovas = [{ id: novas[0].id, addedAt: new Date(Date.now() + 1000).toISOString() }];
+    sim.listas[doc.tidal.id] = (sim.listas[doc.tidal.id] || []).filter((x) => x.id !== novas[1].id);
+    const ren = await worker.fetch(new Request(`${base}/api/playlists/${doc.id}/renovar`, { method: 'POST', headers: { authorization: `Bearer ${CHAVE}`, 'content-type': 'application/json' }, body: '{"ativo":true}' }), env, { waitUntil() {} });
+    assert.equal(ren.status, 200);
     for (const agora of ['2026-11-13T09:30:00Z', '2026-07-03T22:59:00Z', '2027-03-28T00:59:59Z']) {
         const a = mkdtempSync(join(tmpdir(), 'musica-onda-')), b = mkdtempSync(join(tmpdir(), 'musica-js-'));
         const onda = await script('dados.mjs', [a], { agora });
@@ -232,6 +240,14 @@ test('paridade: o publicar da versão Onda mostra, recusa e grava como a versão
         for (const arco of ['plano', 'onda', 'desce']) igual(await ambos({ ...rica, opcoes: { ...rica.opcoes, estilo, arco } }, ['--ensaio']), `ensaio ${estilo}/${arco}`);
     }
 
+    // sem letras explícitas: a versão limpa no lugar da explícita; a que só existe explícita fica de fora
+    const limpa = { ...rica, opcoes: { ...rica.opcoes, limpa: true }, candidatas: [...rica.candidatas,
+        c('Pop Teste', 'Canção Forte', { ano: 2025, genero: 'Pop' }), c('Pop Teste', 'Só Explícita', { ano: 2025, genero: 'Pop', tidalId: '109' })] };
+    const l = await ambos(limpa, ['--ensaio']);
+    igual(l, 'sem letras explícitas');
+    assert.match(l.onda.stdout, /não encontradas: .*Pop Teste — Só Explícita/);
+    if (/Canção Forte/.test(l.onda.stdout)) assert.match(l.onda.stdout, /Pop Teste — Canção Forte \(Clean Edit\)|Canção Forte · 2025/);
+
     // gravar: o mesmo documento na biblioteca (tirando o id e a hora) e o mesmo publicada.json
     const gravar = async (nome) => {
         const r = await script(nome, [f, '--modelo', 'modelo-paridade', '--sem-tidal']);
@@ -249,6 +265,23 @@ test('paridade: o publicar da versão Onda mostra, recusa e grava como a versão
     assert.equal(o.bruto, j.bruto, 'o publicada.json, ao byte');
     assert.equal(o.doc.modelo, 'modelo-paridade');
     assert.equal(o.doc.faixas.length, 7);
+    // renovar a mesma playlist (a que se atualiza sozinha): as duas versões fazem o mesmo, no mesmo sítio
+    const id = JSON.parse(readFileSync(join(dir, 'publicada.json'), 'utf8')).id;
+    const renovarCom = async (nome) => {
+        writeFileSync(f, JSON.stringify({ ...rica, opcoes: { ...rica.opcoes, estilo: 'gosto' } }));
+        const r = await script(nome, [f, '--renovar', id, '--modelo', 'modelo-renovar', '--sem-tidal']);
+        assert.equal(r.code, undefined, r.stderr);
+        const d = JSON.parse(await env.KV.get('playlist:' + id));
+        for (const k of ['criadaEm', 'renovadaEm', 'renovacoes', 'historico']) delete d[k];
+        return { stdout: r.stdout, d };
+    };
+    const ro = await renovarCom('publicar.mjs'), rj = await renovarCom(join('js', 'publicar.mjs'));
+    assert.equal(ro.stdout, rj.stdout);
+    assert.match(ro.stdout, new RegExp(`Renovada: «Jazz, fado e companhia» \\(${id}\\)`));
+    assert.deepEqual(ro.d, rj.d);
+    assert.equal(ro.d.modelo, 'modelo-renovar');
+    assert.equal(ro.d.opcoes.estilo, 'gosto');
+    assert.equal(JSON.parse(await env.KV.get('playlist:' + id)).renovacoes, 2);
 });
 
 test('paridade: o normal() e a chave() da versão Onda são os do JavaScript (acentos, parênteses, « - ...», ruído de edição)', async () => {

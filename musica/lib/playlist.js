@@ -6,7 +6,8 @@
 //   "resumo": "2 a 6 frases: o que ouves, o que está a dar e porquê estas escolhas",
 //   "tendencias": ["o que está na moda e onde se viu (até 8)"],
 //   "pedido": "o pedido que originou a playlist (opcional)",
-//   "opcoes": { "faixas": 30, "maxArtista": 2, "estilo": "equilibrado|descoberta|moda|gosto|audiofilo", "arco": "onda|sobe|desce|plano" },
+//   "opcoes": { "faixas": 30, "maxArtista": 2, "estilo": "equilibrado|descoberta|moda|gosto|audiofilo", "arco": "onda|sobe|desce|plano",
+//               "limpa": true (opcional: sem letras explícitas) },
 //   "candidatas": [ { "artista", "titulo", "ano", "genero", "nota": 0-100, "energia": 0-100, "tendencia": 0-100,
 //                     "motivo": "até 140 caracteres", "fixa": false } ]
 // }
@@ -50,6 +51,8 @@ export function normalizarOpcoes(o = {}) {
         maxArtista: Math.round(num(o.maxArtista ?? o.perArtist, 1, 10) ?? 2),
         estilo: ESTILOS[o.estilo] ? o.estilo : 'equilibrado',
         arco: o.arco in ARCOS ? o.arco : 'onda',
+        // sem letras explícitas (para os mais novos): o conector procura a versão limpa de cada faixa
+        ...(o.limpa === true ? { limpa: true } : {}),
     };
 }
 

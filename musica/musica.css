@@ -231,3 +231,10 @@ button.mu-chip { cursor: pointer; }
 
 /* tendências */
 .mu-tend-nota { margin: -2px 2px 10px; }
+
+/* como correu e atualizar sozinha */
+.mu-interruptor { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.mu-correu .mu-interruptor:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.mu-interruptor b { display: block; font-size: 15px; }
+.mu-interruptor .mu-nota { display: block; margin-top: 2px; }
+.mu-interruptor .mu-btn[aria-pressed="true"] { background: var(--fg); color: #000; }

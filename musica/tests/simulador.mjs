@@ -6,7 +6,7 @@ export function kv() {
     return { m, get: async (k, t) => (m.has(k) ? (t === 'json' ? JSON.parse(m.get(k)) : m.get(k)) : null), put: async (k, v) => { m.set(k, String(v)); }, delete: async (k) => { m.delete(k); } };
 }
 
-export const ARTISTAS = { a1: 'Miles Davis', a2: 'Nina Simone', a3: 'Daft Punk', a4: 'Amália Rodrigues', a5: 'Massive Attack' };
+export const ARTISTAS = { a1: 'Miles Davis', a2: 'Nina Simone', a3: 'Daft Punk', a4: 'Amália Rodrigues', a5: 'Massive Attack', a6: 'Pop Teste' };
 export const FAIXAS = {
     '101': { title: 'So What', artists: ['a1'], album: ['al1', '1959-08-17', ['HIRES_LOSSLESS']], key: 'D', keyScale: 'DORIAN', bpm: 136.2, popularity: 0.81, duration: 'PT9M22S' },
     '102': { title: 'Feeling Good', artists: ['a2'], album: ['al2', '1965-01-01', ['LOSSLESS']], key: 'G', keyScale: 'MINOR', popularity: 0.86, duration: 'PT2M53S' },
@@ -14,16 +14,20 @@ export const FAIXAS = {
     '104': { title: 'Get Lucky (Live)', artists: ['a3'], album: ['al4', '2014-01-01', []], popularity: 0.4, duration: 'PT5M00S' },
     '106': { title: 'Teardrop', artists: ['a5'], album: ['al6', '1998-04-20', ['HIRES_LOSSLESS']], key: 'A', keyScale: 'MAJOR', bpm: 77, popularity: 0.7, duration: 'PT5M30S' },
     '105': { title: 'Barco Negro', artists: ['a4'], album: ['al5', '1955-01-01', ['LOSSLESS']], popularity: 0.5, duration: 'PT3M10S' },
+    // a mesma canção com letra explícita e na versão limpa (que a pesquisa dá abaixo)
+    '107': { title: 'Canção Forte', artists: ['a6'], album: ['al7', '2025-03-01', ['LOSSLESS']], popularity: 0.9, duration: 'PT3M00S', explicit: true },
+    '108': { title: 'Canção Forte', version: 'Clean Edit', artists: ['a6'], album: ['al8', '2025-03-01', ['LOSSLESS']], popularity: 0.5, duration: 'PT3M00S' },
+    '109': { title: 'Só Explícita', artists: ['a6'], album: ['al7', '2025-03-01', ['LOSSLESS']], popularity: 0.6, duration: 'PT2M40S', explicit: true },
 };
 for (let i = 0; i < 60; i++) FAIXAS[String(200 + i)] = { title: `Faixa ${i}`, artists: ['a1'], album: ['al1', '1959-08-17', ['LOSSLESS']], popularity: 0.3, duration: 'PT3M' };
 function recursoFaixa(id) {
     const f = FAIXAS[id];
-    return { id, type: 'tracks', attributes: { title: f.title, version: f.version, isrc: `USAAA${id.padStart(7, '0')}`, duration: f.duration, explicit: false, popularity: f.popularity,
+    return { id, type: 'tracks', attributes: { title: f.title, version: f.version, isrc: `USAAA${id.padStart(7, '0')}`, duration: f.duration, explicit: !!f.explicit, popularity: f.popularity,
         mediaTags: [], key: f.key || 'UNKNOWN', keyScale: f.keyScale || 'UNKNOWN', ...(f.bpm ? { bpm: f.bpm } : {}) },
         relationships: { artists: { data: f.artists.map((a) => ({ id: a, type: 'artists' })) }, albums: { data: [{ id: f.album[0], type: 'albums' }] }, genres: { data: id === '101' ? [{ id: 'g1', type: 'genres' }] : [] } } };
 }
 export function simulador() {
-    const sim = { criadas: [], itens: [], apagadas: [], removidos: [], nItem: 0, recusar401: false, chamadas: [], tokenBodies: [],
+    const sim = { criadas: [], itens: [], apagadas: [], removidos: [], nItem: 0, recusar401: false, chamadas: [], tokenBodies: [], favoritasNovas: [],
         // as mixes do Tidal são playlists com faixas
         listas: { 'mix-desc': [{ id: '106', itemId: 'm1' }, { id: '105', itemId: 'm2' }], 'mix-dia': [{ id: '101', itemId: 'm3' }] } };
     // as tabelas públicas das tendências (Apple Music PT e EUA, Deezer mundo): [artista, título, género]
@@ -71,7 +75,7 @@ function tidalSimulado(sim, u, init = {}) {
     if (p === '/userCollectionTracks/me/relationships/items') {
         const pag = url.searchParams.get('page[cursor]');
         return resp(pag ? { data: [{ id: '105', type: 'tracks', meta: { addedAt: '2026-01-01T00:00:00Z' } }], links: { self: '/x' } }
-            : { data: [{ id: '101', type: 'tracks', meta: { addedAt: '2026-10-01T00:00:00Z' } }, { id: '102', type: 'tracks' }], links: { self: '/x', next: '/userCollectionTracks/me/relationships/items?page[cursor]=c2&sort=-addedAt' } });
+            : { data: [...sim.favoritasNovas.map((x) => ({ id: x.id, type: 'tracks', meta: { addedAt: x.addedAt } })), { id: '101', type: 'tracks', meta: { addedAt: '2026-10-01T00:00:00Z' } }, { id: '102', type: 'tracks' }], links: { self: '/x', next: '/userCollectionTracks/me/relationships/items?page[cursor]=c2&sort=-addedAt' } });
     }
     if (p === '/userCollectionArtists/me/relationships/items') return resp({ data: [{ id: 'a2', type: 'artists' }], included: [{ id: 'a2', type: 'artists', attributes: { name: 'Nina Simone' } }], links: { self: '/x' } });
     if (p === '/playlists' && metodo === 'GET') return resp({ data: [{ id: 'pl-velha', type: 'playlists', attributes: { name: 'Jazz de domingo', numberOfItems: 12 } }], links: { self: '/x' } });
@@ -122,6 +126,7 @@ function tidalSimulado(sim, u, init = {}) {
         return resp(null, 204);
     }
     // as faixas de uma playlist, com o itemId de cada uma; e tirar faixas (pelo itemId)
+    if (it && metodo === 'GET' && sim.apagadas.includes(it[1])) return resp({ errors: [{ status: '404', detail: 'Playlist not found' }] }, 404);
     if (it && metodo === 'GET') return resp({ data: (sim.listas[it[1]] || []).map((x) => ({ id: x.id, type: 'tracks', meta: { itemId: x.itemId } })), links: { self: '/x' } });
     if (it && metodo === 'DELETE') {
         const b = JSON.parse(init.body);

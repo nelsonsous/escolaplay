@@ -4,6 +4,7 @@
 # escolher e ordenar, e grava a playlist na biblioteca da app (e no Tidal).
 #   node musica/curador/publicar.mjs <dir>/proposta.json [--utilizador <pessoa>] [--pedido <id>] [--modelo <id>]
 #        [--ensaio] (nao grava nada) [--sem-tidal] (so na biblioteca da app) [--aceitar-menos]
+#        [--renovar <id>] (renova essa playlist: no mesmo sitio da app e do Tidal)
 # Junta-se depois da biblioteca de apps, do motor e do dados.onda (usa os h_*, o kv_id e os utilitarios de JSON de la).
 # Os pedidos sao em serie: cada resposta chega a «pb_lido», que segue o passo (M[6]).
 #
@@ -14,7 +15,8 @@
 #   24 pasta da proposta  25 perfil  26 as encontradas (indices, sem a mesma faixa duas vezes)  27 quantas
 #   28 ordem (3 por faixa: encontrada, motivo, pontos)  29 quantas  30 custo  31 modelo (texto; 0 = sem)
 #   32..46 o gosto (pb_gosto)  47 48 e 53 54 os ids de artistas e generos para o motor  50 bytes do ultimo
-#   caracter lido  51 o Number() deu numero  55 a playlist gravada  56 posicao ao ver se e JSON
+#   caracter lido  51 o Number() deu numero  55 a playlist gravada  56 posicao ao ver se e JSON  57 sem letras
+#   explicitas  58 a playlist a renovar (id, ou 0)
 # Candidata (16): 0 artista 1 titulo 2 ano (-1) 3 album (0) 4 genero (0) 5 nota 6 energia 7 tendencia 8 bpm (-1)
 #   9 motivo (0) 10 isrc (0) 11 tidalId (0) 12 fixa 13 a faixa do Tidal (no; 0) 14 chave (artista|titulo)
 #   15 sinais (12: artista genero ano gosto qualidade tendencia claude novidade energia bpm tom fixa)
@@ -329,6 +331,7 @@
   = x pb_numr pb_q jg o $"maxArtista" jg o $"perArtist" 1 10 ! 15 ? < x 0 2 x
   = e jg o $"estilo" ! 16 ? && == jtipo e 5 pb_estilo jtxt e jtxt e $"equilibrado"
   = a jg o $"arco" ! 17 ? && == jtipo a 5 >= pb_arco jtxt a 0 jtxt a $"onda"
+  ! 57 == jtipo jg o $"limpa" 3
   = l pb_q jg p $"candidatas" jg p $"tracks"
   ! 18 A + jn l 1 ! 19 0
   = r pb_l1 l W r { = c pb_cand r ? && c pb_nova c { ! + @ 18 @ 19 c ! 19 + @ 19 1 0 } 0 = r jprox r }
@@ -422,13 +425,14 @@
     ? @ + c 10 { ",\"isrc\":" pb_js @ + c 10 0 } 0
     ? @ + c 11 { ",\"tidalId\":" pb_js @ + c 11 0 } 0
     P '} = i + i 1 }
-  "]}"
+  "]" ? @ 57 { ",\"limpa\":true" 0 } 0 "}"
   = b h_fecha
   ! 6 3 pb_api $"POST" $"/api/resolver" b }
 : pb_lote i>i r {
   = l jg r $"faixas"
   = i @ 23 = e Mn + i 10 @ 19 = j 0
-  W < i e { = x jidx l j ! + @ + @ 18 i 13 ? jv x x 0 = i + i 1 = j + j 1 }
+  # (sem letras explicitas: uma explicita que ainda venha conta como nao encontrada)
+  W < i e { = x jidx l j ! + @ + @ 18 i 13 ? && jv x ~ && @ 57 jv jg x $"explicita" x 0 = i + i 1 = j + j 1 }
   ! 23 e
   pb_resolve }
 # 2) o perfil (o perfil.json do dados, ao lado da proposta, ou o do Worker)
@@ -623,14 +627,15 @@
   "{\"nome\":" pb_js @ 7 ",\"descricao\":" pb_js @ 8 ",\"resumo\":" pb_js @ 9 ",\"tendencias\":["
   = i 0 W < i @ 11 { ? i P ', 0 pb_js @ + @ 10 i = i + i 1 } "]"
   ? == @ 13 0 { ",\"pedido\":" pb_js @ 12 0 } ? > @ 13 0 { ",\"pedido\":" pb_jw @ 13 0 0 0 } 0
-  ",\"opcoes\":{\"faixas\":" N @ 14 ",\"maxArtista\":" N @ 15 ",\"estilo\":" pb_js @ 16 ",\"arco\":" pb_js @ 17 "}"
+  ",\"opcoes\":{\"faixas\":" N @ 14 ",\"maxArtista\":" N @ 15 ",\"estilo\":" pb_js @ 16 ",\"arco\":" pb_js @ 17 ? @ 57 { ",\"limpa\":true" 0 } 0 "}"
   ",\"faixas\":[" = p 0 W < p @ 29 { ? p P ', 0 pb_faixa p = p + p 1 } "]"
   ",\"custo\":" N @ 30
   ",\"candidatas\":[" = i 0 W < i @ 27 { ? i P ', 0 pb_guardada @ + @ 18 @ + @ 26 i = i + i 1 } "]"
   ? @ 31 { ",\"modelo\":" pb_js @ 31 0 } 0
   ",\"tidal\":" ? pb_flag $"--sem-tidal" { "false" 0 } { "true" 0 } "}"
   = b h_fecha
-  ! 6 5 pb_api $"POST" $"/api/playlists" b }
+  = u ? @ 58 { = t tx "/api/playlists/" tpor @ 58 "/renovacoes" O 0 t } $"/api/playlists"
+  ! 6 5 pb_api $"POST" u b }
 : pb_gravada i>i d {
   ! 55 d
   ? @ 5 { ! 6 6 = c tx "/api/pedidos/" tpor @ 5 "?playlist=" pv jg d $"id" O 0 pb_api $"DELETE" c 0 } pb_fim }
@@ -638,7 +643,7 @@
   = d @ 55
   = f tx tpor @ 24 "/publicada.json" O 0
   h_abre f pb_jw d 2 0 h_fecha
-  P 10 "Publicada: «" pv jg d $"nome" "» (" pv jg d $"id" ")"
+  P 10 ? @ 58 { "Renovada" 0 } { "Publicada" 0 } ": «" pv jg d $"nome" "» (" pv jg d $"id" ")"
   = t jg d $"tidal" ? jv t { " · no Tidal: " pv jg t $"url" 0 } { " · só na biblioteca da app" 0 }
   ? @ 5 { " · pedido " tpor @ 5 " feito" 0 } 0
   P 10 h_sair 0 0 }
@@ -655,6 +660,7 @@
   ! 4 ? && cheio u ~ tigual u $"dono" u 0
   = i pb_argi $"--pedido" = x ? >= i 0 h_arg i 0 ! 5 ? cheio x x 0
   = i pb_argi $"--modelo" ! 31 ? >= i 0 h_arg i $"claude"
+  = i pb_argi $"--renovar" = x ? >= i 0 h_arg i 0 ! 58 ? cheio x x 0
   = w h_env $"MUSICA_WORKER" ! 2 ? cheio w w $"https://musica.mercados-proxy.workers.dev"
   ! 21 h_env $"MUSICA_DIR"
   ! 24 pb_pasta f

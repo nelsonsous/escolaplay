@@ -10,7 +10,7 @@
 # Globais: 0 textos constantes  1 pasta  2 Worker  3 chave do agente  4 agora (ms)  5 pessoas (JSON)  6 a pessoa
 #   atual (no)  7 seccoes (textos)  8 passo  9 perfil (texto)  10 perfil  11 pedidos  12 playlists  13 recentes (3)
 #   14 quantas recentes  15 mixes  16 novidades  17 quantas seccoes  18 quantas pessoas  19 a recente a pedir
-#   20 caminho do ultimo pedido  21 pasta musica/  22 cabecalhos do agente  24 tendencias  26 uid da pessoa
+#   20 caminho do ultimo pedido  21 pasta musica/  22 cabecalhos do agente  24 tendencias  25 avaliacoes  26 uid da pessoa
 #   59 bloco para datas
 
 # ---------- anfitriao Node (onda/rt/anfitriao-node.js) ----------
@@ -231,7 +231,8 @@
   ? == p 6 { s_recente t s 0 } 0
   ? == p 7 { ! 15 ? == s 200 json t 0 ! 8 8 ! 20 k_p_novidades pedir wurl k_p_novidades @ 22 0 } 0
   ? == p 8 { ! 16 ? == s 200 json t 0 ! 8 9 ! 20 $"/api/tendencias" pedir wurl $"/api/tendencias" @ 22 0 } 0
-  ? == p 9 { ! 24 ? == s 200 json t 0 seccao proxima 0 } 0
+  ? == p 9 { ! 24 ? == s 200 json t 0 ! 8 10 ! 20 $"/api/avaliacoes" pedir wurl $"/api/avaliacoes" @ 22 0 } 0
+  ? == p 10 { ! 25 ? == s 200 json t 0 seccao proxima 0 } 0
   0 }
 
 : s_estado ii>i t s {
@@ -292,7 +293,7 @@
   0 }
 : comeca >i {
   ! 26 jgt @ 6 k_uid
-  ! 9 0 ! 10 0 ! 11 0 ! 12 0 ! 13 A 3 ! 14 0 ! 15 0 ! 16 0 ! 19 0 ! 24 0
+  ! 9 0 ! 10 0 ! 11 0 ! 12 0 ! 13 A 3 ! 14 0 ! 15 0 ! 16 0 ! 19 0 ! 24 0 ! 25 0
   = d tx tpor @ 1 "/" tpor @ 26 O 0
   h_pasta d
   ! 8 3 ! 20 k_p_perfil
@@ -368,7 +369,7 @@
       ? tigual jgt c k_estado k_pendente {
         ? pr 0 P 10 = pr 0
         = o jg c k_opcoes
-        "- `" pv jg c k_id "` — «" pv jg c k_texto "» · " pv jg o k_faixas " faixas, máx. " pv jg o k_maxArtista " por artista, estilo " pv jg o k_estilo ", arco " pv jg o k_arco " · pedido a " plisboa iso_ms jgt c k_criadoEm
+        "- `" pv jg c k_id "` — «" pv jg c k_texto "» · " pv jg o k_faixas " faixas, máx. " pv jg o k_maxArtista " por artista, estilo " pv jg o k_estilo ", arco " pv jg o k_arco ? jv jg o $"limpa" { ", sem letras explícitas" 0 } 0 " · pedido a " plisboa iso_ms jgt c k_criadoEm
         0 } 0
       = c jprox c }
     0 } "- nenhum"
@@ -413,6 +414,21 @@
       = f jprox f }
     0 }
   P 10 P 10
+  # como correram as playlists (o conector avalia-as sozinho) e as que se atualizam sozinhas
+  "## Como correram as playlists (automático: faixas que guardaste nas favoritas, que tiraste ou juntaste no Tidal, e artistas delas que o Tidal pôs nas tuas mixes)" P 10
+  = lp jg @ 25 $"playlists"
+  = c jprim lp ? c 0 { "- ainda não há playlists para avaliar" 0 } = i 0
+  W c {
+    ? i P 10 0 = a jg c $"avaliacao"
+    "- «" pv jg c k_nome "» (" tpref pdata c 10 ")" petq a
+    = g jg a $"guardadas" ? > jn g 0 { " · guardaste " N jn g ": " plista g 10 0 } 0
+    = g jg a $"tiradas" ? > jn g 0 { " · tiraste " N jn g ": " plista g 10 0 } 0
+    ? jv jg a $"juntadas" { " · juntaste " pv jg a $"juntadas" 0 } 0
+    ? > jn jg a $"eco" 0 { " · nas tuas mixes: " pjunta jg a $"eco" 1 0 } 0
+    = c jprox c = i + i 1 }
+  P 10 P 10
+  "### Não voltes a propor (faixas que tiraste das playlists)" P 10 ptiradas lp P 10 P 10
+  "## Playlists que se atualizam sozinhas (ligadas na app)" P 10 prenovar lp P 10 P 10
   # o gosto
   "## O teu gosto (das favoritas)" P 10
   "- Artistas mais presentes: " = c jprim jg r k_artistas ? c 0 "—" = i 0 W c { ? i ", " 0 pv jg c k_nome " (" pv jg c k_n ")" = c jprox c = i + i 1 } P 10
@@ -457,6 +473,40 @@
       pv jg c $"pos" ".º)" = i + i 1 0 } 0
     = c jprox c }
   ? i 0 "—" }
+
+# ---------- como correram as playlists ----------
+# a data da playlist: a da renovacao, ou a da criacao
+: pdata i>i c ? cheio jgt c $"renovadaEm" jgt c $"renovadaEm" jgt c k_criadaEm
+: petq i>i a { = e jgt a $"etiqueta" ? || tigual e $"ainda cedo" tigual e $"sem sinais" { " · " tpor e 0 } { " · **" tpor e "** (nota " pv jg a $"nota" ")" 0 } }
+# ate n faixas «A — T» separadas por «; »
+: plista ii>i l n { = c jprim l = i 0 W && c < i n { ? i "; " 0 pv jg c k_artista " — " pv jg c k_titulo = c jprox c = i + i 1 } 0 }
+# o Math.floor da divisao (a divisao da Onda corta para o zero)
+: fdiv ii>i a b { = q / a b ? && < a 0 != * q b a - q 1 q }
+# as tiradas de todas as playlists, sem repetir (ate 40)
+: ptiradas i>i lp {
+  = vs A 41 = n 0
+  = c jprim lp
+  W c {
+    = t jprim jg jg c $"avaliacao" $"tiradas"
+    W && t < n 40 { = k jgt t k_id = j 0 = ja 0 W < j n { ? tigual jgt @ + vs j k_id k { = ja 1 0 } 0 = j + j 1 } ? ~ ja { ! + vs n t = n + n 1 0 } 0 = t jprox t }
+    = c jprox c }
+  ? n { "- " = j 0 W < j n { ? j "; " 0 pv jg @ + vs j k_artista " — " pv jg @ + vs j k_titulo = j + j 1 } 0 } "- nenhuma" }
+# as que se atualizam sozinhas: o criterio, o que fica e o que nao volta
+: prenovar i>i lp {
+  = c jprim lp = i 0
+  W c {
+    ? jv jg c $"renovar" {
+      ? i P 10 0
+      = dias fdiv - @ 4 iso_ms pdata c 86400000
+      "- `" pv jg c k_id "` «" pv jg c k_nome "» · " ? cheio jgt c $"renovadaEm" { "renovada" 0 } { "criada" 0 } " há " N dias " dia(s)" ? >= dias 7 { " — **está na altura de a renovar**" 0 } 0 P 10
+      = o jg c k_opcoes
+      "  - Critério: " ? cheio jgt c $"pedido" { "«" pv jg c $"pedido" "» · " 0 } 0 pv jg o k_faixas " faixas, máx. " pv jg o k_maxArtista " por artista, estilo " pv jg o k_estilo ", arco " pv jg o k_arco ? jv jg o $"limpa" { ", sem letras explícitas" 0 } 0 P 10
+      = a jg c $"avaliacao"
+      "  - Fica (guardaste): " = g jprim jg a $"guardadas" ? g 0 "—" = k 0 W g { ? k "; " 0 "`" pv jg g k_id "` " pv jg g k_artista " — " pv jg g k_titulo = g jprox g = k + k 1 } P 10
+      "  - Não voltes a pôr (tiraste): " = t jg a $"tiradas" ? > jn t 0 { plista t 30 0 } "—"
+      = i + i 1 0 } 0
+    = c jprox c }
+  ? i 0 "- nenhuma" }
 
 # ---------- o fim: o dados.md (o cabecalho e as seccoes, separadas por ---) no ficheiro e no ecra ----------
 : fim >i {
