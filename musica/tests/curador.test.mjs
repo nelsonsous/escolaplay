@@ -138,6 +138,15 @@ test('várias pessoas: uma secção por pessoa no dados.md e publicar na bibliot
 });
 
 test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byte (as duas pessoas, as datas de Lisboa)', async () => {
+    // 10 dias de tendências: uma canção a subir, uma nova, acentos e «(feat. …)»; a Nina Simone (que o dono segue) nas tabelas
+    const { recolher } = await import('../proxy/src/tendencias.js');
+    for (let d = 0; d < 10; d++) {
+        const lista = Array.from({ length: 30 }, (_, i) => [`Artista ${i}`, `Canção ${i}`, i % 2 ? 'Pop' : 'Jazz']);
+        lista.splice(d < 3 ? 25 : 25 - (d - 2) * 3, 0, ['Amália Rodrigues', 'Barco Negro (feat. Alguém)', 'Fado']);
+        if (d >= 6) lista.splice(1, 0, ['Nina Simone', 'Feeling Good', 'Jazz']);
+        sim.tabelas.pt = lista;
+        await recolher(env, Date.parse('2026-11-01T04:23:00Z') + d * 864e5);
+    }
     for (const agora of ['2026-11-13T09:30:00Z', '2026-07-03T22:59:00Z', '2027-03-28T00:59:59Z']) {
         const a = mkdtempSync(join(tmpdir(), 'musica-onda-')), b = mkdtempSync(join(tmpdir(), 'musica-js-'));
         const onda = await script('dados.mjs', [a], { agora });

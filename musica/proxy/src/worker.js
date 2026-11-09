@@ -6,8 +6,9 @@
 import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFaixas, indexar, melhor } from '../../lib/tidal.js';
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
+import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -21,7 +22,7 @@ class Erro extends Error {
 // O dono (quem montou a app) fica com as chaves de sempre; cada pessoa convidada tem as suas com o prefixo u:<id>:.
 // As chaves globais (aparelhos, Client ID, códigos, convites, o estado do login) são as mesmas para todos.
 const DONO = 'dono';
-const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:)/;
+const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:)/;
 function deUtilizador(env, uid) {
     if (!uid || uid === DONO) return { ...env, UID: DONO };
     const k = (x) => (GLOBAL.test(x) ? x : `u:${uid}:${x}`);
@@ -51,6 +52,10 @@ export default {
         for (const [k, v] of Object.entries(CORS)) out.headers.set(k, v);
         return out;
     },
+    // uma vez por dia (wrangler.toml): o retrato das tabelas para as tendências
+    async scheduled(event, env, ctx) {
+        ctx.waitUntil(recolher(env, event?.scheduledTime || Date.now()).then((r) => { if (!r.ok || r.erros.length) console.error('tendências', r.erros); }));
+    },
 };
 
 async function route(req, env, url) {
@@ -79,6 +84,11 @@ async function route(req, env, url) {
     if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(ue, await corpo(req), quem), 201);
     if (p === '/api/mixes' && m === 'GET') return json(await mixes(ue));
     if (p === '/api/novidades' && m === 'GET') return json(await novidades(ue, url.searchParams.get('dias')));
+    if (p === '/api/tendencias' && m === 'GET') return json(await tendencias(ue));
+    if (p === '/api/tendencias/recolher' && m === 'POST') {
+        if (quem.tipo !== 'agente' && quem.uid !== DONO) throw new Erro(403, 'so_dono', 'Só o dono (ou o Maestro) recolhe as tendências.');
+        return json(await recolher(env));
+    }
     if (p === '/api/pedidos' && m === 'GET') return json(await pedidos(ue));
     if (p === '/api/pedidos' && m === 'POST') return json(await pedir(ue, await corpo(req)), 201);
     const pd = /^\/api\/pedidos\/([a-z0-9_-]{4,40})$/.exec(p);
@@ -575,6 +585,13 @@ async function mixes(env) {
     }
     const det = await porIds(env, listas.flat(), pais);
     return { mixes: MIXES.map(([tipo], i) => ({ tipo, faixas: listas[i].map((id) => det.get(id)).filter(Boolean) })) };
+}
+
+// ---------- tendências: o que se está a ouvir (recolhido pelo cron) e o que disso é do teu gosto ----------
+async function tendencias(env) {
+    const resumo = await env.KV.get('tendencias:resumo', 'json');
+    if (!resumo) return { dias: 0, fontes: [], paraTi: [] };
+    return { ...resumo, paraTi: paraTi(resumo, await env.KV.get('perfil', 'json')) };
 }
 
 // ---------- para o Maestro: álbuns novos dos artistas que segues (os últimos `dias`) ----------

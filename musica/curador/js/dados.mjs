@@ -32,7 +32,9 @@ async function secao(quem) {
     if (quem.uid === 'dono') writeFileSync(join(dir, 'perfil.json'), JSON.stringify(perfil));
     const recentes = await Promise.all(playlists.slice(0, 3).map((p) => api('/api/playlists/' + p.id).catch(() => null)));
     // o que o Tidal já sabe de ti (as tuas mixes) e os álbuns novos dos artistas que segues
-    const [mixes, novas] = await Promise.all([api('/api/mixes').catch(() => null), api('/api/novidades?dias=7').catch(() => null)]);
+    // e as tendências: o que se está a ouvir (as tabelas que o conector recolhe todos os dias) e o que disso é do teu gosto
+    const [mixes, novas, tend] = await Promise.all([api('/api/mixes').catch(() => null), api('/api/novidades?dias=7').catch(() => null),
+        api('/api/tendencias').catch(() => null)]);
     const hoje = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', weekday: 'short', hour: 'numeric', hourCycle: 'h23' }).formatToParts(agora());
     const sextaDeManha = hoje.find((x) => x.type === 'weekday')?.value === 'Fri' && Number(hoje.find((x) => x.type === 'hour')?.value) < 12;
     const NOMES_MIX = { descoberta: 'Descoberta', diaria: 'Diária', lancamentos: 'Lançamentos' };
@@ -43,6 +45,20 @@ async function secao(quem) {
     const ultimaSemanal = playlists.find((p) => p.por === 'curador' && /semana/i.test(p.nome));
     const diasSemanal = ultimaSemanal ? Math.floor((agora().getTime() - Date.parse(ultimaSemanal.criadaEm)) / 86400e3) : null;
     const r = perfil.resumo || {};
+    const ESTADO = { sobe: 'a subir', nova: 'nova', dura: 'dura' };
+    const nome = (x) => `${x.artista} — ${x.titulo}`;
+    const cat = (f, e, fmt) => f.itens.filter((x) => x.estado === e).slice(0, 8).map(fmt).join(' · ') || '—';
+    const tendencias = !tend?.dias ? '- ainda sem dados (o conector recolhe as tabelas uma vez por dia)'
+        : `Histórico de ${tend.dias} dia(s), desde ${tend.desde}: «a subir» = ganhou 10 ou mais lugares numa semana; «nova» = entrou nos últimos 7 dias; «dura» = 21 dias ou mais na tabela. Usa-as no campo \`tendencia\` das candidatas.
+
+### Para ti (das tabelas, o que é do teu gosto)
+${tend.paraTi.map((x) => `- ${nome(x)} · ${x.fonte} n.º ${x.pos}${x.estado ? ` · ${ESTADO[x.estado]}` : ''} · ${x.porque}`).join('\n') || '- nada das tabelas encaixa no teu gosto, por agora'}${tend.fontes.map((f) => `
+
+### ${f.nome}
+- Top 10 hoje: ${f.itens.slice(0, 10).map((x) => `${x.pos}. ${nome(x)}`).join(' · ')}
+- A subir: ${cat(f, 'sobe', (x) => `${nome(x)} (${x.semana}.º → ${x.pos}.º)`)}
+- Novas: ${cat(f, 'nova', (x) => `${nome(x)} (${x.pos}.º)`)}
+- Duram: ${cat(f, 'dura', (x) => `${nome(x)} (${x.dias} dias, ${x.pos}.º)`)}`).join('')}`;
 
     return `# Pessoa: ${perfil.utilizador || quem.nome || quem.uid} (\`${quem.uid}\`)
 
@@ -60,6 +76,9 @@ ${sextaDeManha && (novas?.faixas?.length || 0) >= 5 ? '\n**É sexta de manhã: c
 
 ## As tuas mixes do Tidal (o Tidal escolheu-as para ti; usa-as como candidatas quando encaixam)
 ${(mixes?.mixes || []).filter((m) => m.faixas.length).map((m) => `### ${NOMES_MIX[m.tipo] || m.tipo}\n${m.faixas.slice(0, 20).map((f) => `- \`${f.id}\` ${linhaFaixa(f)}`).join('\n')}`).join('\n\n') || '- o Tidal não devolveu mixes'}
+
+## Tendências (o que se está a ouvir: tabelas do Apple Music e do Deezer, recolhidas pelo conector todos os dias)
+${tendencias}
 
 ## O teu gosto (das favoritas)
 - Artistas mais presentes: ${(r.artistas || []).map((a) => `${a.nome} (${a.n})`).join(', ') || '—'}

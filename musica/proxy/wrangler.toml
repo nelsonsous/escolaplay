@@ -4,6 +4,10 @@ compatibility_date = "2026-10-01"
 
 # Tokens do Tidal, chaves dos aparelhos, perfil de gosto, biblioteca de playlists e pedidos
 # (criado com: POST /accounts/:id/storage/kv/namespaces {"title":"musica-KV"})
+# As tendências: o retrato das tabelas públicas (Apple Music, Deezer), uma vez por dia
+[triggers]
+crons = ["23 4 * * *"]
+
 [[kv_namespaces]]
 binding = "KV"
 id = "f3574d08325242b88f73354859b291ff"
