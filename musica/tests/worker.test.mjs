@@ -441,6 +441,7 @@ test('tendências: o retrato de cada dia, o que sobe, o que é novo, o que dura,
     const enche = (n, pre) => Array.from({ length: n }, (_, i) => [`${pre} ${i}`, `Canção ${i}`, 'Pop']);
     const D = Date.parse('2026-10-01T04:23:00Z');
     sim.tabelas.mundo = [['Artista Mundo', 'Global', ''], ['NINA SIMONE', 'Feeling Good', '']];
+    sim.tabelas.eua = [['Nina Simone & Convidado', 'Feeling Good (feat. Convidado)', 'Jazz']];
     // 25 dias: «Feeling Good» sempre lá (dura); «Subida» de 40.º a 5.º na última semana; «Estreia» entra no dia 22
     for (let d = 0; d < 25; d++) {
         const lista = enche(60, 'Enchimento');
@@ -468,7 +469,7 @@ test('tendências: o retrato de cada dia, o que sobe, o que é novo, o que dura,
     // para ti: a Nina Simone (segues), o Miles Davis (nas favoritas), sem repetir a mesma canção noutras tabelas
     assert.deepEqual(t.paraTi.slice(0, 2).map((x) => `${x.artista} — ${x.titulo} · ${x.porque}`),
         ['Miles Davis — Estreia (feat. Alguém) · nas favoritas', 'Nina Simone — Feeling Good · segues']);
-    assert.equal(t.paraTi.filter((x) => x.titulo === 'Feeling Good').length, 1, 'está em duas tabelas: aparece uma vez');
+    assert.equal(t.paraTi.filter((x) => x.titulo === 'Feeling Good').length, 1, 'está em três tabelas (uma com convidado): aparece uma vez');
     // recolher à mão: só o dono e o Maestro
     const agente = await env.KV.get('agente:chave');
     assert.equal((await post('/api/tendencias/recolher', {}, agente)).status, 200);

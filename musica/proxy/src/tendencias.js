@@ -17,8 +17,10 @@ const DIAS = 60; // o histórico que se guarda
 export const SOBE = 10; // lugares ganhos numa semana para «a subir»
 export const DURA = 21; // dias na tabela para «sucesso que dura»
 
-// a mesma canção de dia para dia (sem acentos, sem «(feat. …)», sem «remaster»)
-const chave = (x) => `${normal(x.artista)}|${normal(x.titulo)}`;
+// a mesma canção de dia para dia e entre tabelas: o primeiro artista e o título (sem acentos, sem «(feat. …)», sem
+// «remaster»): «Shakira & Burna Boy — Dai Dai» e «Shakira — Dai Dai» são a mesma
+const primeiro = (a) => String(a || '').split(/\s*(?:,|&|\+|\bfeat\.?|\bft\.?|\bwith\b|\bx\b|\be\b)\s*/i)[0];
+const chave = (x) => `${normal(primeiro(x.artista))}|${normal(x.titulo)}`;
 const dia = (ms) => new Date(ms).toISOString().slice(0, 10);
 const entre = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
 
