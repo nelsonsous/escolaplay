@@ -153,3 +153,108 @@ test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byt
         assert.deepEqual(pj(join(a, 'uana', 'perfil.json')), pj(join(b, 'uana', 'perfil.json')));
     }
 });
+
+test('paridade: o publicar da versão Onda mostra, recusa e grava como a versão em JavaScript', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'musica-pub-'));
+    // um perfil com acentos, géneros e décadas: o gosto pesa nos sinais (e os empates do topo contam)
+    writeFileSync(join(dir, 'perfil.json'), JSON.stringify({
+        favoritas: [
+            { id: '101', artistas: ['Miles Davis'], generos: ['Jazz'], ano: 1959, isrc: 'USAAA0000101' },
+            { id: '900', artistas: ['Amália Rodrigues'], generos: ['Fado'], ano: 1955 },
+            { id: '901', artistas: ['Amália Rodrigues', 'Simon & Garfunkel'], generos: ['Folk', 'Fado'], ano: 1966 },
+            { id: 902, artistas: ['Nina Simone (Live)'], generos: ['Soul'], ano: 1965 },
+            { id: '903', artistas: ['Daft Punk'], generos: ['Electrónica', 'Disco'], ano: 2013 },
+        ],
+        artistas: [{ nome: 'Massive Attack' }, 'Björk', { nome: 'Nina Simone' }],
+    }));
+    const f = join(dir, 'proposta.json');
+    const ambos = async (conteudo, args = []) => {
+        if (conteudo !== undefined) writeFileSync(f, typeof conteudo === 'string' ? conteudo : JSON.stringify(conteudo));
+        const onda = await script('publicar.mjs', [f, ...args]);
+        const js = await script(join('js', 'publicar.mjs'), [f, ...args]);
+        return { onda, js };
+    };
+    const igual = ({ onda, js }, nome, { stderr = true } = {}) => {
+        assert.equal(onda.code, js.code, `${nome}: código de saída (${onda.stderr})`);
+        assert.equal(onda.stdout, js.stdout, `${nome}: stdout`);
+        if (stderr) assert.equal(onda.stderr, js.stderr, `${nome}: stderr`);
+    };
+
+    // sem ficheiro, ficheiro que não existe, JSON inválido, null
+    const uso = { onda: await script('publicar.mjs', []), js: await script(join('js', 'publicar.mjs'), []) };
+    igual(uso, 'uso');
+    assert.equal(uso.onda.code, 2);
+    const falta = { onda: await script('publicar.mjs', [join(dir, 'nao-ha.json')]), js: await script(join('js', 'publicar.mjs'), [join(dir, 'nao-ha.json')]) };
+    igual(falta, 'ficheiro que não existe');
+    const mau = await ambos('{"nome": "x",');
+    igual(mau, 'JSON inválido', { stderr: false });
+    assert.ok(mau.onda.stderr.startsWith(`JSON inválido em ${f}: `));
+    igual(await ambos('null'), 'null');
+
+    // os erros da validação, pela mesma ordem
+    igual(await ambos({ nome: '  ', resumo: 'curto', opcoes: { faixas: '12', maxArtista: 0.4 }, candidatas: [
+        { artista: 'Miles Davis', titulo: 'So What', nota: '85' }, { artist: ' Nina  Simone ', title: 'Feeling Good', year: '1965 (orig.)', genre: ' ' },
+        { artista: 'MILES DAVIS', titulo: 'so what', nota: 90 }, { artista: '', titulo: 'Sem artista' }, 'nem objeto', null] }), 'proposta inválida');
+
+    const resumo = 'Tens ouvido jazz modal e fado; aqui vai uma seleção com gravações de referência e alguma descoberta pelo meio.';
+    const c = (artista, titulo, extra = {}) => ({ artista, titulo, ano: 1960, genero: 'jazz', nota: 80, motivo: `Porque ${titulo}.`, ...extra });
+    const rica = {
+        nome: '  Jazz,   fado   e companhia ', descricao: 'Gravações que mostram o som.', resumo, tendencias: ['  Reedição  Hi-Res ', '', 42, null, 'a', 'b', 'c', 'd', 'e', 'f', 'g'],
+        opcoes: { faixas: 7, maxArtista: '3', estilo: 'descoberta', arco: 'sobe' },
+        candidatas: [
+            c('Miles Davis', 'So What', { ano: '1959', nota: '97.6', energia: 40, fixa: 1 }),
+            c('miles davis', 'SO WHAT', { nota: 10 }),
+            c('  Nina   Simone ', 'Feeling Good', { genero: 'Soul', ano: 1965, tendencia: 90, bpm: '120' }),
+            c('Amália Rodrigues', 'Barco Negro', { genero: 'Fado', ano: 1955, isrc: 'usaaa0000105', album: 'Busto' }),
+            c('Massive Attack', 'Teardrop', { genero: 'Trip-Hop', ano: 1998, tidalId: 106, energia: '' }),
+            c('Daft Punk', 'Get Lucky', { genero: 'Electrónica', ano: 2013, nota: 88.5, energia: 101 }),
+            ...[1, 2, 3, 4, 5, 6].map((i) => c('Miles Davis', `Faixa ${i}`, { nota: 70 + i, genero: i % 2 ? 'Jazz' : 'Bebop', ano: 1950 + i })),
+            c('Ninguém', 'Não existe'), c('Faixa Fantasma', 'Também não', { isrc: 'XX' }),
+        ],
+    };
+    igual(await ambos(rica, ['--ensaio']), 'ensaio');
+    // um por artista: o motor não chega às 7 faixas — recusa (ou aceita menos com --aceitar-menos)
+    const curta = { ...rica, opcoes: { faixas: 7, maxArtista: 1, estilo: 'audiofilo', arco: 'onda' } };
+    const recusa = await ambos(curta, ['--ensaio']);
+    igual(recusa, 'menos faixas');
+    assert.match(recusa.onda.stderr, /só conseguiu 5 de 7/);
+    igual(await ambos(curta, ['--ensaio', '--aceitar-menos']), 'aceitar menos');
+    for (const estilo of ['equilibrado', 'moda', 'gosto', 'nenhum']) {
+        for (const arco of ['plano', 'onda', 'desce']) igual(await ambos({ ...rica, opcoes: { ...rica.opcoes, estilo, arco } }, ['--ensaio']), `ensaio ${estilo}/${arco}`);
+    }
+
+    // gravar: o mesmo documento na biblioteca (tirando o id e a hora) e o mesmo publicada.json
+    const gravar = async (nome) => {
+        const r = await script(nome, [f, '--modelo', 'modelo-paridade', '--sem-tidal']);
+        assert.equal(r.code, undefined, r.stderr);
+        const pub = JSON.parse(readFileSync(join(dir, 'publicada.json'), 'utf8'));
+        const doc = JSON.parse(await env.KV.get('playlist:' + pub.id));
+        const sem = (x) => { const y = { ...x }; delete y.id; delete y.criadaEm; delete y.atualizadaEm; return y; };
+        return { stdout: r.stdout.replaceAll(pub.id, '<id>'), pub: sem(pub), doc: sem(doc), bruto: readFileSync(join(dir, 'publicada.json'), 'utf8').replaceAll(pub.id, '<id>').replace(/"criadaEm": "[^"]*"/g, '') };
+    };
+    writeFileSync(f, JSON.stringify(rica));
+    const o = await gravar('publicar.mjs'), j = await gravar(join('js', 'publicar.mjs'));
+    assert.equal(o.stdout, j.stdout);
+    assert.deepEqual(o.doc, j.doc);
+    assert.deepEqual(o.pub, j.pub);
+    assert.equal(o.bruto, j.bruto, 'o publicada.json, ao byte');
+    assert.equal(o.doc.modelo, 'modelo-paridade');
+    assert.equal(o.doc.faixas.length, 7);
+});
+
+test('paridade: o normal() e a chave() da versão Onda são os do JavaScript (acentos, parênteses, « - ...», ruído de edição)', async () => {
+    const { correr: maestro } = await import('../curador/correr.mjs');
+    const { normal } = await import('../lib/tidal.js');
+    const chave = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const casos = ['Amália Rodrigues', 'Simon & Garfunkel', 'So What (Remastered 2009)', 'Song - 2011 Remaster', 'Hello [Live]', 'Ça  va — bien', 'Björk',
+        'Røyksopp', 'Łódź', 'İstanbul', 'Café del Mar - Deluxe Edition', 'Mono Stereo Mix', '1999 remastered version', 'Bonus Track', '(sem fecho', 'a ( b ) c [ d ] e',
+        'x - y - z', 'x -y', 'x - y', 'A\n- b', 'linha (com\nquebra)', '  espaços   ', '', 'Ελληνικά', '😀 emoji', 'é combinado', 'Ｆｕｌｌ', 'Ǖǘ',
+        'Remasterizado', 'remasterizada 2001', 'Kelvin K', 'Ṁṅ ẞ ẑ', 'R&B', 'Rock&Roll', 'a & & b', 'Tom Jobim [Ao Vivo] - Live', 'MÚSICA'];
+    for (let c = 0xc0; c < 0x2ff; c += 3) casos.push(String.fromCodePoint(c) + 'x' + String.fromCodePoint(c + 1));
+    for (let c = 0x1e00; c < 0x1eff; c += 2) casos.push(String.fromCodePoint(c, c + 1));
+    let out = '';
+    await new Promise((ok) => maestro('textos', casos, { saida: { 1: (u) => { out += Buffer.from(u).toString('utf8'); }, 2: () => {} }, sair: ok }));
+    const linhas = out.trimEnd().split('\n').map((l) => JSON.parse(l));
+    assert.equal(linhas.length, casos.length);
+    casos.forEach((c, i) => assert.deepEqual(linhas[i].slice(0, 2), [normal(c), chave(c)], JSON.stringify(c)));
+});

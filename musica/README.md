@@ -79,6 +79,6 @@ nativo do C gerado — e exige o mesmo resultado, ao bit.
 
 Estrutura: `app/` (a app em Onda), `onda/` (`motor.onda`, o programa de linha de comando `curador.onda` e o anfitrião
 de três portas para o Node), `lib/` (Tidal, sinais, proposta, curadoria — partilhado pelo Worker e pela tarefa
-agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada: o dos dados é Onda — `curador/onda/dados.onda` →
-`curador/maestro.wasm`, corrido pelo `correr.mjs` com o anfitrião Node da Onda; a versão JavaScript fica em
-`curador/js/` como referência do teste de paridade, ao byte), `tests/`.
+agendada), `proxy/` (Worker), `curador/` (scripts da tarefa agendada, em Onda: `curador/onda/dados.onda` e `publicar.onda`, este com o
+`motor.onda` chamado diretamente → `curador/maestro.wasm`, corrido pelo `correr.mjs` com o anfitrião Node da Onda; a
+versão JavaScript fica em `curador/js/` como referência dos testes de paridade, ao byte), `tests/`.
