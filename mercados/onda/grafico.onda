@@ -1,0 +1,168 @@
+# O gráfico vivo da ficha de um ativo: um CAMPO da Onda (cada píxel é uma função dos dados), calculado em
+# WebAssembly. Vem do protótipo visual (mercados/proto/campo.onda); aqui com fundo transparente (assenta no cartão), as
+# cores do tema e só a animar enquanto há mudança: quando tudo assenta, o gpasso devolve 0 e a casca pára o ciclo.
+#   - a linha desliza para a série nova, a escala acompanha, o tom (sobe / parado / desce) muda devagar;
+#   - um preço novo acende um brilho do tamanho do salto e abre um anel no último ponto (uma vez por preço);
+#   - a linha tracejada é a referência (o fecho anterior, ou o início do período).
+# Monta-se com: node mercados/onda/grafico.mjs  →  mercados/grafico-onda.js
+#
+# Estado g (palavras): 0 n pontos | 1 alvo (os preços, reais) | 2 mostrado | 3 lo | 4 hi (a escala mostrada) |
+# 5 base (0 = sem linha) | 6 brilho 0..1 | 7 tom mostrado | 8 fase do anel (0..1; 1 = parado) | 9 ao vivo |
+# 10 píxeis | 11 capacidade de píxeis | 12 capacidade de pontos | 13 tom alvo (-1 desce, 0 parado, 1 sobe) |
+# 14..16 cor de subir | 17..19 de descer | 20..22 parado | 23..25 da referência | 26..28 do ponto (0..1) |
+# 30 o último preço visto (para medir o salto)
+# Geometria (a casca usa a mesma para o dedo e as etiquetas): topo = 8% da altura, altura útil 80%,
+# a linha acaba em xr = w − 7% da altura (o lugar do anel).
+
+: lim fff>f x a b Mx a Mn b x
+# um píxel RGBA (a ordem dos bytes de um ImageData), com as cores e a opacidade em 0..1
+: cora ffff>i r g b a + + + I * 255.0 lim r 0.0 1.0 * 256 I * 255.0 lim g 0.0 1.0 * 65536 I * 255.0 lim b 0.0 1.0 * 16777216 I * 255.0 lim a 0.0 1.0
+
+: gnovo i>i cap { = g A 32 ! + g 1 A cap ! + g 2 A cap ! + g 12 cap !f + g 3 0.0 !f + g 4 1.0 !f + g 8 1.0 g }
+: galvo i>i g @ + g 1
+: gcap i>i g @ + g 12
+: glo i>f g @f + g 3
+: ghi i>f g @f + g 4
+# mínimo e máximo do alvo (e da referência), com 6% de folga
+: gmm ii>f g qual {
+  = n @ g = a @ + g 1 = lo @f a = hi lo = i 1
+  W < i n { = v @f + a i = lo Mn lo v = hi Mx hi v = i + i 1 }
+  = b @f + g 5
+  ? > b 0.0 { = lo Mn lo b = hi Mx hi b 0 } 0
+  = m Mx * - hi lo 0.06 * Ab hi 0.0002
+  ? qual + hi m - lo m }
+# a série chegou (a casca já a escreveu no alvo): novo = 1 ao abrir a ficha ou mudar de período (salta para lá);
+# senão a linha desliza para lá, e um último preço diferente acende o brilho e, ao vivo, o anel
+: gmuda iiiffi>i g n novo base tom vivo {
+  = a @ + g 1 = s @ + g 2
+  = p @f + a - n 1
+  = muda || novo != n @ g
+  ! g n !f + g 5 base ! + g 9 vivo !f + g 13 tom
+  ? muda {
+    = i 0 W < i n { !f + s i @f + a i = i + i 1 }
+    !f + g 3 gmm g 0 !f + g 4 gmm g 1 0 } 0
+  ? novo { !f + g 6 0.0 !f + g 7 tom !f + g 8 1.0 0 } {
+    = am Mx - ghi g glo g 0.000000001
+    = d Ab - p @f + g 30
+    ? > d 0.0 {
+      !f + g 6 lim + @f + g 6 * / d am 14.0 0.0 1.0
+      ? vivo { !f + g 8 0.0 0 } 0 } 0 }
+  !f + g 30 p
+  n }
+# um passo de animação (dt em ms); devolve 1 enquanto alguma coisa ainda se mexe, 0 quando tudo assentou
+: gpasso if>i g dt {
+  = n @ g ? < n 2 0 {
+    = k lim / dt 110.0 0.0 1.0
+    = a @ + g 1 = s @ + g 2 = i 0
+    = am Mx - ghi g glo g 0.000000001
+    = mx 0.0
+    W < i n { = v @f + s i = e - @f + a i v !f + s i + v * e k = mx Mx mx Ab e = i + i 1 }
+    = ke lim / dt 260.0 0.0 1.0
+    = el - gmm g 0 glo g
+    = eh - gmm g 1 ghi g
+    !f + g 3 + glo g * el ke
+    !f + g 4 + ghi g * eh ke
+    !f + g 6 * @f + g 6 Mx 0.0 - 1.0 / dt 1400.0
+    = et - @f + g 13 @f + g 7
+    !f + g 7 + @f + g 7 * et lim / dt 300.0 0.0 1.0
+    !f + g 8 Mn 1.0 + @f + g 8 / dt 1600.0
+    || || || || > mx * am 0.0004 > Mx Ab el Ab eh * am 0.0004 > @f + g 6 0.004 > Ab et 0.01 < @f + g 8 1.0 } }
+# a cor j (0 r, 1 g, 2 b) do tom t: de parado para subir (t > 0) ou para descer (t < 0)
+: gtc ifi>f g t j {
+  = p @f + g + 20 j
+  ? < t 0.0 + p * - @f + g + 17 j p - 0.0 t + p * - @f + g + 14 j p t }
+# distância (ao quadrado) do ponto p ao segmento a-b
+: gseg ffffff>f px py ax ay bx by {
+  = ux - bx ax
+  = uy - by ay
+  = t lim / + * - px ax ux * - py ay uy Mx 0.000001 + * ux ux * uy uy 0.0 1.0
+  = dx - px + ax * t ux
+  = dy - py + ay * t uy
+  + * dx dx * dy dy }
+# o píxel i de um gráfico w x h. As camadas compõem-se umas por cima das outras, em cor pré-multiplicada (pr pg pb pa):
+# enchimento e brilho, a referência tracejada, o traço, o ponto do último preço e o anel
+: gpx iiii>i i g w h {
+  = x F % i w
+  = y F / i w
+  = n @ g
+  ? < n 2 0 {
+    = s @ + g 2
+    = hi ghi g
+    = am Mx - hi glo g 0.000000001
+    = topo * F h 0.08
+    = alt * F h 0.80
+    = q / alt am
+    = xr - F w * F h 0.07
+    = passo / xr F - n 1
+    = u / x passo
+    = k Mn - n 2 I Fl u
+    = k0 Mx 0 - k 1
+    = k3 Mn - n 1 + k 2
+    = ya + topo * - hi @f + s k0 q
+    = yb1 + topo * - hi @f + s k q
+    = yc + topo * - hi @f + s + k 1 q
+    = yd + topo * - hi @f + s k3 q
+    = f lim - u F k 0.0 1.0
+    = yl + yb1 * - yc yb1 f
+    = fora > x + xr 1.0
+    = vol @f + g 6
+    = esc / F h 220.0
+    = gr * esc + 5.0 * 16.0 vol
+    = raio * gr 6.0
+    # longe da linha (acima ou abaixo dos pontos vizinhos) não há traço nem brilho: só o enchimento
+    = d ? || < y - Mn Mn ya yb1 Mn yc yd raio > y + Mx Mx ya yb1 Mx yc yd raio 100000.0
+      Sq Mn Mn gseg x y * F k0 passo ya * F k passo yb1 gseg x y * F k passo yb1 * F + k 1 passo yc gseg x y * F + k 1 passo yc * F k3 passo yd
+    = nuc lim - * 1.5 esc d 0.0 1.0
+    = bri * + 0.10 * 0.42 vol Mx 0.0 - / 1.0 + 1.0 / * d d * gr gr 0.027
+    = fun - F h yl
+    = pr ? && ~ fora > y yl / - y yl Mx 1.0 fun 1.0
+    = che * 0.22 * - 1.0 pr - 1.0 pr
+    = tom @f + g 7
+    = cr gtc g tom 0
+    = cg gtc g tom 1
+    = cb gtc g tom 2
+    # enchimento e brilho
+    = pa Mn 1.0 + bri che
+    = pr * cr pa = pg * cg pa = pb * cb pa
+    # a referência: tracejado discreto
+    = ba @f + g 5
+    ? > ba 0.0 {
+      = yb + topo * - hi ba q
+      = ie Mx 1 I + 0.5 esc
+      ? && && < Ab - y yb * 0.6 esc < % % i w * 8 ie * 3 ie ~ fora {
+        = sa 0.5
+        = pr + * @f + g 23 sa * pr - 1.0 sa
+        = pg + * @f + g 24 sa * pg - 1.0 sa
+        = pb + * @f + g 25 sa * pb - 1.0 sa
+        = pa + sa * pa - 1.0 sa 0 } 0 0 } 0
+    # o traço, um pouco mais claro do que a cor
+    = lr + cr * 0.30 - 1.0 cr
+    = lg + cg * 0.30 - 1.0 cg
+    = lb + cb * 0.30 - 1.0 cb
+    = pr + * lr nuc * pr - 1.0 nuc
+    = pg + * lg nuc * pg - 1.0 nuc
+    = pb + * lb nuc * pb - 1.0 nuc
+    = pa + nuc * pa - 1.0 nuc
+    # o último preço: um ponto, e um anel que se abre uma vez por preço novo (só ao vivo)
+    = ye + topo * - hi @f + s - n 1 q
+    = dx - x xr
+    ? < Ab dx * 18.0 esc {
+      = dy - y ye
+      = r Sq + * dx dx * dy dy
+      = pt lim - * 3.2 esc r 0.0 1.0
+      = fa @f + g 8
+      = an ? && @ + g 9 < fa 1.0 * * 0.8 - 1.0 fa lim - * 1.4 esc Ab - r * esc + 4.0 * 12.0 fa 0.0 1.0 0.0
+      = pr + * @f + g 26 pt * pr - 1.0 pt
+      = pg + * @f + g 27 pt * pg - 1.0 pt
+      = pb + * @f + g 28 pt * pb - 1.0 pt
+      = pa + pt * pa - 1.0 pt
+      = pr + * cr an * pr - 1.0 an
+      = pg + * cg an * pg - 1.0 an
+      = pb + * cb an * pb - 1.0 an
+      = pa + an * pa - 1.0 an 0 } 0
+    ? > pa 0.002 cora / pr pa / pg pa / pb pa pa 0 } }
+: gdesenha iii>i g w h {
+  = np * w h
+  ? > np @ + g 11 { ! + g 10 A np ! + g 11 np } 0
+  E @ + g 10 np gpx g w h }
+: main >i 0
