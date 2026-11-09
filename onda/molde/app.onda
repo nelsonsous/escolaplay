@@ -1,0 +1,142 @@
+# Molde de uma app em Onda: uma lista que vem da rede (dados.json), com procura, filtro por grupo, favoritos que
+# ficam guardados e uma folha de pormenor. Copia-se a pasta e muda-se este ficheiro, o dados.json e o app.css.
+# Monta-se com `node build.mjs` (a biblioteca onda/lib + este ficheiro → gerado/app.wasm).
+#
+# COMO FUNCIONA: o anfitrião (rt/anfitriao.js) corre o `main` uma vez; depois chama uma função daqui em cada evento:
+#   clique t         um toque num elemento com data-onda="ação:número" (t = esse texto)
+#   escreve t        uma tecla num campo com data-onda (t = "nome" + tab + o que lá está escrito)
+#   lido t estado    a resposta da rede (t = o corpo, estado = o HTTP; 0 = sem rede)
+# A memória fica viva entre chamadas: o estado da app são os globais abaixo. Cada evento solta no fim o que
+# reservou (_me_solta), por isso o monte não cresce com o uso.
+#
+# GLOBAIS (a app tem M[0..62]; a biblioteca só usa o M[63])
+#   0 a lista "itens" (árvore do JSON; 0 enquanto não chegou)   1 aba (0 tudo, 1 favoritos)
+#   2 grupo escolhido (-1 todos; senão o índice de um item desse grupo)   3 item aberto na folha (-1 nenhum)
+#   4 favoritos (uma palavra por item)   5 o texto da procura (lugar fixo, 80 bytes)
+#   6 rede (0 a carregar, 1 chegou, 2 falhou)   7 os nós dos itens (um endereço por item)   8 quantos itens
+#   9 a folha acabou de abrir (para a animação de entrada só correr uma vez)
+
+# ---------- os dados ----------
+: no i>i i @ + @ 7 i
+: txt ii>i i k _ar_txt _ar_get no i k
+: valor i>f i _ar_num _ar_get no i $"valor"
+: fav i>i i @ + @ 4 i
+: existe i>i i && >= i 0 < i @ 8
+
+# minúscula de um byte (só o ASCII; os acentos comparam-se tal e qual)
+: minb i>i c ? && >= c 'A <= c 'Z + c 32 c
+# 1 se o texto t contém p, sem olhar a maiúsculas; um p vazio está em todos
+: contem ii>i t p {
+  = n _tx_len t = m _tx_len p = r == m 0 = i 0
+  W ? r 0 <= + i m n {
+    = j 0 W ? < j m == minb _tx_b t + i j minb _tx_b p j 0 = j + j 1
+    = r == j m = i + i 1 }
+  r }
+# copia até max bytes de t para o texto fixo d (sem cortar um carácter UTF-8 a meio)
+: fixa iii>i d t max {
+  = n _tx_len t ? > n max = n max 0
+  W ? > n 0 && >= _tx_b t n 128 < _tx_b t n 192 0 = n - n 1
+  = j 0 W < j n { ! + + d 1 j _tx_b t j = j + j 1 }
+  ! d + + d 1 n }
+# o item i aparece? (a aba, o grupo e a procura)
+: passa i>i i
+  ? ? @ 1 ~ fav i 0 0
+  ? ? < @ 2 0 0 ~ _tx_igual txt i $"grupo" txt @ 2 $"grupo" 0
+  contem txt i $"nome" @ 5
+: nfav >i { = c 0 = i 0 W < i @ 8 { = c + c fav i = i + i 1 } c }
+
+# ---------- favoritos no armazém do browser: os ids separados por vírgulas ----------
+: temid ii>i g id {
+  = r 0 = j 0 = f _tx_campo g 0 44
+  W ? r 0 > _tx_len f 0 { = r _tx_igual f id = j + j 1 = f _tx_campo g j 44 }
+  r }
+: lefav >i {
+  = m _me_marca
+  = g _an_ler $"favoritos" = i 0
+  W < i @ 8 { ! + @ 4 i ? g temid g txt i $"id" 0 = i + i 1 }
+  _me_solta m }
+: gravafav >i {
+  = c 1 = i 0 W < i @ 8 { = c + + c 1 _tx_len txt i $"id" = i + i 1 }
+  = t _tx_abre c = i 0
+  W < i @ 8 { ? fav i { _tx_p txt i $"id" P 44 } 0 = i + i 1 }
+  _tx_fecha t
+  _an_gravar $"favoritos" t }
+
+# ---------- o ecrã: cada função desenha um pedaço (um elemento do index.html) ----------
+: dfiltros >i {
+  = h _ht_ini + 400 * 200 @ 8
+  "<button data-onda=\"grupo:-1\"" ? < @ 2 0 " class=\"on\"" 0 ">Todos</button>"
+  = i 0
+  W < i @ 8 {
+    # um botão por grupo: no primeiro item de cada grupo
+    = novo 1 = j 0 W ? novo < j i 0 { = novo ~ _tx_igual txt j $"grupo" txt i $"grupo" = j + j 1 }
+    ? novo {
+      "<button data-onda=\"grupo:" N i "\""
+      ? ? < @ 2 0 0 _tx_igual txt i $"grupo" txt @ 2 $"grupo" " class=\"on\"" 0
+      ">" _tx_html txt i $"grupo" "</button>" } 0
+    = i + i 1 }
+  _ht_poe $"#filtros" h }
+: dlista >i {
+  = h _ht_ini + 600 * 400 @ 8
+  ? == @ 6 0 "<p class=\"vazio\">A carregar…</p>" 0
+  ? == @ 6 2 "<p class=\"vazio\">Sem ligação.</p><button class=\"acao\" data-onda=\"tenta:0\">Tentar outra vez</button>" 0
+  = c 0 = tot 0. = i 0
+  W < i @ 8 {
+    ? passa i {
+      "<button class=\"linha\" data-onda=\"abre:" N i "\"><span><b>" _tx_html txt i $"nome" "</b><small>"
+      _tx_html txt i $"grupo" "</small></span><span class=\"num\">" ? fav i "<i>★</i> " 0 _nu_intl valor i 0 "</span></button>"
+      = c + c 1 = tot + tot valor i 0 } 0
+    = i + i 1 }
+  ? && == @ 6 1 == c 0 "<p class=\"vazio\">Nada por aqui.</p>" 0
+  ? > c 0 { "<p class=\"total\">" N c ? == c 1 " lugar · " " lugares · " _nu_intl tot 0 " habitantes</p>" } 0
+  _ht_poe $"#lista" h }
+: dabas >i {
+  = h _ht_ini 400
+  "<button data-onda=\"aba:0\"" ? @ 1 0 " class=\"on\"" ">Tudo</button>"
+  "<button data-onda=\"aba:1\"" ? @ 1 " class=\"on\"" 0 ">Favoritos" = f nfav ? f { " · " N f } 0 "</button>"
+  _ht_poe $"#abas" h }
+: dfolha >i {
+  = i @ 3
+  = h _ht_ini 2000
+  ? existe i {
+    "<div class=\"veu\" data-onda=\"fecha:0\"></div><div class=\"cartao" ? @ 9 " entra" 0 "\">"
+    "<small>" _tx_html txt i $"grupo" "</small><h2>" _tx_html txt i $"nome" "</h2>"
+    "<p class=\"grande\">" _nu_intl valor i 0 "<span> habitantes</span></p>"
+    "<p>" _tx_html txt i $"nota" "</p>"
+    "<button class=\"acao" ? fav i " on" 0 "\" data-onda=\"fav:" N i "\">" ? fav i "★ Guardado" "☆ Guardar" "</button>"
+    "<button class=\"acao fraco\" data-onda=\"fecha:0\">Fechar</button></div>" } 0
+  ! 9 0
+  _ht_poe $"#folha" h }
+: desenha >i { dfiltros dlista dabas dfolha }
+
+# ---------- os eventos ----------
+: pede >i { ! 6 0 _an_buscar $"dados.json" $"lido" }
+: clique i>i t {
+  = a _tx_campo t 0 58 = v _tx_int _tx_campo t 1 58
+  ? _tx_igual a $"aba" ! 1 != v 0 0
+  ? _tx_igual a $"grupo" ! 2 ? existe v v -1 0
+  ? _tx_igual a $"abre" { ! 3 ? existe v v -1 ! 9 1 } 0
+  ? _tx_igual a $"fecha" ! 3 -1 0
+  ? && _tx_igual a $"fav" existe v { ! + @ 4 v ~ fav v gravafav } 0
+  ? _tx_igual a $"tenta" pede 0
+  desenha
+  _me_solta t }
+: escreve i>i t {
+  ? _tx_igual _tx_campo t 0 9 $"procura" fixa @ 5 _tx_campo t 1 9 80 0
+  dlista
+  _me_solta t }
+: lido ii>i t estado {
+  = l _ar_get _ar_json t $"itens"
+  ? && == estado 200 == _ar_tipo l 6 {
+    = n _ar_n l ! 8 n ! 7 A + n 1 ! 4 A + n 1
+    = c _ar_prim l = i 0 W c { ! + @ 7 i c = c _ar_prox c = i + i 1 }
+    ! 0 l ! 2 -1 ! 3 -1 ! 6 1
+    lefav } ! 6 2
+  desenha }
+: main >i {
+  _me_lb
+  ! 5 _tx_novo 80 ! 2 -1 ! 3 -1
+  _an_ouvir $"click" $"clique"
+  _an_ouvir $"input" $"escreve"
+  pede
+  desenha 0 }
