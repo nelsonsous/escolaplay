@@ -5,6 +5,9 @@ A app Mercados tem cerca de 4 000 linhas de JavaScript: a app (`mercados.js`, ~2
 (`conselheiro/*.mjs`, ~500). Passá-la para Onda faz-se por fases. Cada fase entra no main só quando dá exatamente o
 mesmo resultado que o JavaScript, verificado por testes. A app nunca fica partida a meio.
 
+> O mapa geral (camadas, modelo de uma app, estado de cada app e o que falta) está em `ARQUITETURA.md`; uma app nova
+> começa pelo molde (`onda/molde/`).
+
 ## Fases
 
 | # | O quê | Estado | Notas |
