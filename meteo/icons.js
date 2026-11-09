@@ -8,6 +8,7 @@ const DEFS = `<svg id="wx-defs" aria-hidden="true" focusable="false" width="0" h
 <linearGradient id="wxg-moon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c2e3"/></linearGradient>
 <linearGradient id="wxg-cloud" gradientUnits="userSpaceOnUse" x1="0" y1="17" x2="0" y2="48"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c6d0de"/></linearGradient>
 <linearGradient id="wxg-cloud2" gradientUnits="userSpaceOnUse" x1="0" y1="17" x2="0" y2="48"><stop offset="0" stop-color="#b4bfcf"/><stop offset="1" stop-color="#6f7b8d"/></linearGradient>
+<linearGradient id="wxg-streak" gradientUnits="userSpaceOnUse" x1="0" y1="44" x2="0" y2="64"><stop offset="0" stop-color="#cfe8ff"/><stop offset="1" stop-color="#4b95ff"/></linearGradient>
 <linearGradient id="wxg-drop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd3ff"/><stop offset="1" stop-color="#2e7cf6"/></linearGradient>
 <linearGradient id="wxg-bolt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff07a"/><stop offset="1" stop-color="#ff9a1a"/></linearGradient>
 </defs></svg>`;
@@ -40,7 +41,19 @@ function sun(cx, cy, r, rays = true) {
 const moon = (tx = 0, ty = 0, s = 1) =>
   `<g class="wx-moon"><path transform="translate(${tx} ${ty}) scale(${s})" fill="url(#wxg-moon)" d="M29.6 17.19A15 15 0 1 0 46.36 36.34A13 13 0 0 1 29.6 17.19Z"/><circle transform="translate(${tx} ${ty}) scale(${s})" cx="25" cy="37" r="2.6" fill="#a9b2d6" opacity=".5"/><circle transform="translate(${tx} ${ty}) scale(${s})" cx="32" cy="41.5" r="1.6" fill="#a9b2d6" opacity=".45"/></g>`;
 
-function drops(n, y0 = 46) {
+// chuva a mexer (ícones grandes): traços finos e inclinados que caem sem parar por baixo da nuvem, dois por pista,
+// desencontrados; mais pistas e mais depressa com mais chuva (n = 1 fraca, 2 moderada, 3 forte)
+function streaks(n, y0 = 45) {
+  const xs = n === 1 ? [24, 32, 40] : n === 2 ? [21, 28, 35, 42] : [18, 24.5, 31, 37.5, 44];
+  const dur = [0.95, 0.8, 0.62][n - 1];
+  let s = '';
+  xs.forEach((x, i) => {
+    for (const k of [0, 0.5]) s += `<line class="wx-st" style="--d:${dur}s;--o:${((i * 0.37 + k) % 1).toFixed(2)}" x1="${x}" y1="${y0}" x2="${x - 2.2}" y2="${y0 + 7}"/>`;
+  });
+  return `<g stroke="url(#wxg-streak)" stroke-width="${n === 3 ? 2.4 : 2}" stroke-linecap="round">${s}</g>`;
+}
+function drops(n, y0 = 46, anim = false) {
+  if (anim) return streaks(n, y0 - 1);
   const xs = n === 1 ? [32] : n === 2 ? [26, 38] : [22, 32, 42];
   // gotas em forma de lágrima, um pouco inclinadas (o grupo de fora é o que a animação mexe)
   return `<g fill="url(#wxg-drop)">${xs
@@ -66,7 +79,7 @@ const hail = `<g fill="var(--wx-snow)"><circle class="wx-hail" style="--i:0" cx=
 const fog = `<g stroke="var(--wx-fog)" stroke-width="3.2" stroke-linecap="round"><line class="wx-fogl" style="--i:0" x1="12" y1="46" x2="52" y2="46"/><line class="wx-fogl" style="--i:1" x1="16" y1="53" x2="48" y2="53"/><line class="wx-fogl" style="--i:2" x1="22" y1="60" x2="44" y2="60"/></g>`;
 
 /** Corpo do ícone (sem <svg>), para embutir em gráficos. */
-export function weatherIconInner(code, isDay = true) {
+export function weatherIconInner(code, isDay = true, anim = false) {
   const g = wxGroup(code);
   const day = isDay !== false;
   const smallSky = day ? sun(22, 22, 8.5, true) : moon(-6, -8, 0.82);
@@ -78,10 +91,10 @@ export function weatherIconInner(code, isDay = true) {
     case 'overcast': return cloud(-8, -7, 0.82, 'var(--wx-cloud-2)') + cloud(-1, 1, 1);
     case 'fog': return cloud(-2, -12, 0.9, 'var(--wx-cloud-2)') + fog;
     case 'drizzle': return upCloud() + drizzle();
-    case 'freezing': return upCloud() + drops(2) + ice();
-    case 'rain': return upCloud() + drops(code >= 65 ? 3 : code >= 63 ? 2 : 1);
+    case 'freezing': return upCloud() + drops(2, 46, anim) + ice();
+    case 'rain': return upCloud() + drops(code >= 65 ? 3 : code >= 63 ? 2 : 1, 46, anim);
     case 'snow': return upCloud() + flakes();
-    case 'showers': return smallSky + cloud(2, -4, 0.95) + drops(code >= 82 ? 3 : 2, 48);
+    case 'showers': return smallSky + cloud(2, -4, 0.95) + drops(code >= 82 ? 3 : 2, 48, anim);
     case 'snowshowers': return smallSky + cloud(2, -4, 0.95) + flakes(52);
     case 'storm': return upCloud('var(--wx-cloud-2)') + bolt + (code >= 96 ? hail : '');
     case 'hail': return upCloud('var(--wx-cloud-2)') + hail;
@@ -92,7 +105,7 @@ export function weatherIconInner(code, isDay = true) {
 /** Ícone de tempo completo (SVG inline). anim: as peças mexem (sol, chuva, neve, trovoada…) — só nos ícones grandes. */
 export function weatherIcon(code, isDay = true, size = 48, label = '', anim = false) {
   const a = label ? `role="img" aria-label="${escAttr(label)}"` : 'aria-hidden="true"';
-  return `<svg class="wx${anim ? ' anim' : ''}" width="${size}" height="${size}" viewBox="0 0 64 64" ${a}>${weatherIconInner(code, isDay)}</svg>`;
+  return `<svg class="wx${anim ? ' anim' : ''}" width="${size}" height="${size}" viewBox="0 0 64 64" ${a}>${weatherIconInner(code, isDay, anim)}</svg>`;
 }
 
 // ---------- interface ----------

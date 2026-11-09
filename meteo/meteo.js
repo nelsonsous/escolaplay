@@ -13,9 +13,9 @@ import * as api from './api.js';
 import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
-import { skyHtml } from './sky.js';
+import { skyHtml, startRain } from './sky.js';
 
-const VERSION = '1.11.0';
+const VERSION = '1.12.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -372,6 +372,7 @@ function watchSky() {
     if (!sky || !('IntersectionObserver' in window)) return;
     skyWatch = new IntersectionObserver((es) => { for (const e of es) e.target.classList.toggle('off', !e.isIntersecting); });
     skyWatch.observe(sky);
+    startRain(sky.querySelector('.sky-rain'));
 }
 function mount() {
     watchSky();

@@ -455,7 +455,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await shot('06-analise-simples.png');
     await page.click('#d-tec > summary');
     await page.waitForSelector('#d-tec[open] #fontes');
-    // continua aberto quando a página se redesenha (dados novos)
+    // continua aberto quando a página se redesenha (dados novos); o evento «toggle» chega depois do clique
+    await page.waitForFunction(() => window.__mt.st.open.has('d-tec'));
     await page.evaluate(() => window.__mt.render());
     assert.equal(await page.locator('#d-tec').getAttribute('open'), '');
     const nModels = await page.evaluate(() => window.__mt.st.fc.models.length);
