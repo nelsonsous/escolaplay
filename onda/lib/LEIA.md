@@ -16,7 +16,8 @@ cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao
 
 Pode-se juntar a biblioteca toda: os nomes dela começam por `_`, que no `-w` são privados — só entram as funções que a
 app usa, e o módulo sai **igual ao byte** ao que se faz juntando só os módulos precisos (`test/biblioteca-poda.test.js`).
-Com a biblioteca toda viva seriam ~124 KB; uma app que só escreve números paga ~15 KB, uma que só usa datas ~3 KB.
+Com a biblioteca toda viva seriam ~122 KB (252 funções); uma app que só escreve números paga ~12 KB (o `String(x)`), uma
+que só usa o `Intl` ~9 KB, o JSON ~36 KB, as datas ~3 KB, o sort ~18 KB (`test/biblioteca-poda.test.js` mede-os).
 
 Para o `-w` (apps e scripts) e também o `-x`/`-a`; no C (`./onda run`) não, porque usa o topo do monte do runtime
 (`M[-1]`), o `Oc` e o `_ow`.

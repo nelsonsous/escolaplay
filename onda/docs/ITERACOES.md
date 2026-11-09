@@ -2534,8 +2534,8 @@ exato, o `Math.round`, o `toFixed(1)`, os `jmax`/`jmin`), o ecrã (o `Intl` pt-P
 **Como não colide e não pesa.** Uma só tabela de funções, sem módulos: cada nome é `_` + prefixo + `_` + nome. As apps não
 começam nomes por `_` e o runtime não usa um segundo `_`. E como no `-w` as `_` são privadas (it.138), só entra o que a app
 usa: junta-se a biblioteca toda e o módulo sai **igual ao byte** ao que se faz só com os módulos precisos
-(`test/biblioteca-poda.test.js`): uma app que não a usa paga 0 bytes; só o `String(x)` ~14,6 KB; só o `Intl` ~12 KB; o
-JSON ~38 KB; as datas ~2,9 KB; o sort ~17,8 KB; a biblioteca toda viva seriam ~124 KB.
+(`test/biblioteca-poda.test.js`): uma app que não a usa paga 0 bytes; só o `String(x)` 11 961 bytes; só o `Intl` 9 414; o
+JSON 35 665; as datas 2 870; o sort 17 819; a biblioteca toda viva seriam 121 706 bytes (252 funções).
 
 **Globais.** A Onda tem 64 e a análise da Mercados usava-os todos. A biblioteca usa **só o `M[63]`**, que aponta para o seu
 bloco (1 200 palavras de trabalho, reservado na primeira vez que uma função precisa dele: os inteiros grandes e os
@@ -2583,7 +2583,9 @@ funções como valores: o comparador vem num código).
   (é a regra `mlib` do compilador, para a própria biblioteca matemática). No `-w` isso é o `Math.log` do anfitrião; no `-a`
   não há primitiva e o compilador recusa (`funcao matematica ainda nao em -a: 6`). Repro: `: _f f>f x Lg x` com
   `ondac -a`; com `: f f>f x Lg x` compila. A biblioteca usava o `Lg` só para estimar o `floor(log10 v)` do decimal mais
-  curto; a estimativa passou a sair dos bits do real (`_nu_e10`), que dá o mesmo e corre nas três formas.
+  curto; a estimativa passou a sair dos bits do real (`_nu_e10`), que dá o mesmo e corre nas três formas. De caminho, a
+  poda do `-w` marca o `_lg` do fdlibm como vivo mal vê o token `Lg`, mesmo quando a função `_` chama a primitiva: sem o
+  `Lg`, o `String(x)` passou de 14 583 para 11 961 bytes.
 - No `-w`, uma função morta pode chamar um nome que não existe sem erro (a poda vem antes da resolução dos nomes); no `-x`
   e no C é erro. Repro: `: _morta i>i x naoexiste x 1` com um `main` que não a usa.
 - Um local com nome em maiúscula (`L`, `K`) é um operador: a biblioteca escreve-os em minúsculas (`nl`, `kk`).
