@@ -1,0 +1,89 @@
+# Sonda: a biblioteca (onda/lib) à vista do JS, para os testes onda/test/biblioteca-*.test.js. Compila-se com os
+# módulos todos (test/lib/sonda.js). Cada função escreve no stdout; os lotes escrevem uma linha por elemento.
+: t_bits f>i x { N Bh x P 32 N Bl x 0 }
+# lote de reais: b = [op, n, a, x0 .. x(n-1)]
+: t_lf i>i b {
+  = op @ b = n @ + b 1 = a @ + b 2 = i 0
+  W < i n {
+    = x @f + + b 3 i
+    ? == op 0 _nu_ps x ? == op 1 _nu_fixo x a ? == op 2 _nu_prec x a ? == op 3 t_bits _nu_rprec x a
+    ? == op 4 t_bits _nu_round x ? == op 5 _nu_intl x a ? == op 6 _nu_intlm x a ? == op 7 _nu_compacto x
+    ? == op 8 _nu_pj x ? == op 9 _nu_fixos x a 44 ? == op 10 _nu_ps _nu_toint x ? == op 11 N _nu_fin x 0
+    P 255 = i + i 1 }
+  0 }
+# lote de pares de reais: b = [op, n, x0, y0, x1, y1 ..]
+: t_l2 i>i b {
+  = op @ b = n @ + b 1 = i 0
+  W < i n {
+    = x @f + + b 2 * 2 i = y @f + + b 3 * 2 i
+    ? == op 0 t_bits _nu_max x y ? == op 1 t_bits _nu_min x y t_bits _nu_clamp x y 10.
+    P 255 = i + i 1 }
+  0 }
+# lote de textos: b = [op, n, t0 .. t(n-1)]
+: t_lt i>i b {
+  = op @ b = n @ + b 1 = i 0
+  W < i n {
+    = t @ + + b 2 i
+    ? == op 0 t_bits _nu_s2n t
+    ? == op 1 { = v _js_parse t ? v _js_pj v 0 0 "ERRO" 0 }
+    ? == op 2 { = v _js_parse t ? v _js_pj v 2 0 "ERRO" 0 }
+    ? == op 3 { = v _ar_json t ? v t_arj v "ERRO" 0 }
+    ? == op 4 N _tx_l16 t
+    ? == op 5 ? _tx_urimal t "URIError" _tx_uri t
+    ? == op 6 _tx_pj _tx_norm t 1
+    ? == op 7 N _tx_branco t
+    ? == op 8 _tx_html t
+    ? == op 9 _tx_pj t
+    ? == op 10 { = v _js_parse t ? v _js_ps v "ERRO" 0 }
+    ? == op 11 { = v _js_parse t ? v t_bits _js_tonum v "ERRO" 0 }
+    ? == op 12 { = v _js_parse t ? v N _js_v v "ERRO" 0 }
+    ? == op 13 { = v _js_parse t ? v _js_pj _js_chaves v 0 0 "ERRO" 0 }
+    ? == op 14 _tx_pj16 _tx_a16 t
+    ? == op 15 _ht_min t
+    0
+    P 255 = i + i 1 }
+  0 }
+# uma árvore em JSON, pela ordem dela (para comparar com o JSON.stringify de um texto sem chaves de índice)
+: t_arj i>i n {
+  = y _ar_tipo n
+  ? == y 1 "null" ? == y 2 "false" ? == y 3 "true" ? == y 4 _nu_pj _ar_num n ? == y 5 _tx_pj _ar_txt n
+  ? == y 6 { P '[ = c _ar_prim n = f 1 W c { ? f 0 P ', = f 0 t_arj c = c _ar_prox c } P '] }
+  { P '{ = c _ar_prim n = f 1 W c { ? f 0 P ', = f 0 _tx_pj _ar_chave c P ': t_arj c = c _ar_prox c } P '} } }
+# o slice(a, b), o < e o JSON de dois textos do JS (em JSON)
+: t_s16 iii>i t a b { = v _js_parse t _tx_pj _tx_s16 v a b }
+: t_cmp ii>i a b N _tx_cmp _js_parse a _js_parse b
+: t_c16 ii>i a b N _tx_cmp16 _tx_a16 _js_parse a _tx_a16 _js_parse b
+# o JS do valor v[k] e o includes / indexOf (v e x em JSON, k um texto)
+: t_get ii>i t k { = v _js_parse t = r _js_get v k ? == r 1 "undefined" _js_pj r 0 0 }
+: t_inc ii>i t x { = v _js_parse t = y _js_parse x N _js_inc v y P 32 N _js_ix v y 0 }
+: t_lt2 ii>i a b { = x _js_parse a = y _js_parse b N _js_lt x y P 32 N _js_ge x y 0 }
+: t_junta ii>i t s { = v _js_parse t _js_junta v s 0 }
+# lote de inteiros: b = [op, n, x0 ..]
+: t_li i>i b {
+  = op @ b = n @ + b 1 = i 0
+  W < i n {
+    = x @ + + b 2 i
+    ? == op 0 { _dt_civil x = c _dt_cv N @ c P 32 N @ + c 1 P 32 N @ + c 2 P 32 N _dt_semana x P 32 N _dt_dias @ c @ + c 1 @ + c 2 }
+    ? == op 1 _dt_piso F x
+    ? == op 2 { _dt_phoje x P 32 _dt_pquando x }
+    ? == op 3 _dt_piso10 x
+    ? == op 4 { _tx_mai x 0 }
+    ? == op 5 { _tx_min x 0 }
+    ? == op 6 { _ht_cp x 0 }
+    ? == op 7 N _dt_lisboa x
+    0
+    P 255 = i + i 1 }
+  0 }
+: t_dias iii>i y m d N _dt_dias y m d
+: t_ult ii>i y m N _dt_ultdom y m
+# a moeda (t = o código) e os algarismos do decimal mais curto
+: t_moeda fii>i x d t _nu_moeda x d t
+: t_dig f>i x { = g _nu_dig x N @ g P 32 N @ + g 1 P 32 = j 0 W < j @ g { N @ + + g 2 j = j + j 1 } 0 }
+# ordenar: os índices w[0..n-1] (o JS lê-os depois na memória)
+: t_power iiiii>i w n k1 k2 md _or_power w n k1 k2 md
+: t_tim iiiii>i w n k1 k2 md _or_tim w n k1 k2 md
+# textos: abrir dentro de outro, campos, procurar
+: t_abre >i { = a _tx_abre 50 "um" = b _tx_abre 50 "dois" _tx_fecha b "|" _tx_p b "|tres" _tx_fecha a _tx_p a 0 }
+: t_campo iii>i t i s { _tx_p _tx_campo t i s 0 }
+: t_acha iii>i t p i N _tx_acha t p i
+: t_ini >i { = m _me_marca = x A 100 _me_solta m N - @ -1 m 0 }

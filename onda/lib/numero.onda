@@ -37,7 +37,7 @@
 #   _nu_exato a       os algarismos do valor EXATO de a > 0 finito (até 767): o endereço do 1.º; quantos em
 #                     M[_me_lb + 13] e o expoente em M[_me_lb + 14] (a = 0,d1…dL × 10^E)
 # Globais: o bloco da biblioteca (memoria.onda): a classe do arredondamento (b+0), b+12..14, os algarismos (b+16..63),
-# o inteiro grande (b+64..363) e os algarismos lidos ou exatos (b+400..1299). Usa o Lg (o _lg do runtime).
+# o inteiro grande (b+64..363) e os algarismos lidos ou exatos (b+400..1299). Sem Lg nem outra função matemática.
 
 # ---------- Math do JS ----------
 : _nu_fin f>i x != & >> Bh x 20 2047 2047
@@ -120,6 +120,8 @@
   ? < q 0 { = m _nu_bext b - 0 q ? c10 ! _me_lb | @ _me_lb 1 0 m } { ! _me_lb c10 _nu_bget b } }
 
 # ---------- o decimal mais curto ----------
+# floor(log10 (f·2^q)) a menos de 1, pelos bits de f (f > 0): nb = quantos bits, log2 em [nb-1+q, nb+q)
+: _nu_e10 ii>i f q { = nb 0 = t f W > t 0 { = t >> t 1 = nb + nb 1 } I Fl * F + q - nb 1 0.3010299956639812 }
 # v > 0 finito (não inteiro abaixo de 2^53): V = v·10^(16-e) na grelha de 17 algarismos, em [10^16, 10^17): o decimal
 # mais curto que o JSON.parse devolve como v (dos mais curtos, o mais perto de v; empate: o par). Contas exatas: o
 # intervalo que volta a dar v vai a meio caminho dos vizinhos (incluído se a mantissa é par; abaixo de uma potência
@@ -130,8 +132,9 @@
   = f | << & hx 1048575 32 Bl v
   = f ? ex | f 4503599627370496 f
   = q ? ex - ex 1075 -1074
-  # estimativa de floor(log10 v), certa a menos de 1; o inteiro grande corrige-a
-  = e I Fl * Lg v 0.4342944819032518
+  # estimativa de floor(log10 v) pelos bits de f (log2 v em [nb-1+q, nb+q)), certa a menos de 1; o inteiro grande
+  # corrige-a. Sem Lg: numa função _ o Lg é a primitiva (não o _lg do fdlibm), e o -a não a tem
+  = e _nu_e10 f q
   = b + _me_lb 64 = d 0 = go 1
   W go {
     = d _nu_bq * 4 f - 16 e q b
@@ -256,7 +259,7 @@
   = f | << & hx 1048575 32 Bl a
   = f ? ex | f 4503599627370496 f
   = q ? ex - ex 1075 -1074
-  = e I Fl * Lg a 0.4342944819032518
+  = e _nu_e10 f q
   = p1 _nu_p10i p = p0 / p1 10
   = go 1 = n 0
   W go {
