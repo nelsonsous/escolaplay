@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildForecast, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
+import { buildForecast, warnHere, warnHereText, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
     buildTerrain, terrainPoints, LOCAL_RULES } from '../lib/engine.js';
 import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../lib/stats.js';
 
@@ -84,6 +84,12 @@ test('observação combinada: a estação IPMA a 1 km pesa mais e a correção d
 test('avisos IPMA do distrito, risco de incêndio e focos de satélite', () => {
     assert.ok(fc.warnings.length >= 1);
     assert.ok(fc.warnings.every((w) => w.source === 'IPMA' && ['yellow', 'orange', 'red'].includes(w.level)));
+    // o aviso amarelo de chuva do fixture traz o que o ponto atinge nessas horas
+    const wr = fc.warnings.find((w) => /Precipita/.test(w.type));
+    assert.equal(wr.here.kind, 'rain');
+    assert.ok(wr.here.hours >= 1 && wr.here.p6 >= wr.here.p1 && wr.here.hi6 >= wr.here.p6, JSON.stringify(wr.here));
+    assert.match(warnHereText(wr), /^Aqui: [\d,]+ mm em 6 h e [\d,]+ mm numa hora/);
+    assert.match(buildSummary(fc), /yellow Precipitação .* — Aqui: [\d,]+ mm em 6 h/);
     assert.equal(fc.fire.risk.dico, '1106');
     assert.equal(fc.fire.risk.label, 'Reduzido');
     assert.ok(fc.fire.hotspots.count >= 1 && fc.fire.hotspots.items.every((h) => h.distanceKm <= 50));
@@ -412,4 +418,39 @@ test('aprendizagem: janela verificada agora + memória guardada → o modelo que
     assert.match(S, /## Aprendizagem no ponto \(\d+ dia\(s\) de memória desde 2026-08-31/);
     assert.match(S, /- Temperatura: hoje: melhor Met Office/);
     assert.match(S, /\nMet Office \| [\d.]+\/[\d.]+\/[\d.]+ \|/);
+});
+
+test('avisos: o que o ponto atinge nas horas do aviso e a frase (sem desvalorizar os avisos fortes)', () => {
+    const h = (time, precip, precipHi = precip, gust = 20, gustHi = gust) => ({ time, precip, precipHi, gust, gustHi, temp: 15, visibility: 10 });
+    const day = (f) => Array.from({ length: 24 }, (_, i) => f(i, `2026-11-11T${String(i).padStart(2, '0')}:00`));
+    // Santo Tirso: chuva persistente mas fraca no ponto — abaixo do amarelo, mesmo no cenário mais chuvoso
+    const st = day((i, t) => h(t, i >= 9 && i < 21 ? 2.3 : 0.5, i >= 9 && i < 21 ? 4.7 : 1));
+    const wo = { type: 'Precipitação', level: 'orange', start: '2026-11-11T09:00', end: '2026-11-11T21:00' };
+    const a = warnHere(wo, st);
+    assert.deepEqual([a.kind, a.p1, a.p6, a.hi6, a.total, a.level, a.levelHi, a.hours], ['rain', 2.3, 13.8, 28.2, 27.6, null, null, 12]);
+    assert.equal(warnHereText({ ...wo, here: a }), 'Aqui: 14 mm em 6 h e 2,3 mm numa hora (28 e 4,7 no pior cenário) — abaixo do amarelo (30 mm em 6 h), mesmo no pior cenário. O aviso é para o distrito todo.');
+    // ao nível do aviso: 45 mm em 6 h é laranja
+    const forte = day((i, t) => h(t, i >= 12 && i < 18 ? 7.5 : 0));
+    const b = warnHere(wo, forte);
+    assert.equal(b.level, 'orange');
+    assert.match(warnHereText({ ...wo, here: b }), / — ao nível deste aviso\.$/);
+    // uma hora com 25 mm também é laranja; com 45 mm é vermelho (acima do aviso laranja)
+    assert.equal(warnHere(wo, day((i, t) => h(t, i === 12 ? 25 : 0))).level, 'orange');
+    assert.match(warnHereText({ ...wo, here: warnHere(wo, day((i, t) => h(t, i === 12 ? 45 : 0))) }), /acima deste aviso \(vermelho\)/);
+    // aviso vermelho com o ponto abaixo: nunca desvalorizar — o cenário mais chuvoso e «segue o aviso»
+    const wv = { type: 'Precipitação', level: 'red', start: '2026-11-11T12:00', end: '2026-11-11T18:00' };
+    const c = warnHere(wv, day((i, t) => h(t, 4.8, 9.6)));
+    assert.equal(c.levelHi, 'orange');
+    assert.match(warnHereText({ ...wv, here: c }), / — laranja só no pior cenário\. O aviso é para o distrito todo\. Nas tempestades os modelos ficam aquém: segue o aviso\.$/);
+    // vento: rajada máxima (consenso e o cenário mais forte); laranja ou vermelho → «segue o aviso»
+    const ww = { type: 'Vento', level: 'red', start: '2026-11-11T12:00', end: '2026-11-11T21:00' };
+    const vento = day((i, t) => h(t, 0, 0, i === 14 ? 51 : 30, i === 14 ? 76 : 40));
+    const d = warnHere(ww, vento);
+    assert.deepEqual([d.kind, d.gust, d.gustHi, d.at], ['wind', 51, 76, '14:00']);
+    assert.equal(warnHereText({ ...ww, here: d }), 'Aqui: rajadas até 51 km/h às 14h (76 no pior cenário). Nas tempestades os modelos ficam aquém: segue o aviso.');
+    assert.equal(warnHereText({ ...ww, level: 'yellow', here: d }), 'Aqui: rajadas até 51 km/h às 14h (76 no pior cenário).');
+    // fora das 72 h da previsão, ou um tipo sem números (agitação marítima): nada
+    assert.equal(warnHere({ ...wo, start: '2026-11-20T09:00', end: '2026-11-20T21:00' }, st), null);
+    assert.equal(warnHere({ type: 'Agitação Marítima', level: 'yellow', start: '2026-11-11T00:00', end: '2026-11-11T06:00' }, st), null);
+    assert.equal(warnHereText({ level: 'yellow' }), '');
 });

@@ -428,6 +428,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await mar.locator('#d-mar > summary').click();
     assert.equal(await mar.locator('.sea-d').count(), 7, '7 dias de mar');
     if (SHOTS) await mar.screenshot({ path: path.join(SHOTS, '03b-mar.png') });
+    // junto ao aviso do IPMA (do distrito), o que o ponto atinge nessas horas
+    assert.match(await page.locator('.warn .w-here').first().textContent(), /^Aqui: [\d,]+ mm em 6 h e [\d,]+ mm numa hora/);
     console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude (desligada por omissão, ligada pelo cartão)');
 
     // 2b) "Está a chover?": o aviso manda no agora (45 min) e segue para o conector

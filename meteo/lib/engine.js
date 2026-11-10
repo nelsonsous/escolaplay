@@ -836,7 +836,7 @@ export function buildForecast(raw, opts = {}) {
             temp: robustMean(temps, wT, 2.0), tempLo: wquantile(temps, wT, 0.1), tempHi: wquantile(temps, wT, 0.9), spread: wstd(temps, wT),
             feels: robustMean(col('feels', true), wT, 2.5), dew: robustMean(col('dew'), wT, 2.5), rh: wmean(col('rh'), wT),
             precip: wmean(precs, wP), precipHi: wquantile(precs, wP, 0.9), popDet, pop,
-            wind: robustMean(col('wind'), wW, 8), gust: robustMean(col('gust'), wW, 12), dir: vecDir(col('dir'), col('wind'), wW),
+            wind: robustMean(col('wind'), wW, 8), gust: robustMean(col('gust'), wW, 12), gustHi: wquantile(col('gust'), wW, 0.9), dir: vecDir(col('dir'), col('wind'), wW),
             cloud: wmean(col('cloud'), wT), cloudLow: wmean(col('cloudLow'), wT), pressure: robustMean(col('pressure'), wT, 3),
             vis: wmedian(col('vis'), wT), cape: wmedian(col('cape'), wT), uv: wmean(col('uv'), wT), snow: wmean(col('snow'), wP),
             frz: wmean(col('frz'), wT), isDay: ms.map((m) => m.h.isDay[i]).find(isNum) ?? (hr >= 7 && hr <= 18 ? 1 : 0),
@@ -916,7 +916,7 @@ export function buildForecast(raw, opts = {}) {
     // 4) Saída horária (72 h a partir da hora atual)
     const hourly = H.slice(nowIdx, nowIdx + 72).map((x) => ({
         time: x.time, temp: r1(x.temp), tempLo: r1(x.tempLo), tempHi: r1(x.tempHi), feels: r1(x.feels), dew: r1(x.dew), rh: r0(x.rh),
-        precip: r1(x.precip), precipHi: r1(x.precipHi), pop: r0(x.pop == null ? null : x.pop * 100), wind: r0(x.wind), gust: r0(x.gust), dir: r0(x.dir),
+        precip: r1(x.precip), precipHi: r1(x.precipHi), pop: r0(x.pop == null ? null : x.pop * 100), wind: r0(x.wind), gust: r0(x.gust), gustHi: r0(x.gustHi), dir: r0(x.dir),
         cloud: r0(x.cloud), cloudLow: r0(x.cloudLow), pressure: r1(x.pressure), visibility: r0(x.vis), cape: r0(x.cape), uv: r1(x.uv),
         code: x.code, isDay: !!x.isDay, spread: r1(x.spread), agree: x.agree == null ? null : Math.round(x.agree * 100) / 100,
         ...(x.localT <= -0.05 ? { local: r1(x.localT) } : {}),
@@ -1090,7 +1090,8 @@ export function buildForecast(raw, opts = {}) {
         location: { lat, lon, elevation: r0(targetElev), timezone: P.timezone, utcOffsetSeconds: off,
             name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null, terrain },
         models, ensemble: ensP ? { members: ensP.members.length, models: ensP.systems } : { members: 0, models: [] },
-        now, nowcast, radar, hourly, daily: daily.map(stripInternal), indicators, warnings, fire, verification, learning, official, compare,
+        now, nowcast, radar, hourly, daily: daily.map(stripInternal), indicators, warnings: warnings.map((w) => ({ ...w, here: warnHere(w, hourly) })),
+        fire, verification, learning, official, compare,
         local: localSummary(terrain, tAdj, H.slice(nowIdx, nowIdx + 72), H[nowIdx], shifts),
         analysis: raw.analysisMeta || null,
         sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area || official ? ['IPMA'] : []),
@@ -1491,6 +1492,77 @@ function ipmaArea(ipma, lat, lon) {
     return { idAreaAviso: area?.idAreaAviso || null, district: area?.local || null, dico: muni && muni.d <= 40 ? muni.dico : null };
 }
 
+// Critérios gerais do IPMA para os avisos de chuva: a partir de quantos mm numa hora ou em 6 h começa cada nível. Podem
+// variar e o IPMA tem vindo a rever os avisos: servem só de referência para dizer o que o ponto atinge nas horas de um
+// aviso (os avisos são por distrito e pensam no pior sítio dele).
+export const WARN_RAIN = [['red', 40.1, 60.1], ['orange', 21, 41], ['yellow', 10, 30]];
+const WARN_ORDER = { yellow: 1, orange: 2, red: 3 };
+const WARN_PT = { yellow: 'amarelo', orange: 'laranja', red: 'vermelho' };
+const rainLevel = (p1, p6) => (WARN_RAIN.find(([, a, b]) => p1 >= a || p6 >= b) || [null])[0];
+/**
+ * O que o ponto atinge nas horas de um aviso, pelo consenso dos modelos (e o cenário pessimista, P90): chuva (máx. numa
+ * hora e em 6 h, total), vento (rajada máx.), calor/frio (máx./mín.) ou nevoeiro (visibilidade mín.). null se não se sabe.
+ */
+export function warnHere(w, hourly) {
+    const t0 = String(w.start || '').slice(0, 13), t1 = String(w.end || '');
+    const hs = (hourly || []).filter((x) => x.time.slice(0, 13) >= t0 && x.time < t1);
+    if (!hs.length) return null;
+    const type = String(w.type || '').toLowerCase();
+    const at = (x) => x.time.slice(11, 16);
+    const max = (k) => hs.reduce((b, x) => (isNum(x[k]) && (!b || x[k] > b[k]) ? x : b), null);
+    if (/precipita|chuva/.test(type)) {
+        const win = (k) => {
+            let best = 0, from = hs[0];
+            for (let i = 0; i < hs.length; i++) {
+                const s = hs.slice(i, i + 6).reduce((a, x) => a + (isNum(x[k]) ? x[k] : 0), 0);
+                if (s > best) { best = s; from = hs[i]; }
+            }
+            return { v: r1(best), at: at(from) };
+        };
+        const p1 = max('precip'), p6 = win('precip'), hi6 = win('precipHi'), hi1 = max('precipHi');
+        const v1 = p1 ? p1.precip : 0;
+        return { kind: 'rain', p1: r1(v1), p1At: p1 ? at(p1) : null, p6: p6.v, p6At: p6.at, total: r1(hs.reduce((a, x) => a + (x.precip || 0), 0)),
+            hi1: r1(hi1 ? hi1.precipHi : 0), hi6: hi6.v, level: rainLevel(v1, p6.v), levelHi: rainLevel(hi1 ? hi1.precipHi : 0, hi6.v), hours: hs.length };
+    }
+    if (/vento/.test(type)) { const g = max('gust'), gh = max('gustHi'); return g ? { kind: 'wind', gust: g.gust, at: at(g), gustHi: gh ? gh.gustHi : null, hours: hs.length } : null; }
+    if (/quente|calor/.test(type)) { const m = max('temp'); return m ? { kind: 'hot', temp: m.temp, at: at(m), hours: hs.length } : null; }
+    if (/frio/.test(type)) { const m = hs.reduce((b, x) => (isNum(x.temp) && (!b || x.temp < b.temp) ? x : b), null); return m ? { kind: 'cold', temp: m.temp, at: at(m), hours: hs.length } : null; }
+    if (/nevoeiro/.test(type)) { const m = hs.reduce((b, x) => (isNum(x.visibility) && (!b || x.visibility < b.visibility) ? x : b), null); return m ? { kind: 'fog', vis: m.visibility, at: at(m), hours: hs.length } : null; }
+    return null;
+}
+const nf1 = (x) => String(r1(x)).replace('.', ',');
+const mm = (x) => (x >= 10 ? String(Math.round(x)) : nf1(x)); // 14 mm, 2,7 mm
+/** Uma frase curta: o que o ponto atinge nas horas do aviso e, para a chuva, como fica perto dos critérios do IPMA. */
+export function warnHereText(w, here = w?.here) {
+    if (!here) return '';
+    const W = WARN_ORDER[w.level] || 0;
+    // nas tempestades a média dos modelos esbate os picos: nunca desvalorizar um aviso forte com ela
+    const storm = ' Nas tempestades os modelos ficam aquém: segue o aviso.';
+    if (here.kind === 'rain') {
+        const Lc = WARN_ORDER[here.level] || 0, Lh = Math.max(Lc, WARN_ORDER[here.levelHi] || 0);
+        let s = `Aqui: ${mm(here.p6)} mm em 6 h e ${mm(here.p1)} mm numa hora`;
+        if (here.hi6 >= here.p6 * 1.3 && here.hi6 - here.p6 >= 3) s += ` (${mm(here.hi6)} e ${mm(here.hi1)} no pior cenário)`;
+        if (Lc > W) s += ` — acima deste aviso (${WARN_PT[here.level]}).`;
+        else if (Lc === W) s += ' — ao nível deste aviso.';
+        else if (Lh >= W) s += ' — a este nível só no pior cenário.';
+        else if (!Lh) s += ` — abaixo do amarelo (${WARN_RAIN[2][2]} mm em 6 h), mesmo no pior cenário.`;
+        else s += ` — ${WARN_PT[here.levelHi]} só no pior cenário.`;
+        if (Lh < W) s += ' O aviso é para o distrito todo.';
+        if (w.level === 'red' && Lh < W) s += storm;
+        return s;
+    }
+    if (here.kind === 'wind') {
+        let s = `Aqui: rajadas até ${Math.round(here.gust)} km/h às ${here.at.replace(':00', 'h')}`;
+        if (isNum(here.gustHi) && here.gustHi >= here.gust + 10) s += ` (${Math.round(here.gustHi)} no pior cenário)`;
+        return s + '.' + (W >= 2 ? storm : '');
+    }
+    const h = (x) => x.replace(':00', 'h');
+    if (here.kind === 'hot') return `Aqui: máxima de ${nf1(here.temp)} °C às ${h(here.at)}.`;
+    if (here.kind === 'cold') return `Aqui: mínima de ${nf1(here.temp)} °C às ${h(here.at)}.`;
+    if (here.kind === 'fog') return `Aqui: visibilidade mínima de ${nf1(here.vis)} km às ${h(here.at)}.`;
+    return '';
+}
+
 function ipmaWarnings(list, areaId, nowLocal) {
     if (!Array.isArray(list) || !areaId) return [];
     return list.filter((w) => w.idAreaAviso === areaId && w.awarenessLevelID !== 'green' && String(w.endTime).slice(0, 16) >= nowLocal)
@@ -1612,7 +1684,7 @@ export function buildSummary(fc, extra = {}) {
     for (const k of ['thunder', 'fog', 'frost', 'heat', 'wind', 'rain', 'snow', 'uv']) L.push(`${k}: nível ${I[k].level} (${I[k].label})${I[k].text ? ' — ' + I[k].text : ''}`);
     L.push(`pressão: ${I.pressure.trend} (3 h ${f1(I.pressure.delta3h)}, próximas 24 h ${f1(I.pressure.delta24h)} hPa). Previsibilidade: ${I.predictability.text}. Concordância 48 h: ${I.agreement}.`);
     L.push('\n## Avisos oficiais IPMA');
-    L.push(fc.warnings.length ? fc.warnings.map((w) => `${w.level} ${w.type} ${w.start}→${w.end}: ${w.text}`).join('\n') : 'Nenhum.');
+    L.push(fc.warnings.length ? fc.warnings.map((w) => `${w.level} ${w.type} ${w.start}→${w.end}: ${w.text}${w.here ? ` — ${warnHereText(w)}` : ''}`).join('\n') : 'Nenhum.');
     const F = fc.fire;
     L.push('\n## Incêndios');
     L.push(F.risk ? `Risco IPMA (RCM) concelho ${F.risk.concelho || F.risk.dico}: hoje ${F.risk.today} ${F.risk.label || ''}, amanhã ${F.risk.tomorrow} ${F.risk.labelTomorrow || ''}.` : 'Risco IPMA: n/d.');
