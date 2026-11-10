@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.15.1';
+const VERSION = '1.16.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -791,6 +791,23 @@ function fireHtml(fc) {
     return h + '</section>';
 }
 
+// o texto do Claude: as linhas «Período: …» (Manhã, Tarde, Noite, Seg…) viram uma lista arrumada com o período a negrito;
+// as outras ficam parágrafos (as análises antigas, numa só linha, continuam a ler-se)
+function richText(x) {
+    const out = [];
+    let list = [];
+    const flush = () => { if (list.length) out.push(`<ul class="an-per">${list.join('')}</ul>`); list = []; };
+    for (const raw of String(x).split(/\n+/)) {
+        const l = raw.trim();
+        if (!l) continue;
+        const m = /^(?:[-•]\s*)?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 .–-]{0,15}):\s+(.+)$/.exec(l);
+        if (m) list.push(`<li><b>${esc(m[1])}</b><span>${esc(m[2])}</span></li>`);
+        else if (/^[-•]\s+/.test(l)) list.push(`<li><b></b><span>${esc(l.replace(/^[-•]\s+/, ''))}</span></li>`);
+        else { flush(); out.push(`<p>${esc(l)}</p>`); }
+    }
+    flush();
+    return out.join('');
+}
 function viewAnalysis() {
     const title = TITLES.analise;
     if (!cfg.loc) return needPlace(title);
@@ -805,7 +822,7 @@ function viewAnalysis() {
     else if (a) {
         const g = a.generatedAt ? new Date(a.generatedAt) : null;
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
-        const sec = (t, x, id) => (x ? `<div class="an-sec"${id ? ` id="${id}"` : ''}><h4>${t}</h4><p>${esc(x)}</p></div>` : '');
+        const sec = (t, x, id) => (x ? `<div class="an-sec"${id ? ` id="${id}"` : ''}><h4>${t}</h4>${richText(x)}</div>` : '');
         const ap = analysedPoint();
         // feita para outro ponto (> 2 km): dizê-lo claramente e oferecer mudar a análise diária para o ponto selecionado
         if (ap?.far) {

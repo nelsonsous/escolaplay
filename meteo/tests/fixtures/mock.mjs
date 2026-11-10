@@ -222,7 +222,7 @@ export const MOCK_ANALYSIS = {
   resumo: 'Sexta-feira termina com céu pouco nublado e vento fraco de leste. No sábado o vento roda para sul e as nuvens aumentam com a aproximação de uma superfície frontal fria, que atravessa Lisboa no domingo entre as 6h e as 12h com chuva por vezes forte (até 6 mm/h) e rajadas de 50 a 55 km/h. Segunda-feira fica mais fresca, com aguaceiros e possibilidade de trovoada isolada à tarde. A partir de terça volta o tempo seco.',
   agora: 'Até às 21h: céu pouco nublado, 18 °C a descer para 14 °C ao anoitecer. Vento fraco de leste (10 km/h). Sem chuva.',
   hoje: 'Resto do dia agradável, com a máxima de 18 °C já atingida. Noite com 12 a 13 °C e algumas nuvens altas a partir da meia-noite.',
-  amanha: 'Sábado com nebulosidade a aumentar e vento de sul a intensificar-se à tarde (rajadas até 45 km/h). Nevoeiro possível ao amanhecer junto ao rio. Chuvisco fraco a partir das 21h.',
+  amanha: 'Sábado com nuvens a aumentar e vento de sul.\nManhã: nevoeiro possível ao amanhecer junto ao rio; 12 °C.\nTarde: vento de sul a aumentar, rajadas até 45 km/h; 18 °C.\nNoite: chuvisco fraco a partir das 21h.',
   dias: [
     { data: '2026-11-08', texto: 'Chuva forte entre as 6h e as 12h (10 a 20 mm) com rajadas de 55 km/h; tarde com abertas e mais fresco.', confianca: 'alta' },
     { data: '2026-11-09', texto: 'Aguaceiros à tarde, por vezes fortes, com trovoada isolada. Máxima de 16 °C.', confianca: 'alta' },
@@ -242,7 +242,7 @@ export const MOCK_ANALYSIS = {
   fiabilidade: { curto: 'alta', medio: 'media', texto: 'Os 9 modelos concordam na passagem da frente no domingo (diferença de ±2 h na hora de chegada); a quantidade de chuva varia entre 8 e 20 mm. Depois de quarta-feira os ensembles divergem.' },
   tecnica: 'Uma depressão profunda (980 hPa) a oeste da Irlanda arrasta uma superfície frontal fria que atravessa a Península no domingo. Antes dela, o fluxo roda de leste para sul, com advecção de ar quente e húmido (ponto de orvalho de 13 a 14 °C). A frente está bem definida nos modelos de alta resolução (AROME 1,3 km), com uma linha de precipitação mais intensa à passagem. Depois entra ar polar marítimo, mais fresco e instável (CAPE de 300 a 500 J/kg na segunda à tarde), com aguaceiros dispersos. A crista anticiclónica regressa a partir de terça.',
   verificacao: 'A previsão das 07:12 acertou a máxima (prevista 18 °C, observada 18,4 °C) e a ausência de chuva.',
-  vestir: 'Sábado de manhã casaco leve (12 °C, nevoeiro junto ao rio); à tarde camisola (18 °C) e um corta-vento a partir das 16h (rajadas de 45 km/h). À noite casaco quente (11 °C).',
+  vestir: 'Manhã: casaco leve (12 °C, nevoeiro junto ao rio).\nTarde: camisola (18 °C) e corta-vento a partir das 16h.\nNoite: casaco quente (11 °C).',
   semana: 'Domingo: chuva forte de manhã e vento, tarde com abertas (15 °C). Segunda: aguaceiros à tarde, trovoada isolada (16 °C). Terça e quarta: sol, manhãs frescas (9 °C). Quinta: sol, 19 °C. Sexta e sábado: nova perturbação possível (confiança baixa).',
   notificacao: {
     amanha: 'Nuvens a aumentar, vento de sul com rajadas de 45 km/h à tarde; 12 a 18 °C. Camisola e corta-vento; casaco à noite.',

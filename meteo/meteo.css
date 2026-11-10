@@ -52,6 +52,12 @@ a { color: var(--accent2); }
 .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; background: var(--faint); }
 .dot.on { background: var(--up); box-shadow: 0 0 0 0 rgba(48, 209, 88, .6); animation: pulse 2s infinite; }
 .dot.busy { background: var(--accent); }
+/* a análise por períodos: «Manhã · Tarde · Noite» numa coluna, o texto ao lado */
+.an-per { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.an-per li { display: grid; grid-template-columns: 4.4em minmax(0, 1fr); gap: 8px; line-height: 1.45; }
+.an-per li b { font-weight: 650; color: var(--text); }
+.an-per li span { color: var(--soft); }
+.an-sec p + .an-per { margin-top: 8px; }
 /* «Os meus locais»: o atual realçado; ✦ nos analisados pelo Claude */
 .locs .wl-i.here { background: var(--card2); border-radius: 12px; padding-left: 12px; }
 .locs .wl-go b .i { width: 1em; height: 1em; vertical-align: -2px; color: var(--up); }
