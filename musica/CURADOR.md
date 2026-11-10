@@ -40,6 +40,10 @@ nesta tarefa.
    - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
      artistas · dd/mm»"*, cria-a só com as faixas da secção *Novidades* (põe o `tidalId` de cada uma na proposta; não é
      preciso pesquisar na web). Com menos de 5 faixas, não a cries.
+   - **Playlists que se atualizam sozinhas** (secção do `dados.md`, ligadas na app): renova as que disserem *"está na
+     altura de a renovar"*, até **2** por corrida, com o mesmo critério (o pedido e as opções que lá estão). Mantém as
+     que a pessoa guardou (põe-nas com o `tidalId` e `"fixa": true`), não voltes a pôr as que ela tirou, e troca pelo
+     menos metade das outras por faixas novas. Publica com `--renovar <id>` (passo 6).
    - Se não houver nada disto, **termina aqui** (sem pesquisar nada).
    - **As tuas mixes do Tidal** (secção do `dados.md`): são faixas que o Tidal escolheu para o teu gosto. Quando
      encaixarem num pedido ou na playlist da semana, usa-as como candidatas, com o `tidalId` (não contam como
@@ -89,7 +93,12 @@ nesta tarefa.
    - **Playlist da semana**: ~40% recente (últimos 12 meses, com boa crítica ou a subir), ~35% de várias décadas
      (dos anos 50 aos 2010), ~25% perto do gosto dele (artistas e géneros de que gosta, **sem** repetir favoritas);
      pelo menos 5 géneros. Opções: `"faixas": 30, "maxArtista": 2, "estilo": "descoberta", "arco": "onda"`.
-   - **Pedido**: as opções do pedido (faixas, máximo por artista, estilo, arco) — copia-as para `opcoes`.
+   - **Pedido**: as opções do pedido (faixas, máximo por artista, estilo, arco) — copia-as para `opcoes`. Se o pedido
+     disser **sem letras explícitas**, põe também `"limpa": true`: o conector procura a versão limpa de cada faixa (as
+     que só existem explícitas aparecem nas "não encontradas" do ensaio — troca-as por outras).
+   - **Como correram as playlists** (secção do `dados.md`, automática): é o peso do que resultou. Puxa pelos artistas,
+     géneros e ambientes das que *resultaram* ou ficaram *boas*, e das faixas que a pessoa guardou; vai menos por onde
+     *não resultou* ou foi *apagada*; e **nunca** proponhas as faixas da lista *"Não voltes a propor"*.
    - Não repetir faixas das últimas playlists do Maestro (lista no `dados.md`) nem favoritas dele, salvo se o pedido
      pedir.
    - Estilos: `equilibrado`, `descoberta` (mais novidade), `moda` (mais tendência), `gosto` (mais perto do que ouve),
@@ -112,7 +121,9 @@ nesta tarefa.
    NODE_USE_ENV_PROXY=1 node musica/curador/publicar.mjs /tmp/musica/proposta.json --modelo <id do modelo>
    ```
 
-   Para um pedido, junta `--pedido <id>` (fica marcado como feito e ligado à playlist). Se o Worker responder
+   Para um pedido, junta `--pedido <id>` (fica marcado como feito e ligado à playlist). Para renovar uma playlist que
+   se atualiza sozinha, escreve a proposta noutro ficheiro (ex.: `/tmp/musica/renovar-<id>.json`, com o mesmo `nome`)
+   e publica-a com `--renovar <id>` em vez de `--pedido`: fica no mesmo sítio da app e no mesmo link do Tidal. Se o Worker responder
    `tidal_desligado` (sessão expirada), termina e diz no resumo que é preciso **ligar o Tidal outra vez na app**.
 
    **Para outra pessoa** (não o dono): escreve a proposta na pasta dela, `/tmp/musica/<id>/proposta.json` (o

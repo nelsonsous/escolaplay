@@ -3,12 +3,12 @@
 // e guarda a biblioteca de playlists do Maestro (tarefa agendada do Claude). A app em si está no GitHub Pages.
 // Plano gratuito: 10 ms de CPU e 50 pedidos externos por pedido — o motor Onda corre no telemóvel e na tarefa
 // agendada; aqui só se fala com o Tidal, em lotes pequenos.
-import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFaixas, indexar, melhor } from '../../lib/tidal.js';
+import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFaixas, indexar, melhor, normal } from '../../lib/tidal.js';
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.7.0';
+const VERSION = '1.8.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -76,11 +76,14 @@ async function route(req, env, url) {
     if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q')));
     if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes)?$/.exec(p);
+    if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(ue, pl[1], await corpo(req), quem), 201);
+    if (pl && pl[2] === '/renovar' && m === 'POST') return json(await renovar(ue, pl[1], await corpo(req)));
+    if (pl && pl[2] === '/renovacoes' && m === 'POST') return json(await renovacao(ue, pl[1], await corpo(req)), 201);
     if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(ue, await corpo(req), quem), 201);
     if (p === '/api/mixes' && m === 'GET') return json(await mixes(ue));
     if (p === '/api/novidades' && m === 'GET') return json(await novidades(ue, url.searchParams.get('dias')));
@@ -371,6 +374,16 @@ async function resolver(env, c) {
     const t = await acesso(env);
     const pais = t.pais || 'PT';
     const pedidos = lista.map((x) => ({ artista: txt(x.artista, 120), titulo: txt(x.titulo, 160), versao: txt(x.versao, 60), isrc: txt(x.isrc, 12), tidalId: /^\d+$/.test(String(x.tidalId || '')) ? String(x.tidalId) : '' }));
+    // sem letras explícitas: vêem-se mais resultados da pesquisa, porque a versão limpa («Clean Edit») costuma vir abaixo
+    const limpa = c.limpa === true, quantas = limpa ? 10 : 3;
+    const procurar = async (p) => {
+        const q = `${p.artista} ${p.titulo}`.replace(/[/\\?#]/g, ' ').replace(/\s+/g, ' ').trim();
+        const ids = await pesquisar(env, q, pais).catch((e) => {
+            if (e.status === 429) throw e;
+            return [];
+        });
+        return ids.slice(0, quantas);
+    };
     const opcoes = [];
     for (const p of pedidos) {
         if (p.tidalId) { opcoes.push([p.tidalId]); continue; }
@@ -378,19 +391,22 @@ async function resolver(env, c) {
         if (p.isrc) {
             const doc = await tidal(env, '/tracks', { query: { 'filter[isrc]': p.isrc, countryCode: pais } }).catch(() => null);
             const ids = idsDe(doc);
-            if (ids.length) { opcoes.push(ids.slice(0, 3)); continue; }
+            if (ids.length) { opcoes.push(ids.slice(0, quantas)); continue; }
         }
-        const q = `${p.artista} ${p.titulo}`.replace(/[/\\?#]/g, ' ').replace(/\s+/g, ' ').trim();
-        const ids = await pesquisar(env, q, pais).catch((e) => {
-            if (e.status === 429) throw e;
-            return [];
-        });
-        opcoes.push(ids.slice(0, 3));
+        opcoes.push(await procurar(p));
     }
     const detalhe = await porIds(env, opcoes.flat(), pais);
+    const serve = (f) => f && !(limpa && f.explicita);
+    if (limpa) {
+        // dada pelo id ou pelo ISRC, e só explícita: procura-se pelo artista e título, à procura da versão limpa
+        const outra = pedidos.map((p, i) => i).filter((i) => (pedidos[i].tidalId || pedidos[i].isrc) && pedidos[i].titulo && !opcoes[i].some((id) => serve(detalhe.get(id))));
+        for (const i of outra) { pedidos[i].tidalId = ''; opcoes[i] = await procurar(pedidos[i]); }
+        const novos = [...new Set(outra.flatMap((i) => opcoes[i]))].filter((id) => !detalhe.has(id));
+        if (novos.length) for (const [k, f] of await porIds(env, novos, pais)) detalhe.set(k, f);
+    }
     return {
         faixas: pedidos.map((p, i) => {
-            const cands = opcoes[i].map((id) => detalhe.get(id)).filter(Boolean);
+            const cands = opcoes[i].map((id) => detalhe.get(id)).filter(serve);
             if (p.tidalId) return cands[0] || null;
             return melhor(p, cands);
         }),
@@ -445,7 +461,13 @@ async function guardar(env, c, quem) {
     return doc;
 }
 const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.por, faixas: d.faixas.length,
-    duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null });
+    duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
+    ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}),
+    ...(d.avaliacao ? { avaliacao: { nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta, guardadas: d.avaliacao.guardadas.length, tiradas: d.avaliacao.tiradas.length } } : {}) });
+async function atualizarIndice(env, d) {
+    const idx = (await env.KV.get('playlists', 'json')) || [];
+    await env.KV.put('playlists', JSON.stringify(idx.map((x) => (x.id === d.id ? resumoDe(d) : x))));
+}
 
 async function obter(env, id) {
     const d = await env.KV.get('playlist:' + id, 'json');
@@ -510,7 +532,9 @@ async function versao(env, id, c, quem) {
     });
     if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A versão não tem faixas.');
     // a mesma playlist: na app e, se já estiver no Tidal, lá também (troca as faixas, sem criar cópias)
-    Object.assign(d, { faixas, candidatas: todas.filter(Boolean), opcoes: normalizarOpcoes(c.opcoes || d.opcoes || {}), custo: Number(c.custo) || d.custo || 0, afinadaEm: new Date().toISOString() });
+    const op = normalizarOpcoes(c.opcoes || d.opcoes || {});
+    if (d.opcoes?.limpa && c.opcoes?.limpa === undefined) op.limpa = true;
+    Object.assign(d, { faixas, candidatas: todas.filter(Boolean), opcoes: op, custo: Number(c.custo) || d.custo || 0, afinadaEm: new Date().toISOString() });
     if (c.tidal) {
         if (d.tidal?.id) {
             await substituirNoTidal(env, d.tidal.id, faixas.map((f) => f.id));
@@ -524,7 +548,7 @@ async function versao(env, id, c, quem) {
 }
 
 // troca as faixas de uma playlist do Tidal: tira as que lá estão (pelo itemId, lotes de 50) e põe as novas pela ordem
-async function substituirNoTidal(env, pid, ids) {
+async function itensNoTidal(env, pid) {
     const atuais = [];
     let cursor = null;
     for (let pag = 0; pag < 8; pag++) {
@@ -533,10 +557,98 @@ async function substituirNoTidal(env, pid, ids) {
         cursor = doc?.links?.meta?.nextCursor || null;
         if (!cursor) break;
     }
+    return atuais;
+}
+async function substituirNoTidal(env, pid, ids) {
+    const atuais = await itensNoTidal(env, pid);
     for (let i = 0; i < atuais.length; i += 50) await tidal(env, `/playlists/${pid}/relationships/items`, { method: 'DELETE', body: { data: atuais.slice(i, i + 50) } });
     for (let i = 0; i < ids.length; i += MAX_ITENS) {
         await tidal(env, `/playlists/${pid}/relationships/items`, { method: 'POST', body: { data: ids.slice(i, i + MAX_ITENS).map((x) => ({ id: x, type: 'tracks' })), meta: { onDuplicates: 'SKIP' } } });
     }
+}
+
+// ---------- como correram as playlists (automático) ----------
+// A API do Tidal não diz o que ouviste (o estado de reprodução pede uma permissão que as apps de fora não têm). Os
+// sinais que há: as faixas que guardaste nas favoritas depois de a playlist ser criada (ou renovada), as que tiraste
+// ou juntaste à playlist no Tidal, a playlist apagada no Tidal, e os artistas dela que o Tidal pôs nas tuas mixes (que
+// ele faz a partir do que ouves). Fica guardado em cada playlist (a app mostra-o; o Maestro usa-o).
+const MAX_AVALIAR = 8;
+async function avaliacoes(env) {
+    const idx = (await env.KV.get('playlists', 'json')) || [];
+    const pf = (await env.KV.get('perfil', 'json')) || (await perfil(env, false));
+    const fav = new Map((pf.favoritas || []).map((f) => [String(f.id), f.adicionada || '']));
+    const gostava = new Set((pf.favoritas || []).flatMap((f) => f.artistas || []).map(normal));
+    const mx = await mixes(env).catch((e) => { if (e.codigo === 'tidal_desligado') throw e; return null; });
+    const nasMixes = new Set((mx?.mixes || []).flatMap((x) => x.faixas || []).flatMap((f) => f.artistas || []).map(normal));
+    // as mais recentes e as que se atualizam sozinhas
+    const escolha = [...idx.slice(0, MAX_AVALIAR), ...idx.filter((x) => x.renovar)].filter((x, i, a) => a.findIndex((y) => y.id === x.id) === i).slice(0, 14);
+    const out = [], docs = new Map();
+    for (const x of escolha) {
+        const d = await env.KV.get('playlist:' + x.id, 'json');
+        if (!d) continue;
+        d.avaliacao = await avaliar(env, d, fav, gostava, nasMixes);
+        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+        docs.set(d.id, d);
+        out.push({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, renovadaEm: d.renovadaEm || null, renovar: !!d.renovar, por: d.por, pedido: d.pedido || '',
+            opcoes: d.opcoes, faixas: d.faixas.length, tidal: d.tidal?.url || null, avaliacao: d.avaliacao });
+    }
+    await env.KV.put('playlists', JSON.stringify(idx.map((x) => (docs.has(x.id) ? resumoDe(docs.get(x.id)) : x))));
+    return { avaliadaEm: new Date().toISOString(), playlists: out };
+}
+async function avaliar(env, d, fav, gostava, nasMixes) {
+    const desde = d.renovadaEm || d.criadaEm;
+    const ids = new Set(d.faixas.map((f) => String(f.id)));
+    let noTidal = null, apagada = false;
+    if (d.tidal?.id) {
+        try { noTidal = new Set((await itensNoTidal(env, d.tidal.id)).map((x) => x.id)); } catch (e) {
+            if (e.status === 404) apagada = true;
+            else if (e.codigo === 'tidal_desligado') throw e;
+        }
+    }
+    const curta = (f) => ({ id: String(f.id), artista: f.artistas?.[0] || '', titulo: f.titulo || '' });
+    const guardadas = d.faixas.filter((f) => { const a = fav.get(String(f.id)); return !!a && a >= desde; }).map(curta);
+    const tiradas = noTidal ? d.faixas.filter((f) => !noTidal.has(String(f.id))).map(curta) : [];
+    const juntadas = noTidal ? [...noTidal].filter((x) => !ids.has(x)).length : 0;
+    // o eco conta os artistas que aparecem nas mixes depois da playlist (os que já lá estavam ficam na base, na 1.ª vez)
+    const artistas = [...new Set(d.faixas.flatMap((f) => f.artistas || []))];
+    if (!Array.isArray(d.ecoBase)) d.ecoBase = artistas.filter((a) => nasMixes.has(normal(a)));
+    const base = new Set(d.ecoBase.map(normal));
+    const eco = artistas.filter((a) => nasMixes.has(normal(a)) && !gostava.has(normal(a)) && !base.has(normal(a))).slice(0, 8);
+    const sinais = guardadas.length + tiradas.length + juntadas + eco.length;
+    const nota = apagada ? 5 : Math.max(0, Math.min(100, 50 + Math.min(36, 12 * guardadas.length) + Math.min(10, 5 * juntadas) + Math.min(15, 5 * eco.length) - Math.min(30, 6 * tiradas.length)));
+    const etiqueta = apagada ? 'apagaste' : !sinais ? ((Date.now() - Date.parse(desde)) / 864e5 < 3 ? 'ainda cedo' : 'sem sinais')
+        : nota >= 75 ? 'resultou' : nota >= 55 ? 'boa' : nota >= 40 ? 'morna' : 'não resultou';
+    return { nota, etiqueta, guardadas, tiradas: tiradas.slice(0, 30), juntadas, eco, apagada, em: new Date().toISOString() };
+}
+
+// ---------- atualizar sozinha: liga-se na app; o Maestro renova-a com o mesmo critério, no mesmo link do Tidal ----------
+async function renovar(env, id, c) {
+    const d = await obter(env, id);
+    d.renovar = c?.ativo === true;
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    await atualizarIndice(env, d);
+    return d;
+}
+async function renovacao(env, id, c) {
+    const d = await obter(env, id);
+    const faixas = (Array.isArray(c?.faixas) ? c.faixas : []).map(normalizarFaixa).filter(Boolean).slice(0, 200);
+    if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A renovação precisa de "faixas" já encontradas no Tidal (com "id").');
+    const agora = new Date().toISOString();
+    if (d.avaliacao) d.historico = [...(d.historico || []), { em: d.avaliacao.em, nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta }].slice(-10);
+    delete d.avaliacao;
+    delete d.ecoBase;
+    Object.assign(d, { faixas, candidatas: Array.isArray(c.candidatas) ? c.candidatas.slice(0, 200) : d.candidatas, custo: Number(c.custo) || 0,
+        resumo: txt(c.resumo, 1200) || d.resumo, tendencias: (Array.isArray(c.tendencias) ? c.tendencias : d.tendencias || []).map((x) => txt(x, 200)).filter(Boolean).slice(0, 8),
+        opcoes: normalizarOpcoes(c.opcoes || d.opcoes || {}), modelo: txt(c.modelo, 60) || d.modelo, renovadaEm: agora, renovacoes: (d.renovacoes || 0) + 1 });
+    if (d.tidal?.id) {
+        try {
+            await substituirNoTidal(env, d.tidal.id, faixas.map((f) => f.id));
+            d.tidal = { ...d.tidal, faixas: faixas.length, atualizadaEm: agora };
+        } catch (e) { if (e.status !== 404) throw e; d.tidal = await criarNoTidal(env, d); }
+    } else if (c.tidal) d.tidal = await criarNoTidal(env, d);
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    await atualizarIndice(env, d);
+    return d;
 }
 
 // ---------- mais como esta: faixas parecidas (as do Tidal), numa playlist já no Tidal e pronta para afinar ----------
@@ -554,16 +666,17 @@ async function maisComoEsta(env, c, quem) {
     const semente = det.get(id);
     if (!semente) throw new Erro(404, 'nao_encontrada', 'Essa faixa já não está no Tidal.');
     const g = perfilGosto((await env.KV.get('perfil', 'json')) || {});
+    const limpa = c.limpa === true;
     const candidatas = ids.map((x, i) => {
         const f = det.get(x);
-        if (!f) return null;
+        if (!f || (limpa && i && f.explicita)) return null;
         const p = { artista: f.artistas[0] || '', titulo: f.titulo, motivo: i ? `Parecida com «${semente.titulo}».` : 'A faixa de partida.', fixa: !i };
         return { ...p, faixa: f, sinais: sinais(p, f, g) };
     }).filter(Boolean);
     const faixas = candidatas.map((x) => ({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo }));
     return guardar(env, { nome: txt(`Parecidas com ${semente.titulo}`, 60), descricao: txt(`Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
         resumo: `Pedi ao Tidal as faixas parecidas com «${semente.titulo}». Afina no telemóvel para mudar a ordem ou a escolha.`, faixas, candidatas,
-        opcoes: { faixas: Math.max(5, faixas.length), maxArtista: 3 }, tidal: true }, quem);
+        opcoes: { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, tidal: true }, quem);
 }
 
 // ---------- para o Maestro: as tuas mixes do Tidal ----------

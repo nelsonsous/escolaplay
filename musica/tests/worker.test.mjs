@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.7.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.8.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -474,4 +474,65 @@ test('tendências: o retrato de cada dia, o que sobe, o que é novo, o que dura,
     const agente = await env.KV.get('agente:chave');
     assert.equal((await post('/api/tendencias/recolher', {}, agente)).status, 200);
     assert.equal((await post('/api/tendencias/recolher', {})).status, 401);
+});
+
+test('sem letras explícitas: o resolver procura a versão limpa (também quando vem pelo id ou pelo ISRC); o pedido guarda a opção', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const faixas = [{ artista: 'Pop Teste', titulo: 'Canção Forte' }, { artista: 'Pop Teste', titulo: 'Canção Forte', tidalId: '107' }, { artista: 'Pop Teste', titulo: 'Canção Forte', isrc: 'USAAA0000107' }];
+    const normal = await (await post('/api/resolver', { faixas }, chave)).json();
+    assert.deepEqual(normal.faixas.map((f) => f.id), ['107', '107', '107'], 'sem a opção: a mais popular, que é a explícita');
+    assert.equal(normal.faixas[0].explicita, true);
+    const limpa = await (await post('/api/resolver', { faixas, limpa: true }, chave)).json();
+    assert.deepEqual(limpa.faixas.map((f) => f.id), ['108', '108', '108']);
+    assert.ok(limpa.faixas.every((f) => !f.explicita));
+    // só explícita, sem versão limpa: não serve
+    const so = await (await post('/api/resolver', { faixas: [{ artista: 'Pop Teste', titulo: 'Só Explícita', tidalId: '109' }, { artista: 'Miles Davis', titulo: 'So What' }], limpa: true }, chave)).json();
+    assert.deepEqual(so.faixas.map((f) => f?.id ?? null), [null, '101']);
+    const ped = await (await post('/api/pedidos', { texto: 'Para a Eduarda, no carro', opcoes: { faixas: 20, limpa: true } }, chave)).json();
+    assert.equal(ped.opcoes.limpa, true);
+    const ped2 = await (await post('/api/pedidos', { texto: 'Para mim', opcoes: { faixas: 20 } }, chave)).json();
+    assert.equal('limpa' in ped2.opcoes, false);
+});
+
+test('como correu: guardadas nas favoritas, tiradas e juntadas no Tidal, eco nas mixes, apagada; atualizar sozinha e renovar', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const res = await (await post('/api/resolver', { faixas: ['Get Lucky', 'Teardrop', 'Barco Negro', 'Faixa 0', 'Faixa 1', 'Só Explícita'].map((titulo) => ({ artista: titulo.startsWith('Faixa') ? 'Miles Davis' : '', titulo })) }, chave)).json();
+    const doc = await (await post('/api/playlists', { nome: 'Para o carro', pedido: 'Faixas para o carro', opcoes: { faixas: 5, limpa: true }, faixas: res.faixas, tidal: true }, agente)).json();
+    assert.equal((await (await get('/api/avaliacoes', agente)).json()).playlists[0].avaliacao.etiqueta, 'ainda cedo');
+    // o que a pessoa fez: guardou o «Get Lucky», tirou a «Faixa 0» e juntou outra no Tidal; e o Tidal pôs a Pop Teste
+    // nas mixes (o Massive Attack já lá estava antes: não conta)
+    sim.listas['mix-dia'].push({ id: '109', itemId: 'm9' });
+    sim.favoritasNovas = [{ id: '103', addedAt: new Date(Date.now() + 1000).toISOString() }];
+    const pid = doc.tidal.id;
+    sim.listas[pid] = sim.listas[pid].filter((x) => x.id !== '200');
+    sim.listas[pid].push({ id: '210', itemId: 'it-juntada' });
+    await get('/api/perfil?fresco=1', chave);
+    const a = (await (await get('/api/avaliacoes', agente)).json()).playlists[0];
+    assert.equal(a.id, doc.id);
+    assert.deepEqual(a.avaliacao.guardadas.map((x) => x.titulo), ['Get Lucky']);
+    assert.deepEqual(a.avaliacao.tiradas.map((x) => x.titulo), ['Faixa 0']);
+    assert.equal(a.avaliacao.juntadas, 1);
+    assert.deepEqual(a.avaliacao.eco, ['Pop Teste'], 'apareceu nas mixes depois da playlist, e não está nas favoritas');
+    assert.equal(a.avaliacao.nota, 66);
+    assert.equal(a.avaliacao.etiqueta, 'boa');
+    assert.equal(a.opcoes.limpa, true);
+    const idx = await (await get('/api/playlists', chave)).json();
+    assert.deepEqual(idx[0].avaliacao, { nota: 66, etiqueta: 'boa', guardadas: 1, tiradas: 1 });
+    // atualizar sozinha: liga-se na app; o Maestro renova-a no mesmo link do Tidal
+    assert.equal((await (await post(`/api/playlists/${doc.id}/renovar`, { ativo: true }, chave)).json()).renovar, true);
+    assert.equal((await (await get('/api/playlists', chave)).json())[0].renovar, true);
+    const nova = (await (await post('/api/resolver', { faixas: [{ titulo: 'Get Lucky' }, { titulo: 'So What' }, { artista: 'Miles Davis', titulo: 'Faixa 4' }] }, agente)).json()).faixas;
+    const ren = await (await post(`/api/playlists/${doc.id}/renovacoes`, { faixas: nova, custo: 7, resumo: 'Renovada: fica o que guardaste.', opcoes: { faixas: 3, limpa: true }, tidal: true, modelo: 'm' }, agente)).json();
+    assert.equal(ren.id, doc.id);
+    assert.equal(ren.tidal.id, pid, 'a mesma playlist no Tidal');
+    assert.deepEqual(sim.listas[pid].map((x) => x.id), ['103', '101', '204']);
+    assert.ok(ren.renovadaEm && ren.renovacoes === 1 && !ren.avaliacao && ren.historico[0].etiqueta === 'boa');
+    assert.equal(ren.renovar, true);
+    // apagada no Tidal
+    sim.apagadas.push(pid);
+    const ap = (await (await get('/api/avaliacoes', agente)).json()).playlists[0].avaliacao;
+    assert.deepEqual([ap.etiqueta, ap.nota], ['apagaste', 5]);
+    assert.equal((await post(`/api/playlists/${doc.id}/renovar`, { ativo: false }, chave)).status, 200);
+    assert.equal('renovar' in (await (await get('/api/playlists', chave)).json())[0], false);
 });

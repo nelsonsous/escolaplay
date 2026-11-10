@@ -205,6 +205,18 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await nav(1);
     await page.locator('.mu-pl').first().waitFor();
     assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro']);
+    // como correu (o conector avalia-a: ainda é cedo) e atualizar sozinha (liga-se aqui; o Maestro renova-a)
+    const agente = await env.KV.get('agente:chave');
+    assert.equal((await worker.fetch(new Request(WORKER + '/api/avaliacoes', { headers: { authorization: `Bearer ${agente}` } }), env, { waitUntil() {} })).status, 200);
+    await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
+    await page.getByRole('heading', { name: 'Como correu' }).waitFor();
+    await page.getByText('Ainda é cedo.').waitFor();
+    await page.getByRole('button', { name: 'Desligado' }).click();
+    await page.getByRole('button', { name: 'Ligado' }).waitFor();
+    await page.locator('#mu-aviso').getByText('Passa a atualizar-se sozinha').waitFor();
+    assert.equal(JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists'))[0].id)).renovar, true);
+    await nav(1);
+    await page.locator('.mu-pl').first().getByText('↻ atualiza-se').waitFor();
     // mais como esta: toca-se numa faixa e cria-se logo no Tidal uma playlist de parecidas
     await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
     await page.locator('#faixas .mu-faixa-a').first().waitFor();
@@ -243,9 +255,17 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await nav(3);
     await page.locator('[data-onda="sug\t0"]').click();
     assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Faixas bem gravadas para testar o som do carro');
+    // sem letras explícitas (para os mais novos): nas opções
+    await page.getByRole('button', { name: 'Mudar' }).click();
+    await page.getByRole('button', { name: 'Sem letras explícitas' }).click();
+    assert.equal(await page.getByRole('button', { name: 'Sem letras explícitas' }).getAttribute('aria-pressed'), 'true');
+    await page.getByRole('button', { name: 'Fechar' }).click();
+    await page.getByText(/· sem letras explícitas/).waitFor();
     await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
     await page.getByText('Os teus pedidos').waitFor();
-    assert.equal(JSON.parse(await env.KV.get('pedidos'))[0].texto, 'Faixas bem gravadas para testar o som do carro');
+    const pedido = JSON.parse(await env.KV.get('pedidos'))[0];
+    assert.equal(pedido.texto, 'Faixas bem gravadas para testar o som do carro');
+    assert.equal(pedido.opcoes.limpa, true);
     await foto('5-pedir');
 
     // 7) voltar a abrir: a chave fica, a app abre ligada
