@@ -3,9 +3,9 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v35'; // 1.18.1
+const CACHE = 'meteo-v36'; // 1.18.2 — os gestos decididos pelo motor comum em Onda
 const ASSETS = [
-    './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './sky.js', './chuva.js', './onda/chuva-wasm.js', './onda/ceu-glsl.js', './manifest.webmanifest',
+    './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './sky.js', './chuva.js', './onda/chuva-wasm.js', './onda/ceu-glsl.js', '../onda/rt/gestos-onda.js', './manifest.webmanifest',
     './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/marine.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
 ];
@@ -32,7 +32,8 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
     const scope = new URL(self.registration.scope);
-    if (url.origin !== scope.origin || !url.pathname.startsWith(scope.pathname)) return;
+    const gestos = new URL('../onda/rt/gestos-onda.js', scope).pathname; // o motor de gestos comum às apps (em Onda)
+    if (url.origin !== scope.origin || !(url.pathname.startsWith(scope.pathname) || url.pathname === gestos)) return;
     if (url.pathname.startsWith(scope.pathname + 'api/')) return;
     if (req.mode === 'navigate') {
         event.respondWith((async () => {

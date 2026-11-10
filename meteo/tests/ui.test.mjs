@@ -56,10 +56,14 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
 
 (async () => {
     const server = http.createServer((req, res) => {
-        let f = decodeURIComponent(req.url.split('?')[0]).replace(/^\/escolaplay\/meteo\/?/, '/');
+        const u = decodeURIComponent(req.url.split('?')[0]);
+        // o motor de gestos comum às apps (../onda/rt/gestos-onda.js) vem da pasta onda/ do repositório
+        const ONDA_RT = path.resolve(ROOT, '..', 'onda', 'rt');
+        const comum = /^\/escolaplay\/onda\/rt\//.test(u);
+        let f = comum ? u.replace(/^\/escolaplay\/onda\/rt\//, '/') : u.replace(/^\/escolaplay\/meteo\/?/, '/');
         if (f === '/') f = '/index.html';
-        const fp = path.join(ROOT, f);
-        if (!fp.startsWith(ROOT) || /[\\/](proxy|node_modules)[\\/]/.test(fp) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) { res.writeHead(404); return res.end(); }
+        const base = comum ? ONDA_RT : ROOT, fp = path.join(base, f);
+        if (!fp.startsWith(base) || /[\\/](proxy|node_modules)[\\/]/.test(fp) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'Content-Type': TYPES[path.extname(fp)] || 'application/octet-stream' });
         fs.createReadStream(fp).pipe(res);
     }).listen(0);
