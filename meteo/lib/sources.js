@@ -51,7 +51,11 @@ export const OM = {
     archive: 'https://archive-api.open-meteo.com/v1/archive',
     elevation: 'https://api.open-meteo.com/v1/elevation',
     geocoding: 'https://geocoding-api.open-meteo.com/v1/search',
+    // mar: temperatura da água e ondas (a célula de mar mais perto do ponto)
+    marine: 'https://marine-api.open-meteo.com/v1/marine',
 };
+export const MARINE_HOURLY = ['sea_surface_temperature', 'wave_height', 'wave_period', 'wave_direction', 'swell_wave_height', 'swell_wave_period'];
+export const MARINE_DAILY = ['wave_height_max', 'wave_period_max', 'wave_direction_dominant'];
 
 export const IPMA = {
     stations: 'https://api.ipma.pt/open-data/observation/meteorology/stations/stations.json',
@@ -121,6 +125,7 @@ export function omQueries(lat, lon, { models } = {}) {
         ensemble: qs({ ...base, models: ENS_MODELS.map((m) => m.id).join(','), daily: ENS_DAILY.join(','), hourly: 'precipitation',
             forecast_hours: 73, forecast_days: 16 }),
         previous: qs({ ...base, models: PREV_MODELS.join(','), hourly: PREV_HOURLY.join(','), past_days: 7, forecast_days: 7 }),
+        marine: qs({ ...base, hourly: MARINE_HOURLY.join(','), daily: MARINE_DAILY.join(','), forecast_days: 7, cell_selection: 'sea' }),
     };
 }
 

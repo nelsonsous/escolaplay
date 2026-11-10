@@ -24,6 +24,7 @@ const IPMA_LX = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/ipma-lisboa
 const IPMA_ST = JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/ipma-santo-tirso.json'), 'utf8'));
 const NOW = '2026-11-06T15:45:00Z';
 const PROXY = 'https://meteo.proxy.test';
+const MARINE = { ...JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/marine-matosinhos.json'), 'utf8')), latitude: 38.69, longitude: -9.16 };
 const LAT = 38.7223, LON = -9.1393;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
 const CORS = { 'Access-Control-Allow-Origin': '*' };
@@ -107,6 +108,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         return fulfill(r, { elevation: Array(la.length).fill(77) });
     });
     await ctx.route(/^https:\/\/ensemble-api\.open-meteo\.com\//, (r) => fulfill(r, RAW.ens));
+    await ctx.route(/^https:\/\/marine-api\.open-meteo\.com\//, (r) => fulfill(r, MARINE));
     await ctx.route(/^https:\/\/previous-runs-api\.open-meteo\.com\//, (r) => fulfill(r, RAW.prev));
     await ctx.route(/^https:\/\/archive-api\.open-meteo\.com\//, (r) => fulfill(r, climate(new URL(r.request().url()))));
     await ctx.route(/^https:\/\/api\.ipma\.pt\//, (r) => {
@@ -140,6 +142,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/firms') return r.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/csv' }, body: RAW.firms[u.searchParams.get('sat')] || '' });
         if (p === '/api/raw/fogos') return fulfill(r, FOGOS);
         if (p === '/api/raw/om/forecast') return fulfill(r, RAW.det);
+        if (p === '/api/raw/om/marine') return fulfill(r, MARINE);
         if (p === '/api/obs-history') return fulfill(r, []);
         if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName, device: true }); }
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: SCHEDULE,
@@ -349,6 +352,13 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         });
         assert.ok(h0 >= 10, `com o observador a dizer «fora do ecrã», a chuva continua: ${h0} imagens em 0,5 s`);
     }
+    // o mar: o ponto fica a ~4 km da célula de mar (o Tejo) → cartão com a água, as ondas e o UV
+    const mar = page.locator('#mar');
+    await mar.waitFor();
+    assert.match(await mar.textContent(), /Mar.*a 4,\d km.*Água\s*15,9°\s*fria.*Ondas\s*3,6 m.*10 s · de sudoeste.*UV hoje.*Mar agitado · ondulação de fundo 3,3 m\./s);
+    await mar.locator('#d-mar > summary').click();
+    assert.equal(await mar.locator('.sea-d').count(), 7, '7 dias de mar');
+    if (SHOTS) await mar.screenshot({ path: path.join(SHOTS, '03b-mar.png') });
     console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude (desligada por omissão, ligada pelo cartão)');
 
     // 2b) "Está a chover?": o aviso manda no agora (45 min) e segue para o conector

@@ -14,8 +14,9 @@ import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
+import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.13.1';
+const VERSION = '1.14.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -32,7 +33,7 @@ const RZOOMS = [7, 6]; // radar: imagens centradas no ponto, ~240 e ~470 km de l
 const RAIN_CLS = (mmh) => (mmh >= 10 ? 'r3' : mmh >= 2.5 ? 'r2' : mmh >= RADAR.wetMmh ? 'r1' : '');
 const REPORT_ICON = { chuva: 61, 'chuva-forte': 65, 'nao-chove': 2, nevoeiro: 45, granizo: 89, trovoada: 95 };
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
-const SRC = { det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
+const SRC = { marine: 'Mar (Open-Meteo Marine)', det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
 const SHARE_KM = 5; // como o conector (lib/places.js): na mesma cidade junta-se à análise que já existe
 const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
@@ -421,7 +422,7 @@ function viewNow() {
             ? `<div class="empty">${esc(st.error)}<div style="margin-top:10px"><button type="button" class="btn pri sm" data-act="refresh">Tentar de novo</button></div></div>`
             : skeleton() };
     }
-    return { title, html: banners() + nowBox(fc) + alertsHtml(fc) + teaserHtml() + nowcastSec(fc) + hourlySec(fc) + daysMini(fc)
+    return { title, html: banners() + nowBox(fc) + alertsHtml(fc) + teaserHtml() + nowcastSec(fc) + seaSec(fc) + hourlySec(fc) + daysMini(fc)
         + more('d-ind', 'Indicadores', tilesSec(fc), 'sec-more') };
 }
 
@@ -564,6 +565,24 @@ function optInHtml() {
     return `${head}<p>Opcional: o Claude escreve uma análise para este ponto exato ${esc(when)}, com os modelos, as observações, o radar e o satélite. Só este telemóvel a vê.</p>
         ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada telemóvel tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
         <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária do Claude para este local</span></button>`;
+}
+// o mar (só num ponto na costa ou na praia): a temperatura da água, as ondas e o UV de hoje; os próximos dias em «Ver mais»
+const uvWord = (u) => (!F.isNum(u) ? '' : u < 3 ? 'baixo' : u < 6 ? 'moderado' : u < 8 ? 'alto' : u < 11 ? 'muito alto' : 'extremo');
+function seaSec(fc) {
+    const m = fc.marine;
+    if (!m?.now || !F.isNum(m.now.sst)) return '';
+    const n = m.now, uv = fc.daily?.[0]?.uvMax, today = todayOf(fc);
+    const tile = (lab, val, sub) => `<div class="sea-t"><small>${esc(lab)}</small><b class="num">${val}</b><em>${esc(sub)}</em></div>`;
+    const days = (m.days || []).slice(0, 7).map((d) => `<div class="row sea-d"><span class="r-name">${esc(cap1(F.dayDiff(today, d.date) <= 1 ? F.dayLabel(d.date, today) : `${F.wdShort(d.date)} ${Number(d.date.slice(8, 10))}`))}</span>
+        <span class="num">água ${esc(F.num((d.sstMin + d.sstMax) / 2, 1))}°</span><span class="num muted">${F.isNum(d.waveMax) ? `ondas até ${esc(F.num(d.waveMax, 1))} m` : ''}</span></div>`).join('');
+    return `<section class="sec" id="mar"><div class="sec-h"><h2>Mar</h2><span class="sub">${esc(m.distanceKm <= 1.5 ? 'aqui' : `a ${F.km(m.distanceKm)}`)} · Open-Meteo</span></div>
+        <div class="box sea"><div class="sea-g">
+            ${tile('Água', `${esc(F.num(n.sst, 1))}°`, waterFeel(n.sst))}
+            ${F.isNum(n.wave) ? tile('Ondas', `${esc(F.num(n.wave, 1))} m`, `${F.isNum(n.period) ? `${F.num(n.period, 0)} s · ` : ''}${F.windFrom(n.dir)}`) : ''}
+            ${F.isNum(uv) ? tile('UV hoje', esc(F.num(uv, 0)), uvWord(uv)) : ''}
+        </div>
+        <p class="note">${esc(cap1(seaState(n.wave)))}${F.isNum(n.swell) && n.swell >= 0.3 ? ` · ondulação de fundo ${F.num(n.swell, 1)} m` : ''}.</p>
+        ${more('d-mar', 'Próximos dias', `<div class="list">${days}</div>`)}</div></section>`;
 }
 function nowcastSec(fc) {
     if (!fc.nowcast?.steps?.length) return '';
