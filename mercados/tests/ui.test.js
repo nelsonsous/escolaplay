@@ -273,6 +273,15 @@ function proxyBody(u) {
     await page.click('[data-act="sim-carteira"]');
     assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), false, 'volta a seguir a carteira');
     await page.evaluate(() => { delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.cfg.simStart = 0; window.__mk.render(); });
+    // a carteira conta sempre em euros (o preço médio da TR é em euros), também com «Moeda local» nos Ajustes
+    await page.evaluate(() => { window.__mk.cfg.eur = false; });
+    await page.fill('#lot-imp', 'NVDA 1 150');
+    await page.click('[data-act="lot-import"]');
+    await page.evaluate(() => window.__mk.render());
+    const nvEur = await page.evaluate(() => Math.round(window.__mk.Q.NVDA.price / window.__mk.Q['EURUSD=X'].price));
+    const nvJa = await page.locator('.sim [data-out="simStart"]').textContent();
+    assert.equal(nvJa.replace(/\D/g, ''), String(nvEur), `a NVDA em euros na Carteira (${nvJa}; esperado ${nvEur} €)`);
+    await page.evaluate(() => { const c = window.__mk.cfg; delete c.lots.NVDA; c.holdings = c.holdings.filter((k) => k !== 'NVDA'); c.eur = true; window.__mk.render(); });
     // o que tem hoje, sem plano: o Ether com quantidade e investido (sem data)
     const lot = (k, campo, v) => page.evaluate(([k, campo, v]) => { const i = document.querySelector(`[data-lot="${campo}"][data-k="${k}"]`); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, campo, v]);
     await lot('c:ETH', 'qty', '0,5'); await lot('c:ETH', 'avg', '2 400');
