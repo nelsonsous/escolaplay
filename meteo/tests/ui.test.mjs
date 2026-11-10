@@ -493,7 +493,11 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.today .cl-head').textContent(), /Análise a pedido/);
     // simples: a análise mostra o essencial (amanhã e o que vestir); o resto em «Ver a análise completa»; os detalhes
     // técnicos (fontes, fiabilidade, aprendizagem, observações, modelos) num só «Detalhes técnicos», fechado
-    assert.match(await page.locator('.today').textContent(), /AmanhãSábado.*O que vestir amanhãSábado de manhã casaco leve/s);
+    assert.match(await page.locator('.today').textContent(), /AmanhãSábado com nuvens.*O que vestir amanhãManhãcasaco leve/s);
+    // por períodos: «Manhã · Tarde · Noite» em lista, o período a negrito
+    assert.deepEqual(await page.locator('.today .an-sec:has(h4:text-is("O que vestir amanhã")) .an-per li b').allTextContents(), ['Manhã', 'Tarde', 'Noite']);
+    assert.equal(await page.locator('.today .an-sec:has(h4:text-is("Amanhã")) .an-per li').count(), 3);
+    if (SHOTS) await page.locator('.today').screenshot({ path: path.join(SHOTS, '06c-analise-periodos.png') });
     assert.equal(await page.locator('#d-an').getAttribute('open'), null);
     assert.equal(await page.locator('#d-tec').getAttribute('open'), null);
     await shot('06-analise-simples.png');
@@ -555,7 +559,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // no iPhone a app fica visível antes de o service worker gravar o pedido do toque (e abre sem o endereço da notificação)
     const lateNav = (focus) => page.evaluate((f) => new Promise((ok) => setTimeout(ok, 1500)).then(async () => (await caches.open('meteonav'))
         .put('nav', new Response(JSON.stringify({ tab: 'analise', open: 'd-an', focus: f, at: Date.now() - (f ? 1000 : 2000) })))), focus);
-    const inView = (id) => page.waitForFunction((i) => { const r = document.getElementById(i)?.getBoundingClientRect(); return r && r.top >= 0 && r.top < innerHeight; }, id);
+    const inView = (id) => page.waitForFunction((i) => { const r = document.getElementById(i)?.getBoundingClientRect(); return r && r.top >= -2 && r.top < innerHeight; }, id); // folga de arredondamento (meio píxel)
     await page.goto(url);
     await page.click('#mt-nav [data-tab="agora"]');
     await lateNav('');
