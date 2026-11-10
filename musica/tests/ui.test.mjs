@@ -357,6 +357,14 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const dia = new Date().getUTCHours() >= 7 && new Date().getUTCHours() < 20;
     assert.equal(await page.getByRole('button', { name: dia ? 'Ideia de dia' : 'Ideia de noite' }).count(), 1);
     assert.equal(await page.getByRole('button', { name: dia ? 'Ideia de noite' : 'Ideia de dia' }).count(), 0);
+    // pela hora local: com o fuso a +10 h, as ideias trocam se for preciso
+    await page.evaluate(() => localStorage.setItem('musica:fuso', '600'));
+    await nav(1);
+    await nav(3);
+    await page.getByRole('button', { name: 'Ideia para qualquer hora' }).waitFor();
+    const h10 = (new Date().getUTCHours() + 10) % 24;
+    assert.equal(await page.getByRole('button', { name: h10 >= 7 && h10 < 20 ? 'Ideia de dia' : 'Ideia de noite' }).count(), 1, 'o dia e a noite pela hora local');
+    await page.evaluate(() => localStorage.setItem('musica:fuso', '0'));
     assert.equal(await page.getByRole('button', { name: 'Jazz para um domingo de manhã' }).count(), 0, 'com ideias do Maestro, as de sempre saem');
     const bmw = JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists')).find((x) => x.nome === 'Som do BMW').id));
     for (const v of ['Mais conhecida', 'Mais descoberta']) {

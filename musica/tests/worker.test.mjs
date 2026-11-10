@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.14.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.14.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -500,6 +500,10 @@ test('como correu: guardadas nas favoritas, tiradas e juntadas no Tidal, eco nas
     const res = await (await post('/api/resolver', { faixas: ['Get Lucky', 'Teardrop', 'Barco Negro', 'Faixa 0', 'Faixa 1', 'Só Explícita'].map((titulo) => ({ artista: titulo.startsWith('Faixa') ? 'Miles Davis' : '', titulo })) }, chave)).json();
     const doc = await (await post('/api/playlists', { nome: 'Para o carro', pedido: 'Faixas para o carro', opcoes: { faixas: 5, limpa: true }, faixas: res.faixas, tidal: true }, agente)).json();
     assert.equal((await (await get('/api/avaliacoes', agente)).json()).playlists[0].avaliacao.etiqueta, 'ainda cedo');
+    // avaliar outra vez sem nada de novo não escreve na KV (a gratuita dá 1000 escritas por dia)
+    const e0 = env.KV.escritas;
+    assert.equal((await (await get('/api/avaliacoes', agente)).json()).playlists[0].avaliacao.etiqueta, 'ainda cedo');
+    assert.equal(env.KV.escritas - e0, 0, 'avaliar sem mudanças não escreve');
     // o que a pessoa fez: guardou o «Get Lucky», tirou a «Faixa 0» e juntou outra no Tidal; e o Tidal pôs a Pop Teste
     // nas mixes (o Massive Attack já lá estava antes: não conta)
     sim.listas['mix-dia'].push({ id: '109', itemId: 'm9' });

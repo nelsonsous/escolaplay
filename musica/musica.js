@@ -21,6 +21,8 @@
         const v = ls.get(k);
         if (v && v[0] === '"') { try { ls.set(k, JSON.parse(v)); } catch { ls.del(k); } }
     }
+    // o fuso do aparelho, para a app saber se é de dia ou de noite pela hora local (a Onda só tem a hora UTC)
+    ls.set('fuso', String(-new Date().getTimezoneOffset()));
     const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
     if (h.has('chave')) { ls.set('chave', h.get('chave')); ls.del('codigo'); ls.set('aviso', 'Tidal ligado — este aparelho fica com acesso.'); }
     else if (h.has('ligado')) ls.set('aviso', 'Tidal ligado outra vez.');
