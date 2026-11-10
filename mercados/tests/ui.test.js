@@ -255,12 +255,13 @@ function proxyBody(u) {
     assert.match(await page.locator('.real .sim-st div:first-child b').textContent(), /€$/, 'investido');
     assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
     // colar de uma vez: uma linha por ativo (símbolo, quantidade, preço médio)
-    await page.fill('#lot-imp', 'VWCE.DE 5,486463 169,86\nBTC 0,044679 73722,55\nSolana 3,488363 102,03\nxpto 1 2');
+    await page.fill('#lot-imp', 'VWCE.DE 5,486463 169,86 02/11/2026\nBTC 0,044679 73722,55 2026-10-08\nSolana 3,488363 102,03\nxpto 1 2');
     await page.click('[data-act="lot-import"]');
     assert.deepEqual(await page.evaluate(() => ['VWCE.DE', 'c:BTC', 'c:SOL'].map((k) => [window.__mk.cfg.lots[k].qty, window.__mk.cfg.lots[k].avg, window.__mk.cfg.lots[k].cost])),
         [[5.486463, 169.86, 931.93], [0.044679, 73722.55, 3293.85], [3.488363, 102.03, 355.92]], 'importadas, com o investido calculado');
+    assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['VWCE.DE'].qd, window.__mk.cfg.lots['c:BTC'].qd, window.__mk.cfg.lots['c:SOL'].qd]), ['2026-11-02', '2026-10-08', undefined], 'a data no fim, nos dois formatos');
     assert.match(await page.locator('#mk-toast').textContent(), /3 posições importadas · não percebi: xpto/);
-    await page.evaluate(() => { for (const k of ['c:BTC', 'c:SOL']) { delete window.__mk.cfg.lots[k].qty; delete window.__mk.cfg.lots[k].avg; delete window.__mk.cfg.lots[k].cost; } delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.render(); });
+    await page.evaluate(() => { for (const k of ['c:BTC', 'c:SOL']) { delete window.__mk.cfg.lots[k].qty; delete window.__mk.cfg.lots[k].avg; delete window.__mk.cfg.lots[k].cost; delete window.__mk.cfg.lots[k].qd; } delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.render(); });
     // o que tem hoje, sem plano: o Ether com quantidade e investido (sem data)
     const lot = (k, campo, v) => page.evaluate(([k, campo, v]) => { const i = document.querySelector(`[data-lot="${campo}"][data-k="${k}"]`); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, campo, v]);
     await lot('c:ETH', 'qty', '0,5'); await lot('c:ETH', 'avg', '2 400');
