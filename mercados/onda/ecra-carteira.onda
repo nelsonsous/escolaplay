@@ -235,12 +235,12 @@
     = k _ar_get c $"k"
     "<div class=\"real-in\"><b>" _ar_ps _ar_get c $"name" 1 "</b>"
     "<small class=\"real-gt\">O que tens hoje (como na Trade Republic)</small><div class=\"real-g3\">"
-    "<label><small>Quantidade</small><input class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"any\" data-lot=\"qty\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"q" 0 "\"></label>"
-    "<label><small>Investido (€)</small><input class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"any\" data-lot=\"cost\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"cost" 0 "\"></label>"
+    "<label><small>Quantidade</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"any\" data-lot=\"qty\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"q" 0 "\"></label>"
+    "<label><small>Investido (€)</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"any\" data-lot=\"cost\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"cost" 0 "\"></label>"
     "<label><small>Desde (opcional)</small><input class=\"inp\" type=\"date\" data-lot=\"qd\" data-k=\"" _ar_ps k 1 "\" value=\"" _ar_ps _ar_get c $"qd" 1 "\"></label></div>"
     "<small class=\"real-gt\">Ou o plano mensal</small><div class=\"real-g2\">"
     "<label><small>Desde</small><input class=\"inp\" type=\"date\" data-lot=\"plan\" data-k=\"" _ar_ps k 1 "\" value=\"" _ar_ps _ar_get c $"plan" 1 "\"></label>"
-    "<label><small>€ por mês</small><input class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"10\" data-lot=\"pm\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"pm" 0
+    "<label><small>€ por mês</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"10\" data-lot=\"pm\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"pm" 0
     "\" placeholder=\"" = pd _ar_vnum _ar_get c $"pmDef" ? && _nu_fin pd > pd 0.0 _nu_ps pd 0 "\"></label></div></div>"
     = c _ar_prox c }
   "<p class=\"note\">Com a quantidade e o investido, conta o que tens hoje (a TR já inclui as compras do plano); a data, se a puseres, entra no gráfico e no rendimento por ano. Sem eles, conta o plano: nos dias de execução dos Ajustes, com o valor do mês dividido por eles, mais as compras avulsas da cripto (na ficha).</p></details>" 0 }
