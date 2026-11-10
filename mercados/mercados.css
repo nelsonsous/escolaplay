@@ -759,6 +759,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .pl-nota { color: var(--muted); font-size: calc(.82rem * var(--k)); margin: 2px 0 8px; }
 .real-imp { padding: 10px 0 12px; } .real-imp textarea { width: 100%; box-sizing: border-box; min-height: 92px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; margin-bottom: 8px; resize: vertical; }
 .sim-real { margin: -6px 0 6px; font-size: calc(.8rem * var(--k)); }
+.sim-repor { justify-self: start; margin: 0 0 4px; }
 
 /* arrastar para apagar (4.19): o botão vermelho cresce com o arrasto e escurece quando largar já apaga */
 .sw-del { transition: background .15s; }
