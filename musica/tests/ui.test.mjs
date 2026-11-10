@@ -157,9 +157,20 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.ok(srcs.every((u) => /^https:\/\/(resources\.tidal\.com|cdn-images\.dzcdn\.net)\//.test(u)));
     assert.equal(await page.locator('.mu-pl.aberta .mu-xf .cp').count(), doc.faixas.length);
     await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').waitFor();
+    // a folha ocupa o ecrã (por cima da barra de baixo), com a capa grande: as 4 primeiras capas diferentes, em 160 px
+    const ecra = await page.evaluate(() => { const r = document.querySelector('.mu-folha').getBoundingClientRect(); return [r.top, r.left, r.width - innerWidth, r.height - innerHeight]; });
+    assert.deepEqual(ecra.map(Math.round), [0, 0, 0, 0], 'a folha ocupa o ecrã');
+    assert.ok(await page.evaluate(() => !!document.elementFromPoint(innerWidth / 2, innerHeight - 10).closest('.mu-folha')), 'por cima da barra de baixo');
+    assert.equal(await page.locator('.mu-folha-capa.m4 img').count(), 4);
+    assert.match(await page.locator('.mu-folha-capa img').first().getAttribute('src'), /160x160\.jpg$/);
+    // fechar: desce e volta à lista onde estava; abrir outra vez é imediato (as faixas e as pré-escutas vêm da memória)
+    await page.locator('.mu-fechar').click();
+    await page.locator('.mu-pl.aberta').waitFor({ state: 'detached' });
+    const pedidos = [];
+    page.on('request', (r) => { if (r.url().includes('/api/playlists/')) pedidos.push(r.url()); });
     await page.locator('.mu-pl-a').click();
-    assert.equal(await page.locator('.mu-pl.aberta').count(), 0, 'tocar outra vez fecha');
-    await page.locator('.mu-pl-a').click();
+    await page.locator('.mu-pl.aberta .mu-xf [data-previa]').first().waitFor();
+    assert.deepEqual(pedidos, [], 'abrir outra vez não vai à rede');
     await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
     assert.equal(await page.locator('#faixas .mu-faixa').count(), doc.faixas.length);

@@ -215,7 +215,7 @@ button.mu-chip { cursor: pointer; }
 .mu-nota { color: var(--dim); font-size: 13px; }
 .mu-vazio { text-align: center; color: var(--dim); padding: 22px 8px; }
 
-.mu-toast { position: fixed; left: 50%; bottom: calc(var(--nav) + 16px + env(safe-area-inset-bottom)); z-index: 20; display: flex; align-items: center; gap: 10px; width: max-content; max-width: min(92vw, 520px);
+.mu-toast { position: fixed; left: 50%; bottom: calc(var(--nav) + 16px + env(safe-area-inset-bottom)); z-index: 40; display: flex; align-items: center; gap: 10px; width: max-content; max-width: min(92vw, 520px);
     transform: translateX(-50%) translateY(16px); opacity: 0; pointer-events: none;
     background: rgba(44, 44, 46, .96); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); color: var(--fg); border-radius: 14px;
     padding: 11px 16px 11px 13px; font-size: 14px; font-weight: 550; box-shadow: 0 16px 40px -14px #000; transition: opacity .2s, transform .2s; }
@@ -279,6 +279,29 @@ button.mu-chip { cursor: pointer; }
 .mu-pl.tidal .chev { right: 62px; }
 .mu-pl.aberta .chev { transform: rotate(180deg); stroke: var(--fg); }
 .mu-cx-fora { color: var(--mut); font-size: 13px; margin: -4px 0 12px; }
+/* o cartão aberto é uma folha que ocupa o ecrã: sobe de baixo e, ao fechar, desce (a casca espera pelo fim) e a lista
+   fica onde estava, porque nunca se mexeu */
+.mu-pl.aberta { overflow: visible; }
+.mu-folha { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 28px); animation: mu-subir .34s cubic-bezier(.2, .8, .2, 1); }
+.mu-folha > * { max-width: 640px; margin-left: auto; margin-right: auto; }
+.mu-folha.a-fechar { animation: mu-descer .24s cubic-bezier(.4, 0, 1, 1) forwards; }
+@keyframes mu-subir { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes mu-descer { from { transform: none; } to { transform: translateY(100%); } }
+body:has(.mu-folha) { overflow: hidden; }
+.mu-folha-topo { position: sticky; top: 0; z-index: 1; display: flex; padding: 10px 0 6px; background: linear-gradient(var(--bg) 70%, transparent); }
+.mu-fechar { width: 38px; height: 38px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: var(--panel3); color: var(--fg); cursor: pointer; }
+.mu-fechar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.mu-fechar:active { background: var(--line2); }
+.mu-folha-cab { display: flex; align-items: flex-end; gap: 16px; margin: 6px 0 18px; }
+.mu-folha-capa { width: 132px; height: 132px; flex: none; border-radius: 14px; overflow: hidden; display: grid; background: linear-gradient(135deg, #1e3a8a, #9d174d); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+.mu-folha-capa.m4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mu-folha-capa img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mu-folha-cab .tx { min-width: 0; }
+.mu-folha-cab h2 { margin: 0 0 4px; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.mu-folha-cab p { margin: 0; color: var(--mut); font-size: 13.5px; }
+.mu-folha .mu-cx { padding: 0; }
+@media (prefers-reduced-motion: reduce) { .mu-folha, .mu-folha.a-fechar { animation: none; } }
 .mu-cx { padding: 0 14px 14px; }
 .mu-cx > .mu-nota { margin: 0 0 10px; }
 .mu-xf { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }

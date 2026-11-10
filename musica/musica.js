@@ -4,7 +4,8 @@
 //   - o regresso do login do Tidal (#chave=, #ligado=, #erro=) e o link de ligação (?ligar=), antes de a app arrancar;
 //   - o "buscar" da porta 102: põe a chave do aparelho nos pedidos ao conector e aceita, além de "caminho" (GET),
 //     "MÉTODO caminho" + nova linha + corpo JSON (POST, DELETE) e "IR url" (sair para o login do Tidal);
-//   - tocar 30 s de uma faixa (o ▶ com data-previa).
+//   - tocar 30 s de uma faixa (o ▶ com data-previa);
+//   - guardar 10 min em memória as faixas e as pré-escutas de cada playlist, e a animação de fechar a folha.
 // O armazém da app (portas 105/106) usa o prefixo "musica:" — as mesmas chaves que a versão 1 guardava.
 (function () {
     'use strict';
@@ -29,6 +30,11 @@
     const resto = q.toString() ? `?${q}` : '';
     if (location.hash || location.search !== resto) history.replaceState(null, '', location.pathname + resto);
 
+    // as faixas e as pré-escutas de cada playlist ficam 10 minutos em memória: abrir outra vez é imediato e não vai à
+    // rede (as capas, essas, o navegador já as guarda). Uma mudança na playlist (POST, DELETE) apaga-as.
+    const memoria = new Map();
+    const MEMORIA_MS = 10 * 60 * 1000;
+    const daPlaylist = (alvo) => (/^\/api\/playlists\/([^/?]+)/.exec(alvo) || [])[1];
     function buscar(pedido) {
         const nl = pedido.indexOf('\n');
         const linha = nl < 0 ? pedido : pedido.slice(0, nl), corpo = nl < 0 ? '' : pedido.slice(nl + 1);
@@ -40,7 +46,13 @@
         const chave = ls.get('chave');
         if (chave) headers.authorization = `Bearer ${chave}`;
         if (corpo) headers['content-type'] = 'application/json';
-        return fetch((ls.get('proxy') || PROXY).replace(/\/+$/, '') + alvo, { method: metodo, headers, body: corpo || undefined });
+        const ir = () => fetch((ls.get('proxy') || PROXY).replace(/\/+$/, '') + alvo, { method: metodo, headers, body: corpo || undefined });
+        const pid = daPlaylist(alvo);
+        if (pid && metodo !== 'GET') for (const k of [...memoria.keys()]) if (daPlaylist(k) === pid) memoria.delete(k);
+        if (metodo !== 'GET' || !/^\/api\/playlists\/[^/?]+(\/previas)?$/.test(alvo)) return ir();
+        const m = memoria.get(alvo);
+        if (m && Date.now() - m.em < MEMORIA_MS) return Promise.resolve(new Response(m.texto, { status: 200 }));
+        return ir().then(async (r) => { if (r.ok) memoria.set(alvo, { texto: await r.clone().text(), em: Date.now() }); return r; });
     }
 
     fetch('app/musica.wasm')
@@ -69,6 +81,26 @@
     const corpo = document.getElementById('mu-body');
     if (corpo) new MutationObserver(marcar).observe(corpo, { childList: true, subtree: true });
     window.musicaLeitor = leitor; // (para os testes)
+    // fechar a folha de uma playlist: primeiro desce (a animação do CSS), depois a Onda fecha-a
+    let aFechar = false;
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.mu-fechar');
+        const folha = b && b.closest('.mu-folha');
+        if (!folha || aFechar || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        e.preventDefault();
+        e.stopPropagation();
+        aFechar = true;
+        folha.classList.add('a-fechar');
+        let feito = false;
+        const fim = () => {
+            if (feito) return;
+            feito = true;
+            (document.querySelector('.mu-fechar') || b).click();
+            aFechar = false;
+        };
+        folha.addEventListener('animationend', fim, { once: true });
+        setTimeout(fim, 320);
+    }, true);
     // no iOS, o :active (o botão a afundar quando se toca) só funciona com um touchstart registado
     document.addEventListener('touchstart', () => {}, { passive: true });
     // ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)
