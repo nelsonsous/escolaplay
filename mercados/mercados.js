@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.12.0';
+    const VERSION = '4.14.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -531,7 +531,7 @@
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
     function setLots(k, L) {
-        if (!L.plan && !(L.buys || []).length) delete cfg.lots[k]; else cfg.lots[k] = L;
+        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0)) delete cfg.lots[k]; else cfg.lots[k] = L;
         saveCfg();
         if (cfg.proxy) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
         if (sheetKey === k) renderSheet();
@@ -1098,7 +1098,54 @@
     // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
     // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
     function walletSnap() {
-        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0 };
+        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, real: realSnap() };
+    }
+    // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
+    const LH = {}, lhAt = {}, lhVai = new Set();
+    // o valor por mês do plano de cada ativo, pela divisão dos Ajustes (o fundo núcleo e a cripto)
+    function pmDefault(k) {
+        const b = +cfg.budget || 0, cp = etfCrypto() ? (+cfg.cryptoPct || 0) / 100 : 0;
+        if (k === cfg.coreFund) return Math.round(b * (1 - cp));
+        if (k === 'c:BTC') return Math.round(b * cp * (cfg.cryptoMix === 'btceth' ? 0.7 : 1));
+        if (k === 'c:ETH' && cfg.cryptoMix === 'btceth') return Math.round(b * cp * 0.3);
+        return 0;
+    }
+    const isoT = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10), 12) / 1000;
+    function buysOf(k) {
+        const L = lotOf(k), pm = +L.pm > 0 ? +L.pm : pmDefault(k), n = Math.max(1, (cfg.saveDays || []).length);
+        const plan = pm > 0 ? A.planLots(L.plan, cfg.saveDays, todayLocal()).map((x) => [isoT(x.d), pm / n]) : [];
+        return plan.concat((L.buys || []).filter((x) => +x.e > 0 && /^\d{4}-\d\d-\d\d$/.test(x.d || '')).map((x) => [isoT(x.d), +x.e])).sort((a, b) => a[0] - b[0]);
+    }
+    // os preços em euros: os semanais antes do primeiro dia do ano diário, e o diário
+    function histOf(k) {
+        const w = LH[k] || [], d = D[k] || [], f = qv(k).fx || 1;
+        const cut = d.length ? d[0][0] : Infinity;
+        return w.filter((p) => p[0] < cut).concat(d).filter((p) => fin(p[1]) && p[1] > 0).map(([t, v]) => [t, v * f]);
+    }
+    async function loadLong(keys) {
+        // uma vez a cada 6 h por ativo (também quando falha: sem pedidos repetidos a cada desenho)
+        const novos = keys.filter((k) => REG[k] && !lhVai.has(k) && now() - (lhAt[k] || 0) > 6 * 3600 * 1000 && (REG[k].kind === 'crypto' || cfg.proxy));
+        if (!novos.length) return;
+        await Promise.all(novos.map(async (k) => {
+            lhAt[k] = now(); lhVai.add(k);
+            try {
+                if (REG[k].kind === 'crypto') LH[k] = await klines(REG[k].sym, '5y');
+                else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=5y`, 20000); const q = r.quotes && r.quotes[0]; if (q && q.series) LH[k] = q.series; }
+            } catch { /* fica o histórico de 1 ano */ }
+            lhVai.delete(k);
+        }));
+        if (cfg.tab === 'carteira') scheduleRender();
+    }
+    function realSnap() {
+        const keys = cfg.holdings.filter((k) => REG[k]);
+        const comp = keys.filter((k) => buysOf(k).length);
+        if (comp.length) loadLong(comp.concat([cfg.coreFund]));
+        const t0 = comp.length ? Math.min(...comp.map((k) => buysOf(k)[0][0])) : 0;
+        return {
+            now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
+            bench: { name: nameOf(cfg.coreFund), px: qv(cfg.coreFund).price, h: histOf(cfg.coreFund) },
+            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k) }; }),
+        };
     }
     function walletHtml() {
         if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -1280,6 +1327,33 @@
             <div class="adv-txt">${esc(c.why || '')}</div>
             ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}
             ${factsHtml(k)}</div>`;
+    }
+    // ---- o consenso dos analistas (Yahoo, pelo conector: /consensus) — a segunda opinião de fora, nas ações ----
+    const CONS = {}, consAt = {};
+    const CONS_LBL = { strong_buy: 'Compra forte', buy: 'Comprar', hold: 'Manter', underperform: 'Abaixo do mercado', sell: 'Vender', strong_sell: 'Venda forte' };
+    const CONS_FAM = { strong_buy: 1, buy: 1, hold: 0, underperform: -1, sell: -1, strong_sell: -1 };
+    async function loadConsensus(k) {
+        if (!REG[k] || REG[k].kind !== 'stock' || !cfg.proxy || now() - (consAt[k] || 0) < 6 * 3600 * 1000) return;
+        consAt[k] = now();
+        try {
+            const r = await px(`/consensus?symbols=${encodeURIComponent(k)}`, 15000);
+            CONS[k] = (r.items || []).find((x) => x.symbol === k) || null;
+        } catch { CONS[k] = null; }
+        if (sheetKey === k) renderSheet(true);
+    }
+    function consBox(k, cl) {
+        const c = CONS[k];
+        if (!c || c.none || c.error || !CONS_LBL[c.key] || !(c.n > 0)) return '';
+        const f = CONS_FAM[c.key], tone = f > 0 ? 'up' : f < 0 ? 'down' : 'flat';
+        const v = Array.isArray(c.votes) ? c.votes.map((x) => Math.max(0, +x || 0)) : null, tot = v ? v.reduce((a, b) => a + b, 0) : 0;
+        const bar = tot ? `<div class="cons-bar" role="img" aria-label="Votos: ${v.join(', ')}">${v.map((x, i) => x ? `<i class="c${i}" style="flex:${x}"></i>` : '').join('')}</div>
+            <div class="cons-leg"><span>compra ${v[0] + v[1]}</span><span>manter ${v[2]}</span><span>venda ${v[3] + v[4]}</span></div>` : '';
+        const alvo = fin(c.target) && fin(c.price) && c.price > 0 ? `<div class="adv-meta">Preço-alvo médio <b class="num">${fmtPx(c.target, REG[k], c.currency)}</b> <span class="${toneOf(c.target / c.price - 1)}-t">${fmtPct((c.target / c.price - 1) * 100)}</span>${fin(c.low) && fin(c.high) ? ` · entre ${fmtPx(c.low, REG[k], c.currency)} e ${fmtPx(c.high, REG[k], c.currency)}` : ''}</div>` : '';
+        const fc = cl ? FAMS[cl.key] : null;
+        const quem = fc == null ? '' : `<div class="adv-alg${fc !== f ? ' diff' : ''}"><b>Claude:</b> ${esc(rotulo(cl.key, owns(k)))} · ${fc === f ? 'concorda com os analistas' : '<b>discorda dos analistas</b> — o porquê está na leitura dele'}</div>`;
+        return `<div class="box cons-box"><h3>Analistas <small>Yahoo Finance</small></h3>
+            <div class="adv-act ${tone}-t">${CONS_LBL[c.key]} <small class="cons-n">${c.n} ${c.n === 1 ? 'analista' : 'analistas'}${fin(c.mean) ? ` · ${String(Math.round(c.mean * 10) / 10).replace('.', ',')} de 5` : ''}</small></div>
+            ${bar}${alvo}${quem}</div>`;
     }
     // sinal automático (regras fixas de analise.js): em primeiro plano só quando o Claude não analisou o ativo
     function algoAdvice(k, q, primary) {
@@ -1519,6 +1593,7 @@
         if (!REG[k]) REG[k] = { key: k, kind: ut === 'etf' ? 'fund' : 'stock', ut, sym: k, name: tempName || k, temp: true };
         // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
         sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y' }[cfg.per] || '1d'; sheetPts = null;
+        loadConsensus(k);
         const sh = $('#mk-sheet');
         const cardEl = $('#mk-sheet-card');
         cardEl.style.transition = ''; cardEl.style.transform = ''; $('.mk-sheet-bg').style.opacity = '';
@@ -1796,6 +1871,7 @@
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
             ${perfRow(k, q)}
             ${cl ? claudeBox(k, q) : algoAdvice(k, q, true)}
+            ${consBox(k, cl)}
             ${cl ? `<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas: tendência, momento, desconto</small></summary>
                 ${algoAdvice(k, q, false)}${techBox(k)}${discountBox(k, q)}</details>` : ''}
             <div class="stats">
@@ -2095,6 +2171,14 @@
                 cfg.jid = v; cfg.jLast = ''; saveCfg(); JOURNAL = null; st.meAt = 0; toast('Diário recuperado'); loadJournal(); loadClaude(); render(); break;
             }
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
+            // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
+            case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
+            case 'sim-step': {
+                const k = t.dataset.k, rg = t.parentElement && t.parentElement.querySelector('.sim-rg');
+                const v = (+cfg[k] || 0) + (+t.dataset.d || 0), mn = rg ? +rg.min : 0;
+                cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
+                saveCfg(); render(); break;
+            }
         }
     });
 
@@ -2109,12 +2193,18 @@
         for (const r of g.querySelectorAll('.sim-hit')) { const d = Math.abs(+r.dataset.x - x); if (d < bd) { bd = d; best = r; } }
         if (!best) return;
         const c = g.querySelector('.sim-cur'); c.setAttribute('x1', best.dataset.x); c.setAttribute('x2', best.dataset.x);
-        const tip = $('#sim-tip'); if (tip) { tip.textContent = best.dataset.tx; tip.classList.add('on'); }
+        const sec = g.closest('section'), tip = sec && sec.querySelector('.sim-tip'); if (tip) { tip.textContent = best.dataset.tx; tip.classList.add('on'); }
     }
     document.addEventListener('pointerdown', simDedo);
     document.addEventListener('pointermove', (ev) => { if (ev.buttons || ev.pointerType !== 'touch') simDedo(ev); });
     document.addEventListener('change', (ev) => {
         const t = ev.target;
+        if (t.dataset && t.dataset.lot && t.dataset.k && REG[t.dataset.k]) {
+            const k = t.dataset.k, L = { ...lotOf(k) };
+            if (t.dataset.lot === 'plan') L.plan = /^\d{4}-\d\d-\d\d$/.test(t.value) && t.value <= todayLocal() ? t.value : '';
+            else L.pm = Math.max(0, +t.value || 0) || undefined;
+            setLots(k, L); return;
+        }
         if (t.dataset && t.dataset.cfg) {
             cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();
@@ -2124,6 +2214,11 @@
         }
     });
     document.addEventListener('input', (ev) => {
+        // a barra do simulador: o número muda enquanto se arrasta; grava e redesenha ao largar (change)
+        if (ev.target.classList && ev.target.classList.contains('sim-rg')) {
+            const t = ev.target, v = +t.value, o = document.querySelector(`[data-out="${t.dataset.cfg}"]`);
+            if (o) o.textContent = t.dataset.fmt === '1' ? `${v} ${v === 1 ? 'ano' : 'anos'}` : t.dataset.fmt === '2' && v <= 0 ? 'sem objetivo' : fmtPx(v, { decimals: 0 }, 'EUR');
+        }
         if (ev.target.id === 'f-add') { clearTimeout(searchT); const v = ev.target.value.trim(); searchT = setTimeout(() => doSearch(v), 300); }
     });
     document.addEventListener('keydown', (ev) => {

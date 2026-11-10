@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, upsertJournal, cleanLots, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, upsertJournal, cleanLots, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -167,6 +167,27 @@ test('/calendar: resultados e dividendos com crumb', async () => {
     assert.equal(r.body.items[0].earnings, 1795000000);
     assert.equal(r.body.items[0].exDividend, 1794000000);
     assert.ok(r.body.items[1].error);
+});
+
+test('/consensus: o consenso dos analistas com crumb', async () => {
+    assert.deepEqual(parseConsensus({}, 'X'), { symbol: 'X', none: true });
+    mockFetch((u, init) => {
+        if (u.startsWith('https://fc.yahoo.com')) return res('', 404, { 'Set-Cookie': 'A3=abc; Path=/' });
+        if (u.includes('getcrumb')) return res('crumb1');
+        if (u.includes('quoteSummary/NVDA')) {
+            assert.ok(u.includes('modules=financialData,recommendationTrend') && u.includes('crumb=') && init.headers.Cookie.includes('A3=abc'));
+            return res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'strong_buy', recommendationMean: { raw: 1.4 }, numberOfAnalystOpinions: { raw: 58 }, targetMeanPrice: { raw: 230.5 }, targetLowPrice: { raw: 150 }, targetHighPrice: { raw: 300 }, currentPrice: { raw: 196 }, financialCurrency: 'USD' },
+                recommendationTrend: { trend: [{ period: '0m', strongBuy: 20, buy: 30, hold: 6, sell: 1, strongSell: 1 }, { period: '-1m', strongBuy: 1 }] } }] } });
+        }
+        if (u.includes('quoteSummary/VWCE.DE')) return res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'none', numberOfAnalystOpinions: {} } }] } });
+        return res({ quoteSummary: { result: null, error: { description: 'Not Found' } } }, 404);
+    });
+    const r = await call('/consensus?symbols=NVDA,VWCE.DE,BAD');
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.items[0], { symbol: 'NVDA', key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1] });
+    assert.deepEqual(r.body.items[1], { symbol: 'VWCE.DE', none: true }, 'um ETF não tem consenso');
+    assert.deepEqual(r.body.items[2], { symbol: 'BAD', none: true });
+    assert.equal((await call('/consensus')).status, 400);
 });
 
 test('/journal guarda e lê o diário (KV simulado)', async () => {

@@ -77,6 +77,7 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
+    if (p === '/consensus') return { items: u.searchParams.get('symbols').split(',').map((s) => (s === 'NVDA' ? { symbol: s, key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1] } : s === 'TSLA' ? { symbol: s, key: 'hold', mean: 2.8, n: 40, target: 300, low: 120, high: 500, price: 250, currency: 'USD', votes: [5, 10, 18, 5, 2] } : { symbol: s, none: true })) };
     if (p === '/movers') return { gainers: [{ symbol: 'XYZ', name: 'Xyz Therapeutics', price: 12.3, changePct: 38.2, volume: 9e6, currency: 'USD' }], losers: [{ symbol: 'ABCD', name: 'Abcd Corp', price: 4.1, changePct: -22.5, volume: 3e6, currency: 'USD' }], actives: [] };
     if (p === '/fuel' && u.searchParams.get('list') === '1') return { fuels: [{ id: +u.searchParams.get('tipos'), name: 'Gasolina simples 95', n: 3, median: 1.739, max: 1.799, updated: '2026-11-05 09:30',
         stations: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', addr: 'Rua A, Torres Novas', lat: 39.48, lon: -8.54 }, { price: 1.739, name: 'Galp Centro', brand: 'Galp', addr: 'Av. B', lat: null, lon: null }, { price: 1.799, name: 'BP Norte', brand: 'BP', place: 'Porto, Porto' }] }] };
@@ -201,7 +202,7 @@ function proxyBody(u) {
     const orc0 = await page.evaluate(() => window.__mk.cfg.budget);
     await page.click('#mk-nav [data-tab="carteira"]');
     await page.waitForSelector('.sim');
-    const campo = async (k, v) => { await page.fill(`[data-cfg="${k}"]`, String(v)); await page.locator(`[data-cfg="${k}"]`).dispatchEvent('change'); };
+    const campo = async (k, v) => { await page.evaluate(([k, v]) => { const i = document.querySelector(`.sim [data-cfg="${k}"]`); i.value = String(v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, v]); };
     await campo('budget', 900);
     await page.waitForSelector('.sim-big b');
     assert.match(await page.locator('.sim-big b').textContent(), /^\d{1,3}(\s\d{3})*\s€$/, 'o valor no fim, em euros');
@@ -211,7 +212,23 @@ function proxyBody(u) {
     assert.match(await page.locator('.sim-meta p').first().textContent(), /^Chegas lá em \d+ anos/);
     await campo('simYears', 10);
     assert.equal(await page.locator('.sim-tab tbody tr:last-child td').first().textContent(), '10 anos');
-    const gb = await page.locator('svg.sim-g').boundingBox();
+    // − e +: 10 → 11 anos; e de volta
+    await page.click('.sim [data-act="sim-step"][data-k="simYears"][data-d="1"]');
+    assert.equal(await page.locator('.sim [data-out="simYears"]').textContent(), '11 anos');
+    await page.click('.sim [data-act="sim-step"][data-k="simYears"][data-d="-1"]');
+    assert.equal(await page.locator('.sim [data-out="simYears"]').textContent(), '10 anos');
+    // em euros de hoje: menos do que o valor no futuro
+    const futuro = await page.locator('.sim-big b').textContent();
+    await page.click('[data-act="sim-hoje"][data-v="1"]');
+    if (SHOTS) { await page.locator('.sim').scrollIntoViewIfNeeded(); await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8d-carteira-hoje.png') }); }
+    const hoje = await page.locator('.sim-big b').textContent();
+    const n = (x) => +x.replace(/[^\d]/g, '');
+    assert.ok(n(hoje) < n(futuro) && Math.abs(n(hoje) * 1.02 ** 10 / n(futuro) - 1) < 0.001, `euros de hoje: ${hoje} vs ${futuro}`);
+    assert.match(await page.locator('.sim-big small').textContent(), /em euros de hoje/);
+    assert.match(await page.locator('.sim-infl').textContent(), /^Com 2 % de inflação por ano, 1000 € daqui a 10 anos compram o mesmo que 820\s€ hoje\.$/);
+    await page.click('[data-act="sim-hoje"][data-v="0"]');
+    await page.locator('.sim svg.sim-g').scrollIntoViewIfNeeded();
+    const gb = await page.locator('.sim svg.sim-g').boundingBox();
     await page.mouse.move(gb.x + gb.width * 0.55, gb.y + gb.height / 2);
     assert.match(await page.locator('#sim-tip').textContent(), /^Em [56] anos: [\d\s]+€ · entre .+ · investido [\d\s]+€$/, 'o dedo no gráfico mostra o ano');
     await page.mouse.move(gb.x + gb.width * 0.99, gb.y + gb.height / 2);
@@ -219,8 +236,20 @@ function proxyBody(u) {
     if (SHOTS) { await page.mouse.move(gb.x + gb.width * 0.7, gb.y + gb.height / 2); await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8b-carteira-dedo.png') }); }
     assert.equal(await page.locator('#mk-nav [data-tab="carteira"].on').count(), 1);
     console.log('✓ carteira:', (await page.locator('.sim-big').textContent()).replace(/\s+/g, ' ').trim(), '|', await page.locator('.sim-meta p').first().textContent());
+    // o rendimento real (4.13): desde quando compra pelo plano
+    // (o BTC já traz compras do teste das datas da cripto; o fundo ainda não)
+    const desde = (k, iso) => page.evaluate(([k, iso]) => { const i = document.querySelector(`[data-lot="plan"][data-k="${k}"]`); i.value = iso; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, iso]);
+    const isoAtras = (dias) => new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
+    await desde('VWCE.DE', isoAtras(300));
+    await page.waitForSelector('.real .sim-big b', { timeout: 10000 });
+    assert.match(await page.locator('.real .sim-big b').textContent(), /^\d[\d\s]*\s€$/, 'vale hoje (o pt-PT só agrupa a partir de 10 000)');
+    assert.ok((await page.locator('.real .real-l .row').evaluateAll((rs) => rs.map((r) => r.dataset.open))).includes('VWCE.DE'), 'o fundo entra');
+    assert.match(await page.locator('.real .sim-st div:first-child b').textContent(), /€$/, 'investido');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
+    if (SHOTS) await page.locator('.real').screenshot({ path: path.join(SHOTS, '8c-carteira-real.png') });
+    console.log('✓ carteira real:', (await page.locator('.real .sim-big').textContent()).replace(/\s+/g, ' ').trim());
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '8-carteira.png'), fullPage: true });
-    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); }, orc0);
+    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); delete window.__mk.cfg.lots['VWCE.DE']; }, orc0);
     await page.click('#mk-nav [data-tab="ajustes"]');
     const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
     await page.click(`[data-mv="${secondW}"][data-dir="top"]`);
@@ -471,6 +500,13 @@ function proxyBody(u) {
     await page.waitForSelector('#mk-sheet:not([hidden]) .cl-adv');
     const adv = '#mk-sheet .advice.cl-adv';
     assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar forte', 'rótulo da família, forte com convicção de 88');
+    // o consenso dos analistas (4.14): a segunda opinião de fora, ao lado do veredicto do Claude
+    await page.waitForSelector('#mk-sheet .cons-box');
+    assert.match(await page.locator('#mk-sheet .cons-box .adv-act').textContent(), /^Compra forte\s+58 analistas · 1,4 de 5$/);
+    assert.equal(await page.locator('#mk-sheet .cons-box .cons-bar i').count(), 5, 'os votos');
+    assert.match(await page.locator('#mk-sheet .cons-box .adv-meta').textContent(), /^Preço-alvo médio 230,50\sUS\$ \+17,60% · entre 150,00\sUS\$ e 300,00\sUS\$$/);
+    assert.match(await page.locator('#mk-sheet .cons-box .adv-alg').textContent(), /Claude: Comprar · concorda com os analistas/);
+    if (SHOTS) await page.locator('#mk-sheet .cons-box').screenshot({ path: path.join(SHOTS, '9-consenso.png') });
     assert.equal(await page.locator(adv + ' .adv-nu').textContent(), 'Comprar aos poucos', 'o pormenor do Claude por baixo');
     assert.match(await page.locator(adv + ' .adv-src').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
     assert.deepEqual(await page.locator(adv + ' .cl-conv .val').allTextContents(), ['48', '88', '81'], 'convicção curto/médio/longo');
