@@ -127,6 +127,8 @@ export function startRain(canvas) {
         RAIN.raf = 0;
         RAIN.frames++;
         if (RAIN.canvas !== canvas || !canvas.isConnected) return;
+        // 30 imagens por segundo chegam para a chuva e poupam bateria
+        if (RAIN.last && now - RAIN.last < 30) { RAIN.raf = requestAnimationFrame(frame); return; }
         const W = canvas.clientWidth, H = canvas.clientHeight;
         if (!W || !H) { RAIN.raf = requestAnimationFrame(frame); return; } // ainda sem tamanho: tenta na próxima imagem
         const r = canvas.getBoundingClientRect();
