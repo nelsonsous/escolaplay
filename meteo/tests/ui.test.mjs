@@ -376,7 +376,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             await new Promise((ok) => setTimeout(ok, 200));
             return { tr: b.style.transform, op: b.style.opacity, df: window.__mt.skyGL().frames - f };
         });
-        assert.ok(hold.tr === 'translateX(-24px)' && hold.op === '' && hold.df === 0, `a arrastar: ${JSON.stringify(hold)}`);
+        assert.ok(hold.tr === 'translateX(-51px)' && hold.op === '' && hold.df === 0, `a arrastar (o motor comum: segue o dedo a 85 %): ${JSON.stringify(hold)}`);
         await page.evaluate(() => document.querySelector('#mt-body').dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true })));
         await page.waitForTimeout(260);
         assert.equal(await page.evaluate(() => window.__mt.cfg.tab), 'agora', 'devagar e curto: volta ao sítio');
@@ -516,7 +516,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await swipe('#mt-body', LEFT);
     // a troca segue o dedo, sempre para o mesmo lado: a página sai para a esquerda a partir de onde o dedo a largou
     const kf = await page.evaluate(() => document.getAnimations().filter((a) => a.effect?.target?.id === 'mt-body').map((a) => a.effect.getKeyframes().map((k) => k.transform)));
-    assert.deepEqual(kf, [['translateX(-72px)', 'translateX(-195px)']]);
+    assert.deepEqual(kf, [['translateX(-153px)', 'translateX(-195px)']]); // (o motor comum: o dedo andou 180 px, a página 85 %)
     await page.waitForSelector('#mt-nav [data-tab="dias"].on');
     await page.waitForTimeout(300);
     // se o browser já começou a deslizar a página na vertical (toque que não se cancela), o gesto desiste
