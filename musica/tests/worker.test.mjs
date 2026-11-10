@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.14.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.14.2', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -632,7 +632,11 @@ test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pe
     const doc2 = await (await post('/api/playlists', { nome: 'Cheia', faixas: res }, chave)).json();
     env.KV.cheia = true;
     const r2 = await get(`/api/playlists/${doc2.id}/previas`, chave);
+    // e o que tem mesmo de gravar (um pedido) diz porquê, em vez de «erro interno»
+    const r3 = await post('/api/pedidos', { texto: 'Jazz para domingo' }, chave);
     env.KV.cheia = false;
+    assert.equal(r3.status, 503);
+    assert.match((await r3.json()).message, /gravações grátis do Cloudflare.*meia-noite/);
     assert.equal(r2.status, 200);
     assert.deepEqual(Object.keys((await r2.json()).previas).sort(), ['101', '102', '106']);
 });
