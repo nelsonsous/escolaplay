@@ -51,7 +51,7 @@ a { color: var(--accent2); }
 .pg-st span + span::before { content: '·'; margin-right: 6px; color: var(--faint); }
 .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; background: var(--faint); }
 .dot.on { background: var(--up); box-shadow: 0 0 0 0 rgba(48, 209, 88, .6); animation: pulse 2s infinite; }
-.dot.warn { background: var(--accent); }
+.dot.busy { background: var(--accent); } /* não «warn»: essa é a classe das caixas de aviso */
 .dot.off { background: var(--down); }
 @keyframes pulse { 70% { box-shadow: 0 0 0 6px rgba(48, 209, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); } }
 .mt-ptr { position: fixed; top: var(--safe-t); left: 0; right: 0; height: 0; overflow: hidden; display: grid; place-items: center; z-index: 15; color: var(--muted); font-size: calc(.82rem * var(--k)); transition: height .25s ease; pointer-events: none; }
@@ -586,7 +586,10 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 @keyframes sky-snow { from { transform: translate3d(0, -6%, 0); } to { transform: translate3d(0, 106%, 0); } }
 @keyframes sky-sway { from { transform: translate3d(-7px, 0, 0); } to { transform: translate3d(7px, 0, 0); } }
 /* chuva no canvas (sky.js: startRain) */
-.sky .sky-rain { position: absolute; inset: 0; width: 100%; height: 100%; display: block; animation: none; }
+.sky .sky-rain { position: absolute; inset: 0; width: 100%; height: 100%; display: block; animation: none;
+    /* forte em cima (à volta da temperatura e do ícone), suave por trás do texto de baixo: a leitura vem primeiro */
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 46%, rgba(0, 0, 0, .28) 66%, rgba(0, 0, 0, .22) 100%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 46%, rgba(0, 0, 0, .28) 66%, rgba(0, 0, 0, .22) 100%); }
 /* relâmpago: dois clarões curtos de 9 em 9 s */
 .sky-fl { inset: 0; background: radial-gradient(120% 90% at 70% 0, rgba(215, 205, 255, .55), transparent 70%); opacity: 0; animation-name: sky-flash; animation-duration: 9s; }
 @keyframes sky-flash { 0%, 90%, 100% { opacity: 0; } 91% { opacity: .85; } 92.2% { opacity: .1; } 93.4% { opacity: .6; } 96% { opacity: 0; } }

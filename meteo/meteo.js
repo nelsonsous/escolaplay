@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.14.0';
+const VERSION = '1.14.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -350,8 +350,8 @@ function renderStatus() {
     if (!cfg.loc) { el.innerHTML = '<span><span class="dot"></span>Escolhe um local</span>'; return; }
     const fc = st.fc;
     let a;
-    if (st.loading) a = '<span><span class="dot warn"></span>A atualizar…</span>';
-    else if (!fc) a = st.error ? '<span><span class="dot off"></span>Sem previsão</span>' : '<span><span class="dot warn"></span>A calcular…</span>';
+    if (st.loading) a = '<span><span class="dot busy"></span>A atualizar…</span>';
+    else if (!fc) a = st.error ? '<span><span class="dot off"></span>Sem previsão</span>' : '<span><span class="dot busy"></span>A calcular…</span>';
     else {
         const g = localGen(fc), today = todayOf(fc);
         const when = g ? `${F.dayDiff(g.slice(0, 10), today) === 0 ? '' : F.dayLabel(g.slice(0, 10), today).toLowerCase() + ' '}${F.hhmm(g)}` : '';
