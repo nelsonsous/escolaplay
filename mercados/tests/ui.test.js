@@ -520,6 +520,7 @@ function proxyBody(u) {
     // segunda opinião: o sinal automático ao lado, a dizer se o Claude concorda
     const algTx = (await page.locator(adv + ' .adv-alg').textContent()).replace(/\s+/g, ' ').trim();
     assert.match(algTx, /^Algoritmo: \S.+ — .+\(C\d+ · M\d+ · L\d+\) Claude: (concorda|discorda)/, 'a razão da regra, as pontuações e a do Claude: ' + algTx);
+    if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3c-algoritmo.png') });
     const shAuto = '#mk-sheet details.sh-auto';
     assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'sinais automáticos fechados na ficha');
     assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');
