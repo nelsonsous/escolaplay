@@ -752,3 +752,5 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* ficha: a razão do algoritmo e a do Claude (4.15) */
 .adv-alg > div + div { margin-top: 4px; }
 .adv-alg .alg-pts { color: var(--muted); font-size: calc(.78rem * var(--k)); }
+.cons-av { color: #f59e0b; }
+.cons-box .adv-meta small { color: var(--muted); }
