@@ -53,6 +53,7 @@ export function rainField(canvas, values, top, { anim = true } = {}) {
     const frame = (now) => {
         raf = 0;
         if (parado || !canvas.isConnected) { me.stop(); return; }
+        if (last && now - last < 30) { raf = requestAnimationFrame(frame); return; } // 30 imagens/s: poupa bateria
         const dt = last ? Math.min(100, now - last) : 16;
         last = now;
         O.cpasso(estado, dt);
