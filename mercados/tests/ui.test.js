@@ -717,6 +717,43 @@ function proxyBody(u) {
     await page.click('details[data-fold="pn-idx"] [data-unhide="index"]');
     assert.equal(await page.locator(idxSel).count(), nIdx, 'Repor traz de volta');
     console.log('✓ arrastar para a esquerda: retirar, desfazer e repor (' + firstIdx + ')');
+    // … e arrastar até ao fim retira logo, com Desfazer (como no Mail do iPhone), sem mudar de separador
+    const tabAgora = () => page.evaluate(() => window.__mk.cfg.tab);
+    const aoLado = async (y, x1, x2) => { await gesto(0, Array(9).fill(y), tempos(9), Array.from({ length: 9 }, (_, i) => x1 + (x2 - x1) * i / 8)); await page.waitForTimeout(500); };
+    const ateAoFim = async (sel) => { const b = await page.locator(sel).first().boundingBox(); await aoLado(b.y + b.height / 2, b.x + b.width - 20, b.x + b.width - 300); };
+    await ateAoFim(idxSel);
+    assert.equal(await page.locator(idxSel).count(), nIdx - 1, 'arrastar até ao fim retira');
+    assert.match(await page.locator('#mk-toast').textContent(), /retirado.*Desfazer/);
+    await page.click('#mk-toast .t-undo');
+    assert.equal(await page.locator(idxSel).count(), nIdx, 'desfazer repõe');
+    assert.equal(await tabAgora(), 'painel', 'apagar não muda de separador');
+    // navegar: arrastar para o lado em qualquer parte muda de separador; no primeiro, para a direita resiste e fica
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(100);
+    const yTit = async () => { const b = await page.locator('#mk-body .pg-t').first().boundingBox(); return b.y + b.height / 2; };
+    await aoLado(await yTit(), 60, 330);
+    assert.equal(await tabAgora(), 'painel', 'no primeiro separador, para a direita fica');
+    await aoLado(await yTit(), 330, 60);
+    assert.equal(await tabAgora(), 'destaques', 'para a esquerda: o separador seguinte');
+    assert.equal(await page.locator('#mk-nav [data-tab="destaques"].on').count(), 1);
+    await page.waitForSelector('#mk-body .hl-row');
+    const hr = await page.locator('#mk-body .hl-row').first().boundingBox();
+    await aoLado(hr.y + hr.height / 2, 330, 60);
+    assert.equal(await tabAgora(), 'analise', 'também a partir de uma linha que não se apaga');
+    assert.equal(await page.locator('#mk-sheet').isHidden(), true, 'arrastar não abre a ficha');
+    await aoLado(await yTit(), 60, 330);
+    assert.equal(await tabAgora(), 'destaques', 'para a direita: o anterior');
+    // a lista dos Ajustes: arrastar uma linha para a esquerda retira-a (com Desfazer)
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    const wlSel = '.wl-i[data-grp="w"]', nWl = await page.locator(wlSel).count();
+    await page.locator(wlSel).first().scrollIntoViewIfNeeded();
+    await ateAoFim(wlSel);
+    assert.equal(await page.locator(wlSel).count(), nWl - 1, 'Ajustes: arrastar retira da lista');
+    assert.match(await page.locator('#mk-toast').textContent(), /retirado.*Desfazer/);
+    await page.click('#mk-toast .t-undo');
+    assert.equal(await page.locator(wlSel).count(), nWl, 'Ajustes: desfazer repõe');
+    assert.equal(await tabAgora(), 'ajustes');
+    await page.click('#mk-nav [data-tab="painel"]');
+    console.log('✓ navegar a arrastar: separadores para o lado; linhas do Painel e dos Ajustes apagam a arrastar até ao fim');
 
     // puxar para baixo no topo → atualizar
     await page.click('#mk-nav [data-tab="painel"]');
