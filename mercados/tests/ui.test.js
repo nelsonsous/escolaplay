@@ -246,7 +246,7 @@ function proxyBody(u) {
     assert.match(await page.locator('.today').textContent(), /manter o plano no VWCE/);
     assert.match(await page.locator('.today > summary .hj-src').textContent(), /^Claude · (\d\d\/\d\d )?\d\d:\d\d( · atrasada)?$/, 'de onde vem: o Claude e a hora');
     assert.equal(await page.locator('.today .plan-blk .idea').count(), 2, 'plano do Claude');
-    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .badge').textContent(), /Esperar/, 'conselho do Claude no ativo');
+    assert.match(await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .badge').textContent(), /^Manter$/, 'conselho do Claude no ativo: tenho-o, por isso Manter (e não Aguardar)');
     assert.equal(await page.locator('.sec:has(h2:text-is("Cripto"))').count(), 0, 'cripto que tenho não se repete');
     assert.equal(await page.locator('#mk-body h1.pg-t').textContent(), 'Painel');
     console.log('✓ Hoje: análise do Claude + plano | conselho nos meus ativos');
@@ -379,7 +379,7 @@ function proxyBody(u) {
     assert.equal(await page.locator(nvr + ' .r-name').textContent(), 'Nvidia');
     assert.match(await page.locator(nvr + ' .r-sub').textContent(), /^NVDA · \+5,20%/, 'símbolo e variação do dia');
     assert.equal(await page.locator(nvr + ' .r-score .val').textContent(), '88');
-    assert.equal(await page.locator(nvr + ' .lbl').textContent(), 'Comprar aos poucos');
+    assert.equal(await page.locator(nvr + ' .lbl').textContent(), 'Comprar', 'família entrar, sem o ativo: Comprar');
     assert.match(await page.locator(nvr + ' .lbl').getAttribute('class'), /\bup-t\b/, 'o veredicto com a cor do tom');
     // ≠ algoritmo: só onde o veredicto do Claude é de outra família (entrar, ficar, sair) que o do algoritmo
     const dif = await page.evaluate(() => {
@@ -438,7 +438,7 @@ function proxyBody(u) {
     assert.deepEqual(dScores, [...dScores].sort((a, b) => b - a), 'ordenado pela oportunidade');
     assert.match(await page.locator(lst + ' .row .r-sub').first().textContent(), /do máx\./);
     assert.equal(await page.locator('.an-src').textContent(), 'Algoritmo · veredicto do Claude');
-    assert.equal(await page.locator(nvr + ' .lbl').textContent(), 'Comprar aos poucos', 'o veredicto do Claude nas linhas');
+    assert.equal(await page.locator(nvr + ' .lbl').textContent(), 'Comprar', 'o veredicto do Claude nas linhas');
     assert.equal(await page.locator(lst + ' .alg-diff').count(), 0, 'no desconto a lista já é a do algoritmo: sem ≠');
     console.log('✓ modo desconto: n =', dScores.length);
     await page.click('.seg.hz [data-hz="mid"]');
@@ -446,7 +446,8 @@ function proxyBody(u) {
     await page.click(lst + ' .row[data-open="NVDA"]');
     await page.waitForSelector('#mk-sheet:not([hidden]) .cl-adv');
     const adv = '#mk-sheet .advice.cl-adv';
-    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar aos poucos');
+    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar forte', 'rótulo da família, forte com convicção de 88');
+    assert.equal(await page.locator(adv + ' .adv-nu').textContent(), 'Comprar aos poucos', 'o pormenor do Claude por baixo');
     assert.match(await page.locator(adv + ' .adv-src').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
     assert.deepEqual(await page.locator(adv + ' .cl-conv .val').allTextContents(), ['48', '88', '81'], 'convicção curto/médio/longo');
     assert.deepEqual(await page.locator(adv + ' .cl-conv small').allTextContents(), ['Curto prazo', 'Médio prazo', 'Longo prazo']);
@@ -487,7 +488,8 @@ function proxyBody(u) {
     assert.ok(await page.locator('.disc-box .range52 .bar i').count(), 'barra mínimo–máximo do ano');
     assert.ok(await page.locator('.advice .adv-act').count(), 'o que fazer na TR');
     assert.match(await page.locator('.advice .adv-src').textContent(), /Análise do Claude/);
-    assert.match(await page.locator('.advice .adv-act').textContent(), /Esperar/);
+    assert.equal(await page.locator('.advice .adv-act').textContent(), 'Manter', 'tenho BTC: ficar = Manter');
+    assert.equal(await page.locator('.advice .adv-nu').textContent(), 'Esperar', 'e a frase do Claude por baixo');
     assert.equal(await page.locator('#mk-sheet details.sh-auto').count(), 1, 'algoritmo como referência, à parte');
     assert.equal(await page.locator('.advice .cl-lv li').count(), 3, 'entrada, alvo e stop');
     assert.match(await page.locator('.advice').textContent(), /€/);
@@ -865,7 +867,8 @@ function proxyBody(u) {
     await page.click('details.uni .row[data-open="PUM.DE"]');
     await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && /PUMA/.test(document.querySelector('#mk-sheet-card').textContent));
     assert.equal(await page.locator('#mk-sheet .cl-adv h3').textContent(), 'O que fazer na Trade Republic');
-    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-act').textContent(), 'Comprar');
+    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-act').textContent(), 'Comprar forte', 'convicção de 70 a médio prazo: forte');
+    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-nu').count(), 0, 'sem pormenor quando a frase é o próprio rótulo');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     // um da lista toda que o Claude não analisou: o sinal automático, marcado (e os impostos da cripto)
@@ -907,10 +910,10 @@ function proxyBody(u) {
     assert.equal(await page.locator('.an-src').textContent(), 'Algoritmo · veredicto do Claude');
     const oldNums = (await page.locator(lst + ' .r-score .val').allTextContents()).map(Number);
     assert.deepEqual(oldNums, [...oldNums].sort((a, b) => b - a), 'sem convicção do Claude: ordenada pelo algoritmo');
-    assert.equal(await page.locator(lst + ' .row[data-open="c:BTC"] .lbl').textContent(), 'Esperar', 'o veredicto antigo aparece na linha');
+    assert.equal(await page.locator(lst + ' .row[data-open="c:BTC"] .lbl').textContent(), 'Manter', 'o veredicto antigo aparece na linha');
     await page.locator(lst + ' .row[data-open="c:BTC"]').click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .advice .adv-act');
-    assert.equal(await page.locator('#mk-sheet .advice .adv-act').textContent(), 'Esperar');
+    assert.equal(await page.locator('#mk-sheet .advice .adv-act').textContent(), 'Manter');
     assert.equal(await page.locator('#mk-sheet .cl-conv').count(), 0, 'formato antigo: sem convicção por prazo');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);

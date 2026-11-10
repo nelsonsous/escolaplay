@@ -178,7 +178,10 @@ function verificar({ de, ate, seed }) {
     const TIPO = (k) => (k.startsWith('c:') ? 'crypto' : /=F$/.test(k) ? (k === 'GC=F' ? 'index' : 'energy') : k.startsWith('^') || k === 'PSI20.LS' || k === 'EURUSD=X' ? 'index' : /\.MU$|EURDKK/.test(k) ? 'aux' : /^(VWCE|EUNL|SXR|IS3N|EXSA|4GLD)/.test(k) ? 'fund' : 'stock');
     const CHAVES = ['buy', 'scale', 'hold', 'wait', 'neutral', 'turn', 'reduce', 'avoid', 'sell', 'up', 'flat', 'down'];
     // as regras da vista (as do viewAnalysis de antes para a ordem; as da 4.7.0 para o veredicto e as marcas)
-    const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Não reforçar', turn: 'Esperar', reduce: 'Reduzir', avoid: 'Evitar', sell: 'Vender', up: 'Em alta', flat: 'Lateral', down: 'Em queda' };
+    // o rótulo (4.11): entrar Comprar / Reforçar, ficar Aguardar / Manter, sair Evitar / Vender — conforme já tem o ativo
+    const SHORT = { buy: 1, scale: 1, hold: 1, wait: 1, neutral: 1, turn: 1, reduce: 1, avoid: 1, sell: 1, up: 1, flat: 1, down: 1 };
+    const lbl = (k, own) => ({ buy: 1, scale: 1 }[k] ? (own ? 'Reforçar' : 'Comprar') : { hold: 1, wait: 1, neutral: 1, turn: 1 }[k] ? (own ? 'Manter' : 'Aguardar')
+        : { reduce: 1, sell: 1, avoid: 1 }[k] ? (own ? (k === 'reduce' ? 'Vender parte' : 'Vender') : 'Evitar') : { up: 'Em alta', flat: 'Lateral', down: 'Em queda' }[k]);
     const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
     const tem = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
     const fin = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -315,7 +318,8 @@ function verificar({ de, ate, seed }) {
                 out.linhas++;
                 const a = clNow(k), h = hzOf(k), adv = AN[k] && AN[k].advice && AN[k].advice.key, x = sa[k];
                 const nota = j < clRows.length ? clScore(k) : +h.score;
-                const ver = a ? (tem(SHORT, a.key) ? SHORT[a.key] : a.action ? txt(a.action) : '') : disc ? txt(h.tag) : tem(FAM, adv) ? SHORT[adv] : txt(h.label);
+                const own = !!(x && x.own);
+                const ver = a ? (tem(SHORT, a.key) ? lbl(a.key, own) : a.action ? txt(a.action) : '') : disc ? txt(h.tag) : tem(FAM, adv) ? lbl(adv, own) : txt(h.label);
                 const fc = a && tem(FAM, a.key) ? FAM[a.key] : null, fa = tem(FAM, adv) ? FAM[adv] : null;
                 const marca = a ? (!disc && fc != null && fa != null && fc !== fa ? '≠ algoritmo' : '') : clDoc ? 'auto' : '';
                 if (marca === '≠ algoritmo') T.diferente++; else if (marca) T.auto++;
