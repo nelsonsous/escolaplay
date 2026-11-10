@@ -287,6 +287,9 @@ test('/journal guarda as compras de cripto sem apagar o diário', async () => {
     assert.ok(JSON.parse(store.get('j:' + id)).lots['c:BTC'], 'compras mantêm-se ao gravar o dia seguinte');
     assert.equal((await post({ id })).status, 400);
     assert.equal(cleanLots([]), null);
+    // 1.6.0: o que se tem (quantidade e investido) também para os fundos; as compras avulsas só na cripto
+    assert.deepEqual(cleanLots({ 'VWCE.DE': { qty: '25.31', cost: 4200, qd: '2024-05-02', buys: [{ d: '2025-01-01', e: 9 }] }, 'c:BTC': { qty: 0.0412, cost: 3800.555 }, 'mau key!': { qty: 1, cost: 1 }, 'c:ETH': { qty: 1 } }),
+        { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 4200, qd: '2024-05-02' }, 'c:BTC': { plan: '', buys: [], qty: 0.0412, cost: 3800.555 } });
 });
 
 test('/fuel/municipios e /fuel?municipio=… (concelho)', async () => {

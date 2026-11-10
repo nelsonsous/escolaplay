@@ -635,12 +635,48 @@
       ? _js_v _js_get t k_eur { " (" _nu_ps _nu_round _js_tonum _js_get t k_eurExempt " € de " _nu_ps _nu_round _js_tonum _js_get t k_eur " €)" } 0
       = nt _js_get t k_next ? _js_v nt { "; próxima isenta a " _js_pu _js_get nt k_free " (faltam " _js_pu _js_get nt k_days " dias)" } "; todas isentas" }
     = j + j 1 }
+  da_pos
   da_nl "## Lições guardadas"
   = le @ g_lessons ? ~ _js_ehlst le cs_lanca k_TypeError k_lessonsmapnf 0
   = j 0 W < j _js_len le { da_nl "- " _js_pu _js_it le j = j + j 1 }
   = w @ g_warn ? _js_len w { da_nl "## Avisos" = j 0 W < j _js_len w { da_nl "- " _js_pu _js_it w j = j + j 1 } 0 } 0
   0 }
 #k k_lessonsmapnf lessons.map is not a function
+# o que tem, com as quantidades e o investido que ele pôs na Carteira da app: o peso de cada um no total
+# (a referência: o pos de js/dados.mjs). Uma lista [chave, quantidade, investido, valor] por posição
+: da_pos >i {
+  = pl _js_lst 8 = jss @ g_journals = i 0
+  W < i _js_len jss {
+    = lots _js_oget _js_it jss i k_lots = lots ? _js_v lots lots _js_obj 0
+    = ord _js_ordem lots = j 0
+    W < j _js_on lots {
+      = p _js_pos ord j = lt _js_ov lots p
+      ? _js_v lt {
+        = q _js_tonum _js_get lt k_qty = c _js_tonum _js_get lt k_cost
+        ? && > q 0. > c 0. { = e _js_lst 4 _js_push e _js_ok lots p _js_push e _js_num q _js_push e _js_num c _js_push pl e 0 } 0 0 } 0
+      = j + j 1 }
+    = i + i 1 }
+  da_nl "## O que tens: quantidades e pesos (Carteira da app)"
+  ? == _js_len pl 0 { da_nl "- (sem quantidades: ele ainda não as pôs na app — Carteira → Editar o que tenho)" 0 } {
+    # o valor: quantidade × preço em euros (sem preço, o investido)
+    = rows @ g_rows = tot 0. = ti 0. = j 0
+    W < j _js_len pl {
+      = e _js_it pl j = k _js_it e 0 = q _js_tonum _js_it e 1 = c _js_tonum _js_it e 2
+      = pr 0. = m 0 = ach 0
+      W && < m _js_len rows ~ ach { = r _js_it rows m ? _js_eht _js_get r k_s k { = ach 1 = pr _js_tonum _js_get r k_priceEur 0 } 0 = m + m 1 }
+      = v ? && ach && _nu_fin pr > pr 0. * q pr c
+      _js_push e _js_num v
+      = tot + tot v = ti + ti c
+      = j + j 1 }
+    = j 0
+    W < j _js_len pl {
+      = e _js_it pl j = q _js_tonum _js_it e 1 = c _js_tonum _js_it e 2 = v _js_tonum _js_it e 3
+      = g * - / v c 1. 100.
+      da_nl "- " _js_pu _js_it e 0 ": " _nu_ps q " unidades · investido " _nu_ps _nu_round c " € · vale " _nu_ps _nu_round v " € (" _nu_fixo * / v tot 100. 1 "% do total) · "
+      ? >= g 0. P '+ 0 _nu_fixo g 1 "%"
+      = j + j 1 }
+    da_nl "- Total: " _nu_ps _nu_round tot " € (investido " _nu_ps _nu_round ti " €)" 0 }
+  0 }
 : da_saida >i {
   = data _js_obj 14
   _js_oset data k_date @ g_today

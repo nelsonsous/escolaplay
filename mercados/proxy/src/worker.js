@@ -30,7 +30,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -463,11 +463,14 @@ export function cleanLots(l) {
     if (!l || typeof l !== 'object' || Array.isArray(l)) return null;
     const out = {};
     for (const k of Object.keys(l).slice(0, 12)) {
-        if (!/^c:[A-Z0-9]{2,8}$/.test(k) || !l[k] || typeof l[k] !== 'object') continue;
-        const buys = (Array.isArray(l[k].buys) ? l[k].buys : []).slice(0, 400)
+        // a cripto (c:BTC) e, desde a 1.6.0, os outros ativos da carteira (VWCE.DE): o que se tem, em quantidade e investido
+        if (!/^(c:[A-Z0-9]{2,8}|[A-Z0-9][A-Z0-9.\-=^]{0,14})$/.test(k) || !l[k] || typeof l[k] !== 'object') continue;
+        const buys = (k.startsWith('c:') && Array.isArray(l[k].buys) ? l[k].buys : []).slice(0, 400)
             .filter((x) => x && JDATE.test(x.d || '')).map((x) => ({ d: x.d, e: Number.isFinite(+x.e) && +x.e > 0 ? Math.round(+x.e * 100) / 100 : 0 }));
         const plan = JDATE.test(l[k].plan || '') ? l[k].plan : '';
-        if (buys.length || plan) out[k] = { plan, buys };
+        const num = (v) => (Number.isFinite(+v) && +v > 0 && +v < 1e12 ? Math.round(+v * 1e8) / 1e8 : 0);
+        const qty = num(l[k].qty), cost = num(l[k].cost), qd = JDATE.test(l[k].qd || '') ? l[k].qd : '';
+        if (buys.length || plan || (qty && cost)) out[k] = { plan, buys, ...(qty && cost ? { qty, cost, ...(qd ? { qd } : {}) } : {}) };
     }
     return out;
 }

@@ -36,6 +36,8 @@ export function cenarios() {
     const C = [];
     const d = (nome, c) => C.push({ nome: 'dados: ' + nome, script: 'dados', args: ['{pasta}'], agora: '2026-11-06T07:15:00Z', semente: 7, ...c });
     d('com o dono, diário, lotes de cripto, conselhos anteriores e lições', { kv: { ...dono('dono-teste-0001'), ...diario('dono-teste-0001', { days: DIAS, lots: LOTES, saveDays: [2, 16], my: ['VWCE.DE', 'c:ETH', 'EGL.LS'] }), ...conselho('2026-11-04'), ...conselho('2026-11-05', { v: undefined }), 'advice:lessons': { valor: ['Não perseguir subidas', 'Cripto: manter 365 dias'] } } });
+    d('com quantidades na carteira (4.17): pesos, um sem preço, um sem investido, textos', { kv: { ...dono('dono-teste-0002'), ...diario('dono-teste-0002', { days: DIAS, saveDays: [2],
+        lots: { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 4200 }, 'c:BTC': { plan: '2025-01-02', buys: [{ d: '2025-03-01', e: 100 }], qty: '0.0412', cost: 3800.5 }, 'XYZ.DE': { qty: 3, cost: 300 }, 'c:ETH': { qty: 1, cost: 0 }, 'c:SOL': { qty: 'abc', cost: 10 } }, my: ['VWCE.DE'] }) } });
     d('sem dono: vários diários (páginas do KV), um sem days, um texto, 50 conselhos (os últimos 45), o de hoje fora da avaliação', {
         agora: '2026-11-07T15:14:00Z', semente: 8, pagina: 2,
         kv: { ...diario('aaaa-0001', { days: DIAS, my: ['NVDA', 'c:ADA'] }), ...diario('aaaa-0002', { my: ['TSLA'] }), ...diario('aaaa-0003', { days: { '2026-11-07': [{ s: 'SAP.DE', p: 120, a: 'wait' }] }, lots: { 'c:SOL': { plan: '2026-01-09', buys: [] } }, saveDays: [9, 23] }),
@@ -178,6 +180,16 @@ test('conselheiro em Onda: o mesmo que o JS em todos os cenários (ficheiros, pe
         return { cena, d: comparar(a, b), a, b };
     });
     rmSync(base, { recursive: true, force: true });
+    // o cenário das quantidades escreve mesmo a secção, com os pesos (não só "sem quantidades")
+    const qt = res.find((r) => /quantidades na carteira/.test(r.cena.nome));
+    if (qt) {
+        const md = String((qt.b.ficheiros || {})['dados.md'] || qt.b.stdout || '');
+        assert.match(md, /## O que tens: quantidades e pesos \(Carteira da app\)\n- VWCE\.DE: 25\.31 unidades · investido 4200 € · vale \d+ € \([\d.]+% do total\)/, md.slice(md.indexOf('## O que tens: quant'), md.indexOf('## O que tens: quant') + 500));
+        assert.match(md, /- XYZ\.DE: 3 unidades · investido 300 € · vale 300 €/, 'sem preço: vale o investido');
+        assert.match(md, /- Total: \d+ € \(investido 8301 €\)/);
+        const sec = md.slice(md.indexOf('## O que tens: quant'), md.indexOf('## Lições guardadas'));
+        assert.doesNotMatch(sec, /c:ETH|c:SOL/, 'sem investido ou sem quantidade: fica de fora');
+    }
     const mal = res.filter((r) => r.d.length);
     for (const r of mal) console.log(`✗ ${r.cena.nome}\n  ${r.d.join('\n  ')}`);
     assert.equal(mal.length, 0, `${mal.length} de ${C.length} cenários diferem`);
