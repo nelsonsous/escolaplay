@@ -43,6 +43,18 @@ export function simulador() {
 
 function tabelaSimulada(sim, u) {
     const h = String(u);
+    // as pré-escutas: a Apple tem a do «So What» e da «Teardrop»; o Deezer (pelo ISRC) a da «Feeling Good»
+    if (h.startsWith('https://itunes.apple.com/search?')) {
+        sim.chamadas.push(`GET ${h}`);
+        const term = new URL(h).searchParams.get('term');
+        const tem = [['Miles Davis', 'So What'], ['Massive Attack', 'Teardrop']].filter(([a, t]) => term.includes(t));
+        return new Response(JSON.stringify({ results: tem.map(([a, t]) => ({ artistName: a, trackName: t, previewUrl: `https://audio.example/${encodeURIComponent(t)}.m4a` })) }), { status: 200 });
+    }
+    if (h.startsWith('https://api.deezer.com/search?')) { sim.chamadas.push(`GET ${h}`); return new Response(JSON.stringify({ data: [] }), { status: 200 }); }
+    if (h.startsWith('https://api.deezer.com/track/isrc:')) {
+        sim.chamadas.push(`GET ${h}`);
+        return new Response(JSON.stringify(h.endsWith('USAAA0000102') ? { preview: 'https://cdn.deezer.example/feeling-good.mp3?exp=1' } : { error: { type: 'DataException' } }), { status: 200 });
+    }
     const fonte = h.startsWith('https://rss.marketingtools.apple.com/api/v2/pt/') ? 'pt' : h.startsWith('https://rss.marketingtools.apple.com/api/v2/us/') ? 'eua'
         : h.startsWith('https://api.deezer.com/chart/') ? 'mundo' : null;
     if (!fonte) return null;

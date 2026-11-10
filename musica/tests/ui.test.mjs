@@ -130,7 +130,21 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(doc.candidatas.length, 6);
     await nav(1);
     await page.locator('.mu-pl').getByText('Som para o carro').waitFor();
-    await page.locator('.mu-pl').click();
+    // o cartão abre-se ali mesmo: as faixas, ouvir 30 s (as que têm pré-escuta), «não esta» e afinar; «Abrir» leva à playlist
+    await page.locator('.mu-pl-a').click();
+    await page.locator('.mu-pl.aberta .mu-xf li').first().waitFor();
+    assert.equal(await page.locator('.mu-pl.aberta .mu-xf li').count(), doc.faixas.length);
+    await page.locator('.mu-pl.aberta [data-previa]').first().waitFor();
+    const previa = await page.locator('.mu-pl.aberta [data-previa]').first().getAttribute('data-previa');
+    assert.match(previa, /^https:\/\/(audio|cdn\.deezer)\.example\//);
+    await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
+    await page.locator('.mu-pl.aberta [data-previa]').first().click();
+    assert.equal(await page.evaluate(() => window.musicaLeitor.dataset.src), previa, 'toca a pré-escuta');
+    await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').waitFor();
+    await page.locator('.mu-pl-a').click();
+    assert.equal(await page.locator('.mu-pl.aberta').count(), 0, 'tocar outra vez fecha');
+    await page.locator('.mu-pl-a').click();
+    await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
     assert.equal(await page.locator('#faixas .mu-faixa').count(), doc.faixas.length);
     assert.deepEqual(await mostradas(page), doc.faixas.map((f) => f.id), 'a ordem guardada');
@@ -209,6 +223,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const agente = await env.KV.get('agente:chave');
     assert.equal((await worker.fetch(new Request(WORKER + '/api/avaliacoes', { headers: { authorization: `Bearer ${agente}` } }), env, { waitUntil() {} })).status, 200);
     await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
+    await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByRole('heading', { name: 'Como correu' }).waitFor();
     await page.getByText('Ainda é cedo.').waitFor();
     await page.getByRole('button', { name: 'Desligado' }).click();
@@ -226,9 +241,10 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.deepEqual([renomeada.nome, renomeada.descricao], ['Som do BMW', 'Para testar o carro.']);
     if (renomeada.tidal) assert.equal(sim.renomeadas.at(-1).name, 'Som do BMW');
     await nav(1);
-    await page.locator('.mu-pl').first().getByText('↻ atualiza-se').waitFor();
+    await page.locator('.mu-pl').first().getByText('↻').waitFor();
     // mais como esta: toca-se numa faixa e cria-se logo no Tidal uma playlist de parecidas
     await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
+    await page.getByRole('button', { name: 'Abrir' }).click();
     await page.locator('#faixas .mu-faixa-a').first().waitFor();
     await page.locator('#faixas .mu-faixa-a').first().click();
     await page.getByRole('button', { name: 'Mais como esta' }).click();
@@ -314,6 +330,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await grupo.getByText('«Para conduzir à noite»').waitFor();
     assert.equal(await grupo.locator('.mu-pl').count(), 2);
     await grupo.locator('.mu-pl-a', { hasText: 'Mais descoberta' }).click();
+    await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByText(/Proposta «Mais descoberta»/).waitFor();
     const nCriadas = sim.criadas.length;
     await page.getByRole('button', { name: 'Enviar para o Tidal' }).click();
@@ -330,6 +347,15 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await nav(1);
     await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
     assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
+    // agrupar por: data (por omissão), tipo, género, Tidal, avaliação — e fica escolhido
+    await page.getByRole('heading', { name: /^Esta semana/ }).waitFor();
+    await page.getByRole('button', { name: 'Tidal', exact: true }).click();
+    await page.getByRole('heading', { name: /^No Tidal/ }).waitFor();
+    assert.equal(await page.getByRole('heading', { name: /^Esta semana/ }).count(), 0);
+    await page.getByRole('button', { name: 'Tipo', exact: true }).click();
+    await page.getByRole('heading', { name: /^Do Maestro|^Feitas por ti|^Dos teus pedidos|^Atualizam-se sozinhas/ }).first().waitFor();
+    assert.equal(await page.evaluate(() => localStorage.getItem('musica:agrupar')), '1');
+    await page.getByRole('button', { name: 'Data', exact: true }).click();
     await foto('5-pedir');
 
     // 7) voltar a abrir: a chave fica, a app abre ligada

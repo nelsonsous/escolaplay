@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.10.0';
+const VERSION = '1.11.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -22,7 +22,7 @@ class Erro extends Error {
 // O dono (quem montou a app) fica com as chaves de sempre; cada pessoa convidada tem as suas com o prefixo u:<id>:.
 // As chaves globais (aparelhos, Client ID, códigos, convites, o estado do login) são as mesmas para todos.
 const DONO = 'dono';
-const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:)/;
+const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:|previa:)/;
 function deUtilizador(env, uid) {
     if (!uid || uid === DONO) return { ...env, UID: DONO };
     const k = (x) => (GLOBAL.test(x) ? x : `u:${uid}:${x}`);
@@ -82,11 +82,12 @@ async function route(req, env, url) {
         return json(await guardarIdeias(ue, await corpo(req)), 201);
     }
     if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/afinar)?$/.exec(p);
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/afinar|\/previas)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(ue, pl[1], await corpo(req), quem), 201);
+    if (pl && pl[2] === '/previas' && m === 'GET') return json(await previas(ue, pl[1]));
     if (pl && pl[2] === '/rejeitar' && m === 'POST') return json(await rejeitar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/afinar' && m === 'POST') return json(await afinarPedido(ue, pl[1], await corpo(req)), 201);
     if (pl && pl[2] === '/nome' && m === 'POST') return json(await renomear(ue, pl[1], await corpo(req)));
@@ -443,7 +444,7 @@ function normalizarFaixa(f) {
     if (!f || !/^\d+$/.test(String(f.id || ''))) return null;
     return {
         id: String(f.id), titulo: txt(f.titulo, 200), versao: txt(f.versao, 100), artistas: (Array.isArray(f.artistas) ? f.artistas : []).map((a) => txt(a, 120)).filter(Boolean).slice(0, 6),
-        album: txt(f.album, 200), ano: Number(f.ano) || 0, duracao: Number(f.duracao) || 0, tags: (Array.isArray(f.tags) ? f.tags : []).slice(0, 6).map((x) => txt(x, 30)),
+        album: txt(f.album, 200), ano: Number(f.ano) || 0, ...(/^[A-Z0-9]{12}$/i.test(f.isrc || '') ? { isrc: String(f.isrc).toUpperCase() } : {}), duracao: Number(f.duracao) || 0, tags: (Array.isArray(f.tags) ? f.tags : []).slice(0, 6).map((x) => txt(x, 30)),
         bpm: Number(f.bpm) || 0, tom: Number(f.tom) || 0, genero: txt(f.genero, 40), popularidade: Number(f.popularidade) || 0,
         motivo: txt(f.motivo, 160), porque: txt(f.porque, 20), pontos: Number(f.pontos) || 0, url: `https://tidal.com/browse/track/${f.id}`,
     };
@@ -473,8 +474,17 @@ async function guardar(env, c, quem) {
 const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.por, faixas: d.faixas.length,
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
     ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}),
-    ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '', pedido: txt(d.pedido, 120) } : {}),
+    ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '' } : {}),
+    // para agrupar na app: o pedido (se houve) e o género que mais aparece
+    ...(d.pedido ? { pedido: txt(d.pedido, 120) } : {}), ...(generoDe(d.faixas) ? { genero: generoDe(d.faixas) } : {}),
     ...(d.avaliacao ? { avaliacao: { nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta, guardadas: d.avaliacao.guardadas.length, tiradas: d.avaliacao.tiradas.length } } : {}) });
+function generoDe(faixas) {
+    const n = new Map();
+    for (const f of faixas) { const g = txt(f.genero || f.generos?.[0], 40); if (g) n.set(g, (n.get(g) || 0) + 1); }
+    let best = '', bn = 0;
+    for (const [g, k] of n) if (k > bn) { best = g; bn = k; }
+    return best;
+}
 async function atualizarIndice(env, d) {
     const idx = (await env.KV.get('playlists', 'json')) || [];
     await env.KV.put('playlists', JSON.stringify(idx.map((x) => (x.id === d.id ? resumoDe(d) : x))));
@@ -632,6 +642,44 @@ async function avaliar(env, d, fav, gostava, nasMixes) {
     const etiqueta = apagada ? 'apagaste' : !sinais ? ((Date.now() - Date.parse(desde)) / 864e5 < 3 ? 'ainda cedo' : 'sem sinais')
         : nota >= 75 ? 'resultou' : nota >= 55 ? 'boa' : nota >= 40 ? 'morna' : 'não resultou';
     return { nota, etiqueta, guardadas, tiradas: tiradas.slice(0, 30), juntadas, eco, apagada, em: new Date().toISOString() };
+}
+
+// ---------- ouvir 30 s: a pré-escuta pública da Apple (pela pesquisa do iTunes; o Deezer, pelo ISRC, se a Apple não
+// tiver, pelo ISRC ou pela pesquisa). A da Apple fica na KV 30 dias (o endereço não muda); a do Deezer é assinada e
+// caduca, por isso não fica. ----------
+const MAX_PREVIAS = 40; // pedidos externos por chamada (o plano gratuito deixa 50)
+async function previas(env, id) {
+    const d = await obter(env, id);
+    const out = {};
+    let pedidos = 0;
+    for (const f of d.faixas.slice(0, 100)) {
+        const k = 'previa:' + f.id;
+        let url = await env.KV.get(k);
+        if (url === null && pedidos < MAX_PREVIAS) {
+            const r = await previaApple(f).catch(() => ''); pedidos++;
+            if (r) { url = r; await env.KV.put(k, r, { expirationTtl: 30 * 86400 }); }
+            else if (pedidos < MAX_PREVIAS) { url = await previaDeezer(f).catch(() => ''); pedidos++; if (!url) await env.KV.put(k, '', { expirationTtl: 7 * 86400 }); }
+        }
+        if (url) out[f.id] = url;
+    }
+    return { previas: out };
+}
+async function previaApple(f) {
+    const artista = f.artistas?.[0] || '';
+    const r = await fetch(`https://itunes.apple.com/search?${new URLSearchParams({ term: `${artista} ${f.titulo}`, entity: 'song', limit: '5', country: 'PT' })}`);
+    if (!r.ok) return '';
+    const a = normal(artista), t = normal(f.titulo);
+    const x = ((await r.json())?.results || []).find((y) => y.previewUrl && normal(y.trackName).startsWith(t.slice(0, 12)) && (!a || normal(y.artistName).includes(a.split(' ')[0])));
+    return x?.previewUrl || '';
+}
+async function previaDeezer(f) {
+    if (f.isrc) {
+        const r = await fetch(`https://api.deezer.com/track/isrc:${encodeURIComponent(f.isrc)}`);
+        return r.ok ? ((await r.json())?.preview || '') : '';
+    }
+    const q = `artist:"${(f.artistas?.[0] || '').replace(/"/g, '')}" track:"${f.titulo.replace(/"/g, '')}"`;
+    const r = await fetch(`https://api.deezer.com/search?${new URLSearchParams({ q, limit: '1' })}`);
+    return r.ok ? ((await r.json())?.data?.[0]?.preview || '') : '';
 }
 
 // ---------- mudar o nome (e a descrição): na app e no Tidal, no mesmo link; a renovação semanal mantém-no ----------
