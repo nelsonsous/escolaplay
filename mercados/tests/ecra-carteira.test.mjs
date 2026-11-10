@@ -89,6 +89,16 @@ test('carteira: o simulador dá as contas certas', async () => {
         let i = 0; { const ra = mes(TX[1][0]), rb = mes(TX[1][1]); let a = 5000 * 0.9, b = 500; while (i < 1200 && (a + b) / df(i) < 250000) { a = a * (1 + ra) + 810; b = b * (1 + rb) + 90; i++; } }
         assert.ok(d.meta.startsWith(`Chegas lá em ${tempo(i)} no cenário base`), d.meta);
     }
+    // a partir da carteira real: o que já tem divide-se pela parte real em cripto (c0); o dinheiro novo pela do plano
+    {
+        const c0 = 0.8, st0 = 4722, m0 = 900, c = 0.1, n = 240;
+        const val0 = (s, n) => { const ra = mes(TX[s][0]), rb = mes(TX[s][1]); let a = st0 * (1 - c0), b = st0 * c0; for (let i = 0; i < n; i++) { a = a * (1 + ra) + m0 * (1 - c); b = b * (1 + rb) + m0 * c; } return a + b; };
+        const d = await ler(pg, AO.ecra.carteira({ budget: m0, cp: 10, core: 'FTSE All-World', start: st0, years: 20, goal: 0, c0, startReal: true, temReal: true }));
+        assert.equal(d.big, eur(val0(1, n)), 'o que já tem cresce com a divisão real');
+        assert.equal(d.rng, `entre ${eur(val0(0, n))} e ${eur(val0(2, n))}`);
+        const nota = await pg.evaluate(() => [document.querySelector('.sim-real').textContent, document.querySelector('[data-out="simStart"]').previousElementSibling.textContent]);
+        assert.deepEqual(nota, ['O valor de hoje da tua carteira, com a divisão real: 80 % em cripto. O dinheiro novo segue o plano.', 'Já tens (a tua carteira)']);
+    }
     // sem plano nem investido: pede os números
     const vazio = await ler(pg, AO.ecra.carteira({ budget: 0, cp: 10, core: 'X', start: 0, years: 20, goal: 0 }));
     assert.match(vazio.vazio, /quanto investes por mês/);

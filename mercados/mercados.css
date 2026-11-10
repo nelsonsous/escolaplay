@@ -757,3 +757,4 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .real .sec-h .real-edit { margin-left: auto; font-size: calc(.84rem * var(--k)); }
 .pl-nota { color: var(--muted); font-size: calc(.82rem * var(--k)); margin: 2px 0 8px; }
 .real-imp { padding: 10px 0 12px; } .real-imp textarea { width: 100%; box-sizing: border-box; min-height: 92px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; margin-bottom: 8px; resize: vertical; }
+.sim-real { margin: -6px 0 6px; font-size: calc(.8rem * var(--k)); }

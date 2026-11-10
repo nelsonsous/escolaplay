@@ -10,16 +10,18 @@
 # a taxa por ano da classe q (0 ações, 1 cripto) no cenário s (0 pessimista, 1 base, 2 otimista), e por mês
 : cs_tx ii>f s q ? == q 0 ? == s 0 0.03 ? == s 1 0.06 0.09 ? == s 0 0.0 ? == s 1 0.10 0.25
 : cs_mes f>f r - Pw + 1.0 r / 1.0 12.0 1.0
+# a parte em cripto do que já se tem (c0: a da carteira real); sem ela, a do plano (c)
+: cs_c0 f>f c { = v _ar_vnum sg $"c0" ? && _nu_fin v && >= v 0.0 <= v 1.0 v c }
 # o valor ao fim de n meses no cenário s: m € por mês, a fração c em cripto, st € no início
 : cs_val iifff>f s n m c st {
   = ra cs_mes cs_tx s 0 = rb cs_mes cs_tx s 1
-  = a * st - 1.0 c = b * st c = i 0
+  = a * st - 1.0 cs_c0 c = b * st cs_c0 c = i 0
   W < i n { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c = i + i 1 }
   + a b }
 # os meses até chegar ao objetivo g no cenário s (até 100 anos; -1 se não chega)
 : cs_meta iiffff>i s h m c st g {
   = ra cs_mes cs_tx s 0 = rb cs_mes cs_tx s 1
-  = a * st - 1.0 c = b * st c = i 0
+  = a * st - 1.0 cs_c0 c = b * st cs_c0 c = i 0
   W && < i 1200 < / + a b cs_df h i g { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c = i + i 1 }
   ? >= / + a b cs_df h i g i -1 }
 # o imposto se vender tudo ao fim de n meses, no cenário base: compra a compra (a de hoje e uma por mês)
@@ -27,9 +29,10 @@
   = ra cs_mes cs_tx 1 0 = rb cs_mes cs_tx 1 1 = t 0.0 = j 0
   W <= j n {
     = v ? == j 0 st m
+    = cc ? == j 0 cs_c0 c c
     = id - n j
-    = ga * * v - 1.0 c - Pw + 1.0 ra F id 1.0
-    = gb * * v c - Pw + 1.0 rb F id 1.0
+    = ga * * v - 1.0 cc - Pw + 1.0 ra F id 1.0
+    = gb * * v cc - Pw + 1.0 rb F id 1.0
     = tx ? < id 24 0.28 ? < id 60 0.252 ? < id 96 0.224 0.196
     = t + t * Mx 0.0 ga tx
     = t + t ? < id 12 * Mx 0.0 gb 0.28 0.0
@@ -305,7 +308,9 @@
   # os controlos (gravam ao largar: data-cfg; − e + num passo)
   "<div class=\"sim-ctl\">"
   cs_ctl $"budget" $"Por mês" m 0.0 Mx 3000.0 m 50.0 0
-  cs_ctl $"simStart" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
+  cs_ctl $"simStart" ? _ar_verd sg $"startReal" $"Já tens (a tua carteira)" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
+  ? _ar_verd sg $"startReal" { "<p class=\"note sim-real\">O valor de hoje da tua carteira, com a divisão real: " _nu_intl * 100.0 cs_c0 c 0 " % em cripto. O dinheiro novo segue o plano.</p>" 0 }
+    { ? _ar_verd sg $"temReal" { "<button type=\"button\" class=\"lnk sim-real\" data-act=\"sim-carteira\">Usar o valor da tua carteira</button>" 0 } 0 }
   cs_ctl $"simYears" $"Anos" F y 1.0 Mx 40.0 F y 1.0 1
   cs_ctl $"simGoal" $"Objetivo" g 0.0 Mx 1000000.0 g 10000.0 2
   "</div>"
