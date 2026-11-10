@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.17.3';
+    const VERSION = '4.17.4';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -530,10 +530,17 @@
         if (t.all) return 'isenta de IRS';
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
+    // as compras e os dias vão para o conector 4 s depois da última mudança (uma escrita, não uma por campo:
+    // o KV grátis tem 1000 escritas por dia na conta toda)
+    let lotsT = 0;
+    function postLotsSoon() {
+        clearTimeout(lotsT);
+        lotsT = setTimeout(() => { if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {}); }, 4000);
+    }
     function setLots(k, L) {
         if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !(+L.avg > 0) && !L.qd) delete cfg.lots[k]; else cfg.lots[k] = L;
         saveCfg();
-        if (cfg.proxy) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
+        postLotsSoon();
         if (sheetKey === k) renderSheet();
         scheduleRender();
     }
@@ -2155,7 +2162,7 @@
             cfg.saveDays = cfg.saveDays.includes(n) ? cfg.saveDays.filter((x) => x !== n) : cfg.saveDays.concat(n).sort((a, b) => a - b);
             if (!cfg.saveDays.length) cfg.saveDays = [n];
             // o Claude lê os dias do diário: manda-os já, para a análise seguinte não usar os antigos
-            if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
+            postLotsSoon();
             saveCfg(); render(); return;
         }
         switch (d.act) {
