@@ -101,6 +101,22 @@
         folha.addEventListener('animationend', fim, { once: true });
         setTimeout(fim, 320);
     }, true);
+    // a folha é um diálogo: ao abrir, o foco vai para o «fechar»; o Esc fecha; ao fechar, o foco volta ao cartão
+    let folhaAberta = null;
+    const seguirFolha = () => {
+        const f = document.querySelector('.mu-folha .mu-fechar');
+        const id = f ? f.dataset.onda : null;
+        if (id === folhaAberta) return;
+        if (id) f.focus({ preventScroll: true });
+        else if (folhaAberta) { const c = document.querySelector(`.mu-pl-a[data-onda="${CSS.escape(folhaAberta)}"]`); if (c) c.focus({ preventScroll: true }); }
+        folhaAberta = id;
+    };
+    if (corpo) new MutationObserver(seguirFolha).observe(corpo, { childList: true, subtree: true });
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        const f = document.querySelector('.mu-folha .mu-fechar');
+        if (f) { e.preventDefault(); f.click(); }
+    });
     // no iOS, o :active (o botão a afundar quando se toca) só funciona com um touchstart registado
     document.addEventListener('touchstart', () => {}, { passive: true });
     // ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)

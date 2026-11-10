@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v23'; // 2.17.0 — a playlist abre numa folha de ecrã cheio, com animação; memória de 10 min
+const CACHE = 'musica-v24'; // 2.17.1 — a folha como diálogo: foco no «fechar», Esc fecha, o foco volta ao cartão
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
