@@ -47,7 +47,7 @@ test('motor de gestos: quanto segue o dedo', async () => {
     await G.pronto;
     assert.equal(G.segue(G.FECHAR, 80), 80);
     assert.equal(G.segue(G.FECHAR, -30), 0, 'a folha não sobe');
-    assert.equal(G.segue(G.SEPARADOR, -100, 0, true), -40, 'o ecrã segue a 40 %');
+    assert.equal(G.segue(G.SEPARADOR, -100, 0, true), -85, 'o ecrã segue o dedo quase todo (85 %)');
     assert.equal(G.segue(G.SEPARADOR, -100, 0, false), -12, 'sem separador para esse lado: só resiste');
     assert.equal(G.segue(G.PAGINA, 100, 0, true), 45);
     assert.equal(G.segue(G.APAGAR, -40, 360), -40, 'a linha segue o dedo');

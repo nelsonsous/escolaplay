@@ -127,11 +127,94 @@
         if (e.isTrusted && Date.now() < semClique.ate && Math.abs(e.clientX - semClique.x) < 30 && Math.abs(e.clientY - semClique.y) < 30) { e.preventDefault(); e.stopPropagation(); }
     }, true);
 
+    // ---------- mudar de separador: a página segue o dedo e o separador ao lado espreita, colado a ela ----------
+    // A marca da barra de baixo (o fundo do separador ativo) desliza com o dedo. Ao largar, a página continua o
+    // movimento e o vizinho entra; ao desistir, volta ao sítio com um pequeno ressalto. Tocar na barra faz o mesmo.
+    const nav = document.getElementById('mu-nav');
+    const espreita = document.createElement('div');
+    espreita.id = 'mu-espreita';
+    espreita.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(espreita);
+    const indice = () => separadores().findIndex((b) => b.getAttribute('aria-current') === 'page');
+    const marcaEm = (i, solta = true) => { if (!nav) return; nav.classList.toggle('a-arrastar', !solta); nav.style.setProperty('--i', String(i)); };
+    if (nav) new MutationObserver(() => { const i = indice(); if (i >= 0 && !nav.classList.contains('a-arrastar')) marcaEm(i); }).observe(nav, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-current'] });
+    const prepararEspreita = (alvo) => {
+        if (espreita.dataset.para === alvo.dataset.onda) return;
+        espreita.dataset.para = alvo.dataset.onda;
+        const ic = alvo.querySelector('svg'), nome = alvo.textContent.trim();
+        espreita.innerHTML = `<div class="tx">${ic ? ic.outerHTML : ''}<b></b></div>`;
+        espreita.querySelector('b').textContent = nome;
+    };
+    const largura = () => window.innerWidth || 390;
+    // x: onde a página está (px); o vizinho fica colado a ela, do lado de onde vem
+    const porPagina = (x, dir, alvo) => {
+        if (desvanecer) { desvanecer = null; espreita.getAnimations?.().forEach((a) => a.cancel()); }
+        corpo.style.transform = x ? `translateX(${x}px) scale(${1 - Math.min(0.04, Math.abs(x) / largura() * 0.04)})` : '';
+        if (alvo) {
+            prepararEspreita(alvo);
+            espreita.style.transform = `translateX(${x + dir * largura()}px)`;
+            espreita.style.opacity = String(Math.min(1, 0.35 + Math.abs(x) / largura()));
+            espreita.hidden = false;
+        } else espreita.hidden = true;
+    };
+    const animar = (el, de, ate, ms, curva) => (el.animate && !calmo()
+        ? el.animate([{ transform: de }, { transform: ate }], { duration: ms, easing: curva, fill: 'forwards' }).finished.catch(() => {})
+        : Promise.resolve());
+    let aTrocar = false, desvanecer = null;
+    // larga para o separador alvo: a página sai pelo lado do dedo (à velocidade dele) e o vizinho entra
+    async function trocarPara(alvo, dir, x = 0, v = 0) {
+        if (aTrocar) return;
+        aTrocar = true;
+        const W = largura(), resto = W - Math.abs(x);
+        const ms = Math.round(Math.max(170, Math.min(320, resto / Math.max(1.6, Math.abs(v)))));
+        prepararEspreita(alvo);
+        espreita.hidden = false;
+        espreita.style.opacity = '1';
+        marcaEm(separadores().indexOf(alvo));
+        corpo.style.transform = '';
+        espreita.style.transform = '';
+        await Promise.all([
+            animar(corpo, `translateX(${x}px)`, `translateX(${-dir * W * 0.6}px) scale(.94)`, ms, 'cubic-bezier(.25, .7, .3, 1)'),
+            animar(espreita, `translateX(${x + dir * W}px)`, 'translateX(0px)', ms, 'cubic-bezier(.25, .7, .3, 1)'),
+        ]);
+        alvo.click();
+        corpo.getAnimations?.().forEach((a) => a.cancel());
+        aTrocar = false; // já se pode arrastar outra vez: o resto é só a espreita a desvanecer
+        // o separador novo aparece por baixo e a espreita desvanece por cima dele (um arrasto novo interrompe-a)
+        const f = espreita.animate && !calmo() ? espreita.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' }) : null;
+        desvanecer = f;
+        if (f) await f.finished.catch(() => {});
+        if (desvanecer !== f) return;
+        desvanecer = null;
+        espreita.getAnimations?.().forEach((a) => a.cancel());
+        espreita.hidden = true;
+        espreita.style.transform = '';
+    }
+    // desistir: volta ao sítio com um pequeno ressalto
+    function voltar(x, dir, alvo) {
+        const W = largura();
+        corpo.style.transform = '';
+        espreita.style.transform = '';
+        marcaEm(indice());
+        animar(corpo, `translateX(${x}px)`, 'translateX(0px)', 340, 'cubic-bezier(.3, 1.35, .5, 1)').then(() => corpo.getAnimations?.().forEach((a) => a.cancel()));
+        if (alvo) animar(espreita, `translateX(${x + dir * W}px)`, `translateX(${dir * W}px)`, 300, 'cubic-bezier(.3, 1.2, .5, 1)').then(() => { espreita.getAnimations?.().forEach((a) => a.cancel()); espreita.hidden = true; });
+    }
+    // tocar num separador da barra: a mesma troca (sem dedo)
+    if (nav) nav.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-onda^="ir"]');
+        if (!b || !e.isTrusted || calmo() || aTrocar || document.querySelector('.mu-folha')) return;
+        const s = separadores(), i = indice(), j = s.indexOf(b);
+        if (i < 0 || j < 0 || i === j) return;
+        e.preventDefault();
+        e.stopPropagation();
+        trocarPara(b, j > i ? 1 : -1);
+    }, true);
+
     let g = null;
     const tempo = (e) => (e && e.timeStamp) || performance.now();
     function comecar(e) {
         g = null;
-        if (!G || e.touches.length !== 1 || aFechar || !corpo) return;
+        if (!G || e.touches.length !== 1 || aFechar || aTrocar || !corpo) return;
         const t = e.target, p = e.touches[0];
         if (!t || !t.closest) return;
         const folha = document.querySelector('.mu-folha');
@@ -154,10 +237,13 @@
     const efeito = {
         [1](G2) { const f = G2.folha; f.style.transition = 'none'; f.style.transform = `translateY(${G.segue(G.FECHAR, G2.dy)}px)`; },
         [3](G2) {
-            const tem = !!vizinho(G2.dx);
+            const alvo = vizinho(G2.dx), dir = G2.dx < 0 ? 1 : -1, x = G.segue(G.SEPARADOR, G2.dx, 0, !!alvo);
             corpo.style.transition = 'none';
-            corpo.style.transform = `translateX(${G.segue(G.SEPARADOR, G2.dx, 0, tem)}px)`;
-            corpo.style.opacity = tem ? String(G.opacs(G2.dx)) : '';
+            G2.x = x;
+            G2.v = (x - (G2.xAnt ?? 0)) / Math.max(1, tempo(null) - (G2.tAnt ?? G2.t0));
+            G2.xAnt = x; G2.tAnt = tempo(null);
+            porPagina(x, dir, alvo);
+            if (alvo) marcaEm(indice() + dir * Math.min(1, Math.abs(x) / largura()), false);
         },
         [4](G2) {
             const l = G2.linha, w = l.clientWidth;
@@ -211,19 +297,11 @@
                 setTimeout(() => { f.style.transition = ''; }, 220);
             }
         } else if (G2.modo === G.SEPARADOR) {
-            const alvo = ok && G.fim(G.SEPARADOR, G2.dx, ms) ? vizinho(G2.dx) : null;
-            corpo.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1), opacity .2s';
-            corpo.style.transform = '';
-            corpo.style.opacity = '';
-            if (alvo) {
-                corpo.style.transition = 'none';
-                corpo.classList.remove('entra-esq', 'entra-dir');
-                void corpo.offsetWidth;
-                if (!calmo()) corpo.classList.add(G2.dx < 0 ? 'entra-dir' : 'entra-esq');
-                alvo.click();
-                setTimeout(() => corpo.classList.remove('entra-esq', 'entra-dir'), 300);
-            }
-            setTimeout(() => { corpo.style.transition = ''; }, 220);
+            const dir = G2.dx < 0 ? 1 : -1, perto = vizinho(G2.dx);
+            const alvo = ok && G.fim(G.SEPARADOR, G2.dx, ms) ? perto : null;
+            corpo.style.transition = '';
+            if (alvo) trocarPara(alvo, dir, G2.x || 0, G2.v || 0);
+            else voltar(G2.x || 0, dir, perto);
         } else if (G2.modo === G.APAGAR) {
             const l = G2.linha;
             l.classList.remove('arma');

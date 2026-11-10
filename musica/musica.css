@@ -294,10 +294,19 @@ html, body { overflow-x: clip; }
     display: flex; align-items: flex-end; justify-content: center; color: var(--mut); font-size: 13px; font-weight: 600; padding-bottom: 0; }
 #mu-ptr span { padding-bottom: 12px; }
 /* mudar de separador a arrastar: o ecrã novo entra do lado de onde se arrastou */
-#mu-body.entra-dir { animation: mu-entra-dir .26s cubic-bezier(.2, .8, .2, 1); }
-#mu-body.entra-esq { animation: mu-entra-esq .26s cubic-bezier(.2, .8, .2, 1); }
-@keyframes mu-entra-dir { from { transform: translateX(48px); opacity: .3; } to { transform: none; opacity: 1; } }
-@keyframes mu-entra-esq { from { transform: translateX(-48px); opacity: .3; } to { transform: none; opacity: 1; } }
+/* o separador ao lado espreita colado à página enquanto se arrasta (o cabeçalho dele, como vai aparecer) */
+#mu-espreita { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: var(--bg); will-change: transform, opacity; }
+#mu-espreita[hidden] { display: none; }
+#mu-espreita .tx { max-width: 640px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 28px) 18px 0; display: flex; align-items: center; gap: 10px; }
+#mu-espreita svg { width: 30px; height: 30px; fill: none; stroke: var(--fg); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+#mu-espreita b { font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -.02em; }
+#mu-body { transform-origin: 50% 30vh; }
+/* a marca do separador ativo: um fundo que desliza na barra (com o dedo, e com um pequeno ressalto ao chegar) */
+.mu-nav::before { content: ""; position: absolute; top: 6px; left: 10px; width: calc(25% - 20px); height: calc(var(--nav) - 12px); border-radius: 14px;
+    background: rgba(255, 255, 255, .09); transform: translateX(calc(var(--i, 0) * (100% + 20px))); transition: transform .34s cubic-bezier(.3, 1.25, .5, 1); pointer-events: none; }
+.mu-nav.a-arrastar::before { transition: none; }
+.mu-nav:empty::before { display: none; }
+.mu-nav > * { position: relative; z-index: 1; }
 .mu-pl-apagar { display: flex; flex-direction: column; gap: 10px; padding: 14px; box-shadow: inset 0 0 0 1px rgba(255, 69, 58, .45); }
 .mu-pl-apagar::before { display: none; }
 .mu-pl-apagar .tx b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
@@ -325,7 +334,7 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-folha-cab h2 { margin: 0 0 4px; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .mu-folha-cab p { margin: 0; color: var(--mut); font-size: 13.5px; }
 .mu-folha .mu-cx { padding: 0; }
-@media (prefers-reduced-motion: reduce) { .mu-folha, .mu-folha.a-fechar, #mu-body.entra-dir, #mu-body.entra-esq { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .mu-folha, .mu-folha.a-fechar { animation: none; } .mu-nav::before { transition: none; } }
 .mu-cx { padding: 0 14px 14px; }
 .mu-cx > .mu-nota { margin: 0 0 10px; }
 .mu-xf { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }

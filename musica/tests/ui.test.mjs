@@ -417,6 +417,24 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.waitForLoadState('networkidle');
     await deslizarEm('#mu-body h1', 330, 60, true); // (com o ecrã redesenhado a meio do gesto)
     await page.waitForFunction(() => document.querySelector('#mu-nav [aria-current="page"]').dataset.onda === 'ir\t3');
+    // a meio do arrasto: a página segue o dedo (85 %), o separador seguinte espreita colado a ela e a marca da barra
+    // vai a caminho dele; ao desistir, tudo volta ao sítio
+    const meio = await page.evaluate(async () => {
+        const el = document.querySelector('#mu-body h1');
+        const toque = (x) => new Touch({ identifier: 6, target: el, clientX: x, clientY: 200 });
+        el.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(330)], bubbles: true, cancelable: true }));
+        for (const x of [310, 290, 270]) el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
+        const esp = document.getElementById('mu-espreita'), nav = document.getElementById('mu-nav');
+        const r = { tf: document.getElementById('mu-body').style.transform, visivel: !esp.hidden, nome: esp.textContent, i: Number(nav.style.getPropertyValue('--i')) };
+        await new Promise((ok) => setTimeout(ok, 600));
+        el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+        return r;
+    });
+    assert.match(meio.tf, /^translateX\(-51px\)/, 'segue o dedo a 85 % (60 px → 51 px)');
+    assert.deepEqual([meio.visivel, meio.nome], [true, 'Gosto']);
+    assert.ok(meio.i > 1 && meio.i < 2, `a marca a caminho do Gosto (${meio.i})`);
+    await page.waitForFunction(() => document.getElementById('mu-espreita').hidden && document.querySelector('#mu-nav').style.getPropertyValue('--i') === '1');
+    assert.equal(await separador(), 'ir\t3', 'arrastar pouco e devagar não muda');
     // arrastar um pedido à espera para a esquerda cancela-o
     await page.locator('.mu-pedido[data-esq]').first().waitFor();
     await deslizarEm('.mu-pedido[data-esq]', 330, 60);
