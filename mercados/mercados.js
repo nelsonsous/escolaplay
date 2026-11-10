@@ -86,7 +86,10 @@
     };
     // Acumulação: sem dividendos (nada a declarar até vender). Distribuição: dividendos a declarar todos os anos.
     const FUND_TYPE = { 'VWCE.DE': 'acc', 'EUNL.DE': 'acc', 'SXR8.DE': 'acc', 'SXRV.DE': 'acc', 'IS3N.DE': 'acc', 'EXSA.DE': 'dist', '4GLD.DE': 'etc' };
-    const LIVE = { 'VWCE.DE': 'VWCE.MU', 'EUNL.DE': 'EUNL.MU', 'SXR8.DE': 'SXR8.MU', 'SXRV.DE': 'SXRV.MU', 'IS3N.DE': 'IS3N.MU' };
+    // depois do fecho da Xetra (17:30), o preço vem da bolsa alemã com o negócio mais recente: Munique (gettex) ou Düsseldorf,
+    // abertas até às 22 h (a TR negoceia até às 23 h na Lang & Schwarz, que o Yahoo não tem)
+    const LIVE = { 'VWCE.DE': ['VWCE.MU', 'VWCE.DU'], 'EUNL.DE': ['EUNL.MU', 'EUNL.DU'], 'SXR8.DE': ['SXR8.MU', 'SXR8.DU'], 'SXRV.DE': ['SXRV.MU', 'SXRV.DU'], 'IS3N.DE': ['IS3N.MU', 'IS3N.DU'] };
+    const VENUE = { MU: 'Munique (gettex)', DU: 'Düsseldorf' };
     const DEFAULT_FUNDS = Object.keys(FUND_NAMES);
 
     // ---------- configuração ----------
@@ -132,7 +135,7 @@
         cfg.watch.forEach((s) => { if (!REG[s] || REG[s].temp) REG[s] = { key: s, kind: 'stock', sym: s, name: NAMES[s] || s }; });
         cfg.funds.forEach((s) => { if (!REG[s] || REG[s].temp || REG[s].kind !== 'fund') REG[s] = { key: s, kind: 'fund', sym: s, name: FUND_NAMES[s] || NAMES[s] || s, live: LIVE[s] }; });
         // auxiliares (não aparecem nas listas): preço da noite e câmbios para euros
-        for (const a of Object.values(REG)) if (a.live && !REG[a.live]) REG[a.live] = { key: a.live, kind: 'aux', sym: a.live, name: a.live };
+        for (const a of Object.values(REG)) for (const s of [].concat(a.live || [])) if (!REG[s]) REG[s] = { key: s, kind: 'aux', sym: s, name: s };
         for (const c of fxNeeded) { const k = 'EUR' + c + '=X'; if (!REG[k]) REG[k] = { key: k, kind: 'aux', sym: k, name: k }; }
     }
     const fxNeeded = new Set();
@@ -205,18 +208,29 @@
         const lx = x[x.length - 1][0];
         return x.concat(g.filter((p) => p[0] > lx));
     }
+    // o negócio mais recente das outras bolsas alemãs do fundo (na mesma moeda), com o símbolo
+    function liveOf(k) {
+        const a = REG[k], q0 = Q[k];
+        let best = null;
+        if (a && q0) for (const s of [].concat(a.live || [])) {
+            const q = Q[s];
+            if (q && fin(q.price) && (q.currency || q0.currency) === q0.currency && (!best || (q.time || 0) > (best.time || 0))) best = { ...q, sym: s };
+        }
+        return best;
+    }
     function qv(k) {
         const q0 = Q[k];
         const a = REG[k];
         if (!q0 || !a || !isHolding(k) || a.temp) return q0 || {};
         let q = q0;
-        const lv = a.live && Q[a.live];
-        if (lv && fin(lv.price) && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) {
+        const lv = liveOf(k);
+        if (lv && (lv.time || 0) > (q0.time || 0)) {
             const series = mergeDay(q0.series, lv.series);
             if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
-            // variação face ao fecho da véspera na mesma bolsa (como a Trade Republic), não ao fecho da Xetra
-            const pcl = fin(lv.prevClose) ? lv.prevClose : q0.prevClose;
-            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: 'Munique (gettex)', prevClose: pcl,
+            // a variação do dia é face ao fecho da véspera na Xetra: o «fecho anterior» que o Yahoo dá para Munique e
+            // Düsseldorf é muitas vezes um negócio solto (ex.: 168,44 € em Munique com a Xetra a fechar a 167,42 €)
+            const pcl = fin(q0.prevClose) ? q0.prevClose : lv.prevClose;
+            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: VENUE[lv.sym.split('.').pop()] || lv.sym, prevClose: pcl,
                 change: fin(pcl) ? lv.price - pcl : null, changePct: fin(pcl) ? (lv.price / pcl - 1) * 100 : q0.changePct };
         }
         if (!cfg.eur || !q.currency || q.currency === 'EUR') return q;
@@ -1833,10 +1847,10 @@
             if (sheetKey === k) renderSheet(true);
         } catch { /* sem análise */ }
     }
-    // série do dia sem conversão de moeda: a de Munique (gettex) quando é a mais recente, como no Painel
+    // série do dia sem conversão de moeda: a da bolsa com o negócio mais recente (Munique ou Düsseldorf), como no Painel
     function daySeries(k) {
-        const a = REG[k], q0 = Q[k], lv = a && a.live && Q[a.live];
-        if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0) && (lv.currency || q0.currency) === q0.currency) return mergeDay(q0.series, lv.series);
+        const q0 = Q[k], lv = liveOf(k);
+        if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0)) return mergeDay(q0.series, lv.series);
         return q0.series;
     }
     async function loadSheetChart() {
