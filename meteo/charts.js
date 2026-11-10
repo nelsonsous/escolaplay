@@ -324,8 +324,11 @@ export function renderNowcast(root, nowcast, { onda = false } = {}) {
   const yN = (v) => base - sqrtFrac(v, pTop) * (base - top);
   const slot = Wv / steps.length, bw = Math.min(24, slot - 14);
   let s = `<line class="base" x1="0" x2="${Wv}" y1="${base}" y2="${base}"/>`;
+  // os nomes das linhas à direita; se o máximo (com o seu rótulo) estiver nas últimas barras, à esquerda
+  const maxAt = steps.reduce((k, st, i) => ((st.precip || 0) > (steps[k].precip || 0) ? i : k), 0);
+  const gl = max >= 0.05 && maxAt >= steps.length - 2 ? `x="2" text-anchor="start"` : `x="${Wv - 2}" text-anchor="end"`;
   for (const [v, w] of [[RAIN_MOD / 4, 'moderada'], [RAIN_HEAVY / 4, 'forte']]) {
-    s += `<line class="guide" x1="0" x2="${Wv}" y1="${f(yN(v))}" y2="${f(yN(v))}"/><text class="guide-l" x="${Wv - 2}" y="${f(yN(v) - 3)}" text-anchor="end">${w}</text>`;
+    s += `<line class="guide" x1="0" x2="${Wv}" y1="${f(yN(v))}" y2="${f(yN(v))}"/><text class="guide-l" ${gl} y="${f(yN(v) - 3)}">${w}</text>`;
   }
   let iMax = -1;
   steps.forEach((st, i) => {
