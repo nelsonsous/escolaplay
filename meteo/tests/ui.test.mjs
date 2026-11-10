@@ -430,6 +430,11 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     if (SHOTS) await mar.screenshot({ path: path.join(SHOTS, '03b-mar.png') });
     // junto ao aviso do IPMA (do distrito), o que o ponto atinge nessas horas
     assert.match(await page.locator('.warn .w-here').first().textContent(), /^Aqui: [\d,]+ mm em 6 h e [\d,]+ mm numa hora/);
+    // aviso em falta: os modelos no ponto chegam ao nível de um aviso que o IPMA não tem (tracejado, «sem aviso»)
+    await page.evaluate(() => { window.__mt.st.fc.warnMissing = [{ type: 'Vento', level: 'yellow', start: '2026-11-06T18:00', end: '2026-11-06T20:00', covered: 0, here: { kind: 'wind', gust: 85, at: '18:00', level: 'yellow' } }]; window.__mt.render(); });
+    assert.match(await page.locator('.warn.miss.yellow').textContent(), /Vento · nível amarelo, sem aviso.*modelos no teu ponto.*Aqui: rajadas até 85 km\/h às 18h — nível amarelo, sem aviso do IPMA para estas horas\./s);
+    await page.evaluate(() => { window.__mt.st.fc.warnMissing = []; window.__mt.render(); });
+    assert.equal(await page.locator('.warn.miss').count(), 0);
     console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude (desligada por omissão, ligada pelo cartão)');
 
     // 2b) "Está a chover?": o aviso manda no agora (45 min) e segue para o conector
