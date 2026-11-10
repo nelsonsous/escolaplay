@@ -439,6 +439,15 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-apagar').getByText('É uma proposta: sai só da app.').waitFor();
     await page.getByRole('button', { name: 'Não', exact: true }).click();
     await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    // se o apagar falhar (ex.: o Cloudflare sem gravações), diz porquê e o cartão volta ao normal
+    env.KV.cheia = true;
+    await deslizar(60);
+    await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
+    await page.locator('#mu-aviso').getByText(/gravações grátis do Cloudflare/).waitFor();
+    await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    assert.equal(await page.locator('.mu-pl-apagar').count(), 0, 'depois do erro, o cartão volta ao normal');
+    env.KV.cheia = false;
+    for (let i = erros.length - 1; i >= 0; i--) if (/status of 503/.test(erros[i])) erros.splice(i, 1); // (o 503 deste passo é o esperado)
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText('Apagada da app.').waitFor();
