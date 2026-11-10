@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.14.1';
+const VERSION = '1.14.2';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -45,7 +45,11 @@ export default {
             else res = json({ error: 'nao_encontrado', message: 'Pedido desconhecido.' }, 404);
         } catch (e) {
             if (e instanceof Erro) res = json({ error: e.codigo, message: e.message }, e.status);
-            else { console.error(e); res = json({ error: 'interno', message: 'Erro interno do conector.' }, 500); }
+            // o plano gratuito do Cloudflare dá 1000 escritas por dia na KV (para a conta toda); passado isso, recusa até
+            // à meia-noite UTC: diz-se o que é, em vez de «erro interno»
+            else if (/limit exceeded|free usage limit/i.test(String(e?.message || ''))) {
+                res = json({ error: 'kv_limite', message: 'Hoje já se gastaram as gravações grátis do Cloudflare. Tenta outra vez depois da meia-noite (UTC).' }, 503);
+            } else { console.error(e); res = json({ error: 'interno', message: 'Erro interno do conector.' }, 500); }
         }
         if (res.status === 302) return res;
         const out = new Response(res.body, res);
