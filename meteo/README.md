@@ -150,7 +150,8 @@ Cada telemóvel tem um **código curto** (os primeiros 6 caracteres do seu id al
 app (ou o site no browser) não regista nada**: o telemóvel só fica registado no conector quando a pessoa diz o nome, o que
 a app pede antes de ligar a análise diária, as notificações ou dar um aviso.
 
-**Uma análise por cidade** (1.8.2): se já há uma análise diária a 5 km ou menos (de preferência a do dono), o telemóvel
+**Uma análise por cidade** (1.8.2, 1.15.1): o dono tem quantos locais quiser com análise diária; se o dono liga uma cidade
+que outro telemóvel já analisa (≤ 5 km), não se cria outra — o local passa a ser do dono e o outro continua a vê-lo. Se já há uma análise diária a 5 km ou menos (de preferência a do dono), o telemóvel
 novo junta-se a ela em vez de criar outra — vê essa análise (sem as coordenadas exatas), pode receber as notificações
 dela e dar avisos para ela, mas não a muda de sítio; desligar é só sair. Cada telemóvel acompanha uma análise. No painel **Utilização** o dono vê a lista: nome ou código, quando abriu a app, os locais com análise diária (só o
 nome) e se tem notificações. A localização de quem usa a app não é registada.

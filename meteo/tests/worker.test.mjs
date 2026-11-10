@@ -63,7 +63,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.6.2');
+    assert.equal(j.version, '1.6.3');
     assert.deepEqual(j.schedule, ['07:34', '13:34', '17:34', '20:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -331,6 +331,28 @@ test('mesma cidade (≤ 5 km): o telemóvel novo junta-se à análise que já ex
     // a análise dos outros desligada pelo dono: não se junta
     env.KV.m.set('settings', JSON.stringify({ others: 'off' }));
     assert.equal((await J('POST', '/api/places', { d: v, body: { name: 'Areias', lat: 41.35, lon: -8.46 } })).body.error, 'convidados_desligados');
+});
+
+test('o dono a ligar uma cidade que outro telemóvel já analisa: usa essa análise (passa a ser do dono; o outro continua a vê-la)', async () => {
+    env.OWNER_CODE = CODE;
+    const ana = device(), dono = { d: device(), owner: CODE };
+    const braga = (await J('POST', '/api/places', { d: ana, body: { name: 'Braga', lat: 41.5454, lon: -8.4265 } })).body;
+    env.KV.m.set('analysis:' + braga.id, JSON.stringify({ ...ANALISE, generatedAt: new Date().toISOString(), place: braga }));
+    // o dono liga Braga a 2 km: nenhum local novo
+    const r = await J('POST', '/api/places', { ...dono, body: { name: 'Braga centro', lat: 41.5503, lon: -8.4201 } });
+    assert.deepEqual([r.status, r.body.id, r.body.kind, r.body.mine, r.body.adopted], [200, braga.id, 'owner', true, true]);
+    const pl = kvj('places');
+    assert.equal(pl.length, 1, 'uma só análise para Braga');
+    assert.deepEqual([pl[0].owner, pl[0].members], ['owner', [ana.id]]);
+    // a Ana continua a ver a mesma análise (agora partilhada, sem as coordenadas exatas do dono)
+    const vis = (await J('GET', '/api/places', { d: ana })).body;
+    assert.deepEqual(vis.map((p) => [p.id, p.shared, p.mine]), [[braga.id, true, true]]);
+    assert.equal((await J('GET', '/api/analysis?lat=41.5454&lon=-8.4265', { d: ana })).body.analysis.titulo, ANALISE.titulo);
+    // e o dono pode ter mais locais analisados (sem limite)
+    const lx = await J('POST', '/api/places', { ...dono, body: { name: 'Lisboa', lat: 38.7223, lon: -9.1393 } });
+    const mi = await J('POST', '/api/places', { ...dono, body: { name: 'Mindelo', lat: 41.3105, lon: -8.7215 } });
+    assert.deepEqual([lx.status, mi.status], [201, 201]);
+    assert.equal(kvj('places').length, 3);
 });
 
 test('PATCH /api/places/<id>: muda o ponto, mantém o id (análise e lições ficam), só da própria origem', async () => {

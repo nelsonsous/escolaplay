@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.15.0';
+const VERSION = '1.15.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -1412,7 +1412,7 @@ async function turnOn() {
         const p = await api.addPlace(name, lat, lon);
         if (p.shared) st.places = st.places.filter((x) => x.id === p.id || !(x.shared || (!isOwner() && x.mine !== false && !x.off)));
         upsertPlace(p);
-        toast(p.shared ? `Ligada: usas a análise diária de ${p.name}, que já existia.` : `Ligada. A primeira análise chega ${nextRun()}.`);
+        toast(p.shared || p.adopted ? `Ligada: usas a análise diária de ${p.name}, que já existia.` : `Ligada. A primeira análise chega ${nextRun()}.`);
     } catch (e) {
         if (e.code !== 'limite' || !e.data?.place) throw e;
         upsertPlace(e.data.place); // já tinha um local (noutro sítio): muda-o para aqui
