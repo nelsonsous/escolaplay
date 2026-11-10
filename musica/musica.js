@@ -139,12 +139,49 @@
     const indice = () => separadores().findIndex((b) => b.getAttribute('aria-current') === 'page');
     const marcaEm = (i, solta = true) => { if (!nav) return; nav.classList.toggle('a-arrastar', !solta); nav.style.setProperty('--i', String(i)); };
     if (nav) new MutationObserver(() => { const i = indice(); if (i >= 0 && !nav.classList.contains('a-arrastar')) marcaEm(i); }).observe(nav, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-current'] });
+    // o que espreita é o próprio separador: a última vez que se viu (guardado sempre que a Onda o desenha), para não
+    // haver nada a trocar quando ele chega. Um separador que ainda não se abriu mostra o cabeçalho dele (o mesmo da página)
+    const retratos = new Map();
+    let versao = 0, retratar = 0;
+    const CABECALHOS = {
+        'ir\t1': ['Música', 'Playlists de qualidade para o teu Tidal'],
+        'ir\t3': ['Pedir', 'Ao Maestro, que pesquisa e cria no teu Tidal'],
+        'ir\t4': ['O teu gosto', 'Das tuas favoritas no Tidal'],
+        'ir\t5': ['Ajustes', ''],
+    };
+    // guarda o separador que está à vista (a folha aberta não conta: é por cima da página)
+    const retratar_ = () => {
+        const s = separadores()[indice()];
+        if (!s || !corpo || document.querySelector('.mu-folha')) return false;
+        retratos.set(s.dataset.onda, corpo.innerHTML);
+        versao++;
+        return true;
+    };
+    const retratarDepois = () => {
+        clearTimeout(retratar);
+        // a meio de um gesto ou de uma troca, tenta outra vez daqui a pouco (não se perde o último estado)
+        retratar = setTimeout(() => { if (aTrocar || g) retratarDepois(); else retratar_(); }, 250);
+    };
+    if (corpo) new MutationObserver(retratarDepois).observe(corpo, { childList: true, subtree: true });
     const prepararEspreita = (alvo) => {
-        if (espreita.dataset.para === alvo.dataset.onda) return;
-        espreita.dataset.para = alvo.dataset.onda;
-        const ic = alvo.querySelector('svg'), nome = alvo.textContent.trim();
-        espreita.innerHTML = `<div class="tx">${ic ? ic.outerHTML : ''}<b></b></div>`;
-        espreita.querySelector('b').textContent = nome;
+        const k = alvo.dataset.onda, chave = k + '#' + (retratos.has(k) ? versao : 'cab');
+        if (espreita.dataset.para === chave) return;
+        espreita.dataset.para = chave;
+        const pagina = document.createElement('div');
+        pagina.className = 'mu-body mu-retrato';
+        if (retratos.has(k)) pagina.innerHTML = retratos.get(k);
+        else {
+            const [t, sub] = CABECALHOS[k] || [alvo.textContent.trim(), ''];
+            pagina.innerHTML = '<header class="mu-head"><div><h1></h1><div class="sub"></div></div></header>';
+            pagina.querySelector('h1').textContent = t;
+            pagina.querySelector('.sub').textContent = sub;
+        }
+        // é só uma imagem: sem ids repetidos, sem ações, sem foco
+        pagina.querySelectorAll('[id]').forEach((e) => e.removeAttribute('id'));
+        pagina.querySelectorAll('[data-onda], [data-esq], [tabindex], [autofocus]').forEach((e) => { e.removeAttribute('data-onda'); e.removeAttribute('data-esq'); e.removeAttribute('autofocus'); e.setAttribute('tabindex', '-1'); });
+        pagina.querySelectorAll('input, textarea, select, button').forEach((e) => { e.disabled = true; });
+        pagina.querySelectorAll('img[loading]').forEach((i) => { i.loading = 'eager'; }); // (as capas já estão em cache)
+        espreita.replaceChildren(pagina);
     };
     const largura = () => window.innerWidth || 390;
     // x: onde a página está (px); o vizinho fica colado a ela, do lado de onde vem
@@ -168,6 +205,7 @@
         aTrocar = true;
         const W = largura(), resto = W - Math.abs(x);
         const ms = Math.round(Math.max(170, Math.min(320, resto / Math.max(1.6, Math.abs(v)))));
+        retratar_(); // o separador que se deixa fica guardado como está agora (para voltar a ele)
         prepararEspreita(alvo);
         espreita.hidden = false;
         espreita.style.opacity = '1';

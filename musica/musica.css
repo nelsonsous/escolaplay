@@ -295,11 +295,10 @@ html, body { overflow-x: clip; }
 #mu-ptr span { padding-bottom: 12px; }
 /* mudar de separador a arrastar: o ecrã novo entra do lado de onde se arrastou */
 /* o separador ao lado espreita colado à página enquanto se arrasta (o cabeçalho dele, como vai aparecer) */
-#mu-espreita { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: var(--bg); will-change: transform, opacity; }
+#mu-espreita { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: var(--bg); overflow: hidden; will-change: transform, opacity; }
 #mu-espreita[hidden] { display: none; }
-#mu-espreita .tx { max-width: 640px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 28px) 18px 0; display: flex; align-items: center; gap: 10px; }
-#mu-espreita svg { width: 30px; height: 30px; fill: none; stroke: var(--fg); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-#mu-espreita b { font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -.02em; }
+/* o retrato do separador: a mesma página (o mesmo .mu-body), só para ver */
+#mu-espreita .mu-retrato { min-height: 100%; }
 #mu-body { transform-origin: 50% 30vh; }
 /* a marca do separador ativo: um fundo que desliza na barra (com o dedo, e com um pequeno ressalto ao chegar) */
 .mu-nav::before { content: ""; position: absolute; top: 6px; left: 10px; width: calc(25% - 20px); height: calc(var(--nav) - 12px); border-radius: 14px;

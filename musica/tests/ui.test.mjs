@@ -428,16 +428,32 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
         el.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(330)], bubbles: true, cancelable: true }));
         for (const x of [310, 290, 270]) el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
         const esp = document.getElementById('mu-espreita'), nav = document.getElementById('mu-nav');
-        const r = { tf: document.getElementById('mu-body').style.transform, visivel: !esp.hidden, nome: esp.textContent, i: Number(nav.style.getPropertyValue('--i')) };
+        const r = { tf: document.getElementById('mu-body').style.transform, visivel: !esp.hidden, nome: esp.querySelector('h1')?.textContent, ids: esp.querySelectorAll('[id], [data-onda]').length, i: Number(nav.style.getPropertyValue('--i')) };
         await new Promise((ok) => setTimeout(ok, 600));
         el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
         return r;
     });
     assert.match(meio.tf, /^translateX\(-51px\)/, 'segue o dedo a 85 % (60 px → 51 px)');
-    assert.deepEqual([meio.visivel, meio.nome], [true, 'Gosto']);
+    // o que espreita é a página do Gosto como vai aparecer (o título verdadeiro), só para ver: sem ids nem ações
+    assert.deepEqual([meio.visivel, meio.nome, meio.ids], [true, 'O teu gosto', 0]);
     assert.ok(meio.i > 1 && meio.i < 2, `a marca a caminho do Gosto (${meio.i})`);
     await page.waitForFunction(() => document.getElementById('mu-espreita').hidden && document.querySelector('#mu-nav').style.getPropertyValue('--i') === '1');
     assert.equal(await separador(), 'ir\t3', 'arrastar pouco e devagar não muda');
+    // para a direita, as Playlists (já vistas): espreita a página verdadeira, com o título «Música» e os cartões
+    const volta = await page.evaluate(async () => {
+        const el = document.querySelector('#mu-body h1');
+        const toque = (x) => new Touch({ identifier: 7, target: el, clientX: x, clientY: 200 });
+        el.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(60)], bubbles: true, cancelable: true }));
+        for (const x of [80, 100, 120]) el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
+        const esp = document.getElementById('mu-espreita');
+        const r = { nome: esp.querySelector('h1')?.textContent, cartoes: esp.querySelectorAll('.mu-pl').length, capas: esp.querySelectorAll('.mu-pl-capa img').length };
+        await new Promise((ok) => setTimeout(ok, 600));
+        el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+        return r;
+    });
+    assert.equal(volta.nome, 'Música');
+    assert.ok(volta.cartoes > 0 && volta.capas > 0, `a lista verdadeira, com as capas: ${JSON.stringify(volta)}`);
+    await page.waitForFunction(() => document.getElementById('mu-espreita').hidden);
     // arrastar um pedido à espera para a esquerda cancela-o
     await page.locator('.mu-pedido[data-esq]').first().waitFor();
     await deslizarEm('.mu-pedido[data-esq]', 330, 60);
