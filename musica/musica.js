@@ -5,7 +5,8 @@
 //   - o "buscar" da porta 102: põe a chave do aparelho nos pedidos ao conector e aceita, além de "caminho" (GET),
 //     "MÉTODO caminho" + nova linha + corpo JSON (POST, DELETE) e "IR url" (sair para o login do Tidal);
 //   - tocar 30 s de uma faixa (o ▶ com data-previa);
-//   - guardar 10 min em memória as faixas e as pré-escutas de cada playlist, e a animação de fechar a folha.
+//   - guardar 10 min em memória as faixas e as pré-escutas de cada playlist; a folha: fechar com animação, arrastar
+//     para baixo para fechar, foco e Esc.
 // O armazém da app (portas 105/106) usa o prefixo "musica:" — as mesmas chaves que a versão 1 guardava.
 (function () {
     'use strict';
@@ -103,6 +104,50 @@
         folha.addEventListener('animationend', fim, { once: true });
         setTimeout(fim, 320);
     }, true);
+    // arrastar a folha para baixo (quando já está no topo) fecha-a, como as folhas do iOS: segue o dedo; se for mais
+    // de um quarto do ecrã, ou um gesto rápido, desce e fecha; senão volta ao sítio
+    let arrasto = null;
+    document.addEventListener('touchstart', (e) => {
+        const folha = e.target.closest && e.target.closest('.mu-folha');
+        arrasto = folha && !aFechar && e.touches.length === 1 && folha.scrollTop <= 0
+            ? { folha, x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: Date.now(), dy: 0 } : null;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!arrasto) return;
+        const dy = e.touches[0].clientY - arrasto.y0, dx = e.touches[0].clientX - arrasto.x0;
+        if (!arrasto.dy && (dy <= 0 || Math.abs(dx) > dy)) { arrasto = null; return; } // é para cima ou para o lado: deixa
+        e.preventDefault();
+        arrasto.dy = Math.max(0, dy);
+        arrasto.folha.style.transition = 'none';
+        arrasto.folha.style.transform = `translateY(${arrasto.dy}px)`;
+    }, { passive: false });
+    const largar = () => {
+        if (!arrasto) return;
+        const { folha, dy, t0 } = arrasto;
+        arrasto = null;
+        if (!dy) return;
+        if (dy > folha.clientHeight / 4 || (dy > 60 && dy / Math.max(1, Date.now() - t0) > 1)) {
+            folha.style.transition = 'transform .2s cubic-bezier(.4, 0, 1, 1)';
+            folha.style.transform = 'translateY(100%)';
+            aFechar = true;
+            let feito = false;
+            const fim = () => {
+                if (feito) return;
+                feito = true;
+                const b = document.querySelector('.mu-fechar');
+                if (b) b.click();
+                aFechar = false;
+            };
+            folha.addEventListener('transitionend', fim, { once: true });
+            setTimeout(fim, 260);
+        } else {
+            folha.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)';
+            folha.style.transform = '';
+            setTimeout(() => { folha.style.transition = ''; }, 220);
+        }
+    };
+    document.addEventListener('touchend', largar);
+    document.addEventListener('touchcancel', largar);
     // a folha é um diálogo: ao abrir, o foco vai para o «fechar»; o Esc fecha; ao fechar, o foco volta ao cartão
     let folhaAberta = null;
     const seguirFolha = () => {

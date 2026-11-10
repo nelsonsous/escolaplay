@@ -177,6 +177,26 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.keyboard.press('Escape');
     await page.locator('.mu-pl.aberta').waitFor({ state: 'detached' });
     assert.ok(await page.evaluate(() => document.activeElement.classList.contains('mu-pl-a')), 'ao fechar, o foco volta ao cartão');
+    // arrastar para baixo: pouco volta ao sítio; mais de um quarto do ecrã fecha
+    await page.locator('.mu-pl-a').click();
+    await page.locator('.mu-folha').waitFor();
+    await page.waitForTimeout(400); // (o fim da animação de subir)
+    const arrastar = (ate) => page.evaluate(async (ate) => {
+        const f = document.querySelector('.mu-folha');
+        const toque = (y) => new Touch({ identifier: 1, target: f, clientX: 200, clientY: y });
+        f.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(150)], bubbles: true, cancelable: true }));
+        for (const y of [170, (150 + ate) / 2, ate]) f.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(y)], bubbles: true, cancelable: true }));
+        const durante = f.style.transform;
+        await new Promise((ok) => setTimeout(ok, 120));
+        f.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+        return durante;
+    }, ate);
+    assert.equal(await arrastar(230), 'translateY(80px)', 'a folha segue o dedo');
+    await page.waitForTimeout(300);
+    assert.equal(await page.locator('.mu-pl.aberta').count(), 1, 'arrastar pouco não fecha');
+    assert.equal(await page.evaluate(() => document.querySelector('.mu-folha').style.transform), '');
+    await arrastar(600);
+    await page.locator('.mu-pl.aberta').waitFor({ state: 'detached' });
     await page.locator('.mu-pl-a').click();
     await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
