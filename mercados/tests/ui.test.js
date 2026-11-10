@@ -248,7 +248,8 @@ function proxyBody(u) {
     assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
     // o que tem hoje, sem plano: o Ether com quantidade e investido (sem data)
     const lot = (k, campo, v) => page.evaluate(([k, campo, v]) => { const i = document.querySelector(`[data-lot="${campo}"][data-k="${k}"]`); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, campo, v]);
-    await lot('c:ETH', 'qty', '0.5'); await lot('c:ETH', 'cost', '1200');
+    await lot('c:ETH', 'qty', '0,5'); await lot('c:ETH', 'cost', '1 200');
+    assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['c:ETH'].qty, window.__mk.cfg.lots['c:ETH'].cost]), [0.5, 1200], 'a vírgula e o espaço do teclado do iPhone');
     await page.waitForSelector('.real .real-l .row[data-open="c:ETH"]');
     assert.equal(await page.locator('.real svg').count(), 0, 'sem data no Ether: sem gráfico');
     if (SHOTS) { await page.locator('.real-ed').evaluate((d) => { d.open = true; }); await page.locator('.real-ed').screenshot({ path: path.join(SHOTS, '8e-carteira-editor.png') }); }

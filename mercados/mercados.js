@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.16.1';
+    const VERSION = '4.16.2';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -2225,7 +2225,8 @@
             const data = /^\d{4}-\d\d-\d\d$/.test(t.value) && t.value <= todayLocal() ? t.value : '';
             if (t.dataset.lot === 'plan') L.plan = data;
             else if (t.dataset.lot === 'qd') L.qd = data || undefined;
-            else L[t.dataset.lot === 'pm' ? 'pm' : t.dataset.lot === 'qty' ? 'qty' : 'cost'] = Math.max(0, +t.value || 0) || undefined;
+            // o teclado do iPhone em português escreve a vírgula: 0,0412 → 0.0412 (e tira os espaços dos milhares)
+            else L[t.dataset.lot === 'pm' ? 'pm' : t.dataset.lot === 'qty' ? 'qty' : 'cost'] = Math.max(0, +String(t.value).replace(/\s/g, '').replace(',', '.') || 0) || undefined;
             setLots(k, L); return;
         }
         if (t.dataset && t.dataset.cfg) {
