@@ -247,7 +247,7 @@
 
 : cr_real i>i r {
   = l _ar_get r $"ativos"
-  "\n        <section class=\"sec real\"><div class=\"sec-h\"><h2>A tua carteira</h2>"
+  "\n        <section class=\"sec real\"><div class=\"sec-h\"><h2>A tua carteira</h2><button type=\"button\" class=\"lnk real-edit\" data-act=\"real-ed\">Editar o que tenho</button>"
   ? _ar_verd _ar_get r $"desde" { "<span class=\"sub\">desde " _ar_ps _ar_get r $"desde" 1 "</span>" 0 } 0 "</div>"
   = tb cr_prep l _ar_vnum _ar_get r $"now" = na @ tb
   ? == na 0 {

@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.16.2';
+    const VERSION = '4.16.3';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -2193,6 +2193,8 @@
             }
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
             // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
+            // Carteira: abre «O que tens e as tuas compras» e leva-o à vista
+            case 'real-ed': { const d = $('details.real-ed'); if (d) { d.open = true; st.fold['real-ed'] = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } break; }
             case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
             case 'sim-step': {
                 const k = t.dataset.k, rg = t.parentElement && t.parentElement.querySelector('.sim-rg');

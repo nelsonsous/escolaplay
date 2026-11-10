@@ -238,6 +238,8 @@ function proxyBody(u) {
     console.log('✓ carteira:', (await page.locator('.sim-big').textContent()).replace(/\s+/g, ' ').trim(), '|', await page.locator('.sim-meta p').first().textContent());
     // o rendimento real (4.13): desde quando compra pelo plano
     // (o BTC já traz compras do teste das datas da cripto; o fundo ainda não)
+    await page.click('.real [data-act="real-ed"]');
+    assert.equal(await page.locator('details.real-ed[open]').count(), 1, 'Editar o que tenho abre o editor');
     const desde = (k, iso) => page.evaluate(([k, iso]) => { const i = document.querySelector(`[data-lot="plan"][data-k="${k}"]`); i.value = iso; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, iso]);
     const isoAtras = (dias) => new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
     await desde('VWCE.DE', isoAtras(300));
