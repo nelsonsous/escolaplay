@@ -230,7 +230,7 @@
   = v _ar_vnum _ar_get k nome ? && _nu_fin v > v 0.0 _nu_ps v 0 0 }
 : cr_editor ii>i l aberto {
   "<details class=\"how real-ed\" data-fold=\"real-ed\"" ? aberto " open" 0 "><summary>O que tens e as tuas compras</summary>"
-  "<div class=\"real-imp\"><small class=\"real-gt\">Colar de uma vez</small><textarea class=\"inp\" id=\"lot-imp\" rows=\"4\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Uma linha por ativo: símbolo, quantidade e preço médio de compra. Ex.: VWCE.DE 5,486463 169,86\"></textarea>"
+  "<div class=\"real-imp\"><small class=\"real-gt\">Colar de uma vez</small><textarea class=\"inp\" id=\"lot-imp\" rows=\"4\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Uma linha por ativo: símbolo, quantidade, preço médio de compra e, se quiseres, desde quando. Ex.: VWCE.DE 5,486463 169,86 02/11/2026\"></textarea>"
   "<button type=\"button\" class=\"btn sm\" data-act=\"lot-import\">Importar</button></div>"
   = c _ar_prim l
   W c {

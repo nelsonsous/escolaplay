@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.17.2';
+    const VERSION = '4.17.3';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1115,13 +1115,21 @@
     const numPt = (t) => { t = String(t).replace(/\s/g, ''); if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, ''); return +t.replace(',', '.'); };
     function importLots(txt) {
         let ok = 0; const bad = [];
-        for (const linha of String(txt).split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
+        for (let linha of String(txt).split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
+            // a data no fim, opcional: 02/11/2026 ou 2026-11-02 (desde quando o tem: o gráfico e o rendimento por ano)
+            let qd = '';
+            const dm = linha.match(/\s+(?:(\d{1,2})\/(\d{1,2})\/(\d{4})|(\d{4})-(\d{2})-(\d{2}))$/);
+            if (dm) {
+                const iso = dm[4] ? `${dm[4]}-${dm[5]}-${dm[6]}` : `${dm[3]}-${dm[2].padStart(2, '0')}-${dm[1].padStart(2, '0')}`;
+                if (iso <= todayLocal() && !Number.isNaN(Date.parse(iso))) qd = iso;
+                linha = linha.slice(0, dm.index).trim();
+            }
             const m = linha.match(/^(\S+(?:\s+\S+)*?)\s+([\d.,]+)\s+([\d][\d.,\s]*)$/);
             const tok = m ? m[1].trim() : '', T = tok.toUpperCase();
             const k = m && (REG[tok] ? tok : REG['c:' + T] ? 'c:' + T : Object.keys(REG).find((x) => (REG[x].sym || '').toUpperCase() === T || nameOf(x).toUpperCase() === T));
             const q = m ? numPt(m[2]) : NaN, a = m ? numPt(m[3]) : NaN;
             if (!k || !(q > 0) || !(a > 0)) { bad.push(tok || linha.slice(0, 12)); continue; }
-            cfg.lots[k] = { ...lotOf(k), qty: q, avg: a, cost: Math.round(q * a * 100) / 100 };
+            cfg.lots[k] = { ...lotOf(k), qty: q, avg: a, cost: Math.round(q * a * 100) / 100, ...(qd ? { qd } : {}) };
             if (!cfg.holdings.includes(k)) cfg.holdings = cfg.holdings.concat(k);
             ok++;
         }
