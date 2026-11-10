@@ -51,6 +51,23 @@ protótipo: tempo, largura, altura, humor…). Uma série inteira só lá chega 
 - Um canvas WebGL lê-se com `gl.readPixels` logo a seguir a desenhar (o `drawImage` dá preto).
 - Vídeo e imagens para mostrar: `recordVideo` no contexto (`GRAVAR=pasta` no teste do protótipo).
 
+## Um campo por cima de HTML (ex.: o céu da Meteo, `meteo/onda/ceu.onda`)
+
+- O alvo `-g` escreve sempre píxeis **opacos** (`alfa = 255`). Para pôr luz por cima de um cartão (sol, chuva, neve),
+  o campo sai **preto onde não há nada** e o elemento que leva o canvas mistura-se com `mix-blend-mode: screen` (só
+  acrescenta luz). O pai precisa de `isolation: isolate`, e a mistura vai no elemento que fica no mesmo contexto de
+  empilhamento do fundo (o `.sky`), não no canvas lá dentro.
+- **Um só contexto WebGL** para a app inteira: quando a página se redesenha, muda-se o mesmo canvas para o elemento
+  novo. Um contexto por desenho é lento e o browser limita-os.
+- **Acaso sem seno** (`h2`, o hash de Dave Hoskins): igual na CPU (64 bits) e na placa gráfica (32 bits). O tempo dá a
+  volta (`t % 600`) para não perder precisão nos 32 bits.
+- Cada efeito dentro de um `?` que depende só dos parâmetros: na placa gráfica vira um `if` igual em todos os píxeis,
+  por isso o que está desligado não custa.
+- Guardar o caminho antigo (CSS) para quando não há WebGL2 ou a placa gráfica tira o contexto (`webglcontextlost`);
+  nos testes, `WEBGL_lose_context` força esse caminho.
+- Testar a mesma função na CPU (`ondac -w ceu`, imagens pequenas no `node --test`) e, no browser, ler os píxeis com
+  `gl.readPixels` logo a seguir a desenhar.
+
 ## Para um ícone (ex.: a Meteo)
 
 - O ícone do ecrã principal do iPhone é **sempre uma imagem fixa** (PNG do `apple-touch-icon` e do manifesto): não

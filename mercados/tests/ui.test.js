@@ -203,7 +203,8 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="carteira"]');
     await page.waitForSelector('.sim');
     const campo = async (k, v) => { await page.evaluate(([k, v]) => { const i = document.querySelector(`.sim [data-cfg="${k}"]`); i.value = String(v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, v]); };
-    await campo('budget', 900);
+    await page.evaluate(() => { window.__mk.cfg.budget = 900; }); // o plano dos Ajustes
+    await campo('simBudget', 900);
     await page.waitForSelector('.sim-big b');
     assert.match(await page.locator('.sim-big b').textContent(), /^\d{1,3}(\s\d{3})*\s€$/, 'o valor no fim, em euros');
     assert.equal(await page.locator('.sim-meta').count(), 0, 'sem objetivo, sem caixa');
@@ -254,6 +255,15 @@ function proxyBody(u) {
     assert.ok((await page.locator('.real .real-l .row').evaluateAll((rs) => rs.map((r) => r.dataset.open))).includes('VWCE.DE'), 'o fundo entra');
     assert.match(await page.locator('.real .sim-st div:first-child b').textContent(), /€$/, 'investido');
     assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
+    // apagar uma data: o ✕ no campo (no iPhone não há outra maneira); o campo vazio fica da altura dos outros
+    await desde('c:BTC', isoAtras(200));
+    await page.waitForSelector('.dt-x[data-k="c:BTC"][data-f="plan"]');
+    await page.click('.dt-x[data-k="c:BTC"][data-f="plan"]');
+    await page.waitForFunction(() => !(window.__mk.cfg.lots['c:BTC'] || {}).plan);
+    assert.equal(await page.locator('[data-lot="plan"][data-k="c:BTC"]').inputValue(), '', 'o campo fica vazio logo');
+    await page.waitForFunction(() => !document.querySelector('.dt-x[data-k="c:BTC"][data-f="plan"]'), null, { timeout: 3000 });
+    const alturas = await page.evaluate(() => ['[data-lot="plan"][data-k="c:BTC"]', '[data-lot="pm"][data-k="c:BTC"]'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().height)));
+    assert.ok(alturas[0] >= alturas[1] - 2, 'a data vazia não encolhe: ' + alturas.join(' vs '));
     // colar de uma vez: uma linha por ativo (símbolo, quantidade, preço médio)
     // como vem da TR ou de uma folha de cálculo: com €, espaços duros, «@», «;» e o símbolo sem a bolsa (VWCE)
     await page.fill('#lot-imp', 'VWCE 5,486463 @ 169,86 € 02/11/2026\nBTC 0,044679 73\u00a0722,55\u00a0€ 2026-10-08\nSolana;3,488363;102,03\nxpto 1 2');
@@ -270,8 +280,17 @@ function proxyBody(u) {
     assert.match(await page.locator('.sim [data-out="simStart"]').evaluate((e) => e.previousElementSibling.textContent), /Já tens \(a tua carteira\)/);
     await page.click('.sim [data-act="sim-step"][data-k="simStart"][data-d="-1000"]');
     assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), true);
+    // o «Por mês» do simulador é só do simulador: não muda o plano dos Ajustes
+    const planoAntes = await page.evaluate(() => window.__mk.cfg.budget);
+    await page.click('.sim [data-act="sim-step"][data-k="simBudget"][data-d="50"]');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.budget), planoAntes, 'o plano fica como estava');
+    assert.equal((await page.locator('.sim [data-out="simBudget"]').textContent()).replace(/\s/g, ' '), `${planoAntes + 50} €`, 'o simulador mexe no seu');
+    // o botão repõe a carteira e o plano de uma vez
+    assert.match(await page.locator('.sim [data-act="sim-carteira"]').textContent(), /Usar a tua carteira e o teu plano/);
     await page.click('[data-act="sim-carteira"]');
     assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), false, 'volta a seguir a carteira');
+    assert.equal((await page.locator('.sim [data-out="simBudget"]').textContent()).replace(/\s/g, ' '), `${planoAntes} €`, 'volta ao plano');
+    assert.equal(await page.locator('.sim [data-act="sim-carteira"]').count(), 0, 'sem diferenças, sem botão');
     await page.evaluate(() => { delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.cfg.simStart = 0; window.__mk.render(); });
     // a carteira conta sempre em euros (o preço médio da TR é em euros), também com «Moeda local» nos Ajustes
     await page.evaluate(() => { window.__mk.cfg.eur = false; });
@@ -717,6 +736,43 @@ function proxyBody(u) {
     await page.click('details[data-fold="pn-idx"] [data-unhide="index"]');
     assert.equal(await page.locator(idxSel).count(), nIdx, 'Repor traz de volta');
     console.log('✓ arrastar para a esquerda: retirar, desfazer e repor (' + firstIdx + ')');
+    // … e arrastar até ao fim retira logo, com Desfazer (como no Mail do iPhone), sem mudar de separador
+    const tabAgora = () => page.evaluate(() => window.__mk.cfg.tab);
+    const aoLado = async (y, x1, x2) => { await gesto(0, Array(9).fill(y), tempos(9), Array.from({ length: 9 }, (_, i) => x1 + (x2 - x1) * i / 8)); await page.waitForTimeout(500); };
+    const ateAoFim = async (sel) => { const b = await page.locator(sel).first().boundingBox(); await aoLado(b.y + b.height / 2, b.x + b.width - 20, b.x + b.width - 300); };
+    await ateAoFim(idxSel);
+    assert.equal(await page.locator(idxSel).count(), nIdx - 1, 'arrastar até ao fim retira');
+    assert.match(await page.locator('#mk-toast').textContent(), /retirado.*Desfazer/);
+    await page.click('#mk-toast .t-undo');
+    assert.equal(await page.locator(idxSel).count(), nIdx, 'desfazer repõe');
+    assert.equal(await tabAgora(), 'painel', 'apagar não muda de separador');
+    // navegar: arrastar para o lado em qualquer parte muda de separador; no primeiro, para a direita resiste e fica
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(100);
+    const yTit = async () => { const b = await page.locator('#mk-body .pg-t').first().boundingBox(); return b.y + b.height / 2; };
+    await aoLado(await yTit(), 60, 330);
+    assert.equal(await tabAgora(), 'painel', 'no primeiro separador, para a direita fica');
+    await aoLado(await yTit(), 330, 60);
+    assert.equal(await tabAgora(), 'destaques', 'para a esquerda: o separador seguinte');
+    assert.equal(await page.locator('#mk-nav [data-tab="destaques"].on').count(), 1);
+    await page.waitForSelector('#mk-body .hl-row');
+    const hr = await page.locator('#mk-body .hl-row').first().boundingBox();
+    await aoLado(hr.y + hr.height / 2, 330, 60);
+    assert.equal(await tabAgora(), 'analise', 'também a partir de uma linha que não se apaga');
+    assert.equal(await page.locator('#mk-sheet').isHidden(), true, 'arrastar não abre a ficha');
+    await aoLado(await yTit(), 60, 330);
+    assert.equal(await tabAgora(), 'destaques', 'para a direita: o anterior');
+    // a lista dos Ajustes: arrastar uma linha para a esquerda retira-a (com Desfazer)
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    const wlSel = '.wl-i[data-grp="w"]', nWl = await page.locator(wlSel).count();
+    await page.locator(wlSel).first().scrollIntoViewIfNeeded();
+    await ateAoFim(wlSel);
+    assert.equal(await page.locator(wlSel).count(), nWl - 1, 'Ajustes: arrastar retira da lista');
+    assert.match(await page.locator('#mk-toast').textContent(), /retirado.*Desfazer/);
+    await page.click('#mk-toast .t-undo');
+    assert.equal(await page.locator(wlSel).count(), nWl, 'Ajustes: desfazer repõe');
+    assert.equal(await tabAgora(), 'ajustes');
+    await page.click('#mk-nav [data-tab="painel"]');
+    console.log('✓ navegar a arrastar: separadores para o lado; linhas do Painel e dos Ajustes apagam a arrastar até ao fim');
 
     // puxar para baixo no topo → atualizar
     await page.click('#mk-nav [data-tab="painel"]');

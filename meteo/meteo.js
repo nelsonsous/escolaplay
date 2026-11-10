@@ -13,10 +13,10 @@ import * as api from './api.js';
 import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
 import { renderHourly, renderNowcast } from './charts.js';
-import { skyHtml, startRain, rainFrames } from './sky.js';
+import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.17.0';
+const VERSION = '1.18.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -373,7 +373,7 @@ function watchSky() {
     if (!sky || !('IntersectionObserver' in window)) return;
     skyWatch = new IntersectionObserver((es) => { for (const e of es) e.target.classList.toggle('off', !e.isIntersecting); });
     skyWatch.observe(sky);
-    startRain(sky.querySelector('.sky-rain'));
+    if (!startSky(sky)) startRain(sky.querySelector('.sky-rain')); // a Onda na placa gráfica; sem WebGL2, o céu em CSS
 }
 function mount() {
     watchSky();
@@ -1329,11 +1329,23 @@ function renderSheet() {
 const TABS = ['agora', 'dias', 'satelite', 'analise', 'ajustes'];
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const slideIn = (el, dir) => { if (dir && !calm() && el.animate) el.animate([{ transform: `translateX(${dir * 56}px)`, opacity: 0.25 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(.2, .8, .2, 1)' }); };
+let swapping = false; // a meio de uma troca de separador (os gestos esperam)
 function goTab(tab, dir = 0) {
     if (!TABS.includes(tab)) return;
-    cfg.tab = tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render();
-    if (tab === 'ajustes') loadStatus();
-    slideIn($('#mt-body'), dir);
+    const body = $('#mt-body');
+    const swap = () => { cfg.tab = tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); if (tab === 'ajustes') loadStatus(); };
+    if (!dir || calm() || !body.animate) { body.style.transform = ''; swap(); return; }
+    // continua o movimento do dedo, sempre para o mesmo lado: a página sai e a nova entra do outro lado. Só transform,
+    // sem transparência (com o céu misturado no cartão, a transparência obrigava a refazer tudo em cada imagem: tremia)
+    swapping = true; pauseSky(420);
+    const w = body.clientWidth || window.innerWidth, x0 = parseFloat((body.style.transform.match(/-?[\d.]+/) || ['0'])[0]) || 0;
+    body.style.transition = ''; body.style.transform = '';
+    const out = body.animate([{ transform: `translateX(${x0}px)` }, { transform: `translateX(${-dir * w * 0.5}px)` }], { duration: 110, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' });
+    out.onfinish = () => {
+        swap(); out.cancel();
+        body.animate([{ transform: `translateX(${dir * w * 0.3}px)` }, { transform: 'none' }], { duration: 200, easing: 'cubic-bezier(.2, .8, .2, 1)' }).onfinish = () => { swapping = false; };
+        setTimeout(() => { swapping = false; }, 260);
+    };
 }
 function goDay(i, dir = 0) {
     if (st.sheet?.kind !== 'day' || !st.fc?.daily?.[i]) return false;
@@ -1346,7 +1358,7 @@ const SWIPE_LABEL = (x) => (x.dataset.rmfav != null ? 'Apagar' : x.dataset.rmpla
 let noClick = { until: 0, el: null, x: 0, y: 0 };
 document.addEventListener('click', (e) => {
     const n = noClick.el;
-    if (e.isTrusted && n && Date.now() < noClick.until && Math.abs(e.clientX - noClick.x) < 30 && Math.abs(e.clientY - noClick.y) < 30
+    if (e.isTrusted && n && performance.now() < noClick.until && Math.abs(e.clientX - noClick.x) < 30 && Math.abs(e.clientY - noClick.y) < 30
         && (n.contains(e.target) || e.target.contains(n))) { e.preventDefault(); e.stopPropagation(); }
 }, true);
 (function gestures() {
@@ -1360,7 +1372,7 @@ document.addEventListener('click', (e) => {
     };
     const swRow = (t) => { const r = t.closest('.wl-i, .banner'), x = r?.querySelector(':scope > .xbtn'); return x ? { r, x } : null; };
     const ptrSet = (h, txt) => { ptr.style.height = h + 'px'; ptr.firstChild.textContent = txt; body.style.transform = h ? `translateY(${h}px)` : ''; };
-    const fast = (G, d) => Math.abs(d) / Math.max(1, Date.now() - G.t0) > 0.5;
+    const fast = (G, d) => Math.abs(d) / Math.max(1, performance.now() - G.t0) > 0.5;
     const rowMin = (w) => Math.max(90, w * 0.35);
     const peek = (tab) => $$('#mt-nav button').forEach((b) => b.classList.toggle('peek', b.dataset.tab === tab));
     const pick = (G, ax, ay) => {
@@ -1377,7 +1389,7 @@ document.addEventListener('click', (e) => {
             if (G.row && G.dx < 0) return 'row';
             // no Safari (fora da app instalada) o bordo esquerdo é o «voltar» do próprio browser
             if (G.x0 < 20 && G.dx > 0 && !isStandalone()) return '';
-            return 'tab';
+            return swapping ? '' : 'tab';
         }
         return G.dy > 0 && G.top && window.scrollY <= 0 && !busy ? 'ptr' : '';
     };
@@ -1393,8 +1405,8 @@ document.addEventListener('click', (e) => {
         },
         tab(G) {
             const next = TABS[TABS.indexOf(cfg.tab) + (G.dx < 0 ? 1 : -1)];
+            pauseSky(300); // o céu fica parado enquanto a página anda com o dedo
             body.style.transition = 'none'; body.style.transform = `translateX(${G.dx * (next ? 0.4 : 0.12)}px)`;
-            body.style.opacity = next ? String(1 - Math.min(0.45, Math.abs(G.dx) / 600)) : '';
             peek(next && Math.abs(G.dx) > 80 ? next : '');
         },
         row(G) {
@@ -1425,9 +1437,9 @@ document.addEventListener('click', (e) => {
         tab(G, ok) {
             const dir = G.dx < 0 ? 1 : -1, next = TABS[TABS.indexOf(cfg.tab) + dir];
             peek('');
-            body.style.transition = 'transform .2s ease-out, opacity .2s'; body.style.transform = ''; body.style.opacity = '';
+            if (ok && next && (Math.abs(G.dx) > 80 || (Math.abs(G.dx) > 40 && fast(G, G.dx)))) { goTab(next, dir); return; }
+            body.style.transition = 'transform .2s ease-out'; body.style.transform = '';
             setTimeout(() => { body.style.transition = ''; }, 220);
-            if (ok && next && (Math.abs(G.dx) > 80 || (Math.abs(G.dx) > 40 && fast(G, G.dx)))) { body.style.transition = ''; goTab(next, dir); }
         },
         row(G, ok) {
             const { r, x } = G.row, w = r.offsetWidth, d = -Math.min(0, G.dx);
@@ -1453,7 +1465,7 @@ document.addEventListener('click', (e) => {
         if (!g) return;
         const G = g; g = null;
         if (!G.mode) return;
-        if (G.mode !== 'ptr') noClick = { until: Date.now() + 400, el: G.t, x: G.x0 + G.dx, y: G.y0 + G.dy };
+        if (G.mode !== 'ptr') noClick = { until: performance.now() + 400, el: G.t, x: G.x0 + G.dx, y: G.y0 + G.dy };
         st.pullH = G.h || 0;
         done[G.mode](G, ok);
     };
@@ -1461,7 +1473,7 @@ document.addEventListener('click', (e) => {
         if (e.touches.length !== 1 || g?.mode) { end(false); if (e.touches.length !== 1) return; }
         const t = e.target, p = e.touches[0], inSheet = !sheet.hidden && card.contains(t);
         if (busy || (!sheet.hidden && !inSheet)) { g = null; return; }
-        g = { x0: p.clientX, y0: p.clientY, t0: Date.now(), dx: 0, dy: 0, mode: '', t, inSheet, row: swRow(t),
+        g = { x0: p.clientX, y0: p.clientY, t0: performance.now(), dx: 0, dy: 0, mode: '', t, inSheet, row: swRow(t),
             hs: hScroll(t, inSheet ? card : null), field: !!t.closest('input, textarea, select'),
             top: inSheet ? card.scrollTop <= 0 : window.scrollY <= 0 };
     }, { passive: true });
@@ -1478,6 +1490,9 @@ document.addEventListener('click', (e) => {
             }
             g.mode = pick(g, ax, ay);
             if (!g.mode) { g = null; return; }
+            // o browser já começou a deslizar a página (o toque deixou de se poder cancelar): não lutar com ele —
+            // mexer a página para o lado enquanto ela sobe e desce era o que a fazia tremer
+            if (g.mode !== 'ptr' && !e.cancelable) { g = null; return; }
         }
         if (g.mode !== 'ptr' && e.cancelable) e.preventDefault();
         move[g.mode](g);
@@ -1760,5 +1775,5 @@ document.addEventListener('keydown', (e) => {
 });
 
 // para os testes
-window.__mt = { cfg, st, render, refresh, loadAnalysis, SHARE_TEXT, rainFrames };
+window.__mt = { cfg, st, render, refresh, loadAnalysis, SHARE_TEXT, rainFrames, skyGL };
 init();

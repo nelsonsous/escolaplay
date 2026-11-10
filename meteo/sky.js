@@ -1,8 +1,10 @@
 // Céu animado do cartão «Agora»: o tempo que faz, a mexer por trás da temperatura — chuva a cair (mais gotas e mais
 // inclinadas com mais chuva e vento), neve, nuvens a passar (mais depressa com vento), o brilho do sol ou da lua,
-// estrelas, nevoeiro e relâmpagos. Só HTML e CSS (transform e opacity): leve no telemóvel. As posições são sempre as
-// mesmas para o mesmo tempo (sem acaso verdadeiro) e a fase segue um relógio, por isso redesenhar a página não faz saltar.
+// estrelas, nevoeiro e relâmpagos. Desde a 1.18 é um campo da Onda na placa gráfica (onda/ceu.onda → GLSL, startSky);
+// o céu em HTML e CSS (skyHtml) fica por baixo, para os telemóveis sem WebGL2. As posições são sempre as mesmas para o
+// mesmo tempo (sem acaso verdadeiro) e a fase segue um relógio, por isso redesenhar a página não faz saltar.
 import { wxGroup } from './format.js';
+import { CEU_GLSL } from './onda/ceu-glsl.js';
 
 function rng(seed) {
     let a = seed >>> 0;
@@ -78,7 +80,106 @@ export function skyHtml(code, isDay = true, { wind = 0, t = 0 } = {}) {
     }
     if (s.flash) h += `<i class="sky-fl" style="animation-delay:${at(9, 0.4)}"></i>`;
     if (!h) return '';
-    return `<div class="sky" aria-hidden="true" data-sky="${s.group}" style="--a:${f1(slant)}deg">${h}</div>`;
+    return `<div class="sky" aria-hidden="true" data-sky="${s.group}" data-p="${skyParams(code, isDay, wind).map((v) => +v.toFixed(3)).join(',')}" style="--a:${f1(slant)}deg">${h}</div>`;
+}
+
+/**
+ * Os números do céu em Onda (ceu.onda, u[3..7]) para um código de tempo: chuva, neve, nuvens e vento (0..1) e o modo
+ * (bits: 1 dia, 2 brilho do sol ou da lua, 4 nevoeiro, 8 relâmpago, 16 granizo, 32 céu escuro, 64 morrinha).
+ */
+export function skyParams(code, isDay = true, wind = 0) {
+    const s = skyScene(code, isDay);
+    const modo = (s.day ? 1 : 0) | (s.glow ? 2 : 0) | (s.fog ? 4 : 0) | (s.flash ? 8 : 0) | (s.hail ? 16 : 0) | (s.dark ? 32 : 0) | (s.drizzle ? 64 : 0);
+    const rain = s.drizzle ? 0.6 : clamp(s.rain / 230, 0, 1); // morrinha: muitas gotas curtas
+    return [rain, clamp(s.snow / 26, 0, 1), clamp(s.clouds / 3, 0, 1), clamp((Number.isFinite(wind) ? wind : 0) / 80, 0, 1), modo];
+}
+
+// ---------- o céu na placa gráfica (campo da Onda) ----------
+// Um só canvas WebGL2 para a app inteira: quando a página se redesenha, muda-se para o cartão novo (criar um contexto
+// por desenho seria lento e o browser limita-os). Sai preto onde não há nada e mistura-se no cartão em modo «screen»
+// (meteo.css: .sky.gl), por isso só acrescenta luz. 30 imagens por segundo, só quando está à vista.
+const GL = { ok: null, canvas: null, gl: null, u: null, p: [0, 0, 0, 0, 0], raf: 0, last: 0, frames: 0, err: '', hold: 0 };
+const GL_SCALE = () => Math.min(1.5, window.devicePixelRatio || 1); // o céu é suave: 1,5 píxeis por ponto chega
+function glInit() {
+    if (GL.ok !== null) return GL.ok;
+    GL.ok = false;
+    try {
+        const c = document.createElement('canvas');
+        c.className = 'sky-gl';
+        const gl = c.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, powerPreference: 'low-power' });
+        if (!gl) { GL.err = 'sem WebGL2'; return false; }
+        const sh = (type, src) => {
+            const o = gl.createShader(type);
+            gl.shaderSource(o, src); gl.compileShader(o);
+            if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o) || 'shader');
+            return o;
+        };
+        const pr = gl.createProgram();
+        gl.attachShader(pr, sh(gl.VERTEX_SHADER, '#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'));
+        gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, CEU_GLSL));
+        gl.bindAttribLocation(pr, 0, 'p');
+        gl.linkProgram(pr);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr) || 'link');
+        gl.useProgram(pr);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        GL.u = gl.getUniformLocation(pr, 'u');
+        // a placa gráfica pode tirar o contexto (memória, segundo plano): volta o céu em CSS
+        c.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
+            GL.ok = false; GL.err = 'contexto perdido';
+            cancelAnimationFrame(GL.raf); GL.raf = 0;
+            const sky = c.parentNode;
+            c.remove();
+            if (sky) { sky.classList.remove('gl'); startRain(sky.querySelector('.sky-rain')); }
+        });
+        GL.canvas = c; GL.gl = gl; GL.ok = true;
+    } catch (e) { GL.ok = false; GL.err = String(e?.message || e).slice(0, 200); }
+    return GL.ok;
+}
+function glDraw(t) {
+    const c = GL.canvas, gl = GL.gl, k = GL_SCALE();
+    const w = Math.max(1, Math.round(c.clientWidth * k)), h = Math.max(1, Math.round(c.clientHeight * k));
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    gl.viewport(0, 0, w, h);
+    gl.uniform1fv(GL.u, new Float32Array([t % 600, w, h, ...GL.p])); // t dá a volta de 10 em 10 min (a precisão de 32 bits)
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    GL.frames++;
+}
+function glLoop(now) {
+    GL.raf = 0;
+    const c = GL.canvas;
+    if (!GL.ok || !c?.isConnected) return; // o cartão saiu da página: pára até o próximo startSky
+    if (!document.hidden && now >= GL.hold && now - GL.last >= 32) {
+        const r = c.getBoundingClientRect();
+        if (r.width > 0 && r.bottom > 0 && r.top < window.innerHeight) { GL.last = now; glDraw(now / 1000); }
+    }
+    GL.raf = requestAnimationFrame(glLoop);
+}
+/** Pára o céu durante ms (enquanto a página anda com o dedo ou troca de separador): menos trabalho, sem tremer. */
+export function pauseSky(ms) { GL.hold = Math.max(GL.hold, performance.now() + ms); }
+/** Liga o céu da Onda ao .sky do cartão (lê os números de data-p). false: sem WebGL2, fica o céu em CSS. */
+export function startSky(sky) {
+    if (!sky?.dataset.p || !glInit()) return false;
+    GL.p = sky.dataset.p.split(',').map(Number);
+    if (GL.canvas.parentNode !== sky) sky.append(GL.canvas);
+    sky.classList.add('gl');
+    glDraw(performance.now() / 1000); // já, para não piscar a preto
+    if (!GL.raf) GL.raf = requestAnimationFrame(glLoop);
+    return true;
+}
+/** Para os testes: o estado do céu da Onda e, com t, uma imagem desenhada nesse instante (RGBA, de baixo para cima). */
+export function skyGL(t) {
+    const o = { on: !!GL.ok && !!GL.canvas?.isConnected, frames: GL.frames, err: GL.err, p: GL.p.slice(), w: GL.canvas?.width || 0, h: GL.canvas?.height || 0 };
+    if (t != null && o.on) {
+        glDraw(t);
+        const gl = GL.gl, px = new Uint8Array(o.w * o.h * 4);
+        gl.readPixels(0, 0, o.w, o.h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        o.px = px;
+    }
+    return o;
 }
 
 // ---------- chuva no canvas ----------

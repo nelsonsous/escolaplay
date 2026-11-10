@@ -231,6 +231,12 @@
 # o editor: desde quando compra pelo plano e quanto por mês, ativo a ativo
 : cr_campo iii>i k nome t {
   = v _ar_vnum _ar_get k nome ? && _nu_fin v > v 0.0 _nu_ps v 0 0 }
+# um campo de data do editor (f: "qd" ou "plan"), com um ✕ para a apagar quando tem data (no iPhone não há outra maneira)
+: cr_data iii>i c k f {
+  = v _ar_get c f
+  "<span class=\"dt\"><input class=\"inp\" type=\"date\" data-lot=\"" _tx_p f "\" data-k=\"" _ar_ps k 1 "\" value=\"" _ar_ps v 1 "\">"
+  ? _ar_verd v { "<button type=\"button\" class=\"dt-x\" data-act=\"lot-clear\" data-k=\"" _ar_ps k 1 "\" data-f=\"" _tx_p f "\" aria-label=\"Apagar a data\">✕</button>" 0 } 0
+  "</span>" }
 : cr_editor ii>i l aberto {
   "<details class=\"how real-ed\" data-fold=\"real-ed\"" ? aberto " open" 0 "><summary>O que tens e as tuas compras</summary>"
   "<div class=\"real-imp\"><small class=\"real-gt\">Colar de uma vez</small><textarea class=\"inp\" id=\"lot-imp\" rows=\"4\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Uma linha por ativo: símbolo, quantidade, preço médio de compra e, se quiseres, desde quando. Ex.: VWCE.DE 5,486463 169,86 02/11/2026\"></textarea>"
@@ -242,9 +248,9 @@
     "<small class=\"real-gt\">O que tens hoje (como na Trade Republic)</small><div class=\"real-g3\">"
     "<label><small>Quantidade</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"any\" data-lot=\"qty\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"q" 0 "\"></label>"
     "<label><small>Preço médio de compra (€)</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-lot=\"avg\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"avg" 0 "\"></label>"
-    "<label><small>Desde (opcional)</small><input class=\"inp\" type=\"date\" data-lot=\"qd\" data-k=\"" _ar_ps k 1 "\" value=\"" _ar_ps _ar_get c $"qd" 1 "\"></label></div>"
+    "<label><small>Desde (opcional)</small>" cr_data c k $"qd" "</label></div>"
     "<small class=\"real-gt\">Ou o plano mensal</small><div class=\"real-g2\">"
-    "<label><small>Desde</small><input class=\"inp\" type=\"date\" data-lot=\"plan\" data-k=\"" _ar_ps k 1 "\" value=\"" _ar_ps _ar_get c $"plan" 1 "\"></label>"
+    "<label><small>Desde</small>" cr_data c k $"plan" "</label>"
     "<label><small>€ por mês</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"10\" data-lot=\"pm\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"pm" 0
     "\" placeholder=\"" = pd _ar_vnum _ar_get c $"pmDef" ? && _nu_fin pd > pd 0.0 _nu_ps pd 0 "\"></label></div></div>"
     = c _ar_prox c }
@@ -307,10 +313,11 @@
   "\n        <section class=\"sec sim\"><div class=\"sec-h\"><h2>Simulador</h2><span class=\"sub\">o teu plano daqui a uns anos</span></div>"
   # os controlos (gravam ao largar: data-cfg; − e + num passo)
   "<div class=\"sim-ctl\">"
-  cs_ctl $"budget" $"Por mês" m 0.0 Mx 3000.0 m 50.0 0
+  # quando os valores se afastam da carteira ou do plano dos Ajustes: um botão repõe tudo de uma vez
+  ? _ar_verd sg $"mexido" { "<button type=\"button\" class=\"btn sm sim-repor\" data-act=\"sim-carteira\">↺ " ? _ar_verd sg $"temReal" "Usar a tua carteira e o teu plano" "Usar o teu plano" "</button>" 0 } 0
+  cs_ctl $"simBudget" $"Por mês" m 0.0 Mx 3000.0 m 50.0 0
   cs_ctl $"simStart" ? _ar_verd sg $"startReal" $"Já tens (a tua carteira)" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
-  ? _ar_verd sg $"startReal" { "<p class=\"note sim-real\">O valor de hoje da tua carteira, com a divisão real: " _nu_intl * 100.0 cs_c0 c 0 " % em cripto. O dinheiro novo segue o plano.</p>" 0 }
-    { ? _ar_verd sg $"temReal" { "<button type=\"button\" class=\"lnk sim-real\" data-act=\"sim-carteira\">Usar o valor da tua carteira</button>" 0 } 0 }
+  ? _ar_verd sg $"startReal" { "<p class=\"note sim-real\">O valor de hoje da tua carteira, com a divisão real: " _nu_intl * 100.0 cs_c0 c 0 " % em cripto. O dinheiro novo segue o plano.</p>" 0 } 0
   cs_ctl $"simYears" $"Anos" F y 1.0 Mx 40.0 F y 1.0 1
   cs_ctl $"simGoal" $"Objetivo" g 0.0 Mx 1000000.0 g 10000.0 2
   "</div>"
