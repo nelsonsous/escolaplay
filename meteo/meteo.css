@@ -646,3 +646,9 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 .nc-wrap { position: relative; margin-top: 4px; }
 .nc-wrap .nc-cv { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 320 / 88; display: block; pointer-events: none; }
 .nc-wrap .nowcast-svg { position: relative; margin-top: 0; }
+/* ecrãs estreitos com letra grande: a linha do dia deixa cair a probabilidade e a confiança (estão na folha do dia),
+   para a máxima nunca ficar cortada */
+@media (max-width: 400px) {
+    :root[data-fs="l"] .day, :root[data-fs="xl"] .day { grid-template-columns: calc(4.1rem * var(--k)) 28px calc(2.1rem * var(--k)) minmax(24px, 1fr) calc(2.1rem * var(--k)); gap: 5px; }
+    :root[data-fs="l"] .day .d-p, :root[data-fs="xl"] .day .d-p, :root[data-fs="l"] .day .d-c, :root[data-fs="xl"] .day .d-c { display: none; }
+}
