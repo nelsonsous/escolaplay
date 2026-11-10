@@ -144,8 +144,34 @@ test('carteira: o rendimento real dá as contas certas', async () => {
         assert.ok(d.rows[0][3].endsWith(`${pc(tir([fundo], vF, T))} por ano`), d.rows[0][3]);
         assert.equal(d.hits, 60, 'o dedo: 60 pontos');
         assert.ok(d.ult.tx.startsWith(`Hoje: ${eur(V)} · investido ${eur(E)}`), d.ult.tx);
-        assert.deepEqual(d.ed, [['VWCE.DE', '', '810'], ['c:BTC', '90', '90'], ['c:ETH', '', '0']], 'o editor com todos os ativos');
+        assert.deepEqual(d.ed, [['VWCE.DE', '', '810'], ['c:BTC', '90', '90'], ['c:ETH', '', '']], 'o editor com todos os ativos');
         assert.ok(d.sim, 'o simulador continua por baixo');
+        // o que tem hoje (quantidade e investido, como na TR): o Ether sem data, o Bitcoin com data
+        {
+            const eth = { ...vazio, px: 3000, q: 0.5, cost: 1200, qd: '', b: [] };
+            const btc = { ...cripto, b: [[T - 400 * DIA, 2000, 0.05]], q: 0.05, cost: 2000, qd: '2025-10-06' };
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, real: { ...real, desde: null, ativos: [fundo, btc, eth] } })}</body>`);
+            const r = await pg.evaluate(() => { const q = (x) => document.querySelector(x), t = (e) => (e ? e.textContent.trim() : null);
+                return { big: t(q('.real .sim-big b')), rng: t(q('.real .sim-rng')), graf: !!q('.real svg'), st: [...document.querySelectorAll('.real .sim-st b')].map((b) => b.textContent),
+                    rows: [...document.querySelectorAll('.real .real-l .row')].map((x) => [x.dataset.open, t(x.querySelector('.px')), t(x.querySelector('.chg'))]), nota: t(q('.real > .note')),
+                    ed: [...document.querySelectorAll('[data-lot="qty"]')].map((i) => i.value) }; });
+            const vF2 = unid(fundo) * fundo.px, vB = 0.05 * btc.px, vE = 0.5 * 3000, V2 = vF2 + vB + vE;
+            const E2 = fundo.b.reduce((x, b) => x + b[1], 0) + 2000 + 1200;
+            assert.equal(r.big, eur(V2), 'vale hoje: as quantidades contam');
+            assert.equal(r.rng, `${sg(V2 - E2)} (${pc(V2 / E2 - 1)})`, 'sem o por ano (o Ether não tem data)');
+            assert.equal(r.graf, false, 'sem gráfico quando falta uma data');
+            assert.deepEqual(r.st.slice(0, 3), [eur(E2), sg(V2 - E2), '—']);
+            assert.equal(r.st.length, 3, 'sem a referência');
+            assert.deepEqual(r.rows.map((x) => x[0]), ['VWCE.DE', 'c:BTC', 'c:ETH']);
+            assert.deepEqual(r.rows[2].slice(1), [eur(vE), pc(vE / 1200 - 1)], 'o Ether: 0,5 × 3000 face a 1200 €');
+            assert.match(r.nota, /Põe a data em «Desde»/);
+            assert.deepEqual(r.ed, ['', '0.05', '0.5'], 'as quantidades no editor');
+            // todos com data: volta o gráfico, e o Bitcoin conta as 0,05 unidades desde a data
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, real: { ...real, ativos: [fundo, btc] } })}</body>`);
+            const r2 = await pg.evaluate(() => ({ graf: !!document.querySelector('.real svg'), big: document.querySelector('.real .sim-big b').textContent }));
+            assert.ok(r2.graf);
+            assert.equal(r2.big, eur(vF2 + vB));
+        }
         // sem compras: pede as datas, com o editor aberto
         await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, real: { ...real, desde: null, ativos: [vazio] } })}</body>`);
         assert.match(await pg.textContent('.real .empty'), /Diz desde quando compras/);

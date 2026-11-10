@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.15.0';
+    const VERSION = '4.16.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -531,7 +531,7 @@
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
     function setLots(k, L) {
-        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0)) delete cfg.lots[k]; else cfg.lots[k] = L;
+        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !L.qd) delete cfg.lots[k]; else cfg.lots[k] = L;
         saveCfg();
         if (cfg.proxy) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
         if (sheetKey === k) renderSheet();
@@ -1111,8 +1111,12 @@
         return 0;
     }
     const isoT = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10), 12) / 1000;
+    // o que tem hoje (quantidade e investido, como na TR): manda sobre o plano; com a data, é uma compra só nesse dia
+    const temHoje = (L) => +L.qty > 0 && +L.cost > 0;
     function buysOf(k) {
-        const L = lotOf(k), pm = +L.pm > 0 ? +L.pm : pmDefault(k), n = Math.max(1, (cfg.saveDays || []).length);
+        const L = lotOf(k);
+        if (temHoje(L)) return /^\d{4}-\d\d-\d\d$/.test(L.qd || '') ? [[isoT(L.qd), +L.cost, +L.qty]] : [];
+        const pm = +L.pm > 0 ? +L.pm : pmDefault(k), n = Math.max(1, (cfg.saveDays || []).length);
         const plan = pm > 0 ? A.planLots(L.plan, cfg.saveDays, todayLocal()).map((x) => [isoT(x.d), pm / n]) : [];
         return plan.concat((L.buys || []).filter((x) => +x.e > 0 && /^\d{4}-\d\d-\d\d$/.test(x.d || '')).map((x) => [isoT(x.d), +x.e])).sort((a, b) => a[0] - b[0]);
     }
@@ -1138,13 +1142,14 @@
     }
     function realSnap() {
         const keys = cfg.holdings.filter((k) => REG[k]);
-        const comp = keys.filter((k) => buysOf(k).length);
+        const comp = keys.filter((k) => buysOf(k).length || temHoje(lotOf(k)));
         if (comp.length) loadLong(comp.concat([cfg.coreFund]));
-        const t0 = comp.length ? Math.min(...comp.map((k) => buysOf(k)[0][0])) : 0;
+        const ts = comp.map((k) => buysOf(k)).filter((b) => b.length).map((b) => b[0][0]);
+        const t0 = ts.length === comp.length && ts.length ? Math.min(...ts) : 0;
         return {
             now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
             bench: { name: nameOf(cfg.coreFund), px: qv(cfg.coreFund).price, h: histOf(cfg.coreFund) },
-            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k) }; }),
+            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, qd: L.qd || '' }; }),
         };
     }
     function walletHtml() {
@@ -2205,8 +2210,10 @@
         const t = ev.target;
         if (t.dataset && t.dataset.lot && t.dataset.k && REG[t.dataset.k]) {
             const k = t.dataset.k, L = { ...lotOf(k) };
-            if (t.dataset.lot === 'plan') L.plan = /^\d{4}-\d\d-\d\d$/.test(t.value) && t.value <= todayLocal() ? t.value : '';
-            else L.pm = Math.max(0, +t.value || 0) || undefined;
+            const data = /^\d{4}-\d\d-\d\d$/.test(t.value) && t.value <= todayLocal() ? t.value : '';
+            if (t.dataset.lot === 'plan') L.plan = data;
+            else if (t.dataset.lot === 'qd') L.qd = data || undefined;
+            else L[t.dataset.lot === 'pm' ? 'pm' : t.dataset.lot === 'qty' ? 'qty' : 'cost'] = Math.max(0, +t.value || 0) || undefined;
             setLots(k, L); return;
         }
         if (t.dataset && t.dataset.cfg) {
