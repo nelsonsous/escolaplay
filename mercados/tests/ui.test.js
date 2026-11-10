@@ -246,10 +246,18 @@ function proxyBody(u) {
     assert.ok((await page.locator('.real .real-l .row').evaluateAll((rs) => rs.map((r) => r.dataset.open))).includes('VWCE.DE'), 'o fundo entra');
     assert.match(await page.locator('.real .sim-st div:first-child b').textContent(), /€$/, 'investido');
     assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
+    // o que tem hoje, sem plano: o Ether com quantidade e investido (sem data)
+    const lot = (k, campo, v) => page.evaluate(([k, campo, v]) => { const i = document.querySelector(`[data-lot="${campo}"][data-k="${k}"]`); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, campo, v]);
+    await lot('c:ETH', 'qty', '0.5'); await lot('c:ETH', 'cost', '1200');
+    await page.waitForSelector('.real .real-l .row[data-open="c:ETH"]');
+    assert.equal(await page.locator('.real svg').count(), 0, 'sem data no Ether: sem gráfico');
+    if (SHOTS) { await page.locator('.real-ed').evaluate((d) => { d.open = true; }); await page.locator('.real-ed').screenshot({ path: path.join(SHOTS, '8e-carteira-editor.png') }); }
+    await lot('c:ETH', 'qd', isoAtras(500));
+    await page.waitForSelector('.real svg');
     if (SHOTS) await page.locator('.real').screenshot({ path: path.join(SHOTS, '8c-carteira-real.png') });
     console.log('✓ carteira real:', (await page.locator('.real .sim-big').textContent()).replace(/\s+/g, ' ').trim());
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '8-carteira.png'), fullPage: true });
-    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); delete window.__mk.cfg.lots['VWCE.DE']; }, orc0);
+    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); delete window.__mk.cfg.lots['VWCE.DE']; delete window.__mk.cfg.lots['c:ETH']; }, orc0);
     await page.click('#mk-nav [data-tab="ajustes"]');
     const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
     await page.click(`[data-mv="${secondW}"][data-dir="top"]`);
@@ -520,6 +528,7 @@ function proxyBody(u) {
     // segunda opinião: o sinal automático ao lado, a dizer se o Claude concorda
     const algTx = (await page.locator(adv + ' .adv-alg').textContent()).replace(/\s+/g, ' ').trim();
     assert.match(algTx, /^Algoritmo: \S.+ — .+\(C\d+ · M\d+ · L\d+\) Claude: (concorda|discorda)/, 'a razão da regra, as pontuações e a do Claude: ' + algTx);
+    if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3c-algoritmo.png') });
     const shAuto = '#mk-sheet details.sh-auto';
     assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'sinais automáticos fechados na ficha');
     assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');
