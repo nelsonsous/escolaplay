@@ -754,3 +754,4 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .adv-alg .alg-pts { color: var(--muted); font-size: calc(.78rem * var(--k)); }
 .cons-av { color: #f59e0b; }
 .cons-box .adv-meta small { color: var(--muted); }
+.real .sec-h .real-edit { margin-left: auto; font-size: calc(.84rem * var(--k)); }
