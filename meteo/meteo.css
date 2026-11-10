@@ -312,7 +312,7 @@ div.claude { cursor: auto; }
 .trend { display: inline-flex; align-items: center; gap: 4px; }
 
 /* ---------- dias ---------- */
-.day { display: grid; grid-template-columns: calc(3.6rem * var(--k)) 30px calc(2.6rem * var(--k)) calc(2.1rem * var(--k)) minmax(36px, 1fr) calc(2.1rem * var(--k)) 16px; gap: 6px; align-items: center; }
+.day { display: grid; grid-template-columns: calc(4.1rem * var(--k)) 30px calc(2.6rem * var(--k)) calc(2.1rem * var(--k)) minmax(36px, 1fr) calc(2.1rem * var(--k)) 16px; gap: 6px; align-items: center; }
 .day .d-n b { display: block; font-weight: 650; font-size: calc(.95rem * var(--k)); white-space: nowrap; }
 .day .d-n small { display: block; color: var(--muted); font-size: calc(.76rem * var(--k)); white-space: nowrap; }
 .day.today .d-n b { color: var(--accent); }

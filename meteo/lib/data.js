@@ -72,6 +72,9 @@ function om(api, query, ctx, timeout = 15000) {
     return request(a, { timeout }).catch(() => request(b, { timeout }));
 }
 
+const FOGOS_OFF = 'meteo:fogos-off';
+const fogosPaused = () => { try { return Date.now() < Number(globalThis.localStorage?.getItem(FOGOS_OFF) || 0); } catch { return false; } };
+const pauseFogos = () => { try { globalThis.localStorage?.setItem(FOGOS_OFF, String(Date.now() + 12 * 36e5)); } catch { /* sem armazenamento */ } };
 const settle = async (p) => { try { return { ok: true, v: await p }; } catch (e) { return { ok: false, e }; } };
 const cell = (x, d = 2) => Number(x).toFixed(d);
 const isoWeek = (d = new Date()) => { const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return `${t.getUTCFullYear()}-${Math.ceil(((t - y0) / 864e5 + 1) / 7)}`; };
@@ -247,7 +250,9 @@ export async function loadForecast(o = {}) {
             rcm0: settle(cached(`ipma:rcm0:${new Date().toISOString().slice(0, 13)}`, 36e5, () => request(IPMA.rcm0))),
             rcm1: settle(cached(`ipma:rcm1:${new Date().toISOString().slice(0, 13)}`, 36e5, () => request(IPMA.rcm1))),
             districts: settle(cached('ipma:districts', 7 * 864e5, () => request(IPMA.districts))),
-            fogos: settle(request(`${B}/api/raw/fogos`, { timeout: 10000 })),
+            // a ANEPC recusa o conector e bloqueia pedidos de outros sites: depois de uma falha, pausa de 12 h
+            fogos: fogosPaused() ? { ok: false, e: new Error('em pausa: a ANEPC não aceita o conector (nova tentativa daqui a umas horas)') }
+                : settle(request(`${B}/api/raw/fogos`, { timeout: 10000 }).catch((e) => { pauseFogos(); throw e; })),
             ipmaFc: settle(ipmaOfficial(lat, lon)),
         } : {}),
         ...(eu ? { firms: settle(Promise.all(['n20', 'n21', 'snpp', 'modis'].map((k) => request(`${B}/api/raw/firms?sat=${k}`, { as: 'text', timeout: 15000 }).then((t) => [k, t]).catch(() => [k, null])))) } : {}),
