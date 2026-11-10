@@ -197,6 +197,30 @@ function proxyBody(u) {
     await page.click(stockSec + ' [data-sort="mkt"]');
     const grps = await page.locator(stockSec + ' .grp-h').allTextContents();
     assert.ok(grps.some((g) => /^EUA/.test(g)) && grps.some((g) => /^Alemanha/.test(g)), 'grupos por bolsa: ' + grps.join(' | '));
+    // Carteira (4.12): o simulador do plano, desenhado pela Onda
+    const orc0 = await page.evaluate(() => window.__mk.cfg.budget);
+    await page.click('#mk-nav [data-tab="carteira"]');
+    await page.waitForSelector('.sim');
+    const campo = async (k, v) => { await page.fill(`[data-cfg="${k}"]`, String(v)); await page.locator(`[data-cfg="${k}"]`).dispatchEvent('change'); };
+    await campo('budget', 900);
+    await page.waitForSelector('.sim-big b');
+    assert.match(await page.locator('.sim-big b').textContent(), /^\d{1,3}(\s\d{3})*\s€$/, 'o valor no fim, em euros');
+    assert.equal(await page.locator('.sim-meta').count(), 0, 'sem objetivo, sem caixa');
+    await campo('simGoal', 300000);
+    await page.waitForSelector('.sim-meta');
+    assert.match(await page.locator('.sim-meta p').first().textContent(), /^Chegas lá em \d+ anos/);
+    await campo('simYears', 10);
+    assert.equal(await page.locator('.sim-tab tbody tr:last-child td').first().textContent(), '10 anos');
+    const gb = await page.locator('svg.sim-g').boundingBox();
+    await page.mouse.move(gb.x + gb.width * 0.55, gb.y + gb.height / 2);
+    assert.match(await page.locator('#sim-tip').textContent(), /^Em [56] anos: [\d\s]+€ · entre .+ · investido [\d\s]+€$/, 'o dedo no gráfico mostra o ano');
+    await page.mouse.move(gb.x + gb.width * 0.99, gb.y + gb.height / 2);
+    assert.match(await page.locator('#sim-tip').textContent(), /^Em 10 anos: /);
+    if (SHOTS) { await page.mouse.move(gb.x + gb.width * 0.7, gb.y + gb.height / 2); await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8b-carteira-dedo.png') }); }
+    assert.equal(await page.locator('#mk-nav [data-tab="carteira"].on').count(), 1);
+    console.log('✓ carteira:', (await page.locator('.sim-big').textContent()).replace(/\s+/g, ' ').trim(), '|', await page.locator('.sim-meta p').first().textContent());
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '8-carteira.png'), fullPage: true });
+    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); }, orc0);
     await page.click('#mk-nav [data-tab="ajustes"]');
     const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
     await page.click(`[data-mv="${secondW}"][data-dir="top"]`);
@@ -274,7 +298,7 @@ function proxyBody(u) {
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
     // a ficha refaz o HTML quando chega a análise: espera pela dica do desenho novo
-    await page.waitForFunction(() => document.querySelector('#d-tip') && document.querySelector('#d-tip').textContent.length > 0);
+    await page.waitForFunction(() => /Último preço/.test((document.querySelector('#d-tip') || {}).textContent || ''), null, { timeout: 5000 }).catch(() => {});
     assert.match(await page.locator('#d-tip').textContent(), /Último preço (de ontem )?às \d\d:\d\d/, 'ficha: hora do último preço');
     // gráfico do dia dos fundos: Xetra (denso) + Munique depois do fecho da Xetra
     const md = await page.evaluate(() => { const t0 = Math.floor(new Date().setHours(9, 0, 0, 0) / 1000); const x = Array.from({ length: 10 }, (_, i) => [t0 + i * 300, 160 + i]); const g = [[t0 + 600, 161], [t0 + 9 * 3600, 170], [t0 + 12 * 3600, 171]]; return window.__mk.mergeDay(x, g).map((p) => p[1]); });
