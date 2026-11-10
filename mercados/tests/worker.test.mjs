@@ -285,6 +285,15 @@ test('/journal guarda as compras de cripto sem apagar o diário', async () => {
     assert.deepEqual(doc.saveDays, [2, 16]);
     await post({ id, date: '2026-11-06', items: [{ s: 'VWCE.DE', p: 161, a: 'hold' }] });
     assert.ok(JSON.parse(store.get('j:' + id)).lots['c:BTC'], 'compras mantêm-se ao gravar o dia seguinte');
+    // 1.6.1: as mesmas compras outra vez não gravam (o limite de escritas do KV grátis)
+    let puts = 0; const put0 = env.JOURNAL.put; env.JOURNAL.put = async (k, v, m) => { puts++; return put0(k, v, m); };
+    const lotsAgora = JSON.parse(store.get('j:' + id)).lots;
+    const same = await post({ id, lots: lotsAgora, saveDays: JSON.parse(store.get('j:' + id)).saveDays });
+    assert.equal((await same.json()).same, true);
+    assert.equal(puts, 0, 'sem escrita quando nada muda');
+    await post({ id, lots: { ...lotsAgora, 'c:ETH': { plan: '2025-02-02', buys: [] } } });
+    assert.equal(puts, 1, 'com mudanças grava');
+    env.JOURNAL.put = put0;
     assert.equal((await post({ id })).status, 400);
     assert.equal(cleanLots([]), null);
     // 1.6.0: o que se tem (quantidade e investido) também para os fundos; as compras avulsas só na cripto

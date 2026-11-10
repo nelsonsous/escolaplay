@@ -780,7 +780,9 @@ function proxyBody(u) {
     await page.waitForSelector('.tax-box .lots li >> nth=1');
     const tx = await page.locator('.tax-box .tx-head').textContent();
     assert.match(tx, /1 de 2 compras já isentas \(200\s€ de 300\s€\)\. A próxima fica isenta a \d\d\/\d\d\/\d{4} — faltam 26\d dias/, tx);
-    assert.ok(lotPosts.length >= 2 && lotPosts.at(-1)['c:SOL'].buys.length === 2, 'compras enviadas ao conector (para o Claude)');
+    // as compras vão juntas, 4 s depois da última mudança (uma escrita no KV, não uma por campo)
+    for (let i = 0; i < 40 && !(lotPosts.length && lotPosts.at(-1)['c:SOL'] && lotPosts.at(-1)['c:SOL'].buys.length === 2); i++) await page.waitForTimeout(250);
+    assert.ok(lotPosts.length >= 1 && lotPosts.at(-1)['c:SOL'].buys.length === 2, 'compras enviadas ao conector (para o Claude), de uma vez');
     await page.click('.tax-box [data-lotrm] >> nth=0');
     await page.waitForFunction(() => document.querySelectorAll('.tax-box .lots li').length === 1);
     await page.fill('#lot-plan', iso(500)); await page.click('[data-act="lot-plan"]');

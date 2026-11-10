@@ -30,7 +30,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -507,6 +507,9 @@ async function journal(request, url, env) {
     if (my) doc.my = my;
     // metadados: último dia em que a app se ligou e se pediu a análise (o /stats conta sem abrir os diários)
     const seen = JDATE.test(b.date || '') ? b.date : new Date().toISOString().slice(0, 10);
+    // o plano grátis dá 1000 escritas por dia na conta toda (e a Meteo também escreve): sem mudanças e sem o dia novo
+    // (só compras ou dias de execução iguais aos que já lá estão), não se grava
+    if (!hasItems && old && JSON.stringify(doc) === JSON.stringify(old)) return { body: { ok: true, days: Object.keys(doc.days).length, same: true } };
     await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc), { metadata: { s: seen, c: doc.claude ? 1 : 0 } });
     return { body: { ok: true, days: Object.keys(doc.days).length } };
 }
