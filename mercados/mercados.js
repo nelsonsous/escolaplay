@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.17.1';
+    const VERSION = '4.17.2';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1046,7 +1046,7 @@
         if (st.touching) { st.renderLater = true; return; }
         // não destruir o campo onde se está a escrever
         const act = document.activeElement;
-        if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
+        if (act && body.contains(act) && act.matches('input, select, textarea')) { renderStatus(); return; }
         if (st.pulling) return;
         const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'carteira' ? walletHtml() : cfg.tab === 'ajustes' ? settingsHtml() : panelHtml();
         const title = { destaques: 'Destaques', analise: 'Análise', carteira: 'Carteira', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
@@ -1111,6 +1111,23 @@
         return 0;
     }
     const isoT = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10), 12) / 1000;
+    // colar de uma vez: «VWCE.DE 5,486463 169,86» por linha (também BTC, c:BTC, Bitcoin); devolve { ok, bad }
+    const numPt = (t) => { t = String(t).replace(/\s/g, ''); if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, ''); return +t.replace(',', '.'); };
+    function importLots(txt) {
+        let ok = 0; const bad = [];
+        for (const linha of String(txt).split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
+            const m = linha.match(/^(\S+(?:\s+\S+)*?)\s+([\d.,]+)\s+([\d][\d.,\s]*)$/);
+            const tok = m ? m[1].trim() : '', T = tok.toUpperCase();
+            const k = m && (REG[tok] ? tok : REG['c:' + T] ? 'c:' + T : Object.keys(REG).find((x) => (REG[x].sym || '').toUpperCase() === T || nameOf(x).toUpperCase() === T));
+            const q = m ? numPt(m[2]) : NaN, a = m ? numPt(m[3]) : NaN;
+            if (!k || !(q > 0) || !(a > 0)) { bad.push(tok || linha.slice(0, 12)); continue; }
+            cfg.lots[k] = { ...lotOf(k), qty: q, avg: a, cost: Math.round(q * a * 100) / 100 };
+            if (!cfg.holdings.includes(k)) cfg.holdings = cfg.holdings.concat(k);
+            ok++;
+        }
+        if (ok) { const ks = Object.keys(cfg.lots); setLots(ks[0], cfg.lots[ks[0]]); }
+        return { ok, bad };
+    }
     // o que tem hoje (quantidade e investido, como na TR): manda sobre o plano; com a data, é uma compra só nesse dia
     const temHoje = (L) => +L.qty > 0 && +L.cost > 0;
     function buysOf(k) {
@@ -2197,6 +2214,12 @@
             // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
             // Carteira: abre «O que tens e as tuas compras» e leva-o à vista
             case 'real-ed': { const d = $('details.real-ed'); if (d) { d.open = true; st.fold['real-ed'] = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } break; }
+            // Carteira: colar de uma vez (uma linha por ativo: símbolo, quantidade, preço médio de compra)
+            case 'lot-import': {
+                const ta = $('#lot-imp'), n = importLots(ta ? ta.value : '');
+                toast(n.ok ? `${n.ok} ${n.ok === 1 ? 'posição importada' : 'posições importadas'}${n.bad.length ? ` · não percebi: ${n.bad.join(', ')}` : ''}` : 'Nada importado: uma linha por ativo, ex.: VWCE.DE 5,486463 169,86');
+                break;
+            }
             case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
             case 'sim-step': {
                 const k = t.dataset.k, rg = t.parentElement && t.parentElement.querySelector('.sim-rg');
