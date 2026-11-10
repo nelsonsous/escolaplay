@@ -254,6 +254,10 @@ button.mu-chip { cursor: pointer; }
 .mu-grupo > summary { display: flex; justify-content: space-between; gap: 10px; list-style: none; cursor: pointer; padding: 4px 2px 10px; font-weight: 650; }
 .mu-grupo > summary::-webkit-details-marker { display: none; }
 .mu-grupo > summary .n { color: var(--mut); font-weight: 600; font-size: 13px; white-space: nowrap; }
+/* a seta do grupo de propostas: para baixo fechado, para cima aberto (como nos cartões) */
+.mu-grupo > summary .n { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; }
+.mu-grupo > summary .chev { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--mut); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.mu-grupo[open] > summary .chev { transform: rotate(180deg); }
 .mu-proposta p { margin: 0; }
 .mu-faixa.fora .t, .mu-faixa.fora .a { text-decoration: line-through; opacity: .45; }
 .mu-faixa-mais { display: flex; gap: 8px; flex-wrap: wrap; }

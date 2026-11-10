@@ -349,6 +349,13 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const grupo = page.locator('details.mu-grupo');
     await grupo.getByText('«Para conduzir à noite»').waitFor();
     assert.equal(await grupo.locator('.mu-pl').count(), 2);
+    // a seta do grupo: aberto aponta para cima; tocar no título fecha (e a seta vira para baixo) e volta a abrir
+    const seta = () => grupo.locator('summary .chev').evaluate((e) => getComputedStyle(e).transform);
+    assert.equal(await seta(), 'matrix(-1, 0, 0, -1, 0, 0)');
+    await grupo.locator('summary').click();
+    assert.equal(await grupo.locator('.mu-pl').first().isVisible(), false);
+    assert.equal(await seta(), 'none');
+    await grupo.locator('summary').click();
     await grupo.locator('.mu-pl-a', { hasText: 'Mais descoberta' }).click();
     await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByText(/Proposta «Mais descoberta»/).waitFor();
