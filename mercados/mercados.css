@@ -720,3 +720,11 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .real-in label { display: flex; flex-direction: column; gap: 3px; }
 .real-in small { color: var(--muted); font-size: calc(.76rem * var(--k)); }
 .real-in .inp { width: 100%; }
+
+/* ficha: o consenso dos analistas (4.14) */
+.cons-box h3 small { color: var(--muted); font-weight: 500; font-size: calc(.74rem * var(--k)); margin-left: 6px; }
+.cons-box .cons-n { color: var(--muted); font-size: calc(.8rem * var(--k)); font-weight: 600; margin-left: 6px; }
+.cons-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin: 8px 0 4px; }
+.cons-bar i { display: block; } .cons-bar .c0 { background: var(--up); } .cons-bar .c1 { background: var(--up); opacity: .6; }
+.cons-bar .c2 { background: var(--flat); opacity: .7; } .cons-bar .c3 { background: var(--down); opacity: .6; } .cons-bar .c4 { background: var(--down); }
+.cons-leg { display: flex; justify-content: space-between; color: var(--muted); font-size: calc(.74rem * var(--k)); margin-bottom: 6px; }

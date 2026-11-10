@@ -6,6 +6,7 @@
 // no CDN da Cloudflare (muitos pedidos iguais = uma ida à fonte).
 //
 //   GET /health                               → { ok, version }
+//   GET /consensus?symbols=NVDA,ALV.DE         → consenso dos analistas (recomendação, quantos, preço-alvo) — ações
 //   GET /quotes?symbols=BZ=F,AAPL&range=1d    → cotações + série (até 40 símbolos)
 //   GET /news?q=Galp&lang=pt&sym=GALP.LS      → notícias (Google, Bing ou Yahoo, por esta ordem)
 //   GET /movers                               → maiores subidas/descidas/volume nos EUA (Yahoo)
@@ -29,7 +30,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -281,6 +282,44 @@ async function calendar(url) {
         }
     }));
     if (items.every((i) => i.error)) { crumbCache = null; return { status: 502, body: { error: 'Yahoo recusou a agenda', items } }; }
+    return { body: { at: Math.floor(Date.now() / 1000), items }, ttl: 6 * 3600 };
+}
+
+// ---------- /consensus (o que os analistas dizem de uma ação; precisa de cookie + crumb) ----------
+// recomendação (strong_buy, buy, hold, underperform, sell), a média (1 = compra forte … 5 = venda), quantos
+// analistas, o preço-alvo (médio, mínimo, máximo) e os votos do mês. ETF, índices e cripto não têm: none.
+export function parseConsensus(d, symbol) {
+    const r = d && d.quoteSummary && d.quoteSummary.result && d.quoteSummary.result[0];
+    const f = r && r.financialData, t = r && r.recommendationTrend && Array.isArray(r.recommendationTrend.trend) ? r.recommendationTrend.trend.find((x) => x.period === '0m') : null;
+    const n = f ? rawTs(f.numberOfAnalystOpinions) : null;
+    if (!f || !n || !f.recommendationKey || f.recommendationKey === 'none') return { symbol, none: true };
+    const num = (x) => { const v = rawTs(x); return Number.isFinite(v) ? v : null; };
+    return {
+        symbol, key: String(f.recommendationKey).slice(0, 20), mean: num(f.recommendationMean), n,
+        target: num(f.targetMeanPrice), low: num(f.targetLowPrice), high: num(f.targetHighPrice), price: num(f.currentPrice),
+        currency: typeof f.financialCurrency === 'string' ? f.financialCurrency.slice(0, 5) : null,
+        votes: t ? [t.strongBuy, t.buy, t.hold, t.sell, t.strongSell].map((v) => (Number.isFinite(v) ? v : 0)) : null,
+    };
+}
+
+async function consensus(url) {
+    const symbols = [...new Set((url.searchParams.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean))];
+    if (!symbols.length) return { status: 400, body: { error: 'falta symbols' } };
+    if (symbols.length > MAX_SYMBOLS) return { status: 400, body: { error: `máximo ${MAX_SYMBOLS} símbolos por pedido` } };
+    let auth = null;
+    try { auth = await getCrumb(); } catch { /* tenta sem */ }
+    const items = await Promise.all(symbols.map(async (s) => {
+        try {
+            const qs = `modules=financialData,recommendationTrend${auth ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
+            const r = await fetch(`${YH[1]}/v10/finance/quoteSummary/${encodeURIComponent(s)}?${qs}`, { headers: { 'User-Agent': UA, ...(auth ? { Cookie: auth.cookie } : {}) } });
+            if (r.status === 404) return { symbol: s, none: true };
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return parseConsensus(await r.json(), s);
+        } catch (e) {
+            return { symbol: s, error: String(e.message || e) };
+        }
+    }));
+    if (items.every((i) => i.error)) { crumbCache = null; return { status: 502, body: { error: 'Yahoo recusou o consenso', items } }; }
     return { body: { at: Math.floor(Date.now() / 1000), items }, ttl: 6 * 3600 };
 }
 
@@ -544,7 +583,7 @@ async function universe(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
+const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
 
 export default {
     async fetch(request, env = {}, ctx) {

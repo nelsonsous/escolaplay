@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.13.0';
+    const VERSION = '4.14.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1328,6 +1328,33 @@
             ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}
             ${factsHtml(k)}</div>`;
     }
+    // ---- o consenso dos analistas (Yahoo, pelo conector: /consensus) — a segunda opinião de fora, nas ações ----
+    const CONS = {}, consAt = {};
+    const CONS_LBL = { strong_buy: 'Compra forte', buy: 'Comprar', hold: 'Manter', underperform: 'Abaixo do mercado', sell: 'Vender', strong_sell: 'Venda forte' };
+    const CONS_FAM = { strong_buy: 1, buy: 1, hold: 0, underperform: -1, sell: -1, strong_sell: -1 };
+    async function loadConsensus(k) {
+        if (!REG[k] || REG[k].kind !== 'stock' || !cfg.proxy || now() - (consAt[k] || 0) < 6 * 3600 * 1000) return;
+        consAt[k] = now();
+        try {
+            const r = await px(`/consensus?symbols=${encodeURIComponent(k)}`, 15000);
+            CONS[k] = (r.items || []).find((x) => x.symbol === k) || null;
+        } catch { CONS[k] = null; }
+        if (sheetKey === k) renderSheet(true);
+    }
+    function consBox(k, cl) {
+        const c = CONS[k];
+        if (!c || c.none || c.error || !CONS_LBL[c.key] || !(c.n > 0)) return '';
+        const f = CONS_FAM[c.key], tone = f > 0 ? 'up' : f < 0 ? 'down' : 'flat';
+        const v = Array.isArray(c.votes) ? c.votes.map((x) => Math.max(0, +x || 0)) : null, tot = v ? v.reduce((a, b) => a + b, 0) : 0;
+        const bar = tot ? `<div class="cons-bar" role="img" aria-label="Votos: ${v.join(', ')}">${v.map((x, i) => x ? `<i class="c${i}" style="flex:${x}"></i>` : '').join('')}</div>
+            <div class="cons-leg"><span>compra ${v[0] + v[1]}</span><span>manter ${v[2]}</span><span>venda ${v[3] + v[4]}</span></div>` : '';
+        const alvo = fin(c.target) && fin(c.price) && c.price > 0 ? `<div class="adv-meta">Preço-alvo médio <b class="num">${fmtPx(c.target, REG[k], c.currency)}</b> <span class="${toneOf(c.target / c.price - 1)}-t">${fmtPct((c.target / c.price - 1) * 100)}</span>${fin(c.low) && fin(c.high) ? ` · entre ${fmtPx(c.low, REG[k], c.currency)} e ${fmtPx(c.high, REG[k], c.currency)}` : ''}</div>` : '';
+        const fc = cl ? FAMS[cl.key] : null;
+        const quem = fc == null ? '' : `<div class="adv-alg${fc !== f ? ' diff' : ''}"><b>Claude:</b> ${esc(rotulo(cl.key, owns(k)))} · ${fc === f ? 'concorda com os analistas' : '<b>discorda dos analistas</b> — o porquê está na leitura dele'}</div>`;
+        return `<div class="box cons-box"><h3>Analistas <small>Yahoo Finance</small></h3>
+            <div class="adv-act ${tone}-t">${CONS_LBL[c.key]} <small class="cons-n">${c.n} ${c.n === 1 ? 'analista' : 'analistas'}${fin(c.mean) ? ` · ${String(Math.round(c.mean * 10) / 10).replace('.', ',')} de 5` : ''}</small></div>
+            ${bar}${alvo}${quem}</div>`;
+    }
     // sinal automático (regras fixas de analise.js): em primeiro plano só quando o Claude não analisou o ativo
     function algoAdvice(k, q, primary) {
         const r = AN[k];
@@ -1566,6 +1593,7 @@
         if (!REG[k]) REG[k] = { key: k, kind: ut === 'etf' ? 'fund' : 'stock', ut, sym: k, name: tempName || k, temp: true };
         // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
         sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y' }[cfg.per] || '1d'; sheetPts = null;
+        loadConsensus(k);
         const sh = $('#mk-sheet');
         const cardEl = $('#mk-sheet-card');
         cardEl.style.transition = ''; cardEl.style.transform = ''; $('.mk-sheet-bg').style.opacity = '';
@@ -1843,6 +1871,7 @@
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
             ${perfRow(k, q)}
             ${cl ? claudeBox(k, q) : algoAdvice(k, q, true)}
+            ${consBox(k, cl)}
             ${cl ? `<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas: tendência, momento, desconto</small></summary>
                 ${algoAdvice(k, q, false)}${techBox(k)}${discountBox(k, q)}</details>` : ''}
             <div class="stats">
