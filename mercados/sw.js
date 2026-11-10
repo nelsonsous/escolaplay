@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay (/escolaplay/): as caches são do
 // domínio, por isso este SW só mexe nas caches "mercados-*" e só trata pedidos
 // dentro da sua pasta (/escolaplay/mercados/).
-const CACHE = 'mercados-v80';
+const CACHE = 'mercados-v81';
 const ASSETS = [
     './', './index.html', './mercados.css', './analise-onda.js', './grafico-onda.js', './mercados.js', './manifest.webmanifest',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'

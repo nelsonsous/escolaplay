@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.16.3';
+    const VERSION = '4.16.4';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1049,7 +1049,7 @@
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
         if (st.pulling) return;
         const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'carteira' ? walletHtml() : cfg.tab === 'ajustes' ? settingsHtml() : panelHtml();
-        const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
+        const title = { destaques: 'Destaques', analise: 'Análise', carteira: 'Carteira', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
         body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
         drawSparks();
@@ -1098,7 +1098,7 @@
     // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
     // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
     function walletSnap() {
-        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, real: realSnap() };
+        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
@@ -1147,7 +1147,7 @@
         const ts = comp.map((k) => buysOf(k)).filter((b) => b.length).map((b) => b[0][0]);
         const t0 = ts.length === comp.length && ts.length ? Math.min(...ts) : 0;
         return {
-            now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
+            edOpen: !!st.fold['real-ed'], now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
             bench: { name: nameOf(cfg.coreFund), px: qv(cfg.coreFund).price, h: histOf(cfg.coreFund) },
             ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, qd: L.qd || '' }; }),
         };

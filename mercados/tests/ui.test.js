@@ -240,6 +240,12 @@ function proxyBody(u) {
     // (o BTC já traz compras do teste das datas da cripto; o fundo ainda não)
     await page.click('.real [data-act="real-ed"]');
     assert.equal(await page.locator('details.real-ed[open]').count(), 1, 'Editar o que tenho abre o editor');
+    await page.evaluate(() => window.__mk.render());
+    assert.equal(await page.locator('details.real-ed[open]').count(), 1, 'continua aberto quando o ecrã se redesenha (preços novos)');
+    assert.equal(await page.locator('.pg-t').textContent(), 'Carteira');
+    await page.click('.sim details.how > summary');
+    await page.evaluate(() => window.__mk.render());
+    assert.equal(await page.locator('.sim details.how[open]').count(), 1, 'Como é feita a conta continua aberto');
     const desde = (k, iso) => page.evaluate(([k, iso]) => { const i = document.querySelector(`[data-lot="plan"][data-k="${k}"]`); i.value = iso; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, iso]);
     const isoAtras = (dias) => new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
     await desde('VWCE.DE', isoAtras(300));
